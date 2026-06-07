@@ -91,6 +91,7 @@
 | 092 | Proton (Windows compat layer) | ✅ 24/24 tests |
 | 100 | Inferno OS reference (Styx/9P2000 protocol) | ✅ Styx 29/29 tests |
 | 101 | Styx/9P2000 protocol implementation | ✅ 29/29 tests |
+| 105 | Inferno emu integration — WuBuOS hosted binary | ✅ built + 8/8 tests |
 | 102 | Window manager full test suite + Win98 theme | ⬜ |
 | 103 | DOS flip bridge wiring (Ctrl+Alt+T) | ⬜ |
 | 104 | Start menu + taskbar (Win98 classic) | ⬜ |
