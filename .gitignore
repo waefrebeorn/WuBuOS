@@ -1,0 +1,21 @@
+# Reference repos (download on demand)
+ZealOS/
+holyc-lang/
+NanoShellOS/
+
+# Build artifacts
+*.o
+*.bin
+*.iso
+*.elf
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+*.png
+*.ppm
+vbe_sketch
+jit_stub
