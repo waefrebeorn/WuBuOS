@@ -113,5 +113,23 @@ BIOS/UEFI → Limine bootloader → ZealBooter (C prekernel)
 
 ---
 
+## Layer Addition: WorldSim Engine
+
+**Status**: ✅ Integrated (18/18 tests, 934 LOC)
+
+WorldSim lives in Layer 1 (Core) alongside the kernel and JIT.
+
+| Subsystem | Files | Description |
+|-----------|-------|-------------|
+| Terrain | terrain.c | 6-octave noise, island falloff, 5 biomes, thermal erosion |
+| ECS | entity.c | 1024 entity pool, 7 component types |
+| Physics | physics.c | Gravity, drag, AABB terrain collision |
+| Render | render.c | Biome map, sprite blit, minimap (XRGB8888) |
+| Sim | sim.c | Orchestration + 3 AI behaviors (wander/chase/flee) |
+
+**Render wiring** (Cell 070 ⬜): `ws_render_ctx_t.fb` → VBE linear framebuffer. Deferred to Phase 2.
+
+---
+
 *Locked: 2026-06-07*
 *Unlock requires: explicit ceremony + DA audit of change*
