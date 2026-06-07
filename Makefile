@@ -45,7 +45,7 @@ ALL_OBJS = $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(RT_OBJS) $(GUI_OBJS) $(BRID
 .PHONY: all clean test kernel jit gui bridge apps worldsim
 
 all: kernel jit compiler runtime gui bridge apps worldsim
-	@echo "✅ My Seed OS built"
+	@echo "✅ WuBuOS built"
 
 kernel: $(KERNEL_OBJS)
 	@echo "✅ Kernel built"

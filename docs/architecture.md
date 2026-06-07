@@ -1,4 +1,4 @@
-# My Seed — Architecture Definition (LOCKED)
+# WuBuOS — Architecture Definition (LOCKED)
 
 > This document defines the immutable high-level architecture for the My Seed OS.
 > Changes require explicit unlock + re-lock ceremony.

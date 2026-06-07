@@ -1,4 +1,4 @@
-# 🌱 My Seed
+# 🌱 WuBuOS
 
 **Hybrid TempleOS/ZealOS C-Port with Win98/XP Classic GUI**
 
@@ -24,13 +24,13 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim engine
 | GUI | NanoShellOS widget fork (28 files) | ~13,600 | — |
 | Bridge | Mode switch + clipboard + IPC | ~200 | — |
 | Apps | REPL + Notepad | ~200 | — |
-| **Total** | **80 source files** | **24,324** | **128/128 ✅** |
+| **Total** | **80 source files** | **24,324** | **166/166 ✅** |
 
 ## Build
 
 ```bash
 make all          # Build all layers
-make test         # Run all tests (128/128)
+make test         # Run all tests (166/166)
 make worldsim     # Build WorldSim only
 make test_worldsim # Run WorldSim tests (18/18)
 make clean        # Clean build artifacts

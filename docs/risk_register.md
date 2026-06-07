@@ -1,4 +1,4 @@
-# My Seed — Battleship / Risk Register
+# WuBuOS — Battleship / Risk Register
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
@@ -86,3 +86,6 @@
 | 071 | FAT32 filesystem | ✅ 20/20 tests |
 | 072 | AHCI disk driver | ⬜ Phase 4 |
 | 080 | HolyC compiler in C | ✅ 41/41 tests |
+| 090 | .wubu container format | ✅ 38/38 tests |
+| 091 | VSL (Linux virtualization layer) | ⬜ Phase 2 |
+| 092 | Proton (Windows compat layer) | ⬜ Phase 3 |
