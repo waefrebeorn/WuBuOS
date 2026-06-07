@@ -15,7 +15,7 @@ WS      = src/worldsim
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/fat32.o
 
 # ── JIT Objects ──────────────────────────────────────────────────
 JIT_OBJS = $(JIT)/jit.o
@@ -82,7 +82,7 @@ $(WS)/%.o: $(WS)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim
+test: test_jit test_memory test_tasking test_worldsim test_fat32
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -101,10 +101,14 @@ test_worldsim:
 	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) $(WS)/test_worldsim.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c -o $(WS)/test_worldsim -lm
 	$(WS)/test_worldsim
 
+test_fat32: $(KERNEL)/fat32.o
+	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/fat32.c $(KERNEL)/fat32_test.c -o $(KERNEL)/fat32_test
+	$(KERNEL)/fat32_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(WS)/test_worldsim
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(WS)/test_worldsim
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"
