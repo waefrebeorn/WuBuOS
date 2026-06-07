@@ -23,3 +23,4 @@ MIR/
 holyc-include/
 *.o
 src/gui/wm_nano/
+src/worldsim/test_worldsim
