@@ -35,7 +35,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o
 
 # ── All Objects ──────────────────────────────────────────────────
 ALL_OBJS = $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(RT_OBJS) $(GUI_OBJS) $(BRIDGE_OBJS) $(APP_OBJS) $(WS_OBJS)
@@ -99,7 +99,7 @@ $(RT)/%.o: $(RT)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_proton
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -141,10 +141,14 @@ test_bridge:
 		$(BRIDGE)/vbe_ws_bridge_test.c -o $(BRIDGE)/vbe_ws_bridge_test -lm
 	$(BRIDGE)/vbe_ws_bridge_test
 
+test_proton:
+	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/wubu_proton.c $(RT)/wubu_proton_test.c -o $(RT)/wubu_proton_test
+	$(RT)/wubu_proton_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"
