@@ -33,6 +33,16 @@ A personal, hackable "seed" OS combining:
 - Primitive: mmap(PROT_EXEC) (proven in jit_stub.c)
 - API: `jit_compile_c()`, `jit_compile_holyc()`, `JIT_CALL()`
 
+### Layer 5: Proton (Windows Compat)
+
+**Proton** (`src/runtime/wubu_proton.c`):
+- Windows PE32/PE64 binary validation and mapping
+- Win32 → VSL syscall API translation (30+ APIs)
+- 12 built-in Windows DLLs (kernel32, user32, gdi32, vulkan-1, etc.)
+- Vulkan passthrough to VSL Vulkan driver (native performance)
+- DirectX 9/11 → Vulkan translation via DXVK-style layer
+- The "Proton within Proton": WuBuOS → VSL → Proton → Windows PE
+
 ### Layer 2: Bridge / DOS Flip + VBE↔WorldSim
 
 **VBE↔WorldSim Bridge** (`src/bridge/vbe_ws_bridge.c`):
