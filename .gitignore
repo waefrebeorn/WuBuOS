@@ -19,3 +19,7 @@ NanoShellOS/
 *.ppm
 vbe_sketch
 jit_stub
+MIR/
+holyc-include/
+*.o
+src/gui/wm_nano/

@@ -51,8 +51,9 @@ int mem_init(size_t total_bytes) {
     g_heap_total = total_bytes;
     g_next_page  = (uint8_t *)g_heap_base;
     g_heap_end   = g_next_page + total_bytes;
-    
-    g_heap = (CHeapCtrl *)alloc_pages(1);
+    /* Allocate CHeapCtrl at the start — may need multiple pages */
+    size_t hc_pages = (sizeof(CHeapCtrl) + MEM_PAG_SIZE - 1) / MEM_PAG_SIZE;
+    g_heap = (CHeapCtrl *)alloc_pages(hc_pages);
     if (!g_heap) return -1;
     
     memset(g_heap, 0, sizeof(CHeapCtrl));
