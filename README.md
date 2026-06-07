@@ -24,14 +24,15 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim engine
 | GUI | NanoShellOS widget fork (28 files) | ~13,600 | — |
 | Bridge | Mode switch + clipboard + IPC | ~200 | — |
 | Apps | REPL + Notepad | ~200 | — |
-| **Total** | **80 source files** | **24,324** | **166/166 ✅** |
+| **Total** | **91 source files** | **25,503** | **237/237 ✅** |
 
 ## Build
 
 ```bash
 make all          # Build all layers
-make test         # Run all tests (166/166)
+make test         # Run all tests (237/237)
 make test_vsl      # Run VSL tests (46/46)
+make test_bridge   # Run VBE↔WorldSim bridge tests (25/25)
 make worldsim     # Build WorldSim only
 make test_worldsim # Run WorldSim tests (18/18)
 make clean        # Clean build artifacts
@@ -45,7 +46,7 @@ src/
 ├── jit/        # JIT runtime (jit.h API, mmap + MIR backends)
 ├── gui/        # Window manager, taskbar, desktop, Win98 theme
 │   └── wm_nano/  # NanoShellOS widget reference (28 files)
-├── bridge/     # DOS flip, clipboard, IPC
+├── bridge/     # DOS flip, clipboard, IPC, VBE↔WorldSim bridge
 ├── apps/       # HolyC REPL, Notepad
 └── worldsim/   # Terrain, ECS, physics, render, simulation
 ```

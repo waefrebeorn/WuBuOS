@@ -33,7 +33,15 @@ A personal, hackable "seed" OS combining:
 - Primitive: mmap(PROT_EXEC) (proven in jit_stub.c)
 - API: `jit_compile_c()`, `jit_compile_holyc()`, `JIT_CALL()`
 
-### Layer 2: Bridge / DOS Flip
+### Layer 2: Bridge / DOS Flip + VBE↔WorldSim
+
+**VBE↔WorldSim Bridge** (`src/bridge/vbe_ws_bridge.c`):
+- Wires `ws_render_ctx_t.fb` to VBE's back-buffer
+- Game loop: sim step → render → HUD → vbe_swap
+- Camera: pan, center, zoom (0.25×–4.0×)
+- HUD: FPS, frame/tick count, entity count, camera position
+- Sim speed: configurable ticks-per-frame
+- VBE_HOSTED: hosted test mode using calloc/free (avoids mem_alloc bug)
 
 | Component | File | Description |
 |-----------|------|-------------|
@@ -127,7 +135,7 @@ WorldSim lives in Layer 1 (Core) alongside the kernel and JIT.
 | Render | render.c | Biome map, sprite blit, minimap (XRGB8888) |
 | Sim | sim.c | Orchestration + 3 AI behaviors (wander/chase/flee) |
 
-**Render wiring** (Cell 070 ⬜): `ws_render_ctx_t.fb` → VBE linear framebuffer. Deferred to Phase 2.
+**Render wiring** (Cell 070 ✅): `ws_render_ctx_t.fb` → VBE back-buffer via `vbe_ws_bridge`. 25/25 tests. HUD overlay, camera, minimap, sim speed control.
 
 ---
 

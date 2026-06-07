@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 80 files, 24,324 LOC, 166/166 tests pass
+**Current state**: 91 files, 25,503 LOC, 237/237 tests pass
 
 ---
 
@@ -54,7 +54,7 @@
 
 | # | Risk | Prob | Impact | Status |
 |---|------|------|--------|--------|
-| WS-1 | WorldSim render not wired to VBE | High | Med | ⬜ Phase 2 GUI integration |
+| WS-1 | WorldSim render not wired to VBE | High | Med | ✅ vbe_ws_bridge wired |
 | WS-2 | ECS 1024 entity limit | Low | Low | ✅ Sufficient for seed |
 | WS-3 | Terrain gen determinism | Low | Low | ✅ xorshift64 seeded |
 
@@ -82,7 +82,7 @@
 | 051 | moondream3_vision_weights.bin | ⬜ NOT PRESENT |
 | 052 | Grand Makefile (67/67 tests) | ✅ |
 | 060 | Bootable ISO | ⬜ Phase 4 |
-| 070 | VBE → WorldSim render wiring | ⬜ Phase 2 |
+| 070 | VBE → WorldSim render wiring | ✅ 25/25 tests |
 | 071 | FAT32 filesystem | ✅ 20/20 tests |
 | 072 | AHCI disk driver | ⬜ Phase 4 |
 | 080 | HolyC compiler in C | ✅ 41/41 tests |
