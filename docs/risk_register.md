@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 94 files, 26,515 LOC, 261/261 tests pass
+**Current state**: 97 files, 27,220 LOC, 277/277 tests pass
 
 ---
 
@@ -84,7 +84,7 @@
 | 060 | Bootable ISO | ⬜ Phase 4 |
 | 070 | VBE → WorldSim render wiring | ✅ 25/25 tests |
 | 071 | FAT32 filesystem | ✅ 20/20 tests |
-| 072 | AHCI disk driver | ⬜ Phase 4 |
+| 072 | AHCI disk driver | ✅ 16/16 tests |
 | 080 | HolyC compiler in C | ✅ 41/41 tests |
 | 090 | .wubu container format | ✅ 38/38 tests |
 | 091 | VSL (Linux virtualization layer) | ✅ 46/46 tests |
