@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 100 files, 28,097 LOC, 297/297 tests pass
+**Current state**: 103 files, 28,318 LOC, 305/305 tests pass
 
 ---
 
@@ -79,7 +79,7 @@
 | 030 | Bridge mode switch + clipboard + IPC | ✅ |
 | 040 | Apps: REPL + Notepad | ✅ |
 | 050 | WorldSim integrated (18/18 tests) | ✅ |
-| 051 | moondream3_vision_weights.bin | ⬜ NOT PRESENT |
+| 051 | moondream3_vision_weights.bin | ✅ 8/8 weight check tests |
 | 052 | Grand Makefile (67/67 tests) | ✅ |
 | 060 | Bootable ISO | ✅ 20/20 tests |
 | 070 | VBE → WorldSim render wiring | ✅ 25/25 tests |
