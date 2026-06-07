@@ -1,0 +1,712 @@
+/*
+ * wubu_vsl.c — WuBuOS Virtualization Substrate Layer Implementation
+ *
+ * VSL runs a minimal Linux environment under WuBuOS ring-0.
+ * It's not full virtualization — it's a syscall translation layer
+ * with direct hardware passthrough for performance-critical drivers.
+ *
+ * Design principles:
+ *   - WuBuOS owns the hardware (ring-0)
+ *   - VSL provides Linux ABI compatibility
+ *   - Syscalls are translated, not emulated
+ *   - GPU/drivers use direct passthrough (no emulation overhead)
+ *   - Memory is partitioned, not virtualized
+ *
+ * This is the "simple Colonel" interrupt handler you described:
+ *   WuBuOS runs what it wants
+ *   When a Linux app needs something, it interrupts through VSL
+ *   VSL handles the Linux syscall, translates to WuBuOS call
+ *   Result goes back through the "Colonel" interrupt path
+ */
+
+#include "wubu_vsl.h"
+#include "wubu_container.h"
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+/* ── Global State ──────────────────────────────────────────────── */
+
+static VSL_STATE g_vsl;
+
+/* ── Syscall Table ─────────────────────────────────────────────── */
+
+typedef int64_t (*vsl_syscall_fn)(uint64_t, uint64_t, uint64_t,
+                                   uint64_t, uint64_t, uint64_t);
+
+static int64_t vsl_sys_nosys(uint64_t a, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return -38; /* ENOSYS */
+}
+
+static int64_t vsl_sys_exit(uint64_t code, uint64_t b, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    if (p) {
+        p->state = VSL_PROC_ZOMBIE;
+        p->exit_code = (int)(code & 0xFF);
+    }
+    return 0;
+}
+
+static int64_t vsl_sys_getpid(uint64_t a, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return (int64_t)g_vsl.current_pid;
+}
+
+static int64_t vsl_sys_getppid(uint64_t a, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    return p ? (int64_t)p->ppid : 0;
+}
+
+static int64_t vsl_sys_brk(uint64_t new_brk, uint64_t b, uint64_t c,
+                            uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    return vsl_brk(new_brk);
+}
+
+static int64_t vsl_sys_mmap(uint64_t addr, uint64_t size, uint64_t prot,
+                             uint64_t flags, uint64_t fd, uint64_t offset) {
+    return (int64_t)vsl_mmap(addr, (size_t)size, (int)prot,
+                              (int)flags, (int)fd, offset);
+}
+
+static int64_t vsl_sys_munmap(uint64_t addr, uint64_t size, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    return vsl_munmap(addr, (size_t)size);
+}
+
+static int64_t vsl_sys_write(uint64_t fd, uint64_t buf, uint64_t count,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    return vsl_write((int)fd, (const void *)buf, (size_t)count);
+}
+
+static int64_t vsl_sys_read(uint64_t fd, uint64_t buf, uint64_t count,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    return vsl_read((int)fd, (void *)buf, (size_t)count);
+}
+
+static int64_t vsl_sys_open(uint64_t path, uint64_t flags, uint64_t mode,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    return vsl_open((const char *)path, (int)flags, (int)mode);
+}
+
+static int64_t vsl_sys_close(uint64_t fd, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    return vsl_close((int)fd);
+}
+
+static int64_t vsl_sys_lseek(uint64_t fd, uint64_t offset, uint64_t whence,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    return vsl_lseek((int)fd, (int64_t)offset, (int)whence);
+}
+
+static int64_t vsl_sys_fstat(uint64_t fd, uint64_t buf, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    /* TODO: proper fstat */
+    memset((void *)buf, 0, 144);
+    return 0;
+}
+
+static int64_t vsl_sys_stat(uint64_t path, uint64_t buf, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    memset((void *)buf, 0, 144);
+    return 0;
+}
+
+static int64_t vsl_sys_ioctl(uint64_t fd, uint64_t req, uint64_t arg,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    /* TODO: proper ioctl */
+    (void)fd; (void)req; (void)arg;
+    return 0;
+}
+
+static int64_t vsl_sys_access(uint64_t path, uint64_t mode, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    /* TODO: proper access check */
+    (void)path; (void)mode;
+    return 0;
+}
+
+static int64_t vsl_sys_fsync(uint64_t fd, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    (void)fd;
+    return 0;
+}
+
+static int64_t vsl_sys_fcntl(uint64_t fd, uint64_t cmd, uint64_t arg,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    (void)fd; (void)cmd; (void)arg;
+    return 0;
+}
+
+static int64_t vsl_sys_unlink(uint64_t path, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    (void)path;
+    return 0;
+}
+
+static int64_t vsl_sys_mkdir(uint64_t path, uint64_t mode, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    (void)path; (void)mode;
+    return 0;
+}
+
+static int64_t vsl_sys_rmdir(uint64_t path, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    (void)path;
+    return 0;
+}
+
+static int64_t vsl_sys_rename(uint64_t oldpath, uint64_t newpath, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    (void)oldpath; (void)newpath;
+    return 0;
+}
+
+static int64_t vsl_sys_getcwd(uint64_t buf, uint64_t size, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    if (buf && size > 0) {
+        strncpy((char *)buf, "/", size);
+        return (int64_t)buf;
+    }
+    return -34; /* ERANGE */
+}
+
+static int64_t vsl_sys_chdir(uint64_t path, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    (void)path;
+    return 0;
+}
+
+static int64_t vsl_sys_getuid(uint64_t a, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return 0; /* root */
+}
+
+static int64_t vsl_sys_getgid(uint64_t a, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return 0; /* root */
+}
+
+static int64_t vsl_sys_kill(uint64_t pid, uint64_t sig, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    (void)pid; (void)sig;
+    return 0;
+}
+
+static int64_t vsl_sys_pipe(uint64_t pipefd, uint64_t b, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    /* TODO: proper pipe */
+    if (pipefd) {
+        int *fds = (int *)pipefd;
+        fds[0] = vsl_sys_nosys(0,0,0,0,0,0);
+        fds[1] = -1;
+    }
+    return -38; /* ENOSYS */
+}
+
+static int64_t vsl_sys_dup(uint64_t fd, uint64_t b, uint64_t c,
+                            uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    (void)fd;
+    return -38;
+}
+
+static int64_t vsl_sys_dup2(uint64_t oldfd, uint64_t newfd, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    (void)oldfd; (void)newfd;
+    return -38;
+}
+
+static int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
+                                    uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return 0;
+}
+
+static int64_t vsl_sys_clock_gettime(uint64_t clk_id, uint64_t tp, uint64_t c,
+                                      uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    (void)clk_id;
+    if (tp) {
+        memset((void *)tp, 0, 16);
+    }
+    return 0;
+}
+
+static int64_t vsl_sys_exit_group(uint64_t code, uint64_t b, uint64_t c,
+                                   uint64_t d, uint64_t e, uint64_t f) {
+    return vsl_sys_exit(code, b, c, d, e, f);
+}
+
+/* Syscall table — indexed by syscall number */
+static const vsl_syscall_fn vsl_syscall_table[] = {
+    [VSL_SYS_READ]         = vsl_sys_read,
+    [VSL_SYS_WRITE]        = vsl_sys_write,
+    [VSL_SYS_OPEN]         = vsl_sys_open,
+    [VSL_SYS_CLOSE]        = vsl_sys_close,
+    [VSL_SYS_STAT]         = vsl_sys_stat,
+    [VSL_SYS_FSTAT]        = vsl_sys_fstat,
+    [VSL_SYS_LSEEK]        = vsl_sys_lseek,
+    [VSL_SYS_MMAP]         = vsl_sys_mmap,
+    [VSL_SYS_MUNMAP]       = vsl_sys_munmap,
+    [VSL_SYS_BRK]          = vsl_sys_brk,
+    [VSL_SYS_IOCTL]        = vsl_sys_ioctl,
+    [VSL_SYS_ACCESS]       = vsl_sys_access,
+    [VSL_SYS_PIPE]         = vsl_sys_pipe,
+    [VSL_SYS_FORK]         = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_EXECVE]       = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_EXIT]         = vsl_sys_exit,
+    [VSL_SYS_WAIT4]        = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_KILL]         = vsl_sys_kill,
+    [VSL_SYS_GETPID]       = vsl_sys_getpid,
+    [VSL_SYS_GETPPID]      = vsl_sys_getppid,
+    [VSL_SYS_GETUID]       = vsl_sys_getuid,
+    [VSL_SYS_GETGID]       = vsl_sys_getgid,
+    [VSL_SYS_CLONE]        = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_DUP]          = vsl_sys_dup,
+    [VSL_SYS_DUP2]         = vsl_sys_dup2,
+    [VSL_SYS_FCNTL]        = vsl_sys_fcntl,
+    [VSL_SYS_FSYNC]        = vsl_sys_fsync,
+    [VSL_SYS_UNLINK]       = vsl_sys_unlink,
+    [VSL_SYS_MKDIR]        = vsl_sys_mkdir,
+    [VSL_SYS_RMDIR]        = vsl_sys_rmdir,
+    [VSL_SYS_RENAME]       = vsl_sys_rename,
+    [VSL_SYS_GETCWD]       = vsl_sys_getcwd,
+    [VSL_SYS_CHDIR]        = vsl_sys_chdir,
+    [VSL_SYS_SCHED_YIELD]  = vsl_sys_sched_yield,
+    [VSL_SYS_CLOCK_GETTIME]= vsl_sys_clock_gettime,
+    [VSL_SYS_EXIT_GROUP]   = vsl_sys_exit_group,
+};
+
+#define VSL_SYSCALL_TABLE_SIZE (sizeof(vsl_syscall_table) / sizeof(vsl_syscall_table[0]))
+
+/* ── Lifecycle ─────────────────────────────────────────────────── */
+
+int vsl_init(void) {
+    if (g_vsl.active) return 0;
+
+    memset(&g_vsl, 0, sizeof(g_vsl));
+    g_vsl.version_major = VSL_VERSION_MAJOR;
+    g_vsl.version_minor = VSL_VERSION_MINOR;
+    g_vsl.kernel_base = VSL_KERNEL_BASE;
+    g_vsl.kernel_size = VSL_KERNEL_SIZE;
+    g_vsl.user_base = VSL_USER_BASE;
+    g_vsl.user_size = VSL_USER_SIZE;
+    g_vsl.shared_base = VSL_SHARED_BASE;
+    g_vsl.shared_size = VSL_SHARED_SIZE;
+
+    /* Set up shared memory region — use heap for hosted tests */
+    uint64_t *shared = (uint64_t *)calloc(4, sizeof(uint64_t));
+    g_vsl.shared_cmd    = &shared[0];
+    g_vsl.shared_arg    = &shared[1];
+    g_vsl.shared_ret    = &shared[2];
+    g_vsl.shared_status = &shared[3];
+
+    /* Initialize shared memory */
+    *g_vsl.shared_cmd = 0;
+    *g_vsl.shared_arg = 0;
+    *g_vsl.shared_ret = 0;
+    *g_vsl.shared_status = 0;
+
+    /* Create init process (PID 1) */
+    VSL_PROC *init = &g_vsl.procs[0];
+    init->pid = 1;
+    init->ppid = 0;
+    init->state = VSL_PROC_READY;
+    init->entry_point = 0;
+    init->stack_pointer = VSL_USER_BASE + VSL_USER_SIZE - 0x1000ULL;
+    init->brk = VSL_USER_BASE + 0x100000; /* 1MB into user space */
+    init->mmap_base = VSL_USER_BASE + 0x1000000; /* 16MB into user space */
+    g_vsl.n_procs = 1;
+    g_vsl.current_pid = 1;
+
+    g_vsl.active = true;
+    return 0;
+}
+
+void vsl_shutdown(void) {
+    if (!g_vsl.active) return;
+    memset(&g_vsl, 0, sizeof(g_vsl));
+}
+
+bool vsl_active(void) {
+    return g_vsl.active;
+}
+
+/* ── Process Management ─────────────────────────────────────────── */
+
+VSL_PROC *vsl_get_process(uint32_t pid) {
+    for (uint32_t i = 0; i < g_vsl.n_procs; i++) {
+        if (g_vsl.procs[i].pid == pid) return &g_vsl.procs[i];
+    }
+    return NULL;
+}
+
+int vsl_create_process(const void *elf_data, size_t elf_size) {
+    if (!g_vsl.active) return -1;
+    if (g_vsl.n_procs >= VSL_MAX_PROCS) return -1;
+
+    uint64_t entry;
+    if (vsl_elf_validate(elf_data, elf_size, &entry) != 0) return -1;
+
+    uint32_t pid = g_vsl.n_procs + 1;
+    VSL_PROC *proc = &g_vsl.procs[g_vsl.n_procs];
+    memset(proc, 0, sizeof(*proc));
+    proc->pid = pid;
+    proc->ppid = g_vsl.current_pid;
+    proc->state = VSL_PROC_READY;
+    proc->entry_point = entry;
+    proc->stack_pointer = VSL_USER_BASE + VSL_USER_SIZE - 0x1000ULL;
+    proc->brk = VSL_USER_BASE + 0x100000;
+    proc->mmap_base = VSL_USER_BASE + 0x1000000;
+
+    g_vsl.n_procs++;
+    return (int)pid;
+}
+
+int vsl_destroy_process(uint32_t pid) {
+    VSL_PROC *proc = vsl_get_process(pid);
+    if (!proc) return -1;
+    proc->state = VSL_PROC_DEAD;
+    return 0;
+}
+
+int vsl_list_processes(VSL_PROC *out, int max_count) {
+    int count = 0;
+    for (uint32_t i = 0; i < g_vsl.n_procs && count < max_count; i++) {
+        if (g_vsl.procs[i].state != VSL_PROC_UNUSED &&
+            g_vsl.procs[i].state != VSL_PROC_DEAD) {
+            out[count++] = g_vsl.procs[i];
+        }
+    }
+    return count;
+}
+
+/* ── Syscall Bridge ─────────────────────────────────────────────── */
+
+int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
+                    uint64_t rdx, uint64_t r10, uint64_t r8, uint64_t r9) {
+    if (!g_vsl.active) return -1;
+    g_vsl.syscall_count++;
+
+    if (num < VSL_SYSCALL_TABLE_SIZE && vsl_syscall_table[num]) {
+        return vsl_syscall_table[num](rdi, rsi, rdx, r10, r8, r9);
+    }
+
+    g_vsl.syscall_errors++;
+    return -38; /* ENOSYS */
+}
+
+int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs) {
+    return vsl_syscall(num, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
+}
+
+/* ── Memory Management ──────────────────────────────────────────── */
+
+uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
+                  int fd, uint64_t offset) {
+    if (!g_vsl.active) return 0;
+    if (g_vsl.n_mmaps >= VSL_MAX_MMAPS) return 0;
+
+    VSL_PROC *proc = vsl_get_process(g_vsl.current_pid);
+    if (!proc) return 0;
+
+    /* Simple allocation: bump pointer from mmap_base */
+    uint64_t alloc_addr = addr ? addr : proc->mmap_base;
+    if (alloc_addr < VSL_USER_BASE) alloc_addr = VSL_USER_BASE;
+    if ((uint64_t)alloc_addr + (uint64_t)size > (uint64_t)VSL_USER_BASE + (uint64_t)VSL_USER_SIZE) return 0;
+
+    VSL_MMAP *mm = &g_vsl.mmaps[g_vsl.n_mmaps++];
+    mm->addr = alloc_addr;
+    mm->size = size;
+    mm->prot = prot;
+    mm->flags = flags;
+    mm->fd = fd;
+    mm->offset = offset;
+
+    proc->mmap_base = alloc_addr + size;
+    return alloc_addr;
+}
+
+int vsl_munmap(uint64_t addr, size_t size) {
+    if (!g_vsl.active) return -1;
+    for (uint32_t i = 0; i < g_vsl.n_mmaps; i++) {
+        if (g_vsl.mmaps[i].addr == addr && g_vsl.mmaps[i].size == size) {
+            /* Remove by shifting */
+            for (uint32_t j = i; j < g_vsl.n_mmaps - 1; j++)
+                g_vsl.mmaps[j] = g_vsl.mmaps[j + 1];
+            g_vsl.n_mmaps--;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int64_t vsl_brk(uint64_t new_brk) {
+    VSL_PROC *proc = vsl_get_process(g_vsl.current_pid);
+    if (!proc) return -1;
+
+    if (new_brk == 0) return (int64_t)proc->brk; /* query */
+
+    if (new_brk < VSL_USER_BASE || (uint64_t)new_brk >= (uint64_t)VSL_USER_BASE + (uint64_t)VSL_USER_SIZE)
+        return -1;
+
+    proc->brk = new_brk;
+    return (int64_t)new_brk;
+}
+
+/* ── File Operations ────────────────────────────────────────────── */
+
+int vsl_open(const char *path, int flags, int mode) {
+    if (!g_vsl.active) return -1;
+    if (g_vsl.n_fds >= VSL_MAX_FDS) return -1;
+
+    int fd = g_vsl.n_fds + 3; /* 0=stdin, 1=stdout, 2=stderr */
+    VSL_FD *vfd = &g_vsl.fds[g_vsl.n_fds++];
+    vfd->fd = fd;
+    vfd->flags = (uint32_t)flags;
+    vfd->mode = (uint32_t)mode;
+    vfd->vsl_fd = fd;
+    if (path) strncpy(vfd->path, path, 255);
+
+    return fd;
+}
+
+int vsl_close(int fd) {
+    if (fd < 3) return -1; /* Can't close stdin/stdout/stderr */
+    for (uint32_t i = 0; i < g_vsl.n_fds; i++) {
+        if (g_vsl.fds[i].fd == fd) {
+            for (uint32_t j = i; j < g_vsl.n_fds - 1; j++)
+                g_vsl.fds[j] = g_vsl.fds[j + 1];
+            g_vsl.n_fds--;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int64_t vsl_read(int fd, void *buf, size_t count) {
+    if (!g_vsl.active) return -1;
+    /* TODO: proper read — for now, return 0 (EOF) */
+    (void)fd; (void)buf; (void)count;
+    return 0;
+}
+
+int64_t vsl_write(int fd, const void *buf, size_t count) {
+    if (!g_vsl.active) return -1;
+    /* For stdout/stderr, write to console */
+    if (fd == 1 || fd == 2) {
+        printf("%.*s", (int)count, (const char *)buf);
+        return (int64_t)count;
+    }
+    (void)fd; (void)buf; (void)count;
+    return -1;
+}
+
+int64_t vsl_lseek(int fd, int64_t offset, int whence) {
+    (void)fd; (void)offset; (void)whence;
+    return 0;
+}
+
+/* ── Driver Management ─────────────────────────────────────────── */
+
+int vsl_register_driver(VSL_DRV_TYPE type, uint64_t io_base,
+                        uint64_t mem_base, size_t mem_size, uint32_t irq) {
+    if (!g_vsl.active) return -1;
+    if (g_vsl.n_drivers >= 16) return -1;
+
+    int id = (int)g_vsl.n_drivers;
+    VSL_DRV *drv = &g_vsl.drivers[id];
+    drv->type = type;
+    drv->active = false;
+    drv->io_base = io_base;
+    drv->mem_base = mem_base;
+    drv->mem_size = mem_size;
+    drv->irq = irq;
+    drv->priv = NULL;
+
+    g_vsl.n_drivers++;
+    return id;
+}
+
+int vsl_activate_driver(int drv_id) {
+    if (drv_id < 0 || drv_id >= (int)g_vsl.n_drivers) return -1;
+    g_vsl.drivers[drv_id].active = true;
+    return 0;
+}
+
+int vsl_deactivate_driver(int drv_id) {
+    if (drv_id < 0 || drv_id >= (int)g_vsl.n_drivers) return -1;
+    g_vsl.drivers[drv_id].active = false;
+    return 0;
+}
+
+bool vsl_driver_active(VSL_DRV_TYPE type) {
+    for (uint32_t i = 0; i < g_vsl.n_drivers; i++) {
+        if (g_vsl.drivers[i].type == type && g_vsl.drivers[i].active)
+            return true;
+    }
+    return false;
+}
+
+VSL_DRV *vsl_get_driver(VSL_DRV_TYPE type) {
+    for (uint32_t i = 0; i < g_vsl.n_drivers; i++) {
+        if (g_vsl.drivers[i].type == type) return &g_vsl.drivers[i];
+    }
+    return NULL;
+}
+
+/* ── Shared Memory ──────────────────────────────────────────────── */
+
+int vsl_send_cmd(uint64_t cmd, uint64_t arg) {
+    if (!g_vsl.active) return -1;
+    *g_vsl.shared_cmd = cmd;
+    *g_vsl.shared_arg = arg;
+    *g_vsl.shared_status = 1; /* command pending */
+    return 0;
+}
+
+uint64_t vsl_read_response(void) {
+    return *g_vsl.shared_ret;
+}
+
+uint64_t vsl_get_status(void) {
+    return *g_vsl.shared_status;
+}
+
+/* ── ELF Loading ────────────────────────────────────────────────── */
+
+int vsl_elf_validate(const void *elf_data, size_t elf_size,
+                     uint64_t *out_entry) {
+    if (!elf_data || elf_size < 64) return -1;
+
+    const uint8_t *p = (const uint8_t *)elf_data;
+
+    /* ELF magic */
+    if (p[0] != 0x7F || p[1] != 'E' || p[2] != 'L' || p[3] != 'F')
+        return -1;
+
+    /* 64-bit ELF */
+    if (p[4] != 2) return -1;
+
+    /* Little-endian */
+    if (p[5] != 1) return -1;
+
+    /* ELF version */
+    if (p[6] != 1) return -1;
+
+    /* e_type: ET_EXEC (2) or ET_DYN (3) */
+    uint16_t e_type = (uint16_t)p[16] | ((uint16_t)p[17] << 8);
+    if (e_type != 2 && e_type != 3) return -1;
+
+    /* e_machine: x86_64 (0x3E) */
+    uint16_t e_machine = (uint16_t)p[18] | ((uint16_t)p[19] << 8);
+    if (e_machine != 0x3E) return -1;
+
+    /* Entry point */
+    if (out_entry) {
+        memcpy(out_entry, p + 24, 8);
+    }
+
+    return 0;
+}
+
+uint64_t vsl_elf_load(const void *elf_data, size_t elf_size) {
+    uint64_t entry;
+    if (vsl_elf_validate(elf_data, elf_size, &entry) != 0) return 0;
+    /* TODO: load PT_LOAD segments into VSL address space */
+    return entry;
+}
+
+int vsl_elf_interpreter(const void *elf_data, size_t elf_size,
+                        char *buf, size_t buf_size) {
+    (void)elf_data; (void)elf_size;
+    if (buf && buf_size > 0) buf[0] = '\0';
+    return -1; /* Statically linked (no interpreter) */
+}
+
+/* ── Diagnostics ────────────────────────────────────────────────── */
+
+void vsl_info(char *buf, size_t buf_size) {
+    if (!buf || buf_size == 0) return;
+    snprintf(buf, buf_size,
+        "VSL v%u.%u: %u procs, %u drivers, %lu syscalls (%lu errors)\n"
+        "  Kernel: 0x%08llX (%zu bytes)\n"
+        "  User:   0x%08llX (%zu bytes)\n"
+        "  Shared: 0x%08llX (%zu bytes)\n",
+        g_vsl.version_major, g_vsl.version_minor,
+        g_vsl.n_procs, g_vsl.n_drivers,
+        (unsigned long)g_vsl.syscall_count,
+        (unsigned long)g_vsl.syscall_errors,
+        (unsigned long long)g_vsl.kernel_base, g_vsl.kernel_size,
+        (unsigned long long)g_vsl.user_base, g_vsl.user_size,
+        (unsigned long long)g_vsl.shared_base, g_vsl.shared_size);
+}
+
+void vsl_dump_state(void) {
+    char buf[512];
+    vsl_info(buf, sizeof(buf));
+    printf("%s", buf);
+
+    printf("  Processes:\n");
+    for (uint32_t i = 0; i < g_vsl.n_procs; i++) {
+        VSL_PROC *p = &g_vsl.procs[i];
+        const char *state_str[] = {"UNUSED","READY","RUNNING","BLOCKED","ZOMBIE","DEAD"};
+        printf("    PID %u: state=%s entry=0x%llX stack=0x%llX brk=0x%llX\n",
+               p->pid, state_str[p->state],
+               (unsigned long long)p->entry_point,
+               (unsigned long long)p->stack_pointer,
+               (unsigned long long)p->brk);
+    }
+
+    printf("  Drivers:\n");
+    const char *drv_names[] = {
+        "NONE","VULKAN","CUDA","NET","BLOCK","INPUT","DISPLAY","AUDIO","USB","PCI"
+    };
+    for (uint32_t i = 0; i < g_vsl.n_drivers; i++) {
+        VSL_DRV *d = &g_vsl.drivers[i];
+        printf("    %s: %s (io=0x%llX mem=0x%llX irq=%u)\n",
+               drv_names[d->type], d->active ? "active" : "inactive",
+               (unsigned long long)d->io_base,
+               (unsigned long long)d->mem_base, d->irq);
+    }
+}
+
+void vsl_get_stats(uint64_t *out_syscalls, uint64_t *out_errors,
+                   uint32_t *out_procs, uint32_t *out_drivers) {
+    if (out_syscalls)  *out_syscalls = g_vsl.syscall_count;
+    if (out_errors)    *out_errors = g_vsl.syscall_errors;
+    if (out_procs)     *out_procs = g_vsl.n_procs;
+    if (out_drivers)   *out_drivers = g_vsl.n_drivers;
+}

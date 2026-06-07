@@ -31,6 +31,7 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim engine
 ```bash
 make all          # Build all layers
 make test         # Run all tests (166/166)
+make test_vsl      # Run VSL tests (46/46)
 make worldsim     # Build WorldSim only
 make test_worldsim # Run WorldSim tests (18/18)
 make clean        # Clean build artifacts

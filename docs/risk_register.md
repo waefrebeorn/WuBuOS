@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 80 files, 24,324 LOC, 128/128 tests pass
+**Current state**: 80 files, 24,324 LOC, 166/166 tests pass
 
 ---
 
@@ -87,5 +87,5 @@
 | 072 | AHCI disk driver | ⬜ Phase 4 |
 | 080 | HolyC compiler in C | ✅ 41/41 tests |
 | 090 | .wubu container format | ✅ 38/38 tests |
-| 091 | VSL (Linux virtualization layer) | ⬜ Phase 2 |
+| 091 | VSL (Linux virtualization layer) | ✅ 46/46 tests |
 | 092 | Proton (Windows compat layer) | ⬜ Phase 3 |
