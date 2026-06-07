@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 72 files, 19,816 LOC, 67/67 tests pass
+**Current state**: 80 files, 24,324 LOC, 128/128 tests pass
 
 ---
 
@@ -83,6 +83,6 @@
 | 052 | Grand Makefile (67/67 tests) | ✅ |
 | 060 | Bootable ISO | ⬜ Phase 4 |
 | 070 | VBE → WorldSim render wiring | ⬜ Phase 2 |
-| 071 | FAT32 filesystem | ⬜ Phase 1+ |
+| 071 | FAT32 filesystem | ✅ 20/20 tests |
 | 072 | AHCI disk driver | ⬜ Phase 4 |
-| 080 | HolyC compiler in C | ⬜ Phase 1+ |
+| 080 | HolyC compiler in C | ✅ 41/41 tests |

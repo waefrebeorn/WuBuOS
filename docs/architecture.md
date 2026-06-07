@@ -23,9 +23,9 @@ A personal, hackable "seed" OS combining:
 | Tasking | `Kernel/Sched.ZC` | `src/kernel/tasking.c` | P0 |
 | VBE Graphics | `System/Gr/*.ZC` | `src/kernel/vbe.c` | P0 |
 | Keyboard/Mouse | `Kernel/KeyDev.ZC` | `src/kernel/input.c` | P0 |
-| FAT32 | `Kernel/BlkDev/FileSysFAT.ZC` | `src/kernel/fat32.c` | P1 |
+| FAT32 | `Kernel/BlkDev/FileSysFAT.ZC` | `src/kernel/fat32.c` | ✅ P1 |
 | AHCI | `Kernel/BlkDev/DiskAHCI.ZC` | `src/kernel/ahci.c` | P2 |
-| Compiler | `Compiler/*.ZC` | `src/compiler/` (hybrid) | P1 |
+| Compiler | `Compiler/*.ZC` | `src/compiler/` (hybrid) | ✅ P1 |
 
 **JIT Engine**:
 - Primary: MIR (C-to-MIR → native)

@@ -693,3 +693,7 @@ HCASTNode *hc_parse_expr(HCParser *p) {
 HCASTNode *hc_parse_stmt(HCParser *p) {
     return parse_stmt(p);
 }
+
+HCTokenType hc_parse_peek(HCParser *p) {
+    return peek(p);
+}

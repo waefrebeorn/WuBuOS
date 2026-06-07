@@ -348,6 +348,9 @@ HCASTNode *hc_parse_stmt(HCParser *p);
 /* Parse a declaration */
 HCASTNode *hc_parse_decl(HCParser *p);
 
+/* Peek current token (for eval dispatch) */
+HCTokenType hc_parse_peek(HCParser *p);
+
 /* ── Symbol Table ───────────────────────────────────────────────── */
 
 typedef struct {

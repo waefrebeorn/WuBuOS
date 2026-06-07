@@ -17,20 +17,20 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim engine
 
 | Layer | Component | LOC | Tests |
 |-------|-----------|-----|-------|
-| Core | Kernel (mem, task, vbe, input, irq) | ~1,200 | 29 ✅ |
+| Core | Kernel (mem, task, vbe, input, irq, fat32) | ~3,200 | 49 ✅ |
 | Core | JIT (mmap + MIR backends) | ~700 | 20 ✅ |
 | Core | WorldSim (terrain, ECS, physics, render, sim) | 934 | 18 ✅ |
 | GUI | WM + taskbar + desktop + theme | ~600 | — |
 | GUI | NanoShellOS widget fork (28 files) | ~13,600 | — |
 | Bridge | Mode switch + clipboard + IPC | ~200 | — |
 | Apps | REPL + Notepad | ~200 | — |
-| **Total** | **72 source files** | **19,816** | **67/67 ✅** |
+| **Total** | **80 source files** | **24,324** | **128/128 ✅** |
 
 ## Build
 
 ```bash
 make all          # Build all layers
-make test         # Run all tests (67/67)
+make test         # Run all tests (128/128)
 make worldsim     # Build WorldSim only
 make test_worldsim # Run WorldSim tests (18/18)
 make clean        # Clean build artifacts
@@ -40,7 +40,7 @@ make clean        # Clean build artifacts
 
 ```
 src/
-├── kernel/     # Memory, tasking, VBE, input, interrupts
+├── kernel/     # Memory, tasking, VBE, input, interrupts, FAT32
 ├── jit/        # JIT runtime (jit.h API, mmap + MIR backends)
 ├── gui/        # Window manager, taskbar, desktop, Win98 theme
 │   └── wm_nano/  # NanoShellOS widget reference (28 files)

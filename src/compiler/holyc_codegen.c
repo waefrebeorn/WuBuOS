@@ -501,12 +501,59 @@ void *hc_compile(const char *source, size_t *out_size) {
 }
 
 int64_t hc_eval(const char *source) {
-    size_t code_size;
-    void *code = hc_compile(source, &code_size);
-    if (!code) return 0;
+    HCLexer lex;
+    hc_lex_init(&lex, source);
 
-    int64_t result = JIT_CALL(code);
-    jit_free_exec(code, code_size);
+    if (lex.has_error) return 0;
+
+    HCParser parse;
+    hc_parse_init(&parse, &lex);
+
+    /* Try parsing as expression first, then as statement */
+    HCASTNode *ast = hc_parse_expr(&parse);
+
+    /* If expression parsing failed or didn't consume all input, try statement */
+    if (parse.has_error || (hc_parse_peek(&parse) != HC_TOK_EOF && hc_parse_peek(&parse) != HC_TOK_SEMI)) {
+        hc_ast_free(ast);
+        parse.has_error = false;
+        parse.n_errors = 0;
+        /* Re-lex from start */
+        hc_lex_init(&lex, source);
+        hc_parse_init(&parse, &lex);
+        ast = hc_parse_stmt(&parse);
+    }
+
+    if (parse.has_error || !ast) {
+        hc_ast_free(ast);
+        return 0;
+    }
+
+    HCGen gen;
+    hc_gen_init(&gen);
+    emit_prologue(&gen);
+
+    if (ast->kind == HC_AST_EXPR_STMT || ast->kind == HC_AST_RETURN) {
+        gen_stmt(&gen, ast);
+    } else {
+        gen_expr(&gen, ast);
+        emit_epilogue(&gen);
+    }
+
+    hc_ast_free(ast);
+
+    if (gen.code_size == 0 || gen.has_error) {
+        free(gen.code);
+        return 0;
+    }
+
+    void *exec = jit_alloc_exec(gen.code_size);
+    if (!exec) { free(gen.code); return 0; }
+
+    memcpy(exec, gen.code, gen.code_size);
+    int64_t result = JIT_CALL(exec);
+    jit_free_exec(exec, gen.code_size);
+    free(gen.code);
+
     return result;
 }
 
