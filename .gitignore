@@ -27,12 +27,9 @@ data/
 .DS_Store
 Thumbs.db
 
-# Reference repos (not part of WuBuOS source)
-NanoShellOS/
+# Reference repos (not committed — kept as local reference material)
 ZealOS/
+NanoShellOS/
 holyc-lang/
 MIR/
-MIR/
-NanoShellOS/
-ZealOS/
-holyc-lang/
+inferno-os/
