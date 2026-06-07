@@ -8,6 +8,7 @@ LDFLAGS =
 # ── Directories ──────────────────────────────────────────────────
 KERNEL  = src/kernel
 JIT     = src/jit
+COMP    = src/compiler
 GUI     = src/gui
 BRIDGE  = src/bridge
 APPS    = src/apps
@@ -32,14 +33,16 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
+COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o
+
 # ── All Objects ──────────────────────────────────────────────────
-ALL_OBJS = $(KERNEL_OBJS) $(JIT_OBJS) $(GUI_OBJS) $(BRIDGE_OBJS) $(APP_OBJS) $(WS_OBJS)
+ALL_OBJS = $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(GUI_OBJS) $(BRIDGE_OBJS) $(APP_OBJS) $(WS_OBJS)
 
 # ── Targets ─────────────────────────────────────────────────────
 
 .PHONY: all clean test kernel jit gui bridge apps worldsim
 
-all: kernel jit gui bridge apps worldsim
+all: kernel jit compiler gui bridge apps worldsim
 	@echo "✅ My Seed OS built"
 
 kernel: $(KERNEL_OBJS)
@@ -47,6 +50,9 @@ kernel: $(KERNEL_OBJS)
 
 jit: $(JIT_OBJS)
 	@echo "✅ JIT built"
+
+compiler: $(COMP_OBJS)
+	@echo "✅ HolyC compiler built"
 
 gui: $(GUI_OBJS)
 	@echo "✅ GUI built"
@@ -80,9 +86,12 @@ $(APPS)/%.o: $(APPS)/%.c
 $(WS)/%.o: $(WS)/%.c
 	$(CC) $(CFLAGS) -I$(WS) -c $< -o $@
 
+$(COMP)/%.o: $(COMP)/%.c
+	$(CC) $(CFLAGS) -I$(COMP) -I$(JIT) -c $< -o $@
+
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -105,10 +114,14 @@ test_fat32: $(KERNEL)/fat32.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/fat32.c $(KERNEL)/fat32_test.c -o $(KERNEL)/fat32_test
 	$(KERNEL)/fat32_test
 
+test_holyc: $(JIT)/jit.o
+	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT)/jit.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test
+	$(COMP)/holyc_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
-	rm -f $(KERNEL)/*.o $(JIT)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(WS)/test_worldsim
+	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(COMP)/holyc_test $(WS)/test_worldsim
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"
