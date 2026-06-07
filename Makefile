@@ -18,7 +18,7 @@ TOOLS   = src/tools
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o
 
 # ── JIT Objects ──────────────────────────────────────────────────
 JIT_OBJS = $(JIT)/jit.o
@@ -107,7 +107,7 @@ $(TOOLS)/%.o: $(TOOLS)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_proton test_ahci test_iso test_weights
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_proton test_ahci test_iso test_weights test_txfs
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -165,10 +165,14 @@ test_weights:
 	$(CC) -O0 -g -std=c11 -I$(TOOLS) $(TOOLS)/weight_check.c $(TOOLS)/weight_check_test.c -o $(TOOLS)/weight_check_test
 	$(TOOLS)/weight_check_test
 
+test_txfs:
+	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/txfs.c $(KERNEL)/txfs_test.c -o $(KERNEL)/txfs_test
+	$(KERNEL)/txfs_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"
