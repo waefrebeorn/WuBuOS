@@ -1,26 +1,38 @@
-# Reference repos (download on demand)
-ZealOS/
-holyc-lang/
-NanoShellOS/
-
 # Build artifacts
 *.o
+*.a
+*.so
+*.exe
 *.bin
 *.iso
-*.elf
+*.img
 
-# IDE
+# Test binaries
+src/*/test_*
+src/*/*_test
+src/*/jit_stub
+src/*/vbe_sketch
+src/*/sketch.*
+
+# Generated data
+data/
+
+# Editor files
+*.swp
+*~
 .vscode/
 .idea/
 
-# OS
+# OS files
 .DS_Store
-*.png
-*.ppm
-vbe_sketch
-jit_stub
+Thumbs.db
+
+# Reference repos (not part of WuBuOS source)
+NanoShellOS/
+ZealOS/
+holyc-lang/
 MIR/
-holyc-include/
-*.o
-src/gui/wm_nano/
-src/worldsim/test_worldsim
+MIR/
+NanoShellOS/
+ZealOS/
+holyc-lang/
