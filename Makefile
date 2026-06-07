@@ -26,7 +26,7 @@ JIT_OBJS = $(JIT)/jit.o
 GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
-BRIDGE_OBJS = $(BRIDGE)/bridge.o
+BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
 
 # ── App Objects ──────────────────────────────────────────────────
 APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o
@@ -83,7 +83,7 @@ $(GUI)/%.o: $(GUI)/%.c
 	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -I$(JIT) -c $< -o $@
 
 $(BRIDGE)/%.o: $(BRIDGE)/%.c
-	$(CC) $(CFLAGS) -I$(BRIDGE) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(BRIDGE) -I$(KERNEL) -I$(WS) -c $< -o $@
 
 $(APPS)/%.o: $(APPS)/%.c
 	$(CC) $(CFLAGS) -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -c $< -o $@
@@ -99,7 +99,7 @@ $(RT)/%.o: $(RT)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -134,10 +134,17 @@ test_vsl:
 	$(CC) -O0 -g -I$(RT) $(RT)/wubu_vsl.c $(RT)/wubu_vsl_test.c -o $(RT)/wubu_vsl_test
 	$(RT)/wubu_vsl_test
 
+test_bridge:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(BRIDGE) -I$(KERNEL) -I$(WS) \
+		$(KERNEL)/vbe.c $(BRIDGE)/vbe_ws_bridge.c \
+		$(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c \
+		$(BRIDGE)/vbe_ws_bridge_test.c -o $(BRIDGE)/vbe_ws_bridge_test -lm
+	$(BRIDGE)/vbe_ws_bridge_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(WS)/test_worldsim
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"

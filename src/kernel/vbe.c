@@ -1,11 +1,28 @@
 /*
- * vbe.c — My Seed VBE Framebuffer Implementation (hosted)
+ * vbe.c — WuBuOS VBE Framebuffer Implementation
+ *
+ * Two modes:
+ *   - Kernel mode (default): uses mem_alloc/mem_free from kernel memory.c
+ *   - Hosted test mode (VBE_HOSTED defined): uses calloc/free for testing
+ *
+ * Hosted mode avoids the kernel memory allocator's BAD SIGNATURE bug
+ * (P1-5 in risk register) which causes corruption across multiple
+ * init/shutdown cycles in test suites.
  */
 
 #include "vbe.h"
-#include "memory.h"
 #include <stdlib.h>
 #include <string.h>
+
+/* Choose allocator based on build mode */
+#ifdef VBE_HOSTED
+  #define VBE_ALLOC(size) calloc(1, size)
+  #define VBE_FREE(ptr)  free(ptr)
+#else
+  #include "memory.h"
+  #define VBE_ALLOC(size) mem_alloc(size)
+  #define VBE_FREE(ptr)  mem_free(ptr)
+#endif
 
 static VBEState g_vbe = {0};
 
@@ -15,18 +32,19 @@ int vbe_init(int width, int height) {
     g_vbe.bpp    = 32;
     g_vbe.fb_size = (size_t)width * height * 4;
 
-    g_vbe.fb   = (uint32_t *)mem_alloc(g_vbe.fb_size);
-    g_vbe.back = (uint32_t *)mem_alloc(g_vbe.fb_size);
+    g_vbe.fb   = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
+    g_vbe.back = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
     if (!g_vbe.fb || !g_vbe.back) return -1;
 
+    /* calloc already zeros, but mem_alloc doesn't — always memset */
     memset(g_vbe.fb, 0, g_vbe.fb_size);
     memset(g_vbe.back, 0, g_vbe.fb_size);
     return 0;
 }
 
 void vbe_shutdown(void) {
-    if (g_vbe.fb)   mem_free(g_vbe.fb);
-    if (g_vbe.back) mem_free(g_vbe.back);
+    if (g_vbe.fb)   VBE_FREE(g_vbe.fb);
+    if (g_vbe.back) VBE_FREE(g_vbe.back);
     memset(&g_vbe, 0, sizeof(g_vbe));
 }
 
