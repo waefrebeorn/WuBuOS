@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 97 files, 27,220 LOC, 277/277 tests pass
+**Current state**: 100 files, 28,097 LOC, 297/297 tests pass
 
 ---
 
@@ -81,7 +81,7 @@
 | 050 | WorldSim integrated (18/18 tests) | ✅ |
 | 051 | moondream3_vision_weights.bin | ⬜ NOT PRESENT |
 | 052 | Grand Makefile (67/67 tests) | ✅ |
-| 060 | Bootable ISO | ⬜ Phase 4 |
+| 060 | Bootable ISO | ✅ 20/20 tests |
 | 070 | VBE → WorldSim render wiring | ✅ 25/25 tests |
 | 071 | FAT32 filesystem | ✅ 20/20 tests |
 | 072 | AHCI disk driver | ✅ 16/16 tests |

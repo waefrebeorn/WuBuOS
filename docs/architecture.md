@@ -24,7 +24,8 @@ A personal, hackable "seed" OS combining:
 | VBE Graphics | `System/Gr/*.ZC` | `src/kernel/vbe.c` | P0 |
 | Keyboard/Mouse | `Kernel/KeyDev.ZC` | `src/kernel/input.c` | P0 |
 | FAT32 | `Kernel/BlkDev/FileSysFAT.ZC` | `src/kernel/fat32.c` | ✅ P1 |
-| AHCI | `Kernel/BlkDev/DiskAHCI.ZC` | `src/kernel/ahci.c` | P2 |
+| AHCI | `Kernel/BlkDev/DiskAHCI.ZC` | `src/kernel/ahci.c` | ✅ P2 |
+| ISO 9660 | Custom builder | `src/tools/iso9660.c` | ✅ P4 |
 | Compiler | `Compiler/*.ZC` | `src/compiler/` (hybrid) | ✅ P1 |
 
 **JIT Engine**:
