@@ -24,7 +24,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
 JIT_OBJS = $(JIT)/jit.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o
+GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
@@ -85,7 +85,7 @@ $(JIT)/%.o: $(JIT)/%.c
 	$(CC) $(CFLAGS) -I$(JIT) -c $< -o $@
 
 $(GUI)/%.o: $(GUI)/%.c
-	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -c $< -o $@
 
 $(BRIDGE)/%.o: $(BRIDGE)/%.c
 	$(CC) $(CFLAGS) -I$(BRIDGE) -I$(KERNEL) -I$(WS) -c $< -o $@
@@ -107,7 +107,7 @@ $(TOOLS)/%.o: $(TOOLS)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_proton test_ahci test_iso test_weights test_txfs
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_proton test_ahci test_iso test_weights test_txfs test_dbuf
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -169,10 +169,14 @@ test_txfs:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/txfs.c $(KERNEL)/txfs_test.c -o $(KERNEL)/txfs_test
 	$(KERNEL)/txfs_test
 
+test_dbuf:
+	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/gui_dbuf.c $(GUI)/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
+	$(GUI)/gui_dbuf_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(GUI)/gui_dbuf_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"
