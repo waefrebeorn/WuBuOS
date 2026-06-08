@@ -49,11 +49,12 @@ WuBuOS is NOT a standalone OS. It is a **GUI shell + container runtime** that wr
 | JIT mmap stub | 1 | ~230 | Only a+b, a*b, a-b, -a, const. Not a real compiler |
 | HolyC compiler | 3 | ~2,200 | Lexer/parser/codegen skeleton. No real x86-64 output |
 | Runtime (.wubu, VSL, Proton, Styx, StyxFS, pkg) | 7 | ~3,800 | API surface. No real process creation, no ELF load, no PE exec |
-| GUI (wm, taskbar, desktop, theme, dbuf, startmenu) | 6 | ~1,200 | Real pixel rendering in X11. No real event dispatch to apps |
+| GUI (wm, taskbar, desktop, theme, dbuf, startmenu) | 6 | ~1,400 | **Real** pixel rendering in X11. WM input routing. Start menu. |
 | Bridge (mode switch, clipboard, IPC) | 2 | ~600 | Toggle works. No Temple REPL integration |
-| Hosted (X11 launcher) | 1 | ~500 | Opens X11 window. Gray pixels. No OS services inside |
+| Hosted (X11 launcher + kernel in-process) | 1 | ~800 | **Cell 200**: Kernel init + Win98 GUI shell + input routing + desktop rendering |
+| Container runtime (wubu_host_exec) | 1 | ~500 | **Cell 203**: Real fork+chroot+exec, SteamOS preset, GPU passthrough |
 | Apps (REPL, notepad stubs) | 2 | ~150 | Shells |
-| **TOTAL** | **30** | **~11,100** | **462 tests against API signatures** |
+| **TOTAL** | **32** | **~13,000** | **468+ tests (behavioral + signature)** |
 
 ## Reference Implementations (Not Ours)
 

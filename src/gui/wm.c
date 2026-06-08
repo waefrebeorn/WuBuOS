@@ -1,12 +1,12 @@
 /*
- * wm.c — My Seed Window Manager Implementation
+ * wm.c — My Seed WmWindow Manager Implementation
  */
 #include "wm.h"
 #include "../kernel/vbe.h"
 #include <string.h>
 #include <stdio.h>
 
-static Window g_windows[WM_MAX_WINDOWS];
+static WmWindow g_windows[WM_MAX_WINDOWS];
 static int    g_next_id = 1;
 static int    g_screen_w = 0, g_screen_h = 0;
 static int    g_focused_id = -1;
@@ -24,32 +24,32 @@ void wm_shutdown(void) {
             wm_destroy_window(&g_windows[i]);
 }
 
-Window *wm_create_window(int x, int y, int w, int h, const char *title) {
-    Window *win = NULL;
+WmWindow *wm_create_window(int x, int y, int w, int h, const char *title) {
+    WmWindow *win = NULL;
     for (int i = 0; i < WM_MAX_WINDOWS; i++) {
         if (g_windows[i].flags == WIN_UNUSED) { win = &g_windows[i]; break; }
     }
     if (!win) return NULL;
     
-    memset(win, 0, sizeof(Window));
+    memset(win, 0, sizeof(WmWindow));
     win->id = g_next_id++;
     win->flags = WIN_VISIBLE;
     win->x = x; win->y = y; win->w = w; win->h = h;
     win->z_order = win->id;
     win->title_color = 0x00000080; /* Navy active */
-    strncpy(win->title, title ? title : "Window", sizeof(win->title)-1);
+    strncpy(win->title, title ? title : "WmWindow", sizeof(win->title)-1);
     
     wm_set_focus(win);
     return win;
 }
 
-void wm_destroy_window(Window *win) {
+void wm_destroy_window(WmWindow *win) {
     if (!win) return;
     if (win->on_close) win->on_close(win);
     win->flags = WIN_UNUSED;
 }
 
-void wm_set_focus(Window *win) {
+void wm_set_focus(WmWindow *win) {
     if (!win) return;
     /* Unfocus old */
     for (int i = 0; i < WM_MAX_WINDOWS; i++) {
@@ -63,11 +63,11 @@ void wm_set_focus(Window *win) {
     g_focused_id = win->id;
 }
 
-Window *wm_get_focused(void) {
+WmWindow *wm_get_focused(void) {
     return wm_find_by_id(g_focused_id);
 }
 
-Window *wm_find_by_id(int id) {
+WmWindow *wm_find_by_id(int id) {
     for (int i = 0; i < WM_MAX_WINDOWS; i++)
         if (g_windows[i].id == id) return &g_windows[i];
     return NULL;
@@ -75,14 +75,14 @@ Window *wm_find_by_id(int id) {
 
 /* ── Rendering ─────────────────────────────────────────────────── */
 
-static void draw_window_chrome(Window *win) {
+static void draw_window_chrome(WmWindow *win) {
     int bw = WM_BORDER_WIDTH;
     int th = WM_TITLE_HEIGHT;
     
     /* 3D raised border */
     vbe_3d_raised(win->x, win->y, win->w, win->h);
     
-    /* Window body */
+    /* WmWindow body */
     vbe_fill_rect(win->x+bw, win->y+bw, win->w-2*bw, win->h-2*bw, C_WIN_FACE);
     
     /* Title bar */
@@ -107,7 +107,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Sort by z_order and draw visible windows */
     for (int z = 0; z < 20000; z++) {
         for (int i = 0; i < WM_MAX_WINDOWS; i++) {
-            Window *w = &g_windows[i];
+            WmWindow *w = &g_windows[i];
             if (w->flags == WIN_UNUSED || !(w->flags & WIN_VISIBLE)) continue;
             if (w->z_order != z) continue;
             draw_window_chrome(w);
@@ -116,22 +116,22 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 }
 
-void wm_invalidate(Window *win) { (void)win; }
+void wm_invalidate(WmWindow *win) { (void)win; }
 void wm_invalidate_all(void) { }
 
 /* ── Input ─────────────────────────────────────────────────────── */
 
 void wm_handle_key(uint32_t key, uint32_t mods) {
-    Window *focused = wm_get_focused();
+    WmWindow *focused = wm_get_focused();
     if (focused && focused->on_key) focused->on_key(focused, key, mods);
 }
 
 void wm_handle_mouse(int x, int y, int btn, int kind) {
     /* Find topmost window under cursor */
-    Window *hit = NULL;
+    WmWindow *hit = NULL;
     int best_z = -1;
     for (int i = 0; i < WM_MAX_WINDOWS; i++) {
-        Window *w = &g_windows[i];
+        WmWindow *w = &g_windows[i];
         if (w->flags == WIN_UNUSED || !(w->flags & WIN_VISIBLE)) continue;
         if (x >= w->x && x < w->x+w->w && y >= w->y && y < w->y+w->h) {
             if (w->z_order > best_z) { hit = w; best_z = w->z_order; }

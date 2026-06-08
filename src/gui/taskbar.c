@@ -16,10 +16,10 @@ void taskbar_draw(int screen_w, int screen_h) {
     vbe_fill_rect(4, y+3, 60, 22, C_WIN_FACE);
     vbe_3d_raised(4, y+3, 60, 22);
     
-    /* Window buttons in taskbar */
+    /* WmWindow buttons in taskbar */
     int bx = 70;
     for (int i = 0; i < WM_MAX_WINDOWS; i++) {
-        Window *w = wm_find_by_id(i+1);
+        WmWindow *w = wm_find_by_id(i+1);
         if (!w || w->flags == WIN_UNUSED) continue;
         int bw = strlen(w->title) * 8 + 16;
         if (bw > 160) bw = 160;

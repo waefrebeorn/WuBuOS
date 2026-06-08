@@ -24,7 +24,7 @@ struct REPLState {
 
 static struct REPLState g_repl = {0};
 
-static void repl_draw(Window *win, void *fb, int fb_w, int fb_h) {
+static void repl_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     /* Draw REPL background */
     int x = win->x + 4, y = win->y + WM_TITLE_HEIGHT + 4;
@@ -39,7 +39,7 @@ static void repl_draw(Window *win, void *fb, int fb_w, int fb_h) {
     vbe_fill_rect(x, y + max_visible * 16, win->w - 8, 16, 0x00101010);
 }
 
-static void repl_handle_key(Window *win, uint32_t key, uint32_t mods) {
+static void repl_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
     (void)win; (void)mods;
     if (key == '\n' || key == '\r') {
         /* Execute the input line via JIT */
@@ -78,7 +78,7 @@ void repl_start(JITContext *jit_ctx) {
     g_repl.line_count = 0;
     g_repl.input_pos = 0;
     
-    Window *win = wm_create_window(640, 100, 380, 500, "Temple REPL");
+    WmWindow *win = wm_create_window(640, 100, 380, 500, "Temple REPL");
     if (win) {
         win->on_draw  = repl_draw;
         win->on_key   = repl_handle_key;

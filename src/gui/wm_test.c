@@ -1,5 +1,5 @@
 /*
- * wm_test.c — WuBuOS Window Manager Test Suite
+ * wm_test.c — WuBuOS WmWindow Manager Test Suite
  *
  * Cell 102: Full WM test suite + Win98 theme verification
  * Uses VBE_HOSTED mode (no kernel memory allocator).
@@ -37,12 +37,12 @@ static void test_wm_init_shutdown(void) {
     PASS();
 }
 
-/* ── Window Creation Tests ──────────────────────────────────── */
+/* ── WmWindow Creation Tests ──────────────────────────────────── */
 
 static void test_create_window(void) {
     TEST("wm_create_window returns non-NULL");
     wm_init(640, 480);
-    Window *w = wm_create_window(10, 20, 200, 100, "Test");
+    WmWindow *w = wm_create_window(10, 20, 200, 100, "Test");
     CHECK(w != NULL, "window should be created");
     CHECK(w->id > 0, "window should have positive id");
     CHECK(w->x == 10, "x should be 10");
@@ -57,9 +57,9 @@ static void test_create_window(void) {
 static void test_create_window_null_title(void) {
     TEST("wm_create_window with NULL title uses default");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, NULL);
+    WmWindow *w = wm_create_window(0, 0, 100, 50, NULL);
     CHECK(w != NULL, "should create with NULL title");
-    CHECK(strcmp(w->title, "Window") == 0, "default title should be Window");
+    CHECK(strcmp(w->title, "WmWindow") == 0, "default title should be WmWindow");
     wm_shutdown();
     PASS();
 }
@@ -69,7 +69,7 @@ static void test_create_multiple_windows(void) {
     wm_init(640, 480);
     int count = 0;
     for (int i = 0; i < WM_MAX_WINDOWS; i++) {
-        Window *w = wm_create_window(i*10, 0, 80, 60, "W");
+        WmWindow *w = wm_create_window(i*10, 0, 80, 60, "W");
         if (w) count++;
     }
     CHECK(count == WM_MAX_WINDOWS, "should create WM_MAX_WINDOWS windows");
@@ -82,18 +82,18 @@ static void test_create_beyond_max(void) {
     wm_init(640, 480);
     for (int i = 0; i < WM_MAX_WINDOWS; i++)
         wm_create_window(0, 0, 80, 60, "W");
-    Window *overflow = wm_create_window(0, 0, 80, 60, "X");
+    WmWindow *overflow = wm_create_window(0, 0, 80, 60, "X");
     CHECK(overflow == NULL, "should return NULL when full");
     wm_shutdown();
     PASS();
 }
 
-/* ── Window Destruction Tests ───────────────────────────────── */
+/* ── WmWindow Destruction Tests ───────────────────────────────── */
 
 static void test_destroy_window(void) {
     TEST("wm_destroy_window marks slot unused");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, "Del");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "Del");
     CHECK(w != NULL, "create should succeed");
     wm_destroy_window(w);
     CHECK(w->flags == WIN_UNUSED, "flags should be UNUSED after destroy");
@@ -104,7 +104,7 @@ static void test_destroy_window(void) {
 static void test_destroy_removes_from_count(void) {
     TEST("destroyed window not counted in wm_window_count");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, "Del");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "Del");
     CHECK(wm_window_count() == 1, "count 1 before destroy");
     wm_destroy_window(w);
     CHECK(wm_window_count() == 0, "count 0 after destroy");
@@ -123,10 +123,10 @@ static void test_destroy_null(void) {
 static void test_set_focus(void) {
     TEST("wm_set_focus changes focused window");
     wm_init(640, 480);
-    Window *w1 = wm_create_window(0, 0, 100, 50, "W1");
-    Window *w2 = wm_create_window(0, 0, 100, 50, "W2");
+    WmWindow *w1 = wm_create_window(0, 0, 100, 50, "W1");
+    WmWindow *w2 = wm_create_window(0, 0, 100, 50, "W2");
     wm_set_focus(w1);
-    Window *focused = wm_get_focused();
+    WmWindow *focused = wm_get_focused();
     CHECK(focused == w1, "w1 should be focused");
     CHECK(w1->flags & WIN_FOCUSED, "w1 should have FOCUSED flag");
     wm_set_focus(w2);
@@ -140,8 +140,8 @@ static void test_set_focus(void) {
 static void test_focus_unfocus_old(void) {
     TEST("focusing new window unfocuses old");
     wm_init(640, 480);
-    Window *w1 = wm_create_window(0, 0, 100, 50, "W1");
-    Window *w2 = wm_create_window(0, 0, 100, 50, "W2");
+    WmWindow *w1 = wm_create_window(0, 0, 100, 50, "W1");
+    WmWindow *w2 = wm_create_window(0, 0, 100, 50, "W2");
     wm_set_focus(w1);
     CHECK(w1->flags & WIN_FOCUSED, "w1 focused initially");
     wm_set_focus(w2);
@@ -154,8 +154,8 @@ static void test_focus_unfocus_old(void) {
 static void test_focus_title_color(void) {
     TEST("focused window gets navy title, unfocused gets gray");
     wm_init(640, 480);
-    Window *w1 = wm_create_window(0, 0, 100, 50, "W1");
-    Window *w2 = wm_create_window(0, 0, 100, 50, "W2");
+    WmWindow *w1 = wm_create_window(0, 0, 100, 50, "W1");
+    WmWindow *w2 = wm_create_window(0, 0, 100, 50, "W2");
     wm_set_focus(w1);
     CHECK(w1->title_color == 0x00000080, "active title should be navy");
     wm_set_focus(w2);
@@ -170,9 +170,9 @@ static void test_focus_title_color(void) {
 static void test_find_by_id(void) {
     TEST("wm_find_by_id returns correct window");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, "Find");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "Find");
     int id = w->id;
-    Window *found = wm_find_by_id(id);
+    WmWindow *found = wm_find_by_id(id);
     CHECK(found == w, "should find window by id");
     wm_shutdown();
     PASS();
@@ -181,7 +181,7 @@ static void test_find_by_id(void) {
 static void test_find_by_id_nonexistent(void) {
     TEST("wm_find_by_id returns NULL for bad id");
     wm_init(640, 480);
-    Window *found = wm_find_by_id(9999);
+    WmWindow *found = wm_find_by_id(9999);
     CHECK(found == NULL, "should return NULL for nonexistent id");
     wm_shutdown();
     PASS();
@@ -192,7 +192,7 @@ static void test_find_by_id_nonexistent(void) {
 static void test_z_order_on_create(void) {
     TEST("z_order is set on creation (matches id or auto-assigned)");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, "Z");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "Z");
     CHECK(w->z_order > 0, "z_order should be positive on creation");
     wm_shutdown();
     PASS();
@@ -201,22 +201,22 @@ static void test_z_order_on_create(void) {
 static void test_z_order_on_focus(void) {
     TEST("focusing brings window to front (z_order > 10000)");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, "Z");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "Z");
     wm_set_focus(w);
     CHECK(w->z_order >= 10000, "focused z_order should be >= 10000");
     wm_shutdown();
     PASS();
 }
 
-/* ── Window Count Tests ─────────────────────────────────────── */
+/* ── WmWindow Count Tests ─────────────────────────────────────── */
 
 static void test_window_count(void) {
     TEST("wm_window_count tracks active windows");
     wm_init(640, 480);
     CHECK(wm_window_count() == 0, "count should be 0 initially");
-    Window *w1 = wm_create_window(0, 0, 100, 50, "A");
+    WmWindow *w1 = wm_create_window(0, 0, 100, 50, "A");
     CHECK(wm_window_count() == 1, "count should be 1");
-    Window *w2 = wm_create_window(0, 0, 100, 50, "B");
+    WmWindow *w2 = wm_create_window(0, 0, 100, 50, "B");
     CHECK(wm_window_count() == 2, "count should be 2");
     wm_destroy_window(w1);
     CHECK(wm_window_count() == 1, "count should be 1 after destroy");
@@ -257,7 +257,7 @@ static void test_render_with_windows(void) {
 static void test_invalidate(void) {
     TEST("wm_invalidate no crash");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 100, 50, "Inv");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "Inv");
     wm_invalidate(w);
     wm_invalidate_all();
     wm_shutdown();
@@ -279,7 +279,7 @@ static void test_handle_key(void) {
 static void test_handle_mouse(void) {
     TEST("wm_handle_mouse no crash and finds window under cursor");
     wm_init(640, 480);
-    Window *w = wm_create_window(10, 10, 200, 100, "Mouse");
+    WmWindow *w = wm_create_window(10, 10, 200, 100, "Mouse");
     wm_set_focus(w);
     wm_handle_mouse(50, 50, 1, 1);
     wm_handle_mouse(500, 500, 1, 1);
@@ -303,7 +303,7 @@ static void test_win98_colors(void) {
 static void test_win98_title_bar_colors(void) {
     TEST("new window gets navy active title (Win98 classic)");
     wm_init(640, 480);
-    Window *w = wm_create_window(0, 0, 200, 100, "Win98");
+    WmWindow *w = wm_create_window(0, 0, 200, 100, "Win98");
     CHECK(w->title_color == 0x00000080, "new window title should be navy");
     wm_shutdown();
     PASS();
@@ -312,8 +312,8 @@ static void test_win98_title_bar_colors(void) {
 static void test_win98_inactive_title(void) {
     TEST("unfocused window gets gray title (Win98 inactive)");
     wm_init(640, 480);
-    Window *w1 = wm_create_window(0, 0, 100, 50, "A");
-    Window *w2 = wm_create_window(0, 0, 100, 50, "B");
+    WmWindow *w1 = wm_create_window(0, 0, 100, 50, "A");
+    WmWindow *w2 = wm_create_window(0, 0, 100, 50, "B");
     CHECK(w1->title_color == 0x00808080, "w1 should have gray inactive title");
     (void)w2;
     wm_shutdown();
@@ -323,13 +323,13 @@ static void test_win98_inactive_title(void) {
 /* ── Callback Tests ─────────────────────────────────────────── */
 
 static int g_on_close_called = 0;
-static void test_on_close_cb(Window *w) { g_on_close_called = 1; (void)w; }
+static void test_on_close_cb(WmWindow *w) { g_on_close_called = 1; (void)w; }
 
 static void test_on_close_callback(void) {
     TEST("on_close callback fires on destroy");
     wm_init(640, 480);
     g_on_close_called = 0;
-    Window *w = wm_create_window(0, 0, 100, 50, "CB");
+    WmWindow *w = wm_create_window(0, 0, 100, 50, "CB");
     w->on_close = test_on_close_cb;
     wm_destroy_window(w);
     CHECK(g_on_close_called == 1, "on_close should have been called");
@@ -341,7 +341,7 @@ static void test_on_close_callback(void) {
 
 int main(void) {
     printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Window Manager Test Suite (Cell 102)           ║\n");
+    printf("║  WuBuOS WmWindow Manager Test Suite (Cell 102)           ║\n");
     printf("╚════════════════════════════════════════════════════════╝\n\n");
 
     test_wm_init();

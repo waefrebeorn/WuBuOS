@@ -97,4 +97,15 @@ int hosted_styx_register_wubu(hosted_state_t *state,
                                const char *name, 
                                const uint8_t *data, uint32_t size);
 
+/* ── Behavioral Test API (Cell 200) ─────────────────────────────── */
+
+/* Check if kernel subsystems are initialized (VBE has buffers) */
+int  hosted_kernel_ready(void);
+
+/* Check if WM has windows created (GUI shell running) */
+int  hosted_wm_has_windows(void);
+
+/* Reset in-memory Styx filesystem */
+void hosted_fs_reset(void);
+
 #endif /* WUBU_HOSTED_H */

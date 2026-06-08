@@ -19,8 +19,8 @@ typedef enum {
     WIN_NOCLOSE = 16,
 } WinFlags;
 
-typedef struct Window Window;
-struct Window {
+typedef struct WmWindow WmWindow;
+struct WmWindow {
     int       id;
     WinFlags  flags;
     int       x, y, w, h;        /* Position and size */
@@ -30,11 +30,11 @@ struct Window {
     uint32_t  title_color;        /* Active/inactive */
     
     /* Callbacks */
-    void     (*on_draw)(Window *win, void *fb, int fb_w, int fb_h);
-    void     (*on_key)(Window *win, uint32_t key, uint32_t mods);
-    void     (*on_mouse)(Window *win, int x, int y, int btn, int kind);
-    void     (*on_close)(Window *win);
-    void     (*on_resize)(Window *win, int w, int h);
+    void     (*on_draw)(WmWindow *win, void *fb, int fb_w, int fb_h);
+    void     (*on_key)(WmWindow *win, uint32_t key, uint32_t mods);
+    void     (*on_mouse)(WmWindow *win, int x, int y, int btn, int kind);
+    void     (*on_close)(WmWindow *win);
+    void     (*on_resize)(WmWindow *win, int w, int h);
     
     void     *user_data;
     int       user_data_size;
@@ -47,11 +47,11 @@ void wm_shutdown(void);
 
 /* ── Window Management ─────────────────────────────────────────── */
 
-Window *wm_create_window(int x, int y, int w, int h, const char *title);
-void    wm_destroy_window(Window *win);
-void    wm_set_focus(Window *win);
-Window *wm_get_focused(void);
-Window *wm_find_by_id(int id);
+WmWindow *wm_create_window(int x, int y, int w, int h, const char *title);
+void      wm_destroy_window(WmWindow *win);
+void      wm_set_focus(WmWindow *win);
+WmWindow *wm_get_focused(void);
+WmWindow *wm_find_by_id(int id);
 
 /* ── Rendering ─────────────────────────────────────────────────── */
 
@@ -59,7 +59,7 @@ Window *wm_find_by_id(int id);
 void wm_render(uint32_t *fb, int fb_w, int fb_h);
 
 /* Mark a window as needing redraw */
-void wm_invalidate(Window *win);
+void wm_invalidate(WmWindow *win);
 
 /* Invalidate entire screen */
 void wm_invalidate_all(void);

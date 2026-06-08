@@ -6,6 +6,12 @@
  * Full OS environment: VBE framebuffer, kernel services,
  * Styx/9P namespace on Unix socket.
  *
+ * Cell 200: ZealOS kernel runs in-process.
+ *   - Kernel subsystems: mem_init, vbe_init, tasking
+ *   - GUI shell: WM, desktop, taskbar, start menu
+ *   - Input routing: X11 → WM → focused window
+ *   - Render pipeline: desktop + windows + taskbar → vbe_swap → X11 blit
+ *
  * Build: make hosted  →  src/hosted/wubu
  */
 #include "hosted.h"
@@ -13,6 +19,9 @@
 #include "../kernel/vbe.h"
 #include "../kernel/memory.h"
 #include "../kernel/tasking.h"
+#include "../kernel/input.h"
+#include "../gui/wm.h"
+#include "../gui/startmenu.h"
 #include "../bridge/bridge.h"
 
 #include <X11/Xlib.h>
@@ -79,6 +88,11 @@ static int fs_add_file(const char *name, const uint8_t *data, uint32_t len) {
         f->data_len = clen;
     }
     return 0;
+}
+
+static void fs_reset(void) {
+    g_nfiles = 0;
+    g_next_path = 1;
 }
 
 /* ── Styx Server Callbacks ──────────────────────────────────────── */
@@ -212,8 +226,24 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     state->framebuffer = (uint32_t*)calloc((size_t)state->width * state->height, 4);
     if (!state->framebuffer) { fprintf(stderr, "OOM\n"); return -1; }
     
+    /* ── Kernel subsystem init (Cell 200: ZealOS in-process) ────── */
     mem_init(1024 * 1024);
     vbe_init(state->width, state->height);
+    
+    /* ── GUI shell init (WM + start menu) ────────────────────────── */
+    wm_init(state->width, state->height);
+    startmenu_init();
+    
+    /* Register start menu entries */
+    startmenu_add_entry("Programs", SM_PROGRAM, NULL);
+    startmenu_add_entry("Temple REPL", SM_SYSTEM, NULL);
+    startmenu_add_entry("Separator", SM_SEPARATOR, NULL);
+    startmenu_add_entry("Shut Down", SM_SYSTEM, NULL);
+    
+    /* Create default desktop windows */
+    wm_create_window(100, 80, 400, 300, "TempleOS HolyC");
+    
+    fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
     
     /* Init X11 (skip if headless) */
     if (state->mode != HMODE_HEADLESS) {
@@ -247,6 +277,10 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
                                     state->fb_pitch);
         XMapWindow(dpy, win);
         XFlush(dpy);
+        
+        /* Enable close button via WM_DELETE_WINDOW */
+        Atom wm_delete = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
+        XSetWMProtocols(dpy, win, &wm_delete, 1);
         
         state->display_ptr = (void*)dpy;
         state->window_ptr = (void*)(uintptr_t)win;
@@ -290,6 +324,30 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     return 0;
 }
 
+/* ── Render the full Win98 desktop to VBE back buffer ──────────── */
+
+/* Forward decl for desktop_draw and taskbar_draw (in gui/) */
+extern void desktop_draw(int screen_w, int screen_h, int taskbar_h);
+extern void taskbar_draw(int screen_w, int screen_h);
+extern int  taskbar_height(void);
+
+static void render_desktop(hosted_state_t *state) {
+    /* 1. Desktop background + icons */
+    int tb_h = taskbar_height();
+    desktop_draw(state->width, state->height, tb_h);
+    
+    /* 2. Windows (WM renders all visible windows) */
+    wm_render(NULL, state->width, state->height);
+    
+    /* 3. Start menu (if open) */
+    if (startmenu_is_open()) {
+        startmenu_draw();
+    }
+    
+    /* 4. Taskbar (always on top) */
+    taskbar_draw(state->width, state->height);
+}
+
 /* ── Main Event Loop ────────────────────────────────────────────── */
 
 int hosted_run(hosted_state_t *state) {
@@ -313,8 +371,26 @@ int hosted_run(hosted_state_t *state) {
         }
         
         if (state->framebuffer) {
-            for (int i = 0; i < state->width * state->height; i++)
-                state->framebuffer[i] = 0x00808080;
+            /* ── Render Win98 desktop to VBE back buffer ─── */
+            if (state->mode == HMODE_GUI) {
+                render_desktop(state);
+                vbe_swap();
+                
+                /* Copy VBE front buffer to X11 framebuffer */
+                VBEState *vs = vbe_state();
+                if (vs && vs->fb) {
+                    memcpy(state->framebuffer, vs->fb,
+                           (size_t)state->width * state->height * 4);
+                }
+            } else if (state->mode == HMODE_TEMPLE) {
+                /* Temple REPL mode: black background */
+                for (int i = 0; i < state->width * state->height; i++)
+                    state->framebuffer[i] = 0x00000000;
+            } else {
+                /* Console/Headless: gray */
+                for (int i = 0; i < state->width * state->height; i++)
+                    state->framebuffer[i] = 0x00808080;
+            }
         }
         
         if (dpy && state->window_ptr && state->gc_ptr) {
@@ -342,6 +418,11 @@ int hosted_run(hosted_state_t *state) {
 
 void hosted_shutdown(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS shutdown...\n");
+    
+    /* GUI shell shutdown */
+    wm_shutdown();
+    vbe_shutdown();
+    
     if (state->styx_fd >= 0) {
         close(state->styx_fd);
         char p[128];
@@ -401,6 +482,7 @@ static int handle_x11_event(hosted_state_t *state, XEvent *ev) {
         handle_mouse(state, ev->xmotion.x, ev->xmotion.y, 0, 0);
         break;
     case ClientMessage:
+        /* WM_DELETE_WINDOW */
         state->running = false;
         break;
     case DestroyNotify:
@@ -444,15 +526,23 @@ static int handle_key(hosted_state_t *state, KeySym ks, int pressed) {
         else if (ks >= XK_F1 && ks <= XK_F12) wu_key = 0x3B + (uint32_t)(ks - XK_F1);
         break;
     }
-    if (wu_key) {
-        extern void input_key_push(void);
-        (void)input_key_push;
+    
+    /* Route keyboard to WM (and focused window) */
+    if (wu_key && pressed) {
+        uint32_t mods = 0;
+        if (state->key_map[0x1D]) mods |= 0x01;  /* Ctrl */
+        if (state->key_map[0x2A]) mods |= 0x02;  /* Shift */
+        if (state->key_map[0x38]) mods |= 0x04;  /* Alt */
+        wm_handle_key(wu_key, mods);
     }
+    
     /* Track modifier key state for Ctrl+Alt+T detection */
     if (ks == XK_Control_L || ks == XK_Control_R)
         state->key_map[0x1D] = pressed;
     if (ks == XK_Alt_L || ks == XK_Alt_R)
         state->key_map[0x38] = pressed;
+    if (ks == XK_Shift_L || ks == XK_Shift_R)
+        state->key_map[0x2A] = pressed;
     (void)state;
     return wu_key;
 }
@@ -461,6 +551,33 @@ static int handle_mouse(hosted_state_t *state, int x, int y, int btn, int presse
     state->mouse_x = x;
     state->mouse_y = y;
     if (btn) state->mouse_buttons = btn;
+    
+    /* Route mouse to WM */
+    if (btn && btn != 0) {
+        /* WM_EVENT_CLICK */
+        wm_handle_mouse(x, y, btn, pressed ? 0 : 1);
+    } else if (btn == 0) {
+        /* Motion event */
+        wm_handle_mouse(x, y, 0, 2);
+    }
+    
+    /* Start menu click handling */
+    if (btn == 1 && pressed && startmenu_is_open()) {
+        if (startmenu_is_inside(x, y)) {
+            int idx = startmenu_handle_mouse(x, y);
+            if (idx >= 0) startmenu_click(idx);
+        } else {
+            startmenu_close();
+        }
+    }
+    
+    /* Start button click (bottom-left corner of taskbar) */
+    if (btn == 1 && pressed && !startmenu_is_open()) {
+        if (x >= 4 && x <= 64 && y >= state->height - 28 + 3 && y <= state->height - 3) {
+            startmenu_open(0, state->height - taskbar_height() - startmenu_get_height());
+        }
+    }
+    
     (void)pressed;
     return 0;
 }
@@ -488,8 +605,25 @@ int hosted_styx_register_wubu(hosted_state_t *state,
     return fs_add_file(name, data, size);
 }
 
+/* Expose fs_reset for tests */
+void hosted_fs_reset(void) { fs_reset(); }
+
+/* ── Query API for behavioral tests ────────────────────────────── */
+
+/* Check if kernel subsystems are initialized */
+int hosted_kernel_ready(void) {
+    VBEState *vs = vbe_state();
+    return (vs && vs->fb && vs->back && vs->width > 0) ? 1 : 0;
+}
+
+/* Check if WM has windows */
+int hosted_wm_has_windows(void) {
+    return wm_window_count() > 0 ? 1 : 0;
+}
+
 /* ── Main ───────────────────────────────────────────────────────── */
 
+#ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {
     hosted_state_t state;
     if (hosted_init(&state, argc, argv) != 0) return 1;
@@ -497,3 +631,4 @@ int main(int argc, char **argv) {
     hosted_shutdown(&state);
     return ret;
 }
+#endif
