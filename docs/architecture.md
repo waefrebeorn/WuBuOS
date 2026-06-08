@@ -1,87 +1,89 @@
-WuBuOS — Architecture Definition (v2 — Post Hard-Dive)
+# WuBuOS — Architecture & Roadmap (v5 — Post Stub+Form Hunt)
 
 > **LOCKED** — Changes require explicit unlock + re-lock ceremony.
-> This document reflects ground truth from the Hard Dive + Triple DA sweep.
+> This document reflects ground truth from the full stub+form gap hunt.
 
 ## Vision (Revised)
 
-WuBuOS is NOT a standalone OS. It is a **GUI shell + container runtime** that wraps the ZealOS kernel, following the Inferno OS `emu` pattern:
+WuBuOS is NOT the kernel. It is a **GUI shell + container runtime** that wraps the ZealOS kernel, following the Inferno OS `emu` pattern:
 
 - **ZealOS IS the kernel** — ring-0, single-user, HolyC JIT, boots on real hardware (154K LOC)
 - **WuBuOS IS the shell** — Win98 desktop, Styx/9P namespace, .wubu container execution
 - **The hosted binary IS the product** — `wubu` runs on Linux/Windows/macOS as a regular executable
+- **Arch rip** — Arch Linux base for containers, ripping through Linux drivers for SteamOS/Proton
+
+## Roadmap
+
+### Phase A: Fill the Hollow Citadel (highest ROI)
+
+| Cell | What | Why |
+|------|------|-----|
+| 310 | HolyC codegen: ternary, while, for, logical-OR | Unblocks Cell 201 (REPL), which unblocks 202/206/207 |
+| 311 | HolyC codegen: function calls, struct layout, string literals | Without this, REPL shows "a+b" only |
+| 303 | Tasking: real timer tick + context switch (ucontext or setjmp) | No ZealOS app scheduling without this |
+| 300 | Input: real keyboard/mouse event queue with push/pop | No event flows into any window |
+| 301 | Interrupt: IDT setup + ISR registration (hosted: signal dispatch) | Required for IRQ-driven I/O |
+
+### Phase B: Delete Dead Code
+
+| Cell | What | Why |
+|------|------|-----|
+| 324 | Delete wubu_vsl.c — 712 lines of (void) casts, superseded by wubu_host_exec.c | Dead code, false API surface |
+| 343 | Delete wubu_vsl_init/run from wubu_exec.c | Route through wubu_host_exec |
+| 330 | Replace wubu_proton.c with host Wine delegation | 406 lines of names, 0 PE loads |
+
+### Phase C: Container Polish
+
+| Cell | What | Why |
+|------|------|-----|
+| 350 | Per-container 9P Styx dispatch inside container | Socket exists but no walk/read |
+| 351 | Arch rootfs + Steam Runtime binaries | Infrastructure, not code |
+| 353 | cgroup/setrlimit enforcement per container | Config stored but never applied |
+
+### Phase D: App Wiring
+
+| Cell | What | Why |
+|------|------|-----|
+| 361 | REPL text rendering (bitmap font) | Black rect only currently |
+| 362 | Notepad implementation | Pure stub |
+| 372 | wm_invalidate: actual dirty rect marking | Empty { } currently |
+
+### Phase E: Integration
+
+| Cell | What | Why |
+|------|------|-----|
+| 201 | HolyC REPL compiles + executes in-process | Depends on 310, 311 |
+| 202 | GUI dispatches events to ZealOS apps | Depends on 300, 301, 303 |
+| 204 | Per-container 9P namespace wired | Depends on 350 |
+| 205 | SteamOS container launches | Depends on 351 |
+| 206 | Bare-metal boot | Depends on 201, 202 |
+| 207 | Integration test: wubu runs, GUI appears, REPL works | Depends on 201, 202 |
 
 ## The Real Stack
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  Layer 5: .wubu Containers                                       │
-│    SteamOS.wubu ─── Steam Runtime + Proton + Games              │
+│    SteamOS.wubu ─── Steam Runtime + Proton + Games (Arch base)  │
 │    Brave.wubu ──── Chromium + host GPU passthrough              │
 │    Temple.wubu ─── HolyC REPL + ZealOS userland                 │
 ├──────────────────────────────────────────────────────────────────┤
-│  Layer 4: Container Runtime                                      │
-│    .wubu exec: host fork+exec (NOT VSL syscall emulation)       │
+│  Layer 4: Container Runtime (wubu_host_exec)                     │
+│    fork + chroot + execv (NOT VSL syscall emulation)            │
 │    9P namespace: per-container Styx socket mount                 │
-│    Resource limits: CPU, memory, GPU, network per container      │
+│    GPU: /dev/dri + /dev/nvidia* → container                     │
+│    Arch base → DRM/KMS/NVIDIA/AMD driver passthrough            │
 ├──────────────────────────────────────────────────────────────────┤
-│  Layer 3: Win98 GUI Shell (what we actually built)               │
+│  Layer 3: Win98 GUI Shell (Cell 200 ✅)                          │
 │    WM, taskbar, start menu, desktop, DOS flip ↔ Temple REPL     │
 │    26 WM tests, 13 start menu tests, 17 dbuf tests — REAL      │
 ├──────────────────────────────────────────────────────────────────┤
 │  Layer 2: Platform Layer (Inferno os.c pattern)                  │
 │    Linux: X11/Wayland + host libc + DRM/KMS GPU passthrough    │
-│    Windows: Win32 + wsl or native                                │
-│    Bare-metal: ZealOS kernel + ZealOS drivers                   │
+│    Windows: Win32 + WSL or native                                │
+│    Bare: ZealOS kernel boots → WuBuOS as HolyC shell            │
 ├──────────────────────────────────────────────────────────────────┤
-│  Layer 1: ZealOS Kernel (the base — NOT ported, USED as-is)     │
-│    Memory, tasking, VBE, FAT32, AHCI, networking                │
-│    HolyC JIT (already compiles and runs in ZealOS)              │
-│    RedSea filesystem, DolDoc system                              │
+│  Layer 1: ZealOS Kernel (NOT WuBuOS — already boots on metal)   │
+│    Memory, task, VBE, FAT32, AHCI, HolyC JIT, RedSea FS        │
 └──────────────────────────────────────────────────────────────────┘
 ```
-
-## What Actually Exists (Honest Accounting)
-
-| Component | C Files | Real LOC | Actually Does |
-|-----------|---------|----------|---------------|
-| Kernel stubs | 8 | ~2,400 | Structs + init/shutdown. No real HW init, no IDT, no GDT, no scheduler |
-| JIT mmap stub | 1 | ~230 | Only a+b, a*b, a-b, -a, const. Not a real compiler |
-| HolyC compiler | 3 | ~2,200 | Lexer/parser/codegen skeleton. No real x86-64 output |
-| Runtime (.wubu, VSL, Proton, Styx, StyxFS, pkg) | 7 | ~3,800 | API surface. No real process creation, no ELF load, no PE exec |
-| GUI (wm, taskbar, desktop, theme, dbuf, startmenu) | 6 | ~1,400 | **Real** pixel rendering in X11. WM input routing. Start menu. |
-| Bridge (mode switch, clipboard, IPC) | 2 | ~600 | Toggle works. No Temple REPL integration |
-| Hosted (X11 launcher + kernel in-process) | 1 | ~800 | **Cell 200**: Kernel init + Win98 GUI shell + input routing + desktop rendering |
-| Container runtime (wubu_host_exec) | 1 | ~500 | **Cell 203**: Real fork+chroot+exec, SteamOS preset, GPU passthrough |
-| Apps (REPL, notepad stubs) | 2 | ~150 | Shells |
-| **TOTAL** | **32** | **~13,000** | **468+ tests (behavioral + signature)** |
-
-## Reference Implementations (Not Ours)
-
-| Reference | LOC | What It Does |
-|-----------|-----|-------------|
-| Inferno OS | 767K | Real OS. Dis bytecode VM. 9P2000 namespace. `emu` hosted binary on Linux/Win/Mac. Real kernel. |
-| ZealOS | 154K | Real OS. Boots on metal. HolyC JIT. RedSea FS. Networking. DolDoc. |
-
-## Key Architectural Decisions
-
-1. **ZealOS kernel runs in-process** (like Inferno emu). Not ported — compiled for hosted mode alongside WuBuOS.
-
-2. **VSL is renamed to host delegation**. On Linux, call host libc. On Windows, call Win32. Do NOT emulate Linux syscalls from scratch.
-
-3. **Proton uses host Wine** when available. Do NOT write a PE loader from scratch.
-
-4. **Containers = host fork/exec**. A .wubu is an ELF binary that runs as a Linux process. 9P namespace provides isolation.
-
-5. **Bare-metal path: ZealOS boot → WuBuOS as HolyC shell**. WuBuOS compiles to HolyC source that ZealOS JIT loads at boot.
-
-## Constraints (LOCKED)
-
-1. **Pure C for shell** — no C++ in WuBuOS shell, GUI, or bridge
-2. **ZealOS kernel is consumed, not forked** — we build on top, not modify
-3. **Under 100K LOC** for WuBuOS shell + container runtime (ZealOS excluded)
-4. **Public domain** for WuBuOS additions; ZealOS license for kernel
-5. **Honest accounting** — real LOC, real test semantics, no inflation
-
-*Locked: 2026-06-07*
-*Hard-Dive revision: v2*
