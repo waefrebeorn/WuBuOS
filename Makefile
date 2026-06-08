@@ -31,7 +31,7 @@ GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/g
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
 
 # ── App Objects ──────────────────────────────────────────────────
-APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o
+APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
@@ -73,6 +73,28 @@ bridge: $(BRIDGE_OBJS)
 
 apps: $(APP_OBJS)
 	@echo "✅ Apps built"
+
+# ── Game / App Targets ───────────────────────────────────────────
+
+paint: $(APP_OBJS) $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS)
+	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) -I$(JIT) \
+		$(APPS)/paint.c $(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c \
+		$(GUI)/theme.c $(GUI)/gui_dbuf.c $(GUI)/startmenu.c \
+		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c \
+		$(KERNEL)/tasking.c $(KERNEL)/interrupt.c \
+		$(JIT)/jit.c \
+		-o $(APPS)/paint
+	@echo "✅ Paint built (./src/apps/paint)"
+
+doom: $(APP_OBJS) $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS)
+	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) -I$(JIT) \
+		$(APPS)/doom.c $(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c \
+		$(GUI)/theme.c $(GUI)/gui_dbuf.c $(GUI)/startmenu.c \
+		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c \
+		$(KERNEL)/tasking.c $(KERNEL)/interrupt.c \
+		$(JIT)/jit.c \
+		-lX11 -lm -o $(APPS)/doom
+	@echo "✅ Doom built (./src/apps/doom)"
 
 worldsim: $(WS_OBJS)
 	@echo "✅ WorldSim built"
@@ -234,5 +256,5 @@ test_host_exec:
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o
 	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_apps_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(RT)/styxfs_test $(RT)/wubu_host_exec_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(GUI)/gui_dbuf_test $(GUI)/wm_test $(GUI)/startmenu_test
-	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
+	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/paint $(APPS)/doom
 	@echo "🧹 Clean"

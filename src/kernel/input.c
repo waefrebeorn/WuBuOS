@@ -32,6 +32,19 @@ int input_key_wait(KeyEvent *out) {
     return input_key_poll(out);
 }
 
+int input_key_pressed(uint32_t scancode) {
+    /* Check the last 16 events in the queue for a matching key-down */
+    int count = 16;
+    int idx = (g_key_tail - 1 + QUEUE_SIZE) % QUEUE_SIZE;
+    while (count-- > 0 && idx != g_key_head) {
+        if (g_key_queue[idx].scancode == scancode && g_key_queue[idx].kind == KEY_EVENT_DOWN) {
+            return 1;
+        }
+        idx = (idx - 1 + QUEUE_SIZE) % QUEUE_SIZE;
+    }
+    return 0;
+}
+
 void input_mouse_push(MouseEvent ev) {
     g_mouse_x += ev.dx; g_mouse_y += ev.dy;
     ev.x = g_mouse_x; ev.y = g_mouse_y;

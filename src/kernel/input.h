@@ -28,6 +28,7 @@ typedef struct {
 void    input_key_push(KeyEvent ev);
 int     input_key_poll(KeyEvent *out);
 int     input_key_wait(KeyEvent *out); /* Block until key */
+int     input_key_pressed(uint32_t scancode); /* Check if key is held */
 
 /* Mouse API */
 void    input_mouse_push(MouseEvent ev);
