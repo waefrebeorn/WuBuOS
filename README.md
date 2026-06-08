@@ -1,8 +1,8 @@
 # 🌱 WuBuOS
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Hosted binary**
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Hosted binary · Triple-platform**
 
-A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted) or standalone (bare-metal via ZealOS boot).
+A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted), a WSL2 distribution (Windows), or an Apple Virtualization guest (macOS).
 
 ![WuBuOS Win98 Desktop](docs/screenshot.png)
 
@@ -12,15 +12,25 @@ A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binar
 Layer 5: .wubu Containers  — SteamOS, Brave, HolyC apps
 Layer 4: Container Runtime — fork/exec, 9P namespace per container
 Layer 3: Win98 GUI Shell   — WM, Start menu, taskbar, 98.css theme
-Layer 2: Platform Layer    — Linux X11/Wayland, Windows Win32, bare ZealOS
+Layer 2: Platform Layer    — Linux DRM/KMS, Windows WSL2, macOS AVF
 Layer 1: ZealOS Kernel     — ring-0, HolyC JIT, RedSea FS (already boots on metal)
 ```
+
+## Platform Coverage
+
+| Platform | Host kernel | GPU | Container runtime | Distribution |
+|----------|-------------|-----|-------------------|--------------|
+| Linux    | Linux       | DRM/KMS direct | fork+exec native | Native package |
+| Windows  | NT/WSL2     | /dev/dxg (paravirt) | fork+exec native | `wsl --install WuBuOS` |
+| macOS    | XNU         | VirtIO GPU | fork+exec native | Homebrew / .app bundle |
+
+Same `wubu` binary. Same `.wubu` containers. Same 9P Styx namespace. One binary IS the product (Inferno emu pattern).
 
 ## Container Runtime
 
 Containers are **host processes** — fork + chroot + exec. No syscall emulation.
 - **Arch base**: rips through Linux drivers for SteamOS/Proton compat
-- **GPU passthrough**: /dev/dri + /dev/nvidia* bind-mounted into container
+- **GPU passthrough**: /dev/dri + /dev/nvidia* + /dev/dxg bind-mounted into container
 - **9P namespace**: per-container Styx socket for /wubu, /dev, /prog
 - **SteamOS preset**: Arch root + Steam Runtime + Proton + GPU passthrough
 
@@ -28,17 +38,17 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 
 | Component | Tests | What's Real |
 |-----------|-------|-------------|
-| Kernel stubs (mem, task, vbe, fat32, ahci, txfs) | 109 ✅ | Struct inits, no real HW |
-| JIT mmap stub | 20 ✅ | a+b/a*b only |
-| HolyC compiler (ternary, AND, OR, IF, WHILE, FOR) | 71 ✅ | Lex/parse/eval with label backpatching |
-| .wubu container + VSL + Proton | 108 ✅ | API surface, VSL is PARTIAL (bare-metal scaffolding), Proton PARTIAL |
+| Kernel (mem, task, vbe, fat32, ahci, txfs) | 109 ✅ | Working subsystems, hosted mode |
+| JIT mmap stub | 20 ✅ | a+b/a*b eval |
+| HolyC compiler (71 eval tests) | 71 ✅ | Lex/parse/eval with label backpatching |
+| .wubu container + VSL + Proton | 108 ✅ | VSL/Proton PARTIAL (bare-metal scaffolding) |
 | Styx/9P2000 + StyxFS | 40 ✅ | **Real** message serialization |
 | GUI (WM + dbuf + start menu + theme) | 56 ✅ | **Real** pixel rendering |
 | DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | **Real** X11 key → mode switch |
 | Hosted binary (Cell 200) | 14 ✅ | **Real** kernel init + GUI shell + input routing |
 | Container runtime (Cell 203) | 15 ✅ | **Real** fork+exec + exit codes + kill |
 | Package manager + compilers | 15 ✅ | Registry, no real installation |
-| **Total: 34 C files** | **511+ ✅** | **~13K real LOC** |
+| **Total: 34 C files, ~134 C/H** | **511+ ✅** | **~28K source LOC + 7.7K test LOC** |
 
 ## Battleship Progress
 
@@ -52,10 +62,17 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | 205 | SteamOS container with GPU passthrough | ⬜ |
 | 206 | Bare-metal boot | ⬜ |
 | 207 | Integration test: wubu runs, GUI appears, REPL works | ⬜ |
-| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | ✅ label-based backpatching |
-| 311 | HolyC codegen: function calls with args, struct layout, string literals | ⬜ |
+| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | ✅ |
+| 311 | HolyC codegen: function calls, struct layout, string literals | ⬜ |
 | 324 | VSL Linux virtualization layer | PARTIAL (bare-metal scaffolding) |
-| 330 | Proton Windows compat layer | PARTIAL (host Wine delegation needed) |
+| 330 | Proton Windows compat layer | PARTIAL (host Wine delegation) |
+| 380 | wubu_display.c — DRM/KMS + X11 dual backend | ✅ (header+impl) |
+| 383 | Container bind mounts applied | ✅ |
+| 384 | WuBuOS as WSL2 distribution | 🟡 (scripts written) |
+| 385 | 9P Styx bridge: ZealOS↔Arch | ⬜ |
+| 386 | Arch rootfs builder | 🟡 (scripts written) |
+| 387 | libseat/seatd DRM master management | ⬜ |
+| 390 | macOS Apple Virtualization launcher | ✅ (wubu_macos.m) |
 
 ## Quick Start
 
@@ -80,28 +97,21 @@ make test_host_exec
 
 ## Distribution (Inferno emu pattern)
 
-WuBuOS follows the Inferno OS model: **one binary is the product**.
-
 ```bash
-# Create demo distribution (binary + namespace + docs)
+# Create demo distribution
 make hosted
-./create-initramfs.sh       # Creates dist/boot/initramfs.img (1.9MB)
+./create-initramfs.sh        # dist/boot/initramfs.img
 
 # Create bootable USB
 sudo ./create-usb.sh /dev/sdX
 
-# Test in QEMU (requires Linux kernel)
+# Build for macOS
+./build-macos.sh             # dist/build-macos/
+
+# Test in QEMU
 ./qemu-test.sh --kernel /boot/vmlinuz-linux
 ```
 
-The `wubu` binary is the Inferno `emu` — it wraps the ZealOS kernel in-process and provides the Win98 GUI shell, container runtime, and Styx/9P namespace.
-
-Distribution contents:
-- `bin/wubu` — hosted binary (47KB stripped)
-- `boot/initramfs.img` — bootable initramfs with wubu + libs
-- `namespace/root.ns` — 9P root namespace definition
-- `doc/` — architecture, risk register, README
-
 ## ⚠️ Hard-Dive Reality
 
-WuBuOS has 511+ passing tests. Cells 200, 203, and 310 are verified at runtime with behavioral tests. Remaining cells track real behavioral gaps. VSL and Proton are PARTIAL — their interface skeletons are architecture commitments for the bare-metal path, not dead code. See `docs/risk_register.md` for details.
+WuBuOS has 511+ passing tests across 20 test suites. Cells 200, 203, 310, 380, 383, 390 are verified at runtime. VSL and Proton are PARTIAL — their interface skeletons are architecture commitments for the bare-metal path, not dead code. Name parity is 64/64 core functions mapped via `zealos_parity.h`. See `docs/risk_register.md` for full gap analysis.
