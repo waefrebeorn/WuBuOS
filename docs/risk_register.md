@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 120 files, ~39,000 LOC, 447/447 tests pass
+**Current state**: 122 files, ~41,000 LOC, 462/462 tests pass
 
 ---
 
@@ -96,7 +96,7 @@
 | 103 | DOS flip bridge wiring (Ctrl+Alt+T) | ✅ 13/13 tests |
 | 104 | Start menu + taskbar (Win98 classic) | ✅ 13/13 tests |
 | 106 | StyxFS filesystem namespace for .wubu | ✅ 11/11 tests |
-| 107 | Flatpak-style package manager | ⬜ |
-| 108 | Brave browser via VSL | ⬜ |
-| 109 | Notepad++ via Proton | ⬜ |
-| 110 | All compilers pre-installed | ⬜ |
+| 107 | Flatpak-style package manager | ✅ 7/15 tests (pkg) |
+| 108 | Brave browser via VSL | ✅ 3/15 tests (VSL) |
+| 109 | Notepad++ via Proton | ✅ 3/15 tests (Proton) |
+| 110 | All compilers pre-installed | ✅ 2/15 tests (comp) |
