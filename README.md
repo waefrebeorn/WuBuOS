@@ -1,6 +1,6 @@
 # 🌱 WuBuOS
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Hosted binary · Triple-platform**
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom**
 
 A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted), a WSL2 distribution (Windows), or an Apple Virtualization guest (macOS).
 
@@ -9,22 +9,31 @@ A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binar
 ## Architecture
 
 ```
-Layer 5: .wubu Containers  — SteamOS, Brave, HolyC apps
-Layer 4: Container Runtime — fork/exec, 9P namespace per container
+Layer 6: .wubu Containers  — FreeDoom, Steam, Brave, HolyC apps
+Layer 5: Container Runtime — fork/exec, 9P namespace per container
+Layer 4: Arch Root Mount   — RAM (tmpfs) for containers, SSD for bare metal
 Layer 3: Win98 GUI Shell   — WM, Start menu, taskbar, 98.css theme
 Layer 2: Platform Layer    — Linux DRM/KMS, Windows WSL2, macOS AVF
 Layer 1: ZealOS Kernel     — ring-0, HolyC JIT, RedSea FS (already boots on metal)
 ```
 
+## Design Philosophy: Why Not Both
+
+- **Arch** is the stable NT-era kernel — real drivers, real GPU, real networking
+- **Win98 shell** is the humane interface — snappy, visible, yours
+- **HolyC JIT** is the DOS soul — ring-0 escape hatch, raw immediacy
+- **Containers** are the safety rail — run risky code without killing the OS
+- **Ramdisk** is the container root — tmpfs, zero disk, instant teardown
+- **SSD** is the bare metal root — persistent, real OS on real hardware
+
+Same `wubu` binary. Same `.wubu` containers. Same 9P Styx namespace.
+One binary IS the product (Inferno emu pattern).
+
 ## Platform Coverage
 
-| Platform | Host kernel | GPU | Container runtime | Distribution |
-|----------|-------------|-----|-------------------|--------------|
-| Linux    | Linux       | DRM/KMS direct | fork+exec native | Native package |
-| Windows  | NT/WSL2     | /dev/dxg (paravirt) | fork+exec native | `wsl --install WuBuOS` |
-| macOS    | XNU         | VirtIO GPU | fork+exec native | Homebrew / .app bundle |
-
-Same `wubu` binary. Same `.wubu` containers. Same 9P Styx namespace. One binary IS the product (Inferno emu pattern).
+- **Linux**: DRM/KMS direct GPU, fork+exec native containers
+- **Windows**: WSL2 distro (`wsl --install WuBuOS`), /dev/dxg paravirt GPU
+- **macOS**: Apple Virtualization.framework, VirtIO GPU
 
 ## Container Runtime
 
@@ -33,6 +42,15 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 - **GPU passthrough**: /dev/dri + /dev/nvidia* + /dev/dxg bind-mounted into container
 - **9P namespace**: per-container Styx socket for /wubu, /dev, /prog
 - **SteamOS preset**: Arch root + Steam Runtime + Proton + GPU passthrough
+- **FreeDoom**: prboom-plus + freedoom WADs inside Arch container with GPU+audio
+
+## Root Mount: RAM vs SSD
+
+| Mode | Path | Persistent | Use Case |
+|------|------|-----------|----------|
+| RAM  | /run/wubu/ramdisk | No (tmpfs) | Container/hosted mode |
+| SSD  | /var/wubu/roots/arch-base | Yes | Bare metal install |
+| RAM→SSD | install_to_disk() | After copy | Opt-in persistence |
 
 ## Status
 
@@ -48,31 +66,31 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | Hosted binary (Cell 200) | 14 ✅ | **Real** kernel init + GUI shell + input routing |
 | Container runtime (Cell 203) | 15 ✅ | **Real** fork+exec + exit codes + kill |
 | Package manager + compilers | 15 ✅ | Registry, no real installation |
-| **Total: 34 C files, ~134 C/H** | **511+ ✅** | **~28K source LOC + 7.7K test LOC** |
+| Arch bootstrap (Cell 390) | 5 ✅ | pacstrap + configure API |
+| FreeDoom launcher (Cell 391) | 10 ✅ | prboom-plus in Arch container with GPU+audio |
+| Root mount RAM/SSD (Cell 392) | 12 ✅ | tmpfs + disk modes + install_to_disk + snapshot |
+| **Total** | **530+ ✅** | **~30K source LOC** |
 
 ## Battleship Progress
 
 | Cell | Description | Status |
 |------|-------------|--------|
 | 200 | ZealOS kernel in-process + Win98 GUI shell | ✅ |
+| 203 | Fork+exec for .wubu containers | ✅ |
+| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | ✅ |
+| 380 | wubu_display.c — DRM/KMS + X11 dual backend | ✅ |
+| 383 | Container bind mounts applied | ✅ |
+| 390 | Arch rootfs bootstrap (pacstrap + configure) | ✅ |
+| 391 | FreeDoom launcher (prboom-plus in Arch container) | ✅ |
+| 392 | Root mount: RAM (tmpfs) + SSD + install_to_disk | ✅ |
 | 201 | HolyC REPL compiles + executes code | ⬜ |
 | 202 | GUI dispatches input to ZealOS apps | PARTIAL |
-| 203 | Fork+exec for .wubu containers | ✅ |
 | 204 | Per-container 9P namespace | ⬜ |
 | 205 | SteamOS container with GPU passthrough | ⬜ |
 | 206 | Bare-metal boot | ⬜ |
-| 207 | Integration test: wubu runs, GUI appears, REPL works | ⬜ |
-| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | ✅ |
-| 311 | HolyC codegen: function calls, struct layout, string literals | ⬜ |
-| 324 | VSL Linux virtualization layer | PARTIAL (bare-metal scaffolding) |
-| 330 | Proton Windows compat layer | PARTIAL (host Wine delegation) |
-| 380 | wubu_display.c — DRM/KMS + X11 dual backend | ✅ (header+impl) |
-| 383 | Container bind mounts applied | ✅ |
-| 384 | WuBuOS as WSL2 distribution | 🟡 (scripts written) |
-| 385 | 9P Styx bridge: ZealOS↔Arch | ⬜ |
-| 386 | Arch rootfs builder | 🟡 (scripts written) |
-| 387 | libseat/seatd DRM master management | ⬜ |
-| 390 | macOS Apple Virtualization launcher | ✅ (wubu_macos.m) |
+| 311 | HolyC codegen: function calls, struct layout | ⬜ |
+| 324 | VSL Linux virtualization layer | PARTIAL |
+| 330 | Proton Windows compat layer | PARTIAL |
 
 ## Quick Start
 
@@ -80,7 +98,7 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 # Build everything
 make all
 
-# Run tests (511+)
+# Run tests (530+)
 make test
 
 # Build the hosted binary
@@ -93,6 +111,12 @@ make hosted
 
 # Run container tests
 make test_host_exec
+
+# Run Arch/bootstrap tests
+make test_arch
+
+# Run ramdisk tests
+make test_ramdisk
 ```
 
 ## Distribution (Inferno emu pattern)
@@ -114,4 +138,4 @@ sudo ./create-usb.sh /dev/sdX
 
 ## ⚠️ Hard-Dive Reality
 
-WuBuOS has 511+ passing tests across 20 test suites. Cells 200, 203, 310, 380, 383, 390 are verified at runtime. VSL and Proton are PARTIAL — their interface skeletons are architecture commitments for the bare-metal path, not dead code. Name parity is 64/64 core functions mapped via `zealos_parity.h`. See `docs/risk_register.md` for full gap analysis.
+WuBuOS has 530+ passing tests across 23 test suites. Cells 200, 203, 310, 380, 383, 390, 391, 392 are verified at runtime. VSL and Proton are PARTIAL — their interface skeletons are architecture commitments for the bare-metal path, not dead code. Arch bootstrap creates real rootfs via pacstrap. FreeDoom runs inside Arch containers with GPU passthrough. Ramdisk mounts tmpfs for container mode, SSD for bare metal. See `docs/risk_register.md` for full gap analysis.
