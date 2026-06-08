@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <sys/mount.h>
 
 /* ── State/Runtime Names ─────────────────────────────────────────── */
 
@@ -220,6 +221,23 @@ int wubu_ct_start(WubuCt *ct) {
         /* Set uid/gid */
         if (ct->gid > 0) setgid((gid_t)ct->gid);
         if (ct->uid > 0) setuid((uid_t)ct->uid);
+        
+        /* Mount bind mounts (GPU passthrough, X11 socket, etc.) */
+        for (int i = 0; i < ct->n_binds; i++) {
+            /* Create mount point inside chroot */
+            struct stat st;
+            if (stat(ct->binds[i].guest, &st) != 0) {
+                /* Try mkdir -p for the mount point */
+                /* Simple version: just mkdir the last component */
+                mkdir(ct->binds[i].guest, 0755);
+            }
+            unsigned long mflags = MS_BIND | MS_REC;
+            if (ct->binds[i].readonly) mflags |= MS_RDONLY;
+            if (mount(ct->binds[i].host, ct->binds[i].guest, NULL, mflags, NULL) != 0) {
+                /* Non-fatal — bind mount may fail if host path doesn't exist */
+                /* (e.g., /dev/nvidia0 on a system without NVIDIA) */
+            }
+        }
         
         /* Execute */
         execv(ct->argv[0], ct->argv);
