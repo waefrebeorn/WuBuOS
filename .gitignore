@@ -33,3 +33,6 @@ NanoShellOS/
 holyc-lang/
 MIR/
 inferno-os/
+
+# Distribution (rebuilt from source)
+dist/*.tar.gz

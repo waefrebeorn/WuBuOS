@@ -1,0 +1,23 @@
+# WuBuOS Root Namespace
+# Styx/9P2000 mount points — everything is a file
+#
+# Mirrors Inferno OS namespace convention:
+#   /          root
+#   /dev       device files (cons, draw, mouse, kb)
+#   /prog      running processes (like /proc in Linux)
+#   /net       network stack (tcp, udp)
+#   /mnt       mount points
+#   /tmp       temporary files
+#   /shr       shared resources (like /srv in Plan 9)
+#   /wubu      WuBuOS system namespace
+
+/           wubu_root
+/dev        wubu_dev
+/prog       wubu_prog
+/net        wubu_net
+/mnt        wubu_mnt
+/tmp        wubu_tmp
+/shr        wubu_shr
+/wubu       wubu_sys
+/wubu/containers  wubu_containers
+/wubu/styx       wubu_styx

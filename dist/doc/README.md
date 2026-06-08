@@ -30,15 +30,15 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 |-----------|-------|-------------|
 | Kernel stubs (mem, task, vbe, fat32, ahci, txfs) | 109 ✅ | Struct inits, no real HW |
 | JIT mmap stub | 20 ✅ | a+b/a*b only |
-| HolyC compiler (ternary, AND, OR, IF, WHILE, FOR) | 71 ✅ | Lex/parse/eval with label backpatching |
-| .wubu container + VSL + Proton | 108 ✅ | API surface, VSL is PARTIAL (bare-metal scaffolding), Proton PARTIAL |
+| HolyC compiler skeleton | 41 ✅ | Lex/parse, no real codegen |
+| .wubu container + VSL + Proton | 108 ✅ | API surface, no process creation |
 | Styx/9P2000 + StyxFS | 40 ✅ | **Real** message serialization |
 | GUI (WM + dbuf + start menu + theme) | 56 ✅ | **Real** pixel rendering |
 | DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | **Real** X11 key → mode switch |
 | Hosted binary (Cell 200) | 14 ✅ | **Real** kernel init + GUI shell + input routing |
 | Container runtime (Cell 203) | 15 ✅ | **Real** fork+exec + exit codes + kill |
 | Package manager + compilers | 15 ✅ | Registry, no real installation |
-| **Total: 34 C files** | **511+ ✅** | **~13K real LOC** |
+| **Total: 32 C files** | **468+ ✅** | **~13K real LOC** |
 
 ## Battleship Progress
 
@@ -52,10 +52,6 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | 205 | SteamOS container with GPU passthrough | ⬜ |
 | 206 | Bare-metal boot | ⬜ |
 | 207 | Integration test: wubu runs, GUI appears, REPL works | ⬜ |
-| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | ✅ label-based backpatching |
-| 311 | HolyC codegen: function calls with args, struct layout, string literals | ⬜ |
-| 324 | VSL Linux virtualization layer | PARTIAL (bare-metal scaffolding) |
-| 330 | Proton Windows compat layer | PARTIAL (host Wine delegation needed) |
 
 ## Quick Start
 
@@ -63,7 +59,7 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 # Build everything
 make all
 
-# Run tests (511+)
+# Run tests (468+)
 make test
 
 # Build the hosted binary
@@ -78,30 +74,6 @@ make hosted
 make test_host_exec
 ```
 
-## Distribution (Inferno emu pattern)
-
-WuBuOS follows the Inferno OS model: **one binary is the product**.
-
-```bash
-# Create demo distribution (binary + namespace + docs)
-make hosted
-./create-initramfs.sh       # Creates dist/boot/initramfs.img (1.9MB)
-
-# Create bootable USB
-sudo ./create-usb.sh /dev/sdX
-
-# Test in QEMU (requires Linux kernel)
-./qemu-test.sh --kernel /boot/vmlinuz-linux
-```
-
-The `wubu` binary is the Inferno `emu` — it wraps the ZealOS kernel in-process and provides the Win98 GUI shell, container runtime, and Styx/9P namespace.
-
-Distribution contents:
-- `bin/wubu` — hosted binary (47KB stripped)
-- `boot/initramfs.img` — bootable initramfs with wubu + libs
-- `namespace/root.ns` — 9P root namespace definition
-- `doc/` — architecture, risk register, README
-
 ## ⚠️ Hard-Dive Reality
 
-WuBuOS has 511+ passing tests. Cells 200, 203, and 310 are verified at runtime with behavioral tests. Remaining cells track real behavioral gaps. VSL and Proton are PARTIAL — their interface skeletons are architecture commitments for the bare-metal path, not dead code. See `docs/risk_register.md` for details.
+WuBuOS has 468+ passing tests. Cells 200 and 203 are verified at runtime with behavioral tests. Remaining cells (201-207 except 203) track real behavioral gaps. See `docs/risk_register.md` for details.

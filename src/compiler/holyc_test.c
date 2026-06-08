@@ -146,7 +146,7 @@ int main(void) {
         hc_ast_free(ast);
     }
 
-    /* ── Eval Tests ── */
+    /* ── Eval Tests (basic arithmetic + comparison) ── */
     printf("\n[Codegen/Eval]\n");
     T("42", 42);
     T("3 + 4", 7);
@@ -167,6 +167,60 @@ int main(void) {
     T("5 <= 5", 1);
     T("5 >= 5", 1);
     T("4 <= 3", 0);
+
+    /* ── Cell 310: Ternary ── */
+    printf("\n[Cell 310: Ternary]\n");
+    T("1 ? 42 : 0", 42);
+    T("0 ? 42 : 99", 99);
+    T("3 < 5 ? 10 : 20", 10);
+    T("5 < 3 ? 10 : 20", 20);
+    T("1 ? 1 ? 2 : 3 : 4", 2);
+
+    /* ── Cell 310: Logical AND ── */
+    printf("\n[Cell 310: Logical AND]\n");
+    T("1 && 1", 1);
+    T("1 && 0", 0);
+    T("0 && 1", 0);
+    T("0 && 0", 0);
+    T("3 && 5", 1);
+    T("3 < 5 && 7 == 7", 1);
+    T("3 > 5 && 7 == 7", 0);
+
+    /* ── Cell 310: Logical OR ── */
+    printf("\n[Cell 310: Logical OR]\n");
+    T("0 || 1", 1);
+    T("0 || 0", 0);
+    T("1 || 0", 1);
+    T("1 || 1", 1);
+    T("3 > 5 || 7 == 7", 1);
+    T("3 > 5 || 7 != 7", 0);
+
+    /* ── Cell 310: Combined logical ── */
+    printf("\n[Cell 310: Combined Logical]\n");
+    T("1 && 1 || 0", 1);
+    T("0 || 1 && 1", 1);
+    T("0 || 0 && 1", 0);
+
+    /* ── Cell 310: IF statement ── */
+    printf("\n[Cell 310: IF Statement]\n");
+    T("if (1) 42; else 0;", 42);
+    T("if (0) 42; else 99;", 99);
+    T("if (3 < 5) 10; else 20;", 10);
+
+    /* ── Cell 310: WHILE loop ── */
+    printf("\n[Cell 310: WHILE Statement]\n");
+    T("while (0) 42;", 0);
+
+    /* ── Cell 310: FOR loop ── */
+    printf("\n[Cell 310: FOR Statement]\n");
+    T("for (0; 0; 0) 42;", 0);
+
+    /* ── Bitwise ops ── */
+    printf("\n[Bitwise]\n");
+    T("3 & 5", 1);    /* 011 & 101 = 001 */
+    T("3 | 5", 7);    /* 011 | 101 = 111 */
+    T("3 ^ 5", 6);    /* 011 ^ 101 = 110 */
+    T("~0", -1);      /* all bits set = -1 in two's complement */
 
     printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;
