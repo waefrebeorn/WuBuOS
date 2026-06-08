@@ -50,19 +50,20 @@ static void test_arch_root_valid_empty_dir(void) {
 static void test_arch_root_valid_faked(void) {
     TEST("arch_root_valid returns true for faked Arch root");
     const char *path = "/tmp/wubu-test-fake-arch-390";
-    mkdir(path, 0755);
-
+    
+    /* Pre-create entire tree with mkdir -p equivalent */
+    char cmd[512];
+    snprintf(cmd, sizeof(cmd),
+             "rm -rf %s && mkdir -p %s/usr/bin %s/etc", path, path, path);
+    (void)system(cmd);
+    
     char sub[512];
     /* Create /usr/bin/pacman */
-    snprintf(sub, sizeof(sub), "%s/usr/bin", path);
-    mkdir(sub, 0755);
     snprintf(sub, sizeof(sub), "%s/usr/bin/pacman", path);
     FILE *f = fopen(sub, "w");
     if (f) { fprintf(f, "#!/bin/sh\n"); fclose(f); chmod(sub, 0755); }
 
     /* Create /etc/arch-release */
-    snprintf(sub, sizeof(sub), "%s/etc", path);
-    mkdir(sub, 0755);
     snprintf(sub, sizeof(sub), "%s/etc/arch-release", path);
     f = fopen(sub, "w");
     if (f) { fprintf(f, "Arch Linux\n"); fclose(f); }
@@ -70,17 +71,8 @@ static void test_arch_root_valid_faked(void) {
     bool valid = wubu_arch_root_valid(path);
 
     /* Cleanup */
-    snprintf(sub, sizeof(sub), "%s/usr/bin/pacman", path);
-    unlink(sub);
-    snprintf(sub, sizeof(sub), "%s/usr/bin", path);
-    rmdir(sub);
-    snprintf(sub, sizeof(sub), "%s/etc/arch-release", path);
-    unlink(sub);
-    snprintf(sub, sizeof(sub), "%s/etc", path);
-    rmdir(sub);
-    snprintf(sub, sizeof(sub), "%s/usr", path);
-    rmdir(sub);
-    rmdir(path);
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", path);
+    (void)system(cmd);
 
     CHECK(valid, "should be true for faked Arch root");
     PASS();
