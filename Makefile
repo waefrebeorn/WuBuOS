@@ -31,7 +31,7 @@ GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/g
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
 
 # ── App Objects ──────────────────────────────────────────────────
-APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o $(APPS)/wubu_freedoom.o
+APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o $(APPS)/wubu_freedoom.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
@@ -147,7 +147,7 @@ $(HOSTED)/%.o: $(HOSTED)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -283,6 +283,15 @@ test_wubu_wm:
 		$(GUI)/wubu_wm_test.c \
 		-o $(GUI)/wubu_wm_test -lm
 	$(GUI)/wubu_wm_test
+
+test_apps2:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(APPS) -I$(KERNEL) -I$(RT) \
+		$(APPS)/wubu_editor.c $(APPS)/wubu_canvas.c $(APPS)/wubu_codec.c \
+		$(RT)/wubu_host_exec.c \
+		$(APPS)/wubu_apps2_test.c \
+		-o $(APPS)/wubu_apps2_test -lm
+	$(APPS)/wubu_apps2_test
 
 # ── Clean ────────────────────────────────────────────────────────
 
