@@ -36,3 +36,6 @@ inferno-os/
 
 # Distribution (rebuilt from source)
 dist/*.tar.gz
+
+# Hosted binary (rebuilt from source)
+src/hosted/wubu
