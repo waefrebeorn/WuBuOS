@@ -1,49 +1,40 @@
-# WuBuOS — Battleship / Risk Register (POST HARD DIVE)
+# WuBuOS — Battleship / Risk Register (v2 — Post Hard-Dive)
 
-**Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase
-**Last audit**: 2026-06-07 (Hard Dive + Triple DA sweep)
-**Current state**: 11K real C LOC (not 41K), 462 tests passing against API signatures, NOT against real OS behavior
+**Methodology**: Behavioral verification. ✅ means feature works at RUNTIME, not just compiles.
+**Current state**: 30 C files, 11K real LOC, 462 signature tests, 0 behavioral tests
+**Architecture**: WuBuOS = GUI shell + container runtime. ZealOS IS the kernel.
 
-## ⚠️ ARCHITECTURAL REALITY
-- WuBuOS **does not boot**. Has no kernel entry point, no IDT, no GDT.
-- The hosted binary is the only executable, and it only renders gray pixels.
-- VSL has 46 syscalls but **cannot create a process** (no ELF loader, no fork/exec).
-- Proton has Win32 API names but **cannot load a PE**.
-- The .wubu container format is a header + blob, **not a real container** (no process isolation, no namespace, no resource limits).
-- **THE BATTLESHIP WILL NOW TRACK REAL BEHAVIOR, NOT API SIGNATURES.**
+## Real Gaps (Cells 200-207)
 
-## What Actually Works (verified)
-- Styx/9P2000 message serialization/deserialization (real bytes on wire)
-- Win98 GUI drawing primitives (real pixels in X11 framebuffer)
-- Ctrl+Alt+T mode toggle (real X11 key event → real mode switch)
-- Double-buffered rendering with dirty rect tracking
+| Cell | Description | Depends | Status |
+|------|-------------|---------|--------|
+| 200 | ZealOS kernel runs in-process inside `wubu` hosted binary | — | ⬜ |
+| 201 | HolyC REPL compiles and executes code in-process | 200 | ⬜ |
+| 202 | Win98 GUI dispatches real input events to ZealOS apps | 200 | ⬜ |
+| 203 | Fork+exec for Linux .wubu containers (host delegation) | — | ⬜ |
+| 204 | Per-container 9P namespace mount (Styx socket isolation) | 203 | ⬜ |
+| 205 | SteamOS container launches with GPU passthrough | 203 | ⬜ |
+| 206 | Bare-metal: ZealOS boots → WuBuOS as Win98 shell | 200,201,202 | ⬜ |
+| 207 | Integration test: `wubu` binary runs, GUI appears, REPL executes code | 200,201,202 | ⬜ |
+
+## What Actually Works (runtime-verified)
+
+- Styx/9P2000 message serialization (real bytes on wire)
+- Win98 GUI pixel rendering (real X11 pixels)
+- Ctrl+Alt+T DOS flip (real X11 key event)
+- Double-buffered rendering with dirty rects
 - Test infrastructure (462 tests, TDD discipline)
 
-## New Battleship — Real Cells
+## Systemic Risks
 
-| Cell | Description | Status |
-|------|-------------|--------|
-| 200 | ZealOS kernel runs in-process inside `wubu` hosted binary | ⬜ |
-| 201 | HolyC REPL actually compiles and executes code in-process | ⬜ |
-| 202 | Win98 GUI dispatches real input events to ZealOS apps | ⬜ |
-| 203 | Fork+exec for Linux .wubu containers (host delegation, not VSL emulation) | ⬜ |
-| 204 | Per-container 9P namespace mount (Styx socket isolation) | ⬜ |
-| 205 | SteamOS container launches with GPU passthrough | ⬜ |
-| 206 | Bare-metal: ZealOS boots → WuBuOS as Win98 shell | ⬜ |
-| 207 | Integration test: `wubu` binary runs, GUI appears, REPL executes code | ⬜ |
+| # | Risk | Sev | Truth |
+|---|------|-----|-------|
+| S1 | VSL is dispatch table, not Linux compat | 🔴 | Rename to wubu_host_linux.c. Delegate to host libc. |
+| S2 | Proton cannot load PEs | 🔴 | Use host Wine via platform delegation. |
+| S3 | Bare-metal ≠ rip Linux drivers | 🔴 | ZealOS boot + WuBuOS as HolyC shell. |
+| S4 | SteamOS needs real Linux process execution | 🔴 | Cell 203: host fork+exec. |
+| S5 | LOC was inflated (claimed 41K, real 11K) | 🟡 | Honest accounting done. |
 
-## Old Battleship (Cells 001-110) — ARCHIVED
-These tracked API signature existence, not runtime behavior.
-See vault/achievements.md for evidence archive.
-All 36 cells resolved at API-signature level. Zero resolved at behavioral level.
-
-## Systemic Risks (Updated)
-
-| # | Risk | Sev | Reality |
-|---|------|-----|---------|
-| S1 | VSL is not a Linux compat layer — it's a dispatch table pretending | 🔴 | Rename to wubu_host_linux.c. Delegate to host libc. |
-| S2 | Proton cannot run PEs — use host Wine via platform delegation | 🔴 | Drop PE emulation; shell out to wine if available |
-| S3 | Bare-metal requires ZealOS boot, not Linux driver ripping | 🔴 | WuBuOS = HolyC shell that ZealOS loads at boot |
-| S4 | SteamOS as container needs real Linux process execution | 🔴 | Cell 203: host fork+exec, not VSL syscall emulation |
-| S5 | LOC inflation: claimed 41K, actually 11K | 🟡 | Honest accounting restores credibility |
-| S6 | Inferno's 767K LOC is the real reference implementation | 🟡 | Study emu/Linux/os.c as the platform layer template |
+## Old Battleship (001-110) — ARCHIVED
+Tracked API signatures, not runtime behavior. All 36 cells resolved at signature level.
+Zero resolved at behavioral level. See vault/achievements.md for archive.
