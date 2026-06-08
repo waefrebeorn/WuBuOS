@@ -37,7 +37,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o $(APP
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o
 
 # ── All Objects ──────────────────────────────────────────────────
@@ -147,7 +147,7 @@ $(HOSTED)/%.o: $(HOSTED)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2 test_proton2
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -292,6 +292,15 @@ test_apps2:
 		$(APPS)/wubu_apps2_test.c \
 		-o $(APPS)/wubu_apps2_test -lm
 	$(APPS)/wubu_apps2_test
+
+test_proton2:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_proton2.c $(RT)/wubu_ramdisk.c $(RT)/wubu_arch.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_container.c \
+		$(RT)/wubu_proton2_test.c \
+		-o $(RT)/wubu_proton2_test
+	$(RT)/wubu_proton2_test
 
 # ── Clean ────────────────────────────────────────────────────────
 
