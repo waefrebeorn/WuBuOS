@@ -31,8 +31,9 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim + FAT32 + Sty
 | VBE↔WorldSim bridge | 25 ✅ | 1-2 |
 | DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | 2-3 |
 | **Styx/9P2000 protocol** | **29 ✅** | **3a** |
+| **StyxFS namespace for .wubu** | **11 ✅** | **3a** |
 | **Hosted binary (X11/headless)** | **8 ✅** | **3b** |
-| **Total: 118+ files** | **436/436 ✅** | **31 cells done** |
+| **Total: 120+ files** | **447/447 ✅** | **32 cells done** |
 
 ## Quick Start
 
@@ -95,7 +96,7 @@ src/
 
 ```bash
 make all           # All layers
-make test          # 436/436 tests
+make test          # 447/447 tests
 make hosted        # Hosted binary (./src/hosted/wubu)
 make test_styx     # Styx/9P2000 (29 tests)
 make test_hosted   # Hosted mode (8 tests)
