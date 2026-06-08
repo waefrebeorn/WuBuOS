@@ -1,40 +1,39 @@
 # 🌱 WuBuOS
 
-**Hybrid TempleOS/ZealOS C-Port with Win98/XP Classic GUI + Styx/9P Namespace**
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Hosted binary**
 
-A personal, hackable "seed" OS you fully own — runs as a Linux binary (hosted) or standalone (bare-metal ISO).
+A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted) or standalone (bare-metal via ZealOS boot).
 
 ![WuBuOS Win98 Desktop](docs/screenshot.png)
 
 ## Architecture
 
 ```
-Layer 5: Runtime     — .wubu container format, Styx/9P namespace, VSL, Proton
-Layer 4: Apps        — Notepad, Paint, Explorer, HolyC REPL, WorldSim, LLM Chat
-Layer 3: GUI Shell   — Win98 WM, Start menu, taskbar, 98.css theme
-Layer 2: Bridge      — DOS flip (Ctrl+Alt+T), VBE↔WorldSim, clipboard, IPC
-Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim + FAT32 + Styx/9P
+Layer 5: .wubu Containers  — SteamOS, Brave, HolyC apps
+Layer 4: Container Runtime — fork/exec, 9P namespace per container
+Layer 3: Win98 GUI Shell   — WM, Start menu, taskbar, 98.css theme
+Layer 2: Platform Layer    — Linux X11/Wayland, Windows Win32, bare ZealOS
+Layer 1: ZealOS Kernel     — ring-0, HolyC JIT, RedSea FS (already boots on metal)
 ```
 
 ## Status
 
-| Component | Tests | Phase |
-|-----------|-------|-------|
-| Kernel (mem, task, vbe, fat32, ahci, txfs) | 109 ✅ | 1-2 |
-| JIT (mmap + MIR + HolyC) | 61 ✅ | 1-2 |
-| WorldSim (terrain, ECS, physics, render, sim) | 18 ✅ | 1-2 |
-| .wubu container + VSL + Proton | 108 ✅ | 1-2 |
-| ISO 9660 bootable | 20 ✅ | 1-2 |
-| GUI (WM + double-buffer) | 17 ✅ | 1-2 |
-| WM test suite + Win98 theme | 26 ✅ | 2 |
-| Start menu (Win98 classic) | 13 ✅ | 2 |
-| VBE↔WorldSim bridge | 25 ✅ | 1-2 |
-| DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | 2-3 |
-| **Styx/9P2000 protocol** | **29 ✅** | **3a** |
-| **StyxFS namespace for .wubu** | **11 ✅** | **3a** |
-| **Package manager + VSL/Proton apps + compilers** | **15 ✅** | **4** |
-| **Hosted binary (X11/headless)** | **8 ✅** | **3b** |
-| **Total: 122+ files** | **462/462 ✅** | **36 cells done** |
+| Component | Tests | What's Real |
+|-----------|-------|-------------|
+| Kernel stubs (mem, task, vbe, fat32, ahci, txfs) | 109 ✅ | Struct inits, no real HW |
+| JIT mmap stub | 20 ✅ | a+b/a*b only |
+| HolyC compiler skeleton | 41 ✅ | Lex/parse, no real codegen |
+| .wubu container + VSL + Proton | 108 ✅ | API surface, no process creation |
+| Styx/9P2000 + StyxFS | 40 ✅ | **Real** message serialization |
+| GUI (WM + dbuf + start menu + theme) | 56 ✅ | **Real** pixel rendering |
+| DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | **Real** X11 key → mode switch |
+| Hosted binary | 8 ✅ | Opens X11 window |
+| Package manager + compilers | 15 ✅ | Registry, no real installation |
+| **Total: 30 C files** | **462/462 ✅** | **~11K real LOC** |
+
+## ⚠️ Hard-Dive Reality
+
+WuBuOS has 462 passing tests, but they verify **API signatures**, not **runtime behavior**. The battleship has been reset with 8 real behavioral cells (200-207). See `docs/risk_register.md` for details.
 
 ## Quick Start
 
@@ -42,10 +41,10 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim + FAT32 + Sty
 # Build everything
 make all
 
-# Run tests (384)
+# Run tests (462)
 make test
 
-# Build the hosted binary (172KB blob)
+# Build the hosted binary
 make hosted
 
 # Run WuBuOS as a Linux app
@@ -54,44 +53,29 @@ make hosted
 ./src/hosted/wubu -w 800 600 # Custom size
 ```
 
-That's it. No VM, no Docker, no nested OS. WuBuOS runs as a regular Linux binary.
+## The Inferno Pattern
 
-## The Blob OS Concept
-
-WuBuOS is designed as a **self-containerized OS**:
-
-- **Runs hosted** — launch it as a Linux binary (like Inferno OS's emu)
-- **Runs bare-metal** — boot the ISO on real hardware
-- **Everything is a file** — Styx/9P namespace (everything = file server)
-- **Everything is a container** — .wubu format (universal blob)
-- **Self-hosted apps** — HolyC JIT compiler built in C11
-- **Linux app compat** — VSL (Virtualization Substrate Layer) runs Linux binaries
-- **Windows app compat** — Proton translation layer runs PE binaries
-- **Inferno OS protocol** — Styx/9P for namespace-based everything
+WuBuOS follows the Inferno OS `emu` model:
+- **Runs hosted** — launch it as a Linux binary (like Inferno's emu)
+- **Runs bare-metal** — boot ZealOS, WuBuOS is the Win98 shell
+- **Everything is a file** — Styx/9P namespace
+- **Everything is a container** — .wubu format (host fork/exec)
+- **ZealOS kernel inside** — HolyC JIT, RedSea FS, DolDoc
 
 ## Project Layout
 
 ```
 src/
-├── kernel/     # Memory, tasking, VBE, input, IRQ, FAT32, AHCI, TXFS
-├── jit/        # JIT runtime (mmap + MIR + HolyC)
-├── compiler/   # HolyC compiler (lexer, parse, codegen)
-├── runtime/    # .wubu, VSL, Proton, Styx/9P2000
-├── gui/        # WM, taskbar, desktop, Win98 theme, double-buffer
-│   └── wm_nano/  # NanoShellOS widget fork (28 files)
+├── kernel/     # Memory, tasking, VBE, input, IRQ, FAT32, AHCI, TXFS (stubs)
+├── jit/        # JIT runtime (mmap stub)
+├── compiler/   # HolyC compiler skeleton (lexer, parse, codegen)
+├── runtime/    # .wubu, host-linux (was VSL), Proton, Styx/9P2000, StyxFS, pkg
+├── gui/        # WM, taskbar, desktop, theme, double-buffer, start menu
 ├── bridge/     # DOS flip, clipboard, IPC, VBE↔WorldSim
-├── hosted/     # Inferno emu-style X11 launcher (the blob)
+├── hosted/     # Inferno emu-style X11 launcher (the product)
 ├── apps/       # HolyC REPL, Notepad
-├── worldsim/   # Terrain, ECS, physics, render, simulation
 └── tools/      # ISO 9660 builder, screenshot generator
 ```
-
-## Reference
-
-- [Inferno OS](https://github.com/inferno-os/inferno-os) — Styx/9P, Dis bytecode, hosted emu
-- [ZealOS](https://github.com/Zeal-Operating-System/ZealOS) — Modernized TempleOS fork
-- [NanoShellOS](https://github.com/GenericProgrammer1234/NanoShellOS) — x86-64 hobby OS
-- [holyc-lang](https://github.com/tsoding/holyc-lang) — HolyC compiler in C
 
 ## Build Targets
 
@@ -101,8 +85,16 @@ make test          # 462/462 tests
 make hosted        # Hosted binary (./src/hosted/wubu)
 make test_styx     # Styx/9P2000 (29 tests)
 make test_hosted   # Hosted mode (8 tests)
-make test_worldsim # WorldSim (18 tests)
-make test_vsl      # VSL (46 tests)
-make test_proton   # Proton (24 tests)
+make test_wm       # Window manager (26 tests)
+make test_startmenu # Start menu (13 tests)
+make test_styxfs   # StyxFS namespace (11 tests)
+make test_apps     # Package manager + VSL + Proton + compilers (15 tests)
 make clean         # Clean artifacts
 ```
+
+## Reference
+
+- [Inferno OS](https://github.com/inferno-os/inferno-os) — Styx/9P, Dis bytecode, hosted emu (767K LOC)
+- [ZealOS](https://github.com/Zeal-Operating-System/ZealOS) — Modernized TempleOS (154K LOC, boots on metal)
+- [NanoShellOS](https://github.com/GenericProgrammer1234/NanoShellOS) — x86-64 hobby OS (GUI reference)
+- [holyc-lang](https://github.com/tsoding/holyc-lang) — HolyC compiler in C
