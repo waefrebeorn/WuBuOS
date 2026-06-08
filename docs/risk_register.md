@@ -1,102 +1,49 @@
-# WuBuOS — Battleship / Risk Register
+# WuBuOS — Battleship / Risk Register (POST HARD DIVE)
 
-**Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
-**Last audit**: 2026-06-07  
-**Current state**: 122 files, ~41,000 LOC, 462/462 tests pass
+**Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase
+**Last audit**: 2026-06-07 (Hard Dive + Triple DA sweep)
+**Current state**: 11K real C LOC (not 41K), 462 tests passing against API signatures, NOT against real OS behavior
 
----
+## ⚠️ ARCHITECTURAL REALITY
+- WuBuOS **does not boot**. Has no kernel entry point, no IDT, no GDT.
+- The hosted binary is the only executable, and it only renders gray pixels.
+- VSL has 46 syscalls but **cannot create a process** (no ELF loader, no fork/exec).
+- Proton has Win32 API names but **cannot load a PE**.
+- The .wubu container format is a header + blob, **not a real container** (no process isolation, no namespace, no resource limits).
+- **THE BATTLESHIP WILL NOW TRACK REAL BEHAVIOR, NOT API SIGNATURES.**
 
-## Systemic Risks (Cross-Phase)
+## What Actually Works (verified)
+- Styx/9P2000 message serialization/deserialization (real bytes on wire)
+- Win98 GUI drawing primitives (real pixels in X11 framebuffer)
+- Ctrl+Alt+T mode toggle (real X11 key event → real mode switch)
+- Double-buffered rendering with dirty rect tracking
+- Test infrastructure (462 tests, TDD discipline)
 
-| # | Risk | Sev | Mitigation | Status |
-|---|------|-----|------------|--------|
-| S1 | Complexity vs Simplicity — GUI + bridge may create "yet another hobby OS" | 🔴 | <100K LOC charter (locked) | 🟡 |
-| S2 | Maintenance burden — one person | 🔴 | Public repo; tiny milestones | 🟡 |
-| S3 | Hardware compat — VBE legacy | 🟡 | Software-rendered first; QEMU primary | ⬜ |
-| S4 | Motivation burnout | 🔴 | Ship runnable builds early and often | 🟡 |
-| S5 | "Why not ReactOS?" | 🟡 | Ownership IS the project | ✅ |
-
-## Phase 0 Risks (COMPLETE)
-
-| # | Risk | Prob | Impact | Status |
-|---|------|------|--------|--------|
-| P0-1 | Scope creep | High | Critical | 🟡 Mitigated |
-| P0-2 | ZealOS HolyC-heavy | High | High | ✅ Hybrid approach |
-| P0-3 | holyc-lang bugs | Med | Med | ✅ Verified, workaround |
-| P0-4 | NanoShell maintenance | Low | Med | ✅ Forked as reference |
-
-## Phase 1 Risks (IN PROGRESS)
-
-| # | Risk | Prob | Impact | Status |
-|---|------|------|--------|--------|
-| P1-1 | JIT crashes whole OS | High | Critical | 🟡 Fuzz + AOT dual-mode |
-| P1-2 | JIT slower than HolyC | Med | High | 🟡 Interpreter→simple→optimizing |
-| P1-3 | Losing divine feel | Med | High | 🟡 Keep HolyC userland |
-| P1-4 | mmap JIT neg rax encoding | Med | Med | ✅ Fixed: -O0 for stub |
-
-## Phase 2 Risks (NEXT)
-
-| # | Risk | Prob | Impact | Status |
-|---|------|------|--------|--------|
-| P2-1 | GUI sluggishness (software VBE) | Med | High | ⬜ Double-buffer early |
-| P2-2 | Window mgmt complexity | Med | Med | ⬜ Start limited overlap |
-| P2-3 | Aesthetics drift from Win98 | Low | Med | ⬜ 98.css reference |
-
-## Phase 3 Risks
-
-| # | Risk | Prob | Impact | Status |
-|---|------|------|--------|--------|
-| P3-1 | Context switch data loss | Med | Critical | ⬜ Transactional FS ops |
-| P3-2 | Flip feels jarring | Med | Med | ⬜ Windowed Temple first |
-| P3-3 | No isolation (ring-0) | Low | Low | ✅ Intentional |
-
-## WorldSim Integration Risks
-
-| # | Risk | Prob | Impact | Status |
-|---|------|------|--------|--------|
-| WS-1 | WorldSim render not wired to VBE | High | Med | ✅ vbe_ws_bridge wired |
-| WS-2 | ECS 1024 entity limit | Low | Low | ✅ Sufficient for seed |
-| WS-3 | Terrain gen determinism | Low | Low | ✅ xorshift64 seeded |
-
----
-
-## Battleship Cell Status
+## New Battleship — Real Cells
 
 | Cell | Description | Status |
 |------|-------------|--------|
-| 001 | ZealOS cloned + explored | ✅ |
-| 002 | holyc-lang built, -transpile works | ✅ |
-| 003 | NanoShellOS cloned as reference | ✅ |
-| 004 | ZealOS booted in QEMU | ✅ |
-| 005 | JIT mmap stub (20/20 tests) | ✅ |
-| 006 | MIR built from source | ✅ |
-| 007 | MIR JIT backend (add(3,4)=7) | ✅ |
-| 010 | Kernel memory (14/14 tests) | ✅ |
-| 011 | Kernel tasking (15/15 tests) | ✅ |
-| 012 | Kernel VBE/input/interrupt stubs | ✅ |
-| 020 | GUI wm/taskbar/desktop/theme | ✅ |
-| 021 | NanoShellOS wm_nano forked into src/gui/wm_nano/ | ✅ |
-| 030 | Bridge mode switch + clipboard + IPC | ✅ |
-| 040 | Apps: REPL + Notepad | ✅ |
-| 050 | WorldSim integrated (18/18 tests) | ✅ |
-| 051 | moondream3_vision_weights.bin | ✅ 8/8 weight check tests |
-| 052 | Grand Makefile (67/67 tests) | ✅ |
-| 060 | Bootable ISO | ✅ 20/20 tests |
-| 070 | VBE → WorldSim render wiring | ✅ 25/25 tests |
-| 071 | FAT32 filesystem | ✅ 20/20 tests |
-| 072 | AHCI disk driver | ✅ 16/16 tests |
-| 080 | HolyC compiler in C | ✅ 41/41 tests |
-| 090 | .wubu container format | ✅ 38/38 tests |
-| 091 | VSL (Linux virtualization layer) | ✅ 46/46 tests |
-| 092 | Proton (Windows compat layer) | ✅ 24/24 tests |
-| 100 | Inferno OS reference (Styx/9P2000 protocol) | ✅ Styx 29/29 tests |
-| 101 | Styx/9P2000 protocol implementation | ✅ 29/29 tests |
-| 105 | Inferno emu integration — WuBuOS hosted binary | ✅ built + 8/8 tests |
-| 102 | Window manager full test suite + Win98 theme | ✅ 26/26 tests |
-| 103 | DOS flip bridge wiring (Ctrl+Alt+T) | ✅ 13/13 tests |
-| 104 | Start menu + taskbar (Win98 classic) | ✅ 13/13 tests |
-| 106 | StyxFS filesystem namespace for .wubu | ✅ 11/11 tests |
-| 107 | Flatpak-style package manager | ✅ 7/15 tests (pkg) |
-| 108 | Brave browser via VSL | ✅ 3/15 tests (VSL) |
-| 109 | Notepad++ via Proton | ✅ 3/15 tests (Proton) |
-| 110 | All compilers pre-installed | ✅ 2/15 tests (comp) |
+| 200 | ZealOS kernel runs in-process inside `wubu` hosted binary | ⬜ |
+| 201 | HolyC REPL actually compiles and executes code in-process | ⬜ |
+| 202 | Win98 GUI dispatches real input events to ZealOS apps | ⬜ |
+| 203 | Fork+exec for Linux .wubu containers (host delegation, not VSL emulation) | ⬜ |
+| 204 | Per-container 9P namespace mount (Styx socket isolation) | ⬜ |
+| 205 | SteamOS container launches with GPU passthrough | ⬜ |
+| 206 | Bare-metal: ZealOS boots → WuBuOS as Win98 shell | ⬜ |
+| 207 | Integration test: `wubu` binary runs, GUI appears, REPL executes code | ⬜ |
+
+## Old Battleship (Cells 001-110) — ARCHIVED
+These tracked API signature existence, not runtime behavior.
+See vault/achievements.md for evidence archive.
+All 36 cells resolved at API-signature level. Zero resolved at behavioral level.
+
+## Systemic Risks (Updated)
+
+| # | Risk | Sev | Reality |
+|---|------|-----|---------|
+| S1 | VSL is not a Linux compat layer — it's a dispatch table pretending | 🔴 | Rename to wubu_host_linux.c. Delegate to host libc. |
+| S2 | Proton cannot run PEs — use host Wine via platform delegation | 🔴 | Drop PE emulation; shell out to wine if available |
+| S3 | Bare-metal requires ZealOS boot, not Linux driver ripping | 🔴 | WuBuOS = HolyC shell that ZealOS loads at boot |
+| S4 | SteamOS as container needs real Linux process execution | 🔴 | Cell 203: host fork+exec, not VSL syscall emulation |
+| S5 | LOC inflation: claimed 41K, actually 11K | 🟡 | Honest accounting restores credibility |
+| S6 | Inferno's 767K LOC is the real reference implementation | 🟡 | Study emu/Linux/os.c as the platform layer template |
