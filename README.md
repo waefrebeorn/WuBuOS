@@ -26,10 +26,13 @@ Layer 1: Core        — ZealOS C-port + JIT (MIR/mmap) + WorldSim + FAT32 + Sty
 | .wubu container + VSL + Proton | 108 ✅ | 1-2 |
 | ISO 9660 bootable | 20 ✅ | 1-2 |
 | GUI (WM + double-buffer) | 17 ✅ | 1-2 |
+| WM test suite + Win98 theme | 26 ✅ | 2 |
+| Start menu (Win98 classic) | 13 ✅ | 2 |
 | VBE↔WorldSim bridge | 25 ✅ | 1-2 |
+| DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | 2-3 |
 | **Styx/9P2000 protocol** | **29 ✅** | **3a** |
 | **Hosted binary (X11/headless)** | **8 ✅** | **3b** |
-| **Total: 115+ files** | **384/384 ✅** | **28 cells done** |
+| **Total: 118+ files** | **436/436 ✅** | **31 cells done** |
 
 ## Quick Start
 
@@ -92,7 +95,7 @@ src/
 
 ```bash
 make all           # All layers
-make test          # 384/384 tests
+make test          # 436/436 tests
 make hosted        # Hosted binary (./src/hosted/wubu)
 make test_styx     # Styx/9P2000 (29 tests)
 make test_hosted   # Hosted mode (8 tests)

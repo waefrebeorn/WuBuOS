@@ -112,7 +112,7 @@ $(TOOLS)/%.o: $(TOOLS)/%.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_styx test_hosted
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_hosted
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -154,6 +154,10 @@ test_bridge:
 		$(BRIDGE)/vbe_ws_bridge_test.c -o $(BRIDGE)/vbe_ws_bridge_test -lm
 	$(BRIDGE)/vbe_ws_bridge_test
 
+test_bridge_flip:
+	$(CC) -O0 -g -std=c11 -I$(BRIDGE) $(BRIDGE)/bridge.c $(BRIDGE)/bridge_test.c -o $(BRIDGE)/bridge_test
+	$(BRIDGE)/bridge_test
+
 test_proton:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/wubu_proton.c $(RT)/wubu_proton_test.c -o $(RT)/wubu_proton_test
 	$(RT)/wubu_proton_test
@@ -178,6 +182,14 @@ test_dbuf:
 	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/gui_dbuf.c $(GUI)/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
 	$(GUI)/gui_dbuf_test
 
+test_wm:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) $(GUI)/wm.c $(GUI)/wm_test.c $(KERNEL)/vbe.c -o $(GUI)/wm_test -lm
+	$(GUI)/wm_test
+
+test_startmenu:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) $(GUI)/startmenu.c $(GUI)/startmenu_test.c $(KERNEL)/vbe.c -o $(GUI)/startmenu_test -lm
+	$(GUI)/startmenu_test
+
 test_styx:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx.c $(RT)/styx_test.c -o $(RT)/styx_test
 	$(RT)/styx_test
@@ -190,6 +202,6 @@ test_hosted:
 
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(GUI)/gui_dbuf_test
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(GUI)/gui_dbuf_test $(GUI)/wm_test $(GUI)/startmenu_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png
 	@echo "🧹 Clean"

@@ -429,6 +429,15 @@ static int handle_key(hosted_state_t *state, KeySym ks, int pressed) {
     case XK_Up:        wu_key = 0xE048; break;
     case XK_Right:     wu_key = 0xE04D; break;
     case XK_Down:      wu_key = 0xE050; break;
+    case XK_t:
+        /* Ctrl+Alt+T: DOS flip — toggle GUI ↔ Temple mode */
+        if (state->key_map[0x1D] && state->key_map[0x38]) {
+            bridge_toggle_mode();
+            hosted_set_mode(state, bridge_get_mode() == MODE_TEMPLE
+                                    ? HMODE_TEMPLE : HMODE_GUI);
+        }
+        wu_key = 0x14; /* 't' scancode */
+        break;
     default:
         if (ks >= XK_a && ks <= XK_z) wu_key = 0x1E + (uint32_t)(ks - XK_a);
         else if (ks >= XK_0 && ks <= XK_9) wu_key = 0x0B + (uint32_t)(ks - XK_0);
@@ -439,7 +448,11 @@ static int handle_key(hosted_state_t *state, KeySym ks, int pressed) {
         extern void input_key_push(void);
         (void)input_key_push;
     }
-    (void)pressed;
+    /* Track modifier key state for Ctrl+Alt+T detection */
+    if (ks == XK_Control_L || ks == XK_Control_R)
+        state->key_map[0x1D] = pressed;
+    if (ks == XK_Alt_L || ks == XK_Alt_R)
+        state->key_map[0x38] = pressed;
     (void)state;
     return wu_key;
 }

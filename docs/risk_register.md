@@ -2,7 +2,7 @@
 
 **Methodology**: Triple DA (Affirm → Attack → Synthesize) per phase  
 **Last audit**: 2026-06-07  
-**Current state**: 115 files, ~36,000 LOC, 384/384 tests pass
+**Current state**: 118 files, ~38,000 LOC, 436/436 tests pass
 
 ---
 
@@ -92,9 +92,9 @@
 | 100 | Inferno OS reference (Styx/9P2000 protocol) | ✅ Styx 29/29 tests |
 | 101 | Styx/9P2000 protocol implementation | ✅ 29/29 tests |
 | 105 | Inferno emu integration — WuBuOS hosted binary | ✅ built + 8/8 tests |
-| 102 | Window manager full test suite + Win98 theme | ⬜ |
-| 103 | DOS flip bridge wiring (Ctrl+Alt+T) | ⬜ |
-| 104 | Start menu + taskbar (Win98 classic) | ⬜ |
+| 102 | Window manager full test suite + Win98 theme | ✅ 26/26 tests |
+| 103 | DOS flip bridge wiring (Ctrl+Alt+T) | ✅ 13/13 tests |
+| 104 | Start menu + taskbar (Win98 classic) | ✅ 13/13 tests |
 | 106 | StyxFS filesystem namespace for .wubu | ⬜ |
 | 107 | Flatpak-style package manager | ⬜ |
 | 108 | Brave browser via VSL | ⬜ |
