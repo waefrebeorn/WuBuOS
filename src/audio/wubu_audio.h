@@ -64,6 +64,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* ── Audio Limits ────────────────────────────────────────────────── */
 
@@ -469,3 +470,6 @@ void wubu_ingest_close(int handle);
 int  wubu_ingest_enumerate(char uris[][256], char names[][64], int max);
 
 #endif /* WUBU_AUDIO_H */
+
+/* Set volume for a cell (0-15) */
+void wubu_furnace_set_volume(int pattern, int row, int chan, uint8_t volume);

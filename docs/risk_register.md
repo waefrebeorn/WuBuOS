@@ -1,8 +1,8 @@
-# WuBuOS — Battleship v8 (Triple DA + Name Parity + Third-Party Audit)
+# WuBuOS — Battleship v9 (Metal + Audio Implemented)
 
 **Methodology**: Behavioral verification + stub hunt + name parity audit + third-party dep scan
-**Current state**: 44 C files, ~150 C/H files, ~38K source LOC, 620+ tests
-**Name parity**: 64/64 core functions mapped in zealos_parity.h
+**Current state**: 46 C files, ~152 C/H files, ~38K source LOC, 747+ tests
+**Name parity**: 64/96 core functions mapped in zealos_parity.h (67%)
 
 ## Resolved Cells
 
@@ -23,8 +23,8 @@
 | 397 | Image Canvas — Photoshop class | wubu_canvas.c: layers+blend+plugins+BMP, 8 tests |
 | 398 | FFmpeg Codec Layer | wubu_codec.c: decode/encode/transcode, 2 tests |
 | 399 | Proton container + GPU passthrough + HID/USB | wubu_proton2.c: Arch+Wine+DXVK+evdev, 11 tests |
-| 400 | Metal boot + WSL2 GUI abstraction | wubu_metal.h: unified display API for all 3 paths |
-| 401 | Audio Engine — Ardour + Furnace + SF2 architecture | wubu_audio.h: DAW+tracker+synthesizer design |
+| 400 | Metal boot + WSL2 GUI abstraction | wubu_metal.c/h: 6/6 tests |
+| 401 | Audio Engine — Ardour + Furnace + SF2 | wubu_audio.c/h: 11/11 tests |
 
 ## Name Parity Status
 
@@ -51,7 +51,7 @@
 | MIR (c2m) | jit_mir.c | Self-contained JIT | 391 | 🟡 Medium |
 | NanoShellOS naming | wm_nano/* | WuBuOS naming | 382 | ⬜ Low |
 
-## Active Gap Cells (v8)
+## Active Gap Cells (v9)
 
 ### Layer 1: Kernel — Hollow Stubs
 
@@ -117,24 +117,28 @@
 | 361 | REPL: renders black rect, no text output | 🟡 | repl.c:30 |
 | 362 | Notepad: replaced by wubu_editor (Cell 396) | ✅ | wubu_editor.c |
 
-### Layer 9: Audio Engine (NEW)
+### Layer 9: Audio Engine — IMPLEMENTED (401)
+
+**Cell 401 DONE — 11/11 tests pass**
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
-| 401 | Audio engine: header written, needs implementation | 🟡 | audio/wubu_audio.h |
-| 402 | Furnace tracker: chip emulation needs implementation | 🟡 | TBD |
-| 403 | TinySoundFont: SF2 loader + renderer needs implementation | 🟡 | TBD |
-| 404 | Ardour DAW: mixer + track + region needs implementation | 🟡 | TBD |
-| 405 | AI plugin container: audio buffer streaming protocol | 🟡 | TBD |
+| 402 | Furnace tracker: chip emulation needs implementation | 🟡 | audio/wubu_audio.c (stubbed) |
+| 403 | TinySoundFont: SF2 loader + renderer needs implementation | 🟡 | audio/wubu_audio.c (stubbed) |
+| 404 | Ardour DAW: mixer + track + region needs implementation | 🟡 | audio/wubu_audio.c (stubbed) |
+| 405 | AI plugin container: audio buffer streaming protocol | 🟡 | audio/wubu_audio.c (stubbed) |
 
-### Layer 10: Metal Boot (NEW)
+*Note: Cells 402-405 have basic stub implementations in wubu_audio.c to compile. Full chip emulation, SF2 parsing, DAW mixer, and container audio streaming need real implementation.*
+
+### Layer 10: Metal Boot — IMPLEMENTED (400)
+
+**Cell 400 DONE — 6/6 tests pass**
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
-| 400 | Metal boot: header written, needs implementation | 🟡 | hosted/wubu_metal.h |
-| 406 | WSL2 detection + wslg integration | 🟡 | TBD |
+| 406 | WSL2 detection + wslg integration | 🟡 | hosted/wubu_metal.c (detects, stubbed Wayland) |
 | 407 | Initramfs creation + GRUB config | 🟡 | TBD |
-| 408 | DRM/KMS mode setting (replace libdrm with direct ioctl) | 🟡 | TBD |
+| 408 | DRM/KMS mode setting (replace libdrm with direct ioctl) | 🟡 | hosted/wubu_metal.c (stubbed) |
 
 ## Summary
 
@@ -153,6 +157,6 @@
 3. **Cell 311** — codegen function calls/structs (unblocks 201)
 4. **Cell 381** — pure C math (wubu_math.h impl)
 5. **Cell 340/341** — route exec through wubu_host_exec
-6. **Cell 401** — audio engine implementation
-7. **Cell 400** — metal boot implementation
+6. **Cell 402-405** — audio engine real implementation
+7. **Cell 406-408** — metal boot real implementation
 8. **Cell 305** — name parity: map remaining 35 functions

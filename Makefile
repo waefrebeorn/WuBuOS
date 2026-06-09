@@ -16,10 +16,17 @@ WS      = src/worldsim
 RT      = src/runtime
 TOOLS   = src/tools
 HOSTED  = src/hosted
+AUDIO   = src/audio
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o
+
+# ── Metal Objects ────────────────────────────────────────────────
+METAL_OBJS = $(HOSTED)/wubu_metal.o
+
+# ── Audio Objects ────────────────────────────────────────────────
+AUDIO_OBJS = $(AUDIO)/wubu_audio.o
 
 # ── JIT Objects ──────────────────────────────────────────────────
 JIT_OBJS = $(JIT)/jit.o
@@ -41,14 +48,20 @@ RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o
 
 # ── All Objects ──────────────────────────────────────────────────
-ALL_OBJS = $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(RT_OBJS) $(TOOLS_OBJS) $(GUI_OBJS) $(BRIDGE_OBJS) $(APP_OBJS) $(WS_OBJS)
+ALL_OBJS = $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(RT_OBJS) $(TOOLS_OBJS) $(GUI_OBJS) $(BRIDGE_OBJS) $(APP_OBJS) $(WS_OBJS) $(METAL_OBJS) $(AUDIO_OBJS)
 
 # ── Targets ─────────────────────────────────────────────────────
 
 .PHONY: all clean test kernel jit gui bridge apps worldsim
 
-all: kernel jit compiler runtime tools gui bridge apps worldsim
+all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio
 	@echo "✅ WuBuOS built"
+
+metal: $(METAL_OBJS)
+	@echo "✅ Metal layer built"
+
+audio: $(AUDIO_OBJS)
+	@echo "✅ Audio engine built"
 
 kernel: $(KERNEL_OBJS)
 	@echo "✅ Kernel built"
@@ -143,11 +156,14 @@ $(TOOLS)/%.o: $(TOOLS)/%.c
 	$(CC) $(CFLAGS) -I$(TOOLS) -c $< -o $@
 
 $(HOSTED)/%.o: $(HOSTED)/%.c
-	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -c $< -o $@
+
+$(AUDIO)/%.o: $(AUDIO)/%.c
+	$(CC) $(CFLAGS) -I$(AUDIO) -I$(KERNEL) -I$(RT) -c $< -o $@
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2 test_proton2
+test: test_jit test_memory test_tasking test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2 test_proton2 test_metal test_audio
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -302,10 +318,26 @@ test_proton2:
 		-o $(RT)/wubu_proton2_test
 	$(RT)/wubu_proton2_test
 
+test_metal:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) \
+		$(HOSTED)/wubu_metal.c $(KERNEL)/wubu_gaad.c \
+		$(HOSTED)/wubu_metal_test.c \
+		-o $(HOSTED)/wubu_metal_test -lm
+	$(HOSTED)/wubu_metal_test
+
+test_audio:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(AUDIO) -I$(KERNEL) -I$(RT) \
+		$(AUDIO)/wubu_audio.c \
+		$(AUDIO)/wubu_audio_test.c \
+		-o $(AUDIO)/wubu_audio_test -lm -lpthread
+	$(AUDIO)/wubu_audio_test
+
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
-	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o
-	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(KERNEL)/wubu_gaad_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_apps_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(RT)/styxfs_test $(RT)/wubu_host_exec_test $(RT)/wubu_arch_test $(RT)/wubu_ramdisk_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(GUI)/gui_dbuf_test $(GUI)/wm_test $(GUI)/startmenu_test $(GUI)/wubu_wm_test
+	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o $(AUDIO)/*.o
+	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(KERNEL)/wubu_gaad_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_apps_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(RT)/styxfs_test $(RT)/wubu_host_exec_test $(RT)/wubu_arch_test $(RT)/wubu_ramdisk_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(GUI)/gui_dbuf_test $(GUI)/wm_test $(GUI)/startmenu_test $(GUI)/wubu_wm_test $(RT)/wubu_proton2_test $(HOSTED)/wubu_metal_test $(AUDIO)/wubu_audio_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/paint $(APPS)/doom
 	@echo "🧹 Clean"
