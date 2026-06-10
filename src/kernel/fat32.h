@@ -166,6 +166,8 @@ typedef struct {
     uint8_t        attr;
     uint64_t       pos;            /* Current file position */
     bool           write_mode;     /* Open for writing */
+    uint32_t       dir_cluster;    /* Cluster containing dir entry (O(1) close) */
+    uint32_t       dir_offset;     /* Entry offset within cluster */
 } fat32_file;
 
 /* ── API: Volume Management ────────────────────────────────────── */

@@ -830,58 +830,38 @@ int fat32_open(fat32_volume *vol, uint32_t dir_cluster,
         return -1;
     }
 
+    /* Cell 304: Store dir location for O(1) close */
+    fp->dir_cluster = info.dir_cluster;
+    fp->dir_offset = info.dir_offset;
+
     return 0;
 }
 
 void fat32_close(fat32_file *fp) {
     if (!fp || !fp->vol) return;
 
-    /* If file was opened for writing, update directory entry with final size */
-    if (fp->write_mode && fp->first_cluster >= 2) {
-        /* Find the directory entry for this file and update its size */
-        /* Read the cluster containing our directory entry */
-        /* We stored dir_cluster/dir_offset info elsewhere, but for now
-         * we do a simpler approach: walk the root dir looking for our cluster */
-        /* TODO: Store dir_cluster/dir_offset in fat32_file for direct update */
-
-        /* Read root directory and update matching entry's file_size */
-        uint32_t cluster = fp->vol->root_cluster;
+    /* Cell 304: O(1) directory entry update using stored dir_cluster/dir_offset */
+    if (fp->write_mode && fp->first_cluster >= 2 && fp->dir_cluster >= 2) {
         uint8_t *buf = (uint8_t *)malloc(fp->vol->bytes_per_cluster);
         if (!buf) { memset(fp, 0, sizeof(*fp)); return; }
 
-        while (cluster >= 2 && cluster < FAT32_CLUSTER_EOC) {
-            uint64_t lba = fat32_cluster_to_lba(fp->vol, cluster);
-            int rc = fp->vol->blk.read(fp->vol->blk.ctx, lba,
-                                        fp->vol->sectors_per_cluster, buf);
-            if (rc != 0) break;
+        uint64_t lba = fat32_cluster_to_lba(fp->vol, fp->dir_cluster);
+        int rc = fp->vol->blk.read(fp->vol->blk.ctx, lba,
+                                    fp->vol->sectors_per_cluster, buf);
+        if (rc == 0) {
+            fat32_dir_entry *de = (fat32_dir_entry *)(buf + fp->dir_offset * FAT32_DIR_ENTRY_SIZE);
+            de->file_size = fp->file_size;
+            /* Also update write time */
+            time_t now = time(NULL);
+            uint16_t dt, tm;
+            datetime_to_dos(now, &tm, &dt);
+            de->write_time = tm;
+            de->write_date = dt;
+            de->access_date = dt;
 
-            uint32_t entries = fp->vol->bytes_per_cluster / FAT32_DIR_ENTRY_SIZE;
-            for (uint32_t i = 0; i < entries; i++) {
-                fat32_dir_entry *de = (fat32_dir_entry *)(buf + i * FAT32_DIR_ENTRY_SIZE);
-                if ((uint8_t)de->name[0] == 0x00) goto done;
-                if ((uint8_t)de->name[0] == 0xE5) continue;
-                if (de->attr == FAT32_ATTR_LFN) continue;
-                if (de->attr & FAT32_ATTR_VOLUME_ID) continue;
-
-                uint32_t de_cluster = (uint32_t)de->cluster_hi << 16 | de->cluster_lo;
-                if (de_cluster == fp->first_cluster) {
-                    de->file_size = fp->file_size;
-                    /* Also update write time */
-                    time_t now = time(NULL);
-                    uint16_t dt, tm;
-                    datetime_to_dos(now, &tm, &dt);
-                    de->write_time = tm;
-                    de->write_date = dt;
-                    de->access_date = dt;
-
-                    fp->vol->blk.write(fp->vol->blk.ctx, lba,
-                                        fp->vol->sectors_per_cluster, buf);
-                    goto done;
-                }
-            }
-            cluster = fat32_next_cluster(fp->vol, cluster);
+            fp->vol->blk.write(fp->vol->blk.ctx, lba,
+                                fp->vol->sectors_per_cluster, buf);
         }
-done:
         free(buf);
     }
 

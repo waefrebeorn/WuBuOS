@@ -1,7 +1,7 @@
 # WuBuOS — Architecture & Roadmap (v13 — N-Pole Cartpole Sovereign Solve)
 
 > **LOCKED** — This document reflects ground truth from the full stub+form gap hunt, name parity audit, and third-party dep scan.
-> **66 cells resolved** (200-207, 301, 310-313, 340-341, 380-381, 390-405, 410-411, 530-534, 360-378, 305, 369, 382, 386). **373 active gaps** documented in risk_register.md v16.
+> **67 cells resolved** (200-207, 301, 310-313, 340-341, 380-381, 390-405, 410-411, 530-534, 360-378, 305, 369, 382, 386, 304). **372 active gaps** documented in risk_register.md v17.
 
 ## Vision
 
@@ -76,7 +76,7 @@ Priority: Cell 496 (Audio) → Cell 360-366 (VSL syscalls) → Cell 305 (name pa
 ## Key Metrics
 - **53 C files**, **~160 C/H files**, **~17K real source LOC**
 - **747+ tests passing** across 30 suites
-- **66 cells resolved**, **373 active gaps**
+- **67 cells resolved**, **372 active gaps**
 - **171 (void) suppression casts** (54 in VSL alone)
 - **VSL**: ~950 lines, 65% stub density, 42/300+ Linux syscalls
 - **Name parity**: 64/96 (67%)

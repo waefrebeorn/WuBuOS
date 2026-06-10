@@ -67,9 +67,9 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-## Active Gap Cells (v16) — 373 gaps
+## Active Gap Cells (v17) — 372 gaps
 
-### Layer 1: Kernel — Hollow Stubs (51 gaps)
+### Layer 1: Kernel — Hollow Stubs (50 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
@@ -402,4 +402,4 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-*Next: Cell 304 — fat32 O(n) dir update → Cell 576 — Styx walk/read → Cell 496 — Audio Furnace*
+*Next: Cell 576 — Styx walk/read → Cell 496 — Audio Furnace → Cell 467-473 — editor stubs*
