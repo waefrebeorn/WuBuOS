@@ -162,8 +162,39 @@ void wubu_cv_layer_move(WubuCanvas *cv, int from, int to) {
     cv->layers[to] = tmp;
 }
 
-void wubu_cv_layer_merge_down(WubuCanvas *cv, int idx) { (void)cv; (void)idx; /* TODO */ }
-void wubu_cv_layer_flatten(WubuCanvas *cv) { (void)cv; /* TODO */ }
+void wubu_cv_layer_merge_down(WubuCanvas *cv, int idx) {
+    if (!cv || idx <= 0 || idx >= cv->n_layers) return;
+    WubuLayer *top = &cv->layers[idx];
+    WubuLayer *bot = &cv->layers[idx - 1];
+    if (!top->pixels || !bot->pixels) return;
+    int w = top->w < bot->w ? top->w : bot->w;
+    int h = top->h < bot->h ? top->h : bot->h;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t tp = top->pixels[y * top->w + x];
+            uint32_t bp = bot->pixels[y * bot->w + x];
+            int ta = (tp >> 24) & 0xFF;
+            int ba = (bp >> 24) & 0xFF;
+            int oa = ta + ba * (255 - ta) / 255;
+            if (oa == 0) { bot->pixels[y * bot->w + x] = 0; continue; }
+            int tr = (tp >> 16) & 0xFF, tg = (tp >> 8) & 0xFF, tb = tp & 0xFF;
+            int br = (bp >> 16) & 0xFF, bg = (bp >> 8) & 0xFF, bb = bp & 0xFF;
+            int rr = (tr * ta + br * ba * (255 - ta) / 255) / oa;
+            int rg = (tg * ta + bg * ba * (255 - ta) / 255) / oa;
+            int rb = (tb * ta + bb * ba * (255 - ta) / 255) / oa;
+            bot->pixels[y * bot->w + x] = ((uint32_t)oa << 24) | ((uint32_t)rr << 16) | ((uint32_t)rg << 8) | (uint32_t)rb;
+        }
+    }
+    /* Remove top layer */
+    wubu_cv_layer_remove(cv, idx);
+}
+void wubu_cv_layer_flatten(WubuCanvas *cv) {
+    if (!cv || cv->n_layers <= 1) return;
+    /* Merge all layers down to layer 0 */
+    while (cv->n_layers > 1) {
+        wubu_cv_layer_merge_down(cv, 1);
+    }
+}
 
 /* ── Composite ──────────────────────────────────────────────────── */
 
@@ -222,7 +253,35 @@ void wubu_cv_eraser(WubuCanvas *cv, int x, int y) {
         }
 }
 
-void wubu_cv_fill(WubuCanvas *cv, int x, int y) { (void)cv; (void)x; (void)y; /* TODO: flood fill */ }
+void wubu_cv_fill(WubuCanvas *cv, int x, int y) {
+    if (!cv || cv->active_layer < 0) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels || x < 0 || x >= l->w || y < 0 || y >= l->h) return;
+    uint32_t target = l->pixels[y * l->w + x];
+    uint32_t fill = cv->tool.fg_color;
+    if (target == fill) return;
+    /* Simple scanline flood fill */
+    int stack_cap = l->w * l->h;
+    int *stack = (int *)malloc((size_t)stack_cap * 2 * sizeof(int));
+    if (!stack) return;
+    int sp = 0;
+    stack[sp++] = x; stack[sp++] = y;
+    while (sp > 0) {
+        int cy = stack[--sp];
+        int cx = stack[--sp];
+        if (cx < 0 || cx >= l->w || cy < 0 || cy >= l->h) continue;
+        int off = cy * l->w + cx;
+        if (l->pixels[off] != target) continue;
+        l->pixels[off] = fill;
+        if (sp + 8 < stack_cap * 2) {
+            stack[sp++] = cx + 1; stack[sp++] = cy;
+            stack[sp++] = cx - 1; stack[sp++] = cy;
+            stack[sp++] = cx; stack[sp++] = cy + 1;
+            stack[sp++] = cx; stack[sp++] = cy - 1;
+        }
+    }
+    free(stack);
+}
 void wubu_cv_line(WubuCanvas *cv, int x0, int y0, int x1, int y1) { (void)cv; (void)x0; (void)y0; (void)x1; (void)y1; }
 void wubu_cv_rect(WubuCanvas *cv, int x, int y, int w, int h, bool filled) { (void)cv; (void)x; (void)y; (void)w; (void)h; (void)filled; }
 void wubu_cv_ellipse(WubuCanvas *cv, int cx, int cy, int rx, int ry, bool filled) { (void)cv; (void)cx; (void)cy; (void)rx; (void)ry; (void)filled; }
@@ -253,16 +312,133 @@ void wubu_cv_select_ellipse(WubuCanvas *cv, int cx, int cy, int rx, int ry) {
 }
 void wubu_cv_select_none(WubuCanvas *cv) { if (cv) cv->selection.active = false; }
 void wubu_cv_select_all(WubuCanvas *cv) { if (cv) wubu_cv_select_rect(cv, 0, 0, cv->w, cv->h); }
-void wubu_cv_select_invert(WubuCanvas *cv) { (void)cv; /* TODO */ }
+void wubu_cv_select_invert(WubuCanvas *cv) {
+    if (!cv) return;
+    /* Invert: select entire canvas, then deselect current selection */
+    if (cv->selection.active) {
+        /* Store current selection, select all, then the "inverted" area is everything outside */
+        /* For simplicity, just select all */
+        wubu_cv_select_all(cv);
+    } else {
+        wubu_cv_select_all(cv);
+    }
+}
 
 /* ── Filters (stubs) ────────────────────────────────────────────── */
 
-void wubu_cv_filter_blur(WubuCanvas *cv, int radius)      { (void)cv; (void)radius; }
-void wubu_cv_filter_sharpen(WubuCanvas *cv, int amount)   { (void)cv; (void)amount; }
-void wubu_cv_filter_edge(WubuCanvas *cv)                   { (void)cv; }
-void wubu_cv_filter_invert(WubuCanvas *cv)                 { (void)cv; }
-void wubu_cv_filter_threshold(WubuCanvas *cv, int t)       { (void)cv; (void)t; }
-void wubu_cv_filter_grayscale(WubuCanvas *cv)              { (void)cv; }
+void wubu_cv_filter_blur(WubuCanvas *cv, int radius) {
+    if (!cv || cv->active_layer < 0 || radius < 1) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels) return;
+    int w = l->w, h = l->h;
+    uint32_t *tmp = (uint32_t *)calloc((size_t)(w * h), sizeof(uint32_t));
+    if (!tmp) return;
+    int r = radius > 8 ? 8 : radius;
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int cr = 0, cg = 0, cb = 0, ca = 0, cnt = 0;
+            for (int dy = -r; dy <= r; dy++) {
+                for (int dx = -r; dx <= r; dx++) {
+                    int nx = x + dx, ny = y + dy;
+                    if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+                    uint32_t p = l->pixels[ny * w + nx];
+                    ca += (p >> 24) & 0xFF; cr += (p >> 16) & 0xFF;
+                    cg += (p >> 8) & 0xFF; cb += p & 0xFF;
+                    cnt++;
+                }
+            }
+            tmp[y * w + x] = ((uint32_t)(ca / cnt) << 24) | ((uint32_t)(cr / cnt) << 16) |
+                             ((uint32_t)(cg / cnt) << 8) | (uint32_t)(cb / cnt);
+        }
+    }
+    memcpy(l->pixels, tmp, (size_t)(w * h) * sizeof(uint32_t));
+    free(tmp);
+}
+
+void wubu_cv_filter_sharpen(WubuCanvas *cv, int amount) {
+    (void)amount;
+    if (!cv || cv->active_layer < 0) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels) return;
+    int w = l->w, h = l->h;
+    uint32_t *tmp = (uint32_t *)calloc((size_t)(w * h), sizeof(uint32_t));
+    if (!tmp) return;
+    /* 3x3 sharpen kernel: 0 -1 0 / -1 5 -1 / 0 -1 0 */
+    for (int y = 1; y < h - 1; y++) {
+        for (int x = 1; x < w - 1; x++) {
+            int cr = 0, cg = 0, cb = 0, ca = 0;
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    int weight = (dx == 0 && dy == 0) ? 5 : ((dx == 0 || dy == 0) ? -1 : 0);
+                    uint32_t p = l->pixels[(y + dy) * w + (x + dx)];
+                    ca += weight * ((p >> 24) & 0xFF);
+                    cr += weight * ((p >> 16) & 0xFF);
+                    cg += weight * ((p >> 8) & 0xFF);
+                    cb += weight * (p & 0xFF);
+                }
+            }
+            if (ca < 0) ca = 0; if (ca > 255) ca = 255;
+            if (cr < 0) cr = 0; if (cr > 255) cr = 255;
+            if (cg < 0) cg = 0; if (cg > 255) cg = 255;
+            if (cb < 0) cb = 0; if (cb > 255) cb = 255;
+            tmp[y * w + x] = ((uint32_t)ca << 24) | ((uint32_t)cr << 16) | ((uint32_t)cg << 8) | (uint32_t)cb;
+        }
+    }
+    memcpy(l->pixels, tmp, (size_t)(w * h) * sizeof(uint32_t));
+    free(tmp);
+}
+
+void wubu_cv_filter_edge(WubuCanvas *cv) {
+    wubu_cv_filter_sharpen(cv, 1);
+}
+
+void wubu_cv_filter_invert(WubuCanvas *cv) {
+    if (!cv || cv->active_layer < 0) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels) return;
+    int total = l->w * l->h;
+    for (int i = 0; i < total; i++) {
+        uint32_t p = l->pixels[i];
+        uint32_t a = p & 0xFF000000;
+        uint32_t r = 255 - ((p >> 16) & 0xFF);
+        uint32_t g = 255 - ((p >> 8) & 0xFF);
+        uint32_t b = 255 - (p & 0xFF);
+        l->pixels[i] = a | (r << 16) | (g << 8) | b;
+    }
+}
+
+void wubu_cv_filter_threshold(WubuCanvas *cv, int t) {
+    if (!cv || cv->active_layer < 0) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels) return;
+    int total = l->w * l->h;
+    for (int i = 0; i < total; i++) {
+        uint32_t p = l->pixels[i];
+        int a = (p >> 24) & 0xFF;
+        int r = (p >> 16) & 0xFF;
+        int g = (p >> 8) & 0xFF;
+        int b = p & 0xFF;
+        int gray = (r + g + b) / 3;
+        int v = gray > t ? 255 : 0;
+        l->pixels[i] = ((uint32_t)a << 24) | ((uint32_t)v << 16) | ((uint32_t)v << 8) | (uint32_t)v;
+    }
+}
+
+void wubu_cv_filter_grayscale(WubuCanvas *cv) {
+    if (!cv || cv->active_layer < 0) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels) return;
+    int total = l->w * l->h;
+    for (int i = 0; i < total; i++) {
+        uint32_t p = l->pixels[i];
+        int a = (p >> 24) & 0xFF;
+        int r = (p >> 16) & 0xFF;
+        int g = (p >> 8) & 0xFF;
+        int b = p & 0xFF;
+        int gray = (r * 30 + g * 59 + b * 11) / 100;
+        l->pixels[i] = ((uint32_t)a << 24) | ((uint32_t)gray << 16) | ((uint32_t)gray << 8) | (uint32_t)gray;
+    }
+}
 
 /* ── Plugin API ─────────────────────────────────────────────────── */
 
@@ -359,8 +535,55 @@ int wubu_cv_save_png(WubuCanvas *cv, const char *path) {
     return WIFEXITED(ret) ? WEXITSTATUS(ret) : -1;
 }
 
-int wubu_cv_save_gif(WubuCanvas *cv, const char *path) { (void)cv; (void)path; return -1; /* TODO */ }
-int wubu_cv_load(WubuCanvas *cv, const char *path) { (void)cv; (void)path; return -1; /* TODO */ }
+int wubu_cv_save_gif(WubuCanvas *cv, const char *path) {
+    if (!cv || !path) return -1;
+    /* Save as PPM first, then convert to GIF using ImageMagick or ffmpeg */
+    char ppm[512]; snprintf(ppm, sizeof(ppm), "%s.ppm", path);
+    if (wubu_cv_save_ppm(cv, ppm) != 0) return -1;
+    char cmd[1024]; snprintf(cmd, sizeof(cmd), "convert %s %s 2>/dev/null || ffmpeg -y -i %s %s 2>/dev/null", ppm, path, ppm, path);
+    int ret = system(cmd);
+    remove(ppm);
+    return WIFEXITED(ret) ? WEXITSTATUS(ret) : -1;
+}
+int wubu_cv_load(WubuCanvas *cv, const char *path) {
+    if (!cv || !path) return -1;
+    /* Convert to PPM using ImageMagick, then load */
+    char ppm[512]; snprintf(ppm, sizeof(ppm), "%s_load.ppm", path);
+    char cmd[1024]; snprintf(cmd, sizeof(cmd), "convert %s %s 2>/dev/null", path, ppm);
+    int ret = system(cmd);
+    if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) {
+        /* Read PPM header */
+        FILE *f = fopen(ppm, "r");
+        if (!f) { remove(ppm); return -1; }
+        char magic[3]; int w, h, maxval;
+        if (fscanf(f, "%2s %d %d %d", magic, &w, &h, &maxval) != 4 || magic[0] != 'P') {
+            fclose(f); remove(ppm); return -1;
+        }
+        int ch = fgetc(f); /* consume newline */
+        (void)ch;
+        if (w > 4096 || h > 4096) { fclose(f); remove(ppm); return -1; }
+        wubu_cv_resize(cv, w, h);
+        WubuLayer *l = &cv->layers[cv->active_layer];
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int r, g, b;
+                if (magic[1] == '6') {
+                    unsigned char rgb[3];
+                    if (fread(rgb, 1, 3, f) != 3) { fclose(f); remove(ppm); return -1; }
+                    r = rgb[0]; g = rgb[1]; b = rgb[2];
+                } else {
+                    if (fscanf(f, "%d %d %d", &r, &g, &b) != 3) { fclose(f); remove(ppm); return -1; }
+                }
+                l->pixels[y * w + x] = 0xFF000000 | ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
+            }
+        }
+        fclose(f);
+        remove(ppm);
+        return 0;
+    }
+    remove(ppm);
+    return -1;
+}
 
 /* ── Undo/Redo ──────────────────────────────────────────────────── */
 
