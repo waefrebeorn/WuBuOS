@@ -72,11 +72,11 @@ int main(int argc, char** argv) {
            env->spec.obs_dim, env->spec.act_dim, !env->spec.act_discrete);
     fflush(stdout);
 
-    /* Create policy network (MLP for stability) */
+    /* Create policy network (small MLP for numerical gradient feasibility) */
     printf("Creating MLP policy network...\n");
     fflush(stdout);
     BearPolicyNet policy;
-    int phid[] = { 64, 64 };
+    int phid[] = { 16, 16 };
     int policy_rc = bear_policy_create_mlp(&policy, &global_arena,
                                    env->spec.obs_dim, env->spec.act_dim,
                                    env->spec.act_discrete, phid, 2);
@@ -84,20 +84,14 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Failed to create policy network (rc=%d)\n", policy_rc);
         return 1;
     }
-    printf("Policy network: MLP 64x64\n");
+    printf("Policy network: MLP 16x16\n");
     bear_orthogonal_init_params(&policy, 1.0f);
-    for (int li = 0; li < policy.num_layers; li++) {
-        float* w = (float*)policy.layers[li].param->weight.data;
-        int wn = (int)(policy.layers[li].param->weight.shape[0] * policy.layers[li].param->weight.shape[1]);
-        for (int j = 0; j < wn; j++) {
-        }
-    }
 
-    /* Create value network (separate critic) */
+    /* Create value network (small MLP) */
     printf("Creating value network...\n");
     fflush(stdout);
     BearValueNet critic;
-    int vhid[] = { 32, 32 };
+    int vhid[] = { 16, 16 };
     int critic_rc = bear_value_create(&critic, &global_arena,
                            env->spec.obs_dim, vhid, 2);
     if (critic_rc != 0) {

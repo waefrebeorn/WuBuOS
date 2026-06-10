@@ -186,6 +186,16 @@ BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* criti
 void bear_ppo_update(BearPolicyNet* policy, BearValueNet* critic,
                       const BearPPOLoss* loss, BearOptimizer* opt);
 
+/* Numerical gradient computation (finite differences) for policy and value networks.
+ * epsilon: step size for finite differences (default 1e-3f) */
+void bear_policy_numerical_gradients(BearPolicyNet* policy, BearValueNet* critic,
+                                      const BearTensor* mb_obs, const BearTensor* mb_actions,
+                                      const BearTensor* mb_old_logprobs,
+                                      const BearTensor* mb_advantages,
+                                      const BearTensor* mb_returns, const BearTensor* mb_values,
+                                      const BearPPOConfig* cfg, float epsilon,
+                                      BearArena* temp_arena);
+
 /* ═══════════════════════════════════════════════════════════════════
  * Main Training Loop
  * ═══════════════════════════════════════════════════════════════════ */
