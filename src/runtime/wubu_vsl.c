@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
+#include <sys/ioctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 
@@ -430,6 +431,50 @@ static int64_t vsl_sys_dup2(uint64_t oldfd, uint64_t newfd, uint64_t c,
     return result < 0 ? -errno : (int64_t)result;
 }
 
+/* Cell 382: Signal handling — host delegation */
+static int64_t vsl_sys_sigaction(uint64_t signum, uint64_t act, uint64_t oldact,
+                                   uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    struct sigaction sa, old_sa;
+    struct sigaction *sa_ptr = act ? &sa : NULL;
+    struct sigaction *old_ptr = oldact ? &old_sa : NULL;
+    if (act) memcpy(&sa, (void *)act, sizeof(struct sigaction));
+    int rc = sigaction((int)signum, sa_ptr, old_ptr);
+    if (rc < 0) return -errno;
+    if (oldact) memcpy((void *)oldact, &old_sa, sizeof(struct sigaction));
+    return 0;
+}
+
+static int64_t vsl_sys_sigprocmask(uint64_t how, uint64_t set, uint64_t oldset,
+                                     uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    sigset_t ss, old_ss;
+    sigset_t *ss_ptr = set ? &ss : NULL;
+    sigset_t *old_ptr = oldset ? &old_ss : NULL;
+    if (set) memcpy(&ss, (const void *)(uintptr_t)set, sizeof(sigset_t));
+    int rc = sigprocmask((int)how, ss_ptr, old_ptr);
+    if (rc < 0) return -errno;
+    if (oldset) memcpy((void *)oldset, &old_ss, sizeof(sigset_t));
+    return 0;
+}
+
+static int64_t vsl_sys_sigreturn(uint64_t a, uint64_t b, uint64_t c,
+                                   uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    /* sigreturn is architecture-specific; in hosted mode we use sigreturn() */
+    return -ENOSYS; /* Not directly callable from userspace in hosted mode */
+}
+
+/* Cell 386: Futex — host delegation */
+static int64_t vsl_sys_futex(uint64_t uaddr, uint64_t op, uint64_t val,
+                               uint64_t timeout, uint64_t uaddr2, uint64_t val3) {
+    /* Cell 386: futex via host delegation */
+    int *addr = (int *)uaddr;
+    int rc = (int)syscall(SYS_futex, addr, (int)op, (int)val,
+                          (struct timespec *)timeout, (int *)uaddr2, (int)val3);
+    return rc < 0 ? -errno : (int64_t)rc;
+}
+
 static int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
                                     uint64_t d, uint64_t e, uint64_t f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
@@ -490,6 +535,9 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_CHDIR]        = vsl_sys_chdir,
     [VSL_SYS_SCHED_YIELD]  = vsl_sys_sched_yield,
     [VSL_SYS_CLOCK_GETTIME]= vsl_sys_clock_gettime,
+    [VSL_SYS_RT_SIGACTION]  = vsl_sys_sigaction,
+    [VSL_SYS_RT_SIGPROCMASK]= vsl_sys_sigprocmask,
+    [VSL_SYS_FUTEX]         = vsl_sys_futex,
     [VSL_SYS_EXIT_GROUP]   = vsl_sys_exit_group,
     [VSL_SYS_SOCKET]        = vsl_sys_socket,
     [VSL_SYS_CONNECT]       = vsl_sys_connect,

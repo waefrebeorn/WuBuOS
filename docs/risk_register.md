@@ -67,7 +67,7 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-## Active Gap Cells (v15) — 375 gaps
+## Active Gap Cells (v16) — 373 gaps
 
 ### Layer 1: Kernel — Hollow Stubs (51 gaps)
 
@@ -132,7 +132,7 @@ We audited our implementations against the actual upstream projects we ape:
 | 353 | holyc_parse: no typedef parsing | 🟡 | holyc_parse.c |
 | 354 | holyc_parse: no enum parsing | 🟡 | holyc_parse.c |
 
-### Layer 3: VSL — 54% Stubs (66 gaps)
+### Layer 3: VSL — 52% Stubs (64 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
@@ -402,4 +402,4 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-*Next: Cell 382 — VSL signal handling → Cell 386 — VSL futex → Cell 576 — Styx walk/read*
+*Next: Cell 304 — fat32 O(n) dir update → Cell 576 — Styx walk/read → Cell 496 — Audio Furnace*
