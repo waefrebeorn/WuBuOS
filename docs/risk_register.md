@@ -358,7 +358,7 @@ We audited our implementations against the actual upstream projects we ape:
 | 574 | worldsim/: No entity AI/behavior trees | 🟡 | worldsim/ |
 | 575 | worldsim/: No procedural quest/dungeon generation | 🟡 | worldsim/ |
 
-### Layer 12: Styx/9P — Missing Messages (16 gaps)
+### Layer 12: Styx/9P — Missing Messages (15 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
