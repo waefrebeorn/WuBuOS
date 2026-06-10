@@ -5,8 +5,8 @@
  * This is the SteamOS path — game engines use DRM directly.
  * Zero X11 dependency. Raw kernel mode setting.
  *
- * Status: HEADER ONLY — Cell 380 in roadmap.
- * Implementation requires: libdrm, kernel DRM driver.
+ * Status: Direct DRM ioctls + custom GBM (Cells 388/389)
+ * Implementation: wubu_drm_direct.c — no libdrm, no libgbm
  */
 #ifndef WUBU_DISPLAY_H
 #define WUBU_DISPLAY_H
@@ -14,35 +14,62 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── DRM/KMS Display State ──────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+ * CUSTOM GBM TYPES (Cell 389)
+ * ═══════════════════════════════════════════════════════════════════ */
+
+typedef struct wubu_gbm_device {
+    int fd;
+} wubu_gbm_device_t;
+
+typedef struct wubu_gbm_bo {
+    uint32_t handle;
+    uint32_t stride;
+    void *map;
+    size_t size;
+} wubu_gbm_bo_t;
+
+wubu_gbm_device_t *wubu_gbm_create_device(int fd);
+void wubu_gbm_destroy_device(wubu_gbm_device_t *gbm);
+wubu_gbm_bo_t *wubu_gbm_bo_create(wubu_gbm_device_t *gbm, uint32_t width, uint32_t height, uint32_t format);
+void wubu_gbm_bo_destroy(wubu_gbm_device_t *gbm, wubu_gbm_bo_t *bo);
+void *wubu_gbm_bo_get_map(wubu_gbm_bo_t *bo);
+uint32_t wubu_gbm_bo_get_stride(wubu_gbm_bo_t *bo);
+uint32_t wubu_gbm_bo_get_handle(wubu_gbm_bo_t *bo);
+
+/* ═══════════════════════════════════════════════════════════════════
+ * DRM/KMS Display State
+ * ═══════════════════════════════════════════════════════════════════ */
 
 typedef struct {
-    int      drm_fd;           /* /dev/dri/card0 fd */
+    int      drm_fd;            /* /dev/dri/card0 fd */
     uint32_t connector_id;
     uint32_t crtc_id;
     uint32_t mode_blob_id;
-    
-    /* Framebuffer */
+
+    /* Framebuffer (dumb buffer) */
     uint32_t fb_id;
-    uint32_t *fb_map;         /* mmap'd framebuffer */
+    uint32_t *fb_map;          /* mmap'd framebuffer */
     size_t   fb_size;
     int      fb_w, fb_h;
-    int      fb_pitch;        /* bytes per row */
-    
+    int      fb_pitch;         /* bytes per row */
+
     /* GBM (for buffer swapping) */
-    void    *gbm_device;      /* struct gbm_device* */
-    void    *gbm_surface;     /* struct gbm_surface* */
-    void    *gbm_bo;          /* struct gbm_bo* (current back buffer) */
-    
+    wubu_gbm_device_t *gbm_device;
+    void    *gbm_surface;      /* reserved for future */
+    wubu_gbm_bo_t *gbm_bo;     /* current back buffer */
+
     /* Input (evdev) */
-    int      kbd_fd;          /* /dev/input/eventX for keyboard */
-    int      mouse_fd;        /* /dev/input/eventX for mouse */
-    
+    int      kbd_fd;           /* /dev/input/eventX for keyboard */
+    int      mouse_fd;         /* /dev/input/eventX for mouse */
+
     /* State */
     int      running;
 } WubuDisplay;
 
-/* ── API ────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+ * API
+ * ═══════════════════════════════════════════════════════════════════ */
 
 /* Open DRM device, find connector+CRTC, set mode */
 int  wubu_display_init(WubuDisplay *d, int width, int height);
@@ -56,8 +83,10 @@ int  wubu_display_poll_input(WubuDisplay *d);
 /* Cleanup */
 void wubu_display_shutdown(WubuDisplay *d);
 
-/* ── Fallback: if no DRM available, use X11 ────────────────────── */
-/* The hosted binary will try DRM first, fall back to X11.
- * This keeps WuBuOS working on systems without DRM (WSL, etc.) */
+/* ═══════════════════════════════════════════════════════════════════
+ * Fallback: if no DRM available, use X11
+ * The hosted binary will try DRM first, fall back to X11.
+ * This keeps WuBuOS working on systems without DRM (WSL, etc.)
+ * ═══════════════════════════════════════════════════════════════════ */
 
 #endif /* WUBU_DISPLAY_H */

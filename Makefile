@@ -46,7 +46,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o $(APP
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o $(RT)/wubu_gc.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o $(RT)/wubu_gc.o $(RT)/wubu_drm_direct.o
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o $(TOOLS)/screenshot.o
 
 # ── Shell Objects ────────────────────────────────────────────────
@@ -348,6 +348,15 @@ test_wubu_wm:
 		$(GUI)/wubu_wm_test.c \
 		-o $(GUI)/wubu_wm_test
 	$(GUI)/wubu_wm_test
+
+# Cell 388/389: Direct DRM/KMS (no libdrm) + custom GBM test
+test_drm_direct:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+		-I$(HOSTED) -I$(RT) \
+		$(HOSTED)/wubu_drm_direct.c \
+		$(HOSTED)/wubu_display_test.c \
+		-o $(HOSTED)/wubu_drm_direct_test
+	$(HOSTED)/wubu_drm_direct_test
 
 test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

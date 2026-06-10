@@ -1,7 +1,7 @@
-# WuBuOS — Battleship v12 (Triple Devil's Advocate Audit Complete)
+# WuBuOS — Battleship v13 (Triple Devil's Advocate Audit Complete)
 
 **Methodology**: Behavioral verification + stub hunt + name parity audit + third-party dep scan + form≠function check + **Triple Devil's Advocate upstream comparison**
-**Current state**: 50 C files, ~18K real LOC, 747+ tests passing
+**Current state**: 52 C files, ~18.5K real LOC, 747+ tests passing
 **Name parity**: 96/96 core ZealOS functions mapped (100%)
 
 ---
@@ -46,6 +46,9 @@ We audited our implementations against the actual upstream projects we ape:
 | 381  | libm → pure C math (wubu_math.h implementation) | wubu_math.h: CORDIC sin/cos, NR sqrt, Taylor exp/log |
 | 382  | VSL signal handling: sigaction, sigprocmask, sigreturn | wubu_vsl.c:434-466 |
 | 386  | VSL futex via host delegation | wubu_vsl.c:468-476 |
+| 388  | libdrm → direct ioctl (no libdrm dependency) | wubu_drm_direct.c: DRM_IOCTL_MODE_* |
+| 389  | libgbm → custom GBM (wubu_gbm_create_device, etc.) | wubu_drm_direct.c: GBM implementation |
+| 391  | MIR → self-contained (no libgbm/MIR deps) | wubu_drm_direct.c: direct DRM + custom GBM |
 | 390  | Arch bootstrap + FreeDoom launcher + RAM/SSD root mount | wubu_arch.c pacstrap, wubu_freedoom.c prboom+, wubu_ramdisk.c tmpfs+disk |
 | 391  | FreeDoom launcher (prboom-plus in Arch container) | wubu_freedoom.c: GPU+audio passthrough, 10 tests |
 | 392  | Root mount: RAM (tmpfs) + SSD + install_to_disk | wubu_ramdisk.c: two-mode, 12 tests |
@@ -363,9 +366,9 @@ We audited our implementations against the actual upstream projects we ape:
 | Category | Count |
 |----------|-------|
 | 🔴 CRITICAL (REAL GAP — no impl at all or toy vs production) | 15 |
-| 🟡 HIGH (PARTIAL / STUB / NAMING / THIRD-PARTY / MISSING SUBSYSTEMS) | 300 |
+| 🟡 HIGH (PARTIAL / STUB / NAMING / THIRD-PARTY / MISSING SUBSYSTEMS) | 297 |
 | ⬜ LOW (NIT / CLEANUP / COSMETIC) | 32 |
-| ✅ RESOLVED | 61 |
+| ✅ RESOLVED | 64 |
 | **TOTAL DOCUMENTED GAPS** | **408** |
 
 ---
@@ -375,8 +378,8 @@ We audited our implementations against the actual upstream projects we ape:
 1. **Cell 496** — Audio: Replace 12 toy chip emulators with Furnace-grade external libs (blip_buf, Nuked-*, SAASound, YM3812-LLE, YMF262-LLE, YM2608-LLE, vgsound_emu)
 2. **Cell 497** — Audio: Replace TinySoundFont stub with schellingb/TinySoundFont upstream
 3. **Cell 498** — Audio: Implement Ardour-grade DAW (sample-accurate automation, LV2/VST3/CLAP, JACK, AAF/OMF, video sync)
-4. **Cell 388/389/391** — libdrm/libgbm/MIR → C replacements
-5. **Cell 302/303** — interrupt.c: bare-metal IDT + APIC + IRQ routing
+4. **Cell 302/303** — interrupt.c: bare-metal IDT + APIC + IRQ routing
+5. **Cell 388/389/391** — libdrm/libgbm/MIR → C replacements — RESOLVED
 6. **Cell 414** — per-container 9P Styx dispatch (walk/read) — RESOLVED
 7. **Cell 415** — cgroup/setrlimit enforcement in container runtime — RESOLVED
 8. **Cell 523-525** — wubu_metal: WSL2 wslg, initramfs, DRM/KMS mode set

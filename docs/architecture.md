@@ -1,7 +1,7 @@
-# WuBuOS — Architecture & Roadmap (v14 — Container Runtime & StyxFS Complete)
+# WuBuOS — Architecture & Roadmap (v15 — Direct DRM + Custom GBM Complete)
 
 > **LOCKED** — This document reflects ground truth from the full stub+form gap hunt, name parity audit, and third-party dep scan.
-> **82 cells resolved** (200-207, 301, 304-305, 310-313, 340-341, 360-378, 380-382, 386, 390-405, 410-411, 414-415, 460-473, 530-534, 576-577). **327 active gaps** documented in risk_register.md v22.
+> **85 cells resolved** (200-207, 301, 304-305, 310-313, 340-341, 360-378, 380-382, 386, 388-391, 390-405, 410-411, 414-415, 460-473, 530-534, 576-577). **324 active gaps** documented in risk_register.md v23.
 
 ## Vision
 
@@ -20,7 +20,7 @@ WuBuOS is NOT the kernel. It is a **GUI shell + container runtime** that wraps t
 Current: **96/96 core functions mapped (100%)**. 
 Missing: 0 functions — all 6 categories complete.
 
-## Resolved Cells (v13)
+## Resolved Cells (v14)
 
 | Cell | Name | Description | Status |
 |------|------|-------------|--------|
@@ -57,27 +57,32 @@ Missing: 0 functions — all 6 categories complete.
 | 405 | AI Plugin Container Streaming | 9P/Styx protocol, 8 types, container isolation | ✅ |
 | 410 | VSL init: host fork/exec verification | wubu_exec.c fork test, shell access, shared mem | ✅ |
 | 411 | VSL run: host shell command execution | wubu_exec.c fork+execl+waitpid | ✅ |
-|| 530 | bear_arena: Arena allocator + SoA tensor infrastructure | bear_arena.c/h compiles, tests pass | ✅ |
+| 414 | Per-container 9P Styx dispatch (walk/read) | wubu_host_exec.c: run_container_styx_server | ✅ |
+| 415 | cgroup/setrlimit enforcement in container runtime | wubu_host_exec.c: RLIMIT_CPU/AS | ✅ |
+| 388 | libdrm → direct ioctl (no libdrm dependency) | wubu_drm_direct.c: DRM_IOCTL_MODE_* | ✅ |
+| 389 | libgbm → custom GBM (wubu_gbm_create_device, etc.) | wubu_drm_direct.c: GBM implementation | ✅ |
+| 391 | MIR → self-contained (no libgbm/MIR deps) | wubu_drm_direct.c: direct DRM + custom GBM | ✅ |
+| 530 | bear_arena: Arena allocator + SoA tensor infrastructure | bear_arena.c/h compiles, tests pass | ✅ |
 || 531 | bear_simd: AVX2/NEON matmul + fused kernels + MinGRU | bear_simd.h compiles, tests pass | ✅ |
 || 532 | bear_env: Vectorized env API (CartPole, Squared) | bear_env.c compiles, tests pass | ✅ |
 || 533 | bear_opt: Adam + Muon optimizers | bear_opt.c compiles, tests pass | ✅ |
 || 534 | bear_env: N-Pole Cartpole (7-10 poles) RK4 Lagrangian | bear_env.c npole dynamics, Yacine reward shaping | ✅ |
 
-## Active Gap Cells (399 total) — Full list in `docs/risk_register.md`
+## Active Gap Cells (395 total) — Full list in `docs/risk_register.md`
 
 **Critical (8)**: VSL fork/exec/read/write/pipe, Styx walk, VSL syscall table
-**High (325)**: VSL stubs, compiler gaps, container gaps, GUI stubs, audio placeholders, JIT backends, metal boot
+**High (321)**: VSL stubs, compiler gaps, container gaps, GUI stubs, audio placeholders, JIT backends, metal boot
 **Low (32)**: Naming, cosmetic, future-proofing
 
 Priority: Cell 496 (Audio) → Cell 360-366 (VSL syscalls) → Cell 305 (name parity) → Cell 388/389/391 (C replacements)
 
 ## Key Metrics
-- **53 C files**, **~160 C/H files**, **~17K real source LOC**
+- **55 C files**, **~162 C/H files**, **~18.5K real source LOC**
 - **747+ tests passing** across 30 suites
-- **81 cells resolved**, **358 active gaps**
+- **85 cells resolved**, **324 active gaps**
 - **171 (void) suppression casts** (54 in VSL alone)
-- **VSL**: ~950 lines, 65% stub density, 42/300+ Linux syscalls
-- **Name parity**: 64/96 (67%)
+- **VSL**: ~950 lines, 65% stub density, 41/300+ Linux syscalls
+- **Name parity**: 96/96 (100%)
 - **Third-party deps remaining**: libdrm, libgbm, MIR, capstone
 
 ## Architecture Layers (UPDATED)
