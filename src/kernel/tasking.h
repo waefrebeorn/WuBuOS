@@ -131,10 +131,14 @@ void tasking_shutdown(void);
  * Pick next task to run (round-robin with priority).
  * Called by timer interrupt or explicit yield.
  * Returns the task that should run next.
- */
-CTask *task_schedule_next(void);
+ /* Schedule next task — round-robin with priority */
+ CTask *task_schedule_next(void);
 
-/* Idle task (runs when nothing else is ready). */
+ /* Timer tick handler — called from interrupt context (IRQ0/PIT).
+  * Increments global tick, wakes sleeping tasks, triggers preemption. */
+ void task_timer_tick(void);
+
+ /* Idle task (runs when nothing else is ready). */
 void task_idle(void *arg);
 
 /* ── Context Switch (arch-specific) ─────────────────────────────── */

@@ -1,6 +1,7 @@
 #include "worldsim.h"
+#include "wubu_math.h"
+
 #include <string.h>
-#include <math.h>
 
 static uint64_t rng_state;
 
@@ -73,7 +74,7 @@ void ws_terrain_generate(ws_terrain_t *t, uint32_t seed) {
             /* Island falloff — distance from center */
             float cx = (float)x / WS_TERRAIN_W - 0.5f;
             float cy = (float)y / WS_TERRAIN_H - 0.5f;
-            float dist = sqrtf(cx*cx + cy*cy) * 2.0f;
+            float dist = (float)wubu_sqrt((double)(cx*cx + cy*cy)) * 2.0f;
             float falloff = 1.0f - dist * dist;
             if (falloff < 0.0f) falloff = 0.0f;
             val *= falloff;

@@ -12,10 +12,10 @@
  * φ only appears when computing spiral points and scale factors.
  */
 #include "wubu_gaad.h"
+#include "wubu_math.h"
 
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>  /* Only for spiral cos/sin — can be replaced later */
 
 /* ── Pure C Math Helpers ────────────────────────────────────────── */
 
@@ -58,6 +58,7 @@ double wubu_phi_pow(int n) {
          * Simpler: just use floating point for negative powers */
         a = b;
         b = a * WUBU_PHI_INV;
+        (void)c; /* suppress unused warning */
     }
     return b;
 }

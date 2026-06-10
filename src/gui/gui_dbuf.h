@@ -109,5 +109,9 @@ int          gui_dbuf_width(const gui_dbuf_t *db);
 int          gui_dbuf_height(const gui_dbuf_t *db);
 uint64_t     gui_dbuf_frames(const gui_dbuf_t *db);
 int          gui_dbuf_dirty_count(const gui_dbuf_t *db);
+/* Draw a character using the 8x8 font */
+void gui_dbuf_draw_char(gui_dbuf_t *db, int x, int y, char c, uint32_t color);
+
+uint32_t     gui_dbuf_get_pixel(const gui_dbuf_t *db, int x, int y);
 
 #endif /* WUBU_GUI_DBUF_H */

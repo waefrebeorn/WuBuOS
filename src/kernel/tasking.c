@@ -29,6 +29,12 @@ static CTask   *g_head      = NULL;  /* Doubly-linked circular list */
 static int      g_next_id   = 1;
 static uint64_t g_tick      = 0;
 static int      g_initialized = 0;
+static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
+
+/* Forward declaration for assembly context switch */
+#ifdef MYSEED_METAL
+extern void task_switch_asm(TaskContext *old_ctx, TaskContext *new_ctx);
+#endif
 
 /* ── Helpers ────────────────────────────────────────────────────── */
 
@@ -148,6 +154,67 @@ CTask *task_schedule_next(void) {
 
     return best;
 }
+
+/* ── Timer Tick Handler (Preemptive Scheduling) ───────────────────── */
+
+/* Called from interrupt context (IRQ0/PIT) — must be fast, no locks */
+void task_timer_tick(void) {
+    g_tick++;
+
+    if (!g_initialized || !g_current) return;
+
+    g_current->total_ticks++;
+
+    /* Wake sleeping tasks whose time has come */
+    CTask *t = g_head;
+    if (t) {
+        do {
+            if (t->state == TASK_SLEEPING && g_tick >= t->wake_tick) {
+                t->state = TASK_READY;
+            }
+            t = t->next;
+        } while (t != g_head);
+    }
+
+    /* Preemptive scheduling: if enabled, yield current task */
+    if (g_preemptive) {
+        CTask *next = task_schedule_next();
+        if (next && next != g_current) {
+            /* Switch context — save old, restore new */
+            g_current->state = TASK_READY;
+            next->state = TASK_RUNNING;
+            CTask *old = g_current;
+            g_current = next;
+
+#ifdef MYSEED_METAL
+            /* Real metal: assembly context switch */
+            task_switch_asm(&old->context, &next->context);
+#else
+            /* Hosted: use setjmp/longjmp via task_yield logic */
+            TaskJmp *old_jmp = (TaskJmp *)old->user_data;
+            TaskJmp *new_jmp = (TaskJmp *)next->user_data;
+
+            if (setjmp(old_jmp->jb) == 0) {
+                old_jmp->primed = 1;
+                if (new_jmp->primed) {
+                    longjmp(new_jmp->jb, 1);
+                } else {
+                    new_jmp->primed = 1;
+                    if (next->entry) next->entry(next->entry_arg);
+                    task_destroy(next);
+                }
+            }
+#endif
+        }
+    }
+}
+
+/* Enable/disable preemptive scheduling */
+void task_preempt_enable(void)  { g_preemptive = 1; }
+void task_preempt_disable(void) { g_preemptive = 0; }
+int  task_preempt_enabled(void) { return g_preemptive; }
+
+/* ── Idle Task ────────────────────────────────────────────────────── */
 
 void task_idle(void *arg) {
     (void)arg;

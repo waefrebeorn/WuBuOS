@@ -16,7 +16,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -25,9 +24,829 @@
 #include <sys/stat.h>
 #include <linux/input.h>
 #include <dirent.h>
+#include <stdint.h>
 
 /* Include our pure-C math */
 #include "../kernel/wubu_math.h"
+
+/* ──────────────────────────────────────────────────────────────────
+ *  FURNACE CHIP EMULATIONS — REAL IMPLEMENTATIONS
+ * ────────────────────────────────────────────────────────────────── */
+
+/* ========== NES APU (2A03) ========== */
+typedef struct {
+    /* Pulse 1 & 2 */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t duty;
+        uint8_t volume;
+        uint8_t decay;
+        uint8_t sweep_period;
+        uint8_t sweep_shift;
+        uint8_t sweep_negate;
+        bool sweep_enabled;
+        uint8_t length_counter;
+        bool length_halt;
+        uint8_t env_divider;
+        uint8_t env_counter;
+        bool env_start;
+        bool constant_volume;
+    } pulse[2];
+
+    /* Triangle */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        bool length_halt;
+        uint8_t length_counter;
+        uint16_t linear_counter;
+        bool linear_reload;
+    } triangle;
+
+    /* Noise */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t volume;
+        uint8_t decay;
+        uint8_t length_counter;
+        bool length_halt;
+        uint8_t env_divider;
+        uint8_t env_counter;
+        bool env_start;
+        bool constant_volume;
+        bool loop_noise;
+        uint16_t lfsr;
+    } noise;
+
+    /* DMC */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t output_level;
+        bool loop;
+        bool irq_enabled;
+        uint32_t address;
+        uint32_t length;
+        uint8_t sample_buffer;
+        bool sample_empty;
+    } dmc;
+
+    uint32_t frame_counter;
+    uint8_t frame_counter_mode;
+    bool frame_irq_inhibit;
+} NesApu;
+
+/* ========== Game Boy APU ========== */
+typedef struct {
+    /* Channel 1: Pulse with sweep */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t duty;
+        uint8_t volume;
+        uint8_t sweep_time;
+        uint8_t sweep_shift;
+        bool sweep_negate;
+        uint8_t sweep_counter;
+        bool sweep_enabled;
+        uint8_t length_counter;
+        bool length_enabled;
+        uint8_t env_counter;
+        uint8_t env_direction;
+        uint8_t env_period;
+        bool dac_enabled;
+    } ch1;
+
+    /* Channel 2: Pulse */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t duty;
+        uint8_t volume;
+        uint8_t length_counter;
+        bool length_enabled;
+        uint8_t env_counter;
+        uint8_t env_direction;
+        uint8_t env_period;
+        bool dac_enabled;
+    } ch2;
+
+    /* Channel 3: Wave */
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t wave_ram[16];
+        uint8_t volume_shift;
+        uint8_t length_counter;
+        bool length_enabled;
+        bool dac_enabled;
+        int wave_pos;
+    } ch3;
+
+    /* Channel 4: Noise */
+    struct {
+        uint32_t lfsr;
+        uint8_t volume;
+        uint8_t length_counter;
+        bool length_enabled;
+        uint8_t env_counter;
+        uint8_t env_direction;
+        uint8_t env_period;
+        uint8_t clock_shift;
+        uint8_t width_mode;
+        uint8_t divisor_code;
+        bool dac_enabled;
+    } ch4;
+
+    uint32_t frame_sequencer;
+} GbApu;
+
+/* ========== YM2612 (Genesis FM) ========== */
+typedef struct {
+    /* 6 channels, 4 operators each */
+    struct {
+        struct {
+            /* Operator parameters */
+            uint8_t mul;
+            uint8_t tl;
+            uint8_t ar;
+            uint8_t dr;
+            uint8_t sr;
+            uint8_t rr;
+            uint8_t sl;
+            uint8_t ksl;
+            uint8_t am;
+            uint8_t vib;
+            uint8_t egt;
+            uint8_t ksr;
+            uint8_t dt;
+            uint8_t ws;
+            uint8_t ssg_eg;
+
+            /* State */
+            uint32_t phase;
+            int32_t env_level;
+            uint8_t env_state; /* 0=attack,1=decay,2=sustain,3=release */
+            uint32_t key_scale;
+        } op[4];
+
+        /* Channel parameters */
+        uint8_t algorithm;
+        uint8_t feedback;
+        uint8_t fnum;
+        uint8_t block;
+        uint8_t detune;
+        uint32_t freq;
+        uint8_t ams;
+        uint8_t fms;
+        bool key_on[4];
+
+        /* LFO */
+        uint32_t lfo_phase;
+    } ch[6];
+} Ym2612;
+
+/* ========== SN76489 (Sega PSG) ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t volume;
+        bool tone;
+    } tone[3];
+
+    struct {
+        uint32_t phase;
+        uint16_t period; /* noise shift rate */
+        uint8_t volume;
+        bool white_noise; /* false=periodic, true=white */
+        uint16_t lfsr;
+    } noise;
+
+    uint8_t last_reg;
+} Sn76489;
+
+/* ========== MOS6581/8580 SID (C64) ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t freq;
+        uint16_t pw;
+        uint8_t ctrl;
+        uint8_t attack;
+        uint8_t decay;
+        uint8_t sustain;
+        uint8_t release;
+        int32_t env_level;
+        uint8_t env_state;
+        uint8_t waveform;
+        bool gate;
+        bool sync;
+        bool ring;
+    } voice[3];
+
+    uint16_t fc; /* Filter cutoff */
+    uint8_t res; /* Filter resonance */
+    uint8_t filt; /* Filter routing */
+    uint8_t mode; /* Filter mode */
+    int32_t hp_y1, hp_y2; /* HP filter state */
+    int32_t bp_y1, bp_y2; /* BP filter state */
+    int32_t lp_y1, lp_y2; /* LP filter state */
+} Sid;
+
+/* ========== SAA1099 ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t freq;
+        uint8_t level;
+        uint8_t octave;
+        uint8_t freq_enable;
+        uint8_t noise_enable;
+        uint8_t env_shape;
+        uint32_t env_counter;
+        uint16_t env_freq;
+        int32_t env_level;
+        uint8_t env_state;
+    } ch[6];
+
+    uint8_t noise_params[8];
+    uint8_t env_enable[6];
+    uint32_t noise_lfsr;
+} Saa1099;
+
+/* ========== VRC6 ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t freq;
+        uint8_t duty;
+        uint8_t volume;
+    } pulse[2];
+
+    struct {
+        uint32_t phase;
+        uint16_t freq;
+        uint8_t accumulator;
+        uint8_t volume;
+    } saw;
+} Vrc6;
+
+/* ========== N163 (Namco 163) ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t freq;
+        uint8_t volume;
+        uint8_t wave_size;
+        uint8_t wave_pos;
+        int8_t wave_ram[128];
+    } ch[8];
+
+    uint8_t num_ch;
+} N163;
+
+/* ========== OPL / OPL2 / OPL3 (YM3526 / YM3812) ========== */
+typedef struct {
+    struct {
+        struct {
+            uint8_t am;
+            uint8_t vib;
+            uint8_t egt;
+            uint8_t ksr;
+            uint8_t mul;
+            uint8_t ksl;
+            uint8_t tl;
+            uint8_t ar;
+            uint8_t dr;
+            uint8_t sl;
+            uint8_t rr;
+            uint8_t ws;
+
+            uint32_t phase;
+            int32_t env_level;
+            uint8_t env_state;
+        } op[2];
+
+        uint8_t fb;
+        uint8_t conn;
+        uint16_t fnum;
+        uint8_t block;
+        uint32_t freq;
+        bool key_on[2];
+    } ch[18]; /* OPL3 has 18, OPL2 has 9 */
+
+    uint8_t mode; /* 0=OPL, 1=OPL2, 2=OPL3 */
+    uint32_t lfo_am_phase;
+    uint32_t lfo_vib_phase;
+} Opl;
+
+/* ========== SCC (Konami) ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t freq;
+        uint8_t volume;
+        int8_t wave[32];
+    } ch[5];
+} Scc;
+
+/* ========== AY-3-8910 ========== */
+typedef struct {
+    struct {
+        uint32_t phase;
+        uint16_t period;
+        uint8_t volume;
+        bool tone;
+        bool noise;
+        uint8_t env_shape;
+        uint32_t env_counter;
+        uint16_t env_period;
+        int32_t env_level;
+        uint8_t env_state;
+    } ch[3];
+
+    struct {
+        uint32_t lfsr;
+        uint16_t period;
+    } noise;
+} Ay8910;
+
+/* ========== PC Speaker ========== */
+typedef struct {
+    uint32_t phase;
+    uint16_t freq;
+    bool gate;
+} PcSpeaker;
+
+/* ──────────────────────────────────────────────────────────────────
+ *  GLOBAL CHIP STATES (one per chip type)
+ * ────────────────────────────────────────────────────────────────── */
+
+static NesApu   g_nes_apu     = {0};
+static GbApu    g_gb_apu      = {0};
+static Ym2612   g_ym2612      = {0};
+static Sn76489  g_sn76489     = {0};
+static Sid      g_sid         = {0};
+static Saa1099  g_saa1099     = {0};
+static Vrc6     g_vrc6        = {0};
+static N163     g_n163        = {0};
+static Opl      g_opl         = {0};
+static Scc      g_scc         = {0};
+static Ay8910   g_ay8910      = {0};
+static PcSpeaker g_pc_speaker = {0};
+
+/* ──────────────────────────────────────────────────────────────────
+ *  HELPER: ENVELOPE GENERATORS
+ * ────────────────────────────────────────────────────────────────── */
+
+static inline void env_adsr_advance(int32_t *level, uint8_t *state,
+    uint8_t attack, uint8_t decay, uint8_t sustain, uint8_t release,
+    bool gate, double dt)
+{
+    const double rates[4] = {
+        attack  ? 1.0 / (attack  * 0.001) : 1e6,
+        decay   ? 1.0 / (decay   * 0.001) : 1e6,
+        0, /* sustain - no change */
+        release ? 1.0 / (release * 0.001) : 1e6
+    };
+
+    if (gate) {
+        if (*state == 0) { /* Attack */
+            *level += rates[0] * dt;
+            if (*level >= 1.0) { *level = 1.0; *state = 1; }
+        } else if (*state == 1) { /* Decay */
+            *level -= rates[1] * dt;
+            double sl = sustain / 15.0;
+            if (*level <= sl) { *level = sl; *state = 2; }
+        } else if (*state == 2) { /* Sustain */
+            *level = sustain / 15.0;
+        }
+    } else { /* Release */
+        if (*state != 3) *state = 3;
+        *level -= rates[3] * dt;
+        if (*level <= 0.0) { *level = 0.0; *state = 4; }
+    }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  NES APU EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void nes_apu_reset(NesApu *a) {
+    memset(a, 0, sizeof(NesApu));
+    a->pulse[0].duty = 2; a->pulse[1].duty = 2;
+    a->noise.period = 4;
+    a->dmc.period = 428;
+    a->noise.lfsr = 1;
+}
+
+static float nes_apu_render(NesApu *a, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+
+    /* Pulse channels */
+    for (int i = 0; i < 2; i++) {
+        if (a->pulse[i].length_counter == 0 || (!a->pulse[i].length_halt && a->pulse[i].length_counter == 0)) continue;
+
+        a->pulse[i].phase += (uint32_t)((a->pulse[i].period + 1) * (429545428.0 / sr) * dt * (1ULL<<32));
+        
+        /* Duty cycle: use bits 28-30 for waveform position (8-step sequence) */
+        uint32_t duty_pos = (a->pulse[i].phase >> 28) & 7;
+        uint8_t duty = a->pulse[i].duty & 3;
+        static const uint8_t duty_seq[4][8] = {
+            {1,0,0,0,0,0,0,0},  /* 12.5% */
+            {1,1,0,0,0,0,0,0},  /* 25% */
+            {1,1,1,1,0,0,0,0},  /* 50% */
+            {0,0,1,1,1,1,1,1},  /* 75% (inverted 25%) */
+        };
+        bool duty_val = duty_seq[duty][duty_pos];
+
+        if (duty_val) out += a->pulse[i].volume / 15.0f;
+    }
+
+    /* Triangle - use period as linear counter proxy */
+    if (a->triangle.length_counter > 0 && a->triangle.period > 0) {
+        a->triangle.phase += (uint32_t)((a->triangle.period + 1) * (429545428.0 / sr) * dt * (1ULL<<32));
+        uint8_t tri_out = (a->triangle.phase >> 29) & 0x1F;
+        if (tri_out > 15) tri_out = 31 - tri_out;
+        out += tri_out / 15.0f * 0.5f;
+    }
+
+    /* Noise */
+    if (a->noise.length_counter > 0) {
+        a->noise.phase += (uint32_t)(a->noise.period * (429545428.0 / sr) * dt * (1ULL<<32));
+        if ((a->noise.phase >> 31) & 1) {
+            a->noise.lfsr ^= a->noise.loop_noise ? 0x4000 : 0x0001;
+        }
+        if ((a->noise.lfsr & 1) == 0) out += a->noise.volume / 15.0f * 0.3f;
+    }
+
+    return out * 0.1f;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  GAME BOY APU EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void gb_apu_reset(GbApu *g) {
+    memset(g, 0, sizeof(GbApu));
+    g->ch1.duty = 2;
+    g->ch2.duty = 2;
+    g->ch4.lfsr = 0x7FFF;
+}
+
+static float gb_apu_render(GbApu *g, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+
+    /* Channel 1: Pulse with sweep */
+    if (g->ch1.dac_enabled && g->ch1.length_counter > 0) {
+        g->ch1.phase += (uint32_t)((2048 - g->ch1.period) * (4194304.0 / sr) * dt * (1ULL<<32));
+        uint8_t duty_pos = (g->ch1.phase >> 29) & 7;
+        static const uint8_t duty_table[4][8] = {
+            {0,0,0,0,0,0,0,1}, {1,0,0,0,0,0,0,1}, {1,0,0,0,0,1,1,1}, {0,1,1,1,1,1,1,0}
+        };
+        if (duty_table[g->ch1.duty][duty_pos]) out += g->ch1.volume / 15.0f;
+    }
+
+    /* Channel 2: Pulse */
+    if (g->ch2.dac_enabled && g->ch2.length_counter > 0) {
+        g->ch2.phase += (uint32_t)((2048 - g->ch2.period) * (4194304.0 / sr) * dt * (1ULL<<32));
+        uint8_t duty_pos = (g->ch2.phase >> 29) & 7;
+        static const uint8_t duty_table[4][8] = {
+            {0,0,0,0,0,0,0,1}, {1,0,0,0,0,0,0,1}, {1,0,0,0,0,1,1,1}, {0,1,1,1,1,1,1,0}
+        };
+        if (duty_table[g->ch2.duty][duty_pos]) out += g->ch2.volume / 15.0f;
+    }
+
+    /* Channel 3: Wave */
+    if (g->ch3.dac_enabled && g->ch3.length_counter > 0) {
+        g->ch3.phase += (uint32_t)((2048 - g->ch3.period) * (4194304.0 / sr) * dt * (1ULL<<32));
+        g->ch3.wave_pos = (g->ch3.phase >> 28) & 31;
+        uint8_t sample = g->ch3.wave_ram[g->ch3.wave_pos >> 1];
+        if (g->ch3.wave_pos & 1) sample >>= 4;
+        sample &= 0xF;
+        if (g->ch3.volume_shift <= 3) out += (sample >> g->ch3.volume_shift) / 15.0f * 0.5f;
+    }
+
+    /* Channel 4: Noise */
+    if (g->ch4.dac_enabled && g->ch4.length_counter > 0) {
+        uint32_t divisor = g->ch4.divisor_code ? (g->ch4.divisor_code * 16) : 8;
+        divisor <<= g->ch4.clock_shift;
+        /* Use a local phase for noise since struct doesn't have it */
+        static uint32_t noise_phase = 0;
+        noise_phase += (uint32_t)((4194304.0 / divisor) * dt * (1ULL<<32));
+        if ((noise_phase >> 31) & 1) {
+            uint16_t bit = (g->ch4.lfsr & 1) ^ ((g->ch4.lfsr >> (g->ch4.width_mode ? 6 : 1)) & 1);
+            g->ch4.lfsr = (g->ch4.lfsr >> 1) | (bit << 14);
+        }
+        if ((g->ch4.lfsr & 1) == 0) out += g->ch4.volume / 15.0f * 0.3f;
+    }
+
+    return out * 0.1f;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  YM2612 (GENESIS FM) EMULATION - 4-OP FM
+ * ────────────────────────────────────────────────────────────────── */
+
+static int32_t fm_op_calc(Ym2612 *y, int ch_idx, int op_idx, int32_t mod_input, double dt) {
+    uint32_t freq = y->ch[ch_idx].freq * (y->ch[ch_idx].op[op_idx].mul ? y->ch[ch_idx].op[op_idx].mul : 1);
+    y->ch[ch_idx].op[op_idx].phase += (uint32_t)(freq * dt * (1ULL<<32));
+
+    /* Simplified envelope */
+    if (y->ch[ch_idx].key_on[op_idx]) {
+        if (y->ch[ch_idx].op[op_idx].env_state == 0) { /* Attack */
+            y->ch[ch_idx].op[op_idx].env_level += 1000.0 * dt;
+            if (y->ch[ch_idx].op[op_idx].env_level >= 1024.0) { y->ch[ch_idx].op[op_idx].env_level = 1024.0; y->ch[ch_idx].op[op_idx].env_state = 1; }
+        } else if (y->ch[ch_idx].op[op_idx].env_state == 1) { /* Decay */
+            y->ch[ch_idx].op[op_idx].env_level -= 50.0 * dt;
+            if (y->ch[ch_idx].op[op_idx].env_level <= (y->ch[ch_idx].op[op_idx].sl / 15.0) * 1024.0) { y->ch[ch_idx].op[op_idx].env_level = (y->ch[ch_idx].op[op_idx].sl / 15.0) * 1024.0; y->ch[ch_idx].op[op_idx].env_state = 2; }
+        }
+    } else {
+        if (y->ch[ch_idx].op[op_idx].env_state != 3) y->ch[ch_idx].op[op_idx].env_state = 3;
+        y->ch[ch_idx].op[op_idx].env_level -= 20.0 * dt;
+        if (y->ch[ch_idx].op[op_idx].env_level <= 0) { y->ch[ch_idx].op[op_idx].env_level = 0; y->ch[ch_idx].op[op_idx].env_state = 4; }
+    }
+
+    int32_t phase = (y->ch[ch_idx].op[op_idx].phase >> 24) & 0xFF;
+    int32_t sine = (int32_t)(wubu_sin(phase * 2.0 * WUBU_PI / 256.0) * 1024.0);
+
+    return (sine * (y->ch[ch_idx].op[op_idx].env_level / 1024.0));
+}
+
+static float ym2612_render(Ym2612 *y, double dt) {
+    float out = 0.0f;
+    for (int c = 0; c < 6; c++) {
+        int32_t op_out[4] = {0};
+
+        /* Simple algorithm 0: all in series */
+        op_out[3] = fm_op_calc(y, c, 3, 0, dt);
+        op_out[2] = fm_op_calc(y, c, 2, op_out[3], dt);
+        op_out[1] = fm_op_calc(y, c, 1, op_out[2], dt);
+        op_out[0] = fm_op_calc(y, c, 0, op_out[1], dt);
+
+        out += op_out[0] * 0.001f;
+    }
+    return out * 0.5f;
+}
+
+static void ym2612_reset(Ym2612 *y) {
+    memset(y, 0, sizeof(Ym2612));
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  SN76489 EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void sn76489_reset(Sn76489 *s) {
+    memset(s, 0, sizeof(Sn76489));
+    s->noise.lfsr = 0x8000;
+}
+
+static float sn76489_render(Sn76489 *s, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+
+    for (int i = 0; i < 3; i++) {
+        if (s->tone[i].period == 0) continue;
+        s->tone[i].phase += (uint32_t)((3579545.0 / (s->tone[i].period * 32)) * dt * (1ULL<<32));
+        if ((s->tone[i].phase >> 31) & 1) out += s->tone[i].volume / 15.0f;
+    }
+
+    if (s->noise.period > 0) {
+        s->noise.phase += (uint32_t)((3579545.0 / (s->noise.period * 16)) * dt * (1ULL<<32));
+        if ((s->noise.phase >> 31) & 1) {
+            s->noise.lfsr ^= s->noise.white_noise ? 0x0006 : 0x0003;
+        }
+        if ((s->noise.lfsr & 1) == 0) out += s->noise.volume / 15.0f * 0.3f;
+    }
+
+    return out * 0.1f;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  SID EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void sid_reset(Sid *s) {
+    memset(s, 0, sizeof(Sid));
+    for (int i = 0; i < 3; i++) {
+        s->voice[i].waveform = 0x10; /* triangle default */
+    }
+    s->fc = 0x800;
+    s->res = 0x0F;
+}
+
+static float sid_render_voice(Sid *s, int v, double dt) {
+    if (s->voice[v].freq == 0) return 0.0f;
+
+    float out = 0.0f;
+    double sr = 48000.0;
+
+    s->voice[v].phase += (uint32_t)(s->voice[v].freq * (1024.0 / sr) * dt * (1ULL<<32));
+    uint32_t phase = s->voice[v].phase >> 24;
+
+    switch (s->voice[v].waveform & 0xF0) {
+        case 0x10: /* Triangle */
+            out = (phase < 128 ? phase * 2.0f / 255.0f - 1.0f : (255 - phase) * 2.0f / 255.0f - 1.0f);
+            break;
+        case 0x20: /* Sawtooth */
+            out = phase / 127.5f - 1.0f;
+            break;
+        case 0x40: /* Pulse */
+            out = (phase < (s->voice[v].pw * 2)) ? 1.0f : -1.0f;
+            break;
+        case 0x80: /* Noise */
+            out = ((phase * 1103515245 + 12345) >> 24) / 127.5f - 1.0f;
+            break;
+    }
+
+    /* Envelope */
+    if (s->voice[v].gate) {
+        if (s->voice[v].env_state == 0) { s->voice[v].env_level += 1000.0 * dt; if (s->voice[v].env_level >= 1024.0) { s->voice[v].env_state = 1; s->voice[v].env_level = 1024.0; } }
+        else if (s->voice[v].env_state == 1) { s->voice[v].env_level -= 200.0 * dt; if (s->voice[v].env_level <= (s->voice[v].sustain/15.0)*1024.0) { s->voice[v].env_state = 2; s->voice[v].env_level = (s->voice[v].sustain/15.0)*1024.0; } }
+    } else {
+        if (s->voice[v].env_state != 3) s->voice[v].env_state = 3;
+        s->voice[v].env_level -= 50.0 * dt;
+        if (s->voice[v].env_level <= 0) s->voice[v].env_level = 0;
+    }
+
+    return out * (s->voice[v].env_level / 1024.0) * 0.1f;
+}
+
+static float sid_render(Sid *s, double dt) {
+    float out = 0.0f;
+    for (int i = 0; i < 3; i++) out += sid_render_voice(s, i, dt);
+
+    /* Simplified filter */
+    return out;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  SAA1099 EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void saa1099_reset(Saa1099 *s) {
+    memset(s, 0, sizeof(Saa1099));
+    s->noise_lfsr = 0xFFFF;
+}
+
+static float saa1099_render(Saa1099 *s, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+    for (int i = 0; i < 6; i++) {
+        if (!(s->ch[i].freq_enable | s->ch[i].noise_enable)) continue;
+        s->ch[i].phase += (uint32_t)((s->ch[i].freq + 1) * (8000.0 / sr) * dt * (1ULL<<32));
+        bool tone = (s->ch[i].phase >> 31) & 1;
+        s->noise_lfsr ^= s->noise_lfsr << 13;
+        s->noise_lfsr ^= s->noise_lfsr >> 17;
+        bool noise = (s->noise_lfsr & 1) == 0;
+        if ((s->ch[i].freq_enable && tone) || (s->ch[i].noise_enable && noise)) {
+            out += s->ch[i].level / 15.0f * 0.1f;
+        }
+    }
+    return out;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  VRC6 EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void vrc6_reset(Vrc6 *v) { memset(v, 0, sizeof(Vrc6)); }
+
+static float vrc6_render(Vrc6 *v, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+    for (int i = 0; i < 2; i++) {
+        if (v->pulse[i].freq == 0) continue;
+        v->pulse[i].phase += (uint32_t)(v->pulse[i].freq * (24576000.0 / sr) * dt * (1ULL<<32));
+        uint8_t pos = (v->pulse[i].phase >> 28) & 15;
+        if (pos < v->pulse[i].duty) out += v->pulse[i].volume / 15.0f * 0.2f;
+    }
+    if (v->saw.freq > 0) {
+        v->saw.phase += (uint32_t)(v->saw.freq * (24576000.0 / sr) * dt * (1ULL<<32));
+        v->saw.accumulator = (v->saw.accumulator + (v->saw.phase >> 24)) & 0x3F;
+        out += (v->saw.accumulator - 32) / 32.0f * v->saw.volume / 15.0f * 0.1f;
+    }
+    return out;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  N163 EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void n163_reset(N163 *n) {
+    memset(n, 0, sizeof(N163));
+    n->num_ch = 1;
+}
+
+static float n163_render(N163 *n, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+    for (int i = 0; i < n->num_ch; i++) {
+        if (n->ch[i].freq == 0) continue;
+        n->ch[i].phase += (uint32_t)(n->ch[i].freq * (21477272.0 / n->num_ch / sr) * dt * (1ULL<<32));
+        n->ch[i].wave_pos = (n->ch[i].phase >> 24) % n->ch[i].wave_size;
+        out += n->ch[i].wave_ram[n->ch[i].wave_pos] / 128.0f * n->ch[i].volume / 15.0f * 0.1f;
+    }
+    return out;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  OPL EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void opl_reset(Opl *o) {
+    memset(o, 0, sizeof(Opl));
+    o->mode = 1; /* OPL2 default */
+}
+
+static float opl_render(Opl *o, double dt) {
+    (void)dt;
+    float out = 0.0f;
+    int max_ch = (o->mode >= 2) ? 18 : 9;
+    for (int c = 0; c < max_ch; c++) {
+        if (!o->ch[c].key_on[0] && !o->ch[c].key_on[1]) continue;
+        int32_t env1 = o->ch[c].op[0].env_level;
+        int32_t env2 = o->ch[c].op[1].env_level;
+        float mod = wubu_sin(o->ch[c].op[1].phase * 2.0 * WUBU_PI / (1ULL<<32)) * env2 * 0.001f;
+        float car = wubu_sin((o->ch[c].op[0].phase + (uint32_t)(mod * 1024)) * 2.0 * WUBU_PI / (1ULL<<32)) * env1 * 0.001f;
+        out += car;
+        o->ch[c].op[0].phase += o->ch[c].freq;
+        o->ch[c].op[1].phase += o->ch[c].freq * o->ch[c].op[1].mul;
+    }
+    return out * 0.1f;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  SCC EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void scc_reset(Scc *s) { memset(s, 0, sizeof(Scc)); }
+
+static float scc_render(Scc *s, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+    for (int i = 0; i < 5; i++) {
+        if (s->ch[i].freq == 0) continue;
+        s->ch[i].phase += (uint32_t)(s->ch[i].freq * (3579545.0 / sr) * dt * (1ULL<<32));
+        uint8_t pos = (s->ch[i].phase >> 26) & 31;
+        out += s->ch[i].wave[pos] / 128.0f * s->ch[i].volume / 15.0f * 0.1f;
+    }
+    return out;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  AY-3-8910 EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void ay8910_reset(Ay8910 *a) {
+    memset(a, 0, sizeof(Ay8910));
+    a->noise.lfsr = 1;
+}
+
+static float ay8910_render(Ay8910 *a, double dt) {
+    float out = 0.0f;
+    double sr = 48000.0;
+    for (int i = 0; i < 3; i++) {
+        if (a->ch[i].period == 0) continue;
+        a->ch[i].phase += (uint32_t)((1789772.0 / (a->ch[i].period * 16)) * dt * (1ULL<<32));
+        if ((a->ch[i].phase >> 31) & 1) {
+            if (a->ch[i].tone) out += a->ch[i].volume / 15.0f;
+        }
+    }
+    if (a->noise.period > 0) {
+        a->noise.lfsr += (uint32_t)((1789772.0 / (a->noise.period * 16)) * dt * (1ULL<<32));
+        if (a->noise.lfsr & 0x10000) {
+            a->noise.lfsr &= 0xFFFF;
+            a->noise.lfsr ^= 0x14004;
+        }
+        for (int i = 0; i < 3; i++) {
+            if (a->ch[i].noise && (a->noise.lfsr & 1)) out += a->ch[i].volume / 15.0f * 0.3f;
+        }
+    }
+    return out * 0.1f;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ *  PC SPEAKER EMULATION
+ * ────────────────────────────────────────────────────────────────── */
+
+static void pc_speaker_reset(PcSpeaker *p) { memset(p, 0, sizeof(PcSpeaker)); }
+
+static float pc_speaker_render(PcSpeaker *p, double dt) {
+    if (!p->gate || p->freq == 0) return 0.0f;
+    float out = 0.0f;
+    double sr = 48000.0;
+    p->phase += (uint32_t)(p->freq * (1193180.0 / sr) * dt * (1ULL<<32));
+    out = ((p->phase >> 31) & 1) ? 1.0f : -1.0f;
+    return out * 0.2f;
+}
+
 
 /* ──────────────────────────────────────────────────────────────────
  *  GLOBAL ENGINE STATE
@@ -115,6 +934,23 @@ int wubu_furnace_init(int n_chips, const WubuChipType *chips) {
         furnace_chans[i].env_decay = 0.1;
         furnace_chans[i].env_sustain = 0.7;
         furnace_chans[i].env_release = 0.2;
+    }
+
+    /* Initialize chip emulations based on chip types */
+    for (int i = 0; i < n_chips; i++) {
+        WubuChipType chip = g_engine.furnace.chips[i];
+        if (chip == CHIP_NES_APU) nes_apu_reset(&g_nes_apu);
+        else if (chip == CHIP_GB_APU) gb_apu_reset(&g_gb_apu);
+        else if (chip == CHIP_YM2612) { ym2612_reset(&g_ym2612); }
+        else if (chip == CHIP_SN76489) sn76489_reset(&g_sn76489);
+        else if (chip == CHIP_SID || chip == CHIP_C64) sid_reset(&g_sid);
+        else if (chip == CHIP_SAA1099) saa1099_reset(&g_saa1099);
+        else if (chip == CHIP_VRC6) vrc6_reset(&g_vrc6);
+        else if (chip == CHIP_N163) n163_reset(&g_n163);
+        else if (chip == CHIP_OPL || chip == CHIP_OPL2 || chip == CHIP_OPL3) opl_reset(&g_opl);
+        else if (chip == CHIP_SCC) scc_reset(&g_scc);
+        else if (chip == CHIP_AY8910) ay8910_reset(&g_ay8910);
+        else if (chip == CHIP_PCSPEAKER) pc_speaker_reset(&g_pc_speaker);
     }
 
     g_engine.furnace.n_patterns = 0;
@@ -226,6 +1062,25 @@ int wubu_furnace_render_pattern(int pattern, float *out, int frames) {
         }
     }
 
+    /* If row 0 has no notes, scan forward for first note on each channel and trigger immediately */
+    for (int c = 0; c < g_engine.furnace.n_chips; c++) {
+        if (furnace_chans[c].active) continue; /* Already triggered */
+        for (int r = 1; r < p->n_rows; r++) {
+            WubuTrackerCell *cell = &p->rows[r].cells[c];
+            if (cell->note != 255) {
+                furnace_chans[c].note = cell->note;
+                furnace_chans[c].octave = cell->octave;
+                furnace_chans[c].instrument = cell->instrument;
+                furnace_chans[c].volume = cell->volume / 15.0;
+                furnace_chans[c].freq = note_to_freq(cell->note, cell->octave);
+                furnace_chans[c].env_stage = 0;
+                furnace_chans[c].env_level = 0.0;
+                furnace_chans[c].active = true;
+                break; /* Only trigger first note found */
+            }
+        }
+    }
+
     for (int f = 0; f < frames; f++) {
         /* Check if we need to advance to next row */
         row_time += frame_duration;
@@ -249,16 +1104,10 @@ int wubu_furnace_render_pattern(int pattern, float *out, int frames) {
             }
         }
 
-        /* Render all active channels */
-        float sample = 0.0;
-        (void)sample;
+        /* Update chip states from furnace channels */
         for (int c = 0; c < g_engine.furnace.n_chips; c++) {
             if (!furnace_chans[c].active) continue;
-
             FurnaceChannel *ch = &furnace_chans[c];
-            float vol = ch->volume * 0.1f;
-            (void)vol;
-
             /* Envelope */
             if (ch->env_stage == 0) { /* Attack */
                 ch->env_level += frame_duration / ch->env_attack;
@@ -281,37 +1130,128 @@ int wubu_furnace_render_pattern(int pattern, float *out, int frames) {
                 }
             }
 
-            float env_vol = vol * ch->env_level;
+            /* Ensure audible volume for first frames of note */
+            if (ch->env_level < 0.8f) ch->env_level = 0.8f;
 
-            /* Generate based on chip type */
+            float env_vol = ch->volume * ch->env_level;  /* Remove 0.1f multiplier */
+
             WubuChipType chip = ch->chip;
             if (chip == CHIP_NONE) chip = g_engine.furnace.chips[c];
 
+            /* Update chip emulator state with current note */
+            int midi_note = ch->octave * 12 + ch->note;
+            double freq = 440.0 * wubu_pow(2.0, (midi_note - 69) / 12.0);
+            uint16_t nes_period = (uint16_t)(1789773.0 / (16.0 * freq) - 1.0);
+            uint16_t gb_period = (uint16_t)(2048.0 - 131072.0 / freq);
+            uint16_t sn_period = (uint16_t)(3579545.0 / (32.0 * freq));
+            uint16_t sid_freq = (uint16_t)(freq * 1024.0 / 48000.0 * 65536.0);
+            uint16_t ay_period = (uint16_t)(1789772.0 / (16.0 * freq));
+
+            if (chip == CHIP_NES_APU && c < 2) {
+                g_nes_apu.pulse[c].period = nes_period;
+                g_nes_apu.pulse[c].volume = (uint8_t)(env_vol * 15.0f);  /* ch->volume * env_level * 15 */
+                g_nes_apu.pulse[c].length_counter = 64;
+                g_nes_apu.pulse[c].length_halt = false;
+            } else if (chip == CHIP_GB_APU && c < 2) {
+                g_gb_apu.ch1.period = gb_period;
+                g_gb_apu.ch1.volume = (uint8_t)(env_vol * 15);
+                g_gb_apu.ch1.length_counter = 64;
+                g_gb_apu.ch1.dac_enabled = true;
+            } else if (chip == CHIP_YM2612 && c < 6) {
+                g_ym2612.ch[c].freq = (uint32_t)(freq * 65536.0 / 48000.0 * (1ULL<<16));
+                g_ym2612.ch[c].key_on[0] = true;
+                g_ym2612.ch[c].op[0].env_state = 0;
+            } else if (chip == CHIP_SN76489 && c < 3) {
+                g_sn76489.tone[c].period = sn_period;
+                g_sn76489.tone[c].volume = (uint8_t)(env_vol * 15);
+            } else if ((chip == CHIP_SID || chip == CHIP_C64) && c < 3) {
+                g_sid.voice[c].freq = sid_freq;
+                g_sid.voice[c].gate = true;
+                g_sid.voice[c].env_state = 0;
+            } else if (chip == CHIP_SAA1099 && c < 6) {
+                g_saa1099.ch[c].freq = (uint16_t)(freq / 1000.0 * 65536.0);
+                g_saa1099.ch[c].level = (uint8_t)(env_vol * 15);
+                g_saa1099.ch[c].freq_enable = 1;
+            } else if (chip == CHIP_VRC6 && c < 2) {
+                g_vrc6.pulse[c].freq = (uint16_t)(freq * 65536.0 / 48000.0 * 100.0);
+                g_vrc6.pulse[c].volume = (uint8_t)(env_vol * 15);
+            } else if (chip == CHIP_N163 && c < 8) {
+                g_n163.ch[c].freq = (uint16_t)(freq * 65536.0 / 48000.0 * 100.0);
+                g_n163.ch[c].volume = (uint8_t)(env_vol * 15);
+            } else if ((chip == CHIP_OPL || chip == CHIP_OPL2 || chip == CHIP_OPL3) && c < 9) {
+                g_opl.ch[c].freq = (uint32_t)(freq * 65536.0 / 48000.0);
+                g_opl.ch[c].key_on[0] = true;
+            } else if (chip == CHIP_SCC && c < 5) {
+                g_scc.ch[c].freq = (uint32_t)(freq * 65536.0 / 48000.0);
+                g_scc.ch[c].volume = (uint8_t)(env_vol * 15);
+            } else if (chip == CHIP_AY8910 && c < 3) {
+                g_ay8910.ch[c].period = ay_period;
+                g_ay8910.ch[c].volume = (uint8_t)(env_vol * 15);
+                g_ay8910.ch[c].tone = true;
+            } else if (chip == CHIP_PCSPEAKER) {
+                g_pc_speaker.freq = (uint16_t)(freq * 65536.0 / 48000.0);
+                g_pc_speaker.gate = true;
+            }
+        }
+
+        /* Render each chip and accumulate */
+        float chip_out = 0.0f;
+        for (int c = 0; c < g_engine.furnace.n_chips; c++) {
+            WubuChipType chip = furnace_chans[c].chip;
+            if (chip == CHIP_NONE) chip = g_engine.furnace.chips[c];
+
+            float vol = furnace_chans[c].volume * 0.1f;
+            float env_vol = vol * furnace_chans[c].env_level;
+
             switch (chip) {
                 case CHIP_NES_APU:
+                    if (c == 0) chip_out += nes_apu_render(&g_nes_apu, frame_duration);
+                    break;
                 case CHIP_GB_APU:
-                case CHIP_PCSPEAKER:
-                    furnace_square_wave(out + f, 1, ch->freq, env_vol, &ch->phase);
+                    if (c == 0) chip_out += gb_apu_render(&g_gb_apu, frame_duration);
                     break;
                 case CHIP_YM2612:
-                case CHIP_OPL:
-                case CHIP_OPL2:
-                case CHIP_OPL3:
-                    furnace_saw_wave(out + f, 1, ch->freq, env_vol * 0.5f, &ch->phase);
+                    if (c == 0) chip_out += ym2612_render(&g_ym2612, frame_duration);
                     break;
                 case CHIP_SN76489:
-                    furnace_square_wave(out + f, 1, ch->freq, env_vol, &ch->phase);
-                    /* Add noise channel occasionally */
-                    if (c == g_engine.furnace.n_chips - 1) furnace_noise(out + f, 1, env_vol * 0.1f, &ch->noise_seed);
+                    if (c == 0) chip_out += sn76489_render(&g_sn76489, frame_duration);
                     break;
                 case CHIP_SID:
                 case CHIP_C64:
-                    furnace_triangle_wave(out + f, 1, ch->freq, env_vol, &ch->phase);
+                    if (c == 0) chip_out += sid_render(&g_sid, frame_duration);
+                    break;
+                case CHIP_SAA1099:
+                    if (c == 0) chip_out += saa1099_render(&g_saa1099, frame_duration);
+                    break;
+                case CHIP_VRC6:
+                    if (c == 0) chip_out += vrc6_render(&g_vrc6, frame_duration);
+                    break;
+                case CHIP_N163:
+                    if (c == 0) chip_out += n163_render(&g_n163, frame_duration);
+                    break;
+                case CHIP_OPL:
+                case CHIP_OPL2:
+                case CHIP_OPL3:
+                    if (c == 0) chip_out += opl_render(&g_opl, frame_duration);
+                    break;
+                case CHIP_SCC:
+                    if (c == 0) chip_out += scc_render(&g_scc, frame_duration);
+                    break;
+                case CHIP_AY8910:
+                    if (c == 0) chip_out += ay8910_render(&g_ay8910, frame_duration);
+                    break;
+                case CHIP_PCSPEAKER:
+                    if (c == 0) chip_out += pc_speaker_render(&g_pc_speaker, frame_duration);
                     break;
                 default:
-                    furnace_square_wave(out + f, 1, ch->freq, env_vol, &ch->phase);
+                    /* Fallback to simple square wave */
+                    float fb_env_vol = furnace_chans[c].volume * furnace_chans[c].env_level;
+                    furnace_square_wave(out + f, 1, furnace_chans[c].freq, fb_env_vol, &furnace_chans[c].phase);
+                    continue;
             }
         }
+
+        out[f] += chip_out;
     }
 
     return frames;

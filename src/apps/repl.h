@@ -3,9 +3,9 @@
  */
 #ifndef MYSEED_REPL_H
 #define MYSEED_REPL_H
-#include "../jit/jit.h"
 
-/* Start the REPL as a GUI window */
-void repl_start(JITContext *jit_ctx);
+/* Start the REPL as a GUI window.
+ * Takes framebuffer dimensions for proper blitting. */
+void repl_start(int fb_w, int fb_h);
 
 #endif

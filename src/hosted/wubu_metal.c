@@ -7,6 +7,7 @@
  */
 
 #include "wubu_metal.h"
+#include "../shell/wubu_shell.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,12 @@
 #include <linux/input.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+
+/* Kernel subsystems for bare-metal */
+#include "../kernel/interrupt.h"
+#include "../kernel/tasking.h"
+#include "../kernel/memory.h"
+#include "../kernel/vbe.h"
 
 /* ──────────────────────────────────────────────────────────────────
  *  GLOBAL STATE
@@ -974,26 +981,40 @@ double wubu_audio_cpu_load(void) {
 int wubu_metal_init(int width, int height) {
     /* Force metal environment */
     g_env = WUBU_ENV_METAL;
+
+    /* Initialize kernel subsystems */
+    mem_init(1024 * 1024);
+    vbe_init(width, height);
+    interrupt_init();
+
+    /* Initialize PIT timer for preemptive multitasking (100 Hz) */
+    /* Only enable in real bare-metal environment (CAP_SYS_RAWIO) */
+    #ifndef WUBU_HOSTED_TEST
+    if (pit_init(100) == 0) {
+        task_preempt_enable();
+        printf("[metal] PIT timer initialized at 100 Hz, preemption enabled\n");
+    } else {
+        printf("[metal] PIT init failed (no I/O privilege), running cooperative\n");
+    }
+
+    /* Initialize tasking */
+    tasking_init();
+    #endif
+
     return wubu_disp_init(width, height);
 }
 
 void wubu_metal_run(void) {
-    printf("[metal] WuBuOS bare-metal running...\n");
-    printf("[metal] Display: %dx%d @ %dHz\n", g_display.width, g_display.height, g_display.refresh_hz);
-    printf("[metal] Input: %d devices\n", g_input.n_gamepads + (g_input.kbd_fd>=0) + (g_input.mouse_fd>=0));
-    printf("[metal] Audio: %s\n", g_audio.backend == AUDIO_ALSA ? "ALSA" :
-                              g_audio.backend == AUDIO_PULSE ? "PulseAudio" : "None");
-
-    /* Main loop - in reality this would run the GUI shell */
-    while (1) {
-        wubu_disp_poll_events();
-        wubu_disp_flip();
-        struct timespec ts = { .tv_sec = 0, .tv_nsec = 16666667 }; /* ~60 FPS */
-        nanosleep(&ts, NULL);
-    }
+    /* Run the unified GUI shell (Cell 207: integration) */
+    wubu_shell_run(g_display.width, g_display.height);
 }
 
-void wubu_metal_shutdown(void) { wubu_disp_shutdown(); }
+void wubu_metal_shutdown(void) {
+    pit_shutdown();
+    interrupt_shutdown();
+    vbe_shutdown();
+    wubu_disp_shutdown();
+}
 
 /* ──────────────────────────────────────────────────────────────────
  *  RESOLUTION / GAAD INTEGRATION

@@ -22,6 +22,7 @@
 #include "../kernel/input.h"
 #include "../gui/wm.h"
 #include "../gui/startmenu.h"
+#include "../apps/repl.h"
 #include "../bridge/bridge.h"
 
 #include <X11/Xlib.h>
@@ -44,9 +45,11 @@ typedef GC         XGc;
 
 /* ── Forward Declarations ───────────────────────────────────────── */
 
-static int  handle_x11_event(hosted_state_t *state, XEvent *ev);
+static int handle_x11_event(hosted_state_t *state, XEvent *ev);
 static int  handle_key(hosted_state_t *state, KeySym ks, int pressed);
 static int  handle_mouse(hosted_state_t *state, int x, int y, int btn, int pressed);
+static void repl_launch_callback(void);  /* Launch HolyC REPL */
+static void input_dispatch(void);         /* Poll kernel queue -> WM */
 
 /* ── In-memory filesystem for Styx namespace ────────────────────── */
 
@@ -64,6 +67,9 @@ typedef struct {
 static styxfs_file_t g_fs[STYXFS_MAX_FILES];
 static int g_nfiles = 0;
 static uint64_t g_next_path = 1;
+
+/* Global hosted state for REPL callback access */
+static hosted_state_t *g_hosted_state = NULL;
 
 static int fs_add_dir(const char *name) {
     if (g_nfiles >= STYXFS_MAX_FILES) return -1;
@@ -203,9 +209,19 @@ static int styx_stat_cb(styx_server_t *srv, uint32_t fid, styx_dir_t *dir) {
     return 0;
 }
 
+/* ── REPL Launch Callback ───────────────────────────────────────── */
+
+static void repl_launch_callback(void) {
+    /* Launch HolyC REPL — it creates its own window */
+    if (g_hosted_state) {
+        repl_start(g_hosted_state->width, g_hosted_state->height);
+    }
+}
+
 /* ── Hosted Init ────────────────────────────────────────────────── */
 
 int hosted_init(hosted_state_t *state, int argc, char **argv) {
+    g_hosted_state = state;  /* Set global for REPL callback */
     memset(state, 0, sizeof(*state));
     state->width = HOSTED_DEFAULT_W;
     state->height = HOSTED_DEFAULT_H;
@@ -229,14 +245,15 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     /* ── Kernel subsystem init (Cell 200: ZealOS in-process) ────── */
     mem_init(1024 * 1024);
     vbe_init(state->width, state->height);
-    
+    input_init();
+
     /* ── GUI shell init (WM + start menu) ────────────────────────── */
     wm_init(state->width, state->height);
     startmenu_init();
     
     /* Register start menu entries */
     startmenu_add_entry("Programs", SM_PROGRAM, NULL);
-    startmenu_add_entry("Temple REPL", SM_SYSTEM, NULL);
+    startmenu_add_entry("Temple REPL", SM_SYSTEM, repl_launch_callback);
     startmenu_add_entry("Separator", SM_SEPARATOR, NULL);
     startmenu_add_entry("Shut Down", SM_SYSTEM, NULL);
     
@@ -370,6 +387,9 @@ int hosted_run(hosted_state_t *state) {
             }
         }
         
+        /* Cell 202: Dispatch input from kernel queue to WM */
+        input_dispatch();
+        
         if (state->framebuffer) {
             /* ── Render Win98 desktop to VBE back buffer ─── */
             if (state->mode == HMODE_GUI) {
@@ -422,6 +442,7 @@ void hosted_shutdown(hosted_state_t *state) {
     /* GUI shell shutdown */
     wm_shutdown();
     vbe_shutdown();
+    input_shutdown();
     
     if (state->styx_fd >= 0) {
         close(state->styx_fd);
@@ -526,16 +547,21 @@ static int handle_key(hosted_state_t *state, KeySym ks, int pressed) {
         else if (ks >= XK_F1 && ks <= XK_F12) wu_key = 0x3B + (uint32_t)(ks - XK_F1);
         break;
     }
-    
-    /* Route keyboard to WM (and focused window) */
-    if (wu_key && pressed) {
+
+    /* Push to kernel input queue (Cell 202: unified input dispatch) */
+    if (wu_key) {
+        KeyEvent ev = {0};
+        ev.scancode = wu_key;
+        ev.keycode = wu_key;
+        ev.kind = pressed ? KEY_EVENT_DOWN : KEY_EVENT_UP;
         uint32_t mods = 0;
-        if (state->key_map[0x1D]) mods |= 0x01;  /* Ctrl */
-        if (state->key_map[0x2A]) mods |= 0x02;  /* Shift */
-        if (state->key_map[0x38]) mods |= 0x04;  /* Alt */
-        wm_handle_key(wu_key, mods);
+        if (state->key_map[0x1D]) mods |= MOD_CTRL;
+        if (state->key_map[0x2A]) mods |= MOD_SHIFT;
+        if (state->key_map[0x38]) mods |= MOD_ALT;
+        ev.modifiers = mods;
+        input_key_push(ev);
     }
-    
+
     /* Track modifier key state for Ctrl+Alt+T detection */
     if (ks == XK_Control_L || ks == XK_Control_R)
         state->key_map[0x1D] = pressed;
@@ -548,20 +574,33 @@ static int handle_key(hosted_state_t *state, KeySym ks, int pressed) {
 }
 
 static int handle_mouse(hosted_state_t *state, int x, int y, int btn, int pressed) {
+    int dx = x - state->mouse_x;
+    int dy = y - state->mouse_y;
     state->mouse_x = x;
     state->mouse_y = y;
     if (btn) state->mouse_buttons = btn;
-    
-    /* Route mouse to WM */
+
+    /* Push to kernel input queue (Cell 202: unified input dispatch) */
     if (btn && btn != 0) {
-        /* WM_EVENT_CLICK */
-        wm_handle_mouse(x, y, btn, pressed ? 0 : 1);
+        MouseEvent ev = {0};
+        ev.dx = dx;
+        ev.dy = dy;
+        ev.buttons = btn == 1 ? 1 : (btn == 3 ? 2 : 4); /* Left=1, Right=2, Middle=4 */
+        ev.scroll = 0;
+        input_mouse_push(ev);
     } else if (btn == 0) {
-        /* Motion event */
-        wm_handle_mouse(x, y, 0, 2);
+        /* Motion event - only push if position changed */
+        if (dx != 0 || dy != 0) {
+            MouseEvent ev = {0};
+            ev.dx = dx;
+            ev.dy = dy;
+            ev.buttons = state->mouse_buttons;
+            ev.scroll = 0;
+            input_mouse_push(ev);
+        }
     }
-    
-    /* Start menu click handling */
+
+    /* Start menu click handling (keep for GUI) */
     if (btn == 1 && pressed && startmenu_is_open()) {
         if (startmenu_is_inside(x, y)) {
             int idx = startmenu_handle_mouse(x, y);
@@ -570,16 +609,29 @@ static int handle_mouse(hosted_state_t *state, int x, int y, int btn, int presse
             startmenu_close();
         }
     }
-    
+
     /* Start button click (bottom-left corner of taskbar) */
     if (btn == 1 && pressed && !startmenu_is_open()) {
         if (x >= 4 && x <= 64 && y >= state->height - 28 + 3 && y <= state->height - 3) {
             startmenu_open(0, state->height - taskbar_height() - startmenu_get_height());
         }
     }
-    
+
     (void)pressed;
     return 0;
+}
+
+/* Poll kernel input queue and dispatch to WM (Cell 202) */
+static void input_dispatch(void) {
+    KeyEvent kev;
+    while (input_key_poll(&kev)) {
+        wm_handle_key(kev.keycode, kev.modifiers);
+    }
+    MouseEvent mev;
+    while (input_mouse_poll(&mev)) {
+        /* Queue already stores absolute position in x,y */
+        wm_handle_mouse(mev.x, mev.y, mev.buttons, mev.buttons ? 0 : 2);
+    }
 }
 
 /* ── Styx Namespace API ─────────────────────────────────────────── */

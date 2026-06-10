@@ -6,7 +6,6 @@
 #include "wubu_canvas.h"
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <stdio.h>
 
 /* ── Blend Compositing ──────────────────────────────────────────── */

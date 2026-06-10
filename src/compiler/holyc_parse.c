@@ -159,6 +159,7 @@ size_t hc_type_size(const HCType *t) {
         case HC_TYPE_I64:  case HC_TYPE_U64: case HC_TYPE_F64:  return 8;
         case HC_TYPE_PTR:  return 8;
         case HC_TYPE_ARRAY: return t->base ? hc_type_size(t->base) * (size_t)t->array_size : 0;
+        case HC_TYPE_STRUCT: return t->size > 0 ? t->size : 8;
         default: return 8;
     }
 }
@@ -220,6 +221,43 @@ static HCType *parse_type(HCParser *p) {
         case HC_KW_U64:  t->kind = HC_TYPE_U64;  advance(p); break;
         case HC_KW_F64:  t->kind = HC_TYPE_F64;  advance(p); break;
         case HC_KWBool:  t->kind = HC_TYPE_BOOL; advance(p); break;
+        case HC_KW_STRUCT: {
+            /* Struct type: struct Name { ... } or struct Name */
+            advance(p); /* struct */
+            if (peek(p) == HC_TOK_IDENT) {
+                strncpy(t->name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+                advance(p);
+            }
+            if (peek(p) == HC_TOK_LBRACE) {
+                /* Struct definition with members */
+                advance(p); /* { */
+                while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
+                    HCType *member_type = parse_type(p);
+                    if (peek(p) != HC_TOK_IDENT) {
+                        parse_error(p, "expected member name");
+                        break;
+                    }
+                    if (t->n_members < HC_MAX_PARAMS) {
+                        strncpy(t->members[t->n_members].name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+                        advance(p); /* consume member name */
+                        t->members[t->n_members].type = member_type;
+                        t->members[t->n_members].offset = t->size;
+                        t->size += hc_type_size(member_type);
+                        /* Align to member alignment */
+                        int align = hc_type_size(member_type);
+                        if (align > t->align) t->align = align;
+                        if ((t->size % align) != 0) {
+                            t->size += align - (t->size % align);
+                        }
+                        t->n_members++;
+                    }
+                    expect(p, HC_TOK_SEMI);
+                }
+                expect(p, HC_TOK_RBRACE);
+            }
+            t->kind = HC_TYPE_STRUCT;
+            break;
+        }
         default: break; /* Keep default I64 */
     }
 
@@ -520,7 +558,7 @@ static HCASTNode *parse_expr(HCParser *p) {
 
 /* ── Parse Block ────────────────────────────────────────────────── */
 
-static HCASTNode *parse_block(HCParser *p) {
+HCASTNode *parse_block(HCParser *p) {
     expect(p, HC_TOK_LBRACE);
     HCASTNode *block = hc_ast_new(HC_AST_BLOCK);
     while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
@@ -612,6 +650,18 @@ static HCASTNode *parse_stmt(HCParser *p) {
 
 HCASTNode *hc_parse_decl(HCParser *p) {
     HCType *type = parse_type(p);
+
+    /* Check if this is a struct/union/enum type definition without a variable name */
+    if (type->kind == HC_TYPE_STRUCT || type->kind == HC_TYPE_UNION || type->kind == HC_TYPE_ENUM) {
+        if (peek(p) == HC_TOK_SEMI) {
+            /* Type definition like "struct Point { ... };" - just consume semicolon */
+            advance(p);
+            /* Create a no-op AST node for the type definition */
+            HCASTNode *n = hc_ast_new(HC_AST_STRUCT_DECL);
+            n->type = type;
+            return n;
+        }
+    }
 
     if (peek(p) != HC_TOK_IDENT) {
         parse_error(p, "expected identifier");

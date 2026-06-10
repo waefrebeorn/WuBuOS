@@ -71,7 +71,8 @@ static int char_to_font_idx(char c) {
     }
 }
 
-static void draw_char(gui_dbuf_t *db, int x, int y, char c, uint32_t color) {
+/* Draw a character using the 8x8 font */
+void gui_dbuf_draw_char(gui_dbuf_t *db, int x, int y, char c, uint32_t color) {
     int idx = char_to_font_idx(c);
     if (idx < 0 || idx >= 40) return;
     const uint8_t *glyph = font_8x8[idx];
@@ -191,7 +192,7 @@ void gui_dbuf_button(gui_dbuf_t *db, int x, int y, int w, int h,
         int tx = x + (w - len * 8) / 2;
         int ty = y + (h - 8) / 2;
         for (int i = 0; i < len; i++) {
-            draw_char(db, tx + i * 8, ty, label[i], 0x00000000);
+            gui_dbuf_draw_char(db, tx + i * 8, ty, label[i], 0x00000000);
         }
     }
     gui_dbuf_mark_dirty(db, x, y, w, h);
@@ -211,7 +212,7 @@ void gui_dbuf_window(gui_dbuf_t *db, int x, int y, int w, int h,
         int tx = x + 8;
         int ty = y + 7;
         for (int i = 0; title[i]; i++) {
-            draw_char(db, tx + i * 8, ty, title[i], 0x00FFFFFF);
+            gui_dbuf_draw_char(db, tx + i * 8, ty, title[i], 0x00FFFFFF);
         }
     }
     /* Inner content area border */
@@ -269,3 +270,8 @@ int      gui_dbuf_width(const gui_dbuf_t *db) { return db ? db->width : 0; }
 int      gui_dbuf_height(const gui_dbuf_t *db) { return db ? db->height : 0; }
 uint64_t gui_dbuf_frames(const gui_dbuf_t *db) { return db ? db->frames : 0; }
 int      gui_dbuf_dirty_count(const gui_dbuf_t *db) { return db ? db->dirty_count : 0; }
+uint32_t gui_dbuf_get_pixel(const gui_dbuf_t *db, int x, int y) {
+    if (!db || !db->back) return 0;
+    if (x < 0 || x >= db->width || y < 0 || y >= db->height) return 0;
+    return db->back[y * db->width + x];
+}

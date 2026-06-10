@@ -12,6 +12,7 @@
 #define WUBU_MATH_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* ── Constants ──────────────────────────────────────────────────── */
 

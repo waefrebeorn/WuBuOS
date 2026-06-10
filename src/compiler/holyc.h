@@ -160,6 +160,7 @@ typedef enum {
     HC_TYPE_ARRAY,   /* array of base_type, size in array_size */
     HC_TYPE_FUNC,    /* Function: ret_type + param_types */
     HC_TYPE_STRUCT,  /* Struct/class */
+    HC_TYPE_UNION,   /* Union */
     HC_TYPE_ENUM,
     HC_TYPE_TYPEDEF,
 } HCTypeKind;
@@ -170,6 +171,15 @@ struct HCType {
     HCType      *base;       /* For ptr/array/func: the element type */
     int          array_size; /* For arrays */
     char         name[HC_MAX_IDENT_LEN]; /* For struct/enum/typedef */
+    /* Struct members */
+    struct {
+        char   name[HC_MAX_IDENT_LEN];
+        HCType *type;
+        int    offset;
+    } members[HC_MAX_PARAMS]; /* Reuse param limit for member count */
+    int          n_members;
+    int          size;       /* Total struct size in bytes */
+    int          align;      /* Struct alignment requirement */
     unsigned     is_const : 1;
     unsigned     is_static : 1;
     unsigned     is_volatile : 1;
@@ -348,6 +358,9 @@ HCASTNode *hc_parse_stmt(HCParser *p);
 /* Parse a declaration */
 HCASTNode *hc_parse_decl(HCParser *p);
 
+/* Parse a block { ... } */
+HCASTNode *parse_block(HCParser *p);
+
 /* Peek current token (for eval dispatch) */
 HCTokenType hc_parse_peek(HCParser *p);
 
@@ -361,6 +374,15 @@ typedef struct {
     bool        is_param;
 } HCSymbol;
 
+typedef struct HCFunction HCFunction;
+struct HCFunction {
+    char        name[HC_MAX_IDENT_LEN];
+    void       *func_ptr;       /* Compiled function address */
+    int         n_params;
+};
+
+#define HC_MAX_FUNCTIONS 64
+
 typedef struct {
     HCSymbol    locals[HC_MAX_LOCALS];
     int         n_locals;
@@ -373,11 +395,23 @@ typedef struct {
     uint8_t    *code;        /* Output buffer for machine code */
     size_t      code_size;
     size_t      code_cap;
+    /* Data section for string literals and globals */
+    uint8_t    *data;
+    size_t      data_size;
+    size_t      data_cap;
     HCSymTab    symbols;
     int         label_count; /* For generating unique labels */
     int         loop_depth;  /* For break/continue */
     int         break_label;
     int         continue_label;
+    /* Break/continue patch stacks */
+    size_t      break_patches[10][16];  /* [loop_depth][nested breaks] */
+    int         n_break_patches[10];
+    size_t      continue_patches[10][16];
+    int         n_continue_patches[10];
+    /* Function table for function calls */
+    HCFunction  functions[HC_MAX_FUNCTIONS];
+    int         n_functions;
     bool        has_error;
     char        error[256];
 } HCGen;

@@ -40,6 +40,14 @@ static void emit_byte(HCGen *gen, uint8_t b) {
     gen->code[gen->code_size++] = b;
 }
 
+static void emit_data_byte(HCGen *gen, uint8_t b) {
+    if (gen->data_size >= gen->data_cap) {
+        gen->data_cap = gen->data_cap ? gen->data_cap * 2 : 256;
+        gen->data = (uint8_t *)realloc(gen->data, gen->data_cap);
+    }
+    gen->data[gen->data_size++] = b;
+}
+
 static void emit_word(HCGen *gen, uint16_t w) {
     emit_byte(gen, (uint8_t)(w & 0xFF));
     emit_byte(gen, (uint8_t)((w >> 8) & 0xFF));
@@ -50,6 +58,18 @@ static void emit_dword(HCGen *gen, uint32_t d) {
     emit_byte(gen, (uint8_t)((d >> 8) & 0xFF));
     emit_byte(gen, (uint8_t)((d >> 16) & 0xFF));
     emit_byte(gen, (uint8_t)((d >> 24) & 0xFF));
+}
+
+static void emit_data_dword(HCGen *gen, uint32_t d) {
+    emit_data_byte(gen, (uint8_t)(d & 0xFF));
+    emit_data_byte(gen, (uint8_t)((d >> 8) & 0xFF));
+    emit_data_byte(gen, (uint8_t)((d >> 16) & 0xFF));
+    emit_data_byte(gen, (uint8_t)((d >> 24) & 0xFF));
+}
+
+static void emit_data_qword(HCGen *gen, uint64_t q) {
+    emit_data_dword(gen, (uint32_t)(q & 0xFFFFFFFF));
+    emit_data_dword(gen, (uint32_t)((q >> 32) & 0xFFFFFFFF));
 }
 
 static void emit_qword(HCGen *gen, uint64_t q) {
@@ -263,8 +283,22 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
             break;
 
         case HC_AST_STRING_LIT:
-            /* TODO: string literal in data section. For now, load address placeholder. */
-            emit_mov_rax_imm64(gen, 0);
+            /* Store string in data section and emit pointer */
+            {
+                size_t str_len = strlen(node->str_val);
+                size_t str_offset = gen->data_size;
+                /* Emit string bytes + null terminator */
+                for (size_t i = 0; i < str_len; i++) {
+                    emit_data_byte(gen, (uint8_t)node->str_val[i]);
+                }
+                emit_data_byte(gen, 0); /* null terminator */
+                /* Align to 8 bytes */
+                while (gen->data_size % 8 != 0) {
+                    emit_data_byte(gen, 0);
+                }
+                /* mov rax, data_section_base + str_offset */
+                emit_mov_rax_imm64(gen, (int64_t)(size_t)(gen->data + str_offset));
+            }
             break;
 
         /* Identifiers — for now, look up in symbol table */
@@ -275,16 +309,19 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
                 for (int i = 0; i < gen->symbols.n_locals; i++) {
                     if (strcmp(gen->symbols.locals[i].name, node->ident) == 0) {
                         int off = gen->symbols.locals[i].stack_offset;
-                        /* mov rax, [rbp - off] */
+                        /* mov rax, [rbp - off] with disp32: 48 8B 85 disp32 */
                         emit_byte(gen, 0x48); /* REX.W */
-                        emit_byte(gen, 0x8B); /* mov */
-                        emit_byte(gen, 0x85); /* rax, [rbp+disp8] */
-                        emit_byte(gen, (uint8_t)(-off & 0xFF));
+                        emit_byte(gen, 0x8B); /* mov rax, r/m64 */
+                        emit_byte(gen, 0x85); /* modrm: disp32 with rbp */
+                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
                         found = true;
                         break;
                     }
                 }
-                if (!found) emit_mov_rax_imm64(gen, 0);
+                if (!found) {
+                    /* Implicit variable - not yet assigned. Return 0. */
+                    emit_mov_rax_imm64(gen, 0);
+                }
             } else {
                 emit_mov_rax_imm64(gen, 0);
             }
@@ -491,54 +528,228 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
         }
 
         case HC_AST_ASSIGN:
-            /* Right-hand side → rax, then store (TODO: stack slot lookup) */
+            /* Right-hand side → rax, then store to left-hand side */
             gen_expr(gen, node->right);
-            /* TODO: if left is an IDENT, store rax to its stack slot */
+            if (node->left && node->left->kind == HC_AST_IDENT) {
+                /* Look up variable in symbol table */
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    /* Implicit variable declaration on first assignment */
+                    off = gen->symbols.stack_size + 8;
+                    gen->symbols.stack_size += 8;
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->left->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
+                        gen->symbols.n_locals++;
+                    }
+                }
+                /* mov [rbp - off], rax: 48 89 85 disp32 */
+                emit_byte(gen, 0x48); /* REX.W */
+                emit_byte(gen, 0x89); /* mov */
+                emit_byte(gen, 0x85); /* [rbp+disp32] */
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
             break;
 
-        /* Compound assignments */
+        /* Compound assignments: x += y means x = x + y */
         case HC_AST_ADD_ASSIGN:
+            if (node->left && node->left->kind == HC_AST_IDENT) {
+                /* Load current value of left var (with implicit declaration) */
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        /* mov rax, [rbp - off] with disp32: 48 8B 85 disp32 */
+                        emit_byte(gen, 0x48);
+                        emit_byte(gen, 0x8B);
+                        emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    /* Implicit declaration - initialize to 0 */
+                    off = gen->symbols.stack_size + 8;
+                    gen->symbols.stack_size += 8;
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->left->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
+                        gen->symbols.n_locals++;
+                    }
+                    emit_mov_rax_imm64(gen, 0);
+                }
+                /* Add right-hand side */
+                emit_mov_rdi_rax(gen);
+                gen_expr(gen, node->right);
+                emit_xchg_rax_rdi(gen);
+                emit_add_rax_rdi(gen);
+                /* Store back */
+                /* mov [rbp - off], rax: 48 89 85 disp32 */
+                emit_byte(gen, 0x48); /* REX.W */
+                emit_byte(gen, 0x89); /* mov */
+                emit_byte(gen, 0x85); /* [rbp+disp32] */
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
+            break;
+
         case HC_AST_SUB_ASSIGN:
+            if (node->left && node->left->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    off = gen->symbols.stack_size + 8;
+                    gen->symbols.stack_size += 8;
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->left->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
+                        gen->symbols.n_locals++;
+                    }
+                }
+                emit_mov_rdi_rax(gen);
+                gen_expr(gen, node->right);
+                emit_xchg_rax_rdi(gen);
+                emit_sub_rax_rdi(gen);
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
+            break;
+
         case HC_AST_MUL_ASSIGN:
+            if (node->left && node->left->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    off = gen->symbols.stack_size + 8;
+                    gen->symbols.stack_size += 8;
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->left->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
+                        gen->symbols.n_locals++;
+                    }
+                }
+                emit_mov_rdi_rax(gen);
+                gen_expr(gen, node->right);
+                emit_xchg_rax_rdi(gen);
+                emit_mul_rax_rdi(gen);
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
+            break;
+
         case HC_AST_DIV_ASSIGN:
-            /* TODO: load current value, apply op, store back */
-            gen_expr(gen, node->right);
+            if (node->left && node->left->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    off = gen->symbols.stack_size + 8;
+                    gen->symbols.stack_size += 8;
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->left->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
+                        gen->symbols.n_locals++;
+                    }
+                }
+                emit_mov_rdi_rax(gen);
+                gen_expr(gen, node->right);
+                emit_xchg_rax_rdi(gen);
+                emit_div_rax_rdi(gen);
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
             break;
 
         /* Function call */
         case HC_AST_FUNC_CALL:
-            /* For now: if 0 args, just call. If args, pass in rdi, rsi, rdx, rcx. */
+            /* System V AMD64 ABI: args in rdi, rsi, rdx, rcx, r8, r9 */
             {
                 int n_args = node->n_args;
-                if (n_args >= 1) {
-                    gen_expr(gen, node->args[0]);  /* first arg → rax → rdi */
-                    emit_mov_rdi_rax(gen);
+                /* Evaluate all args first (right-to-left for stack, but we use registers) */
+                for (int i = n_args - 1; i >= 0; i--) {
+                    gen_expr(gen, node->args[i]);
+                    switch (i) {
+                        case 0: emit_mov_rdi_rax(gen); break;  /* arg0 → rdi */
+                        case 1: /* mov rsi, rax: 48 89 C6 */
+                                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC6); break;
+                        case 2: /* mov rdx, rax: 48 89 C2 */
+                                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC2); break;
+                        case 3: /* mov rcx, rax: 48 89 C1 */
+                                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC1); break;
+                        case 4: /* mov r8, rax: 49 89 C0 */
+                                emit_byte(gen, 0x49); emit_byte(gen, 0x89); emit_byte(gen, 0xC0); break;
+                        case 5: /* mov r9, rax: 49 89 C1 */
+                                emit_byte(gen, 0x49); emit_byte(gen, 0x89); emit_byte(gen, 0xC1); break;
+                        default: /* TODO: stack args for >6 params */ break;
+                    }
                 }
-                if (n_args >= 2) {
-                    gen_expr(gen, node->args[1]);  /* second arg → rax → rsi */
-                    /* mov rsi, rax: 48 89 C6 */
-                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC6);
+                /* Get function address from callee (should be ident or function pointer) */
+                if (node->callee && node->callee->kind == HC_AST_IDENT) {
+                    /* Look up function in function table */
+                    void *func_addr = NULL;
+                    for (int i = 0; i < gen->n_functions; i++) {
+                        if (strcmp(gen->functions[i].name, node->callee->ident) == 0) {
+                            func_addr = gen->functions[i].func_ptr;
+                            break;
+                        }
+                    }
+                    if (func_addr) {
+                        /* mov rax, func_addr */
+                        emit_mov_rax_imm64(gen, (int64_t)func_addr);
+                        /* call rax: FF D0 */
+                        emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                    } else {
+                        /* Function not found - emit call to 0 (will crash at runtime) */
+                        emit_mov_rax_imm64(gen, 0);
+                        emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                    }
+                } else {
+                    emit_mov_rax_imm64(gen, 0);
                 }
-                if (n_args >= 3) {
-                    gen_expr(gen, node->args[2]);  /* third arg → rax → rdx */
-                    /* mov rdx, rax: 48 89 C2 */
-                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC2);
-                }
-                /* TODO: actual call instruction with address */
-                emit_mov_rax_imm64(gen, 0);
             }
             break;
 
-        /* Ternary: cond ? then : else
-         *   eval cond → rax
-         *   test rax, rax
-         *   jz else_label             (5 bytes, placeholder)
-         *   eval then_branch → rax
-         *   jmp end_label             (5 bytes, placeholder)
-         * else_label:
-         *   eval else_branch → rax
-         * end_label:
-         */
+        /* Ternary: cond ? then : else */
         case HC_AST_TERNARY: {
             gen_expr(gen, node->cond);
             emit_test_rax_rax(gen);
@@ -550,6 +761,62 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
             size_t end_label = gen->code_size;
             patch_rel32(gen, jz_patch, else_label);
             patch_rel32(gen, jmp_patch, end_label);
+            break;
+        }
+
+        /* Member access: expr.member */
+        case HC_AST_MEMBER: {
+            /* Evaluate base expression (struct pointer or value) */
+            gen_expr(gen, node->left);
+            /* rax now contains base address */
+            /* Find member offset */
+            if (node->left->type && node->left->type->kind == HC_TYPE_STRUCT) {
+                HCType *st = node->left->type;
+                bool found = false;
+                for (int i = 0; i < st->n_members; i++) {
+                    if (strcmp(st->members[i].name, node->ident) == 0) {
+                        int off = st->members[i].offset;
+                        /* mov rax, [rax + off]: 48 8B 80 disp32 */
+                        emit_byte(gen, 0x48); /* REX.W */
+                        emit_byte(gen, 0x8B); /* mov */
+                        emit_byte(gen, 0x80); /* modrm: rax, [rax+disp32] */
+                        emit_dword(gen, (uint32_t)off);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                }
+            }
+            break;
+        }
+
+        /* Arrow access: expr->member (ptr to struct) */
+        case HC_AST_ARROW: {
+            /* Evaluate base expression (pointer to struct) */
+            gen_expr(gen, node->left);
+            /* rax now contains base address (already a pointer) */
+            if (node->left->type && node->left->type->kind == HC_TYPE_PTR &&
+                node->left->type->base && node->left->type->base->kind == HC_TYPE_STRUCT) {
+                HCType *st = node->left->type->base;
+                bool found = false;
+                for (int i = 0; i < st->n_members; i++) {
+                    if (strcmp(st->members[i].name, node->ident) == 0) {
+                        int off = st->members[i].offset;
+                        /* mov rax, [rax + off]: 48 8B 80 disp32 */
+                        emit_byte(gen, 0x48); /* REX.W */
+                        emit_byte(gen, 0x8B); /* mov */
+                        emit_byte(gen, 0x80); /* modrm: rax, [rax+disp32] */
+                        emit_dword(gen, (uint32_t)off);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                }
+            }
             break;
         }
 
@@ -624,21 +891,30 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
          */
         case HC_AST_WHILE: {
             size_t loop_top = gen->code_size;
+            int depth = gen->loop_depth;
             gen_expr(gen, node->cond);
             emit_test_rax_rax(gen);
             size_t jz_patch = emit_jcc_placeholder(gen, CC_E); /* jz loop_end */
-            int prev_break = gen->break_label;
-            int prev_continue = gen->continue_label;
             gen->loop_depth++;
+            gen->n_break_patches[depth] = 0;
+            gen->n_continue_patches[depth] = 0;
             gen_stmt(gen, node->body);
+            /* Continue target is loop_top (condition check) */
+            size_t continue_label = loop_top;
             /* jmp loop_top (back jump) */
             size_t jmp_patch = emit_jmp_placeholder(gen);
             patch_rel32(gen, jmp_patch, loop_top);
             size_t loop_end = gen->code_size;
             patch_rel32(gen, jz_patch, loop_end);
+            /* Patch all break statements in this loop to jump to loop_end */
+            for (int i = 0; i < gen->n_break_patches[depth]; i++) {
+                patch_rel32(gen, gen->break_patches[depth][i], loop_end);
+            }
+            /* Patch all continue statements to jump to continue_label */
+            for (int i = 0; i < gen->n_continue_patches[depth]; i++) {
+                patch_rel32(gen, gen->continue_patches[depth][i], continue_label);
+            }
             gen->loop_depth--;
-            gen->break_label = prev_break;
-            gen->continue_label = prev_continue;
             break;
         }
 
@@ -652,17 +928,27 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
          */
         case HC_AST_DO_WHILE: {
             size_t loop_top = gen->code_size;
-            int prev_break = gen->break_label;
-            int prev_continue = gen->continue_label;
+            int depth = gen->loop_depth;
             gen->loop_depth++;
+            gen->n_break_patches[depth] = 0;
+            gen->n_continue_patches[depth] = 0;
             gen_stmt(gen, node->body);
+            /* Continue target is the condition check */
+            size_t continue_label = gen->code_size;
             gen_expr(gen, node->cond);
             emit_test_rax_rax(gen);
             size_t jnz_patch = emit_jcc_placeholder(gen, CC_NE); /* jnz loop_top */
             patch_rel32(gen, jnz_patch, loop_top);
+            size_t loop_end = gen->code_size;
+            /* Patch all break statements in this loop to jump to loop_end */
+            for (int i = 0; i < gen->n_break_patches[depth]; i++) {
+                patch_rel32(gen, gen->break_patches[depth][i], loop_end);
+            }
+            /* Patch all continue statements to jump to continue_label */
+            for (int i = 0; i < gen->n_continue_patches[depth]; i++) {
+                patch_rel32(gen, gen->continue_patches[depth][i], continue_label);
+            }
             gen->loop_depth--;
-            gen->break_label = prev_break;
-            gen->continue_label = prev_continue;
             break;
         }
 
@@ -679,6 +965,7 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
          * loop_end:
          */
         case HC_AST_FOR: {
+            int depth = gen->loop_depth;
             /* init */
             if (node->init_expr)
                 gen_expr(gen, node->init_expr);
@@ -694,9 +981,9 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
             emit_test_rax_rax(gen);
             size_t jz_patch = emit_jcc_placeholder(gen, CC_E); /* jz loop_end */
 
-            int prev_break = gen->break_label;
-            int prev_continue = gen->continue_label;
             gen->loop_depth++;
+            gen->n_break_patches[depth] = 0;
+            gen->n_continue_patches[depth] = 0;
 
             /* body */
             if (node->body)
@@ -715,9 +1002,15 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
 
             size_t loop_end = gen->code_size;
             patch_rel32(gen, jz_patch, loop_end);
+            /* Patch all break statements in this loop to jump to loop_end */
+            for (int i = 0; i < gen->n_break_patches[depth]; i++) {
+                patch_rel32(gen, gen->break_patches[depth][i], loop_end);
+            }
+            /* Patch all continue statements to jump to continue_label */
+            for (int i = 0; i < gen->n_continue_patches[depth]; i++) {
+                patch_rel32(gen, gen->continue_patches[depth][i], continue_label);
+            }
             gen->loop_depth--;
-            gen->break_label = prev_break;
-            gen->continue_label = prev_continue;
             break;
         }
 
@@ -743,20 +1036,123 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
             break;
 
         case HC_AST_FUNC_DECL:
-            /* Generate function body */
+            /* Generate function body and save function pointer */
+            /* Save current code state */
+            uint8_t *saved_code = gen->code;
+            size_t saved_code_size = gen->code_size;
+            size_t saved_code_cap = gen->code_cap;
+            HCSymTab saved_symbols = gen->symbols;
+            int saved_n_functions = gen->n_functions;
+            HCFunction saved_functions[HC_MAX_FUNCTIONS];
+            memcpy(saved_functions, gen->functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
+            
+            gen->code = NULL;
+            gen->code_size = 0;
+            gen->code_cap = 0;
+            /* Reset symbols but keep functions */
+            memset(&gen->symbols, 0, sizeof(HCSymTab));
+            
             emit_prologue(gen);
+            
+            /* Add function parameters to symbol table before compiling body */
+            for (int i = 0; i < node->n_params; i++) {
+                int offset = gen->symbols.stack_size + 8;
+                gen->symbols.stack_size += 8;
+                if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                    strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                            node->param_names[i], HC_MAX_IDENT_LEN - 1);
+                    gen->symbols.locals[gen->symbols.n_locals].stack_offset = offset;
+                    gen->symbols.n_locals++;
+                }
+                /* Store parameter from register to stack slot */
+                switch (i) {
+                    case 0: /* rdi -> [rbp - offset] */
+                        /* mov [rbp - offset], rdi: 48 89 BD disp32 */
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xBD);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                    case 1: /* rsi -> [rbp - offset] */
+                        /* mov [rbp - offset], rsi: 48 89 B5 disp32 */
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xB5);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                    case 2: /* rdx -> [rbp - offset] */
+                        /* mov [rbp - offset], rdx: 48 89 95 disp32 */
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x95);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                    case 3: /* rcx -> [rbp - offset] */
+                        /* mov [rbp - offset], rcx: 48 89 8D disp32 */
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x8D);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                    case 4: /* r8 -> [rbp - offset] */
+                        /* mov [rbp - offset], r8: 4C 89 85 disp32 */
+                        emit_byte(gen, 0x4C); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                    case 5: /* r9 -> [rbp - offset] */
+                        /* mov [rbp - offset], r9: 4C 89 8D disp32 */
+                        emit_byte(gen, 0x4C); emit_byte(gen, 0x89); emit_byte(gen, 0x8D);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                }
+            }
+            
             /* Allocate stack frame for locals */
             if (node->body)
                 gen_stmt(gen, node->body);
             emit_epilogue(gen);
+
+            /* Allocate executable memory for this function */
+            if (gen->code_size > 0 && gen->n_functions < HC_MAX_FUNCTIONS) {
+                void *exec = jit_alloc_exec(gen->code_size);
+                if (exec) {
+                    memcpy(exec, gen->code, gen->code_size);
+                    /* Restore main code buffer */
+                    gen->code = saved_code;
+                    gen->code_size = saved_code_size;
+                    gen->code_cap = saved_code_cap;
+                    gen->symbols = saved_symbols;
+                    gen->n_functions = saved_n_functions;
+                    memcpy(gen->functions, saved_functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
+                    
+                    strncpy(gen->functions[gen->n_functions].name,
+                            node->ident, HC_MAX_IDENT_LEN - 1);
+                    gen->functions[gen->n_functions].func_ptr = exec;
+                    gen->functions[gen->n_functions].n_params = node->n_params;
+                    gen->n_functions++;
+                } else {
+                    /* Restore on failure */
+                    free(gen->code);
+                    gen->code = saved_code;
+                    gen->code_size = saved_code_size;
+                    gen->code_cap = saved_code_cap;
+                    gen->symbols = saved_symbols;
+                }
+            }
             break;
 
         case HC_AST_BREAK:
-            /* TODO: emit jump to break label */
+            /* Emit jump to loop end - will be patched when loop ends */
+            if (gen->loop_depth > 0 && gen->loop_depth <= 10) {
+                int depth = gen->loop_depth - 1;
+                if (gen->n_break_patches[depth] < 16) {
+                    size_t patch = emit_jmp_placeholder(gen);
+                    gen->break_patches[depth][gen->n_break_patches[depth]++] = patch;
+                }
+            }
             break;
 
         case HC_AST_CONTINUE:
-            /* TODO: emit jump to continue label */
+            /* Emit jump to loop continue/condition - will be patched when loop ends */
+            if (gen->loop_depth > 0 && gen->loop_depth <= 10) {
+                int depth = gen->loop_depth - 1;
+                if (gen->n_continue_patches[depth] < 16) {
+                    size_t patch = emit_jmp_placeholder(gen);
+                    gen->continue_patches[depth][gen->n_continue_patches[depth]++] = patch;
+                }
+            }
             break;
 
         default:
@@ -812,16 +1208,22 @@ void *hc_compile(const char *source, size_t *out_size) {
 
     if (gen.code_size == 0 || gen.has_error) {
         free(gen.code);
+        free(gen.data);
         return NULL;
     }
 
     /* Allocate executable memory */
-    void *exec = jit_alloc_exec(gen.code_size);
-    if (!exec) { free(gen.code); return NULL; }
+    void *exec = jit_alloc_exec(gen.code_size + gen.data_size);
+    if (!exec) { free(gen.code); free(gen.data); return NULL; }
 
     memcpy(exec, gen.code, gen.code_size);
-    if (out_size) *out_size = gen.code_size;
+    /* Copy data section after code for string literals */
+    if (gen.data_size > 0) {
+        memcpy((uint8_t *)exec + gen.code_size, gen.data, gen.data_size);
+    }
+    if (out_size) *out_size = gen.code_size + gen.data_size;
     free(gen.code);
+    free(gen.data);
 
     return exec;
 }
@@ -835,10 +1237,10 @@ int64_t hc_eval(const char *source) {
     HCParser parse;
     hc_parse_init(&parse, &lex);
 
-    /* Try parsing as expression first, then as statement */
+    /* Try parsing as expression first */
     HCASTNode *ast = hc_parse_expr(&parse);
 
-    /* If expression parsing failed or didn't consume all input, try statement */
+    /* If expression parsing failed or didn't consume all input, try block parsing */
     if (parse.has_error || (hc_parse_peek(&parse) != HC_TOK_EOF && hc_parse_peek(&parse) != HC_TOK_SEMI)) {
         hc_ast_free(ast);
         parse.has_error = false;
@@ -846,7 +1248,39 @@ int64_t hc_eval(const char *source) {
         /* Re-lex from start */
         hc_lex_init(&lex, source);
         hc_parse_init(&parse, &lex);
-        ast = hc_parse_stmt(&parse);
+        
+        /* Check if source starts with a control keyword */
+        const char *p = source;
+        while (*p && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) p++;
+        bool starts_with_keyword = false;
+        if (strncmp(p, "if ", 3) == 0 || strncmp(p, "while ", 6) == 0 ||
+            strncmp(p, "for ", 4) == 0 || strncmp(p, "do ", 3) == 0 ||
+            strncmp(p, "return", 6) == 0 || strncmp(p, "break", 5) == 0 ||
+            strncmp(p, "continue", 8) == 0 || *p == '{') {
+            starts_with_keyword = true;
+        }
+        
+        /* Wrap in braces to parse as block if it contains semicolons AND doesn't start with keyword */
+        bool has_semicolon = false;
+        p = source;
+        while (*p) {
+            if (*p == ';') { has_semicolon = true; break; }
+            p++;
+        }
+        
+        if (has_semicolon && !starts_with_keyword) {
+            /* Create a temporary buffer with braces */
+            size_t len = strlen(source);
+            char *wrapped = malloc(len + 3);
+            sprintf(wrapped, "{ %s }", source);
+            hc_lex_init(&lex, wrapped);
+            hc_parse_init(&parse, &lex);
+            /* hc_lex_init already primes the first token (which is `{`) */
+            ast = parse_block(&parse);
+            free(wrapped);
+        } else {
+            ast = hc_parse_stmt(&parse);
+        }
     }
 
     if (parse.has_error || !ast) {
@@ -858,38 +1292,43 @@ int64_t hc_eval(const char *source) {
     hc_gen_init(&gen);
     emit_prologue(&gen);
 
-    if (ast->kind == HC_AST_EXPR_STMT || ast->kind == HC_AST_RETURN ||
+    if (ast->kind == HC_AST_BLOCK) {
+        gen_stmt(&gen, ast);
+    } else if (ast->kind == HC_AST_EXPR_STMT || ast->kind == HC_AST_RETURN ||
         ast->kind == HC_AST_IF || ast->kind == HC_AST_WHILE ||
         ast->kind == HC_AST_FOR || ast->kind == HC_AST_DO_WHILE ||
-        ast->kind == HC_AST_BLOCK || ast->kind == HC_AST_VAR_DECL ||
-        ast->kind == HC_AST_FUNC_DECL) {
+        ast->kind == HC_AST_VAR_DECL || ast->kind == HC_AST_FUNC_DECL) {
         gen_stmt(&gen, ast);
-        emit_epilogue(&gen);
     } else {
         gen_expr(&gen, ast);
-        emit_epilogue(&gen);
     }
+    emit_epilogue(&gen);
 
     hc_ast_free(ast);
 
     if (gen.code_size == 0 || gen.has_error) {
         free(gen.code);
+        free(gen.data);
         return 0;
     }
 
-    void *exec = jit_alloc_exec(gen.code_size);
-    if (!exec) { free(gen.code); return 0; }
+    void *exec = jit_alloc_exec(gen.code_size + gen.data_size);
+    if (!exec) { free(gen.code); free(gen.data); return 0; }
 
     memcpy(exec, gen.code, gen.code_size);
+    /* Copy data section after code - string literals need to be readable */
+    if (gen.data_size > 0) {
+        memcpy((uint8_t *)exec + gen.code_size, gen.data, gen.data_size);
+    }
     int64_t result = JIT_CALL(exec);
-    jit_free_exec(exec, gen.code_size);
+    jit_free_exec(exec, gen.code_size + gen.data_size);
     free(gen.code);
+    free(gen.data);
 
     return result;
 }
 
 void *hc_compile_func(const char *source, const char *func_name) {
-    /* Parse entire compilation unit, find the named function, compile it */
     (void)func_name; /* TODO: multi-function compilation */
 
     HCLexer lex;
@@ -945,11 +1384,15 @@ void *hc_compile_func(const char *source, const char *func_name) {
     hc_gen_function(&gen, func);
     hc_ast_free(ast);
 
-    if (gen.code_size == 0) { free(gen.code); return NULL; }
+    if (gen.code_size == 0) { free(gen.code); free(gen.data); return NULL; }
 
-    void *exec = jit_alloc_exec(gen.code_size);
-    if (!exec) { free(gen.code); return NULL; }
+    void *exec = jit_alloc_exec(gen.code_size + gen.data_size);
+    if (!exec) { free(gen.code); free(gen.data); return NULL; }
     memcpy(exec, gen.code, gen.code_size);
+    if (gen.data_size > 0) {
+        memcpy((uint8_t *)exec + gen.code_size, gen.data, gen.data_size);
+    }
     free(gen.code);
+    free(gen.data);
     return exec;
 }

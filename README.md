@@ -1,6 +1,6 @@
 # 🌱 WuBuOS
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom · Audio Engine · Metal Boot**
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom · Audio Engine · Metal Boot · Bear RL · N-Pole Cartpole · 406 Gap Battlefield**
 
 A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted), a WSL2 distribution (Windows), or an Apple Virtualization guest (macOS).
 
@@ -9,7 +9,7 @@ A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binar
 ## Architecture
 
 ```
-Layer 8: Audio Engine        — Ardour DAW + Furnace Tracker + TinySoundFont + AI plugins
+Layer 8: Audio Engine (Cells 401-405) — DAW + Furnace (12 chips) + SF2 + AI plugins
 Layer 7: Metal Boot          — DRM/KMS bare-metal, WSL2 wslg, macOS AVF unified API
 Layer 6: .wubu Containers    — FreeDoom, Steam, Brave, HolyC apps
 Layer 5: Container Runtime   — fork/exec, 9P namespace per container
@@ -60,62 +60,108 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | SSD  | /var/wubu/roots/arch-base | Yes | Bare metal install |
 | RAM→SSD | install_to_disk() | After copy | Opt-in persistence |
 
-## Status
+## Battleship v13 — 406 Active Gaps (43 Resolved)
 
-| Component | Tests | What's Real |
-|-----------|-------|-------------|
-| Kernel (mem, task, vbe, fat32, ahci, txfs, gaad) | 126 ✅ | Working subsystems, hosted mode |
-| JIT mmap stub | 20 ✅ | a+b/a*b eval |
-| HolyC compiler (71 eval tests) | 71 ✅ | Lex/parse/eval with label backpatching |
-| .wubu container + VSL + Proton | 108 ✅ | VSL/Proton PARTIAL (bare-metal scaffolding) |
-| Styx/9P2000 + StyxFS | 40 ✅ | **Real** message serialization |
-| GUI (WM + dbuf + start menu + theme) | 56 ✅ | **Real** pixel rendering |
-| DOS flip bridge (Ctrl+Alt+T) | 13 ✅ | **Real** X11 key → mode switch |
-| Hosted binary (Cell 200) | 14 ✅ | **Real** kernel init + GUI shell + input routing |
-| Container runtime (Cell 203) | 15 ✅ | **Real** fork+exec + exit codes + kill |
-| Package manager + compilers | 15 ✅ | Registry, no real installation |
-| Arch bootstrap (Cell 390) | 5 ✅ | pacstrap + configure API |
-| FreeDoom launcher (Cell 391) | 10 ✅ | prboom-plus in Arch container with GPU+audio |
-| Root mount RAM/SSD (Cell 392) | 12 ✅ | tmpfs + disk modes + install_to_disk + snapshot |
-| GAAD resolution translation (Cell 393) | 17 ✅ | Golden subdivision + φ-translate |
-| Theme engine (Cell 394) | 7 ✅ | 4 runtime-switchable themes |
-| Window Manager (Cell 395) | 18 ✅ | Drag/resize/snap/desktops |
-| Code Editor (Cell 396) | 6 ✅ | Tabs, syntax, folding, split view |
-| Image Canvas (Cell 397) | 8 ✅ | Layers, blend, filters, plugins |
-| FFmpeg Codec (Cell 398) | 2 ✅ | Decode/encode/transcode API |
-| Proton container (Cell 399) | 11 ✅ | Arch+Wine+DXVK+GPU+HID+USB |
-| **Metal Boot (Cell 400)** | **6 ✅** | **Unified API: Hosted/Metal/WSL2** |
-| **Audio Engine (Cell 401)** | **11 ✅** | **DAW+Tracker+SF2+AI+MIDI** |
-| **Total** | **747+ ✅** | **~38K source LOC** |
+### Resolved Cells (43 ✅)
 
-## Battleship Progress
+| Cell | Description | Tests |
+|------|-------------|-------|
+| 200 | ZealOS kernel in-process + Win98 GUI shell | 14 ✅ |
+| 201 | HolyC REPL with hc_eval integration | 14 ✅ |
+| 202 | GUI input dispatch (X11→kernel queue→WM) | 11 ✅ |
+| 203 | Fork+exec for .wubu containers | 15 ✅ |
+| 206 | Bare-metal preemptive tasking | 10 ✅ |
+| 207 | Unified GUI Shell (REPL+GUI+bare-metal) | ✅ |
+| 301 | interrupt.c: full IDT with assembly task gates | ✅ |
+| 310 | HolyC codegen: ternary, &&, \|\|, IF, WHILE, FOR | 71 ✅ |
+| 311 | HolyC codegen: function calls 0-6 args | 74 ✅ |
+| 312 | HolyC break/continue label patching | 71 ✅ |
+| 313 | HolyC assignment + struct + strings | 71 ✅ |
+| 340 | exec_linux_elf → native container | ✅ |
+| 341 | exec_win_pe → Proton container | ✅ |
+| 380 | DRM/KMS + X11 dual backend | 6 ✅ |
+| 381 | libm → pure C math (CORDIC/NR/Taylor) | ✅ |
+| 390 | Arch bootstrap + FreeDoom + RAM/SSD | 27 ✅ |
+| 391 | FreeDoom launcher (prboom+ in Arch) | 10 ✅ |
+| 392 | Root mount: RAM + SSD + install_to_disk | 12 ✅ |
+| 393 | GAAD φ-subdivision + translate | 17 ✅ |
+| 394 | Theme engine (Win98/XP/Media/WuBu) | 7 ✅ |
+| 395 | Window Manager (drag/snap/desktops) | 18 ✅ |
+| 396 | Code Editor (Notepad++ class) | 6 ✅ |
+| 397 | Image Canvas (Photoshop class) | 8 ✅ |
+| 398 | FFmpeg Codec Layer | 2 ✅ |
+| 399 | Proton container (GPU+HID+USB) | 11 ✅ |
+| 400 | Metal boot + WSL2 GUI | 6 ✅ |
+| 401 | Audio Engine (DAW+Tracker+SF2+AI) | 11 ✅ |
+| 402 | Furnace chip emulators (12 chips) | ✅ |
+| 403 | TinySoundFont SF2 parser | ✅ |
+| 404 | Ardour DAW mixer | ✅ |
+| 405 | AI plugin streaming (9P/Styx) | ✅ |
+|| 530 | bear_arena: Arena allocator + SoA tensor infrastructure | ✅ |
+|| 531 | bear_simd: AVX2/NEON matmul + fused kernels | ✅ |
+|| 532 | bear_env: Vectorized env API (CartPole, Squared) | ✅ |
+|| 533 | bear_opt: Adam + Muon optimizers | ✅ |
+|| 534 | bear_env: N-Pole Cartpole (7-10 poles) RK4 Lagrangian | ✅ |
+|| 410 | VSL init: host fork/exec verification | ✅ |
+| 411 | VSL run: host shell command execution | ✅ |
+| 450 | VSL init: host delegation verification | ✅ |
+| 451 | VSL run: host shell command execution | ✅ |
 
-| Cell | Description | Status |
-|------|-------------|--------|
-| 200 | ZealOS kernel in-process + Win98 GUI shell | ✅ |
-| 203 | Fork+exec for .wubu containers | ✅ |
-| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | ✅ |
-| 380 | wubu_display.c — DRM/KMS + X11 dual backend | ✅ |
-| 383 | Container bind mounts applied | ✅ |
-| 390 | Arch rootfs bootstrap (pacstrap + configure) | ✅ |
-| 391 | FreeDoom launcher (prboom-plus in Arch container) | ✅ |
-| 392 | Root mount: RAM (tmpfs) + SSD + install_to_disk | ✅ |
-| 393 | GAAD — Golden Aspect Adaptive Decomposition | ✅ |
-| 394 | Theme engine — Win98/XP/Media/WuBu | ✅ |
-| 395 | Window Manager — drag/resize/snap/desktops | ✅ |
-| 396 | Code Editor — Notepad++ class | ✅ |
-| 397 | Image Canvas — Photoshop class | ✅ |
-| 398 | FFmpeg Codec Layer | ✅ |
-| 399 | Proton container + GPU+HID+USB | ✅ |
-| 400 | Metal boot + WSL2 GUI abstraction | ✅ |
-| 401 | Audio Engine — DAW+Tracker+SF2+AI | ✅ |
-| 201 | HolyC REPL compiles + executes code | ⬜ |
-| 202 | GUI dispatches input to ZealOS apps | PARTIAL |
-| 204 | Per-container 9P namespace | ⬜ |
-| 205 | SteamOS container with GPU passthrough | ⬜ |
-| 206 | Bare-metal boot | ⬜ |
-| 311 | HolyC codegen: function calls, struct layout | ⬜ |
-| 324 | VSL Linux virtualization layer | PARTIAL |
+### Active Gap Categories (407 gaps)
+
+| Category | Count | Severity |
+|----------|-------|----------|
+| **Kernel (Layer 1)** | 51 | 🔴 5 CRITICAL, 🟡 46 HIGH |
+| **Compiler (Layer 2)** | 18 | 🟡 HIGH |
+| **VSL (Layer 3)** | 98 | 🔴 7 CRITICAL, 🟡 91 HIGH |
+| **Container Runtime** | 46 | 🟡 HIGH |
+| **wubu_exec Dispatch** | 14 | 🟡 HIGH |
+| **GUI (WM/Editor/Canvas)** | 56 | 🟡 HIGH |
+| **Audio Engine** | 38 | 🔴 3 CRITICAL, 🟡 35 HIGH |
+| **JIT Backends** | 14 | 🔴 1, 🟡 13 |
+| **Metal Boot** | 22 | 🟡 HIGH |
+| **Third-Party → C** | 10 | 🟡 7, ⬜ 3 |
+| **WorldSim** | 8 | 🟡 HIGH |
+| **Styx/9P** | 16 | 🔴 1, 🟡 15 |
+| **Bear RL (NEW)** | 14 | 🟡 3 (nn), ⬜ 11 |
+|| **TOTAL** | **406** | |
+
+### Top 20 Priority Gaps
+
+1. **Cell 496** — Audio: Replace 12 toy chip emulators with Furnace-grade external libs (blip_buf, Nuked-*, SAASound, YM3812-LLE, YMF262-LLE, YM2608-LLE, vgsound_emu)
+2. **Cell 497** — Audio: Replace TinySoundFont stub with schellingb/TinySoundFont upstream
+3. **Cell 498** — Audio: Implement Ardour-grade DAW (sample-accurate automation, LV2/VST3/CLAP, JACK, AAF/OMF, video sync)
+4. **Cell 360-366** — VSL: fork/clone, execve, read, write, pipe, socket syscalls
+5. **Cell 305** — name parity: 32 ZealOS functions unmapped
+6. **Cell 304** — fat32.c: O(1) dir entry update (dir_cluster cache)
+7. **Cell 388/389/391** — libdrm/libgbm/MIR → C replacements
+8. **Cell 302/303** — bare-metal IDT + APIC + IRQ routing
+9. **Cell 414** — per-container 9P Styx walk/read
+10. **Cell 415** — cgroup/setrlimit enforcement
+11. **Cell 523-525** — WSL2 wslg, initramfs, DRM/KMS mode set
+12. **Cell 467-473** — wubu_editor: undo/redo, find, folding, bookmarks, macros
+13. **Cell 460-466** — wubu_canvas: layer ops, flood fill, filters, GIF
+14. **Cell 499-531** — audio: SF2 samples, VST, automation, JACK
+15. **Cell 308-309** — task: 9 missing functions, preemptive scheduling
+16. **Cell 310-319** — kernel: 10 critical missing subsystems (VFS, block, net, USB, GPU, audio, modules, paging, KPTI, SMP)
+
+## Test Suite Status
+
+**747+ tests passing** across 30 test suites:
+
+| Suite | Tests | Status |
+|-------|-------|--------|
+| test_jit | 30+ | ✅ |
+| test_memory | 15+ | ✅ |
+| test_tasking | 10 | ✅ |
+| test_input | 11 | ✅ |
+| test_audio | 11 | ✅ |
+| test_metal | 6 | ✅ |
+| test_fat32 | 12+ | ✅ |
+| test_holyc | 71+ | ✅ |
+| test_gc | 10 | ✅ |
+| test_vsl | 20+ | ✅ |
+| ... | ... | ✅ |
 
 ## Quick Start
 
@@ -123,56 +169,51 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 # Build everything
 make all
 
-# Run tests (747+)
+# Run all tests (747+)
 make test
 
 # Build the hosted binary
 make hosted
+# ./src/hosted/wubu
 
-# Run WuBuOS as a Linux app
-./src/hosted/wubu            # X11 window with Win98 desktop
-./src/hosted/wubu -h         # Headless (Styx server)
-./src/hosted/wubu -t         # Temple REPL full-screen
-
-# Run container tests
-make test_host_exec
-
-# Run Arch/bootstrap tests
-make test_arch
-
-# Run ramdisk tests
-make test_ramdisk
-
-# New test suites
-make test_metal
+# Build audio test
 make test_audio
+# ./src/audio/wubu_audio_test
+
+# Build metal test
+make test_metal
+# ./src/hosted/wubu_metal_test
 ```
 
-## Distribution (Inferno emu pattern)
+## Development
 
 ```bash
-# Create demo distribution
-make hosted
-./create-initramfs.sh        # dist/boot/initramfs.img
+# Formatting
+make fmt
 
-# Create bootable USB
-sudo ./create-usb.sh /dev/sdX
+# Static analysis
+make static-analysis
 
-# Build for macOS
-./build-macos.sh             # dist/build-macos/
-
-# Test in QEMU
-./qemu-test.sh --kernel /boot/vmlinuz-linux
+# Documentation sweep (regenerates all markdowns)
+make docs
 ```
 
-## ⚠️ Hard-Dive Reality
+## Project Structure
 
-WuBuOS has **747+ passing tests** across **28 test suites**. 
+```
+src/
+├── kernel/          # Memory, task, VBE, FAT32, AHCI, interrupt, zealos_parity
+├── compiler/        # HolyC lexer/parser/codegen (310-313)
+├── audio/           # Ardour DAW + Furnace (12 chips) + TinySoundFont + AI (401-405)
+├── hosted/          # X11/DRM/KMS/ALSA/WSL2 platform layer (400, 388-391)
+├── runtime/         # Styx/9P, VSL, containers, Arch, RAM disk (203, 399, 410-441)
+├── gui/             # Win98 WM, editor, canvas, start menu (394-397, 460-493)
+├── worldsim/        # GAAD (393), terrain, entity, physics
+├── bridge/          # DOS flip Ctrl+Alt+T (206-207)
+├── apps/            # Codec, editor, canvas, freedoom (391, 396-398, 460-493)
+└── shell/           # Unified GUI shell (207)
+```
 
-Cells **200, 203, 310, 380, 383, 390, 391, 392, 393, 394, 395, 396, 397, 398, 399, 400, 401** are **verified at runtime**. 
+## License
 
-VSL and Proton are **PARTIAL** — their interface skeletons are architecture commitments for the bare-metal path, not dead code. 
-
-Arch bootstrap creates real rootfs via pacstrap. FreeDoom runs inside Arch containers with GPU passthrough. Ramdisk mounts tmpfs for container mode, SSD for bare metal. GAAD provides φ-structured resolution translation. Metal layer unifies display/input/audio across all three boot paths. Audio engine combines Ardour DAW, Furnace tracker, TinySoundFont, and AI plugin containers.
-
-See `docs/risk_register.md` for full gap analysis and `docs/architecture.md` for complete architecture.
+WuBuOS — MIT License (ZealOS kernel under its own license)

@@ -5,11 +5,16 @@
  */
 
 #include "wubu_exec.h"
+#include "wubu_host_exec.h"
 #include "../compiler/holyc.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /* ── Format Names ───────────────────────────────────────────────── */
 
@@ -69,25 +74,40 @@ WUBU_PAYLOAD_TYPE wubu_detect_format(const void *data, size_t size,
     return wubu_detect_payload_type(data, size);
 }
 
-/* ── VSL (Virtualization Substrate Layer) ───────────────────────── */
+/* ── VSL (Virtualization Substrate Layer) ─────────────────────────
+ *
+ * VSL is now HOST DELEGATION - fork+exec on the host Linux kernel.
+ * This replaces the old in-process syscall translation layer.
+ * Architecture: "VSL is NOT a Linux syscall emulation layer —
+ * rename to wubu_host_linux.c (platform delegation to host libc)."
+ */
 
 static bool g_vsl_initialized = false;
 
 int wubu_vsl_init(void) {
     if (g_vsl_initialized) return 0;
 
-    /*
-     * VSL initialization:
-     *   1. Set up lightweight VM structures (not full virtualization)
-     *   2. Map Linux syscall interface to WuBuOS kernel calls
-     *   3. Initialize driver passthrough (Vulkan, CUDA, networking)
-     *   4. Set up shared memory region for WuBuOS ↔ VSL communication
-     *
-     * For now: stub. Real implementation needs:
-     *   - KVM or equivalent lightweight VM
-     *   - Linux kernel image (minimal)
-     *   - VirtIO drivers for hardware passthrough
-     */
+    /* 1. Verify host environment has required capabilities */
+    /* Check for basic fork/exec support */
+    pid_t test_pid = fork();
+    if (test_pid < 0) {
+        return -1;  /* Host doesn't support fork */
+    }
+    if (test_pid == 0) {
+        _exit(0);  /* Child exits immediately */
+    }
+    int status;
+    waitpid(test_pid, &status, 0);
+
+    /* 2. Verify we can exec basic binaries */
+    if (access("/bin/sh", X_OK) != 0 && access("/usr/bin/sh", X_OK) != 0) {
+        return -1;  /* No shell available */
+    }
+
+    /* 3. Set up shared memory region for WuBuOS ↔ host communication
+     * (Currently a placeholder - would use memfd_create or similar) */
+    /* TODO: Implement proper shared memory for container communication */
+
     g_vsl_initialized = true;
     return 0;
 }
@@ -104,16 +124,42 @@ int64_t wubu_vsl_run(const char *cmd) {
     if (!g_vsl_initialized) {
         if (wubu_vsl_init() != 0) return -1;
     }
-    /* TODO: actual VSL execution */
-    (void)cmd;
-    return 0;
+
+    if (!cmd || !*cmd) return -1;
+
+    /* Fork and execute the command on the host */
+    pid_t pid = fork();
+    if (pid < 0) {
+        return -1;
+    }
+
+    if (pid == 0) {
+        /* Child: execute via shell */
+        execl("/bin/sh", "sh", "-c", cmd, (char *)NULL);
+        /* If /bin/sh fails, try /usr/bin/sh */
+        execl("/usr/bin/sh", "sh", "-c", cmd, (char *)NULL);
+        _exit(127);
+    }
+
+    /* Parent: wait for completion */
+    int status = 0;
+    pid_t ret = waitpid(pid, &status, 0);
+    if (ret != pid) {
+        return -1;
+    }
+
+    if (WIFEXITED(status)) {
+        return (int64_t)WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        return (int64_t)(-WTERMSIG(status));
+    }
+
+    return -1;
 }
 
 /* ── Format-Specific Executors ──────────────────────────────────── */
 
 int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
-    /* Wrap in .wubu container and dispatch */
-    /* For now: detect and report */
     if (!elf_data || elf_size < 4) return -1;
 
     /* Validate ELF magic */
@@ -121,14 +167,90 @@ int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
     if (p[0] != 0x7F || p[1] != 'E' || p[2] != 'L' || p[3] != 'F')
         return -1;
 
-    /* TODO: full ELF loading + VSL execution */
-    return wubu_vsl_run("linux_elf_stub");
+    /* Write ELF to temp file for container execution */
+    char tmp_path[256];
+    snprintf(tmp_path, sizeof(tmp_path), "/tmp/wubu-elf-%d", getpid());
+    FILE *f = fopen(tmp_path, "wb");
+    if (!f) return -1;
+    fwrite(elf_data, 1, elf_size, f);
+    fclose(f);
+    chmod(tmp_path, 0755);
+
+    /* Create native Linux container and exec the ELF */
+    char *root = getenv("WUBU_ARCH_ROOT");
+    if (!root) root = "/";  /* fallback to host root */
+
+    WubuCt *ct = wubu_ct_native("linux-elf", root);
+    if (!ct) {
+        unlink(tmp_path);
+        return -1;
+    }
+
+    /* Set up command to run the ELF */
+    char *argv[] = {tmp_path, NULL};
+    wubu_ct_set_cmd(ct, 1, argv);
+    ct->net_enabled = true;
+
+    int rc = wubu_ct_start(ct);
+    if (rc != 0) {
+        wubu_ct_destroy(ct);
+        unlink(tmp_path);
+        return -1;
+    }
+
+    /* Wait for completion */
+    int exit_code = wubu_ct_wait(ct);
+    wubu_ct_destroy(ct);
+    unlink(tmp_path);
+
+    return exit_code;
 }
 
 int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
-    (void)pe_data; (void)pe_size;
-    /* TODO: PE loading + Proton translation */
-    return wubu_vsl_run("proton_pe_stub");
+    if (!pe_data || pe_size < 2) return -1;
+
+    /* Validate PE magic (MZ) */
+    const uint8_t *p = (const uint8_t *)pe_data;
+    if (p[0] != 'M' || p[1] != 'Z')
+        return -1;
+
+    /* Write PE to temp file for container execution */
+    char tmp_path[256];
+    snprintf(tmp_path, sizeof(tmp_path), "/tmp/wubu-pe-%d.exe", getpid());
+    FILE *f = fopen(tmp_path, "wb");
+    if (!f) return -1;
+    fwrite(pe_data, 1, pe_size, f);
+    fclose(f);
+
+    /* Create Proton/SteamOS container and exec via Wine */
+    char *root = getenv("WUBU_ARCH_ROOT");
+    if (!root) root = "/";
+
+    WubuCt *ct = wubu_ct_steamos("win-pe", root);
+    if (!ct) {
+        unlink(tmp_path);
+        return -1;
+    }
+
+    /* Set up command: wine /path/to/exe */
+    char *argv[] = {"/usr/bin/wine", tmp_path, NULL};
+    wubu_ct_set_cmd(ct, 2, argv);
+    ct->net_enabled = true;
+    ct->gpu_passthrough = true;  /* Proton needs GPU */
+
+    int rc = wubu_ct_start(ct);
+    if (rc != 0) {
+        wubu_ct_destroy(ct);
+        unlink(tmp_path);
+        return -1;
+    }
+
+    /* Wait for completion */
+    int exit_code = wubu_ct_wait(ct);
+    wubu_ct_destroy(ct);
+    unlink(tmp_path);
+
+    return exit_code;
 }
 
 int64_t wubu_exec_holyc(const char *source, size_t source_size) {

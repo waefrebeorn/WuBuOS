@@ -217,10 +217,24 @@ int main(void) {
 
     /* ── Bitwise ops ── */
     printf("\n[Bitwise]\n");
-    T("3 & 5", 1);    /* 011 & 101 = 001 */
-    T("3 | 5", 7);    /* 011 | 101 = 111 */
-    T("3 ^ 5", 6);    /* 011 ^ 101 = 110 */
-    T("~0", -1);      /* all bits set = -1 in two's complement */
+    T("3 & 5", 1);
+    T("3 | 5", 7);
+    T("3 ^ 5", 6);
+    T("~0", -1);
+
+    /* ── String Literals (Cell 311) ── */
+    printf("\n[Cell 311: String Literals]\n");
+    T("{ \"hello\"; 0; }", 0);  /* Just test it compiles and runs */
+
+    /* ── Struct Definition (Cell 311) ── */
+    printf("\n[Cell 311: Struct Definition]\n");
+    T("{ struct A { I64 x; }; 0; }", 0);
+
+    printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
+    printf("\n[Cell 311: Function Calls]\n");
+    T("{ I64 foo() { return 42; } foo(); }", 42);
+    T("{ I64 add(I64 a, I64 b) { return a + b; } add(3, 4); }", 7);
+    T("{ I64 mul(I64 a, I64 b) { return a * b; } mul(5, 6); }", 30);
 
     printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;

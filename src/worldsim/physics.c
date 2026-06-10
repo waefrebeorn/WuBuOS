@@ -1,5 +1,4 @@
 #include "worldsim.h"
-#include <math.h>
 
 void ws_physics_init(ws_physics_config_t *cfg) {
     cfg->gravity = -9.81f;
