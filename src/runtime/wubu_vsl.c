@@ -25,10 +25,46 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/resource.h>
+#include <sys/syscall.h>
 
 /* ── Global State ──────────────────────────────────────────────── */
 
 static VSL_STATE g_vsl;
+
+/* ── PID Mapping ────────────────────────────────────────────────── */
+/* Simple mapping: VSL PID = host PID for direct children.          */
+/* For multi-process, we maintain a VSL process table mapping.      */
+
+static int find_free_vsl_pid(void) {
+    for (uint32_t pid = 2; pid < 100000; pid++) {
+        if (!vsl_get_process(pid)) return (int)pid;
+    }
+    return -1;
+}
+
+static int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
+    if (child_host_pid <= 0) return -1;
+    if (g_vsl.n_procs >= VSL_MAX_PROCS) return -1;
+    int vsl_pid = find_free_vsl_pid();
+    if (vsl_pid < 0) return -1;
+    VSL_PROC *proc = &g_vsl.procs[g_vsl.n_procs];
+    memset(proc, 0, sizeof(*proc));
+    proc->pid = (uint32_t)vsl_pid;
+    proc->ppid = parent_vsl_pid;
+    proc->state = VSL_PROC_READY;
+    g_vsl.n_procs++;
+    return vsl_pid;
+}
 
 /* ── Syscall Table ─────────────────────────────────────────────── */
 
@@ -71,6 +107,134 @@ static int64_t vsl_sys_brk(uint64_t new_brk, uint64_t b, uint64_t c,
     return vsl_brk(new_brk);
 }
 
+/* Cell 360: fork implementation — host delegation */
+static int64_t vsl_sys_fork(uint64_t a, uint64_t b, uint64_t c,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    pid_t host_pid = fork();
+    if (host_pid < 0) return -errno;
+    if (host_pid == 0) {
+        /* Child: update VSL current_pid to match host */
+        g_vsl.current_pid = (uint32_t)host_pid;
+        return 0;
+    }
+    /* Parent: register child in VSL process table */
+    int vsl_child = register_child_pid(host_pid, g_vsl.current_pid);
+    if (vsl_child < 0) {
+        kill(host_pid, SIGKILL);
+        waitpid(host_pid, NULL, 0);
+        return -1;
+    }
+    return (int64_t)vsl_child;
+}
+
+/* Cell 360: clone implementation — simplified (fork for hosted mode) */
+static int64_t vsl_sys_clone(uint64_t flags, uint64_t stack, uint64_t ptid,
+                              uint64_t ctid, uint64_t tls, uint64_t f) {
+    (void)stack; (void)ptid; (void)ctid; (void)tls; (void)f;
+    /* In hosted mode, clone without CLONE_VM ≈ fork */
+    return vsl_sys_fork(flags, 0, 0, 0, 0, 0);
+}
+
+/* Cell 360: vfork implementation — fork in hosted mode */
+static int64_t vsl_sys_vfork(uint64_t a, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    return vsl_sys_fork(a, b, c, d, e, f);
+}
+
+/* Cell 361: execve implementation — host delegation */
+static int64_t vsl_sys_execve(uint64_t path, uint64_t argv, uint64_t envp,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    const char *pathname = (const char *)path;
+    if (!pathname) return -2; /* ENOENT */
+
+    /* Convert VSL argv (uint64_t*) to host char** */
+    char **host_argv = NULL;
+    int argc = 0;
+    if (argv) {
+        uint64_t *vsl_argv = (uint64_t *)argv;
+        while (vsl_argv[argc]) argc++;
+        host_argv = (char **)calloc((size_t)argc + 1, sizeof(char *));
+        if (!host_argv) return -12; /* ENOMEM */
+        for (int i = 0; i < argc; i++)
+            host_argv[i] = (char *)(uintptr_t)vsl_argv[i];
+    }
+
+    execve(pathname, host_argv, (char *const *)(uintptr_t)envp);
+    /* If we get here, execve failed */
+    free(host_argv);
+    return -errno;
+}
+
+/* Cell 362: wait4 implementation — host delegation */
+static int64_t vsl_sys_wait4(uint64_t pid, uint64_t status, uint64_t options,
+                              uint64_t rusage, uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    int host_status = 0;
+    pid_t host_pid = (pid == (uint64_t)(-1)) ? -1 : (pid_t)(int)pid;
+    pid_t result = waitpid(host_pid, &host_status, (int)options);
+    if (result < 0) return -errno;
+    if (status && result > 0) {
+        int *out = (int *)status;
+        *out = host_status;
+    }
+    if (rusage) {
+        memset((void *)rusage, 0, sizeof(struct rusage));
+    }
+    return (int64_t)result;
+}
+
+/* Cell 362: waitpid → wait4 wrapper */
+static int64_t vsl_sys_waitpid(uint64_t pid, uint64_t status, uint64_t options,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    return vsl_sys_wait4(pid, status, options, 0, e, f);
+}
+
+/* Cell 364: socket implementation — host delegation */
+static int64_t vsl_sys_socket(uint64_t domain, uint64_t type, uint64_t protocol,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    int result = (int)socket((int)domain, (int)type, (int)protocol);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_socketpair(uint64_t domain, uint64_t type, uint64_t protocol,
+                                   uint64_t sv, uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    int result = socketpair((int)domain, (int)type, (int)protocol, (int *)sv);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_connect(uint64_t sockfd, uint64_t addr, uint64_t addrlen,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    int result = connect((int)sockfd, (const struct sockaddr *)addr, (socklen_t)addrlen);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_bind(uint64_t sockfd, uint64_t addr, uint64_t addrlen,
+                             uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    int result = bind((int)sockfd, (const struct sockaddr *)addr, (socklen_t)addrlen);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_listen(uint64_t sockfd, uint64_t backlog, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int result = listen((int)sockfd, (int)backlog);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_accept(uint64_t sockfd, uint64_t addr, uint64_t addrlen,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    socklen_t *len = addrlen ? (socklen_t *)addrlen : NULL;
+    int result = accept((int)sockfd, (struct sockaddr *)addr, len);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
 static int64_t vsl_sys_mmap(uint64_t addr, uint64_t size, uint64_t prot,
                              uint64_t flags, uint64_t fd, uint64_t offset) {
     return (int64_t)vsl_mmap(addr, (size_t)size, (int)prot,
@@ -86,13 +250,17 @@ static int64_t vsl_sys_munmap(uint64_t addr, uint64_t size, uint64_t c,
 static int64_t vsl_sys_write(uint64_t fd, uint64_t buf, uint64_t count,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    return vsl_write((int)fd, (const void *)buf, (size_t)count);
+    /* Cell 366: write to all fds via host delegation */
+    ssize_t result = write((int)fd, (const void *)buf, (size_t)count);
+    return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_read(uint64_t fd, uint64_t buf, uint64_t count,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    return vsl_read((int)fd, (void *)buf, (size_t)count);
+    /* Cell 365: host fd delegation — read from real host fd */
+    ssize_t result = read((int)fd, (void *)buf, (size_t)count);
+    return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_open(uint64_t path, uint64_t flags, uint64_t mode,
@@ -225,27 +393,32 @@ static int64_t vsl_sys_kill(uint64_t pid, uint64_t sig, uint64_t c,
 static int64_t vsl_sys_pipe(uint64_t pipefd, uint64_t b, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    /* TODO: proper pipe */
+    /* Cell 370: pipe via host delegation */
     if (pipefd) {
         int *fds = (int *)pipefd;
-        fds[0] = vsl_sys_nosys(0,0,0,0,0,0);
-        fds[1] = -1;
+        int host_fds[2];
+        int rc = pipe(host_fds);
+        if (rc < 0) return -errno;
+        fds[0] = host_fds[0];
+        fds[1] = host_fds[1];
     }
-    return -38; /* ENOSYS */
+    return 0;
 }
 
 static int64_t vsl_sys_dup(uint64_t fd, uint64_t b, uint64_t c,
                             uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    (void)fd;
-    return -38;
+    /* Cell 363: dup via host delegation */
+    int result = dup((int)fd);
+    return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_dup2(uint64_t oldfd, uint64_t newfd, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    (void)oldfd; (void)newfd;
-    return -38;
+    /* Cell 363: dup2 via host delegation */
+    int result = dup2((int)oldfd, (int)newfd);
+    return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
@@ -284,16 +457,16 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_IOCTL]        = vsl_sys_ioctl,
     [VSL_SYS_ACCESS]       = vsl_sys_access,
     [VSL_SYS_PIPE]         = vsl_sys_pipe,
-    [VSL_SYS_FORK]         = (vsl_syscall_fn)vsl_sys_nosys,
-    [VSL_SYS_EXECVE]       = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_FORK]         = vsl_sys_fork,
+    [VSL_SYS_EXECVE]       = vsl_sys_execve,
     [VSL_SYS_EXIT]         = vsl_sys_exit,
-    [VSL_SYS_WAIT4]        = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_WAIT4]        = vsl_sys_wait4,
     [VSL_SYS_KILL]         = vsl_sys_kill,
     [VSL_SYS_GETPID]       = vsl_sys_getpid,
     [VSL_SYS_GETPPID]      = vsl_sys_getppid,
     [VSL_SYS_GETUID]       = vsl_sys_getuid,
     [VSL_SYS_GETGID]       = vsl_sys_getgid,
-    [VSL_SYS_CLONE]        = (vsl_syscall_fn)vsl_sys_nosys,
+    [VSL_SYS_CLONE]        = vsl_sys_clone,
     [VSL_SYS_DUP]          = vsl_sys_dup,
     [VSL_SYS_DUP2]         = vsl_sys_dup2,
     [VSL_SYS_FCNTL]        = vsl_sys_fcntl,
@@ -307,6 +480,14 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_SCHED_YIELD]  = vsl_sys_sched_yield,
     [VSL_SYS_CLOCK_GETTIME]= vsl_sys_clock_gettime,
     [VSL_SYS_EXIT_GROUP]   = vsl_sys_exit_group,
+    [VSL_SYS_SOCKET]        = vsl_sys_socket,
+    [VSL_SYS_CONNECT]       = vsl_sys_connect,
+    [VSL_SYS_ACCEPT]        = vsl_sys_accept,
+    [VSL_SYS_BIND]          = vsl_sys_bind,
+    [VSL_SYS_LISTEN]        = vsl_sys_listen,
+    [VSL_SYS_WAITPID]       = vsl_sys_waitpid,
+    [VSL_SYS_VFORK]         = vsl_sys_vfork,
+    [VSL_SYS_PIPE2]         = vsl_sys_pipe,
 };
 
 #define VSL_SYSCALL_TABLE_SIZE (sizeof(vsl_syscall_table) / sizeof(vsl_syscall_table[0]))

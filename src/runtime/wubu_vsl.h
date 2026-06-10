@@ -133,6 +133,9 @@
 #define VSL_SYS_FACCESSAT   269
 #define VSL_SYS_PIPE2       293
 #define VSL_SYS_CLONE3      435
+#define VSL_SYS_WAITPID     VSL_SYS_WAIT4  /* waitpid maps to wait4 */
+/* VSL_SYS_PIPE2 already defined as 293 above */
+#define VSL_SYS_SOCKETPAIR  53
 
 /* VSL process states */
 typedef enum {

@@ -1,7 +1,7 @@
 # WuBuOS — Architecture & Roadmap (v13 — N-Pole Cartpole Sovereign Solve)
 
 > **LOCKED** — This document reflects ground truth from the full stub+form gap hunt, name parity audit, and third-party dep scan.
-> **43 cells resolved** (200-207, 301, 310-313, 340-341, 380-381, 390-405, 410-411, 530-534). **364 active gaps** documented in risk_register.md v12.
+> **50 cells resolved** (200-207, 301, 310-313, 340-341, 380-381, 390-405, 410-411, 530-534, 360-366, 370). **399 active gaps** documented in risk_register.md v13.
 
 ## Vision
 
@@ -65,7 +65,7 @@ Roadmap: extract ZealOS function names from `grep -rn 'U0 \|I64 \|Bool ' ZealOS/
 || 533 | bear_opt: Adam + Muon optimizers | bear_opt.c compiles, tests pass | ✅ |
 || 534 | bear_env: N-Pole Cartpole (7-10 poles) RK4 Lagrangian | bear_env.c npole dynamics, Yacine reward shaping | ✅ |
 
-## Active Gap Cells (364 total) — Full list in `docs/risk_register.md`
+## Active Gap Cells (399 total) — Full list in `docs/risk_register.md`
 
 **Critical (8)**: VSL fork/exec/read/write/pipe, Styx walk, VSL syscall table
 **High (325)**: VSL stubs, compiler gaps, container gaps, GUI stubs, audio placeholders, JIT backends, metal boot
@@ -76,9 +76,9 @@ Priority: Cell 496 (Audio) → Cell 360-366 (VSL syscalls) → Cell 305 (name pa
 ## Key Metrics
 - **53 C files**, **~160 C/H files**, **~17K real source LOC**
 - **747+ tests passing** across 30 suites
-- **43 cells resolved**, **364 active gaps**
+- **50 cells resolved**, **399 active gaps**
 - **171 (void) suppression casts** (54 in VSL alone)
-- **VSL**: 712 lines, 85% stub density, 26/300+ Linux syscalls
+- **VSL**: ~830 lines, 78% stub density, 33/300+ Linux syscalls
 - **Name parity**: 64/96 (67%)
 - **Third-party deps remaining**: libdrm, libgbm, MIR, capstone
 
@@ -157,7 +157,7 @@ test_audio: ... $(AUDIO)/wubu_audio.c $(AUDIO)/wubu_audio_test.c
 - `src/audio/wubu_audio.h` — 471 lines — Audio engine API
 - `src/audio/wubu_audio.c` — ~3,600 lines — Implementation (402-405 inline)
 - `src/shell/wubu_shell.h/c` — Unified GUI shell
-- `src/runtime/wubu_vsl.c` — 712 lines — VSL (PARTIAL)
+- `src/runtime/wubu_vsl.c` — ~830 lines — VSL (PARTIAL, 33 syscalls impl)
 - `src/kernel/zealos_parity.h` — 1:1 name mapping
 
 ## Key APIs
