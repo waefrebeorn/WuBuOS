@@ -1,7 +1,7 @@
-# WuBuOS — Architecture & Roadmap (v13 — N-Pole Cartpole Sovereign Solve)
+# WuBuOS — Architecture & Roadmap (v14 — Container Runtime & StyxFS Complete)
 
 > **LOCKED** — This document reflects ground truth from the full stub+form gap hunt, name parity audit, and third-party dep scan.
-> **67 cells resolved** (200-207, 301, 310-313, 340-341, 380-381, 390-405, 410-411, 530-534, 360-378, 305, 369, 382, 386, 304). **372 active gaps** documented in risk_register.md v17.
+> **82 cells resolved** (200-207, 301, 304-305, 310-313, 340-341, 360-378, 380-382, 386, 390-405, 410-411, 414-415, 460-473, 530-534, 576-577). **327 active gaps** documented in risk_register.md v22.
 
 ## Vision
 
@@ -17,12 +17,10 @@ WuBuOS is NOT the kernel. It is a **GUI shell + container runtime** that wraps t
 
 `src/kernel/zealos_parity.h` provides 1:1 name mapping from ZealOS PascalCase → WuBuOS snake_case.
 
-Current: **64/96 core functions mapped (67%)**. Target: 100%.
-Missing: 32 functions across Memory (4), Task (9), FAT32 (8), VBE (2), Interrupt (4), JIT (2).
+Current: **96/96 core functions mapped (100%)**. 
+Missing: 0 functions — all 6 categories complete.
 
-Roadmap: extract ZealOS function names from `grep -rn 'U0 \|I64 \|Bool ' ZealOS/src/Kernel/*.ZC`, compute diff against our names, add aliases.
-
-## Resolved Cells (v12)
+## Resolved Cells (v13)
 
 | Cell | Name | Description | Status |
 |------|------|-------------|--------|

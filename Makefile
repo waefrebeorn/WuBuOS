@@ -225,8 +225,8 @@ test_holyc: $(JIT)/jit.o
 	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT)/jit.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test
 	$(COMP)/holyc_test
 
-test_wubu: $(JIT)/jit.o $(RT)/wubu_host_exec.o
-	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT)/jit.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_container_test.c -o $(RT)/wubu_container_test
+test_wubu: $(JIT)/jit.o $(RT)/wubu_host_exec.o $(RT)/styxfs.o $(RT)/styx.o
+	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT)/jit.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_container_test.c -o $(RT)/wubu_container_test
 	$(RT)/wubu_container_test
 
 test_apps:
@@ -312,14 +312,14 @@ test_hosted:
 
 test_host_exec:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_host_exec_test.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_host_exec.c $(RT)/wubu_host_exec_test.c \
 		-o $(RT)/wubu_host_exec_test
 	$(RT)/wubu_host_exec_test
 
 test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/wubu_arch.c $(RT)/wubu_host_exec.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c \
 		$(APPS)/wubu_freedoom.c $(RT)/wubu_arch_test.c \
 		-o $(RT)/wubu_arch_test
 	$(RT)/wubu_arch_test
@@ -327,7 +327,7 @@ test_arch:
 test_ramdisk:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/wubu_ramdisk.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_ramdisk.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c \
 		$(RT)/wubu_ramdisk_test.c \
 		-o $(RT)/wubu_ramdisk_test
 	$(RT)/wubu_ramdisk_test
@@ -342,7 +342,7 @@ test_gaad:
 test_wubu_wm:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(RT) \
-		$(GUI)/wubu_theme.c $(GUI)/wubu_wm.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(GUI)/wubu_theme.c $(GUI)/wubu_wm.c \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/vbe.c \
 		$(RT)/wubu_host_exec.c \
 		$(GUI)/wubu_wm_test.c \

@@ -24,6 +24,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mount.h>
+#include <sys/resource.h>
+#include "styxfs.h"
 
 /* ── State/Runtime Names ─────────────────────────────────────────── */
 
@@ -178,6 +180,67 @@ static int setup_styx_socket(WubuCt *ct) {
     return 0;
 }
 
+/* ── Per-Container Styx 9P Server (Cell 414) ─────────────────────── */
+
+static void run_container_styx_server(WubuCt *ct) {
+    if (!ct || ct->styx_fd < 0) return;
+    
+    /* Initialize StyxFS server */
+    styxfs_server_t srv;
+    styxfs_init(&srv);
+    
+    /* Mount the container's root filesystem at / */
+    styxfs_mount(&srv, "/", ct->root, 1);
+    
+    /* Set up signal handling for clean shutdown */
+    signal(SIGTERM, SIG_DFL);
+    signal(SIGINT, SIG_DFL);
+    
+    /* Accept and serve connections */
+    while (1) {
+        struct sockaddr_un client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        int client_fd = accept(ct->styx_fd, (struct sockaddr*)&client_addr, &client_len);
+        if (client_fd < 0) {
+            if (errno == EINTR) continue;
+            break;
+        }
+        
+        /* Serve this connection */
+        uint8_t inbuf[8192], outbuf[8192];
+        uint32_t inlen, outlen;
+        
+        while (1) {
+            /* Read message length (4 bytes) */
+            ssize_t n = read(client_fd, &inlen, 4);
+            if (n <= 0) break;
+            
+            /* Read message body */
+            n = read(client_fd, inbuf, inlen);
+            if (n <= 0) break;
+            
+            /* Process via StyxFS */
+            outlen = sizeof(outbuf);
+            if (styxfs_serve(&srv, inbuf, inlen, outbuf, &outlen) == 0) {
+                write(client_fd, &outlen, 4);
+                write(client_fd, outbuf, outlen);
+            } else {
+                break;
+            }
+        }
+        
+        close(client_fd);
+    }
+    
+    /* Cleanup */
+    styxfs_mount_t *m = srv.mounts;
+    while (m) {
+        styxfs_mount_t *next = m->next;
+        free(m);
+        m = next;
+    }
+}
+
 /* ── Container Start (fork + chroot + exec) ─────────────────────── */
 
 int wubu_ct_start(WubuCt *ct) {
@@ -222,7 +285,17 @@ int wubu_ct_start(WubuCt *ct) {
         /* Set uid/gid */
         if (ct->gid > 0) setgid((gid_t)ct->gid);
         if (ct->uid > 0) setuid((uid_t)ct->uid);
-        
+
+        /* Cell 415: Apply resource limits via setrlimit before exec */
+        if (ct->cpu_limit > 0) {
+            struct rlimit cpu_rl = { .rlim_cur = ct->cpu_limit, .rlim_max = ct->cpu_limit };
+            setrlimit(RLIMIT_CPU, &cpu_rl);
+        }
+        if (ct->mem_limit_mb > 0) {
+            struct rlimit as_rl = { .rlim_cur = ct->mem_limit_mb * 1024 * 1024, .rlim_max = ct->mem_limit_mb * 1024 * 1024 };
+            setrlimit(RLIMIT_AS, &as_rl);
+        }
+
         /* Mount bind mounts (GPU passthrough, X11 socket, etc.) */
         for (int i = 0; i < ct->n_binds; i++) {
             /* Create mount point inside chroot */
@@ -240,6 +313,17 @@ int wubu_ct_start(WubuCt *ct) {
             }
         }
         
+        /* Cell 414: Start per-container Styx 9P server */
+        if (ct->styx_fd >= 0) {
+            pid_t styx_pid = fork();
+            if (styx_pid == 0) {
+                /* Styx server child: serve 9P on the socket */
+                run_container_styx_server(ct);
+                _exit(0);
+            }
+            /* Parent (main container) continues to exec */
+        }
+
         /* Execute */
         execv(ct->argv[0], ct->argv);
         
