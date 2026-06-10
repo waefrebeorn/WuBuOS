@@ -312,9 +312,9 @@ static int64_t vsl_sys_stat(uint64_t path, uint64_t buf, uint64_t c,
 static int64_t vsl_sys_ioctl(uint64_t fd, uint64_t req, uint64_t arg,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    /* TODO: proper ioctl */
-    (void)fd; (void)req; (void)arg;
-    return 0;
+    /* Cell 369: ioctl via host delegation */
+    int result = ioctl((int)fd, (unsigned long)req, (void *)arg);
+    return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_access(uint64_t path, uint64_t mode, uint64_t c,

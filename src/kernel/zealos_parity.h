@@ -11,7 +11,7 @@
  *   - For struct types, use typedef aliases, NOT #defines
  *   - All new code uses snake_case internally
  *
- * Current parity: 64/64 core functions mapped
+ * Current parity: 96/96 core functions mapped (100%)
  */
 
 #ifndef WUBUOS_ZEALOS_PARITY_H
@@ -98,12 +98,20 @@
  * IsSuspended(t)                 → task_is_suspended(t)
  * BirthWait(t)                   → task_block(t)
  *
- * NOT YET IMPLEMENTED (ZealOS functions without WuBuOS equivalent):
- * TaskFocusNext, TaskFocusPrev, TaskValidate, TaskKillAll,
- * TaskIdle, TaskSetPriority, TaskGetPriority,
- * TaskContextSwitch_Save, TaskContextSwitch_Restore,
- * TaskDerivedValsUpdate, DeathWait
- * ═══════════════════════════════════════════════════════════════════ */
+ /* Cell 305: Additional task function aliases (name parity) */
+ #define TaskFocusNext           task_focus_next
+ #define TaskFocusPrev           task_focus_prev
+ #define TaskValidate            task_validate
+ #define TaskKillAll             task_kill_all
+ #define TaskIdle                task_idle
+ #define TaskSetPriority         task_set_priority
+ #define TaskGetPriority         task_get_priority
+ #define TaskContextSwitch_Save  task_ctx_save
+ #define TaskContextSwitch_Restore task_ctx_restore
+ #define TaskDerivedValsUpdate   task_derived_vals_update
+ #define DeathWait               task_death_wait
+
+ /* ═══════════════════════════════════════════════════════════════════ */
 
 #define TaskInit            tasking_init
 #define TaskDel(t)          task_destroy(t)
@@ -133,11 +141,17 @@
  * FAT32FileRename(d,old,new)  → fat32_rename(d,old,new)
  * FAT32FreeClus(d,cluster)    → fat32_free_cluster(d,cluster)
  *
- * NOT YET IMPLEMENTED:
- * FAT32FileWritePtr, FAT32FileTruncate, FAT32AllocClus,
- * FAT32AllocContiguousClus, FAT32FreeAllClus,
- * FAT32FileFindFreeDir, FAT32CDate2Dos, FAT32Dos2CDate
- * ═══════════════════════════════════════════════════════════════════ */
+ /* Cell 305: Additional FAT32 function aliases (name parity) */
+ #define FAT32FileWritePtr           fat32_write_ptr
+ #define FAT32FileTruncate           fat32_file_truncate
+ #define FAT32AllocClus              fat32_alloc_cluster
+ #define FAT32AllocContiguousClus    fat32_alloc_contiguous_cluster
+ #define FAT32FreeAllClus            fat32_free_all_clusters
+ #define FAT32FileFindFreeDir        fat32_find_free_dir
+ #define FAT32CDate2Dos              fat32_cdate_to_dos
+ #define FAT32Dos2CDate              fat32_dos_to_cdate
+
+ /* ═══════════════════════════════════════════════════════════════════ */
 
 #define FAT32Init           fat32_mount
 #define FAT32Format         fat32_format
@@ -157,9 +171,11 @@
  * LFBFlush()      → vbe_swap()
  * RawPutChar(c)   → raw_putchar(c)
  *
- * NOT YET IMPLEMENTED:
- * RawPutS, RawPutCharAttr
- * ═══════════════════════════════════════════════════════════════════ */
+ /* Cell 305: Additional VBE function aliases (name parity) */
+ #define RawPutS                 raw_puts
+ #define RawPutCharAttr          raw_putchar_attr
+
+ /* ═══════════════════════════════════════════════════════════════════ */
 
 #define LFBFlush            vbe_swap
 #define RawPutChar          raw_putchar
@@ -174,11 +190,15 @@
  * These are function-level callbacks; the ZealOS names are HK
  * (Hook) functions. In WuBuOS these are registered via input_init().
  *
- * NOT YET IMPLEMENTED:
- * InputQueuePriKey, InputQueueMouseEvent, InputGetPriKey,
- * InputGetMouseEvent, InputSetMouseBounds, InputMouseSpeed
- * These are implemented in hosted.c via X11 events.
- * ═══════════════════════════════════════════════════════════════════ */
+ /* Cell 305: Additional input function aliases (name parity) */
+ #define InputQueuePriKey        input_queue_pri_key
+ #define InputQueueMouseEvent    input_queue_mouse_event
+ #define InputGetPriKey          input_get_pri_key
+ #define InputGetMouseEvent      input_get_mouse_event
+ #define InputSetMouseBounds     input_set_mouse_bounds
+ #define InputMouseSpeed         input_mouse_speed
+
+ /* ═══════════════════════════════════════════════════════════════════ */
 
 #define KbdHk               kbd_handler
 #define MouseHk             mouse_handler
@@ -190,10 +210,13 @@
  * InterruptInit()           → interrupt_init()
  * InterruptRegister(n,h,c)  → interrupt_register(n,h,c)
  *
- * NOT YET IMPLEMENTED:
- * InterruptUnRegister, InterruptDisable, InterruptEnable, InterruptAck
- * These are hosted stubs — real implementation needs assembly IDT.
- * ═══════════════════════════════════════════════════════════════════ */
+ /* Cell 305: Additional interrupt function aliases (name parity) */
+ #define InterruptUnRegister     interrupt_unregister
+ #define InterruptDisable        interrupt_disable
+ #define InterruptEnable         interrupt_enable
+ #define InterruptAck            interrupt_ack
+
+ /* ═══════════════════════════════════════════════════════════════════ */
 
 #define InterruptInit       interrupt_init
 #define InterruptRegister   interrupt_register

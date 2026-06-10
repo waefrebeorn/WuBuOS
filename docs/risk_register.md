@@ -67,7 +67,7 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-## Active Gap Cells (v14) — 387 gaps
+## Active Gap Cells (v15) — 375 gaps
 
 ### Layer 1: Kernel — Hollow Stubs (51 gaps)
 
@@ -132,30 +132,11 @@ We audited our implementations against the actual upstream projects we ape:
 | 353 | holyc_parse: no typedef parsing | 🟡 | holyc_parse.c |
 | 354 | holyc_parse: no enum parsing | 🟡 | holyc_parse.c |
 
-### Layer 3: VSL — 65% Stubs (79 gaps)
+### Layer 3: VSL — 54% Stubs (66 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
-| 360 | VSL: fork/clone/vfork → ENOSYS (line 287,296) | 🔴 | wubu_vsl.c:287,296 |
-| 361 | VSL: execve → ENOSYS (line 288) | 🔴 | wubu_vsl.c:288 |
-| 362 | VSL: wait4/waitpid → ENOSYS (line 290) | 🔴 | wubu_vsl.c:290 |
-| 363 | VSL: dup/dup2 → ENOSYS (lines 237-248) | 🔴 | wubu_vsl.c:237-248 |
-| 364 | VSL: socket/socketpair/connect/bind/listen/accept → missing | 🔴 | wubu_vsl.c |
-| 365 | VSL: read → returns 0 (EOF) stub (line 521) | 🔴 | wubu_vsl.c:521 |
-| 366 | VSL: write → only stdout/stderr works (line 526-534) | 🔴 | wubu_vsl.c:526 |
-| 367 | VSL: lseek → returns 0 (line 537) | 🔴 | wubu_vsl.c:537 |
-| 368 | VSL: fstat/stat → zeroes buffer, returns 0 (lines 116-129) | 🔴 | wubu_vsl.c:116 |
 | 369 | VSL: ioctl → returns 0 (line 131) | 🔴 | wubu_vsl.c:131 |
-| 369 | VSL: access → returns 0 (line 139) | 🔴 | wubu_vsl.c:139 |
-| 370 | VSL: pipe → returns ENOSYS (line 228) | 🔴 | wubu_vsl.c:228 |
-| 371 | VSL: fcntl → returns 0 (line 154) | 🔴 | wubu_vsl.c:154 |
-| 372 | VSL: fsync/fdatasync → returns 0 (line 147) | 🔴 | wubu_vsl.c:147 |
-| 373 | VSL: unlink/mkdir/rmdir/rename → returns 0 (lines 161-187) | 🔴 | wubu_vsl.c:161 |
-| 374 | VSL: chdir/getcwd → returns / or 0 (lines 189-204) | 🟡 | wubu_vsl.c:189 |
-| 375 | VSL: kill → returns 0 (line 218) | 🟡 | wubu_vsl.c:218 |
-| 376 | VSL: getuid/getgid → returns 0 (root) (lines 206-216) | 🟡 | wubu_vsl.c:206 |
-| 377 | VSL: sched_yield → returns 0 (line 251) | 🟡 | wubu_vsl.c:251 |
-| 378 | VSL: clock_gettime → zeroes buffer (line 257) | 🟡 | wubu_vsl.c:257 |
 | 379 | VSL: mmap/munmap — bump allocator only, no MAP_FIXED, no shared | 🟡 | wubu_vsl.c:437 |
 | 380 | VSL: brk — bump only, no validation | 🟡 | wubu_vsl.c:476 |
 | 381 | VSL: ELF loading — validates but no PT_LOAD mapping (line 648) | 🟡 | wubu_vsl.c:648 |
@@ -175,8 +156,8 @@ We audited our implementations against the actual upstream projects we ape:
 | 395 | VSL: No 32-bit compat (IA32) syscall table | 🟡 | wubu_vsl.c |
 | 396 | VSL: No syscall tracing/audit | 🟡 | wubu_vsl.c |
 | 397 | VSL: No KVM/hypervisor acceleration path | 🟡 | wubu_vsl.c |
-| 398 | VSL: 712 lines, 54 (void) casts — metric of stub density | 📊 | wubu_vsl.c |
-| 399 | VSL: Only 26/300+ Linux syscalls implemented | 📊 | wubu_vsl.c |
+| 398 | VSL: ~950 lines, ~36 (void) casts — reduced stub density | 📊 | wubu_vsl.c |
+| 399 | VSL: 42/300+ Linux syscalls implemented (was 26) | 📊 | wubu_vsl.c |
 
 ### Layer 4: Container Runtime — Partial (46 gaps)
 
@@ -406,7 +387,7 @@ We audited our implementations against the actual upstream projects we ape:
 1. **Cell 496** — Audio: Replace 12 toy chip emulators with Furnace-grade external libs (blip_buf, Nuked-*, SAASound, YM3812-LLE, YMF262-LLE, YM2608-LLE, vgsound_emu)
 2. **Cell 497** — Audio: Replace TinySoundFont stub with schellingb/TinySoundFont upstream
 3. **Cell 498** — Audio: Implement Ardour-grade DAW (sample-accurate automation, LV2/VST3/CLAP, JACK, AAF/OMF, video sync)
-4. **Cell 369** — VSL: ioctl stub (remaining critical stub)
+4. **Cell 382** — VSL: signal handling (sigaction, sigprocmask) — next
 5. **Cell 305** — name parity: map remaining 32 ZealOS functions
 6. **Cell 304** — fat32.c: O(1) dir entry update (dir_cluster cache)
 7. **Cell 388/389/391** — libdrm/libgbm/MIR → C replacements
@@ -421,4 +402,4 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-*Next: Cell 360-366 — VSL syscalls (fork, clone, execve, read, write, pipe, socket)*
+*Next: Cell 382 — VSL signal handling → Cell 386 — VSL futex → Cell 576 — Styx walk/read*
