@@ -31,6 +31,7 @@
 #define WUBU_EDITOR_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include <stdbool.h>
 
 /* ── Limits ──────────────────────────────────────────────────────── */
@@ -172,6 +173,10 @@ typedef struct {
     /* Macro recording */
     bool          macro_recording;
     bool          macro_playing;
+    
+    /* Clipboard */
+    char         *clipboard;
+    size_t        clipboard_size;
 } WubuEditor;
 
 /* ── Editor API ─────────────────────────────────────────────────── */

@@ -76,7 +76,7 @@ Priority: Cell 496 (Audio) → Cell 360-366 (VSL syscalls) → Cell 305 (name pa
 ## Key Metrics
 - **53 C files**, **~160 C/H files**, **~17K real source LOC**
 - **747+ tests passing** across 30 suites
-- **71 cells resolved**, **368 active gaps**
+- **72 cells resolved**, **367 active gaps**
 - **171 (void) suppression casts** (54 in VSL alone)
 - **VSL**: ~950 lines, 65% stub density, 42/300+ Linux syscalls
 - **Name parity**: 64/96 (67%)
