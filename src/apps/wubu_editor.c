@@ -50,6 +50,7 @@ void wubu_ed_destroy(WubuEditor *ed) {
         if (ed->tabs[i].lines) free(ed->tabs[i].lines);
     }
     if (ed->clipboard) free(ed->clipboard);
+    if (ed->macro_buf) free(ed->macro_buf);
     free(ed);
 }
 
@@ -660,11 +661,63 @@ int wubu_ed_replace_all(WubuEditor *ed) {
     return count;
 }
 
-/* ── Code Folding (stubs) ───────────────────────────────────────── */
+/* ── Code Folding ─────────────────────────────────────────────────── */
 
-void wubu_ed_fold_toggle(WubuEditor *ed, int line) { (void)ed; (void)line; }
-void wubu_ed_fold_all(WubuEditor *ed) { (void)ed; }
-void wubu_ed_unfold_all(WubuEditor *ed) { (void)ed; }
+/* Helper: find the matching fold end for a fold start at given line */
+static int find_fold_end(WubuEdTab *tab, int start_line) {
+    if (start_line < 0 || start_line >= tab->n_lines) return -1;
+    int level = tab->lines[start_line].fold_level;
+    for (int i = start_line + 1; i < tab->n_lines; i++) {
+        if (tab->lines[i].fold_level == level && tab->lines[i].fold_start)
+            return i; /* Nested fold start at same level */
+        if (tab->lines[i].fold_level < level)
+            return i - 1; /* End of this fold block */
+    }
+    return tab->n_lines - 1;
+}
+
+void wubu_ed_fold_toggle(WubuEditor *ed, int line) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab || line < 0 || line >= tab->n_lines) return;
+    
+    if (!tab->lines[line].fold_start) return;
+    
+    if (tab->lines[line].folded) {
+        /* Unfold: mark this line and all children as not folded */
+        tab->lines[line].folded = false;
+        int end = find_fold_end(tab, line);
+        for (int i = line + 1; i <= end && i < tab->n_lines; i++) {
+            tab->lines[i].folded = false;
+        }
+    } else {
+        /* Fold: mark children as folded */
+        int end = find_fold_end(tab, line);
+        for (int i = line + 1; i <= end && i < tab->n_lines; i++) {
+            tab->lines[i].folded = true;
+        }
+    }
+}
+
+void wubu_ed_fold_all(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab) return;
+    for (int i = 0; i < tab->n_lines; i++) {
+        if (tab->lines[i].fold_start) {
+            int end = find_fold_end(tab, i);
+            for (int j = i + 1; j <= end && j < tab->n_lines; j++) {
+                tab->lines[j].folded = true;
+            }
+        }
+    }
+}
+
+void wubu_ed_unfold_all(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab) return;
+    for (int i = 0; i < tab->n_lines; i++) {
+        tab->lines[i].folded = false;
+    }
+}
 
 /* ── Bookmarks ────────────────────────────────────────────────────── */
 
@@ -723,13 +776,119 @@ void wubu_ed_toggle_word_wrap(WubuEditor *ed)    { WubuEdTab *t = wubu_ed_curren
 void wubu_ed_toggle_split(WubuEditor *ed)        { if (ed) ed->split = !ed->split; }
 void wubu_ed_toggle_whitespace(WubuEditor *ed)   { WubuEdTab *t = wubu_ed_current_tab(ed); if (t) t->show_whitespace = !t->show_whitespace; }
 
-/* ── Macro (stubs) ──────────────────────────────────────────────── */
+/* ── Macro ────────────────────────────────────────────────────────── */
 
-void wubu_ed_macro_start(WubuEditor *ed) { if (ed) ed->macro_recording = true; }
-void wubu_ed_macro_stop(WubuEditor *ed)  { if (ed) ed->macro_recording = false; }
-void wubu_ed_macro_play(WubuEditor *ed)  { (void)ed; }
+static void macro_record(WubuEditor *ed, char ch) {
+    if (!ed || !ed->macro_recording) return;
+    if (ed->macro_len + 1 >= ed->macro_size) {
+        size_t new_size = ed->macro_size ? ed->macro_size * 2 : 256;
+        char *new_buf = (char *)realloc(ed->macro_buf, new_size);
+        if (!new_buf) return;
+        ed->macro_buf = new_buf;
+        ed->macro_size = new_size;
+    }
+    ed->macro_buf[ed->macro_len++] = ch;
+}
 
-/* ── Session (stubs) ────────────────────────────────────────────── */
+void wubu_ed_macro_start(WubuEditor *ed) {
+    if (!ed) return;
+    ed->macro_recording = true;
+    ed->macro_len = 0;
+}
 
-int  wubu_ed_session_save(WubuEditor *ed, const char *path) { (void)ed; (void)path; return -1; }
-int  wubu_ed_session_load(WubuEditor *ed, const char *path) { (void)ed; (void)path; return -1; }
+void wubu_ed_macro_stop(WubuEditor *ed) {
+    if (ed) ed->macro_recording = false;
+}
+
+void wubu_ed_macro_play(WubuEditor *ed) {
+    if (!ed || !ed->macro_buf || ed->macro_len == 0) return;
+    ed->macro_playing = true;
+    for (size_t i = 0; i < ed->macro_len; i++) {
+        char ch = ed->macro_buf[i];
+        if (ch == '\n') wubu_ed_insert_newline(ed);
+        else wubu_ed_insert_char(ed, ch);
+    }
+    ed->macro_playing = false;
+}
+
+/* ── Session ──────────────────────────────────────────────────────── */
+
+int wubu_ed_session_save(WubuEditor *ed, const char *path) {
+    if (!ed || !path) return -1;
+    FILE *f = fopen(path, "w");
+    if (!f) return -1;
+    
+    fprintf(f, "# WuBuOS Editor Session\n");
+    fprintf(f, "tabs=%d\n", ed->n_tabs);
+    fprintf(f, "active_tab=%d\n", ed->active_tab);
+    
+    for (int i = 0; i < ed->n_tabs; i++) {
+        WubuEdTab *tab = &ed->tabs[i];
+        fprintf(f, "\n[tab %d]\n", i);
+        fprintf(f, "filename=%s\n", tab->filename);
+        fprintf(f, "cursor_line=%d\n", tab->cursor_line);
+        fprintf(f, "cursor_col=%d\n", tab->cursor_col);
+        fprintf(f, "n_lines=%d\n", tab->n_lines);
+        for (int j = 0; j < tab->n_lines; j++) {
+            fprintf(f, "%s\n", tab->lines[j].text);
+        }
+        fprintf(f, "[end tab %d]\n", i);
+    }
+    
+    fclose(f);
+    return 0;
+}
+
+int wubu_ed_session_load(WubuEditor *ed, const char *path) {
+    if (!ed || !path) return -1;
+    FILE *f = fopen(path, "r");
+    if (!f) return -1;
+    
+    char line[WUBU_ED_MAX_LINE_LEN + 2];
+    int current_tab = -1;
+    int line_idx = 0;
+    
+    while (fgets(line, sizeof(line), f)) {
+        /* Strip newline */
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') line[--len] = '\0';
+        
+        if (strncmp(line, "tabs=", 5) == 0) {
+            ed->n_tabs = atoi(line + 5);
+        } else if (strncmp(line, "active_tab=", 11) == 0) {
+            ed->active_tab = atoi(line + 11);
+        } else if (strncmp(line, "[tab ", 5) == 0) {
+            current_tab = atoi(line + 5);
+            line_idx = 0;
+            if (current_tab >= 0 && current_tab < WUBU_ED_MAX_TABS) {
+                memset(&ed->tabs[current_tab], 0, sizeof(WubuEdTab));
+            }
+        } else if (strncmp(line, "[end tab ", 9) == 0) {
+            if (current_tab >= 0 && current_tab < WUBU_ED_MAX_TABS) {
+                ed->tabs[current_tab].n_lines = line_idx;
+            }
+            current_tab = -1;
+        } else if (current_tab >= 0 && current_tab < WUBU_ED_MAX_TABS) {
+            WubuEdTab *tab = &ed->tabs[current_tab];
+            if (strncmp(line, "filename=", 9) == 0) {
+                strncpy(tab->filename, line + 9, sizeof(tab->filename) - 1);
+            } else if (strncmp(line, "cursor_line=", 12) == 0) {
+                tab->cursor_line = atoi(line + 12);
+            } else if (strncmp(line, "cursor_col=", 11) == 0) {
+                tab->cursor_col = atoi(line + 11);
+            } else if (strncmp(line, "n_lines=", 8) == 0) {
+                int n = atoi(line + 8);
+                tab->lines_capacity = n + 64;
+                tab->lines = (WubuEdLine *)calloc((size_t)tab->lines_capacity, sizeof(WubuEdLine));
+            } else if (tab->lines && line_idx < WUBU_ED_MAX_LINES) {
+                WubuEdLine *tl = &tab->lines[line_idx];
+                strncpy(tl->text, line, WUBU_ED_MAX_LINE_LEN - 1);
+                tl->len = (int)strlen(tl->text);
+                line_idx++;
+            }
+        }
+    }
+    
+    fclose(f);
+    return 0;
+}

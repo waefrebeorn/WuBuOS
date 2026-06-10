@@ -174,6 +174,11 @@ typedef struct {
     bool          macro_recording;
     bool          macro_playing;
     
+    /* Macro buffer */
+    char         *macro_buf;
+    size_t        macro_len;
+    size_t        macro_size;
+    
     /* Clipboard */
     char         *clipboard;
     size_t        clipboard_size;
