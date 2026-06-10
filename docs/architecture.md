@@ -1,7 +1,7 @@
-# WuBuOS — Architecture & Roadmap (v15 — Direct DRM + Custom GBM Complete)
+# WuBuOS — Architecture & Roadmap (v16 — interrupt.c APIC/SYSCALL Complete)
 
 > **LOCKED** — This document reflects ground truth from the full stub+form gap hunt, name parity audit, and third-party dep scan.
-> **85 cells resolved** (200-207, 301, 304-305, 310-313, 340-341, 360-378, 380-382, 386, 388-391, 390-405, 410-411, 414-415, 460-473, 530-534, 576-577). **324 active gaps** documented in risk_register.md v23.
+> **87 cells resolved** (200-207, 301-303, 304-305, 310-313, 340-341, 360-378, 380-382, 386, 388-391, 390-405, 410-411, 414-415, 460-473, 530-534, 576-577). **322 active gaps** documented in risk_register.md v24.
 
 ## Vision
 
@@ -30,8 +30,10 @@ Missing: 0 functions — all 6 categories complete.
 | 203 | Fork+exec for .wubu containers | wubu_host_exec.c:212 fork+chroot+execv+mount, 15 behavioral | ✅ |
 | 206 | Bare-metal preemptive tasking | PIT timer IRQ0 @ 100Hz, asm context switch, 10/10 tests | ✅ |
 | 207 | Unified GUI Shell | wubu_shell.c: wubu_shell_run(), wubu_metal_run() integration | ✅ |
-| 301 | interrupt.c: full IDT with assembly task gates | isr_stubs.S 256 ISRs, PIC remap, lidt, isr_dispatch | ✅ |
-| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | 71/71 tests | ✅ |
+|| 301 | interrupt.c: full IDT with assembly task gates | isr_stubs.S 256 ISRs, PIC remap, lidt, isr_dispatch | ✅ ||
+|| 302 | interrupt.c: bare-metal IDT + APIC + IRQ routing | apic_init, ioapic_route_irq, IRQRoute, lapic_timer_init, IPIs | ✅ ||
+|| 303 | interrupt.c: SYSCALL/SYSRET fast path + TSS/IST | syscall_init, syscall_handler, isr_stubs.S syscall_entry | ✅ ||
+|| 310 | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | 71/71 tests | ✅ ||
 | 311 | HolyC codegen: function calls 0-6 args | 74/74 tests | ✅ |
 | 312 | holyc_codegen: break/continue | label backpatching | ✅ |
 | 313 | holyc_codegen: struct layout, string literals, compound ops | 71/71 tests | ✅ |
@@ -68,10 +70,10 @@ Missing: 0 functions — all 6 categories complete.
 || 533 | bear_opt: Adam + Muon optimizers | bear_opt.c compiles, tests pass | ✅ |
 || 534 | bear_env: N-Pole Cartpole (7-10 poles) RK4 Lagrangian | bear_env.c npole dynamics, Yacine reward shaping | ✅ |
 
-## Active Gap Cells (395 total) — Full list in `docs/risk_register.md`
+## Active Gap Cells (388 total) — Full list in `docs/risk_register.md`
 
 **Critical (8)**: VSL fork/exec/read/write/pipe, Styx walk, VSL syscall table
-**High (321)**: VSL stubs, compiler gaps, container gaps, GUI stubs, audio placeholders, JIT backends, metal boot
+**High (314)**: VSL stubs, compiler gaps, container gaps, GUI stubs, audio placeholders, JIT backends, metal boot
 **Low (32)**: Naming, cosmetic, future-proofing
 
 Priority: Cell 496 (Audio) → Cell 360-366 (VSL syscalls) → Cell 305 (name parity) → Cell 388/389/391 (C replacements)
@@ -79,7 +81,7 @@ Priority: Cell 496 (Audio) → Cell 360-366 (VSL syscalls) → Cell 305 (name pa
 ## Key Metrics
 - **55 C files**, **~162 C/H files**, **~18.5K real source LOC**
 - **747+ tests passing** across 30 suites
-- **85 cells resolved**, **324 active gaps**
+- **87 cells resolved**, **322 active gaps**
 - **171 (void) suppression casts** (54 in VSL alone)
 - **VSL**: ~950 lines, 65% stub density, 41/300+ Linux syscalls
 - **Name parity**: 96/96 (100%)

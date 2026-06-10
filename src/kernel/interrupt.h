@@ -99,4 +99,51 @@ void pit_shutdown(void);            /* Disable PIT timer */
 /* External C handler called from assembly */
 void isr_dispatch(uint8_t vector, InterruptFrame *frame);
 
+/* ──────────────────────────────────────────────────────────────────
+ * Extended API (bare metal)
+ * ────────────────────────────────────────────────────────────────── */
+
+#ifdef MYSEED_METAL
+
+/* APIC Initialization */
+int apic_init(void);
+
+/* I/O APIC IRQ Routing */
+int ioapic_route_irq(uint8_t irq, uint8_t vector, uint8_t dest_apic_id);
+int ioapic_mask_irq(uint8_t irq);
+int ioapic_unmask_irq(uint8_t irq);
+
+/* LAPIC Timer */
+int lapic_timer_init(uint32_t hz, uint8_t vector);
+void lapic_eoi(void);
+
+/* IPI (Inter-Processor Interrupts) */
+int lapic_send_ipi(uint32_t dest_apic_id, uint8_t vector, uint8_t delivery_mode);
+int lapic_broadcast_ipi(uint8_t vector, uint8_t delivery_mode);
+
+/* SYSCALL/SYSRET Fast Path */
+int syscall_init(void);
+
+/* IRQ Routing Infrastructure (PCI/MSI) */
+int irq_route_add(uint8_t src_irq, uint8_t dst_vector, uint8_t dest_apic_id, uint16_t flags);
+int irq_route_remove(uint8_t src_irq);
+
+/* Enhanced IDT Initialization with IST and SYSCALL */
+int interrupt_init_full(void);
+
+/* Timer Calibration (PIT vs HPET vs TSC) */
+uint64_t timer_calibrate_tsc(void);
+int timer_init_deadline(uint64_t ns);
+
+/* Interrupt Statistics / Debug */
+void interrupt_count(uint8_t irq);
+uint64_t interrupt_get_count(uint8_t irq);
+
+/* Syscall API */
+typedef int64_t (*syscall_fn_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+int syscall_register(uint32_t num, syscall_fn_t handler);
+void syscall_handler(InterruptFrame *frame, uint64_t num);
+
 #endif
+
+#endif /* MYSEED_INTERRUPT_H */

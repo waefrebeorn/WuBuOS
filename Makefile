@@ -30,6 +30,9 @@ METAL_OBJS = $(HOSTED)/wubu_metal.o
 # ── Audio Objects ────────────────────────────────────────────────
 AUDIO_OBJS = $(AUDIO)/wubu_audio.o
 
+# ── Hosted Objects ───────────────────────────────────────────────
+HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o
+
 # ── JIT Objects ──────────────────────────────────────────────────
 JIT_OBJS = $(JIT)/jit.o
 
@@ -46,7 +49,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o $(APP
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o $(RT)/wubu_gc.o $(RT)/wubu_drm_direct.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o $(RT)/wubu_gc.o
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o $(TOOLS)/screenshot.o
 
 # ── Shell Objects ────────────────────────────────────────────────
@@ -65,7 +68,7 @@ shell: $(SHELL_OBJS)
 $(SHELL_DIR)/%.o: $(SHELL_DIR)/%.c
 	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) -c $< -o $@
 
-all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear
+all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs
 	@echo "✅ WuBuOS built"
 
 metal: $(METAL_OBJS)
@@ -73,6 +76,9 @@ metal: $(METAL_OBJS)
 
 audio: $(AUDIO_OBJS)
 	@echo "✅ Audio engine built"
+
+hosted_objs: $(HOSTED_OBJS_LIST)
+	@echo "✅ Hosted objects built"
 
 bear: $(BEAR_OBJS)
 	@echo "✅ Bear RL layer built"
@@ -362,7 +368,7 @@ test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(RT) \
 		$(APPS)/wubu_editor.c $(APPS)/wubu_canvas.c $(APPS)/wubu_codec.c \
-		$(RT)/wubu_host_exec.c \
+		$(RT)/wubu_host_exec.c $(RT)/styx.c $(RT)/styxfs.c \
 		$(APPS)/wubu_apps2_test.c \
 		-o $(APPS)/wubu_apps2_test
 	$(APPS)/wubu_apps2_test
@@ -371,7 +377,7 @@ test_proton2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_proton2.c $(RT)/wubu_ramdisk.c $(RT)/wubu_arch.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_container.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_container.c $(RT)/styx.c $(RT)/styxfs.c \
 		$(RT)/wubu_proton2_test.c \
 		-o $(RT)/wubu_proton2_test
 	$(RT)/wubu_proton2_test

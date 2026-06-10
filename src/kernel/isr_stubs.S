@@ -367,6 +367,84 @@ common_isr_handler:
     iretq
 
 /* ──────────────────────────────────────────────────────────────────
+ * SYSCALL/SYSRET Entry Point (Fast Path)
+ * ────────────────────────────────────────────────────────────────── */
+.global syscall_entry
+.hidden syscall_entry
+.align 16
+syscall_entry:
+    /* SYSCALL calling convention (x86-64):
+     *   RCX = return RIP
+     *   R11 = return RFLAGS
+     *   RDI, RSI, RDX, R10, R8, R9 = args 1-6 (same as System V ABI)
+     *   RAX = syscall number
+     *
+     * We need to save user context and switch to kernel stack.
+     * IST is not used for syscall (trap gate), so we use the kernel stack.
+     */
+
+    /* Swap to kernel GS base (if using FS/GS for per-CPU data) */
+    swapgs
+
+    /* Save user RSP and SS so we can return with SYSRET */
+    mov [rsp - 8], rsp      /* Save user RSP below current stack */
+    mov [rsp - 16], ss      /* Save user SS */
+    sub rsp, 16
+
+    /* Save user registers that SYSCALL clobbers (RCX, R11) */
+    push rcx                /* User RIP */
+    push r11                /* User RFLAGS */
+
+    /* Save rest of registers (callee-saved + caller-saved we care about) */
+    push rdi
+    push rsi
+    push rdx
+    push rcx
+    push r8
+    push r9
+    push r10
+    push r11
+    push rbx
+    push rbp
+    push r12
+    push r13
+    push r14
+    push r15
+
+    /* RDI = frame pointer for handler */
+    mov rdi, rsp
+    mov rsi, rax            /* Syscall number in RSI */
+
+    call syscall_handler
+
+    /* Restore registers */
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbp
+    pop rbx
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rcx
+    pop rdx
+    pop rsi
+    pop rdi
+
+    /* Restore user RFLAGS and RIP */
+    pop r11
+    pop rcx
+
+    /* Restore user RSP and SS */
+    add rsp, 16
+    /* Note: SYSRET requires RCX=RIP, R11=RFLAGS, RSP=user_rsp, SS=user_ss */
+
+    swapgs
+    sysretq
+
+/* ──────────────────────────────────────────────────────────────────
  * IDT Pointer (for lidt)
  * ────────────────────────────────────────────────────────────────── */
 .section .rodata

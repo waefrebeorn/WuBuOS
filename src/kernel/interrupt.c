@@ -157,6 +157,97 @@ static void (* const isr_entries[256])(void) = {
 #define PIT_CMD         0x43
 
 /* ──────────────────────────────────────────────────────────────────
+ * APIC Registers (Memory-Mapped)
+ * ────────────────────────────────────────────────────────────────── */
+
+#define LAPIC_BASE_MSR      0x1B            /* IA32_APIC_BASE MSR */
+#define LAPIC_BASE_DEFAULT  0xFEE00000      /* Default LAPIC base address */
+
+#define LAPIC_ID               0x020
+#define LAPIC_VERSION          0x030
+#define LAPIC_TPR              0x080
+#define LAPIC_APR              0x090
+#define LAPIC_PPR              0x0A0
+#define LAPIC_EOI              0x0B0
+#define LAPIC_RRD              0x0C0
+#define LAPIC_LDR              0x0D0
+#define LAPIC_DFR              0x0E0
+#define LAPIC_SVR              0x0F0
+#define LAPIC_ISR              0x100
+#define LAPIC_TMR              0x180
+#define LAPIC_IRR              0x200
+#define LAPIC_ESR              0x280
+#define LAPIC_ICR_LOW          0x300
+#define LAPIC_ICR_HIGH         0x310
+#define LAPIC_LVT_TIMER        0x320
+#define LAPIC_LVT_THERMAL      0x330
+#define LAPIC_LVT_PERF         0x340
+#define LAPIC_LVT_LINT0        0x350
+#define LAPIC_LVT_LINT1        0x360
+#define LAPIC_LVT_ERROR        0x370
+#define LAPIC_TIMER_INIT_CNT   0x380
+#define LAPIC_TIMER_CUR_CNT    0x390
+#define LAPIC_TIMER_DIV        0x3E0
+
+#define LAPIC_SVR_ENABLE       0x100
+#define LAPIC_LVT_MASKED       0x10000
+#define LAPIC_ICR_DEST_SELF    0x40000
+#define LAPIC_ICR_DEST_ALL_INC 0x80000
+#define LAPIC_ICR_DEST_ALL_BUT 0xC0000
+#define LAPIC_ICR_LEVEL_ASSERT 0x4000
+#define LAPIC_ICR_LEVEL_DEASSERT 0x0000
+#define LAPIC_ICR_TRIGGER_LEVEL 0x8000
+#define LAPIC_ICR_DELIVERY_FIXED 0x0000
+#define LAPIC_ICR_DELIVERY_NMI 0x400
+#define LAPIC_ICR_DELIVERY_INIT 0x500
+#define LAPIC_ICR_DELIVERY_STARTUP 0x600
+
+#define IOAPIC_BASE_DEFAULT    0xFEC00000
+#define IOAPIC_ID              0x00
+#define IOAPIC_VER             0x01
+#define IOAPIC_ARB             0x02
+#define IOAPIC_REDTBL          0x10
+#define IOAPIC_REDTBL_HIGH     0x11
+#define IOAPIC_RED_ENTRIES(v)  (((v) >> 16) & 0xFF)
+
+#define IOAPIC_RED_DELIV_FIXED 0x0
+#define IOAPIC_RED_DELIV_LOW_PRI 0x1
+#define IOAPIC_RED_DELIV_SMI   0x2
+#define IOAPIC_RED_DELIV_NMI   0x4
+#define IOAPIC_RED_DELIV_INIT  0x5
+#define IOAPIC_RED_DELIV_EXTINT 0x7
+#define IOAPIC_RED_DESTMODE_PHYS 0x0
+#define IOAPIC_RED_DESTMODE_LOG  0x8
+#define IOAPIC_RED_DELIV_STATUS  0x1000
+#define IOAPIC_RED_REMOTE_IRR    0x4000
+#define IOAPIC_RED_TRIGGER_LEVEL 0x8000
+#define IOAPIC_RED_POLARITY_LOW  0x2000
+#define IOAPIC_RED_MASKED        0x10000
+
+/* ──────────────────────────────────────────────────────────────────
+ * MSR Registers
+ * ────────────────────────────────────────────────────────────────── */
+
+#define MSR_IA32_APIC_BASE     0x1B
+#define MSR_IA32_STAR          0xC0000081
+#define MSR_IA32_LSTAR         0xC0000082
+#define MSR_IA32_CSTAR         0xC0000083
+#define MSR_IA32_FMASK         0xC0000084
+#define MSR_IA32_KERNEL_GS_BASE 0xC0000101
+
+/* ──────────────────────────────────────────────────────────────────
+ * TSS / IST
+ * ────────────────────────────────────────────────────────────────── */
+
+#define TSS_IST_COUNT          7
+#define TSS_SIZE               104    /* 16-byte aligned, includes IO map base */
+
+#define IST_EXCEPTION          1      /* IST for exceptions (DF, NMI, etc.) */
+#define IST_NMI                2      /* IST for NMI */
+#define IST_DEBUG              3      /* IST for debug */
+#define IST_TIMER              4      /* IST for timer */
+
+/* ──────────────────────────────────────────────────────────────────
  * IDT Constants
  * ────────────────────────────────────────────────────────────────── */
 
@@ -513,4 +604,518 @@ void interrupt_shutdown(void) {
     outb(PIC2_DATA, 0xFF);
     g_idt_initialized = 0;
 #endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * MSR Access Helpers (bare metal only)
+ * ────────────────────────────────────────────────────────────────── */
+
+#ifdef MYSEED_METAL
+static inline uint64_t rdmsr(uint32_t msr) {
+    uint32_t lo, hi;
+    __asm__ volatile ("rdmsr" : "=a"(lo), "=d"(hi) : "c"(msr));
+    return ((uint64_t)hi << 32) | lo;
+}
+
+static inline void wrmsr(uint32_t msr, uint64_t val) {
+    uint32_t lo = (uint32_t)val;
+    uint32_t hi = (uint32_t)(val >> 32);
+    __asm__ volatile ("wrmsr" :: "c"(msr), "a"(lo), "d"(hi) : "memory");
+}
+#endif
+
+/* ──────────────────────────────────────────────────────────────────
+ * LAPIC Access (memory-mapped)
+ * ────────────────────────────────────────────────────────────────── */
+
+static volatile uint32_t *g_lapic_base = NULL;
+static volatile uint32_t *g_ioapic_base = NULL;
+static uint32_t g_ioapic_irq_count = 0;
+
+/* Read LAPIC register */
+#ifdef MYSEED_METAL
+static inline uint32_t lapic_read(uint32_t reg) {
+    if (!g_lapic_base) return 0;
+    return g_lapic_base[reg / 4];
+}
+
+static inline void lapic_write(uint32_t reg, uint32_t val) {
+    if (!g_lapic_base) return;
+    g_lapic_base[reg / 4] = val;
+}
+
+/* Read I/O APIC register (two-step: write index, read data) */
+static inline uint32_t ioapic_read(uint32_t reg) {
+    if (!g_ioapic_base) return 0;
+    g_ioapic_base[IOAPIC_ID / 4] = reg;
+    return g_ioapic_base[IOAPIC_VER / 4];  /* Data at offset 0x10/0x11 */
+}
+
+static inline void ioapic_write(uint32_t reg, uint32_t val) {
+    if (!g_ioapic_base) return;
+    g_ioapic_base[IOAPIC_ID / 4] = reg;
+    g_ioapic_base[IOAPIC_VER / 4 + 1] = val;  /* Data register at offset 0x10/0x11 + 4 */
+}
+#endif
+
+/* ──────────────────────────────────────────────────────────────────
+ * TSS / IST Structures
+ * ────────────────────────────────────────────────────────────────── */
+
+typedef struct TSS {
+    uint32_t reserved0;
+    uint64_t rsp[3];
+    uint64_t reserved1;
+    uint64_t ist[TSS_IST_COUNT];
+    uint64_t reserved2;
+    uint16_t reserved3;
+    uint16_t io_map_base;
+} __attribute__((packed)) TSS;
+
+static TSS g_tss = {0};
+static uint8_t g_ist_stacks[4][8192] __attribute__((aligned(16)));  /* 8KB per IST stack */
+
+/* ──────────────────────────────────────────────────────────────────
+ * APIC Initialization
+ * ────────────────────────────────────────────────────────────────── */
+
+int apic_init(void) {
+#ifdef MYSEED_METAL
+    /* ──────────────────────────────────────────────────────────────
+     * Enable LAPIC via MSR
+     * ────────────────────────────────────────────────────────────── */
+    uint64_t apic_base = rdmsr(MSR_IA32_APIC_BASE);
+    apic_base |= 0x800;  /* Set EN bit (bit 11) */
+    apic_base &= ~0xFFF; /* Clear base address bits */
+    apic_base |= LAPIC_BASE_DEFAULT;
+    wrmsr(MSR_IA32_APIC_BASE, apic_base);
+
+    g_lapic_base = (volatile uint32_t *)LAPIC_BASE_DEFAULT;
+
+    /* ──────────────────────────────────────────────────────────────
+     * Configure LAPIC
+     * ────────────────────────────────────────────────────────────── */
+
+    /* Enable LAPIC: set SVR bit 8 */
+    lapic_write(LAPIC_SVR, lapic_read(LAPIC_SVR) | LAPIC_SVR_ENABLE);
+
+    /* Set LAPIC timer to one-shot mode initially (will be configured per-use) */
+    lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED);
+    lapic_write(LAPIC_TIMER_DIV, 0x3);  /* Divide by 16 */
+
+    /* Mask LINT0, LINT1, ERROR LVT entries */
+    lapic_write(LAPIC_LVT_LINT0, LAPIC_LVT_MASKED);
+    lapic_write(LAPIC_LVT_LINT1, LAPIC_LVT_MASKED);
+    lapic_write(LAPIC_LVT_ERROR, LAPIC_LVT_MASKED);
+
+    /* ──────────────────────────────────────────────────────────────
+     * Detect and configure I/O APIC
+     * ────────────────────────────────────────────────────────────── */
+    g_ioapic_base = (volatile uint32_t *)IOAPIC_BASE_DEFAULT;
+
+    /* Read I/O APIC version to get number of IRQ entries */
+    g_ioapic_base[IOAPIC_ID / 4] = IOAPIC_VER;
+    uint32_t ioapic_ver = g_ioapic_base[IOAPIC_VER / 4 + 1];
+    g_ioapic_irq_count = IOAPIC_RED_ENTRIES(ioapic_ver);
+
+    /* Mask all I/O APIC interrupts initially */
+    for (uint32_t i = 0; i < g_ioapic_irq_count; i++) {
+        ioapic_write(IOAPIC_REDTBL + i * 2, IOAPIC_RED_MASKED);
+        ioapic_write(IOAPIC_REDTBL_HIGH + i * 2, 0);
+    }
+
+    /* ──────────────────────────────────────────────────────────────
+     * Setup TSS / IST for exception handlers
+     * ────────────────────────────────────────────────────────────── */
+
+    /* IST1: Exception stack (double fault, NMI, etc.) */
+    g_tss.ist[IST_EXCEPTION - 1] = (uint64_t)(g_ist_stacks[0] + sizeof(g_ist_stacks[0]));
+    /* IST2: NMI stack */
+    g_tss.ist[IST_NMI - 1] = (uint64_t)(g_ist_stacks[1] + sizeof(g_ist_stacks[1]));
+    /* IST3: Debug stack */
+    g_tss.ist[IST_DEBUG - 1] = (uint64_t)(g_ist_stacks[2] + sizeof(g_ist_stacks[2]));
+    /* IST4: Timer stack */
+    g_tss.ist[IST_TIMER - 1] = (uint64_t)(g_ist_stacks[3] + sizeof(g_ist_stacks[3]));
+
+    /* Load TSS (kernel will do ltr in GDT setup - this is a stub) */
+    __asm__ volatile ("ltr %%ax" :: "a"((uint16_t)0x28) : "memory");
+
+    return 0;
+#else
+    (void)g_lapic_base;
+    (void)g_ioapic_base;
+    (void)g_ioapic_irq_count;
+    (void)g_tss;
+    return -1;
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * I/O APIC IRQ Routing
+ * ────────────────────────────────────────────────────────────────── */
+
+int ioapic_route_irq(uint8_t irq, uint8_t vector, uint8_t dest_apic_id) {
+#ifdef MYSEED_METAL
+    if (irq >= g_ioapic_irq_count) return -1;
+
+    /* Redirection table entry: vector, delivery mode fixed, destination mode physical */
+    uint32_t red_low = vector | IOAPIC_RED_DELIV_FIXED | IOAPIC_RED_DESTMODE_PHYS;
+    uint32_t red_high = (uint32_t)dest_apic_id << 24;
+
+    ioapic_write(IOAPIC_REDTBL + irq * 2, red_low);
+    ioapic_write(IOAPIC_REDTBL_HIGH + irq * 2, red_high);
+
+    return 0;
+#else
+    (void)irq; (void)vector; (void)dest_apic_id;
+    return -1;
+#endif
+}
+
+int ioapic_mask_irq(uint8_t irq) {
+#ifdef MYSEED_METAL
+    if (irq >= g_ioapic_irq_count) return -1;
+    uint32_t red = ioapic_read(IOAPIC_REDTBL + irq * 2);
+    ioapic_write(IOAPIC_REDTBL + irq * 2, red | IOAPIC_RED_MASKED);
+    return 0;
+#else
+    (void)irq;
+    return -1;
+#endif
+}
+
+int ioapic_unmask_irq(uint8_t irq) {
+#ifdef MYSEED_METAL
+    if (irq >= g_ioapic_irq_count) return -1;
+    uint32_t red = ioapic_read(IOAPIC_REDTBL + irq * 2);
+    ioapic_write(IOAPIC_REDTBL + irq * 2, red & ~IOAPIC_RED_MASKED);
+    return 0;
+#else
+    (void)irq;
+    return -1;
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * LAPIC Timer (for per-CPU timer interrupts)
+ * ────────────────────────────────────────────────────────────────── */
+
+int lapic_timer_init(uint32_t hz, uint8_t vector) {
+#ifdef MYSEED_METAL
+    if (!g_lapic_base) return -1;
+
+    /* Mask timer LVT */
+    lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED);
+
+    /* Configure timer: periodic mode, vector */
+    lapic_write(LAPIC_LVT_TIMER, vector | (0x2 << 17));  /* Periodic mode = bit 17 */
+    lapic_write(LAPIC_TIMER_DIV, 0x3);  /* Divide by 16 */
+
+    /* Calibrate using PIT (rough approximation) */
+    /* For now, use a fixed initial count - real impl would calibrate */
+    lapic_write(LAPIC_TIMER_INIT_CNT, 1000000 / hz);
+
+    return 0;
+#else
+    (void)hz; (void)vector;
+    return -1;
+#endif
+}
+
+void lapic_eoi(void) {
+#ifdef MYSEED_METAL
+    if (g_lapic_base) {
+        lapic_write(LAPIC_EOI, 0);
+    }
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * IPI (Inter-Processor Interrupts)
+ * ────────────────────────────────────────────────────────────────── */
+
+int lapic_send_ipi(uint32_t dest_apic_id, uint8_t vector, uint8_t delivery_mode) {
+#ifdef MYSEED_METAL
+    if (!g_lapic_base) return -1;
+
+    uint32_t icr_high = dest_apic_id << 24;
+    uint32_t icr_low = vector | delivery_mode | LAPIC_ICR_LEVEL_ASSERT;
+
+    lapic_write(LAPIC_ICR_HIGH, icr_high);
+    lapic_write(LAPIC_ICR_LOW, icr_low);
+
+    /* Wait for delivery */
+    while (lapic_read(LAPIC_ICR_LOW) & (1 << 12)) {
+        /* Busy wait */
+    }
+
+    return 0;
+#else
+    (void)dest_apic_id; (void)vector; (void)delivery_mode;
+    return -1;
+#endif
+}
+
+int lapic_broadcast_ipi(uint8_t vector, uint8_t delivery_mode) {
+#ifdef MYSEED_METAL
+    if (!g_lapic_base) return -1;
+
+    uint32_t icr_low = vector | delivery_mode | LAPIC_ICR_LEVEL_ASSERT | LAPIC_ICR_DEST_ALL_INC;
+    uint32_t icr_high = 0;
+
+    lapic_write(LAPIC_ICR_HIGH, icr_high);
+    lapic_write(LAPIC_ICR_LOW, icr_low);
+
+    while (lapic_read(LAPIC_ICR_LOW) & (1 << 12)) {
+        /* Busy wait */
+    }
+
+    return 0;
+#else
+    (void)vector; (void)delivery_mode;
+    return -1;
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * SYSCALL/SYSRET Fast Path
+ * ────────────────────────────────────────────────────────────────── */
+
+extern void syscall_entry(void);  /* Defined in isr_stubs.S */
+
+int syscall_init(void) {
+#ifdef MYSEED_METAL
+    /* STAR: bits 63:48 = user CS/SS, bits 47:32 = kernel CS/SS */
+    uint64_t star = ((uint64_t)0x23 << 48) | ((uint64_t)0x2B << 48 + 16) |
+                    ((uint64_t)0x08 << 32) | ((uint64_t)0x10 << 32 + 16);
+    /* Simplified: kernel CS=0x08, kernel SS=0x10, user CS=0x23, user SS=0x2B */
+    wrmsr(MSR_IA32_STAR, star);
+
+    /* LSTAR: 64-bit syscall entry point */
+    wrmsr(MSR_IA32_LSTAR, (uint64_t)syscall_entry);
+
+    /* CSTAR: compat mode syscall entry (not used) */
+    wrmsr(MSR_IA32_CSTAR, 0);
+
+    /* FMASK: RFLAGS to clear on syscall (IF, TF, DF, RF, NT) */
+    wrmsr(MSR_IA32_FMASK, 0x4700);  /* IF=0x200, TF=0x100, DF=0x400, RF=0x10000, NT=0x4000 */
+
+    /* Enable SYSCALL/SYSRET in EFER */
+    uint64_t efer = rdmsr(0xC0000080);
+    efer |= 1;  /* SCE bit */
+    wrmsr(0xC0000080, efer);
+
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * IRQ Routing Infrastructure (PCI/MSI)
+ * ────────────────────────────────────────────────────────────────── */
+
+typedef struct IRQRoute {
+    uint8_t  src_irq;        /* Source IRQ (PCI pin, APIC line) */
+    uint8_t  dst_vector;     /* Destination vector (32-255) */
+    uint8_t  dest_apic_id;   /* Target APIC ID */
+    uint16_t flags;          /* LEVEL/EDGE, ACTIVE_HIGH/LOW */
+    struct IRQRoute *next;
+} IRQRoute;
+
+static IRQRoute *g_irq_routes = NULL;
+
+int irq_route_add(uint8_t src_irq, uint8_t dst_vector, uint8_t dest_apic_id, uint16_t flags) {
+#ifdef MYSEED_METAL
+    IRQRoute *route = (IRQRoute *)mem_alloc(sizeof(IRQRoute));
+    if (!route) return -1;
+
+    route->src_irq = src_irq;
+    route->dst_vector = dst_vector;
+    route->dest_apic_id = dest_apic_id;
+    route->flags = flags;
+    route->next = g_irq_routes;
+    g_irq_routes = route;
+
+    /* Program I/O APIC if this is a legacy IRQ */
+    if (src_irq < g_ioapic_irq_count) {
+        ioapic_route_irq(src_irq, dst_vector, dest_apic_id);
+    }
+
+    return 0;
+#else
+    (void)src_irq; (void)dst_vector; (void)dest_apic_id; (void)flags;
+    return -1;
+#endif
+}
+
+int irq_route_remove(uint8_t src_irq) {
+#ifdef MYSEED_METAL
+    IRQRoute **pp = &g_irq_routes;
+    while (*pp) {
+        if ((*pp)->src_irq == src_irq) {
+            IRQRoute *tmp = *pp;
+            *pp = (*pp)->next;
+            mem_free(tmp);
+            return 0;
+        }
+        pp = &(*pp)->next;
+    }
+    return -1;
+#else
+    (void)src_irq;
+    return -1;
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Interrupt / Exception Handlers with IST
+ * ────────────────────────────────────────────────────────────────── */
+
+/* Double fault handler (uses IST1) */
+void handle_double_fault(InterruptFrame *frame) {
+    (void)frame;
+    /* In a real kernel: log fault, kill current task, panic */
+    while (1) { __asm__ volatile ("hlt"); }
+}
+
+/* NMI handler (uses IST2) */
+void handle_nmi(InterruptFrame *frame) {
+    (void)frame;
+    /* In a real kernel: log hardware error, attempt recovery */
+    while (1) { __asm__ volatile ("hlt"); }
+}
+
+/* Page fault handler (uses IST1) */
+void handle_page_fault(InterruptFrame *frame) {
+    uint64_t cr2;
+    __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
+    (void)frame; (void)cr2;
+    /* In a real kernel: demand paging, COW, etc. */
+    while (1) { __asm__ volatile ("hlt"); }
+}
+
+/* General protection fault handler (uses IST1) */
+void handle_gpf(InterruptFrame *frame) {
+    (void)frame;
+    while (1) { __asm__ volatile ("hlt"); }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Enhanced IDT Initialization with IST and SYSCALL
+ * ────────────────────────────────────────────────────────────────── */
+
+int interrupt_init_full(void) {
+    if (interrupt_init() != 0) return -1;
+
+#ifdef MYSEED_METAL
+    /* Initialize APIC subsystem */
+    if (apic_init() != 0) return -1;
+
+    /* Initialize SYSCALL/SYSRET fast path */
+    if (syscall_init() != 0) return -1;
+
+    /* Initialize LAPIC timer at 100Hz on vector 0xF0 (240) */
+    if (lapic_timer_init(100, 240) != 0) return -1;
+
+    /* Set up exception handlers with IST */
+    interrupt_set_gate(8,  (uint64_t)handle_double_fault, 0x08, IDT_GATE_INT, IST_EXCEPTION);  /* #DF */
+    interrupt_set_gate(2,  (uint64_t)handle_nmi,            0x08, IDT_GATE_INT, IST_NMI);       /* NMI */
+    interrupt_set_gate(14, (uint64_t)handle_page_fault,     0x08, IDT_GATE_INT, IST_EXCEPTION); /* #PF */
+    interrupt_set_gate(13, (uint64_t)handle_gpf,            0x08, IDT_GATE_INT, IST_EXCEPTION); /* #GP */
+
+    /* Reload IDT with updated gates */
+    lidt(&idt_ptr);
+#endif
+
+    return 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Timer Calibration (PIT vs HPET vs TSC)
+ * ────────────────────────────────────────────────────────────────── */
+
+uint64_t timer_calibrate_tsc(void) {
+#ifdef MYSEED_METAL
+    /* Read TSC, wait 10ms via PIT, read TSC again */
+    uint64_t tsc_start, tsc_end;
+
+    __asm__ volatile ("rdtsc" : "=a"(tsc_start), "=d"(tsc_end));
+    tsc_start = ((uint64_t)tsc_end << 32) | tsc_start;
+
+    /* Wait ~10ms using PIT */
+    for (volatile int i = 0; i < 1000000; i++) { __asm__ volatile ("pause"); }
+
+    __asm__ volatile ("rdtsc" : "=a"(tsc_start), "=d"(tsc_end));
+    tsc_end = ((uint64_t)tsc_end << 32) | tsc_start;
+
+    return tsc_end - tsc_start;  /* TSC ticks per ~10ms */
+#else
+    return 0;
+#endif
+}
+
+int timer_init_deadline(uint64_t ns) {
+#ifdef MYSEED_METAL
+    if (!g_lapic_base) return -1;
+    /* Set LAPIC timer to one-shot with deadline */
+    lapic_write(LAPIC_LVT_TIMER, 240 | (0x0 << 17));  /* One-shot mode */
+    lapic_write(LAPIC_TIMER_INIT_CNT, (uint32_t)(ns / 1000));  /* Rough */
+    return 0;
+#else
+    (void)ns;
+    return -1;
+#endif
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Interrupt Statistics / Debug
+ * ────────────────────────────────────────────────────────────────── */
+
+static uint64_t g_irq_counts[256] = {0};
+
+void interrupt_count(uint8_t irq) {
+    if (irq < 256) g_irq_counts[irq]++;
+}
+
+uint64_t interrupt_get_count(uint8_t irq) {
+    if (irq < 256) return g_irq_counts[irq];
+    return 0;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * SYSCALL Dispatcher (C-level)
+ * ────────────────────────────────────────────────────────────────── */
+
+/* Syscall function pointer type */
+typedef int64_t (*syscall_fn_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+
+/* Syscall table (up to 512 syscalls) */
+#define MAX_SYSCALLS 512
+static syscall_fn_t g_syscall_table[MAX_SYSCALLS] = {0};
+
+/* Register a syscall handler */
+int syscall_register(uint32_t num, syscall_fn_t handler) {
+    if (num >= MAX_SYSCALLS) return -1;
+    g_syscall_table[num] = handler;
+    return 0;
+}
+
+/* Syscall dispatcher - called from syscall_entry assembly stub */
+void syscall_handler(InterruptFrame *frame, uint64_t num) {
+    (void)frame;
+    
+    if (num < MAX_SYSCALLS && g_syscall_table[num]) {
+        /* Extract args from frame (RDI, RSI, RDX, R10, R8, R9) */
+        int64_t arg1 = frame->rdi;
+        int64_t arg2 = frame->rsi;
+        int64_t arg3 = frame->rdx;
+        int64_t arg4 = frame->r10;
+        int64_t arg5 = frame->r8;
+        int64_t arg6 = frame->r9;
+        
+        frame->rax = g_syscall_table[num](arg1, arg2, arg3, arg4, arg5, arg6);
+    } else {
+        frame->rax = -1;  /* ENOSYS */
+    }
 }

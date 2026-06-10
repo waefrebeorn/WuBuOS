@@ -22,7 +22,7 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-## Resolved Cells (61 — verified at runtime)
+## Resolved Cells (63 — verified at runtime)
 
 | Cell | Description | Evidence |
 |------|-------------|----------|
@@ -32,8 +32,10 @@ We audited our implementations against the actual upstream projects we ape:
 | 203  | Fork+exec for .wubu containers | wubu_host_exec.c:212 fork+chroot+execv+mount, test 15 behavioral |
 | 206  | Bare-metal preemptive tasking (PIT timer, asm switch) | tasking.c timer_tick, tasking_switch.S, interrupt.c pit_init, 10/10 tasking tests |
 | 207  | Unified GUI Shell (REPL + GUI + bare-metal unified) | wubu_shell.c: wubu_shell_run(), wubu_metal_run() calls it |
-| 301  | interrupt.c: full IDT with assembly task gates | interrupt.c:isr_stubs.S 256 ISRs, PIC remap, lidt, isr_dispatch |
-| 304  | fat32.c: O(1) dir entry update via dir_cluster/dir_offset cache | fat32.c:834, 844-866 |
+|| 301  | interrupt.c: full IDT with assembly task gates | interrupt.c:isr_stubs.S 256 ISRs, PIC remap, lidt, isr_dispatch ||
+|| 302  | interrupt.c: bare-metal IDT + APIC + IRQ routing | interrupt.c: apic_init, ioapic_route_irq, IRQRoute, lapic_timer_init, IPIs ||
+|| 303  | interrupt.c: SYSCALL/SYSRET fast path + TSS/IST | interrupt.c: syscall_init, syscall_handler, isr_stubs.S syscall_entry ||
+|| 304  | fat32.c: O(1) dir entry update via dir_cluster/dir_offset cache | fat32.c:834, 844-866 ||
 | 305  | Name parity: 96/96 core ZealOS functions mapped | zealos_parity.h: 96/96 |
 | 310  | HolyC codegen: ternary, AND, OR, IF, WHILE, FOR | holyc_codegen.c label backpatching, 71/71 eval tests |
 | 311  | HolyC codegen: function calls with args (0-6 params) | holyc_codegen.c func table + param handling, 74/74 tests |
@@ -81,12 +83,10 @@ We audited our implementations against the actual upstream projects we ape:
 
 ## Active Gap Cells (v21) — 358 gaps
 
-### Layer 1: Kernel — Hollow Stubs (50 gaps)
+### Layer 1: Kernel — Hollow Stubs (48 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
-| 302 | interrupt.c hosted stub — SIGSEGV I/O check, no real IDT | 🟡 | input.c:2 |
-| 303 | interrupt.c bare-metal: PIT only, no APIC, no IRQ routing | 🟡 | interrupt.c:51-81 |
 | 304 | fat32.c: dir entry update on close walks entire root dir (O(N)) | 🟡 | fat32.c:845 |
 | 305 | Name parity: 32 ZealOS functions still unmapped | 🟡 | zealos_parity.h |
 | 306 | Memory: 4 functions missing (mem_virt_to_phys, mem_phys_to_virt, mem_map, mem_unmap) | 🟡 | memory.c |
@@ -366,10 +366,10 @@ We audited our implementations against the actual upstream projects we ape:
 | Category | Count |
 |----------|-------|
 | 🔴 CRITICAL (REAL GAP — no impl at all or toy vs production) | 15 |
-| 🟡 HIGH (PARTIAL / STUB / NAMING / THIRD-PARTY / MISSING SUBSYSTEMS) | 297 |
+| 🟡 HIGH (PARTIAL / STUB / NAMING / THIRD-PARTY / MISSING SUBSYSTEMS) | 295 |
 | ⬜ LOW (NIT / CLEANUP / COSMETIC) | 32 |
-| ✅ RESOLVED | 64 |
-| **TOTAL DOCUMENTED GAPS** | **408** |
+| ✅ RESOLVED | 63 |
+| **TOTAL DOCUMENTED GAPS** | **406** |
 
 ---
 
@@ -378,7 +378,7 @@ We audited our implementations against the actual upstream projects we ape:
 1. **Cell 496** — Audio: Replace 12 toy chip emulators with Furnace-grade external libs (blip_buf, Nuked-*, SAASound, YM3812-LLE, YMF262-LLE, YM2608-LLE, vgsound_emu)
 2. **Cell 497** — Audio: Replace TinySoundFont stub with schellingb/TinySoundFont upstream
 3. **Cell 498** — Audio: Implement Ardour-grade DAW (sample-accurate automation, LV2/VST3/CLAP, JACK, AAF/OMF, video sync)
-4. **Cell 302/303** — interrupt.c: bare-metal IDT + APIC + IRQ routing
+4. **Cell 302/303** — interrupt.c: bare-metal IDT + APIC + IRQ routing — RESOLVED
 5. **Cell 388/389/391** — libdrm/libgbm/MIR → C replacements — RESOLVED
 6. **Cell 414** — per-container 9P Styx dispatch (walk/read) — RESOLVED
 7. **Cell 415** — cgroup/setrlimit enforcement in container runtime — RESOLVED
