@@ -28,12 +28,14 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <time.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 
@@ -284,15 +286,26 @@ static int64_t vsl_sys_lseek(uint64_t fd, uint64_t offset, uint64_t whence,
 static int64_t vsl_sys_fstat(uint64_t fd, uint64_t buf, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    /* TODO: proper fstat */
-    memset((void *)buf, 0, 144);
+    struct stat st;
+    int rc = fstat((int)fd, &st);
+    if (rc < 0) return -errno;
+    if (buf) {
+        memset((void *)buf, 0, sizeof(struct stat));
+        memcpy((void *)buf, &st, sizeof(struct stat));
+    }
     return 0;
 }
 
 static int64_t vsl_sys_stat(uint64_t path, uint64_t buf, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    memset((void *)buf, 0, 144);
+    struct stat st;
+    int rc = stat((const char *)path, &st);
+    if (rc < 0) return -errno;
+    if (buf) {
+        memset((void *)buf, 0, sizeof(struct stat));
+        memcpy((void *)buf, &st, sizeof(struct stat));
+    }
     return 0;
 }
 
@@ -307,68 +320,64 @@ static int64_t vsl_sys_ioctl(uint64_t fd, uint64_t req, uint64_t arg,
 static int64_t vsl_sys_access(uint64_t path, uint64_t mode, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    /* TODO: proper access check */
-    (void)path; (void)mode;
-    return 0;
+    int rc = access((const char *)path, (int)mode);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_fsync(uint64_t fd, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    (void)fd;
-    return 0;
+    int rc = fsync((int)fd);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_fcntl(uint64_t fd, uint64_t cmd, uint64_t arg,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    (void)fd; (void)cmd; (void)arg;
-    return 0;
+    int rc = fcntl((int)fd, (int)cmd, (int)arg);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_unlink(uint64_t path, uint64_t b, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    (void)path;
-    return 0;
+    int rc = unlink((const char *)path);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_mkdir(uint64_t path, uint64_t mode, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    (void)path; (void)mode;
-    return 0;
+    int rc = mkdir((const char *)path, (mode_t)mode);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_rmdir(uint64_t path, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    (void)path;
-    return 0;
+    int rc = rmdir((const char *)path);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_rename(uint64_t oldpath, uint64_t newpath, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    (void)oldpath; (void)newpath;
-    return 0;
+    int rc = rename((const char *)oldpath, (const char *)newpath);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_getcwd(uint64_t buf, uint64_t size, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    if (buf && size > 0) {
-        strncpy((char *)buf, "/", size);
-        return (int64_t)buf;
-    }
-    return -34; /* ERANGE */
+    char *result = getcwd((char *)buf, (size_t)size);
+    return result ? (int64_t)buf : -errno;
 }
 
 static int64_t vsl_sys_chdir(uint64_t path, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    (void)path;
-    return 0;
+    int rc = chdir((const char *)path);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_getuid(uint64_t a, uint64_t b, uint64_t c,
@@ -386,8 +395,8 @@ static int64_t vsl_sys_getgid(uint64_t a, uint64_t b, uint64_t c,
 static int64_t vsl_sys_kill(uint64_t pid, uint64_t sig, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    (void)pid; (void)sig;
-    return 0;
+    int rc = kill((pid_t)pid, (int)sig);
+    return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_pipe(uint64_t pipefd, uint64_t b, uint64_t c,
@@ -430,9 +439,11 @@ static int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
 static int64_t vsl_sys_clock_gettime(uint64_t clk_id, uint64_t tp, uint64_t c,
                                       uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    (void)clk_id;
+    struct timespec ts;
+    int rc = clock_gettime((clockid_t)clk_id, &ts);
+    if (rc < 0) return -errno;
     if (tp) {
-        memset((void *)tp, 0, 16);
+        memcpy((void *)tp, &ts, sizeof(struct timespec));
     }
     return 0;
 }

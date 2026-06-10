@@ -67,7 +67,7 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-## Active Gap Cells (v13) — 399 gaps
+## Active Gap Cells (v14) — 387 gaps
 
 ### Layer 1: Kernel — Hollow Stubs (51 gaps)
 
@@ -132,7 +132,7 @@ We audited our implementations against the actual upstream projects we ape:
 | 353 | holyc_parse: no typedef parsing | 🟡 | holyc_parse.c |
 | 354 | holyc_parse: no enum parsing | 🟡 | holyc_parse.c |
 
-### Layer 3: VSL — 78% Stubs (91 gaps)
+### Layer 3: VSL — 65% Stubs (79 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|
@@ -406,7 +406,7 @@ We audited our implementations against the actual upstream projects we ape:
 1. **Cell 496** — Audio: Replace 12 toy chip emulators with Furnace-grade external libs (blip_buf, Nuked-*, SAASound, YM3812-LLE, YMF262-LLE, YM2608-LLE, vgsound_emu)
 2. **Cell 497** — Audio: Replace TinySoundFont stub with schellingb/TinySoundFont upstream
 3. **Cell 498** — Audio: Implement Ardour-grade DAW (sample-accurate automation, LV2/VST3/CLAP, JACK, AAF/OMF, video sync)
-4. **Cell 367-373** — VSL: lseek, fstat, ioctl, access, pipe2, fcntl, fsync stubs
+4. **Cell 369** — VSL: ioctl stub (remaining critical stub)
 5. **Cell 305** — name parity: map remaining 32 ZealOS functions
 6. **Cell 304** — fat32.c: O(1) dir entry update (dir_cluster cache)
 7. **Cell 388/389/391** — libdrm/libgbm/MIR → C replacements
