@@ -287,95 +287,86 @@ BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* criti
                           const BearTensor* returns, const BearTensor* old_values,
                           const BearPPOConfig* cfg,
                           BearArena* temp_arena) {
-    (void)critic;
     BearPPOLoss loss = {0};
     int batch = (int)obs->shape[0];
     int act_dim = policy->act_dim;
-    int act_discrete = policy->act_discrete;
-    
-    /* Forward pass to get new logprobs, values, entropy */
+
+    /* Forward pass: policy for actions/logprobs, value net for values */
     BearTensor new_actions, new_logprobs, new_values, h_out;
     int64_t act_shape[2] = { batch, act_dim };
     int64_t scalar_shape[1] = { batch };
-    
-    bear_tensor_create(temp_arena, &new_actions, act_shape, 2, BEAR_DTYPE_F32, "new_act");
-    bear_tensor_create(temp_arena, &new_logprobs, scalar_shape, 1, BEAR_DTYPE_F32, "new_lp");
-    bear_tensor_create(temp_arena, &new_values, scalar_shape, 1, BEAR_DTYPE_F32, "new_val");
-    bear_tensor_create(temp_arena, &h_out, (int64_t[]){batch, 1}, 2, BEAR_DTYPE_F32, "h_out");
-    
-    bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, &new_values, &h_out, temp_arena);
-    fprintf(stderr, "FWD OK batch=%d\n", batch);
-    
-    /* NaN check */
-    float* nvp = (float*)new_values.data;
-    float* nlp = (float*)new_logprobs.data;
-    for (int i = 0; i < batch; ++i) {
-        if (nvp[i] != nvp[i]) { fprintf(stderr, "NAN in new_values at i=%d\n", i); }
-        if (nlp[i] != nlp[i]) { fprintf(stderr, "NAN in new_logprobs at i=%d\n", i); }
-    }
-    
-    float* new_lp_p = (float*)new_logprobs.data;
-    float* old_lp_p = (float*)old_logprobs->data;
-    float* adv_p = (float*)advantages->data;
-    float* ret_p = (float*)returns->data;
-    float* old_v_p = (float*)old_values->data;
-    float* new_v_p = (float*)new_values.data;
-    
-    /* Policy loss: clipped surrogate */
-    float policy_loss = 0.0f;
-    float clip_frac = 0.0f;
-    float approx_kl = 0.0f;
-    
-    for (int i = 0; i < batch; ++i) {
-        float ratio = expf(new_lp_p[i] - old_lp_p[i]);
-        
-        float clipped = fmaxf(fminf(ratio, 1.0f + cfg->clip_coef), 1.0f - cfg->clip_coef);
-        float surr1 = ratio * adv_p[i];
-        float surr2 = clipped * adv_p[i];
-        policy_loss += -fminf(surr1, surr2);
-        
-        if (ratio > 1.0f + cfg->clip_coef || ratio < 1.0f - cfg->clip_coef)
-            clip_frac += 1.0f;
-        approx_kl += (ratio - 1.0f) - logf(ratio + 1e-8f);
-    }
-    policy_loss /= batch;
-    clip_frac /= batch;
-    approx_kl /= batch;
-    
-    /* Value loss: clipped MSE */
-    float value_loss = 0.0f;
-    for (int i = 0; i < batch; ++i) {
-        float v_pred = new_v_p[i];
-        float v_clipped = fmaxf(fminf(v_pred, old_v_p[i] + cfg->clip_coef_vf),
-                                 old_v_p[i] - cfg->clip_coef_vf);
-        float loss1 = (v_pred - ret_p[i]) * (v_pred - ret_p[i]);
-        float loss2 = (v_clipped - ret_p[i]) * (v_clipped - ret_p[i]);
-        value_loss += fmaxf(loss1, loss2);
-    }
-    value_loss = 0.5f * value_loss / batch;
-    
-    /* Entropy bonus */
-    float entropy = 0.0f;
-    if (act_discrete) {
-        float* probs = (float*)actions->data;
-        for (int i = 0; i < batch; ++i) {
-            for (int a = 0; a < act_dim; ++a) {
-                if (probs[i * act_dim + a] > 1e-8f)
-                    entropy -= probs[i * act_dim + a] * logf(probs[i * act_dim + a] + 1e-8f);
-            }
-        }
-        entropy /= batch;
-    }
-    
-    loss.policy_loss = policy_loss;
-    loss.value_loss = value_loss;
-    loss.entropy_loss = entropy;
-    loss.total_loss = policy_loss + cfg->vf_coef * value_loss - cfg->ent_coef * entropy;
-    loss.approx_kl = approx_kl;
-    loss.clip_frac = clip_frac;
-    
-    return loss;
-}
+
+                              bear_tensor_create(temp_arena, &new_actions, act_shape, 2, BEAR_DTYPE_F32, "new_act");
+                              bear_tensor_create(temp_arena, &new_logprobs, scalar_shape, 1, BEAR_DTYPE_F32, "new_lp");
+                              bear_tensor_create(temp_arena, &new_values, scalar_shape, 1, BEAR_DTYPE_F32, "new_val");
+                              bear_tensor_create(temp_arena, &h_out, (int64_t[]){batch, 1}, 2, BEAR_DTYPE_F32, "h_out");
+
+                              /* Policy forward: obs -> actions, logprobs (values=NULL, filled by value net below) */
+                              bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, NULL, &h_out, temp_arena);
+
+                              /* Value network forward: obs -> values */
+                              bear_value_forward(critic, obs, &new_values, temp_arena);
+
+                              float* new_lp_p = (float*)new_logprobs.data;
+                              float* old_lp_p = (float*)old_logprobs->data;
+                              float* adv_p = (float*)advantages->data;
+                              float* ret_p = (float*)returns->data;
+                              float* old_v_p = (float*)old_values->data;
+                              float* new_v_p = (float*)new_values.data;
+
+                              /* Policy loss: clipped surrogate */
+                              float policy_loss = 0.0f;
+                              float clip_frac = 0.0f;
+                              float approx_kl = 0.0f;
+
+                              for (int i = 0; i < batch; ++i) {
+                                  float ratio = expf(new_lp_p[i] - old_lp_p[i]);
+                                  float clipped = fmaxf(fminf(ratio, 1.0f + cfg->clip_coef), 1.0f - cfg->clip_coef);
+                                  float surr1 = ratio * adv_p[i];
+                                  float surr2 = clipped * adv_p[i];
+                                  policy_loss += -fminf(surr1, surr2);
+                                  if (ratio > 1.0f + cfg->clip_coef || ratio < 1.0f - cfg->clip_coef)
+                                      clip_frac += 1.0f;
+                                  approx_kl += (ratio - 1.0f) - logf(ratio + 1e-8f);
+                              }
+                              policy_loss /= batch;
+                              clip_frac /= batch;
+                              approx_kl /= batch;
+
+                              /* Value loss: clipped MSE */
+                              float value_loss = 0.0f;
+                              for (int i = 0; i < batch; ++i) {
+                                  float v_pred = new_v_p[i];
+                                  float v_clipped = fmaxf(fminf(v_pred, old_v_p[i] + cfg->clip_coef_vf),
+                                                           old_v_p[i] - cfg->clip_coef_vf);
+                                  float loss1 = (v_pred - ret_p[i]) * (v_pred - ret_p[i]);
+                                  float loss2 = (v_clipped - ret_p[i]) * (v_clipped - ret_p[i]);
+                                  value_loss += fmaxf(loss1, loss2);
+                              }
+                              value_loss = 0.5f * value_loss / batch;
+
+                              /* Entropy bonus */
+                              float entropy = 0.0f;
+                              if (policy->act_discrete) {
+                                  float* probs = (float*)actions->data;
+                                  for (int i = 0; i < batch; ++i) {
+                                      for (int a = 0; a < act_dim; ++a) {
+                                          if (probs[i * act_dim + a] > 1e-8f)
+                                              entropy -= probs[i * act_dim + a] * logf(probs[i * act_dim + a] + 1e-8f);
+                                      }
+                                  }
+                                  entropy /= batch;
+                              }
+
+                              loss.policy_loss = policy_loss;
+                              loss.value_loss = value_loss;
+                              loss.entropy_loss = entropy;
+                              loss.total_loss = policy_loss + cfg->vf_coef * value_loss - cfg->ent_coef * entropy;
+                              loss.approx_kl = approx_kl;
+                              loss.clip_frac = clip_frac;
+
+                              return loss;
+                          }
 
 void bear_ppo_update(BearPolicyNet* policy, BearValueNet* critic,
                       const BearPPOLoss* loss, BearOptimizer* opt) {
@@ -394,44 +385,35 @@ int bear_trainer_init(BearTrainer* trainer,
                        BearEnv* env, const BearPPOConfig* cfg,
                        size_t global_arena_cap, size_t rollout_arena_cap,
                        size_t step_arena_cap) {
-    fprintf(stderr, "TRAINER_INIT: start\n"); fflush(stderr);
     if (!trainer || !policy || !critic || !env || !cfg) return -1;
-    
+
     memset(trainer, 0, sizeof(BearTrainer));
-    fprintf(stderr, "TRAINER_INIT: memset done\n"); fflush(stderr);
-    
+
     if (bear_arena_create(&trainer->global_arena, global_arena_cap) != 0) return -1;
-    fprintf(stderr, "TRAINER_INIT: global arena created\n"); fflush(stderr);
     if (bear_arena_create(&trainer->rollout_arena, rollout_arena_cap) != 0) {
         bear_arena_destroy(&trainer->global_arena);
         return -1;
     }
-    fprintf(stderr, "TRAINER_INIT: rollout arena created\n"); fflush(stderr);
     if (bear_arena_create(&trainer->step_arena, step_arena_cap) != 0) {
         bear_arena_destroy(&trainer->rollout_arena);
         bear_arena_destroy(&trainer->global_arena);
         return -1;
     }
-    fprintf(stderr, "TRAINER_INIT: step arena created\n"); fflush(stderr);
-    
+
     trainer->policy = policy;
     trainer->critic = critic;
     trainer->env = env;
     trainer->cfg = *cfg;
-    
-    fprintf(stderr, "TRAINER_INIT: about to traj_init\n"); fflush(stderr);
+
     if (bear_traj_init(&trainer->traj, &trainer->global_arena,
                         128, env->spec.num_envs, env->spec.max_agents,
                         env->spec.obs_dim, env->spec.act_dim, env->spec.act_discrete) != 0) {
-        fprintf(stderr, "TRAINER_INIT: traj_init FAILED\n"); fflush(stderr);
         return -1;
     }
-    fprintf(stderr, "TRAINER_INIT: traj_init done\n"); fflush(stderr);
-    
+
     trainer->opt_policy = bear_optimizer_create(&trainer->global_arena, BEAR_OPT_ADAM, cfg->lr);
     trainer->opt_critic = bear_optimizer_create(&trainer->global_arena, BEAR_OPT_ADAM, cfg->lr);
-    fprintf(stderr, "TRAINER_INIT: optimizers created\n"); fflush(stderr);
-    
+
     return 0;
 }
 
@@ -446,29 +428,27 @@ void bear_trainer_set_logger(BearTrainer* trainer, bear_log_fn fn, void* user_da
 
 float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
     if (!trainer) return 0.0f;
-    fprintf(stderr, "TRAINER_ITER start\n"); fflush(stderr);
-    
+
     BearEnv* env = trainer->env;
     BearPPOConfig* cfg = &trainer->cfg;
     BearTrajectory* traj = &trainer->traj;
     BearPolicyNet* policy = trainer->policy;
-    fprintf(stderr, "TRAINER_ITER vars set\n"); fflush(stderr);
-    
+
     /* 1. Collect rollout */
     bear_traj_reset(traj);
     bear_env_reset_all(env, &trainer->rollout_arena);
-    
+
     float ep_return_sum = 0;
     int ep_count = 0;
-    
+
     for (int step = 0; step < traj->rollout_len; ++step) {
         /* Forward pass to get actions */
         BearTensor actions, logprobs, values, h_out;
         int B = env->spec.num_envs * env->spec.max_agents;
-        
+
         int64_t act_shape_arr[2] = { B, env->spec.act_dim };
         int64_t scalar_shape_arr[1] = { B };
-        
+
         bear_tensor_create(&trainer->step_arena, &actions,
                            act_shape_arr, 2, BEAR_DTYPE_F32, "rollout_act");
         bear_tensor_create(&trainer->step_arena, &logprobs,
@@ -478,19 +458,27 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
         int64_t h_shape_arr[2] = { B, policy->hid_size > 0 ? policy->hid_size : 1 };
         bear_tensor_create(&trainer->step_arena, &h_out,
                            h_shape_arr, 2, BEAR_DTYPE_F32, "h_out");
-        
-        fprintf(stderr, "ABOUT TO FWD step=%d\n", step); fflush(stderr);
+
+        /* Policy forward: obs -> actions, logprobs */
         bear_policy_forward(trainer->policy, &env->obs, NULL,
-                             &actions, &logprobs, &values, &h_out,
+                             &actions, &logprobs, NULL, &h_out,
                              &trainer->step_arena);
-        fprintf(stderr, "FWD DONE step=%d\n", step); fflush(stderr);
-        
+        for (int i = 0; i < B; i++) {
+            float a = ((float*)actions.data)[i];
+        }
+
+        /* Value network forward: obs -> values */
+        bear_value_forward(trainer->critic, &env->obs, &values, &trainer->step_arena);
+        for (int i = 0; i < B; i++) {
+            float v = ((float*)values.data)[i];
+        }
+
         bear_policy_sample(trainer->policy, &actions, &logprobs, rng_state);
-        
+
         /* Step environment */
         bear_env_step(env, &actions, &env->rewards, &env->dones,
                        &env->obs, &trainer->step_arena);
-        
+
         /* Store trajectory */
         bear_traj_store(traj, step, &env->obs, &actions,
                          &logprobs, &env->rewards, &env->dones, &values);
@@ -526,14 +514,12 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
         while (bear_sampler_next(&sampler, traj, &mb_obs, &mb_actions,
                                  &mb_logprobs, &mb_advantages, &mb_returns,
                                  &mb_values, &mb_old_logprobs, &trainer->step_arena)) {
-            
-            fprintf(stderr, "PPO UPDATE: checking forward pass\n"); fflush(stderr);
+
             BearPPOLoss loss = bear_ppo_loss(trainer->policy, trainer->critic,
                                                &mb_obs, &mb_actions, &mb_old_logprobs,
                                                &mb_advantages, &mb_returns, &mb_values,
                                                cfg, &trainer->step_arena);
-            fprintf(stderr, "LOSS: p=%f v=%f e=%f total=%f\n", loss.policy_loss, loss.value_loss, loss.entropy_loss, loss.total_loss); fflush(stderr);
-            
+
             bear_ppo_update(trainer->policy, trainer->critic, &loss, trainer->opt_policy);
             
             total_policy_loss += loss.policy_loss;

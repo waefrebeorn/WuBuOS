@@ -136,20 +136,14 @@ static inline void bear_gemm_scalar(const float* A, const float* B, float* C,
         for (int n = 0; n < N; ++n) {
             float acc = 0.0f;
             for (int k = 0; k < K; ++k) {
-                float prod = A[m * K + k] * B[n * K + k];
-                if (prod != prod) {
-                    char buf[128];
-                    snprintf(buf, sizeof(buf), "GEMM NaN: m=%d n=%d k=%d A=%f B=%f\n", m, n, k, A[m*K+k], B[n*K+k]);
-                    write(2, buf, strlen(buf));
-                }
-                acc += prod;
+                acc += A[m * K + k] * B[n * K + k];
             }
             C[m * N + n] = acc;
         }
     }
 }
 
-/* Dispatcher - force scalar for debugging */
+/* Dispatcher */
 static inline void bear_gemm(const float* A, const float* B, float* C,
                               int M, int N, int K) {
     bear_gemm_scalar(A, B, C, M, N, K);
@@ -159,7 +153,6 @@ static inline void bear_gemm(const float* A, const float* B, float* C,
 static inline void bear_tensor_gemm(const BearTensor* A, const BearTensor* B,
                                      const BearTensor* bias,
                                      BearTensor* out, BearAct act) {
-    /* Shapes: A=[M,K], B=[N,K], out=[M,N], bias=[N] (optional) */
     int M = (int)A->shape[0];
     int K = (int)A->shape[1];
     int N = (int)B->shape[0];
@@ -167,39 +160,11 @@ static inline void bear_tensor_gemm(const BearTensor* A, const BearTensor* B,
     const float* a = (const float*)A->data;
     const float* b = (const float*)B->data;
     float* c = (float*)out->data;
-    // Check overlap between C and B
-    int c_size = (int)(out->shape[0] * out->shape[1]);
-    int b_size = (int)(B->shape[0] * B->shape[1]);
-    int overlap = 0;
-    if (c >= b && c < b + b_size) overlap = 1; // C starts inside B
-    else if (b >= c && b < c + c_size) overlap = 1; // B starts inside C
-    if (overlap) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), "OVERLAP: c=%p c_end=%p b=%p b_end=%p c_size=%d b_size=%d\n", (void*)c, (void*)(c+c_size), (void*)b, (void*)(b+b_size), c_size, b_size);
-        write(2, buf, strlen(buf));
-    }
-    {
-        int b_size = (int)(B->shape[0] * B->shape[1]);
-        for (int i = 0; i < b_size; ++i) {
-            if (b[i] != b[i]) {
-                char buf[128];
-                snprintf(buf, sizeof(buf), "GEMM INPUT B NaN at i=%d\n", i);
-                write(2, buf, strlen(buf));
-                break;
-            }
-        }
-    }
 
     bear_gemm(a, b, c, M, N, K);
 
     if (bias && bias->dtype == BEAR_DTYPE_F32) {
         const float* bias_p = (const float*)bias->data;
-        // Check if bias_p points into B's range
-        if (bias_p >= b && bias_p < b + B->shape[0] * B->shape[1]) {
-            char buf[128];
-            snprintf(buf, sizeof(buf), "BIAS ALIAS: bias_p=%p b=%p\n", (void*)bias_p, (void*)b);
-            write(2, buf, strlen(buf));
-        }
         for (int m = 0; m < M; ++m) {
             for (int n = 0; n < N; ++n) {
                 c[m * N + n] += bias_p[n];
@@ -209,7 +174,6 @@ static inline void bear_tensor_gemm(const BearTensor* A, const BearTensor* B,
 
     if (act != BEAR_ACT_NONE) {
         int64_t n = (int64_t)M * N;
-        /* Use separate temp buffer to avoid restrict aliasing issue */
         float* tmp = (float*)malloc(n * sizeof(float));
         for (int64_t i = 0; i < n; ++i) tmp[i] = c[i];
         bear_act_batch(c, tmp, n, act);
@@ -296,10 +260,7 @@ static inline void bear_mingru_step(const BearMinGRU* gru,
         h_prev_p = (float*)h_prev->data;
     }
 
-    fflush(stdout);
-
     /* Allocate temp buffers */
-    fflush(stdout);
     float* z_pre = (float*)BEAR_ARENA_ALLOC(temp, float, batch * hid);
     float* r_pre = (float*)BEAR_ARENA_ALLOC(temp, float, batch * hid);
     float* n_pre = (float*)BEAR_ARENA_ALLOC(temp, float, batch * hid);
@@ -375,65 +336,13 @@ static inline void bear_orthogonal_init(BearTensor* W, float gain) {
     int cols = (int)W->shape[1];
     float* data = (float*)W->data;
 
-    /* Fill with random normal */
+    /* Simple uniform Xavier init — guaranteed finite, no trig/log */
+    float limit = gain * sqrtf(6.0f / (float)(rows + cols));
     for (int i = 0; i < rows * cols; ++i) {
-        /* Box-Muller for N(0,1) — clamp away from 0 to avoid log(0) = -inf */
-        float u1 = (float)(rand() + 1) / (float)(RAND_MAX + 2);
-        float u2 = (float)(rand() + 1) / (float)(RAND_MAX + 2);
-        data[i] = sqrtf(-2.0f * logf(u1)) * cosf(2.0f * 3.14159265f * u2);
+        long r = rand();
+        float u = (float)r / (float)RAND_MAX;
+        data[i] = (2.0f * u - 1.0f) * limit;
     }
-
-    /* QR decomposition via modified Gram-Schmidt (only orthogonalize min(rows,cols) columns) */
-    int ortho_cols = rows < cols ? rows : cols;
-    /* Use stack buffer for small matrices, heap for large */
-    size_t q_size = (size_t)rows * cols * sizeof(float);
-    float* q;
-    float stack_buf[4096];
-    if (q_size <= sizeof(stack_buf)) {
-        q = stack_buf;
-    } else {
-        q = (float*)malloc(q_size);
-        if (!q) return; // Fall back to random init
-    }
-    memcpy(q, data, rows * cols * sizeof(float));
-
-    for (int j = 0; j < ortho_cols; ++j) {
-        /* Normalize column j */
-        float norm = 0.0f;
-        for (int i = 0; i < rows; ++i) norm += q[i * cols + j] * q[i * cols + j];
-        norm = sqrtf(norm);
-        if (norm > 1e-6f) {
-            for (int i = 0; i < rows; ++i) q[i * cols + j] /= norm;
-        }
-
-        /* Orthogonalize against previous cols */
-        for (int k = 0; k < j; ++k) {
-            float dot = 0.0f;
-            for (int i = 0; i < rows; ++i) dot += q[i * cols + j] * q[i * cols + k];
-            for (int i = 0; i < rows; ++i) q[i * cols + j] -= dot * q[i * cols + k];
-        }
-
-        /* Renormalize */
-        norm = 0.0f;
-        for (int i = 0; i < rows; ++i) norm += q[i * cols + j] * q[i * cols + j];
-        norm = sqrtf(norm);
-        if (norm > 1e-6f) {
-            for (int i = 0; i < rows; ++i) q[i * cols + j] /= norm;
-        }
-        // else: column is linearly dependent on previous columns, zero it out
-        if (norm <= 1e-6f) {
-            for (int i = 0; i < rows; ++i) q[i * cols + j] = 0.0f;
-        }
-    }
-    
-    /* Zero out remaining columns (for cols > rows) */
-    for (int j = ortho_cols; j < cols; ++j) {
-        for (int i = 0; i < rows; ++i) q[i * cols + j] = 0.0f;
-    }
-
-    /* Copy back with gain */
-    for (int i = 0; i < rows * cols; ++i) data[i] = gain * q[i];
-    if (q != stack_buf) free(q);
 }
 
 #endif /* BEAR_SIMD_H */
