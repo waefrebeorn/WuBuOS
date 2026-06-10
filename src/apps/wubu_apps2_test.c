@@ -8,6 +8,7 @@
 #include "wubu_codec.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdlib.h>
 
 static int pass = 0, fail = 0;

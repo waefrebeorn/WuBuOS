@@ -67,7 +67,7 @@ We audited our implementations against the actual upstream projects we ape:
 
 ---
 
-## Active Gap Cells (v17) — 372 gaps
+## Active Gap Cells (v18) — 368 gaps
 
 ### Layer 1: Kernel — Hollow Stubs (50 gaps)
 
@@ -211,7 +211,7 @@ We audited our implementations against the actual upstream projects we ape:
 | 459 | wubu_exec.c: No exec timeout/watchdog | 🟡 | wubu_exec.c |
 | 459 | wubu_exec.c: No exec logging/audit trail | 🟡 | wubu_exec.c |
 
-### Layer 6: GUI — WM/Editor/Canvas Stubs (56 gaps)
+### Layer 6: GUI — WM/Editor/Canvas Stubs (53 gaps)
 
 | Cell | Description | Severity | Source |
 |------|-------------|----------|--------|

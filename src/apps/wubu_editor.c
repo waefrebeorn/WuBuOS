@@ -181,6 +181,10 @@ int wubu_ed_close_tab(WubuEditor *ed, int tab_idx) {
     return 0;
 }
 
+/* ── Undo/Redo Internal ──────────────────────────────────────────── */
+
+static void undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col, const char *text, int text_len);
+
 /* ── Insert Character ───────────────────────────────────────────── */
 
 void wubu_ed_insert_char(WubuEditor *ed, char ch) {
@@ -190,6 +194,9 @@ void wubu_ed_insert_char(WubuEditor *ed, char ch) {
     WubuEdLine *line = &tab->lines[tab->cursor_line];
     if (line->len >= WUBU_ED_MAX_LINE_LEN - 1) return;
     if (tab->cursor_col > line->len) tab->cursor_col = line->len;
+    /* Record undo: the inserted character */
+    char ustr[2] = {ch, '\0'};
+    undo_push(tab, UNDO_INSERT, tab->cursor_line, tab->cursor_col, ustr, 1);
     memmove(&line->text[tab->cursor_col + 1],
             &line->text[tab->cursor_col],
             line->len - tab->cursor_col + 1);
@@ -245,6 +252,9 @@ void wubu_ed_delete_char(WubuEditor *ed) {
 
     if (tab->cursor_col > 0) {
         /* Delete character before cursor */
+        char deleted = line->text[tab->cursor_col - 1];
+        char ustr[2] = {deleted, '\0'};
+        undo_push(tab, UNDO_DELETE, tab->cursor_line, tab->cursor_col - 1, ustr, 1);
         tab->cursor_col--;
         memmove(&line->text[tab->cursor_col],
                 &line->text[tab->cursor_col + 1],
@@ -254,8 +264,15 @@ void wubu_ed_delete_char(WubuEditor *ed) {
     } else if (tab->cursor_line > 0) {
         /* Join with previous line */
         WubuEdLine *prev = &tab->lines[tab->cursor_line - 1];
+        int old_prev_len = prev->len;
+        /* Record undo: store the joined state */
+        char undo_buf[WUBU_ED_MAX_LINE_LEN];
+        memcpy(undo_buf, line->text, (size_t)line->len);
+        undo_buf[line->len] = '\0';
+        undo_push(tab, UNDO_DELETE, tab->cursor_line, 0, undo_buf, line->len);
+        
         tab->cursor_col = prev->len;
-        memcpy(&prev->text[prev->len], line->text, line->len);
+        memcpy(&prev->text[prev->len], line->text, (size_t)line->len);
         prev->len += line->len;
         prev->text[prev->len] = '\0';
         /* Remove current line */
@@ -291,12 +308,113 @@ void wubu_ed_insert_text(WubuEditor *ed, const char *text) {
     }
 }
 
-/* ── Undo/Redo (stubs — full impl needs undo stack) ────────────── */
+/* ── Undo/Redo ──────────────────────────────────────────────────── */
 
-void wubu_ed_undo(WubuEditor *ed) { (void)ed; }
-void wubu_ed_redo(WubuEditor *ed) { (void)ed; }
-bool wubu_ed_can_undo(WubuEditor *ed) { (void)ed; return false; }
-bool wubu_ed_can_redo(WubuEditor *ed) { (void)ed; return false; }
+static void undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col, const char *text, int text_len) {
+    if (!tab || tab->undo_count >= WUBU_ED_MAX_UNDO) return;
+    WubuUndo *u = &tab->undo_stack[tab->undo_pos];
+    u->kind = kind;
+    u->line = line;
+    u->col = col;
+    if (text && text_len > 0) {
+        int len = text_len < WUBU_ED_MAX_LINE_LEN ? text_len : WUBU_ED_MAX_LINE_LEN - 1;
+        memcpy(u->text, text, (size_t)len);
+        u->text[len] = '\0';
+        u->text_len = len;
+    } else {
+        u->text[0] = '\0';
+        u->text_len = 0;
+    }
+    tab->undo_pos = (tab->undo_pos + 1) % WUBU_ED_MAX_UNDO;
+    tab->undo_count++;
+}
+
+void wubu_ed_undo(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab || tab->undo_count == 0) return;
+    
+    tab->undo_pos = (tab->undo_pos - 1 + WUBU_ED_MAX_UNDO) % WUBU_ED_MAX_UNDO;
+    WubuUndo *u = &tab->undo_stack[tab->undo_pos];
+    
+    switch (u->kind) {
+    case UNDO_INSERT: {
+        /* Undo an insert = delete the inserted text */
+        if (u->line >= tab->n_lines) break;
+        WubuEdLine *line = &tab->lines[u->line];
+        if (u->col + u->text_len > line->len) break;
+        /* Remove the inserted characters */
+        memmove(&line->text[u->col], &line->text[u->col + u->text_len],
+                line->len - u->col - u->text_len + 1);
+        line->len -= u->text_len;
+        tab->cursor_line = u->line;
+        tab->cursor_col = u->col;
+        break;
+    }
+    case UNDO_DELETE: {
+        /* Undo a delete = re-insert the deleted text */
+        if (u->line >= tab->n_lines) break;
+        WubuEdLine *line = &tab->lines[u->line];
+        if (line->len + u->text_len >= WUBU_ED_MAX_LINE_LEN) break;
+        memmove(&line->text[u->col + u->text_len], &line->text[u->col],
+                line->len - u->col + 1);
+        memcpy(&line->text[u->col], u->text, (size_t)u->text_len);
+        line->len += u->text_len;
+        tab->cursor_line = u->line;
+        tab->cursor_col = u->col + u->text_len;
+        break;
+    }
+    case UNDO_REPLACE: {
+        /* Undo a replace = restore original text */
+        if (u->line >= tab->n_lines) break;
+        WubuEdLine *line = &tab->lines[u->line];
+        if (u->col + u->text_len > line->len) break;
+        memcpy(&line->text[u->col], u->text, (size_t)u->text_len);
+        tab->cursor_line = u->line;
+        tab->cursor_col = u->col;
+        break;
+    }
+    }
+    
+    tab->undo_count--;
+    tab->modified = true;
+}
+
+void wubu_ed_redo(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab) return;
+    
+    /* Redo is complex; for now, simple redo of inserts */
+    int redo_idx = tab->undo_pos;
+    if (redo_idx >= WUBU_ED_MAX_UNDO) return;
+    
+    WubuUndo *u = &tab->undo_stack[redo_idx];
+    if (u->kind == UNDO_INSERT && u->line < tab->n_lines) {
+        WubuEdLine *line = &tab->lines[u->line];
+        if (line->len + u->text_len < WUBU_ED_MAX_LINE_LEN) {
+            memmove(&line->text[u->col + u->text_len], &line->text[u->col],
+                    line->len - u->col + 1);
+            memcpy(&line->text[u->col], u->text, (size_t)u->text_len);
+            line->len += u->text_len;
+            tab->cursor_line = u->line;
+            tab->cursor_col = u->col + u->text_len;
+            tab->undo_pos = (tab->undo_pos + 1) % WUBU_ED_MAX_UNDO;
+            tab->undo_count++;
+            tab->modified = true;
+        }
+    }
+}
+
+bool wubu_ed_can_undo(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    return tab && tab->undo_count > 0;
+}
+
+bool wubu_ed_can_redo(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab) return false;
+    int redo_idx = tab->undo_pos;
+    return redo_idx < WUBU_ED_MAX_UNDO && tab->undo_stack[redo_idx].kind != 0;
+}
 
 /* ── Selection (stubs) ──────────────────────────────────────────── */
 
@@ -313,12 +431,120 @@ void wubu_ed_cut(WubuEditor *ed) { (void)ed; }
 void wubu_ed_copy(WubuEditor *ed) { (void)ed; }
 void wubu_ed_paste(WubuEditor *ed) { (void)ed; }
 
-/* ── Find (stubs) ───────────────────────────────────────────────── */
+/* ── Find/Replace ──────────────────────────────────────────────────── */
 
-int  wubu_ed_find_next(WubuEditor *ed) { (void)ed; return -1; }
-int  wubu_ed_find_prev(WubuEditor *ed) { (void)ed; return -1; }
-int  wubu_ed_replace_next(WubuEditor *ed) { (void)ed; return -1; }
-int  wubu_ed_replace_all(WubuEditor *ed) { (void)ed; return 0; }
+int wubu_ed_find_next(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!ed || !ed->find.find_text[0]) return -1;
+    
+    int start_line = tab->cursor_line;
+    int start_col = tab->cursor_col + 1; /* Start after cursor */
+    
+    for (int pass = 0; pass < 2; pass++) {
+        for (int i = start_line; i < tab->n_lines; i++) {
+            WubuEdLine *line = &tab->lines[i];
+            int col = (i == start_line) ? start_col : 0;
+            if (col >= line->len) continue;
+            
+            const char *found = strstr(line->text + col, ed->find.find_text);
+            if (found) {
+                int found_col = (int)(found - line->text);
+                tab->cursor_line = i;
+                tab->cursor_col = found_col;
+                ed->find.last_found_line = i;
+                ed->find.last_found_col = found_col;
+                return i;
+            }
+        }
+        /* Wrap around */
+        start_line = 0;
+        start_col = 0;
+    }
+    return -1;
+}
+
+int wubu_ed_find_prev(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!ed || !ed->find.find_text[0]) return -1;
+    
+    int start_line = tab->cursor_line;
+    int start_col = tab->cursor_col - 1;
+    
+    for (int i = start_line; i >= 0; i--) {
+        WubuEdLine *line = &tab->lines[i];
+        int col = (i == start_line) ? start_col : line->len;
+        if (col < 0 || col >= line->len) continue;
+        
+        /* Search backward in this line */
+        for (int c = col; c >= 0; c--) {
+            if (strncmp(line->text + c, ed->find.find_text,
+                        strlen(ed->find.find_text)) == 0) {
+                tab->cursor_line = i;
+                tab->cursor_col = c;
+                ed->find.last_found_line = i;
+                ed->find.last_found_col = c;
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
+int wubu_ed_replace_next(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!ed || !ed->find.find_text[0]) return -1;
+    
+    if (ed->find.last_found_line >= 0 && ed->find.last_found_line < tab->n_lines) {
+        WubuEdLine *line = &tab->lines[ed->find.last_found_line];
+        int flen = (int)strlen(ed->find.find_text);
+        int rlen = (int)strlen(ed->find.replace_text);
+        if (ed->find.last_found_col + flen <= line->len) {
+            /* Record undo */
+            char undo_buf[WUBU_ED_MAX_LINE_LEN];
+            memcpy(undo_buf, line->text + ed->find.last_found_col, (size_t)flen);
+            undo_buf[flen] = '\0';
+            undo_push(tab, UNDO_REPLACE, ed->find.last_found_line,
+                      ed->find.last_found_col, undo_buf, flen);
+            
+            /* Do replace */
+            memmove(&line->text[ed->find.last_found_col + rlen],
+                    &line->text[ed->find.last_found_col + flen],
+                    line->len - ed->find.last_found_col - flen + 1);
+            memcpy(&line->text[ed->find.last_found_col], ed->find.replace_text, (size_t)rlen);
+            line->len = line->len - flen + rlen;
+            tab->cursor_col = ed->find.last_found_col + rlen;
+            tab->modified = true;
+            
+            /* Find next */
+            return wubu_ed_find_next(ed);
+        }
+    }
+    return wubu_ed_find_next(ed);
+}
+
+int wubu_ed_replace_all(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!ed || !ed->find.find_text[0]) return 0;
+    
+    int count = 0;
+    for (int i = 0; i < tab->n_lines; i++) {
+        WubuEdLine *line = &tab->lines[i];
+        int flen = (int)strlen(ed->find.find_text);
+        int rlen = (int)strlen(ed->find.replace_text);
+        char *pos = line->text;
+        while ((pos = strstr(pos, ed->find.find_text)) != NULL) {
+            int col = (int)(pos - line->text);
+            memmove(&line->text[col + rlen], &line->text[col + flen],
+                    line->len - col - flen + 1);
+            memcpy(&line->text[col], ed->find.replace_text, (size_t)rlen);
+            line->len = line->len - flen + rlen;
+            pos = line->text + col + rlen;
+            count++;
+            tab->modified = true;
+        }
+    }
+    return count;
+}
 
 /* ── Code Folding (stubs) ───────────────────────────────────────── */
 
@@ -326,7 +552,7 @@ void wubu_ed_fold_toggle(WubuEditor *ed, int line) { (void)ed; (void)line; }
 void wubu_ed_fold_all(WubuEditor *ed) { (void)ed; }
 void wubu_ed_unfold_all(WubuEditor *ed) { (void)ed; }
 
-/* ── Bookmarks (stubs) ──────────────────────────────────────────── */
+/* ── Bookmarks ────────────────────────────────────────────────────── */
 
 void wubu_ed_bookmark_toggle(WubuEditor *ed, int line) {
     WubuEdTab *tab = wubu_ed_current_tab(ed);
@@ -334,8 +560,47 @@ void wubu_ed_bookmark_toggle(WubuEditor *ed, int line) {
     tab->lines[line].bookmark = !tab->lines[line].bookmark;
 }
 
-int  wubu_ed_bookmark_next(WubuEditor *ed) { (void)ed; return -1; }
-int  wubu_ed_bookmark_prev(WubuEditor *ed) { (void)ed; return -1; }
+int wubu_ed_bookmark_next(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab) return -1;
+    for (int i = tab->cursor_line + 1; i < tab->n_lines; i++) {
+        if (tab->lines[i].bookmark) {
+            tab->cursor_line = i;
+            tab->cursor_col = 0;
+            return i;
+        }
+    }
+    /* Wrap */
+    for (int i = 0; i <= tab->cursor_line; i++) {
+        if (tab->lines[i].bookmark) {
+            tab->cursor_line = i;
+            tab->cursor_col = 0;
+            return i;
+        }
+    }
+    return -1;
+}
+
+int wubu_ed_bookmark_prev(WubuEditor *ed) {
+    WubuEdTab *tab = wubu_ed_current_tab(ed);
+    if (!tab) return -1;
+    for (int i = tab->cursor_line - 1; i >= 0; i--) {
+        if (tab->lines[i].bookmark) {
+            tab->cursor_line = i;
+            tab->cursor_col = 0;
+            return i;
+        }
+    }
+    /* Wrap */
+    for (int i = tab->n_lines - 1; i >= tab->cursor_line; i--) {
+        if (tab->lines[i].bookmark) {
+            tab->cursor_line = i;
+            tab->cursor_col = 0;
+            return i;
+        }
+    }
+    return -1;
+}
 
 /* ── View Toggles ───────────────────────────────────────────────── */
 

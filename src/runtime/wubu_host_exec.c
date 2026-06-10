@@ -8,6 +8,7 @@
  * GPU passthrough: /dev/dri, /dev/nvidia → container.
  * 9P namespace: per-container Styx socket mount.
  */
+#define _GNU_SOURCE
 #include "wubu_host_exec.h"
 
 #include <stdio.h>
