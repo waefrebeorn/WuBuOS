@@ -325,11 +325,16 @@ static inline int bear_param_create(BearArena* a, BearParam* p,
     snprintf(v2name, sizeof(v2name), "%s.v2", name);
     
     if (bear_tensor_weight(a, &p->weight, out_f, in_f, wname) != 0) return -1;
-    if (bear_tensor_vec(a, &p->bias, out_f, BEAR_DTYPE_F32, bname) != 0) return -1;
+    if (bear_tensor_weight(a, &p->bias,   1, out_f, bname) != 0) return -1;
     if (bear_tensor_weight(a, &p->grad,   out_f, in_f, gname) != 0) return -1;
     if (bear_tensor_weight(a, &p->mom,    out_f, in_f, mname) != 0) return -1;  /* Adam */
     if (bear_tensor_weight(a, &p->var,    out_f, in_f, vname) != 0) return -1;  /* Adam */
     if (bear_tensor_weight(a, &p->vel,    out_f, in_f, v2name) != 0) return -1; /* Muon */
+    /* Zero-initialize optimizer state (arena memory is uninitialized) */
+    bear_tensor_fill(&p->grad, 0.0f);
+    bear_tensor_fill(&p->mom,  0.0f);
+    bear_tensor_fill(&p->var,  0.0f);
+    bear_tensor_fill(&p->vel,  0.0f);
     p->step = 0;
     /* Zero-init bias */
     bear_tensor_fill(&p->bias, 0.0f);

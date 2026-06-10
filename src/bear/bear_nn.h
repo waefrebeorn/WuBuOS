@@ -26,6 +26,14 @@ typedef struct {
     int out_features;
     BearAct act;
     BearParam* param;  /* weight + bias + optimizer state */
+
+    /* Forward-pass stored activations (for backward) */
+    /* z_pre: [batch, out_features]  pre-activation  x @ W^T + b   */
+    /* a_post: [batch, out_features] post-activation act(z_pre)   */
+    /* For layer 0 the "input" (a_prev) is the observation tensor */
+    BearTensor z_pre;
+    BearTensor a_post;
+    int act_storage;
 } BearLayer;
 
 /* Policy Network */
@@ -39,6 +47,10 @@ typedef struct {
     int act_discrete;
     int hid_size;
     BearArena* param_arena;  /* where params live */
+    int fwd_stored;          /* flag: forward pass stored activations */
+    /* Gaussian policy for continuous actions */
+    float* logstd;           /* [act_dim] learned log-std (NULL if fixed) */
+    float   logstd_fixed;    /* fixed logstd value when logstd==NULL */
 } BearPolicyNet;
 
 /* Create MLP policy network */
@@ -81,6 +93,7 @@ typedef struct {
     int num_layers;
     BearLayer* layers;
     BearArena* param_arena;
+    int fwd_stored;
 } BearValueNet;
 
 int bear_value_create(BearValueNet* vnet, BearArena* param_arena,
@@ -90,6 +103,81 @@ void bear_value_forward(const BearValueNet* vnet,
                          const BearTensor* obs,  /* [batch, obs_dim] */
                          BearTensor* values,     /* [batch] */
                          BearArena* temp_arena);
+
+/* ═══════════════════════════════════════════════════════════════════
+ * Backward Pass (analytical gradients)
+ * ═══════════════════════════════════════════════════════════════════ */
+
+/*
+ * Policy backward: compute gradients for policy network.
+ * Must be called AFTER bear_policy_forward (which stores activations).
+ *
+ * For discrete actions (categorical policy):
+ *   dlogit[i] = (ratio_clipped[i] * adv[i]) / mb_size
+ *   where ratio_clipped = clip(exp(new_lp - old_lp), 1-eps, 1+eps)
+ *
+ * For continuous actions (Gaussian policy):
+ *   dmu[i] = (ratio_clipped[i] * adv[i]) / mb_size * (action[i] - mu[i]) / std^2
+ *
+ * obs:       [mb, obs_dim]  minibatch observations
+ * actions:   [mb, act_dim]  one-hot chosen actions (discrete) or raw actions (continuous)
+ * old_logprobs: [mb]
+ * advantages:   [mb]  (already normalized)
+ * clip_coef:   PPO clip epsilon
+ * policy_grad_scale: additional scale factor (e.g. 1.0)
+ *
+ * Returns 0 on success.
+ */
+int bear_policy_backward(BearPolicyNet* net,
+                          const BearTensor* obs,
+                          const BearTensor* actions,
+                          const BearTensor* old_logprobs,
+                          const BearTensor* advantages,
+                          float clip_coef,
+                          float policy_grad_scale,
+                          BearArena* temp_arena);
+
+/* Internal: discrete backward */
+int bear_policy_backward_discrete(BearPolicyNet* net,
+                                    const BearTensor* obs,
+                                    const BearTensor* actions,
+                                    const BearTensor* old_logprobs,
+                                    const BearTensor* advantages,
+                                    float clip_coef,
+                                    float policy_grad_scale,
+                                    BearArena* temp_arena);
+
+/* Internal: continuous (Gaussian) backward */
+int bear_policy_backward_continuous(BearPolicyNet* net,
+                                     const BearTensor* obs,
+                                     const BearTensor* actions,
+                                     const BearTensor* old_logprobs,
+                                     const BearTensor* advantages,
+                                     float clip_coef,
+                                     float policy_grad_scale,
+                                     BearArena* temp_arena);
+
+/*
+ * Value backward: compute gradients for value network.
+ * Must be called AFTER bear_value_forward (which stores activations).
+ *
+ * Loss = 0.5 * (V - target)^2
+ * dV = (V - target) / mb_size
+ *
+ * values:   [mb]  current value predictions
+ * targets:  [mb]  returns (GAE + old_values)
+ * vf_coef:  value loss coefficient
+ */
+int bear_value_backward(BearValueNet* vnet,
+                         const BearTensor* obs,
+                         const BearTensor* values,
+                         const BearTensor* targets,
+                         float vf_coef,
+                         BearArena* temp_arena);
+
+/* Zero all gradients in policy and value networks */
+void bear_policy_zero_grad(BearPolicyNet* net);
+void bear_value_zero_grad(BearValueNet* vnet);
 
 /* ══════════════════════════════════════════════════════════════════
  * Utility: Xavier/Orthogonal Init, Checkpointing

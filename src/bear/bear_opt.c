@@ -51,23 +51,40 @@ BearOptimizer* bear_optimizer_create(BearArena* arena, BearOptType type, float l
 
 int bear_optimizer_register(BearOptimizer* opt, BearParam* param) {
     if (!opt || !param) return -1;
-    if (opt->num_params >= 64) return -1;  /* fixed capacity for now */
-    
+    if (opt->num_params >= 64) return -1;
+
     int idx = opt->num_params++;
-    
+
     if (opt->type == BEAR_OPT_ADAM || opt->type == BEAR_OPT_ADAMW) {
         BearAdamState* s = &opt->adam_states[idx];
         s->step = 0;
-        /* m and v tensors same shape as weight */
-        s->m = param->weight;  /* shallow copy - will realloc data if needed */
-        s->v = param->weight;
-        /* In real impl, we'd allocate m, v from arena with same shape */
+        /* Allocate m and v with same shape as weight, zero-initialized */
+        int out_f = param->weight.shape[0];
+        int in_f = param->weight.shape[1];
+        int n = out_f * in_f;
+        s->m.data = (float*)calloc(n, sizeof(float));
+        s->m.ndim = 2;
+        s->m.shape[0] = out_f;
+        s->m.shape[1] = in_f;
+        s->m.dtype = BEAR_DTYPE_F32;
+        s->v.data = (float*)calloc(n, sizeof(float));
+        s->v.ndim = 2;
+        s->v.shape[0] = out_f;
+        s->v.shape[1] = in_f;
+        s->v.dtype = BEAR_DTYPE_F32;
     } else if (opt->type == BEAR_OPT_MUON) {
         BearMuonState* s = &opt->muon_states[idx];
         s->lr = opt->lr;
-        s->momentum = param->weight;  /* same shape */
+        int out_f = param->weight.shape[0];
+        int in_f = param->weight.shape[1];
+        int n = out_f * in_f;
+        s->momentum.data = (float*)calloc(n, sizeof(float));
+        s->momentum.ndim = 2;
+        s->momentum.shape[0] = out_f;
+        s->momentum.shape[1] = in_f;
+        s->momentum.dtype = BEAR_DTYPE_F32;
     }
-    
+
     return 0;
 }
 
@@ -234,13 +251,36 @@ void bear_muon_update_param(BearParam* param, BearMuonState* state,
 
 void bear_optimizer_step(BearOptimizer* opt) {
     if (!opt) return;
-    
+
     opt->step++;
-    
-    /* Note: In real impl, we'd iterate registered params
-     * For now, this is a stub - the actual param updates happen
-     * in bear_ppo_update via bear_adam_update_param etc. */
-    (void)opt;
+
+    for (int i = 0; i < opt->num_params; ++i) {
+        /* We need to find the param for this index.
+         * Since we don't store a back-pointer, we use a different approach:
+         * the caller must iterate params directly.
+         * This function is a no-op; actual updates happen in bear_ppo_apply_gradients. */
+    }
+}
+
+/* Apply Adam update to a single param using its grad, m, v, and step.
+ * This is the actual per-parameter update used by bear_ppo_apply_gradients. */
+void bear_adam_step_param(float* w, float* g, float* m, float* v, int n,
+                           float lr, float beta1, float beta2, float eps,
+                           float weight_decay, int step) {
+    float bc1 = 1.0f - powf(beta1, step);
+    float bc2 = 1.0f - powf(beta2, step);
+    for (int i = 0; i < n; ++i) {
+        float grad = g[i];
+        m[i] = beta1 * m[i] + (1.0f - beta1) * grad;
+        v[i] = beta2 * v[i] + (1.0f - beta2) * grad * grad;
+        float m_hat = m[i] / bc1;
+        float v_hat = v[i] / bc2;
+        if (weight_decay > 0.0f) {
+            w[i] = w[i] * (1.0f - lr * weight_decay) - lr * m_hat / (sqrtf(v_hat) + eps);
+        } else {
+            w[i] -= lr * m_hat / (sqrtf(v_hat) + eps);
+        }
+    }
 }
 
 void bear_optimizer_zero_grad(BearOptimizer* opt) {

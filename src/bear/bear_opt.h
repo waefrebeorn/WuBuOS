@@ -85,6 +85,11 @@ void bear_adam_update_param(BearParam* param, BearAdamState* state,
                              float lr, float beta1, float beta2, float eps,
                              float weight_decay, int step);
 
+/* Convenience: single raw-buffer Adam step (used by bear_ppo_apply_gradients) */
+void bear_adam_step_param(float* w, float* g, float* m, float* v, int n,
+                           float lr, float beta1, float beta2, float eps,
+                           float weight_decay, int step);
+
 void bear_adamw_update_param(BearParam* param, BearAdamState* state,
                               float lr, float beta1, float beta2, float eps,
                               float weight_decay, int step);

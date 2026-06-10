@@ -16,6 +16,7 @@
 
 static int* g_episode_step = NULL;
 static float* g_episode_return = NULL;
+static float* g_episode_return_snapshot = NULL;
 static int g_max_envs = 0;
 
 static void ensure_episode_arrays(int num_envs) {
@@ -23,6 +24,7 @@ static void ensure_episode_arrays(int num_envs) {
         g_max_envs = num_envs;
         g_episode_step = realloc(g_episode_step, num_envs * sizeof(int));
         g_episode_return = realloc(g_episode_return, num_envs * sizeof(float));
+        g_episode_return_snapshot = realloc(g_episode_return_snapshot, num_envs * sizeof(float));
     }
 }
 
@@ -52,6 +54,7 @@ BearEnv* bear_env_create(BearEnvType type, int num_envs,
     e->num_active_envs = num_envs;
     e->episode_step = g_episode_step;
     e->episode_return = g_episode_return;
+    e->episode_return_snapshot = g_episode_return_snapshot;
     
     /* Initialize obs bounds to [-inf, inf] by default */
     for (int i = 0; i < BEAR_MAX_OBS_DIM; ++i) {
@@ -252,6 +255,8 @@ void bear_cartpole_step(BearEnv* e, const BearTensor* actions,
         /* Reward: 1 per step */
         float r = 1.0f;
         rew[i] = r;
+        if (isnan(r) || isinf(r)) {
+        }
         e->episode_return[i] += r;
         
         /* Done if out of bounds or max steps */
@@ -370,6 +375,8 @@ void bear_squared_step(BearEnv* e, const BearTensor* actions,
         int gy = g_squared_state.goal_pos[i * 2 + 1];
         if (x == gx && y == gy) r = 10.0f;
         rew[i] = r;
+        if (isnan(r) || isinf(r)) {
+        }
         e->episode_return[i] += r;
         
         e->episode_step[i]++;
@@ -480,7 +487,7 @@ static void npole_reset_env(NPoleCartState* s, int env_id);
 void bear_npolecart_init(BearEnv* e, int num_poles, BearArena* global) {
     (void)global;
     NPoleCartState* s = &g_npole_state;
-    
+
     /* Validate and clamp num_poles */
     if (num_poles < 1) num_poles = 1;
     if (num_poles > BEAR_MAX_N_POLES) num_poles = BEAR_MAX_N_POLES;
@@ -501,7 +508,7 @@ void bear_npolecart_init(BearEnv* e, int num_poles, BearArena* global) {
     s->cart_pos_threshold = 4.0f;
     s->max_episode_steps = 10000;  /* Target: 10k steps */
     s->episode_length_min = 64;   /* Match rollout length for quick episodes */
-    s->episode_length_max = 2000;  /* Will increase as agent improves */
+    s->episode_length_max = 128;   /* Match rollout length so episodes terminate */
     
     /* Pre-compute */
     s->total_mass = s->cart_mass;
@@ -559,6 +566,8 @@ static void npole_reset_env(NPoleCartState* s, int env_id) {
     s->episode_length[env_id] = s->episode_length_min + 
         rand() % (s->episode_length_max - s->episode_length_min + 1);
     s->episode_step_counter[env_id] = 0;
+    /* Reset episode return accumulator */
+    g_episode_return[env_id] = 0.0f;
 }
 
 void bear_npolecart_reset(BearEnv* e, BearArena* arena) {
@@ -814,12 +823,23 @@ void bear_npolecart_step(BearEnv* e, const BearTensor* actions,
     for (int i = 0; i < n; ++i) {
         /* Clamp action to force limits */
         float force = act_data[i];
+        if (isnan(force) || isinf(force)) force = 0.0f;
         if (force > s->force_mag) force = s->force_mag;
         if (force < -s->force_mag) force = -s->force_mag;
         
         /* Physics step — use RK4 for stability on high-N poles */
         npole_rk4_step(s, i, force);
-        
+
+        /* NaN guard: if physics produced NaN, reset this env */
+        int nan_state = 0;
+        if (isnan(s->cart_x[i]) || isnan(s->cart_vx[i])) nan_state = 1;
+        for (int p2 = 0; p2 < N && !nan_state; ++p2) {
+            if (isnan(s->theta[i][p2]) || isnan(s->omega[i][p2])) nan_state = 1;
+        }
+        if (nan_state) {
+            npole_reset_env(s, i);
+        }
+
         /* Track episode step */
         s->episode_step_counter[i]++;
         
@@ -834,8 +854,12 @@ void bear_npolecart_step(BearEnv* e, const BearTensor* actions,
         /* Cart centering penalty */
         r -= 0.1f * fabsf(s->cart_x[i] / s->cart_pos_threshold);
         r -= 0.01f * fabsf(s->cart_vx[i] / 10.0f);
-        
+
         rew[i] = r;
+        if (isnan(r) || isinf(r)) {
+            r = 0.0f;
+            rew[i] = r;
+        }
         e->episode_return[i] += r;
         
         /* Done conditions */
@@ -868,6 +892,10 @@ void bear_npolecart_step(BearEnv* e, const BearTensor* actions,
         
         /* Staggered reset: if done, reset THIS env immediately for next step */
         if (is_done) {
+            /* Snapshot the completed episode return BEFORE reset zeroes it */
+            if (e->episode_return_snapshot) {
+                e->episode_return_snapshot[i] = e->episode_return[i];
+            }
             npole_reset_env(s, i);
             /* Note: we DON'T write the reset state to obs this step;
                the next step will see the new initial state.

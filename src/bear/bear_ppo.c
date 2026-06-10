@@ -263,14 +263,19 @@ int bear_sampler_next(BearMinibatchSampler* s, BearTrajectory* t,
         mb_olp_p[i] = lp_p[scalar_src];
     }
     
-    /* Normalize advantages per minibatch */
-    if (1 /* always normalize per CleanRL */) {
+    /* Normalize advantages per minibatch (skip if std ≈ 0) */
+    {
         float mean = 0, std = 0;
         for (int i = 0; i < mb_size; ++i) mean += mb_adv_p[i];
         mean /= mb_size;
         for (int i = 0; i < mb_size; ++i) std += (mb_adv_p[i] - mean) * (mb_adv_p[i] - mean);
-        std = sqrtf(std / mb_size + 1e-8f);
-        for (int i = 0; i < mb_size; ++i) mb_adv_p[i] = (mb_adv_p[i] - mean) / std;
+        std = sqrtf(std / mb_size);
+        if (std > 1e-6f) {
+            for (int i = 0; i < mb_size; ++i) mb_adv_p[i] = (mb_adv_p[i] - mean) / std;
+        } else {
+            /* All advantages are the same — set to 0 */
+            for (int i = 0; i < mb_size; ++i) mb_adv_p[i] = 0.0f;
+        }
     }
     
     s->cursor++;
@@ -280,6 +285,56 @@ int bear_sampler_next(BearMinibatchSampler* s, BearTrajectory* t,
 /* ═══════════════════════════════════════════════════════════════════
  * PPO Loss Computation
  * ════════════════════════════════════════════════════════════════════ */
+
+/* Clip all gradients to max_norm (returns current grad norm) */
+static float clip_grad_norm(BearPolicyNet* policy, BearValueNet* critic, float max_norm) {
+    float total_norm = 0.0f;
+    if (policy && policy->layers) {
+        for (int i = 0; i < policy->num_layers; ++i) {
+            BearParam* p = policy->layers[i].param;
+            if (p && p->grad.data) {
+                int n = (int)bear_tensor_numel(&p->grad);
+                float* g = (float*)p->grad.data;
+                for (int j = 0; j < n; ++j) total_norm += g[j] * g[j];
+            }
+        }
+    }
+    if (critic && critic->layers) {
+        for (int i = 0; i < critic->num_layers; ++i) {
+            BearParam* p = critic->layers[i].param;
+            if (p && p->grad.data) {
+                int n = (int)bear_tensor_numel(&p->grad);
+                float* g = (float*)p->grad.data;
+                for (int j = 0; j < n; ++j) total_norm += g[j] * g[j];
+            }
+        }
+    }
+    total_norm = sqrtf(total_norm);
+    if (total_norm > max_norm && total_norm > 0.0f) {
+        float scale = max_norm / total_norm;
+        if (policy && policy->layers) {
+            for (int i = 0; i < policy->num_layers; ++i) {
+                BearParam* p = policy->layers[i].param;
+                if (p && p->grad.data) {
+                    int n = (int)bear_tensor_numel(&p->grad);
+                    float* g = (float*)p->grad.data;
+                    for (int j = 0; j < n; ++j) g[j] *= scale;
+                }
+            }
+        }
+        if (critic && critic->layers) {
+            for (int i = 0; i < critic->num_layers; ++i) {
+                BearParam* p = critic->layers[i].param;
+                if (p && p->grad.data) {
+                    int n = (int)bear_tensor_numel(&p->grad);
+                    float* g = (float*)p->grad.data;
+                    for (int j = 0; j < n; ++j) g[j] *= scale;
+                }
+            }
+        }
+    }
+    return total_norm;
+}
 
 BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* critic,
                           const BearTensor* obs, const BearTensor* actions,
@@ -291,40 +346,72 @@ BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* criti
     int batch = (int)obs->shape[0];
     int act_dim = policy->act_dim;
 
-    /* Forward pass: policy for actions/logprobs, value net for values */
-    BearTensor new_actions, new_logprobs, new_values, h_out;
+    /* Forward pass: policy for mean+logprobs, value net for values */
+    BearTensor new_logprobs, new_values, h_out;
+    BearTensor new_actions;  /* for discrete: sampled actions; for continuous: mean */
     int64_t act_shape[2] = { batch, act_dim };
     int64_t scalar_shape[1] = { batch };
 
-                              bear_tensor_create(temp_arena, &new_actions, act_shape, 2, BEAR_DTYPE_F32, "new_act");
-                              bear_tensor_create(temp_arena, &new_logprobs, scalar_shape, 1, BEAR_DTYPE_F32, "new_lp");
-                              bear_tensor_create(temp_arena, &new_values, scalar_shape, 1, BEAR_DTYPE_F32, "new_val");
-                              bear_tensor_create(temp_arena, &h_out, (int64_t[]){batch, 1}, 2, BEAR_DTYPE_F32, "h_out");
+    bear_tensor_create(temp_arena, &new_actions, act_shape, 2, BEAR_DTYPE_F32, "new_act");
+    bear_tensor_create(temp_arena, &new_logprobs, scalar_shape, 1, BEAR_DTYPE_F32, "new_lp");
+    bear_tensor_create(temp_arena, &new_values, scalar_shape, 1, BEAR_DTYPE_F32, "new_val");
+    bear_tensor_create(temp_arena, &h_out, (int64_t[]){batch, 1}, 2, BEAR_DTYPE_F32, "h_out");
 
-                              /* Policy forward: obs -> actions, logprobs (values=NULL, filled by value net below) */
-                              bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, NULL, &h_out, temp_arena);
+    if (policy->act_discrete) {
+        /* Discrete: forward pass samples actions and computes logprobs */
+        bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, NULL, &h_out, temp_arena);
+    } else {
+        /* Continuous: forward pass to get mean (mu), then compute logprob of STORED actions.
+         * We need a forward pass that doesn't sample — just returns the mean.
+         * For now, reuse forward but then overwrite logprobs with evaluate. */
+        bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, NULL, &h_out, temp_arena);
+        /* new_actions now contains sampled actions; we need the mean (mu).
+         * The actor head output (before sampling) is stored in z_pre.
+         * Compute logprob of stored actions under N(mu, sigma^2). */
+        float* mu = (float*)policy->layers[policy->num_layers - 1].z_pre.data;
+        float* stored_act = (float*)actions->data;
+        float* new_lp_p = (float*)new_logprobs.data;
+        float ls = policy->logstd ? 0.0f : policy->logstd_fixed;
+        float var = expf(2.0f * ls);
+        float log_norm = -0.5f * logf(2.0f * 3.14159265f * var);
+        for (int i = 0; i < batch; ++i) {
+            float lp = 0.0f;
+            for (int a = 0; a < act_dim; ++a) {
+                float diff = stored_act[i * act_dim + a] - mu[i * act_dim + a];
+                lp += -0.5f * diff * diff / var + log_norm;
+            }
+            new_lp_p[i] = lp;
+        }
+    }
 
-                              /* Value network forward: obs -> values */
-                              bear_value_forward(critic, obs, &new_values, temp_arena);
+    /* Value network forward: obs -> values */
+    bear_value_forward(critic, obs, &new_values, temp_arena);
 
-                              float* new_lp_p = (float*)new_logprobs.data;
-                              float* old_lp_p = (float*)old_logprobs->data;
-                              float* adv_p = (float*)advantages->data;
-                              float* ret_p = (float*)returns->data;
-                              float* old_v_p = (float*)old_values->data;
-                              float* new_v_p = (float*)new_values.data;
+    float* new_lp_p = (float*)new_logprobs.data;
+    float* old_lp_p = (float*)old_logprobs->data;
+    float* adv_p = (float*)advantages->data;
+    float* ret_p = (float*)returns->data;
+    float* old_v_p = (float*)old_values->data;
+    float* new_v_p = (float*)new_values.data;
 
-                              /* Policy loss: clipped surrogate */
+    /* Policy loss: clipped surrogate */
                               float policy_loss = 0.0f;
                               float clip_frac = 0.0f;
                               float approx_kl = 0.0f;
 
                               for (int i = 0; i < batch; ++i) {
-                                  float ratio = expf(new_lp_p[i] - old_lp_p[i]);
+                                  float diff = new_lp_p[i] - old_lp_p[i];
+                                  /* Clamp diff to prevent exp() overflow */
+                                  if (diff > 20.0f) diff = 20.0f;
+                                  if (diff < -20.0f) diff = -20.0f;
+                                  float ratio = expf(diff);
                                   float clipped = fmaxf(fminf(ratio, 1.0f + cfg->clip_coef), 1.0f - cfg->clip_coef);
                                   float surr1 = ratio * adv_p[i];
                                   float surr2 = clipped * adv_p[i];
-                                  policy_loss += -fminf(surr1, surr2);
+                                  float sample_loss = -fminf(surr1, surr2);
+                                  /* Guard against inf/NaN */
+                                  if (isnan(sample_loss) || isinf(sample_loss)) sample_loss = 0.0f;
+                                  policy_loss += sample_loss;
                                   if (ratio > 1.0f + cfg->clip_coef || ratio < 1.0f - cfg->clip_coef)
                                       clip_frac += 1.0f;
                                   approx_kl += (ratio - 1.0f) - logf(ratio + 1e-8f);
@@ -370,49 +457,55 @@ BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* criti
 
 void bear_ppo_update(BearPolicyNet* policy, BearValueNet* critic,
                       const BearPPOLoss* loss, BearOptimizer* opt) {
-    /* Evolutionary Strategy (ES) weight update.
-     * Instead of backprop, we use the loss signal to apply a small
-     * gradient-free update to the output layer weights.
-     *
-     * For the policy output layer (last layer), we apply:
-     *   W_out += lr * advantage_mean * hidden_mean
-     * where hidden_mean is approximated by the input mean.
-     *
-     * This is a simplified REINFORCE update that works without
-     * storing intermediate activations. */
-    (void)critic; (void)opt;
+    /* Stub — actual gradient computation happens in bear_ppo_apply_gradients
+     * which is called from bear_trainer_iter after all minibatches are processed. */
+    (void)policy; (void)critic; (void)loss; (void)opt;
+}
 
-    if (!policy || !loss || policy->num_layers < 1) return;
+/* ═══════════════════════════════════════════════════════════════════
+ * Apply accumulated gradients via Adam optimizer
+ * ═══════════════════════════════════════════════════════════════════ */
 
-    /* Get the output (actor) layer */
-    int last = policy->num_layers - 1;
-    BearLayer* actor_layer = &policy->layers[last];
-    float* w = (float*)actor_layer->param->weight.data;
-    float* b = (float*)actor_layer->param->bias.data;
-    if (!w) return;
+void bear_ppo_apply_gradients(BearPolicyNet* policy, BearValueNet* critic,
+                               BearOptimizer* opt_policy, BearOptimizer* opt_critic) {
+    if (!opt_policy || !opt_critic) return;
 
-    int out_f = actor_layer->out_features;
-    int in_f = actor_layer->in_features;
+    float lr = opt_policy->lr;
+    float beta1 = opt_policy->beta1;
+    float beta2 = opt_policy->beta2;
+    float eps = opt_policy->eps;
+    float wd = opt_policy->weight_decay;
+    int step = opt_policy->step;
 
-    /* Use the policy loss as a signal: negative loss = good.
-     * Apply a small update proportional to the loss.
-     * lr = 1e-4, scaled by loss magnitude. */
-    float lr = 1e-4f;
-    float signal = -loss->total_loss;  /* Negative because we want to minimize */
-
-    /* Simple update: nudge weights toward better performance.
-     * For a linear layer y = xW^T + b, the gradient of the loss
-     * w.r.t. W is approximately -signal * x (input).
-     * We use a small random input as a proxy. */
-    for (int i = 0; i < out_f; ++i) {
-        for (int j = 0; j < in_f; ++j) {
-            /* Small random perturbation scaled by signal */
-            float r = ((float)rand() / (float)RAND_MAX - 0.5f) * 2.0f;
-            w[i * in_f + j] += lr * signal * r * 0.01f;
+    /* Apply Adam to policy network params */
+    if (policy && policy->layers) {
+        for (int i = 0; i < policy->num_layers; ++i) {
+            BearParam* p = policy->layers[i].param;
+            if (!p || !p->grad.data || !p->weight.data) continue;
+            int n = (int)bear_tensor_numel(&p->weight);
+            float* w = (float*)p->weight.data;
+            float* g = (float*)p->grad.data;
+            float* m = (float*)p->mom.data;
+            float* v = (float*)p->var.data;
+            if (!m || !v) continue;
+            bear_adam_step_param(w, g, m, v, n, lr, beta1, beta2, eps, wd, step);
         }
-        if (b) {
-            float r = ((float)rand() / (float)RAND_MAX - 0.5f) * 2.0f;
-            b[i] += lr * signal * r * 0.01f;
+    }
+
+    /* Apply Adam to value network params */
+    if (critic && critic->layers) {
+        for (int i = 0; i < critic->num_layers; ++i) {
+            BearParam* p = critic->layers[i].param;
+            if (!p || !p->grad.data || !p->weight.data) continue;
+            int n = (int)bear_tensor_numel(&p->weight);
+            float* w = (float*)p->weight.data;
+            float* g = (float*)p->grad.data;
+            float* m = (float*)p->mom.data;
+            float* v = (float*)p->var.data;
+            if (!m || !v) continue;
+            bear_adam_step_param(w, g, m, v, n, opt_critic->lr, opt_critic->beta1,
+                                  opt_critic->beta2, opt_critic->eps,
+                                  opt_critic->weight_decay, opt_critic->step);
         }
     }
 }
@@ -479,7 +572,7 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
     bear_traj_reset(traj);
     bear_env_reset_all(env, &trainer->rollout_arena);
 
-    float ep_return_sum = 0;
+    double ep_return_sum = 0;
     int ep_count = 0;
 
     for (int step = 0; step < traj->rollout_len; ++step) {
@@ -523,12 +616,14 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
         /* Store trajectory */
         bear_traj_store(traj, step, &env->obs, &actions,
                          &logprobs, &env->rewards, &env->dones, &values);
-        
+
         /* Track episode returns */
         uint8_t* dones = (uint8_t*)env->dones.data;
         for (int i = 0; i < env->spec.num_envs; ++i) {
             if (dones[i]) {
-                ep_return_sum += env->episode_return[i];
+                float ret = env->episode_return_snapshot ?
+                    env->episode_return_snapshot[i] : env->episode_return[i];
+                ep_return_sum += ret;
                 ep_count++;
             }
         }
@@ -552,26 +647,92 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
         
         int mb_count = 0;
         
+        /* Zero gradients at start of epoch */
+        bear_policy_zero_grad(policy);
+        bear_value_zero_grad(trainer->critic);
+        
         while (bear_sampler_next(&sampler, traj, &mb_obs, &mb_actions,
                                  &mb_logprobs, &mb_advantages, &mb_returns,
                                  &mb_values, &mb_old_logprobs, &trainer->step_arena)) {
 
-            BearPPOLoss loss = bear_ppo_loss(trainer->policy, trainer->critic,
-                                               &mb_obs, &mb_actions, &mb_old_logprobs,
-                                               &mb_advantages, &mb_returns, &mb_values,
-                                               cfg, &trainer->step_arena);
+            int mb_size = (int)mb_obs.shape[0];
+            int act_dim = trainer->policy->act_dim;
 
-            bear_ppo_update(trainer->policy, trainer->critic, &loss, trainer->opt_policy);
-            
-            total_policy_loss += loss.policy_loss;
-            total_value_loss += loss.value_loss;
-            total_entropy += loss.entropy_loss;
-            mb_count++;
-            
-            if (cfg->target_kl > 0 && loss.approx_kl > cfg->target_kl * 1.5f) {
-                break;
+            /* Forward: get mean from policy */
+            BearTensor fwd_actions, new_logprobs, h_out;
+            bear_tensor_create(&trainer->step_arena, &fwd_actions,
+                               (int64_t[]){mb_size, act_dim}, 2, BEAR_DTYPE_F32, "fwd_act");
+            bear_tensor_create(&trainer->step_arena, &new_logprobs,
+                               (int64_t[]){mb_size}, 1, BEAR_DTYPE_F32, "fwd_lp");
+            bear_tensor_create(&trainer->step_arena, &h_out,
+                               (int64_t[]){mb_size, 1}, 2, BEAR_DTYPE_F32, "h_out");
+            bear_policy_forward(trainer->policy, &mb_obs, NULL, &fwd_actions, &new_logprobs,
+                                 NULL, &h_out, &trainer->step_arena);
+
+            /* For continuous actions: evaluate logprob of STORED actions under current mean */
+            if (!trainer->policy->act_discrete) {
+                float* mu = (float*)trainer->policy->layers[trainer->policy->num_layers - 1].z_pre.data;
+                float* stored_act = (float*)mb_actions.data;
+                float* nlp = (float*)new_logprobs.data;
+                float ls = trainer->policy->logstd ? 0.0f : trainer->policy->logstd_fixed;
+                float var = expf(2.0f * ls);
+                float log_norm = -0.5f * logf(2.0f * 3.14159265f * var);
+                for (int i = 0; i < mb_size; ++i) {
+                    float lp = 0.0f;
+                    for (int a = 0; a < act_dim; ++a) {
+                        float diff = stored_act[i * act_dim + a] - mu[i * act_dim + a];
+                        lp += -0.5f * diff * diff / var + log_norm;
+                    }
+                    nlp[i] = lp;
+                }
             }
+
+            /* Compute PPO loss for logging */
+            float pl = 0;
+            float* nlp_p = (float*)new_logprobs.data;
+            float* olp_p = (float*)mb_old_logprobs.data;
+            float* adv_p = (float*)mb_advantages.data;
+            for (int i = 0; i < mb_size; ++i) {
+                float diff_lp = nlp_p[i] - olp_p[i];
+                if (diff_lp > 20.0f) diff_lp = 20.0f;
+                if (diff_lp < -20.0f) diff_lp = -20.0f;
+                float ratio = expf(diff_lp);
+                float clipped = fmaxf(fminf(ratio, 1.0f + cfg->clip_coef), 1.0f - cfg->clip_coef);
+                float surr1 = ratio * adv_p[i];
+                float surr2 = clipped * adv_p[i];
+                float sl = -fminf(surr1, surr2);
+                if (isnan(sl) || isinf(sl)) sl = 0.0f;
+                pl += sl;
+            }
+            pl /= mb_size;
+
+            /* Backward: accumulate policy gradients */
+            bear_policy_backward(trainer->policy, &mb_obs, &mb_actions,
+                                  &mb_old_logprobs, &mb_advantages,
+                                  cfg->clip_coef, 1.0f, &trainer->step_arena);
+
+            /* Value forward + backward */
+            BearTensor val_pred;
+            bear_tensor_create(&trainer->step_arena, &val_pred,
+                               (int64_t[]){mb_size}, 1, BEAR_DTYPE_F32, "val_pred");
+            bear_value_forward(trainer->critic, &mb_obs, &val_pred, &trainer->step_arena);
+            bear_value_backward(trainer->critic, &mb_obs, &val_pred,
+                                 &mb_returns, cfg->vf_coef, &trainer->step_arena);
+
+            total_policy_loss += pl;
+            mb_count++;
         }
+        
+        /* Clip gradients to prevent explosion */
+        clip_grad_norm(trainer->policy, trainer->critic, 5.0f);
+
+        /* Apply accumulated gradients via Adam */
+        bear_ppo_apply_gradients(trainer->policy, trainer->critic,
+                                   trainer->opt_policy, trainer->opt_critic);
+        
+        /* Increment optimizer step counter */
+        trainer->opt_policy->step++;
+        trainer->opt_critic->step++;
         
         free(sampler.indices);
     }
@@ -584,7 +745,7 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
         bear_optimizer_set_lr(trainer->opt_critic, cfg->lr * frac);
     }
     
-    float avg_return = ep_count > 0 ? ep_return_sum / ep_count : 0.0f;
+    float avg_return = ep_count > 0 ? (float)(ep_return_sum / ep_count) : 0.0f;
     if (avg_return > trainer->best_return) trainer->best_return = avg_return;
     
     /* Log */

@@ -69,6 +69,7 @@ struct BearEnv {
     /* Episode tracking */
     int* episode_step;        /* [num_envs] */
     float* episode_return;      /* [num_envs] */
+    float* episode_return_snapshot; /* [num_envs] — captured at episode end before reset */
     int  num_active_envs;     /* envs not done */
     
     /* Impl callbacks */

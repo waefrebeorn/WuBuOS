@@ -86,6 +86,9 @@ int main(int argc, char** argv) {
     }
     printf("Policy network: MLP 16x16\n");
     bear_orthogonal_init_params(&policy, 1.0f);
+    /* Gaussian policy: fixed logstd = log(0.5) ≈ -0.693 (std=0.5 for exploration) */
+    policy.logstd = NULL;
+    policy.logstd_fixed = logf(0.5f);
 
     /* Create value network (small MLP) */
     printf("Creating value network...\n");
