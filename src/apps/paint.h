@@ -1,5 +1,5 @@
 /*
- * paint.h — WuBuOS Paint (Photoshop-style image editor)
+ * paint.h  --  WuBuOS Paint (Photoshop-style image editor)
  */
 #ifndef MYSEED_PAINT_H
 #define MYSEED_PAINT_H

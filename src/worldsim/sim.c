@@ -11,7 +11,7 @@ void ws_sim_init(ws_simulation_t *sim, uint32_t seed) {
     /* Init physics */
     ws_physics_init(&sim->physics);
     
-    /* Init world (entities) — already zeroed */
+    /* Init world (entities)  --  already zeroed */
     sim->world.next_id = 0;
     sim->world.count = 0;
     
@@ -22,7 +22,7 @@ void ws_sim_init(ws_simulation_t *sim, uint32_t seed) {
 void ws_sim_step(ws_simulation_t *sim) {
     if (sim->paused) return;
     
-    /* AI step — wander/chase/flee */
+    /* AI step  --  wander/chase/flee */
     for (int i = 0; i < WS_MAX_ENTITIES; i++) {
         ws_entity_t *e = &sim->world.entities[i];
         if (!e->active) continue;
@@ -50,11 +50,11 @@ void ws_sim_step(ws_simulation_t *sim) {
                 ai->timer = 2.0f + ws_rng_float(&rng) * 3.0f;
             }
             break;
-        case 2: /* chase — move toward origin */
+        case 2: /* chase  --  move toward origin */
             vel->dx = -pos->x * 0.1f;
             vel->dz = -pos->z * 0.1f;
             break;
-        case 3: /* flee — move away from origin */
+        case 3: /* flee  --  move away from origin */
             vel->dx = pos->x * 0.1f;
             vel->dz = pos->z * 0.1f;
             break;

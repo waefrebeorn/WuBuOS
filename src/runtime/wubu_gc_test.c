@@ -1,5 +1,5 @@
 /*
- * wubu_gc_test.c — Userspace GC Test Suite
+ * wubu_gc_test.c  --  Userspace GC Test Suite
  *
  * Tests mark-and-sweep for HolyC REPL / container applets.
  */
@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdint.h>
 
-/* ── Test Framework ───────────────────────────────────────────── */
+/* -- Test Framework --------------------------------------------- */
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -18,7 +18,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Basic Allocation ─────────────────────────────────────────── */
+/* -- Basic Allocation ------------------------------------------- */
 
 static void test_basic_alloc(void) {
     TEST("wubu_gc_alloc / wubu_gc_free");
@@ -55,7 +55,7 @@ static void test_multiple_allocs(void) {
     PASS();
 }
 
-/*── Root Pinning ─────────────────────────────────────────────────*/
+/*-- Root Pinning -------------------------------------------------*/
 
 static void test_root_pin(void) {
     TEST("root pin prevents collection");
@@ -64,7 +64,7 @@ static void test_root_pin(void) {
     void *p = wubu_gc_alloc(256);
     wubu_gc_root_add(p);
 
-    /* Simulate collection — pinned object should survive */
+    /* Simulate collection  --  pinned object should survive */
     wubu_gc_collect();
 
     size_t allocated = wubu_gc_allocated();
@@ -86,7 +86,7 @@ static void test_root_duplicate(void) {
     PASS();
 }
 
-/*── Collection Behavior ──────────────────────────────────────────*/
+/*-- Collection Behavior ------------------------------------------*/
 
 static void test_collect_unreachable(void) {
     TEST("unreachable objects collected");
@@ -96,8 +96,8 @@ static void test_collect_unreachable(void) {
     void *p2 = wubu_gc_alloc(128);
     size_t before = wubu_gc_allocated();
 
-    /* Drop references — don't root them */
-    /* p1, p2 go out of scope (in real use) — simulate by not rooting */
+    /* Drop references  --  don't root them */
+    /* p1, p2 go out of scope (in real use)  --  simulate by not rooting */
     wubu_gc_collect();
 
     size_t after = wubu_gc_allocated();
@@ -124,7 +124,7 @@ static void test_pinned_survives_collect(void) {
     PASS();
 }
 
-/*── Threshold ────────────────────────────────────────────────────*/
+/*-- Threshold ----------------------------------------------------*/
 
 static void test_threshold_triggers_collect(void) {
     TEST("threshold triggers auto-collect");
@@ -139,7 +139,7 @@ static void test_threshold_triggers_collect(void) {
     PASS();
 }
 
-/*── Stats ────────────────────────────────────────────────────────*/
+/*-- Stats --------------------------------------------------------*/
 
 static void test_stats(void) {
     TEST("stats reported correctly");
@@ -157,7 +157,7 @@ static void test_stats(void) {
     PASS();
 }
 
-/*── Shutdown ────────────────────────────────────────────────────*/
+/*-- Shutdown ----------------------------------------------------*/
 
 static void test_shutdown(void) {
     TEST("wubu_gc_shutdown cleans up");
@@ -174,13 +174,13 @@ static void test_shutdown(void) {
     PASS();
 }
 
-/*── Main ────────────────────────────────────────────────────────*/
+/*-- Main --------------------------------------------------------*/
 
 int main(void) {
-    printf("\n╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Userspace GC Test Suite                ║\n");
-    printf("║  Opt-in mark/sweep for HolyC REPL / applets    ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("\n+==================================================+\n");
+    printf("|  WuBuOS Userspace GC Test Suite                |\n");
+    printf("|  Opt-in mark/sweep for HolyC REPL / applets    |\n");
+    printf("+==================================================+\n\n");
 
     test_basic_alloc();
     test_zero_alloc();
@@ -193,9 +193,9 @@ int main(void) {
     test_stats();
     test_shutdown();
 
-    printf("\n═══════════════════════════════════════════════════\n");
+    printf("\n===================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("═══════════════════════════════════════════════════\n");
+    printf("===================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

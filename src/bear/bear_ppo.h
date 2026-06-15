@@ -1,5 +1,5 @@
 /*
- * bear_ppo.h — PufferC/BearRL PPO Training Loop
+ * bear_ppo.h  --  PufferC/BearRL PPO Training Loop
  *
  * Full PPO with GAE(λ), VTrace, minibatches, CleanRL 37 details.
  * Pure C11, zero deps.
@@ -13,9 +13,9 @@
 #include "bear_env.h"
 #include "bear_opt.h"
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * PPO Hyperparameters (CleanRL-aligned defaults)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     /* Learning */
@@ -76,9 +76,9 @@ static inline BearPPOConfig bear_ppo_default_config(void) {
     };
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Trajectory Buffers (SoA, pre-allocated per rollout)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     int     rollout_len;          /* steps per env per iter */
@@ -122,9 +122,9 @@ void bear_traj_store(BearTrajectory* t, int step_idx,
                       const BearTensor* logprobs, const BearTensor* rewards,
                       const BearTensor* dones, const BearTensor* values);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Advantage Computation
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Compute GAE(λ) or V-Trace advantages */
 void bear_compute_advantages(BearTrajectory* t, const BearPPOConfig* cfg,
@@ -137,9 +137,9 @@ void bear_vtrace_compute(const float* rewards, const uint8_t* dones,
                           float* advantages, float* returns,
                           int T, int B, const BearPPOConfig* cfg);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Minibatch Sampler
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     int total_samples;      /* T * B */
@@ -160,9 +160,9 @@ int bear_sampler_next(BearMinibatchSampler* s, BearTrajectory* t,
                        BearTensor* mb_old_logprobs,
                        BearArena* temp_arena);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * PPO Loss & Update Step
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     float policy_loss;
@@ -190,9 +190,9 @@ void bear_ppo_update(BearPolicyNet* policy, BearValueNet* critic,
 void bear_ppo_apply_gradients(BearPolicyNet* policy, BearValueNet* critic,
                                BearOptimizer* opt_policy, BearOptimizer* opt_critic);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Main Training Loop
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     BearPolicyNet* policy;
@@ -224,9 +224,9 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]);
 int bear_trainer_save(const BearTrainer* trainer, const char* path);
 int bear_trainer_load(BearTrainer* trainer, const char* path);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Callbacks / Logging
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef void (*bear_log_fn)(int iter, float total_steps, float return_mean,
                              float policy_loss, float value_loss, float entropy,

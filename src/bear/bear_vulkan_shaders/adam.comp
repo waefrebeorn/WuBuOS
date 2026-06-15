@@ -1,0 +1,47 @@
+#version 450
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 0) buffer Param { float data[]; } param;      // weights
+layout(std430, binding = 1) readonly buffer Grad { float data[]; } grad;  // gradients
+layout(std430, binding = 2) buffer Mom { float data[]; } mom;          // m (first moment)
+layout(std430, binding = 3) buffer Var { float data[]; } var;          // v (second moment)
+
+layout(push_constant) uniform PushConstants {
+    uint n;         // number of elements
+    float lr;       // learning rate
+    float beta1;    // 0.9
+    float beta2;    // 0.999
+    float eps;      // 1e-8
+    float wd;       // weight decay
+    uint step;      // current step (1-indexed)
+} pc;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= pc.n) return;
+    
+    float g = grad.data[idx];
+    float p = param.data[idx];
+    
+    // Weight decay
+    if (pc.wd != 0.0) {
+        g += pc.wd * p;
+    }
+    
+    // m = beta1 * m + (1 - beta1) * g
+    float m = pc.beta1 * mom.data[idx] + (1.0 - pc.beta1) * g;
+    mom.data[idx] = m;
+    
+    // v = beta2 * v + (1 - beta2) * g * g
+    float v = pc.beta2 * var.data[idx] + (1.0 - pc.beta2) * g * g;
+    var.data[idx] = v;
+    
+    // Bias correction
+    float beta1_pow = pow(pc.beta1, float(pc.step));
+    float beta2_pow = pow(pc.beta2, float(pc.step));
+    float m_hat = m / (1.0 - beta1_pow);
+    float v_hat = v / (1.0 - beta2_pow);
+    
+    // Update
+    param.data[idx] = p - pc.lr * m_hat / (sqrt(v_hat) + pc.eps);
+}

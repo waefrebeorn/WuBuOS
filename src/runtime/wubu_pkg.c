@@ -1,5 +1,5 @@
 /*
- * wubu_pkg.c — WuBuOS Package Manager Implementation
+ * wubu_pkg.c  --  WuBuOS Package Manager Implementation
  */
 
 #include "wubu_pkg.h"

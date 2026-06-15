@@ -1,5 +1,5 @@
 /*
- * tasking_switch.S — x86_64 Assembly Context Switch
+ * tasking_switch.S  --  x86_64 Assembly Context Switch
  *
  * Saves all callee-saved registers from old context,
  * restores all callee-saved registers to new context.
@@ -37,7 +37,7 @@
 .hidden task_switch_asm
 
 task_switch_asm:
-    /* ── Save old context (RDI) ─────────────────────────────────── */
+    /* -- Save old context (RDI) ----------------------------------- */
     /* We need to save registers before we clobber RDI/RSI */
 
     /* Save callee-saved registers first */
@@ -72,7 +72,7 @@ task_switch_asm:
     movq (%rsp), %rax
     movq %rax, 120(%rdi)
 
-    /* ── Restore new context (RSI) ──────────────────────────────── */
+    /* -- Restore new context (RSI) -------------------------------- */
     /* RSI already has new_ctx pointer */
 
     /* Restore callee-saved */

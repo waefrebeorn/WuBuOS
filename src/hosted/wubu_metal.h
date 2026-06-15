@@ -1,11 +1,11 @@
 /*
- * wubu_metal.h — WuBuOS Bare-Metal Boot + WSL2 GUI Abstraction
+ * wubu_metal.h  --  WuBuOS Bare-Metal Boot + WSL2 GUI Abstraction
  *
  * Cell 400: The bridge between hosted and bare-metal.
  *
- * ══════════════════════════════════════════════════════════════════
+ * ==================================================================
  *  ARCHITECTURE OVERVIEW
- * ══════════════════════════════════════════════════════════════════
+ * ==================================================================
  *
  *  THREE BOOT PATHS:
  *
@@ -29,9 +29,9 @@
  *     Audio: wslg PulseAudio bridge
  *     Used for: Windows users, development
  *
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *  BARE-METAL BOOT SEQUENCE
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *
  *  1. BIOS/UEFI → GRUB (or systemd-boot)
  *  2. GRUB loads bzImage + initramfs.img
@@ -47,9 +47,9 @@
  *     g. Starts 9P namespace server
  *  6. User interacts with WuBuOS desktop
  *
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *  WSL2 GUI ABSTRACTION
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *
  *  WSL2 uses Microsoft's WSLg for GUI:
  *  - Weston compositor runs inside WSL2
@@ -69,9 +69,9 @@
  *  - GPU-accelerated apps (via /dev/dxg → DXGI → GPU)
  *  - Audio (via wslg PulseAudio bridge)
  *
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *  DETECTION MATRIX
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *
  *  | Feature     | Hosted | Bare-Metal | WSL2   |
  *  |-------------|--------|------------|--------|
@@ -83,9 +83,9 @@
  *  | Container   | native | native     | native |
  *  | Resolution  | XRandR | drmModeSet | wslg   |
  *
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *  UNIFIED DISPLAY API
- *  ══════════════════════════════════════════════════════════════════
+ *  ==================================================================
  *
  *  wubu_display_t abstracts all three paths:
  *  - wubu_disp_init() auto-detects environment
@@ -101,7 +101,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Boot Environment Detection ─────────────────────────────────── */
+/* -- Boot Environment Detection ----------------------------------- */
 
 typedef enum {
     WUBU_ENV_UNKNOWN  = 0,
@@ -111,7 +111,7 @@ typedef enum {
     WUBU_ENV_MACOS    = 4,  /* macOS Virtualization.framework */
 } WubuBootEnv;
 
-/* ── Display Backend ────────────────────────────────────────────── */
+/* -- Display Backend ---------------------------------------------- */
 
 typedef enum {
     DISP_AUTO     = 0,   /* Auto-detect */
@@ -146,7 +146,7 @@ typedef struct {
     bool            needs_flip;
 } WubuDisplay;
 
-/* ── Input Backend ──────────────────────────────────────────────── */
+/* -- Input Backend ------------------------------------------------ */
 
 typedef enum {
     INPUT_AUTO    = 0,
@@ -178,7 +178,7 @@ typedef struct {
     void            *x11_display;
 } WubuInput;
 
-/* ── Audio Backend ──────────────────────────────────────────────── */
+/* -- Audio Backend ------------------------------------------------ */
 
 typedef enum {
     AUDIO_AUTO     = 0,
@@ -211,9 +211,9 @@ typedef struct {
     int              render_buf_size;
 } WubuAudio;
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Boot Environment
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Detect current boot environment */
 WubuBootEnv wubu_detect_env(void);
@@ -227,9 +227,9 @@ bool wubu_is_metal(void);
 /* Is running under WSL2? */
 bool wubu_is_wsl2(void);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Display
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Initialize display (auto-detects backend) */
 int  wubu_disp_init(int width, int height);
@@ -253,9 +253,9 @@ WubuDispBackend wubu_disp_current(void);
 /* Force a specific backend */
 int  wubu_disp_force(WubuDispBackend backend);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Input
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Initialize input (auto-detect + open evdev devices) */
 int  wubu_input_init(void);
@@ -276,9 +276,9 @@ void wubu_input_mouse_pos(int *x, int *y);
 /* Enumerate gamepads */
 int  wubu_input_gamepads(char names[][64]);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Audio
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Initialize audio */
 int  wubu_audio_init(int sample_rate, int channels, int buffer_frames);
@@ -293,9 +293,9 @@ void wubu_audio_submit(const float *buf, int frames);
 /* Get current CPU load (0.0 - 1.0) */
 double wubu_audio_cpu_load(void);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: WSL2 Specific
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Initialize WSL2 display (connect to Weston) */
 int  wubu_wsl2_disp_init(void);
@@ -307,9 +307,9 @@ int  wubu_wsl2_audio_init(void);
 const char *wubu_wsl2_wayland_path(void);
 const char *wubu_wsl2_pulse_path(void);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Bare-Metal Boot
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Initialize from bare-metal (DRM + evdev + ALSA) */
 int  wubu_metal_init(int width, int height);
@@ -320,9 +320,9 @@ void wubu_metal_run(void);
 /* Shutdown bare-metal */
 void wubu_metal_shutdown(void);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  Resolution Scaling (GAAD)
- * ══════════════════════════════════════════════════════════════════
+ * ==================================================================
  *
  *  The display module uses GAAD for resolution scaling:
  *  - 640×480 → any resolution via golden subdivision

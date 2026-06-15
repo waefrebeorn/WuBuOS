@@ -1,5 +1,5 @@
 /*
- * ahci.c — WuBuOS AHCI (SATA) Disk Driver Implementation
+ * ahci.c  --  WuBuOS AHCI (SATA) Disk Driver Implementation
  *
  * Cell 072: AHCI driver with hosted simulation mode.
  * In hosted mode, provides simulated SATA ports backed by
@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Device type detection ─────────────────────────────────── */
+/* -- Device type detection ----------------------------------- */
 
 ahci_dev_type_t ahci_dev_type_from_sig(uint32_t signature) {
     switch (signature) {
@@ -22,7 +22,7 @@ ahci_dev_type_t ahci_dev_type_from_sig(uint32_t signature) {
     }
 }
 
-/* ── HBA Lifecycle ─────────────────────────────────────────── */
+/* -- HBA Lifecycle ------------------------------------------- */
 
 int ahci_hba_init(ahci_hba_t *hba) {
     memset(hba, 0, sizeof(*hba));
@@ -71,7 +71,7 @@ void ahci_hba_shutdown(ahci_hba_t *hba) {
     hba->num_ports = 0;
 }
 
-/* ── Port Management ──────────────────────────────────────── */
+/* -- Port Management ---------------------------------------- */
 
 int ahci_enumerate_ports(ahci_hba_t *hba) {
     if (!hba || !hba->initialized) return -1;
@@ -117,7 +117,7 @@ int ahci_port_init(ahci_hba_t *hba, int port_num) {
     return 0;
 }
 
-/* ── IDENTIFY DEVICE ───────────────────────────────────────── */
+/* -- IDENTIFY DEVICE ----------------------------------------- */
 
 int ahci_identify(ahci_hba_t *hba, int port_num) {
     if (!hba || port_num < 0 || port_num >= AHCI_MAX_PORTS) return -1;
@@ -192,7 +192,7 @@ void ahci_identify_serial(const ahci_identify_t *id, char *buf, int bufsz) {
     buf[j] = '\0';
 }
 
-/* ── I/O Operations ────────────────────────────────────────── */
+/* -- I/O Operations ------------------------------------------ */
 
 int ahci_read(ahci_hba_t *hba, int port_num,
               uint64_t lba, uint32_t count, void *buf) {
@@ -236,7 +236,7 @@ int ahci_write(ahci_hba_t *hba, int port_num,
     return (int)count;
 }
 
-/* ── Hosted Simulation ─────────────────────────────────────── */
+/* -- Hosted Simulation --------------------------------------- */
 
 int ahci_sim_disk_create(ahci_hba_t *hba, int port_num, int size_mb) {
     if (!hba || port_num < 0 || port_num >= AHCI_MAX_PORTS) return -1;
@@ -267,7 +267,7 @@ void ahci_sim_disk_destroy(ahci_hba_t *hba, int port_num) {
     }
 }
 
-/* ── Diagnostics ───────────────────────────────────────────── */
+/* -- Diagnostics --------------------------------------------- */
 
 void ahci_hba_dump(const ahci_hba_t *hba) {
     if (!hba) return;

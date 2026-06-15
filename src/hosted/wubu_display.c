@@ -1,5 +1,5 @@
 /*
- * wubu_display.c — WuBuOS Display Backend (DRM/KMS + X11 dual)
+ * wubu_display.c  --  WuBuOS Display Backend (DRM/KMS + X11 dual)
  *
  * Cell 380: Try DRM/KMS first, fall back to X11.
  *
@@ -23,7 +23,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-/* ── Backend Detection ──────────────────────────────────────────── */
+/* -- Backend Detection -------------------------------------------- */
 
 static int probe_drm_available(void) {
     /* Check if /dev/dri/card0 exists and is accessible */
@@ -49,7 +49,7 @@ static int probe_evdev_available(void) {
     return 0;
 }
 
-/* ── DRM/KMS Backend ────────────────────────────────────────────── */
+/* -- DRM/KMS Backend ---------------------------------------------- */
 
 #ifdef WUBU_USE_DRM
 #include <xf86drm.h>
@@ -144,7 +144,7 @@ static int drm_init(WubuDisplay *d, int width, int height) {
 }
 
 static void drm_swap(WubuDisplay *d) {
-    /* DRM page flip — non-blocking */
+    /* DRM page flip  --  non-blocking */
     if (d->drm_fd >= 0 && d->crtc_id > 0 && d->fb_id > 0) {
         drmModePageFlip(d->drm_fd, d->crtc_id, d->fb_id,
                         DRM_MODE_PAGE_FLIP_EVENT, NULL);
@@ -161,7 +161,7 @@ static void drm_shutdown(WubuDisplay *d) {
 }
 #endif /* WUBU_USE_DRM */
 
-/* ── evdev Input Backend ─────────────────────────────────────────── */
+/* -- evdev Input Backend ------------------------------------------- */
 
 #ifdef WUBU_USE_EVDEV
 #include <linux/input.h>
@@ -204,7 +204,7 @@ static int evdev_open_mouse(void) {
 }
 #endif /* WUBU_USE_EVDEV */
 
-/* ── Public API ─────────────────────────────────────────────────── */
+/* -- Public API --------------------------------------------------- */
 
 int wubu_display_init(WubuDisplay *d, int width, int height) {
     memset(d, 0, sizeof(*d));
@@ -234,14 +234,14 @@ int wubu_display_init(WubuDisplay *d, int width, int height) {
 #endif
             return 0;
         }
-        /* DRM init failed — fall through to X11 */
+        /* DRM init failed  --  fall through to X11 */
         fprintf(stderr, "wubu_display: DRM init failed, falling back to X11\n");
     }
 #endif
 
-    /* X11 fallback — hosted.c uses X11 directly, this just signals the caller */
+    /* X11 fallback  --  hosted.c uses X11 directly, this just signals the caller */
     fprintf(stderr, "wubu_display: using X11 backend (via hosted.c)\n");
-    fprintf(stderr, "  (No DRM/KMS — X11 managed by hosted.c event loop)\n");
+    fprintf(stderr, "  (No DRM/KMS  --  X11 managed by hosted.c event loop)\n");
     return 0;  /* X11 init handled by hosted.c */
 }
 

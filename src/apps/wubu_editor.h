@@ -1,5 +1,5 @@
 /*
- * wubu_editor.h — WuBuOS Code Editor (Notepad++ class)
+ * wubu_editor.h  --  WuBuOS Code Editor (Notepad++ class)
  *
  * Cell 396: Full programmer's text editor.
  *
@@ -34,7 +34,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* ── Limits ──────────────────────────────────────────────────────── */
+/* -- Limits -------------------------------------------------------- */
 
 #define WUBU_ED_MAX_TABS       32
 #define WUBU_ED_MAX_LINES      65536
@@ -43,7 +43,7 @@
 #define WUBU_ED_MAX_UNDO       1024
 #define WUBU_ED_FIND_LEN       256
 
-/* ── Syntax Highlighting ─────────────────────────────────────────── */
+/* -- Syntax Highlighting ------------------------------------------- */
 
 typedef enum {
     SYNTAX_NONE     = 0,
@@ -76,7 +76,7 @@ typedef enum {
     TOK_WHITESPACE = 13,
 } WubuTokenKind;
 
-/* ── Line Data ──────────────────────────────────────────────────── */
+/* -- Line Data ---------------------------------------------------- */
 
 typedef struct {
     char     text[WUBU_ED_MAX_LINE_LEN];
@@ -87,7 +87,7 @@ typedef struct {
     int      fold_level;    /* Nesting depth for indent guides */
 } WubuEdLine;
 
-/* ── Undo Action ─────────────────────────────────────────────────── */
+/* -- Undo Action --------------------------------------------------- */
 
 typedef enum {
     UNDO_INSERT = 1,
@@ -103,7 +103,7 @@ typedef struct {
     int          text_len;
 } WubuUndo;
 
-/* ── Editor Tab (one per open file) ─────────────────────────────── */
+/* -- Editor Tab (one per open file) ------------------------------- */
 
 typedef struct {
     char          filename[512];
@@ -135,7 +135,7 @@ typedef struct {
     bool          use_spaces;      /* Insert spaces instead of tabs */
 } WubuEdTab;
 
-/* ── Find/Replace State ──────────────────────────────────────────── */
+/* -- Find/Replace State -------------------------------------------- */
 
 typedef struct {
     char    find_text[WUBU_ED_FIND_LEN];
@@ -148,7 +148,7 @@ typedef struct {
     int     last_found_col;
 } WubuEdFind;
 
-/* ── Complete Editor State ───────────────────────────────────────── */
+/* -- Complete Editor State ----------------------------------------- */
 
 typedef struct {
     WubuEdTab     tabs[WUBU_ED_MAX_TABS];
@@ -184,7 +184,7 @@ typedef struct {
     size_t        clipboard_size;
 } WubuEditor;
 
-/* ── Editor API ─────────────────────────────────────────────────── */
+/* -- Editor API --------------------------------------------------- */
 
 /* Create/destroy editor */
 WubuEditor *wubu_ed_create(void);

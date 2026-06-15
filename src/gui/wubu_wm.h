@@ -1,7 +1,7 @@
 /*
- * wubu_wm.h — WuBuOS Window Manager
+ * wubu_wm.h  --  WuBuOS Window Manager
  *
- * Cell 395: Full WM — drag, resize, GAAD snap, minimize/maximize,
+ * Cell 395: Full WM  --  drag, resize, GAAD snap, minimize/maximize,
  * virtual desktops, z-order, close, theme integration.
  *
  * Features from every OS:
@@ -19,7 +19,7 @@
 #include "wubu_theme.h"
 #include "../kernel/wubu_gaad.h"
 
-/* ── Constants ──────────────────────────────────────────────────── */
+/* -- Constants ---------------------------------------------------- */
 
 #define WUBU_WM_MAX_WINDOWS    64
 #define WUBU_WM_MAX_DESKTOPS   9     /* 1-9 virtual desktops */
@@ -27,7 +27,7 @@
 #define WUBU_WM_BORDER_W       3
 #define WUBU_WM_SNAP_DIST      30    /* GAAD snap threshold in pixels */
 
-/* ── Window State ───────────────────────────────────────────────── */
+/* -- Window State ------------------------------------------------- */
 
 typedef enum {
     WUBU_WIN_UNUSED    = 0,
@@ -39,7 +39,7 @@ typedef enum {
     WUBU_WIN_NOCLOSE   = 32,   /* No close button */
 } WubuWinFlags;
 
-/* ── Drag State ─────────────────────────────────────────────────── */
+/* -- Drag State --------------------------------------------------- */
 
 typedef enum {
     DRAG_NONE      = 0,    /* Not dragging */
@@ -54,7 +54,7 @@ typedef enum {
     DRAG_RESIZE_NW = 9,    /* Resizing from NW corner */
 } WubuDragKind;
 
-/* ── Window Structure ───────────────────────────────────────────── */
+/* -- Window Structure --------------------------------------------- */
 
 typedef struct WubuWin WubuWin;
 struct WubuWin {
@@ -81,7 +81,7 @@ struct WubuWin {
     void *user_data;
 };
 
-/* ── Virtual Desktop ────────────────────────────────────────────── */
+/* -- Virtual Desktop ---------------------------------------------- */
 
 typedef struct {
     int  current;              /* Active desktop (0-based) */
@@ -89,7 +89,7 @@ typedef struct {
     char names[WUBU_WM_MAX_DESKTOPS][16];  /* Desktop names */
 } WubuDesktops;
 
-/* ── WM State ───────────────────────────────────────────────────── */
+/* -- WM State ----------------------------------------------------- */
 
 typedef struct {
     int           screen_w, screen_h;
@@ -109,12 +109,12 @@ typedef struct {
     bool          gaad_snap_preview;            /* Show snap preview? */
 } WubuWM;
 
-/* ── WM Lifecycle ──────────────────────────────────────────────── */
+/* -- WM Lifecycle ------------------------------------------------ */
 
 int  wubu_wm_init(int screen_w, int screen_h);
 void wubu_wm_shutdown(void);
 
-/* ── Window Management ─────────────────────────────────────────── */
+/* -- Window Management ------------------------------------------- */
 
 WubuWin *wubu_wm_create(int x, int y, int w, int h, const char *title);
 void     wubu_wm_destroy(WubuWin *win);
@@ -123,14 +123,14 @@ WubuWin *wubu_wm_get_focused(void);
 WubuWin *wubu_wm_find(int id);
 int      wubu_wm_count(void);
 
-/* ── Window Operations ─────────────────────────────────────────── */
+/* -- Window Operations ------------------------------------------- */
 
 void wubu_wm_minimize(WubuWin *win);
 void wubu_wm_maximize(WubuWin *win);
 void wubu_wm_restore(WubuWin *win);
 void wubu_wm_close(WubuWin *win);
 
-/* Move window (during drag — free grid, no snap yet) */
+/* Move window (during drag  --  free grid, no snap yet) */
 void wubu_wm_move(WubuWin *win, int x, int y);
 
 /* Resize window */
@@ -139,7 +139,7 @@ void wubu_wm_resize(WubuWin *win, int w, int h);
 /* Snap window to nearest GAAD region (called on drag release) */
 void wubu_wm_gaad_snap(WubuWin *win);
 
-/* ── Virtual Desktops ──────────────────────────────────────────── */
+/* -- Virtual Desktops -------------------------------------------- */
 
 void wubu_wm_desktop_switch(int desktop);  /* 0-based */
 void wubu_wm_desktop_next(void);
@@ -149,18 +149,18 @@ int  wubu_wm_desktop_count(void);
 void wubu_wm_desktop_set_count(int count);
 void wubu_wm_desktop_move_win(WubuWin *win, int desktop);
 
-/* ── Input Handling ────────────────────────────────────────────── */
+/* -- Input Handling ---------------------------------------------- */
 
 void wubu_wm_handle_key(uint32_t key, uint32_t mods);
 void wubu_wm_handle_mouse(int x, int y, int btn, int kind);
 /* kind: 0=move, 1=down, 2=up, 3=scroll */
 
-/* ── Rendering ─────────────────────────────────────────────────── */
+/* -- Rendering --------------------------------------------------- */
 
 void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h);
 void wubu_wm_invalidate(WubuWin *win);
 
-/* ── GAAD / Resolution ─────────────────────────────────────────── */
+/* -- GAAD / Resolution ------------------------------------------- */
 
 /* Recompute GAAD decomposition (after resolution change) */
 void wubu_wm_gaad_recompute(void);

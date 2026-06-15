@@ -1,13 +1,14 @@
 /*
- * vbe.c — WuBuOS VBE Framebuffer Implementation
+ * vbe.c  --  WuBuOS VBE Framebuffer Implementation
  *
  * Two modes:
  *   - Kernel mode (default): uses mem_alloc/mem_free from kernel memory.c
  *   - Hosted test mode (VBE_HOSTED defined): uses calloc/free for testing
  *
- * Hosted mode avoids the kernel memory allocator's BAD SIGNATURE bug
- * (P1-5 in risk register) which causes corruption across multiple
- * init/shutdown cycles in test suites.
+ * Fable Windowing Agent extensions:
+ *   - 64-glyph 8x8 bitmap font (ASCII 32..95) from Mythos Fable
+ *   - Clipped primitives, gradient fills, circle, shade
+ *   - Software mouse cursor, Win98 title bar, close box
  */
 
 #include "vbe.h"
@@ -36,7 +37,6 @@ int vbe_init(int width, int height) {
     g_vbe.back = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
     if (!g_vbe.fb || !g_vbe.back) return -1;
 
-    /* calloc already zeros, but mem_alloc doesn't — always memset */
     memset(g_vbe.fb, 0, g_vbe.fb_size);
     memset(g_vbe.back, 0, g_vbe.fb_size);
     return 0;
@@ -113,4 +113,214 @@ void vbe_3d_sunken(int x, int y, int w, int h) {
 void vbe_clear(uint32_t color) {
     for (int i = 0; i < g_vbe.width * g_vbe.height; i++)
         g_vbe.back[i] = color;
+}
+
+/* ================================================================
+ * FABLE WINDOWING AGENT — 8x8 Bitmap Font
+ * Ported from Mythos Fable (filipvabrousek/osdev)
+ * 64 glyphs: ASCII 32 (space) through 95 (_)
+ * ================================================================ */
+
+const uint8_t vbe_font_8x8[64][8] = {
+    /* ' ' */ {0, 0, 0, 0, 0, 0, 0, 0},
+    /* '!' */ {0x20, 0x20, 0x20, 0x20, 0x20, 0x00, 0x20, 0},
+    /* '"' */ {0x50, 0x50, 0x50, 0x00, 0x00, 0x00, 0x00, 0},
+    /* '#' */ {0x50, 0x50, 0xF8, 0x50, 0xF8, 0x50, 0x50, 0},
+    /* '$' */ {0x20, 0x78, 0xA0, 0x70, 0x28, 0xF0, 0x20, 0},
+    /* '%' */ {0xC8, 0xC8, 0x10, 0x20, 0x40, 0x98, 0x98, 0},
+    /* '&' */ {0x60, 0x90, 0xA0, 0x40, 0xA8, 0x90, 0x68, 0},
+    /* ''' */ {0x20, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0},
+    /* '(' */ {0x10, 0x20, 0x40, 0x40, 0x40, 0x20, 0x10, 0},
+    /* ')' */ {0x40, 0x20, 0x10, 0x10, 0x10, 0x20, 0x40, 0},
+    /* '*' */ {0x00, 0x50, 0x20, 0xF8, 0x20, 0x50, 0x00, 0},
+    /* '+' */ {0x00, 0x20, 0x20, 0xF8, 0x20, 0x20, 0x00, 0},
+    /* ',' */ {0x00, 0x00, 0x00, 0x00, 0x00, 0x30, 0x10, 0x20},
+    /* '-' */ {0x00, 0x00, 0x00, 0xF8, 0x00, 0x00, 0x00, 0},
+    /* '.' */ {0x00, 0x00, 0x00, 0x00, 0x00, 0x60, 0x60, 0},
+    /* '/' */ {0x08, 0x08, 0x10, 0x20, 0x40, 0x80, 0x80, 0},
+    /* '0' */ {0x70, 0x88, 0x98, 0xA8, 0xC8, 0x88, 0x70, 0},
+    /* '1' */ {0x20, 0x60, 0x20, 0x20, 0x20, 0x20, 0x70, 0},
+    /* '2' */ {0x70, 0x88, 0x08, 0x30, 0x40, 0x80, 0xF8, 0},
+    /* '3' */ {0xF0, 0x08, 0x08, 0x70, 0x08, 0x08, 0xF0, 0},
+    /* '4' */ {0x10, 0x30, 0x50, 0x90, 0xF8, 0x10, 0x10, 0},
+    /* '5' */ {0xF8, 0x80, 0xF0, 0x08, 0x08, 0x88, 0x70, 0},
+    /* '6' */ {0x30, 0x40, 0x80, 0xF0, 0x88, 0x88, 0x70, 0},
+    /* '7' */ {0xF8, 0x08, 0x10, 0x20, 0x40, 0x40, 0x40, 0},
+    /* '8' */ {0x70, 0x88, 0x88, 0x70, 0x88, 0x88, 0x70, 0},
+    /* '9' */ {0x70, 0x88, 0x88, 0x78, 0x08, 0x10, 0x60, 0},
+    /* ':' */ {0x00, 0x60, 0x60, 0x00, 0x60, 0x60, 0x00, 0},
+    /* ';' */ {0x00, 0x60, 0x60, 0x00, 0x60, 0x20, 0x40, 0},
+    /* '<' */ {0x10, 0x20, 0x40, 0x80, 0x40, 0x20, 0x10, 0},
+    /* '=' */ {0x00, 0x00, 0xF8, 0x00, 0xF8, 0x00, 0x00, 0},
+    /* '>' */ {0x40, 0x20, 0x10, 0x08, 0x10, 0x20, 0x40, 0},
+    /* '?' */ {0x70, 0x88, 0x08, 0x10, 0x20, 0x00, 0x20, 0},
+    /* '@' */ {0x70, 0x88, 0xB8, 0xA8, 0xB0, 0x80, 0x78, 0},
+    /* 'A' */ {0x70, 0x88, 0x88, 0xF8, 0x88, 0x88, 0x88, 0},
+    /* 'B' */ {0xF0, 0x88, 0x88, 0xF0, 0x88, 0x88, 0xF0, 0},
+    /* 'C' */ {0x70, 0x88, 0x80, 0x80, 0x80, 0x88, 0x70, 0},
+    /* 'D' */ {0xF0, 0x88, 0x88, 0x88, 0x88, 0x88, 0xF0, 0},
+    /* 'E' */ {0xF8, 0x80, 0x80, 0xF0, 0x80, 0x80, 0xF8, 0},
+    /* 'F' */ {0xF8, 0x80, 0x80, 0xF0, 0x80, 0x80, 0x80, 0},
+    /* 'G' */ {0x70, 0x88, 0x80, 0xB8, 0x88, 0x88, 0x78, 0},
+    /* 'H' */ {0x88, 0x88, 0x88, 0xF8, 0x88, 0x88, 0x88, 0},
+    /* 'I' */ {0x70, 0x20, 0x20, 0x20, 0x20, 0x20, 0x70, 0},
+    /* 'J' */ {0x38, 0x10, 0x10, 0x10, 0x10, 0x90, 0x60, 0},
+    /* 'K' */ {0x88, 0x90, 0xA0, 0xC0, 0xA0, 0x90, 0x88, 0},
+    /* 'L' */ {0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0xF8, 0},
+    /* 'M' */ {0x88, 0xD8, 0xA8, 0xA8, 0x88, 0x88, 0x88, 0},
+    /* 'N' */ {0x88, 0xC8, 0xA8, 0x98, 0x88, 0x88, 0x88, 0},
+    /* 'O' */ {0x70, 0x88, 0x88, 0x88, 0x88, 0x88, 0x70, 0},
+    /* 'P' */ {0xF0, 0x88, 0x88, 0xF0, 0x80, 0x80, 0x80, 0},
+    /* 'Q' */ {0x70, 0x88, 0x88, 0x88, 0xA8, 0x90, 0x68, 0},
+    /* 'R' */ {0xF0, 0x88, 0x88, 0xF0, 0xA0, 0x90, 0x88, 0},
+    /* 'S' */ {0x78, 0x80, 0x80, 0x70, 0x08, 0x08, 0xF0, 0},
+    /* 'T' */ {0xF8, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0},
+    /* 'U' */ {0x88, 0x88, 0x88, 0x88, 0x88, 0x88, 0x70, 0},
+    /* 'V' */ {0x88, 0x88, 0x88, 0x88, 0x50, 0x50, 0x20, 0},
+    /* 'W' */ {0x88, 0x88, 0x88, 0xA8, 0xA8, 0xA8, 0x50, 0},
+    /* 'X' */ {0x88, 0x88, 0x50, 0x20, 0x50, 0x88, 0x88, 0},
+    /* 'Y' */ {0x88, 0x88, 0x50, 0x20, 0x20, 0x20, 0x20, 0},
+    /* 'Z' */ {0xF8, 0x08, 0x10, 0x20, 0x40, 0x80, 0xF8, 0},
+    /* '[' */ {0x70, 0x40, 0x40, 0x40, 0x40, 0x40, 0x70, 0},
+    /* '\' */ {0x80, 0x80, 0x40, 0x20, 0x10, 0x08, 0x08, 0},
+    /* ']' */ {0x70, 0x10, 0x10, 0x10, 0x10, 0x10, 0x70, 0},
+    /* '^' */ {0x20, 0x50, 0x88, 0x00, 0x00, 0x00, 0x00, 0},
+    /* '_' */ {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF8},
+};
+
+#define GLYPH_ADVANCE 6
+
+void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale) {
+    if (ch >= 'a' && ch <= 'z') ch -= 32;
+    if (ch < 32 || ch > 95) ch = 32;
+    const uint8_t *glyph = vbe_font_8x8[ch - 32];
+    for (int row = 0; row < 8; row++) {
+        uint8_t bits = glyph[row];
+        for (int col = 0; col < 8; col++) {
+            if (bits & (0x80 >> col)) {
+                if (scale == 1)
+                    vbe_set_pixel(x + col, y + row, color);
+                else
+                    vbe_fill_rect(x + col * scale, y + row * scale,
+                                  scale, scale, color);
+            }
+        }
+    }
+}
+
+void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {
+    for (; *s; s++) {
+        vbe_draw_char(x, y, *s, color, scale);
+        x += GLYPH_ADVANCE * scale;
+    }
+}
+
+int vbe_text_width(const char *s, int scale) {
+    int n = 0;
+    while (s[n]) n++;
+    return n * GLYPH_ADVANCE * scale;
+}
+
+/* ================================================================
+ * FABLE WINDOWING AGENT — Extended Primitives
+ * ================================================================ */
+
+int vbe_fill_rect_clip(int x, int y, int w, int h, uint32_t color) {
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > g_vbe.width)  w = g_vbe.width - x;
+    if (y + h > g_vbe.height) h = g_vbe.height - y;
+    if (w <= 0 || h <= 0) return 0;
+    vbe_fill_rect(x, y, w, h, color);
+    return 1;
+}
+
+void vbe_shade_rect(int x, int y, int w, int h) {
+    if (x < 0) { w += x; x = 0; }
+    if (y < 0) { h += y; y = 0; }
+    if (x + w > g_vbe.width)  w = g_vbe.width - x;
+    if (y + h > g_vbe.height) h = g_vbe.height - y;
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            int px = x + col, py = y + row;
+            if (px >= 0 && px < g_vbe.width && py >= 0 && py < g_vbe.height)
+                g_vbe.back[py * g_vbe.width + px] =
+                    (g_vbe.back[py * g_vbe.width + px] >> 1) & 0x7F7F7F;
+        }
+    }
+}
+
+static uint32_t lerp_color(uint32_t a, uint32_t b, int num, int den) {
+    int ar = (int)((a >> 16) & 0xFF), ag = (int)((a >> 8) & 0xFF), ab = (int)(a & 0xFF);
+    int br = (int)((b >> 16) & 0xFF), bg = (int)((b >> 8) & 0xFF), bb = (int)(b & 0xFF);
+    int r = ar + (br - ar) * num / den;
+    int g = ag + (bg - ag) * num / den;
+    int bl = ab + (bb - ab) * num / den;
+    return (uint32_t)((r << 16) | (g << 8) | bl);
+}
+
+void vbe_vgradient(int x, int y, int w, int h, uint32_t top, uint32_t bottom) {
+    int den = h > 1 ? h - 1 : 1;
+    for (int row = 0; row < h; row++) {
+        uint32_t c = lerp_color(top, bottom, row, den);
+        vbe_fill_rect(x, y + row, w, 1, c);
+    }
+}
+
+void vbe_hgradient(int x, int y, int w, int h, uint32_t left, uint32_t right) {
+    int den = w > 1 ? w - 1 : 1;
+    for (int col = 0; col < w; col++) {
+        uint32_t c = lerp_color(left, right, col, den);
+        vbe_fill_rect(x + col, y, 1, h, c);
+    }
+}
+
+void vbe_fill_circle(int cx, int cy, int r, uint32_t color) {
+    for (int dy = -r; dy <= r; dy++)
+        for (int dx = -r; dx <= r; dx++)
+            if (dx * dx + dy * dy <= r * r)
+                vbe_set_pixel(cx + dx, cy + dy, color);
+}
+
+void vbe_draw_cursor(int mx, int my) {
+    static const char *shape[] = {
+        "X",
+        "XX",
+        "X.X",
+        "X..X",
+        "X...X",
+        "X....X",
+        "X.....X",
+        "X......X",
+        "X.......X",
+        "X........X",
+        "X.....XXXXX",
+        "X..X..X",
+        "X.X X..X",
+        "XX  X..X",
+        "X    X..X",
+        "     X..X",
+        "      X..X",
+        "       XX",
+    };
+    for (int row = 0; row < 18; row++) {
+        for (int col = 0; shape[row][col]; col++) {
+            char c = shape[row][col];
+            if (c == 'X')      vbe_set_pixel(mx + col, my + row, 0x000000);
+            else if (c == '.') vbe_set_pixel(mx + col, my + row, 0xFFFFFF);
+        }
+    }
+}
+
+void vbe_title_bar(int x, int y, int w, int h, int active) {
+    if (active)
+        vbe_hgradient(x, y, w, h, 0x0A2A6A, 0x3A6EA5);
+    else
+        vbe_fill_rect(x, y, w, h, 0x7A7A7A);
+}
+
+void vbe_close_box(int x, int y, int active) {
+    vbe_fill_rect(x, y, 14, 12, active ? 0xC0392B : 0x909090);
+    vbe_rect(x, y, 14, 12, 0x000000);
+    vbe_draw_text(x + 5, y + 2, "X", 0xFFFFFF, 1);
 }

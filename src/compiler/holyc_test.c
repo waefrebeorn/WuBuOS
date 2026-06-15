@@ -1,5 +1,5 @@
 /*
- * holyc_test.c — My Seed HolyC Compiler Test Suite
+ * holyc_test.c  --  My Seed HolyC Compiler Test Suite
  */
 
 #include "holyc.h"
@@ -24,9 +24,9 @@ static int g_run = 0, g_pass = 0;
 } while(0)
 
 int main(void) {
-    printf("═══ HolyC Compiler Test Suite ═══\n\n");
+    printf("=== HolyC Compiler Test Suite ===\n\n");
 
-    /* ── Lexer Tests ── */
+    /* -- Lexer Tests -- */
     printf("[Lexer]\n");
     {
         HCLexer lex;
@@ -87,7 +87,7 @@ int main(void) {
         L(HC_TOK_PLUS_PLUS, lex.tok.type, "operator ++");
     }
 
-    /* ── Parser Tests ── */
+    /* -- Parser Tests -- */
     printf("\n[Parser]\n");
     {
         HCLexer lex; hc_lex_init(&lex, "42");
@@ -146,7 +146,7 @@ int main(void) {
         hc_ast_free(ast);
     }
 
-    /* ── Eval Tests (basic arithmetic + comparison) ── */
+    /* -- Eval Tests (basic arithmetic + comparison) -- */
     printf("\n[Codegen/Eval]\n");
     T("42", 42);
     T("3 + 4", 7);
@@ -168,7 +168,7 @@ int main(void) {
     T("5 >= 5", 1);
     T("4 <= 3", 0);
 
-    /* ── Cell 310: Ternary ── */
+    /* -- Cell 310: Ternary -- */
     printf("\n[Cell 310: Ternary]\n");
     T("1 ? 42 : 0", 42);
     T("0 ? 42 : 99", 99);
@@ -176,7 +176,7 @@ int main(void) {
     T("5 < 3 ? 10 : 20", 20);
     T("1 ? 1 ? 2 : 3 : 4", 2);
 
-    /* ── Cell 310: Logical AND ── */
+    /* -- Cell 310: Logical AND -- */
     printf("\n[Cell 310: Logical AND]\n");
     T("1 && 1", 1);
     T("1 && 0", 0);
@@ -186,7 +186,7 @@ int main(void) {
     T("3 < 5 && 7 == 7", 1);
     T("3 > 5 && 7 == 7", 0);
 
-    /* ── Cell 310: Logical OR ── */
+    /* -- Cell 310: Logical OR -- */
     printf("\n[Cell 310: Logical OR]\n");
     T("0 || 1", 1);
     T("0 || 0", 0);
@@ -195,47 +195,47 @@ int main(void) {
     T("3 > 5 || 7 == 7", 1);
     T("3 > 5 || 7 != 7", 0);
 
-    /* ── Cell 310: Combined logical ── */
+    /* -- Cell 310: Combined logical -- */
     printf("\n[Cell 310: Combined Logical]\n");
     T("1 && 1 || 0", 1);
     T("0 || 1 && 1", 1);
     T("0 || 0 && 1", 0);
 
-    /* ── Cell 310: IF statement ── */
+    /* -- Cell 310: IF statement -- */
     printf("\n[Cell 310: IF Statement]\n");
     T("if (1) 42; else 0;", 42);
     T("if (0) 42; else 99;", 99);
     T("if (3 < 5) 10; else 20;", 10);
 
-    /* ── Cell 310: WHILE loop ── */
+    /* -- Cell 310: WHILE loop -- */
     printf("\n[Cell 310: WHILE Statement]\n");
     T("while (0) 42;", 0);
 
-    /* ── Cell 310: FOR loop ── */
+    /* -- Cell 310: FOR loop -- */
     printf("\n[Cell 310: FOR Statement]\n");
     T("for (0; 0; 0) 42;", 0);
 
-    /* ── Bitwise ops ── */
+    /* -- Bitwise ops -- */
     printf("\n[Bitwise]\n");
     T("3 & 5", 1);
     T("3 | 5", 7);
     T("3 ^ 5", 6);
     T("~0", -1);
 
-    /* ── String Literals (Cell 311) ── */
+    /* -- String Literals (Cell 311) -- */
     printf("\n[Cell 311: String Literals]\n");
     T("{ \"hello\"; 0; }", 0);  /* Just test it compiles and runs */
 
-    /* ── Struct Definition (Cell 311) ── */
+    /* -- Struct Definition (Cell 311) -- */
     printf("\n[Cell 311: Struct Definition]\n");
     T("{ struct A { I64 x; }; 0; }", 0);
 
-    printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
+    printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     printf("\n[Cell 311: Function Calls]\n");
     T("{ I64 foo() { return 42; } foo(); }", 42);
     T("{ I64 add(I64 a, I64 b) { return a + b; } add(3, 4); }", 7);
     T("{ I64 mul(I64 a, I64 b) { return a * b; } mul(5, 6); }", 30);
 
-    printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
+    printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;
 }

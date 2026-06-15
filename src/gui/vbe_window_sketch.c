@@ -1,5 +1,5 @@
 /*
- * vbe_window_sketch.c — Minimal Win98-style window on Linux framebuffer
+ * vbe_window_sketch.c  --  Minimal Win98-style window on Linux framebuffer
  * 
  * Proof-of-concept for the My Seed GUI layer:
  * - Software-rendered framebuffer
@@ -107,7 +107,7 @@ static void draw_text(int x, int y, const char *str, u32 fg, u32 bg) {
         draw_char(x + i * 9, y, str[i], fg, bg);
 }
 
-/* Draw close button (■ with X) */
+/* Draw close button (# with X) */
 static void draw_close_button(int x, int y) {
     fill_rect(x, y, 16, 14, C_BTN_FACE);
     draw_3d_raised(x, y, 16, 14);

@@ -22,7 +22,7 @@ BEAR    = src/bear
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o
@@ -37,13 +37,13 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o
 JIT_OBJS = $(JIT)/jit.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_wm.o
+GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
 
 # ── App Objects ──────────────────────────────────────────────────
-APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/doom.o $(APPS)/wubu_freedoom.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o
+APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
@@ -132,7 +132,7 @@ doom: $(APP_OBJS) $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS)
 		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c \
 		$(KERNEL)/tasking.c $(KERNEL)/interrupt.c \
 		$(JIT)/jit.c \
-		-lX11 -o $(APPS)/doom
+		-lwayland-client -o $(APPS)/doom
 	@echo "✅ Doom built (./src/apps/doom)"
 
 worldsim: $(WS_OBJS)
@@ -143,17 +143,22 @@ worldsim: $(WS_OBJS)
 HOSTED_OBJS = $(HOSTED)/hosted.o $(RT)/styx.o $(KERNEL)/vbe.o $(KERNEL)/memory.o \
               $(KERNEL)/input.o $(KERNEL)/tasking.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(BRIDGE)/bridge.o \
               $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/startmenu.o \
-              $(GUI)/gui_dbuf.o \
-              $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(JIT)/jit.o
+              $(GUI)/gui_dbuf.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o \
+              $(GUI)/wubu_theme.o \
+              $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(APPS)/dosgui_apps.o $(JIT)/jit.o
 
-hosted: $(HOSTED_OBJS)
+$(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
+	$(CC) $(CFLAGS) -I$(HOSTED) -x c -c $< -o $@
+
+hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
 	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED)/hosted.c $(RT)/styx.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(BRIDGE)/bridge.c \
 		$(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c $(GUI)/theme.c $(GUI)/startmenu.c \
-		$(GUI)/gui_dbuf.c \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(JIT)/jit.c \
-		-lX11 -o $(HOSTED)/wubu
+		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/wubu_theme.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT)/jit.c \
+		$(HOSTED)/xdg-shell-private.o \
+		-lwayland-client -lxkbcommon -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
 
 # ── Compilation Rules ────────────────────────────────────────────
@@ -200,7 +205,7 @@ $(KERNEL)/%.o: $(KERNEL)/%.S
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_input test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_gc test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2 test_proton2 test_audio test_screenshot
+test: test_jit test_memory test_tasking test_input test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_proton test_ahci test_iso test_weights test_gc test_txfs test_dbuf test_wm test_startmenu test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2 test_proton2 test_audio test_screenshot test_dosgui_wm
 	@echo "✅ All tests passed"
 
 test_jit: $(JIT)/jit.o
@@ -306,14 +311,16 @@ test_styxfs:
 	$(CC) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT)/jit.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/styx.c $(RT)/styxfs.c $(RT)/styxfs_test.c -o $(RT)/styxfs_test
 	$(RT)/styxfs_test
 
-test_hosted:
+test_hosted: $(HOSTED)/xdg-shell-private.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_HOSTED_TEST -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c $(RT)/styx.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(BRIDGE)/bridge.c \
 		$(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c $(GUI)/theme.c $(GUI)/startmenu.c \
-		$(GUI)/gui_dbuf.c \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(JIT)/jit.c \
-		-o $(HOSTED)/hosted_test -lX11
+		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c \
+		$(GUI)/wubu_theme.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT)/jit.c \
+		$(HOSTED)/xdg-shell-private.o \
+		-o $(HOSTED)/hosted_test -lwayland-client -lxkbcommon
 	$(HOSTED)/hosted_test
 
 test_host_exec:
@@ -395,7 +402,9 @@ test_metal:
 		-o $(HOSTED)/wubu_metal_test
 	$(HOSTED)/wubu_metal_test
 
-test_audio:
+test_dosgui_wm:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) $(GUI)/dosgui_wm.c $(KERNEL)/vbe.c $(GUI)/dosgui_wm_test.c -o $(GUI)/dosgui_wm_test
+	$(GUI)/dosgui_wm_test
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(AUDIO) -I$(KERNEL) -I$(RT) \
 		$(AUDIO)/wubu_audio.c \
@@ -408,5 +417,5 @@ test_audio:
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o $(AUDIO)/*.o $(SHELL_DIR)/*.o
 	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(KERNEL)/wubu_gaad_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_apps_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(RT)/styxfs_test $(RT)/wubu_host_exec_test $(RT)/wubu_arch_test $(RT)/wubu_ramdisk_test $(RT)/wubu_gc_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(HOSTED)/wubu_metal_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(TOOLS)/screenshot_test $(GUI)/gui_dbuf_test $(GUI)/wm_test $(GUI)/startmenu_test $(GUI)/wubu_wm_test $(APPS)/wubu_apps2_test $(RT)/wubu_proton2_test $(AUDIO)/wubu_audio_test
-	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/paint $(APPS)/doom
+	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/dosgui_wm_test $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/paint $(APPS)/doom
 	@echo "🧹 Clean"

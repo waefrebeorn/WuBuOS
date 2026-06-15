@@ -1,5 +1,5 @@
 /*
- * tasking.h — My Seed Kernel Task/Process Management
+ * tasking.h  --  My Seed Kernel Task/Process Management
  *
  * Ring-0 cooperative multitasking (like ZealOS).
  * Each task has its own stack, context, and heap.
@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── Task States ────────────────────────────────────────────────── */
+/* -- Task States -------------------------------------------------- */
 
 typedef enum {
     TASK_UNUSED    = 0,
@@ -23,7 +23,7 @@ typedef enum {
     TASK_DYING     = 5,
 } TaskState;
 
-/* ── Task Priority ──────────────────────────────────────────────── */
+/* -- Task Priority ------------------------------------------------ */
 
 typedef enum {
     PRIO_IDLE    = 0,
@@ -35,7 +35,7 @@ typedef enum {
 
 #define TASK_SIGNATURE_VAL  0x7A5C3E01
 
-/* ── Task Context (saved registers for switch) ──────────────────── */
+/* -- Task Context (saved registers for switch) -------------------- */
 
 typedef struct TaskContext {
     uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
@@ -45,7 +45,7 @@ typedef struct TaskContext {
     uint64_t rflags;
 } TaskContext;
 
-/* ── Task Control Block ─────────────────────────────────────────── */
+/* -- Task Control Block ------------------------------------------- */
 
 typedef struct CTask CTask;
 struct CTask {
@@ -76,7 +76,7 @@ struct CTask {
     void          *entry_arg;
 };
 
-/* ── Global State ───────────────────────────────────────────────── */
+/* -- Global State ------------------------------------------------- */
 
 /* Get the currently running task. */
 CTask *task_current(void);
@@ -90,7 +90,7 @@ int task_count(void);
 /* Get global tick counter. */
 uint64_t task_tick_count(void);
 
-/* ── Task Lifecycle ─────────────────────────────────────────────── */
+/* -- Task Lifecycle ----------------------------------------------- */
 
 /*
  * Create a new task.
@@ -119,29 +119,29 @@ void task_unblock(CTask *task);
 /* Sleep current task for `ticks` timer ticks. */
 void task_sleep(uint64_t ticks);
 
-/* ── Scheduler ──────────────────────────────────────────────────── */
+/* -- Scheduler ---------------------------------------------------- */
 
 /* Initialize the tasking subsystem. Creates idle task. */
 int  tasking_init(void);
 
-/* Shutdown — destroy all tasks. */
+/* Shutdown  --  destroy all tasks. */
 void tasking_shutdown(void);
 
 /*
  * Pick next task to run (round-robin with priority).
  * Called by timer interrupt or explicit yield.
  * Returns the task that should run next.
- /* Schedule next task — round-robin with priority */
+ /* Schedule next task  --  round-robin with priority */
  CTask *task_schedule_next(void);
 
- /* Timer tick handler — called from interrupt context (IRQ0/PIT).
+ /* Timer tick handler  --  called from interrupt context (IRQ0/PIT).
   * Increments global tick, wakes sleeping tasks, triggers preemption. */
  void task_timer_tick(void);
 
  /* Idle task (runs when nothing else is ready). */
 void task_idle(void *arg);
 
-/* ── Context Switch (arch-specific) ─────────────────────────────── */
+/* -- Context Switch (arch-specific) ------------------------------- */
 
 /*
  * Save current context and switch to target task.

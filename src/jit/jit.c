@@ -1,5 +1,5 @@
 /*
- * jit.c — My Seed JIT Runtime Implementation (mmap backend)
+ * jit.c  --  My Seed JIT Runtime Implementation (mmap backend)
  *
  * The always-available, zero-dependency JIT backend.
  * Uses mmap(PROT_READ|PROT_WRITE|PROT_EXEC) for executable memory
@@ -18,7 +18,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-/* ── Internal: Page size ────────────────────────────────────────── */
+/* -- Internal: Page size ------------------------------------------ */
 
 static long g_page_size = 0;
 
@@ -32,7 +32,7 @@ static size_t align_to_page(size_t size) {
     return (size + g_page_size - 1) & ~(g_page_size - 1);
 }
 
-/* ── JIT Context ───────────────────────────────────────────────── */
+/* -- JIT Context ------------------------------------------------- */
 
 struct JITContext {
     JITBackend  backend;
@@ -55,7 +55,7 @@ void jit_free(JITContext *ctx) {
     if (ctx) free(ctx);
 }
 
-/* ── Executable Memory ─────────────────────────────────────────── */
+/* -- Executable Memory ------------------------------------------- */
 
 void *jit_alloc_exec(size_t size) {
     init_page_size();
@@ -84,7 +84,7 @@ void jit_unlock_exec(void *ptr, size_t size) {
     mprotect(ptr, align_to_page(size), PROT_READ | PROT_WRITE | PROT_EXEC);
 }
 
-/* ── x86-64 Encoding Helpers ───────────────────────────────────── */
+/* -- x86-64 Encoding Helpers ------------------------------------- */
 
 /* Encode: mov eax, imm32 */
 static int enc_mov_eax_imm32(unsigned char *buf, int32_t imm) {
@@ -154,7 +154,7 @@ static int enc_neg_eax(unsigned char *buf) {
     return 3;
 }
 
-/* ── mmap Backend: Simple Expression Compiler ──────────────────── */
+/* -- mmap Backend: Simple Expression Compiler -------------------- */
 
 /*
  * Very simple single-expression compiler for the mmap backend.
@@ -239,7 +239,7 @@ static JITResult mmap_compile_simple(JITContext *ctx,
     return JIT_OK;
 }
 
-/* ── Main Compile Dispatch ─────────────────────────────────────── */
+/* -- Main Compile Dispatch --------------------------------------- */
 
 JITResult jit_compile(JITContext *ctx,
                        const char *source,
@@ -293,7 +293,7 @@ JITResult jit_compile_file(JITContext *ctx,
     return r;
 }
 
-/* ── Execution ─────────────────────────────────────────────────── */
+/* -- Execution --------------------------------------------------- */
 
 int64_t jit_call0(JITFunc *fn) {
     if (fn && fn->code) {
@@ -317,7 +317,7 @@ int64_t jit_call2(JITFunc *fn, int64_t a0, int64_t a1) {
 }
 
 void *jit_callv(JITFunc *fn, ...) {
-    /* Variadic call — the caller must ensure correct ABI */
+    /* Variadic call  --  the caller must ensure correct ABI */
     if (fn && fn->code) {
         void *code = fn->code;
         /* This is inherently unsafe and platform-specific.
@@ -328,7 +328,7 @@ void *jit_callv(JITFunc *fn, ...) {
     return NULL;
 }
 
-/* ── Function Management ───────────────────────────────────────── */
+/* -- Function Management ----------------------------------------- */
 
 void jit_func_free(JITFunc *fn) {
     if (fn) {
@@ -350,7 +350,7 @@ const char *jit_strerror(JITResult result) {
     return "Unknown error";
 }
 
-/* ── Diagnostics ───────────────────────────────────────────────── */
+/* -- Diagnostics ------------------------------------------------- */
 
 void jit_func_dump(const JITFunc *fn, FILE *out) {
     if (!fn || !fn->code || !out) return;
@@ -364,7 +364,7 @@ void jit_func_dump(const JITFunc *fn, FILE *out) {
 }
 
 void jit_func_disasm(const JITFunc *fn, FILE *out) {
-    /* Requires capstone or libopcodes — TODO */
+    /* Requires capstone or libopcodes  --  TODO */
     if (!fn || !out) return;
     fprintf(out, "Disassembly not yet implemented (need capstone)\n");
     jit_func_dump(fn, out);

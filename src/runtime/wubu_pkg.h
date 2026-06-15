@@ -1,5 +1,5 @@
 /*
- * wubu_pkg.h — WuBuOS Package Manager
+ * wubu_pkg.h  --  WuBuOS Package Manager
  *
  * Flatpak-style package management:
  *   - Install/remove/list .wubu container packages
@@ -53,32 +53,32 @@ typedef struct {
     int       readonly;
 } PkgManager;
 
-/* ── Lifecycle ────────────────────────────────────────────── */
+/* -- Lifecycle ---------------------------------------------- */
 void pkg_init(PkgManager *mgr);
 void pkg_shutdown(PkgManager *mgr);
 
-/* ── Registry ─────────────────────────────────────────────── */
+/* -- Registry ----------------------------------------------- */
 int  pkg_register(PkgManager *mgr, const char *name, const char *version,
                   const char *desc, uint64_t size);
 int  pkg_unregister(PkgManager *mgr, const char *name);
 int  pkg_count(PkgManager *mgr);
 PkgEntry *pkg_find(PkgManager *mgr, const char *name);
 
-/* ── Dependencies ─────────────────────────────────────────── */
+/* -- Dependencies ------------------------------------------- */
 int  pkg_add_dep(PkgManager *mgr, const char *name, const char *dep);
 int  pkg_check_deps(PkgManager *mgr, const char *name);
 
-/* ── Install/Remove ───────────────────────────────────────── */
+/* -- Install/Remove ----------------------------------------- */
 int  pkg_install(PkgManager *mgr, const char *name);
 int  pkg_remove(PkgManager *mgr, const char *name);
 int  pkg_is_installed(PkgManager *mgr, const char *name);
 int  pkg_installed_count(PkgManager *mgr);
 
-/* ── Repositories ─────────────────────────────────────────── */
+/* -- Repositories ------------------------------------------- */
 int  pkg_add_repo(PkgManager *mgr, const char *name, const char *url);
 int  pkg_remove_repo(PkgManager *mgr, const char *name);
 
-/* ── Query ────────────────────────────────────────────────── */
+/* -- Query -------------------------------------------------- */
 int  pkg_list_installed(PkgManager *mgr, PkgEntry *out, int max);
 
 #endif

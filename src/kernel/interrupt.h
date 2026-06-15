@@ -1,5 +1,5 @@
 /*
- * interrupt.h — My Seed IDT/PIC Interrupt Controller
+ * interrupt.h  --  My Seed IDT/PIC Interrupt Controller
  *
  * Implements full x86_64 IDT with 256 interrupt gates.
  * Uses assembly ISR stubs (isr_stubs.S) for vector entry points.
@@ -11,9 +11,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  * IDT Structures (x86_64 16-byte interrupt gate)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #define IDT_ENTRIES       256
 #define IDT_GATE_INT      0x8E    /* 64-bit Interrupt Gate: P=1, DPL=0, Type=0xE */
@@ -37,9 +37,9 @@ typedef struct IDTPtr {
     uint64_t base;
 } __attribute__((packed)) IDTPtr;
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  * Interrupt Stack Frame (pushed by CPU + our stubs)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 typedef struct InterruptFrame {
     /* Pushed by common_isr_handler (callee-saved + caller-saved) */
@@ -55,15 +55,15 @@ typedef struct InterruptFrame {
     uint64_t ss;             /* Stack segment */
 } InterruptFrame;
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  * ISR Handler Type
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 typedef void (*ISRHandler)(uint8_t irq, void *ctx);
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  * Public API
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 /* Initialize IDT, PIC, and install ISR handlers */
 int  interrupt_init(void);
@@ -99,9 +99,9 @@ void pit_shutdown(void);            /* Disable PIT timer */
 /* External C handler called from assembly */
 void isr_dispatch(uint8_t vector, InterruptFrame *frame);
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  * Extended API (bare metal)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #ifdef MYSEED_METAL
 

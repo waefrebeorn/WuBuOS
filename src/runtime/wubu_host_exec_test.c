@@ -1,5 +1,5 @@
 /*
- * wubu_host_exec_test.c — Cell 203 Behavioral Test Suite
+ * wubu_host_exec_test.c  --  Cell 203 Behavioral Test Suite
  *
  * Tests: fork+exec container creation, start, wait, kill.
  * All tests exercise REAL host process creation.
@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-/* ── Test Framework ──────────────────────────────────────────────── */
+/* -- Test Framework ------------------------------------------------ */
 
 static int g_tests = 0, g_passed = 0, g_failed = 0;
 
@@ -32,7 +32,7 @@ static int g_tests = 0, g_passed = 0, g_failed = 0;
     if (!(cond)) { FAIL(msg); return; } \
 } while (0)
 
-/* ── Tests ───────────────────────────────────────────────────────── */
+/* -- Tests --------------------------------------------------------- */
 
 static void test_ct_create(void) {
     TEST("Cell203: wubu_ct_create with valid args");
@@ -180,7 +180,7 @@ static void test_ct_state_poll(void) {
     CtState s = wubu_ct_state(ct);
     CHECK(s == CT_RUNNING, "still running");
     
-    /* Wait a bit then poll again — it should exit */
+    /* Wait a bit then poll again  --  it should exit */
     usleep(2500000);  /* 2.5s */
     s = wubu_ct_state(ct);
     CHECK(s == CT_EXITED, "exited after sleep");
@@ -233,13 +233,13 @@ static void test_ct_double_start_fails(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Host Container Execution Test Suite      ║\n");
-    printf("║  Cell 203: Fork+exec for .wubu containers        ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("\n+==================================================+\n");
+    printf("|  WuBuOS Host Container Execution Test Suite      |\n");
+    printf("|  Cell 203: Fork+exec for .wubu containers        |\n");
+    printf("+==================================================+\n\n");
     
     /* Config tests */
     test_ct_create();
@@ -250,8 +250,8 @@ int main(void) {
     test_ct_gpu_passthrough();
     test_ct_resource_limits();
     
-    /* Behavioral tests — REAL fork+exec */
-    printf("\n── Behavioral (real process creation) ──\n\n");
+    /* Behavioral tests  --  REAL fork+exec */
+    printf("\n-- Behavioral (real process creation) --\n\n");
     test_ct_fork_exec();
     test_ct_fork_exec_exitcode();
     test_ct_kill();
@@ -260,13 +260,13 @@ int main(void) {
     test_ct_double_start_fails();
     
     /* Preset tests */
-    printf("\n── Presets ──\n\n");
+    printf("\n-- Presets --\n\n");
     test_ct_steamos_preset();
     test_ct_native_preset();
     
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_passed, g_tests, g_failed);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
     
     return g_failed > 0 ? 1 : 0;
 }

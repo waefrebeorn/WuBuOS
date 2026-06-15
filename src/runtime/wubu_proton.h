@@ -1,5 +1,5 @@
 /*
- * wubu_proton.h — WuBuOS Proton: Windows Compatibility Layer
+ * wubu_proton.h  --  WuBuOS Proton: Windows Compatibility Layer
  *
  * Cell 092: Proton-style Windows PE binary compatibility over VSL.
  *
@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── PE Format Constants ───────────────────────────────────── */
+/* -- PE Format Constants ------------------------------------- */
 
 #define PE_MAGIC       0x00004550  /* "PE\0\0" */
 #define PE_MACHINE_AMD64 0x8664
@@ -40,7 +40,7 @@
 #define PE_MEM_READ     0x40000000
 #define PE_MEM_WRITE    0x80000000
 
-/* ── PE Header Structures (packed) ─────────────────────────── */
+/* -- PE Header Structures (packed) --------------------------- */
 
 #pragma pack(push, 1)
 
@@ -80,7 +80,7 @@ typedef struct {
 
 #pragma pack(pop)
 
-/* ── Win32 API Translation ─────────────────────────────────── */
+/* -- Win32 API Translation ----------------------------------- */
 
 /* Categories of Win32 APIs that Proton translates */
 typedef enum {
@@ -109,7 +109,7 @@ typedef struct {
     uint16_t    flags;          /* Translation flags */
 } proton_api_map_t;
 
-/* ── DLL Management ────────────────────────────────────────── */
+/* -- DLL Management ------------------------------------------ */
 
 #define PROTON_MAX_DLLS    64
 #define PROTON_MAX_DLL_NAME 64
@@ -127,7 +127,7 @@ typedef struct {
     int                 loaded;
 } proton_dll_t;
 
-/* ── Proton State ──────────────────────────────────────────── */
+/* -- Proton State -------------------------------------------- */
 
 typedef enum {
     PROTON_OFF = 0,
@@ -167,7 +167,7 @@ typedef struct {
     uint64_t dll_resolved;   /* DLLs resolved */
 } wubu_proton_t;
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 /* Initialize Proton layer. Requires VSL to be initialized. */
 int  wubu_proton_init(wubu_proton_t *p);
@@ -175,7 +175,7 @@ int  wubu_proton_init(wubu_proton_t *p);
 /* Shutdown Proton layer */
 void wubu_proton_shutdown(wubu_proton_t *p);
 
-/* ── PE Validation ─────────────────────────────────────────── */
+/* -- PE Validation ------------------------------------------- */
 
 /* Validate a PE binary. Returns 0 if valid PE, -1 if not.
  * Sets p->is_pe64, machine, entry_point, etc. */
@@ -188,7 +188,7 @@ int  wubu_proton_parse_pe(wubu_proton_t *p, const uint8_t *data, size_t size);
 /* Check if data looks like a PE (quick check, no full validation) */
 int  wubu_proton_is_pe(const uint8_t *data, size_t size);
 
-/* ── PE Loading ────────────────────────────────────────────── */
+/* -- PE Loading ---------------------------------------------- */
 
 /* Map PE sections into VSL process memory.
  * Returns base address, or 0 on error. */
@@ -197,7 +197,7 @@ uint32_t wubu_proton_map_sections(wubu_proton_t *p, const uint8_t *data, size_t 
 /* Get the entry point address (base + RVA) */
 uint32_t wubu_proton_entry_addr(const wubu_proton_t *p);
 
-/* ── API Translation ───────────────────────────────────────── */
+/* -- API Translation ----------------------------------------- */
 
 /* Register a Win32 → VSL API mapping */
 int  wubu_proton_register_api(wubu_proton_t *p, const proton_api_map_t *map);
@@ -209,7 +209,7 @@ int  wubu_proton_translate_api(wubu_proton_t *p, const char *win32_name);
 /* Load the built-in API translation table (Kernel32, User32, etc.) */
 int  wubu_proton_load_default_apis(wubu_proton_t *p);
 
-/* ── DLL Management ────────────────────────────────────────── */
+/* -- DLL Management ------------------------------------------ */
 
 /* Register a DLL */
 int  wubu_proton_register_dll(wubu_proton_t *p, const char *name,
@@ -221,7 +221,7 @@ int  wubu_proton_find_dll(wubu_proton_t *p, const char *name);
 /* Resolve DLL dependencies (stub) */
 int  wubu_proton_resolve_deps(wubu_proton_t *p);
 
-/* ── Runtime Execution ─────────────────────────────────────── */
+/* -- Runtime Execution --------------------------------------- */
 
 /* Execute a PE binary through Proton+VSL pipeline.
  * 1. Validate PE
@@ -233,7 +233,7 @@ int  wubu_proton_resolve_deps(wubu_proton_t *p);
 int  wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
                        const char *cmdline);
 
-/* ── Query / Diagnostics ───────────────────────────────────── */
+/* -- Query / Diagnostics ------------------------------------- */
 
 /* Is Proton ready to execute Windows binaries? */
 int  wubu_proton_is_ready(const wubu_proton_t *p);

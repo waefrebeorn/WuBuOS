@@ -1,0 +1,78 @@
+#version 450
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 0) readonly buffer Input {
+    float data[];
+} input_buf;
+
+layout(std430, binding = 1) writeonly buffer Output {
+    float data[];
+} output_buf;
+
+layout(push_constant) uniform PushConstants {
+    uint size;  // Total elements (assumed to be a single vector)
+} pc;
+
+shared float s_data[256];
+shared float s_max;
+shared float s_sum;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    uint lid = gl_LocalInvocationID.x;
+    
+    // Load data (single vector softmax)
+    if (idx < pc.size) {
+        s_data[lid] = input_buf.data[idx];
+    } else {
+        s_data[lid] = -1e30;
+    }
+    barrier();
+    
+    // Shared memory max reduction
+    float val = s_data[lid];
+    for (uint stride = 128; stride > 0; stride >>= 1) {
+        if (lid < stride) {
+            float other = s_data[lid + stride];
+            val = max(val, other);
+            s_data[lid] = val;
+        }
+        barrier();
+    }
+    
+    // Broadcast max
+    if (lid == 0) s_max = s_data[0];
+    barrier();
+    val = s_max;
+    barrier();
+    
+    // Subtract max and compute exp
+    if (idx < pc.size) {
+        val = exp(s_data[lid] - val);
+        s_data[lid] = val;
+    } else {
+        val = 0.0;
+    }
+    barrier();
+    
+    // Shared memory sum reduction
+    for (uint stride = 128; stride > 0; stride >>= 1) {
+        if (lid < stride) {
+            float other = s_data[lid + stride];
+            val += other;
+            s_data[lid] = val;
+        }
+        barrier();
+    }
+    
+    // Broadcast sum
+    if (lid == 0) s_sum = s_data[0];
+    barrier();
+    val = s_sum;
+    barrier();
+    
+    // Normalize and store
+    if (idx < pc.size) {
+        output_buf.data[idx] = s_data[lid] / val;
+    }
+}

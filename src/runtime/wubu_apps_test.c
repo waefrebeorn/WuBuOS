@@ -1,5 +1,5 @@
 /*
- * wubu_apps_test.c — WuBuOS App-Level Components Test Suite
+ * wubu_apps_test.c  --  WuBuOS App-Level Components Test Suite
  *
  * Cell 107: Package manager (Flatpak-style)
  * Cell 108: VSL app launcher (Brave browser model)
@@ -20,9 +20,9 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ═══════════════════════════════════════════════════════════
+/* ===========================================================
  * Cell 107: Package Manager Tests
- * ═══════════════════════════════════════════════════════════ */
+ * =========================================================== */
 
 static void test_pkg_init(void) {
     TEST("[107] pkg_init zeroes manager");
@@ -101,9 +101,9 @@ static void test_pkg_list_installed(void) {
     pkg_shutdown(&mgr); PASS();
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* ===========================================================
  * Cell 108: VSL App Launcher Tests (Brave browser model)
- * ═══════════════════════════════════════════════════════════ */
+ * =========================================================== */
 
 static void test_vsl_init_for_app(void) {
     TEST("[108] VSL init for Linux app execution");
@@ -131,9 +131,9 @@ static void test_vsl_net_driver(void) {
     vsl_shutdown(); PASS();
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* ===========================================================
  * Cell 109: Proton App Launcher Tests (Notepad++ model)
- * ═══════════════════════════════════════════════════════════ */
+ * =========================================================== */
 
 static void test_proton_init(void) {
     TEST("[109] Proton init for Windows app execution");
@@ -166,9 +166,9 @@ static void test_proton_api_translate(void) {
     wubu_proton_shutdown(&p); PASS();
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* ===========================================================
  * Cell 110: Compiler Registry Tests
- * ═══════════════════════════════════════════════════════════ */
+ * =========================================================== */
 
 #define COMP_MAX 16
 #define COMP_NAME_MAX 32
@@ -225,12 +225,12 @@ static void test_comp_preinstalled(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────── */
+/* -- Main ----------------------------------------------------- */
 
 int main(void) {
-    printf("╔═════════════════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS App-Level Test Suite (Cells 107-110)                ║\n");
-    printf("╚═════════════════════════════════════════════════════════════╝\n\n");
+    printf("+=============================================================+\n");
+    printf("|  WuBuOS App-Level Test Suite (Cells 107-110)                |\n");
+    printf("+=============================================================+\n\n");
 
     test_pkg_init(); test_pkg_register(); test_pkg_register_dup();
     test_pkg_install_remove(); test_pkg_deps(); test_pkg_repo();
@@ -239,8 +239,8 @@ int main(void) {
     test_proton_init(); test_proton_builtin_dlls(); test_proton_api_translate();
     test_comp_registry(); test_comp_preinstalled();
 
-    printf("\n═════════════════════════════════════════════════════════════\n");
+    printf("\n=============================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("═════════════════════════════════════════════════════════════\n");
+    printf("=============================================================\n");
     return g_fail > 0 ? 1 : 0;
 }

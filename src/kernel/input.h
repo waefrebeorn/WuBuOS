@@ -1,5 +1,5 @@
 /*
- * input.h — My Seed Keyboard/Mouse Input Subsystem
+ * input.h  --  My Seed Keyboard/Mouse Input Subsystem
  */
 #ifndef MYSEED_INPUT_H
 #define MYSEED_INPUT_H
@@ -40,6 +40,9 @@ void    input_mouse_get_pos(int *x, int *y);
 #define MOD_CTRL   0x02
 #define MOD_ALT    0x04
 #define MOD_WIN    0x08
+
+/* Simple ASCII key push (for PS/2 driver) */
+void input_key_push_simple(char c);
 
 /* Init */
 int  input_init(void);

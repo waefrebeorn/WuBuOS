@@ -1,7 +1,7 @@
 /*
- * wubu_gaad.c — WuBuOS Golden Aspect Adaptive Decomposition
+ * wubu_gaad.c  --  WuBuOS Golden Aspect Adaptive Decomposition
  *
- * Cell 393: GAAD — the universal resolution translator.
+ * Cell 393: GAAD  --  the universal resolution translator.
  *
  * From bytropix: "Recursive Golden Subdivision turns any rectangle
  * into squares + golden rectangles. This gives a resolution-independent
@@ -17,7 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* ── Pure C Math Helpers ────────────────────────────────────────── */
+/* -- Pure C Math Helpers ------------------------------------------ */
 
 int wubu_isqrt(int n) {
     if (n <= 0) return 0;
@@ -69,7 +69,7 @@ int wubu_clamp(int val, int lo, int hi) {
     return val;
 }
 
-/* ── Recursive Golden Subdivision ───────────────────────────────── */
+/* -- Recursive Golden Subdivision --------------------------------- */
 
 static void golden_subdivide(int x, int y, int w, int h,
                               int depth, int max_depth,
@@ -145,7 +145,7 @@ void wubu_gaad_decompose(int width, int height, int max_depth,
     golden_subdivide(0, 0, width, height, 0, out->max_depth, -1, out);
 }
 
-/* ── Feng Shui Cardinal Mirrors ─────────────────────────────────── */
+/* -- Feng Shui Cardinal Mirrors ----------------------------------- */
 
 void wubu_gaad_feng_shui_build(int frame_w, int frame_h, WubuFengShui *fs) {
     if (!fs) return;
@@ -235,7 +235,7 @@ void wubu_gaad_feng_shui_build(int frame_w, int frame_h, WubuFengShui *fs) {
     };
 }
 
-/* ── Feng Shui Decompose ────────────────────────────────────────── */
+/* -- Feng Shui Decompose ------------------------------------------ */
 
 void wubu_gaad_decompose_feng_shui(int width, int height, int max_depth,
                                     WubuGaadDecomp *out,
@@ -261,7 +261,7 @@ void wubu_gaad_decompose_feng_shui(int width, int height, int max_depth,
     if (fs) wubu_gaad_feng_shui_build(width, height, fs);
 }
 
-/* ── Find Nearest Snap ──────────────────────────────────────────── */
+/* -- Find Nearest Snap -------------------------------------------- */
 
 int wubu_gaad_find_snap(const WubuGaadDecomp *decomp,
                          int win_x, int win_y, int win_w, int win_h,
@@ -302,7 +302,7 @@ void wubu_gaad_snap_pos(const WubuGaadDecomp *decomp, int region_idx,
     if (out_h) *out_h = r->h;
 }
 
-/* ── Feng Shui Snap ─────────────────────────────────────────────── */
+/* -- Feng Shui Snap ----------------------------------------------- */
 
 bool wubu_gaad_feng_shui_snap(const WubuFengShui *fs,
                                int win_x, int win_y, int win_w, int win_h,
@@ -358,7 +358,7 @@ bool wubu_gaad_feng_shui_snap(const WubuFengShui *fs,
     return false;
 }
 
-/* ── Phi-Spiral Sectoring ───────────────────────────────────────── */
+/* -- Phi-Spiral Sectoring ----------------------------------------- */
 
 void wubu_gaad_add_spirals(WubuGaadDecomp *decomp,
                             int num_arms, int points_per_arm) {
@@ -372,7 +372,7 @@ void wubu_gaad_add_spirals(WubuGaadDecomp *decomp,
     double initial_r = min_dim * 0.05;
     double max_r = min_dim * 0.45;
 
-    /* b = ln(φ) / (π/2) — ensures φ growth per 90° */
+    /* b = ln(φ) / (π/2)  --  ensures φ growth per 90° */
     double b = log(WUBU_PHI) / (3.14159265358979323846 / 2.0);
 
     for (int arm = 0; arm < num_arms; arm++) {
@@ -416,9 +416,9 @@ void wubu_gaad_add_spirals(WubuGaadDecomp *decomp,
     }
 }
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  Resolution Translation
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 void wubu_gaad_translate_init(int src_w, int src_h,
                                int dst_w, int dst_h,

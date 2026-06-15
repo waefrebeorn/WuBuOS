@@ -1,0 +1,70 @@
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->pole_masses[i] = 0.1f * (1.0f - i * 0.02f);
++++
+ s->pole_masses[i] = 0.1f;       /* Uniform 0.1 kg per pole (spec) */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->pole_lengths[i] = 0.5f * (1.0f - i * 0.05f);
++++
+ s->pole_lengths[i] = 0.5f;      /* Uniform 0.5 m per pole (spec) */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->gravity = 9.8f;
++++
+ s->gravity = 9.81f;  /* Spec: g = 9.81 m/s^2 */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->dt = 0.01f;  /* MuJoCo Warp style timestep */
++++
+ s->dt = 0.02f;  /* Classic CartPole timestep (Barto et al.) */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->angle_threshold = 1.73f;  /* ~π/2 * 1.1 ≈ 1.73 rad (99 deg) */
++++
+ s->angle_threshold = 0.20944f;  /* 12° = 0.20944 rad — classic CartPole-v1 threshold */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->cart_pos_threshold = 4.0f;
++++
+ s->cart_pos_threshold = 2.4f;  /* Classic CartPole-v1: |x| > 2.4 m */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->pole_mass_length[i] = s->pole_masses[i] * s->pole_lengths[i];
++++
+ s->pole_mass_length[i] = s->pole_masses[i] * s->pole_lengths[i] * 0.5f;  /* COM distance = l/2 */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->episode_length_min = 64;
++++
+ s->episode_length_min = 100;   /* Start curriculum at 100 steps */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->episode_length_max = 128;
++++
+ s->episode_length_max = 200;   /* Randomize 100-200 initially */
+*** End Patch
+*** Begin Patch
+*** Update File: src/bear/bear_env.c
+@@
+ s->pole_mass_length[i] * cos_t;
++++
+ s->pole_mass_length[i] * cos_t;  /* COM distance = l/2 */
+*** End Patch

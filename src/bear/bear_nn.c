@@ -1,5 +1,5 @@
 /*
- * bear_nn.c — PufferC/BearRL PolicyNet Implementation
+ * bear_nn.c  --  PufferC/BearRL PolicyNet Implementation
  *
  * Forward + Backward pass for MLP policy and value networks.
  * Pure C11, analytical gradients via chain rule.
@@ -12,9 +12,9 @@
 #include <string.h>
 #include <math.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Network Creation
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 int bear_policy_create_mlp(BearPolicyNet* net, BearArena* param_arena,
                             int obs_dim, int act_dim, int act_discrete,
@@ -108,9 +108,9 @@ int bear_policy_create_mingru(BearPolicyNet* net, BearArena* param_arena,
     return 0;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
- * Forward Pass — stores activations for backward
- * ═══════════════════════════════════════════════════════════════════ */
+/* ===================================================================
+ * Forward Pass  --  stores activations for backward
+ * =================================================================== */
 
 void bear_policy_forward(const BearPolicyNet* net,
                           const BearTensor* obs,
@@ -382,9 +382,9 @@ void bear_orthogonal_init_params(BearPolicyNet* net, float gain) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Value Network
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 int bear_value_create(BearValueNet* vnet, BearArena* param_arena,
                        int obs_dim, const int* hid_sizes, int num_hid) {
@@ -457,9 +457,9 @@ void bear_value_orthogonal_init(BearValueNet* vnet, float gain) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
- * Backward Pass — Analytical Gradients
- * ═══════════════════════════════════════════════════════════════════ */
+/* ===================================================================
+ * Backward Pass  --  Analytical Gradients
+ * =================================================================== */
 
 /*
  * Policy backward for discrete (categorical) actions.
@@ -502,7 +502,7 @@ int bear_policy_backward(BearPolicyNet* net,
 }
 
 /*
- * Discrete (categorical) backward — original implementation
+ * Discrete (categorical) backward  --  original implementation
  */
 int bear_policy_backward_discrete(BearPolicyNet* net,
                                     const BearTensor* obs,
@@ -517,7 +517,7 @@ int bear_policy_backward_discrete(BearPolicyNet* net,
     int act_dim = net->act_dim;
     int last = net->num_layers - 1;
 
-    /* ── Step 1: compute dL/dlogit (gradient at output) ── */
+    /* -- Step 1: compute dL/dlogit (gradient at output) -- */
     float* dlogit = (float*)BEAR_ARENA_ALLOC(temp_arena, float, mb * act_dim);
     if (!dlogit) return -1;
 
@@ -568,7 +568,7 @@ int bear_policy_backward_discrete(BearPolicyNet* net,
         }
     }
 
-    /* ── Step 2: backprop through layers ── */
+    /* -- Step 2: backprop through layers -- */
     /* dlogit is [mb, act_dim]. We need to backprop through each layer. */
 
     /* Temp buffer for gradient w.r.t. layer input */
@@ -618,7 +618,7 @@ int bear_policy_backward_discrete(BearPolicyNet* net,
         }
     }
 
-    /* ── Step 3: backprop through hidden layers ── */
+    /* -- Step 3: backprop through hidden layers -- */
     for (int li = last - 1; li >= 0; --li) {
         BearLayer* l = &net->layers[li];
         int in_f = l->in_features;
@@ -718,7 +718,7 @@ int bear_policy_backward_continuous(BearPolicyNet* net,
     float ls = net->logstd ? 0.0f : net->logstd_fixed;
     float var = expf(2.0f * ls);
 
-    /* ── Step 1: compute dL/dmu (gradient at output) ── */
+    /* -- Step 1: compute dL/dmu (gradient at output) -- */
     /* dmu: [mb, act_dim] */
     float* dmu = (float*)BEAR_ARENA_ALLOC(temp_arena, float, mb * act_dim);
     if (!dmu) return -1;
@@ -742,7 +742,7 @@ int bear_policy_backward_continuous(BearPolicyNet* net,
         }
     }
 
-    /* ── Step 2: backprop through layers (same as discrete, using dmu instead of dlogit) ── */
+    /* -- Step 2: backprop through layers (same as discrete, using dmu instead of dlogit) -- */
     float* dx = (float*)BEAR_ARENA_ALLOC(temp_arena, float, mb * actor->in_features);
     if (!dx) return -1;
 
@@ -779,7 +779,7 @@ int bear_policy_backward_continuous(BearPolicyNet* net,
         }
     }
 
-    /* ── Step 3: backprop through hidden layers (identical to discrete) ── */
+    /* -- Step 3: backprop through hidden layers (identical to discrete) -- */
     for (int li = last - 1; li >= 0; --li) {
         BearLayer* l = &net->layers[li];
         int in_f = l->in_features;
@@ -966,9 +966,9 @@ void bear_value_zero_grad(BearValueNet* vnet) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Checkpointing (stub)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 int bear_checkpoint_save(const BearPolicyNet* net, const char* path) {
     (void)net; (void)path;
     return 0;

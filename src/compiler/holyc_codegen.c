@@ -1,14 +1,14 @@
 /*
- * holyc_codegen.c — My Seed HolyC Code Generator
+ * holyc_codegen.c  --  My Seed HolyC Code Generator
  *
  * Emits x86-64 machine code from HolyC AST.
  * Uses our JIT mmap backend for executable memory.
  *
  * Register convention (System V AMD64):
- *   rdi, rsi, rdx, rcx, r8, r9  — argument passing
- *   rax                          — return value
- *   rbx, rbp, r12-r15           — callee-saved
- *   rsp                          — stack pointer
+ *   rdi, rsi, rdx, rcx, r8, r9   --  argument passing
+ *   rax                           --  return value
+ *   rbx, rbp, r12-r15            --  callee-saved
+ *   rsp                           --  stack pointer
  *
  * All conditional jumps use 5-byte encoding (0F 8x + rel32)
  * to guarantee patchability for label-based backpatching.
@@ -25,12 +25,12 @@
 #include <stdio.h>
 #include <sys/mman.h>
 
-/* JIT_CALL macro from jit.h — call function pointer with 0 args */
+/* JIT_CALL macro from jit.h  --  call function pointer with 0 args */
 #ifndef JIT_CALL
 #define JIT_CALL(fn) ((int64_t(*)(void))(fn))()
 #endif
 
-/* ── Code Emission Helpers ──────────────────────────────────────── */
+/* -- Code Emission Helpers ---------------------------------------- */
 
 static void emit_byte(HCGen *gen, uint8_t b) {
     if (gen->code_size >= gen->code_cap) {
@@ -77,7 +77,7 @@ static void emit_qword(HCGen *gen, uint64_t q) {
     emit_dword(gen, (uint32_t)((q >> 32) & 0xFFFFFFFF));
 }
 
-/* ── Patch Helpers ───────────────────────────────────────────────── */
+/* -- Patch Helpers ------------------------------------------------- */
 
 /* Patch a 4-byte relative offset at 'patch_pos' to jump to 'target_pos'.
  * The offset is relative to the instruction AFTER the patch position.
@@ -91,7 +91,7 @@ static void patch_rel32(HCGen *gen, size_t patch_pos, size_t target_pos) {
     gen->code[patch_pos + 3] = (uint8_t)((rel >> 24) & 0xFF);
 }
 
-/* ── x86-64 Instruction Patterns ────────────────────────────────── */
+/* -- x86-64 Instruction Patterns ---------------------------------- */
 
 /* mov rax, imm64 */
 static void emit_mov_rax_imm64(HCGen *gen, int64_t val) {
@@ -198,7 +198,7 @@ static void emit_mov_rax_1(HCGen *gen) {
     emit_mov_rax_imm64(gen, 1);
 }
 
-/* ── Conditional Set Patterns ───────────────────────────────────── */
+/* -- Conditional Set Patterns ------------------------------------- */
 
 /* After cmp rax, rdi: set al based on condition, then movzx rax, al */
 static void emit_setcc(HCGen *gen, uint8_t set_op) {
@@ -212,7 +212,7 @@ static void emit_setcc(HCGen *gen, uint8_t set_op) {
     emit_byte(gen, 0xC0);
 }
 
-/* ── Jump Emission (5-byte, always patchable) ───────────────────── */
+/* -- Jump Emission (5-byte, always patchable) --------------------- */
 
 /* Emit Jcc (conditional jump) with placeholder rel32.
  * cc is the condition code (0-15): 0=JO, 4=JE/JZ, 5=JNE/JNZ, etc.
@@ -252,13 +252,13 @@ static size_t emit_jmp_placeholder(HCGen *gen) {
 #define CC_LE 14  /* less or equal */
 #define CC_NLE 15 /* not less or equal (greater) */
 
-/* ── Code Gen Init ──────────────────────────────────────────────── */
+/* -- Code Gen Init ------------------------------------------------ */
 
 void hc_gen_init(HCGen *gen) {
     memset(gen, 0, sizeof(*gen));
 }
 
-/* ── Code Gen for Expressions ───────────────────────────────────── */
+/* -- Code Gen for Expressions ------------------------------------- */
 
 static int gen_expr(HCGen *gen, const HCASTNode *node) {
     if (!node) return 0;
@@ -301,7 +301,7 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
             }
             break;
 
-        /* Identifiers — for now, look up in symbol table */
+        /* Identifiers  --  for now, look up in symbol table */
         case HC_AST_IDENT:
             if (gen->symbols.n_locals > 0) {
                 /* Look up variable in symbol table */
@@ -821,7 +821,7 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
         }
 
         default:
-            /* Unknown expression — emit 0 */
+            /* Unknown expression  --  emit 0 */
             emit_mov_rax_imm64(gen, 0);
             break;
     }
@@ -829,7 +829,7 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
     return 0;
 }
 
-/* ── Code Gen for Statements ────────────────────────────────────── */
+/* -- Code Gen for Statements -------------------------------------- */
 
 static int gen_stmt(HCGen *gen, const HCASTNode *node) {
     if (!node) return 0;
@@ -1163,7 +1163,7 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
     return 0;
 }
 
-/* ── Public API ─────────────────────────────────────────────────── */
+/* -- Public API --------------------------------------------------- */
 
 int hc_gen_node(HCGen *gen, const HCASTNode *node) {
     if (!node) return -1;
@@ -1182,7 +1182,7 @@ const uint8_t *hc_gen_code(const HCGen *gen, size_t *out_size) {
     return gen->code;
 }
 
-/* ── Top-Level Compile and Execute ──────────────────────────────── */
+/* -- Top-Level Compile and Execute -------------------------------- */
 
 void *hc_compile(const char *source, size_t *out_size) {
     HCLexer lex;
@@ -1353,7 +1353,7 @@ void *hc_compile_func(const char *source, const char *func_name) {
     }
 
     if (!func) {
-        /* No function found — treat as expression */
+        /* No function found  --  treat as expression */
         hc_ast_free(ast);
 
         HCLexer lex2;

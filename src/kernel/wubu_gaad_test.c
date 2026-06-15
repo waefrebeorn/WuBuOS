@@ -1,5 +1,5 @@
 /*
- * wubu_gaad_test.c — GAAD: Golden Aspect Adaptive Decomposition
+ * wubu_gaad_test.c  --  GAAD: Golden Aspect Adaptive Decomposition
  *
  * Cell 393: Tests for the universal resolution translator.
  */
@@ -17,7 +17,7 @@ static int pass = 0, fail = 0;
 #define FAIL(msg) do { fail++; printf("❌ %s\n", msg); } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Golden Subdivision ─────────────────────────────────────────── */
+/* -- Golden Subdivision ------------------------------------------- */
 
 static void test_decompose_640x480(void) {
     TEST("decompose 640×480 (TempleOS resolution)");
@@ -73,7 +73,7 @@ static void test_decompose_portrait(void) {
     PASS();
 }
 
-/* ── Snap Finding ───────────────────────────────────────────────── */
+/* -- Snap Finding ------------------------------------------------- */
 
 static void test_snap_center(void) {
     TEST("snap: window at center finds nearest region");
@@ -93,7 +93,7 @@ static void test_snap_too_far(void) {
     PASS();
 }
 
-/* ── Feng Shui ──────────────────────────────────────────────────── */
+/* -- Feng Shui ---------------------------------------------------- */
 
 static void test_feng_shui_build(void) {
     TEST("feng shui: build 1920×1080 cardinal mirrors");
@@ -135,7 +135,7 @@ static void test_feng_shui_asymmetry(void) {
     PASS();
 }
 
-/* ── Resolution Translation ─────────────────────────────────────── */
+/* -- Resolution Translation --------------------------------------- */
 
 static void test_translate_templeos_to_hd(void) {
     TEST("translate: TempleOS 640×480 → 1920×1080");
@@ -196,7 +196,7 @@ static void test_region_scale(void) {
     PASS();
 }
 
-/* ── Pure C Math ────────────────────────────────────────────────── */
+/* -- Pure C Math -------------------------------------------------- */
 
 static void test_isqrt(void) {
     TEST("wubu_isqrt correctness");
@@ -231,39 +231,39 @@ static void test_clamp(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n── GAAD Golden Subdivision (Cell 393) ──\n\n");
+    printf("\n-- GAAD Golden Subdivision (Cell 393) --\n\n");
     test_decompose_640x480();
     test_decompose_1920x1080();
     test_decompose_square();
     test_decompose_golden_rect();
     test_decompose_portrait();
 
-    printf("\n── GAAD Snap (Cell 393) ──\n\n");
+    printf("\n-- GAAD Snap (Cell 393) --\n\n");
     test_snap_center();
     test_snap_too_far();
 
-    printf("\n── GAAD Feng Shui (Cell 393) ──\n\n");
+    printf("\n-- GAAD Feng Shui (Cell 393) --\n\n");
     test_feng_shui_build();
     test_feng_shui_snap();
     test_feng_shui_asymmetry();
 
-    printf("\n── GAAD Resolution Translation (Cell 393) ──\n\n");
+    printf("\n-- GAAD Resolution Translation (Cell 393) --\n\n");
     test_translate_templeos_to_hd();
     test_translate_inverse();
     test_translate_same_res();
     test_region_scale();
 
-    printf("\n── GAAD Pure C Math (Cell 393) ──\n\n");
+    printf("\n-- GAAD Pure C Math (Cell 393) --\n\n");
     test_isqrt();
     test_phi_pow();
     test_clamp();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            pass, pass + fail, fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
     return fail > 0 ? 1 : 0;
 }

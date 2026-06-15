@@ -1,5 +1,5 @@
 /*
- * wubu_codec.c — WuBuOS Codec Layer Implementation
+ * wubu_codec.c  --  WuBuOS Codec Layer Implementation
  *
  * Cell 398: FFmpeg CLI wrapper + optional libav linkage.
  *
@@ -13,13 +13,13 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-/* ── FFmpeg Availability ────────────────────────────────────────── */
+/* -- FFmpeg Availability ------------------------------------------ */
 
 bool wubu_codec_available(void) {
     return (access("/usr/bin/ffmpeg", X_OK) == 0);
 }
 
-/* ── Format Detection ───────────────────────────────────────────── */
+/* -- Format Detection --------------------------------------------- */
 
 WubuMediaType wubu_codec_detect_type(const char *path) {
     if (!path) return WUBU_MEDIA_UNKNOWN;
@@ -49,7 +49,7 @@ WubuMediaType wubu_codec_detect_type(const char *path) {
     return WUBU_MEDIA_UNKNOWN;
 }
 
-/* ── Probe ──────────────────────────────────────────────────────── */
+/* -- Probe -------------------------------------------------------- */
 
 int wubu_codec_probe(const char *path, WubuMediaInfo *info) {
     if (!path || !info) return -1;
@@ -91,7 +91,7 @@ int wubu_codec_probe(const char *path, WubuMediaInfo *info) {
     return 0;
 }
 
-/* ── Decode ──────────────────────────────────────────────────────── */
+/* -- Decode -------------------------------------------------------- */
 
 WubuDecoder *wubu_dec_open(const char *path) {
     if (!path) return NULL;
@@ -131,7 +131,7 @@ const WubuMediaInfo *wubu_dec_info(WubuDecoder *dec) {
     return dec ? &dec->info : NULL;
 }
 
-/* ── Encode ──────────────────────────────────────────────────────── */
+/* -- Encode -------------------------------------------------------- */
 
 WubuEncoder *wubu_enc_open(const char *path, const char *format,
                             const char *codec_v, const char *codec_a,
@@ -166,7 +166,7 @@ int wubu_enc_audio_frame(WubuEncoder *enc, const WubuAudioFrame *frame) {
     (void)enc; (void)frame; return -1;
 }
 
-/* ── Transcode ──────────────────────────────────────────────────── */
+/* -- Transcode ---------------------------------------------------- */
 
 int wubu_transcode_start(WubuTranscode *job) {
     if (!job) return -1;
@@ -203,7 +203,7 @@ void wubu_transcode_cancel(WubuTranscode *job) {
     if (job) { job->running = false; if (job->pid > 0) kill(job->pid, SIGKILL); }
 }
 
-/* ── Convenience ─────────────────────────────────────────────────── */
+/* -- Convenience --------------------------------------------------- */
 
 int wubu_codec_extract_frame(const char *src, double timestamp,
                                uint32_t *out, int w, int h) {

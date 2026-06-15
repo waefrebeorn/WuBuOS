@@ -1,7 +1,7 @@
 /*
- * wubu_gaad.h — WuBuOS Golden Aspect Adaptive Decomposition
+ * wubu_gaad.h  --  WuBuOS Golden Aspect Adaptive Decomposition
  *
- * Cell 393: GAAD — the universal resolution translator.
+ * Cell 393: GAAD  --  the universal resolution translator.
  *
  * From bytropix THEORY/papers/GAAD-WuBu-ST1.md:
  *   "GAAD provides a multi-scale, aspect-ratio agnostic method
@@ -37,13 +37,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Golden Ratio Constants ─────────────────────────────────────── */
+/* -- Golden Ratio Constants --------------------------------------- */
 
 #define WUBU_PHI       1.6180339887498948482   /* φ = (1+√5)/2 */
 #define WUBU_PHI_INV   0.6180339887498948482   /* 1/φ = φ-1 */
 #define WUBU_PHI_SQ    2.6180339887498948482   /* φ² = φ+1 */
 
-/* ── GAAD Region ────────────────────────────────────────────────── */
+/* -- GAAD Region -------------------------------------------------- */
 
 #define WUBU_GAAD_MAX_REGIONS  64
 #define WUBU_GAAD_MAX_DEPTH    6
@@ -65,7 +65,7 @@ typedef struct {
     bool     is_snap_target;   /* True = window can snap here */
 } WubuGaadRegion;
 
-/* ── GAAD Decomposition ─────────────────────────────────────────── */
+/* -- GAAD Decomposition ------------------------------------------- */
 
 typedef struct {
     WubuGaadRegion regions[WUBU_GAAD_MAX_REGIONS];
@@ -76,11 +76,11 @@ typedef struct {
     bool           with_cardinals;     /* Mark cardinal mirror regions */
 } WubuGaadDecomp;
 
-/* ── GAAD Coordinate (resolution-independent) ───────────────────── */
+/* -- GAAD Coordinate (resolution-independent) --------------------- */
 
 /*
  * A GAAD coordinate is a region index + (u,v) offset within [0,1]².
- * This is resolution-independent — the same (region_idx, u, v) maps
+ * This is resolution-independent  --  the same (region_idx, u, v) maps
  * to different pixel positions at different resolutions.
  *
  * This is how we translate TempleOS 640×480 → 1920×1080:
@@ -93,7 +93,7 @@ typedef struct {
     double u, v;              /* Position within region [0,1]² */
 } WubuGaadCoord;
 
-/* ── Feng Shui Cardinal Mirrors ─────────────────────────────────── */
+/* -- Feng Shui Cardinal Mirrors ----------------------------------- */
 
 /*
  * The 4 cardinal mirrors create asymmetric snap regions.
@@ -108,7 +108,7 @@ typedef struct {
  * feel natural (φ-based) rather than rigid (½-based).
  *
  * The asymmetry between N/S and E/W mirrors is deliberate
- * feng shui — the heavy side faces the commanding position.
+ * feng shui  --  the heavy side faces the commanding position.
  */
 typedef struct {
     WubuGaadRegion north[4];   /* Top regions (φ², φ, 1 vertical) */
@@ -118,7 +118,7 @@ typedef struct {
     WubuGaadRegion center;     /* Golden center region */
 } WubuFengShui;
 
-/* ── Resolution Translation ─────────────────────────────────────── */
+/* -- Resolution Translation --------------------------------------- */
 
 typedef struct {
     int src_w, src_h;          /* Source resolution (e.g., 640×480) */
@@ -127,9 +127,9 @@ typedef struct {
     WubuGaadDecomp dst_decomp; /* GAAD decomposition of target */
 } WubuGaadTranslate;
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Golden Subdivision
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /*
  * Decompose a rectangle into GAAD regions via Recursive Golden Subdivision.
@@ -171,9 +171,9 @@ int wubu_gaad_find_snap(const WubuGaadDecomp *decomp,
 void wubu_gaad_snap_pos(const WubuGaadDecomp *decomp, int region_idx,
                           int *out_x, int *out_y, int *out_w, int *out_h);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Phi-Spiral Sectoring
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /*
  * Add phi-spiral sector points to an existing decomposition.
@@ -184,9 +184,9 @@ void wubu_gaad_snap_pos(const WubuGaadDecomp *decomp, int region_idx,
 void wubu_gaad_add_spirals(WubuGaadDecomp *decomp,
                             int num_arms, int points_per_arm);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Resolution Translation
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /*
  * Create a resolution translator.
@@ -235,9 +235,9 @@ void wubu_gaad_translate_rect(const WubuGaadTranslate *t,
  */
 double wubu_gaad_region_scale(const WubuGaadTranslate *t, int region_idx);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Feng Shui Snap Layout
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /*
  * Build the feng shui cardinal mirror snap layout.
@@ -263,9 +263,9 @@ bool wubu_gaad_feng_shui_snap(const WubuFengShui *fs,
                                int *out_x, int *out_y,
                                int *out_w, int *out_h);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Pure C Math (no libm)
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Integer square root (Newton's method) */
 int wubu_isqrt(int n);

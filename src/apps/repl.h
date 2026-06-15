@@ -1,5 +1,5 @@
 /*
- * repl.h — My Seed REPL Header
+ * repl.h  --  My Seed REPL Header
  */
 #ifndef MYSEED_REPL_H
 #define MYSEED_REPL_H

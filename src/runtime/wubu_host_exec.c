@@ -1,5 +1,5 @@
 /*
- * wubu_host_exec.c — WuBuOS Host Container Execution (Linux)
+ * wubu_host_exec.c  --  WuBuOS Host Container Execution (Linux)
  *
  * Cell 203: Fork+exec for .wubu containers via host delegation.
  *
@@ -27,7 +27,7 @@
 #include <sys/resource.h>
 #include "styxfs.h"
 
-/* ── State/Runtime Names ─────────────────────────────────────────── */
+/* -- State/Runtime Names ------------------------------------------- */
 
 const char *wubu_ct_state_name(CtState state) {
     switch (state) {
@@ -51,7 +51,7 @@ const char *wubu_ct_runtime_name(CtRuntime runtime) {
     }
 }
 
-/* ── Container Create/Destroy ────────────────────────────────────── */
+/* -- Container Create/Destroy -------------------------------------- */
 
 WubuCt *wubu_ct_create(const char *name, const char *root, CtRuntime runtime) {
     if (!name || !root) return NULL;
@@ -98,7 +98,7 @@ void wubu_ct_destroy(WubuCt *ct) {
     free(ct);
 }
 
-/* ── Configuration ──────────────────────────────────────────────── */
+/* -- Configuration ------------------------------------------------ */
 
 int wubu_ct_set_cmd(WubuCt *ct, int argc, char **argv) {
     if (!ct || !argv) return -1;
@@ -142,10 +142,10 @@ void wubu_ct_set_limits(WubuCt *ct, uint64_t mem_mb, int cpu_count) {
     ct->cpu_limit = cpu_count;
 }
 
-/* ── GPU Passthrough Binds ──────────────────────────────────────── */
+/* -- GPU Passthrough Binds ---------------------------------------- */
 
 static void add_gpu_binds(WubuCt *ct) {
-    /* DRM/KMS — works for AMD and Intel */
+    /* DRM/KMS  --  works for AMD and Intel */
     wubu_ct_add_bind(ct, "/dev/dri", "/dev/dri", false);
     /* NVIDIA */
     wubu_ct_add_bind(ct, "/dev/nvidia0", "/dev/nvidia0", false);
@@ -156,7 +156,7 @@ static void add_gpu_binds(WubuCt *ct) {
     wubu_ct_add_bind(ct, "/dev/shm", "/dev/shm", false);
 }
 
-/* ── Styx Namespace Setup ───────────────────────────────────────── */
+/* -- Styx Namespace Setup ----------------------------------------- */
 
 static int setup_styx_socket(WubuCt *ct) {
     snprintf(ct->styx_path, sizeof(ct->styx_path),
@@ -180,7 +180,7 @@ static int setup_styx_socket(WubuCt *ct) {
     return 0;
 }
 
-/* ── Per-Container Styx 9P Server (Cell 414) ─────────────────────── */
+/* -- Per-Container Styx 9P Server (Cell 414) ----------------------- */
 
 static void run_container_styx_server(WubuCt *ct) {
     if (!ct || ct->styx_fd < 0) return;
@@ -241,7 +241,7 @@ static void run_container_styx_server(WubuCt *ct) {
     }
 }
 
-/* ── Container Start (fork + chroot + exec) ─────────────────────── */
+/* -- Container Start (fork + chroot + exec) ----------------------- */
 
 int wubu_ct_start(WubuCt *ct) {
     if (!ct || ct->state == CT_RUNNING) return -1;
@@ -251,7 +251,7 @@ int wubu_ct_start(WubuCt *ct) {
     
     /* Setup per-container Styx namespace socket */
     if (setup_styx_socket(ct) != 0) {
-        /* Non-fatal — container can run without 9P namespace */
+        /* Non-fatal  --  container can run without 9P namespace */
     }
     
     /* Add GPU bind mounts if requested */
@@ -270,11 +270,11 @@ int wubu_ct_start(WubuCt *ct) {
     }
     
     if (pid == 0) {
-        /* ── CHILD: container process ────────────────────────── */
+        /* -- CHILD: container process -------------------------- */
         
         /* chroot into container root (Arch base) */
         if (ct->root[0] && chroot(ct->root) != 0) {
-            /* If chroot fails (no root fs), fall through —
+            /* If chroot fails (no root fs), fall through  -- 
              * container runs in host namespace as fallback */
             fprintf(stderr, "wubu_ct: chroot(%s) failed: %s\n",
                     ct->root, strerror(errno));
@@ -308,7 +308,7 @@ int wubu_ct_start(WubuCt *ct) {
             unsigned long mflags = MS_BIND | MS_REC;
             if (ct->binds[i].readonly) mflags |= MS_RDONLY;
             if (mount(ct->binds[i].host, ct->binds[i].guest, NULL, mflags, NULL) != 0) {
-                /* Non-fatal — bind mount may fail if host path doesn't exist */
+                /* Non-fatal  --  bind mount may fail if host path doesn't exist */
                 /* (e.g., /dev/nvidia0 on a system without NVIDIA) */
             }
         }
@@ -331,14 +331,14 @@ int wubu_ct_start(WubuCt *ct) {
         _exit(127);
     }
     
-    /* ── PARENT ──────────────────────────────────────────────── */
+    /* -- PARENT ------------------------------------------------ */
     ct->pid = pid;
     ct->state = CT_RUNNING;
     
     return 0;
 }
 
-/* ── Container Wait ─────────────────────────────────────────────── */
+/* -- Container Wait ----------------------------------------------- */
 
 int wubu_ct_wait(WubuCt *ct) {
     if (!ct || ct->pid <= 0) return -1;
@@ -361,7 +361,7 @@ int wubu_ct_wait(WubuCt *ct) {
     return ct->exit_code;
 }
 
-/* ── Container Kill ─────────────────────────────────────────────── */
+/* -- Container Kill ----------------------------------------------- */
 
 int wubu_ct_kill(WubuCt *ct, int sig) {
     if (!ct || ct->pid <= 0) return -1;
@@ -369,7 +369,7 @@ int wubu_ct_kill(WubuCt *ct, int sig) {
     return 0;
 }
 
-/* ── State Query ────────────────────────────────────────────────── */
+/* -- State Query -------------------------------------------------- */
 
 CtState wubu_ct_state(WubuCt *ct) {
     if (!ct) return CT_STOPPED;
@@ -391,7 +391,7 @@ CtState wubu_ct_state(WubuCt *ct) {
     return ct->state;
 }
 
-/* ── Preset: SteamOS Container ──────────────────────────────────── */
+/* -- Preset: SteamOS Container ------------------------------------ */
 
 WubuCt *wubu_ct_steamos(const char *name, const char *root) {
     WubuCt *ct = wubu_ct_create(name, root, CT_STEAMOS);
@@ -408,7 +408,7 @@ WubuCt *wubu_ct_steamos(const char *name, const char *root) {
     return ct;
 }
 
-/* ── Preset: Native Linux Container ─────────────────────────────── */
+/* -- Preset: Native Linux Container ------------------------------- */
 
 WubuCt *wubu_ct_native(const char *name, const char *root) {
     WubuCt *ct = wubu_ct_create(name, root, CT_NATIVE);

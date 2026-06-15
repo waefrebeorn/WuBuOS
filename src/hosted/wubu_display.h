@@ -1,12 +1,12 @@
 /*
- * wubu_display.h — WuBuOS Display Backend (DRM/KMS — X11-free)
+ * wubu_display.h  --  WuBuOS Display Backend (DRM/KMS  --  X11-free)
  *
  * Roadmap: Replace X11 with Linux DRM/KMS for direct mode setting.
- * This is the SteamOS path — game engines use DRM directly.
+ * This is the SteamOS path  --  game engines use DRM directly.
  * Zero X11 dependency. Raw kernel mode setting.
  *
  * Status: Direct DRM ioctls + custom GBM (Cells 388/389)
- * Implementation: wubu_drm_direct.c — no libdrm, no libgbm
+ * Implementation: wubu_drm_direct.c  --  no libdrm, no libgbm
  */
 #ifndef WUBU_DISPLAY_H
 #define WUBU_DISPLAY_H
@@ -14,9 +14,9 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * CUSTOM GBM TYPES (Cell 389)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct wubu_gbm_device {
     int fd;
@@ -37,9 +37,9 @@ void *wubu_gbm_bo_get_map(wubu_gbm_bo_t *bo);
 uint32_t wubu_gbm_bo_get_stride(wubu_gbm_bo_t *bo);
 uint32_t wubu_gbm_bo_get_handle(wubu_gbm_bo_t *bo);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * DRM/KMS Display State
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     int      drm_fd;            /* /dev/dri/card0 fd */
@@ -67,9 +67,9 @@ typedef struct {
     int      running;
 } WubuDisplay;
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * API
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Open DRM device, find connector+CRTC, set mode */
 int  wubu_display_init(WubuDisplay *d, int width, int height);
@@ -83,10 +83,10 @@ int  wubu_display_poll_input(WubuDisplay *d);
 /* Cleanup */
 void wubu_display_shutdown(WubuDisplay *d);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Fallback: if no DRM available, use X11
  * The hosted binary will try DRM first, fall back to X11.
  * This keeps WuBuOS working on systems without DRM (WSL, etc.)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #endif /* WUBU_DISPLAY_H */

@@ -1,5 +1,5 @@
 /*
- * wubu_exec.h — WuBuOS Universal Executable Dispatcher
+ * wubu_exec.h  --  WuBuOS Universal Executable Dispatcher
  *
  * WuBuOS doesn't care about file extensions. It reads the header,
  * detects the format, and dispatches to the right handler.
@@ -15,7 +15,7 @@
  *   - HolyC source → JIT compile + execute
  *   - C source → compile + execute
  *
- * This is WuBuOS's answer to Linux's binfmt_misc — but universal.
+ * This is WuBuOS's answer to Linux's binfmt_misc  --  but universal.
  * One exec path. Any format. Zero configuration.
  */
 
@@ -28,7 +28,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* ── Exec Result ────────────────────────────────────────────────── */
+/* -- Exec Result -------------------------------------------------- */
 
 typedef enum {
     WUBU_EXEC_OK       =  0,
@@ -41,7 +41,7 @@ typedef enum {
     WUBU_EXEC_ERR_PERM = -7,   /* Permission denied */
 } WUBU_EXEC_RESULT;
 
-/* ── Exec Context ───────────────────────────────────────────────── */
+/* -- Exec Context ------------------------------------------------- */
 
 typedef struct {
     /* File data */
@@ -61,7 +61,7 @@ typedef struct {
     bool         vsl_active;     /* VSL was started for this exec */
 } WUBU_EXEC_CTX;
 
-/* ── API: Universal Exec ────────────────────────────────────────── */
+/* -- API: Universal Exec ------------------------------------------ */
 
 /*
  * Execute a file from memory.
@@ -79,7 +79,7 @@ int64_t wubu_exec_container(const WUBU_HEADER *hdr,
 
 /*
  * Execute a Linux ELF via VSL (Virtualization Substrate Layer).
- * The VSL is WuBuOS's "Proton" — a lightweight Linux VM
+ * The VSL is WuBuOS's "Proton"  --  a lightweight Linux VM
  * that runs Linux binaries with near-native performance.
  */
 int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size);
@@ -90,12 +90,12 @@ int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size);
 int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size);
 
 /*
- * Execute a HolyC source file — JIT compile and run.
+ * Execute a HolyC source file  --  JIT compile and run.
  */
 int64_t wubu_exec_holyc(const char *source, size_t source_size);
 
 /*
- * Execute a C source file — compile via HolyC compiler and run.
+ * Execute a C source file  --  compile via HolyC compiler and run.
  */
 int64_t wubu_exec_c(const char *source, size_t source_size);
 
@@ -109,10 +109,10 @@ int64_t wubu_exec_shell(const char *script, size_t script_size);
  */
 int64_t wubu_exec_python(const char *script, size_t script_size);
 
-/* ── VSL (Virtualization Substrate Layer) ───────────────────────── */
+/* -- VSL (Virtualization Substrate Layer) ------------------------- */
 
 /*
- * Initialize the VSL — WuBuOS's lightweight Linux VM.
+ * Initialize the VSL  --  WuBuOS's lightweight Linux VM.
  * This is the "Proton" layer: a minimal Linux environment
  * that runs Linux/Windows/macOS binaries.
  *
@@ -142,7 +142,7 @@ bool wubu_vsl_active(void);
  */
 int64_t wubu_vsl_run(const char *cmd);
 
-/* ── Format Detection ───────────────────────────────────────────── */
+/* -- Format Detection --------------------------------------------- */
 
 /*
  * Detect format from raw file data.

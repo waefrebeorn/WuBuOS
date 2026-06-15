@@ -1,5 +1,5 @@
 /*
- * wubu_wm.c — WuBuOS Window Manager Implementation
+ * wubu_wm.c  --  WuBuOS Window Manager Implementation
  *
  * Cell 395: Full WM with drag, GAAD snap, virtual desktops, themes.
  */
@@ -9,11 +9,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-/* ── Global WM State ────────────────────────────────────────────── */
+/* -- Global WM State ---------------------------------------------- */
 
 static WubuWM g_wm;
 
-/* ── Init / Shutdown ────────────────────────────────────────────── */
+/* -- Init / Shutdown ---------------------------------------------- */
 
 int wubu_wm_init(int screen_w, int screen_h) {
     memset(&g_wm, 0, sizeof(g_wm));
@@ -48,7 +48,7 @@ void wubu_wm_shutdown(void) {
     wubu_theme_shutdown();
 }
 
-/* ── Window Create / Destroy ────────────────────────────────────── */
+/* -- Window Create / Destroy -------------------------------------- */
 
 WubuWin *wubu_wm_create(int x, int y, int w, int h, const char *title) {
     WubuWin *win = NULL;
@@ -109,7 +109,7 @@ int wubu_wm_count(void) {
     return n;
 }
 
-/* ── Window Operations ──────────────────────────────────────────── */
+/* -- Window Operations -------------------------------------------- */
 
 void wubu_wm_minimize(WubuWin *win) {
     if (!win) return;
@@ -199,7 +199,7 @@ void wubu_wm_gaad_snap(WubuWin *win) {
         int rx, ry, rw, rh;
         wubu_gaad_snap_pos(&g_wm.gaad, idx, &rx, &ry, &rw, &rh);
         win->x = rx; win->y = ry;
-        /* Don't resize to GAAD region — just snap position */
+        /* Don't resize to GAAD region  --  just snap position */
         win->was_snapped = true;
         win->snap_region = idx;
         return;
@@ -209,7 +209,7 @@ void wubu_wm_gaad_snap(WubuWin *win) {
     win->snap_region = -1;
 }
 
-/* ── Virtual Desktops ───────────────────────────────────────────── */
+/* -- Virtual Desktops --------------------------------------------- */
 
 void wubu_wm_desktop_switch(int desktop) {
     if (desktop < 0 || desktop >= g_wm.desktops.count) return;
@@ -248,7 +248,7 @@ void wubu_wm_desktop_move_win(WubuWin *win, int desktop) {
     win->desktop = desktop;
 }
 
-/* ── Input Handling ─────────────────────────────────────────────── */
+/* -- Input Handling ----------------------------------------------- */
 
 void wubu_wm_handle_key(uint32_t key, uint32_t mods) {
     /* Ctrl+Alt+Left/Right = switch desktop */
@@ -348,7 +348,7 @@ void wubu_wm_handle_mouse(int x, int y, int btn, int kind) {
 
     } else if (kind == 2) {  /* Mouse up */
         if (g_wm.drag_kind != DRAG_NONE) {
-            /* End drag — GAAD snap if it was a move */
+            /* End drag  --  GAAD snap if it was a move */
             if (g_wm.drag_kind == DRAG_MOVE) {
                 WubuWin *win = wubu_wm_find(g_wm.drag_win_id);
                 if (win) wubu_wm_gaad_snap(win);
@@ -396,7 +396,7 @@ void wubu_wm_handle_mouse(int x, int y, int btn, int kind) {
     }
 }
 
-/* ── Rendering ──────────────────────────────────────────────────── */
+/* -- Rendering ---------------------------------------------------- */
 
 void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
@@ -501,7 +501,7 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
 
 void wubu_wm_invalidate(WubuWin *win) { (void)win; }
 
-/* ── GAAD / Resolution ──────────────────────────────────────────── */
+/* -- GAAD / Resolution -------------------------------------------- */
 
 void wubu_wm_gaad_recompute(void) {
     wubu_gaad_decompose_feng_shui(g_wm.screen_w, g_wm.screen_h, 4,

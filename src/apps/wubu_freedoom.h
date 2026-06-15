@@ -1,9 +1,9 @@
 /*
- * wubu_freedoom.h — WuBuOS FreeDoom Launcher
+ * wubu_freedoom.h  --  WuBuOS FreeDoom Launcher
  *
  * Cell 391: FreeDoom running inside Arch container.
  *
- * "Why Not Both" — Doom runs in the Arch container.
+ * "Why Not Both"  --  Doom runs in the Arch container.
  * WuBuOS provides the desktop icon. Arch provides the drivers.
  * prboom-plus provides the engine. freedoom provides the WADs.
  *
@@ -27,7 +27,7 @@
 #include <stdbool.h>
 #include "wubu_host_exec.h"
 
-/* ── FreeDoom Configuration ─────────────────────────────────────── */
+/* -- FreeDoom Configuration --------------------------------------- */
 
 #define WUBU_FREEDOOM_WAD_DIR      "/usr/share/doom"
 #define WUBU_FREEDOOM_PWAD_PHASE1 "freedoom1.wad"
@@ -62,7 +62,7 @@ typedef struct {
     int           skill;        /* Skill level 1-5 */
 } WubuDoom;
 
-/* ── FreeDoom Lifecycle ─────────────────────────────────────────── */
+/* -- FreeDoom Lifecycle ------------------------------------------- */
 
 /*
  * Initialize FreeDoom launcher.
@@ -108,7 +108,7 @@ int wubu_doom_stop(WubuDoom *doom);
  */
 WubuDoomState wubu_doom_state(WubuDoom *doom);
 
-/* ── FreeDoom Configuration ─────────────────────────────────────── */
+/* -- FreeDoom Configuration --------------------------------------- */
 
 /*
  * Set game resolution.

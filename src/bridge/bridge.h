@@ -1,5 +1,5 @@
 /*
- * bridge.h — My Seed GUI↔Temple Mode Bridge
+ * bridge.h  --  My Seed GUI↔Temple Mode Bridge
  */
 #ifndef MYSEED_BRIDGE_H
 #define MYSEED_BRIDGE_H

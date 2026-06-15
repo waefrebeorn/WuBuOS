@@ -2,56 +2,92 @@
  * hosted.c — WuBuOS Hosted Mode Launcher (Inferno emu-style)
  *
  * WuBuOS as a clickable Linux binary — the "blob OS".
- * Runs as a regular Linux program via X11 window.
+ * Runs as a regular Linux program via Wayland window.
  * Full OS environment: VBE framebuffer, kernel services,
  * Styx/9P namespace on Unix socket.
  *
  * Cell 200: ZealOS kernel runs in-process.
  *   - Kernel subsystems: mem_init, vbe_init, tasking
  *   - GUI shell: WM, desktop, taskbar, start menu
- *   - Input routing: X11 → WM → focused window
- *   - Render pipeline: desktop + windows + taskbar → vbe_swap → X11 blit
+ *   - Input routing: Wayland → WM → focused window
+ *   - Render pipeline: desktop + windows + taskbar → vbe_swap → Wayland blit
  *
  * Build: make hosted  →  src/hosted/wubu
+ *
+ * Wayland protocol: xdg-shell for window management.
+ * Input: wl_keyboard + wl_pointer → KeyEvent/MouseEvent → kernel queue.
+ * Render: SHM buffers → wl_surface attach/commit.
  */
+
 #include "hosted.h"
-#include "../runtime/styx.h"
+
 #include "../kernel/vbe.h"
 #include "../kernel/memory.h"
 #include "../kernel/tasking.h"
 #include "../kernel/input.h"
 #include "../gui/wm.h"
 #include "../gui/startmenu.h"
-#include "../apps/repl.h"
+#include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_desktop.h"
+#include "../gui/dosgui_startmenu.h"
+#include "../runtime/styx.h"
 #include "../bridge/bridge.h"
+#include "../apps/repl.h"
 
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/keysym.h>
-#include <X11/Xatom.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <wayland-client.h>
+#include <wayland-cursor.h>
+#include <xkbcommon/xkbcommon.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 #include <unistd.h>
-#include <sys/socket.h>
-#include <sys/un.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
+#include <poll.h>
 
-/* ── X11 type aliases ───────────────────────────────────────────── */
+#include "xdg-shell-client.header"
 
-typedef Display    XDpy;
-typedef Window     XWin;
-typedef GC         XGc;
+/* ══════════════════════════════════════════════════════════════════
+ * Wayland State (opaque to callers)
+ * ══════════════════════════════════════════════════════════════════ */
 
-/* ── Forward Declarations ───────────────────────────────────────── */
+typedef struct {
+    struct wl_display    *display;
+    struct wl_compositor *compositor;
+    struct xdg_wm_base   *xdg_wm_base;
+    struct wl_surface    *surface;
+    struct xdg_surface   *xdg_surface;
+    struct xdg_toplevel  *xdg_toplevel;
+    struct wl_keyboard   *keyboard;
+    struct wl_pointer    *pointer;
+    struct wl_seat       *seat;
+    struct wl_shm        *shm;
+    int                   drm_fd;
+} wayland_state_t;
 
-static int handle_x11_event(hosted_state_t *state, XEvent *ev);
-static int  handle_key(hosted_state_t *state, KeySym ks, int pressed);
-static int  handle_mouse(hosted_state_t *state, int x, int y, int btn, int pressed);
-static void repl_launch_callback(void);  /* Launch HolyC REPL */
-static void input_dispatch(void);         /* Poll kernel queue -> WM */
+/* ══════════════════════════════════════════════════════════════════
+ * SHM Buffer Pool (double-buffered)
+ * ══════════════════════════════════════════════════════════════════ */
 
-/* ── In-memory filesystem for Styx namespace ────────────────────── */
+#define SHM_BUFFERS 2
+
+typedef struct {
+    struct wl_buffer *wl_buf;
+    uint32_t         *pixels;
+    int               width;
+    int               height;
+    int               stride;
+    int               fd;
+} shm_buffer_t;
+
+static wayland_state_t g_wl;
+static shm_buffer_t    g_shm_bufs[SHM_BUFFERS];
+static int             g_cur_buf = 0;
+
+/* ══════════════════════════════════════════════════════════════════
+ * In-memory filesystem for Styx namespace
+ * ══════════════════════════════════════════════════════════════════ */
 
 #define STYXFS_MAX_FILES 64
 
@@ -67,9 +103,346 @@ typedef struct {
 static styxfs_file_t g_fs[STYXFS_MAX_FILES];
 static int g_nfiles = 0;
 static uint64_t g_next_path = 1;
-
-/* Global hosted state for REPL callback access */
 static hosted_state_t *g_hosted_state = NULL;
+
+/* ══════════════════════════════════════════════════════════════════
+ * Forward Declarations
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void shm_buffer_create(shm_buffer_t *buf, int w, int h);
+static void shm_buffer_destroy(shm_buffer_t *buf);
+static void wayland_frame_render(void);
+static void handle_wl_keyboard_key(uint32_t key, int pressed);
+static void handle_wl_pointer_button(uint32_t button, int pressed);
+static void render_desktop(hosted_state_t *state);
+
+static styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid);
+
+/* ══════════════════════════════════════════════════════════════════
+ * SHM Buffer Management
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void shm_create_shared_memory(size_t size, int *fd, void **addr) {
+    char template[] = "/wubu-shm-XXXXXX";
+    *fd = mkstemp(template);
+    if (*fd < 0) { perror("mkstemp"); return; }
+    unlink(template);
+    ftruncate(*fd, (off_t)size);
+    *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, *fd, 0);
+    if (*addr == MAP_FAILED) { perror("mmap"); close(*fd); *fd = -1; }
+}
+
+static void shm_buffer_create(shm_buffer_t *buf, int w, int h) {
+    memset(buf, 0, sizeof(*buf));
+    buf->width = w;
+    buf->height = h;
+    buf->stride = w * 4;
+    size_t size = (size_t)buf->stride * h;
+
+    shm_create_shared_memory(size, &buf->fd, (void**)&buf->pixels);
+
+    struct wl_shm_pool *pool = wl_shm_create_pool(g_wl.shm, buf->fd, (int32_t)size);
+    buf->wl_buf = wl_shm_pool_create_buffer(pool, 0, (int32_t)w, (int32_t)h,
+                                             (int32_t)buf->stride, WL_SHM_FORMAT_XRGB8888);
+    wl_shm_pool_destroy(pool);
+}
+
+static void shm_buffer_destroy(shm_buffer_t *buf) {
+    if (buf->wl_buf) { wl_buffer_destroy(buf->wl_buf); buf->wl_buf = NULL; }
+    if (buf->pixels) { munmap(buf->pixels, (size_t)buf->stride * buf->height); buf->pixels = NULL; }
+    if (buf->fd >= 0) { close(buf->fd); buf->fd = -1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Wayland Registry Callbacks
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void registry_global(void *data, struct wl_registry *registry,
+                             uint32_t name, const char *interface, uint32_t version) {
+    (void)data; (void)version;
+    if (strcmp(interface, "wl_compositor") == 0) {
+        g_wl.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1);
+    } else if (strcmp(interface, "xdg_wm_base") == 0) {
+        g_wl.xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+    } else if (strcmp(interface, "wl_shm") == 0) {
+        g_wl.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
+    } else if (strcmp(interface, "wl_seat") == 0) {
+        g_wl.seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
+        g_wl.keyboard = wl_seat_get_keyboard(g_wl.seat);
+        g_wl.pointer = wl_seat_get_pointer(g_wl.seat);
+    }
+}
+
+static void registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
+    (void)data; (void)registry; (void)name;
+}
+
+static const struct wl_registry_listener registry_listener = {
+    .global = registry_global,
+    .global_remove = registry_global_remove,
+};
+
+/* ══════════════════════════════════════════════════════════════════
+ * xdg_wm_base / xdg_surface / xdg_toplevel Callbacks
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void xdg_wm_base_ping(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
+    (void)data;
+    xdg_wm_base_pong(xdg_wm_base, serial);
+}
+
+static const struct xdg_wm_base_listener xdg_wm_base_listener = {
+    .ping = xdg_wm_base_ping,
+};
+
+static void xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
+    (void)data;
+    xdg_surface_ack_configure(xdg_surface, serial);
+}
+
+static const struct xdg_surface_listener xdg_surface_listener = {
+    .configure = xdg_surface_configure,
+};
+
+static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
+                                    int32_t width, int32_t height,
+                                    struct wl_array *states) {
+    (void)data; (void)toplevel; (void)states;
+    (void)width; (void)height;
+}
+
+static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {
+    (void)toplevel;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (state) state->running = false;
+}
+
+static const struct xdg_toplevel_listener xdg_toplevel_listener = {
+    .configure = xdg_toplevel_configure,
+    .close = xdg_toplevel_close,
+};
+
+/* ══════════════════════════════════════════════════════════════════
+ * Keyboard Callbacks
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void keyboard_keymap(void *data, struct wl_keyboard *wl_kb,
+                             uint32_t format, int32_t fd, uint32_t size) {
+    (void)wl_kb; (void)data; (void)format; (void)size;
+    close(fd);
+}
+
+static void keyboard_enter(void *data, struct wl_keyboard *wl_kb,
+                            uint32_t serial, struct wl_surface *surface,
+                            struct wl_array *keys) {
+    (void)data; (void)wl_kb; (void)serial; (void)surface; (void)keys;
+}
+
+static void keyboard_leave(void *data, struct wl_keyboard *wl_kb,
+                            uint32_t serial, struct wl_surface *surface) {
+    (void)data; (void)wl_kb; (void)serial; (void)surface;
+}
+
+static uint32_t g_key_map[256];
+
+static void keyboard_key(void *data, struct wl_keyboard *wl_kb,
+                          uint32_t serial, uint32_t time, uint32_t key,
+                          uint32_t key_state) {
+    (void)wl_kb; (void)serial; (void)time;
+    int pressed = (key_state == WL_KEYBOARD_KEY_STATE_PRESSED);
+    handle_wl_keyboard_key(key, pressed);
+    if (key < 256) g_key_map[key] = pressed;
+    (void)data;
+}
+
+static void keyboard_modifiers(void *data, struct wl_keyboard *wl_kb,
+                                uint32_t serial, uint32_t mods_depressed,
+                                uint32_t mods_latched, uint32_t mods_locked,
+                                uint32_t group) {
+    (void)data; (void)wl_kb; (void)serial;
+    (void)mods_depressed; (void)mods_latched; (void)mods_locked; (void)group;
+}
+
+static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_kb,
+                                   int32_t rate, int32_t delay) {
+    (void)data; (void)wl_kb; (void)rate; (void)delay;
+}
+
+static const struct wl_keyboard_listener keyboard_listener = {
+    .keymap = keyboard_keymap,
+    .enter = keyboard_enter,
+    .leave = keyboard_leave,
+    .key = keyboard_key,
+    .modifiers = keyboard_modifiers,
+    .repeat_info = keyboard_repeat_info,
+};
+
+/* ══════════════════════════════════════════════════════════════════
+ * Pointer (Mouse) Callbacks
+ * ══════════════════════════════════════════════════════════════════ */
+
+static int g_pointer_x = 0, g_pointer_y = 0;
+static int g_mouse_buttons = 0;
+
+static void pointer_enter(void *data, struct wl_pointer *wl_ptr,
+                           uint32_t serial, struct wl_surface *surface,
+                           wl_fixed_t sx, wl_fixed_t sy) {
+    (void)data; (void)wl_ptr; (void)serial; (void)surface;
+    g_pointer_x = wl_fixed_to_int(sx);
+    g_pointer_y = wl_fixed_to_int(sy);
+}
+
+static void pointer_leave(void *data, struct wl_pointer *wl_ptr,
+                           uint32_t serial, struct wl_surface *surface) {
+    (void)data; (void)wl_ptr; (void)serial; (void)surface;
+}
+
+static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
+                            uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
+    (void)wl_ptr; (void)time;
+    hosted_state_t *state = (hosted_state_t*)data;
+    int x = wl_fixed_to_int(sx);
+    int y = wl_fixed_to_int(sy);
+    int dx = x - g_pointer_x;
+    int dy = y - g_pointer_y;
+    g_pointer_x = x;
+    g_pointer_y = y;
+
+    if (state && (dx != 0 || dy != 0)) {
+        MouseEvent ev = {0};
+        ev.dx = dx;
+        ev.dy = dy;
+        ev.buttons = g_mouse_buttons;
+        ev.scroll = 0;
+        input_mouse_push(ev);
+    }
+}
+
+static void pointer_button(void *data, struct wl_pointer *wl_ptr,
+                            uint32_t serial, uint32_t time,
+                            uint32_t button, uint32_t state_wl) {
+    (void)wl_ptr; (void)serial; (void)time;
+    hosted_state_t *state = (hosted_state_t*)data;
+    int pressed = (state_wl == WL_POINTER_BUTTON_STATE_PRESSED);
+
+    handle_wl_pointer_button(button, pressed);
+
+    if (state) {
+        MouseEvent ev = {0};
+        ev.dx = 0;
+        ev.dy = 0;
+        ev.buttons = g_mouse_buttons;
+        ev.scroll = 0;
+        input_mouse_push(ev);
+    }
+}
+
+static void pointer_axis(void *data, struct wl_pointer *wl_ptr,
+                          uint32_t time, uint32_t axis, wl_fixed_t value) {
+    (void)wl_ptr; (void)time;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (state && axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+        MouseEvent ev = {0};
+        ev.dx = 0;
+        ev.dy = 0;
+        ev.scroll = wl_fixed_to_int(value);
+        input_mouse_push(ev);
+    }
+}
+
+static void pointer_frame(void *data, struct wl_pointer *wl_ptr) {
+    (void)data; (void)wl_ptr;
+}
+
+static void pointer_axis_source(void *data, struct wl_pointer *wl_ptr,
+                                  uint32_t axis_source) {
+    (void)data; (void)wl_ptr; (void)axis_source;
+}
+
+static void pointer_axis_stop(void *data, struct wl_pointer *wl_ptr,
+                               uint32_t time, uint32_t axis) {
+    (void)data; (void)wl_ptr; (void)time; (void)axis;
+}
+
+static void pointer_axis_discrete(void *data, struct wl_pointer *wl_ptr,
+                                    uint32_t axis, int32_t discrete) {
+    (void)data; (void)wl_ptr; (void)axis; (void)discrete;
+}
+
+static const struct wl_pointer_listener pointer_listener = {
+    .enter = pointer_enter,
+    .leave = pointer_leave,
+    .motion = pointer_motion,
+    .button = pointer_button,
+    .axis = pointer_axis,
+    .frame = pointer_frame,
+    .axis_source = pointer_axis_source,
+    .axis_stop = pointer_axis_stop,
+    .axis_discrete = pointer_axis_discrete,
+};
+
+/* ══════════════════════════════════════════════════════════════════
+ * Key Translation (Linux evdev scancode → WuBuOS key code)
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void handle_wl_keyboard_key(uint32_t key, int pressed) {
+    uint32_t wu_key = 0;
+    switch (key) {
+    case 28:  wu_key = 0x1C; break;  /* KEY_ENTER */
+    case 1:   wu_key = 0x01; break;  /* KEY_ESC */
+    case 14:  wu_key = 0x0E; break;  /* KEY_BACKSPACE */
+    case 15:  wu_key = 0x0F; break;  /* KEY_TAB */
+    case 29:  wu_key = 0x1D; break;  /* KEY_LEFTCTRL */
+    case 42:  wu_key = 0x2A; break;  /* KEY_LEFTSHIFT */
+    case 56:  wu_key = 0x38; break;  /* KEY_LEFTALT */
+    case 57:  wu_key = 0x39; break;  /* KEY_SPACE */
+    case 105: wu_key = 0xE04B; break; /* KEY_LEFT */
+    case 103: wu_key = 0xE048; break; /* KEY_UP */
+    case 106: wu_key = 0xE04D; break; /* KEY_RIGHT */
+    case 108: wu_key = 0xE050; break; /* KEY_DOWN */
+    case 20:  /* KEY_T */
+        if (g_key_map[29] && g_key_map[56]) {
+            bridge_toggle_mode();
+            if (g_hosted_state)
+                hosted_set_mode(g_hosted_state,
+                    bridge_get_mode() == MODE_TEMPLE ? HMODE_TEMPLE : HMODE_GUI);
+        }
+        wu_key = 0x14;
+        break;
+    default:
+        if (key >= 30 && key <= 38) wu_key = 0x1E + (uint32_t)(key - 30); /* A-L */
+        else if (key >= 44 && key <= 50) wu_key = 0x1E + (uint32_t)(key - 44 + 16); /* Z-M */
+        else if (key >= 16 && key <= 25) wu_key = 0x1E + (uint32_t)(key - 16); /* Q-P */
+        else if (key >= 2 && key <= 11) wu_key = 0x0B + (uint32_t)(key - 2); /* 1-0 */
+        else if (key >= 59 && key <= 68) wu_key = 0x3B + (uint32_t)(key - 59); /* F1-F10 */
+        else if (key == 87) wu_key = 0x3B + 10; /* F11 */
+        else if (key == 88) wu_key = 0x3B + 11; /* F12 */
+        break;
+    }
+
+    if (wu_key) {
+        KeyEvent ev = {0};
+        ev.scancode = wu_key;
+        ev.keycode = wu_key;
+        ev.kind = pressed ? KEY_EVENT_DOWN : KEY_EVENT_UP;
+        uint32_t mods = 0;
+        if (g_key_map[42] || g_key_map[54]) mods |= MOD_SHIFT;
+        if (g_key_map[29] || g_key_map[97]) mods |= MOD_CTRL;
+        if (g_key_map[56] || g_key_map[100]) mods |= MOD_ALT;
+        ev.modifiers = mods;
+        input_key_push(ev);
+    }
+}
+
+static void handle_wl_pointer_button(uint32_t button, int pressed) {
+    if (button == 272) { if (pressed) g_mouse_buttons |= 1; else g_mouse_buttons &= ~1; }
+    else if (button == 273) { if (pressed) g_mouse_buttons |= 2; else g_mouse_buttons &= ~2; }
+    else if (button == 274) { if (pressed) g_mouse_buttons |= 4; else g_mouse_buttons &= ~4; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Filesystem helpers
+ * ══════════════════════════════════════════════════════════════════ */
 
 static int fs_add_dir(const char *name) {
     if (g_nfiles >= STYXFS_MAX_FILES) return -1;
@@ -96,12 +469,11 @@ static int fs_add_file(const char *name, const uint8_t *data, uint32_t len) {
     return 0;
 }
 
-static void fs_reset(void) {
-    g_nfiles = 0;
-    g_next_path = 1;
-}
+static void fs_reset(void) { g_nfiles = 0; g_next_path = 1; }
 
-/* ── Styx Server Callbacks ──────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+ * Styx Server Callbacks
+ * ══════════════════════════════════════════════════════════════════ */
 
 static styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid) {
     for (int i = 0; i < STYX_MAX_FIDS; i++)
@@ -209,25 +581,83 @@ static int styx_stat_cb(styx_server_t *srv, uint32_t fid, styx_dir_t *dir) {
     return 0;
 }
 
-/* ── REPL Launch Callback ───────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+ * REPL Callback
+ * ══════════════════════════════════════════════════════════════════ */
 
 static void repl_launch_callback(void) {
-    /* Launch HolyC REPL — it creates its own window */
     if (g_hosted_state) {
         repl_start(g_hosted_state->width, g_hosted_state->height);
     }
 }
 
-/* ── Hosted Init ────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+ * Wayland Frame Render — blit VBE back buffer to SHM
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void wayland_frame_render(void) {
+    if (!g_wl.surface || !g_wl.compositor) return;
+    shm_buffer_t *buf = &g_shm_bufs[g_cur_buf];
+    if (!buf->pixels) return;
+
+    VBEState *vs = vbe_state();
+    if (vs && vs->fb) {
+        memcpy(buf->pixels, vs->fb,
+               (size_t)g_hosted_state->width * g_hosted_state->height * 4);
+    }
+
+    wl_surface_attach(g_wl.surface, buf->wl_buf, 0, 0);
+    wl_surface_damage_buffer(g_wl.surface, 0, 0, buf->width, buf->height);
+    wl_surface_commit(g_wl.surface);
+
+    g_cur_buf = 1 - g_cur_buf;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Render desktop to VBE back buffer
+ * ══════════════════════════════════════════════════════════════════ */
+
+extern void desktop_draw(int screen_w, int screen_h, int taskbar_h);
+extern void taskbar_draw(int screen_w, int screen_h);
+extern int  taskbar_height(void);
+
+static void render_desktop(hosted_state_t *state) {
+    /* Cell 400+401+402: DosGui desktop with Fable windowing agent */
+    dosgui_desktop_render(NULL, state->width, state->height);
+    if (dosgui_startmenu_is_open())
+        dosgui_startmenu_render(NULL, state->width, state->height);
+    dosgui_desktop_tick();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Kernel input dispatch (Cell 202)
+ * ══════════════════════════════════════════════════════════════════ */
+
+static void input_dispatch(void) {
+    KeyEvent kev;
+    while (input_key_poll(&kev)) {
+        dosgui_wm_handle_key(kev.keycode, kev.modifiers);
+    }
+    MouseEvent mev;
+    while (input_mouse_poll(&mev)) {
+        int kind = mev.buttons ? 1 : 2; /* 1=down, 2=up */
+        if (mev.buttons & 2) kind = 0; /* 0=move while dragging */
+        dosgui_wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Public API Implementation
+ * ══════════════════════════════════════════════════════════════════ */
 
 int hosted_init(hosted_state_t *state, int argc, char **argv) {
-    g_hosted_state = state;  /* Set global for REPL callback */
+    g_hosted_state = state;
     memset(state, 0, sizeof(*state));
     state->width = HOSTED_DEFAULT_W;
     state->height = HOSTED_DEFAULT_H;
     state->mode = HMODE_GUI;
     state->running = true;
-    
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-w") == 0 && i + 2 < argc) {
             state->width = atoi(argv[++i]); state->height = atoi(argv[++i]);
@@ -236,191 +666,125 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         else if (strcmp(argv[i], "-h") == 0) state->mode = HMODE_HEADLESS;
         else if (strcmp(argv[i], "-f") == 0) state->fullscreen = true;
     }
-    
+
     state->depth = 32;
     state->fb_pitch = state->width * 4;
     state->framebuffer = (uint32_t*)calloc((size_t)state->width * state->height, 4);
     if (!state->framebuffer) { fprintf(stderr, "OOM\n"); return -1; }
-    
-    /* ── Kernel subsystem init (Cell 200: ZealOS in-process) ────── */
+
     mem_init(1024 * 1024);
     vbe_init(state->width, state->height);
     input_init();
 
-    /* ── GUI shell init (WM + start menu) ────────────────────────── */
-    wm_init(state->width, state->height);
-    startmenu_init();
-    
-    /* Register start menu entries */
-    startmenu_add_entry("Programs", SM_PROGRAM, NULL);
-    startmenu_add_entry("Temple REPL", SM_SYSTEM, repl_launch_callback);
-    startmenu_add_entry("Separator", SM_SEPARATOR, NULL);
-    startmenu_add_entry("Shut Down", SM_SYSTEM, NULL);
-    
-    /* Create default desktop windows */
-    wm_create_window(100, 80, 400, 300, "TempleOS HolyC");
-    
+    /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
+    dosgui_wm_init(state->width, state->height);
+    dosgui_desktop_init();
+    dosgui_startmenu_init();
+
+    /* Launch initial windows */
+    dosgui_launch_app("My Computer");
+    dosgui_launch_app("Temple REPL");
+
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
-    
-    /* Init X11 (skip if headless) */
+
+    memset(&g_wl, 0, sizeof(g_wl));
+
     if (state->mode != HMODE_HEADLESS) {
-        XDpy *dpy = XOpenDisplay(NULL);
+        struct wl_display *dpy = wl_display_connect(NULL);
         if (!dpy) {
-            fprintf(stderr, "No X display. Use -h for headless.\n");
+            fprintf(stderr, "No Wayland display. Use -h for headless.\n");
             free(state->framebuffer);
             return -1;
         }
-        
-        int scr = DefaultScreen(dpy);
-        XWin root = RootWindow(dpy, scr);
-        
-        XSetWindowAttributes attrs;
-        attrs.background_pixel = BlackPixel(dpy, scr);
-        attrs.event_mask = ExposureMask | KeyPressMask | KeyReleaseMask |
-                           ButtonPressMask | ButtonReleaseMask |
-                           PointerMotionMask | StructureNotifyMask;
-        
-        XWin win = XCreateWindow(dpy, root, 0, 0,
-                                  state->width, state->height, 0,
-                                  CopyFromParent, InputOutput,
-                                  CopyFromParent, CWBackPixel | CWEventMask,
-                                  &attrs);
-        XStoreName(dpy, win, HOSTED_WIN_TITLE);
-        XGc gc = XCreateGC(dpy, win, 0, NULL);
-        XImage *img = XCreateImage(dpy, DefaultVisual(dpy, scr),
-                                    24, ZPixmap, 0,
-                                    (char*)state->framebuffer,
-                                    state->width, state->height, 32,
-                                    state->fb_pitch);
-        XMapWindow(dpy, win);
-        XFlush(dpy);
-        
-        /* Enable close button via WM_DELETE_WINDOW */
-        Atom wm_delete = XInternAtom(dpy, "WM_DELETE_WINDOW", False);
-        XSetWMProtocols(dpy, win, &wm_delete, 1);
-        
-        state->display_ptr = (void*)dpy;
-        state->window_ptr = (void*)(uintptr_t)win;
-        state->gc_ptr = (void*)(uintptr_t)gc;
-        state->ximage_ptr = (void*)img;
-        state->x11_fd = XConnectionNumber(dpy);
-        
-        fprintf(stderr, "WuBuOS: %dx%d window\n", state->width, state->height);
+        g_wl.display = dpy;
+
+        struct wl_registry *registry = wl_display_get_registry(dpy);
+        wl_registry_add_listener(registry, &registry_listener, state);
+        wl_display_roundtrip(dpy);
+
+        if (g_wl.xdg_wm_base) {
+            xdg_wm_base_add_listener(g_wl.xdg_wm_base, &xdg_wm_base_listener, state);
+        }
+
+        g_wl.surface = wl_compositor_create_surface(g_wl.compositor);
+        if (g_wl.xdg_wm_base) {
+            g_wl.xdg_surface = xdg_wm_base_get_xdg_surface(g_wl.xdg_wm_base, g_wl.surface);
+            xdg_surface_add_listener(g_wl.xdg_surface, &xdg_surface_listener, state);
+            g_wl.xdg_toplevel = xdg_surface_get_toplevel(g_wl.xdg_surface);
+            xdg_toplevel_add_listener(g_wl.xdg_toplevel, &xdg_toplevel_listener, state);
+            xdg_toplevel_set_title(g_wl.xdg_toplevel, "WuBuOS");
+            wl_surface_commit(g_wl.surface);
+        }
+
+        if (g_wl.keyboard) {
+            wl_keyboard_add_listener(g_wl.keyboard, &keyboard_listener, state);
+        }
+
+        if (g_wl.pointer) {
+            wl_pointer_add_listener(g_wl.pointer, &pointer_listener, state);
+        }
+
+        shm_buffer_create(&g_shm_bufs[0], state->width, state->height);
+        shm_buffer_create(&g_shm_bufs[1], state->width, state->height);
+
+        fprintf(stderr, "WuBuOS: Wayland %dx%d window\n", state->width, state->height);
     }
-    
-    /* Build Styx namespace */
+
     fs_add_dir("wubu");
     fs_add_dir("dev");
     fs_add_dir("prog");
-    fs_add_file("cons", (const uint8_t*)"WuBuOS blob OS — Styx namespace\n", 33);
-    
+    fs_add_file("cons", (const uint8_t*)"WuBuOS blob OS -- Styx namespace\n", 33);
+
     uint8_t demo_wubu[64];
     memset(demo_wubu, 0, sizeof(demo_wubu));
-    memcpy(demo_wubu, "WUBU!\0\1\2", 8);
+    memcpy(demo_wubu, "WUBU!\0\x01\x02", 8);
     demo_wubu[8] = 1;
     fs_add_file("hello.wubu", demo_wubu, sizeof(demo_wubu));
-    
-    /* Unix socket for Styx namespace */
-    char sock_path[128];
-    snprintf(sock_path, sizeof(sock_path), "/tmp/wubu-styx-%d.sock", getpid());
-    struct sockaddr_un addr;
-    state->styx_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (state->styx_fd >= 0) {
-        unlink(sock_path);
-        memset(&addr, 0, sizeof(addr));
-        addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
-        if (bind(state->styx_fd, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
-            listen(state->styx_fd, 5);
-            fprintf(stderr, "Styx: %s\n", sock_path);
-        } else {
-            close(state->styx_fd); state->styx_fd = -1;
-        }
-    }
-    
+
+    fprintf(stderr, "WuBuOS: Styx namespace built\n");
     return 0;
 }
-
-/* ── Render the full Win98 desktop to VBE back buffer ──────────── */
-
-/* Forward decl for desktop_draw and taskbar_draw (in gui/) */
-extern void desktop_draw(int screen_w, int screen_h, int taskbar_h);
-extern void taskbar_draw(int screen_w, int screen_h);
-extern int  taskbar_height(void);
-
-static void render_desktop(hosted_state_t *state) {
-    /* 1. Desktop background + icons */
-    int tb_h = taskbar_height();
-    desktop_draw(state->width, state->height, tb_h);
-    
-    /* 2. Windows (WM renders all visible windows) */
-    wm_render(NULL, state->width, state->height);
-    
-    /* 3. Start menu (if open) */
-    if (startmenu_is_open()) {
-        startmenu_draw();
-    }
-    
-    /* 4. Taskbar (always on top) */
-    taskbar_draw(state->width, state->height);
-}
-
-/* ── Main Event Loop ────────────────────────────────────────────── */
 
 int hosted_run(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS running. Mode: %s\n",
             state->mode == HMODE_GUI ? "GUI" :
             state->mode == HMODE_TEMPLE ? "Temple" :
             state->mode == HMODE_CONSOLE ? "Console" : "Headless");
-    
+
     struct timespec last;
     clock_gettime(CLOCK_MONOTONIC, &last);
     const long frame_ns = 1000000000L / 30;
-    
+
     while (state->running) {
-        XDpy *dpy = (XDpy*)state->display_ptr;
-        if (dpy) {
-            while (XPending(dpy)) {
-                XEvent ev;
-                XNextEvent(dpy, &ev);
-                handle_x11_event(state, &ev);
-            }
+        if (g_wl.display) {
+            wl_display_dispatch_pending(g_wl.display);
+            wl_display_flush(g_wl.display);
         }
-        
-        /* Cell 202: Dispatch input from kernel queue to WM */
+
         input_dispatch();
-        
+
         if (state->framebuffer) {
-            /* ── Render Win98 desktop to VBE back buffer ─── */
             if (state->mode == HMODE_GUI) {
                 render_desktop(state);
                 vbe_swap();
-                
-                /* Copy VBE front buffer to X11 framebuffer */
                 VBEState *vs = vbe_state();
                 if (vs && vs->fb) {
                     memcpy(state->framebuffer, vs->fb,
                            (size_t)state->width * state->height * 4);
                 }
             } else if (state->mode == HMODE_TEMPLE) {
-                /* Temple REPL mode: black background */
                 for (int i = 0; i < state->width * state->height; i++)
                     state->framebuffer[i] = 0x00000000;
             } else {
-                /* Console/Headless: gray */
                 for (int i = 0; i < state->width * state->height; i++)
                     state->framebuffer[i] = 0x00808080;
             }
         }
-        
-        if (dpy && state->window_ptr && state->gc_ptr) {
-            XWin win = (XWin)(uintptr_t)state->window_ptr;
-            XGc gc = (XGc)(uintptr_t)state->gc_ptr;
-            XPutImage(dpy, win, gc, (XImage*)state->ximage_ptr,
-                      0, 0, 0, 0, state->width, state->height);
-            XFlush(dpy);
+
+        if (g_wl.surface) {
+            wayland_frame_render();
         }
-        
+
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L +
@@ -434,44 +798,33 @@ int hosted_run(hosted_state_t *state) {
     return 0;
 }
 
-/* ── Shutdown ───────────────────────────────────────────────────── */
-
 void hosted_shutdown(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS shutdown...\n");
-    
-    /* GUI shell shutdown */
+
     wm_shutdown();
     vbe_shutdown();
     input_shutdown();
-    
-    if (state->styx_fd >= 0) {
-        close(state->styx_fd);
-        char p[128];
-        snprintf(p, sizeof(p), "/tmp/wubu-styx-%d.sock", getpid());
-        unlink(p);
-    }
-    XDpy *dpy = (XDpy*)state->display_ptr;
-    if (dpy) {
-        XImage *img = (XImage*)state->ximage_ptr;
-        if (img) { img->data = NULL; XDestroyImage(img); }
-        XWin win = (XWin)(uintptr_t)state->window_ptr;
-        XGc gc = (XGc)(uintptr_t)state->gc_ptr;
-        if (gc) XFreeGC(dpy, gc);
-        if (win) XDestroyWindow(dpy, win);
-        XCloseDisplay(dpy);
-    }
+
+    for (int i = 0; i < SHM_BUFFERS; i++) shm_buffer_destroy(&g_shm_bufs[i]);
+    if (g_wl.xdg_toplevel) xdg_toplevel_destroy(g_wl.xdg_toplevel);
+    if (g_wl.xdg_surface) xdg_surface_destroy(g_wl.xdg_surface);
+    if (g_wl.surface) wl_surface_destroy(g_wl.surface);
+    if (g_wl.xdg_wm_base) xdg_wm_base_destroy(g_wl.xdg_wm_base);
+    if (g_wl.pointer) wl_pointer_destroy(g_wl.pointer);
+    if (g_wl.keyboard) wl_keyboard_destroy(g_wl.keyboard);
+    if (g_wl.seat) wl_seat_destroy(g_wl.seat);
+    if (g_wl.shm) wl_shm_destroy(g_wl.shm);
+    if (g_wl.compositor) wl_compositor_destroy(g_wl.compositor);
+    if (g_wl.display) { wl_display_flush(g_wl.display); wl_display_disconnect(g_wl.display); }
+    memset(&g_wl, 0, sizeof(g_wl));
+
     if (state->framebuffer) free(state->framebuffer);
     memset(state, 0, sizeof(*state));
 }
 
 void hosted_blit(hosted_state_t *state) {
-    if (!state->display_ptr || !state->window_ptr || !state->gc_ptr) return;
-    XDpy *dpy = (XDpy*)state->display_ptr;
-    XWin win = (XWin)(uintptr_t)state->window_ptr;
-    XGc gc = (XGc)(uintptr_t)state->gc_ptr;
-    XPutImage(dpy, win, gc, (XImage*)state->ximage_ptr,
-              0, 0, 0, 0, state->width, state->height);
-    XFlush(dpy);
+    (void)state;
+    wayland_frame_render();
 }
 
 void hosted_set_mode(hosted_state_t *state, hosted_mode_t mode) {
@@ -480,165 +833,8 @@ void hosted_set_mode(hosted_state_t *state, hosted_mode_t mode) {
             mode == HMODE_TEMPLE ? "Temple" : "Other");
 }
 
-/* ── Event Handlers ─────────────────────────────────────────────── */
-
-static int handle_x11_event(hosted_state_t *state, XEvent *ev) {
-    switch (ev->type) {
-    case Expose:
-        if (ev->xexpose.count == 0) hosted_blit(state);
-        break;
-    case KeyPress:
-        handle_key(state, XLookupKeysym(&ev->xkey, 0), 1);
-        break;
-    case KeyRelease:
-        handle_key(state, XLookupKeysym(&ev->xkey, 0), 0);
-        break;
-    case ButtonPress:
-        handle_mouse(state, ev->xbutton.x, ev->xbutton.y, ev->xbutton.button, 1);
-        break;
-    case ButtonRelease:
-        handle_mouse(state, ev->xbutton.x, ev->xbutton.y, ev->xbutton.button, 0);
-        break;
-    case MotionNotify:
-        handle_mouse(state, ev->xmotion.x, ev->xmotion.y, 0, 0);
-        break;
-    case ClientMessage:
-        /* WM_DELETE_WINDOW */
-        state->running = false;
-        break;
-    case DestroyNotify:
-        state->running = false;
-        break;
-    case ConfigureNotify:
-        state->width = ev->xconfigure.width;
-        state->height = ev->xconfigure.height;
-        break;
-    }
-    return 0;
-}
-
-static int handle_key(hosted_state_t *state, KeySym ks, int pressed) {
-    uint32_t wu_key = 0;
-    switch (ks) {
-    case XK_Return:    wu_key = 0x1C; break;
-    case XK_Escape:    wu_key = 0x01; break;
-    case XK_BackSpace: wu_key = 0x0E; break;
-    case XK_Tab:       wu_key = 0x0F; break;
-    case XK_Control_L: wu_key = 0x1D; break;
-    case XK_Shift_L:   wu_key = 0x2A; break;
-    case XK_Alt_L:     wu_key = 0x38; break;
-    case XK_space:     wu_key = 0x39; break;
-    case XK_Left:      wu_key = 0xE04B; break;
-    case XK_Up:        wu_key = 0xE048; break;
-    case XK_Right:     wu_key = 0xE04D; break;
-    case XK_Down:      wu_key = 0xE050; break;
-    case XK_t:
-        /* Ctrl+Alt+T: DOS flip — toggle GUI ↔ Temple mode */
-        if (state->key_map[0x1D] && state->key_map[0x38]) {
-            bridge_toggle_mode();
-            hosted_set_mode(state, bridge_get_mode() == MODE_TEMPLE
-                                    ? HMODE_TEMPLE : HMODE_GUI);
-        }
-        wu_key = 0x14; /* 't' scancode */
-        break;
-    default:
-        if (ks >= XK_a && ks <= XK_z) wu_key = 0x1E + (uint32_t)(ks - XK_a);
-        else if (ks >= XK_0 && ks <= XK_9) wu_key = 0x0B + (uint32_t)(ks - XK_0);
-        else if (ks >= XK_F1 && ks <= XK_F12) wu_key = 0x3B + (uint32_t)(ks - XK_F1);
-        break;
-    }
-
-    /* Push to kernel input queue (Cell 202: unified input dispatch) */
-    if (wu_key) {
-        KeyEvent ev = {0};
-        ev.scancode = wu_key;
-        ev.keycode = wu_key;
-        ev.kind = pressed ? KEY_EVENT_DOWN : KEY_EVENT_UP;
-        uint32_t mods = 0;
-        if (state->key_map[0x1D]) mods |= MOD_CTRL;
-        if (state->key_map[0x2A]) mods |= MOD_SHIFT;
-        if (state->key_map[0x38]) mods |= MOD_ALT;
-        ev.modifiers = mods;
-        input_key_push(ev);
-    }
-
-    /* Track modifier key state for Ctrl+Alt+T detection */
-    if (ks == XK_Control_L || ks == XK_Control_R)
-        state->key_map[0x1D] = pressed;
-    if (ks == XK_Alt_L || ks == XK_Alt_R)
-        state->key_map[0x38] = pressed;
-    if (ks == XK_Shift_L || ks == XK_Shift_R)
-        state->key_map[0x2A] = pressed;
-    (void)state;
-    return wu_key;
-}
-
-static int handle_mouse(hosted_state_t *state, int x, int y, int btn, int pressed) {
-    int dx = x - state->mouse_x;
-    int dy = y - state->mouse_y;
-    state->mouse_x = x;
-    state->mouse_y = y;
-    if (btn) state->mouse_buttons = btn;
-
-    /* Push to kernel input queue (Cell 202: unified input dispatch) */
-    if (btn && btn != 0) {
-        MouseEvent ev = {0};
-        ev.dx = dx;
-        ev.dy = dy;
-        ev.buttons = btn == 1 ? 1 : (btn == 3 ? 2 : 4); /* Left=1, Right=2, Middle=4 */
-        ev.scroll = 0;
-        input_mouse_push(ev);
-    } else if (btn == 0) {
-        /* Motion event - only push if position changed */
-        if (dx != 0 || dy != 0) {
-            MouseEvent ev = {0};
-            ev.dx = dx;
-            ev.dy = dy;
-            ev.buttons = state->mouse_buttons;
-            ev.scroll = 0;
-            input_mouse_push(ev);
-        }
-    }
-
-    /* Start menu click handling (keep for GUI) */
-    if (btn == 1 && pressed && startmenu_is_open()) {
-        if (startmenu_is_inside(x, y)) {
-            int idx = startmenu_handle_mouse(x, y);
-            if (idx >= 0) startmenu_click(idx);
-        } else {
-            startmenu_close();
-        }
-    }
-
-    /* Start button click (bottom-left corner of taskbar) */
-    if (btn == 1 && pressed && !startmenu_is_open()) {
-        if (x >= 4 && x <= 64 && y >= state->height - 28 + 3 && y <= state->height - 3) {
-            startmenu_open(0, state->height - taskbar_height() - startmenu_get_height());
-        }
-    }
-
-    (void)pressed;
-    return 0;
-}
-
-/* Poll kernel input queue and dispatch to WM (Cell 202) */
-static void input_dispatch(void) {
-    KeyEvent kev;
-    while (input_key_poll(&kev)) {
-        wm_handle_key(kev.keycode, kev.modifiers);
-    }
-    MouseEvent mev;
-    while (input_mouse_poll(&mev)) {
-        /* Queue already stores absolute position in x,y */
-        wm_handle_mouse(mev.x, mev.y, mev.buttons, mev.buttons ? 0 : 2);
-    }
-}
-
-/* ── Styx Namespace API ─────────────────────────────────────────── */
-
 int hosted_styx_init(hosted_state_t *state, const char *socket_path) {
     (void)socket_path;
-    /* Styx server callbacks are used when accept() handles connections */
     styx_server_t srv;
     styx_init(&srv);
     srv.attach = styx_attach_cb;
@@ -657,23 +853,16 @@ int hosted_styx_register_wubu(hosted_state_t *state,
     return fs_add_file(name, data, size);
 }
 
-/* Expose fs_reset for tests */
 void hosted_fs_reset(void) { fs_reset(); }
 
-/* ── Query API for behavioral tests ────────────────────────────── */
-
-/* Check if kernel subsystems are initialized */
 int hosted_kernel_ready(void) {
     VBEState *vs = vbe_state();
     return (vs && vs->fb && vs->back && vs->width > 0) ? 1 : 0;
 }
 
-/* Check if WM has windows */
 int hosted_wm_has_windows(void) {
     return wm_window_count() > 0 ? 1 : 0;
 }
-
-/* ── Main ───────────────────────────────────────────────────────── */
 
 #ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {

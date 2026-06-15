@@ -5,18 +5,18 @@
 #include <stddef.h>
 
 /*
- * WorldSim — Lightweight world simulation engine for My Seed
+ * WorldSim  --  Lightweight world simulation engine for My Seed
  * 
  * Layers:
- *   1. Terrain  — heightmap-based procedural terrain
- *   2. Entities — simple ECS (entity-component-system)
- *   3. Physics  — basic gravity, collision (AABB)
- *   4. Render   —Software rasterizer hooks for VBE framebuffer
+ *   1. Terrain   --  heightmap-based procedural terrain
+ *   2. Entities  --  simple ECS (entity-component-system)
+ *   3. Physics   --  basic gravity, collision (AABB)
+ *   4. Render    -- Software rasterizer hooks for VBE framebuffer
  *
  * All C11, no external deps, <2000 LOC total.
  */
 
-/* ── Terrain ── */
+/* -- Terrain -- */
 
 #define WS_TERRAIN_W 256
 #define WS_TERRAIN_H 256
@@ -34,7 +34,7 @@ void ws_terrain_erode(ws_terrain_t *t, int iterations);
 uint8_t ws_terrain_height(const ws_terrain_t *t, int x, int y);
 uint8_t ws_terrain_biome(const ws_terrain_t *t, int x, int y);
 
-/* ── Entities (ECS) ── */
+/* -- Entities (ECS) -- */
 
 #define WS_MAX_ENTITIES 1024
 #define WS_MAX_COMPONENTS 16
@@ -125,7 +125,7 @@ void *ws_entity_add_component(ws_entity_t *e, ws_component_type type);
 void *ws_entity_get_component(ws_entity_t *e, ws_component_type type);
 void ws_entity_remove_component(ws_entity_t *e, ws_component_type type);
 
-/* ── Physics ── */
+/* -- Physics -- */
 
 typedef struct {
     float gravity;    /* default -9.81 */
@@ -137,7 +137,7 @@ typedef struct {
 void ws_physics_init(ws_physics_config_t *cfg);
 void ws_physics_step(ws_world_t *w, const ws_terrain_t *t, const ws_physics_config_t *cfg);
 
-/* ── Render ── */
+/* -- Render -- */
 
 typedef struct {
     uint32_t *fb;     /* framebuffer (XRGB8888) */
@@ -150,7 +150,7 @@ void ws_render_terrain(const ws_terrain_t *t, ws_render_ctx_t *ctx);
 void ws_render_entities(const ws_world_t *w, ws_render_ctx_t *ctx);
 void ws_render_minimap(const ws_terrain_t *t, ws_render_ctx_t *ctx, int mx, int my, int size);
 
-/* ── Simulation ── */
+/* -- Simulation -- */
 
 typedef struct {
     ws_terrain_t terrain;
@@ -165,7 +165,7 @@ void ws_sim_init(ws_simulation_t *sim, uint32_t seed);
 void ws_sim_step(ws_simulation_t *sim);
 void ws_sim_render(ws_simulation_t *sim);
 
-/* ── RNG (xorshift64) ── */
+/* -- RNG (xorshift64) -- */
 uint64_t ws_rng_next(uint64_t *state);
 float ws_rng_float(uint64_t *state); /* 0.0..1.0 */
 int ws_rng_int(uint64_t *state, int lo, int hi);

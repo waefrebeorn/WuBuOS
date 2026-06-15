@@ -1,11 +1,11 @@
 /*
- * wubu_codec.h — WuBuOS Codec Layer (FFmpeg integration)
+ * wubu_codec.h  --  WuBuOS Codec Layer (FFmpeg integration)
  *
  * Cell 398: Universal media decode/encode API.
  *
  * FFmpeg provides: every codec. We wrap it in a C API
  * that containers can call. The codec layer IS a .wubu
- * container — Inferno distribution model.
+ * container  --  Inferno distribution model.
  *
  * Codecs available (via system ffmpeg on Arch):
  *   - Video: H.264, H.265/HEVC, VP8, VP9, AV1, MPEG-4
@@ -29,13 +29,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Codec Constants ─────────────────────────────────────────────── */
+/* -- Codec Constants ----------------------------------------------- */
 
 #define WUBU_CODEC_MAX_STREAMS   32
 #define WUBU_CODEC_MAX_METADATA  64
 #define WUBU_CODEC_PIPE_BUF     4096
 
-/* ── Media Type ──────────────────────────────────────────────────── */
+/* -- Media Type ---------------------------------------------------- */
 
 typedef enum {
     WUBU_MEDIA_UNKNOWN  = 0,
@@ -46,7 +46,7 @@ typedef enum {
     WUBU_MEDIA_DATA     = 5,
 } WubuMediaType;
 
-/* ── Format Detection ────────────────────────────────────────────── */
+/* -- Format Detection ---------------------------------------------- */
 
 typedef struct {
     char      format[32];     /* "mp4", "webm", "mkv", etc */
@@ -61,7 +61,7 @@ typedef struct {
     int       n_streams;     /* Total streams */
 } WubuMediaInfo;
 
-/* ── Video Frame ────────────────────────────────────────────────── */
+/* -- Video Frame -------------------------------------------------- */
 
 typedef struct {
     uint32_t *pixels;        /* XRGB8888 frame data */
@@ -71,7 +71,7 @@ typedef struct {
     int       key_frame;     /* Is this a key frame? */
 } WubuVideoFrame;
 
-/* ── Audio Frame ────────────────────────────────────────────────── */
+/* -- Audio Frame -------------------------------------------------- */
 
 typedef struct {
     int16_t  *samples;       /* Interleaved PCM samples */
@@ -81,7 +81,7 @@ typedef struct {
     double    pts;
 } WubuAudioFrame;
 
-/* ── Decode Context ──────────────────────────────────────────────── */
+/* -- Decode Context ------------------------------------------------ */
 
 typedef struct {
     char           path[512];      /* Source file path */
@@ -93,7 +93,7 @@ typedef struct {
     void          *av_ctx;         /* Opaque libav context (if use_libav) */
 } WubuDecoder;
 
-/* ── Encode Context ──────────────────────────────────────────────── */
+/* -- Encode Context ------------------------------------------------ */
 
 typedef struct {
     char           path[512];      /* Output file path */
@@ -112,7 +112,7 @@ typedef struct {
     void          *av_ctx;
 } WubuEncoder;
 
-/* ── Transcode Job ──────────────────────────────────────────────── */
+/* -- Transcode Job ------------------------------------------------ */
 
 typedef struct {
     char      src[512];
@@ -131,9 +131,9 @@ typedef struct {
     bool      running;
 } WubuTranscode;
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Format Detection
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Probe a media file for format/codec info */
 int  wubu_codec_probe(const char *path, WubuMediaInfo *info);
@@ -144,9 +144,9 @@ WubuMediaType wubu_codec_detect_type(const char *path);
 /* Check if ffmpeg is available on the system */
 bool wubu_codec_available(void);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Decode (read media)
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Open a media file for decoding */
 WubuDecoder *wubu_dec_open(const char *path);
@@ -164,9 +164,9 @@ int  wubu_dec_seek(WubuDecoder *dec, double timestamp);
 /* Get media info */
 const WubuMediaInfo *wubu_dec_info(WubuDecoder *dec);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Encode (write media)
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Open an encoder for writing */
 WubuEncoder *wubu_enc_open(const char *path, const char *format,
@@ -181,9 +181,9 @@ int  wubu_enc_video_frame(WubuEncoder *enc, const WubuVideoFrame *frame);
 /* Write an audio frame */
 int  wubu_enc_audio_frame(WubuEncoder *enc, const WubuAudioFrame *frame);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Transcode (convert media)
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Start a transcode job (runs ffmpeg in background) */
 int  wubu_transcode_start(WubuTranscode *job);
@@ -197,9 +197,9 @@ int  wubu_transcode_wait(WubuTranscode *job);
 /* Cancel a running transcode */
 void wubu_transcode_cancel(WubuTranscode *job);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Convenience (one-shot operations)
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Extract a single frame as XRGB8888 */
 int  wubu_codec_extract_frame(const char *src, double timestamp,

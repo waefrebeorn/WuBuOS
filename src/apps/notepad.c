@@ -1,5 +1,5 @@
 /*
- * notepad.c — My Seed Notepad (Win98-style text editor)
+ * notepad.c  --  My Seed Notepad (Win98-style text editor)
  */
 #include "notepad.h"
 #include "../gui/wm.h"

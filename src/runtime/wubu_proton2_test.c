@@ -1,5 +1,5 @@
 /*
- * wubu_proton2_test.c — Tests for Proton container + HID/USB + GPU
+ * wubu_proton2_test.c  --  Tests for Proton container + HID/USB + GPU
  *
  * Cell 399: Proton runs as real Arch container with Wine + DXVK.
  */
@@ -13,7 +13,7 @@ static int pass = 0, fail = 0;
 #define FAIL(msg) do { fail++; printf("❌ %s\n", msg); } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── GPU Detection ──────────────────────────────────────────────── */
+/* -- GPU Detection ------------------------------------------------ */
 
 static void test_gpu_detect(void) {
     TEST("GPU detection");
@@ -24,7 +24,7 @@ static void test_gpu_detect(void) {
     PASS();
 }
 
-/* ── HID Enumeration ────────────────────────────────────────────── */
+/* -- HID Enumeration ---------------------------------------------- */
 
 static void test_hid_enumerate(void) {
     TEST("HID device enumeration");
@@ -35,7 +35,7 @@ static void test_hid_enumerate(void) {
     PASS();  /* Just verify it doesn't crash */
 }
 
-/* ── USB Enumeration ────────────────────────────────────────────── */
+/* -- USB Enumeration ---------------------------------------------- */
 
 static void test_usb_enumerate(void) {
     TEST("USB device enumeration");
@@ -45,7 +45,7 @@ static void test_usb_enumerate(void) {
     PASS();
 }
 
-/* ── MIDI Enumeration ───────────────────────────────────────────── */
+/* -- MIDI Enumeration --------------------------------------------- */
 
 static void test_midi_enumerate(void) {
     TEST("MIDI device enumeration");
@@ -55,7 +55,7 @@ static void test_midi_enumerate(void) {
     PASS();
 }
 
-/* ── Proton Manager ─────────────────────────────────────────────── */
+/* -- Proton Manager ----------------------------------------------- */
 
 static void test_proton_mgr_create(void) {
     TEST("Proton manager create");
@@ -138,18 +138,18 @@ static void test_proton_dump(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n── GPU Detection (Cell 399) ──\n\n");
+    printf("\n-- GPU Detection (Cell 399) --\n\n");
     test_gpu_detect();
 
-    printf("\n── HID/USB Enumeration (Cell 399) ──\n\n");
+    printf("\n-- HID/USB Enumeration (Cell 399) --\n\n");
     test_hid_enumerate();
     test_usb_enumerate();
     test_midi_enumerate();
 
-    printf("\n── Proton Manager (Cell 399) ──\n\n");
+    printf("\n-- Proton Manager (Cell 399) --\n\n");
     test_proton_mgr_create();
     test_proton_mgr_default_config();
     test_proton_add_app();
@@ -158,9 +158,9 @@ int main(void) {
     test_proton_container_access();
     test_proton_dump();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            pass, pass + fail, fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
     return fail > 0 ? 1 : 0;
 }

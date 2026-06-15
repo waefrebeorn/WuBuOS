@@ -1,5 +1,5 @@
 /*
- * memory_test.c — Test suite for My Seed Kernel Memory Subsystem
+ * memory_test.c  --  Test suite for My Seed Kernel Memory Subsystem
  */
 
 #include "memory.h"
@@ -135,7 +135,7 @@ static void test_stress(void) {
         size_t sz = 1 << (i % 14);  /* 1 to 8192 */
         v[i] = mem_alloc(sz);
         if (!v[i]) { ok = 0; break; }
-        /* Write a single marker byte only — no memset past header */
+        /* Write a single marker byte only  --  no memset past header */
         ((char *)v[i])[0] = 0xAA;
         if (sz > 1) ((char *)v[i])[sz-1] = 0xBB;
     }
@@ -146,9 +146,9 @@ static void test_stress(void) {
 }
 
 int main(void) {
-    printf("╔══════════════════════════════╗\n");
-    printf("║  My Seed Memory Test Suite   ║\n");
-    printf("╚══════════════════════════════╝\n");
+    printf("+==============================+\n");
+    printf("|  My Seed Memory Test Suite   |\n");
+    printf("+==============================+\n");
     
     test_init_shutdown();
     test_alloc_free();
@@ -158,7 +158,7 @@ int main(void) {
     
     mem_shutdown();
     
-    printf("\n══════════════════════════════\n");
+    printf("\n==============================\n");
     if (failures == 0)
         printf("All tests passed! ✅\n");
     else

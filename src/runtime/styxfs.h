@@ -1,5 +1,5 @@
 /*
- * styxfs.h — StyxFS: 9P2000/Styx Filesystem for .wubu Containers
+ * styxfs.h  --  StyxFS: 9P2000/Styx Filesystem for .wubu Containers
  *
  * StyxFS provides a real filesystem namespace backed by .wubu containers.
  * Each .wubu container is exposed as a file/directory in the Styx namespace.
@@ -24,14 +24,14 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── Configuration ───────────────────────────────────────────────── */
+/* -- Configuration ------------------------------------------------- */
 
 #define STYXFS_MAX_MOUNTS    16
 #define STYXFS_MAX_OPEN_FILES 128
 #define STYXFS_MAX_PATH      4096
 #define STYXFS_DIR_BUF_SIZE  (16 * 1024)
 
-/* ── Mount Entry ─────────────────────────────────────────────────── */
+/* -- Mount Entry --------------------------------------------------- */
 
 typedef struct styxfs_mount {
     char              path[STYXFS_MAX_PATH];     /* Mount point path (e.g., "/wubu") */
@@ -41,7 +41,7 @@ typedef struct styxfs_mount {
     struct styxfs_mount *next;
 } styxfs_mount_t;
 
-/* ── Open File State (per-fid) ───────────────────────────────────── */
+/* -- Open File State (per-fid) ------------------------------------- */
 
 typedef struct styxfs_file {
     int          in_use;
@@ -64,7 +64,7 @@ typedef struct styxfs_file {
     int          is_temp_write;
 } styxfs_file_t;
 
-/* ── StyxFS Server State ─────────────────────────────────────────── */
+/* -- StyxFS Server State ------------------------------------------- */
 
 typedef struct styxfs_server {
     styx_server_t  base;              /* Embedded Styx protocol server */
@@ -74,7 +74,7 @@ typedef struct styxfs_server {
     int            readonly;          /* Global read-only flag */
 } styxfs_server_t;
 
-/* ── API Functions ───────────────────────────────────────────────── */
+/* -- API Functions ------------------------------------------------- */
 
 /* Initialize a StyxFS server */
 void styxfs_init(styxfs_server_t *srv);
@@ -100,7 +100,7 @@ int styxfs_serve(styxfs_server_t *srv,
                   const uint8_t *inbuf, uint32_t inlen,
                   uint8_t *outbuf, uint32_t *outlen);
 
-/* ── Internal Callbacks (exposed for testing) ────────────────────── */
+/* -- Internal Callbacks (exposed for testing) ---------------------- */
 
 /* Attach: called on Tattach */
 int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname);
@@ -142,7 +142,7 @@ int styxfs_stat_cb(styx_server_t *base, uint32_t fid,
 int styxfs_wstat_cb(styx_server_t *base, uint32_t fid,
                      const styx_dir_t *dir);
 
-/* ── Helper Utilities ────────────────────────────────────────────── */
+/* -- Helper Utilities ---------------------------------------------- */
 
 /* Find mount point for a path; returns mount or NULL, sets *rel_path to relative path */
 styxfs_mount_t *styxfs_find_mount(styxfs_server_t *srv, const char *path, char *rel_path);

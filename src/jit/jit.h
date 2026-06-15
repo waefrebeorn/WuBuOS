@@ -1,5 +1,5 @@
 /*
- * jit.h — My Seed JIT Runtime Public API
+ * jit.h  --  My Seed JIT Runtime Public API
  *
  * Layer 1 core primitive: compile source code to native machine code
  * and execute it at runtime. This recreates the TempleOS "edit source,
@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/* ── Types ──────────────────────────────────────────────────────── */
+/* -- Types -------------------------------------------------------- */
 
 typedef enum {
     JIT_BACKEND_MMAP   = 0,  /* mmap(PROT_EXEC) + manual encoding */
@@ -55,7 +55,7 @@ typedef struct JITFunc {
     int             n_args;    /* Number of arguments                */
 } JITFunc;
 
-/* ── Context Lifecycle ─────────────────────────────────────────── */
+/* -- Context Lifecycle ------------------------------------------- */
 
 /* Create a new JIT context. Default backend: JIT_BACKEND_MMAP. */
 JITContext *jit_init(void);
@@ -66,7 +66,7 @@ JITContext *jit_init_backend(JITBackend backend);
 /* Free all compiled code and context resources. */
 void jit_free(JITContext *ctx);
 
-/* ── Compilation ───────────────────────────────────────────────── */
+/* -- Compilation ------------------------------------------------- */
 
 /*
  * Compile source code string to a native function.
@@ -96,7 +96,7 @@ JITResult jit_compile_file(JITContext *ctx,
                             const char *fn_name,
                             JITFunc *out_func);
 
-/* ── Execution ─────────────────────────────────────────────────── */
+/* -- Execution --------------------------------------------------- */
 
 /*
  * Call a compiled function with no arguments.
@@ -122,7 +122,7 @@ int64_t jit_call2(JITFunc *fn, int64_t a0, int64_t a1);
  */
 void *jit_callv(JITFunc *fn, ...);
 
-/* ── RAW mmap Backend (lowest level) ───────────────────────────── */
+/* -- RAW mmap Backend (lowest level) ----------------------------- */
 
 /*
  * Allocate RWX memory buffer for writing machine code.
@@ -150,7 +150,7 @@ void jit_lock_exec(void *ptr, size_t size);
  */
 void jit_unlock_exec(void *ptr, size_t size);
 
-/* ── Function Management ───────────────────────────────────────── */
+/* -- Function Management ----------------------------------------- */
 
 /* Free a compiled function's executable memory. */
 void jit_func_free(JITFunc *fn);
@@ -158,7 +158,7 @@ void jit_func_free(JITFunc *fn);
 /* Get human-readable error string for a JITResult code. */
 const char *jit_strerror(JITResult result);
 
-/* ── Diagnostics ───────────────────────────────────────────────── */
+/* -- Diagnostics ------------------------------------------------- */
 
 /* Dump compiled machine code to hex (for debugging). */
 void jit_func_dump(const JITFunc *fn, FILE *out);

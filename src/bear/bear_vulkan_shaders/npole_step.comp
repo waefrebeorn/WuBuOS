@@ -1,0 +1,106 @@
+#version 450
+layout(local_size_x = 64) in;
+
+layout(std430, binding = 0) readonly buffer PoleMass { float data[]; } pole_mass;      // [n_poles]
+layout(std430, binding = 1) readonly buffer PoleLength { float data[]; } pole_length;  // [n_poles]
+layout(std430, binding = 2) readonly buffer PoleCOM { float data[]; } pole_com;        // [n_poles]
+layout(std430, binding = 3) readonly buffer PoleInertia { float data[]; } pole_inertia; // [n_poles]
+
+layout(std430, binding = 4) buffer StateX { float data[]; } x;            // [num_envs]
+layout(std430, binding = 5) buffer StateXDot { float data[]; } x_dot;     // [num_envs]
+layout(std430, binding = 6) buffer StateTheta { float data[]; } theta;    // [num_envs, n_poles]
+layout(std430, binding = 7) buffer StateThetaDot { float data[]; } theta_dot; // [num_envs, n_poles]
+
+layout(std430, binding = 8) readonly buffer ForceBuf { float data[]; } force; // [num_envs]
+
+layout(std430, binding = 9) writeonly buffer RewardBuf { float data[]; } reward; // [num_envs]
+layout(std430, binding = 10) writeonly buffer DoneBuf { uint data[]; } done;    // [num_envs]
+
+layout(push_constant) uniform PushConstants {
+    uint n_poles;
+    uint num_envs;
+    float gravity;
+    float cart_mass;
+    float dt;
+    float force_mag;
+    float angle_threshold;  // 12 deg = 0.20944 rad
+    float pos_threshold;    // 2.4 m
+} pc;
+
+void main() {
+    uint env = gl_GlobalInvocationID.x;
+    if (env >= pc.num_envs) return;
+    
+    // Load state
+    float x_val = x.data[env];
+    float xd = x_dot.data[env];
+    
+    // Compute total mass
+    float total_mass = pc.cart_mass;
+    for (uint i = 0; i < pc.n_poles; ++i) {
+        total_mass += pole_mass.data[i];
+    }
+    
+    // Applied force
+    float f = force.data[env];
+    
+    // Build mass matrix M and bias C for recursive Lagrangian
+    // M is (1+n_poles) x (1+n_poles), C is (1+n_poles)
+    // We compute the inverse inertia matrix for this single env
+    
+    // M[0][0] = cart_mass + sum(pole_mass[i])
+    // M[0][i+1] = M[i+1][0] = -pole_mass[i] * pole_com[i] * cos(theta[i])
+    // M[i+1][j+1] = (i==j) ? pole_inertia[i] + pole_mass[i]*pole_com[i]^2 
+    //                     : pole_mass[j] * pole_com[i] * pole_com[j] * cos(theta[i])*cos(theta[j])
+    // C[0] = f + sum(pole_mass[i] * pole_com[i] * theta_dot[i]^2 * sin(theta[i]))
+    // C[i+1] = -pole_mass[i] * pole_com[i] * gravity * sin(theta[i])
+    
+    // For now, simplified dynamics - single pole approximation
+    // Full N-pole recursive Lagrangian requires matrix solve per env
+    // This is a placeholder for the full implementation
+    
+    float g = pc.gravity;
+    float L = pole_length.data[0];
+    float mc = pc.cart_mass;
+    float mp = pole_mass.data[0];
+    float theta_val = theta.data[env];  // First pole
+    float thd = theta_dot.data[env];
+    float mpc = mp * (L/2.0);  // pole_com = L/2
+    float I = pole_inertia.data[0];
+    
+    float s = sin(theta_val);
+    float c = cos(theta_val);
+    
+    // Simplified inverse inertia for single pole
+    float det = (mc + mp) * (I + mpc*mpc) - mpc*mpc * c*c;
+    float inv_11 = (I + mpc*mpc) / det;
+    float inv_12 = mpc * c / det;
+    float inv_22 = (mc + mp) / det;
+    
+    float C0 = f + mpc * thd*thd * s;
+    float C1 = -mpc * g * s;
+    
+    float xdd = inv_11 * C0 + inv_12 * C1;
+    float thdd = inv_12 * C0 + inv_22 * C1;
+    
+    // RK4 integration (simplified Euler for now)
+    float new_xd = xd + pc.dt * xdd;
+    float new_thd = thd + pc.dt * thdd;
+    float new_x = x_val + pc.dt * new_xd;
+    float new_theta = theta_val + pc.dt * new_thd;
+    
+    x.data[env] = new_x;
+    x_dot.data[env] = new_xd;
+    theta.data[env] = new_theta;
+    theta_dot.data[env] = new_thd;
+    
+    // Reward: r = 1.0 + 0.5 * cos(theta)
+    reward.data[env] = 1.0 + 0.5 * cos(new_theta);
+    
+    // Done: |theta| > threshold or |x| > threshold
+    uint d = 0;
+    if (abs(new_theta) > pc.angle_threshold || abs(new_x) > pc.pos_threshold) {
+        d = 1;
+    }
+    done.data[env] = d;
+}

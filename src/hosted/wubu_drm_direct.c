@@ -1,5 +1,5 @@
 /*
- * wubu_drm_direct.c — Direct DRM/KMS ioctl implementation (no libdrm)
+ * wubu_drm_direct.c  --  Direct DRM/KMS ioctl implementation (no libdrm)
  *
  * Cell 388: Replace libdrm with direct ioctls
  * Cell 389: Custom GBM implementation
@@ -23,9 +23,9 @@
 #include <sys/ioctl.h>
 #include <linux/input.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * DRM IOCTL DEFINITIONS (from linux/include/uapi/drm/drm.h)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #define DRM_IOCTL_BASE 'd'
 #define DRM_IO(nr)            _IOC(_IOC_NONE,  DRM_IOCTL_BASE, nr, 0)
@@ -57,9 +57,9 @@
 #define DRM_IOCTL_MODE_MAP_DUMB      DRM_IOWR(0xB1, struct drm_mode_map_dumb)
 #define DRM_IOCTL_MODE_DESTROY_DUMB  DRM_IOWR(0xB2, struct drm_mode_destroy_dumb)
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * DRM STRUCTURES (matching kernel uAPI)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Kernel uAPI compatibility */
 #ifndef __user
@@ -229,9 +229,9 @@ struct drm_mode_destroy_dumb {
 #define DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE (1<<2)
 #define DRM_MODE_PAGE_FLIP_TARGET_RELATIVE (1<<3)
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * HELPER: Do ioctl with error checking
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static int drm_ioctl(int fd, unsigned long request, void *arg) {
     int ret;
@@ -241,9 +241,9 @@ static int drm_ioctl(int fd, unsigned long request, void *arg) {
     return ret;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * DIRECT DRM IMPLEMENTATION
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 static int drm_direct_set_master(int fd) {
     return drm_ioctl(fd, DRM_IOCTL_SET_MASTER, NULL);
@@ -288,9 +288,9 @@ static int drm_direct_destroy_dumb(int fd, struct drm_mode_destroy_dumb *dreq) {
     return drm_ioctl(fd, DRM_IOCTL_MODE_DESTROY_DUMB, dreq);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * GBM MINIMAL IMPLEMENTATION (Cell 389)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 wubu_gbm_device_t *wubu_gbm_create_device(int fd) {
     wubu_gbm_device_t *gbm = calloc(1, sizeof(*gbm));
@@ -363,9 +363,9 @@ uint32_t wubu_gbm_bo_get_handle(wubu_gbm_bo_t *bo) {
     return bo ? bo->handle : 0;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * HIGH-LEVEL DRM INIT
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static int drm_find_connector_crtc(int fd, uint32_t target_w, uint32_t target_h,
                                    uint32_t *out_connector, uint32_t *out_crtc,
@@ -479,9 +479,9 @@ static int drm_find_connector_crtc(int fd, uint32_t target_w, uint32_t target_h,
     return found ? 0 : -1;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * PUBLIC API USING DIRECT DRM + CUSTOM GBM
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 int wubu_display_init(WubuDisplay *d, int width, int height) {
     if (!d) return -1;

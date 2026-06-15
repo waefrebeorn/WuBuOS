@@ -1,5 +1,5 @@
 /*
- * jit_mir.c — My Seed JIT MIR Backend
+ * jit_mir.c  --  My Seed JIT MIR Backend
  *
  * Uses MIR (C-to-MIR-to-native) as a real JIT compiler.
  * Writes C source to temp file, compiles via c2m, loads result.
@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 
-/* ── MIR c2m path ──────────────────────────────────────────────── */
+/* -- MIR c2m path ------------------------------------------------ */
 
 static const char *find_c2m(void) {
     static char path[512];
@@ -40,7 +40,7 @@ static const char *find_c2m(void) {
     return NULL;
 }
 
-/* ── Compile via MIR ───────────────────────────────────────────── */
+/* -- Compile via MIR --------------------------------------------- */
 
 /*
  * Strategy: write C source to a temp file, run `c2m -S` to get MIR text,
@@ -68,7 +68,7 @@ JITResult jit_mir_compile(JITContext *ctx,
     if (!f) return JIT_ERR_ALLOC;
     
     if (lang == JIT_LANG_HOLYC) {
-        /* Wrap HolyC as C — basic transpile hints */
+        /* Wrap HolyC as C  --  basic transpile hints */
         fprintf(f, "/* HolyC wrapped */\n");
         fprintf(f, "typedef long I64;\ntypedef unsigned char U8;\n");
         fprintf(f, "I64 %s_result;\n", fn_name);

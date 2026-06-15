@@ -1,5 +1,5 @@
 /*
- * bear_ppo.c — PufferC/BearRL PPO Training Loop Implementation
+ * bear_ppo.c  --  PufferC/BearRL PPO Training Loop Implementation
  */
 
 #include "bear_ppo.h"
@@ -12,9 +12,9 @@
 #include <math.h>
 #include <stdio.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Trajectory Buffer
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 int bear_traj_init(BearTrajectory* t, BearArena* arena,
                      int rollout_len, int num_envs, int max_agents,
@@ -95,9 +95,9 @@ void bear_traj_store(BearTrajectory* t, int step_idx,
     memcpy((uint8_t*)t->values.data + scalar_offset, values->data, scalar_bytes);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Advantage Computation: GAE(λ) and V-Trace
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_compute_advantages(BearTrajectory* t, const BearPPOConfig* cfg,
                               BearArena* temp_arena) {
@@ -170,9 +170,9 @@ void bear_vtrace_compute(const float* rewards, const uint8_t* dones,
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Minibatch Sampler
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_sampler_init(BearMinibatchSampler* s, BearTrajectory* t, int minibatch_size,
                         uint64_t rng_state[2]) {
@@ -273,7 +273,7 @@ int bear_sampler_next(BearMinibatchSampler* s, BearTrajectory* t,
         if (std > 1e-6f) {
             for (int i = 0; i < mb_size; ++i) mb_adv_p[i] = (mb_adv_p[i] - mean) / std;
         } else {
-            /* All advantages are the same — set to 0 */
+            /* All advantages are the same  --  set to 0 */
             for (int i = 0; i < mb_size; ++i) mb_adv_p[i] = 0.0f;
         }
     }
@@ -282,9 +282,9 @@ int bear_sampler_next(BearMinibatchSampler* s, BearTrajectory* t,
     return 1;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * PPO Loss Computation
- * ════════════════════════════════════════════════════════════════════ */
+ * ==================================================================== */
 
 /* Clip all gradients to max_norm (returns current grad norm) */
 static float clip_grad_norm(BearPolicyNet* policy, BearValueNet* critic, float max_norm) {
@@ -362,7 +362,7 @@ BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* criti
         bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, NULL, &h_out, temp_arena);
     } else {
         /* Continuous: forward pass to get mean (mu), then compute logprob of STORED actions.
-         * We need a forward pass that doesn't sample — just returns the mean.
+         * We need a forward pass that doesn't sample  --  just returns the mean.
          * For now, reuse forward but then overwrite logprobs with evaluate. */
         bear_policy_forward(policy, obs, NULL, &new_actions, &new_logprobs, NULL, &h_out, temp_arena);
         /* new_actions now contains sampled actions; we need the mean (mu).
@@ -457,14 +457,14 @@ BearPPOLoss bear_ppo_loss(const BearPolicyNet* policy, const BearValueNet* criti
 
 void bear_ppo_update(BearPolicyNet* policy, BearValueNet* critic,
                       const BearPPOLoss* loss, BearOptimizer* opt) {
-    /* Stub — actual gradient computation happens in bear_ppo_apply_gradients
+    /* Stub  --  actual gradient computation happens in bear_ppo_apply_gradients
      * which is called from bear_trainer_iter after all minibatches are processed. */
     (void)policy; (void)critic; (void)loss; (void)opt;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Apply accumulated gradients via Adam optimizer
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_ppo_apply_gradients(BearPolicyNet* policy, BearValueNet* critic,
                                BearOptimizer* opt_policy, BearOptimizer* opt_critic) {
@@ -510,9 +510,9 @@ void bear_ppo_apply_gradients(BearPolicyNet* policy, BearValueNet* critic,
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Trainer Initialization
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 int bear_trainer_init(BearTrainer* trainer,
                        BearPolicyNet* policy, BearValueNet* critic,

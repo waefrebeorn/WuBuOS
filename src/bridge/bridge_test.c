@@ -1,5 +1,5 @@
 /*
- * bridge_test.c — WuBuOS Bridge/DOS Flip Test Suite
+ * bridge_test.c  --  WuBuOS Bridge/DOS Flip Test Suite
  *
  * Cell 103: Tests DOS flip bridge wiring (Ctrl+Alt+T),
  * mode switching, clipboard, and IPC.
@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/* ── Test Framework ──────────────────────────────────────────── */
+/* -- Test Framework -------------------------------------------- */
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -18,7 +18,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Mode Switch Tests ──────────────────────────────────────── */
+/* -- Mode Switch Tests ---------------------------------------- */
 
 static void test_init_default_gui(void) {
     TEST("bridge_init defaults to GUI mode");
@@ -70,7 +70,7 @@ static void test_toggle_triple(void) {
     PASS();
 }
 
-/* ── Clipboard Tests ────────────────────────────────────────── */
+/* -- Clipboard Tests ------------------------------------------ */
 
 static void test_clipboard_set_get(void) {
     TEST("clipboard set and get round-trip");
@@ -110,7 +110,7 @@ static void test_clipboard_empty(void) {
     PASS();
 }
 
-/* ── IPC Tests ──────────────────────────────────────────────── */
+/* -- IPC Tests ------------------------------------------------ */
 
 static void test_ipc_send_poll(void) {
     TEST("IPC send and poll round-trip");
@@ -163,7 +163,7 @@ static void test_ipc_empty_queue(void) {
     PASS();
 }
 
-/* ── DOS Flip Hotkey Wiring Test ────────────────────────────── */
+/* -- DOS Flip Hotkey Wiring Test ------------------------------ */
 
 static void test_ctrl_alt_t_wiring(void) {
     TEST("Ctrl+Alt+T triggers bridge_toggle_mode via hotkey sim");
@@ -178,12 +178,12 @@ static void test_ctrl_alt_t_wiring(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────── */
+/* -- Main ----------------------------------------------------- */
 
 int main(void) {
-    printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Bridge/DOS Flip Test Suite (Cell 103)          ║\n");
-    printf("╚════════════════════════════════════════════════════════╝\n\n");
+    printf("+========================================================+\n");
+    printf("|  WuBuOS Bridge/DOS Flip Test Suite (Cell 103)          |\n");
+    printf("+========================================================+\n\n");
 
     test_init_default_gui();
     test_enter_temple();
@@ -199,9 +199,9 @@ int main(void) {
     test_ipc_empty_queue();
     test_ctrl_alt_t_wiring();
 
-    printf("\n════════════════════════════════════════════════════════\n");
+    printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("════════════════════════════════════════════════════════\n");
+    printf("========================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

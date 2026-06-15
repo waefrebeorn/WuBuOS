@@ -1,5 +1,5 @@
 /*
- * weight_check.h — WuBuOS Vision Weight Verification Tool
+ * weight_check.h  --  WuBuOS Vision Weight Verification Tool
  *
  * Cell 051: Verifies Moondream3 vision model weights are present
  * and valid. Checks for all 4 safetensors shards plus the
@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── Constants ─────────────────────────────────────────────── */
+/* -- Constants ----------------------------------------------- */
 
 #define WEIGHT_DIR        "/home/wubu/models/moondream3/"
 #define WEIGHT_SHARDS     4
@@ -31,7 +31,7 @@ static const char *WEIGHT_SHARD_NAMES[4] = {
     "model-00004-of-00004.safetensors",
 };
 
-/* Expected sizes (approximate — actual may vary slightly) */
+/* Expected sizes (approximate  --  actual may vary slightly) */
 static const uint64_t WEIGHT_SHARD_MIN_SIZE[4] = {
     4900000000ULL,  /* ~4.9GB */
     4900000000ULL,
@@ -39,7 +39,7 @@ static const uint64_t WEIGHT_SHARD_MIN_SIZE[4] = {
     4900000000ULL,
 };
 
-/* ── Weight Check Results ──────────────────────────────────── */
+/* -- Weight Check Results ------------------------------------ */
 
 typedef struct {
     int      present[WEIGHT_SHARDS];  /* 1 = shard present */
@@ -51,7 +51,7 @@ typedef struct {
     char     dir[WEIGHT_MAX_PATH];     /* Directory path */
 } weight_check_t;
 
-/* ── API ───────────────────────────────────────────────────── */
+/* -- API ----------------------------------------------------- */
 
 /* Check for Moondream3 vision weights.
  * Scans WEIGHT_DIR for the 4 shards + index.
@@ -66,11 +66,11 @@ int  weight_shard_path(int index, char *buf, int bufsz);
  * Returns file size, or 0 if invalid. */
 uint64_t weight_validate_file(const char *path, uint64_t min_size);
 
-/* ── Vision Weights Extraction ─────────────────────────────── */
+/* -- Vision Weights Extraction ------------------------------- */
 
 /* The C vision encoder (wubu_vision_moondream.c) needs:
- *   data/moondream3_vision_weights.bin   — extracted weights
- *   data/moondream3_vision_index.json    — weight index
+ *   data/moondream3_vision_weights.bin    --  extracted weights
+ *   data/moondream3_vision_index.json     --  weight index
  *
  * These are generated from the safetensors shards via
  * tools/dump_moondream3_weights.py. This check verifies

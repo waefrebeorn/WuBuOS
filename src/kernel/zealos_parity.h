@@ -1,5 +1,5 @@
 /*
- * zealos_parity.h — ZealOS → WuBuOS Name Parity (1:1 Mapping)
+ * zealos_parity.h  --  ZealOS → WuBuOS Name Parity (1:1 Mapping)
  *
  * Maps ZealOS PascalCase function/type names to our C11 snake_case.
  * Reading ZealOS source alongside our C port requires zero mental translation.
@@ -17,11 +17,11 @@
 #ifndef WUBUOS_ZEALOS_PARITY_H
 #define WUBUOS_ZEALOS_PARITY_H
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * ZEALOS PRIMITIVE TYPES → C11
  *
  * These are safe as #defines since they map to C11 builtins/types
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #define U0      void
 #define I8      int8_t
@@ -37,7 +37,7 @@
 #define TRUE    true
 #define FALSE   false
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * MEMORY SUBSYSTEM (17/17 parity)
  *
  * ZealOS                   → WuBuOS
@@ -54,7 +54,7 @@
  * HeapInit()               → mem_init_heap()
  * HeapCtrlDel              → mem_shutdown()
  * MSafetyChk()             → mem_safety_check()
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #define CAlloc(size)                mem_alloc(size)
 #define MAlloc(size)                mem_alloc(size)
@@ -81,7 +81,7 @@
  *   CHeapCtrl.max_pages → WuBuHeapCtrl.max_pages
  */
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * TASKING SUBSYSTEM (10/21 functions implemented, rest stub)
  *
  * ZealOS                         → WuBuOS
@@ -111,7 +111,7 @@
  #define TaskDerivedValsUpdate   task_derived_vals_update
  #define DeathWait               task_death_wait
 
- /* ═══════════════════════════════════════════════════════════════════ */
+ /* =================================================================== */
 
 #define TaskInit            tasking_init
 #define TaskDel(t)          task_destroy(t)
@@ -126,8 +126,8 @@
 #define IsSuspended         task_is_suspended
 #define BirthWait           task_block
 
-/* ═══════════════════════════════════════════════════════════════════
- * FAT32 FILESYSTEM (8/18 parity — rest are stubs in wubu_vsl.c)
+/* ===================================================================
+ * FAT32 FILESYSTEM (8/18 parity  --  rest are stubs in wubu_vsl.c)
  *
  * ZealOS                      → WuBuOS
  * FAT32Init(disk)             → fat32_mount(disk)
@@ -151,7 +151,7 @@
  #define FAT32CDate2Dos              fat32_cdate_to_dos
  #define FAT32Dos2CDate              fat32_dos_to_cdate
 
- /* ═══════════════════════════════════════════════════════════════════ */
+ /* =================================================================== */
 
 #define FAT32Init           fat32_mount
 #define FAT32Format         fat32_format
@@ -164,7 +164,7 @@
 #define FAT32FileRename     fat32_rename
 #define FAT32FreeClus       fat32_free_cluster
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * VBE / DISPLAY (2/4 parity)
  *
  * ZealOS          → WuBuOS
@@ -175,12 +175,12 @@
  #define RawPutS                 raw_puts
  #define RawPutCharAttr          raw_putchar_attr
 
- /* ═══════════════════════════════════════════════════════════════════ */
+ /* =================================================================== */
 
 #define LFBFlush            vbe_swap
 #define RawPutChar          raw_putchar
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * INPUT SUBSYSTEM (4/8 parity)
  *
  * ZealOS                    → WuBuOS
@@ -198,12 +198,12 @@
  #define InputSetMouseBounds     input_set_mouse_bounds
  #define InputMouseSpeed         input_mouse_speed
 
- /* ═══════════════════════════════════════════════════════════════════ */
+ /* =================================================================== */
 
 #define KbdHk               kbd_handler
 #define MouseHk             mouse_handler
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * INTERRUPT SUBSYSTEM (2/6 parity)
  *
  * ZealOS                    → WuBuOS
@@ -216,17 +216,17 @@
  #define InterruptEnable         interrupt_enable
  #define InterruptAck            interrupt_ack
 
- /* ═══════════════════════════════════════════════════════════════════ */
+ /* =================================================================== */
 
 #define InterruptInit       interrupt_init
 #define InterruptRegister   interrupt_register
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * STYX/9P NAMESPACE (parity for Inferno compatibility layer)
  *
  * Message types are already #defines in styx.h.
  * Add aliases here for ZealOS/Inferno source readers.
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Already in styx.h: STYX_TVERSION, STYX_RVERSION, etc.
  * Aliases for readers of Inferno/Plan 9 source:
@@ -274,11 +274,11 @@
 #define Rstat       STYX_RSTAT
 #endif
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * JIT COMPILER (parity names)
  *
  * ZealOS concept          → WuBuOS
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #define CJITCompile         jit_compile
 #define CJITCall0           jit_call0

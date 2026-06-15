@@ -1,14 +1,14 @@
 /*
- * wubu_ramdisk.c — WuBuOS Root Mount for Arch Container Roots
+ * wubu_ramdisk.c  --  WuBuOS Root Mount for Arch Container Roots
  *
- * Cell 392: Two-mode Arch root — RAM for containers, SSD for bare metal.
+ * Cell 392: Two-mode Arch root  --  RAM for containers, SSD for bare metal.
  *
  * Container mode:  tmpfs at /run/wubu/ramdisk → zero disk, instant teardown
  * Bare metal mode: SSD at /var/wubu/roots/arch-base → persistent, real OS
  * Cross-mode:      install_to_disk() copies RAM → SSD for persistence
  *
  * Both paths feed into the same wubu_host_exec container runtime.
- * The chroot root is just a directory — RAM or disk doesn't matter
+ * The chroot root is just a directory  --  RAM or disk doesn't matter
  * to the fork+chroot+exec machinery.
  */
 #include "wubu_ramdisk.h"
@@ -23,7 +23,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 
-/* ── Helper: mkdir -p ───────────────────────────────────────────── */
+/* -- Helper: mkdir -p --------------------------------------------- */
 
 static int mkdir_p(const char *path, mode_t mode) {
     char tmp[512];
@@ -41,7 +41,7 @@ static int mkdir_p(const char *path, mode_t mode) {
     return 0;
 }
 
-/* ── Helper: run command ────────────────────────────────────────── */
+/* -- Helper: run command ------------------------------------------ */
 
 static int run_cmd(const char *cmd) {
     int ret = system(cmd);
@@ -49,7 +49,7 @@ static int run_cmd(const char *cmd) {
     return -1;
 }
 
-/* ── Helper: detect image format ────────────────────────────────── */
+/* -- Helper: detect image format ---------------------------------- */
 
 typedef enum {
     IMG_UNKNOWN,
@@ -92,7 +92,7 @@ static ImgFormat detect_format(const char *path) {
     return IMG_UNKNOWN;
 }
 
-/* ── Create ─────────────────────────────────────────────────────── */
+/* -- Create ------------------------------------------------------- */
 
 WubuRamdisk *wubu_rd_create(WubuRdMode mode, const char *image_path) {
     WubuRamdisk *rd = (WubuRamdisk*)calloc(1, sizeof(WubuRamdisk));
@@ -121,7 +121,7 @@ WubuRamdisk *wubu_rd_create(WubuRdMode mode, const char *image_path) {
     return rd;
 }
 
-/* ── Destroy ────────────────────────────────────────────────────── */
+/* -- Destroy ------------------------------------------------------ */
 
 void wubu_rd_destroy(WubuRamdisk *rd) {
     if (!rd) return;
@@ -133,7 +133,7 @@ void wubu_rd_destroy(WubuRamdisk *rd) {
     free(rd);
 }
 
-/* ── Mount tmpfs (RAM mode) ─────────────────────────────────────── */
+/* -- Mount tmpfs (RAM mode) --------------------------------------- */
 
 int wubu_rd_mount(WubuRamdisk *rd) {
     if (!rd || rd->mode != WUBU_RD_RAM) return -1;
@@ -147,7 +147,7 @@ int wubu_rd_mount(WubuRamdisk *rd) {
     snprintf(opts, sizeof(opts), "size=%s,mode=0755", rd->ram_size);
 
     if (mount("tmpfs", rd->path, "tmpfs", 0, opts) != 0) {
-        /* May fail without root — fall back to just using the directory */
+        /* May fail without root  --  fall back to just using the directory */
         /* This works for testing / unprivileged mode */
         struct stat st;
         if (stat(rd->path, &st) == 0 && S_ISDIR(st.st_mode)) {
@@ -162,7 +162,7 @@ int wubu_rd_mount(WubuRamdisk *rd) {
     return 0;
 }
 
-/* ── Load rootfs image ──────────────────────────────────────────── */
+/* -- Load rootfs image -------------------------------------------- */
 
 int wubu_rd_load(WubuRamdisk *rd) {
     if (!rd || rd->state < WUBU_RD_MOUNTED) return -1;
@@ -213,13 +213,13 @@ int wubu_rd_load(WubuRamdisk *rd) {
     return 0;
 }
 
-/* ── Unmount tmpfs (RAM mode) ───────────────────────────────────── */
+/* -- Unmount tmpfs (RAM mode) ------------------------------------- */
 
 int wubu_rd_unmount(WubuRamdisk *rd) {
     if (!rd || rd->mode != WUBU_RD_RAM) return -1;
     if (rd->state < WUBU_RD_MOUNTED) return 0;
 
-    /* Unmount tmpfs — all data in RAM is destroyed */
+    /* Unmount tmpfs  --  all data in RAM is destroyed */
     if (umount(rd->path) != 0) {
         /* May fail if not actually a mount (testing) */
         /* Non-fatal */
@@ -229,7 +229,7 @@ int wubu_rd_unmount(WubuRamdisk *rd) {
     return 0;
 }
 
-/* ── Boot ───────────────────────────────────────────────────────── */
+/* -- Boot --------------------------------------------------------- */
 
 int wubu_rd_boot(WubuRamdisk *rd) {
     if (!rd) return -1;
@@ -242,7 +242,7 @@ int wubu_rd_boot(WubuRamdisk *rd) {
         if (access(rd->image_path, F_OK) == 0) {
             if (wubu_rd_load(rd) != 0) return -1;
         } else {
-            /* No image — just mount empty tmpfs.
+            /* No image  --  just mount empty tmpfs.
              * Caller will bootstrap Arch into it. */
             rd->state = WUBU_RD_MOUNTED;
         }
@@ -261,20 +261,20 @@ int wubu_rd_boot(WubuRamdisk *rd) {
             return 0;
         }
 
-        /* No Arch root — caller needs to bootstrap */
+        /* No Arch root  --  caller needs to bootstrap */
         rd->state = WUBU_RD_MOUNTED;  /* Directory ready */
         return 0;
     }
 }
 
-/* ── Root Path ──────────────────────────────────────────────────── */
+/* -- Root Path ---------------------------------------------------- */
 
 const char *wubu_rd_root_path(WubuRamdisk *rd) {
     if (!rd) return NULL;
     return rd->path;
 }
 
-/* ── State / Usage ──────────────────────────────────────────────── */
+/* -- State / Usage ------------------------------------------------ */
 
 WubuRdState wubu_rd_state(WubuRamdisk *rd) {
     return rd ? rd->state : WUBU_RD_NONE;
@@ -297,7 +297,7 @@ uint64_t wubu_rd_usage_mb(WubuRamdisk *rd) {
     return rd->usage_mb;
 }
 
-/* ── Disk Bootstrap ─────────────────────────────────────────────── */
+/* -- Disk Bootstrap ----------------------------------------------- */
 
 int wubu_rd_bootstrap_disk(WubuRamdisk *rd, const char *mirror) {
     if (!rd || rd->mode != WUBU_RD_DISK) return -1;
@@ -312,7 +312,7 @@ int wubu_rd_bootstrap_disk(WubuRamdisk *rd, const char *mirror) {
     return 0;
 }
 
-/* ── Install RAM → SSD ──────────────────────────────────────────── */
+/* -- Install RAM → SSD -------------------------------------------- */
 
 int wubu_rd_install_to_disk(WubuRamdisk *rd, const char *disk_path) {
     if (!rd || rd->state < WUBU_RD_LOADED) return -1;
@@ -334,7 +334,7 @@ int wubu_rd_install_to_disk(WubuRamdisk *rd, const char *disk_path) {
     return ret;
 }
 
-/* ── Snapshot ───────────────────────────────────────────────────── */
+/* -- Snapshot ----------------------------------------------------- */
 
 int wubu_rd_snapshot(WubuRamdisk *rd, const char *output_path) {
     if (!rd || rd->state < WUBU_RD_LOADED) return -1;
@@ -350,7 +350,7 @@ int wubu_rd_snapshot(WubuRamdisk *rd, const char *output_path) {
     return run_cmd(cmd);
 }
 
-/* ── Install Packages ───────────────────────────────────────────── */
+/* -- Install Packages --------------------------------------------- */
 
 int wubu_rd_install(WubuRamdisk *rd, const char *packages) {
     if (!rd || !packages) return -1;
@@ -359,7 +359,7 @@ int wubu_rd_install(WubuRamdisk *rd, const char *packages) {
     return wubu_arch_install(rd->path, packages);
 }
 
-/* ── Set RAM Size ───────────────────────────────────────────────── */
+/* -- Set RAM Size ------------------------------------------------- */
 
 void wubu_rd_set_ram_size(WubuRamdisk *rd, const char *size_str) {
     if (!rd || !size_str) return;

@@ -1,5 +1,5 @@
 /*
- * bear_env.c — PufferC/BearRL Vectorized Environment Implementation
+ * bear_env.c  --  PufferC/BearRL Vectorized Environment Implementation
  */
 
 #include "bear_env.h"
@@ -10,9 +10,9 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Episode Step Counter Storage
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static int* g_episode_step = NULL;
 static float* g_episode_return = NULL;
@@ -28,9 +28,9 @@ static void ensure_episode_arrays(int num_envs) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Vectorized Environment Factory
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 BearEnv* bear_env_create(BearEnvType type, int num_envs,
                           int max_agents, int obs_dim, int act_dim,
@@ -152,9 +152,9 @@ const BearEnvSpec* bear_env_spec(const BearEnv* e) {
     return e ? &e->spec : NULL;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * CartPole-v1 Implementation (SIMD-vectorized)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     /* State: [x, x_dot, theta, theta_dot] per env */
@@ -277,9 +277,9 @@ void bear_cartpole_step(BearEnv* e, const BearTensor* actions,
     for (int i = 0; i < n; ++i) if (!done[i]) e->num_active_envs++;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Squared (PufferLib-style gridworld)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     int grid_size;
@@ -397,9 +397,9 @@ void bear_squared_step(BearEnv* e, const BearTensor* actions,
     for (int i = 0; i < n; ++i) if (!done[i]) e->num_active_envs++;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Custom Environment Registration
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static bear_custom_reset_fn g_custom_reset = NULL;
 static bear_custom_step_fn g_custom_step = NULL;
@@ -421,9 +421,9 @@ void bear_env_use_custom(BearEnv* e, const char* name) {
     e->step = g_custom_step;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
- * N-Pole Cartpole (7-10 Poles) — Sovereign Bear Challenge
- * ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
+ * N-Pole Cartpole (7-10 Poles)  --  Sovereign Bear Challenge
+ * ===================================================================
  * Physics: Recursive Lagrangian dynamics for N linked inverted pendulums
  * on a cart. State: [cart_x, cart_vx, θ₁, ω₁, θ₂, ω₂, ..., θ_N, ω_N]
  * Action: Continuous force on cart [−force_mag, +force_mag]
@@ -480,9 +480,9 @@ static void npole_compute_accelerations(NPoleCartState* s, int env_id,
 static void npole_rk4_step(NPoleCartState* s, int env_id, float force);
 static void npole_reset_env(NPoleCartState* s, int env_id);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * N-Pole Cartpole Initialization
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_npolecart_init(BearEnv* e, int num_poles, BearArena* global) {
     (void)global;
@@ -548,9 +548,9 @@ void bear_npolecart_init(BearEnv* e, int num_poles, BearArena* global) {
     e->close = NULL;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * N-Pole Cartpole Reset (Staggered)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static void npole_reset_env(NPoleCartState* s, int env_id) {
     s->cart_x[env_id] = ((float)rand() / RAND_MAX - 0.5f) * 0.05f;
@@ -596,9 +596,9 @@ void bear_npolecart_reset(BearEnv* e, BearArena* arena) {
     memset(e->dones.data, 0, n * sizeof(uint8_t));
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Physics: Recursive Lagrangian Dynamics for N-Pole Cartpole
- * ═══════════════════════════════════════════════════════════════════
+ * ===================================================================
  *
  * Derivation: Generalized coordinates q = [x, θ₁, θ₂, ..., θ_N]
  * Lagrangian L = T - V
@@ -628,7 +628,7 @@ static void npole_compute_accelerations(NPoleCartState* s, int env_id,
         F[i] = 0.0f;
     }
     
-    /* M[0][0] and F[0] — cart equation */
+    /* M[0][0] and F[0]  --  cart equation */
     M[0][0] = s->total_mass;
     for (int i = 0; i < N; ++i) {
         float cos_t = cosf(s->theta[env_id][i]);
@@ -637,7 +637,7 @@ static void npole_compute_accelerations(NPoleCartState* s, int env_id,
         M[i + 1][0] = M[0][i + 1];
     }
     
-    /* M[i+1][j+1] and F[i+1] — pole equations */
+    /* M[i+1][j+1] and F[i+1]  --  pole equations */
     for (int i = 0; i < N; ++i) {
         float mi = s->pole_masses[i];
         float li = s->pole_lengths[i];
@@ -683,7 +683,7 @@ static void npole_compute_accelerations(NPoleCartState* s, int env_id,
     }
     
     /* Solve M * acc = F for accelerations using Gaussian elimination */
-    /* System size: (N+1) ≤ 11 — small enough for dense solve */
+    /* System size: (N+1) ≤ 11  --  small enough for dense solve */
     int sz = N + 1;
     
     float acc[BEAR_MAX_N_POLES + 1] = {0};
@@ -784,7 +784,7 @@ static void npole_rk4_step(NPoleCartState* s, int env_id, float force) {
     }
 }
 
-/* Alternative: Semi-implicit Euler (faster, less stable) — use for speed */
+/* Alternative: Semi-implicit Euler (faster, less stable)  --  use for speed */
 static void npole_euler_step(NPoleCartState* s, int env_id, float force) {
     int N = s->num_poles;
     float dt = s->dt;
@@ -802,9 +802,9 @@ static void npole_euler_step(NPoleCartState* s, int env_id, float force) {
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * N-Pole Cartpole Step (Vectorized)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_npolecart_step(BearEnv* e, const BearTensor* actions,
                           BearTensor* rewards, BearTensor* dones,
@@ -827,7 +827,7 @@ void bear_npolecart_step(BearEnv* e, const BearTensor* actions,
         if (force > s->force_mag) force = s->force_mag;
         if (force < -s->force_mag) force = -s->force_mag;
         
-        /* Physics step — use RK4 for stability on high-N poles */
+        /* Physics step  --  use RK4 for stability on high-N poles */
         npole_rk4_step(s, i, force);
 
         /* NaN guard: if physics produced NaN, reset this env */
@@ -917,9 +917,9 @@ void bear_npolecart_step(BearEnv* e, const BearTensor* actions,
     for (int i = 0; i < n; ++i) if (!done[i]) e->num_active_envs++;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Factory Integration for N-Pole Cartpole
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Convenience function to create N-pole env with specific pole count */
 BearEnv* bear_env_create_npole(int num_poles, int num_envs, BearArena* global_arena) {

@@ -1,5 +1,5 @@
 /*
- * taskbar.c — My Seed Taskbar (Win98-style, 28px bottom bar)
+ * taskbar.c  --  My Seed Taskbar (Win98-style, 28px bottom bar)
  */
 #include "wm.h"
 #include "../kernel/vbe.h"

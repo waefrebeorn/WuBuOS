@@ -1,5 +1,5 @@
 /*
- * weight_check.c — WuBuOS Vision Weight Verification Implementation
+ * weight_check.c  --  WuBuOS Vision Weight Verification Implementation
  *
  * Cell 051: Checks Moondream3 safetensors shards are present.
  */
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── API ───────────────────────────────────────────────────── */
+/* -- API ----------------------------------------------------- */
 
 int weight_shard_path(int index, char *buf, int bufsz) {
     if (index < 0 || index >= WEIGHT_SHARDS || !buf || bufsz <= 0) return -1;
@@ -56,7 +56,7 @@ int weight_check(weight_check_t *result) {
             result->size[i] = size;
             result->total_size += size;
         } else {
-            /* File missing or too small — check if it exists at all */
+            /* File missing or too small  --  check if it exists at all */
             FILE *f = fopen(path, "rb");
             if (f) {
                 fseek(f, 0, SEEK_END);

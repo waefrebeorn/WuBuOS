@@ -1,5 +1,5 @@
 /*
- * styxfs_test.c — WuBuOS StyxFS Test Suite (Cell 106)
+ * styxfs_test.c  --  WuBuOS StyxFS Test Suite (Cell 106)
  *
  * Tests StyxFS mount/unmount, file namespace, .wubu container
  * detection, path normalization, and readonly mode.
@@ -16,7 +16,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Tests ──────────────────────────────────────────────────── */
+/* -- Tests ---------------------------------------------------- */
 
 static void test_init(void) {
     TEST("styxfs_init zeroes server");
@@ -136,12 +136,12 @@ static void test_serve_null(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────── */
+/* -- Main ----------------------------------------------------- */
 
 int main(void) {
-    printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS StyxFS Test Suite (Cell 106)                   ║\n");
-    printf("╚════════════════════════════════════════════════════════╝\n\n");
+    printf("+========================================================+\n");
+    printf("|  WuBuOS StyxFS Test Suite (Cell 106)                   |\n");
+    printf("+========================================================+\n\n");
 
     test_init();
     test_mount();
@@ -155,9 +155,9 @@ int main(void) {
     test_scan_repo();
     test_serve_null();
 
-    printf("\n════════════════════════════════════════════════════════\n");
+    printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("════════════════════════════════════════════════════════\n");
+    printf("========================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

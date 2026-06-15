@@ -1,11 +1,11 @@
 /*
- * wubu_host_exec.h — WuBuOS Host Container Execution (Linux)
+ * wubu_host_exec.h  --  WuBuOS Host Container Execution (Linux)
  *
  * Cell 203: Fork+exec for .wubu containers via host delegation.
  *
  * Architecture:
  *   - Containers are HOST PROCESSES (fork + chroot + exec)
- *   - NOT syscall emulation — we delegate to the host Linux kernel
+ *   - NOT syscall emulation  --  we delegate to the host Linux kernel
  *   - Arch Linux base for SteamOS compat (DRM/KMS/NVIDIA/AMD drivers)
  *   - Per-container 9P namespace via Styx socket mount
  *   - GPU passthrough: /dev/dri, /dev/nvidia flow into container
@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Container Configuration ────────────────────────────────────── */
+/* -- Container Configuration -------------------------------------- */
 
 #define WUBU_CT_MAX_ARGS    64
 #define WUBU_CT_MAX_ENV     64
@@ -85,7 +85,7 @@ typedef struct {
     char    *envp[WUBU_CT_MAX_ENV];
 } WubuCt;
 
-/* ── Container Lifecycle ────────────────────────────────────────── */
+/* -- Container Lifecycle ------------------------------------------ */
 
 /*
  * Create a container configuration.
@@ -123,7 +123,7 @@ int wubu_ct_kill(WubuCt *ct, int sig);
  */
 CtState wubu_ct_state(WubuCt *ct);
 
-/* ── Container Configuration ────────────────────────────────────── */
+/* -- Container Configuration -------------------------------------- */
 
 /* Set command to execute inside container */
 int wubu_ct_set_cmd(WubuCt *ct, int argc, char **argv);
@@ -140,7 +140,7 @@ void wubu_ct_set_gpu(WubuCt *ct, bool enable);
 /* Set resource limits */
 void wubu_ct_set_limits(WubuCt *ct, uint64_t mem_mb, int cpu_count);
 
-/* ── Preset Containers ──────────────────────────────────────────── */
+/* -- Preset Containers -------------------------------------------- */
 
 /*
  * Create a SteamOS container preset.
@@ -157,7 +157,7 @@ WubuCt *wubu_ct_steamos(const char *name, const char *root);
  */
 WubuCt *wubu_ct_native(const char *name, const char *root);
 
-/* ── Diagnostics ────────────────────────────────────────────────── */
+/* -- Diagnostics -------------------------------------------------- */
 
 /* Get human-readable state name */
 const char *wubu_ct_state_name(CtState state);

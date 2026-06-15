@@ -1,5 +1,5 @@
 /*
- * memory.c — My Seed Kernel Memory Subsystem Implementation
+ * memory.c  --  My Seed Kernel Memory Subsystem Implementation
  *
  * Clean C11 reimplementation of ZealOS heap design.
  * Simplified from the original for correctness first;
@@ -14,7 +14,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Internal: Spinlock ─────────────────────────────────────────── */
+/* -- Internal: Spinlock ------------------------------------------- */
 
 static inline void heap_lock(CHeapCtrl *hc) {
     while (__atomic_test_and_set(&hc->locked_flags, __ATOMIC_ACQUIRE))
@@ -25,7 +25,7 @@ static inline void heap_unlock(CHeapCtrl *hc) {
     __atomic_clear(&hc->locked_flags, __ATOMIC_RELEASE);
 }
 
-/* ── Global Heap ────────────────────────────────────────────────── */
+/* -- Global Heap -------------------------------------------------- */
 
 static CHeapCtrl *g_heap = NULL;
 static void       *g_heap_base = NULL;
@@ -42,7 +42,7 @@ static void *alloc_pages(size_t n_pages) {
     return p;
 }
 
-/* ── Init / Shutdown ────────────────────────────────────────────── */
+/* -- Init / Shutdown ---------------------------------------------- */
 
 int mem_init(size_t total_bytes) {
     g_heap_base = malloc(total_bytes);
@@ -51,7 +51,7 @@ int mem_init(size_t total_bytes) {
     g_heap_total = total_bytes;
     g_next_page  = (uint8_t *)g_heap_base;
     g_heap_end   = g_next_page + total_bytes;
-    /* Allocate CHeapCtrl at the start — may need multiple pages */
+    /* Allocate CHeapCtrl at the start  --  may need multiple pages */
     size_t hc_pages = (sizeof(CHeapCtrl) + MEM_PAG_SIZE - 1) / MEM_PAG_SIZE;
     g_heap = (CHeapCtrl *)alloc_pages(hc_pages);
     if (!g_heap) return -1;
@@ -79,7 +79,7 @@ CHeapCtrl *mem_heap_ctrl(void) {
     return g_heap;
 }
 
-/* ── Allocation ─────────────────────────────────────────────────── */
+/* -- Allocation --------------------------------------------------- */
 
 void *mem_alloc(size_t size) {
     if (!g_heap) return NULL;
@@ -213,7 +213,7 @@ void *mem_realloc(void *ptr, size_t new_size) {
     return new_ptr;
 }
 
-/* ── Diagnostics ────────────────────────────────────────────────── */
+/* -- Diagnostics -------------------------------------------------- */
 
 size_t mem_used(void) {
     return g_heap ? g_heap->used_size : 0;

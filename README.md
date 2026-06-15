@@ -1,10 +1,10 @@
 # 🌱 WuBuOS
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom · Audio Engine · Metal Boot · Bear RL · N-Pole Cartpole · 358 Gap Battlefield**
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom · Audio Engine · Metal Boot · Bear RL · N-Pole Cartpole · 412 Gap Battlefield**
 
 A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted), a WSL2 distribution (Windows), or an Apple Virtualization guest (macOS).
 
-![WuBuOS Win98 Desktop](docs/screenshot.png)
+![WuBuOS Win98 Desktop](docs/wubuos_demo_full.gif)
 
 ## Architecture
 
@@ -60,9 +60,34 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | SSD  | /var/wubu/roots/arch-base | Yes | Bare metal install |
 | RAM→SSD | install_to_disk() | After copy | Opt-in persistence |
 
-## Battleship v13 — 406 Active Gaps (43 Resolved)
+## DosGui Desktop (Cells 400-402) ✅
 
-### Resolved Cells (43 ✅)
+The Win98 desktop shell with Fable Windowing Agent:
+
+- **Cell 400** — DosGui WM: 32 windows, z-order, drag, focus, taskbar, icons, 18-row cursor
+- **Cell 401** — DosGui Desktop: 10 launchable icons (My Computer, Temple REPL, Notepad, Paint, Calculator, Terminal, File Manager, Settings, Editor, WuBu Canvas)
+- **Cell 402** — DosGui StartMenu: cascading Programs→{Accessories, WuBuOS, System}, Documents, Find, Help, Run, Shutdown
+- **dosgui_apps.c** — Self-contained draw functions for all apps (no legacy WmWindow dependency)
+
+![WuBuOS Desktop Demo](docs/wubuos_demo_full.gif)
+
+### Apps Included
+| App | Icon | Draw Function | Size |
+|-----|------|---------------|------|
+| My Computer | 🖥️ | dosgui_explorer_draw | 600×450 |
+| Temple REPL | 👑 | dosgui_repl_draw | 400×400 |
+| Notepad | 📝 | dosgui_notepad_draw | 500×400 |
+| Paint | 🎨 | dosgui_paint_draw | 700×500 |
+| Calculator | 🔢 | dosgui_calc_draw | 280×380 |
+| Terminal | 💻 | dosgui_terminal_draw | 700×500 |
+| File Manager | 📁 | dosgui_explorer_draw | 700×500 |
+| Settings | ⚙️ | dosgui_control_draw | 520×440 |
+| Editor | ✏️ | dosgui_editor_draw | 600×500 |
+| WuBu Canvas | 🖼️ | dosgui_canvas_draw | 700×500 |
+
+## Battleship v14 — 412 Active Gaps (40 Resolved)
+
+### Resolved Cells (40 ✅)
 
 | Cell | Description | Tests |
 |------|-------------|-------|
@@ -97,17 +122,15 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | 403 | TinySoundFont SF2 parser | ✅ |
 | 404 | Ardour DAW mixer | ✅ |
 | 405 | AI plugin streaming (9P/Styx) | ✅ |
-|| 530 | bear_arena: Arena allocator + SoA tensor infrastructure | ✅ |
-|| 531 | bear_simd: AVX2/NEON matmul + fused kernels | ✅ |
-|| 532 | bear_env: Vectorized env API (CartPole, Squared) | ✅ |
-|| 533 | bear_opt: Adam + Muon optimizers | ✅ |
-|| 534 | bear_env: N-Pole Cartpole (7-10 poles) RK4 Lagrangian | ✅ |
-|| 410 | VSL init: host fork/exec verification | ✅ |
-| 411 | VSL run: host shell command execution | ✅ |
-| 450 | VSL init: host delegation verification | ✅ |
-| 451 | VSL run: host shell command execution | ✅ |
+| 406 | DosGui WM (Fable Windowing Agent) | 16 ✅ |
+| 407 | DosGui Desktop (Win98 icons + apps) | ✅ |
+| 408 | DosGui StartMenu (cascading) | ✅ |
+| 409 | dosgui_apps (self-contained draw fns) | ✅ |
+| 410 | PS/2 driver (bare metal) | ✅ |
+| 411 | Metal boot ISO (MBR + stage2 + kernel + initrd) | ✅ |
+| 412 | Legacy app fixes (terminal/explorer/control) | ✅ |
 
-### Active Gap Categories (407 gaps)
+### Active Gap Categories (412 gaps)
 
 | Category | Count | Severity |
 |----------|-------|----------|
@@ -124,7 +147,7 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | **WorldSim** | 8 | 🟡 HIGH |
 | **Styx/9P** | 16 | 🔴 1, 🟡 15 |
 | **Bear RL (NEW)** | 14 | 🟡 3 (nn), ⬜ 11 |
-|| **TOTAL** | **406** | |
+| **TOTAL** | **412** | |
 
 ### Top 20 Priority Gaps
 
@@ -161,7 +184,10 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 | test_holyc | 71+ | ✅ |
 | test_gc | 10 | ✅ |
 | test_vsl | 20+ | ✅ |
+| test_dosgui_wm | 16 | ✅ |
 | ... | ... | ✅ |
+
+All tests: `make test`
 
 ## Quick Start
 
@@ -183,6 +209,9 @@ make test_audio
 # Build metal test
 make test_metal
 # ./src/hosted/wubu_metal_test
+
+# Generate demo screenshots
+./src/tools/dosgui_screenshot
 ```
 
 ## Development
@@ -202,7 +231,7 @@ make docs
 
 ```
 src/
-├── kernel/          # Memory, task, VBE, FAT32, AHCI, interrupt, zealos_parity
+├── kernel/          # Memory, task, VBE, FAT32, AHCI, interrupt, zealos_parity, ps2
 ├── compiler/        # HolyC lexer/parser/codegen (310-313)
 ├── audio/           # Ardour DAW + Furnace (12 chips) + TinySoundFont + AI (401-405)
 ├── hosted/          # X11/DRM/KMS/ALSA/WSL2 platform layer (400, 388-391)
@@ -210,8 +239,9 @@ src/
 ├── gui/             # Win98 WM, editor, canvas, start menu (394-397, 460-493)
 ├── worldsim/        # GAAD (393), terrain, entity, physics
 ├── bridge/          # DOS flip Ctrl+Alt+T (206-207)
-├── apps/            # Codec, editor, canvas, freedoom (391, 396-398, 460-493)
-└── shell/           # Unified GUI shell (207)
+├── apps/            # Codec, editor, canvas, freedoom, dosgui_apps (391, 396-398, 460-493)
+├── shell/           # Unified GUI shell (207)
+└── tools/           # ISO9660, screenshot, weight_check
 ```
 
 ## License

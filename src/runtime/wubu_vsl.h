@@ -1,7 +1,7 @@
 /*
- * wubu_vsl.h — WuBuOS Virtualization Substrate Layer (VSL)
+ * wubu_vsl.h  --  WuBuOS Virtualization Substrate Layer (VSL)
  *
- * VSL is WuBuOS's "Proton" — a lightweight Linux VM that runs under
+ * VSL is WuBuOS's "Proton"  --  a lightweight Linux VM that runs under
  * WuBuOS ring-0. It provides:
  *
  *   - Linux binary execution (ELF loader)
@@ -14,7 +14,7 @@
  *   VSL runs a minimal Linux kernel in a lightweight VM
  *   Linux apps run inside VSL, thinking they have full Linux
  *   VSL translates Linux syscalls to WuBuOS kernel calls
- *   Hardware drivers (Vulkan, CUDA) are accessed directly — no emulation
+ *   Hardware drivers (Vulkan, CUDA) are accessed directly  --  no emulation
  *
  * This is the "Proton within Proton" design:
  *   - WuBuOS is the host (like SteamOS)
@@ -42,7 +42,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* ── VSL Configuration ─────────────────────────────────────────── */
+/* -- VSL Configuration ------------------------------------------- */
 
 #define VSL_VERSION_MAJOR   1
 #define VSL_VERSION_MINOR   0
@@ -252,7 +252,7 @@ typedef struct {
     volatile uint64_t *shared_status; /* Status flags */
 } VSL_STATE;
 
-/* ── VSL API: Lifecycle ────────────────────────────────────────── */
+/* -- VSL API: Lifecycle ------------------------------------------ */
 
 /*
  * Initialize VSL.
@@ -272,7 +272,7 @@ void vsl_shutdown(void);
  */
 bool vsl_active(void);
 
-/* ── VSL API: Process Management ───────────────────────────────── */
+/* -- VSL API: Process Management --------------------------------- */
 
 /*
  * Create a VSL process from an ELF binary.
@@ -299,7 +299,7 @@ VSL_PROC *vsl_get_process(uint32_t pid);
  */
 int vsl_list_processes(VSL_PROC *out, int max_count);
 
-/* ── VSL API: Syscall Bridge ───────────────────────────────────── */
+/* -- VSL API: Syscall Bridge ------------------------------------- */
 
 /*
  * Handle a VSL syscall.
@@ -315,7 +315,7 @@ int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
  */
 int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs);
 
-/* ── VSL API: Memory Management ────────────────────────────────── */
+/* -- VSL API: Memory Management ---------------------------------- */
 
 /*
  * Map memory in VSL address space.
@@ -335,7 +335,7 @@ int vsl_munmap(uint64_t addr, size_t size);
  */
 int64_t vsl_brk(uint64_t new_brk);
 
-/* ── VSL API: File Operations ──────────────────────────────────── */
+/* -- VSL API: File Operations ------------------------------------ */
 
 /*
  * Open a file in VSL.
@@ -363,7 +363,7 @@ int64_t vsl_write(int fd, const void *buf, size_t count);
  */
 int64_t vsl_lseek(int fd, int64_t offset, int whence);
 
-/* ── VSL API: Driver Management ────────────────────────────────── */
+/* -- VSL API: Driver Management ---------------------------------- */
 
 /*
  * Register a VSL driver.
@@ -392,7 +392,7 @@ bool vsl_driver_active(VSL_DRV_TYPE type);
  */
 VSL_DRV *vsl_get_driver(VSL_DRV_TYPE type);
 
-/* ── VSL API: Shared Memory ────────────────────────────────────── */
+/* -- VSL API: Shared Memory -------------------------------------- */
 
 /*
  * Send command to VSL via shared memory.
@@ -410,7 +410,7 @@ uint64_t vsl_read_response(void);
  */
 uint64_t vsl_get_status(void);
 
-/* ── VSL API: ELF Loading ──────────────────────────────────────── */
+/* -- VSL API: ELF Loading ---------------------------------------- */
 
 /*
  * Parse and validate an ELF64 binary.
@@ -432,7 +432,7 @@ uint64_t vsl_elf_load(const void *elf_data, size_t elf_size);
 int vsl_elf_interpreter(const void *elf_data, size_t elf_size,
                         char *buf, size_t buf_size);
 
-/* ── VSL API: Diagnostics ──────────────────────────────────────── */
+/* -- VSL API: Diagnostics ---------------------------------------- */
 
 /*
  * Get VSL info string.

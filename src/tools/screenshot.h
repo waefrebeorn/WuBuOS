@@ -1,5 +1,5 @@
 /*
- * wubu_screenshot.h — WuBuOS Screenshot/Snipping Tool
+ * wubu_screenshot.h  --  WuBuOS Screenshot/Snipping Tool
  *
  * Save framebuffer to PPM/PNG, create GIF animations,
  * and provide an in-OS snipping tool widget.
@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ────────────────────────────────────────────────────────────────── */
+/* ------------------------------------------------------------------ */
 
 typedef enum {
     SHOT_FMT_PPM  = 0,  /* Simple, no deps */

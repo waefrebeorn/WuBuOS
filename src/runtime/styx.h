@@ -1,5 +1,5 @@
 /*
- * styx.h — Styx/9P2000 Protocol (Inferno OS wire format)
+ * styx.h  --  Styx/9P2000 Protocol (Inferno OS wire format)
  * 
  * Styx is the file protocol used by Inferno OS (derived from Plan 9's 9P2000).
  * Everything is a file: data, devices, networks, services.
@@ -21,7 +21,7 @@
 #include <stddef.h>
 #include <string.h>
 
-/* ── Protocol Constants ─────────────────────────────────────────── */
+/* -- Protocol Constants ------------------------------------------- */
 
 #define STYX_MAX_MSG       (64 * 1024)  /* 64KB max message */
 #define STYX_HEADER_SIZE   24            /* Fixed header + type + tag */
@@ -29,7 +29,7 @@
 #define STYX_MAX_WRITE     (8 * 1024)    /* Max write chunk */
 #define STYX_MAX_DATA      (8 * 1024)    /* Max read data per Tread/Rread */
 
-/* ── Styx Message Types ─────────────────────────────────────────── */
+/* -- Styx Message Types ------------------------------------------- */
 
 /* T-messages (client → server) */
 #define STX_TVERSION  100  /* Negotiate protocol version */
@@ -47,7 +47,7 @@
 #define STX_TSTAT     124  /* Get file attributes */
 #define STX_TWSTAT    126  /* Set file attributes */
 
-/* R-messages (server → client) — type + 1 */
+/* R-messages (server → client)  --  type + 1 */
 #define STX_RVERSION  101
 #define STX_RAUTH     103
 #define STX_RATTACH   105
@@ -63,7 +63,7 @@
 #define STX_RSTAT     125
 #define STX_RWSTAT    127
 
-/* ── Flags for Topen/Tcreate ────────────────────────────────────── */
+/* -- Flags for Topen/Tcreate -------------------------------------- */
 
 #define STX_OREAD   0  /* Open for reading */
 #define STX_OWRITE  1  /* Open for writing */
@@ -73,7 +73,7 @@
 #define STX_ORCLOSE 32 /* Remove on close */
 #define STX_OEXCL   64 /* Exclusive use */
 
-/* ── QID Types (file type bits) ─────────────────────────────────── */
+/* -- QID Types (file type bits) ----------------------------------- */
 
 #define STX_QTDIR   0x80  /* Directory */
 #define STX_QTAPPEND 0x40 /* Append-only */
@@ -83,7 +83,7 @@
 #define STX_QTTMP   0x04  /* Temporary file */
 #define STX_QTFILE  0x00  /* Plain file */
 
-/* ── File Permissions (mode bits, 9P2000) ─────────────────────────── */
+/* -- File Permissions (mode bits, 9P2000) --------------------------- */
 
 #define STX_DMDIR     0x80000000
 #define STX_DMAPPEND  0x40000000
@@ -92,16 +92,16 @@
 #define STX_DMAUTH    0x08000000
 #define STX_DMTMP     0x04000000
 
-/* ── Data Structures ────────────────────────────────────────────── */
+/* -- Data Structures ---------------------------------------------- */
 
-/* QID — unique file identifier */
+/* QID  --  unique file identifier */
 typedef struct {
     uint8_t  type;    /* QTDIR, QTAPPEND, etc. */
     uint32_t version; /* Version (incremented on change) */
     uint64_t path;    /* Unique file identifier */
 } styx_qid_t;
 
-/* Dir — directory entry (stat/wstat) */
+/* Dir  --  directory entry (stat/wstat) */
 typedef struct {
     uint16_t size;    /* Total size of this Dir record */
     uint16_t type;    /* Server type */
@@ -125,7 +125,7 @@ typedef struct {
     uint8_t  data[STYX_MAX_MSG - 7];  /* Variable-length payload */
 } styx_msg_t;
 
-/* ── Connection / Fid State ─────────────────────────────────────── */
+/* -- Connection / Fid State --------------------------------------- */
 
 #define STYX_MAX_FIDS 128
 
@@ -148,7 +148,7 @@ typedef struct styx_server {
     char     version[16];      /* Protocol version string */
     int      connected;
     
-    /* Callbacks — file system operations */
+    /* Callbacks  --  file system operations */
     int  (*attach)(struct styx_server *srv, uint32_t fid, const char *aname);
     int  (*walk) (struct styx_server *srv, uint32_t fid,
                   uint32_t newfid, const char **wname, int nwname,
@@ -172,7 +172,7 @@ typedef struct styx_server {
     void *user_data;
 } styx_server_t;
 
-/* ── API Functions ──────────────────────────────────────────────── */
+/* -- API Functions ------------------------------------------------ */
 
 /* Initialize a Styx server with default state */
 void styx_init(styx_server_t *srv);
@@ -186,7 +186,7 @@ int styx_serve(styx_server_t *srv,
 void styx_error(uint16_t tag, const char *errmsg,
                 uint8_t *outbuf, uint32_t *outlen);
 
-/* ── Message Construction Helpers ───────────────────────────────── */
+/* -- Message Construction Helpers --------------------------------- */
 
 void styx_build_tversion(uint8_t *buf, uint32_t *len,
                           uint32_t msize, const char *version);
@@ -210,7 +210,7 @@ void styx_build_tclunk(uint8_t *buf, uint32_t *len,
 void styx_build_tstat(uint8_t *buf, uint32_t *len,
                        uint16_t tag, uint32_t fid);
 
-/* ── Response Parsing Helpers ───────────────────────────────────── */
+/* -- Response Parsing Helpers ------------------------------------- */
 
 int styx_parse_version(const uint8_t *buf, uint32_t len,
                         uint32_t *msize, char *version);
@@ -229,7 +229,7 @@ int styx_parse_write(const uint8_t *buf, uint32_t len,
 int styx_parse_clunk(const uint8_t *buf, uint32_t len, uint32_t *fid);
 int styx_parse_stat(const uint8_t *buf, uint32_t len, uint32_t *fid);
 
-/* ── Helper Utilities ───────────────────────────────────────────── */
+/* -- Helper Utilities --------------------------------------------- */
 
 /* Pack/unpack little-endian 16-bit */
 static inline void styx_put16(uint8_t *buf, uint16_t val) {

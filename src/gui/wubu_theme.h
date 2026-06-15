@@ -1,7 +1,7 @@
 /*
- * wubu_theme.h — WuBuOS Theme Engine
+ * wubu_theme.h  --  WuBuOS Theme Engine
  *
- * Cell 394: Multi-theme support — Win98 Classic, XP Luna Blue,
+ * Cell 394: Multi-theme support  --  Win98 Classic, XP Luna Blue,
  * XP Media Center Orange/Black, and custom.
  *
  * Every theme defines a complete set of colors + drawing callbacks.
@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Theme IDs ──────────────────────────────────────────────────── */
+/* -- Theme IDs ---------------------------------------------------- */
 
 typedef enum {
     THEME_WIN98_CLASSIC   = 0,
@@ -29,7 +29,7 @@ typedef enum {
     THEME_COUNT           = 4,
 } WubuThemeId;
 
-/* ── Theme Color Set ────────────────────────────────────────────── */
+/* -- Theme Color Set ---------------------------------------------- */
 
 typedef struct {
     /* Desktop */
@@ -79,7 +79,7 @@ typedef struct {
     uint32_t icon_text_shadow;
 } WubuThemeColors;
 
-/* ── Theme Gradient (for XP-style title bars) ───────────────────── */
+/* -- Theme Gradient (for XP-style title bars) --------------------- */
 
 typedef struct {
     uint32_t color_start;
@@ -87,7 +87,7 @@ typedef struct {
     bool     active;       /* Gradient only for active window? */
 } WubuThemeGradient;
 
-/* ── Complete Theme ─────────────────────────────────────────────── */
+/* -- Complete Theme ----------------------------------------------- */
 
 typedef struct {
     WubuThemeId       id;
@@ -100,7 +100,7 @@ typedef struct {
     bool              Luna_start_button;  /* XP: green Start orb */
 } WubuTheme;
 
-/* ── Theme Engine API ───────────────────────────────────────────── */
+/* -- Theme Engine API --------------------------------------------- */
 
 /* Initialize theme engine (default: Win98 Classic) */
 int  wubu_theme_init(void);

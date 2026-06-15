@@ -11,7 +11,7 @@ static int passed = 0, failed = 0;
 #define FAIL(msg) do { printf("FAIL: %s\n", msg); failed++; } while(0)
 #define CHECK(cond, msg) do { if (cond) { PASS(); } else { FAIL(msg); } } while(0)
 
-/* ── RNG Tests ── */
+/* -- RNG Tests -- */
 
 static void test_rng_basic(void) {
     TEST("rng: xorshift64 produces non-zero");
@@ -42,7 +42,7 @@ static void test_rng_int_range(void) {
     CHECK(ok, "all ints in range");
 }
 
-/* ── Terrain Tests ── */
+/* -- Terrain Tests -- */
 
 static void test_terrain_generate(void) {
     TEST("terrain: generate produces non-flat");
@@ -96,7 +96,7 @@ static void test_terrain_bounds(void) {
     CHECK(h <= 255 && b <= 4, "out-of-bounds returns clamped");
 }
 
-/* ── Entity Tests ── */
+/* -- Entity Tests -- */
 
 static void test_entity_create(void) {
     TEST("entity: create and get");
@@ -145,7 +145,7 @@ static void test_entity_max(void) {
     CHECK(count == WS_MAX_ENTITIES, "stops at max entities");
 }
 
-/* ── Physics Tests ── */
+/* -- Physics Tests -- */
 
 static void test_physics_gravity(void) {
     TEST("physics: gravity pulls down");
@@ -197,7 +197,7 @@ static void test_physics_terrain_collide(void) {
     CHECK(pos->y >= (float)ground - 0.01f, "clamped to terrain surface");
 }
 
-/* ── Simulation Integration Tests ── */
+/* -- Simulation Integration Tests -- */
 
 static void test_sim_init(void) {
     TEST("sim: init produces valid state");
@@ -242,13 +242,13 @@ static void test_sim_wander_ai(void) {
     ws_ai_t *ai = (ws_ai_t *)ws_entity_add_component(e, WS_COMP_AI);
     ai->ai_type = 1; ai->timer = 0; ai->state = 0;
     
-    /* Run several steps — entity should move */
+    /* Run several steps  --  entity should move */
     for (int i = 0; i < 100; i++) ws_sim_step(&sim);
     
     CHECK(pos->x != 128.0f || pos->z != 128.0f, "entity wandered from start");
 }
 
-/* ── Render Tests (no framebuffer = no crash) ── */
+/* -- Render Tests (no framebuffer = no crash) -- */
 
 static void test_render_null_safe(void) {
     TEST("render: null framebuffer doesn't crash");
@@ -261,7 +261,7 @@ static void test_render_null_safe(void) {
     PASS(); /* if we got here, no crash */
 }
 
-/* ── Main ── */
+/* -- Main -- */
 
 int main(void) {
     printf("\n=== WorldSim Test Suite ===\n\n");

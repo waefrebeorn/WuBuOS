@@ -1,5 +1,5 @@
 /*
- * ahci.h — WuBuOS AHCI (SATA) Disk Driver
+ * ahci.h  --  WuBuOS AHCI (SATA) Disk Driver
  *
  * Cell 072: Advanced Host Controller Interface driver for SATA disks.
  * Ported from ZealOS Kernel/BlkDev/DiskAHCI.ZC design principles.
@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── AHCI Constants ────────────────────────────────────────── */
+/* -- AHCI Constants ------------------------------------------ */
 
 #define AHCI_MAX_PORTS       32
 #define AHCI_CMD_SLOTS       32     /* Command slots per port */
@@ -84,7 +84,7 @@
 #define AHCI_SIG_SEMB   0xEF0101    /* Enclosure Management Bridge */
 #define AHCI_SIG_PM     0x9669      /* Port Multiplier */
 
-/* ── AHCI Data Structures ──────────────────────────────────── */
+/* -- AHCI Data Structures ------------------------------------ */
 
 /* Command Header */
 typedef struct {
@@ -128,7 +128,7 @@ typedef enum {
     AHCI_DEV_SEMB = 3
 } ahci_dev_type_t;
 
-/*_IDENTIFY DEVICE data (partial — 512 bytes total) */
+/*_IDENTIFY DEVICE data (partial  --  512 bytes total) */
 typedef struct {
     uint16_t config;           /* 0: General configuration */
     uint16_t logical_cylinders;/* 1: Logical cylinders */
@@ -188,7 +188,7 @@ typedef struct {
     uint64_t    errors;
 } ahci_hba_t;
 
-/* ── HBA Lifecycle ─────────────────────────────────────────── */
+/* -- HBA Lifecycle ------------------------------------------- */
 
 /* Initialize HBA (in real kernel: takes ABAR address; hosted: simulated) */
 int  ahci_hba_init(ahci_hba_t *hba);
@@ -196,7 +196,7 @@ int  ahci_hba_init(ahci_hba_t *hba);
 /* Shutdown HBA */
 void ahci_hba_shutdown(ahci_hba_t *hba);
 
-/* ── Port Management ──────────────────────────────────────── */
+/* -- Port Management ---------------------------------------- */
 
 /* Enumerate ports on the HBA. Returns number of active ports. */
 int  ahci_enumerate_ports(ahci_hba_t *hba);
@@ -207,7 +207,7 @@ int  ahci_port_init(ahci_hba_t *hba, int port_num);
 /* Get device type from port signature. */
 ahci_dev_type_t ahci_dev_type_from_sig(uint32_t signature);
 
-/* ── IDENTIFY DEVICE ───────────────────────────────────────── */
+/* -- IDENTIFY DEVICE ----------------------------------------- */
 
 /* Issue IDENTIFY DEVICE command to a port.
  * In hosted mode, populates with simulated data. */
@@ -219,7 +219,7 @@ void ahci_identify_model(const ahci_identify_t *id, char *buf, int bufsz);
 /* Extract serial number. */
 void ahci_identify_serial(const ahci_identify_t *id, char *buf, int bufsz);
 
-/* ── I/O Operations ────────────────────────────────────────── */
+/* -- I/O Operations ------------------------------------------ */
 
 /* Read sectors from a port via DMA.
  * lba: starting LBA, count: number of sectors, buf: output buffer.
@@ -231,7 +231,7 @@ int  ahci_read(ahci_hba_t *hba, int port_num,
 int  ahci_write(ahci_hba_t *hba, int port_num,
                 uint64_t lba, uint32_t count, const void *buf);
 
-/* ── Hosted Simulation ─────────────────────────────────────── */
+/* -- Hosted Simulation --------------------------------------- */
 
 /* Create a simulated disk backing for a port.
  * size_mb: disk size in megabytes. Returns 0 on success. */
@@ -240,7 +240,7 @@ int  ahci_sim_disk_create(ahci_hba_t *hba, int port_num, int size_mb);
 /* Destroy simulated disk. */
 void ahci_sim_disk_destroy(ahci_hba_t *hba, int port_num);
 
-/* ── Diagnostics ───────────────────────────────────────────── */
+/* -- Diagnostics --------------------------------------------- */
 
 /* Print HBA info. */
 void ahci_hba_dump(const ahci_hba_t *hba);

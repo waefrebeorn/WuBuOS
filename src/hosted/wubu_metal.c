@@ -1,5 +1,5 @@
 /*
- * wubu_metal.c — WuBuOS Bare-Metal Boot + WSL2 GUI Abstraction
+ * wubu_metal.c  --  WuBuOS Bare-Metal Boot + WSL2 GUI Abstraction
  *
  * Cell 400: Implementation of unified display/input/audio across three boot paths.
  *
@@ -27,9 +27,9 @@
 #include "../kernel/memory.h"
 #include "../kernel/vbe.h"
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  GLOBAL STATE
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static WubuBootEnv      g_env        = WUBU_ENV_UNKNOWN;
 static WubuDisplay      g_display    = {0};
@@ -37,9 +37,9 @@ static WubuInput        g_input      = {0};
 static WubuAudio        g_audio      = {0};
 static bool             g_initialized = false;
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  BOOT ENVIRONMENT DETECTION
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static WubuBootEnv wubu_detect_env_impl(void) {
     /* Check /proc/cpuinfo for hypervisor */
@@ -118,9 +118,9 @@ const char *wubu_env_name(WubuBootEnv env) {
 bool wubu_is_metal(void) { return wubu_detect_env() == WUBU_ENV_METAL; }
 bool wubu_is_wsl2(void)  { return wubu_detect_env() == WUBU_ENV_WSL2; }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  DRM/KMS DISPLAY BACKEND (BARE-METAL)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #ifdef WUBU_USE_DRM
 #include <xf86drm.h>
@@ -341,9 +341,9 @@ static int wubu_drm_get_modes(int *widths, int *heights, int max) {
     (void)widths; (void)heights; (void)max; return 0; }
 #endif
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  EVDEV INPUT BACKEND
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static int wubu_evdev_find_device(const char *type, int *out_fd) {
     DIR *d = opendir("/dev/input");
@@ -530,9 +530,9 @@ static void wubu_evdev_mouse_pos(int *x, int *y) {
     *y = my;
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  ALSA AUDIO BACKEND (BARE-METAL)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #ifdef WUBU_USE_ALSA
 #include <alsa/asoundlib.h>
@@ -605,9 +605,9 @@ static void wubu_alsa_submit(const float *buf, int frames) { (void)buf; (void)fr
 static double wubu_alsa_cpu_load(void) { return 0.0; }
 #endif
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  PULSEAUDIO BACKEND (HOSTED/WSL2)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #ifdef WUBU_USE_PULSE
 #include <pulse/simple.h>
@@ -656,9 +656,9 @@ static void wubu_pulse_submit(const float *buf, int frames) { (void)buf; (void)f
 static double wubu_pulse_cpu_load(void) { return 0.0; }
 #endif
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  WSL2 SPECIFIC
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_wsl2_disp_init(void) {
     /* WSL2 uses Weston/WSLg via Wayland */
@@ -697,9 +697,9 @@ int wubu_wsl2_audio_init(void) {
 const char *wubu_wsl2_wayland_path(void) { return g_display.wayland_socket; }
 const char *wubu_wsl2_pulse_path(void)   { return g_display.wslg_pulse; }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  X11 DISPLAY BACKEND (HOSTED)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #ifdef WUBU_USE_X11
 #include <X11/Xlib.h>
@@ -784,9 +784,9 @@ static void wubu_x11_flip(void) {}
 static int wubu_x11_set_mode(int w, int h, int r) { (void)w; (void)h; (void)r; return -1; }
 #endif
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  VBE (LEGACY/BIOS) DISPLAY BACKEND
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static void vbe_init_fb(int width, int height) {
     if (g_display.vbe_back) free(g_display.vbe_back);
@@ -798,9 +798,9 @@ static void vbe_shutdown_fb(void) {
     if (g_display.vbe_back) { free(g_display.vbe_back); g_display.vbe_back = NULL; }
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  UNIFIED DISPLAY API
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_disp_init(int width, int height) {
     if (g_initialized) return 0;
@@ -908,9 +908,9 @@ int wubu_disp_force(WubuDispBackend backend) {
     return wubu_disp_init(g_display.width, g_display.height);
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  UNIFIED INPUT API
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_input_init(void) {
     wubu_evdev_init_all();
@@ -936,9 +936,9 @@ int wubu_input_gamepads(char names[][64]) {
     return count;
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  UNIFIED AUDIO API
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_audio_init(int sample_rate, int channels, int buffer_frames) {
     WubuBootEnv env = wubu_detect_env();
@@ -974,9 +974,9 @@ double wubu_audio_cpu_load(void) {
     }
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  BARE-METAL BOOT ENTRY POINTS
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_metal_init(int width, int height) {
     /* Force metal environment */
@@ -1016,9 +1016,9 @@ void wubu_metal_shutdown(void) {
     wubu_disp_shutdown();
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  RESOLUTION / GAAD INTEGRATION
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_disp_get_modes(int *widths, int *heights, int max) {
     if (g_display.backend == DISP_DRM) {

@@ -1,0 +1,1021 @@
+===== BearRL N-Pole Cartpole Training =====
+Poles: 7 | Envs: 64 | Target Iters: 500
+Policy: MLP | Hidden: 128
+Sovereign C11 RL - No Python, No PyTorch, No Gym
+Creating 7-pole cartpole with 64 vectorized envs...
+Environment created: obs_dim=30, act_dim=1, continuous=1
+Creating MLP policy network (hidden: 128, 128)
+Policy network: MLP
+Creating value network...
+Initializing trainer...
+
+Starting training...
+Iter   Steps        Return    PLoss    VLoss    Ent      LR
+---------------------------------------------------------------
+Iter    0 | Steps 0 | Return   149.43 | PLoss -0.0791 | VLoss 26.9147 | Ent 1.4189 | LR 1.00e-04
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.8)
+Iter    1 | Steps 65536 | Return   149.43 | PLoss -0.0790 | VLoss 26.8989 | Ent 1.4189 | LR 1.00e-04
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65286.5)
+Iter    2 | Steps 131072 | Return   149.43 | PLoss -0.0789 | VLoss 26.9017 | Ent 1.4189 | LR 1.00e-04
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.0)
+Iter    3 | Steps 196608 | Return   149.43 | PLoss -0.0788 | VLoss 26.8956 | Ent 1.4189 | LR 1.00e-04
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65286.6)
+Iter    4 | Steps 262144 | Return   149.42 | PLoss -0.0788 | VLoss 26.8834 | Ent 1.4189 | LR 1.00e-04
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65279.3)
+Iter    5 | Steps 327680 | Return   149.41 | PLoss -0.0786 | VLoss 26.8715 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65275.7)
+Iter    6 | Steps 393216 | Return   149.41 | PLoss -0.0785 | VLoss 26.8686 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65278.2)
+Iter    7 | Steps 458752 | Return   149.43 | PLoss -0.0784 | VLoss 26.8719 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65286.5)
+Iter    8 | Steps 524288 | Return   149.43 | PLoss -0.0784 | VLoss 26.8644 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65285.1)
+Iter    9 | Steps 589824 | Return   149.42 | PLoss -0.0782 | VLoss 26.8581 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65284.7)
+Iter   10 | Steps 655360 | Return   149.42 | PLoss -0.0780 | VLoss 26.8442 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65284.8)
+Iter   11 | Steps 720896 | Return   149.43 | PLoss -0.0779 | VLoss 26.8401 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65287.0)
+Iter   12 | Steps 786432 | Return   149.43 | PLoss -0.0778 | VLoss 26.8408 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.6)
+Iter   13 | Steps 851968 | Return   149.44 | PLoss -0.0776 | VLoss 26.8269 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.8)
+Iter   14 | Steps 917504 | Return   149.44 | PLoss -0.0776 | VLoss 26.8250 | Ent 1.4189 | LR 9.99e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65291.9)
+Iter   15 | Steps 983040 | Return   149.44 | PLoss -0.0774 | VLoss 26.8161 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65289.8)
+Iter   16 | Steps 1048576 | Return   149.44 | PLoss -0.0773 | VLoss 26.8101 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65290.5)
+Iter   17 | Steps 1114112 | Return   149.44 | PLoss -0.0772 | VLoss 26.7940 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65289.4)
+Iter   18 | Steps 1179648 | Return   149.43 | PLoss -0.0770 | VLoss 26.7962 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.5)
+Iter   19 | Steps 1245184 | Return   149.44 | PLoss -0.0769 | VLoss 26.7853 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65290.4)
+Iter   20 | Steps 1310720 | Return   149.44 | PLoss -0.0767 | VLoss 26.7761 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65291.8)
+Iter   21 | Steps 1376256 | Return   149.44 | PLoss -0.0768 | VLoss 26.7762 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65289.1)
+Iter   22 | Steps 1441792 | Return   149.43 | PLoss -0.0766 | VLoss 26.7664 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.2)
+Iter   23 | Steps 1507328 | Return   149.44 | PLoss -0.0765 | VLoss 26.7618 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65288.9)
+Iter   24 | Steps 1572864 | Return   149.42 | PLoss -0.0763 | VLoss 26.7545 | Ent 1.4189 | LR 9.98e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65285.8)
+Iter   25 | Steps 1638400 | Return   149.43 | PLoss -0.0762 | VLoss 26.7451 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=149.4, ep_count=384, step_reward_sum=65286.5)
+[Curriculum] Episode length increased to 250 (best=149.4, target=135.0)
+Iter   26 | Steps 1703936 | Return   249.06 | PLoss -0.0766 | VLoss 29.0398 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=249.1, ep_count=256, step_reward_sum=65290.9)
+Iter   27 | Steps 1769472 | Return   249.04 | PLoss -0.0767 | VLoss 29.0393 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=249.0, ep_count=256, step_reward_sum=65285.1)
+Iter   28 | Steps 1835008 | Return   249.04 | PLoss -0.0766 | VLoss 29.0346 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=249.0, ep_count=256, step_reward_sum=65284.8)
+Iter   29 | Steps 1900544 | Return   249.03 | PLoss -0.0765 | VLoss 29.0265 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=249.0, ep_count=256, step_reward_sum=65280.4)
+Iter   30 | Steps 1966080 | Return   249.01 | PLoss -0.0763 | VLoss 29.0103 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=249.0, ep_count=256, step_reward_sum=65277.3)
+Iter   31 | Steps 2031616 | Return   249.00 | PLoss -0.0761 | VLoss 29.0055 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=249.0, ep_count=256, step_reward_sum=65272.6)
+Iter   32 | Steps 2097152 | Return   248.94 | PLoss -0.0763 | VLoss 28.9902 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.996 (ep_return=248.9, ep_count=256, step_reward_sum=65257.5)
+Iter   33 | Steps 2162688 | Return   248.85 | PLoss -0.0761 | VLoss 28.9777 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.995 (ep_return=248.9, ep_count=256, step_reward_sum=65237.7)
+Iter   34 | Steps 2228224 | Return   248.74 | PLoss -0.0761 | VLoss 28.9102 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.995 (ep_return=248.7, ep_count=256, step_reward_sum=65207.2)
+Iter   35 | Steps 2293760 | Return   248.53 | PLoss -0.0759 | VLoss 28.8776 | Ent 1.4189 | LR 9.97e-05
+  [StepReward] avg=0.994 (ep_return=248.5, ep_count=256, step_reward_sum=65163.2)
+Iter   36 | Steps 2359296 | Return   248.32 | PLoss -0.0756 | VLoss 28.8413 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.994 (ep_return=248.3, ep_count=256, step_reward_sum=65124.8)
+Iter   37 | Steps 2424832 | Return   248.08 | PLoss -0.0755 | VLoss 28.7940 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.993 (ep_return=248.1, ep_count=256, step_reward_sum=65069.4)
+Iter   38 | Steps 2490368 | Return   247.56 | PLoss -0.0754 | VLoss 28.7216 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.991 (ep_return=247.6, ep_count=256, step_reward_sum=64977.9)
+Iter   39 | Steps 2555904 | Return   247.75 | PLoss -0.0751 | VLoss 28.6527 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.992 (ep_return=247.7, ep_count=256, step_reward_sum=64999.9)
+Iter   40 | Steps 2621440 | Return   248.17 | PLoss -0.0752 | VLoss 28.6608 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.993 (ep_return=248.2, ep_count=256, step_reward_sum=65070.6)
+Iter   41 | Steps 2686976 | Return   248.51 | PLoss -0.0749 | VLoss 28.8577 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.994 (ep_return=248.5, ep_count=256, step_reward_sum=65165.0)
+Iter   42 | Steps 2752512 | Return   248.85 | PLoss -0.0749 | VLoss 28.8922 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.995 (ep_return=248.9, ep_count=256, step_reward_sum=65236.1)
+Iter   43 | Steps 2818048 | Return   248.79 | PLoss -0.0744 | VLoss 28.8769 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.995 (ep_return=248.8, ep_count=256, step_reward_sum=65220.5)
+Iter   44 | Steps 2883584 | Return   248.86 | PLoss -0.0743 | VLoss 28.8770 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.995 (ep_return=248.9, ep_count=256, step_reward_sum=65240.8)
+Iter   45 | Steps 2949120 | Return   248.94 | PLoss -0.0743 | VLoss 28.8832 | Ent 1.4189 | LR 9.96e-05
+  [StepReward] avg=0.996 (ep_return=248.9, ep_count=256, step_reward_sum=65258.5)
+Iter   46 | Steps 3014656 | Return   248.96 | PLoss -0.0740 | VLoss 28.8811 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.996 (ep_return=249.0, ep_count=256, step_reward_sum=65263.1)
+Iter   47 | Steps 3080192 | Return   248.88 | PLoss -0.0738 | VLoss 28.8336 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.996 (ep_return=248.9, ep_count=256, step_reward_sum=65242.3)
+Iter   48 | Steps 3145728 | Return   248.72 | PLoss -0.0737 | VLoss 28.7692 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.995 (ep_return=248.7, ep_count=256, step_reward_sum=65205.2)
+Iter   49 | Steps 3211264 | Return   248.71 | PLoss -0.0734 | VLoss 28.8106 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.995 (ep_return=248.7, ep_count=256, step_reward_sum=65203.0)
+Iter   50 | Steps 3276800 | Return   248.91 | PLoss -0.0734 | VLoss 28.8428 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.996 (ep_return=248.9, ep_count=256, step_reward_sum=65248.5)
+[Curriculum] Episode length increased to 350 (best=249.1, target=225.0)
+Iter   51 | Steps 3342336 | Return   314.23 | PLoss -0.0743 | VLoss 28.2157 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.971 (ep_return=314.2, ep_count=187, step_reward_sum=63657.5)
+Iter   52 | Steps 3407872 | Return   317.96 | PLoss -0.0740 | VLoss 28.2052 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.972 (ep_return=318.0, ep_count=181, step_reward_sum=63725.7)
+Iter   53 | Steps 3473408 | Return   326.01 | PLoss -0.0738 | VLoss 28.3767 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.974 (ep_return=326.0, ep_count=171, step_reward_sum=63851.5)
+Iter   54 | Steps 3538944 | Return   334.81 | PLoss -0.0736 | VLoss 28.9347 | Ent 1.4189 | LR 9.95e-05
+  [StepReward] avg=0.981 (ep_return=334.8, ep_count=151, step_reward_sum=64314.5)
+Iter   55 | Steps 3604480 | Return   335.96 | PLoss -0.0734 | VLoss 28.8205 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.982 (ep_return=336.0, ep_count=145, step_reward_sum=64354.7)
+Iter   56 | Steps 3670016 | Return   335.09 | PLoss -0.0731 | VLoss 28.8579 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.981 (ep_return=335.1, ep_count=148, step_reward_sum=64322.1)
+Iter   57 | Steps 3735552 | Return   333.82 | PLoss -0.0730 | VLoss 28.7721 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.980 (ep_return=333.8, ep_count=146, step_reward_sum=64218.6)
+Iter   58 | Steps 3801088 | Return   327.23 | PLoss -0.0727 | VLoss 28.3338 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.975 (ep_return=327.2, ep_count=168, step_reward_sum=63890.8)
+Iter   59 | Steps 3866624 | Return   322.69 | PLoss -0.0724 | VLoss 28.1933 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.972 (ep_return=322.7, ep_count=176, step_reward_sum=63691.5)
+Iter   60 | Steps 3932160 | Return   320.61 | PLoss -0.0722 | VLoss 28.1407 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.970 (ep_return=320.6, ep_count=181, step_reward_sum=63591.6)
+Iter   61 | Steps 3997696 | Return   314.60 | PLoss -0.0721 | VLoss 28.0039 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.969 (ep_return=314.6, ep_count=187, step_reward_sum=63509.9)
+Iter   62 | Steps 4063232 | Return   316.00 | PLoss -0.0718 | VLoss 28.0067 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.969 (ep_return=316.0, ep_count=189, step_reward_sum=63516.4)
+Iter   63 | Steps 4128768 | Return   315.34 | PLoss -0.0715 | VLoss 27.9923 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.968 (ep_return=315.3, ep_count=183, step_reward_sum=63461.5)
+Iter   64 | Steps 4194304 | Return   315.61 | PLoss -0.0711 | VLoss 27.9267 | Ent 1.4189 | LR 9.94e-05
+  [StepReward] avg=0.968 (ep_return=315.6, ep_count=185, step_reward_sum=63436.9)
+Iter   65 | Steps 4259840 | Return   297.51 | PLoss -0.0713 | VLoss 27.7927 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.968 (ep_return=297.5, ep_count=192, step_reward_sum=63407.0)
+Iter   66 | Steps 4325376 | Return   300.65 | PLoss -0.0709 | VLoss 27.7979 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.968 (ep_return=300.7, ep_count=192, step_reward_sum=63406.5)
+Iter   67 | Steps 4390912 | Return   289.72 | PLoss -0.0707 | VLoss 27.7973 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.968 (ep_return=289.7, ep_count=192, step_reward_sum=63419.8)
+Iter   68 | Steps 4456448 | Return   288.76 | PLoss -0.0705 | VLoss 27.7425 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.967 (ep_return=288.8, ep_count=192, step_reward_sum=63405.6)
+Iter   69 | Steps 4521984 | Return   284.68 | PLoss -0.0700 | VLoss 27.7366 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.968 (ep_return=284.7, ep_count=192, step_reward_sum=63440.5)
+Iter   70 | Steps 4587520 | Return   278.97 | PLoss -0.0698 | VLoss 27.7609 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.968 (ep_return=279.0, ep_count=192, step_reward_sum=63470.3)
+Iter   71 | Steps 4653056 | Return   276.89 | PLoss -0.0696 | VLoss 27.7350 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.969 (ep_return=276.9, ep_count=192, step_reward_sum=63484.2)
+Iter   72 | Steps 4718592 | Return   278.76 | PLoss -0.0692 | VLoss 27.7563 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.968 (ep_return=278.8, ep_count=192, step_reward_sum=63457.8)
+Iter   73 | Steps 4784128 | Return   283.68 | PLoss -0.0689 | VLoss 27.6527 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.967 (ep_return=283.7, ep_count=192, step_reward_sum=63389.0)
+Iter   74 | Steps 4849664 | Return   283.65 | PLoss -0.0687 | VLoss 27.6455 | Ent 1.4189 | LR 9.93e-05
+  [StepReward] avg=0.967 (ep_return=283.7, ep_count=192, step_reward_sum=63372.3)
+Iter   75 | Steps 4915200 | Return   280.55 | PLoss -0.0683 | VLoss 27.6167 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=280.6, ep_count=192, step_reward_sum=63390.4)
+[Curriculum] Episode length increased to 450 (best=336.0, target=315.0)
+Iter   76 | Steps 4980736 | Return   276.48 | PLoss -0.0681 | VLoss 27.6637 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.968 (ep_return=276.5, ep_count=192, step_reward_sum=63408.4)
+Iter   77 | Steps 5046272 | Return   277.98 | PLoss -0.0680 | VLoss 27.6540 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=278.0, ep_count=192, step_reward_sum=63377.4)
+Iter   78 | Steps 5111808 | Return   271.80 | PLoss -0.0675 | VLoss 27.5918 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=271.8, ep_count=192, step_reward_sum=63378.5)
+Iter   79 | Steps 5177344 | Return   272.05 | PLoss -0.0668 | VLoss 27.5296 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.966 (ep_return=272.0, ep_count=192, step_reward_sum=63332.4)
+Iter   80 | Steps 5242880 | Return   266.66 | PLoss -0.0667 | VLoss 27.4919 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=266.7, ep_count=192, step_reward_sum=63372.8)
+Iter   81 | Steps 5308416 | Return   263.02 | PLoss -0.0665 | VLoss 27.5269 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=263.0, ep_count=192, step_reward_sum=63358.2)
+Iter   82 | Steps 5373952 | Return   258.29 | PLoss -0.0659 | VLoss 27.3684 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=258.3, ep_count=193, step_reward_sum=63376.1)
+Iter   83 | Steps 5439488 | Return   260.77 | PLoss -0.0659 | VLoss 27.4768 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=260.8, ep_count=192, step_reward_sum=63348.2)
+Iter   84 | Steps 5505024 | Return   257.18 | PLoss -0.0656 | VLoss 27.3568 | Ent 1.4189 | LR 9.92e-05
+  [StepReward] avg=0.967 (ep_return=257.2, ep_count=192, step_reward_sum=63363.2)
+Iter   85 | Steps 5570560 | Return   259.07 | PLoss -0.0645 | VLoss 27.4148 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.966 (ep_return=259.1, ep_count=192, step_reward_sum=63338.4)
+Iter   86 | Steps 5636096 | Return   256.17 | PLoss -0.0644 | VLoss 27.3987 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.967 (ep_return=256.2, ep_count=192, step_reward_sum=63362.5)
+Iter   87 | Steps 5701632 | Return   254.30 | PLoss -0.0642 | VLoss 27.2805 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.966 (ep_return=254.3, ep_count=195, step_reward_sum=63276.6)
+Iter   88 | Steps 5767168 | Return   254.40 | PLoss -0.0639 | VLoss 27.3564 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.965 (ep_return=254.4, ep_count=196, step_reward_sum=63256.5)
+Iter   89 | Steps 5832704 | Return   253.88 | PLoss -0.0632 | VLoss 27.2101 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.965 (ep_return=253.9, ep_count=195, step_reward_sum=63261.2)
+Iter   90 | Steps 5898240 | Return   254.21 | PLoss -0.0627 | VLoss 27.2154 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.965 (ep_return=254.2, ep_count=192, step_reward_sum=63239.3)
+Iter   91 | Steps 5963776 | Return   251.63 | PLoss -0.0623 | VLoss 27.1241 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.964 (ep_return=251.6, ep_count=198, step_reward_sum=63169.9)
+Iter   92 | Steps 6029312 | Return   247.83 | PLoss -0.0615 | VLoss 26.9060 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.962 (ep_return=247.8, ep_count=211, step_reward_sum=63066.5)
+Iter   93 | Steps 6094848 | Return   248.89 | PLoss -0.0614 | VLoss 26.8506 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.962 (ep_return=248.9, ep_count=205, step_reward_sum=63068.2)
+Iter   94 | Steps 6160384 | Return   247.16 | PLoss -0.0611 | VLoss 26.8602 | Ent 1.4189 | LR 9.91e-05
+  [StepReward] avg=0.961 (ep_return=247.2, ep_count=215, step_reward_sum=62978.7)
+Iter   95 | Steps 6225920 | Return   244.51 | PLoss -0.0605 | VLoss 26.6965 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.960 (ep_return=244.5, ep_count=227, step_reward_sum=62883.2)
+Iter   96 | Steps 6291456 | Return   243.64 | PLoss -0.0598 | VLoss 26.5952 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.959 (ep_return=243.6, ep_count=228, step_reward_sum=62875.8)
+Iter   97 | Steps 6356992 | Return   243.49 | PLoss -0.0597 | VLoss 26.5907 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.959 (ep_return=243.5, ep_count=226, step_reward_sum=62853.0)
+Iter   98 | Steps 6422528 | Return   242.12 | PLoss -0.0589 | VLoss 26.4701 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.958 (ep_return=242.1, ep_count=239, step_reward_sum=62776.4)
+Iter   99 | Steps 6488064 | Return   243.97 | PLoss -0.0585 | VLoss 26.6117 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.959 (ep_return=244.0, ep_count=230, step_reward_sum=62823.1)
+Iter  100 | Steps 6553600 | Return   240.96 | PLoss -0.0582 | VLoss 26.3508 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.958 (ep_return=241.0, ep_count=248, step_reward_sum=62781.5)
+Iter  101 | Steps 6619136 | Return   239.42 | PLoss -0.0572 | VLoss 26.1999 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.958 (ep_return=239.4, ep_count=249, step_reward_sum=62759.8)
+Iter  102 | Steps 6684672 | Return   237.22 | PLoss -0.0575 | VLoss 25.9961 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.957 (ep_return=237.2, ep_count=255, step_reward_sum=62749.6)
+Iter  103 | Steps 6750208 | Return   235.25 | PLoss -0.0571 | VLoss 25.8044 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.958 (ep_return=235.2, ep_count=255, step_reward_sum=62774.5)
+Iter  104 | Steps 6815744 | Return   231.88 | PLoss -0.0569 | VLoss 25.4570 | Ent 1.4189 | LR 9.90e-05
+  [StepReward] avg=0.959 (ep_return=231.9, ep_count=256, step_reward_sum=62819.8)
+Iter  105 | Steps 6881280 | Return   228.73 | PLoss -0.0557 | VLoss 25.2935 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.959 (ep_return=228.7, ep_count=256, step_reward_sum=62843.1)
+Iter  106 | Steps 6946816 | Return   227.13 | PLoss -0.0553 | VLoss 25.1468 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.959 (ep_return=227.1, ep_count=256, step_reward_sum=62817.6)
+Iter  107 | Steps 7012352 | Return   226.58 | PLoss -0.0547 | VLoss 25.1215 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.959 (ep_return=226.6, ep_count=256, step_reward_sum=62827.9)
+Iter  108 | Steps 7077888 | Return   225.45 | PLoss -0.0551 | VLoss 25.0071 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.959 (ep_return=225.5, ep_count=256, step_reward_sum=62844.7)
+Iter  109 | Steps 7143424 | Return   223.10 | PLoss -0.0540 | VLoss 24.8239 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.959 (ep_return=223.1, ep_count=256, step_reward_sum=62856.9)
+Iter  110 | Steps 7208960 | Return   221.50 | PLoss -0.0539 | VLoss 24.6825 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.959 (ep_return=221.5, ep_count=256, step_reward_sum=62863.4)
+Iter  111 | Steps 7274496 | Return   220.15 | PLoss -0.0536 | VLoss 24.7136 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.960 (ep_return=220.2, ep_count=256, step_reward_sum=62897.1)
+Iter  112 | Steps 7340032 | Return   218.28 | PLoss -0.0534 | VLoss 24.6152 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.960 (ep_return=218.3, ep_count=256, step_reward_sum=62931.7)
+Iter  113 | Steps 7405568 | Return   215.95 | PLoss -0.0523 | VLoss 24.4443 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.960 (ep_return=216.0, ep_count=256, step_reward_sum=62945.7)
+Iter  114 | Steps 7471104 | Return   213.94 | PLoss -0.0519 | VLoss 24.3897 | Ent 1.4189 | LR 9.89e-05
+  [StepReward] avg=0.961 (ep_return=213.9, ep_count=256, step_reward_sum=62963.4)
+Iter  115 | Steps 7536640 | Return   213.57 | PLoss -0.0516 | VLoss 24.3566 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.961 (ep_return=213.6, ep_count=256, step_reward_sum=62970.3)
+Iter  116 | Steps 7602176 | Return   211.54 | PLoss -0.0512 | VLoss 24.3137 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.961 (ep_return=211.5, ep_count=256, step_reward_sum=62991.9)
+Iter  117 | Steps 7667712 | Return   209.60 | PLoss -0.0510 | VLoss 24.2453 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.962 (ep_return=209.6, ep_count=256, step_reward_sum=63017.5)
+Iter  118 | Steps 7733248 | Return   209.26 | PLoss -0.0509 | VLoss 24.2212 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.961 (ep_return=209.3, ep_count=256, step_reward_sum=63007.7)
+Iter  119 | Steps 7798784 | Return   207.57 | PLoss -0.0502 | VLoss 24.2076 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.962 (ep_return=207.6, ep_count=256, step_reward_sum=63048.5)
+Iter  120 | Steps 7864320 | Return   207.34 | PLoss -0.0494 | VLoss 24.1927 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.962 (ep_return=207.3, ep_count=256, step_reward_sum=63052.9)
+Iter  121 | Steps 7929856 | Return   204.69 | PLoss -0.0495 | VLoss 24.1574 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.963 (ep_return=204.7, ep_count=256, step_reward_sum=63090.0)
+Iter  122 | Steps 7995392 | Return   202.86 | PLoss -0.0493 | VLoss 24.1159 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.963 (ep_return=202.9, ep_count=256, step_reward_sum=63099.6)
+Iter  123 | Steps 8060928 | Return   202.07 | PLoss -0.0490 | VLoss 24.0632 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.962 (ep_return=202.1, ep_count=256, step_reward_sum=63075.9)
+Iter  124 | Steps 8126464 | Return   200.21 | PLoss -0.0484 | VLoss 23.9995 | Ent 1.4189 | LR 9.88e-05
+  [StepReward] avg=0.962 (ep_return=200.2, ep_count=256, step_reward_sum=63052.2)
+Iter  125 | Steps 8192000 | Return   198.97 | PLoss -0.0487 | VLoss 23.9646 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.961 (ep_return=199.0, ep_count=258, step_reward_sum=63001.3)
+Iter  126 | Steps 8257536 | Return   197.27 | PLoss -0.0467 | VLoss 23.8549 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.960 (ep_return=197.3, ep_count=271, step_reward_sum=62886.4)
+Iter  127 | Steps 8323072 | Return   196.20 | PLoss -0.0458 | VLoss 23.8079 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.958 (ep_return=196.2, ep_count=283, step_reward_sum=62809.5)
+Iter  128 | Steps 8388608 | Return   194.64 | PLoss -0.0461 | VLoss 23.7272 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.957 (ep_return=194.6, ep_count=307, step_reward_sum=62733.4)
+Iter  129 | Steps 8454144 | Return   193.54 | PLoss -0.0465 | VLoss 23.6839 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.957 (ep_return=193.5, ep_count=317, step_reward_sum=62715.8)
+Iter  130 | Steps 8519680 | Return   192.34 | PLoss -0.0461 | VLoss 23.6462 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.957 (ep_return=192.3, ep_count=319, step_reward_sum=62719.1)
+Iter  131 | Steps 8585216 | Return   190.62 | PLoss -0.0449 | VLoss 23.6104 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.957 (ep_return=190.6, ep_count=320, step_reward_sum=62730.4)
+Iter  132 | Steps 8650752 | Return   189.45 | PLoss -0.0448 | VLoss 23.5781 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.958 (ep_return=189.5, ep_count=320, step_reward_sum=62755.0)
+Iter  133 | Steps 8716288 | Return   187.47 | PLoss -0.0443 | VLoss 23.5538 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.958 (ep_return=187.5, ep_count=320, step_reward_sum=62770.3)
+Iter  134 | Steps 8781824 | Return   186.67 | PLoss -0.0434 | VLoss 23.5346 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.958 (ep_return=186.7, ep_count=320, step_reward_sum=62795.0)
+Iter  135 | Steps 8847360 | Return   185.56 | PLoss -0.0439 | VLoss 23.5157 | Ent 1.4189 | LR 9.87e-05
+  [StepReward] avg=0.958 (ep_return=185.6, ep_count=320, step_reward_sum=62804.7)
+Iter  136 | Steps 8912896 | Return   184.55 | PLoss -0.0440 | VLoss 23.4882 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.958 (ep_return=184.5, ep_count=320, step_reward_sum=62805.9)
+Iter  137 | Steps 8978432 | Return   183.59 | PLoss -0.0437 | VLoss 23.4566 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.959 (ep_return=183.6, ep_count=320, step_reward_sum=62817.0)
+Iter  138 | Steps 9043968 | Return   182.54 | PLoss -0.0429 | VLoss 23.4403 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.959 (ep_return=182.5, ep_count=320, step_reward_sum=62827.9)
+Iter  139 | Steps 9109504 | Return   181.15 | PLoss -0.0417 | VLoss 23.4015 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.959 (ep_return=181.1, ep_count=320, step_reward_sum=62833.6)
+Iter  140 | Steps 9175040 | Return   179.92 | PLoss -0.0421 | VLoss 23.3791 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.959 (ep_return=179.9, ep_count=320, step_reward_sum=62849.3)
+Iter  141 | Steps 9240576 | Return   178.45 | PLoss -0.0410 | VLoss 23.3818 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.959 (ep_return=178.4, ep_count=320, step_reward_sum=62873.7)
+Iter  142 | Steps 9306112 | Return   177.15 | PLoss -0.0413 | VLoss 23.3580 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.960 (ep_return=177.1, ep_count=320, step_reward_sum=62888.6)
+Iter  143 | Steps 9371648 | Return   176.02 | PLoss -0.0398 | VLoss 23.3367 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.960 (ep_return=176.0, ep_count=320, step_reward_sum=62890.8)
+Iter  144 | Steps 9437184 | Return   175.04 | PLoss -0.0399 | VLoss 23.3387 | Ent 1.4189 | LR 9.86e-05
+  [StepReward] avg=0.960 (ep_return=175.0, ep_count=320, step_reward_sum=62919.3)
+Iter  145 | Steps 9502720 | Return   174.13 | PLoss -0.0397 | VLoss 23.2974 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.960 (ep_return=174.1, ep_count=320, step_reward_sum=62914.0)
+Iter  146 | Steps 9568256 | Return   173.32 | PLoss -0.0392 | VLoss 23.3175 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.960 (ep_return=173.3, ep_count=320, step_reward_sum=62922.3)
+Iter  147 | Steps 9633792 | Return   172.34 | PLoss -0.0396 | VLoss 23.2882 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.960 (ep_return=172.3, ep_count=320, step_reward_sum=62925.8)
+Iter  148 | Steps 9699328 | Return   170.87 | PLoss -0.0399 | VLoss 23.2614 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.960 (ep_return=170.9, ep_count=320, step_reward_sum=62939.9)
+Iter  149 | Steps 9764864 | Return   169.80 | PLoss -0.0387 | VLoss 23.2766 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.961 (ep_return=169.8, ep_count=320, step_reward_sum=62955.8)
+Iter  150 | Steps 9830400 | Return   168.53 | PLoss -0.0378 | VLoss 23.2336 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.961 (ep_return=168.5, ep_count=320, step_reward_sum=62962.9)
+Iter  151 | Steps 9895936 | Return   167.96 | PLoss -0.0386 | VLoss 23.2249 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.961 (ep_return=168.0, ep_count=320, step_reward_sum=62968.8)
+Iter  152 | Steps 9961472 | Return   167.24 | PLoss -0.0386 | VLoss 23.2262 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.961 (ep_return=167.2, ep_count=320, step_reward_sum=62969.8)
+Iter  153 | Steps 10027008 | Return   166.33 | PLoss -0.0379 | VLoss 23.2032 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.961 (ep_return=166.3, ep_count=320, step_reward_sum=62963.3)
+Iter  154 | Steps 10092544 | Return   165.86 | PLoss -0.0379 | VLoss 23.1788 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.961 (ep_return=165.9, ep_count=320, step_reward_sum=62954.9)
+Iter  155 | Steps 10158080 | Return   164.65 | PLoss -0.0379 | VLoss 23.1073 | Ent 1.4189 | LR 9.85e-05
+  [StepReward] avg=0.959 (ep_return=164.6, ep_count=323, step_reward_sum=62871.7)
+Iter  156 | Steps 10223616 | Return   163.92 | PLoss -0.0360 | VLoss 23.0139 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.958 (ep_return=163.9, ep_count=328, step_reward_sum=62787.0)
+Iter  157 | Steps 10289152 | Return   163.60 | PLoss -0.0355 | VLoss 22.9678 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.957 (ep_return=163.6, ep_count=339, step_reward_sum=62735.9)
+Iter  158 | Steps 10354688 | Return   162.99 | PLoss -0.0361 | VLoss 22.9344 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.956 (ep_return=163.0, ep_count=353, step_reward_sum=62680.8)
+Iter  159 | Steps 10420224 | Return   162.76 | PLoss -0.0361 | VLoss 22.9181 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.956 (ep_return=162.8, ep_count=366, step_reward_sum=62655.9)
+Iter  160 | Steps 10485760 | Return   161.88 | PLoss -0.0364 | VLoss 22.8778 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.956 (ep_return=161.9, ep_count=379, step_reward_sum=62633.5)
+Iter  161 | Steps 10551296 | Return   161.33 | PLoss -0.0351 | VLoss 22.8402 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.956 (ep_return=161.3, ep_count=384, step_reward_sum=62622.0)
+Iter  162 | Steps 10616832 | Return   160.54 | PLoss -0.0347 | VLoss 22.8046 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.956 (ep_return=160.5, ep_count=384, step_reward_sum=62628.0)
+Iter  163 | Steps 10682368 | Return   160.09 | PLoss -0.0349 | VLoss 22.7542 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.955 (ep_return=160.1, ep_count=384, step_reward_sum=62613.7)
+Iter  164 | Steps 10747904 | Return   159.46 | PLoss -0.0344 | VLoss 22.7334 | Ent 1.4189 | LR 9.84e-05
+  [StepReward] avg=0.956 (ep_return=159.5, ep_count=384, step_reward_sum=62627.2)
+Iter  165 | Steps 10813440 | Return   158.85 | PLoss -0.0350 | VLoss 22.7424 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=158.8, ep_count=384, step_reward_sum=62631.3)
+Iter  166 | Steps 10878976 | Return   158.87 | PLoss -0.0347 | VLoss 22.7094 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=158.9, ep_count=384, step_reward_sum=62633.1)
+Iter  167 | Steps 10944512 | Return   158.26 | PLoss -0.0345 | VLoss 22.6975 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=158.3, ep_count=384, step_reward_sum=62636.2)
+Iter  168 | Steps 11010048 | Return   157.52 | PLoss -0.0346 | VLoss 22.6890 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=157.5, ep_count=384, step_reward_sum=62646.6)
+Iter  169 | Steps 11075584 | Return   156.68 | PLoss -0.0344 | VLoss 22.6411 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=156.7, ep_count=384, step_reward_sum=62648.4)
+Iter  170 | Steps 11141120 | Return   156.61 | PLoss -0.0339 | VLoss 22.6077 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=156.6, ep_count=384, step_reward_sum=62653.3)
+Iter  171 | Steps 11206656 | Return   156.00 | PLoss -0.0338 | VLoss 22.5876 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=156.0, ep_count=384, step_reward_sum=62665.0)
+Iter  172 | Steps 11272192 | Return   155.59 | PLoss -0.0342 | VLoss 22.5702 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=155.6, ep_count=384, step_reward_sum=62667.3)
+Iter  173 | Steps 11337728 | Return   155.01 | PLoss -0.0333 | VLoss 22.5352 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=155.0, ep_count=384, step_reward_sum=62672.4)
+Iter  174 | Steps 11403264 | Return   154.73 | PLoss -0.0338 | VLoss 22.5317 | Ent 1.4189 | LR 9.83e-05
+  [StepReward] avg=0.956 (ep_return=154.7, ep_count=384, step_reward_sum=62673.1)
+Iter  175 | Steps 11468800 | Return   154.29 | PLoss -0.0336 | VLoss 22.5090 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.956 (ep_return=154.3, ep_count=384, step_reward_sum=62679.5)
+Iter  176 | Steps 11534336 | Return   153.80 | PLoss -0.0311 | VLoss 22.4609 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.956 (ep_return=153.8, ep_count=384, step_reward_sum=62678.0)
+Iter  177 | Steps 11599872 | Return   153.75 | PLoss -0.0318 | VLoss 22.4527 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.956 (ep_return=153.7, ep_count=384, step_reward_sum=62681.9)
+Iter  178 | Steps 11665408 | Return   153.42 | PLoss -0.0322 | VLoss 22.4392 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.957 (ep_return=153.4, ep_count=384, step_reward_sum=62690.5)
+Iter  179 | Steps 11730944 | Return   153.20 | PLoss -0.0329 | VLoss 22.4145 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.957 (ep_return=153.2, ep_count=384, step_reward_sum=62685.8)
+Iter  180 | Steps 11796480 | Return   152.64 | PLoss -0.0323 | VLoss 22.3936 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.956 (ep_return=152.6, ep_count=384, step_reward_sum=62681.4)
+Iter  181 | Steps 11862016 | Return   152.17 | PLoss -0.0325 | VLoss 22.3695 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.957 (ep_return=152.2, ep_count=384, step_reward_sum=62691.1)
+Iter  182 | Steps 11927552 | Return   151.72 | PLoss -0.0314 | VLoss 22.3403 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.956 (ep_return=151.7, ep_count=384, step_reward_sum=62680.7)
+Iter  183 | Steps 11993088 | Return   151.48 | PLoss -0.0314 | VLoss 22.3097 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.957 (ep_return=151.5, ep_count=384, step_reward_sum=62688.8)
+Iter  184 | Steps 12058624 | Return   151.05 | PLoss -0.0328 | VLoss 22.2784 | Ent 1.4189 | LR 9.82e-05
+  [StepReward] avg=0.957 (ep_return=151.1, ep_count=384, step_reward_sum=62685.9)
+Iter  185 | Steps 12124160 | Return   150.55 | PLoss -0.0315 | VLoss 22.2574 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.956 (ep_return=150.5, ep_count=384, step_reward_sum=62684.1)
+Iter  186 | Steps 12189696 | Return   150.22 | PLoss -0.0317 | VLoss 22.2268 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.956 (ep_return=150.2, ep_count=384, step_reward_sum=62680.9)
+Iter  187 | Steps 12255232 | Return   149.85 | PLoss -0.0324 | VLoss 22.2207 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=149.8, ep_count=384, step_reward_sum=62691.9)
+Iter  188 | Steps 12320768 | Return   149.51 | PLoss -0.0315 | VLoss 22.1813 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=149.5, ep_count=384, step_reward_sum=62691.5)
+Iter  189 | Steps 12386304 | Return   149.37 | PLoss -0.0316 | VLoss 22.1587 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=149.4, ep_count=384, step_reward_sum=62693.8)
+Iter  190 | Steps 12451840 | Return   148.83 | PLoss -0.0317 | VLoss 22.1481 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=148.8, ep_count=384, step_reward_sum=62697.0)
+Iter  191 | Steps 12517376 | Return   148.52 | PLoss -0.0317 | VLoss 22.1185 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=148.5, ep_count=384, step_reward_sum=62704.2)
+Iter  192 | Steps 12582912 | Return   148.35 | PLoss -0.0315 | VLoss 22.0938 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=148.3, ep_count=384, step_reward_sum=62703.3)
+Iter  193 | Steps 12648448 | Return   147.99 | PLoss -0.0313 | VLoss 22.0663 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=148.0, ep_count=384, step_reward_sum=62707.9)
+Iter  194 | Steps 12713984 | Return   147.98 | PLoss -0.0312 | VLoss 22.0435 | Ent 1.4189 | LR 9.81e-05
+  [StepReward] avg=0.957 (ep_return=148.0, ep_count=384, step_reward_sum=62698.4)
+Iter  195 | Steps 12779520 | Return   147.44 | PLoss -0.0323 | VLoss 22.0239 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=147.4, ep_count=384, step_reward_sum=62709.4)
+Iter  196 | Steps 12845056 | Return   146.97 | PLoss -0.0320 | VLoss 21.9952 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=147.0, ep_count=384, step_reward_sum=62709.7)
+Iter  197 | Steps 12910592 | Return   146.81 | PLoss -0.0310 | VLoss 21.9574 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=146.8, ep_count=384, step_reward_sum=62704.8)
+Iter  198 | Steps 12976128 | Return   146.57 | PLoss -0.0318 | VLoss 21.9510 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=146.6, ep_count=384, step_reward_sum=62711.3)
+Iter  199 | Steps 13041664 | Return   146.16 | PLoss -0.0315 | VLoss 21.9104 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=146.2, ep_count=384, step_reward_sum=62707.9)
+Iter  200 | Steps 13107200 | Return   145.60 | PLoss -0.0312 | VLoss 21.8858 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=145.6, ep_count=384, step_reward_sum=62706.2)
+Iter  201 | Steps 13172736 | Return   145.67 | PLoss -0.0315 | VLoss 21.8686 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=145.7, ep_count=384, step_reward_sum=62702.6)
+Iter  202 | Steps 13238272 | Return   145.18 | PLoss -0.0308 | VLoss 21.8401 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=145.2, ep_count=384, step_reward_sum=62707.1)
+Iter  203 | Steps 13303808 | Return   145.11 | PLoss -0.0308 | VLoss 21.8063 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=145.1, ep_count=384, step_reward_sum=62706.8)
+Iter  204 | Steps 13369344 | Return   144.78 | PLoss -0.0302 | VLoss 21.7900 | Ent 1.4189 | LR 9.80e-05
+  [StepReward] avg=0.957 (ep_return=144.8, ep_count=384, step_reward_sum=62708.1)
+Iter  205 | Steps 13434880 | Return   144.55 | PLoss -0.0297 | VLoss 21.7568 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=144.6, ep_count=384, step_reward_sum=62714.9)
+Iter  206 | Steps 13500416 | Return   144.32 | PLoss -0.0308 | VLoss 21.7382 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=144.3, ep_count=384, step_reward_sum=62714.5)
+Iter  207 | Steps 13565952 | Return   144.20 | PLoss -0.0307 | VLoss 21.7076 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=144.2, ep_count=384, step_reward_sum=62717.6)
+Iter  208 | Steps 13631488 | Return   143.78 | PLoss -0.0314 | VLoss 21.6928 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=143.8, ep_count=384, step_reward_sum=62723.9)
+Iter  209 | Steps 13697024 | Return   143.50 | PLoss -0.0297 | VLoss 21.6502 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=143.5, ep_count=384, step_reward_sum=62723.0)
+Iter  210 | Steps 13762560 | Return   143.39 | PLoss -0.0304 | VLoss 21.6251 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=143.4, ep_count=384, step_reward_sum=62716.8)
+Iter  211 | Steps 13828096 | Return   143.24 | PLoss -0.0294 | VLoss 21.5988 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=143.2, ep_count=384, step_reward_sum=62727.1)
+Iter  212 | Steps 13893632 | Return   142.92 | PLoss -0.0308 | VLoss 21.5862 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=142.9, ep_count=384, step_reward_sum=62729.4)
+Iter  213 | Steps 13959168 | Return   142.44 | PLoss -0.0295 | VLoss 21.5399 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=142.4, ep_count=384, step_reward_sum=62716.6)
+Iter  214 | Steps 14024704 | Return   142.19 | PLoss -0.0297 | VLoss 21.5099 | Ent 1.4189 | LR 9.79e-05
+  [StepReward] avg=0.957 (ep_return=142.2, ep_count=384, step_reward_sum=62715.5)
+Iter  215 | Steps 14090240 | Return   141.91 | PLoss -0.0306 | VLoss 21.4823 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.957 (ep_return=141.9, ep_count=384, step_reward_sum=62713.6)
+Iter  216 | Steps 14155776 | Return   141.70 | PLoss -0.0302 | VLoss 21.4668 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.957 (ep_return=141.7, ep_count=384, step_reward_sum=62713.8)
+Iter  217 | Steps 14221312 | Return   141.32 | PLoss -0.0299 | VLoss 21.4203 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.957 (ep_return=141.3, ep_count=384, step_reward_sum=62693.1)
+Iter  218 | Steps 14286848 | Return   141.18 | PLoss -0.0302 | VLoss 21.3905 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.957 (ep_return=141.2, ep_count=384, step_reward_sum=62692.6)
+Iter  219 | Steps 14352384 | Return   140.76 | PLoss -0.0296 | VLoss 21.3406 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.956 (ep_return=140.8, ep_count=384, step_reward_sum=62649.1)
+Iter  220 | Steps 14417920 | Return   140.45 | PLoss -0.0289 | VLoss 21.2913 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.955 (ep_return=140.5, ep_count=386, step_reward_sum=62618.7)
+Iter  221 | Steps 14483456 | Return   140.55 | PLoss -0.0296 | VLoss 21.2795 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.956 (ep_return=140.5, ep_count=385, step_reward_sum=62634.8)
+Iter  222 | Steps 14548992 | Return   140.25 | PLoss -0.0295 | VLoss 21.2445 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.955 (ep_return=140.2, ep_count=387, step_reward_sum=62595.5)
+Iter  223 | Steps 14614528 | Return   139.93 | PLoss -0.0309 | VLoss 21.2066 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.954 (ep_return=139.9, ep_count=396, step_reward_sum=62550.4)
+Iter  224 | Steps 14680064 | Return   139.71 | PLoss -0.0305 | VLoss 21.1376 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.954 (ep_return=139.7, ep_count=405, step_reward_sum=62509.4)
+Iter  225 | Steps 14745600 | Return   139.72 | PLoss -0.0298 | VLoss 21.1089 | Ent 1.4189 | LR 9.78e-05
+  [StepReward] avg=0.954 (ep_return=139.7, ep_count=403, step_reward_sum=62506.8)
+Iter  226 | Steps 14811136 | Return   139.39 | PLoss -0.0299 | VLoss 21.0522 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.953 (ep_return=139.4, ep_count=418, step_reward_sum=62465.3)
+Iter  227 | Steps 14876672 | Return   139.10 | PLoss -0.0290 | VLoss 21.0252 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.953 (ep_return=139.1, ep_count=430, step_reward_sum=62426.2)
+Iter  228 | Steps 14942208 | Return   138.89 | PLoss -0.0291 | VLoss 20.9731 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.952 (ep_return=138.9, ep_count=444, step_reward_sum=62405.9)
+Iter  229 | Steps 15007744 | Return   138.74 | PLoss -0.0291 | VLoss 20.9594 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.952 (ep_return=138.7, ep_count=438, step_reward_sum=62396.5)
+Iter  230 | Steps 15073280 | Return   138.67 | PLoss -0.0296 | VLoss 20.9170 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.952 (ep_return=138.7, ep_count=445, step_reward_sum=62389.6)
+Iter  231 | Steps 15138816 | Return   138.28 | PLoss -0.0297 | VLoss 20.8739 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.952 (ep_return=138.3, ep_count=447, step_reward_sum=62370.4)
+Iter  232 | Steps 15204352 | Return   138.18 | PLoss -0.0303 | VLoss 20.8322 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.952 (ep_return=138.2, ep_count=448, step_reward_sum=62365.3)
+Iter  233 | Steps 15269888 | Return   137.84 | PLoss -0.0310 | VLoss 20.8043 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.952 (ep_return=137.8, ep_count=447, step_reward_sum=62363.1)
+Iter  234 | Steps 15335424 | Return   137.59 | PLoss -0.0306 | VLoss 20.7643 | Ent 1.4189 | LR 9.77e-05
+  [StepReward] avg=0.951 (ep_return=137.6, ep_count=448, step_reward_sum=62350.4)
+Iter  235 | Steps 15400960 | Return   137.30 | PLoss -0.0289 | VLoss 20.7018 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=137.3, ep_count=448, step_reward_sum=62333.1)
+Iter  236 | Steps 15466496 | Return   137.09 | PLoss -0.0296 | VLoss 20.6814 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=137.1, ep_count=448, step_reward_sum=62339.5)
+Iter  237 | Steps 15532032 | Return   136.98 | PLoss -0.0303 | VLoss 20.6341 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=137.0, ep_count=448, step_reward_sum=62330.0)
+Iter  238 | Steps 15597568 | Return   136.88 | PLoss -0.0305 | VLoss 20.6258 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=136.9, ep_count=448, step_reward_sum=62346.6)
+Iter  239 | Steps 15663104 | Return   136.62 | PLoss -0.0301 | VLoss 20.5903 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=136.6, ep_count=448, step_reward_sum=62331.5)
+Iter  240 | Steps 15728640 | Return   136.38 | PLoss -0.0298 | VLoss 20.5488 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=136.4, ep_count=448, step_reward_sum=62326.9)
+Iter  241 | Steps 15794176 | Return   136.27 | PLoss -0.0309 | VLoss 20.5271 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=136.3, ep_count=448, step_reward_sum=62336.2)
+Iter  242 | Steps 15859712 | Return   136.04 | PLoss -0.0303 | VLoss 20.4799 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=136.0, ep_count=448, step_reward_sum=62326.4)
+Iter  243 | Steps 15925248 | Return   135.81 | PLoss -0.0297 | VLoss 20.4547 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=135.8, ep_count=448, step_reward_sum=62324.9)
+Iter  244 | Steps 15990784 | Return   135.49 | PLoss -0.0298 | VLoss 20.4078 | Ent 1.4189 | LR 9.76e-05
+  [StepReward] avg=0.951 (ep_return=135.5, ep_count=448, step_reward_sum=62319.8)
+Iter  245 | Steps 16056320 | Return   135.43 | PLoss -0.0314 | VLoss 20.3643 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=135.4, ep_count=448, step_reward_sum=62317.9)
+Iter  246 | Steps 16121856 | Return   135.09 | PLoss -0.0317 | VLoss 20.3330 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=135.1, ep_count=448, step_reward_sum=62313.9)
+Iter  247 | Steps 16187392 | Return   134.87 | PLoss -0.0316 | VLoss 20.3027 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=134.9, ep_count=448, step_reward_sum=62323.6)
+Iter  248 | Steps 16252928 | Return   134.49 | PLoss -0.0308 | VLoss 20.2623 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=134.5, ep_count=448, step_reward_sum=62315.0)
+Iter  249 | Steps 16318464 | Return   134.32 | PLoss -0.0304 | VLoss 20.2142 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=134.3, ep_count=448, step_reward_sum=62315.1)
+Iter  250 | Steps 16384000 | Return   134.30 | PLoss -0.0304 | VLoss 20.1689 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=134.3, ep_count=448, step_reward_sum=62299.0)
+Iter  251 | Steps 16449536 | Return   133.87 | PLoss -0.0316 | VLoss 20.1502 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=133.9, ep_count=448, step_reward_sum=62302.6)
+Iter  252 | Steps 16515072 | Return   133.82 | PLoss -0.0316 | VLoss 20.1236 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=133.8, ep_count=448, step_reward_sum=62306.0)
+Iter  253 | Steps 16580608 | Return   133.52 | PLoss -0.0317 | VLoss 20.0924 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.951 (ep_return=133.5, ep_count=448, step_reward_sum=62296.4)
+Iter  254 | Steps 16646144 | Return   133.15 | PLoss -0.0310 | VLoss 20.0515 | Ent 1.4189 | LR 9.75e-05
+  [StepReward] avg=0.950 (ep_return=133.1, ep_count=448, step_reward_sum=62283.3)
+Iter  255 | Steps 16711680 | Return   132.78 | PLoss -0.0317 | VLoss 20.0060 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=132.8, ep_count=448, step_reward_sum=62285.3)
+Iter  256 | Steps 16777216 | Return   132.60 | PLoss -0.0321 | VLoss 19.9704 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=132.6, ep_count=448, step_reward_sum=62281.6)
+Iter  257 | Steps 16842752 | Return   132.42 | PLoss -0.0319 | VLoss 19.9415 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=132.4, ep_count=448, step_reward_sum=62275.0)
+Iter  258 | Steps 16908288 | Return   132.09 | PLoss -0.0311 | VLoss 19.8851 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=132.1, ep_count=448, step_reward_sum=62268.2)
+Iter  259 | Steps 16973824 | Return   131.97 | PLoss -0.0317 | VLoss 19.8496 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=132.0, ep_count=448, step_reward_sum=62256.5)
+Iter  260 | Steps 17039360 | Return   131.64 | PLoss -0.0332 | VLoss 19.8164 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=131.6, ep_count=448, step_reward_sum=62255.0)
+Iter  261 | Steps 17104896 | Return   131.40 | PLoss -0.0330 | VLoss 19.7808 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=131.4, ep_count=448, step_reward_sum=62258.3)
+Iter  262 | Steps 17170432 | Return   131.35 | PLoss -0.0341 | VLoss 19.7440 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=131.4, ep_count=448, step_reward_sum=62251.7)
+Iter  263 | Steps 17235968 | Return   131.16 | PLoss -0.0335 | VLoss 19.7143 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=131.2, ep_count=448, step_reward_sum=62251.3)
+Iter  264 | Steps 17301504 | Return   130.94 | PLoss -0.0342 | VLoss 19.6834 | Ent 1.4189 | LR 9.74e-05
+  [StepReward] avg=0.950 (ep_return=130.9, ep_count=448, step_reward_sum=62241.0)
+Iter  265 | Steps 17367040 | Return   130.68 | PLoss -0.0325 | VLoss 19.6309 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.950 (ep_return=130.7, ep_count=448, step_reward_sum=62238.6)
+Iter  266 | Steps 17432576 | Return   130.60 | PLoss -0.0334 | VLoss 19.5984 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.950 (ep_return=130.6, ep_count=448, step_reward_sum=62228.9)
+Iter  267 | Steps 17498112 | Return   130.54 | PLoss -0.0333 | VLoss 19.5636 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.950 (ep_return=130.5, ep_count=448, step_reward_sum=62228.4)
+Iter  268 | Steps 17563648 | Return   130.24 | PLoss -0.0336 | VLoss 19.5215 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=130.2, ep_count=448, step_reward_sum=62217.2)
+Iter  269 | Steps 17629184 | Return   129.88 | PLoss -0.0336 | VLoss 19.4713 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=129.9, ep_count=448, step_reward_sum=62210.6)
+Iter  270 | Steps 17694720 | Return   129.67 | PLoss -0.0345 | VLoss 19.4437 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=129.7, ep_count=448, step_reward_sum=62203.0)
+Iter  271 | Steps 17760256 | Return   129.46 | PLoss -0.0337 | VLoss 19.3951 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=129.5, ep_count=448, step_reward_sum=62195.7)
+Iter  272 | Steps 17825792 | Return   129.15 | PLoss -0.0337 | VLoss 19.3441 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=129.1, ep_count=448, step_reward_sum=62179.4)
+Iter  273 | Steps 17891328 | Return   128.88 | PLoss -0.0334 | VLoss 19.3153 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=128.9, ep_count=448, step_reward_sum=62179.9)
+Iter  274 | Steps 17956864 | Return   128.86 | PLoss -0.0344 | VLoss 19.2842 | Ent 1.4189 | LR 9.73e-05
+  [StepReward] avg=0.949 (ep_return=128.9, ep_count=448, step_reward_sum=62176.4)
+Iter  275 | Steps 18022400 | Return   128.64 | PLoss -0.0342 | VLoss 19.2496 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.949 (ep_return=128.6, ep_count=448, step_reward_sum=62173.4)
+Iter  276 | Steps 18087936 | Return   128.28 | PLoss -0.0353 | VLoss 19.2008 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=128.3, ep_count=448, step_reward_sum=62156.7)
+Iter  277 | Steps 18153472 | Return   127.86 | PLoss -0.0345 | VLoss 19.1356 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=127.9, ep_count=448, step_reward_sum=62147.0)
+Iter  278 | Steps 18219008 | Return   127.64 | PLoss -0.0356 | VLoss 19.1170 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=127.6, ep_count=448, step_reward_sum=62134.5)
+Iter  279 | Steps 18284544 | Return   127.70 | PLoss -0.0354 | VLoss 19.0694 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=127.7, ep_count=448, step_reward_sum=62132.0)
+Iter  280 | Steps 18350080 | Return   127.52 | PLoss -0.0342 | VLoss 19.0261 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=127.5, ep_count=448, step_reward_sum=62116.9)
+Iter  281 | Steps 18415616 | Return   127.28 | PLoss -0.0362 | VLoss 18.9990 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=127.3, ep_count=448, step_reward_sum=62115.9)
+Iter  282 | Steps 18481152 | Return   127.23 | PLoss -0.0364 | VLoss 18.9507 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.948 (ep_return=127.2, ep_count=448, step_reward_sum=62107.2)
+Iter  283 | Steps 18546688 | Return   127.06 | PLoss -0.0379 | VLoss 18.9320 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.947 (ep_return=127.1, ep_count=448, step_reward_sum=62091.9)
+Iter  284 | Steps 18612224 | Return   126.94 | PLoss -0.0375 | VLoss 18.8898 | Ent 1.4189 | LR 9.72e-05
+  [StepReward] avg=0.947 (ep_return=126.9, ep_count=448, step_reward_sum=62092.2)
+Iter  285 | Steps 18677760 | Return   126.41 | PLoss -0.0372 | VLoss 18.8146 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.947 (ep_return=126.4, ep_count=448, step_reward_sum=62080.4)
+Iter  286 | Steps 18743296 | Return   126.31 | PLoss -0.0371 | VLoss 18.7872 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.947 (ep_return=126.3, ep_count=448, step_reward_sum=62064.1)
+Iter  287 | Steps 18808832 | Return   125.78 | PLoss -0.0383 | VLoss 18.7520 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.947 (ep_return=125.8, ep_count=448, step_reward_sum=62045.9)
+Iter  288 | Steps 18874368 | Return   125.20 | PLoss -0.0385 | VLoss 18.6955 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.946 (ep_return=125.2, ep_count=448, step_reward_sum=62027.7)
+Iter  289 | Steps 18939904 | Return   124.66 | PLoss -0.0388 | VLoss 18.6264 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.946 (ep_return=124.7, ep_count=448, step_reward_sum=62003.0)
+Iter  290 | Steps 19005440 | Return   124.05 | PLoss -0.0385 | VLoss 18.5654 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.946 (ep_return=124.1, ep_count=448, step_reward_sum=61975.5)
+Iter  291 | Steps 19070976 | Return   123.50 | PLoss -0.0395 | VLoss 18.5119 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.945 (ep_return=123.5, ep_count=448, step_reward_sum=61945.8)
+Iter  292 | Steps 19136512 | Return   123.14 | PLoss -0.0396 | VLoss 18.4644 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.945 (ep_return=123.1, ep_count=448, step_reward_sum=61930.6)
+Iter  293 | Steps 19202048 | Return   122.38 | PLoss -0.0392 | VLoss 18.3984 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.944 (ep_return=122.4, ep_count=448, step_reward_sum=61887.9)
+Iter  294 | Steps 19267584 | Return   121.77 | PLoss -0.0406 | VLoss 18.3318 | Ent 1.4189 | LR 9.71e-05
+  [StepReward] avg=0.944 (ep_return=121.8, ep_count=448, step_reward_sum=61843.4)
+Iter  295 | Steps 19333120 | Return   121.40 | PLoss -0.0404 | VLoss 18.2740 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.943 (ep_return=121.4, ep_count=449, step_reward_sum=61791.4)
+Iter  296 | Steps 19398656 | Return   121.12 | PLoss -0.0402 | VLoss 18.1968 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.942 (ep_return=121.1, ep_count=449, step_reward_sum=61732.4)
+Iter  297 | Steps 19464192 | Return   120.69 | PLoss -0.0401 | VLoss 18.1259 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.941 (ep_return=120.7, ep_count=456, step_reward_sum=61652.8)
+Iter  298 | Steps 19529728 | Return   120.92 | PLoss -0.0397 | VLoss 18.1023 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.941 (ep_return=120.9, ep_count=450, step_reward_sum=61680.1)
+Iter  299 | Steps 19595264 | Return   120.74 | PLoss -0.0399 | VLoss 18.0509 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.941 (ep_return=120.7, ep_count=453, step_reward_sum=61660.3)
+Iter  300 | Steps 19660800 | Return   120.89 | PLoss -0.0397 | VLoss 18.0442 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.941 (ep_return=120.9, ep_count=452, step_reward_sum=61672.5)
+Iter  301 | Steps 19726336 | Return   121.30 | PLoss -0.0393 | VLoss 18.0190 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.942 (ep_return=121.3, ep_count=449, step_reward_sum=61729.0)
+Iter  302 | Steps 19791872 | Return   122.09 | PLoss -0.0392 | VLoss 18.0402 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.943 (ep_return=122.1, ep_count=448, step_reward_sum=61789.3)
+Iter  303 | Steps 19857408 | Return   122.68 | PLoss -0.0390 | VLoss 18.0259 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.943 (ep_return=122.7, ep_count=448, step_reward_sum=61808.5)
+Iter  304 | Steps 19922944 | Return   123.43 | PLoss -0.0399 | VLoss 18.0236 | Ent 1.4189 | LR 9.70e-05
+  [StepReward] avg=0.943 (ep_return=123.4, ep_count=448, step_reward_sum=61823.7)
+Iter  305 | Steps 19988480 | Return   124.08 | PLoss -0.0401 | VLoss 18.0173 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.944 (ep_return=124.1, ep_count=448, step_reward_sum=61852.4)
+Iter  306 | Steps 20054016 | Return   124.97 | PLoss -0.0390 | VLoss 18.0066 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.944 (ep_return=125.0, ep_count=448, step_reward_sum=61882.0)
+Iter  307 | Steps 20119552 | Return   125.71 | PLoss -0.0398 | VLoss 18.0036 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.944 (ep_return=125.7, ep_count=448, step_reward_sum=61893.3)
+Iter  308 | Steps 20185088 | Return   126.20 | PLoss -0.0398 | VLoss 17.9914 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.945 (ep_return=126.2, ep_count=448, step_reward_sum=61918.2)
+Iter  309 | Steps 20250624 | Return   127.05 | PLoss -0.0398 | VLoss 17.9920 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.945 (ep_return=127.1, ep_count=448, step_reward_sum=61937.2)
+Iter  310 | Steps 20316160 | Return   127.61 | PLoss -0.0405 | VLoss 17.9970 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.945 (ep_return=127.6, ep_count=448, step_reward_sum=61959.8)
+Iter  311 | Steps 20381696 | Return   128.14 | PLoss -0.0407 | VLoss 17.9981 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.946 (ep_return=128.1, ep_count=448, step_reward_sum=61977.5)
+Iter  312 | Steps 20447232 | Return   128.65 | PLoss -0.0403 | VLoss 17.9810 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.946 (ep_return=128.7, ep_count=448, step_reward_sum=61984.4)
+Iter  313 | Steps 20512768 | Return   129.05 | PLoss -0.0404 | VLoss 17.9586 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.946 (ep_return=129.0, ep_count=448, step_reward_sum=61995.7)
+Iter  314 | Steps 20578304 | Return   129.32 | PLoss -0.0415 | VLoss 17.9476 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.946 (ep_return=129.3, ep_count=448, step_reward_sum=62006.4)
+Iter  315 | Steps 20643840 | Return   129.02 | PLoss -0.0420 | VLoss 17.9134 | Ent 1.4189 | LR 9.69e-05
+  [StepReward] avg=0.946 (ep_return=129.0, ep_count=448, step_reward_sum=62002.4)
+Iter  316 | Steps 20709376 | Return   129.07 | PLoss -0.0418 | VLoss 17.8674 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.946 (ep_return=129.1, ep_count=448, step_reward_sum=61987.1)
+Iter  317 | Steps 20774912 | Return   128.92 | PLoss -0.0428 | VLoss 17.8308 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.946 (ep_return=128.9, ep_count=448, step_reward_sum=61976.2)
+Iter  318 | Steps 20840448 | Return   128.69 | PLoss -0.0415 | VLoss 17.7625 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.945 (ep_return=128.7, ep_count=448, step_reward_sum=61956.3)
+Iter  319 | Steps 20905984 | Return   128.21 | PLoss -0.0432 | VLoss 17.7140 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.945 (ep_return=128.2, ep_count=448, step_reward_sum=61936.8)
+Iter  320 | Steps 20971520 | Return   127.22 | PLoss -0.0433 | VLoss 17.6547 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.945 (ep_return=127.2, ep_count=448, step_reward_sum=61913.0)
+Iter  321 | Steps 21037056 | Return   126.43 | PLoss -0.0446 | VLoss 17.5858 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.944 (ep_return=126.4, ep_count=448, step_reward_sum=61876.8)
+Iter  322 | Steps 21102592 | Return   125.44 | PLoss -0.0441 | VLoss 17.4814 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.943 (ep_return=125.4, ep_count=448, step_reward_sum=61814.7)
+Iter  323 | Steps 21168128 | Return   124.65 | PLoss -0.0441 | VLoss 17.4099 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.942 (ep_return=124.6, ep_count=448, step_reward_sum=61760.3)
+Iter  324 | Steps 21233664 | Return   123.53 | PLoss -0.0442 | VLoss 17.3254 | Ent 1.4189 | LR 9.68e-05
+  [StepReward] avg=0.942 (ep_return=123.5, ep_count=448, step_reward_sum=61708.7)
+Iter  325 | Steps 21299200 | Return   122.65 | PLoss -0.0448 | VLoss 17.2688 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.941 (ep_return=122.7, ep_count=448, step_reward_sum=61660.8)
+Iter  326 | Steps 21364736 | Return   121.41 | PLoss -0.0451 | VLoss 17.1694 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.940 (ep_return=121.4, ep_count=448, step_reward_sum=61576.2)
+Iter  327 | Steps 21430272 | Return   120.43 | PLoss -0.0441 | VLoss 17.0570 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.938 (ep_return=120.4, ep_count=452, step_reward_sum=61446.1)
+Iter  328 | Steps 21495808 | Return   120.02 | PLoss -0.0441 | VLoss 16.9699 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.936 (ep_return=120.0, ep_count=460, step_reward_sum=61340.4)
+Iter  329 | Steps 21561344 | Return   119.98 | PLoss -0.0416 | VLoss 16.9069 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.936 (ep_return=120.0, ep_count=463, step_reward_sum=61309.3)
+Iter  330 | Steps 21626880 | Return   120.56 | PLoss -0.0408 | VLoss 16.9293 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.937 (ep_return=120.6, ep_count=449, step_reward_sum=61399.5)
+Iter  331 | Steps 21692416 | Return   121.61 | PLoss -0.0395 | VLoss 16.9328 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.938 (ep_return=121.6, ep_count=448, step_reward_sum=61488.0)
+Iter  332 | Steps 21757952 | Return   122.99 | PLoss -0.0386 | VLoss 16.9491 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.939 (ep_return=123.0, ep_count=448, step_reward_sum=61529.8)
+Iter  333 | Steps 21823488 | Return   124.52 | PLoss -0.0399 | VLoss 17.0141 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.940 (ep_return=124.5, ep_count=448, step_reward_sum=61595.0)
+Iter  334 | Steps 21889024 | Return   125.99 | PLoss -0.0403 | VLoss 17.0414 | Ent 1.4189 | LR 9.67e-05
+  [StepReward] avg=0.941 (ep_return=126.0, ep_count=448, step_reward_sum=61649.0)
+Iter  335 | Steps 21954560 | Return   127.27 | PLoss -0.0379 | VLoss 17.0666 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.941 (ep_return=127.3, ep_count=448, step_reward_sum=61696.7)
+Iter  336 | Steps 22020096 | Return   128.92 | PLoss -0.0399 | VLoss 17.1351 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.942 (ep_return=128.9, ep_count=448, step_reward_sum=61752.2)
+Iter  337 | Steps 22085632 | Return   130.36 | PLoss -0.0391 | VLoss 17.1792 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.943 (ep_return=130.4, ep_count=448, step_reward_sum=61786.6)
+Iter  338 | Steps 22151168 | Return   131.98 | PLoss -0.0386 | VLoss 17.2119 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.944 (ep_return=132.0, ep_count=448, step_reward_sum=61839.4)
+Iter  339 | Steps 22216704 | Return   133.93 | PLoss -0.0403 | VLoss 17.2836 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.944 (ep_return=133.9, ep_count=448, step_reward_sum=61875.7)
+Iter  340 | Steps 22282240 | Return   134.87 | PLoss -0.0393 | VLoss 17.2429 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.944 (ep_return=134.9, ep_count=448, step_reward_sum=61888.1)
+Iter  341 | Steps 22347776 | Return   135.92 | PLoss -0.0396 | VLoss 17.2408 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.945 (ep_return=135.9, ep_count=448, step_reward_sum=61919.2)
+Iter  342 | Steps 22413312 | Return   136.65 | PLoss -0.0417 | VLoss 17.2782 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.945 (ep_return=136.6, ep_count=448, step_reward_sum=61952.6)
+Iter  343 | Steps 22478848 | Return   137.43 | PLoss -0.0407 | VLoss 17.2600 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.946 (ep_return=137.4, ep_count=448, step_reward_sum=61997.6)
+Iter  344 | Steps 22544384 | Return   138.07 | PLoss -0.0410 | VLoss 17.2858 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.946 (ep_return=138.1, ep_count=436, step_reward_sum=62029.2)
+Iter  345 | Steps 22609920 | Return   138.59 | PLoss -0.0366 | VLoss 17.3441 | Ent 1.4189 | LR 9.66e-05
+  [StepReward] avg=0.947 (ep_return=138.6, ep_count=415, step_reward_sum=62094.3)
+Iter  346 | Steps 22675456 | Return   139.45 | PLoss -0.0410 | VLoss 17.3244 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.949 (ep_return=139.5, ep_count=387, step_reward_sum=62216.3)
+Iter  347 | Steps 22740992 | Return   140.04 | PLoss -0.0420 | VLoss 17.3172 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.950 (ep_return=140.0, ep_count=384, step_reward_sum=62277.3)
+Iter  348 | Steps 22806528 | Return   140.38 | PLoss -0.0425 | VLoss 17.2892 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=140.4, ep_count=384, step_reward_sum=62303.6)
+Iter  349 | Steps 22872064 | Return   141.06 | PLoss -0.0428 | VLoss 17.2681 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=141.1, ep_count=384, step_reward_sum=62313.8)
+Iter  350 | Steps 22937600 | Return   141.45 | PLoss -0.0434 | VLoss 17.2255 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=141.5, ep_count=384, step_reward_sum=62326.8)
+Iter  351 | Steps 23003136 | Return   141.76 | PLoss -0.0420 | VLoss 17.1942 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=141.8, ep_count=384, step_reward_sum=62308.5)
+Iter  352 | Steps 23068672 | Return   142.44 | PLoss -0.0419 | VLoss 17.1687 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=142.4, ep_count=384, step_reward_sum=62308.6)
+Iter  353 | Steps 23134208 | Return   143.34 | PLoss -0.0440 | VLoss 17.1484 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=143.3, ep_count=384, step_reward_sum=62299.2)
+Iter  354 | Steps 23199744 | Return   143.49 | PLoss -0.0434 | VLoss 17.1098 | Ent 1.4189 | LR 9.65e-05
+  [StepReward] avg=0.951 (ep_return=143.5, ep_count=384, step_reward_sum=62302.0)
+Iter  355 | Steps 23265280 | Return   143.29 | PLoss -0.0432 | VLoss 17.0804 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.951 (ep_return=143.3, ep_count=384, step_reward_sum=62298.9)
+Iter  356 | Steps 23330816 | Return   143.29 | PLoss -0.0436 | VLoss 17.0317 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.950 (ep_return=143.3, ep_count=384, step_reward_sum=62261.6)
+Iter  357 | Steps 23396352 | Return   142.87 | PLoss -0.0440 | VLoss 16.9958 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.950 (ep_return=142.9, ep_count=384, step_reward_sum=62256.5)
+Iter  358 | Steps 23461888 | Return   142.75 | PLoss -0.0436 | VLoss 16.9541 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.950 (ep_return=142.8, ep_count=384, step_reward_sum=62227.2)
+Iter  359 | Steps 23527424 | Return   142.62 | PLoss -0.0436 | VLoss 16.9458 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.949 (ep_return=142.6, ep_count=384, step_reward_sum=62220.0)
+Iter  360 | Steps 23592960 | Return   142.35 | PLoss -0.0438 | VLoss 16.8634 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.949 (ep_return=142.4, ep_count=384, step_reward_sum=62202.5)
+Iter  361 | Steps 23658496 | Return   142.29 | PLoss -0.0431 | VLoss 16.8402 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.949 (ep_return=142.3, ep_count=384, step_reward_sum=62195.1)
+Iter  362 | Steps 23724032 | Return   142.78 | PLoss -0.0429 | VLoss 16.8075 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.949 (ep_return=142.8, ep_count=384, step_reward_sum=62184.4)
+Iter  363 | Steps 23789568 | Return   142.58 | PLoss -0.0429 | VLoss 16.7706 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.948 (ep_return=142.6, ep_count=384, step_reward_sum=62155.7)
+Iter  364 | Steps 23855104 | Return   143.00 | PLoss -0.0428 | VLoss 16.7204 | Ent 1.4189 | LR 9.64e-05
+  [StepReward] avg=0.948 (ep_return=143.0, ep_count=384, step_reward_sum=62149.8)
+Iter  365 | Steps 23920640 | Return   143.97 | PLoss -0.0435 | VLoss 16.7211 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.948 (ep_return=144.0, ep_count=384, step_reward_sum=62151.9)
+Iter  366 | Steps 23986176 | Return   144.48 | PLoss -0.0430 | VLoss 16.6942 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.948 (ep_return=144.5, ep_count=384, step_reward_sum=62160.0)
+Iter  367 | Steps 24051712 | Return   145.10 | PLoss -0.0417 | VLoss 16.6605 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.948 (ep_return=145.1, ep_count=384, step_reward_sum=62143.3)
+Iter  368 | Steps 24117248 | Return   146.27 | PLoss -0.0421 | VLoss 16.6402 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.948 (ep_return=146.3, ep_count=384, step_reward_sum=62145.8)
+Iter  369 | Steps 24182784 | Return   147.68 | PLoss -0.0419 | VLoss 16.6187 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.949 (ep_return=147.7, ep_count=384, step_reward_sum=62162.7)
+Iter  370 | Steps 24248320 | Return   149.22 | PLoss -0.0430 | VLoss 16.6721 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.949 (ep_return=149.2, ep_count=384, step_reward_sum=62188.0)
+Iter  371 | Steps 24313856 | Return   150.54 | PLoss -0.0419 | VLoss 16.6801 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.949 (ep_return=150.5, ep_count=384, step_reward_sum=62183.5)
+Iter  372 | Steps 24379392 | Return   151.07 | PLoss -0.0422 | VLoss 16.6961 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.949 (ep_return=151.1, ep_count=384, step_reward_sum=62206.2)
+Iter  373 | Steps 24444928 | Return   151.67 | PLoss -0.0423 | VLoss 16.6697 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.949 (ep_return=151.7, ep_count=384, step_reward_sum=62199.6)
+Iter  374 | Steps 24510464 | Return   152.86 | PLoss -0.0429 | VLoss 16.7205 | Ent 1.4189 | LR 9.63e-05
+  [StepReward] avg=0.949 (ep_return=152.9, ep_count=384, step_reward_sum=62204.1)
+Iter  375 | Steps 24576000 | Return   153.14 | PLoss -0.0427 | VLoss 16.6648 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=153.1, ep_count=384, step_reward_sum=62199.1)
+Iter  376 | Steps 24641536 | Return   153.74 | PLoss -0.0422 | VLoss 16.6697 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=153.7, ep_count=384, step_reward_sum=62191.7)
+Iter  377 | Steps 24707072 | Return   154.50 | PLoss -0.0423 | VLoss 16.6942 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=154.5, ep_count=384, step_reward_sum=62193.0)
+Iter  378 | Steps 24772608 | Return   155.08 | PLoss -0.0425 | VLoss 16.6602 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=155.1, ep_count=384, step_reward_sum=62182.4)
+Iter  379 | Steps 24838144 | Return   156.60 | PLoss -0.0425 | VLoss 16.6843 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=156.6, ep_count=384, step_reward_sum=62192.3)
+Iter  380 | Steps 24903680 | Return   157.12 | PLoss -0.0425 | VLoss 16.6482 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=157.1, ep_count=384, step_reward_sum=62178.1)
+Iter  381 | Steps 24969216 | Return   157.76 | PLoss -0.0430 | VLoss 16.6748 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.948 (ep_return=157.8, ep_count=384, step_reward_sum=62153.0)
+Iter  382 | Steps 25034752 | Return   158.41 | PLoss -0.0431 | VLoss 16.6450 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.948 (ep_return=158.4, ep_count=384, step_reward_sum=62155.3)
+Iter  383 | Steps 25100288 | Return   159.67 | PLoss -0.0426 | VLoss 16.6498 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.949 (ep_return=159.7, ep_count=384, step_reward_sum=62174.0)
+Iter  384 | Steps 25165824 | Return   160.23 | PLoss -0.0421 | VLoss 16.6826 | Ent 1.4189 | LR 9.62e-05
+  [StepReward] avg=0.948 (ep_return=160.2, ep_count=384, step_reward_sum=62157.0)
+Iter  385 | Steps 25231360 | Return   160.87 | PLoss -0.0440 | VLoss 16.7059 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.949 (ep_return=160.9, ep_count=379, step_reward_sum=62176.6)
+Iter  386 | Steps 25296896 | Return   161.64 | PLoss -0.0431 | VLoss 16.7599 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.949 (ep_return=161.6, ep_count=363, step_reward_sum=62207.0)
+Iter  387 | Steps 25362432 | Return   162.42 | PLoss -0.0424 | VLoss 16.7624 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.950 (ep_return=162.4, ep_count=336, step_reward_sum=62287.8)
+Iter  388 | Steps 25427968 | Return   163.65 | PLoss -0.0438 | VLoss 16.7165 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.952 (ep_return=163.6, ep_count=320, step_reward_sum=62414.9)
+Iter  389 | Steps 25493504 | Return   164.26 | PLoss -0.0425 | VLoss 16.6984 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.953 (ep_return=164.3, ep_count=320, step_reward_sum=62451.4)
+Iter  390 | Steps 25559040 | Return   164.10 | PLoss -0.0428 | VLoss 16.6154 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.952 (ep_return=164.1, ep_count=321, step_reward_sum=62401.9)
+Iter  391 | Steps 25624576 | Return   163.88 | PLoss -0.0429 | VLoss 16.6184 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.952 (ep_return=163.9, ep_count=322, step_reward_sum=62408.4)
+Iter  392 | Steps 25690112 | Return   165.21 | PLoss -0.0435 | VLoss 16.5831 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.953 (ep_return=165.2, ep_count=320, step_reward_sum=62462.5)
+Iter  393 | Steps 25755648 | Return   167.39 | PLoss -0.0425 | VLoss 16.4884 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.953 (ep_return=167.4, ep_count=320, step_reward_sum=62438.4)
+Iter  394 | Steps 25821184 | Return   168.62 | PLoss -0.0438 | VLoss 16.4787 | Ent 1.4189 | LR 9.61e-05
+  [StepReward] avg=0.953 (ep_return=168.6, ep_count=320, step_reward_sum=62439.2)
+Iter  395 | Steps 25886720 | Return   169.97 | PLoss -0.0429 | VLoss 16.4408 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=170.0, ep_count=320, step_reward_sum=62426.2)
+Iter  396 | Steps 25952256 | Return   171.14 | PLoss -0.0437 | VLoss 16.3669 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=171.1, ep_count=320, step_reward_sum=62442.7)
+Iter  397 | Steps 26017792 | Return   171.42 | PLoss -0.0424 | VLoss 16.3330 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.952 (ep_return=171.4, ep_count=320, step_reward_sum=62415.2)
+Iter  398 | Steps 26083328 | Return   173.04 | PLoss -0.0431 | VLoss 16.3539 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=173.0, ep_count=320, step_reward_sum=62434.5)
+Iter  399 | Steps 26148864 | Return   174.71 | PLoss -0.0432 | VLoss 16.3284 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=174.7, ep_count=320, step_reward_sum=62444.8)
+Iter  400 | Steps 26214400 | Return   176.55 | PLoss -0.0442 | VLoss 16.3673 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=176.6, ep_count=320, step_reward_sum=62469.0)
+Iter  401 | Steps 26279936 | Return   176.08 | PLoss -0.0429 | VLoss 16.2643 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=176.1, ep_count=320, step_reward_sum=62444.7)
+Iter  402 | Steps 26345472 | Return   177.01 | PLoss -0.0426 | VLoss 16.2921 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=177.0, ep_count=320, step_reward_sum=62449.0)
+Iter  403 | Steps 26411008 | Return   179.13 | PLoss -0.0411 | VLoss 16.2364 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=179.1, ep_count=320, step_reward_sum=62445.3)
+Iter  404 | Steps 26476544 | Return   182.05 | PLoss -0.0414 | VLoss 16.3642 | Ent 1.4189 | LR 9.60e-05
+  [StepReward] avg=0.953 (ep_return=182.1, ep_count=320, step_reward_sum=62461.9)
+Iter  405 | Steps 26542080 | Return   185.14 | PLoss -0.0423 | VLoss 16.4936 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.954 (ep_return=185.1, ep_count=320, step_reward_sum=62496.3)
+Iter  406 | Steps 26607616 | Return   186.42 | PLoss -0.0407 | VLoss 16.5517 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.953 (ep_return=186.4, ep_count=320, step_reward_sum=62479.9)
+Iter  407 | Steps 26673152 | Return   188.01 | PLoss -0.0418 | VLoss 16.6245 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.954 (ep_return=188.0, ep_count=320, step_reward_sum=62502.5)
+Iter  408 | Steps 26738688 | Return   188.80 | PLoss -0.0407 | VLoss 16.5869 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.953 (ep_return=188.8, ep_count=320, step_reward_sum=62487.6)
+Iter  409 | Steps 26804224 | Return   189.64 | PLoss -0.0418 | VLoss 16.5975 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.954 (ep_return=189.6, ep_count=320, step_reward_sum=62495.7)
+Iter  410 | Steps 26869760 | Return   190.48 | PLoss -0.0433 | VLoss 16.6063 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.953 (ep_return=190.5, ep_count=320, step_reward_sum=62488.6)
+Iter  411 | Steps 26935296 | Return   191.21 | PLoss -0.0411 | VLoss 16.6106 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.953 (ep_return=191.2, ep_count=320, step_reward_sum=62480.1)
+Iter  412 | Steps 27000832 | Return   193.51 | PLoss -0.0422 | VLoss 16.7603 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.953 (ep_return=193.5, ep_count=317, step_reward_sum=62481.5)
+Iter  413 | Steps 27066368 | Return   194.60 | PLoss -0.0414 | VLoss 16.7966 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.954 (ep_return=194.6, ep_count=304, step_reward_sum=62529.9)
+Iter  414 | Steps 27131904 | Return   194.59 | PLoss -0.0424 | VLoss 16.7605 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.954 (ep_return=194.6, ep_count=303, step_reward_sum=62551.7)
+Iter  415 | Steps 27197440 | Return   195.94 | PLoss -0.0411 | VLoss 16.8074 | Ent 1.4189 | LR 9.59e-05
+  [StepReward] avg=0.956 (ep_return=195.9, ep_count=278, step_reward_sum=62642.3)
+Iter  416 | Steps 27262976 | Return   199.27 | PLoss -0.0425 | VLoss 16.8258 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=199.3, ep_count=256, step_reward_sum=62851.2)
+Iter  417 | Steps 27328512 | Return   199.53 | PLoss -0.0428 | VLoss 16.7859 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=199.5, ep_count=256, step_reward_sum=62875.4)
+Iter  418 | Steps 27394048 | Return   201.31 | PLoss -0.0418 | VLoss 16.7727 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=201.3, ep_count=256, step_reward_sum=62844.2)
+Iter  419 | Steps 27459584 | Return   203.92 | PLoss -0.0423 | VLoss 16.7926 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=203.9, ep_count=256, step_reward_sum=62868.1)
+Iter  420 | Steps 27525120 | Return   207.03 | PLoss -0.0413 | VLoss 16.7325 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=207.0, ep_count=256, step_reward_sum=62862.2)
+Iter  421 | Steps 27590656 | Return   208.80 | PLoss -0.0428 | VLoss 16.8147 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=208.8, ep_count=256, step_reward_sum=62878.7)
+Iter  422 | Steps 27656192 | Return   210.44 | PLoss -0.0412 | VLoss 16.8240 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=210.4, ep_count=256, step_reward_sum=62869.1)
+Iter  423 | Steps 27721728 | Return   214.27 | PLoss -0.0431 | VLoss 16.8467 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=214.3, ep_count=256, step_reward_sum=62840.6)
+Iter  424 | Steps 27787264 | Return   215.19 | PLoss -0.0431 | VLoss 16.9279 | Ent 1.4189 | LR 9.58e-05
+  [StepReward] avg=0.959 (ep_return=215.2, ep_count=256, step_reward_sum=62859.6)
+Iter  425 | Steps 27852800 | Return   217.53 | PLoss -0.0442 | VLoss 17.0112 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=217.5, ep_count=256, step_reward_sum=62853.9)
+Iter  426 | Steps 27918336 | Return   218.43 | PLoss -0.0419 | VLoss 17.0289 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=218.4, ep_count=256, step_reward_sum=62833.6)
+Iter  427 | Steps 27983872 | Return   221.17 | PLoss -0.0431 | VLoss 17.1278 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.960 (ep_return=221.2, ep_count=256, step_reward_sum=62892.1)
+Iter  428 | Steps 28049408 | Return   223.98 | PLoss -0.0418 | VLoss 17.2505 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.958 (ep_return=224.0, ep_count=256, step_reward_sum=62803.7)
+Iter  429 | Steps 28114944 | Return   223.32 | PLoss -0.0437 | VLoss 17.1807 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=223.3, ep_count=256, step_reward_sum=62827.0)
+Iter  430 | Steps 28180480 | Return   224.13 | PLoss -0.0428 | VLoss 17.3158 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=224.1, ep_count=256, step_reward_sum=62848.5)
+Iter  431 | Steps 28246016 | Return   226.29 | PLoss -0.0426 | VLoss 17.4064 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=226.3, ep_count=256, step_reward_sum=62838.4)
+Iter  432 | Steps 28311552 | Return   226.30 | PLoss -0.0415 | VLoss 17.3290 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=226.3, ep_count=256, step_reward_sum=62865.4)
+Iter  433 | Steps 28377088 | Return   227.45 | PLoss -0.0421 | VLoss 17.4236 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=227.5, ep_count=256, step_reward_sum=62834.6)
+Iter  434 | Steps 28442624 | Return   228.98 | PLoss -0.0422 | VLoss 17.6132 | Ent 1.4189 | LR 9.57e-05
+  [StepReward] avg=0.959 (ep_return=229.0, ep_count=256, step_reward_sum=62822.0)
+Iter  435 | Steps 28508160 | Return   228.50 | PLoss -0.0422 | VLoss 17.4563 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.959 (ep_return=228.5, ep_count=256, step_reward_sum=62842.8)
+Iter  436 | Steps 28573696 | Return   230.91 | PLoss -0.0424 | VLoss 17.7453 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.959 (ep_return=230.9, ep_count=256, step_reward_sum=62821.9)
+Iter  437 | Steps 28639232 | Return   235.17 | PLoss -0.0437 | VLoss 18.1342 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.959 (ep_return=235.2, ep_count=256, step_reward_sum=62834.2)
+Iter  438 | Steps 28704768 | Return   238.44 | PLoss -0.0406 | VLoss 18.2729 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.958 (ep_return=238.4, ep_count=256, step_reward_sum=62798.2)
+Iter  439 | Steps 28770304 | Return   242.25 | PLoss -0.0451 | VLoss 18.4264 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.959 (ep_return=242.3, ep_count=251, step_reward_sum=62832.9)
+Iter  440 | Steps 28835840 | Return   243.10 | PLoss -0.0469 | VLoss 18.5528 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.959 (ep_return=243.1, ep_count=248, step_reward_sum=62816.5)
+Iter  441 | Steps 28901376 | Return   244.57 | PLoss -0.0468 | VLoss 18.5376 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.959 (ep_return=244.6, ep_count=236, step_reward_sum=62848.2)
+Iter  442 | Steps 28966912 | Return   246.67 | PLoss -0.0452 | VLoss 18.4893 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.961 (ep_return=246.7, ep_count=209, step_reward_sum=62989.8)
+Iter  443 | Steps 29032448 | Return   250.42 | PLoss -0.0487 | VLoss 18.4369 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.964 (ep_return=250.4, ep_count=193, step_reward_sum=63200.4)
+Iter  444 | Steps 29097984 | Return   250.06 | PLoss -0.0482 | VLoss 18.3560 | Ent 1.4189 | LR 9.56e-05
+  [StepReward] avg=0.963 (ep_return=250.1, ep_count=193, step_reward_sum=63122.4)
+Iter  445 | Steps 29163520 | Return   254.13 | PLoss -0.0492 | VLoss 18.3059 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=254.1, ep_count=192, step_reward_sum=63236.7)
+Iter  446 | Steps 29229056 | Return   256.83 | PLoss -0.0500 | VLoss 18.2142 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=256.8, ep_count=192, step_reward_sum=63256.3)
+Iter  447 | Steps 29294592 | Return   257.51 | PLoss -0.0494 | VLoss 18.1407 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=257.5, ep_count=192, step_reward_sum=63216.2)
+Iter  448 | Steps 29360128 | Return   260.15 | PLoss -0.0494 | VLoss 18.0328 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.964 (ep_return=260.1, ep_count=192, step_reward_sum=63208.3)
+Iter  449 | Steps 29425664 | Return   260.01 | PLoss -0.0484 | VLoss 18.0278 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=260.0, ep_count=192, step_reward_sum=63217.9)
+Iter  450 | Steps 29491200 | Return   262.42 | PLoss -0.0493 | VLoss 17.9717 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=262.4, ep_count=192, step_reward_sum=63220.5)
+Iter  451 | Steps 29556736 | Return   265.64 | PLoss -0.0487 | VLoss 17.9383 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=265.6, ep_count=192, step_reward_sum=63230.4)
+Iter  452 | Steps 29622272 | Return   268.34 | PLoss -0.0495 | VLoss 17.9017 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=268.3, ep_count=192, step_reward_sum=63269.6)
+Iter  453 | Steps 29687808 | Return   271.55 | PLoss -0.0497 | VLoss 17.8384 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=271.5, ep_count=192, step_reward_sum=63272.3)
+Iter  454 | Steps 29753344 | Return   270.13 | PLoss -0.0493 | VLoss 17.7600 | Ent 1.4189 | LR 9.55e-05
+  [StepReward] avg=0.965 (ep_return=270.1, ep_count=192, step_reward_sum=63256.4)
+Iter  455 | Steps 29818880 | Return   270.85 | PLoss -0.0488 | VLoss 17.7350 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.964 (ep_return=270.8, ep_count=192, step_reward_sum=63182.2)
+Iter  456 | Steps 29884416 | Return   277.17 | PLoss -0.0483 | VLoss 17.6812 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.964 (ep_return=277.2, ep_count=192, step_reward_sum=63190.5)
+Iter  457 | Steps 29949952 | Return   281.88 | PLoss -0.0476 | VLoss 17.6378 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.965 (ep_return=281.9, ep_count=192, step_reward_sum=63234.9)
+Iter  458 | Steps 30015488 | Return   282.41 | PLoss -0.0472 | VLoss 17.5338 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.963 (ep_return=282.4, ep_count=192, step_reward_sum=63136.4)
+Iter  459 | Steps 30081024 | Return   285.53 | PLoss -0.0481 | VLoss 17.5464 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.964 (ep_return=285.5, ep_count=192, step_reward_sum=63170.9)
+Iter  460 | Steps 30146560 | Return   287.05 | PLoss -0.0471 | VLoss 17.5178 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.964 (ep_return=287.1, ep_count=192, step_reward_sum=63155.0)
+Iter  461 | Steps 30212096 | Return   289.90 | PLoss -0.0468 | VLoss 17.4624 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.964 (ep_return=289.9, ep_count=192, step_reward_sum=63183.2)
+Iter  462 | Steps 30277632 | Return   292.11 | PLoss -0.0471 | VLoss 17.4396 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.964 (ep_return=292.1, ep_count=192, step_reward_sum=63160.1)
+Iter  463 | Steps 30343168 | Return   293.14 | PLoss -0.0473 | VLoss 17.3670 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.963 (ep_return=293.1, ep_count=192, step_reward_sum=63127.7)
+Iter  464 | Steps 30408704 | Return   296.23 | PLoss -0.0474 | VLoss 17.4044 | Ent 1.4189 | LR 9.54e-05
+  [StepReward] avg=0.963 (ep_return=296.2, ep_count=192, step_reward_sum=63115.2)
+Iter  465 | Steps 30474240 | Return   299.44 | PLoss -0.0466 | VLoss 17.4113 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=299.4, ep_count=192, step_reward_sum=63105.7)
+Iter  466 | Steps 30539776 | Return   296.28 | PLoss -0.0472 | VLoss 17.3044 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=296.3, ep_count=192, step_reward_sum=63140.1)
+Iter  467 | Steps 30605312 | Return   299.13 | PLoss -0.0468 | VLoss 17.2954 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.964 (ep_return=299.1, ep_count=192, step_reward_sum=63172.0)
+Iter  468 | Steps 30670848 | Return   299.84 | PLoss -0.0464 | VLoss 17.3210 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.964 (ep_return=299.8, ep_count=192, step_reward_sum=63161.0)
+Iter  469 | Steps 30736384 | Return   301.81 | PLoss -0.0461 | VLoss 17.2523 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.964 (ep_return=301.8, ep_count=192, step_reward_sum=63156.6)
+Iter  470 | Steps 30801920 | Return   299.37 | PLoss -0.0462 | VLoss 17.1796 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=299.4, ep_count=192, step_reward_sum=63130.7)
+Iter  471 | Steps 30867456 | Return   301.90 | PLoss -0.0455 | VLoss 17.1945 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=301.9, ep_count=192, step_reward_sum=63125.3)
+Iter  472 | Steps 30932992 | Return   305.68 | PLoss -0.0445 | VLoss 17.2616 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=305.7, ep_count=192, step_reward_sum=63127.0)
+Iter  473 | Steps 30998528 | Return   306.03 | PLoss -0.0458 | VLoss 17.2385 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=306.0, ep_count=192, step_reward_sum=63095.0)
+Iter  474 | Steps 31064064 | Return   306.75 | PLoss -0.0441 | VLoss 17.1727 | Ent 1.4189 | LR 9.53e-05
+  [StepReward] avg=0.963 (ep_return=306.8, ep_count=192, step_reward_sum=63078.9)
+Iter  475 | Steps 31129600 | Return   308.51 | PLoss -0.0440 | VLoss 17.1899 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.963 (ep_return=308.5, ep_count=192, step_reward_sum=63125.5)
+Iter  476 | Steps 31195136 | Return   312.64 | PLoss -0.0444 | VLoss 17.4139 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.963 (ep_return=312.6, ep_count=192, step_reward_sum=63132.4)
+Iter  477 | Steps 31260672 | Return   313.94 | PLoss -0.0438 | VLoss 17.3841 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.963 (ep_return=313.9, ep_count=192, step_reward_sum=63114.7)
+Iter  478 | Steps 31326208 | Return   315.95 | PLoss -0.0439 | VLoss 17.4487 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.963 (ep_return=316.0, ep_count=192, step_reward_sum=63129.8)
+Iter  479 | Steps 31391744 | Return   324.07 | PLoss -0.0430 | VLoss 17.8097 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.964 (ep_return=324.1, ep_count=180, step_reward_sum=63161.9)
+Iter  480 | Steps 31457280 | Return   324.92 | PLoss -0.0433 | VLoss 17.7669 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.963 (ep_return=324.9, ep_count=177, step_reward_sum=63140.1)
+Iter  481 | Steps 31522816 | Return   326.67 | PLoss -0.0440 | VLoss 17.8661 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.964 (ep_return=326.7, ep_count=161, step_reward_sum=63170.1)
+Iter  482 | Steps 31588352 | Return   330.32 | PLoss -0.0440 | VLoss 17.8165 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.966 (ep_return=330.3, ep_count=147, step_reward_sum=63325.3)
+Iter  483 | Steps 31653888 | Return   332.15 | PLoss -0.0431 | VLoss 17.8003 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.967 (ep_return=332.1, ep_count=141, step_reward_sum=63394.6)
+Iter  484 | Steps 31719424 | Return   334.85 | PLoss -0.0445 | VLoss 17.7262 | Ent 1.4189 | LR 9.52e-05
+  [StepReward] avg=0.969 (ep_return=334.9, ep_count=135, step_reward_sum=63471.8)
+Iter  485 | Steps 31784960 | Return   339.84 | PLoss -0.0444 | VLoss 17.7567 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=339.8, ep_count=128, step_reward_sum=63653.3)
+Iter  486 | Steps 31850496 | Return   344.54 | PLoss -0.0446 | VLoss 17.5780 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=344.5, ep_count=128, step_reward_sum=63650.2)
+Iter  487 | Steps 31916032 | Return   347.19 | PLoss -0.0447 | VLoss 17.4847 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=347.2, ep_count=128, step_reward_sum=63648.1)
+Iter  488 | Steps 31981568 | Return   346.45 | PLoss -0.0427 | VLoss 17.4594 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.970 (ep_return=346.4, ep_count=128, step_reward_sum=63584.7)
+Iter  489 | Steps 32047104 | Return   352.03 | PLoss -0.0417 | VLoss 17.3672 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.970 (ep_return=352.0, ep_count=128, step_reward_sum=63562.3)
+Iter  490 | Steps 32112640 | Return   357.73 | PLoss -0.0438 | VLoss 17.2619 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=357.7, ep_count=128, step_reward_sum=63607.7)
+Iter  491 | Steps 32178176 | Return   358.57 | PLoss -0.0436 | VLoss 17.2859 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.972 (ep_return=358.6, ep_count=128, step_reward_sum=63686.0)
+Iter  492 | Steps 32243712 | Return   359.96 | PLoss -0.0438 | VLoss 17.2483 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=360.0, ep_count=128, step_reward_sum=63643.2)
+Iter  493 | Steps 32309248 | Return   362.88 | PLoss -0.0454 | VLoss 17.1923 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=362.9, ep_count=128, step_reward_sum=63625.2)
+Iter  494 | Steps 32374784 | Return   363.66 | PLoss -0.0430 | VLoss 17.0152 | Ent 1.4189 | LR 9.51e-05
+  [StepReward] avg=0.971 (ep_return=363.7, ep_count=128, step_reward_sum=63604.1)
+Iter  495 | Steps 32440320 | Return   363.42 | PLoss -0.0440 | VLoss 17.0803 | Ent 1.4189 | LR 9.50e-05
+  [StepReward] avg=0.970 (ep_return=363.4, ep_count=128, step_reward_sum=63595.9)
+Iter  496 | Steps 32505856 | Return   364.17 | PLoss -0.0430 | VLoss 17.0245 | Ent 1.4189 | LR 9.50e-05
+  [StepReward] avg=0.970 (ep_return=364.2, ep_count=128, step_reward_sum=63573.9)
+Iter  497 | Steps 32571392 | Return   367.93 | PLoss -0.0440 | VLoss 16.9974 | Ent 1.4189 | LR 9.50e-05
+  [StepReward] avg=0.970 (ep_return=367.9, ep_count=128, step_reward_sum=63571.4)
+Iter  498 | Steps 32636928 | Return   376.39 | PLoss -0.0421 | VLoss 16.8883 | Ent 1.4189 | LR 9.50e-05
+  [StepReward] avg=0.971 (ep_return=376.4, ep_count=128, step_reward_sum=63632.7)
+Iter  499 | Steps 32702464 | Return   379.15 | PLoss -0.0438 | VLoss 16.8597 | Ent 1.4189 | LR 9.50e-05
+  [StepReward] avg=0.971 (ep_return=379.2, ep_count=128, step_reward_sum=63633.3)
+
+Training complete!
+Best return: 379.15
+Total steps: 32768000
