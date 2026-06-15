@@ -1,14 +1,14 @@
 /*
- * bear_arena.h — PufferC/BearRL Arena Allocator + SoA Tensor Infrastructure
+ * bear_arena.h  --  PufferC/BearRL Arena Allocator + SoA Tensor Infrastructure
  *
- * Sovereign C11 RL stack — zero Python, zero PyTorch, zero external deps.
+ * Sovereign C11 RL stack  --  zero Python, zero PyTorch, zero external deps.
  * Performance: Arena allocation, SoA tensors, SIMD-ready.
  *
  * Design:
  *   - Arena per epoch/rollout (reset, don't free)
  *   - Global arena for weights/grads (persistent)
  *   - Tensors as Structure of Arrays (SoA) for SIMD vectorization
- *   - All shapes fixed at init — no runtime alloc after setup
+ *   - All shapes fixed at init  --  no runtime alloc after setup
  */
 
 #ifndef BEAR_ARENA_H
@@ -21,18 +21,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Configuration Constants
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #define BEAR_MAX_TENSOR_DIMS    4
 #define BEAR_MAX_TENSOR_NAME    32
 #define BEAR_ARENA_ALIGN        64  /* cache-line + AVX-512 friendly */
 #define BEAR_DEFAULT_ARENA_CAP  (64 * 1024 * 1024)  /* 64 MiB default */
 
-/* ═══════════════════════════════════════════════════════════════════
- * Arena Allocator — Linear bump pointer, reset per epoch
- * ═══════════════════════════════════════════════════════════════════ */
+/* ===================================================================
+ * Arena Allocator  --  Linear bump pointer, reset per epoch
+ * =================================================================== */
 
 typedef struct {
     uint8_t* base;      /* start of allocation */
@@ -68,14 +68,14 @@ static inline void bear_arena_destroy(BearArena* a) {
     }
 }
 
-/* Reset bump pointer — fast epoch/rollout boundary */
+/* Reset bump pointer  --  fast epoch/rollout boundary */
 static inline void bear_arena_reset(BearArena* a) {
     if (a->used > a->peak_used) a->peak_used = a->used;
     a->ptr = a->base;
     a->used = 0;
 }
 
-/* Aligned allocation from arena — returns NULL on OOM */
+/* Aligned allocation from arena  --  returns NULL on OOM */
 static inline void* bear_arena_alloc(BearArena* a, size_t size, size_t align) {
     uintptr_t p = (uintptr_t)a->ptr;
     uintptr_t aligned = (p + align - 1) & ~(uintptr_t)(align - 1);
@@ -107,9 +107,9 @@ static inline void bear_scratch_end(BearScratch s) {
     s.arena->used = s.mark;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
- * SoA Tensor — Structure of Arrays for SIMD
- * ═══════════════════════════════════════════════════════════════════ */
+/* ===================================================================
+ * SoA Tensor  --  Structure of Arrays for SIMD
+ * =================================================================== */
 
 typedef enum {
     BEAR_DTYPE_F32 = 0,
@@ -128,7 +128,7 @@ static inline size_t bear_dtype_size(BearDType dt) {
     return 0;
 }
 
-/* Tensor descriptor — data allocated from arena, strides computed at init */
+/* Tensor descriptor  --  data allocated from arena, strides computed at init */
 typedef struct {
     void*        data;           /* base pointer (from arena) */
     int64_t      shape[BEAR_MAX_TENSOR_DIMS];
@@ -146,7 +146,7 @@ static inline void bear_tensor_compute_strides(BearTensor* t) {
     }
 }
 
-/* Create tensor — allocates data from arena */
+/* Create tensor  --  allocates data from arena */
 static inline int bear_tensor_create(BearArena* a, BearTensor* t,
                                       const int64_t* shape, int ndim,
                                       BearDType dtype, const char* name) {
@@ -213,9 +213,9 @@ static inline size_t bear_tensor_elem_bytes(const BearTensor* t) {
     return bear_dtype_size(t->dtype);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Common RL Tensor Shapes (convenience factories)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Observation batch: [num_envs, obs_dim] */
 static inline int bear_tensor_obs_batch(BearArena* a, BearTensor* t,
@@ -252,9 +252,9 @@ static inline int bear_tensor_weight(BearArena* a, BearTensor* t,
     return bear_tensor_create(a, t, shape, 2, BEAR_DTYPE_F32, name);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Tensor Operations (in-place, SIMD-friendly where possible)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Fill tensor with value */
 static inline void bear_tensor_fill(BearTensor* t, float val) {
@@ -299,9 +299,9 @@ static inline void bear_tensor_mul(BearTensor* dst, const BearTensor* src) {
     for (int64_t i = 0; i < n; ++i) d[i] *= s[i];
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Weight / Gradient Pair (for optimizer)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     BearTensor weight;
@@ -346,9 +346,9 @@ static inline void bear_param_zero_grad(BearParam* p) {
     bear_tensor_fill(&p->grad, 0.0f);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Global Arenas (for easy access)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 extern BearArena g_bear_global_arena;   /* weights, optimizer state */
 extern BearArena g_bear_rollout_arena;  /* trajectory data, reset per epoch */

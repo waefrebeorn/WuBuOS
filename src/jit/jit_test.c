@@ -1,5 +1,5 @@
 /*
- * jit_test.c — Test suite for My Seed JIT Runtime
+ * jit_test.c  --  Test suite for My Seed JIT Runtime
  *
  * Tests the API contract, mmap backend, and x86-64 encoding.
  * Build:  gcc -o jit_test jit.c jit_test.c -Wall -Wextra
@@ -18,7 +18,7 @@
 
 static int failures = 0;
 
-/* ── Context Lifecycle Tests ───────────────────────────────────── */
+/* -- Context Lifecycle Tests ------------------------------------- */
 
 static void test_context_lifecycle(void) {
     printf("\n[Context Lifecycle]\n");
@@ -44,7 +44,7 @@ static void test_context_lifecycle(void) {
     PASS();
 }
 
-/* ── Executable Memory Tests ───────────────────────────────────── */
+/* -- Executable Memory Tests ------------------------------------- */
 
 static void test_exec_memory(void) {
     printf("\n[Executable Memory]\n");
@@ -82,7 +82,7 @@ static void test_exec_memory(void) {
     } else FAIL("alloc failed");
 }
 
-/* ── Compilation Tests ─────────────────────────────────────────── */
+/* -- Compilation Tests ------------------------------------------- */
 
 static void test_compile_simple(void) {
     printf("\n[Simple Expression Compilation]\n");
@@ -168,7 +168,7 @@ static void test_compile_simple(void) {
     jit_free(ctx);
 }
 
-/* ── Diagnostics Tests ─────────────────────────────────────────── */
+/* -- Diagnostics Tests ------------------------------------------- */
 
 static void test_diagnostics(void) {
     printf("\n[Diagnostics]\n");
@@ -199,19 +199,19 @@ static void test_diagnostics(void) {
     jit_free(ctx);
 }
 
-/* ── Main ──────────────────────────────────────────────────────── */
+/* -- Main -------------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════╗\n");
-    printf("║   My Seed JIT Test Suite     ║\n");
-    printf("╚══════════════════════════════╝\n");
+    printf("+==============================+\n");
+    printf("|   My Seed JIT Test Suite     |\n");
+    printf("+==============================+\n");
     
     test_context_lifecycle();
     test_exec_memory();
     test_compile_simple();
     test_diagnostics();
     
-    printf("\n══════════════════════════════\n");
+    printf("\n==============================\n");
     if (failures == 0)
         printf("All tests passed! ✅\n");
     else

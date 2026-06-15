@@ -1,8 +1,8 @@
 /*
- * wubu_vsl.c — WuBuOS Virtualization Substrate Layer Implementation
+ * wubu_vsl.c  --  WuBuOS Virtualization Substrate Layer Implementation
  *
  * VSL runs a minimal Linux environment under WuBuOS ring-0.
- * It's not full virtualization — it's a syscall translation layer
+ * It's not full virtualization  --  it's a syscall translation layer
  * with direct hardware passthrough for performance-critical drivers.
  *
  * Design principles:
@@ -40,11 +40,11 @@
 #include <sys/resource.h>
 #include <sys/syscall.h>
 
-/* ── Global State ──────────────────────────────────────────────── */
+/* -- Global State ------------------------------------------------ */
 
 static VSL_STATE g_vsl;
 
-/* ── PID Mapping ────────────────────────────────────────────────── */
+/* -- PID Mapping -------------------------------------------------- */
 /* Simple mapping: VSL PID = host PID for direct children.          */
 /* For multi-process, we maintain a VSL process table mapping.      */
 
@@ -69,7 +69,7 @@ static int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
     return vsl_pid;
 }
 
-/* ── Syscall Table ─────────────────────────────────────────────── */
+/* -- Syscall Table ----------------------------------------------- */
 
 typedef int64_t (*vsl_syscall_fn)(uint64_t, uint64_t, uint64_t,
                                    uint64_t, uint64_t, uint64_t);
@@ -110,7 +110,7 @@ static int64_t vsl_sys_brk(uint64_t new_brk, uint64_t b, uint64_t c,
     return vsl_brk(new_brk);
 }
 
-/* Cell 360: fork implementation — host delegation */
+/* Cell 360: fork implementation  --  host delegation */
 static int64_t vsl_sys_fork(uint64_t a, uint64_t b, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
@@ -131,7 +131,7 @@ static int64_t vsl_sys_fork(uint64_t a, uint64_t b, uint64_t c,
     return (int64_t)vsl_child;
 }
 
-/* Cell 360: clone implementation — simplified (fork for hosted mode) */
+/* Cell 360: clone implementation  --  simplified (fork for hosted mode) */
 static int64_t vsl_sys_clone(uint64_t flags, uint64_t stack, uint64_t ptid,
                               uint64_t ctid, uint64_t tls, uint64_t f) {
     (void)stack; (void)ptid; (void)ctid; (void)tls; (void)f;
@@ -139,13 +139,13 @@ static int64_t vsl_sys_clone(uint64_t flags, uint64_t stack, uint64_t ptid,
     return vsl_sys_fork(flags, 0, 0, 0, 0, 0);
 }
 
-/* Cell 360: vfork implementation — fork in hosted mode */
+/* Cell 360: vfork implementation  --  fork in hosted mode */
 static int64_t vsl_sys_vfork(uint64_t a, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     return vsl_sys_fork(a, b, c, d, e, f);
 }
 
-/* Cell 361: execve implementation — host delegation */
+/* Cell 361: execve implementation  --  host delegation */
 static int64_t vsl_sys_execve(uint64_t path, uint64_t argv, uint64_t envp,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
@@ -170,7 +170,7 @@ static int64_t vsl_sys_execve(uint64_t path, uint64_t argv, uint64_t envp,
     return -errno;
 }
 
-/* Cell 362: wait4 implementation — host delegation */
+/* Cell 362: wait4 implementation  --  host delegation */
 static int64_t vsl_sys_wait4(uint64_t pid, uint64_t status, uint64_t options,
                               uint64_t rusage, uint64_t e, uint64_t f) {
     (void)e; (void)f;
@@ -194,7 +194,7 @@ static int64_t vsl_sys_waitpid(uint64_t pid, uint64_t status, uint64_t options,
     return vsl_sys_wait4(pid, status, options, 0, e, f);
 }
 
-/* Cell 364: socket implementation — host delegation */
+/* Cell 364: socket implementation  --  host delegation */
 static int64_t vsl_sys_socket(uint64_t domain, uint64_t type, uint64_t protocol,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
@@ -261,7 +261,7 @@ static int64_t vsl_sys_write(uint64_t fd, uint64_t buf, uint64_t count,
 static int64_t vsl_sys_read(uint64_t fd, uint64_t buf, uint64_t count,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    /* Cell 365: host fd delegation — read from real host fd */
+    /* Cell 365: host fd delegation  --  read from real host fd */
     ssize_t result = read((int)fd, (void *)buf, (size_t)count);
     return result < 0 ? -errno : (int64_t)result;
 }
@@ -431,7 +431,7 @@ static int64_t vsl_sys_dup2(uint64_t oldfd, uint64_t newfd, uint64_t c,
     return result < 0 ? -errno : (int64_t)result;
 }
 
-/* Cell 382: Signal handling — host delegation */
+/* Cell 382: Signal handling  --  host delegation */
 static int64_t vsl_sys_sigaction(uint64_t signum, uint64_t act, uint64_t oldact,
                                    uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
@@ -465,7 +465,7 @@ static int64_t vsl_sys_sigreturn(uint64_t a, uint64_t b, uint64_t c,
     return -ENOSYS; /* Not directly callable from userspace in hosted mode */
 }
 
-/* Cell 386: Futex — host delegation */
+/* Cell 386: Futex  --  host delegation */
 static int64_t vsl_sys_futex(uint64_t uaddr, uint64_t op, uint64_t val,
                                uint64_t timeout, uint64_t uaddr2, uint64_t val3) {
     /* Cell 386: futex via host delegation */
@@ -498,7 +498,7 @@ static int64_t vsl_sys_exit_group(uint64_t code, uint64_t b, uint64_t c,
     return vsl_sys_exit(code, b, c, d, e, f);
 }
 
-/* Syscall table — indexed by syscall number */
+/* Syscall table  --  indexed by syscall number */
 static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_READ]         = vsl_sys_read,
     [VSL_SYS_WRITE]        = vsl_sys_write,
@@ -551,7 +551,7 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
 
 #define VSL_SYSCALL_TABLE_SIZE (sizeof(vsl_syscall_table) / sizeof(vsl_syscall_table[0]))
 
-/* ── Lifecycle ─────────────────────────────────────────────────── */
+/* -- Lifecycle --------------------------------------------------- */
 
 int vsl_init(void) {
     if (g_vsl.active) return 0;
@@ -566,7 +566,7 @@ int vsl_init(void) {
     g_vsl.shared_base = VSL_SHARED_BASE;
     g_vsl.shared_size = VSL_SHARED_SIZE;
 
-    /* Set up shared memory region — use heap for hosted tests */
+    /* Set up shared memory region  --  use heap for hosted tests */
     uint64_t *shared = (uint64_t *)calloc(4, sizeof(uint64_t));
     g_vsl.shared_cmd    = &shared[0];
     g_vsl.shared_arg    = &shared[1];
@@ -604,7 +604,7 @@ bool vsl_active(void) {
     return g_vsl.active;
 }
 
-/* ── Process Management ─────────────────────────────────────────── */
+/* -- Process Management ------------------------------------------- */
 
 VSL_PROC *vsl_get_process(uint32_t pid) {
     for (uint32_t i = 0; i < g_vsl.n_procs; i++) {
@@ -653,7 +653,7 @@ int vsl_list_processes(VSL_PROC *out, int max_count) {
     return count;
 }
 
-/* ── Syscall Bridge ─────────────────────────────────────────────── */
+/* -- Syscall Bridge ----------------------------------------------- */
 
 int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
                     uint64_t rdx, uint64_t r10, uint64_t r8, uint64_t r9) {
@@ -672,7 +672,7 @@ int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs) {
     return vsl_syscall(num, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
 }
 
-/* ── Memory Management ──────────────────────────────────────────── */
+/* -- Memory Management -------------------------------------------- */
 
 uint64_t vsl_mmap(uint64_t addr, size_t size, int prot, int flags,
                   int fd, uint64_t offset) {
@@ -726,7 +726,7 @@ int64_t vsl_brk(uint64_t new_brk) {
     return (int64_t)new_brk;
 }
 
-/* ── File Operations ────────────────────────────────────────────── */
+/* -- File Operations ---------------------------------------------- */
 
 int vsl_open(const char *path, int flags, int mode) {
     if (!g_vsl.active) return -1;
@@ -758,7 +758,7 @@ int vsl_close(int fd) {
 
 int64_t vsl_read(int fd, void *buf, size_t count) {
     if (!g_vsl.active) return -1;
-    /* TODO: proper read — for now, return 0 (EOF) */
+    /* TODO: proper read  --  for now, return 0 (EOF) */
     (void)fd; (void)buf; (void)count;
     return 0;
 }
@@ -779,7 +779,7 @@ int64_t vsl_lseek(int fd, int64_t offset, int whence) {
     return 0;
 }
 
-/* ── Driver Management ─────────────────────────────────────────── */
+/* -- Driver Management ------------------------------------------- */
 
 int vsl_register_driver(VSL_DRV_TYPE type, uint64_t io_base,
                         uint64_t mem_base, size_t mem_size, uint32_t irq) {
@@ -827,7 +827,7 @@ VSL_DRV *vsl_get_driver(VSL_DRV_TYPE type) {
     return NULL;
 }
 
-/* ── Shared Memory ──────────────────────────────────────────────── */
+/* -- Shared Memory ------------------------------------------------ */
 
 int vsl_send_cmd(uint64_t cmd, uint64_t arg) {
     if (!g_vsl.active) return -1;
@@ -845,7 +845,7 @@ uint64_t vsl_get_status(void) {
     return *g_vsl.shared_status;
 }
 
-/* ── ELF Loading ────────────────────────────────────────────────── */
+/* -- ELF Loading -------------------------------------------------- */
 
 int vsl_elf_validate(const void *elf_data, size_t elf_size,
                      uint64_t *out_entry) {
@@ -896,7 +896,7 @@ int vsl_elf_interpreter(const void *elf_data, size_t elf_size,
     return -1; /* Statically linked (no interpreter) */
 }
 
-/* ── Diagnostics ────────────────────────────────────────────────── */
+/* -- Diagnostics -------------------------------------------------- */
 
 void vsl_info(char *buf, size_t buf_size) {
     if (!buf || buf_size == 0) return;

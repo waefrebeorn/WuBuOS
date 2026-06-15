@@ -1,9 +1,9 @@
 /*
- * wubu_ramdisk.h — WuBuOS Root Mount for Arch Container Roots
+ * wubu_ramdisk.h  --  WuBuOS Root Mount for Arch Container Roots
  *
- * Cell 392: Two-mode Arch root — RAM for containers, SSD for bare metal.
+ * Cell 392: Two-mode Arch root  --  RAM for containers, SSD for bare metal.
  *
- * "Por qué no los dos" — again.
+ * "Por qué no los dos"  --  again.
  *
  * CONTAINER MODE (hosted):
  *   - Default: tmpfs mount, Arch root lives in RAM
@@ -47,11 +47,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* ── Root Mount Mode ────────────────────────────────────────────── */
+/* -- Root Mount Mode ---------------------------------------------- */
 
 typedef enum {
-    WUBU_RD_RAM  = 0,   /* tmpfs — container/hosted mode */
-    WUBU_RD_DISK = 1,   /* SSD/disk — bare metal mode */
+    WUBU_RD_RAM  = 0,   /* tmpfs  --  container/hosted mode */
+    WUBU_RD_DISK = 1,   /* SSD/disk  --  bare metal mode */
 } WubuRdMode;
 
 typedef enum {
@@ -61,7 +61,7 @@ typedef enum {
     WUBU_RD_FAILED    = 3,   /* Mount/unpack failed */
 } WubuRdState;
 
-/* ── Configuration ──────────────────────────────────────────────── */
+/* -- Configuration ------------------------------------------------ */
 
 #define WUBU_RD_RAM_PATH       "/run/wubu/ramdisk"
 #define WUBU_RD_DISK_PATH      "/var/wubu/roots/arch-base"
@@ -79,7 +79,7 @@ typedef struct {
     uint64_t limit_mb;         /* Size limit in MB (RAM mode) */
 } WubuRamdisk;
 
-/* ── Lifecycle ──────────────────────────────────────────────────── */
+/* -- Lifecycle ---------------------------------------------------- */
 
 /*
  * Create root mount configuration.
@@ -110,7 +110,7 @@ void wubu_rd_destroy(WubuRamdisk *rd);
 int wubu_rd_boot(WubuRamdisk *rd);
 
 /*
- * Get root path — the chroot target for containers.
+ * Get root path  --  the chroot target for containers.
  * RAM:  /run/wubu/ramdisk
  * DISK: /var/wubu/roots/arch-base
  */
@@ -126,7 +126,7 @@ WubuRdState wubu_rd_state(WubuRamdisk *rd);
  */
 uint64_t wubu_rd_usage_mb(WubuRamdisk *rd);
 
-/* ── RAM Mode Operations ────────────────────────────────────────── */
+/* -- RAM Mode Operations ------------------------------------------ */
 
 /*
  * Mount tmpfs (RAM mode only).
@@ -146,7 +146,7 @@ int wubu_rd_load(WubuRamdisk *rd);
  */
 int wubu_rd_unmount(WubuRamdisk *rd);
 
-/* ── DISK Mode Operations ───────────────────────────────────────── */
+/* -- DISK Mode Operations ----------------------------------------- */
 
 /*
  * Bootstrap Arch directly onto SSD (DISK mode).
@@ -155,7 +155,7 @@ int wubu_rd_unmount(WubuRamdisk *rd);
  */
 int wubu_rd_bootstrap_disk(WubuRamdisk *rd, const char *mirror);
 
-/* ── Cross-Mode: Install RAM → SSD ─────────────────────────────── */
+/* -- Cross-Mode: Install RAM → SSD ------------------------------- */
 
 /*
  * Install ramdisk contents to SSD.
@@ -179,7 +179,7 @@ int wubu_rd_install_to_disk(WubuRamdisk *rd, const char *disk_path);
  */
 int wubu_rd_snapshot(WubuRamdisk *rd, const char *output_path);
 
-/* ── Package Management ─────────────────────────────────────────── */
+/* -- Package Management ------------------------------------------- */
 
 /*
  * Install packages into root.

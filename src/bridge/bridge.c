@@ -1,5 +1,5 @@
 /*
- * bridge.c — My Seed Bridge Implementation
+ * bridge.c  --  My Seed Bridge Implementation
  */
 #include "bridge.h"
 #include <string.h>

@@ -1,5 +1,5 @@
 /*
- * theme.c — My Seed Win98 Classic Theme (98.css in C)
+ * theme.c  --  My Seed Win98 Classic Theme (98.css in C)
  */
 #include "../kernel/vbe.h"
 

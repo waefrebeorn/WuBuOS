@@ -1,5 +1,5 @@
 /*
- * fat32_test.c — My Seed FAT32 Filesystem Test Suite
+ * fat32_test.c  --  My Seed FAT32 Filesystem Test Suite
  *
  * Uses a RAM-backed block device for fast, deterministic testing.
  * Tests: format, mount, directory ops, file I/O, cluster chains,
@@ -13,7 +13,7 @@
 #include <string.h>
 #include <assert.h>
 
-/* ── RAM Disk Block Device ──────────────────────────────────────── */
+/* -- RAM Disk Block Device ---------------------------------------- */
 
 #define RAM_DISK_SECTORS  16384   /* 8 MB disk */
 static uint8_t *g_ram_disk = NULL;
@@ -56,7 +56,7 @@ static fat32_blk_ops ram_blk_ops(void) {
     return ops;
 }
 
-/* ── Test Macros ────────────────────────────────────────────────── */
+/* -- Test Macros -------------------------------------------------- */
 
 static int g_tests_run = 0;
 static int g_tests_pass = 0;
@@ -79,7 +79,7 @@ static int g_tests_pass = 0;
 #define ASSERT_NEQ(a, b, msg) do { if ((a) == (b)) { printf("❌ %s\n", msg); return; } } while(0)
 #define ASSERT_STREQ(a, b, msg) do { if (strcmp((a),(b)) != 0) { printf("❌ %s\n", msg); return; } } while(0)
 
-/* ── Test: Format and Mount ─────────────────────────────────────── */
+/* -- Test: Format and Mount --------------------------------------- */
 
 static void test_format_and_mount(void) {
     TEST(format_and_mount);
@@ -102,7 +102,7 @@ static void test_format_and_mount(void) {
     PASS();
 }
 
-/* ── Test: Double Mount ─────────────────────────────────────────── */
+/* -- Test: Double Mount ------------------------------------------- */
 
 static void test_double_mount(void) {
     TEST(double_mount);
@@ -123,14 +123,14 @@ static void test_double_mount(void) {
     PASS();
 }
 
-/* ── Test: Boot Sector Validation ───────────────────────────────── */
+/* -- Test: Boot Sector Validation --------------------------------- */
 
 static void test_boot_sector_validation(void) {
     TEST(boot_sector_validation);
     ram_disk_init();
     fat32_blk_ops ops = ram_blk_ops();
 
-    /* Don't format — raw disk should fail mount */
+    /* Don't format  --  raw disk should fail mount */
     fat32_volume vol;
     int rc = fat32_mount(&vol, &ops);
     ASSERT_NEQ(rc, 0, "mount should fail on unformatted disk");
@@ -145,7 +145,7 @@ static void test_boot_sector_validation(void) {
     PASS();
 }
 
-/* ── Test: Cluster Chain Walking ────────────────────────────────── */
+/* -- Test: Cluster Chain Walking ---------------------------------- */
 
 static void test_cluster_chain(void) {
     TEST(cluster_chain);
@@ -158,7 +158,7 @@ static void test_cluster_chain(void) {
 
     /* Root directory cluster 2 should be EOC */
     uint32_t next = fat32_next_cluster(&vol, 2);
-    /* Root dir is a single cluster — next should be 0 (EOC) */
+    /* Root dir is a single cluster  --  next should be 0 (EOC) */
     ASSERT_EQ(next, 0, "root cluster should be EOC");
 
     /* Allocate a chain of 3 clusters */
@@ -184,7 +184,7 @@ static void test_cluster_chain(void) {
     PASS();
 }
 
-/* ── Test: Cluster to LBA Conversion ────────────────────────────── */
+/* -- Test: Cluster to LBA Conversion ------------------------------ */
 
 static void test_cluster_lba_conversion(void) {
     TEST(cluster_lba_conversion);
@@ -211,7 +211,7 @@ static void test_cluster_lba_conversion(void) {
     PASS();
 }
 
-/* ── Test: Create and Find File ─────────────────────────────────── */
+/* -- Test: Create and Find File ----------------------------------- */
 
 static void test_create_and_find(void) {
     TEST(create_and_find);
@@ -244,7 +244,7 @@ static void test_create_and_find(void) {
     PASS();
 }
 
-/* ── Test: Create Directory ─────────────────────────────────────── */
+/* -- Test: Create Directory --------------------------------------- */
 
 static void test_create_directory(void) {
     TEST(create_directory);
@@ -280,7 +280,7 @@ static void test_create_directory(void) {
     PASS();
 }
 
-/* ── Test: Directory Listing ────────────────────────────────────── */
+/* -- Test: Directory Listing -------------------------------------- */
 
 static void test_directory_listing(void) {
     TEST(directory_listing);
@@ -306,7 +306,7 @@ static void test_directory_listing(void) {
     PASS();
 }
 
-/* ── Test: Delete File ──────────────────────────────────────────── */
+/* -- Test: Delete File -------------------------------------------- */
 
 static void test_delete_file(void) {
     TEST(delete_file);
@@ -334,7 +334,7 @@ static void test_delete_file(void) {
     PASS();
 }
 
-/* ── Test: File Write and Read ──────────────────────────────────── */
+/* -- Test: File Write and Read ------------------------------------ */
 
 static void test_file_write_read(void) {
     TEST(file_write_read);
@@ -370,7 +370,7 @@ static void test_file_write_read(void) {
     PASS();
 }
 
-/* ── Test: File Write Across Cluster Boundary ───────────────────── */
+/* -- Test: File Write Across Cluster Boundary --------------------- */
 
 static void test_file_write_cross_cluster(void) {
     TEST(file_write_cross_cluster);
@@ -412,7 +412,7 @@ static void test_file_write_cross_cluster(void) {
     PASS();
 }
 
-/* ── Test: File Seek ────────────────────────────────────────────── */
+/* -- Test: File Seek ---------------------------------------------- */
 
 static void test_file_seek(void) {
     TEST(file_seek);
@@ -456,7 +456,7 @@ static void test_file_seek(void) {
     PASS();
 }
 
-/* ── Test: Append Mode ──────────────────────────────────────────── */
+/* -- Test: Append Mode -------------------------------------------- */
 
 static void test_append_mode(void) {
     TEST(append_mode);
@@ -490,7 +490,7 @@ static void test_append_mode(void) {
     PASS();
 }
 
-/* ── Test: 8.3 Name Conversion ──────────────────────────────────── */
+/* -- Test: 8.3 Name Conversion ------------------------------------ */
 
 static void test_name_83_conversion(void) {
     TEST(name_83_conversion);
@@ -515,7 +515,7 @@ static void test_name_83_conversion(void) {
     PASS();
 }
 
-/* ── Test: Validate ─────────────────────────────────────────────── */
+/* -- Test: Validate ----------------------------------------------- */
 
 static void test_validate(void) {
     TEST(validate);
@@ -533,7 +533,7 @@ static void test_validate(void) {
     PASS();
 }
 
-/* ── Test: Free Cluster Count ───────────────────────────────────── */
+/* -- Test: Free Cluster Count ------------------------------------- */
 
 static void test_free_cluster_count(void) {
     TEST(free_cluster_count);
@@ -563,7 +563,7 @@ static void test_free_cluster_count(void) {
     PASS();
 }
 
-/* ── Test: Volume Info ──────────────────────────────────────────── */
+/* -- Test: Volume Info -------------------------------------------- */
 
 static void test_volume_info(void) {
     TEST(volume_info);
@@ -582,7 +582,7 @@ static void test_volume_info(void) {
     PASS();
 }
 
-/* ── Test: Multiple Files in Subdirectory ───────────────────────── */
+/* -- Test: Multiple Files in Subdirectory ------------------------- */
 
 static void test_subdir_files(void) {
     TEST(subdir_files);
@@ -616,7 +616,7 @@ static void test_subdir_files(void) {
     PASS();
 }
 
-/* ── Test: Persistence Unmount/Remount ──────────────────────────── */
+/* -- Test: Persistence Unmount/Remount ---------------------------- */
 
 static void test_persistence(void) {
     TEST(persistence_remount);
@@ -634,7 +634,7 @@ static void test_persistence(void) {
     fat32_close(&fp);
     fat32_unmount(&vol);
 
-    /* Remount — data should survive */
+    /* Remount  --  data should survive */
     fat32_mount(&vol, &ops);
 
     fat32_file_info info;
@@ -651,7 +651,7 @@ static void test_persistence(void) {
     PASS();
 }
 
-/* ── Test: Zero-Length File ─────────────────────────────────────── */
+/* -- Test: Zero-Length File --------------------------------------- */
 
 static void test_zero_length_file(void) {
     TEST(zero_length_file);
@@ -680,10 +680,10 @@ static void test_zero_length_file(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("═══ FAT32 Test Suite ═══\n\n");
+    printf("=== FAT32 Test Suite ===\n\n");
 
     test_format_and_mount();
     test_double_mount();
@@ -706,7 +706,7 @@ int main(void) {
     test_persistence();
     test_zero_length_file();
 
-    printf("\n═══ Results: %d/%d passed ═══\n", g_tests_pass, g_tests_run);
+    printf("\n=== Results: %d/%d passed ===\n", g_tests_pass, g_tests_run);
 
     ram_disk_free();
     return (g_tests_pass == g_tests_run) ? 0 : 1;

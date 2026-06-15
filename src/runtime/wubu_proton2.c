@@ -1,5 +1,5 @@
 /*
- * wubu_proton2.c — WuBuOS Proton: Real Wine/Proton Container
+ * wubu_proton2.c  --  WuBuOS Proton: Real Wine/Proton Container
  *
  * Cell 399: Proton runs as an Arch Linux container with real Wine + DXVK.
  *
@@ -41,7 +41,7 @@
 #include <linux/uinput.h>
 #include <errno.h>
 
-/* ── GPU Detection ──────────────────────────────────────────────── */
+/* -- GPU Detection ------------------------------------------------ */
 
 int wubu_gpu_detect(char *name, int name_len, char *pci, int pci_len) {
     /* Scan /sys/class/drm for GPU devices */
@@ -92,7 +92,7 @@ int wubu_gpu_open(const char *pci) {
     return fd;
 }
 
-/* ── HID/USB Enumeration ────────────────────────────────────────── */
+/* -- HID/USB Enumeration ------------------------------------------ */
 
 int wubu_hid_enumerate(char names[][64], int *types, int max) {
     DIR *d = opendir("/dev/input");
@@ -225,7 +225,7 @@ int wubu_midi_open(const char *path) {
     return open(path, O_RDWR | O_NONBLOCK);
 }
 
-/* ── Proton Manager Create/Destroy ──────────────────────────────── */
+/* -- Proton Manager Create/Destroy -------------------------------- */
 
 WubuProtonManager *wubu_proton_mgr_create(const WubuProtonConfig *config) {
     WubuProtonManager *mgr = (WubuProtonManager*)calloc(1, sizeof(WubuProtonManager));
@@ -281,7 +281,7 @@ void wubu_proton_mgr_destroy(WubuProtonManager *mgr) {
     free(mgr);
 }
 
-/* ── Start/Stop Proton Container ────────────────────────────────── */
+/* -- Start/Stop Proton Container ---------------------------------- */
 
 int wubu_proton_start(WubuProtonManager *mgr) {
     if (!mgr) return -1;
@@ -376,7 +376,7 @@ bool wubu_proton_is_running(const WubuProtonManager *mgr) {
     return mgr && mgr->container_running;
 }
 
-/* ── App Management ─────────────────────────────────────────────── */
+/* -- App Management ----------------------------------------------- */
 
 int wubu_proton_add_app(WubuProtonManager *mgr, const WubuProtonApp *app) {
     if (!mgr || !app || mgr->n_apps >= WUBU_PROTON_MAX_APPS) return -1;
@@ -445,7 +445,7 @@ int wubu_proton_wait(WubuProtonManager *mgr, int app_idx) {
     return code;
 }
 
-/* ── DXVK Config ────────────────────────────────────────────────── */
+/* -- DXVK Config -------------------------------------------------- */
 
 int wubu_proton_dxvk_config(WubuProtonManager *mgr, int app_idx,
                               const char *config_str) {
@@ -454,7 +454,7 @@ int wubu_proton_dxvk_config(WubuProtonManager *mgr, int app_idx,
     return 0;
 }
 
-/* ── Container Access ───────────────────────────────────────────── */
+/* -- Container Access --------------------------------------------- */
 
 WubuCt *wubu_proton_container(WubuProtonManager *mgr) {
     return mgr ? mgr->container : NULL;
@@ -477,7 +477,7 @@ int wubu_proton_exec(WubuProtonManager *mgr, const char *cmd) {
     return wubu_ct_start(mgr->container);
 }
 
-/* ── Diagnostics ────────────────────────────────────────────────── */
+/* -- Diagnostics -------------------------------------------------- */
 
 void wubu_proton_dump(const WubuProtonManager *mgr) {
     if (!mgr) { printf("Proton Manager: NULL\n"); return; }
@@ -498,6 +498,6 @@ void wubu_proton_dump(const WubuProtonManager *mgr) {
 int wubu_proton_verify_installation(const WubuProtonManager *mgr) {
     if (!mgr || !mgr->container_running) return -1;
     /* Check wine binary exists in container */
-    /* This is a stub — real implementation would check the filesystem */
+    /* This is a stub  --  real implementation would check the filesystem */
     return 0;
 }

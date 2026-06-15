@@ -1,5 +1,5 @@
 /*
- * gui_dbuf.c — WuBuOS Double-Buffered GUI Renderer Implementation
+ * gui_dbuf.c  --  WuBuOS Double-Buffered GUI Renderer Implementation
  *
  * Cell 101: Flicker-free rendering with dirty rectangle tracking.
  */
@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── Simple 8x8 bitmap font for GUI text ──────────────────── */
+/* -- Simple 8x8 bitmap font for GUI text -------------------- */
 /* Minimal 8x8 font: digits 0-9, A-Z, space, colon, dash, period, slash */
 /* Each character is 8 bytes (8 rows of 8 bits) */
 
@@ -86,7 +86,7 @@ void gui_dbuf_draw_char(gui_dbuf_t *db, int x, int y, char c, uint32_t color) {
     }
 }
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 int gui_dbuf_init(gui_dbuf_t *db, int width, int height) {
     memset(db, 0, sizeof(*db));
@@ -106,7 +106,7 @@ void gui_dbuf_shutdown(gui_dbuf_t *db) {
     }
 }
 
-/* ── Drawing Primitives ────────────────────────────────────── */
+/* -- Drawing Primitives -------------------------------------- */
 
 void gui_dbuf_clear(gui_dbuf_t *db, uint32_t color) {
     if (!db || !db->back) return;
@@ -144,7 +144,7 @@ void gui_dbuf_fill_rect(gui_dbuf_t *db, int x, int y, int w, int h, uint32_t col
             gui_dbuf_pixel(db, x + dx, y + dy, color);
 }
 
-/* ── Win98-Style 3D Borders ────────────────────────────────── */
+/* -- Win98-Style 3D Borders ---------------------------------- */
 
 void gui_dbuf_border_raised(gui_dbuf_t *db, int x, int y, int w, int h) {
     uint32_t lt = 0x00FFFFFF;  /* white highlight */
@@ -220,7 +220,7 @@ void gui_dbuf_window(gui_dbuf_t *db, int x, int y, int w, int h,
     gui_dbuf_mark_dirty(db, x, y, w, h);
 }
 
-/* ── Dirty Rectangle Tracking ──────────────────────────────── */
+/* -- Dirty Rectangle Tracking -------------------------------- */
 
 void gui_dbuf_mark_dirty(gui_dbuf_t *db, int x, int y, int w, int h) {
     if (!db || db->dirty_count >= GUI_DBUF_DIRTY_MAX) return;
@@ -240,7 +240,7 @@ void gui_dbuf_clear_dirty(gui_dbuf_t *db) {
     db->dirty_count = 0;
 }
 
-/* ── Flip ──────────────────────────────────────────────────── */
+/* -- Flip ---------------------------------------------------- */
 
 uint32_t gui_dbuf_flip(gui_dbuf_t *db) {
     if (!db || !db->back) return 0;
@@ -264,7 +264,7 @@ uint32_t gui_dbuf_flip(gui_dbuf_t *db) {
     return pixels;
 }
 
-/* ── Query ─────────────────────────────────────────────────── */
+/* -- Query --------------------------------------------------- */
 
 int      gui_dbuf_width(const gui_dbuf_t *db) { return db ? db->width : 0; }
 int      gui_dbuf_height(const gui_dbuf_t *db) { return db ? db->height : 0; }

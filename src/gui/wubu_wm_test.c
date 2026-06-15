@@ -1,5 +1,5 @@
 /*
- * wubu_wm_test.c — Tests for WuBuOS Window Manager
+ * wubu_wm_test.c  --  Tests for WuBuOS Window Manager
  *
  * Cell 394/395: Theme engine + WM with drag/snap/desktops.
  */
@@ -14,7 +14,7 @@ static int pass = 0, fail = 0;
 #define FAIL(msg) do { fail++; printf("❌ %s\n", msg); } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Theme Tests ────────────────────────────────────────────────── */
+/* -- Theme Tests -------------------------------------------------- */
 
 static void test_theme_init(void) {
     TEST("theme init defaults to Win98");
@@ -83,7 +83,7 @@ static void test_theme_98_no_gradient(void) {
     PASS();
 }
 
-/* ── WM Tests ───────────────────────────────────────────────────── */
+/* -- WM Tests ----------------------------------------------------- */
 
 static void test_wm_init(void) {
     TEST("wm init at 1920×1080");
@@ -139,7 +139,7 @@ static void test_wm_restore(void) {
     PASS();
 }
 
-/* ── Virtual Desktop Tests ──────────────────────────────────────── */
+/* -- Virtual Desktop Tests ---------------------------------------- */
 
 static void test_desktops_default(void) {
     TEST("default 4 virtual desktops");
@@ -180,7 +180,7 @@ static void test_desktop_move_window(void) {
     PASS();
 }
 
-/* ── GAAD Snap Tests ────────────────────────────────────────────── */
+/* -- GAAD Snap Tests ---------------------------------------------- */
 
 static void test_gaad_snap_on_drag_end(void) {
     TEST("GAAD snap on drag end");
@@ -203,10 +203,10 @@ static void test_resolution_change(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n── Theme Engine (Cell 394) ──\n\n");
+    printf("\n-- Theme Engine (Cell 394) --\n\n");
     test_theme_init();
     test_theme_cycle();
     test_theme_colors_win98();
@@ -215,26 +215,26 @@ int main(void) {
     test_theme_xp_gradient();
     test_theme_98_no_gradient();
 
-    printf("\n── Window Manager (Cell 395) ──\n\n");
+    printf("\n-- Window Manager (Cell 395) --\n\n");
     test_wm_init();
     test_wm_create_window();
     test_wm_minimize();
     test_wm_maximize();
     test_wm_restore();
 
-    printf("\n── Virtual Desktops (Cell 395) ──\n\n");
+    printf("\n-- Virtual Desktops (Cell 395) --\n\n");
     test_desktops_default();
     test_desktops_switch();
     test_desktops_prev();
     test_desktop_move_window();
 
-    printf("\n── GAAD Snap + Resolution (Cell 395) ──\n\n");
+    printf("\n-- GAAD Snap + Resolution (Cell 395) --\n\n");
     test_gaad_snap_on_drag_end();
     test_resolution_change();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            pass, pass + fail, fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
     return fail > 0 ? 1 : 0;
 }

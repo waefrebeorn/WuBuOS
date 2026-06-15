@@ -41,7 +41,7 @@ void ws_physics_step(ws_world_t *w, const ws_terrain_t *t, const ws_physics_conf
             pos->z += vel->dz * dt;
         }
         
-        /* Terrain collision — clamp to surface */
+        /* Terrain collision  --  clamp to surface */
         if (cfg->terrain_collide && phys && phys->collide && t) {
             int tx = (int)pos->x;
             int ty = (int)pos->z; /* z maps to terrain Y */

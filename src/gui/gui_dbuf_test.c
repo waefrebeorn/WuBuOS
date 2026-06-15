@@ -1,5 +1,5 @@
 /*
- * gui_dbuf_test.c — Test Suite for Double-Buffered GUI Renderer
+ * gui_dbuf_test.c  --  Test Suite for Double-Buffered GUI Renderer
  *
  * Cell 101: Tests double buffering, drawing primitives,
  * Win98 borders, dirty rect tracking, and flip.
@@ -22,7 +22,7 @@ static int count_pixels(gui_dbuf_t *db, uint32_t color) {
     return count;
 }
 
-/* ── Lifecycle Tests ───────────────────────────────────────── */
+/* -- Lifecycle Tests ----------------------------------------- */
 
 static void test_init(void) {
     TEST("gui_dbuf init");
@@ -48,7 +48,7 @@ static void test_clear(void) {
     PASS();
 }
 
-/* ── Drawing Primitive Tests ───────────────────────────────── */
+/* -- Drawing Primitive Tests --------------------------------- */
 
 static void test_pixel(void) {
     TEST("pixel sets color");
@@ -88,7 +88,7 @@ static void test_fill_rect(void) {
     PASS();
 }
 
-/* ── Dirty Rectangle Tests ─────────────────────────────────── */
+/* -- Dirty Rectangle Tests ----------------------------------- */
 
 static void test_dirty_tracking(void) {
     TEST("dirty rects tracked per draw call");
@@ -160,7 +160,7 @@ static void test_dirty_clipping(void) {
     PASS();
 }
 
-/* ── Flip Tests ────────────────────────────────────────────── */
+/* -- Flip Tests ---------------------------------------------- */
 
 static void test_flip(void) {
     TEST("flip counts pixels and clears dirty");
@@ -198,7 +198,7 @@ static void test_flip_empty_dirty(void) {
     PASS();
 }
 
-/* ── Win98 Widget Tests ────────────────────────────────────── */
+/* -- Win98 Widget Tests -------------------------------------- */
 
 static void test_button_raised(void) {
     TEST("button drawn with raised border");
@@ -280,7 +280,7 @@ static void test_window_inactive(void) {
     PASS();
 }
 
-/* ── Query Tests ───────────────────────────────────────────── */
+/* -- Query Tests --------------------------------------------- */
 
 static void test_dimensions(void) {
     TEST("dimension queries");
@@ -310,12 +310,12 @@ static void test_frame_count(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Double-Buffered GUI Test Suite             ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS Double-Buffered GUI Test Suite             |\n");
+    printf("+==================================================+\n\n");
 
     test_init();
     test_clear();
@@ -335,9 +335,9 @@ int main(void) {
     test_dimensions();
     test_frame_count();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

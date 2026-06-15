@@ -1,5 +1,5 @@
 /*
- * startmenu.h — WuBuOS Win98-Style Start Menu
+ * startmenu.h  --  WuBuOS Win98-Style Start Menu
  */
 
 #ifndef WUBU_STARTMENU_H
@@ -24,31 +24,31 @@ typedef struct {
     int       has_submenu;
 } StartMenuEntry;
 
-/* ── Init ───────────────────────────────────────────────────── */
+/* -- Init ----------------------------------------------------- */
 void startmenu_init(void);
 
-/* ── Entry Management ───────────────────────────────────────── */
+/* -- Entry Management ----------------------------------------- */
 int  startmenu_add_entry(const char *label, int type, void (*action)(void));
 void startmenu_remove_entry(int index);
 int  startmenu_count(void);
 StartMenuEntry *startmenu_get_entry(int index);
 
-/* ── Open/Close ─────────────────────────────────────────────── */
+/* -- Open/Close ----------------------------------------------- */
 void startmenu_open(int x, int y);
 void startmenu_close(void);
 int  startmenu_is_open(void);
 void startmenu_toggle(int x, int y);
 
-/* ── Interaction ────────────────────────────────────────────── */
+/* -- Interaction ---------------------------------------------- */
 void startmenu_set_hover(int index);
 int  startmenu_get_hover(void);
 int  startmenu_click(int index);
 int  startmenu_handle_mouse(int mx, int my);
 
-/* ── Rendering ──────────────────────────────────────────────── */
+/* -- Rendering ------------------------------------------------ */
 void startmenu_draw(void);
 
-/* ── Query ──────────────────────────────────────────────────── */
+/* -- Query ---------------------------------------------------- */
 int startmenu_get_width(void);
 int startmenu_get_height(void);
 int startmenu_is_inside(int mx, int my);

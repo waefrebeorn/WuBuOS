@@ -1,5 +1,5 @@
 /*
- * wubu_apps_test.c — Tests for Editor, Canvas, and Codec
+ * wubu_apps_test.c  --  Tests for Editor, Canvas, and Codec
  *
  * Cell 396/397/398: Notepad++ editor, Photoship canvas, FFmpeg codec.
  */
@@ -17,7 +17,7 @@ static int pass = 0, fail = 0;
 #define FAIL(msg) do { fail++; printf("❌ %s\n", msg); } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Editor Tests ───────────────────────────────────────────────── */
+/* -- Editor Tests ------------------------------------------------- */
 
 static void test_ed_create(void) {
     TEST("editor create");
@@ -96,7 +96,7 @@ static void test_ed_tabs(void) {
     PASS();
 }
 
-/* ── Canvas Tests ───────────────────────────────────────────────── */
+/* -- Canvas Tests ------------------------------------------------- */
 
 static void test_cv_create(void) {
     TEST("canvas create 640×480");
@@ -197,7 +197,7 @@ static void test_cv_zoom_phi(void) {
     PASS();
 }
 
-/* ── Codec Tests ────────────────────────────────────────────────── */
+/* -- Codec Tests -------------------------------------------------- */
 
 static void test_codec_detect(void) {
     TEST("codec format detection");
@@ -218,10 +218,10 @@ static void test_codec_available(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n── Code Editor (Cell 396) ──\n\n");
+    printf("\n-- Code Editor (Cell 396) --\n\n");
     test_ed_create();
     test_ed_new_file();
     test_ed_insert();
@@ -229,7 +229,7 @@ int main(void) {
     test_ed_syntax_detect();
     test_ed_tabs();
 
-    printf("\n── Image Canvas (Cell 397) ──\n\n");
+    printf("\n-- Image Canvas (Cell 397) --\n\n");
     test_cv_create();
     test_cv_layers();
     test_cv_blend_normal();
@@ -239,13 +239,13 @@ int main(void) {
     test_cv_plugin();
     test_cv_zoom_phi();
 
-    printf("\n── Codec Layer (Cell 398) ──\n\n");
+    printf("\n-- Codec Layer (Cell 398) --\n\n");
     test_codec_detect();
     test_codec_available();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            pass, pass + fail, fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
     return fail > 0 ? 1 : 0;
 }

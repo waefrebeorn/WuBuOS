@@ -1,5 +1,5 @@
 /*
- * wubu_container.c — WuBuOS Universal Container Format Implementation
+ * wubu_container.c  --  WuBuOS Universal Container Format Implementation
  *
  * .wubu: one extension, infinite formats. The header does the magic.
  */
@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stddef.h>
 
-/* ── CRC32 ──────────────────────────────────────────────────────── */
+/* -- CRC32 -------------------------------------------------------- */
 
 uint32_t wubu_crc32(const void *data, size_t size) {
     const uint8_t *p = (const uint8_t *)data;
@@ -25,14 +25,14 @@ uint32_t wubu_crc32(const void *data, size_t size) {
     return crc ^ 0xFFFFFFFF;
 }
 
-/* ── Payload Detection ──────────────────────────────────────────── */
+/* -- Payload Detection -------------------------------------------- */
 
 WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size) {
     if (!data || size < 2) return WUBU_PAYLOAD_DATA;
 
     const uint8_t *p = (const uint8_t *)data;
 
-    /* .wubu container — recursive */
+    /* .wubu container  --  recursive */
     if (memcmp(p, WUBU_MAGIC, WUBU_MAGIC_SIZE) == 0)
         return WUBU_PAYLOAD_NESTED_WUBU;
 
@@ -91,7 +91,7 @@ WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size) {
     return WUBU_PAYLOAD_DATA;
 }
 
-/* ── Container Create ───────────────────────────────────────────── */
+/* -- Container Create --------------------------------------------- */
 
 int wubu_container_create(const WUBU_HEADER *header,
                           const void *payload, size_t payload_size,
@@ -124,7 +124,7 @@ int wubu_container_create(const WUBU_HEADER *header,
     return 0;
 }
 
-/* ── Container Parse ────────────────────────────────────────────── */
+/* -- Container Parse ---------------------------------------------- */
 
 int wubu_container_parse(const void *data, size_t data_size,
                          WUBU_HEADER *out_header,
@@ -157,13 +157,13 @@ int wubu_container_parse(const void *data, size_t data_size,
     return 0;
 }
 
-/* ── Container Validate ─────────────────────────────────────────── */
+/* -- Container Validate ------------------------------------------- */
 
 int wubu_container_validate(const void *data, size_t data_size) {
     return wubu_container_parse(data, data_size, NULL, NULL, NULL);
 }
 
-/* ── Metadata Read ──────────────────────────────────────────────── */
+/* -- Metadata Read ------------------------------------------------ */
 
 int wubu_container_read_meta(const void *data, size_t data_size,
                              WUBU_METADATA *out_meta) {
@@ -208,7 +208,7 @@ int wubu_container_read_meta(const void *data, size_t data_size,
     return count;
 }
 
-/* ── Convenience Wrappers ───────────────────────────────────────── */
+/* -- Convenience Wrappers ----------------------------------------- */
 
 int wubu_container_native_exec(const void *code, size_t code_size,
                                uint64_t entry_offset,

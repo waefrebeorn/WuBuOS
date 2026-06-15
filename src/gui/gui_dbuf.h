@@ -1,5 +1,5 @@
 /*
- * gui_dbuf.h — WuBuOS Double-Buffered GUI Renderer
+ * gui_dbuf.h  --  WuBuOS Double-Buffered GUI Renderer
  *
  * Cell 101: Resolves P2-1 (GUI sluggishness).
  *
@@ -30,13 +30,13 @@
 
 #define GUI_DBUF_DIRTY_MAX 32  /* Max dirty rectangles per frame */
 
-/* ── Dirty Rectangle ──────────────────────────────────────── */
+/* -- Dirty Rectangle ---------------------------------------- */
 
 typedef struct {
     int x, y, w, h;
 } gui_rect_t;
 
-/* ── Double Buffer State ──────────────────────────────────── */
+/* -- Double Buffer State ------------------------------------ */
 
 typedef struct {
     /* VBE back buffer (drawing target) */
@@ -55,15 +55,15 @@ typedef struct {
     uint64_t     flips;
 } gui_dbuf_t;
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 /* Initialize double buffer. width/height from VBE mode. */
 int  gui_dbuf_init(gui_dbuf_t *db, int width, int height);
 
-/* Shutdown — free back buffer. */
+/* Shutdown  --  free back buffer. */
 void gui_dbuf_shutdown(gui_dbuf_t *db);
 
-/* ── Drawing Primitives (all target back buffer) ───────────── */
+/* -- Drawing Primitives (all target back buffer) ------------- */
 
 void gui_dbuf_clear(gui_dbuf_t *db, uint32_t color);
 void gui_dbuf_pixel(gui_dbuf_t *db, int x, int y, uint32_t color);
@@ -72,7 +72,7 @@ void gui_dbuf_vline(gui_dbuf_t *db, int x, int y1, int y2, uint32_t color);
 void gui_dbuf_rect(gui_dbuf_t *db, int x, int y, int w, int h, uint32_t color);
 void gui_dbuf_fill_rect(gui_dbuf_t *db, int x, int y, int w, int h, uint32_t color);
 
-/* ── Win98-Style 3D Borders ────────────────────────────────── */
+/* -- Win98-Style 3D Borders ---------------------------------- */
 
 /* Draw a raised 3D border (button up, window frame) */
 void gui_dbuf_border_raised(gui_dbuf_t *db, int x, int y, int w, int h);
@@ -88,7 +88,7 @@ void gui_dbuf_button(gui_dbuf_t *db, int x, int y, int w, int h,
 void gui_dbuf_window(gui_dbuf_t *db, int x, int y, int w, int h,
                      const char *title, int active);
 
-/* ── Dirty Rectangle Tracking ──────────────────────────────── */
+/* -- Dirty Rectangle Tracking -------------------------------- */
 
 /* Mark a region as dirty (needs flip) */
 void gui_dbuf_mark_dirty(gui_dbuf_t *db, int x, int y, int w, int h);
@@ -96,14 +96,14 @@ void gui_dbuf_mark_dirty(gui_dbuf_t *db, int x, int y, int w, int h);
 /* Clear dirty rects (call after flip) */
 void gui_dbuf_clear_dirty(gui_dbuf_t *db);
 
-/* ── Flip ──────────────────────────────────────────────────── */
+/* -- Flip ---------------------------------------------------- */
 
 /* Flip back buffer to front (VBE).
  * Copies only dirty rectangles for efficiency.
  * Returns number of pixels copied. */
 uint32_t gui_dbuf_flip(gui_dbuf_t *db);
 
-/* ── Query ─────────────────────────────────────────────────── */
+/* -- Query --------------------------------------------------- */
 
 int          gui_dbuf_width(const gui_dbuf_t *db);
 int          gui_dbuf_height(const gui_dbuf_t *db);

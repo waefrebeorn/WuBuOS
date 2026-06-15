@@ -1,5 +1,5 @@
 /*
- * wubu_math.h — WuBuOS Pure-C Math (no libm dependency)
+ * wubu_math.h  --  WuBuOS Pure-C Math (no libm dependency)
  *
  * Replaces libm for WorldSim terrain generation.
  * CORDIC sin/cos, Newton-Raphson sqrt, Taylor exp/log.
@@ -14,14 +14,14 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── Constants ──────────────────────────────────────────────────── */
+/* -- Constants ---------------------------------------------------- */
 
 #define WUBU_PI        3.14159265358979323846
 #define WUBU_PI_2      1.57079632679489661923  /* pi/2 */
 #define WUBU_2_PI      6.28318530717958647693  /* 2*pi */
 #define WUBU_E         2.71828182845904523536
 
-/* ── sqrt: Newton-Raphson ───────────────────────────────────────── */
+/* -- sqrt: Newton-Raphson ----------------------------------------- */
 
 static inline double wubu_sqrt(double x) {
     if (x <= 0.0) return 0.0;
@@ -35,7 +35,7 @@ static inline double wubu_sqrt(double x) {
     return guess;
 }
 
-/* ── sin/cos: CORDIC (14 iterations, ~1e-6 accuracy) ──────────── */
+/* -- sin/cos: CORDIC (14 iterations, ~1e-6 accuracy) ------------ */
 
 static inline void wubu_sincos(double angle, double *out_sin, double *out_cos) {
     /* Normalize angle to [-pi, pi] */
@@ -89,7 +89,7 @@ static inline double wubu_cos(double x) {
     double c; wubu_sincos(x, NULL, &c); return c;
 }
 
-/* ── exp: Taylor series (order 12) ──────────────────────────────── */
+/* -- exp: Taylor series (order 12) -------------------------------- */
 
 static inline double wubu_exp(double x) {
     if (x < -20.0) return 0.0;
@@ -103,7 +103,7 @@ static inline double wubu_exp(double x) {
     return sum;
 }
 
-/* ── log: Newton-Raphson on exp ─────────────────────────────────── */
+/* -- log: Newton-Raphson on exp ----------------------------------- */
 
 static inline double wubu_log(double x) {
     if (x <= 0.0) return -1e20;
@@ -119,22 +119,22 @@ static inline double wubu_log(double x) {
     return guess;
 }
 
-/* ── pow ─────────────────────────────────────────────────────────── */
+/* -- pow ----------------------------------------------------------- */
 
 static inline double wubu_pow(double base, double exp) {
     if (base <= 0.0) return 0.0;
     return wubu_exp(exp * wubu_log(base));
 }
 
-/* ── fabs, fmod ─────────────────────────────────────────────────── */
+/* -- fabs, fmod --------------------------------------------------- */
 
 static inline double wubu_fabs(double x) { return x < 0.0 ? -x : x; }
 static inline double wubu_fmod(double x, double m) {
     return x - (double)(int64_t)(x / m) * m;
 }
 
-/* ── Parity: #define standard names → wubu_ names ──────────────── */
-/* Only if WUBU_NO_LIBM is defined — otherwise use libm */
+/* -- Parity: #define standard names → wubu_ names ---------------- */
+/* Only if WUBU_NO_LIBM is defined  --  otherwise use libm */
 
 #ifdef WUBU_NO_LIBM
   #define sqrt(x)   wubu_sqrt(x)

@@ -1,7 +1,7 @@
 /*
- * wubu_vsl_test.c — WuBuOS VSL (Virtualization Substrate Layer) Test Suite
+ * wubu_vsl_test.c  --  WuBuOS VSL (Virtualization Substrate Layer) Test Suite
  *
- * Tests the "Proton within Proton" — Linux ABI compatibility layer.
+ * Tests the "Proton within Proton"  --  Linux ABI compatibility layer.
  */
 
 #include "wubu_vsl.h"
@@ -19,9 +19,9 @@ static int g_run = 0, g_pass = 0;
 } while(0)
 
 int main(void) {
-    printf("═══ WuBuOS VSL Test Suite ═══\n\n");
+    printf("=== WuBuOS VSL Test Suite ===\n\n");
 
-    /* ── Lifecycle ── */
+    /* -- Lifecycle -- */
     printf("[Lifecycle]\n");
     T(!vsl_active(), "VSL not active initially");
     T(vsl_init() == 0, "VSL init");
@@ -29,7 +29,7 @@ int main(void) {
     T(vsl_init() == 0, "VSL init idempotent");
     T(vsl_active(), "VSL still active");
 
-    /* ── Process Management ── */
+    /* -- Process Management -- */
     printf("\n[Process Management]\n");
     T(vsl_get_process(1) != NULL, "init process (PID 1) exists");
     T(vsl_get_process(1)->pid == 1, "init PID is 1");
@@ -41,7 +41,7 @@ int main(void) {
     int n = vsl_list_processes(procs, 32);
     T(n == 1, "list processes returns 1 (init)");
 
-    /* ── Syscall Bridge ── */
+    /* -- Syscall Bridge -- */
     printf("\n[Syscall Bridge]\n");
 
     int64_t r = vsl_syscall(VSL_SYS_GETPID, 0, 0, 0, 0, 0, 0);
@@ -59,7 +59,7 @@ int main(void) {
     r = vsl_syscall(VSL_SYS_SCHED_YIELD, 0, 0, 0, 0, 0, 0);
     T(r == 0, "sched_yield() = 0");
 
-    /* ── Memory Management ── */
+    /* -- Memory Management -- */
     printf("\n[Memory Management]\n");
     int64_t brk_val = vsl_syscall(VSL_SYS_BRK, 0, 0, 0, 0, 0, 0);
     T(brk_val > 0, "brk(0) returns current brk");
@@ -71,7 +71,7 @@ int main(void) {
     T(vsl_munmap(mmap_addr, 4096) == 0, "munmap() succeeds");
     T(vsl_munmap(mmap_addr, 4096) != 0, "double munmap fails");
 
-    /* ── File Operations ── */
+    /* -- File Operations -- */
     printf("\n[File Operations]\n");
     int fd = vsl_open("/tmp/test.txt", 0x241, 0644);
     T(fd >= 3, "open() returns valid FD");
@@ -79,7 +79,7 @@ int main(void) {
     T(vsl_close(fd) != 0, "double close fails");
     T(vsl_close(0) != 0, "close(0) stdin fails");
 
-    /* ── Driver Management ── */
+    /* -- Driver Management -- */
     printf("\n[Driver Management]\n");
     int drv = vsl_register_driver(VSL_DRV_GPU_VULKAN, 0, 0, 0, 0);
     T(drv >= 0, "register Vulkan driver");
@@ -99,12 +99,12 @@ int main(void) {
     T(vk != NULL, "get Vulkan driver");
     T(vk->type == VSL_DRV_GPU_VULKAN, "Vulkan driver type correct");
 
-    /* ── Shared Memory ── */
+    /* -- Shared Memory -- */
     printf("\n[Shared Memory]\n");
     T(vsl_send_cmd(42, 100) == 0, "send_cmd(42, 100)");
     T(vsl_get_status() == 1, "status = 1 (command pending)");
 
-    /* ── ELF Validation ── */
+    /* -- ELF Validation -- */
     printf("\n[ELF Validation]\n");
     /* Minimal valid ELF64 header */
     uint8_t elf_header[] = {
@@ -144,7 +144,7 @@ int main(void) {
     T(vsl_elf_validate(arm_elf, sizeof(arm_elf), NULL) != 0,
       "reject ARM ELF");
 
-    /* ── Diagnostics ── */
+    /* -- Diagnostics -- */
     printf("\n[Diagnostics]\n");
     char info[512];
     vsl_info(info, sizeof(info));
@@ -157,11 +157,11 @@ int main(void) {
     T(procs_count >= 1, "process count >= 1");
     T(drivers_count == 3, "driver count = 3");
 
-    /* ── Shutdown ── */
+    /* -- Shutdown -- */
     printf("\n[Shutdown]\n");
     vsl_shutdown();
     T(!vsl_active(), "VSL not active after shutdown");
 
-    printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
+    printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;
 }

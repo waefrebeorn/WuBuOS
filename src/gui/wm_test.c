@@ -1,5 +1,5 @@
 /*
- * wm_test.c — WuBuOS WmWindow Manager Test Suite
+ * wm_test.c  --  WuBuOS WmWindow Manager Test Suite
  *
  * Cell 102: Full WM test suite + Win98 theme verification
  * Uses VBE_HOSTED mode (no kernel memory allocator).
@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── Test Framework ──────────────────────────────────────────── */
+/* -- Test Framework -------------------------------------------- */
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -20,7 +20,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Lifecycle Tests ────────────────────────────────────────── */
+/* -- Lifecycle Tests ------------------------------------------ */
 
 static void test_wm_init(void) {
     TEST("wm_init returns 0");
@@ -37,7 +37,7 @@ static void test_wm_init_shutdown(void) {
     PASS();
 }
 
-/* ── WmWindow Creation Tests ──────────────────────────────────── */
+/* -- WmWindow Creation Tests ------------------------------------ */
 
 static void test_create_window(void) {
     TEST("wm_create_window returns non-NULL");
@@ -88,7 +88,7 @@ static void test_create_beyond_max(void) {
     PASS();
 }
 
-/* ── WmWindow Destruction Tests ───────────────────────────────── */
+/* -- WmWindow Destruction Tests --------------------------------- */
 
 static void test_destroy_window(void) {
     TEST("wm_destroy_window marks slot unused");
@@ -118,7 +118,7 @@ static void test_destroy_null(void) {
     PASS();
 }
 
-/* ── Focus Tests ────────────────────────────────────────────── */
+/* -- Focus Tests ---------------------------------------------- */
 
 static void test_set_focus(void) {
     TEST("wm_set_focus changes focused window");
@@ -165,7 +165,7 @@ static void test_focus_title_color(void) {
     PASS();
 }
 
-/* ── Find By ID Tests ───────────────────────────────────────── */
+/* -- Find By ID Tests ----------------------------------------- */
 
 static void test_find_by_id(void) {
     TEST("wm_find_by_id returns correct window");
@@ -187,7 +187,7 @@ static void test_find_by_id_nonexistent(void) {
     PASS();
 }
 
-/* ── Z-Order Tests ──────────────────────────────────────────── */
+/* -- Z-Order Tests -------------------------------------------- */
 
 static void test_z_order_on_create(void) {
     TEST("z_order is set on creation (matches id or auto-assigned)");
@@ -208,7 +208,7 @@ static void test_z_order_on_focus(void) {
     PASS();
 }
 
-/* ── WmWindow Count Tests ─────────────────────────────────────── */
+/* -- WmWindow Count Tests --------------------------------------- */
 
 static void test_window_count(void) {
     TEST("wm_window_count tracks active windows");
@@ -226,7 +226,7 @@ static void test_window_count(void) {
     PASS();
 }
 
-/* ── Render Tests (no crash) ────────────────────────────────── */
+/* -- Render Tests (no crash) ---------------------------------- */
 
 static void test_render_no_crash(void) {
     TEST("wm_render with no windows no crash");
@@ -252,7 +252,7 @@ static void test_render_with_windows(void) {
     PASS();
 }
 
-/* ── Invalidate Tests ───────────────────────────────────────── */
+/* -- Invalidate Tests ----------------------------------------- */
 
 static void test_invalidate(void) {
     TEST("wm_invalidate no crash");
@@ -264,7 +264,7 @@ static void test_invalidate(void) {
     PASS();
 }
 
-/* ── Input Routing Tests ────────────────────────────────────── */
+/* -- Input Routing Tests -------------------------------------- */
 
 static void test_handle_key(void) {
     TEST("wm_handle_key no crash");
@@ -287,11 +287,11 @@ static void test_handle_mouse(void) {
     PASS();
 }
 
-/* ── Win98 Theme Verification ───────────────────────────────── */
+/* -- Win98 Theme Verification --------------------------------- */
 
 static void test_win98_colors(void) {
-    TEST("Win98 colors: desktop=0x808080, face=0xC0C0C0, title=0x000080");
-    CHECK(C_WIN_DESKTOP == 0x00808080, "desktop gray");
+    TEST("Win98 colors: desktop=teal, face=0xC0C0C0, title=0x000080");
+    CHECK(C_WIN_DESKTOP == 0x008080, "desktop teal");
     CHECK(C_WIN_FACE == 0x00C0C0C0, "face silver");
     CHECK(C_WIN_TITLE == 0x00000080, "title navy");
     CHECK(C_WIN_BORDER_LT == 0x00FFFFFF, "border light = white");
@@ -320,7 +320,7 @@ static void test_win98_inactive_title(void) {
     PASS();
 }
 
-/* ── Callback Tests ─────────────────────────────────────────── */
+/* -- Callback Tests ------------------------------------------- */
 
 static int g_on_close_called = 0;
 static void test_on_close_cb(WmWindow *w) { g_on_close_called = 1; (void)w; }
@@ -337,12 +337,12 @@ static void test_on_close_callback(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────── */
+/* -- Main ----------------------------------------------------- */
 
 int main(void) {
-    printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS WmWindow Manager Test Suite (Cell 102)           ║\n");
-    printf("╚════════════════════════════════════════════════════════╝\n\n");
+    printf("+========================================================+\n");
+    printf("|  WuBuOS WmWindow Manager Test Suite (Cell 102)           |\n");
+    printf("+========================================================+\n\n");
 
     test_wm_init();
     test_wm_init_shutdown();
@@ -371,9 +371,9 @@ int main(void) {
     test_win98_inactive_title();
     test_on_close_callback();
 
-    printf("\n════════════════════════════════════════════════════════\n");
+    printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("════════════════════════════════════════════════════════\n");
+    printf("========================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

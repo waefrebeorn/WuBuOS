@@ -1,5 +1,5 @@
 /*
- * bear_nn.h — PufferC/BearRL Neural Network: PolicyNet MLP + MinGRU
+ * bear_nn.h  --  PufferC/BearRL Neural Network: PolicyNet MLP + MinGRU
  *
  * Pure C11: MLP forward, recurrent (MinGRU), action sampling.
  * SIMD-accelerated via bear_simd.h.
@@ -11,9 +11,9 @@
 #include "bear_arena.h"
 #include "bear_simd.h"
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Policy Network: Actor-Critic with optional recurrence
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef enum {
     BEAR_NET_MLP   = 0,  /* Feedforward only */
@@ -85,9 +85,9 @@ void bear_policy_deterministic(BearPolicyNet* net, BearTensor* actions);
 int bear_policy_get_params(const BearPolicyNet* net, float* out, int max_params);
 int bear_policy_set_params(BearPolicyNet* net, const float* in, int num_params);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Value Network (separate critic optionally)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     int num_layers;
@@ -104,9 +104,9 @@ void bear_value_forward(const BearValueNet* vnet,
                          BearTensor* values,     /* [batch] */
                          BearArena* temp_arena);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Backward Pass (analytical gradients)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /*
  * Policy backward: compute gradients for policy network.
@@ -179,9 +179,9 @@ int bear_value_backward(BearValueNet* vnet,
 void bear_policy_zero_grad(BearPolicyNet* net);
 void bear_value_zero_grad(BearValueNet* vnet);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  * Utility: Xavier/Orthogonal Init, Checkpointing
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_orthogonal_init_params(BearPolicyNet* net, float gain);
 void bear_value_orthogonal_init(BearValueNet* vnet, float gain);

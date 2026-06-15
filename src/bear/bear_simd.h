@@ -1,5 +1,5 @@
 /*
- * bear_simd.h — PufferC/BearRL SIMD Intrinsics + Fused Kernels
+ * bear_simd.h  --  PufferC/BearRL SIMD Intrinsics + Fused Kernels
  *
  * AVX2 / NEON / Scalar fallback for matmul, fused ops.
  * Pure C11 + compiler intrinsics. No external deps.
@@ -13,9 +13,9 @@
 #include <math.h>
 #include "bear_arena.h"  /* for BearTensor */
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Architecture Detection
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #if defined(__AVX2__)
     #define BEAR_HAVE_AVX2 1
@@ -27,9 +27,9 @@
     #define BEAR_HAVE_SCALAR 1
 #endif
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Activation Functions (SIMD-accelerated)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef enum {
     BEAR_ACT_NONE  = 0,
@@ -78,9 +78,9 @@ static inline void bear_act_batch(float* __restrict dst, const float* __restrict
     for (int64_t i = 0; i < n; ++i) dst[i] = bear_act_scalar(src[i], act);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * GEMM: C = A * B^T  (row-major: A=[M,K], B=[N,K], C=[M,N])
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* AVX2: 8x8 micro-kernel */
 #if defined(BEAR_HAVE_AVX2)
@@ -181,9 +181,9 @@ static inline void bear_tensor_gemm(const BearTensor* A, const BearTensor* B,
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Fused MLP Layer: out = act(x @ W^T + b)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static inline void bear_mlp_layer(const BearTensor* x,   /* [batch, in_f] */
                                    const BearTensor* W,   /* [out_f, in_f] */
@@ -195,9 +195,9 @@ static inline void bear_mlp_layer(const BearTensor* x,   /* [batch, in_f] */
     bear_tensor_gemm(x, W, b, out, act);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Math helpers (must come before MinGRU step)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static inline float bear_sigmoid(float x) {
     return 1.0f / (1.0f + expf(-x));
@@ -207,13 +207,13 @@ static inline float bear_tanh_fast(float x) {
     return tanhf(x);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * MinGRU Cell (parallelizable recurrent)
  * h_t = z_t * h_{t-1} + (1 - z_t) * n_t
  * z_t = sigmoid(x @ Wz + h_{t-1} @ Uz + bz)
  * r_t = sigmoid(x @ Wr + h_{t-1} @ Ur + br)
  * n_t = tanh(x @ Wn + r_t * (h_{t-1} @ Un) + bn)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct {
     BearParam Wz;   /* [hid, in] */
@@ -316,18 +316,18 @@ static inline void bear_mingru_step(const BearMinGRU* gru,
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Vectorized Environment Step Helpers (SIMD on env dimension)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 #define BEAR_MAX_ENVS 1024
 #define BEAR_MAX_AGENTS 8
 #define BEAR_MAX_OBS_DIM 256
 #define BEAR_MAX_ACT_DIM 64
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Orthogonal Initialization (CleanRL detail)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Fill matrix with orthogonal initialization (QR decomp of random) */
 static inline void bear_orthogonal_init(BearTensor* W, float gain) {
@@ -336,7 +336,7 @@ static inline void bear_orthogonal_init(BearTensor* W, float gain) {
     int cols = (int)W->shape[1];
     float* data = (float*)W->data;
 
-    /* Simple uniform Xavier init — guaranteed finite, no trig/log */
+    /* Simple uniform Xavier init  --  guaranteed finite, no trig/log */
     float limit = gain * sqrtf(6.0f / (float)(rows + cols));
     for (int i = 0; i < rows * cols; ++i) {
         long r = rand();

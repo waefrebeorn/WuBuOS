@@ -1,5 +1,5 @@
 /*
- * repl.c — My Seed HolyC JIT REPL (runs inside GUI window)
+ * repl.c  --  My Seed HolyC JIT REPL (runs inside GUI window)
  * Uses the HolyC compiler (hc_eval) for evaluation
  */
 #include "repl.h"

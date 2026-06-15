@@ -1,5 +1,5 @@
 /*
- * wubu_theme.c — WuBuOS Theme Engine Implementation
+ * wubu_theme.c  --  WuBuOS Theme Engine Implementation
  *
  * Cell 394: Runtime-switchable themes.
  * Win98 Classic, XP Luna Blue, XP Media Center Orange/Black.
@@ -8,14 +8,14 @@
 #include <string.h>
 #include <stdbool.h>
 
-/* ── XRGB8888 Helpers ───────────────────────────────────────────── */
+/* -- XRGB8888 Helpers --------------------------------------------- */
 #define RGB(r,g,b) ((uint32_t)((b)<<16 | (g)<<8 | (r)))
 
-/* ── Predefined Theme Data ──────────────────────────────────────── */
+/* -- Predefined Theme Data ---------------------------------------- */
 
 static const WubuTheme g_themes[THEME_COUNT] = {
 
-/* ── Win98 Classic ─────────────────────────────────────────────── */
+/* -- Win98 Classic ----------------------------------------------- */
 [THEME_WIN98_CLASSIC] = {
     .id = THEME_WIN98_CLASSIC,
     .name = "Win98 Classic",
@@ -56,7 +56,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     .Luna_start_button  = false,
 },
 
-/* ── XP Luna Blue ──────────────────────────────────────────────── */
+/* -- XP Luna Blue ------------------------------------------------ */
 [THEME_XP_LUNA_BLUE] = {
     .id = THEME_XP_LUNA_BLUE,
     .name = "XP Luna Blue",
@@ -97,7 +97,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     .Luna_start_button  = true,
 },
 
-/* ── XP Media Center Orange/Black ──────────────────────────────── */
+/* -- XP Media Center Orange/Black -------------------------------- */
 [THEME_XP_MEDIA_ORANGE] = {
     .id = THEME_XP_MEDIA_ORANGE,
     .name = "XP Media Orange",
@@ -138,7 +138,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     .Luna_start_button  = true,
 },
 
-/* ── WuBu Custom ───────────────────────────────────────────────── */
+/* -- WuBu Custom ------------------------------------------------- */
 [THEME_WUBU_CUSTOM] = {
     .id = THEME_WUBU_CUSTOM,
     .name = "WuBu Green",
@@ -180,7 +180,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
 },
 };
 
-/* ── Theme Engine State ─────────────────────────────────────────── */
+/* -- Theme Engine State ------------------------------------------- */
 
 static WubuThemeId g_current = THEME_WIN98_CLASSIC;
 

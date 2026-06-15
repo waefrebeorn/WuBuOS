@@ -1,5 +1,5 @@
 /*
- * input_test.c — Kernel Input Subsystem Test Suite
+ * input_test.c  --  Kernel Input Subsystem Test Suite
  *
  * Cell 202: Tests for input queue (keyboard/mouse circular buffers),
  * push/poll/wait functionality, modifier tracking.
@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
-/* ── Test Framework ──────────────────────────────────────────────── */
+/* -- Test Framework ------------------------------------------------ */
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -18,7 +18,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Initialization Tests ────────────────────────────────────────── */
+/* -- Initialization Tests ------------------------------------------ */
 
 static void test_input_init(void) {
     TEST("input_init returns 0");
@@ -35,7 +35,7 @@ static void test_input_init_shutdown(void) {
     PASS();
 }
 
-/* ── Keyboard Queue Tests ────────────────────────────────────────── */
+/* -- Keyboard Queue Tests ------------------------------------------ */
 
 static void test_key_push_poll(void) {
     TEST("input_key_push + input_key_poll roundtrip");
@@ -128,7 +128,7 @@ static void test_key_pressed(void) {
     PASS();
 }
 
-/* ── Mouse Queue Tests ───────────────────────────────────────────── */
+/* -- Mouse Queue Tests --------------------------------------------- */
 
 static void test_mouse_push_poll(void) {
     TEST("input_mouse_push + input_mouse_poll roundtrip");
@@ -197,7 +197,7 @@ static void test_mouse_queue_wraparound(void) {
     PASS();
 }
 
-/* ── Mixed Tests ─────────────────────────────────────────────────── */
+/* -- Mixed Tests --------------------------------------------------- */
 
 static void test_key_and_mouse_independent(void) {
     TEST("key and mouse queues operate independently");
@@ -222,7 +222,7 @@ static void test_key_and_mouse_independent(void) {
     PASS();
 }
 
-/* ── Stress Test ─────────────────────────────────────────────────── */
+/* -- Stress Test --------------------------------------------------- */
 
 static void test_mixed_burst(void) {
     TEST("burst of mixed key/mouse events");
@@ -250,13 +250,13 @@ static void test_mixed_burst(void) {
     PASS();
 }
 
-/* ── Main ────────────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------------- */
 
 int main(void) {
-    printf("\n╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Kernel Input Subsystem Test Suite      ║\n");
-    printf("║  Cell 202: GUI input dispatch (input.c queue)   ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("\n+==================================================+\n");
+    printf("|  WuBuOS Kernel Input Subsystem Test Suite      |\n");
+    printf("|  Cell 202: GUI input dispatch (input.c queue)   |\n");
+    printf("+==================================================+\n\n");
     
     test_input_init();
     test_input_init_shutdown();
@@ -270,9 +270,9 @@ int main(void) {
     test_key_and_mouse_independent();
     test_mixed_burst();
     
-    printf("\n═══════════════════════════════════════════════════\n");
+    printf("\n===================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("═══════════════════════════════════════════════════\n");
+    printf("===================================================\n");
     
     return g_fail > 0 ? 1 : 0;
 }

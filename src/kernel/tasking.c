@@ -1,10 +1,10 @@
 /*
- * tasking.c — My Seed Kernel Task Management (hosted test impl)
+ * tasking.c  --  My Seed Kernel Task Management (hosted test impl)
  *
  * Uses setjmp/longjmp for context switching in hosted (Linux) mode.
  * Real kernel will use assembly task_switch_to in tasking_switch.S.
  *
- * Design from ZealOS/src/Kernel/Sched.ZC — cooperative, ring-0, round-robin.
+ * Design from ZealOS/src/Kernel/Sched.ZC  --  cooperative, ring-0, round-robin.
  */
 
 #include "tasking.h"
@@ -15,14 +15,14 @@
 #include <stdio.h>
 #include <setjmp.h>
 
-/* ── Internal: jmp_buf wrapper for context ──────────────────────── */
+/* -- Internal: jmp_buf wrapper for context ------------------------ */
 
 typedef struct {
     jmp_buf jb;
     int     primed;   /* 1 if setjmp was called, 0 if not */
 } TaskJmp;
 
-/* ── Global State ────────────────────────────────────────────────── */
+/* -- Global State -------------------------------------------------- */
 
 static CTask   *g_current   = NULL;
 static CTask   *g_head      = NULL;  /* Doubly-linked circular list */
@@ -36,7 +36,7 @@ static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
 extern void task_switch_asm(TaskContext *old_ctx, TaskContext *new_ctx);
 #endif
 
-/* ── Helpers ────────────────────────────────────────────────────── */
+/* -- Helpers ------------------------------------------------------ */
 
 static void task_insert(CTask *t) {
     if (!g_head) {
@@ -63,7 +63,7 @@ static void task_remove(CTask *t) {
     t->prev = NULL;
 }
 
-/* ── Accessors ──────────────────────────────────────────────────── */
+/* -- Accessors ---------------------------------------------------- */
 
 CTask *task_current(void)    { return g_current; }
 CTask *task_list_head(void)  { return g_head; }
@@ -76,7 +76,7 @@ int    task_count(void) {
 }
 uint64_t task_tick_count(void) { return g_tick; }
 
-/* ── Task Lifecycle ─────────────────────────────────────────────── */
+/* -- Task Lifecycle ----------------------------------------------- */
 
 CTask *task_create(const char *name, void (*entry)(void *arg), void *arg,
                     size_t stack_sz, TaskPriority prio) {
@@ -118,7 +118,7 @@ void task_destroy(CTask *task) {
     mem_free(task);
 }
 
-/* ── Scheduler ──────────────────────────────────────────────────── */
+/* -- Scheduler ---------------------------------------------------- */
 
 CTask *task_schedule_next(void) {
     if (!g_head) return NULL;
@@ -143,7 +143,7 @@ CTask *task_schedule_next(void) {
     } while (t != start);
 
     if (!best) {
-        /* Only idle or blocked tasks — find idle */
+        /* Only idle or blocked tasks  --  find idle */
         t = g_head;
         do {
             if (t->state == TASK_READY && t->priority == PRIO_IDLE)
@@ -155,9 +155,9 @@ CTask *task_schedule_next(void) {
     return best;
 }
 
-/* ── Timer Tick Handler (Preemptive Scheduling) ───────────────────── */
+/* -- Timer Tick Handler (Preemptive Scheduling) --------------------- */
 
-/* Called from interrupt context (IRQ0/PIT) — must be fast, no locks */
+/* Called from interrupt context (IRQ0/PIT)  --  must be fast, no locks */
 void task_timer_tick(void) {
     g_tick++;
 
@@ -180,7 +180,7 @@ void task_timer_tick(void) {
     if (g_preemptive) {
         CTask *next = task_schedule_next();
         if (next && next != g_current) {
-            /* Switch context — save old, restore new */
+            /* Switch context  --  save old, restore new */
             g_current->state = TASK_READY;
             next->state = TASK_RUNNING;
             CTask *old = g_current;
@@ -214,7 +214,7 @@ void task_preempt_enable(void)  { g_preemptive = 1; }
 void task_preempt_disable(void) { g_preemptive = 0; }
 int  task_preempt_enabled(void) { return g_preemptive; }
 
-/* ── Idle Task ────────────────────────────────────────────────────── */
+/* -- Idle Task ------------------------------------------------------ */
 
 void task_idle(void *arg) {
     (void)arg;
@@ -223,7 +223,7 @@ void task_idle(void *arg) {
     }
 }
 
-/* ── Yield / Block / Unblock / Sleep ────────────────────────────── */
+/* -- Yield / Block / Unblock / Sleep ------------------------------ */
 
 void task_yield(void) {
     if (!g_current || !g_initialized) return;
@@ -245,10 +245,10 @@ void task_yield(void) {
         if (new_jmp->primed) {
             longjmp(new_jmp->jb, 1);
         } else {
-            /* First time running this task — call entry */
+            /* First time running this task  --  call entry */
             new_jmp->primed = 1;
             if (next->entry) next->entry(next->entry_arg);
-            /* Task returned — destroy it */
+            /* Task returned  --  destroy it */
             task_destroy(next);
         }
     }
@@ -273,7 +273,7 @@ void task_sleep(uint64_t ticks) {
     }
 }
 
-/* ── Init / Shutdown ────────────────────────────────────────────── */
+/* -- Init / Shutdown ---------------------------------------------- */
 
 int tasking_init(void) {
     if (g_initialized) return 0;

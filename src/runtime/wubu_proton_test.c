@@ -1,5 +1,5 @@
 /*
- * wubu_proton_test.c — Test Suite for WuBuOS Proton (Windows Compat Layer)
+ * wubu_proton_test.c  --  Test Suite for WuBuOS Proton (Windows Compat Layer)
  *
  * Cell 092: Tests PE validation, API translation, DLL management,
  * PE execution pipeline, and diagnostics.
@@ -17,7 +17,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Test PE binary generators ─────────────────────────────── */
+/* -- Test PE binary generators ------------------------------- */
 
 /* Build a minimal PE32 binary in a buffer */
 static size_t make_minimal_pe32(uint8_t *buf, size_t bufsz) {
@@ -112,7 +112,7 @@ static size_t make_minimal_pe64(uint8_t *buf, size_t bufsz) {
     return sec_off + 2 * sizeof(pe_section_t) + 0x400;
 }
 
-/* ── Lifecycle Tests ───────────────────────────────────────── */
+/* -- Lifecycle Tests ----------------------------------------- */
 
 static void test_proton_init(void) {
     TEST("proton init");
@@ -141,7 +141,7 @@ static void test_proton_is_ready(void) {
     PASS();
 }
 
-/* ── PE Validation Tests ───────────────────────────────────── */
+/* -- PE Validation Tests ------------------------------------- */
 
 static void test_pe32_validate(void) {
     TEST("validate PE32 binary");
@@ -219,7 +219,7 @@ static void test_pe_invalid_machine(void) {
     PASS();
 }
 
-/* ── PE Section Parsing Tests ──────────────────────────────── */
+/* -- PE Section Parsing Tests -------------------------------- */
 
 static void test_pe32_parse_sections(void) {
     TEST("parse PE32 sections");
@@ -259,7 +259,7 @@ static void test_pe64_parse_sections(void) {
     PASS();
 }
 
-/* ── PE Mapping Tests ──────────────────────────────────────── */
+/* -- PE Mapping Tests ---------------------------------------- */
 
 static void test_map_sections(void) {
     TEST("map PE sections returns base address");
@@ -295,7 +295,7 @@ static void test_entry_addr(void) {
     PASS();
 }
 
-/* ── API Translation Tests ─────────────────────────────────── */
+/* -- API Translation Tests ----------------------------------- */
 
 static void test_default_apis_loaded(void) {
     TEST("default APIs loaded");
@@ -393,7 +393,7 @@ static void test_translate_winsock(void) {
     PASS();
 }
 
-/* ── DLL Management Tests ──────────────────────────────────── */
+/* -- DLL Management Tests ------------------------------------ */
 
 static void test_builtin_dlls(void) {
     TEST("built-in DLLs registered");
@@ -473,7 +473,7 @@ static void test_resolve_deps(void) {
     PASS();
 }
 
-/* ── Execution Pipeline Tests ──────────────────────────────── */
+/* -- Execution Pipeline Tests -------------------------------- */
 
 static void test_exec_pe32(void) {
     TEST("exec PE32 through Proton pipeline");
@@ -505,7 +505,7 @@ static void test_exec_invalid(void) {
     PASS();
 }
 
-/* ── Diagnostics Tests ─────────────────────────────────────── */
+/* -- Diagnostics Tests --------------------------------------- */
 
 static void test_state_name(void) {
     TEST("state name strings");
@@ -551,12 +551,12 @@ static void test_stats(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Proton (Windows Compat) Test Suite        ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS Proton (Windows Compat) Test Suite        |\n");
+    printf("+==================================================+\n\n");
 
     /* Lifecycle */
     test_proton_init();
@@ -598,9 +598,9 @@ int main(void) {
     test_dump();
     test_stats();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

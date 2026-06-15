@@ -1,0 +1,8 @@
+ERROR: XOpenDisplay failed - DISPLAY=:99
+═══════════════════════════════════════════════════════════════
+  WuBuOS BearRL — Live N-Pole Cartpole Demo
+  Poles: 10  |  Pure C11 + Xlib  |  Deterministic Policy
+═══════════════════════════════════════════════════════════════
+Controls:  Esc=Quit  |  F1=Restart Episode
+───────────────────────────────────────────────────────────────
+Env: obs_dim=22 act_dim=1

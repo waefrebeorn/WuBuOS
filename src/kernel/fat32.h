@@ -1,5 +1,5 @@
 /*
- * fat32.h — My Seed FAT32 Filesystem
+ * fat32.h  --  My Seed FAT32 Filesystem
  *
  * Clean C11 reimplementation of ZealOS FAT32 design.
  * Reference: ZealOS/src/Kernel/BlkDev/FileSysFAT.ZC
@@ -11,7 +11,7 @@
  *   - Directory entry read/write (8.3 + LFN)
  *   - File create/open/read/write/close
  *
- * Block device I/O is abstracted via fat32_blk_ops —
+ * Block device I/O is abstracted via fat32_blk_ops  -- 
  * real kernel will use AHCI/IDE; hosted tests use a RAM disk.
  */
 
@@ -22,7 +22,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* ── Constants ──────────────────────────────────────────────────── */
+/* -- Constants ---------------------------------------------------- */
 
 #define FAT32_SECTOR_SIZE      512
 #define FAT32_CLUSTER_EOC      0x0FFFFFF8   /* End-of-chain marker */
@@ -42,10 +42,10 @@
 #define FAT32_ATTR_ARCHIVE    0x20
 #define FAT32_ATTR_LFN        0x0F         /* Long name entry */
 
-/* ── Block Device I/O Interface ─────────────────────────────────── */
+/* -- Block Device I/O Interface ----------------------------------- */
 
 /*
- * Abstract block device — lets FAT32 work on real disk or RAM disk.
+ * Abstract block device  --  lets FAT32 work on real disk or RAM disk.
  * read:  read `n_sectors` from `lba` into `buf`
  * write: write `n_sectors` from `buf` to `lba`
  */
@@ -56,7 +56,7 @@ typedef struct {
     uint64_t n_sectors; /* Total sectors on device */
 } fat32_blk_ops;
 
-/* ── FAT32 Boot Sector (first 512 bytes of volume) ─────────────── */
+/* -- FAT32 Boot Sector (first 512 bytes of volume) --------------- */
 
 typedef struct __attribute__((packed)) {
     uint8_t  jump[3];             /* Boot jump + NOP */
@@ -91,7 +91,7 @@ typedef struct __attribute__((packed)) {
     uint16_t signature;          /* 0xAA55 */
 } fat32_boot_sector;
 
-/* ── Directory Entry (32 bytes) ─────────────────────────────────── */
+/* -- Directory Entry (32 bytes) ----------------------------------- */
 
 typedef struct __attribute__((packed)) {
     char     name[8];            /* 8.3 name (space-padded) */
@@ -109,7 +109,7 @@ typedef struct __attribute__((packed)) {
     uint32_t file_size;
 } fat32_dir_entry;
 
-/* ── Long Filename Entry (32 bytes) ─────────────────────────────── */
+/* -- Long Filename Entry (32 bytes) ------------------------------- */
 
 typedef struct __attribute__((packed)) {
     uint8_t  ord;                /* Sequence number (0x41 = last) */
@@ -122,7 +122,7 @@ typedef struct __attribute__((packed)) {
     uint16_t name3[2];          /* Characters 12-13 */
 } fat32_lfn_entry;
 
-/* ── File Info (our internal representation) ────────────────────── */
+/* -- File Info (our internal representation) ---------------------- */
 
 typedef struct {
     char     name[FAT32_MAX_NAME + 1];  /* Null-terminated long name */
@@ -133,7 +133,7 @@ typedef struct {
     uint32_t dir_offset;               /* Entry offset within cluster */
 } fat32_file_info;
 
-/* ── FAT32 Volume State ────────────────────────────────────────── */
+/* -- FAT32 Volume State ------------------------------------------ */
 
 typedef struct {
     fat32_blk_ops     blk;          /* Block device operations */
@@ -156,7 +156,7 @@ typedef struct {
     uint32_t          *fat_cache;     /* One sector of FAT entries */
 } fat32_volume;
 
-/* ── Open File Handle ──────────────────────────────────────────── */
+/* -- Open File Handle -------------------------------------------- */
 
 typedef struct {
     fat32_volume  *vol;
@@ -170,7 +170,7 @@ typedef struct {
     uint32_t       dir_offset;     /* Entry offset within cluster */
 } fat32_file;
 
-/* ── API: Volume Management ────────────────────────────────────── */
+/* -- API: Volume Management -------------------------------------- */
 
 /*
  * Mount a FAT32 volume using the given block device.
@@ -180,7 +180,7 @@ typedef struct {
 int  fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk);
 
 /*
- * Unmount — flush any cached data, release resources.
+ * Unmount  --  flush any cached data, release resources.
  */
 void fat32_unmount(fat32_volume *vol);
 
@@ -194,7 +194,7 @@ void fat32_unmount(fat32_volume *vol);
 int  fat32_format(const fat32_blk_ops *blk, uint64_t sector_count,
                   const char *vol_name);
 
-/* ── API: Cluster Operations ───────────────────────────────────── */
+/* -- API: Cluster Operations ------------------------------------- */
 
 /*
  * Get next cluster in chain. Returns 0 on error or EOC.
@@ -217,7 +217,7 @@ void fat32_free_chain(fat32_volume *vol, uint32_t cluster);
  */
 uint32_t fat32_count_free(fat32_volume *vol);
 
-/* ── API: Cluster ↔ LBA Conversion ─────────────────────────────── */
+/* -- API: Cluster ↔ LBA Conversion ------------------------------- */
 
 /* Convert cluster number to LBA of its first sector. */
 uint64_t fat32_cluster_to_lba(fat32_volume *vol, uint32_t cluster);
@@ -225,7 +225,7 @@ uint64_t fat32_cluster_to_lba(fat32_volume *vol, uint32_t cluster);
 /* Convert LBA to cluster number. */
 uint32_t fat32_lba_to_cluster(fat32_volume *vol, uint64_t lba);
 
-/* ── API: Directory Operations ──────────────────────────────────── */
+/* -- API: Directory Operations ------------------------------------ */
 
 /*
  * Open directory at given cluster (0 = root).
@@ -262,7 +262,7 @@ int fat32_create(fat32_volume *vol, uint32_t dir_cluster,
  */
 int fat32_delete(fat32_volume *vol, uint32_t dir_cluster, const char *name);
 
-/* ── API: File I/O ──────────────────────────────────────────────── */
+/* -- API: File I/O ------------------------------------------------ */
 
 /*
  * Open file. mode: "r", "w", "a", "rw".
@@ -294,7 +294,7 @@ size_t fat32_write(fat32_file *fp, const void *buf, size_t n);
  */
 int64_t fat32_seek(fat32_file *fp, int64_t offset, int whence);
 
-/* ── API: Diagnostics ───────────────────────────────────────────── */
+/* -- API: Diagnostics --------------------------------------------- */
 
 /*
  * Validate filesystem integrity. Returns 0 if OK.

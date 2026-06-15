@@ -1,5 +1,5 @@
 /*
- * vbe_ws_bridge.c — VBE ↔ WorldSim Render Bridge Implementation
+ * vbe_ws_bridge.c  --  VBE ↔ WorldSim Render Bridge Implementation
  *
  * Cell 070: Wires WorldSim software renderer to VBE framebuffer.
  * The bridge sets ws_render_ctx_t.fb to VBE's back-buffer,
@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Simple 8x16 VGA-style bitmap font for HUD text ──────── */
+/* -- Simple 8x16 VGA-style bitmap font for HUD text -------- */
 
 /* Minimal digit + letter glyphs (5 wide, 7 tall, packed in uint8_t[5])
  * We use a simple 5x7 font stored as column bitmaps.
@@ -106,7 +106,7 @@ static const uint8_t *char_glyph(char c) {
     }
 }
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 void vbe_ws_bridge_init(vbe_ws_bridge_t *br) {
     memset(br, 0, sizeof(*br));
@@ -185,7 +185,7 @@ void vbe_ws_bridge_stop(vbe_ws_bridge_t *br) {
     br->state = BRIDGE_STOPPED;
 }
 
-/* ── Camera / Viewport ─────────────────────────────────────── */
+/* -- Camera / Viewport --------------------------------------- */
 
 void vbe_ws_bridge_pan(vbe_ws_bridge_t *br, int dx, int dy) {
     br->view_x += dx;
@@ -223,7 +223,7 @@ void vbe_ws_bridge_center_on(vbe_ws_bridge_t *br, int wx, int wy) {
     }
 }
 
-/* ── HUD Drawing ───────────────────────────────────────────── */
+/* -- HUD Drawing --------------------------------------------- */
 
 int vbe_ws_bridge_text(vbe_ws_bridge_t *br, int x, int y,
                         const char *text, uint32_t color) {
@@ -353,7 +353,7 @@ void vbe_ws_bridge_draw_hud(vbe_ws_bridge_t *br) {
     }
 }
 
-/* ── Per-Frame Operations ──────────────────────────────────── */
+/* -- Per-Frame Operations ------------------------------------ */
 
 void vbe_ws_bridge_frame(vbe_ws_bridge_t *br) {
     if (!br || !br->wired || br->state == BRIDGE_STOPPED) return;
@@ -402,7 +402,7 @@ void vbe_ws_bridge_render_only(vbe_ws_bridge_t *br) {
     vbe_swap();
 }
 
-/* ── Query ──────────────────────────────────────────────────── */
+/* -- Query ---------------------------------------------------- */
 
 int vbe_ws_bridge_is_active(const vbe_ws_bridge_t *br) {
     return br && br->wired && br->state == BRIDGE_RUNNING;

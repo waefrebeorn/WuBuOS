@@ -1,5 +1,5 @@
 /*
- * wubu_exec.c — WuBuOS Universal Executable Dispatcher Implementation
+ * wubu_exec.c  --  WuBuOS Universal Executable Dispatcher Implementation
  *
  * One exec to rule them all.
  */
@@ -16,7 +16,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-/* ── Format Names ───────────────────────────────────────────────── */
+/* -- Format Names ------------------------------------------------- */
 
 const char *wubu_payload_name(WUBU_PAYLOAD_TYPE type) {
     switch (type) {
@@ -50,7 +50,7 @@ const char *wubu_exec_result_str(WUBU_EXEC_RESULT result) {
     }
 }
 
-/* ── Format Detection ───────────────────────────────────────────── */
+/* -- Format Detection --------------------------------------------- */
 
 WUBU_PAYLOAD_TYPE wubu_detect_format(const void *data, size_t size,
                                      bool *is_wubu) {
@@ -70,15 +70,15 @@ WUBU_PAYLOAD_TYPE wubu_detect_format(const void *data, size_t size,
         return WUBU_PAYLOAD_NESTED_WUBU;
     }
 
-    /* Not a .wubu — detect raw format */
+    /* Not a .wubu  --  detect raw format */
     return wubu_detect_payload_type(data, size);
 }
 
-/* ── VSL (Virtualization Substrate Layer) ─────────────────────────
+/* -- VSL (Virtualization Substrate Layer) -------------------------
  *
  * VSL is now HOST DELEGATION - fork+exec on the host Linux kernel.
  * This replaces the old in-process syscall translation layer.
- * Architecture: "VSL is NOT a Linux syscall emulation layer —
+ * Architecture: "VSL is NOT a Linux syscall emulation layer  -- 
  * rename to wubu_host_linux.c (platform delegation to host libc)."
  */
 
@@ -157,7 +157,7 @@ int64_t wubu_vsl_run(const char *cmd) {
     return -1;
 }
 
-/* ── Format-Specific Executors ──────────────────────────────────── */
+/* -- Format-Specific Executors ------------------------------------ */
 
 int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
     if (!elf_data || elf_size < 4) return -1;
@@ -281,7 +281,7 @@ int64_t wubu_exec_python(const char *script, size_t script_size) {
     return wubu_vsl_run(cmd);
 }
 
-/* ── Container Exec ─────────────────────────────────────────────── */
+/* -- Container Exec ----------------------------------------------- */
 
 int64_t wubu_exec_container(const WUBU_HEADER *hdr,
                             const void *payload, size_t payload_size) {
@@ -289,7 +289,7 @@ int64_t wubu_exec_container(const WUBU_HEADER *hdr,
 
     switch (hdr->payload_type) {
         case WUBU_PAYLOAD_NATIVE_EXEC:
-            /* Direct execution — entry point at offset */
+            /* Direct execution  --  entry point at offset */
             /* TODO: map and call */
             return 0;
 
@@ -324,7 +324,7 @@ int64_t wubu_exec_container(const WUBU_HEADER *hdr,
     }
 }
 
-/* ── Universal Exec ─────────────────────────────────────────────── */
+/* -- Universal Exec ----------------------------------------------- */
 
 int64_t wubu_exec(const void *data, size_t size, const char *filename) {
     if (!data || size == 0) return -1;
@@ -347,7 +347,7 @@ int64_t wubu_exec(const void *data, size_t size, const char *filename) {
         return wubu_exec_container(&hdr, payload, payload_size);
     }
 
-    /* Raw file — wrap in implicit .wubu and dispatch */
+    /* Raw file  --  wrap in implicit .wubu and dispatch */
     switch (type) {
         case WUBU_PAYLOAD_LINUX_ELF:
             return wubu_exec_linux_elf(data, size);

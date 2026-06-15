@@ -1,5 +1,5 @@
 /*
- * wubu_drm_direct_test.c — Test for direct DRM/KMS implementation (Cells 388/389)
+ * wubu_drm_direct_test.c  --  Test for direct DRM/KMS implementation (Cells 388/389)
  */
 
 #include "wubu_display.h"

@@ -1,8 +1,8 @@
 /*
- * txfs.h — WuBuOS Transactional Filesystem Layer
+ * txfs.h  --  WuBuOS Transactional Filesystem Layer
  *
  * Cell 100: Journal-based transaction layer over FAT32.
- * Provides atomic filesystem operations — crash at any point
+ * Provides atomic filesystem operations  --  crash at any point
  * leaves the filesystem in a consistent state.
  *
  * Design (write-ahead logging):
@@ -27,14 +27,14 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── Constants ─────────────────────────────────────────────── */
+/* -- Constants ----------------------------------------------- */
 
-#define TXFS_JOURNAL_MAGIC    0x544A4631  /* "TJF1" — Transaction Journal Format 1 */
+#define TXFS_JOURNAL_MAGIC    0x544A4631  /* "TJF1"  --  Transaction Journal Format 1 */
 #define TXFS_MAX_TXN_OPS     64          /* Max ops per transaction */
 #define TXFS_JOURNAL_SIZE    (64 * 1024) /* 64KB journal */
 #define TXFS_MAX_PATH        256
 
-/* ── Journal Operation Types ───────────────────────────────── */
+/* -- Journal Operation Types --------------------------------- */
 
 typedef enum {
     TXFS_OP_WRITE     = 1,  /* Write bytes to a file */
@@ -47,16 +47,16 @@ typedef enum {
     TXFS_OP_CHMOD     = 8,  /* Change attributes */
 } txfs_op_type_t;
 
-/* ── Transaction States ────────────────────────────────────── */
+/* -- Transaction States -------------------------------------- */
 
 typedef enum {
     TXFS_TXN_CLOSED    = 0,
-    TXFS_TXN_OPEN     = 1,  /* Building — ops being added */
+    TXFS_TXN_OPEN     = 1,  /* Building  --  ops being added */
     TXFS_TXN_COMMITTING = 2, /* Journal written, applying */
     TXFS_TXN_ABORTED   = 3  /* Rolled back */
 } txfs_txn_state_t;
 
-/* ── Journal Entry ─────────────────────────────────────────── */
+/* -- Journal Entry ------------------------------------------- */
 
 #pragma pack(push, 1)
 
@@ -87,7 +87,7 @@ typedef struct {
 
 #pragma pack(pop)
 
-/* ── Transaction Handle ────────────────────────────────────── */
+/* -- Transaction Handle -------------------------------------- */
 
 typedef struct {
     uint32_t           txn_id;
@@ -96,7 +96,7 @@ typedef struct {
     txfs_journal_entry_t ops[TXFS_MAX_TXN_OPS];
 } txfs_txn_t;
 
-/* ── TXFS State ────────────────────────────────────────────── */
+/* -- TXFS State ---------------------------------------------- */
 
 typedef struct {
     /* Journal storage (heap-allocated for hosted, disk for kernel) */
@@ -104,7 +104,7 @@ typedef struct {
     uint32_t           journal_size;
     txfs_journal_header_t header;
 
-    /* Active transaction (only one at a time — ring-0 single-user) */
+    /* Active transaction (only one at a time  --  ring-0 single-user) */
     txfs_txn_t         active_txn;
     int                txn_active;   /* 1 if a transaction is open */
 
@@ -119,7 +119,7 @@ typedef struct {
     int                recovered;    /* 1 if recovery happened on mount */
 } txfs_t;
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 /* Initialize TXFS layer. fs_root is the root directory path. */
 int  txfs_init(txfs_t *tx, const char *fs_root);
@@ -127,7 +127,7 @@ int  txfs_init(txfs_t *tx, const char *fs_root);
 /* Shutdown TXFS. Flushes and releases journal. */
 void txfs_shutdown(txfs_t *tx);
 
-/* ── Transaction Management ────────────────────────────────── */
+/* -- Transaction Management ---------------------------------- */
 
 /* Begin a new transaction. Returns txn_id, or -1 on error. */
 int  txfs_begin(txfs_t *tx);
@@ -144,7 +144,7 @@ int  txfs_abort(txfs_t *tx);
 /* Is a transaction active? */
 int  txfs_txn_active(const txfs_t *tx);
 
-/* ── Transactional Operations ──────────────────────────────── */
+/* -- Transactional Operations -------------------------------- */
 
 /* Add a write operation to the active transaction.
  * Writes 'size' bytes from 'data' at 'offset' in 'path'.
@@ -167,7 +167,7 @@ int  txfs_mkdir(txfs_t *tx, const char *path);
 /* Add a rename operation. */
 int  txfs_rename(txfs_t *tx, const char *old_path, const char *new_path);
 
-/* ── Recovery ──────────────────────────────────────────────── */
+/* -- Recovery ------------------------------------------------ */
 
 /* Replay any unapplied journal entries. Called automatically
  * on txfs_init if journal has uncommitted entries.
@@ -177,7 +177,7 @@ int  txfs_recover(txfs_t *tx);
 /* Check if recovery was needed on last mount. */
 int  txfs_was_recovered(const txfs_t *tx);
 
-/* ── Journal Inspection ────────────────────────────────────── */
+/* -- Journal Inspection -------------------------------------- */
 
 /* Get journal entry count. */
 uint32_t txfs_journal_count(const txfs_t *tx);
@@ -188,12 +188,12 @@ uint32_t txfs_committed_count(const txfs_t *tx);
 /* Get applied entry count. */
 uint32_t txfs_applied_count(const txfs_t *tx);
 
-/* ── CRC32 ─────────────────────────────────────────────────── */
+/* -- CRC32 --------------------------------------------------- */
 
 /* Compute CRC32 of data. */
 uint32_t txfs_crc32(const void *data, size_t size);
 
-/* ── Diagnostics ───────────────────────────────────────────── */
+/* -- Diagnostics --------------------------------------------- */
 
 /* Print TXFS state. */
 void txfs_dump(const txfs_t *tx);

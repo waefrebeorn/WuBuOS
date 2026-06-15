@@ -1,5 +1,5 @@
 /*
- * iso9660.h — WuBuOS ISO 9660 Filesystem Structures
+ * iso9660.h  --  WuBuOS ISO 9660 Filesystem Structures
  *
  * Cell 060: ISO 9660 filesystem builder for creating bootable ISOs.
  * Implements the core ECMA-119 / ISO 9660 structures needed to
@@ -19,7 +19,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── ISO 9660 Constants ────────────────────────────────────── */
+/* -- ISO 9660 Constants -------------------------------------- */
 
 #define ISO_SECTOR_SIZE     2048
 #define ISO_MAX_SECTORS     500000   /* ~1GB max ISO */
@@ -47,7 +47,7 @@
 /* El Torito Boot Catalog signature */
 #define EL_TORITO_SIG      0xAA55
 
-/* ── ISO 9660 Structures ───────────────────────────────────── */
+/* -- ISO 9660 Structures ------------------------------------- */
 
 #pragma pack(push, 1)
 
@@ -172,7 +172,7 @@ typedef struct {
 
 #pragma pack(pop)
 
-/* ── ISO Builder API ───────────────────────────────────────── */
+/* -- ISO Builder API ----------------------------------------- */
 
 /* File entry for ISO */
 typedef struct {
@@ -216,7 +216,7 @@ typedef struct {
     uint64_t        bytes_written;
 } iso_builder_t;
 
-/* ── Builder Lifecycle ─────────────────────────────────────── */
+/* -- Builder Lifecycle --------------------------------------- */
 
 /* Initialize ISO builder. reserves ISO_RESERVE_SECTORS (16) + VDs. */
 int  iso_builder_init(iso_builder_t *b, const char *volume_id);
@@ -224,13 +224,13 @@ int  iso_builder_init(iso_builder_t *b, const char *volume_id);
 /* Shutdown and free resources */
 void iso_builder_shutdown(iso_builder_t *b);
 
-/* ── Boot Configuration ────────────────────────────────────── */
+/* -- Boot Configuration -------------------------------------- */
 
 /* Set boot image data. This makes the ISO El Torito bootable. */
 int  iso_builder_set_boot(iso_builder_t *b, const uint8_t *boot_data,
                           uint32_t boot_size);
 
-/* ── File Management ───────────────────────────────────────── */
+/* -- File Management ----------------------------------------- */
 
 /* Add a file to the ISO */
 int  iso_builder_add_file(iso_builder_t *b, const char *name,
@@ -239,14 +239,14 @@ int  iso_builder_add_file(iso_builder_t *b, const char *name,
 /* Add a directory */
 int  iso_builder_add_dir(iso_builder_t *b, const char *name);
 
-/* ── ISO Assembly ──────────────────────────────────────────── */
+/* -- ISO Assembly -------------------------------------------- */
 
 /* Build the complete ISO image. Writes all volume descriptors,
  * path tables, directory records, and file data.
  * Returns total image size, or 0 on error. */
 uint32_t iso_builder_build(iso_builder_t *b);
 
-/* ── Output ────────────────────────────────────────────────── */
+/* -- Output -------------------------------------------------- */
 
 /* Write ISO image to a file */
 int  iso_builder_write_file(iso_builder_t *b, const char *path);
@@ -257,7 +257,7 @@ const uint8_t *iso_builder_image(const iso_builder_t *b);
 /* Get image size */
 uint32_t iso_builder_image_size(const iso_builder_t *b);
 
-/* ── Validation ────────────────────────────────────────────── */
+/* -- Validation ---------------------------------------------- */
 
 /* Check if the built ISO has valid primary volume descriptor */
 int  iso_builder_validate(const iso_builder_t *b);

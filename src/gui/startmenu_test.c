@@ -1,5 +1,5 @@
 /*
- * startmenu_test.c — WuBuOS Start Menu Test Suite (Cell 104)
+ * startmenu_test.c  --  WuBuOS Start Menu Test Suite (Cell 104)
  */
 
 #include "startmenu.h"
@@ -13,7 +13,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Tests ──────────────────────────────────────────────────── */
+/* -- Tests ---------------------------------------------------- */
 
 static int g_action_called = 0;
 static void test_action(void) { g_action_called = 1; }
@@ -177,12 +177,12 @@ static void test_is_inside(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────── */
+/* -- Main ----------------------------------------------------- */
 
 int main(void) {
-    printf("╔════════════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Start Menu Test Suite (Cell 104)               ║\n");
-    printf("╚════════════════════════════════════════════════════════╝\n\n");
+    printf("+========================================================+\n");
+    printf("|  WuBuOS Start Menu Test Suite (Cell 104)               |\n");
+    printf("+========================================================+\n\n");
 
     test_init();
     test_add_entry();
@@ -198,9 +198,9 @@ int main(void) {
     test_query_dims();
     test_is_inside();
 
-    printf("\n════════════════════════════════════════════════════════\n");
+    printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("════════════════════════════════════════════════════════\n");
+    printf("========================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

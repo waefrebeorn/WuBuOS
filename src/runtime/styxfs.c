@@ -1,5 +1,5 @@
 /*
- * styxfs.c — StyxFS: 9P2000/Styx Filesystem for .wubu Containers
+ * styxfs.c  --  StyxFS: 9P2000/Styx Filesystem for .wubu Containers
  *
  * Implements a filesystem namespace backed by .wubu containers.
  * Each .wubu container is exposed as a file in the Styx namespace.
@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <time.h>
 
-/* ── Internal Helpers ────────────────────────────────────────── */
+/* -- Internal Helpers ------------------------------------------ */
 
 /* Simple in-memory filesystem node */
 typedef enum {
@@ -133,7 +133,7 @@ static void normalize_path(char *path) {
     }
 }
 
-/* ── Server Lifecycle ───────────────────────────────────────── */
+/* -- Server Lifecycle ----------------------------------------- */
 
 void styxfs_init(styxfs_server_t *srv) {
     memset(srv, 0, sizeof(*srv));
@@ -154,7 +154,7 @@ static int ensure_root(styxfs_server_t *srv) {
     return 0;
 }
 
-/* ── Mount Operations ───────────────────────────────────────── */
+/* -- Mount Operations ----------------------------------------- */
 
 int styxfs_mount(styxfs_server_t *srv, const char *path, const char *source, int is_repo) {
     if (!srv || !path || !source) return -1;
@@ -202,7 +202,7 @@ void styxfs_set_readonly(styxfs_server_t *srv, int readonly) {
     if (srv) srv->readonly = readonly;
 }
 
-/* ── Scan Repository ────────────────────────────────────────── */
+/* -- Scan Repository ------------------------------------------ */
 
 int styxfs_scan_repo(styxfs_server_t *srv, const char *mount_path, const char *fs_path) {
     if (!srv || !mount_path) return -1;
@@ -211,7 +211,7 @@ int styxfs_scan_repo(styxfs_server_t *srv, const char *mount_path, const char *f
     return 0;
 }
 
-/* ── Styx Serve (dispatch) ──────────────────────────────────── */
+/* -- Styx Serve (dispatch) ------------------------------------ */
 
 int styxfs_serve(styxfs_server_t *srv,
                   const uint8_t *inbuf, uint32_t inlen,
@@ -221,7 +221,7 @@ int styxfs_serve(styxfs_server_t *srv,
     return styx_serve(&srv->base, inbuf, inlen, outbuf, outlen);
 }
 
-/* ── Callbacks ──────────────────────────────────────────────── */
+/* -- Callbacks ------------------------------------------------ */
 
 /* Helper: get styxfs_server_t from base */
 static styxfs_server_t *get_server(styx_server_t *base) {
@@ -346,7 +346,7 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
         if (strcmp(new_path, "/") == 0) exists = 1;
         
         if (!exists) {
-            /* Path doesn't exist — stop walk here */
+            /* Path doesn't exist  --  stop walk here */
             return 0;
         }
         
@@ -645,7 +645,7 @@ int styxfs_wstat_cb(styx_server_t *base, uint32_t fid,
     return 0;
 }
 
-/* ── Helper Utilities ───────────────────────────────────────── */
+/* -- Helper Utilities ----------------------------------------- */
 
 styxfs_mount_t *styxfs_find_mount(styxfs_server_t *srv, const char *path, char *rel_path) {
     if (!srv || !path) return NULL;

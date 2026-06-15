@@ -1,9 +1,9 @@
 /*
- * styx.c — Styx/9P2000 Protocol Implementation
+ * styx.c  --  Styx/9P2000 Protocol Implementation
  *
  * Implements the wire format for Inferno OS's Styx protocol
  * (derived from Plan 9's 9P2000). This is a message-level
- * implementation — does not handle transport (TCP, pipe, shared memory).
+ * implementation  --  does not handle transport (TCP, pipe, shared memory).
  *
  * WuBuOS integration:
  *   - Wire .wubu container namespace as Styx filesystem
@@ -15,7 +15,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Message name table ─────────────────────────────────────────── */
+/* -- Message name table ------------------------------------------- */
 
 static const char *g_msg_names[] = {
     [100] = "Tversion", [101] = "Rversion",
@@ -40,7 +40,7 @@ const char *styx_msg_name(uint8_t type) {
     return "Unknown";
 }
 
-/* ── Server Initialization ──────────────────────────────────────── */
+/* -- Server Initialization ---------------------------------------- */
 
 void styx_init(styx_server_t *srv) {
     memset(srv, 0, sizeof(*srv));
@@ -50,7 +50,7 @@ void styx_init(styx_server_t *srv) {
     srv->connected = 0;
 }
 
-/* ── Fid Management ─────────────────────────────────────────────── */
+/* -- Fid Management ----------------------------------------------- */
 
 static styx_fid_t *fid_alloc(styx_server_t *srv, uint32_t fid) {
     for (int i = 0; i < STYX_MAX_FIDS; i++) {
@@ -77,7 +77,7 @@ static void fid_free(styx_server_t *srv, uint32_t fid) {
     if (f) f->in_use = 0;
 }
 
-/* ── Message Building — Response Helpers ────────────────────────── */
+/* -- Message Building  --  Response Helpers -------------------------- */
 
 /* Write the 4-byte size + 1-byte type + 2-byte tag header */
 static void write_header(uint8_t *buf, uint32_t total_size,
@@ -181,7 +181,7 @@ static int build_rremove(uint8_t *buf, uint32_t *len, uint16_t tag) {
 static int build_rstat(uint8_t *buf, uint32_t *len,
                         uint16_t tag, const styx_dir_t *dir) {
     uint32_t pos = 7;
-    /* Dir size — we need to compute it first, then fill in */
+    /* Dir size  --  we need to compute it first, then fill in */
     uint32_t dir_start = pos + 2; /* Skip 2-byte size field */
     pos = dir_start;
     styx_put16(buf + pos, dir->type); pos += 2;
@@ -204,7 +204,7 @@ static int build_rstat(uint8_t *buf, uint32_t *len,
     return 0;
 }
 
-/* ── Message Building — Client Helpers ──────────────────────────── */
+/* -- Message Building  --  Client Helpers ---------------------------- */
 
 void styx_build_tversion(uint8_t *buf, uint32_t *len,
                           uint32_t msize, const char *version) {
@@ -290,7 +290,7 @@ void styx_build_tstat(uint8_t *buf, uint32_t *len,
     *len = pos;
 }
 
-/* ── Rerror Builder ─────────────────────────────────────────────── */
+/* -- Rerror Builder ----------------------------------------------- */
 
 void styx_error(uint16_t tag, const char *errmsg,
                 uint8_t *outbuf, uint32_t *outlen) {
@@ -300,7 +300,7 @@ void styx_error(uint16_t tag, const char *errmsg,
     *outlen = pos;
 }
 
-/* ── Response Parsing — Client Helpers ──────────────────────────── */
+/* -- Response Parsing  --  Client Helpers ---------------------------- */
 
 int styx_parse_version(const uint8_t *buf, uint32_t len,
                         uint32_t *msize, char *version) {
@@ -322,7 +322,7 @@ int styx_parse_attach(const uint8_t *buf, uint32_t len,
     return 0;
 }
 
-/* ── Styx Server Core (dispatch) ────────────────────────────────── */
+/* -- Styx Server Core (dispatch) ---------------------------------- */
 
 int styx_serve(styx_server_t *srv,
                const uint8_t *inbuf, uint32_t inlen,
@@ -366,7 +366,7 @@ int styx_serve(styx_server_t *srv,
     
     case STX_TATTACH: {
         uint32_t fid = styx_get32(inbuf + 7);
-        (void)styx_get32(inbuf + 11); /* afid — unused in ring-0 single-user */
+        (void)styx_get32(inbuf + 11); /* afid  --  unused in ring-0 single-user */
         char aname[STYX_MAX_FNAME] = {0};
         styx_getstr(inbuf + 15, aname, sizeof(aname));
         
@@ -618,7 +618,7 @@ int styx_serve(styx_server_t *srv,
     }
 }
 
-/* ── Parsing Helpers for Client Messages ────────────────────────── */
+/* -- Parsing Helpers for Client Messages -------------------------- */
 
 int styx_parse_open(const uint8_t *buf, uint32_t len,
                      uint32_t *fid, int *mode) {

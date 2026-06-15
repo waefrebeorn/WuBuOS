@@ -1,5 +1,5 @@
 /*
- * tasking_test.c — Test suite for My Seed Tasking Subsystem
+ * tasking_test.c  --  Test suite for My Seed Tasking Subsystem
  */
 
 #include "tasking.h"
@@ -161,9 +161,9 @@ static void test_task_ids(void) {
 }
 
 int main(void) {
-    printf("╔══════════════════════════════╗\n");
-    printf("║  My Seed Tasking Test Suite  ║\n");
-    printf("╚══════════════════════════════╝\n");
+    printf("+==============================+\n");
+    printf("|  My Seed Tasking Test Suite  |\n");
+    printf("+==============================+\n");
 
     test_init_shutdown();
     test_create_destroy();
@@ -171,7 +171,7 @@ int main(void) {
     test_sleep_wake();
     test_task_ids();
 
-    printf("\n══════════════════════════════\n");
+    printf("\n==============================\n");
     if (failures == 0)
         printf("All tests passed! ✅\n");
     else

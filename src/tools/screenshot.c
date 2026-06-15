@@ -1,5 +1,5 @@
 /*
- * wubu_screenshot.c — WuBuOS Screenshot/Snipping Tool Implementation
+ * wubu_screenshot.c  --  WuBuOS Screenshot/Snipping Tool Implementation
  *
  * PPM/BMP/PNG capture, GIF animation, in-OS snipping widget.
  */
@@ -14,9 +14,9 @@
 #include <stdbool.h>
 #include <time.h>
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  PPM Writer (no dependencies)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static int write_ppm_internal(const char *path, const uint32_t *buf, int w, int h) {
     FILE *f = fopen(path, "wb");
@@ -39,9 +39,9 @@ int wubu_write_ppm(const char *path, const uint32_t *buf, int w, int h) {
     return write_ppm_internal(path, buf, w, h);
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  BMP Writer (no dependencies)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #pragma pack(push, 1)
 typedef struct {
@@ -114,9 +114,9 @@ int wubu_write_bmp(const char *path, const uint32_t *buf, int w, int h) {
     return write_bmp_internal(path, buf, w, h);
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  PNG Writer (stb_image_write fallback)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 #ifdef WUBU_USE_STB_IMAGE_WRITE
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -136,9 +136,9 @@ int wubu_write_png(const char *path, const uint32_t *buf, int w, int h) {
 #endif
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  Screenshot Functions
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 int wubu_shot_fullscreen(const char *path, WubuShotFormat fmt) {
     VBEState *vbe = vbe_state();
@@ -198,9 +198,9 @@ int wubu_shot_window(const char *path, int win_id, WubuShotFormat fmt) {
     return wubu_shot_region(path, win->x, win->y, win->w, win->h, fmt);
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  GIF Recorder (simple frame accumulation)
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static WubuGifRecorder g_gif = {0};
 
@@ -278,9 +278,9 @@ int wubu_gif_stop(void) {
     return 0;
 }
 
-/* ──────────────────────────────────────────────────────────────────
+/* ------------------------------------------------------------------
  *  Snipping Tool Widget
- * ────────────────────────────────────────────────────────────────── */
+ * ------------------------------------------------------------------ */
 
 static WubuSnipTool g_snip = {0};
 

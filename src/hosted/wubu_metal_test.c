@@ -1,5 +1,5 @@
 /*
- * wubu_metal_test.c — Tests for bare-metal + WSL2 abstraction layer
+ * wubu_metal_test.c  --  Tests for bare-metal + WSL2 abstraction layer
  */
 
 #include "wubu_metal.h"

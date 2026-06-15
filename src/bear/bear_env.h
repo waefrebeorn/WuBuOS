@@ -1,5 +1,5 @@
 /*
- * bear_env.h — PufferC/BearRL Vectorized Environment API
+ * bear_env.h  --  PufferC/BearRL Vectorized Environment API
  *
  * Flat obs/actions, Gym VectorEnv compatible, PufferLib-style emulation.
  * Supports: CartPole, Atari (ALE), custom envs.
@@ -13,9 +13,9 @@
 #include "bear_arena.h"
 #include "bear_simd.h"
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Environment Spec / Registry
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef enum {
     BEAR_ENV_CARTPOLE      = 0,
@@ -39,9 +39,9 @@ typedef struct {
     float act_high[BEAR_MAX_ACT_DIM];
 } BearEnvSpec;
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Environment Instance (Vectorized)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 typedef struct BearEnv BearEnv;
 
@@ -69,7 +69,7 @@ struct BearEnv {
     /* Episode tracking */
     int* episode_step;        /* [num_envs] */
     float* episode_return;      /* [num_envs] */
-    float* episode_return_snapshot; /* [num_envs] — captured at episode end before reset */
+    float* episode_return_snapshot; /* [num_envs]  --  captured at episode end before reset */
     int  num_active_envs;     /* envs not done */
     
     /* Impl callbacks */
@@ -81,9 +81,9 @@ struct BearEnv {
     void* user_data;
 };
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Factory / API
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* Create vectorized environment */
 BearEnv* bear_env_create(BearEnvType type, int num_envs,
@@ -104,9 +104,9 @@ void bear_env_close(BearEnv* e);
 /* Get environment specification */
 const BearEnvSpec* bear_env_spec(const BearEnv* e);
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Built-in Environments (implemented in bear_envs.c)
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 /* CartPole-v1 (Gym classic) */
 void bear_cartpole_init(BearEnv* e, BearArena* global);
@@ -131,7 +131,7 @@ void bear_atari_step(BearEnv* e, const BearTensor* actions,
                       BearTensor* next_obs, BearArena* arena);
 #endif
 
-/* N-Pole Cartpole (7-10 poles) — Sovereign Bear Challenge */
+/* N-Pole Cartpole (7-10 poles)  --  Sovereign Bear Challenge */
 void bear_npolecart_init(BearEnv* e, int num_poles, BearArena* global);
 void bear_npolecart_reset(BearEnv* e, BearArena* arena);
 void bear_npolecart_step(BearEnv* e, const BearTensor* actions,

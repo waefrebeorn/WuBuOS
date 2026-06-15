@@ -1,10 +1,16 @@
 /*
- * vbe.h — My Seed VBE Framebuffer Graphics
+ * vbe.h  --  My Seed VBE Framebuffer Graphics
  *
  * Portable C framebuffer with VBE-style API.
  * Real kernel will use VBE BIOS modes; hosted test uses malloc'd buffer.
  *
  * Design: ZealOS/src/System/Gr/GrScreen.ZC
+ *
+ * Fable Windowing Agent extensions:
+ *   - 64-glyph 8x8 bitmap font (ASCII 32..95)
+ *   - Clipped primitives, gradient fills, circle, shade
+ *   - Software mouse cursor
+ *   - Win98 title bar + close box
  */
 
 #ifndef MYSEED_VBE_H
@@ -34,7 +40,7 @@ VBEState *vbe_state(void);
 /* Swap front/back buffers (call each frame) */
 void vbe_swap(void);
 
-/* ── Drawing Primitives ─────────────────────────────────────────── */
+/* -- Drawing Primitives ------------------------------------------- */
 
 void vbe_set_pixel(int x, int y, uint32_t color);
 uint32_t vbe_get_pixel(int x, int y);
@@ -60,9 +66,50 @@ void vbe_3d_sunken(int x, int y, int w, int h);
 /* Fill entire screen */
 void vbe_clear(uint32_t color);
 
-/* ── Win98 Classic Colors ───────────────────────────────────────── */
+/* -- Fable Windowing Agent: 8x8 Bitmap Font ---------------------- */
+/* 64 glyphs, ASCII 32..95. 8 bytes per glyph, bit 7 = leftmost. */
+/* Ported from Mythos Fable (filipvabrousek/osdev). */
 
-#define C_WIN_DESKTOP   0x00808080
+extern const uint8_t vbe_font_8x8[64][8];
+
+/* Draw a single 8x8 font glyph (5px wide, 7px tall). scale=1 native. */
+void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale);
+
+/* Draw a string of glyphs. Advance = 6 * scale per character. */
+void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale);
+
+/* Measure string width in pixels (count * 6 * scale). */
+int  vbe_text_width(const char *s, int scale);
+
+/* -- Fable Windowing Agent: Extended Primitives ------------------ */
+
+/* Clipped fill_rect — clips to screen, returns 0 if fully invisible. */
+int  vbe_fill_rect_clip(int x, int y, int w, int h, uint32_t color);
+
+/* Shade rectangle: darken existing pixels by 50%. */
+void vbe_shade_rect(int x, int y, int w, int h);
+
+/* Vertical gradient fill. */
+void vbe_vgradient(int x, int y, int w, int h, uint32_t top, uint32_t bottom);
+
+/* Horizontal gradient fill. */
+void vbe_hgradient(int x, int y, int w, int h, uint32_t left, uint32_t right);
+
+/* Filled circle. */
+void vbe_fill_circle(int cx, int cy, int r, uint32_t color);
+
+/* Fable-style software mouse cursor (18-row arrow with outline). */
+void vbe_draw_cursor(int mx, int my);
+
+/* Win98 gradient title bar (active: navy→blue, inactive: gray flat). */
+void vbe_title_bar(int x, int y, int w, int h, int active);
+
+/* Close box (red X button, 14×12). */
+void vbe_close_box(int x, int y, int active);
+
+/* -- Win98 Classic Colors ----------------------------------------- */
+
+#define C_WIN_DESKTOP   0x008080
 #define C_WIN_FACE      0x00C0C0C0
 #define C_WIN_TITLE     0x00000080
 #define C_WIN_TITLE_INA 0x00808080

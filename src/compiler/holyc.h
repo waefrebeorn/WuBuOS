@@ -1,5 +1,5 @@
 /*
- * holyc.h — My Seed HolyC Compiler
+ * holyc.h  --  My Seed HolyC Compiler
  *
  * A minimal, self-contained HolyC compiler in pure C11.
  * Ported design from ZealOS Compiler/*.ZC and holyc-lang.
@@ -24,7 +24,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* ── Limits ─────────────────────────────────────────────────────── */
+/* -- Limits ------------------------------------------------------- */
 
 #define HC_MAX_TOKEN_LEN    256
 #define HC_MAX_IDENT_LEN    64
@@ -34,7 +34,7 @@
 #define HC_MAX_STRING_LEN   4096
 #define HC_MAX_ERRORS       32
 
-/* ── Token Types ────────────────────────────────────────────────── */
+/* -- Token Types -------------------------------------------------- */
 
 typedef enum {
     /* End of input */
@@ -137,7 +137,7 @@ typedef enum {
     HC_TOK_DEFINE,      /* #define */
 } HCTokenType;
 
-/* ── Token ──────────────────────────────────────────────────────── */
+/* -- Token -------------------------------------------------------- */
 
 typedef struct {
     HCTokenType  type;
@@ -148,7 +148,7 @@ typedef struct {
     int          col;
 } HCToken;
 
-/* ── Type System ────────────────────────────────────────────────── */
+/* -- Type System -------------------------------------------------- */
 
 typedef enum {
     HC_TYPE_VOID = 0,
@@ -189,7 +189,7 @@ struct HCType {
 /* Size of a type in bytes */
 size_t hc_type_size(const HCType *t);
 
-/* ── AST Node Types ─────────────────────────────────────────────── */
+/* -- AST Node Types ----------------------------------------------- */
 
 typedef enum {
     /* Literals */
@@ -250,7 +250,7 @@ typedef enum {
     HC_AST_ARROW,       /* expr->member */
 } HCASTKind;
 
-/* ── AST Node ───────────────────────────────────────────────────── */
+/* -- AST Node ----------------------------------------------------- */
 
 typedef struct HCASTNode HCASTNode;
 struct HCASTNode {
@@ -309,7 +309,7 @@ struct HCASTNode {
     int         col;
 };
 
-/* ── Lexer ──────────────────────────────────────────────────────── */
+/* -- Lexer -------------------------------------------------------- */
 
 typedef struct {
     const char *src;        /* Source text */
@@ -333,7 +333,7 @@ HCTokenType hc_lex_peek(HCLexer *lex);
 /* Expect a specific token type, error if not */
 int hc_lex_expect(HCLexer *lex, HCTokenType expected);
 
-/* ── Parser ─────────────────────────────────────────────────────── */
+/* -- Parser ------------------------------------------------------- */
 
 typedef struct {
     HCLexer    *lex;
@@ -364,7 +364,7 @@ HCASTNode *parse_block(HCParser *p);
 /* Peek current token (for eval dispatch) */
 HCTokenType hc_parse_peek(HCParser *p);
 
-/* ── Symbol Table ───────────────────────────────────────────────── */
+/* -- Symbol Table ------------------------------------------------- */
 
 typedef struct {
     char        name[HC_MAX_IDENT_LEN];
@@ -389,7 +389,7 @@ typedef struct {
     int         stack_size;   /* Total stack frame size */
 } HCSymTab;
 
-/* ── Code Generator ─────────────────────────────────────────────── */
+/* -- Code Generator ----------------------------------------------- */
 
 typedef struct {
     uint8_t    *code;        /* Output buffer for machine code */
@@ -428,7 +428,7 @@ int hc_gen_function(HCGen *gen, const HCASTNode *func);
 /* Get the generated machine code */
 const uint8_t *hc_gen_code(const HCGen *gen, size_t *out_size);
 
-/* ── AST Utilities ──────────────────────────────────────────────── */
+/* -- AST Utilities ------------------------------------------------ */
 
 /* Allocate a new AST node */
 HCASTNode *hc_ast_new(HCASTKind kind);
@@ -445,7 +445,7 @@ void hc_ast_add_arg(HCASTNode *call, HCASTNode *arg);
 /* Print AST for debugging */
 void hc_ast_print(const HCASTNode *node, int indent);
 
-/* ── Compiler (top-level) ───────────────────────────────────────── */
+/* -- Compiler (top-level) ----------------------------------------- */
 
 typedef struct {
     HCLexer     lex;

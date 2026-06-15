@@ -1,10 +1,10 @@
 /*
- * wubu_arch.h — WuBuOS Arch Linux Bootstrap for Container Roots
+ * wubu_arch.h  --  WuBuOS Arch Linux Bootstrap for Container Roots
  *
  * Cell 390: Arch as the NT-era kernel layer.
  *
  * Philosophy: Arch base rips through Linux drivers.
- * We don't rewrite drivers — we USE them. Arch gives us:
+ * We don't rewrite drivers  --  we USE them. Arch gives us:
  *   - Preemptive multitasking via Linux kernel
  *   - DRM/KMS for native display
  *   - NVIDIA + AMD drivers via pacman
@@ -25,7 +25,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Arch Root Configuration ────────────────────────────────────── */
+/* -- Arch Root Configuration -------------------------------------- */
 
 #define WUBU_ARCH_ROOT_DEFAULT  "/var/wubu/roots/arch-base"
 #define WUBU_ARCH_MIRROR_DEFAULT "https://archlinux.org/packages/"
@@ -49,7 +49,7 @@ typedef struct {
     uint64_t root_size_mb;      /* Root filesystem size in MB */
 } WubuArchRoot;
 
-/* ── Arch Bootstrap ─────────────────────────────────────────────── */
+/* -- Arch Bootstrap ----------------------------------------------- */
 
 /*
  * Bootstrap a minimal Arch rootfs using pacstrap.
@@ -89,7 +89,7 @@ int wubu_arch_pacman(const char *root_path, const char *args);
  */
 int wubu_arch_update(const char *root_path);
 
-/* ── Arch Service Management ────────────────────────────────────── */
+/* -- Arch Service Management -------------------------------------- */
 
 /*
  * Enable a systemd service inside Arch root.
@@ -110,7 +110,7 @@ int wubu_arch_enable_service(const char *root_path, const char *service);
  */
 int wubu_arch_configure(const char *root_path);
 
-/* ── Arch Presets ───────────────────────────────────────────────── */
+/* -- Arch Presets ------------------------------------------------- */
 
 /*
  * Bootstrap a GUI-capable Arch root.
@@ -126,7 +126,7 @@ int wubu_arch_bootstrap_gui(const char *root_path, const char *mirror);
  */
 int wubu_arch_bootstrap_steam(const char *root_path, const char *mirror);
 
-/* ── Arch Root Info ─────────────────────────────────────────────── */
+/* -- Arch Root Info ----------------------------------------------- */
 
 /*
  * Check if an Arch root exists and is valid.

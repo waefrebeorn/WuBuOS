@@ -1,7 +1,7 @@
 /*
- * wubu_shell.c — WuBuOS Unified GUI Shell Runner
+ * wubu_shell.c  --  WuBuOS Unified GUI Shell Runner
  *
- * Cell 207: Integration — runs the Win98 GUI shell (WM, desktop, taskbar,
+ * Cell 207: Integration  --  runs the Win98 GUI shell (WM, desktop, taskbar,
  * start menu, REPL) on any platform backend (X11, DRM/KMS, Wayland, VBE).
  * Uses the unified display/input APIs from wubu_metal.h.
  *
@@ -36,7 +36,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-/* ── Styx In-Memory Filesystem (copied from hosted.c) ────────────── */
+/* -- Styx In-Memory Filesystem (copied from hosted.c) -------------- */
 
 #define STYXFS_MAX_FILES 64
 
@@ -83,7 +83,7 @@ static void fs_reset(void) {
     g_next_path = 1;
 }
 
-/* ── Styx Server Callbacks (for namespace server) ────────────────── */
+/* -- Styx Server Callbacks (for namespace server) ------------------ */
 
 static styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid) {
     for (int i = 0; i < STYX_MAX_FIDS; i++)
@@ -191,7 +191,7 @@ static int styx_stat_cb(styx_server_t *srv, uint32_t fid, styx_dir_t *dir) {
     return 0;
 }
 
-/* ── Shell State ─────────────────────────────────────────────────── */
+/* -- Shell State --------------------------------------------------- */
 
 typedef struct {
     int width;
@@ -203,14 +203,14 @@ typedef struct {
 
 static WubuShell g_shell = {0};
 
-/* ── Styx Namespace Setup ────────────────────────────────────────── */
+/* -- Styx Namespace Setup ------------------------------------------ */
 
 static void shell_init_styx(WubuShell *sh) {
     /* Build Styx namespace: /wubu, /dev, /prog, /cons */
     fs_add_dir("wubu");
     fs_add_dir("dev");
     fs_add_dir("prog");
-    fs_add_file("cons", (const uint8_t*)"WuBuOS — Styx namespace on unified shell\n", 40);
+    fs_add_file("cons", (const uint8_t*)"WuBuOS  --  Styx namespace on unified shell\n", 40);
 
     uint8_t demo_wubu[64];
     memset(demo_wubu, 0, sizeof(demo_wubu));
@@ -237,13 +237,13 @@ static void shell_init_styx(WubuShell *sh) {
     }
 }
 
-/* ── REPL Launch Callback ────────────────────────────────────────── */
+/* -- REPL Launch Callback ------------------------------------------ */
 
 static void shell_repl_launch(void) {
     repl_start(g_shell.width, g_shell.height);
 }
 
-/* ── Render Win98 Desktop to VBE Back Buffer ─────────────────────── */
+/* -- Render Win98 Desktop to VBE Back Buffer ----------------------- */
 
 extern void desktop_draw(int screen_w, int screen_h, int taskbar_h);
 extern void taskbar_draw(int screen_w, int screen_h);
@@ -278,7 +278,7 @@ static void shell_render(WubuShell *sh) {
     }
 }
 
-/* ── Main Shell Event Loop ───────────────────────────────────────── */
+/* -- Main Shell Event Loop ----------------------------------------- */
 
 int wubu_shell_run(int width, int height) {
     g_shell.width = width;
@@ -377,7 +377,7 @@ int wubu_shell_run(int width, int height) {
     return 0;
 }
 
-/* ── Shell Shutdown ──────────────────────────────────────────────── */
+/* -- Shell Shutdown ------------------------------------------------ */
 
 void wubu_shell_shutdown(void) {
     fprintf(stderr, "WuBuOS shell shutdown...\n");

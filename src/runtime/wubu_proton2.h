@@ -1,5 +1,5 @@
 /*
- * wubu_proton2.h — WuBuOS Proton: Real Wine/Proton Container Integration
+ * wubu_proton2.h  --  WuBuOS Proton: Real Wine/Proton Container Integration
  *
  * Cell 399: Proton runs as an Arch container with real Wine + DXVK.
  *
@@ -44,7 +44,7 @@
 #include "wubu_host_exec.h"
 #include "wubu_ramdisk.h"
 
-/* ── Proton Configuration ───────────────────────────────────────── */
+/* -- Proton Configuration ----------------------------------------- */
 
 #define WUBU_PROTON_MAX_APPS    64
 #define WUBU_PROTON_MAX_ARGS    32
@@ -104,7 +104,7 @@ typedef struct {
     bool             debug_proxy;        /* Log API calls */
 } WubuProtonConfig;
 
-/* ── Windows App Descriptor ─────────────────────────────────────── */
+/* -- Windows App Descriptor --------------------------------------- */
 
 typedef struct {
     char     name[128];
@@ -125,7 +125,7 @@ typedef struct {
     int      exit_code;
 } WubuProtonApp;
 
-/* ── Proton Manager ─────────────────────────────────────────────── */
+/* -- Proton Manager ----------------------------------------------- */
 
 typedef struct {
     WubuProtonConfig   global;
@@ -159,9 +159,9 @@ typedef struct {
     uint64_t frames_rendered;
 } WubuProtonManager;
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Proton Manager Lifecycle
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Initialize Proton manager (creates Arch container with Wine) */
 WubuProtonManager *wubu_proton_mgr_create(const WubuProtonConfig *config);
@@ -176,9 +176,9 @@ void wubu_proton_stop(WubuProtonManager *mgr);
 /* Check if Proton is running */
 bool wubu_proton_is_running(const WubuProtonManager *mgr);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: App Management
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Register a Windows app */
 int  wubu_proton_add_app(WubuProtonManager *mgr, const WubuProtonApp *app);
@@ -195,9 +195,9 @@ int  wubu_proton_terminate(WubuProtonManager *mgr, int app_idx);
 /* Wait for app to exit */
 int  wubu_proton_wait(WubuProtonManager *mgr, int app_idx);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: GPU Passthrough
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Detect available GPUs */
 int  wubu_gpu_detect(char *name, int name_len, char *pci, int pci_len);
@@ -209,9 +209,9 @@ int  wubu_gpu_open(const char *pci);
 int  wubu_proton_dxvk_config(WubuProtonManager *mgr, int app_idx,
                                const char *config_str);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: HID/USB Input
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Enumerate input devices (keyboards, mice, gamepads) */
 int  wubu_hid_enumerate(char names[][64], int *types, int max);
@@ -231,9 +231,9 @@ int  wubu_midi_enumerate(char names[][64], int max);
 /* Open a MIDI device */
 int  wubu_midi_open(const char *path);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Container Integration
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Get the container (for advanced configuration) */
 WubuCt *wubu_proton_container(WubuProtonManager *mgr);
@@ -248,9 +248,9 @@ int  wubu_proton_mount(WubuProtonManager *mgr,
 /* Run a command inside the Proton container */
 int  wubu_proton_exec(WubuProtonManager *mgr, const char *cmd);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Diagnostics
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 void wubu_proton_dump(const WubuProtonManager *mgr);
 int  wubu_proton_verify_installation(const WubuProtonManager *mgr);

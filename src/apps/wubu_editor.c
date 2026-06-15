@@ -1,5 +1,5 @@
 /*
- * wubu_editor.c — WuBuOS Code Editor Implementation
+ * wubu_editor.c  --  WuBuOS Code Editor Implementation
  *
  * Cell 396: Tabbed editor with syntax HL, find/replace, folding.
  */
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Syntax Detection ───────────────────────────────────────────── */
+/* -- Syntax Detection --------------------------------------------- */
 
 WubuSyntax wubu_ed_detect_syntax(const char *filename) {
     if (!filename) return SYNTAX_NONE;
@@ -29,7 +29,7 @@ WubuSyntax wubu_ed_detect_syntax(const char *filename) {
     return SYNTAX_NONE;
 }
 
-/* ── Create/Destroy ─────────────────────────────────────────────── */
+/* -- Create/Destroy ----------------------------------------------- */
 
 WubuEditor *wubu_ed_create(void) {
     WubuEditor *ed = (WubuEditor*)calloc(1, sizeof(WubuEditor));
@@ -54,7 +54,7 @@ void wubu_ed_destroy(WubuEditor *ed) {
     free(ed);
 }
 
-/* ── New File ───────────────────────────────────────────────────── */
+/* -- New File ----------------------------------------------------- */
 
 void wubu_ed_new_file(WubuEditor *ed) {
     if (!ed || ed->n_tabs >= WUBU_ED_MAX_TABS) return;
@@ -73,7 +73,7 @@ void wubu_ed_new_file(WubuEditor *ed) {
     ed->n_tabs++;
 }
 
-/* ── Open File ──────────────────────────────────────────────────── */
+/* -- Open File ---------------------------------------------------- */
 
 int wubu_ed_open(WubuEditor *ed, const char *filename) {
     if (!ed || !filename || ed->n_tabs >= WUBU_ED_MAX_TABS) return -1;
@@ -123,7 +123,7 @@ int wubu_ed_open(WubuEditor *ed, const char *filename) {
     return 0;
 }
 
-/* ── Save ───────────────────────────────────────────────────────── */
+/* -- Save --------------------------------------------------------- */
 
 int wubu_ed_save(WubuEditor *ed) {
     if (!ed || ed->active_tab < 0) return -1;
@@ -151,7 +151,7 @@ int wubu_ed_save_as(WubuEditor *ed, const char *filename) {
     return wubu_ed_save(ed);
 }
 
-/* ── Tab Management ─────────────────────────────────────────────── */
+/* -- Tab Management ----------------------------------------------- */
 
 void wubu_ed_switch_tab(WubuEditor *ed, int tab_idx) {
     if (ed && tab_idx >= 0 && tab_idx < ed->n_tabs)
@@ -183,11 +183,11 @@ int wubu_ed_close_tab(WubuEditor *ed, int tab_idx) {
     return 0;
 }
 
-/* ── Undo/Redo Internal ──────────────────────────────────────────── */
+/* -- Undo/Redo Internal -------------------------------------------- */
 
 static void undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col, const char *text, int text_len);
 
-/* ── Insert Character ───────────────────────────────────────────── */
+/* -- Insert Character --------------------------------------------- */
 
 void wubu_ed_insert_char(WubuEditor *ed, char ch) {
     WubuEdTab *tab = wubu_ed_current_tab(ed);
@@ -310,7 +310,7 @@ void wubu_ed_insert_text(WubuEditor *ed, const char *text) {
     }
 }
 
-/* ── Undo/Redo ──────────────────────────────────────────────────── */
+/* -- Undo/Redo ---------------------------------------------------- */
 
 static void undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col, const char *text, int text_len) {
     if (!tab || tab->undo_count >= WUBU_ED_MAX_UNDO) return;
@@ -418,7 +418,7 @@ bool wubu_ed_can_redo(WubuEditor *ed) {
     return redo_idx < WUBU_ED_MAX_UNDO && tab->undo_stack[redo_idx].kind != 0;
 }
 
-/* ── Selection ────────────────────────────────────────────────────── */
+/* -- Selection ------------------------------------------------------ */
 
 void wubu_ed_select_all(WubuEditor *ed) {
     WubuEdTab *tab = wubu_ed_current_tab(ed);
@@ -546,7 +546,7 @@ void wubu_ed_paste(WubuEditor *ed) {
     wubu_ed_insert_text(ed, ed->clipboard);
 }
 
-/* ── Find/Replace ──────────────────────────────────────────────────── */
+/* -- Find/Replace ---------------------------------------------------- */
 
 int wubu_ed_find_next(WubuEditor *ed) {
     WubuEdTab *tab = wubu_ed_current_tab(ed);
@@ -661,7 +661,7 @@ int wubu_ed_replace_all(WubuEditor *ed) {
     return count;
 }
 
-/* ── Code Folding ─────────────────────────────────────────────────── */
+/* -- Code Folding --------------------------------------------------- */
 
 /* Helper: find the matching fold end for a fold start at given line */
 static int find_fold_end(WubuEdTab *tab, int start_line) {
@@ -719,7 +719,7 @@ void wubu_ed_unfold_all(WubuEditor *ed) {
     }
 }
 
-/* ── Bookmarks ────────────────────────────────────────────────────── */
+/* -- Bookmarks ------------------------------------------------------ */
 
 void wubu_ed_bookmark_toggle(WubuEditor *ed, int line) {
     WubuEdTab *tab = wubu_ed_current_tab(ed);
@@ -769,14 +769,14 @@ int wubu_ed_bookmark_prev(WubuEditor *ed) {
     return -1;
 }
 
-/* ── View Toggles ───────────────────────────────────────────────── */
+/* -- View Toggles ------------------------------------------------- */
 
 void wubu_ed_toggle_line_nums(WubuEditor *ed)   { if (ed) ed->show_line_nums = !ed->show_line_nums; }
 void wubu_ed_toggle_word_wrap(WubuEditor *ed)    { WubuEdTab *t = wubu_ed_current_tab(ed); if (t) t->word_wrap = !t->word_wrap; }
 void wubu_ed_toggle_split(WubuEditor *ed)        { if (ed) ed->split = !ed->split; }
 void wubu_ed_toggle_whitespace(WubuEditor *ed)   { WubuEdTab *t = wubu_ed_current_tab(ed); if (t) t->show_whitespace = !t->show_whitespace; }
 
-/* ── Macro ────────────────────────────────────────────────────────── */
+/* -- Macro ---------------------------------------------------------- */
 
 static void macro_record(WubuEditor *ed, char ch) {
     if (!ed || !ed->macro_recording) return;
@@ -811,7 +811,7 @@ void wubu_ed_macro_play(WubuEditor *ed) {
     ed->macro_playing = false;
 }
 
-/* ── Session ──────────────────────────────────────────────────────── */
+/* -- Session -------------------------------------------------------- */
 
 int wubu_ed_session_save(WubuEditor *ed, const char *path) {
     if (!ed || !path) return -1;
