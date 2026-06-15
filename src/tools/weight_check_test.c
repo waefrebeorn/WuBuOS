@@ -1,5 +1,5 @@
 /*
- * weight_check_test.c — Test Suite for Vision Weight Verification
+ * weight_check_test.c  --  Test Suite for Vision Weight Verification
  *
  * Cell 051: Tests weight checking, shard path generation, validation.
  */
@@ -14,7 +14,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Shard Path Tests ──────────────────────────────────────── */
+/* -- Shard Path Tests ---------------------------------------- */
 
 static void test_shard_path(void) {
     TEST("shard path generation");
@@ -38,11 +38,11 @@ static void test_shard_path_invalid(void) {
     PASS();
 }
 
-/* ── Validate File Tests ──────────────────────────────────── */
+/* -- Validate File Tests ------------------------------------ */
 
 static void test_validate_existing_file(void) {
     TEST("validate existing file");
-    /* Use this source file as a test file — it exists and is > 0 bytes */
+    /* Use this source file as a test file  --  it exists and is > 0 bytes */
     uint64_t size = weight_validate_file(__FILE__, 1);
     CHECK(size > 0, "this source file should validate with min_size=1");
     PASS();
@@ -63,7 +63,7 @@ static void test_validate_too_small(void) {
     PASS();
 }
 
-/* ── Weight Check (Full) Tests ─────────────────────────────── */
+/* -- Weight Check (Full) Tests ------------------------------- */
 
 static void test_weight_check(void) {
     TEST("weight check against real model files");
@@ -96,7 +96,7 @@ static void test_weight_check_null(void) {
     PASS();
 }
 
-/* ── Directory Path Test ───────────────────────────────────── */
+/* -- Directory Path Test ------------------------------------- */
 
 static void test_dir_path(void) {
     TEST("directory path set in result");
@@ -107,12 +107,12 @@ static void test_dir_path(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Vision Weight Check Test Suite             ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS Vision Weight Check Test Suite             |\n");
+    printf("+==================================================+\n\n");
 
     test_shard_path();
     test_shard_path_invalid();
@@ -123,9 +123,9 @@ int main(void) {
     test_weight_check_null();
     test_dir_path();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

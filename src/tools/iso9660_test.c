@@ -1,5 +1,5 @@
 /*
- * iso9660_test.c — Test Suite for WuBuOS ISO 9660 / Bootable ISO Builder
+ * iso9660_test.c  --  Test Suite for WuBuOS ISO 9660 / Bootable ISO Builder
  *
  * Cell 060: Tests ISO builder lifecycle, volume descriptors,
  * El Torito boot catalog, path tables, root directory, and validation.
@@ -16,7 +16,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Lifecycle Tests ───────────────────────────────────────── */
+/* -- Lifecycle Tests ----------------------------------------- */
 
 static void test_builder_init(void) {
     TEST("builder init");
@@ -40,7 +40,7 @@ static void test_builder_init_null(void) {
     PASS();
 }
 
-/* ── File Management Tests ─────────────────────────────────── */
+/* -- File Management Tests ----------------------------------- */
 
 static void test_add_files(void) {
     TEST("add files");
@@ -74,7 +74,7 @@ static void test_add_dir(void) {
     PASS();
 }
 
-/* ── Boot Configuration Tests ──────────────────────────────── */
+/* -- Boot Configuration Tests -------------------------------- */
 
 static void test_set_boot(void) {
     TEST("set boot image");
@@ -93,7 +93,7 @@ static void test_set_boot(void) {
     PASS();
 }
 
-/* ── ISO Build Tests ───────────────────────────────────────── */
+/* -- ISO Build Tests ----------------------------------------- */
 
 static void test_build_basic(void) {
     TEST("build basic ISO (no boot)");
@@ -130,7 +130,7 @@ static void test_build_bootable(void) {
     PASS();
 }
 
-/* ── Volume Descriptor Validation Tests ────────────────────── */
+/* -- Volume Descriptor Validation Tests ---------------------- */
 
 static void test_validate_primary_vd(void) {
     TEST("validate primary volume descriptor");
@@ -166,7 +166,7 @@ static void test_validate_terminator(void) {
     PASS();
 }
 
-/* ── El Torito Tests ───────────────────────────────────────── */
+/* -- El Torito Tests ----------------------------------------- */
 
 static void test_el_torito_bootable(void) {
     TEST("El Torito bootable check");
@@ -244,7 +244,7 @@ static void test_non_bootable_is_bootable(void) {
     PASS();
 }
 
-/* ── Path Table Tests ──────────────────────────────────────── */
+/* -- Path Table Tests ---------------------------------------- */
 
 static void test_path_tables(void) {
     TEST("path tables written");
@@ -265,7 +265,7 @@ static void test_path_tables(void) {
     PASS();
 }
 
-/* ── Root Directory Tests ──────────────────────────────────── */
+/* -- Root Directory Tests ------------------------------------ */
 
 static void test_root_directory(void) {
     TEST("root directory has . and .. entries");
@@ -309,7 +309,7 @@ static void test_root_directory_with_files(void) {
     PASS();
 }
 
-/* ── Layout Tests ──────────────────────────────────────────── */
+/* -- Layout Tests -------------------------------------------- */
 
 static void test_sector_layout(void) {
     TEST("sector layout is correct");
@@ -353,7 +353,7 @@ static void test_bootable_sector_layout(void) {
     PASS();
 }
 
-/* ── Image Access Tests ────────────────────────────────────── */
+/* -- Image Access Tests -------------------------------------- */
 
 static void test_image_access(void) {
     TEST("image access functions");
@@ -386,12 +386,12 @@ static void test_validate_empty(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS ISO 9660 / Bootable ISO Test Suite        ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS ISO 9660 / Bootable ISO Test Suite        |\n");
+    printf("+==================================================+\n\n");
 
     /* Lifecycle */
     test_builder_init();
@@ -433,9 +433,9 @@ int main(void) {
     test_image_access();
     test_validate_empty();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

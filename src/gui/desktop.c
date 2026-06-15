@@ -1,5 +1,5 @@
 /*
- * desktop.c — My Seed Desktop Manager
+ * desktop.c  --  My Seed Desktop Manager
  */
 #include "wm.h"
 #include "../kernel/vbe.h"

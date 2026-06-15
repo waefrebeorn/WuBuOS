@@ -1,5 +1,5 @@
 /*
- * wubu_canvas.h — WuBuOS Image Editor (Photoshop class)
+ * wubu_canvas.h  --  WuBuOS Image Editor (Photoshop class)
  *
  * Cell 397: Layered image editor with plugin architecture.
  *
@@ -38,7 +38,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── Canvas Limits ───────────────────────────────────────────────── */
+/* -- Canvas Limits ------------------------------------------------- */
 
 #define WUBU_CV_MAX_LAYERS     32
 #define WUBU_CV_MAX_UNDO       256
@@ -46,7 +46,7 @@
 #define WUBU_CV_MAX_PLUGINS    16
 #define WUBU_CV_PLUGIN_NAME    64
 
-/* ── Blend Modes ────────────────────────────────────────────────── */
+/* -- Blend Modes -------------------------------------------------- */
 
 typedef enum {
     BLEND_NORMAL    = 0,
@@ -64,7 +64,7 @@ typedef enum {
     BLEND_SOFT_LIGHT = 12,
 } WubuBlendMode;
 
-/* ── Layer ──────────────────────────────────────────────────────── */
+/* -- Layer -------------------------------------------------------- */
 
 typedef struct {
     char         name[64];
@@ -78,7 +78,7 @@ typedef struct {
     bool         is_mask;        /* This layer is a mask for the layer below */
 } WubuLayer;
 
-/* ── Selection ──────────────────────────────────────────────────── */
+/* -- Selection ---------------------------------------------------- */
 
 typedef enum {
     SEL_NONE       = 0,
@@ -95,7 +95,7 @@ typedef struct {
     bool        active;
 } WubuSelection;
 
-/* ── Drawing Tool ───────────────────────────────────────────────── */
+/* -- Drawing Tool ------------------------------------------------- */
 
 typedef enum {
     TOOL_BRUSH      = 0,
@@ -123,7 +123,7 @@ typedef struct {
     int       brush_x, brush_y;  /* Last brush position */
 } WubuToolState;
 
-/* ── Plugin API ─────────────────────────────────────────────────── */
+/* -- Plugin API --------------------------------------------------- */
 
 typedef struct WubuCanvas WubuCanvas;
 
@@ -145,7 +145,7 @@ typedef struct {
     bool               active;
 } WubuPlugin;
 
-/* ── Undo Action ────────────────────────────────────────────────── */
+/* -- Undo Action -------------------------------------------------- */
 
 typedef enum {
     CV_UNDO_BRUSH   = 1,
@@ -162,7 +162,7 @@ typedef struct {
     int            saved_len;
 } WubuCvUndo;
 
-/* ── GIF Animation ──────────────────────────────────────────────── */
+/* -- GIF Animation ------------------------------------------------ */
 
 typedef struct {
     int       delay_ms;       /* Frame delay in milliseconds */
@@ -177,7 +177,7 @@ typedef struct {
     int          loop_count;    /* 0 = infinite */
 } WubuGifAnim;
 
-/* ── Complete Canvas State ───────────────────────────────────────── */
+/* -- Complete Canvas State ----------------------------------------- */
 
 struct WubuCanvas {
     int           w, h;          /* Canvas dimensions */
@@ -213,12 +213,12 @@ struct WubuCanvas {
     WubuGifAnim   gif;
 };
 
-/* ── Canvas Lifecycle ───────────────────────────────────────────── */
+/* -- Canvas Lifecycle --------------------------------------------- */
 
 WubuCanvas *wubu_cv_create(int w, int h);
 void        wubu_cv_destroy(WubuCanvas *cv);
 
-/* ── Layer Operations ──────────────────────────────────────────── */
+/* -- Layer Operations -------------------------------------------- */
 
 int   wubu_cv_layer_add(WubuCanvas *cv, const char *name);
 int   wubu_cv_layer_add_from_data(WubuCanvas *cv, const char *name,
@@ -235,7 +235,7 @@ void  wubu_cv_layer_set_visible(WubuCanvas *cv, int idx, bool visible);
 void  wubu_cv_layer_set_locked(WubuCanvas *cv, int idx, bool locked);
 WubuLayer *wubu_cv_layer_get(WubuCanvas *cv, int idx);
 
-/* ── Compositing ────────────────────────────────────────────────── */
+/* -- Compositing -------------------------------------------------- */
 
 /* Blend two pixels with given opacity and blend mode */
 uint32_t wubu_blend(uint32_t dst, uint32_t src, uint8_t opacity,
@@ -244,7 +244,7 @@ uint32_t wubu_blend(uint32_t dst, uint32_t src, uint8_t opacity,
 /* Composite all visible layers to a flat buffer */
 void wubu_cv_composite(WubuCanvas *cv, uint32_t *out, int out_w, int out_h);
 
-/* ── Drawing Tools ──────────────────────────────────────────────── */
+/* -- Drawing Tools ------------------------------------------------ */
 
 void wubu_cv_brush(WubuCanvas *cv, int x, int y);
 void wubu_cv_eraser(WubuCanvas *cv, int x, int y);
@@ -255,7 +255,7 @@ void wubu_cv_ellipse(WubuCanvas *cv, int cx, int cy, int rx, int ry, bool filled
 void wubu_cv_gradient(WubuCanvas *cv, int x0, int y0, int x1, int y1);
 uint32_t wubu_cv_pick(WubuCanvas *cv, int x, int y);
 
-/* ── Selection ──────────────────────────────────────────────────── */
+/* -- Selection ---------------------------------------------------- */
 
 void wubu_cv_select_rect(WubuCanvas *cv, int x, int y, int w, int h);
 void wubu_cv_select_ellipse(WubuCanvas *cv, int cx, int cy, int rx, int ry);
@@ -263,7 +263,7 @@ void wubu_cv_select_none(WubuCanvas *cv);
 void wubu_cv_select_all(WubuCanvas *cv);
 void wubu_cv_select_invert(WubuCanvas *cv);
 
-/* ── Filters (built-in) ─────────────────────────────────────────── */
+/* -- Filters (built-in) ------------------------------------------- */
 
 void wubu_cv_filter_blur(WubuCanvas *cv, int radius);
 void wubu_cv_filter_sharpen(WubuCanvas *cv, int amount);
@@ -272,13 +272,13 @@ void wubu_cv_filter_invert(WubuCanvas *cv);
 void wubu_cv_filter_threshold(WubuCanvas *cv, int threshold);
 void wubu_cv_filter_grayscale(WubuCanvas *cv);
 
-/* ── Plugin API ─────────────────────────────────────────────────── */
+/* -- Plugin API --------------------------------------------------- */
 
 int  wubu_cv_plugin_register(WubuCanvas *cv, const WubuPlugin *plugin);
 int  wubu_cv_plugin_run(WubuCanvas *cv, int plugin_idx);
 void wubu_cv_plugin_unregister(WubuCanvas *cv, int plugin_idx);
 
-/* ── File I/O ───────────────────────────────────────────────────── */
+/* -- File I/O ----------------------------------------------------- */
 
 int  wubu_cv_save_png(WubuCanvas *cv, const char *path);
 int  wubu_cv_save_bmp(WubuCanvas *cv, const char *path);
@@ -286,19 +286,19 @@ int  wubu_cv_save_ppm(WubuCanvas *cv, const char *path);
 int  wubu_cv_save_gif(WubuCanvas *cv, const char *path);
 int  wubu_cv_load(WubuCanvas *cv, const char *path);
 
-/* ── Undo/Redo ──────────────────────────────────────────────────── */
+/* -- Undo/Redo ---------------------------------------------------- */
 
 void wubu_cv_undo(WubuCanvas *cv);
 void wubu_cv_redo(WubuCanvas *cv);
 
-/* ── View ───────────────────────────────────────────────────────── */
+/* -- View --------------------------------------------------------- */
 
 void wubu_cv_zoom_in(WubuCanvas *cv);     /* φ scale: zoom × φ */
 void wubu_cv_zoom_out(WubuCanvas *cv);    /* zoom / φ */
 void wubu_cv_zoom_fit(WubuCanvas *cv);
 void wubu_cv_pan(WubuCanvas *cv, int dx, int dy);
 
-/* ── Canvas ops ─────────────────────────────────────────────────── */
+/* -- Canvas ops --------------------------------------------------- */
 
 void wubu_cv_resize(WubuCanvas *cv, int new_w, int new_h);
 void wubu_cv_crop(WubuCanvas *cv, int x, int y, int w, int h);

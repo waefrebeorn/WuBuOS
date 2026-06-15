@@ -1,9 +1,9 @@
 /*
- * wubu_arch.c — WuBuOS Arch Linux Bootstrap for Container Roots
+ * wubu_arch.c  --  WuBuOS Arch Linux Bootstrap for Container Roots
  *
  * Cell 390: Arch as the NT-era kernel layer.
  *
- * "Arch base rips through Linux drivers." — Creed #7
+ * "Arch base rips through Linux drivers."  --  Creed #7
  *
  * This creates real Arch Linux rootfs trees that WuBuOS containers
  * chroot into. No syscall emulation. No VSL compat theater.
@@ -24,7 +24,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-/* ── Helper: mkdir -p ───────────────────────────────────────────── */
+/* -- Helper: mkdir -p --------------------------------------------- */
 
 static int mkdir_p(const char *path, mode_t mode) {
     char tmp[512];
@@ -47,7 +47,7 @@ static int mkdir_p(const char *path, mode_t mode) {
     return 0;
 }
 
-/* ── Helper: run command and capture exit code ──────────────────── */
+/* -- Helper: run command and capture exit code -------------------- */
 
 static int run_cmd(const char *cmd, void (*progress)(const char *msg)) {
     if (progress) progress(cmd);
@@ -58,7 +58,7 @@ static int run_cmd(const char *cmd, void (*progress)(const char *msg)) {
     return -1;
 }
 
-/* ── Helper: write file inside root ─────────────────────────────── */
+/* -- Helper: write file inside root ------------------------------- */
 
 static int write_root_file(const char *root, const char *rel_path,
                            const char *content, mode_t mode) {
@@ -80,7 +80,7 @@ static int write_root_file(const char *root, const char *rel_path,
     return (written == (ssize_t)len) ? 0 : -1;
 }
 
-/* ── Arch Bootstrap ─────────────────────────────────────────────── */
+/* -- Arch Bootstrap ----------------------------------------------- */
 
 int wubu_arch_bootstrap(const char *root_path, const char *mirror,
                         void (*progress)(const char *msg)) {
@@ -126,7 +126,7 @@ int wubu_arch_bootstrap(const char *root_path, const char *mirror,
         return -1;
     }
 
-    /* Step 2: pacstrap — install base system */
+    /* Step 2: pacstrap  --  install base system */
     if (progress) progress("wubu_arch: running pacstrap (base + base-devel)...");
 
     snprintf(cmd, sizeof(cmd),
@@ -149,7 +149,7 @@ int wubu_arch_bootstrap(const char *root_path, const char *mirror,
     return 0;
 }
 
-/* ── Configure Arch Root for WuBuOS ────────────────────────────── */
+/* -- Configure Arch Root for WuBuOS ------------------------------ */
 
 int wubu_arch_configure(const char *root_path) {
     if (!root_path) return -1;
@@ -203,7 +203,7 @@ int wubu_arch_configure(const char *root_path) {
     return 0;
 }
 
-/* ── Install Packages ───────────────────────────────────────────── */
+/* -- Install Packages --------------------------------------------- */
 
 int wubu_arch_install(const char *root_path, const char *packages) {
     if (!root_path || !packages) return -1;
@@ -215,7 +215,7 @@ int wubu_arch_install(const char *root_path, const char *packages) {
     return run_cmd(cmd, NULL);
 }
 
-/* ── Run Pacman Inside Root ─────────────────────────────────────── */
+/* -- Run Pacman Inside Root --------------------------------------- */
 
 int wubu_arch_pacman(const char *root_path, const char *args) {
     if (!root_path || !args) return -1;
@@ -227,13 +227,13 @@ int wubu_arch_pacman(const char *root_path, const char *args) {
     return run_cmd(cmd, NULL);
 }
 
-/* ── Update Arch Root ───────────────────────────────────────────── */
+/* -- Update Arch Root --------------------------------------------- */
 
 int wubu_arch_update(const char *root_path) {
     return wubu_arch_pacman(root_path, "-Syu --noconfirm");
 }
 
-/* ── Enable Service ─────────────────────────────────────────────── */
+/* -- Enable Service ----------------------------------------------- */
 
 int wubu_arch_enable_service(const char *root_path, const char *service) {
     if (!root_path || !service) return -1;
@@ -245,7 +245,7 @@ int wubu_arch_enable_service(const char *root_path, const char *service) {
     return run_cmd(cmd, NULL);
 }
 
-/* ── GUI Preset ─────────────────────────────────────────────────── */
+/* -- GUI Preset --------------------------------------------------- */
 
 int wubu_arch_bootstrap_gui(const char *root_path, const char *mirror) {
     /* Bootstrap base first */
@@ -263,7 +263,7 @@ int wubu_arch_bootstrap_gui(const char *root_path, const char *mirror) {
     return wubu_arch_install(root_path, gui_pkgs);
 }
 
-/* ── Steam Preset ───────────────────────────────────────────────── */
+/* -- Steam Preset ------------------------------------------------- */
 
 int wubu_arch_bootstrap_steam(const char *root_path, const char *mirror) {
     /* GUI first */
@@ -280,7 +280,7 @@ int wubu_arch_bootstrap_steam(const char *root_path, const char *mirror) {
     return wubu_arch_install(root_path, steam_pkgs);
 }
 
-/* ── Root Validation ────────────────────────────────────────────── */
+/* -- Root Validation ---------------------------------------------- */
 
 bool wubu_arch_root_valid(const char *root_path) {
     if (!root_path) return false;
@@ -298,7 +298,7 @@ bool wubu_arch_root_valid(const char *root_path) {
     return true;
 }
 
-/* ── Root Info ──────────────────────────────────────────────────── */
+/* -- Root Info ---------------------------------------------------- */
 
 WubuArchRoot *wubu_arch_root_info(const char *root_path) {
     if (!root_path) return NULL;

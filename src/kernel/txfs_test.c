@@ -1,5 +1,5 @@
 /*
- * txfs_test.c — Test Suite for WuBuOS Transactional Filesystem
+ * txfs_test.c  --  Test Suite for WuBuOS Transactional Filesystem
  *
  * Cell 100: Tests journal-based atomic operations, commit/abort,
  * recovery, CRC32 validation, and crash consistency.
@@ -16,7 +16,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Lifecycle Tests ───────────────────────────────────────── */
+/* -- Lifecycle Tests ----------------------------------------- */
 
 static void test_init(void) {
     TEST("txfs init");
@@ -42,7 +42,7 @@ static void test_init_null(void) {
     PASS();
 }
 
-/* ── Transaction Lifecycle Tests ───────────────────────────── */
+/* -- Transaction Lifecycle Tests ----------------------------- */
 
 static void test_begin_commit(void) {
     TEST("begin → commit empty transaction");
@@ -100,7 +100,7 @@ static void test_commit_without_begin(void) {
     PASS();
 }
 
-/* ── Operation Tests ───────────────────────────────────────── */
+/* -- Operation Tests ----------------------------------------- */
 
 static void test_write_op(void) {
     TEST("add write operation");
@@ -198,7 +198,7 @@ static void test_truncate_op(void) {
     PASS();
 }
 
-/* ── Commit with Operations Tests ──────────────────────────── */
+/* -- Commit with Operations Tests ---------------------------- */
 
 static void test_commit_with_ops(void) {
     TEST("commit with multiple ops writes to journal");
@@ -239,7 +239,7 @@ static void test_abort_discards_ops(void) {
     PASS();
 }
 
-/* ── Multi-Transaction Tests ───────────────────────────────── */
+/* -- Multi-Transaction Tests --------------------------------- */
 
 static void test_multiple_transactions(void) {
     TEST("multiple sequential transactions");
@@ -271,7 +271,7 @@ static void test_multiple_transactions(void) {
     PASS();
 }
 
-/* ── Max Ops Test ──────────────────────────────────────────── */
+/* -- Max Ops Test -------------------------------------------- */
 
 static void test_max_ops(void) {
     TEST("max ops per transaction");
@@ -291,7 +291,7 @@ static void test_max_ops(void) {
     int rc = txfs_create(&tx, "/overflow.txt");
     CHECK(rc == -1, "should fail on overflow");
 
-    /* Commit — journal may be full before all 64 entries fit.
+    /* Commit  --  journal may be full before all 64 entries fit.
      * The commit should either succeed (if they fit) or fail gracefully. */
     rc = txfs_commit(&tx);
     /* If commit succeeded, all 64 entries should be in the journal.
@@ -299,7 +299,7 @@ static void test_max_ops(void) {
     if (rc == 0) {
         CHECK(tx.header.entry_count == TXFS_MAX_TXN_OPS, "all ops should be committed");
     } else {
-        /* Commit failed — journal was full. entry_count < 64. */
+        /* Commit failed  --  journal was full. entry_count < 64. */
         CHECK(tx.header.entry_count < TXFS_MAX_TXN_OPS, "partial commit expected");
         CHECK(tx.txns_aborted == 1, "aborted count should be 1");
     }
@@ -308,7 +308,7 @@ static void test_max_ops(void) {
     PASS();
 }
 
-/* ── CRC32 Tests ───────────────────────────────────────────── */
+/* -- CRC32 Tests --------------------------------------------- */
 
 static void test_crc32(void) {
     TEST("CRC32 basic");
@@ -350,7 +350,7 @@ static void test_crc32_entry_validation(void) {
     PASS();
 }
 
-/* ── Recovery Tests ────────────────────────────────────────── */
+/* -- Recovery Tests ------------------------------------------ */
 
 static void test_recover_nothing(void) {
     TEST("recover with no unapplied entries");
@@ -360,7 +360,7 @@ static void test_recover_nothing(void) {
     txfs_create(&tx, "/file.txt");
     txfs_commit(&tx);
 
-    /* All committed entries are applied — recovery does nothing */
+    /* All committed entries are applied  --  recovery does nothing */
     int replayed = txfs_recover(&tx);
     CHECK(replayed == 0, "should replay 0 entries");
     CHECK(txfs_was_recovered(&tx) == 0, "should not report recovery");
@@ -422,7 +422,7 @@ static void test_recover_crc_corruption(void) {
     PASS();
 }
 
-/* ── Journal Full Test ─────────────────────────────────────── */
+/* -- Journal Full Test --------------------------------------- */
 
 static void test_journal_full(void) {
     TEST("journal full aborts commit");
@@ -455,7 +455,7 @@ static void test_journal_full(void) {
     PASS();
 }
 
-/* ── Header Checksum Tests ─────────────────────────────────── */
+/* -- Header Checksum Tests ----------------------------------- */
 
 static void test_header_checksum(void) {
     TEST("journal header checksum is correct");
@@ -474,7 +474,7 @@ static void test_header_checksum(void) {
     PASS();
 }
 
-/* ── Stats Tests ───────────────────────────────────────────── */
+/* -- Stats Tests --------------------------------------------- */
 
 static void test_stats(void) {
     TEST("stats counters");
@@ -512,12 +512,12 @@ static void test_dump(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Transactional FS Test Suite                ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS Transactional FS Test Suite                |\n");
+    printf("+==================================================+\n\n");
 
     /* Lifecycle */
     test_init();
@@ -564,9 +564,9 @@ int main(void) {
     test_stats();
     test_dump();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

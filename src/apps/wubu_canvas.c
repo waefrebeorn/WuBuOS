@@ -1,5 +1,5 @@
 /*
- * wubu_canvas.c — WuBuOS Image Editor Implementation
+ * wubu_canvas.c  --  WuBuOS Image Editor Implementation
  *
  * Cell 397: Layered canvas with blend, plugins, GIF.
  */
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Blend Compositing ──────────────────────────────────────────── */
+/* -- Blend Compositing -------------------------------------------- */
 
 static inline uint8_t blend_channel(uint8_t dst, uint8_t src,
                                      uint8_t opacity, WubuBlendMode mode) {
@@ -54,7 +54,7 @@ uint32_t wubu_blend(uint32_t dst, uint32_t src, uint8_t opacity,
     return r | (g << 8) | (b << 16);
 }
 
-/* ── Canvas Create/Destroy ───────────────────────────────────────── */
+/* -- Canvas Create/Destroy ----------------------------------------- */
 
 WubuCanvas *wubu_cv_create(int w, int h) {
     WubuCanvas *cv = (WubuCanvas*)calloc(1, sizeof(WubuCanvas));
@@ -82,7 +82,7 @@ void wubu_cv_destroy(WubuCanvas *cv) {
     free(cv);
 }
 
-/* ── Layer Operations ───────────────────────────────────────────── */
+/* -- Layer Operations --------------------------------------------- */
 
 int wubu_cv_layer_add(WubuCanvas *cv, const char *name) {
     if (!cv || cv->n_layers >= WUBU_CV_MAX_LAYERS) return -1;
@@ -196,7 +196,7 @@ void wubu_cv_layer_flatten(WubuCanvas *cv) {
     }
 }
 
-/* ── Composite ──────────────────────────────────────────────────── */
+/* -- Composite ---------------------------------------------------- */
 
 void wubu_cv_composite(WubuCanvas *cv, uint32_t *out, int out_w, int out_h) {
     if (!cv || !out) return;
@@ -223,7 +223,7 @@ void wubu_cv_composite(WubuCanvas *cv, uint32_t *out, int out_w, int out_h) {
     }
 }
 
-/* ── Drawing (stubs — fill the core ones) ───────────────────────── */
+/* -- Drawing (stubs  --  fill the core ones) ------------------------- */
 
 void wubu_cv_brush(WubuCanvas *cv, int x, int y) {
     if (!cv || cv->active_layer < 0) return;
@@ -294,7 +294,7 @@ uint32_t wubu_cv_pick(WubuCanvas *cv, int x, int y) {
     return l->pixels[y * l->w + x];
 }
 
-/* ── Selection ──────────────────────────────────────────────────── */
+/* -- Selection ---------------------------------------------------- */
 
 void wubu_cv_select_rect(WubuCanvas *cv, int x, int y, int w, int h) {
     if (!cv) return;
@@ -324,7 +324,7 @@ void wubu_cv_select_invert(WubuCanvas *cv) {
     }
 }
 
-/* ── Filters (stubs) ────────────────────────────────────────────── */
+/* -- Filters (stubs) ---------------------------------------------- */
 
 void wubu_cv_filter_blur(WubuCanvas *cv, int radius) {
     if (!cv || cv->active_layer < 0 || radius < 1) return;
@@ -440,7 +440,7 @@ void wubu_cv_filter_grayscale(WubuCanvas *cv) {
     }
 }
 
-/* ── Plugin API ─────────────────────────────────────────────────── */
+/* -- Plugin API --------------------------------------------------- */
 
 int wubu_cv_plugin_register(WubuCanvas *cv, const WubuPlugin *plugin) {
     if (!cv || !plugin || cv->n_plugins >= WUBU_CV_MAX_PLUGINS) return -1;
@@ -468,7 +468,7 @@ void wubu_cv_plugin_unregister(WubuCanvas *cv, int plugin_idx) {
     cv->n_plugins--;
 }
 
-/* ── File I/O (BMP native, PNG/GIF via ffmpeg) ──────────────────── */
+/* -- File I/O (BMP native, PNG/GIF via ffmpeg) -------------------- */
 
 int wubu_cv_save_bmp(WubuCanvas *cv, const char *path) {
     if (!cv) return -1;
@@ -585,12 +585,12 @@ int wubu_cv_load(WubuCanvas *cv, const char *path) {
     return -1;
 }
 
-/* ── Undo/Redo ──────────────────────────────────────────────────── */
+/* -- Undo/Redo ---------------------------------------------------- */
 
 void wubu_cv_undo(WubuCanvas *cv) { (void)cv; }
 void wubu_cv_redo(WubuCanvas *cv) { (void)cv; }
 
-/* ── View ───────────────────────────────────────────────────────── */
+/* -- View --------------------------------------------------------- */
 
 void wubu_cv_zoom_in(WubuCanvas *cv) {
     if (cv) cv->zoom *= 1.6180339887; /* φ scale */
@@ -605,7 +605,7 @@ void wubu_cv_pan(WubuCanvas *cv, int dx, int dy) {
     if (cv) { cv->pan_x += dx; cv->pan_y += dy; }
 }
 
-/* ── Canvas ops (stubs) ──────────────────────────────────────────── */
+/* -- Canvas ops (stubs) -------------------------------------------- */
 
 void wubu_cv_resize(WubuCanvas *cv, int new_w, int new_h) { (void)cv; (void)new_w; (void)new_h; }
 void wubu_cv_crop(WubuCanvas *cv, int x, int y, int w, int h) { (void)cv; (void)x; (void)y; (void)w; (void)h; }

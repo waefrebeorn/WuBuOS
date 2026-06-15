@@ -1,10 +1,10 @@
 /*
- * wubu_gc.c — Simple Mark-and-Sweep GC for WuBuOS Userspace Applets
+ * wubu_gc.c  --  Simple Mark-and-Sweep GC for WuBuOS Userspace Applets
  *
  * Opt-in garbage collector for HolyC REPL, editor, container apps.
- * Kernel stays manual (memory.c) — this is purely userspace.
+ * Kernel stays manual (memory.c)  --  this is purely userspace.
  *
- * Design (from "Baby's First Garbage Collector" — mark/sweep):
+ * Design (from "Baby's First Garbage Collector"  --  mark/sweep):
  *   - Single-linked allocation list
  *   - Mark phase: DFS from roots (stack, globals, registers)
  *   - Sweep phase: free unmarked, compact marked
@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-/* ── GC Object Header ──────────────────────────────────────────── */
+/* -- GC Object Header -------------------------------------------- */
 
 typedef struct GCObject {
     struct GCObject *next;    /* Next in allocation list */
@@ -34,7 +34,7 @@ typedef struct GCObject {
     /* Payload follows immediately */
 } GCObject;
 
-/* ── GC State ──────────────────────────────────────────────────── */
+/* -- GC State ---------------------------------------------------- */
 
 static GCObject  *g_alloc_list = NULL;
 static void     **g_roots       = NULL;
@@ -44,7 +44,7 @@ static size_t     g_total_allocated = 0;
 static size_t     g_gc_threshold = 1024 * 1024;  /* 1MB default */
 static int        g_gc_enabled = 1;
 
-/* ── Root Management ───────────────────────────────────────────── */
+/* -- Root Management --------------------------------------------- */
 
 void wubu_gc_root_add(void *ptr) {
     if (!ptr) return;
@@ -70,7 +70,7 @@ void wubu_gc_root_remove(void *ptr) {
 
 size_t wubu_gc_root_count(void) { return g_root_count; }
 
-/* ── Allocation ────────────────────────────────────────────────── */
+/* -- Allocation -------------------------------------------------- */
 
 void *wubu_gc_alloc(size_t size) {
     if (size == 0) return NULL;
@@ -112,10 +112,10 @@ void wubu_gc_free(void *ptr) {
         }
         pp = &(*pp)->next;
     }
-    /* Not found — maybe already freed or not GC-managed */
+    /* Not found  --  maybe already freed or not GC-managed */
 }
 
-/* ── Mark Phase ────────────────────────────────────────────────── */
+/* -- Mark Phase -------------------------------------------------- */
 
 static void gc_mark_ptr(void *ptr) {
     if (!ptr) return;
@@ -136,11 +136,11 @@ static void gc_mark_roots(void) {
         gc_mark_ptr(g_roots[i]);
     }
 
-    /* Conservative stack scan — scan current stack frame for pointers */
+    /* Conservative stack scan  --  scan current stack frame for pointers */
     /* This is platform-dependent; simplified here */
 }
 
-/* ── Sweep Phase ───────────────────────────────────────────────── */
+/* -- Sweep Phase ------------------------------------------------- */
 
 static void gc_sweep(void) {
     GCObject **pp = &g_alloc_list;
@@ -150,7 +150,7 @@ static void gc_sweep(void) {
             obj->marked = 0;  /* Clear for next cycle */
             pp = &obj->next;
         } else {
-            /* Unmarked — free it */
+            /* Unmarked  --  free it */
             *pp = obj->next;
             g_total_allocated -= obj->size;
             free(obj);
@@ -158,7 +158,7 @@ static void gc_sweep(void) {
     }
 }
 
-/* ── Public API ────────────────────────────────────────────────── */
+/* -- Public API -------------------------------------------------- */
 
 void wubu_gc_collect(void) {
     if (!g_gc_enabled) return;
@@ -187,7 +187,7 @@ void wubu_gc_stats(size_t *allocated, size_t *threshold, size_t *roots) {
     if (roots)      *roots      = g_root_count;
 }
 
-/* ── Cleanup ───────────────────────────────────────────────────── */
+/* -- Cleanup ----------------------------------------------------- */
 
 void wubu_gc_shutdown(void) {
     while (g_alloc_list) {

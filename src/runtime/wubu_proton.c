@@ -1,5 +1,5 @@
 /*
- * wubu_proton.c — WuBuOS Proton: Windows Compatibility Layer Implementation
+ * wubu_proton.c  --  WuBuOS Proton: Windows Compatibility Layer Implementation
  *
  * Cell 092: Proton-style translation layer over VSL.
  * WuBuOS → VSL → Proton → Windows PE
@@ -14,7 +14,7 @@
 #include <strings.h>
 #include <stdio.h>
 
-/* ── Built-in API Translation Table ────────────────────────── */
+/* -- Built-in API Translation Table -------------------------- */
 /* Maps common Win32 APIs to VSL syscalls */
 
 static const proton_api_map_t default_apis[] = {
@@ -68,7 +68,7 @@ static const proton_api_map_t default_apis[] = {
 
 #define DEFAULT_API_COUNT (sizeof(default_apis) / sizeof(default_apis[0]))
 
-/* ── Built-in DLLs (Windows DLLs we provide implementations for) ── */
+/* -- Built-in DLLs (Windows DLLs we provide implementations for) -- */
 
 static const struct {
     const char *name;
@@ -90,7 +90,7 @@ static const struct {
 
 #define BUILTIN_DLL_COUNT (sizeof(builtin_dlls) / sizeof(builtin_dlls[0]))
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 int wubu_proton_init(wubu_proton_t *p) {
     memset(p, 0, sizeof(*p));
@@ -125,7 +125,7 @@ void wubu_proton_shutdown(wubu_proton_t *p) {
     p->vsl_connected = 0;
 }
 
-/* ── PE Validation ─────────────────────────────────────────── */
+/* -- PE Validation ------------------------------------------- */
 
 int wubu_proton_is_pe(const uint8_t *data, size_t size) {
     /* Minimum: MZ header + PE signature */
@@ -232,7 +232,7 @@ int wubu_proton_parse_pe(wubu_proton_t *p, const uint8_t *data, size_t size) {
     return p->num_sections;
 }
 
-/* ── PE Loading ────────────────────────────────────────────── */
+/* -- PE Loading ---------------------------------------------- */
 
 uint32_t wubu_proton_map_sections(wubu_proton_t *p, const uint8_t *data, size_t size) {
     if (!p || !data || p->num_sections == 0) return 0;
@@ -253,7 +253,7 @@ uint32_t wubu_proton_entry_addr(const wubu_proton_t *p) {
     return base + p->entry_point;
 }
 
-/* ── API Translation ───────────────────────────────────────── */
+/* -- API Translation ----------------------------------------- */
 
 int wubu_proton_register_api(wubu_proton_t *p, const proton_api_map_t *map) {
     if (!p || !map) return -1;
@@ -274,7 +274,7 @@ int wubu_proton_translate_api(wubu_proton_t *p, const char *win32_name) {
             return p->api_table[i].vsl_syscall;
         }
     }
-    return -1; /* Not found — needs native implementation */
+    return -1; /* Not found  --  needs native implementation */
 }
 
 int wubu_proton_load_default_apis(wubu_proton_t *p) {
@@ -289,7 +289,7 @@ int wubu_proton_load_default_apis(wubu_proton_t *p) {
     return 0;
 }
 
-/* ── DLL Management ────────────────────────────────────────── */
+/* -- DLL Management ------------------------------------------ */
 
 int wubu_proton_register_dll(wubu_proton_t *p, const char *name,
                               proton_dll_type_t type) {
@@ -334,7 +334,7 @@ int wubu_proton_resolve_deps(wubu_proton_t *p) {
     return 0;
 }
 
-/* ── Runtime Execution ─────────────────────────────────────── */
+/* -- Runtime Execution --------------------------------------- */
 
 int wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
                       const char *cmdline) {
@@ -363,7 +363,7 @@ int wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
     return (int)(p->pe_loaded % 32768) + 1;
 }
 
-/* ── Query / Diagnostics ───────────────────────────────────── */
+/* -- Query / Diagnostics ------------------------------------- */
 
 int wubu_proton_is_ready(const wubu_proton_t *p) {
     return p && (p->state == PROTON_READY || p->state == PROTON_RUNNING);

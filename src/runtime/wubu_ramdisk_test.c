@@ -1,5 +1,5 @@
 /*
- * wubu_ramdisk_test.c — Tests for Two-Mode Root Mount
+ * wubu_ramdisk_test.c  --  Tests for Two-Mode Root Mount
  *
  * Cell 392: RAM for containers, SSD for bare metal.
  *
@@ -28,7 +28,7 @@ static int pass = 0, fail = 0;
 #define FAIL(msg) do { fail++; printf("❌ %s\n", msg); } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── RAM Mode Tests ─────────────────────────────────────────────── */
+/* -- RAM Mode Tests ----------------------------------------------- */
 
 static void test_rd_create_ram(void) {
     TEST("rd_create RAM mode");
@@ -83,7 +83,7 @@ static void test_rd_set_ram_size(void) {
     PASS();
 }
 
-/* ── Disk Mode Tests ────────────────────────────────────────────── */
+/* -- Disk Mode Tests ---------------------------------------------- */
 
 static void test_rd_create_disk(void) {
     TEST("rd_create DISK mode");
@@ -116,7 +116,7 @@ static void test_rd_destroy_disk_noop(void) {
     PASS();
 }
 
-/* ── Cross-Mode: install_to_disk ────────────────────────────────── */
+/* -- Cross-Mode: install_to_disk ---------------------------------- */
 
 static void test_rd_install_to_disk_api(void) {
     TEST("install_to_disk API exists");
@@ -138,7 +138,7 @@ static void test_rd_snapshot_api(void) {
     PASS();
 }
 
-/* ── Error Handling ─────────────────────────────────────────────── */
+/* -- Error Handling ----------------------------------------------- */
 
 static void test_rd_null_safe(void) {
     TEST("NULL-safe API calls");
@@ -149,7 +149,7 @@ static void test_rd_null_safe(void) {
     PASS();
 }
 
-/* ── Disk Boot (mkdir only, no pacstrap) ────────────────────────── */
+/* -- Disk Boot (mkdir only, no pacstrap) -------------------------- */
 
 static void test_rd_boot_disk_mkdir(void) {
     TEST("rd_boot DISK creates directory");
@@ -172,10 +172,10 @@ static void test_rd_boot_disk_mkdir(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n── Ramdisk: RAM Mode (Cell 392) ──\n\n");
+    printf("\n-- Ramdisk: RAM Mode (Cell 392) --\n\n");
 
     test_rd_create_ram();
     test_rd_create_ram_custom_image();
@@ -183,26 +183,26 @@ int main(void) {
     test_rd_state_initial();
     test_rd_set_ram_size();
 
-    printf("\n── Ramdisk: DISK Mode (Cell 392) ──\n\n");
+    printf("\n-- Ramdisk: DISK Mode (Cell 392) --\n\n");
 
     test_rd_create_disk();
     test_rd_root_path_disk();
     test_rd_destroy_disk_noop();
 
-    printf("\n── Ramdisk: Cross-Mode (Cell 392) ──\n\n");
+    printf("\n-- Ramdisk: Cross-Mode (Cell 392) --\n\n");
 
     test_rd_install_to_disk_api();
     test_rd_snapshot_api();
 
-    printf("\n── Ramdisk: Error Handling (Cell 292) ──\n\n");
+    printf("\n-- Ramdisk: Error Handling (Cell 292) --\n\n");
 
     test_rd_null_safe();
     test_rd_boot_disk_mkdir();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            pass, pass + fail, fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return fail > 0 ? 1 : 0;
 }

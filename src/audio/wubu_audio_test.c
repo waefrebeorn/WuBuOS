@@ -1,5 +1,5 @@
 /*
- * wubu_audio_test.c — Tests for audio engine (DAW + Furnace + SF2 + AI)
+ * wubu_audio_test.c  --  Tests for audio engine (DAW + Furnace + SF2 + AI)
  */
 
 #include "wubu_audio.h"

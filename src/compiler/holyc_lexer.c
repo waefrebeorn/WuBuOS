@@ -1,5 +1,5 @@
 /*
- * holyc_lexer.c — My Seed HolyC Lexer
+ * holyc_lexer.c  --  My Seed HolyC Lexer
  *
  * Tokenizes HolyC source text into a stream of tokens.
  * Ported from ZealOS/src/Compiler/Lex.ZC and holyc-lang/src/lexer.c
@@ -17,7 +17,7 @@
 #include <ctype.h>
 #include <stdio.h>
 
-/* ── Keyword Table ──────────────────────────────────────────────── */
+/* -- Keyword Table ------------------------------------------------ */
 
 typedef struct {
     const char  *name;
@@ -81,7 +81,7 @@ static const HCKeyword hc_keywords[] = {
 
 #define N_KEYWORDS (sizeof(hc_keywords) / sizeof(hc_keywords[0]))
 
-/* ── Lexer Helpers ──────────────────────────────────────────────── */
+/* -- Lexer Helpers ------------------------------------------------ */
 
 static char hc_peek(const HCLexer *lex) {
     return lex->src[lex->pos];
@@ -108,7 +108,7 @@ static void hc_lex_error(HCLexer *lex, const char *msg) {
     snprintf(lex->error, sizeof(lex->error), "line %d: %s", lex->line, msg);
 }
 
-/* ── Lexer Initialization ───────────────────────────────────────── */
+/* -- Lexer Initialization ----------------------------------------- */
 
 void hc_lex_init(HCLexer *lex, const char *src) {
     memset(lex, 0, sizeof(*lex));
@@ -123,7 +123,7 @@ HCTokenType hc_lex_peek(HCLexer *lex) {
     return lex->tok.type;
 }
 
-/* ── Skip Whitespace and Comments ───────────────────────────────── */
+/* -- Skip Whitespace and Comments --------------------------------- */
 
 static void hc_skip_whitespace(HCLexer *lex) {
     while (!hc_is_at_end(lex)) {
@@ -161,7 +161,7 @@ static void hc_skip_whitespace(HCLexer *lex) {
     }
 }
 
-/* ── Lex Number ─────────────────────────────────────────────────── */
+/* -- Lex Number --------------------------------------------------- */
 
 static HCTokenType hc_lex_number(HCLexer *lex) {
     int start_line = lex->line;
@@ -246,7 +246,7 @@ static HCTokenType hc_lex_number(HCLexer *lex) {
     return lex->tok.type;
 }
 
-/* ── Lex String ─────────────────────────────────────────────────── */
+/* -- Lex String --------------------------------------------------- */
 
 static HCTokenType hc_lex_string(HCLexer *lex) {
     int start_line = lex->line;
@@ -284,7 +284,7 @@ static HCTokenType hc_lex_string(HCLexer *lex) {
     return HC_TOK_STRING;
 }
 
-/* ── Lex Character Literal ──────────────────────────────────────── */
+/* -- Lex Character Literal ---------------------------------------- */
 
 static HCTokenType hc_lex_char(HCLexer *lex) {
     hc_advance(lex); /* Opening ' */
@@ -316,7 +316,7 @@ static HCTokenType hc_lex_char(HCLexer *lex) {
     return HC_TOK_CHAR;
 }
 
-/* ── Lex Identifier or Keyword ──────────────────────────────────── */
+/* -- Lex Identifier or Keyword ------------------------------------ */
 
 static HCTokenType hc_lex_ident(HCLexer *lex) {
     int start_line = lex->line;
@@ -344,7 +344,7 @@ static HCTokenType hc_lex_ident(HCLexer *lex) {
         }
     }
 
-    /* Not a keyword — it's an identifier */
+    /* Not a keyword  --  it's an identifier */
     lex->tok.type = HC_TOK_IDENT;
     strncpy(lex->tok.text, buf, HC_MAX_TOKEN_LEN - 1);
     lex->tok.line = start_line;
@@ -352,7 +352,7 @@ static HCTokenType hc_lex_ident(HCLexer *lex) {
     return HC_TOK_IDENT;
 }
 
-/* ── Main Lexer: Next Token ─────────────────────────────────────── */
+/* -- Main Lexer: Next Token --------------------------------------- */
 
 HCTokenType hc_lex_next(HCLexer *lex) {
     hc_skip_whitespace(lex);
@@ -387,7 +387,7 @@ HCTokenType hc_lex_next(HCLexer *lex) {
         return hc_lex_char(lex);
     }
 
-    /* Operators and delimiters — consume and handle multi-char ops */
+    /* Operators and delimiters  --  consume and handle multi-char ops */
     hc_advance(lex);
 
     switch (c) {
@@ -510,7 +510,7 @@ HCTokenType hc_lex_next(HCLexer *lex) {
     return lex->tok.type;
 }
 
-/* ── Expect Token ───────────────────────────────────────────────── */
+/* -- Expect Token ------------------------------------------------- */
 
 int hc_lex_expect(HCLexer *lex, HCTokenType expected) {
     if (lex->tok.type == expected) {

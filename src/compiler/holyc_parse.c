@@ -1,5 +1,5 @@
 /*
- * holyc_parse.c — My Seed HolyC Parser + AST Utilities
+ * holyc_parse.c  --  My Seed HolyC Parser + AST Utilities
  *
  * Recursive descent parser: tokens → AST.
  * Ported from ZealOS/src/Compiler/ParseExp.ZC + ParseStatement.ZC
@@ -32,7 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── AST Utilities ──────────────────────────────────────────────── */
+/* -- AST Utilities ------------------------------------------------ */
 
 HCASTNode *hc_ast_new(HCASTKind kind) {
     HCASTNode *n = (HCASTNode *)calloc(1, sizeof(HCASTNode));
@@ -86,7 +86,7 @@ void hc_ast_add_arg(HCASTNode *call, HCASTNode *arg) {
     call->args[call->n_args++] = arg;
 }
 
-/* ── AST Print (debug) ──────────────────────────────────────────── */
+/* -- AST Print (debug) -------------------------------------------- */
 
 static const char *ast_kind_name(HCASTKind k) {
     switch (k) {
@@ -147,7 +147,7 @@ void hc_ast_print(const HCASTNode *node, int indent) {
     for (int i = 0; i < node->n_args; i++)  hc_ast_print(node->args[i], indent + 1);
 }
 
-/* ── Type Size ──────────────────────────────────────────────────── */
+/* -- Type Size ---------------------------------------------------- */
 
 size_t hc_type_size(const HCType *t) {
     if (!t) return 8;
@@ -164,7 +164,7 @@ size_t hc_type_size(const HCType *t) {
     }
 }
 
-/* ── Parser State ───────────────────────────────────────────────── */
+/* -- Parser State ------------------------------------------------- */
 
 static void parse_error(HCParser *p, const char *msg) {
     if (p->n_errors < HC_MAX_ERRORS) {
@@ -197,13 +197,13 @@ static void expect(HCParser *p, HCTokenType type) {
     parse_error(p, msg);
 }
 
-/* ── Forward Declarations ───────────────────────────────────────── */
+/* -- Forward Declarations ----------------------------------------- */
 
 static HCASTNode *parse_expr(HCParser *p);
 static HCASTNode *parse_stmt(HCParser *p);
 static HCASTNode *parse_decl(HCParser *p);
 
-/* ── Parse Type ─────────────────────────────────────────────────── */
+/* -- Parse Type --------------------------------------------------- */
 
 static HCType *parse_type(HCParser *p) {
     HCType *t = (HCType *)calloc(1, sizeof(HCType));
@@ -273,7 +273,7 @@ static HCType *parse_type(HCParser *p) {
     return t;
 }
 
-/* ── Parse Primary ──────────────────────────────────────────────── */
+/* -- Parse Primary ------------------------------------------------ */
 
 static HCASTNode *parse_primary(HCParser *p) {
     switch (peek(p)) {
@@ -319,7 +319,7 @@ static HCASTNode *parse_primary(HCParser *p) {
     }
 }
 
-/* ── Parse Postfix ──────────────────────────────────────────────── */
+/* -- Parse Postfix ------------------------------------------------ */
 
 static HCASTNode *parse_postfix(HCParser *p) {
     HCASTNode *expr = parse_primary(p);
@@ -383,7 +383,7 @@ static HCASTNode *parse_postfix(HCParser *p) {
     return expr;
 }
 
-/* ── Parse Unary ────────────────────────────────────────────────── */
+/* -- Parse Unary -------------------------------------------------- */
 
 static HCASTNode *parse_unary(HCParser *p) {
     if (peek(p) == HC_TOK_MINUS) {
@@ -431,7 +431,7 @@ static HCASTNode *parse_unary(HCParser *p) {
     return parse_postfix(p);
 }
 
-/* ── Parse Binary (precedence climbing) ─────────────────────────── */
+/* -- Parse Binary (precedence climbing) --------------------------- */
 
 typedef struct { HCTokenType tok; HCASTKind ast; } BinOp;
 
@@ -512,7 +512,7 @@ static HCASTNode *parse_logic_or(HCParser *p) {
     return left;
 }
 
-/* ── Parse Ternary ──────────────────────────────────────────────── */
+/* -- Parse Ternary ------------------------------------------------ */
 
 static HCASTNode *parse_ternary(HCParser *p) {
     HCASTNode *expr = parse_logic_or(p);
@@ -528,7 +528,7 @@ static HCASTNode *parse_ternary(HCParser *p) {
     return expr;
 }
 
-/* ── Parse Assignment ───────────────────────────────────────────── */
+/* -- Parse Assignment --------------------------------------------- */
 
 static HCASTNode *parse_assign(HCParser *p) {
     HCASTNode *left = parse_ternary(p);
@@ -550,13 +550,13 @@ static HCASTNode *parse_assign(HCParser *p) {
     return n;
 }
 
-/* ── Parse Expression ───────────────────────────────────────────── */
+/* -- Parse Expression --------------------------------------------- */
 
 static HCASTNode *parse_expr(HCParser *p) {
     return parse_assign(p);
 }
 
-/* ── Parse Block ────────────────────────────────────────────────── */
+/* -- Parse Block -------------------------------------------------- */
 
 HCASTNode *parse_block(HCParser *p) {
     expect(p, HC_TOK_LBRACE);
@@ -568,7 +568,7 @@ HCASTNode *parse_block(HCParser *p) {
     return block;
 }
 
-/* ── Parse Statement ────────────────────────────────────────────── */
+/* -- Parse Statement ---------------------------------------------- */
 
 static HCASTNode *parse_stmt(HCParser *p) {
     /* If statement */
@@ -646,7 +646,7 @@ static HCASTNode *parse_stmt(HCParser *p) {
     return n;
 }
 
-/* ── Parse Declaration ──────────────────────────────────────────── */
+/* -- Parse Declaration -------------------------------------------- */
 
 HCASTNode *hc_parse_decl(HCParser *p) {
     HCType *type = parse_type(p);
@@ -717,7 +717,7 @@ HCASTNode *hc_parse_decl(HCParser *p) {
     return var;
 }
 
-/* ── Parse Compilation Unit ─────────────────────────────────────── */
+/* -- Parse Compilation Unit --------------------------------------- */
 
 void hc_parse_init(HCParser *p, HCLexer *lex) {
     memset(p, 0, sizeof(*p));

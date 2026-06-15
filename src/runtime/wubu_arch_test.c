@@ -1,5 +1,5 @@
 /*
- * wubu_arch_test.c — Tests for Arch Bootstrap and FreeDoom Launcher
+ * wubu_arch_test.c  --  Tests for Arch Bootstrap and FreeDoom Launcher
  *
  * Cell 390/391: Arch root management + FreeDoom in container.
  *
@@ -28,7 +28,7 @@ static int pass = 0, fail = 0;
 #define FAIL(msg) do { fail++; printf("❌ %s\n", msg); } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Arch Tests ─────────────────────────────────────────────────── */
+/* -- Arch Tests --------------------------------------------------- */
 
 static void test_arch_root_valid_nonexistent(void) {
     TEST("arch_root_valid returns false for nonexistent path");
@@ -95,7 +95,7 @@ static void test_arch_root_info_destroy(void) {
     PASS();
 }
 
-/* ── FreeDoom Tests ─────────────────────────────────────────────── */
+/* -- FreeDoom Tests ----------------------------------------------- */
 
 static void test_doom_init(void) {
     TEST("doom_init creates launcher");
@@ -161,9 +161,9 @@ static void test_doom_config_skill(void) {
     WubuDoom *doom = wubu_doom_init(NULL);
     wubu_doom_set_skill(doom, 5);
     CHECK(doom->skill == 5, "skill should be NIGHTMARE");
-    wubu_doom_set_skill(doom, 0);  /* Out of range — ignored */
+    wubu_doom_set_skill(doom, 0);  /* Out of range  --  ignored */
     CHECK(doom->skill == 5, "out-of-range should be ignored");
-    wubu_doom_set_skill(doom, 6);  /* Out of range — ignored */
+    wubu_doom_set_skill(doom, 6);  /* Out of range  --  ignored */
     CHECK(doom->skill == 5, "out-of-range should be ignored");
     wubu_doom_destroy(doom);
     PASS();
@@ -206,10 +206,10 @@ static void test_doom_destroy_null(void) {
     PASS();
 }
 
-/* ── Main ───────────────────────────────────────────────────────── */
+/* -- Main --------------------------------------------------------- */
 
 int main(void) {
-    printf("\n── Arch Bootstrap (Cell 390) ──\n\n");
+    printf("\n-- Arch Bootstrap (Cell 390) --\n\n");
 
     test_arch_root_valid_nonexistent();
     test_arch_root_valid_empty_dir();
@@ -217,7 +217,7 @@ int main(void) {
     test_arch_root_info_idle();
     test_arch_root_info_destroy();
 
-    printf("\n── FreeDoom Launcher (Cell 391) ──\n\n");
+    printf("\n-- FreeDoom Launcher (Cell 391) --\n\n");
 
     test_doom_init();
     test_doom_init_with_root();
@@ -230,10 +230,10 @@ int main(void) {
     test_doom_not_installed();
     test_doom_destroy_null();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            pass, pass + fail, fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return fail > 0 ? 1 : 0;
 }

@@ -1,5 +1,5 @@
 /*
- * doom.c — Free Doom Engine for WuBuOS
+ * doom.c  --  Free Doom Engine for WuBuOS
  *
  * A simplified Doom-like raycasting engine that runs in the WuBuOS
  * hosted environment. Uses VBE framebuffer for display.
@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* ── Game Constants ────────────────────────────────────────────── */
+/* -- Game Constants ---------------------------------------------- */
 
 #define SCREEN_W        640
 #define SCREEN_H        480
@@ -39,7 +39,7 @@
 #define RAY_COUNT       SCREEN_W
 #define MAX_DEPTH       20
 
-/* ── Map Data ──────────────────────────────────────────────────── */
+/* -- Map Data ---------------------------------------------------- */
 /* 1 = wall, 0 = empty, 2-5 = different wall types */
 
 static const uint8_t g_map[MAP_H][MAP_W] = {
@@ -61,7 +61,7 @@ static const uint8_t g_map[MAP_H][MAP_W] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
 };
 
-/* ── Texture Data (procedurally generated) ─────────────────────── */
+/* -- Texture Data (procedurally generated) ----------------------- */
 
 static uint32_t g_textures[5][TEX_W * TEX_H];
 
@@ -94,7 +94,7 @@ static void generate_textures(void) {
     }
 }
 
-/* ── Player State ──────────────────────────────────────────────── */
+/* -- Player State ------------------------------------------------ */
 
 typedef struct {
     float x, y;         /* Position */
@@ -107,7 +107,7 @@ typedef struct {
 
 static PlayerState g_player = {2.0f, 2.0f, 0.0f, 0.5f, 100, 50, 0};
 
-/* ── Raycast State ─────────────────────────────────────────────── */
+/* -- Raycast State ----------------------------------------------- */
 
 typedef struct {
     float distance;
@@ -116,7 +116,7 @@ typedef struct {
     int side;           /* 0 = NS wall, 1 = EW wall */
 } RayHit;
 
-/* ── Pure C Math (no libm) ────────────────────────────────────── */
+/* -- Pure C Math (no libm) -------------------------------------- */
 
 static float fsin(float x) {
     /* Taylor series: sin(x) ≈ x - x³/6 + x⁵/120 - x⁷/5040 */
@@ -160,7 +160,7 @@ static int floorf_to_int(float x) {
     return (x < 0 && x != i) ? i - 1 : i;
 }
 
-/* ── Raycasting Engine ─────────────────────────────────────────── */
+/* -- Raycasting Engine ------------------------------------------- */
 
 static RayHit cast_ray(float px, float py, float angle) {
     RayHit hit;
@@ -230,7 +230,7 @@ static RayHit cast_ray(float px, float py, float angle) {
     return hit;
 }
 
-/* ── Rendering ─────────────────────────────────────────────────── */
+/* -- Rendering --------------------------------------------------- */
 
 static void render_frame(uint32_t *fb, int fb_w, int fb_h) {
     /* Clear to dark gray ceiling and floor */
@@ -320,7 +320,7 @@ static void render_frame(uint32_t *fb, int fb_w, int fb_h) {
     }
 }
 
-/* ── Input Handling ────────────────────────────────────────────── */
+/* -- Input Handling ---------------------------------------------- */
 
 static void handle_input(void) {
     float move_speed = 0.05f;
@@ -375,7 +375,7 @@ static void handle_input(void) {
     }
 }
 
-/* ── Public API ────────────────────────────────────────────────── */
+/* -- Public API -------------------------------------------------- */
 
 void doom_init(void) {
     generate_textures();

@@ -1,5 +1,5 @@
 /*
- * txfs.c — WuBuOS Transactional Filesystem Layer Implementation
+ * txfs.c  --  WuBuOS Transactional Filesystem Layer Implementation
  *
  * Cell 100: Journal-based atomic filesystem operations.
  * Write-ahead log ensures crash consistency.
@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── CRC32 Table ───────────────────────────────────────────── */
+/* -- CRC32 Table --------------------------------------------- */
 
 static uint32_t crc32_table[256];
 static int crc32_initialized = 0;
@@ -37,7 +37,7 @@ uint32_t txfs_crc32(const void *data, size_t size) {
     return crc ^ 0xFFFFFFFF;
 }
 
-/* ── Journal Header Checksum ──────────────────────────────── */
+/* -- Journal Header Checksum -------------------------------- */
 
 static uint32_t journal_header_checksum(const txfs_journal_header_t *h) {
     /* Checksum over everything except the checksum field itself */
@@ -45,7 +45,7 @@ static uint32_t journal_header_checksum(const txfs_journal_header_t *h) {
     return txfs_crc32(p, offsetof(txfs_journal_header_t, checksum));
 }
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
 int txfs_init(txfs_t *tx, const char *fs_root) {
     memset(tx, 0, sizeof(*tx));
@@ -94,7 +94,7 @@ void txfs_shutdown(txfs_t *tx) {
     tx->journal_size = 0;
 }
 
-/* ── Transaction Management ────────────────────────────────── */
+/* -- Transaction Management ---------------------------------- */
 
 int txfs_begin(txfs_t *tx) {
     if (!tx) return -1;
@@ -138,7 +138,7 @@ int txfs_commit(txfs_t *tx) {
 
     txfs_txn_t *txn = &tx->active_txn;
     if (txn->op_count == 0) {
-        /* Empty transaction — just close it */
+        /* Empty transaction  --  just close it */
         txn->state = TXFS_TXN_COMMITTING;
         tx->txns_committed++;
         tx->txn_active = 0;
@@ -156,7 +156,7 @@ int txfs_commit(txfs_t *tx) {
 
         int rc = journal_write_entry(tx, &entry);
         if (rc != 0) {
-            /* Journal full — abort */
+            /* Journal full  --  abort */
             txn->state = TXFS_TXN_ABORTED;
             tx->txn_active = 0;
             tx->txns_aborted++;
@@ -172,13 +172,13 @@ int txfs_commit(txfs_t *tx) {
      * by just marking them applied. In the real kernel, we'd
      * call through to FAT32 to actually perform the writes.) */
     for (int i = 0; i < txn->op_count; i++) {
-        /* Apply op — in hosted test mode, this is a no-op
+        /* Apply op  --  in hosted test mode, this is a no-op
          * because we don't have a real filesystem backend.
          * The journal records are sufficient to prove atomicity. */
         tx->entries_applied++;
     }
 
-    /* Phase 4: Checkpoint — mark applied */
+    /* Phase 4: Checkpoint  --  mark applied */
     tx->header.applied_count = tx->header.committed_count;
     journal_update_checksum(tx);
 
@@ -204,7 +204,7 @@ int txfs_txn_active(const txfs_t *tx) {
     return tx && tx->txn_active;
 }
 
-/* ── Transactional Operations ──────────────────────────────── */
+/* -- Transactional Operations -------------------------------- */
 
 static int add_op(txfs_t *tx, txfs_op_type_t type, const char *path,
                   uint64_t offset, const void *data, uint32_t size,
@@ -256,7 +256,7 @@ int txfs_rename(txfs_t *tx, const char *old_path, const char *new_path) {
     return add_op(tx, TXFS_OP_RENAME, old_path, 0, NULL, 0, new_path);
 }
 
-/* ── Recovery ──────────────────────────────────────────────── */
+/* -- Recovery ------------------------------------------------ */
 
 int txfs_recover(txfs_t *tx) {
     if (!tx) return -1;
@@ -280,7 +280,7 @@ int txfs_recover(txfs_t *tx) {
         /* Validate CRC */
         uint32_t expected_crc = txfs_crc32(entry->data, entry->size);
         if (entry->data_crc != expected_crc) {
-            /* CRC mismatch — entry is corrupt, stop replay */
+            /* CRC mismatch  --  entry is corrupt, stop replay */
             break;
         }
 
@@ -305,7 +305,7 @@ int txfs_was_recovered(const txfs_t *tx) {
     return tx ? tx->recovered : 0;
 }
 
-/* ── Journal Inspection ────────────────────────────────────── */
+/* -- Journal Inspection -------------------------------------- */
 
 uint32_t txfs_journal_count(const txfs_t *tx) {
     return tx ? tx->header.entry_count : 0;
@@ -319,7 +319,7 @@ uint32_t txfs_applied_count(const txfs_t *tx) {
     return tx ? tx->header.applied_count : 0;
 }
 
-/* ── Diagnostics ───────────────────────────────────────────── */
+/* -- Diagnostics --------------------------------------------- */
 
 void txfs_dump(const txfs_t *tx) {
     if (!tx) return;

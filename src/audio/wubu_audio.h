@@ -1,5 +1,5 @@
 /*
- * wubu_audio.h — WuBuOS Audio Engine
+ * wubu_audio.h  --  WuBuOS Audio Engine
  *
  * Cell 401: Combined DAW + Tracker + Synthesizer engine.
  *
@@ -66,7 +66,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* ── Audio Limits ────────────────────────────────────────────────── */
+/* -- Audio Limits -------------------------------------------------- */
 
 #define WUBU_AUDIO_MAX_TRACKS      64
 #define WUBU_AUDIO_MAX_REGIONS     256
@@ -79,7 +79,7 @@
 #define WUBU_AUDIO_MAX_INSTRUMENTS 256
 #define WUBU_AUDIO_MAX_AI_PLUGINS  8
 
-/* ── Sample Rate / Buffer ────────────────────────────────────────── */
+/* -- Sample Rate / Buffer ------------------------------------------ */
 
 typedef enum {
     SR_44100  = 44100,
@@ -94,7 +94,7 @@ typedef enum {
 #define WUBU_AUDIO_DEFAULT_BUF    256
 #define WUBU_AUDIO_DEFAULT_CH     2
 
-/* ── Sound Chip Types (from Furnace) ────────────────────────────── */
+/* -- Sound Chip Types (from Furnace) ------------------------------ */
 
 typedef enum {
     CHIP_NONE        = 0,
@@ -119,7 +119,7 @@ typedef enum {
     CHIP_COUNT
 } WubuChipType;
 
-/* ── Furnace Tracker ────────────────────────────────────────────── */
+/* -- Furnace Tracker ---------------------------------------------- */
 
 typedef struct {
     uint8_t note;        /* 0=C-0, 12=C-1, etc; 255=empty */
@@ -163,7 +163,7 @@ typedef struct {
     double  tick_accum;
 } WubuFurnace;
 
-/* ── TinySoundFont ──────────────────────────────────────────────── */
+/* -- TinySoundFont ------------------------------------------------ */
 
 /* SF2 Preset */
 typedef struct {
@@ -202,7 +202,7 @@ typedef struct {
     uint8_t   midi_channels[16]; /* Program per channel */
 } WubuSF2Synth;
 
-/* ── Ardour-style DAW Track ─────────────────────────────────────── */
+/* -- Ardour-style DAW Track --------------------------------------- */
 
 typedef enum {
     TRACK_AUDIO   = 0,
@@ -246,7 +246,7 @@ typedef struct {
     WubuSF2Synth *sf2;
 } WubuDAWTrack;
 
-/* ── Ardour-style DAW Bus ───────────────────────────────────────── */
+/* -- Ardour-style DAW Bus ----------------------------------------- */
 
 typedef struct {
     char     name[64];
@@ -257,7 +257,7 @@ typedef struct {
     int      n_plugins;
 } WubuDAWBus;
 
-/* ── AI Audio Plugin (runs in .wubu container) ─────────────────── */
+/* -- AI Audio Plugin (runs in .wubu container) ------------------- */
 
 typedef enum {
     AI_PLUGIN_SEPARATION  = 0,  /* Source separation (stems) */
@@ -288,7 +288,7 @@ typedef struct {
     int              model_frames;  /* Frames per inference */
 } WubuAIPlugin;
 
-/* ── Complete Audio Engine ──────────────────────────────────────── */
+/* -- Complete Audio Engine ---------------------------------------- */
 
 typedef struct {
     /* Backends */
@@ -330,9 +330,9 @@ typedef struct {
     int              master_r, master_w;
 } WubuAudioEngine;
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Audio Engine Lifecycle
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 int  wubu_audio_engine_create(int sample_rate, int buffer_frames, int channels);
 void wubu_audio_engine_destroy(void);
@@ -345,9 +345,9 @@ void wubu_audio_stop(void);
 /* Process one buffer (called by audio callback) */
 void wubu_audio_process(float *output, int frames);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: DAW Operations
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Track management */
 int  wubu_daw_add_track(const char *name, WubuTrackType type);
@@ -364,9 +364,9 @@ void wubu_daw_set_loop(double start, double end);
 void wubu_daw_record_start(int track);
 void wubu_daw_record_stop(void);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Furnace Tracker
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 int  wubu_furnace_init(int n_chips, const WubuChipType *chips);
 void wubu_furnace_shutdown(void);
@@ -386,9 +386,9 @@ void wubu_furnace_set_tempo(int tempo);
 /* Export pattern as audio */
 int  wubu_furnace_render_pattern(int pattern, float *out, int frames);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: TinySoundFont
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 int  wubu_sf2_load(const uint8_t *data, size_t size);
 int  wubu_sf2_load_file(const char *path);
@@ -408,9 +408,9 @@ void wubu_sf2_render(float *out, int frames, int channels);
 int  wubu_sf2_preset_count(void);
 const WubuSF2Preset *wubu_sf2_preset(int idx);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: USB MIDI Input
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Open MIDI devices */
 int  wubu_midi_open(const char *path);
@@ -422,9 +422,9 @@ int  wubu_midi_read(int fd, uint8_t *buf, int len);
 /* Enumerate MIDI devices */
 int  wubu_midi_enumerate(char paths[][256], char names[][64], int max);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: AI Audio Plugins
- * ══════════════════════════════════════════════════════════════════ */
+ * ================================================================== */
 
 /* Register an AI plugin (runs as .wubu container) */
 int  wubu_ai_plugin_register(const char *name, WubuAIPluginType type,
@@ -439,9 +439,9 @@ int  wubu_ai_plugin_process(int plugin_idx,
 int  wubu_ai_plugin_start(int plugin_idx);
 void wubu_ai_plugin_stop(int plugin_idx);
 
-/* ══════════════════════════════════════════════════════════════════
+/* ==================================================================
  *  API: Ingestion Protocols
- * ══════════════════════════════════════════════════════════════════
+ * ==================================================================
  *
  *  Ingestion = getting audio/MIDI/data INTO the engine.
  *  Multiple protocols supported:

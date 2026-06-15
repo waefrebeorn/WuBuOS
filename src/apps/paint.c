@@ -1,5 +1,5 @@
 /*
- * paint.c — WuBuOS Paint (Photoshop-style image editor)
+ * paint.c  --  WuBuOS Paint (Photoshop-style image editor)
  *
  * A Win98-style paint application with:
  *   - Freehand brush drawing
@@ -20,7 +20,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* ── Constants ─────────────────────────────────────────────────── */
+/* -- Constants --------------------------------------------------- */
 
 #define CANVAS_W        512
 #define CANVAS_H        384
@@ -33,7 +33,7 @@
 #define WIN_H           (CANVAS_H + TOOLBAR_H + WM_TITLE_HEIGHT + 8)
 #define MAX_UNDO        1
 
-/* ── EGA 16-color palette ──────────────────────────────────────── */
+/* -- EGA 16-color palette ---------------------------------------- */
 
 static const uint32_t g_ega_palette[16] = {
     0x000000, 0x0000AA, 0x00AA00, 0x00AAAA,
@@ -42,7 +42,7 @@ static const uint32_t g_ega_palette[16] = {
     0xFF5555, 0xFF55FF, 0xFFFF55, 0xFFFFFF,
 };
 
-/* ── 256-color palette (generated) ─────────────────────────────── */
+/* -- 256-color palette (generated) ------------------------------- */
 
 static uint32_t g_palette[256];
 
@@ -64,7 +64,7 @@ static void generate_palette(void) {
     }
 }
 
-/* ── Tool Types ────────────────────────────────────────────────── */
+/* -- Tool Types -------------------------------------------------- */
 
 typedef enum {
     TOOL_BRUSH = 0,
@@ -81,7 +81,7 @@ static const char *g_tool_names[] = {
     "Brush", "Fill", "Line", "Rect", "Ellipse", "Pick", "Eraser"
 };
 
-/* ── Paint State ───────────────────────────────────────────────── */
+/* -- Paint State ------------------------------------------------- */
 
 typedef struct {
     uint32_t canvas[CANVAS_W * CANVAS_H];
@@ -102,7 +102,7 @@ typedef struct {
 
 static PaintState g_paint = {0};
 
-/* ── Drawing Primitives ────────────────────────────────────────── */
+/* -- Drawing Primitives ------------------------------------------ */
 
 static void set_pixel(int x, int y, uint32_t color) {
     if (x < 0 || x >= CANVAS_W || y < 0 || y >= CANVAS_H) return;
@@ -183,7 +183,7 @@ static void draw_ellipse(int cx, int cy, int rx, int ry, uint32_t color) {
     }
 }
 
-/* ── Undo ──────────────────────────────────────────────────────── */
+/* -- Undo -------------------------------------------------------- */
 
 static void save_undo(void) {
     memcpy(g_paint.undo_buf, g_paint.canvas, sizeof(g_paint.canvas));
@@ -196,7 +196,7 @@ static void do_undo(void) {
     }
 }
 
-/* ── Rendering ─────────────────────────────────────────────────── */
+/* -- Rendering --------------------------------------------------- */
 
 static void paint_do_render(WmWindow *win, void *fb, int fb_w, int fb_h) {
     (void)win;
@@ -295,7 +295,7 @@ static void paint_do_render(WmWindow *win, void *fb, int fb_w, int fb_h) {
     }
 }
 
-/* ── Input Handling ────────────────────────────────────────────── */
+/* -- Input Handling ---------------------------------------------- */
 
 static void paint_handle_mouse(WmWindow *win, int x, int y, int btn, int kind) {
     (void)win;
@@ -376,16 +376,16 @@ static void paint_handle_mouse(WmWindow *win, int x, int y, int btn, int kind) {
 
 static void paint_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
     (void)win; (void)mods;
-    if (key == 0x1A) { /* [ — smaller brush */
+    if (key == 0x1A) { /* [  --  smaller brush */
         if (g_paint.brush_size > 1) g_paint.brush_size--;
-    } else if (key == 0x1B) { /* ] — larger brush */
+    } else if (key == 0x1B) { /* ]  --  larger brush */
         if (g_paint.brush_size < 32) g_paint.brush_size++;
-    } else if (key == 0x2E && (mods & 0x01)) { /* Ctrl+Z — undo */
+    } else if (key == 0x2E && (mods & 0x01)) { /* Ctrl+Z  --  undo */
         do_undo();
     }
 }
 
-/* ── Public API ────────────────────────────────────────────────── */
+/* -- Public API -------------------------------------------------- */
 
 void paint_init(void) {
     memset(&g_paint, 0, sizeof(g_paint));

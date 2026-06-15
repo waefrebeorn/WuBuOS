@@ -1,5 +1,5 @@
 /*
- * vbe_ws_bridge.h — VBE ↔ WorldSim Render Bridge
+ * vbe_ws_bridge.h  --  VBE ↔ WorldSim Render Bridge
  *
  * Wires WorldSim's software renderer to WuBuOS's VBE framebuffer.
  * This is Cell 070: the connection between:
@@ -23,7 +23,7 @@
 #include "../kernel/vbe.h"
 #include "../worldsim/worldsim.h"
 
-/* ── Bridge State ──────────────────────────────────────────── */
+/* -- Bridge State -------------------------------------------- */
 
 typedef enum {
     BRIDGE_STOPPED = 0,
@@ -63,9 +63,9 @@ typedef struct {
     VBEState *vbe;
 } vbe_ws_bridge_t;
 
-/* ── Lifecycle ─────────────────────────────────────────────── */
+/* -- Lifecycle ----------------------------------------------- */
 
-/* Initialize bridge (does NOT wire — call wire after vbe_init + sim_init) */
+/* Initialize bridge (does NOT wire  --  call wire after vbe_init + sim_init) */
 void vbe_ws_bridge_init(vbe_ws_bridge_t *br);
 
 /* Wire VBE back-buffer to WorldSim render context.
@@ -73,7 +73,7 @@ void vbe_ws_bridge_init(vbe_ws_bridge_t *br);
  * Requires: vbe_init() already called, sim already initialized. */
 int vbe_ws_bridge_wire(vbe_ws_bridge_t *br, ws_simulation_t *sim);
 
-/* Unwire — disconnect WorldSim render from VBE */
+/* Unwire  --  disconnect WorldSim render from VBE */
 void vbe_ws_bridge_unwire(vbe_ws_bridge_t *br);
 
 /* Start the render loop */
@@ -86,7 +86,7 @@ void vbe_ws_bridge_resume(vbe_ws_bridge_t *br);
 /* Stop render loop */
 void vbe_ws_bridge_stop(vbe_ws_bridge_t *br);
 
-/* ── Per-Frame Operations ──────────────────────────────────── */
+/* -- Per-Frame Operations ------------------------------------ */
 
 /* Advance simulation by one tick and render to VBE.
  * Called from main loop or timer interrupt.
@@ -94,10 +94,10 @@ void vbe_ws_bridge_stop(vbe_ws_bridge_t *br);
  * then calls vbe_swap(). */
 void vbe_ws_bridge_frame(vbe_ws_bridge_t *br);
 
-/* Render only — no sim step. Use for paused mode or screenshots. */
+/* Render only  --  no sim step. Use for paused mode or screenshots. */
 void vbe_ws_bridge_render_only(vbe_ws_bridge_t *br);
 
-/* ── Camera / Viewport ─────────────────────────────────────── */
+/* -- Camera / Viewport --------------------------------------- */
 
 /* Move camera by deltas (pixels) */
 void vbe_ws_bridge_pan(vbe_ws_bridge_t *br, int dx, int dy);
@@ -111,7 +111,7 @@ void vbe_ws_bridge_zoom(vbe_ws_bridge_t *br, float zoom_delta);
 /* Center camera on a world position */
 void vbe_ws_bridge_center_on(vbe_ws_bridge_t *br, int wx, int wy);
 
-/* ── HUD Overlay Drawing ───────────────────────────────────── */
+/* -- HUD Overlay Drawing ------------------------------------- */
 
 /* Draw HUD elements to VBE back-buffer:
  * - FPS counter (top-left)
@@ -129,7 +129,7 @@ int vbe_ws_bridge_text(vbe_ws_bridge_t *br, int x, int y,
 int vbe_ws_bridge_text_int(vbe_ws_bridge_t *br, int x, int y,
                             int value, uint32_t color);
 
-/* ── Query ──────────────────────────────────────────────────── */
+/* -- Query ---------------------------------------------------- */
 
 /* Is the bridge wired and running? */
 int vbe_ws_bridge_is_active(const vbe_ws_bridge_t *br);

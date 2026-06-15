@@ -1,5 +1,5 @@
 /*
- * ahci_test.c — Test Suite for WuBuOS AHCI (SATA) Disk Driver
+ * ahci_test.c  --  Test Suite for WuBuOS AHCI (SATA) Disk Driver
  *
  * Cell 072: Tests HBA init, port enumeration, IDENTIFY,
  * sector read/write, simulated disk, and diagnostics.
@@ -16,7 +16,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── HBA Lifecycle Tests ───────────────────────────────────── */
+/* -- HBA Lifecycle Tests ------------------------------------- */
 
 static void test_hba_init(void) {
     TEST("HBA init");
@@ -42,7 +42,7 @@ static void test_hba_capabilities(void) {
     PASS();
 }
 
-/* ── Port Enumeration ──────────────────────────────────────── */
+/* -- Port Enumeration ---------------------------------------- */
 
 static void test_enumerate_ports(void) {
     TEST("enumerate ports");
@@ -92,7 +92,7 @@ static void test_port_init(void) {
     PASS();
 }
 
-/* ── Simulated Disk ────────────────────────────────────────── */
+/* -- Simulated Disk ------------------------------------------ */
 
 static void test_sim_disk_create(void) {
     TEST("create simulated disk");
@@ -129,7 +129,7 @@ static void test_sim_disk_destroy(void) {
     PASS();
 }
 
-/* ── IDENTIFY DEVICE ───────────────────────────────────────── */
+/* -- IDENTIFY DEVICE ----------------------------------------- */
 
 static void test_identify(void) {
     TEST("IDENTIFY DEVICE");
@@ -164,7 +164,7 @@ static void test_identify_lba28(void) {
     ahci_hba_init(&hba);
     ahci_enumerate_ports(&hba);
     ahci_port_init(&hba, 0);
-    ahci_sim_disk_create(&hba, 0, 1); /* 1 MB — fits in LBA28 */
+    ahci_sim_disk_create(&hba, 0, 1); /* 1 MB  --  fits in LBA28 */
 
     ahci_identify(&hba, 0);
     /* 1MB = 2048 sectors = 0x800 */
@@ -176,7 +176,7 @@ static void test_identify_lba28(void) {
     PASS();
 }
 
-/* ── Sector Read/Write ─────────────────────────────────────── */
+/* -- Sector Read/Write --------------------------------------- */
 
 static void test_read_sectors(void) {
     TEST("read sectors from sim disk");
@@ -302,7 +302,7 @@ static void test_write_read_stats(void) {
     PASS();
 }
 
-/* ── Two-Port Test ─────────────────────────────────────────── */
+/* -- Two-Port Test ------------------------------------------- */
 
 static void test_two_ports(void) {
     TEST("two ports, independent disks");
@@ -341,7 +341,7 @@ static void test_two_ports(void) {
     PASS();
 }
 
-/* ── Diagnostics ───────────────────────────────────────────── */
+/* -- Diagnostics --------------------------------------------- */
 
 static void test_dump(void) {
     TEST("HBA dump does not crash");
@@ -356,12 +356,12 @@ static void test_dump(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS AHCI (SATA) Disk Driver Test Suite        ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS AHCI (SATA) Disk Driver Test Suite        |\n");
+    printf("+==================================================+\n\n");
 
     /* Lifecycle */
     test_hba_init();
@@ -393,9 +393,9 @@ int main(void) {
     /* Diagnostics */
     test_dump();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

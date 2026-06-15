@@ -1,5 +1,5 @@
 /*
- * wubu_container.h — WuBuOS Universal Container Format (.wubu)
+ * wubu_container.h  --  WuBuOS Universal Container Format (.wubu)
  *
  * The .wubu format is a magic-header container: every file is .wubu,
  * but the header determines interpretation. Like ELF's magic, but
@@ -29,57 +29,57 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-/* ── Magic ──────────────────────────────────────────────────────── */
+/* -- Magic -------------------------------------------------------- */
 
 #define WUBU_MAGIC      "WUBU!\0\1\2"   /* 8 bytes */
 #define WUBU_MAGIC_SIZE 8
 
-/* ── Version ────────────────────────────────────────────────────── */
+/* -- Version ------------------------------------------------------ */
 
 #define WUBU_VERSION_MAJOR  1
 #define WUBU_VERSION_MINOR  0
 
-/* ── Payload Types ──────────────────────────────────────────────── */
+/* -- Payload Types ------------------------------------------------ */
 
 typedef enum {
-    /* Native WuBuOS executable — JIT-compiled or AOT native */
+    /* Native WuBuOS executable  --  JIT-compiled or AOT native */
     WUBU_PAYLOAD_NATIVE_EXEC   = 0x01,
 
-    /* HolyC source — JIT compile and execute */
+    /* HolyC source  --  JIT compile and execute */
     WUBU_PAYLOAD_HOLYC_SRC    = 0x02,
 
-    /* C source — compile via HolyC compiler and execute */
+    /* C source  --  compile via HolyC compiler and execute */
     WUBU_PAYLOAD_C_SRC        = 0x03,
 
-    /* Linux ELF binary — run via Virtualization Layer (VSL) */
+    /* Linux ELF binary  --  run via Virtualization Layer (VSL) */
     WUBU_PAYLOAD_LINUX_ELF    = 0x10,
 
-    /* Windows PE binary — run via Proton compatibility layer */
+    /* Windows PE binary  --  run via Proton compatibility layer */
     WUBU_PAYLOAD_WIN_PE       = 0x11,
 
-    /* macOS Mach-O — run via VSL/Darling */
+    /* macOS Mach-O  --  run via VSL/Darling */
     WUBU_PAYLOAD_MAC_MACHO    = 0x12,
 
-    /* Shell script — run via VSL bash */
+    /* Shell script  --  run via VSL bash */
     WUBU_PAYLOAD_SHELL_SCRIPT = 0x20,
 
-    /* Python script — run via VSL python3 */
+    /* Python script  --  run via VSL python3 */
     WUBU_PAYLOAD_PYTHON       = 0x21,
 
-    /* WASM binary — run via wasm runtime */
+    /* WASM binary  --  run via wasm runtime */
     WUBU_PAYLOAD_WASM         = 0x30,
 
-    /* Bytecode — interpreter selected by handler_id */
+    /* Bytecode  --  interpreter selected by handler_id */
     WUBU_PAYLOAD_BYTECODE     = 0x40,
 
-    /* Data/document — not executable, handler by MIME */
+    /* Data/document  --  not executable, handler by MIME */
     WUBU_PAYLOAD_DATA         = 0x80,
 
-    /* Embedded .wubu — container inside container */
+    /* Embedded .wubu  --  container inside container */
     WUBU_PAYLOAD_NESTED_WUBU  = 0xFF,
 } WUBU_PAYLOAD_TYPE;
 
-/* ── Flags ──────────────────────────────────────────────────────── */
+/* -- Flags -------------------------------------------------------- */
 
 #define WUBU_FLAG_COMPRESSED    0x0001   /* Payload is compressed (zlib) */
 #define WUBU_FLAG_ENCRYPTED     0x0002   /* Payload is encrypted */
@@ -89,10 +89,10 @@ typedef enum {
 #define WUBU_FLAG_AOT_COMPILE   0x0020   /* AOT compile on install */
 #define WUBU_FLAG_SHARED_LIB    0x0040   /* Shared library, not main */
 
-/* ── Container Header (64 bytes) ───────────────────────────────── */
+/* -- Container Header (64 bytes) --------------------------------- */
 
 typedef struct __attribute__((packed)) {
-    /* Magic — must be WUBU_MAGIC */
+    /* Magic  --  must be WUBU_MAGIC */
     char         magic[8];
 
     /* Format version */
@@ -108,7 +108,7 @@ typedef struct __attribute__((packed)) {
     /* Flags */
     uint16_t     flags;
 
-    /* Handler ID — which interpreter/runtime to use
+    /* Handler ID  --  which interpreter/runtime to use
      * 0    = default for payload_type
      * 1    = WuBuOS native
      * 2    = HolyC JIT
@@ -147,21 +147,21 @@ typedef struct __attribute__((packed)) {
 
 #define WUBU_HEADER_SIZE  64
 
-/* ── Architecture IDs ──────────────────────────────────────────── */
+/* -- Architecture IDs -------------------------------------------- */
 
 #define WUBU_ARCH_X86_64    0
 #define WUBU_ARCH_AARCH64   1
 #define WUBU_ARCH_RISCV64   2
 #define WUBU_ARCH_WASM      3
 
-/* ── OS Persona IDs ────────────────────────────────────────────── */
+/* -- OS Persona IDs ---------------------------------------------- */
 
 #define WUBU_OS_NATIVE      0
 #define WUBU_OS_LINUX       1
 #define WUBU_OS_WIN32       2
 #define WUBU_OS_MACOS       3
 
-/* ── Container Metadata (optional JSON-like KV pairs) ──────────── */
+/* -- Container Metadata (optional JSON-like KV pairs) ------------ */
 
 typedef struct {
     char     key[32];
@@ -175,7 +175,7 @@ typedef struct {
     WUBU_META_ENTRY    entries[WUBU_META_MAX_ENTRIES];
 } WUBU_METADATA;
 
-/* ── Container API ─────────────────────────────────────────────── */
+/* -- Container API ----------------------------------------------- */
 
 /*
  * Create a .wubu container.

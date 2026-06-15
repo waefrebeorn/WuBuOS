@@ -1,5 +1,5 @@
 /*
- * vbe_ws_bridge_test.c — Test Suite for VBE ↔ WorldSim Render Bridge
+ * vbe_ws_bridge_test.c  --  Test Suite for VBE ↔ WorldSim Render Bridge
  *
  * Cell 070: Tests the wiring between VBE framebuffer and WorldSim
  * renderer. Verifies:
@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* ── Test Framework ────────────────────────────────────────── */
+/* -- Test Framework ------------------------------------------ */
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -27,7 +27,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-/* ── Helpers ───────────────────────────────────────────────── */
+/* -- Helpers ------------------------------------------------- */
 
 /* Count non-zero pixels in a framebuffer region */
 static int count_pixels(uint32_t *fb, int w, int h,
@@ -47,7 +47,7 @@ static uint32_t read_front_pixel(VBEState *vbe, int x, int y) {
     return vbe->fb[y * vbe->width + x];
 }
 
-/* ── Lifecycle Tests ───────────────────────────────────────── */
+/* -- Lifecycle Tests ----------------------------------------- */
 
 static void test_bridge_init(void) {
     TEST("bridge init defaults");
@@ -119,7 +119,7 @@ static void test_wire_null_safety(void) {
     PASS();
 }
 
-/* ── State Management Tests ────────────────────────────────── */
+/* -- State Management Tests ---------------------------------- */
 
 static void test_state_lifecycle(void) {
     TEST("state: start→pause→resume→stop");
@@ -153,7 +153,7 @@ static void test_state_lifecycle(void) {
     PASS();
 }
 
-/* ── Camera / Viewport Tests ───────────────────────────────── */
+/* -- Camera / Viewport Tests --------------------------------- */
 
 static void test_camera_pan(void) {
     TEST("camera pan updates view and sim");
@@ -254,7 +254,7 @@ static void test_camera_zoom(void) {
     PASS();
 }
 
-/* ── Render Pipeline Tests ─────────────────────────────────── */
+/* -- Render Pipeline Tests ----------------------------------- */
 
 static void test_render_frame_writes_pixels(void) {
     TEST("render_frame writes pixels to VBE front buffer");
@@ -360,7 +360,7 @@ static void test_render_stopped_no_op(void) {
     PASS();
 }
 
-/* ── Render Only Test ──────────────────────────────────────── */
+/* -- Render Only Test ---------------------------------------- */
 
 static void test_render_only(void) {
     TEST("render_only draws but does not advance sim");
@@ -385,7 +385,7 @@ static void test_render_only(void) {
     PASS();
 }
 
-/* ── Sim Speed Test ────────────────────────────────────────── */
+/* -- Sim Speed Test ------------------------------------------ */
 
 static void test_sim_speed(void) {
     TEST("sim_speed controls ticks per frame");
@@ -414,7 +414,7 @@ static void test_sim_speed(void) {
     PASS();
 }
 
-/* ── HUD Drawing Tests ─────────────────────────────────────── */
+/* -- HUD Drawing Tests --------------------------------------- */
 
 static void test_hud_draws_pixels(void) {
     TEST("HUD overlay draws non-zero pixels");
@@ -455,11 +455,11 @@ static void test_hud_toggle(void) {
     vbe_ws_bridge_render_only(&br);
 
     /* With HUD off, top area should be terrain only (no HUD strip) */
-    /* This is hard to verify precisely — just ensure no crash */
+    /* This is hard to verify precisely  --  just ensure no crash */
     PASS();
 }
 
-/* ── Text Rendering Tests ──────────────────────────────────── */
+/* -- Text Rendering Tests ------------------------------------ */
 
 static void test_text_basic(void) {
     TEST("text renders characters and returns x position");
@@ -531,7 +531,7 @@ static void test_text_pixels_nonzero(void) {
     PASS();
 }
 
-/* ── Query Tests ───────────────────────────────────────────── */
+/* -- Query Tests --------------------------------------------- */
 
 static void test_query_frame_count(void) {
     TEST("frame_count query");
@@ -573,7 +573,7 @@ static void test_query_is_active(void) {
     PASS();
 }
 
-/* ── Frame Count After Render ──────────────────────────────── */
+/* -- Frame Count After Render -------------------------------- */
 
 static void test_frame_count_increments(void) {
     TEST("frame_count increments correctly");
@@ -598,7 +598,7 @@ static void test_frame_count_increments(void) {
     PASS();
 }
 
-/* ── Terrain Visible After Render ──────────────────────────── */
+/* -- Terrain Visible After Render ---------------------------- */
 
 static void test_terrain_biome_colors(void) {
     TEST("terrain render produces biome-colored pixels");
@@ -615,7 +615,7 @@ static void test_terrain_biome_colors(void) {
     vbe_ws_bridge_render_only(&br);
 
     VBEState *vbe = vbe_state();
-    /* Sample some pixels from center of screen — should have terrain */
+    /* Sample some pixels from center of screen  --  should have terrain */
     int nonzero = count_pixels(vbe->fb, 320, 200, 50, 50, 100, 100);
     CHECK(nonzero > 0, "center area should have terrain pixels");
 
@@ -637,7 +637,7 @@ static void test_terrain_biome_colors(void) {
     PASS();
 }
 
-/* ── Camera Movement Changes Pixels ────────────────────────── */
+/* -- Camera Movement Changes Pixels -------------------------- */
 
 static void test_camera_changes_view(void) {
     TEST("camera pan changes rendered pixels");
@@ -665,7 +665,7 @@ static void test_camera_changes_view(void) {
     /* Different camera position should generally show different terrain */
     /* (not guaranteed for all seeds, but very likely with seed 12345) */
     /* We just verify the render completes without crash */
-    /* pixel_origin and pixel_moved may or may not differ — both are valid */
+    /* pixel_origin and pixel_moved may or may not differ  --  both are valid */
     CHECK(pixel_origin != 0 || pixel_moved != 0, "at least one view has visible pixels");
 
     vbe_ws_bridge_unwire(&br);
@@ -673,12 +673,12 @@ static void test_camera_changes_view(void) {
     PASS();
 }
 
-/* ── Main ──────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  VBE ↔ WorldSim Bridge Test Suite                ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  VBE ↔ WorldSim Bridge Test Suite                |\n");
+    printf("+==================================================+\n\n");
 
     /* Lifecycle */
     test_bridge_init();
@@ -719,9 +719,9 @@ int main(void) {
     test_terrain_biome_colors();
     test_camera_changes_view();
 
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
 
     return g_fail > 0 ? 1 : 0;
 }

@@ -1,5 +1,5 @@
 /*
- * startmenu.c — WuBuOS Win98-Style Start Menu
+ * startmenu.c  --  WuBuOS Win98-Style Start Menu
  *
  * Cell 104: Cascading Start menu with programs list,
  * system menu (Shutdown, About), and Win98 classic styling.
@@ -10,7 +10,7 @@
 #include "../kernel/vbe.h"
 #include <string.h>
 
-/* ── Internal State ─────────────────────────────────────────── */
+/* -- Internal State ------------------------------------------- */
 
 static StartMenuEntry g_entries[STARTMENU_MAX_ENTRIES];
 static int            g_count = 0;
@@ -20,7 +20,7 @@ static int            g_x = 0, g_y = 0;
 static int            g_width = 180;
 static int            g_entry_height = 24;
 
-/* ── API ────────────────────────────────────────────────────── */
+/* -- API ------------------------------------------------------ */
 
 void startmenu_init(void) {
     g_count = 0;
@@ -57,7 +57,7 @@ StartMenuEntry *startmenu_get_entry(int index) {
     return &g_entries[index];
 }
 
-/* ── Open/Close ─────────────────────────────────────────────── */
+/* -- Open/Close ----------------------------------------------- */
 
 void startmenu_open(int x, int y) {
     g_open = 1;
@@ -80,7 +80,7 @@ void startmenu_toggle(int x, int y) {
     else        startmenu_open(x, y);
 }
 
-/* ── Interaction ────────────────────────────────────────────── */
+/* -- Interaction ---------------------------------------------- */
 
 void startmenu_set_hover(int index) {
     if (index >= -1 && index < g_count)
@@ -117,7 +117,7 @@ int startmenu_handle_mouse(int mx, int my) {
     return -1;
 }
 
-/* ── Rendering ──────────────────────────────────────────────── */
+/* -- Rendering ------------------------------------------------ */
 
 void startmenu_draw(void) {
     if (!g_open) return;
@@ -160,7 +160,7 @@ void startmenu_draw(void) {
     }
 }
 
-/* ── Query ──────────────────────────────────────────────────── */
+/* -- Query ---------------------------------------------------- */
 
 int startmenu_get_width(void) { return g_width; }
 int startmenu_get_height(void) { return g_count * g_entry_height + 4; }

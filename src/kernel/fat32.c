@@ -1,11 +1,11 @@
 /*
- * fat32.c — My Seed FAT32 Filesystem Implementation
+ * fat32.c  --  My Seed FAT32 Filesystem Implementation
  *
  * Clean C11 reimplementation of ZealOS FAT32 design.
  * Reference: ZealOS/src/Kernel/BlkDev/FileSysFAT.ZC (1087 lines)
  *
  * Porting notes:
- *   - ZealOS uses try/catch for drive locking — we use spinlocks
+ *   - ZealOS uses try/catch for drive locking  --  we use spinlocks
  *   - ZealOS BlkRead/BlkWrite → fat32_blk_ops callbacks
  *   - ZealOS CDirEntry → fat32_file_info
  *   - ZealOS Date2Struct/Dos2CDate → simplified epoch-based timestamps
@@ -20,7 +20,7 @@
 #include <time.h>
 #include <ctype.h>
 
-/* ── Internal Helpers ───────────────────────────────────────────── */
+/* -- Internal Helpers --------------------------------------------- */
 
 /* Read a single FAT entry (4 bytes) for given cluster */
 static int fat_read_entry(fat32_volume *vol, uint32_t cluster, uint32_t *out) {
@@ -81,7 +81,7 @@ static void fat_cache_invalidate(fat32_volume *vol) {
     vol->cached_fat_sector = 0xFFFFFFFF;
 }
 
-/* ── Internal: 8.3 Name Conversion ─────────────────────────────── */
+/* -- Internal: 8.3 Name Conversion ------------------------------- */
 
 /* Convert "filename.ext" → 8.3 format (space-padded, uppercased) */
 static void name_to_83(const char *src, char name83[11]) {
@@ -155,7 +155,7 @@ static int name_cmp(const char *a, const char *b) {
     return toupper((unsigned char)*a) - toupper((unsigned char)*b);
 }
 
-/* ── Internal: DOS Date/Time ────────────────────────────────────── */
+/* -- Internal: DOS Date/Time -------------------------------------- */
 
 static void datetime_to_dos(time_t t, uint16_t *dos_time, uint16_t *dos_date) {
     struct tm *tm_info = gmtime(&t);
@@ -170,7 +170,7 @@ static void datetime_to_dos(time_t t, uint16_t *dos_time, uint16_t *dos_date) {
     *dos_time = (uint16_t)((tm_info->tm_sec / 2) | (tm_info->tm_min << 5) | (tm_info->tm_hour << 11));
 }
 
-/* ── Volume Management ──────────────────────────────────────────── */
+/* -- Volume Management -------------------------------------------- */
 
 int fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk) {
     memset(vol, 0, sizeof(*vol));
@@ -232,7 +232,7 @@ void fat32_unmount(fat32_volume *vol) {
     vol->mounted = false;
 }
 
-/* ── Format ─────────────────────────────────────────────────────── */
+/* -- Format ------------------------------------------------------- */
 
 int fat32_format(const fat32_blk_ops *blk, uint64_t sector_count,
                  const char *vol_name) {
@@ -352,7 +352,7 @@ int fat32_format(const fat32_blk_ops *blk, uint64_t sector_count,
     return 0;
 }
 
-/* ── Cluster Operations ─────────────────────────────────────────── */
+/* -- Cluster Operations ------------------------------------------- */
 
 uint32_t fat32_next_cluster(fat32_volume *vol, uint32_t cluster) {
     if (cluster < 2) return 0;
@@ -440,7 +440,7 @@ uint32_t fat32_count_free(fat32_volume *vol) {
     return count;
 }
 
-/* ── Directory Operations ───────────────────────────────────────── */
+/* -- Directory Operations ----------------------------------------- */
 
 int fat32_dir_read(fat32_volume *vol, uint32_t dir_cluster,
                    fat32_dir_callback cb, void *ctx) {
@@ -469,7 +469,7 @@ int fat32_dir_read(fat32_volume *vol, uint32_t dir_cluster,
             /* End of directory */
             if ((uint8_t)de->name[0] == 0x00) { free(buf); return count; }
 
-            /* Deleted entry — skip */
+            /* Deleted entry  --  skip */
             if ((uint8_t)de->name[0] == 0xE5) {
                 memset(lfn, 0, sizeof(lfn));
                 continue;
@@ -500,13 +500,13 @@ int fat32_dir_read(fat32_volume *vol, uint32_t dir_cluster,
                 continue;
             }
 
-            /* Volume ID or . / .. entries — skip in listing */
+            /* Volume ID or . / .. entries  --  skip in listing */
             if (de->attr & FAT32_ATTR_VOLUME_ID) {
                 memset(lfn, 0, sizeof(lfn));
                 continue;
             }
 
-            /* Regular entry — build file info */
+            /* Regular entry  --  build file info */
             fat32_file_info info;
             memset(&info, 0, sizeof(info));
 
@@ -515,7 +515,7 @@ int fat32_dir_read(fat32_volume *vol, uint32_t dir_cluster,
                 strncpy(info.name, lfn, FAT32_MAX_NAME - 1);
                 info.name[FAT32_MAX_NAME - 1] = '\0';
             } else {
-                /* Use 8.3 name — name[8] and ext[3] are contiguous in packed struct */
+                /* Use 8.3 name  --  name[8] and ext[3] are contiguous in packed struct */
                 char name83[11];
                 memcpy(name83, de->name, 8);
                 memcpy(name83 + 8, de->ext, 3);
@@ -545,7 +545,7 @@ int fat32_dir_read(fat32_volume *vol, uint32_t dir_cluster,
 
 int fat32_find(fat32_volume *vol, uint32_t dir_cluster,
                const char *name, fat32_file_info *out) {
-    /* Simple linear scan — fine for small directories */
+    /* Simple linear scan  --  fine for small directories */
     if (dir_cluster == 0) dir_cluster = vol->root_cluster;
 
     uint32_t cluster = dir_cluster;
@@ -630,7 +630,7 @@ int fat32_create(fat32_volume *vol, uint32_t dir_cluster,
     /* Check if already exists */
     fat32_file_info existing;
     if (fat32_find(vol, dir_cluster, name, &existing) == 0) {
-        /* Already exists — return existing */
+        /* Already exists  --  return existing */
         if (out) *out = existing;
         return 0;
     }
@@ -683,7 +683,7 @@ int fat32_create(fat32_volume *vol, uint32_t dir_cluster,
         for (uint32_t i = 0; i < entries_per_cluster; i++) {
             fat32_dir_entry *de = (fat32_dir_entry *)(buf + i * FAT32_DIR_ENTRY_SIZE);
             if ((uint8_t)de->name[0] == 0x00 || (uint8_t)de->name[0] == 0xE5) {
-                /* Free slot — create entry here */
+                /* Free slot  --  create entry here */
                 memset(de, 0, sizeof(*de));
                 char name83[11];
                 name_to_83(name, name83);
@@ -722,7 +722,7 @@ int fat32_create(fat32_volume *vol, uint32_t dir_cluster,
             }
         }
 
-        /* Need to extend directory — allocate another cluster */
+        /* Need to extend directory  --  allocate another cluster */
         uint32_t next = fat32_next_cluster(vol, cluster);
         if (next == 0 || next >= FAT32_CLUSTER_EOC) {
             uint32_t new_dir_cluster = fat32_alloc_clusters(vol, 1, 0);
@@ -771,7 +771,7 @@ int fat32_delete(fat32_volume *vol, uint32_t dir_cluster, const char *name) {
     return (rc == 0) ? 0 : -1;
 }
 
-/* ── File I/O ───────────────────────────────────────────────────── */
+/* -- File I/O ----------------------------------------------------- */
 
 int fat32_open(fat32_volume *vol, uint32_t dir_cluster,
                const char *name, const char *mode, fat32_file *fp) {
@@ -894,7 +894,7 @@ size_t fat32_read(fat32_file *fp, void *buf, size_t n) {
                                         fp->vol->sectors_per_cluster, dst);
             if (rc != 0) break;
         } else {
-            /* Partial read — need a temp buffer */
+            /* Partial read  --  need a temp buffer */
             uint8_t *tmp = (uint8_t *)malloc(cluster_size);
             if (!tmp) break;
             int rc = fp->vol->blk.read(fp->vol->blk.ctx, lba,
@@ -929,7 +929,7 @@ size_t fat32_write(fat32_file *fp, const void *buf, size_t n) {
 
     /* If we have a current cluster, figure out prev for chain extension */
     if (cluster >= 2 && cluster < FAT32_CLUSTER_EOC) {
-        /* Walk chain to find previous — only needed at write start */
+        /* Walk chain to find previous  --  only needed at write start */
         prev_cluster = fp->first_cluster;
         if (prev_cluster != cluster) {
             uint32_t c = prev_cluster;
@@ -971,7 +971,7 @@ size_t fat32_write(fat32_file *fp, const void *buf, size_t n) {
                                          fp->vol->sectors_per_cluster, src);
             if (rc != 0) break;
         } else {
-            /* Partial write — read-modify-write */
+            /* Partial write  --  read-modify-write */
             uint8_t *tmp = (uint8_t *)malloc(cluster_size);
             if (!tmp) break;
             int rc = fp->vol->blk.read(fp->vol->blk.ctx, lba,
@@ -1031,7 +1031,7 @@ int64_t fat32_seek(fat32_file *fp, int64_t offset, int whence) {
     return (int64_t)fp->pos;
 }
 
-/* ── Diagnostics ────────────────────────────────────────────────── */
+/* -- Diagnostics -------------------------------------------------- */
 
 int fat32_validate(fat32_volume *vol) {
     if (!vol->mounted) return -1;

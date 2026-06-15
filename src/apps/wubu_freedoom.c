@@ -1,5 +1,5 @@
 /*
- * wubu_freedoom.c — WuBuOS FreeDoom Launcher
+ * wubu_freedoom.c  --  WuBuOS FreeDoom Launcher
  *
  * Cell 391: FreeDoom running inside Arch container.
  *
@@ -31,7 +31,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 
-/* ── Init ───────────────────────────────────────────────────────── */
+/* -- Init --------------------------------------------------------- */
 
 WubuDoom *wubu_doom_init(const char *arch_root) {
     WubuDoom *doom = (WubuDoom*)calloc(1, sizeof(WubuDoom));
@@ -68,7 +68,7 @@ void wubu_doom_destroy(WubuDoom *doom) {
     free(doom);
 }
 
-/* ── Install ────────────────────────────────────────────────────── */
+/* -- Install ------------------------------------------------------ */
 
 int wubu_doom_install(WubuDoom *doom) {
     if (!doom) return -1;
@@ -86,14 +86,14 @@ int wubu_doom_install(WubuDoom *doom) {
     ret = wubu_arch_install(doom->arch_root,
                             "pulseaudio pulseaudio-alsa alsa-utils sdl_mixer");
     if (ret != 0) {
-        /* Non-fatal — game may still work with basic audio */
+        /* Non-fatal  --  game may still work with basic audio */
     }
 
     doom->state = WUBU_DOOM_IDLE;
     return 0;
 }
 
-/* ── Check Installed ────────────────────────────────────────────── */
+/* -- Check Installed ---------------------------------------------- */
 
 bool wubu_doom_installed(WubuDoom *doom) {
     if (!doom) return false;
@@ -112,7 +112,7 @@ bool wubu_doom_installed(WubuDoom *doom) {
     return true;
 }
 
-/* ── Launch ─────────────────────────────────────────────────────── */
+/* -- Launch ------------------------------------------------------- */
 
 int wubu_doom_launch(WubuDoom *doom) {
     if (!doom) return -1;
@@ -133,10 +133,10 @@ int wubu_doom_launch(WubuDoom *doom) {
         return -1;
     }
 
-    /* GPU passthrough — Doom needs the GPU for rendering */
+    /* GPU passthrough  --  Doom needs the GPU for rendering */
     wubu_ct_set_gpu(doom->container, true);
 
-    /* Audio — bind /dev/snd for sound */
+    /* Audio  --  bind /dev/snd for sound */
     wubu_ct_add_bind(doom->container, "/dev/snd", "/dev/snd", false);
 
     /* PulseAudio socket */
@@ -219,7 +219,7 @@ int wubu_doom_launch(WubuDoom *doom) {
     return 0;
 }
 
-/* ── Stop ───────────────────────────────────────────────────────── */
+/* -- Stop --------------------------------------------------------- */
 
 int wubu_doom_stop(WubuDoom *doom) {
     if (!doom || !doom->container) return -1;
@@ -233,7 +233,7 @@ int wubu_doom_stop(WubuDoom *doom) {
     return ret;
 }
 
-/* ── State Query ────────────────────────────────────────────────── */
+/* -- State Query -------------------------------------------------- */
 
 WubuDoomState wubu_doom_state(WubuDoom *doom) {
     if (!doom) return WUBU_DOOM_FAILED;
@@ -249,7 +249,7 @@ WubuDoomState wubu_doom_state(WubuDoom *doom) {
     return doom->state;
 }
 
-/* ── Configuration ──────────────────────────────────────────────── */
+/* -- Configuration ------------------------------------------------ */
 
 void wubu_doom_set_resolution(WubuDoom *doom, int w, int h) {
     if (!doom) return;

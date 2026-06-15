@@ -3,11 +3,11 @@
 
 /* Biome colors (XRGB8888) */
 static const uint32_t biome_colors[] = {
-    0x004488FF, /* water   — deep blue */
-    0x44AA22FF, /* plains  — green */
-    0x227711FF, /* forest  — dark green */
-    0x888888FF, /* mountain— gray */
-    0xDDDDDDFF, /* snow    — white */
+    0x004488FF, /* water    --  deep blue */
+    0x44AA22FF, /* plains   --  green */
+    0x227711FF, /* forest   --  dark green */
+    0x888888FF, /* mountain --  gray */
+    0xDDDDDDFF, /* snow     --  white */
 };
 
 static const uint32_t biome_colors_shaded[] = {
@@ -79,7 +79,7 @@ void ws_render_entities(const ws_world_t *w, ws_render_ctx_t *ctx) {
                 }
             }
         } else {
-            /* No pixels — draw rect placeholder */
+            /* No pixels  --  draw rect placeholder */
             for (int py = 0; py < spr->h && sy + py < ctx->fb_h; py++) {
                 for (int px = 0; px < spr->w && sx + px < ctx->fb_w; px++) {
                     int dx = sx + px, dy = sy + py;

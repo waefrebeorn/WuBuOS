@@ -1,5 +1,5 @@
 /*
- * wubu_screenshot_test.c — Tests for screenshot/snipping tool
+ * wubu_screenshot_test.c  --  Tests for screenshot/snipping tool
  */
 
 #include "screenshot.h"

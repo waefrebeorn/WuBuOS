@@ -1,5 +1,5 @@
 /*
- * memory.h — My Seed Kernel Memory Subsystem
+ * memory.h  --  My Seed Kernel Memory Subsystem
  *
  * Hand-ported from ZealOS Memory design principles:
  *   - Hash table for small allocations (≤MEM_HEAP_HASH_SIZE)
@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* ── Constants ──────────────────────────────────────────────────── */
+/* -- Constants ---------------------------------------------------- */
 
 #define MEM_PAG_BITS        12                          /* 4KB pages          */
 #define MEM_PAG_SIZE        (1 << MEM_PAG_BITS)         /* 4096               */
@@ -29,7 +29,7 @@
 #define MEM_USED_SIGNATURE   0xDEADBEEF
 #define MEM_UNUSED_SIGNATURE 0xCAFEBABE
 
-/* ── Types ──────────────────────────────────────────────────────── */
+/* -- Types -------------------------------------------------------- */
 
 typedef enum {
     HClf_LOCKED = 0,
@@ -60,7 +60,7 @@ struct CMemBlk {
     /* Data follows at sizeof(CMemBlk) */
 };
 
-/* Heap controller — the core heap structure */
+/* Heap controller  --  the core heap structure */
 typedef struct CHeapCtrl CHeapCtrl;
 struct CHeapCtrl {
     uint32_t     hc_signature;          /* HEAP_CTRL_SIGNATURE            */
@@ -72,7 +72,7 @@ struct CHeapCtrl {
     size_t       max_size;             /* Maximum allowed               */
 };
 
-/* ── API ────────────────────────────────────────────────────────── */
+/* -- API ---------------------------------------------------------- */
 
 /* Initialize the kernel heap. Call once at boot. */
 int  mem_init(size_t total_bytes);
@@ -83,7 +83,7 @@ void mem_shutdown(void);
 /* Get the global kernel heap controller. */
 CHeapCtrl *mem_heap_ctrl(void);
 
-/* ── Allocation ─────────────────────────────────────────────────── */
+/* -- Allocation --------------------------------------------------- */
 
 /*
  * Allocate `size` bytes. Returns 16-aligned memory.
@@ -106,7 +106,7 @@ void *mem_realloc(void *ptr, size_t new_size);
  */
 void mem_free(void *ptr);
 
-/* ── Diagnostics ────────────────────────────────────────────────── */
+/* -- Diagnostics -------------------------------------------------- */
 
 /* Total bytes currently allocated. */
 size_t mem_used(void);

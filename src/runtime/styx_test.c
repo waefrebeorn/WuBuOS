@@ -1,5 +1,5 @@
 /*
- * styx_test.c — Styx/9P2000 Protocol Test Suite
+ * styx_test.c  --  Styx/9P2000 Protocol Test Suite
  *
  * Tests: message building, parsing, server dispatch,
  * fid management, error handling, edge cases.
@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* ── Test Framework ──────────────────────────────────────────────── */
+/* -- Test Framework ------------------------------------------------ */
 
 static int g_tests = 0, g_passed = 0, g_failed = 0;
 
@@ -29,7 +29,7 @@ static int g_tests = 0, g_passed = 0, g_failed = 0;
     if (!(cond)) { FAIL(msg); return; } \
 } while (0)
 
-/* ── Fixture ────────────────────────────────────────────────────── */
+/* -- Fixture ------------------------------------------------------ */
 
 static uint8_t g_inbuf[STYX_MAX_MSG];
 static uint8_t g_outbuf[STYX_MAX_MSG];
@@ -43,7 +43,7 @@ static void setup(void) {
     styx_init(&g_srv);
 }
 
-/* ── Helper to verify header ────────────────────────────────────── */
+/* -- Helper to verify header -------------------------------------- */
 
 static int check_header(const uint8_t *buf, uint32_t len,
                          uint8_t expected_type, uint16_t expected_tag) {
@@ -55,7 +55,7 @@ static int check_header(const uint8_t *buf, uint32_t len,
     return 0;
 }
 
-/* ── Tversion / Rversion Tests ──────────────────────────────────── */
+/* -- Tversion / Rversion Tests ------------------------------------ */
 
 static void test_version_negotiate(void) {
     TEST("Tversion → Rversion basic");
@@ -101,7 +101,7 @@ static void test_version_parse_response(void) {
     PASS();
 }
 
-/* ── Tattach / Rattach Tests ────────────────────────────────────── */
+/* -- Tattach / Rattach Tests -------------------------------------- */
 
 static void test_attach_no_auth(void) {
     TEST("Tattach → Rattach (no auth needed)");
@@ -135,7 +135,7 @@ static void test_attach_parse(void) {
     PASS();
 }
 
-/* ── Twalk / Rwalk Tests ────────────────────────────────────────── */
+/* -- Twalk / Rwalk Tests ------------------------------------------ */
 
 static void test_walk_zero_elements(void) {
     TEST("Twalk with 0 elements (fid clone)");
@@ -158,7 +158,7 @@ static void test_walk_zero_elements(void) {
     PASS();
 }
 
-/* ── Topen / Ropen Tests ────────────────────────────────────────── */
+/* -- Topen / Ropen Tests ------------------------------------------ */
 
 static void test_open_file(void) {
     TEST("Topen → Ropen");
@@ -174,7 +174,7 @@ static void test_open_file(void) {
     styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
     CHECK(g_outbuf[4] == STX_ROPEN, "Ropen");
     
-    /* Check iounit — offset 20 (7 header + 13 QID) */
+    /* Check iounit  --  offset 20 (7 header + 13 QID) */
     uint32_t iounit = styx_get32(g_outbuf + 20);
     CHECK(iounit > 0, "iounit should be > 0");
     PASS();
@@ -194,7 +194,7 @@ static void test_open_parse(void) {
     PASS();
 }
 
-/* ── Tread / Rread Tests ────────────────────────────────────────── */
+/* -- Tread / Rread Tests ------------------------------------------ */
 
 static void test_read_empty(void) {
     TEST("Tread → Rread (empty, default handler)");
@@ -233,7 +233,7 @@ static void test_read_parse(void) {
     PASS();
 }
 
-/* ── Twrite / Rwrite Tests ──────────────────────────────────────── */
+/* -- Twrite / Rwrite Tests ---------------------------------------- */
 
 static void test_write_parse(void) {
     TEST("Parse Twrite message");
@@ -253,7 +253,7 @@ static void test_write_parse(void) {
     PASS();
 }
 
-/* ── Tclunk / Rclunk Tests ──────────────────────────────────────── */
+/* -- Tclunk / Rclunk Tests ---------------------------------------- */
 
 static void test_clunk_fid(void) {
     TEST("Tclunk → Rclunk (freed)");
@@ -288,7 +288,7 @@ static void test_clunk_parse(void) {
     PASS();
 }
 
-/* ── Tstat / Rstat Tests ────────────────────────────────────────── */
+/* -- Tstat / Rstat Tests ------------------------------------------ */
 
 static void test_stat_fid(void) {
     TEST("Tstat → Rstat");
@@ -318,7 +318,7 @@ static void test_stat_parse(void) {
     PASS();
 }
 
-/* ── Bad Fid Tests ──────────────────────────────────────────────── */
+/* -- Bad Fid Tests ------------------------------------------------ */
 
 static void test_bad_fid_walk(void) {
     TEST("Twalk with bad fid → Rerror");
@@ -369,7 +369,7 @@ static void test_bad_fid_stat(void) {
     PASS();
 }
 
-/* ── Edge Cases ─────────────────────────────────────────────────── */
+/* -- Edge Cases --------------------------------------------------- */
 
 static void test_truncated_message(void) {
     TEST("Truncated message → handled gracefully");
@@ -396,7 +396,7 @@ static void test_unknown_message_type(void) {
     PASS();
 }
 
-/* ── Endian-ness and Encoding Tests ─────────────────────────────── */
+/* -- Endian-ness and Encoding Tests ------------------------------- */
 
 static void test_put_get_16(void) {
     TEST("styx_put16/styx_get16 round-trip");
@@ -425,7 +425,7 @@ static void test_put_get_64(void) {
     PASS();
 }
 
-/* ── Message Name Lookup ────────────────────────────────────────── */
+/* -- Message Name Lookup ------------------------------------------ */
 
 static void test_msg_names(void) {
     TEST("styx_msg_name returns correct names");
@@ -438,7 +438,7 @@ static void test_msg_names(void) {
     PASS();
 }
 
-/* ── String Helpers ─────────────────────────────────────────────── */
+/* -- String Helpers ----------------------------------------------- */
 
 static void test_put_get_str(void) {
     TEST("styx_putstr/styx_getstr round-trip");
@@ -486,7 +486,7 @@ static void test_string_truncation(void) {
     PASS();
 }
 
-/* ── Formatted Output Test (Styled like Inferno's /dev/cons) ──── */
+/* -- Formatted Output Test (Styled like Inferno's /dev/cons) ---- */
 
 static void test_walk_parse(void) {
     TEST("Parse Twalk with 2 elements");
@@ -508,12 +508,12 @@ static void test_walk_parse(void) {
     PASS();
 }
 
-/* ── Main ────────────────────────────────────────────────────────── */
+/* -- Main ---------------------------------------------------------- */
 
 int main(void) {
-    printf("╔══════════════════════════════════════════════════╗\n");
-    printf("║  WuBuOS Styx/9P2000 Protocol Test Suite         ║\n");
-    printf("╚══════════════════════════════════════════════════╝\n\n");
+    printf("+==================================================+\n");
+    printf("|  WuBuOS Styx/9P2000 Protocol Test Suite         |\n");
+    printf("+==================================================+\n\n");
     
     /* Tversion/Rversion */
     test_version_negotiate();
@@ -566,9 +566,9 @@ int main(void) {
     /* Message names */
     test_msg_names();
     
-    printf("\n══════════════════════════════════════════════════\n");
+    printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",
            g_passed, g_tests, g_failed);
-    printf("══════════════════════════════════════════════════\n");
+    printf("==================================================\n");
     return g_failed > 0 ? 1 : 0;
 }

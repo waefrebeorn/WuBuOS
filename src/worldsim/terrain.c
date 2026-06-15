@@ -5,7 +5,7 @@
 
 static uint64_t rng_state;
 
-/* ── RNG ── */
+/* -- RNG -- */
 
 uint64_t ws_rng_next(uint64_t *state) {
     uint64_t x = *state;
@@ -25,7 +25,7 @@ int ws_rng_int(uint64_t *state, int lo, int hi) {
 }
 
 static float noise2d(uint64_t *rng, int x, int y, int freq) {
-    /* Hash-based value noise — good enough for terrain */
+    /* Hash-based value noise  --  good enough for terrain */
     uint64_t h = (uint64_t)x * 374761393ULL + (uint64_t)y * 668265263ULL + (uint64_t)freq * 1274126177ULL;
     h ^= h >> 13; h *= 1274126177ULL; h ^= h >> 16;
     *rng = h;
@@ -71,7 +71,7 @@ void ws_terrain_generate(ws_terrain_t *t, uint32_t seed) {
             }
             val /= max_amp;
             
-            /* Island falloff — distance from center */
+            /* Island falloff  --  distance from center */
             float cx = (float)x / WS_TERRAIN_W - 0.5f;
             float cy = (float)y / WS_TERRAIN_H - 0.5f;
             float dist = (float)wubu_sqrt((double)(cx*cx + cy*cy)) * 2.0f;
@@ -97,7 +97,7 @@ void ws_terrain_generate(ws_terrain_t *t, uint32_t seed) {
 }
 
 void ws_terrain_erode(ws_terrain_t *t, int iterations) {
-    /* Simple thermal erosion — smooth steep slopes */
+    /* Simple thermal erosion  --  smooth steep slopes */
     for (int iter = 0; iter < iterations; iter++) {
         for (int y = 1; y < WS_TERRAIN_H - 1; y++) {
             for (int x = 1; x < WS_TERRAIN_W - 1; x++) {

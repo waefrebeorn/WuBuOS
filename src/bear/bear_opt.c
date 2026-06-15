@@ -1,5 +1,5 @@
 /*
- * bear_opt.c — PufferC/BearRL Optimizer Implementation (Adam + Muon)
+ * bear_opt.c  --  PufferC/BearRL Optimizer Implementation (Adam + Muon)
  */
 
 #include "bear_opt.h"
@@ -9,9 +9,9 @@
 #include <string.h>
 #include <math.h>
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Optimizer Creation / Registration
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 BearOptimizer* bear_optimizer_create(BearArena* arena, BearOptType type, float lr) {
     if (!arena) return NULL;
@@ -88,9 +88,9 @@ int bear_optimizer_register(BearOptimizer* opt, BearParam* param) {
     return 0;
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * SGD Update
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 static inline void bear_sgd_update_param(BearParam* param, float lr, float momentum, int nesterov) {
     if (param->grad.data == NULL || param->weight.data == NULL) return;
@@ -110,9 +110,9 @@ static inline void bear_sgd_update_param(BearParam* param, float lr, float momen
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Adam / AdamW Update
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_adam_update_param(BearParam* param, BearAdamState* state,
                              float lr, float beta1, float beta2, float eps,
@@ -192,12 +192,12 @@ void bear_adamw_update_param(BearParam* param, BearAdamState* state,
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Muon Update (PufferLib)
  * 
  * Muon = Momentum + Orthogonal Normalization
  * For weight matrices [out, in], normalize momentum per OUTPUT ROW
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_muon_update_param(BearParam* param, BearMuonState* state,
                              float lr, float beta, float weight_decay) {
@@ -245,9 +245,9 @@ void bear_muon_update_param(BearParam* param, BearMuonState* state,
     }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ===================================================================
  * Optimizer Step / Zero Grad
- * ═══════════════════════════════════════════════════════════════════ */
+ * =================================================================== */
 
 void bear_optimizer_step(BearOptimizer* opt) {
     if (!opt) return;

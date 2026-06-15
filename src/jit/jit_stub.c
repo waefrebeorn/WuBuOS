@@ -1,5 +1,5 @@
 /*
- * myseed_jit_stub.c — 50-line JIT proof-of-concept
+ * myseed_jit_stub.c  --  50-line JIT proof-of-concept
  * 
  * Demonstrates mmap-based JIT: write machine code into
  * executable memory and call it as a C function pointer.
@@ -87,7 +87,7 @@ static void emit_square(unsigned char *buf) {
  *   7e 0b           jle  .done
  *   41 b8 02 00 00 00  mov r8d, 2    ; i = 2
  * .loop:
- *   89 c8           mov  eax, ecx     ; t = b    (reuse eax as temp—actually we need a+b)
+ *   89 c8           mov  eax, ecx     ; t = b    (reuse eax as temp -- actually we need a+b)
  *   [simpler: edx=eax+ecx, eax=ecx, ecx=edx]
  *   89 d2           mov  edx, eax     ; wait, let me just emit the right bytes
  *   
@@ -122,7 +122,7 @@ static void emit_fibonacci(unsigned char *buf) {
     buf[i++] = 0x7c; buf[i++] = 0x0b;        /* jl .done (+11)    */
     
     /* t = a + b (edx) */
-    buf[i++] = 0x89; buf[i++] = 0xc8;        /* mov eax, eax (nop—actually mov edx,eax) */
+    buf[i++] = 0x89; buf[i++] = 0xc8;        /* mov eax, eax (nop -- actually mov edx,eax) */
     /* Fix: mov edx, eax */
     i -= 2;
     buf[i++] = 0x89; buf[i++] = 0xc2;        /* mov edx, eax       */

@@ -1,5 +1,5 @@
 /*
- * iso9660.c — WuBuOS ISO 9660 / Bootable ISO Builder
+ * iso9660.c  --  WuBuOS ISO 9660 / Bootable ISO Builder
  *
  * Cell 060: Builds bootable ISO 9660 images with El Torito support.
  * Creates a complete ISO with:
@@ -18,7 +18,7 @@
 #include <string.h>
 #include <stdio.h>
 
-/* ── Helpers ───────────────────────────────────────────────── */
+/* -- Helpers ------------------------------------------------- */
 
 static iso_both16_t mkboth16(uint16_t v) {
     iso_both16_t r;
@@ -72,7 +72,7 @@ static void write_both16(uint8_t *buf, uint16_t v) {
     memcpy(buf, &b, 4);
 }
 
-/* ── Builder Lifecycle ─────────────────────────────────────── */
+/* -- Builder Lifecycle --------------------------------------- */
 
 int iso_builder_init(iso_builder_t *b, const char *volume_id) {
     memset(b, 0, sizeof(*b));
@@ -106,7 +106,7 @@ void iso_builder_shutdown(iso_builder_t *b) {
     b->num_files = 0;
 }
 
-/* ── Boot Configuration ────────────────────────────────────── */
+/* -- Boot Configuration -------------------------------------- */
 
 int iso_builder_set_boot(iso_builder_t *b, const uint8_t *boot_data,
                          uint32_t boot_size) {
@@ -123,7 +123,7 @@ int iso_builder_set_boot(iso_builder_t *b, const uint8_t *boot_data,
     return 0;
 }
 
-/* ── File Management ───────────────────────────────────────── */
+/* -- File Management ----------------------------------------- */
 
 int iso_builder_add_file(iso_builder_t *b, const char *name,
                          const uint8_t *data, uint32_t size) {
@@ -157,7 +157,7 @@ int iso_builder_add_dir(iso_builder_t *b, const char *name) {
     return 0;
 }
 
-/* ── ISO Assembly ──────────────────────────────────────────── */
+/* -- ISO Assembly -------------------------------------------- */
 
 uint32_t iso_builder_build(iso_builder_t *b) {
     if (!b) return 0;
@@ -212,7 +212,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
     b->image = (uint8_t *)calloc(1, b->image_size);
     if (!b->image) return 0;
 
-    /* ── Write Volume Descriptors ───────────────────────────── */
+    /* -- Write Volume Descriptors ----------------------------- */
 
     /* Primary Volume Descriptor (sector 16) */
     iso_primary_vd_t *pvd = (iso_primary_vd_t *)&b->image[b->primary_vd_lba * ISO_SECTOR_SIZE];
@@ -265,7 +265,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
     memcpy(tvd->id, "CD001", 5);
     tvd->version = 1;
 
-    /* ── Write Path Tables ──────────────────────────────────── */
+    /* -- Write Path Tables ------------------------------------ */
 
     /* L-path table (little-endian) */
     uint8_t *lpt = &b->image[b->l_path_table_lba * ISO_SECTOR_SIZE];
@@ -276,7 +276,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
     lpt[8] = 1;                                        /* directory number */
     lpt[9] = 0;                                        /* padding for even length */
 
-    /* M-path table (big-endian) — same content, byte-swapped LBA */
+    /* M-path table (big-endian)  --  same content, byte-swapped LBA */
     uint8_t *mpt = &b->image[b->m_path_table_lba * ISO_SECTOR_SIZE];
     mpt[0] = 1;
     mpt[1] = 0;
@@ -288,7 +288,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
     mpt[6] = 0; mpt[7] = 1;                            /* parent (BE) */
     mpt[8] = 0; mpt[9] = 1;                            /* dir number (BE) */
 
-    /* ── Write Root Directory ───────────────────────────────── */
+    /* -- Write Root Directory --------------------------------- */
 
     uint8_t *root_dir = &b->image[b->root_dir_lba * ISO_SECTOR_SIZE];
     uint32_t dir_data_len = 2 * ISO_SECTOR_SIZE;  /* 2 sectors for root dir */
@@ -350,7 +350,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
         dir_offset += total_len;
     }
 
-    /* ── Write Boot Catalog ─────────────────────────────────── */
+    /* -- Write Boot Catalog ----------------------------------- */
 
     if (b->has_boot) {
         el_torito_catalog_t *cat = (el_torito_catalog_t *)&b->image[b->boot_catalog_lba * ISO_SECTOR_SIZE];
@@ -373,7 +373,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
         cat->entry.load_rba = b->boot_image_lba;
     }
 
-    /* ── Write Boot Image Data ──────────────────────────────── */
+    /* -- Write Boot Image Data -------------------------------- */
 
     if (b->has_boot && b->boot_image_data) {
         memcpy(&b->image[b->boot_image_lba * ISO_SECTOR_SIZE],
@@ -387,7 +387,7 @@ uint32_t iso_builder_build(iso_builder_t *b) {
     return b->image_size;
 }
 
-/* ── Output ────────────────────────────────────────────────── */
+/* -- Output -------------------------------------------------- */
 
 int iso_builder_write_file(iso_builder_t *b, const char *path) {
     if (!b || !b->image || !path) return -1;
@@ -409,7 +409,7 @@ uint32_t iso_builder_image_size(const iso_builder_t *b) {
     return b ? b->image_size : 0;
 }
 
-/* ── Validation ────────────────────────────────────────────── */
+/* -- Validation ---------------------------------------------- */
 
 int iso_builder_validate(const iso_builder_t *b) {
     if (!b || !b->image || b->image_size < 17 * ISO_SECTOR_SIZE) return 0;

@@ -1,5 +1,5 @@
 /*
- * bear_train.c — BearRL Training Entry Point
+ * bear_train.c  --  BearRL Training Entry Point
  * 
  * Sovereign C11 RL training for N-Pole Cartpole (7-10 poles)
  * No Python, no PyTorch, no Gym. Pure metal.

@@ -1,5 +1,5 @@
 /*
- * wubu_demo_screenshot.c — Render demo frames for screenshots/GIFs
+ * wubu_demo_screenshot.c  --  Render demo frames for screenshots/GIFs
  */
 
 #include "../gui/wubu_wm.h"
@@ -33,18 +33,18 @@ int main(void) {
     VBEState *vbe = vbe_state();
 
     /* Create demo windows */
-    WubuWin *win1 = wubu_wm_create(100, 100, 500, 350, "Terminal — WuBuOS");
+    WubuWin *win1 = wubu_wm_create(100, 100, 500, 350, "Terminal  --  WuBuOS");
     if (win1) {
         win1->on_draw = NULL; /* Could add custom draw */
     }
 
-    WubuWin *win2 = wubu_wm_create(650, 150, 450, 300, "Notepad++ — CODE.WUBU");
+    WubuWin *win2 = wubu_wm_create(650, 150, 450, 300, "Notepad++  --  CODE.WUBU");
     if (win2) {
         win2->flags |= WUBU_WIN_FOCUSED;
         wubu_wm_set_focus(win2);
     }
 
-    WubuWin *win3 = wubu_wm_create(200, 500, 400, 200, "Paint — image.wubu");
+    WubuWin *win3 = wubu_wm_create(200, 500, 400, 200, "Paint  --  image.wubu");
     if (win3) {
         // minimized for demo
         wubu_wm_minimize(win3);
@@ -93,7 +93,7 @@ int main(void) {
     /* Frame 6: Switch to desktop 2 */
     printf("Frame 6: Switch desktop (Ctrl+Alt+Right)\n");
     wm->desktops.current = 1;
-    WubuWin *dw2 = wubu_wm_create(200, 200, 400, 300, "Desktop 2 — Browser");
+    WubuWin *dw2 = wubu_wm_create(200, 200, 400, 300, "Desktop 2  --  Browser");
     if (dw2) {
         wubu_wm_set_focus(dw2);
     }

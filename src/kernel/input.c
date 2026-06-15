@@ -1,5 +1,5 @@
 /*
- * input.c — My Seed Input Subsystem (hosted stub)
+ * input.c  --  My Seed Input Subsystem (hosted stub)
  *
  * Circular buffers for keyboard/mouse events with proper overflow handling.
  * Uses count-based full/empty detection to support full QUEUE_SIZE capacity.
@@ -38,16 +38,16 @@ void input_shutdown(void) {
 
 void input_key_push(KeyEvent ev) {
     int tail = (g_key_head + g_key_count) % QUEUE_SIZE;
-    
+
     if (g_key_count == QUEUE_SIZE) {
         /* Queue full - drop oldest by advancing head */
         g_key_head = (g_key_head + 1) % QUEUE_SIZE;
     } else {
         g_key_count++;
     }
-    
+
     g_key_queue[tail] = ev;
-    
+
     /* Update key state for input_key_pressed */
     if (ev.scancode < 256) {
         if (ev.kind == KEY_EVENT_DOWN)
@@ -88,16 +88,16 @@ void input_mouse_push(MouseEvent ev) {
     }
     ev.x = g_mouse_x;
     ev.y = g_mouse_y;
-    
+
     int tail = (g_mouse_head + g_mouse_count) % QUEUE_SIZE;
-    
+
     if (g_mouse_count == QUEUE_SIZE) {
         /* Queue full - drop oldest */
         g_mouse_head = (g_mouse_head + 1) % QUEUE_SIZE;
     } else {
         g_mouse_count++;
     }
-    
+
     g_mouse_queue[tail] = ev;
 }
 
@@ -112,4 +112,18 @@ int input_mouse_poll(MouseEvent *out) {
 void input_mouse_get_pos(int *x, int *y) {
     if (x) *x = g_mouse_x;
     if (y) *y = g_mouse_y;
+}
+
+/* Simple ASCII key push for PS/2 driver */
+void input_key_push_simple(char c) {
+    KeyEvent ev = {0};
+    ev.scancode = (uint32_t)c;
+    ev.keycode = (uint32_t)c;
+    ev.kind = KEY_EVENT_DOWN;
+    ev.modifiers = 0;
+    input_key_push(ev);
+
+    /* Also add key-up for auto-repeat simulation */
+    ev.kind = KEY_EVENT_UP;
+    input_key_push(ev);
 }

@@ -1,5 +1,5 @@
 /*
- * wm.c — My Seed WmWindow Manager Implementation
+ * wm.c  --  My Seed WmWindow Manager Implementation
  */
 #include "wm.h"
 #include "../kernel/vbe.h"
@@ -73,7 +73,7 @@ WmWindow *wm_find_by_id(int id) {
     return NULL;
 }
 
-/* ── Rendering ─────────────────────────────────────────────────── */
+/* -- Rendering --------------------------------------------------- */
 
 static void draw_window_chrome(WmWindow *win) {
     int bw = WM_BORDER_WIDTH;
@@ -119,7 +119,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
 void wm_invalidate(WmWindow *win) { (void)win; }
 void wm_invalidate_all(void) { }
 
-/* ── Input ─────────────────────────────────────────────────────── */
+/* -- Input ------------------------------------------------------- */
 
 void wm_handle_key(uint32_t key, uint32_t mods) {
     WmWindow *focused = wm_get_focused();

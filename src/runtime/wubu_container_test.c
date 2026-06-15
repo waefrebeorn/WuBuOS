@@ -1,5 +1,5 @@
 /*
- * wubu_container_test.c — WuBuOS .wubu Container Format Test Suite
+ * wubu_container_test.c  --  WuBuOS .wubu Container Format Test Suite
  */
 
 #include "wubu_container.h"
@@ -19,9 +19,9 @@ static int g_run = 0, g_pass = 0;
 } while(0)
 
 int main(void) {
-    printf("═══ WuBuOS .wubu Container Test Suite ═══\n\n");
+    printf("=== WuBuOS .wubu Container Test Suite ===\n\n");
 
-    /* ── Container Create & Parse ── */
+    /* -- Container Create & Parse -- */
     printf("[Container Create/Parse]\n");
     {
         WUBU_HEADER hdr;
@@ -55,7 +55,7 @@ int main(void) {
         T(memcmp(pld, payload, pld_size) == 0, "payload data preserved");
     }
 
-    /* ── Container Validate ── */
+    /* -- Container Validate -- */
     printf("\n[Container Validate]\n");
     {
         WUBU_HEADER hdr;
@@ -76,7 +76,7 @@ int main(void) {
         T(wubu_container_validate(buf, out_size) != 0, "corrupted magic rejected");
     }
 
-    /* ── Payload Detection ── */
+    /* -- Payload Detection -- */
     printf("\n[Payload Detection]\n");
     {
         /* ELF */
@@ -133,7 +133,7 @@ int main(void) {
           "detect unknown as data");
     }
 
-    /* ── Convenience Wrappers ── */
+    /* -- Convenience Wrappers -- */
     printf("\n[Convenience Wrappers]\n");
     {
         uint8_t buf[512];
@@ -149,7 +149,7 @@ int main(void) {
         T(wubu_container_validate(buf, out_size) == 0, "linux elf valid");
     }
 
-    /* ── Format Detection (wubu_exec) ── */
+    /* -- Format Detection (wubu_exec) -- */
     printf("\n[Format Detection (wubu_exec)]\n");
     {
         bool is_wubu = false;
@@ -177,7 +177,7 @@ int main(void) {
         T(t == WUBU_PAYLOAD_HOLYC_SRC && is_wubu, "detect .wubu HolyC container");
     }
 
-    /* ── Payload Type Names ── */
+    /* -- Payload Type Names -- */
     printf("\n[Payload Type Names]\n");
     {
         T(strcmp(wubu_payload_name(WUBU_PAYLOAD_NATIVE_EXEC), "WuBuOS Native Executable") == 0,
@@ -190,7 +190,7 @@ int main(void) {
           "name: holyc");
     }
 
-    /* ── VSL Lifecycle ── */
+    /* -- VSL Lifecycle -- */
     printf("\n[VSL Lifecycle]\n");
     {
         T(!wubu_vsl_active(), "VSL not active initially");
@@ -200,7 +200,7 @@ int main(void) {
         T(!wubu_vsl_active(), "VSL not active after shutdown");
     }
 
-    /* ── End-to-End: HolyC in .wubu ── */
+    /* -- End-to-End: HolyC in .wubu -- */
     printf("\n[E2E: HolyC in .wubu]\n");
     {
         /* Create a .wubu container with HolyC source */
@@ -231,7 +231,7 @@ int main(void) {
         T(result == 5, "HolyC 2+3 = 5 via .wubu");
     }
 
-    /* ── End-to-End: Universal Exec ── */
+    /* -- End-to-End: Universal Exec -- */
     printf("\n[E2E: Universal Exec]\n");
     {
         /* HolyC source file */
@@ -254,6 +254,6 @@ int main(void) {
         T(r == 25, "universal exec .wubu: 100/4 = 25");
     }
 
-    printf("\n═══ Results: %d/%d passed ═══\n", g_pass, g_run);
+    printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;
 }
