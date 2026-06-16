@@ -52,26 +52,8 @@
 #include "xdg-shell-client.header"
 
 /* ══════════════════════════════════════════════════════════════════
- * Wayland State (opaque to callers)
- * ══════════════════════════════════════════════════════════════════ */
-
-typedef struct {
-    struct wl_display    *display;
-    struct wl_compositor *compositor;
-    struct xdg_wm_base   *xdg_wm_base;
-    struct wl_surface    *surface;
-    struct xdg_surface   *xdg_surface;
-    struct xdg_toplevel  *xdg_toplevel;
-    struct wl_keyboard   *keyboard;
-    struct wl_pointer    *pointer;
-    struct wl_seat       *seat;
-    struct wl_shm        *shm;
-    int                   drm_fd;
-} wayland_state_t;
-
-/* ══════════════════════════════════════════════════════════════════
  * SHM Buffer Pool (double-buffered)
- * ══════════════════════════════════════════════════════════════════ */
+ * ═══════════════════════════════════════════════════════════════════ */
 
 #define SHM_BUFFERS 2
 
@@ -84,9 +66,11 @@ typedef struct {
     int               fd;
 } shm_buffer_t;
 
-static wayland_state_t g_wl;
 static shm_buffer_t    g_shm_bufs[SHM_BUFFERS];
 static int             g_cur_buf = 0;
+
+/* Wayland state instance */
+wayland_state_t g_wl;
 
 /* ══════════════════════════════════════════════════════════════════
  * In-memory filesystem for Styx namespace
@@ -178,6 +162,8 @@ static void registry_global(void *data, struct wl_registry *registry,
         g_wl.seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
         g_wl.keyboard = wl_seat_get_keyboard(g_wl.seat);
         g_wl.pointer = wl_seat_get_pointer(g_wl.seat);
+    } else if (strcmp(interface, "wl_data_device_manager") == 0) {
+        g_wl.data_device_manager = wl_registry_bind(registry, name, &wl_data_device_manager_interface, 1);
     }
 }
 
@@ -773,6 +759,11 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         fprintf(stderr, "WuBuOS: Wayland %dx%d window\n", state->width, state->height);
     }
 
+    /* Initialize clipboard manager */
+    if (g_wl.seat && g_wl.data_device_manager) {
+        wubu_clipboard_init(g_wl.seat);
+    }
+
     fs_add_dir("wubu");
     fs_add_dir("dev");
     fs_add_dir("prog");
@@ -859,6 +850,7 @@ void hosted_shutdown(hosted_state_t *state) {
     if (g_wl.keyboard) wl_keyboard_destroy(g_wl.keyboard);
     if (g_wl.seat) wl_seat_destroy(g_wl.seat);
     if (g_wl.shm) wl_shm_destroy(g_wl.shm);
+    if (g_wl.data_device_manager) wl_data_device_manager_destroy(g_wl.data_device_manager);
     if (g_wl.compositor) wl_compositor_destroy(g_wl.compositor);
     if (g_wl.display) { wl_display_flush(g_wl.display); wl_display_disconnect(g_wl.display); }
     memset(&g_wl, 0, sizeof(g_wl));
