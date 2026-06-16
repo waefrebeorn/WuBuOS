@@ -77,6 +77,8 @@ typedef struct {
     /* Desktop icons */
     uint32_t icon_text;
     uint32_t icon_text_shadow;
+    uint32_t icon_bg;
+    uint32_t icon_border;
 } WubuThemeColors;
 
 /* -- Theme Gradient (for XP-style title bars) --------------------- */

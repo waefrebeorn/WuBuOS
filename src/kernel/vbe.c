@@ -407,33 +407,37 @@ void vbe_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color) {
     }
 }
 
-void vbe_3d_raised_rounded(int x, int y, int w, int h, int radius) {
-    const WubuThemeColors *tc = wubu_theme_colors();
+void vbe_3d_raised_rounded_colors(int x, int y, int w, int h, int radius,
+                                   uint32_t light, uint32_t face,
+                                   uint32_t dark, uint32_t darkest) {
     /* Top-left highlight */
-    vbe_hline(x + radius, x + w - radius - 1, y, tc->border_light);
-    vbe_vline(x, y + radius, y + h - radius - 1, tc->border_light);
-    vbe_hline(x + radius, x + w - radius - 1, y + 1, tc->border_face);
-    vbe_vline(x + 1, y + radius, y + h - radius - 1, tc->border_face);
+    vbe_hline(x + radius, x + w - radius - 1, y, light);
+    vbe_vline(x, y + radius, y + h - radius - 1, light);
+    vbe_hline(x + radius, x + w - radius - 1, y + 1, face);
+    vbe_vline(x + 1, y + radius, y + h - radius - 1, face);
     /* Bottom-right shadow */
-    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, tc->border_darkest);
-    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, tc->border_darkest);
-    vbe_hline(x + radius + 1, x + w - radius - 1, y + h - 2, tc->border_dark);
-    vbe_vline(x + w - 2, y + radius + 1, y + h - radius - 1, tc->border_dark);
+    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, darkest);
+    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, darkest);
+    vbe_hline(x + radius + 1, x + w - radius - 1, y + h - 2, dark);
+    vbe_vline(x + w - 2, y + radius + 1, y + h - radius - 1, dark);
 }
 
-void vbe_3d_sunken_rounded(int x, int y, int w, int h, int radius) {
-    const WubuThemeColors *tc = wubu_theme_colors();
+void vbe_3d_sunken_rounded_colors(int x, int y, int w, int h, int radius,
+                                   uint32_t light, uint32_t face,
+                                   uint32_t dark, uint32_t darkest) {
     /* Top-left shadow */
-    vbe_hline(x + radius, x + w - radius - 1, y, tc->border_darkest);
-    vbe_vline(x, y + radius, y + h - radius - 1, tc->border_darkest);
-    vbe_hline(x + radius, x + w - radius - 1, y + 1, tc->border_dark);
-    vbe_vline(x + 1, y + radius, y + h - radius - 1, tc->border_dark);
+    vbe_hline(x + radius, x + w - radius - 1, y, darkest);
+    vbe_vline(x, y + radius, y + h - radius - 1, darkest);
+    vbe_hline(x + radius, x + w - radius - 1, y + 1, dark);
+    vbe_vline(x + 1, y + radius, y + h - radius - 1, dark);
     /* Bottom-right highlight */
-    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, tc->border_light);
-    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, tc->border_light);
-    vbe_hline(x + radius + 1, x + w - radius - 1, y + h - 2, tc->border_face);
-    vbe_vline(x + w - 2, y + radius + 1, y + h - radius - 1, tc->border_face);
+    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, light);
+    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, light);
+    vbe_hline(x + radius + 1, x + w - radius - 1, y + h - 2, face);
+    vbe_vline(x + w - 2, y + radius + 1, y + h - radius - 1, face);
 }
+
+
 
 void vbe_title_bar(int x, int y, int w, int h, int active) {
     if (active)

@@ -315,8 +315,13 @@ static void draw_window(int idx) {
     int ch = w->h - tbh - bw;
 
     vbe_fill_rect_rounded(cx, cy, cw, ch, rad, tc()->win_face);
-    if (rad > 0) vbe_3d_sunken_rounded(cx - 1, cy - 1, cw + 2, ch + 2, rad + 1);
-    else vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    if (rad > 0) {
+        vbe_3d_sunken_rounded_colors(cx - 1, cy - 1, cw + 2, ch + 2, rad + 1,
+                                      tc()->border_light, tc()->border_face,
+                                      tc()->border_dark, tc()->border_darkest);
+    } else {
+        vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    }
 
     if (w->on_draw) {
         w->on_draw(w, NULL, cw, ch);
@@ -658,7 +663,9 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     
     if (theme()->Luna_start_button) {
         vbe_fill_rect_rounded(4, by, start_w + 20, 24, 4, tc()->start_btn_face);
-        vbe_3d_raised_rounded(4, by, start_w + 20, 24, 4);
+        vbe_3d_raised_rounded_colors(4, by, start_w + 20, 24, 4,
+                                      tc()->border_light, tc()->border_face,
+                                      tc()->border_dark, tc()->border_darkest);
         vbe_draw_text(8, by + 8, "Start", tc()->start_btn_text, 1);
     } else {
         vbe_fill_rect(4, by, 60, 22, tc()->start_btn_face);
@@ -677,11 +684,15 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         if (theme()->rounded_buttons) {
             if (focused) {
                 vbe_fill_rect_rounded(bx, by, bw, 22, 3, tc()->select_bg);
-                vbe_3d_sunken_rounded(bx, by, bw, 22, 3);
+                vbe_3d_sunken_rounded_colors(bx, by, bw, 22, 3,
+                                              tc()->border_light, tc()->border_face,
+                                              tc()->border_dark, tc()->border_darkest);
                 vbe_draw_text(bx + 8, by + 7, w->title, tc()->select_text, 1);
             } else {
                 vbe_fill_rect_rounded(bx, by, bw, 22, 3, tc()->btn_face);
-                vbe_3d_raised_rounded(bx, by, bw, 22, 3);
+                vbe_3d_raised_rounded_colors(bx, by, bw, 22, 3,
+                                              tc()->border_light, tc()->border_face,
+                                              tc()->border_dark, tc()->border_darkest);
                 vbe_draw_text(bx + 8, by + 7, w->title, tc()->btn_text, 1);
             }
         } else {
@@ -726,12 +737,16 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         int dx = desk_x + d * 16;
         if (d == g_dwm.current_desktop) {
             vbe_fill_rect_rounded(dx, ty + (th - 16) / 2, 14, 16, 2, tc()->select_bg);
-            vbe_3d_sunken_rounded(dx, ty + (th - 16) / 2, 14, 16, 2);
+            vbe_3d_sunken_rounded_colors(dx, ty + (th - 16) / 2, 14, 16, 2,
+                                          tc()->border_light, tc()->border_face,
+                                          tc()->border_dark, tc()->border_darkest);
             char label = (d == 9) ? 'M' : ('1' + d);
             vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->select_text, 1);
         } else {
             vbe_fill_rect_rounded(dx, ty + (th - 16) / 2, 14, 16, 2, tc()->btn_face);
-            vbe_3d_raised_rounded(dx, ty + (th - 16) / 2, 14, 16, 2);
+            vbe_3d_raised_rounded_colors(dx, ty + (th - 16) / 2, 14, 16, 2,
+                                          tc()->border_light, tc()->border_face,
+                                          tc()->border_dark, tc()->border_darkest);
             char label = (d == 9) ? 'M' : ('1' + d);
             vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->btn_text, 1);
         }
@@ -749,8 +764,8 @@ void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h) {
 
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
-        vbe_fill_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, 0x008080);
-        vbe_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, 0x000000);
+        vbe_fill_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, tc()->icon_bg);
+        vbe_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, tc()->icon_border);
         vbe_draw_text(icon->x + 1, icon->y + DOSGUI_ICON_SIZE + 3, icon->name,
                       tc()->icon_text_shadow, 1);
         vbe_draw_text(icon->x, icon->y + DOSGUI_ICON_SIZE + 2, icon->name,

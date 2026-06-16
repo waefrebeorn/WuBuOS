@@ -199,7 +199,8 @@ static void draw_menu_item(int x, int y, int w, const char *label,
 
     if (th()->rounded_buttons) {
         vbe_fill_rect_rounded(x, y, w, mh, 2, bg);
-        if (hovered) vbe_3d_raised_rounded(x, y, w, mh, 2);
+        if (hovered) vbe_3d_raised_rounded_colors(x, y, w, mh, 2,
+            tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
     } else {
         vbe_fill_rect(x, y, w, mh, bg);
         if (hovered) vbe_3d_raised(x, y, w, mh);
@@ -249,7 +250,8 @@ static void draw_submenu(int x, int y, SmSubmenu *sub) {
             
             if (rad > 0) {
                 vbe_fill_rect_rounded(x + 2, iy, sw - 4, mh, 2, bg);
-                if (hovered) vbe_3d_raised_rounded(x + 2, iy, sw - 4, mh, 2);
+                if (hovered) vbe_3d_raised_rounded_colors(x + 2, iy, sw - 4, mh, 2,
+                    tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
             } else {
                 vbe_fill_rect(x + 2, iy, sw - 4, mh, bg);
                 if (hovered) vbe_3d_raised(x + 2, iy, sw - 4, mh);
@@ -400,7 +402,7 @@ void dosgui_startmenu_handle_click(int x, int y) {
         g_submenu_open = (g_submenu_open == mi->submenu_id) ? -1 : mi->submenu_id;
     } else if (mi->type == 3) {
         /* Shutdown */
-        dosgui_launch_app(mi->app_name);
+        dosgui_shutdown();
         dosgui_startmenu_close();
     } else {
         /* Launch app */

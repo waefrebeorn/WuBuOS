@@ -42,6 +42,9 @@ void dosgui_desktop_launch(int icon_id);
 /* Launch by name (for start menu) */
 void dosgui_launch_app(const char *name);
 
+/* System shutdown (triggers hosted exit) */
+void dosgui_shutdown(void);
+
 /* -- Tick (called each frame) ------------------------------------ */
 
 void dosgui_desktop_tick(void);
