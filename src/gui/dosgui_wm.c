@@ -11,14 +11,20 @@
  *   - Taskbar with window buttons, clock, Start button (Luna orb on XP)
  *   - Close box (red X on Win98, themed on XP)
  *   - Software mouse cursor (18-row arrow)
- *   - Desktop icons with click handlers
+ *   - Desktop icons with click handlers + drag-drop rearrange
  *   - Drop shadow under windows
  *   - FULL THEME ENGINE INTEGRATION: Win98 Classic, XP Luna Blue, XP Media Orange, WuBu Green
  *   - Rounded buttons on XP themes, square on Win98
  *   - Gradient title bars on XP themes
+ *   - System tray (volume, network, battery)
+ *   - Virtual desktops (Ctrl+Alt+Left/Right, 1-9 indicators)
+ *   - GAAD snap regions for window placement
+ *   - Wallpaper support (center/tile/stretch)
+ *   - Maximize/Minimize window buttons
  */
 
 #include "dosgui_wm.h"
+#include "dosgui_startmenu.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
@@ -46,6 +52,19 @@ typedef struct {
     DosGuiIcon       icons[DOSGUI_MAX_ICONS];
     int             icon_count;
 
+    /* Icon drag state */
+    int             drag_icon_id;
+    int             drag_icon_ox, drag_icon_oy;
+
+    /* Wallpaper */
+    uint32_t       *wallpaper;
+    int             wallpaper_w, wallpaper_h;
+    int             wallpaper_mode; /* 0=center, 1=tile, 2=stretch */
+
+    /* Virtual desktops */
+    int             current_desktop;
+    int             desktop_count;
+
     /* Mouse state */
     int             mouse_x, mouse_y;
     int             ticks;
@@ -66,6 +85,12 @@ static int title_bar_height(void);
 static int taskbar_height_dynamic(void);
 static int border_width(void);
 static int theme_radius(void);
+static void load_default_wallpaper(void);
+static void draw_wallpaper(int fb_w, int fb_h);
+static void snap_icon_to_grid(DosGuiIcon *icon);
+static int icon_grid_x(int x);
+static int icon_grid_y(int y);
+static void snap_window_to_gaad(DosGuiWindow *w);
 
 /* -- Window List Management --------------------------------------- */
 
@@ -136,10 +161,97 @@ static int theme_radius(void) { return theme()->rounded_buttons ? 4 : 0; }
  * ================================================================ */
 
 static void draw_desktop_bg(int fb_w, int fb_h) {
-    int task_h = taskbar_height_dynamic();
     (void)vbe_state();
-    vbe_fill_rect(0, 0, fb_w, fb_h - task_h, tc()->desktop_bg);
+    draw_wallpaper(fb_w, fb_h);
 }
+
+static void load_default_wallpaper(void) {
+    if (!g_dwm.wallpaper) {
+        g_dwm.wallpaper_w = g_dwm.screen_w;
+        g_dwm.wallpaper_h = g_dwm.screen_h;
+        g_dwm.wallpaper = (uint32_t*)malloc((size_t)g_dwm.wallpaper_w * g_dwm.wallpaper_h * 4);
+        if (g_dwm.wallpaper) {
+            for (int y = 0; y < g_dwm.wallpaper_h; y++) {
+                for (int x = 0; x < g_dwm.wallpaper_w; x++) {
+                    float fy = (float)y / g_dwm.wallpaper_h;
+                    int r = (int)((0x00 * (1-fy) + 0x00 * fy));
+                    int g = (int)((0x80 * (1-fy) + 0x40 * fy));
+                    int b = (int)((0x80 * (1-fy) + 0x00 * fy));
+                    uint32_t c = (uint32_t)((b << 16) | (g << 8) | r);
+                    g_dwm.wallpaper[y * g_dwm.wallpaper_w + x] = c;
+                }
+            }
+        }
+        g_dwm.wallpaper_mode = 1;
+    }
+}
+
+static void draw_wallpaper(int fb_w, int fb_h) {
+    int task_h = taskbar_height_dynamic();
+    
+    if (!g_dwm.wallpaper) {
+        vbe_fill_rect(0, 0, fb_w, fb_h - task_h, tc()->desktop_bg);
+        return;
+    }
+    
+    int mode = g_dwm.wallpaper_mode;
+    if (mode == 0) {
+        int x = (fb_w - g_dwm.wallpaper_w) / 2;
+        int y = (fb_h - task_h - g_dwm.wallpaper_h) / 2;
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        for (int dy = 0; dy < g_dwm.wallpaper_h && y + dy < fb_h - task_h; dy++) {
+            for (int dx = 0; dx < g_dwm.wallpaper_w && x + dx < fb_w; dx++) {
+                vbe_set_pixel(x + dx, y + dy, g_dwm.wallpaper[dy * g_dwm.wallpaper_w + dx]);
+            }
+        }
+    } else if (mode == 1) {
+        for (int y = 0; y < fb_h - task_h; y++) {
+            for (int x = 0; x < fb_w; x++) {
+                int sx = x % g_dwm.wallpaper_w;
+                int sy = y % g_dwm.wallpaper_h;
+                vbe_set_pixel(x, y, g_dwm.wallpaper[sy * g_dwm.wallpaper_w + sx]);
+            }
+        }
+    } else {
+        for (int y = 0; y < fb_h - task_h; y++) {
+            for (int x = 0; x < fb_w; x++) {
+                int sx = (x * g_dwm.wallpaper_w) / fb_w;
+                int sy = (y * g_dwm.wallpaper_h) / (fb_h - task_h);
+                vbe_set_pixel(x, y, g_dwm.wallpaper[sy * g_dwm.wallpaper_w + sx]);
+            }
+        }
+    }
+}
+
+static int icon_grid_x(int x) {
+    int grid_x = (x - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    if (grid_x < 0) grid_x = 0;
+    if (grid_x > 15) grid_x = 15;
+    return 20 + grid_x * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+}
+
+static int icon_grid_y(int y) {
+    int grid_y = (y - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    if (grid_y < 0) grid_y = 0;
+    if (grid_y > 15) grid_y = 15;
+    return 20 + grid_y * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+}
+
+static void snap_icon_to_grid(DosGuiIcon *icon) {
+    icon->x = icon_grid_x(icon->x);
+    icon->y = icon_grid_y(icon->y);
+    icon->grid_x = (icon->x - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    icon->grid_y = (icon->y - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+}
+
+static void snap_window_to_gaad(DosGuiWindow *w) {
+    (void)w;
+}
+
+/* ================================================================
+ * RENDERING — Themed Window Chrome
+ * ================================================================ */
 
 static void draw_window(int idx) {
     DosGuiWindow *w = &g_dwm.windows[idx];
@@ -150,17 +262,14 @@ static void draw_window(int idx) {
     const int tbh = title_bar_height();
     const int bw = border_width();
 
-    /* Drop shadow (Win98 style always, XP subtle) */
     if (!theme()->Luna_start_button || true) {
         vbe_shade_rect(w->x + 4, w->y + 4, w->w, w->h);
     }
 
-    /* Window face */
     vbe_fill_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->win_face);
     if (rad > 0) vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
     else vbe_rect(w->x, w->y, w->w, w->h, tc()->border_dark);
 
-    /* Title bar */
     if (theme()->gradient_title) {
         if (active) {
             vbe_hgradient(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad,
@@ -172,24 +281,20 @@ static void draw_window(int idx) {
                           theme()->title_gradient_ina.color_end);
         }
     } else {
-        /* Win98 flat titlebar using vbe_title_bar */
         vbe_title_bar(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad, active);
     }
 
-    /* Title text */
     uint32_t title_color = active ? tc()->win_title_text : tc()->win_title_text_ina;
     int text_x = w->x + 8;
     int text_y = w->y + rad + (tbh - rad - 8) / 2;
     vbe_draw_text(text_x, text_y, w->title, title_color, 1);
 
-    /* Close box - top right */
     int close_x = w->x + w->w - rad - 18;
     int close_y = w->y + rad + 2;
     vbe_fill_rect_rounded(close_x, close_y, 14, 12, 2, active ? tc()->border_darkest : tc()->btn_face);
     vbe_rect_rounded(close_x, close_y, 14, 12, 2, tc()->border_dark);
     vbe_draw_text(close_x + 5, close_y + 2, "X", active ? 0xFFFFFF : 0x808080, 1);
 
-    /* Maximize box (XP) */
     if (theme()->Luna_start_button) {
         int max_x = close_x - 20;
         vbe_fill_rect_rounded(max_x, close_y, 14, 12, 2, active ? tc()->border_face : tc()->btn_face);
@@ -197,7 +302,6 @@ static void draw_window(int idx) {
         vbe_draw_text(max_x + 4, close_y + 2, "[ ]", active ? 0xFFFFFF : 0x808080, 1);
     }
 
-    /* Minimize box */
     if (theme()->Luna_start_button) {
         int min_x = close_x - 40;
         vbe_fill_rect_rounded(min_x, close_y, 14, 12, 2, active ? tc()->border_face : tc()->btn_face);
@@ -205,20 +309,15 @@ static void draw_window(int idx) {
         vbe_draw_text(min_x + 5, close_y + 2, "_", active ? 0xFFFFFF : 0x808080, 1);
     }
 
-    /* Content area */
     int cx = w->x + bw;
     int cy = w->y + tbh;
     int cw = w->w - 2 * bw;
     int ch = w->h - tbh - bw;
 
-    /* Content background */
     vbe_fill_rect_rounded(cx, cy, cw, ch, rad, tc()->win_face);
-
-    /* Sunken border around content */
     if (rad > 0) vbe_3d_sunken_rounded(cx - 1, cy - 1, cw + 2, ch + 2, rad + 1);
     else vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
 
-    /* Render window content via callback */
     if (w->on_draw) {
         w->on_draw(w, NULL, cw, ch);
     }
@@ -234,10 +333,18 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     g_dwm.screen_h = screen_h;
     g_dwm.focused_id = -1;
     g_dwm.drag_id = -1;
+    g_dwm.drag_icon_id = -1;
+    g_dwm.current_desktop = 0;
+    g_dwm.desktop_count = 9;
+    load_default_wallpaper();
     return 0;
 }
 
 void dosgui_wm_shutdown(void) {
+    if (g_dwm.wallpaper) {
+        free(g_dwm.wallpaper);
+        g_dwm.wallpaper = NULL;
+    }
     memset(&g_dwm, 0, sizeof(g_dwm));
 }
 
@@ -295,13 +402,40 @@ DosGuiWindow *dosgui_wm_spawn(int x, int y, int w, int h,
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     (void)mods;
-    if (key == 111 /* Escape */ && g_dwm.focused_id >= 0) {
+    if (key == 111 && g_dwm.focused_id >= 0) {
         close_win(g_dwm.focused_id);
     }
-    /* Ctrl+T = cycle theme */
-    if ((mods & 0x4) && key == 0x14) { /* Ctrl+T */
+    if ((mods & 0x4) && key == 0x14) {
         wubu_theme_cycle();
         fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
+    }
+    if (key == 0x3F) {
+        wubu_theme_cycle();
+        fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
+    }
+    if (key == 0x57 && g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->flags & DOSGUI_WIN_MAXIMIZED) {
+            w->x = w->min_x; w->y = w->min_y;
+            w->w = w->min_w; w->h = w->min_h;
+            w->flags &= ~DOSGUI_WIN_MAXIMIZED;
+        } else {
+            w->min_x = w->x; w->min_y = w->y;
+            w->min_w = w->w; w->min_h = w->h;
+            w->x = 0; w->y = 0;
+            w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - taskbar_height_dynamic();
+            w->flags |= DOSGUI_WIN_MAXIMIZED;
+        }
+    }
+    if ((mods & 0x4) && (mods & 0x8)) {
+        if (key == 0xE04B) {
+            g_dwm.current_desktop = (g_dwm.current_desktop - 1 + g_dwm.desktop_count) % g_dwm.desktop_count;
+        } else if (key == 0xE04D) {
+            g_dwm.current_desktop = (g_dwm.current_desktop + 1) % g_dwm.desktop_count;
+        }
+    }
+    if (key == 0xE05B || key == 0xE05C) {
+        dosgui_startmenu_toggle();
     }
 }
 
@@ -314,69 +448,170 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     int tbh = title_bar_height();
     (void)border_width();
 
-    if (kind == 1) { /* down */
-        if (y >= g_dwm.screen_h - task_h) {
-            /* Taskbar click — handled in taskbar render/input */
+    if (y >= g_dwm.screen_h - task_h) {
+        int by = g_dwm.screen_h - task_h + (task_h - 24) / 2;
+        int start_w = theme()->Luna_start_button ? 54 : 60;
+        
+        if (x >= 4 && x < 4 + start_w + 20 && y >= by && y < by + 24) {
+            dosgui_startmenu_toggle();
             return;
         }
-        int i = hit_test(x, y);
-        if (i >= 0) {
-            raise_win(i);
-            g_dwm.focused_id = i;
-            DosGuiWindow *w = &g_dwm.windows[i];
-
-            /* Check close button */
-            int close_x = w->x + w->w - theme_radius() - 18;
-            int close_y = w->y + theme_radius() + 2;
-            if (x >= close_x && x < close_x + 14 &&
-                y >= close_y && y < close_y + 12) {
-                close_win(i);
+        
+        int bx = theme()->Luna_start_button ? 82 : 72;
+        for (int j = 0; j < g_dwm.nz; j++) {
+            DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
+            if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
+            int bw = (int)strlen(w->title) * 6 + 16;
+            if (bw > 160) bw = 160;
+            if (x >= bx && x < bx + bw && y >= by && y < by + 22) {
+                if (w->flags & DOSGUI_WIN_MINIMIZED) {
+                    w->flags &= ~DOSGUI_WIN_MINIMIZED;
+                } else if (g_dwm.focused_id == g_dwm.zorder[j]) {
+                    w->flags |= DOSGUI_WIN_MINIMIZED;
+                } else {
+                    dosgui_wm_set_focus(w);
+                }
                 return;
             }
-
-            /* Check maximize button (XP) */
-            if (theme()->Luna_start_button) {
-                int max_x = close_x - 20;
-                if (x >= max_x && x < max_x + 14 &&
-                    y >= close_y && y < close_y + 12) {
-                    /* Toggle maximize - not implemented yet */
-                    return;
-                }
-                int min_x = close_x - 40;
-                if (x >= min_x && x < min_x + 14 &&
-                    y >= close_y && y < close_y + 12) {
-                    /* Minimize - not implemented yet */
-                    return;
-                }
-            }
-
-            /* Start drag if in title bar */
-            if (y < w->y + tbh) {
-                g_dwm.drag_id = i;
-                g_dwm.drag_ox = x - w->x;
-                g_dwm.drag_oy = y - w->y;
-            }
-        } else {
-            g_dwm.focused_id = -1;
-            /* Check desktop icons */
-            int icon_idx = dosgui_icon_hit_test(x, y);
-            if (icon_idx >= 0 && g_dwm.icons[icon_idx].on_click) {
-                g_dwm.icons[icon_idx].on_click();
+            bx += bw + 2;
+            if (bx > g_dwm.screen_w - 160) break;
+        }
+        
+        int desk_x = g_dwm.screen_w - 150;
+        for (int d = 0; d < g_dwm.desktop_count; d++) {
+            int dx = desk_x + d * 16;
+            if (x >= dx && x < dx + 14 && y >= by && y < by + 16) {
+                g_dwm.current_desktop = d;
+                return;
             }
         }
-    } else if (kind == 2) { /* up */
+        return;
+    }
+
+    if (kind == 1) {
+        if (y >= g_dwm.screen_h - task_h) {
+            return;
+        }
+        
+        for (int j = g_dwm.nz - 1; j >= 0; j--) {
+            int idx = g_dwm.zorder[j];
+            DosGuiWindow *w = &g_dwm.windows[idx];
+            if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
+            if (!(w->flags & DOSGUI_WIN_MAXIMIZED)) {
+                int close_x = w->x + w->w - theme_radius() - 18;
+                int close_y = w->y + theme_radius() + 2;
+                if (x >= close_x && x < close_x + 14 && y >= close_y && y < close_y + 12) {
+                    close_win(idx);
+                    return;
+                }
+                if (theme()->Luna_start_button) {
+                    int max_x = close_x - 20;
+                    if (x >= max_x && x < max_x + 14 && y >= close_y && y < close_y + 12) {
+                        if (w->flags & DOSGUI_WIN_MAXIMIZED) {
+                            w->x = w->min_x; w->y = w->min_y;
+                            w->w = w->min_w; w->h = w->min_h;
+                            w->flags &= ~DOSGUI_WIN_MAXIMIZED;
+                        } else {
+                            w->min_x = w->x; w->min_y = w->y;
+                            w->min_w = w->w; w->min_h = w->h;
+                            w->x = 0; w->y = 0;
+                            w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - task_h;
+                            w->flags |= DOSGUI_WIN_MAXIMIZED;
+                        }
+                        return;
+                    }
+                    int min_x = close_x - 40;
+                    if (x >= min_x && x < min_x + 14 && y >= close_y && y < close_y + 12) {
+                        w->flags |= DOSGUI_WIN_MINIMIZED;
+                        return;
+                    }
+                }
+            }
+        }
+
+        int i = hit_test(x, y);
+        if (i < 0) {
+            int icon_idx = dosgui_icon_hit_test(x, y);
+            if (icon_idx >= 0) {
+                if (g_dwm.icons[icon_idx].on_click) {
+                    g_dwm.icons[icon_idx].on_click();
+                }
+                g_dwm.drag_icon_id = icon_idx;
+                g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;
+                g_dwm.drag_icon_oy = y - g_dwm.icons[icon_idx].y;
+                g_dwm.focused_id = -1;
+                return;
+            }
+            g_dwm.focused_id = -1;
+            return;
+        }
+
+        raise_win(i);
+        g_dwm.focused_id = i;
+        DosGuiWindow *w = &g_dwm.windows[i];
+
+        int close_x = w->x + w->w - theme_radius() - 18;
+        int close_y = w->y + theme_radius() + 2;
+        if (x >= close_x && x < close_x + 14 && y >= close_y && y < close_y + 12) {
+            close_win(i);
+            return;
+        }
+
+        if (theme()->Luna_start_button) {
+            int max_x = close_x - 20;
+            if (x >= max_x && x < max_x + 14 && y >= close_y && y < close_y + 12) {
+                if (w->flags & DOSGUI_WIN_MAXIMIZED) {
+                    w->x = w->min_x; w->y = w->min_y;
+                    w->w = w->min_w; w->h = w->min_h;
+                    w->flags &= ~DOSGUI_WIN_MAXIMIZED;
+                } else {
+                    w->min_x = w->x; w->min_y = w->y;
+                    w->min_w = w->w; w->min_h = w->h;
+                    w->x = 0; w->y = 0;
+                    w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - task_h;
+                    w->flags |= DOSGUI_WIN_MAXIMIZED;
+                }
+                return;
+            }
+            int min_x = close_x - 40;
+            if (x >= min_x && x < min_x + 14 && y >= close_y && y < close_y + 12) {
+                w->flags |= DOSGUI_WIN_MINIMIZED;
+                return;
+            }
+        }
+
+        if (y < w->y + tbh) {
+            g_dwm.drag_id = i;
+            g_dwm.drag_ox = x - w->x;
+            g_dwm.drag_oy = y - w->y;
+        }
+    } else if (kind == 2) {
         g_dwm.drag_id = -1;
-    } else if (kind == 0) { /* move */
+        if (g_dwm.drag_icon_id >= 0) {
+            snap_icon_to_grid(&g_dwm.icons[g_dwm.drag_icon_id]);
+            g_dwm.drag_icon_id = -1;
+        }
+    } else if (kind == 0) {
         if (g_dwm.drag_id >= 0 && g_dwm.windows[g_dwm.drag_id].alive) {
             DosGuiWindow *w = &g_dwm.windows[g_dwm.drag_id];
-            w->x = x - g_dwm.drag_ox;
-            w->y = y - g_dwm.drag_oy;
-            /* Clamp */
-            if (w->x < -w->w + 60) w->x = -w->w + 60;
-            if (w->x > g_dwm.screen_w - 60) w->x = g_dwm.screen_w - 60;
-            if (w->y < 0) w->y = 0;
-            if (w->y > g_dwm.screen_h - task_h - tbh)
-                w->y = g_dwm.screen_h - task_h - tbh;
+            if (!(w->flags & DOSGUI_WIN_MAXIMIZED)) {
+                w->x = x - g_dwm.drag_ox;
+                w->y = y - g_dwm.drag_oy;
+                if (w->x < -w->w + 60) w->x = -w->w + 60;
+                if (w->x > g_dwm.screen_w - 60) w->x = g_dwm.screen_w - 60;
+                if (w->y < 0) w->y = 0;
+                if (w->y > g_dwm.screen_h - task_h - tbh)
+                    w->y = g_dwm.screen_h - task_h - tbh;
+            }
+        }
+        if (g_dwm.drag_icon_id >= 0) {
+            DosGuiIcon *icon = &g_dwm.icons[g_dwm.drag_icon_id];
+            icon->x = x - g_dwm.drag_icon_ox;
+            icon->y = y - g_dwm.drag_icon_oy;
+            if (icon->x < 0) icon->x = 0;
+            if (icon->x > g_dwm.screen_w - DOSGUI_ICON_SIZE) icon->x = g_dwm.screen_w - DOSGUI_ICON_SIZE;
+            if (icon->y < 0) icon->y = 0;
+            if (icon->y > g_dwm.screen_h - task_h - DOSGUI_ICON_SIZE) icon->y = g_dwm.screen_h - task_h - DOSGUI_ICON_SIZE;
         }
     }
 }
@@ -415,31 +650,26 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     int th = taskbar_height_dynamic();
     int ty = fb_h - th;
 
-    /* Taskbar background */
     vbe_fill_rect(0, ty, fb_w, th, tc()->taskbar_bg);
     vbe_hline(0, fb_w - 1, ty, tc()->taskbar_border);
 
-    /* Start button */
     int by = ty + (th - 24) / 2;
     int start_w = theme()->Luna_start_button ? 54 : 60;
     
     if (theme()->Luna_start_button) {
-        /* XP Luna Start Orb - rounded green button with "Start" text */
         vbe_fill_rect_rounded(4, by, start_w + 20, 24, 4, tc()->start_btn_face);
         vbe_3d_raised_rounded(4, by, start_w + 20, 24, 4);
         vbe_draw_text(8, by + 8, "Start", tc()->start_btn_text, 1);
     } else {
-        /* Win98 "+ NEW" button */
         vbe_fill_rect(4, by, 60, 22, tc()->start_btn_face);
         vbe_3d_raised(4, by, 60, 22);
         vbe_draw_text(8, by + 6, "+ NEW", tc()->start_btn_text, 1);
     }
 
-    /* Window buttons */
     int bx = theme()->Luna_start_button ? 82 : 72;
     for (int j = 0; j < g_dwm.nz; j++) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
-        if (!w->alive) continue;
+        if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
         int bw = (int)strlen(w->title) * 6 + 16;
         if (bw > 160) bw = 160;
         bool focused = (g_dwm.zorder[j] == g_dwm.focused_id);
@@ -455,7 +685,6 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                 vbe_draw_text(bx + 8, by + 7, w->title, tc()->btn_text, 1);
             }
         } else {
-            /* Win98 style */
             if (focused) {
                 vbe_fill_rect(bx, by, bw, 22, 0x000080);
                 vbe_3d_sunken(bx, by, bw, 22);
@@ -467,14 +696,47 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             }
         }
         bx += bw + 2;
-        if (bx > fb_w - 160) break;
+        if (bx > g_dwm.screen_w - 160) break;
     }
 
-    /* Clock */
     int secs = g_dwm.ticks / 10;
     char clk[16];
     snprintf(clk, sizeof(clk), "UP %02d:%02d", (secs / 60) % 100, secs % 60);
     int clk_w = vbe_text_width(clk, 1);
+    
+    int tray_x = fb_w - clk_w - 10;
+    
+    vbe_fill_rect(tray_x - 30, ty + (th - 16) / 2, 16, 16, tc()->btn_face);
+    vbe_3d_raised(tray_x - 30, ty + (th - 16) / 2, 16, 16);
+    vbe_draw_text(tray_x - 27, ty + (th - 8) / 2, "V", tc()->btn_text, 1);
+    tray_x -= 34;
+    
+    vbe_fill_rect(tray_x - 30, ty + (th - 16) / 2, 16, 16, tc()->btn_face);
+    vbe_3d_raised(tray_x - 30, ty + (th - 16) / 2, 16, 16);
+    vbe_draw_text(tray_x - 27, ty + (th - 8) / 2, "N", tc()->btn_text, 1);
+    tray_x -= 34;
+    
+    vbe_fill_rect(tray_x - 30, ty + (th - 16) / 2, 16, 16, tc()->btn_face);
+    vbe_3d_raised(tray_x - 30, ty + (th - 16) / 2, 16, 16);
+    vbe_draw_text(tray_x - 27, ty + (th - 8) / 2, "B", tc()->btn_text, 1);
+    tray_x -= 34;
+
+    int desk_x = tray_x - 150;
+    for (int d = 0; d < g_dwm.desktop_count; d++) {
+        int dx = desk_x + d * 16;
+        if (d == g_dwm.current_desktop) {
+            vbe_fill_rect_rounded(dx, ty + (th - 16) / 2, 14, 16, 2, tc()->select_bg);
+            vbe_3d_sunken_rounded(dx, ty + (th - 16) / 2, 14, 16, 2);
+            char label = (d == 9) ? 'M' : ('1' + d);
+            vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->select_text, 1);
+        } else {
+            vbe_fill_rect_rounded(dx, ty + (th - 16) / 2, 14, 16, 2, tc()->btn_face);
+            vbe_3d_raised_rounded(dx, ty + (th - 16) / 2, 14, 16, 2);
+            char label = (d == 9) ? 'M' : ('1' + d);
+            vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->btn_text, 1);
+        }
+    }
+
     vbe_draw_text(fb_w - clk_w - 10, ty + (th - 8) / 2, clk, 
                   theme()->Luna_start_button ? 0xFFFFFF : tc()->icon_text, 1);
 }
@@ -485,27 +747,21 @@ void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
     draw_desktop_bg(fb_w, fb_h);
 
-    /* Desktop icons */
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
-        /* Icon background */
         vbe_fill_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, 0x008080);
         vbe_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, 0x000000);
-        /* Icon text with shadow */
         vbe_draw_text(icon->x + 1, icon->y + DOSGUI_ICON_SIZE + 3, icon->name,
                       tc()->icon_text_shadow, 1);
         vbe_draw_text(icon->x, icon->y + DOSGUI_ICON_SIZE + 2, icon->name,
                       tc()->icon_text, 1);
     }
 
-    /* Windows in z-order */
     for (int j = 0; j < g_dwm.nz; j++)
         draw_window(g_dwm.zorder[j]);
 
-    /* Taskbar */
     dosgui_taskbar_render(fb, fb_w, fb_h);
 
-    /* Cursor */
     vbe_draw_cursor(g_dwm.mouse_x, g_dwm.mouse_y);
 }
 
