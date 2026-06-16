@@ -13,6 +13,7 @@
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "dosgui_wm.h"
+#include "../hosted/hosted.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -172,4 +173,11 @@ void dosgui_desktop_tick(void) {
             }
         }
     }
+}
+
+/* -- Shutdown ------------------------------------------------------ */
+
+void dosgui_shutdown(void) {
+    extern void dosgui_platform_shutdown(void);
+    dosgui_platform_shutdown();
 }
