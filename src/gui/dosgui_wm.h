@@ -32,6 +32,7 @@ typedef enum {
     DOSGUI_WIN_NORMAL   = 1,
     DOSGUI_WIN_FOCUSED  = 2,
     DOSGUI_WIN_MINIMIZED = 4,
+    DOSGUI_WIN_MAXIMIZED = 8,
 } DosGuiWinFlags;
 
 typedef struct DosGuiWindow DosGuiWindow;
@@ -39,6 +40,7 @@ struct DosGuiWindow {
     int            id;
     DosGuiWinFlags flags;
     int            x, y, w, h;
+    int            min_x, min_y, min_w, min_h; /* Saved before maximize */
     char           title[64];
     bool           alive;
     /* Content render callback */
