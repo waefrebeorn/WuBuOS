@@ -14,6 +14,9 @@
 #include "vbe.h"
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <stdio.h>
+#include "../gui/wubu_theme.h"
 
 /* Choose allocator based on build mode */
 #ifdef VBE_HOSTED
@@ -28,14 +31,20 @@
 static VBEState g_vbe = {0};
 
 int vbe_init(int width, int height) {
+    fprintf(stderr, "[DEBUG] vbe_init: width=%d, height=%d\n", width, height);
     g_vbe.width  = width;
     g_vbe.height = height;
     g_vbe.bpp    = 32;
     g_vbe.fb_size = (size_t)width * height * 4;
+    fprintf(stderr, "[DEBUG] vbe_init: fb_size=%zu\n", g_vbe.fb_size);
 
     g_vbe.fb   = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
     g_vbe.back = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
-    if (!g_vbe.fb || !g_vbe.back) return -1;
+    fprintf(stderr, "[DEBUG] vbe_init: fb=%p, back=%p\n", (void*)g_vbe.fb, (void*)g_vbe.back);
+    if (!g_vbe.fb || !g_vbe.back) {
+        fprintf(stderr, "[DEBUG] vbe_init: allocation failed!\n");
+        return -1;
+    }
 
     memset(g_vbe.fb, 0, g_vbe.fb_size);
     memset(g_vbe.back, 0, g_vbe.fb_size);
@@ -310,6 +319,120 @@ void vbe_draw_cursor(int mx, int my) {
             else if (c == '.') vbe_set_pixel(mx + col, my + row, 0xFFFFFF);
         }
     }
+}
+
+/* ================================================================
+ * Rounded Rectangle Primitives (for XP Classic chrome)
+ * ================================================================ */
+
+static bool vbe_point_in_circle(int x, int y, int cx, int cy, int r) {
+    int dx = x - cx;
+    int dy = y - cy;
+    return dx * dx + dy * dy <= r * r;
+}
+
+void vbe_fill_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color) {
+    if (radius <= 0) { vbe_fill_rect(x, y, w, h, color); return; }
+    if (radius > w/2) radius = w/2;
+    if (radius > h/2) radius = h/2;
+
+    /* Top-left corner */
+    for (int dy = 0; dy < radius; dy++) {
+        for (int dx = 0; dx < radius; dx++) {
+            if (!vbe_point_in_circle(x + dx, y + dy, x + radius - 1, y + radius - 1, radius))
+                vbe_set_pixel(x + dx, y + dy, color);
+        }
+    }
+    /* Top-right corner */
+    for (int dy = 0; dy < radius; dy++) {
+        for (int dx = 0; dx < radius; dx++) {
+            if (!vbe_point_in_circle(x + w - radius + dx, y + dy, x + w - radius, y + radius - 1, radius))
+                vbe_set_pixel(x + w - radius + dx, y + dy, color);
+        }
+    }
+    /* Bottom-left corner */
+    for (int dy = 0; dy < radius; dy++) {
+        for (int dx = 0; dx < radius; dx++) {
+            if (!vbe_point_in_circle(x + dx, y + h - radius + dy, x + radius - 1, y + h - radius, radius))
+                vbe_set_pixel(x + dx, y + h - radius + dy, color);
+        }
+    }
+    /* Bottom-right corner */
+    for (int dy = 0; dy < radius; dy++) {
+        for (int dx = 0; dx < radius; dx++) {
+            if (!vbe_point_in_circle(x + w - radius + dx, y + h - radius + dy, x + w - radius, y + h - radius, radius))
+                vbe_set_pixel(x + w - radius + dx, y + h - radius + dy, color);
+        }
+    }
+
+    /* Center horizontal strips */
+    vbe_fill_rect(x + radius, y, w - 2*radius, h, color);
+    vbe_fill_rect(x, y + radius, radius, h - 2*radius, color);
+    vbe_fill_rect(x + w - radius, y + radius, radius, h - 2*radius, color);
+}
+
+void vbe_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color) {
+    if (radius <= 0) { vbe_rect(x, y, w, h, color); return; }
+    if (radius > w/2) radius = w/2;
+    if (radius > h/2) radius = h/2;
+
+    /* Top edge */
+    vbe_hline(x + radius, x + w - radius - 1, y, color);
+    /* Bottom edge */
+    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, color);
+    /* Left edge */
+    vbe_vline(x, y + radius, y + h - radius - 1, color);
+    /* Right edge */
+    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, color);
+
+    /* Four corner arcs (midpoint circle algorithm for outline) */
+    (void)radius;
+    /* Approximate quarter circles using 45-degree step */
+    int r = radius;
+    for (int i = 0; i <= r; i++) {
+        int dx = (int)((r - i) * 0.70710678118);
+        int dy = (int)(i * 0.70710678118);
+        /* TL */
+        vbe_set_pixel(x + radius - 1 - dx, y + radius - 1 - dy, color);
+        vbe_set_pixel(x + radius - 1 - dy, y + radius - 1 - dx, color);
+        /* TR */
+        vbe_set_pixel(x + w - radius + dx, y + radius - 1 - dy, color);
+        vbe_set_pixel(x + w - radius + dy, y + radius - 1 - dx, color);
+        /* BL */
+        vbe_set_pixel(x + radius - 1 - dx, y + h - radius + dy, color);
+        vbe_set_pixel(x + radius - 1 - dy, y + h - radius + dx, color);
+        /* BR */
+        vbe_set_pixel(x + w - radius + dx, y + h - radius + dy, color);
+        vbe_set_pixel(x + w - radius + dy, y + h - radius + dx, color);
+    }
+}
+
+void vbe_3d_raised_rounded(int x, int y, int w, int h, int radius) {
+    const WubuThemeColors *tc = wubu_theme_colors();
+    /* Top-left highlight */
+    vbe_hline(x + radius, x + w - radius - 1, y, tc->border_light);
+    vbe_vline(x, y + radius, y + h - radius - 1, tc->border_light);
+    vbe_hline(x + radius, x + w - radius - 1, y + 1, tc->border_face);
+    vbe_vline(x + 1, y + radius, y + h - radius - 1, tc->border_face);
+    /* Bottom-right shadow */
+    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, tc->border_darkest);
+    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, tc->border_darkest);
+    vbe_hline(x + radius + 1, x + w - radius - 1, y + h - 2, tc->border_dark);
+    vbe_vline(x + w - 2, y + radius + 1, y + h - radius - 1, tc->border_dark);
+}
+
+void vbe_3d_sunken_rounded(int x, int y, int w, int h, int radius) {
+    const WubuThemeColors *tc = wubu_theme_colors();
+    /* Top-left shadow */
+    vbe_hline(x + radius, x + w - radius - 1, y, tc->border_darkest);
+    vbe_vline(x, y + radius, y + h - radius - 1, tc->border_darkest);
+    vbe_hline(x + radius, x + w - radius - 1, y + 1, tc->border_dark);
+    vbe_vline(x + 1, y + radius, y + h - radius - 1, tc->border_dark);
+    /* Bottom-right highlight */
+    vbe_hline(x + radius, x + w - radius - 1, y + h - 1, tc->border_light);
+    vbe_vline(x + w - 1, y + radius, y + h - radius - 1, tc->border_light);
+    vbe_hline(x + radius + 1, x + w - radius - 1, y + h - 2, tc->border_face);
+    vbe_vline(x + w - 2, y + radius + 1, y + h - radius - 1, tc->border_face);
 }
 
 void vbe_title_bar(int x, int y, int w, int h, int active) {

@@ -98,6 +98,12 @@ void vbe_hgradient(int x, int y, int w, int h, uint32_t left, uint32_t right);
 /* Filled circle. */
 void vbe_fill_circle(int cx, int cy, int r, uint32_t color);
 
+/* Rounded rectangle (for XP-style buttons/chrome) */
+void vbe_fill_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color);
+void vbe_rect_rounded(int x, int y, int w, int h, int radius, uint32_t color);
+void vbe_3d_raised_rounded(int x, int y, int w, int h, int radius);
+void vbe_3d_sunken_rounded(int x, int y, int w, int h, int radius);
+
 /* Fable-style software mouse cursor (18-row arrow with outline). */
 void vbe_draw_cursor(int mx, int my);
 

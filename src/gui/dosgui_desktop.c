@@ -1,21 +1,29 @@
 /*
  * dosgui_desktop.c  --  WuBuOS DosGui Desktop Implementation
  *
- * Cell 401: Win98 desktop with launchable app icons.
+ * Cell 401: THEMED Win98/XP desktop with launchable app icons.
  * ZealOS kernel runs in-process, Fable sauce renders the desktop,
  * apps launch as in-process windows or host processes.
+ * Full theme engine integration (Win98, XP Luna, XP Media, WuBu).
  */
 
 #include "dosgui_desktop.h"
 #include "dosgui_wm.h"
 #include "../apps/dosgui_apps.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_theme.h"
+#include "dosgui_wm.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+
+/* -- Theme Helpers ------------------------------------------------ */
+
+static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
+static const WubuTheme *theme(void) { return wubu_theme_get(); }
 
 /* -- App Registry ------------------------------------------- */
 
@@ -38,6 +46,7 @@ static AppEntry g_apps[] = {
     { "Settings",     "Control Panel", DESK_ICON_SETTINGS,      NULL },
     { "Editor",       "Editor",        DESK_ICON_COUNT,         NULL },
     { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,     NULL },
+    { "FreeDoom",     "FreeDoom",      DESK_ICON_COUNT + 2,     NULL },
 };
 #define NUM_APPS (sizeof(g_apps) / sizeof(g_apps[0]))
 
@@ -66,6 +75,7 @@ int dosgui_desktop_init(void) {
     dosgui_icon_add("Settings",     0, 7, dosgui_launch_settings);
     dosgui_icon_add("Editor",       1, 0, dosgui_launch_editor);
     dosgui_icon_add("WuBu Canvas",  1, 1, dosgui_launch_canvas);
+    dosgui_icon_add("FreeDoom",     1, 2, dosgui_launch_freedoom);
     return 0;
 }
 
@@ -104,7 +114,7 @@ void dosgui_launch_app(const char *name) {
 }
 
 void dosgui_desktop_launch(int icon_id) {
-    if (icon_id < 0 || icon_id >= NUM_APPS) return;
+    if (icon_id < 0 || (size_t)icon_id >= NUM_APPS) return;
 
     AppEntry *app = &g_apps[icon_id];
 
