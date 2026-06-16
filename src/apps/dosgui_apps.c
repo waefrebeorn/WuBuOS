@@ -12,6 +12,7 @@
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
 #include "../gui/wubu_theme.h"
+#include "../runtime/wubu_host_exec.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -186,7 +187,7 @@ static void calc_draw_button(DosGuiWindow *win, int btn_idx) {
                   g_calc_buttons[btn_idx].label, 0x00000000, 1);
 }
 
-static void dosgui_calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
 
@@ -217,7 +218,7 @@ static char g_notepad_text[65536] = {0};
 static int g_notepad_len = 0;
 static int g_notepad_cursor = 0;
 
-static void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
     
@@ -256,7 +257,7 @@ static void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int f
  * Paint Adapter (self-contained)
  * ================================================================ */
 
-static void dosgui_paint_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_paint_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
     int cx = win->x + DOSGUI_BORDER;
@@ -315,7 +316,7 @@ static void repl_add_line(const char *line) {
     }
 }
 
-static void dosgui_repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
 
@@ -362,7 +363,7 @@ static const char *ctrl_tabs[] = {
     "Display", "Theme", "Desktop", "Taskbar", "Input", "Startup", "Containers", "Network", "About"
 };
 
-static void dosgui_control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
 
@@ -419,7 +420,7 @@ static void dosgui_control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int f
  * Editor (simple wrapper)
  * ================================================================ */
 
-static void dosgui_editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int cx = win->x + DOSGUI_BORDER;
     int cy = win->y + DOSGUI_TITLE_H;
@@ -435,7 +436,7 @@ static void dosgui_editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb
  * WuBu Canvas (simple wrapper)
  * ================================================================ */
 
-static void dosgui_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int cx = win->x + DOSGUI_BORDER;
     int cy = win->y + DOSGUI_TITLE_H;
@@ -455,7 +456,7 @@ static void dosgui_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb
  * File Manager (simple wrapper)
  * ================================================================ */
 
-static void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int cx = win->x + DOSGUI_BORDER;
     int cy = win->y + DOSGUI_TITLE_H;
@@ -480,7 +481,7 @@ static void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int 
  * Terminal (simple wrapper - non-PTY, just display)
  * ================================================================ */
 
-static void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int cx = win->x + DOSGUI_BORDER;
     int cy = win->y + DOSGUI_TITLE_H;
@@ -545,11 +546,13 @@ DosGuiWindow* dosgui_app_launch(int icon_type) {
         if (g_dosgui_apps[i].icon_type == icon_type) {
             int x = 80 + (rand() % 300);
             int y = 60 + (rand() % 200);
-            DosGuiWindow *win = dosgui_wm_spawn(x, y,
+            DosGuiWindow *win = dosgui_wm_create(x, y,
                 g_dosgui_apps[i].default_w,
                 g_dosgui_apps[i].default_h,
-                g_dosgui_apps[i].title,
-                g_dosgui_apps[i].draw_fn);
+                g_dosgui_apps[i].title);
+            if (win) {
+                win->on_draw = g_dosgui_apps[i].draw_fn;
+            }
             return win;
         }
     }
@@ -561,13 +564,46 @@ DosGuiWindow* dosgui_app_launch_by_name(const char *name) {
         if (strcmp(g_dosgui_apps[i].title, name) == 0) {
             int x = 80 + (rand() % 300);
             int y = 60 + (rand() % 200);
-            return dosgui_wm_spawn(x, y,
+            DosGuiWindow *win = dosgui_wm_create(x, y,
                 g_dosgui_apps[i].default_w,
                 g_dosgui_apps[i].default_h,
-                g_dosgui_apps[i].title,
-                g_dosgui_apps[i].draw_fn);
+                g_dosgui_apps[i].title);
+            if (win) {
+                win->on_draw = g_dosgui_apps[i].draw_fn;
+            }
+            return win;
         }
     }
     return NULL;
 }
 
+/* ================================================================
+ * External Container Apps (bubblewrap)
+ * ================================================================ */
+
+void dosgui_launch_freedoom(void) {
+    /* Create FreeDoom container via bubblewrap */
+    WubuCt *ct = wubu_ct_bwrap_freedoom("freedoom");
+    if (!ct) {
+        fprintf(stderr, "Failed to create FreeDoom container\n");
+        return;
+    }
+    
+    /* Start the container - dsda-doom will create its own Wayland toplevel */
+    if (wubu_ct_start_bwrap(ct) != 0) {
+        fprintf(stderr, "Failed to start FreeDoom container\n");
+        wubu_ct_destroy(ct);
+        return;
+    }
+    
+    /* Container is running. 
+     * Note: The dsda-doom process creates its own Wayland window.
+     * We don't track it as a DosGuiWindow. The container PID is in ct->pid.
+     * For taskbar integration, we'd need WM support for external toplevels.
+     * For now, just log and let it run. */
+    fprintf(stderr, "FreeDoom launched via bubblewrap (PID %d)\n", ct->pid);
+    
+    /* Don't wait - let it run independently. 
+     * Container struct is leaked intentionally - process continues.
+     * In production, we'd track it in a global list for cleanup. */
+}

@@ -151,6 +151,18 @@ int main(void) {
         printf("Saved frame 6: paint\n");
     }
 
+    /* Frame 7: FreeDoom demo (GAAD-scaled window) */
+    dosgui_launch_app("FreeDoom");
+    for (int frame = 0; frame < 15; frame++) {
+        dosgui_desktop_tick();
+        dosgui_desktop_render(NULL, W, H);
+        vbe_swap();
+    }
+    if (vs && vs->fb) {
+        write_ppm("docs/frame_07_freedoom.ppm", vs->fb, W, H);
+        printf("Saved frame 7: freedoom demo\n");
+    }
+
     vbe_shutdown();
     printf("All frames saved!\n");
     return 0;

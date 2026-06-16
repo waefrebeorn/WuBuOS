@@ -9,14 +9,14 @@
  * Cell 200: ZealOS kernel runs in-process.
  *   - Kernel subsystems: mem_init, vbe_init, tasking
  *   - GUI shell: WM, desktop, taskbar, start menu
- *   - Input routing: Wayland → WM → focused window
- *   - Render pipeline: desktop + windows + taskbar → vbe_swap → Wayland blit
+ *   - Input routing: Wayland -> WM -> focused window
+ *   - Render pipeline: desktop + windows + taskbar -> vbe_swap -> Wayland blit
  *
- * Build: make hosted  →  src/hosted/wubu
+ * Build: make hosted  ->  src/hosted/wubu
  *
  * Wayland protocol: xdg-shell for window management.
- * Input: wl_keyboard + wl_pointer → KeyEvent/MouseEvent → kernel queue.
- * Render: SHM buffers → wl_surface attach/commit.
+ * Input: wl_keyboard + wl_pointer -> KeyEvent/MouseEvent -> kernel queue.
+ * Render: SHM buffers -> wl_surface attach/commit.
  */
 
 #include "hosted.h"
@@ -45,6 +45,9 @@
 #include <stdio.h>
 #include <time.h>
 #include <poll.h>
+#include <math.h>
+
+#include "../gui/wubu_theme.h"
 
 #include "xdg-shell-client.header"
 
@@ -123,7 +126,7 @@ static styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid);
  * ══════════════════════════════════════════════════════════════════ */
 
 static void shm_create_shared_memory(size_t size, int *fd, void **addr) {
-    char template[] = "/wubu-shm-XXXXXX";
+    char template[] = "/tmp/wubu-shm-XXXXXX";
     *fd = mkstemp(template);
     if (*fd < 0) { perror("mkstemp"); return; }
     unlink(template);
@@ -205,14 +208,45 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 };
 
 static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
-                                    int32_t width, int32_t height,
-                                    struct wl_array *states) {
-    (void)data; (void)toplevel; (void)states;
-    (void)width; (void)height;
+                                   int32_t width, int32_t height,
+                                   struct wl_array *states) {
+    (void)toplevel; (void)states;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    
+    /* Ignore 0x0 configure (initial) */
+    if (width <= 0 || height <= 0) return;
+    
+    /* Resize VBE framebuffer if changed */
+    VBEState *vs = vbe_state();
+    if (vs && (vs->width != width || vs->height != height)) {
+        fprintf(stderr, "WuBuOS: resize %dx%d -> %dx%d\n", vs->width, vs->height, width, height);
+        
+        /* Destroy old SHM buffers */
+        for (int i = 0; i < SHM_BUFFERS; i++) shm_buffer_destroy(&g_shm_bufs[i]);
+        
+        /* Reinit VBE with new size */
+        vbe_shutdown();
+        vbe_init(width, height);
+        
+        /* Update WM and desktop */
+        dosgui_wm_init(width, height);
+        
+        /* Create new SHM buffers */
+        shm_buffer_create(&g_shm_bufs[0], width, height);
+        shm_buffer_create(&g_shm_bufs[1], width, height);
+        
+        state->width = width;
+        state->height = height;
+        state->fb_pitch = width * 4;
+        if (state->framebuffer) {
+            free(state->framebuffer);
+            state->framebuffer = (uint32_t*)calloc((size_t)width * height, 4);
+        }
+    }
 }
 
 static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {
-    (void)toplevel;
     hosted_state_t *state = (hosted_state_t*)data;
     if (state) state->running = false;
 }
@@ -316,6 +350,8 @@ static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
         ev.scroll = 0;
         input_mouse_push(ev);
     }
+    /* Track start menu hover */
+    dosgui_startmenu_track_hover(x, y);
 }
 
 static void pointer_button(void *data, struct wl_pointer *wl_ptr,
@@ -382,7 +418,7 @@ static const struct wl_pointer_listener pointer_listener = {
 };
 
 /* ══════════════════════════════════════════════════════════════════
- * Key Translation (Linux evdev scancode → WuBuOS key code)
+ * Key Translation (Linux evdev scancode -> WuBuOS key code)
  * ══════════════════════════════════════════════════════════════════ */
 
 static void handle_wl_keyboard_key(uint32_t key, int pressed) {
@@ -406,6 +442,12 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
             if (g_hosted_state)
                 hosted_set_mode(g_hosted_state,
                     bridge_get_mode() == MODE_TEMPLE ? HMODE_TEMPLE : HMODE_GUI);
+        } else if (g_key_map[29] && !g_key_map[56]) {
+            /* Ctrl+T (without Alt) = cycle theme */
+            if (pressed) {
+                wubu_theme_cycle();
+                fprintf(stderr, "Theme: %s\n", wubu_theme_name(wubu_theme_current()));
+            }
         }
         wu_key = 0x14;
         break;
@@ -617,15 +659,11 @@ static void wayland_frame_render(void) {
  * Render desktop to VBE back buffer
  * ══════════════════════════════════════════════════════════════════ */
 
-extern void desktop_draw(int screen_w, int screen_h, int taskbar_h);
-extern void taskbar_draw(int screen_w, int screen_h);
-extern int  taskbar_height(void);
-
 static void render_desktop(hosted_state_t *state) {
-    /* Cell 400+401+402: DosGui desktop with Fable windowing agent */
     dosgui_desktop_render(NULL, state->width, state->height);
-    if (dosgui_startmenu_is_open())
+    if (dosgui_startmenu_is_open()) {
         dosgui_startmenu_render(NULL, state->width, state->height);
+    }
     dosgui_desktop_tick();
 }
 
@@ -801,7 +839,9 @@ int hosted_run(hosted_state_t *state) {
 void hosted_shutdown(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS shutdown...\n");
 
-    wm_shutdown();
+    dosgui_wm_shutdown();
+    dosgui_desktop_shutdown();
+    dosgui_startmenu_shutdown();
     vbe_shutdown();
     input_shutdown();
 
@@ -861,7 +901,7 @@ int hosted_kernel_ready(void) {
 }
 
 int hosted_wm_has_windows(void) {
-    return wm_window_count() > 0 ? 1 : 0;
+    return dosgui_wm_window_count() > 0 ? 1 : 0;
 }
 
 #ifndef WUBU_HOSTED_TEST
