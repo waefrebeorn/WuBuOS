@@ -108,6 +108,11 @@ static int g_nfiles = 0;
 static uint64_t g_next_path = 1;
 static hosted_state_t *g_hosted_state = NULL;
 
+/* Platform shutdown callback for dosgui_desktop */
+void dosgui_platform_shutdown(void) {
+    if (g_hosted_state) g_hosted_state->running = false;
+}
+
 /* ══════════════════════════════════════════════════════════════════
  * Forward Declarations
  * ══════════════════════════════════════════════════════════════════ */
