@@ -37,7 +37,7 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o
 JIT_OBJS = $(JIT)/jit.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o
+GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
@@ -144,7 +144,7 @@ HOSTED_OBJS = $(HOSTED)/hosted.o $(RT)/styx.o $(KERNEL)/vbe.o $(KERNEL)/memory.o
               $(KERNEL)/input.o $(KERNEL)/tasking.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(BRIDGE)/bridge.o \
               $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/startmenu.o \
               $(GUI)/gui_dbuf.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o \
-              $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o \
+              $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o \
               $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(APPS)/dosgui_apps.o $(JIT)/jit.o \
               $(RT)/wubu_ct_bwrap.o
 
@@ -156,7 +156,7 @@ hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
 		$(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(BRIDGE)/bridge.c \
 		$(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c $(GUI)/theme.c $(GUI)/startmenu.c \
-		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c \
+		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT)/jit.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c \
 		$(HOSTED)/xdg-shell-private.o \
@@ -288,6 +288,19 @@ test_screenshot:
 		-o $(TOOLS)/screenshot_test
 	$(TOOLS)/screenshot_test
 
+test_gui_screenshot:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
+		-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) \
+		$(GUI)/wubu_screenshot.c $(KERNEL)/vbe.c $(GUI)/wubu_theme.c $(GUI)/wubu_notify.c \
+		$(GUI)/dosgui_wm.c $(GUI)/wubu_wm.c $(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c \
+		$(KERNEL)/memory.c $(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S \
+		$(BRIDGE)/bridge.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT)/jit.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c \
+		$(HOSTED)/xdg-shell-private.o \
+		$(GUI)/wubu_screenshot_test.c \
+		-o $(GUI)/wubu_screenshot_test -lwayland-client -lxkbcommon -lm
+	$(GUI)/wubu_screenshot_test
+
 test_txfs:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/txfs.c $(KERNEL)/txfs_test.c -o $(KERNEL)/txfs_test
 	$(KERNEL)/txfs_test
@@ -318,11 +331,11 @@ test_hosted: $(HOSTED)/xdg-shell-private.o
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(BRIDGE)/bridge.c \
 		$(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c $(GUI)/theme.c $(GUI)/startmenu.c \
 		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c \
-		$(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c \
+		$(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT)/jit.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c \
 		$(HOSTED)/xdg-shell-private.o \
-		-o $(HOSTED)/hosted_test -lwayland-client -lxkbcommon
+		-o $(HOSTED)/hosted_test -lwayland-client -lxkbcommon -lm
 	$(HOSTED)/hosted_test
 
 test_host_exec:
