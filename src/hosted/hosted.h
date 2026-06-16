@@ -77,6 +77,10 @@ typedef struct {
     struct wl_shm        *shm;
     struct wl_data_device_manager *data_device_manager;
     int                   drm_fd;
+    int                   width;
+    int                   height;
+    struct wl_buffer     *shm_buffer;
+    void                 *shm_data;
 } wayland_state_t;
 
 extern wayland_state_t g_wl;
@@ -98,6 +102,11 @@ int hosted_styx_init(hosted_state_t *state, const char *socket_path);
 int hosted_styx_register_wubu(hosted_state_t *state,
                                const char *name,
                                const uint8_t *data, uint32_t size);
+
+/* Screenshot integration */
+bool wubu_screenshot_has_active_region_selector(void);
+void wubu_screenshot_update_region_selector(int x, int y, bool down);
+void wubu_screenshot_render_region_selector(uint32_t *fb, int w, int h);
 
 /* Behavioral Test API */
 int  hosted_kernel_ready(void);

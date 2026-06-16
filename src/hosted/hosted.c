@@ -33,6 +33,11 @@
 #include "../runtime/styx.h"
 #include "../bridge/bridge.h"
 #include "../apps/repl.h"
+#include "../gui/wubu_screenshot.h"
+#include "../gui/wubu_clipboard.h"
+#include "../gui/wubu_notify.h"
+#include "../gui/wubu_session.h"
+#include "../gui/wubu_settings.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -343,6 +348,11 @@ static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
     }
     /* Track start menu hover */
     dosgui_startmenu_track_hover(x, y);
+
+    /* Update region selector if active */
+    if (wubu_screenshot_has_active_region_selector()) {
+        wubu_screenshot_update_region_selector(x, y, g_mouse_buttons & 1);
+    }
 }
 
 static void pointer_button(void *data, struct wl_pointer *wl_ptr,
@@ -415,6 +425,17 @@ static const struct wl_pointer_listener pointer_listener = {
 static void handle_wl_keyboard_key(uint32_t key, int pressed) {
     uint32_t wu_key = 0;
     switch (key) {
+    case 99:  /* KEY_SYSRQ / PrintScr */
+        if (pressed) {
+            if (g_key_map[56] || g_key_map[100]) {      /* Alt+PrintScr = focused window */
+                wubu_screenshot_handle_alt_printscr();
+            } else if (g_key_map[42] || g_key_map[54]) { /* Shift+PrintScr = region select */
+                wubu_screenshot_handle_shift_printscr();
+            } else {                                     /* PrintScr = full screen */
+                wubu_screenshot_handle_printscr();
+            }
+        }
+        break;
     case 28:  wu_key = 0x1C; break;  /* KEY_ENTER */
     case 1:   wu_key = 0x01; break;  /* KEY_ESC */
     case 14:  wu_key = 0x0E; break;  /* KEY_BACKSPACE */
@@ -639,6 +660,11 @@ static void wayland_frame_render(void) {
                (size_t)g_hosted_state->width * g_hosted_state->height * 4);
     }
 
+    /* Render region selector overlay if active */
+    if (wubu_screenshot_has_active_region_selector()) {
+        wubu_screenshot_render_region_selector(buf->pixels, buf->width, buf->height);
+    }
+
     wl_surface_attach(g_wl.surface, buf->wl_buf, 0, 0);
     wl_surface_damage_buffer(g_wl.surface, 0, 0, buf->width, buf->height);
     wl_surface_commit(g_wl.surface);
@@ -756,6 +782,12 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         shm_buffer_create(&g_shm_bufs[0], state->width, state->height);
         shm_buffer_create(&g_shm_bufs[1], state->width, state->height);
 
+        /* Store width/height and SHM buffer info for screenshot access */
+        g_wl.width = state->width;
+        g_wl.height = state->height;
+        g_wl.shm_buffer = g_shm_bufs[0].wl_buf;
+        g_wl.shm_data = g_shm_bufs[0].pixels;
+
         fprintf(stderr, "WuBuOS: Wayland %dx%d window\n", state->width, state->height);
     }
 
@@ -763,6 +795,9 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     if (g_wl.seat && g_wl.data_device_manager) {
         wubu_clipboard_init(g_wl.seat);
     }
+
+    /* Initialize screenshot subsystem */
+    wubu_screenshot_init();
 
     fs_add_dir("wubu");
     fs_add_dir("dev");
@@ -838,6 +873,11 @@ void hosted_shutdown(hosted_state_t *state) {
     dosgui_wm_shutdown();
     dosgui_desktop_shutdown();
     dosgui_startmenu_shutdown();
+    wubu_screenshot_shutdown();
+    wubu_clipboard_shutdown();
+    wubu_notify_shutdown();
+    wubu_session_shutdown();
+    wubu_settings_shutdown();
     vbe_shutdown();
     input_shutdown();
 
