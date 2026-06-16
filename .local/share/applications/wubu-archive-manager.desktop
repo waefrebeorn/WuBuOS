@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS Archive Manager
+Comment=Extract and create archives
+Exec=wubu-archive-manager %f
+Icon=archive-manager
+Terminal=false
+Categories=Utility;Archiving;
+MimeType=application/zip;application/x-tar;application/gzip;application/x-bzip2;application/x-xz;
+StartupNotify=true
