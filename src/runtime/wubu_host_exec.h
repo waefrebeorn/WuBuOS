@@ -157,6 +157,23 @@ WubuCt *wubu_ct_steamos(const char *name, const char *root);
  */
 WubuCt *wubu_ct_native(const char *name, const char *root);
 
+/* -- Bubblewrap Presets (Hosted Demo) ------------------------------- */
+
+/*
+ * Create a native Linux container using bubblewrap (no chroot needed).
+ * Uses host filesystem with bind mounts. Shares Wayland socket for GUI.
+ */
+WubuCt *wubu_ct_bwrap_native(const char *name);
+
+/*
+ * Create a FreeDoom container using bubblewrap.
+ * Shares Wayland socket + GPU + audio. Launches dsda-doom.
+ */
+WubuCt *wubu_ct_bwrap_freedoom(const char *name);
+
+/* Bubblewrap start function (replaces wubu_ct_start for hosted mode) */
+int wubu_ct_start_bwrap(WubuCt *ct);
+
 /* -- Diagnostics -------------------------------------------------- */
 
 /* Get human-readable state name */

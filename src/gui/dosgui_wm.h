@@ -97,6 +97,9 @@ int  dosgui_icon_add(const char *name, int gx, int gy,
 void dosgui_icon_render(uint32_t *fb, int fb_w, int fb_h);
 int  dosgui_icon_hit_test(int mx, int my);
 
+/* Tick */
+void dosgui_tick(void);
+
 /* -- Query ------------------------------------------------------- */
 
 int dosgui_wm_screen_w(void);

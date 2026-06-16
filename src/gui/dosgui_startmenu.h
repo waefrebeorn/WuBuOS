@@ -30,4 +30,7 @@ void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h);
 
 void dosgui_startmenu_handle_click(int x, int y);
 
+/* Hover tracking for submenu expansion */
+void dosgui_startmenu_track_hover(int x, int y);
+
 #endif /* WUBU_DOSGUI_STARTMENU_H */

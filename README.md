@@ -64,26 +64,41 @@ Containers are **host processes** — fork + chroot + exec. No syscall emulation
 
 The Win98 desktop shell with Fable Windowing Agent:
 
-- **Cell 400** — DosGui WM: 32 windows, z-order, drag, focus, taskbar, icons, 18-row cursor
-- **Cell 401** — DosGui Desktop: 10 launchable icons (My Computer, Temple REPL, Notepad, Paint, Calculator, Terminal, File Manager, Settings, Editor, WuBu Canvas)
-- **Cell 402** — DosGui StartMenu: cascading Programs→{Accessories, WuBuOS, System}, Documents, Find, Help, Run, Shutdown
-- **dosgui_apps.c** — Self-contained draw functions for all apps (no legacy WmWindow dependency)
+**Cell 400** — DosGui WM (REWORKED): Full theme engine integration, XP Classic chrome, rounded buttons/title bars, Luna Start orb, gradient titles, drop shadows, 4 switchable themes
+**Cell 401** — DosGui Desktop (REWORKED): Theme-aware desktop_bg, icon text colors, FreeDoom launch via bubblewrap container
+**Cell 402** — DosGui StartMenu (REWORKED): XP sidebar with "WuBuOS" branding, cascading submenus, hover tracking, Luna Start orb, rounded items, Shutdown button
+**dosgui_apps.c** — Self-contained draw functions for all apps (Calculator, Notepad, Paint, REPL, Explorer, Control Panel, Editor, Canvas, Terminal)
 
-![WuBuOS Desktop Demo](docs/wubuos_demo_full.gif)
+### Theme Engine (Cell 394) — 4 Themes, Runtime Switchable (Ctrl+T)
+| Theme | Desktop | Window Chrome | Start Button | Title Bar |
+|-------|---------|---------------|--------------|-----------|
+| **Win98 Classic** | Teal #008080 | 3D raised/sunken, square | "+ NEW" | Flat navy #000080 |
+| **XP Luna Blue** | Bliss blue #00528A | Rounded (r=4), gradient hover | Green orb "Start" | Blue gradient #00539E→#0099CC |
+| **XP Media Orange** | Near-black #1A1A1A | Rounded, orange accent | Orange orb | Orange gradient #E86C00→#FF9933 |
+| **WuBu Green** | Dark green #0A2A1A | Rounded, green accent | Green orb | Green gradient #008050→#00C080 |
 
 ### Apps Included
-| App | Icon | Draw Function | Size |
-|-----|------|---------------|------|
-| My Computer | 🖥️ | dosgui_explorer_draw | 600×450 |
-| Temple REPL | 👑 | dosgui_repl_draw | 400×400 |
-| Notepad | 📝 | dosgui_notepad_draw | 500×400 |
-| Paint | 🎨 | dosgui_paint_draw | 700×500 |
-| Calculator | 🔢 | dosgui_calc_draw | 280×380 |
-| Terminal | 💻 | dosgui_terminal_draw | 700×500 |
-| File Manager | 📁 | dosgui_explorer_draw | 700×500 |
-| Settings | ⚙️ | dosgui_control_draw | 520×440 |
-| Editor | ✏️ | dosgui_editor_draw | 600×500 |
-| WuBu Canvas | 🖼️ | dosgui_canvas_draw | 700×500 |
+| App | Icon | Draw Function | Size | Theme-Aware |
+|-----|------|---------------|------|-------------|
+| My Computer | 🖥️ | dosgui_explorer_draw | 600×450 | ✅ |
+| Temple REPL | 👑 | dosgui_repl_draw | 400×400 | ✅ |
+| Notepad | 📝 | dosgui_notepad_draw | 500×400 | ✅ |
+| Paint | 🎨 | dosgui_paint_draw | 700×500 | ✅ |
+| Calculator | 🔢 | dosgui_calc_draw | 280×380 | ✅ |
+| Terminal | 💻 | dosgui_terminal_draw | 700×500 | ✅ |
+| File Manager | 📁 | dosgui_explorer_draw | 700×500 | ✅ |
+| Settings | ⚙️ | dosgui_control_draw | 520×440 | ✅ |
+| Editor | ✏️ | dosgui_editor_draw | 600×500 | ✅ |
+| WuBu Canvas | 🖼️ | dosgui_canvas_draw | 700×500 | ✅ |
+| FreeDoom | 🎮 | dosgui_launch_freedoom (bubblewrap) | 640×480 | External window |
+
+### New VBE Primitives (for XP Chrome)
+| Function | Purpose |
+|----------|---------|
+| `vbe_fill_rect_rounded` | Filled rounded rectangle (radius clamp) |
+| `vbe_rect_rounded` | Rounded rectangle outline (approx quarter-circles) |
+| `vbe_3d_raised_rounded` | XP-style raised 3D border with rounded corners |
+| `vbe_3d_sunken_rounded` | XP-style sunken 3D border with rounded corners |
 
 ## Battleship v14 — 412 Active Gaps (40 Resolved)
 
