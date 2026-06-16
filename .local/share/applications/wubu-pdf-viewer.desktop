@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS PDF Viewer
+Comment=View PDF documents
+Exec=wubu-pdf-viewer %f
+Icon=pdf-viewer
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;
+StartupNotify=true

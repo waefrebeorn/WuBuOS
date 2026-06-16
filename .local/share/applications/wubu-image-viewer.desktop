@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS Image Viewer
+Comment=View images
+Exec=wubu-image-viewer %f
+Icon=image-viewer
+Terminal=false
+Categories=Graphics;Viewer;
+MimeType=image/png;image/jpeg;image/gif;image/bmp;image/svg+xml;
+StartupNotify=true

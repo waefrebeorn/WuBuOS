@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS Container Runner
+Comment=Run WuBuOS containers
+Exec=wubu-container-runner %f
+Icon=container
+Terminal=false
+Categories=System;Utility;
+MimeType=application/x-wubu;
+StartupNotify=true

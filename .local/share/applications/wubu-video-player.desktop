@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS Video Player
+Comment=Play video files
+Exec=wubu-video-player %f
+Icon=video-player
+Terminal=false
+Categories=AudioVideo;Player;
+MimeType=video/mp4;video/x-matroska;video/webm;
+StartupNotify=true

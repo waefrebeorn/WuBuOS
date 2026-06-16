@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS Audio Player
+Comment=Play audio files
+Exec=wubu-audio-player %f
+Icon=audio-player
+Terminal=false
+Categories=AudioVideo;Player;
+MimeType=audio/mpeg;audio/wav;audio/ogg;audio/flac;
+StartupNotify=true
