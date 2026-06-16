@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WuBuOS Code Editor
+Comment=Code editor with syntax highlighting
+Exec=wubu-code-editor %f
+Icon=code-editor
+Terminal=false
+Categories=Development;TextEditor;
+MimeType=text/x-csrc;text/x-chdr;text/x-c++src;text/x-python;text/javascript;application/json;
+StartupNotify=true
