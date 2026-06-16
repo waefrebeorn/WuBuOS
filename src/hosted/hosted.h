@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <wayland-client.h>
 
 /* ══════════════════════════════════════════════════════════════════
  * Public Enums/Constants
@@ -58,6 +59,27 @@ struct HOSTED_STATE {
 };
 
 typedef struct HOSTED_STATE hosted_state_t;
+
+/* ══════════════════════════════════════════════════════════════════
+ * Wayland State (for clipboard access)
+ * ══════════════════════════════════════════════════════════════════ */
+
+typedef struct {
+    struct wl_display    *display;
+    struct wl_compositor *compositor;
+    struct xdg_wm_base   *xdg_wm_base;
+    struct wl_surface    *surface;
+    struct xdg_surface   *xdg_surface;
+    struct xdg_toplevel  *xdg_toplevel;
+    struct wl_keyboard   *keyboard;
+    struct wl_pointer    *pointer;
+    struct wl_seat       *seat;
+    struct wl_shm        *shm;
+    struct wl_data_device_manager *data_device_manager;
+    int                   drm_fd;
+} wayland_state_t;
+
+extern wayland_state_t g_wl;
 
 /* ══════════════════════════════════════════════════════════════════
  * Public API
