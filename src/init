@@ -1,0 +1,22 @@
+#!/bin/sh
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t tmpfs tmpfs /run
+mkdir -p /dev/pts /dev/shm
+mount -t devpts devpts /dev/pts
+mount -t tmpfs tmpfs /dev/shm
+
+# Load kernel modules
+modprobe virtio_gpu 2>/dev/null
+modprobe virtio_input 2>/dev/null
+modprobe i915 2>/dev/null
+modprobe amdgpu 2>/dev/null
+
+# Setup networking
+ip link set lo up
+ip link set eth0 up 2>/dev/null || true
+udhcpc -i eth0 -b 2>/dev/null || true
+
+# Start WuBuOS
+exec /usr/bin/wubu -w 1024 768
