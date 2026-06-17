@@ -37,7 +37,7 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o
 JIT_OBJS = $(JIT)/jit.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o
+GUI_OBJS = $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o
@@ -144,7 +144,7 @@ HOSTED_OBJS = $(HOSTED)/hosted.o $(RT)/styx.o $(KERNEL)/vbe.o $(KERNEL)/memory.o
               $(KERNEL)/input.o $(KERNEL)/tasking.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(BRIDGE)/bridge.o \
               $(GUI)/wm.o $(GUI)/taskbar.o $(GUI)/desktop.o $(GUI)/theme.o $(GUI)/startmenu.o \
               $(GUI)/gui_dbuf.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o \
-              $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o \
+              $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o \
               $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(APPS)/dosgui_apps.o $(JIT)/jit.o \
               $(RT)/wubu_ct_bwrap.o
 
@@ -156,7 +156,7 @@ hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
 		$(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(BRIDGE)/bridge.c \
 		$(GUI)/wm.c $(GUI)/taskbar.c $(GUI)/desktop.c $(GUI)/theme.c $(GUI)/startmenu.c \
-		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c \
+		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_gamelib.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT)/jit.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c \
 		$(HOSTED)/xdg-shell-private.o \
@@ -324,6 +324,14 @@ test_proton:
 		$(GUI)/wubu_proton_test.c \
 		-o $(GUI)/wubu_proton_test
 	$(GUI)/wubu_proton_test
+
+test_gamelib:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+		-I$(GUI) -I$(KERNEL) \
+		$(GUI)/wubu_gamelib.c $(GUI)/wubu_settings.c $(GUI)/wubu_theme.c $(GUI)/wubu_proton.c \
+		$(GUI)/wubu_gamelib_test.c \
+		-o $(GUI)/wubu_gamelib_test
+	$(GUI)/wubu_gamelib_test
 
 test_txfs:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/txfs.c $(KERNEL)/txfs_test.c -o $(KERNEL)/txfs_test
