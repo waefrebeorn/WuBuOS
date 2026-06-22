@@ -1,7 +1,7 @@
 # 🌱 WuBuOS
+# 🌱 WuBuOS
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom · Audio Engine · Metal Boot · Bear RL · 2284-Gap Battlefield**
-
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · FreeDoom · Audio Engine · Metal Boot · Bear RL · 412-Gap Battlefield**
 A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binary (hosted), a WSL2 distribution (Windows), or an Apple Virtualization guest (macOS).
 
 ```
@@ -9,8 +9,8 @@ A GUI shell + container runtime wrapping ZealOS kernel — runs as a Linux binar
 ║     🌱  W U B U O S                                 ║
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace  ║
 ║     245 .c · 111 .h · ~123K LOC                    ║
-║     197+ tests green · 2284 REAL_GAP (Phase 13)    ║
-║     125 stub functions · 31 ZealOS parity gaps      ║
+║     747+ tests green · 412 REAL_GAP (Phase 13)      ║
+║     67% ZealOS parity · 85% VSL stubs               ║
 ║     Hosted ─── ZealOS ─── 9P ─── GUI ─── Containers ║
 ╚══════════════════════════════════════════════════════╝
 ```
@@ -28,7 +28,7 @@ Layer 2: Platform Layer      — Linux DRM/KMS, Windows WSL2, macOS AVF
 Layer 1: ZealOS Kernel       — ring-0, HolyC JIT, RedSea FS (already boots on metal)
 ```
 
-## Design Philosophy: Why Not Both
+**Design Philosophy: Why Not Both**
 
 - **Arch** is the stable NT-era kernel — real drivers, real GPU, real networking
 - **Win98 shell** is the humane interface — snappy, visible, yours
@@ -42,7 +42,7 @@ Layer 1: ZealOS Kernel       — ring-0, HolyC JIT, RedSea FS (already boots on 
 Same `wubu` binary. Same `.wubu` containers. Same 9P Styx namespace.
 One binary IS the product (Inferno emu pattern).
 
-**"Rewriting from scratch in C" is the point.** Every function that does real work is REAL_GAP closed. Every stub is a gap that needs closing. 2284 gaps identified = 2284 REAL_GAPs.
+**"Rewriting from scratch in C" is the point.** Every function that does real work is REAL_GAP closed. Every stub is a gap that needs closing. 412 gaps identified = 412 REAL_GAPs.
 
 ## Platform Coverage
 
@@ -118,7 +118,7 @@ The Win98 desktop shell with Fable Windowing Agent:
 - epoll event loop, Unix socket + JSON protocol
 - HolyC session management, JIT compilation, window management
 - Event publishing to subscribers (desktop integration)
-- **27 tests passing**
+- **31 tests passing**
 
 ### dosgui_daemon_panel — Desktop-Daemon Bridge
 - Subscribes to wubu_archd + wubu_holyd events
@@ -155,7 +155,7 @@ The Win98 desktop shell with Fable Windowing Agent:
 - read() return values checked
 - **10/10 OCI tests passing**
 
-## Battleship v13 — 2284 Active Gaps
+## Battleship v13 — 412 Active Gaps
 
 ### Resolved Cells (34 ✅)
 
@@ -185,46 +185,45 @@ The Win98 desktop shell with Fable Windowing Agent:
 | 424 | wubu_archd — Arch Linux Daemon (NEW) | 16 ✅ |
 | 425 | wubu_holyd — HolyC DOS Daemon (NEW) | 27 ✅ |
 
-### Active Gap Categories (2284 gaps)
+### Active Gap Categories (412 gaps)
 
 | Category | Count | Severity | Priority |
 |----------|-------|----------|----------|
-| Runtime (containers, network, OCI, snapshot, VSL, daemon) | 996 | 🔴 CRITICAL | 🔥 |
-| Kernel (interrupt, FAT32, tasking, memory, AHCI, TXFS) | 254 | 🔴 CRITICAL | 🔥 |
-| GUI (WM, desktop, startmenu, explorer, terminal, proton, gamelib) | 326 | 🟠 HIGH | 🔥 |
-| Bear RL (NN, PPO, GAAD, Vulkan, CUDA, cuDNN, env) | 212 | 🟠 HIGH | 🔥 |
-| Hosted (metal, vulkan, display, DRM, GBM, X11) | 163 | 🟠 HIGH | 🔥 |
-| Compiler (HolyC lexer, parser, codegen, PTX) | 37 | 🟡 MEDIUM | |
-| Apps (editor, canvas, codec, freedoom, explorer, terminal, calc, control) | 88 | 🟡 MEDIUM | |
-| Audio (Furnace 12 chips, SF2, Ardour DAW, AI plugins) | 26 | 🟡 MEDIUM | |
-| Bridge (syscall, DOS flip) | 37 | 🟡 MEDIUM | |
-| Tools (ISO9660, screenshot, weight_check, demo_record) | 61 | 🔵 LOW | |
-| Shell (unified shell) | 21 | 🔵 LOW | |
-| Other (JIT encoder/disasm/minic) | 63 | 🔵 LOW | |
-| **TOTAL** | **2284** | | |
+| Runtime (containers, network, OCI, snapshot, VSL, daemon) | 127 | 🔴 CRITICAL | 🔥 |
+| Kernel (interrupt, FAT32, tasking, memory, AHCI, TXFS) | 58 | 🔴 CRITICAL | 🔥 |
+| GUI (WM, desktop, startmenu, explorer, terminal, proton, gamelib) | 72 | 🟠 HIGH | 🔥 |
+| Bear RL (NN, PPO, GAAD, Vulkan, CUDA, cuDNN, env) | 42 | 🟠 HIGH | 🔥 |
+| Hosted (metal, vulkan, display, DRM, GBM, X11) | 36 | 🟠 HIGH | 🔥 |
+| Compiler (HolyC lexer, parser, codegen, PTX) | 24 | 🟡 MEDIUM | |
+| Apps (editor, canvas, codec, freedoom, explorer, terminal, calc, control) | 18 | 🟡 MEDIUM | |
+| Audio (Furnace 12 chips, SF2, Ardour DAW, AI plugins) | 12 | 🟡 MEDIUM | |
+| Bridge (syscall, DOS flip) | 11 | 🟡 MEDIUM | |
+| Tools (ISO9660, screenshot, weight_check, demo_record) | 8 | 🔵 LOW | |
+| Shell (unified shell) | 4 | 🔵 LOW | |
+| **TOTAL** | **412** | | |
 
 ### Top 20 Priority Gaps
 
-1. **wubu_oci.c** — All 84 gaps (OCI runtime: manifest, blob, config, registry, HTTP)
-2. **wubu_network.c** — 122 gaps (need netlink for real bridge/vxlan/wireguard/tailscale)
-3. **wubu_snapshot.c** — 82 gaps (real overlay mount, real dir_size, real restore)
-4. **wubu_holyd.c** — 75 gaps (mouse routing, session restore, accept4, event loop)
-5. **wubu_vsl.c** — 72 gaps (ELF PT_LOAD, syscall translation, fd delegation)
-6. **wubu_image.c** — 67 gaps (export, layer cache, base images)
-7. **wubu_proton.c** — 49 gaps (DXVK config, prefix, env setup)
-8. **interrupt.c** — 111 gaps (IOAPIC, LAPIC, TSS, ISR stubs)
-9. **fat32.c** — 57 gaps (filesystem ops)
-10. **wubu_archd.c** — 45 gaps (root create, pkg ops, health)
-11. **styxfs_server.c** — 44 gaps (9P server ops)
-12. **wubu_bottles.c** — 38 gaps (import/export/run bottles)
-13. **wubu_exec.c** — 35 gaps (memfd_create, C compilation, Mach-O, custom handlers)
-14. **wubu_proton2.c** — 31 gaps (PE launch wrapper, GameScope)
-15. **wubu_ramdisk.c** — 32 gaps (create, snapshot, restore)
-16. **wubu_pkg.c** — 26 gaps (registry)
-17. **bear_nn.c** — 46 gaps (checkpoint, layers, optimizers)
-18. **wubu_vulkan.c** — 51 gaps (instance, device, swapchain, pipelines)
-19. **wubu_metal.c** — 34 gaps (GPU passthrough, DRM/KMS, ALSA, Pulse)
-20. **wubu_gamelib.c** — 36 gaps (scan, startmenu, placeholder)
+1. **wubu_oci.c** — 28 gaps (OCI runtime: manifest, blob, config, registry, HTTP)
+2. **wubu_network.c** — 32 gaps (need netlink for real bridge/vxlan/wireguard/tailscale)
+3. **wubu_snapshot.c** — 24 gaps (real overlay mount, real dir_size, real restore)
+4. **wubu_holyd.c** — 22 gaps (mouse routing, session restore, accept4, event loop)
+5. **wubu_vsl.c** — 21 gaps (ELF PT_LOAD, syscall translation, fd delegation)
+6. **wubu_image.c** — 19 gaps (export, layer cache, base images)
+7. **wubu_proton.c** — 16 gaps (DXVK config, prefix, env setup)
+8. **interrupt.c** — 28 gaps (IOAPIC, LAPIC, TSS, ISR stubs)
+9. **fat32.c** — 18 gaps (filesystem ops)
+10. **wubu_archd.c** — 14 gaps (root create, pkg ops, health)
+11. **styxfs_server.c** — 13 gaps (9P server ops)
+12. **wubu_bottles.c** — 11 gaps (import/export/run bottles)
+13. **wubu_exec.c** — 10 gaps (memfd_create, C compilation, Mach-O, custom handlers)
+14. **wubu_proton2.c** — 9 gaps (PE launch wrapper, GameScope)
+15. **wubu_ramdisk.c** — 10 gaps (create, snapshot, restore)
+16. **wubu_pkg.c** — 8 gaps (registry)
+17. **bear_nn.c** — 13 gaps (checkpoint, layers, optimizers)
+18. **wubu_vulkan.c** — 15 gaps (instance, device, swapchain, pipelines)
+19. **wubu_metal.c** — 10 gaps (GPU passthrough, DRM/KMS, ALSA, Pulse)
+20. **wubu_gamelib.c** — 11 gaps (scan, startmenu, placeholder)
 
 ## Test Suite Status
 
@@ -232,8 +231,8 @@ The Win98 desktop shell with Fable Windowing Agent:
 
 | Suite | Tests | Status |
 |-------|-------|--------|
-| test_jit | 30+ | ✅ |
-| test_memory | 15+ | ✅ |
+| test_jit | 82 | ✅ |
+| test_memory | 29 | ✅ |
 | test_tasking | 10 | ✅ |
 | test_input | 11/11 | ✅ |
 | test_worldsim | 18/18 | ✅ |
