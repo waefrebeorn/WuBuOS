@@ -25,12 +25,16 @@
 
 #include "dosgui_wm.h"
 #include "dosgui_startmenu.h"
+#include "dosgui_desktop.h"
+#include "wubu_notify.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "../compiler/holyc.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
 /* -- Global State ------------------------------------------------- */
 
@@ -65,6 +69,19 @@ typedef struct {
     int             current_desktop;
     int             desktop_count;
 
+    /* System Tray */
+    DosGuiSysTrayIcon systray_icons[DOSGUI_MAX_SYSTRAY_ICONS];
+    int             systray_count;
+
+    /* Notification Center */
+    DosGuiNotification notifications[DOSGUI_NOTIF_CENTER_MAX];
+    int             notif_count;
+    int             next_notif_id;
+    bool            notif_center_open;
+
+    /* Last real time for clock */
+    time_t          last_clock_update;
+
     /* Mouse state */
     int             mouse_x, mouse_y;
     int             ticks;
@@ -72,8 +89,41 @@ typedef struct {
 
 static DosGuiWM g_dwm = {0};
 
-/* -- Forward declarations ----------------------------------------- */
+/* ================================================================
+ * HolyC Terminal — Persistent HCCompiler per window
+ * ================================================================ */
 
+#define HOLYC_TERM_MAX_LINES  2000
+#define HOLYC_TERM_LINE_LEN   512
+#define HOLYC_TERM_HISTORY    100
+
+typedef struct {
+    HCCompiler       compiler;       /* Persistent HolyC compiler state */
+    char             lines[HOLYC_TERM_MAX_LINES][HOLYC_TERM_LINE_LEN];
+    int              line_count;
+    char             input[HOLYC_TERM_LINE_LEN];
+    int              input_pos;
+    int              cursor_blink;
+    char             history[HOLYC_TERM_HISTORY][HOLYC_TERM_LINE_LEN];
+    int              history_count;
+    int              history_pos;    /* -1 = current input, 0..history_count-1 = history */
+    bool             initialized;
+} HolycTerm;
+
+static HolycTerm g_holyc_terms[DOSGUI_MAX_WINDOWS] = {0};
+
+/* Initialize HolyC compiler for a terminal window */
+static void holyc_term_init_compiler(HolycTerm *term) {
+    if (term->initialized) return;
+    hc_gen_init(&term->compiler.gen);
+    term->compiler.gen.symbols.n_locals = 0;
+    term->compiler.gen.symbols.stack_size = 0;
+    term->compiler.gen.n_functions = 0;
+    term->compiler.gen.label_count = 0;
+    term->initialized = true;
+}
+
+/* Forward declarations for WM internal functions */
 static void raise_win(int i);
 static void close_win(int i);
 static int  hit_test(int x, int y);
@@ -92,7 +142,182 @@ static int icon_grid_x(int x);
 static int icon_grid_y(int y);
 static void snap_window_to_gaad(DosGuiWindow *w);
 
-/* -- Window List Management --------------------------------------- */
+/* Forward declarations for new API functions */
+void dosgui_taskbar_update_clock(time_t now);
+char *dosgui_taskbar_get_clock_str(void);
+
+/* Draw HolyC terminal content */
+static void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
+    HolycTerm *term = (HolycTerm*)win->user_data;
+    if (!term) return;
+    
+    const int tbh = title_bar_height();
+    const int bw = border_width();
+    
+    int cx = win->x + bw;
+    int cy = win->y + tbh;
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+    
+    /* Fill background */
+    vbe_fill_rect(cx, cy, cw, ch, 0x00000000);
+    
+    /* Draw output lines */
+    int x = cx + 4;
+    int y = cy + 4;
+    int line_h = 10;  /* 8px font + 2px spacing */
+    int max_visible = (ch - 8) / line_h;
+    
+    int start = term->line_count - max_visible;
+    if (start < 0) start = 0;
+    
+    for (int i = start; i < term->line_count; i++) {
+        if (y + line_h > cy + ch - 4) break;
+        vbe_draw_text(x, y, term->lines[i], 0x00FFFFFF, 1);
+        y += line_h;
+    }
+    
+    /* Draw input line with cursor */
+    if (y + line_h <= cy + ch - 4) {
+        char prompt_line[HOLYC_TERM_LINE_LEN + 8];
+        snprintf(prompt_line, sizeof(prompt_line), "$ %s", term->input);
+        vbe_draw_text(x, y, prompt_line, 0x00FFFF00, 1);
+        
+        /* Blinking cursor */
+        term->cursor_blink++;
+        if ((term->cursor_blink / 5) % 2 == 0) {
+            int cursor_x = x + (2 + term->input_pos) * 8;  /* 2 for "$ " */
+            vbe_vline(cursor_x, y, y + 8, 0x00FFFF00);
+        }
+    }
+}
+
+/* Add a line to terminal output */
+static void holyc_term_add_line(HolycTerm *term, const char *line) {
+    if (term->line_count < HOLYC_TERM_MAX_LINES) {
+        strncpy(term->lines[term->line_count], line, HOLYC_TERM_LINE_LEN - 1);
+        term->lines[term->line_count][HOLYC_TERM_LINE_LEN - 1] = '\0';
+        term->line_count++;
+    } else {
+        /* Scroll: shift all lines up */
+        for (int i = 1; i < HOLYC_TERM_MAX_LINES; i++) {
+            strcpy(term->lines[i-1], term->lines[i]);
+        }
+        strncpy(term->lines[HOLYC_TERM_MAX_LINES-1], line, HOLYC_TERM_LINE_LEN - 1);
+    }
+}
+
+/* Add to history */
+static void holyc_term_add_history(HolycTerm *term, const char *line) {
+    if (term->history_count < HOLYC_TERM_HISTORY) {
+        strncpy(term->history[term->history_count], line, HOLYC_TERM_LINE_LEN - 1);
+        term->history_count++;
+    } else {
+        for (int i = 1; i < HOLYC_TERM_HISTORY; i++) {
+            strcpy(term->history[i-1], term->history[i]);
+        }
+        strncpy(term->history[HOLYC_TERM_HISTORY-1], line, HOLYC_TERM_LINE_LEN - 1);
+    }
+    term->history_pos = -1;
+}
+
+/* Evaluate HolyC input via persistent compiler */
+static void holyc_term_eval(HolycTerm *term, const char *input) {
+    if (!input || !input[0]) return;
+    
+    /* Add to history */
+    holyc_term_add_history(term, input);
+    
+    /* Echo input */
+    char echo_line[HOLYC_TERM_LINE_LEN + 8];
+    snprintf(echo_line, sizeof(echo_line), "$ %s", input);
+    holyc_term_add_line(term, echo_line);
+    
+    /* Evaluate via HolyC compiler - use hc_eval which uses JIT */
+    int64_t result = hc_eval(input);
+    
+    /* Format result - HolyC uses I64 by default */
+    char result_line[HOLYC_TERM_LINE_LEN];
+    snprintf(result_line, sizeof(result_line), "= %ld", (long)result);
+    holyc_term_add_line(term, result_line);
+}
+
+/* Handle keyboard input for HolyC terminal */
+static void holyc_term_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)mods;
+    HolycTerm *term = (HolycTerm*)win->user_data;
+    if (!term) return;
+    
+    if (key == '\n' || key == '\r') {
+        /* Execute the input line */
+        if (term->input[0]) {
+            holyc_term_eval(term, term->input);
+            term->input[0] = '\0';
+            term->input_pos = 0;
+        }
+    } else if (key == 8 && term->input_pos > 0) {  /* Backspace */
+        term->input[--term->input_pos] = '\0';
+    } else if (key == 0xE048) {  /* Up arrow - history */
+        if (term->history_count > 0) {
+            if (term->history_pos < term->history_count - 1) {
+                if (term->history_pos == -1) {
+                    /* Save current input to temp */
+                    strcpy(term->history[term->history_count], term->input);
+                }
+                term->history_pos++;
+                strcpy(term->input, term->history[term->history_count - 1 - term->history_pos]);
+                term->input_pos = strlen(term->input);
+            }
+        }
+    } else if (key == 0xE050) {  /* Down arrow - history */
+        if (term->history_pos > 0) {
+            term->history_pos--;
+            strcpy(term->input, term->history[term->history_count - 1 - term->history_pos]);
+            term->input_pos = strlen(term->input);
+        } else if (term->history_pos == 0) {
+            term->history_pos = -1;
+            strcpy(term->input, term->history[term->history_count]);
+            term->input_pos = strlen(term->input);
+        }
+    } else if (key >= 32 && key < 127 && term->input_pos < HOLYC_TERM_LINE_LEN - 1) {
+        term->input[term->input_pos++] = (char)key;
+        term->input[term->input_pos] = '\0';
+    }
+}
+
+/* Spawn a HolyC terminal window */
+DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
+    DosGuiWindow *win = dosgui_wm_create(x, y, w, h, "HolyC Terminal");
+    if (!win) return NULL;
+    
+    int idx = -1;
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
+        if (&g_dwm.windows[i] == win) { idx = i; break; }
+    }
+    if (idx < 0) return NULL;
+    
+    HolycTerm *term = &g_holyc_terms[idx];
+    memset(term, 0, sizeof(*term));
+    
+    /* Initialize persistent HolyC compiler */
+    holyc_term_init_compiler(term);
+    
+    win->on_draw = holyc_term_draw;
+    win->on_key = holyc_term_key;
+    win->user_data = term;
+    
+    /* Add welcome line */
+    holyc_term_add_line(term, "WuBuOS HolyC Terminal v0.1");
+    holyc_term_add_line(term, "Type HolyC code. Ctrl+C to exit.");
+    holyc_term_add_line(term, "");
+    
+    return win;
+}
+
+/* ================================================================
+ * RENDERING — Themed Window Chrome
+ * ================================================================ */
 
 static void raise_win(int i) {
     int j = 0;
@@ -320,7 +545,9 @@ static void draw_window(int idx) {
                                       tc()->border_light, tc()->border_face,
                                       tc()->border_dark, tc()->border_darkest);
     } else {
-        vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+        vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                              tc()->border_light, tc()->border_face,
+                              tc()->border_dark, tc()->border_darkest);
     }
 
     if (w->on_draw) {
@@ -341,6 +568,11 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     g_dwm.drag_icon_id = -1;
     g_dwm.current_desktop = 0;
     g_dwm.desktop_count = 9;
+    g_dwm.systray_count = 0;
+    g_dwm.notif_count = 0;
+    g_dwm.next_notif_id = 1;
+    g_dwm.notif_center_open = false;
+    g_dwm.last_clock_update = 0;
     load_default_wallpaper();
     return 0;
 }
@@ -406,7 +638,46 @@ DosGuiWindow *dosgui_wm_spawn(int x, int y, int w, int h,
 /* -- Input ------------------------------------------------------- */
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
-    (void)mods;
+    /* Alt+Tab: cycle through windows */
+    bool alt_held = (mods & 0x08) != 0;
+    if (alt_held && key == 0x09 && g_dwm.nz > 1) {
+        /* Find current focused index in zorder */
+        int cur_idx = 0;
+        for (int j = 0; j < g_dwm.nz; j++) {
+            if (g_dwm.zorder[j] == g_dwm.focused_id) { cur_idx = j; break; }
+        }
+        /* Focus next window (wrap around) */
+        int next_idx = (cur_idx + 1) % g_dwm.nz;
+        int next_id = g_dwm.zorder[next_idx];
+        if (next_id >= 0 && next_id < DOSGUI_MAX_WINDOWS && g_dwm.windows[next_id].alive) {
+            raise_win(next_id);
+            g_dwm.focused_id = next_id;
+        }
+        return;
+    }
+
+    /* Win key (left or right): toggle start menu */
+    if (key == 0xE05B || key == 0xE05C) {
+        dosgui_startmenu_toggle();
+        return;
+    }
+
+    /* Win+H: spawn HolyC terminal */
+    if ((mods & 0x08) && (key == 0x48 || key == 'h' || key == 'H')) {
+        dosgui_wm_spawn_holyc_term(100, 100, 700, 500);
+        return;
+    }
+
+    /* First, try to dispatch to focused window */
+    if (g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive && w->on_key) {
+            w->on_key(w, key, mods);
+            return;
+        }
+    }
+    
+    /* Global hotkeys */
     if (key == 111 && g_dwm.focused_id >= 0) {
         close_win(g_dwm.focused_id);
     }
@@ -438,9 +709,6 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         } else if (key == 0xE04D) {
             g_dwm.current_desktop = (g_dwm.current_desktop + 1) % g_dwm.desktop_count;
         }
-    }
-    if (key == 0xE05B || key == 0xE05C) {
-        dosgui_startmenu_toggle();
     }
 }
 
@@ -490,6 +758,36 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
                 return;
             }
         }
+
+        /* Check system tray icons */
+        int tray_x = g_dwm.screen_w - 10;
+        dosgui_taskbar_update_clock(time(NULL));
+        char *clk = dosgui_taskbar_get_clock_str();
+        int clk_w = vbe_text_width(clk, 1);
+        tray_x -= clk_w + 10;
+
+        for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
+            if (g_dwm.systray_icons[i].visible) {
+                int sx = tray_x - DOSGUI_SYSTRAY_SIZE - 4;
+                int sy = g_dwm.screen_h - task_h + (task_h - DOSGUI_SYSTRAY_SIZE) / 2;
+                if (x >= sx && x < sx + DOSGUI_SYSTRAY_SIZE && y >= sy && y < sy + DOSGUI_SYSTRAY_SIZE) {
+                    if (kind == 1 && g_dwm.systray_icons[i].on_click) {
+                        g_dwm.systray_icons[i].on_click();
+                    } else if (kind == 1 && btn == 2 && g_dwm.systray_icons[i].on_right_click) {
+                        g_dwm.systray_icons[i].on_right_click();
+                    }
+                    return;
+                }
+                tray_x -= DOSGUI_SYSTRAY_SIZE + 4;
+            }
+        }
+
+        /* Check notification center toggle (far right before clock) */
+        if (x >= tray_x - 30 && x < tray_x && y >= by && y < by + 22) {
+            dosgui_notif_center_toggle();
+            return;
+        }
+
         return;
     }
 
@@ -538,8 +836,14 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
         if (i < 0) {
             int icon_idx = dosgui_icon_hit_test(x, y);
             if (icon_idx >= 0) {
+                if (btn == 2) { /* Right click */
+                    dosgui_icon_show_context_menu(icon_idx, x, y);
+                    return;
+                }
                 if (g_dwm.icons[icon_idx].on_click) {
                     g_dwm.icons[icon_idx].on_click();
+                } else if (g_dwm.icons[icon_idx].on_execute) {
+                    g_dwm.icons[icon_idx].on_execute();
                 }
                 g_dwm.drag_icon_id = icon_idx;
                 g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;
@@ -548,6 +852,10 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
                 return;
             }
             g_dwm.focused_id = -1;
+            if (btn == 2) { /* Right click on empty desktop */
+                dosgui_desktop_show_context_menu(x, y);
+                return;
+            }
             return;
         }
 
@@ -589,6 +897,11 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             g_dwm.drag_id = i;
             g_dwm.drag_ox = x - w->x;
             g_dwm.drag_oy = y - w->y;
+        } else {
+            /* Client area click - dispatch to window */
+            if (w->on_mouse) {
+                w->on_mouse(w, x - w->x, y - w->y, btn, kind);
+            }
         }
     } else if (kind == 2) {
         g_dwm.drag_id = -1;
@@ -607,6 +920,14 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
                 if (w->y < 0) w->y = 0;
                 if (w->y > g_dwm.screen_h - task_h - tbh)
                     w->y = g_dwm.screen_h - task_h - tbh;
+            }
+        } else {
+            /* Mouse move over client area - dispatch to focused window */
+            if (g_dwm.focused_id >= 0) {
+                DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+                if (w->alive && w->on_mouse) {
+                    w->on_mouse(w, x - w->x, y - w->y, btn, kind);
+                }
             }
         }
         if (g_dwm.drag_icon_id >= 0) {
@@ -633,7 +954,76 @@ int dosgui_icon_add(const char *name, int gx, int gy,
     icon->x = 20 + gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
     icon->y = 20 + gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
     icon->on_click = on_click;
+    icon->type = DESK_ICON_APP;
+    icon->icon_color = 0x0080FF;  /* Default blue */
     return g_dwm.icon_count++;
+}
+
+int dosgui_icon_add_ex(const char *name, DeskIconType type,
+                        const char *target, int gx, int gy,
+                        uint32_t icon_color, void (*on_execute)(void)) {
+    if (g_dwm.icon_count >= DOSGUI_MAX_ICONS) return -1;
+    DosGuiIcon *icon = &g_dwm.icons[g_dwm.icon_count];
+    memset(icon, 0, sizeof(*icon));
+    strncpy(icon->name, name, sizeof(icon->name) - 1);
+    icon->grid_x = gx; icon->grid_y = gy;
+    icon->x = 20 + gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    icon->y = 20 + gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    icon->type = type;
+    icon->icon_color = icon_color ? icon_color : 0x0080FF;
+    if (target) strncpy(icon->target, target, sizeof(icon->target) - 1);
+    icon->on_execute = on_execute;
+    icon->alive = true;
+    return g_dwm.icon_count++;
+}
+
+void dosgui_icon_remove(int grid_x, int grid_y) {
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        if (g_dwm.icons[i].alive && g_dwm.icons[i].grid_x == grid_x && g_dwm.icons[i].grid_y == grid_y) {
+            g_dwm.icons[i].alive = false;
+            /* Compact array */
+            for (int j = i; j < g_dwm.icon_count - 1; j++) {
+                g_dwm.icons[j] = g_dwm.icons[j + 1];
+            }
+            g_dwm.icon_count--;
+            return;
+        }
+    }
+}
+
+int dosgui_icon_find_at(int grid_x, int grid_y) {
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        if (g_dwm.icons[i].alive && g_dwm.icons[i].grid_x == grid_x && g_dwm.icons[i].grid_y == grid_y) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void dosgui_icon_set_position(int grid_x, int grid_y, int new_gx, int new_gy) {
+    int idx = dosgui_icon_find_at(grid_x, grid_y);
+    if (idx >= 0) {
+        DosGuiIcon *icon = &g_dwm.icons[idx];
+        /* Check if target position is occupied */
+        if (dosgui_icon_find_at(new_gx, new_gy) < 0) {
+            icon->grid_x = new_gx;
+            icon->grid_y = new_gy;
+            icon->x = 20 + new_gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+            icon->y = 20 + new_gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+        }
+    }
+}
+
+/* Shortcut Creation */
+
+int dosgui_shortcut_create(const char *name, const char *target,
+                            const char *description, int grid_x, int grid_y) {
+    (void)description;
+    return dosgui_icon_add_ex(name, DESK_ICON_SHORTCUT, target, grid_x, grid_y, 0x00FF00, NULL);
+}
+
+int dosgui_shortcut_create_url(const char *name, const char *url, int grid_x, int grid_y) {
+    return dosgui_icon_add_ex(name, DESK_ICON_URL, url, grid_x, grid_y, 0xFF8000, NULL);
 }
 
 int dosgui_icon_hit_test(int mx, int my) {
@@ -669,7 +1059,9 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         vbe_draw_text(8, by + 8, "Start", tc()->start_btn_text, 1);
     } else {
         vbe_fill_rect(4, by, 60, 22, tc()->start_btn_face);
-        vbe_3d_raised(4, by, 60, 22);
+        vbe_3d_raised_colors(4, by, 60, 22,
+                              tc()->border_light, tc()->border_face,
+                              tc()->border_dark, tc()->border_darkest);
         vbe_draw_text(8, by + 6, "+ NEW", tc()->start_btn_text, 1);
     }
 
@@ -698,11 +1090,15 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         } else {
             if (focused) {
                 vbe_fill_rect(bx, by, bw, 22, 0x000080);
-                vbe_3d_sunken(bx, by, bw, 22);
+                vbe_3d_sunken_colors(bx, by, bw, 22,
+                                      tc()->border_light, tc()->border_face,
+                                      tc()->border_dark, tc()->border_darkest);
                 vbe_draw_text(bx + 8, by + 6, w->title, 0xFFFFFF, 1);
             } else {
                 vbe_fill_rect(bx, by, bw, 22, tc()->btn_face);
-                vbe_3d_raised(bx, by, bw, 22);
+                vbe_3d_raised_colors(bx, by, bw, 22,
+                                      tc()->border_light, tc()->border_face,
+                                      tc()->border_dark, tc()->border_darkest);
                 vbe_draw_text(bx + 8, by + 6, w->title, tc()->btn_text, 1);
             }
         }
@@ -710,27 +1106,44 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         if (bx > g_dwm.screen_w - 160) break;
     }
 
-    int secs = g_dwm.ticks / 10;
-    char clk[16];
-    snprintf(clk, sizeof(clk), "UP %02d:%02d", (secs / 60) % 100, secs % 60);
+    /* System tray icons (drawn from right to left, before clock) */
+    int tray_x = fb_w - 10;
+
+    /* Clock */
+    dosgui_taskbar_update_clock(time(NULL));
+    char *clk = dosgui_taskbar_get_clock_str();
     int clk_w = vbe_text_width(clk, 1);
-    
-    int tray_x = fb_w - clk_w - 10;
-    
-    vbe_fill_rect(tray_x - 30, ty + (th - 16) / 2, 16, 16, tc()->btn_face);
-    vbe_3d_raised(tray_x - 30, ty + (th - 16) / 2, 16, 16);
-    vbe_draw_text(tray_x - 27, ty + (th - 8) / 2, "V", tc()->btn_text, 1);
-    tray_x -= 34;
-    
-    vbe_fill_rect(tray_x - 30, ty + (th - 16) / 2, 16, 16, tc()->btn_face);
-    vbe_3d_raised(tray_x - 30, ty + (th - 16) / 2, 16, 16);
-    vbe_draw_text(tray_x - 27, ty + (th - 8) / 2, "N", tc()->btn_text, 1);
-    tray_x -= 34;
-    
-    vbe_fill_rect(tray_x - 30, ty + (th - 16) / 2, 16, 16, tc()->btn_face);
-    vbe_3d_raised(tray_x - 30, ty + (th - 16) / 2, 16, 16);
-    vbe_draw_text(tray_x - 27, ty + (th - 8) / 2, "B", tc()->btn_text, 1);
-    tray_x -= 34;
+    tray_x -= clk_w + 10;
+
+    vbe_draw_text(tray_x, ty + (th - 8) / 2, clk,
+                  theme()->Luna_start_button ? 0xFFFFFF : tc()->icon_text, 1);
+
+    /* Draw system tray icons */
+    for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
+        if (g_dwm.systray_icons[i].visible) {
+            int x = tray_x - DOSGUI_SYSTRAY_SIZE - 4;
+            int y = ty + (th - DOSGUI_SYSTRAY_SIZE) / 2;
+
+            vbe_fill_rect(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE, tc()->btn_face);
+            vbe_3d_raised_colors(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE,
+                                 tc()->border_light, tc()->border_face,
+                                 tc()->border_dark, tc()->border_darkest);
+
+            vbe_fill_rect(x + 4, y + 4, 16, 16, g_dwm.systray_icons[i].icon_color);
+
+            /* Draw notification badge if count > 0 */
+            if (g_dwm.systray_icons[i].notification_count > 0) {
+                char badge[8];
+                snprintf(badge, sizeof(badge), "%d", 
+                    g_dwm.systray_icons[i].notification_count > 9 ? 9 : g_dwm.systray_icons[i].notification_count);
+                int bx = x + DOSGUI_SYSTRAY_SIZE - 8;
+                int by = y;
+                vbe_fill_rect_rounded(bx, by, 12, 12, 6, 0xFF0000);
+                vbe_draw_text(bx + 2, by + 1, badge, 0xFFFFFF, 1);
+            }
+            tray_x -= DOSGUI_SYSTRAY_SIZE + 4;
+        }
+    }
 
     int desk_x = tray_x - 150;
     for (int d = 0; d < g_dwm.desktop_count; d++) {
@@ -758,6 +1171,10 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
 
 /* -- Full Render ------------------------------------------------- */
 
+void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
+    dosgui_wm_render_desktop(fb, fb_w, fb_h);
+}
+
 void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
     draw_desktop_bg(fb_w, fb_h);
@@ -777,7 +1194,507 @@ void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h) {
 
     dosgui_taskbar_render(fb, fb_w, fb_h);
 
+    /* Render notification center if open (on top of everything) */
+    dosgui_notif_center_render(fb, fb_w, fb_h);
+
     vbe_draw_cursor(g_dwm.mouse_x, g_dwm.mouse_y);
+}
+
+/* ================================================================
+ * SYSTEM TRAY / NOTIFICATION AREA
+ * ================================================================ */
+
+static void draw_systray_icon(int idx, int ty, int th) {
+    DosGuiSysTrayIcon *icon = &g_dwm.systray_icons[idx];
+    if (!icon->visible) return;
+
+    int x = g_dwm.screen_w - 50 - idx * (DOSGUI_SYSTRAY_SIZE + 4);
+    int y = ty + (th - DOSGUI_SYSTRAY_SIZE) / 2;
+
+    /* Draw icon background */
+    vbe_fill_rect(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE, tc()->btn_face);
+    vbe_3d_raised_colors(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE,
+                         tc()->border_light, tc()->border_face,
+                         tc()->border_dark, tc()->border_darkest);
+
+    /* Draw simple colored square as icon */
+    vbe_fill_rect(x + 4, y + 4, 16, 16, icon->icon_color);
+
+    /* Draw notification badge if count > 0 */
+    if (icon->notification_count > 0) {
+        char badge[8];
+        snprintf(badge, sizeof(badge), "%d", icon->notification_count > 9 ? 9 : icon->notification_count);
+        int bx = x + DOSGUI_SYSTRAY_SIZE - 8;
+        int by = y;
+        vbe_fill_rect_rounded(bx, by, 12, 12, 6, 0xFF0000);
+        vbe_draw_text(bx + 2, by + 1, badge, 0xFFFFFF, 1);
+    }
+}
+
+int dosgui_systray_add(const char *name, uint32_t color,
+                        void (*on_click)(void),
+                        void (*on_right_click)(void)) {
+    if (g_dwm.systray_count >= DOSGUI_MAX_SYSTRAY_ICONS) return -1;
+
+    DosGuiSysTrayIcon *icon = &g_dwm.systray_icons[g_dwm.systray_count];
+    memset(icon, 0, sizeof(*icon));
+    strncpy(icon->name, name, sizeof(icon->name) - 1);
+    icon->icon_color = color;
+    icon->visible = true;
+    icon->on_click = on_click;
+    icon->on_right_click = on_right_click;
+    icon->notification_count = 0;
+
+    return g_dwm.systray_count++;
+}
+
+void dosgui_systray_remove(const char *name) {
+    for (int i = 0; i < g_dwm.systray_count; i++) {
+        if (strcmp(g_dwm.systray_icons[i].name, name) == 0) {
+            for (int j = i; j < g_dwm.systray_count - 1; j++) {
+                g_dwm.systray_icons[j] = g_dwm.systray_icons[j + 1];
+            }
+            g_dwm.systray_count--;
+            return;
+        }
+    }
+}
+
+void dosgui_systray_set_notification_count(const char *name, int count) {
+    for (int i = 0; i < g_dwm.systray_count; i++) {
+        if (strcmp(g_dwm.systray_icons[i].name, name) == 0) {
+            g_dwm.systray_icons[i].notification_count = count;
+            return;
+        }
+    }
+}
+
+/* ================================================================
+ * NOTIFICATION CENTER
+ * ================================================================ */
+
+int dosgui_notif_center_add(const char *app_name, const char *summary,
+                             const char *body, int urgency) {
+    if (g_dwm.notif_count >= DOSGUI_NOTIF_CENTER_MAX) {
+        /* Shift oldest out */
+        for (int i = 1; i < g_dwm.notif_count; i++) {
+            g_dwm.notifications[i - 1] = g_dwm.notifications[i];
+        }
+        g_dwm.notif_count--;
+    }
+
+    DosGuiNotification *n = &g_dwm.notifications[g_dwm.notif_count];
+    memset(n, 0, sizeof(*n));
+    n->id = g_dwm.next_notif_id++;
+    strncpy(n->app_name, app_name, sizeof(n->app_name) - 1);
+    strncpy(n->summary, summary, sizeof(n->summary) - 1);
+    if (body) strncpy(n->body, body, sizeof(n->body) - 1);
+    n->timestamp = (uint32_t)time(NULL);
+    n->urgency = urgency;
+    n->read = false;
+    n->expanded = false;
+
+    g_dwm.notif_count++;
+
+    /* Update systray notification badge */
+    dosgui_systray_set_notification_count("Notifications", g_dwm.notif_count);
+
+    /* Also send to wubu_notify daemon if available */
+    (void)wubu_notify_simple(app_name, summary, body ? body : "",
+                              NULL, urgency, urgency == 2 ? 0 : 5000);
+
+    return n->id;
+}
+
+void dosgui_notif_center_mark_read(uint32_t id) {
+    for (int i = 0; i < g_dwm.notif_count; i++) {
+        if (g_dwm.notifications[i].id == id) {
+            g_dwm.notifications[i].read = true;
+            return;
+        }
+    }
+}
+
+void dosgui_notif_center_clear(void) {
+    g_dwm.notif_count = 0;
+    dosgui_systray_set_notification_count("Notifications", 0);
+}
+
+bool dosgui_notif_center_is_open(void) {
+    return g_dwm.notif_center_open;
+}
+
+void dosgui_notif_center_toggle(void) {
+    g_dwm.notif_center_open = !g_dwm.notif_center_open;
+    /* Mark all as read when opening */
+    if (g_dwm.notif_center_open) {
+        for (int i = 0; i < g_dwm.notif_count; i++) {
+            g_dwm.notifications[i].read = true;
+        }
+        dosgui_systray_set_notification_count("Notifications", 0);
+    }
+}
+
+void dosgui_notif_center_render(uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb;
+    if (!g_dwm.notif_center_open) return;
+
+    int th = taskbar_height_dynamic();
+    int ty = fb_h - th;
+
+    /* Draw panel on right side, above taskbar */
+    int panel_w = 350;
+    int panel_h = fb_h - th;
+    int panel_x = fb_w - panel_w;
+    int panel_y = ty - panel_h;
+
+    vbe_fill_rect_rounded(panel_x, panel_y, panel_w, panel_h, 8, tc()->win_face);
+    vbe_3d_sunken_rounded_colors(panel_x, panel_y, panel_w, panel_h, 8,
+                                  tc()->border_light, tc()->border_face,
+                                  tc()->border_dark, tc()->border_darkest);
+
+    /* Header */
+    vbe_fill_rect_rounded(panel_x + 4, panel_y + 4, panel_w - 8, 30, 4, tc()->select_bg);
+    vbe_draw_text(panel_x + 10, panel_y + 10, "Notification Center", tc()->select_text, 1);
+
+    /* Notifications list */
+    int ny = panel_y + 40;
+    for (int i = 0; i < g_dwm.notif_count; i++) {
+        DosGuiNotification *n = &g_dwm.notifications[i];
+        if (ny + 60 > panel_y + panel_h - 10) break;
+
+        uint32_t bg = n->read ? 0xFF303030 : tc()->select_bg;
+        vbe_fill_rect_rounded(panel_x + 4, ny, panel_w - 8, 56, 4, bg);
+        vbe_3d_raised_rounded_colors(panel_x + 4, ny, panel_w - 8, 56, 4,
+                                      tc()->border_light, tc()->border_face,
+                                      tc()->border_dark, tc()->border_darkest);
+
+        /* Urgency indicator */
+        uint32_t urg_color = (n->urgency == 2) ? 0xFF0000 : (n->urgency == 1 ? 0xFFFF00 : 0x00FF00);
+        vbe_fill_rect(panel_x + 6, ny + 6, 4, 44, urg_color);
+
+        /* App name */
+        vbe_draw_text(panel_x + 14, ny + 6, n->app_name, tc()->icon_text, 1);
+
+        /* Summary */
+        vbe_draw_text(panel_x + 14, ny + 18, n->summary, n->read ? tc()->icon_text_shadow : tc()->win_title_text, 1);
+
+        /* Body */
+        if (n->body[0]) {
+            vbe_draw_text(panel_x + 14, ny + 30, n->body, tc()->icon_text_shadow, 1);
+        }
+
+        /* Time */
+        char time_str[16];
+        time_t t = n->timestamp;
+        struct tm *tm = localtime(&t);
+        snprintf(time_str, sizeof(time_str), "%02d:%02d", tm->tm_hour, tm->tm_min);
+        vbe_draw_text(panel_x + panel_w - 60, ny + 6, time_str, tc()->icon_text_shadow, 1);
+
+        ny += 60;
+    }
+}
+
+/* ================================================================
+ * CLOCK
+ * ================================================================ */
+
+void dosgui_taskbar_update_clock(time_t now) {
+    g_dwm.last_clock_update = now;
+}
+
+char *dosgui_taskbar_get_clock_str(void) {
+    time_t now = time(NULL);
+    struct tm *tm = localtime(&now);
+    static char clk[16];
+    snprintf(clk, sizeof(clk), "%02d:%02d", tm->tm_hour, tm->tm_min);
+    return clk;
+}
+
+/* Global context menu stack */
+DosGuiContextMenu *g_dosgui_ctx_stack = NULL;
+
+/* -- Context Menu Stack Management -- */
+
+static void ctx_menu_push(DosGuiContextMenu *menu) {
+    menu->parent = g_dosgui_ctx_stack;
+    g_dosgui_ctx_stack = menu;
+}
+
+static void ctx_menu_pop(void) {
+    if (g_dosgui_ctx_stack) {
+        DosGuiContextMenu *old = g_dosgui_ctx_stack;
+        g_dosgui_ctx_stack = old->parent;
+        old->parent = NULL;
+    }
+}
+
+DosGuiContextMenu *dosgui_ctx_menu_create(int x, int y) {
+    DosGuiContextMenu *menu = (DosGuiContextMenu*)calloc(1, sizeof(DosGuiContextMenu));
+    if (!menu) return NULL;
+    menu->x = x;
+    menu->y = y;
+    menu->visible = false;
+    menu->selected_item = -1;
+    menu->item_count = 0;
+    return menu;
+}
+
+void dosgui_ctx_menu_add_item(DosGuiContextMenu *menu, const char *label,
+                               void (*action)(void)) {
+    if (!menu || menu->item_count >= DOSGUI_MAX_CTX_ITEMS) return;
+    DosGuiCtxItem *item = &menu->items[menu->item_count];
+    item->type = CTX_ITEM_ACTION;
+    item->action = action;
+    strncpy(item->label, label, sizeof(item->label) - 1);
+    item->disabled = false;
+    item->checked = false;
+    menu->item_count++;
+}
+
+void dosgui_ctx_menu_add_separator(DosGuiContextMenu *menu) {
+    if (!menu || menu->item_count >= DOSGUI_MAX_CTX_ITEMS) return;
+    DosGuiCtxItem *item = &menu->items[menu->item_count];
+    item->type = CTX_ITEM_SEPARATOR;
+    menu->item_count++;
+}
+
+DosGuiContextMenu *dosgui_ctx_menu_add_submenu(DosGuiContextMenu *menu, const char *label) {
+    if (!menu || menu->item_count >= DOSGUI_MAX_CTX_ITEMS) return NULL;
+    DosGuiContextMenu *submenu = dosgui_ctx_menu_create(0, 0);
+    if (!submenu) return NULL;
+    DosGuiCtxItem *item = &menu->items[menu->item_count];
+    item->type = CTX_ITEM_SUBMENU;
+    strncpy(item->label, label, sizeof(item->label) - 1);
+    item->submenu = submenu;
+    menu->item_count++;
+    return submenu;
+}
+
+void dosgui_ctx_menu_show(DosGuiContextMenu *menu, int x, int y) {
+    if (!menu) return;
+    menu->x = x;
+    menu->y = y;
+    menu->visible = true;
+    menu->selected_item = 0;
+    /* Find first non-separator item */
+    for (int i = 0; i < menu->item_count; i++) {
+        if (menu->items[i].type != CTX_ITEM_SEPARATOR) {
+            menu->selected_item = i;
+            break;
+        }
+    }
+    ctx_menu_push(menu);
+}
+
+void dosgui_ctx_menu_hide(DosGuiContextMenu *menu) {
+    if (!menu) return;
+    menu->visible = false;
+    if (g_dosgui_ctx_stack == menu) {
+        ctx_menu_pop();
+    }
+}
+
+void dosgui_ctx_menu_handle_mouse(int x, int y, int btn, int kind) {
+    if (!g_dosgui_ctx_stack) return;
+    
+    DosGuiContextMenu *menu = g_dosgui_ctx_stack;
+    int item_h = 24;
+    int menu_w = 180;
+    int menu_x = menu->x;
+    int menu_y = menu->y;
+    
+    /* Check if click is outside menu */
+    if (x < menu_x || x >= menu_x + menu_w || y < menu_y || y >= menu_y + menu->item_count * item_h) {
+        /* Pop all menus */
+        while (g_dosgui_ctx_stack) {
+            ctx_menu_pop();
+        }
+        return;
+    }
+    
+    if (kind == 0) { /* Mouse move */
+        int item = (y - menu_y) / item_h;
+        if (item >= 0 && item < menu->item_count && menu->items[item].type != CTX_ITEM_SEPARATOR) {
+            menu->selected_item = item;
+        }
+    } else if (kind == 1) { /* Mouse down */
+        int item = (y - menu_y) / item_h;
+        if (item >= 0 && item < menu->item_count) {
+            DosGuiCtxItem *it = &menu->items[item];
+            if (it->type == CTX_ITEM_ACTION && it->action && !it->disabled) {
+                it->action();
+                while (g_dosgui_ctx_stack) ctx_menu_pop();
+            } else if (it->type == CTX_ITEM_SUBMENU && it->submenu) {
+                /* Show submenu to the right */
+                dosgui_ctx_menu_show(it->submenu, menu_x + menu_w, menu_y + item * item_h);
+            }
+        }
+    }
+}
+
+void dosgui_ctx_menu_render(uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
+    
+    DosGuiContextMenu *menu = g_dosgui_ctx_stack;
+    while (menu) {
+        if (!menu->visible) {
+            menu = menu->parent;
+            continue;
+        }
+        
+        int item_h = 24;
+        int menu_w = 180;
+        int menu_h = menu->item_count * item_h;
+        int mx = menu->x;
+        int my = menu->y;
+        
+        /* Clamp to screen */
+        if (mx + menu_w > fb_w) mx = fb_w - menu_w;
+        if (my + menu_h > fb_h) my = fb_h - menu_h;
+        if (mx < 0) mx = 0;
+        if (my < 0) my = 0;
+        menu->x = mx;
+        menu->y = my;
+        
+        /* Draw menu background */
+        vbe_fill_rect_rounded(mx, my, menu_w, menu_h, 4, tc()->win_face);
+        vbe_3d_sunken_rounded_colors(mx, my, menu_w, menu_h, 4,
+                                      tc()->border_light, tc()->border_face,
+                                      tc()->border_dark, tc()->border_darkest);
+        
+        /* Draw items */
+        for (int i = 0; i < menu->item_count; i++) {
+            int y = my + i * item_h;
+            DosGuiCtxItem *it = &menu->items[i];
+            
+            if (it->type == CTX_ITEM_SEPARATOR) {
+                vbe_hline(mx + 10, mx + menu_w - 10, y + item_h / 2, tc()->border_dark);
+                continue;
+            }
+            
+            /* Highlight selected */
+            if (i == menu->selected_item && it->type != CTX_ITEM_SUBMENU) {
+                vbe_fill_rect(mx + 2, y, menu_w - 4, item_h, tc()->select_bg);
+            }
+            
+            /* Draw label */
+            uint32_t text_color = it->disabled ? 0x808080 : tc()->win_title_text;
+            vbe_draw_text(mx + 10, y + (item_h - 8) / 2, it->label, text_color, 1);
+            
+            /* Draw submenu indicator */
+            if (it->type == CTX_ITEM_SUBMENU && it->submenu) {
+                vbe_draw_text(mx + menu_w - 20, y + (item_h - 8) / 2, ">", text_color, 1);
+            }
+            
+            /* Draw checkmark */
+            if (it->checked) {
+                vbe_draw_text(mx + 2, y + (item_h - 8) / 2, "*", text_color, 1);
+            }
+        }
+        
+        menu = menu->parent;
+    }
+}
+
+/* -- Default Context Menu Actions -- */
+
+static void ctx_action_open(void) {
+    int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx >= 0 && g_dwm.icons[idx].on_execute) {
+        g_dwm.icons[idx].on_execute();
+    }
+}
+
+static void ctx_action_rename(void) {
+    int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx >= 0) {
+        (void)wubu_notify_simple("Desktop", "Rename", "F2 to rename (stub)", NULL, 1, 3000);
+    }
+}
+
+static void ctx_action_delete(void) {
+    int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx >= 0) {
+        /* Confirm dialog would go here */
+        g_dwm.icons[idx].alive = false;
+        while (g_dosgui_ctx_stack) ctx_menu_pop();
+    }
+}
+
+static void ctx_action_properties(void) {
+    int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx >= 0) {
+        DosGuiIcon *ic = &g_dwm.icons[idx];
+        char msg[512];
+        snprintf(msg, sizeof(msg), "Name: %s\nType: %d\nTarget: %s", ic->name, ic->type, ic->target);
+        (void)wubu_notify_simple("Properties", ic->name, msg, NULL, 1, 5000);
+    }
+}
+
+static void ctx_action_create_shortcut(void) {
+    (void)wubu_notify_simple("Desktop", "Create Shortcut", "Right-click empty space -> New -> Shortcut (stub)", NULL, 1, 3000);
+}
+
+static void ctx_action_view_desktop(void) {
+    (void)wubu_notify_simple("Desktop", "View", "Desktop view options (stub)", NULL, 1, 3000);
+}
+
+static void ctx_action_sort_by_name(void) {
+    /* Would sort icons by name */
+}
+
+static void ctx_action_refresh(void) {
+    (void)wubu_notify_simple("Desktop", "Refresh", "Desktop refreshed", NULL, 1, 2000);
+}
+
+/* -- Show Icon Context Menu -- */
+
+void dosgui_icon_show_context_menu(int icon_idx, int mx, int my) {
+    if (icon_idx < 0 || icon_idx >= DOSGUI_MAX_ICONS) return;
+    if (!g_dwm.icons[icon_idx].alive) return;
+    
+    DosGuiContextMenu *menu = dosgui_ctx_menu_create(mx, my);
+    if (!menu) return;
+    
+    /* Select the icon */
+    g_dwm.icons[icon_idx].selected = true;
+    
+    dosgui_ctx_menu_add_item(menu, "Open", ctx_action_open);
+    dosgui_ctx_menu_add_separator(menu);
+    dosgui_ctx_menu_add_item(menu, "Rename", ctx_action_rename);
+    dosgui_ctx_menu_add_item(menu, "Delete", ctx_action_delete);
+    dosgui_ctx_menu_add_separator(menu);
+    dosgui_ctx_menu_add_item(menu, "Properties", ctx_action_properties);
+    
+    dosgui_ctx_menu_show(menu, mx, my);
+}
+
+void dosgui_desktop_show_context_menu(int mx, int my) {
+    DosGuiContextMenu *menu = dosgui_ctx_menu_create(mx, my);
+    if (!menu) return;
+    
+    dosgui_ctx_menu_add_item(menu, "New", NULL);
+    
+    DosGuiContextMenu *newmenu = dosgui_ctx_menu_add_submenu(menu, "New");
+    dosgui_ctx_menu_add_item(newmenu, "Shortcut", ctx_action_create_shortcut);
+    dosgui_ctx_menu_add_item(newmenu, "Folder", NULL);
+    dosgui_ctx_menu_add_item(newmenu, "Text Document", NULL);
+    
+    dosgui_ctx_menu_add_separator(menu);
+    dosgui_ctx_menu_add_item(menu, "View", ctx_action_view_desktop);
+    
+    DosGuiContextMenu *viewmenu = dosgui_ctx_menu_add_submenu(menu, "Sort By");
+    dosgui_ctx_menu_add_item(viewmenu, "Name", ctx_action_sort_by_name);
+    dosgui_ctx_menu_add_item(viewmenu, "Size", NULL);
+    dosgui_ctx_menu_add_item(viewmenu, "Type", NULL);
+    dosgui_ctx_menu_add_item(viewmenu, "Date Modified", NULL);
+    
+    dosgui_ctx_menu_add_separator(menu);
+    dosgui_ctx_menu_add_item(menu, "Refresh", ctx_action_refresh);
+    dosgui_ctx_menu_add_item(menu, "Properties", ctx_action_properties);
+    
+    dosgui_ctx_menu_show(menu, mx, my);
 }
 
 /* -- Tick ------------------------------------------------------- */

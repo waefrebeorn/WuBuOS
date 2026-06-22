@@ -983,13 +983,14 @@ int wubu_metal_init(int width, int height) {
     g_env = WUBU_ENV_METAL;
 
     /* Initialize kernel subsystems */
-    mem_init(1024 * 1024);
+    mem_init(1024 * 1024 * 4);
     vbe_init(width, height);
+
+#ifndef WUBU_HOSTED_TEST
     interrupt_init();
 
     /* Initialize PIT timer for preemptive multitasking (100 Hz) */
     /* Only enable in real bare-metal environment (CAP_SYS_RAWIO) */
-    #ifndef WUBU_HOSTED_TEST
     if (pit_init(100) == 0) {
         task_preempt_enable();
         printf("[metal] PIT timer initialized at 100 Hz, preemption enabled\n");
@@ -999,7 +1000,7 @@ int wubu_metal_init(int width, int height) {
 
     /* Initialize tasking */
     tasking_init();
-    #endif
+#endif
 
     return wubu_disp_init(width, height);
 }
@@ -1010,8 +1011,10 @@ void wubu_metal_run(void) {
 }
 
 void wubu_metal_shutdown(void) {
+#ifndef WUBU_HOSTED_TEST
     pit_shutdown();
     interrupt_shutdown();
+#endif
     vbe_shutdown();
     wubu_disp_shutdown();
 }

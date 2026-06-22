@@ -79,6 +79,43 @@ int main(void) {
     T(vsl_close(fd) != 0, "double close fails");
     T(vsl_close(0) != 0, "close(0) stdin fails");
 
+    /* -- Seek Operations -- */
+    printf("\n[Seek Operations]\n");
+    int sfd = vsl_open("/tmp/vsl_lseek_test.txt", 0x241, 0644);
+    T(sfd >= 3, "open() for seek test returns valid FD");
+
+    /* Write some data first via host fd */
+    const char *test_data = "Hello, VSL lseek!";
+    int host_fd = -1;
+    /* We can't directly access host fd from test, but we can test lseek on the VSL fd */
+    /* Since vsl_open now opens real files, lseek should work */
+
+    /* Test SEEK_SET: seek to beginning */
+    int64_t pos = vsl_lseek(sfd, 0, SEEK_SET);
+    T(pos == 0, "lseek(SEEK_SET, 0) returns 0");
+
+    /* Test SEEK_CUR: seek forward */
+    pos = vsl_lseek(sfd, 5, SEEK_CUR);
+    T(pos == 5, "lseek(SEEK_CUR, 5) returns 5");
+
+    /* Test SEEK_SET: seek to specific offset */
+    pos = vsl_lseek(sfd, 10, SEEK_SET);
+    T(pos == 10, "lseek(SEEK_SET, 10) returns 10");
+
+    /* Test lseek on invalid fd */
+    pos = vsl_lseek(999, 0, SEEK_SET);
+    T(pos == -9, "lseek on invalid fd returns -9 (EBADF)");
+
+    /* Test lseek on stdin (fd 0) - should work via host delegation */
+    pos = vsl_lseek(0, 0, SEEK_SET);
+    /* stdin is a real fd, lseek on it may fail (pipe) or succeed, just check it doesn't crash */
+    (void)pos;
+
+    T(vsl_close(sfd) == 0, "close seek test fd succeeds");
+
+    /* Clean up test file */
+    remove("/tmp/vsl_lseek_test.txt");
+
     /* -- Driver Management -- */
     printf("\n[Driver Management]\n");
     int drv = vsl_register_driver(VSL_DRV_GPU_VULKAN, 0, 0, 0, 0);

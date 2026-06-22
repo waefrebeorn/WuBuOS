@@ -57,6 +57,14 @@ typedef enum {
     PROTON_LUTRIS    = 3,   /* Lutris Wine */
 } WubuProtonFlavor;
 
+typedef enum {
+    GAMESCOPE_MODE_OFF       = 0,  /* Disable GameScope */
+    GAMESCOPE_MODE_STEAM_DECK = 1, /* Steam Deck style fullscreen */
+    GAMESCOPE_MODE_FULLSCREEN = 2, /* Fullscreen with upscaling */
+    GAMESCOPE_MODE_WINDOWED   = 3, /* Windowed with border */
+    GAMESCOPE_MODE_HDR       = 4,  /* HDR mode */
+} GameScopeMode;
+
 typedef struct {
     /* Wine/Proton installation */
     WubuProtonFlavor flavor;
@@ -70,6 +78,17 @@ typedef struct {
     bool             dxvk_async;         /* Async shader compilation */
     char             dxvk_hud[64];       /* fps,devinfo,full or off */
     int              dxvk_frame_rate;    /* Frame rate limit (0=unlimited) */
+
+    /* GameScope (Steam Deck UX) */
+    GameScopeMode    gamescope_mode;     /* GameScope mode */
+    bool             gamescope_fsr;      /* FSR upscaling */
+    int              gamescope_width;    /* Target width (internal resolution) */
+    int              gamescope_height;   /* Target height */
+    char             gamescope_filter[32]; /* upscaling filter: fsr, nis, integer */
+    int              gamescope_refresh;  /* Refresh rate (Hz, 0=auto) */
+    bool             gamescope_hdr;      /* HDR output */
+    bool             gamescope_fullscreen; /* Fullscreen mode */
+    char             gamescope_opts[512];  /* Extra gamescope args */
 
     /* GPU */
     bool             gpu_passthrough;    /* /dev/dri + /dev/nvidia */
@@ -207,7 +226,25 @@ int  wubu_gpu_open(const char *pci);
 
 /* Configure DXVK for a specific app */
 int  wubu_proton_dxvk_config(WubuProtonManager *mgr, int app_idx,
-                               const char *config_str);
+                              const char *config_str);
+
+/* ==================================================================
+ *  API: GameScope (Steam Deck UX)
+ * ================================================================== */
+
+/* Enable GameScope for an app */
+int  wubu_proton_gamescope_enable(WubuProtonManager *mgr, int app_idx,
+                                   GameScopeMode mode);
+
+/* Configure GameScope settings */
+int  wubu_proton_gamescope_config(WubuProtonManager *mgr, int app_idx,
+                                   bool fsr, const char *filter,
+                                   int width, int height, int refresh,
+                                   bool hdr, bool fullscreen);
+
+/* Generate GameScope command line for an app */
+int  wubu_proton_gamescope_cmd(WubuProtonManager *mgr, int app_idx,
+                                char *out_cmd, size_t size);
 
 /* ==================================================================
  *  API: HID/USB Input

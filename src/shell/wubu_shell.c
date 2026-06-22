@@ -20,7 +20,6 @@
 #include "../gui/wm.h"
 #include "../gui/desktop.c"
 #include "../gui/taskbar.c"
-#include "../gui/theme.c"
 #include "../gui/startmenu.h"
 #include "../gui/gui_dbuf.h"
 #include "../apps/repl.h"

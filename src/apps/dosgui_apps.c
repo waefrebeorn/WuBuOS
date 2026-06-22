@@ -180,8 +180,12 @@ static void calc_draw_button(DosGuiWindow *win, int btn_idx) {
         tc->btn_face;
 
     vbe_fill_rect(bx, by, bw, bh, bg);
-    if (active) vbe_3d_sunken(bx, by, bw, bh);
-    else vbe_3d_raised(bx, by, bw, bh);
+    if (active) vbe_3d_sunken_colors(bx, by, bw, bh,
+                                      tc->border_light, tc->border_face,
+                                      tc->border_dark, tc->border_darkest);
+    else vbe_3d_raised_colors(bx, by, bw, bh,
+                               tc->border_light, tc->border_face,
+                               tc->border_dark, tc->border_darkest);
     vbe_draw_text(bx + (bw - vbe_text_width(g_calc_buttons[btn_idx].label, 1))/2,
                   by + (bh - 8)/2,
                   g_calc_buttons[btn_idx].label, 0x00000000, 1);
@@ -197,7 +201,9 @@ void dosgui_calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, tc->win_face);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     calc_layout();
     calc_draw_display(fb, cx + 4, cy + 4, cw - 8, CALC_DISPLAY_H);
@@ -221,14 +227,16 @@ static int g_notepad_cursor = 0;
 void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
-    
+
     int cx = win->x + DOSGUI_BORDER;
     int cy = win->y + DOSGUI_TITLE_H;
     int cw = win->w - 2 * DOSGUI_BORDER;
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, 0x00FFFFFF);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     int x = cx + 4;
     int y = cy + 4;
@@ -266,7 +274,9 @@ void dosgui_paint_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, tc->win_face);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     int canvas_w = cw - 160; /* palette on right */
     int canvas_h = ch - 8;
@@ -326,7 +336,9 @@ void dosgui_repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, 0x00000000);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     int x = cx + 4;
     int y = cy + 4;
@@ -373,7 +385,9 @@ void dosgui_control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, tc->win_face);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Tab bar */
     int tab_h = 24;
@@ -382,8 +396,12 @@ void dosgui_control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
         int tx = cx + i * tab_w;
         uint32_t bg = (i == g_ctrl_tab) ? tc->select_bg : tc->btn_face;
         vbe_fill_rect(tx, cy, tab_w, tab_h, bg);
-        if (i == g_ctrl_tab) vbe_3d_sunken(tx, cy, tab_w, tab_h);
-        else vbe_3d_raised(tx, cy, tab_w, tab_h);
+        if (i == g_ctrl_tab) vbe_3d_sunken_colors(tx, cy, tab_w, tab_h,
+                                                   tc->border_light, tc->border_face,
+                                                   tc->border_dark, tc->border_darkest);
+        else vbe_3d_raised_colors(tx, cy, tab_w, tab_h,
+                                   tc->border_light, tc->border_face,
+                                   tc->border_dark, tc->border_darkest);
         vbe_draw_text(tx + (tab_w - vbe_text_width(ctrl_tabs[i], 1))/2,
                       cy + (tab_h - 8)/2, ctrl_tabs[i], 0x00000000, 1);
     }
@@ -394,14 +412,18 @@ void dosgui_control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int pw = cw - 8;
     int ph = ch - tab_h - 8;
     vbe_fill_rect(px, py, pw, ph, tc->win_face);
-    vbe_3d_sunken(px, py, pw, ph);
+    vbe_3d_sunken_colors(px, py, pw, ph,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     if (g_ctrl_tab == 1) { /* Theme tab */
         const char *themes[] = {"Win98 Classic", "XP Luna Blue", "XP Media Orange", "WuBu Green"};
         for (int i = 0; i < 4; i++) {
             int iy = py + 8 + i * 32;
             vbe_fill_rect(px + 8, iy, 200, 28, (i == 0) ? tc->select_bg : tc->btn_face);
-            vbe_3d_raised(px + 8, iy, 200, 28);
+            vbe_3d_raised_colors(px + 8, iy, 200, 28,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
             vbe_fill_rect(px + 12, iy + 4, 20, 20, tc->desktop_bg);
             vbe_rect(px + 12, iy + 4, 20, 20, tc->border_dark);
             vbe_draw_text(px + 40, iy + 10, themes[i], 0x00000000, 1);
@@ -444,7 +466,9 @@ void dosgui_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, tc->win_face);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Draw a simple canvas area */
     vbe_fill_rect(cx + 4, cy + 4, cw - 8, ch - 8, 0x00FFFFFF);
@@ -464,7 +488,9 @@ void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, tc->win_face);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Draw simple file list */
     vbe_draw_text(cx + 8, cy + 8, "File Manager", 0x00000000, 1);
@@ -489,7 +515,9 @@ void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ch = win->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
 
     vbe_fill_rect(cx, cy, cw, ch, 0x00000000);
-    vbe_3d_sunken(cx - 1, cy - 1, cw + 2, ch + 2);
+    vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     vbe_draw_text(cx + 8, cy + 8, "WuBuOS Terminal", 0x0000FF00, 1);
     vbe_draw_text(cx + 8, cy + 24, "wubu@arch:~$ ", 0x0000FF00, 1);
@@ -510,6 +538,7 @@ void dosgui_launch_file_manager(void)   { dosgui_app_launch(DESK_ICON_EXPLORER);
 void dosgui_launch_settings(void)       { dosgui_app_launch(DESK_ICON_SETTINGS); }
 void dosgui_launch_editor(void)         { dosgui_app_launch(DESK_ICON_COUNT); }
 void dosgui_launch_canvas(void)         { dosgui_app_launch(DESK_ICON_COUNT + 1); }
+void dosgui_launch_holyc_term(void)     { dosgui_wm_spawn_holyc_term(80, 60, 640, 480); }
 
 /* ================================================================
  * App Registry for Desktop/StartMenu
@@ -575,6 +604,11 @@ DosGuiWindow* dosgui_app_launch_by_name(const char *name) {
         }
     }
     return NULL;
+}
+
+/* HolyC Terminal draw stub - handled by dosgui_wm's holyc_term_draw */
+void dosgui_holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)win; (void)fb; (void)fb_w; (void)fb_h;
 }
 
 /* ================================================================

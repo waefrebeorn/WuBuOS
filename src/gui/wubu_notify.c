@@ -3,6 +3,8 @@
  * Phase 2: libnotify-compatible notification server
  */
 
+#define _POSIX_C_SOURCE 200809L
+
 #include "wubu_notify.h"
 #include "wubu_settings.h"
 #include "dosgui_wm.h"

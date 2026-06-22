@@ -25,7 +25,9 @@
 #include <fcntl.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
+#include <sys/prctl.h>
 #include "styxfs.h"
+#include "wubu_ct_isolate.h"
 
 /* -- State/Runtime Names ------------------------------------------- */
 
@@ -262,15 +264,21 @@ int wubu_ct_start(WubuCt *ct) {
     /* Add X11 socket for GUI apps */
     wubu_ct_add_bind(ct, "/tmp/.X11-unix", "/tmp/.X11-unix", false);
     
+    /* Cell 420: Setup isolation (cgroups v2 + seccomp) before fork */
+    wubu_ct_setup_isolation(ct);
+
     /* Fork */
     pid_t pid = fork();
     if (pid < 0) {
         ct->state = CT_FAILED;
         return -1;
     }
-    
+
     if (pid == 0) {
         /* -- CHILD: container process -------------------------- */
+
+        /* Cell 420: Apply child isolation (cgroup attach + seccomp filter) */
+        wubu_ct_child_isolation();
         
         /* chroot into container root (Arch base) */
         if (ct->root[0] && chroot(ct->root) != 0) {
@@ -317,7 +325,11 @@ int wubu_ct_start(WubuCt *ct) {
         if (ct->styx_fd >= 0) {
             pid_t styx_pid = fork();
             if (styx_pid == 0) {
-                /* Styx server child: serve 9P on the socket */
+                /* Styx server grandchild: die when parent (container) exits */
+                #ifdef __linux__
+                prctl(PR_SET_PDEATHSIG, SIGTERM);
+                #endif
+                /* Close the exec side of the socket — we only serve */
                 run_container_styx_server(ct);
                 _exit(0);
             }

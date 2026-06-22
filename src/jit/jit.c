@@ -5,11 +5,18 @@
  * Uses mmap(PROT_READ|PROT_WRITE|PROT_EXEC) for executable memory
  * and hand-encoded x86-64 machine code for primitives.
  *
- * MIR and AsmJit backends will be added as separate files
- * (jit_mir.c, jit_asmjit.c) and selected at context init time.
+ * Backends:
+ *   0 (MMAP): mmap + x86-64 hand-encoding (always available, simple expressions)
+ *   1 (MIR):  Self-hosted C→x86-64 via gcc -shared + dlopen (real C compilation)
+ *   2 (ASMJIT): Assembly text → wubu_x86 encoder → executable (x86-64 asm JIT)
+ *
+ * External deps replaced: capstone → wubu_disasm, asmjit → wubu_x86,
+ * MIR/c2m → gcc -shared + dlopen (host compiler, not external lib).
  */
 
 #include "jit.h"
+#include "wubu_x86.h"
+#include "wubu_disasm.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +24,8 @@
 #include <stdarg.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <dlfcn.h>
+#include <limits.h>
 
 /* -- Internal: Page size ------------------------------------------ */
 
@@ -239,6 +248,414 @@ static JITResult mmap_compile_simple(JITContext *ctx,
     return JIT_OK;
 }
 
+/* -- MIR Backend: Self-Hosted C → GCC → dlopen ------------------ */
+
+/* Forward declaration — asmjit backend defined below */
+static JITResult jit_asmjit_compile_impl(JITContext *ctx,
+                                          const char *source,
+                                          JITLang lang,
+                                          const char *fn_name,
+                                          JITFunc *out_func);
+
+/*
+ * Strategy: use self-hosted minic compiler (jit_minic_compile) for C source.
+ * Falls back to `gcc -O2 -shared -fPIC` + dlopen for HolyC or complex C
+ * that minic can't handle yet.
+ */
+
+static JITResult jit_mir_compile_impl(JITContext *ctx,
+                                       const char *source,
+                                       JITLang lang,
+                                       const char *fn_name,
+                                       JITFunc *out_func) {
+    
+    if (!source || !fn_name) return JIT_ERR_COMPILE;
+    
+    /* Self-hosted path: use minic for C source (expressions and mini-C functions) */
+    if (lang == JIT_LANG_C || lang == JIT_LANG_EXPR) {
+        JITResult rc = jit_minic_compile(ctx, source, lang, fn_name, out_func);
+        if (rc == JIT_OK) return rc;
+        /* minic couldn't handle it — fall through to gcc+dlopen */
+    }
+    
+    /* Assembly text → can't compile as C; route to asmjit backend */
+    if (lang == JIT_LANG_ASM) {
+        return jit_asmjit_compile_impl(ctx, source, lang, fn_name, out_func);
+    }
+    
+    /* Generate unique temp filenames using PID + counter */
+    static int mir_seq = 0;
+    char tmp_c[256], tmp_so[256];
+    snprintf(tmp_c, sizeof(tmp_c), "/tmp/wubu_jit_%d_%d.c", (int)getpid(), mir_seq);
+    snprintf(tmp_so, sizeof(tmp_so), "/tmp/wubu_jit_%d_%d.so", (int)getpid(), mir_seq);
+    mir_seq++;
+    
+    /* Write C source */
+    FILE *f = fopen(tmp_c, "w");
+    if (!f) return JIT_ERR_ALLOC;
+    
+    if (lang == JIT_LANG_HOLYC) {
+        /* Wrap HolyC as C-compatible source */
+        fprintf(f, "/* WuBuOS HolyC wrapper */\n");
+        fprintf(f, "typedef long I64;\ntypedef unsigned char U8;\n");
+        fprintf(f, "typedef unsigned long U64;\n");
+        fprintf(f, "#include <stdint.h>\n");
+        fprintf(f, "__attribute__((visibility(\"default\")))\n");
+        fprintf(f, "long %s(long a, long b) {\n", fn_name);
+        fprintf(f, "  %s\n", source);
+        fprintf(f, "}\n");
+    } else if (lang == JIT_LANG_ASM) {
+        /* Assembly text → can't compile as C; route to asmjit backend */
+        fclose(f);
+        unlink(tmp_c);
+        return jit_asmjit_compile_impl(ctx, source, lang, fn_name, out_func);
+    } else {
+        /* Standard C: wrap the source in a function if it looks like an expression */
+        fprintf(f, "#include <stdint.h>\n");
+        fprintf(f, "__attribute__((visibility(\"default\")))\n");
+        fprintf(f, "long %s(long a, long b) {\n", fn_name);
+        fprintf(f, "  return (long)(%s);\n", source);
+        fprintf(f, "}\n");
+    }
+    fclose(f);
+    
+    /* Compile via gcc -shared -fPIC -O2 */
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd),
+             "gcc -O2 -shared -fPIC -o %s %s 2>/dev/null",
+             tmp_so, tmp_c);
+    int gcc_rc = system(cmd);
+    unlink(tmp_c);
+    
+    if (gcc_rc != 0) return JIT_ERR_COMPILE;
+    
+    /* dlopen the .so — RTLD_LOCAL prevents symbol collisions between compiles */
+    void *handle = dlopen(tmp_so, RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        unlink(tmp_so);
+        return JIT_ERR_LINK;
+    }
+    
+    /* dlsym the function */
+    void *sym = dlsym(handle, fn_name);
+    if (!sym) {
+        dlclose(handle);
+        unlink(tmp_so);
+        return JIT_ERR_LINK;
+    }
+    
+    /* We can't free the .so while the symbol is in use, so we keep
+     * a reference. The code pointer is the function entry itself. */
+    out_func->code = sym;
+    out_func->code_size = 0;  /* unknown size for dynamically loaded code */
+    out_func->backend = JIT_BACKEND_MIR;
+    out_func->name = strdup(fn_name);
+    out_func->n_args = 2;  /* default: (a, b) */
+    
+    /* Store the dl handle in a way we can clean up later.
+     * For now: the .so stays loaded. jit_func_free will dlclose it. */
+    /* We repurpose code_size field: 0 means "externally managed, don't munmap" */
+    
+    /* Clean up .so file (it's loaded in memory now) */
+    unlink(tmp_so);
+    
+    ctx->stats.total_compiled++;
+    return JIT_OK;
+}
+
+/* -- ASMJIT Backend: Assembly Text → wubu_x86 Encoder ------------ */
+
+/*
+ * Parses simple x86-64 assembly text and emits machine code
+ * using our wubu_x86 encoder. Supports:
+ *   mov reg, imm64 / mov reg, reg / add, sub, imul, xor, cmp,
+ *   neg, ret, push, pop, shl, shr, sar, call reg, cqo, idiv
+ *   jmp label / je label / jne label / jl / jg / jle / jge
+ *   label:  (definition, with backpatching for forward refs)
+ */
+
+/* Simple label table for backpatching */
+#define JIT_MAX_LABELS 64
+#define JIT_MAX_LABEL_NAME 32
+
+typedef struct {
+    char name[JIT_MAX_LABEL_NAME];
+    size_t pos;       /* Position in code buffer where label is defined */
+    bool defined;
+} JITLabel;
+
+typedef struct {
+    char name[JIT_MAX_LABEL_NAME];
+    size_t patch_pos;  /* Position of rel32 to patch */
+    Wx86CC cc;         /* Condition code for Jcc; WCC_O for JMP */
+} JITLabelRef;
+
+typedef struct {
+    JITLabel     labels[JIT_MAX_LABELS];
+    int          n_labels;
+    JITLabelRef  refs[JIT_MAX_LABELS * 4];  /* up to 4 refs per label */
+    int          n_refs;
+} JITLabelTable;
+
+static void ltab_init(JITLabelTable *lt) {
+    memset(lt, 0, sizeof(*lt));
+}
+
+static void ltab_define(JITLabelTable *lt, const char *name, size_t pos) {
+    if (lt->n_labels >= JIT_MAX_LABELS) return;
+    JITLabel *l = &lt->labels[lt->n_labels++];
+    snprintf(l->name, JIT_MAX_LABEL_NAME, "%s", name);
+    l->pos = pos;
+    l->defined = true;
+}
+
+static void ltab_add_ref(JITLabelTable *lt, const char *name,
+                          size_t patch_pos, Wx86CC cc) {
+    if (lt->n_refs >= (int)(JIT_MAX_LABELS * 4)) return;
+    JITLabelRef *r = &lt->refs[lt->n_refs++];
+    snprintf(r->name, JIT_MAX_LABEL_NAME, "%s", name);
+    r->patch_pos = patch_pos;
+    r->cc = cc;
+}
+
+static void ltab_resolve(JITLabelTable *lt, Wx86Enc *e) {
+    /* First pass: resolve refs to already-defined labels */
+    for (int i = 0; i < lt->n_refs; i++) {
+        JITLabelRef *r = &lt->refs[i];
+        for (int j = 0; j < lt->n_labels; j++) {
+            if (strcmp(r->name, lt->labels[j].name) == 0) {
+                wx86_patch_rel32(e, r->patch_pos, lt->labels[j].pos);
+                break;
+            }
+        }
+    }
+}
+
+/* Parse a register name to Wx86Reg */
+static Wx86Reg parse_reg(const char *s) {
+    const char *names[] = {
+        "rax","rcx","rdx","rbx","rsp","rbp","rsi","rdi",
+        "r8","r9","r10","r11","r12","r13","r14","r15", NULL
+    };
+    for (int i = 0; names[i]; i++) {
+        if (strcmp(s, names[i]) == 0) return (Wx86Reg)i;
+    }
+    return WREG_NONE;
+}
+
+/* Parse condition code from jcc mnemonic */
+static Wx86CC parse_jcc(const char *mnemonic) {
+    if (strcmp(mnemonic, "je")  == 0 || strcmp(mnemonic, "jz")  == 0) return WCC_E;
+    if (strcmp(mnemonic, "jne") == 0 || strcmp(mnemonic, "jnz") == 0) return WCC_NE;
+    if (strcmp(mnemonic, "jl")  == 0) return WCC_L;
+    if (strcmp(mnemonic, "jg")  == 0) return WCC_G;
+    if (strcmp(mnemonic, "jle") == 0) return WCC_LE;
+    if (strcmp(mnemonic, "jge") == 0) return WCC_GE;
+    if (strcmp(mnemonic, "jb")  == 0 || strcmp(mnemonic, "jnae") == 0) return WCC_B;
+    if (strcmp(mnemonic, "jae") == 0 || strcmp(mnemonic, "jnb")  == 0) return WCC_AE;
+    if (strcmp(mnemonic, "ja")  == 0 || strcmp(mnemonic, "jnbe") == 0) return WCC_A;
+    if (strcmp(mnemonic, "jbe") == 0 || strcmp(mnemonic, "jna")  == 0) return WCC_BE;
+    if (strcmp(mnemonic, "js")  == 0) return WCC_S;
+    if (strcmp(mnemonic, "jns") == 0) return WCC_NS;
+    return (Wx86CC)-1;
+}
+
+/* Skip whitespace and return pointer to next non-space char */
+static const char *skip_ws(const char *p) {
+    while (*p == ' ' || *p == '\t') p++;
+    return p;
+}
+
+static JITResult jit_asmjit_compile_impl(JITContext *ctx,
+                                          const char *source,
+                                          JITLang lang,
+                                          const char *fn_name,
+                                          JITFunc *out_func) {
+    (void)lang;
+    if (!source) return JIT_ERR_COMPILE;
+    
+    Wx86Enc enc;
+    wx86_enc_init_dynamic(&enc, 4096);
+    
+    JITLabelTable ltab;
+    ltab_init(&ltab);
+    
+    /* Parse assembly line by line */
+    const char *p = source;
+    char line[256];
+    
+    while (*p) {
+        /* Read one line */
+        int i = 0;
+        while (*p && *p != '\n' && i < (int)sizeof(line) - 1)
+            line[i++] = *p++;
+        line[i] = '\0';
+        if (*p == '\n') p++;
+        
+        /* Trim trailing whitespace/newline */
+        char *end = line + strlen(line) - 1;
+        while (end > line && (*end == ' ' || *end == '\t' || *end == '\r'))
+            *end-- = '\0';
+        
+        /* Skip empty lines and comments */
+        const char *lp = skip_ws(line);
+        if (*lp == '\0' || *lp == '#') continue;
+        
+        /* Check for label definition (ends with ':') */
+        size_t llen = strlen(lp);
+        if (llen > 1 && lp[llen - 1] == ':') {
+            char label_name[JIT_MAX_LABEL_NAME];
+            size_t lname_len = llen - 1;
+            if (lname_len >= JIT_MAX_LABEL_NAME) lname_len = JIT_MAX_LABEL_NAME - 1;
+            memcpy(label_name, lp, lname_len);
+            label_name[lname_len] = '\0';
+            ltab_define(&ltab, label_name, enc.pos);
+            continue;
+        }
+        
+        /* Parse mnemonic */
+        char mnemonic[16] = {0};
+        char op1[64] = {0};
+        char op2[64] = {0};
+        int nargs = sscanf(lp, "%15s %63[^,] , %63s", mnemonic, op1, op2);
+        if (nargs < 1) continue;
+        
+        /* Decode and emit */
+        if (strcmp(mnemonic, "ret") == 0) {
+            wx86_ret(&enc);
+        } else if (strcmp(mnemonic, "cqo") == 0) {
+            wx86_cqo(&enc);
+        } else if (strcmp(mnemonic, "neg") == 0 && nargs >= 2) {
+            Wx86Reg r = parse_reg(skip_ws(op1));
+            if (r != WREG_NONE) wx86_neg_reg(&enc, r);
+        } else if (strcmp(mnemonic, "idiv") == 0 && nargs >= 2) {
+            Wx86Reg r = parse_reg(skip_ws(op1));
+            if (r != WREG_NONE) wx86_idiv_reg(&enc, r);
+        } else if (strcmp(mnemonic, "push") == 0 && nargs >= 2) {
+            Wx86Reg r = parse_reg(skip_ws(op1));
+            if (r != WREG_NONE) wx86_push_reg(&enc, r);
+        } else if (strcmp(mnemonic, "pop") == 0 && nargs >= 2) {
+            Wx86Reg r = parse_reg(skip_ws(op1));
+            if (r != WREG_NONE) wx86_pop_reg(&enc, r);
+        } else if (strcmp(mnemonic, "mov") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            Wx86Reg src = parse_reg(skip_ws(op2));
+            if (dst != WREG_NONE && src != WREG_NONE) {
+                wx86_mov_reg_reg(&enc, dst, src);
+            } else if (dst != WREG_NONE && src == WREG_NONE) {
+                /* mov reg, imm */
+                char *endp = NULL;
+                long imm = strtol(skip_ws(op2), &endp, 0);
+                if (endp && *endp == '\0') {
+                    if (imm >= INT32_MIN && imm <= INT32_MAX) {
+                        wx86_mov_reg_imm32(&enc, dst, (int32_t)imm);
+                    } else {
+                        wx86_mov_reg_imm64(&enc, dst, imm);
+                    }
+                }
+            }
+        } else if (strcmp(mnemonic, "add") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            Wx86Reg src = parse_reg(skip_ws(op2));
+            if (dst != WREG_NONE && src != WREG_NONE) {
+                wx86_add_reg_reg(&enc, dst, src);
+            } else if (dst != WREG_NONE) {
+                long imm = strtol(skip_ws(op2), NULL, 0);
+                wx86_add_reg_imm32(&enc, dst, (int32_t)imm);
+            }
+        } else if (strcmp(mnemonic, "sub") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            Wx86Reg src = parse_reg(skip_ws(op2));
+            if (dst != WREG_NONE && src != WREG_NONE) {
+                wx86_sub_reg_reg(&enc, dst, src);
+            } else if (dst != WREG_NONE) {
+                long imm = strtol(skip_ws(op2), NULL, 0);
+                wx86_sub_reg_imm32(&enc, dst, (int32_t)imm);
+            }
+        } else if (strcmp(mnemonic, "imul") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            Wx86Reg src = parse_reg(skip_ws(op2));
+            if (dst != WREG_NONE && src != WREG_NONE)
+                wx86_imul_reg_reg(&enc, dst, src);
+        } else if (strcmp(mnemonic, "xor") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            Wx86Reg src = parse_reg(skip_ws(op2));
+            if (dst != WREG_NONE && src != WREG_NONE)
+                wx86_xor_reg_reg(&enc, dst, src);
+        } else if (strcmp(mnemonic, "cmp") == 0 && nargs >= 3) {
+            Wx86Reg a = parse_reg(skip_ws(op1));
+            Wx86Reg b = parse_reg(skip_ws(op2));
+            if (a != WREG_NONE && b != WREG_NONE)
+                wx86_cmp_reg_reg(&enc, a, b);
+            else if (a != WREG_NONE) {
+                long imm = strtol(skip_ws(op2), NULL, 0);
+                wx86_cmp_reg_imm32(&enc, a, (int32_t)imm);
+            }
+        } else if (strcmp(mnemonic, "test") == 0 && nargs >= 3) {
+            Wx86Reg a = parse_reg(skip_ws(op1));
+            Wx86Reg b = parse_reg(skip_ws(op2));
+            if (a != WREG_NONE && b != WREG_NONE)
+                wx86_test_reg_reg(&enc, a, b);
+        } else if (strcmp(mnemonic, "shl") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            long imm = strtol(skip_ws(op2), NULL, 0);
+            if (dst != WREG_NONE) wx86_shl_reg_imm8(&enc, dst, (uint8_t)imm);
+        } else if (strcmp(mnemonic, "shr") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            long imm = strtol(skip_ws(op2), NULL, 0);
+            if (dst != WREG_NONE) wx86_shr_reg_imm8(&enc, dst, (uint8_t)imm);
+        } else if (strcmp(mnemonic, "sar") == 0 && nargs >= 3) {
+            Wx86Reg dst = parse_reg(skip_ws(op1));
+            long imm = strtol(skip_ws(op2), NULL, 0);
+            if (dst != WREG_NONE) wx86_sar_reg_imm8(&enc, dst, (uint8_t)imm);
+        } else if (strcmp(mnemonic, "call") == 0 && nargs >= 2) {
+            Wx86Reg r = parse_reg(skip_ws(op1));
+            if (r != WREG_NONE) {
+                wx86_call_reg(&enc, r);
+            } else {
+                /* call label — emit rel32 placeholder, add ref */
+                wx86_call_rel32(&enc);
+                ltab_add_ref(&ltab, skip_ws(op1), enc.pos - 4, (Wx86CC)-2);
+            }
+        } else if (strcmp(mnemonic, "jmp") == 0 && nargs >= 2) {
+            wx86_jmp_rel32(&enc);
+            ltab_add_ref(&ltab, skip_ws(op1), enc.pos - 4, (Wx86CC)-1);
+        } else if (strncmp(mnemonic, "j", 1) == 0 && nargs >= 2) {
+            /* Conditional jump */
+            Wx86CC cc = parse_jcc(mnemonic);
+            if ((int)cc >= 0) {
+                wx86_jcc_rel32(&enc, cc);
+                ltab_add_ref(&ltab, skip_ws(op1), enc.pos - 4, cc);
+            }
+        }
+    }
+    
+    /* Resolve all label references */
+    ltab_resolve(&ltab, &enc);
+    
+    /* Allocate executable memory and copy code */
+    size_t alloc_size = align_to_page(enc.pos);
+    void *exec_mem = jit_alloc_exec(alloc_size ? alloc_size : (size_t)g_page_size);
+    if (!exec_mem) {
+        wx86_enc_free(&enc);
+        return JIT_ERR_ALLOC;
+    }
+    
+    memcpy(exec_mem, enc.buf, enc.pos);
+    wx86_enc_free(&enc);
+    
+    out_func->code = exec_mem;
+    out_func->code_size = enc.pos;
+    out_func->backend = JIT_BACKEND_ASMJIT;
+    out_func->name = strdup(fn_name ? fn_name : "asm");
+    out_func->n_args = 2;  /* default */
+    
+    ctx->stats.total_alloc += alloc_size;
+    ctx->stats.total_compiled++;
+    
+    return JIT_OK;
+}
+
 /* -- Main Compile Dispatch --------------------------------------- */
 
 JITResult jit_compile(JITContext *ctx,
@@ -258,12 +675,10 @@ JITResult jit_compile(JITContext *ctx,
             return mmap_compile_simple(ctx, source, fn_name, out_func);
             
         case JIT_BACKEND_MIR:
-            /* TODO: jit_mir_compile() */
-            return JIT_ERR_BACKEND;
+            return jit_mir_compile_impl(ctx, source, lang, fn_name, out_func);
             
         case JIT_BACKEND_ASMJIT:
-            /* TODO: jit_asmjit_compile() */
-            return JIT_ERR_BACKEND;
+            return jit_asmjit_compile_impl(ctx, source, lang, fn_name, out_func);
     }
     
     return JIT_ERR_BACKEND;
@@ -284,7 +699,8 @@ JITResult jit_compile_file(JITContext *ctx,
     char *source = malloc(size + 1);
     if (!source) { fclose(f); return JIT_ERR_ALLOC; }
     
-    fread(source, 1, size, f);
+    size_t nread = fread(source, 1, size, f);
+    (void)nread;
     source[size] = '\0';
     fclose(f);
     
@@ -332,7 +748,15 @@ void *jit_callv(JITFunc *fn, ...) {
 
 void jit_func_free(JITFunc *fn) {
     if (fn) {
-        if (fn->code) jit_free_exec(fn->code, fn->code_size);
+        if (fn->code) {
+            /* MIR backend (code_size == 0): code is from dlopen, don't munmap.
+             * The .so stays loaded in the process (minor leak, but safe).
+             * MMAP/ASMJIT backend (code_size > 0): mmap'd, use jit_free_exec. */
+            if (fn->code_size > 0)
+                jit_free_exec(fn->code, fn->code_size);
+            /* For MIR: dlopen'd code stays until process exit.
+             * A production version would track the dlopen handle and dlclose it. */
+        }
         if (fn->name) free(fn->name);
         memset(fn, 0, sizeof(JITFunc));
     }
@@ -364,12 +788,26 @@ void jit_func_dump(const JITFunc *fn, FILE *out) {
 }
 
 void jit_func_disasm(const JITFunc *fn, FILE *out) {
-    /* Requires capstone or libopcodes  --  TODO */
     if (!fn || !out) return;
-    fprintf(out, "Disassembly not yet implemented (need capstone)\n");
-    jit_func_dump(fn, out);
+    if (!fn->code || fn->code_size == 0) {
+        fprintf(out, "(no code)\n");
+        return;
+    }
+    fprintf(out, "JITFunc '%s' (%zu bytes, backend=%d):\n",
+            fn->name ? fn->name : "?", fn->code_size, fn->backend);
+    /* Use our self-hosted disassembler (replaces capstone requirement) */
+    const uint8_t *code = (const uint8_t *)fn->code;
+    wdisasm_dump(code, fn->code_size, out);
 }
 
 void jit_stats(const JITContext *ctx, JITStats *out) {
     if (ctx && out) *out = ctx->stats;
+}
+
+void jit_stats_add_alloc(JITContext *ctx, size_t bytes) {
+    if (ctx) ctx->stats.total_alloc += bytes;
+}
+
+void jit_stats_inc_compiled(JITContext *ctx) {
+    if (ctx) ctx->stats.total_compiled++;
 }

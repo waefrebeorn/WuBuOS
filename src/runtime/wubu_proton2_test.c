@@ -138,6 +138,108 @@ static void test_proton_dump(void) {
     PASS();
 }
 
+/* -- GameScope (Steam Deck UX) ------------------------------------ */
+
+static void test_gamescope_enable(void) {
+    TEST("GameScope enable modes");
+    WubuProtonManager *mgr = wubu_proton_mgr_create(NULL);
+    WubuProtonApp app = {0};
+    strncpy(app.name, "TestGame", sizeof(app.name));
+    strncpy(app.exe_path, "/game.exe", sizeof(app.exe_path));
+    int idx = wubu_proton_add_app(mgr, &app);
+    CHECK(idx >= 0, "app added");
+
+    /* Test each mode */
+    int rc = wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_STEAM_DECK);
+    CHECK(rc == 0, "Steam Deck mode should succeed");
+    CHECK(mgr->apps[idx].config.gamescope_mode == GAMESCOPE_MODE_STEAM_DECK, "mode set");
+    CHECK(mgr->apps[idx].config.gamescope_fsr == true, "FSR on");
+    CHECK(mgr->apps[idx].config.gamescope_fullscreen == true, "fullscreen on");
+
+    rc = wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_FULLSCREEN);
+    CHECK(rc == 0, "Fullscreen mode should succeed");
+
+    rc = wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_WINDOWED);
+    CHECK(rc == 0, "Windowed mode should succeed");
+
+    rc = wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_HDR);
+    CHECK(rc == 0, "HDR mode should succeed");
+    CHECK(mgr->apps[idx].config.gamescope_hdr == true, "HDR on");
+
+    rc = wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_OFF);
+    CHECK(rc == 0, "Off mode should succeed");
+    CHECK(mgr->apps[idx].config.gamescope_mode == GAMESCOPE_MODE_OFF, "mode off");
+
+    wubu_proton_mgr_destroy(mgr);
+    PASS();
+}
+
+static void test_gamescope_config(void) {
+    TEST("GameScope config options");
+    WubuProtonManager *mgr = wubu_proton_mgr_create(NULL);
+    WubuProtonApp app = {0};
+    strncpy(app.name, "ConfigGame", sizeof(app.name));
+    strncpy(app.exe_path, "/game.exe", sizeof(app.exe_path));
+    int idx = wubu_proton_add_app(mgr, &app);
+    CHECK(idx >= 0, "app added");
+
+    /* Configure with FSR */
+    int rc = wubu_proton_gamescope_config(mgr, idx, true, "fsr", 1920, 1080, 60, false, true);
+    CHECK(rc == 0, "config should succeed");
+    CHECK(mgr->apps[idx].config.gamescope_fsr == true, "FSR enabled");
+    CHECK(strcmp(mgr->apps[idx].config.gamescope_filter, "fsr") == 0, "filter set");
+    CHECK(mgr->apps[idx].config.gamescope_width == 1920, "width set");
+    CHECK(mgr->apps[idx].config.gamescope_height == 1080, "height set");
+    CHECK(mgr->apps[idx].config.gamescope_refresh == 60, "refresh set");
+    CHECK(mgr->apps[idx].config.gamescope_fullscreen == true, "fullscreen set");
+
+    /* Configure without FSR */
+    rc = wubu_proton_gamescope_config(mgr, idx, false, NULL, 0, 0, 0, true, false);
+    CHECK(rc == 0, "config without FSR should succeed");
+    CHECK(mgr->apps[idx].config.gamescope_fsr == false, "FSR disabled");
+    CHECK(mgr->apps[idx].config.gamescope_hdr == true, "HDR set");
+
+    wubu_proton_mgr_destroy(mgr);
+    PASS();
+}
+
+static void test_gamescope_cmd_generation(void) {
+    TEST("GameScope command generation");
+    WubuProtonManager *mgr = wubu_proton_mgr_create(NULL);
+    WubuProtonApp app = {0};
+    strncpy(app.name, "CmdGame", sizeof(app.name));
+    strncpy(app.exe_path, "/game.exe", sizeof(app.exe_path));
+    strcpy(app.args, "-windowed");
+    int idx = wubu_proton_add_app(mgr, &app);
+    CHECK(idx >= 0, "app added");
+
+    /* Enable GameScope with Steam Deck mode */
+    wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_STEAM_DECK);
+
+    /* Generate command */
+    char cmd[2048];
+    int rc = wubu_proton_gamescope_cmd(mgr, idx, cmd, sizeof(cmd));
+    CHECK(rc == 0, "cmd generation should succeed");
+    printf("Cmd: %s\n", cmd);
+    CHECK(strstr(cmd, "gamescope") != NULL, "contains gamescope");
+    CHECK(strstr(cmd, "-f") != NULL, "fullscreen flag");
+    CHECK(strstr(cmd, "-r 1280x800") != NULL, "render resolution");
+    CHECK(strstr(cmd, "-U") != NULL, "upscaling flag");
+    CHECK(strstr(cmd, "--filter fsr") != NULL, "FSR filter");
+    CHECK(strstr(cmd, "-- /usr/bin/wine") != NULL, "wine command");
+    CHECK(strstr(cmd, "/game.exe' -windowed") != NULL, "game exe with args");
+
+    /* Disable GameScope - should just return wine command */
+    wubu_proton_gamescope_enable(mgr, idx, GAMESCOPE_MODE_OFF);
+    rc = wubu_proton_gamescope_cmd(mgr, idx, cmd, sizeof(cmd));
+    CHECK(rc == 0, "cmd generation off should succeed");
+    CHECK(strstr(cmd, "gamescope") == NULL, "no gamescope when off");
+    CHECK(strstr(cmd, "/usr/bin/wine") != NULL, "direct wine command");
+
+    wubu_proton_mgr_destroy(mgr);
+    PASS();
+}
+
 /* -- Main --------------------------------------------------------- */
 
 int main(void) {
@@ -157,6 +259,11 @@ int main(void) {
     test_proton_is_running();
     test_proton_container_access();
     test_proton_dump();
+
+    printf("\n-- GameScope (Steam Deck UX) --\n\n");
+    test_gamescope_enable();
+    test_gamescope_config();
+    test_gamescope_cmd_generation();
 
     printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n",

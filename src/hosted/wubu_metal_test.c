@@ -7,6 +7,12 @@
 #include <assert.h>
 #include <stdlib.h>
 
+/* Stub: wubu_shell_run is not testable in isolation (requires full GUI stack) */
+__attribute__((weak)) int wubu_shell_run(int width, int height) {
+    (void)width; (void)height;
+    return 0;
+}
+
 #define TEST(name) void test_##name(void)
 #define ASSERT(cond, fmt, ...) \
     do { if (!(cond)) { \

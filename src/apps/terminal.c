@@ -293,8 +293,13 @@ static void term_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
         int tx = x;
         uint32_t bg = (t == g_term.active) ? 0x00000080 : 0x00C0C0C0;
         vbe_fill_rect(tx, y, 100, tab_h, bg);
-        if (t == g_term.active) vbe_3d_sunken(tx, y, 100, tab_h);
-        else vbe_3d_raised(tx, y, 100, tab_h);
+        const WubuThemeColors *tc = wubu_theme_colors();
+        if (t == g_term.active) vbe_3d_sunken_colors(tx, y, 100, tab_h,
+                                                      tc->border_light, tc->border_face,
+                                                      tc->border_dark, tc->border_darkest);
+        else vbe_3d_raised_colors(tx, y, 100, tab_h,
+                                   tc->border_light, tc->border_face,
+                                   tc->border_dark, tc->border_darkest);
         vbe_draw_text(tx + 4, y + 8, t->title, 0x00000000, 1);
         x += 104;
     }
@@ -312,7 +317,10 @@ static void term_draw_content(WmWindow *win, void *fb, int fb_w, int fb_h) {
     int h = win->h - WM_TITLE_HEIGHT - 24 - 8;
 
     vbe_fill_rect(x, y, w, h, 0x00000000);
-    vbe_3d_sunken(x, y, w, h);
+    const WubuThemeColors *tc = wubu_theme_colors();
+    vbe_3d_sunken_colors(x, y, w, h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     int line_h = 16;
     int max_visible = h / line_h;
@@ -410,6 +418,38 @@ static void term_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
     if (len > 0) term_send_input(tab, seq, len);
 }
 
+static void term_handle_resize(WmWindow *win, int w, int h) {
+    if (!g_term.active) return;
+
+    /* Calculate new terminal dimensions */
+    int new_cols = (w - 4) / TERM_FONT_W;
+    int new_rows = (h - WM_TITLE_HEIGHT - 4) / TERM_FONT_H;
+    if (new_cols < 1) new_cols = 1;
+    if (new_rows < 1) new_rows = 1;
+
+    TermBuffer *buf = &g_term.active->buffer;
+
+    /* If size hasn't changed, skip */
+    if (buf->cols == new_cols && buf->rows == new_rows) return;
+
+    /* Update buffer dimensions */
+    buf->cols = new_cols;
+    buf->rows = new_rows;
+
+    /* Notify PTY of window size change */
+    if (g_term.active->pty_fd >= 0) {
+        struct winsize ws;
+        ws.ws_row = (unsigned short)new_rows;
+        ws.ws_col = (unsigned short)new_cols;
+        ws.ws_xpixel = (unsigned short)w;
+        ws.ws_ypixel = (unsigned short)h;
+        ioctl(g_term.active->pty_fd, TIOCSWINSZ, &ws);
+    }
+
+    buf->dirty = true;
+    wm_invalidate(win);
+}
+
 void terminal_open(void) {
     if (!g_term.tabs) {
         term_tab_new("/bin/bash");
@@ -422,7 +462,7 @@ void terminal_open(void) {
         win->on_draw = term_draw;
         win->on_mouse = term_handle_mouse;
         win->on_key = term_handle_key;
-        win->on_resize = NULL;  /* TODO: handle resize */
+        win->on_resize = term_handle_resize;
     }
 }
 

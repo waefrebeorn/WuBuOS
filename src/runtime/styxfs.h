@@ -51,12 +51,18 @@ typedef struct styxfs_file {
     char         path[STYXFS_MAX_PATH];  /* Full path from root */
     int          mode;                /* OREAD, OWRITE, ORDWR */
     uint64_t     offset;
-    
+
+    /* File metadata (for stat/wstat) */
+    uint16_t     file_mode;           /* Unix-style permission bits + type */
+    int          is_dir;              /* 1 if directory */
+    uint32_t     mtime;               /* Modification time */
+    uint32_t     atime;               /* Access time */
+
     /* For .wubu containers */
     WUBU_HEADER  container_hdr;
     uint8_t     *container_payload;   /* Payload data (owned) */
     size_t       payload_size;
-    
+
     /* For write transactions */
     uint8_t     *write_buf;
     size_t       write_buf_size;

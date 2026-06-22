@@ -1,10 +1,11 @@
 /*
  * repl.c  --  My Seed HolyC JIT REPL (runs inside GUI window)
  * Uses the HolyC compiler (hc_eval) for evaluation
+ * Updated to use DosGui WM API (Cell 400)
  */
 #include "repl.h"
 #include "holyc.h"
-#include "../gui/wm.h"
+#include "../gui/dosgui_wm.h"
 #include "../gui/gui_dbuf.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
@@ -40,57 +41,39 @@ static void repl_draw_string(gui_dbuf_t *db, int x, int y, const char *str, uint
     }
 }
 
-static void repl_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
-    
+
     if (!g_repl.db) return;
-    
+
     gui_dbuf_clear(g_repl.db, 0x00000000);
-    
+
     int x = 4;
     int y = 4;
     int line_height = 10; /* 8px font + 2px spacing */
-    int max_visible = (win->h - WM_TITLE_HEIGHT - 20) / line_height;
-    
+    int max_visible = (win->h - DOSGUI_TITLE_H - 8) / line_height;
+
     /* Draw output lines (most recent at bottom) */
     int start = g_repl.line_count - max_visible;
     if (start < 0) start = 0;
-    
+
     for (int i = start; i < g_repl.line_count; i++) {
         repl_draw_string(g_repl.db, x, y, g_repl.lines[i], 0x00FFFFFF);
         y += line_height;
     }
-    
+
     /* Draw input line */
     char prompt_line[REPL_LINE_LEN + 8];
     snprintf(prompt_line, sizeof(prompt_line), "%s%s", REPL_PROMPT, g_repl.input);
     repl_draw_string(g_repl.db, x, y, prompt_line, 0x00FFFF00);
     y += line_height;
-    
+
     /* Draw cursor */
     int cursor_x = x + (2 + g_repl.input_pos) * 8; /* 2 for "$ " */
     gui_dbuf_vline(g_repl.db, cursor_x, y - line_height, y - 1, 0x00FFFF00);
-    
-    /* Blit REPL's double buffer to the window's region in the main framebuffer */
-    int fb_x = win->x + 4;
-    int fb_y = win->y + WM_TITLE_HEIGHT + 4;
-    for (int dy = 0; dy < win->h - WM_TITLE_HEIGHT - 8; dy++) {
-        for (int dx = 0; dx < win->w - 8; dx++) {
-            uint32_t color = gui_dbuf_get_pixel(g_repl.db, dx, dy);
-            if (color != 0x00000000) {
-                /* Draw directly to the X11 framebuffer */
-                int px = fb_x + dx;
-                int py = fb_y + dy;
-                if (px >= 0 && px < fb_w && py >= 0 && py < fb_h) {
-                    uint32_t *fb_base = (uint32_t *)fb;
-                    fb_base[py * fb_w + px] = color;
-                }
-            }
-        }
-    }
 }
 
-static void repl_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
+static void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)win; (void)mods;
     if (key == '\n' || key == '\r') {
         /* Execute the input line via HolyC compiler */
@@ -101,10 +84,10 @@ static void repl_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
                          "%s%s", REPL_PROMPT, g_repl.input);
                 g_repl.line_count++;
             }
-            
+
             /* Evaluate via HolyC compiler */
             int64_t result = hc_eval(g_repl.input);
-            
+
             /* Store result as output line */
             if (g_repl.line_count < REPL_MAX_LINES) {
                 snprintf(g_repl.lines[g_repl.line_count], REPL_LINE_LEN,
@@ -126,17 +109,17 @@ void repl_start(int fb_w, int fb_h) {
     g_repl.line_count = 0;
     g_repl.input_pos = 0;
     g_repl.scroll_offset = 0;
-    
+
     /* Initialize double-buffer for REPL rendering */
     g_repl.db = (gui_dbuf_t *)malloc(sizeof(gui_dbuf_t));
     if (g_repl.db) {
         gui_dbuf_init(g_repl.db, 640, 480);
     }
-    
-    WmWindow *win = wm_create_window(100, 100, 400, 400, "HolyC REPL");
+
+    DosGuiWindow *win = dosgui_wm_create(100, 100, 400, 400, "HolyC REPL");
     if (win) {
         win->on_draw  = repl_draw;
         win->on_key   = repl_handle_key;
-        win->title_color = 0x00404080; /* Temple green-black */
+        snprintf(win->title, sizeof(win->title), "HolyC REPL");
     }
 }

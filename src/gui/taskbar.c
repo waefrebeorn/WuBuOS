@@ -1,11 +1,15 @@
 /*
- * taskbar.c  --  My Seed Taskbar (Win98-style, 28px bottom bar)
+ * taskbar.c  --  My Seed Taskbar (Win98-style, 28px bottom bar) (LEGACY)
  */
 #include "wm.h"
-#include "../kernel/vbe.h"
+#include "../kernel/vbe_legacy.h"
 #include <string.h>
 
 static int g_taskbar_height = 28;
+
+void taskbar_init(void) {
+    g_taskbar_height = 28;
+}
 
 void taskbar_draw(int screen_w, int screen_h) {
     int y = screen_h - g_taskbar_height;

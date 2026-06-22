@@ -1,0 +1,75 @@
+#version 460 core
+
+/*
+ * bear_mma_matmul.comp  --  FP16 Matrix Multiply via Vulkan Subgroup/Cooperative Matrix
+ * 
+ * Uses VK_KHR_cooperative_matrix + VK_KHR_shader_subgroup_extended_types for tensor cores
+ * Target: NVIDIA Ampere (subgroupSize=32, cooperative matrix m16n8k16 FP16)
+ * 
+ * Uniforms:
+ *   set 0, binding 0: A_buffer (FP16) [M * K]
+ *   set 0, binding 1: B_buffer (FP16) [K * N] 
+ *   set 0, binding 2: C_buffer (FP16) [M * N] (output)
+ * 
+ * Push Constants:
+ *   M, N, K (uint32_t)
+ */
+
+layout(local_size_x = 32) in;  // 1 warp per workgroup for cooperative matrix
+
+layout(std430, set = 0, binding = 0) readonly buffer ABuffer { uint16_t A[]; };  // FP16 as uint16
+layout(std430, set = 0, binding = 1) readonly buffer BBuffer { uint16_t B[]; };
+layout(std430, set = 0, binding = 2) writeonly buffer CBuffer { uint16_t C[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint M;
+    uint N;
+    uint K;
+} push_const;
+
+// Cooperative Matrix types (VK_KHR_cooperative_matrix)
+coopmatKHR uint16_t A_frag[16][8];  // m16n8k16 row-major A fragment
+coopmatKHR uint16_t B_frag[8][8];   // m16n8k16 col-major B fragment
+coopmatKHR float C_frag[16][8];     // m16n8k16 FP32 accumulator
+
+void main() {
+    // This shader requires VK_KHR_cooperative_matrix extension
+    // and a device with tensor cores (Ampere+)
+    
+    // Workgroup maps to one 16x8 output tile
+    uint tile_m = gl_WorkGroupID.y * 16;
+    uint tile_n = gl_WorkGroupID.x * 8;
+    
+    if (tile_m >= push_const.M || tile_n >= push_const.N) return;
+    
+    // Initialize accumulator to zero
+    subgroupCooperativeMatrixFillKHR(C_frag, 0.0);
+    
+    // Loop over K in tiles of 16
+    for (uint tile_k = 0; tile_k < push_const.K; tile_k += 16) {
+        // Load A tile (16x16) - row major
+        subgroupCooperativeMatrixLoadKHR(
+            A_frag, 
+            &A[tile_m * push_const.K + tile_k],
+            push_const.K,
+            subgroupCooperativeMatrixLayoutRowMajorKHR);
+        
+        // Load B tile (16x16) - col major  
+        subgroupCooperativeMatrixLoadKHR(
+            B_frag,
+            &B[tile_k * push_const.N + tile_n],
+            push_const.N,
+            subgroupCooperativeMatrixLayoutColumnMajorKHR);
+        
+        // Matrix multiply-accumulate: C += A * B
+        subgroupCooperativeMatrixMulAddKHR(
+            C_frag, C_frag, A_frag, B_frag);
+    }
+    
+    // Store result (convert FP32 accumulator to FP16)
+    subgroupCooperativeMatrixStoreKHR(
+        &C[tile_m * push_const.N + tile_n],
+        C_frag,
+        push_const.N,
+        subgroupCooperativeMatrixLayoutRowMajorKHR);
+}

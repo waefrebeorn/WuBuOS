@@ -1,0 +1,51 @@
+#version 460 core
+
+/*
+ * bear_gae.comp  --  GAE Advantage Computation (Vulkan Compute)
+ * 
+ * Uniforms:
+ *   set 0, binding 0: rewards_buffer    [T * B]
+ *   set 0, binding 1: dones_buffer      [T * B] (uint)
+ *   set 0, binding 2: values_buffer     [T * B]
+ *   set 0, binding 3: advantages_buffer [T * B] (output)
+ *   set 0, binding 4: returns_buffer    [T * B] (output)
+ * 
+ * Push Constants:
+ *   T (uint32_t)
+ *   B (uint32_t)
+ *   gamma (float)
+ *   gae_lambda (float)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer RewardsBuffer { float rewards[]; };
+layout(std430, set = 0, binding = 1) readonly buffer DonesBuffer { uint dones[]; };
+layout(std430, set = 0, binding = 2) readonly buffer ValuesBuffer { float values[]; };
+layout(std430, set = 0, binding = 3) writeonly buffer AdvantagesBuffer { float advantages[]; };
+layout(std430, set = 0, binding = 4) writeonly buffer ReturnsBuffer { float returns[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint T;
+    uint B;
+    float gamma;
+    float gae_lambda;
+} push_const;
+
+void main() {
+    uint b = gl_GlobalInvocationID.x;
+    if (b >= push_const.B) return;
+    
+    float gae = 0.0;
+    for (int t = int(push_const.T) - 1; t >= 0; --t) {
+        uint idx = uint(t) * push_const.B + b;
+        float v_t = values[idx];
+        float v_next = (t == int(push_const.T) - 1) ? 0.0 : values[(uint(t) + 1) * push_const.B + b];
+        
+        float delta = rewards[idx] + push_const.gamma * (1.0 - float(dones[idx])) * v_next - v_t;
+        gae = delta + push_const.gamma * push_const.gae_lambda * (1.0 - float(dones[idx])) * gae;
+        
+        advantages[idx] = gae;
+        returns[idx] = gae + v_t;
+    }
+}

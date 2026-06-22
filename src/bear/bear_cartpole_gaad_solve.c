@@ -37,10 +37,19 @@ static void train_logger(int iter, float total_steps, float return_mean,
     fflush(stdout);
 }
 
-/* Simple Q-controller stub - not implemented yet */
+/* Q-controller integration — delegates to bear_gaad_q_update */
 static void gg_gaad_q_update_stub(BearGAADOptimizer* opt, float reward) {
-    (void)opt; (void)reward;
-    /* TODO: implement */
+    if (!opt) return;
+    BearGAADMetrics metrics = {
+        .loss_recon = reward,
+        .loss_adv   = 0.0f,
+        .loss_vf    = 0.0f,
+        .entropy    = 0.01f,
+        .approx_kl  = 0.0f,
+        .clip_frac  = 0.0f,
+        .reward     = reward,
+    };
+    bear_gaad_q_update(opt, &metrics, NULL);
 }
 
 /* Geometric Encoder Network - φ-structured layers */

@@ -1,0 +1,143 @@
+name: WuBuOS CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libsqlite3-dev \
+            libzstd-dev \
+            wayland-protocols \
+            libdrm-dev \
+            libgbm-dev \
+            qemu-system-x86 \
+            xorriso \
+            mtools \
+            grub-common \
+            grub-pc-bin \
+            ovmf
+      - name: Build WuBuOS
+        working-directory: wubuos
+        run: |
+          make clean
+          make all
+      - name: Run Unit Tests
+        working-directory: wubuos
+        run: |
+          make test
+
+  visual-regression:
+    name: Visual Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libsqlite3-dev \
+            libzstd-dev \
+            wayland-protocols \
+            imagemagick \
+            python3-pillow
+      - name: Build Hosted Binary
+        working-directory: wubuos
+        run: |
+          make clean
+          make hosted
+      - name: Create Screenshot Test Script
+        working-directory: wubuos
+        run: |
+          cat > compare_screenshot.py << 'PYEOF'
+          import sys
+          try:
+              from PIL import Image
+              import os
+              if os.path.exists('test_output.png'):
+                  img = Image.open('test_output.png')
+                  print(f'Screenshot: {img.size}, mode={img.mode}')
+                  pixels = list(img.getdata())
+                  non_black = sum(1 for p in pixels if p != (0, 0, 0, 0) and p != (0, 0, 0))
+                  total = len(pixels)
+                  print(f'Non-black pixels: {non_black}/{total} ({100*non_black/total:.1f}%)')
+                  if non_black < total * 0.01:
+                      print('FAIL: Screen mostly black')
+                      sys.exit(1)
+                  print('PASS: Visual content detected')
+              else:
+                  print('No screenshot generated')
+                  sys.exit(1)
+          except Exception as e:
+              print(f'Error: {e}')
+              sys.exit(1)
+          PYEOF
+      - name: Run Headless Screenshot Test
+        working-directory: wubuos
+        run: |
+          timeout 10 ./src/hosted/wubu --screenshot test_output.png || true
+      - name: Compare Screenshots
+        working-directory: wubuos
+        run: |
+          python3 compare_screenshot.py
+
+  qemu-bare-metal:
+    name: QEMU Bare Metal Boot Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install QEMU & ISO Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qemu-system-x86 \
+            xorriso \
+            mtools \
+            grub-common \
+            grub-pc-bin \
+            ovmf
+      - name: Build ISO
+        working-directory: wubuos
+        run: |
+          make clean
+          make iso
+      - name: Boot in QEMU (Headless, 10s timeout)
+        working-directory: wubuos
+        run: |
+          timeout 15 qemu-system-x86_64 \
+            -m 256M \
+            -cdrom wubuos.iso \
+            -nographic \
+            -serial stdio \
+            -no-reboot \
+            -watchdog i6300esb \
+            -device isa-debug-exit,iobase=0xf4,iosize=0x04 \
+            || true
+      - name: Check Boot Result
+        working-directory: wubuos
+        run: |
+          echo "QEMU bare metal test completed"

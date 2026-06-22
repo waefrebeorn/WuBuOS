@@ -720,6 +720,10 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         else if (strcmp(argv[i], "-c") == 0) state->mode = HMODE_CONSOLE;
         else if (strcmp(argv[i], "-h") == 0) state->mode = HMODE_HEADLESS;
         else if (strcmp(argv[i], "-f") == 0) state->fullscreen = true;
+        else if (strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) {
+            state->screenshot_path = argv[++i];
+            state->mode = HMODE_HEADLESS;
+        }
     }
 
     state->depth = 32;
@@ -824,6 +828,8 @@ int hosted_run(hosted_state_t *state) {
     clock_gettime(CLOCK_MONOTONIC, &last);
     const long frame_ns = 1000000000L / 30;
 
+    bool screenshot_requested = (state->screenshot_path != NULL);
+
     while (state->running) {
         if (g_wl.display) {
             wl_display_dispatch_pending(g_wl.display);
@@ -854,6 +860,12 @@ int hosted_run(hosted_state_t *state) {
             wayland_frame_render();
         }
 
+        /* If screenshot requested in headless mode, render once and exit */
+        if (screenshot_requested && state->mode == HMODE_HEADLESS) {
+            state->running = false;
+            break;
+        }
+
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L +
@@ -869,6 +881,26 @@ int hosted_run(hosted_state_t *state) {
 
 void hosted_shutdown(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS shutdown...\n");
+
+    /* Save screenshot if requested */
+    if (state->screenshot_path && state->framebuffer) {
+        FILE *f = fopen(state->screenshot_path, "wb");
+        if (f) {
+            /* Write simple PPM format */
+            fprintf(f, "P6\n%d %d\n255\n", state->width, state->height);
+            uint32_t *fb = state->framebuffer;
+            for (int y = 0; y < state->height; y++) {
+                for (int x = 0; x < state->width; x++) {
+                    uint32_t c = fb[y * state->width + x];
+                    fputc((c >> 16) & 0xFF, f);  /* R */
+                    fputc((c >> 8) & 0xFF, f);   /* G */
+                    fputc(c & 0xFF, f);          /* B */
+                }
+            }
+            fclose(f);
+            fprintf(stderr, "Screenshot saved to %s\n", state->screenshot_path);
+        }
+    }
 
     dosgui_wm_shutdown();
     dosgui_desktop_shutdown();

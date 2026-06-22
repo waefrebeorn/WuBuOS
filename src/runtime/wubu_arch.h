@@ -126,6 +126,31 @@ int wubu_arch_bootstrap_gui(const char *root_path, const char *mirror);
  */
 int wubu_arch_bootstrap_steam(const char *root_path, const char *mirror);
 
+/*
+ * Bootstrap a Steam Runtime 2.0 (Soldier) Arch root.
+ * Adds: steam-runtime, proton, dxvk, vkd3d, gamescope, mangohud, pipewire
+ * For: Modern Steam Deck / SteamOS 3.x compatibility
+ * 
+ * Steam Runtime 2.0 (codename "Soldier") is based on Arch Linux
+ * and provides the execution environment for Steam Play/Proton.
+ * This preset installs:
+ *   - steam-runtime (soldier meta-package)
+ *   - proton-ge (GloriousEggroll Proton)
+ *   - dxvk, vkd3d-proton (D3D-to-Vulkan)
+ *   - gamescope (Steam Deck compositor)
+ *   - mangohud (overlay)
+ *   - pipewire + wireplumber (audio)
+ *   - all 32-bit libs for Wine/Proton
+ */
+int wubu_arch_bootstrap_steam_runtime2(const char *root_path, const char *mirror);
+
+/*
+ * Bootstrap a gaming-optimized Arch root (minimal Steam Runtime).
+ * Adds: wine, dxvk, vkd3d, proton, gamescope, nvidia-utils
+ * For: GAMESCOPE + Proton without full Steam client
+ */
+int wubu_arch_bootstrap_gaming(const char *root_path, const char *mirror);
+
 /* -- Arch Root Info ----------------------------------------------- */
 
 /*

@@ -5,6 +5,7 @@
  */
 #include "wubu_wm.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_theme.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -420,7 +421,9 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
             int th = WUBU_WM_TITLE_H;
 
             /* 3D border */
-            vbe_3d_raised(w->x, w->y, w->w, w->h);
+            vbe_3d_raised_colors(w->x, w->y, w->w, w->h,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
 
             /* Window body */
             vbe_fill_rect(w->x+bw, w->y+bw, w->w-2*bw, w->h-2*bw, tc->win_face);
@@ -435,24 +438,32 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
             int cbx = w->x + w->w - bw - 18;
             int cby = w->y + bw + 3;
             vbe_fill_rect(cbx, cby, 16, 14, tc->win_face);
-            vbe_3d_raised(cbx, cby, 16, 14);
+            vbe_3d_raised_colors(cbx, cby, 16, 14,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
 
             /* Maximize button */
             int mbx = cbx - 18;
             vbe_fill_rect(mbx, cby, 16, 14, tc->win_face);
-            vbe_3d_raised(mbx, cby, 16, 14);
+            vbe_3d_raised_colors(mbx, cby, 16, 14,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
 
             /* Minimize button */
             int mnx = mbx - 18;
             vbe_fill_rect(mnx, cby, 16, 14, tc->win_face);
-            vbe_3d_raised(mnx, cby, 16, 14);
+            vbe_3d_raised_colors(mnx, cby, 16, 14,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
 
             /* Separator */
             vbe_hline(w->x+bw, w->x+w->w-bw-1, w->y+bw+th, tc->border_dark);
 
             /* Client area */
-            vbe_3d_sunken(w->x+bw+1, w->y+bw+th+2,
-                          w->w-2*bw-2, w->h-bw-th-3);
+            vbe_3d_sunken_colors(w->x+bw+1, w->y+bw+th+2,
+                                  w->w-2*bw-2, w->h-bw-th-3,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
 
             /* GAAD snap indicator */
             if (w->was_snapped) {
@@ -468,11 +479,15 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     {
         int ty = g_wm.screen_h - 28;
         vbe_fill_rect(0, ty, g_wm.screen_w, 28, tc->taskbar_bg);
-        vbe_3d_raised(0, ty, g_wm.screen_w, 28);
+        vbe_3d_raised_colors(0, ty, g_wm.screen_w, 28,
+                              tc->border_light, tc->border_face,
+                              tc->border_dark, tc->border_darkest);
 
         /* Start button */
         vbe_fill_rect(4, ty+3, 60, 22, tc->start_btn_face);
-        vbe_3d_raised(4, ty+3, 60, 22);
+        vbe_3d_raised_colors(4, ty+3, 60, 22,
+                              tc->border_light, tc->border_face,
+                              tc->border_dark, tc->border_darkest);
 
         /* Window buttons in taskbar */
         int bx = 70;
@@ -482,9 +497,13 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
             int bw = 80;
             vbe_fill_rect(bx, ty+3, bw, 22, tc->win_face);
             if (w->flags & WUBU_WIN_FOCUSED)
-                vbe_3d_sunken(bx, ty+3, bw, 22);
+                vbe_3d_sunken_colors(bx, ty+3, bw, 22,
+                                      tc->border_light, tc->border_face,
+                                      tc->border_dark, tc->border_darkest);
             else
-                vbe_3d_raised(bx, ty+3, bw, 22);
+                vbe_3d_raised_colors(bx, ty+3, bw, 22,
+                                      tc->border_light, tc->border_face,
+                                      tc->border_dark, tc->border_darkest);
             bx += bw + 2;
         }
 
@@ -494,7 +513,9 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
             uint32_t bg = (d == g_wm.desktops.current)
                           ? tc->select_bg : tc->win_face;
             vbe_fill_rect(dx + d*24, ty+3, 22, 22, bg);
-            vbe_3d_raised(dx + d*24, ty+3, 22, 22);
+            vbe_3d_raised_colors(dx + d*24, ty+3, 22, 22,
+                                  tc->border_light, tc->border_face,
+                                  tc->border_dark, tc->border_darkest);
         }
     }
 }

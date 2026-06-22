@@ -470,7 +470,9 @@ static void calc_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
     int dw = win->w - 8;
     int dh = CALC_DISPLAY_H;
     vbe_fill_rect(dx, dy, dw, dh, 0x00FFFFFF);
-    vbe_3d_sunken(dx, dy, dw, dh);
+    vbe_3d_sunken_colors(dx, dy, dw, dh,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Display text (simple - show value) */
     char buf[64];
@@ -516,7 +518,9 @@ static void calc_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
         }
 
         vbe_fill_rect(bx, by, bw, bh, tc->btn_face);
-        vbe_3d_raised(bx, by, bw, bh);
+        vbe_3d_raised_colors(bx, by, bw, bh,
+                              tc->border_light, tc->border_face,
+                              tc->border_dark, tc->border_darkest);
 
         /* Center text (simplified - just first char) */
     }

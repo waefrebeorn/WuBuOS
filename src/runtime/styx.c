@@ -52,7 +52,7 @@ void styx_init(styx_server_t *srv) {
 
 /* -- Fid Management ----------------------------------------------- */
 
-static styx_fid_t *fid_alloc(styx_server_t *srv, uint32_t fid) {
+styx_fid_t *styx_fid_alloc(styx_server_t *srv, uint32_t fid) {
     for (int i = 0; i < STYX_MAX_FIDS; i++) {
         if (!srv->fids[i].in_use) {
             memset(&srv->fids[i], 0, sizeof(styx_fid_t));
@@ -64,7 +64,7 @@ static styx_fid_t *fid_alloc(styx_server_t *srv, uint32_t fid) {
     return NULL;
 }
 
-static styx_fid_t *fid_lookup(styx_server_t *srv, uint32_t fid) {
+styx_fid_t *styx_fid_lookup(styx_server_t *srv, uint32_t fid) {
     for (int i = 0; i < STYX_MAX_FIDS; i++) {
         if (srv->fids[i].in_use && srv->fids[i].fid == fid)
             return &srv->fids[i];
@@ -72,8 +72,8 @@ static styx_fid_t *fid_lookup(styx_server_t *srv, uint32_t fid) {
     return NULL;
 }
 
-static void fid_free(styx_server_t *srv, uint32_t fid) {
-    styx_fid_t *f = fid_lookup(srv, fid);
+void styx_fid_free(styx_server_t *srv, uint32_t fid) {
+    styx_fid_t *f = styx_fid_lookup(srv, fid);
     if (f) f->in_use = 0;
 }
 
@@ -372,7 +372,7 @@ int styx_serve(styx_server_t *srv,
         
         if (!srv->attach) {
             /* Default: allocate fid for root */
-            styx_fid_t *f = fid_alloc(srv, fid);
+            styx_fid_t *f = styx_fid_alloc(srv, fid);
             if (!f) {
                 styx_error(tag, "Out of fids", outbuf, outlen);
                 return 0;
@@ -388,7 +388,7 @@ int styx_serve(styx_server_t *srv,
             return 0;
         }
         /* Callback should fill qid */
-        styx_fid_t *f = fid_lookup(srv, fid);
+        styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (f) qid = f->qid;
         else { styx_qid_t z = {STX_QTFILE, 0, 0}; qid = z; }
         return build_rattach(outbuf, outlen, tag, &qid);
@@ -399,7 +399,7 @@ int styx_serve(styx_server_t *srv,
         uint32_t newfid = styx_get32(inbuf + 11);
         int nwname = styx_get16(inbuf + 15);
         
-        styx_fid_t *f = fid_lookup(srv, fid);
+        styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (!f) {
             styx_error(tag, "Bad fid in walk", outbuf, outlen);
             return 0;
@@ -407,7 +407,7 @@ int styx_serve(styx_server_t *srv,
         
         if (nwname == 0) {
             /* Clone fid */
-            styx_fid_t *nf = fid_alloc(srv, newfid);
+            styx_fid_t *nf = styx_fid_alloc(srv, newfid);
             if (!nf) {
                 styx_error(tag, "Out of fids", outbuf, outlen);
                 return 0;
@@ -447,7 +447,7 @@ int styx_serve(styx_server_t *srv,
         uint32_t fid = styx_get32(inbuf + 7);
         int mode = inbuf[11];
         
-        styx_fid_t *f = fid_lookup(srv, fid);
+        styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (!f) {
             styx_error(tag, "Bad fid in open", outbuf, outlen);
             return 0;
@@ -477,7 +477,7 @@ int styx_serve(styx_server_t *srv,
         uint64_t offset = styx_get64(inbuf + 11);
         uint32_t count = styx_get32(inbuf + 19);
         
-        styx_fid_t *f = fid_lookup(srv, fid);
+        styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (!f) {
             styx_error(tag, "Bad fid in read", outbuf, outlen);
             return 0;
@@ -505,7 +505,7 @@ int styx_serve(styx_server_t *srv,
         uint64_t offset = styx_get64(inbuf + 11);
         uint32_t count = styx_get32(inbuf + 19);
         
-        styx_fid_t *f = fid_lookup(srv, fid);
+        styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (!f) {
             styx_error(tag, "Bad fid in write", outbuf, outlen);
             return 0;
@@ -532,7 +532,7 @@ int styx_serve(styx_server_t *srv,
         uint32_t fid = styx_get32(inbuf + 7);
         
         if (srv->clunk) srv->clunk(srv, fid);
-        fid_free(srv, fid);
+        styx_fid_free(srv, fid);
         return build_rclunk(outbuf, outlen, tag);
     }
     
@@ -540,14 +540,14 @@ int styx_serve(styx_server_t *srv,
         uint32_t fid = styx_get32(inbuf + 7);
         
         if (srv->remove) srv->remove(srv, fid);
-        fid_free(srv, fid);
+        styx_fid_free(srv, fid);
         return build_rremove(outbuf, outlen, tag);
     }
     
     case STX_TSTAT: {
         uint32_t fid = styx_get32(inbuf + 7);
         
-        styx_fid_t *f = fid_lookup(srv, fid);
+        styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (!f) {
             styx_error(tag, "Bad fid in stat", outbuf, outlen);
             return 0;

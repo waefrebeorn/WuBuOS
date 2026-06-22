@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 /* -- PE Format Constants ------------------------------------- */
 
@@ -108,6 +109,15 @@ typedef struct {
     uint8_t     has_return;     /* 1 = returns value */
     uint16_t    flags;          /* Translation flags */
 } proton_api_map_t;
+
+/* -- Proton Version Types -------------------------------------- */
+
+typedef enum {
+    PROTON_VERSION_DEFAULT = 0,       /* System default */
+    PROTON_VERSION_GE_LATEST = 1,     /* GloriousEggroll latest */
+    PROTON_VERSION_EXPERIMENTAL = 2,  /* Valve experimental */
+    PROTON_VERSION_CUSTOM = 3         /* Custom path */
+} ProtonVersion;
 
 /* -- DLL Management ------------------------------------------ */
 
@@ -247,5 +257,34 @@ void wubu_proton_dump(const wubu_proton_t *p);
 /* Stats */
 uint64_t wubu_proton_pe_count(const wubu_proton_t *p);
 uint64_t wubu_proton_api_count(const wubu_proton_t *p);
+
+/* -- DXVK Configuration (stubs for compatibility) ------------- */
+
+typedef struct {
+    char prefix_id[64];
+    bool dxvk_enabled;
+    bool dxvk_async;
+    bool dxvk_hud_enabled;
+    char dxvk_hud_options[256];
+    bool dxvk_nvapi_hack;
+    bool dxvk_present_mode_mailbox;
+    bool dxvk_state_cache;
+    int dxvk_max_device_memory;
+    int dxvk_max_shared_memory;
+    bool dxvk_d3d10;
+    bool dxvk_d3d10_1;
+} DxvkConfigUI;
+
+int wubu_proton_dxvk_config_write(const char *prefix_id, const char *config_content);
+int wubu_proton_dxvk_config_read(const char *prefix_id, char *out_config, size_t size);
+int wubu_proton_dxvk_set_hud(const char *prefix_id, bool enable, const char *options);
+int wubu_proton_dxvk_set_async(const char *prefix_id, bool async);
+int wubu_proton_dxvk_set_nvapi_hack(const char *prefix_id, bool enable);
+int wubu_proton_dxvk_set_present_mode(const char *prefix_id, bool mailbox);
+int wubu_proton_dxvk_set_memory_limits(const char *prefix_id, int device_mb, int shared_mb);
+int wubu_proton_dxvk_reset_config(const char *prefix_id);
+int wubu_proton_dxvk_config_ui_get(const char *prefix_id, DxvkConfigUI *out_ui);
+int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui);
+int wubu_proton_create_prefix(const char *id, const char *game_name, int proton_version);
 
 #endif /* WUBU_PROTON_H */

@@ -17,6 +17,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* Use pure C math when WUBU_NO_LIBM is defined; math.h included last */
+#ifndef WUBU_NO_LIBM
+#include <math.h>
+#endif
+
 /* -- Pure C Math Helpers ------------------------------------------ */
 
 int wubu_isqrt(int n) {

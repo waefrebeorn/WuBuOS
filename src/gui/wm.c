@@ -1,10 +1,16 @@
 /*
- * wm.c  --  My Seed WmWindow Manager Implementation
+ * wm.c  --  My Seed WmWindow Manager Implementation (LEGACY - being phased out)
  */
 #include "wm.h"
-#include "../kernel/vbe.h"
+#include "../kernel/vbe_legacy.h"
 #include <string.h>
 #include <stdio.h>
+
+/* Legacy Win98 color constants (local to legacy WM) */
+#define C_WIN_FACE      0x00C0C0C0
+#define C_WIN_TITLE     0x00000080
+#define C_WIN_TITLE_INA 0x00808080
+#define C_WIN_BORDER_DK 0x00808080
 
 static WmWindow g_windows[WM_MAX_WINDOWS];
 static int    g_next_id = 1;

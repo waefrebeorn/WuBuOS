@@ -21,6 +21,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define DOSGUI_MAX_WINDOWS    32
 #define DOSGUI_TITLE_H        20
@@ -46,6 +47,9 @@ struct DosGuiWindow {
     /* Content render callback */
     void         (*on_draw)(DosGuiWindow *win, uint32_t *fb,
                             int fb_w, int fb_h);
+    /* Content input callbacks (optional) */
+    void         (*on_key)(DosGuiWindow *win, uint32_t key, uint32_t mods);
+    void         (*on_mouse)(DosGuiWindow *win, int x, int y, int btn, int kind);
     void          *user_data;
 };
 
@@ -77,8 +81,58 @@ void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h);
 
 /* -- Taskbar / Desktop ------------------------------------------- */
 
+#define DOSGUI_TASKBAR_H        28
+#define DOSGUI_SYSTRAY_SIZE     24
+#define DOSGUI_CLOCK_W          80
+
 int  dosgui_taskbar_height(void);
 void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h);
+
+/* -- System Tray / Notification Area ------------------------------ */
+
+#define DOSGUI_MAX_SYSTRAY_ICONS 16
+
+typedef struct {
+    char name[32];
+    uint32_t icon_color;    /* Simple colored box for now */
+    bool visible;
+    void (*on_click)(void);
+    void (*on_right_click)(void);
+    int notification_count;  /* Badge count */
+} DosGuiSysTrayIcon;
+
+int  dosgui_systray_add(const char *name, uint32_t color,
+                         void (*on_click)(void),
+                         void (*on_right_click)(void));
+void dosgui_systray_remove(const char *name);
+void dosgui_systray_set_notification_count(const char *name, int count);
+
+/* -- Notification Center ------------------------------------------ */
+
+#define DOSGUI_NOTIF_CENTER_MAX 32
+
+typedef struct {
+    uint32_t id;
+    char app_name[64];
+    char summary[128];
+    char body[256];
+    uint32_t timestamp;     /* Unix time */
+    int urgency;            /* 0=low, 1=normal, 2=critical */
+    bool read;
+    bool expanded;
+} DosGuiNotification;
+
+int  dosgui_notif_center_add(const char *app_name, const char *summary,
+                               const char *body, int urgency);
+void dosgui_notif_center_mark_read(uint32_t id);
+void dosgui_notif_center_clear(void);
+void dosgui_notif_center_render(uint32_t *fb, int fb_w, int fb_h);
+bool dosgui_notif_center_is_open(void);
+void dosgui_notif_center_toggle(void);
+
+/* -- Clock -------------------------------------------------------- */
+
+void dosgui_taskbar_update_clock(time_t now);
 
 /* -- Desktop Icons ----------------------------------------------- */
 
@@ -86,16 +140,98 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h);
 #define DOSGUI_ICON_SIZE 32
 #define DOSGUI_ICON_GAP  8
 
+typedef enum {
+    DESK_ICON_APP       = 0,  /* Launches an app */
+    DESK_ICON_SHORTCUT  = 1,  /* Points to executable/file */
+    DESK_ICON_FOLDER    = 2,  /* Opens folder in file manager */
+    DESK_ICON_DRIVE     = 3,  /* Mounted drive/volume */
+    DESK_ICON_FILE      = 4,  /* Opens with default app */
+    DESK_ICON_URL       = 5,  /* Opens URL in browser */
+} DeskIconType;
+
 typedef struct {
     char name[32];
     int  x, y;          /* Grid position in pixels */
     int  grid_x, grid_y;
     bool alive;
-    void (*on_click)(void);
+    DeskIconType type;      /* Type of icon */
+    char target[256];      /* Executable path, file path, URL, etc. */
+    char icon_path[256];   /* Optional custom icon image */
+    uint32_t icon_color;   /* Fallback colored box */
+    bool selected;          /* For multi-select/drag */
+    void (*on_click)(void); /* Legacy click handler */
+    void (*on_execute)(void); /* Execute action */
 } DosGuiIcon;
 
-int  dosgui_icon_add(const char *name, int gx, int gy,
+#define DOSGUI_MAX_ICONS 16
+#define DOSGUI_ICON_SIZE 32
+#define DOSGUI_ICON_GAP  8
+
+/* -- Context Menu ------------------------------------------------- */
+
+#define DOSGUI_MAX_CTX_ITEMS 16
+
+typedef enum {
+    CTX_ITEM_ACTION = 0,    /* Regular action */
+    CTX_ITEM_SEPARATOR = 1,
+    CTX_ITEM_SUBMENU = 2,
+} DosGuiCtxItemType;
+
+typedef struct {
+    DosGuiCtxItemType type;
+    char label[32];
+    void (*action)(void);
+    struct DosGuiContextMenu *submenu;  /* If type == SUBMENU */
+    bool disabled;
+    bool checked;
+} DosGuiCtxItem;
+
+typedef struct DosGuiContextMenu {
+    DosGuiCtxItem items[DOSGUI_MAX_CTX_ITEMS];
+    int item_count;
+    int x, y;                /* Position */
+    bool visible;
+    int selected_item;       /* Highlighted item */
+    struct DosGuiContextMenu *parent;
+} DosGuiContextMenu;
+
+/* Global context menu stack */
+extern DosGuiContextMenu *g_dosgui_ctx_stack;
+
+int dosgui_icon_add(const char *name, int gx, int gy,
                      void (*on_click)(void));
+
+/* New enhanced API */
+int dosgui_icon_add_ex(const char *name, DeskIconType type,
+                        const char *target, int gx, int gy,
+                        uint32_t icon_color, void (*on_execute)(void));
+
+void dosgui_icon_remove(int grid_x, int grid_y);
+int dosgui_icon_find_at(int grid_x, int grid_y);
+void dosgui_icon_set_position(int grid_x, int grid_y, int new_gx, int new_gy);
+
+/* Context Menu API */
+DosGuiContextMenu *dosgui_ctx_menu_create(int x, int y);
+void dosgui_ctx_menu_add_item(DosGuiContextMenu *menu, const char *label,
+                               void (*action)(void));
+void dosgui_ctx_menu_add_separator(DosGuiContextMenu *menu);
+DosGuiContextMenu *dosgui_ctx_menu_add_submenu(DosGuiContextMenu *menu, const char *label);
+void dosgui_ctx_menu_show(DosGuiContextMenu *menu, int x, int y);
+void dosgui_ctx_menu_hide(DosGuiContextMenu *menu);
+void dosgui_ctx_menu_handle_mouse(int x, int y, int btn, int kind);
+void dosgui_ctx_menu_render(uint32_t *fb, int fb_w, int fb_h);
+
+/* Shortcut Creation */
+int dosgui_shortcut_create(const char *name, const char *target,
+                            const char *description, int grid_x, int grid_y);
+int dosgui_shortcut_create_url(const char *name, const char *url, int grid_x, int grid_y);
+
+/* Default context menus */
+void dosgui_icon_show_context_menu(int icon_idx, int mx, int my);
+void dosgui_desktop_show_context_menu(int mx, int my);
+
+/* -- Desktop Icons ----------------------------------------------- */
+
 void dosgui_icon_render(uint32_t *fb, int fb_w, int fb_h);
 int  dosgui_icon_hit_test(int mx, int my);
 
@@ -106,5 +242,9 @@ void dosgui_tick(void);
 
 int dosgui_wm_screen_w(void);
 int dosgui_wm_screen_h(void);
+
+/* -- HolyC Terminal ---------------------------------------------- */
+
+DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);
 
 #endif /* WUBU_DOSGUI_WM_H */

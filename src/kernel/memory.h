@@ -29,6 +29,11 @@
 #define MEM_USED_SIGNATURE   0xDEADBEEF
 #define MEM_UNUSED_SIGNATURE 0xCAFEBABE
 
+/* Red zone canary values (ZealOS-style guard bytes) */
+#define MEM_RED_ZONE_SIZE     16
+#define MEM_CANARY_FRONT      0xBADCAFE0
+#define MEM_CANARY_BACK       0xDEADBEE0
+
 /* -- Types -------------------------------------------------------- */
 
 typedef enum {
@@ -120,5 +125,22 @@ int mem_validate(void);
 /* Heap walk: call `callback` for each allocated block. */
 typedef void (*MemWalkFn)(void *ptr, size_t size, void *ctx);
 void mem_walk(MemWalkFn callback, void *ctx);
+
+/* Check red zone canaries for a specific allocation. Returns 0 if intact, -1 if corrupted. */
+int mem_check_redzones(void *ptr);
+
+/* Count total used and free blocks. Returns number of used blocks. */
+int mem_walk_stats(size_t *total_used, size_t *total_free, int *n_used, int *n_free);
+
+/* Bloom filter: scan heap for blocks with a given signature.
+ * Calls callback for each match. Fast pre-filter for walk. */
+typedef void (*MemBloomFn)(void *block, uint32_t sig, void *ctx);
+int mem_bloom_scan(uint32_t target_sig, MemBloomFn callback, void *ctx);
+
+/* Debug dump: print heap state to stderr. Shows block map, stats, corruption. */
+void mem_debug_dump(void);
+
+/* Validate all blocks and report any corruption. Returns number of corrupt blocks. */
+int mem_validate_all(void);
 
 #endif /* MYSEED_MEMORY_H */

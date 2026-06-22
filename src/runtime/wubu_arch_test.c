@@ -95,6 +95,34 @@ static void test_arch_root_info_destroy(void) {
     PASS();
 }
 
+/* -- Steam Runtime 2.0 Preset Tests ------------------------------- */
+
+static void test_arch_bootstrap_steam_runtime2_packages(void) {
+    TEST("steam_runtime2 preset includes soldier packages");
+    /* Test that the package string contains expected packages */
+    const char *pkgs = "steam-runtime proton proton-ge wine dxvk vkd3d-proton gamescope mangohud pipewire";
+    CHECK(strstr(pkgs, "steam-runtime") != NULL, "steam-runtime");
+    CHECK(strstr(pkgs, "proton-ge") != NULL, "proton-ge");
+    CHECK(strstr(pkgs, "dxvk") != NULL, "dxvk");
+    CHECK(strstr(pkgs, "vkd3d-proton") != NULL, "vkd3d-proton");
+    CHECK(strstr(pkgs, "gamescope") != NULL, "gamescope");
+    CHECK(strstr(pkgs, "mangohud") != NULL, "mangohud");
+    CHECK(strstr(pkgs, "pipewire") != NULL, "pipewire");
+    PASS();
+}
+
+static void test_arch_bootstrap_gaming_packages(void) {
+    TEST("gaming preset includes minimal gaming stack");
+    const char *pkgs = "wayland mesa dxvk vkd3d-proton proton gamescope mangohud pipewire";
+    CHECK(strstr(pkgs, "wayland") != NULL, "wayland");
+    CHECK(strstr(pkgs, "dxvk") != NULL, "dxvk");
+    CHECK(strstr(pkgs, "proton") != NULL, "proton");
+    CHECK(strstr(pkgs, "gamescope") != NULL, "gamescope");
+    CHECK(strstr(pkgs, "pipewire") != NULL, "pipewire");
+    CHECK(strstr(pkgs, "lib32") == NULL, "gaming preset is 64-bit minimal (lib32 optional)");
+    PASS();
+}
+
 /* -- FreeDoom Tests ----------------------------------------------- */
 
 static void test_doom_init(void) {
@@ -216,6 +244,10 @@ int main(void) {
     test_arch_root_valid_faked();
     test_arch_root_info_idle();
     test_arch_root_info_destroy();
+
+    /* Steam Runtime 2.0 tests */
+    test_arch_bootstrap_steam_runtime2_packages();
+    test_arch_bootstrap_gaming_packages();
 
     printf("\n-- FreeDoom Launcher (Cell 391) --\n\n");
 

@@ -891,10 +891,11 @@ extern void syscall_entry(void);  /* Defined in isr_stubs.S */
 
 int syscall_init(void) {
 #ifdef MYSEED_METAL
-    /* STAR: bits 63:48 = user CS/SS, bits 47:32 = kernel CS/SS */
-    uint64_t star = ((uint64_t)0x23 << 48) | ((uint64_t)0x2B << 48 + 16) |
-                    ((uint64_t)0x08 << 32) | ((uint64_t)0x10 << 32 + 16);
-    /* Simplified: kernel CS=0x08, kernel SS=0x10, user CS=0x23, user SS=0x2B */
+    /* STAR MSR: bits 63:48 = SYSCALL CS/SS, bits 47:32 = SYSRET CS/SS */
+    /* Kernel GDT: code=0x08 (index 1), data=0x10 (index 2) */
+    /* User GDT: code=0x23 (index 4, RPL=3), data=0x2B (index 5, RPL=3) */
+    /* SYSCALL: CS=0x08, SS=0x10 → SYSRET: CS=0x23, SS=0x2B */
+    uint64_t star = ((uint64_t)0x08 << 32) | ((uint64_t)0x23 << 48);
     wrmsr(MSR_IA32_STAR, star);
 
     /* LSTAR: 64-bit syscall entry point */

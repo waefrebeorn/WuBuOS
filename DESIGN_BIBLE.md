@@ -21,11 +21,13 @@
 ## 2. Architecture Pillars
 
 ### 2.1 Kernel Layer (ZealOS)
-- HolyC → C translation (zealos_parity.h maps 64/96 functions)
+- HolyC → C translation (zealos_parity.h maps ZealOS function names)
 - mmap-based JIT compiler
 - Framebuffer graphics (VBE/DRM-KMS)
 - Single-address-space, no processes, tasks = coroutines
 - TXFS (TempleOS File System) + FAT32 + AHCI
+- **wubu_archd**: Arch Linux daemon — epoll event loop, Unix socket + JSON protocol (16 tests)
+- **wubu_holyd**: HolyC DOS daemon — epoll event loop, Unix socket + JSON protocol (27 tests)
 
 ### 2.2 Shell Layer (WuBuOS)
 - **wubu_wm**: Full window manager with GAAD snap, virtual desktops

@@ -145,6 +145,128 @@ static void test_stress(void) {
     if (ok) PASS(); else FAIL("failed");
 }
 
+/* -- Red Zone Tests ----------------------------------------------- */
+
+static void test_redzones(void) {
+    printf("\n[Red Zones / Canaries]\n");
+    
+    mem_shutdown();
+    mem_init(4 * 1024 * 1024);
+    
+    TEST("mem_check_redzones returns 0 for valid allocation");
+    void *p = mem_alloc(64);
+    if (p && mem_check_redzones(p) == 0) PASS();
+    else FAIL("red zone check failed on valid block");
+    
+    TEST("red zones detect buffer overflow (front corruption)");
+    /* Intentionally corrupt front canary */
+    uint32_t *front = (uint32_t *)((uint8_t *)p - MEM_RED_ZONE_SIZE);
+    uint32_t saved = front[0];
+    front[0] = 0x41414141;  /* Overwrite front canary */
+    if (mem_check_redzones(p) != 0) PASS();
+    else FAIL("corrupted front canary not detected");
+    front[0] = saved;  /* Restore for clean free */
+    
+    TEST("red zones detect buffer underflow (back corruption)");
+    /* Get back canary pointer using the block size */
+    CMemUsed *mu = (CMemUsed *)((uint8_t *)p - MEM_RED_ZONE_SIZE - offsetof(CMemUsed, start));
+    size_t user_bytes = mu->size - offsetof(CMemUsed, start) - 2 * MEM_RED_ZONE_SIZE;
+    uint32_t *back = (uint32_t *)((uint8_t *)p + user_bytes);
+    uint32_t saved_back = back[0];
+    back[0] = 0x42424242;
+    if (mem_check_redzones(p) != 0) PASS();
+    else FAIL("corrupted back canary not detected");
+    back[0] = saved_back;
+    
+    mem_free(p);
+    
+    TEST("mem_validate_all returns 0 when heap is clean");
+    void *a = mem_alloc(32);
+    void *b = mem_alloc(128);
+    if (mem_validate_all() == 0) PASS();
+    else FAIL("validate_all reports false corruption");
+    mem_free(a);
+    mem_free(b);
+}
+
+/* -- Heap Walk Tests ---------------------------------------------- */
+
+static int walk_count;
+static void walk_counter(void *ptr, size_t size, void *ctx) {
+    (void)ptr; (void)ctx;
+    walk_count++;
+    (void)size;
+}
+
+static void test_heap_walk(void) {
+    printf("\n[Heap Walk]\n");
+    
+    mem_shutdown();
+    mem_init(4 * 1024 * 1024);
+    
+    TEST("mem_walk with no allocations returns 0 blocks");
+    walk_count = 0;
+    mem_walk(walk_counter, NULL);
+    if (walk_count == 0) PASS();
+    else FAIL("walk found blocks in empty heap");
+    
+    TEST("mem_walk counts allocated blocks");
+    void *p1 = mem_alloc(32);
+    void *p2 = mem_alloc(64);
+    void *p3 = mem_alloc(128);
+    walk_count = 0;
+    mem_walk(walk_counter, NULL);
+    if (walk_count == 3) PASS();
+    else FAIL("wrong block count");
+    mem_free(p1); mem_free(p2); mem_free(p3);
+    
+    TEST("mem_walk_stats reports correct totals");
+    mem_alloc(32);
+    mem_alloc(64);
+    size_t used, freed;
+    int nu, nf;
+    mem_walk_stats(&used, &freed, &nu, &nf);
+    if (nu >= 2 && used > 0) PASS();
+    else FAIL("wrong stats");
+    
+    TEST("mem_debug_dump doesn't crash");
+    mem_debug_dump();
+    PASS();
+}
+
+/* -- Bloom Filter Scan Tests ------------------------------------- */
+
+static int bloom_count;
+static void bloom_counter(void *block, uint32_t sig, void *ctx) {
+    (void)block; (void)sig; (void)ctx;
+    bloom_count++;
+}
+
+static void test_bloom_scan(void) {
+    printf("\n[Bloom Filter Scan]\n");
+    
+    mem_shutdown();
+    mem_init(4 * 1024 * 1024);
+    
+    TEST("bloom scan finds MEM_USED_SIGNATURE blocks");
+    void *p1 = mem_alloc(64);
+    void *p2 = mem_alloc(128);
+    bloom_count = 0;
+    int n = mem_bloom_scan(MEM_USED_SIGNATURE, bloom_counter, NULL);
+    (void)p1; (void)p2;
+    if (n >= 2) PASS();
+    else FAIL("bloom scan missed blocks");
+    
+    TEST("bloom scan finds MEM_UNUSED_SIGNATURE blocks");
+    mem_free(p1);
+    bloom_count = 0;
+    n = mem_bloom_scan(MEM_UNUSED_SIGNATURE, bloom_counter, NULL);
+    if (n >= 1) PASS();
+    else FAIL("bloom scan missed free blocks");
+    
+    mem_free(p2);
+}
+
 int main(void) {
     printf("+==============================+\n");
     printf("|  My Seed Memory Test Suite   |\n");
@@ -155,6 +277,9 @@ int main(void) {
     test_calloc();
     test_realloc();
     test_stress();
+    test_redzones();
+    test_heap_walk();
+    test_bloom_scan();
     
     mem_shutdown();
     
