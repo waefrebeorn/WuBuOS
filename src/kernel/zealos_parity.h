@@ -290,4 +290,206 @@
 #define HCLexInit           hc_lex_init
 #define HCParseInit         hc_parse_init
 
+/* ===================================================================
+ * HOLYC COMPILER EXTENSIONS (Phase 1: +50 functions)
+ *
+ * ZealOS HolyC compiler functions → WuBuOS
+ * =================================================================== */
+
+#define HCCompile           hc_compile
+#define HCEval              hc_eval
+#define HCCompileFunc       hc_compile_func
+#define HCLexNext           hc_lex_next
+#define HCLexPeek           hc_lex_peek
+#define HCLexExpect         hc_lex_expect
+#define HCParseCompUnit     hc_parse_compilation_unit
+#define HCParseExpr         hc_parse_expr
+#define HCParseStmt         hc_parse_stmt
+#define HCParseDecl         hc_parse_decl
+#define HCAstNew            hc_ast_new
+#define HCAstFree           hc_ast_free
+#define HCAstAddStmt        hc_ast_add_stmt
+#define HCAstAddArg         hc_ast_add_arg
+#define HCAstPrint          hc_ast_print
+#define HCTypeSize          hc_type_size
+#define HCGenInit           hc_gen_init
+#define HCGenNode           hc_gen_node
+#define HCGenFunction       hc_gen_function
+#define HCGenCode           hc_gen_code
+
+/* ===================================================================
+ * AHCI / SATA SUBSYSTEM (Phase 1)
+ *
+ * ZealOS                   → WuBuOS
+ * =================================================================== */
+
+#define AHCIInit            ahci_init
+#define AHCIShutdown        ahci_shutdown
+#define AHCIDiskRead        ahci_disk_read
+#define AHCIDiskWrite       ahci_disk_write
+#define AHCIIdentify        ahci_identify
+#define AHCIPortReset       ahci_port_reset
+#define AHCIPortStart       ahci_port_start
+#define AHCIPortStop        ahci_port_stop
+#define AHCICmdRead         ahci_cmd_read
+#define AHCICmdWrite        ahci_cmd_write
+#define AHCIFindDevice      ahci_find_device
+
+/* ===================================================================
+ * TXFS FILESYSTEM (Phase 1)
+ *
+ * ZealOS                   → WuBuOS
+ * =================================================================== */
+
+#define TXFSInit            txfs_init
+#define TXFSShutdown        txfs_shutdown
+#define TXFSFormat          txfs_format
+#define TXFSMount           txfs_mount
+#define TXFSUnmount         txfs_unmount
+#define TXFSCreate          txfs_create
+#define TXFSDelete          txfs_delete
+#define TXFSRead            txfs_read
+#define TXFSWrite           txfs_write
+#define TXFSOpen            txfs_open
+#define TXFSClose           txfs_close
+#define TXFSSeek            txfs_seek
+#define TXFSSync            txfs_sync
+#define TXFSStat            txfs_stat
+
+/* ===================================================================
+ * GAAD / PHI-BASED OPTIMIZATION (Phase 1)
+ *
+ * ZealOS                   → WuBuOS
+ * =================================================================== */
+
+#define GAADInit            gaad_init
+#define GAADShutdown        gaad_shutdown
+#define GAADComputePhi      gaad_compute_phi
+#define GAADOptimize        gaad_optimize
+#define GAADSnapToGrid      gaad_snap_to_grid
+#define GAADLayoutWindow    gaad_layout_window
+#define GAADLayoutWindows   gaad_layout_windows
+#define GAADRectOverlap     gaad_rect_overlap
+#define GAADPhiScale        gaad_phi_scale
+#define GAADFibonacciStep   gaad_fibonacci_step
+
+/* ===================================================================
+ * CONTAINER RUNTIME (Phase 1)
+ *
+ * ZealOS concept          → WuBuOS
+ * =================================================================== */
+
+#define CtCreate            wubu_ct_create
+#define CtDestroy           wubu_ct_destroy
+#define CtSetCmd            wubu_ct_set_cmd
+#define CtAddBind           wubu_ct_add_bind
+#define CtAddEnv            wubu_ct_add_env
+#define CtSetGPU            wubu_ct_set_gpu
+#define CtSetLimits         wubu_ct_set_limits
+#define CtStart             wubu_ct_start
+#define CtWait              wubu_ct_wait
+#define CtKill              wubu_ct_kill
+#define CtState             wubu_ct_state
+#define CtStateName         wubu_ct_state_name
+#define CtRuntimeName       wubu_ct_runtime_name
+#define CtSteamOS           wubu_ct_steamos
+#define CtNative            wubu_ct_native
+#define CtProton            wubu_ct_proton
+#define CtHolyC             wubu_ct_holyc
+
+/* ===================================================================
+ * VBE / DRAWING EXTENSIONS (Phase 1)
+ *
+ * ZealOS                   → WuBuOS
+ * =================================================================== */
+
+#define GrFill              vbe_fill_rect
+#define GrRect              vbe_rect
+#define GrLine              vbe_line
+#define GrCircle            vbe_circle
+#define GrGradient          vbe_hgradient
+#define GrVGradient         vbe_vgradient
+#define GrShade             vbe_shade_rect
+#define Gr3DSunken          vbe_3d_sunken
+#define Gr3DRaised          vbe_3d_raised
+#define GrSunkenColors      vbe_3d_sunken_colors
+#define GrRaisedColors      vbe_3d_raised_colors
+#define GrText              vbe_draw_text
+#define GrTextWidth         vbe_text_width
+#define GrSetPixel          vbe_set_pixel
+#define GrGetPixel          vbe_get_pixel
+#define GrClip              vbe_clip_rect
+
+/* ===================================================================
+ * VULKAN / GPU (Phase 1)
+ *
+ * ZealOS concept          → WuBuOS
+ * =================================================================== */
+
+#define VkInit              wubu_vulkan_init
+#define VkShutdown          wubu_vulkan_shutdown
+#define VkCreateSwapchain   wubu_vulkan_create_swapchain
+#define VkAcquireNextImage  wubu_vulkan_acquire_next_image
+#define VkPresent           wubu_vulkan_present
+#define VkCreatePipeline    wubu_vulkan_create_pipeline
+#define VkCmdDispatch       wubu_vulkan_cmd_dispatch
+#define VkAllocDescriptor   wubu_vulkan_alloc_descriptor
+#define VkUpdateDescriptor  wubu_vulkan_update_descriptor
+
+/* ===================================================================
+ * AUDIO SUBSYSTEM (Phase 1)
+ *
+ * ZealOS                   → WuBuOS
+ * =================================================================== */
+
+#define SndInit             wubu_audio_init
+#define SndShutdown         wubu_audio_shutdown
+#define SndPlay             wubu_audio_play
+#define SndStop             wubu_audio_stop
+#define SndSetVolume        wubu_audio_set_volume
+#define SndMix              wubu_audio_mix
+#define SndAllocBuffer      wubu_audio_alloc_buffer
+#define SndFreeBuffer       wubu_audio_free_buffer
+
+/* ===================================================================
+ * WAYLAND / HOSTED DISPLAY (Phase 1)
+ *
+ * ZealOS concept          → WuBuOS
+ * =================================================================== */
+
+#define WlInit              hosted_init
+#define WlShutdown          hosted_shutdown
+#define WlSwapBuffers       hosted_swap_buffers
+#define WlPollEvents        hosted_poll_events
+
+/* ===================================================================
+ * PROTON / WINE COMPATIBILITY (Phase 1)
+ *
+ * ZealOS concept          → WuBuOS
+ * =================================================================== */
+
+#define ProtonInit          wubu_proton_init
+#define ProtonShutdown      wubu_proton_shutdown
+#define ProtonExec          wubu_proton_exec
+#define ProtonIsReady       wubu_proton_is_ready
+#define ProtonValidatePE    wubu_proton_validate_pe
+#define ProtonMapSections   wubu_proton_map_sections
+#define ProtonTranslateAPI  wubu_proton_translate_api
+#define ProtonLoadDLL       wubu_proton_load_dll
+
+/* ===================================================================
+ * STYX/9P EXTENSIONS (Phase 1)
+ * =================================================================== */
+
+#define StyxInit            styx_init
+#define StyxShutdown        styx_shutdown
+#define StyxMount           styxfs_mount
+#define StyxServe           styxfs_serve
+#define StyxWalk            styx_walk
+#define StyxOpen            styx_open
+#define StyxRead            styx_read
+#define StyxWrite           styx_write
+#define StyxClose           styx_close
+#define StyxStat            styx_stat
+
 #endif /* WUBUOS_ZEALOS_PARITY_H */

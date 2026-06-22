@@ -579,8 +579,85 @@ void bear_gaad_step(
     }
     
     /* Update Q-controller if enabled */
-    if (cfg->use_q_controller) {
-        /* TODO: integrate Q-learner for adaptive strain */
+    if (cfg->use_q_controller && cfg->q_table && cfg->q_state_dim > 0 && cfg->q_action_dim > 0) {
+        /* Build metrics vector from available optimizer state */
+        float metrics[8] = {0};
+        int metric_count = 0;
+        if (opt->step > 0 && param_count > 0) {
+            /* Use gradient statistics as state input */
+            float grad_mean = 0.0f, grad_var = 0.0f;
+            for (int j = 0; j < param_count && metric_count < 4; ++j) {
+                grad_mean += grads[j];
+            }
+            grad_mean /= (float)param_count;
+            for (int j = 0; j < param_count; ++j) {
+                float d = grads[j] - grad_mean;
+                grad_var += d * d;
+            }
+            grad_var /= (float)param_count;
+            metrics[0] = grad_mean;
+            metrics[1] = sqrtf(fmaxf(grad_var, 0.0f));
+            metrics[2] = cfg->base_lr;
+            metrics[3] = (float)opt->step;
+            metric_count = 4;
+        }
+
+        /* Encode state from metrics */
+        int state = gaad_q_get_state(metrics, metric_count, cfg->q_state_dim);
+
+        /* Compute reward from previous step (negative strain = good) */
+        float reward = 0.0f;
+        gaad_check_strain_conditions(opt, grads, param_count, 0.0f);
+        int strain_level = opt->strain_hook_id;  /* Use strain_hook_id as proxy for strain severity */
+        if (opt->q_last_state >= 0 && opt->q_last_action >= 0) {
+            /* Reward: lower strain is better, stable LR is better */
+            reward = -((float)strain_level * 0.1f);
+            /* Small positive reward for not triggering extreme strain */
+            if (strain_level == 0) reward += 0.1f;
+            /* Update Q-table */
+            int idx = opt->q_last_state * cfg->q_action_dim + opt->q_last_action;
+            int next_idx = state * cfg->q_action_dim + 0;
+            float max_next_q = cfg->q_table[next_idx];
+            for (int a = 1; a < cfg->q_action_dim; ++a) {
+                int ni = state * cfg->q_action_dim + a;
+                if (cfg->q_table[ni] > max_next_q) max_next_q = cfg->q_table[ni];
+            }
+            cfg->q_table[idx] += cfg->q_lr * (reward + cfg->q_gamma * max_next_q - cfg->q_table[idx]);
+        }
+
+        /* Choose action: epsilon-greedy */
+        int action = 0;
+        float rand_val = (float)rand() / (float)RAND_MAX;
+        if (rand_val < cfg->q_epsilon) {
+            action = rand() % cfg->q_action_dim;
+        } else {
+            float best_q = -1e30f;
+            for (int a = 0; a < cfg->q_action_dim; ++a) {
+                int idx = state * cfg->q_action_dim + a;
+                if (cfg->q_table[idx] > best_q) {
+                    best_q = cfg->q_table[idx];
+                    action = a;
+                }
+            }
+        }
+
+        /* Apply action: map discrete action to LR adjustment (3 action types) */
+        /* action 0 = no change, action 1 = increase LR, action 2 = decrease LR */
+        if (action == 1) {
+            cfg->base_lr *= 1.1f;
+        } else if (action == 2) {
+            cfg->base_lr *= 0.9f;
+        }
+        /* Clamp LR to reasonable range */
+        cfg->base_lr = fmaxf(1e-6f, fminf(1e-1f, cfg->base_lr));
+
+        /* Decay epsilon */
+        cfg->q_epsilon = fmaxf(cfg->q_epsilon_min, cfg->q_epsilon * cfg->q_epsilon_decay);
+
+        /* Save state for next step */
+        opt->q_last_state = state;
+        opt->q_last_action = action;
+        opt->q_step++;
     }
     
     /* Check strain conditions */

@@ -629,7 +629,18 @@ int styxfs_stat_cb(styx_server_t *base, uint32_t fid,
             strcpy(dir->uid, "wubu");
             strcpy(dir->gid, "wubu");
             strcpy(dir->muid, "wubu");
-            
+
+            /* Initialize metadata fields for future wstat */
+            if (srv->open_files[i].file_mode == 0) {
+                srv->open_files[i].file_mode = (uint16_t)(srv->open_files[i].is_dir ? 040755 : 0100644);
+            }
+            if (srv->open_files[i].mtime == 0) {
+                srv->open_files[i].mtime = dir->atime;
+            }
+            if (srv->open_files[i].atime == 0) {
+                srv->open_files[i].atime = dir->atime;
+            }
+
             return 0;
         }
     }
@@ -639,10 +650,80 @@ int styxfs_stat_cb(styx_server_t *base, uint32_t fid,
 int styxfs_wstat_cb(styx_server_t *base, uint32_t fid,
                      const styx_dir_t *dir) {
     styxfs_server_t *srv = get_server(base);
-    (void)fid; (void)dir;
     if (srv->readonly) return -1;
-    /* TODO: apply stat changes */
-    return 0;
+
+    /* Find the open file by fid (qid_path) */
+    for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
+        if (srv->open_files[i].in_use && srv->open_files[i].qid_path == (uint64_t)fid) {
+            /* Apply stat changes from the incoming dir structure */
+
+            /* Update mode if set */
+            if (dir->mode != 0) {
+                /* Extract permission bits (lower 12 bits) and type bits */
+                uint16_t new_perms = (uint16_t)(dir->mode & 0xFFF);
+                uint16_t type_bits = (uint16_t)(dir->mode & 0xF000);
+                /* Preserve the type bits from the existing mode, update permissions */
+                if (srv->open_files[i].is_dir) {
+                    srv->open_files[i].file_mode = (uint16_t)(040000 | (new_perms & 0777));
+                } else {
+                    srv->open_files[i].file_mode = (uint16_t)(0100000 | (new_perms & 0777));
+                }
+                /* If the type bits changed, update is_dir */
+                if ((dir->mode & STX_DMDIR) && !srv->open_files[i].is_dir) {
+                    srv->open_files[i].is_dir = true;
+                }
+            }
+
+            /* Update name if provided (rename) */
+            if (dir->name[0] != '\0' && strcmp(dir->name, ".") != 0 &&
+                strcmp(dir->name, "..") != 0) {
+                /* Extract the directory portion of the path */
+                char *path_copy = strdup(srv->open_files[i].path);
+                if (path_copy) {
+                    char *last_slash = strrchr(path_copy, '/');
+                    if (last_slash) {
+                        /* Replace the filename portion */
+                        *(last_slash + 1) = '\0';
+                        size_t remaining = sizeof(srv->open_files[i].path) -
+                                           (size_t)(last_slash - path_copy) - 1;
+                        strncat(path_copy, dir->name, remaining - 1);
+                        strncpy(srv->open_files[i].path, path_copy,
+                                sizeof(srv->open_files[i].path) - 1);
+                    } else {
+                        /* No slash — just replace the whole name */
+                        strncpy(srv->open_files[i].path, dir->name,
+                                sizeof(srv->open_files[i].path) - 1);
+                    }
+                    free(path_copy);
+                }
+            }
+
+            /* Update length if provided (truncate) */
+            if (dir->length != 0 || (dir->mode & STX_OTRUNC)) {
+                srv->open_files[i].payload_size = (size_t)dir->length;
+                srv->open_files[i].write_offset = (size_t)dir->length;
+            }
+
+            /* Update mtime/atime */
+            uint32_t now = (uint32_t)time(NULL);
+            if (dir->mtime != 0) {
+                srv->open_files[i].mtime = dir->mtime;
+            } else {
+                srv->open_files[i].mtime = now;
+            }
+            if (dir->atime != 0) {
+                srv->open_files[i].atime = dir->atime;
+            } else {
+                srv->open_files[i].atime = now;
+            }
+
+            /* Bump qid version to indicate change */
+            srv->open_files[i].qid_version++;
+
+            return 0;
+        }
+    }
+    return -1; /* fid not found */
 }
 
 /* -- Helper Utilities ----------------------------------------- */

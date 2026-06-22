@@ -305,3 +305,160 @@ void task_switch_to(CTask *target) {
     (void)target;
     task_yield();
 }
+
+/* ===================================================================
+ * ZealOS Parity Functions
+ * =================================================================== */
+
+/* Kill a task by PID (sends signal, default SIGKILL) */
+void task_kill(int pid, int sig) {
+    (void)sig;
+    if (pid <= 0) return;
+    CTask *t = g_head;
+    if (!t) return;
+    do {
+        if (t->task_id == pid) {
+            task_destroy(t);
+            return;
+        }
+        t = t->next;
+    } while (t != g_head);
+}
+
+/* Exit current task with code */
+void task_exit(int code) {
+    (void)code;
+    if (g_current && g_current != g_head) { /* Don't kill idle */
+        CTask *old = g_current;
+        g_current = g_head; /* Switch to idle */
+        task_destroy(old);
+    }
+    task_yield();
+}
+
+/* Wake a sleeping task */
+void task_wake(CTask *task) {
+    if (task && (task->state == TASK_SLEEPING || task->state == TASK_BLOCKED)) {
+        task->state = TASK_READY;
+        task->wake_tick = 0;
+    }
+}
+
+/* Suspend a task (make it not runnable) */
+void task_suspend(CTask *task) {
+    if (task && task->state == TASK_READY) {
+        task->state = TASK_BLOCKED;
+    }
+}
+
+/* Check if task is suspended */
+int task_is_suspended(CTask *task) {
+    return task && (task->state == TASK_BLOCKED || task->state == TASK_SLEEPING);
+}
+
+/* Make a task runnable (ZealOS TaskRun) */
+void task_run(CTask *task) {
+    if (task && task->state == TASK_UNUSED) {
+        task->state = TASK_READY;
+    }
+}
+
+/* Set task priority */
+void task_set_priority(CTask *task, TaskPriority prio) {
+    if (task) task->priority = prio;
+}
+
+/* Get task priority */
+TaskPriority task_get_priority(CTask *task) {
+    return task ? task->priority : PRIO_IDLE;
+}
+
+/* Focus next task in queue */
+CTask *task_focus_next(void) {
+    if (!g_current || !g_head) return NULL;
+    CTask *t = g_current->next;
+    while (t != g_current) {
+        if (t->state == TASK_READY || t->state == TASK_RUNNING) return t;
+        t = t->next;
+    }
+    return g_current;
+}
+
+/* Focus previous task in queue */
+CTask *task_focus_prev(void) {
+    if (!g_current || !g_head) return NULL;
+    CTask *t = g_current->prev;
+    while (t != g_current) {
+        if (t->state == TASK_READY || t->state == TASK_RUNNING) return t;
+        t = t->prev;
+    }
+    return g_current;
+}
+
+/* Validate task structure (check signature) */
+int task_validate(CTask *task) {
+    return task && task->task_signature == TASK_SIGNATURE_VAL;
+}
+
+/* Kill all tasks except idle */
+void task_kill_all(void) {
+    if (!g_head) return;
+    CTask *t = g_head;
+    do {
+        CTask *next = t->next;
+        if (t->priority != PRIO_IDLE) {
+            task_destroy(t);
+        }
+        t = next;
+    } while (t != g_head);
+}
+
+/* Context switch save (placeholder for assembly) */
+void task_ctx_save(CTask *task) {
+    (void)task;
+    /* In real kernel: save registers to task->context */
+}
+
+/* Context switch restore (placeholder for assembly) */
+void task_ctx_restore(CTask *task) {
+    (void)task;
+    /* In real kernel: restore registers from task->context */
+}
+
+/* Update derived values (placeholder for ZealOS compatibility) */
+void task_derived_vals_update(CTask *task) {
+    (void)task;
+    /* In ZealOS this updates derived register values */
+}
+
+/* Wait for task death */
+void task_death_wait(CTask *task) {
+    if (!task) return;
+    while (task->state != TASK_DYING && task->state != TASK_UNUSED) {
+        task_yield();
+    }
+}
+
+/* Walk task queue and call callback for each task */
+int task_queue_walk(void (*callback)(CTask *task, void *arg), void *arg) {
+    if (!g_head || !callback) return 0;
+    int count = 0;
+    CTask *t = g_head;
+    do {
+        callback(t, arg);
+        count++;
+        t = t->next;
+    } while (t != g_head);
+    return count;
+}
+
+/* Allocate task struct (internal helper for ZealOS parity) */
+CTask *task_struct_alloc(void) {
+    return (CTask *)mem_alloc(sizeof(CTask));
+}
+
+/* Get parent task (ZealOS compatibility - returns idle as parent for now) */
+CTask *task_parent(CTask *task) {
+    (void)task;
+    return g_head; /* Return idle task as parent */
+}

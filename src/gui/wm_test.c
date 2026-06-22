@@ -6,7 +6,7 @@
  */
 
 #include "wm.h"
-#include "../kernel/vbe.h"
+#include "../kernel/vbe_legacy.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

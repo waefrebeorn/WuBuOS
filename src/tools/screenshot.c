@@ -190,6 +190,12 @@ int wubu_shot_region(const char *path, int x, int y, int w, int h, WubuShotForma
     return ret;
 }
 
+/* ------------------------------------------------------------------
+ *  Window Screenshot (requires DosGui WM)
+ * ------------------------------------------------------------------ */
+
+#ifdef WUBU_SCREENSHOT_WITH_WM
+
 extern DosGuiWindow *dosgui_wm_find_by_id(int id);
 
 int wubu_shot_window(const char *path, int win_id, WubuShotFormat fmt) {
@@ -197,6 +203,8 @@ int wubu_shot_window(const char *path, int win_id, WubuShotFormat fmt) {
     if (!win) return -1;
     return wubu_shot_region(path, win->x, win->y, win->w, win->h, fmt);
 }
+
+#endif /* WUBU_SCREENSHOT_WITH_WM */
 
 /* ------------------------------------------------------------------
  *  GIF Recorder (simple frame accumulation)

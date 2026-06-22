@@ -86,6 +86,14 @@ typedef struct {
     int         drag_source_idx;
     bool        dragging;
     int         drag_x, drag_y;
+    /* Context menu state */
+    bool        ctx_menu_visible;
+    int         ctx_menu_x, ctx_menu_y;
+    int         ctx_menu_entry;  // -1 = background
+    /* Clipboard for copy/move */
+    char        clipboard_paths[32][1024];
+    int         clipboard_count;
+    bool        clipboard_is_cut;
 } ExplorerState;
 
 static ExplorerState g_expl = {0};
@@ -320,8 +328,12 @@ static void pane_draw(PaneState *p, WmWindow *win, int x, int y, int w, int h, b
 
     /* Background */
     vbe_fill_rect(x, y, w, h, focused ? 0x00FFFFFF : 0x00F0F0F0);
-    if (focused) vbe_3d_sunken(x, y, w, h);
-    else vbe_3d_raised(x, y, w, h);
+    if (focused) vbe_3d_sunken_colors(x, y, w, h,
+                                       tc->border_light, tc->border_face,
+                                       tc->border_dark, tc->border_darkest);
+    else vbe_3d_raised_colors(x, y, w, h,
+                               tc->border_light, tc->border_face,
+                               tc->border_dark, tc->border_darkest);
 
     switch (p->view) {
         case VIEW_ICONS: pane_draw_icons(p, win, x, y, w, h, focused); break;
@@ -339,7 +351,9 @@ static void explorer_draw_sidebar(WmWindow *win, void *fb, int fb_w, int fb_h) {
     int h = win->h - WM_TITLE_HEIGHT - EXPL_TOOLBAR_H - EXPL_ADDRBAR_H - EXPL_STATUSBAR_H - 6;
 
     vbe_fill_rect(x, y, w, h, tc->win_face);
-    vbe_3d_sunken(x, y, w, h);
+    vbe_3d_sunken_colors(x, y, w, h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Tree view - simplified: show parent directories */
     char path[1024];
@@ -363,7 +377,9 @@ static void explorer_draw_sidebar(WmWindow *win, void *fb, int fb_w, int fb_h) {
         vbe_fill_rect(x + 4, ty, w - 8, 18, (i == nparts - 1) ? tc->select_bg : tc->win_face);
         /* Expand/collapse indicator */
         vbe_fill_rect(x + 6, ty + 4, 10, 10, tc->btn_face);
-        vbe_3d_raised(x + 6, ty + 4, 10, 10);
+        vbe_3d_raised_colors(x + 6, ty + 4, 10, 10,
+                              tc->border_light, tc->border_face,
+                              tc->border_dark, tc->border_darkest);
         ty += 20;
     }
 
@@ -382,7 +398,9 @@ static void explorer_draw_toolbar(WmWindow *win) {
     int h = EXPL_TOOLBAR_H;
 
     vbe_fill_rect(x, y, w, h, tc->win_face);
-    vbe_3d_raised(x, y, w, h);
+    vbe_3d_raised_colors(x, y, w, h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Buttons: Back, Forward, Up, View, New Folder */
     const char *btns[] = {"\x1B[D", "\x1B[C", "\x1B[A", "View", "New"};
@@ -390,7 +408,9 @@ static void explorer_draw_toolbar(WmWindow *win) {
     for (int i = 0; i < 5; i++) {
         int bw = (i == 3) ? 60 : 32;
         vbe_fill_rect(bx, y + 3, bw, h - 6, tc->btn_face);
-        vbe_3d_raised(bx, y + 3, bw, h - 6);
+        vbe_3d_raised_colors(bx, y + 3, bw, h - 6,
+                              tc->border_light, tc->border_face,
+                              tc->border_dark, tc->border_darkest);
         bx += bw + 4;
     }
 }
@@ -403,7 +423,9 @@ static void explorer_draw_addrbar(WmWindow *win) {
     int h = EXPL_ADDRBAR_H;
 
     vbe_fill_rect(x, y, w, h, 0x00FFFFFF);
-    vbe_3d_sunken(x, y, w, h);
+    vbe_3d_sunken_colors(x, y, w, h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Path text - editable */
     PaneState *p = g_expl.two_pane ? (g_expl.active_pane == 0 ? &g_expl.left : &g_expl.right) : &g_expl.left;
@@ -417,9 +439,48 @@ static void explorer_draw_statusbar(WmWindow *win) {
     int h = EXPL_STATUSBAR_H;
 
     vbe_fill_rect(x, y, w, h, tc->win_face);
-    vbe_3d_sunken(x, y, w, h);
+    vbe_3d_sunken_colors(x, y, w, h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 
     /* Item count, free space */
+}
+
+static void explorer_draw_context_menu(WmWindow *win) {
+    if (!g_expl.ctx_menu_visible) return;
+
+    const WubuThemeColors *tc = wubu_theme_colors();
+    const char *items[] = {"Open", "Cut", "Copy", "Paste", "Delete", "Rename", "Properties"};
+    int n_items = 7;
+    int item_h = 22;
+    int menu_w = 160;
+    int menu_h = n_items * item_h + 4;
+    int menu_x = g_expl.ctx_menu_x;
+    int menu_y = g_expl.ctx_menu_y;
+
+    /* Ensure on screen */
+    if (menu_x + menu_w > win->x + win->w) menu_x = win->x + win->w - menu_w;
+    if (menu_y + menu_h > win->y + win->h) menu_y = win->y + win->h - menu_h;
+    if (menu_x < win->x) menu_x = win->x;
+    if (menu_y < win->y) menu_y = win->y;
+
+    /* Shadow */
+    vbe_shade_rect(menu_x + 2, menu_y + 2, menu_w, menu_h);
+
+    /* Background */
+    vbe_fill_rect(menu_x, menu_y, menu_w, menu_h, tc->startmenu_bg);
+    vbe_3d_raised_colors(menu_x, menu_y, menu_w, menu_h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
+
+    for (int i = 0; i < n_items; i++) {
+        int iy = menu_y + 2 + i * item_h;
+        /* Separator before Properties */
+        if (i == 6) {
+            vbe_hline(menu_x + 8, menu_x + menu_w - 8, iy, tc->border_dark);
+        }
+        vbe_draw_text(menu_x + 12, iy + (item_h - 8) / 2, items[i], tc->startmenu_text, 1);
+    }
 }
 
 static void explorer_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
@@ -446,6 +507,9 @@ static void explorer_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
     }
 
     explorer_draw_statusbar(win);
+
+    /* Draw context menu on top of everything */
+    explorer_draw_context_menu(win);
 }
 
 static void explorer_handle_mouse(WmWindow *win, int x, int y, int btn, int kind) {
@@ -466,6 +530,106 @@ static void explorer_handle_mouse(WmWindow *win, int x, int y, int btn, int kind
             PaneState *p = g_expl.active_pane == 0 ? &g_expl.left : &g_expl.right;
             p->view = (p->view + 1) % 4;
         }
+        wm_invalidate(win);
+        return;
+    }
+
+    /* Context menu click handling */
+    if (g_expl.ctx_menu_visible && kind == 1) {
+        /* Check if click is inside the menu */
+        const char *items[] = {"Open", "Cut", "Copy", "Paste", "Delete", "Rename", "Properties"};
+        int n_items = 7;
+        int item_h = 22;
+        int menu_w = 160;
+        int menu_h = n_items * item_h + 4;
+        int menu_x = g_expl.ctx_menu_x;
+        int menu_y = g_expl.ctx_menu_y;
+        if (menu_x + menu_w > win->x + win->w) menu_x = win->x + win->w - menu_w;
+        if (menu_y + menu_h > win->y + win->h) menu_y = win->y + win->h - menu_h;
+        if (menu_x < win->x) menu_x = win->x;
+        if (menu_y < win->y) menu_y = win->y;
+
+        if (x >= menu_x && x < menu_x + menu_w && y >= menu_y && y < menu_y + menu_h) {
+            int item_idx = (y - menu_y - 2) / item_h;
+            if (item_idx >= 0 && item_idx < n_items) {
+                PaneState *p = g_expl.active_pane == 0 ? &g_expl.left : &g_expl.right;
+                int entry_idx = g_expl.ctx_menu_entry;
+                switch (item_idx) {
+                    case 0: /* Open */
+                        if (entry_idx >= 0 && entry_idx < p->count) {
+                            FileEntry *e = &p->entries[entry_idx];
+                            if (e->is_dir) {
+                                pane_navigate(p, e->path);
+                                pane_refresh(p);
+                            }
+                        }
+                        break;
+                    case 1: /* Cut */
+                        if (entry_idx >= 0 && entry_idx < p->count) {
+                            g_expl.clipboard_count = 0;
+                            strncpy(g_expl.clipboard_paths[0], p->entries[entry_idx].path, 1023);
+                            g_expl.clipboard_count = 1;
+                            g_expl.clipboard_is_cut = true;
+                        }
+                        break;
+                    case 2: /* Copy */
+                        if (entry_idx >= 0 && entry_idx < p->count) {
+                            g_expl.clipboard_count = 0;
+                            strncpy(g_expl.clipboard_paths[0], p->entries[entry_idx].path, 1023);
+                            g_expl.clipboard_count = 1;
+                            g_expl.clipboard_is_cut = false;
+                        }
+                        break;
+                    case 3: /* Paste */
+                        if (g_expl.clipboard_count > 0) {
+                            for (int ci = 0; ci < g_expl.clipboard_count; ci++) {
+                                const char *src = g_expl.clipboard_paths[ci];
+                                const char *base = strrchr(src, '/');
+                                base = base ? base + 1 : src;
+                                char dst[1024];
+                                snprintf(dst, sizeof(dst), "%s/%s", p->current_path, base);
+                                if (g_expl.clipboard_is_cut) {
+                                    rename(src, dst);
+                                } else {
+                                    /* Copy: read src, write dst */
+                                    int fd_src = open(src, O_RDONLY);
+                                    if (fd_src >= 0) {
+                                        int fd_dst = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                        if (fd_dst >= 0) {
+                                            char buf_copy[4096];
+                                            ssize_t nread;
+                                            while ((nread = read(fd_src, buf_copy, sizeof(buf_copy))) > 0) {
+                                                write(fd_dst, buf_copy, nread);
+                                            }
+                                            close(fd_dst);
+                                        }
+                                        close(fd_src);
+                                    }
+                                }
+                            }
+                            pane_refresh(p);
+                        }
+                        break;
+                    case 4: /* Delete */
+                        if (entry_idx >= 0 && entry_idx < p->count) {
+                            FileEntry *e = &p->entries[entry_idx];
+                            if (e->is_dir) {
+                                rmdir(e->path);
+                            } else {
+                                unlink(e->path);
+                            }
+                            pane_refresh(p);
+                        }
+                        break;
+                    case 5: /* Rename — F2 handler does this */
+                        break;
+                    case 6: /* Properties — no-op in this shell */
+                        break;
+                }
+            }
+        }
+        /* Dismiss menu on any click */
+        g_expl.ctx_menu_visible = false;
         wm_invalidate(win);
         return;
     }
@@ -520,7 +684,10 @@ static void explorer_handle_mouse(WmWindow *win, int x, int y, int btn, int kind
                         /* Open file - launch associated app */
                     }
                 } else if (btn == 3) { /* Right click - context menu */
-                    /* TODO: context menu */
+                    g_expl.ctx_menu_visible = true;
+                    g_expl.ctx_menu_x = x;
+                    g_expl.ctx_menu_y = y;
+                    g_expl.ctx_menu_entry = idx;
                 }
                 wm_invalidate(win);
             }
@@ -569,19 +736,70 @@ static void explorer_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
             pane_refresh(&g_expl.right);
         }
     } else if (key == 0x3C) { /* F2 - rename */
-        /* TODO */
+        if (p->selected >= 0 && p->selected < p->count) {
+            FileEntry *e = &p->entries[p->selected];
+            char new_name[256];
+            snprintf(new_name, sizeof(new_name), "%s_renamed", e->name);
+            char new_path[1024];
+            snprintf(new_path, sizeof(new_path), "%s/%s", p->current_path, new_name);
+            if (rename(e->path, new_path) == 0) {
+                strncpy(e->name, new_name, sizeof(e->name));
+                strncpy(e->path, new_path, sizeof(e->path));
+                pane_refresh(p);
+            }
+        }
     } else if (key == 0x3D) { /* F3 - view mode */
         p->view = (p->view + 1) % 4;
     } else if (key == 0x3E) { /* F4 - new folder */
-        /* TODO */
+        char name[256] = "New Folder";
+        char path[1024];
+        int counter = 1;
+        snprintf(path, sizeof(path), "%s/%s", p->current_path, name);
+        while (access(path, F_OK) == 0) {
+            snprintf(name, sizeof(name), "New Folder (%d)", counter++);
+            snprintf(path, sizeof(path), "%s/%s", p->current_path, name);
+        }
+        if (mkdir(path, 0755) == 0) {
+            pane_navigate(p, p->current_path);
+            pane_refresh(p);
+        }
     } else if (key == 0x3F) { /* F5 - copy */
-        /* TODO */
-    } else if (key == 0x40) { /* F6 - move */
-        /* TODO */
-    } else if (key == 0x41) { /* F7 - mkdir */
-        /* TODO */
+        if (p->selected >= 0 && p->selected < p->count) {
+            g_expl.clipboard_count = 0;
+            strncpy(g_expl.clipboard_paths[0], p->entries[p->selected].path, 1023);
+            g_expl.clipboard_count = 1;
+            g_expl.clipboard_is_cut = false;
+        }
+    } else if (key == 0x40) { /* F6 - move (cut) */
+        if (p->selected >= 0 && p->selected < p->count) {
+            g_expl.clipboard_count = 0;
+            strncpy(g_expl.clipboard_paths[0], p->entries[p->selected].path, 1023);
+            g_expl.clipboard_count = 1;
+            g_expl.clipboard_is_cut = true;
+        }
+    } else if (key == 0x41) { /* F7 - mkdir (same as F4) */
+        char name[256] = "New Folder";
+        char path[1024];
+        int counter = 1;
+        snprintf(path, sizeof(path), "%s/%s", p->current_path, name);
+        while (access(path, F_OK) == 0) {
+            snprintf(name, sizeof(name), "New Folder (%d)", counter++);
+            snprintf(path, sizeof(path), "%s/%s", p->current_path, name);
+        }
+        if (mkdir(path, 0755) == 0) {
+            pane_navigate(p, p->current_path);
+            pane_refresh(p);
+        }
     } else if (key == 0x42) { /* F8 - delete */
-        /* TODO */
+        if (p->selected >= 0 && p->selected < p->count) {
+            FileEntry *e = &p->entries[p->selected];
+            if (e->is_dir) {
+                rmdir(e->path);
+            } else {
+                unlink(e->path);
+            }
+            pane_refresh(p);
+        }
     }
     wm_invalidate(win);
 }

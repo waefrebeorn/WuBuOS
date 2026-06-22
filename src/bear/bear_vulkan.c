@@ -7,10 +7,12 @@
 
 #include "bear_vulkan.h"
 #include "bear_arena.h"
-#include <vulkan/vulkan.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+
+#ifdef HAS_VULKAN
+#include <vulkan/vulkan.h>
 #include <math.h>
 
 /* ==================================================================
@@ -1075,7 +1077,306 @@ void bear_policy_forward_vulkan(BearVulkanContext* ctx,
     /* TODO: Implement full forward pass using matmul, add, relu, softmax kernels */
 }
 
-/* ... other stubs for backward, value, env, etc. */
+/* ==================================================================
+ * Compute Pipeline: Policy Forward
+ * ================================================================== */
+
+struct BearVulkanPipeline* get_or_create_policy_forward_pipeline(BearVulkanContext* ctx) {
+    const char* name = "policy_forward";
+    for (int i = 0; i < ctx->num_pipelines; ++i) {
+        if (strcmp(ctx->pipelines[i].name, name) == 0) {
+            return &ctx->pipelines[i];
+        }
+    }
+    
+    if (ctx->num_pipelines >= 64) return NULL;
+    
+    struct BearVulkanPipeline* p = &ctx->pipelines[ctx->num_pipelines++];
+    strncpy(p->name, name, 63);
+    p->active = 0;
+    
+    /* Create pipeline layout */
+    VkPipelineLayoutCreateInfo playout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &ctx->storage_desc_layout,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &(VkPushConstantRange){
+            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            .offset = 0,
+            .size = 16  // batch, obs_dim, hidden_dim, act_dim
+        }
+    };
+    VK_CHECK(ctx, vkCreatePipelineLayout(ctx->device, &playout_info, NULL, &p->layout));
+    
+    /* Load shader */
+    VkShaderModule shader = create_shader_module(ctx, "bear_vulkan_shaders/bear_policy_forward.comp.spv");
+    if (shader == VK_NULL_HANDLE) {
+        return NULL;
+    }
+    
+    VkComputePipelineCreateInfo pipe_info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = shader,
+            .pName = "main"
+        },
+        .layout = p->layout
+    };
+    VK_CHECK(ctx, vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1, &pipe_info, NULL, &p->pipeline));
+    
+    vkDestroyShaderModule(ctx->device, shader, NULL);
+    p->active = 1;
+    return p;
+}
+
+void bear_policy_forward_vulkan(BearVulkanContext* ctx,
+                                const BearPolicyNet* net,
+                                const BearVulkanTensor* obs,
+                                const BearVulkanTensor* h_in,
+                                BearVulkanTensor* actions,
+                                BearVulkanTensor* logprobs,
+                                BearVulkanTensor* values,
+                                BearVulkanTensor* h_out,
+                                BearVulkanArena* temp_arena) {
+    (void)net; (void)temp_arena;
+    struct BearVulkanPipeline* p = get_or_create_policy_forward_pipeline(ctx);
+    if (!p) return;
+    
+    VkDescriptorSet set = allocate_descriptor_set(ctx);
+    
+    /* Bindings: obs, h_in, W1, b1, W2, b2, actions, logprobs, values, h_out */
+    update_descriptor_set_storage(ctx, set, 0, obs->buffer, obs->offset, obs->size);
+    update_descriptor_set_storage(ctx, set, 1, h_in->buffer, h_in->offset, h_in->size);
+    // W1, b1, W2, b2 would come from net (stored in arena)
+    // For now just bind the output buffers
+    update_descriptor_set_storage(ctx, set, 6, actions->buffer, actions->offset, actions->size);
+    update_descriptor_set_storage(ctx, set, 7, logprobs->buffer, logprobs->offset, logprobs->size);
+    update_descriptor_set_storage(ctx, set, 8, values->buffer, values->offset, values->size);
+    update_descriptor_set_storage(ctx, set, 9, h_out->buffer, h_out->offset, h_out->size);
+    
+    struct {
+        uint32_t batch;
+        uint32_t obs_dim;
+        uint32_t hidden_dim;
+        uint32_t act_dim;
+    } push = {
+        .batch = obs->shape[0],
+        .obs_dim = obs->shape[1],
+        .hidden_dim = h_out->shape[1],
+        .act_dim = actions->shape[1]
+    };
+    
+    uint32_t group_x = (push.batch + 255) / 256;
+    dispatch_compute(ctx, p->pipeline, p->layout, set, p, group_x, 1, 1, &push, sizeof(push));
+}
+
+/* ==================================================================
+ * Compute Pipeline: GAE Advantage Computation
+ * ================================================================== */
+
+struct BearVulkanPipeline* get_or_create_gae_pipeline(BearVulkanContext* ctx) {
+    const char* name = "gae";
+    for (int i = 0; i < ctx->num_pipelines; ++i) {
+        if (strcmp(ctx->pipelines[i].name, name) == 0) {
+            return &ctx->pipelines[i];
+        }
+    }
+    
+    if (ctx->num_pipelines >= 64) return NULL;
+    
+    struct BearVulkanPipeline* p = &ctx->pipelines[ctx->num_pipelines++];
+    strncpy(p->name, name, 63);
+    p->active = 0;
+    
+    VkPipelineLayoutCreateInfo playout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &ctx->storage_desc_layout,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &(VkPushConstantRange){
+            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            .offset = 0,
+            .size = 16  // T, B, gamma, gae_lambda
+        }
+    };
+    VK_CHECK(ctx, vkCreatePipelineLayout(ctx->device, &playout_info, NULL, &p->layout));
+    
+    VkShaderModule shader = create_shader_module(ctx, "bear_vulkan_shaders/bear_gae.comp.spv");
+    if (shader == VK_NULL_HANDLE) return NULL;
+    
+    VkComputePipelineCreateInfo pipe_info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = shader,
+            .pName = "main"
+        },
+        .layout = p->layout
+    };
+    VK_CHECK(ctx, vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1, &pipe_info, NULL, &p->pipeline));
+    
+    vkDestroyShaderModule(ctx->device, shader, NULL);
+    p->active = 1;
+    return p;
+}
+
+void bear_compute_advantages_vulkan(BearVulkanContext* ctx,
+                                    BearTrajectory* t,
+                                    const BearPPOConfig* cfg,
+                                    BearVulkanArena* temp_arena) {
+    (void)temp_arena;
+    struct BearVulkanPipeline* p = get_or_create_gae_pipeline(ctx);
+    if (!p) return;
+    
+    /* Assume t->rewards, t->dones, t->values are BearVulkanTensors */
+    // Implementation would bind the trajectory buffers and dispatch
+    (void)ctx; (void)t; (void)cfg;
+    /* TODO: Implement full GAE dispatch */
+}
+
+/* ==================================================================
+ * Compute Pipeline: N-pole CartPole Step
+ * ================================================================== */
+
+struct BearVulkanPipeline* get_or_create_npole_step_pipeline(BearVulkanContext* ctx) {
+    const char* name = "npole_step";
+    for (int i = 0; i < ctx->num_pipelines; ++i) {
+        if (strcmp(ctx->pipelines[i].name, name) == 0) {
+            return &ctx->pipelines[i];
+        }
+    }
+    
+    if (ctx->num_pipelines >= 64) return NULL;
+    
+    struct BearVulkanPipeline* p = &ctx->pipelines[ctx->num_pipelines++];
+    strncpy(p->name, name, 63);
+    p->active = 0;
+    
+    VkPipelineLayoutCreateInfo playout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &ctx->storage_desc_layout,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &(VkPushConstantRange){
+            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            .offset = 0,
+            .size = 80  // n_poles, num_envs, gravity, cart_mass, dt, force_mag, thresholds, pole arrays
+        }
+    };
+    VK_CHECK(ctx, vkCreatePipelineLayout(ctx->device, &playout_info, NULL, &p->layout));
+    
+    VkShaderModule shader = create_shader_module(ctx, "bear_vulkan_shaders/bear_npole_step.comp.spv");
+    if (shader == VK_NULL_HANDLE) return NULL;
+    
+    VkComputePipelineCreateInfo pipe_info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = shader,
+            .pName = "main"
+        },
+        .layout = p->layout
+    };
+    VK_CHECK(ctx, vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1, &pipe_info, NULL, &p->pipeline));
+    
+    vkDestroyShaderModule(ctx->device, shader, NULL);
+    p->active = 1;
+    return p;
+}
+
+void bear_vulkan_env_step(BearVulkanContext* ctx,
+                          BearVulkanEnvState* env,
+                          const BearVulkanTensor* actions,
+                          uint64_t rng_seed) {
+    (void)rng_seed;
+    struct BearVulkanPipeline* p = get_or_create_npole_step_pipeline(ctx);
+    if (!p) return;
+    
+    /* Bind env state buffers + actions */
+    // Full implementation would bind all env buffers
+    (void)ctx; (void)env; (void)actions;
+    /* TODO: Implement full env step dispatch */
+}
+
+/* ==================================================================
+ * Compute Pipeline: MMA FP16 Matrix Multiply
+ * ================================================================== */
+
+struct BearVulkanPipeline* get_or_create_mma_matmul_pipeline(BearVulkanContext* ctx) {
+    const char* name = "mma_matmul";
+    for (int i = 0; i < ctx->num_pipelines; ++i) {
+        if (strcmp(ctx->pipelines[i].name, name) == 0) {
+            return &ctx->pipelines[i];
+        }
+    }
+    
+    if (ctx->num_pipelines >= 64) return NULL;
+    
+    struct BearVulkanPipeline* p = &ctx->pipelines[ctx->num_pipelines++];
+    strncpy(p->name, name, 63);
+    p->active = 0;
+    
+    VkPipelineLayoutCreateInfo playout_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+        .setLayoutCount = 1,
+        .pSetLayouts = &ctx->storage_desc_layout,
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges = &(VkPushConstantRange){
+            .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            .offset = 0,
+            .size = 12  // M, N, K
+        }
+    };
+    VK_CHECK(ctx, vkCreatePipelineLayout(ctx->device, &playout_info, NULL, &p->layout));
+    
+    VkShaderModule shader = create_shader_module(ctx, "bear_vulkan_shaders/bear_mma_matmul.comp.spv");
+    if (shader == VK_NULL_HANDLE) return NULL;
+    
+    VkComputePipelineCreateInfo pipe_info = {
+        .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        .stage = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = shader,
+            .pName = "main"
+        },
+        .layout = p->layout
+    };
+    VK_CHECK(ctx, vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1, &pipe_info, NULL, &p->pipeline));
+    
+    vkDestroyShaderModule(ctx->device, shader, NULL);
+    p->active = 1;
+    return p;
+}
+
+void bear_mma_matmul_vulkan(BearVulkanContext* ctx,
+                            const BearVulkanTensor* A,
+                            const BearVulkanTensor* B,
+                            BearVulkanTensor* C) {
+    struct BearVulkanPipeline* p = get_or_create_mma_matmul_pipeline(ctx);
+    if (!p) return;
+    
+    VkDescriptorSet set = allocate_descriptor_set(ctx);
+    update_descriptor_set_storage(ctx, set, 0, A->buffer, A->offset, A->size);
+    update_descriptor_set_storage(ctx, set, 1, B->buffer, B->offset, B->size);
+    update_descriptor_set_storage(ctx, set, 2, C->buffer, C->offset, C->size);
+    
+    struct { uint32_t M, N, K; } push = {
+        .M = A->shape[0],
+        .N = B->shape[1],
+        .K = A->shape[1]
+    };
+    
+    uint32_t group_x = (push.N + 7) / 8;
+    uint32_t group_y = (push.M + 15) / 16;
+    dispatch_compute(ctx, p->pipeline, p->layout, set, p, group_x, group_y, 1, &push, sizeof(push));
+}
+
 
 int bear_policy_backward_discrete_vulkan(BearVulkanContext* ctx, BearPolicyNet* net,
                                           const BearVulkanTensor* obs, const BearVulkanTensor* actions,
@@ -1086,3 +1387,13 @@ int bear_policy_backward_discrete_vulkan(BearVulkanContext* ctx, BearPolicyNet* 
 }
 
 /* ... remaining stubs ... */
+
+#else /* !HAS_VULKAN — software fallback provided by bear_vulkan_soft.c */
+
+/* When Vulkan SDK is unavailable, bear_vulkan_soft.c implements all
+ * the same API functions using pure C compute on the host CPU.
+ * This object file is intentionally empty — the linker picks up
+ * bear_vulkan_soft.o instead.
+ */
+
+#endif /* HAS_VULKAN */

@@ -649,6 +649,75 @@ static HCASTNode *parse_stmt(HCParser *p) {
 /* -- Parse Declaration -------------------------------------------- */
 
 HCASTNode *hc_parse_decl(HCParser *p) {
+    /* Handle extern "C" func_name(params) -> ret_type; */
+    if (match(p, HC_KW_EXTERN)) {
+        /* Expect "C" string literal */
+        if (!match(p, HC_TOK_STRING)) {
+            parse_error(p, "expected extern string literal (e.g., \"C\")");
+            return NULL;
+        }
+        /* Verify it's "C" */
+        if (strcmp(p->lex->tok.text, "\"C\"") != 0 && strcmp(p->lex->tok.text, "C") != 0) {
+            parse_error(p, "only extern \"C\" is supported");
+            return NULL;
+        }
+
+        /* Parse return type */
+        HCType *ret_type = parse_type(p);
+        if (!ret_type) {
+            parse_error(p, "expected return type after extern \"C\"");
+            return NULL;
+        }
+
+        /* Expect function name */
+        if (peek(p) != HC_TOK_IDENT) {
+            parse_error(p, "expected function name");
+            return NULL;
+        }
+        char func_name[HC_MAX_IDENT_LEN];
+        strncpy(func_name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+        advance(p);
+
+        /* Expect ( for parameters */
+        expect(p, HC_TOK_LPAREN);
+
+        /* Create extern declaration AST node */
+        HCASTNode *ext = hc_ast_new(HC_AST_EXTERN_DECL);
+        ext->extern_ret_type = ret_type;
+        strncpy(ext->extern_c_name, func_name, HC_MAX_IDENT_LEN - 1);
+        ext->extern_n_params = 0;
+
+        /* Parse parameters */
+        int pi = 0;
+        if (peek(p) != HC_TOK_RPAREN) {
+            ext->extern_param_types[pi] = parse_type(p);
+            if (peek(p) == HC_TOK_IDENT) {
+                /* Skip parameter name */
+                advance(p);
+            }
+            pi++;
+            while (match(p, HC_TOK_COMMA) && pi < HC_MAX_PARAMS) {
+                ext->extern_param_types[pi] = parse_type(p);
+                if (peek(p) == HC_TOK_IDENT) {
+                    advance(p);
+                }
+                pi++;
+            }
+        }
+        ext->extern_n_params = pi;
+
+        expect(p, HC_TOK_RPAREN);
+
+        /* Optional -> ret_type for explicit return type */
+        if (match(p, HC_TOK_ARROW)) {
+            HCType *explicit_ret = parse_type(p);
+            if (explicit_ret) ext->extern_ret_type = explicit_ret;
+        }
+
+        expect(p, HC_TOK_SEMI);
+        return ext;
+    }
+
     HCType *type = parse_type(p);
 
     /* Check if this is a struct/union/enum type definition without a variable name */

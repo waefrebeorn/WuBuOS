@@ -58,8 +58,12 @@ static void ctrl_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
         int active = (i == g_ctrl.active_tab);
         uint32_t bg = active ? tc->select_bg : tc->btn_face;
         vbe_fill_rect(tx, y, tab_w, CTRL_TAB_H, bg);
-        if (active) vbe_3d_sunken(tx, y, tab_w, CTRL_TAB_H);
-        else vbe_3d_raised(tx, y, tab_w, CTRL_TAB_H);
+        if (active) vbe_3d_sunken_colors(tx, y, tab_w, CTRL_TAB_H,
+                                          tc->border_light, tc->border_face,
+                                          tc->border_dark, tc->border_darkest);
+        else vbe_3d_raised_colors(tx, y, tab_w, CTRL_TAB_H,
+                                   tc->border_light, tc->border_face,
+                                   tc->border_dark, tc->border_darkest);
 
         if (i == g_ctrl.hover_tab && !active) {
             vbe_rect(tx, y, tab_w, CTRL_TAB_H, tc->btn_hover);
@@ -68,7 +72,9 @@ static void ctrl_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
 
     /* Tab panel background */
     vbe_fill_rect(x, y + CTRL_TAB_H, w, win->h - WM_TITLE_HEIGHT - CTRL_TAB_H - 8, tc->win_face);
-    vbe_3d_sunken(x, y + CTRL_TAB_H, w, win->h - WM_TITLE_HEIGHT - CTRL_TAB_H - 8);
+    vbe_3d_sunken_colors(x, y + CTRL_TAB_H, w, win->h - WM_TITLE_HEIGHT - CTRL_TAB_H - 8,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
 }
 
 static void ctrl_draw_display_tab(WmWindow *win) {
@@ -92,7 +98,9 @@ static void ctrl_draw_theme_tab(WmWindow *win) {
         int iy = y + i * 32;
         int active = (i == current);
         vbe_fill_rect(x, iy, 200, 28, active ? tc->select_bg : tc->btn_face);
-        vbe_3d_raised(x, iy, 200, 28);
+        vbe_3d_raised_colors(x, iy, 200, 28,
+                              tc->border_light, tc->border_face,
+                              tc->border_dark, tc->border_darkest);
         /* Theme preview swatch */
         vbe_fill_rect(x + 4, iy + 4, 20, 20, tc->desktop_bg);
         vbe_rect(x + 4, iy + 4, 20, 20, tc->border_dark);

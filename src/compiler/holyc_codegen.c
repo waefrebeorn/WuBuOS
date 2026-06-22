@@ -705,8 +705,17 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* System V AMD64 ABI: args in rdi, rsi, rdx, rcx, r8, r9 */
             {
                 int n_args = node->n_args;
-                /* Evaluate all args first (right-to-left for stack, but we use registers) */
-                for (int i = n_args - 1; i >= 0; i--) {
+                /* System V AMD64 ABI: args 0-5 in registers, 6+ on stack (right-to-left) */
+                if (n_args > 6) {
+                    /* Evaluate and push stack args (6th, 7th, ...) right-to-left */
+                    for (int i = n_args - 1; i >= 6; i--) {
+                        gen_expr(gen, node->args[i]);
+                        /* push rax: 50 */
+                        emit_byte(gen, 0x50);
+                    }
+                }
+                /* Evaluate register args right-to-left to avoid clobbering */
+                for (int i = (n_args < 6 ? n_args - 1 : 5); i >= 0; i--) {
                     gen_expr(gen, node->args[i]);
                     switch (i) {
                         case 0: emit_mov_rdi_rax(gen); break;  /* arg0 → rdi */
@@ -720,7 +729,6 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
                                 emit_byte(gen, 0x49); emit_byte(gen, 0x89); emit_byte(gen, 0xC0); break;
                         case 5: /* mov r9, rax: 49 89 C1 */
                                 emit_byte(gen, 0x49); emit_byte(gen, 0x89); emit_byte(gen, 0xC1); break;
-                        default: /* TODO: stack args for >6 params */ break;
                     }
                 }
                 /* Get function address from callee (should be ident or function pointer) */
@@ -739,9 +747,21 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
                         /* call rax: FF D0 */
                         emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
                     } else {
-                        /* Function not found - emit call to 0 (will crash at runtime) */
-                        emit_mov_rax_imm64(gen, 0);
-                        emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                        /* Check extern C functions */
+                        for (int i = 0; i < gen->n_extern_funcs; i++) {
+                            if (strcmp(gen->extern_funcs[i].c_name, node->callee->ident) == 0) {
+                                func_addr = gen->extern_funcs[i].func_addr;
+                                break;
+                            }
+                        }
+                        if (func_addr) {
+                            emit_mov_rax_imm64(gen, (int64_t)func_addr);
+                            emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                        } else {
+                            /* Function not found - emit call to 0 (will crash at runtime) */
+                            emit_mov_rax_imm64(gen, 0);
+                            emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                        }
                     }
                 } else {
                     emit_mov_rax_imm64(gen, 0);
@@ -837,6 +857,11 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
     switch (node->kind) {
         case HC_AST_EXPR_STMT:
             return gen_expr(gen, node->child);
+
+        case HC_AST_EXTERN_DECL:
+            /* Extern declarations are no-ops at codegen time.
+             * They register the function name and C name for the function call handler. */
+            break;
 
         case HC_AST_RETURN:
             if (node->child)
@@ -1320,6 +1345,10 @@ int64_t hc_eval(const char *source) {
     if (gen.data_size > 0) {
         memcpy((uint8_t *)exec + gen.code_size, gen.data, gen.data_size);
     }
+    
+    /* Make memory executable (remove write permission) */
+    jit_lock_exec(exec, gen.code_size + gen.data_size);
+    
     int64_t result = JIT_CALL(exec);
     jit_free_exec(exec, gen.code_size + gen.data_size);
     free(gen.code);
@@ -1329,8 +1358,6 @@ int64_t hc_eval(const char *source) {
 }
 
 void *hc_compile_func(const char *source, const char *func_name) {
-    (void)func_name; /* TODO: multi-function compilation */
-
     HCLexer lex;
     hc_lex_init(&lex, source);
     if (lex.has_error) return NULL;
@@ -1343,19 +1370,24 @@ void *hc_compile_func(const char *source, const char *func_name) {
         return NULL;
     }
 
-    /* Find the first function declaration */
-    HCASTNode *func = NULL;
-    for (int i = 0; i < ast->n_stmts; i++) {
+    /* Collect all function declarations */
+    HCASTNode *funcs[HC_MAX_FUNCTIONS];
+    int n_funcs = 0;
+    HCASTNode *target_func = NULL;
+    for (int i = 0; i < ast->n_stmts && n_funcs < HC_MAX_FUNCTIONS; i++) {
         if (ast->stmts[i]->kind == HC_AST_FUNC_DECL) {
-            func = ast->stmts[i];
-            break;
+            funcs[n_funcs++] = ast->stmts[i];
+            if (func_name && func_name[0] && ast->stmts[i]->ident) {
+                if (strcmp(ast->stmts[i]->ident, func_name) == 0) {
+                    target_func = ast->stmts[i];
+                }
+            }
         }
     }
 
-    if (!func) {
-        /* No function found  --  treat as expression */
+    /* If no functions found, treat as expression */
+    if (n_funcs == 0) {
         hc_ast_free(ast);
-
         HCLexer lex2;
         hc_lex_init(&lex2, source);
         HCParser parse2;
@@ -1370,7 +1402,6 @@ void *hc_compile_func(const char *source, const char *func_name) {
         hc_ast_free(expr);
 
         if (gen.code_size == 0) { free(gen.code); return NULL; }
-
         void *exec = jit_alloc_exec(gen.code_size);
         if (!exec) { free(gen.code); return NULL; }
         memcpy(exec, gen.code, gen.code_size);
@@ -1378,10 +1409,45 @@ void *hc_compile_func(const char *source, const char *func_name) {
         return exec;
     }
 
-    /* Generate the function */
+    /* If func_name specified but not found, fail */
+    if (func_name && func_name[0] && !target_func) {
+        hc_ast_free(ast);
+        return NULL;
+    }
+
+    /* If no func_name specified, use first function */
+    if (!target_func) target_func = funcs[0];
+
+    /* Generate all functions into a single code buffer so they can call each other */
     HCGen gen;
     hc_gen_init(&gen);
-    hc_gen_function(&gen, func);
+    /* Register all function names in the gen's function table for cross-referencing */
+    for (int i = 0; i < n_funcs; i++) {
+        if (funcs[i]->ident && gen.n_functions < HC_MAX_FUNCTIONS) {
+            strncpy(gen.functions[gen.n_functions].name, funcs[i]->ident, 63);
+            gen.functions[gen.n_functions].name[63] = '\0';
+            /* func_ptr will be patched after code generation */
+            gen.functions[gen.n_functions].func_ptr = NULL;
+            gen.n_functions++;
+        }
+    }
+
+    /* Generate each function, recording its code offset */
+    typedef struct { char name[64]; size_t code_offset; } func_offset_t;
+    func_offset_t foffsets[HC_MAX_FUNCTIONS];
+    int n_foffsets = 0;
+
+    for (int i = 0; i < n_funcs; i++) {
+        size_t offset_before = gen.code_size;
+        hc_gen_function(&gen, funcs[i]);
+        if (funcs[i]->ident) {
+            strncpy(foffsets[n_foffsets].name, funcs[i]->ident, 63);
+            foffsets[n_foffsets].name[63] = '\0';
+            foffsets[n_foffsets].code_offset = offset_before;
+            n_foffsets++;
+        }
+    }
+
     hc_ast_free(ast);
 
     if (gen.code_size == 0) { free(gen.code); free(gen.data); return NULL; }
@@ -1392,6 +1458,31 @@ void *hc_compile_func(const char *source, const char *func_name) {
     if (gen.data_size > 0) {
         memcpy((uint8_t *)exec + gen.code_size, gen.data, gen.data_size);
     }
+
+    /* Patch function table pointers to actual addresses */
+    for (int i = 0; i < gen.n_functions; i++) {
+        for (int j = 0; j < n_foffsets; j++) {
+            if (strcmp(gen.functions[i].name, foffsets[j].name) == 0) {
+                gen.functions[i].func_ptr = (uint8_t *)exec + foffsets[j].code_offset;
+                break;
+            }
+        }
+    }
+
+    /* If a specific function was requested, return a thunk that adjusts offset */
+    if (target_func && target_func->ident) {
+        /* Find the target function's offset */
+        for (int j = 0; j < n_foffsets; j++) {
+            if (strcmp(foffsets[j].name, target_func->ident) == 0) {
+                /* Return the exec base; caller can use offset if needed.
+                 * For JIT_CALL compatibility, we return the target function address directly. */
+                free(gen.code);
+                free(gen.data);
+                return (uint8_t *)exec + foffsets[j].code_offset;
+            }
+        }
+    }
+
     free(gen.code);
     free(gen.data);
     return exec;

@@ -518,10 +518,14 @@ void wubu_session_shutdown_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
         } else {
             if (sel) {
                 vbe_fill_rect(btn_x, by, bw, bh, 0x000080);
-                vbe_3d_sunken(btn_x, by, bw, bh);
+                vbe_3d_sunken_colors(btn_x, by, bw, bh,
+                                      tc->border_light, tc->border_face,
+                                      tc->border_dark, tc->border_darkest);
             } else {
                 vbe_fill_rect(btn_x, by, bw, bh, tc->btn_face);
-                vbe_3d_raised(btn_x, by, bw, bh);
+                vbe_3d_raised_colors(btn_x, by, bw, bh,
+                                      tc->border_light, tc->border_face,
+                                      tc->border_dark, tc->border_darkest);
             }
         }
         

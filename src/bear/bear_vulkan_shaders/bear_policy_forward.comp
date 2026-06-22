@@ -1,0 +1,94 @@
+#version 460 core
+
+/*
+ * bear_policy_forward.comp  --  Policy Network Forward Pass (Vulkan Compute)
+ * 
+ * Uniforms:
+ *   set 0, binding 0: obs_buffer (storage buffer)        [batch * obs_dim]
+ *   set 0, binding 1: h_in_buffer (storage buffer)       [batch * hidden_dim]
+ *   set 0, binding 2: W1_buffer (storage buffer)         [hidden_dim * obs_dim]
+ *   set 0, binding 3: b1_buffer (storage buffer)         [hidden_dim]
+ *   set 0, binding 4: W2_buffer (storage buffer)         [(act_dim + 1 + val + hidden) * hidden_dim]
+ *   set 0, binding 5: b2_buffer (storage buffer)         [act_dim + 1 + val + hidden]
+ *   set 0, binding 6: actions_buffer (storage buffer)    [batch * act_dim]
+ *   set 0, binding 7: logprobs_buffer (storage buffer)   [batch]
+ *   set 0, binding 8: values_buffer (storage buffer)     [batch]
+ *   set 0, binding 9: h_out_buffer (storage buffer)      [batch * hidden_dim]
+ * 
+ * Push Constants:
+ *   batch (uint32_t)
+ *   obs_dim (uint32_t)
+ *   hidden_dim (uint32_t)
+ *   act_dim (uint32_t)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer ObsBuffer { float obs[]; };
+layout(std430, set = 0, binding = 1) readonly buffer HInBuffer { float h_in[]; };
+layout(std430, set = 0, binding = 2) readonly buffer W1Buffer { float W1[]; };
+layout(std430, set = 0, binding = 3) readonly buffer B1Buffer { float b1[]; };
+layout(std430, set = 0, binding = 4) readonly buffer W2Buffer { float W2[]; };
+layout(std430, set = 0, binding = 5) readonly buffer B2Buffer { float b2[]; };
+layout(std430, set = 0, binding = 6) writeonly buffer ActionsBuffer { float actions[]; };
+layout(std430, set = 0, binding = 7) writeonly buffer LogProbsBuffer { float logprobs[]; };
+layout(std430, set = 0, binding = 8) writeonly buffer ValuesBuffer { float values[]; };
+layout(std430, set = 0, binding = 9) writeonly buffer HOutBuffer { float h_out[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint batch;
+    uint obs_dim;
+    uint hidden_dim;
+    uint act_dim;
+} push_const;
+
+float relu(float x) { return max(x, 0.0); }
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= push_const.batch) return;
+    
+    uint obs_dim = push_const.obs_dim;
+    uint hidden_dim = push_const.hidden_dim;
+    uint act_dim = push_const.act_dim;
+    
+    // Layer 1: h_o = relu(x @ W1.T + b1)
+    // h_o[hidden_dim]
+    for (uint j = 0; j < push_const.hidden_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < push_const.obs_dim; ++k) {
+            sum += obs[idx * obs_dim + k] * W1[j * obs_dim + k];
+        }
+        sum += b1[j];
+        float h_val = relu(sum);
+        h_out[idx * hidden_dim + j] = h_val;
+    }
+    
+    // Layer 2: output = h_o @ W2.T + b2
+    // Output: [act_dim (mean) + 1 (logstd) + 1 (value) + hidden_dim (h_out)]
+    
+    // Action means
+    for (uint j = 0; j < push_const.act_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < hidden_dim; ++k) {
+            sum += h_out[idx * hidden_dim + k] * W2[j * hidden_dim + k];
+        }
+        actions[idx * act_dim + j] = sum + b2[j];
+    }
+    
+    // Value head (index act_dim)
+    float v_sum = 0.0;
+    for (uint k = 0; k < hidden_dim; ++k) {
+        v_sum += h_out[idx * hidden_dim + k] * W2[(act_dim + 1) * hidden_dim + k];
+    }
+    values[idx] = v_sum + b2[act_dim + 1];
+    
+    // Logprob (simplified - Gaussian entropy)
+    float logprob = 0.0;
+    float logstd = b2[act_dim];  // shared logstd
+    for (uint j = 0; j < act_dim; ++j) {
+        float a = actions[idx * act_dim + j];
+        logprob += -0.5 * log(2.0 * 3.14159265359) - logstd - 0.5 * (a * a) / exp(2.0 * logstd);
+    }
+    logprobs[idx] = logprob;
+}

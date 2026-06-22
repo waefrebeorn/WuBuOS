@@ -32,6 +32,7 @@ typedef enum {
     JIT_LANG_C      = 0,  /* Standard C source                   */
     JIT_LANG_HOLYC  = 1,  /* HolyC/ZealC source                  */
     JIT_LANG_ASM    = 2,  /* x86-64 assembly text                */
+    JIT_LANG_EXPR   = 3   /* Simple expression (a+b, a*b, etc.) */
 } JITLang;
 
 typedef enum {
@@ -175,5 +176,19 @@ typedef struct {
 } JITStats;
 
 void jit_stats(const JITContext *ctx, JITStats *out);
+
+/* Update context stats (used by backend implementations) */
+void jit_stats_add_alloc(JITContext *ctx, size_t bytes);
+void jit_stats_inc_compiled(JITContext *ctx);
+
+/* Self-hosted mini C-to-x86-64 compiler (replaces MIR/c2m external dep).
+ * Parses a subset of C: function declarations, local variables,
+ * arithmetic, comparisons, if/else, while loops, return.
+ * Also handles raw expressions by wrapping them in a function. */
+JITResult jit_minic_compile(JITContext *ctx,
+                             const char *source,
+                             JITLang lang,
+                             const char *fn_name,
+                             JITFunc *out_func);
 
 #endif /* MYSEED_JIT_H */

@@ -57,11 +57,15 @@ void vbe_vline(int x, int y1, int y2, uint32_t color);
 /* Rectangle outline */
 void vbe_rect(int x, int y, int w, int h, uint32_t color);
 
-/* 3D raised border (Win98 style) */
-void vbe_3d_raised(int x, int y, int w, int h);
+/* 3D raised border — theme-agnostic: caller provides colors */
+void vbe_3d_raised_colors(int x, int y, int w, int h,
+                           uint32_t light, uint32_t face,
+                           uint32_t dark, uint32_t darkest);
 
-/* 3D sunken border */
-void vbe_3d_sunken(int x, int y, int w, int h);
+/* 3D sunken border — theme-agnostic: caller provides colors */
+void vbe_3d_sunken_colors(int x, int y, int w, int h,
+                           uint32_t light, uint32_t face,
+                           uint32_t dark, uint32_t darkest);
 
 /* Fill entire screen */
 void vbe_clear(uint32_t color);
@@ -120,16 +124,6 @@ void vbe_title_bar(int x, int y, int w, int h, int active);
 void vbe_close_box(int x, int y, int active);
 
 /* -- Win98 Classic Colors ----------------------------------------- */
-
-#define C_WIN_DESKTOP   0x008080
-#define C_WIN_FACE      0x00C0C0C0
-#define C_WIN_TITLE     0x00000080
-#define C_WIN_TITLE_INA 0x00808080
-#define C_WIN_TITLE_FG  0x00FFFFFF
-#define C_WIN_BORDER_LT 0x00FFFFFF
-#define C_WIN_BORDER_DK 0x00808080
-#define C_WIN_BORDER_DD 0x00000000
-#define C_WIN_TEXT       0x00000000
-#define C_WIN_HILITE    0x00000080
+/* REMOVED: VBE is theme-agnostic. Colors provided by caller (GUI layer). */
 
 #endif /* MYSEED_VBE_H */

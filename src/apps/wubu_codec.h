@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* -- Codec Constants ----------------------------------------------- */
 
@@ -65,6 +66,10 @@ typedef struct {
 
 typedef struct {
     uint32_t *pixels;        /* XRGB8888 frame data */
+    uint8_t  *data;          /* raw coded frame bytes */
+    int       owns_data;     /* whether data was malloc'd here */
+    size_t    data_size;     /* valid bytes in data */
+    int       eof;           /* stream ended */
     int       width, height;
     double    pts;           /* Presentation timestamp */
     double    duration;      /* Frame duration */
