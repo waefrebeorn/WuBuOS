@@ -79,6 +79,7 @@ typedef enum {
     HC_KW_CONST,
     HC_KW_VOLATILE,
     HC_KW_INLINE,
+    HC_KW_UNUSED,  /* dummy to keep enum open */
 
     /* Operators */
     HC_TOK_PLUS,        /* + */
@@ -243,6 +244,7 @@ typedef enum {
     HC_AST_FUNC_DECL,   /* type name(params) { body } */
     HC_AST_FUNC_CALL,   /* name(args) */
     HC_AST_STRUCT_DECL,
+    HC_AST_EXTERN_DECL,      /* extern "C" func_name(params) -> ret_type; */
 
     /* Array/struct access */
     HC_AST_INDEX,       /* expr[index] */
@@ -297,8 +299,11 @@ struct HCASTNode {
     int         n_params;
     HCASTNode  *body;
 
-    /* While/Do-While: cond + body */
-    /* (reuse cond + body fields above) */
+    /* Extern declaration: C function name + params + return type */
+    char        extern_c_name[HC_MAX_IDENT_LEN];
+    HCType     *extern_ret_type;
+    HCType     *extern_param_types[HC_MAX_PARAMS];
+    int         extern_n_params;
 
     /* For: init + cond + update + body */
     HCASTNode  *init_expr;
@@ -412,6 +417,14 @@ typedef struct {
     /* Function table for function calls */
     HCFunction  functions[HC_MAX_FUNCTIONS];
     int         n_functions;
+
+    /* Extern C function table for foreign function calls */
+    struct {
+        char   c_name[HC_MAX_IDENT_LEN];  /* C function name */
+        void  *func_addr;                 /* Resolved at runtime via dlsym */
+    } extern_funcs[32];
+    int         n_extern_funcs;
+
     bool        has_error;
     char        error[256];
 } HCGen;

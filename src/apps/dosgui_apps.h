@@ -34,6 +34,7 @@ void dosgui_launch_file_manager(void);
 void dosgui_launch_settings(void);
 void dosgui_launch_editor(void);
 void dosgui_launch_canvas(void);
+void dosgui_launch_holyc_term(void);
 
 /* Draw callbacks for demo/external use */
 void dosgui_calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
@@ -45,5 +46,6 @@ void dosgui_editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void dosgui_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void dosgui_holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 
 #endif /* WUBU_DOSGUI_APPS_H */

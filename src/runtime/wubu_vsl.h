@@ -107,7 +107,10 @@
 #define VSL_SYS_SYMLINK     88
 #define VSL_SYS_READLINK    89
 #define VSL_SYS_CHMOD       90
+#define VSL_SYS_FCHMOD      94
 #define VSL_SYS_CHOWN       92
+#define VSL_SYS_LCHOWN      95
+#define VSL_SYS_FCHOWN      96
 #define VSL_SYS_LSTAT       6
 #define VSL_SYS_POLL        7
 #define VSL_SYS_EPOLL_CREATE 213
@@ -138,6 +141,49 @@
 #define VSL_SYS_WAITPID     VSL_SYS_WAIT4  /* waitpid maps to wait4 */
 /* VSL_SYS_PIPE2 already defined as 293 above */
 #define VSL_SYS_SOCKETPAIR  53
+
+/* Cell 360-370: Additional syscalls */
+#define VSL_SYS_GETDENTS64  217
+#define VSL_SYS_STATX       332
+#define VSL_SYS_MREMAP      25
+#define VSL_SYS_MPROTECT    10
+#define VSL_SYS_MSYNC       26
+#define VSL_SYS_RT_SIGSUSPEND 130
+#define VSL_SYS_RT_SIGPENDING 127
+#define VSL_SYS_RT_SIGQUEUEINFO 129
+#define VSL_SYS_RT_SIGTIMEDWAIT 128
+#define VSL_SYS_TIMER_CREATE 222
+#define VSL_SYS_TIMER_SETTIME 223
+#define VSL_SYS_TIMER_GETTIME 224
+#define VSL_SYS_TIMER_DELETE 226
+#define VSL_SYS_TIMERFD_CREATE 283
+#define VSL_SYS_TIMERFD_SETTIME 286
+#define VSL_SYS_TIMERFD_GETTIME 287
+#define VSL_SYS_EVENTFD     323
+#define VSL_SYS_EVENTFD2    290
+#define VSL_SYS_INOTIFY_INIT 253
+#define VSL_SYS_INOTIFY_ADD_WATCH 254
+#define VSL_SYS_INOTIFY_RM_WATCH 255
+#define VSL_SYS_SIGNALFD    308
+#define VSL_SYS_SIGNALFD4   282
+#define VSL_SYS_PSELECT6    270
+#define VSL_SYS_PPOLL       271
+#define VSL_SYS_READLINKAT  267
+#define VSL_SYS_FSTATAT     262
+#define VSL_SYS_FCHMODAT    268
+#define VSL_SYS_FCHOWNAT    260
+#define VSL_SYS_UTIMENSAT   280
+#define VSL_SYS_FUTIMESAT   261
+#define VSL_SYS_RENAMEAT    264
+#define VSL_SYS_MKDIRAT     258
+#define VSL_SYS_UNLINKAT    263
+#define VSL_SYS_SYMLINKAT   266
+#define VSL_SYS_LINKAT      265
+#define VSL_SYS_MKNODAT     259
+#define VSL_SYS_GETCWD      79
+#define VSL_SYS_CHDIR       80
+#define VSL_SYS_FCHDIR      81
+#define VSL_SYS_GETWD       183
 
 /* VSL process states */
 typedef enum {

@@ -1,288 +1,177 @@
-# WuBuOS Distro Roadmap — "Ubuntu through Our Own Paradigm"
+# WuBuOS Distro Roadmap — 2284-GAP Aligned
 
 ## Vision
-A **lightweight Linux distribution** with:
-- **Custom kernel** (ZealOS-based, runs in-process)
-- **Custom desktop** (XP Classic themed, GNOME-quality UX)
-- **Proton/Wine** for Windows gaming
-- **TempleOS/ZealOS** app compatibility
-- **Multi-target**: bare metal, WSL, containers
-- **C11** for maximum portability
+**Arch NT + Proton + HolyC DOS on modified Linux 6.x kernel — single hosted binary runs everywhere.**
 
-## Current State (v0.5.0)
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Kernel (ZealOS in-process) | ✅ | mem, tasking, vbe, input, fat32, ahci, txfs, gaad |
-| JIT (HolyC compiler) | ✅ | Lexer, parser, x86_64 codegen |
-| GUI Shell (DosGui WM) | ✅ | 4 themes, XP/Win98 chrome, virtual desktops |
-| Desktop Icons + Apps | ✅ | 11 apps, drag-drop, FreeDoom via bubblewrap |
-| Start Menu | ✅ | Cascading, XP sidebar, hover tracking |
-| Wayland Client | ✅ | xdg-shell, SHM double-buffer, resize |
-| Styx/9P Namespace | ✅ | In-memory FS, socket server |
-| Container Runtime | ✅ | bubblewrap, proton stub, VSL |
-| HolyC REPL | ✅ | In-process TempleOS apps |
-| Tests | 95% | 1/31 test suites fails (bridge theme link) |
+## Phase Map (Gap-Aligned)
 
----
+### PHASE 0: FOUNDATION ✅ DONE (Cells 200-425)
+- Hosted binary: Wayland + xdg-shell + SHM double-buffer
+- ZealOS kernel in-process (memory, tasking, VBE, input, interrupt, FAT32, AHCI, TXFS)
+- HolyC compiler: lexer, parser, AST, x86_64 codegen, JIT mmap exec
+- Styx/9P namespace: client + server (styxfs_server.c — 11/11 tests)
+- Container runtime: wubu_ct (chroot) + wubu_ct_bwrap (bubblewrap)
+- Proton: wubu_proton2.c (real Wine+DXVK+VKD3D in Arch container)
+- Container isolation: cgroups v2 (mem/cpu/pids) + seccomp-bpf profiles
+- Fable windowing agent: dosgui_wm, dosgui_desktop, dosgui_startmenu
+- VBE primitives: 64-glyph font, gradient/circle/shade/clip, window chrome
+- wubu_audio.c: 12 chip emulations
+- BearRL: cartpole physics, GAAD, PPO, holographic optimization
+- **GAPS REMAINING**: 2284 (this audit)
 
-## Phase 1: Fix GUI Glitches & Polish (Week 1-2)
+### PHASE 1: RUNTIME CLOSURE (Cells 426-480) — CRITICAL TIER
+Target: Close 996 runtime gaps + 254 kernel gaps = 1250 gaps
 
-### Critical Bugs
-| Bug | File | Fix |
-|-----|------|-----|
-| `vbe_3d_raised/sunken_rounded` call `wubu_theme_colors()` — breaks standalone build | `src/kernel/vbe.c:411,425` | Move theme-dependent rounded 3D to GUI layer; VBE stays theme-agnostic |
-| Icon rendering hardcodes `0x008080` color | `dosgui_wm.c:752` | Use theme-aware icon background |
-| Start menu shutdown item missing handler | `dosgui_startmenu.c` | Wire to `hosted_shutdown()` |
-| `F5` theme cycle doesn't update already-open windows | `dosgui_wm.c:412` | Force full re-render on theme change |
-| Window maximize doesn't account for taskbar on all themes | `dosgui_wm.c:426` | Use dynamic taskbar height |
-| Mouse drag uses wrong coordinate space after resize | `hosted.c:233` | Reset drag state on xdg_toplevel_configure |
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 426 | wubu_oci.c — OCI Runtime | 84 | manifest, blob, config, registry HTTP, GC |
+| 427 | wubu_network.c — Netlink | 122 | bridge, macvlan, ipvlan, vxlan, wireguard, tailscale, QoS, DNS |
+| 428 | wubu_snapshot.c — Overlay FS | 82 | real mount/umount, dir_size, restore, branch/tag |
+| 429 | wubu_holyd.c — HolyC Daemon | 75 | mouse routing, session save/restore, event loop, accept fix |
+| 430 | wubu_vsl.c — Syscall Bridge | 72 | ELF PT_LOAD, fd delegation, syscall translation |
+| 431 | wubu_image.c — Image Builder | 67 | multi-stage build, layer cache, base images, export |
+| 432 | wubu_archd.c — Arch Daemon | 45 | root create, pacman ops, health, event publish |
+| 433 | wubu_bottles.c — Bottles Mgr | 38 | import/export/run, Flatpak/Steam compat |
+| 434 | wubu_exec.c — Exec Dispatcher | 35 | memfd_create, C compile, Mach-O, custom handlers |
+| 435 | wubu_proton.c — Proton Config | 52 | DXVK HUD/async/nvapi/present/memory, prefix |
+| 436 | wubu_proton2.c — Proton PE | 31 | GameScope, PE launch, GPU/HID/USB passthrough |
+| 437 | wubu_ramdisk.c — Ramdisk | 32 | create, snapshot, restore |
+| 438 | wubu_pkg.c — Package Registry | 26 | find, install, remove, update |
+| 439 | wubu_container.c — Container Ops | 13 | load, start, stop |
+| 440 | wubu_host_exec.c — Host Exec | 19 | bind, run, wait |
+| 441 | wubu_ct_isolate.c — Isolation | 24 | cgroups write, seccomp install, ns unshare |
+| 442 | wubu_arch.c — Arch Bootstrap | 16 | bootstrap, chroot, pacman init |
+| 443 | wubu_gc.c — Garbage Collector | 1 | collect |
+| 444 | styx.c — 9P Protocol | 52 | version, auth, walk, open, read, write, clunk, remove, stat, wstat |
+| 445 | styxfs.c — 9P Client | 41 | fid ops, walk, read, write, clunk |
+| 446 | styxfs_server.c — 9P Server | 44 | T-version, auth, walk, open, read, write, clunk, remove, stat, wstat |
+| 447 | wubu_freedoom.c — FreeDoom | 10 | launch, resume, save |
+| 448 | wubu_anticheat.c — Anti-Cheat | 19 | kernel load/unload, hooks, Wine/Proton config |
+| 449 | dosgui_daemon_panel.c — Bridge | 10 | subscribe, event handling, render |
 
-### UX Polish
-- [ ] Smooth window animations (slide/fade)
-- [ ] Tooltip system (hover delay → show hint)
-- [ ] Right-click context menus (desktop, taskbar, titlebar)
-- [ ] Keyboard navigation (Alt+Tab, Win+D, Win+number)
-- [ ] Window snapping (left/right half, corners)
-- [ ] Desktop icon align-to-grid on create/move
+### PHASE 2: KERNEL CLOSURE (Cells 450-480) — CRITICAL TIER
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 450 | interrupt.c — ISR/IOAPIC/LAPIC | 111 | ISR assembly, IOAPIC routing, LAPIC timer, TSS |
+| 451 | fat32.c — Filesystem | 57 | open, read, write, create, unlink, mkdir, readdir |
+| 452 | tasking.c — Scheduler | 22 | spawn, kill, suspend, sleep, yield, priority, parent, queue walk |
+| 453 | memory.c — Heap | 15 | walk, validate, used, available, bloom, canaries |
+| 454 | ahci.c — Disk | 23 | port init, FIS recv, cmd, read, write |
+| 455 | txfs.c — Transactional FS | 18 | mount, journal, txn begin/commit |
+| 456 | vbe.c — Display | 6 | fill_rect, fill_circle, draw_text, swap, mode_set |
+| 457 | input.c — PS/2 | 7 | scancode, mouse packet, fifo, hooks |
+| 458 | ps2.c — PS/2 Driver | ? | keyboard, mouse init |
 
----
+### PHASE 3: GUI SHELL CLOSURE (Cells 480-520) — HIGH TIER
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 480 | dosgui_wm.c — Window Manager | 44 | input dispatch, holyc_term, create/destroy/focus/render |
+| 481 | wubu_proton.c — Proton GUI | 52 | DXVK config UI, prefix mgmt, env setup |
+| 482 | wubu_gamelib.c — Game Lib | 36 | scan, startmenu wiring, placeholder |
+| 483 | dosgui_explorer.c — Explorer | 22 | tree, breadcrumbs, list, preview, ops, context menu |
+| 484 | dosgui_term.c — Terminal | 24 | PTY, tabs, ANSI, scrollback, copy/paste, search |
+| 485 | dosgui_startmenu.c — StartMenu | 22 | search, recent, power, tree, shortcuts |
+| 486 | dosgui_desktop.c — Desktop | 6 | icons, wallpaper, tray, placeholder |
+| 487 | wubu_pkgmgr.c — Package Mgr GUI | 18 | header size/sign/crc, install UI |
+| 488 | wubu_mime.c — MIME System | 25 | command_exec, type detection |
+| 489 | wubu_wm.c — WM Core | 6 | invalidate, window ops |
+| 490 | dosgui_controlpanel.c — Settings | 13 | applets: display, network, sound, theme |
+| 491 | wubu_notify.c — Notifications | 6 | init, shutdown, tick, caps, count |
+| 492 | wubu_screenshot.c — Screenshot | 26 | region select, GIF, snip tool |
+| 493 | wubu_settings.c — Settings | 13 | font_scale, cursor_size, high_contrast |
+| 494 | wubu_clipboard.c — Clipboard | 20 | DND action, copy/paste |
+| 495 | wubu_session.c — Session Mgmt | 24 | hibernate, suspend, idle inhibit |
+| 496 | wubu_trash.c — Trash | 23 | get_size, operations |
 
-## Phase 2: GNOME-Standard Desktop Ecosystem (Week 3-6)
+### PHASE 4: BEAR RL CLOSURE (Cells 520-560) — HIGH TIER
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 520 | bear_nn.c — Neural Net | 46 | checkpoint save/load, layers, optimizers, zero_grad |
+| 521 | bear_vulkan.c — Vulkan Compute | 25 | forward, GAE, env step, pipelines, descriptors |
+| 522 | bear_cudnn.c — cuDNN | 40 | handle, conv, activation, pooling, softmax, workspace |
+| 523 | bear_cuda.c — CUDA | 24 | malloc/free, policy/value/GAE/n-pole kernels |
+| 524 | bear_vulkan_soft.c — CPU Fallback | 29 | GEMM, softmax, GAE, env step implementations |
+| 525 | bear_opt.c — Optimizer | 6 | zero_grads, step, LR schedule |
+| 526 | bear_ppo.c — PPO | 17 | V-trace, clip, entropy, value loss |
+| 527 | bear_gaad.c — GAAD | 1 | Q-learner integration |
+| 528 | bear_cartpole_gaad_solve.c — Cartpole | 7 | Q-update, strain level |
+| 529 | bear_env.c — Environments | 14 | n-pole, reset, step, render |
+| 530 | npole_blog.c — Lagrangian | 1 | Full implementation |
 
-### Core Desktop Services
-| Service | Purpose | Implementation |
-|---------|---------|----------------|
-| **Settings Daemon** | Theme, fonts, keyboard, mouse, display | `src/shell/wubu_settings.c` + Styx config |
-| **Session Manager** | Auto-start, shutdown, logout, restart | `src/shell/wubu_session.c` |
-| **Notification Daemon** | Desktop notifications (libnotify compatible) | `src/gui/wubu_notify.c` |
-| **Clipboard Manager** | Wayland primary + clipboard selection | `src/hosted/wubu_clipboard.c` |
-| **Screenshot Tool** | PrintScr, Alt+PrintScr, region select | Extend `src/tools/screenshot.c` |
-| **File Associations** | MIME → app mapping, .desktop files | `src/runtime/wubu_mime.c` |
-| **Trash/Recycle Bin** | `.local/share/Trash` implementation | `src/apps/wubu_trash.c` |
+### PHASE 5: HOSTED PLATFORM CLOSURE (Cells 560-600) — HIGH TIER
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 560 | wubu_vulkan.c — Vulkan | 51 | instance, device, swapchain, pipelines, memory |
+| 561 | wubu_metal.c — Metal/DRM | 34 | DRM/KMS, ALSA, Pulse, evdev, X11, GBM |
+| 562 | hosted.c — Hosted Main | 54 | Wayland frame, SHM, fs reset, display init |
+| 563 | wubu_drm_direct.c — DRM Direct | 15 | device open, resources, mode_set_crtc |
+| 564 | wubu_display.c — Display | 11 | init, modeset, page_flip |
+| 565 | wubu_gbm.c — GBM | 11 | buffer alloc, modifier, format |
 
-### System Integration
-| Feature | GNOME Equivalent | WuBuOS Approach |
-|---------|------------------|-----------------|
-| App grid / overview | GNOME Shell overview | Start menu + virtual desktops |
-| Search / run dialog | Alt+F2, Super | Start menu "Run...", Win+R |
-| System monitor | GNOME System Monitor | Task Manager app (Ctrl+Shift+Esc) |
-| Disk analyzer | Baobab | File Manager → Properties |
-| Terminal | GNOME Terminal | WuBu Terminal app (existing) |
-| Text editor | GNOME Text Editor | Notepad + Editor apps (existing) |
-| Archive manager | File Roller | File Manager → Extract |
-| Software center | GNOME Software | Package Manager app (stub) |
+### PHASE 6: COMPILER & APPS (Cells 600-640) — MEDIUM TIER
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 600 | holyc_codegen.c — Codegen | 22 | stack args, multi-func, structs, ternary, calls |
+| 601 | holyc_ptx.c — PTX Backend | 13 | matrix tiles, runtime exec, MMA |
+| 602 | holyc_lexer.c — Lexer | 1 | return -1 paths |
+| 603 | jit/wubu_x86.c — X86 Encoder | 30 | instruction emitters |
+| 604 | jit/wubu_disasm.c — Disassembler | ? | decode, dump |
+| 605 | jit/jit_minic.c — Minic Compiler | 9 | tokenizer, parser, expr, if/while, locals |
+| 606 | wubu_editor.c — Editor | 27 | undo/redo, find, folding, bookmarks, macros |
+| 607 | wubu_canvas.c — Canvas | 39 | draw, filters, ops, undo/redo, resize/crop/flip |
+| 608 | wubu_codec.c — Codec | 34 | mount, video/audio decode/encode, seek |
+| 609 | explorer.c — Explorer App | 8 | context menu, F2-F8 ops |
+| 610 | terminal.c — Terminal App | 1 | resize |
+| 611 | wubu_freedoom.c — FreeDoom App | 10 | launch, resume, save |
 
-### Accessibility (a11y)
-- High contrast themes (WCAG AA)
-- Screen reader hooks (speech-dispatcher)
-- Keyboard-only navigation
-- Font scaling (100%-200%)
+### PHASE 7: AUDIO ENGINE (Cells 640-680) — MEDIUM TIER
+| Cell | Component | Gaps | Target |
+|------|-----------|------|--------|
+| 640 | wubu_audio.c — Audio Engine | 24 | SF2 sample playback, mixing, plugin API |
+| 641 | Furnace chips (12) | ? | NES, GB, YM2612, SN76489, SID, SAA1099, VRC6, N163, OPL, SCC, AY, PC Speaker |
+| 642 | TinySoundFont | ? | RIFF parse, samples, envelopes, modulators |
+| 643 | Ardour DAW integration | ? | transport, automation, LV2/VST3, JACK |
+| 644 | AI plugins | ? | neural synthesis, style transfer |
 
----
+### PHASE 8: BARE METAL (Cells 680-720) — LOW TIER
+| Cell | Component | Target |
+|------|-----------|--------|
+| 680 | Modified Linux 6.x config (CONFIG_WUBU_*) | Kernel patches |
+| 681 | Limine bootloader + kernel cmdline | wubu.namespace=9p |
+| 682 | GPU init: DRM/KMS + GOP fallback | vbe.c metal path |
+| 683 | ACPI + PCIe + AHCI + NVMe | Hardware enumeration |
+| 684 | Real hardware: ISO build, USB install | Dual-boot support |
 
-## Phase 3: Proton/Wine Integration (Week 7-10)
+### PHASE 9: ECOSYSTEM (Cells 720+) — LOW TIER
+| Cell | Component | Target |
+|------|-----------|--------|
+| 720 | WuBuOS Repository | Signed packages, SBOM, reproducible |
+| 721 | Hardware certification | Like Ubuntu Certified |
+| 722 | ISV outreach | Game studios, CAD, DAW, AI vendors |
+| 723 | Documentation | Wiki, tutorials, API reference |
+| 724 | Community | Discord, forums, package maintainers |
 
-### Architecture
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    WuBuOS Desktop                            │
-├─────────────────────────────────────────────────────────────┤
-│  Wine/Proton Layer (host process)                           │
-│  ├── wine64 (host binary)                                   │
-│  ├── DXVK/VKD3D (Vulkan translation)                        │
-│  ├── wined3d (OpenGL fallback)                              │
-│  └── Steam client (flatpak/native)                          │
-├─────────────────────────────────────────────────────────────┤
-│  Container Runtime (bubblewrap)                             │
-│  ├── .wubu containers (ZealOS apps)                         │
-│  ├── Proton prefixes (~/.local/share/wubu/proton/)          │
-│  └── Steam library integration                              │
-├─────────────────────────────────────────────────────────────┤
-│  ZealOS Kernel (in-process)                                 │
-│  ├── HolyC JIT                                              │
-│  ├── VBE framebuffer                                        │
-│  └── Styx namespace                                         │
-└─────────────────────────────────────────────────────────────┘
-```
+## Gap Closure Velocity Target
 
-### Implementation Tasks
-| Task | File | Notes |
-|------|------|-------|
-| Proton prefix manager | `src/runtime/wubu_proton.c` | Create/manage Wine prefixes per game |
-| Steam integration | `src/apps/wubu_steam.c` | Launch Steam, parse library.vdf |
-| DXVK/VKD3D detection | `src/runtime/wubu_vulkan.c` | Check Vulkan ICD, select translation |
-| Game launch .desktop files | `src/runtime/wubu_mime.c` | Auto-generate from Steam library |
-| Controller support | `src/runtime/wubu_input.c` | SDL2/GameControllerDB mapping |
-| Anti-cheat workaround | `src/runtime/wubu_proton.c` | Document limitations (kernel-level) |
+| Week | Target Gaps Closed | Cumulative |
+|------|-------------------|------------|
+| 1-2 | 200 (OCI + Network + Snapshot) | 200 |
+| 3-4 | 200 (HolyD + VSL + Image) | 400 |
+| 5-6 | 200 (ArchD + Bottles + Exec + Proton) | 600 |
+| 7-8 | 200 (Interrupt + FAT32 + Tasking) | 800 |
+| 9-10 | 200 (GUI WM + Explorer + Terminal) | 1000 |
+| 11-12 | 200 (Bear NN + Vulkan + cuDNN) | 1200 |
+| 13-14 | 200 (Hosted Vulkan + Metal) | 1400 |
+| 15-16 | 200 (Compiler + Apps) | 1600 |
+| 17-18 | 200 (Audio + remaining) | 1800 |
+| 19-20 | 200 (Bare metal prep) | 2000 |
+| 21-22 | 284 (Final closure) | 2284 |
 
-### Minimal Proton Bundle (~200MB)
-```
-dist/
-├── bin/
-│   ├── wine64
-│   ├── wineserver
-│   └── winedbg
-├── lib/
-│   ├── dxvk/
-│   ├── vkd3d/
-│   └── wined3d/
-└── share/
-    ├── wine/
-    └── proton/
-```
-
----
-
-## Phase 4: TempleOS/ZealOS Compatibility (Week 11-14)
-
-### HolyC Ecosystem
-| Component | Status | Target |
-|-----------|--------|--------|
-| HolyC Lexer/Parser | ✅ | Complete |
-| x86_64 Codegen | ✅ | Complete |
-| Standard Library | 🟡 | Port ZealOS `Kernel/*.ZC` → C headers |
-| Graphics (VBE) | ✅ | `vbe.c` + `dosgui_wm` |
-| File System (RedSea) | 🟡 | FAT32 + TXFS stub → RedSea driver |
-| Network | 🟡 | Styx/9P over TCP |
-| Audio | 🟡 | `wubu_audio.c` → HolyC bindings |
-| Compiler Self-Host | 🔴 | HolyC compiles HolyC |
-
-### ZealOS App Ports
-| App | Source | Port Strategy |
-|-----|--------|---------------|
-| TempleOS Browser | ZealOS Apps | HolyC → in-process window |
-| TempleOS Compiler | ZealOS Kernel | Already have JIT |
-| TempleOS Games | ZealOS Demos | HolyC → window + VBE |
-| TempleOS Tools | ZealOS Utils | HolyC → CLI + GUI |
-
-### HolyC Standard Library (`src/compiler/holyc_lib/`)
-```
-holyc_lib/
-├── core.hc          # Memory, strings, math
-├── graphics.hc      # VBE, sprites, fonts
-├── filesystem.hc    # RedSea, FAT32, Styx
-├── network.hc       # TCP/UDP, Styx
-├── audio.hc         # PCM, MIDI
-├── gui.hc           # Windows, menus, controls
-└── kernel.hc        # Tasking, interrupts
-```
-
----
-
-## Phase 5: Multi-Target Deployment (Week 15-18)
-
-### Target Matrix
-| Target | Kernel | GUI | Container | Boot Method |
-|--------|--------|-----|-----------|-------------|
-| **Bare Metal (x86_64)** | ZealOS native | DRM/KMS | bubblewrap | Limine/GRUB |
-| **WSL2** | ZealOS in-process | Wayland (weston) | bubblewrap | `wubu` binary |
-| **Container (Docker/Podman)** | ZealOS in-process | Headless/Xvfb | Nested bubblewrap | `FROM scratch` |
-| **VM (QEMU/KVM)** | ZealOS native | DRM/KMS + virtio-gpu | bubblewrap | ISO/Limine |
-| **macOS (AVF)** | ZealOS in-process | Metal/Cocoa | N/A | `.app` bundle |
-
-### Build System
-```makefile
-# Top-level targets
-all: wubu-linux wubu-wsl wubu-container wubu-iso wubu-macos
-
-wubu-linux:     CC=gcc      TARGET=linux   make hosted
-wubu-wsl:       CC=gcc      TARGET=wsl     make hosted
-wubu-container: CC=gcc      TARGET=container make hosted
-wubu-iso:       CC=i686-elf TARGET=metal    make metal kernel
-wubu-macos:     CC=clang    TARGET=macos   make hosted_metal
-```
-
-### Distribution Artifacts
-| Artifact | Size | Contents |
-|----------|------|----------|
-| `wubu-<version>-linux-x86_64.tar.gz` | ~50MB | Binary + themes + apps + proton stub |
-| `wubu-<version>-wsl.tar.gz` | ~50MB | Same + WSL integration scripts |
-| `wubu-<version>-container.tar.gz` | ~30MB | Minimal (no proton) |
-| `wubu-<version>-iso` | ~100MB | Bare metal bootable ISO |
-| `wubu-<version>-macos.dmg` | ~60MB | macOS app bundle |
-
----
-
-## Phase 6: Package Management & App Store (Week 19-22)
-
-### .wubu Container Format
-```
-myapp.wubu/
-├── manifest.yaml      # name, version, deps, entry, icon
-├── rootfs/            # squashfs/EROFS read-only
-│   ├── bin/
-│   ├── lib/
-│   └── share/
-├── runtime/           # "wubu" | "proton" | "holyc" | "native"
-└── metadata/          # screenshots, description, license
-```
-
-### Package Manager (`src/apps/wubu_pkgmgr.c`)
-- **Repository**: Git-based (like Arch AUR)
-- **Dependencies**: Styx namespace composition
-- **Sandboxing**: bubblewrap + seccomp
-- **Updates**: Delta sync via rsync/zstd
-
-### Default Repositories
-| Repo | Content |
-|------|---------|
-| `core` | Base system, kernel, GUI, proton |
-| `extra` | Apps: Browser, Office, Media, Dev tools |
-| `holyc` | TempleOS/ZealOS apps |
-| `steam` | Proton prefixes + launchers |
-| `community` | User-submitted .wubu containers |
-
----
-
-## Technical Debt & Cleanup (Ongoing)
-
-| Area | Issue | Priority |
-|------|-------|----------|
-| `vbe.c` theme leakage | 3D rounded calls theme | High |
-| Warning cleanup | strncpy truncation, unused params | Medium |
-| Test coverage | Add GUI integration tests | High |
-| Documentation | API docs, man pages | Medium |
-| CI/CD | GitHub Actions for all targets | High |
-| License audit | All deps compatible (MIT/BSD/Apache) | High |
-
----
-
-## Milestone Deliverables
-
-| Milestone | Date | Deliverable |
-|-----------|------|-------------|
-| M1 | Week 2 | GUI glitch-free, theme system solid |
-| M2 | Week 6 | GNOME-parity desktop services |
-| M3 | Week 10 | Proton runs Steam games |
-| M4 | Week 14 | ZealOS apps run natively |
-| M5 | Week 18 | Multi-target builds passing |
-| M6 | Week 22 | Package manager + app store |
-| **v1.0** | Week 24 | **Public release** |
-
----
-
-## Resource Requirements
-
-| Resource | Current | Needed |
-|----------|---------|--------|
-| Dev time | 1 FTE | 2-3 FTE |
-| Test hardware | WSL + 1 Linux | Bare metal x86_64, ARM64, macOS |
-| CI runners | None | GitHub Actions (Linux/macOS/Windows) |
-| Vulkan GPU | Integrated | Discrete (for DXVK testing) |
-
----
-
-## Risk Mitigation
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| Proton ABI breaks | High | High | Pin Wine/Proton versions, test matrix |
-| Wayland protocol drift | Medium | Medium | Version xdg-shell, fallback to XWayland |
-| ZealOS HolyC incompatibility | Medium | High | Comprehensive test suite, versioned stdlib |
-| Legal (Wine/Proton) | Low | High | Use LGPL components, document |
-| Performance (in-process kernel) | Medium | Medium | Benchmark, optimize hot paths |
-
----
-
-*Generated: $(date)*
-*WuBuOS v0.5.0 → v1.0 Roadmap*
+## Success Criteria
+- [ ] 2284 → 0 REAL_GAPs
+- [ ] All 58 test targets passing
+- [ ] Hosted binary runs on Linux, WSL2, macOS AVF
+- [ ] Steam + Proton + games work in containers
+- [ ] HolyC DOS terminal spawns as GUI window
+- [ ] GPU compute from HolyC (PTX → Tensor cores)
+- [ ] Audio DAW + 12 chip emulations functional

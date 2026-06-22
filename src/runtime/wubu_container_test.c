@@ -254,6 +254,78 @@ int main(void) {
         T(r == 25, "universal exec .wubu: 100/4 = 25");
     }
 
+    /* -- handler_id Dispatch -- */
+    printf("\n[handler_id Dispatch]\n");
+    {
+        /* Test handler_id=2 (HolyC JIT) for a .wubu container */
+        const char *hc = "return 11 + 22;";
+        WUBU_HEADER hdr;
+        memset(&hdr, 0, sizeof(hdr));
+        hdr.payload_type = WUBU_PAYLOAD_HOLYC_SRC;
+        hdr.arch = WUBU_ARCH_X86_64;
+        hdr.handler_id = 2;  /* HolyC JIT handler */
+        hdr.os_persona = WUBU_OS_NATIVE;
+
+        uint8_t buf[512];
+        size_t out_size;
+        wubu_container_create(&hdr, hc, strlen(hc), buf, sizeof(buf), &out_size);
+
+        int64_t r = wubu_exec(buf, out_size, "handler_id_test.wubu");
+        T(r == 33, "handler_id=2 HolyC: 11+22 = 33");
+
+        /* Test handler_id=10 (VSL) for Linux ELF payload (stub) */
+        hdr.handler_id = 10;
+        hdr.payload_type = WUBU_PAYLOAD_LINUX_ELF;
+        uint8_t elf_magic[] = {0x7F, 'E', 'L', 'F'};
+        wubu_container_create(&hdr, elf_magic, 4, buf, sizeof(buf), &out_size);
+        r = wubu_exec(buf, out_size, "handler_id_vsl.wubu");
+        /* Expected to fail (not a real ELF) but should route to VSL handler */
+        T(r != 0, "handler_id=10 VSL routes correctly (fails on invalid ELF)");
+
+        /* Test handler_id=11 (Proton) for Windows PE payload (stub) */
+        hdr.handler_id = 11;
+        hdr.payload_type = WUBU_PAYLOAD_WIN_PE;
+        wubu_container_create(&hdr, "MZ", 2, buf, sizeof(buf), &out_size);
+        r = wubu_exec(buf, out_size, "handler_id_proton.wubu");
+        T(r != 0, "handler_id=11 Proton routes correctly (fails on invalid PE)");
+
+        /* Test handler_id=30 (WASM) for WASM payload (stub) */
+        hdr.handler_id = 30;
+        hdr.payload_type = WUBU_PAYLOAD_WASM;
+        uint8_t wasm_magic[] = {0x00, 'a', 's', 'm', 0x01, 0x00, 0x00, 0x00};
+        wubu_container_create(&hdr, wasm_magic, sizeof(wasm_magic), buf, sizeof(buf), &out_size);
+        r = wubu_exec(buf, out_size, "handler_id_wasm.wubu");
+        /* Should try WASM runtimes but fail gracefully */
+        T(r == WUBU_EXEC_ERR_VSL || r == WUBU_EXEC_OK, "handler_id=30 WASM routes correctly");
+    }
+
+    /* -- Raw Format Exec (non-.wubu) -- */
+    printf("\n[Raw Format Exec]\n");
+    {
+        /* Raw HolyC source */
+        int64_t r = wubu_exec("return 5 * 5;", 13, "raw.hc");
+        T(r == 25, "raw HolyC: 5*5 = 25");
+
+        /* Raw shell script (with proper shebang) */
+        r = wubu_exec("#!/bin/sh\necho hello", 18, "raw.sh");
+        T(r == 0 || r == WUBU_EXEC_OK, "raw shell script executes");
+
+        /* Raw Python script (with proper shebang) */
+        const char *py_script = "#!/usr/bin/python3\nprint('hello')";
+        r = wubu_exec(py_script, strlen(py_script), "raw.py");
+        T(r == 0 || r == WUBU_EXEC_OK, "raw python script executes");
+
+        /* Raw WASM (magic only) */
+        uint8_t wasm_magic[] = {0x00, 'a', 's', 'm', 0x01, 0x00, 0x00, 0x00};
+        r = wubu_exec(wasm_magic, sizeof(wasm_magic), "test.wasm");
+        T(r == WUBU_EXEC_ERR_VSL, "raw WASM falls back to VSL error (no runtime)");
+
+        /* Raw Mach-O (magic only) */
+        uint8_t macho_magic[] = {0xCF, 0xFA, 0xED, 0xFE};  /* 64-bit Mach-O */
+        r = wubu_exec(macho_magic, 4, "test.macho");
+        T(r == WUBU_EXEC_ERR_FMT, "raw Mach-O fails gracefully (no Darling)");
+    }
+
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;
 }

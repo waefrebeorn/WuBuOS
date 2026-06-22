@@ -280,6 +280,92 @@ int wubu_arch_bootstrap_steam(const char *root_path, const char *mirror) {
     return wubu_arch_install(root_path, steam_pkgs);
 }
 
+/* -- Steam Runtime 2.0 (Soldier) Preset --------------------------- */
+
+int wubu_arch_bootstrap_steam_runtime2(const char *root_path, const char *mirror) {
+    /* GUI first */
+    int ret = wubu_arch_bootstrap_gui(root_path, mirror);
+    if (ret != 0) return ret;
+
+    /* Steam Runtime 2.0 "Soldier" packages
+     * Based on: https://gitlab.steamos.cloud/steamrt/soldier
+     * These are the core runtime libraries Steam Play expects
+     */
+    const char *soldier_pkgs =
+        /* Steam Runtime meta */
+        "steam-runtime "
+        /* Proton + Wine */
+        "proton proton-ge wine wine-mono wine-gecko winetricks "
+        /* D3D translation */
+        "dxvk vkd3d-proton lib32-vkd3d "
+        /* Steam Deck compositor */
+        "gamescope "
+        /* Performance overlay */
+        "mangohud lib32-mangohud "
+        /* Audio - PipeWire replaces Pulse on SteamOS */
+        "pipewire wireplumber lib32-pipewire "
+        /* NVIDIA + AMD + Intel GPU drivers */
+        "nvidia-utils lib32-nvidia-utils vulkan-nvidia-utils "
+        "vulkan-radeon lib32-vulkan-radeon "
+        "vulkan-intel lib32-vulkan-intel "
+        /* 32-bit libraries critical for Wine/Proton */
+        "lib32-mesa lib32-vulkan-icd-loader "
+        "lib32-gamemode lib32-libdrm lib32-vulkan-tools "
+        /* Steam client libraries */
+        "steam-native-runtime "
+        /* Gamepad/input */
+        "libevdev lib32-libevdev "
+        "sdl2 lib32-sdl2 sdl2_image lib32-sdl2_image "
+        /* Media/codecs */
+        "gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly "
+        "lib32-gst-plugins-base lib32-gst-plugins-good "
+        /* Network */
+        "lib32-openssl lib32-curl "
+        /* Fonts */
+        "ttf-liberation ttf-dejavu noto-fonts "
+        /* Development tools */
+        "protontricks ";
+
+    return wubu_arch_install(root_path, soldier_pkgs);
+}
+
+/* -- Gaming Preset (Minimal Steam Runtime) ------------------------ */
+
+int wubu_arch_bootstrap_gaming(const char *root_path, const char *mirror) {
+    /* Base Arch (minimal) - skip full GUI */
+    int ret = wubu_arch_bootstrap(root_path, mirror, NULL);
+    if (ret != 0) return ret;
+
+    /* Minimal gaming stack: just what's needed for gamescope + proton */
+    const char *gaming_pkgs =
+        /* Window system - gamescope needs wayland + drm */
+        "wayland mesa lib32-mesa libdrm lib32-libdrm "
+        /* Vulkan */
+        "vulkan-tools vulkan-icd-loader lib32-vulkan-icd-loader "
+        "vulkan-radeon lib32-vulkan-radeon "
+        "vulkan-intel lib32-vulkan-intel "
+        "nvidia-utils lib32-nvidia-utils vulkan-nvidia-utils "
+        /* D3D translation */
+        "dxvk vkd3d-proton lib32-vkd3d "
+        /* Proton/Wine */
+        "proton proton-ge wine wine-mono wine-gecko "
+        /* Steam Deck compositor */
+        "gamescope "
+        /* Overlay */
+        "mangohud lib32-mangohud "
+        /* Audio */
+        "pipewire wireplumber lib32-pipewire "
+        /* Gamepad */
+        "libevdev lib32-libevdev "
+        "sdl2 lib32-sdl2 "
+        /* 32-bit libs */
+        "lib32-gamemode "
+        /* Fonts */
+        "ttf-liberation ttf-dejavu ";
+
+    return wubu_arch_install(root_path, gaming_pkgs);
+}
+
 /* -- Root Validation ---------------------------------------------- */
 
 bool wubu_arch_root_valid(const char *root_path) {

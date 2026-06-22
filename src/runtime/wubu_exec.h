@@ -109,6 +109,23 @@ int64_t wubu_exec_shell(const char *script, size_t script_size);
  */
 int64_t wubu_exec_python(const char *script, size_t script_size);
 
+/*
+ * Execute a WASM binary via wasmtime runtime.
+ */
+int64_t wubu_exec_wasm(const void *wasm_data, size_t wasm_size);
+
+/*
+ * Execute a macOS Mach-O binary via Darling/VSL fallback.
+ */
+int64_t wubu_exec_macho(const void *macho_data, size_t macho_size);
+
+/*
+ * Execute a WuBuOS native executable (machine code).
+ * mmap payload with PROT_EXEC and call entry_offset.
+ */
+int64_t wubu_exec_native(const void *payload, size_t payload_size,
+                         uint64_t entry_offset, uint8_t arch);
+
 /* -- VSL (Virtualization Substrate Layer) ------------------------- */
 
 /*

@@ -9,6 +9,8 @@
 
 #include "dosgui_desktop.h"
 #include "dosgui_wm.h"
+#include "dosgui_daemon_panel.h"
+#include "dosgui_startmenu.h"
 #include "../apps/dosgui_apps.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
@@ -48,6 +50,9 @@ static AppEntry g_apps[] = {
     { "Editor",       "Editor",        DESK_ICON_COUNT,         NULL },
     { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,     NULL },
     { "FreeDoom",     "FreeDoom",      DESK_ICON_COUNT + 2,     NULL },
+    { "HolyC Term",   "HolyC Terminal", DESK_ICON_COUNT + 3,    NULL },
+    { "Container Manager", "Containers", DESK_ICON_COUNT + 4,  NULL },
+    { "HolyC Sessions", "HolyC Sessions", DESK_ICON_COUNT + 5,  NULL },
 };
 #define NUM_APPS (sizeof(g_apps) / sizeof(g_apps[0]))
 
@@ -77,6 +82,11 @@ int dosgui_desktop_init(void) {
     dosgui_icon_add("Editor",       1, 0, dosgui_launch_editor);
     dosgui_icon_add("WuBu Canvas",  1, 1, dosgui_launch_canvas);
     dosgui_icon_add("FreeDoom",     1, 2, dosgui_launch_freedoom);
+    dosgui_icon_add("HolyC Term",   1, 3, dosgui_launch_holyc_term);
+
+    /* Initialize daemon panel (system tray icons, socket connections) */
+    dosgui_daemon_panel_init();
+
     return 0;
 }
 
@@ -89,6 +99,9 @@ void dosgui_desktop_shutdown(void) {
         }
     }
     g_launched_count = 0;
+
+    /* Shutdown daemon panel */
+    dosgui_daemon_panel_shutdown();
 }
 
 /* -- Launch ------------------------------------------------------ */
@@ -111,6 +124,15 @@ static void launch_host_app(const char *cmd) {
 }
 
 void dosgui_launch_app(const char *name) {
+    /* Daemon panel windows */
+    if (strcmp(name, "Container Manager") == 0) {
+        archd_tray_click();
+        return;
+    }
+    if (strcmp(name, "HolyC Sessions") == 0) {
+        holyd_tray_click();
+        return;
+    }
     dosgui_app_launch_by_name(name);
 }
 
@@ -161,6 +183,9 @@ void dosgui_desktop_render(uint32_t *fb, int fb_w, int fb_h) {
 
 void dosgui_desktop_tick(void) {
     dosgui_tick();
+
+    /* Process daemon events */
+    dosgui_daemon_panel_tick();
 
     /* Reap zombie host processes */
     for (int i = 0; i < g_launched_count; i++) {

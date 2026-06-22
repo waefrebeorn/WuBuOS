@@ -69,6 +69,9 @@ typedef struct {
     /* Resources */
     uint64_t mem_limit_mb;  /* Memory limit in MB (0 = unlimited) */
     int      cpu_limit;     /* CPU count limit (0 = unlimited) */
+    uint64_t io_read_bps;   /* I/O read bandwidth limit (bytes/sec, 0 = unlimited) */
+    uint64_t io_write_bps;  /* I/O write bandwidth limit (bytes/sec, 0 = unlimited) */
+    uint32_t io_weight;     /* I/O weight (1-10000, 0 = default 100) */
     bool     gpu_passthrough;   /* /dev/dri + /dev/nvidia */
     bool     net_enabled;       /* Network access */
     

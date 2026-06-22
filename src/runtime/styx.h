@@ -186,6 +186,12 @@ int styx_serve(styx_server_t *srv,
 void styx_error(uint16_t tag, const char *errmsg,
                 uint8_t *outbuf, uint32_t *outlen);
 
+/* -- Fid Management (public API) ---------------------------------- */
+
+styx_fid_t *styx_fid_alloc(styx_server_t *srv, uint32_t fid);
+styx_fid_t *styx_fid_lookup(styx_server_t *srv, uint32_t fid);
+void styx_fid_free(styx_server_t *srv, uint32_t fid);
+
 /* -- Message Construction Helpers --------------------------------- */
 
 void styx_build_tversion(uint8_t *buf, uint32_t *len,

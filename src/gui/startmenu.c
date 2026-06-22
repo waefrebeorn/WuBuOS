@@ -1,14 +1,17 @@
 /*
- * startmenu.c  --  WuBuOS Win98-Style Start Menu
+ * startmenu.c  --  WuBuOS Win98-Style Start Menu (LEGACY - being phased out)
  *
  * Cell 104: Cascading Start menu with programs list,
  * system menu (Shutdown, About), and Win98 classic styling.
  */
-
 #include "startmenu.h"
 #include "wm.h"
-#include "../kernel/vbe.h"
+#include "../kernel/vbe_legacy.h"
 #include <string.h>
+
+/* Legacy Win98 color constants (local to legacy startmenu) */
+#define C_WIN_FACE      0x00C0C0C0
+#define C_WIN_BORDER_DK 0x00808080
 
 /* -- Internal State ------------------------------------------- */
 

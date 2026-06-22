@@ -48,7 +48,7 @@ typedef struct {
     ProtonRuntime runtime;
     DxvkMode dxvk_mode;
     Vkd3dMode vkd3d_mode;
-    
+
     /* Wine configuration */
     char windows_version[16];         /* "win10", "win7", etc. */
     bool esync;
@@ -56,13 +56,25 @@ typedef struct {
     bool dxvk_async;
     int cpu_limit;                    /* CPU cores (0 = unlimited) */
     int memory_limit_mb;              /* Memory limit (0 = unlimited) */
-    
+
     /* DLL overrides */
     char dll_overrides[1024];         /* Semicolon-separated: "d3d11=n,b;dxgi=n" */
-    
+
+    /* DXVK Configuration */
+    char dxvk_config_path[PROTON_PATH_MAX];  /* Path to dxvk.conf */
+    bool dxvk_hud_enabled;                   /* Enable DXVK_HUD */
+    char dxvk_hud_options[256];              /* HUD options: "fps,devinfo,memory" */
+    bool dxvk_nvapi_hack;                    /* NVAPI hack for DLSS */
+    bool dxvk_present_mode_mailbox;          /* Present mode: mailbox (vsync off) */
+    bool dxvk_state_cache;                   /* State cache (faster startup) */
+    int dxvk_max_device_memory;              /* Max device memory (MB, 0 = auto) */
+    int dxvk_max_shared_memory;              /* Max shared memory (MB, 0 = auto) */
+    bool dxvk_d3d10;                         /* Enable D3D10 support */
+    bool dxvk_d3d10_1;                       /* Enable D3D10.1 support */
+
     /* Environment variables */
     char env_vars[2048];              /* Key=value;Key=value */
-    
+
     bool active;
     time_t created;
     time_t last_used;
@@ -160,6 +172,35 @@ int wubu_proton_dxvk_install(const char *prefix_id, DxvkMode mode);
 int wubu_proton_vkd3d_install(const char *prefix_id, Vkd3dMode mode);
 bool wubu_proton_dxvk_installed(const char *prefix_id);
 bool wubu_proton_vkd3d_installed(const char *prefix_id);
+
+/* DXVK Configuration */
+int wubu_proton_dxvk_config_write(const char *prefix_id, const char *config_content);
+int wubu_proton_dxvk_config_read(const char *prefix_id, char *out_config, size_t size);
+int wubu_proton_dxvk_set_hud(const char *prefix_id, bool enable, const char *options);
+int wubu_proton_dxvk_set_async(const char *prefix_id, bool async);
+int wubu_proton_dxvk_set_nvapi_hack(const char *prefix_id, bool enable);
+int wubu_proton_dxvk_set_present_mode(const char *prefix_id, bool mailbox);
+int wubu_proton_dxvk_set_memory_limits(const char *prefix_id, int device_mb, int shared_mb);
+int wubu_proton_dxvk_reset_config(const char *prefix_id);
+
+/* DXVK Config UI - for GUI integration */
+typedef struct {
+    char prefix_id[64];
+    bool dxvk_enabled;
+    bool dxvk_async;
+    bool dxvk_hud_enabled;
+    char dxvk_hud_options[256];
+    bool dxvk_nvapi_hack;
+    bool dxvk_present_mode_mailbox;
+    bool dxvk_state_cache;
+    int dxvk_max_device_memory;
+    int dxvk_max_shared_memory;
+    bool dxvk_d3d10;
+    bool dxvk_d3d10_1;
+} DxvkConfigUI;
+
+int wubu_proton_dxvk_config_ui_get(const char *prefix_id, DxvkConfigUI *out_ui);
+int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui);
 
 /* Configuration persistence */
 int wubu_proton_save_config(void);

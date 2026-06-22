@@ -16,7 +16,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdio.h>
-#include "../gui/wubu_theme.h"
+#include <stdbool.h>
 
 /* Choose allocator based on build mode */
 #ifdef VBE_HOSTED
@@ -97,26 +97,45 @@ void vbe_rect(int x, int y, int w, int h, uint32_t color) {
     vbe_vline(x+w-1, y, y+h-1, color);
 }
 
+/* 3D raised border — theme-agnostic: caller provides colors */
+void vbe_3d_raised_colors(int x, int y, int w, int h,
+                           uint32_t light, uint32_t face,
+                           uint32_t dark, uint32_t darkest) {
+    /* Top-left highlight */
+    vbe_hline(x, x+w-1, y, light);
+    vbe_vline(x, y, y+h-1, light);
+    vbe_hline(x+1, x+w-2, y+1, face);
+    vbe_vline(x+1, y+1, y+h-2, face);
+    /* Bottom-right shadow */
+    vbe_hline(x, x+w-1, y+h-1, darkest);
+    vbe_vline(x+w-1, y, y+h-1, darkest);
+    vbe_hline(x+1, x+w-2, y+h-2, dark);
+    vbe_vline(x+w-2, y+1, y+h-2, dark);
+}
+
+/* 3D sunken border — theme-agnostic: caller provides colors */
+void vbe_3d_sunken_colors(int x, int y, int w, int h,
+                           uint32_t light, uint32_t face,
+                           uint32_t dark, uint32_t darkest) {
+    /* Top-left shadow */
+    vbe_hline(x, x+w-1, y, darkest);
+    vbe_vline(x, y, y+h-1, darkest);
+    vbe_hline(x+1, x+w-2, y+1, dark);
+    vbe_vline(x+1, y+1, y+h-2, dark);
+    /* Bottom-right highlight */
+    vbe_hline(x, x+w-1, y+h-1, light);
+    vbe_vline(x+w-1, y, y+h-1, light);
+    vbe_hline(x+1, x+w-2, y+h-2, face);
+    vbe_vline(x+w-2, y+1, y+h-2, face);
+}
+
+/* Legacy Win98-compatible wrappers (for backward compatibility) */
 void vbe_3d_raised(int x, int y, int w, int h) {
-    vbe_hline(x, x+w-1, y, C_WIN_BORDER_LT);
-    vbe_vline(x, y, y+h-1, C_WIN_BORDER_LT);
-    vbe_hline(x+1, x+w-2, y+1, 0x00DFDFDF);
-    vbe_vline(x+1, y+1, y+h-2, 0x00DFDFDF);
-    vbe_hline(x+1, x+w-2, y+h-2, C_WIN_BORDER_DK);
-    vbe_vline(x+w-2, y+1, y+h-2, C_WIN_BORDER_DK);
-    vbe_hline(x, x+w-1, y+h-1, C_WIN_BORDER_DD);
-    vbe_vline(x+w-1, y, y+h-1, C_WIN_BORDER_DD);
+    vbe_3d_raised_colors(x, y, w, h, 0xFFFFFF, 0xDFDFDF, 0x808080, 0x000000);
 }
 
 void vbe_3d_sunken(int x, int y, int w, int h) {
-    vbe_hline(x, x+w-1, y, C_WIN_BORDER_DD);
-    vbe_vline(x, y, y+h-1, C_WIN_BORDER_DD);
-    vbe_hline(x+1, x+w-2, y+1, C_WIN_BORDER_DK);
-    vbe_vline(x+1, y+1, y+h-2, C_WIN_BORDER_DK);
-    vbe_hline(x+1, x+w-2, y+h-2, 0x00DFDFDF);
-    vbe_vline(x+w-2, y+1, y+h-2, 0x00DFDFDF);
-    vbe_hline(x, x+w-1, y+h-1, C_WIN_BORDER_LT);
-    vbe_vline(x+w-1, y, y+h-1, C_WIN_BORDER_LT);
+    vbe_3d_sunken_colors(x, y, w, h, 0xFFFFFF, 0xDFDFDF, 0x808080, 0x000000);
 }
 
 void vbe_clear(uint32_t color) {

@@ -1,8 +1,8 @@
 /*
- * desktop.c  --  My Seed Desktop Manager
+ * desktop.c  --  My Seed Desktop Manager (LEGACY)
  */
 #include "wm.h"
-#include "../kernel/vbe.h"
+#include "../kernel/vbe_legacy.h"
 
 void desktop_draw(int screen_w, int screen_h, int taskbar_h) {
     /* Background */

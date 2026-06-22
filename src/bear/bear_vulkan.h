@@ -14,7 +14,18 @@
 #include "bear_ppo.h"
 #include "bear_env.h"
 #include "bear_opt.h"
+
+#ifdef HAS_VULKAN
 #include <vulkan/vulkan.h>
+#else
+/* Opaque handle types when Vulkan SDK is not available */
+typedef struct VkDevice_T *VkDevice;
+typedef struct VkBuffer_T *VkBuffer;
+typedef struct VkDeviceMemory_T *VkDeviceMemory;
+typedef uint64_t VkDeviceSize;
+typedef uint32_t VkBufferUsageFlags;
+#define VK_NULL_HANDLE ((VkBuffer)0)
+#endif
 
 #ifdef __cplusplus
 extern "C" {

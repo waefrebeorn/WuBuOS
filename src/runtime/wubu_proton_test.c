@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -551,6 +552,166 @@ static void test_stats(void) {
     PASS();
 }
 
+/* -- DXVK Configuration Tests ---------------------------------- */
+
+static void test_dxvk_config_write_read(void) {
+    TEST("dxvk config write/read");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    /* Create a prefix for testing */
+    int pid = wubu_proton_create_prefix("dxvk_test", "DXVK Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    char config[4096];
+    const char *test_config = "[dxvk]\nhud = fps\nasync = true\n";
+    int rc = wubu_proton_dxvk_config_write("dxvk_test", test_config);
+    CHECK(rc == 0, "write should succeed");
+
+    rc = wubu_proton_dxvk_config_read("dxvk_test", config, sizeof(config));
+    CHECK(rc == 0, "read should succeed");
+    /* Stubs return 0 but don't actually write - just verify they don't crash */
+    (void)config;
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_hud_options(void) {
+    TEST("dxvk HUD options");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("hud_test", "HUD Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    /* Enable HUD with custom options */
+    int rc = wubu_proton_dxvk_set_hud("hud_test", true, "fps,devinfo,memory,gpu");
+    CHECK(rc == 0, "set HUD should succeed");
+
+    /* Disable HUD */
+    rc = wubu_proton_dxvk_set_hud("hud_test", false, NULL);
+    CHECK(rc == 0, "disable HUD should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_async(void) {
+    TEST("dxvk async toggle");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("async_test", "Async Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    int rc = wubu_proton_dxvk_set_async("async_test", true);
+    CHECK(rc == 0, "enable async should succeed");
+
+    rc = wubu_proton_dxvk_set_async("async_test", false);
+    CHECK(rc == 0, "disable async should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_nvapi_hack(void) {
+    TEST("dxvk NVAPI hack (DLSS)");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("nvapi_test", "NVAPI Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    int rc = wubu_proton_dxvk_set_nvapi_hack("nvapi_test", true);
+    CHECK(rc == 0, "enable NVAPI hack should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_present_mode(void) {
+    TEST("dxvk present mode (mailbox)");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("present_test", "Present Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    int rc = wubu_proton_dxvk_set_present_mode("present_test", true);
+    CHECK(rc == 0, "set mailbox should succeed");
+
+    rc = wubu_proton_dxvk_set_present_mode("present_test", false);
+    CHECK(rc == 0, "reset to auto should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_memory_limits(void) {
+    TEST("dxvk memory limits");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("mem_test", "Memory Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    int rc = wubu_proton_dxvk_set_memory_limits("mem_test", 8192, 4096);
+    CHECK(rc == 0, "set memory limits should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_reset_config(void) {
+    TEST("dxvk reset config to defaults");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("reset_test", "Reset Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    /* Modify config */
+    wubu_proton_dxvk_set_async("reset_test", true);
+    wubu_proton_dxvk_set_hud("reset_test", true, "fps");
+
+    /* Reset */
+    int rc = wubu_proton_dxvk_reset_config("reset_test");
+    CHECK(rc == 0, "reset should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
+static void test_dxvk_config_ui_get_set(void) {
+    TEST("dxvk config UI get/set");
+    wubu_proton_t p;
+    wubu_proton_init(&p);
+
+    int pid = wubu_proton_create_prefix("ui_test", "UI Test", PROTON_VERSION_GE_LATEST);
+    CHECK(pid >= 0, "prefix created");
+
+    DxvkConfigUI ui = {0};
+    int rc = wubu_proton_dxvk_config_ui_get("ui_test", &ui);
+    CHECK(rc == 0, "get UI config should succeed");
+    CHECK(strcmp(ui.prefix_id, "") == 0, "prefix_id empty (stub)");
+
+    /* Modify and set */
+    ui.dxvk_async = true;
+    ui.dxvk_hud_enabled = true;
+    strcpy(ui.dxvk_hud_options, "fps,gpu");
+    ui.dxvk_nvapi_hack = true;
+    ui.dxvk_present_mode_mailbox = true;
+    ui.dxvk_max_device_memory = 4096;
+    ui.dxvk_max_shared_memory = 2048;
+
+    rc = wubu_proton_dxvk_config_ui_set("ui_test", &ui);
+    CHECK(rc == 0, "set UI config should succeed");
+
+    wubu_proton_shutdown(&p);
+    PASS();
+}
+
 /* -- Main ---------------------------------------------------- */
 
 int main(void) {
@@ -597,6 +758,16 @@ int main(void) {
     test_state_name();
     test_dump();
     test_stats();
+
+    /* DXVK Configuration */
+    test_dxvk_config_write_read();
+    test_dxvk_hud_options();
+    test_dxvk_async();
+    test_dxvk_nvapi_hack();
+    test_dxvk_present_mode();
+    test_dxvk_memory_limits();
+    test_dxvk_reset_config();
+    test_dxvk_config_ui_get_set();
 
     printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

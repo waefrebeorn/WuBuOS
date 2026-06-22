@@ -56,6 +56,7 @@ struct HOSTED_STATE {
     int              mouse_y;
     int              mouse_buttons;
     uint8_t          key_map[256];
+    const char      *screenshot_path;
 };
 
 typedef struct HOSTED_STATE hosted_state_t;

@@ -19,6 +19,7 @@
 #include <sqlite3.h>
 #include <zstd.h>
 #include <libgen.h>
+#include <stddef.h>
 
 /* Forward declarations for static callbacks */
 static int cb_pkg_installed(void* data, int argc, char** argv, char** col);
@@ -446,11 +447,76 @@ static bool write_pkg(const char* output_path, const wubu_pkg_manifest_t* manife
     header.payload_type = manifest->payload_type;
     header.manifest_size = (uint32_t)manifest_csize;
     header.payload_size = payload_size;
-    header.uncompressed_size = 0; /* TODO: compute */
-    memset(header.signature, 0, WUBU_PKG_SIG_SIZE); /* TODO: sign */
-    strncpy(header.build_date, manifest->build_date, sizeof(header.build_date) - 1);
-    strncpy(header.builder_version, manifest->builder_version, sizeof(header.builder_version) - 1);
-    header.crc32 = 0; /* TODO: compute */
+    header.uncompressed_size = (uint32_t)payload_size;
+
+    /* Cast manifest_compressed once for byte-level access */
+    const uint8_t *mc_data = (const uint8_t *)manifest_compressed;
+
+    /* Compute CRC32 over manifest + payload data */
+    {
+        uint32_t crc = 0xFFFFFFFF;
+        /* CRC over manifest */
+        for (size_t i = 0; i < (size_t)manifest_csize; i++) {
+            crc ^= (uint32_t)mc_data[i];
+            for (int j = 0; j < 8; j++) {
+                crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
+            }
+        }
+        /* CRC over payload */
+        FILE *pf = fopen(payload_archive, "rb");
+        if (pf) {
+            unsigned char buf[8192];
+            size_t n;
+            while ((n = fread(buf, 1, sizeof(buf), pf)) > 0) {
+                for (size_t i = 0; i < n; i++) {
+                    crc ^= (uint32_t)buf[i];
+                    for (int j = 0; j < 8; j++) {
+                        crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
+                    }
+                }
+            }
+            fclose(pf);
+        }
+        header.crc32 = crc ^ 0xFFFFFFFF;
+    }
+
+    /* Compute simple signature: SHA-256-like hash of header + manifest + payload */
+    {
+        /* Simple FNV-1a hash as a placeholder signature */
+        uint64_t hash = 0xcbf29ce484222325ULL;
+        const unsigned char *hptr = (const unsigned char *)&header;
+        for (size_t i = 0; i < offsetof(wubu_pkg_header_t, signature); i++) {
+            hash ^= hptr[i];
+            hash *= 0x100000001b3ULL;
+        }
+        for (size_t i = 0; i < (size_t)manifest_csize; i++) {
+            hash ^= mc_data[i];
+            hash *= 0x100000001b3ULL;
+        }
+        /* Mix in payload hash */
+        FILE *pf = fopen(payload_archive, "rb");
+        if (pf) {
+            unsigned char buf[8192];
+            size_t n;
+            while ((n = fread(buf, 1, sizeof(buf), pf)) > 0) {
+                for (size_t i = 0; i < n; i++) {
+                    hash ^= buf[i];
+                    hash *= 0x100000001b3ULL;
+                }
+            }
+            fclose(pf);
+        }
+        /* Store 32 bytes of signature */
+        memcpy(header.signature, &hash, sizeof(hash));
+        /* Second half: hash of the first half mixed with CRC */
+        hash ^= (uint64_t)header.crc32;
+        hash *= 0x100000001b3ULL;
+        memcpy(header.signature + 8, &hash, sizeof(hash));
+        /* Fill remaining with derived bytes */
+        for (int i = 16; i < WUBU_PKG_SIG_SIZE; i++) {
+            header.signature[i] = (uint8_t)(hash >> ((i % 8) * 8)) ^ (uint8_t)i;
+        }
+    }
     
     /* Write container */
     FILE* out = fopen(output_path, "wb");
