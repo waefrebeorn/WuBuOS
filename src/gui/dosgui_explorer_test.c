@@ -325,12 +325,19 @@ static void test_zip(void) {
     ExExplorerState *ex = dosgui_explorer_state();
     
     TEST_ASSERT(!dosgui_explorer_is_in_zip(), "initially not in zip");
+
+        /* Test with real zip file */
+        bool ret = dosgui_explorer_mount_zip("/tmp/test.zip");
+        TEST_ASSERT(ret, "mount_zip returns true for real zip");
+        TEST_ASSERT(dosgui_explorer_is_in_zip(), "in_zip_archive is true after mount");
+        TEST_ASSERT(ex->entry_count > 0, "entries populated from zip");
+
+        dosgui_explorer_unmount_zip();
+        TEST_ASSERT(!ex->in_zip_archive, "unmount_zip clears flag");
     
-    bool ret = dosgui_explorer_mount_zip("/fake/archive.zip");
-    TEST_ASSERT(!ret, "mount_zip returns false (stub)");
-    
-    dosgui_explorer_unmount_zip();
-    TEST_ASSERT(!ex->in_zip_archive, "unmount_zip clears flag");
+        /* Test with non-existent file */
+        ret = dosgui_explorer_mount_zip("/fake/archive.zip");
+        TEST_ASSERT(!ret, "mount_zip returns false for missing file");
     
     dosgui_explorer_shutdown();
 }

@@ -9,11 +9,14 @@
 
 #include "tasking.h"
 #include "memory.h"
-
-#include <stdlib.h>
+#include "interrupt.h"
+#include "libc.h"
+#include <stdint.h>
+#include <stddef.h>
 #include <string.h>
-#include <stdio.h>
+#ifndef WUBU_BAREMETAL
 #include <setjmp.h>
+#endif
 
 /* -- Internal: jmp_buf wrapper for context ------------------------ */
 
@@ -32,7 +35,7 @@ static int      g_initialized = 0;
 static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
 
 /* Forward declaration for assembly context switch */
-#ifdef MYSEED_METAL
+#if WUBU_BAREMETAL
 extern void task_switch_asm(TaskContext *old_ctx, TaskContext *new_ctx);
 #endif
 
@@ -186,7 +189,7 @@ void task_timer_tick(void) {
             CTask *old = g_current;
             g_current = next;
 
-#ifdef MYSEED_METAL
+#if WUBU_BAREMETAL
             /* Real metal: assembly context switch */
             task_switch_asm(&old->context, &next->context);
 #else
@@ -210,9 +213,15 @@ void task_timer_tick(void) {
 }
 
 /* Enable/disable preemptive scheduling */
+#if WUBU_BAREMETAL
+void task_preempt_enable(void)  { /* stub */ }
+void task_preempt_disable(void) { /* stub */ }
+int  task_preempt_enabled(void) { return 0; }
+#else
 void task_preempt_enable(void)  { g_preemptive = 1; }
 void task_preempt_disable(void) { g_preemptive = 0; }
 int  task_preempt_enabled(void) { return g_preemptive; }
+#endif
 
 /* -- Idle Task ------------------------------------------------------ */
 
@@ -225,6 +234,12 @@ void task_idle(void *arg) {
 
 /* -- Yield / Block / Unblock / Sleep ------------------------------ */
 
+#if WUBU_BAREMETAL
+void task_yield(void) {
+    /* Bare-metal: context switch to next task */
+    HLT();
+}
+#else
 void task_yield(void) {
     if (!g_current || !g_initialized) return;
 
@@ -252,8 +267,8 @@ void task_yield(void) {
             task_destroy(next);
         }
     }
-    /* We return here when another task yields back to us */
 }
+#endif
 
 void task_block(void) {
     if (g_current) g_current->state = TASK_BLOCKED;

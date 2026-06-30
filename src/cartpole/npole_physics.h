@@ -59,6 +59,9 @@ typedef struct {
 /* Initialize with standard CartPole-v1 parameters (N=1) */
 void npole_init_cartpole(NPolePhysics* phys);
 
+/* Initialize with blog-exact multi-pole parameters (cartpole8 style) */
+void npole_init_cartpole8(NPolePhysics* phys, int num_poles);
+
 /* Initialize with OpenOCL double-pole params scaled to N poles (2-20) */
 void npole_init_openocl(NPolePhysics* phys, int num_poles);
 

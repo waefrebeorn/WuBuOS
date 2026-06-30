@@ -91,6 +91,24 @@ typedef struct {
     char            container_name[64];
     int             container_pid;
     bool            connected;
+    int             ptm_fd;           /* PTY master fd for container shell */
+    pid_t           child_pid;        /* Child process PID */
+    char            cwd[4096];        /* Current working directory */
+    bool            running;          /* Session active */
+    char            shell[64];        /* Shell executable inside container */
+    int             cols, rows;       /* Terminal size */
+    /* Screen buffer (current visible area) */
+    char            screen[TERM_MAX_ROWS][TERM_MAX_COLS];
+    uint8_t         attrs[TERM_MAX_ROWS][TERM_MAX_COLS];  /* Colors, bold, etc. */
+    uint8_t         cur_attr;         /* Current attribute flags (bold/reverse/etc) */
+    uint8_t         cur_fg;           /* Current foreground color index */
+    uint8_t         cur_bg;           /* Current background color index */
+    int             cursor_x, cursor_y;        /* Cursor position */
+    int             saved_cursor_x, saved_cursor_y;  /* Saved cursor position (DECSC) */
+    /* Selection */
+    bool            selecting;
+    int             sel_start_x, sel_start_y;
+    int             sel_end_x, sel_end_y;
 } TermContainerSession;
 
 /* -- Tab Structure ------------------------------------------------ */

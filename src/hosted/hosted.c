@@ -55,6 +55,7 @@
 #include "../gui/wubu_theme.h"
 
 #include "xdg-shell-client.header"
+#include "primary-selection-client.header"
 
 /* ══════════════════════════════════════════════════════════════════
  * SHM Buffer Pool (double-buffered)
@@ -76,6 +77,9 @@ static int             g_cur_buf = 0;
 
 /* Wayland state instance */
 wayland_state_t g_wl;
+
+/* Primary selection device manager global */
+struct zwp_primary_selection_device_manager_v1 *g_primary_selection_manager = NULL;
 
 /* ══════════════════════════════════════════════════════════════════
  * In-memory filesystem for Styx namespace
@@ -169,11 +173,18 @@ static void registry_global(void *data, struct wl_registry *registry,
         g_wl.pointer = wl_seat_get_pointer(g_wl.seat);
     } else if (strcmp(interface, "wl_data_device_manager") == 0) {
         g_wl.data_device_manager = wl_registry_bind(registry, name, &wl_data_device_manager_interface, 1);
+    } else if (strcmp(interface, "zwp_primary_selection_device_manager_v1") == 0) {
+        g_wl.primary_selection_manager = wl_registry_bind(registry, name, &zwp_primary_selection_device_manager_v1_interface, 1);
     }
 }
 
 static void registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
-    (void)data; (void)registry; (void)name;
+    (void)registry; (void)name;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    
+    /* Clean up any state associated with removed globals */
+    fprintf(stderr, "Wayland: global removed (name=%u)\n", name);
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -732,22 +743,32 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     if (!state->framebuffer) { fprintf(stderr, "OOM\n"); return -1; }
 
     mem_init(1024 * 1024);
+    fprintf(stderr, "DEBUG: mem_init done\n");
     vbe_init(state->width, state->height);
+    fprintf(stderr, "DEBUG: vbe_init done\n");
     input_init();
+    fprintf(stderr, "DEBUG: input_init done\n");
 
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
     dosgui_wm_init(state->width, state->height);
+    fprintf(stderr, "DEBUG: dosgui_wm_init done\n");
     dosgui_desktop_init();
+    fprintf(stderr, "DEBUG: dosgui_desktop_init done\n");
     dosgui_startmenu_init();
+    fprintf(stderr, "DEBUG: dosgui_startmenu_init done\n");
 
     /* Launch initial windows */
+    fprintf(stderr, "DEBUG: About to launch initial windows\n");
     dosgui_launch_app("My Computer");
-    dosgui_launch_app("Temple REPL");
+    fprintf(stderr, "DEBUG: Launched My Computer\n");
+    dosgui_launch_app("HolyC REPL");
+    fprintf(stderr, "DEBUG: Launched HolyC REPL\n");
 
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
 
     memset(&g_wl, 0, sizeof(g_wl));
 
+    /* Only connect to Wayland if not in headless mode */
     if (state->mode != HMODE_HEADLESS) {
         struct wl_display *dpy = wl_display_connect(NULL);
         if (!dpy) {
@@ -758,8 +779,11 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         g_wl.display = dpy;
 
         struct wl_registry *registry = wl_display_get_registry(dpy);
+        fprintf(stderr, "DEBUG: Got registry\n");
         wl_registry_add_listener(registry, &registry_listener, state);
+        fprintf(stderr, "DEBUG: Added registry listener\n");
         wl_display_roundtrip(dpy);
+        fprintf(stderr, "DEBUG: Roundtrip complete\n");
 
         if (g_wl.xdg_wm_base) {
             xdg_wm_base_add_listener(g_wl.xdg_wm_base, &xdg_wm_base_listener, state);
@@ -829,8 +853,11 @@ int hosted_run(hosted_state_t *state) {
     const long frame_ns = 1000000000L / 30;
 
     bool screenshot_requested = (state->screenshot_path != NULL);
+    int frame_count = 0;
+    fprintf(stderr, "DEBUG: Entering run loop, screenshot_requested=%d, mode=%d\n", screenshot_requested, state->mode);
 
     while (state->running) {
+        fprintf(stderr, "DEBUG: run loop iteration, running=%d, frame_count=%d\n", state->running, frame_count);
         if (g_wl.display) {
             wl_display_dispatch_pending(g_wl.display);
             wl_display_flush(g_wl.display);
@@ -851,8 +878,14 @@ int hosted_run(hosted_state_t *state) {
                 for (int i = 0; i < state->width * state->height; i++)
                     state->framebuffer[i] = 0x00000000;
             } else {
-                for (int i = 0; i < state->width * state->height; i++)
-                    state->framebuffer[i] = 0x00808080;
+                /* HMODE_HEADLESS or HMODE_CONSOLE - render desktop for screenshot */
+                render_desktop(state);
+                vbe_swap();
+                VBEState *vs = vbe_state();
+                if (vs && vs->fb) {
+                    memcpy(state->framebuffer, vs->fb,
+                           (size_t)state->width * state->height * 4);
+                }
             }
         }
 
@@ -860,10 +893,24 @@ int hosted_run(hosted_state_t *state) {
             wayland_frame_render();
         }
 
-        /* If screenshot requested in headless mode, render once and exit */
+        /* If screenshot requested in headless mode, render a couple frames and exit */
         if (screenshot_requested && state->mode == HMODE_HEADLESS) {
-            state->running = false;
-            break;
+            frame_count++;
+            fprintf(stderr, "DEBUG: frame_count=%d, will exit at 2\n", frame_count);
+            if (frame_count >= 2) {  /* Render a couple frames to ensure desktop is drawn */
+                state->running = false;
+                break;
+            }
+        }
+
+        /* If headless mode without screenshot, just render once and exit */
+        if (state->mode == HMODE_HEADLESS && !screenshot_requested) {
+            frame_count++;
+            fprintf(stderr, "DEBUG: headless no screenshot, frame_count=%d\n", frame_count);
+            if (frame_count >= 1) {
+                state->running = false;
+                break;
+            }
         }
 
         struct timespec now;
@@ -923,6 +970,7 @@ void hosted_shutdown(hosted_state_t *state) {
     if (g_wl.seat) wl_seat_destroy(g_wl.seat);
     if (g_wl.shm) wl_shm_destroy(g_wl.shm);
     if (g_wl.data_device_manager) wl_data_device_manager_destroy(g_wl.data_device_manager);
+    if (g_wl.primary_selection_manager) zwp_primary_selection_device_manager_v1_destroy(g_wl.primary_selection_manager);
     if (g_wl.compositor) wl_compositor_destroy(g_wl.compositor);
     if (g_wl.display) { wl_display_flush(g_wl.display); wl_display_disconnect(g_wl.display); }
     memset(&g_wl, 0, sizeof(g_wl));
@@ -976,8 +1024,12 @@ int hosted_wm_has_windows(void) {
 #ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {
     hosted_state_t state;
-    if (hosted_init(&state, argc, argv) != 0) return 1;
+    fprintf(stderr, "DEBUG: Starting main\n");
+    int init_ret = hosted_init(&state, argc, argv);
+    fprintf(stderr, "DEBUG: hosted_init returned %d\n", init_ret);
+    if (init_ret != 0) return 1;
     int ret = hosted_run(&state);
+    fprintf(stderr, "DEBUG: hosted_run returned %d\n", ret);
     hosted_shutdown(&state);
     return ret;
 }

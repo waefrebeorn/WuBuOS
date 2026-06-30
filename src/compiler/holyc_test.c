@@ -222,6 +222,23 @@ int main(void) {
     T("3 ^ 5", 6);
     T("~0", -1);
 
+    /* -- Increment/Decrement -- */
+    printf("\n[Inc/Dec]\n");
+    T("{ I64 x = 5; ++x; }", 6);
+    T("{ I64 x = 5; --x; }", 4);
+    T("{ I64 x = 5; x++; }", 5);
+    T("{ I64 x = 5; x--; }", 5);
+
+    /* -- Deref/Address -- */
+    printf("\n[Deref/Addr]\n");
+    T("{ I64 x = 42; I64 *p = &x; *p; }", 42);
+    T("{ I64 x = 10; &x; x; }", 10);  // address is non-zero stack address, then x returns 10
+
+    /* -- Cast -- */
+    printf("\n[Cast]\n");
+    T("(I64)42", 42);
+    T("(I64)3.14", 4614253070214989087LL);  // Double bit pattern for 3.14
+
     /* -- String Literals (Cell 311) -- */
     printf("\n[Cell 311: String Literals]\n");
     T("{ \"hello\"; 0; }", 0);  /* Just test it compiles and runs */

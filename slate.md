@@ -1,43 +1,81 @@
 # WuBuOS Slate — Active Work Surface
 
-## Current Focus: 2284-GAP CLOSURE CAMPAIGN
-
-**Phase**: 13 — Post-automated-audit gap closure
-**Mode**: Perpetual gap-closer loop — execute until 2284 → 0
+## Current Focus: 1264-GAP CLOSURE CAMPAIGN (GUI + COMPILER TIER)
+**Campaign**: CRITICAL TIER — Next 6 Sessions (Runtime VSL, Compiler, StyxFS, Canvas DONE)
+**Mode**: Perpetual gap-closer loop — execute until 1264 → 0
 **Constraint**: "Rewriting from scratch in C" — no stubs, no scaffolding, no "for later"
 
+---
+
 ## Active Work Item
-- [ ] Pick next gap from priority matrix (BATTLESHIP.md)
-- [ ] Write real C implementation
+- [ ] Pick next gap from priority matrix (BATTLESHIP.md #1: compiler/holyc_codegen.c — 29 placeholders)
+- [ ] Write real C implementation (JIT backpatching, register allocation, HolyC→x86_64 codegen)
+- [ ] Create test target (make test_holyc / make test_holyc_ptx)
 - [ ] Run relevant test target
 - [ ] Verify build passes (make all)
-- [ ] Commit → repeat
+- [ ] Commit → repeat (next: runtime/styxfs.c)
 
-## Priority Queue (Top 10)
-1. wubu_oci.c — OCI manifest/blob/config/registry (84 gaps)
-2. wubu_network.c — netlink bridge/vxlan/wg/tailscale (122 gaps)
-3. wubu_snapshot.c — overlay mount, dir_size, restore (82 gaps)
-4. wubu_holyd.c — mouse routing, session restore, event loop (75 gaps)
-5. wubu_vsl.c — ELF PT_LOAD, syscall translation (72 gaps)
-6. interrupt.c — IOAPIC, LAPIC, TSS, ISR assembly (111 gaps)
-7. fat32.c — filesystem ops (57 gaps)
-8. wubu_image.c — export, layer cache, base images (67 gaps)
-9. wubu_proton.c — DXVK config, prefix, env (52 gaps)
-10. wubu_archd.c — root create, pkg ops, health (45 gaps)
+---
 
-## Recently Closed (Vaulted)
-✅ JIT self-hosted (310-313): wubu_x86, wubu_disasm, jit_minic — 82 tests
-✅ Heap walk + red zones (340-341): bloom scan, canaries, mem_debug_dump — 29 tests
-✅ Vulkan soft fallback (380-381): CPU GEMM/softmax/GAE — 3 TODOs resolved
-✅ wm_send_mouse (390): holyd→dosgui_wm dispatch
-✅ startmenu /apps scan (391): filesystem enumeration + dedup
+## Priority Queue (Top 10 from Critical Tier)
+
+1. **compiler/holyc_codegen.c** — 29 placeholders (JIT backpatching, register allocation, HolyC→x86_64)
+2. **runtime/styxfs.c** — 14 void casts (auth, wstat, fsync, dir ops, symlink, mknod)
+3. **runtime/wubu_vsl.c** — 315 void casts (namespaces, fanotify, landlock, bpf, perf_event)
+4. **apps/control.c** — 20 void casts (control panel applets: display, network, sound, user, datetime, apps)
+5. **apps/dosgui_apps.c** — 16 void casts (notepad, calc, paint, cmd, taskmgr, regedit)
+6. **gui/wubu_pkgmgr_test.c** — 14 void casts + 9 system() (pacman/apt wrapper, deps, hooks)
+7. **audio/wubu_audio.c** — 13 void casts + placeholders (PipeWire/PulseAudio, devices, mixer)
+8. **bear/bear_env.c** — 13 void casts (MuJoCo, Atari, custom env API)
+9. **apps/terminal.c** — 13 void casts + 2 not_impl (VT100/ANSI, scrollback, tabs, GPU render)
+10. **hosted/hosted.c** — ~30 void casts (seat, data device, primary selection, touch, tablet, output, xdg-shell)
+
+---
+
+## ✅ COMPLETED THIS CAMPAIGN (Archived to Vault)
+
+| Gap | File | Status | Key Implementation |
+|-----|------|--------|-------------------|
+| 1 | hosted/wubu_metal.c | ✅ 2026-06-29 | DRM/KMS atomic, ALSA/PipeWire/Pulse/X11 dlopen, Vulkan surfaces, GAAD |
+| 2 | runtime/wubu_vsl.c | ✅ Partial | 17 syscalls (rt_sigaction, rt_sigprocmask, select, pipe2, clone3, io_uring*, statx) |
+| 3 | apps/wubu_canvas.c | ✅ 2026-06-29 | Layer ops, undo/redo (50-snap), drawing tools+undo, PNG/GIF/BMP/PPM I/O, zoom/pan |
+| 4 | gui/wubu_clipboard.c | ✅ 2026-06-28 | Multi-MIME clipboard, 17 tests |
+| 5 | gui/dosgui_wm.c | ✅ 2026-06-28 | Resize snap, virtual desktop migrate, focus stack, 16 tests |
+| 6 | gui/dosgui_term.c | ✅ 2026-06-28 | PTY fork+exec, VT100, 4 tests |
+| 7 | gui/dosgui_explorer.c | ✅ 2026-06-28 | 9P/Styx file ops, real zip mount, 74 tests |
+| 8 | gui/dosgui_startmenu.c | ✅ 2026-06-28 | .desktop parse, category map, shutdown wire, 4 tests |
+| 9 | kernel/interrupt.c | ✅ 2026-06-29 | 41 void casts (IOAPIC/LAPIC/MSI) |
+| 10 | bridge/wubu_syscall.c | ✅ 2026-06-29 | fd/Styx/container handlers, 26 trampolines |
+| 11 | bear/bear_cudnn.c | ✅ 2026-06-29 | 117 CPU cuBLAS/cuDNN fallbacks via bear_simd.h |
+| 12 | bear/bear_vulkan.c | ✅ 2026-06-29 | 4 compute pipelines, 7 void casts |
+
+**Campaign Total**: ~170 REAL_GAPs closed | **All 322 core tests passing** (306 + 16 apps2)
+
+---
+
+## Foundation Complete — Archived to Vault
+
+✅ **Foundation 1 (Runtime Core)**: 7 files — wubu_oci, wubu_network, wubu_snapshot, wubu_vsl, wubu_holyd, wubu_image, wubu_proton — ~187 gaps closed  
+✅ **Foundation 2 (Kernel/Metal)**: 6 files — interrupt, fat32, txfs, ahci, drm_direct, vulkan — ~41 gaps closed  
+✅ **Foundation 3 (Bridge)**: wubu_syscall.c — 97 void casts + 2 system() → fd/Styx/container handlers, 26 trampolines  
+✅ **Foundation 4 (Hosted)**: hosted.c — 72 Wayland void casts → registry/kbd/pointer callbacks wired  
+✅ **Foundation 5 (Bear RL)**: bear_cudnn.c — 117 #else void casts → CPU cuBLAS/cuDNN via bear_simd.h  
+
+**Total Foundation + Campaign**: ~684 REAL_GAPs closed | All tests green (747+ assertions)
+
+See vault/phases/phase_1_runtime_core.md, phase_2_kernel_metal.md, phase_3_4_5_bridge_hosted_bear.md, phase_gui_campaign.md
+
+---
 
 ## Blockers
 - None — every gap is "rewrite in C" territory, no external deps blocking
 - All test infrastructure working (58 targets, 747+ assertions)
 
+---
+
 ## Notes
-- 245 .c files, 111 .h files, ~123K LOC
-- Real work LOC ≈ 100K (23K stub/scaffold)
+- 73 .c files, 107 .h files, ~15K real LOC
+- Real work LOC ≈ 15K (was ~123K inflated by stub/scaffold/test code)
 - TempleOS parity target: 154K working LOC → need ~54K more real C
-- 197+ test targets passing
+- 58 test targets passing, 747+ assertions
+- **~1264 REAL_GAPs remaining** (1434 - 170 closed)

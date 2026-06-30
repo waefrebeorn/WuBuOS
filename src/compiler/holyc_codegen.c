@@ -282,6 +282,11 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
             emit_mov_rax_imm64(gen, node->int_val ? 1 : 0);
             break;
 
+        case HC_AST_CHAR_LIT:
+            /* Character literal 'c' -> its ASCII value as I64 */
+            emit_mov_rax_imm64(gen, (int64_t)(uint8_t)node->str_val[0]);
+            break;
+
         case HC_AST_STRING_LIT:
             /* Store string in data section and emit pointer */
             {
@@ -344,6 +349,196 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
         case HC_AST_BITNOT:
             gen_expr(gen, node->child);
             emit_not_rax(gen);
+            break;
+
+        /* Pre-increment: ++expr */
+        case HC_AST_PRE_INC: {
+            /* Load variable address, increment, store back, return new value */
+            if (node->child && node->child->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->child->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                    break;
+                }
+                /* mov rax, [rbp - off] */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* inc rax */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0);
+                /* mov [rbp - off], rax */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            } else {
+                emit_mov_rax_imm64(gen, 0);
+            }
+            break;
+        }
+
+        /* Pre-decrement: --expr */
+        case HC_AST_PRE_DEC: {
+            if (node->child && node->child->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->child->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                    break;
+                }
+                /* mov rax, [rbp - off] */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* dec rax */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8);
+                /* mov [rbp - off], rax */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            } else {
+                emit_mov_rax_imm64(gen, 0);
+            }
+            break;
+        }
+
+        /* Post-increment: expr++ */
+        case HC_AST_POST_INC: {
+            if (node->child && node->child->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->child->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                    break;
+                }
+                /* mov rax, [rbp - off] (return old value) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* mov rdi, rax (save old value) */
+                emit_mov_rdi_rax(gen);
+                /* inc rax */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0);
+                /* mov [rbp - off], rax (store new value) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* mov rax, rdi (return old value) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8);
+            } else {
+                emit_mov_rax_imm64(gen, 0);
+            }
+            break;
+        }
+
+        /* Post-decrement: expr-- */
+        case HC_AST_POST_DEC: {
+            if (node->child && node->child->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->child->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                    break;
+                }
+                /* mov rax, [rbp - off] (return old value) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* mov rdi, rax (save old value) */
+                emit_mov_rdi_rax(gen);
+                /* dec rax */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8);
+                /* mov [rbp - off], rax (store new value) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* mov rax, rdi (return old value) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8);
+            } else {
+                emit_mov_rax_imm64(gen, 0);
+            }
+            break;
+        }
+
+        /* Dereference: *expr */
+        case HC_AST_DEREF: {
+            gen_expr(gen, node->child);
+            /* rax now contains pointer value. Load from it: mov rax, [rax] */
+            emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x00); /* mov rax, [rax] */
+            break;
+        }
+
+        /* Address-of: &expr */
+        case HC_AST_ADDR: {
+            if (node->child && node->child->kind == HC_AST_IDENT) {
+                bool found = false;
+                int off = 0;
+                for (int i = 0; i < gen->symbols.n_locals; i++) {
+                    if (strcmp(gen->symbols.locals[i].name, node->child->ident) == 0) {
+                        off = gen->symbols.locals[i].stack_offset;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    emit_mov_rax_imm64(gen, 0);
+                    break;
+                }
+                /* lea rax, [rbp - off] */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            } else {
+                emit_mov_rax_imm64(gen, 0);
+            }
+            break;
+        }
+
+        /* Cast: (type)expr - for now just evaluate expr (no-op at codegen level for I64) */
+        case HC_AST_CAST:
+            gen_expr(gen, node->child);
+            break;
+
+        /* Array index: expr[index] */
+        case HC_AST_INDEX: {
+            /* Evaluate base expression (array pointer) */
+            gen_expr(gen, node->left);
+            /* rax = base pointer */
+            emit_mov_rdi_rax(gen);  /* save base in rdi */
+            /* Evaluate index expression */
+            gen_expr(gen, node->right);
+            /* rax = index, rdi = base */
+            /* Scale index by 8 (I64 size): shl rax, 3 */
+            emit_byte(gen, 0x48); emit_byte(gen, 0xC1); emit_byte(gen, 0xE0); emit_byte(gen, 0x03);
+            /* Add to base: add rdi, rax */
+            emit_byte(gen, 0x48); emit_byte(gen, 0x01); emit_byte(gen, 0xC7);
+            /* Load from address: mov rax, [rdi] */
+            emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x07);
+            break;
+        }
+
+        /* Struct declaration - no-op at expression level */
+        case HC_AST_STRUCT_DECL:
+            emit_mov_rax_imm64(gen, 0);
             break;
 
         /* Binary operations: eval left → rax, save to rdi, eval right → rax, swap, op */

@@ -356,22 +356,33 @@ int64_t wubu_exec_c(const char *source, size_t source_size) {
     fclose(f);
 
     /* Compile via gcc -O2 -o bin src.c
-     * Use -xc to force C mode regardless of filename.
-     * Use -no-pie for simpler entry-point mapping. */
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd),
-             "gcc -O2 -no-pie -o %s %s 2>/dev/null",
-             bin_path, src_path);
+     /* Compile the C source to a binary */
+         /* Use -no-pie for simpler entry-point mapping. */
+         char cmd[1024];
+         snprintf(cmd, sizeof(cmd),
+                  "gcc -O2 -no-pie -o %s %s 2>/dev/null",
+                  bin_path, src_path);
 
-    int compile_rc = system(cmd);
-    unlink(src_path);  /* clean up source regardless */
+         /* Fork and exec gcc instead of system() */
+         pid_t gcc_pid = fork();
+         if (gcc_pid < 0) {
+             unlink(src_path);
+             return WUBU_EXEC_ERR_JIT;
+         }
+         if (gcc_pid == 0) {
+             execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+             _exit(127);
+         }
+         int compile_rc;
+         waitpid(gcc_pid, &compile_rc, 0);
+         unlink(src_path);  /* clean up source regardless */
 
-    if (compile_rc != 0) {
-        fprintf(stderr, "[wubu_exec] C compilation failed (gcc exit=%d)\n",
-                WEXITSTATUS(compile_rc));
-        unlink(bin_path);
-        return WUBU_EXEC_ERR_JIT;
-    }
+         if (!WIFEXITED(compile_rc) || WEXITSTATUS(compile_rc) != 0) {
+             fprintf(stderr, "[wubu_exec] C compilation failed (gcc exit=%d)\n",
+                     WEXITSTATUS(compile_rc));
+             unlink(bin_path);
+             return WUBU_EXEC_ERR_JIT;
+         }
 
     /* Execute the compiled binary */
     chmod(bin_path, 0755);

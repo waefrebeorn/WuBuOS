@@ -470,3 +470,74 @@ void vbe_close_box(int x, int y, int active) {
     vbe_rect(x, y, 14, 12, 0x000000);
     vbe_draw_text(x + 5, y + 2, "X", 0xFFFFFF, 1);
 }
+
+/* Line drawing using Bresenham's algorithm */
+void vbe_line(int x1, int y1, int x2, int y2, uint32_t color) {
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    int sx = (x1 < x2) ? 1 : -1;
+    int sy = (y1 < y2) ? 1 : -1;
+    int err = dx - dy;
+    
+    while (true) {
+        vbe_set_pixel(x1, y1, color);
+        if (x1 == x2 && y1 == y2) break;
+        int e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x1 += sx; }
+        if (e2 < dx) { err += dx; y1 += sy; }
+    }
+}
+
+/* Ellipse drawing using midpoint algorithm */
+void vbe_ellipse(int cx, int cy, int rx, int ry, uint32_t color) {
+    if (rx <= 0 || ry <= 0) return;
+    
+    int x = 0;
+    int y = ry;
+    int rx2 = rx * rx;
+    int ry2 = ry * ry;
+    int two_rx2 = 2 * rx2;
+    int two_ry2 = 2 * ry2;
+    
+    /* Region 1 */
+    int p = (int)(ry2 - rx2 * ry + 0.25 * rx2);
+    int px = 0;
+    int py = two_rx2 * y;
+    
+    while (px < py) {
+        vbe_set_pixel(cx + x, cy + y, color);
+        vbe_set_pixel(cx - x, cy + y, color);
+        vbe_set_pixel(cx + x, cy - y, color);
+        vbe_set_pixel(cx - x, cy - y, color);
+        
+        x++;
+        px += two_ry2;
+        if (p < 0) {
+            p += ry2 + px;
+        } else {
+            y--;
+            py -= two_rx2;
+            p += ry2 + px - py;
+        }
+    }
+    
+    /* Region 2 */
+    p = (int)(ry2 * (x + 0.5) * (x + 0.5) + rx2 * (y - 1) * (y - 1) - rx2 * ry2);
+    
+    while (y >= 0) {
+        vbe_set_pixel(cx + x, cy + y, color);
+        vbe_set_pixel(cx - x, cy + y, color);
+        vbe_set_pixel(cx + x, cy - y, color);
+        vbe_set_pixel(cx - x, cy - y, color);
+        
+        y--;
+        py -= two_rx2;
+        if (p > 0) {
+            p += rx2 - py;
+        } else {
+            x++;
+            px += two_ry2;
+            p += rx2 - py + px;
+        }
+    }
+}

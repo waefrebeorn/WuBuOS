@@ -1,0 +1,184 @@
+#version 460 core
+
+/*
+ * bear_value_backward.comp  --  Value Network Backward Pass (Vulkan Compute)
+ *
+ * Computes gradients for value network using MSE loss.
+ * Each workgroup handles one batch element.
+ *
+ * Uniforms:
+ *   set 0, binding 0: obs_buffer        [batch * obs_dim] (readonly)
+ *   set 0, binding 1: values_buffer     [batch] (readonly) -- current predictions
+ *   set 0, binding 2: targets_buffer    [batch] (readonly) -- GAE returns
+ *   set 0, binding 3: W1_buffer         [hidden_dim * obs_dim] (readonly)
+ *   set 0, binding 4: b1_buffer         [hidden_dim] (readonly)
+ *   set 0, binding 5: W2_buffer         [hidden2_dim * hidden_dim] (readonly)
+ *   set 0, binding 6: b2_buffer         [hidden2_dim] (readonly)
+ *   set 0, binding 7: W3_buffer         [hidden2_dim] (readonly) -- output layer weights
+ *   set 0, binding 8: b3_buffer         [1] (readonly) -- output layer bias
+ *   set 0, binding 9: grad_W1_buffer    [hidden_dim * obs_dim] (read/write)
+ *   set 0, binding 10: grad_b1_buffer   [hidden_dim] (read/write)
+ *   set 0, binding 11: grad_W2_buffer   [hidden2_dim * hidden_dim] (read/write)
+ *   set 0, binding 12: grad_b2_buffer   [hidden2_dim] (read/write)
+ *   set 0, binding 13: grad_W3_buffer   [hidden2_dim] (read/write)
+ *   set 0, binding 14: grad_b3_buffer   [1] (read/write)
+ *
+ * Push Constants:
+ *   batch (uint32_t)
+ *   obs_dim (uint32_t)
+ *   hidden_dim (uint32_t)
+ *   hidden2_dim (uint32_t)
+ *   vf_coef (float)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer ObsBuffer { float obs[]; };
+layout(std430, set = 0, binding = 1) readonly buffer ValuesBuffer { float values[]; };
+layout(std430, set = 0, binding = 2) readonly buffer TargetsBuffer { float targets[]; };
+layout(std430, set = 0, binding = 3) readonly buffer W1Buffer { float W1[]; };
+layout(std430, set = 0, binding = 4) readonly buffer B1Buffer { float b1[]; };
+layout(std430, set = 0, binding = 5) readonly buffer W2Buffer { float W2[]; };
+layout(std430, set = 0, binding = 6) readonly buffer B2Buffer { float b2[]; };
+layout(std430, set = 0, binding = 7) readonly buffer W3Buffer { float W3[]; };
+layout(std430, set = 0, binding = 8) readonly buffer B3Buffer { float b3[]; };
+layout(std430, set = 0, binding = 9) buffer GradW1Buffer { float grad_W1[]; };
+layout(std430, set = 0, binding = 10) buffer GradB1Buffer { float grad_b1[]; };
+layout(std430, set = 0, binding = 11) buffer GradW2Buffer { float grad_W2[]; };
+layout(std430, set = 0, binding = 12) buffer GradB2Buffer { float grad_b2[]; };
+layout(std430, set = 0, binding = 13) buffer GradW3Buffer { float grad_W3[]; };
+layout(std430, set = 0, binding = 14) buffer GradB3Buffer { float grad_b3[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint batch;
+    uint obs_dim;
+    uint hidden_dim;
+    uint hidden2_dim;
+    float vf_coef;
+} push_const;
+
+shared float s_h1[256];
+shared float s_h2[256];
+shared float s_dh2[256];
+shared float s_dh1[256];
+
+float relu(float x) { return max(x, 0.0); }
+
+#extension GL_EXT_shader_atomic_float : enable
+
+void main() {
+    uint b = gl_WorkGroupID.x;
+    if (b >= push_const.batch) return;
+
+    uint tid = gl_LocalInvocationID.x;
+    uint obs_dim = push_const.obs_dim;
+    uint hidden_dim = push_const.hidden_dim;
+    uint hidden2_dim = push_const.hidden2_dim;
+    float vf_coef = push_const.vf_coef;
+
+    // ---- FORWARD PASS: compute activations ----
+    // Layer 1: h1 = relu(obs @ W1^T + b1)
+    for (uint j = tid; j < hidden_dim; j += 256) {
+        float sum = 0.0;
+        for (uint k = 0; k < obs_dim; ++k) {
+            sum += obs[b * obs_dim + k] * W1[j * obs_dim + k];
+        }
+        sum += b1[j];
+        s_h1[j] = relu(sum);
+    }
+    barrier();
+
+    // Layer 2: h2 = relu(h1 @ W2^T + b2)
+    for (uint j = tid; j < hidden2_dim; j += 256) {
+        float sum = 0.0;
+        for (uint k = 0; k < hidden_dim; ++k) {
+            sum += s_h1[k] * W2[j * hidden_dim + k];
+        }
+        sum += b2[j];
+        s_h2[j] = relu(sum);
+    }
+    barrier();
+
+    // Layer 3: value = h2 @ W3^T + b3
+    float value = b3[0];
+    for (uint k = tid; k < hidden2_dim; k += 256) {
+        value += s_h2[k] * W3[k];
+    }
+    // Note: value is per-thread partial sum, we need to reduce
+    // But actually, the value is the same for all threads in this workgroup
+    // Let's have thread 0 compute the full value
+    if (tid == 0) {
+        value = b3[0];
+        for (uint k = 0; k < hidden2_dim; ++k) {
+            value += s_h2[k] * W3[k];
+        }
+    }
+    barrier();
+
+    // ---- COMPUTE LOSS GRADIENT ----
+    // MSE: L = 0.5 * (value - target)^2
+    // dL/dvalue = (value - target) * vf_coef / batch
+    float dv;
+    if (tid == 0) {
+        dv = (value - targets[b]) * vf_coef / float(push_const.batch);
+    }
+    // Broadcast dv to all threads
+    s_dh2[0] = dv;
+    barrier();
+    dv = s_dh2[0];
+
+    // ---- BACKPROP: Output layer (W3, b3) ----
+    // dL/dW3[k] = dv * h2[k]
+    // dL/db3 = dv
+    if (tid < hidden2_dim) {
+        atomicAdd(grad_W3[tid], dv * s_h2[tid]);
+    }
+    if (tid == 0) {
+        atomicAdd(grad_b3[0], dv);
+    }
+    barrier();
+
+    // ---- BACKPROP: dL/dh2[k] = dv * W3[k] ----
+    for (uint k = tid; k < hidden2_dim; k += 256) {
+        s_dh2[k] = dv * W3[k];
+        // ReLU backward
+        if (s_h2[k] <= 0.0) s_dh2[k] = 0.0;
+    }
+    barrier();
+
+    // ---- BACKPROP: Layer 2 (W2, b2) ----
+    // dL/dW2[j, k] = dh2[j] * h1[k]
+    // dL/db2[j] = dh2[j]
+    // dL/dh1[k] = sum_j dh2[j] * W2[j, k]
+    if (tid < hidden2_dim) {
+        float dh2 = s_dh2[tid];
+        for (uint k = 0; k < hidden_dim; ++k) {
+            atomicAdd(grad_W2[tid * hidden_dim + k], dh2 * s_h1[k]);
+        }
+        atomicAdd(grad_b2[tid], dh2);
+    }
+    barrier();
+
+    // dL/dh1
+    for (uint k = tid; k < hidden_dim; k += 256) {
+        float dh1 = 0.0;
+        for (uint j = 0; j < hidden2_dim; ++j) {
+            dh1 += s_dh2[j] * W2[j * hidden_dim + k];
+        }
+        s_dh1[k] = dh1;
+        // ReLU backward
+        if (s_h1[k] <= 0.0) s_dh1[k] = 0.0;
+    }
+    barrier();
+
+    // ---- BACKPROP: Layer 1 (W1, b1) ----
+    // dL/dW1[k, m] = dh1[k] * obs[m]
+    // dL/db1[k] = dh1[k]
+    if (tid < hidden_dim) {
+        float dh1 = s_dh1[tid];
+        for (uint m = 0; m < obs_dim; ++m) {
+            atomicAdd(grad_W1[tid * obs_dim + m], dh1 * obs[b * obs_dim + m]);
+        }
+        atomicAdd(grad_b1[tid], dh1);
+    }
+}

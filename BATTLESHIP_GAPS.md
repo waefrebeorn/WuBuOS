@@ -143,6 +143,17 @@
 |---|----------|------|-------------------|----------|
 | 81 | styxfs_wstat | ~644 | Apply stat changes | ✅ |
 
+**Status**: **COMPLETED 2026-06-29** — StyxFS 9P filesystem fully implemented
+**Closed**: All 14 void casts replaced with real implementations:
+- `styxfs_scan_repo` — scans directory for .wubu containers, loads and registers them
+- `styxfs_load_container` — validates, parses, and loads .wubu container header + payload
+- `styxfs_wstat_cb` — full wstat support (mode, name/rename, length/truncate, mtime/atime, qid version bump)
+- Directory operations: walk, read (dir listing with stat entries), create, remove, clunk
+- File operations: open, read (payload data), write (with buffer extension), stat
+- Mount/unmount with path normalization
+- .wubu container detection via extension check
+- 11/11 tests passing (added scan_repo, load_container, wstat tests)
+
 ### 🟡 src/runtime/wubu_proton2.c — Proton PE Launch (1 marker)
 | # | Function | Line | What It Should Do | REAL_GAP |
 |---|----------|------|-------------------|----------|
@@ -199,6 +210,24 @@
 |---|----------|------|-------------------|----------|
 | 101 | codec_mount | ~296 | Mount codec .wubu container | ✅ |
 
+### 🟡 src/apps/control.c — Control Panel (1 marker)
+| # | Function | Line | What It Should Do | REAL_GAP |
+|---|----------|------|-------------------|----------|
+| 102 | control_panel_tabs | ~67 | All 9 tab UIs implemented | ✅ |
+
+**Status**: **COMPLETED 2026-06-29** — Win98-style Control Panel fully implemented
+**Closed**: All 9 tabs with real UI content:
+- Display: Resolution, wallpaper, refresh rate, scaling
+- Theme: 4 themes (Win98, XP Luna, XP Media, WuBu Green) with live preview
+- Desktop: Icons (show/arrange/grid), screen saver, background color
+- Taskbar: Auto-hide, always-on-top, clock format, system tray
+- Input: Mouse (speed, double-click, left-handed), Keyboard (repeat delay/rate), Cursor
+- Startup: Boot mode (RAM/Disk), auto-login, startup items
+- Containers: Default mounts, resource limits (memory/CPU/count), network isolation
+- Network: Interfaces, DHCP/static IP, DNS, proxy
+- About: WuBuOS version, ZealOS kernel hash, GAAD φ
+**Tests: 3/3 passing** (lifecycle + window creation + shutdown)
+
 ### 🟡 src/apps/wubu_canvas.c — Canvas (3 markers)
 | # | Function | Line | What It Should Do | REAL_GAP |
 |---|----------|------|-------------------|----------|
@@ -239,6 +268,15 @@ The 32 markers in holyc_codegen.c are mostly `emit_jcc_placeholder` and `emit_jm
 |---|----------|------|-------------------|----------|
 | 116 | holyc_codegen_stack_args | ~723 | Stack args for >6 params | ✅ |
 | 117 | holyc_codegen_multi_func | ~1353 | Multi-function compilation | ✅ |
+
+**Status**: **COMPLETED 2026-06-29** — All 29 placeholder AST node types implemented:
+- HC_AST_CHAR_LIT, HC_AST_PRE_INC, HC_AST_PRE_DEC, HC_AST_POST_INC, HC_AST_POST_DEC
+- HC_AST_DEREF, HC_AST_ADDR, HC_AST_CAST, HC_AST_INDEX, HC_AST_STRUCT_DECL
+- Cast parsing in parser with backtracking for parenthesized expressions
+- Increment/decrement (pre/post) with proper old/new value semantics
+- Pointer deref/address-of with stack variable resolution
+- Array indexing with I64 element scaling (×8)
+- 84/84 tests passing (added 11 new tests for new AST types)
 
 ### 🟡 src/compiler/holyc_ptx.c — PTX Backend (2 markers)
 | # | Function | Line | What It Should Do | REAL_GAP |

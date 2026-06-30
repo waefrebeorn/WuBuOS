@@ -1,0 +1,70 @@
+#version 460 core
+
+/*
+ * bear_ppo_apply_gradients.comp  --  Adam Optimizer Step on GPU (Vulkan Compute)
+ *
+ * Applies Adam updates to all parameters using gradients computed by backward passes.
+ * Each workgroup handles one parameter tensor.
+ *
+ * Uniforms:
+ *   set 0, binding 0: param_buffer       [n] (read/write) -- weights to update
+ *   set 0, binding 1: grad_buffer        [n] (readonly) -- gradients
+ *   set 0, binding 2: mom_buffer         [n] (read/write) -- first moment (m)
+ *   set 0, binding 3: var_buffer         [n] (read/write) -- second moment (v)
+ *
+ * Push Constants:
+ *   n (uint32_t)          -- number of elements
+ *   lr (float)            -- learning rate
+ *   beta1 (float)         -- 0.9
+ *   beta2 (float)         -- 0.999
+ *   eps (float)           -- 1e-8
+ *   wd (float)            -- weight decay
+ *   step (uint32_t)       -- current step (1-indexed)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) buffer ParamBuffer { float param[]; };
+layout(std430, set = 0, binding = 1) readonly buffer GradBuffer { float grad[]; };
+layout(std430, set = 0, binding = 2) buffer MomBuffer { float mom[]; };
+layout(std430, set = 0, binding = 3) buffer VarBuffer { float var[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint n;
+    float lr;
+    float beta1;
+    float beta2;
+    float eps;
+    float wd;
+    uint step;
+} pc;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= pc.n) return;
+
+    float g = grad[idx];
+    float p = param[idx];
+
+    // Weight decay
+    if (pc.wd != 0.0) {
+        g += pc.wd * p;
+    }
+
+    // m = beta1 * m + (1 - beta1) * g
+    float m = pc.beta1 * mom[idx] + (1.0 - pc.beta1) * g;
+    mom[idx] = m;
+
+    // v = beta2 * v + (1 - beta2) * g * g
+    float v = pc.beta2 * var[idx] + (1.0 - pc.beta2) * g * g;
+    var[idx] = v;
+
+    // Bias correction
+    float beta1_pow = pow(pc.beta1, float(pc.step));
+    float beta2_pow = pow(pc.beta2, float(pc.step));
+    float m_hat = m / (1.0 - beta1_pow);
+    float v_hat = v / (1.0 - beta2_pow);
+
+    // Update
+    param[idx] = p - pc.lr * m_hat / (sqrt(v_hat) + pc.eps);
+}

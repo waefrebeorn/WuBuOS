@@ -124,16 +124,21 @@ static void launch_host_app(const char *cmd) {
 }
 
 void dosgui_launch_app(const char *name) {
+    fprintf(stderr, "DEBUG: dosgui_launch_app called with name='%s'\n", name);
     /* Daemon panel windows */
     if (strcmp(name, "Container Manager") == 0) {
+        fprintf(stderr, "DEBUG: Launching Container Manager\n");
         archd_tray_click();
         return;
     }
     if (strcmp(name, "HolyC Sessions") == 0) {
+        fprintf(stderr, "DEBUG: Launching HolyC Sessions\n");
         holyd_tray_click();
         return;
     }
+    fprintf(stderr, "DEBUG: Calling dosgui_app_launch_by_name\n");
     dosgui_app_launch_by_name(name);
+    fprintf(stderr, "DEBUG: dosgui_app_launch_by_name returned\n");
 }
 
 void dosgui_desktop_launch(int icon_id) {

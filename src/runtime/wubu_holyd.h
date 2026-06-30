@@ -116,10 +116,10 @@ typedef struct {
     /* Auto-save */
     time_t last_save;
     int save_interval_sec;
-    char save_path[WUBU_HOLYD_MAX_PATH];
+    char *save_path;            /* Dynamically allocated session directory */
 
     /* 9P namespace */
-    char mount_point[WUBU_HOLYD_MAX_PATH];
+    char *mount_point;          /* Dynamically allocated mount path */
     bool mounted;
 
     /* Input queue */

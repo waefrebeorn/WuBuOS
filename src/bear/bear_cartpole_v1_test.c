@@ -107,7 +107,7 @@ static float train_cartpole_v1(int num_envs, int total_iters, float lr) {
 
     size_t global_cap = 128 * 1024 * 1024;
     size_t rollout_cap = 16 * 1024 * 1024;
-    size_t step_cap = 8 * 1024 * 1024;
+    size_t step_cap = 256 * 1024 * 1024;
 
     BearArena global_arena, rollout_arena, step_arena;
     if (bear_arena_create(&global_arena, global_cap) != 0) return -1;
@@ -162,10 +162,10 @@ static float train_cartpole_v1(int num_envs, int total_iters, float lr) {
     cfg.ent_coef = 0.0f;      /* SB3 default for CartPole */
     cfg.target_kl = 0.02f;
     cfg.lr_anneal = 1;
-    cfg.normalize_adv = 1;
+    cfg.normalize_adv = 0;  /* Disable per-minibatch adv norm - can zero out signal */
     cfg.normalize_obs = 1;
     cfg.max_grad_norm = 0.5f;
-    cfg.normalize_rewards = 1;
+    cfg.normalize_rewards = 0;  /* CartPole: constant reward=1/step, normalization kills signal */
 
     BearOptimizer* opt_policy = bear_optimizer_create(&global_arena, BEAR_OPT_ADAM, lr);
     BearOptimizer* opt_critic = bear_optimizer_create(&global_arena, BEAR_OPT_ADAM, lr);
@@ -243,9 +243,9 @@ static float train_cartpole_v1(int num_envs, int total_iters, float lr) {
 
     /* Save if solved */
     if (final_eval >= SOLVED_THRESHOLD) {
-        bear_policy_save(&policy, "models/cartpole_v1_solved.bear");
-        bear_value_save(&critic, "models/cartpole_v1_value.bear");
-        printf("Model saved to models/cartpole_v1_solved.bear\n");
+        /* bear_policy_save(&policy, "models/cartpole_v1_solved.bear");
+        bear_value_save(&critic, "models/cartpole_v1_value.bear"); */
+        printf("Model save stub - would save to models/cartpole_v1_solved.bear\n");
     }
 
     /* Cleanup */

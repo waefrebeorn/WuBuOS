@@ -30,10 +30,10 @@ layout(std430, set = 0, binding = 2) readonly buffer W1Buffer { float W1[]; };
 layout(std430, set = 0, binding = 3) readonly buffer B1Buffer { float b1[]; };
 layout(std430, set = 0, binding = 4) readonly buffer W2Buffer { float W2[]; };
 layout(std430, set = 0, binding = 5) readonly buffer B2Buffer { float b2[]; };
-layout(std430, set = 0, binding = 6) writeonly buffer ActionsBuffer { float actions[]; };
+layout(std430, set = 0, binding = 6) buffer ActionsBuffer { float actions[]; };
 layout(std430, set = 0, binding = 7) writeonly buffer LogProbsBuffer { float logprobs[]; };
 layout(std430, set = 0, binding = 8) writeonly buffer ValuesBuffer { float values[]; };
-layout(std430, set = 0, binding = 9) writeonly buffer HOutBuffer { float h_out[]; };
+layout(std430, set = 0, binding = 9) buffer HOutBuffer { float h_out[]; };
 
 layout(push_constant) uniform PushConstants {
     uint batch;

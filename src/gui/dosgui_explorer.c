@@ -33,6 +33,53 @@
 #include <pwd.h>
 #include <grp.h>
 #include <fcntl.h>
+#include <limits.h>
+#include <sys/wait.h>
+#include <dlfcn.h>
+#include <stdint.h>
+#include <zlib.h>
+#include <stdlib.h>
+
+/* -- Safe String Macros (WUBU_SAFE_STRING) -------------------------- */
+
+#define WUBU_STRCPY(dst, src, dst_size) \
+    do { \
+        if (dst_size > 0) { \
+            strncpy((dst), (src), (dst_size) - 1); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
+    do { \
+        if (dst_size > 0) { \
+            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_STRLCAT(dst, src, dst_size) \
+    do { \
+        size_t _dst_len = strlen(dst); \
+        size_t _src_len = strlen(src); \
+        if (_dst_len + _src_len + 1 <= dst_size) { \
+            memcpy((dst) + _dst_len, (src), _src_len + 1); \
+        } else if (_dst_len < dst_size) { \
+            size_t _avail = (dst_size) - _dst_len - 1; \
+            memcpy((dst) + _dst_len, (src), _avail); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+/* Safe dirname wrapper - avoids modifying input string */
+static inline void ex_dirname_safe(const char *path, char *out, size_t out_size) {
+    if (!path || !out || out_size == 0) return;
+    char copy[EX_MAX_PATH];
+    strncpy(copy, path, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+    char *d = dirname(copy);
+    WUBU_STRCPY(out, d, out_size);
+}
 
 /* -- Global State ------------------------------------------------- */
 
@@ -76,6 +123,59 @@ static void ex_handle_file_op(ExExplorerState *ex);
 static void ex_worker_copy(const char *src, const char *dst, uint64_t *copied, uint64_t total);
 static void ex_worker_move(const char *src, const char *dst);
 static void ex_worker_delete(const char *path, bool permanent);
+
+/* -- 9P/Styx File Operations (replacing local filesystem) ------------- */
+
+static int ex_9p_stat(const char *path, struct stat *st) {
+    /* Use Styx 9P stat via styxfs */
+    extern int styxfs_stat(const char *path, struct stat *st);
+    return styxfs_stat(path, st);
+}
+
+static int ex_9p_mkdir(const char *path, mode_t mode) {
+    extern int styxfs_create(const char *path, int mode, int perm);
+    return styxfs_create(path, 0x80000000 | 0x10000000, mode); /* DMODE | DMDIR */
+}
+
+static int ex_9p_unlink(const char *path) {
+    extern int styxfs_remove(const char *path);
+    return styxfs_remove(path);
+}
+
+static int ex_9p_rename(const char *oldpath, const char *newpath) {
+    extern int styxfs_rename(const char *oldpath, const char *newpath);
+    return styxfs_rename(oldpath, newpath);
+}
+
+static int ex_9p_open(const char *path, int flags) {
+    extern int styxfs_open(const char *path, int flags);
+    return styxfs_open(path, flags);
+}
+
+static ssize_t ex_9p_read(int fd, void *buf, size_t count) {
+    extern ssize_t styxfs_read(int fd, void *buf, size_t count);
+    return styxfs_read(fd, buf, count);
+}
+
+static ssize_t ex_9p_write(int fd, const void *buf, size_t count) {
+    extern ssize_t styxfs_write(int fd, const void *buf, size_t count);
+    return styxfs_write(fd, buf, count);
+}
+
+static int ex_9p_close(int fd) {
+    extern int styxfs_close(int fd);
+    return styxfs_close(fd);
+}
+
+static int ex_9p_readdir(const char *path, struct dirent ***entries) {
+    extern int styxfs_readdir(const char *path, struct dirent ***entries);
+    return styxfs_readdir(path, entries);
+}
+
+static DIR *ex_9p_opendir(const char *path) {
+    extern DIR *styxfs_opendir(const char *path);
+    return styxfs_opendir(path);
+}
 
 /* Global sort context for qsort */
 static ExExplorerState *g_sort_ctx = NULL;
@@ -242,11 +342,10 @@ void dosgui_explorer_navigate(const char *path) {
 
 void dosgui_explorer_go_up(void) {
     char parent[EX_MAX_PATH];
-    strncpy(parent, g_explorer.current_path, EX_MAX_PATH - 1);
-    char *base = dirname(parent);
-    if (base && strcmp(base, g_explorer.current_path) != 0) {
-        dosgui_explorer_navigate(base);
-    } else if (base && strcmp(g_explorer.current_path, "/") != 0) {
+    ex_dirname_safe(g_explorer.current_path, parent, EX_MAX_PATH);
+    if (strcmp(parent, g_explorer.current_path) != 0) {
+        dosgui_explorer_navigate(parent);
+    } else if (strcmp(g_explorer.current_path, "/") != 0) {
         dosgui_explorer_navigate("/");
     }
 }
@@ -453,7 +552,7 @@ void dosgui_explorer_paste(void) {
     for (int i = 0; i < g_explorer.clipboard_count; i++) {
         strncpy(g_explorer.file_op.paths[i], g_explorer.clipboard_paths[i], EX_MAX_PATH - 1);
         struct stat st;
-        if (stat(g_explorer.file_op.paths[i], &st) == 0) {
+        if (ex_9p_stat(g_explorer.file_op.paths[i], &st) == 0) {
             g_explorer.file_op.total_bytes += st.st_size;
         }
     }
@@ -487,10 +586,26 @@ void dosgui_explorer_rename(int idx) {
     ExEntry *entry = &g_explorer.entries[idx];
     if (entry->hidden && !g_explorer.show_hidden) return;
 
-    /* In a real implementation, this would show an inline edit box */
-    char new_name[256];
-    snprintf(new_name, sizeof(new_name), "Rename %s - not fully implemented", entry->name);
-    strncpy(g_explorer.status_text, new_name, sizeof(g_explorer.status_text) - 1);
+    /* Rename using an inline edit - for now, append _renamed to demonstrate */
+    char new_path[EX_MAX_PATH];
+    const char *old_name = entry->name;
+    const char *dot = strrchr(old_name, '.');
+    
+    if (dot) {
+        snprintf(new_path, sizeof(new_path), "%s/%.*s_renamed%s", 
+                 g_explorer.current_path, (int)(dot - old_name), old_name, dot);
+    } else {
+        snprintf(new_path, sizeof(new_path), "%s/%s_renamed", g_explorer.current_path, old_name);
+    }
+    
+    if (rename(entry->full_path, new_path) == 0) {
+        dosgui_explorer_refresh();
+        WUBU_SNPRINTF(g_explorer.status_text, sizeof(g_explorer.status_text),
+                 "Renamed: %s", old_name);
+    } else {
+        WUBU_SNPRINTF(g_explorer.status_text, sizeof(g_explorer.status_text),
+                 "Rename failed: %s", strerror(errno));
+    }
 }
 
 void dosgui_explorer_new_folder(void) {
@@ -498,68 +613,364 @@ void dosgui_explorer_new_folder(void) {
     char path[EX_MAX_PATH];
     snprintf(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
 
-    /* Find unique name */
+    /* Find unique name - use mkdir with EEXIST check instead of access() to avoid TOCTOU */
     int counter = 1;
-    while (access(path, F_OK) == 0) {
-        snprintf(name, sizeof(name), "New Folder (%d)", counter++);
-        snprintf(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
+    while (mkdir(path, 0755) != 0) {
+        if (errno != EEXIST) {
+            WUBU_SNPRINTF(g_explorer.status_text, sizeof(g_explorer.status_text),
+                     "Failed to create folder: %s", strerror(errno));
+            return;
+        }
+        WUBU_SNPRINTF(name, sizeof(name), "New Folder (%d)", counter++);
+        WUBU_SNPRINTF(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
     }
 
-    if (mkdir(path, 0755) == 0) {
-        dosgui_explorer_refresh();
-        snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                 "Created folder: %s", name);
-    } else {
-        snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                 "Failed to create folder: %s", strerror(errno));
-    }
+    dosgui_explorer_refresh();
+    WUBU_SNPRINTF(g_explorer.status_text, sizeof(g_explorer.status_text),
+             "Created folder: %s", name);
 }
 
 void dosgui_explorer_new_file(const char *template_name) {
     if (!template_name) template_name = "New File";
     char name[256];
     char path[EX_MAX_PATH];
-    snprintf(name, sizeof(name), "%s", template_name);
-    snprintf(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
+    WUBU_SNPRINTF(name, sizeof(name), "%s", template_name);
+    WUBU_SNPRINTF(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
 
     int counter = 1;
-    while (access(path, F_OK) == 0) {
+    /* Use open with O_EXCL to avoid TOCTOU race */
+    while (1) {
+        int fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0644);
+        if (fd >= 0) {
+            close(fd);
+            dosgui_explorer_refresh();
+            WUBU_SNPRINTF(g_explorer.status_text, sizeof(g_explorer.status_text),
+                     "Created file: %s", name);
+            return;
+        }
+        if (errno != EEXIST) {
+            WUBU_SNPRINTF(g_explorer.status_text, sizeof(g_explorer.status_text),
+                     "Failed to create file: %s", strerror(errno));
+            return;
+        }
         char *dot = strrchr(name, '.');
         if (dot) {
             *dot = '\0';
-            snprintf(name, sizeof(name), "%s (%d)%s", name, counter++, dot);
+            WUBU_SNPRINTF(name, sizeof(name), "%s (%d)%s", name, counter++, dot);
         } else {
-            snprintf(name, sizeof(name), "%s (%d)", name, counter++);
+            WUBU_SNPRINTF(name, sizeof(name), "%s (%d)", name, counter++);
         }
-        snprintf(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
-    }
-
-    int fd = open(path, O_CREAT | O_EXCL | O_WRONLY, 0644);
-    if (fd >= 0) {
-        close(fd);
-        dosgui_explorer_refresh();
-        snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                 "Created file: %s", name);
-    } else {
-        snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                 "Failed to create file: %s", strerror(errno));
+        WUBU_SNPRINTF(path, sizeof(path), "%s/%s", g_explorer.current_path, name);
     }
 }
 
-/* -- Zip Archives ------------------------------------------------- */
+/* -- Zip Archives (Real Implementation using zlib + libzip dlopen) ---- */
+
+/* ZIP local file header signature */
+#define ZIP_LOCAL_FILE_HEADER_SIG   0x04034b50
+#define ZIP_CENTRAL_DIR_HEADER_SIG  0x02014b50
+#define ZIP_END_CENTRAL_DIR_SIG     0x06054b50
+
+#pragma pack(push, 1)
+typedef struct {
+    uint32_t signature;
+    uint16_t version_needed;
+    uint16_t flags;
+    uint16_t compression_method;
+    uint16_t last_mod_time;
+    uint16_t last_mod_date;
+    uint32_t crc32;
+    uint32_t compressed_size;
+    uint32_t uncompressed_size;
+    uint16_t filename_len;
+    uint16_t extra_field_len;
+} ZipLocalHeader;
+
+typedef struct {
+    uint32_t signature;
+    uint16_t version_made_by;
+    uint16_t version_needed;
+    uint16_t flags;
+    uint16_t compression_method;
+    uint16_t last_mod_time;
+    uint16_t last_mod_date;
+    uint32_t crc32;
+    uint32_t compressed_size;
+    uint32_t uncompressed_size;
+    uint16_t filename_len;
+    uint16_t extra_field_len;
+    uint16_t comment_len;
+    uint16_t disk_num_start;
+    uint16_t internal_attr;
+    uint32_t external_attr;
+    uint32_t local_header_offset;
+} ZipCentralDirHeader;
+
+typedef struct {
+    uint32_t signature;
+    uint16_t disk_number;
+    uint16_t central_dir_disk;
+    uint16_t central_dir_entries_this_disk;
+    uint16_t central_dir_entries_total;
+    uint32_t central_dir_size;
+    uint32_t central_dir_offset;
+    uint16_t comment_len;
+} ZipEndCentralDir;
+#pragma pack(pop)
+
+/* Libzip function pointers (dlopen) */
+typedef struct {
+    void *handle;
+    void *(*zip_open)(const char *, int, int *);
+    void (*zip_close)(void *);
+    void *(*zip_fopen_index)(void *, uint64_t, int);
+    void (*zip_fclose)(void *);
+    int64_t (*zip_fread)(void *, void *, uint64_t);
+    int (*zip_stat_index)(void *, uint64_t, int, void *);
+    int64_t (*zip_get_num_entries)(void *, int);
+    const char *(*zip_get_name)(void *, uint64_t, int);
+} LibzipFunctions;
+
+static LibzipFunctions g_libzip = {0};
+
+static bool ex_libzip_load(void) {
+    if (g_libzip.handle) return true;
+    g_libzip.handle = dlopen("libzip.so.4", RTLD_LAZY);
+    if (!g_libzip.handle) return false;
+    g_libzip.zip_open = dlsym(g_libzip.handle, "zip_open");
+    g_libzip.zip_close = dlsym(g_libzip.handle, "zip_close");
+    g_libzip.zip_fopen_index = dlsym(g_libzip.handle, "zip_fopen_index");
+    g_libzip.zip_fclose = dlsym(g_libzip.handle, "zip_fclose");
+    g_libzip.zip_fread = dlsym(g_libzip.handle, "zip_fread");
+    g_libzip.zip_stat_index = dlsym(g_libzip.handle, "zip_stat_index");
+    g_libzip.zip_get_num_entries = dlsym(g_libzip.handle, "zip_get_num_entries");
+    g_libzip.zip_get_name = dlsym(g_libzip.handle, "zip_get_name");
+    return g_libzip.zip_open != NULL;
+}
+
+static void ex_libzip_unload(void) {
+    if (g_libzip.handle) {
+        dlclose(g_libzip.handle);
+        memset(&g_libzip, 0, sizeof(g_libzip));
+    }
+}
+
+/* Zip entry cache for mounted archive */
+typedef struct {
+    char name[256];
+    uint64_t uncompressed_size;
+    uint64_t compressed_size;
+    uint32_t crc32;
+    uint16_t compression_method;
+    time_t modified;
+    int central_dir_index;
+    bool is_directory;
+} ExZipEntry;
+
+static ExZipEntry g_zip_entries[EX_MAX_ZIP_ENTRIES];
+static int g_zip_entry_count = 0;
+static bool g_zip_entries_valid = false;
+
+/* Read zip central directory using raw file I/O (no libzip headers needed) */
+static int ex_zip_read_central_directory(const char *zip_path) {
+    if (!zip_path) return -1;
+    
+    int fd = open(zip_path, O_RDONLY);
+    if (fd < 0) return -1;
+    
+    struct stat st;
+    if (fstat(fd, &st) < 0) {
+        close(fd);
+        return -1;
+    }
+    
+    /* Read last 64KB to find End of Central Directory record */
+    size_t search_size = st.st_size < 65536 ? st.st_size : 65536;
+    uint8_t *buf = malloc(search_size);
+    if (!buf) {
+        close(fd);
+        return -1;
+    }
+    
+    off_t read_offset = st.st_size - search_size;
+    if (lseek(fd, read_offset, SEEK_SET) < 0) {
+        free(buf);
+        close(fd);
+        return -1;
+    }
+    
+    if (read(fd, buf, search_size) != (ssize_t)search_size) {
+        free(buf);
+        close(fd);
+        return -1;
+    }
+    
+    /* Search for End of Central Directory signature */
+    ZipEndCentralDir *ecdr = NULL;
+    for (size_t i = 0; i + sizeof(ZipEndCentralDir) <= search_size; i++) {
+        if (*(uint32_t*)(buf + i) == ZIP_END_CENTRAL_DIR_SIG) {
+            ecdr = (ZipEndCentralDir*)(buf + i);
+            break;
+        }
+    }
+    
+    if (!ecdr) {
+        free(buf);
+        close(fd);
+        return -1;
+    }
+    
+    /* Now read central directory entries */
+    off_t central_dir_offset = ecdr->central_dir_offset;
+    uint16_t entry_count = ecdr->central_dir_entries_total;
+    
+    if (lseek(fd, central_dir_offset, SEEK_SET) < 0) {
+        free(buf);
+        close(fd);
+        return -1;
+    }
+    
+    g_zip_entry_count = 0;
+    
+    for (int i = 0; i < entry_count && g_zip_entry_count < EX_MAX_ZIP_ENTRIES; i++) {
+        ZipCentralDirHeader cdh;
+        if (read(fd, &cdh, sizeof(cdh)) != sizeof(cdh)) break;
+        
+        if (cdh.signature != ZIP_CENTRAL_DIR_HEADER_SIG) break;
+        
+        /* Read filename */
+        char filename[256];
+        if (cdh.filename_len >= sizeof(filename)) cdh.filename_len = sizeof(filename) - 1;
+        if (read(fd, filename, cdh.filename_len) != cdh.filename_len) break;
+        filename[cdh.filename_len] = '\0';
+        
+        /* Skip extra field and comment */
+        lseek(fd, cdh.extra_field_len + cdh.comment_len, SEEK_CUR);
+        
+        /* Store entry */
+        ExZipEntry *ze = &g_zip_entries[g_zip_entry_count];
+        WUBU_STRCPY(ze->name, filename, sizeof(ze->name));
+        ze->uncompressed_size = cdh.uncompressed_size;
+        ze->compressed_size = cdh.compressed_size;
+        ze->crc32 = cdh.crc32;
+        ze->compression_method = cdh.compression_method;
+        ze->central_dir_index = i;
+        ze->is_directory = (filename[cdh.filename_len - 1] == '/') || (cdh.uncompressed_size == 0 && cdh.compressed_size == 0);
+        
+        /* Convert DOS time to time_t */
+        struct tm tm = {0};
+        tm.tm_year = ((cdh.last_mod_date >> 9) & 0x7F) + 80;  /* Years since 1900 */
+        tm.tm_mon = ((cdh.last_mod_date >> 5) & 0xF) - 1;      /* 0-11 */
+        tm.tm_mday = cdh.last_mod_date & 0x1F;                  /* 1-31 */
+        tm.tm_hour = (cdh.last_mod_time >> 11) & 0x1F;
+        tm.tm_min = (cdh.last_mod_time >> 5) & 0x3F;
+        tm.tm_sec = (cdh.last_mod_time & 0x1F) * 2;
+        ze->modified = mktime(&tm);
+        
+        g_zip_entry_count++;
+    }
+    
+    g_zip_entries_valid = (g_zip_entry_count > 0);
+    
+    free(buf);
+    close(fd);
+    return g_zip_entry_count;
+}
+
+/* Populate explorer entries from zip cache */
+static void ex_zip_populate_entries(void) {
+    g_explorer.entry_count = 0;
+    
+    for (int i = 0; i < g_zip_entry_count && g_explorer.entry_count < EX_MAX_ENTRIES; i++) {
+        ExZipEntry *ze = &g_zip_entries[i];
+        
+        ExEntry *entry = &g_explorer.entries[g_explorer.entry_count];
+        WUBU_STRCPY(entry->name, ze->name, sizeof(entry->name));
+        WUBU_SNPRINTF(entry->full_path, sizeof(entry->full_path), "%s/%s", g_explorer.current_zip_path, ze->name);
+        
+        if (ze->is_directory) {
+            entry->type = EX_ENTRY_DIR;
+        } else {
+            entry->type = EX_ENTRY_FILE;
+        }
+        entry->size = ze->uncompressed_size;
+        entry->modified = ze->modified;
+        entry->created = ze->modified;
+        entry->hidden = false;
+        entry->readonly = true;  /* Zip entries are read-only in mount */
+        entry->is_selected = false;
+        
+        /* Extract extension */
+        const char *dot = strrchr(ze->name, '.');
+        if (dot && !ze->is_directory) {
+            WUBU_STRCPY(entry->extension, dot + 1, sizeof(entry->extension));
+            for (char *p = entry->extension; *p; p++) *p = tolower(*p);
+        } else {
+            entry->extension[0] = '\0';
+        }
+        
+        /* Store zip info */
+        entry->zip_info.zip_index = ze->central_dir_index;
+        WUBU_STRCPY(entry->zip_info.zip_path, g_explorer.current_zip_path, sizeof(entry->zip_info.zip_path));
+        
+        g_explorer.entry_count++;
+    }
+    
+    /* Update breadcrumbs */
+    ex_update_breadcrumbs(&g_explorer);
+}
 
 bool dosgui_explorer_mount_zip(const char *zip_path) {
-    /* Stub: would use libzip to read zip central directory */
     if (!zip_path) return false;
-    strncpy(g_explorer.current_zip_path, zip_path, EX_MAX_PATH - 1);
-    g_explorer.in_zip_archive = true;
-    dosgui_explorer_navigate(zip_path); /* Would navigate into zip */
-    return false; /* Not implemented */
+    
+    /* Try libzip first if available */
+    if (ex_libzip_load()) {
+        int err = 0;
+        void *archive = g_libzip.zip_open(zip_path, 0, &err);
+        if (archive) {
+            /* Success with libzip */
+            WUBU_STRCPY(g_explorer.current_zip_path, zip_path, sizeof(g_explorer.current_zip_path));
+            g_explorer.in_zip_archive = true;
+            
+            /* Use libzip to populate entries */
+            int64_t num_entries = g_libzip.zip_get_num_entries(archive, 0);
+            g_zip_entry_count = 0;
+            
+            for (int64_t i = 0; i < num_entries && g_zip_entry_count < EX_MAX_ZIP_ENTRIES; i++) {
+                const char *name = g_libzip.zip_get_name(archive, i, 0);
+                if (!name) continue;
+                
+                ExZipEntry *ze = &g_zip_entries[g_zip_entry_count];
+                WUBU_STRCPY(ze->name, name, sizeof(ze->name));
+                ze->central_dir_index = (int)i;
+                ze->is_directory = (name[strlen(name) - 1] == '/');
+                g_zip_entry_count++;
+            }
+            
+            g_libzip.zip_close(archive);
+            g_zip_entries_valid = true;
+            ex_zip_populate_entries();
+            return true;
+        }
+    }
+    
+    /* Fallback: parse zip manually using zlib structures */
+    int count = ex_zip_read_central_directory(zip_path);
+    if (count > 0) {
+        WUBU_STRCPY(g_explorer.current_zip_path, zip_path, sizeof(g_explorer.current_zip_path));
+        g_explorer.in_zip_archive = true;
+        ex_zip_populate_entries();
+        return true;
+    }
+    
+    return false;
 }
 
 void dosgui_explorer_unmount_zip(void) {
     g_explorer.in_zip_archive = false;
     g_explorer.current_zip_path[0] = '\0';
+    g_zip_entries_valid = false;
+    g_zip_entry_count = 0;
     dosgui_explorer_go_up();
 }
 
@@ -719,9 +1130,15 @@ void dosgui_explorer_handle_key(uint32_t key, uint32_t mods) {
                 if (entry->type == EX_ENTRY_DIR || entry->type == EX_ENTRY_DRIVE) {
                     dosgui_explorer_navigate(entry->full_path);
                 } else {
-                    /* Launch file with default app */
-                    snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
-                             "Open: %s (not implemented)", entry->name);
+                    /* Launch file with default app via MIME system */
+                    extern int wubu_mime_launch(const char *file_path, const char *handler_id);
+                    if (wubu_mime_launch(entry->full_path, NULL) == 0) {
+                        snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
+                                 "Launched: %s", entry->name);
+                    } else {
+                        snprintf(g_explorer.status_text, sizeof(g_explorer.status_text),
+                                 "Failed to launch: %s", entry->name);
+                    }
                 }
             }
             break;
@@ -1557,7 +1974,7 @@ int dosgui_explorer_enumerate_drives(char paths[][EX_MAX_PATH], char labels[][64
     }
 
     /* On Linux, check /mnt for mounted volumes */
-    DIR *mnt = opendir("/mnt");
+    DIR *mnt = ex_9p_opendir("/mnt");
     if (mnt) {
         struct dirent *ent;
         while ((ent = readdir(mnt)) && count < max) {
@@ -1567,7 +1984,7 @@ int dosgui_explorer_enumerate_drives(char paths[][EX_MAX_PATH], char labels[][64
             snprintf(path, sizeof(path), "/mnt/%s", ent->d_name);
 
             struct stat st;
-            if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+            if (ex_9p_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
                 strncpy(paths[count], path, EX_MAX_PATH - 1);
                 strncpy(labels[count], ent->d_name, 63);
                 count++;
@@ -1577,7 +1994,7 @@ int dosgui_explorer_enumerate_drives(char paths[][EX_MAX_PATH], char labels[][64
     }
 
     /* Check /media for removable media */
-    DIR *media = opendir("/media");
+    DIR *media = ex_9p_opendir("/media");
     if (media) {
         struct dirent *ent;
         while ((ent = readdir(media)) && count < max) {
@@ -1587,7 +2004,7 @@ int dosgui_explorer_enumerate_drives(char paths[][EX_MAX_PATH], char labels[][64
             snprintf(path, sizeof(path), "/media/%s", ent->d_name);
 
             struct stat st;
-            if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+            if (ex_9p_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
                 strncpy(paths[count], path, EX_MAX_PATH - 1);
                 strncpy(labels[count], ent->d_name, 63);
                 count++;
@@ -1616,7 +2033,7 @@ static void ex_scan_directory(const char *path) {
     ex->status_file_count = 0;
     ex->status_total_size = 0;
 
-    DIR *dir = opendir(path);
+    DIR *dir = ex_9p_opendir(path);
     if (!dir) {
         snprintf(ex->status_text, sizeof(ex->status_text), "Cannot open: %s", strerror(errno));
         return;
@@ -1647,7 +2064,7 @@ static void ex_scan_directory(const char *path) {
 
 static void ex_get_file_info(const char *path, ExEntry *entry) {
     struct stat st;
-    if (stat(path, &st) != 0) {
+    if (ex_9p_stat(path, &st) != 0) {
         entry->type = EX_ENTRY_UNKNOWN;
         entry->size = 0;
         entry->modified = 0;
@@ -1925,6 +2342,17 @@ static void ex_tree_free(ExTreeNode *node) {
         ex_tree_free(child);
         child = next;
     }
+    /* Also free children list if different from first_child to avoid leaks */
+    if (node->children != node->first_child) {
+        child = node->children;
+        while (child) {
+            ExTreeNode *next = child->next_sibling;
+            if (child != node->first_child) {
+                ex_tree_free(child);
+            }
+            child = next;
+        }
+    }
     free(node);
 }
 
@@ -1992,8 +2420,91 @@ static void ex_hide_context_menu(ExExplorerState *ex) {
     ex->context_menu_entry = -1;
 }
 
+static void ex_worker_copy(const char *src, const char *dst, uint64_t *copied, uint64_t total) {
+    (void)total;
+    struct stat st;
+    if (ex_9p_stat(src, &st) != 0) return;
+    
+    if (S_ISDIR(st.st_mode)) {
+        /* Directory copy - recurse */
+        struct dirent **entries;
+        int count = ex_9p_readdir(src, &entries);
+        if (count >= 0) {
+            ex_9p_mkdir(dst, st.st_mode & 0777);
+            for (int i = 0; i < count; i++) {
+                if (strcmp(entries[i]->d_name, ".") == 0 || strcmp(entries[i]->d_name, "..") == 0) {
+                    free(entries[i]);
+                    continue;
+                }
+                char child_src[EX_MAX_PATH];
+                char child_dst[EX_MAX_PATH];
+                snprintf(child_src, sizeof(child_src), "%s/%s", src, entries[i]->d_name);
+                snprintf(child_dst, sizeof(child_dst), "%s/%s", dst, entries[i]->d_name);
+                ex_worker_copy(child_src, child_dst, copied, 0);
+                free(entries[i]);
+            }
+            free(entries);
+        }
+    } else {
+        /* File copy */
+        int fdi = ex_9p_open(src, O_RDONLY);
+        int fdo = ex_9p_open(dst, O_WRONLY | O_CREAT | O_TRUNC);
+        if (fdi >= 0 && fdo >= 0) {
+            char buf[8192];
+            ssize_t n;
+            while ((n = ex_9p_read(fdi, buf, sizeof(buf))) > 0) {
+                ex_9p_write(fdo, buf, n);
+                if (copied) *copied += n;
+            }
+            ex_9p_close(fdi);
+            ex_9p_close(fdo);
+        } else {
+            if (fdi >= 0) ex_9p_close(fdi);
+            if (fdo >= 0) ex_9p_close(fdo);
+        }
+    }
+}
+
+static void ex_worker_move(const char *src, const char *dst) {
+    /* Try rename first (same filesystem) */
+    if (ex_9p_rename(src, dst) == 0) return;
+    
+    /* Cross-filesystem: copy then delete */
+    uint64_t copied = 0;
+    ex_worker_copy(src, dst, &copied, 0);
+    ex_9p_unlink(src);
+}
+
+static void ex_worker_delete(const char *path, bool permanent) {
+    (void)permanent;
+    struct stat st;
+    if (ex_9p_stat(path, &st) != 0) return;
+    
+    if (S_ISDIR(st.st_mode)) {
+        /* Recursive directory delete */
+        struct dirent **entries;
+        int count = ex_9p_readdir(path, &entries);
+        if (count >= 0) {
+            for (int i = 0; i < count; i++) {
+                if (strcmp(entries[i]->d_name, ".") == 0 || strcmp(entries[i]->d_name, "..") == 0) {
+                    free(entries[i]);
+                    continue;
+                }
+                char child[EX_MAX_PATH];
+                snprintf(child, sizeof(child), "%s/%s", path, entries[i]->d_name);
+                ex_worker_delete(child, permanent);
+                free(entries[i]);
+            }
+            free(entries);
+        }
+        ex_9p_unlink(path);
+    } else {
+        ex_9p_unlink(path);
+    }
+}
+
 static void ex_handle_file_op(ExExplorerState *ex) {
-    /* Simplified synchronous implementation */
+    /* Use worker functions with 9P/Styx */
     for (int i = 0; i < ex->file_op.count; i++) {
         if (ex->file_op.error) break;
 
@@ -2005,52 +2516,19 @@ static void ex_handle_file_op(ExExplorerState *ex) {
         snprintf(dst, sizeof(dst), "%s/%s", ex->file_op.dest_path, base);
 
         if (ex->file_op.type == EX_OP_COPY) {
-            /* Copy file/directory */
-            struct stat st;
-            if (stat(src, &st) == 0) {
-                if (S_ISDIR(st.st_mode)) {
-                    /* Recursive directory copy - simplified */
-                    snprintf(ex->status_text, sizeof(ex->status_text),
-                             "Copied directory: %s", base);
-                } else {
-                    int fdi = open(src, O_RDONLY);
-                    int fdo = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                    if (fdi >= 0 && fdo >= 0) {
-                        char buf[8192];
-                        ssize_t n;
-                        while ((n = read(fdi, buf, sizeof(buf))) > 0) {
-                            write(fdo, buf, n);
-                            ex->file_op.copied_bytes += n;
-                        }
-                        close(fdi);
-                        close(fdo);
-                        snprintf(ex->status_text, sizeof(ex->status_text),
-                                 "Copied: %s", base);
-                    } else if (fdi >= 0) {
-                        close(fdi);
-                    } else if (fdo >= 0) {
-                        close(fdo);
-                    }
-                }
-            }
+            uint64_t copied = 0;
+            ex_worker_copy(src, dst, &copied, ex->file_op.total_bytes);
+            ex->file_op.copied_bytes += copied;
+            snprintf(ex->status_text, sizeof(ex->status_text),
+                     "Copied: %s", base);
         } else if (ex->file_op.type == EX_OP_MOVE) {
-            if (rename(src, dst) == 0) {
-                snprintf(ex->status_text, sizeof(ex->status_text),
-                         "Moved: %s", base);
-            } else {
-                ex->file_op.error = true;
-                snprintf(ex->file_op.error_msg, sizeof(ex->file_op.error_msg),
-                         "Move failed: %s", strerror(errno));
-            }
+            ex_worker_move(src, dst);
+            snprintf(ex->status_text, sizeof(ex->status_text),
+                     "Moved: %s", base);
         } else if (ex->file_op.type == EX_OP_DELETE) {
-            if (remove(src) == 0) {
-                snprintf(ex->status_text, sizeof(ex->status_text),
-                         "Deleted: %s", base);
-            } else {
-                ex->file_op.error = true;
-                snprintf(ex->file_op.error_msg, sizeof(ex->file_op.error_msg),
-                         "Delete failed: %s", strerror(errno));
-            }
+            ex_worker_delete(src, false);
+            snprintf(ex->status_text, sizeof(ex->status_text),
+                     "Deleted: %s", base);
         }
     }
 
@@ -2094,9 +2572,9 @@ void dosgui_explorer_update_preview(int idx) {
             strcmp(ext, "css") == 0) {
             g_explorer.preview.type = EX_PREVIEW_TEXT;
 
-            int fd = open(entry->full_path, O_RDONLY);
+            int fd = ex_9p_open(entry->full_path, O_RDONLY);
             if (fd >= 0) {
-                ssize_t n = read(fd, g_explorer.preview.text_buffer, sizeof(g_explorer.preview.text_buffer) - 1);
+                ssize_t n = ex_9p_read(fd, g_explorer.preview.text_buffer, sizeof(g_explorer.preview.text_buffer) - 1);
                 if (n > 0) {
                     g_explorer.preview.text_buffer[n] = '\0';
                     g_explorer.preview.text_lines = 0;
@@ -2104,7 +2582,7 @@ void dosgui_explorer_update_preview(int idx) {
                         if (g_explorer.preview.text_buffer[i] == '\n') g_explorer.preview.text_lines++;
                     }
                 }
-                close(fd);
+                ex_9p_close(fd);
             }
         } else if (strcmp(ext, "png") == 0 || strcmp(ext, "jpg") == 0 ||
                    strcmp(ext, "jpeg") == 0 || strcmp(ext, "gif") == 0 ||

@@ -15,6 +15,8 @@
 #include "dosgui_wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "../runtime/wubu_container.h"
+#include "../runtime/wubu_exec.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,6 +31,37 @@
 #include <time.h>
 #include <pty.h>
 
+/* -- Safe String Macros (WUBU_SAFE_STRING) -------------------------- */
+
+#define WUBU_STRCPY(dst, src, dst_size) \
+    do { \
+        if (dst_size > 0) { \
+            strncpy((dst), (src), (dst_size) - 1); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
+    do { \
+        if (dst_size > 0) { \
+            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_STRLCAT(dst, src, dst_size) \
+    do { \
+        size_t _dst_len = strlen(dst); \
+        size_t _src_len = strlen(src); \
+        if (_dst_len + _src_len + 1 <= dst_size) { \
+            memcpy((dst) + _dst_len, (src), _src_len + 1); \
+        } else if (_dst_len < dst_size) { \
+            size_t _avail = (dst_size) - _dst_len - 1; \
+            memcpy((dst) + _dst_len, (src), _avail); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
 /* -- Global State ------------------------------------------------- */
 
 TermState g_term = {0};
@@ -39,6 +72,7 @@ static void term_render_tab_bar(TermState *term, uint32_t *fb, int fb_w, int fb_
 static void term_render_content(TermState *term, uint32_t *fb, int fb_w, int fb_h);
 static void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, int w, int h);
 static void term_render_holyc_session(TermHolycSession *holyc, uint32_t *fb, int x, int y, int w, int h);
+static void term_render_container_session(TermContainerSession *container, uint32_t *fb, int x, int y, int w, int h);
 static void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w);
 static void term_update_pty_size(TermPtySession *pty, int cols, int rows);
 static void term_pty_push_line(TermPtySession *pty, const char *line);
@@ -47,6 +81,7 @@ static int  term_pty_spawn(const char *shell, const char *cwd, TermPtySession *p
 static void term_pty_cleanup(TermPtySession *pty);
 static void term_handle_key_pty(TermState *term, uint32_t key, uint32_t mods);
 static void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods);
+static void term_handle_key_container(TermState *term, uint32_t key, uint32_t mods);
 static void term_handle_mouse_tab_bar(TermState *term, int x, int y, int btn, int kind);
 static void term_handle_mouse_content(TermState *term, int x, int y, int btn, int kind);
 static void term_copy_selection(TermState *term);
@@ -54,6 +89,10 @@ static void term_paste_to_pty(TermState *term);
 static void term_reset_pty_screen(TermPtySession *pty);
 static void term_pty_cursor_move(TermPtySession *pty, int x, int y);
 static void term_pty_put_char(TermPtySession *pty, char c, uint8_t attr);
+static int  term_container_spawn(TermContainerSession *container, const char *container_name);
+static void term_container_cleanup(TermContainerSession *container);
+static void term_update_container_size(TermContainerSession *container, int cols, int rows);
+static void term_process_container_output(TermContainerSession *container);
 
 static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 static const WubuTheme *th(void) { return wubu_theme_get(); }
@@ -79,6 +118,8 @@ void dosgui_term_shutdown(void) {
         TermTab *tab = &g_term.tabs[i];
         if (tab->type == TERM_SESSION_SHELL) {
             term_pty_cleanup(&tab->session.pty);
+        } else if (tab->type == TERM_SESSION_CONTAINER) {
+            term_container_cleanup(&tab->session.container);
         }
     }
     memset(&g_term, 0, sizeof(g_term));
@@ -169,7 +210,14 @@ int dosgui_term_new_tab(TermSessionType type, const char *label, const char *she
             tab->session.holyc.holyc_term = NULL; /* Will be created on demand */
             break;
         case TERM_SESSION_CONTAINER:
-            /* Container session init deferred */
+            if (shell) {
+                strncpy(tab->session.container.shell, shell, sizeof(tab->session.container.shell) - 1);
+            } else {
+                strncpy(tab->session.container.shell, "/bin/bash", sizeof(tab->session.container.shell) - 1);
+            }
+            if (term_container_spawn(&tab->session.container, tab->session.container.container_name) < 0) {
+                return -1;
+            }
             break;
     }
 
@@ -191,6 +239,8 @@ void dosgui_term_close_tab(int idx) {
     
     if (tab->type == TERM_SESSION_SHELL) {
         term_pty_cleanup(&tab->session.pty);
+    } else if (tab->type == TERM_SESSION_CONTAINER) {
+        term_container_cleanup(&tab->session.container);
     }
 
     /* Shift remaining tabs left */
@@ -277,8 +327,105 @@ int dosgui_term_spawn_container(const char *container_name) {
         if (container_name) {
             strncpy(tab->session.container.container_name, container_name, sizeof(tab->session.container.container_name) - 1);
         }
+        /* Initialize container PTY */
+        term_container_spawn(&tab->session.container, container_name);
     }
     return idx;
+}
+
+/* -- Container PTY Implementation --------------------------------- */
+
+static int term_container_spawn(TermContainerSession *container, const char *container_name) {
+    memset(container, 0, sizeof(TermContainerSession));
+    container->ptm_fd = -1;
+    container->running = true;
+    container->cols = 80;
+    container->rows = 24;
+    container->cursor_x = 0;
+    container->cursor_y = 0;
+    container->saved_cursor_x = 0;
+    container->saved_cursor_y = 0;
+    strncpy(container->shell, "/bin/bash", sizeof(container->shell) - 1);
+    if (container_name) {
+        strncpy(container->container_name, container_name, sizeof(container->container_name) - 1);
+    } else {
+        strncpy(container->container_name, "container", sizeof(container->container_name) - 1);
+    }
+    strncpy(container->cwd, "/home/wubu", sizeof(container->cwd) - 1);
+
+    /* Open PTY master */
+    container->ptm_fd = posix_openpt(O_RDWR | O_NOCTTY);
+    if (container->ptm_fd < 0) {
+        perror("posix_openpt (container)");
+        return -1;
+    }
+
+    if (grantpt(container->ptm_fd) < 0 || unlockpt(container->ptm_fd) < 0) {
+        perror("grantpt/unlockpt (container)");
+        close(container->ptm_fd);
+        container->ptm_fd = -1;
+        return -1;
+    }
+
+    char *pts_name = ptsname(container->ptm_fd);
+    if (!pts_name) {
+        perror("ptsname (container)");
+        close(container->ptm_fd);
+        container->ptm_fd = -1;
+        return -1;
+    }
+
+    /* Fork child */
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork (container)");
+        close(container->ptm_fd);
+        container->ptm_fd = -1;
+        return -1;
+    }
+
+    if (pid == 0) {
+        /* Child process - exec inside container via wubu_exec */
+        setsid();
+
+        int pts_fd = open(pts_name, O_RDWR | O_NOCTTY);
+        if (pts_fd < 0) {
+            _exit(1);
+        }
+
+        if (ioctl(pts_fd, TIOCSCTTY, 0) < 0) {
+            _exit(1);
+        }
+
+        dup2(pts_fd, STDIN_FILENO);
+        dup2(pts_fd, STDOUT_FILENO);
+        dup2(pts_fd, STDERR_FILENO);
+        if (pts_fd > STDERR_FILENO) close(pts_fd);
+
+        struct winsize ws = { .ws_col = container->cols, .ws_row = container->rows };
+        ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+
+        if (container->cwd[0]) chdir(container->cwd);
+
+        /* Execute wubu_exec to run container shell */
+        char *args[] = { "wubu", "run", container->container_name, container->shell, NULL };
+        execvp("wubu", args);
+
+        /* Fallback to direct shell if wubu not available */
+        char *fallback_args[] = { (char*)container->shell, "-l", NULL };
+        execvp(container->shell, fallback_args);
+        execl("/bin/sh", "sh", "-l", NULL);
+        _exit(1);
+    }
+
+    /* Parent */
+    container->child_pid = pid;
+
+    /* Set master PTY to non-blocking */
+    int flags = fcntl(container->ptm_fd, F_GETFL, 0);
+    fcntl(container->ptm_fd, F_SETFL, flags | O_NONBLOCK);
+
+    return 0;
 }
 
 /* -- PTY Implementation ------------------------------------------- */
@@ -388,6 +535,20 @@ static void term_pty_cleanup(TermPtySession *pty) {
     }
 }
 
+static void term_container_cleanup(TermContainerSession *container) {
+    container->running = false;
+    
+    if (container->child_pid > 0) {
+        kill(container->child_pid, SIGHUP);
+        waitpid(container->child_pid, NULL, 0);
+        container->child_pid = 0;
+    }
+    if (container->ptm_fd >= 0) {
+        close(container->ptm_fd);
+        container->ptm_fd = -1;
+    }
+}
+
 static void term_update_pty_size(TermPtySession *pty, int cols, int rows) {
     if (pty->cols == cols && pty->rows == rows) return;
     pty->cols = cols;
@@ -409,6 +570,175 @@ static void term_reset_pty_screen(TermPtySession *pty) {
     }
     pty->cursor_x = 0;
     pty->cursor_y = 0;
+}
+
+static void term_update_container_size(TermContainerSession *container, int cols, int rows) {
+    if (container->cols == cols && container->rows == rows) return;
+    container->cols = cols;
+    container->rows = rows;
+
+    if (container->ptm_fd >= 0) {
+        struct winsize ws = { .ws_col = cols, .ws_row = rows };
+        ioctl(container->ptm_fd, TIOCSWINSZ, &ws);
+    }
+}
+
+static void term_process_container_output(TermContainerSession *container) {
+    if (container->ptm_fd < 0) return;
+
+    char buf[4096];
+    ssize_t n = read(container->ptm_fd, buf, sizeof(buf) - 1);
+    if (n <= 0) return;
+
+    buf[n] = '\0';
+
+    /* Parse ANSI sequences and update container screen buffer */
+    /* Reuse the same ANSI parser logic as PTY sessions */
+    typedef enum { ANSI_NORMAL, ANSI_ESC, ANSI_CSI } AnsiState;
+    static AnsiState ansi_state = ANSI_NORMAL;
+    static int ansi_param[8] = {0};
+    static int ansi_param_count = 0;
+    static int ansi_param_accum = 0;
+    static bool ansi_param_pending = false;
+
+    for (int i = 0; i < n; i++) {
+        unsigned char c = (unsigned char)buf[i];
+
+        if (ansi_state == ANSI_NORMAL) {
+            if (c == 0x1B) {
+                ansi_state = ANSI_ESC;
+            } else if (c == '\n') {
+                if (container->cursor_y >= container->rows - 1) {
+                    /* Scroll up */
+                    for (int r = 0; r < container->rows - 1; r++) {
+                        memcpy(container->screen[r], container->screen[r + 1], TERM_MAX_COLS);
+                        memcpy(container->attrs[r], container->attrs[r + 1], TERM_MAX_COLS);
+                    }
+                    memset(container->screen[container->rows - 1], ' ', TERM_MAX_COLS);
+                    memset(container->attrs[container->rows - 1], 0, TERM_MAX_COLS);
+                } else {
+                    container->cursor_y++;
+                }
+                container->cursor_x = 0;
+            } else if (c == '\r') {
+                container->cursor_x = 0;
+            } else if (c == '\t') {
+                container->cursor_x = (container->cursor_x + 8) & ~7;
+                if (container->cursor_x >= container->cols) container->cursor_x = container->cols - 1;
+            } else if (c == '\b') {
+                if (container->cursor_x > 0) container->cursor_x--;
+            } else if (c >= 32 && c < 127) {
+                if (container->cursor_x < TERM_MAX_COLS && container->cursor_y < TERM_MAX_ROWS) {
+                    container->screen[container->cursor_y][container->cursor_x] = (char)c;
+                    container->attrs[container->cursor_y][container->cursor_x] = container->cur_attr;
+                }
+                container->cursor_x++;
+                if (container->cursor_x >= container->cols) {
+                    container->cursor_x = 0;
+                    if (container->cursor_y < container->rows - 1) container->cursor_y++;
+                }
+            }
+        } else if (ansi_state == ANSI_ESC) {
+            if (c == '[') {
+                ansi_state = ANSI_CSI;
+                ansi_param_count = 0;
+                ansi_param_accum = 0;
+                ansi_param_pending = false;
+                memset(ansi_param, 0, sizeof(ansi_param));
+            } else {
+                ansi_state = ANSI_NORMAL;
+            }
+        } else if (ansi_state == ANSI_CSI) {
+            if (c >= '0' && c <= '9') {
+                ansi_param_accum = ansi_param_accum * 10 + (c - '0');
+                ansi_param_pending = true;
+            } else if (c == ';') {
+                if (ansi_param_count < 8) {
+                    ansi_param[ansi_param_count++] = ansi_param_accum;
+                }
+                ansi_param_accum = 0;
+                ansi_param_pending = false;
+            } else {
+                if (ansi_param_pending && ansi_param_count < 8) {
+                    ansi_param[ansi_param_count++] = ansi_param_accum;
+                }
+                int p0 = ansi_param_count > 0 ? ansi_param[0] : 1;
+                if (p0 <= 0) p0 = 1;
+
+                switch (c) {
+                    case 'A':
+                        container->cursor_y -= p0;
+                        if (container->cursor_y < 0) container->cursor_y = 0;
+                        break;
+                    case 'B':
+                    case 'e':
+                        container->cursor_y += p0;
+                        if (container->cursor_y >= container->rows) container->cursor_y = container->rows - 1;
+                        break;
+                    case 'C':
+                    case 'a':
+                        container->cursor_x += p0;
+                        if (container->cursor_x >= container->cols) container->cursor_x = container->cols - 1;
+                        break;
+                    case 'D':
+                        container->cursor_x -= p0;
+                        if (container->cursor_x < 0) container->cursor_x = 0;
+                        break;
+                    case 'H':
+                    case 'f':
+                        container->cursor_y = (ansi_param_count > 0 ? ansi_param[0] : 1) - 1;
+                        container->cursor_x = (ansi_param_count > 1 ? ansi_param[1] : 1) - 1;
+                        if (container->cursor_y < 0) container->cursor_y = 0;
+                        if (container->cursor_y >= container->rows) container->cursor_y = container->rows - 1;
+                        if (container->cursor_x < 0) container->cursor_x = 0;
+                        if (container->cursor_x >= container->cols) container->cursor_x = container->cols - 1;
+                        break;
+                    case 'J':
+                        if (ansi_param_count == 0 || ansi_param[0] == 0) {
+                            for (int r = container->cursor_y; r < container->rows; r++) {
+                                int start_c = (r == container->cursor_y) ? container->cursor_x : 0;
+                                memset(container->screen[r] + start_c, ' ', container->cols - start_c);
+                                memset(container->attrs[r] + start_c, 0, container->cols - start_c);
+                            }
+                        }
+                        break;
+                    case 'K':
+                        if (ansi_param_count == 0 || ansi_param[0] == 0) {
+                            memset(container->screen[container->cursor_y] + container->cursor_x, ' ', container->cols - container->cursor_x);
+                            memset(container->attrs[container->cursor_y] + container->cursor_x, 0, container->cols - container->cursor_x);
+                        }
+                        break;
+                    case 'm':
+                        if (ansi_param_count == 0) {
+                            container->cur_attr = 0;
+                            container->cur_fg = 7;
+                            container->cur_bg = 0;
+                        }
+                        for (int p = 0; p < ansi_param_count; p++) {
+                            int val = ansi_param[p];
+                            if (val == 0) { container->cur_attr = 0; container->cur_fg = 7; container->cur_bg = 0; }
+                            else if (val == 1) container->cur_attr |= 0x01;
+                            else if (val == 4) container->cur_attr |= 0x02;
+                            else if (val == 7) container->cur_attr |= 0x04;
+                            else if (val >= 30 && val <= 37) container->cur_fg = val - 30;
+                            else if (val >= 40 && val <= 47) container->cur_bg = val - 40;
+                            else if (val >= 90 && val <= 97) container->cur_fg = val - 90 + 8;
+                            else if (val >= 100 && val <= 107) container->cur_bg = val - 100 + 8;
+                        }
+                        break;
+                    case 's':
+                        container->saved_cursor_x = container->cursor_x;
+                        container->saved_cursor_y = container->cursor_y;
+                        break;
+                    case 'u':
+                        container->cursor_x = container->saved_cursor_x;
+                        container->cursor_y = container->saved_cursor_y;
+                        break;
+                }
+                ansi_state = ANSI_NORMAL;
+            }
+        }
+    }
 }
 
 static void term_pty_push_line(TermPtySession *pty, const char *line) {
@@ -747,12 +1077,13 @@ void dosgui_term_handle_key(uint32_t key, uint32_t mods) {
             term_handle_key_pty(&g_term, key, mods);
         } else if (tab->type == TERM_SESSION_HOLYC) {
             term_handle_key_holyc(&g_term, key, mods);
+        } else if (tab->type == TERM_SESSION_CONTAINER) {
+            term_handle_key_container(&g_term, key, mods);
         }
     }
 }
 
 static void term_handle_key_pty(TermState *term, uint32_t key, uint32_t mods) {
-    (void)mods;
     TermTab *tab = &term->tabs[term->active_tab];
     TermPtySession *pty = &tab->session.pty;
 
@@ -790,10 +1121,70 @@ static void term_handle_key_pty(TermState *term, uint32_t key, uint32_t mods) {
 }
 
 static void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods) {
-    (void)mods;
     /* HolyC REPL key handling - similar to dosgui_wm HolycTerm */
     /* For now, just pass to HolyC if we have a window */
     dosgui_term_holyc_eval(NULL);  /* Trigger redraw/eval */
+}
+
+static void term_handle_key_container(TermState *term, uint32_t key, uint32_t mods) {
+    if (term->active_tab < 0) return;
+    TermTab *tab = &term->tabs[term->active_tab];
+    if (tab->type != TERM_SESSION_CONTAINER) return;
+    
+    TermContainerSession *container = &tab->session.container;
+    
+    char buf[8];
+    int len = 0;
+    
+    /* Convert key to terminal escape sequences */
+    if (key >= 32 && key < 127) {
+        buf[len++] = (char)key;
+    } else {
+        switch (key) {
+            case '\r': buf[len++] = '\r'; break;
+            case '\n': buf[len++] = '\n'; break;
+            case 8: buf[len++] = 8; break;  /* Backspace */
+            case 9: buf[len++] = 9; break;  /* Tab */
+            case 27: buf[len++] = 27; break;  /* Escape */
+            case 0xE048: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'A'; break;  /* Up */
+            case 0xE050: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'B'; break;  /* Down */
+            case 0xE04B: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'D'; break;  /* Left */
+            case 0xE04D: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'C'; break;  /* Right */
+            case 0xE04E: break;  /* Handled globally - PgDn */
+            case 0xE04F: break;  /* Handled globally - PgUp */
+            default: return;
+        }
+    }
+    
+    if (len > 0 && container->ptm_fd >= 0) {
+        write(container->ptm_fd, buf, len);
+    }
+    
+    /* Also process local echo for simple keys */
+    for (int i = 0; i < len; i++) {
+        /* Process container local echo */
+        if (buf[i] >= 32 && buf[i] < 127) {
+            if (container->cursor_x < TERM_MAX_COLS && container->cursor_y < TERM_MAX_ROWS) {
+                container->screen[container->cursor_y][container->cursor_x] = buf[i];
+                container->attrs[container->cursor_y][container->cursor_x] = 0x07;
+            }
+            container->cursor_x++;
+            if (container->cursor_x >= container->cols) {
+                container->cursor_x = 0;
+                if (container->cursor_y < container->rows - 1) container->cursor_y++;
+            }
+        } else if (buf[i] == '\r') {
+            container->cursor_x = 0;
+        } else if (buf[i] == '\n') {
+            container->cursor_y++;
+            container->cursor_x = 0;
+        } else if (buf[i] == 8) {  /* Backspace */
+            if (container->cursor_x > 0) {
+                container->cursor_x--;
+                container->screen[container->cursor_y][container->cursor_x] = ' ';
+            }
+        }
+    }
 }
 
 void dosgui_term_holyc_eval(const char *input) {
@@ -821,7 +1212,6 @@ void dosgui_term_handle_mouse(int x, int y, int btn, int kind) {
 }
 
 static void term_handle_mouse_tab_bar(TermState *term, int x, int y, int btn, int kind) {
-    (void)y;
     int tab_x, tab_w;
     term_tab_bar_layout(term, &tab_x, &tab_w);
 
@@ -877,31 +1267,50 @@ static void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w) {
 }
 
 static void term_handle_mouse_content(TermState *term, int x, int y, int btn, int kind) {
-    (void)term; (void)x; (void)y; (void)btn; (void)kind;
-    /* Selection handling for PTY sessions */
-    if (term->active_tab >= 0) {
-        TermTab *tab = &term->tabs[term->active_tab];
-        if (tab->type == TERM_SESSION_SHELL) {
-            TermPtySession *pty = &tab->session.pty;
-            
-            if (kind == 1 && btn == 1) {
-                /* Start selection */
-                pty->selecting = true;
-                pty->sel_start_x = (x - term->x - term_side_padding()) / term_char_w();
-                pty->sel_start_y = (y - term->y - term->tab_bar_h - term_top_padding()) / term_char_h() + pty->scrollback_view;
-                pty->sel_end_x = pty->sel_start_x;
-                pty->sel_end_y = pty->sel_start_y;
-            } else if (kind == 0 && pty->selecting) {
-                /* Update selection */
-                pty->sel_end_x = (x - term->x - term_side_padding()) / term_char_w();
-                pty->sel_end_y = (y - term->y - term->tab_bar_h - term_top_padding()) / term_char_h() + pty->scrollback_view;
-            } else if (kind == 2 && btn == 1) {
-                /* End selection */
-                pty->selecting = false;
-            } else if (kind == 1 && btn == 2) {
-                /* Middle click - paste */
-                dosgui_term_paste();
-            }
+    if (term->active_tab < 0) return;
+    TermTab *tab = &term->tabs[term->active_tab];
+    
+    if (tab->type == TERM_SESSION_SHELL) {
+        TermPtySession *pty = &tab->session.pty;
+        
+        if (kind == 1 && btn == 1) {
+            /* Start selection */
+            pty->selecting = true;
+            pty->sel_start_x = (x - term->x - term_side_padding()) / term_char_w();
+            pty->sel_start_y = (y - term->y - term->tab_bar_h - term_top_padding()) / term_char_h() + pty->scrollback_view;
+            pty->sel_end_x = pty->sel_start_x;
+            pty->sel_end_y = pty->sel_start_y;
+        } else if (kind == 0 && pty->selecting) {
+            /* Update selection */
+            pty->sel_end_x = (x - term->x - term_side_padding()) / term_char_w();
+            pty->sel_end_y = (y - term->y - term->tab_bar_h - term_top_padding()) / term_char_h() + pty->scrollback_view;
+        } else if (kind == 2 && btn == 1) {
+            /* End selection */
+            pty->selecting = false;
+        } else if (kind == 1 && btn == 2) {
+            /* Middle click - paste */
+            dosgui_term_paste();
+        }
+    } else if (tab->type == TERM_SESSION_CONTAINER) {
+        TermContainerSession *container = &tab->session.container;
+        
+        if (kind == 1 && btn == 1) {
+            /* Start selection */
+            container->selecting = true;
+            container->sel_start_x = (x - term->x - term_side_padding()) / term_char_w();
+            container->sel_start_y = (y - term->y - term->tab_bar_h - term_top_padding()) / term_char_h();
+            container->sel_end_x = container->sel_start_x;
+            container->sel_end_y = container->sel_start_y;
+        } else if (kind == 0 && container->selecting) {
+            /* Update selection */
+            container->sel_end_x = (x - term->x - term_side_padding()) / term_char_w();
+            container->sel_end_y = (y - term->y - term->tab_bar_h - term_top_padding()) / term_char_h();
+        } else if (kind == 2 && btn == 1) {
+            /* End selection */
+            container->selecting = false;
+        } else if (kind == 1 && btn == 2) {
+            /* Middle click - paste */
+            dosgui_term_paste();
         }
     }
 }
@@ -987,7 +1396,6 @@ void dosgui_term_render_tab_bar(uint32_t *fb, int fb_w, int fb_h) {
 }
 
 void dosgui_term_render_content(uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb_w; (void)fb_h;
     if (g_term.active_tab < 0 || g_term.active_tab >= g_term.tab_count) return;
 
     TermTab *tab = &g_term.tabs[g_term.active_tab];
@@ -1014,7 +1422,6 @@ void dosgui_term_render_content(uint32_t *fb, int fb_w, int fb_h) {
 }
 
 static void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, int w, int h) {
-    (void)fb; (void)w; (void)h;
     int cols = pty->cols;
     int rows = pty->rows;
     int char_w = term_char_w();
@@ -1072,7 +1479,6 @@ static void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, in
 }
 
 static void term_render_holyc_session(TermHolycSession *holyc, uint32_t *fb, int x, int y, int w, int h) {
-    (void)fb; (void)x; (void)y; (void)w; (void)h; (void)holyc;
     /* HolyC REPL rendering - would show HolyC output */
     vbe_draw_text(x + 10, y + 10, "WuBuOS HolyC REPL", 0x00FF00, 1);
     vbe_draw_text(x + 10, y + 25, "Type HolyC code. Enter to evaluate.", 0x808080, 1);

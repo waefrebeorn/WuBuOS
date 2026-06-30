@@ -480,7 +480,53 @@ static HCASTNode *parse_binop(HCParser *p, HCASTNode *(*higher)(HCParser*), cons
     return left;
 }
 
-static HCASTNode *parse_mul(HCParser *p)      { return parse_binop(p, parse_unary, mul_ops); }
+/* -- Parse Cast ----------------------------------------------------- */
+static HCASTNode *parse_cast(HCParser *p);
+
+static HCASTNode *parse_mul(HCParser *p)      { return parse_binop(p, parse_cast, mul_ops); }
+
+/* -- Parse Cast ----------------------------------------------------- */
+static HCASTNode *parse_cast(HCParser *p) {
+    if (peek(p) == HC_TOK_LPAREN) {
+        /* Look ahead to see if this is a cast: (type) expr */
+        /* Save lexer state for backtracking */
+        int saved_pos = p->lex->pos;
+        int saved_line = p->lex->line;
+        int saved_col = p->lex->col;
+        advance(p); /* consume ( */
+        
+        /* Check if next token is a type keyword or identifier (typedef name) */
+        bool is_type = false;
+        HCTokenType tok = peek(p);
+        if (tok == HC_KW_I8 || tok == HC_KW_I16 || tok == HC_KW_I32 ||
+            tok == HC_KW_I64 || tok == HC_KW_U8 || tok == HC_KW_U16 ||
+            tok == HC_KW_U32 || tok == HC_KW_U64 || tok == HC_KW_F64 ||
+            tok == HC_KWBool || tok == HC_TOK_IDENT) {
+            is_type = true;
+        }
+        
+        if (is_type) {
+            /* This is a cast - parse the type */
+            HCType *cast_type = parse_type(p);
+            expect(p, HC_TOK_RPAREN);
+            HCASTNode *expr = parse_cast(p);  /* right-associative for nested casts */
+            HCASTNode *n = hc_ast_new(HC_AST_CAST);
+            n->child = expr;
+            n->type = cast_type;
+            return n;
+        }
+        /* Not a cast, backtrack fully and parse as parenthesized expression */
+        p->lex->pos = saved_pos;
+        p->lex->line = saved_line;
+        p->lex->col = saved_col;
+        /* Need to re-lex the token at saved position */
+        hc_lex_next(p->lex);
+        HCASTNode *expr = parse_expr(p);
+        expect(p, HC_TOK_RPAREN);
+        return expr;
+    }
+    return parse_unary(p);
+}
 static HCASTNode *parse_add(HCParser *p)      { return parse_binop(p, parse_mul, add_ops); }
 static HCASTNode *parse_shift(HCParser *p)    { return parse_binop(p, parse_add, shift_ops); }
 static HCASTNode *parse_cmp(HCParser *p)      { return parse_binop(p, parse_shift, cmp_ops); }

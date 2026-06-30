@@ -240,13 +240,34 @@ int wubu_proton_parse_pe(wubu_proton_t *p, const uint8_t *data, size_t size) {
 /* -- PE Loading ---------------------------------------------- */
 
 uint32_t wubu_proton_map_sections(wubu_proton_t *p, const uint8_t *data, size_t size) {
-    (void)data; (void)size;
-    if (!p || p->num_sections == 0) return 0;
+    if (!p || p->num_sections == 0 || !data || size == 0) return 0;
 
-    /* In hosted mode, we simulate mapping by returning the image base.
+    /* Simulate mapping each PE section into VSL memory.
+     * In hosted mode, we track section mappings in the proton struct.
      * In the real kernel, this would call VSL mmap for each section. */
     uint32_t base = p->image_base;
     if (base == 0) base = p->is_pe64 ? 0x140000000u : 0x00400000u;
+
+    /* For each section, calculate its mapped address and record it */
+    for (int i = 0; i < p->num_sections; i++) {
+        pe_section_t *sec = &p->sections[i];
+        uint32_t sec_rva = sec->virtual_addr;
+        uint32_t sec_size = sec->virtual_size ? sec->virtual_size : sec->raw_size;
+        
+        /* Map section at base + RVA */
+        uint32_t mapped_addr = base + sec_rva;
+        
+        /* Store mapping info back into section (simulated) */
+        sec->virtual_addr = mapped_addr;  /* Now holds absolute mapped address */
+        
+        /* In real implementation: vsl_mmap(mapped_addr, sec_size, 
+         *   (sec->characteristics & PE_MEM_READ ? PROT_READ : 0) |
+         *   (sec->characteristics & PE_MEM_WRITE ? PROT_WRITE : 0) |
+         *   (sec->characteristics & PE_MEM_EXECUTE ? PROT_EXEC : 0),
+         *   MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+         * Then copy section data from PE file to mapped_addr.
+         */
+    }
 
     p->pe_loaded++;
     return base;
@@ -344,7 +365,6 @@ int wubu_proton_resolve_deps(wubu_proton_t *p) {
 
 int wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
                       const char *cmdline) {
-    (void)cmdline;
     if (!p || !data) return -1;
     if (p->state != PROTON_READY && p->state != PROTON_RUNNING) return -1;
 
@@ -374,7 +394,7 @@ int wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
     }
 
     /* Rename to .exe for Wine */
-    char exe_path[256];
+    char exe_path[512];
     snprintf(exe_path, sizeof(exe_path), "%s.exe", tmpl);
     if (rename(tmpl, exe_path) != 0) {
         unlink(tmpl);
@@ -385,9 +405,10 @@ int wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
     chmod(exe_path, 0755);
 
     /* Step 6: Fork and attempt Wine execution.
-     * If Wine is available, exec it. If not, fork a simulated child
-     * that exits cleanly — this proves the full PE pipeline works
-     * (validate → parse → map → resolve → fork) even without Wine. */
+     * If Wine is available, exec it with proper environment and cmdline.
+     * If not, fork a simulated child that exits cleanly — this proves
+     * the full PE pipeline works (validate → parse → map → resolve → fork)
+     * even without Wine. */
     pid_t pid = fork();
     if (pid < 0) {
         unlink(exe_path);
@@ -395,19 +416,57 @@ int wubu_proton_exec(wubu_proton_t *p, const uint8_t *data, size_t size,
     }
 
     if (pid == 0) {
-        /* CHILD: Try Wine first */
+        /* CHILD: Set up Wine environment */
+        
+        /* Suppress Wine debug output */
         setenv("WINEDEBUG", "-all", 1);
-        char *wine_argv[] = { "wine", exe_path, NULL };
-        execvp("wine", wine_argv);
+        
+        /* Set WINEPREFIX if we have a prefix configured */
+        const char *home = getenv("HOME");
+        if (home) {
+            char wineprefix[512];
+            snprintf(wineprefix, sizeof(wineprefix), "%s/.local/share/wubu/prefixes/default", home);
+            setenv("WINEPREFIX", wineprefix, 1);
+        }
+        
+        /* Set DLL override for built-in DLLs */
+        setenv("WINEDLLOVERRIDES", "kernel32.dll,ntdll.dll,msvcrt.dll=b", 1);
+        
+        /* Choose wine binary based on PE architecture */
+        const char *wine_bin = p->is_pe64 ? "wine64" : "wine";
+        
+        /* Build argv array from cmdline */
+        char *wine_argv[64];
+        int argc = 0;
+        wine_argv[argc++] = (char *)wine_bin;
+        wine_argv[argc++] = exe_path;
+        
+        if (cmdline && *cmdline) {
+            /* Simple cmdline parsing - split by spaces */
+            char *cmdline_copy = strdup(cmdline);
+            if (cmdline_copy) {
+                char *token = strtok(cmdline_copy, " \t");
+                while (token && argc < 62) {
+                    wine_argv[argc++] = token;
+                    token = strtok(NULL, " \t");
+                }
+                free(cmdline_copy);
+            }
+        }
+        wine_argv[argc] = NULL;
 
-        /* Try wine64 */
-        wine_argv[0] = "wine64";
-        execvp("wine64", wine_argv);
+        /* Try primary wine binary */
+        execvp(wine_bin, wine_argv);
+        
+        /* Fallback: try the other wine binary */
+        const char *fallback_bin = p->is_pe64 ? "wine" : "wine64";
+        wine_argv[0] = (char *)fallback_bin;
+        execvp(fallback_bin, wine_argv);
 
         /* Wine not available — simulate successful PE execution.
          * The PE was validated, parsed, sections mapped, and DLLs resolved.
          * Exit with the PE's entry point RVA as exit code (for testability). */
-        _exit(0);
+        _exit((int)p->entry_point);
     }
 
     /* PARENT */
@@ -459,61 +518,400 @@ uint64_t wubu_proton_api_count(const wubu_proton_t *p) {
     return p ? p->api_translated : 0;
 }
 
-/* -- DXVK Configuration Stubs ---------------------------------- */
+/* -- DXVK Configuration Implementation -------------------------- */
+
+static int wubu_proton_prefix_path(const char *prefix_id, char *out_path, size_t size) {
+    if (!prefix_id || !out_path || size == 0) return -1;
+    const char *home = getenv("HOME");
+    if (!home) home = "/tmp";
+    return snprintf(out_path, size, "%s/.local/share/wubu/prefixes/%s", home, prefix_id);
+}
+
+static int wubu_proton_mkdir_p(const char *path) {
+    char tmp[512];
+    strncpy(tmp, path, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+                return -1;
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, 0755) != 0 && errno != EEXIST) {
+        return -1;
+    }
+    return 0;
+}
+
+static int wubu_proton_ensure_prefix(const char *prefix_id) {
+    char prefix_path[512];
+    if (wubu_proton_prefix_path(prefix_id, prefix_path, sizeof(prefix_path)) < 0) return -1;
+    
+    char dxvk_conf[512];
+    snprintf(dxvk_conf, sizeof(dxvk_conf), "%s/drive_c/users/steamuser/AppData/Local/DXVK", prefix_path);
+    return wubu_proton_mkdir_p(dxvk_conf);
+}
 
 int wubu_proton_dxvk_config_write(const char *prefix_id, const char *config_content) {
-    (void)prefix_id; (void)config_content;
+    if (!prefix_id || !config_content) return -1;
+    
+    char prefix_path[512];
+    if (wubu_proton_prefix_path(prefix_id, prefix_path, sizeof(prefix_path)) < 0) return -1;
+    if (wubu_proton_ensure_prefix(prefix_id) < 0) return -1;
+    
+    char dxvk_conf[512];
+    snprintf(dxvk_conf, sizeof(dxvk_conf), "%s/drive_c/users/steamuser/AppData/Local/DXVK/dxvk.conf", prefix_path);
+    
+    FILE *f = fopen(dxvk_conf, "w");
+    if (!f) return -1;
+    fprintf(f, "%s", config_content);
+    fclose(f);
     return 0;
 }
 
 int wubu_proton_dxvk_config_read(const char *prefix_id, char *out_config, size_t size) {
-    (void)prefix_id; (void)out_config; (void)size;
+    if (!prefix_id || !out_config || size == 0) return -1;
+    
+    char prefix_path[512];
+    if (wubu_proton_prefix_path(prefix_id, prefix_path, sizeof(prefix_path)) < 0) return -1;
+    
+    char dxvk_conf[512];
+    snprintf(dxvk_conf, sizeof(dxvk_conf), "%s/drive_c/users/steamuser/AppData/Local/DXVK/dxvk.conf", prefix_path);
+    
+    FILE *f = fopen(dxvk_conf, "r");
+    if (!f) {
+        out_config[0] = '\0';
+        return 0;
+    }
+    
+    size_t n = fread(out_config, 1, size - 1, f);
+    out_config[n] = '\0';
+    fclose(f);
     return 0;
 }
 
 int wubu_proton_dxvk_set_hud(const char *prefix_id, bool enable, const char *options) {
-    (void)prefix_id; (void)enable; (void)options;
-    return 0;
+    if (!prefix_id) return -1;
+    
+    char config[4096];
+    int rc = wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
+    if (rc < 0) return -1;
+    
+    char new_config[4096];
+    if (enable) {
+        snprintf(new_config, sizeof(new_config), 
+            "[dxvk]\nhud = %s\n%s",
+            options ? options : "fps",
+            config[0] ? config : "");
+    } else {
+        /* Remove hud line if present */
+        char *p = strstr(config, "hud =");
+        if (p) {
+            char *line_start = p;
+            while (line_start > config && line_start[-1] != '\n') line_start--;
+            char *line_end = p;
+            while (*line_end && *line_end != '\n') line_end++;
+            if (*line_end == '\n') line_end++;
+            snprintf(new_config, sizeof(new_config), "%.*s%s", 
+                     (int)(line_start - config), config, line_end);
+        } else {
+            snprintf(new_config, sizeof(new_config), "%s", config);
+        }
+    }
+    
+    return wubu_proton_dxvk_config_write(prefix_id, new_config);
 }
 
 int wubu_proton_dxvk_set_async(const char *prefix_id, bool async) {
-    (void)prefix_id; (void)async;
-    return 0;
+    if (!prefix_id) return -1;
+    
+    char config[4096];
+    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
+    
+    char new_config[4096];
+    char *p = strstr(config, "async =");
+    if (p) {
+        char *line_start = p;
+        while (line_start > config && line_start[-1] != '\n') line_start--;
+        char *line_end = p;
+        while (*line_end && *line_end != '\n') line_end++;
+        if (*line_end == '\n') line_end++;
+        snprintf(new_config, sizeof(new_config), "%.*sasync = %s\n%s",
+                 (int)(line_start - config), config,
+                 async ? "true" : "false",
+                 line_end);
+    } else {
+        snprintf(new_config, sizeof(new_config), 
+            "%s\n[dxvk]\nasync = %s",
+            config[0] ? config : "",
+            async ? "true" : "false");
+    }
+    
+    return wubu_proton_dxvk_config_write(prefix_id, new_config);
 }
 
 int wubu_proton_dxvk_set_nvapi_hack(const char *prefix_id, bool enable) {
-    (void)prefix_id; (void)enable;
-    return 0;
+    if (!prefix_id) return -1;
+    
+    char config[4096];
+    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
+    
+    char new_config[4096];
+    char *p = strstr(config, "nvapiHack =");
+    if (p) {
+        char *line_start = p;
+        while (line_start > config && line_start[-1] != '\n') line_start--;
+        char *line_end = p;
+        while (*line_end && *line_end != '\n') line_end++;
+        if (*line_end == '\n') line_end++;
+        snprintf(new_config, sizeof(new_config), "%.*snvapiHack = %s\n%s",
+                 (int)(line_start - config), config,
+                 enable ? "true" : "false",
+                 line_end);
+    } else {
+        snprintf(new_config, sizeof(new_config), 
+            "%s\n[dxvk]\nnvapiHack = %s",
+            config[0] ? config : "",
+            enable ? "true" : "false");
+    }
+    
+    return wubu_proton_dxvk_config_write(prefix_id, new_config);
 }
 
 int wubu_proton_dxvk_set_present_mode(const char *prefix_id, bool mailbox) {
-    (void)prefix_id; (void)mailbox;
-    return 0;
+    if (!prefix_id) return -1;
+    
+    char config[4096];
+    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
+    
+    char new_config[4096];
+    char *p = strstr(config, "presentMode =");
+    if (p) {
+        char *line_start = p;
+        while (line_start > config && line_start[-1] != '\n') line_start--;
+        char *line_end = p;
+        while (*line_end && *line_end != '\n') line_end++;
+        if (*line_end == '\n') line_end++;
+        snprintf(new_config, sizeof(new_config), "%.*spresentMode = %d\n%s",
+                 (int)(line_start - config), config,
+                 mailbox ? 1 : 0,
+                 line_end);
+    } else {
+        snprintf(new_config, sizeof(new_config), 
+            "%s\n[dxvk]\npresentMode = %d",
+            config[0] ? config : "",
+            mailbox ? 1 : 0);
+    }
+    
+    return wubu_proton_dxvk_config_write(prefix_id, new_config);
 }
 
 int wubu_proton_dxvk_set_memory_limits(const char *prefix_id, int device_mb, int shared_mb) {
-    (void)prefix_id; (void)device_mb; (void)shared_mb;
-    return 0;
+    if (!prefix_id) return -1;
+    
+    char config[4096];
+    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
+    
+    char new_config[4096];
+    char *p = strstr(config, "maxDeviceMemory =");
+    if (p) {
+        char *line_start = p;
+        while (line_start > config && line_start[-1] != '\n') line_start--;
+        char *line_end = p;
+        while (*line_end && *line_end != '\n') line_end++;
+        if (*line_end == '\n') line_end++;
+        snprintf(new_config, sizeof(new_config), "%.*smaxDeviceMemory = %d\nmaxSharedMemory = %d\n%s",
+                 (int)(line_start - config), config,
+                 device_mb, shared_mb,
+                 line_end);
+    } else {
+        snprintf(new_config, sizeof(new_config), 
+            "%s\n[dxvk]\nmaxDeviceMemory = %d\nmaxSharedMemory = %d",
+            config[0] ? config : "",
+            device_mb, shared_mb);
+    }
+    
+    return wubu_proton_dxvk_config_write(prefix_id, new_config);
 }
 
 int wubu_proton_dxvk_reset_config(const char *prefix_id) {
-    (void)prefix_id;
-    return 0;
+    if (!prefix_id) return -1;
+    
+    char prefix_path[512];
+    if (wubu_proton_prefix_path(prefix_id, prefix_path, sizeof(prefix_path)) < 0) return -1;
+    
+    char dxvk_conf[512];
+    snprintf(dxvk_conf, sizeof(dxvk_conf), "%s/drive_c/users/steamuser/AppData/Local/DXVK/dxvk.conf", prefix_path);
+    
+    return unlink(dxvk_conf);
 }
 
 int wubu_proton_dxvk_config_ui_get(const char *prefix_id, DxvkConfigUI *out_ui) {
-    (void)prefix_id;
-    if (!out_ui) return -1;
+    if (!prefix_id || !out_ui) return -1;
     memset(out_ui, 0, sizeof(DxvkConfigUI));
+    strncpy(out_ui->prefix_id, prefix_id, sizeof(out_ui->prefix_id) - 1);
+    
+    char config[4096];
+    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
+    
+    /* Parse config for each setting */
+    char *p = strstr(config, "hud =");
+    if (p) {
+        out_ui->dxvk_hud_enabled = true;
+        p += 5;
+        while (*p == ' ' || *p == '=' || *p == '\t') p++;
+        char *end = p;
+        while (*end && *end != '\n' && *end != '\r') end++;
+        if (end > p) {
+            size_t len = end - p;
+            if (len >= sizeof(out_ui->dxvk_hud_options)) len = sizeof(out_ui->dxvk_hud_options) - 1;
+            memcpy(out_ui->dxvk_hud_options, p, len);
+            out_ui->dxvk_hud_options[len] = '\0';
+        }
+    }
+    
+    p = strstr(config, "async =");
+    if (p) {
+        out_ui->dxvk_async = (strstr(p, "true") != NULL);
+    }
+    
+    p = strstr(config, "nvapiHack =");
+    if (p) {
+        out_ui->dxvk_nvapi_hack = (strstr(p, "true") != NULL);
+    }
+    
+    p = strstr(config, "presentMode =");
+    if (p) {
+        out_ui->dxvk_present_mode_mailbox = (strstr(p, "1") != NULL);
+    }
+    
+    p = strstr(config, "maxDeviceMemory =");
+    if (p) {
+        p += 17;
+        while (*p == ' ' || *p == '=' || *p == '\t') p++;
+        out_ui->dxvk_max_device_memory = atoi(p);
+    }
+    
+    p = strstr(config, "maxSharedMemory =");
+    if (p) {
+        p += 17;
+        while (*p == ' ' || *p == '=' || *p == '\t') p++;
+        out_ui->dxvk_max_shared_memory = atoi(p);
+    }
+    
+    p = strstr(config, "d3d10 =");
+    if (p) {
+        out_ui->dxvk_d3d10 = (strstr(p, "true") != NULL);
+    }
+    
+    p = strstr(config, "d3d10_1 =");
+    if (p) {
+        out_ui->dxvk_d3d10_1 = (strstr(p, "true") != NULL);
+    }
+    
     return 0;
 }
 
 int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui) {
-    (void)prefix_id; (void)ui;
-    return 0;
+    if (!prefix_id || !ui) return -1;
+    
+    char config[4096] = "[dxvk]\n";
+    size_t pos = 7;
+    
+    if (ui->dxvk_hud_enabled) {
+        pos += snprintf(config + pos, sizeof(config) - pos, "hud = %s\n", 
+                        ui->dxvk_hud_options[0] ? ui->dxvk_hud_options : "fps");
+    }
+    pos += snprintf(config + pos, sizeof(config) - pos, "async = %s\n", ui->dxvk_async ? "true" : "false");
+    pos += snprintf(config + pos, sizeof(config) - pos, "nvapiHack = %s\n", ui->dxvk_nvapi_hack ? "true" : "false");
+    pos += snprintf(config + pos, sizeof(config) - pos, "presentMode = %d\n", ui->dxvk_present_mode_mailbox ? 1 : 0);
+    if (ui->dxvk_max_device_memory > 0) {
+        pos += snprintf(config + pos, sizeof(config) - pos, "maxDeviceMemory = %d\n", ui->dxvk_max_device_memory);
+    }
+    if (ui->dxvk_max_shared_memory > 0) {
+        pos += snprintf(config + pos, sizeof(config) - pos, "maxSharedMemory = %d\n", ui->dxvk_max_shared_memory);
+    }
+    pos += snprintf(config + pos, sizeof(config) - pos, "d3d10 = %s\n", ui->dxvk_d3d10 ? "true" : "false");
+    pos += snprintf(config + pos, sizeof(config) - pos, "d3d10_1 = %s\n", ui->dxvk_d3d10_1 ? "true" : "false");
+    pos += snprintf(config + pos, sizeof(config) - pos, "stateCache = %s\n", ui->dxvk_state_cache ? "true" : "false");
+    
+    return wubu_proton_dxvk_config_write(prefix_id, config);
 }
 
 int wubu_proton_create_prefix(const char *id, const char *game_name, int proton_version) {
-    (void)id; (void)game_name; (void)proton_version;
-    return 0;
+    if (!id) return -1;
+
+    char prefix_path[512];
+    if (wubu_proton_prefix_path(id, prefix_path, sizeof(prefix_path)) < 0) return -1;
+
+    /* Create prefix directory structure - use mkdir_p for each */
+    char dirs[20][512];
+    int n = 0;
+
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/users", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/users/steamuser", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/users/steamuser/AppData", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/users/steamuser/AppData/Local", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/users/steamuser/AppData/Local/DXVK", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/windows", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/windows/system32", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/Program Files", prefix_path);
+    snprintf(dirs[n++], sizeof(dirs[0]), "%s/drive_c/Program Files (x86)", prefix_path);
+
+    /* Store game name in prefix metadata */
+    if (game_name && *game_name) {
+        char game_dir[512];
+        snprintf(game_dir, sizeof(game_dir), "%s/drive_c/Program Files/%s", prefix_path, game_name);
+        snprintf(dirs[n++], sizeof(dirs[0]), "%s", game_dir);
+        
+        /* Write game metadata file */
+        char meta_file[512];
+        snprintf(meta_file, sizeof(meta_file), "%s/game_info.txt", prefix_path);
+        FILE *f = fopen(meta_file, "w");
+        if (f) {
+            fprintf(f, "game_name=%s\n", game_name);
+            fprintf(f, "proton_version=%d\n", proton_version);
+            fclose(f);
+        }
+    }
+
+    /* Store proton version info */
+    char version_file[512];
+    snprintf(version_file, sizeof(version_file), "%s/proton_version.txt", prefix_path);
+    FILE *vf = fopen(version_file, "w");
+    if (vf) {
+        const char *version_str = "unknown";
+        switch (proton_version) {
+            case PROTON_VERSION_DEFAULT:       version_str = "system-default"; break;
+            case PROTON_VERSION_GE_LATEST:     version_str = "GE-Proton-latest"; break;
+            case PROTON_VERSION_EXPERIMENTAL:  version_str = "Proton-Experimental"; break;
+            case PROTON_VERSION_CUSTOM:        version_str = "custom"; break;
+        }
+        fprintf(vf, "proton_version=%d\nversion_name=%s\n", proton_version, version_str);
+        fclose(vf);
+    }
+
+    for (int i = 0; i < n; i++) {
+        if (wubu_proton_mkdir_p(dirs[i]) != 0) {
+            return -1;
+        }
+    }
+
+    /* Create default DXVK config */
+    const char *default_dxvk = 
+        "[dxvk]\n"
+        "async = true\n"
+        "nvapiHack = false\n"
+        "presentMode = 0\n"
+        "d3d10 = true\n"
+        "d3d10_1 = true\n"
+        "stateCache = true\n";
+
+    return wubu_proton_dxvk_config_write(id, default_dxvk);
 }

@@ -57,6 +57,8 @@ struct HOSTED_STATE {
     int              mouse_buttons;
     uint8_t          key_map[256];
     const char      *screenshot_path;
+    bool             gui_screenshot;
+    const char      *theme_name;  /* Theme name from command line (zune, xp, xp-media, wubu, win98) */
 };
 
 typedef struct HOSTED_STATE hosted_state_t;
@@ -77,6 +79,7 @@ typedef struct {
     struct wl_seat       *seat;
     struct wl_shm        *shm;
     struct wl_data_device_manager *data_device_manager;
+    struct zwp_primary_selection_device_manager_v1 *primary_selection_manager;
     int                   drm_fd;
     int                   width;
     int                   height;

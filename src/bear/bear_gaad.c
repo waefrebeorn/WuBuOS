@@ -608,7 +608,7 @@ void bear_gaad_step(
         /* Compute reward from previous step (negative strain = good) */
         float reward = 0.0f;
         gaad_check_strain_conditions(opt, grads, param_count, 0.0f);
-        int strain_level = opt->strain_hook_id;  /* Use strain_hook_id as proxy for strain severity */
+        int strain_level = opt->config.strain_hook_id;  /* Use strain_hook_id as proxy for strain severity */
         if (opt->q_last_state >= 0 && opt->q_last_action >= 0) {
             /* Reward: lower strain is better, stable LR is better */
             reward = -((float)strain_level * 0.1f);

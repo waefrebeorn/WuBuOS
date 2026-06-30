@@ -27,6 +27,7 @@
 #define DOSGUI_TITLE_H        20
 #define DOSGUI_TASK_H         28
 #define DOSGUI_BORDER          2
+#define DOSGUI_ICON_LABEL_H   16  /* Height reserved for icon label text */
 
 typedef enum {
     DOSGUI_WIN_UNUSED   = 0,
@@ -42,14 +43,19 @@ struct DosGuiWindow {
     DosGuiWinFlags flags;
     int            x, y, w, h;
     int            min_x, min_y, min_w, min_h; /* Saved before maximize */
+    int            desktop;                    /* Virtual desktop index (0..8) */
     char           title[64];
     bool           alive;
+    bool           is_modal;                   /* Modal dialog flag */
+    DosGuiWindow  *parent;                     /* Parent window for modal dialogs */
     /* Content render callback */
     void         (*on_draw)(DosGuiWindow *win, uint32_t *fb,
                             int fb_w, int fb_h);
     /* Content input callbacks (optional) */
     void         (*on_key)(DosGuiWindow *win, uint32_t key, uint32_t mods);
     void         (*on_mouse)(DosGuiWindow *win, int x, int y, int btn, int kind);
+    /* Resize callback */
+    void         (*on_resize)(DosGuiWindow *win, int w, int h);
     void          *user_data;
 };
 
@@ -67,6 +73,28 @@ void           dosgui_wm_set_focus(DosGuiWindow *win);
 DosGuiWindow  *dosgui_wm_get_focused(void);
 DosGuiWindow  *dosgui_wm_find_by_id(int id);
 int            dosgui_wm_window_count(void);
+
+/* Window resize and state management */
+void           dosgui_wm_resize(DosGuiWindow *win, int w, int h);
+void           dosgui_wm_move(DosGuiWindow *win, int x, int y);
+void           dosgui_wm_maximize(DosGuiWindow *win);
+void           dosgui_wm_minimize(DosGuiWindow *win);
+void           dosgui_wm_restore(DosGuiWindow *win);
+bool           dosgui_wm_is_maximized(DosGuiWindow *win);
+bool           dosgui_wm_is_minimized(DosGuiWindow *win);
+
+/* Modal dialog support */
+DosGuiWindow *dosgui_wm_create_modal(int x, int y, int w, int h,
+                                      const char *title,
+                                      DosGuiWindow *parent);
+bool           dosgui_wm_is_modal(DosGuiWindow *win);
+
+/* -- Virtual Desktop Migration ------------------------------------- */
+
+void dosgui_wm_move_window_to_desktop(DosGuiWindow *win, int desktop);
+int  dosgui_wm_get_current_desktop(void);
+void dosgui_wm_set_current_desktop(int desktop);
+void dosgui_wm_move_focused_window(int delta);
 
 /* -- Input ------------------------------------------------------- */
 
@@ -242,6 +270,9 @@ void dosgui_tick(void);
 
 int dosgui_wm_screen_w(void);
 int dosgui_wm_screen_h(void);
+
+/* Accessor for WM state fields */
+int dosgui_wm_get_icon_count(void);
 
 /* -- HolyC Terminal ---------------------------------------------- */
 

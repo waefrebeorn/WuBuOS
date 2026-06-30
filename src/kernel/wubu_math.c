@@ -34,7 +34,7 @@
 #define WUBU_PI_4_HI   0x1.921fb54442d18p-1  /* π/4 exact double */
 #define WUBU_2_PI_HI   0x1.45f306dc9c883p-1  /* 2/π exact double */
 #define WUBU_E_HI      0x1.5bf0a8b145769p+1  /* e exact double */
-#define WUBU_LOG2_E_HI 0x1.71547652b82fe p+0  /* log2(e) exact double */
+#define WUBU_LOG2_E_HI 0x1.71547652b82fep+0  /* log2(e) exact double */
 #define WUBU_LN2_HI    0x1.62e42fefa39efp-1  /* ln(2) exact double */
 
 /* -- Bit Manipulation Helpers ------------------------------------- */
@@ -141,7 +141,7 @@ double wubu_log(double x) {
     if (x == WUBU_INF) return WUBU_INF;
     if (x != x) return WUBU_NAN;  /* NaN */
 
-    /* Range reduction: x = 2^e * (1 + f), where f in [0, 1) */
+    /* Range reduction: x = 2^e * m, where m in [1, 2) */
     uint64_t bits = double_to_bits(x);
     int exp = (int)((bits >> 52) & 0x7FF);
     uint64_t mantissa = bits & 0xFFFFFFFFFFFFFULL;
@@ -156,29 +156,33 @@ double wubu_log(double x) {
         mantissa &= 0xFFFFFFFFFFFFFULL;
     }
 
-    /* Normalized: x = 2^(exp * 2^(exp-1023) where x in [1, 2) */
+    /* Normalized: x = 2^(exp-1023) * m where m in [1, 2) */
     double x_norm = 1.0 + (double)mantissa / 0x10000000000000ULL;
     int e = exp - 1023;
 
-    /* Range reduction to [1/sqrt(2), sqrt(2)) ≈ [0.707, 1.414) */
-    /* log(x_norm * 2^e) = log(x_norm) + e * log(2) */
-    /* For x_norm in [1, 2), we can use log(x_norm) directly */
+    /* Range reduction to [sqrt(2)/2, sqrt(2)) ≈ [0.707, 1.414) for better convergence */
+    /* If x_norm >= sqrt(2), divide by 2 and increment exponent */
+    if (x_norm >= WUBU_SQRT2) {
+        x_norm *= 0.5;
+        e++;
+    }
 
-    /* Use log(1+y) where y = x_norm - 1, y in [0, 1) */
+    /* Use log(1+y) where y = x_norm - 1, y in [-0.2929, 0.4142] */
     double y = x_norm - 1.0;
 
-    /* Taylor series for log(1+y): y - y²/2 + y³/3 - y⁴/4 + y⁵/5 - ... */
-    /* Using 7 terms for good precision */
+    /* Taylor series for log(1+y) with 9 terms for high precision */
     double y2 = y * y;
     double y3 = y2 * y;
     double y4 = y3 * y;
     double y5 = y4 * y;
     double y6 = y5 * y;
     double y7 = y6 * y;
+    double y8 = y7 * y;
+    double y9 = y8 * y;
 
-    double log1p_y = y - y2 * 0.5 + y3 / 3.0 - y4 * 0.25 + y5 * 0.2 - y6 / 6.0 + y7 / 7.0;
+    double log1p_y = y - y2 * 0.5 + y3 / 3.0 - y4 * 0.25 + y5 * 0.2 - y6 / 6.0 + y7 / 7.0 - y8 / 8.0 + y9 / 9.0;
 
-    return log1p_y + (double)e * WUBU_LN2;
+    return log1p_y + (double)e * WUBU_LN2_HI;
 }
 
 /* -- Fast Approximate Power (via exp and log) */
@@ -215,20 +219,29 @@ double wubu_exp(double x) {
     if (x <= -745.0) return 0.0;        /* Underflow */
 
     /* Range reduction: x = n*ln(2) + r, where r in [-ln(2)/2, ln(2)/2] */
-    double n = x * WUBU_LOG2_E;
+    double n = x * WUBU_LOG2_E_HI;
     int n_int = (int)n;
     if (n < 0.0 && n != (double)n_int) n_int--;  /* Floor for negative */
 
-    double r = x - (double)n_int * WUBU_LN2;
+    double r = x - (double)n_int * WUBU_LN2_HI;
 
     /* Taylor series for exp(r): 1 + r + r²/2! + r³/3! + r⁴/4! + ... */
+    /* Use 12 terms for high precision */
     double r2 = r * r;
     double r3 = r2 * r;
     double r4 = r3 * r;
     double r5 = r4 * r;
     double r6 = r5 * r;
+    double r7 = r6 * r;
+    double r8 = r7 * r;
+    double r9 = r8 * r;
+    double r10 = r9 * r;
+    double r11 = r10 * r;
+    double r12 = r11 * r;
 
-    double exp_r = 1.0 + r + r2 * 0.5 + r3 / 6.0 + r4 / 24.0 + r5 / 120.0 + r6 / 720.0;
+    double exp_r = 1.0 + r + r2 * 0.5 + r3 / 6.0 + r4 / 24.0 + r5 / 120.0 + r6 / 720.0 + 
+                   r7 / 5040.0 + r8 / 40320.0 + r9 / 362880.0 + r10 / 3628800.0 + 
+                   r11 / 39916800.0 + r12 / 479001600.0;
 
     /* Scale by 2^n */
     uint64_t bits = double_to_bits(exp_r);
@@ -262,22 +275,22 @@ double wubu_sin(double x) {
         x = -WUBU_PI_HI - x;
     }
 
-    /* Taylor series for sin on [-π/2, π/2]: x - x^3/6 + x^5/120 - x^7/5040 + x^9/362880 */
+    /* Taylor series for sin on [-π/2, π/2]: x - x^3/6 + x^5/120 - x^7/5040 + x^9/362880 - x^11/39916800 + x^13/6227020800 */
     double x2 = x * x;
     double x3 = x2 * x;
     double x5 = x3 * x2;
     double x7 = x5 * x2;
     double x9 = x7 * x2;
-    
-    return x - x3 / 6.0 + x5 / 120.0 - x7 / 5040.0 + x9 / 362880.0;
+    double x11 = x9 * x2;
+    double x13 = x11 * x2;
+
+    return x - x3 / 6.0 + x5 / 120.0 - x7 / 5040.0 + x9 / 362880.0 - x11 / 39916800.0 + x13 / 6227020800.0;
 }
 
 double wubu_cos(double x) {
     /* cos(x) = sin(x + π/2) */
     return wubu_sin(x + WUBU_PI_2_HI);
 }
-
-/* -- Fast Approximate Atan2 (Taylor Series + Range Reduction) ------ */
 
 double wubu_trunc(double x);
 
@@ -289,12 +302,12 @@ double wubu_atan2(double y, double x) {
     if (x == 0.0) return (y > 0.0) ? WUBU_PI_2_HI : -WUBU_PI_2_HI;
     if (y == 0.0) return (x > 0.0) ? 0.0 : WUBU_PI_HI;
 
-    /* Use atan(y/x) with quadrant correction */
+    /* Use atan2 via atan(y/x) with proper quadrant handling and high-precision Taylor series */
     double z = y / x;
     double abs_z = z < 0.0 ? -z : z;
-
-    /* Taylor series with 19 terms for good precision */
     double atan_z;
+    
+    /* Use 25-term Taylor series for high precision */
     if (abs_z <= 1.0) {
         double z2 = z * z;
         double z3 = z2 * z;
@@ -306,8 +319,15 @@ double wubu_atan2(double y, double x) {
         double z15 = z13 * z2;
         double z17 = z15 * z2;
         double z19 = z17 * z2;
-        atan_z = z - z3 / 3.0 + z5 / 5.0 - z7 / 7.0 + z9 / 9.0 - z11 / 11.0 + z13 / 13.0 - z15 / 15.0 + z17 / 17.0 - z19 / 19.0;
+        double z21 = z19 * z2;
+        double z23 = z21 * z2;
+        double z25 = z23 * z2;
+        
+        atan_z = z - z3 / 3.0 + z5 / 5.0 - z7 / 7.0 + z9 / 9.0 - z11 / 11.0 + 
+                 z13 / 13.0 - z15 / 15.0 + z17 / 17.0 - z19 / 19.0 + 
+                 z21 / 21.0 - z23 / 23.0 + z25 / 25.0;
     } else {
+        /* For |z| > 1, use atan(z) = sign(z) * π/2 - atan(1/z) */
         double inv_z = 1.0 / z;
         double inv_z2 = inv_z * inv_z;
         double inv_z3 = inv_z2 * inv_z;
@@ -319,7 +339,14 @@ double wubu_atan2(double y, double x) {
         double inv_z15 = inv_z13 * inv_z2;
         double inv_z17 = inv_z15 * inv_z2;
         double inv_z19 = inv_z17 * inv_z2;
-        atan_z = WUBU_PI_2_HI - (inv_z - inv_z3 / 3.0 + inv_z5 / 5.0 - inv_z7 / 7.0 + inv_z9 / 9.0 - inv_z11 / 11.0 + inv_z13 / 13.0 - inv_z15 / 15.0 + inv_z17 / 17.0 - inv_z19 / 19.0);
+        double inv_z21 = inv_z19 * inv_z2;
+        double inv_z23 = inv_z21 * inv_z2;
+        double inv_z25 = inv_z23 * inv_z2;
+        
+        double atan_inv = inv_z - inv_z3 / 3.0 + inv_z5 / 5.0 - inv_z7 / 7.0 + inv_z9 / 9.0 - 
+                          inv_z11 / 11.0 + inv_z13 / 13.0 - inv_z15 / 15.0 + inv_z17 / 17.0 - 
+                          inv_z19 / 19.0 + inv_z21 / 21.0 - inv_z23 / 23.0 + inv_z25 / 25.0;
+        atan_z = (z > 0.0) ? (WUBU_PI_2_HI - atan_inv) : (-WUBU_PI_2_HI - atan_inv);
     }
 
     /* Quadrant correction */

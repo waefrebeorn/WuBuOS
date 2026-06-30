@@ -57,6 +57,12 @@ void vbe_vline(int x, int y1, int y2, uint32_t color);
 /* Rectangle outline */
 void vbe_rect(int x, int y, int w, int h, uint32_t color);
 
+/* Line drawing */
+void vbe_line(int x1, int y1, int x2, int y2, uint32_t color);
+
+/* Ellipse drawing */
+void vbe_ellipse(int cx, int cy, int rx, int ry, uint32_t color);
+
 /* 3D raised border — theme-agnostic: caller provides colors */
 void vbe_3d_raised_colors(int x, int y, int w, int h,
                            uint32_t light, uint32_t face,

@@ -1,16 +1,17 @@
 #include "wubu_trash.h"
+#include "wubu_theme.h"
 #include "wubu_settings.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "../runtime/wubu_arch.h"
 #include <string.h>
-#include <dirent.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <time.h>
-#include <errno.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <limits.h>
+#include <errno.h>
 
 /* ============================================================
  * Internal State
@@ -343,9 +344,8 @@ int wubu_trash_restore(const char *trash_name, char *restored_path, size_t path_
     
     /* Ensure parent directory exists */
     char *parent = dirname(strdup(e->original_path));
-    char mkdir_cmd[4096];
-    snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p '%s'", parent);
-    system(mkdir_cmd);
+    /* Use mkdir_p instead of system("mkdir -p") */
+    wubu_arch_mkdir_p(parent, 0755);
     free(parent);
     
     /* Restore file */

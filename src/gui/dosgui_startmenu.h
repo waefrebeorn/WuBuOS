@@ -11,6 +11,51 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
+
+/* -- Menu Entry Types ------------------------------------------- */
+
+typedef enum {
+    SM_ITEM_APP = 0,      /* Launches an app */
+    SM_ITEM_SEPARATOR,    /* Visual separator line */
+    SM_ITEM_SUBMENU,      /* Opens a submenu */
+} SmItemType;
+
+typedef struct {
+    SmItemType type;
+    char      label[48];
+    char      app_name[48];   /* For SM_ITEM_APP: app to launch */
+    int       submenu_id;     /* For SM_ITEM_SUBMENU: index into submenus */
+} SmMenuItem;
+
+typedef struct {
+    char       name[32];
+    SmMenuItem items[12];
+    int        item_count;
+} SmSubmenu;
+
+/* Main menu items */
+typedef struct {
+    char label[48];
+    int  type; /* 0=app, 1=submenu, 2=separator, 3=shutdown */
+    int  submenu_id;
+    char app_name[48];
+} MainMenuItem;
+
+/* Global state externs */
+extern SmSubmenu g_programs;
+extern SmSubmenu g_accessories;
+extern SmSubmenu g_wubuos;
+extern SmSubmenu g_system;
+
+extern MainMenuItem g_main_items[16];
+extern int g_main_count;
+
+extern int g_open;
+extern int g_hovered;
+extern int g_submenu_open;
+extern int g_sub_hovered;
+extern int g_hover_submenu;
+
 /* -- Lifecycle ---------------------------------------------------- */
 
 void dosgui_startmenu_init(void);

@@ -1,0 +1,55 @@
+#version 450
+layout(local_size_x = 256) in;
+
+layout(std430, binding = 0) readonly buffer InputX { float data[]; } x;       // [batch, hid]
+layout(std430, binding = 1) readonly buffer InputH { float data[]; } h_in;    // [batch, hid]
+layout(std430, binding = 2) readonly buffer BufWz { float data[]; } Wz;       // [hid, hid]
+layout(std430, binding = 3) readonly buffer BufUz { float data[]; } Uz;       // [hid, hid]
+layout(std430, binding = 4) readonly buffer BufBz { float data[]; } bz;       // [hid]
+layout(std430, binding = 5) readonly buffer BufWr { float data[]; } Wr;       // [hid, hid]
+layout(std430, binding = 6) readonly buffer BufUr { float data[]; } Ur;       // [hid, hid]
+layout(std430, binding = 7) readonly buffer BufBr { float data[]; } br;       // [hid]
+layout(std430, binding = 8) readonly buffer BufWn { float data[]; } Wn;       // [hid, hid]
+layout(std430, binding = 9) readonly buffer BufUn { float data[]; } Un;       // [hid, hid]
+layout(std430, binding = 10) readonly buffer BufBn { float data[]; } bn;      // [hid]
+layout(std430, binding = 11) writeonly buffer OutputH { float data[]; } h_out; // [batch, hid]
+
+layout(push_constant) uniform PushConstants {
+    uint batch;
+    uint hid;
+} pc;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= pc.batch * pc.hid) return;
+    
+    uint b = idx / pc.hid;
+    uint j = idx % pc.hid;
+    
+    // z = sigmoid(x @ Wz^T + h_in @ Uz^T + bz)
+    float z = bz.data[j];
+    for (uint k = 0; k < pc.hid; ++k) {
+        z += x.data[b * pc.hid + k] * Wz.data[j * pc.hid + k];
+        z += h_in.data[b * pc.hid + k] * Uz.data[j * pc.hid + k];
+    }
+    z = 1.0 / (1.0 + exp(-z));
+    
+    // r = sigmoid(x @ Wr^T + h_in @ Ur^T + br)
+    float r = br.data[j];
+    for (uint k = 0; k < pc.hid; ++k) {
+        r += x.data[b * pc.hid + k] * Wr.data[j * pc.hid + k];
+        r += h_in.data[b * pc.hid + k] * Ur.data[j * pc.hid + k];
+    }
+    r = 1.0 / (1.0 + exp(-r));
+    
+    // n = tanh(x @ Wn^T + (r * h_in) @ Un^T + bn)
+    float n = bn.data[j];
+    for (uint k = 0; k < pc.hid; ++k) {
+        n += x.data[b * pc.hid + k] * Wn.data[j * pc.hid + k];
+        n += r * h_in.data[b * pc.hid + k] * Un.data[j * pc.hid + k];
+    }
+    n = tanh(n);
+    
+    // h_out = (1 - z) * h_in + z * n
+    h_out.data[idx] = (1.0 - z) * h_in.data[idx] + z * n;
+}

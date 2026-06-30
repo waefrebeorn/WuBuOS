@@ -8,6 +8,7 @@
 
 #include "interrupt.h"
 #include "tasking.h"  /* For task_timer_tick, g_current */
+#include "memory.h"   /* For mem_alloc */
 
 #include <string.h>
 #include <stdint.h>
@@ -15,6 +16,12 @@
 
 /* Forward declare InterruptFrame for the dispatcher */
 struct InterruptFrame;
+
+/* Forward declare exception handlers */
+void handle_double_fault(InterruptFrame *frame);
+void handle_nmi(InterruptFrame *frame);
+void handle_page_fault(InterruptFrame *frame);
+void handle_gpf(InterruptFrame *frame);
 
 /* ------------------------------------------------------------------
  * External Assembly Symbols
@@ -269,6 +276,11 @@ static uint32_t g_pit_hz = 0;
 static int      g_io_priv_ok = 0;
 static int      g_idt_initialized = 0;
 
+/* APIC state (moved up for forward reference) */
+static volatile uint32_t *g_lapic_base = NULL;
+static volatile uint32_t *g_ioapic_base = NULL;
+static uint32_t g_ioapic_irq_count = 0;
+
 /* SIGSEGV handler for detecting I/O privilege in user space */
 static void sigsegv_handler(int sig, siginfo_t *info, void *ucontext) {
     (void)sig; (void)info; (void)ucontext;
@@ -373,8 +385,13 @@ void interrupt_eoi(uint8_t irq) {
     if (irq >= 32) {           /* IRQ0-7 (remapped to 32-39) */
         outb(PIC1_CMD, PIC_EOI);  /* Master */
     }
+    /* Also send EOI to I/O APIC if we're using it */
+    if (g_ioapic_base && (irq - 32) < g_ioapic_irq_count) {
+        lapic_eoi();
+    }
 #else
-    (void)irq;
+    /* Hosted mode: signal virtual IRQ completion */
+    interrupt_count(irq);
 #endif
 }
 
@@ -517,12 +534,26 @@ void pit_shutdown(void) {
  * ------------------------------------------------------------------ */
 
 void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
-    (void)vector; (void)frame;
+    interrupt_count(vector);
 
     /* Handle exceptions (0-31) */
     if (vector < 32) {
         /* For now, just log and halt on exceptions */
         /* In a real kernel: page fault handler, GPF handler, etc. */
+        switch (vector) {
+            case 8:  /* Double fault */
+                handle_double_fault(frame);
+                break;
+            case 14: /* Page fault */
+                handle_page_fault(frame);
+                break;
+            case 13: /* General protection fault */
+                handle_gpf(frame);
+                break;
+            default:
+                /* Unhandled exception - halt */
+                while (1) { __asm__ volatile ("hlt"); }
+        }
         return;
     }
 
@@ -611,7 +642,6 @@ void interrupt_shutdown(void) {
     g_idt_initialized = 0;
 #endif
 }
-
 /* ------------------------------------------------------------------
  * MSR Access Helpers (bare metal only)
  * ------------------------------------------------------------------ */
@@ -630,13 +660,10 @@ static inline void wrmsr(uint32_t msr, uint64_t val) {
 }
 #endif
 
+
 /* ------------------------------------------------------------------
  * LAPIC Access (memory-mapped)
  * ------------------------------------------------------------------ */
-
-static volatile uint32_t *g_lapic_base = NULL;
-static volatile uint32_t *g_ioapic_base = NULL;
-static uint32_t g_ioapic_irq_count = 0;
 
 /* Read LAPIC register */
 #ifdef MYSEED_METAL
@@ -1082,12 +1109,11 @@ int timer_init_deadline(uint64_t ns) {
 static uint64_t g_irq_counts[256] = {0};
 
 void interrupt_count(uint8_t irq) {
-    if (irq < 256) g_irq_counts[irq]++;
+    g_irq_counts[irq]++;
 }
 
 uint64_t interrupt_get_count(uint8_t irq) {
-    if (irq < 256) return g_irq_counts[irq];
-    return 0;
+    return g_irq_counts[irq];
 }
 
 /* ------------------------------------------------------------------

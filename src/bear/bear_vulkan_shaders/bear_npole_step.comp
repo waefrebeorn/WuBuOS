@@ -76,18 +76,10 @@ void main() {
     
     float cos_th = cos(theta[idx * push_const.n_poles]);
     float sin_th = sin(theta[idx * push_const.n_poles]);
-    
-    float temp = (f + pole_mass_length * theta_dot[idx * push_const.n_poles] * 
-                  theta_dot[idx * push_const.n_poles] * sin(dot(push_const.n_poles == 1 ? 
-                  theta[idx * push_const.n_poles] : 0.0))) / total_mass;
-    
-    // Simplified: cos available but need sin
-    float sin_th = sin(theta[idx * push_const.n_poles]);
-    float cos_th = cos(theta[idx * push_const.n_poles]);
-    
-    temp = (f + m_p * pole_length[0] * theta_dot[idx * push_const.n_poles] * 
-            theta_dot[idx * push_const.n_poles] * sin_th) / 
-           (push_const.cart_mass + m_p);
+
+    float temp = (f + m_p * pole_length[0] * theta_dot[idx * push_const.n_poles] *
+                theta_dot[idx * push_const.n_poles] * sin_th) /
+               (push_const.cart_mass + m_p);
     
     float th_ddot = (push_const.gravity * sin_th - cos_th * temp) / 
                     (pole_length[0] * (4.0/3.0 - m_p * cos_th * cos_th / 

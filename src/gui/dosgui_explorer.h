@@ -260,6 +260,9 @@ typedef struct {
 
     /* Window ID (for WM integration) */
     int                 win_id;
+    
+    /* Focus pane for Tab navigation: 0=tree, 1=breadcrumbs, 2=list, 3=preview */
+    int                 focus_pane;
 } ExExplorerState;
 
 /* -- Global Instance ---------------------------------------------- */

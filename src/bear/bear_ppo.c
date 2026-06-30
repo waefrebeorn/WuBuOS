@@ -593,6 +593,36 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
         bear_tensor_create(&trainer->step_arena, &h_out,
                            h_shape_arr, 2, BEAR_DTYPE_F32, "h_out");
 
+        /* Observation normalization (running mean/std) */
+        if (trainer->cfg.normalize_obs) {
+            int obs_dim = env->spec.obs_dim;
+            float* obs_p = (float*)env->obs.data;
+            float* mean = traj->obs_rms_mean;
+            float* var = traj->obs_rms_var;
+            int* count = &traj->obs_rms_count;
+            
+            /* Update running stats (Welford's online algorithm) - per sample (env) */
+            for (int i = 0; i < B; ++i) {
+                int c = *count + 1;
+                for (int d = 0; d < obs_dim; ++d) {
+                    float x = obs_p[i * obs_dim + d];
+                    float delta = x - mean[d];
+                    mean[d] += delta / c;
+                    float delta2 = x - mean[d];
+                    var[d] += delta * delta2;
+                }
+                *count = c;
+            }
+            
+            /* Normalize observations in-place */
+            for (int i = 0; i < B; ++i) {
+                for (int d = 0; d < obs_dim; ++d) {
+                    float std = sqrtf(var[d] / (*count) + 1e-8f);
+                    obs_p[i * obs_dim + d] = (obs_p[i * obs_dim + d] - mean[d]) / std;
+                }
+            }
+        }
+
         /* Policy forward: obs -> actions, logprobs */
         bear_policy_forward(trainer->policy, &env->obs, NULL,
                              &actions, &logprobs, NULL, &h_out,
@@ -684,6 +714,19 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
                         lp += -0.5f * diff * diff / var + log_norm;
                     }
                     nlp[i] = lp;
+                }
+            } else {
+                /* Discrete: evaluate logprob of STORED actions (one-hot) under current probabilities */
+                float* probs = (float*)fwd_actions.data;
+                float* stored_act = (float*)mb_actions.data;
+                float* nlp = (float*)new_logprobs.data;
+                for (int i = 0; i < mb_size; ++i) {
+                    /* Find the sampled action index (one-hot) */
+                    int sampled = 0;
+                    for (int a = 0; a < act_dim; ++a) {
+                        if (stored_act[i * act_dim + a] > 0.5f) { sampled = a; break; }
+                    }
+                    nlp[i] = logf(probs[i * act_dim + sampled] + 1e-8f);
                 }
             }
 

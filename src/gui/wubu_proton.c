@@ -1,3 +1,4 @@
+#define _XOPEN_SOURCE 500
 #include "wubu_proton.h"
 #include "wubu_settings.h"
 #include <stdio.h>
@@ -12,6 +13,50 @@
 #include <libgen.h>
 #include <limits.h>
 #include <pwd.h>
+#include <ftw.h>
+
+/* -- Recursive directory removal (replaces system("rm -rf")) -------- */
+
+static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
+    (void)sb; (void)typeflag; (void)ftwbuf;
+    return unlink(fpath) == 0 ? 0 : -1;
+}
+
+static int rm_rf(const char *path) {
+    if (!path) return -1;
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
+
+/* -- Safe String Macros (WUBU_SAFE_STRING) -------------------------- */
+
+#define WUBU_STRCPY(dst, src, dst_size) \
+    do { \
+        if (dst_size > 0) { \
+            strncpy((dst), (src), (dst_size) - 1); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
+    do { \
+        if (dst_size > 0) { \
+            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_STRLCAT(dst, src, dst_size) \
+    do { \
+        size_t _dst_len = strlen(dst); \
+        size_t _src_len = strlen(src); \
+        if (_dst_len + _src_len + 1 <= dst_size) { \
+            memcpy((dst) + _dst_len, (src), _src_len + 1); \
+        } else if (_dst_len < dst_size) { \
+            size_t _avail = (dst_size) - _dst_len - 1; \
+            memcpy((dst) + _dst_len, (src), _avail); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
 
 /* ============================================================
  * Internal State
@@ -310,7 +355,7 @@ int wubu_proton_create_prefix(const char *id, const char *game_name, ProtonVersi
     ensure_dir(p->path);
     
     /* Initialize wine prefix */
-    char *argv[] = {"wineboot", "-u", NULL};
+    const char *argv[] = {"wineboot", "-u", NULL};
     wubu_proton_winecmd(id, argv);
     
     return 0;
@@ -329,9 +374,7 @@ int wubu_proton_remove_prefix(const char *id) {
     for (int i = 0; i < g_proton.prefix_count; i++) {
         if (strcmp(g_proton.prefixes[i].id, id) == 0) {
             /* Remove directory */
-            char cmd[PROTON_PATH_MAX + 32];
-            snprintf(cmd, sizeof(cmd), "rm -rf '%s'", g_proton.prefixes[i].path);
-            system(cmd);
+            rm_rf(g_proton.prefixes[i].path);
             
             /* Remove from array */
             for (int j = i; j < g_proton.prefix_count - 1; j++) {
@@ -417,12 +460,12 @@ int wubu_proton_list_games(ProtonGame **out_games, int *out_count) {
 }
 
 /* Build wine command with proper environment */
-static int run_wine_command(const char *prefix_id, char *const argv[], bool wait) {
+static int run_wine_command(const char *prefix_id, const char *const argv[], bool wait) {
     const ProtonPrefix *prefix = wubu_proton_get_prefix(prefix_id);
     if (!prefix) return -1;
     
     /* Build bubblewrap command for wine */
-    char *bwrap_argv[64];
+    const char *bwrap_argv[64];
     int argc = 0;
     
     bwrap_argv[argc++] = "bwrap";
@@ -488,7 +531,7 @@ static int run_wine_command(const char *prefix_id, char *const argv[], bool wait
     
     bwrap_argv[argc++] = "--setenv";
     bwrap_argv[argc++] = "WINEDLLOVERRIDES";
-    bwrap_argv[argc++] = prefix->dll_overrides[0] ? prefix->dll_overrides : "d3d11=n,b;dxgi=n;d3d10=n,b;d3d10_1=n,b;d3d10core=n,b";
+    bwrap_argv[argc++] = prefix->dll_overrides[0] != '\0' ? prefix->dll_overrides : "d3d11=n,b;dxgi=n;d3d10=n,b;d3d10_1=n,b;d3d10core=n,b";
     
     if (prefix->esync) {
         bwrap_argv[argc++] = "--setenv";
@@ -537,12 +580,12 @@ static int run_wine_command(const char *prefix_id, char *const argv[], bool wait
         bwrap_argv[argc++] = argv[i];
     }
     bwrap_argv[argc++] = NULL;
-    
-    pid_t pid = fork();
-    if (pid == 0) {
-        execvp("bwrap", bwrap_argv);
-        _exit(127);
-    } else if (pid > 0) {
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            execvp("bwrap", (char *const *)bwrap_argv);
+            _exit(127);
+        } else if (pid > 0) {
         if (wait) {
             int status;
             waitpid(pid, &status, 0);
@@ -553,17 +596,17 @@ static int run_wine_command(const char *prefix_id, char *const argv[], bool wait
     return -1;
 }
 
-int wubu_proton_winecmd(const char *prefix_id, char *const argv[]) {
+int wubu_proton_winecmd(const char *prefix_id, const char *const argv[]) {
     return run_wine_command(prefix_id, argv, true);
 }
 
 int wubu_proton_regedit(const char *prefix_id, const char *reg_file) {
-    char *argv[] = {"regedit", reg_file, NULL};
+    const char *argv[] = {"regedit", reg_file, NULL};
     return wubu_proton_winecmd(prefix_id, argv);
 }
 
 int wubu_proton_winetricks(const char *prefix_id, const char *verb) {
-    char *argv[] = {"winetricks", "-q", verb, NULL};
+    const char *argv[] = {"winetricks", "-q", verb, NULL};
     return wubu_proton_winecmd(prefix_id, argv);
 }
 
@@ -587,7 +630,7 @@ int wubu_proton_launch_game(const char *game_id) {
         snprintf(exe_path, sizeof(exe_path), "%s/%s", game->install_path, game->exe_path);
     }
     
-    char *argv[32];
+    const char *argv[32];
     int argc = 0;
     argv[argc++] = exe_path;
     
@@ -653,14 +696,14 @@ const char *wubu_proton_ge_get_path(void) {
 int wubu_proton_dxvk_install(const char *prefix_id, DxvkMode mode) {
     if (mode == DXVK_MODE_OFF) return 0;
     
-    char *argv[] = {"winetricks", "-q", "dxvk", NULL};
+    const char *argv[] = {"winetricks", "-q", "dxvk", NULL};
     return wubu_proton_winecmd(prefix_id, argv);
 }
 
 int wubu_proton_vkd3d_install(const char *prefix_id, Vkd3dMode mode) {
     if (mode == VKD3D_MODE_OFF) return 0;
-
-    char *argv[] = {"winetricks", "-q", "vkd3d", NULL};
+    
+    const char *argv[] = {"winetricks", "-q", "vkd3d", NULL};
     return wubu_proton_winecmd(prefix_id, argv);
 }
 

@@ -158,13 +158,8 @@ void bear_policy_forward(const BearPolicyNet* net,
                     sum_exp += expf(logits[b * act_dim + a] - max_logit);
                 for (int a = 0; a < act_dim; ++a)
                     probs[b * act_dim + a] = expf(logits[b * act_dim + a] - max_logit) / sum_exp;
-                int sampled = 0;
-                float max_p = 0.0f;
-                for (int a = 0; a < act_dim; ++a)
-                    if (probs[b * act_dim + a] > max_p) { max_p = probs[b * act_dim + a]; sampled = a; }
-                for (int a = 0; a < act_dim; ++a) probs[b * act_dim + a] = 0.0f;
-                probs[b * act_dim + sampled] = 1.0f;
-                ((float*)logprobs->data)[b] = logf(max_p + 1e-8f);
+                /* Store probabilities in actions; bear_policy_sample will do stochastic sampling */
+                /* logprobs will be computed in bear_policy_sample after sampling */
             }
         } else {
             /* Continuous actions: Gaussian policy with fixed std */
@@ -223,12 +218,8 @@ void bear_policy_forward(const BearPolicyNet* net,
                     sum_exp += expf(logits[b * act_dim + a] - max_logit);
                 for (int a = 0; a < act_dim; ++a)
                     probs[b * act_dim + a] = expf(logits[b * act_dim + a] - max_logit) / sum_exp;
-                int sampled = 0; float max_p = 0.0f;
-                for (int a = 0; a < act_dim; ++a)
-                    if (probs[b * act_dim + a] > max_p) { max_p = probs[b * act_dim + a]; sampled = a; }
-                for (int a = 0; a < act_dim; ++a) probs[b * act_dim + a] = 0.0f;
-                probs[b * act_dim + sampled] = 1.0f;
-                ((float*)logprobs->data)[b] = logf(max_p + 1e-8f);
+                /* Store probabilities in actions; bear_policy_sample will do stochastic sampling */
+                /* logprobs will be computed in bear_policy_sample after sampling */
             }
         } else {
             /* Continuous actions: Gaussian policy with fixed std */
@@ -265,17 +256,7 @@ void bear_policy_sample(BearPolicyNet* net, BearTensor* actions, BearTensor* log
     if (net->act_discrete) {
         float* probs = (float*)actions->data;
         for (int b = 0; b < batch; ++b) {
-            float max_logit = -INFINITY;
-            for (int a = 0; a < act_dim; ++a) {
-                if (probs[b * act_dim + a] > max_logit)
-                    max_logit = probs[b * act_dim + a];
-            }
-            float sum_exp = 0.0f;
-            for (int a = 0; a < act_dim; ++a)
-                sum_exp += expf(probs[b * act_dim + a] - max_logit);
-            for (int a = 0; a < act_dim; ++a)
-                probs[b * act_dim + a] = expf(probs[b * act_dim + a] - max_logit) / sum_exp;
-
+            /* actions already contains probabilities from bear_policy_forward */
             float max_val = -INFINITY;
             int sampled = 0;
             for (int a = 0; a < act_dim; ++a) {
@@ -284,9 +265,13 @@ void bear_policy_sample(BearPolicyNet* net, BearTensor* actions, BearTensor* log
                 if (score > max_val) { max_val = score; sampled = a; }
             }
 
+            /* Compute logprob of sampled action BEFORE converting to one-hot */
+            float sampled_logprob = logf(probs[b * act_dim + sampled] + 1e-8f);
+
+            /* Convert to one-hot */
             for (int a = 0; a < act_dim; ++a) probs[b * act_dim + a] = 0;
             probs[b * act_dim + sampled] = 1.0f;
-            ((float*)logprobs->data)[b] = logf(probs[b * act_dim + sampled] + 1e-8f);
+            ((float*)logprobs->data)[b] = sampled_logprob;
         }
     } else {
         /* Continuous: forward pass already sampled from Gaussian and computed logprobs.

@@ -20,6 +20,8 @@
 #include <zstd.h>
 #include <libgen.h>
 #include <stddef.h>
+#include <glob.h>
+#include <sys/wait.h>
 
 /* Forward declarations for static callbacks */
 static int cb_pkg_installed(void* data, int argc, char** argv, char** col);
@@ -422,12 +424,56 @@ static bool write_pkg(const char* output_path, const wubu_pkg_manifest_t* manife
     
     pkgmgr_progress("package", manifest->id, 0.3, "Compressing payload");
     
-    /* Create payload archive (simplified - just tar+zstd) */
-    char tar_cmd[1024];
+    /* Create payload archive using fork+exec tar+zstd */
     char payload_archive[512];
     snprintf(payload_archive, sizeof(payload_archive), "/tmp/wubu_payload_%s.tar.zst", manifest->id);
-    snprintf(tar_cmd, sizeof(tar_cmd), "cd %s && tar -cf - . | zstd -3 > %s", payload_dir, payload_archive);
-    if (system(tar_cmd) != 0) {
+    
+    /* Fork and exec tar | zstd pipeline */
+    int pipefd[2];
+    if (pipe(pipefd) < 0) {
+        free(manifest_compressed);
+        return false;
+    }
+    
+    pid_t tar_pid = fork();
+    if (tar_pid == 0) {
+        /* Child: tar */
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+        
+        /* Change to payload directory */
+        if (chdir(payload_dir) < 0) _exit(1);
+        
+        execlp("tar", "tar", "-cf", "-", ".", (char*)NULL);
+        _exit(1);
+    }
+    
+    pid_t zstd_pid = fork();
+    if (zstd_pid == 0) {
+        /* Child: zstd */
+        close(pipefd[1]);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+        
+        int out_fd = open(payload_archive, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (out_fd < 0) _exit(1);
+        dup2(out_fd, STDOUT_FILENO);
+        close(out_fd);
+        
+        execlp("zstd", "zstd", "-3", (char*)NULL);
+        _exit(1);
+    }
+    
+    /* Parent: wait for both children */
+    close(pipefd[0]);
+    close(pipefd[1]);
+    int tar_status, zstd_status;
+    waitpid(tar_pid, &tar_status, 0);
+    waitpid(zstd_pid, &zstd_status, 0);
+    
+    if (!WIFEXITED(tar_status) || WEXITSTATUS(tar_status) != 0 ||
+        !WIFEXITED(zstd_status) || WEXITSTATUS(zstd_status) != 0) {
         free(manifest_compressed);
         return false;
     }
@@ -963,9 +1009,13 @@ bool wubu_pkgmgr_install(const char* pkg_spec, bool dry_run) {
     char temp_dir[512];
     snprintf(temp_dir, sizeof(temp_dir), "/tmp/wubu_install_%s", manifest->id);
     {
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), "rm -rf %s", temp_dir);
-        system(cmd);
+        /* Use fork+exec for rm -rf */
+        pid_t rm_pid = fork();
+        if (rm_pid == 0) {
+            execlp("rm", "rm", "-rf", temp_dir, (char*)NULL);
+            _exit(1);
+        }
+        waitpid(rm_pid, NULL, 0);
     }
     ensure_dir(temp_dir);
     
@@ -1048,18 +1098,31 @@ bool wubu_pkgmgr_remove(const char* pkg_id, bool auto_remove_deps) {
     pkgmgr_progress("remove", pkg_id, 0.5, "Removing files");
     
     /* Remove installed files */
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", pkg.install_path);
-    system(cmd);
+    pid_t rm_pid = fork();
+    if (rm_pid == 0) {
+        execlp("rm", "rm", "-rf", pkg.install_path, (char*)NULL);
+        _exit(1);
+    }
+    waitpid(rm_pid, NULL, 0);
     
     /* Remove desktop entries */
-    snprintf(cmd, sizeof(cmd), "rm -f %s/share/applications/%s-*.desktop", 
+    char desktop_pattern[512];
+    snprintf(desktop_pattern, sizeof(desktop_pattern), "%s/share/applications/%s-*.desktop", 
              g_pkgmgr.config.install_prefix, pkg_id);
-    system(cmd);
+    
+    /* Use glob to find and remove matching files */
+    glob_t glob_result;
+    if (glob(desktop_pattern, 0, NULL, &glob_result) == 0) {
+        for (size_t i = 0; i < glob_result.gl_pathc; i++) {
+            unlink(glob_result.gl_pathv[i]);
+        }
+        globfree(&glob_result);
+    }
     
     /* Remove from database */
-    snprintf(cmd, sizeof(cmd), "DELETE FROM packages WHERE id='%s'", pkg_id);
-    db_exec(cmd);
+        char sql[256];
+        snprintf(sql, sizeof(sql), "DELETE FROM packages WHERE id='%s'", pkg_id);
+        db_exec(sql);
     
     pkgmgr_progress("remove", pkg_id, 1.0, "Remove complete");
     return true;
@@ -1278,10 +1341,18 @@ bool wubu_pkgmgr_register_desktop(const wubu_pkg_installed_t* pkg) {
 }
 
 bool wubu_pkgmgr_unregister_desktop(const char* pkg_id) {
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "rm -f %s/share/applications/%s-*.desktop",
+    char desktop_pattern[512];
+    snprintf(desktop_pattern, sizeof(desktop_pattern), "%s/share/applications/%s-*.desktop",
              g_pkgmgr.config.install_prefix, pkg_id);
-    system(cmd);
+    
+    /* Use glob to find and remove matching files */
+    glob_t glob_result;
+    if (glob(desktop_pattern, 0, NULL, &glob_result) == 0) {
+        for (size_t i = 0; i < glob_result.gl_pathc; i++) {
+            unlink(glob_result.gl_pathv[i]);
+        }
+        globfree(&glob_result);
+    }
     return true;
 }
 
@@ -1294,11 +1365,25 @@ bool wubu_pkgmgr_generate_desktop_files(const wubu_pkg_installed_t* pkg) {
  * ============================================================ */
 
 bool wubu_pkgmgr_clean_cache(int max_age_days) {
-    /* Remove old cached packages */
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "find %s -name '*.wubu' -mtime +%d -delete", 
-             g_pkgmgr.config.cache_dir, max_age_days);
-    system(cmd);
+    /* Remove old cached packages using nftw */
+    char cache_pattern[512];
+    snprintf(cache_pattern, sizeof(cache_pattern), "%s/*.wubu", g_pkgmgr.config.cache_dir);
+    
+    glob_t glob_result;
+    if (glob(cache_pattern, 0, NULL, &glob_result) == 0) {
+        time_t now = time(NULL);
+        time_t cutoff = now - (max_age_days * 86400);
+        
+        for (size_t i = 0; i < glob_result.gl_pathc; i++) {
+            struct stat st;
+            if (stat(glob_result.gl_pathv[i], &st) == 0) {
+                if (st.st_mtime < cutoff) {
+                    unlink(glob_result.gl_pathv[i]);
+                }
+            }
+        }
+        globfree(&glob_result);
+    }
     return true;
 }
 

@@ -1,0 +1,80 @@
+#version 460 core
+
+/*
+ * bear_value_forward.comp  --  Value Network Forward Pass (Vulkan Compute)
+ *
+ * Uniforms:
+ *   set 0, binding 0: obs_buffer       [batch * obs_dim] (readonly)
+ *   set 0, binding 1: W1_buffer        [hidden_dim * obs_dim] (readonly)
+ *   set 0, binding 2: b1_buffer        [hidden_dim] (readonly)
+ *   set 0, binding 3: W2_buffer        [hidden2_dim * hidden_dim] (readonly)
+ *   set 0, binding 4: b2_buffer        [hidden2_dim] (readonly)
+ *   set 0, binding 5: W3_buffer        [1 * hidden2_dim] (readonly) -- value head
+ *   set 0, binding 6: b3_buffer        [1] (readonly)
+ *   set 0, binding 7: values_buffer    [batch] (writeonly) -- output values
+ *
+ * Push Constants:
+ *   batch (uint32_t)
+ *   obs_dim (uint32_t)
+ *   hidden_dim (uint32_t)
+ *   hidden2_dim (uint32_t)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer ObsBuffer { float obs[]; };
+layout(std430, set = 0, binding = 1) readonly buffer W1Buffer { float W1[]; };
+layout(std430, set = 0, binding = 2) readonly buffer B1Buffer { float b1[]; };
+layout(std430, set = 0, binding = 3) readonly buffer W2Buffer { float W2[]; };
+layout(std430, set = 0, binding = 4) readonly buffer B2Buffer { float b2[]; };
+layout(std430, set = 0, binding = 5) readonly buffer W3Buffer { float W3[]; };
+layout(std430, set = 0, binding = 6) readonly buffer B3Buffer { float b3[]; };
+layout(std430, set = 0, binding = 7) writeonly buffer ValuesBuffer { float values[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint batch;
+    uint obs_dim;
+    uint hidden_dim;
+    uint hidden2_dim;
+} pc;
+
+float relu(float x) { return max(x, 0.0); }
+
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= pc.batch) return;
+
+    uint obs_dim = pc.obs_dim;
+    uint hidden_dim = pc.hidden_dim;
+    uint hidden2_dim = pc.hidden2_dim;
+
+    // Layer 1: h1 = relu(obs @ W1^T + b1)
+    float h1[256];
+    for (uint j = 0; j < hidden_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < obs_dim; ++k) {
+            sum += obs[i * obs_dim + k] * W1[j * obs_dim + k];
+        }
+        sum += b1[j];
+        h1[j] = relu(sum);
+    }
+
+    // Layer 2: h2 = relu(h1 @ W2^T + b2)
+    float h2[256];
+    for (uint j = 0; j < hidden2_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < hidden_dim; ++k) {
+            sum += h1[k] * W2[j * hidden_dim + k];
+        }
+        sum += b2[j];
+        h2[j] = relu(sum);
+    }
+
+    // Output layer: value = h2 @ W3^T + b3
+    float value = b3[0];
+    for (uint k = 0; k < hidden2_dim; ++k) {
+        value += h2[k] * W3[k];
+    }
+
+    values[i] = value;
+}
