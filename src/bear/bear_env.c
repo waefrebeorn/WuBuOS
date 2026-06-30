@@ -265,6 +265,11 @@ void bear_cartpole_step(BearEnv* e, const BearTensor* actions,
                        e->episode_step[i] >= e->spec.max_episode_steps);
         done[i] = is_done ? 1 : 0;
         
+        /* Snapshot episode return when done (for trainer logging) */
+        if (is_done && e->episode_return_snapshot) {
+            e->episode_return_snapshot[i] = e->episode_return[i];
+        }
+        
         /* Fill next observation */
         int idx = i * 4;
         obs[idx + 0] = x;
@@ -682,6 +687,13 @@ static void npole_compute_accelerations(NPoleCartState* s, int env_id,
         F[0] += mi * li * omega_i * omega_i * sin_ti;
     }
     
+    /* Add diagonal regularization to mass matrix for numerical stability
+     * when poles are near horizontal (cos θ ≈ 0) making M ill-conditioned */
+    const float REG_EPS = 1e-4f;
+    for (int i = 0; i <= N; ++i) {
+        M[i][i] += REG_EPS;
+    }
+    
     /* Solve M * acc = F for accelerations using Gaussian elimination */
     /* System size: (N+1) ≤ 11  --  small enough for dense solve */
     int sz = N + 1;
@@ -690,9 +702,9 @@ static void npole_compute_accelerations(NPoleCartState* s, int env_id,
     
     /* Forward elimination */
     for (int i = 0; i < sz; ++i) {
-        /* Pivot */
+        /* Pivot with safety */
         float pivot = M[i][i];
-        if (fabsf(pivot) < 1e-8f) pivot = (pivot >= 0 ? 1e-8f : -1e-8f);
+        if (fabsf(pivot) < 1e-10f) pivot = (pivot >= 0 ? 1e-10f : -1e-10f);
         
         for (int j = i; j < sz; ++j) M[i][j] /= pivot;
         F[i] /= pivot;

@@ -23,6 +23,12 @@
 #include "wubu_container.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
 
 /* -- Configuration ------------------------------------------------- */
 
@@ -166,5 +172,52 @@ int styxfs_load_container(const char *path, WUBU_HEADER *out_hdr, uint8_t **out_
 
 /* Check if a file is a .wubu container */
 int styxfs_is_wubu_container(const char *path);
+
+/* -- POSIX-like File API (for applications like dosgui_explorer) ------------------------------- */
+
+/* Global server instance (set by styxfs_init) */
+extern styxfs_server_t *g_styxfs_server;
+
+/* stat - get file status */
+int styxfs_stat(const char *path, struct stat *st);
+
+/* create - create file/directory (mode: S_IFREG/S_IFDIR, perm: permissions) */
+int styxfs_create(const char *path, int mode, int perm);
+
+/* remove - remove file */
+int styxfs_remove(const char *path);
+
+/* rename - rename/move file */
+int styxfs_rename(const char *oldpath, const char *newpath);
+
+/* open - open file, returns fd index into open_files array */
+int styxfs_open(const char *path, int flags);
+
+/* read - read from file descriptor */
+ssize_t styxfs_read(int fd, void *buf, size_t count);
+
+/* write - write to file descriptor */
+ssize_t styxfs_write(int fd, const void *buf, size_t count);
+
+/* close - close file descriptor */
+int styxfs_close(int fd);
+
+/* readdir - read directory entries */
+int styxfs_readdir(const char *path, struct dirent ***entries);
+
+/* opendir - open directory */
+DIR *styxfs_opendir(const char *path);
+
+/* closedir - close directory */
+int styxfs_closedir(DIR *dirp);
+
+/* readdir_r - reentrant readdir */
+int styxfs_readdir_r(DIR *dirp, struct dirent *entry, struct dirent **result);
+
+/* mkdir - make directory (POSIX compatible) */
+int styxfs_mkdir(const char *path, mode_t mode);
+
+/* rmdir - remove directory */
+int styxfs_rmdir(const char *path);
 
 #endif /* WUBU_STYXFS_H */

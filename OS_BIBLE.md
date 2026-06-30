@@ -1,8 +1,9 @@
 # WuBuOS Design Bible
 
 **Version:** 1.0  
-**Date:** 2025  
+**Date:** 2026-06-28 (Phase 21)  
 **Status:** Living Document  
+**Gap Count:** 647 REAL_GAPs (Triple DA verified)
 
 ---
 
@@ -12,7 +13,7 @@
 2. [Architecture Overview](#2-architecture-overview)
 3. [Kernel Layer (ZealOS-based)](#3-kernel-layer-zealos-based)
 4. [Hosted Runtime (Inferno emu pattern)](#4-hosted-runtime-inferno-emu-pattern)
-5. [GUI Shell (WinXP Classic Themed)](#5-gui-shell-winxp-classic-themed)
+5. [GUI Shell (Win98/XP Classic Themed)](#5-gui-shell-win98xp-classic-themed)
 6. [Namespace & Styx/9P](#6-namespace--styx9p)
 7. [Container Runtime (Bubblewrap)](#7-container-runtime-bubblewrap)
 8. [Proton/Wine Integration](#8-protonwine-integration)
@@ -29,7 +30,7 @@
 ## 1. Vision & Philosophy
 
 ### Core Mission
-WuBuOS is a **GUI shell + container runtime** wrapping the **ZealOS kernel**. It provides a single 720KB static binary that runs on Linux (Wayland), WSL2, bare metal, OCI containers, and macOS AVF — delivering TempleOS/ZealOS HolyC app compatibility, Windows game support via Proton, and a familiar WinXP Classic desktop experience.
+WuBuOS is a **GUI shell + container runtime** wrapping the **ZealOS kernel**. It provides a single 720KB static binary that runs on Linux (Wayland), WSL2, bare metal, OCI containers, and macOS AVF — delivering TempleOS/ZealOS HolyC app compatibility, Windows game support via Proton, and a familiar Win98/XP Classic desktop experience.
 
 ### Design Principles
 
@@ -63,7 +64,7 @@ WuBuOS is a **GUI shell + container runtime** wrapping the **ZealOS kernel**. It
 │  │                  wubu (single binary)                   │   │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐ │   │
 │  │  │   GUI SHELL │ │  CONTAINER  │ │   HOLYC VM          │ │   │
-│  │  │  (WinXP)    │ │  RUNTIME    │ │   (AOT/JIT)         │ │   │
+│  │  │  (Win98/XP) │ │  RUNTIME    │ │   (AOT/JIT)         │ │   │
 │  │  ├─────────────┤ ├─────────────┤ ├─────────────────────┤ │   │
 │  │  │ • Desktop   │ │ • Bubblewrap│ │ • Lexer/Parser      │ │   │
 │  │  │ • WM        │ │ • Profiles  │ │ • C Transpiler      │ │   │
@@ -74,7 +75,7 @@ WuBuOS is a **GUI shell + container runtime** wrapping the **ZealOS kernel**. It
 │  │         │               │                    │            │   │
 │  │         └───────────────┼────────────────────┘            │   │
 │  │                         ▼                                 │   │
-│  │              ┌─────────────────────────┐                  │   │
+│  │              ┌─────────────────────────────────────┐                  │   │
 │  │              │    STYX/9P NAMESPACE    │                  │   │
 │  │              │  /wubu /dev /prog /net  │                  │   │
 │  │              └───────────┬─────────────┘                  │   │
@@ -96,7 +97,7 @@ WuBuOS is a **GUI shell + container runtime** wrapping the **ZealOS kernel**. It
 ```
 
 ### Binary Composition
-```
+
 Total: ~720KB
 ├── Kernel (ZealOS):     ~45KB
 ├── GUI Shell:           ~120KB

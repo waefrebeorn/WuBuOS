@@ -163,7 +163,7 @@ int wubu_proton_ge_get_version(char *out_version, size_t size);
 const char *wubu_proton_ge_get_path(void);
 
 /* Wine utilities */
-int wubu_proton_winecmd(const char *prefix_id, char *const argv[]);
+int wubu_proton_winecmd(const char *prefix_id, const char *const argv[]);
 int wubu_proton_regedit(const char *prefix_id, const char *reg_file);
 int wubu_proton_winetricks(const char *prefix_id, const char *verb);
 

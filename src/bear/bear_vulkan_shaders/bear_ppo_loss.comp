@@ -1,0 +1,236 @@
+#version 460 core
+
+/*
+ * bear_ppo_loss.comp  --  PPO Loss Computation (Vulkan Compute)
+ *
+ * Computes clipped PPO loss and returns loss components.
+ * Uses atomicAdd on buffer storage for reduction.
+ *
+ * Uniforms:
+ *   set 0, binding 0: obs_buffer         [batch * obs_dim] (readonly)
+ *   set 0, binding 1: actions_buffer     [batch * act_dim] (readonly)
+ *   set 0, binding 2: old_logprobs_buffer [batch] (readonly)
+ *   set 0, binding 3: advantages_buffer  [batch] (readonly)
+ *   set 0, binding 4: returns_buffer     [batch] (readonly)
+ *   set 0, binding 5: old_values_buffer  [batch] (readonly)
+ *   set 0, binding 6: W1_buffer          [hidden_dim * obs_dim] (readonly)
+ *   set 0, binding 7: b1_buffer          [hidden_dim] (readonly)
+ *   set 0, binding 8: W2_buffer          [out_features * hidden_dim] (readonly)
+ *   set 0, binding 9: b2_buffer          [out_features] (readonly)
+ *   set 0, binding 10: W3_buffer         [hidden2_dim * hidden_dim] (readonly) -- value net
+ *   set 0, binding 11: b3_buffer         [hidden2_dim] (readonly)
+ *   set 0, binding 12: W4_buffer         [hidden2_dim] (readonly) -- value output
+ *   set 0, binding 13: b4_buffer         [1] (readonly)
+ *   set 0, binding 14: loss_buffer       [6] (read/write) -- [policy_loss, value_loss, entropy, total_loss, approx_kl, clip_frac]
+ *
+ * Push Constants:
+ *   batch (uint32_t)
+ *   obs_dim (uint32_t)
+ *   hidden_dim (uint32_t)
+ *   act_dim (uint32_t)
+ *   out_features (uint32_t)
+ *   hidden2_dim (uint32_t)
+ *   clip_coef (float)
+ *   clip_coef_vf (float)
+ *   vf_coef (float)
+ *   ent_coef (float)
+ *   act_discrete (uint32_t)
+ *   logstd_fixed (float)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer ObsBuffer { float obs[]; };
+layout(std430, set = 0, binding = 1) readonly buffer ActionsBuffer { float actions[]; };
+layout(std430, set = 0, binding = 2) readonly buffer OldLogProbsBuffer { float old_logprobs[]; };
+layout(std430, set = 0, binding = 3) readonly buffer AdvantagesBuffer { float advantages[]; };
+layout(std430, set = 0, binding = 4) readonly buffer ReturnsBuffer { float returns[]; };
+layout(std430, set = 0, binding = 5) readonly buffer OldValuesBuffer { float old_values[]; };
+layout(std430, set = 0, binding = 6) readonly buffer W1Buffer { float W1[]; };
+layout(std430, set = 0, binding = 7) readonly buffer B1Buffer { float b1[]; };
+layout(std430, set = 0, binding = 8) readonly buffer W2Buffer { float W2[]; };
+layout(std430, set = 0, binding = 9) readonly buffer B2Buffer { float b2[]; };
+layout(std430, set = 0, binding = 10) readonly buffer W3Buffer { float W3[]; };
+layout(std430, set = 0, binding = 11) readonly buffer B3Buffer { float b3[]; };
+layout(std430, set = 0, binding = 12) readonly buffer W4Buffer { float W4[]; };
+layout(std430, set = 0, binding = 13) readonly buffer B4Buffer { float b4[]; };
+layout(std430, set = 0, binding = 14) buffer LossBuffer { float loss[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint batch;
+    uint obs_dim;
+    uint hidden_dim;
+    uint act_dim;
+    uint out_features;
+    uint hidden2_dim;
+    float clip_coef;
+    float clip_coef_vf;
+    float vf_coef;
+    float ent_coef;
+    uint act_discrete;
+    float logstd_fixed;
+} push_const;
+
+#extension GL_EXT_shader_atomic_float : enable
+
+float relu(float x) { return max(x, 0.0); }
+
+void main() {
+    uint tid = gl_GlobalInvocationID.x;
+    if (tid >= push_const.batch) return;
+
+    uint batch = push_const.batch;
+    uint obs_dim = push_const.obs_dim;
+    uint hidden_dim = push_const.hidden_dim;
+    uint act_dim = push_const.act_dim;
+    uint out_features = push_const.out_features;
+    uint hidden2_dim = push_const.hidden2_dim;
+    float clip_coef = push_const.clip_coef;
+    float clip_coef_vf = push_const.clip_coef_vf;
+    float vf_coef = push_const.vf_coef;
+    float ent_coef = push_const.ent_coef;
+    bool discrete = push_const.act_discrete != 0u;
+    float logstd_fixed = push_const.logstd_fixed;
+
+    uint i = tid;
+
+    // ---- FORWARD: Policy network ----
+    // Layer 1: h1 = relu(obs @ W1^T + b1)
+    float h1[256];
+    for (uint j = 0; j < hidden_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < obs_dim; ++k) {
+            sum += obs[i * obs_dim + k] * W1[j * obs_dim + k];
+        }
+        sum += b1[j];
+        h1[j] = relu(sum);
+    }
+
+    // Layer 2: output = h1 @ W2^T + b2
+    // Actor part: first act_dim outputs
+    float logits[64];
+    for (uint j = 0; j < act_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < hidden_dim; ++k) {
+            sum += h1[k] * W2[j * hidden_dim + k];
+        }
+        logits[j] = sum + b2[j];
+    }
+
+    // Value head: index act_dim + 1 (skip logstd at act_dim)
+    float value = 0.0;
+    for (uint k = 0; k < hidden_dim; ++k) {
+        value += h1[k] * W2[(act_dim + 1) * hidden_dim + k];
+    }
+    value += b2[act_dim + 1];
+
+    // Logstd: index act_dim
+    float logstd = b2[act_dim];
+
+    // ---- COMPUTE POLICY LOSS ----
+    float new_logprob;
+    float entropy_i = 0.0;
+    float clip_frac_i = 0.0;
+    float approx_kl_i = 0.0;
+    float sample_loss = 0.0;
+
+    if (discrete) {
+        // Softmax
+        float max_logit = -1e30;
+        for (uint j = 0; j < act_dim; ++j)
+            if (logits[j] > max_logit) max_logit = logits[j];
+
+        float sum_exp = 0.0;
+        for (uint j = 0; j < act_dim; ++j)
+            sum_exp += exp(logits[j] - max_logit);
+
+        float probs[64];
+        for (uint j = 0; j < act_dim; ++j)
+            probs[j] = exp(logits[j] - max_logit) / sum_exp;
+
+        // Find chosen action
+        uint chosen_a = 0;
+        for (uint j = 0; j < act_dim; ++j)
+            if (actions[i * act_dim + j] > 0.5f) { chosen_a = j; break; }
+
+        new_logprob = log(probs[chosen_a] + 1e-8);
+
+        // Entropy
+        for (uint j = 0; j < act_dim; ++j)
+            if (probs[j] > 1e-8) entropy_i -= probs[j] * log(probs[j] + 1e-8);
+
+        // Ratio and clipping
+        float ratio = exp(new_logprob - old_logprobs[i]);
+        float clipped = clamp(ratio, 1.0 - clip_coef, 1.0 + clip_coef);
+        float surr1 = ratio * advantages[i];
+        float surr2 = clipped * advantages[i];
+        sample_loss = -min(surr1, surr2);
+
+        clip_frac_i = (ratio > 1.0 + clip_coef || ratio < 1.0 - clip_coef) ? 1.0 : 0.0;
+        approx_kl_i = (ratio - 1.0) - log(ratio + 1e-8);
+    } else {
+        // Continuous (Gaussian)
+        // log prob of stored actions under N(mu, sigma^2)
+        float var = exp(2.0 * logstd);
+        float log_norm = -0.5 * log(2.0 * 3.14159265359 * var);
+        new_logprob = 0.0;
+        for (uint a = 0; a < act_dim; ++a) {
+            float diff = actions[i * act_dim + a] - logits[a];
+            new_logprob += -0.5 * diff * diff / var + log_norm;
+        }
+
+        // Entropy for Gaussian: 0.5 * (log(2*pi*e*var)) * act_dim
+        entropy_i = 0.5 * act_dim * (log(2.0 * 3.14159265359 * 2.718281828 * var));
+
+        // Ratio and clipping
+        float ratio = exp(new_logprob - old_logprobs[i]);
+        float clipped = clamp(ratio, 1.0 - clip_coef, 1.0 + clip_coef);
+        float surr1 = ratio * advantages[i];
+        float surr2 = clipped * advantages[i];
+        sample_loss = -min(surr1, surr2);
+
+        clip_frac_i = (ratio > 1.0 + clip_coef || ratio < 1.0 - clip_coef) ? 1.0 : 0.0;
+        approx_kl_i = (ratio - 1.0) - log(ratio + 1e-8);
+    }
+
+    // Atomic add to loss buffer
+    atomicAdd(loss[0], sample_loss);       // policy_loss
+    atomicAdd(loss[2], entropy_i);         // entropy_loss
+    atomicAdd(loss[4], approx_kl_i);       // approx_kl
+    atomicAdd(loss[5], clip_frac_i);       // clip_frac
+
+    // ---- FORWARD: Value network ----
+    // Layer 1: h1_v = relu(obs @ W3^T + b3)
+    float h1_v[256];
+    for (uint j = 0; j < hidden2_dim; ++j) {
+        float sum = 0.0;
+        for (uint k = 0; k < obs_dim; ++k) {
+            sum += obs[i * obs_dim + k] * W3[j * obs_dim + k];
+        }
+        sum += b3[j];
+        h1_v[j] = relu(sum);
+    }
+
+    // Layer 2: value = h1_v @ W4^T + b4
+    float new_value = b4[0];
+    for (uint k = 0; k < hidden2_dim; ++k) {
+        new_value += h1_v[k] * W4[k];
+    }
+
+    // ---- COMPUTE VALUE LOSS (clipped MSE) ----
+    float v_pred = new_value;
+    float v_clipped = clamp(v_pred, old_values[i] - clip_coef_vf, old_values[i] + clip_coef_vf);
+    float loss1 = (v_pred - returns[i]) * (v_pred - returns[i]);
+    float loss2 = (v_clipped - returns[i]) * (v_clipped - returns[i]);
+    float v_loss = 0.5 * max(loss1, loss2);
+
+    atomicAdd(loss[1], v_loss);           // value_loss
+
+    // Thread 0 finalizes
+    if (tid == 0) {
+        // Wait for all threads to complete their atomic adds
+        // In Vulkan compute, we need a barrier - but this is across workgroups
+        // So we can't easily synchronize. Instead, we do a second dispatch for finalization.
+        // For now, just store raw sums and divide in a separate step
+    }
+}

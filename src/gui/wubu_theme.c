@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 /* -- XRGB8888 Helpers --------------------------------------------- */
-#define RGB(r,g,b) ((uint32_t)((b)<<16 | (g)<<8 | (r)))
+#define RGB(r,g,b) ((uint32_t)((r)<<16 | (g)<<8 | (b)))
 
 /* -- Predefined Theme Data ---------------------------------------- */
 
@@ -182,6 +182,49 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     },
     .title_gradient     = {RGB(0x00,0x80,0x50), RGB(0x00,0xC0,0x80), true},
     .title_gradient_ina = {RGB(0x2A,0x3A,0x30), RGB(0x1A,0x2A,0x1A), true},
+    .rounded_buttons    = true,
+    .gradient_title     = true,
+    .Luna_start_button  = true,
+},
+
+/* -- Zune ---------------------------------------------------------- */
+[THEME_ZUNE] = {
+    .id = THEME_ZUNE,
+    .name = "Zune",
+    .colors = {
+        .desktop_bg        = RGB(0x1A,0x1A,0x1A),   /* Near-black */
+        .win_face          = RGB(0x22,0x22,0x22),   /* Dark gray */
+        .win_title_active  = RGB(0xE8,0x6C,0x00),   /* Zune orange */
+        .win_title_inactive= RGB(0x33,0x33,0x33),
+        .win_title_text    = RGB(0xFF,0xFF,0xFF),
+        .win_title_text_ina= RGB(0x88,0x88,0x88),
+        .border_light      = RGB(0x44,0x44,0x44),
+        .border_face       = RGB(0x22,0x22,0x22),
+        .border_dark       = RGB(0x11,0x11,0x11),
+        .border_darkest    = RGB(0x00,0x00,0x00),
+        .btn_face          = RGB(0x2A,0x2A,0x2A),
+        .btn_hover         = RGB(0xE8,0x6C,0x00),   /* Orange hover */
+        .btn_pressed       = RGB(0xB0,0x54,0x00),
+        .btn_text          = RGB(0xFF,0xFF,0xFF),
+        .taskbar_bg        = RGB(0x11,0x11,0x11),   /* Near-black taskbar */
+        .taskbar_border    = RGB(0xE8,0x6C,0x00),   /* Orange accent */
+        .start_btn_face    = RGB(0xE8,0x6C,0x00),   /* Orange Start */
+        .start_btn_text    = RGB(0xFF,0xFF,0xFF),
+        .startmenu_bg      = RGB(0x1A,0x1A,0x1A),
+        .startmenu_sidebar = RGB(0xE8,0x6C,0x00),
+        .startmenu_hover   = RGB(0xE8,0x6C,0x00),
+        .startmenu_text    = RGB(0xFF,0xFF,0xFF),
+        .select_bg         = RGB(0xE8,0x6C,0x00),
+        .select_text       = RGB(0x00,0x00,0x00),
+        .scroll_track      = RGB(0x11,0x11,0x11),
+        .scroll_thumb      = RGB(0x33,0x33,0x33),
+        .icon_text         = RGB(0xFF,0xFF,0xFF),
+        .icon_text_shadow  = RGB(0x00,0x00,0x00),
+        .icon_bg           = RGB(0x22,0x22,0x22),
+        .icon_border       = RGB(0xE8,0x6C,0x00),
+    },
+    .title_gradient     = {RGB(0xE8,0x6C,0x00), RGB(0xFF,0x99,0x33), true},
+    .title_gradient_ina = {RGB(0x33,0x33,0x33), RGB(0x22,0x22,0x22), true},
     .rounded_buttons    = true,
     .gradient_title     = true,
     .Luna_start_button  = true,

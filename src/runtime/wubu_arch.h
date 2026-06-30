@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 /* -- Arch Root Configuration -------------------------------------- */
 
@@ -96,6 +98,12 @@ int wubu_arch_update(const char *root_path);
  * Runs: chroot <root> systemctl enable <service>
  */
 int wubu_arch_enable_service(const char *root_path, const char *service);
+
+/*
+ * Public mkdir_p for other modules.
+ * Creates directory path recursively (mkdir -p equivalent).
+ */
+int wubu_arch_mkdir_p(const char *path, mode_t mode);
 
 /*
  * Configure Arch root for WuBuOS:

@@ -47,14 +47,30 @@ static int mkdir_p(const char *path, mode_t mode) {
     return 0;
 }
 
-/* -- Helper: run command and capture exit code -------------------- */
+/* Public mkdir_p for other modules (e.g., wubu_trash.c) */
+int wubu_arch_mkdir_p(const char *path, mode_t mode) {
+    return mkdir_p(path, mode);
+}
+
+/* -- Helper: run command via fork+exec (no system()) -------------- */
 
 static int run_cmd(const char *cmd, void (*progress)(const char *msg)) {
     if (progress) progress(cmd);
 
-    int ret = system(cmd);
-    if (WIFEXITED(ret))
-        return WEXITSTATUS(ret);
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+
+    if (pid == 0) {
+        /* Child: execute via /bin/sh -c */
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(127);
+    }
+
+    /* Parent: wait for child */
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
     return -1;
 }
 
@@ -169,39 +185,24 @@ int wubu_arch_configure(const char *root_path) {
                     "nameserver 8.8.4.4\n", 0644);
 
     /* Timezone */
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd),
-             "ln -sf /usr/share/zoneinfo/UTC %s/etc/localtime 2>/dev/null",
-             root_path);
-    int _r0 __attribute__((unused)) = system(cmd);
+            run_cmd("ln -sf /usr/share/zoneinfo/UTC /etc/localtime 2>/dev/null", NULL);
 
-    /* Locale-gen inside root */
-    snprintf(cmd, sizeof(cmd),
-             "chroot %s /bin/bash -c 'locale-gen' 2>/dev/null",
-             root_path);
-    int _r1 __attribute__((unused)) = system(cmd);
+            /* Locale-gen inside root */
+            run_cmd("chroot /bin/bash -c 'locale-gen' 2>/dev/null", NULL);
 
-    /* Enable services */
-    wubu_arch_enable_service(root_path, "dbus");
-    wubu_arch_enable_service(root_path, "systemd-networkd");
-    wubu_arch_enable_service(root_path, "systemd-resolved");
+            /* Enable services */
+            wubu_arch_enable_service(root_path, "dbus");
+            wubu_arch_enable_service(root_path, "systemd-networkd");
+            wubu_arch_enable_service(root_path, "systemd-resolved");
 
-    /* Create wubu user inside the root */
-    snprintf(cmd, sizeof(cmd),
-             "chroot %s /bin/bash -c "
-             "'useradd -m -G wheel -s /bin/bash wubu 2>/dev/null; "
-             "echo \"wubu ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers.d/wubu'",
-             root_path);
-    int _r2 __attribute__((unused)) = system(cmd);
+            /* Create wubu user inside the root */
+            run_cmd("chroot /bin/bash -c 'useradd -m -G wheel -s /bin/bash wubu 2>/dev/null; echo \"wubu ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers.d/wubu'", NULL);
 
-    /* Set password for wubu user (wubu) */
-    snprintf(cmd, sizeof(cmd),
-             "chroot %s /bin/bash -c 'echo wubu:wubu | chpasswd'",
-             root_path);
-    int _r3 __attribute__((unused)) = system(cmd);
+            /* Set password for wubu user (wubu) */
+            run_cmd("chroot /bin/bash -c 'echo wubu:wubu | chpasswd'", NULL);
 
-    return 0;
-}
+            return 0;
+    }
 
 /* -- Install Packages --------------------------------------------- */
 

@@ -15,6 +15,7 @@
 #include "dosgui_wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "../gui/wubu_mime.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -22,159 +23,288 @@
 #include <dirent.h>
 #include <sys/stat.h>
 
-/* -- Menu Entry Types ------------------------------------------- */
+/* -- Inline Layout Helpers ------------------------------------------ */
 
-typedef enum {
-    SM_ITEM_APP = 0,      /* Launches an app */
-    SM_ITEM_SEPARATOR,    /* Visual separator line */
-    SM_ITEM_SUBMENU,      /* Opens a submenu */
-} SmItemType;
+static inline int menu_item_h(void) {
+    return 24;  /* EX_ROW_H equivalent */
+}
 
-typedef struct {
-    SmItemType type;
-    char      label[48];
-    char      app_name[48];   /* For SM_ITEM_APP: app to launch */
-    int       submenu_id;     /* For SM_ITEM_SUBMENU: index into submenus */
-} SmMenuItem;
+static inline int submenu_w(void) {
+    return 180;  /* EX_SUBMENU_W equivalent */
+}
 
-typedef struct {
-    char       name[32];
-    SmMenuItem items[12];
-    int        item_count;
-} SmSubmenu;
+static inline int menu_w(void) {
+    return 200;  /* EX_MENU_W equivalent */
+}
 
-/* -- Submenus --------------------------------------------------- */
+static inline int sidebar_w(void) {
+    return 48;  /* EX_SIDEBAR_W equivalent */
+}
 
-static SmSubmenu g_programs = {0};
-static SmSubmenu g_accessories = {0};
-static SmSubmenu g_wubuos = {0};
-static SmSubmenu g_system = {0};
+static inline int menu_border_w(void) {
+    return 2;
+}
 
-/* -- Menu State ------------------------------------------------- */
+static inline int ex_tree_indent(void) {
+    return 14;
+}
 
-static int  g_open = 0;
-static int  g_hovered = -1;       /* Index in main menu */
-static int  g_submenu_open = -1;  /* Which submenu is expanded */
-static int  g_sub_hovered = -1;   /* Hovered item in submenu */
-static int  g_hover_submenu = -1; /* Which submenu mouse is over */
+static inline int ex_title_h(void) {
+    return 22;
+}
 
-/* Main menu items */
-typedef struct {
-    char label[48];
-    int  type; /* 0=app, 1=submenu, 2=separator, 3=shutdown */
-    int  submenu_id;
-    char app_name[48];
-} MainMenuItem;
+static inline int ex_toolbar_h(void) {
+    return 28;
+}
 
-static MainMenuItem g_main_items[16];
-static int g_main_count = 0;
+static inline int ex_breadcrumb_h(void) {
+    return 24;
+}
 
-/* -- Theme Helpers ---------------------------------------------- */
+static inline int ex_statusbar_h(void) {
+    return 24;
+}
+
+static inline int ex_border_w(void) {
+    return 2;
+}
+
+
+
+/* -- Global Submenu State ------------------------------------------ */
+
+SmSubmenu g_programs = {0};
+SmSubmenu g_accessories = {0};
+SmSubmenu g_wubuos = {0};
+SmSubmenu g_system = {0};
+
+MainMenuItem g_main_items[16] = {0};
+int g_main_count = 0;
+
+int g_open = 0;
+int g_hovered = -1;
+int g_submenu_open = -1;
+int g_sub_hovered = -1;
+int g_hover_submenu = -1;
+
+SmProgramDB g_program_db = {0};
+SmSearchState g_search = {0};
+SmProgramEntry g_recent[DOSGUI_MAX_RECENT] = {0};
+int g_recent_count = 0;
+
+SmTreeNode g_tree_nodes[32] = {0};
+SmTreeNode g_tree_root = {0};
+int g_tree_node_count = 0;
+bool g_search_mode = false;
+
+
+/* -- Safe String Macros (WUBU_SAFE_STRING) -------------------------- */
+
+#define WUBU_STRCPY(dst, src, dst_size) \
+    do { \
+        if (dst_size > 0) { \
+            strncpy((dst), (src), (dst_size) - 1); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
+    do { \
+        if (dst_size > 0) { \
+            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_STRLCAT(dst, src, dst_size) \
+    do { \
+        size_t _dst_len = strlen(dst); \
+        size_t _src_len = strlen(src); \
+        if (_dst_len + _src_len + 1 <= dst_size) { \
+            memcpy((dst) + _dst_len, (src), _src_len + 1); \
+        } else if (_dst_len < dst_size) { \
+            size_t _avail = (dst_size) - _dst_len - 1; \
+            memcpy((dst) + _dst_len, (src), _avail); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+/* -- Dynamic Menu Building from .desktop files -------------------- */
+
+/* Forward declarations for types (defined in header) */
+extern SmSubmenu g_programs;
+extern SmSubmenu g_accessories;
+extern SmSubmenu g_wubuos;
+extern SmSubmenu g_system;
+extern MainMenuItem g_main_items[16];
+extern int g_main_count;
+extern int g_open;
+extern int g_hovered;
+extern int g_submenu_open;
+extern int g_sub_hovered;
+extern int g_hover_submenu;
+
+/* Theme function forward declarations (from wubu_theme.h) */
+extern const WubuThemeColors *wubu_theme_colors(void);
+extern const WubuTheme *wubu_theme_get(void);
 
 static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 static const WubuTheme *th(void) { return wubu_theme_get(); }
 
-/* -- Layout Helpers ------------------------------------------- */
-
-static inline int menu_item_h(void) { return th()->Luna_start_button ? 24 : 22; }
-static inline int menu_w(void) { return th()->Luna_start_button ? 200 : 180; }
-static inline int submenu_w(void) { return th()->Luna_start_button ? 180 : 160; }
-static inline int menu_border(void) { return th()->Luna_start_button ? 2 : 2; }
-static inline int sidebar_w(void) { return th()->Luna_start_button ? 48 : 0; }
-
-/* -- Init ------------------------------------------------------- */
-
-static void build_accessories(void) {
-    g_accessories.item_count = 0;
-    g_accessories.items[g_accessories.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Notepad", "Notepad", 0};
-    g_accessories.items[g_accessories.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Paint", "Paint", 0};
-    g_accessories.items[g_accessories.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Editor", "Editor", 0};
-    g_accessories.items[g_accessories.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "WuBu Canvas", "WuBu Canvas", 0};
-    g_accessories.items[g_accessories.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "FreeDoom", "FreeDoom", 0};
-}
-
-static void build_wubuos(void) {
-    g_wubuos.item_count = 0;
-    g_wubuos.items[g_wubuos.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "HolyC Terminal", "HolyC Terminal", 0};
-    g_wubuos.items[g_wubuos.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Temple REPL", "Temple REPL", 0};
-    g_wubuos.items[g_wubuos.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Package Manager", "Package Manager", 0};
-    g_wubuos.items[g_wubuos.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Container Manager", "Container Manager", 0};
-}
-
-static void build_system(void) {
-    g_system.item_count = 0;
-    g_system.items[g_system.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "File Manager", "File Manager", 0};
-    g_system.items[g_system.item_count++] = (SmMenuItem){
-        SM_ITEM_APP, "Settings", "Settings", 0};
-}
-
-static void build_main_menu(void) {
+static void build_main_menu_from_desktop(void) {
     g_main_count = 0;
-
-    /* Programs (submenu) */
+    
+    /* Programs submenu (index 0) */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Programs", 1, 0, ""};
-
-    /* Documents */
+    
+    /* Documents -> File Manager */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Documents", 0, -1, "File Manager"};
-
+    
     /* Settings */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Settings", 0, -1, "Settings"};
-
+    
     /* Separator */
     g_main_items[g_main_count++] = (MainMenuItem){
         "", 2, -1, ""};
-
+    
     /* Find */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Find", 0, -1, "Find"};
-
+    
     /* Help */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Help", 0, -1, "Help"};
-
+    
     /* Run */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Run...", 0, -1, "Run"};
-
+    
     /* Separator */
     g_main_items[g_main_count++] = (MainMenuItem){
         "", 2, -1, ""};
-
+    
     /* Shutdown */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Shut Down", 3, -1, "Shutdown"};
 }
 
-void dosgui_startmenu_init(void) {
-    build_accessories();
-    build_wubuos();
-    build_system();
-    build_main_menu();
-    g_open = 0;
-    g_hovered = -1;
-    g_submenu_open = -1;
-    g_sub_hovered = -1;
-    g_hover_submenu = -1;
+/* Build submenus from MIME desktop entries by category */
+static void build_submenus_from_desktop(void) {
+    MimeSystem *mime = wubu_mime_state();
     
-    dosgui_startmenu_init_enhanced();
+    /* Reset submenu counts */
+    g_programs.item_count = 0;
+    g_accessories.item_count = 0;
+    g_wubuos.item_count = 0;
+    g_system.item_count = 0;
+    
+    /* Category mapping */
+    struct { const char *cat; SmSubmenu *sub; } cats[] = {
+        {"Accessories", &g_accessories},
+        {"WuBuOS", &g_wubuos},
+        {"System", &g_system},
+        {"Development", &g_programs},
+        {"Graphics", &g_programs},
+        {"Internet", &g_programs},
+        {"Office", &g_programs},
+        {"AudioVideo", &g_programs},
+        {"Game", &g_programs},
+        {"Apps", &g_programs},
+    };
+    
+    for (int i = 0; i < mime->desktop_entry_count; i++) {
+        DesktopEntry *de = &mime->desktop_entries[i];
+        if (de->hidden || de->no_display) continue;
+        if (strcmp(de->type, "Application") != 0) continue;
+        if (de->exec[0] == '\0') continue;
+        
+        /* Find matching category */
+        SmSubmenu *target = &g_programs; /* default */
+        for (size_t c = 0; c < sizeof(cats)/sizeof(cats[0]); c++) {
+            if (strstr(de->categories, cats[c].cat)) {
+                target = cats[c].sub;
+                break;
+            }
+        }
+        
+        if (target->item_count < 12) {
+            target->items[target->item_count++] = (SmMenuItem){
+                SM_ITEM_APP, "", "", 0};
+            strncpy(target->items[target->item_count - 1].label, de->name, 47);
+            strncpy(target->items[target->item_count - 1].app_name, de->name, 47);
+        }
+    }
+    
+    /* WuBuOS - ensure core apps present */
+    for (int i = 0; i < 4; i++) {
+        SmSubmenu *sub = &g_wubuos;
+        const char *label = "", *app_name = "";
+        switch (i) {
+            case 0: label = "HolyC Terminal"; app_name = "HolyC Terminal"; break;
+            case 1: label = "Temple REPL"; app_name = "Temple REPL"; break;
+            case 2: label = "Package Manager"; app_name = "Package Manager"; break;
+            case 3: label = "Container Manager"; app_name = "Container Manager"; break;
+        }
+        for (int j = 0; j < sub->item_count; j++) {
+            if (strcmp(sub->items[j].label, label) == 0) goto next_wubuos;
+        }
+        if (sub->item_count < 12) {
+            sub->items[sub->item_count++] = (SmMenuItem){
+                SM_ITEM_APP, "", "", 0};
+            strncpy(sub->items[sub->item_count - 1].label, label, 47);
+            strncpy(sub->items[sub->item_count - 1].app_name, app_name, 47);
+        }
+        next_wubuos:;
+    }
+    
+    /* System */
+    for (int i = 0; i < 2; i++) {
+        SmSubmenu *sub = &g_system;
+        const char *label = "", *app_name = "";
+        switch (i) {
+            case 0: label = "File Manager"; app_name = "File Manager"; break;
+            case 1: label = "Settings"; app_name = "Settings"; break;
+        }
+        for (int j = 0; j < sub->item_count; j++) {
+            if (strcmp(sub->items[j].label, label) == 0) goto next_system;
+        }
+        if (sub->item_count < 12) {
+            sub->items[sub->item_count++] = (SmMenuItem){
+                SM_ITEM_APP, "", "", 0};
+            strncpy(sub->items[sub->item_count - 1].label, label, 47);
+            strncpy(sub->items[sub->item_count - 1].app_name, app_name, 47);
+        }
+        next_system:;
+    }
+    
+    /* Accessories */
+    for (int i = 0; i < 6; i++) {
+        SmSubmenu *sub = &g_accessories;
+        const char *label = "", *app_name = "";
+        switch (i) {
+            case 0: label = "Notepad"; app_name = "Notepad"; break;
+            case 1: label = "Paint"; app_name = "Paint"; break;
+            case 2: label = "Editor"; app_name = "Editor"; break;
+            case 3: label = "WuBu Canvas"; app_name = "WuBu Canvas"; break;
+            case 4: label = "FreeDoom"; app_name = "FreeDoom"; break;
+            case 5: label = "Calculator"; app_name = "Calculator"; break;
+        }
+        for (int j = 0; j < sub->item_count; j++) {
+            if (strcmp(sub->items[j].label, label) == 0) goto next_accessories;
+        }
+        if (sub->item_count < 12) {
+            sub->items[sub->item_count++] = (SmMenuItem){
+                SM_ITEM_APP, "", "", 0};
+            strncpy(sub->items[sub->item_count - 1].label, label, 47);
+            strncpy(sub->items[sub->item_count - 1].app_name, app_name, 47);
+        }
+        next_accessories:;
+    }
 }
 
-void dosgui_startmenu_shutdown(void) {
-    g_open = 0;
-}
 
 /* -- State ------------------------------------------------------- */
 
@@ -204,7 +334,7 @@ static void draw_menu_item(int x, int y, int w, const char *label,
         bg = th()->Luna_start_button ? tc()->border_darkest : 0x800000;
         fg = th()->Luna_start_button ? 0xFF8080 : 0xFFFFFF;
     }
-
+    
     if (th()->rounded_buttons) {
         vbe_fill_rect_rounded(x, y, w, mh, 2, bg);
         if (hovered) vbe_3d_raised_rounded_colors(x, y, w, mh, 2,
@@ -215,9 +345,31 @@ static void draw_menu_item(int x, int y, int w, const char *label,
                                            tc()->border_light, tc()->border_face,
                                            tc()->border_dark, tc()->border_darkest);
     }
-
-    vbe_draw_text(x + 6, y + (mh - 8) / 2, label, fg, 1);
-
+    
+    /* Draw truncated label with ellipsis if too wide */
+    int max_text_w = w - 20; /* Reserve space for arrow and padding */
+    if (has_submenu) max_text_w -= 16;
+    int text_w = vbe_text_width(label, 1);
+    if (text_w > max_text_w) {
+        char truncated[64];
+        int len = strlen(label);
+        strncpy(truncated, label, len);
+        truncated[len] = '\0';
+        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
+            len--;
+            truncated[len] = '\0';
+        }
+        if (len > 0) {
+            strncpy(truncated + len, "...", 3);
+            truncated[len + 3] = '\0';
+        } else {
+            strcpy(truncated, "...");
+        }
+        vbe_draw_text(x + 6, y + (mh - 8) / 2, truncated, fg, 1);
+    } else {
+        vbe_draw_text(x + 6, y + (mh - 8) / 2, label, fg, 1);
+    }
+    
     if (has_submenu) {
         /* Arrow indicator */
         int arrow_x = x + w - 16;
@@ -488,12 +640,12 @@ void dosgui_startmenu_track_hover(int x, int y) {
  * Search, Recently Used, Power Options, All Programs Tree
  * ================================================================== */
 
-static SmProgramDB g_program_db = {0};
-static SmSearchState g_search = {0};
-static SmProgramEntry g_recent[DOSGUI_MAX_RECENT] = {0};
-static int g_recent_count = 0;
-static SmTreeNode g_tree_root = {0};
-static bool g_search_mode = false;
+
+
+
+
+
+
 
 /* -- Program Database --------------------------------------------- */
 
@@ -752,8 +904,7 @@ int dosgui_startmenu_recent_get(SmProgramEntry **out_entries, int max) {
 
 /* -- All Programs Tree -------------------------------------------- */
 
-static SmTreeNode g_tree_nodes[32];
-static int g_tree_node_count = 0;
+SmTreeNode g_tree_nodes[32];
 
 static SmTreeNode *tree_node_create(const char *label, int type) {
     if (g_tree_node_count >= 32) return NULL;
@@ -970,6 +1121,73 @@ void dosgui_startmenu_handle_key(int key, uint32_t mods) {
             g_search_mode = false;
         }
     }
+    /* Arrow key navigation for main menu */
+    else if (g_open && !g_search.active) {
+        if (key == 0xE048) { /* Up arrow */
+            if (g_hovered > 0) {
+                g_hovered--;
+                while (g_hovered >= 0 && g_main_items[g_hovered].type == 2) {
+                    g_hovered--;
+                }
+            }
+        }
+        else if (key == 0xE050) { /* Down arrow */
+            if (g_hovered < g_main_count - 1) {
+                g_hovered++;
+                while (g_hovered < g_main_count && g_main_items[g_hovered].type == 2) {
+                    g_hovered++;
+                }
+            }
+        }
+        else if (key == 0xE04D) { /* Right arrow - open submenu */
+            if (g_hovered >= 0 && g_hovered < g_main_count && g_main_items[g_hovered].type == 1) {
+                g_submenu_open = g_hovered;
+                g_sub_hovered = 0;
+            }
+        }
+        else if (key == 0xE04B) { /* Left arrow - close submenu */
+            if (g_submenu_open >= 0) {
+                g_submenu_open = -1;
+            }
+        }
+        else if (key == 13) { /* Enter - activate */
+            if (g_submenu_open >= 0) {
+                /* Activate submenu item */
+                int submenu_id = g_main_items[g_hovered].submenu_id;
+                if (submenu_id >= 0 && submenu_id == 0 && g_sub_hovered < g_accessories.item_count) {
+                    dosgui_launch_app(g_accessories.items[g_sub_hovered].app_name);
+                    dosgui_startmenu_close();
+                }
+                else if (submenu_id >= 0 && submenu_id == 1 && g_sub_hovered < g_wubuos.item_count) {
+                    dosgui_launch_app(g_wubuos.items[g_sub_hovered].app_name);
+                    dosgui_startmenu_close();
+                }
+                else if (submenu_id >= 0 && submenu_id == 2 && g_sub_hovered < g_system.item_count) {
+                    if (g_sub_hovered == g_system.item_count - 1) { /* Shutdown */
+                        dosgui_shutdown();
+                    } else {
+                        dosgui_launch_app(g_system.items[g_sub_hovered].app_name);
+                    }
+                    dosgui_startmenu_close();
+                }
+            }
+            else if (g_hovered >= 0 && g_hovered < g_main_count) {
+                int type = g_main_items[g_hovered].type;
+                if (type == 0) { /* App */
+                    dosgui_launch_app(g_main_items[g_hovered].app_name);
+                    dosgui_startmenu_close();
+                }
+                else if (type == 3) { /* Shutdown */
+                    dosgui_shutdown();
+                    dosgui_startmenu_close();
+                }
+                else if (type == 1) { /* Submenu */
+                    g_submenu_open = g_hovered;
+                    g_sub_hovered = 0;
+                }
+            }
+        }
+    }
 }
 
 void dosgui_startmenu_handle_search_input(int key, uint32_t mods) {
@@ -983,10 +1201,18 @@ void dosgui_startmenu_handle_search_input(int key, uint32_t mods) {
     }
 }
 
+void dosgui_startmenu_init(void) {
+    dosgui_startmenu_init_enhanced();
+}
+
 void dosgui_startmenu_init_enhanced(void) {
     dosgui_startmenu_build_programs_db();
     dosgui_startmenu_search_init();
     dosgui_startmenu_tree_build();
+}
+
+void dosgui_startmenu_shutdown(void) {
+    dosgui_shutdown();
 }
 
 void dosgui_startmenu_recent_add(const char *app_name);

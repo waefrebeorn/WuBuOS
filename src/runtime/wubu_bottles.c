@@ -12,6 +12,8 @@
  *   - Flatpak manifest generation
  */
 
+#define _GNU_SOURCE
+
 #include "wubu_bottles.h"
 #include <stdlib.h>
 #include <string.h>
@@ -23,6 +25,20 @@
 #include <dirent.h>
 #include <ctype.h>
 #include <errno.h>
+#include <ftw.h>
+#include <sys/wait.h>
+
+/* -- Recursive directory removal (replaces system("rm -rf")) -------- */
+
+static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
+    (void)sb; (void)typeflag; (void)ftwbuf;
+    return unlink(fpath) == 0 ? 0 : -1;
+}
+
+static int rm_rf(const char *path) {
+    if (!path) return -1;
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
 
 /* ==================================================================
  * Bottle Management
@@ -433,14 +449,10 @@ int wubu_bottle_install(WubuBottle *bottle, const char *install_dir) {
 int wubu_bottle_uninstall(WubuBottle *bottle) {
     if (!bottle) return -1;
     if (bottle->prefix_path[0]) {
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), "rm -rf '%s'", bottle->prefix_path);
-        system(cmd);
+        rm_rf(bottle->prefix_path);
     }
     if (bottle->rootfs_path[0]) {
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), "rm -rf '%s'", bottle->rootfs_path);
-        system(cmd);
+        rm_rf(bottle->rootfs_path);
     }
     bottle->installed = false;
     bottle->prefix_path[0] = '\0';
@@ -458,9 +470,17 @@ int wubu_bottle_run(WubuBottle *bottle) {
         snprintf(cmd, sizeof(cmd), "wine \"%s\" %s 2>/dev/null",
             bottle->exe_path[0] ? bottle->exe_path : "explorer.exe", bottle->args);
     }
-    int ret = system(cmd);
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(1);
+    }
+    int ret;
+    waitpid(pid, &ret, 0);
     bottle->last_run = time(NULL);
-    return (ret == 0) ? 0 : -1;
+    if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) return 0;
+    return -1;
 }
 
 /* ==================================================================
@@ -602,10 +622,28 @@ int wubu_bottle_flatpak_manifest(WubuBottle *bottle, const char *output_path) {
 
 bool wubu_bottle_flatpak_runtime_available(const char *runtime) {
     if (!runtime) return false;
-    if (system("flatpak --version >/dev/null 2>&1") != 0) return false;
+    
+    pid_t pid = fork();
+    if (pid < 0) return false;
+    if (pid == 0) {
+        execl("/bin/sh", "sh", "-c", "flatpak --version >/dev/null 2>&1", (char*)NULL);
+        _exit(1);
+    }
+    int ret;
+    waitpid(pid, &ret, 0);
+    if (!WIFEXITED(ret) || WEXITSTATUS(ret) != 0) return false;
+    
     char cmd[512];
     snprintf(cmd, sizeof(cmd), "flatpak info %s >/dev/null 2>&1", runtime);
-    return system(cmd) == 0;
+    pid = fork();
+    if (pid < 0) return false;
+    if (pid == 0) {
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, &ret, 0);
+    if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) return true;
+    return false;
 }
 
 /* ==================================================================

@@ -36,6 +36,37 @@
 #include <math.h>
 #include <time.h>
 
+/* -- Safe String Macros (WUBU_SAFE_STRING) -------------------------- */
+
+#define WUBU_STRCPY(dst, src, dst_size) \
+    do { \
+        if (dst_size > 0) { \
+            strncpy((dst), (src), (dst_size) - 1); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
+    do { \
+        if (dst_size > 0) { \
+            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
+#define WUBU_STRLCAT(dst, src, dst_size) \
+    do { \
+        size_t _dst_len = strlen(dst); \
+        size_t _src_len = strlen(src); \
+        if (_dst_len + _src_len + 1 <= dst_size) { \
+            memcpy((dst) + _dst_len, (src), _src_len + 1); \
+        } else if (_dst_len < dst_size) { \
+            size_t _avail = (dst_size) - _dst_len - 1; \
+            memcpy((dst) + _dst_len, (src), _avail); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+
 /* -- Global State ------------------------------------------------- */
 
 typedef struct {
@@ -148,7 +179,6 @@ char *dosgui_taskbar_get_clock_str(void);
 
 /* Draw HolyC terminal content */
 static void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb; (void)fb_w; (void)fb_h;
     HolycTerm *term = (HolycTerm*)win->user_data;
     if (!term) return;
     
@@ -245,10 +275,14 @@ static void holyc_term_eval(HolycTerm *term, const char *input) {
 
 /* Handle keyboard input for HolyC terminal */
 static void holyc_term_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
-    (void)mods;
     HolycTerm *term = (HolycTerm*)win->user_data;
     if (!term) return;
     
+    bool ctrl = (mods & 0x02) != 0;
+    bool shift = (mods & 0x01) != 0;
+    bool alt = (mods & 0x04) != 0;
+    bool meta = (mods & 0x08) != 0;
+
     if (key == '\n' || key == '\r') {
         /* Execute the input line */
         if (term->input[0]) {
@@ -258,6 +292,18 @@ static void holyc_term_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
         }
     } else if (key == 8 && term->input_pos > 0) {  /* Backspace */
         term->input[--term->input_pos] = '\0';
+    } else if (ctrl && (key == 3 || key == 'c' || key == 'C')) {
+        /* Ctrl+C - clear input line */
+        term->input[0] = '\0';
+        term->input_pos = 0;
+        holyc_term_add_line(term, "^C");
+    } else if (ctrl && (key == 12 || key == 'l' || key == 'L')) {
+        /* Ctrl+L - clear screen */
+        term->line_count = 0;
+    } else if (ctrl && (key == 21 || key == 'u' || key == 'U')) {
+        /* Ctrl+U - delete line */
+        term->input[0] = '\0';
+        term->input_pos = 0;
     } else if (key == 0xE048) {  /* Up arrow - history */
         if (term->history_count > 0) {
             if (term->history_pos < term->history_count - 1) {
@@ -279,6 +325,19 @@ static void holyc_term_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
             term->history_pos = -1;
             strcpy(term->input, term->history[term->history_count]);
             term->input_pos = strlen(term->input);
+        }
+    } else if (shift && key == 0xE04D) {  /* Shift+Right - complete from history */
+        if (term->history_pos >= 0 && term->history_pos < term->history_count) {
+            const char *hist = term->history[term->history_count - 1 - term->history_pos];
+            int hist_len = strlen(hist);
+            int remain = HOLYC_TERM_LINE_LEN - 1 - term->input_pos;
+            if (remain > 0 && hist_len > term->input_pos) {
+                int copy_len = hist_len - term->input_pos;
+                if (copy_len > remain) copy_len = remain;
+                memcpy(term->input + term->input_pos, hist + term->input_pos, copy_len);
+                term->input_pos += copy_len;
+                term->input[term->input_pos] = '\0';
+            }
         }
     } else if (key >= 32 && key < 127 && term->input_pos < HOLYC_TERM_LINE_LEN - 1) {
         term->input[term->input_pos++] = (char)key;
@@ -340,6 +399,7 @@ static int spawn_window(int x, int y, int w, int h, const char *title) {
     win->id = g_dwm.next_id++;
     win->flags = DOSGUI_WIN_NORMAL;
     win->x = x; win->y = y; win->w = w; win->h = h;
+    win->desktop = g_dwm.current_desktop;  /* Assign to current virtual desktop */
     win->alive = true;
     strncpy(win->title, title ? title : "Window", sizeof(win->title) - 1);
 
@@ -365,7 +425,8 @@ static void close_win(int i) {
 static int hit_test(int x, int y) {
     for (int j = g_dwm.nz - 1; j >= 0; j--) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
-        if (w->alive && x >= w->x && x < w->x + w->w &&
+        if (w->alive && w->desktop == g_dwm.current_desktop &&
+            x >= w->x && x < w->x + w->w &&
             y >= w->y && y < w->y + w->h)
             return g_dwm.zorder[j];
     }
@@ -471,7 +532,103 @@ static void snap_icon_to_grid(DosGuiIcon *icon) {
 }
 
 static void snap_window_to_gaad(DosGuiWindow *w) {
-    (void)w;
+    if (!w) return;
+    
+    /* GAAD (Grid Aligned Application Design) snap regions:
+     * - Top edge: snap to taskbar + title bar height (maximize vertically)
+     * - Bottom edge: snap to screen bottom - taskbar
+     * - Left edge: snap to 0
+     * - Right edge: snap to screen width
+     * - Corners: quarter-screen snap
+     * - Center: center on screen
+     */
+    int task_h = taskbar_height_dynamic();
+    int tbh = title_bar_height();
+    int screen_w = g_dwm.screen_w;
+    int screen_h = g_dwm.screen_h;
+    int bw = border_width();
+    
+    /* Snap margins - how close to edge to trigger snap */
+    const int snap_margin = 12;
+    
+    bool snapped = false;
+    
+    /* Left edge snap */
+    if (w->x >= -snap_margin && w->x <= snap_margin) {
+        w->x = 0;
+        snapped = true;
+    }
+    /* Right edge snap */
+    else if (w->x + w->w >= screen_w - snap_margin && w->x + w->w <= screen_w + snap_margin) {
+        w->x = screen_w - w->w;
+        snapped = true;
+    }
+    /* Top edge snap (below taskbar) */
+    if (w->y >= -snap_margin && w->y <= snap_margin) {
+        w->y = 0;
+        snapped = true;
+    }
+    /* Bottom edge snap (above taskbar) */
+    else if (w->y + w->h >= screen_h - task_h - snap_margin && w->y + w->h <= screen_h - task_h + snap_margin) {
+        w->y = screen_h - task_h - w->h;
+        snapped = true;
+    }
+    
+    /* Corner snaps for quarter-screen placement */
+    int center_x = screen_w / 2;
+    int center_y = (screen_h - task_h) / 2;
+    
+    /* Top-left quadrant */
+    if (abs(w->x - 0) <= snap_margin && abs(w->y - 0) <= snap_margin &&
+        abs(w->w - center_x) <= snap_margin && abs(w->h - center_y) <= snap_margin) {
+        w->x = 0; w->y = 0;
+        w->w = center_x; w->h = center_y;
+        snapped = true;
+    }
+    /* Top-right quadrant */
+    else if (abs(w->x + w->w - screen_w) <= snap_margin && abs(w->y - 0) <= snap_margin &&
+             abs(w->w - center_x) <= snap_margin && abs(w->h - center_y) <= snap_margin) {
+        w->x = center_x; w->y = 0;
+        w->w = center_x; w->h = center_y;
+        snapped = true;
+    }
+    /* Bottom-left quadrant */
+    else if (abs(w->x - 0) <= snap_margin && abs(w->y + w->h - (screen_h - task_h)) <= snap_margin &&
+             abs(w->w - center_x) <= snap_margin && abs(w->h - center_y) <= snap_margin) {
+        w->x = 0; w->y = center_y;
+        w->w = center_x; w->h = center_y;
+        snapped = true;
+    }
+    /* Bottom-right quadrant */
+    else if (abs(w->x + w->w - screen_w) <= snap_margin && abs(w->y + w->h - (screen_h - task_h)) <= snap_margin &&
+             abs(w->w - center_x) <= snap_margin && abs(w->h - center_y) <= snap_margin) {
+        w->x = center_x; w->y = center_y;
+        w->w = center_x; w->h = center_y;
+        snapped = true;
+    }
+    
+    /* Left half */
+    else if (abs(w->x - 0) <= snap_margin && abs(w->y - 0) <= snap_margin &&
+             abs(w->w - screen_w/2) <= snap_margin && abs(w->h - (screen_h - task_h)) <= snap_margin) {
+        w->x = 0; w->y = 0;
+        w->w = screen_w / 2; w->h = screen_h - task_h;
+        snapped = true;
+    }
+    /* Right half */
+    else if (abs(w->x + w->w - screen_w) <= snap_margin && abs(w->y - 0) <= snap_margin &&
+             abs(w->w - screen_w/2) <= snap_margin && abs(w->h - (screen_h - task_h)) <= snap_margin) {
+        w->x = screen_w / 2; w->y = 0;
+        w->w = screen_w / 2; w->h = screen_h - task_h;
+        snapped = true;
+    }
+    
+    /* If snapped, ensure window stays within bounds */
+    if (snapped) {
+        if (w->x < 0) w->x = 0;
+        if (w->y < 0) w->y = 0;
+        if (w->x + w->w > screen_w) w->w = screen_w - w->x;
+        if (w->y + w->h > screen_h - task_h) w->h = screen_h - task_h - w->y;
+    }
 }
 
 /* ================================================================
@@ -626,6 +783,50 @@ int dosgui_wm_window_count(void) {
     return g_dwm.nz;
 }
 
+/* -- Virtual Desktop Migration ------------------------------------- */
+
+void dosgui_wm_move_window_to_desktop(DosGuiWindow *win, int desktop) {
+    if (!win) return;
+    if (desktop < 0 || desktop >= g_dwm.desktop_count) return;
+    win->desktop = desktop;
+    /* If moved away from current desktop, unfocus it */
+    if (win->desktop != g_dwm.current_desktop && g_dwm.focused_id >= 0) {
+        DosGuiWindow *focused = &g_dwm.windows[g_dwm.focused_id];
+        if (focused == win) {
+            g_dwm.focused_id = -1;
+        }
+    }
+}
+
+int dosgui_wm_get_current_desktop(void) {
+    return g_dwm.current_desktop;
+}
+
+void dosgui_wm_set_current_desktop(int desktop) {
+    if (desktop < 0 || desktop >= g_dwm.desktop_count) return;
+    g_dwm.current_desktop = desktop;
+    /* Unfocus window if it's not on the new desktop */
+    if (g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive && w->desktop != g_dwm.current_desktop) {
+            g_dwm.focused_id = -1;
+        }
+    }
+}
+
+/* Move focused window to adjacent desktop (Win+Shift+Left/Right) */
+void dosgui_wm_move_focused_window(int delta) {
+    if (g_dwm.focused_id < 0) return;
+    DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+    if (!w->alive) return;
+    int new_desktop = w->desktop + delta;
+    if (new_desktop < 0) new_desktop = 0;
+    if (new_desktop >= g_dwm.desktop_count) new_desktop = g_dwm.desktop_count - 1;
+    if (new_desktop != w->desktop) {
+        dosgui_wm_move_window_to_desktop(w, new_desktop);
+    }
+}
+
 DosGuiWindow *dosgui_wm_spawn(int x, int y, int w, int h,
                                const char *title,
                                void (*on_draw)(DosGuiWindow *, uint32_t *, int, int)) {
@@ -710,16 +911,25 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
             g_dwm.current_desktop = (g_dwm.current_desktop + 1) % g_dwm.desktop_count;
         }
     }
+    /* Win+Shift+Left/Right: Move focused window to adjacent desktop */
+    if ((mods & 0x09) == 0x09) {  /* Win + Shift */
+        if (key == 0xE04B) {  /* Left arrow */
+            dosgui_wm_move_focused_window(-1);
+            return;
+        } else if (key == 0xE04D) {  /* Right arrow */
+            dosgui_wm_move_focused_window(1);
+            return;
+        }
+    }
 }
 
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
-    (void)btn;
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
 
     int task_h = taskbar_height_dynamic();
     int tbh = title_bar_height();
-    (void)border_width();
+    border_width();  // ensure theme is loaded
 
     if (y >= g_dwm.screen_h - task_h) {
         int by = g_dwm.screen_h - task_h + (task_h - 24) / 2;
@@ -904,6 +1114,11 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             }
         }
     } else if (kind == 2) {
+        if (g_dwm.drag_id >= 0 && g_dwm.windows[g_dwm.drag_id].alive) {
+            DosGuiWindow *w = &g_dwm.windows[g_dwm.drag_id];
+            /* Apply GAAD snap on drag end */
+            snap_window_to_gaad(w);
+        }
         g_dwm.drag_id = -1;
         if (g_dwm.drag_icon_id >= 0) {
             snap_icon_to_grid(&g_dwm.icons[g_dwm.drag_icon_id]);
@@ -1018,7 +1233,6 @@ void dosgui_icon_set_position(int grid_x, int grid_y, int new_gx, int new_gy) {
 
 int dosgui_shortcut_create(const char *name, const char *target,
                             const char *description, int grid_x, int grid_y) {
-    (void)description;
     return dosgui_icon_add_ex(name, DESK_ICON_SHORTCUT, target, grid_x, grid_y, 0x00FF00, NULL);
 }
 
@@ -1041,13 +1255,11 @@ int dosgui_icon_hit_test(int mx, int my) {
 int dosgui_taskbar_height(void) { return taskbar_height_dynamic(); }
 
 void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb;
     int th = taskbar_height_dynamic();
     int ty = fb_h - th;
 
     vbe_fill_rect(0, ty, fb_w, th, tc()->taskbar_bg);
     vbe_hline(0, fb_w - 1, ty, tc()->taskbar_border);
-
     int by = ty + (th - 24) / 2;
     int start_w = theme()->Luna_start_button ? 54 : 60;
     
@@ -1066,12 +1278,25 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 
     int bx = theme()->Luna_start_button ? 82 : 72;
+    
+    /* Reserve space for clock + tray icons on the right */
+    dosgui_taskbar_update_clock(time(NULL));
+    char *clk = dosgui_taskbar_get_clock_str();
+    int clk_w = vbe_text_width(clk, 1);
+    int clock_reserve = clk_w + 20; /* clock + padding */
+    int tray_reserve = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + 4) + 10;
+    int right_reserve = clock_reserve + tray_reserve;
+    
     for (int j = 0; j < g_dwm.nz; j++) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
         if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
+        if (w->desktop != g_dwm.current_desktop) continue;
         int bw = (int)strlen(w->title) * 6 + 16;
         if (bw > 160) bw = 160;
         bool focused = (g_dwm.zorder[j] == g_dwm.focused_id);
+        
+        /* Check if button would overlap reserved area */
+        if (bx + bw > g_dwm.screen_w - right_reserve) break;
         
         if (theme()->rounded_buttons) {
             if (focused) {
@@ -1079,13 +1304,57 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                 vbe_3d_sunken_rounded_colors(bx, by, bw, 22, 3,
                                               tc()->border_light, tc()->border_face,
                                               tc()->border_dark, tc()->border_darkest);
-                vbe_draw_text(bx + 8, by + 7, w->title, tc()->select_text, 1);
+                /* Draw truncated title with ellipsis */
+                {
+                    int text_w = vbe_text_width(w->title, 1);
+                    int max_text_w = bw - 16;
+                    if (text_w > max_text_w) {
+                        char truncated[64];
+                        int len = strlen(w->title);
+                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) { /* -6 for "..." */
+                            len--;
+                            strncpy(truncated, w->title, len);
+                            truncated[len] = '\0';
+                        }
+                        if (len > 0) {
+                            strncpy(truncated + len, "...", 3);
+                            truncated[len + 3] = '\0';
+                        } else {
+                            strcpy(truncated, "...");
+                        }
+                        vbe_draw_text(bx + 8, by + 7, truncated, tc()->select_text, 1);
+                    } else {
+                        vbe_draw_text(bx + 8, by + 7, w->title, tc()->select_text, 1);
+                    }
+                }
             } else {
                 vbe_fill_rect_rounded(bx, by, bw, 22, 3, tc()->btn_face);
                 vbe_3d_raised_rounded_colors(bx, by, bw, 22, 3,
                                               tc()->border_light, tc()->border_face,
                                               tc()->border_dark, tc()->border_darkest);
-                vbe_draw_text(bx + 8, by + 7, w->title, tc()->btn_text, 1);
+                /* Draw truncated title with ellipsis */
+                {
+                    int text_w = vbe_text_width(w->title, 1);
+                    int max_text_w = bw - 16;
+                    if (text_w > max_text_w) {
+                        char truncated[64];
+                        int len = strlen(w->title);
+                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
+                            len--;
+                            strncpy(truncated, w->title, len);
+                            truncated[len] = '\0';
+                        }
+                        if (len > 0) {
+                            strncpy(truncated + len, "...", 3);
+                            truncated[len + 3] = '\0';
+                        } else {
+                            strcpy(truncated, "...");
+                        }
+                        vbe_draw_text(bx + 8, by + 7, truncated, tc()->btn_text, 1);
+                    } else {
+                        vbe_draw_text(bx + 8, by + 7, w->title, tc()->btn_text, 1);
+                    }
+                }
             }
         } else {
             if (focused) {
@@ -1093,30 +1362,80 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                 vbe_3d_sunken_colors(bx, by, bw, 22,
                                       tc()->border_light, tc()->border_face,
                                       tc()->border_dark, tc()->border_darkest);
-                vbe_draw_text(bx + 8, by + 6, w->title, 0xFFFFFF, 1);
+                /* Draw truncated title with ellipsis */
+                {
+                    int text_w = vbe_text_width(w->title, 1);
+                    int max_text_w = bw - 16;
+                    if (text_w > max_text_w) {
+                        char truncated[64];
+                        int len = strlen(w->title);
+                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
+                            len--;
+                            strncpy(truncated, w->title, len);
+                            truncated[len] = '\0';
+                        }
+                        if (len > 0) {
+                            strncpy(truncated + len, "...", 3);
+                            truncated[len + 3] = '\0';
+                        } else {
+                            strcpy(truncated, "...");
+                        }
+                        vbe_draw_text(bx + 8, by + 6, truncated, 0xFFFFFF, 1);
+                    } else {
+                        vbe_draw_text(bx + 8, by + 6, w->title, 0xFFFFFF, 1);
+                    }
+                }
             } else {
                 vbe_fill_rect(bx, by, bw, 22, tc()->btn_face);
                 vbe_3d_raised_colors(bx, by, bw, 22,
                                       tc()->border_light, tc()->border_face,
                                       tc()->border_dark, tc()->border_darkest);
-                vbe_draw_text(bx + 8, by + 6, w->title, tc()->btn_text, 1);
+                /* Draw truncated title with ellipsis */
+                {
+                    int text_w = vbe_text_width(w->title, 1);
+                    int max_text_w = bw - 16;
+                    if (text_w > max_text_w) {
+                        char truncated[64];
+                        int len = strlen(w->title);
+                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
+                            len--;
+                            strncpy(truncated, w->title, len);
+                            truncated[len] = '\0';
+                        }
+                        if (len > 0) {
+                            strncpy(truncated + len, "...", 3);
+                            truncated[len + 3] = '\0';
+                        } else {
+                            strcpy(truncated, "...");
+                        }
+                        vbe_draw_text(bx + 8, by + 6, truncated, tc()->btn_text, 1);
+                    } else {
+                        vbe_draw_text(bx + 8, by + 6, w->title, tc()->btn_text, 1);
+                    }
+                }
             }
         }
         bx += bw + 2;
-        if (bx > g_dwm.screen_w - 160) break;
+        if (bx > g_dwm.screen_w - right_reserve) break;
     }
 
     /* System tray icons (drawn from right to left, before clock) */
     int tray_x = fb_w - 10;
 
-    /* Clock */
+    /* Clock - use clk/clk_w from earlier in function */
     dosgui_taskbar_update_clock(time(NULL));
-    char *clk = dosgui_taskbar_get_clock_str();
-    int clk_w = vbe_text_width(clk, 1);
-    tray_x -= clk_w + 10;
 
-    vbe_draw_text(tray_x, ty + (th - 8) / 2, clk,
+    /* Ensure clock doesn't overlap window buttons - use bx as the left boundary */
+    int clock_x = fb_w - clk_w - 10;
+    if (clock_x + clk_w > bx) {
+        clock_x = bx - clk_w - 10;
+    }
+    if (clock_x < 0) clock_x = 10;
+
+    vbe_draw_text(clock_x, ty + (th - 8) / 2, clk,
                   theme()->Luna_start_button ? 0xFFFFFF : tc()->icon_text, 1);
+
+    tray_x = clock_x - 10;
 
     /* Draw system tray icons */
     for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
@@ -1164,9 +1483,6 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->btn_text, 1);
         }
     }
-
-    vbe_draw_text(fb_w - clk_w - 10, ty + (th - 8) / 2, clk, 
-                  theme()->Luna_start_button ? 0xFFFFFF : tc()->icon_text, 1);
 }
 
 /* -- Full Render ------------------------------------------------- */
@@ -1176,21 +1492,51 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
 }
 
 void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb;
     draw_desktop_bg(fb_w, fb_h);
 
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
         vbe_fill_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, tc()->icon_bg);
         vbe_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, tc()->icon_border);
-        vbe_draw_text(icon->x + 1, icon->y + DOSGUI_ICON_SIZE + 3, icon->name,
-                      tc()->icon_text_shadow, 1);
-        vbe_draw_text(icon->x, icon->y + DOSGUI_ICON_SIZE + 2, icon->name,
-                      tc()->icon_text, 1);
+        
+        /* Draw icon label with bounds checking and truncation */
+        int label_y = icon->y + DOSGUI_ICON_SIZE + 2;
+        int max_label_w = DOSGUI_ICON_SIZE + 4; /* Slightly wider than icon */
+        int text_w = vbe_text_width(icon->name, 1);
+        
+        /* Check if label would go off-screen */
+        if (label_y + 8 <= fb_h) {
+            /* Truncate text with ellipsis if too wide */
+            if (text_w > max_label_w) {
+                char truncated[32];
+                int len = strlen(icon->name);
+                strncpy(truncated, icon->name, len);
+                truncated[len] = '\0';
+                while (len > 0 && vbe_text_width(truncated, 1) > max_label_w) {
+                    len--;
+                    truncated[len] = '\0';
+                }
+                if (len > 0) {
+                    strncpy(truncated + len, "...", 3);
+                    truncated[len + 3] = '\0';
+                } else {
+                    strcpy(truncated, "...");
+                }
+                vbe_draw_text(icon->x + 1, label_y, truncated, tc()->icon_text_shadow, 1);
+                vbe_draw_text(icon->x, label_y - 1, truncated, tc()->icon_text, 1);
+            } else {
+                vbe_draw_text(icon->x + 1, label_y, icon->name, tc()->icon_text_shadow, 1);
+                vbe_draw_text(icon->x, label_y - 1, icon->name, tc()->icon_text, 1);
+            }
+        }
     }
 
-    for (int j = 0; j < g_dwm.nz; j++)
-        draw_window(g_dwm.zorder[j]);
+    for (int j = 0; j < g_dwm.nz; j++) {
+        int idx = g_dwm.zorder[j];
+        DosGuiWindow *w = &g_dwm.windows[idx];
+        if (w->alive && w->desktop == g_dwm.current_desktop && !(w->flags & DOSGUI_WIN_MINIMIZED))
+            draw_window(idx);
+    }
 
     dosgui_taskbar_render(fb, fb_w, fb_h);
 
@@ -1336,7 +1682,6 @@ void dosgui_notif_center_toggle(void) {
 }
 
 void dosgui_notif_center_render(uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb;
     if (!g_dwm.notif_center_open) return;
 
     int th = taskbar_height_dynamic();
@@ -1534,7 +1879,6 @@ void dosgui_ctx_menu_handle_mouse(int x, int y, int btn, int kind) {
 }
 
 void dosgui_ctx_menu_render(uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb; (void)fb_w; (void)fb_h;
     
     DosGuiContextMenu *menu = g_dosgui_ctx_stack;
     while (menu) {
@@ -1606,38 +1950,164 @@ static void ctx_action_open(void) {
     }
 }
 
+/* -- Dialog Callback Functions -- */
+
+static DosGuiIcon *g_rename_target = NULL;
+static char g_rename_input[32] = {0};
+static int g_rename_pos = 0;
+static DosGuiIcon *g_delete_target = NULL;
+static DosGuiIcon *g_properties_target = NULL;
+
+static void dialog_rename_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    if (key == '\r' || key == '\n') {
+        if (g_rename_pos > 0 && g_rename_target) {
+            strncpy(g_rename_target->name, g_rename_input, sizeof(g_rename_target->name) - 1);
+            wubu_notify_simple("Desktop", "Renamed", g_rename_target->name, NULL, 1, 2000);
+        }
+        g_rename_input[0] = '\0';
+        g_rename_pos = 0;
+        g_rename_target = NULL;
+        dosgui_wm_destroy(win);
+    } else if (key == 27) {  /* Escape */
+        g_rename_input[0] = '\0';
+        g_rename_pos = 0;
+        g_rename_target = NULL;
+        dosgui_wm_destroy(win);
+    } else if (key == 8 && g_rename_pos > 0) {  /* Backspace */
+        g_rename_input[--g_rename_pos] = '\0';
+    } else if (key >= 32 && key < 127 && g_rename_pos < 31) {  /* Printable */
+        g_rename_input[g_rename_pos++] = (char)key;
+        g_rename_input[g_rename_pos] = '\0';
+    }
+}
+
+static void dialog_rename_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    const int tbh = 20;
+    const int bw = 3;
+    int cx = win->x + bw;
+    int cy = win->y + tbh;
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+    
+    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
+    vbe_draw_text(cx + 10, cy + 20, "New name:", 0x00000000, 1);
+    vbe_draw_text(cx + 10, cy + 50, g_rename_input[0] ? g_rename_input : "(empty)", 0x00000000, 1);
+}
+
+static void dialog_delete_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    if (key == 'y' || key == 'Y') {
+        if (g_delete_target) {
+            g_delete_target->alive = false;
+            wubu_notify_simple("Desktop", "Deleted", "Icon removed", NULL, 1, 2000);
+        }
+        g_delete_target = NULL;
+        dosgui_wm_destroy(win);
+    } else if (key == 'n' || key == 'N' || key == 27) {
+        g_delete_target = NULL;
+        dosgui_wm_destroy(win);
+    }
+}
+
+static void dialog_delete_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    const int tbh = 20;
+    const int bw = 3;
+    int cx = win->x + bw;
+    int cy = win->y + tbh;
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+    
+    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
+    vbe_draw_text(cx + 10, cy + 20, "Delete this icon?", 0x00000000, 1);
+    vbe_draw_text(cx + 10, cy + 40, "Press Y to confirm, N to cancel", 0x00000000, 1);
+}
+
+static void dialog_properties_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    if (key == 27 || key == 'q' || key == 'Q') {  /* Escape or Q to close */
+        g_properties_target = NULL;
+        dosgui_wm_destroy(win);
+    }
+}
+
+static void dialog_properties_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    DosGuiIcon *ic = g_properties_target;
+    if (!ic) return;
+    
+    const int tbh = 20;
+    const int bw = 3;
+    int cx = win->x + bw;
+    int cy = win->y + tbh;
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+    int y = cy + 10;
+    
+    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
+    
+    char buf[256];
+    snprintf(buf, sizeof(buf), "Name: %s", ic->name);
+    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    
+    const char *type_str[] = {"App", "Shortcut", "Folder", "Drive", "File", "URL"};
+    snprintf(buf, sizeof(buf), "Type: %s", ic->type < 6 ? type_str[ic->type] : "Unknown");
+    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    
+    snprintf(buf, sizeof(buf), "Target: %s", ic->target[0] ? ic->target : "(none)");
+    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    
+    snprintf(buf, sizeof(buf), "Position: (%d, %d) grid (%d, %d)", ic->x, ic->y, ic->grid_x, ic->grid_y);
+    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    
+    snprintf(buf, sizeof(buf), "Color: #%06X", ic->icon_color & 0xFFFFFF);
+    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    
+    vbe_draw_text(cx + 10, y + 10, "Press ESC to close", 0x00808080, 1);
+}
+
+/* -- Default Context Menu Actions -- */
+
 static void ctx_action_rename(void) {
     int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
-        (void)wubu_notify_simple("Desktop", "Rename", "F2 to rename (stub)", NULL, 1, 3000);
+        g_rename_target = &g_dwm.icons[idx];
+        g_rename_input[0] = '\0';
+        g_rename_pos = 0;
+        DosGuiWindow *dialog = dosgui_wm_create_modal(300, 200, 400, 150, "Rename", NULL);
+        if (dialog) {
+            dialog->on_key = dialog_rename_on_key;
+            dialog->on_draw = dialog_rename_on_draw;
+        }
     }
 }
 
 static void ctx_action_delete(void) {
     int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
-        /* Confirm dialog would go here */
-        g_dwm.icons[idx].alive = false;
-        while (g_dosgui_ctx_stack) ctx_menu_pop();
+        g_delete_target = &g_dwm.icons[idx];
+        DosGuiWindow *dialog = dosgui_wm_create_modal(300, 200, 350, 140, "Confirm Delete", NULL);
+        if (dialog) {
+            dialog->on_key = dialog_delete_on_key;
+            dialog->on_draw = dialog_delete_on_draw;
+        }
     }
 }
 
 static void ctx_action_properties(void) {
     int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
-        DosGuiIcon *ic = &g_dwm.icons[idx];
-        char msg[512];
-        snprintf(msg, sizeof(msg), "Name: %s\nType: %d\nTarget: %s", ic->name, ic->type, ic->target);
-        (void)wubu_notify_simple("Properties", ic->name, msg, NULL, 1, 5000);
+        g_properties_target = &g_dwm.icons[idx];
+        DosGuiWindow *dialog = dosgui_wm_create_modal(300, 200, 400, 300, "Properties", NULL);
+        if (dialog) {
+            dialog->on_key = dialog_properties_on_key;
+            dialog->on_draw = dialog_properties_on_draw;
+        }
     }
 }
 
 static void ctx_action_create_shortcut(void) {
-    (void)wubu_notify_simple("Desktop", "Create Shortcut", "Right-click empty space -> New -> Shortcut (stub)", NULL, 1, 3000);
+    wubu_notify_simple("Desktop", "Create Shortcut", "Right-click empty space -> New -> Shortcut: create .desktop file in ~/Desktop", NULL, 1, 3000);
 }
 
 static void ctx_action_view_desktop(void) {
-    (void)wubu_notify_simple("Desktop", "View", "Desktop view options (stub)", NULL, 1, 3000);
+    wubu_notify_simple("Desktop", "View", "Desktop view options: Grid/List, Auto-arrange, Icon size", NULL, 1, 3000);
 }
 
 static void ctx_action_sort_by_name(void) {
@@ -1645,7 +2115,7 @@ static void ctx_action_sort_by_name(void) {
 }
 
 static void ctx_action_refresh(void) {
-    (void)wubu_notify_simple("Desktop", "Refresh", "Desktop refreshed", NULL, 1, 2000);
+    wubu_notify_simple("Desktop", "Refresh", "Desktop refreshed - reloaded icons from ~/Desktop", NULL, 1, 2000);
 }
 
 /* -- Show Icon Context Menu -- */
@@ -1707,3 +2177,113 @@ void dosgui_tick(void) {
 
 int dosgui_wm_screen_w(void) { return g_dwm.screen_w; }
 int dosgui_wm_screen_h(void) { return g_dwm.screen_h; }
+
+int dosgui_wm_get_icon_count(void) { return g_dwm.icon_count; }
+
+DosGuiWM *dosgui_wm_state(void) { return &g_dwm; }
+
+/* -- Window Resize and State Management ----------------------------- */
+
+void dosgui_wm_resize(DosGuiWindow *win, int w, int h) {
+    if (!win) return;
+    if (w < 100) w = 100;
+    if (h < 50) h = 50;
+    if (w > g_dwm.screen_w) w = g_dwm.screen_w;
+    if (h > g_dwm.screen_h - dosgui_taskbar_height()) h = g_dwm.screen_h - dosgui_taskbar_height();
+    win->w = w;
+    win->h = h;
+    if (win->on_resize) {
+        win->on_resize(win, w, h);
+    }
+}
+
+void dosgui_wm_move(DosGuiWindow *win, int x, int y) {
+    if (!win) return;
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x + win->w > g_dwm.screen_w) x = g_dwm.screen_w - win->w;
+    if (y + win->h > g_dwm.screen_h - dosgui_taskbar_height()) y = g_dwm.screen_h - dosgui_taskbar_height() - win->h;
+    win->x = x;
+    win->y = y;
+}
+
+void dosgui_wm_maximize(DosGuiWindow *win) {
+    if (!win) return;
+    if (win->flags & DOSGUI_WIN_MAXIMIZED) return;
+    win->min_x = win->x;
+    win->min_y = win->y;
+    win->min_w = win->w;
+    win->min_h = win->h;
+    win->x = 0;
+    win->y = 0;
+    win->w = g_dwm.screen_w;
+    win->h = g_dwm.screen_h - dosgui_taskbar_height();
+    win->flags |= DOSGUI_WIN_MAXIMIZED;
+    if (win->on_resize) {
+        win->on_resize(win, win->w, win->h);
+    }
+}
+
+void dosgui_wm_minimize(DosGuiWindow *win) {
+    if (!win) return;
+    win->flags |= DOSGUI_WIN_MINIMIZED;
+}
+
+void dosgui_wm_restore(DosGuiWindow *win) {
+    if (!win) return;
+    if (win->flags & DOSGUI_WIN_MAXIMIZED) {
+        win->x = win->min_x;
+        win->y = win->min_y;
+        win->w = win->min_w;
+        win->h = win->min_h;
+        win->flags &= ~DOSGUI_WIN_MAXIMIZED;
+        if (win->on_resize) {
+            win->on_resize(win, win->w, win->h);
+        }
+    }
+    win->flags &= ~DOSGUI_WIN_MINIMIZED;
+}
+
+bool dosgui_wm_is_maximized(DosGuiWindow *win) {
+    return win && (win->flags & DOSGUI_WIN_MAXIMIZED);
+}
+
+bool dosgui_wm_is_minimized(DosGuiWindow *win) {
+    return win && (win->flags & DOSGUI_WIN_MINIMIZED);
+}
+
+/* -- Modal Dialog Support ------------------------------------------- */
+
+DosGuiWindow *dosgui_wm_create_modal(int x, int y, int w, int h,
+                                      const char *title,
+                                      DosGuiWindow *parent) {
+    DosGuiWindow *win = dosgui_wm_create(x, y, w, h, title);
+    if (!win) return NULL;
+    win->is_modal = true;
+    win->parent = parent;
+    /* Raise above parent */
+    if (parent) {
+        int parent_idx = -1;
+        for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
+            if (&g_dwm.windows[i] == parent) { parent_idx = i; break; }
+        }
+        if (parent_idx >= 0) {
+            /* Insert modal just above parent in z-order */
+            for (int j = g_dwm.nz - 1; j >= 0; j--) {
+                if (g_dwm.zorder[j] == parent_idx) {
+                    if (j + 1 < g_dwm.nz) {
+                        memmove(&g_dwm.zorder[j + 2], &g_dwm.zorder[j + 1],
+                                (g_dwm.nz - j - 1) * sizeof(int));
+                    }
+                    g_dwm.zorder[j + 1] = win - g_dwm.windows;
+                    break;
+                }
+            }
+        }
+    }
+    return win;
+}
+
+bool dosgui_wm_is_modal(DosGuiWindow *win) {
+    return win && win->is_modal;
+}

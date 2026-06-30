@@ -26,7 +26,8 @@ typedef enum {
     THEME_XP_LUNA_BLUE   = 1,
     THEME_XP_MEDIA_ORANGE = 2,
     THEME_WUBU_CUSTOM     = 3,
-    THEME_COUNT           = 4,
+    THEME_ZUNE            = 4,
+    THEME_COUNT           = 5,
 } WubuThemeId;
 
 /* -- Theme Color Set ---------------------------------------------- */

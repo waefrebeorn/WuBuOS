@@ -26,7 +26,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/x86_regall
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o
@@ -38,13 +38,15 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o $(HOSTED)/wubu_gbm.o $(HOSTED)/wu
 JIT_OBJS = $(JIT)/jit.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o
+GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o $(GUI)/wubu_compositor.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscall.o
 
 # ── App Objects ──────────────────────────────────────────────────
-APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o
+APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o \
+           $(APPS)/calc/calc.o $(APPS)/notepad/notepad.o $(APPS)/paint/paint.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
+           $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o $(APPS)/canvas/canvas.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
@@ -90,8 +92,12 @@ bear_train: $(BEAR_OBJS) $(BEAR)/bear_train.o
 		-lm -o $(BEAR)/bear_train
 	@echo "✅ Bear RL training binary built (./src/bear/bear_train)"
 
-kernel: $(KERNEL_OBJS)
-	@echo "✅ Kernel built"
+kernel: $(KERNEL_OBJS) $(KERNEL)/crt0.o $(KERNEL)/metal_main.o
+	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -Wl,-no-pie \
+		-T $(KERNEL)/kernel.ld \
+		$(KERNEL)/crt0.o $(KERNEL)/metal_main.o $(KERNEL_OBJS) \
+		-o $(KERNEL)/kernel.elf
+	@echo "✅ Bare-metal kernel.elf built"
 
 jit: $(JIT_OBJS)
 	@echo "✅ JIT built"
@@ -144,7 +150,11 @@ HOSTED_OBJS = $(HOSTED)/hosted.o $(RT)/styx.o $(RT)/styxfs.o $(KERNEL)/vbe.o $(K
               $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o \
               $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o \
               $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(APPS)/dosgui_apps.o $(JIT_OBJS) \
-              $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_exec.o $(RT)/wubu_container.o $(RT)/wubu_arch.o
+              $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_exec.o $(RT)/wubu_container.o $(RT)/wubu_arch.o \
+              $(HOSTED)/primary-selection-private.o
+
+$(HOSTED)/primary-selection-private.o: $(HOSTED)/primary-selection-private.c
+	$(CC) $(CFLAGS) -I$(HOSTED) -c $< -o $@
 
 $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
 	$(CC) $(CFLAGS) -I$(HOSTED) -x c -c $< -o $@
@@ -156,25 +166,43 @@ hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
 		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_term.c $(GUI)/dosgui_daemon_panel.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_gamelib.c $(GUI)/wubu_deploy.c $(GUI)/wubu_pkgmgr.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
-		$(HOSTED)/xdg-shell-private.o \
+		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
 # ── Compilation Rules ────────────────────────────────────────────
 
 $(KERNEL)/%.o: $(KERNEL)/%.c
-	$(CC) $(CFLAGS) -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
 
 $(JIT)/%.o: $(JIT)/%.c
 	$(CC) $(CFLAGS) -I$(JIT) -c $< -o $@
 
 $(GUI)/%.o: $(GUI)/%.c
-	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) `pkg-config --cflags wlroots vulkan gbm libdrm 2>/dev/null` -c $< -o $@
 
 $(BRIDGE)/%.o: $(BRIDGE)/%.c
 	$(CC) $(CFLAGS) -I$(BRIDGE) -I$(KERNEL) -I$(WS) -c $< -o $@
 
 $(APPS)/%.o: $(APPS)/%.c
 	$(CC) $(CFLAGS) -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+
+$(APPS)/calc/%.o: $(APPS)/calc/%.c
+	$(CC) $(CFLAGS) -I$(APPS)/calc -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+
+$(APPS)/notepad/%.o: $(APPS)/notepad/%.c
+	$(CC) $(CFLAGS) -I$(APPS)/notepad -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+
+$(APPS)/paint/%.o: $(APPS)/paint/%.c
+	$(CC) $(CFLAGS) -I$(APPS)/paint -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+
+$(APPS)/cmd/%.o: $(APPS)/cmd/%.c
+	$(CC) $(CFLAGS) -I$(APPS)/cmd -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+
+$(APPS)/taskmgr/%.o: $(APPS)/taskmgr/%.c
+	$(CC) $(CFLAGS) -I$(APPS)/taskmgr -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+
+$(APPS)/regedit/%.o: $(APPS)/regedit/%.c
+	$(CC) $(CFLAGS) -I$(APPS)/regedit -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
 
 $(WS)/%.o: $(WS)/%.c
 	$(CC) $(CFLAGS) -I$(WS) -I$(KERNEL) -c $< -o $@
@@ -203,11 +231,14 @@ $(BEAR)/%.o: $(BEAR)/%.cu
 
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S
-	$(CC) $(CFLAGS) -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) -DMYSEED_METAL -DWa -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+
+$(KERNEL)/libc.o: $(KERNEL)/libc.c
+	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_input test_worldsim test_fat32 test_holyc test_wubu test_apps test_vsl test_bridge test_bridge_flip test_syscall test_proton test_ahci test_iso test_weights test_gc test_txfs test_dbuf test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_styx test_styxfs test_hosted test_host_exec test_arch test_ramdisk test_gaad test_wubu_wm test_apps2 test_proton2 test_audio test_screenshot test_deploy test_pkgmgr test_anticheat test_bottles test_archd test_holyd test_network test_snapshot test_daemon_panel test_oci test_math
+test: test_jit test_memory test_tasking test_input test_worldsim test_fat32 test_holyc test_wubu test_apps test_bridge test_bridge_flip test_syscall test_proton test_ahci test_iso test_weights test_gc test_txfs test_dbuf test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_styx test_styxfs test_host_exec test_gaad test_apps2 test_proton2 test_audio test_screenshot test_deploy test_anticheat test_bottles test_holyd test_network test_snapshot test_daemon_panel test_oci test_math test_clipboard
 	@echo "✅ All tests passed"
 
 test_jit:
@@ -218,8 +249,8 @@ test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
 
-test_tasking: $(KERNEL)/memory.o $(KERNEL)/tasking.o
-	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/tasking.c $(KERNEL)/tasking_test.c -o $(KERNEL)/tasking_test
+test_tasking: $(KERNEL)/memory.o
+	$(CC) $(CFLAGS) -DWUBU_BAREMETAL=0 -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/tasking.c $(KERNEL)/tasking_test.c -o $(KERNEL)/tasking_test
 	$(KERNEL)/tasking_test
 
 test_input:
@@ -229,6 +260,13 @@ test_input:
 test_math: $(KERNEL)/wubu_math.o
 	$(CC) -O0 -g -DWUBU_MATH_TEST -I$(KERNEL) $(KERNEL)/wubu_math.c -o $(KERNEL)/math_test
 	$(KERNEL)/math_test
+
+test_clipboard:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM -DWUBU_CLIPBOARD_TEST_MODE \
+		-I$(GUI) -I$(KERNEL) \
+		$(GUI)/wubu_clipboard.c $(GUI)/wubu_clipboard_test.c \
+		-o $(GUI)/wubu_clipboard_test
+	$(GUI)/wubu_clipboard_test
 
 test_worldsim: $(KERNEL)/wubu_math.o
 	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) -I$(KERNEL) $(WS)/test_worldsim.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c $(KERNEL)/wubu_math.o -o $(WS)/test_worldsim
@@ -247,11 +285,20 @@ test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs.o $(RT)/styx.o $(RT)/
 	$(RT)/wubu_container_test
 
 test_apps:
-	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(RT)/wubu_pkg.c $(RT)/wubu_vsl.c $(RT)/wubu_proton.c $(RT)/wubu_apps_test.c -o $(RT)/wubu_apps_test
+	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) -I$(RT)/vsl \
+		$(RT)/wubu_pkg.c \
+		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_process.c \
+		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
+		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c \
+		$(RT)/wubu_proton.c $(RT)/wubu_apps_test.c -o $(RT)/wubu_apps_test -ldl
 	$(RT)/wubu_apps_test
 
 test_vsl:
-	$(CC) -O0 -g -D_GNU_SOURCE -I$(RT) $(RT)/wubu_vsl.c $(RT)/wubu_vsl_test.c -o $(RT)/wubu_vsl_test
+	$(CC) -O0 -g -D_GNU_SOURCE -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
+		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_process.c \
+		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
+		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/wubu_vsl_test.c \
+		-o $(RT)/wubu_vsl_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_test
 
 test_bridge:
@@ -360,15 +407,17 @@ test_dosgui_startmenu:
 	$(GUI)/dosgui_startmenu_test
 
 test_dosgui_explorer:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) $(GUI)/dosgui_explorer.c $(GUI)/wubu_theme.c $(GUI)/dosgui_explorer_test_stub.c $(KERNEL)/vbe.c $(GUI)/dosgui_explorer_test.c -o $(GUI)/dosgui_explorer_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) $(GUI)/dosgui_explorer.c $(GUI)/wubu_theme.c $(GUI)/dosgui_explorer_test_stub.c $(KERNEL)/vbe.c $(GUI)/wubu_mime.c $(GUI)/dosgui_explorer_test.c -o $(GUI)/dosgui_explorer_test
 	$(GUI)/dosgui_explorer_test
-
+test_dosgui_term:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -I$(GUI) -I$(KERNEL) $(GUI)/dosgui_term.c $(GUI)/wubu_theme.c $(GUI)/dosgui_term_test_stub.c $(KERNEL)/vbe.c $(GUI)/dosgui_term_test.c -o $(GUI)/dosgui_term_test
+	$(GUI)/dosgui_term_test
 test_styx:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx.c $(RT)/styx_test.c -o $(RT)/styx_test
 	$(RT)/styx_test
 
 test_styxfs:
-	$(CC) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/styx.c $(RT)/styxfs.c $(RT)/styxfs_test.c -o $(RT)/styxfs_test
+	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/styx.c $(RT)/styxfs.c $(RT)/styxfs_test.c -o $(RT)/styxfs_test
 	$(RT)/styxfs_test
 
 test_hosted: $(HOSTED)/xdg-shell-private.o
@@ -385,7 +434,7 @@ test_hosted: $(HOSTED)/xdg-shell-private.o
 
 test_host_exec:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
-		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_host_exec_test.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \
 		-o $(RT)/wubu_host_exec_test
 	$(RT)/wubu_host_exec_test
 
@@ -452,10 +501,18 @@ test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(RT) \
 		$(APPS)/wubu_editor.c $(APPS)/wubu_canvas.c $(APPS)/wubu_codec.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/styx.c $(RT)/styxfs.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_container.c \
 		$(APPS)/wubu_apps2_test.c \
 		-o $(APPS)/wubu_apps2_test
 	$(APPS)/wubu_apps2_test
+
+test_control:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
+		-Isrc/apps -Isrc/gui -Isrc/kernel \
+		$(APPS)/control.c $(GUI)/wubu_theme.c $(GUI)/wm.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
+		$(APPS)/control_test.c \
+		-o $(APPS)/control_test -lm
+	$(APPS)/control_test
 
 test_proton2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
@@ -470,7 +527,7 @@ test_proton2:
 test_metal:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DMYSEED_METAL -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST\
 		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -I$(SHELL_DIR) -I$(COMP) -I$(JIT) \
-		$(HOSTED)/wubu_metal.c $(KERNEL)/wubu_gaad.c \
+		$(HOSTED)/wubu_metal.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(HOSTED)/wubu_metal_test.c \
 		-o $(HOSTED)/wubu_metal_test -lm
@@ -501,6 +558,20 @@ test_pkgmgr:
 		-o $(GUI)/wubu_pkgmgr_test -lsqlite3 -lzstd
 	$(GUI)/wubu_pkgmgr_test
 
+test_dosgui_apps:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+		-I$(APPS) -I$(KERNEL) -I$(GUI) \
+		$(APPS)/dosgui_apps.c \
+		$(APPS)/calc/calc.c $(APPS)/notepad/notepad.c $(APPS)/paint/paint.c \
+		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
+		$(APPS)/repl/repl.c $(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/canvas/canvas.c \
+		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
+		$(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
+		$(GUI)/wubu_theme.c $(GUI)/wm.c \
+		$(APPS)/dosgui_apps_test.c \
+		-o $(APPS)/dosgui_apps_test -lm
+	$(APPS)/dosgui_apps_test
+
 test_anticheat:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) \
@@ -518,7 +589,7 @@ test_bottles:
 # ── Daemon Tests ──────────────────────────────────────────────────
 
 test_archd:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation \
 		-I$(RT) \
 		-DWUBD_TEST_MAIN \
 		$(RT)/wubu_archd.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c \

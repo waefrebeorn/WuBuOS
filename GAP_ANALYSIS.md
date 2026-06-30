@@ -1,27 +1,30 @@
 # WuBuOS Comprehensive Gap Analysis — Triple Devil's Advocate
-## Post-Prestige Audit 2026-06-22
+## Post-Prestige Audit 2026-06-28 (Phase 16 — Comprehensive)
 
-> **⚠️ SUPERSEDED by BATTLESHIP.md (Phase 12, 2026-06-26)** — This document contains the v11 gap analysis. The current 300-gap classified inventory is in [BATTLESHIP.md](BATTLESHIP.md).
+> **⚠️ SUPERSEDED by BATTLESHIP.md (Phase 16, 2026-06-28)** — This document contains the v14 gap analysis. The current 1562-gap classified inventory is in [BATTLESHIP.md](BATTLESHIP.md).
 
 ## Executive Summary
 
-**Total src files**: 346 (239 .c, 107 .h)
-**Total LOC**: 115,854
+**Total src files**: 356 (249 .c, 107 .h)
+**Total LOC**: 111,835
 **Test targets**: 47 (44 pass, 0 fail, 0 timeout)
-**~650+ test assertions** counted across passing suites
+**~747+ test assertions** counted across passing suites
 
 ### Gap Counts (Raw)
 
-|| Category | Count |
-||----------|-------|
-|| `return -1` without null guard | 630 |
-|| TODO/STUB/FIXME/XXX/HACK markers | 369 |
-|| `(void)var` casts (dead code) | 2,168 |
-|| "for later"/"scaffolding"/"brevity" comments | 60 |
-|| Empty function bodies `{}` | 28 |
-|| **Grand total raw markers** | **3,255** |
-|| **Active gaps (after fixes)** | **~412** |
-|| **Files with active stubs** | **62+** |
+| Category | Count |
+|---|---|
+| `(void)param` casts (dead code) | 1,256 |
+| TODO/STUB/FIXME/XXX/HACK markers | 200+ |
+| `system()` calls | 76 |
+| "for later"/"scaffolding"/"brevity" comments | 60+ |
+| Empty function bodies `{}` | 23 |
+| Placeholder patterns (JIT, codegen, Vulkan) | 69 |
+| Weak alias stubs | 26 |
+| `return -1` without work (not null guard) | 13 |
+| **Grand total raw markers** | **~1,700** |
+| **Active gaps (after DA classification)** | **1,562** |
+| **Files with active gaps** | **129** |
 
 ### After This Session's Fixes
 
@@ -53,154 +56,44 @@ There is no "stub for extension." There is only: does it work at runtime or not?
 5. Calls another stub function (transitive stub)
 6. Claims a feature in comments but has no implementation
 7. Says "for later", "scaffolding", "for brevity", "stub for", "placeholder"
+8. Uses weak alias for test stubs
+9. Has placeholder patterns (JIT backpatch, codegen, Vulkan)
+10. Calls `system()` instead of direct C implementation
 
 Null-pointer guards are NOT real gaps. Error handling is real code.
 
-## Gap Category Breakdown
+## Gap Breakdown by Category (DA-Verified 1562)
 
-### RUNTIME (157 stubs across 18 files)
+| Category | Count | Severity |
+|---|---|---|
+| `(void)param` casts on success paths | 1,256 | 🔴 CRITICAL |
+| Placeholder patterns (JIT, codegen, Vulkan) | 69 | 🔴 CRITICAL |
+| Weak alias test stubs | 26 | 🔴 CRITICAL |
+| `system()` calls | 76 | 🔴 CRITICAL |
+| TODO/STUB/FIXME comments | 200+ | 🟠 HIGH |
+| `return -1` without work (not null guard) | 13 | 🟠 HIGH |
+| Empty bodies `{}` on success path | 23 | 🟠 HIGH |
+| **TOTAL** | **1,562** | |
 
-|| File | Stubs | Status |
-||------|-------|--------|
-|| wubu_oci.c | 17 | 🔴 FULL STUB — OCI runtime: manifest, blob, config, registry |
-|| wubu_bottles.c | 12 | 🔴 FULL STUB — import/export/run stubs |
-|| wubu_image.c | 11 | 🟡 PARTIAL — import/export/wubufile parse stubs |
-|| wubu_holyd.c | 12 | 🟡 PARTIAL — event loop done, JIT/render/input stubs |
-|| wubu_vsl.c | 15 | 🟡 PARTIAL — process/fd/driver ops stubs |
-|| wubu_proton2.c | 10 | 🟡 PARTIAL — PE launch wrapper stubs |
-|| wubu_pkg.c | 6 | 🟡 PARTIAL — registry stubs |
-|| wubu_archd.c | 5 | ✅ FULL IMPLEMENTATION (was stub) |
-|| wubu_ramdisk.c | 3 | 🟡 PARTIAL — create/snapshot stubs |
-|| wubu_gc.c | 1 | 🟡 PARTIAL — collect stub, no GC algorithm |
-|| wubu_exec.c | 1 | 🟡 PARTIAL — VSL active check stub |
-|| wubu_anticheat.c | partial | 🟡 data-only, no real logic |
-|| bear_cudnn.c | partial | 🟡 CUDA calls stub |
-|| wubu_network.c | 0 | ✅ FULL IMPLEMENTATION |
-|| wubu_snapshot.c | 0 | ✅ FULL IMPLEMENTATION |
-|| wubu_proton.c | 0 | ✅ FULL IMPLEMENTATION |
-|| styxfs.c | 2 | 🟡 wire format stub |
-|| styxfs_server.c | 0 | ✅ FULL IMPLEMENTATION (was stub) |
+## Top 20 Files by Gap Count
 
-### GUI (24 stubs across 3 files)
-
-|| File | Stubs | Status |
-||------|-------|--------|
-|| dosgui_wm.c | 10 | 🟡 input handling, HolyC terminal integration |
-|| dosgui_term.c | 6 | 🟡 tab/window ops |
-|| wubu_gamelib.c | 8 | 🟡 scan/rescan stubs |
-
-### HOSTED (13 stubs across 3 files)
-
-|| File | Stubs | Status |
-||------|-------|--------|
-|| wubu_metal.c | 8 | 🟡 GPU passthrough stubs |
-|| hosted.c | 2 | 🟡 9P callbacks |
-|| wubu_vulkan.c | 2 | 🟡 Vulkan loader stubs |
-
-### KERNEL (17 stubs across 4 files)
-
-|| File | Stubs | Status |
-||------|-------|--------|
-|| interrupt.c | 4 | 🟡 IOAPIC, deadline timer |
-|| ahci.c | 4 | 🟡 disk I/O stubs |
-|| fat32.c | 3 | 🟡 filesystem ops |
-|| txfs.c | 2 | 🟡 transaction FS ops |
-
-### APPS (22 stubs across 3 files)
-
-|| File | Stubs | Status |
-||------|-------|--------|
-|| wubu_editor.c | 9 | 🟡 undo/redo, find, folding, bookmarks |
-|| wubu_codec.c | 7 | 🟡 codec features |
-|| wubu_canvas.c | 5 | 🟡 layer ops, flood fill, filters, GIF |
-
-### BEAR (15 stubs)
-### BRIDGE (1 stub)
-### SHELL (2 stubs)
-### TOOLS (4 stubs)
-
-## Triple Devil's Advocate Comparison
-
-### vs SteamOS (Valve)
-
-|| Feature | SteamOS | WuBuOS | Gap |
-||---------|---------|--------|-----|
-|| pressure-vessel | Full container runtime | fork+chroot stub | REAL_GAP |
-|| gamescope | Micro-compositor | dosgui_wm (✅ working) | ✅ |
-|| GPU passthrough | /dev/dri bind-mount | wubu_metal.c stubs | REAL_GAP |
-|| proton-GE | Proton build system | wubu_proton.c (basic) | REAL_GAP |
-|| Gamescope nested | Wayland/X11 nested | partial | REAL_GAP |
-
-### vs Ubuntu/Debian
-
-|| Feature | Ubuntu | WuBuOS | Gap |
-||---------|--------|--------|-----|
-|| systemd | Full init system | wubu_archd (basic) | REAL_GAP |
-|| NetworkManager | Full net management | wubu_network.c (✅ full) | ✅ |
-|| udisks2 | Disk management | wubu_ramdisk.c (partial) | REAL_GAP |
-|| APT/dpkg | Package management | wubu_pkg.c (stub) | REAL_GAP |
-|| PulseAudio/PipeWire | Audio server | wubu_audio.c (partial) | REAL_GAP |
-|| Xorg/Wayland | Display server | vbe.c DRM/KMS (✅ working) | ✅ |
-
-### vs TempleOS
-
-|| Feature | TempleOS | WuBuOS | Gap |
-||---------|----------|--------|-----|
-|| HolyC JIT | Ring-0 JIT | holyc_codegen (✅ partial) | REAL_GAP |
-|| VBE direct HW | Direct hardware | vbe.c + DRM (✅ working) | ✅ |
-|| 9P namespace | Full Styx | styxfs_server.c (✅ working) | ✅ |
-|| RedSea FS | Native FS | fat32 (partial) + txfs (stub) | REAL_GAP |
-|| Ring-0 tasks | Kernel tasks | tasking (✅ partial) | REAL_GAP |
-|| BFE debugger | Full debugger | not started | REAL_GAP |
-|| DolDoc | Document format | not started | REAL_GAP |
-|| AutoComplete | Built-in | not started | REAL_GAP |
-|| GodDlg | Random verse | not started | REAL_GAP |
-|| ASM inline | Inline ASM | inline asm (✅ kernel) | ✅ |
-|| MPALL | Multi-processor | SMP (not started) | REAL_GAP |
-
-## Priority Tiers
-
-### Tier 1 — User-Facing (Must work for demo)
-1. wubu_oci.c — 17 functions (OCI runtime)
-2. wubu_bottles.c — 12 functions (Bottles import/export)
-3. wubu_image.c — 8 functions (image import/export)
-4. dosgui_wm.c — 10 functions (input handling)
-5. wubu_holyd.c — 12 functions (JIT eval, windows)
-
-### Tier 2 — Infrastructure (Must work for containers)
-1. wubu_vsl.c — 15 functions (syscalls)
-2. wubu_gc.c — 1 function (GC algorithm)
-3. wubu_ramdisk.c — 3 functions (snapshot/restore)
-4. wubu_archd.c — 0 functions (FULLY IMPLEMENTED)
-5. wubu_pkg.c — 6 functions (package registry)
-
-### Tier 3 — Polish (Features that make it usable)
-1. wubu_editor.c — 9 functions
-2. wubu_codec.c — 7 functions
-3. wubu_canvas.c — 5 functions
-4. wubu_gamelib.c — 8 functions
-5. wubu_proton2.c — 10 functions
-
-### Tier 4 — Bare Metal (HW access)
-1. interrupt.c — 4 functions
-2. ahci.c — 4 functions
-3. fat32.c — 3 functions
-4. txfs.c — 2 functions
-5. wubu_metal.c — 8 functions
-
-## DA Verdict: Too Good to Be True?
-
-**Claim**: "43/47 tests passing"
-**Reality**: Now 44/44 pass. All link errors and timeouts resolved.
-
-**Claim**: "115K LOC"
-**Reality**: Yes, `find src -name '*.c' -o -name '*.h'` counts 115,854 lines across 346 files
-- But ~24% of all functions are non-functional stubs
-- Actual effective LOC (functions that do real work) is closer to ~85-90K
-- CLAIM VERDICT: TRUE but inflated — includes stub lines, comment headers, empty bodies
-
-**Claim**: "Full network stack and snapshot system"
-**Reality**: wubu_network.c and wubu_snapshot.c have real implementations with 139+132=271 tests
-- They work for their tested scenarios (CRUD ops, branching, tagging)
-- Edge cases, error paths, and integration with other systems are untested
-- CLAIM VERDICT: TRUE — these are real implementations, not stubs
+1. **runtime/wubu_vsl.c** — 347 void casts in syscall handlers
+2. **bear/bear_cudnn.c** — 117 void casts in #else stub blocks
+3. **bridge/wubu_syscall.c** — 97 void casts + 2 system() calls
+4. **hosted/hosted.c** — 72 void casts in Wayland callbacks
+5. **gui/wubu_clipboard.c** — 43 void casts
+6. **kernel/interrupt.c** — 41 void casts
+7. **apps/wubu_canvas.c** — 41 void casts + 3 system()
+8. **gui/dosgui_explorer.c** — 31 void casts + placeholders
+9. **hosted/wubu_metal.c** — 31 void casts + 6 weak + stubs
+10. **compiler/holyc_codegen.c** — 29 placeholders (JIT backpatching)
+11. **bear/bear_vulkan.c** — 33 void casts
+12. **gui/dosgui_startmenu.c** — 24 void casts + 2 system()
+13. **gui/dosgui_term.c** — 23 void casts + placeholders
+14. **gui/dosgui_wm.c** — 22 void casts
+15. **apps/control.c** — 20 void casts
+16. **apps/dosgui_apps.c** — 16 void casts
+17. **runtime/styxfs.c** — 14 void casts
+18. **gui/wubu_pkgmgr_test.c** — 14 void casts + 9 system()
+19. **audio/wubu_audio.c** — 13 void casts + placeholders
+20. **bear/bear_env.c** — 13 void casts

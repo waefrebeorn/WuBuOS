@@ -1,9 +1,9 @@
-# WuBuOS Distro Roadmap — 2284-GAP Aligned
+# WuBuOS Distro Roadmap — 412 REAL_GAP Aligned (Triple DA Verified)
 
 ## Vision
 **Arch NT + Proton + HolyC DOS on modified Linux 6.x kernel — single hosted binary runs everywhere.**
 
-## Phase Map (Gap-Aligned)
+## Phase Map (DA-Gap-Aligned)
 
 ### PHASE 0: FOUNDATION ✅ DONE (Cells 200-425)
 - Hosted binary: Wayland + xdg-shell + SHM double-buffer
@@ -15,163 +15,103 @@
 - Container isolation: cgroups v2 (mem/cpu/pids) + seccomp-bpf profiles
 - Fable windowing agent: dosgui_wm, dosgui_desktop, dosgui_startmenu
 - VBE primitives: 64-glyph font, gradient/circle/shade/clip, window chrome
-- wubu_audio.c: 12 chip emulations
+- wubu_audio.c: 12 chip emulations [NOT IMPLEMENTED — ARCHITECTURAL GAP]
 - BearRL: cartpole physics, GAAD, PPO, holographic optimization
-- **GAPS REMAINING**: 2284 (this audit)
+- **GAPS REMAINING**: 412 (DA-verified)
 
 ### PHASE 1: RUNTIME CLOSURE (Cells 426-480) — CRITICAL TIER
-Target: Close 996 runtime gaps + 254 kernel gaps = 1250 gaps
+Target: Close 142 runtime gaps + 67 kernel gaps = 209 gaps
 
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 426 | wubu_oci.c — OCI Runtime | 84 | manifest, blob, config, registry HTTP, GC |
-| 427 | wubu_network.c — Netlink | 122 | bridge, macvlan, ipvlan, vxlan, wireguard, tailscale, QoS, DNS |
-| 428 | wubu_snapshot.c — Overlay FS | 82 | real mount/umount, dir_size, restore, branch/tag |
-| 429 | wubu_holyd.c — HolyC Daemon | 75 | mouse routing, session save/restore, event loop, accept fix |
-| 430 | wubu_vsl.c — Syscall Bridge | 72 | ELF PT_LOAD, fd delegation, syscall translation |
-| 431 | wubu_image.c — Image Builder | 67 | multi-stage build, layer cache, base images, export |
-| 432 | wubu_archd.c — Arch Daemon | 45 | root create, pacman ops, health, event publish |
-| 433 | wubu_bottles.c — Bottles Mgr | 38 | import/export/run, Flatpak/Steam compat |
-| 434 | wubu_exec.c — Exec Dispatcher | 35 | memfd_create, C compile, Mach-O, custom handlers |
-| 435 | wubu_proton.c — Proton Config | 52 | DXVK HUD/async/nvapi/present/memory, prefix |
-| 436 | wubu_proton2.c — Proton PE | 31 | GameScope, PE launch, GPU/HID/USB passthrough |
-| 437 | wubu_ramdisk.c — Ramdisk | 32 | create, snapshot, restore |
-| 438 | wubu_pkg.c — Package Registry | 26 | find, install, remove, update |
-| 439 | wubu_container.c — Container Ops | 13 | load, start, stop |
-| 440 | wubu_host_exec.c — Host Exec | 19 | bind, run, wait |
-| 441 | wubu_ct_isolate.c — Isolation | 24 | cgroups write, seccomp install, ns unshare |
-| 442 | wubu_arch.c — Arch Bootstrap | 16 | bootstrap, chroot, pacman init |
-| 443 | wubu_gc.c — Garbage Collector | 1 | collect |
-| 444 | styx.c — 9P Protocol | 52 | version, auth, walk, open, read, write, clunk, remove, stat, wstat |
-| 445 | styxfs.c — 9P Client | 41 | fid ops, walk, read, write, clunk |
-| 446 | styxfs_server.c — 9P Server | 44 | T-version, auth, walk, open, read, write, clunk, remove, stat, wstat |
-| 447 | wubu_freedoom.c — FreeDoom | 10 | launch, resume, save |
-| 448 | wubu_anticheat.c — Anti-Cheat | 19 | kernel load/unload, hooks, Wine/Proton config |
-| 449 | dosgui_daemon_panel.c — Bridge | 10 | subscribe, event handling, render |
+| Cell | Component | DA Gaps | Target |
+|------|-----------|---------|--------|
+| 426 | wubu_network.c — Netlink | 28 | bridge, macvlan, ipvlan, vxlan, wireguard, tailscale, QoS, DNS via netlink/ioctl |
+| 427 | wubu_oci.c — OCI Runtime | 31 | TLS (mbedTLS), streaming blob I/O, base64, registry auth refresh |
+| 428 | wubu_snapshot.c — Overlay FS | 24 | real mount/umount error handling, nftw() GC, btrfs/zfs native paths |
+| 429 | wubu_holyd.c — HolyC Daemon | 22 | snprintf dynamic alloc, void casts → real logic, eval/compile wired |
+| 430 | wubu_vsl.c — Syscall Bridge | 18 | ELF PT_LOAD iter, syscall handler impl, driver (Vulkan/CUDA/NET) wiring |
+| 431 | wubu_image.c — Image Builder | 12 | nftw() cleanup, multi-stage exec, base image fetch |
+| 432 | wubu_proton.c — Proton Config | 7 | fork+exec Wine launch, DXVK lib loading, prefix management |
+| 433 | wubu_archd.c — Arch Daemon | 0 | (functional — defensive returns only) |
+| 434 | wubu_bottles.c — Bottles Mgr | 0 | (functional — defensive returns only) |
+| 435 | wubu_exec.c — Exec Dispatcher | 0 | (functional) |
+| 436 | wubu_proton2.c — Proton PE | 0 | (functional — defensive returns only) |
+| 437 | wubu_ramdisk.c — Ramdisk | 0 | (functional — defensive returns only) |
 
-### PHASE 2: KERNEL CLOSURE (Cells 450-480) — CRITICAL TIER
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 450 | interrupt.c — ISR/IOAPIC/LAPIC | 111 | ISR assembly, IOAPIC routing, LAPIC timer, TSS |
-| 451 | fat32.c — Filesystem | 57 | open, read, write, create, unlink, mkdir, readdir |
-| 452 | tasking.c — Scheduler | 22 | spawn, kill, suspend, sleep, yield, priority, parent, queue walk |
-| 453 | memory.c — Heap | 15 | walk, validate, used, available, bloom, canaries |
-| 454 | ahci.c — Disk | 23 | port init, FIS recv, cmd, read, write |
-| 455 | txfs.c — Transactional FS | 18 | mount, journal, txn begin/commit |
-| 456 | vbe.c — Display | 6 | fill_rect, fill_circle, draw_text, swap, mode_set |
-| 457 | input.c — PS/2 | 7 | scancode, mouse packet, fifo, hooks |
-| 458 | ps2.c — PS/2 Driver | ? | keyboard, mouse init |
+### PHASE 2: KERNEL CLOSURE (Cells 481-520) — CRITICAL TIER
+Target: Close 67 kernel gaps
 
-### PHASE 3: GUI SHELL CLOSURE (Cells 480-520) — HIGH TIER
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 480 | dosgui_wm.c — Window Manager | 44 | input dispatch, holyc_term, create/destroy/focus/render |
-| 481 | wubu_proton.c — Proton GUI | 52 | DXVK config UI, prefix mgmt, env setup |
-| 482 | wubu_gamelib.c — Game Lib | 36 | scan, startmenu wiring, placeholder |
-| 483 | dosgui_explorer.c — Explorer | 22 | tree, breadcrumbs, list, preview, ops, context menu |
-| 484 | dosgui_term.c — Terminal | 24 | PTY, tabs, ANSI, scrollback, copy/paste, search |
-| 485 | dosgui_startmenu.c — StartMenu | 22 | search, recent, power, tree, shortcuts |
-| 486 | dosgui_desktop.c — Desktop | 6 | icons, wallpaper, tray, placeholder |
-| 487 | wubu_pkgmgr.c — Package Mgr GUI | 18 | header size/sign/crc, install UI |
-| 488 | wubu_mime.c — MIME System | 25 | command_exec, type detection |
-| 489 | wubu_wm.c — WM Core | 6 | invalidate, window ops |
-| 490 | dosgui_controlpanel.c — Settings | 13 | applets: display, network, sound, theme |
-| 491 | wubu_notify.c — Notifications | 6 | init, shutdown, tick, caps, count |
-| 492 | wubu_screenshot.c — Screenshot | 26 | region select, GIF, snip tool |
-| 493 | wubu_settings.c — Settings | 13 | font_scale, cursor_size, high_contrast |
-| 494 | wubu_clipboard.c — Clipboard | 20 | DND action, copy/paste |
-| 495 | wubu_session.c — Session Mgmt | 24 | hibernate, suspend, idle inhibit |
-| 496 | wubu_trash.c — Trash | 23 | get_size, operations |
+| Cell | Component | DA Gaps | Target |
+|------|-----------|---------|--------|
+| 481 | interrupt.c — IRQ Subsystem | 23 | CPUID for LAPIC, MSI/MSI-X, SYSCALL_STACK, TSC deadline, IOAPIC MSI |
+| 482 | fat32.c — Filesystem | 12 | LFN support, lfn_chk verify, cluster bitmap cache, pre-allocation |
+| 483 | txfs.c — Transactional FS | 10 | Atomic commit (rename), replay verification, auto-checkpoint |
+| 484 | ahci.c — SATA Driver | 8 | FIS receive setup, real PHY management, interrupt completion |
+| 485 | memory.c — Heap | 8 | Multi-region, alloc-time canary, fragmentation stats |
+| 486 | tasking.c — Scheduler | 6 | Priority scheduler, FPU/SSE save, preemption |
+| 487 | wubu_math.c — Libm | 8 | Taylor series → minimax, atan2 quadrant fix, Newton-Raphson iterations |
 
-### PHASE 4: BEAR RL CLOSURE (Cells 520-560) — HIGH TIER
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 520 | bear_nn.c — Neural Net | 46 | checkpoint save/load, layers, optimizers, zero_grad |
-| 521 | bear_vulkan.c — Vulkan Compute | 25 | forward, GAE, env step, pipelines, descriptors |
-| 522 | bear_cudnn.c — cuDNN | 40 | handle, conv, activation, pooling, softmax, workspace |
-| 523 | bear_cuda.c — CUDA | 24 | malloc/free, policy/value/GAE/n-pole kernels |
-| 524 | bear_vulkan_soft.c — CPU Fallback | 29 | GEMM, softmax, GAE, env step implementations |
-| 525 | bear_opt.c — Optimizer | 6 | zero_grads, step, LR schedule |
-| 526 | bear_ppo.c — PPO | 17 | V-trace, clip, entropy, value loss |
-| 527 | bear_gaad.c — GAAD | 1 | Q-learner integration |
-| 528 | bear_cartpole_gaad_solve.c — Cartpole | 7 | Q-update, strain level |
-| 529 | bear_env.c — Environments | 14 | n-pole, reset, step, render |
-| 530 | npole_blog.c — Lagrangian | 1 | Full implementation |
+### PHASE 3: GUI SHELL CLOSURE (Cells 521-560) — HIGH TIER
+Target: Close 89 GUI gaps
 
-### PHASE 5: HOSTED PLATFORM CLOSURE (Cells 560-600) — HIGH TIER
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 560 | wubu_vulkan.c — Vulkan | 51 | instance, device, swapchain, pipelines, memory |
-| 561 | wubu_metal.c — Metal/DRM | 34 | DRM/KMS, ALSA, Pulse, evdev, X11, GBM |
-| 562 | hosted.c — Hosted Main | 54 | Wayland frame, SHM, fs reset, display init |
-| 563 | wubu_drm_direct.c — DRM Direct | 15 | device open, resources, mode_set_crtc |
-| 564 | wubu_display.c — Display | 11 | init, modeset, page_flip |
-| 565 | wubu_gbm.c — GBM | 11 | buffer alloc, modifier, format |
+| Cell | Component | DA Gaps | Target |
+|------|-----------|---------|--------|
+| 521 | dosgui_wm.c — Window Manager | 28 | Badge buffer fix, snap-to-grid, focus config, edge resistance |
+| 522 | dosgui_explorer.c — File Manager | 18 | nftw() file ops, realpath error handling, find implementation |
+| 523 | dosgui_startmenu.c — Start Menu | 10 | Dynamic alloc, fs watcher for programs DB |
+| 524 | dosgui_desktop.c — Desktop | 12 | Wallpaper image load, icon auto-arrange, real FS watch |
+| 525 | dosgui_term.c — Terminal | 8 | ANSI parser, pty management, HolyC REPL session |
+| 526 | wubu_theme.c — Theme Engine | 5 | Theme file loading (INI/JSON), CSS parser, runtime customization |
+| 527 | wubu_notify.c — Notifications | 4 | Timeout dismissal, history, actions |
+| 528 | wubu_proton/gamelib.c — Game Lib | 4 | Steam/GOG/Epic API stubs |
 
-### PHASE 6: COMPILER & APPS (Cells 600-640) — MEDIUM TIER
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 600 | holyc_codegen.c — Codegen | 22 | stack args, multi-func, structs, ternary, calls |
-| 601 | holyc_ptx.c — PTX Backend | 13 | matrix tiles, runtime exec, MMA |
-| 602 | holyc_lexer.c — Lexer | 1 | return -1 paths |
-| 603 | jit/wubu_x86.c — X86 Encoder | 30 | instruction emitters |
-| 604 | jit/wubu_disasm.c — Disassembler | ? | decode, dump |
-| 605 | jit/jit_minic.c — Minic Compiler | 9 | tokenizer, parser, expr, if/while, locals |
-| 606 | wubu_editor.c — Editor | 27 | undo/redo, find, folding, bookmarks, macros |
-| 607 | wubu_canvas.c — Canvas | 39 | draw, filters, ops, undo/redo, resize/crop/flip |
-| 608 | wubu_codec.c — Codec | 34 | mount, video/audio decode/encode, seek |
-| 609 | explorer.c — Explorer App | 8 | context menu, F2-F8 ops |
-| 610 | terminal.c — Terminal App | 1 | resize |
-| 611 | wubu_freedoom.c — FreeDoom App | 10 | launch, resume, save |
+### PHASE 4: BEAR RL CLOSURE (Cells 561-580) — HIGH TIER
+Target: Close 54 Bear gaps
 
-### PHASE 7: AUDIO ENGINE (Cells 640-680) — MEDIUM TIER
-| Cell | Component | Gaps | Target |
-|------|-----------|------|--------|
-| 640 | wubu_audio.c — Audio Engine | 24 | SF2 sample playback, mixing, plugin API |
-| 641 | Furnace chips (12) | ? | NES, GB, YM2612, SN76489, SID, SAA1099, VRC6, N163, OPL, SCC, AY, PC Speaker |
-| 642 | TinySoundFont | ? | RIFF parse, samples, envelopes, modulators |
-| 643 | Ardour DAW integration | ? | transport, automation, LV2/VST3, JACK |
-| 644 | AI plugins | ? | neural synthesis, style transfer |
+| Cell | Component | DA Gaps | Target |
+|------|-----------|---------|--------|
+| 561 | bear_nn.c — Neural Net | 18 | Checkpoint save/load, SIMD/AVX, backward pass impl |
+| 562 | bear_ppo.c — PPO | 12 | V-Trace off-policy, GAE lambda, adaptive clip |
+| 563 | bear_vulkan.c — Vulkan Compute | 14 | Forward/GAE/env dispatch, pipeline composition |
+| 564 | bear_cudnn.c — cuDNN | 6 | Handle creation, conv/activation/pooling impl |
+| 565 | bear_vulkan_soft.c — CPU Fallback | 4 | API implementations |
 
-### PHASE 8: BARE METAL (Cells 680-720) — LOW TIER
-| Cell | Component | Target |
-|------|-----------|--------|
-| 680 | Modified Linux 6.x config (CONFIG_WUBU_*) | Kernel patches |
-| 681 | Limine bootloader + kernel cmdline | wubu.namespace=9p |
-| 682 | GPU init: DRM/KMS + GOP fallback | vbe.c metal path |
-| 683 | ACPI + PCIe + AHCI + NVMe | Hardware enumeration |
-| 684 | Real hardware: ISO build, USB install | Dual-boot support |
+### PHASE 5: HOSTED PLATFORM CLOSURE (Cells 581-600) — HIGH TIER
+Target: Close 38 Hosted gaps
 
-### PHASE 9: ECOSYSTEM (Cells 720+) — LOW TIER
-| Cell | Component | Target |
-|------|-----------|--------|
-| 720 | WuBuOS Repository | Signed packages, SBOM, reproducible |
-| 721 | Hardware certification | Like Ubuntu Certified |
-| 722 | ISV outreach | Game studios, CAD, DAW, AI vendors |
-| 723 | Documentation | Wiki, tutorials, API reference |
-| 724 | Community | Discord, forums, package maintainers |
+| Cell | Component | DA Gaps | Target |
+|------|-----------|---------|--------|
+| 581 | wubu_drm_direct.c — DRM/KMS | 14 | Atomic commit, planes, modifiers, hotplug/EDID, autogenerated uAPI |
+| 582 | wubu_vulkan.c — Vulkan Loader | 10 | Loader API chaining, multi-GPU scoring, surface init, swapchain recreate |
+| 583 | wubu_metal.c — Metal Abstraction | 8 | DRM/ALSA/Pulse/X11 shutdown impl, GAAD integration |
+| 584 | wubu_gbm.c — GBM | 3 | Modifiers, multi-planar, format negotiation |
+| 585 | hosted.c — Hosted Binary | 3 | Styx 9P dir read/write impl |
 
-## Gap Closure Velocity Target
+### PHASE 6: COMPILER & APPS (Cells 601-620) — MEDIUM TIER
+Target: Close 9 Compiler + 13 Apps gaps
 
-| Week | Target Gaps Closed | Cumulative |
-|------|-------------------|------------|
-| 1-2 | 200 (OCI + Network + Snapshot) | 200 |
-| 3-4 | 200 (HolyD + VSL + Image) | 400 |
-| 5-6 | 200 (ArchD + Bottles + Exec + Proton) | 600 |
-| 7-8 | 200 (Interrupt + FAT32 + Tasking) | 800 |
-| 9-10 | 200 (GUI WM + Explorer + Terminal) | 1000 |
-| 11-12 | 200 (Bear NN + Vulkan + cuDNN) | 1200 |
-| 13-14 | 200 (Hosted Vulkan + Metal) | 1400 |
-| 15-16 | 200 (Compiler + Apps) | 1600 |
-| 17-18 | 200 (Audio + remaining) | 1800 |
-| 19-20 | 200 (Bare metal prep) | 2000 |
-| 21-22 | 284 (Final closure) | 2284 |
+| Cell | Component | DA Gaps | Target |
+|------|-----------|---------|--------|
+| 601 | holyc_codegen.c — Codegen | 5 | Robust rel32 patching, label management |
+| 602 | holyc_ptx.c — PTX Backend | 4 | Shared memory tiling, CUDA driver init, kernel launch |
+| 603 | wubu_editor.c — Editor | 5 | Code folding, parser-based highlight, regex search |
+| 604 | wubu_canvas.c — Canvas | 4 | Drawing primitives, filters, canvas ops |
+| 605 | wubu_codec.c — Codec | 2 | FFmpeg/libav integration |
+| 606 | control/explorer/calc — Shutdown | 2 | Real shutdown logic |
 
-## Success Criteria
-- [ ] 2284 → 0 REAL_GAPs
-- [ ] All 58 test targets passing
-- [ ] Hosted binary runs on Linux, WSL2, macOS AVF
-- [ ] Steam + Proton + games work in containers
-- [ ] HolyC DOS terminal spawns as GUI window
-- [ ] GPU compute from HolyC (PTX → Tensor cores)
-- [ ] Audio DAW + 12 chip emulations functional
+### PHASE 7: ARCHITECTURAL GAPS (Entire Subsystems) — STRATEGIC
+These are NOT in the 412 — they require new subsystems:
+
+| Cell | Subsystem | Components | Effort |
+|------|-----------|------------|--------|
+| 701 | Audio Engine | Furnace (12 chips), SF2 parser, Ardour DAW, AI plugins | ~2000 LOC |
+| 702 | SteamOS Integration | Steam client, Proton, gamescope, Pressure Vessel, Shader cache | ~5000 LOC |
+| 703 | Ubuntu/Arch Integration | systemd, apt/pacman, NetworkManager, D-Bus, PipeWire, Polkit | ~5000 LOC |
+| 704 | TempleOS Soul | HolyC JIT, Doc/DolDoc, Compiler-as-library, RedSea FS | ~3000 LOC |
+
+---
+
+## DA Rule
+**"Rewriting from scratch in C" = the work.**
+- Each cell above = one or more REAL_GAPs from BATTLESHIP.md v14
+- Pick ONE cell, close its gaps, run tests, move to next
+- 412 → 0 is the victory condition

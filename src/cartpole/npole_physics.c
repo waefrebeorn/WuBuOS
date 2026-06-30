@@ -214,6 +214,13 @@ static void npole_compute_accel_chain(NPolePhysics* phys, double force, double* 
         F[0] += mi * lci * thd_i * thd_i * sin_thi;
     }
     
+    /* Add diagonal regularization to mass matrix for numerical stability
+     * when poles are near horizontal (cos θ ≈ 0) making M ill-conditioned */
+    const double REG_EPS = 1e-4;
+    for (int i = 0; i < N; ++i) {
+        M[i * N + i] += REG_EPS;
+    }
+    
     double A[121], b[11];
     memcpy(A, M, N * N * sizeof(double));
     memcpy(b, F, N * sizeof(double));
@@ -253,10 +260,24 @@ static void npole_step_semi_implicit(NPolePhysics* phys, double force) {
     /* Semi-implicit: velocities first, then positions */
     phys->qd[0] += phys->dt * qdd[0];
     phys->q[0] += phys->dt * phys->qd[0];
+    
+    /* Velocity clamping and angle wrapping for stability */
+    const double MAX_ANG_VEL = 50.0;  /* rad/s */
+    const double MAX_CART_VEL = 20.0; /* m/s */
+    
+    if (phys->qd[0] > MAX_CART_VEL) phys->qd[0] = MAX_CART_VEL;
+    if (phys->qd[0] < -MAX_CART_VEL) phys->qd[0] = -MAX_CART_VEL;
+    
     for (int i = 1; i <= phys->n; ++i) {
         phys->qd[i] += phys->dt * qdd[i];
+        if (phys->qd[i] > MAX_ANG_VEL) phys->qd[i] = MAX_ANG_VEL;
+        if (phys->qd[i] < -MAX_ANG_VEL) phys->qd[i] = -MAX_ANG_VEL;
         phys->q[i] += phys->dt * phys->qd[i];
+        /* Wrap angles to [-π, π] for numerical stability */
+        while (phys->q[i] > M_PI) phys->q[i] -= 2 * M_PI;
+        while (phys->q[i] < -M_PI) phys->q[i] += 2 * M_PI;
     }
+    phys->q[0] += phys->dt * phys->qd[0];
 }
 
 /* -------------------------- RK4 (for single-pole only) -------------------------- */
