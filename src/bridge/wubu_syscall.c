@@ -20,6 +20,30 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <signal.h>
+#include <sys/prctl.h>
+
+/* -- File fd tracking for sys_file_* handlers -- */
+static int g_file_fd_map[256] = {0};
+static int g_file_fd_count = 0;
+
+/* -- Styx fd tracking -- */
+static struct {
+    int fd;
+    off_t offset;
+} g_styx_fds[256] = {{0}};
+static int g_styx_fd_count = 0;
+
+/* -- Container tracking -- */
+static struct {
+    int id;
+    pid_t pid;
+    char name[64];
+    char args[256];
+    char env[256];
+} g_containers[32] = {{0}};
+static int g_container_count = 0;
 
 /* ══════════════════════════════════════════════════════════════════
  * Kernel Syscall Handlers
@@ -121,162 +145,255 @@ int64_t sys_wm_render(int64_t _unused, int64_t _unused2, int64_t _unused3, int64
     return 0;
 }
 
-/* -- File Handlers (stubs for now, delegate to Styx) --------------- */
+/* -- File Handlers (fd-based I/O) ---------------------------------- */
 
 int64_t sys_file_open(int64_t path_ptr, int64_t mode, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4) {
-    (void)mode; (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4;
-    const char *path = (const char *)path_ptr;
-    FILE *f = fopen(path, (mode & 1) ? "r" : (mode & 2) ? "w" : "r");
-    return f ? (int64_t)f : -1;
-}
-
-int64_t sys_file_read(int64_t fd, int64_t buf_ptr, int64_t len, int64_t _unused, int64_t _unused2, int64_t _unused3) {
-    (void)_unused; (void)_unused2; (void)_unused3;
-    FILE *f = (FILE *)fd;
-    if (!f) return -1;
-    size_t r = fread((void *)buf_ptr, 1, (size_t)len, f);
-    return (int64_t)r;
-}
-
-int64_t sys_file_write(int64_t fd, int64_t buf_ptr, int64_t len, int64_t _unused, int64_t _unused2, int64_t _unused3) {
-    (void)_unused; (void)_unused2; (void)_unused3;
-    FILE *f = (FILE *)fd;
-    if (!f) return -1;
-    size_t r = fwrite((const void *)buf_ptr, 1, (size_t)len, f);
-    return (int64_t)r;
-}
-
-int64_t sys_file_close(int64_t fd, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4, int64_t _unused5) {
-    (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4; (void)_unused5;
-    FILE *f = (FILE *)fd;
-    if (!f) return -1;
-    return fclose(f) == 0 ? 0 : -1;
-}
-
-/* -- Styx Handlers ------------------------------------------------ */
-
-int64_t sys_styx_open(int64_t path_ptr, int64_t mode, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4) {
-    (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4;
     const char *path = (const char *)path_ptr;
     if (!path) return -1;
 
-    /* Translate Styx open flags to host open flags */
-    int host_flags = 0;
+    int flags = 0;
     switch (mode & 0x03) {
-        case 0: host_flags = O_RDONLY; break;       /* STX_OREAD */
-        case 1: host_flags = O_WRONLY; break;       /* STX_OWRITE */
-        case 2: host_flags = O_RDWR; break;         /* STX_ORDWR */
-        case 3: host_flags = O_RDONLY; break;       /* STX_OEXEC -> read */
+        case 0: flags = O_RDONLY; break;      /* read */
+        case 1: flags = O_WRONLY | O_CREAT | O_TRUNC; break;  /* write */
+        case 2: flags = O_RDWR | O_CREAT; break;  /* read-write */
+        default: flags = O_RDONLY; break;
     }
-    if (mode & STX_OTRUNC) host_flags |= O_TRUNC;
+    if (mode & 0x08) flags |= O_APPEND;  /* append mode */
 
-    int fd = open(path, host_flags, 0644);
+    int fd = open(path, flags, 0644);
     if (fd < 0) return -1;
-    return (int64_t)fd;
+
+    /* Map to internal fd index */
+    if (g_file_fd_count >= 256) {
+        close(fd);
+        return -1;
+    }
+    g_file_fd_map[g_file_fd_count] = fd;
+    return (int64_t)g_file_fd_count++;
+}
+
+int64_t sys_file_read(int64_t fd_idx, int64_t buf_ptr, int64_t len, int64_t _unused, int64_t _unused2, int64_t _unused3) {
+    if (fd_idx < 0 || fd_idx >= g_file_fd_count) return -1;
+    int fd = g_file_fd_map[fd_idx];
+    if (fd < 0) return -1;
+    if (!buf_ptr || len <= 0) return -1;
+
+    ssize_t r = read(fd, (void *)buf_ptr, (size_t)len);
+    return r < 0 ? -1 : (int64_t)r;
+}
+
+int64_t sys_file_write(int64_t fd_idx, int64_t buf_ptr, int64_t len, int64_t _unused, int64_t _unused2, int64_t _unused3) {
+    if (fd_idx < 0 || fd_idx >= g_file_fd_count) return -1;
+    int fd = g_file_fd_map[fd_idx];
+    if (fd < 0) return -1;
+    if (!buf_ptr || len <= 0) return -1;
+
+    ssize_t r = write(fd, (const void *)buf_ptr, (size_t)len);
+    return r < 0 ? -1 : (int64_t)r;
+}
+
+int64_t sys_file_close(int64_t fd_idx, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4, int64_t _unused5) {
+    if (fd_idx < 0 || fd_idx >= g_file_fd_count) return -1;
+    int fd = g_file_fd_map[fd_idx];
+    if (fd < 0) return -1;
+
+    int rc = close(fd);
+    g_file_fd_map[fd_idx] = -1;
+    return rc == 0 ? 0 : -1;
+}
+
+/* -- Styx Handlers (with fd offset tracking) ---------------------- */
+
+int64_t sys_styx_open(int64_t path_ptr, int64_t mode, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4) {
+    const char *path = (const char *)path_ptr;
+    if (!path) return -1;
+
+    int flags = 0;
+    switch (mode & 0x03) {
+        case 0: flags = O_RDONLY; break;       /* STX_OREAD */
+        case 1: flags = O_WRONLY; break;       /* STX_OWRITE */
+        case 2: flags = O_RDWR; break;         /* STX_ORDWR */
+        case 3: flags = O_RDONLY; break;       /* STX_OEXEC -> read */
+    }
+    if (mode & 0x08) flags |= O_TRUNC;  /* STX_OTRUNC */
+
+    int fd = open(path, flags, 0644);
+    if (fd < 0) return -1;
+
+    if (g_styx_fd_count >= 256) {
+        close(fd);
+        return -1;
+    }
+    g_styx_fds[g_styx_fd_count].fd = fd;
+    g_styx_fds[g_styx_fd_count].offset = 0;
+    return (int64_t)g_styx_fd_count++;
 }
 
 int64_t sys_styx_read(int64_t fid, int64_t offset, int64_t count, int64_t buf_ptr, int64_t _unused, int64_t _unused2) {
-    (void)offset; (void)_unused; (void)_unused2;
-    int fd = (int)fid;
-    void *buf = (void *)buf_ptr;
-    if (fd < 0 || !buf || count <= 0) return -1;
+    if (fid < 0 || fid >= g_styx_fd_count) return -1;
+    int fd = g_styx_fds[fid].fd;
+    if (fd < 0) return -1;
+    if (!buf_ptr || count <= 0) return -1;
 
-    /* Seek to offset if specified */
-    if (offset > 0) {
-        lseek(fd, (off_t)offset, SEEK_SET);
+    if (offset >= 0) {
+        g_styx_fds[fid].offset = lseek(fd, (off_t)offset, SEEK_SET);
+        if (g_styx_fds[fid].offset < 0) return -1;
     }
 
-    ssize_t n = read(fd, buf, (size_t)count);
+    ssize_t n = read(fd, (void *)buf_ptr, (size_t)count);
     if (n < 0) return -1;
+    g_styx_fds[fid].offset += n;
     return (int64_t)n;
 }
 
 int64_t sys_styx_write(int64_t fid, int64_t offset, int64_t count, int64_t buf_ptr, int64_t _unused, int64_t _unused2) {
-    (void)offset; (void)_unused; (void)_unused2;
-    int fd = (int)fid;
-    const void *buf = (const void *)buf_ptr;
-    if (fd < 0 || !buf || count <= 0) return -1;
+    if (fid < 0 || fid >= g_styx_fd_count) return -1;
+    int fd = g_styx_fds[fid].fd;
+    if (fd < 0) return -1;
+    if (!buf_ptr || count <= 0) return -1;
 
-    /* Seek to offset if specified */
-    if (offset > 0) {
-        lseek(fd, (off_t)offset, SEEK_SET);
+    if (offset >= 0) {
+        g_styx_fds[fid].offset = lseek(fd, (off_t)offset, SEEK_SET);
+        if (g_styx_fds[fid].offset < 0) return -1;
     }
 
-    ssize_t n = write(fd, buf, (size_t)count);
+    ssize_t n = write(fd, (const void *)buf_ptr, (size_t)count);
     if (n < 0) return -1;
+    g_styx_fds[fid].offset += n;
     return (int64_t)n;
 }
 
 /* -- Container Handlers ------------------------------------------- */
 
 int64_t sys_container_create(int64_t name_ptr, int64_t args_ptr, int64_t env_ptr, int64_t _unused, int64_t _unused2, int64_t _unused3) {
-    (void)_unused; (void)_unused2; (void)_unused3;
     const char *name = (const char *)name_ptr;
     const char *args = (const char *)args_ptr;
     const char *env = (const char *)env_ptr;
     if (!name || name[0] == '\0') return -1;
 
-    /* Build a container creation command using wubu_ct_bwrap */
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd), "wubu_ct_bwrap create --name %s", name);
+    if (g_container_count >= 32) return -1;
+
+    int container_id = g_container_count;
+    g_containers[container_id].id = container_id;
+    g_containers[container_id].pid = 0;
+    strncpy(g_containers[container_id].name, name, 63);
+    g_containers[container_id].name[63] = '\0';
+    if (args && args[0]) {
+        strncpy(g_containers[container_id].args, args, 255);
+    } else {
+        g_containers[container_id].args[0] = '\0';
+    }
+    if (env && env[0]) {
+        strncpy(g_containers[container_id].env, env, 255);
+    } else {
+        g_containers[container_id].env[0] = '\0';
+    }
+
+    /* Build bwrap command */
+    char *bwrap_argv[64];
+    int argc = 0;
+    bwrap_argv[argc++] = "bwrap";
+    bwrap_argv[argc++] = "--ro-bind";
+    bwrap_argv[argc++] = "/";
+    bwrap_argv[argc++] = "/";
+    bwrap_argv[argc++] = "--proc";
+    bwrap_argv[argc++] = "/proc";
+    bwrap_argv[argc++] = "--dev";
+    bwrap_argv[argc++] = "/dev";
+    bwrap_argv[argc++] = "--tmpfs";
+    bwrap_argv[argc++] = "/tmp";
+    bwrap_argv[argc++] = "--unshare-all";
+    bwrap_argv[argc++] = "--die-with-parent";
 
     if (args && args[0]) {
-        strncat(cmd, " --args '", sizeof(cmd) - strlen(cmd) - 1);
-        strncat(cmd, args, sizeof(cmd) - strlen(cmd) - 1);
-        strncat(cmd, "'", sizeof(cmd) - strlen(cmd) - 1);
+        bwrap_argv[argc++] = "/bin/sh";
+        bwrap_argv[argc++] = "-c";
+        bwrap_argv[argc++] = args;
+    } else {
+        bwrap_argv[argc++] = "/bin/sh";
+    }
+    bwrap_argv[argc] = NULL;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        return -1;
     }
 
-    if (env && env[0]) {
-        strncat(cmd, " --env '", sizeof(cmd) - strlen(cmd) - 1);
-        strncat(cmd, env, sizeof(cmd) - strlen(cmd) - 1);
-        strncat(cmd, "'", sizeof(cmd) - strlen(cmd) - 1);
+    if (pid == 0) {
+        /* CHILD: exec bwrap */
+        execvp("bwrap", bwrap_argv);
+        _exit(127);
     }
 
-    strncat(cmd, " 2>/dev/null", sizeof(cmd) - strlen(cmd) - 1);
+    /* PARENT */
+    g_containers[container_id].pid = pid;
+    g_container_count++;
 
-    int rc = system(cmd);
-    if (rc != 0) {
-        /* Fallback: create a container directory structure directly */
-        char path[1024];
-        snprintf(path, sizeof(path), "/tmp/wubu-containers/%s", name);
-        if (mkdir(path, 0755) != 0 && errno != EEXIST) return -1;
-        snprintf(path, sizeof(path), "/tmp/wubu-containers/%s/rootfs", name);
-        if (mkdir(path, 0755) != 0 && errno != EEXIST) return -1;
-    }
-
-    /* Return a fake container ID (hash of name) */
-    unsigned long h = 5381;
-    for (const char *p = name; *p; p++) h = ((h << 5) + h) + (unsigned char)*p;
-    return (int64_t)(h & 0x7FFFFFFF);
+    return (int64_t)container_id;
 }
 
 int64_t sys_container_destroy(int64_t id, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4, int64_t _unused5) {
-    (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4; (void)_unused5;
-    /* Find and destroy container by ID - for now just return success for valid ID */
-    if (id <= 0) return -1;
-    /* In real implementation, we'd look up container by ID and call wubu_ct_destroy */
+    if (id < 0 || id >= g_container_count) return -1;
+    if (g_containers[id].id != id) return -1;
+
+    pid_t pid = g_containers[id].pid;
+    if (pid > 0) {
+        kill(pid, SIGTERM);
+        int status;
+        waitpid(pid, &status, 0);
+    }
+
+    g_containers[id].id = -1;
+    g_containers[id].pid = 0;
     return 0;
 }
 
 int64_t sys_container_exec(int64_t id, int64_t cmd_ptr, int64_t args_ptr, int64_t _unused, int64_t _unused2, int64_t _unused3) {
-    (void)_unused; (void)_unused2; (void)_unused3;
-    if (id <= 0) return -1;
+    if (id < 0 || id >= g_container_count) return -1;
+    if (g_containers[id].id != id) return -1;
+
     const char *cmd = (const char *)cmd_ptr;
     const char *args = (const char *)args_ptr;
     if (!cmd || !cmd[0]) return -1;
 
-    /* Find container by ID and execute command inside it */
-    /* For now, we need a container registry - use system call as fallback */
-    char syscmd[1024];
-    snprintf(syscmd, sizeof(syscmd), "wubu_ct_bwrap exec --id %ld --cmd '%s'", (long)id, cmd);
+    pid_t pid = g_containers[id].pid;
+    if (pid <= 0) return -1;
+
+    /* For exec inside running container, we use nsenter or bwrap again
+     * For simplicity, we'll run a new bwrap command with the same namespace */
+    char *bwrap_argv[64];
+    int argc = 0;
+    bwrap_argv[argc++] = "bwrap";
+    bwrap_argv[argc++] = "--ro-bind";
+    bwrap_argv[argc++] = "/";
+    bwrap_argv[argc++] = "/";
+    bwrap_argv[argc++] = "--proc";
+    bwrap_argv[argc++] = "/proc";
+    bwrap_argv[argc++] = "--dev";
+    bwrap_argv[argc++] = "/dev";
+
+    bwrap_argv[argc++] = "/bin/sh";
+    bwrap_argv[argc++] = "-c";
     if (args && args[0]) {
-        strncat(syscmd, " --args '", sizeof(syscmd) - strlen(syscmd) - 1);
-        strncat(syscmd, args, sizeof(syscmd) - strlen(syscmd) - 1);
-        strncat(syscmd, "'", sizeof(syscmd) - strlen(syscmd) - 1);
+        char full_cmd[512];
+        snprintf(full_cmd, sizeof(full_cmd), "%s %s", cmd, args);
+        bwrap_argv[argc++] = full_cmd;
+    } else {
+        bwrap_argv[argc++] = cmd;
     }
-    strncat(syscmd, " 2>/dev/null", sizeof(syscmd) - strlen(syscmd) - 1);
-    int rc = system(syscmd);
-    return rc == 0 ? 0 : -1;
+    bwrap_argv[argc] = NULL;
+
+    pid_t child = fork();
+    if (child < 0) return -1;
+
+    if (child == 0) {
+        execvp("bwrap", bwrap_argv);
+        _exit(127);
+    }
+
+    int status;
+    waitpid(child, &status, 0);
+    return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 }
 
 /* -- Utility Handlers --------------------------------------------- */

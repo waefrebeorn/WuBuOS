@@ -41,11 +41,20 @@ static int mkdir_p(const char *path, mode_t mode) {
     return 0;
 }
 
-/* -- Helper: run command ------------------------------------------ */
+/* -- Helper: run command via fork+exec (no system()) ---------------- */
 
 static int run_cmd(const char *cmd) {
-    int ret = system(cmd);
-    if (WIFEXITED(ret)) return WEXITSTATUS(ret);
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+
+    if (pid == 0) {
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(127);
+    }
+
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status)) return WEXITSTATUS(status);
     return -1;
 }
 

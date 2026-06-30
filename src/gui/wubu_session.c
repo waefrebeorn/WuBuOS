@@ -420,10 +420,24 @@ void wubu_session_process(void) {
             break;
         case SESSION_ACTION_SUSPEND:
             /* Suspend to RAM */
-            system("systemctl suspend");
+            {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    execlp("systemctl", "systemctl", "suspend", (char*)NULL);
+                    _exit(1);
+                }
+                waitpid(pid, NULL, 0);
+            }
             break;
         case SESSION_ACTION_HIBERNATE:
-            system("systemctl hibernate");
+            {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    execlp("systemctl", "systemctl", "hibernate", (char*)NULL);
+                    _exit(1);
+                }
+                waitpid(pid, NULL, 0);
+            }
             break;
         default:
             break;

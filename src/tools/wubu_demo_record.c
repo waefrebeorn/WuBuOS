@@ -114,6 +114,9 @@ int main(int argc, char **argv) {
         /* Render desktop */
         dosgui_desktop_render(vbe_state()->fb, width, height);
         
+        /* Swap back buffer to front buffer */
+        vbe_swap();
+        
         /* Simulate interactions at specific frames */
         if (frame == 30) {
             /* Click on start button area */

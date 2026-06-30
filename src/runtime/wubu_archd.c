@@ -12,6 +12,7 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#define _GNU_SOURCE
 
 #include "wubu_archd.h"
 #include "wubu_arch.h"
@@ -32,6 +33,61 @@
 #include <dirent.h>
 #include <time.h>
 #include <libgen.h>
+#include <ftw.h>
+
+/* -- Recursive directory removal (replaces system("rm -rf")) -------- */
+
+static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
+    (void)sb; (void)typeflag; (void)ftwbuf;
+    return unlink(fpath) == 0 ? 0 : -1;
+}
+
+static int rm_rf(const char *path) {
+    if (!path) return -1;
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
+
+/* -- Helper: run command via fork+exec (no system()) ---------------- */
+
+static int run_cmd(const char *cmd) {
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+
+    if (pid == 0) {
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(127);
+    }
+
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    return -1;
+}
+
+/* -- Helper: run command in chroot via fork+exec -------------------- */
+
+static int run_chroot_cmd(const char *root, const char *fmt, ...) {
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(cmd, sizeof(cmd), fmt, args);
+    va_end(args);
+    
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    
+    if (pid == 0) {
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(127);
+    }
+    
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    return -1;
+}
 
 /* -- String Tables ----------------------------------------------- */
 
@@ -291,9 +347,7 @@ int wubu_archd_root_destroy(WubuArchd *d, const char *name) {
             r->state = ROOT_STATE_DEACTIVATING;
             archd_log(d, 2, "Destroying root '%s' at %s", name, r->path);
             /* Remove directory tree */
-            char cmd[WUBU_ARCHD_MAX_PATH + 64];
-            snprintf(cmd, sizeof(cmd), "rm -rf %s", r->path);
-            int ret = system(cmd);
+            int ret = rm_rf(r->path);
             /* Remove from array */
             memmove(&d->roots[i], &d->roots[i + 1],
                     (d->root_count - i - 1) * sizeof(WubuArchdRoot));
@@ -335,11 +389,8 @@ int wubu_archd_pkg_install(WubuArchd *d, const char *root, const char *packages)
 int wubu_archd_pkg_remove(WubuArchd *d, const char *root, const char *packages) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s pacman -R --noconfirm %s",
-             r.path, packages);
     archd_log(d, 2, "Removing packages from '%s': %s", root, packages);
-    return system(cmd);
+    return run_chroot_cmd(r.path, "pacman -R --noconfirm %s", packages);
 }
 
 int wubu_archd_pkg_update(WubuArchd *d, const char *root) {
@@ -380,37 +431,25 @@ int wubu_archd_svc_enable(WubuArchd *d, const char *root, const char *svc) {
 int wubu_archd_svc_disable(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s systemctl disable %s 2>/dev/null",
-             r.path, svc);
-    return system(cmd);
+    return run_chroot_cmd(r.path, "arch-chroot %s systemctl disable %s 2>/dev/null", r.path, svc);
 }
 
 int wubu_archd_svc_start(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s systemctl start %s 2>/dev/null",
-             r.path, svc);
-    return system(cmd);
+    return run_chroot_cmd(r.path, "arch-chroot %s systemctl start %s 2>/dev/null", r.path, svc);
 }
 
 int wubu_archd_svc_stop(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s systemctl stop %s 2>/dev/null",
-             r.path, svc);
-    return system(cmd);
+    return run_chroot_cmd(r.path, "arch-chroot %s systemctl stop %s 2>/dev/null", r.path, svc);
 }
 
 int wubu_archd_svc_restart(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s systemctl restart %s 2>/dev/null",
-             r.path, svc);
-    return system(cmd);
+    return run_chroot_cmd(r.path, "arch-chroot %s systemctl restart %s 2>/dev/null", r.path, svc);
 }
 
 int wubu_archd_svc_status(WubuArchd *d, const char *root, const char *svc,

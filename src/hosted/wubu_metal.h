@@ -205,6 +205,8 @@ typedef struct {
 
     /* PulseAudio / PipeWire */
     void            *pa_handle;      /* pa_context* */
+    void            *pw_stream;      /* pw_stream* */
+    /* struct pw_stream_events pw_listener;  // Incomplete type without headers */
 
     /* Ring buffer for GUI audio */
     float           *render_buf;
@@ -306,6 +308,26 @@ int  wubu_wsl2_audio_init(void);
 /* Get WSLg socket paths */
 const char *wubu_wsl2_wayland_path(void);
 const char *wubu_wsl2_pulse_path(void);
+
+/* ==================================================================
+ *  API: Vulkan Surface Creation
+ * ================================================================== */
+
+#ifdef WUBU_USE_VULKAN
+#include <vulkan/vulkan.h>
+
+/* X11 surface creation */
+VkResult wubu_vk_create_xlib_surface(VkInstance instance, Display *dpy, Window window, VkSurfaceKHR *surface);
+
+/* Wayland surface creation */
+VkResult wubu_vk_create_wayland_surface(VkInstance instance, struct wl_display *display, struct wl_surface *surface, VkSurfaceKHR *vk_surface);
+
+/* DRM/KMS display plane surface creation (bare-metal) */
+VkResult wubu_vk_create_display_plane_surface(VkInstance instance, VkDisplayModeKHR display_mode, VkDisplayPlaneAlphaFlagKHR alpha, VkExtent2D *image_extent, VkSurfaceKHR *surface);
+
+/* Unified surface creation based on current backend */
+VkResult wubu_vk_create_surface(VkInstance instance, VkSurfaceKHR *surface);
+#endif
 
 /* ==================================================================
  *  API: Bare-Metal Boot

@@ -152,6 +152,17 @@ static void test_index(void) {
     rc = oci_index_to_json(&index, json, sizeof(json));
     CHECK(rc == 0, "to json");
     CHECK(strstr(json, "x86_64") != NULL, "contains arch");
+
+    /* Test from_json roundtrip */
+    OciImageIndex index2;
+    rc = oci_index_from_json(json, &index2);
+    CHECK(rc == 0, "from json");
+    CHECK(index2.manifest_count == index.manifest_count, "manifest count roundtrip");
+    CHECK(strcmp(index2.media_type, index.media_type) == 0, "media type roundtrip");
+    CHECK(strcmp(index2.manifests[0].digest, index.manifests[0].digest) == 0, "digest roundtrip");
+    CHECK(strcmp(index2.platforms[0].architecture, index.platforms[0].architecture) == 0, "arch roundtrip");
+    CHECK(strcmp(index2.platforms[0].os, index.platforms[0].os) == 0, "os roundtrip");
+
     PASS();
 }
 

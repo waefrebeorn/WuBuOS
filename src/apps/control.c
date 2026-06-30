@@ -22,19 +22,6 @@
 #define CTRL_WIN_W      520
 #define CTRL_WIN_H      440
 #define CTRL_TAB_H      24
-#define CTRL_TAB_COUNT  9
-
-typedef enum {
-    CTRL_DISPLAY = 0,
-    CTRL_THEME,
-    CTRL_DESKTOP,
-    CTRL_TASKBAR,
-    CTRL_INPUT,
-    CTRL_STARTUP,
-    CTRL_CONTAINERS,
-    CTRL_NETWORK,
-    CTRL_ABOUT,
-} CtrlTab;
 
 typedef struct {
     int active_tab;
@@ -54,19 +41,19 @@ static void ctrl_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
     int tab_w = 56;
 
     for (int i = 0; i < CTRL_TAB_COUNT; i++) {
-        int tx = x + i * tab_w;
+        int tx = x + i * 56;
         int active = (i == g_ctrl.active_tab);
         uint32_t bg = active ? tc->select_bg : tc->btn_face;
-        vbe_fill_rect(tx, y, tab_w, CTRL_TAB_H, bg);
-        if (active) vbe_3d_sunken_colors(tx, y, tab_w, CTRL_TAB_H,
+        vbe_fill_rect(tx, y, 56, CTRL_TAB_H, bg);
+        if (active) vbe_3d_sunken_colors(tx, y, 56, CTRL_TAB_H,
                                           tc->border_light, tc->border_face,
                                           tc->border_dark, tc->border_darkest);
-        else vbe_3d_raised_colors(tx, y, tab_w, CTRL_TAB_H,
+        else vbe_3d_raised_colors(tx, y, 56, CTRL_TAB_H,
                                    tc->border_light, tc->border_face,
                                    tc->border_dark, tc->border_darkest);
 
         if (i == g_ctrl.hover_tab && !active) {
-            vbe_rect(tx, y, tab_w, CTRL_TAB_H, tc->btn_hover);
+            vbe_rect(tx, y, 56, CTRL_TAB_H, tc->btn_hover);
         }
     }
 
@@ -81,64 +68,278 @@ static void ctrl_draw_display_tab(WmWindow *win) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int x = win->x + 8;
     int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int line_h = 24;
 
-    vbe_fill_rect(x, y, 200, 20, tc->win_title_active);
-    /* Resolution dropdown, wallpaper picker, refresh rate */
-    (void)win;
+    /* Resolution */
+    vbe_draw_text(x, y, "Display Resolution:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Width:", tc->btn_text, 1);
+    vbe_draw_text(x + 160, y, "Height:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Refresh Rate:", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Wallpaper */
+    vbe_draw_text(x, y, "Wallpaper:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "None (solid color)", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Browse...", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* DPI / Scaling */
+    vbe_draw_text(x, y, "Scaling:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "100% (native)", tc->btn_text, 1);
 }
 
 static void ctrl_draw_theme_tab(WmWindow *win) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int x = win->x + 8;
     int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int item_h = 36;
 
     /* Theme options: Win98, XP Luna, XP Media, WuBu Green */
     int current = (int)wubu_theme_current();
+    const char *theme_names[4] = {
+        "Win98 Classic",
+        "XP Luna Blue", 
+        "XP Media Orange",
+        "WuBu Green"
+    };
+
     for (int i = 0; i < 4; i++) {
-        int iy = y + i * 32;
+        int iy = y + i * item_h;
         int active = (i == current);
-        vbe_fill_rect(x, iy, 200, 28, active ? tc->select_bg : tc->btn_face);
-        vbe_3d_raised_colors(x, iy, 200, 28,
+        uint32_t bg = active ? tc->select_bg : tc->btn_face;
+        vbe_fill_rect(x, iy, 300, item_h - 4, bg);
+        vbe_3d_raised_colors(x, iy, 300, item_h - 4,
                               tc->border_light, tc->border_face,
                               tc->border_dark, tc->border_darkest);
-        /* Theme preview swatch */
-        vbe_fill_rect(x + 4, iy + 4, 20, 20, tc->desktop_bg);
-        vbe_rect(x + 4, iy + 4, 20, 20, tc->border_dark);
+
+        /* Theme preview swatch - left side */
+        vbe_fill_rect(x + 8, iy + 8, 20, 20, tc->desktop_bg);
+        vbe_rect(x + 8, iy + 8, 20, 20, tc->border_dark);
+
+        /* Theme name */
+        vbe_draw_text(x + 36, iy + 12, theme_names[i], tc->btn_text, 1);
+
+        if (active) {
+            vbe_draw_text(x + 200, iy + 12, "(current)", tc->btn_text, 1);
+        }
     }
-    (void)win;
 }
 
 static void ctrl_draw_desktop_tab(WmWindow *win) {
-    (void)win;
-    /* Icon size, auto-arrange, grid snap */
+    const WubuThemeColors *tc = wubu_theme_colors();
+    int x = win->x + 8;
+    int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int line_h = 24;
+
+    /* Icon settings */
+    vbe_draw_text(x, y, "Desktop Icons:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Show Icons: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Auto Arrange: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Align to Grid: [ ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Screen saver */
+    vbe_draw_text(x, y, "Screen Saver:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "None", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Blank Screen", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "WuBu Logo", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Desktop background */
+    vbe_draw_text(x, y, "Background Color:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Current: ", tc->btn_text, 1);
+    vbe_fill_rect(x + 80, y, 20, 16, tc->desktop_bg);
+    vbe_rect(x + 80, y, 20, 16, tc->border_dark);
 }
 
 static void ctrl_draw_taskbar_tab(WmWindow *win) {
-    (void)win;
-    /* Auto-hide, clock format, tray icons */
+    const WubuThemeColors *tc = wubu_theme_colors();
+    int x = win->x + 8;
+    int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int line_h = 24;
+
+    /* Taskbar behavior */
+    vbe_draw_text(x, y, "Taskbar:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Auto-hide: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Always on Top: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Show Window Buttons: [ ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Clock */
+    vbe_draw_text(x, y, "Clock:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Format: 12-hour / 24-hour", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Show Seconds: [ ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* System Tray */
+    vbe_draw_text(x, y, "System Tray:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Hide Inactive Icons: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Show Volume: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Show Network: [ ]", tc->btn_text, 1);
 }
 
 static void ctrl_draw_input_tab(WmWindow *win) {
-    (void)win;
-    /* Mouse speed, double-click, keyboard repeat */
+    const WubuThemeColors *tc = wubu_theme_colors();
+    int x = win->x + 8;
+    int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int line_h = 24;
+
+    /* Mouse */
+    vbe_draw_text(x, y, "Mouse:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Speed: [======     ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Double-click Speed: [======     ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Left-handed: [ ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Keyboard */
+    vbe_draw_text(x, y, "Keyboard:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Repeat Delay: [======     ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Repeat Rate: [======     ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Cursor */
+    vbe_draw_text(x, y, "Cursor:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Blink Rate: [======     ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Show Pointer Trails: [ ]", tc->btn_text, 1);
 }
 
 static void ctrl_draw_startup_tab(WmWindow *win) {
+    const WubuThemeColors *tc = wubu_theme_colors();
     int x = win->x + 8;
     int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
-    vbe_fill_rect(x, y, 200, 20, 0x00000080);
-    /* Boot mode selector */
-    (void)win;
+    int line_h = 24;
+
+    /* Boot mode */
+    vbe_draw_text(x, y, "Boot Mode:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "RAM Disk (Fast, Volatile): [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Disk Image (Persistent): [ ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Login */
+    vbe_draw_text(x, y, "Login:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Auto-login: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Username: [___________]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Startup items */
+    vbe_draw_text(x, y, "Startup Items:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "WuBuOS Shell", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Network Manager", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Container Daemon", tc->btn_text, 1);
 }
 
 static void ctrl_draw_containers_tab(WmWindow *win) {
-    (void)win;
-    /* Default mounts, resource limits */
+    const WubuThemeColors *tc = wubu_theme_colors();
+    int x = win->x + 8;
+    int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int line_h = 24;
+
+    /* Default mounts */
+    vbe_draw_text(x, y, "Default Mounts:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "/wubu -> /var/wubu [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "/apps -> /var/apps [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "/home -> /home/wubu [ ]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Resource limits */
+    vbe_draw_text(x, y, "Resource Limits:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Max Memory per Container: [512 MB]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Max CPU %: [100%]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Max Containers: [16]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Network isolation */
+    vbe_draw_text(x, y, "Network:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Isolate Container Network: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Allow Host Access: [ ]", tc->btn_text, 1);
 }
 
 static void ctrl_draw_network_tab(WmWindow *win) {
-    (void)win;
-    /* WiFi, Ethernet, proxy */
+    const WubuThemeColors *tc = wubu_theme_colors();
+    int x = win->x + 8;
+    int y = win->y + WM_TITLE_HEIGHT + CTRL_TAB_H + 8;
+    int line_h = 24;
+
+    /* Network interfaces */
+    vbe_draw_text(x, y, "Network Interfaces:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "lo (Loopback) - UP", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "eth0 (Ethernet) - UP", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "wlan0 (WiFi) - DOWN", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* IP Configuration */
+    vbe_draw_text(x, y, "IP Configuration:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "DHCP: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Static IP: [___________]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Netmask: [___________]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Gateway: [___________]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* DNS */
+    vbe_draw_text(x, y, "DNS Servers:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Primary: [___________]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Secondary: [___________]", tc->btn_text, 1);
+    y += line_h * 2;
+
+    /* Proxy */
+    vbe_draw_text(x, y, "Proxy:", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Use Proxy: [ ]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Address: [___________]", tc->btn_text, 1);
+    y += line_h;
+    vbe_draw_text(x + 16, y, "Port: [____]", tc->btn_text, 1);
 }
 
 static void ctrl_draw_about_tab(WmWindow *win) {

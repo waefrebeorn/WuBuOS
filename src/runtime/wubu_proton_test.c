@@ -694,7 +694,7 @@ static void test_dxvk_config_ui_get_set(void) {
     DxvkConfigUI ui = {0};
     int rc = wubu_proton_dxvk_config_ui_get("ui_test", &ui);
     CHECK(rc == 0, "get UI config should succeed");
-    CHECK(strcmp(ui.prefix_id, "") == 0, "prefix_id empty (stub)");
+    CHECK(strcmp(ui.prefix_id, "ui_test") == 0, "prefix_id should be populated");
 
     /* Modify and set */
     ui.dxvk_async = true;

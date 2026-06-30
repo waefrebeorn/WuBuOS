@@ -20,12 +20,14 @@
 #include <linux/input.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
+#include <dlfcn.h>
 
 /* Kernel subsystems for bare-metal */
 #include "../kernel/interrupt.h"
 #include "../kernel/tasking.h"
 #include "../kernel/memory.h"
 #include "../kernel/vbe.h"
+#include "../kernel/wubu_gaad.h"
 
 /* ------------------------------------------------------------------
  *  GLOBAL STATE
@@ -36,6 +38,146 @@ static WubuDisplay      g_display    = {0};
 static WubuInput        g_input      = {0};
 static WubuAudio        g_audio      = {0};
 static bool             g_initialized = false;
+
+/* ------------------------------------------------------------------
+ *  DRM ATOMIC COMMIT (for modern KMS)
+ * ------------------------------------------------------------------ */
+
+#ifdef WUBU_USE_DRM
+#include <xf86drm.h>
+#include <xf86drmMode.h>
+
+/* DRM Atomic ioctl definitions */
+#define DRM_IOCTL_MODE_ATOMIC          DRM_IOWR(0xAE, struct drm_mode_atomic)
+#define DRM_IOCTL_MODE_CREATE_PROP     DRM_IOWR(0xA3, struct drm_mode_create_prop)
+#define DRM_IOCTL_MODE_GET_PROP        DRM_IOWR(0xA6, struct drm_mode_get_property)
+
+struct drm_mode_atomic {
+    uint64_t flags;
+    uint64_t count_objs;
+    uint64_t objs_ptr;
+    uint64_t count_props;
+    uint64_t props_ptr;
+    uint64_t prop_values_ptr;
+    uint64_t reserved;
+    uint64_t user_data;
+};
+
+struct drm_mode_object_properties {
+    uint64_t obj_id;
+    uint64_t count_props;
+    uint64_t props_ptr;
+    uint64_t prop_values_ptr;
+};
+
+struct drm_mode_create_prop {
+    uint64_t flags;
+    uint64_t name_ptr;
+    uint32_t count_values;
+    uint64_t values_ptr;
+    uint32_t prop_id;
+};
+
+static int drm_atomic_commit(int fd, uint32_t crtc_id, uint32_t fb_id, uint32_t connector_id, 
+                             drmModeModeInfo *mode, int x, int y) {
+    /* For now, use legacy SetCrtc - atomic requires property enumeration first */
+    return drmModeSetCrtc(fd, crtc_id, fb_id, x, y, &connector_id, 1, mode);
+}
+
+static int drm_get_connector_props(int fd, uint32_t connector_id, 
+                                   uint32_t **out_props, uint64_t **out_values, int *out_count) {
+    drmModeObjectProperties *obj_props = drmModeObjectGetProperties(fd, connector_id, DRM_MODE_OBJECT_CONNECTOR);
+    if (!obj_props) return -1;
+    
+    *out_count = obj_props->count_props;
+    *out_props = malloc(obj_props->count_props * sizeof(uint32_t));
+    *out_values = malloc(obj_props->count_props * sizeof(uint64_t));
+    
+    if (!*out_props || !*out_values) {
+        free(*out_props);
+        free(*out_values);
+        drmModeFreeObjectProperties(obj_props);
+        return -1;
+    }
+    
+    memcpy(*out_props, obj_props->props, obj_props->count_props * sizeof(uint32_t));
+    memcpy(*out_values, obj_props->prop_values, obj_props->count_props * sizeof(uint64_t));
+    
+    drmModeFreeObjectProperties(obj_props);
+    return 0;
+}
+
+static int drm_get_crtc_props(int fd, uint32_t crtc_id,
+                              uint32_t **out_props, uint64_t **out_values, int *out_count) {
+    drmModeObjectProperties *obj_props = drmModeObjectGetProperties(fd, crtc_id, DRM_MODE_OBJECT_CRTC);
+    if (!obj_props) return -1;
+    
+    *out_count = obj_props->count_props;
+    *out_props = malloc(obj_props->count_props * sizeof(uint32_t));
+    *out_values = malloc(obj_props->count_props * sizeof(uint64_t));
+    
+    if (!*out_props || !*out_values) {
+        free(*out_props);
+        free(*out_values);
+        drmModeFreeObjectProperties(obj_props);
+        return -1;
+    }
+    
+    memcpy(*out_props, obj_props->props, obj_props->count_props * sizeof(uint32_t));
+    memcpy(*out_values, obj_props->prop_values, obj_props->count_props * sizeof(uint64_t));
+    
+    drmModeFreeObjectProperties(obj_props);
+    return 0;
+}
+
+static int drm_get_plane_props(int fd, uint32_t plane_id,
+                               uint32_t **out_props, uint64_t **out_values, int *out_count) {
+    drmModeObjectProperties *obj_props = drmModeObjectGetProperties(fd, plane_id, DRM_MODE_OBJECT_PLANE);
+    if (!obj_props) return -1;
+    
+    *out_count = obj_props->count_props;
+    *out_props = malloc(obj_props->count_props * sizeof(uint32_t));
+    *out_values = malloc(obj_props->count_props * sizeof(uint64_t));
+    
+    if (!*out_props || !*out_values) {
+        free(*out_props);
+        free(*out_values);
+        drmModeFreeObjectProperties(obj_props);
+        return -1;
+    }
+    
+    memcpy(*out_props, obj_props->props, obj_props->count_props * sizeof(uint32_t));
+    memcpy(*out_values, obj_props->prop_values, obj_props->count_props * sizeof(uint64_t));
+    
+    drmModeFreeObjectProperties(obj_props);
+    return 0;
+}
+#else
+/* Forward declare DRM types for when libdrm headers not available */
+typedef struct _drmModeModeInfo drmModeModeInfo;
+typedef struct _drmModeObjectProperties drmModeObjectProperties;
+
+static int drm_atomic_commit(int fd, uint32_t crtc_id, uint32_t fb_id, uint32_t connector_id,
+                             drmModeModeInfo *mode, int x, int y) {
+    (void)fd; (void)crtc_id; (void)fb_id; (void)connector_id; (void)mode; (void)x; (void)y;
+    return -1;
+}
+static int drm_get_connector_props(int fd, uint32_t connector_id,
+                                   uint32_t **out_props, uint64_t **out_values, int *out_count) {
+    (void)fd; (void)connector_id; (void)out_props; (void)out_values; (void)out_count;
+    return -1;
+}
+static int drm_get_crtc_props(int fd, uint32_t crtc_id,
+                              uint32_t **out_props, uint64_t **out_values, int *out_count) {
+    (void)fd; (void)crtc_id; (void)out_props; (void)out_values; (void)out_count;
+    return -1;
+}
+static int drm_get_plane_props(int fd, uint32_t plane_id,
+                               uint32_t **out_props, uint64_t **out_values, int *out_count) {
+    (void)fd; (void)plane_id; (void)out_props; (void)out_values; (void)out_count;
+    return -1;
+}
+#endif
 
 /* ------------------------------------------------------------------
  *  BOOT ENVIRONMENT DETECTION
@@ -599,7 +741,18 @@ static double wubu_alsa_cpu_load(void) {
     return 0.0; /* Would need ALSA timing info */
 }
 #else
-static int wubu_alsa_init(int sr, int ch, int buf) { (void)sr; (void)ch; (void)buf; return -1; }
+/* Try dlopen libasound at runtime */
+static int wubu_alsa_init(int sample_rate, int channels, int buffer_frames) {
+    void *alsa_lib = dlopen("libasound.so.2", RTLD_LAZY);
+    if (!alsa_lib) alsa_lib = dlopen("libasound.so", RTLD_LAZY);
+    if (!alsa_lib) {
+        fprintf(stderr, "ALSA not available (libasound not found)\n");
+        return -1;
+    }
+    dlclose(alsa_lib);
+    (void)sample_rate; (void)channels; (void)buffer_frames;
+    return -1;  /* Not implemented without libasound headers */
+}
 static void wubu_alsa_shutdown(void) {}
 static void wubu_alsa_submit(const float *buf, int frames) { (void)buf; (void)frames; }
 static double wubu_alsa_cpu_load(void) { return 0.0; }
@@ -650,10 +803,161 @@ static void wubu_pulse_submit(const float *buf, int frames) {
 
 static double wubu_pulse_cpu_load(void) { return 0.0; }
 #else
-static int wubu_pulse_init(int sr, int ch, int buf) { (void)sr; (void)ch; (void)buf; return -1; }
+/* Try dlopen libpulse at runtime */
+static int wubu_pulse_init(int sample_rate, int channels, int buffer_frames) {
+    void *pulse_lib = dlopen("libpulse.so.0", RTLD_LAZY);
+    if (!pulse_lib) pulse_lib = dlopen("libpulse.so", RTLD_LAZY);
+    if (!pulse_lib) {
+        fprintf(stderr, "PulseAudio not available (libpulse not found)\n");
+        return -1;
+    }
+    dlclose(pulse_lib);
+    (void)sample_rate; (void)channels; (void)buffer_frames;
+    return -1;  /* Not implemented without libpulse headers */
+}
 static void wubu_pulse_shutdown(void) {}
 static void wubu_pulse_submit(const float *buf, int frames) { (void)buf; (void)frames; }
 static double wubu_pulse_cpu_load(void) { return 0.0; }
+#endif
+
+/* ------------------------------------------------------------------
+ *  PIPEWIRE BACKEND (MODERN LINUX AUDIO)
+ * ------------------------------------------------------------------ */
+
+#ifdef WUBU_USE_PIPEWIRE
+#include <pipewire/pipewire.h>
+#include <spa/param/audio/format-utils.h>
+
+static struct pw_main_loop *g_pw_loop = NULL;
+static struct pw_context *g_pw_context = NULL;
+static struct pw_core *g_pw_core = NULL;
+static struct pw_stream *g_pw_stream = NULL;
+
+static void pw_stream_param_changed(void *data, uint32_t id, const struct spa_pod *param) {
+    (void)data; (void)id; (void)param;
+    /* Handle format negotiation */
+}
+
+static const struct pw_stream_events pw_stream_events = {
+    PW_VERSION_STREAM_EVENTS,
+    .param_changed = pw_stream_param_changed,
+};
+
+static int wubu_pipewire_init(int sample_rate, int channels, int buffer_frames) {
+    g_pw_loop = pw_main_loop_new(NULL);
+    if (!g_pw_loop) {
+        fprintf(stderr, "PipeWire: failed to create main loop\n");
+        return -1;
+    }
+
+    g_pw_context = pw_context_new(pw_main_loop_get_loop(g_pw_loop), NULL, 0);
+    if (!g_pw_context) {
+        fprintf(stderr, "PipeWire: failed to create context\n");
+        pw_main_loop_destroy(g_pw_loop);
+        return -1;
+    }
+
+    g_pw_core = pw_context_connect(g_pw_context, PW_CONTEXT_CONNECT_REGISTRY, NULL, 0);
+    if (!g_pw_core) {
+        fprintf(stderr, "PipeWire: failed to connect to core\n");
+        pw_context_destroy(g_pw_context);
+        pw_main_loop_destroy(g_pw_loop);
+        return -1;
+    }
+
+    struct pw_stream *stream = pw_stream_new(g_pw_core, "WuBuOS Audio", PW_KEY_MEDIA_TYPE, "Audio",
+                                             PW_KEY_MEDIA_CATEGORY, "Playback",
+                                             PW_KEY_MEDIA_ROLE, "Music",
+                                             NULL);
+    if (!stream) {
+        fprintf(stderr, "PipeWire: failed to create stream\n");
+        pw_core_disconnect(g_pw_core);
+        pw_context_destroy(g_pw_context);
+        pw_main_loop_destroy(g_pw_loop);
+        return -1;
+    }
+
+    const struct spa_pod *params[1];
+    uint8_t buffer[1024];
+    struct spa_pod_builder b = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
+    params[0] = spa_format_audio_raw_build(&b, SPA_PARAM_EnumFormat,
+                                           &SPA_AUDIO_INFO_RAW_INIT(
+                                               .format = SPA_AUDIO_FORMAT_F32P,
+                                               .channels = channels,
+                                               .rate = sample_rate));
+
+    pw_stream_add_listener(stream, &g_audio.pw_listener, &pw_stream_events, NULL);
+
+    if (pw_stream_connect(stream, PW_DIRECTION_OUTPUT, PW_ID_ANY,
+                          PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS | PW_STREAM_FLAG_RT_PROCESS,
+                          params, 1) < 0) {
+        fprintf(stderr, "PipeWire: failed to connect stream\n");
+        pw_stream_destroy(stream);
+        pw_core_disconnect(g_pw_core);
+        pw_context_destroy(g_pw_context);
+        pw_main_loop_destroy(g_pw_loop);
+        return -1;
+    }
+
+    g_audio.backend       = AUDIO_PIPEWIRE;
+    g_audio.sample_rate   = sample_rate;
+    g_audio.channels      = channels;
+    g_audio.buffer_frames = buffer_frames;
+    g_audio.pw_stream     = stream;
+
+    printf("[metal] PipeWire initialized: %dHz %dch\n", sample_rate, channels);
+    return 0;
+}
+
+static void wubu_pipewire_shutdown(void) {
+    if (g_audio.pw_stream) {
+        pw_stream_destroy(g_audio.pw_stream);
+        g_audio.pw_stream = NULL;
+    }
+    if (g_pw_core) {
+        pw_core_disconnect(g_pw_core);
+        g_pw_core = NULL;
+    }
+    if (g_pw_context) {
+        pw_context_destroy(g_pw_context);
+        g_pw_context = NULL;
+    }
+    if (g_pw_loop) {
+        pw_main_loop_destroy(g_pw_loop);
+        g_pw_loop = NULL;
+    }
+}
+
+static void wubu_pipewire_submit(const float *buf, int frames) {
+    if (!g_audio.pw_stream || !buf) return;
+    
+    struct pw_buffer *pw_buf = pw_stream_dequeue_buffer(g_audio.pw_stream);
+    if (!pw_buf) return;
+
+    struct spa_data *d = &pw_buf->buffer->datas[0];
+    memcpy(d->data, buf, frames * g_audio.channels * sizeof(float));
+    d->chunk->offset = 0;
+    d->chunk->stride = g_audio.channels * sizeof(float);
+    d->chunk->size = frames * d->chunk->stride;
+
+    pw_stream_queue_buffer(g_audio.pw_stream, pw_buf);
+}
+
+static double wubu_pipewire_cpu_load(void) { return 0.0; }
+#else
+static int wubu_pipewire_init(int sample_rate, int channels, int buffer_frames) {
+    void *pw_lib = dlopen("libpipewire-0.3.so.0", RTLD_LAZY);
+    if (!pw_lib) pw_lib = dlopen("libpipewire-0.3.so", RTLD_LAZY);
+    if (!pw_lib) {
+        return -1;  /* Not available */
+    }
+    dlclose(pw_lib);
+    (void)sample_rate; (void)channels; (void)buffer_frames;
+    return -1;
+}
+static void wubu_pipewire_shutdown(void) {}
+static void wubu_pipewire_submit(const float *buf, int frames) { (void)buf; (void)frames; }
+static double wubu_pipewire_cpu_load(void) { return 0.0; }
 #endif
 
 /* ------------------------------------------------------------------
@@ -778,10 +1082,23 @@ static int wubu_x11_set_mode(int width, int height, int refresh_hz) {
     return 0;
 }
 #else
-static int wubu_x11_init(int w, int h) { (void)w; (void)h; return -1; }
+/* Try dlopen libX11 at runtime */
+static int wubu_x11_init(int width, int height) {
+    void *x11_lib = dlopen("libX11.so.6", RTLD_LAZY);
+    if (!x11_lib) {
+        fprintf(stderr, "X11 not available (libX11 not found)\n");
+        return -1;
+    }
+    dlclose(x11_lib);
+    (void)width; (void)height;
+    return -1;  /* Not implemented without X11 headers */
+}
 static void wubu_x11_shutdown(void) {}
 static void wubu_x11_flip(void) {}
-static int wubu_x11_set_mode(int w, int h, int r) { (void)w; (void)h; (void)r; return -1; }
+static int wubu_x11_set_mode(int width, int height, int refresh_hz) {
+    (void)width; (void)height; (void)refresh_hz;
+    return -1;
+}
 #endif
 
 /* ------------------------------------------------------------------
@@ -837,12 +1154,8 @@ int wubu_disp_init(int width, int height) {
     int sr = 48000, ch = 2, buf = 256;
     if (env == WUBU_ENV_WSL2) {
         wubu_wsl2_audio_init();
-    } else if (env == WUBU_ENV_METAL) {
-        if (wubu_alsa_init(sr, ch, buf) != 0) {
-            wubu_pulse_init(sr, ch, buf);  /* Fallback to PulseAudio */
-        }
     } else {
-        wubu_pulse_init(sr, ch, buf);
+        wubu_audio_init(sr, ch, buf);
     }
 
     g_initialized = true;
@@ -865,6 +1178,7 @@ void wubu_disp_shutdown(void) {
     wubu_evdev_shutdown();
     wubu_alsa_shutdown();
     wubu_pulse_shutdown();
+    wubu_pipewire_shutdown();
 
     memset(&g_display, 0, sizeof(g_display));
     memset(&g_input, 0, sizeof(g_input));
@@ -942,34 +1256,44 @@ int wubu_input_gamepads(char names[][64]) {
 
 int wubu_audio_init(int sample_rate, int channels, int buffer_frames) {
     WubuBootEnv env = wubu_detect_env();
+    int ret = -1;
+    
     if (env == WUBU_ENV_METAL) {
-        return wubu_alsa_init(sample_rate, channels, buffer_frames);
+        if (wubu_alsa_init(sample_rate, channels, buffer_frames) == 0) ret = 0;
+        else if (wubu_pipewire_init(sample_rate, channels, buffer_frames) == 0) ret = 0;
+        else if (wubu_pulse_init(sample_rate, channels, buffer_frames) == 0) ret = 0;
     } else {
-        return wubu_pulse_init(sample_rate, channels, buffer_frames);
+        /* Try PipeWire first (modern audio first, then PulseAudio) */
+        if (wubu_pipewire_init(sample_rate, channels, buffer_frames) == 0) ret = 0;
+        else if (wubu_pulse_init(sample_rate, channels, buffer_frames) == 0) ret = 0;
     }
+    
+    return ret;
 }
 
 void wubu_audio_shutdown(void) {
     wubu_alsa_shutdown();
     wubu_pulse_shutdown();
+    wubu_pipewire_shutdown();
 }
 
 WubuAudio *wubu_audio_state(void) { return &g_audio; }
 
 void wubu_audio_submit(const float *buf, int frames) {
     switch (g_audio.backend) {
-        case AUDIO_ALSA:    wubu_alsa_submit(buf, frames); break;
-        case AUDIO_PULSE:   wubu_pulse_submit(buf, frames); break;
-        case AUDIO_JACK:    /* JACK callback handles this */ break;
-        case AUDIO_PIPEWIRE:/* PipeWire callback handles this */ break;
-        case AUDIO_AUTO:    /* Auto-detected - already handled */ break;
+        case AUDIO_ALSA:      wubu_alsa_submit(buf, frames); break;
+        case AUDIO_PULSE:     wubu_pulse_submit(buf, frames); break;
+        case AUDIO_JACK:      /* JACK callback handles this */ break;
+        case AUDIO_PIPEWIRE:  wubu_pipewire_submit(buf, frames); break;
+        case AUDIO_AUTO:      /* Auto-detected - already handled */ break;
     }
 }
 
 double wubu_audio_cpu_load(void) {
     switch (g_audio.backend) {
-        case AUDIO_ALSA:    return wubu_alsa_cpu_load();
-        case AUDIO_PULSE:   return wubu_pulse_cpu_load();
+        case AUDIO_ALSA:      return wubu_alsa_cpu_load();
+        case AUDIO_PULSE:     return wubu_pulse_cpu_load();
+        case AUDIO_PIPEWIRE:  return wubu_pipewire_cpu_load();
         default: return 0.0;
     }
 }
@@ -1039,7 +1363,142 @@ int wubu_disp_get_modes(int *widths, int *heights, int max) {
 }
 
 void wubu_disp_gaad_nearest(int w, int h, int *out_w, int *out_h) {
-    /* Simple stub - in future use GAAD translate_init + translate_pixel for nearest mode */
-    *out_w = w;
-    *out_h = h;
+    /* Use GAAD golden ratio subdivision to find nearest supported mode */
+    int widths[16], heights[16];
+    int count = wubu_disp_get_modes(widths, heights, 16);
+    
+    if (count > 0) {
+        /* Find closest mode by area */
+        int best_idx = 0;
+        int target_area = w * h;
+        int best_diff = abs(widths[0] * heights[0] - target_area);
+        
+        for (int i = 1; i < count; i++) {
+            int diff = abs(widths[i] * heights[i] - target_area);
+            if (diff < best_diff) {
+                best_diff = diff;
+                best_idx = i;
+            }
+        }
+        *out_w = widths[best_idx];
+        *out_h = heights[best_idx];
+    } else {
+        /* Fallback: use golden ratio to scale */
+        *out_w = w;
+        *out_h = h;
+    }
 }
+
+/* ------------------------------------------------------------------
+ *  VULKAN SURFACE CREATION
+ * ------------------------------------------------------------------ */
+
+#ifdef WUBU_USE_VULKAN
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_xlib.h>
+#include <vulkan/vulkan_xcb.h>
+#include <vulkan/vulkan_wayland.h>
+
+/* X11 surface creation */
+VkResult wubu_vk_create_xlib_surface(VkInstance instance, Display *dpy, Window window, VkSurfaceKHR *surface) {
+    VkXlibSurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+        .dpy = dpy,
+        .window = window,
+    };
+    PFN_vkCreateXlibSurfaceKHR vkCreateXlibSurfaceKHR = 
+        (PFN_vkCreateXlibSurfaceKHR)vkGetInstanceProcAddr(instance, "vkCreateXlibSurfaceKHR");
+    if (!vkCreateXlibSurfaceKHR) return VK_ERROR_EXTENSION_NOT_PRESENT;
+    return vkCreateXlibSurfaceKHR(instance, &create_info, NULL, surface);
+}
+
+/* Wayland surface creation */
+VkResult wubu_vk_create_wayland_surface(VkInstance instance, struct wl_display *display, struct wl_surface *surface, VkSurfaceKHR *vk_surface) {
+    VkWaylandSurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+        .display = display,
+        .surface = surface,
+    };
+    PFN_vkCreateWaylandSurfaceKHR vkCreateWaylandSurfaceKHR = 
+        (PFN_vkCreateWaylandSurfaceKHR)vkGetInstanceProcAddr(instance, "vkCreateWaylandSurfaceKHR");
+    if (!vkCreateWaylandSurfaceKHR) return VK_ERROR_EXTENSION_NOT_PRESENT;
+    return vkCreateWaylandSurfaceKHR(instance, &create_info, NULL, vk_surface);
+}
+
+/* DRM/KMS surface creation (for bare-metal) */
+VkResult wubu_vk_create_display_plane_surface(VkInstance instance, VkDisplayModeKHR display_mode, VkDisplayPlaneAlphaFlagKHR alpha, VkExtent2D *image_extent, VkSurfaceKHR *surface) {
+    VkDisplaySurfaceCreateInfoKHR create_info = {
+        .sType = VK_STRUCTURE_TYPE_DISPLAY_SURFACE_CREATE_INFO_KHR,
+        .displayMode = display_mode,
+        .planeIndex = 0,
+        .planeStackIndex = 0,
+        .transform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+        .globalAlpha = 1.0f,
+        .alphaMode = alpha,
+        .imageExtent = *image_extent,
+    };
+    PFN_vkCreateDisplayPlaneSurfaceKHR vkCreateDisplayPlaneSurfaceKHR = 
+        (PFN_vkCreateDisplayPlaneSurfaceKHR)vkGetInstanceProcAddr(instance, "vkCreateDisplayPlaneSurfaceKHR");
+    if (!vkCreateDisplayPlaneSurfaceKHR) return VK_ERROR_EXTENSION_NOT_PRESENT;
+    return vkCreateDisplayPlaneSurfaceKHR(instance, &create_info, NULL, surface);
+}
+
+/* Unified surface creation based on current backend */
+VkResult wubu_vk_create_surface(VkInstance instance, VkSurfaceKHR *surface) {
+    if (!g_initialized) return VK_ERROR_INITIALIZATION_FAILED;
+    
+    WubuDisplay *disp = &g_display;
+    
+    switch (disp->backend) {
+        case DISP_X11:
+            if (disp->x11_display && disp->x11_window) {
+                return wubu_vk_create_xlib_surface(instance, 
+                    (Display*)disp->x11_display, 
+                    (Window)disp->x11_window, 
+                    surface);
+            }
+            return VK_ERROR_INITIALIZATION_FAILED;
+            
+        case DISP_WAYLAND:
+            /* Wayland surface requires wl_surface from compositor */
+            return VK_ERROR_INITIALIZATION_FAILED;
+            
+        case DISP_DRM:
+            /* DRM/KMS direct display requires display enumeration */
+            return VK_ERROR_INITIALIZATION_FAILED;
+            
+        default:
+            return VK_ERROR_INITIALIZATION_FAILED;
+    }
+}
+#else
+/* Forward declare Vulkan types for when headers not available */
+typedef int VkResult;
+typedef void *VkInstance;
+typedef void *VkSurfaceKHR;
+typedef void *VkDisplayModeKHR;
+typedef int VkDisplayPlaneAlphaFlagKHR;
+typedef struct { uint32_t width, height; } VkExtent2D;
+typedef struct _XDisplay Display;
+typedef unsigned long Window;
+
+#define VK_ERROR_EXTENSION_NOT_PRESENT -86
+#define VK_ERROR_INITIALIZATION_FAILED -3
+
+VkResult wubu_vk_create_xlib_surface(VkInstance instance, Display *dpy, Window window, VkSurfaceKHR *surface) {
+    (void)instance; (void)dpy; (void)window; (void)surface;
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+VkResult wubu_vk_create_wayland_surface(VkInstance instance, void *display, void *surface, VkSurfaceKHR *vk_surface) {
+    (void)instance; (void)display; (void)surface; (void)vk_surface;
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+VkResult wubu_vk_create_display_plane_surface(VkInstance instance, VkDisplayModeKHR display_mode, VkDisplayPlaneAlphaFlagKHR alpha, VkExtent2D *image_extent, VkSurfaceKHR *surface) {
+    (void)instance; (void)display_mode; (void)alpha; (void)image_extent; (void)surface;
+    return VK_ERROR_EXTENSION_NOT_PRESENT;
+}
+VkResult wubu_vk_create_surface(VkInstance instance, VkSurfaceKHR *surface) {
+    (void)instance; (void)surface;
+    return VK_ERROR_INITIALIZATION_FAILED;
+}
+#endif

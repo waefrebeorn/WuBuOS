@@ -120,8 +120,9 @@ void kernel_main(void *boot_info) {
 
     /* 4. Initialize VBE/DRM-KMS framebuffer */
     int fb_width = 1920, fb_height = 1080;
+    struct limine_framebuffer *fb = NULL;
     if (limine_framebuffer_request.response) {
-        struct limine_framebuffer *fb = limine_framebuffer_request.response;
+        fb = limine_framebuffer_request.response;
         fb_width = fb->width;
         fb_height = fb->height;
         /* Map framebuffer - already identity-mapped by Limine */
@@ -139,11 +140,11 @@ void kernel_main(void *boot_info) {
     input_init();
 
     /* 6b. Initialize PS/2 keyboard/mouse for bare metal */
-    extern struct limine_framebuffer *limine_framebuffer_request;
     int fb_w = 1920, fb_h = 1080;
     if (limine_framebuffer_request.response) {
-        fb_w = limine_framebuffer_request.response->width;
-        fb_h = limine_framebuffer_request.response->height;
+        struct limine_framebuffer *fb = limine_framebuffer_request.response;
+        fb_w = fb->width;
+        fb_h = fb->height;
     }
     ps2_init(fb_w, fb_h);
 
@@ -172,10 +173,28 @@ void kernel_main(void *boot_info) {
 
 /* ==================================================================
  * Panic Handler
+ /* Panic Handler */
+ void kernel_panic(const char *msg) {
+     (void)msg;
+     CLI();
+     /* Would draw msg to framebuffer */
+     for (;;) { HLT(); }
+ }
+
+/* ================================================================
+ * Bare-Metal Stubs for Hosted Functions
  * ================================================================= */
-void kernel_panic(const char *msg) {
-    (void)msg;
-    CLI();
-    /* Would draw msg to framebuffer */
-    for (;;) { HLT(); }
+
+/* GAAD initialization stub */
+void wubu_gaad_init(void) {
+    /* No-op for bare metal - GAAD needs heap allocator */
+}
+
+/* Shell task entry point */
+void wubu_shell_run(void *arg) {
+    (void)arg;
+    /* Bare-metal shell - would start HolyC REPL or Win98 desktop */
+    for (;;) {
+        HLT();
+    }
 }

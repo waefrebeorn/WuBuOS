@@ -1,0 +1,176 @@
+#version 460 core
+
+/*
+ * bear_policy_backward_discrete.comp  --  Discrete Policy Backward Pass (Vulkan Compute)
+ *
+ * This shader computes PPO policy gradients for discrete actions.
+ * Each workgroup handles one batch element.
+ *
+ * Uniforms:
+ *   set 0, binding 0: obs_buffer       [batch * obs_dim] (readonly)
+ *   set 0, binding 1: actions_buffer   [batch * act_dim] (readonly) -- one-hot chosen actions
+ *   set 0, binding 2: old_logprobs_buffer [batch] (readonly)
+ *   set 0, binding 3: advantages_buffer [batch] (readonly)
+ *   set 0, binding 4: W1_buffer        [hidden_dim * obs_dim] (readonly)
+ *   set 0, binding 5: b1_buffer        [hidden_dim] (readonly)
+ *   set 0, binding 6: W2_buffer        [out_features * hidden_dim] (readonly) -- actor+critic+logstd+h_out
+ *   set 0, binding 7: b2_buffer        [out_features] (readonly)
+ *   set 0, binding 8: grad_W1_buffer   [hidden_dim * obs_dim] (read/write) -- output gradients
+ *   set 0, binding 9: grad_b1_buffer   [hidden_dim] (read/write)
+ *   set 0, binding 10: grad_W2_buffer  [out_features * hidden_dim] (read/write)
+ *   set 0, binding 11: grad_b2_buffer  [out_features] (read/write)
+ *
+ * Push Constants:
+ *   batch (uint32_t)
+ *   obs_dim (uint32_t)
+ *   hidden_dim (uint32_t)
+ *   act_dim (uint32_t)
+ *   out_features (uint32_t)  -- act_dim + 1 (logstd) + 1 (value) + hidden_dim (h_out)
+ *   clip_coef (float)
+ *   policy_grad_scale (float)
+ */
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer ObsBuffer { float obs[]; };
+layout(std430, set = 0, binding = 1) readonly buffer ActionsBuffer { float actions[]; };
+layout(std430, set = 0, binding = 2) readonly buffer OldLogProbsBuffer { float old_logprobs[]; };
+layout(std430, set = 0, binding = 3) readonly buffer AdvantagesBuffer { float advantages[]; };
+layout(std430, set = 0, binding = 4) readonly buffer W1Buffer { float W1[]; };
+layout(std430, set = 0, binding = 5) readonly buffer B1Buffer { float b1[]; };
+layout(std430, set = 0, binding = 6) readonly buffer W2Buffer { float W2[]; };
+layout(std430, set = 0, binding = 7) readonly buffer B2Buffer { float b2[]; };
+layout(std430, set = 0, binding = 8) buffer GradW1Buffer { float grad_W1[]; };
+layout(std430, set = 0, binding = 9) buffer GradB1Buffer { float grad_b1[]; };
+layout(std430, set = 0, binding = 10) buffer GradW2Buffer { float grad_W2[]; };
+layout(std430, set = 0, binding = 11) buffer GradB2Buffer { float grad_b2[]; };
+
+layout(push_constant) uniform PushConstants {
+    uint batch;
+    uint obs_dim;
+    uint hidden_dim;
+    uint act_dim;
+    uint out_features;
+    float clip_coef;
+    float policy_grad_scale;
+} push_const;
+
+shared float s_h[256];  // hidden activations for this batch element
+shared float s_dlogit[64];  // dL/dlogit for all actions
+shared float s_dh[256];  // dL/dh for hidden layer
+
+float relu(float x) { return max(x, 0.0); }
+
+#extension GL_EXT_shader_atomic_float : enable
+
+void main() {
+    uint b = gl_WorkGroupID.x;
+    if (b >= push_const.batch) return;
+
+    uint tid = gl_LocalInvocationID.x;
+    uint obs_dim = push_const.obs_dim;
+    uint hidden_dim = push_const.hidden_dim;
+    uint act_dim = push_const.act_dim;
+    uint out_features = push_const.out_features;
+    float clip_coef = push_const.clip_coef;
+    float policy_grad_scale = push_const.policy_grad_scale;
+
+    // Each workgroup handles one batch element
+    // Threads cooperate to compute forward pass and gradients
+
+    // ---- FORWARD PASS: compute h = relu(obs @ W1^T + b1) ----
+    // Parallelize over hidden_dim
+    for (uint j = tid; j < hidden_dim; j += 256) {
+        float sum = 0.0;
+        for (uint k = 0; k < obs_dim; ++k) {
+            sum += obs[b * obs_dim + k] * W1[j * obs_dim + k];
+        }
+        sum += b1[j];
+        s_h[j] = relu(sum);
+    }
+    barrier();
+
+    // ---- FORWARD PASS: compute logits = h @ W2_actor^T + b2_actor ----
+    // Parallelize over act_dim
+    if (tid < act_dim) {
+        float sum = 0.0;
+        for (uint k = 0; k < hidden_dim; ++k) {
+            sum += s_h[k] * W2[tid * hidden_dim + k];
+        }
+        s_dlogit[tid] = sum + b2[tid];  // temporarily store logits in s_dlogit
+    }
+    barrier();
+
+    // ---- Compute softmax and dL/dlogit ----
+    if (tid < act_dim) {
+        // Find max logit
+        float max_logit = -1e30;
+        for (uint j = 0; j < act_dim; ++j)
+            if (s_dlogit[j] > max_logit) max_logit = s_dlogit[j];
+
+        // Compute softmax
+        float sum_exp = 0.0;
+        for (uint j = 0; j < act_dim; ++j)
+            sum_exp += exp(s_dlogit[j] - max_logit);
+
+        float pi_new[64];
+        for (uint j = 0; j < act_dim; ++j)
+            pi_new[j] = exp(s_dlogit[j] - max_logit) / sum_exp;
+
+        // Find chosen action from one-hot
+        uint chosen_a = 0;
+        for (uint j = 0; j < act_dim; ++j)
+            if (actions[b * act_dim + j] > 0.5f) { chosen_a = j; break; }
+
+        // Compute ratio and PPO signal
+        float log_pi_new_chosen = log(pi_new[chosen_a] + 1e-8);
+        float ratio = exp(log_pi_new_chosen - old_logprobs[b]);
+        float clipped = clamp(ratio, 1.0 - clip_coef, 1.0 + clip_coef);
+
+        bool is_clipped = (ratio > 1.0 + clip_coef || ratio < 1.0 - clip_coef);
+        float signal = is_clipped ? 0.0 : ratio * advantages[b] * policy_grad_scale / float(push_const.batch);
+
+        // dL/dlogit[a] = signal * (indicator(a == chosen_a) - pi_new[a])
+        s_dlogit[tid] = signal * (float(tid == chosen_a) - pi_new[tid]);
+    }
+    barrier();
+
+    // ---- BACKPROP: Output layer (W2_actor, b2_actor) ----
+    if (tid < act_dim) {
+        float dlogit = s_dlogit[tid];
+        // dL/dW2_actor[a, k] = dlogit * h[k]
+        for (uint k = 0; k < hidden_dim; ++k) {
+            atomicAdd(grad_W2[tid * hidden_dim + k], dlogit * s_h[k]);
+        }
+        atomicAdd(grad_b2[tid], dlogit);
+    }
+    barrier();
+
+    // ---- BACKPROP: dL/dh[k] = sum_a dlogit[a] * W2[a, k] ----
+    if (tid < hidden_dim) {
+        float dh = 0.0;
+        for (uint a = 0; a < act_dim; ++a) {
+            dh += s_dlogit[a] * W2[a * hidden_dim + tid];
+        }
+        s_dh[tid] = dh;
+    }
+    barrier();
+
+    // ---- ReLU backward: dh *= (h > 0) ----
+    if (tid < hidden_dim) {
+        if (s_h[tid] <= 0.0) s_dh[tid] = 0.0;
+    }
+    barrier();
+
+    // ---- BACKPROP: Hidden layer (W1, b1) ----
+    if (tid < hidden_dim) {
+        float dh = s_dh[tid];
+        if (dh != 0.0) {
+            // dL/dW1[k, j] = dh * obs[b, j]
+            for (uint j = 0; j < obs_dim; ++j) {
+                atomicAdd(grad_W1[tid * obs_dim + j], dh * obs[b * obs_dim + j]);
+            }
+            atomicAdd(grad_b1[tid], dh);
+        }
+    }
+}

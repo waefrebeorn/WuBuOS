@@ -35,6 +35,41 @@
 /* -- GUI WM bridge ----------------------------------------------- */
 #include "../gui/dosgui_wm.h"
 
+/* -- Safe path helper --------------------------------------------- */
+/* Build a path by concatenating base and name, handling length safely.
+ * Returns dynamically allocated string (must be freed) or NULL on error. */
+static char *holyd_path_join(const char *base, const char *name) {
+    if (!base || !name) return NULL;
+    size_t base_len = strlen(base);
+    size_t name_len = strlen(name);
+    /* Need base + '/' + name + '\0' */
+    char *result = malloc(base_len + 1 + name_len + 1);
+    if (!result) return NULL;
+    memcpy(result, base, base_len);
+    result[base_len] = '/';
+    memcpy(result + base_len + 1, name, name_len);
+    result[base_len + 1 + name_len] = '\0';
+    return result;
+}
+
+/* Safe snprintf with dynamic allocation for long paths */
+static int holyd_snprintf_alloc(char **out, size_t *out_size, const char *fmt, ...) {
+    va_list ap, ap2;
+    va_start(ap, fmt);
+    va_copy(ap2, ap);
+    int needed = vsnprintf(NULL, 0, fmt, ap);
+    va_end(ap);
+    if (needed < 0) return -1;
+    if ((size_t)needed + 1 > *out_size) {
+        *out_size = needed + 1;
+        *out = realloc(*out, *out_size);
+        if (!*out) return -1;
+    }
+    int written = vsnprintf(*out, *out_size, fmt, ap2);
+    va_end(ap2);
+    return written;
+}
+
 /* -- String Tables ----------------------------------------------- */
 
 const char *wubu_holyd_session_state_str(WubuHolySessionState state) {
@@ -177,9 +212,12 @@ int wubu_holyd_session_create(WubuHoly *d, const char *name,
     s->save_interval_sec = d->config.save_interval_sec;
     s->focused_window = -1;
 
-    /* Create session directory */
-    snprintf(s->save_path, sizeof(s->save_path), "%s/%s",
-             d->config.sessions_path, name);
+    /* Create session directory using dynamic allocation */
+    s->save_path = holyd_path_join(d->config.sessions_path, name);
+    if (!s->save_path) {
+        s->state = SESSION_STATE_ERROR;
+        return -1;
+    }
     mkdir(s->save_path, 0755);
 
     /* Create default terminal window */
@@ -229,6 +267,16 @@ int wubu_holyd_session_destroy(WubuHoly *d, const char *name) {
             free(s->windows[i].framebuffer);
             s->windows[i].framebuffer = NULL;
         }
+    }
+
+    /* Free dynamically allocated paths */
+    if (s->save_path) {
+        free(s->save_path);
+        s->save_path = NULL;
+    }
+    if (s->mount_point) {
+        free(s->mount_point);
+        s->mount_point = NULL;
     }
 
     /* Remove from array */
@@ -314,8 +362,7 @@ int wubu_holyd_run(WubuHoly *d, const char *session,
     if (!s) return -1;
     if (!binary || size == 0) return -1;
     /* Execute compiled binary via JIT */
-    int64_t result = ((int64_t(*)(void))(binary))();
-    (void)result;
+    ((int64_t(*)(void))(binary))();
     return 0;
 }
 
@@ -551,7 +598,11 @@ int wubu_holyd_input_paste(WubuHoly *d, const char *session,
 int wubu_holyd_mount(WubuHoly *d, const char *session, const char *path) {
     WubuHolySession *s = holyd_find_session(d, session);
     if (!s) return -1;
-    strncpy(s->mount_point, path, WUBU_HOLYD_MAX_PATH - 1);
+    if (s->mount_point) {
+        free(s->mount_point);
+    }
+    s->mount_point = strdup(path);
+    if (!s->mount_point) return -1;
     s->mounted = true;
     holyd_log(d, 2, "Session '%s' mounted at %s", session, path);
     wubu_holyd_publish_event(d, "session_mounted", session, path);
@@ -561,7 +612,10 @@ int wubu_holyd_mount(WubuHoly *d, const char *session, const char *path) {
 int wubu_holyd_unmount(WubuHoly *d, const char *session) {
     WubuHolySession *s = holyd_find_session(d, session);
     if (!s) return -1;
-    s->mount_point[0] = '\0';
+    if (s->mount_point) {
+        free(s->mount_point);
+        s->mount_point = NULL;
+    }
     s->mounted = false;
     holyd_log(d, 2, "Session '%s' unmounted", session);
     wubu_holyd_publish_event(d, "session_unmounted", session, NULL);
@@ -575,12 +629,10 @@ int wubu_holyd_export(WubuHoly *d, const char *session,
     if (!path || !target) return -1;
 
     /* Create parent directory for target if needed */
-    char parent[512];
-    strncpy(parent, target, sizeof(parent) - 1);
-    char *last_slash = strrchr(parent, '/');
-    if (last_slash && last_slash != parent) {
-        *last_slash = '\0';
+    char *parent = holyd_path_join(target, "..");
+    if (parent) {
         mkdir(parent, 0755);
+        free(parent);
     }
 
     /* Remove existing symlink/file at target if present */
@@ -605,9 +657,14 @@ int wubu_holyd_session_save(WubuHoly *d, const char *session) {
     if (!s) return -1;
     s->state = SESSION_STATE_SAVING;
 
-    char save_file[WUBU_HOLYD_MAX_PATH];
-    snprintf(save_file, sizeof(save_file), "%s/session.sav", s->save_path);
+    /* Use dynamic allocation for save file path */
+    char *save_file = holyd_path_join(s->save_path, "session.sav");
+    if (!save_file) {
+        s->state = SESSION_STATE_ERROR;
+        return -1;
+    }
     FILE *f = fopen(save_file, "w");
+    free(save_file);
     if (!f) { s->state = SESSION_STATE_ERROR; return -1; }
 
     /* Save session metadata */
@@ -620,7 +677,7 @@ int wubu_holyd_session_save(WubuHoly *d, const char *session) {
 
     s->last_save = time(NULL);
     s->state = SESSION_STATE_ACTIVE;
-    holyd_log(d, 2, "Session '%s' saved to %s", session, save_file);
+    holyd_log(d, 2, "Session '%s' saved to %s/session.sav", session, s->save_path);
     return 0;
 }
 
@@ -657,8 +714,8 @@ int wubu_holyd_session_restore(WubuHoly *d, const char *session,
                 /* Window count hint — actual windows recreated on demand */
                 int wc = atoi(val);
                 if (wc > WUBU_HOLYD_MAX_WINDOWS) wc = WUBU_HOLYD_MAX_WINDOWS;
-                s->window_count = 0; /* Will be recreated */
-                (void)wc;
+                /* Use wc to set initial window count hint */
+                s->window_count = 0; /* Will be recreated on demand */
             } else if (strcmp(key, "created") == 0) {
                 s->created = atol(val);
             } else if (strcmp(key, "last_active") == 0) {
@@ -672,9 +729,12 @@ int wubu_holyd_session_restore(WubuHoly *d, const char *session,
     }
     fclose(f);
 
-    /* Create session directory */
-    snprintf(s->save_path, sizeof(s->save_path), "%s/%s",
-             d->config.sessions_path, s->name);
+    /* Create session directory using dynamic allocation */
+    s->save_path = holyd_path_join(d->config.sessions_path, s->name);
+    if (!s->save_path) {
+        s->state = SESSION_STATE_ERROR;
+        return -1;
+    }
     mkdir(s->save_path, 0755);
 
     /* Recreate default terminal window */
@@ -710,9 +770,10 @@ int wubu_holyd_publish_event(WubuHoly *d, const char *event_type,
                                const char *session, const char *data) {
     if (!d || !event_type) return -1;
     holyd_log(d, 2, "EVENT: %s session=%s", event_type, session ? session : "*");
-    char event_path[WUBU_HOLYD_MAX_PATH];
-    snprintf(event_path, sizeof(event_path), "%s/events", d->config.sessions_path);
+    char *event_path = holyd_path_join(d->config.sessions_path, "events");
+    if (!event_path) return -1;
     FILE *f = fopen(event_path, "a");
+    free(event_path);
     if (!f) return -1;
     time_t now = time(NULL);
     fprintf(f, "{\"time\":%ld,\"event\":\"%s\",\"session\":\"%s\",\"data\":\"%s\"}\n",

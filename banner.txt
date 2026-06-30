@@ -1,0 +1,14 @@
+```text
+╔═══════════════════════════════════════════════════════╗
+║                                                        ║
+║     🌱  W U B U O S                                 ║
+║                                                        ║
+║     ZealOS kernel · Win98 shell · Styx/9P namespace   ║
+║                                                        ║
+║     73 C files · ~15K real LOC · 747+ tests green    ║
+║     1562 REAL_GAPs · 67% ZealOS parity · 85% VSL stubs ║
+║                                                        ║
+║     Hosted ─── ZealOS ─── 9P ─── GUI ─── Containers ║
+║                                                        ║���
+╚═══════════════════════════════════════════════════════╝
+```
