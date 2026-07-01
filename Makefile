@@ -44,8 +44,8 @@ GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/w
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscall.o
 
 # ── App Objects ──────────────────────────────────────────────────
-APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/paint.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o \
-           $(APPS)/calc/calc.o $(APPS)/notepad/notepad.o $(APPS)/paint/paint.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
+APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_canvas.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o \
+           $(APPS)/calc/calc.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
            $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o $(APPS)/canvas/canvas.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
@@ -238,8 +238,34 @@ $(KERNEL)/libc.o: $(KERNEL)/libc.c
 
 # ── Tests ────────────────────────────────────────────────────────
 
-test: test_jit test_memory test_tasking test_input test_worldsim test_fat32 test_holyc test_wubu test_apps test_bridge test_bridge_flip test_syscall test_proton test_ahci test_iso test_weights test_gc test_txfs test_dbuf test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_styx test_styxfs test_host_exec test_gaad test_apps2 test_proton2 test_audio test_screenshot test_deploy test_anticheat test_bottles test_holyd test_network test_snapshot test_daemon_panel test_oci test_math test_clipboard
-	@echo "✅ All tests passed"
+# ── Phase-based Test Targets ─────────────────────────────────────────
+# Phase 1: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
+test_phase1: test_oci test_network test_snapshot test_vsl test_holyd test_proton test_proton2
+	@echo "✅ Phase 1 (Runtime Core) complete"
+
+# Phase 2: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan)
+test_phase2: test_fat32 test_txfs test_ahci test_drm_direct
+	@echo "✅ Phase 2 (Kernel/Metal) complete"
+
+# Phase 3: Bridge (syscall bridge, DOS flip)
+test_phase3: test_bridge test_bridge_flip test_syscall
+	@echo "✅ Phase 3 (Bridge) complete"
+
+# Phase 4: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard)
+test_phase4: test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot
+	@echo "✅ Phase 4 (Hosted/GUI) complete"
+
+# Phase 5: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
+test_phase5: test_jit test_memory test_tasking test_input test_holyc test_holyc_ptx test_holyc_terminal
+	@echo "✅ Phase 5 (Bear RL/JIT/Compiler) complete"
+
+# Phase 6: Apps / Audio / Tools / WorldSim / OTHER
+test_phase6: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash
+	@echo "✅ Phase 6 (Apps/Audio/Tools/Other) complete"
+
+# Full test suite - runs all phases sequentially
+test: test_phase1 test_phase2 test_phase3 test_phase4 test_phase5 test_phase6
+	@echo "✅ All tests passed (6 phases)"
 
 test_jit:
 	$(CC) -O0 -g -I$(JIT) -Wno-format-truncation $(JIT_SRCS) $(JIT)/jit_test.c -o $(JIT)/jit_test
@@ -351,13 +377,14 @@ test_screenshot:
 
 test_gui_screenshot:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_SCREENSHOT_WITH_WM \
-		-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) \
+		-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) \
 		$(GUI)/wubu_screenshot.c $(KERNEL)/vbe.c $(GUI)/wubu_theme.c $(GUI)/wubu_notify.c \
 		$(GUI)/dosgui_wm.c $(GUI)/wubu_wm.c $(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c \
 		$(KERNEL)/memory.c $(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S \
 		$(BRIDGE)/bridge.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c \
-		$(HOSTED)/xdg-shell-private.o \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c $(RT)/wubu_ct_isolate.c \
+		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
+		$(GUI)/wubu_mime.c \
 		$(GUI)/wubu_screenshot_test.c \
 		-o $(GUI)/wubu_screenshot_test -lwayland-client -lxkbcommon -lm
 	$(GUI)/wubu_screenshot_test
@@ -372,8 +399,9 @@ test_mime:
 
 test_trash:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
-		-I$(GUI) -I$(KERNEL) \
+		-I$(GUI) -I$(KERNEL) -I$(RT) \
 		$(GUI)/wubu_trash.c $(GUI)/wubu_settings.c $(GUI)/wubu_theme.c \
+		$(RT)/wubu_arch.c \
 		$(GUI)/wubu_trash_test.c \
 		-o $(GUI)/wubu_trash_test
 	$(GUI)/wubu_trash_test
@@ -420,15 +448,15 @@ test_styxfs:
 	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/styx.c $(RT)/styxfs.c $(RT)/styxfs_test.c -o $(RT)/styxfs_test
 	$(RT)/styxfs_test
 
-test_hosted: $(HOSTED)/xdg-shell-private.o
+test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_HOSTED_TEST -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(BRIDGE)/bridge.c \
 		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_daemon_panel.c \
-		$(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c \
+		$(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c \
-		$(HOSTED)/xdg-shell-private.o \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c \
+		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		-o $(HOSTED)/hosted_test -lwayland-client -lxkbcommon -lm
 	$(HOSTED)/hosted_test
 
@@ -553,7 +581,7 @@ test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(RT) \
 		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_settings.c $(GUI)/wubu_theme.c \
-		$(RT)/styx.c $(RT)/styxfs.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_container.c \
 		$(GUI)/wubu_pkgmgr_test.c \
 		-o $(GUI)/wubu_pkgmgr_test -lsqlite3 -lzstd
 	$(GUI)/wubu_pkgmgr_test
