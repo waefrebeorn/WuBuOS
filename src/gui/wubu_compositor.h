@@ -12,6 +12,7 @@
 #include <wayland-server-core.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_surface.h>
+#include <vulkan/vulkan.h>
 
 /* Forward declarations */
 typedef struct WuBuCompositor WuBuCompositor;

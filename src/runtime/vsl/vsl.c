@@ -9,6 +9,7 @@
 #include "wubu_container.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_syscall.h"
+#include "vsl/vsl_gpu_vulkan.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -91,6 +92,9 @@ int vsl_init(void) {
     init->mmap_base = VSL_USER_BASE + 0x1000000; /* 16MB into user space */
     g_vsl.n_procs = 1;
     g_vsl.current_pid = 1;
+
+    /* Initialize GPU Vulkan driver */
+    vsl_vulkan_driver_init();
 
     g_vsl.active = true;
     return 0;

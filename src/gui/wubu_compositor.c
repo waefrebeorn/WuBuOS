@@ -62,6 +62,7 @@
 
 #include "wubu_compositor.h"
 #include "wubu_vsl.h"
+#include "vsl/vsl_gpu_vulkan.h"
 
 /* ================================================================
  * WuBuObject - Better than GObject
@@ -169,10 +170,14 @@ struct WuBuCompositor {
     uint64_t last_frame_ns;
     uint64_t frame_interval_ns;    /* 16666667 for 60Hz */
 
-    /* VSL integration */
-    VSL_DRV *gpu_driver;
+    /* VSL Vulkan integration */
     VkInstance vk_instance;
+    VkPhysicalDevice vk_physical_device;
     VkDevice vk_device;
+    VkQueue vk_graphics_queue;
+    VkQueue vk_present_queue;
+    uint32_t vk_graphics_queue_family;
+    uint32_t vk_present_queue_family;
 };
 
 /* ================================================================
@@ -492,23 +497,35 @@ static void compositor_render(WuBuCompositor *comp) {
  * ================================================================ */
 
 static bool compositor_init_gpu(WuBuCompositor *comp) {
-    /* Get VSL GPU driver (Vulkan) */
-    comp->gpu_driver = vsl_get_driver(VSL_DRV_GPU_VULKAN);
-    if (!comp->gpu_driver || !comp->gpu_driver->active) {
-        fprintf(stderr, "Vulkan driver not active\n");
+    /* Get Vulkan instance/device from VSL */
+    comp->vk_instance = vsl_vulkan_get_instance();
+    if (comp->vk_instance == VK_NULL_HANDLE) {
+        fprintf(stderr, "Vulkan instance not available\n");
         return false;
     }
-
-    comp->vk_instance = comp->gpu_driver->priv;
-    /* VkDevice would be stored in driver private data */
-
-    /* Configure wlroots Vulkan renderer with our instance/device */
+    
+    comp->vk_device = vsl_vulkan_get_device();
+    if (comp->vk_device == VK_NULL_HANDLE) {
+        fprintf(stderr, "Vulkan device not available\n");
+        return false;
+    }
+    
+    comp->vk_physical_device = vsl_vulkan_get_physical_device();
+    
+    uint32_t gfx_qf, pres_qf;
+    comp->vk_graphics_queue = vsl_vulkan_get_graphics_queue(&gfx_qf);
+    comp->vk_present_queue = vsl_vulkan_get_present_queue(&pres_qf);
+    
+    comp->vk_graphics_queue_family = gfx_qf;
+    comp->vk_present_queue_family = pres_qf;
+    
+    /* Configure wlroots Vulkan renderer with our VSL Vulkan objects */
     struct wlr_vulkan_renderer_options opts = {
         .instance = comp->vk_instance,
-        .physical_device = VK_NULL_HANDLE, /* TODO: select */
-        .device = VK_NULL_HANDLE,          /* TODO: get from driver */
+        .physical_device = comp->vk_physical_device,
+        .device = comp->vk_device,
     };
-
+    
     /* Re-create renderer with our Vulkan objects */
     wlr_renderer_destroy(comp->renderer);
     comp->renderer = wlr_vulkan_renderer_create_with_options(comp->display, &opts);
@@ -516,7 +533,7 @@ static bool compositor_init_gpu(WuBuCompositor *comp) {
         fprintf(stderr, "Failed to create Vulkan renderer with VSL device\n");
         return false;
     }
-
+    
     wlr_renderer_init_wl_display(comp->renderer, comp->display);
     return true;
 }
@@ -585,15 +602,11 @@ static void compositor_9p_serve(WuBuCompositor *comp) {
 int main(int argc, char *argv[]) {
     wlr_log_init(WLR_DEBUG, NULL);
 
-    /* Initialize VSL first */
+    /* Initialize VSL first (now includes Vulkan driver init) */
     if (vsl_init() != 0) {
         fprintf(stderr, "VSL init failed\n");
         return 1;
     }
-
-    /* Activate GPU drivers */
-    int vk_drv = vsl_register_driver(VSL_DRV_GPU_VULKAN, 0, 0, 0, 0);
-    if (vk_drv >= 0) vsl_activate_driver(vk_drv);
 
     WuBuCompositor *comp = wubu_compositor_create();
     int ret = wubu_compositor_run(comp);

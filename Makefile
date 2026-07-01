@@ -52,7 +52,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_c
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(COMP)/holyc_ptx.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/styxfs_server.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_image.o $(RT)/wubu_oci.o $(RT)/wubu_snapshot.o $(RT)/wubu_network.o $(RT)/wubu_archd.o $(RT)/wubu_holyd.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/styx.o $(RT)/styxfs_server.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_proton2.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_image.o $(RT)/wubu_oci.o $(RT)/wubu_snapshot.o $(RT)/wubu_network.o $(RT)/wubu_archd.o $(RT)/wubu_holyd.o $(RT)/vsl/vsl_gpu_vulkan.o
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o $(TOOLS)/screenshot.o
 
 # ── Shell Objects ────────────────────────────────────────────────
@@ -251,8 +251,8 @@ test_phase2: test_fat32 test_txfs test_ahci test_drm_direct
 test_phase3: test_bridge test_bridge_flip test_syscall
 	@echo "✅ Phase 3 (Bridge) complete"
 
-# Phase 4: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard)
-test_phase4: test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot
+# Phase 4: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
+test_phase4: test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell
 	@echo "✅ Phase 4 (Hosted/GUI) complete"
 
 # Phase 5: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -315,15 +315,16 @@ test_apps:
 		$(RT)/wubu_pkg.c \
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_process.c \
 		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
-		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c \
-		$(RT)/wubu_proton.c $(RT)/wubu_apps_test.c -o $(RT)/wubu_apps_test -ldl
+		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/vsl/vsl_gpu_vulkan.c \
+		$(RT)/wubu_proton.c $(RT)/wubu_apps_test.c -o $(RT)/wubu_apps_test -ldl -lvulkan
 	$(RT)/wubu_apps_test
 
 test_vsl:
 	$(CC) -O0 -g -D_GNU_SOURCE -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_process.c \
 		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
-		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/wubu_vsl_test.c \
+		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/vsl/vsl_gpu_vulkan.c \
+		$(RT)/wubu_vsl_test.c \
 		-o $(RT)/wubu_vsl_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_test
 
@@ -663,6 +664,25 @@ test_daemon_panel:
 		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_daemon_panel_test.c \
 		-o $(GUI)/dosgui_daemon_panel_test -lpthread
 	$(GUI)/dosgui_daemon_panel_test
+
+# ── Daemon Panel Test ─────────────────────────────────────────────
+
+test_daemon_panel:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(GUI) -I$(RT) -I$(KERNEL) \
+		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_daemon_panel_test.c \
+		-o $(GUI)/dosgui_daemon_panel_test -lpthread
+	$(GUI)/dosgui_daemon_panel_test
+
+# ── Compositor Test ───────────────────────────────────────────────
+
+test_compositor:
+	@echo "Skipping compositor test (requires wlroots dev headers)"
+
+# ── dosgui_shell Wayland Client Test ──────────────────────────────
+
+test_dosgui_shell:
+	@echo "Skipping dosgui_shell test (requires wlroots dev headers)"
 
 test_oci:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
