@@ -1,14 +1,14 @@
-## WuBuOS Mind Palace — Session State
+# WuBuOS Mind Palace — Session State
 
 ## Current Status: Phase 17 — 1562 REAL_GAP Deep Audit + Hosted Binary Build + Screenshot
 
 ```
-╔═══════════════════════════════════════════════════════╗
-║     🌱  W U B U O S                                 ║
-║     ZealOS kernel · Win98 shell · Styx/9P namespace  ║
-║     73 C files · ~15K real LOC · 747+ tests green   ║
+╔════════════════════════════════════════════════════════════════
+║     🌱  W U B U O S                                    ║
+║     ZealOS kernel · Win98 shell · Styx/9P namespace    ║
+║     73 C files · ~15K real LOC · 747+ tests green     ║
 ║     1562 REAL_GAPs · 67% ZealOS parity · 85% VSL stubs ║
-╚═══════════════════════════════════════════════════════╝
+╚═══════════════════════════════════════════════════════════════
 ```
 
 ## Battleship Progress
@@ -81,7 +81,7 @@ See vault/phases/phase_1_runtime_core.md, phase_2_kernel_metal.md, phase_3_4_5_b
 | Audio (Furnace 12 chips, SF2, Ardour DAW, AI plugins) | 2 | 0 | 🟡 MEDIUM |
 | Bridge (syscall, DOS flip) | 3 | 0 | 🟡 MEDIUM |
 | Tools (ISO9660, screenshot, weight_check) | 3 | 0 | 🔵 LOW |
-| Shell (unified shell) |  | 1 | 0 | 🔵 LOW |
+| Shell (unified shell) | 1 | 0 | 🔵 LOW |
 | Other (JIT encoder/disasm/minic) | 5 | 222 | 🔵 LOW |
 | **TOTAL** | **73** | **1562** | |
 

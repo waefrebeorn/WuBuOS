@@ -6,6 +6,7 @@
  * Mount points allow composing multiple container repositories.
  */
 
+#define _GNU_SOURCE
 #include "styxfs.h"
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +16,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
 
 /* -- Internal Helpers ------------------------------------------ */
 

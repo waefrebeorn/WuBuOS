@@ -7,7 +7,7 @@
 #include "dosgui_apps.h"
 #include "calc/calc.h"
 #include "notepad/notepad.h"
-#include "paint/paint.h"
+#include "wubu_canvas.h"
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
 #include "fm/fm.h"
