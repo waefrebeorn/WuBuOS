@@ -37,7 +37,18 @@ make hosted
 # Run hosted with screenshot
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-# Run tests
+# Run tests by phase (recommended)
+make test_phase1   # Runtime Core: OCI, Network, Snapshots, VSL, HolyD, Proton
+make test_phase2   # Kernel/Metal: FAT32, TXFS, AHCI, DRM
+make test_phase3   # Bridge: syscall bridge, DOS flip
+make test_phase4   # Hosted/GUI: WM, StartMenu, Explorer, Terminal, Clipboard
+make test_phase5   # Bear RL/JIT/Compiler: JIT, Memory, Tasking, HolyC, PTX
+make test_phase6   # Apps/Audio/Tools/Other: WorldSim, Audio, Containers, etc.
+
+# Run all phases
+make test
+
+# Individual test targets
 make test_holyc        # 84/84 passing
 make test_styxfs       # 11/11 passing
 make test_vsl          # 55/55 passing
@@ -75,3 +86,19 @@ src/
 ## License
 
 WuBuOS — MIT License (ZealOS kernel under its own license)
+
+## Screenshots
+
+| Screenshot | Description |
+|------------|-------------|
+| `wubuos_screenshot.png` | Hosted binary rendering (Win98 theme, 1024×768) |
+| `wubuos_demo.mp4` | 4-second demo video showing desktop, start menu, app launch |
+
+### Theme Variants
+Run with different themes:
+```bash
+./src/hosted/wubu --theme win98   --screenshot /tmp/win98.ppm   # Win98 Classic (default)
+./src/hosted/wubu --theme xp      --screenshot /tmp/xp.ppm      # XP Luna Blue
+./src/hosted/wubu --theme xp-media --screenshot /tmp/xp-media.ppm # XP Media Center Orange
+./src/hosted/wubu --theme wubu    --screenshot /tmp/wubu.ppm    # WuBu Custom Green
+```
