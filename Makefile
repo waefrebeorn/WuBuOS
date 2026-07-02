@@ -425,7 +425,8 @@ test_dbuf:
 
 test_dosgui_wm:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) \
-		$(GUI)/dosgui_wm.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
+		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_ctx_menu.c \
+		$(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c \
 		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_lexer.c $(JIT_SRCS) \
 		$(GUI)/dosgui_wm_test.c -o $(GUI)/dosgui_wm_test -lm
