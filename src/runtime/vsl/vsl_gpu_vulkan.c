@@ -7,7 +7,9 @@
  * Supports sync fd export/import for explicit sync.
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_gpu_vulkan.h"
 #include "vsl/vsl_driver.h"
