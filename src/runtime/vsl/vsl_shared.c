@@ -2,7 +2,9 @@
  * vsl_shared.c  --  VSL Shared Memory Implementation
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_shared.h"
 

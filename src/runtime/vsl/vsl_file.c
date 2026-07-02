@@ -2,7 +2,9 @@
  * vsl_file.c  --  VSL File Operations Implementation
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_file.h"
 

@@ -2,7 +2,9 @@
  * vsl_elf.c  --  VSL ELF Loading Implementation
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_elf.h"
 

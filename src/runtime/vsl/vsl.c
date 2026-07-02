@@ -4,7 +4,9 @@
  * All syscall implementations are in vsl_syscall.c
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "wubu_vsl.h"
 #include "wubu_container.h"
 #include "vsl/vsl_internal.h"

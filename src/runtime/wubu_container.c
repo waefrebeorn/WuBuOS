@@ -5,25 +5,13 @@
  */
 
 #include "wubu_container.h"
-
+#include "wubu_crypto.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
 
-/* -- CRC32 -------------------------------------------------------- */
-
-uint32_t wubu_crc32(const void *data, size_t size) {
-    const uint8_t *p = (const uint8_t *)data;
-    uint32_t crc = 0xFFFFFFFF;
-    for (size_t i = 0; i < size; i++) {
-        crc ^= p[i];
-        for (int j = 0; j < 8; j++) {
-            crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
-        }
-    }
-    return crc ^ 0xFFFFFFFF;
-}
+/* CRC32 is in wubu_crypto.h (included above) */
 
 /* -- Payload Detection -------------------------------------------- */
 

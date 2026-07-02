@@ -3,7 +3,9 @@
  * All syscall handlers in one self-contained module (C11, opaque-friendly)
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include "wubu_vsl.h"
 #include "wubu_container.h"
 #include "vsl/vsl_syscall.h"
