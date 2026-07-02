@@ -213,10 +213,7 @@ int wubu_container_validate(const void *data, size_t data_size);
 int wubu_container_read_meta(const void *data, size_t data_size,
                              WUBU_METADATA *out_meta);
 
-/*
- * Compute CRC32 for header validation.
- */
-uint32_t wubu_crc32(const void *data, size_t size);
+/* CRC32 is in wubu_crypto.h */
 
 /*
  * Detect payload type from raw data (for auto-detection).
