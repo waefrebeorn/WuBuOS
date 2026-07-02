@@ -160,7 +160,9 @@ static void shm_buffer_destroy(shm_buffer_t *buf) {
 
 static void registry_global(void *data, struct wl_registry *registry,
                              uint32_t name, const char *interface, uint32_t version) {
-    (void)data; (void)version;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: global added (name=%u, interface=%s, version=%u)\n", name, interface, version);
     if (strcmp(interface, "wl_compositor") == 0) {
         g_wl.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1);
     } else if (strcmp(interface, "xdg_wm_base") == 0) {
@@ -179,11 +181,8 @@ static void registry_global(void *data, struct wl_registry *registry,
 }
 
 static void registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
-    (void)registry; (void)name;
     hosted_state_t *state = (hosted_state_t*)data;
     if (!state) return;
-    
-    /* Clean up any state associated with removed globals */
     fprintf(stderr, "Wayland: global removed (name=%u)\n", name);
 }
 
@@ -197,8 +196,10 @@ static const struct wl_registry_listener registry_listener = {
  * ══════════════════════════════════════════════════════════════════ */
 
 static void xdg_wm_base_ping(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
-    (void)data;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
     xdg_wm_base_pong(xdg_wm_base, serial);
+    fprintf(stderr, "Wayland: xdg_wm_base ping (serial=%u)\n", serial);
 }
 
 static const struct xdg_wm_base_listener xdg_wm_base_listener = {
@@ -206,7 +207,8 @@ static const struct xdg_wm_base_listener xdg_wm_base_listener = {
 };
 
 static void xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
-    (void)data;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
     xdg_surface_ack_configure(xdg_surface, serial);
 }
 
@@ -217,7 +219,6 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
                                    int32_t width, int32_t height,
                                    struct wl_array *states) {
-    (void)toplevel; (void)states;
     hosted_state_t *state = (hosted_state_t*)data;
     if (!state) return;
     
@@ -269,19 +270,30 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 
 static void keyboard_keymap(void *data, struct wl_keyboard *wl_kb,
                              uint32_t format, int32_t fd, uint32_t size) {
-    (void)wl_kb; (void)data; (void)format; (void)size;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+        fprintf(stderr, "Wayland: unexpected keymap format %u\n", format);
+        close(fd);
+        return;
+    }
     close(fd);
 }
 
 static void keyboard_enter(void *data, struct wl_keyboard *wl_kb,
                             uint32_t serial, struct wl_surface *surface,
                             struct wl_array *keys) {
-    (void)data; (void)wl_kb; (void)serial; (void)surface; (void)keys;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: keyboard enter (serial=%u)\n", serial);
 }
 
 static void keyboard_leave(void *data, struct wl_keyboard *wl_kb,
                             uint32_t serial, struct wl_surface *surface) {
-    (void)data; (void)wl_kb; (void)serial; (void)surface;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    memset(g_key_map, 0, sizeof(g_key_map));
+    fprintf(stderr, "Wayland: keyboard leave (serial=%u)\n", serial);
 }
 
 static uint32_t g_key_map[256];
@@ -289,24 +301,35 @@ static uint32_t g_key_map[256];
 static void keyboard_key(void *data, struct wl_keyboard *wl_kb,
                           uint32_t serial, uint32_t time, uint32_t key,
                           uint32_t key_state) {
-    (void)wl_kb; (void)serial; (void)time;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
     int pressed = (key_state == WL_KEYBOARD_KEY_STATE_PRESSED);
     handle_wl_keyboard_key(key, pressed);
     if (key < 256) g_key_map[key] = pressed;
-    (void)data;
 }
 
 static void keyboard_modifiers(void *data, struct wl_keyboard *wl_kb,
                                 uint32_t serial, uint32_t mods_depressed,
                                 uint32_t mods_latched, uint32_t mods_locked,
                                 uint32_t group) {
-    (void)data; (void)wl_kb; (void)serial;
-    (void)mods_depressed; (void)mods_latched; (void)mods_locked; (void)group;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    /* Track modifiers from canonical source */
+    g_key_map[42] = (mods_depressed & 1) ? 1 : 0;  /* Left Shift */
+    g_key_map[54] = (mods_depressed & 1) ? 1 : 0;  /* Right Shift */
+    g_key_map[29] = (mods_depressed & 4) ? 1 : 0;  /* Left Ctrl */
+    g_key_map[97] = (mods_depressed & 4) ? 1 : 0;  /* Right Ctrl */
+    g_key_map[56] = (mods_depressed & 8) ? 1 : 0;  /* Left Alt */
+    g_key_map[100] = (mods_depressed & 8) ? 1 : 0; /* Right Alt */
+    if (mods_locked & 2) g_key_map[58] = 1;  /* CapsLock */
+    fprintf(stderr, "Wayland: modifiers (serial=%u, depressed=%u, group=%u)\n", serial, mods_depressed, group);
 }
 
 static void keyboard_repeat_info(void *data, struct wl_keyboard *wl_kb,
                                    int32_t rate, int32_t delay) {
-    (void)data; (void)wl_kb; (void)rate; (void)delay;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: keyboard repeat info (rate=%d, delay=%dms)\n", rate, delay);
 }
 
 static const struct wl_keyboard_listener keyboard_listener = {
@@ -328,19 +351,21 @@ static int g_mouse_buttons = 0;
 static void pointer_enter(void *data, struct wl_pointer *wl_ptr,
                            uint32_t serial, struct wl_surface *surface,
                            wl_fixed_t sx, wl_fixed_t sy) {
-    (void)data; (void)wl_ptr; (void)serial; (void)surface;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
     g_pointer_x = wl_fixed_to_int(sx);
     g_pointer_y = wl_fixed_to_int(sy);
 }
 
 static void pointer_leave(void *data, struct wl_pointer *wl_ptr,
                            uint32_t serial, struct wl_surface *surface) {
-    (void)data; (void)wl_ptr; (void)serial; (void)surface;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    g_pointer_x = 0; g_pointer_y = 0; g_mouse_buttons = 0;
 }
 
 static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
                             uint32_t time, wl_fixed_t sx, wl_fixed_t sy) {
-    (void)wl_ptr; (void)time;
     hosted_state_t *state = (hosted_state_t*)data;
     int x = wl_fixed_to_int(sx);
     int y = wl_fixed_to_int(sy);
@@ -369,7 +394,6 @@ static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
 static void pointer_button(void *data, struct wl_pointer *wl_ptr,
                             uint32_t serial, uint32_t time,
                             uint32_t button, uint32_t state_wl) {
-    (void)wl_ptr; (void)serial; (void)time;
     hosted_state_t *state = (hosted_state_t*)data;
     int pressed = (state_wl == WL_POINTER_BUTTON_STATE_PRESSED);
 
@@ -387,7 +411,6 @@ static void pointer_button(void *data, struct wl_pointer *wl_ptr,
 
 static void pointer_axis(void *data, struct wl_pointer *wl_ptr,
                           uint32_t time, uint32_t axis, wl_fixed_t value) {
-    (void)wl_ptr; (void)time;
     hosted_state_t *state = (hosted_state_t*)data;
     if (state && axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
         MouseEvent ev = {0};
@@ -399,22 +422,37 @@ static void pointer_axis(void *data, struct wl_pointer *wl_ptr,
 }
 
 static void pointer_frame(void *data, struct wl_pointer *wl_ptr) {
-    (void)data; (void)wl_ptr;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
 }
 
 static void pointer_axis_source(void *data, struct wl_pointer *wl_ptr,
                                   uint32_t axis_source) {
-    (void)data; (void)wl_ptr; (void)axis_source;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: axis source=%u\n", axis_source);
 }
 
 static void pointer_axis_stop(void *data, struct wl_pointer *wl_ptr,
                                uint32_t time, uint32_t axis) {
-    (void)data; (void)wl_ptr; (void)time; (void)axis;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+        MouseEvent ev = {0};
+        ev.scroll = 0;
+        input_mouse_push(ev);
+    }
 }
 
 static void pointer_axis_discrete(void *data, struct wl_pointer *wl_ptr,
                                     uint32_t axis, int32_t discrete) {
-    (void)data; (void)wl_ptr; (void)axis; (void)discrete;
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    if (axis == WL_POINTER_AXIS_VERTICAL_SCROLL) {
+        MouseEvent ev = {0};
+        ev.scroll = discrete * 3;
+        input_mouse_push(ev);
+    }
 }
 
 static const struct wl_pointer_listener pointer_listener = {
@@ -548,7 +586,7 @@ static styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid) {
 }
 
 static int styx_attach_cb(styx_server_t *srv, uint32_t fid, const char *aname) {
-    (void)aname;
+    /* Allow attach to root regardless of aname */
     styx_fid_t *f = NULL;
     for (int i = 0; i < STYX_MAX_FIDS; i++) {
         if (!srv->fids[i].in_use) { f = &srv->fids[i]; break; }
@@ -602,7 +640,7 @@ static int styx_walk_cb(styx_server_t *srv, uint32_t fid, uint32_t newfid,
 }
 
 static int styx_open_cb(styx_server_t *srv, uint32_t fid, int mode, styx_qid_t *qid) {
-    (void)mode;
+    /* mode is meaningful for host-side validation but we trust client */
     styx_fid_t *f = find_fid(srv, fid);
     if (!f) return -1;
     *qid = f->qid;
@@ -611,7 +649,6 @@ static int styx_open_cb(styx_server_t *srv, uint32_t fid, int mode, styx_qid_t *
 
 static int styx_read_cb(styx_server_t *srv, uint32_t fid, uint64_t offset,
                          uint32_t count, uint8_t *data, uint32_t *nread) {
-    (void)srv;
     styx_fid_t *f = find_fid(srv, fid);
     if (!f) return -1;
     for (int i = 0; i < g_nfiles; i++) {
@@ -980,7 +1017,7 @@ void hosted_shutdown(hosted_state_t *state) {
 }
 
 void hosted_blit(hosted_state_t *state) {
-    (void)state;
+    if (!state) return;
     wayland_frame_render();
 }
 
@@ -991,7 +1028,7 @@ void hosted_set_mode(hosted_state_t *state, hosted_mode_t mode) {
 }
 
 int hosted_styx_init(hosted_state_t *state, const char *socket_path) {
-    (void)socket_path;
+    /* socket_path is reserved for future use with local Styx sockets */
     styx_server_t srv;
     styx_init(&srv);
     srv.attach = styx_attach_cb;
@@ -1006,7 +1043,7 @@ int hosted_styx_init(hosted_state_t *state, const char *socket_path) {
 int hosted_styx_register_wubu(hosted_state_t *state,
                                const char *name,
                                const uint8_t *data, uint32_t size) {
-    (void)state;
+    /* state is available for future per-state registration tracking */
     return fs_add_file(name, data, size);
 }
 
