@@ -22,363 +22,40 @@
  *   - Wallpaper support (center/tile/stretch)
  *   - Maximize/Minimize window buttons
  */
+/* -- Includes ------------------------------------------------------ */
+#include "dosgui_wm_internal.h"
 
-#include "dosgui_wm.h"
-#include "dosgui_startmenu.h"
-#include "dosgui_desktop.h"
-#include "wubu_notify.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
-#include "../compiler/holyc.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <time.h>
+DosGuiWM g_dwm = {0};
 
-/* -- Safe String Macros (WUBU_SAFE_STRING) -------------------------- */
-
-#define WUBU_STRCPY(dst, src, dst_size) \
-    do { \
-        if (dst_size > 0) { \
-            strncpy((dst), (src), (dst_size) - 1); \
-            (dst)[(dst_size) - 1] = '\0'; \
-        } \
-    } while (0)
-
-#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
-    do { \
-        if (dst_size > 0) { \
-            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
-            (dst)[(dst_size) - 1] = '\0'; \
-        } \
-    } while (0)
-
-#define WUBU_STRLCAT(dst, src, dst_size) \
-    do { \
-        size_t _dst_len = strlen(dst); \
-        size_t _src_len = strlen(src); \
-        if (_dst_len + _src_len + 1 <= dst_size) { \
-            memcpy((dst) + _dst_len, (src), _src_len + 1); \
-        } else if (_dst_len < dst_size) { \
-            size_t _avail = (dst_size) - _dst_len - 1; \
-            memcpy((dst) + _dst_len, (src), _avail); \
-            (dst)[(dst_size) - 1] = '\0'; \
-        } \
-    } while (0)
-
-/* -- Global State ------------------------------------------------- */
-
-typedef struct {
-    int             screen_w, screen_h;
-    DosGuiWindow    windows[DOSGUI_MAX_WINDOWS];
-    int             next_id;
-    int             focused_id;
-
-    /* Z-order: indices into windows[], bottom..top */
-    int             zorder[DOSGUI_MAX_WINDOWS];
-    int             nz;
-
-    /* Drag state */
-    int             drag_id;
-    int             drag_ox, drag_oy;
-
-    /* Desktop icons */
-    DosGuiIcon       icons[DOSGUI_MAX_ICONS];
-    int             icon_count;
-
-    /* Icon drag state */
-    int             drag_icon_id;
-    int             drag_icon_ox, drag_icon_oy;
-
-    /* Wallpaper */
-    uint32_t       *wallpaper;
-    int             wallpaper_w, wallpaper_h;
-    int             wallpaper_mode; /* 0=center, 1=tile, 2=stretch */
-
-    /* Virtual desktops */
-    int             current_desktop;
-    int             desktop_count;
-
-    /* System Tray */
-    DosGuiSysTrayIcon systray_icons[DOSGUI_MAX_SYSTRAY_ICONS];
-    int             systray_count;
-
-    /* Notification Center */
-    DosGuiNotification notifications[DOSGUI_NOTIF_CENTER_MAX];
-    int             notif_count;
-    int             next_notif_id;
-    bool            notif_center_open;
-
-    /* Last real time for clock */
-    time_t          last_clock_update;
-
-    /* Mouse state */
-    int             mouse_x, mouse_y;
-    int             ticks;
-} DosGuiWM;
-
-static DosGuiWM g_dwm = {0};
-
-/* ================================================================
- * HolyC Terminal — Persistent HCCompiler per window
- * ================================================================ */
-
-#define HOLYC_TERM_MAX_LINES  2000
-#define HOLYC_TERM_LINE_LEN   512
-#define HOLYC_TERM_HISTORY    100
-
-typedef struct {
-    HCCompiler       compiler;       /* Persistent HolyC compiler state */
-    char             lines[HOLYC_TERM_MAX_LINES][HOLYC_TERM_LINE_LEN];
-    int              line_count;
-    char             input[HOLYC_TERM_LINE_LEN];
-    int              input_pos;
-    int              cursor_blink;
-    char             history[HOLYC_TERM_HISTORY][HOLYC_TERM_LINE_LEN];
-    int              history_count;
-    int              history_pos;    /* -1 = current input, 0..history_count-1 = history */
-    bool             initialized;
-} HolycTerm;
-
-static HolycTerm g_holyc_terms[DOSGUI_MAX_WINDOWS] = {0};
-
-/* Initialize HolyC compiler for a terminal window */
-static void holyc_term_init_compiler(HolycTerm *term) {
-    if (term->initialized) return;
-    hc_gen_init(&term->compiler.gen);
-    term->compiler.gen.symbols.n_locals = 0;
-    term->compiler.gen.symbols.stack_size = 0;
-    term->compiler.gen.n_functions = 0;
-    term->compiler.gen.label_count = 0;
-    term->initialized = true;
-}
-
-/* Forward declarations for WM internal functions */
-static void raise_win(int i);
-static void close_win(int i);
-static int  hit_test(int x, int y);
-static void draw_window(int idx);
-static void draw_desktop_bg(int fb_w, int fb_h);
-static const WubuThemeColors *tc(void);
-static const WubuTheme *theme(void);
-static int title_bar_height(void);
-static int taskbar_height_dynamic(void);
-static int border_width(void);
-static int theme_radius(void);
-static void load_default_wallpaper(void);
-static void draw_wallpaper(int fb_w, int fb_h);
-static void snap_icon_to_grid(DosGuiIcon *icon);
-static int icon_grid_x(int x);
-static int icon_grid_y(int y);
-static void snap_window_to_gaad(DosGuiWindow *w);
+/* -- Forward declarations (non-static for sub-modules) ------------ */
+void raise_win(int i);
+void close_win(int i);
+int  hit_test(int x, int y);
+void draw_window(int idx);
+void draw_desktop_bg(int fb_w, int fb_h);
+const WubuThemeColors *tc(void);
+const WubuTheme *theme(void);
+int  title_bar_height(void);
+int  taskbar_height_dynamic(void);
+int  border_width(void);
+int  theme_radius(void);
+void load_default_wallpaper(void);
+void draw_wallpaper(int fb_w, int fb_h);
+void snap_icon_to_grid(DosGuiIcon *icon);
+int  icon_grid_x(int x);
+int  icon_grid_y(int y);
+void snap_window_to_gaad(DosGuiWindow *w);
+int  spawn_window(int x, int y, int w, int h, const char *title);
 
 /* Forward declarations for new API functions */
 void dosgui_taskbar_update_clock(time_t now);
 char *dosgui_taskbar_get_clock_str(void);
 
-/* Draw HolyC terminal content */
-static void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    HolycTerm *term = (HolycTerm*)win->user_data;
-    if (!term) return;
-    
-    const int tbh = title_bar_height();
-    const int bw = border_width();
-    
-    int cx = win->x + bw;
-    int cy = win->y + tbh;
-    int cw = win->w - 2 * bw;
-    int ch = win->h - tbh - bw;
-    
-    /* Fill background */
-    vbe_fill_rect(cx, cy, cw, ch, 0x00000000);
-    
-    /* Draw output lines */
-    int x = cx + 4;
-    int y = cy + 4;
-    int line_h = 10;  /* 8px font + 2px spacing */
-    int max_visible = (ch - 8) / line_h;
-    
-    int start = term->line_count - max_visible;
-    if (start < 0) start = 0;
-    
-    for (int i = start; i < term->line_count; i++) {
-        if (y + line_h > cy + ch - 4) break;
-        vbe_draw_text(x, y, term->lines[i], 0x00FFFFFF, 1);
-        y += line_h;
-    }
-    
-    /* Draw input line with cursor */
-    if (y + line_h <= cy + ch - 4) {
-        char prompt_line[HOLYC_TERM_LINE_LEN + 8];
-        snprintf(prompt_line, sizeof(prompt_line), "$ %s", term->input);
-        vbe_draw_text(x, y, prompt_line, 0x00FFFF00, 1);
-        
-        /* Blinking cursor */
-        term->cursor_blink++;
-        if ((term->cursor_blink / 5) % 2 == 0) {
-            int cursor_x = x + (2 + term->input_pos) * 8;  /* 2 for "$ " */
-            vbe_vline(cursor_x, y, y + 8, 0x00FFFF00);
-        }
-    }
-}
-
-/* Add a line to terminal output */
-static void holyc_term_add_line(HolycTerm *term, const char *line) {
-    if (term->line_count < HOLYC_TERM_MAX_LINES) {
-        strncpy(term->lines[term->line_count], line, HOLYC_TERM_LINE_LEN - 1);
-        term->lines[term->line_count][HOLYC_TERM_LINE_LEN - 1] = '\0';
-        term->line_count++;
-    } else {
-        /* Scroll: shift all lines up */
-        for (int i = 1; i < HOLYC_TERM_MAX_LINES; i++) {
-            strcpy(term->lines[i-1], term->lines[i]);
-        }
-        strncpy(term->lines[HOLYC_TERM_MAX_LINES-1], line, HOLYC_TERM_LINE_LEN - 1);
-    }
-}
-
-/* Add to history */
-static void holyc_term_add_history(HolycTerm *term, const char *line) {
-    if (term->history_count < HOLYC_TERM_HISTORY) {
-        strncpy(term->history[term->history_count], line, HOLYC_TERM_LINE_LEN - 1);
-        term->history_count++;
-    } else {
-        for (int i = 1; i < HOLYC_TERM_HISTORY; i++) {
-            strcpy(term->history[i-1], term->history[i]);
-        }
-        strncpy(term->history[HOLYC_TERM_HISTORY-1], line, HOLYC_TERM_LINE_LEN - 1);
-    }
-    term->history_pos = -1;
-}
-
-/* Evaluate HolyC input via persistent compiler */
-static void holyc_term_eval(HolycTerm *term, const char *input) {
-    if (!input || !input[0]) return;
-    
-    /* Add to history */
-    holyc_term_add_history(term, input);
-    
-    /* Echo input */
-    char echo_line[HOLYC_TERM_LINE_LEN + 8];
-    snprintf(echo_line, sizeof(echo_line), "$ %s", input);
-    holyc_term_add_line(term, echo_line);
-    
-    /* Evaluate via HolyC compiler - use hc_eval which uses JIT */
-    int64_t result = hc_eval(input);
-    
-    /* Format result - HolyC uses I64 by default */
-    char result_line[HOLYC_TERM_LINE_LEN];
-    snprintf(result_line, sizeof(result_line), "= %ld", (long)result);
-    holyc_term_add_line(term, result_line);
-}
-
-/* Handle keyboard input for HolyC terminal */
-static void holyc_term_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
-    HolycTerm *term = (HolycTerm*)win->user_data;
-    if (!term) return;
-    
-    bool ctrl = (mods & 0x02) != 0;
-    bool shift = (mods & 0x01) != 0;
-    bool alt = (mods & 0x04) != 0;
-    bool meta = (mods & 0x08) != 0;
-
-    if (key == '\n' || key == '\r') {
-        /* Execute the input line */
-        if (term->input[0]) {
-            holyc_term_eval(term, term->input);
-            term->input[0] = '\0';
-            term->input_pos = 0;
-        }
-    } else if (key == 8 && term->input_pos > 0) {  /* Backspace */
-        term->input[--term->input_pos] = '\0';
-    } else if (ctrl && (key == 3 || key == 'c' || key == 'C')) {
-        /* Ctrl+C - clear input line */
-        term->input[0] = '\0';
-        term->input_pos = 0;
-        holyc_term_add_line(term, "^C");
-    } else if (ctrl && (key == 12 || key == 'l' || key == 'L')) {
-        /* Ctrl+L - clear screen */
-        term->line_count = 0;
-    } else if (ctrl && (key == 21 || key == 'u' || key == 'U')) {
-        /* Ctrl+U - delete line */
-        term->input[0] = '\0';
-        term->input_pos = 0;
-    } else if (key == 0xE048) {  /* Up arrow - history */
-        if (term->history_count > 0) {
-            if (term->history_pos < term->history_count - 1) {
-                if (term->history_pos == -1) {
-                    /* Save current input to temp */
-                    strcpy(term->history[term->history_count], term->input);
-                }
-                term->history_pos++;
-                strcpy(term->input, term->history[term->history_count - 1 - term->history_pos]);
-                term->input_pos = strlen(term->input);
-            }
-        }
-    } else if (key == 0xE050) {  /* Down arrow - history */
-        if (term->history_pos > 0) {
-            term->history_pos--;
-            strcpy(term->input, term->history[term->history_count - 1 - term->history_pos]);
-            term->input_pos = strlen(term->input);
-        } else if (term->history_pos == 0) {
-            term->history_pos = -1;
-            strcpy(term->input, term->history[term->history_count]);
-            term->input_pos = strlen(term->input);
-        }
-    } else if (shift && key == 0xE04D) {  /* Shift+Right - complete from history */
-        if (term->history_pos >= 0 && term->history_pos < term->history_count) {
-            const char *hist = term->history[term->history_count - 1 - term->history_pos];
-            int hist_len = strlen(hist);
-            int remain = HOLYC_TERM_LINE_LEN - 1 - term->input_pos;
-            if (remain > 0 && hist_len > term->input_pos) {
-                int copy_len = hist_len - term->input_pos;
-                if (copy_len > remain) copy_len = remain;
-                memcpy(term->input + term->input_pos, hist + term->input_pos, copy_len);
-                term->input_pos += copy_len;
-                term->input[term->input_pos] = '\0';
-            }
-        }
-    } else if (key >= 32 && key < 127 && term->input_pos < HOLYC_TERM_LINE_LEN - 1) {
-        term->input[term->input_pos++] = (char)key;
-        term->input[term->input_pos] = '\0';
-    }
-}
-
-/* Spawn a HolyC terminal window */
-DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
-    DosGuiWindow *win = dosgui_wm_create(x, y, w, h, "HolyC Terminal");
-    if (!win) return NULL;
-    
-    int idx = -1;
-    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
-        if (&g_dwm.windows[i] == win) { idx = i; break; }
-    }
-    if (idx < 0) return NULL;
-    
-    HolycTerm *term = &g_holyc_terms[idx];
-    memset(term, 0, sizeof(*term));
-    
-    /* Initialize persistent HolyC compiler */
-    holyc_term_init_compiler(term);
-    
-    win->on_draw = holyc_term_draw;
-    win->on_key = holyc_term_key;
-    win->user_data = term;
-    
-    /* Add welcome line */
-    holyc_term_add_line(term, "WuBuOS HolyC Terminal v0.1");
-    holyc_term_add_line(term, "Type HolyC code. Ctrl+C to exit.");
-    holyc_term_add_line(term, "");
-    
-    return win;
-}
-
 /* ================================================================
  * RENDERING — Themed Window Chrome
  * ================================================================ */
 
-static void raise_win(int i) {
+void raise_win(int i) {
     int j = 0;
     while (j < g_dwm.nz && g_dwm.zorder[j] != i) j++;
     if (j == g_dwm.nz) return;
@@ -387,7 +64,7 @@ static void raise_win(int i) {
     g_dwm.zorder[g_dwm.nz - 1] = i;
 }
 
-static int spawn_window(int x, int y, int w, int h, const char *title) {
+int spawn_window(int x, int y, int w, int h, const char *title) {
     DosGuiWindow *win = NULL;
     int i;
     for (i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
@@ -408,7 +85,7 @@ static int spawn_window(int x, int y, int w, int h, const char *title) {
     return i;
 }
 
-static void close_win(int i) {
+void close_win(int i) {
     if (i < 0 || i >= DOSGUI_MAX_WINDOWS) return;
     g_dwm.windows[i].alive = false;
     g_dwm.windows[i].flags = DOSGUI_WIN_UNUSED;
@@ -422,7 +99,7 @@ static void close_win(int i) {
         g_dwm.focused_id = g_dwm.nz ? g_dwm.zorder[g_dwm.nz - 1] : -1;
 }
 
-static int hit_test(int x, int y) {
+int hit_test(int x, int y) {
     for (int j = g_dwm.nz - 1; j >= 0; j--) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
         if (w->alive && w->desktop == g_dwm.current_desktop &&
@@ -435,23 +112,23 @@ static int hit_test(int x, int y) {
 
 /* -- Theme Helpers ------------------------------------------------ */
 
-static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
-static const WubuTheme *theme(void) { return wubu_theme_get(); }
-static int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; }
-static int taskbar_height_dynamic(void) { return theme()->Luna_start_button ? 30 : DOSGUI_TASK_H; }
-static int border_width(void) { return theme()->rounded_buttons ? 3 : DOSGUI_BORDER; }
-static int theme_radius(void) { return theme()->rounded_buttons ? 4 : 0; }
+const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
+const WubuTheme *theme(void) { return wubu_theme_get(); }
+int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; }
+int taskbar_height_dynamic(void) { return theme()->Luna_start_button ? 30 : DOSGUI_TASK_H; }
+int border_width(void) { return theme()->rounded_buttons ? 3 : DOSGUI_BORDER; }
+int theme_radius(void) { return theme()->rounded_buttons ? 4 : 0; }
 
 /* ================================================================
  * RENDERING — Themed Window Chrome
  * ================================================================ */
 
-static void draw_desktop_bg(int fb_w, int fb_h) {
+void draw_desktop_bg(int fb_w, int fb_h) {
     (void)vbe_state();
     draw_wallpaper(fb_w, fb_h);
 }
 
-static void load_default_wallpaper(void) {
+void load_default_wallpaper(void) {
     if (!g_dwm.wallpaper) {
         g_dwm.wallpaper_w = g_dwm.screen_w;
         g_dwm.wallpaper_h = g_dwm.screen_h;
@@ -472,7 +149,7 @@ static void load_default_wallpaper(void) {
     }
 }
 
-static void draw_wallpaper(int fb_w, int fb_h) {
+void draw_wallpaper(int fb_w, int fb_h) {
     int task_h = taskbar_height_dynamic();
     
     if (!g_dwm.wallpaper) {
@@ -510,28 +187,28 @@ static void draw_wallpaper(int fb_w, int fb_h) {
     }
 }
 
-static int icon_grid_x(int x) {
+int icon_grid_x(int x) {
     int grid_x = (x - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
     if (grid_x < 0) grid_x = 0;
     if (grid_x > 15) grid_x = 15;
     return 20 + grid_x * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
 }
 
-static int icon_grid_y(int y) {
+int icon_grid_y(int y) {
     int grid_y = (y - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
     if (grid_y < 0) grid_y = 0;
     if (grid_y > 15) grid_y = 15;
     return 20 + grid_y * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
 }
 
-static void snap_icon_to_grid(DosGuiIcon *icon) {
+void snap_icon_to_grid(DosGuiIcon *icon) {
     icon->x = icon_grid_x(icon->x);
     icon->y = icon_grid_y(icon->y);
     icon->grid_x = (icon->x - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
     icon->grid_y = (icon->y - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
 }
 
-static void snap_window_to_gaad(DosGuiWindow *w) {
+void snap_window_to_gaad(DosGuiWindow *w) {
     if (!w) return;
     
     /* GAAD (Grid Aligned Application Design) snap regions:
@@ -635,7 +312,7 @@ static void snap_window_to_gaad(DosGuiWindow *w) {
  * RENDERING — Themed Window Chrome
  * ================================================================ */
 
-static void draw_window(int idx) {
+void draw_window(int idx) {
     DosGuiWindow *w = &g_dwm.windows[idx];
     if (!w->alive) return;
     bool active = (idx == g_dwm.focused_id);
