@@ -200,6 +200,7 @@ typedef struct {
 
     /* MIDI state */
     uint8_t   midi_channels[16]; /* Program per channel */
+    int16_t   pitch_bend[16];    /* Pitch bend per channel (-8192 to +8191) */
 } WubuSF2Synth;
 
 /* -- Ardour-style DAW Track --------------------------------------- */

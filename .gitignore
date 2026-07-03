@@ -28,6 +28,9 @@ data/
 Thumbs.db
 
 # Reference repos (not committed — kept as local reference material)
+reference/ardour-study/
+reference/fluidsynth-study/
+reference/furnace-study/
 ZealOS/
 NanoShellOS/
 holyc-lang/
