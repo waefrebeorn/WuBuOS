@@ -99,7 +99,8 @@ static int64_t vsl_sys_getgid(uint64_t a, uint64_t b, uint64_t c,
 static int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
                                     uint64_t d, uint64_t e, uint64_t f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
-    return 0;
+    int rc = sched_yield();
+    return rc < 0 ? -errno : 0;
 }
 
 static int64_t vsl_sys_fork(uint64_t a, uint64_t b, uint64_t c,
@@ -375,7 +376,10 @@ static int64_t vsl_sys_sigprocmask(uint64_t how, uint64_t set, uint64_t oldset,
 static int64_t vsl_sys_sigreturn(uint64_t a, uint64_t b, uint64_t c,
                                   uint64_t d, uint64_t e, uint64_t f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
-    return -ENOSYS;
+    /* sigreturn is complex - it restores signal context from ucontext_t.
+     * For VSL, we delegate to the host kernel's rt_sigreturn. */
+    long result = syscall(SYS_rt_sigreturn);
+    return result < 0 ? -errno : result;
 }
 
 static int64_t vsl_sys_rt_sigaction(uint64_t signum, uint64_t act, uint64_t oldact,
