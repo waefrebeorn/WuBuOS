@@ -18,6 +18,13 @@ extern "C" {
 #define EDR_MAX_MODULES     16
 #define EDR_MAX_RULESETS    64
 
+/* System paths (used by core and telemetry modules) */
+#define EDR_ALERT_PATH          "/edr/alerts"
+#define EDR_REPLAY_PATH         "/edr/replay"
+#define EDR_CONFIG_PATH         "/edr/config"
+#define EDR_MODEL_PATH          "/edr/models"
+#define EDR_RULES_PATH          "/edr/rules"
+
 /* Event types (matching heavener taxonomy) */
 typedef uint16_t EdrEventType;
 enum {
