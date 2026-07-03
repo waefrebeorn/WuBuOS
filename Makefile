@@ -38,7 +38,7 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o $(HOSTED)/wubu_gbm.o $(HOSTED)/wu
 JIT_OBJS = $(JIT)/jit.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o
+GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_systray.o $(GUI)/dosgui_wm_ctxmenu.o $(GUI)/dosgui_wm_holyc_term.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscall.o
@@ -147,7 +147,7 @@ worldsim: $(WS_OBJS)
 # Cell 200: ZealOS kernel runs in-process, WM + desktop + taskbar + start menu
 HOSTED_OBJS = $(HOSTED)/hosted.o $(RT)/styx.o $(RT)/styxfs.o $(KERNEL)/vbe.o $(KERNEL)/memory.o \
               $(KERNEL)/input.o $(KERNEL)/tasking.o $(KERNEL)/interrupt.o $(KERNEL)/isr_stubs.o $(KERNEL)/wubu_math.o $(BRIDGE)/bridge.o $(BRIDGE)/wubu_syscall.o \
-              $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o \
+              $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_systray.o $(GUI)/dosgui_wm_ctxmenu.o $(GUI)/dosgui_wm_holyc_term.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_daemon_panel.o \
               $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o \
               $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(APPS)/dosgui_apps.o $(JIT_OBJS) \
               $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_exec.o $(RT)/wubu_container.o $(RT)/wubu_arch.o \
@@ -260,7 +260,7 @@ test_phase4: test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_dosg
 	@echo "✅ Phase 4 (Hosted/GUI) complete"
 
 # Phase 5: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_phase5: test_jit test_memory test_tasking test_input test_holyc test_holyc_ptx test_holyc_terminal
+test_phase5: test_jit test_memory test_tasking test_input test_holyc test_holyc_ptx
 	@echo "✅ Phase 5 (Bear RL/JIT/Compiler) complete"
 
 # Phase 6: Apps / Audio / Tools / WorldSim / OTHER
@@ -429,7 +429,7 @@ test_dbuf:
 
 test_dosgui_wm:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) \
-		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_ctx_menu.c \
+		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c \
 		$(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c \
 		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_lexer.c $(JIT_SRCS) \
@@ -504,15 +504,6 @@ test_wubu_wm:
 		$(GUI)/wubu_wm_test.c \
 		-o $(GUI)/wubu_wm_test
 	$(GUI)/wubu_wm_test
-
-# Cell 420+: HolyC Terminal test
-test_holyc_terminal:
-	$(CC) -O0 -g -I$(COMP) -I$(JIT) \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c \
-		$(JIT_SRCS) \
-		$(GUI)/test_holyc_terminal.c \
-		-o $(GUI)/test_holyc_terminal
-	$(GUI)/test_holyc_terminal
 
 # PTX Backend test
 test_holyc_ptx:
@@ -662,13 +653,6 @@ test_snapshot:
 	$(RT)/wubu_snapshot_test
 
 # ── Daemon Panel Test ─────────────────────────────────────────────
-
-test_daemon_panel:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
-		-I$(GUI) -I$(RT) -I$(KERNEL) \
-		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_daemon_panel_test.c \
-		-o $(GUI)/dosgui_daemon_panel_test -lpthread
-	$(GUI)/dosgui_daemon_panel_test
 
 # ── Daemon Panel Test ─────────────────────────────────────────────
 

@@ -1370,13 +1370,17 @@ void wubu_sf2_program_change(uint8_t channel, uint8_t program) {
 }
 
 void wubu_sf2_pitch_bend(uint8_t channel, int bend) {
-    (void)channel; (void)bend;
-    /* bend: -8192 to +8192, center 0 */
+    /* SF2 pitch bend: bend range is -8192 to +8192, center 0 */
+    if (channel >= 16) return;
+    g_engine.sf2.pitch_bend[channel] = (int16_t)bend;
 }
 
 void wubu_sf2_control(uint8_t channel, uint8_t cc, uint8_t val) {
-    (void)channel; (void)cc; (void)val;
-    /* CC events: volume, pan, reverb, chorus, etc. */
+    /* CC events: volume (7), pan (10), reverb (91), chorus (93), etc. */
+    if (channel >= 16) return;
+    /* Store controller value for active notes on this channel */
+    g_engine.sf2.midi_channels[channel] = val; /* Reuse midi_channels for last-CC store */
+    /* TODO: route CC to actual synth parameters during sf2_render */
 }
 
 void wubu_sf2_render(float *out, int frames, int channels) {
