@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>heavener: This is what happens when you can't afford EDR licenses</title>
+<meta name="description" content="A modular engine that runs real vendor detection logic from reverse-engineered EDR components against live or replayed Windows telemetry.">
+<style>
+body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem 1rem; line-height: 1.6; color: #1a1a1a; background: #fafafa; }
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+h3 { font-size: 1.1rem; margin-top: 1.5rem; }
+pre { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 6px; overflow-x: auto; font-size: 0.85rem; }
+code { background: #e8e8e8; padding: 0.1em 0.3em; border-radius: 3px; font-size: 0.9em; }
+pre code { background: transparent; padding: 0; }
+blockquote { border-left: 3px solid #4a9eff; padding: 0.5rem 1rem; margin: 1rem 0; background: #eef4ff; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #ddd; padding: 0.5rem; text-align: left; }
+th { background: #f0f0f0; }
+.meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+.tag { display: inline-block; background: #e8e8e8; padding: 0.2rem 0.6rem; border-radius: 3px; font-size: 0.8rem; margin-right: 0.3rem; }
+</style>
+</head>
+<body>
+
+<h1>heavener: This is what happens when you can't afford EDR licenses</h1>
+<div class="meta">
+  <span class="tag">edr-internals</span>
+  <span class="tag">reverse-engineering</span>
+  <span class="tag">windows-internals</span>
+  <br>
+  Jun 26, 2026 · 20 min read
+</div>
+
+<p><strong>heavener</strong> is a modular EDR emulation engine for Windows that loads real detection logic extracted from commercial endpoint security products — their ML models, compiled YARA rulesets, and behavioral scripts — and evaluates it against live or replayed Windows telemetry. The user picks a vendor module and gets the exact verdicts the production EDR would produce.</p>
+
+<p>Four vendor modules currently implemented: <strong>SentinelOne</strong>, <strong>Cortex XDR</strong>, <strong>CrowdStrike</strong>, and <strong>Sophos</strong>. Each loads genuine vendor artifacts and runs them through the same interface. Modules can be hot-swapped at runtime through the IPC client without restarting the engine.</p>
+
+<h2>Architecture</h2>
+
+<p>Six major layers connected by a clean data flow: telemetry comes in from the kernel driver and ETW providers, gets normalized into a uniform event schema, passes through enrichment and correlation, hits the active vendor module, and alerts flow out to a SOC-style web console.</p>
+
+<pre>
+flowchart TB
+    subgraph Kernel
+        A[heavendrv minifilter]
+    end
+    subgraph ETW
+        B[Kernel providers]
+        C[AMSI / WMI / LDAP / DNS]
+        D[ETW Threat Intelligence]
+    end
+    A --> E[DriverConsumer]
+    B --> F[EtwConsumer]
+    C --> F
+    D --> G[ThreatIntelConsumer]
+    E --> H[EventPipeline]
+    F --> H
+    G --> H
+    H --> I[ProcessModel + Enrichment]
+    I --> J[IEdrModule]
+    J --> K[AlertSink]
+    K --> L[Forwarder]
+    L --> M[Web Console]
+</pre>
+
+<p>Every event is a <code>BehavioralEvent</code> carrying a typed header and a <code>std::variant</code> payload over 19 concrete data structs. The taxonomy covers 25 event types:</p>
+
+<pre>enum class EventType : std::uint16_t
+{
+    ProcessCreate = 1, ProcessExit, ThreadCreate, ImageLoad,
+    FileCreate, FileWrite, FileDelete, FileRename,
+    RegistryCreateKey, RegistrySetValue, RegistryDeleteKey, RegistryDeleteValue,
+    NetworkConnect, DnsQuery, DriverLoad, LdapQuery, WmiOperation,
+    UserAccountCreated, ScheduledTaskCreated, ScriptExecution,
+    BehavioralIndicator, ProcessHandleAccess, EtwTiEvent,
+    NamedPipeCreate, FileSetBasicInfo,
+};</pre>
+
+<p>The EventPipeline runs on a single worker thread — detection rules care about ordering. Events arrive via lock-free <code>submit()</code> and are drained in batches:</p>
+
+<pre>void worker_loop(std::stop_token token) noexcept
+{
+    while (m_running.load(std::memory_order_acquire))
+    {
+        std::deque&lt;BehavioralEvent&gt; batch;
+        {
+            std::unique_lock lock(m_queue_mutex);
+            m_queue_cv.wait(lock, [&amp;] {
+                return !m_queue.empty()
+                    || !m_running.load(std::memory_order_acquire);
+            });
+            batch.swap(m_queue);
+        }
+        for (auto&amp; evt : batch)
+            process_event(evt);
+    }
+}</pre>
+
+<p>Each <code>process_event</code> follows a strict three-stage pipeline: update the ProcessModel, run the ModifierEngine to attach aggregate signals, then feed the event to the active vendor module.</p>
+
+<h2>The Kernel Driver</h2>
+
+<p><strong>heavendrv</strong> — a Windows kernel minifilter driver (altitude 370000) capturing:</p>
+<ul>
+  <li><strong>Process/thread lifecycle</strong> via PsSetCreateProcessNotifyRoutineEx and PsSetCreateThreadNotifyRoutineEx, with kernel-captured call stacks</li>
+  <li><strong>File operations</strong>: creates, writes, deletes, renames, named-pipe creation, SetBasicInfo for timestomping, FSCTL_SET_REPARSE_POINT for symlink abuse</li>
+  <li><strong>Registry operations</strong> via CmRegisterCallbackEx: key creation, value sets with raw data up to 4KB, key/value deletion</li>
+  <li><strong>Cross-process handle access</strong> via ObRegisterCallbacks: access mask and call stack frames</li>
+</ul>
+
+<p>The wire protocol uses packed C structs with overloaded fields discriminated by event type:</p>
+
+<pre>typedef struct _HV_EVENT_HEADER {
+    USHORT     Version;
+    USHORT     Type;
+    ULONG      Size;
+    ULONGLONG  Timestamp;
+    ULONG      Pid;
+    ULONG      Tid;
+    ULONG      ExtraPid;
+    ULONG      U32;
+    ULONGLONG  U64a;
+    ULONGLONG  U64b;
+    USHORT     VarCount;
+} HV_EVENT_HEADER;</pre>
+
+<p>Variable-length fields (UTF-16LE strings, call stack frames) follow as length-prefixed blobs. Records capped at 64KB. The driver captures the <em>creating</em> process for each new process, not just the parent PID — parent PID spoofing detection.</p>
+
+<h2>ETW</h2>
+
+<p>Seven providers subscribed:</p>
+<ul>
+  <li><strong>AMSI</strong> — full script content scanning (Powershell, VBScript, JScript)</li>
+  <li><strong>WMI-Activity</strong> — WMI method calls and event subscriptions</li>
+  <li><strong>LDAP</strong> — search filter strings for sensitive AD attribute queries</li>
+  <li><strong>DNS</strong> — resolution events</li>
+  <li><strong>Kernel providers</strong> (process, file, registry, network) — fallback when driver isn't loaded</li>
+  <li><strong>ETW Threat Intelligence</strong> — PPL-protected, cross-process memory ops (ALLOCVM_REMOTE, PROTECTVM_REMOTE)</li>
+</ul>
+
+<p>The ETW TI provider requires a separate PPL-AM collector service (<strong>heaventi-svc</strong>) backed by an ELAM driver.</p>
+
+<h2>The Process Model</h2>
+
+<p>Live in-memory process tree. Each node carries everything a detection rule could need:</p>
+
+<pre>struct ProcessInfo
+{
+    std::uint64_t  uid{};
+    std::uint32_t  pid{};
+    std::uint32_t  ppid{};
+    std::wstring   name;
+    std::wstring   command_line;
+    std::wstring   image_path;
+    std::uint64_t  create_time{};
+    std::string    integrity_level;
+    std::uint32_t  session_id{};
+    std::wstring   user_sid;
+    std::wstring   file_description;
+    std::wstring   original_filename;
+    std::wstring   company_name;
+    std::string    cert_publisher;
+    std::wstring   active_content_file;
+    std::uint64_t  logon_session_id{};
+    bool           is_remote_group{false};
+    bool           has_injected_thread{false};
+    std::uint32_t  injected_by_pid{};
+    bool           was_opened_cross_process{false};
+    std::uint32_t  opened_by_pid{};
+    bool           opened_for_vm_read{false};
+    bool           opened_for_vm_write{false};
+    ProcessInfo*   model_parent{};
+    std::unordered_map&lt;std::uint32_t, std::string&gt; extension_values;
+};</pre>
+
+<p>Dual-indexed (PID for live, UID for historical). <code>extension_values</code> is a per-process dictionary vendor rules can read/write across events.</p>
+
+<h2>The Module System</h2>
+
+<p>Every vendor module implements a single C++ interface:</p>
+
+<pre>class IEdrModule
+{
+public:
+    virtual std::string_view name() const noexcept = 0;
+    virtual std::string_view version() const noexcept = 0;
+    virtual ModuleCaps capabilities() const noexcept = 0;
+    virtual std::expected&lt;void, ModuleError&gt;
+        initialize(const ModuleConfig&amp; cfg) noexcept = 0;
+    virtual void shutdown() noexcept = 0;
+    virtual std::expected&lt;ScanResult, ModuleError&gt;
+        scan_file(std::span&lt;const std::byte&gt; data,
+                  std::string_view file_path) noexcept = 0;
+    virtual void on_event(const BehavioralEvent&amp; evt,
+                          const ProcessModel&amp; model) noexcept;
+    virtual std::vector&lt;Alert&gt; drain_alerts() noexcept;
+};</pre>
+
+<p>Modules can be swapped at runtime through the IPC client without stopping telemetry collection.</p>
+
+<h2>Vendor Coverage</h2>
+
+<h3>SentinelOne</h3>
+<p>Static ML (8 XGBoost models) + YARA + behavioral engine (203 Lua scripts consuming 19 event types through two dispatch mechanisms: event-class system and registerOSEventFilter with 137 OS-filter callbacks). Guard functions avoid entering the Lua VM for events the rule won't care about.</p>
+
+<h3>Cortex XDR</h3>
+<p>Three independent detection layers: YARA (36 rule sets), XGBoost ML, and a CLIPS expert system (~7,967 production rules, 6,448 templates, 581 functions, 1,502 globals). Full ECMAScript-compatible regex engine required for rule compatibility. Each event translates to a slot-complete CLIPS fact — a process-start fact alone carries 27 fields.</p>
+
+<p>ETW-Ti path does stack enrichment with shellcode detection, syscall provenance classification (direct/indirect/normal), and byte-patch detection for EDR unhooking.</p>
+
+<h3>CrowdStrike</h3>
+<p>Static-only: XGBoost ML model. Behavioral detection embedded in channel files — active work on reversing the parsing/import logic.</p>
+
+<h3>Sophos</h3>
+<p>Two ML models (PE + documents) + traditional signature scanner. "Worst one wins" verdict combination.</p>
+
+<h2>The Replay System</h2>
+<p>Capture modes (<code>--etw-capture</code>, <code>--driver-capture</code>) record live events to JSON. <code>--replay</code> mode loads a JSON file and pushes every event through the full pipeline. Decouples testing from kernel driver and ETW.</p>
+
+<h2>Alerts and the Console</h2>
+<p>Alert IDs are deterministic FNV-1a hashes (idempotent replay). Alerts written as JSONL to an outbox directory, forwarded via a separate Go binary (<strong>heavener-forwarder</strong>) that POSTs gzip-compressed NDJSON batches with at-least-once delivery.</p>
+
+<p>Web console stack: ClickHouse + Postgres + Redis + Go REST API + React SPA + Caddy. Features alerts timeline, investigation view, fleet view, and Rule Atlas (searchable database of all vendor behavioral rules).</p>
+
+<h2>Limitations</h2>
+<p>Everything runs what was extracted locally from agent binaries. Every vendor ships significant detection logic to the cloud — reputation lookups, cloud-side ML, threat intelligence correlations, dynamic analysis verdicts. That entire layer is a black box. heavener will never be a perfect replica, but it's the closest you can get without running the real agent.</p>
+
+<p><em>— GitHub link omitted per archive capture</em></p>
+
+</body>
+</html>
