@@ -288,6 +288,9 @@ static void keyboard_enter(void *data, struct wl_keyboard *wl_kb,
     fprintf(stderr, "Wayland: keyboard enter (serial=%u)\n", serial);
 }
 
+/* Global key state map (256 keys, 0=up, 1=down) */
+static uint32_t g_key_map[256];
+
 static void keyboard_leave(void *data, struct wl_keyboard *wl_kb,
                             uint32_t serial, struct wl_surface *surface) {
     hosted_state_t *state = (hosted_state_t*)data;
@@ -295,8 +298,6 @@ static void keyboard_leave(void *data, struct wl_keyboard *wl_kb,
     memset(g_key_map, 0, sizeof(g_key_map));
     fprintf(stderr, "Wayland: keyboard leave (serial=%u)\n", serial);
 }
-
-static uint32_t g_key_map[256];
 
 static void keyboard_key(void *data, struct wl_keyboard *wl_kb,
                           uint32_t serial, uint32_t time, uint32_t key,
