@@ -123,13 +123,48 @@ static int64_t vsl_sys_fork(uint64_t a, uint64_t b, uint64_t c,
 
 static int64_t vsl_sys_clone(uint64_t flags, uint64_t stack, uint64_t ptid,
                               uint64_t ctid, uint64_t tls, uint64_t f) {
-    (void)stack; (void)ptid; (void)ctid; (void)tls; (void)f;
-    return vsl_sys_fork(flags, 0, 0, 0, 0, 0);
+    (void)f;
+    /* Proper clone() implementation with stack, ptid, ctid, tls support */
+    int clone_flags = (int)flags;
+    void *child_stack = stack ? (void *)stack : NULL;
+    int *parent_tidptr = ptid ? (int *)ptid : NULL;
+    int *child_tidptr = ctid ? (int *)ctid : NULL;
+    void *tls_ptr = tls ? (void *)tls : NULL;
+    
+    pid_t host_pid = (pid_t)syscall(SYS_clone, clone_flags, child_stack,
+                                     parent_tidptr, child_tidptr, tls_ptr);
+    if (host_pid < 0) return -errno;
+    if (host_pid == 0) {
+        g_vsl.current_pid = (uint32_t)host_pid;
+        return 0;
+    }
+    int vsl_child = register_child_pid(host_pid, g_vsl.current_pid);
+    if (vsl_child < 0) {
+        kill(host_pid, SIGKILL);
+        waitpid(host_pid, NULL, 0);
+        return -1;
+    }
+    return (int64_t)vsl_child;
 }
 
 static int64_t vsl_sys_vfork(uint64_t a, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
-    return vsl_sys_fork(a, b, c, d, e, f);
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    /* vfork() shares memory with parent - use CLONE_VM | CLONE_VFORK */
+    int clone_flags = CLONE_VM | CLONE_VFORK | SIGCHLD;
+    pid_t host_pid = (pid_t)syscall(SYS_clone, clone_flags, NULL, NULL, NULL, NULL);
+    if (host_pid < 0) return -errno;
+    if (host_pid == 0) {
+        g_vsl.current_pid = (uint32_t)host_pid;
+        return 0;
+    }
+    int vsl_child = register_child_pid(host_pid, g_vsl.current_pid);
+    if (vsl_child < 0) {
+        kill(host_pid, SIGKILL);
+        waitpid(host_pid, NULL, 0);
+        return -1;
+    }
+    return (int64_t)vsl_child;
 }
 
 static int64_t vsl_sys_execve(uint64_t path, uint64_t argv, uint64_t envp,
@@ -155,16 +190,17 @@ static int64_t vsl_sys_execve(uint64_t path, uint64_t argv, uint64_t envp,
 static int64_t vsl_sys_wait4(uint64_t pid, uint64_t status, uint64_t options,
                               uint64_t rusage, uint64_t e, uint64_t f) {
     (void)e; (void)f;
+    struct rusage ru;
     int host_status = 0;
     pid_t host_pid = (pid == (uint64_t)(-1)) ? -1 : (pid_t)(int)pid;
-    pid_t result = waitpid(host_pid, &host_status, (int)options);
+    pid_t result = syscall(SYS_wait4, host_pid, &host_status, (int)options, &ru);
     if (result < 0) return -errno;
     if (status && result > 0) {
         int *out = (int *)status;
         *out = host_status;
     }
     if (rusage) {
-        memset((void *)rusage, 0, sizeof(struct rusage));
+        memcpy((void *)rusage, &ru, sizeof(struct rusage));
     }
     return (int64_t)result;
 }
