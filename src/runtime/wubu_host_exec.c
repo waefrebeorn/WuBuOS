@@ -321,20 +321,15 @@ int wubu_ct_start(WubuCt *ct) {
             }
         }
         
-        /* Cell 414: Start per-container Styx 9P server */
-        if (ct->styx_fd >= 0) {
-            pid_t styx_pid = fork();
-            if (styx_pid == 0) {
-                /* Styx server grandchild: die when parent (container) exits */
-                #ifdef __linux__
-                prctl(PR_SET_PDEATHSIG, SIGTERM);
-                #endif
-                /* Close the exec side of the socket — we only serve */
-                run_container_styx_server(ct);
-                _exit(0);
-            }
-            /* Parent (main container) continues to exec */
-        }
+        /* Cell 414: Start per-container Styx 9P server
+         *
+         * NOTE: For production, the Styx server should be managed by the
+         * parent (container manager), not forked from the child. The child
+         * is about to execv() and can't manage grandchild processes.
+         * For now we skip server fork — it will be re-integrated when
+         * the container manager is refactored as a proper supervisor.
+         */
+        (void)run_container_styx_server;
 
         /* Execute */
         execv(ct->argv[0], ct->argv);

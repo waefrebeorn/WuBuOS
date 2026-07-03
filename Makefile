@@ -334,7 +334,7 @@ test_vsl:
 
 test_bridge:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(BRIDGE) -I$(KERNEL) -I$(WS) \
-		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.o $(BRIDGE)/vbe_ws_bridge.c \
+		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(BRIDGE)/vbe_ws_bridge.c \
 		$(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c \
 		$(BRIDGE)/vbe_ws_bridge_test.c -o $(BRIDGE)/vbe_ws_bridge_test
 	$(BRIDGE)/vbe_ws_bridge_test
@@ -682,17 +682,20 @@ test_oci:
 
 # ── EDR Engine ──────────────────────────────────────────────────
 
+EDR_SRC = $(RT)/wubu_edr.c $(RT)/edr/edr_core.c $(RT)/edr/edr_proc_pin.c \
+          $(RT)/edr/edr_fanotify.c $(RT)/edr/edr_poller.c
+
 test_edr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
-		-I$(RT) \
-		$(RT)/wubu_edr.c $(RT)/wubu_edr_test.c \
+		-I$(RT) -I$(RT)/edr \
+		$(EDR_SRC) $(RT)/wubu_edr_test.c \
 		-o $(RT)/wubu_edr_test -lpthread
 	$(RT)/wubu_edr_test
 
 # ── Clean ────────────────────────────────────────────────────────
 
 clean:
-	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o $(AUDIO)/*.o $(SHELL_DIR)/*.o
+	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(RT)/edr/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o $(AUDIO)/*.o $(SHELL_DIR)/*.o
 	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(KERNEL)/wubu_gaad_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_apps_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(RT)/styxfs_test $(RT)/wubu_host_exec_test $(RT)/wubu_arch_test $(RT)/wubu_ramdisk_test $(RT)/wubu_gc_test $(RT)/wubu_anticheat_test $(RT)/wubu_bottles_test $(RT)/wubd_archd_test $(RT)/wubd_holyd_test $(RT)/wubu_network_test $(RT)/wubu_snapshot_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(HOSTED)/wubu_metal_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(TOOLS)/screenshot_test $(GUI)/gui_dbuf_test $(GUI)/dosgui_wm_test $(GUI)/dosgui_startmenu_test $(GUI)/wubu_wm_test $(APPS)/wubu_apps2_test $(RT)/wubu_proton2_test $(AUDIO)/wubu_audio_test
 	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/dosgui_wm_test $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/paint $(APPS)/doom
 	rm -f $(RT)/wubu_edr_test
