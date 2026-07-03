@@ -4,6 +4,7 @@
  * Tests: fork+exec container creation, start, wait, kill.
  * All tests exercise REAL host process creation.
  */
+#define _GNU_SOURCE
 #include "wubu_host_exec.h"
 
 #include <stdio.h>
