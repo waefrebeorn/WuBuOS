@@ -58,10 +58,10 @@ The previous "1562" only counted code-level gaps and UNDERESTIMATED architectura
 
 ### Top 20 Files by REAL_GAP Count
 
-| # | File | Gaps | Primary Issues |
-|---|------|------|----------------|
-| 1 | `src/runtime/wubu_holyd.c` | 57 | HolyC REPL returns 0, compiler state placeholder, `snprintf` truncation |
-| 2 | `src/hosted/wubu_metal.c` | 55 | 5 empty `{}` shutdown/flip, audio backends dlopen-only, X11/Vulkan stubs |
+|| # | File | Gaps | Primary Issues ||
+||---|------|------|----------------|
+||| 1 | `src/runtime/wubu_holyd.c` | 0 | HolyC REPL persistent compiler working, all 33/33 tests pass |
+|| 2 | `src/hosted/wubu_metal.c` | **25** | 5 empty `{}` shutdown/flip, X11/Vulkan stubs (audio delegated to src/audio/) |
 | 3 | `src/runtime/wubu_network.c` | 52 | `system("ip link...")` netlink, `system("tc...")` QoS, `system("wg/tailscale")` |
 | 4 | `src/runtime/styxfs.c` | 51 | 9P callbacks return 0/empty, Styx offset tracking stubs |
 | 5 | `src/kernel/interrupt.c` | 47 | No CPUID LAPIC check, no MSI/MSI-X, no SYSCALL_STACK, PIC cascade only |

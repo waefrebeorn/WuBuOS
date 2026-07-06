@@ -43,7 +43,7 @@ See vault/phases/phase_1_runtime_core.md, phase_2_kernel_metal.md, phase_3_4_5_b
 
 | Gap | File | Status | Key Implementation |
 |-----|------|--------|-------------------|
-| 1 | hosted/wubu_metal.c | ✅ | DRM/KMS atomic, ALSA/PipeWire/Pulse/X11 dlopen, Vulkan surfaces, GAAD |
+| 1 | hosted/wubu_metal.c | ✅ | DRM/KMS atomic, X11/Vulkan stubs, GAAD (audio delegated to src/audio/) |
 | 2 | runtime/vsl/vsl_syscall.c | ✅ | 138 syscalls; 173 void casts = ABI convention (d,e,f), not gaps |
 | 3 | apps/wubu_canvas.c | ✅ | Layer ops, undo/redo (50-snap), drawing tools+undo, PNG/GIF/BMP/PPM I/O, zoom/pan |
 | 4 | gui/wubu_clipboard.c | ✅ | Multi-MIME clipboard, 17 tests |
@@ -64,7 +64,7 @@ See vault/phases/phase_1_runtime_core.md, phase_2_kernel_metal.md, phase_3_4_5_b
 | 19 | gui/wubu_pkgmgr.c | ✅ | Package manager full impl (SQLite, .wubu, repos, deps, hooks, signing), 11/11 tests |
 | 20 | audio/wubu_audio.c | ✅ | Full audio engine (30+ chips, Furnace, SF2, DAW, AI plugins), 14/14 tests |
 | 21 | runtime/wubu_archd.c | ✅ | Arch daemon full impl (pacman, AUR, signing, hooks, ABS), 16/16 tests |
-| 22 | runtime/wubu_holyd.c | ✅ | TempleOS daemon full impl (REPL, compiler state, symbols, macros), 31/31 tests |
+|| 22 | runtime/wubu_holyd.c | ✅ | TempleOS daemon full impl (REPL, compiler state, symbols, macros), 33/33 tests |
 | 23 | runtime/wubu_proton.c + wubu_proton2.c | ✅ | Proton/Wine full impl (PE loader, Win32→VSL, Wine, DXVK, GameScope), 46/46 tests |
 | 24 | reactos-study/reactos/ | ✅ | 297 NT syscalls mapped: NT → VSL → Styx9 → ZealOS → TempleOS |
 
