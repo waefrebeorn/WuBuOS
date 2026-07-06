@@ -26,153 +26,21 @@
   */
 
 #define _POSIX_C_SOURCE 200809L
-#define _GNU_SOURCE
-#define _XOPEN_SOURCE 700
 #include "wubu_snapshot.h"
+#include "wubu_snapshot_internal.h"
+#include "wubu_snapshot_fs.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
 #include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <libgen.h>
-#include <sys/mount.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <ftw.h>
-#include <sys/sendfile.h>
-#include <sys/wait.h>
-#include <linux/fs.h>
-#include <sys/vfs.h>
-
-/* -- Filesystem-specific headers (optional, guarded) -- */
-#ifdef __linux__
-#include <linux/btrfs.h>
-#include <linux/magic.h>
-#endif
-
-/* -- Internal helpers --------------------------------------------- */
-
-static uint64_t snapshot_now(void) {
-    return (uint64_t)time(NULL);
-}
-
-static void gen_snapshot_id(char *out, size_t len) {
-    static uint64_t counter = 0;
-    uint64_t t = snapshot_now();
-    uint64_t c = ++counter;
-    /* Simple hash-like ID based on time + counter */
-    unsigned long h1 = (unsigned long)(t ^ (t >> 32));
-    unsigned long h2 = (unsigned long)(c * 2654435761UL);
-    snprintf(out, len, "%016lx%08lx", h1, h2);
-}
-
-static unsigned long hash_string(const char *s) {
-    unsigned long hash = 5381;
-    if (!s) return hash;
-    while (*s) hash = ((hash << 5) + hash) + (unsigned char)*s++;
-    return hash;
-}
-
-static void gen_snapshot_id_from_data(char *out, size_t len, const char *container_id,
-                                       const char *label, time_t ts) {
-    unsigned long h = hash_string(container_id);
-    h ^= hash_string(label);
-    h ^= (unsigned long)ts;
-    snprintf(out, len, "%016lx%08lx", (unsigned long)(ts ^ h), (unsigned long)(h * 2654435761UL));
-}
-
-static WubuSnapshot *find_snapshot(WubuSnapshotManager *mgr, const char *id) {
-    if (!mgr || !id) return NULL;
-    for (int i = 0; i < mgr->snapshot_count; i++) {
-        if (strcmp(mgr->snapshots[i].id, id) == 0)
-            return &mgr->snapshots[i];
-    }
-    return NULL;
-}
-
-static WubuBranch *find_branch(WubuSnapshotManager *mgr, const char *name) {
-    if (!mgr || !name) return NULL;
-    for (int i = 0; i < mgr->branch_count; i++) {
-        if (strcmp(mgr->branches[i].name, name) == 0)
-            return &mgr->branches[i];
-    }
-    return NULL;
-}
-
-static WubuTag *find_tag(WubuSnapshotManager *mgr, const char *name) {
-    if (!mgr || !name) return NULL;
-    for (int i = 0; i < mgr->tag_count; i++) {
-        if (strcmp(mgr->tags[i].name, name) == 0)
-            return &mgr->tags[i];
-    }
-    return NULL;
-}
-
-static void snapshot_default(WubuSnapshot *s) {
-    memset(s, 0, sizeof(*s));
-    s->type = WUBU_SNAP_TYPE_FULL;
-    s->status = WUBU_SNAP_STATUS_CREATING;
-    s->fs_type = WUBU_FS_OVERLAYFS;
-    s->created = snapshot_now();
-    s->modified = s->created;
-    s->accessed = s->created;
-    s->read_only = true;
-    s->ref_count = 0;
-    s->protected = false;
-}
-
-static void build_snapshot_path(WubuSnapshotManager *mgr, const char *snapshot_id,
-                                char *buf, size_t buf_size, const char *subdir) {
-    if (subdir) {
-        snprintf(buf, buf_size, "%s/snapshots/%s/%s", mgr->root_path, snapshot_id, subdir);
-    } else {
-        snprintf(buf, buf_size, "%s/snapshots/%s", mgr->root_path, snapshot_id);
-    }
-}
-
-static int ensure_dir(const char *path) {
-    struct stat st;
-    if (stat(path, &st) == 0) return 0; /* exists */
-    return mkdir(path, 0755);
-}
-
-static int ensure_snapshot_dirs(WubuSnapshotManager *mgr, const char *snapshot_id) {
-    char path[WUBU_MAX_PATH];
-    build_snapshot_path(mgr, snapshot_id, path, sizeof(path), NULL);
-    if (ensure_dir(path) < 0 && errno != EEXIST) return -1;
-    build_snapshot_path(mgr, snapshot_id, path, sizeof(path), "upper");
-    if (ensure_dir(path) < 0 && errno != EEXIST) return -1;
-    build_snapshot_path(mgr, snapshot_id, path, sizeof(path), "work");
-    if (ensure_dir(path) < 0 && errno != EEXIST) return -1;
-    return 0;
-}
-
-static uint64_t dir_size(const char *path) {
-    /* Real directory size calculation via recursive stat */
-    uint64_t total = 0;
-    DIR *dir = opendir(path);
-    if (!dir) return 0;
-    struct dirent *ent;
-    char subpath[WUBU_MAX_PATH];
-    struct stat st;
-    while ((ent = readdir(dir)) != NULL) {
-        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-        snprintf(subpath, sizeof(subpath), "%s/%s", path, ent->d_name);
-        if (stat(subpath, &st) == 0) {
-            total += (uint64_t)st.st_size;
-            if (S_ISDIR(st.st_mode)) {
-                total += dir_size(subpath);
-            }
-        }
-    }
-    closedir(dir);
-    return total;
-}
-
-/* -- nftw-based recursive copy (replaces system("cp -a")) ------------- */
+#include <sys/stat.h>
+#include <dirent.h>
+#include <linux/limits.h>
 
 typedef struct {
     const char *src_root;
@@ -184,6 +52,9 @@ typedef struct {
 
 /* Static context for nftw callback (nftw doesn't support user_data in standard C) */
 static CopyContext *g_copy_ctx = NULL;
+
+/* Forward declare FTW struct for nftw callback */
+struct FTW;
 
 static int copy_ftw_callback(const char *fpath, const struct stat *sb,
                              int typeflag, struct FTW *ftwbuf) {
@@ -216,7 +87,6 @@ static int copy_ftw_callback(const char *fpath, const struct stat *sb,
 
     case FTW_F: /* regular file */
     case FTW_SL: /* symlink */
-    case FTW_SLN: /* symlink (dangling) */
         {
             /* For symlinks, use readlink + symlink */
             if (typeflag == FTW_SL || typeflag == FTW_SLN) {
@@ -275,7 +145,7 @@ static int copy_ftw_callback(const char *fpath, const struct stat *sb,
     return 0;
 }
 
-static int copy_tree_nftw(const char *src, const char *dst, uint64_t *out_bytes, int *out_files) {
+int copy_tree_nftw(const char *src, const char *dst, uint64_t *out_bytes, int *out_files) {
     if (!src || !dst) return -1;
 
     /* Ensure destination root exists */
@@ -305,198 +175,26 @@ static int copy_tree_nftw(const char *src, const char *dst, uint64_t *out_bytes,
     return (rc == 0 && ctx.errors == 0) ? 0 : -1;
 }
 
-/* -- btrfs/zfs native snapshot support ------------------------------- */
-
-#ifdef __linux__
-/* Check if path is on btrfs */
-static bool is_btrfs(const char *path) {
-    struct statfs fs;
-    if (statfs(path, &fs) < 0) return false;
-    return fs.f_type == BTRFS_SUPER_MAGIC;
-}
-
-/* Check if path is on zfs */
-static bool is_zfs(const char *path) {
-    struct statfs fs;
-    if (statfs(path, &fs) < 0) return false;
-    return fs.f_type == 0x2fc12fc1; /* ZFS_SUPER_MAGIC */
-}
-
-/* Create btrfs subvolume snapshot */
-static int btrfs_snapshot_create(const char *src, const char *dst) {
-    int fd = open(dst, O_RDONLY | O_DIRECTORY);
-    if (fd < 0) {
-        /* Try creating parent dir first */
-        char *parent = strdup(dst);
-        char *d = dirname(parent);
-        mkdir(d, 0755);
-        free(parent);
-        fd = open(dst, O_RDONLY | O_DIRECTORY);
-        if (fd < 0) return -1;
-    }
-
-    struct btrfs_ioctl_vol_args_v2 args = {0};
-    /* args.name has size BTRFS_PATH_NAME_MAX (256) - use strncpy correctly */
-    const char *src_base = basename((char *)src);
-    size_t name_len = strlen(src_base);
-    if (name_len >= BTRFS_PATH_NAME_MAX) name_len = BTRFS_PATH_NAME_MAX - 1;
-    memcpy(args.name, src_base, name_len);
-    args.name[name_len] = '\0';
-    args.flags = 0; /* read-only snapshot */
-
-    int rc = ioctl(fd, BTRFS_IOC_SNAP_CREATE_V2, &args);
-    close(fd);
-
-    if (rc < 0) {
-        fprintf(stderr, "[wubu_snap] btrfs snapshot create failed: %s\n", strerror(errno));
-        return -1;
-    }
-    return 0;
-}
-
-/* Create zfs snapshot using zfs command (requires zfs userspace tools) */
-static int zfs_snapshot_create(const char *src, const char *dst) {
-    /* Extract dataset name from src path */
-    char *src_copy = strdup(src);
-    if (!src_copy) return -1;
-    char *dataset = basename(src_copy);
-
-    /* dst is the snapshot name, extract just the snapshot name */
-    char *dst_copy = strdup(dst);
-    if (!dst_copy) { free(src_copy); return -1; }
-    char *snapshot_name = basename(dst_copy);
-
-    /* Build zfs snapshot command: zfs snapshot dataset@snapshot_name */
-    /* Use fork+exec instead of system() */
-    pid_t pid = fork();
-    if (pid < 0) {
-        free(src_copy);
-        free(dst_copy);
-        return -1;
-    }
-    if (pid == 0) {
-        /* Child: execute zfs snapshot */
-        execlp("zfs", "zfs", "snapshot", dataset, snapshot_name, (char *)NULL);
-        _exit(127);
-    }
-    /* Parent: wait for child */
-    int status;
-    waitpid(pid, &status, 0);
-
-    free(src_copy);
-    free(dst_copy);
-
-    return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
-}
-
-/* Create LVM thin snapshot using lvm command */
-static int lvm_snapshot_create(const char *src, const char *dst) {
-    /* src should be the LV path like /dev/vg/lv, dst is snapshot name */
-    char *src_copy = strdup(src);
-    if (!src_copy) return -1;
-    char *lv_path = basename(src_copy);
-    
-    /* Extract VG and LV names */
-    char *vg_lv = strdup(lv_path);
-    if (!vg_lv) { free(src_copy); return -1; }
-    
-    char *vg_name = dirname(vg_lv);  /* This won't work well with /dev/vg/lv format */
-    /* Better approach: parse /dev/mapper/vg-lv format */
-    
-    free(src_copy);
-    free(vg_lv);
-    
-    /* For now, fall back to copy */
-    return -ENOSYS;
-}
-
-/* Mount filesystem-appropriate snapshot */
-static int snapshot_mount_fs(WubuSnapshot *s, WubuSnapshotManager *mgr) {
-    if (!s || !s->lower_dir[0] || !s->upper_dir[0] || !s->work_dir[0] || !s->merged_dir[0]) {
-        return -EINVAL;
-    }
-
-    /* Ensure mount point directory exists */
-    if (mkdir(s->merged_dir, 0755) < 0 && errno != EEXIST) {
-        fprintf(stderr, "[wubu_snap] mkdir %s failed: %s\n", s->merged_dir, strerror(errno));
-        return -errno;
-    }
-
-    /* Check filesystem type and use appropriate method */
-    if (mgr->fs_type == WUBU_FS_BTRFS && is_btrfs(s->lower_dir)) {
-        /* btrfs: use subvolume snapshots */
-        return btrfs_snapshot_create(s->lower_dir, s->upper_dir);
-    } else if (mgr->fs_type == WUBU_FS_ZFS && is_zfs(s->lower_dir)) {
-        /* zfs: use zfs snapshot */
-        return zfs_snapshot_create(s->lower_dir, s->upper_dir);
-    } else if (mgr->fs_type == WUBU_FS_LVM) {
-        /* LVM: use lvm snapshot (thin provisioning) */
-        return lvm_snapshot_create(s->lower_dir, s->upper_dir);
-    } else {
-        /* Default: overlayfs - use larger buffer to avoid truncation */
-        char mount_opts[4096];
-        snprintf(mount_opts, sizeof(mount_opts),
-                 "lowerdir=%s,upperdir=%s,workdir=%s",
-                 s->lower_dir, s->upper_dir, s->work_dir);
-        int rc = mount("overlay", s->merged_dir, "overlay", 0, mount_opts);
-        if (rc != 0) {
-            if (errno == ENOSYS || errno == ENODEV || errno == EOPNOTSUPP) {
-                fprintf(stderr, "[wubu_snap] overlayfs not supported, trying bind mount fallback\n");
-                /* Fallback: bind mount lower_dir to merged_dir */
-                rc = mount(s->lower_dir, s->merged_dir, NULL, MS_BIND | MS_REC, NULL);
-                if (rc == 0) {
-                    /* Then bind mount upper_dir on top */
-                    rc = mount(s->upper_dir, s->merged_dir, NULL, MS_BIND | MS_REC, NULL);
-                }
-            }
-            if (rc != 0) {
-                fprintf(stderr, "[wubu_snap] mount on %s failed: %s\n", s->merged_dir, strerror(errno));
-                return -errno;
-            }
+uint64_t dir_size(const char *path) {
+    /* Real directory size calculation via recursive stat */
+    uint64_t total = 0;
+    DIR *dir = opendir(path);
+    if (!dir) return 0;
+    struct dirent *ent;
+    char subpath[WUBU_MAX_PATH];
+    struct stat st;
+    while ((ent = readdir(dir)) != NULL) {
+        if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
+        snprintf(subpath, sizeof(subpath), "%s/%s", path, ent->d_name);
+        if (stat(subpath, &st) == 0) {
+            if (S_ISDIR(st.st_mode)) total += dir_size(subpath);
+            else total += (uint64_t)st.st_size;
         }
-        return 0;
     }
+    closedir(dir);
+    return total;
 }
 
-/* Unmount filesystem-appropriate snapshot */
-static int snapshot_unmount_fs(WubuSnapshot *s) {
-    if (!s || !s->merged_dir[0]) return -EINVAL;
-
-    int rc = umount2(s->merged_dir, MNT_DETACH);
-    if (rc != 0 && errno != EINVAL && errno != ENOENT && errno != ENOTCONN) {
-        fprintf(stderr, "[wubu_snap] umount %s failed: %s\n", s->merged_dir, strerror(errno));
-        return -errno;
-    }
-    return 0;
-}
-#else
-static int snapshot_mount_fs(WubuSnapshot *s, WubuSnapshotManager *mgr) {
-    (void)mgr;
-    if (!s || !s->lower_dir[0] || !s->upper_dir[0] || !s->work_dir[0] || !s->merged_dir[0]) {
-        return -EINVAL;
-    }
-    char mount_opts[2048];
-    snprintf(mount_opts, sizeof(mount_opts),
-             "lowerdir=%s,upperdir=%s,workdir=%s",
-             s->lower_dir, s->upper_dir, s->work_dir);
-    int rc = mount("overlay", s->merged_dir, "overlay", 0, mount_opts);
-    if (rc != 0) {
-        fprintf(stderr, "[wubu_snap] mount on %s failed: %s\n", s->merged_dir, strerror(errno));
-        return -errno;
-    }
-    return 0;
-}
-
-static int snapshot_unmount_fs(WubuSnapshot *s) {
-    if (!s || !s->merged_dir[0]) return -EINVAL;
-    int rc = umount2(s->merged_dir, MNT_DETACH);
-    if (rc != 0 && errno != EINVAL && errno != ENOENT) {
-        fprintf(stderr, "[wubu_snap] umount %s failed: %s\n", s->merged_dir, strerror(errno));
-        return -errno;
-    }
-    return 0;
-}
-#endif
 
 /* -- Manager lifecycle -------------------------------------------- */
 
