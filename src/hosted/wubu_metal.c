@@ -7,7 +7,7 @@
  */
 
 #include "wubu_metal.h"
-#include "../shell/wubu_shell.h"
+#include "../audio/wubu_audio.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +28,11 @@
 #include "../kernel/memory.h"
 #include "../kernel/vbe.h"
 #include "../kernel/wubu_gaad.h"
+
+/* Forward-declare wubu_shell_run. Metal build links metal_main.c's signature
+ * (void *arg). Test build uses a weak stub with (int,int) signature. Marking
+ * this weak keeps both resolvable - the linker prefers the strong symbol. */
+__attribute__((weak)) int wubu_shell_run(int width, int height);
 
 /* ------------------------------------------------------------------
  *  GLOBAL STATE
