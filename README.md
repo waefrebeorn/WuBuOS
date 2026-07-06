@@ -20,6 +20,7 @@
 **WuBuOS = ZealOS kernel + Win98 shell + Styx/9P + Arch containers**
 
 - **Hosted binary**: ZealOS kernel runs in-process, Wayland compositor, Win98 WM/desktop/startmenu
+- **Audio engine**: src/audio/ — 30+ chip emulations, Furnace tracker, SF2 synth, DAW, AI plugins, MIDI/USB/HID
 - **Styx/9P**: Real filesystem namespace backed by .wubu containers (9P2000)
 - **Arch containers**: Fork+exec into Arch Linux rootfs (bwrap isolation, no syscall emulation)
 - **HolyC JIT**: Self-hosted x86-64 encoder, disassembler, register allocator, minic compiler
@@ -54,7 +55,7 @@ make test_styxfs       # 11/11 passing
 make test_vsl          # 55/55 passing
 make test_network      # 139/139 passing
 make test_snapshot     # 132/132 passing
-make test_holyd        # 31/31 passing
+make test_holyd        # 33/33 passing
 ```
 
 ## Project Structure
@@ -63,7 +64,8 @@ make test_holyd        # 31/31 passing
 src/
 ├── kernel/          # Memory, task, VBE, FAT32, AHCI, interrupt, zealos_parity, ps2
 ├── compiler/        # HolyC lexer/parser/codegen (310-313)
-├── hosted/          # Wayland compositor, DRM/KMS, ALSA, X11 fallback
+├── hosted/          # Wayland compositor, DRM/KMS, X11 fallback
+├── audio/           # 30+ chips, Furnace, SF2, DAW, AI plugins, MIDI
 ├── runtime/         # Styx/9P, VSL, containers, Arch, RAM disk, network, snapshot
 ├── gui/             # Win98 WM, desktop, startmenu, explorer, terminal, clipboard
 ├── apps/            # Editor, canvas, codec, terminal, calc, control, freedoom

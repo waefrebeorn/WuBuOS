@@ -17,7 +17,7 @@
 | 2 | Package Manager | gui/wubu_pkgmgr.c | ✅ | SQLite DB, .wubu format, repo sync, deps, hooks, signing — 11/11 tests |
 | 3 | Audio Engine | src/audio/wubu_audio.c | ✅ | 30+ chips, Furnace, SF2, DAW, AI plugins, MIDI/USB/HID/Jack — 14/14 tests |
 | 4 | Arch Daemon | runtime/wubu_archd.c | ✅ | pacman -Syu, AUR, signing, hooks, ABS — 16/16 tests |
-| 5 | TempleOS Daemon | runtime/wubu_holyd.c | ✅ | HolyC REPL, persistent compiler, symbols, macros — 31/31 tests |
+|| 5 | TempleOS Daemon | runtime/wubu_holyd.c | ✅ | HolyC REPL, persistent compiler, symbols, macros — 33/33 tests |
 | 6 | Proton/Wine | runtime/wubu_proton.c + wubu_proton2.c | ✅ | PE loader, Win32→VSL, Wine, DXVK, GameScope, prefix mgmt — 46/46 tests |
 | 7 | Bear Vulkan | bear/bear_vulkan.c | ✅ | 4 compute pipelines (SVD, GEMM, Conv, Attention), mem mgmt — 14/14 tests |
 | 8 | ReactOS NT Study | reactos-study/reactos/ | ✅ | 297 NT syscalls mapped: NT → VSL → Styx9 → ZealOS → TempleOS |
@@ -75,7 +75,7 @@ ReactOS NT syscall (0x0-0x400+)
 
 | Gap | File | Status | Key Implementation |
 |-----|------|--------|-------------------|
-| 1 | hosted/wubu_metal.c | ✅ | DRM/KMS atomic, ALSA/PipeWire/Pulse/X11 dlopen, Vulkan surfaces, GAAD |
+| 1 | hosted/wubu_metal.c | ✅ | DRM/KMS atomic, X11/Vulkan stubs, GAAD (audio delegated to src/audio/) |
 | 2 | runtime/vsl/vsl_syscall.c | ✅ | 17 syscalls + 173 void casts clarified as ABI convention |
 | 3 | apps/wubu_canvas.c | ✅ | Layer ops, undo/redo (50-snap), drawing tools+undo, PNG/GIF, zoom/pan |
 | 4 | gui/wubu_clipboard.c | ✅ | Multi-MIME clipboard, 17 tests |
@@ -95,9 +95,9 @@ ReactOS NT syscall (0x0-0x400+)
 | 18 | hosted/hosted.c | ✅ | Wayland callbacks: seat caps, data device (DnD), primary selection, tablet, touch, output, xdg-shell (popup/positioner/toplevel configure_bounds/wm_capabilities) |
 | 19 | gui/wubu_pkgmgr.c | ✅ | Package manager full impl, 11/11 tests |
 | 20 | audio/wubu_audio.c | ✅ | Full audio engine, 14/14 tests |
-| 21 | runtime/wubu_archd.c | ✅ | Arch daemon full impl, 16/16 tests |
-| 22 | runtime/wubu_holyd.c | ✅ | TempleOS daemon full impl, 31/31 tests |
-| 23 | runtime/wubu_proton.c + wubu_proton2.c | ✅ | Proton/Wine full impl, 46/46 tests |
+|| 21 | runtime/wubu_archd.c | ✅ | Arch daemon full impl, 16/16 tests |
+|| 22 | runtime/wubu_holyd.c | ✅ | TempleOS daemon full impl, 33/33 tests |
+|| 23 | runtime/wubu_proton.c + wubu_proton2.c | ✅ | Proton/Wine full impl, 46/46 tests |
 | 24 | bear/bear_vulkan.c | ✅ | Full GPU compute, 14/14 tests |
 | 25 | reactos-study/reactos/ | ✅ | NT syscall mapping complete |
 
