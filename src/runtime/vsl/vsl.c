@@ -85,6 +85,7 @@ int vsl_init(void) {
 
     /* Create init process (PID 1) */
     VSL_PROC *init = &g_vsl.procs[0];
+    memset(init, 0, sizeof(*init));
     init->pid = 1;
     init->ppid = 0;
     init->state = VSL_PROC_READY;
@@ -92,6 +93,13 @@ int vsl_init(void) {
     init->stack_pointer = VSL_USER_BASE + VSL_USER_SIZE - 0x1000ULL;
     init->brk = VSL_USER_BASE + 0x100000; /* 1MB into user space */
     init->mmap_base = VSL_USER_BASE + 0x1000000; /* 16MB into user space */
+    init->uid = (uint32_t)getuid();
+    init->gid = (uint32_t)getgid();
+    init->euid = (uint32_t)geteuid();
+    init->egid = (uint32_t)getegid();
+    init->pgid = -1;
+    init->sesid = -1;
+    init->umask = 0022;
     g_vsl.n_procs = 1;
     g_vsl.current_pid = 1;
 
@@ -109,26 +117,6 @@ void vsl_shutdown(void) {
 
 bool vsl_active(void) {
     return g_vsl.active;
-}
-
-/* -- vsl_openat helper for openat syscall ------------------------ */
-
-int vsl_openat(int dirfd, const char *pathname, int flags, mode_t mode) {
-    if (!g_vsl.active) return -1;
-    if (g_vsl.n_fds >= VSL_MAX_FDS) return -1;
-
-    int fd = openat(dirfd, pathname, flags, mode);
-    if (fd < 0) return -errno;
-
-    int vsl_fd = g_vsl.n_fds + 3;
-    VSL_FD *vfd = &g_vsl.fds[g_vsl.n_fds++];
-    vfd->fd = vsl_fd;
-    vfd->flags = (uint32_t)flags;
-    vfd->mode = (uint32_t)mode;
-    vfd->vsl_fd = fd; /* Store host fd */
-    if (pathname) strncpy(vfd->path, pathname, 255);
-
-    return vsl_fd;
 }
 
 /* -- Diagnostics -------------------------------------------------- */

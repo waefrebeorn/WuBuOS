@@ -167,6 +167,10 @@ static void registry_global(void *data, struct wl_registry *registry,
         g_wl.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1);
     } else if (strcmp(interface, "xdg_wm_base") == 0) {
         g_wl.xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
+    } else if (strcmp(interface, "zwp_tablet_manager_v1") == 0) {
+        /* Tablet manager not available in stable headers - skip */
+    } else if (strcmp(interface, "wl_output") == 0) {
+        g_wl.output = wl_registry_bind(registry, name, &wl_output_interface, 2);
     } else if (strcmp(interface, "wl_shm") == 0) {
         g_wl.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
     } else if (strcmp(interface, "wl_seat") == 0) {
@@ -259,9 +263,40 @@ static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {
     if (state) state->running = false;
 }
 
+static void xdg_toplevel_configure_bounds(void *data, struct xdg_toplevel *toplevel,
+                                          int32_t width, int32_t height) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    
+    fprintf(stderr, "Wayland: xdg_toplevel configure_bounds width=%d height=%d\n",
+            width, height);
+    
+    /* Store max size bounds from compositor */
+    state->max_width = width;
+    state->max_height = height;
+}
+
+static void xdg_toplevel_wm_capabilities(void *data, struct xdg_toplevel *toplevel,
+                                         struct wl_array *capabilities) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    
+    uint32_t *caps = (uint32_t*)capabilities->data;
+    size_t n_caps = capabilities->size / sizeof(uint32_t);
+    
+    state->wm_caps = 0;
+    for (size_t i = 0; i < n_caps; i++) {
+        state->wm_caps |= (1u << caps[i]);
+        fprintf(stderr, "Wayland: wm_capability %u\n", caps[i]);
+    }
+    fprintf(stderr, "Wayland: wm_capabilities bitmap=0x%x\n", state->wm_caps);
+}
+
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
     .configure = xdg_toplevel_configure,
     .close = xdg_toplevel_close,
+    .configure_bounds = xdg_toplevel_configure_bounds,
+    .wm_capabilities = xdg_toplevel_wm_capabilities,
 };
 
 /* ══════════════════════════════════════════════════════════════════
@@ -468,9 +503,9 @@ static const struct wl_pointer_listener pointer_listener = {
     .axis_discrete = pointer_axis_discrete,
 };
 
-/* ══════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════
  * Key Translation (Linux evdev scancode -> WuBuOS key code)
- * ══════════════════════════════════════════════════════════════════ */
+ * ════════════════════════════════════════════════════════════════════════ */
 
 static void handle_wl_keyboard_key(uint32_t key, int pressed) {
     uint32_t wu_key = 0;
@@ -544,9 +579,211 @@ static void handle_wl_pointer_button(uint32_t button, int pressed) {
     else if (button == 274) { if (pressed) g_mouse_buttons |= 4; else g_mouse_buttons &= ~4; }
 }
 
-/* ══════════════════════════════════════════════════════════════════
+/* ════════════════════════════════════════════════════════════════════════
+ * wl_seat Capabilities Callback
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+static void seat_capabilities(void *data, struct wl_seat *seat,
+                              uint32_t capabilities);
+
+static void seat_name(void *data, struct wl_seat *seat, const char *name);
+
+static const struct wl_seat_listener seat_listener = {
+    .capabilities = seat_capabilities,
+    .name = seat_name,
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * wl_output Callbacks
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+static void output_geometry(void *data, struct wl_output *wl_output,
+                            int32_t x, int32_t y, int32_t physical_width,
+                            int32_t physical_height, int32_t subpixel,
+                            const char *make, const char *model,
+                            int32_t transform);
+
+static void output_mode(void *data, struct wl_output *wl_output,
+                        uint32_t flags, int32_t width, int32_t height,
+                        int32_t refresh);
+
+static void output_done(void *data, struct wl_output *wl_output);
+
+static void output_scale(void *data, struct wl_output *wl_output,
+                         int32_t factor);
+
+static const struct wl_output_listener output_listener = {
+    .geometry = output_geometry,
+    .mode = output_mode,
+    .done = output_done,
+    .scale = output_scale,
+};
+
+/* ═══════════════════════════════════════════════════════════════════════
+ * wl_touch Callbacks
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+static void touch_down(void *data, struct wl_touch *wl_touch,
+                       uint32_t serial, uint32_t time, struct wl_surface *surface,
+                       int32_t id, wl_fixed_t x_w, wl_fixed_t y_w);
+
+static void touch_up(void *data, struct wl_touch *wl_touch,
+                     uint32_t serial, uint32_t time, int32_t id);
+
+static void touch_motion(void *data, struct wl_touch *wl_touch,
+                         uint32_t time, int32_t id, wl_fixed_t x_w, wl_fixed_t y_w);
+
+static void touch_frame(void *data, struct wl_touch *wl_touch);
+
+static void touch_cancel(void *data, struct wl_touch *wl_touch);
+
+static const struct wl_touch_listener touch_listener = {
+    .down = touch_down,
+    .up = touch_up,
+    .motion = touch_motion,
+    .frame = touch_frame,
+    .cancel = touch_cancel,
+};
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * wl_seat Capabilities Callback Implementation
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+static void seat_capabilities(void *data, struct wl_seat *seat,
+                              uint32_t capabilities) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    if ((capabilities & WL_SEAT_CAPABILITY_TOUCH) && !state->touch) {
+        state->touch = wl_seat_get_touch(seat);
+        wl_touch_add_listener(state->touch, &touch_listener, state);
+        fprintf(stderr, "Wayland: touch enabled\n");
+    } else if (!(capabilities & WL_SEAT_CAPABILITY_TOUCH) && state->touch) {
+        wl_touch_destroy(state->touch);
+        state->touch = NULL;
+        fprintf(stderr, "Wayland: touch disabled\n");
+    }
+}
+
+static void seat_name(void *data, struct wl_seat *seat, const char *name) {
+    (void)data; (void)seat; (void)name;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * wl_output Callbacks Implementation
+ * ════════════════════════════════════════════════════════════════════════ */
+
+static void output_geometry(void *data, struct wl_output *wl_output,
+                            int32_t x, int32_t y, int32_t physical_width,
+                            int32_t physical_height, int32_t subpixel,
+                            const char *make, const char *model,
+                            int32_t transform) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: output geometry %dx%d at %d,%d\n",
+            physical_width, physical_height, x, y);
+}
+
+static void output_mode(void *data, struct wl_output *wl_output,
+                        uint32_t flags, int32_t width, int32_t height,
+                        int32_t refresh) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    if (flags & WL_OUTPUT_MODE_CURRENT) {
+        fprintf(stderr, "Wayland: output mode %dx%d@%dHz\n", width, height, refresh);
+    }
+}
+
+static void output_done(void *data, struct wl_output *wl_output) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: output done\n");
+}
+
+static void output_scale(void *data, struct wl_output *wl_output,
+                         int32_t factor) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: output scale %d\n", factor);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * wl_touch Callbacks Implementation
+ * ════════════════════════════════════════════════════════════════════════ */
+
+static void touch_down(void *data, struct wl_touch *wl_touch,
+                       uint32_t serial, uint32_t time, struct wl_surface *surface,
+                       int32_t id, wl_fixed_t x_w, wl_fixed_t y_w) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    int x = wl_fixed_to_int(x_w);
+    int y = wl_fixed_to_int(y_w);
+    g_mouse_buttons |= 1;
+    MouseEvent ev = {0};
+    ev.dx = 0;
+    ev.dy = 0;
+    ev.buttons = g_mouse_buttons;
+    ev.scroll = 0;
+    input_mouse_push(ev);
+    fprintf(stderr, "Wayland: touch down at %d,%d\n", x, y);
+}
+
+static void touch_up(void *data, struct wl_touch *wl_touch,
+                     uint32_t serial, uint32_t time, int32_t id) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    g_mouse_buttons &= ~1;
+    MouseEvent ev = {0};
+    ev.dx = 0;
+    ev.dy = 0;
+    ev.buttons = g_mouse_buttons;
+    ev.scroll = 0;
+    input_mouse_push(ev);
+    fprintf(stderr, "Wayland: touch up\n");
+}
+
+static void touch_motion(void *data, struct wl_touch *wl_touch,
+                         uint32_t time, int32_t id, wl_fixed_t x_w, wl_fixed_t y_w) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    int x = wl_fixed_to_int(x_w);
+    int y = wl_fixed_to_int(y_w);
+    int dx = x - g_pointer_x;
+    int dy = y - g_pointer_y;
+    g_pointer_x = x;
+    g_pointer_y = y;
+    if (state && (dx != 0 || dy != 0)) {
+        MouseEvent ev = {0};
+        ev.dx = dx;
+        ev.dy = dy;
+        ev.buttons = g_mouse_buttons;
+        ev.scroll = 0;
+        input_mouse_push(ev);
+    }
+    fprintf(stderr, "Wayland: touch motion to %d,%d\n", x, y);
+}
+
+static void touch_frame(void *data, struct wl_touch *wl_touch) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    fprintf(stderr, "Wayland: touch frame\n");
+}
+
+static void touch_cancel(void *data, struct wl_touch *wl_touch) {
+    hosted_state_t *state = (hosted_state_t*)data;
+    if (!state) return;
+    g_mouse_buttons = 0;
+    MouseEvent ev = {0};
+    ev.dx = 0;
+    ev.dy = 0;
+    ev.buttons = g_mouse_buttons;
+    ev.scroll = 0;
+    input_mouse_push(ev);
+    fprintf(stderr, "Wayland: touch cancel\n");
+}
+
+/* ════════════════════════════════════════════════════════════════════════
  * Filesystem helpers
- * ══════════════════════════════════════════════════════════════════ */
+ * ════════════════════════════════════════════════════════════════════════ */
 
 static int fs_add_dir(const char *name) {
     if (g_nfiles >= STYXFS_MAX_FILES) return -1;
@@ -845,6 +1082,14 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
             wl_pointer_add_listener(g_wl.pointer, &pointer_listener, state);
         }
 
+        if (g_wl.seat) {
+            wl_seat_add_listener(g_wl.seat, &seat_listener, state);
+        }
+
+        if (g_wl.output) {
+            wl_output_add_listener(g_wl.output, &output_listener, state);
+        }
+
         shm_buffer_create(&g_shm_bufs[0], state->width, state->height);
         shm_buffer_create(&g_shm_bufs[1], state->width, state->height);
 
@@ -1010,6 +1255,8 @@ void hosted_shutdown(hosted_state_t *state) {
     if (g_wl.data_device_manager) wl_data_device_manager_destroy(g_wl.data_device_manager);
     if (g_wl.primary_selection_manager) zwp_primary_selection_device_manager_v1_destroy(g_wl.primary_selection_manager);
     if (g_wl.compositor) wl_compositor_destroy(g_wl.compositor);
+    if (g_wl.output) wl_output_destroy(g_wl.output);
+    if (g_wl.touch) wl_touch_destroy(g_wl.touch);
     if (g_wl.display) { wl_display_flush(g_wl.display); wl_display_disconnect(g_wl.display); }
     memset(&g_wl, 0, sizeof(g_wl));
 

@@ -9,6 +9,8 @@
 #ifndef WUBU_CLIPBOARD_H
 #define WUBU_CLIPBOARD_H
 
+#include <wayland-client.h>
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -61,9 +63,17 @@ void wubu_clipboard_clear(ClipboardSelection selection);
 
 /* Wayland offer handling (call from Wayland data device callbacks) */
 void wubu_clipboard_handle_offer(void *offer);
-void wubu_clipboard_handle_selection(void *offer);
 void wubu_clipboard_handle_data_source(void *source);
 void wubu_clipboard_handle_dnd_action(uint32_t action);
+
+/* -- Drag-and-Drop Handlers (called from hosted.c) --------------- */
+
+/* DnD handlers - implemented in wubu_clipboard.c */
+void wubu_clipboard_handle_dnd_enter(uint32_t serial, struct wl_surface *surface,
+                                     int x, int y, struct wl_data_offer *offer);
+void wubu_clipboard_handle_dnd_leave(void);
+void wubu_clipboard_handle_dnd_motion(uint32_t time, int x, int y);
+void wubu_clipboard_handle_dnd_drop(void);
 
 /* -- Convenience Helpers ------------------------------------------ */
 
@@ -82,7 +92,7 @@ typedef void (*ClipboardChangedCallback)(ClipboardSelection selection);
 void wubu_clipboard_set_changed_callback(ClipboardChangedCallback cb);
 
 /* Called when DND enters/leaves */
-typedef void (*ClipboardDnDCallback)(bool entered);
+typedef void (*ClipboardDnDCallback)(bool entered, int x, int y);
 void wubu_clipboard_set_dnd_callback(ClipboardDnDCallback cb);
 
 #endif /* WUBU_CLIPBOARD_H */

@@ -89,6 +89,39 @@ static int run_chroot_cmd(const char *root, const char *fmt, ...) {
     return -1;
 }
 
+/* -- Helper: write file --------------------------------------------- */
+
+static bool write_file(const char *path, const char *content) {
+    FILE *f = fopen(path, "w");
+    if (!f) return false;
+    fputs(content, f);
+    fclose(f);
+    return true;
+}
+
+/* -- Helper: mkdir -p ----------------------------------------------- */
+
+static int mkdir_p(const char *path, mode_t mode) {
+    char tmp[1024];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    size_t len = strlen(tmp);
+    
+    if (len > 0 && tmp[len - 1] == '/')
+        tmp[len - 1] = '\0';
+    
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, mode) != 0 && errno != EEXIST)
+                return -1;
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, mode) != 0 && errno != EEXIST)
+        return -1;
+    return 0;
+}
+
 /* -- String Tables ----------------------------------------------- */
 
 const char *wubu_archd_root_state_str(WubuArchRootState state) {
@@ -377,6 +410,8 @@ int wubu_archd_root_info(WubuArchd *d, const char *name, WubuArchdRoot *out) {
     return -1;
 }
 
+
+
 /* -- Package Operations ------------------------------------------- */
 
 int wubu_archd_pkg_install(WubuArchd *d, const char *root, const char *packages) {
@@ -418,6 +453,171 @@ int wubu_archd_pkg_list(WubuArchd *d, const char *root, char *out, size_t out_si
     pclose(fp);
     return 0;
 }
+
+/* -- AUR Support -------------------------------------------------- */
+
+int wubu_archd_aur_build(WubuArchd *d, const char *root, const char *pkg_name) {
+    WubuArchdRoot r;
+    if (wubu_archd_root_info(d, root, &r) != 0) return -1;
+    archd_log(d, 2, "Building AUR package '%s' in root '%s'", pkg_name, root);
+    
+    char check_cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(check_cmd, sizeof(check_cmd), "arch-chroot %s which git 2>/dev/null", r.path);
+    FILE *fp = popen(check_cmd, "r");
+    if (!fp || pclose(fp) != 0) {
+        archd_log(d, 0, "git not available in root '%s'", root);
+        return -1;
+    }
+    
+    char build_cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(build_cmd, sizeof(build_cmd),
+             "arch-chroot %s /bin/bash -c 'cd /tmp && git clone https://aur.archlinux.org/%s.git 2>&1 && cd %s && makepkg -s --noconfirm 2>&1'",
+             r.path, pkg_name, pkg_name);
+    return run_cmd(build_cmd);
+}
+
+int wubu_archd_aur_search(WubuArchd *d, const char *query, char *out, size_t out_size) {
+    if (!query || !out) return -1;
+    
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    // Simpler approach: use curl to get raw JSON, then just return it
+    snprintf(cmd, sizeof(cmd),
+             "curl -s \"https://aur.archlinux.org/rpc/?v=5&type=search&arg=%s\" 2>/dev/null",
+             query);
+    
+    FILE *fp = popen(cmd, "r");
+    if (!fp) return -1;
+    
+    size_t total = 0;
+    char buf[1024];
+    while (fgets(buf, sizeof(buf), fp) && total < out_size - 1) {
+        size_t len = strlen(buf);
+        if (total + len < out_size - 1) {
+            memcpy(out + total, buf, len);
+            total += len;
+        }
+    }
+    pclose(fp);
+    out[total] = '\0';
+    return 0;
+}
+
+/* -- Package Signing & Repo Management ----------------------------- */
+
+int wubu_archd_repo_init(WubuArchd *d, const char *repo_name, const char *repo_path) {
+    if (!d || !repo_name || !repo_path) return -1;
+    archd_log(d, 2, "Initializing repo '%s' at '%s'", repo_name, repo_path);
+    
+    mkdir_p(repo_path, 0755);
+    
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(cmd, sizeof(cmd), "repo-add %s/%s.db.tar.gz", repo_path, repo_name);
+    return run_cmd(cmd);
+}
+
+int wubu_archd_repo_add(WubuArchd *d, const char *repo_name, const char *repo_path, const char *pkg_file) {
+    if (!d || !repo_name || !repo_path || !pkg_file) return -1;
+    archd_log(d, 2, "Adding package '%s' to repo '%s'", pkg_file, repo_name);
+    
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(cmd, sizeof(cmd), "repo-add %s/%s.db.tar.gz %s", repo_path, repo_name, pkg_file);
+    return run_cmd(cmd);
+}
+
+int wubu_archd_repo_remove(WubuArchd *d, const char *repo_name, const char *repo_path, const char *pkg_name) {
+    if (!d || !repo_name || !repo_path || !pkg_name) return -1;
+    archd_log(d, 2, "Removing package '%s' from repo '%s'", pkg_name, repo_name);
+    
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(cmd, sizeof(cmd), "repo-remove %s/%s.db.tar.gz %s", repo_path, repo_name, pkg_name);
+    return run_cmd(cmd);
+}
+
+int wubu_archd_sign_package(WubuArchd *d, const char *pkg_file, const char *key_id) {
+    if (!d || !pkg_file) return -1;
+    archd_log(d, 2, "Signing package '%s'", pkg_file);
+    
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    if (key_id) {
+        snprintf(cmd, sizeof(cmd), "gpg --detach-sign --default-key %s %s", key_id, pkg_file);
+    } else {
+        snprintf(cmd, sizeof(cmd), "gpg --detach-sign %s", pkg_file);
+    }
+    return run_cmd(cmd);
+}
+
+/* -- Pacman Hooks ------------------------------------------------- */
+
+int wubu_archd_hook_install(WubuArchd *d, const char *root, const char *hook_name,
+                            const char *trigger, const char *action) {
+    if (!d || !root || !hook_name || !trigger || !action) return -1;
+    archd_log(d, 2, "Installing pacman hook '%s' in root '%s'", hook_name, root);
+    
+    WubuArchdRoot r;
+    if (wubu_archd_root_info(d, root, &r) != 0) return -1;
+    
+    char hook_path[WUBU_ARCHD_MAX_PATH];
+    snprintf(hook_path, sizeof(hook_path), "%s/etc/pacman.d/hooks/%s.hook", r.path, hook_name);
+    
+    char hook_content[4096];
+    snprintf(hook_content, sizeof(hook_content),
+             "[Trigger]\n"
+             "Type = %s\n"
+             "Operation = Install\n"
+             "Operation = Upgrade\n"
+             "Target = %s\n"
+             "\n"
+             "[Action]\n"
+             "Description = %s\n"
+             "When = PostTransaction\n"
+             "Exec = /bin/sh -c \"%s\"\n",
+             (strstr(trigger, "file") != NULL) ? "File" : "Package",
+             trigger,
+             action,
+             action);
+    
+    return write_file(hook_path, hook_content);
+}
+int wubu_archd_hook_remove(WubuArchd *d, const char *root, const char *hook_name) {
+    if (!d || !root || !hook_name) return -1;
+    
+    WubuArchdRoot r;
+    if (wubu_archd_root_info(d, root, &r) != 0) return -1;
+    
+    char hook_path[WUBU_ARCHD_MAX_PATH];
+    snprintf(hook_path, sizeof(hook_path), "%s/etc/pacman.d/hooks/%s.hook", r.path, hook_name);
+    return unlink(hook_path) == 0 ? 0 : -1;
+}
+
+/* -- ABS (Arch Build System) -------------------------------------- */
+
+int wubu_archd_abs_update(WubuArchd *d, const char *root) {
+    if (!d || !root) return -1;
+    archd_log(d, 2, "Updating ABS tree in root '%s'", root);
+    
+    WubuArchdRoot r;
+    if (wubu_archd_root_info(d, root, &r) != 0) return -1;
+    
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(cmd, sizeof(cmd), "arch-chroot %s abs 2>&1", r.path);
+    return run_cmd(cmd);
+}
+
+int wubu_archd_abs_build(WubuArchd *d, const char *root, const char *pkg_name, const char *build_dir) {
+    if (!d || !root || !pkg_name) return -1;
+    archd_log(d, 2, "Building ABS package '%s' in root '%s'", pkg_name, root);
+    
+    WubuArchdRoot r;
+    if (wubu_archd_root_info(d, root, &r) != 0) return -1;
+    
+    const char *abs_path = build_dir ? build_dir : "/var/abs";
+    char cmd[WUBU_ARCHD_MAX_CMD];
+    snprintf(cmd, sizeof(cmd), 
+             "arch-chroot %s /bin/bash -c 'cd %s/%s && makepkg -s --noconfirm 2>&1'",
+             r.path, abs_path, pkg_name);
+    return run_cmd(cmd);
+}
+
 
 /* -- Service Operations ------------------------------------------- */
 

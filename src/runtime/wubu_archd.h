@@ -237,6 +237,29 @@ int  wubu_archd_pkg_update(WubuArchd *d, const char *root);
 int  wubu_archd_pkg_list(WubuArchd *d, const char *root,
                           char *out, size_t out_size);
 
+/* -- AUR Support -------------------------------------------------- */
+
+int  wubu_archd_aur_build(WubuArchd *d, const char *root, const char *pkg_name);
+int  wubu_archd_aur_search(WubuArchd *d, const char *query, char *out, size_t out_size);
+
+/* -- Package Signing & Repo Management ----------------------------- */
+
+int  wubu_archd_repo_init(WubuArchd *d, const char *repo_name, const char *repo_path);
+int  wubu_archd_repo_add(WubuArchd *d, const char *repo_name, const char *repo_path, const char *pkg_file);
+int  wubu_archd_repo_remove(WubuArchd *d, const char *repo_name, const char *repo_path, const char *pkg_name);
+int  wubu_archd_sign_package(WubuArchd *d, const char *pkg_file, const char *key_id);
+
+/* -- Pacman Hooks ------------------------------------------------- */
+
+int  wubu_archd_hook_install(WubuArchd *d, const char *root, const char *hook_name,
+                            const char *trigger, const char *action);
+int  wubu_archd_hook_remove(WubuArchd *d, const char *root, const char *hook_name);
+
+/* -- ABS (Arch Build System) -------------------------------------- */
+
+int  wubu_archd_abs_update(WubuArchd *d, const char *root);
+int  wubu_archd_abs_build(WubuArchd *d, const char *root, const char *pkg_name, const char *build_dir);
+
 /* -- Service Operations ------------------------------------------- */
 
 int  wubu_archd_svc_enable(WubuArchd *d, const char *root, const char *svc);
