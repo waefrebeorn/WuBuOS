@@ -46,6 +46,13 @@ struct VSL_PROC {
     uint64_t         brk;            /* Heap break */
     uint64_t         mmap_base;      /* mmap allocation base */
     int              exit_code;
+    uint32_t         uid;            /* Real user ID */
+    uint32_t         gid;            /* Real group ID */
+    uint32_t         euid;           /* Effective user ID */
+    uint32_t         egid;           /* Effective group ID */
+    int              pgid;           /* Process group ID (-1 = unset) */
+    int              sesid;          /* Session ID (-1 = unset) */
+    mode_t           umask;          /* File creation mask */
     uint64_t         regs[16];       /* Saved registers (rax-r15) */
     uint64_t         rip;
     uint64_t         rsp;
@@ -128,10 +135,10 @@ typedef struct {
 /* Global state */
 extern VSL_STATE g_vsl;
 
-/* Internal helper functions */
-static int vsl_get_host_fd(int vsl_fd);
-static int find_free_vsl_pid(void);
-static int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid);
-static int vsl_openat(int dirfd, const char *pathname, int flags, mode_t mode);
+/* Internal helper functions (declared static in vsl_syscall.c) */
+int vsl_get_host_fd(int vsl_fd);
+int find_free_vsl_pid(void);
+int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid);
+int vsl_openat(int dirfd, const char *pathname, int flags, mode_t mode);
 
 #endif /* WUBUOS_VSL_INTERNAL_H */

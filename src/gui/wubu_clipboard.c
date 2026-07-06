@@ -264,6 +264,68 @@ static const struct wl_data_offer_listener data_offer_listener = {
     .offer = data_offer_offer,
 };
 
+/* -- Drag-and-Drop Handlers (called from hosted.c) ----------------- */
+
+static struct wl_data_offer *g_current_dnd_offer = NULL;
+static struct wl_surface *g_dnd_target_surface = NULL;
+
+void wubu_clipboard_handle_data_offer(struct wl_data_offer *offer) {
+    /* Store the offer for later data retrieval */
+    g_clipboard.current_offer = offer;
+    wl_data_offer_add_listener(offer, &data_offer_listener, NULL);
+    fprintf(stderr, "Clipboard: data_offer received\n");
+}
+
+void wubu_clipboard_handle_dnd_enter(uint32_t serial, struct wl_surface *surface, 
+                                     int x, int y, struct wl_data_offer *offer) {
+    fprintf(stderr, "Clipboard: DnD enter (serial=%u, x=%d, y=%d)\n", serial, x, y);
+    g_current_dnd_offer = offer;
+    g_dnd_target_surface = surface;
+    wl_data_offer_add_listener(offer, &data_offer_listener, NULL);
+    if (g_clipboard.dnd_cb) {
+        g_clipboard.dnd_cb(true, x, y);
+    }
+    g_clipboard.dnd_active = true;
+}
+
+void wubu_clipboard_handle_dnd_leave(void) {
+    fprintf(stderr, "Clipboard: DnD leave\n");
+    g_current_dnd_offer = NULL;
+    g_dnd_target_surface = NULL;
+    if (g_clipboard.dnd_cb) {
+        g_clipboard.dnd_cb(false, 0, 0);
+    }
+    g_clipboard.dnd_active = false;
+}
+
+void wubu_clipboard_handle_dnd_motion(uint32_t time, wl_fixed_t x, wl_fixed_t y) {
+    (void)time;
+    if (g_clipboard.dnd_cb) {
+        g_clipboard.dnd_cb(true, wl_fixed_to_int(x), wl_fixed_to_int(y));
+    }
+}
+
+void wubu_clipboard_handle_dnd_drop(void) {
+    fprintf(stderr, "Clipboard: DnD drop\n");
+    if (g_current_dnd_offer) {
+        /* Request the data - prefer text/plain */
+        int pipefd[2];
+        if (pipe(pipefd) == 0) {
+            wl_data_offer_receive(g_current_dnd_offer, "text/plain", pipefd[1]);
+            close(pipefd[1]);
+            /* Read the data */
+            char buf[4096];
+            ssize_t n = read(pipefd[0], buf, sizeof(buf) - 1);
+            if (n > 0) {
+                buf[n] = '\0';
+                fprintf(stderr, "Clipboard: DnD received text: %.100s\n", buf);
+            }
+            close(pipefd[0]);
+        }
+    }
+    g_clipboard.dnd_active = false;
+}
+
 /* -- Clipboard Manager API (Wayland mode) ------------------------- */
 
 int wubu_clipboard_init(void *wl_seat) {

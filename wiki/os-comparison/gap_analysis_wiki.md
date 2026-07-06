@@ -190,12 +190,12 @@
 | Name Parity | `zealos_parity.h` | 32 aliases | 0 |
 | StyxFS | `runtime/styxfs.c` | 14 | 0 |
 
-**Net: 128 REAL_GAPs eliminated (1562 → 1434)**
+**Net: 128 REAL_GAPs eliminated (1434 → 1562)**
 
 ---
 
 ## ════════════════════════════════════════════════════════════════════════════════
-## NEXT SESSION PICK LIST (Priority Order)
+## PICK LIST (Priority Order)
 ## ════════════════════════════════════════════════════════════════════════════════
 
 | Order | Gap ID | File | First Task |

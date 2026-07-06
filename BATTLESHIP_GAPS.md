@@ -1,6 +1,6 @@
 # WuBuOS BATTLESHIP — Fresh Gap List 2026-06-22 (Post-Deep-Stub-Hunt)
 
-> **⚠️ SUPERSEDED by BATTLESHIP.md (Phase 12, 2026-06-26)** — This v11 document is no longer the active gap inventory. See [BATTLESHIP.md](BATTLESHIP.md) for the 300-gap triple DA audit.
+> **⚠️ SUPERSEDED by BATTLESHIP.md** — This v11 document is no longer the active gap inventory. See [BATTLESHIP.md](BATTLESHIP.md) for the 1562-gap triple DA audit.
 ## Triple Devil's Advocate Audit — REAL_GAPs Only
 
 **Total TODO/STUB markers**: 234 across 79 files

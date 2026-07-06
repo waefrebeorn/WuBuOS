@@ -352,6 +352,47 @@ static void test_holyd_eval(void) {
     wubu_holyd_shutdown(&d);
 }
 
+/* -- HolyC JIT Persistent State Tests ----------------------------- */
+
+static void test_holyd_persistent_state(void) {
+    TEST("holyd eval: persistent variable across evals");
+    WubuHolyConfig config = {0};
+    strncpy(config.sessions_path, "/tmp/wubu-test-persist1", sizeof(config.sessions_path) - 1);
+    strncpy(config.socket_path, "/tmp/wubu-test-persist1.sock", sizeof(config.socket_path) - 1);
+    strncpy(config.log_path, "/tmp/wubu-test-persist1.log", sizeof(config.log_path) - 1);
+    config.log_level = 0;
+
+    WubuHoly d;
+    wubu_holyd_init(&d, &config);
+    /* Disable file logging, force stderr for debug */
+    d.config.log_level = 3; /* Enable debug logging for this test */
+    wubu_holyd_session_create(&d, "persist-test", 800, 600);
+
+    char output[1024];
+    int ret = wubu_holyd_eval(&d, "persist-test", "I64 x = 123;", output, sizeof(output));
+    printf("DEBUG: First eval output: '%s'\n", output);
+    CHECK(ret == 0, "eval variable declaration returns 0");
+
+    /* Variable x should persist to next eval */
+    ret = wubu_holyd_eval(&d, "persist-test", "x + 10", output, sizeof(output));
+    printf("DEBUG: Second eval output: '%s'\n", output);
+    CHECK(ret == 0, "eval using persistent variable returns 0");
+    CHECK(strcmp(output, "133") == 0, "eval x+10 returns 133");
+    PASS();
+
+    TEST("holyd eval: persistent function across evals");
+    ret = wubu_holyd_eval(&d, "persist-test", "I64 square(I64 n) { return n * n; }", output, sizeof(output));
+    CHECK(ret == 0, "eval function declaration returns 0");
+
+    /* Function should persist to next eval */
+    ret = wubu_holyd_eval(&d, "persist-test", "square(7)", output, sizeof(output));
+    CHECK(ret == 0, "eval calling persistent function returns 0");
+    CHECK(strcmp(output, "49") == 0, "eval square(7) returns 49");
+    PASS();
+
+    wubu_holyd_shutdown(&d);
+}
+
 /* -- Main --------------------------------------------------------- */
 
 int main(void) {
@@ -374,6 +415,10 @@ int main(void) {
     /* -- HolyC JIT Eval Tests ------------------------------------- */
 
     test_holyd_eval();
+
+    /* -- HolyC JIT Persistent State Tests ------------------------ */
+
+    test_holyd_persistent_state();
 
     printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

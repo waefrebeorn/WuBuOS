@@ -261,6 +261,17 @@ int  wubu_holyd_run(WubuHoly *d, const char *session,
                      const void *binary, size_t size);
 int  wubu_holyd_stop(WubuHoly *d, const char *session);
 
+/* -- REPL / Persistent Compiler State ------------------------------ */
+
+int  wubu_holyd_repl_start(WubuHoly *d, const char *session);
+int  wubu_holyd_repl_eval(WubuHoly *d, const char *session,
+                           const char *code, char *output, size_t out_size);
+int  wubu_holyd_repl_stop(WubuHoly *d, const char *session);
+int  wubu_holyd_macro_define(WubuHoly *d, const char *session,
+                              const char *name, const char *value);
+int  wubu_holyd_macro_undef(WubuHoly *d, const char *session,
+                             const char *name);
+
 /* -- Window Operations -------------------------------------------- */
 
 int  wubu_holyd_window_create(WubuHoly *d, const char *session,

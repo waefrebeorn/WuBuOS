@@ -59,6 +59,21 @@ struct HOSTED_STATE {
     const char      *screenshot_path;
     bool             gui_screenshot;
     const char      *theme_name;  /* Theme name from command line (zune, xp, xp-media, wubu, win98) */
+    int              max_width;
+    int              max_height;
+    uint32_t         wm_caps;
+    /* Popup state */
+    int              popup_x;
+    int              popup_y;
+    int              popup_width;
+    int              popup_height;
+    bool             popup_mapped;
+    /* DnD state */
+    struct wl_data_offer *dnd_offer;
+    int              dnd_x;
+    int              dnd_y;
+    /* Touch state */
+    struct wl_touch  *touch;
 };
 
 typedef struct HOSTED_STATE hosted_state_t;
@@ -79,7 +94,11 @@ typedef struct {
     struct wl_seat       *seat;
     struct wl_shm        *shm;
     struct wl_data_device_manager *data_device_manager;
+    struct wl_data_device *data_device;
     struct zwp_primary_selection_device_manager_v1 *primary_selection_manager;
+    struct zwp_tablet_manager_v1 *tablet_manager;
+    struct wl_output     *output;
+    struct wl_touch      *touch;
     int                   drm_fd;
     int                   width;
     int                   height;

@@ -8,6 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <errno.h>
 #include <time.h>
 
@@ -44,6 +45,7 @@ static bool test_ensure_dir(const char* path) {
 
 static int tests_passed = 0;
 static int tests_failed = 0;
+static pid_t pid = 0;
 
 #define RUN_TEST(fn) \
     do { \
@@ -86,8 +88,13 @@ bool test_default_config(void) {
 
 /* Test init/shutdown lifecycle */
 bool test_lifecycle(void) {
-    /* Clean up first */
-    system("rm -rf /tmp/wubu_pkgmgr_test");
+    /* Clean up first - use fork+exec instead of system() */
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_pkgmgr_test", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     
     wubu_pkgmgr_config_t config;
     wubu_pkgmgr_get_default_config(&config);
@@ -107,8 +114,13 @@ bool test_lifecycle(void) {
 
 /* Test repository management */
 bool test_repo_management(void) {
-    /* Clean up first */
-    system("rm -rf /tmp/wubu_pkgmgr_test2");
+    /* Clean up first - use fork+exec instead of system() */
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_pkgmgr_test2", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     
     wubu_pkgmgr_config_t config;
     wubu_pkgmgr_get_default_config(&config);
@@ -256,15 +268,26 @@ bool test_package_creation(void) {
     TEST_ASSERT_STR_CONTAINS(read_manifest.id, "test-app", "read manifest id");
     
     unlink("/tmp/test-app.wubu");
-    system("rm -rf /tmp/wubu_test_pkg_src");
+    /* Clean up with fork+exec instead of system() */
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_test_pkg_src", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     wubu_pkgmgr_shutdown();
     return true;
 }
 
 /* Test install/remove via database */
 bool test_install_remove_db(void) {
-    /* Clean up first */
-    system("rm -rf /tmp/wubu_pkgmgr_test4");
+    /* Clean up first - use fork+exec instead of system() */
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_pkgmgr_test4", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     
     wubu_pkgmgr_config_t config;
     wubu_pkgmgr_get_default_config(&config);
@@ -325,7 +348,13 @@ bool test_install_remove_db(void) {
     TEST_ASSERT(!wubu_pkgmgr_is_installed("nonexistent"), "is_installed false");
     
     free(pkgs);
-    system("rm -rf /tmp/wubu_test_pkg2 /tmp/test-pkg.wubu");
+    /* Clean up with fork+exec instead of system() */
+    pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_test_pkg2", "/tmp/test-pkg.wubu", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     wubu_pkgmgr_shutdown();
     return true;
 }
@@ -455,10 +484,13 @@ bool test_stats(void) {
 
 /* Test autoremove */
 bool test_autoremove(void) {
-    /* Clean up first */
-    system("rm -rf /tmp/wubu_pkgmgr_test8");
-    system("rm -rf /tmp/wubu_test_pkg8");
-    system("rm -f /tmp/auto-dep.wubu");
+    /* Clean up first - use fork+exec instead of system() */
+    pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_pkgmgr_test8", "/tmp/wubu_test_pkg8", "/tmp/auto-dep.wubu", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     
     wubu_pkgmgr_config_t config;
     wubu_pkgmgr_get_default_config(&config);
@@ -507,7 +539,13 @@ bool test_autoremove(void) {
     int removed = wubu_pkgmgr_autoremove(true);
     TEST_ASSERT(removed >= 0, "autoremove dry run runs");
     
-    system("rm -rf /tmp/wubu_test_pkg8 /tmp/auto-dep.wubu");
+    /* Clean up with fork+exec instead of system() */
+    pid = fork();
+    if (pid == 0) {
+        execl("/bin/rm", "rm", "-rf", "/tmp/wubu_test_pkg8", "/tmp/auto-dep.wubu", (char*)NULL);
+        _exit(1);
+    }
+    waitpid(pid, NULL, 0);
     wubu_pkgmgr_shutdown();
     return true;
 }

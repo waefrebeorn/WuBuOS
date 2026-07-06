@@ -23,29 +23,6 @@
 /* Global state (defined in vsl.c) */
 extern VSL_STATE g_vsl;
 
-/* -- PID Mapping -------------------------------------------------- */
-
-static int find_free_vsl_pid(void) {
-    for (uint32_t pid = 2; pid < 100000; pid++) {
-        if (!vsl_get_process(pid)) return (int)pid;
-    }
-    return -1;
-}
-
-static int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
-    if (child_host_pid <= 0) return -1;
-    if (g_vsl.n_procs >= VSL_MAX_PROCS) return -1;
-    int vsl_pid = find_free_vsl_pid();
-    if (vsl_pid < 0) return -1;
-    VSL_PROC *proc = &g_vsl.procs[g_vsl.n_procs];
-    memset(proc, 0, sizeof(*proc));
-    proc->pid = (uint32_t)vsl_pid;
-    proc->ppid = parent_vsl_pid;
-    proc->state = VSL_PROC_READY;
-    g_vsl.n_procs++;
-    return vsl_pid;
-}
-
 /* -- Process Management ------------------------------------------- */
 
 int vsl_create_process(const void *elf_data, size_t elf_size) {

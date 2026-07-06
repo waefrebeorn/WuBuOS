@@ -5,11 +5,14 @@
  */
 
 #include "wubu_vsl.h"
+#include "vsl/vsl_syscall_numbers.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sys/resource.h>
 
 static int g_run = 0, g_pass = 0;
 
@@ -52,10 +55,100 @@ int main(void) {
     T(r == 0, "getppid() = 0");
 
     r = vsl_syscall(VSL_SYS_GETUID, 0, 0, 0, 0, 0, 0);
-    T(r == 0, "getuid() = 0 (root)");
+    T((uid_t)r == getuid(), "getuid() returns host uid");
 
     r = vsl_syscall(VSL_SYS_GETGID, 0, 0, 0, 0, 0, 0);
-    T(r == 0, "getgid() = 0 (root)");
+    T((gid_t)r == getgid(), "getgid() returns host gid");
+
+    r = vsl_syscall(VSL_SYS_GETEUID, 0, 0, 0, 0, 0, 0);
+    T((uid_t)r == geteuid(), "geteuid() returns host euid");
+
+    r = vsl_syscall(VSL_SYS_GETEGID, 0, 0, 0, 0, 0, 0);
+    T((gid_t)r == getegid(), "getegid() returns host egid");
+
+    r = vsl_syscall(VSL_SYS_GETRESUID, 0, 0, 0, 0, 0, 0);
+    T(r >= 0, "getresuid() works with NULL (returns 0)");
+
+    r = vsl_syscall(VSL_SYS_GETRESGID, 0, 0, 0, 0, 0, 0);
+    T(r >= 0, "getresgid() works with NULL (returns 0)");
+
+    /* Test setuid/setgid round-trip: query current uid, set back to same value */
+    uid_t orig_uid = (uid_t)vsl_syscall(VSL_SYS_GETUID, 0, 0, 0, 0, 0, 0);
+    r = vsl_syscall(VSL_SYS_SETUID, (uint64_t)orig_uid, 0, 0, 0, 0, 0);
+    T(r == 0, "setuid(orig_uid) succeeds (no-op round-trip)");
+
+    gid_t orig_gid = (gid_t)vsl_syscall(VSL_SYS_GETGID, 0, 0, 0, 0, 0, 0);
+    r = vsl_syscall(VSL_SYS_SETGID, (uint64_t)orig_gid, 0, 0, 0, 0, 0);
+    T(r == 0, "setgid(orig_gid) succeeds (no-op round-trip)");
+
+    /* setreuid/setregid round-trip: query, set same, verify */
+    r = vsl_syscall(VSL_SYS_SETREUID, (uint64_t)-1, (uint64_t)-1, 0, 0, 0, 0);
+    T(r == 0, "setreuid(-1,-1) no-op succeeds");
+
+    r = vsl_syscall(VSL_SYS_SETREGID, (uint64_t)-1, (uint64_t)-1, 0, 0, 0, 0);
+    T(r == 0, "setregid(-1,-1) no-op succeeds");
+
+    /* setpgid/getpgid round-trip */
+    r = vsl_syscall(VSL_SYS_GETPGID, 0, 0, 0, 0, 0, 0);
+    T(r >= 0 || r == -ENOSYS, "getpgid(0) returns pgid or ENOSYS");
+
+    /* setsid/getsid */
+    r = vsl_syscall(VSL_SYS_GETSID, 0, 0, 0, 0, 0, 0);
+    T(r >= 0 || r == -EPERM || r == -ESRCH, "getsid(0) returns sid or EPERM");
+
+    /* getgroups / setgroups round-trip */
+    int ngroups = (int)vsl_syscall(VSL_SYS_GETGROUPS, 0, 0, 0, 0, 0, 0);
+    T(ngroups >= 0, "getgroups(0,NULL) returns group count");
+
+    r = vsl_syscall(VSL_SYS_SETGROUPS, 1, 0, 0, 0, 0, 0);
+    /* May fail without CAP_SETGID, but the call should at least not crash */
+    T(r == 0 || r == -EPERM || r == -EINVAL || r == -EFAULT || r == -ENOSYS,
+      "setgroups() returns 0/EPERM/EINVAL/ENOSYS");
+
+    /* umask round-trip test */
+    r = vsl_syscall(VSL_SYS_UMASK, 0022, 0, 0, 0, 0, 0);
+    T(r >= 0, "umask(0022) returns old mask");
+
+    /* Verify umask took effect */
+    r = vsl_syscall(VSL_SYS_UMASK, 0077, 0, 0, 0, 0, 0);
+    T(r == 0022, "umask(0077) returns previous mask (0022)");
+
+    /* uname test */
+    {
+        char uname_buf[4096];
+        memset(uname_buf, 0, sizeof(uname_buf));
+        r = vsl_syscall(VSL_SYS_UNAME, (uint64_t)uname_buf, 0, 0, 0, 0, 0);
+        T(r == 0, "uname(real_buf) returns 0");
+    }
+
+    /* sysinfo test */
+    {
+        char sysinfo_buf[256];
+        memset(sysinfo_buf, 0, sizeof(sysinfo_buf));
+        r = vsl_syscall(VSL_SYS_SYSINFO, (uint64_t)sysinfo_buf, 0, 0, 0, 0, 0);
+        T(r == 0, "sysinfo(real_buf) returns 0");
+    }
+
+    /* getrandom test */
+    r = vsl_syscall(VSL_SYS_GETRANDOM, (uint64_t)&r, 1, 0, 0, 0, 0);
+    T(r == 1 || r == -ENOSYS, "getrandom(&r,1,0) reads 1 byte or ENOSYS");
+
+    /* getrlimit/setrlimit test */
+    struct rlimit rl;
+    r = vsl_syscall(VSL_SYS_GETRLIMIT, 0 /* RLIMIT_CPU */, (uint64_t)&rl, 0, 0, 0, 0);
+    T(r == 0 || r == -ENOSYS, "getrlimit(RLIMIT_CPU) returns 0 or ENOSYS");
+
+    r = vsl_syscall(VSL_SYS_SETRLIMIT, 0 /* RLIMIT_CPU */, (uint64_t)&rl, 0, 0, 0, 0);
+    T(r == 0 || r == -EPERM || r == -ENOSYS, "setrlimit(RLIMIT_CPU) returns 0/EPERM/ENOSYS");
+
+    /* prlimit64 test */
+    r = vsl_syscall(VSL_SYS_PRLIMIT64, 0, 0 /* RLIMIT_CPU */, 0, 0, 0, 0);
+    T(r == 0 || r == -EFAULT || r == -ENOSYS || r == -EINVAL,
+      "prlimit64(0, RLIMIT_CPU, NULL, NULL) returns 0/EFAULT/ENOSYS");
+
+    /* alarm test */
+    r = vsl_syscall(VSL_SYS_ALARM, 0, 0, 0, 0, 0, 0);
+    T(r >= 0, "alarm(0) returns previous alarm (>=0)");
 
     r = vsl_syscall(VSL_SYS_SCHED_YIELD, 0, 0, 0, 0, 0, 0);
     T(r == 0, "sched_yield() = 0");
@@ -78,6 +171,44 @@ int main(void) {
     /* Test io_uring_register - should return EBADF with invalid fd */
     r = vsl_syscall(VSL_SYS_IO_URING_REGISTER, -1, 0, 0, 0, 0, 0);
     T(r == -9 || r == -EBADF, "io_uring_register() returns EBADF with invalid fd");
+
+    /* -- New Namespace & Security Syscalls -- */
+    printf("\n[Namespace & Security Syscalls]\n");
+
+    /* Test landlock - returns EFAULT with NULL attr on supported kernels */
+    r = vsl_syscall(VSL_SYS_LANDLOCK, 0, 0, 0, 0, 0, 0);
+    T(r == -14 || r == -EFAULT || r == -ENOSYS || r == -EOPNOTSUPP || r == -EINVAL,
+      "landlock() returns EFAULT/ENOSYS/EOPNOTSUPP/EINVAL with NULL params");
+
+    /* Test bpf - returns EINVAL with NULL params */
+    r = vsl_syscall(VSL_SYS_BPF, 0, 0, 0, 0, 0, 0);
+    T(r == -22 || r == -EINVAL || r == -ENOSYS || r == -EFAULT,
+      "bpf() returns EINVAL/ENOSYS/EFAULT with NULL params");
+
+    /* Test perf_event_open - returns EFAULT with NULL attr */
+    r = vsl_syscall(VSL_SYS_PERF_EVENT_OPEN, 0, 0, 0, 0, 0, 0);
+    T(r == -14 || r == -EFAULT || r == -ENOSYS || r == -EINVAL,
+      "perf_event_open() returns EFAULT/ENOSYS/EINVAL with NULL params");
+
+    /* Test fanotify_init - returns EPERM (need CAP_SYS_ADMIN) or ENOSYS */
+    r = vsl_syscall(VSL_SYS_FANOTIFY_INIT, 0, 0, 0, 0, 0, 0);
+    T(r == -1 || r == -EPERM || r == -ENOSYS || r == -EINVAL,
+      "fanotify_init() returns EPERM/ENOSYS/EINVAL with zero flags");
+
+    /* Test fanotify_mark - returns EINVAL with invalid fd */
+    r = vsl_syscall(VSL_SYS_FANOTIFY_MARK, -1, 0, 0, 0, 0, 0);
+    T(r == -22 || r == -EINVAL || r == -ENOSYS || r == -EBADF,
+      "fanotify_mark() returns EINVAL/ENOSYS/EBADF with invalid fd");
+
+    /* Test unshare - returns 0 (success with no flags) or EINVAL */
+    r = vsl_syscall(VSL_SYS_UNSHARE, 0, 0, 0, 0, 0, 0);
+    T(r == 0 || r == -22 || r == -EINVAL || r == -ENOSYS,
+      "unshare() returns 0/EINVAL/ENOSYS with zero flags");
+
+    /* Test setns - returns EBADF with invalid fd */
+    r = vsl_syscall(VSL_SYS_SETNS, -1, 0, 0, 0, 0, 0);
+    T(r == -9 || r == -EBADF || r == -ENOSYS,
+      "setns() returns EBADF/ENOSYS with invalid fd");
 
     /* -- Memory Management -- */
     printf("\n[Memory Management]\n");

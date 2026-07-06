@@ -1,23 +1,12 @@
 /*
  * holyc_codegen.c  --  My Seed HolyC Code Generator
- *
  * Emits x86-64 machine code from HolyC AST.
  * Uses our JIT mmap backend for executable memory.
- *
- * Register convention (System V AMD64):
- *   rdi, rsi, rdx, rcx, r8, r9   --  argument passing
- *   rax                           --  return value
- *   rbx, rbp, r12-r15            --  callee-saved
- *   rsp                           --  stack pointer
- *
- * All conditional jumps use 5-byte encoding (0F 8x + rel32)
- * to guarantee patchability for label-based backpatching.
- * Unconditional jumps use 5-byte (E9 + rel32).
- *
- * Ported from ZealOS/src/Compiler/BackA.ZC + BackB.ZC
+ * C11, self-contained.
  */
 
 #include "holyc.h"
+#include "holyc_parser.h"
 #include "../jit/jit.h"
 
 #include <stdlib.h>
@@ -171,14 +160,14 @@ static void emit_ret(HCGen *gen) {
 }
 
 /* push rbp; mov rbp, rsp (function prologue) */
-static void emit_prologue(HCGen *gen) {
+void emit_prologue(HCGen *gen) {
     emit_byte(gen, 0x55);                    /* push rbp */
     emit_byte(gen, 0x48); emit_byte(gen, 0x89);
     emit_byte(gen, 0xE5);                    /* mov rbp, rsp */
 }
 
 /* pop rbp; ret (function epilogue) */
-static void emit_epilogue(HCGen *gen) {
+void emit_epilogue(HCGen *gen) {
     emit_byte(gen, 0x5D);  /* pop rbp */
     emit_ret(gen);
 }
@@ -255,12 +244,36 @@ static size_t emit_jmp_placeholder(HCGen *gen) {
 /* -- Code Gen Init ------------------------------------------------ */
 
 void hc_gen_init(HCGen *gen) {
+    /* Preserve symbol table, function table, and data section across evaluations for REPL persistence */
+    HCSymTab saved_symbols = gen->symbols;
+    HCFunction saved_functions[HC_MAX_FUNCTIONS];
+    int saved_n_functions = gen->n_functions;
+    memcpy(saved_functions, gen->functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
+    
+    /* Preserve data section (globals) */
+    uint8_t *saved_data = gen->data;
+    size_t saved_data_size = gen->data_size;
+    size_t saved_data_cap = gen->data_cap;
+    
+    /* Do NOT preserve global_patches - they are ephemeral per-compilation */
+    
     memset(gen, 0, sizeof(*gen));
+    
+    /* Restore symbol table, function table, and data section */
+    gen->symbols = saved_symbols;
+    gen->n_functions = saved_n_functions;
+    memcpy(gen->functions, saved_functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
+    
+    gen->data = saved_data;
+    gen->data_size = saved_data_size;
+    gen->data_cap = saved_data_cap;
+    
+    /* global_patches start fresh for each compilation - n_global_patches = 0 */
 }
 
-/* -- Code Gen for Expressions ------------------------------------- */
+/* -- Statement/Expression Generation -------------------------------- */
 
-static int gen_expr(HCGen *gen, const HCASTNode *node) {
+int gen_expr(HCGen *gen, const HCASTNode *node) {
     if (!node) return 0;
 
     switch (node->kind) {
@@ -314,11 +327,33 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
                 for (int i = 0; i < gen->symbols.n_locals; i++) {
                     if (strcmp(gen->symbols.locals[i].name, node->ident) == 0) {
                         int off = gen->symbols.locals[i].stack_offset;
-                        /* mov rax, [rbp - off] with disp32: 48 8B 85 disp32 */
-                        emit_byte(gen, 0x48); /* REX.W */
-                        emit_byte(gen, 0x8B); /* mov rax, r/m64 */
-                        emit_byte(gen, 0x85); /* modrm: disp32 with rbp */
-                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                        if (off <= 0) {
+                            /* Global variable in data section: offset is negative or zero */
+                            /* mov rax, [rip + offset] */
+                            int32_t data_offset = -off;
+                            /* RIP after instruction = exec + gen->code_size + 7
+                             * Data address = exec + gen->code_size + data_offset
+                             * disp32 = data_offset - 7 (placeholder; will be patched at runtime) */
+                            int32_t rip_disp = data_offset - 7;
+                            size_t patch_pos = gen->code_size + 3; /* Position of disp32 in instruction */
+                            emit_byte(gen, 0x48); /* REX.W */
+                            emit_byte(gen, 0x8B); /* mov rax, r/m64 */
+                            emit_byte(gen, 0x05); /* modrm: [rip + disp32] */
+                            emit_dword(gen, (uint32_t)rip_disp);
+                            
+                            /* Store patch info for runtime fixup (same logic as VAR_DECL stores) */
+                            if (gen->n_global_patches < 32) {
+                                gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+                                gen->global_patches[gen->n_global_patches].global_offset = data_offset;
+                                gen->n_global_patches++;
+                            }
+                        } else {
+                            /* Local variable on stack: mov rax, [rbp - off] with disp32: 48 8B 85 disp32 */
+                            emit_byte(gen, 0x48); /* REX.W */
+                            emit_byte(gen, 0x8B); /* mov rax, r/m64 */
+                            emit_byte(gen, 0x85); /* modrm: disp32 with rbp */
+                            emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                        }
                         found = true;
                         break;
                     }
@@ -1046,7 +1081,7 @@ static int gen_expr(HCGen *gen, const HCASTNode *node) {
 
 /* -- Code Gen for Statements -------------------------------------- */
 
-static int gen_stmt(HCGen *gen, const HCASTNode *node) {
+int gen_stmt(HCGen *gen, const HCASTNode *node) {
     if (!node) return 0;
 
     switch (node->kind) {
@@ -1235,46 +1270,87 @@ static int gen_stmt(HCGen *gen, const HCASTNode *node) {
         }
 
         case HC_AST_VAR_DECL:
-            /* Allocate stack slot for variable */
-            if (node->init) {
-                gen_expr(gen, node->init);
-                /* Store rax to stack: mov [rbp - offset], rax */
-                int offset = gen->symbols.stack_size + 8;
-                gen->symbols.stack_size += 8;
-                if (gen->symbols.n_locals < HC_MAX_LOCALS) {
-                    strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
-                            node->ident, HC_MAX_IDENT_LEN - 1);
-                    gen->symbols.locals[gen->symbols.n_locals].stack_offset = offset;
-                    gen->symbols.n_locals++;
+            /* Check if we're at module level (no function prologue emitted yet, no locals in current scope) */
+            bool is_module_level = (gen->code_size == 0 || gen->symbols.n_locals == 0);
+            
+            if (is_module_level) {
+                /* Top-level variable: store in data section as global */
+                if (node->init) {
+                    gen_expr(gen, node->init);
+                    /* Reserve space in data section */
+                    size_t global_offset = gen->data_size;
+                    /* Align to 8 bytes */
+                    while (gen->data_size % 8 != 0) {
+                        emit_data_byte(gen, 0);
+                    }
+                    /* Reserve 8 bytes for global */
+                    emit_data_qword(gen, 0);
+                    
+                    /* Record in symbol table (negative offset = global in data section) */
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = -(int)global_offset;
+                        gen->symbols.n_locals++;
+                    }
+                    
+                    /* Emit: mov [rip + disp32], rax with placeholder disp32
+                     * The actual disp32 will be patched in wubu_holyd_eval after final code_size is known */
+                    size_t patch_pos = gen->code_size;
+                    emit_byte(gen, 0x48); /* REX.W */
+                    emit_byte(gen, 0x89); /* mov r/m64, rax */
+                    emit_byte(gen, 0x05); /* [rip + disp32] */
+                    emit_dword(gen, 0);   /* placeholder disp32 */
+                    
+                    /* Store patch info for runtime fixup */
+                    if (gen->n_global_patches < 32) {
+                        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos + 3; /* Position of disp32 */
+                        gen->global_patches[gen->n_global_patches].global_offset = global_offset;
+                        gen->n_global_patches++;
+                    }
                 }
-                /* mov [rbp - offset], rax: 48 89 85 disp32 */
-                emit_byte(gen, 0x48); /* REX.W */
-                emit_byte(gen, 0x89); /* mov */
-                emit_byte(gen, 0x85); /* [rbp+disp32] */
-                emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+            } else {
+                /* Local variable inside function: store on stack */
+                if (node->init) {
+                    gen_expr(gen, node->init);
+                    /* Store rax to stack: mov [rbp - offset], rax */
+                    int offset = gen->symbols.stack_size + 8;
+                    gen->symbols.stack_size += 8;
+                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                                node->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = offset;
+                        gen->symbols.n_locals++;
+                    }
+                    /* mov [rbp - offset], rax: 48 89 85 disp32 */
+                    emit_byte(gen, 0x48); /* REX.W */
+                    emit_byte(gen, 0x89); /* mov */
+                    emit_byte(gen, 0x85); /* [rbp+disp32] */
+                    emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                }
             }
             break;
 
         case HC_AST_FUNC_DECL:
-            /* Generate function body and save function pointer */
-            /* Save current code state */
-            uint8_t *saved_code = gen->code;
-            size_t saved_code_size = gen->code_size;
-            size_t saved_code_cap = gen->code_cap;
-            HCSymTab saved_symbols = gen->symbols;
-            int saved_n_functions = gen->n_functions;
-            HCFunction saved_functions[HC_MAX_FUNCTIONS];
-            memcpy(saved_functions, gen->functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
+                        /* Generate function body and save function pointer */
+                        /* Save current code state */
+                        uint8_t *saved_code = gen->code;
+                        size_t saved_code_size = gen->code_size;
+                        size_t saved_code_cap = gen->code_cap;
+                        HCSymTab saved_symbols = gen->symbols;
+                        int saved_n_functions = gen->n_functions;
+                        HCFunction saved_functions[HC_MAX_FUNCTIONS];
+                        memcpy(saved_functions, gen->functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
             
-            gen->code = NULL;
-            gen->code_size = 0;
-            gen->code_cap = 0;
-            /* Reset symbols but keep functions */
-            memset(&gen->symbols, 0, sizeof(HCSymTab));
+                        gen->code = NULL;
+                        gen->code_size = 0;
+                        gen->code_cap = 0;
+                        /* Reset symbols but keep functions */
+                        memset(&gen->symbols, 0, sizeof(HCSymTab));
             
-            emit_prologue(gen);
+                        emit_prologue(gen);
             
-            /* Add function parameters to symbol table before compiling body */
+                        /* Add function parameters to symbol table before compiling body */
             for (int i = 0; i < node->n_params; i++) {
                 int offset = gen->symbols.stack_size + 8;
                 gen->symbols.stack_size += 8;
@@ -1496,7 +1572,7 @@ int64_t hc_eval(const char *source) {
             hc_lex_init(&lex, wrapped);
             hc_parse_init(&parse, &lex);
             /* hc_lex_init already primes the first token (which is `{`) */
-            ast = parse_block(&parse);
+            ast = hc_parse_block(&parse);
             free(wrapped);
         } else {
             ast = hc_parse_stmt(&parse);

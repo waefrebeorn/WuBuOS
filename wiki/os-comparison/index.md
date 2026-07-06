@@ -1,6 +1,5 @@
 # WuBuOS OS Comparison Wiki — Index
 **Location**: `/home/wubu/.hermes/profiles/mind-palace/home/myseed/wiki/os-comparison/`
-**Updated**: 2026-06-29
 
 ---
 
@@ -22,12 +21,12 @@ wiki/os-comparison/
 
 ---
 
-## ═════════════════════════════════════════════════════════════════════════════════
+## ══════════════════════════════════════════════════════════════════════════════════
 ## QUICK START
 ## ══════════════════════════════════════════════════════════════════════════════════
 
 ### For Gap Closure Work
-1. **Start here**: `gap_analysis_wiki.md` — Pick highest priority gap from "NEXT SESSION PICK LIST"
+1. **Start here**: `gap_analysis_wiki.md` — Pick highest priority gap from "PICK LIST"
 2. **Reference**: `triple_da_wiki.md` — Understand the full context of why this gap exists
 3. **Deep dive**: OS-specific study files for implementation details
 
@@ -56,19 +55,18 @@ wiki/os-comparison/
 ---
 
 ## ══════════════════════════════════════════════════════════════════════════════════
-## CURRENT STATUS SNAPSHOT (2026-06-29)
-## ═══════════════════════════════════════════════════════════════════════════════════
+## CURRENT STATUS SNAPSHOT
+## ══════════════════════════════════════════════════════════════════════════════════
 
 | Metric | Value |
 |--------|-------|
-| **REAL_GAPs** | 1434 (down from 1562) |
+| **REAL_GAPs** | 1562 |
 | **Tests Passing** | 747+ across 30+ suites |
 | **C Files** | 73 |
 | **Lines of Code** | ~15K real LOC |
-| **Sessions Since Start** | ~20 |
-| **Gaps Closed This Session** | 128 |
+| **Gaps Closed** | 128+ from previous count |
 
-### Completed This Session (2026-06-28/29)
+### Completed
 - ✅ **GUI Subsystems**: WM (16 tests), Terminal (PTY), Explorer (74 tests, Styx 9P), Start Menu (4 tests, .desktop), Clipboard (17 tests, multi-MIME) — **111 tests**
 - ✅ **Bear Vulkan**: 4 compute pipelines (Policy Forward, GAE, N-Pole Step, MMA MatMul) + 4 SPIR-V shaders
 - ✅ **VSL Syscalls**: 26 → 45 Linux syscalls via host delegation
@@ -98,8 +96,8 @@ For every feature comparison:
 ---
 
 ## ══════════════════════════════════════════════════════════════════════════════════
-## WUBuOS ARCHITECTURE REMINDER
-## ═══════════════════════════════════════════════════════════════════════════════════
+## WUBUOS ARCHITECTURE REMINDER
+## ══════════════════════════════════════════════════════════════════════════════════
 
 ```
 WuBuOS = ZealOS kernel + Win98 shell + Styx/9P + Arch containers
@@ -107,7 +105,7 @@ WuBuOS = ZealOS kernel + Win98 shell + Styx/9P + Arch containers
          Hosted binary (Inferno emu pattern) runs on Linux
          ↓
          Wayland → VBE → ZealOS kernel → GUI shell → 9P → Containers
-         ↓
+```
          Arch base + Wine/DXVK/VKD3D + gamescope → Windows compat
          ↓
          "Rewriting from scratch in C" = THE WORK
