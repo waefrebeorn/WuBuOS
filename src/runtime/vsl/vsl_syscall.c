@@ -6,10 +6,9 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include "wubu_vsl.h"
-#include "wubu_container.h"
-#include "vsl/vsl_syscall.h"
+#include "vsl/vsl_syscall_numbers.h"
 #include "vsl/vsl_internal.h"
+#include "vsl/vsl_syscall.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -47,10 +46,11 @@
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
 #include <sys/fanotify.h>
+#include <sys/utsname.h>
+#include <sys/sysinfo.h>
+#include <sys/random.h>
 #include <sched.h>
-
-/* Forward declarations */
-static int vsl_get_host_fd(int vsl_fd);
+#include <grp.h>
 
 /* -- Syscall Handlers ---------------------------------------------- */
 
@@ -87,13 +87,249 @@ static int64_t vsl_sys_getppid(uint64_t a, uint64_t b, uint64_t c,
 static int64_t vsl_sys_getuid(uint64_t a, uint64_t b, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
-    return 0; /* root */
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    return p ? (int64_t)p->uid : (int64_t)getuid();
 }
 
 static int64_t vsl_sys_getgid(uint64_t a, uint64_t b, uint64_t c,
                                uint64_t d, uint64_t e, uint64_t f) {
     (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
-    return 0; /* root */
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    return p ? (int64_t)p->gid : (int64_t)getgid();
+}
+
+/* -- Identity & Credential Syscalls (NEW) --------------------------- */
+
+static int64_t vsl_sys_geteuid(uint64_t a, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    return p ? (int64_t)p->euid : (int64_t)geteuid();
+}
+
+static int64_t vsl_sys_getegid(uint64_t a, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    return p ? (int64_t)p->egid : (int64_t)getegid();
+}
+
+static int64_t vsl_sys_setuid(uint64_t uid, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int rc = setuid((uid_t)uid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) { p->uid = (uint32_t)uid; p->euid = (uint32_t)uid; }
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_setgid(uint64_t gid, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int rc = setgid((gid_t)gid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) { p->gid = (uint32_t)gid; p->egid = (uint32_t)gid; }
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_setreuid(uint64_t ruid, uint64_t euid, uint64_t c,
+                                 uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int rc = setreuid((uid_t)ruid, (uid_t)euid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) {
+            if (ruid != (uint64_t)-1) p->uid = (uint32_t)ruid;
+            if (euid != (uint64_t)-1) p->euid = (uint32_t)euid;
+        }
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_setregid(uint64_t rgid, uint64_t egid, uint64_t c,
+                                 uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int rc = setregid((gid_t)rgid, (gid_t)egid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) {
+            if (rgid != (uint64_t)-1) p->gid = (uint32_t)rgid;
+            if (egid != (uint64_t)-1) p->egid = (uint32_t)egid;
+        }
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_getresuid(uint64_t ruid, uint64_t euid, uint64_t suid,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    uid_t r = p ? (uid_t)p->uid : getuid();
+    uid_t eu = p ? (uid_t)p->euid : geteuid();
+    uid_t s; getresuid(NULL, NULL, &s);
+    if (ruid) *(uid_t *)ruid = r;
+    if (euid) *(uid_t *)euid = eu;
+    if (suid) *(uid_t *)suid = s;
+    return 0;
+}
+
+static int64_t vsl_sys_getresgid(uint64_t rgid, uint64_t egid, uint64_t sgid,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    gid_t r = p ? (gid_t)p->gid : getgid();
+    gid_t eg = p ? (gid_t)p->egid : getegid();
+    gid_t s; getresgid(NULL, NULL, &s);
+    if (rgid) *(gid_t *)rgid = r;
+    if (egid) *(gid_t *)egid = eg;
+    if (sgid) *(gid_t *)sgid = s;
+    return 0;
+}
+
+static int64_t vsl_sys_setresuid(uint64_t ruid, uint64_t euid, uint64_t suid,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    int rc = setresuid((uid_t)ruid, (uid_t)euid, (uid_t)suid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) {
+            if (ruid != (uint64_t)-1) p->uid = (uint32_t)ruid;
+            if (euid != (uint64_t)-1) p->euid = (uint32_t)euid;
+        }
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_setresgid(uint64_t rgid, uint64_t egid, uint64_t sgid,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    int rc = setresgid((gid_t)rgid, (gid_t)egid, (gid_t)sgid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) {
+            if (rgid != (uint64_t)-1) p->gid = (uint32_t)rgid;
+            if (egid != (uint64_t)-1) p->egid = (uint32_t)egid;
+        }
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_getgroups(uint64_t size, uint64_t list, uint64_t c,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int result = getgroups((int)size, (gid_t *)list);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_setgroups(uint64_t size, uint64_t list, uint64_t c,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int rc = setgroups((size_t)size, (const gid_t *)list);
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_setpgid(uint64_t pid, uint64_t pgid, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int rc = setpgid((pid_t)(int)pid, (pid_t)(int)pgid);
+    if (rc == 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) p->pgid = (int)(int)pgid;
+    }
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_getpgid(uint64_t pid, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    pid_t result = getpgid((pid_t)(int)pid);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_setsid(uint64_t a, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    pid_t result = setsid();
+    if (result >= 0) {
+        VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+        if (p) { p->sesid = (int)result; p->pgid = (int)result; }
+    }
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_getsid(uint64_t pid, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    pid_t result = getsid((pid_t)(int)pid);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_umask(uint64_t mask, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    mode_t old = umask((mode_t)mask);
+    VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
+    if (p) p->umask = (mode_t)mask;
+    return (int64_t)old;
+}
+
+static int64_t vsl_sys_uname(uint64_t buf, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    struct utsname u;
+    int rc = uname(&u);
+    if (rc == 0 && buf) memcpy((void *)buf, &u, sizeof(struct utsname));
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_sysinfo(uint64_t info, uint64_t b, uint64_t c,
+                                uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    struct sysinfo si;
+    int rc = sysinfo(&si);
+    if (rc == 0 && info) memcpy((void *)info, &si, sizeof(struct sysinfo));
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_getrandom(uint64_t buf, uint64_t buflen, uint64_t flags,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    ssize_t result = getrandom((void *)buf, (size_t)buflen, (unsigned int)flags);
+    return result < 0 ? -errno : (int64_t)result;
+}
+
+static int64_t vsl_sys_getrlimit(uint64_t resource, uint64_t rlim, uint64_t c,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int rc = getrlimit((int)resource, (struct rlimit *)rlim);
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_setrlimit(uint64_t resource, uint64_t rlim, uint64_t c,
+                                  uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    int rc = setrlimit((int)resource, (const struct rlimit *)rlim);
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_prlimit64(uint64_t pid, uint64_t resource, uint64_t new_limit,
+                                  uint64_t old_limit, uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    int rc = syscall(SYS_prlimit64, (pid_t)(int)pid, (unsigned int)resource,
+                     (const struct rlimit64 *)new_limit,
+                     (struct rlimit64 *)old_limit);
+    return rc < 0 ? -errno : 0;
+}
+
+static int64_t vsl_sys_alarm(uint64_t seconds, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    unsigned int result = alarm((unsigned int)seconds);
+    return (int64_t)result;
 }
 
 static int64_t vsl_sys_sched_yield(uint64_t a, uint64_t b, uint64_t c,
@@ -306,28 +542,37 @@ static int64_t vsl_sys_pipe(uint64_t pipefd, uint64_t b, uint64_t c,
 static int64_t vsl_sys_dup(uint64_t fd, uint64_t b, uint64_t c,
                             uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    int result = dup((int)fd);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    int result = dup(host_fd);
     return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_dup2(uint64_t oldfd, uint64_t newfd, uint64_t c,
                              uint64_t d, uint64_t e, uint64_t f) {
     (void)c; (void)d; (void)e; (void)f;
-    int result = dup2((int)oldfd, (int)newfd);
+    int host_oldfd = vsl_get_host_fd((int)oldfd);
+    int host_newfd = vsl_get_host_fd((int)newfd);
+    if (host_oldfd < 0 || host_newfd < 0) return -9; /* EBADF */
+    int result = dup2(host_oldfd, host_newfd);
     return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_fcntl(uint64_t fd, uint64_t cmd, uint64_t arg,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
-    int rc = fcntl((int)fd, (int)cmd, (int)arg);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    int rc = fcntl(host_fd, (int)cmd, (int)arg);
     return rc < 0 ? -errno : (int64_t)rc;
 }
 
 static int64_t vsl_sys_fsync(uint64_t fd, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
-    int rc = fsync((int)fd);
+    int host_fd = vsl_get_host_fd((int)fd);
+    if (host_fd < 0) return -9; /* EBADF */
+    int rc = fsync(host_fd);
     return rc < 0 ? -errno : (int64_t)rc;
 }
 
@@ -1155,15 +1400,15 @@ static int64_t vsl_sys_fanotify_mark(uint64_t fanotify_fd, uint64_t flags, uint6
 }
 
 static int64_t vsl_sys_landlock(uint64_t cmd, uint64_t attr, uint64_t flags,
-                                 uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
-    (void)c; (void)d; (void)e; (void)f;
+                                 uint64_t c, uint64_t d, uint64_t e) {
+    (void)c; (void)d; (void)e;
     int result = syscall(444, (int)cmd, (void *)attr, (size_t)flags);
     return result < 0 ? -errno : (int64_t)result;
 }
 
 static int64_t vsl_sys_bpf(uint64_t cmd, uint64_t attr, uint64_t size,
-                            uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
-    (void)c; (void)d; (void)e; (void)f;
+                            uint64_t c, uint64_t d, uint64_t e) {
+    (void)c; (void)d; (void)e;
     int result = syscall(321, (int)cmd, (void *)attr, (size_t)size);
     return result < 0 ? -errno : (int64_t)result;
 }
@@ -1252,7 +1497,6 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_LSTAT]        = vsl_sys_lstat,
     [VSL_SYS_OPENAT]       = vsl_sys_openat,
     [VSL_SYS_NEWFSTATAT]   = vsl_sys_newfstatat,
-    [VSL_SYS_FSTATAT]      = vsl_sys_newfstatat,
     [VSL_SYS_UNLINKAT]     = vsl_sys_unlinkat,
     [VSL_SYS_FACCESSAT]    = vsl_sys_faccessat,
     [VSL_SYS_POLL]         = vsl_sys_poll,
@@ -1282,7 +1526,6 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_INOTIFY_INIT] = vsl_sys_inotify_init,
     [VSL_SYS_INOTIFY_ADD_WATCH] = vsl_sys_inotify_add_watch,
     [VSL_SYS_INOTIFY_RM_WATCH] = vsl_sys_inotify_rm_watch,
-    [VSL_SYS_SIGNALFD]     = vsl_sys_signalfd,
     [VSL_SYS_SIGNALFD4]    = vsl_sys_signalfd4,
     [VSL_SYS_PSELECT6]     = vsl_sys_pselect6,
     [VSL_SYS_PPOLL]        = vsl_sys_ppoll,
@@ -1316,6 +1559,32 @@ static const vsl_syscall_fn vsl_syscall_table[] = {
     [VSL_SYS_LANDLOCK]          = vsl_sys_landlock,
     [VSL_SYS_BPF]               = vsl_sys_bpf,
     [VSL_SYS_PERF_EVENT_OPEN]   = vsl_sys_perf_event_open,
+
+    /* Identity, Credentials & System Info Syscalls */
+    [VSL_SYS_GETEUID]      = vsl_sys_geteuid,
+    [VSL_SYS_GETEGID]      = vsl_sys_getegid,
+    [VSL_SYS_SETUID]       = vsl_sys_setuid,
+    [VSL_SYS_SETGID]       = vsl_sys_setgid,
+    [VSL_SYS_SETREUID]     = vsl_sys_setreuid,
+    [VSL_SYS_SETREGID]     = vsl_sys_setregid,
+    [VSL_SYS_GETRESUID]    = vsl_sys_getresuid,
+    [VSL_SYS_GETRESGID]    = vsl_sys_getresgid,
+    [VSL_SYS_SETRESUID]    = vsl_sys_setresuid,
+    [VSL_SYS_SETRESGID]    = vsl_sys_setresgid,
+    [VSL_SYS_GETGROUPS]    = vsl_sys_getgroups,
+    [VSL_SYS_SETGROUPS]    = vsl_sys_setgroups,
+    [VSL_SYS_SETPGID]      = vsl_sys_setpgid,
+    [VSL_SYS_GETPGID]      = vsl_sys_getpgid,
+    [VSL_SYS_GETSID]       = vsl_sys_getsid,
+    [VSL_SYS_SETSID]       = vsl_sys_setsid,
+    [VSL_SYS_UMASK]        = vsl_sys_umask,
+    [VSL_SYS_UNAME]        = vsl_sys_uname,
+    [VSL_SYS_SYSINFO]      = vsl_sys_sysinfo,
+    [VSL_SYS_GETRANDOM]    = vsl_sys_getrandom,
+    [VSL_SYS_GETRLIMIT]    = vsl_sys_getrlimit,
+    [VSL_SYS_SETRLIMIT]    = vsl_sys_setrlimit,
+    [VSL_SYS_PRLIMIT64]    = vsl_sys_prlimit64,
+    [VSL_SYS_ALARM]        = vsl_sys_alarm,
 };
 
 #define VSL_SYSCALL_TABLE_SIZE (sizeof(vsl_syscall_table) / sizeof(vsl_syscall_table[0]))
@@ -1341,7 +1610,7 @@ int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs) {
 
 /* -- Helper Functions ---------------------------------------------- */
 
-static int vsl_get_host_fd(int vsl_fd) {
+int vsl_get_host_fd(int vsl_fd) {
     if (vsl_fd < 3) return vsl_fd; /* stdin/stdout/stderr */
     for (uint32_t i = 0; i < g_vsl.n_fds; i++) {
         if (g_vsl.fds[i].fd == vsl_fd) return g_vsl.fds[i].vsl_fd;
@@ -1349,14 +1618,14 @@ static int vsl_get_host_fd(int vsl_fd) {
     return -1;
 }
 
-static int find_free_vsl_pid(void) {
+int find_free_vsl_pid(void) {
     for (uint32_t pid = 2; pid < 100000; pid++) {
         if (!vsl_get_process(pid)) return (int)pid;
     }
     return -1;
 }
 
-static int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
+int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
     if (child_host_pid <= 0) return -1;
     if (g_vsl.n_procs >= VSL_MAX_PROCS) return -1;
     int vsl_pid = find_free_vsl_pid();
@@ -1366,6 +1635,13 @@ static int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
     proc->pid = (uint32_t)vsl_pid;
     proc->ppid = parent_vsl_pid;
     proc->state = VSL_PROC_READY;
+    proc->uid = (uint32_t)getuid();
+    proc->gid = (uint32_t)getgid();
+    proc->euid = (uint32_t)geteuid();
+    proc->egid = (uint32_t)getegid();
+    proc->pgid = -1;
+    proc->sesid = -1;
+    proc->umask = 0022;
     g_vsl.n_procs++;
     return vsl_pid;
 }

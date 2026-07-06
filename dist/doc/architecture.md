@@ -1,4 +1,4 @@
-# WuBuOS — Architecture & Roadmap (v7 — Post Triple DA + Name Parity)
+# WuBuOS — Architecture & Roadmap
 
 > **LOCKED** — This document reflects ground truth from the full stub+form gap hunt and name parity audit.
 
@@ -20,60 +20,60 @@ Current: **64/96 core functions mapped (64%)**. Target: 100%.
 
 Roadmap: extract ZealOS function names from `grep -rn 'U0 \|I64 \|Bool ' ZealOS/src/Kernel/*.ZC`, compute diff against our names, add aliases.
 
-## Roadmap
+## Roadmap — Tiered by ROI
 
-### Phase A: Fill the Hollow Citadel (highest ROI)
+### TIER 1: CRITICAL — Fill the Hollow Citadel (highest ROI)
 
-| Cell | What | Why |
-|------|------|-----|
-| 300 | input.c: real keyboard/mouse queue + event dispatch | Unblocks Cell 202 (GUI input) |
-| 303 | tasking.c: real timer tick + context switch | Unblocks Cell 206 (bare-metal) |
-| 311 | holyc_codegen: function calls, struct layout, string literals | Unblocks Cell 201 (REPL) |
-| 381 | libm → pure C math (wubu_math.h implementation) | Unblocks full C self-containment |
+| Component | What | Why |
+|-----------|------|-----|
+| input.c | Real keyboard/mouse queue + event dispatch | Unblocks GUI input |
+| tasking.c | Real timer tick + context switch | Unblocks bare-metal |
+| holyc_codegen | Function calls, struct layout, string literals | Unblocks REPL |
+| wubu_math.h | Pure C math implementation | Unblocks full C self-containment |
 
-### Phase B: Delete Dead Code / Replace Third-Party
+### TIER 2: CRITICAL — Delete Dead Code / Replace Third-Party
 
-| Cell | What | Why |
-|------|------|-----|
-| 380 | X11 → DRM/KMS (wubu_display.c written) | Zero X11 dep on Linux |
-| 381 | libm → pure C math (wubu_math.h) | Zero libm dep |
-| 382 | NanoShellOS naming → WuBuOS naming in wm_nano/* | Naming consistency |
-| 388 | libdrm → direct ioctl | Zero libdrm dep |
-| 389 | libgbm → custom GBM | Zero libgbm dep |
-| 391 | MIR c2m → self-contained JIT | Zero MIR subprocess dep |
+| Component | What | Why |
+|-----------|------|-----|
+| Display | X11 → DRM/KMS (wubu_display.c written) | Zero X11 dep on Linux |
+| Math | libm → pure C math (wubu_math.h) | Zero libm dep |
+| Naming | NanoShellOS naming → WuBuOS naming in wm_nano/* | Naming consistency |
+| DRM | libdrm → direct ioctl | Zero libdrm dep |
+| GBM | libgbm → custom GBM | Zero libgbm dep |
+| JIT | MIR c2m → self-contained JIT | Zero MIR subprocess dep |
 
-### Phase C: Container Polish
+### TIER 3: HIGH — Container Polish
 
-| Cell | What | Why |
-|------|------|-----|
-| 350 | Per-container 9P Styx dispatch | Socket exists, no walk/read |
-| 353 | cgroup/setrlimit enforcement | Config stored but never applied |
+| Component | What | Why |
+|-----------|------|-----|
+| 9P Dispatch | Per-container 9P Styx dispatch | Socket exists, no walk/read |
+| cgroups | cgroup/setrlimit enforcement | Config stored but never applied |
 
-### Phase D: App Wiring
+### TIER 4: HIGH — App Wiring
 
-| Cell | What | Why |
-|------|------|-----|
-| 361 | REPL: text rendering (bitmap font) | Black rect only currently |
-| 362 | Notepad: real implementation | Pure stub |
+| Component | What | Why |
+|-----------|------|-----|
+| REPL | Text rendering (bitmap font) | Black rect only currently |
+| Notepad | Real implementation | Pure stub |
 
-### Phase E: Integration
+### TIER 5: MEDIUM — Integration
 
-| Cell | What | Why |
-|------|------|-----|
-| 201 | HolyC REPL compiles + executes in-process | Depends on 311 |
-| 202 | GUI dispatches events to ZealOS apps | Depends on 300, 303 |
-| 204 | Per-container 9P namespace wired | Depends on 350 |
-| 205 | SteamOS container launches | Depends on D, 380 |
-| 206 | Bare-metal boot | Depends on 201, 202 |
-| 207 | Integration test | Depends on 201, 202 |
+| Component | What | Dependencies |
+|-----------|------|--------------|
+| HolyC REPL | Compiles + executes in-process | Depends on codegen |
+| GUI Events | Dispatches events to ZealOS apps | Depends on input, tasking |
+| 9P Namespace | Per-container 9P namespace wired | Depends on 9P dispatch |
+| SteamOS Container | SteamOS container launches | Depends on app wiring, DRM/KMS |
+| Bare-metal Boot | | Depends on REPL, GUI events |
+| Integration Test | | Depends on REPL, GUI events |
 
-### Phase F: Distribution
+### TIER 6: LOW — Distribution
 
-| Cell | What | Why |
-|------|------|-----|
-| 384 | WuBuOS as WSL2 distribution | Scripts written, needs testing |
-| 386 | Arch rootfs builder | Scripts written, needs testing |
-| 390 | macOS .app bundle | wubu_macos.m written, needs Mac testing |
+| Component | What | Status |
+|-----------|------|--------|
+| WSL2 Distribution | WuBuOS as WSL2 distribution | Scripts written, needs testing |
+| Arch Rootfs Builder | | Scripts written, needs testing |
+| macOS .app Bundle | wubu_macos.m written, needs Mac testing | |
 
 ## The Real Gaps (verified against source code)
 

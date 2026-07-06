@@ -220,7 +220,7 @@ static HCType *parse_type(HCParser *p) {
         case HC_KW_U32:  t->kind = HC_TYPE_U32;  advance(p); break;
         case HC_KW_U64:  t->kind = HC_TYPE_U64;  advance(p); break;
         case HC_KW_F64:  t->kind = HC_TYPE_F64;  advance(p); break;
-        case HC_KWBool:  t->kind = HC_TYPE_BOOL; advance(p); break;
+        case HC_KW_BOOL:  t->kind = HC_TYPE_BOOL; advance(p); break;
         case HC_KW_STRUCT: {
             /* Struct type: struct Name { ... } or struct Name */
             advance(p); /* struct */
@@ -501,7 +501,7 @@ static HCASTNode *parse_cast(HCParser *p) {
         if (tok == HC_KW_I8 || tok == HC_KW_I16 || tok == HC_KW_I32 ||
             tok == HC_KW_I64 || tok == HC_KW_U8 || tok == HC_KW_U16 ||
             tok == HC_KW_U32 || tok == HC_KW_U64 || tok == HC_KW_F64 ||
-            tok == HC_KWBool || tok == HC_TOK_IDENT) {
+            tok == HC_KW_BOOL || tok == HC_TOK_IDENT) {
             is_type = true;
         }
         
@@ -581,11 +581,11 @@ static HCASTNode *parse_assign(HCParser *p) {
 
     HCASTKind assign_kind = 0;
     switch (peek(p)) {
-        case HC_TOK_ASSIGN:     assign_kind = HC_AST_ASSIGN; break;
-        case HC_TOK_PLUS_EQ:    assign_kind = HC_AST_ADD_ASSIGN; break;
-        case HC_TOK_MINUS_EQ:   assign_kind = HC_AST_SUB_ASSIGN; break;
-        case HC_TOK_STAR_EQ:    assign_kind = HC_AST_MUL_ASSIGN; break;
-        case HC_TOK_SLASH_EQ:   assign_kind = HC_AST_DIV_ASSIGN; break;
+        case HC_TOK_ASSIGN:       assign_kind = HC_AST_ASSIGN; break;
+        case HC_TOK_PLUS_ASSIGN:  assign_kind = HC_AST_ADD_ASSIGN; break;
+        case HC_TOK_MINUS_ASSIGN: assign_kind = HC_AST_SUB_ASSIGN; break;
+        case HC_TOK_STAR_ASSIGN:  assign_kind = HC_AST_MUL_ASSIGN; break;
+        case HC_TOK_SLASH_ASSIGN: assign_kind = HC_AST_DIV_ASSIGN; break;
         default: return left;
     }
 
@@ -612,6 +612,10 @@ HCASTNode *parse_block(HCParser *p) {
     }
     expect(p, HC_TOK_RBRACE);
     return block;
+}
+
+HCASTNode *hc_parse_block(HCParser *p) {
+    return parse_block(p);
 }
 
 /* -- Parse Statement ---------------------------------------------- */

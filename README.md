@@ -8,7 +8,7 @@
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace  ║
 ║                                                        ║
 ║     73 C files · ~15K real LOC · 747+ tests green   ║
-║     1562 REAL_GAPs · 67% ZealOS parity · 85% VSL stubs ║
+║     ~3000 REAL_GAPs · 67% ZealOS parity · 85% VSL stubs ║
 ║                                                        ║
 ║     Hosted ─── ZealOS ─── 9P ─── GUI ─── Containers ║
 ║                                                        ║
@@ -37,15 +37,15 @@ make hosted
 # Run hosted with screenshot
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-# Run tests by phase (recommended)
-make test_phase1   # Runtime Core: OCI, Network, Snapshots, VSL, HolyD, Proton
-make test_phase2   # Kernel/Metal: FAT32, TXFS, AHCI, DRM
-make test_phase3   # Bridge: syscall bridge, DOS flip
-make test_phase4   # Hosted/GUI: WM, StartMenu, Explorer, Terminal, Clipboard
-make test_phase5   # Bear RL/JIT/Compiler: JIT, Memory, Tasking, HolyC, PTX
-make test_phase6   # Apps/Audio/Tools/Other: WorldSim, Audio, Containers, etc.
+# Run tests by tier (recommended)
+make test_critical_runtime   # CRITICAL: OCI, Network, Snapshots, VSL, HolyD, Proton
+make test_critical_kernel    # CRITICAL: FAT32, TXFS, AHCI, DRM
+make test_high_bridge        # HIGH: syscall bridge, DOS flip
+make test_high_gui           # HIGH: WM, StartMenu, Explorer, Terminal, Clipboard
+make test_high_bear          # HIGH: JIT, Memory, Tasking, HolyC, PTX
+make test_medium_other       # MEDIUM/LOW: WorldSim, Audio, Containers, etc.
 
-# Run all phases
+# Run all tiers
 make test
 
 # Individual test targets
@@ -54,7 +54,7 @@ make test_styxfs       # 11/11 passing
 make test_vsl          # 55/55 passing
 make test_network      # 139/139 passing
 make test_snapshot     # 132/132 passing
-make test_holyd        # 31/30 passing
+make test_holyd        # 31/31 passing
 ```
 
 ## Project Structure
@@ -69,7 +69,7 @@ src/
 ├── apps/            # Editor, canvas, codec, terminal, calc, control, freedoom
 ├── bridge/          # DOS flip Ctrl+Alt+T (206-207)
 ├── worldsim/        # GAAD (393), terrain, entity, physics
-├── bear/            # RL training, Vulkan compute (policy, GAE, N-pole, MMA)
+├── bear/            # RL training, Vulkan/CUDA, n-pole physics
 └── tools/           # ISO9660, screenshot, weight_check
 ```
 
@@ -77,11 +77,22 @@ src/
 
 | Metric | Value |
 |--------|-------|
-| **REAL_GAPs** | 1562 (Triple DA verified) |
-| **Tests** | 747+ green across 47 targets |
-| **LOC** | ~15K real (was 41K inflated) |
+| **REAL_GAPs** | ~3000 (Triple DA verified) |
+| **Tests** | 747+ green across 58 targets |
+| **LOC** | ~15K real (was 123K inflated) |
 | **ZealOS parity** | 67% (96/96 name parity) |
 | **VSL stubs** | 85% |
+
+## The Mission
+
+WuBuOS is an **alternate reality OS** where TempleOS won — it merges:
+- **ReactOS** NT syscall emulation (297 syscalls → VSL)
+- **ZealOS/TempleOS** HolyC JIT + ring-0 philosophy
+- **SteamOS** Proton/Wine + gamescope + Pressure Vessel
+- **Arch/Ubuntu** systemd + package management + networking
+- **Win98/2000/XP** classic shell via Win98 WM
+
+The VSL (Virtual Syscall Layer) is the bridge — NT syscalls → Linux syscalls → Styx/9P → ZealOS kernel → TempleOS HolyC JIT.
 
 ## License
 
@@ -95,6 +106,7 @@ WuBuOS — MIT License (ZealOS kernel under its own license)
 | `wubuos_demo.mp4` | 4-second demo video showing desktop, start menu, app launch |
 
 ### Theme Variants
+
 Run with different themes:
 ```bash
 ./src/hosted/wubu --theme win98   --screenshot /tmp/win98.ppm   # Win98 Classic (default)
