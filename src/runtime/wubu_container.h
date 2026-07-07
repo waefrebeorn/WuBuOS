@@ -253,7 +253,18 @@ int wubu_container_linux_elf(const void *elf_data, size_t elf_size,
  *
  * Note: deep bwrap filesystem isolation (wubu_ct_bwrap_*) is layered on by
  * the caller/session; this fn owns detection + cgroup + the exec route.
+ * PE execution is delegated to a registered executor (see
+ * wubu_launch_set_pe_executor) so the runtime layer never links two
+ * wubu_proton modules.
  */
 int wubu_launch_windows(const void *data, size_t size, const char *cmdline);
+
+/*
+ * Register the PE executor used by wubu_launch_windows for PE payloads.
+ * The hosted binary plugs in the real Proton loader here (dependency
+ * inversion: runtime stays GUI-free). Pass NULL to clear.
+ */
+void wubu_launch_set_pe_executor(int (*executor)(const void *data, size_t size,
+                                                 const char *cmdline));
 
 #endif /* WUBUOS_CONTAINER_H */
