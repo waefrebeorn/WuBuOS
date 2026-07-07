@@ -37,6 +37,14 @@ void patch_rel32(HCGen *gen, size_t patch_pos, size_t target_pos);
 /* -- x86-64 Instruction Patterns ---------------------------------- */
 
 void emit_mov_rax_imm64(HCGen *gen, int64_t val);
+
+/* -- Global (data-section) variable access ----------------------- */
+/* Emits a RIP-relative mov rax, [rip+disp32] load of a data-section global
+ * at `global_offset` and records a patch so the caller (hc_eval /
+ * wubu_holyd_eval) can fix up disp32 to point at exec+code_size+offset. */
+void emit_global_load_rax(HCGen *gen, size_t global_offset);
+/* Emits a RIP-relative mov [rip+disp32], rax store of a data-section global. */
+void emit_global_store_rax(HCGen *gen, size_t global_offset);
 void emit_mov_rdi_imm64(HCGen *gen, int64_t val);
 void emit_add_rax_rdi(HCGen *gen);
 void emit_sub_rax_rdi(HCGen *gen);

@@ -343,6 +343,8 @@ struct HCGen {
     int n_global_patches;
     bool has_error;
     char error[256];
+    bool has_prologue;   /* set once emit_prologue() has built a stack frame */
+    bool in_function;    /* true while emitting a function body (vs module-level) */
 };
 
 /* -- Compiler struct (full definition) --------------------------------------- */
