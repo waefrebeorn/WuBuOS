@@ -97,6 +97,8 @@ int vsl_init(void) {
     init->gid = (uint32_t)getgid();
     init->euid = (uint32_t)geteuid();
     init->egid = (uint32_t)getegid();
+    init->suid = (uint32_t)geteuid();   /* saved-set == euid at spawn (like exec) */
+    init->sgid = (uint32_t)getegid();
     init->pgid = -1;
     init->sesid = -1;
     init->umask = 0022;
