@@ -238,4 +238,22 @@ int wubu_container_linux_elf(const void *elf_data, size_t elf_size,
                              void *out_buf, size_t out_buf_size,
                              size_t *out_size);
 
+/*
+ * Launch a Windows binary through the Proton/container path (the SteamOS
+ * strategy: Windows runs in a sandbox, never via an NT-kernel reimpl).
+ *
+ * Behavior (real, no stubs):
+ *   1. Detect payload type (PE vs ELF vs .wubu) via wubu_detect_payload_type.
+ *   2. Create a cgroup v2 isolation sandbox (wubu_ct_cgroup_create) so the
+ *      foreign process is resource-bounded -- the Pressure-Vessel analog.
+ *   3. Route PE -> wubu_proton_exec (real Proton PE loader -> VSL).
+ *      Route ELF -> wubu_container_linux_elf (VSL Linux persona).
+ *      Route .wubu -> wubu_container_create (native/.wubu dispatch).
+ * Returns a VSL/container process id on success, or -1 on error.
+ *
+ * Note: deep bwrap filesystem isolation (wubu_ct_bwrap_*) is layered on by
+ * the caller/session; this fn owns detection + cgroup + the exec route.
+ */
+int wubu_launch_windows(const void *data, size_t size, const char *cmdline);
+
 #endif /* WUBUOS_CONTAINER_H */

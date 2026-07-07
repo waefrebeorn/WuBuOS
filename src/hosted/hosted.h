@@ -32,6 +32,10 @@ typedef enum {
     HMODE_TEMPLE   = 2,     /* HolyC REPL full-screen */
     HMODE_CONSOLE  = 4,     /* Text console (no GUI) */
     HMODE_HEADLESS = 8,     /* No window (Styx-only server) */
+    HMODE_GAME     = 16,    /* Dedicated game session (gamescope-style):
+                              * fullscreen, controller-first, shell chrome
+                              * bypassed; foreign binaries run via the
+                              * Proton/container path (SteamOS strategy). */
 } hosted_mode_t;
 
 /* ══════════════════════════════════════════════════════════════════
@@ -97,7 +101,9 @@ void hosted_shutdown(hosted_state_t *state);
 
 void hosted_set_mode(hosted_state_t *state, hosted_mode_t mode);
 
-const char *hosted_mode_name(hosted_mode_t mode);
+/* Session split (DESKTOP vs GAME) lives in wubu_session.h / wubu_session.c
+ * (runtime/), which depends only on these state types -- keeps the heavy
+ * Wayland build out of the launch test. Use wubu_session_launch_game() etc. */
 
 /* Styx namespace servers */
 int hosted_styx_init(hosted_state_t *state, const char *socket_path);

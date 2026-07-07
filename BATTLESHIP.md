@@ -50,6 +50,25 @@ this week. Parity streams are the *long game*; the 400 is the *sprint board*.
 **NET: ~400 REAL_GAPs on the sprint board. Parity streams (SteamOS/Ubuntu/TempleOS/
 ZealOS/ReactOS) remain as epics above the board. All tests green.**
 
+### DA4 (2026-07-07): "SteamOS vs ReactOS — which compat strategy is WuBuOS betting on?"
+**VERDICT: RE-SCOPE the ReactOS NT epic; adopt the SteamOS strategy.**
+- **ReactOS trap**: reimplementing the NT kernel + Win32K from scratch has run
+  20+ years at <100% compat; 90% of their app bugs live in *kernel-mode* Win32K
+  (Windows' own worst design mistake). WuBuOS's old `ReactOS NT → VSL → Styx9 →
+  ZealOS → TempleOS` epic was this trap — a ring-0 NT reimpl that would burn
+  years for partial results.
+- **SteamOS winning move**: stand on the (Linux/ZealOS) kernel and run Windows in
+  **containers** (Proton/Pressure-Vessel), with an **immutable/atomic rootfs** and a
+  **session split** (game vs desktop). ~100% compat, shippable.
+- **WuBuOS already has the SteamOS-shaped pieces** (re-used, not new): `wubu_snapshot`
+  overlayfs (→ immutable root, `wubu_system.c` added 2026-07-07), `wubu_ct_bwrap`/
+  `wubu_ct_isolate` (→ Pressure-Vessel isolation), `wubu_proton` PE loader + `wubu_vsl`
+  (→ Proton + NT-personality-in-userspace). **Decision: Windows binaries reach ZealOS
+  ONLY through VSL bridge + container runtime — the kernel never pretends to be NT.**
+- **Net re-scope**: `ReactOS NT` epic → "NT *personality* in user space via VSL +
+  Proton container." This is the gap between a 20-year trap and a 100%-compat product.
+  See `.hermes/plans/2026-07-07_steamos-reactos-architecture-lessons.md`.
+
 ---
 
 ## ════════════════════════════════════════════════════════════════
@@ -95,7 +114,7 @@ Each epic = "rewrite the subsystem in C". Child-gap estimates are planning aids.
 | **Ubuntu/Arch** | ~5% (archd/pkgmgr exist) | systemd, NetworkManager, Polkit, D-Bus, PipeWire, CUPS, AppArmor, GRUB |
 | **TempleOS** | ~30% | HolyC JIT AOT+JIT, Doc/DolDoc, Compiler-as-lib, RedSea FS, Ring-0 |
 | **ZealOS** | ~67% (name parity 96/96) | Identity-mapped mem, VGA/VESA direct, PC speaker, God word |
-| **ReactOS NT** | 0% impl (297 mapped) | 297 syscalls → VSL → Styx9 → ZealOS → TempleOS |
+| **ReactOS NT** | 0% impl (297 mapped) → **RE-SCOPED** | **NOT** a ring-0 NT-kernel reimpl (ReactOS trap). Re-scoped 2026-07-07 to an **NT *personality* in user space**: VSL syscall bridge + `wubu_proton` PE loader + `wubu_ct_bwrap` container isolation. Windows binaries run in an Arch+Wine/Proton container, never by the ZealOS kernel pretending to be NT. This is the SteamOS strategy (stand on the kernel, run Windows in a container) and is the path to ~100% compat. |
 | **WuBuOS Desktop** | ~75% | wallpaper DONE; persistent layout DONE (2026-07-07); context-menu real; Control Panel Desktop tab DONE (2026-07-07); auto-arrange OPEN |
 
 ### Devil's-Advocate parity deep-dive (what each needs to *work* 1:1)
