@@ -93,12 +93,18 @@ static const char SCHEMA_SQL[] =
     "  id TEXT PRIMARY KEY,"
     "  name TEXT NOT NULL,"
     "  version TEXT NOT NULL,"
-    "  arch TEXT DEFAULT 'x86_64',"
-    "  install_date TEXT NOT NULL,"
-    "  size_bytes INTEGER DEFAULT 0,"
+    "  description TEXT DEFAULT '',"
+    "  maintainer TEXT DEFAULT '',"
+    "  homepage TEXT DEFAULT '',"
+    "  license TEXT DEFAULT '',"
+    "  manifest_json TEXT,"
     "  install_path TEXT,"
-    "  pkg_path TEXT,"
-    "  signature TEXT"
+    "  install_date TEXT,"
+    "  auto_installed INTEGER DEFAULT 0,"
+    "  size_bytes INTEGER DEFAULT 0,"
+    "  payload_type INTEGER DEFAULT 0,"
+    "  arch TEXT DEFAULT 'x86_64',"
+    "  sandbox_profile TEXT DEFAULT ''"
     ");"
     "CREATE TABLE IF NOT EXISTS repos ("
     "  name TEXT PRIMARY KEY,"
@@ -265,28 +271,48 @@ bool wubu_pkgmgr_repo_get_info(const char *pkg_id, wubu_pkg_repo_entry_t *out) {
 
 char *manifest_to_json(const wubu_pkg_manifest_t *m) {
     if (!m) return NULL;
-    /* Estimate size */
     size_t cap = 4096;
     char *json = malloc(cap);
     if (!json) return NULL;
     int pos = 0;
-    pos += snprintf(json + pos, cap - pos, "{\"id\":\"%s\",", m->id);
-    pos += snprintf(json + pos, cap - pos, "\"name\":\"%s\",", m->name);
-    pos += snprintf(json + pos, cap - pos, "\"version\":\"%s\",", m->version);
-    pos += snprintf(json + pos, cap - pos, "\"arch\":\"%s\",", m->arch);
-    pos += snprintf(json + pos, cap - pos, "\"description\":\"%s\",", m->description);
-    pos += snprintf(json + pos, cap - pos, "\"deps\":[");
+
+    /* Emit into a growable buffer; if snprintf reports truncation, grow and retry. */
+#define EMIT(...) do { \
+        int need = snprintf(json + pos, (pos < (int)cap ? cap - (size_t)pos : 1), __VA_ARGS__); \
+        if ((size_t)need >= (pos < (int)cap ? cap - (size_t)pos : 1)) { \
+            size_t ncap = cap; \
+            while ((size_t)need >= ncap - (size_t)pos) ncap *= 2; \
+            char *nj = realloc(json, ncap); \
+            if (!nj) { free(json); return NULL; } \
+            json = nj; cap = ncap; \
+            need = snprintf(json + pos, cap - (size_t)pos, __VA_ARGS__); \
+        } \
+        pos += need; \
+    } while (0)
+
+    EMIT("{\"id\":\"%s\",", m->id);
+    EMIT("\"name\":\"%s\",", m->name);
+    EMIT("\"version\":\"%s\",", m->version);
+    EMIT("\"arch\":%d,", (int)m->arch);
+    EMIT("\"description\":\"%s\",", m->description);
+    EMIT("\"deps\":[");
     for (int i = 0; i < m->n_depends; i++) {
-        pos += snprintf(json + pos, cap - pos, "%s\"%s\"", i > 0 ? "," : "", m->depends[i]);
+        EMIT("%s\"%s\"", i > 0 ? "," : "", m->depends[i]);
     }
-    pos += snprintf(json + pos, cap - pos, "],");
-    pos += snprintf(json + pos, cap - pos, "\"entries\":[");
+    EMIT("],");
+    EMIT("\"files\":[");
+    for (int i = 0; i < m->n_files; i++) {
+        EMIT("%s\"%s|%s|%o\"", i > 0 ? "," : "", m->files[i].src, m->files[i].dst, m->files[i].mode);
+    }
+    EMIT("],");
+    EMIT("\"entries\":[");
     for (int i = 0; i < m->n_entrypoints; i++) {
-        pos += snprintf(json + pos, cap - pos, "%s{\"name\":\"%s\",\"exec\":\"%s\",\"icon\":\"%s\",\"categories\":\"%s\"}",
+        EMIT("%s{\"name\":\"%s\",\"exec\":\"%s\",\"icon\":\"%s\",\"categories\":\"%s\"}",
             i > 0 ? "," : "", m->entrypoints[i].name, m->entrypoints[i].exec,
             m->entrypoints[i].icon, m->entrypoints[i].categories);
     }
-    pos += snprintf(json + pos, cap - pos, "]}");
+    EMIT("]}");
+#undef EMIT
     return json;
 }
 
@@ -300,9 +326,16 @@ int wubu_pkgmgr_resolve_deps(const char **pkg_ids, int n_pkgs,
 }
 
 bool wubu_pkgmgr_check_conflicts(const char *pkg_id, const wubu_pkg_installed_t *installed, int n_installed) {
-    (void)pkg_id; (void)installed; (void)n_installed;
-    /* TODO: conflict detection */
-    return false;
+    if (!pkg_id || !installed || n_installed < 0) return false;
+    /* An already-installed package with the same id is a conflict — refuse to
+     * clobber it (the installer should upgrade instead). */
+    for (int i = 0; i < n_installed; i++) {
+        if (strcmp(installed[i].manifest.id, pkg_id) == 0) {
+            fprintf(stderr, "[pkgmgr] Package '%s' is already installed\n", pkg_id);
+            return false;
+        }
+    }
+    return true;
 }
 
 /* -- Cleanup ------------------------------------------------------- */
