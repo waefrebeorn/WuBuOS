@@ -32,7 +32,7 @@ typedef struct {
 
 static ControlState g_ctrl = {0};
 
-static void ctrl_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void ctrl_draw_tab_bar(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     const WubuThemeColors *tc = wubu_theme_colors();
     int x = win->x + 4;
@@ -367,7 +367,7 @@ static void ctrl_draw_tab(WmWindow *win) {
     }
 }
 
-static void control_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void control_draw(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     ctrl_draw_tab_bar(win, fb, fb_w, fb_h);
     ctrl_draw_tab(win);

@@ -284,6 +284,12 @@ int  dosgui_wm_wallpaper_mode(void);
 int  dosgui_wm_wallpaper_w(void);
 int  dosgui_wm_wallpaper_h(void);
 
+/* -- Invalidation tracking (legacy wm_invalidate compat) --------- */
+void dosgui_wm_invalidate(DosGuiWindow *win);
+void dosgui_wm_invalidate_all(void);
+bool dosgui_wm_poll_dirty(int *out_id);   /* drain; -1 = redraw all */
+int  dosgui_wm_dirty_count(void);         /* -1 if full-redraw pending */
+
 /* -- HolyC Terminal ---------------------------------------------- */
 
 DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);
