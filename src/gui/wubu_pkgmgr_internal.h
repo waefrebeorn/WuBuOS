@@ -59,7 +59,18 @@ static inline bool ensure_dir(const char *path) {
     if (!path || !*path) return false;
     struct stat st;
     if (stat(path, &st) == 0) return S_ISDIR(st.st_mode);
-    return mkdir(path, 0755) == 0 || errno == EEXIST;
+    /* Create parent directories recursively, then the leaf. */
+    char tmp[512];
+    strncpy(tmp, path, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(tmp, 0755);
+            *p = '/';
+        }
+    }
+    return mkdir(tmp, 0755) == 0 || errno == EEXIST;
 }
 
 static inline bool write_file(const char *path, const char *content) {

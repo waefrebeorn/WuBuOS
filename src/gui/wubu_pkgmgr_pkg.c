@@ -207,55 +207,201 @@ bool read_pkg_header(const char* pkg_path, wubu_pkg_header_t* header) {
     return n == sizeof(*header) && header->magic == WUBU_PKG_MAGIC;
 }
 
+/* -- Minimal JSON array helpers (for manifest extraction) --------- */
+
+/* Count elements inside a JSON array, e.g. ["a","b","c"] -> 3. */
+static int json_array_count(const char* arr) {
+    int n = 0;
+    bool in_str = false;
+    for (const char* p = arr; *p; p++) {
+        if (*p == '"') in_str = !in_str;
+        else if (*p == ',' && !in_str) n++;
+        else if (*p == ']' && !in_str) break;
+    }
+    /* Elements = commas + 1, but only if non-empty */
+    if (n == 0 && *arr) {
+        /* Could be a single element or empty array "[]" */
+        const char* q = arr;
+        while (*q && *q != ']') { if (*q == '"') return 1; q++; }
+        return 0;
+    }
+    return n + 1;
+}
+
+/* Copy the nth string element (between quotes) of a JSON array into out.
+ * Returns true if an element was found. */
+static bool json_array_str_at(const char* arr, int idx, char* out, size_t outsz) {
+    int cur = 0;
+    bool in_str = false;
+    const char* start = NULL;
+    for (const char* p = arr; *p; p++) {
+        if (*p == '"') {
+            if (!in_str) { start = p + 1; in_str = true; }
+            else {
+                in_str = false;
+                if (cur == idx) {
+                    size_t len = (size_t)(p - start);
+                    if (len >= outsz) len = outsz - 1;
+                    memcpy(out, start, len);
+                    out[len] = '\0';
+                    return true;
+                }
+                cur++;
+            }
+        } else if (*p == ',' && !in_str) {
+            /* next element */
+        } else if (*p == ']' && !in_str) {
+            break;
+        }
+    }
+    return false;
+}
+
+/* Locate the span of a JSON array value for the given key, e.g.
+ * key="\"deps\":", returns a pointer at the '[' and sets *end to the ']'. */
+static const char* json_find_array(const char* json, const char* key, const char** end) {
+    const char* p = strstr(json, key);
+    if (!p) { *end = NULL; return NULL; }
+    p += strlen(key);
+    /* skip whitespace */
+    while (*p == ' ' || *p == '\n' || *p == '\t') p++;
+    if (*p != '[') { *end = NULL; return NULL; }
+    int depth = 0;
+    const char* q = p;
+    bool in_str = false;
+    for (; *q; q++) {
+        if (*q == '"') in_str = !in_str;
+        else if (!in_str && *q == '[') depth++;
+        else if (!in_str && *q == ']') {
+            depth--;
+            if (depth == 0) { *end = q; return p; }
+        }
+    }
+    *end = NULL;
+    return NULL;
+}
+
 bool extract_pkg_manifest(const char* pkg_path, wubu_pkg_manifest_t* out) {
     wubu_pkg_header_t header;
     if (!read_pkg_header(pkg_path, &header)) return false;
-    
+
     FILE* f = fopen(pkg_path, "rb");
     if (!f) return false;
     fseek(f, sizeof(header), SEEK_SET);
-    
+
     void* compressed = malloc(header.manifest_size);
     fread(compressed, 1, header.manifest_size, f);
     fclose(f);
-    
+
     /* Decompress manifest */
-    const size_t max_manifest = 32768;
+    const size_t max_manifest = 262144;
     void* decompressed = malloc(max_manifest);
     size_t dsize = ZSTD_decompress(decompressed, max_manifest, compressed, header.manifest_size);
     free(compressed);
-    
+
     if (ZSTD_isError(dsize)) {
         free(decompressed);
         return false;
     }
-    
-    /* Parse JSON (simplified - just extract key fields) */
+
     char* json = (char*)decompressed;
     json[dsize] = '\0';
-    
-    /* Simple JSON extraction for demo */
+
     memset(out, 0, sizeof(*out));
-    
-    /* Extract id */
+
+    /* Scalar fields */
     char* p = strstr(json, "\"id\":\"");
     if (p) { p += 6; char* e = strchr(p, '"'); if (e) { *e = '\0'; strncpy(out->id, p, sizeof(out->id)-1); *e = '"'; } }
-    
+
     p = strstr(json, "\"name\":\"");
     if (p) { p += 8; char* e = strchr(p, '"'); if (e) { *e = '\0'; strncpy(out->name, p, sizeof(out->name)-1); *e = '"'; } }
-    
+
     p = strstr(json, "\"version\":\"");
     if (p) { p += 11; char* e = strchr(p, '"'); if (e) { *e = '\0'; strncpy(out->version, p, sizeof(out->version)-1); *e = '"'; } }
-    
+
     p = strstr(json, "\"payload_type\":");
-    if (p) { out->payload_type = atoi(p + 15); }
-    
+    if (p) { out->payload_type = (wubu_pkg_payload_t)atoi(p + 15); }
+
     p = strstr(json, "\"arch\":");
-    if (p) { out->arch = atoi(p + 7); }
-    
+    if (p) { out->arch = (wubu_pkg_arch_t)atoi(p + 7); }
+
     p = strstr(json, "\"sandbox_profile\":\"");
     if (p) { p += 19; char* e = strchr(p, '"'); if (e) { *e = '\0'; strncpy(out->sandbox_profile, p, sizeof(out->sandbox_profile)-1); *e = '"'; } }
-    
+
+    /* Files: ["src|dst|mode", ...] */
+    const char* farr = NULL; const char* fend = NULL;
+    if ((farr = json_find_array(json, "\"files\":", &fend)) != NULL) {
+        int nf = json_array_count(farr);
+        if (nf > WUBU_PKG_MAX_FILES) nf = WUBU_PKG_MAX_FILES;
+        for (int i = 0; i < nf; i++) {
+            char elem[1200];
+            if (json_array_str_at(farr, i, elem, sizeof(elem))) {
+                /* format: src|dst|mode */
+                char* bar1 = strchr(elem, '|');
+                char* bar2 = bar1 ? strchr(bar1 + 1, '|') : NULL;
+                if (bar1 && bar2) {
+                    *bar1 = '\0'; *bar2 = '\0';
+                    strncpy(out->files[i].src, elem, sizeof(out->files[i].src) - 1);
+                    strncpy(out->files[i].dst, bar1 + 1, sizeof(out->files[i].dst) - 1);
+                    out->files[i].mode = (uint32_t)strtoul(bar2 + 1, NULL, 0);
+                }
+            }
+        }
+        out->n_files = nf;
+    }
+
+    /* Depends: ["dep1","dep2",...] */
+    const char* darr = NULL; const char* dend = NULL;
+    if ((darr = json_find_array(json, "\"deps\":", &dend)) != NULL) {
+        int nd = json_array_count(darr);
+        if (nd > WUBU_PKG_MAX_DEPS) nd = WUBU_PKG_MAX_DEPS;
+        for (int i = 0; i < nd; i++) {
+            json_array_str_at(darr, i, out->depends[i], sizeof(out->depends[i]));
+        }
+        out->n_depends = nd;
+    }
+
+    /* Entrypoints: [{"name":"...","exec":"..."}, ...] */
+    const char* earr = NULL; const char* eend = NULL;
+    if ((earr = json_find_array(json, "\"entries\":", &eend)) != NULL) {
+        int ne = json_array_count(earr);
+        if (ne > WUBU_PKG_MAX_ENTRY) ne = WUBU_PKG_MAX_ENTRY;
+        const char* obj = earr + 1; /* just past '[' */
+        for (int i = 0; i < ne; i++) {
+            /* find next '{' ... '}' */
+            const char* ob = strchr(obj, '{');
+            if (!ob) break;
+            int depth = 0; const char* q = ob;
+            bool in_str = false;
+            for (; *q; q++) {
+                if (*q == '"') in_str = !in_str;
+                else if (!in_str && *q == '{') depth++;
+                else if (!in_str && *q == '}') { depth--; if (depth == 0) break; }
+            }
+            /* obj..q inclusive */
+            char objbuf[2048];
+            size_t olen = (size_t)(q - ob) + 1;
+            if (olen > sizeof(objbuf) - 1) olen = sizeof(objbuf) - 1;
+            memcpy(objbuf, ob, olen); objbuf[olen] = '\0';
+
+            char* fld;
+            if ((fld = strstr(objbuf, "\"name\":\"")) != NULL) {
+                fld += 8; char* e = strchr(fld, '"');
+                if (e) { *e = '\0'; strncpy(out->entrypoints[i].name, fld, sizeof(out->entrypoints[i].name)-1); *e = '"'; }
+            }
+            if ((fld = strstr(objbuf, "\"exec\":\"")) != NULL) {
+                fld += 8; char* e = strchr(fld, '"');
+                if (e) { *e = '\0'; strncpy(out->entrypoints[i].exec, fld, sizeof(out->entrypoints[i].exec)-1); *e = '"'; }
+            }
+            if ((fld = strstr(objbuf, "\"id\":\"")) != NULL) {
+                fld += 6; char* e = strchr(fld, '"');
+                if (e) { *e = '\0'; strncpy(out->entrypoints[i].id, fld, sizeof(out->entrypoints[i].id)-1); *e = '"'; }
+            }
+            obj = q + 1;
+        }
+        out->n_entrypoints = ne;
+    }
+
     free(decompressed);
     return true;
 }
@@ -271,8 +417,89 @@ bool wubu_pkgmgr_verify_package(const char* pkg_path, const char* pubkey_hex) {
 }
 
 bool wubu_pkgmgr_extract_package(const char* pkg_path, const char* dest_dir) {
-    /* In production: extract payload archive */
+    wubu_pkg_header_t header;
+    if (!read_pkg_header(pkg_path, &header)) return false;
+    if (header.manifest_size == 0 || header.payload_size == 0) return false;
+
     ensure_dir(dest_dir);
+
+    /* Extract the .tar.zst payload (which sits after the header + compressed
+     * manifest) to a temp file, then unpack it with tar|zstd fork+exec. */
+    char payload_path[512];
+    snprintf(payload_path, sizeof(payload_path), "%s/.wubu_payload_%u.tar.zst",
+             dest_dir, (unsigned)getpid());
+
+    FILE* in = fopen(pkg_path, "rb");
+    if (!in) return false;
+    if (fseek(in, (long)(sizeof(header) + header.manifest_size), SEEK_SET) != 0) {
+        fclose(in);
+        return false;
+    }
+    FILE* out = fopen(payload_path, "wb");
+    if (!out) {
+        fclose(in);
+        return false;
+    }
+    char buf[8192];
+    size_t remaining = (size_t)header.payload_size;
+    while (remaining > 0) {
+        size_t chunk = remaining < sizeof(buf) ? remaining : sizeof(buf);
+        size_t rd = fread(buf, 1, chunk, in);
+        if (rd == 0) break;
+        if (fwrite(buf, 1, rd, out) != rd) {
+            fclose(in); fclose(out);
+            unlink(payload_path);
+            return false;
+        }
+        remaining -= rd;
+    }
+    fclose(in);
+    fclose(out);
+
+    /* Unpack: zstd -d < payload | tar -xf -  (in dest_dir) */
+    int pipefd[2];
+    if (pipe(pipefd) < 0) {
+        unlink(payload_path);
+        return false;
+    }
+
+    pid_t zstd_pid = fork();
+    if (zstd_pid == 0) {
+        /* Child: zstd decompress payload -> stdout */
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
+        int pfd = open(payload_path, O_RDONLY);
+        if (pfd < 0) _exit(1);
+        dup2(pfd, STDIN_FILENO);
+        close(pfd);
+        execlp("zstd", "zstd", "-d", (char*)NULL);
+        _exit(1);
+    }
+
+    pid_t tar_pid = fork();
+    if (tar_pid == 0) {
+        /* Child: tar -xf - (read from pipe) into dest_dir */
+        close(pipefd[1]);
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+        if (chdir(dest_dir) < 0) _exit(1);
+        execlp("tar", "tar", "-xf", "-", (char*)NULL);
+        _exit(1);
+    }
+
+    close(pipefd[0]);
+    close(pipefd[1]);
+    int zstd_status, tar_status;
+    waitpid(zstd_pid, &zstd_status, 0);
+    waitpid(tar_pid, &tar_status, 0);
+
+    unlink(payload_path);
+
+    if (!WIFEXITED(zstd_status) || WEXITSTATUS(zstd_status) != 0 ||
+        !WIFEXITED(tar_status) || WEXITSTATUS(tar_status) != 0) {
+        return false;
+    }
     return true;
 }
 

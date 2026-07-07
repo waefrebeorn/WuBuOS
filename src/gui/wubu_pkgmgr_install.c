@@ -202,6 +202,16 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
     snprintf(install_root, sizeof(install_root), "%s/%s", g_pkgmgr.config.install_prefix, manifest->id);
     ensure_dir(install_root);
 
+    /* Unpack the .wubu payload into temp_dir so install_package_files() has
+     * real files to copy into install_root. We extract relative to temp_dir,
+     * which mirrors the package's payload layout (tar archived "."). */
+    if (!wubu_pkgmgr_extract_package(pkg_spec, temp_dir)) {
+        fprintf(stderr, "[pkgmgr] Failed to extract payload\n");
+        free(installed);
+        free(manifest);
+        return false;
+    }
+
     if (!install_package_files(manifest, temp_dir)) {
         free(installed);
         free(manifest);
