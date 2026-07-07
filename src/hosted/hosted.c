@@ -40,6 +40,7 @@
 #include "../gui/wubu_settings.h"
 #include "../gui/wubu_proton.h"
 #include "../runtime/wubu_container.h"
+#include "../runtime/wubu_ct_isolate.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -1298,6 +1299,16 @@ static int hosted_pe_executor(const void *data, size_t size, const char *cmdline
     if (!f) return -1;
     fwrite(data, 1, size, f);
     fclose(f);
+
+    /* Isolate the foreign process in a cgroup v2 sandbox (Pressure-Vessel
+     * analog). Best-effort: if cgroup setup fails (e.g. no privileges in
+     * WSL), we still proceed -- the launch is the critical path. */
+    char cg_path[256] = {0};
+    wubu_ct_cgroup_create("wubu-foreign", cg_path, sizeof(cg_path));
+    if (cg_path[0]) {
+        wubu_ct_cgroup_set_memory(cg_path, 2048);   /* 2 GB cap */
+        wubu_ct_cgroup_set_pids(cg_path, 4096);     /* process cap */
+    }
 
     /* Launch via the Proton manager (prefix_id NULL -> default prefix). */
     char *argv[2] = { (char *)cmdline, NULL };

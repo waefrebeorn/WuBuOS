@@ -250,16 +250,6 @@ int wubu_launch_windows(const void *data, size_t size, const char *cmdline) {
 
     WUBU_PAYLOAD_TYPE pt = wubu_detect_payload_type(data, size);
 
-    /* Isolate the foreign process in a cgroup v2 sandbox (Pressure-Vessel
-     * analog). Best-effort: if cgroup setup fails (e.g. no privileges in
-     * WSL), we still proceed -- the exec route is the critical path. */
-    char cg_path[256] = {0};
-    wubu_ct_cgroup_create("wubu-foreign", cg_path, sizeof(cg_path));
-    if (cg_path[0]) {
-        wubu_ct_cgroup_set_memory(cg_path, 2048);   /* 2 GB cap */
-        wubu_ct_cgroup_set_pids(cg_path, 4096);     /* process cap */
-    }
-
     if (pt == WUBU_PAYLOAD_WIN_PE) {
         /* Delegate to the registered Proton loader (real PE path via VSL). */
         if (!g_pe_executor) return -1;  /* no loader registered */
