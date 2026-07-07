@@ -211,6 +211,7 @@ int wubu_network_create_bridge(WubuNetworkManager *mgr, const char *name, const 
     snprintf(p->bridge_name, sizeof(p->bridge_name), "wubu%d", mgr->network_count);
     if (!subnet) strncpy(p->subnet, "10.0.0.0/24", sizeof(p->subnet) - 1);
     if (!gateway) strncpy(p->gateway, "10.0.0.1", sizeof(p->gateway) - 1);
+    p->enabled = true;  /* a created bridge is enabled by default (matches wubu_network_create) */
 
     /* Create bridge via netlink rtnetlink */
     int rc = netlink_link_create(p->bridge_name, "bridge", NULL, 0, NULL, 0, NULL, false);
@@ -240,6 +241,7 @@ int wubu_network_create_host(WubuNetworkManager *mgr, const char *name) {
     gen_id(p->id, sizeof(p->id), "host-");
     p->enable_dns = false;
     p->created = true;
+    p->enabled = true;  /* a created host network is enabled by default */
     p->created_at = (uint64_t)time(NULL);
     mgr->network_count++;
     emit_event(mgr, "network-create", p->id, NULL);
