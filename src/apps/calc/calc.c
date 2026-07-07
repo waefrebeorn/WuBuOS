@@ -72,8 +72,121 @@ DosGuiWindow* calc_launch(void) {
     return dosgui_wm_create(x, y, 280, 380, "Calculator");
 }
 
-void calc_input_digit(CalcState *calc, int digit) { (void)calc; (void)digit; }
-void calc_input_op(CalcState *calc, int op) { (void)calc; (void)op; }
-void calc_input_func(CalcState *calc, int func) { (void)calc; (void)func; }
-void calc_set_mode(CalcState *calc, CalcMode mode) { (void)calc; calc->mode = mode; }
-void calc_set_base(CalcState *calc, int base) { (void)calc; calc->base = base; }
+/* ====================================================================
+ * CALCULATION ENGINE  (real implementation)
+ *
+ * State machine: digits accumulate into display_val while a new entry
+ * is being typed; an operator moves display_val into pending_val and
+ * records pending_op; the next digit sequence starts a fresh entry;
+ * '=' (or another operator) applies pending_op(pending_val, display_val).
+ * Unary functions apply immediately to display_val.
+ * ================================================================== */
+
+static double calc_apply_op(int op, double a, double b, bool *err) {
+    switch (op) {
+        case CALC_OP_ADD: return a + b;
+        case CALC_OP_SUB: return a - b;
+        case CALC_OP_MUL: return a * b;
+        case CALC_OP_DIV:
+            if (b == 0.0) { *err = true; return 0.0; }
+            return a / b;
+        case CALC_OP_POW: return pow(a, b);
+        default:          return b;
+    }
+}
+
+static double calc_apply_func(int func, double x, bool *err) {
+    switch (func) {
+        case CALC_FUNC_SQRT:
+            if (x < 0.0) { *err = true; return 0.0; }
+            return sqrt(x);
+        case CALC_FUNC_NEG:   return -x;
+        case CALC_FUNC_RECIP:
+            if (x == 0.0) { *err = true; return 0.0; }
+            return 1.0 / x;
+        case CALC_FUNC_SIN: return sin(x);
+        case CALC_FUNC_COS: return cos(x);
+        case CALC_FUNC_TAN: return tan(x);
+        case CALC_FUNC_LN:
+            if (x <= 0.0) { *err = true; return 0.0; }
+            return log(x);
+        case CALC_FUNC_LOG:
+            if (x <= 0.0) { *err = true; return 0.0; }
+            return log10(x);
+        case CALC_FUNC_EXP: return exp(x);
+        case CALC_FUNC_PERCENT: return x / 100.0;
+        case CALC_FUNC_CLEAR: return 0.0;
+        default: return x;
+    }
+}
+
+void calc_input_digit(CalcState *calc, int digit) {
+    if (!calc || calc->error_state) return;
+    if (digit < 0 || digit > 15) return;          /* base up to 16 */
+    if (calc->base >= 2 && digit >= calc->base) return;  /* out of range for base */
+
+    if (calc->new_entry) {
+        calc->display_val = 0.0;
+        calc->new_entry = false;
+    }
+    /* Build the mantissa; accumulate as decimal regardless of display base. */
+    calc->display_val = calc->display_val * 10.0 + (double)digit;
+}
+
+void calc_input_op(CalcState *calc, int op) {
+    if (!calc || calc->error_state) return;
+
+    if (op == CALC_FUNC_CLEAR || op == CALC_OP_NONE) {
+        calc->display_val = 0.0;
+        calc->pending_val = 0.0;
+        calc->pending_op = CALC_OP_NONE;
+        calc->new_entry = true;
+        return;
+    }
+
+    /* Evaluate any pending operation first (chaining: 2 + 3 + =). */
+    if (calc->pending_op != CALC_OP_NONE && !calc->new_entry) {
+        bool err = false;
+        double r = calc_apply_op(calc->pending_op, calc->pending_val, calc->display_val, &err);
+        if (err) { calc->error_state = true; return; }
+        calc->display_val = r;
+    }
+
+    if (op == CALC_OP_EQ) {
+        calc->pending_op = CALC_OP_NONE;
+        calc->new_entry = true;
+        return;
+    }
+
+    /* Stash the current display and arm the next operator. */
+    calc->pending_val = calc->display_val;
+    calc->pending_op = op;
+    calc->new_entry = true;
+}
+
+void calc_input_func(CalcState *calc, int func) {
+    if (!calc || calc->error_state) return;
+    bool err = false;
+    double r = calc_apply_func(func, calc->display_val, &err);
+    if (err) { calc->error_state = true; return; }
+    calc->display_val = r;
+    calc->new_entry = true;
+}
+
+void calc_set_mode(CalcState *calc, CalcMode mode) {
+    if (!calc) return;
+    calc->mode = mode;
+}
+
+void calc_set_base(CalcState *calc, int base) {
+    if (!calc) return;
+    if (base >= 2 && base <= 16) calc->base = base;
+}
+
+double calc_get_display(const CalcState *calc) {
+    return calc ? calc->display_val : 0.0;
+}
+
+bool calc_in_error(const CalcState *calc) {
+    return calc ? calc->error_state : false;
+}
