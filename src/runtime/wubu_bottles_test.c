@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 static int pass = 0, fail = 0;
 #define TEST(name) printf("  TEST Cell480: %-55s", name)
@@ -123,6 +125,35 @@ static void test_bottle_remove_dep(void) {
     rc = wubu_bottle_remove_dep(b, DEP_DXVK);  /* Already removed */
     CHECK(rc == -1, "remove non-existent fails");
 
+    wubu_bottle_destroy(b);
+    PASS();
+}
+
+static void test_bottle_install_deps(void) {
+    TEST("bottle install dependencies (no false success)");
+    WubuBottle *b = wubu_bottle_create("DepInstall", BOTTLE_TYPE_WINE);
+    wubu_bottle_add_dep(b, DEP_DXVK, NULL);
+    wubu_bottle_add_dep(b, DEP_VKD3D, NULL);
+    CHECK(b->deps[0].installed == false, "deps start uninstalled");
+
+    /* No prefix configured -> must fail (was a silent success) */
+    CHECK(wubu_bottle_install_deps(b, NULL) == -1, "fails with no prefix");
+
+    /* Prefix path that doesn't exist -> must fail */
+    CHECK(wubu_bottle_install_deps(b, "/nonexistent/wubu/prefix") == -1,
+          "fails with missing prefix dir");
+
+    /* Real temp prefix dir -> success + deps marked installed */
+    char tmpdir[512];
+    snprintf(tmpdir, sizeof(tmpdir), "/tmp/wubu_bottle_deps_%d", (int)getpid());
+    CHECK(mkdir(tmpdir, 0755) == 0, "create temp prefix dir");
+    CHECK(wubu_bottle_install_deps(b, tmpdir) == 0, "install deps into real prefix");
+    CHECK(b->deps[0].installed == true, "dxvk marked installed");
+    CHECK(b->deps[1].installed == true, "vkd3d marked installed");
+    CHECK(b->installed == true, "bottle marked installed");
+    CHECK(strcmp(b->prefix_path, tmpdir) == 0, "prefix_path recorded on bottle");
+
+    rmdir(tmpdir);
     wubu_bottle_destroy(b);
     PASS();
 }
@@ -245,6 +276,7 @@ int main(void) {
     test_bottle_add_dep_vcrun();
     test_bottle_add_multiple_deps();
     test_bottle_remove_dep();
+    test_bottle_install_deps();
     test_bottle_dep_available();
 
     printf("\n-- Mount Management --\n\n");
