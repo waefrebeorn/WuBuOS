@@ -267,7 +267,7 @@ test_high_bridge: test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper
+test_high_gui: test_dosgui_wm test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper test_control
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -440,7 +440,7 @@ test_dbuf:
 	$(GUI)/gui_dbuf_test
 
 test_dosgui_wm:
-	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) \
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) \
 		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c \
@@ -549,11 +549,13 @@ test_apps2:
 	$(APPS)/wubu_apps2_test
 
 test_control:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
-		-Isrc/apps -Isrc/gui -Isrc/kernel \
-		$(APPS)/control.c $(GUI)/wubu_theme.c $(GUI)/wm.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
-		$(APPS)/control_test.c \
-		-o $(APPS)/control_test -lm
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/control \
+		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c \
+		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
+		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c \
+		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_lexer.c $(JIT_SRCS) \
+		$(APPS)/control/control.c \
+		$(APPS)/control_test.c -o $(APPS)/control_test -lm
 	$(APPS)/control_test
 
 test_proton2:

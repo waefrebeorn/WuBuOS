@@ -324,7 +324,15 @@ static void save_theme(FILE *f, const ThemeSettings *t, int indent) {
     json_write_key(f, "theme_id", indent); json_write_int(f, t->theme_id); fprintf(f, ",\n");
     json_write_key(f, "wallpaper_path", indent); json_write_string(f, t->wallpaper_path); fprintf(f, ",\n");
     json_write_key(f, "wallpaper_mode", indent); json_write_int(f, t->wallpaper_mode); fprintf(f, ",\n");
-    json_write_key(f, "use_custom_colors", indent); json_write_bool(f, t->use_custom_colors);
+    json_write_key(f, "use_custom_colors", indent); json_write_bool(f, t->use_custom_colors); fprintf(f, ",\n");
+    json_write_key(f, "icon_layout_count", indent); json_write_int(f, t->icon_layout_count); fprintf(f, ",\n");
+    for (int i = 0; i < t->icon_layout_count && i < WUBU_ICON_LAYOUT_MAX; i++) {
+        fprintf(f, "%*s\"icon_layout_%d\": { \"name\": \"%s\", \"grid_x\": %d, \"grid_y\": %d, \"alive\": %s }%s\n",
+                indent, "", i,
+                t->icon_layout[i].name, t->icon_layout[i].grid_x, t->icon_layout[i].grid_y,
+                t->icon_layout[i].alive ? "true" : "false",
+                (i == t->icon_layout_count - 1) ? "" : ",");
+    }
 }
 static void save_fonts(FILE *f, const FontSettings *fnt, int indent) {
     json_write_key(f, "font_family", indent); json_write_string(f, fnt->font_family); fprintf(f, ",\n");
@@ -412,6 +420,21 @@ static void load_theme(JsonToken *obj, ThemeSettings *t) {
     if ((v = json_find(obj, "wallpaper_path")) && v->type == JSON_TYPE_STRING) strncpy(t->wallpaper_path, v->str_value, sizeof(t->wallpaper_path)-1);
     if ((v = json_find(obj, "wallpaper_mode")) && v->type == JSON_TYPE_NUMBER) t->wallpaper_mode = v->int_value;
     if ((v = json_find(obj, "use_custom_colors")) && v->type == JSON_TYPE_BOOL) t->use_custom_colors = v->bool_value;
+    if ((v = json_find(obj, "icon_layout_count")) && v->type == JSON_TYPE_NUMBER) t->icon_layout_count = v->int_value;
+    for (int i = 0; i < WUBU_ICON_LAYOUT_MAX; i++) {
+        char key[32]; snprintf(key, sizeof(key), "icon_layout_%d", i);
+        JsonToken *e = json_find(obj, key);
+        if (e && e->type == JSON_TYPE_OBJECT) {
+            JsonToken *n  = json_find(e, "name");
+            JsonToken *gx = json_find(e, "grid_x");
+            JsonToken *gy = json_find(e, "grid_y");
+            JsonToken *al = json_find(e, "alive");
+            if (n  && n->type  == JSON_TYPE_STRING) strncpy(t->icon_layout[i].name, n->str_value, sizeof(t->icon_layout[i].name)-1);
+            if (gx && gx->type == JSON_TYPE_NUMBER) t->icon_layout[i].grid_x = gx->int_value;
+            if (gy && gy->type == JSON_TYPE_NUMBER) t->icon_layout[i].grid_y = gy->int_value;
+            if (al && al->type == JSON_TYPE_BOOL)   t->icon_layout[i].alive  = al->bool_value;
+        }
+    }
 }
 static void load_fonts(JsonToken *obj, FontSettings *f) {
     JsonToken *v;

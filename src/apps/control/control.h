@@ -20,4 +20,7 @@ DosGuiWindow* control_launch(void);
 
 void control_set_tab(ControlState *ctrl, int tab);
 
+/* Desktop tab: apply wallpaper path + placement mode (persists + live reload). */
+void control_desktop_apply(const char *wallpaper_path, int mode);
+
 #endif
