@@ -273,11 +273,54 @@ static void test_icon_get_bounds(void) {
 }
 
 /* -- Main ------------------------------------------------------ */
+/* -- Invalidation / dirty-tracking Tests ----------------------- */
+
+static void test_invalidate_tracking(void) {
+    TEST("invalidate tracks windows + poll drains queue");
+    dosgui_wm_init(1024, 768);
+
+    /* Start clean. */
+    int id;
+    while (dosgui_wm_poll_dirty(&id)) { /* drain */ }
+
+    DosGuiWindow *a = dosgui_wm_create(10, 10, 100, 100, "A");
+    DosGuiWindow *b = dosgui_wm_create(200, 200, 100, 100, "B");
+    CHECK(a && b, "two windows created");
+
+    dosgui_wm_invalidate(a);
+    dosgui_wm_invalidate(b);
+    CHECK(dosgui_wm_dirty_count() == 2, "two windows queued dirty");
+
+    int seen_a = 0, seen_b = 0, n = 0;
+    while (dosgui_wm_poll_dirty(&id)) {
+        if (id == a->id) seen_a = 1;
+        if (id == b->id) seen_b = 1;
+        n++;
+    }
+    CHECK(n == 2, "poll returned exactly two dirty ids");
+    CHECK(seen_a && seen_b, "both invalidated windows reported");
+    CHECK(dosgui_wm_dirty_count() == 0, "queue empty after drain");
+
+    /* invalidate_all => poll returns -1 (full redraw). */
+    dosgui_wm_invalidate_all();
+    CHECK(dosgui_wm_dirty_count() == -1, "invalidate_all flags full redraw");
+    int rid;
+    CHECK(dosgui_wm_poll_dirty(&rid) && rid == -1, "poll reports full-redraw (-1)");
+    CHECK(dosgui_wm_dirty_count() == 0, "full-redraw consumed");
+
+    /* NULL window => invalidate_all semantics. */
+    dosgui_wm_invalidate(NULL);
+    CHECK(dosgui_wm_dirty_count() == -1, "NULL invalidate => full redraw");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
+/* -- Main ------------------------------------------------------ */
 
 int main(void) {
     printf("+========================================================+\n");
-    printf("|  WuBuOS DosGui WM Test Suite (Cell 400)                |\n");
-    printf("|  Fable Windowing Agent — Mythos Fable sauce             |\n");
+    printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
     printf("+========================================================+\n\n");
 
     test_init();
@@ -298,6 +341,7 @@ int main(void) {
     test_fable_font();
     test_fable_text_width();
     test_fable_primitives_exist();
+    test_invalidate_tracking();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

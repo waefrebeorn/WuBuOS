@@ -343,7 +343,7 @@ static void pane_draw(PaneState *p, WmWindow *win, int x, int y, int w, int h, b
     }
 }
 
-static void explorer_draw_sidebar(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void explorer_draw_sidebar(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     const WubuThemeColors *tc = wubu_theme_colors();
     int x = win->x + 2;
     int y = win->y + WM_TITLE_HEIGHT + EXPL_TOOLBAR_H + EXPL_ADDRBAR_H + 2;
@@ -483,7 +483,7 @@ static void explorer_draw_context_menu(WmWindow *win) {
     }
 }
 
-static void explorer_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void explorer_draw(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
 
     explorer_draw_toolbar(win);

@@ -281,7 +281,7 @@ static void term_resize(TermTab *tab, int cols, int rows) {
  * Draw Functions
  * ================================================================ */
 
-static void term_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void term_draw_tab_bar(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     uint32_t *pixels = (uint32_t*)fb;
     int tab_h = 24;
@@ -305,7 +305,7 @@ static void term_draw_tab_bar(WmWindow *win, void *fb, int fb_w, int fb_h) {
     }
 }
 
-static void term_draw_content(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void term_draw_content(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     TermTab *tab = g_term.active;
     if (!tab) return;
@@ -344,7 +344,7 @@ static void term_draw_content(WmWindow *win, void *fb, int fb_w, int fb_h) {
     }
 }
 
-static void term_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void term_draw(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     term_draw_tab_bar(win, fb, fb_w, fb_h);
     term_draw_content(win, fb, fb_w, fb_h);

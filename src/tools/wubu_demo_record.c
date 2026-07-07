@@ -16,7 +16,7 @@
 #include "src/kernel/ps2.h"
 #include "src/bridge/bridge.h"
 #include "src/gui/wm.h"
-#include "src/gui/startmenu.h"
+#include "src/gui/dosgui_startmenu.h"
 #include "src/gui/gui_dbuf.h"
 #include "src/gui/dosgui_wm.h"
 #include "src/gui/dosgui_desktop.h"

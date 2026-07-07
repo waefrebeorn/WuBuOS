@@ -19,7 +19,7 @@ struct NotepadState {
 
 static struct NotepadState g_notepad = {0};
 
-static void notepad_draw(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void notepad_draw(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     int x = win->x + 4, y = win->y + WM_TITLE_HEIGHT + 4;
     /* White text area */

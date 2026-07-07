@@ -198,7 +198,7 @@ static void do_undo(void) {
 
 /* -- Rendering --------------------------------------------------- */
 
-static void paint_do_render(WmWindow *win, void *fb, int fb_w, int fb_h) {
+static void paint_do_render(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)win;
     uint32_t *pixels = (uint32_t *)fb;
 
@@ -416,7 +416,7 @@ void paint_update(void) {
     /* Animation updates (cursor blink, etc.) */
 }
 
-void paint_render(WmWindow *win, void *fb, int w, int h) {
+void paint_render(WmWindow *win, uint32_t *fb, int w, int h) {
     paint_do_render(win, fb, w, h);
 }
 
