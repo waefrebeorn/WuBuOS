@@ -38,6 +38,8 @@
 #include "../gui/wubu_notify.h"
 #include "../gui/wubu_session.h"
 #include "../gui/wubu_settings.h"
+#include "../gui/wubu_proton.h"
+#include "../runtime/wubu_container.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -991,8 +993,14 @@ static void input_dispatch(void) {
  * Public API Implementation
  * ══════════════════════════════════════════════════════════════════ */
 
+/* Forward decl: PE executor registered with the launch layer (defined below). */
+static int hosted_pe_executor(const void *data, size_t size, const char *cmdline);
+
 int hosted_init(hosted_state_t *state, int argc, char **argv) {
     g_hosted_state = state;
+    /* Register the real Proton PE loader with the launch layer (SteamOS
+     * strategy: Windows runs in a container, never an NT-kernel reimpl). */
+    wubu_launch_set_pe_executor(hosted_pe_executor);
     memset(state, 0, sizeof(*state));
     state->width = HOSTED_DEFAULT_W;
     state->height = HOSTED_DEFAULT_H;
@@ -1273,6 +1281,29 @@ void hosted_set_mode(hosted_state_t *state, hosted_mode_t mode) {
     state->mode = mode;
     fprintf(stderr, "Mode: %s\n", mode == HMODE_GUI ? "GUI" :
             mode == HMODE_TEMPLE ? "Temple" : "Other");
+}
+
+hosted_state_t *dosgui_wm_get_hosted_state(void) {
+    return g_hosted_state;
+}
+
+/* PE executor registered with wubu_launch_windows (dependency inversion).
+ * Writes the PE bytes to a temp file and launches via the GUI Proton manager
+ * (real Windows-compat path through the SteamOS-style container). Returns a
+ * process handle or -1. */
+static int hosted_pe_executor(const void *data, size_t size, const char *cmdline) {
+    char tmppath[512];
+    snprintf(tmppath, sizeof(tmppath), "/tmp/wubu-pe-%d.bin", (int)getpid());
+    FILE *f = fopen(tmppath, "wb");
+    if (!f) return -1;
+    fwrite(data, 1, size, f);
+    fclose(f);
+
+    /* Launch via the Proton manager (prefix_id NULL -> default prefix). */
+    char *argv[2] = { (char *)cmdline, NULL };
+    int rc = wubu_proton_launch_with_prefix(tmppath, NULL, cmdline ? argv : NULL);
+    unlink(tmppath);
+    return rc;
 }
 
 int hosted_styx_init(hosted_state_t *state, const char *socket_path) {

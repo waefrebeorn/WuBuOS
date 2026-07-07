@@ -234,6 +234,17 @@ int wubu_container_linux_elf(const void *elf_data, size_t elf_size,
 #include "wubu_proton.h"
 #include "wubu_ct_isolate.h"
 
+/* PE execution is delegated to a registered executor (dependency inversion):
+ * the hosted binary plugs in the real Proton loader (GUI proton manager) so the
+ * runtime layer never links two wubu_proton modules. Defaults to NULL (PE
+ * unsupported until registered). */
+typedef int (*wubu_pe_executor_fn)(const void *data, size_t size, const char *cmdline);
+static wubu_pe_executor_fn g_pe_executor = NULL;
+
+void wubu_launch_set_pe_executor(wubu_pe_executor_fn fn) {
+    g_pe_executor = fn;
+}
+
 int wubu_launch_windows(const void *data, size_t size, const char *cmdline) {
     if (!data || size < 2) return -1;
 
@@ -250,14 +261,9 @@ int wubu_launch_windows(const void *data, size_t size, const char *cmdline) {
     }
 
     if (pt == WUBU_PAYLOAD_WIN_PE) {
-        /* Real Proton PE path: validate + exec via VSL. */
-        wubu_proton_t p;
-        memset(&p, 0, sizeof(p));
-        if (wubu_proton_init(&p) != 0) return -1;
-        if (wubu_proton_validate_pe(&p, (const uint8_t *)data, size) != 0)
-            return -1;
-        int pid = wubu_proton_exec(&p, (const uint8_t *)data, size, cmdline);
-        return pid;
+        /* Delegate to the registered Proton loader (real PE path via VSL). */
+        if (!g_pe_executor) return -1;  /* no loader registered */
+        return g_pe_executor(data, size, cmdline);
     }
 
     if (pt == WUBU_PAYLOAD_LINUX_ELF) {

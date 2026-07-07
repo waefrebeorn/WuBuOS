@@ -374,6 +374,48 @@ static void dialog_shortcut_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, i
 
 /* -- Default Context Menu Actions -- */
 
+static void ctx_action_play(void) {
+    int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+    if (idx < 0) return;
+    DosGuiIcon *ic = &g_dwm.icons[idx];
+
+    /* Resolve the target binary (live icon path, or compat title). */
+    const char *target = ic->target[0] ? ic->target : ic->name;
+    if (!target || !target[0]) return;
+
+    /* Look up a per-title compat profile (ProtonDB-style) so the launch uses
+     * the right proton flags / env overrides. Falls back gracefully if none. */
+    WubuCompatEntry compat;
+    if (wubu_compat_db_get(ic->name, &compat) == 0 && compat.cache_enabled) {
+        char cache[512];
+        if (wubu_compat_cache_dir(ic->name, cache, sizeof(cache)) == 0) {
+            /* Cache dir is created; real shader/proton cache lives here. */
+            (void)cache;
+        }
+    }
+
+    /* Enter a dedicated GAME session and launch via the container/Proton path
+     * (SteamOS strategy). The selected icon's binary is read from disk. */
+    FILE *bin = fopen(target, "rb");
+    if (!bin) {
+        wubu_notify_simple("Desktop", "Play", "Cannot open target binary", NULL, 1, 2500);
+        return;
+    }
+    uint8_t buf[8192];
+    size_t n = fread(buf, 1, sizeof(buf), bin);
+    fclose(bin);
+    if (n == 0) {
+        wubu_notify_simple("Desktop", "Play", "Target is empty", NULL, 1, 2500);
+        return;
+    }
+
+    hosted_state_t *st = dosgui_wm_get_hosted_state();
+    int pid = wubu_session_launch_game(st, buf, n, ic->name);
+    wubu_notify_simple("Desktop", "Play",
+                       pid >= 0 ? ic->name : "Launch failed (no Proton/VSL in this build)",
+                       NULL, 1, 2500);
+}
+
 static void ctx_action_rename(void) {
     int idx = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
@@ -466,6 +508,7 @@ void dosgui_icon_show_context_menu(int icon_idx, int mx, int my) {
     g_dwm.icons[icon_idx].selected = true;
     
     dosgui_ctx_menu_add_item(menu, "Open", ctx_action_open);
+    dosgui_ctx_menu_add_item(menu, "Play", ctx_action_play);
     dosgui_ctx_menu_add_separator(menu);
     dosgui_ctx_menu_add_item(menu, "Rename", ctx_action_rename);
     dosgui_ctx_menu_add_item(menu, "Delete", ctx_action_delete);

@@ -15,6 +15,8 @@
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_wallpaper.h"
 #include "../gui/wubu_settings.h"
+#include "../runtime/wubu_session.h"   /* session split (GAME mode) */
+#include "../runtime/wubu_compat_db.h" /* per-title ProtonDB profile */
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -122,5 +124,8 @@ void dosgui_wm_sort_icons_by_name(void);
 int  dosgui_wm_write_desktop_shortcut(const char *name, const char *exec);
 /* Re-enumerate desktop icons from ~/Desktop (real filesystem refresh). */
 void dosgui_wm_refresh_desktop(void);
+
+/* Access the hosted process state (for session split: GAME mode launch). */
+hosted_state_t *dosgui_wm_get_hosted_state(void);
 
 #endif /* WUBU_DOSGUI_WM_INTERNAL_H */
