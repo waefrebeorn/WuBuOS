@@ -80,33 +80,12 @@ typedef struct HOSTED_STATE hosted_state_t;
 
 /* ══════════════════════════════════════════════════════════════════
  * Wayland State (for clipboard access)
+ *
+ * The struct layout + the `g_wl` extern live in wayland_state.h so they
+ * can be shared without exposing <wayland-client.h> to every includer.
  * ══════════════════════════════════════════════════════════════════ */
 
-typedef struct {
-    struct wl_display    *display;
-    struct wl_compositor *compositor;
-    struct xdg_wm_base   *xdg_wm_base;
-    struct wl_surface    *surface;
-    struct xdg_surface   *xdg_surface;
-    struct xdg_toplevel  *xdg_toplevel;
-    struct wl_keyboard   *keyboard;
-    struct wl_pointer    *pointer;
-    struct wl_seat       *seat;
-    struct wl_shm        *shm;
-    struct wl_data_device_manager *data_device_manager;
-    struct wl_data_device *data_device;
-    struct zwp_primary_selection_device_manager_v1 *primary_selection_manager;
-    struct zwp_tablet_manager_v1 *tablet_manager;
-    struct wl_output     *output;
-    struct wl_touch      *touch;
-    int                   drm_fd;
-    int                   width;
-    int                   height;
-    struct wl_buffer     *shm_buffer;
-    void                 *shm_data;
-} wayland_state_t;
-
-extern wayland_state_t g_wl;
+#include "wayland_state.h"
 
 /* ══════════════════════════════════════════════════════════════════
  * Public API
