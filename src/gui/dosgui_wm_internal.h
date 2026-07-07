@@ -13,6 +13,8 @@
 #include "dosgui_wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "../gui/wubu_wallpaper.h"
+#include "../gui/wubu_settings.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -60,7 +62,10 @@ typedef struct {
     /* Wallpaper */
     uint32_t       *wallpaper;
     int             wallpaper_w, wallpaper_h;
-    int             wallpaper_mode; /* 0=center, 1=tile, 2=stretch */
+    int             wallpaper_mode; /* 0=center, 1=tile, 2=stretch, 3=fit, 4=fill */
+
+    /* Desktop view options (Stream 3) */
+    bool            auto_arrange;   /* Snap icons into a top-left column/grid */
 
     /* Virtual desktops */
     int             current_desktop;
@@ -105,5 +110,17 @@ int  icon_grid_x(int x);
 int  icon_grid_y(int y);
 void snap_window_to_gaad(DosGuiWindow *w);
 int  spawn_window(int x, int y, int w, int h, const char *title);
+
+/* -- Desktop view options (Stream 3) -- */
+void dosgui_wm_set_auto_arrange(bool on);
+bool dosgui_wm_get_auto_arrange(void);
+/* Re-flow all live icons into the top-left auto-arrange column. */
+void reflow_all_icons_column(void);
+/* Re-flow all live icons alphabetically into a top-left column grid. */
+void dosgui_wm_sort_icons_by_name(void);
+/* Write a real .desktop shortcut into ~/Desktop; returns 0 on success. */
+int  dosgui_wm_write_desktop_shortcut(const char *name, const char *exec);
+/* Re-enumerate desktop icons from ~/Desktop (real filesystem refresh). */
+void dosgui_wm_refresh_desktop(void);
 
 #endif /* WUBU_DOSGUI_WM_INTERNAL_H */
