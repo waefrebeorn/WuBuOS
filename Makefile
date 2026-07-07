@@ -157,7 +157,7 @@ HOSTED_OBJS = $(HOSTED)/hosted.o $(RT)/styx.o $(RT)/styxfs.o $(KERNEL)/vbe.o $(K
               $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_systray.o $(GUI)/dosgui_wm_ctxmenu.o $(GUI)/dosgui_wm_holyc_term.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_term.o $(GUI)/dosgui_term_ansi.o $(GUI)/dosgui_term_pty.o $(GUI)/dosgui_daemon_panel.o \
               $(GUI)/wubu_settings.o $(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_mime.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_deploy.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o \
               $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_codegen.o $(APPS)/repl.o $(APPS)/dosgui_apps.o $(JIT_OBJS) \
-              $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_exec.o $(RT)/wubu_container.o $(RT)/wubu_arch.o \
+              $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_exec.o $(RT)/wubu_container.o $(RT)/wubu_session.o $(RT)/wubu_arch.o \
               $(HOSTED)/primary-selection-private.o
 
 $(HOSTED)/primary-selection-private.o: $(HOSTED)/primary-selection-private.c
@@ -172,7 +172,7 @@ hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/wubu_math.c $(BRIDGE)/bridge.c $(BRIDGE)/wubu_syscall.c \
 		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_term.c $(GUI)/dosgui_term_ansi.c $(GUI)/dosgui_term_pty.c $(GUI)/dosgui_daemon_panel.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_gamelib.c $(GUI)/wubu_deploy.c $(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_wallpaper.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_compat_db.c $(RT)/wubu_session.c $(RT)/wubu_arch.c \
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
@@ -279,7 +279,7 @@ test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hol
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash
+test_medium_other: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -371,6 +371,22 @@ test_syscall:
 test_proton:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/wubu_proton.c $(RT)/wubu_proton_test.c -o $(RT)/wubu_proton_test
 	$(RT)/wubu_proton_test
+
+test_launch:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
+		$(RT)/wubu_container.c $(RT)/wubu_proton.c $(RT)/wubu_ct_isolate.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_session.c $(RT)/styx.o $(RT)/styxfs.o \
+		$(RT)/wubu_launch_test.c \
+		-o $(RT)/wubu_launch_test -ldl
+	$(RT)/wubu_launch_test
+
+test_compat:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
+		$(RT)/wubu_compat_db.c $(RT)/wubu_compat_db_test.c \
+		-o $(RT)/wubu_compat_db_test
+	$(RT)/wubu_compat_db_test
 
 test_ahci:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/ahci.c $(KERNEL)/ahci_test.c -o $(KERNEL)/ahci_test
@@ -681,6 +697,13 @@ test_snapshot:
 		$(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_snapshot_test.c \
 		-o $(RT)/wubu_snapshot_test -lpthread
 	$(RT)/wubu_snapshot_test
+
+test_system:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(COMP) -I$(JIT) \
+		$(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_system.c $(RT)/wubu_system_test.c \
+		-o $(RT)/wubu_system_test -lpthread
+	$(RT)/wubu_system_test
 
 # ── Daemon Panel Test ─────────────────────────────────────────────
 
