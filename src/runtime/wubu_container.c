@@ -228,3 +228,54 @@ int wubu_container_linux_elf(const void *elf_data, size_t elf_size,
     return wubu_container_create(&hdr, elf_data, elf_size,
                                 out_buf, out_buf_size, out_size);
 }
+
+/* -- Windows/Universal launcher (SteamOS strategy) ---------------- */
+
+#include "wubu_proton.h"
+#include "wubu_ct_isolate.h"
+
+int wubu_launch_windows(const void *data, size_t size, const char *cmdline) {
+    if (!data || size < 2) return -1;
+
+    WUBU_PAYLOAD_TYPE pt = wubu_detect_payload_type(data, size);
+
+    /* Isolate the foreign process in a cgroup v2 sandbox (Pressure-Vessel
+     * analog). Best-effort: if cgroup setup fails (e.g. no privileges in
+     * WSL), we still proceed -- the exec route is the critical path. */
+    char cg_path[256] = {0};
+    wubu_ct_cgroup_create("wubu-foreign", cg_path, sizeof(cg_path));
+    if (cg_path[0]) {
+        wubu_ct_cgroup_set_memory(cg_path, 2048);   /* 2 GB cap */
+        wubu_ct_cgroup_set_pids(cg_path, 4096);     /* process cap */
+    }
+
+    if (pt == WUBU_PAYLOAD_WIN_PE) {
+        /* Real Proton PE path: validate + exec via VSL. */
+        wubu_proton_t p;
+        memset(&p, 0, sizeof(p));
+        if (wubu_proton_init(&p) != 0) return -1;
+        if (wubu_proton_validate_pe(&p, (const uint8_t *)data, size) != 0)
+            return -1;
+        int pid = wubu_proton_exec(&p, (const uint8_t *)data, size, cmdline);
+        return pid;
+    }
+
+    if (pt == WUBU_PAYLOAD_LINUX_ELF) {
+        /* Linux ELF -> VSL Linux persona (no Proton needed). */
+        uint8_t out[65536];
+        size_t out_size = 0;
+        int rc = wubu_container_linux_elf(data, size, out, sizeof(out), &out_size);
+        return (rc == 0) ? 0 : -1;
+    }
+
+    if (pt == WUBU_PAYLOAD_NESTED_WUBU) {
+        /* Already a .wubu container -- native dispatch. */
+        uint8_t out[65536];
+        size_t out_size = 0;
+        int rc = wubu_container_create(NULL, data, size, out, sizeof(out), &out_size);
+        return (rc == 0) ? 0 : -1;
+    }
+
+    /* Unknown payload -- cannot launch. */
+    return -1;
+}
