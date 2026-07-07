@@ -460,11 +460,12 @@ test_dbuf:
 	$(GUI)/gui_dbuf_test
 
 test_dosgui_wm:
-	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) \
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c \
 		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_lexer.c $(JIT_SRCS) \
+		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c \
 		$(GUI)/dosgui_wm_test.c -o $(GUI)/dosgui_wm_test -lm
 	$(GUI)/dosgui_wm_test
 
