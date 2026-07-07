@@ -134,6 +134,18 @@ int64_t hc_eval(const char *source) {
 
     HCGen gen;
     hc_gen_init(&gen);
+    /* hc_eval compiles a self-contained expression/block: each call is an
+     * isolated scope, so do NOT inherit the REPL-persisted symbol/function
+     * tables or data section from a previous eval. (hc_gen_init preserves
+     * them for the interactive REPL; standalone eval must reset to avoid
+     * stale stack offsets, cross-call symbol leakage, and a double-free of
+     * the shared data buffer across successive evals.) */
+    memset(&gen.symbols, 0, sizeof(gen.symbols));
+    gen.n_functions = 0;
+    gen.n_global_patches = 0;
+    gen.data = NULL;
+    gen.data_size = 0;
+    gen.data_cap = 0;
     emit_prologue(&gen);
 
     if (ast->kind == HC_AST_BLOCK) {
@@ -164,10 +176,26 @@ int64_t hc_eval(const char *source) {
     if (gen.data_size > 0) {
         memcpy((uint8_t *)exec + gen.code_size, gen.data, gen.data_size);
     }
-    
-    /* Make memory executable (remove write permission) */
-    jit_lock_exec(exec, gen.code_size + gen.data_size);
-    
+
+    /* Patch global variable RIP-relative addresses (module-level vars
+     * declared in the data section). Matches wubu_holyd_eval's fixup. */
+    for (int i = 0; i < gen.n_global_patches; i++) {
+        size_t patch_pos = gen.global_patches[i].code_patch_pos;
+        size_t global_offset = gen.global_patches[i].global_offset;
+        int32_t disp32 = (int32_t)(gen.code_size + global_offset - patch_pos - 4);
+        *(int32_t *)((uint8_t *)exec + patch_pos) = disp32;
+    }
+
+    /* Make memory executable. The data section holds global variables that
+     * are written at runtime (e.g. `x = 5` stores into it, and the REPL copies
+     * it back), so when a data section exists the page must remain writable.
+     * Only drop write permission for pure-code buffers (no globals), matching
+     * the holyd eval path which never locks. Locking an RWX page to RX would
+     * turn runtime global stores into SIGSEGVs. */
+    if (gen.data_size == 0) {
+        jit_lock_exec(exec, gen.code_size + gen.data_size);
+    }
+
     int64_t result = JIT_CALL(exec);
     jit_free_exec(exec, gen.code_size + gen.data_size);
     free(gen.code);
