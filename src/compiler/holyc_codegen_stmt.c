@@ -230,8 +230,11 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
         }
 
         case HC_AST_VAR_DECL:
-            /* Check if we're at module level (no function prologue emitted yet, no locals in current scope) */
-            bool is_module_level = (gen->code_size == 0 || gen->symbols.n_locals == 0);
+            /* Module-level var = global in the data section (persists across
+             * evals). Inside a function body it's a stack-local. Note emit_prologue()
+             * runs before gen_stmt for module evals, so has_prologue is unreliable
+             * here — use in_function to tell them apart. */
+            bool is_module_level = !gen->in_function;
            
             if (is_module_level) {
                 /* Top-level variable: store in data section as global */
@@ -356,8 +359,10 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
             }
            
             /* Allocate stack frame for locals */
+            gen->in_function = true;
             if (node->body)
-                gen_stmt(gen, node->body);
+            gen_stmt(gen, node->body);
+            gen->in_function = false;
             emit_epilogue(gen);
 
             /* Allocate executable memory for this function */

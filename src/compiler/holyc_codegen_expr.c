@@ -5,6 +5,42 @@
 
 #include "holyc_codegen_internal.h"
 
+/* -- Global (data-section) variable access helpers ---------------- */
+/* A module-level var_decl lives in the data section (see VAR_DECL in
+ * holyc_codegen_stmt.c). Its symbol offset is negative; the magnitude is the
+ * byte offset into the data section (global_offset). We access it RIP-relative
+ * and leave a patch point so the loader can relocate disp32 to
+ * exec + code_size + global_offset. The load/store instructions are
+ *   48 8B 05 disp32   (mov rax, [rip+disp32])
+ *   48 89 05 disp32   (mov [rip+disp32], rax)
+ * (7 bytes each; the disp32 starts at code_size + 3). The loader computes
+ *   disp32 = code_size + global_offset - (code_patch_pos + 4)
+ * where code_patch_pos is the disp32 start, i.e. code_size + 3, so the
+ * effective -4 cancels the 7-byte instruction length to give a -7 RIP
+ * adjustment — matching holyd's patch loop. */
+
+void emit_global_load_rax(HCGen *gen, size_t global_offset) {
+    size_t patch_pos = gen->code_size + 3;   /* disp32 start */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x05);
+    emit_dword(gen, 0);                       /* placeholder disp32 */
+    if (gen->n_global_patches < 32) {
+        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+        gen->global_patches[gen->n_global_patches].global_offset = global_offset;
+        gen->n_global_patches++;
+    }
+}
+
+void emit_global_store_rax(HCGen *gen, size_t global_offset) {
+    size_t patch_pos = gen->code_size + 3;   /* disp32 start */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x05);
+    emit_dword(gen, 0);                       /* placeholder disp32 */
+    if (gen->n_global_patches < 32) {
+        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+        gen->global_patches[gen->n_global_patches].global_offset = global_offset;
+        gen->n_global_patches++;
+    }
+}
+
 /* ====================================================================
  * EXPRESSION GENERATION
  * ==================================================================== */
@@ -138,14 +174,21 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     emit_mov_rax_imm64(gen, 0);
                     break;
                 }
-                /* mov rax, [rbp - off] */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                /* inc rax */
-                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0);
-                /* mov [rbp - off], rax */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                if (off <= 0) {  /* global in data section */
+                    size_t go = (size_t)(-off);
+                    emit_global_load_rax(gen, go);   /* rax = *x */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0); /* inc rax */
+                    emit_global_store_rax(gen, go);  /* *x = rax */
+                } else {        /* stack local */
+                    /* mov rax, [rbp - off] */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* inc rax */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0);
+                    /* mov [rbp - off], rax */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                }
             } else {
                 emit_mov_rax_imm64(gen, 0);
             }
@@ -168,14 +211,21 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     emit_mov_rax_imm64(gen, 0);
                     break;
                 }
-                /* mov rax, [rbp - off] */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                /* dec rax */
-                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8);
-                /* mov [rbp - off], rax */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                if (off <= 0) {  /* global in data section */
+                    size_t go = (size_t)(-off);
+                    emit_global_load_rax(gen, go);   /* rax = *x */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8); /* dec rax */
+                    emit_global_store_rax(gen, go);  /* *x = rax */
+                } else {        /* stack local */
+                    /* mov rax, [rbp - off] */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* dec rax */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8);
+                    /* mov [rbp - off], rax */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                }
             } else {
                 emit_mov_rax_imm64(gen, 0);
             }
@@ -198,18 +248,27 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     emit_mov_rax_imm64(gen, 0);
                     break;
                 }
-                /* mov rax, [rbp - off] (return old value) */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                /* mov rdi, rax (save old value) */
-                emit_mov_rdi_rax(gen);
-                /* inc rax */
-                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0);
-                /* mov [rbp - off], rax (store new value) */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                /* mov rax, rdi (return old value) */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8);
+                if (off <= 0) {  /* global in data section */
+                    size_t go = (size_t)(-off);
+                    emit_global_load_rax(gen, go);     /* rax = old */
+                    emit_mov_rdi_rax(gen);             /* rdi = old */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0); /* inc rax */
+                    emit_global_store_rax(gen, go);    /* *x = rax (new) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8); /* rax = rdi (old) */
+                } else {        /* stack local */
+                    /* mov rax, [rbp - off] (return old value) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* mov rdi, rax (save old value) */
+                    emit_mov_rdi_rax(gen);
+                    /* inc rax */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC0);
+                    /* mov [rbp - off], rax (store new value) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* mov rax, rdi (return old value) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8);
+                }
             } else {
                 emit_mov_rax_imm64(gen, 0);
             }
@@ -232,18 +291,27 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     emit_mov_rax_imm64(gen, 0);
                     break;
                 }
-                /* mov rax, [rbp - off] (return old value) */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                /* mov rdi, rax (save old value) */
-                emit_mov_rdi_rax(gen);
-                /* dec rax */
-                emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8);
-                /* mov [rbp - off], rax (store new value) */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                /* mov rax, rdi (return old value) */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8);
+                if (off <= 0) {  /* global in data section */
+                    size_t go = (size_t)(-off);
+                    emit_global_load_rax(gen, go);     /* rax = old */
+                    emit_mov_rdi_rax(gen);             /* rdi = old */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8); /* dec rax */
+                    emit_global_store_rax(gen, go);    /* *x = rax (new) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8); /* rax = rdi (old) */
+                } else {        /* stack local */
+                    /* mov rax, [rbp - off] (return old value) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* mov rdi, rax (save old value) */
+                    emit_mov_rdi_rax(gen);
+                    /* dec rax */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xFF); emit_byte(gen, 0xC8);
+                    /* mov [rbp - off], rax (store new value) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* mov rax, rdi (return old value) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF8);
+                }
             } else {
                 emit_mov_rax_imm64(gen, 0);
             }
@@ -274,9 +342,21 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     emit_mov_rax_imm64(gen, 0);
                     break;
                 }
-                /* lea rax, [rbp - off] */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                if (off <= 0) {  /* global: load its runtime address via RIP-relative lea */
+                    size_t go = (size_t)(-off);
+                    size_t patch_pos = gen->code_size + 3;   /* disp32 start */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
+                    emit_dword(gen, 0);                       /* placeholder disp32 */
+                    if (gen->n_global_patches < 32) {
+                        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+                        gen->global_patches[gen->n_global_patches].global_offset = go;
+                        gen->n_global_patches++;
+                    }
+                } else {        /* stack local */
+                    /* lea rax, [rbp - off] */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                }
             } else {
                 emit_mov_rax_imm64(gen, 0);
             }
