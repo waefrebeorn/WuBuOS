@@ -1,7 +1,7 @@
 # WuBuOS Mind Palace Index
 
 ## Core Architecture
-- [BATTLESHIP.md](BATTLESHIP.md) — ~3000 REAL_GAP audit (triple DA verified)
+- [BATTLESHIP.md](BATTLESHIP.md) — ~400 sprint REAL_GAPs (form≠function, triple DA) + 5 parity epics
 - [README.md](README.md) — Project overview, architecture, quick start
 - [STATE.md](STATE.md) — Current state, progress, vaulted accomplishments
 - [OS_BIBLE.md](OS_BIBLE.md) — Complete OS specification
@@ -11,6 +11,8 @@
 - [goal-paste.md](goal-paste.md) — Current campaign goal paste
 - [slate.md](slate.md) — Active work surface
 - [REACTOS_NT_SYSCALL_STUDY.md](REACTOS_NT_SYSCALL_STUDY.md) — ReactOS NT syscall mapping for VSL bridge
+- [DESKTOP_FIXUP_PLAN.md](DESKTOP_FIXUP_PLAN.md) — Desktop fixup (ReactOS-learned), Streams 1-4
+- [vault/](vault/) — Vaulted accomplishments (ACCOMPLISHMENTS_2026-07-07.md)
 
 ## Roadmap & Planning
 - [BATTLESHIP.md](BATTLESHIP.md) — Active REAL_GAPs only (roadmap source)
@@ -79,6 +81,7 @@
 | test_gui_screenshot | GUI screenshot (11 assertions) |
 | test_mime | MIME |
 | test_trash | Trash |
+| test_wallpaper | Desktop wallpaper decode + placement (18 assertions) |
 
 ## Key Skills (Hermes)
 - `systems-programming` — OS dev, kernel, JIT, GUI, daemons, C pitfalls
