@@ -10,6 +10,7 @@
 # Test binaries
 src/*/test_*
 src/*/*_test
+src/**/*_test
 src/*/jit_stub
 src/*/vbe_sketch
 src/*/sketch.*
