@@ -221,6 +221,7 @@ int64_t vsl_sys_setreuid(uint64_t ruid, uint64_t euid, uint64_t c,
         if (p) {
             if (ruid != (uint64_t)-1) p->uid = (uint32_t)ruid;
             if (euid != (uint64_t)-1) p->euid = (uint32_t)euid;
+            if (euid != (uint64_t)-1) p->suid = (uint32_t)euid;  /* reuid sets saved-set = euid */
         }
     }
     return rc < 0 ? -errno : 0;
@@ -235,6 +236,7 @@ int64_t vsl_sys_setregid(uint64_t rgid, uint64_t egid, uint64_t c,
         if (p) {
             if (rgid != (uint64_t)-1) p->gid = (uint32_t)rgid;
             if (egid != (uint64_t)-1) p->egid = (uint32_t)egid;
+            if (egid != (uint64_t)-1) p->sgid = (uint32_t)egid;  /* regid sets saved-set = egid */
         }
     }
     return rc < 0 ? -errno : 0;
@@ -244,9 +246,9 @@ int64_t vsl_sys_getresuid(uint64_t ruid, uint64_t euid, uint64_t suid,
                            uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
     VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
-    uid_t r = p ? (uid_t)p->uid : getuid();
+    uid_t r  = p ? (uid_t)p->uid  : getuid();
     uid_t eu = p ? (uid_t)p->euid : geteuid();
-    uid_t s; getresuid(NULL, NULL, &s);
+    uid_t s  = p ? (uid_t)p->suid : geteuid();   /* tracked saved-set, not host */
     if (ruid) *(uid_t *)ruid = r;
     if (euid) *(uid_t *)euid = eu;
     if (suid) *(uid_t *)suid = s;
@@ -257,9 +259,9 @@ int64_t vsl_sys_getresgid(uint64_t rgid, uint64_t egid, uint64_t sgid,
                            uint64_t d, uint64_t e, uint64_t f) {
     (void)d; (void)e; (void)f;
     VSL_PROC *p = vsl_get_process(g_vsl.current_pid);
-    gid_t r = p ? (gid_t)p->gid : getgid();
+    gid_t r  = p ? (gid_t)p->gid  : getgid();
     gid_t eg = p ? (gid_t)p->egid : getegid();
-    gid_t s; getresgid(NULL, NULL, &s);
+    gid_t s  = p ? (gid_t)p->sgid : getegid();   /* tracked saved-set, not host */
     if (rgid) *(gid_t *)rgid = r;
     if (egid) *(gid_t *)egid = eg;
     if (sgid) *(gid_t *)sgid = s;
@@ -275,6 +277,7 @@ int64_t vsl_sys_setresuid(uint64_t ruid, uint64_t euid, uint64_t suid,
         if (p) {
             if (ruid != (uint64_t)-1) p->uid = (uint32_t)ruid;
             if (euid != (uint64_t)-1) p->euid = (uint32_t)euid;
+            if (suid != (uint64_t)-1) p->suid = (uint32_t)suid;
         }
     }
     return rc < 0 ? -errno : 0;
@@ -289,6 +292,7 @@ int64_t vsl_sys_setresgid(uint64_t rgid, uint64_t egid, uint64_t sgid,
         if (p) {
             if (rgid != (uint64_t)-1) p->gid = (uint32_t)rgid;
             if (egid != (uint64_t)-1) p->egid = (uint32_t)egid;
+            if (sgid != (uint64_t)-1) p->sgid = (uint32_t)sgid;
         }
     }
     return rc < 0 ? -errno : 0;
