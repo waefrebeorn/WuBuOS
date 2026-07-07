@@ -150,10 +150,16 @@ void emit_prologue(HCGen *gen) {
     emit_byte(gen, 0x55);                    /* push rbp */
     emit_byte(gen, 0x48); emit_byte(gen, 0x89);
     emit_byte(gen, 0xE5);                    /* mov rbp, rsp */
+    /* Reserve a local frame so VAR_DECL slots at [rbp-8..] are owned stack
+     * space (not the caller's red zone / return address). 256 bytes covers
+     * up to 32 I64 locals, ample for the current tests. */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x81); emit_byte(gen, 0xEC);
+    emit_dword(gen, 0x00000100);             /* sub rsp, 256 */
+    gen->has_prologue = true;
 }
 
 void emit_epilogue(HCGen *gen) {
-    emit_byte(gen, 0x5D);  /* pop rbp */
+    emit_byte(gen, 0xC9);                    /* leave (mov rsp,rbp; pop rbp) */
     emit_ret(gen);
 }
 

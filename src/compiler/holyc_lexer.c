@@ -158,6 +158,7 @@ static HCTokenType hc_scan_number(HCLexer *lex) {
     int i = 0;
     bool is_hex = false;
     bool is_bin = false;
+    bool is_float = false;
 
     if (hc_peek(lex) == '0') {
         hc_advance(lex);
@@ -179,13 +180,25 @@ static HCTokenType hc_scan_number(HCLexer *lex) {
             buf[i++] = hc_advance(lex);
         } else if (!is_hex && !is_bin && isdigit((unsigned char)c)) {
             buf[i++] = hc_advance(lex);
+        } else if (!is_hex && !is_bin && c == '.' && !is_float) {
+            /* Decimal point → floating point literal */
+            is_float = true;
+            buf[i++] = hc_advance(lex);
+            /* Accept trailing digits after the dot */
+            while (!hc_is_at_end(lex) && i < HC_MAX_TOKEN_LEN - 1
+                   && isdigit((unsigned char)hc_peek(lex))) {
+                buf[i++] = hc_advance(lex);
+            }
         } else {
             break;
         }
     }
     buf[i] = '\0';
 
-    if (is_hex) {
+    if (is_float) {
+        lex->tok.float_val = strtod(buf, NULL);
+        return hc_make_token(lex, HC_TOK_FLOAT);
+    } else if (is_hex) {
         lex->tok.int_val = strtoll(buf, NULL, 16);
     } else if (is_bin) {
         lex->tok.int_val = strtoll(buf, NULL, 2);
@@ -196,7 +209,9 @@ static HCTokenType hc_scan_number(HCLexer *lex) {
 }
 
 static HCTokenType hc_scan_string(HCLexer *lex) {
-    char quote = hc_advance(lex); /* consume opening quote */
+    /* The opening quote was already consumed by hc_lex_next (it advanced past
+     * the first char and dispatched to this scanner). lex->tok.text[0] holds it. */
+    char quote = lex->tok.text[0];
     int i = 0;
     while (!hc_is_at_end(lex) && i < HC_MAX_STRING_LEN - 1) {
         char c = hc_peek(lex);
@@ -255,6 +270,7 @@ HCTokenType hc_lex_next(HCLexer *lex) {
     lex->tok.text[0] = '\0';
 
     char c = hc_advance(lex);
+    lex->tok.text[0] = c;   /* remember the leading char (used by string/char scanner) */
 
     switch (c) {
         /* Single-char tokens */
@@ -273,11 +289,11 @@ HCTokenType hc_lex_next(HCLexer *lex) {
 
         /* Multi-char operators */
         case '+':
-            if (hc_peek(lex) == '+') { hc_advance(lex); return hc_make_token(lex, HC_TOK_INC); }
+            if (hc_peek(lex) == '+') { hc_advance(lex); return hc_make_token(lex, HC_TOK_PLUS_PLUS); }
             if (hc_peek(lex) == '=') { hc_advance(lex); return hc_make_token(lex, HC_TOK_PLUS_ASSIGN); }
             return hc_make_token(lex, HC_TOK_PLUS);
         case '-':
-            if (hc_peek(lex) == '-') { hc_advance(lex); return hc_make_token(lex, HC_TOK_DEC); }
+            if (hc_peek(lex) == '-') { hc_advance(lex); return hc_make_token(lex, HC_TOK_MINUS_MINUS); }
             if (hc_peek(lex) == '=') { hc_advance(lex); return hc_make_token(lex, HC_TOK_MINUS_ASSIGN); }
             if (hc_peek(lex) == '>') { hc_advance(lex); return hc_make_token(lex, HC_TOK_ARROW); }
             return hc_make_token(lex, HC_TOK_MINUS);
