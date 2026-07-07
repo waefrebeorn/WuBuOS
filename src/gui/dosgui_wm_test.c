@@ -7,6 +7,7 @@
 
 #include "dosgui_wm.h"
 #include "../kernel/vbe.h"
+#include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -219,6 +220,58 @@ static void test_fable_primitives_exist(void) {
     PASS();
 }
 
+/* -- Icon Persistence Tests (Stream 2) ------------------------- */
+
+static void test_icon_layout_persist_restore(void) {
+    TEST("icon layout persists across save/restore");
+    /* Isolate settings to a temp dir. */
+    setenv("XDG_CONFIG_HOME", "/tmp/wubu_icontest", 1);
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+
+    int a = dosgui_icon_add("PersistA", 0, 0, NULL);
+    int b = dosgui_icon_add("PersistB", 1, 0, NULL);
+    CHECK(a >= 0 && b >= 0, "two icons added");
+
+    /* Move B to a different grid cell (simulating a drag). */
+    DosGuiIcon *ic = dosgui_icon_get(b);
+    CHECK(ic != NULL, "icon_get returns icon B");
+    ic->grid_x = 3; ic->grid_y = 5;
+    ic->x = 20 + 3 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    ic->y = 20 + 5 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+
+    dosgui_wm_save_icon_layout();          /* persist */
+    const WubuSettings *s = wubu_settings_get();
+    CHECK(s->theme.icon_layout_count >= 2, "settings recorded >= 2 layout entries");
+
+    /* Simulate a fresh boot: new WM, re-add icons at default positions. */
+    dosgui_wm_shutdown();
+    wubu_settings_init();                  /* reload from disk */
+    dosgui_wm_init(1024, 768);
+    dosgui_icon_add("PersistA", 0, 0, NULL);
+    dosgui_icon_add("PersistB", 1, 0, NULL);
+    dosgui_wm_restore_icon_layout();       /* restore persisted positions */
+
+    DosGuiIcon *rb = dosgui_icon_get(1);
+    CHECK(rb != NULL, "restored icon B present");
+    CHECK(rb->grid_x == 3 && rb->grid_y == 5, "icon B restored to persisted grid (3,5)");
+    CHECK(rb->x == 20 + 3 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP), "icon B x recomputed from grid");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
+static void test_icon_get_bounds(void) {
+    TEST("icon_get returns NULL out of bounds");
+    dosgui_wm_init(800, 600);
+    dosgui_icon_add("X", 0, 0, NULL);
+    CHECK(dosgui_icon_get(0) != NULL, "icon_get(0) valid");
+    CHECK(dosgui_icon_get(99) == NULL, "icon_get(99) NULL");
+    CHECK(dosgui_icon_get(-1) == NULL, "icon_get(-1) NULL");
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 /* -- Main ------------------------------------------------------ */
 
 int main(void) {
@@ -240,6 +293,8 @@ int main(void) {
     test_render_no_crash();
     test_add_icon();
     test_icon_hit_test();
+    test_icon_layout_persist_restore();
+    test_icon_get_bounds();
     test_fable_font();
     test_fable_text_width();
     test_fable_primitives_exist();
