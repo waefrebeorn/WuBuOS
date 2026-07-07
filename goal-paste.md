@@ -1,73 +1,33 @@
-## 🎮 WuBuOS Session v23 — Parallel Architectural Parity Closure
+# 🎯 WuBuOS Session — Next Kickoff (copy from BATTLESHIP v21)
 
-**Baseline**: All 747+ tests GREEN across 58 targets
-- `make clean && make test_holyd` → 33/33 ✅ (HolyC REPL persistent vars FIXED)
-- `make clean && make test_vsl` → 83/83 ✅
-- `make clean && make test_dosgui_explorer` → 74/74 ✅
-- `make clean && make test_dosgui_term` → 11/11 ✅
-- `make clean && make test_snapshot` → 132/132 ✅
-- `make clean && make test_oci` → 10/10 ✅
-- `make clean && make runtime` → clean build ✅
+**Baseline (re-confirmed 2026-07-07):** 747+ tests GREEN / 64 targets. `make test_high_gui` ✅ (incl. new `test_wallpaper` 18/18).
 
-### What Changed This Session (v22→v23)
+## Standing orders (immutable)
+- C11 only · opaque structs · minimal includes · **no god headers** · every module self-contained
+- Every edited function does real work or is marked TODO. No stubs / scaffolding / "for later".
+- **"Rewriting from scratch in C" = the point of the project → anything under that is reclassified as work = REAL_GAP.**
+- Stop not allowed. Blocked → alternate paths. Tests must pass after changes.
 
-**HolyC REPL Persistent Variable Bug FIXED** (REAL_GAP closed):
-- `holyc_codegen.c`: `hc_gen_init` no longer preserves `global_patches` across compilations (they're per-eval ephemeral)
-- `holyc_codegen.c` `HC_AST_IDENT`: records runtime patch positions for global variable LOADs (not just VAR_DECL stores)  
-- `wubu_holyd_eval`: fixed disp32 formula to `code_size + global_offset - patch_pos - 4`
-- Result: `I64 x = 123;` in eval 1 → `x + 10` in eval 2 correctly returns `133` (was garbage)
+## Scoreboard (v21)
+- **~400 sprint REAL_GAPs** (form≠function, triple-DA filtered). Per-file top: wubu_metal(70), vsl_syscall_net(67), styxfs(65), interrupt(54), vsl_syscall_fileio(53), vsl_syscall_proc(47), wubu_network(46), styx(45), wubu_syscall(36), wubu_snapshot(34).
+- **5 parity epics** (SteamOS / Ubuntu-Arch / TempleOS / ZealOS / ReactOS) = marathons, not in the 400.
 
-**Docs Updated**: slate.md, STATE.md, BATTLESHIP.md, README.md — all reflect 33/33 holyd tests, wubu_holyd.c now 0 gaps
+## This cycle's FOCUS (user directive)
+1. **Desktop fixup** — Streams 2-4: persistent icon layout (save/restore via wubu_settings), working context menu (sort-by-name real, create-shortcut writes real .desktop, view toggles auto-arrange), Control Panel Desktop tab goes LIVE (was verified stub). Plan: `DESKTOP_FIXUP_PLAN.md`.
+2. **Monolith situation** — split ≥800-line files with opaque structs + C11 + no god headers. Table in BATTLESHIP.md. Rule: opaque struct in `foo_internal.h`, static-inline helpers, Makefile 4 edits (OBJS + host link + test direct + runtime). Verify `make clean && make runtime && make hosted` before done.
 
-### Next Targets — PARALLEL ARCHITECTURAL PARITY CLOSURE
-
-Per BATTLESHIP.md v20 (Triple DA verified ~3000 REAL_GAPs):
-
-| Priority | Subsystem | ~Gaps | Key Missing |
-|----------|-----------|-------|-------------|
-| 1 | **SteamOS Parity** | ~400 | CEF UI, Steam Input, Steam Networking, Proton (Wine+DXVK+VKD3D), gamescope, Pressure Vessel, Shader cache, ProtonDB, Steam Cloud |
-| 2 | **Ubuntu/Arch Parity** | ~450 | systemd (init/services/timers), apt/pacman (repos/deps/hooks), NetworkManager, Polkit, D-Bus, PipeWire, CUPS, AppArmor |
-| 3 | **TempleOS Parity** | ~350 | HolyC JIT AOT+JIT, Doc/DolDoc (hyperlinked docs), Compiler-as-library (AST manipulation), RedSea FS (database FS), Identity-mapped memory, Ring-0 |
-| 4 | **ZealOS Parity** | ~200 | Identity-mapped memory, VGA/VESA direct, PC speaker, God word/Oracle |
-| 5 | **ReactOS NT Emulation** | ~162 | Map 297 NT syscalls → VSL → Styx9 → ZealOS → TempleOS (threads, VAD, objects, I/O/IRP, Win32k, registry) |
-
-**Code-Level Top Gaps** (from BATTLESHIP.md):
-1. `src/hosted/wubu_metal.c` (55) — 5 empty `{}` shutdown/flip, audio backends dlopen-only, X11/Vulkan stubs
-2. `src/runtime/wubu_network.c` (52) — `system("ip link...")` netlink, `system("tc...")` QoS, `system("wg/tailscale")`
-3. `src/runtime/styxfs.c` (51) — 9P callbacks return 0/empty, Styx offset tracking stubs
-4. `src/kernel/interrupt.c` (47) — No CPUID LAPIC check, no MSI/MSI-X, no SYSCALL_STACK, PIC cascade only
-5. `src/runtime/wubu_snapshot.c` (43) — `mount/umount2` "non-fatal", `system("cp -a")` restore, `system("find/rm")` GC
-
-### Commands
-
+## Commands
 ```bash
 cd /home/wubu/.hermes/profiles/mind-palace/home/myseed
-
-# Baseline verification
-make clean && make test_holyd   # 33/33
-make clean && make test_vsl     # 83/83
-make clean && make runtime      # clean build
-
-# Next workstreams — PARALLEL EXECUTION
-# Pick ANY subsystem and close REAL_GAPs by rewriting in C
-# Every gap = "rewriting from scratch in C" — real C that does real work
-# NO STUBS / NO SCAFFOLDING / NO "FOR LATER"
-# Blocked → alternate paths, but STOP NOT ALLOWED
+make clean && make runtime && make hosted   # build gate
+make test_high_gui                          # desktop gate (incl. wallpaper)
+make test                                   # full gate (64 targets)
 ```
 
-### Constraints (Same as Always)
-- C11 only, opaque structs, minimal includes, no god headers
-- Every edited function does real work or marked TODO
-- No stubs/scaffolding/"for later" — blocked → alternate paths
-- Tests must pass after changes
-- "Rewriting from scratch in C" = REAL_GAP closed
+## Kickoff options (parallel, all valid)
+- **A**: Desktop Stream 2 (persistent layout) → Stream 3 (context menu) → Stream 4 (Control Panel tab)
+- **B**: Monolith split `wubu_metal.c` (1508) → `wubu_metal_{drm,vulkan,x11,audio,shutdown}.c`
+- **C**: Close sprint-board gaps in `vsl_syscall_net.c` / `styxfs.c` / `interrupt.c`
+- **D**: Parity epic — ReactOS NT → VSL transliteration (`ntoskrnl/ke/thrdschd.c` → `tasking.c`)
 
-### Session v23 Kickoff Options
-
-**Option A**: ReactOS NT → VSL Transliteration (start with `ntoskrnl/ke/thrdschd.c` → WuBuOS `tasking.c`)
-**Option B**: SteamOS Proton layer (DXVK/VKD3D → VSL/Vulkan compute)
-**Option C**: Ubuntu systemd init + service manager (parallel with wubu_archd)
-**Option D**: TempleOS HolyC JIT AOT + Doc/DolDoc + Compiler-as-library
-**Option E**: Code-level gap hunt on `wubu_metal.c` / `wubu_network.c` / `styxfs.c`
-
-All valid. All parallel. All "rewrite in C". Pick one or more — execute until 3000 → 0.
+All "rewrite in C". Pick one or more. Execute until 400 → 0.
