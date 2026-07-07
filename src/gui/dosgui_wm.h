@@ -274,6 +274,16 @@ int dosgui_wm_screen_h(void);
 /* Accessor for WM state fields */
 int dosgui_wm_get_icon_count(void);
 
+/* -- Icon persistence & wallpaper reload (Desktop fixup Stream 2/4) - */
+DosGuiIcon *dosgui_icon_get(int idx);
+void dosgui_wm_save_icon_layout(void);      /* Persist live icon grid into settings */
+void dosgui_wm_restore_icon_layout(void);   /* Restore live icon grid from settings */
+void dosgui_wm_reload_wallpaper(void);      /* Re-decode wallpaper from settings path */
+bool dosgui_wm_is_initialized(void);
+int  dosgui_wm_wallpaper_mode(void);
+int  dosgui_wm_wallpaper_w(void);
+int  dosgui_wm_wallpaper_h(void);
+
 /* -- HolyC Terminal ---------------------------------------------- */
 
 DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);

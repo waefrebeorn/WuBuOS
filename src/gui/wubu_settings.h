@@ -12,6 +12,15 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* -- Desktop Icon Layout (persistent, ReactOS NTUSER.DAT-style) --- */
+#define WUBU_ICON_LAYOUT_MAX 16
+typedef struct {
+    char name[32];      /* Icon display name (match key) */
+    int  grid_x;        /* Persisted grid column */
+    int  grid_y;        /* Persisted grid row */
+    bool alive;         /* Entry in use */
+} IconLayoutEntry;
+
 /* -- Setting Categories ------------------------------------------- */
 
 typedef enum {
@@ -33,6 +42,8 @@ typedef struct {
     int wallpaper_mode;              /* 0=center, 1=tile, 2=stretch */
     bool use_custom_colors;          /* Override theme colors */
     uint32_t custom_colors[16];      /* Custom color overrides */
+    IconLayoutEntry icon_layout[WUBU_ICON_LAYOUT_MAX];  /* Persisted desktop icon grid */
+    int            icon_layout_count;
 } ThemeSettings;
 
 /* -- Font Settings ------------------------------------------------ */
