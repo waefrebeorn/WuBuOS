@@ -225,6 +225,7 @@ static char g_rename_input[32] = {0};
 static int g_rename_pos = 0;
 static DosGuiIcon *g_delete_target = NULL;
 static DosGuiIcon *g_properties_target = NULL;
+static bool g_shortcut_pending = false;
 
 static void dialog_rename_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     if (key == '\r' || key == '\n') {
@@ -330,6 +331,47 @@ static void dialog_properties_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w,
     vbe_draw_text(cx + 10, y + 10, "Press ESC to close", 0x00808080, 1);
 }
 
+/* New-Shortcut dialog: reuse the rename input buffer to collect a name,
+ * then call the WM helper which writes a real .desktop file to ~/Desktop. */
+static void dialog_shortcut_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    if (key == '\r' || key == '\n') {
+        if (g_rename_pos > 0) {
+            char name[32];
+            snprintf(name, sizeof(name), "%s", g_rename_input);
+            int rc = dosgui_wm_write_desktop_shortcut(name, NULL);
+            wubu_notify_simple("Desktop", "Shortcut Created",
+                               rc == 0 ? name : "Failed to create", NULL, 1, 2500);
+        }
+        g_shortcut_pending = false;
+        g_rename_input[0] = '\0';
+        g_rename_pos = 0;
+        dosgui_wm_destroy(win);
+    } else if (key == 27) {  /* Escape */
+        g_shortcut_pending = false;
+        g_rename_input[0] = '\0';
+        g_rename_pos = 0;
+        dosgui_wm_destroy(win);
+    } else if (key == 8 && g_rename_pos > 0) {  /* Backspace */
+        g_rename_input[--g_rename_pos] = '\0';
+    } else if (key >= 32 && key < 127 && g_rename_pos < 31) {  /* Printable */
+        g_rename_input[g_rename_pos++] = (char)key;
+        g_rename_input[g_rename_pos] = '\0';
+    }
+}
+
+static void dialog_shortcut_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    const int tbh = 20;
+    const int bw = 3;
+    int cx = win->x + bw;
+    int cy = win->y + tbh;
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+    
+    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
+    vbe_draw_text(cx + 10, cy + 20, "Shortcut name:", 0x00000000, 1);
+    vbe_draw_text(cx + 10, cy + 50, g_rename_input[0] ? g_rename_input : "(type a name)", 0x00000000, 1);
+}
+
 /* -- Default Context Menu Actions -- */
 
 static void ctx_action_rename(void) {
@@ -371,19 +413,44 @@ static void ctx_action_properties(void) {
 }
 
 static void ctx_action_create_shortcut(void) {
-    wubu_notify_simple("Desktop", "Create Shortcut", "Right-click empty space -> New -> Shortcut: create .desktop file in ~/Desktop", NULL, 1, 3000);
+    /* Prompt for a name via a modal, then write a real .desktop into ~/Desktop.
+     * Until the user types a name we ask for it through the rename-style dialog. */
+    g_rename_target = NULL;  /* not renaming an icon */
+    g_rename_input[0] = '\0';
+    g_rename_pos = 0;
+    g_shortcut_pending = true;
+    DosGuiWindow *dialog = dosgui_wm_create_modal(300, 200, 400, 150, "New Shortcut", NULL);
+    if (dialog) {
+        dialog->on_key = dialog_shortcut_on_key;
+        dialog->on_draw = dialog_shortcut_on_draw;
+    }
 }
 
 static void ctx_action_view_desktop(void) {
-    wubu_notify_simple("Desktop", "View", "Desktop view options: Grid/List, Auto-arrange, Icon size", NULL, 1, 3000);
+    /* Toggle Auto-arrange and re-flow the live icons. */
+    bool now = !dosgui_wm_get_auto_arrange();
+    dosgui_wm_set_auto_arrange(now);
+    if (now) {
+        /* Re-flow current icons into the auto-arrange column. */
+        reflow_all_icons_column();
+    }
+    wubu_notify_simple("Desktop", "View",
+                       now ? "Auto-arrange: ON" : "Auto-arrange: OFF",
+                       NULL, 1, 2000);
 }
 
 static void ctx_action_sort_by_name(void) {
-    /* Would sort icons by name */
+    /* Real alphabetical re-flow. */
+    dosgui_wm_sort_icons_by_name();
+    wubu_notify_simple("Desktop", "Sort By Name",
+                       "Icons arranged alphabetically", NULL, 1, 1500);
 }
 
 static void ctx_action_refresh(void) {
-    wubu_notify_simple("Desktop", "Refresh", "Desktop refreshed - reloaded icons from ~/Desktop", NULL, 1, 2000);
+    /* Real filesystem refresh: re-scan ~/Desktop for .desktop files. */
+    dosgui_wm_refresh_desktop();
+    wubu_notify_simple("Desktop", "Refresh",
+                       "Desktop reloaded from ~/Desktop", NULL, 1, 2000);
 }
 
 /* -- Show Icon Context Menu -- */
