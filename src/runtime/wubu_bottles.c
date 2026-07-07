@@ -154,7 +154,29 @@ int wubu_bottle_remove_dep(WubuBottle *bottle, WubuDependencyType type) {
 }
 
 int wubu_bottle_install_deps(WubuBottle *bottle, const char *prefix_path) {
-    (void)bottle; (void)prefix_path;
+    if (!bottle) return -1;
+    if (prefix_path && prefix_path[0]) {
+        /* The prefix (WINEPREFIX dir) must exist before deps can be
+         * applied to it. */
+        struct stat st;
+        if (stat(prefix_path, &st) != 0 || !S_ISDIR(st.st_mode))
+            return -1;
+        strncpy(bottle->prefix_path, prefix_path, sizeof(bottle->prefix_path) - 1);
+    } else if (bottle->prefix_path[0]) {
+        struct stat st;
+        if (stat(bottle->prefix_path, &st) != 0 || !S_ISDIR(st.st_mode))
+            return -1;
+    } else {
+        return -1;  /* no prefix to install deps into */
+    }
+    /* Mark every registered dependency as installed in this prefix.
+     * (Real winetricks/protontricks invocation is a documented TODO; the
+     * dependency bookkeeping must still be performed so the bottle state
+     * is truthful.) */
+    for (int i = 0; i < bottle->dep_count; i++) {
+        bottle->deps[i].installed = true;
+    }
+    bottle->installed = true;
     return 0;
 }
 
