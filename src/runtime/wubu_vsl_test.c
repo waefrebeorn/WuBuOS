@@ -66,11 +66,20 @@ int main(void) {
     r = vsl_syscall(VSL_SYS_GETEGID, 0, 0, 0, 0, 0, 0);
     T((gid_t)r == getegid(), "getegid() returns host egid");
 
-    r = vsl_syscall(VSL_SYS_GETRESUID, 0, 0, 0, 0, 0, 0);
-    T(r >= 0, "getresuid() works with NULL (returns 0)");
+    /* getresuid/getresgid: must write the tracked per-process saved-set
+     * (suid/sgid) into the caller's pointers, NOT the host's saved-set.
+     * At spawn, tracked suid == host euid (like exec). */
+    uid_t ru = 0, eu = 0, su = 0;
+    r = vsl_syscall(VSL_SYS_GETRESUID, (uint64_t)&ru, (uint64_t)&eu, (uint64_t)&su, 0, 0, 0);
+    T(r == 0, "getresuid() returns 0 with real pointers");
+    T(eu == geteuid(), "getresuid euid matches host euid");
+    T(su == geteuid(), "getresuid suid matches tracked saved-set (== euid at spawn)");
 
-    r = vsl_syscall(VSL_SYS_GETRESGID, 0, 0, 0, 0, 0, 0);
-    T(r >= 0, "getresgid() works with NULL (returns 0)");
+    gid_t rg = 0, eg = 0, sg = 0;
+    r = vsl_syscall(VSL_SYS_GETRESGID, (uint64_t)&rg, (uint64_t)&eg, (uint64_t)&sg, 0, 0, 0);
+    T(r == 0, "getresgid() returns 0 with real pointers");
+    T(eg == getegid(), "getresgid egid matches host egid");
+    T(sg == getegid(), "getresgid sgid matches tracked saved-set (== egid at spawn)");
 
     /* Test setuid/setgid round-trip: query current uid, set back to same value */
     uid_t orig_uid = (uid_t)vsl_syscall(VSL_SYS_GETUID, 0, 0, 0, 0, 0, 0);

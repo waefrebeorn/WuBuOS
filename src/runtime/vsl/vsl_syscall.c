@@ -230,6 +230,8 @@ int register_child_pid(pid_t child_host_pid, uint32_t parent_vsl_pid) {
     proc->gid = (uint32_t)getgid();
     proc->euid = (uint32_t)geteuid();
     proc->egid = (uint32_t)getegid();
+    proc->suid = (uint32_t)geteuid();   /* saved-set == euid at spawn (like exec) */
+    proc->sgid = (uint32_t)getegid();
     proc->pgid = -1;
     proc->sesid = -1;
     proc->umask = 0022;

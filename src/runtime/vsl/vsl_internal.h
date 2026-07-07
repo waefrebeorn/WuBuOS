@@ -50,6 +50,8 @@ struct VSL_PROC {
     uint32_t         gid;            /* Real group ID */
     uint32_t         euid;           /* Effective user ID */
     uint32_t         egid;           /* Effective group ID */
+    uint32_t         suid;           /* Saved set-user-ID */
+    uint32_t         sgid;           /* Saved set-group-ID */
     int              pgid;           /* Process group ID (-1 = unset) */
     int              sesid;          /* Session ID (-1 = unset) */
     mode_t           umask;          /* File creation mask */
