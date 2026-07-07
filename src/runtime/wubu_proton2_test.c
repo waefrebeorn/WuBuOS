@@ -6,6 +6,9 @@
 #include "wubu_proton2.h"
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 static int pass = 0, fail = 0;
 #define TEST(name) printf("  TEST Cell399: %-55s", name)
@@ -126,6 +129,38 @@ static void test_proton_container_access(void) {
     WubuProtonManager *mgr = wubu_proton_mgr_create(NULL);
     CHECK(wubu_proton_container(mgr) == NULL, "container should be NULL before start");
     CHECK(wubu_proton_ramdisk(mgr) == NULL, "ramdisk should be NULL before start");
+    wubu_proton_mgr_destroy(mgr);
+    PASS();
+}
+
+static void test_proton_verify_installation(void) {
+    TEST("Proton verify_installation (no false success)");
+    WubuProtonManager *mgr = wubu_proton_mgr_create(NULL);
+    CHECK(mgr != NULL, "manager should exist");
+
+    /* Not running -> must fail */
+    mgr->container_running = false;
+    CHECK(wubu_proton_verify_installation(mgr) == -1,
+          "verify fails when container not running");
+
+    /* Running but wine/prefix not configured -> must NOT falsely succeed */
+    mgr->container_running = true;
+    mgr->global.wine_path[0] = '\0';
+    mgr->global.prefix[0] = '\0';
+    CHECK(wubu_proton_verify_installation(mgr) == -1,
+          "verify rejects missing wine_path/prefix (was a false-success stub)");
+
+    /* Configure a real temp WINEPREFIX dir + an existing wine binary path */
+    char tmpdir[512];
+    snprintf(tmpdir, sizeof(tmpdir), "/tmp/wubu_proton_verify_%d", (int)getpid());
+    CHECK(mkdir(tmpdir, 0755) == 0, "create temp prefix dir");
+    strncpy(mgr->global.prefix, tmpdir, sizeof(mgr->global.prefix) - 1);
+    /* /bin/sh exists on every host; use it as a stand-in for the wine binary */
+    strncpy(mgr->global.wine_path, "/bin/sh", sizeof(mgr->global.wine_path) - 1);
+    CHECK(wubu_proton_verify_installation(mgr) == 0,
+          "verify succeeds when wine binary + prefix dir exist");
+
+    rmdir(tmpdir);
     wubu_proton_mgr_destroy(mgr);
     PASS();
 }
@@ -258,6 +293,7 @@ int main(void) {
     test_proton_app_launch_name();
     test_proton_is_running();
     test_proton_container_access();
+    test_proton_verify_installation();
     test_proton_dump();
 
     printf("\n-- GameScope (Steam Deck UX) --\n\n");

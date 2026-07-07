@@ -659,8 +659,23 @@ void wubu_proton_dump(const WubuProtonManager *mgr) {
 }
 
 int wubu_proton_verify_installation(const WubuProtonManager *mgr) {
-    if (!mgr || !mgr->container_running) return -1;
-    /* Check wine binary exists in container */
-    /* This is a stub  --  real implementation would check the filesystem */
+    if (!mgr) return -1;
+    if (!mgr->container_running) return -1;
+    /* Real verification: the Wine binary and the WINEPREFIX must actually
+     * exist on disk. The container root is the ramdisk, so these paths are
+     * host-visible as-is (no chroot translation needed here). */
+    if (mgr->global.wine_path[0] == '\0') return -1;
+    if (access(mgr->global.wine_path, X_OK) != 0) {
+        fprintf(stderr, "[wubu_proton] verify: wine binary missing: %s (%s)\n",
+                mgr->global.wine_path, strerror(errno));
+        return -1;
+    }
+    if (mgr->global.prefix[0] == '\0') return -1;
+    struct stat st;
+    if (stat(mgr->global.prefix, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        fprintf(stderr, "[wubu_proton] verify: WINEPREFIX missing: %s (%s)\n",
+                mgr->global.prefix, strerror(errno));
+        return -1;
+    }
     return 0;
 }
