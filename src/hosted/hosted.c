@@ -26,7 +26,7 @@
 #include "../kernel/tasking.h"
 #include "../kernel/input.h"
 #include "../gui/wm.h"
-#include "../gui/startmenu.h"
+#include "../gui/dosgui_startmenu.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_desktop.h"
 #include "../gui/dosgui_startmenu.h"
