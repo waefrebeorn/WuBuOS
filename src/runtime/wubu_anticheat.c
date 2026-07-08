@@ -292,8 +292,22 @@ static AntiCheatProtonConfig recommended_configs[] = {
 };
 
 int wubu_anticheat_proton_config(AntiCheatType type, const AntiCheatProtonConfig *config) {
-    (void)type; (void)config;
-    /* This would apply Proton-specific patches and environment variables */
+    if (type <= 0 || type >= (int)(sizeof(recommended_configs) / sizeof(recommended_configs[0])))
+        return -1;
+    if (!config) return -2;
+
+    /* Store custom config, overriding the recommended defaults.
+       Other subsystems (Proton launcher, wubu_bottles) can query this
+       via wubu_anticheat_recommended_config() — if a custom config has
+       been set, the recommended function returns the override. */
+
+    AntiCheatProtonConfig *dst = (AntiCheatProtonConfig*)&recommended_configs[type];
+    dst->enable_proton_hook   = config->enable_proton_hook;
+    dst->disable_driver_check = config->disable_driver_check;
+    dst->spoof_timing         = config->spoof_timing;
+    dst->sandbox_fs           = config->sandbox_fs;
+    dst->allow_debugger       = config->allow_debugger;
+
     return 0;
 }
 
