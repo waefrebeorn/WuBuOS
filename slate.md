@@ -69,4 +69,5 @@ Key dirs: ntoskrnl/{ke,mm,io,ob,ps,rtl,config}, win32ss/{user,gdi}, dll/ntdll. 2
 2. Monolith splits per BATTLESHIP table
 3. Sprint board ~400 file-by-file
 4. Parity epics as they unblock
+5. **Documentation overhaul** 🆕 — screenshots/ directory (w/ README), triple DA phase table in STATE.md, screenshot link in README+index. See `.hermes/plans/2026-07-07_doc-media-roadmap-overhaul.md`.
 Each gap = "rewriting from scratch in C". **NO PICK ONE — PARALLEL.**

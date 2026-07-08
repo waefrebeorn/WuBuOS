@@ -17,6 +17,27 @@
 - **Tests**: 747+ assertions / **64 targets** GREEN (re-confirmed this session).
 - **Accomplishments vaulted** → `vault/ACCOMPLISHMENTS_2026-07-07.md`.
 
+## Triple DA Phase-Readiness Assessment (2026-07-07)
+
+| Phase | Name | Criteria | Status |
+|-------|------|----------|--------|
+| **α** | Boot + Explore | Desktop renders, WM responds, Start menu opens | ✅ 98% |
+| **β** | Configure + Personalize | Theme switching, wallpaper, Control Panel | ✅ 80% |
+| **γ** | Real Productivity | File ops, ZIP, terminal, HolyC dev, docs | ⚠️ 75% |
+| **δ** | External Apps | Windows games via Proton, .desktop | ⚠️ 60% |
+| **ε** | Network/Integration | Styx namespace, OCI push/pull, remote 9P | ⚠️ 50% |
+| **ζ** | SteamOS Parity | Game mode, controller, overlay, cloud | 🔲 0% |
+
+**α-phase shippable.** β-phase is the current frontier.
+γ-phase needs terminal UX + document creation polish.
+δ-ε-ζ are marathon epics.
+
+## Screenshot
+
+![Desktop (Win98 theme)](screenshots/wubuos-desktop-2026-07-07.png)
+
+Full gallery at [screenshots/](screenshots/).
+
 ## This Session's Changes (2026-07-07, session 2 — bug-closer)
 1. **3 pre-existing test failures CLOSED** (full `make test` gate now exits 0):
    - `test_holyc` (84/84): two HolyC JIT SIGSEGV bugs — (a) `jit_lock_exec` made
