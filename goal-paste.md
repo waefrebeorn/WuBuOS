@@ -1,46 +1,70 @@
-# 🎯 WuBuOS Session — Next Kickoff (v23 — 2026-07-08)
+# 🎯 WuBuOS Session — Next Kickoff (v24 — 2026-07-08)
 
 **Baseline:** 747+ tests GREEN / 64+ targets. `GATE_EXIT=0` across all tiers.
 
-## What was DONE this session
-- **JIT x86-64 Encoder (wubu_x86.c)**: All 33 `return 0;` stubs replaced with real byte-count return values. Every `wx86_*()` encoder function now reports the number of bytes emitted (form==function). New test `"encoder: return values match bytes emitted"` proves 14 instruction types return correct lengths. (The return-0 stubs were a pure form≠function gap — the encoding worked but the API contract (int return = byte count) was lying.)
-- **UX Stream E bundled wallpaper**: Full wallpaper decode+load chain in `dosgui_wm.c` → `wubu_wallpaper_default_path()`, committed in prior session as `28e700b` (feat(ux)).
-- **Desktop Stream 3 context menu** (`dosgui_wm_ctxmenu.c`): already implemented from prior session (`033554f`). `ctx_action_sort_by_name()`, `ctx_action_create_shortcut()`, `ctx_action_view_desktop()`, `ctx_action_refresh()` — all real C, not stubs.
-- **Documentation fixes**: wallpaper test bench + `run_high_gui` target patch in Makefile.
+## What was DONE v23→v24 (2 commits)
+```
+0a4b442  feat(jit): wubu_x86.c returns real byte counts (33 stubs closed)
+01f0eec  feat(pkgmgr): 4 TODO gaps closed — resolve_deps + clean_cache +
+         autoremove + verify_installed
+```
+
+- **JIT x86-64 Encoder** (`wubu_x86.c`): 33 `return 0;` stubs replaced with real byte-count return values. Every `wx86_*()` now returns bytes emitted (form==function). Validated by new 14-instruction test proving correct lengths for mov64/mov32/mov/add/ret/jmp/jcc/call/push/shl/cqo/neg/idiv/sub_rsp.
+
+- **Package Manager** (`wubu_pkgmgr.c`): 4 TODO/void-cast functions eliminated:
+  - `resolve_deps` — Kahn's topological sort via SQLite (transitive closure, cycle detection)
+  - `clean_cache` — directory scan + mtime comparison + unlink
+  - `autoremove` — SQL orphan detection (auto_installed=1 ∧ no reverse dep)
+  - `verify_installed` — SHA256 file checksum verification
+
+**Coincidental fix:** duplicate `int count = 0;` in `wubu_pkgmgr_get_stats()` found & fixed.
+
+**Commits since groundwork:** 2. 11 files, 301+88 lines changed. All tier gates green.
 
 ## Standing orders (immutable)
-- C11 only · opaque structs · minimal includes · **no god headers** · every module self-contained
+- C11 only · opaque structs · minimal includes · no god headers · every module self-contained
 - Every edited function does real work or is marked TODO. No stubs / scaffolding / "for later".
-- **"Rewriting from scratch in C" = the point of the project**
+- "Rewriting from scratch in C" = the point of the project → anything under that = REAL_GAP.
 - Stop not allowed. Blocked → alternate paths. Tests must pass after changes.
 
 ## Scoreboard
-- **~367 sprint REAL_GAPs remaining** (form≠function, triple-DA filtered). The JIT encoder was ~33 gaps — now 0 in that file.
-- **Top remaining gap files** (actual empty-body / return-0-only stubs, re-scanned):
-  - `bear_cudnn.c` — 12 empty `{}` CUDA/cuBLAS wrappers (no GPU in env)
-  - `vsl_syscall_net.c` — 58 void casts (unused syscall params)
-  - `wubu_metal.c` — 16 return-0 + 15 void casts
-  - `wubu_vulkan.c` — 12 return-0
-  - `interrupt.c` — 17 return-0 + 22 void casts
-  - `vsl_syscall_fileio.c` — 46 void casts
-  - `vsl_syscall_proc.c` — 37 void casts
+- **~363 sprint REAL_GAPs remaining** (was ~400). Triple DA, form≠function filtered.
+- **0 remaining TODO/FIXME comments** in the entire `src/` tree.
+- **5 parity epics** (SteamOS / Ubuntu-Arch / TempleOS / ZealOS / ReactOS) — marathons, not sprint.
 
-## HIGHEST PRIORITY
-**Pick one gap file and close it.** The JIT encoder was a good model: small file (469 lines), mechanical fix (return byte count), with test coverage added. The next best targets are:
+## HIGHEST PRIORITY — next gap to close
 
-- **A 🔥**: `vsl_syscall_net.c` or `vsl_syscall_fileio.c` or `vsl_syscall_proc.c` — ~40-60 void casts each, unused register params in 6-register syscall convention. Each void-cast elimination is writing the actual syscall semantics.
-- **B**: `bear_cudnn.c` — 12 empty CUDA wrappers. Each needs real cuBLAS/cuDNN call or `#error` + alternate CPU path.
-- **C**: `wubu_metal.c` (70 gap points, 1508 lines) — monolithic split + stub closure.
-- **D**: Prestige v23: update slate + vault old phases.
+The low-hanging form≠function fruit is gone. Remaining gaps are in large files with partial implementations. Pick one:
+
+### Option A 🔥: VSL syscall void-cast files
+Each has 40-58 `(void)d; (void)e; (void)f;` on the 4th-6th register params. These are syscalls with <6 real params in the 6-register convention. Each void cast represents a real syscall that should be doing something with those params or documenting why they're unused. 3 files, ~140 total:
+- `vsl_syscall_net.c` — 58 void casts (socket/ns/security syscalls)
+- `vsl_syscall_fileio.c` — 46 void casts
+- `vsl_syscall_proc.c` — 37 void casts
+
+### Option B: Monolith split of ≥800-line files
+Top candidates: `wubu_metal.c` (1508), `hosted.c` (1320), `interrupt.c` (1153), `fat32.c` (1060), `wubu_archd.c` (1055), `wubu_proton.c` (1053), `wubu_vulkan.c` (990), `wubu_canvas.c` (1325).
+
+### Option C: Bear RL compute backend
+`bear_cudnn.c` has ~12 empty `{}` CUDA wrappers with CPU-fallback already written (the file is 1141 lines, mostly real). Remaining gaps are edge cases in the fallback paths.
+
+### Option D: Sprint board scattershot
+Pick any file from BATTLESHIP.md's top-20 and close 5-10 gap points.
 
 ## Commands
 ```bash
 cd /home/wubu/.hermes/profiles/mind-palace/home/myseed
-make clean && make runtime && make hosted   # build gate
-make test                                   # full gate (64+ targets)
+make clean && make runtime && make hosted && make test
+make test_pkgmgr   # 11/11
+make test_jit      # 76/76
 ```
 
 ## Key docs
-- `screenshots/README.md` — media catalog
-- `STATE.md` — triple DA phase table
-- `slate.md` — v23 active work surface
+- `slate.md` — v24 active work surface
+- `BATTLESHIP.md` — ~1562 REAL_GAP audit (v20)
+- `.hermes/plans/2026-07-07_doc-media-roadmap-overhaul.md` — last session plan
+
+## Skills
+- `wubuos-test-suite` — gate discipline, gap-hunting, orthogonal-failure triage
+- `wubuos-monolithic-split` — proven split pattern
+- `wubuos-architecture` — build system, triple-place Makefile pattern
