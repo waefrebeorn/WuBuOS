@@ -6,6 +6,9 @@
 - [STATE.md](STATE.md) — Current state, progress, vaulted accomplishments
 - [OS_BIBLE.md](OS_BIBLE.md) — Complete OS specification
 
+## Gallery
+- [screenshots/](screenshots/) — Live screenshots of the WuBuOS desktop, apps, and themes
+
 ## Audit & Analysis
 - [WUBUOS_DISTRO_ROADMAP.md](WUBUOS_DISTRO_ROADMAP.md) — Distro build tier map (DA-gap-aligned)
 - [goal-paste.md](goal-paste.md) — Current campaign goal paste
