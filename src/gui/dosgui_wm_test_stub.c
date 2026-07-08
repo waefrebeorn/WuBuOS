@@ -5,6 +5,7 @@
 #include "dosgui_wm.h"
 #include "dosgui_startmenu.h"
 #include "wubu_theme.h"
+#include "../hosted/hosted.h"   /* for hosted_state_t (dosgui_wm_get_hosted_state stub) */
 #include <stdbool.h>
 
 /* Stub for startmenu toggle */
@@ -31,4 +32,10 @@ void dosgui_platform_shutdown(void) { }
 __attribute__((weak))
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     (void)x; (void)y; (void)btn; (void)kind;
+}
+
+/* Stub for hosted-state getter (Play action): no hosted binary in the test
+ * harness, so return NULL — ctx_action_play treats NULL as "no launch". */
+hosted_state_t *dosgui_wm_get_hosted_state(void) {
+    return NULL;
 }

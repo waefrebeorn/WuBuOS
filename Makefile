@@ -465,7 +465,7 @@ test_dosgui_wm:
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c \
 		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_lexer.c $(JIT_SRCS) \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c \
+		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c \
 		$(GUI)/dosgui_wm_test.c -o $(GUI)/dosgui_wm_test -lm
 	$(GUI)/dosgui_wm_test
 
