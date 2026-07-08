@@ -34,6 +34,7 @@
 #include "../bridge/bridge.h"
 #include "../apps/repl.h"
 #include "../gui/wubu_screenshot.h"
+#include "../gui/wubu_welcome.h"
 #include "../gui/wubu_clipboard.h"
 #include "../gui/wubu_notify.h"
 #include "../gui/wubu_session.h"
@@ -1040,6 +1041,9 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     fprintf(stderr, "DEBUG: dosgui_desktop_init done\n");
     dosgui_startmenu_init();
     fprintf(stderr, "DEBUG: dosgui_startmenu_init done\n");
+
+    /* First-run welcome dialog (shown once, creates marker file) */
+    wubu_welcome_init();
 
     /* Launch initial windows */
     fprintf(stderr, "DEBUG: About to launch initial windows\n");

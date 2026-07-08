@@ -352,9 +352,93 @@ static void test_x86_encoder(void) {
         jit_free_exec(exec, sz);
         if (result == 14) PASS(); else FAIL("wrong result");
     }
-}
 
-/* -- Disassembler Tests ------------------------------------------ */
+    /* Test: return-value byte-count contract — every wx86_*() must return the
+     * number of bytes it actually emitted (form==function). The return-0 stubs
+     * were a form≠function gap; now they report the real length so callers can
+     * track instruction offsets for backpatching. */
+    TEST("encoder: return values match bytes emitted");
+    {
+        Wx86Enc enc;
+        wx86_enc_init_dynamic(&enc, 512);
+        int n;
+
+        /* mov rax, imm64 → REX.W + B8 + imm64 = 10 bytes */
+        n = wx86_mov_reg_imm64(&enc, WREG_RAX, 0xDEADBEEF);
+        if (n != 10) { wx86_enc_free(&enc); FAIL("mov64 got != 10"); return; }
+
+        /* mov rcx, imm32 → REX.W + C7 /0 + imm32 = 7 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_mov_reg_imm32(&enc, WREG_RCX, 42);
+        if (n != 7) { wx86_enc_free(&enc); FAIL("mov32 got != 7"); return; }
+
+        /* mov rax, rdx → REX.W + 89 + ModRM = 3 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_mov_reg_reg(&enc, WREG_RAX, WREG_RDX);
+        if (n != 3) { wx86_enc_free(&enc); FAIL("mov reg-reg != 3"); return; }
+
+        /* add rax, rcx → 3 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_add_reg_reg(&enc, WREG_RAX, WREG_RCX);
+        if (n != 3) { wx86_enc_free(&enc); FAIL("add reg-reg != 3"); return; }
+
+        /* ret → 1 byte */
+        wx86_enc_reset(&enc);
+        n = wx86_ret(&enc);
+        if (n != 1) { wx86_enc_free(&enc); FAIL("ret != 1"); return; }
+
+        /* jmp rel32 → E9 + imm32 = 5 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_jmp_rel32(&enc);
+        if (n != 5) { wx86_enc_free(&enc); FAIL("jmp rel32 != 5"); return; }
+
+        /* jcc rel32 → 0F 8x + imm32 = 6 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_jcc_rel32(&enc, WCC_E);
+        if (n != 6) { wx86_enc_free(&enc); FAIL("jcc rel32 != 6"); return; }
+
+        /* call rel32 → E8 + imm32 = 5 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_call_rel32(&enc);
+        if (n != 5) { wx86_enc_free(&enc); FAIL("call rel32 != 5"); return; }
+
+        /* push rax → 1 byte, push r8 → 2 bytes (REX.B) */
+        wx86_enc_reset(&enc);
+        n = wx86_push_reg(&enc, WREG_RAX);
+        if (n != 1) { wx86_enc_free(&enc); FAIL("push rax != 1"); return; }
+        wx86_enc_reset(&enc);
+        n = wx86_push_reg(&enc, WREG_R8);
+        if (n != 2) { wx86_enc_free(&enc); FAIL("push r8 != 2"); return; }
+
+        /* shl rax, 3 → REX.W + C1 /4 + imm8 = 4 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_shl_reg_imm8(&enc, WREG_RAX, 3);
+        if (n != 4) { wx86_enc_free(&enc); FAIL("shl != 4"); return; }
+
+        /* cqo → REX.W + 99 = 2 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_cqo(&enc);
+        if (n != 2) { wx86_enc_free(&enc); FAIL("cqo != 2"); return; }
+
+        /* neg rax → REX.W + F7 /3 + ModRM = 3 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_neg_reg(&enc, WREG_RAX);
+        if (n != 3) { wx86_enc_free(&enc); FAIL("neg != 3"); return; }
+
+        /* idiv rcx → REX.W + F7 /7 + ModRM = 3 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_idiv_reg(&enc, WREG_RCX);
+        if (n != 3) { wx86_enc_free(&enc); FAIL("idiv != 3"); return; }
+
+        /* sub rsp, 32 → REX.W + 83 + ModRM + imm8 = 4 bytes */
+        wx86_enc_reset(&enc);
+        n = wx86_sub_rsp_imm8(&enc, 32);
+        if (n != 4) { wx86_enc_free(&enc); FAIL("sub rsp != 4"); return; }
+
+        wx86_enc_free(&enc);
+        PASS();
+    }
+}
 
 static void test_disasm(void) {
     printf("\n[Trivial Disassembler]\n");
