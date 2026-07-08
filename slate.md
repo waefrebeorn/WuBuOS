@@ -1,7 +1,7 @@
 # WuBuOS Slate — Active Work Surface (v25)
 
-## Current Focus: **SPRINT BOARD: ~354 REMAINING — STYXFS DIR-ENUM CLOSED**
-**Mode**: Perpetual gap-closer loop — execute until ~354 → 0.
+## Current Focus: **SPRINT BOARD: ~350 REMAINING — BEAR OPTIMIZER + STYXFS CLOSED**
+**Mode**: Perpetual gap-closer loop — execute until ~350 → 0.
 **Constraint**: "Rewriting from scratch in C" — no stubs, no scaffolding, no "for later".
 
 ---
@@ -9,6 +9,7 @@
 ## ✅ VAULTED (2026-07-08)
 | Date | Work | Δ Real Gaps | Files |
 |------|------|-------------|-------|
+| 2026-07-08 | Bear optimizer: step/zero_grad real (dispatch to per-param Adam/SGD/Muon) | -2 | `bear_opt.c`, `bear_opt.h`, `bear_opt_test.c` |
 | 2026-07-08 | StyxFS dir-enum: opendir/closedir/readdir/readdir_r real (mount→host) | -4 | `styxfs.c`, `styxfs_test.c` |
 | 2026-07-08 | Bear checkpoints: binary serialization (save/load) | -2 | `bear_nn.c` |
 | 2026-07-08 | Bear trainer save/load: scalar state + policy sidecar | -2 | `bear_ppo.c` |
@@ -42,7 +43,7 @@ Each `(void)d; (void)e; (void)f;` represents a real syscall with unused register
 
 ## Notes
 - **73 .c files**, ~15K real LOC.
-- **~354 sprint REAL_GAPs** remaining (was ~358 before this session — StyxFS -4).
+- **~350 sprint REAL_GAPs** remaining (was ~354 before this session — StyxFS -4, Bear opt -2).
 - **0 TODO/FIXME** comments remain in `src/`.
 - All tests green. 64+ test targets, 747+ assertions. Full gate exits 0.
 - `goal-paste.md` has the next-session copy-paste prompt.
