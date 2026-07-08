@@ -141,8 +141,161 @@ static int puts(void (*putc)(char), const char *s) {
 }
 
 int vsprintf(char *buf, const char *fmt, va_list args) {
-    (void)buf; (void)fmt; (void)args;
-    return 0;
+    char *out = buf;
+    const char *p = fmt;
+
+    while (*p) {
+        if (*p != '%') {
+            *out++ = *p++;
+            continue;
+        }
+        p++;  /* skip '%' */
+
+        /* Parse flags (simplified: only '-' for left-pad with 0s) */
+        int zero_pad = 0;
+        int width = 0;
+        int is_long = 0;
+
+        /* Zero-fill flag */
+        if (*p == '0') {
+            zero_pad = 1;
+            p++;
+        }
+
+        /* Width digits */
+        while (*p >= '0' && *p <= '9') {
+            width = width * 10 + (*p - '0');
+            p++;
+        }
+
+        /* Long modifier */
+        if (*p == 'l') {
+            is_long = 1;
+            p++;
+            if (*p == 'l') p++;  /* ll */
+        }
+
+        char spec = *p++;
+        char numbuf[32];
+
+        switch (spec) {
+            case 'd': case 'i': {
+                long val = is_long ? va_arg(args, long) : (long)va_arg(args, int);
+                if (val < 0) {
+                    *out++ = '-';
+                    val = -val;
+                }
+                itoa((int)val, numbuf, 10);
+                int len = (int)strlen(numbuf);
+                if (zero_pad && width > len) {
+                    for (int i = 0; i < width - len; i++) *out++ = '0';
+                }
+                strcpy(out, numbuf);
+                out += strlen(numbuf);
+                break;
+            }
+            case 'u': {
+                unsigned long val = is_long ? va_arg(args, unsigned long)
+                                            : (unsigned long)va_arg(args, unsigned int);
+                /* Manual conversion to avoid ita's negative handling */
+                int idx = 0;
+                if (val == 0) { numbuf[idx++] = '0'; }
+                while (val > 0) {
+                    numbuf[idx++] = '0' + (val % 10);
+                    val /= 10;
+                }
+                numbuf[idx] = '\0';
+                /* Reverse */
+                for (int i = 0; i < idx / 2; i++) {
+                    char tmp = numbuf[i];
+                    numbuf[i] = numbuf[idx - 1 - i];
+                    numbuf[idx - 1 - i] = tmp;
+                }
+                if (zero_pad && width > idx) {
+                    for (int i = 0; i < width - idx; i++) *out++ = '0';
+                }
+                strcpy(out, numbuf);
+                out += strlen(numbuf);
+                break;
+            }
+            case 'x': case 'X': {
+                unsigned long val = is_long ? va_arg(args, unsigned long)
+                                            : (unsigned long)va_arg(args, unsigned int);
+                int idx = 0;
+                if (val == 0) { numbuf[idx++] = '0'; }
+                while (val > 0) {
+                    int digit = val & 0xF;
+                    numbuf[idx++] = (digit < 10) ? '0' + digit
+                                 : (spec == 'X' ? 'A' + digit - 10
+                                                : 'a' + digit - 10);
+                    val >>= 4;
+                }
+                numbuf[idx] = '\0';
+                /* Reverse */
+                for (int i = 0; i < idx / 2; i++) {
+                    char tmp = numbuf[i];
+                    numbuf[i] = numbuf[idx - 1 - i];
+                    numbuf[idx - 1 - i] = tmp;
+                }
+                if (zero_pad && width > idx) {
+                    for (int i = 0; i < width - idx; i++) *out++ = '0';
+                }
+                strcpy(out, numbuf);
+                out += strlen(numbuf);
+                break;
+            }
+            case 's': {
+                const char *s = va_arg(args, const char*);
+                if (!s) s = "(null)";
+                int len = (int)strlen(s);
+                if (width > len) {
+                    for (int i = 0; i < width - len; i++) *out++ = ' ';
+                }
+                strcpy(out, s);
+                out += len;
+                break;
+            }
+            case 'c': {
+                char c = (char)va_arg(args, int);
+                *out++ = c;
+                break;
+            }
+            case 'p': {
+                *out++ = '0';
+                *out++ = 'x';
+                unsigned long val = (unsigned long)va_arg(args, void*);
+                int idx = 0;
+                if (val == 0) { numbuf[idx++] = '0'; }
+                while (val > 0) {
+                    int digit = val & 0xF;
+                    numbuf[idx++] = (digit < 10) ? '0' + digit : 'a' + digit - 10;
+                    val >>= 4;
+                }
+                numbuf[idx] = '\0';
+                for (int i = 0; i < idx / 2; i++) {
+                    char tmp = numbuf[i];
+                    numbuf[i] = numbuf[idx - 1 - i];
+                    numbuf[idx - 1 - i] = tmp;
+                }
+                strcpy(out, numbuf);
+                out += strlen(numbuf);
+                break;
+            }
+            case '%': {
+                *out++ = '%';
+                break;
+            }
+            default: {
+                /* Unknown specifier: pass through literally */
+                *out++ = '%';
+                if (spec) *out++ = spec;
+                break;
+            }
+        }
+    }
+
+    *out = '\0';
+    return (int)(out - buf);
 }
 
 int sprintf(char *buf, const char *fmt, ...) {

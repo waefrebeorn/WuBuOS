@@ -809,11 +809,88 @@ float bear_trainer_iter(BearTrainer* trainer, uint64_t rng_state[2]) {
 }
 
 int bear_trainer_save(const BearTrainer* trainer, const char* path) {
-    (void)trainer; (void)path;
-    return 0;
+    if (!trainer || !path) return -1;
+    FILE* f = fopen(path, "wb");
+    if (!f) return -1;
+
+    int rc = -1;
+    do {
+        /* Trainer header */
+        const char magic[8] = {'W','U','T','R','N','E','R','\0'};
+        if (fwrite(magic, 1, 8, f) != 8) break;
+        int32_t version = 1;
+        if (fwrite(&version, sizeof(version), 1, f) != 1) break;
+
+        /* Scalar trainer state */
+        if (fwrite(&trainer->total_steps, sizeof(trainer->total_steps), 1, f) != 1) break;
+        if (fwrite(&trainer->iteration,    sizeof(trainer->iteration),    1, f) != 1) break;
+        if (fwrite(&trainer->best_return,  sizeof(trainer->best_return),  1, f) != 1) break;
+
+        /* PPO config */
+        if (fwrite(&trainer->cfg, sizeof(BearPPOConfig), 1, f) != 1) break;
+
+        /* Write policy network checkpoint to sidecar file */
+        int32_t has_policy = trainer->policy ? 1 : 0;
+        if (fwrite(&has_policy, sizeof(has_policy), 1, f) != 1) break;
+        if (has_policy) {
+            int32_t policy_ok = 0;
+            size_t plen = strlen(path) + 8;
+            char* polpath = (char*)malloc(plen);
+            if (!polpath) break;
+            snprintf(polpath, plen, "%s.policy", path);
+            int prc = bear_checkpoint_save(trainer->policy, polpath);
+            free(polpath);
+            policy_ok = (prc == 0) ? 1 : 0;
+            if (fwrite(&policy_ok, sizeof(policy_ok), 1, f) != 1) break;
+        }
+
+        rc = 0;
+    } while (0);
+
+    fclose(f);
+    return rc;
 }
 
 int bear_trainer_load(BearTrainer* trainer, const char* path) {
-    (void)trainer; (void)path;
-    return 0;
+    if (!trainer || !path) return -1;
+    FILE* f = fopen(path, "rb");
+    if (!f) return -1;
+
+    int rc = -1;
+    do {
+        char magic[8];
+        if (fread(magic, 1, 8, f) != 8) break;
+        if (memcmp(magic, "WUTRNER\0", 8) != 0) break;
+        int32_t version = 0;
+        if (fread(&version, sizeof(version), 1, f) != 1 || version != 1) break;
+
+        if (fread(&trainer->total_steps, sizeof(trainer->total_steps), 1, f) != 1) break;
+        if (fread(&trainer->iteration,    sizeof(trainer->iteration),    1, f) != 1) break;
+        if (fread(&trainer->best_return,  sizeof(trainer->best_return),  1, f) != 1) break;
+
+        BearPPOConfig saved_cfg;
+        if (fread(&saved_cfg, sizeof(BearPPOConfig), 1, f) != 1) break;
+        trainer->cfg = saved_cfg;
+
+        int32_t has_policy = 0;
+        if (fread(&has_policy, sizeof(has_policy), 1, f) != 1) break;
+        if (has_policy) {
+            int32_t policy_ok = 0;
+            if (fread(&policy_ok, sizeof(policy_ok), 1, f) != 1) break;
+            if (policy_ok && trainer->policy) {
+                size_t plen = strlen(path) + 8;
+                char* polpath = (char*)malloc(plen);
+                if (!polpath) { rc = -2; break; }
+                snprintf(polpath, plen, "%s.policy", path);
+                int prc = bear_checkpoint_load(trainer->policy, polpath);
+                free(polpath);
+                if (prc != 0) { rc = -3; break; }
+            }
+        }
+
+        rc = 0;
+    } while (0);
+
+    fclose(f);
+    return rc;
 }
