@@ -13,6 +13,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <unistd.h>
+
+/* -- Bundled default wallpaper path -------------------------------- */
+
+const char *wubu_wallpaper_default_path(void) {
+    static const char *paths[] = {
+        "screenshots/media/wubuos-default.bmp",
+        "../screenshots/media/wubuos-default.bmp",
+        NULL
+    };
+    for (int i = 0; paths[i]; i++) {
+        if (access(paths[i], F_OK) == 0)
+            return paths[i];
+    }
+    return NULL;
+}
 
 /* -- BMP on-disk structures (little-endian, packed) ---------------- */
 
