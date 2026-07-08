@@ -60,6 +60,15 @@ make test                    # all 64 targets, 747+ assertions
 | **ZealOS name parity** | 96/96 |
 | **Desktop wallpaper** | ✅ real decode (2026-07-07) |
 
+## Screenshots
+
+![Desktop (Win98 Classic theme)](screenshots/wubuos-desktop-2026-07-07.png)
+
+*WuBuOS booting in headless mode — 1024×768 Win98 desktop with My Computer,
+HolyC REPL, Recycle Bin, Control Panel icons, and taskbar clock.*
+
+See [screenshots/](screenshots/) for the full gallery.
+
 ## The Mission
 
 WuBuOS merges TempleOS (HolyC/JIT), ReactOS (NT syscall emulation), SteamOS
