@@ -115,12 +115,40 @@ int zfs_snapshot_create(const char *src, const char *dst) {
     return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
 }
 
-/* -- lvm thin snapshot (stub) -------------------------------------- */
+/* -- lvm thin snapshot (lvcreate --snapshot) ---------------------- */
 
 int lvm_snapshot_create(const char *src, const char *dst) {
-    (void)src; (void)dst;
-    /* Requires LVM thin provisioning setup; not implemented */
-    return -ENOSYS;
+    /* src: existing LV path, e.g. /dev/vg0/root
+     * dst: snapshot LV path, e.g. /dev/vg0/root-snap
+     * Use `lvcreate --snapshot --name <snap> --size <extent> <origin>` */
+    char *src_copy = strdup(src);
+    if (!src_copy) return -1;
+    char *origin = basename(src_copy);
+
+    char *dst_copy = strdup(dst);
+    if (!dst_copy) { free(src_copy); return -1; }
+    char *snap = basename(dst_copy);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        free(src_copy);
+        free(dst_copy);
+        return -1;
+    }
+    if (pid == 0) {
+        /* lvcreate --snapshot -n <snap> -L 1G <origin> */
+        execlp("lvcreate", "lvcreate", "--snapshot",
+               "-n", snap, "-L", "1G", origin, (char *)NULL);
+        _exit(127);
+    }
+
+    int status;
+    waitpid(pid, &status, 0);
+
+    free(src_copy);
+    free(dst_copy);
+
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0 ? 0 : -1;
 }
 
 /* -- Mount filesystem-appropriate snapshot ------------------------- */
