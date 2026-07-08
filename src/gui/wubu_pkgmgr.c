@@ -318,10 +318,123 @@ char *manifest_to_json(const wubu_pkg_manifest_t *m) {
 
 /* -- Dep Resolution ------------------------------------------------ */
 
+/* Helper: look up or insert a package id into the sorted set.
+ * Returns index in [0, n_total), or -1 on overflow. */
+static int pkgmgr_index_id(const char *id, char (*pkg_set)[128], int *n_total, int max) {
+    for (int i = 0; i < *n_total; i++)
+        if (strcmp(pkg_set[i], id) == 0) return i;
+    if (*n_total >= max) return -1;
+    strncpy(pkg_set[*n_total], id, 127);
+    pkg_set[*n_total][127] = '\0';
+    return (*n_total)++;
+}
+
+/* Kahn's algorithm for topological sort of package dependencies.
+ * Accepts a list of package IDs and returns them ordered so that every
+ * package appears after its dependencies (a valid installation order).
+ * Uses SQLite's deps table to resolve the full transitive closure. */
 int wubu_pkgmgr_resolve_deps(const char **pkg_ids, int n_pkgs,
                               char ***out_ordered, int *out_n) {
-    (void)pkg_ids; (void)n_pkgs; (void)out_ordered; (void)out_n;
-    /* TODO: topological sort implementation */
+    if (!g_pkgmgr.initialized || !pkg_ids || n_pkgs <= 0 || !out_ordered || !out_n) {
+        if (out_n) *out_n = 0;
+        return -1;
+    }
+
+    enum { MAX_PKGS = 256 };
+    char pkg_set[MAX_PKGS][128];
+    int  in_degree[MAX_PKGS];
+    int  adj[MAX_PKGS][MAX_PKGS];
+    int  adj_counts[MAX_PKGS];
+    int  n_total = 0;
+
+    memset(in_degree, 0, sizeof(in_degree));
+    memset(adj_counts, 0, sizeof(adj_counts));
+
+    /* Seed the set with input packages. */
+    for (int i = 0; i < n_pkgs; i++) {
+        if (!pkg_ids[i] || !pkg_ids[i][0]) continue;
+        if (pkgmgr_index_id(pkg_ids[i], pkg_set, &n_total, MAX_PKGS) < 0)
+            return -1;
+    }
+
+    /* Phase 2: Build transitive dep graph by querying deps table directly.
+     * We iterate until no new packages are discovered (closure stabilised). */
+    bool changed;
+    do {
+        changed = false;
+        for (int i = 0; i < n_total; i++) {
+            sqlite3_stmt *stmt = NULL;
+            char sql[512];
+            snprintf(sql, sizeof(sql),
+                "SELECT dep_id FROM deps WHERE pkg_id='%s'", pkg_set[i]);
+
+            if (sqlite3_prepare_v2(g_pkgmgr.db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+                if (stmt) sqlite3_finalize(stmt);
+                continue;
+            }
+
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                const char *dep_id = (const char *)sqlite3_column_text(stmt, 0);
+                if (!dep_id) continue;
+
+                int kidx = pkgmgr_index_id(dep_id, pkg_set, &n_total, MAX_PKGS);
+                if (kidx < 0) { sqlite3_finalize(stmt); return -1; }
+
+                /* Add edge: dep -> pkg (dep must be installed first) */
+                bool found = false;
+                for (int k = 0; k < adj_counts[kidx]; k++) {
+                    if (adj[kidx][k] == i) { found = true; break; }
+                }
+                if (!found) {
+                    adj[kidx][adj_counts[kidx]++] = i;
+                    in_degree[i]++;
+                    changed = true;
+                }
+            }
+            sqlite3_finalize(stmt);
+        }
+    } while (changed);
+
+    /* Phase 3: Kahn's algorithm — emit nodes with in-degree 0. */
+    char *ordered[MAX_PKGS];
+    int n_ordered = 0;
+    int queue[MAX_PKGS];
+    int q_head = 0, q_tail = 0;
+
+    for (int i = 0; i < n_total; i++) {
+        if (in_degree[i] == 0) queue[q_tail++] = i;
+    }
+
+    while (q_head < q_tail) {
+        int v = queue[q_head++];
+        ordered[n_ordered] = strdup(pkg_set[v]);
+        if (!ordered[n_ordered]) {
+            for (int j = 0; j < n_ordered; j++) free(ordered[j]);
+            *out_n = 0;
+            return -1;
+        }
+        n_ordered++;
+
+        for (int k = 0; k < adj_counts[v]; k++) {
+            int w = adj[v][k];
+            if (--in_degree[w] == 0) queue[q_tail++] = w;
+        }
+    }
+
+    if (n_ordered < n_total) {
+        for (int i = 0; i < n_ordered; i++) free(ordered[i]);
+        *out_n = 0;
+        return -1;  /* cycle detected */
+    }
+
+    *out_ordered = (char **)malloc(sizeof(char *) * (size_t)n_ordered);
+    if (!*out_ordered) {
+        for (int i = 0; i < n_ordered; i++) free(ordered[i]);
+        *out_n = 0;
+        return -1;
+    }
+    memcpy(*out_ordered, ordered, sizeof(char *) * (size_t)n_ordered);
+    *out_n = n_ordered;
     return 0;
 }
 
@@ -340,30 +453,205 @@ bool wubu_pkgmgr_check_conflicts(const char *pkg_id, const wubu_pkg_installed_t 
 
 /* -- Cleanup ------------------------------------------------------- */
 
+/* Remove cache files older than max_age_days. Scans g_pkgmgr.config.cache_dir
+ * for cached .wubu packages and deletes any whose mtime exceeds the threshold.
+ * Returns true if at least one file was cleaned. */
 bool wubu_pkgmgr_clean_cache(int max_age_days) {
     if (!g_pkgmgr.initialized) return false;
-    /* TODO: iterate cache dir, remove old files */
-    (void)max_age_days;
-    return true;
+    if (max_age_days <= 0) max_age_days = 7;
+    time_t cutoff = time(NULL) - (time_t)max_age_days * 86400;
+    bool any = false;
+    int rm_count = 0;
+
+    DIR *d = opendir(g_pkgmgr.config.cache_dir);
+    if (!d) return false;
+
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (e->d_name[0] == '.') continue;
+        char path[640];
+        snprintf(path, sizeof(path), "%s/%s", g_pkgmgr.config.cache_dir, e->d_name);
+
+        struct stat st;
+        if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) continue;
+
+        if (st.st_mtime < cutoff) {
+            if (unlink(path) == 0) {
+                any = true;
+                rm_count++;
+            }
+        }
+    }
+    closedir(d);
+
+    if (any) {
+        fprintf(stderr, "[pkgmgr] Cleaned %d cache files older than %d days\n",
+                rm_count, max_age_days);
+    }
+    return any;
 }
 
+/* Find packages with auto_installed=1 that no other package depends on
+ * (orphans). If dry_run is true, returns count without removing.
+ * If dry_run is false, removes them and returns the count removed. */
 int wubu_pkgmgr_autoremove(bool dry_run) {
     if (!g_pkgmgr.initialized) return 0;
-    (void)dry_run;
-    /* TODO: find orphaned deps */
-    return 0;
+
+    /* Query: packages where auto_installed=1 AND no other package depends on them.
+     *   SELECT id FROM packages WHERE auto_installed=1
+     *   AND id NOT IN (SELECT dep_id FROM deps) */
+    char sql[512];
+    snprintf(sql, sizeof(sql),
+        "SELECT id FROM packages WHERE auto_installed=1 "
+        "AND id NOT IN (SELECT DISTINCT dep_id FROM deps)");
+
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return 0;
+    }
+
+    /* Collect orphan package ids. */
+    enum { MAX_ORPHANS = 256 };
+    char orphans[MAX_ORPHANS][128];
+    int n_orphans = 0;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *id = (const char *)sqlite3_column_text(stmt, 0);
+        if (!id || !id[0]) continue;
+        if (n_orphans >= MAX_ORPHANS) break;
+        strncpy(orphans[n_orphans], id, sizeof(orphans[n_orphans]) - 1);
+        orphans[n_orphans][sizeof(orphans[n_orphans]) - 1] = '\0';
+        n_orphans++;
+    }
+    sqlite3_finalize(stmt);
+
+    if (dry_run) {
+        if (n_orphans > 0) {
+            fprintf(stderr, "[pkgmgr] Dry-run: would remove %d orphaned packages:\n", n_orphans);
+            for (int i = 0; i < n_orphans && i < 10; i++)
+                fprintf(stderr, "  - %s\n", orphans[i]);
+            if (n_orphans > 10)
+                fprintf(stderr, "  ... and %d more\n", n_orphans - 10);
+        }
+        return n_orphans;
+    }
+
+    /* Actually remove. */
+    int removed = 0;
+    for (int i = 0; i < n_orphans; i++) {
+        char delsql[256];
+        snprintf(delsql, sizeof(delsql), "DELETE FROM packages WHERE id='%s'", orphans[i]);
+        if (db_exec(delsql) == 0) removed++;
+    }
+
+    if (removed > 0)
+        fprintf(stderr, "[pkgmgr] Auto-removed %d orphaned packages\n", removed);
+    return removed;
 }
 
+/* Verify installed packages by checking file checksums against the files table.
+ * Returns 0 if all are intact, or -1 if any are broken. Populates out_broken
+ * with the list of package ids whose files fail verification (caller must free). */
 int wubu_pkgmgr_verify_installed(char ***out_broken, int *out_n_broken) {
-    (void)out_broken; (void)out_n_broken;
-    /* TODO: verify file checksums */
-    return 0;
+    if (!g_pkgmgr.initialized) { if (out_n_broken) *out_n_broken = 0; return -1; }
+
+    /* Query all installed packages. */
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "SELECT id, install_path FROM packages", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        if (out_n_broken) *out_n_broken = 0;
+        return -1;
+    }
+
+    enum { MAX_BROKEN = 256 };
+    char broken[MAX_BROKEN][128];
+    int n_broken = 0;
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *pkg_id = (const char *)sqlite3_column_text(stmt, 0);
+        const char *install_path = (const char *)sqlite3_column_text(stmt, 1);
+        if (!pkg_id || !install_path) continue;
+
+        /* Query the files table for this package to get expected checksums. */
+        char fsql[512];
+        snprintf(fsql, sizeof(fsql),
+            "SELECT path, sha256 FROM files WHERE pkg_id='%s'", pkg_id);
+
+        sqlite3_stmt *fstmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, fsql, -1, &fstmt, NULL) != SQLITE_OK) {
+            if (fstmt) sqlite3_finalize(fstmt);
+            continue;
+        }
+
+        bool pkg_broken = false;
+        while (sqlite3_step(fstmt) == SQLITE_ROW) {
+            const char *rel_path = (const char *)sqlite3_column_text(fstmt, 0);
+            const char *expected_sha = (const char *)sqlite3_column_text(fstmt, 1);
+            if (!rel_path || !expected_sha) continue;
+
+            char full_path[640];
+            snprintf(full_path, sizeof(full_path), "%s/%s", install_path, rel_path);
+
+            /* Check file existence first. */
+            struct stat st;
+            if (stat(full_path, &st) != 0 || !S_ISREG(st.st_mode)) {
+                pkg_broken = true;
+                continue;
+            }
+
+            /* Read file and verify checksum (if a sha256 is recorded). */
+            if (expected_sha[0]) {
+                FILE *f = fopen(full_path, "rb");
+                if (!f) { pkg_broken = true; continue; }
+                fseek(f, 0, SEEK_END);
+                long fsize = ftell(f);
+                rewind(f);
+                if (fsize < 0) { fclose(f); pkg_broken = true; continue; }
+                char *data = (char *)malloc((size_t)fsize + 1);
+                if (!data) { fclose(f); pkg_broken = true; continue; }
+                size_t rd = fread(data, 1, (size_t)fsize, f);
+                fclose(f);
+                if ((long)rd != fsize) { free(data); pkg_broken = true; continue; }
+                data[fsize] = '\0';
+
+                char actual_hex[65];
+                wubu_sha256_digest(data, (size_t)fsize, actual_hex, sizeof(actual_hex));
+                free(data);
+
+                if (strcmp(actual_hex, expected_sha) != 0) {
+                    pkg_broken = true;
+                }
+            }
+        }
+        sqlite3_finalize(fstmt);
+
+        if (pkg_broken && n_broken < MAX_BROKEN) {
+            strncpy(broken[n_broken], pkg_id, sizeof(broken[n_broken]) - 1);
+            broken[n_broken][sizeof(broken[n_broken]) - 1] = '\0';
+            n_broken++;
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    if (out_n_broken) *out_n_broken = n_broken;
+    if (n_broken == 0) { if (out_broken) *out_broken = NULL; return 0; }
+
+    if (out_broken) {
+        *out_broken = (char **)malloc(sizeof(char *) * (size_t)n_broken);
+        if (!*out_broken) return -1;
+        for (int i = 0; i < n_broken; i++) {
+            (*out_broken)[i] = strdup(broken[i]);
+            if (!(*out_broken)[i]) { free(*out_broken); *out_broken = NULL; return -1; }
+        }
+    }
+    return -1;  /* broken packages found */
 }
 
 bool wubu_pkgmgr_get_stats(wubu_pkgmgr_stats_t *out) {
     if (!g_pkgmgr.initialized || !out) return false;
     memset(out, 0, sizeof(*out));
-    char sql[64];
     int count = 0;
     db_query("SELECT COUNT(*) FROM packages", NULL, &count);
     out->installed_count = count;
