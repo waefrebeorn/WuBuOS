@@ -619,7 +619,13 @@ test_deploy:
 		$(GUI)/wubu_deploy.c $(GUI)/wubu_settings.c $(GUI)/wubu_theme.c \
 		$(GUI)/wubu_deploy_test.c \
 		-o $(GUI)/wubu_deploy_test
-	$(GUI)/wubu_deploy_test
+
+test_bear_opt:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+		-I$(BEAR) \
+		$(BEAR)/bear_arena.c $(BEAR)/bear_opt.c $(BEAR)/bear_opt_test.c \
+		-o $(BEAR)/bear_opt_test -lm
+	$(BEAR)/bear_opt_test
 
 test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

@@ -51,6 +51,7 @@ typedef struct {
     /* Per-parameter state arrays */
     BearAdamState* adam_states;
     BearMuonState* muon_states;
+    BearParam**    params;   /* registered param pointers (for step/zero_grad) */
     int num_params;
     
     /* Global step counter */
