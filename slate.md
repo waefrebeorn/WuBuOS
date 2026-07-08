@@ -1,41 +1,45 @@
-# WuBuOS Slate — Active Work Surface (v23)
+# WuBuOS Slate — Active Work Surface (v24)
 
-## Current Focus: **JIT ENCODER GAP CLOSED — SPRINT BOARD: ~367 REMAINING**
-**Sprint board**: ~367 REAL_GAPs (Triple DA, form≠function filtered).
-**Parity epics**: 5 (SteamOS / Ubuntu-Arch / TempleOS / ZealOS / ReactOS) — marathons.
-**Mode**: Perpetual gap-closer loop — execute until ~367 → 0 (sprint).
+## Current Focus: **SPRINT BOARD: ~363 REMAINING — ALL TODOs CLOSED**
+**All 4 TODO/FIXME gaps in wubu_pkgmgr.c closed.** The entire `src/` tree has 0 remaining `/* TODO: ... */` comments.
+**Mode**: Perpetual gap-closer loop — execute until ~363 → 0.
 **Constraint**: "Rewriting from scratch in C" — no stubs, no scaffolding, no "for later".
 
 ---
 
 ## ✅ VAULTED (2026-07-08)
-- **JIT x86-64 Encoder (wubu_x86.c)** — 33 `return 0;` stubs → real byte-count return values, validated by 14-instruction test. Form==Function for every `wx86_*()` function. (commit pending)
-- **Desktop Stream 3 context menu** — all 3 functions (`sort_by_name`, `create_shortcut`, `view_desktop`) implemented in committed code (`033554f`).
-- UX Stream E (welcome dialog, bundled wallpaper, status bar tips) — committed (`28e700b`).
-- Foundation 1-5 + Campaign 1-25 — all closed, tests green.
-- Monolith splits — ALL complete across 14+ files.
+| Date | Work | Δ Real Gaps | Files |
+|------|------|-------------|-------|
+| 2026-07-08 | JIT encoder: 33 return-0 stubs → real byte counts | -33 | `wubu_x86.c`, `jit_test.c` |
+| 2026-07-08 | Pkgmgr: resolve_deps, clean_cache, autoremove, verify_installed | -4 | `wubu_pkgmgr.c`, `wubu_pkgmgr_internal.h` |
+| 2026-07-07 | UX Stream E: welcome dialog, bundled wallpaper, status bar tips | — | `wubu_welcome.*`, `wubu_wallpaper.*` |
+| 2026-07-07 | Desktop Stream 3: context menu fully implemented | — | `dosgui_wm_ctxmenu.c` |
+| 2026-07-05 | Monolith splits: ALL 14+ complete | — | vsl_syscall, holyc_codegen, wubu_holyd, wubu_audio, wubu_network, wubu_snapshot, wubu_pkgmgr, dosgui_wm, dosgui_explorer |
+| Prior | Foundation 1-5 + Campaign 1-25 | ~650 | All subsystems |
 
 ---
 
 ## Active Work Items — NEXT CYCLE
 
 ### HIGHEST PRIORITY
-**A. Remaining sprint gaps** — pick a file and close it:
-- `vsl_syscall_net.c` — 58 void casts (unused syscall param d/e/f)
-- `bear_cudnn.c` — 12 empty CUDA wrapper bodies
-- `wubu_metal.c` — 16 return-0 + 15 void casts  
-- `wubu_vulkan.c` — 12 return-0 + remaining void casts
+**A. VSL syscall void-cast files** (~140 total, 3 files):
+- `vsl_syscall_net.c` — 58 void casts (socket/ns/security)
 - `vsl_syscall_fileio.c` — 46 void casts
 - `vsl_syscall_proc.c` — 37 void casts
-- `interrupt.c` — 17 return-0 + 22 void casts
+Each `(void)d; (void)e; (void)f;` represents a real syscall with unused register params.
 
-**B. Monolith splits** — remaining ≥800-line files: `wubu_metal`(1508), `hosted.c`(1320), `interrupt.c`(1153), `fat32.c`(1060), `wubu_archd.c`(1055), `wubu_proton.c`(1053), `wubu_vulkan.c`(990), `wubu_canvas.c`(1325).
+**B. Monolith splits** — remaining ≥800-line files:
+`wubu_metal`(1508), `hosted.c`(1320), `interrupt.c`(1153), `fat32.c`(1060),
+`wubu_archd.c`(1055), `wubu_proton.c`(1053), `wubu_vulkan.c`(990), `wubu_canvas.c`(1325).
+
+**C. Bear RL backend** — `bear_cudnn.c` edge-case fallback gaps.
 
 ---
 
 ## Notes
-- 73 .c files, ~15K real LOC.
-- **~367 sprint REAL_GAPs** remaining (was ~400 before this session's 33 JIT encoder fixes).
+- **73 .c files**, ~15K real LOC.
+- **~363 sprint REAL_GAPs** remaining (was ~400 before this session).
+- **0 TODO/FIXME** comments remain in `src/`.
 - All tests green. 64+ test targets, 747+ assertions. Full gate exits 0.
 - `goal-paste.md` has the next-session copy-paste prompt.
-- WuBuOS identity: ZealOS kernel + Win98 shell + Styx/9P namespace + Arch containers.
+- WuBuOS: ZealOS kernel + Win98 shell + Styx/9P namespace + Arch containers.
