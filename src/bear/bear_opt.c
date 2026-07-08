@@ -45,7 +45,8 @@ BearOptimizer* bear_optimizer_create(BearArena* arena, BearOptType type, float l
     opt->num_params = 0;
     opt->adam_states = BEAR_ARENA_ALLOC(arena, BearAdamState, 64);
     opt->muon_states = BEAR_ARENA_ALLOC(arena, BearMuonState, 64);
-    
+    opt->params = BEAR_ARENA_ALLOC(arena, BearParam*, 64);
+    if (!opt->params) return NULL;    
     return opt;
 }
 
@@ -54,6 +55,8 @@ int bear_optimizer_register(BearOptimizer* opt, BearParam* param) {
     if (opt->num_params >= 64) return -1;
 
     int idx = opt->num_params++;
+
+    opt->params[idx] = param;
 
     if (opt->type == BEAR_OPT_ADAM || opt->type == BEAR_OPT_ADAMW) {
         BearAdamState* s = &opt->adam_states[idx];
@@ -255,10 +258,31 @@ void bear_optimizer_step(BearOptimizer* opt) {
     opt->step++;
 
     for (int i = 0; i < opt->num_params; ++i) {
-        /* We need to find the param for this index.
-         * Since we don't store a back-pointer, we use a different approach:
-         * the caller must iterate params directly.
-         * This function is a no-op; actual updates happen in bear_ppo_apply_gradients. */
+        BearParam* p = opt->params[i];
+        if (!p) continue;
+
+        switch (opt->type) {
+        case BEAR_OPT_ADAM:
+            bear_adam_update_param(p, &opt->adam_states[i],
+                                   opt->lr, opt->beta1, opt->beta2, opt->eps,
+                                   opt->weight_decay, opt->step);
+            break;
+        case BEAR_OPT_ADAMW:
+            bear_adamw_update_param(p, &opt->adam_states[i],
+                                    opt->lr, opt->beta1, opt->beta2, opt->eps,
+                                    opt->weight_decay, opt->step);
+            break;
+        case BEAR_OPT_MUON:
+            bear_muon_update_param(p, &opt->muon_states[i],
+                                   opt->lr, opt->beta1, opt->weight_decay);
+            break;
+        case BEAR_OPT_SGD: {
+            int n = (int)bear_tensor_numel(&p->weight);
+            bear_sgd_update_param(p, opt->lr, opt->momentum, opt->nesterov);
+            (void)n;
+            break;
+        }
+        }
     }
 }
 
@@ -285,8 +309,11 @@ void bear_adam_step_param(float* w, float* g, float* m, float* v, int n,
 
 void bear_optimizer_zero_grad(BearOptimizer* opt) {
     if (!opt) return;
-    /* Zero grads of registered params - stub */
-    (void)opt;
+    for (int i = 0; i < opt->num_params; ++i) {
+        BearParam* p = opt->params[i];
+        if (!p) continue;
+        if (p->grad.data) bear_tensor_fill(&p->grad, 0.0f);
+    }
 }
 
 void bear_optimizer_set_lr(BearOptimizer* opt, float lr) {
