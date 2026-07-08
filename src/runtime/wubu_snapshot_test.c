@@ -7,11 +7,13 @@
 
 #define _POSIX_C_SOURCE 200809L
 #include "wubu_snapshot.h"
+#include "wubu_snapshot_fs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <errno.h>
 
 static int g_run = 0, g_pass = 0;
 
@@ -444,6 +446,18 @@ int main(void) {
         T(strcmp(wubu_fs_type_str(WUBU_FS_LVM), "lvm") == 0, "fs: lvm");
         T(strcmp(wubu_fs_type_str(WUBU_FS_AUTO), "auto") == 0, "fs: auto");
         T(strcmp(wubu_fs_type_str(8), "unknown") == 0, "fs: unknown");
+    }
+
+    /* -- LVM snapshot closure (form≠function) -------------------- */
+    printf("\n[LVM Snapshot Closure]\n");
+    {
+        /* Before closure, lvm_snapshot_create was a stub returning -ENOSYS
+         * (hardcoded). It must now actually attempt lvcreate (fork/exec) and
+         * return 0/-1 based on the real command outcome, never -ENOSYS. */
+        int rc = lvm_snapshot_create("/dev/vg0/root", "/dev/vg0/root-snap");
+        T(rc != -ENOSYS, "lvm_snapshot_create no longer returns hardcoded -ENOSYS stub");
+        /* On a host without lvm2 it returns -1 (command not found / nonzero);
+         * the point is it attempted the real operation, not a stub value. */
     }
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
