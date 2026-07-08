@@ -10,6 +10,9 @@
  * system()/stub gaps). BMP (24/32 bpp, uncompressed) is decoded natively.
  * Other formats return 0 (caller falls back to the gradient wallpaper).
  *
+ * Also provides a bundled default wallpaper path (WuBuOS teal-blue gradient
+ * with centered "W" logo) shipped in screenshots/media/wubuos-default.bmp.
+ *
  * Pixel format: 0x00BBGGRR (same as vbe_set_pixel / draw_wallpaper).
  */
 
@@ -41,6 +44,12 @@ typedef struct {
  * (unsupported format / read error). On 0, *out is zeroed.
  */
 int wubu_wallpaper_load(const char *path, WubuWallpaper *out);
+
+/*
+ * Get the path to the bundled default wallpaper (ships with the source tree).
+ * Returns NULL if the file doesn't exist (caller falls through to gradient).
+ */
+const char *wubu_wallpaper_default_path(void);
 
 /* Free a WubuWallpaper produced by wubu_wallpaper_load(). */
 void wubu_wallpaper_free(WubuWallpaper *wp);

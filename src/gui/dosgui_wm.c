@@ -24,6 +24,7 @@
  */
 /* -- Includes ------------------------------------------------------ */
 #include "dosgui_wm_internal.h"
+#include "wubu_wallpaper.h"
 #include <sys/stat.h>
 #include <errno.h>
 #include <dirent.h>
@@ -146,7 +147,23 @@ void load_default_wallpaper(void) {
             g_dwm.wallpaper_mode = s->theme.wallpaper_mode;  /* 0..4 */
             return;
         }
-        /* Decode failed -> fall through to gradient (don't spam). */
+        /* Decode failed -> fall through to bundled default. */
+    }
+
+    /* Bundled default wallpaper (ships with source, WuBuOS teal-blue gradient
+     * with centered "W" logo). Better than a raw gradient. */
+    if (!(s && s->theme.wallpaper_path[0])) {
+        const char *def_path = wubu_wallpaper_default_path();
+        if (def_path) {
+            WubuWallpaper wp;
+            if (wubu_wallpaper_load(def_path, &wp) && wp.pixels) {
+                g_dwm.wallpaper = wp.pixels;
+                g_dwm.wallpaper_w = wp.w;
+                g_dwm.wallpaper_h = wp.h;
+                g_dwm.wallpaper_mode = WUBU_WP_CENTER;  /* show logo centered */
+                return;
+            }
+        }
     }
 
     /* Gradient fallback (classic WuBu teal→blue). */
@@ -165,7 +182,7 @@ void load_default_wallpaper(void) {
             }
         }
     }
-    g_dwm.wallpaper_mode = (s && s->theme.wallpaper_path[0]) ? s->theme.wallpaper_mode : 1;  /* honor configured placement even on gradient fallback */
+    g_dwm.wallpaper_mode = (s && s->theme.wallpaper_path[0]) ? s->theme.wallpaper_mode : 1;
 }
 
 void draw_wallpaper(int fb_w, int fb_h) {
@@ -1376,6 +1393,40 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                                           tc()->border_dark, tc()->border_darkest);
             char label = (d == 9) ? 'M' : ('1' + d);
             vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->btn_text, 1);
+        }
+    }
+
+    /* -- Status bar tip (cycling keyboard hint) ------------------ */
+    {
+        static time_t last_tip_swap = 0;
+        static int tip_index = 0;
+        time_t now = time(NULL);
+
+        if (now != last_tip_swap) {
+            /* Cycle tip every ~10 seconds (checked every render frame) */
+            if (now - last_tip_swap >= 10) {
+                tip_index = (tip_index + 1) % 6;
+                last_tip_swap = now;
+            }
+            /* Initialize clock on first render */
+            if (last_tip_swap == 0) {
+                last_tip_swap = now;
+                tip_index = 0;
+            }
+        }
+
+        const char *tips[] = {
+            "Ctrl+T = cycle theme",
+            "Alt+F4 = close window",
+            "Win key = Start menu",
+            "Ctrl+Alt+Left/Right = desktop",
+            "Shift+F10 = context menu",
+            "Ctrl+T = cycle theme",
+        };
+        const char *tip = tips[tip_index % 6];
+        int tip_x = desk_x - vbe_text_width(tip, 1) - 20;
+        if (tip_x > start_w + 90) {
+            vbe_draw_text(tip_x, ty + (th - 8) / 2, tip, tc()->icon_text, 1);
         }
     }
 }
