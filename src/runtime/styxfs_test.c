@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST %-50s", name); g_total++;
@@ -138,6 +140,92 @@ static void test_serve_null(void) {
 
 /* -- Main ----------------------------------------------------- */
 
+static void test_opendir_real(void) {
+    TEST("styxfs_opendir enumerates a real host dir");
+    /* Real dir with at least "." and ".." */
+    DIR *d = styxfs_opendir(".");
+    CHECK(d != NULL, "opendir(.) should return a live DIR*");
+    if (d) {
+        int n = 0;
+        struct dirent *de;
+        while ((de = readdir(d)) != NULL) n++;
+        CHECK(n >= 2, "opendir(.) should yield >= 2 entries");
+        int rc = styxfs_closedir(d);
+        CHECK(rc == 0, "closedir should return 0");
+    }
+    PASS();
+}
+
+static void test_opendir_missing(void) {
+    TEST("styxfs_opendir returns NULL for nonexistent dir");
+    DIR *d = styxfs_opendir("/no/such/dir/zzz");
+    CHECK(d == NULL, "opendir on missing path returns NULL");
+    PASS();
+}
+
+static void test_readdir_real(void) {
+    TEST("styxfs_readdir returns real entry list");
+    struct dirent **entries = NULL;
+    int n = styxfs_readdir(".", &entries);
+    CHECK(n > 0, "readdir(.) should return > 0 entries");
+    CHECK(entries != NULL, "entries array should be non-NULL");
+    if (entries) {
+        int found_dot = 0;
+        for (int i = 0; i < n; i++) {
+            CHECK(entries[i] != NULL, "entry should be non-NULL");
+            if (strcmp(entries[i]->d_name, ".") == 0) found_dot = 1;
+            free(entries[i]);
+        }
+        free(entries);
+        CHECK(found_dot, "readdir(.) should include \".\"");
+    }
+    PASS();
+}
+
+static void test_readdir_missing(void) {
+    TEST("styxfs_readdir returns -1 for nonexistent dir");
+    struct dirent **entries = NULL;
+    int n = styxfs_readdir("/no/such/dir/zzz", &entries);
+    CHECK(n == -1, "readdir on missing path returns -1");
+    CHECK(entries == NULL, "entries array should stay NULL");
+    PASS();
+}
+
+static void test_readdir_r_real(void) {
+    TEST("styxfs_readdir_r iterates a real dir");
+    DIR *d = styxfs_opendir(".");
+    CHECK(d != NULL, "opendir(.) should succeed");
+    if (d) {
+        struct dirent ent;
+        struct dirent *res = NULL;
+        int n = 0, rc;
+        while ((rc = styxfs_readdir_r(d, &ent, &res)) == 0 && res != NULL) {
+            CHECK(strlen(res->d_name) > 0, "entry name should be non-empty");
+            n++;
+            if (n > 1000) break;
+        }
+        CHECK(n >= 2, "readdir_r should yield >= 2 entries");
+        CHECK(rc == 0, "readdir_r loop ends cleanly");
+        styxfs_closedir(d);
+    }
+    PASS();
+}
+
+static void test_mount_path_mapping(void) {
+    TEST("styxfs_opendir maps namespace mount to host source");
+    styxfs_server_t srv;
+    styxfs_init(&srv);
+    /* Mount /wubu -> this test's own source dir so we control the target */
+    int rc = styxfs_mount(&srv, "/wubu", ".", 1);
+    CHECK(rc == 0, "mount should succeed");
+    g_styxfs_server = &srv;
+    DIR *d = styxfs_opendir("/wubu");
+    CHECK(d != NULL, "opendir(/wubu) should map to '.' source");
+    if (d) styxfs_closedir(d);
+    g_styxfs_server = NULL;
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS StyxFS Test Suite (Cell 106)                   |\n");
@@ -154,6 +242,12 @@ int main(void) {
     test_find_mount_miss();
     test_scan_repo();
     test_serve_null();
+    test_opendir_real();
+    test_opendir_missing();
+    test_readdir_real();
+    test_readdir_missing();
+    test_readdir_r_real();
+    test_mount_path_mapping();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
