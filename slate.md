@@ -1,8 +1,7 @@
-# WuBuOS Slate — Active Work Surface (v24)
+# WuBuOS Slate — Active Work Surface (v25)
 
-## Current Focus: **SPRINT BOARD: ~363 REMAINING — ALL TODOs CLOSED**
-**All 4 TODO/FIXME gaps in wubu_pkgmgr.c closed.** The entire `src/` tree has 0 remaining `/* TODO: ... */` comments.
-**Mode**: Perpetual gap-closer loop — execute until ~363 → 0.
+## Current Focus: **SPRINT BOARD: ~358 REMAINING — 5 BEAR+KERNEL+ANTICHEAT GAPS CLOSED**
+**Mode**: Perpetual gap-closer loop — execute until ~358 → 0.
 **Constraint**: "Rewriting from scratch in C" — no stubs, no scaffolding, no "for later".
 
 ---
@@ -10,6 +9,10 @@
 ## ✅ VAULTED (2026-07-08)
 | Date | Work | Δ Real Gaps | Files |
 |------|------|-------------|-------|
+| 2026-07-08 | Bear checkpoints: binary serialization (save/load) | -2 | `bear_nn.c` |
+| 2026-07-08 | Bear trainer save/load: scalar state + policy sidecar | -2 | `bear_ppo.c` |
+| 2026-07-08 | freestanding libc vsprintf — real formatted output | -1 | `libc.c` |
+| 2026-07-08 | Anticheat proton_config — mutable config table | -1 | `wubu_anticheat.c` |
 | 2026-07-08 | JIT encoder: 33 return-0 stubs → real byte counts | -33 | `wubu_x86.c`, `jit_test.c` |
 | 2026-07-08 | Pkgmgr: resolve_deps, clean_cache, autoremove, verify_installed | -4 | `wubu_pkgmgr.c`, `wubu_pkgmgr_internal.h` |
 | 2026-07-07 | UX Stream E: welcome dialog, bundled wallpaper, status bar tips | — | `wubu_welcome.*`, `wubu_wallpaper.*` |
