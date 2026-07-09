@@ -1,18 +1,12 @@
 # WuBuOS — ZealOS Kernel + Win98 Shell + Styx/9P + Arch Containers
 
 ```
-╔════════════════════════════════════════════════════════════════╗
-║                                                        ║
-║     🌱  W U B U O S                                 ║
-║                                                        ║
-║     ZealOS kernel · Win98 shell · Styx/9P namespace   ║
-║                                                        ║
-║     73 C files · ~15K real LOC · 747+ tests green    ║
-║     ~400 sprint REAL_GAPs · 5 parity epics · 64 targets  ║
-║                                                        ║
-║     Hosted ─── ZealOS ─── 9P ─── GUI ─── Containers ║
-║                                                        ║
-╚════════════════════════════════════════════════════════════════╝
+╔════════════════════════════════════════════════════════════════════════╗
+║     🌱  W U B U O S                                                       ║
+║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers    ║
+║     268 C files · ~15K real LOC · 747+ tests green                       ║
+║     ~40 code REAL_GAPs + ~370 parity marathons (Triple DA) · 64 targets  ║
+╚══════════════════════════════════════════════════════════════════════════╝
 ```
 
 ## Architecture
@@ -24,41 +18,35 @@
 - **Styx/9P**: Real filesystem namespace backed by .wubu containers (9P2000)
 - **Arch containers**: Fork+exec into Arch Linux rootfs (bwrap isolation, no syscall emulation)
 - **HolyC JIT**: Self-hosted x86-64 encoder, disassembler, register allocator, minic compiler
-- **Bear RL**: PPO training with Vulkan compute pipelines (policy, GAE, N-pole step, MMA matmul)
+- **Bear RL**: PPO training with Vulkan compute pipelines
 - **Desktop**: Win98-style wallpaper (real BMP decode + 5 placement modes), icons, taskbar, systray
 
 ## Quick Start
 
 ```bash
-# Build everything
-make all
-
-# Build hosted binary (runs on Linux)
-make hosted
-
-# Run hosted with screenshot
+make all                 # full build
+make hosted              # hosted binary (runs on Linux)
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-# Tests by tier
-make test_critical_runtime   # OCI, Network, Snapshots, VSL, HolyD, Proton
-make test_critical_kernel    # FAT32, TXFS, AHCI, DRM
-make test_high_bridge        # syscall bridge, DOS flip
-make test_high_gui           # WM, StartMenu, Explorer, Terminal, Clipboard, Wallpaper
-make test_high_bear          # JIT, Memory, Tasking, HolyC, PTX
-make test_medium_other       # WorldSim, Audio, Containers, etc.
-make test                    # all 64 targets, 747+ assertions
+make test                # all 64 targets, 747+ assertions
+python3 ~/.hermes/profiles/mind-palace/skills/software-development/wubuos-battleship-gaps/scripts/find_real_gaps.py src   # honest gap scan
 ```
 
-## Status
+## Status (honest, v22 — 2026-07-08)
 
 | Metric | Value |
 |--------|-------|
-| **Sprint REAL_GAPs** | ~400 (Triple DA, form≠function filtered) |
-| **Parity epics** | 5 (SteamOS / Ubuntu-Arch / TempleOS / ZealOS / ReactOS) |
+| **Code-level REAL_GAPs** | ~40 (verified: 10 `system()` + 23 stub-phrase + 6 bare-metal no-op) |
+| **Parity marathons** | ~370 (ReactOS NT 297 + SteamOS ~30 + Ubuntu/Arch ~20 + TempleOS ~15 + ZealOS ~8) |
 | **Tests** | 747+ green across 64 targets |
-| **LOC** | ~15K real (was 123K inflated) |
+| **LOC** | ~15K real |
 | **ZealOS name parity** | 96/96 |
-| **Desktop wallpaper** | ✅ real decode (2026-07-07) |
+| **Baseline stub class** | CLOSED (0 empty bodies, 0 const-only-no-syscall in `src/`) |
+
+> **Honesty note**: BATTLESHIP v21's "~400 sprint gaps" was not reproducible — the
+> scanner was broken. v22 partitions the ~400 into ~40 verifiable code gaps + ~370
+> parity marathons (per the rule "rewriting from scratch in C = REAL_GAP, including
+> ReactOS gaps to WuBuOS"). See `BATTLESHIP.md` Part 1/2/3/4.
 
 ## Screenshots
 
@@ -67,8 +55,6 @@ make test                    # all 64 targets, 747+ assertions
 *WuBuOS booting in headless mode — 1024×768 Win98 desktop with My Computer,
 HolyC REPL, Recycle Bin, Control Panel icons, and taskbar clock.*
 
-See [screenshots/](screenshots/) for the full gallery.
-
 ## The Mission
 
 WuBuOS merges TempleOS (HolyC/JIT), ReactOS (NT syscall emulation), SteamOS
@@ -76,8 +62,10 @@ WuBuOS merges TempleOS (HolyC/JIT), ReactOS (NT syscall emulation), SteamOS
 hosted binary. The VSL (Virtual Syscall Layer) is the bridge: NT → Linux →
 Styx/9P → ZealOS → HolyC JIT.
 
-**Discipline**: opaque structs, minimal includes, C11 only, no god headers, every
-module self-contained. "Rewriting from scratch in C" = closing a gap.
+**Discipline**: opaque structs, minimal includes, C11 only. "Rewriting from scratch
+in C" = closing a gap — including every ReactOS-NT syscall and every missing
+SteamOS/Ubuntu/TempleOS/ZealOS subsystem, which are reclassified as REAL_GAP
+marathons.
 
 ## License
 WuBuOS — MIT License (ZealOS kernel under its own license)

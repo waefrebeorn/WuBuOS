@@ -13,10 +13,12 @@
  * give the original call sites a drop-in replacement and move ~410 lines
  * out of dosgui_term.c. The dosgui_term.c file is responsible only for tab
  * lifecycle/spawn/render/input — no ANSI parser state there now.
- *
- * C11 only. No globals. No god headers. The only public surface is declared
- * in dosgui_term_internal.h.
  */
+
+/* term_char_w / term_char_h are static in dosgui_term.c; mirror their
+ * fixed glyph metrics (6x10) here so this render fn stays self-contained. */
+#define TERM_RENDER_CHAR_W 6
+#define TERM_RENDER_CHAR_H 10
 
 #include "dosgui_term_internal.h"
 
@@ -399,4 +401,45 @@ void term_process_container_output(TermContainerSession *container) {
     TermScreen scr;
     term_screen_bind_container(&scr, container);
     term_ansi_drain_fd(container->ptm_fd, &scr);
+}
+
+void term_render_container_session(TermContainerSession *container,
+                                    uint32_t *fb, int x, int y, int w, int h) {
+    (void)fb; (void)w; (void)h;
+    if (!container) return;
+
+    /* Drain any pending PTY output into the screen buffer. */
+    term_process_container_output(container);
+
+    int cols = container->cols;
+    int rows = container->rows;
+    int char_w = TERM_RENDER_CHAR_W;
+    int char_h = TERM_RENDER_CHAR_H;
+
+    /* Render visible rows from the screen buffer (same ANSI-aware renderer
+     * used by the SHELL PTY session -- the container session is real, not a
+     * placeholder banner). */
+    for (int r = 0; r < rows && r < TERM_MAX_ROWS; r++) {
+        int ry = y + r * char_h;
+        for (int c = 0; c < cols && c < TERM_MAX_COLS; c++) {
+            int cx = x + c * char_w;
+            char ch = container->screen[r][c];
+            uint8_t attr = container->attrs[r][c];
+
+            if (ch != ' ') {
+                uint32_t fg = g_term.color_fg;
+                if (attr & 0x01) fg = 0xFFFFFF;  /* Bold */
+                if (attr & 0x02) fg = 0xFF0000;  /* Red */
+                if (attr & 0x04) fg = 0x00FF00;  /* Green */
+                vbe_draw_char(cx, ry, ch, fg, 1);
+            }
+        }
+    }
+
+    /* Render cursor. */
+    if (container->running && (container->cursor_x >= 0)) {
+        int cx = x + container->cursor_x * char_w;
+        int cy = y + container->cursor_y * char_h;
+        vbe_fill_rect(cx, cy, char_w, char_h, g_term.color_cursor);
+    }
 }

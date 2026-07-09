@@ -1,67 +1,54 @@
-# 🎯 WuBuOS Session — Next Kickoff (v25 — 2026-07-08)
+# 🎯 WuBuOS Session — Next Kickoff (v26 — 2026-07-08)
 
-**Baseline:** 747+ tests GREEN / 64+ targets. `GATE_EXIT=0` across all tiers.
+**Baseline:** 747+ tests GREEN / 64 targets. `make runtime` + `make hosted` exit 0 (`c475263`).
 
-## What was DONE v24→v25 (1 commit)
+## The Goal Mantra (2026-07-08 — reclassification)
+> **"Rewriting from scratch in C is the point of the project. Anything that falls
+> under that is reclassified as work REAL_GAP. This also goes for ReactOS gaps to
+> WuBuOS."**
+>
+> - No stubs. No scaffolding. No "for later". No "for brevity". No "stub for extension".
+> - Every parity subsystem (SteamOS / Ubuntu-Arch / TempleOS / ZealOS / ReactOS NT)
+>   is a REAL_GAP marathon = "rewrite that subsystem in C from scratch."
+> - Form≠Function = gap. A function that looks done but does no real work is a gap.
+> - Defensive guards + 6-register ABI void casts = NOT gaps (don't chase them).
+
+## What was DONE v25→v26 (this session)
 ```
-52715a3  feat(bear,libc,anticheat): 5 REAL_GAPs closed — bear checkpoints
-         + vsprintf + proton config
+- Fixed gap-scanner find_real_gaps.py (was broken: SyntaxError + 2329 vendor false hits)
+- Triple-DA stub hunt: ~40 verifiable code gaps + ~370 parity marathons (honest ~400)
+- BATTLESHIP.md v22: Part1 (~40 code) + Part2 (~370 parity) + Part3 (plumber deep-dive) + Part4 (DA audit)
+- Vaulted ACCOMPLISHMENTS_2026-07-08.md
+- Refreshed README/STATE/index/slate/goal-paste/roadmap to honest v22
+- Updated Hermes skills (wubuos-battleship-gaps, wubuos-architecture)
+- Triple DA plumber deep-dive: Arch daemon + TempleOS DOS daemon ↔ WuBuOS Desktop 1:1 parity
 ```
 
-- **Bear RL Checkpoints** (`bear_nn.c`): `bear_checkpoint_save/load` — binary serialization format (magic 'WUBR', version header, layer weights+biases, GRU 9-param block, logstd). Validates struct dims on load for round-trip safety. ~220 LOC added.
+## The Honest Board
+| Bucket | Count | Source |
+|--------|-------|--------|
+| Code-level (verified) | ~40 | 10 `system()` + 23 stub-phrase + 6 bare-metal no-op |
+| Parity marathons | ~370 | ReactOS NT 297 + SteamOS ~30 + Ubuntu/Arch ~20 + TempleOS ~15 + ZealOS ~8 |
+| **Total** | **~410 ≈ 400** | reclassified per mantra |
 
-- **Bear Trainer** (`bear_ppo.c`): `bear_trainer_save/load` — scalar state (iteration, best_return, total_steps, PPOConfig) + sidecar policy checkpoint (`.policy` file). ~85 LOC added.
+## Next Cycle (execute, don't plan)
+1. Close the **10 `system()` calls** → fork+exec (start `wubu_image_ops.c` ×5).
+2. Close **3-5 stub no-ops** with regression tests (`wubu_gamelib_clear_start_menu`,
+   `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `dosgui_term` container session).
+3. **Wire Arch daemon as Desktop autostart/service manager** (E3 integration).
+4. **Embed holyd REPL into Desktop terminal** (E4; kills `dosgui_term.c:642` Not-Implemented).
+5. **ReactOS NT: transliterate first 10 syscalls** (E1) — each = "rewrite in C."
 
-- **freestanding libc** (`libc.c`): `vsprintf` — real printf-style formatted output supporting %d/%i, %u, %x/%X, %s, %c, %p, %l/%ll, %0N width, %%. Downstream `sprintf` now formats real data instead of returning 0. ~157 LOC added.
-
-- **Anticheat** (`wubu_anticheat.c`): `wubu_anticheat_proton_config` — stores custom config into mutable `recommended_configs[]` table, queryable by Proton/bottles downstream. ~18 LOC added.
-
-**Total: 5 gaps closed.** ~464 lines added, 13 removed. Gate GREEN.
-
-## Standing orders (immutable)
-- C11 only · opaque structs · minimal includes · no god headers · every module self-contained
-- Every edited function does real work or is marked TODO. No stubs / scaffolding / "for later".
-- "Rewriting from scratch in C" = the point of the project → anything under that = REAL_GAP.
-- Stop not allowed. Blocked → alternate paths. Tests must pass after changes.
-
-## Scoreboard
-- **~358 sprint REAL_GAPs remaining** (was ~363). Triple DA, form≠function filtered.
-- **0 remaining TODO/FIXME comments** in the entire `src/` tree.
-- **5 parity epics** (SteamOS / Ubuntu-Arch / TempleOS / ZealOS / ReactOS) — marathons, not sprint.
-- **12 commits** since v22 ground. Gate always green.
-
-## HIGHEST PRIORITY — next gap to close
-
-### Option A 🔥: VSL syscall void-cast files
-Each has 40-58 `(void)d; (void)e; (void)f;` on the 4th-6th register params. These are syscalls with <6 real params in the 6-register convention. Each void cast represents a real syscall that should be doing something with those params or documenting why they're unused. 3 files, ~140 total:
-- `vsl_syscall_net.c` — 58 void casts (socket/ns/security syscalls)
-- `vsl_syscall_fileio.c` — 46 void casts
-- `vsl_syscall_proc.c` — 37 void casts
-
-### Option B: Monolith split of ≥800-line files
-Top candidates: `wubu_metal.c` (1508), `hosted.c` (1320), `interrupt.c` (1153), `fat32.c` (1060), `wubu_archd.c` (1055), `wubu_proton.c` (1053), `wubu_vulkan.c` (990), `wubu_canvas.c` (1325).
-
-### Option C: Bear RL compute backend
-`bear_cudnn.c` has ~12 empty `{}` CUDA wrappers with CPU-fallback already written (the file is 1141 lines, mostly real). Remaining gaps are edge cases in the fallback paths.
-
-### Option D: Sprint board scattershot
-Pick any file from BATTLESHIP.md's top-20 and close 5-10 gap points.
-
-### Option E 🆕: styxfs dir stubs
-`styxfs_closedir` + `styxfs_readdir_r` — 2 remaining void-cast stubs in the 9P filesystem. Requires wiring real directory iteration (opendir handles exist, need closedir/readdir_r delegates).
-
-## Commands
+## Reproducible verification (run before trusting any handoff)
 ```bash
 cd /home/wubu/.hermes/profiles/mind-palace/home/myseed
-make clean && make runtime && make hosted && make test
+python3 ~/.hermes/profiles/mind-palace/skills/software-development/wubuos-battleship-gaps/scripts/find_real_gaps.py src
+# → EMPTY {} bodies: 0   CONST-ONLY no-syscall: 0
+grep -rEn '\bsystem\s*\(' src --include='*.c' | grep -vE '_test\.c|test_|replaces system' | wc -l   # → 10
+make runtime && make hosted && make test   # gate green
 ```
 
-## Key docs
-- `slate.md` — v25 active work surface
-- `BATTLESHIP.md` — ~1562 REAL_GAP audit (v20)
-- `goal-paste.md` — this doc (v25)
-
-## Skills
-- `wubuos-test-suite` — gate discipline, gap-hunting, orthogonal-failure triage
-- `wubuos-monolithic-split` — proven split pattern
-- `wubuos-architecture` — build system, triple-place Makefile pattern, VSL void-cast conventions
+## Mantra reminders
+- Stale handoff red-lists are hypotheses, NOT ground truth. Re-run the target first.
+- Per-file void-cast counts are NOT a to-do list (155 in vsl_syscall_* are ABI).
+- Every edited function does real work or is marked TODO. Tests + build must pass.

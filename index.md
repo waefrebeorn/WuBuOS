@@ -1,21 +1,21 @@
 # WuBuOS Mind Palace Index
 
 ## Core Architecture
-- [BATTLESHIP.md](BATTLESHIP.md) — ~400 sprint REAL_GAPs (form≠function, triple DA) + 5 parity epics
-- [README.md](README.md) — Project overview, architecture, quick start
-- [STATE.md](STATE.md) — Current state, progress, vaulted accomplishments
+- [BATTLESHIP.md](BATTLESHIP.md) — ~400 REAL_GAPs v22: ~40 code-level (Part 1) + ~370 parity marathons (Part 2) + plumber deep-dive (Part 3) + DA audit (Part 4)
+- [README.md](README.md) — Project overview, architecture, quick start (honest v22)
+- [STATE.md](STATE.md) — Current state, progress, vaulted accomplishments (v22)
 - [OS_BIBLE.md](OS_BIBLE.md) — Complete OS specification
 
 ## Gallery
 - [screenshots/](screenshots/) — Live screenshots of the WuBuOS desktop, apps, and themes
 
 ## Audit & Analysis
-- [WUBUOS_DISTRO_ROADMAP.md](WUBUOS_DISTRO_ROADMAP.md) — Distro build tier map (DA-gap-aligned)
+- [WUBUOS_DISTRO_ROADMAP.md](WUBUOS_DISTRO_ROADMAP.md) — Distro build tier map (DA-gap-aligned, extended 2026-07-08)
 - [goal-paste.md](goal-paste.md) — Current campaign goal paste
-- [slate.md](slate.md) — Active work surface
-- [REACTOS_NT_SYSCALL_STUDY.md](REACTOS_NT_SYSCALL_STUDY.md) — ReactOS NT syscall mapping for VSL bridge
+- [slate.md](slate.md) — Active work surface (v26)
+- [REACTOS_NT_SYSCALL_STUDY.md](REACTOS_NT_SYSCALL_STUDY.md) — ReactOS NT syscall mapping for VSL bridge (297 mapped, 0 implemented → EPIC E1)
 - [DESKTOP_FIXUP_PLAN.md](DESKTOP_FIXUP_PLAN.md) — Desktop fixup (ReactOS-learned), Streams 1-4
-- [vault/](vault/) — Vaulted accomplishments (ACCOMPLISHMENTS_2026-07-07.md)
+- [vault/](vault/) — Vaulted accomplishments (ACCOMPLISHMENTS_2026-07-08.md)
 
 ## Roadmap & Planning
 - [BATTLESHIP.md](BATTLESHIP.md) — Active REAL_GAPs only (roadmap source)
@@ -23,7 +23,7 @@
 
 ## Implementation References
 - [Makefile](Makefile) — Build system, test targets
-- [CARTPOLE8_MASTER_RULES.h](CARTPOLE8_MASTER_RULES.h) — Physics verification rules
+- Gap-scanner: `~/.hermes/profiles/mind-palace/skills/software-development/wubuos-battleship-gaps/scripts/find_real_gaps.py`
 
 ## Source Directories
 - [src/kernel/](src/kernel/) — Memory, tasking, VBE, FAT32, AHCI, interrupt, PS/2
@@ -39,58 +39,42 @@
 - [src/shell/](src/shell/) — Unified GUI shell
 - [src/worldsim/](src/worldsim/) — GAAD, terrain, entity, physics
 
-## Test Targets (make test_XXX)
-
+## Test Targets (make test_XXX) — 64 targets, 747+ assertions GREEN
 | Target | Description |
 |--------|-------------|
-| test_jit | JIT compiler (82 assertions) |
-| test_holyc | HolyC compiler (84 assertions) |
-| test_network | Network stack (139 assertions) |
-| test_snapshot | Snapshot/restore (132 assertions) |
-| test_archd | Arch daemon (16 assertions) |
-| test_holyd | HolyC DOS daemon (31 assertions) |
-| test_daemon_panel | Desktop-daemon bridge (21 assertions) |
-| test_oci | OCI runtime (10 assertions) |
-| test_proton | PE exec (32 assertions) |
-| test_proton2 | Proton + GameScope (14 assertions) |
-| test_anticheat | Anti-cheat research (14 assertions) |
-| test_bottles | .wubu bottles (16 assertions) |
-| test_dosgui_wm | Window manager (16 assertions) |
-| test_dosgui_explorer | File explorer (74 tests) |
+| test_jit | JIT compiler (82) |
+| test_holyc | HolyC compiler (84) |
+| test_network | Network stack (139) |
+| test_snapshot | Snapshot/restore (132) |
+| test_archd | Arch daemon (16) |
+| test_holyd | HolyC DOS daemon (31) |
+| test_oci | OCI runtime (10) |
+| test_proton | PE exec (32) |
+| test_proton2 | Proton + GameScope (14) |
+| test_bottles | .wubu bottles (16) |
+| test_dosgui_wm | Window manager (16) |
+| test_dosgui_explorer | File explorer (74) |
 | test_dosgui_term | Terminal (PTY, tabs, ANSI) |
-| test_styx | 9P protocol (29 assertions) |
-| test_styxfs | 9P file server (11 assertions) |
-| test_memory | Kernel heap (15+ assertions) |
-| test_tasking | Task scheduler (10 assertions) |
-| test_fat32 | FAT32 filesystem (20 assertions) |
-| test_txfs | TXFS (25 assertions) |
-| test_ahci | AHCI disk (16 assertions) |
-| test_audio | Audio engine (14 assertions) |
-| test_gc | Garbage collector (10 assertions) |
-| test_vsl | VSL syscalls (52 assertions) |
-| test_bridge | Syscall bridge (25 assertions) |
-| test_bridge_flip | DOS flip (13 assertions) |
-| test_holyc_ptx | PTX backend (31 assertions) |
-| test_wubu | Full integration (47 assertions) |
-| test_hosted | Hosted binary |
-| test_host_exec | Host execution |
-| test_metal | Metal platform |
-| test_apps | Apps (15 assertions) |
-| test_apps2 | Apps v2 (16 assertions) |
-| test_gamelib | Game library |
-| test_pkgmgr | Package manager |
-| test_deploy | Deploy |
-| test_screenshot | Screenshot (9 assertions) |
-| test_gui_screenshot | GUI screenshot (11 assertions) |
-| test_mime | MIME |
-| test_trash | Trash |
-| test_wallpaper | Desktop wallpaper decode + placement (18 assertions) |
+| test_styx | 9P protocol (29) |
+| test_styxfs | 9P file server (11) |
+| test_memory | Kernel heap (15+) |
+| test_tasking | Task scheduler (10) |
+| test_fat32 | FAT32 filesystem (20) |
+| test_txfs | TXFS (25) |
+| test_ahci | AHCI disk (16) |
+| test_audio | Audio engine (14) |
+| test_vsl | VSL syscalls (52) |
+| test_bridge | Syscall bridge (25) |
+| test_bridge_flip | DOS flip (13) |
+| test_holyc_ptx | PTX backend (31) |
+| test_wallpaper | Desktop wallpaper (18) |
+| … | (full gate = 64 targets) |
 
 ## Key Skills (Hermes)
 - `systems-programming` — OS dev, kernel, JIT, GUI, daemons, C pitfalls
+- `wubuos-battleship-gaps` — BATTLESHIP gap analysis (v22 honest ~400)
+- `wubuos-architecture` — WuBuOS architecture + gap-scanner methodology
 - `wubuos-masterpiece-architecture` — Arch NT + Proton + HolyC DOS
 - `wubuos-zealos-parity` — ZealOS→WuBuOS 1:1 name mapping
 - `wubuos-container-isolation` — cgroups v2 + seccomp-bpf
 - `wubuos-jit-self-hosted` — x86-64 encoder, disassembler, minic compiler
-- `wubuos-wayland-migration` — Wayland client migration
-- `wubuos-fable-porting` — Mythos Fable windowing agent port

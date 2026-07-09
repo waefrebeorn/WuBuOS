@@ -54,6 +54,10 @@ int vsl_vulkan_export_memory_fd(VkDeviceMemory memory, int *fd_out);
 /* Import dmabuf fd as Vulkan memory */
 VkResult vsl_vulkan_import_memory_fd(int fd, VkDeviceMemory *memory_out, uint64_t *size_out);
 
+/* Find a physical-device memory type whose property flags include all of
+ * required_flags. Returns the matching index, or 0 if none match. */
+uint32_t vsl_vulkan_find_memory_type(VkMemoryPropertyFlags required_flags);
+
 /* Export Vulkan semaphore as sync fd */
 int vsl_vulkan_export_semaphore_fd(VkSemaphore semaphore, int *fd_out);
 

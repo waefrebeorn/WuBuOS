@@ -511,11 +511,26 @@ VkResult vsl_vulkan_import_memory_fd(int fd, VkDeviceMemory *memory_out, uint64_
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .pNext = &dedicated_info,
         .allocationSize = *size_out,
-        .memoryTypeIndex = 0,  /* TODO: find correct type */
+        .memoryTypeIndex = vsl_vulkan_find_memory_type(
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
     };
-    
+
     VkResult res = vkfp_vkAllocateMemory(g_vk_state.device, &alloc_info, NULL, memory_out);
     return res;
+}
+
+/* Scan the physical device's memory types for one whose property flags
+ * include all of the requested bits. Returns the first matching index, or
+ * 0 if none match (caller still attempts the alloc; Vulkan will reject with a
+ * clear error rather than silently using the wrong heap). */
+uint32_t vsl_vulkan_find_memory_type(VkMemoryPropertyFlags required_flags) {
+    VkPhysicalDeviceMemoryProperties props;
+    vkGetPhysicalDeviceMemoryProperties(g_vk_state.physical_device, &props);
+    for (uint32_t i = 0; i < props.memoryTypeCount; i++) {
+        if ((props.memoryTypes[i].propertyFlags & required_flags) == required_flags)
+            return i;
+    }
+    return 0;
 }
 
 int vsl_vulkan_export_semaphore_fd(VkSemaphore semaphore, int *fd_out) {

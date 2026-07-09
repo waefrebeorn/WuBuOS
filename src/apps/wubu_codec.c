@@ -7,6 +7,7 @@
  * Always works on Arch (ffmpeg in community repo).
  */
 #include "wubu_codec.h"
+#include "../runtime/wubu_spawn.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -237,12 +238,14 @@ int wubu_codec_extract_frame(const char *src, double timestamp,
 int wubu_codec_convert(const char *src, const char *dst,
                         const char *codec_v, const char *codec_a) {
     if (!src || !dst || !wubu_codec_available()) return -1;
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd),
-        "ffmpeg -y -i '%s' -c:v %s -c:a %s '%s' 2>/dev/null",
-        src, codec_v ? codec_v : "copy", codec_a ? codec_a : "copy", dst);
-    int ret = system(cmd);
-    return WIFEXITED(ret) ? WEXITSTATUS(ret) : -1;
+    char *argv[] = {
+        "ffmpeg", "-y", "-i", (char *)src,
+        "-c:v", (char *)(codec_v ? codec_v : "copy"),
+        "-c:a", (char *)(codec_a ? codec_a : "copy"),
+        (char *)dst, (char *)NULL
+    };
+    int ret = wubu_run_program("ffmpeg", argv, true);
+    return ret;
 }
 
 int wubu_codec_thumbnail(const char *src, uint32_t *out,

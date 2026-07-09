@@ -70,6 +70,26 @@ int main(void) {
     wubu_gamelib_save_config();
     printf("Config saved\n");
 
+    /* Test start-menu integration: build registers installed games,
+     * clear removes exactly those (regression for placeholder no-op). */
+    wubu_gamelib_clear_start_menu();
+    int before = state->startmenu_count;
+    wubu_gamelib_build_start_menu();
+    int after_build = state->startmenu_count;
+    assert(after_build > before);
+    printf("Start menu games added: %d\n", after_build - before);
+    /* Every added entry must carry the game name + id. */
+    int tagged = 0;
+    for (int i = before; i < after_build; i++) {
+        if (state->startmenu_entries[i].name[0] != '\0' &&
+            state->startmenu_entries[i].id[0] != '\0')
+            tagged++;
+    }
+    assert(tagged == after_build - before);
+    wubu_gamelib_clear_start_menu();
+    assert(state->startmenu_count == before);
+    printf("Start menu cleared back to %d entries\n", before);
+
     /* Clean up */
     wubu_gamelib_remove_game("steam_12345");
     assert(state->game_count == 0);
