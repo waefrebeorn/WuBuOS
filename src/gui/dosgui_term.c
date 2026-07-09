@@ -188,12 +188,19 @@ int dosgui_term_new_tab(TermSessionType type, const char *label, const char *she
     /* Initialize session */
     switch (type) {
         case TERM_SESSION_SHELL:
-            if (term_pty_spawn(shell ? shell : term_default_shell(), getenv("HOME"), &tab->session.pty) < 0) {
+            if (term_pty_spawn(shell ? shell : term_default_shell(), getenv("HOME"), &tab->session.pty, NULL) < 0) {
                 return -1;
             }
             break;
         case TERM_SESSION_HOLYC:
-            tab->session.holyc.holyc_term = NULL; /* Will be created on demand */
+            /* E4: embed the wubu_holyd HolyC REPL as a real PTY-backed
+             * process so the Desktop terminal hosts a live interactive REPL. */
+            {
+                static const char *holy_argv[] = { "--repl", NULL };
+                if (term_pty_spawn("wubu_holyd", getenv("HOME"), &tab->session.holyc.pty, holy_argv) < 0) {
+                    return -1;
+                }
+            }
             break;
         case TERM_SESSION_CONTAINER:
             if (shell) {
@@ -406,16 +413,6 @@ void dosgui_term_handle_key(uint32_t key, uint32_t mods) {
             term_handle_key_holyc(&g_term, key, mods);
         } else if (tab->type == TERM_SESSION_CONTAINER) {
             term_handle_key_container(&g_term, key, mods);
-        }
-    }
-}
-
-void dosgui_term_holyc_eval(const char *input) {
-    /* Delegate to dosgui_wm's HolycTerm if available */
-    if (g_term.active_tab >= 0) {
-        TermTab *tab = &g_term.tabs[g_term.active_tab];
-        if (tab->type == TERM_SESSION_HOLYC && tab->session.holyc.holyc_term) {
-            /* Would call HolyC eval */
         }
     }
 }
@@ -635,7 +632,7 @@ void dosgui_term_render_content(uint32_t *fb, int fb_w, int fb_h) {
             term_render_pty_session(&tab->session.pty, fb, x, y, w, h);
             break;
         case TERM_SESSION_HOLYC:
-            term_render_holyc_session(&tab->session.holyc, fb, x, y, w, h);
+            term_render_pty_session(&tab->session.holyc.pty, fb, x, y, w, h);
             break;
         case TERM_SESSION_CONTAINER:
             term_render_container_session(&tab->session.container, fb, x, y, w, h);
@@ -700,13 +697,6 @@ void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, in
     pty->cursor_blink++;
 }
 
-static void term_render_holyc_session(TermHolycSession *holyc, uint32_t *fb, int x, int y, int w, int h) {
-    /* HolyC REPL rendering - would show HolyC output */
-    vbe_draw_text(x + 10, y + 10, "WuBuOS HolyC REPL", 0x00FF00, 1);
-    vbe_draw_text(x + 10, y + 25, "Type HolyC code. Enter to evaluate.", 0x808080, 1);
-    vbe_draw_text(x + 10, y + 40, "$ ", 0xFFFF00, 1);
-}
-
 /* -- PTY I/O ------------------------------------------------------ */
 
 void dosgui_term_pty_write(const char *data, int len) {
@@ -715,6 +705,11 @@ void dosgui_term_pty_write(const char *data, int len) {
 
     if (tab->type == TERM_SESSION_SHELL) {
         TermPtySession *pty = &tab->session.pty;
+        if (pty->ptm_fd >= 0) {
+            write(pty->ptm_fd, data, len);
+        }
+    } else if (tab->type == TERM_SESSION_HOLYC) {
+        TermPtySession *pty = &tab->session.holyc.pty;
         if (pty->ptm_fd >= 0) {
             write(pty->ptm_fd, data, len);
         }
@@ -729,9 +724,11 @@ void dosgui_term_pty_write(const char *data, int len) {
 void dosgui_term_pty_read(void) {
     if (g_term.active_tab < 0) return;
     TermTab *tab = &g_term.tabs[g_term.active_tab];
-    if (tab->type != TERM_SESSION_SHELL) return;
-    
-    term_process_pty_output(&tab->session.pty);
+    if (tab->type == TERM_SESSION_SHELL) {
+        term_process_pty_output(&tab->session.pty);
+    } else if (tab->type == TERM_SESSION_HOLYC) {
+        term_process_pty_output(&tab->session.holyc.pty);
+    }
 }
 
 /* -- Helpers ------------------------------------------------------ */

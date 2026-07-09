@@ -54,7 +54,8 @@ static const char *term_default_shell(void) {
 
 /* -- PTY Session Spawning ----------------------------------------- */
 
-int term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty) {
+int term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty,
+                   const char *const *extra_argv) {
     memset(pty, 0, sizeof(TermPtySession));
     pty->ptm_fd = -1;
     pty->running = true;
@@ -127,8 +128,20 @@ int term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty) {
         if (pty->cwd[0]) chdir(pty->cwd);
 
         /* Execute shell */
-        char *args[] = { (char*)pty->shell, "-l", NULL };
-        execvp(pty->shell, args);
+        if (extra_argv) {
+            /* Build argv: [shell, ...extra_argv, NULL] */
+            char *argv[16];
+            int argc = 0;
+            argv[argc++] = (char *)pty->shell;
+            for (const char *const *a = extra_argv; *a && argc < 15; a++) {
+                argv[argc++] = (char *)*a;
+            }
+            argv[argc] = NULL;
+            execvp(pty->shell, argv);
+        } else {
+            char *args[] = { (char*)pty->shell, "-l", NULL };
+            execvp(pty->shell, args);
+        }
 
         /* Fallback */
         execl("/bin/sh", "sh", "-l", NULL);
@@ -481,8 +494,33 @@ void term_handle_key_container(TermState *term, uint32_t key, uint32_t mods) {
 
 /* HolyC REPL key handling - stub for now */
 void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods) {
-    (void)term; (void)key; (void)mods;
-    /* HolyC REPL key handling - similar to dosgui_wm HolycTerm */
-    /* For now, just pass to HolyC if we have a window */
-    dosgui_term_holyc_eval(NULL);  /* Trigger redraw/eval */
+    (void)mods;
+    if (term->active_tab < 0) return;
+    TermTab *tab = &term->tabs[term->active_tab];
+    if (tab->type != TERM_SESSION_HOLYC) return;
+    TermPtySession *pty = &tab->session.holyc.pty;
+
+    char buf[8];
+    int len = 0;
+    /* Same key->byte mapping as the shell PTY (E4: HolyC REPL is PTY-backed). */
+    if (key >= 32 && key < 127) {
+        buf[len++] = (char)key;
+    } else {
+        switch (key) {
+            case '\r': buf[len++] = '\r'; break;
+            case '\n': buf[len++] = '\n'; break;
+            case 8:   buf[len++] = 8;   break;  /* Backspace */
+            case 9:   buf[len++] = 9;   break;  /* Tab */
+            case 27:  buf[len++] = 27;  break;  /* Escape */
+            case 0xE048: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'A'; break; /* Up */
+            case 0xE050: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'B'; break; /* Down */
+            case 0xE04B: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'D'; break; /* Left */
+            case 0xE04D: buf[len++] = 27; buf[len++] = '['; buf[len++] = 'C'; break; /* Right */
+            default: return;
+        }
+    }
+
+    if (len > 0 && pty->ptm_fd >= 0) {
+        write(pty->ptm_fd, buf, len);
+    }
 }

@@ -86,7 +86,8 @@ int  term_ansi_drain_fd(int fd, TermScreen *scr);
 /* -- PTY/Container session management ------------------------------- */
 
 /* PTY session lifecycle */
-int  term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty);
+int  term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty,
+                   const char *const *extra_argv);
 void term_pty_cleanup(TermPtySession *pty);
 void term_update_pty_size(TermPtySession *pty, int cols, int rows);
 void term_reset_pty_screen(TermPtySession *pty);
