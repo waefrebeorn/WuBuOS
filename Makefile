@@ -174,7 +174,7 @@ hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_compat_db.c $(RT)/wubu_session.c $(RT)/wubu_arch.c $(RT)/wubu_archd.c $(RT)/wubu_ramdisk.c \
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
-		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -o $(HOSTED)/wubu
+		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
 # ── Compilation Rules ────────────────────────────────────────────
 
@@ -438,8 +438,18 @@ test_gui_screenshot:
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		$(GUI)/wubu_mime.c \
 		$(GUI)/wubu_screenshot_test.c \
-		-o $(GUI)/wubu_screenshot_test -lwayland-client -lxkbcommon -lm
+		$(GUI)/wubu_screenshot_test -lwayland-client -lxkbcommon -lm
 	$(GUI)/wubu_screenshot_test
+
+# Clipboard regression: wubu_screenshot.c with its 4 GUI external refs
+# stubbed in the test TU, so we verify real PNG clipboard encode without
+# the full WM/Wayland stack.
+test_screenshot_clipboard:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
+		-I$(GUI) -I$(KERNEL) -I$(TOOLS) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(APPS) -I$(HOSTED) \
+		$(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_clipboard_test.c \
+		-o $(GUI)/wubu_screenshot_clipboard_test -lz -lm
+	$(GUI)/wubu_screenshot_clipboard_test
 
 test_mime:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
