@@ -2,7 +2,7 @@
 
 ```
 ╔════════════════════════════════════════════════════════════════════════╗
-║  W U B U O S   B A T T L E S H I P   v22                                ║
+║  W U B U O S   B A T T L E S H I P   v23                                ║
 ║  ~400 REAL_GAPs = ~25 code-level (verified, post-cycle) + ~370 parity marathons ║
 ║  Triple DA · form≠function filtered · reproducible scanner            ║
 ╚════════════════════════════════════════════════════════════════════════╝
@@ -92,6 +92,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > + 6 bare-metal-no-op = **~22 verifiable code-level REAL_GAPs** (down from ~40). The 10
 > `system()` calls, 4 of the stub-phrase entries (gamelib/container/vulkan/term), plus
 > anticheat kernel load/unload (#14/#15) and screenshot clipboard (#20) are now CLOSED with regression tests.
+> E1 NT batch 2 (10 more syscalls: 14/21/42/63/86/99/125/158/256/266) transliterated with
+> real VSL handlers + regression (vsl_syscall_nt_test 25→49 checks).
 
 ---
 
@@ -103,17 +105,25 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 10 transliterated) — 287 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 10 implemented (first batch).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 20 transliterated) — 277 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 20 implemented (batch 1: 10 + batch 2: 10).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
-- First 10 transliterated (real VSL handlers, `src/runtime/vsl/vsl_syscall_nt.c`):
+- Batch 1 (10) transliterated (real VSL handlers, `src/runtime/vsl/vsl_syscall_nt.c`):
   `NtAddAtom` (9), `NtAlertThread` (15), `NtAllocateLocallyUniqueId` (16),
   `NtAllocateUserPhysicalPages` (17), `NtAllocateUuids` (18), `NtAssignProcessToJobObject` (22),
   `NtCancelIoFile` (25), `NtClearEvent` (27), `NtFindAtom` (81), `NtFreeUserPhysicalPages` (87).
   Wired into `vsl_syscall_table[]` (NT bridge) + dispatched via `vsl_nt_syscall_dispatch`.
-- This is the single largest block: **287 remaining = "rewrite-from-scratch" work items.**
+- Batch 2 (10, 2026-07-09) transliterated (real VSL handlers, `vsl_syscall_nt.c`):
+  `NtAlertResumeThread` (14), `NtAreMappedFilesTheSame` (21), `NtCreateJobObject` (42),
+  `NtDeleteAtom` (63), `NtFlushWriteBuffer` (86), `NtIsProcessInJob` (99),
+  `NtOpenJobObject` (125), `NtQueryInformationAtom` (158), `NtSetUuidSeed` (256),
+  `NtTerminateJobObject` (266). Job objects use an isolated sentinel-child process
+  group (so terminate does NOT kill the caller). `NtSetUuidSeed` makes UUID gen
+  deterministic. Wired into `vsl_syscall_table[]` + local dispatch; regression in
+  `vsl_syscall_nt_test.c` (now 49 checks, up from 25).
+- This is the single largest block: **277 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |
@@ -159,7 +169,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | PC speaker | not implemented |
 | ZealOS-style single-user kernel | partial |
 
-> **Parity total:** 297 + 30 + 20 + 15 + 8 = **~370 marathons.**
+> **Parity total:** 277 + 30 + 20 + 15 + 8 = **~350 marathons.**
 
 ---
 
