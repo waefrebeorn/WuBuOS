@@ -29,6 +29,8 @@
 #include "src/runtime/styx.h"
 #include "src/runtime/styxfs.h"
 #include "src/runtime/wubu_host_exec.h"
+#include "src/runtime/wubu_exec.h"
+#include "src/runtime/wubu_spawn.h"
 #include "src/tools/screenshot.h"
 
 #include <stdio.h>
@@ -155,20 +157,26 @@ int main(int argc, char **argv) {
     wubu_gif_stop();
     printf("Frames saved as demo_frames.frameXXX.ppm\n");
     
-    /* Convert to MP4 using ffmpeg */
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd),
-        "ffmpeg -y -framerate %d -i demo_frames.frame%%03d.ppm "
-        "-c:v libx264 -preset fast -pix_fmt yuv420p -movflags +faststart wubuos_demo.mp4 2>/dev/null",
-        fps);
-    int ret = system(cmd);
+    /* Convert to MP4 using ffmpeg (shell-free) */
+    char *argv[] = {
+        "ffmpeg", "-y", "-framerate", NULL, /* fps filled below */
+        "-i", "demo_frames.frame%03d.ppm",
+        "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart", "wubuos_demo.mp4", (char *)NULL
+    };
+    char fpsbuf[16];
+    snprintf(fpsbuf, sizeof(fpsbuf), "%d", fps);
+    argv[3] = fpsbuf;
+    int ret = wubu_run_program("ffmpeg", argv, true);
     if (ret != 0) {
         fprintf(stderr, "ffmpeg failed, trying alternative...\n");
-        snprintf(cmd, sizeof(cmd),
-            "ffmpeg -y -framerate %d -i demo_frames.frame%%03d.ppm "
-            "-c:v libx264 -preset fast -pix_fmt yuv420p wubuos_demo.mp4 2>/dev/null",
-            fps);
-        system(cmd);
+        char *argv2[] = {
+            "ffmpeg", "-y", "-framerate", fpsbuf,
+            "-i", "demo_frames.frame%03d.ppm",
+            "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
+            "wubuos_demo.mp4", (char *)NULL
+        };
+        wubu_run_program("ffmpeg", argv2, true);
     }
     
     printf("Demo video: wubuos_demo.mp4\n");

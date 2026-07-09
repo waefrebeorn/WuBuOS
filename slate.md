@@ -1,51 +1,48 @@
-# WuBuOS Slate — Active Work Surface (v25)
+# WuBuOS Slate — Active Work Surface (v26)
 
-## Current Focus: **SPRINT BOARD: ~349 REMAINING — 3 GAPS CLOSED THIS SESSION**
-**Mode**: Perpetual gap-closer loop — execute until ~349 → 0.
-**Constraint**: "Rewriting from scratch in C" — no stubs, no scaffolding, no "for later".
-
----
-
-## ✅ VAULTED (2026-07-08)
-| Date | Work | Δ Real Gaps | Files |
-|------|------|-------------|-------|
-| 2026-07-08 | LVM snapshot: lvm_snapshot_create real lvcreate (was -ENOSYS stub) | -1 | `wubu_snapshot_fs.c`, `wubu_snapshot_test.c` |
-| 2026-07-08 | Bear optimizer: step/zero_grad real (dispatch to per-param Adam/SGD/Muon) | -2 | `bear_opt.c`, `bear_opt.h`, `bear_opt_test.c` |
-| 2026-07-08 | StyxFS dir-enum: opendir/closedir/readdir/readdir_r real (mount→host) | -4 | `styxfs.c`, `styxfs_test.c` |
-| 2026-07-08 | Bear checkpoints: binary serialization (save/load) | -2 | `bear_nn.c` |
-| 2026-07-08 | Bear trainer save/load: scalar state + policy sidecar | -2 | `bear_ppo.c` |
-| 2026-07-08 | freestanding libc vsprintf — real formatted output | -1 | `libc.c` |
-| 2026-07-08 | Anticheat proton_config — mutable config table | -1 | `wubu_anticheat.c` |
-| 2026-07-08 | JIT encoder: 33 return-0 stubs → real byte counts | -33 | `wubu_x86.c`, `jit_test.c` |
-| 2026-07-08 | Pkgmgr: resolve_deps, clean_cache, autoremove, verify_installed | -4 | `wubu_pkgmgr.c`, `wubu_pkgmgr_internal.h` |
-| 2026-07-07 | UX Stream E: welcome dialog, bundled wallpaper, status bar tips | — | `wubu_welcome.*`, `wubu_wallpaper.*` |
-| 2026-07-07 | Desktop Stream 3: context menu fully implemented | — | `dosgui_wm_ctxmenu.c` |
-| 2026-07-05 | Monolith splits: ALL 14+ complete | — | vsl_syscall, holyc_codegen, wubu_holyd, wubu_audio, wubu_network, wubu_snapshot, wubu_pkgmgr, dosgui_wm, dosgui_explorer |
-| Prior | Foundation 1-5 + Campaign 1-25 | ~650 | All subsystems |
+## Current Focus: **TRIPLE-DA AUDIT DONE — ~400 REAL_GAPs RECLASSIFIED (40 code + 370 parity)**
+**Mode**: Perpetual gap-closer loop — execute until ~400 → 0.
+**Constraint**: "Rewriting from scratch in C" = closing a gap. No stubs, no scaffolding, no "for later".
 
 ---
 
-## Active Work Items — NEXT CYCLE
-
-### HIGHEST PRIORITY
-**A. VSL syscall void-cast files** (~140 total, 3 files):
-- `vsl_syscall_net.c` — 58 void casts (socket/ns/security)
-- `vsl_syscall_fileio.c` — 46 void casts
-- `vsl_syscall_proc.c` — 37 void casts
-Each `(void)d; (void)e; (void)f;` represents a real syscall with unused register params.
-
-**B. Monolith splits** — remaining ≥800-line files:
-`wubu_metal`(1508), `hosted.c`(1320), `interrupt.c`(1153), `fat32.c`(1060),
-`wubu_archd.c`(1055), `wubu_proton.c`(1053), `wubu_vulkan.c`(990), `wubu_canvas.c`(1325).
-
-**C. Bear RL backend** — `bear_cudnn.c` edge-case fallback gaps.
+## ✅ VAULTED THIS SESSION (2026-07-08)
+| Work | Δ | Files |
+|------|---|-------|
+| Gap-scanner `find_real_gaps.py` fixed (SyntaxError + vendor-sweep) | tool | skill script |
+| Honest re-audit: baseline stub class CLOSED (0 empty / 0 const-only in `src/`) | — | BATTLESHIP v22 |
+| BATTLESHIP v22: ~400 = ~40 code-level + ~370 parity marathons (ReactOS 297 + SteamOS/Ubuntu/TempleOS/ZealOS) | board | BATTLESHIP.md |
+| Triple-DA plumber deep-dive: Arch daemon + TempleOS DOS daemon ↔ WuBuOS Desktop 1:1 parity | analysis | BATTLESHIP.md Part 3 |
+| Accomplishments rolled to `vault/ACCOMPLISHMENTS_2026-07-08.md` | vault | vault/ |
+| **CYCLE CLOSED (2026-07-08):** 10 `system()`→`wubu_run_program` fork+exec (`wubu_spawn.c`); 4 stub-phrases closed — `wubu_gamelib` start-menu registry, `vsl_gpu_vulkan` memtype scan, `wubucontainer` handler registry, `dosgui_term` container PTY render+input. All green; 3 new regression tests (`test_spawn`, `test_container_registry`, gamelib start-menu). | code | BATTLESHIP.md Part 1 A/B |
 
 ---
+
+## The Honest Sprint Board (Part 1 — ~25 verifiable code gaps, post-cycle)
+Source of truth: `find_real_gaps.py src` (0 empty/0 const-only) + marker grep.
+- **0 live `system()` calls** — CLOSED this cycle (10→0) via `src/runtime/wubu_spawn.c` `wubu_run_program()`; `grep -rEn '\bsystem\(' src` = 0.
+- **19 stub-phrase funcs** (4 closed this cycle: `wubu_gamelib.c` ×2 start-menu, `vsl_gpu_vulkan.c` memtype, `wubucontainer.c` register_handler, `dosgui_term.c` container session) — remaining: `tasking.c`(2), `wubu_anticheat.c`(2), `bear_cudnn.c`(3), `wubu_screenshot.c`, `wubu_canvas.c`(2), `wubu_pkgmgr.c`, `oci_http_client.c`, `holyc_ptx.c`, `wubu_compositor_standalone.c`(2), `wubu_compositor.c`, `wubu_bottles.c`.
+- **6 bare-metal no-ops** — `tasking.c`(3 ctx-switch), `wubu_metal.c`(3 `#else` audio/X11 — correct).
+
+## The Parity Marathons (Part 2 — ~370, reclassified per rule)
+- **E1 ReactOS NT: 297** syscalls mapped, 0 transliterated (`vsl_nt_bridge.h:376` `VSL_NT_MAP_STUB`).
+- **E2 SteamOS: ~30**, **E3 Ubuntu/Arch: ~20**, **E4 TempleOS: ~15**, **E5 ZealOS: ~8**.
+
+## Triple-DA Plumber Verdict (Part 3)
+Arch daemon (16/16) + TempleOS DOS daemon (31/31) EXIST but are NOT wired as the
+Desktop's service/launcher/REPL backend. ~6 concrete integration REAL_GAPs.
+
+---
+
+## Next Cycle (highest priority)
+1. ~~**Close the 10 `system()` calls** → fork+exec~~ **DONE** (10→0, `wubu_spawn.c` + `test_spawn`).
+2. ~~**Close stub no-ops**: `wubu_gamelib_clear_start_menu`, `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `dosgui_term` container session~~ **DONE** (4 closed, 3 regression tests).
+3. **Wire Arch daemon as Desktop autostart/service manager** (E3 integration).
+4. **Embed holyd REPL into Desktop terminal** (E4; kills `dosgui_term.c:642` Not-Implemented).
+5. **ReactOS NT: transliterate first 10 syscalls** (E1) — each = "rewrite in C."
 
 ## Notes
-- **73 .c files**, ~15K real LOC.
-- **~349 sprint REAL_GAPs** remaining (was ~354 before this session — StyxFS -4, Bear opt -2, LVM snap -1).
-- **0 TODO/FIXME** comments remain in `src/`.
-- All tests green. 64+ test targets, 747+ assertions. Full gate exits 0.
-- `goal-paste.md` has the next-session copy-paste prompt.
+- **268 .c / 164 .h** files, ~15K real LOC.
+- **All tests green** (prior session: 64 targets / 747+ assertions). `make runtime`/`make hosted` exit 0 (this session, `c475263`).
+- Slate v21/v25 "~349 sprint" was **NOT reproducible** — corrected to ~40 + ~370 this session.
 - WuBuOS: ZealOS kernel + Win98 shell + Styx/9P namespace + Arch containers.

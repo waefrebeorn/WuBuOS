@@ -108,6 +108,8 @@ typedef struct {
     int count;
 } SmProgramDB;
 
+extern SmProgramDB g_program_db;
+
 typedef struct {
     char query[DOSGUI_SEARCH_MAX_LEN];
     int cursor_pos;
