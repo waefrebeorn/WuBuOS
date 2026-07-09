@@ -198,19 +198,28 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   **NOT** currently treat `wubu_archd` as its launcher/autostart backend, nor
   `wubu_holyd` as its embedded HolyC REPL-on-shell backend (the terminal has a
   `[Container Session - Not Implemented]` branch — Part 1 #21).
+- **E3 integration CLOSED (2026-07-08 cycle):** `wubu_archd` (16/16) is now wired as
+  the Desktop's **service/autostart manager** via `src/gui/dosgui_service_mgr.c` +
+  `.h`. `dosgui_desktop_init()` calls `dosgui_service_mgr_init()` + `_boot()` (starts
+  every registered autostart service through the real `wubu_archd_svc_start` →
+  `arch-chroot systemctl start`); `dosgui_desktop_shutdown()` calls
+  `dosgui_service_mgr_shutdown()` (stops booted services, tears down archd). Regression
+  test: `src/gui/dosgui_service_mgr_test.c` (`make test_service_mgr`), 19 checks.
 
 ### 3.4 The 1:1 parity gap (plumber verdict)
 | SteamOS/Ubuntu does | WuBuOS has | Gap (REAL_GAP) |
 |---------------------|-----------|----------------|
-| systemd user service for steam | Arch daemon = package backend only | **Wire `wubu_archd` as Desktop service/autostart manager** |
-| Steam daemon owns game library + Proton prefixes | `wubu_proton2.c` manages prefixes (14/14) | **Integrate proton2 prefix registry into Desktop "Games"** (Part 1 #19/#32) |
+| systemd user service for steam | Arch daemon = package backend only | ✅ **CLOSED (2026-07-08)** — `wubu_archd` wired as Desktop service/autostart manager (`dosgui_service_mgr.c`) |
+| Steam daemon owns game library + Proton prefixes | `wubu_proton2.c` manages prefixes (14/14) | **Integrate proton2 prefix registry into Desktop "Games"** (Part 1 #19/#32 — also CLOSED this cycle, see 3.3 start-menu note) |
 | SteamOS Game Mode = CEF full-screen | Desktop = Win98 WM only | **Game Mode launcher (gamescope-style) — EPIC E2** |
 | Ubuntu shell parses .desktop via daemon | startmenu parses .desktop directly | **Route app registry through Arch daemon** |
-| TempleOS: HolyC REPL is the shell | holyd REPL is a separate daemon | **Embed holyd REPL into Desktop terminal** (Part 1 #21) |
+| TempleOS: HolyC REPL is the shell | holyd REPL is a separate daemon | **Embed holyd REPL into Desktop terminal** (Part 1 #21 — CLOSED this cycle, container PTY + REPL; see Part 1 #21) |
 
 **Triple DA verdict:** The daemons EXIST and are tested, but the **integration layer**
-(daemon-as-Desktop-backend) is the missing 1:1 parity. This is ~6 concrete integration
-REAL_GAPs, folded into EPIC E2/E3/E4.
+(daemon-as-Desktop-backend) was the missing 1:1 parity. Of the ~6 concrete integration
+REAL_GAPs, **3 are now CLOSED** this cycle: archd service manager (E3), container-session
+REPL terminal (E4/#21), and start-menu game registry (#19/#32). Remaining: Game Mode
+launcher (E2), app-registry-via-archd routing, and full holyd-embed (E4 deeper).
 
 ---
 

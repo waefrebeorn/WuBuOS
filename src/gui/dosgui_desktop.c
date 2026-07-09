@@ -11,6 +11,7 @@
 #include "dosgui_wm.h"
 #include "dosgui_daemon_panel.h"
 #include "dosgui_startmenu.h"
+#include "dosgui_service_mgr.h"
 #include "../apps/dosgui_apps.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
@@ -87,6 +88,12 @@ int dosgui_desktop_init(void) {
     /* Initialize daemon panel (system tray icons, socket connections) */
     dosgui_daemon_panel_init();
 
+    /* E3 integration: wubu_archd (16/16) is the Desktop's service/autostart
+     * manager. Initialize it and boot every registered autostart service. */
+    if (dosgui_service_mgr_init() == 0) {
+        dosgui_service_mgr_boot();
+    }
+
     return 0;
 }
 
@@ -102,6 +109,9 @@ void dosgui_desktop_shutdown(void) {
 
     /* Shutdown daemon panel */
     dosgui_daemon_panel_shutdown();
+
+    /* Tear down the archd service manager (stops booted services). */
+    dosgui_service_mgr_shutdown();
 }
 
 /* -- Launch ------------------------------------------------------ */

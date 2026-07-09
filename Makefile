@@ -167,12 +167,12 @@ $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
 	$(CC) $(CFLAGS) -I$(HOSTED) -x c -c $< -o $@
 
 hosted: $(HOSTED_OBJS) $(HOSTED)/xdg-shell-private.o
-	$(CC) $(CFLAGS) -DVBE_HOSTED -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
+	$(CC) $(CFLAGS) -DVBE_HOSTED -DWUBD_TEST_MAIN -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/wubu_math.c $(BRIDGE)/bridge.c $(BRIDGE)/wubu_syscall.c \
-		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_term.c $(GUI)/dosgui_term_ansi.c $(GUI)/dosgui_term_pty.c $(GUI)/dosgui_daemon_panel.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_gamelib.c $(GUI)/wubu_deploy.c $(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_wallpaper.c $(GUI)/wubu_welcome.c \
+		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_term.c $(GUI)/dosgui_term_ansi.c $(GUI)/dosgui_term_pty.c $(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_gamelib.c $(GUI)/wubu_deploy.c $(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_wallpaper.c $(GUI)/wubu_welcome.c \
 		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_compat_db.c $(RT)/wubu_session.c $(RT)/wubu_arch.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_compat_db.c $(RT)/wubu_session.c $(RT)/wubu_arch.c $(RT)/wubu_archd.c $(RT)/wubu_ramdisk.c \
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
@@ -505,15 +505,14 @@ test_styxfs:
 	$(RT)/styxfs_test
 
 test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_HOSTED_TEST -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_HOSTED_TEST -DWUBD_TEST_MAIN -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styxfs.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(BRIDGE)/bridge.c \
-		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_daemon_panel.c \
-		$(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c \
+		$(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_term.c $(GUI)/dosgui_term_ansi.c $(GUI)/dosgui_term_pty.c $(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_session.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_mime.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_gamelib.c $(GUI)/wubu_deploy.c $(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_wallpaper.c $(GUI)/wubu_welcome.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_container.c $(RT)/wubu_compat_db.c $(RT)/wubu_session.c $(RT)/wubu_arch.c $(RT)/wubu_archd.c $(RT)/wubu_ramdisk.c \
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
-		-o $(HOSTED)/hosted_test -lwayland-client -lxkbcommon -lm
+		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -o $(HOSTED)/hosted_test
 	$(HOSTED)/hosted_test
 
 test_host_exec:
@@ -724,11 +723,26 @@ test_system:
 # ── Daemon Panel Test ─────────────────────────────────────────────
 
 test_daemon_panel:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBD_TEST_MAIN -Wno-format-truncation \
 		-I$(GUI) -I$(RT) -I$(KERNEL) \
-		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_daemon_panel_test.c \
+		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/dosgui_daemon_panel_test.c \
+		$(RT)/wubu_archd.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c \
+		$(RT)/wubu_container.c $(RT)/styx.c $(RT)/styxfs.c \
 		-o $(GUI)/dosgui_daemon_panel_test -lpthread
 	$(GUI)/dosgui_daemon_panel_test
+
+test_service_mgr:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation \
+		-I$(RT) -I$(GUI) -I$(KERNEL) \
+		-DWUBD_TEST_MAIN \
+		$(RT)/wubu_archd.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c \
+		$(RT)/wubu_container.c \
+		$(RT)/styx.c $(RT)/styxfs.c \
+		$(GUI)/dosgui_service_mgr.c $(GUI)/dosgui_service_mgr_test.c \
+		-o $(GUI)/dosgui_service_mgr_test -lpthread
+	$(GUI)/dosgui_service_mgr_test
 
 # ── Compositor Test ───────────────────────────────────────────────
 
