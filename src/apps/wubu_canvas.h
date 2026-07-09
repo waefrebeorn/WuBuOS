@@ -284,7 +284,11 @@ int  wubu_cv_save_png(WubuCanvas *cv, const char *path);
 int  wubu_cv_save_bmp(WubuCanvas *cv, const char *path);
 int  wubu_cv_save_ppm(WubuCanvas *cv, const char *path);
 int  wubu_cv_save_gif(WubuCanvas *cv, const char *path);
-int  wubu_cv_load(WubuCanvas *cv, const char *path);
+int  wubu_cv_load(WubuCanvas *cv, const char *path);        /* dispatcher by ext/magic */
+int  wubu_cv_load_png(WubuCanvas *cv, const char *path);    /* 24-bit truecolor → canvas */
+int  wubu_cv_load_gif(WubuCanvas *cv, const char *path);
+int  wubu_cv_load_bmp(WubuCanvas *cv, const char *path);
+int  wubu_cv_load_ppm(WubuCanvas *cv, const char *path);
 
 /* -- Undo/Redo ---------------------------------------------------- */
 
