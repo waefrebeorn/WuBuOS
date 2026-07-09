@@ -80,9 +80,11 @@ typedef struct {
 
 /* -- HolyC Session State ------------------------------------------ */
 
+/* The HolyC terminal tab embeds the wubu_holyd REPL as a real PTY-backed
+ * process (`wubu_holyd --repl`), so the Desktop terminal hosts a live
+ * interactive HolyC REPL (E4). */
 typedef struct {
-    /* Reuse HolycTerm from dosgui_wm for HolyC REPL */
-    void           *holyc_term;     /* Opaque pointer to HolycTerm */
+    TermPtySession  pty;            /* PTY running `wubu_holyd --repl` */
 } TermHolycSession;
 
 /* -- Container Session State -------------------------------------- */
@@ -216,9 +218,8 @@ void dosgui_term_copy_selection(void);
 void dosgui_term_paste(void);
 const char *dosgui_term_get_cwd(void);
 
-/* HolyC REPL integration (delegates to dosgui_wm HolycTerm) */
-void dosgui_term_holyc_eval(const char *input);
-
+/* HolyC REPL tab is PTY-backed (wubu_holyd --repl); routing handled via
+ * dosgui_term_pty_write / dosgui_term_pty_read like the shell tab. */
 /* State accessor */
 TermState *dosgui_term_state(void);
 

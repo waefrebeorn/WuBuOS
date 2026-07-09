@@ -16,6 +16,7 @@
 | Accomplishments rolled to `vault/ACCOMPLISHMENTS_2026-07-08.md` | vault | vault/ |
 | **CYCLE CLOSED (2026-07-08):** 10 `system()`→`wubu_run_program` fork+exec (`wubu_spawn.c`); 4 stub-phrases closed — `wubu_gamelib` start-menu registry, `vsl_gpu_vulkan` memtype scan, `wubucontainer` handler registry, `dosgui_term` container PTY render+input. All green; 3 new regression tests (`test_spawn`, `test_container_registry`, gamelib start-menu). | code | BATTLESHIP.md Part 1 A/B |
 | **E3 CLOSED (2026-07-08):** `wubu_archd` (16/16) wired as Desktop service/autostart manager via `dosgui_service_mgr.c`; `dosgui_desktop_init/shutdown` call init+boot / shutdown. 19-check regression test (`make test_service_mgr`). Also fixed pre-existing broken `test_hosted` link (aligned with `hosted` binary). | code | BATTLESHIP.md Part 3.3/3.4 |
+| **E4 CLOSED (2026-07-08):** HolyC terminal tab embeds `wubu_holyd --repl` as a real PTY-backed REPL. Added `--repl` TTY mode to `wubu_holyd_lifecycle.c` + `wubu_holyd_bin` target; `term_pty_spawn` gained argv support; HOLYC tab spawns REPL, key/render routed to its PTY. `test_dosgui_term` covers it (12 checks). | code | BATTLESHIP.md Part 3.4 |
 
 ---
 
@@ -39,7 +40,7 @@ Desktop's service/launcher/REPL backend. ~6 concrete integration REAL_GAPs.
 1. ~~**Close the 10 `system()` calls** → fork+exec~~ **DONE** (10→0, `wubu_spawn.c` + `test_spawn`).
 2. ~~**Close stub no-ops**: `wubu_gamelib_clear_start_menu`, `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `dosgui_term` container session~~ **DONE** (4 closed, 3 regression tests).
 3. ~~**Wire Arch daemon as Desktop autostart/service manager** (E3 integration)~~ **DONE** (`dosgui_service_mgr.c`; `dosgui_desktop_init` boots autostart services via `wubu_archd_svc_start`; 19-check `test_service_mgr`).
-4. **Embed holyd REPL into Desktop terminal** (E4) — container PTY session render/input CLOSED (Part 1 #21); remaining: actually spawn `wubu_holyd` REPL inside the container/PTY session as the interactive shell.
+4. ~~**Embed holyd REPL into Desktop terminal** (E4)~~ **DONE** — HolyC terminal tab spawns `wubu_holyd --repl` as a real PTY-backed REPL (`term_pty_spawn` + `--repl` TTY mode in `wubu_holyd_lifecycle.c`); key/render routing wired; 12-check `test_dosgui_term` (incl. `test_holyc_embed`).
 5. **ReactOS NT: transliterate first 10 syscalls** (E1) — each = "rewrite in C."
 
 ## Notes

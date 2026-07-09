@@ -695,6 +695,20 @@ test_holyd:
 		-o $(RT)/wubd_holyd_test -lpthread
 	$(RT)/wubd_holyd_test
 
+# ── wubu_holyd REPL binary (E4: embeddable HolyC REPL) ─────────────
+# Built WITHOUT -DWUBD_TEST_MAIN so wubu_holyd_lifecycle.c's main is the
+# entry point. `wubu_holyd --repl` runs an interactive TTY HolyC REPL that
+# the Desktop terminal embeds as the HolyC tab.
+wubu_holyd_bin:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation \
+		-I$(RT) -I$(COMP) -I$(JIT) -I$(GUI) \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_9p.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_lifecycle.c \
+		$(GUI)/dosgui_wm_test_stub.c \
+		-o $(RT)/wubu_holyd_bin -lpthread
+	@echo "✅ wubu_holyd binary built (./src/runtime/wubu_holyd_bin)"
+
 # ── Network & Snapshot Tests ──────────────────────────────────────
 
 test_network:

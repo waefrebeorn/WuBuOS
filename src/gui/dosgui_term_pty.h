@@ -13,7 +13,8 @@
 
 /* -- PTY Session Lifecycle ---------------------------------------- */
 
-int  term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty);
+int  term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty,
+                   const char *const *extra_argv);
 void term_pty_cleanup(TermPtySession *pty);
 
 /* -- PTY Size Management ------------------------------------------ */
