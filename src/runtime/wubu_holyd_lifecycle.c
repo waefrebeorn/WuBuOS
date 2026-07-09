@@ -256,14 +256,17 @@ int main(int argc, char *argv[]) {
     config.auto_mount_9p = true;
     config.debug_mode = false;
 
+    int repl_mode = 0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--no-daemon") == 0) config.daemonize = false;
+        else if (strcmp(argv[i], "--repl") == 0) { repl_mode = 1; config.daemonize = false; }
         else if (strcmp(argv[i], "--debug") == 0) { config.log_level = 3; config.debug_mode = true; }
         else if (strcmp(argv[i], "--sessions") == 0 && i + 1 < argc) {
             strncpy(config.sessions_path, argv[++i], WUBU_HOLYD_MAX_PATH - 1);
         } else if (strcmp(argv[i], "--help") == 0) {
             printf("wubu_holyd -- WuBuOS TempleOS HolyC DOS Daemon\n");
             printf("  --no-daemon     Run in foreground\n");
+            printf("  --repl          Run an interactive TTY HolyC REPL on stdin/stdout\n");
             printf("  --debug         Verbose logging + debug mode\n");
             printf("  --sessions PATH Sessions directory (default: %s)\n", WUBU_HOLYD_SESSIONS_PATH);
             return 0;
@@ -276,6 +279,34 @@ int main(int argc, char *argv[]) {
     if (wubu_holyd_init(&daemon, &config) != 0) {
         fprintf(stderr, "Failed to initialize holyd\n");
         return 1;
+    }
+
+    /* Interactive TTY HolyC REPL: read lines from stdin, evaluate via the
+     * real HolyC compiler (wubu_holyd_repl_eval), print results to stdout.
+     * This is the REPL that the Desktop terminal embeds (E4). */
+    if (repl_mode) {
+        if (wubu_holyd_session_create(&daemon, "repl", 80, 24) != 0) {
+            fprintf(stderr, "Failed to create REPL session\n");
+            wubu_holyd_shutdown(&daemon);
+            return 1;
+        }
+        if (wubu_holyd_repl_start(&daemon, "repl") != 0) {
+            fprintf(stderr, "Failed to start REPL\n");
+            wubu_holyd_shutdown(&daemon);
+            return 1;
+        }
+        char line[4096];
+        printf("$ "); fflush(stdout);
+        while (fgets(line, sizeof(line), stdin)) {
+            size_t n = strlen(line);
+            while (n > 0 && (line[n-1] == '\n' || line[n-1] == '\r')) line[--n] = '\0';
+            char out[8192];
+            wubu_holyd_repl_eval(&daemon, "repl", line, out, sizeof(out));
+            if (out[0]) { printf("%s\n", out); }
+            printf("$ "); fflush(stdout);
+        }
+        wubu_holyd_shutdown(&daemon);
+        return 0;
     }
 
     if (config.daemonize) {

@@ -213,13 +213,14 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | Steam daemon owns game library + Proton prefixes | `wubu_proton2.c` manages prefixes (14/14) | **Integrate proton2 prefix registry into Desktop "Games"** (Part 1 #19/#32 — also CLOSED this cycle, see 3.3 start-menu note) |
 | SteamOS Game Mode = CEF full-screen | Desktop = Win98 WM only | **Game Mode launcher (gamescope-style) — EPIC E2** |
 | Ubuntu shell parses .desktop via daemon | startmenu parses .desktop directly | **Route app registry through Arch daemon** |
-| TempleOS: HolyC REPL is the shell | holyd REPL is a separate daemon | **Embed holyd REPL into Desktop terminal** (Part 1 #21 — CLOSED this cycle, container PTY + REPL; see Part 1 #21) |
+| TempleOS: HolyC REPL is the shell | holyd REPL is a separate daemon | ✅ **CLOSED (2026-07-08)** — HolyC terminal tab now embeds `wubu_holyd --repl` as a real PTY-backed process (`dosgui_term.c` HOLYC case spawns it via `term_pty_spawn`); added `--repl` TTY mode to `wubu_holyd_lifecycle.c` + `wubu_holyd_bin` target; key/render routing wired |
 
 **Triple DA verdict:** The daemons EXIST and are tested, but the **integration layer**
 (daemon-as-Desktop-backend) was the missing 1:1 parity. Of the ~6 concrete integration
-REAL_GAPs, **3 are now CLOSED** this cycle: archd service manager (E3), container-session
-REPL terminal (E4/#21), and start-menu game registry (#19/#32). Remaining: Game Mode
-launcher (E2), app-registry-via-archd routing, and full holyd-embed (E4 deeper).
+REAL_GAPs, **4 are now CLOSED** this cycle: archd service manager (E3), container-session
+PTY render/input (#21), HolyC REPL embedded into the Desktop terminal (E4), and start-menu
+game registry (#19/#32). Remaining: Game Mode launcher (E2), app-registry-via-archd
+routing, and the deeper 9P/HolyC-persistence wiring.
 
 ---
 
