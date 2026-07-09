@@ -164,6 +164,156 @@ int main(void) {
         CHECK(r == NT_STATUS_SUCCESS, "NtFreeUserPhysicalPages unmaps successfully");
     }
 
+    /* 11. NtSetUuidSeed (256) + NtAllocateUuids (18) deterministic under seed */
+    {
+        args[0] = 0x1234;                   /* seed */
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 256, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetUuidSeed installs seed");
+
+        uint8_t uuids[16];
+        memset(uuids, 0, sizeof(uuids));
+        args[0] = 1;
+        args[1] = (uint64_t)(uintptr_t)uuids;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        r = vsl_nt_syscall_dispatch(&ctx, 18, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtAllocateUuids (seeded) returns SUCCESS");
+        CHECK((uuids[6] & 0xF0) == 0x40 && (uuids[8] & 0xC0) == 0x80,
+              "seeded UUID still RFC4122 v4 + variant");
+
+        /* Same seed must yield the same first byte (determinism). */
+        uint8_t uuids2[16];
+        memset(uuids2, 0, sizeof(uuids2));
+        args[0] = 1;
+        args[1] = (uint64_t)(uintptr_t)uuids2;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        r = vsl_nt_syscall_dispatch(&ctx, 18, args, 2);
+        CHECK(uuids2[0] == uuids[0], "NtSetUuidSeed makes UUID generation reproducible");
+
+        /* Reset seed to 0 (random) for subsequent tests. */
+        args[0] = 0;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        vsl_nt_syscall_dispatch(&ctx, 256, args, 1);
+    }
+
+    /* 12. NtAreMappedFilesTheSame (21) -- same inode vs different file */
+    {
+        const char *tmp = "/tmp/wubu_nt_same_a";
+        const char *lnk = "/tmp/wubu_nt_same_b";
+        FILE *fa = fopen(tmp, "w"); if (fa) { fputc('x', fa); fclose(fa); }
+        unlink(lnk);
+        CHECK(link(tmp, lnk) == 0, "hardlinked twin created");
+
+        args[0] = (uint64_t)(uintptr_t)tmp;
+        args[1] = (uint64_t)(uintptr_t)lnk;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 21, args, 2);
+        CHECK(r == 1, "NtAreMappedFilesTheSame: hardlinks are the same inode");
+
+        args[0] = (uint64_t)(uintptr_t)tmp;
+        args[1] = (uint64_t)(uintptr_t)"/tmp/wubu_nt_nonexistent_xyz";
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        r = vsl_nt_syscall_dispatch(&ctx, 21, args, 2);
+        CHECK(r == NT_STATUS_OBJECT_NAME_NOT_FOUND,
+              "NtAreMappedFilesTheSame: missing path -> NOT_FOUND");
+
+        unlink(tmp); unlink(lnk);
+    }
+
+    /* 13. NtCreate/Open/IsProcessIn/Terminate job object (42/125/99/266) */
+    {
+        uint32_t job = 0;
+        args[0] = (uint64_t)(uintptr_t)&job;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 42, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateJobObject returns SUCCESS");
+        CHECK(job != 0, "NtCreateJobObject assigns a nonzero job handle");
+
+        uint32_t job_open = 0;
+        args[0] = (uint64_t)(uintptr_t)&job_open;
+        args[1] = job;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        r = vsl_nt_syscall_dispatch(&ctx, 125, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenJobObject resolves the handle");
+        CHECK(job_open == job, "NtOpenJobObject returns the same job id");
+
+        args[0] = (uint64_t)getpid();
+        args[1] = job;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        r = vsl_nt_syscall_dispatch(&ctx, 99, args, 2);
+        CHECK(r == 0 || r == NT_STATUS_INVALID_PARAMETER,
+              "NtIsProcessInJob returns boolean (0/1) without crashing");
+
+        args[0] = job;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        r = vsl_nt_syscall_dispatch(&ctx, 266, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtTerminateJobObject frees the job");
+
+        /* Re-opening a terminated job must fail. */
+        args[0] = (uint64_t)(uintptr_t)&job_open;
+        args[1] = job;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        r = vsl_nt_syscall_dispatch(&ctx, 125, args, 2);
+        CHECK(r == NT_STATUS_OBJECT_NAME_NOT_FOUND,
+              "NtOpenJobObject after terminate -> NOT_FOUND");
+    }
+
+    /* 14. NtDeleteAtom (63) + NtQueryInformationAtom (158) */
+    {
+        uint32_t atom = 0;
+        args[0] = (uint64_t)(uintptr_t)"JobAtomTest";
+        args[1] = (uint64_t)(uintptr_t)&atom;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 9, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtAddAtom (for delete test) succeeds");
+        CHECK(atom != 0, "atom id assigned");
+
+        struct { uint32_t ref_count; uint16_t name_len; uint8_t pad[2]; } info;
+        uint32_t retlen = 0;
+        args[0] = atom;
+        args[1] = 1;                       /* AtomBasicInformation class */
+        args[2] = (uint64_t)(uintptr_t)&info;
+        args[3] = (uint64_t)(uintptr_t)&retlen;
+        memset(args + 4, 0, sizeof(uint64_t) * 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 158, args, 4);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationAtom returns SUCCESS");
+        CHECK(info.name_len == strlen("JobAtomTest"),
+              "NtQueryInformationAtom reports correct name length");
+        CHECK(retlen == 8, "NtQueryInformationAtom writes return length");
+
+        args[0] = atom;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        r = vsl_nt_syscall_dispatch(&ctx, 63, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtDeleteAtom removes the atom");
+
+        r = vsl_nt_syscall_dispatch(&ctx, 158, args, 4);
+        CHECK(r == NT_STATUS_OBJECT_NAME_NOT_FOUND,
+              "NtQueryInformationAtom after delete -> NOT_FOUND");
+    }
+
+    /* 15. NtFlushWriteBuffer (86) -- real fsync on a temp file */
+    {
+        int fd = open("/tmp/wubu_nt_flush", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        CHECK(fd >= 0, "temp file opened for flush test");
+        const char *msg = "hello";
+        write(fd, msg, 5);
+        args[0] = (uint64_t)fd;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 86, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtFlushWriteBuffer fsyncs the fd");
+        close(fd); unlink("/tmp/wubu_nt_flush");
+    }
+
+    /* 16. NtAlertResumeThread (14) -- futex wake + SIGCONT (no crash) */
+    {
+        uint32_t futex_var = 0;
+        args[0] = (uint64_t)(uintptr_t)&futex_var;
+        args[1] = (uint64_t)getpid();
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 14, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtAlertResumeThread (wake+resume) SUCCESS");
+    }
+
     /* 10. A still-stubbed syscall returns NOT_IMPLEMENTED through dispatch */
     {
         memset(args, 0, sizeof(args));

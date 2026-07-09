@@ -22,6 +22,16 @@ extern int64_t vsl_nt_cancel_io_file(uint64_t a, uint64_t b, uint64_t c, uint64_
 extern int64_t vsl_nt_assign_job(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_nt_alloc_user_phys_pages(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_nt_free_user_phys_pages(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_alert_resume_thread(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_are_mapped_files_same(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_create_job_object(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_open_job_object(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_terminate_job_object(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_is_process_in_job(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_delete_atom(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_query_information_atom(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_flush_write_buffer(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_set_uuid_seed(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_sys_clock_gettime(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_sys_clock_settime(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_sys_clone(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
@@ -100,14 +110,14 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 11: NtAddDriverEntry
     vsl_sys_nosys,  // 12: NtAdjustGroupsToken
     vsl_sys_nosys,  // 13: NtAdjustPrivilegesToken
-    vsl_sys_nosys,  // 14: NtAlertResumeThread
+    vsl_nt_alert_resume_thread,  // 14: NtAlertResumeThread
     vsl_nt_alert_thread,  // 15: NtAlertThread
     vsl_nt_allocate_luid,  // 16: NtAllocateLocallyUniqueId
     vsl_nt_alloc_user_phys_pages,  // 17: NtAllocateUserPhysicalPages
     vsl_nt_allocate_uuids,  // 18: NtAllocateUuids
     vsl_sys_mmap,  // 19: NtAllocateVirtualMemory
     vsl_sys_nosys,  // 20: NtApphelpCacheControl
-    vsl_sys_nosys,  // 21: NtAreMappedFilesTheSame
+    vsl_nt_are_mapped_files_same,  // 21: NtAreMappedFilesTheSame
     vsl_nt_assign_job,  // 22: NtAssignProcessToJobObject
     vsl_sys_nosys,  // 23: NtCallbackReturn
     vsl_sys_nosys,  // 24: NtCancelDeviceWakeupRequest
@@ -128,7 +138,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 39: NtCreateEventPair
     vsl_sys_open,  // 40: NtCreateFile
     vsl_sys_epoll_create,  // 41: NtCreateIoCompletion
-    vsl_sys_nosys,  // 42: NtCreateJobObject
+    vsl_nt_create_job_object,  // 42: NtCreateJobObject
     vsl_sys_nosys,  // 43: NtCreateJobSet
     vsl_sys_openat,  // 44: NtCreateKey
     vsl_sys_nosys,  // 45: NtCreateMailslotFile
@@ -149,7 +159,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 60: NtDebugActiveProcess
     vsl_sys_nosys,  // 61: NtDebugContinue
     vsl_sys_nanosleep,  // 62: NtDelayExecution
-    vsl_sys_nosys,  // 63: NtDeleteAtom
+    vsl_nt_delete_atom,  // 63: NtDeleteAtom
     vsl_sys_nosys,  // 64: NtDeleteBootEntry
     vsl_sys_nosys,  // 65: NtDeleteDriverEntry
     vsl_sys_unlink,  // 66: NtDeleteFile
@@ -172,7 +182,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 83: NtFlushInstructionCache
     vsl_sys_nosys,  // 84: NtFlushKey
     vsl_sys_msync,  // 85: NtFlushVirtualMemory
-    vsl_sys_nosys,  // 86: NtFlushWriteBuffer
+    vsl_nt_flush_write_buffer,  // 86: NtFlushWriteBuffer
     vsl_nt_free_user_phys_pages,  // 87: NtFreeUserPhysicalPages
     vsl_sys_munmap,  // 88: NtFreeVirtualMemory
     vsl_sys_ioctl,  // 89: NtFsControlFile
@@ -185,7 +195,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 96: NtImpersonateThread
     vsl_sys_nosys,  // 97: NtInitializeRegistry
     vsl_sys_nosys,  // 98: NtInitiatePowerAction
-    vsl_sys_nosys,  // 99: NtIsProcessInJob
+    vsl_nt_is_process_in_job,  // 99: NtIsProcessInJob
     vsl_sys_nosys,  // 100: NtIsSystemResumeAutomatic
     vsl_sys_listen,  // 101: NtListenPort
     vsl_sys_nosys,  // 102: NtLoadDriver
@@ -211,7 +221,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 122: NtOpenEventPair
     vsl_sys_open,  // 123: NtOpenFile
     vsl_sys_open,  // 124: NtOpenIoCompletion
-    vsl_sys_nosys,  // 125: NtOpenJobObject
+    vsl_nt_open_job_object,  // 125: NtOpenJobObject
     vsl_sys_openat,  // 126: NtOpenKey
     vsl_sys_open,  // 127: NtOpenMutant
     vsl_sys_nosys,  // 128: NtOpenObjectAuditAlarm
@@ -244,7 +254,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_getxattr,  // 155: NtQueryEaFile
     vsl_sys_nosys,  // 156: NtQueryEvent
     vsl_sys_stat,  // 157: NtQueryFullAttributesFile
-    vsl_sys_nosys,  // 158: NtQueryInformationAtom
+    vsl_nt_query_information_atom,  // 158: NtQueryInformationAtom
     vsl_sys_fstat,  // 159: NtQueryInformationFile
     vsl_sys_nosys,  // 160: NtQueryInformationJobObject
     vsl_sys_nosys,  // 161: NtQueryInformationPort
@@ -342,7 +352,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 253: NtSetThreadExecutionState
     vsl_sys_timerfd_settime,  // 254: NtSetTimer
     vsl_sys_nosys,  // 255: NtSetTimerResolution
-    vsl_sys_nosys,  // 256: NtSetUuidSeed
+    vsl_nt_set_uuid_seed,  // 256: NtSetUuidSeed
     vsl_sys_nosys,  // 257: NtSetValueKey
     vsl_sys_nosys,  // 258: NtSetVolumeInformationFile
     vsl_sys_nosys,  // 259: NtShutdownSystem
@@ -352,7 +362,7 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_kill,  // 263: NtSuspendProcess
     vsl_sys_kill,  // 264: NtSuspendThread
     vsl_sys_nosys,  // 265: NtSystemDebugControl
-    vsl_sys_nosys,  // 266: NtTerminateJobObject
+    vsl_nt_terminate_job_object,  // 266: NtTerminateJobObject
     vsl_sys_kill,  // 267: NtTerminateProcess
     vsl_sys_tgkill,  // 268: NtTerminateThread
     vsl_sys_nosys,  // 269: NtTestAlert
