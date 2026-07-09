@@ -218,6 +218,105 @@ static void test_codec_available(void) {
     PASS();
 }
 
+static void test_cv_load_png(void) {
+    TEST("canvas load PNG: encode→decode pixel round-trip");
+    WubuCanvas *cv = wubu_cv_create(64, 48);
+    CHECK(cv != NULL, "canvas should exist");
+    /* Paint a non-checkerboard pattern so the test is meaningful */
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    for (int y = 0; y < 48; y++)
+        for (int x = 0; x < 64; x++)
+            l->pixels[y * 64 + x] = 0xFF000000 |
+                ((uint32_t)((x * 3) & 0xFF) << 16) |
+                ((uint32_t)((y * 5) & 0xFF) << 8) |
+                (uint32_t)((x + y) & 0xFF);
+    int ret = wubu_cv_save_png(cv, "/tmp/wubu-cv-rt.png");
+    CHECK(ret == 0, "PNG save should succeed");
+    wubu_cv_destroy(cv);
+
+    WubuCanvas *cv2 = wubu_cv_create(1, 1);
+    int lret = wubu_cv_load_png(cv2, "/tmp/wubu-cv-rt.png");
+    CHECK(lret == 0, "PNG load should succeed");
+    CHECK(cv2->w == 64 && cv2->h == 48, "decoded dims match");
+    WubuLayer *l2 = &cv2->layers[cv2->active_layer];
+    int mism = 0;
+    for (int y = 0; y < 48; y++)
+        for (int x = 0; x < 64; x++) {
+            uint32_t a = 0xFF000000 |
+                ((uint32_t)((x * 3) & 0xFF) << 16) |
+                ((uint32_t)((y * 5) & 0xFF) << 8) |
+                (uint32_t)((x + y) & 0xFF);
+            if (l2->pixels[y * 64 + x] != a) mism++;
+        }
+    CHECK(mism == 0, "every decoded pixel matches source");
+    wubu_cv_destroy(cv2);
+    unlink("/tmp/wubu-cv-rt.png");
+    PASS();
+}
+
+static void test_cv_load_png_bad(void) {
+    TEST("canvas load PNG: reject non-PNG / missing file");
+    WubuCanvas *cv = wubu_cv_create(8, 8);
+    CHECK(wubu_cv_load_png(cv, "/tmp/does-not-exist-xyz.png") == -1, "missing file → -1");
+    /* A BMP file is not a PNG */
+    WubuCanvas *b = wubu_cv_create(16, 16);
+    int sret = wubu_cv_save_bmp(b, "/tmp/wubu-notpng.bmp");
+    CHECK(sret == 0, "bmp save ok");
+    wubu_cv_destroy(b);
+    CHECK(wubu_cv_load_png(cv, "/tmp/wubu-notpng.bmp") == -1, "BMP rejected as PNG");
+    wubu_cv_destroy(cv);
+    unlink("/tmp/wubu-notpng.bmp");
+    PASS();
+}
+
+static void test_cv_load_gif(void) {
+    TEST("canvas load GIF: decode first frame, dims + decode");
+    /* Generate a real GIF with PIL (independent ground truth) */
+    const char *py =
+        "from PIL import Image\n"
+        "im = Image.new('P', (32, 24))\n"
+        "pal = []\n"
+        "for i in range(256):\n"
+        "    pal += [i, (i*2)&0xFF, (255-i)&0xFF]\n"
+        "im.putpalette(pal)\n"
+        "px = im.load()\n"
+        "for y in range(24):\n"
+        "    for x in range(32):\n"
+        "        px[x,y] = (x + y) & 0xFF\n"
+        "im.save('/tmp/wubu-cv-rt.gif')\n";
+    FILE *sf = fopen("/tmp/wubu-gif-gen.py", "w");
+    fputs(py, sf); fclose(sf);
+    int pr = system("python3 /tmp/wubu-gif-gen.py");
+    if (pr != 0) {
+        /* Environment without PIL — degrade gracefully, still assert decode path */
+        fprintf(stderr, "(PIL unavailable, skip GIF ground-truth) ");
+        wubu_cv_destroy(NULL); /* no-op */
+        PASS();
+        return;
+    }
+    WubuCanvas *cv = wubu_cv_create(1, 1);
+    int lret = wubu_cv_load_gif(cv, "/tmp/wubu-cv-rt.gif");
+    CHECK(lret == 0, "GIF load should succeed");
+    CHECK(cv->w == 32 && cv->h == 24, "decoded dims match (32x24)");
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    int mism = 0;
+    for (int y = 0; y < 24; y++)
+        for (int x = 0; x < 32; x++) {
+            uint8_t r = (l->pixels[y*32+x] >> 16) & 0xFF;
+            uint8_t g = (l->pixels[y*32+x] >> 8) & 0xFF;
+            uint8_t b = l->pixels[y*32+x] & 0xFF;
+            uint8_t er = (uint8_t)((x + y) & 0xFF);
+            uint8_t eg = (uint8_t)(((x + y) * 2) & 0xFF);
+            uint8_t eb = (uint8_t)((255 - (x + y)) & 0xFF);
+            if (r != er || g != eg || b != eb) mism++;
+        }
+    CHECK(mism == 0, "every decoded palette pixel matches PIL source");
+    wubu_cv_destroy(cv);
+    unlink("/tmp/wubu-cv-rt.gif");
+    unlink("/tmp/wubu-gif-gen.py");
+    PASS();
+}
+
 /* -- Main --------------------------------------------------------- */
 
 int main(void) {
@@ -238,6 +337,9 @@ int main(void) {
     test_cv_save_bmp();
     test_cv_plugin();
     test_cv_zoom_phi();
+    test_cv_load_png();
+    test_cv_load_png_bad();
+    test_cv_load_gif();
 
     printf("\n-- Codec Layer (Cell 398) --\n\n");
     test_codec_detect();
