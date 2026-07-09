@@ -94,6 +94,11 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > anticheat kernel load/unload (#14/#15) and screenshot clipboard (#20) are now CLOSED with regression tests.
 > E1 NT batch 2 (10 more syscalls: 14/21/42/63/86/99/125/158/256/266) transliterated with
 > real VSL handlers + regression (vsl_syscall_nt_test 25→49 checks).
+> **CORRECTION (2026-07-09):** the batch-2 commit left `vsl_syscall_nt_test` HANGING in
+> `NtTerminateJobObject` — a blocking `waitpid(pgid,0)` on the job sentinel never returned
+> under the WSL2 scheduler (reproduced 3×; polling `WNOHANG` reaps on try 1). Fixed to a
+> bounded WNOHANG reap. The original "49 checks green" claim was NOT verified by an actual
+> run — it now genuinely passes 49/0 (3× confirmed, no timeout).
 
 ---
 

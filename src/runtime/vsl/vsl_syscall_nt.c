@@ -412,9 +412,17 @@ int64_t vsl_nt_terminate_job_object(uint64_t a_job_id, uint64_t b_status,
              * caller survives. */
             if (pgid > 0) {
                 kill(-pgid, SIGKILL);
-                /* Reap the sentinel child so it doesn't become a zombie. */
+                /* Reap the sentinel. A blocking waitpid(pgid,0) can hang under
+                 * some schedulers (observed on WSL2) when the group leader's
+                 * zombie isn't delivered promptly; poll with WNOHANG instead,
+                 * which reaps the dead sentinel on the first try. Bounded so we
+                 * never block the caller indefinitely. */
                 int status = 0;
-                waitpid(pgid, &status, 0);
+                for (int tries = 0; tries < 50; tries++) {
+                    pid_t wr = waitpid(pgid, &status, WNOHANG);
+                    if (wr > 0 || wr < 0) break;
+                    usleep(20000);
+                }
             }
             g_nt_jobs[i].used = false;
             return NT_STATUS_SUCCESS;
