@@ -25,6 +25,18 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+
+/* syscall numbers for module control (portability fallbacks) */
+#ifndef SYS_finit_module
+#  define SYS_finit_module 313
+#endif
+#ifndef SYS_delete_module
+#  define SYS_delete_module 176
+#endif
 
 /* ==================================================================
  * Anti-Cheat Database
@@ -214,26 +226,61 @@ bool wubu_anticheat_check_compatibility(AntiCheatType type) {
     return info ? info->wine_compatible : false;
 }
 
+/* syscall numbers for module control (portability fallbacks) */
+#ifndef SYS_finit_module
+#  define SYS_finit_module 313
+#endif
+#ifndef SYS_delete_module
+#  define SYS_delete_module 176
+#endif
+
 /* ==================================================================
- * Kernel-Level Stubs (Bare Metal Only)
+ * Kernel-Level Module Control (Bare Metal)
+ *
+ * Replaces the old hardcoded -1 stubs with REAL syscall attempts:
+ *   - kernel_load   -> open(.ko) + finit_module(2)
+ *   - kernel_unload -> delete_module(2)
+ *   - kernel_loaded -> stat(2) /sys/module/<name>
+ * In hosted/sandboxed mode these return the genuine kernel errno
+ * (e.g. EPERM / ENOENT / ENOEXEC) rather than a fabricated -1, so
+ * callers can distinguish "not privileged" from "already loaded".
  * ================================================================== */
 
 int wubu_anticheat_kernel_load(const char *driver_path, const char *device_name) {
-    (void)driver_path; (void)device_name;
-    /* On bare metal WuBuOS, this would use init_module() or insmod */
-    fprintf(stderr, "wubu_anticheat: kernel_load stub - driver=%s device=%s\n", driver_path, device_name);
-    return -1;  /* Not implemented in hosted mode */
+    if (!driver_path || !device_name) {
+        errno = EINVAL;
+        return -1;
+    }
+    int fd = open(driver_path, O_RDONLY);
+    if (fd < 0) {
+        /* Real failure: the .ko image could not be opened. */
+        return -1;
+    }
+    /* finit_module(2): load the module image referenced by fd.
+     * Returns 0 on success or -1 with errno set by the kernel. */
+    long rc = syscall(SYS_finit_module, fd, "", 0UL);
+    int saved = errno;
+    close(fd);
+    errno = saved;
+    return rc == 0 ? 0 : -1;
 }
 
 int wubu_anticheat_kernel_unload(const char *device_name) {
-    (void)device_name;
-    fprintf(stderr, "wubu_anticheat: kernel_unload stub - device=%s\n", device_name);
-    return -1;
+    if (!device_name) {
+        errno = EINVAL;
+        return -1;
+    }
+    /* delete_module(2): unload by name. Returns 0 / -1 with errno. */
+    long rc = syscall(SYS_delete_module, device_name, O_NONBLOCK);
+    return rc == 0 ? 0 : -1;
 }
 
 bool wubu_anticheat_kernel_loaded(const char *device_name) {
-    (void)device_name;
-    return false;
+    if (!device_name) return false;
+    char path[256];
+    snprintf(path, sizeof(path), "/sys/module/%s", device_name);
+    struct stat st;
+    return stat(path, &st) == 0;
 }
 
 /* ==================================================================

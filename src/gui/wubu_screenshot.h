@@ -75,6 +75,11 @@ void wubu_screenshot_gen_filename(char *buf, size_t n);
 /* Copy to clipboard */
 bool wubu_screenshot_to_clipboard(wubu_sshot_t *sshot);
 
+/* Read the last clipboard payload (owned by the screenshot module).
+ * Returns the buffer and writes its length to *out_len (NULL ok).
+ * NULL when nothing has been copied. Used by paste handlers + tests. */
+const uint8_t *wubu_screenshot_clipboard_data(size_t *out_len);
+
 /* Hotkey handlers (called from hosted.c input processing) */
 void wubu_screenshot_handle_printscr(void);      /* Full screen */
 void wubu_screenshot_handle_alt_printscr(void);  /* Active window */
