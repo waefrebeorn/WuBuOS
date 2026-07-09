@@ -102,12 +102,17 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 0 transliterated) — 297 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 0 implemented**.
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 10 transliterated) — 287 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 10 implemented (first batch).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
-- This is the single largest block: **297 = "rewrite-from-scratch" work items.**
+- First 10 transliterated (real VSL handlers, `src/runtime/vsl/vsl_syscall_nt.c`):
+  `NtAddAtom` (9), `NtAlertThread` (15), `NtAllocateLocallyUniqueId` (16),
+  `NtAllocateUserPhysicalPages` (17), `NtAllocateUuids` (18), `NtAssignProcessToJobObject` (22),
+  `NtCancelIoFile` (25), `NtClearEvent` (27), `NtFindAtom` (81), `NtFreeUserPhysicalPages` (87).
+  Wired into `vsl_syscall_table[]` (NT bridge) + dispatched via `vsl_nt_syscall_dispatch`.
+- This is the single largest block: **287 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |

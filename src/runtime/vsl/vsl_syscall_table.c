@@ -11,6 +11,17 @@
 /* Forward declarations for all syscall handlers */
 
 extern int64_t vsl_sys_accept(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+/* NT transliteration handlers (E1) -- vsl_syscall_nt.c */
+extern int64_t vsl_nt_add_atom(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_find_atom(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_clear_event(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_allocate_uuids(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_allocate_luid(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_alert_thread(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_cancel_io_file(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_assign_job(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_alloc_user_phys_pages(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+extern int64_t vsl_nt_free_user_phys_pages(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_sys_clock_gettime(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_sys_clock_settime(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 extern int64_t vsl_sys_clone(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f);
@@ -84,25 +95,25 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 6: NtAccessCheckByTypeResultList
     vsl_sys_nosys,  // 7: NtAccessCheckByTypeResultListAndAuditAlarm
     vsl_sys_nosys,  // 8: NtAccessCheckByTypeResultListAndAuditAlarmByHandle
-    vsl_sys_nosys,  // 9: NtAddAtom
+    vsl_nt_add_atom,  // 9: NtAddAtom
     vsl_sys_nosys,  // 10: NtAddBootEntry
     vsl_sys_nosys,  // 11: NtAddDriverEntry
     vsl_sys_nosys,  // 12: NtAdjustGroupsToken
     vsl_sys_nosys,  // 13: NtAdjustPrivilegesToken
     vsl_sys_nosys,  // 14: NtAlertResumeThread
-    vsl_sys_nosys,  // 15: NtAlertThread
-    vsl_sys_nosys,  // 16: NtAllocateLocallyUniqueId
-    vsl_sys_nosys,  // 17: NtAllocateUserPhysicalPages
-    vsl_sys_nosys,  // 18: NtAllocateUuids
+    vsl_nt_alert_thread,  // 15: NtAlertThread
+    vsl_nt_allocate_luid,  // 16: NtAllocateLocallyUniqueId
+    vsl_nt_alloc_user_phys_pages,  // 17: NtAllocateUserPhysicalPages
+    vsl_nt_allocate_uuids,  // 18: NtAllocateUuids
     vsl_sys_mmap,  // 19: NtAllocateVirtualMemory
     vsl_sys_nosys,  // 20: NtApphelpCacheControl
     vsl_sys_nosys,  // 21: NtAreMappedFilesTheSame
-    vsl_sys_nosys,  // 22: NtAssignProcessToJobObject
+    vsl_nt_assign_job,  // 22: NtAssignProcessToJobObject
     vsl_sys_nosys,  // 23: NtCallbackReturn
     vsl_sys_nosys,  // 24: NtCancelDeviceWakeupRequest
-    vsl_sys_nosys,  // 25: NtCancelIoFile
+    vsl_nt_cancel_io_file,  // 25: NtCancelIoFile
     vsl_sys_timer_delete,  // 26: NtCancelTimer
-    vsl_sys_nosys,  // 27: NtClearEvent
+    vsl_nt_clear_event,  // 27: NtClearEvent
     vsl_sys_close,  // 28: NtClose
     vsl_sys_nosys,  // 29: NtCloseObjectAuditAlarm
     vsl_sys_nosys,  // 30: NtCompactKeys
@@ -156,13 +167,13 @@ vsl_syscall_fn_t vsl_syscall_table[] = {
     vsl_sys_nosys,  // 78: NtEnumerateValueKey
     vsl_sys_mremap,  // 79: NtExtendSection
     vsl_sys_nosys,  // 80: NtFilterToken
-    vsl_sys_nosys,  // 81: NtFindAtom
+    vsl_nt_find_atom,  // 81: NtFindAtom
     vsl_sys_fsync,  // 82: NtFlushBuffersFile
     vsl_sys_nosys,  // 83: NtFlushInstructionCache
     vsl_sys_nosys,  // 84: NtFlushKey
     vsl_sys_msync,  // 85: NtFlushVirtualMemory
     vsl_sys_nosys,  // 86: NtFlushWriteBuffer
-    vsl_sys_nosys,  // 87: NtFreeUserPhysicalPages
+    vsl_nt_free_user_phys_pages,  // 87: NtFreeUserPhysicalPages
     vsl_sys_munmap,  // 88: NtFreeVirtualMemory
     vsl_sys_ioctl,  // 89: NtFsControlFile
     vsl_sys_nosys,  // 90: NtGetContextThread
