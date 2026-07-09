@@ -67,13 +67,13 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | 11 | `src/kernel/tasking.c:217` | `task_preempt_enable(){/*stub*/}` | NO-OP → arch preemption ctrl | open |
 | 12 | `src/kernel/tasking.c:218` | `task_preempt_disable(){/*stub*/}` | NO-OP → arch preemption ctrl | open |
 | 13 | `src/runtime/wubu_holyd_session.c:54` | `s->compiler = NULL` placeholder | real lazy compiler init on first eval | open |
-| 14 | `src/runtime/wubu_anticheat.c:225` | `kernel_load` returns -1, fprintfs | real `init_module`/insmod in bwrap | open |
-| 15 | `src/runtime/wubu_anticheat.c:230` | `kernel_unload` returns -1 | real `delete_module` | open |
+| 14 | `src/runtime/wubu_anticheat.c:221` | `kernel_load` returns -1, fprintfs | real `init_module`/insmod in bwrap | ✅ **CLOSED** — real `finit_module(2)` syscall attempt (open .ko + finit_module); returns genuine kernel errno (EPERM/ENOENT) instead of hardcoded -1; regression in `wubu_anticheat_test.c` |
+| 15 | `src/runtime/wubu_anticheat.c:228` | `kernel_unload` returns -1 | real `delete_module` | ✅ **CLOSED** — real `delete_module(2)` syscall; genuine errno; `kernel_loaded` now `stat(/sys/module/<name>)` |
 | 16 | `src/bear/bear_cudnn.c:47` | `handle; /* stub */` | real cuBLAS handle (non-CUDA path) | open |
 | 17 | `src/bear/bear_cudnn.c:67` | `/* Stub implementation */` malloc | real CPU fallback alloc/init | open |
 | 18 | `src/bear/bear_cudnn.c:291` | `handle; /* stub */` | real handle field | open |
 | 19 | `src/gui/wubu_gamelib.c:677` | `clear_start_menu(){/*placeholder*/}` | real removal of game entries | ✅ **CLOSED** — real start-menu registry in `GameLibraryState.startmenu_entries[]`; `build_start_menu` populates, `clear_start_menu` drops; regression in `wubu_gamelib_test.c` |
-| 20 | `src/gui/wubu_screenshot.c:552` | `to_clipboard` returns true placeholder | real Wayland/image MIME copy | open |
+| 20 | `src/gui/wubu_screenshot.c:549` | `to_clipboard` returns true placeholder | real Wayland/image MIME copy | ✅ **CLOSED** — real in-memory PNG encoder (`png_encode_rgba`, zlib-backed) stores a decodable PNG in a module-owned clipboard buffer; `wubu_screenshot_clipboard_data()` accessor; regression `test_screenshot_clipboard` (PIL-validated: 100×100 RGBA) |
 | 21 | `src/gui/dosgui_term.c:642` | `[Container Session - Not Implemented]` | real container PTY session | ✅ **CLOSED** — implemented `term_render_container_session()` in `dosgui_term_ansi.c` + wired render/input dispatch in `dosgui_term.c`; real PTY shell via `wubu run` |
 | 22 | `src/apps/wubu_canvas.c:1055` | PNG → checkerboard placeholder | real PNG decode (stb/decode or zlib) | open |
 | 23 | `src/apps/wubu_canvas.c:1098` | GIF → placeholder | real GIF decode | open |
@@ -88,9 +88,10 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | 32 | `src/gui/wubu_gamelib.c:668` | add-to-startmenu TODO | real startmenu entry add | ✅ **CLOSED (superseded by #19)** — `build_start_menu` now iterates `g_gamelib.games[]` and registers real entries |
 | 33 | `src/runtime/wubu_bottles.c:173` | winetricks TODO | real winetricks invocation | open |
 
-> **Triple-DA verdict on Part 1 (post-cycle 2026-07-08):** 0 `system()` + 19 stub-phrase
-> + 6 bare-metal-no-op = **~25 verifiable code-level REAL_GAPs** (down from ~40). The 10
-> `system()` calls and 4 of the stub-phrase entries are now CLOSED with regression tests.
+> **Triple-DA verdict on Part 1 (2026-07-08 + 2026-07-09):** 0 `system()` + 16 stub-phrase
+> + 6 bare-metal-no-op = **~22 verifiable code-level REAL_GAPs** (down from ~40). The 10
+> `system()` calls, 4 of the stub-phrase entries (gamelib/container/vulkan/term), plus
+> anticheat kernel load/unload (#14/#15) and screenshot clipboard (#20) are now CLOSED with regression tests.
 
 ---
 

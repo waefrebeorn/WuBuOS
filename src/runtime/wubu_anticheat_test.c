@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 static int pass = 0, fail = 0;
 #define TEST(name) printf("  TEST Cell470: %-55s", name)
@@ -177,14 +178,27 @@ static void test_ac_proton_config(void) {
 /* -- Kernel Stubs ------------------------------------------------- */
 
 static void test_ac_kernel_stubs(void) {
-    TEST("anticheat kernel stubs (hosted mode)");
-    int rc = wubu_anticheat_kernel_load("/path/to/driver.ko", "ac_device");
-    CHECK(rc == -1, "kernel_load should fail in hosted mode");
+    TEST("anticheat kernel module control (real syscalls)");
 
+    /* kernel_load on a non-existent .ko: open() fails with ENOENT.
+     * This proves the function does real work (no longer a hardcoded -1). */
+    errno = 0;
+    int rc = wubu_anticheat_kernel_load("/nonexistent/driver.ko", "ac_device");
+    CHECK(rc == -1, "kernel_load returns -1 for missing .ko image");
+    CHECK(errno == ENOENT, "kernel_load sets errno=ENOENT (real open failure)");
+
+    /* kernel_unload a module that is not loaded: the kernel returns a real
+     * error (ENOENT / EBUSY / EPERM depending on sandbox), never a fabricated -1. */
+    errno = 0;
     rc = wubu_anticheat_kernel_unload("ac_device");
-    CHECK(rc == -1, "kernel_unload should fail in hosted mode");
+    CHECK(rc == -1, "kernel_unload returns -1 for unloaded module");
+    CHECK(errno != 0, "kernel_unload sets a real errno (delete_module attempted)");
 
-    CHECK(wubu_anticheat_kernel_loaded("ac_device") == false, "not loaded");
+    /* kernel_loaded must reflect the actual /sys/module/<name> presence. */
+    CHECK(wubu_anticheat_kernel_loaded("ac_device") == false,
+          "module not present in /sys/module -> not loaded");
+    CHECK(wubu_anticheat_kernel_loaded(NULL) == false,
+          "NULL device name -> not loaded (no crash)");
     PASS();
 }
 
