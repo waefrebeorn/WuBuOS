@@ -159,6 +159,9 @@ bool wubu_vsl_active(void);
  */
 int64_t wubu_vsl_run(const char *cmd);
 
+/* Shell-free launcher lives in wubu_spawn.h (dependency-free). */
+#include "wubu_spawn.h"
+
 /* -- Format Detection --------------------------------------------- */
 
 /*

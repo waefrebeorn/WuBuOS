@@ -128,6 +128,16 @@ typedef struct {
     /* Scanning */
     time_t last_scan;
     bool scanning;
+
+    /* Start-menu integration registry (real: populated by
+     * wubu_gamelib_build_start_menu, cleared by wubu_gamelib_clear_start_menu).
+     * Self-contained so the gamelib needs no link dependency on the start-menu
+     * GUI module. */
+    struct {
+        char name[48];
+        char id[128];
+    } startmenu_entries[GAME_LIB_MAX_CATEGORIES * 8];
+    int startmenu_count;
 } GameLibraryState;
 
 /* -- Game Library API ----------------------------------------------- */

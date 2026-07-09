@@ -9,6 +9,7 @@
 
 #define _POSIX_C_SOURCE 200809L
 #include "wubu_netlink.h"
+#include "wubu_spawn.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -269,10 +270,45 @@ int net_iface_up(const char *iface, const char *ip_with_cidr) {
     return 0;
 }
 
-/* -- Utility: run shell command ------------------------------------- */
+/* -- Utility: run an external program (shell-free) ---------------- */
 
 int net_cmd(const char *cmd) {
-    return system(cmd);
+    if (!cmd) return -1;
+    /* Tokenize a simple command line into argv without invoking /bin/sh.
+     * Handles single-quoted tokens; everything else is whitespace-split. */
+    char *argv[256];
+    int argc = 0;
+    char *buf = strdup(cmd);
+    if (!buf) return -1;
+    char *p = buf;
+    char *tok = NULL;
+    bool in_q = false;
+    while (*p && argc < 255) {
+        if (*p == '\'') {
+            if (in_q) {
+                /* Closing quote: terminate the current token here. */
+                *p = '\0';
+                argv[argc++] = tok;
+                tok = NULL;
+            }
+            /* Opening quote: the token starts at the next char. */
+            in_q = !in_q;
+            p++;
+            continue;
+        }
+        if (!in_q && (*p == ' ' || *p == '\t' || *p == '\n')) {
+            if (tok) { *p = '\0'; argv[argc++] = tok; tok = NULL; }
+            p++; continue;
+        }
+        if (!tok) tok = p;
+        p++;
+    }
+    if (tok) argv[argc++] = tok;
+    argv[argc] = NULL;
+    if (argc == 0) { free(buf); return -1; }
+    int rc = wubu_run_program(argv[0], argv, true);
+    free(buf);
+    return rc;
 }
 
 /* -- Utility: current time in ms ------------------------------------ */

@@ -638,8 +638,7 @@ void dosgui_term_render_content(uint32_t *fb, int fb_w, int fb_h) {
             term_render_holyc_session(&tab->session.holyc, fb, x, y, w, h);
             break;
         case TERM_SESSION_CONTAINER:
-            /* Container terminal */
-            vbe_draw_text(x + 10, y + 10, "[Container Session - Not Implemented]", 0x808080, 1);
+            term_render_container_session(&tab->session.container, fb, x, y, w, h);
             break;
     }
 }
@@ -713,11 +712,17 @@ static void term_render_holyc_session(TermHolycSession *holyc, uint32_t *fb, int
 void dosgui_term_pty_write(const char *data, int len) {
     if (g_term.active_tab < 0) return;
     TermTab *tab = &g_term.tabs[g_term.active_tab];
-    if (tab->type != TERM_SESSION_SHELL) return;
-    
-    TermPtySession *pty = &tab->session.pty;
-    if (pty->ptm_fd >= 0) {
-        write(pty->ptm_fd, data, len);
+
+    if (tab->type == TERM_SESSION_SHELL) {
+        TermPtySession *pty = &tab->session.pty;
+        if (pty->ptm_fd >= 0) {
+            write(pty->ptm_fd, data, len);
+        }
+    } else if (tab->type == TERM_SESSION_CONTAINER) {
+        TermContainerSession *container = &tab->session.container;
+        if (container->ptm_fd >= 0) {
+            write(container->ptm_fd, data, len);
+        }
     }
 }
 

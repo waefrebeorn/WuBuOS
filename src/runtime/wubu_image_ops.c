@@ -12,11 +12,13 @@
 #include "wubu_image_internal.h"
 #include "wubu_image_manifest.h"
 #include "wubu_oci.h"
+#include "wubu_spawn.h"
 
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -162,9 +164,12 @@ int wubu_image_push(const char *image_ref, const char *registry, const char *aut
     fclose(f);
     char url[WUBU_MAX_PATH];
     snprintf(url, sizeof(url), "https://%s/v2/wubu/images/manifests/%s", registry, image_ref);
-    char cmd[WUBU_MAX_PATH * 2 + 128];
-    snprintf(cmd, sizeof(cmd), "curl -sS -L -X PUT -H 'Content-Type: application/vnd.oci.image.manifest.v2+json' --data-binary @%s '%s' >/dev/null 2>&1", tmp, url);
-    int ret = system(cmd);
+    char *argv[] = {
+        "curl", "-sS", "-L", "-X", "PUT",
+        "-H", "Content-Type: application/vnd.oci.image.manifest.v2+json",
+        "--data-binary", tmp, url, (char *)NULL
+    };
+    int ret = wubu_run_program("curl", argv, true);
     unlink(tmp);
     for (int i = 0; i < manifest.layer_count && ret == 0; i++) {
         char layer_path[WUBU_MAX_PATH];
@@ -172,8 +177,11 @@ int wubu_image_push(const char *image_ref, const char *registry, const char *aut
         if (access(layer_path, F_OK) != 0) continue;
         char blob_url[WUBU_MAX_PATH];
         snprintf(blob_url, sizeof(blob_url), "https://%s/v2/wubu/blobs/%s", registry, manifest.layers[i].digest);
-        snprintf(cmd, sizeof(cmd), "curl -sS -L -X PUT --data-binary @%s '%s' >/dev/null 2>&1", layer_path, blob_url);
-        if (system(cmd) != 0) { ret = -1; break; }
+        char *argv2[] = {
+            "curl", "-sS", "-L", "-X", "PUT",
+            "--data-binary", layer_path, blob_url, (char *)NULL
+        };
+        if (wubu_run_program("curl", argv2, true) != 0) { ret = -1; break; }
     }
     return ret == 0 ? 0 : -1;
 }
@@ -183,9 +191,12 @@ int wubu_image_pull(const char *image_ref, const char *registry, const char *aut
     if (!image_ref || !registry || !out_manifest) return -1;
     char url[WUBU_MAX_PATH];
     snprintf(url, sizeof(url), "https://%s/v2/wubu/images/manifests/%s", registry, image_ref);
-    char cmd[WUBU_MAX_PATH * 2 + 128];
-    snprintf(cmd, sizeof(cmd), "curl -sS -L -H 'Accept: application/vnd.oci.image.manifest.v2+json' '%s' > /tmp/wubu_pull_manifest.json", url);
-    if (system(cmd) != 0) return -1;
+    char *argv[] = {
+        "curl", "-sS", "-L",
+        "-H", "Accept: application/vnd.oci.image.manifest.v2+json",
+        url, "-o", "/tmp/wubu_pull_manifest.json", (char *)NULL
+    };
+    if (wubu_run_program("curl", argv, true) != 0) return -1;
     FILE *f = fopen("/tmp/wubu_pull_manifest.json", "r");
     if (!f) return -1;
     fseek(f, 0, SEEK_END);
@@ -208,13 +219,19 @@ int wubu_image_pull(const char *image_ref, const char *registry, const char *aut
         snprintf(url, sizeof(url), "https://%s/v2/wubu/blobs/%s", registry, digest);
         char layer_path[WUBU_MAX_PATH];
         snprintf(layer_path, sizeof(layer_path), "/var/cache/wubu/layers/%s", blob_name);
-        snprintf(cmd, sizeof(cmd), "curl -sS -L -o '%s' '%s' >/dev/null 2>&1", layer_path, url);
-        if (system(cmd) != 0) {
+        char *argv3[] = {
+            "curl", "-sS", "-L", "-o", layer_path, url, (char *)NULL
+        };
+        if (wubu_run_program("curl", argv3, true) != 0) {
             char blob_dir[WUBU_MAX_PATH];
             snprintf(blob_dir, sizeof(blob_dir), "/var/lib/wubu/oci/blobs/sha256");
             mkdir(blob_dir, 0755);
-            snprintf(cmd, sizeof(cmd), "curl -sS -L -o '%s/%s' '%s' >/dev/null 2>&1", blob_dir, blob_name, url);
-            system(cmd);
+            char alt_path[WUBU_MAX_PATH + 64];
+            snprintf(alt_path, sizeof(alt_path), "%s/%s", blob_dir, blob_name);
+            char *argv4[] = {
+                "curl", "-sS", "-L", "-o", alt_path, url, (char *)NULL
+            };
+            wubu_run_program("curl", argv4, true);
         }
     }
     free(buf);

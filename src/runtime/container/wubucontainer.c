@@ -37,6 +37,9 @@ struct WubuContainerEngine {
     bool use_socket;
     bool initialized;
     char container_dir[WUBU_CONTAINER_MAX_PATH];
+    /* Registry of agentic-layer custom handlers registered at runtime. */
+    WubuContainerHandler custom_handlers[WUBU_CONTAINER_MAX_HANDLERS];
+    int custom_handler_count;
 };
 
 /* ================================================================
@@ -597,9 +600,26 @@ void wubu_container_print_cache(WubuContainerEngine *engine) {
 
 int wubu_container_register_handler(WubuContainerEngine *engine,
                                      const WubuContainerHandler *handler) {
-    (void)engine;
-    (void)handler;
-    return WUBU_CTR_ERR_INVAL;  /* Not implemented yet */
+    if (!engine || !handler) return WUBU_CTR_ERR_INVAL;
+    if (handler->name[0] == '\0') return WUBU_CTR_ERR_INVAL;
+
+    /* Reject duplicate registration (same handler name). */
+    for (int i = 0; i < engine->custom_handler_count; i++) {
+        if (strncmp(engine->custom_handlers[i].name, handler->name,
+                    sizeof(handler->name)) == 0)
+            return WUBU_CTR_ERR_INVAL;
+    }
+    if (engine->custom_handler_count >= WUBU_CONTAINER_MAX_HANDLERS)
+        return WUBU_CTR_ERR_INVAL;
+
+    /* Real work: persist the handler descriptor into the engine registry so
+     * it can be enumerated by wubu_container_get_handlers() and used by the
+     * agentic routing layer. */
+    WubuContainerHandler *slot =
+        &engine->custom_handlers[engine->custom_handler_count];
+    memcpy(slot, handler, sizeof(*slot));
+    engine->custom_handler_count++;
+    return 0;
 }
 
 /* ================================================================

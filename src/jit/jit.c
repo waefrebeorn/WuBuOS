@@ -17,6 +17,7 @@
 #include "jit.h"
 #include "wubu_x86.h"
 #include "wubu_disasm.h"
+#include "../runtime/wubu_spawn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -319,12 +320,12 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
     }
     fclose(f);
     
-    /* Compile via gcc -shared -fPIC -O2 */
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd),
-             "gcc -O2 -shared -fPIC -o %s %s 2>/dev/null",
-             tmp_so, tmp_c);
-    int gcc_rc = system(cmd);
+    /* Compile via gcc -shared -fPIC -O2 (shell-free) */
+    char *argv[] = {
+        "gcc", "-O2", "-shared", "-fPIC", "-o", (char *)tmp_so,
+        (char *)tmp_c, (char *)NULL
+    };
+    int gcc_rc = wubu_run_program("gcc", argv, true);
     unlink(tmp_c);
     
     if (gcc_rc != 0) return JIT_ERR_COMPILE;
