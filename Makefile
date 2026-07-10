@@ -579,7 +579,7 @@ test_host_exec:
 test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c \
 		$(APPS)/wubu_freedoom.c $(RT)/wubu_arch_test.c \
 		-o $(RT)/wubu_arch_test
 	$(RT)/wubu_arch_test
@@ -587,7 +587,7 @@ test_arch:
 test_ramdisk:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_ramdisk.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c \
+		$(RT)/styx.c $(RT)/styxfs.c $(RT)/wubu_container.c $(RT)/wubu_ramdisk.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c \
 		$(RT)/wubu_ramdisk_test.c \
 		-o $(RT)/wubu_ramdisk_test
 	$(RT)/wubu_ramdisk_test
