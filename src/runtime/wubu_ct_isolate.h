@@ -9,6 +9,10 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+/* -- cgroupfs layout (shared by wubu_ct_isolate.c + wubu_ct_isolate_cgroup.c) -- */
+#define WUBU_CGROUP_BASE "/sys/fs/cgroup/wubu"
+#define WUBU_CGROUP_MAX_PATH 512
+
 /* -- Seccomp Profiles ---------------------------------------------- */
 
 typedef enum {
