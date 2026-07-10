@@ -620,8 +620,8 @@ test_holyc_ptx:
 # Cell 388/389: Direct DRM/KMS (no libdrm) + custom GBM test
 test_drm_direct:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
-		-I$(HOSTED) -I$(RT) \
-		$(HOSTED)/wubu_drm_direct.c \
+		-I$(HOSTED) -I$(RT) -I/usr/include/drm \
+		$(HOSTED)/wubu_display.c $(HOSTED)/wubu_gbm.c \
 		$(HOSTED)/wubu_display_test.c \
 		-o $(HOSTED)/wubu_drm_direct_test
 	$(HOSTED)/wubu_drm_direct_test
