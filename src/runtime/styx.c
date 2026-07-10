@@ -52,30 +52,8 @@ void styx_init(styx_server_t *srv) {
 
 /* -- Fid Management ----------------------------------------------- */
 
-styx_fid_t *styx_fid_alloc(styx_server_t *srv, uint32_t fid) {
-    for (int i = 0; i < STYX_MAX_FIDS; i++) {
-        if (!srv->fids[i].in_use) {
-            memset(&srv->fids[i], 0, sizeof(styx_fid_t));
-            srv->fids[i].in_use = 1;
-            srv->fids[i].fid = fid;
-            return &srv->fids[i];
-        }
-    }
-    return NULL;
-}
 
-styx_fid_t *styx_fid_lookup(styx_server_t *srv, uint32_t fid) {
-    for (int i = 0; i < STYX_MAX_FIDS; i++) {
-        if (srv->fids[i].in_use && srv->fids[i].fid == fid)
-            return &srv->fids[i];
-    }
-    return NULL;
-}
 
-void styx_fid_free(styx_server_t *srv, uint32_t fid) {
-    styx_fid_t *f = styx_fid_lookup(srv, fid);
-    if (f) f->in_use = 0;
-}
 
 /* -- Message Building  --  Response Helpers -------------------------- */
 
@@ -676,3 +654,4 @@ int styx_parse_walk(const uint8_t *buf, uint32_t len,
     }
     return 0;
 }
+
