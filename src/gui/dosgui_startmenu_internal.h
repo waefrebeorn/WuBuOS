@@ -7,6 +7,7 @@
 #define DOSGUI_STARTMENU_INTERNAL_H
 
 #include "dosgui_startmenu.h"
+#include "wubu_theme.h"
 
 /* -- Shared state (defined in dosgui_startmenu.c) ------------------ */
 extern int g_open;
@@ -35,5 +36,9 @@ void dosgui_startmenu_tree_build(void);
 SmTreeNode *dosgui_startmenu_tree_get_root(void);
 void dosgui_startmenu_tree_toggle(SmTreeNode *node);
 void dosgui_startmenu_tree_render(uint32_t *fb, int fb_w, int fb_h, int x, int y);
+
+/* -- Theme helpers (static inline — shared by all startmenu submodules) -- */
+static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
+static inline const WubuTheme *th(void) { return wubu_theme_get(); }
 
 #endif /* DOSGUI_STARTMENU_INTERNAL_H */
