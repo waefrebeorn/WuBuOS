@@ -21,68 +21,6 @@
  * Internal Helpers
  * ============================================================ */
 
-static bool run_command(const char* cmd, const char* workdir) {
-    pid_t pid = fork();
-    if (pid < 0) return false;
-    if (pid == 0) {
-        if (workdir) chdir(workdir);
-        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
-        _exit(127);
-    }
-    int status;
-    waitpid(pid, &status, 0);
-    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
-}
-
-static bool run_command_capture(const char* cmd, char* output, size_t output_size) {
-    FILE* fp = popen(cmd, "r");
-    if (!fp) return false;
-    size_t n = fread(output, 1, output_size - 1, fp);
-    output[n] = '\0';
-    pclose(fp);
-    return true;
-}
-
-static bool write_file(const char* path, const char* content) {
-    FILE* f = fopen(path, "w");
-    if (!f) return false;
-    fputs(content, f);
-    fclose(f);
-    return true;
-}
-
-static bool mkdir_p(const char* path, mode_t mode) {
-    char* p = strdup(path);
-    char* sep = p;
-    while ((sep = strchr(sep + 1, '/'))) {
-        *sep = '\0';
-        mkdir(p, mode);
-        *sep = '/';
-    }
-    mkdir(p, mode);
-    free(p);
-    return true;
-}
-
-static bool copy_file(const char* src, const char* dst) {
-    FILE* in = fopen(src, "rb");
-    if (!in) return false;
-    FILE* out = fopen(dst, "wb");
-    if (!out) { fclose(in); return false; }
-    char buf[8192];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
-        fwrite(buf, 1, n, out);
-    }
-    fclose(in);
-    fclose(out);
-    return true;
-}
-
-/* ============================================================
- * Rootfs Creation
- * ============================================================ */
-
 bool wubu_deploy_create_rootfs(const char* rootfs_dir, const char* wubu_binary) {
     /* Create directory structure */
     const char* dirs[] = {

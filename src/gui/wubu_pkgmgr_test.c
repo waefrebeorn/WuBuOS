@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <errno.h>
 #include <time.h>
 
@@ -550,6 +553,104 @@ bool test_autoremove(void) {
     return true;
 }
 
+/* Test repo_update performs a REAL remote fetch + index parse (BATTLESHIP #24).
+ * Stands up a local HTTP server (python3) serving a known index.json, points a
+ * repo at it, refreshes, and asserts the package table is actually populated. */
+bool test_repo_update_fetch(void) {
+    /* Clean previous state. */
+    pid_t cp = fork();
+    if (cp == 0) { execl("/bin/rm", "rm", "-rf", "/tmp/wubu_pkgmgr_test_repo", (char*)NULL); _exit(1); }
+    waitpid(cp, NULL, 0);
+
+    wubu_pkgmgr_config_t config;
+    wubu_pkgmgr_get_default_config(&config);
+    snprintf(config.db_path, sizeof(config.db_path), "/tmp/wubu_pkgmgr_test_repo");
+    snprintf(config.cache_dir, sizeof(config.cache_dir), "/tmp/wubu_pkgmgr_test_repo/cache");
+    snprintf(config.install_prefix, sizeof(config.install_prefix), "/tmp/wubu_pkgmgr_test_repo/install");
+    snprintf(config.repo_config_dir, sizeof(config.repo_config_dir), "/tmp/wubu_pkgmgr_test_repo/repos");
+    config.verify_signatures = false;
+    config.allow_untrusted = true;
+
+    TEST_ASSERT(wubu_pkgmgr_init(&config), "pkgmgr init");
+
+    /* Seed an index.json in a temp dir and serve it over HTTP. */
+    ensure_dir("/tmp/wubu_repo_srv");
+    const char *INDEX =
+        "[\n"
+        "  {\"id\":\"pkg-a\",\"name\":\"Package A\",\"version\":\"1.2.3\",\"arch\":\"x86_64\",\"description\":\"first pkg\",\"download_url\":\"http://x/a\",\"sha256\":\"deadbeef\",\"size\":1024},\n"
+        "  {\"id\":\"pkg-b\",\"name\":\"Package B\",\"version\":\"2.0.0\",\"arch\":\"aarch64\",\"description\":\"second pkg\",\"download_url\":\"http://x/b\",\"sha256\":\"cafe\",\"size\":2048}\n"
+        "]";
+    FILE *idx = fopen("/tmp/wubu_repo_srv/index.json", "w");
+    if (idx) { fputs(INDEX, idx); fclose(idx); }
+
+    /* Pick a genuinely free port: bind a socket to get an ephemeral one,
+     * then hand that port to the python server (avoids collisions with
+     * stale servers from prior runs). */
+    int probe = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in sa = {0};
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sa.sin_port = 0;
+    bind(probe, (struct sockaddr*)&sa, sizeof(sa));
+    socklen_t sl = sizeof(sa);
+    getsockname(probe, (struct sockaddr*)&sa, &sl);
+    int port = ntohs(sa.sin_port);
+    close(probe);
+
+    char portstr[16]; snprintf(portstr, sizeof(portstr), "%d", port);
+    pid_t srv = fork();
+    if (srv == 0) {
+        chdir("/tmp/wubu_repo_srv");
+        execlp("python3", "python3", "-m", "http.server", portstr, (char*)NULL);
+        _exit(127);
+    }
+    /* Give the server a moment to bind. */
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 500000000 };
+    nanosleep(&ts, NULL);
+
+    /* Register the repo pointing at the local server. */
+    char url[256];
+    snprintf(url, sizeof(url), "http://127.0.0.1:%d/index.json", port);
+    TEST_ASSERT(wubu_pkgmgr_repo_add("local-repo", url, NULL, 5), "add local repo");
+
+    /* Ensure no stale packages before refresh. */
+    wubu_pkg_repo_entry_t entries[16];
+    int before = wubu_pkgmgr_search("pkg", entries, 16);
+    (void)before; /* may be 0 or leftover; not asserted */
+
+    /* THE REAL CALL under test. */
+    bool ok = wubu_pkgmgr_repo_update("local-repo");
+    TEST_ASSERT(ok, "repo_update returns true after fetch");
+
+    /* Assert the index was actually fetched + parsed into the DB. */
+    int n = wubu_pkgmgr_search("pkg", entries, 16);
+    TEST_ASSERT(n >= 2, "repo index populated (>=2 packages)");
+
+    bool found_a = false, found_b = false;
+    for (int i = 0; i < n; i++) {
+        if (strstr(entries[i].id, "pkg-a")) found_a = true;
+        if (strstr(entries[i].id, "pkg-b")) found_b = true;
+    }
+    TEST_ASSERT(found_a, "pkg-a present in fetched index");
+    TEST_ASSERT(found_b, "pkg-b present in fetched index");
+
+    /* Assert last_update got stamped (was 0 before a real refresh). */
+    wubu_pkg_repo_t repos[4];
+    int rn = wubu_pkgmgr_repo_list(repos, 4);
+    bool stamped = false;
+    for (int i = 0; i < rn; i++)
+        if (strcmp(repos[i].name, "local-repo") == 0 && repos[i].last_update > 0)
+            stamped = true;
+    TEST_ASSERT(stamped, "last_update stamped after real fetch");
+
+    /* Tear down server. */
+    kill(srv, SIGTERM);
+    waitpid(srv, NULL, 0);
+
+    wubu_pkgmgr_shutdown();
+    return true;
+}
+
 /* Main */
 int main(void) {
     printf("=== WuBuOS Package Manager Tests ===\n\n");
@@ -565,6 +666,7 @@ int main(void) {
     RUN_TEST(test_progress_callback);
     RUN_TEST(test_stats);
     RUN_TEST(test_autoremove);
+    RUN_TEST(test_repo_update_fetch);
     
     printf("\n=== Results: %d passed, %d failed ===\n", tests_passed, tests_failed);
     return tests_failed == 0 ? 0 : 1;

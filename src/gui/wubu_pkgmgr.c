@@ -236,37 +236,6 @@ int wubu_pkgmgr_repo_list(wubu_pkg_repo_t *out, int max) {
     return n;
 }
 
-bool wubu_pkgmgr_repo_update(const char *name) {
-    if (!g_pkgmgr.initialized) return false;
-    /* TODO: fetch index from remote */
-    char sql[256];
-    if (name) {
-        snprintf(sql, sizeof(sql), "UPDATE repos SET last_update=strftime('%%s','now') WHERE name='%s'", name);
-    } else {
-        snprintf(sql, sizeof(sql), "UPDATE repos SET last_update=strftime('%%s','now') WHERE enabled=1");
-    }
-    db_exec(sql);
-    return true;
-}
-
-/* -- Search -------------------------------------------------------- */
-
-int wubu_pkgmgr_search(const char *query, wubu_pkg_repo_entry_t *out, int max) {
-    if (!g_pkgmgr.initialized || !query || !out || max <= 0) return 0;
-    char sql[512];
-    snprintf(sql, sizeof(sql),
-        "SELECT * FROM repo_packages WHERE name LIKE '%%%s%%' OR description LIKE '%%%s%%' LIMIT %d",
-        query, query, max);
-    return db_query(sql, NULL, out) == 0 ? max : 0;
-}
-
-bool wubu_pkgmgr_repo_get_info(const char *pkg_id, wubu_pkg_repo_entry_t *out) {
-    if (!g_pkgmgr.initialized || !pkg_id || !out) return false;
-    char sql[512];
-    snprintf(sql, sizeof(sql), "SELECT * FROM repo_packages WHERE id='%s' LIMIT 1", pkg_id);
-    return db_query(sql, NULL, out) == 0;
-}
-
 /* -- Manifest ------------------------------------------------------ */
 
 char *manifest_to_json(const wubu_pkg_manifest_t *m) {

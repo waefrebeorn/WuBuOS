@@ -22,6 +22,7 @@
 /* Use WuBuOS's self-contained SHA256 (no external crypto dep). Any future
  * TLS download path should gate libcurl/openssl behind WUBU_HAVE_CURL. */
 #include "../runtime/wubu_crypto.h"
+#include "../runtime/oci/oci_internal.h"
 
 /* -- Global state (extern) --------------------------------------- */
 typedef struct {
