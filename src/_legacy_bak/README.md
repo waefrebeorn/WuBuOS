@@ -32,21 +32,21 @@ Files land here for one of three reasons:
 | `apps__terminal.c` | `gui/dosgui_term.c` |
 | `apps__wubu_canvas.c` | `apps/canvas/canvas.c` |
 
-### Needs unavailable deps (option (2))
-| File (here) | Missing dep / note |
-|---|---|
-| `gui__wubu_compositor.c` | wlroots / Wayland compositor (disabled) |
-| `gui__wubu_compositor_standalone.c` | `<wayland-server-core.h>`, gbm, vulkan, pixman — not installed |
-| `hosted__wubu_display.c` | DRM/GBM display path, only used by `wubu_drm_direct.c` (not in default link) |
-| `jit__jit_mir.c` | MIR backend; included by `jit.c` but never wired into any target |
-| `bear__wubu_math.c` | only referenced by `worldsim/` + `audio/` tests (those dirs not built) |
-| `runtime__vsl__vsl_syscall_table.c` | syscall dispatch table; referenced by `vsl_syscall*.c` but the whole `vsl_syscall_*` family is not in the default build |
-| `runtime__container__wubucontainer__src__handlers__shToElf__stub.c` | nested stub inside the container handler tree; untracked, never compiled |
+### Needs unavailable deps (option (2)) — status
+| File (here) | Missing dep / note | Status |
+|---|---|---|
+| `gui__wubu_compositor.c` | wlroots (present) + `gbm.h`/`pixman.h` (need `libgbm-dev`/`libpixman-1-dev`, apt blocked — no sudo) | **FUTURE REBUILD** — `wubu_compositor.h` API is still in the build graph with NO impl; restore this once dev headers installable. |
+| `gui__wubu_compositor_standalone.c` | `<wayland-server-core.h>`, gbm, vulkan, pixman (gbm/pixman headers absent) | **FUTURE REBUILD** — alternate Vulkan-path compositor; secondary to `wubu_compositor.c`. |
+| `hosted__wubu_display.c` | ~~needs xf86drm/linux headers~~ | **RESTORED** (commit d1f6877) → `src/hosted/wubu_display.c`; exercised by `test_drm_direct`. Removed from this dir. |
+| `jit__jit_mir.c` | MIR backend; included by `jit.c` but never wired | dead — leave. |
+| `bear__wubu_math.c` | only referenced by `worldsim/` + `audio/` tests (those dirs not built) | dead — leave. |
+| `runtime__vsl__vsl_syscall_table.c` | syscall dispatch table | **DEAD** — superseded: `vsl_syscall.c` already defines `vsl_syscall_table[]` inline (line 18). Do not restore. |
+| `runtime__container__wubucontainer__src__handlers__shToElf__stub.c` | nested stub inside the container handler tree; untracked, never compiled | dead — leave. |
 
 ### Orphan / scratch / demo (option (3)+(4))
 | File (here) | Note |
 |---|---|
-| `apps__wubu_codec.c` | referenced only by `apps/wubu_apps2_test.c` (not compiled) |
+| `apps__wubu_codec.c` | **FUTURE REBUILD** — media codec API (`wubu_codec.h`) is referenced by `wubu_apps2_test.c` but needs ffmpeg (`libavcodec`, absent). Restore + wire once ffmpeg dev headers present. |
 | `apps__wubu_freedoom.c` | referenced only by `wubu_arch_test.c` (not compiled) |
 | `apps__doom.c` | referenced only by `wubu_arch_test.c` / `wubu_ct_bwrap.c` (not compiled) |
 | `tools__dosgui_screenshot.c` | standalone screenshot tool, no Makefile target |
