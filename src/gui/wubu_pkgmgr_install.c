@@ -15,24 +15,7 @@
 
 /* -- Private SQLite callbacks (file-local, no symbol clash) ------- */
 
-static int g_list_idx;
 
-static int cb_list_installed(void *data, int argc, char **argv, char **col) {
-    (void)col;
-    wubu_pkg_installed_t *buffer = data;
-    if (g_list_idx < 0) return 0;
-    if (argc < 7) return 0;
-    wubu_pkg_installed_t *pkg = &buffer[g_list_idx++];
-    memset(pkg, 0, sizeof(*pkg));
-    strncpy(pkg->manifest.id, argv[0] ? argv[0] : "", sizeof(pkg->manifest.id) - 1);
-    strncpy(pkg->manifest.name, argv[1] ? argv[1] : "", sizeof(pkg->manifest.name) - 1);
-    strncpy(pkg->manifest.version, argv[2] ? argv[2] : "", sizeof(pkg->manifest.version) - 1);
-    pkg->manifest.arch = (wubu_pkg_arch_t)(argv[3] ? atoi(argv[3]) : 0);
-    strncpy(pkg->install_date, argv[4] ? argv[4] : "", sizeof(pkg->install_date) - 1);
-    pkg->size_bytes = atoll(argv[5] ? argv[5] : "0");
-    strncpy(pkg->install_path, argv[6] ? argv[6] : "", sizeof(pkg->install_path) - 1);
-    return 0;
-}
 
 static int cb_pkg_installed(void *data, int argc, char **argv, char **col) {
     (void)col;
@@ -352,9 +335,9 @@ int wubu_pkgmgr_list_installed(wubu_pkg_installed_t *out, int max) {
     int *count = (int *)buffer;
     wubu_pkg_installed_t *pkgs = (wubu_pkg_installed_t *)(buffer + sizeof(int));
 
-    g_list_idx = 0;
+    cb_list_installed_reset();
     db_query(sql, cb_list_installed, pkgs);
-    *count = g_list_idx;
+    *count = cb_list_installed_count();
 
     int n = *count < max ? *count : max;
     if (out && n > 0) {
@@ -393,3 +376,4 @@ bool wubu_pkgmgr_is_installed(const char *pkg_id) {
     wubu_pkg_installed_t pkg;
     return wubu_pkgmgr_get_installed(pkg_id, &pkg);
 }
+
