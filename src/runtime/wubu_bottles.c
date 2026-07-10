@@ -15,6 +15,7 @@
 #define _GNU_SOURCE
 
 #include "wubu_bottles.h"
+#include "wubu_bottles_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -256,43 +257,8 @@ const char *wubu_bottle_get_env(WubuBottle *bottle, const char *key) {
  * JSON Helpers
  * ================================================================== */
 
-static const char *json_find_string_literal(const char *json, const char *key) {
-    char search[256];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *key_pos = strstr(json, search);
-    if (!key_pos) return NULL;
-    const char *colon = strchr(key_pos + strlen(search), ':');
-    if (!colon) return NULL;
-    const char *quote = strchr(colon, '"');
-    if (!quote) return NULL;
-    const char *end = strchr(quote + 1, '"');
-    if (!end) return NULL;
-    return quote + 1;
-}
 
-static int json_find_int_literal(const char *json, const char *key) {
-    char search[256];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *key_pos = strstr(json, search);
-    if (!key_pos) return 0;
-    const char *colon = strchr(key_pos + strlen(search), ':');
-    if (!colon) return 0;
-    while (*colon && !isdigit((unsigned char)*colon) && *colon != '-') colon++;
-    return atoi(colon);
-}
 
-static bool json_find_bool_literal(const char *json, const char *key) {
-    char search[256];
-    snprintf(search, sizeof(search), "\"%s\"", key);
-    const char *key_pos = strstr(json, search);
-    if (!key_pos) return false;
-    const char *colon = strchr(key_pos + strlen(search), ':');
-    if (!colon) return false;
-    while (*colon && isspace((unsigned char)*colon)) colon++;
-    if (strncmp(colon, "true", 4) == 0) return true;
-    if (strncmp(colon, "false", 5) == 0) return false;
-    return false;
-}
 
 const char *wubu_bottle_dep_type_name(WubuDependencyType type) {
     switch (type) {
@@ -724,3 +690,4 @@ bool wubu_bottle_verify(WubuBottle *bottle) {
     }
     return true;
 }
+
