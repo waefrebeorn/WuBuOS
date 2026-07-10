@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <errno.h>
+#include <signal.h>
 #include <fcntl.h>
 
 /* -- FFmpeg Availability ------------------------------------------ */
