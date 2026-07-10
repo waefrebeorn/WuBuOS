@@ -57,6 +57,7 @@ void ex_update_breadcrumbs(ExExplorerState *ex);
 
 /* -- Global state (defined in dosgui_explorer.c) ------------------- */
 extern ExExplorerState g_explorer;
+extern ExExplorerState *g_sort_ctx;
 
 /* -- 9P/Styx filesystem backend (implemented in dosgui_explorer_fs.c) --
  * Thin shim mapping POSIX-style ops onto the Styx 9P filesystem (styxfs_*). */
@@ -73,6 +74,17 @@ DIR *ex_9p_opendir(const char *path);
 
 /* -- File-operation workers (implemented in dosgui_explorer_fsops.c) -- */
 void ex_handle_file_op(ExExplorerState *ex);
+
+/* -- Tree subsystem + shared entry helpers (dosgui_explorer_tree.c) ----
+ * Declared non-static so every submodule links the SAME implementation
+ * (no duplicated copies across fs/fsops/zip/render/drives). */
+const char *ex_get_extension(const char *filename);
+int  ex_strcasecmp(const char *a, const char *b);
+void ex_sort_entries(ExExplorerState *ex);
+int  ex_file_compare(const void *a, const void *b);
+void ex_populate_tree(ExTreeNode *node, const char *path);
+ExTreeNode *ex_tree_find(ExTreeNode *root, const char *path);
+void ex_tree_free(ExTreeNode *node);
 
 /* -- Theme helpers (static inline — zero overhead, no symbol clash) -- */
 static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
