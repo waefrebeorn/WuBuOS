@@ -721,7 +721,7 @@ test_anticheat:
 test_bottles:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) \
-		$(RT)/wubu_bottles.c $(RT)/wubu_bottles_test.c \
+		$(RT)/wubu_bottles.c $(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_test.c \
 		-o $(RT)/wubu_bottles_test
 	$(RT)/wubu_bottles_test
 
