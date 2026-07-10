@@ -580,7 +580,7 @@ test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
 		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs.c $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
-		$(APPS)/wubu_freedoom.c $(RT)/wubu_arch_test.c \
+		$(RT)/wubu_arch_test.c $(APPS)/wubu_freedoom.c \
 		-o $(RT)/wubu_arch_test
 	$(RT)/wubu_arch_test
 
@@ -701,12 +701,12 @@ test_dosgui_apps:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) \
 		$(APPS)/dosgui_apps.c \
-		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/paint/paint.c \
+		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/paint.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/repl/repl.c $(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/canvas/canvas.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
-		$(GUI)/wubu_theme.c $(GUI)/wm.c \
+		$(GUI)/wubu_theme.c $(GUI)/dosgui_wm.c \
 		$(APPS)/dosgui_apps_test.c \
 		-o $(APPS)/dosgui_apps_test -lm
 	$(APPS)/dosgui_apps_test
