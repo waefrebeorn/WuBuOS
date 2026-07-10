@@ -179,3 +179,9 @@ bool wubu_pkgmgr_unregister_desktop(const char *pkg_id);
 bool wubu_pkgmgr_generate_desktop_files(const wubu_pkg_installed_t *pkg);
 
 #endif /* WUBU_PKGMGR_INTERNAL_H */
+
+/* -- DB subsystem callbacks (wubu_pkgmgr_db.c) -- */
+int cb_load_repos(void *data, int argc, char **argv, char **col);
+int cb_list_installed(void *data, int argc, char **argv, char **col);
+void cb_list_installed_reset(void);
+int cb_list_installed_count(void);
