@@ -46,9 +46,9 @@ Files land here for one of three reasons:
 ### Orphan / scratch / demo (option (3)+(4))
 | File (here) | Note |
 |---|---|
-| `apps__wubu_codec.c` | **FUTURE REBUILD** — media codec API (`wubu_codec.h`) is referenced by `wubu_apps2_test.c` but needs ffmpeg (`libavcodec`, absent). Restore + wire once ffmpeg dev headers present. |
-| `apps__wubu_freedoom.c` | referenced only by `wubu_arch_test.c` (not compiled) |
-| `apps__doom.c` | referenced only by `wubu_arch_test.c` / `wubu_ct_bwrap.c` (not compiled) |
+| `apps__wubu_codec.c` | **RESTORED** (commit fdac678) → `src/apps/wubu_codec.c`; ffmpeg-free at compile time (shells out to ffmpeg binary). Exercised by `test_apps2` (19/19). Removed from this dir. |
+| `apps__wubu_freedoom.c` | **RESTORED** (commit on fixup/organize-exclusions) → `src/apps/wubu_freedoom.c`; defines the `wubu_doom_*` launcher API that `wubu_arch_test.c` exercises. `test_arch` PASSES. Removed from this dir. |
+| `apps__doom.c` | raycaster demo; NOT the `wubu_doom_*` API (that lives in wubu_freedoom.c). Referenced nowhere in build. Leave. |
 | `tools__dosgui_screenshot.c` | standalone screenshot tool, no Makefile target |
 | `tools__wubu_demo_record.c` | demo recorder, no target |
 | `tools__wubu_demo_screenshot.c` | demo screenshot, no target |
@@ -76,3 +76,20 @@ If a file here should re-enter the build:
    compiles the parent `.c` directly, add the `.c` there too (see
    `wubuos-monolithic-split` skill — "Dedup-aware blanket Makefile wiring").
 3. Resolve any missing-dependency guards.
+
+## Pre-existing broken tests (fixed at recipe level; remaining is test-source)
+
+- `test_dosgui_apps` — **RECIPE FIXED** (wrong `paint/paint.c`→`paint.c`, `wm.c`→`dosgui_wm.c`,
+  include `paint/paint.h`→`paint.h`, restored `wubu_freedoom.c`). Still fails to *compile*
+  because `dosgui_apps_test.c` pokes into 6 opaque app-state structs (`CalcState`,
+  `NotepadState`, `TaskManagerState`, `RegeditState`, `FileManagerState`, `ControlState`)
+  directly (≈57 sites). Fix = add accessor functions to each app's public API and rewrite
+  the test's field reads. Tracked as a dedicated test-refactor pass, NOT part of this cleanup.
+- `test_arch` — **FIXED** (recipe referenced orphaned `wubu_freedoom.c`, which defines the
+  `wubu_doom_*` launcher API the test exercises; restored). PASSES.
+- `test_drm_direct` — **FIXED** (now compiles restored `wubu_display.c` + `wubu_gbm.c`; added
+  `-I/usr/include/drm`). PASSES.
+- `test_container_registry` — **STILL BROKEN** (test source references `h.handler` but the
+  `WubuContainerHandler` struct member is `name`; genuine pre-existing test-source bug).
+- `test_apps2` — **FIXED** (restored `wubu_codec.c`; the codec shells out to the ffmpeg binary,
+  so no libavcodec headers needed to compile). 19/19 PASSES.

@@ -13,7 +13,7 @@
 #include "dosgui_apps.h"
 #include "calc/calc.h"
 #include "notepad/notepad.h"
-#include "paint/paint.h"
+#include "paint.h"
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
 #include "fm/fm.h"
