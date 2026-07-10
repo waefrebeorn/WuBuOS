@@ -45,7 +45,7 @@ BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscal
 
 # ── App Objects ──────────────────────────────────────────────────
 APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_canvas.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o \
-           $(APPS)/calc/calc.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
+           $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
            $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o $(APPS)/canvas/canvas.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
@@ -537,7 +537,7 @@ test_wallpaper:
 
 test_calc:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(APPS) -I$(COMP) \
-		$(APPS)/calc/calc.c $(APPS)/calc/calc_test_stub.c $(APPS)/calc/calc_test.c \
+		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/calc/calc_test_stub.c $(APPS)/calc/calc_test.c \
 		-o $(APPS)/calc/calc_test -lm
 	$(APPS)/calc/calc_test
 
@@ -701,7 +701,7 @@ test_dosgui_apps:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) \
 		$(APPS)/dosgui_apps.c \
-		$(APPS)/calc/calc.c $(APPS)/notepad/notepad.c $(APPS)/paint/paint.c \
+		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/paint/paint.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/repl/repl.c $(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/canvas/canvas.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
