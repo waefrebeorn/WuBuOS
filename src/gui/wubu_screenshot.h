@@ -69,6 +69,10 @@ void wubu_screenshot_render_annotations(wubu_sshot_t *sshot);
 bool wubu_screenshot_save(wubu_sshot_t *sshot, const char *filename);
 bool wubu_screenshot_save_auto(wubu_sshot_t *sshot, char *out_path, size_t out_size);
 
+/* Raw RGBA -> PNG encoder (implemented in wubu_screenshot_png.c). Returns byte
+ * count; *out is malloc'd and owned by the caller. Reusable outside screenshots. */
+size_t png_encode_rgba(const uint32_t *px, int w, int h, uint8_t **out);
+
 /* Generate filename: "Screenshot_YYYY-MM-DD_HH-MM-SS.png" */
 void wubu_screenshot_gen_filename(char *buf, size_t n);
 
