@@ -15,6 +15,7 @@
 #define WUBU_DOSGUI_TERM_INTERNAL_H
 
 #include "dosgui_term.h"
+#include "wubu_theme.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -112,5 +113,17 @@ void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods);
 /* Render helpers (shared with dosgui_term.c) */
 void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, int w, int h);
 void term_render_container_session(TermContainerSession *container, uint32_t *fb, int x, int y, int w, int h);
+void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w);
+
+/* -- Shared global state + theme helpers (moved from dosgui_term.c) -- */
+extern TermState g_term;
+
+static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
+static inline const WubuTheme *th(void) { return wubu_theme_get(); }
+static inline int term_tab_bar_h(void) { return th()->rounded_buttons ? 28 : 24; }
+static inline int term_char_w(void) { return 6; }
+static inline int term_char_h(void) { return 10; }
+static inline int term_side_padding(void) { return 4; }
+static inline int term_top_padding(void) { return 2; }
 
 #endif /* WUBU_DOSGUI_TERM_INTERNAL_H */

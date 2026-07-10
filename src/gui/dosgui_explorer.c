@@ -67,58 +67,6 @@ static void ex_worker_copy(const char *src, const char *dst, uint64_t *copied, u
 static void ex_worker_move(const char *src, const char *dst);
 static void ex_worker_delete(const char *path, bool permanent);
 
-/* -- 9P/Styx File Operations (replacing local filesystem) ------------- */
-
-static int ex_9p_stat(const char *path, struct stat *st) {
-    /* Use Styx 9P stat via styxfs */
-    extern int styxfs_stat(const char *path, struct stat *st);
-    return styxfs_stat(path, st);
-}
-
-static int ex_9p_mkdir(const char *path, mode_t mode) {
-    extern int styxfs_create(const char *path, int mode, int perm);
-    return styxfs_create(path, 0x80000000 | 0x10000000, mode); /* DMODE | DMDIR */
-}
-
-static int ex_9p_unlink(const char *path) {
-    extern int styxfs_remove(const char *path);
-    return styxfs_remove(path);
-}
-
-static int ex_9p_rename(const char *oldpath, const char *newpath) {
-    extern int styxfs_rename(const char *oldpath, const char *newpath);
-    return styxfs_rename(oldpath, newpath);
-}
-
-static int ex_9p_open(const char *path, int flags) {
-    extern int styxfs_open(const char *path, int flags);
-    return styxfs_open(path, flags);
-}
-
-static ssize_t ex_9p_read(int fd, void *buf, size_t count) {
-    extern ssize_t styxfs_read(int fd, void *buf, size_t count);
-    return styxfs_read(fd, buf, count);
-}
-
-static ssize_t ex_9p_write(int fd, const void *buf, size_t count) {
-    extern ssize_t styxfs_write(int fd, const void *buf, size_t count);
-    return styxfs_write(fd, buf, count);
-}
-
-static int ex_9p_close(int fd) {
-    extern int styxfs_close(int fd);
-    return styxfs_close(fd);
-}
-
-static int ex_9p_readdir(const char *path, struct dirent ***entries) {
-    extern int styxfs_readdir(const char *path, struct dirent ***entries);
-    return styxfs_readdir(path, entries);
-}
-
-static DIR *ex_9p_opendir(const char *path) {
-    extern DIR *styxfs_opendir(const char *path);
-    return styxfs_opendir(path);
-}
 
 /* Global sort context for qsort */
 static ExExplorerState *g_sort_ctx = NULL;
@@ -1741,3 +1689,4 @@ void dosgui_explorer_update_preview(int idx) {
         }
     }
 }
+
