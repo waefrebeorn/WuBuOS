@@ -149,8 +149,6 @@ extern int g_hover_submenu;
 extern const WubuThemeColors *wubu_theme_colors(void);
 extern const WubuTheme *wubu_theme_get(void);
 
-static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
-static const WubuTheme *th(void) { return wubu_theme_get(); }
 
 static void build_main_menu_from_desktop(void) {
     g_main_count = 0;
@@ -818,23 +816,6 @@ SmTreeNode g_tree_nodes[32];
 
 /* -- Power Options ------------------------------------------------ */
 
-void dosgui_startmenu_power(PowerAction action) {
-    switch (action) {
-        case PWR_SHUTDOWN:
-            dosgui_shutdown();
-            break;
-        case PWR_RESTART:
-            dosgui_shutdown();
-            break;
-        case PWR_LOGOFF:
-            break;
-        case PWR_SLEEP:
-            break;
-        case PWR_HIBERNATE:
-            break;
-    }
-    dosgui_startmenu_close();
-}
 
 /* -- Enhanced Rendering ------------------------------------------- */
 
@@ -886,23 +867,6 @@ void dosgui_startmenu_render_all_programs(uint32_t *fb, int fb_w, int fb_h, int 
     dosgui_startmenu_tree_render(fb, fb_w, fb_h, x, y);
 }
 
-void dosgui_startmenu_render_power_options(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w) {
-    (void)fb; (void)fb_w; (void)fb_h;
-    
-    const char *labels[] = { "Shut Down", "Restart", "Log Off", "Sleep", "Hibernate" };
-    int count = sizeof(labels) / sizeof(labels[0]);
-    int item_h = 28;
-    int ty = y;
-    
-    for (int i = 0; i < count; i++) {
-        vbe_fill_rect_rounded(x, ty, w, item_h, 4, tc()->btn_face);
-        vbe_3d_sunken_rounded_colors(x, ty, w, item_h, 4,
-                                      tc()->border_light, tc()->border_face,
-                                      tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(x + 10, ty + (item_h - 8) / 2, labels[i], tc()->btn_text, 1);
-        ty += item_h + 4;
-    }
-}
 
 /* -- Input Handling ----------------------------------------------- */
 
@@ -1031,3 +995,5 @@ void dosgui_startmenu_shutdown(void) {
 }
 
 void dosgui_startmenu_recent_add(const char *app_name);
+
+
