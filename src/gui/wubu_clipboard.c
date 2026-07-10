@@ -4,6 +4,7 @@
  */
 
 #include "wubu_clipboard.h"
+#include "wubu_clipboard_internal.h"
 #include "../hosted/hosted.h"
 #include <string.h>
 #include <stdlib.h>
@@ -35,25 +36,11 @@
     } while (0)
 
 /* Safe strdup with NULL check */
-static inline char *wubu_strdup_safe(const char *s) {
-    if (!s) return NULL;
-    size_t len = strlen(s) + 1;
-    char *dup = malloc(len);
-    if (!dup) return NULL;
-    memcpy(dup, s, len);
-    return dup;
-}
 
 /* -- Internal State ----------------------------------------------- */
 
 /* Maximum MIME types we track per selection */
-#define WUBU_CLIPBOARD_MAX_MIME_TYPES 8
 
-typedef struct {
-    char *mime_type;
-    void *data;
-    size_t size;
-} ClipboardMimeEntry;
 
 typedef struct {
     /* Primary selection (highlight/middle-click) */
@@ -94,56 +81,12 @@ static ClipboardState g_clipboard = {0};
 /* -- Internal Helpers (available in both test and Wayland modes) ----- */
 
 /* Helper: Find MIME entry index */
-static int clipboard_find_mime(ClipboardMimeEntry *mimes, int count, const char *mime_type) {
-    for (int i = 0; i < count; i++) {
-        if (mimes[i].mime_type && strcmp(mimes[i].mime_type, mime_type) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
 
 /* Helper: Add/replace MIME entry */
-static bool clipboard_add_mime(ClipboardMimeEntry *mimes, int *count, const char *mime_type, const void *data, size_t size) {
-    int idx = clipboard_find_mime(mimes, *count, mime_type);
-    if (idx >= 0) {
-        free(mimes[idx].data);
-        free(mimes[idx].mime_type);
-    } else if (*count < WUBU_CLIPBOARD_MAX_MIME_TYPES) {
-        idx = (*count)++;
-    } else {
-        return false;
-    }
-    
-    mimes[idx].mime_type = strdup(mime_type);
-    mimes[idx].data = malloc(size);
-    if (!mimes[idx].mime_type || !mimes[idx].data) {
-        free(mimes[idx].mime_type);
-        free(mimes[idx].data);
-        return false;
-    }
-    memcpy(mimes[idx].data, data, size);
-    mimes[idx].size = size;
-    return true;
-}
 
 /* Helper: Clear all MIME entries */
-static void clipboard_clear_mimes(ClipboardMimeEntry *mimes, int *count) {
-    for (int i = 0; i < *count; i++) {
-        free(mimes[i].mime_type);
-        free(mimes[i].data);
-        mimes[i].mime_type = NULL;
-        mimes[i].data = NULL;
-        mimes[i].size = 0;
-    }
-    *count = 0;
-}
 
 /* Helper: Get MIME entry */
-static ClipboardMimeEntry* clipboard_get_mime(ClipboardMimeEntry *mimes, int count, const char *mime_type) {
-    int idx = clipboard_find_mime(mimes, count, mime_type);
-    return idx >= 0 ? &mimes[idx] : NULL;
-}
 
 /* Non-blocking pipe read helper */
 static bool ex_clipboard_read_pipe(int fd, char **out_text, size_t *out_len, int timeout_ms) {
@@ -730,3 +673,5 @@ bool wubu_primary_copy(const char *text) {
 bool wubu_primary_paste(char **out_text) {
     return wubu_clipboard_get_text(CLIPBOARD_SELECTION_PRIMARY, out_text, NULL);
 }
+
+
