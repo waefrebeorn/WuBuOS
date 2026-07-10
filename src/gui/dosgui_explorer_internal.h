@@ -7,6 +7,7 @@
 #include "wubu_theme.h"
 #include <stdint.h>
 #include <string.h>
+#include <time.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <dirent.h>

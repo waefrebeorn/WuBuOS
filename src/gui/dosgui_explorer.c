@@ -995,124 +995,8 @@ const char *dosgui_explorer_current_path(void) {
     return g_explorer.current_path;
 }
 
-/* -- Helpers ------------------------------------------------------ */
-
-const char *dosgui_explorer_type_str(ExEntryType type) {
-    static const char *names[] = {
-        "Unknown", "File", "Folder", "Link", "Drive", "Archive", "Mount", "Special"
-    };
-    if (type >= 0 && type < 8) return names[type];
-    return "Unknown";
-}
-
-const char *dosgui_explorer_view_mode_name(ExViewMode mode) {
-    static const char *names[] = {"Details", "Icons", "List", "Tiles"};
-    if (mode >= 0 && mode < 4) return names[mode];
-    return "Unknown";
-}
-
-uint32_t dosgui_explorer_type_color(ExEntryType type) {
-    static const uint32_t colors[] = {
-        0x808080,  /* Unknown - gray */
-        0xFFFFFF,  /* File - white */
-        0xFFD700,  /* Folder - gold */
-        0x00FFFF,  /* Link - cyan */
-        0x00FF00,  /* Drive - green */
-        0xFF8000,  /* Zip - orange */
-        0x8000FF,  /* Mount - purple */
-        0xFF00FF   /* Special - magenta */
-    };
-    if (type >= 0 && type < 8) return colors[type];
-    return 0x808080;
-}
-
-void dosgui_explorer_format_size(uint64_t bytes, char *buf, int buf_size) {
-    const char *units[] = {"B", "KB", "MB", "GB", "TB"};
-    int unit = 0;
-    double size = (double)bytes;
-    while (size >= 1024.0 && unit < 4) {
-        size /= 1024.0;
-        unit++;
-    }
-    if (unit == 0) {
-        snprintf(buf, buf_size, "%.0f %s", size, units[unit]);
-    } else {
-        snprintf(buf, buf_size, "%.1f %s", size, units[unit]);
-    }
-}
-
-void dosgui_explorer_format_time(time_t t, char *buf, int buf_size) {
-    struct tm *tm = localtime(&t);
-    if (tm) {
-        strftime(buf, buf_size, "%Y-%m-%d %H:%M", tm);
-    } else {
-        snprintf(buf, buf_size, "Unknown");
-    }
-}
-
 /* -- Drive/Volume Enumeration ------------------------------------- */
 
-int dosgui_explorer_enumerate_drives(char paths[][EX_MAX_PATH], char labels[][64], int max) {
-    int count = 0;
-
-    /* Add root filesystem */
-    if (count < max) {
-        strcpy(paths[count], "/");
-        strcpy(labels[count], "Root Filesystem");
-        count++;
-    }
-
-    /* On Linux, check /mnt for mounted volumes */
-    DIR *mnt = ex_9p_opendir("/mnt");
-    if (mnt) {
-        struct dirent *ent;
-        while ((ent = readdir(mnt)) && count < max) {
-            if (ent->d_name[0] == '.') continue;
-
-            char path[EX_MAX_PATH];
-            snprintf(path, sizeof(path), "/mnt/%s", ent->d_name);
-
-            struct stat st;
-            if (ex_9p_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
-                strncpy(paths[count], path, EX_MAX_PATH - 1);
-                strncpy(labels[count], ent->d_name, 63);
-                count++;
-            }
-        }
-        closedir(mnt);
-    }
-
-    /* Check /media for removable media */
-    DIR *media = ex_9p_opendir("/media");
-    if (media) {
-        struct dirent *ent;
-        while ((ent = readdir(media)) && count < max) {
-            if (ent->d_name[0] == '.') continue;
-
-            char path[EX_MAX_PATH];
-            snprintf(path, sizeof(path), "/media/%s", ent->d_name);
-
-            struct stat st;
-            if (ex_9p_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
-                strncpy(paths[count], path, EX_MAX_PATH - 1);
-                strncpy(labels[count], ent->d_name, 63);
-                count++;
-            }
-        }
-        closedir(media);
-    }
-
-    return count;
-}
-
-void dosgui_explorer_update_drive_list(void) {
-    /* Refresh tree root with new drive list */
-    if (g_explorer.tree_root) {
-        ex_tree_free(g_explorer.tree_root);
-        g_explorer.tree_root = NULL;
-    }
-    ex_populate_tree(g_explorer.tree_root, g_explorer.current_path);
-}
 
 /* -- Internal Implementation -------------------------------------- */
 
@@ -1568,4 +1452,11 @@ void dosgui_explorer_update_preview(int idx) {
     }
 }
 
-
+void dosgui_explorer_update_drive_list(void) {
+    /* Refresh tree root with new drive list */
+    if (g_explorer.tree_root) {
+        ex_tree_free(g_explorer.tree_root);
+        g_explorer.tree_root = NULL;
+    }
+    ex_populate_tree(g_explorer.tree_root, g_explorer.current_path);
+}
