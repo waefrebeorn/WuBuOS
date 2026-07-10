@@ -662,36 +662,8 @@ int wubu_endpoint_qos_set(WubuNetworkManager *mgr, const char *endpoint_id,
 
 /* -- Firewall ------------------------------------------------------ */
 
-int wubu_network_firewall_add_rule(WubuNetworkManager *mgr, const char *network_id, const char *rule) {
-    if (!mgr || !network_id || !rule) return -1;
-    WubuNetworkProfile *net = find_network(mgr, network_id);
-    if (!net) return -1;
-    if (net->firewall_rule_count >= WUBU_MAX_FIREWALL_RULES) return -1;
-    strncpy(net->firewall_rules[net->firewall_rule_count], rule, 511);
-    net->firewall_rule_count++;
-    return 0;
-}
 
-int wubu_network_firewall_remove_rule(WubuNetworkManager *mgr, const char *network_id, int rule_index) {
-    if (!mgr || !network_id) return -1;
-    WubuNetworkProfile *net = find_network(mgr, network_id);
-    if (!net) return -1;
-    if (rule_index < 0 || rule_index >= net->firewall_rule_count) return -1;
-    memmove(&net->firewall_rules[rule_index], &net->firewall_rules[rule_index + 1],
-            (net->firewall_rule_count - rule_index - 1) * 512);
-    net->firewall_rule_count--;
-    return 0;
-}
 
-int wubu_network_firewall_list(WubuNetworkManager *mgr, const char *network_id,
-                               char rules[][512], int max) {
-    if (!mgr || !network_id || !rules || max <= 0) return 0;
-    WubuNetworkProfile *net = find_network(mgr, network_id);
-    if (!net) return 0;
-    int count = (net->firewall_rule_count < max) ? net->firewall_rule_count : max;
-    memcpy(rules, net->firewall_rules, count * 512);
-    return count;
-}
 
 /* -- CNI Plugin support ------------------------------------------- */
 
@@ -961,5 +933,6 @@ WubuNetworkMode wubu_network_mode_from_string(const char *str) {
     if (strcmp(str, "tailscale") == 0) return WUBU_NET_TAILSCALE;
     return WUBU_NET_BRIDGE;
 }
+
 
 
