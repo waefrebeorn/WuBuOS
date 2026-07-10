@@ -16,6 +16,7 @@
 
 #include "wubu_archd.h"
 #include "wubu_arch.h"
+#include "wubu_archd_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,78 +50,15 @@ static int rm_rf(const char *path) {
 
 /* -- Helper: run command via fork+exec (no system()) ---------------- */
 
-static int run_cmd(const char *cmd) {
-    pid_t pid = fork();
-    if (pid < 0) return -1;
-
-    if (pid == 0) {
-        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
-        _exit(127);
-    }
-
-    int status;
-    waitpid(pid, &status, 0);
-    if (WIFEXITED(status))
-        return WEXITSTATUS(status);
-    return -1;
-}
 
 /* -- Helper: run command in chroot via fork+exec -------------------- */
 
-static int run_chroot_cmd(const char *root, const char *fmt, ...) {
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    va_list args;
-    va_start(args, fmt);
-    vsnprintf(cmd, sizeof(cmd), fmt, args);
-    va_end(args);
-    
-    pid_t pid = fork();
-    if (pid < 0) return -1;
-    
-    if (pid == 0) {
-        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
-        _exit(127);
-    }
-    
-    int status;
-    waitpid(pid, &status, 0);
-    if (WIFEXITED(status))
-        return WEXITSTATUS(status);
-    return -1;
-}
 
 /* -- Helper: write file --------------------------------------------- */
 
-static bool write_file(const char *path, const char *content) {
-    FILE *f = fopen(path, "w");
-    if (!f) return false;
-    fputs(content, f);
-    fclose(f);
-    return true;
-}
 
 /* -- Helper: mkdir -p ----------------------------------------------- */
 
-static int mkdir_p(const char *path, mode_t mode) {
-    char tmp[1024];
-    snprintf(tmp, sizeof(tmp), "%s", path);
-    size_t len = strlen(tmp);
-    
-    if (len > 0 && tmp[len - 1] == '/')
-        tmp[len - 1] = '\0';
-    
-    for (char *p = tmp + 1; *p; p++) {
-        if (*p == '/') {
-            *p = '\0';
-            if (mkdir(tmp, mode) != 0 && errno != EEXIST)
-                return -1;
-            *p = '/';
-        }
-    }
-    if (mkdir(tmp, mode) != 0 && errno != EEXIST)
-        return -1;
-    return 0;
-}
 
 /* -- String Tables ----------------------------------------------- */
 
@@ -508,7 +446,7 @@ int wubu_archd_repo_init(WubuArchd *d, const char *repo_name, const char *repo_p
     if (!d || !repo_name || !repo_path) return -1;
     archd_log(d, 2, "Initializing repo '%s' at '%s'", repo_name, repo_path);
     
-    mkdir_p(repo_path, 0755);
+    archd_mkdir_p(repo_path, 0755);
     
     char cmd[WUBU_ARCHD_MAX_CMD];
     snprintf(cmd, sizeof(cmd), "repo-add %s/%s.db.tar.gz", repo_path, repo_name);
@@ -576,7 +514,7 @@ int wubu_archd_hook_install(WubuArchd *d, const char *root, const char *hook_nam
              action,
              action);
     
-    return write_file(hook_path, hook_content);
+    return archd_write_file(hook_path, hook_content);
 }
 int wubu_archd_hook_remove(WubuArchd *d, const char *root, const char *hook_name) {
     if (!d || !root || !hook_name) return -1;
@@ -1053,3 +991,4 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 #endif /* WUBD_TEST_MAIN */
+
