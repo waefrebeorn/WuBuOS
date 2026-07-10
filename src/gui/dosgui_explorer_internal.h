@@ -7,6 +7,9 @@
 #include "wubu_theme.h"
 #include <stdint.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include <libgen.h>
 
 /* -- Safe String Macros (shared across all explorer files) ---------- */
@@ -53,6 +56,19 @@ void ex_update_breadcrumbs(ExExplorerState *ex);
 
 /* -- Global state (defined in dosgui_explorer.c) ------------------- */
 extern ExExplorerState g_explorer;
+
+/* -- 9P/Styx filesystem backend (implemented in dosgui_explorer_fs.c) --
+ * Thin shim mapping POSIX-style ops onto the Styx 9P filesystem (styxfs_*). */
+int ex_9p_stat(const char *path, struct stat *st);
+int ex_9p_mkdir(const char *path, mode_t mode);
+int ex_9p_unlink(const char *path);
+int ex_9p_rename(const char *oldpath, const char *newpath);
+int ex_9p_open(const char *path, int flags);
+ssize_t ex_9p_read(int fd, void *buf, size_t count);
+ssize_t ex_9p_write(int fd, const void *buf, size_t count);
+int ex_9p_close(int fd);
+int ex_9p_readdir(const char *path, struct dirent ***entries);
+DIR *ex_9p_opendir(const char *path);
 
 /* -- Theme helpers (static inline — zero overhead, no symbol clash) -- */
 static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
