@@ -101,6 +101,7 @@ void draw_window(int idx);
 void draw_desktop_bg(int fb_w, int fb_h);
 const WubuThemeColors *tc(void);
 const WubuTheme *theme(void);
+char *dosgui_taskbar_get_clock_str(void);
 int  title_bar_height(void);
 int  taskbar_height_dynamic(void);
 int  border_width(void);
