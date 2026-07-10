@@ -70,6 +70,9 @@ int ex_9p_close(int fd);
 int ex_9p_readdir(const char *path, struct dirent ***entries);
 DIR *ex_9p_opendir(const char *path);
 
+/* -- File-operation workers (implemented in dosgui_explorer_fsops.c) -- */
+void ex_handle_file_op(ExExplorerState *ex);
+
 /* -- Theme helpers (static inline — zero overhead, no symbol clash) -- */
 static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 static inline const WubuTheme *th(void) { return wubu_theme_get(); }
