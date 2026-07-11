@@ -24,3 +24,8 @@ int wubu_gamelib_full_scan(void);
 
 /* Shared module-global (promoted from wubu_gamelib.c so submodules link one impl). */
 extern GameLibraryState g_gamelib;
+
+/* Module-local dir helper (renamed from ensure_dir to avoid collision with
+   wubu_proton_util.c's non-static ensure_dir -- same dedup-pitfall handling as
+   archd_rm_rf / bottles_rm_rf). */
+bool gamelib_ensure_dir(const char *path);
