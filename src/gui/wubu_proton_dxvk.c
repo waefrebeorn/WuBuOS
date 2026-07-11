@@ -1,11 +1,13 @@
-/* wubu_proton_dxvk.c -- Proton DXVK/VKD3D config subsystem.
+/* wubu_proton_dxvk.c -- Proton DXVK/VKD3D config subsystem (GUI desktop-proton).
  *
- * Self-contained module extracted from wubu_proton.c. Owns DXVK config file
- * read/write and the dxvk_set_* tuning knobs. Uses the shared g_proton state
- * + Proton API via wubu_proton_internal.h. Minimal includes.
+ * Uses the shared wubu_dxvk_conf.c core for all config-file manipulation (read/
+ * write + line set/replace/remove + UI parse/build), eliminating the logic that
+ * was previously duplicated with src/runtime/wubu_proton.c. This file retains the
+ * GUI-specific concerns: prefix-state (g_proton) glue, DEFAULT_DXVK_CONFIG
+ * seeding, and the installed/install/vkd3d helpers.
  */
-
 #include "wubu_proton_internal.h"
+#include "wubu_dxvk_conf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,161 +65,75 @@ static char *dxvk_config_path(const char *prefix_id) {
     return path;
 }
 
+/* Read the prefix's dxvk.conf, seeding DEFAULT_DXVK_CONFIG if empty. */
+static int dxvk_read_seeded(const char *prefix_id, char *buf, size_t bufsz) {
+    const char *path = dxvk_config_path(prefix_id);
+    if (!path) return -1;
+    if (dxvk_conf_read(path, buf, bufsz) < 0 || buf[0] == '\0')
+        snprintf(buf, bufsz, "%s", DEFAULT_DXVK_CONFIG);
+    return 0;
+}
+
 int wubu_proton_dxvk_config_write(const char *prefix_id, const char *config_content) {
     const char *path = dxvk_config_path(prefix_id);
     if (!path || !config_content) return -1;
-
-    FILE *f = fopen(path, "w");
-    if (!f) return -1;
-
-    fprintf(f, "%s", config_content);
-    fclose(f);
-    return 0;
+    return dxvk_conf_write(path, config_content);
 }
 
 int wubu_proton_dxvk_config_read(const char *prefix_id, char *out_config, size_t size) {
     const char *path = dxvk_config_path(prefix_id);
     if (!path || !out_config || size == 0) return -1;
-
-    FILE *f = fopen(path, "r");
-    if (!f) return -1;
-
-    size_t read = fread(out_config, 1, size - 1, f);
-    out_config[read] = '\0';
-    fclose(f);
-    return 0;
+    return dxvk_conf_read(path, out_config, size);
 }
 
 int wubu_proton_dxvk_set_hud(const char *prefix_id, bool enable, const char *options) {
-    const ProtonPrefix *p = wubu_proton_get_prefix(prefix_id);
-    if (!p) return -1;
-
-    char config[4096];
-    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
-    if (!config[0]) strcpy(config, DEFAULT_DXVK_CONFIG);
-
-    char *hud_line = strstr(config, "hud = ");
-    if (enable) {
-        if (hud_line) {
-            /* Update existing */
-            const char *rest = hud_line + 6; /* skip "hud = " */
-            if (options && options[0]) {
-                snprintf(hud_line, config + sizeof(config) - hud_line, "hud = %s", options);
-            } else {
-                snprintf(hud_line, config + sizeof(config) - hud_line, "hud = fps,devinfo,memory");
-            }
-        } else {
-            /* Add under [hud] section or append */
-            strcat(config, "\n[hud]\nhud = ");
-            strcat(config, options ? options : "fps,devinfo,memory");
-        }
-    } else {
-        if (hud_line) {
-            /* Comment out */
-            memmove(hud_line, hud_line + 1, strlen(hud_line));
-        }
-    }
-
-    return wubu_proton_dxvk_config_write(prefix_id, config);
+    const char *path = dxvk_config_path(prefix_id);
+    if (!path) return -1;
+    char buf[8192];
+    dxvk_read_seeded(prefix_id, buf, sizeof(buf));
+    dxvk_conf_set_key(buf, sizeof(buf), "hud",
+                      enable ? (options && options[0] ? options : "fps,devinfo,memory") : NULL);
+    return dxvk_conf_write(path, buf);
 }
 
 int wubu_proton_dxvk_set_async(const char *prefix_id, bool async) {
-    const ProtonPrefix *p = wubu_proton_get_prefix(prefix_id);
-    if (!p) return -1;
-
-    char config[4096];
-    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
-    if (!config[0]) strcpy(config, DEFAULT_DXVK_CONFIG);
-
-    char *async_line = strstr(config, "async = ");
-    if (async) {
-        if (async_line) {
-            snprintf(async_line, config + sizeof(config) - async_line, "async = true");
-        } else {
-            strcat(config, "\nasync = true");
-        }
-    } else {
-        if (async_line) {
-            snprintf(async_line, config + sizeof(config) - async_line, "async = false");
-        }
-    }
-
-    return wubu_proton_dxvk_config_write(prefix_id, config);
+    const char *path = dxvk_config_path(prefix_id);
+    if (!path) return -1;
+    char buf[8192];
+    dxvk_read_seeded(prefix_id, buf, sizeof(buf));
+    dxvk_conf_set_key(buf, sizeof(buf), "async", async ? "true" : "false");
+    return dxvk_conf_write(path, buf);
 }
 
 int wubu_proton_dxvk_set_nvapi_hack(const char *prefix_id, bool enable) {
-    const ProtonPrefix *p = wubu_proton_get_prefix(prefix_id);
-    if (!p) return -1;
-
-    char config[4096];
-    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
-    if (!config[0]) strcpy(config, DEFAULT_DXVK_CONFIG);
-
-    char *nvapi_line = strstr(config, "nvapi_hack = ");
-    if (enable) {
-        if (nvapi_line) {
-            snprintf(nvapi_line, config + sizeof(config) - nvapi_line, "nvapi_hack = true");
-        } else {
-            strcat(config, "\n[nvapi]\nnvapi_hack = true");
-        }
-    } else {
-        if (nvapi_line) {
-            snprintf(nvapi_line, config + sizeof(config) - nvapi_line, "nvapi_hack = false");
-        }
-    }
-
-    return wubu_proton_dxvk_config_write(prefix_id, config);
+    const char *path = dxvk_config_path(prefix_id);
+    if (!path) return -1;
+    char buf[8192];
+    dxvk_read_seeded(prefix_id, buf, sizeof(buf));
+    dxvk_conf_set_key(buf, sizeof(buf), "nvapiHack", enable ? "true" : "false");
+    return dxvk_conf_write(path, buf);
 }
 
 int wubu_proton_dxvk_set_present_mode(const char *prefix_id, bool mailbox) {
-    const ProtonPrefix *p = wubu_proton_get_prefix(prefix_id);
-    if (!p) return -1;
-
-    char config[4096];
-    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
-    if (!config[0]) strcpy(config, DEFAULT_DXVK_CONFIG);
-
-    char *present_line = strstr(config, "present_mode = ");
-    if (mailbox) {
-        if (present_line) {
-            snprintf(present_line, config + sizeof(config) - present_line, "present_mode = mailbox");
-        } else {
-            strcat(config, "\n[present]\npresent_mode = mailbox");
-        }
-    } else {
-        if (present_line) {
-            snprintf(present_line, config + sizeof(config) - present_line, "present_mode = auto");
-        }
-    }
-
-    return wubu_proton_dxvk_config_write(prefix_id, config);
+    const char *path = dxvk_config_path(prefix_id);
+    if (!path) return -1;
+    char buf[8192];
+    dxvk_read_seeded(prefix_id, buf, sizeof(buf));
+    dxvk_conf_set_key(buf, sizeof(buf), "presentMode", mailbox ? "1" : "0");
+    return dxvk_conf_write(path, buf);
 }
 
 int wubu_proton_dxvk_set_memory_limits(const char *prefix_id, int device_mb, int shared_mb) {
-    const ProtonPrefix *p = wubu_proton_get_prefix(prefix_id);
-    if (!p) return -1;
-
-    char config[4096];
-    wubu_proton_dxvk_config_read(prefix_id, config, sizeof(config));
-    if (!config[0]) strcpy(config, DEFAULT_DXVK_CONFIG);
-
-    char *dev_line = strstr(config, "max_device_memory = ");
-    if (dev_line) {
-        snprintf(dev_line, config + sizeof(config) - dev_line, "max_device_memory = %d", device_mb);
-    } else {
-        strcat(config, "\n[device]\nmax_device_memory = ");
-        snprintf(config + strlen(config), sizeof(config) - strlen(config), "%d", device_mb);
-    }
-
-    char *shared_line = strstr(config, "max_shared_memory = ");
-    if (shared_line) {
-        snprintf(shared_line, config + sizeof(config) - shared_line, "max_shared_memory = %d", shared_mb);
-    } else {
-        strcat(config, "\nmax_shared_memory = ");
-        snprintf(config + strlen(config), sizeof(config) - strlen(config), "%d", shared_mb);
-    }
-
-    return wubu_proton_dxvk_config_write(prefix_id, config);
+    const char *path = dxvk_config_path(prefix_id);
+    if (!path) return -1;
+    char buf[8192];
+    dxvk_read_seeded(prefix_id, buf, sizeof(buf));
+    char v[32];
+    snprintf(v, sizeof(v), "%d", device_mb);
+    dxvk_conf_set_key(buf, sizeof(buf), "maxDeviceMemory", v);
+    snprintf(v, sizeof(v), "%d", shared_mb);
+    dxvk_conf_set_key(buf, sizeof(buf), "maxSharedMemory", v);
+    return dxvk_conf_write(path, buf);
 }
 
 int wubu_proton_dxvk_reset_config(const char *prefix_id) {
@@ -226,14 +142,12 @@ int wubu_proton_dxvk_reset_config(const char *prefix_id) {
 
 int wubu_proton_dxvk_install(const char *prefix_id, DxvkMode mode) {
     if (mode == DXVK_MODE_OFF) return 0;
-    
     const char *argv[] = {"winetricks", "-q", "dxvk", NULL};
     return wubu_proton_winecmd(prefix_id, argv);
 }
 
 int wubu_proton_vkd3d_install(const char *prefix_id, Vkd3dMode mode) {
     if (mode == VKD3D_MODE_OFF) return 0;
-    
     const char *argv[] = {"winetricks", "-q", "vkd3d", NULL};
     return wubu_proton_winecmd(prefix_id, argv);
 }
@@ -244,9 +158,12 @@ int wubu_proton_dxvk_config_ui_get(const char *prefix_id, DxvkConfigUI *out_ui) 
     const ProtonPrefix *p = wubu_proton_get_prefix(prefix_id);
     if (!p) return -1;
 
-    memset(out_ui, 0, sizeof(DxvkConfigUI));
-    strncpy(out_ui->prefix_id, p->id, sizeof(out_ui->prefix_id) - 1);
+    char buf[8192];
+    dxvk_read_seeded(prefix_id, buf, sizeof(buf));
+    dxvk_conf_parse_ui(buf, out_ui);
 
+    /* Prefix-state fields (not derivable from the config file). */
+    strncpy(out_ui->prefix_id, p->id, sizeof(out_ui->prefix_id) - 1);
     out_ui->dxvk_enabled = (p->dxvk_mode != DXVK_MODE_OFF);
     out_ui->dxvk_async = p->dxvk_async;
     out_ui->dxvk_hud_enabled = p->dxvk_hud_enabled;
@@ -274,7 +191,7 @@ int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui
     }
     if (!p) return -1;
 
-    /* Update prefix fields */
+    /* Update prefix state. */
     p->dxvk_async = ui->dxvk_async;
     p->dxvk_hud_enabled = ui->dxvk_hud_enabled;
     strncpy(p->dxvk_hud_options, ui->dxvk_hud_options, sizeof(p->dxvk_hud_options) - 1);
@@ -286,13 +203,8 @@ int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui
     p->dxvk_d3d10 = ui->dxvk_d3d10;
     p->dxvk_d3d10_1 = ui->dxvk_d3d10_1;
 
-    /* Apply to config file */
-    wubu_proton_dxvk_config_write(prefix_id, DEFAULT_DXVK_CONFIG);
-    wubu_proton_dxvk_set_async(prefix_id, ui->dxvk_async);
-    wubu_proton_dxvk_set_hud(prefix_id, ui->dxvk_hud_enabled, ui->dxvk_hud_options);
-    wubu_proton_dxvk_set_nvapi_hack(prefix_id, ui->dxvk_nvapi_hack);
-    wubu_proton_dxvk_set_present_mode(prefix_id, ui->dxvk_present_mode_mailbox);
-    wubu_proton_dxvk_set_memory_limits(prefix_id, ui->dxvk_max_device_memory, ui->dxvk_max_shared_memory);
-
-    return 0;
+    /* Apply to config file via the shared core. */
+    char buf[8192];
+    dxvk_conf_build_ui(ui, buf, sizeof(buf));
+    return dxvk_conf_write(dxvk_config_path(prefix_id), buf);
 }
