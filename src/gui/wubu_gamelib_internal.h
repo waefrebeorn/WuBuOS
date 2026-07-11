@@ -21,3 +21,6 @@ int wubu_gamelib_scan_custom_dir(const char *path);
 int wubu_gamelib_full_scan(void);
 
 #endif /* WUBU_GAMELIB_INTERNAL_H */
+
+/* Shared module-global (promoted from wubu_gamelib.c so submodules link one impl). */
+extern GameLibraryState g_gamelib;
