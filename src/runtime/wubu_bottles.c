@@ -31,16 +31,6 @@
 
 /* -- Recursive directory removal (replaces system("rm -rf")) -------- */
 
-static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
-    (void)sb; (void)typeflag; (void)ftwbuf;
-    return unlink(fpath) == 0 ? 0 : -1;
-}
-
-static int rm_rf(const char *path) {
-    if (!path) return -1;
-    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
-}
-
 /* ==================================================================
  * Bottle Management
  * ================================================================== */
@@ -257,9 +247,6 @@ const char *wubu_bottle_get_env(WubuBottle *bottle, const char *key) {
  * JSON Helpers
  * ================================================================== */
 
-
-
-
 const char *wubu_bottle_dep_type_name(WubuDependencyType type) {
     switch (type) {
         case DEP_DXVK: return "dxvk";
@@ -437,10 +424,10 @@ int wubu_bottle_install(WubuBottle *bottle, const char *install_dir) {
 int wubu_bottle_uninstall(WubuBottle *bottle) {
     if (!bottle) return -1;
     if (bottle->prefix_path[0]) {
-        rm_rf(bottle->prefix_path);
+        bottles_rm_rf(bottle->prefix_path);
     }
     if (bottle->rootfs_path[0]) {
-        rm_rf(bottle->rootfs_path);
+        bottles_rm_rf(bottle->rootfs_path);
     }
     bottle->installed = false;
     bottle->prefix_path[0] = '\0';
