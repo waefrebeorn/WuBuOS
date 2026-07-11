@@ -179,6 +179,10 @@ void wubu_container_print_cache(WubuContainerEngine *engine);
 int wubu_container_register_handler(WubuContainerEngine *engine,
                                      const WubuContainerHandler *handler);
 
+/* Introspection accessors (engine state is opaque) */
+int wubu_container_registered_count(const WubuContainerEngine *engine);
+const char *wubu_container_registered_name(const WubuContainerEngine *engine, int idx);
+
 /* ================================================================
  * High-level Agentic API
  * ================================================================ */

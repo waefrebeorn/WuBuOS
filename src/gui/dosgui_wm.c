@@ -443,7 +443,7 @@ void dosgui_wm_shutdown(void) {
 }
 
 DosGuiWindow *dosgui_wm_create(int x, int y, int w, int h,
-                                const char *title) {
+                               const char *title) {
     int i = spawn_window(x, y, w, h, title);
     if (i < 0) return NULL;
     return &g_dwm.windows[i];

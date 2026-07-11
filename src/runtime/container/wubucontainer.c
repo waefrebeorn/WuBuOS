@@ -622,6 +622,16 @@ int wubu_container_register_handler(WubuContainerEngine *engine,
     return 0;
 }
 
+int wubu_container_registered_count(const WubuContainerEngine *engine) {
+    if (!engine) return 0;
+    return engine->custom_handler_count;
+}
+
+const char *wubu_container_registered_name(const WubuContainerEngine *engine, int idx) {
+    if (!engine || idx < 0 || idx >= engine->custom_handler_count) return "";
+    return engine->custom_handlers[idx].name;
+}
+
 /* ================================================================
  * High-level Agentic API
  * ================================================================ */
