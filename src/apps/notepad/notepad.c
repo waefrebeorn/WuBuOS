@@ -9,6 +9,26 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define NP_MAX_TABS 10
+#define NP_MAX_LINES 5000
+#define NP_MAX_LINE_LEN 1024
+
+typedef struct {
+    char lines[NP_MAX_LINES][NP_MAX_LINE_LEN];
+    int line_count;
+    int cursor_x, cursor_y;
+    int scroll_y;
+    int lang;
+    char filename[256];
+    bool modified;
+} NotepadTab;
+
+struct NotepadState {
+    NotepadTab tabs[NP_MAX_TABS];
+    int tab_count;
+    int active_tab;
+};
+
 NotepadState* notepad_create(void) {
     NotepadState *np = calloc(1, sizeof(NotepadState));
     return np;

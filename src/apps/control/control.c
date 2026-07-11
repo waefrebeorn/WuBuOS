@@ -10,6 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+struct ControlState {
+    int active_tab;
+};
+
 ControlState* control_create(void) {
     return calloc(1, sizeof(ControlState));
 }
