@@ -721,9 +721,6 @@ void wubu_ed_unfold_all(WubuEditor *ed) {
 
 /* -- Bookmarks ------------------------------------------------------ */
 
-
-
-
 /* -- View Toggles ------------------------------------------------- */
 
 void wubu_ed_toggle_line_nums(WubuEditor *ed)   { if (ed) ed->show_line_nums = !ed->show_line_nums; }
@@ -732,39 +729,6 @@ void wubu_ed_toggle_split(WubuEditor *ed)        { if (ed) ed->split = !ed->spli
 void wubu_ed_toggle_whitespace(WubuEditor *ed)   { WubuEdTab *t = wubu_ed_current_tab(ed); if (t) t->show_whitespace = !t->show_whitespace; }
 
 /* -- Macro ---------------------------------------------------------- */
-
-static void macro_record(WubuEditor *ed, char ch) {
-    if (!ed || !ed->macro_recording) return;
-    if (ed->macro_len + 1 >= ed->macro_size) {
-        size_t new_size = ed->macro_size ? ed->macro_size * 2 : 256;
-        char *new_buf = (char *)realloc(ed->macro_buf, new_size);
-        if (!new_buf) return;
-        ed->macro_buf = new_buf;
-        ed->macro_size = new_size;
-    }
-    ed->macro_buf[ed->macro_len++] = ch;
-}
-
-void wubu_ed_macro_start(WubuEditor *ed) {
-    if (!ed) return;
-    ed->macro_recording = true;
-    ed->macro_len = 0;
-}
-
-void wubu_ed_macro_stop(WubuEditor *ed) {
-    if (ed) ed->macro_recording = false;
-}
-
-void wubu_ed_macro_play(WubuEditor *ed) {
-    if (!ed || !ed->macro_buf || ed->macro_len == 0) return;
-    ed->macro_playing = true;
-    for (size_t i = 0; i < ed->macro_len; i++) {
-        char ch = ed->macro_buf[i];
-        if (ch == '\n') wubu_ed_insert_newline(ed);
-        else wubu_ed_insert_char(ed, ch);
-    }
-    ed->macro_playing = false;
-}
 
 /* -- Session -------------------------------------------------------- */
 
