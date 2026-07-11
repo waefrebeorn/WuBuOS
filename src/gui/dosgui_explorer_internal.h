@@ -62,6 +62,8 @@ extern ExExplorerState *g_sort_ctx;
 /* -- 9P/Styx filesystem backend (implemented in dosgui_explorer_fs.c) --
  * Thin shim mapping POSIX-style ops onto the Styx 9P filesystem (styxfs_*). */
 int ex_9p_stat(const char *path, struct stat *st);
+/* file metadata extraction (dosgui_explorer_info.c) */
+void ex_get_file_info(const char *path, ExEntry *entry);
 int ex_9p_mkdir(const char *path, mode_t mode);
 int ex_9p_unlink(const char *path);
 int ex_9p_rename(const char *oldpath, const char *newpath);
