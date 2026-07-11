@@ -369,6 +369,7 @@ test_container_registry:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
 		$(RT)/container/wubucontainer.c $(RT)/container/wubucontainer_test.c \
 		-o $(RT)/container/wubucontainer_test -ljson-c
+	@mkdir -p /tmp/wubu_container_test_dir
 	$(RT)/container/wubucontainer_test
 
 test_apps:
@@ -707,8 +708,13 @@ test_dosgui_apps:
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
 		$(GUI)/wubu_theme.c $(GUI)/dosgui_wm.c \
+		$(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_holyc_term.c \
+		$(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_test_stub.c \
+		$(GUI)/wubu_settings.c $(GUI)/wubu_wallpaper.c \
+		$(GUI)/wubu_notify.c $(RT)/wubu_compat_db.c $(GUI)/wubu_json.c $(RT)/wubu_session.c $(RT)/wubu_container.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_host_exec.c \
+		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs.c $(RT)/styxfs_util.c \
 		$(APPS)/dosgui_apps_test.c \
-		-o $(APPS)/dosgui_apps_test -lm
+		-o $(APPS)/dosgui_apps_test -lm -ljson-c
 	$(APPS)/dosgui_apps_test
 
 test_anticheat:

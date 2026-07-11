@@ -25,7 +25,29 @@ typedef enum {
     NP_LANG_COUNT
 } NPLang;
 
-/* Opaque state */
+/* Notepad sizing constants */
+#define NP_MAX_TABS 10
+#define NP_MAX_LINES 5000
+#define NP_MAX_LINE_LEN 1024
+
+/* A single editor tab */
+typedef struct {
+    char lines[NP_MAX_LINES][NP_MAX_LINE_LEN];
+    int line_count;
+    int cursor_x, cursor_y;
+    int scroll_y;
+    int lang;
+    char filename[256];
+    bool modified;
+} NotepadTab;
+
+/* Notepad state (fields exposed for tests / inspection) */
+struct NotepadState {
+    NotepadTab tabs[NP_MAX_TABS];
+    int tab_count;
+    int active_tab;
+};
+
 typedef struct NotepadState NotepadState;
 
 /* API */
