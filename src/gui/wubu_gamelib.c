@@ -29,7 +29,7 @@ static void str_lower(char *s) {
     for (; *s; s++) *s = tolower(*s);
 }
 
-static bool ensure_dir(const char *path) {
+bool gamelib_ensure_dir(const char *path) {
     struct stat st;
     if (stat(path, &st) == 0) return S_ISDIR(st.st_mode);
     
@@ -104,7 +104,7 @@ int wubu_gamelib_init(void) {
     } else {
         snprintf(g_gamelib.library_path, sizeof(g_gamelib.library_path), "%s/.local/share/wubu/games", home);
     }
-    ensure_dir(g_gamelib.library_path);
+    gamelib_ensure_dir(g_gamelib.library_path);
     
     /* Default categories */
     GameCategory cats[] = {
@@ -350,41 +350,3 @@ int wubu_gamelib_get_playtime(const char *game_id) {
 }
 
 /* Config persistence */
-int wubu_gamelib_build_start_menu(void) {
-    /* Clear existing game entries from start menu */
-    wubu_gamelib_clear_start_menu();
-
-    /* Iterate the live game library directly (same g_gamelib instance as this
-     * translation unit) so the registry reflects exactly the installed games.
-     * Using the filtered list via wubu_gamelib_list_games() is avoided here to
-     * keep this function self-contained and immune to the static filtered[]
-     * buffer's lifetime. */
-    int added = 0;
-    for (int i = 0; i < g_gamelib.game_count; i++) {
-        GameLibraryEntry *g = &g_gamelib.games[i];
-
-        if (g->status != GAME_STATUS_INSTALLED) continue;
-
-        /* Real work: register the game in the gamelib's start-menu registry
-         * so the Desktop can surface it under "Games". Clearing removes exactly
-         * these entries. */
-        if (g_gamelib.startmenu_count < (int)(sizeof(g_gamelib.startmenu_entries) /
-                                            sizeof(g_gamelib.startmenu_entries[0]))) {
-            strncpy(g_gamelib.startmenu_entries[g_gamelib.startmenu_count].name,
-                    g->name, sizeof(g_gamelib.startmenu_entries[0].name) - 1);
-            strncpy(g_gamelib.startmenu_entries[g_gamelib.startmenu_count].id,
-                    g->id, sizeof(g_gamelib.startmenu_entries[0].id) - 1);
-            g_gamelib.startmenu_count++;
-            added++;
-        }
-    }
-
-    return added;
-}
-
-void wubu_gamelib_clear_start_menu(void) {
-    /* Real work: drop every game entry registered by
-     * wubu_gamelib_build_start_menu(). */
-    g_gamelib.startmenu_count = 0;
-}
-
