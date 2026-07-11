@@ -66,6 +66,12 @@ int wubu_manifest_save(const WubuImageManifest *manifest, const char *path);
 int wubu_manifest_load(const char *path, WubuImageManifest *manifest);
 #endif
 
+/* -- Tar layer writer (implemented in wubu_image_tar.c) ----------- */
+
+int create_layer_tar(const char *src_dir, const char *dest_tar, const char *instruction);
+int rmtree(const char *path);
+int tar_write_dir(int fd, const char *src_dir);
+
 /* -- Tag/Remove/Inspect/Push API (implemented in wubu_image_ops.c) - */
 
 int wubu_image_tag(const char *image_id, const char *tag);
