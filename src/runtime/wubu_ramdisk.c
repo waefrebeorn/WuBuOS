@@ -12,6 +12,7 @@
  * to the fork+chroot+exec machinery.
  */
 #include "wubu_ramdisk.h"
+#include "wubu_ramdisk_internal.h"
 #include "wubu_arch.h"
 
 #include <stdio.h>
@@ -58,48 +59,6 @@ static int run_cmd(const char *cmd) {
     return -1;
 }
 
-/* -- Helper: detect image format ---------------------------------- */
-
-typedef enum {
-    IMG_UNKNOWN,
-    IMG_CPIO_GZ,     /* .cgz, .cpio.gz */
-    IMG_TAR_GZ,      /* .tar.gz, .tgz */
-    IMG_TAR_ZST,     /* .tar.zst */
-    IMG_DIRECTORY,   /* existing directory */
-} ImgFormat;
-
-static ImgFormat detect_format(const char *path) {
-    if (!path) return IMG_UNKNOWN;
-
-    /* Check if directory */
-    struct stat st;
-    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode))
-        return IMG_DIRECTORY;
-
-    size_t len = strlen(path);
-
-    /* .tar.zst */
-    if (len > 8 && strcmp(path + len - 8, ".tar.zst") == 0)
-        return IMG_TAR_ZST;
-
-    /* .tar.gz */
-    if (len > 7 && strcmp(path + len - 7, ".tar.gz") == 0)
-        return IMG_TAR_GZ;
-
-    /* .tgz */
-    if (len > 4 && strcmp(path + len - 4, ".tgz") == 0)
-        return IMG_TAR_GZ;
-
-    /* .cpio.gz */
-    if (len > 8 && strcmp(path + len - 8, ".cpio.gz") == 0)
-        return IMG_CPIO_GZ;
-
-    /* .cgz */
-    if (len > 4 && strcmp(path + len - 4, ".cgz") == 0)
-        return IMG_CPIO_GZ;
-
-    return IMG_UNKNOWN;
-}
 
 /* -- Create ------------------------------------------------------- */
 
