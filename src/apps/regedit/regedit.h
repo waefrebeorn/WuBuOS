@@ -28,7 +28,38 @@ typedef enum {
     REG_EXPAND_SZ
 } RegType;
 
-/* Opaque state */
+/* Registry node (fields exposed for tests / inspection) */
+struct RegKey {
+    char name[REG_MAX_NAME];
+    struct RegKey *parent;
+    struct RegKey *children;
+    struct RegKey *next_sibling;
+    int child_count;
+};
+
+typedef struct RegKey RegKey;
+
+struct RegValue {
+    char name[REG_MAX_NAME];
+    RegType type;
+    uint8_t data[REG_MAX_DATA];
+    int data_len;
+};
+
+typedef struct RegValue RegValue;
+
+/* Regedit state (fields exposed for tests / inspection) */
+struct RegeditState {
+    struct RegKey root_keys[6];
+    struct RegKey *current_key;
+    struct RegValue values[1024];
+    int value_count;
+    int expanded_keys[REG_MAX_DEPTH];
+    int expand_depth;
+    char search_text[REG_MAX_NAME];
+    bool search_dialog_open;
+};
+
 typedef struct RegeditState RegeditState;
 
 /* API */

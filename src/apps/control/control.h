@@ -10,6 +10,11 @@
 
 typedef struct DosGuiWindow DosGuiWindow;
 
+/* Control Panel state (fields exposed for tests / inspection) */
+struct ControlState {
+    int active_tab;
+};
+
 typedef struct ControlState ControlState;
 
 ControlState* control_create(void);

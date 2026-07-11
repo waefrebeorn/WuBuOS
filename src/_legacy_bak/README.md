@@ -79,17 +79,19 @@ If a file here should re-enter the build:
 
 ## Pre-existing broken tests (fixed at recipe level; remaining is test-source)
 
-- `test_dosgui_apps` — **RECIPE FIXED** (wrong `paint/paint.c`→`paint.c`, `wm.c`→`dosgui_wm.c`,
-  include `paint/paint.h`→`paint.h`, restored `wubu_freedoom.c`). Still fails to *compile*
-  because `dosgui_apps_test.c` pokes into 6 opaque app-state structs (`CalcState`,
-  `NotepadState`, `TaskManagerState`, `RegeditState`, `FileManagerState`, `ControlState`)
-  directly (≈57 sites). Fix = add accessor functions to each app's public API and rewrite
-  the test's field reads. Tracked as a dedicated test-refactor pass, NOT part of this cleanup.
-- `test_arch` — **FIXED** (recipe referenced orphaned `wubu_freedoom.c`, which defines the
-  `wubu_doom_*` launcher API the test exercises; restored). PASSES.
-- `test_drm_direct` — **FIXED** (now compiles restored `wubu_display.c` + `wubu_gbm.c`; added
-  `-I/usr/include/drm`). PASSES.
-- `test_container_registry` — **STILL BROKEN** (test source references `h.handler` but the
-  `WubuContainerHandler` struct member is `name`; genuine pre-existing test-source bug).
-- `test_apps2` — **FIXED** (restored `wubu_codec.c`; the codec shells out to the ffmpeg binary,
-  so no libavcodec headers needed to compile). 19/19 PASSES.
+- `test_dosgui_apps` — **FIXED & PASSING (42/42)**. Recipe rot corrected (paths, includes,
+  restored `wubu_freedoom.c`). Exposed the 7 app state structs (CalcState, NotepadState,
+  PaintState, TaskManagerState, RegeditState, FileManagerState, ControlState) in their
+  public headers (was opaque → test reached into internals). Implemented a per-instance
+  Paint API (`paint_create/destroy/add_shape/save_undo/undo/set_tool/launch`) + `PaintTool`
+  enum + `PAINT_TOOL_*` aliases. Added the full WM submodule set + container/styx/json
+  modules to the recipe (B22 discipline: any recipe with `dosgui_wm.c` needs the whole set).
+  Removed stub `dosgui_wm_create` from the test so the real WM provides non-NULL windows.
+- `test_arch` — **FIXED** (restored `wubu_freedoom.c`, which defines the `wubu_doom_*` API).
+- `test_drm_direct` — **FIXED** (restored `wubu_display.c` + `wubu_gbm.c`; `-I/usr/include/drm`).
+- `test_apps2` — **FIXED** (restored `wubu_codec.c`; ffmpeg-free at compile time).
+- `test_container_registry` — **COMPILES** (removed `h.handler`/`h2.handler` accesses to the
+  non-existent `handler` member; added `wubu_container_registered_count/name` accessors so the
+  opaque engine is no longer poked directly). Still **fails at runtime** because
+  `wubu_container_init()` requires the real WuBuContainer submodule + Node/Bun runtime, which
+  is absent in this sandbox — an environment limitation, not a code bug.

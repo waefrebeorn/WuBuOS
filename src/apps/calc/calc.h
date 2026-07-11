@@ -21,7 +21,23 @@ typedef enum {
     CALC_MODE_COUNT
 } CalcMode;
 
-/* Opaque calculator state */
+/* Calculator state (fields exposed for tests / inspection) */
+struct CalcState {
+    double  display_val;
+    double  memory;
+    double  pending_val;
+    int     pending_op;
+    bool    new_entry;
+    bool    error_state;
+    CalcMode mode;
+    int     base;
+    /* Graphing state */
+    double  graph_x_min, graph_x_max;
+    double  graph_y_min, graph_y_max;
+    char    graph_expr[256];
+    int     graph_point_count;
+};
+
 typedef struct CalcState CalcState;
 
 /* Create and destroy calculator */
