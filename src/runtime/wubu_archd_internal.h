@@ -22,5 +22,6 @@ int  run_cmd(const char *cmd);
 int  run_chroot_cmd(const char *root, const char *fmt, ...);
 bool archd_write_file(const char *path, const char *content);
 int  archd_mkdir_p(const char *path, mode_t mode);
+int  archd_rm_rf(const char *path);
 
 #endif /* WUBU_ARCHD_INTERNAL_H */
