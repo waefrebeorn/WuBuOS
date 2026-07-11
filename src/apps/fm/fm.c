@@ -9,6 +9,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define FM_MAX_ENTRIES 512
+
+struct FileManagerState {
+    FMEntry entries[FM_MAX_ENTRIES];
+    int entry_count;
+    char current_path[1024];
+    int selected_idx;
+    int scroll_offset;
+    bool show_hidden;
+    int fid;
+    char styx_path[1024];
+};
+
 FileManagerState* fm_create(void) {
     return calloc(1, sizeof(FileManagerState));
 }

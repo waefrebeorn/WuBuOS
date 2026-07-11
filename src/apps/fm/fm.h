@@ -21,20 +21,7 @@ typedef struct {
     char perms[16];
 } FMEntry;
 
-/* File Manager state (fields exposed for tests / inspection) */
-#define FM_MAX_ENTRIES 512
-
-struct FileManagerState {
-    FMEntry entries[FM_MAX_ENTRIES];
-    int entry_count;
-    char current_path[1024];
-    int selected_idx;
-    int scroll_offset;
-    bool show_hidden;
-    int fid;
-    char styx_path[1024];
-};
-
+/* Opaque state */
 typedef struct FileManagerState FileManagerState;
 
 /* API */
