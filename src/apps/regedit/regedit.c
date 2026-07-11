@@ -9,6 +9,33 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Internal struct definitions (opaque to outside) */
+struct RegKey {
+    char name[REG_MAX_NAME];
+    struct RegKey *parent;
+    struct RegKey *children;
+    struct RegKey *next_sibling;
+    int child_count;
+};
+
+struct RegValue {
+    char name[REG_MAX_NAME];
+    RegType type;
+    uint8_t data[REG_MAX_DATA];
+    int data_len;
+};
+
+struct RegeditState {
+    struct RegKey root_keys[6];
+    struct RegKey *current_key;
+    struct RegValue values[1024];
+    int value_count;
+    int expanded_keys[REG_MAX_DEPTH];
+    int expand_depth;
+    char search_text[REG_MAX_NAME];
+    bool search_dialog_open;
+};
+
 RegeditState* regedit_create(void) {
     return calloc(1, sizeof(RegeditState));
 }

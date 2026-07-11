@@ -12,6 +12,23 @@
 #include <stdio.h>
 #include <math.h>
 
+/* Full definition of opaque struct */
+struct CalcState {
+    double  display_val;
+    double  memory;
+    double  pending_val;
+    int     pending_op;
+    bool    new_entry;
+    bool    error_state;
+    CalcMode mode;
+    int     base;
+    /* Graphing state */
+    double  graph_x_min, graph_x_max;
+    double  graph_y_min, graph_y_max;
+    char    graph_expr[256];
+    int     graph_point_count;
+};
+
 CalcState* calc_create(void) {
     CalcState *calc = calloc(1, sizeof(CalcState));
     if (!calc) return NULL;

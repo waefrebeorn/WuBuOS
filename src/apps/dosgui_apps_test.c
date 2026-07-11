@@ -28,8 +28,18 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-/* Stub out external functions in the app registry that are NOT linked
- * into this test binary (explorer / terminal draw, bwrap container). */
+/* Stubs for WM functions not needed by tests */
+DosGuiWindow* dosgui_wm_create(int x, int y, int w, int h, const char *title) {
+    (void)x; (void)y; (void)w; (void)h; (void)title;
+    return NULL;
+}
+
+DosGuiWindow* dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
+    (void)x; (void)y; (void)w; (void)h;
+    return NULL;
+}
+
+/* Also stub out the external functions in the app registry */
 void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)win; (void)fb; (void)fb_w; (void)fb_h;
 }
@@ -37,6 +47,11 @@ void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)win; (void)fb; (void)fb_w; (void)fb_h;
 }
+
+/* Stubs for container functions */
+void* wubu_ct_bwrap_freedoom(const char* name) { (void)name; return NULL; }
+int wubu_ct_start_bwrap(void* ct) { (void)ct; return 0; }
+void wubu_ct_destroy(void* ct) { (void)ct; }
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST: %-60s", name); g_total++
@@ -348,6 +363,7 @@ static void test_reg_navigate(void) {
 }
 
 static void test_reg_search(void) {
+    {
     TEST("regedit: search via API");
     RegeditState *reg = regedit_create();
     regedit_init_roots(reg);

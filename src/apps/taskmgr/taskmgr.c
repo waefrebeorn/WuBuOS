@@ -8,6 +8,31 @@
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
 
+#define TM_MAX_PROCESSES 256
+
+typedef struct {
+    int pid;
+    char name[64];
+    double cpu_percent;
+    uint64_t mem_bytes;
+    char status[32];
+    char user[32];
+} TMProcess;
+
+struct TaskManagerState {
+    TMProcess processes[TM_MAX_PROCESSES];
+    int process_count;
+    int active_tab;
+    int selected_pid;
+    int scroll_offset;
+    double cpu_history[60];
+    double mem_history[60];
+    int hist_idx;
+    double total_cpu;
+    uint64_t total_mem;
+    uint64_t total_disk_read, total_disk_write, total_net_recv, total_net_send;
+};
+
 TaskManagerState* taskmgr_create(void) {
     TaskManagerState *tm = calloc(1, sizeof(TaskManagerState));
     if (tm) {

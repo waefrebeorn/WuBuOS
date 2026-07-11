@@ -16,7 +16,6 @@
 #include "../gui/wm.h"
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
-#include "paint.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -67,11 +66,39 @@ static void generate_palette(void) {
 
 /* -- Tool Types -------------------------------------------------- */
 
+typedef enum {
+    TOOL_BRUSH = 0,
+    TOOL_FILL,
+    TOOL_LINE,
+    TOOL_RECT,
+    TOOL_ELLIPSE,
+    TOOL_PICKER,
+    TOOL_ERASER,
+    TOOL_COUNT
+} PaintTool;
+
 static const char *g_tool_names[] = {
     "Brush", "Fill", "Line", "Rect", "Ellipse", "Pick", "Eraser"
 };
 
 /* -- Paint State ------------------------------------------------- */
+
+typedef struct {
+    uint32_t canvas[CANVAS_W * CANVAS_H];
+    uint32_t undo_buf[CANVAS_W * CANVAS_H];
+    int undo_valid;
+
+    PaintTool tool;
+    int brush_size;
+    uint32_t fg_color;
+    uint32_t bg_color;
+    int drawing;
+    int start_x, start_y;
+    int last_x, last_y;
+
+    /* Window position */
+    int win_x, win_y;
+} PaintState;
 
 static PaintState g_paint = {0};
 
@@ -191,7 +218,7 @@ static void paint_do_render(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     for (int t = 0; t < TOOL_COUNT; t++) {
         int bx = 4 + t * 52;
         int by = 4;
-        uint32_t bg = (t == g_paint.current_tool) ? 0x8080FF : 0xC0C0C0;
+        uint32_t bg = (t == g_paint.tool) ? 0x8080FF : 0xC0C0C0;
         for (int dy = 0; dy < 16; dy++) {
             for (int dx = 0; dx < 48; dx++) {
                 pixels[(by + dy) * fb_w + (bx + dx)] = bg;
@@ -296,7 +323,7 @@ static void paint_handle_mouse(WmWindow *win, int x, int y, int btn, int kind) {
     if (y < TOOLBAR_H && btn == 1) {
         int tool = (x - 4) / 52;
         if (tool >= 0 && tool < TOOL_COUNT) {
-            g_paint.current_tool = tool;
+            g_paint.tool = tool;
         }
         return;
     }
@@ -311,25 +338,25 @@ static void paint_handle_mouse(WmWindow *win, int x, int y, int btn, int kind) {
             g_paint.last_x = mx;
             g_paint.last_y = my;
 
-            if (g_paint.current_tool == TOOL_BRUSH || g_paint.current_tool == TOOL_ERASER) {
-                uint32_t c = (g_paint.current_tool == TOOL_ERASER) ? 0xFFFFFF : g_paint.fg_color;
+            if (g_paint.tool == TOOL_BRUSH || g_paint.tool == TOOL_ERASER) {
+                uint32_t c = (g_paint.tool == TOOL_ERASER) ? 0xFFFFFF : g_paint.fg_color;
                 draw_line(mx, my, mx, my, c, g_paint.brush_size);
-            } else if (g_paint.current_tool == TOOL_FILL) {
+            } else if (g_paint.tool == TOOL_FILL) {
                 fill_bucket(mx, my, g_paint.fg_color);
-            } else if (g_paint.current_tool == TOOL_PICKER) {
+            } else if (g_paint.tool == TOOL_PICKER) {
                 g_paint.fg_color = get_pixel(mx, my);
             }
         } else if (btn == 1 && kind == 1) { /* Left release */
             if (g_paint.drawing) {
-                if (g_paint.current_tool == TOOL_LINE) {
+                if (g_paint.tool == TOOL_LINE) {
                     draw_line(g_paint.start_x, g_paint.start_y, mx, my, g_paint.fg_color, 1);
-                } else if (g_paint.current_tool == TOOL_RECT) {
+                } else if (g_paint.tool == TOOL_RECT) {
                     int x0 = g_paint.start_x < mx ? g_paint.start_x : mx;
                     int y0 = g_paint.start_y < my ? g_paint.start_y : my;
                     int x1 = g_paint.start_x > mx ? g_paint.start_x : mx;
                     int y1 = g_paint.start_y > my ? g_paint.start_y : my;
                     draw_rect(x0, y0, x1, y1, g_paint.fg_color);
-                } else if (g_paint.current_tool == TOOL_ELLIPSE) {
+                } else if (g_paint.tool == TOOL_ELLIPSE) {
                     int rx = abs(mx - g_paint.start_x);
                     int ry = abs(my - g_paint.start_y);
                     draw_ellipse(g_paint.start_x, g_paint.start_y, rx, ry, g_paint.fg_color);
@@ -337,8 +364,8 @@ static void paint_handle_mouse(WmWindow *win, int x, int y, int btn, int kind) {
                 g_paint.drawing = 0;
             }
         } else if (g_paint.drawing && btn == 0 && kind == 2) { /* Motion while drawing */
-            if (g_paint.current_tool == TOOL_BRUSH || g_paint.current_tool == TOOL_ERASER) {
-                uint32_t c = (g_paint.current_tool == TOOL_ERASER) ? 0xFFFFFF : g_paint.fg_color;
+            if (g_paint.tool == TOOL_BRUSH || g_paint.tool == TOOL_ERASER) {
+                uint32_t c = (g_paint.tool == TOOL_ERASER) ? 0xFFFFFF : g_paint.fg_color;
                 draw_line(g_paint.last_x, g_paint.last_y, mx, my, c, g_paint.brush_size);
                 g_paint.last_x = mx;
                 g_paint.last_y = my;
@@ -363,7 +390,7 @@ static void paint_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
 void paint_init(void) {
     memset(&g_paint, 0, sizeof(g_paint));
     generate_palette();
-    g_paint.current_tool = TOOL_BRUSH;
+    g_paint.tool = TOOL_BRUSH;
     g_paint.brush_size = 3;
     g_paint.fg_color = 0x000000;
     g_paint.bg_color = 0xFFFFFF;
@@ -395,48 +422,4 @@ void paint_render(WmWindow *win, uint32_t *fb, int w, int h) {
 
 void paint_shutdown(void) {
     /* Nothing to clean up */
-}
-
-/* -- Per-instance API (used by tests / future multi-instance) ----- */
-
-PaintState* paint_create(void) {
-    PaintState *p = calloc(1, sizeof(PaintState));
-    if (!p) return NULL;
-    p->current_tool = TOOL_BRUSH;
-    p->brush_size = 3;
-    p->fg_color = 0x00000000;
-    p->bg_color = 0x00FFFFFF;
-    p->shape_count = 0;
-    p->undo_shape_count = 0;
-    return p;
-}
-
-void paint_destroy(PaintState *p) {
-    free(p);
-}
-
-void paint_set_tool(PaintState *p, PaintTool tool) {
-    if (!p) return;
-    p->current_tool = tool;
-}
-
-void paint_add_shape(PaintState *p, int x, int y, int w, int h, uint32_t color, bool fill) {
-    if (!p || p->shape_count >= PAINT_MAX_SHAPES) return;
-    PaintShape *s = &p->shapes[p->shape_count++];
-    s->x = x; s->y = y; s->w = w; s->h = h;
-    s->color = color; s->fill = fill;
-}
-
-void paint_save_undo(PaintState *p) {
-    if (!p) return;
-    p->undo_shape_count = p->shape_count;
-}
-
-void paint_undo(PaintState *p) {
-    if (!p) return;
-    p->shape_count = p->undo_shape_count;
-}
-
-DosGuiWindow* paint_launch(void) {
-    return dosgui_wm_create(80, 60, 640, 480, "Paint");
 }
