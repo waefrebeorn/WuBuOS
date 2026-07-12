@@ -1,122 +1,111 @@
 /*
- * dosgui_apps.c  --  App Registry Implementation
- * Wires up all app launch functions
- * C11, minimal includes, self-contained
+ * dosgui_apps.c  --  Single App Registry Implementation
+ *
+ * ONE data-driven table (g_app_defs[]) is the source of truth. The desktop
+ * and startmenu both consume this table; there is no second hardcoded list.
+ * Each launch function creates the window AND binds its on_draw / on_mouse /
+ * on_key callbacks so the app actually renders and receives input in-shell.
+ *
+ * C11, minimal includes, self-contained.
  */
 
 #include "dosgui_apps.h"
-#include "calc/calc.h"
-#include "notepad/notepad.h"
-#include "wubu_canvas.h"
-#include "taskmgr/taskmgr.h"
-#include "regedit/regedit.h"
-#include "fm/fm.h"
-#include "repl/repl.h"
-#include "control/control.h"
-#include "editor/editor.h"
 #include "../gui/dosgui_wm.h"
-#include "../runtime/wubu_host_exec.h"
+#include "../kernel/vbe.h"
+#include "../gui/wubu_theme.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-/* Simple app registry */
-typedef struct {
-    int icon_type;
-    const char *title;
-    DosGuiWindow* (*launch_fn)(void);
-} AppEntry;
+/* -- Forward declarations for app callbacks ----------------------- */
 
-static AppEntry g_apps[] = {
-    {DESK_ICON_MY_COMPUTER,   "My Computer",   dosgui_launch_file_manager},
-    {DESK_ICON_TEMPLE_REPL,  "HolyC REPL",    dosgui_launch_temple_repl},
-    {DESK_ICON_NOTEPAD,      "Notepad",       dosgui_launch_notepad},
-    {DESK_ICON_PAINT,        "WuBu Canvas",   dosgui_launch_canvas},
-    {DESK_ICON_CALCULATOR,   "Calculator",    dosgui_launch_calculator},
-    {DESK_ICON_TERMINAL,     "Terminal",      dosgui_launch_terminal},
-    {DESK_ICON_EXPLORER,     "File Manager",  dosgui_launch_file_manager},
-    {DESK_ICON_SETTINGS,     "Control Panel", dosgui_launch_settings},
-    {DESK_ICON_COUNT,        "Editor",        dosgui_launch_editor},
-    {DESK_ICON_COUNT+1,      "WuBu Canvas",   dosgui_launch_canvas},
-};
+/* WuBu Canvas: real layered image editor (see app_canvas.c). */
+void app_canvas_init(void);
+void app_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void app_canvas_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+void app_canvas_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 
-static int g_app_count = sizeof(g_apps) / sizeof(g_apps[0]);
+/* Notepad / REPL already bind their own callbacks internally; expose their
+ * draw callbacks so the registry can wire them. */
+void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 
-DosGuiWindow* dosgui_app_launch(int icon_type) {
-    fprintf(stderr, "DEBUG: dosgui_app_launch called with icon_type=%d\n", icon_type);
-    for (int i = 0; i < g_app_count; i++) {
-        if (g_apps[i].icon_type == icon_type) {
-            fprintf(stderr, "DEBUG: Found icon_type %d at index %d, calling launch_fn\n", icon_type, i);
-            return g_apps[i].launch_fn();
-        }
-    }
-    fprintf(stderr, "DEBUG: No match for icon_type=%d\n", icon_type);
-    return NULL;
+/* -- Generic placeholder draw for apps without dedicated UI yet ------- */
+
+static void app_placeholder_draw(DosGuiWindow *win, uint32_t *fb,
+                                  int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
+    int x = win->x + 8, y = win->y + 28;
+    vbe_fill_rect(x, y, win->w - 16, win->h - 36, 0x00FFFFFF);
+    vbe_rect(x, y, win->w - 16, win->h - 36, 0x00808080);
+    vbe_draw_text(x + 10, y + 10, win->title, 0x00000000, 1);
+    vbe_draw_text(x + 10, y + 28, "(window ready)", 0x00666666, 1);
 }
 
-DosGuiWindow* dosgui_app_launch_by_name(const char *name) {
-    fprintf(stderr, "DEBUG: dosgui_app_launch_by_name called with name='%s'\n", name);
-    fprintf(stderr, "DEBUG: g_app_count=%d\n", g_app_count);
-    for (int i = 0; i < g_app_count; i++) {
-        fprintf(stderr, "DEBUG: checking g_apps[%d] title='%s'\n", i, g_apps[i].title);
-        if (strcmp(g_apps[i].title, name) == 0) {
-            fprintf(stderr, "DEBUG: Found match, calling launch_fn\n");
-            return g_apps[i].launch_fn();
-        }
-    }
-    fprintf(stderr, "DEBUG: No match found for name='%s'\n", name);
-    return NULL;
-}
+/* -- Launch functions (create window + bind callbacks) ------------ */
 
-/* Individual launch functions - these create windows directly, NOT calling dosgui_app_launch again */
-DosGuiWindow* dosgui_launch_my_computer(void)     { 
-    fprintf(stderr, "DEBUG: dosgui_launch_my_computer called\n");
-    DosGuiWindow* win = dosgui_wm_create(100, 80, 800, 600, "My Computer");
+DosGuiWindow* dosgui_launch_my_computer(void) {
+    DosGuiWindow *win = dosgui_wm_create(60, 60, 640, 480, "My Computer");
+    if (win) { win->on_draw = app_placeholder_draw; }
     return win;
 }
-DosGuiWindow* dosgui_launch_temple_repl(void)     { 
-    fprintf(stderr, "DEBUG: dosgui_launch_temple_repl called\n");
+
+DosGuiWindow* dosgui_launch_temple_repl(void) {
     dosgui_wm_spawn_holyc_term(80, 60, 640, 480);
     return NULL;
 }
-DosGuiWindow* dosgui_launch_notepad(void)         { 
-    fprintf(stderr, "DEBUG: dosgui_launch_notepad called\n");
-    DosGuiWindow* win = dosgui_wm_create(150, 100, 640, 480, "Notepad");
+
+DosGuiWindow* dosgui_launch_notepad(void) {
+    DosGuiWindow *win = dosgui_wm_create(100, 80, 500, 400, "Untitled - Notepad");
+    if (win) { win->on_draw = dosgui_notepad_draw; win->on_key = dosgui_notepad_key; }
     return win;
 }
-DosGuiWindow* dosgui_launch_paint(void)           {
-    fprintf(stderr, "DEBUG: dosgui_launch_paint called\n");
-    /* Paint icon now launches the real layered image editor (wubu_canvas). */
+
+DosGuiWindow* dosgui_launch_paint(void) {
+    /* Paint icon launches the real layered image editor. */
     return dosgui_launch_canvas();
 }
-DosGuiWindow* dosgui_launch_calculator(void)      { 
-    fprintf(stderr, "DEBUG: dosgui_launch_calculator called\n");
-    DosGuiWindow* win = dosgui_wm_create(250, 140, 400, 500, "Calculator");
+
+DosGuiWindow* dosgui_launch_calculator(void) {
+    DosGuiWindow *win = dosgui_wm_create(250, 140, 400, 500, "Calculator");
+    if (win) { win->on_draw = app_placeholder_draw; }
     return win;
 }
-DosGuiWindow* dosgui_launch_terminal(void)        { 
-    fprintf(stderr, "DEBUG: dosgui_launch_terminal called\n");
-    DosGuiWindow* win = dosgui_wm_create(300, 160, 800, 600, "Terminal");
+
+DosGuiWindow* dosgui_launch_terminal(void) {
+    DosGuiWindow *win = dosgui_wm_create(300, 160, 800, 600, "Terminal");
+    if (win) { win->on_draw = app_placeholder_draw; }
     return win;
 }
-DosGuiWindow* dosgui_launch_file_manager(void)    { 
-    fprintf(stderr, "DEBUG: dosgui_launch_file_manager called\n");
-    DosGuiWindow* win = dosgui_wm_create(100, 80, 800, 600, "File Manager");
+
+DosGuiWindow* dosgui_launch_file_manager(void) {
+    DosGuiWindow *win = dosgui_wm_create(100, 80, 800, 600, "File Manager");
+    if (win) { win->on_draw = app_placeholder_draw; }
     return win;
 }
-DosGuiWindow* dosgui_launch_settings(void)        { 
-    fprintf(stderr, "DEBUG: dosgui_launch_settings called\n");
-    DosGuiWindow* win = dosgui_wm_create(350, 180, 640, 480, "Control Panel");
+
+DosGuiWindow* dosgui_launch_settings(void) {
+    DosGuiWindow *win = dosgui_wm_create(350, 180, 640, 480, "Control Panel");
+    if (win) { win->on_draw = app_placeholder_draw; }
     return win;
 }
-DosGuiWindow* dosgui_launch_editor(void)          { 
-    fprintf(stderr, "DEBUG: dosgui_launch_editor called\n");
-    DosGuiWindow* win = dosgui_wm_create(400, 200, 800, 600, "Editor");
+
+DosGuiWindow* dosgui_launch_editor(void) {
+    DosGuiWindow *win = dosgui_wm_create(400, 200, 800, 600, "Editor");
+    if (win) { win->on_draw = app_placeholder_draw; }
     return win;
 }
-DosGuiWindow* dosgui_launch_canvas(void)          { 
-    fprintf(stderr, "DEBUG: dosgui_launch_canvas called\n");
-    DosGuiWindow* win = dosgui_wm_create(450, 220, 800, 600, "WuBu Canvas");
+
+DosGuiWindow* dosgui_launch_canvas(void) {
+    app_canvas_init();
+    DosGuiWindow *win = dosgui_wm_create(120, 90, 900, 640, "WuBu Canvas");
+    if (win) {
+        win->on_draw = app_canvas_draw;
+        win->on_mouse = app_canvas_mouse;
+        win->on_key   = app_canvas_key;
+    }
     return win;
 }
 
@@ -125,9 +114,48 @@ DosGuiWindow* dosgui_launch_holyc_term(void) {
     return NULL;
 }
 
-void dosgui_launch_freedoom(void) {
-    WubuCt *ct = wubu_ct_bwrap_freedoom("freedoom");
-    if (!ct) { fprintf(stderr, "Failed to create FreeDoom container\n"); return; }
-    if (wubu_ct_start_bwrap(ct) != 0) { fprintf(stderr, "Failed to start FreeDoom container\n"); wubu_ct_destroy(ct); return; }
-    fprintf(stderr, "FreeDoom launched via bubblewrap (PID %d)\n", ct->pid);
+/* -- The single registry table ------------------------------------ */
+
+const DosGuiAppDef g_app_defs[] = {
+    { "My Computer",  "My Computer",   DESK_ICON_MY_COMPUTER, 0x0080FF00, dosgui_launch_my_computer },
+    { "Temple REPL",  "HolyC REPL",    DESK_ICON_TEMPLE_REPL, 0x00800080, dosgui_launch_temple_repl },
+    { "Notepad",      "Notepad",       DESK_ICON_NOTEPAD,     0x00AAAA00, dosgui_launch_notepad },
+    { "Paint",        "WuBu Canvas",   DESK_ICON_PAINT,       0x000080FF, dosgui_launch_canvas },
+    { "Calculator",   "Calculator",    DESK_ICON_CALCULATOR,  0x00FF8000, dosgui_launch_calculator },
+    { "Terminal",     "Terminal",      DESK_ICON_TERMINAL,    0x00000000, dosgui_launch_terminal },
+    { "File Manager", "File Manager",  DESK_ICON_EXPLORTER,   0x000080FF, dosgui_launch_file_manager },
+    { "Settings",     "Control Panel", DESK_ICON_SETTINGS,    0x00808080, dosgui_launch_settings },
+    { "Editor",       "Editor",        DESK_ICON_COUNT + 0,   0x008080FF, dosgui_launch_editor },
+    { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,   0x000080FF, dosgui_launch_canvas },
+    { "HolyC Term",   "HolyC Terminal",DESK_ICON_COUNT + 3,   0x00800080, dosgui_launch_holyc_term },
+};
+const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
+
+/* -- Lookup helpers ----------------------------------------------- */
+
+const DosGuiAppDef *dosgui_app_find(int icon_type) {
+    for (int i = 0; i < g_app_def_count; i++)
+        if (g_app_defs[i].icon_type == icon_type) return &g_app_defs[i];
+    return NULL;
+}
+
+const DosGuiAppDef *dosgui_app_find_by_name(const char *name) {
+    if (!name) return NULL;
+    for (int i = 0; i < g_app_def_count; i++)
+        if (strcmp(g_app_defs[i].name, name) == 0) return &g_app_defs[i];
+    return NULL;
+}
+
+/* -- Generic launch ----------------------------------------------- */
+
+DosGuiWindow* dosgui_app_launch(int icon_type) {
+    const DosGuiAppDef *d = dosgui_app_find(icon_type);
+    if (!d) return NULL;
+    return d->launch();
+}
+
+DosGuiWindow* dosgui_app_launch_by_name(const char *name) {
+    const DosGuiAppDef *d = dosgui_app_find_by_name(name);
+    if (!d) return NULL;
+    return d->launch();
 }
