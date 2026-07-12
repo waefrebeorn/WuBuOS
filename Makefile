@@ -46,7 +46,7 @@ BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscal
 # ── App Objects ──────────────────────────────────────────────────
 APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_editor_macro.o $(APPS)/wubu_canvas.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o \
            $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
-           $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o $(APPS)/canvas/canvas.o
+           $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
@@ -125,10 +125,10 @@ apps: $(APP_OBJS) $(APP_RT_OBJS)
 
 # ── Game / App Targets ───────────────────────────────────────────
 
-paint: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTED)/archd_hosted.o $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
+canvas: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTED)/archd_hosted.o $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
 	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) -I$(JIT) -I$(HOSTED) \
 		-Wl,--start-group \
-		$(APPS)/paint.c $(APPS)/doom.c $(APPS)/apps_standalone.c $(GUI_OBJS) \
+		$(APPS)/canvas_standalone.c $(GUI_OBJS) \
 		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c \
 		$(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/wubu_gaad.o \
@@ -138,24 +138,8 @@ paint: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTED
 		$(APP_OBJS) \
 		$(JIT_OBJS) $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
 		-Wl,--end-group \
-		-lm -lsqlite3 -lzstd -lz -lwayland-client -lxkbcommon -ldl -lvulkan -ljson-c -o $(APPS)/paint
-	@echo "✅ Paint built (./src/apps/paint)"
-
-doom: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTED)/archd_hosted.o $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
-	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) -I$(JIT) -I$(HOSTED) \
-		-Wl,--start-group \
-		$(APPS)/doom.c $(APPS)/paint.c $(APPS)/apps_standalone.c $(GUI_OBJS) \
-		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c \
-		$(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/wubu_math.c \
-		$(KERNEL)/wubu_gaad.o \
-		$(APP_RT_OBJS) \
-		$(GUI)/standalone_hosted_shim.o \
-		$(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o \
-		$(APP_OBJS) \
-		$(JIT_OBJS) $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
-		-Wl,--end-group \
-		-lm -lsqlite3 -lzstd -lwayland-client -lz -lxkbcommon -ldl -lvulkan -ljson-c -o $(APPS)/doom
-	@echo "✅ Doom built (./src/apps/doom)"
+		-lm -lsqlite3 -lzstd -lz -lwayland-client -lxkbcommon -ldl -lvulkan -ljson-c -o $(APPS)/canvas
+	@echo "✅ Canvas (wubu_canvas) built (./src/apps/canvas)"
 
 worldsim: $(WS_OBJS)
 	@echo "✅ WorldSim built"
@@ -277,9 +261,6 @@ $(APPS)/calc/%.o: $(APPS)/calc/%.c
 
 $(APPS)/notepad/%.o: $(APPS)/notepad/%.c
 	$(CC) $(CFLAGS) -I$(APPS)/notepad -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
-
-$(APPS)/paint/%.o: $(APPS)/paint/%.c
-	$(CC) $(CFLAGS) -I$(APPS)/paint -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
 
 $(APPS)/cmd/%.o: $(APPS)/cmd/%.c
 	$(CC) $(CFLAGS) -I$(APPS)/cmd -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
@@ -744,12 +725,12 @@ test_dosgui_apps:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) \
 		$(APPS)/dosgui_apps.c \
-		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/paint.c \
+		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/wubu_canvas.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
-		$(APPS)/repl/repl.c $(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/canvas/canvas.c \
+		$(APPS)/repl/repl.c $(APPS)/control/control.c $(APPS)/editor/editor.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
-$(GUI)/wubu_theme.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c \
+	$(GUI)/wubu_theme.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c \
 		$(APPS)/dosgui_apps_test.c \
 		-o $(APPS)/dosgui_apps_test -lm
 	$(APPS)/dosgui_apps_test
@@ -902,6 +883,6 @@ test_edr:
 clean:
 	rm -f $(KERNEL)/*.o $(JIT)/*.o $(COMP)/*.o $(RT)/*.o $(RT)/edr/*.o $(TOOLS)/*.o $(GUI)/*.o $(BRIDGE)/*.o $(APPS)/*.o $(WS)/*.o $(HOSTED)/*.o $(AUDIO)/*.o $(SHELL_DIR)/*.o
 	rm -f $(JIT)/jit_test $(KERNEL)/memory_test $(KERNEL)/tasking_test $(KERNEL)/fat32_test $(KERNEL)/ahci_test $(KERNEL)/txfs_test $(KERNEL)/wubu_gaad_test $(COMP)/holyc_test $(RT)/wubu_container_test $(RT)/wubu_apps_test $(RT)/wubu_vsl_test $(RT)/wubu_proton_test $(RT)/styx_test $(RT)/styxfs_test $(RT)/wubu_host_exec_test $(RT)/wubu_arch_test $(RT)/wubu_ramdisk_test $(RT)/wubu_gc_test $(RT)/wubu_anticheat_test $(RT)/wubu_bottles_test $(RT)/wubd_archd_test $(RT)/wubd_holyd_test $(RT)/wubu_network_test $(RT)/wubu_snapshot_test $(HOSTED)/hosted_test $(HOSTED)/wubu $(HOSTED)/wubu_metal_test $(WS)/test_worldsim $(BRIDGE)/vbe_ws_bridge_test $(BRIDGE)/bridge_test $(TOOLS)/iso9660_test $(TOOLS)/weight_check_test $(TOOLS)/screenshot_test $(GUI)/gui_dbuf_test $(GUI)/dosgui_wm_test $(GUI)/dosgui_startmenu_test $(GUI)/wubu_wm_test $(APPS)/wubu_apps2_test $(RT)/wubu_proton2_test $(AUDIO)/wubu_audio_test
-	rm -f $(JIT)/jit_stub $(GUI)/vbe_sketch $(GUI)/dosgui_wm_test $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/paint $(APPS)/doom
+	rm -f $(GUI)/vbe_sketch $(GUI)/dosgui_wm_test $(GUI)/sketch.ppm $(GUI)/sketch.png $(APPS)/canvas
 	rm -f $(RT)/wubu_edr_test
 	@echo "🧹 Clean"
