@@ -35,8 +35,6 @@ DosGuiWM g_dwm = {0};
 void raise_win(int i);
 void close_win(int i);
 int  hit_test(int x, int y);
-void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h);
-void draw_desktop_bg(int fb_w, int fb_h);
 const WubuThemeColors *tc(void);
 const WubuTheme *theme(void);
 int  title_bar_height(void);
@@ -118,85 +116,6 @@ int hit_test(int x, int y) {
 
 const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 const WubuTheme *theme(void) { return wubu_theme_get(); }
-void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
-    DosGuiWindow *w = &g_dwm.windows[idx];
-    if (!w->alive) return;
-    bool active = (idx == g_dwm.focused_id);
-
-    const int rad = theme_radius();
-    const int tbh = title_bar_height();
-    const int bw = border_width();
-
-    if (!theme()->Luna_start_button || true) {
-        vbe_shade_rect(w->x + 4, w->y + 4, w->w, w->h);
-    }
-
-    vbe_fill_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->win_face);
-    if (rad > 0) vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
-    else vbe_rect(w->x, w->y, w->w, w->h, tc()->border_dark);
-
-    if (theme()->gradient_title) {
-        if (active) {
-            vbe_hgradient(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad,
-                          theme()->title_gradient.color_start,
-                          theme()->title_gradient.color_end);
-        } else {
-            vbe_hgradient(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad,
-                          theme()->title_gradient_ina.color_start,
-                          theme()->title_gradient_ina.color_end);
-        }
-    } else {
-        vbe_title_bar(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad, active);
-    }
-
-    uint32_t title_color = active ? tc()->win_title_text : tc()->win_title_text_ina;
-    int text_x = w->x + 8;
-    int text_y = w->y + rad + (tbh - rad - 8) / 2;
-    vbe_draw_text(text_x, text_y, w->title, title_color, 1);
-
-    int close_x = w->x + w->w - rad - 18;
-    int close_y = w->y + rad + 2;
-    vbe_fill_rect_rounded(close_x, close_y, 14, 12, 2, active ? tc()->border_darkest : tc()->btn_face);
-    vbe_rect_rounded(close_x, close_y, 14, 12, 2, tc()->border_dark);
-    vbe_draw_text(close_x + 5, close_y + 2, "X", active ? 0xFFFFFF : 0x808080, 1);
-
-    if (theme()->Luna_start_button) {
-        int max_x = close_x - 20;
-        vbe_fill_rect_rounded(max_x, close_y, 14, 12, 2, active ? tc()->border_face : tc()->btn_face);
-        vbe_rect_rounded(max_x, close_y, 14, 12, 2, tc()->border_dark);
-        vbe_draw_text(max_x + 4, close_y + 2, "[ ]", active ? 0xFFFFFF : 0x808080, 1);
-    }
-
-    if (theme()->Luna_start_button) {
-        int min_x = close_x - 40;
-        vbe_fill_rect_rounded(min_x, close_y, 14, 12, 2, active ? tc()->border_face : tc()->btn_face);
-        vbe_rect_rounded(min_x, close_y, 14, 12, 2, tc()->border_dark);
-        vbe_draw_text(min_x + 5, close_y + 2, "_", active ? 0xFFFFFF : 0x808080, 1);
-    }
-
-    int cx = w->x + bw;
-    int cy = w->y + tbh;
-    int cw = w->w - 2 * bw;
-    int ch = w->h - tbh - bw;
-
-    vbe_fill_rect_rounded(cx, cy, cw, ch, rad, tc()->win_face);
-    if (rad > 0) {
-        vbe_3d_sunken_rounded_colors(cx - 1, cy - 1, cw + 2, ch + 2, rad + 1,
-                                      tc()->border_light, tc()->border_face,
-                                      tc()->border_dark, tc()->border_darkest);
-    } else {
-        vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
-                              tc()->border_light, tc()->border_face,
-                              tc()->border_dark, tc()->border_darkest);
-    }
-
-    if (w->on_draw) {
-        /* Pass the real framebuffer + full dimensions so apps can render
-         * into their content region (origin at cx,cy). Apps that draw via
-         * the global vbe_* backbuffer ignore these and still work. */
-        w->on_draw(w, fb, fb_w, fb_h);
-    }
-}
 
 /* ================================================================
  * PUBLIC API

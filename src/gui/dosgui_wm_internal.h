@@ -97,8 +97,6 @@ extern DosGuiWM g_dwm;
 void raise_win(int i);
 void close_win(int i);
 int  hit_test(int x, int y);
-void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h);
-void draw_desktop_bg(int fb_w, int fb_h);
 const WubuThemeColors *tc(void);
 const WubuTheme *theme(void);
 char *dosgui_taskbar_get_clock_str(void);
