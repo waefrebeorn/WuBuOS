@@ -38,7 +38,7 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o $(HOSTED)/wubu_gbm.o $(HOSTED)/wu
 JIT_OBJS = $(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_minic.o $(JIT)/jit_minic_token.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_json.o $(GUI)/wubu_session.o $(GUI)/wubu_session_autostart.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_clipboard_mime.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_screenshot_draw.o $(GUI)/wubu_screenshot_png.o $(GUI)/wubu_wayland_stub.o $(GUI)/wubu_mime.o $(GUI)/wubu_mime_desktop.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_proton_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_startmenu_search.o $(GUI)/dosgui_startmenu_tree.o $(GUI)/dosgui_startmenu_power.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_explorer_ops.o $(GUI)/dosgui_explorer_info.o $(GUI)/dosgui_explorer_format.o $(GUI)/dosgui_explorer_drives.o $(GUI)/dosgui_explorer_tree.o $(GUI)/dosgui_explorer_preview.o $(GUI)/dosgui_explorer_zip.o $(GUI)/dosgui_explorer_render.o $(GUI)/dosgui_explorer_fs.o $(GUI)/dosgui_explorer_fsops.o $(GUI)/dosgui_term.o $(GUI)/dosgui_term_tabs.o $(GUI)/dosgui_term_render.o $(GUI)/dosgui_term_ansi.o $(GUI)/dosgui_term_pty.o $(GUI)/dosgui_daemon_panel.o $(GUI)/dosgui_service_mgr.o
+GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_json.o $(GUI)/wubu_session.o $(GUI)/wubu_session_autostart.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_clipboard_mime.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_screenshot_draw.o $(GUI)/wubu_screenshot_png.o $(GUI)/wubu_wayland_stub.o $(GUI)/wubu_mime.o $(GUI)/wubu_mime_desktop.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_proton_util.o $(RT)/wubu_fs_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wm.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_startmenu_search.o $(GUI)/dosgui_startmenu_tree.o $(GUI)/dosgui_startmenu_power.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_explorer_ops.o $(GUI)/dosgui_explorer_info.o $(GUI)/dosgui_explorer_format.o $(GUI)/dosgui_explorer_drives.o $(GUI)/dosgui_explorer_tree.o $(GUI)/dosgui_explorer_preview.o $(GUI)/dosgui_explorer_zip.o $(GUI)/dosgui_explorer_render.o $(GUI)/dosgui_explorer_fs.o $(GUI)/dosgui_explorer_fsops.o $(GUI)/dosgui_term.o $(GUI)/dosgui_term_tabs.o $(GUI)/dosgui_term_render.o $(GUI)/dosgui_term_ansi.o $(GUI)/dosgui_term_pty.o $(GUI)/dosgui_daemon_panel.o $(GUI)/dosgui_service_mgr.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscall.o $(BRIDGE)/wubu_syscall_vbe.o
@@ -52,7 +52,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_e
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.o $(COMP)/holyc_codegen.o $(COMP)/holyc_codegen_emit.o $(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o $(COMP)/holyc_ptx.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_spawn.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/styx.o $(RT)/styxfs_server.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_proton2.o $(RT)/wubu_proton2_gpu.o $(RT)/wubu_proton2_device.o $(RT)/wubu_proton2_gamescope.o $(RT)/wubu_proton2_launch.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_image.o $(RT)/wubu_image_cache.o $(RT)/wubu_image_parse.o $(RT)/wubu_image_manifest.o $(RT)/wubu_image_ops.o $(RT)/wubu_image_tar.o $(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_diff.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o $(RT)/wubu_snapshot_tag.o $(RT)/wubu_snapshot_gc.o $(RT)/wubu_snapshot_xport.o $(RT)/wubu_network.o $(RT)/wubu_network_fw.o $(RT)/wubu_network_svc.o $(RT)/wubu_network_cni.o $(RT)/wubu_network_wg.o $(RT)/wubu_network_ts.o $(RT)/wubu_network_dns.o $(RT)/wubu_network_qos.o $(RT)/wubu_network_create.o $(RT)/wubu_netlink.o $(RT)/wubu_archd.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_lifecycle.o $(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o $(RT)/vsl/vsl_syscall_proc.o $(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_descriptor.o $(RT)/container/wubucontainer.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_spawn.o $(RT)/wubu_fs_util.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/styx.o $(RT)/styxfs_server.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_proton2.o $(RT)/wubu_proton2_gpu.o $(RT)/wubu_proton2_device.o $(RT)/wubu_proton2_gamescope.o $(RT)/wubu_proton2_launch.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_image.o $(RT)/wubu_image_cache.o $(RT)/wubu_image_parse.o $(RT)/wubu_image_manifest.o $(RT)/wubu_image_ops.o $(RT)/wubu_image_tar.o $(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_diff.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o $(RT)/wubu_snapshot_tag.o $(RT)/wubu_snapshot_gc.o $(RT)/wubu_snapshot_xport.o $(RT)/wubu_network.o $(RT)/wubu_network_fw.o $(RT)/wubu_network_svc.o $(RT)/wubu_network_cni.o $(RT)/wubu_network_wg.o $(RT)/wubu_network_ts.o $(RT)/wubu_network_dns.o $(RT)/wubu_network_qos.o $(RT)/wubu_network_create.o $(RT)/wubu_netlink.o $(RT)/wubu_archd.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_lifecycle.o $(RT)/holyd_lifecycle_app.o $(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o $(RT)/vsl/vsl_syscall_proc.o $(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_descriptor.o $(RT)/container/wubucontainer.o
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o $(TOOLS)/screenshot.o
 
 # ── Shell Objects ────────────────────────────────────────────────
@@ -186,14 +186,13 @@ $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_layout
 	$(GUI)/dosgui_explorer_zip.o $(GUI)/dosgui_explorer_render.o $(GUI)/dosgui_explorer_fs.o $(GUI)/dosgui_explorer_fsops.o $(GUI)/dosgui_term.o $(GUI)/dosgui_term_tabs.o $(GUI)/dosgui_term_render.o $(GUI)/dosgui_term_ansi.o \
 	$(GUI)/dosgui_term_pty.o $(GUI)/dosgui_daemon_panel.o $(GUI)/dosgui_service_mgr.o $(GUI)/wubu_settings.o $(GUI)/wubu_json.o \
 	$(GUI)/wubu_session.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_clipboard_mime.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_screenshot_draw.o $(GUI)/wubu_screenshot_png.o $(GUI)/wubu_mime.o $(GUI)/wubu_mime_desktop.o \
-	$(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_proton_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o \
-	$(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o \
+	$(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_proton_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o \
 	$(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.o $(COMP)/holyc_codegen.o $(COMP)/holyc_codegen_emit.o \
 	$(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o \
 	$(APPS)/repl.o $(APPS)/dosgui_apps.o \
 	$(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_minic.o $(JIT)/jit_minic_token.o \
 	$(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_container.o $(RT)/wubu_compat_db.o $(RT)/wubu_session.o $(GUI)/wubu_session_autostart.o $(RT)/wubu_arch.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o \
-	$(HOSTED)/archd_hosted.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_spawn.o \
+	 $(HOSTED)/archd_hosted.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_spawn.o \
 	$(RT)/oci/oci_http_client.o \
 	$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
 
@@ -253,7 +252,7 @@ $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
 # Link-only target: reuses the .o files above. Edit one file -> one .o rebuild + relink.
 hosted: $(HOSTED_OBJS)
 	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
-		$(HOSTED_OBJS) \
+		$(HOSTED_OBJS) $(RT)/wubu_fs_util.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
 # ── Compilation Rules ────────────────────────────────────────────
@@ -551,7 +550,7 @@ test_trash:
 test_gamelib:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(RT) \
-		$(GUI)/wubu_gamelib.c $(GUI)/wubu_gamelib_startmenu.c $(GUI)/wubu_gamelib_playtime.c $(GUI)/wubu_gamelib_config.c $(GUI)/wubu_gamelib_scan.c $(GUI)/wubu_settings.c $(GUI)/wubu_json.c $(GUI)/wubu_theme.c $(GUI)/wubu_proton.c $(GUI)/wubu_proton_util.c $(GUI)/wubu_proton_dxvk.c $(RT)/wubu_dxvk_conf.c $(GUI)/wubu_proton_exec.c $(GUI)/wubu_proton_config.c \
+		$(GUI)/wubu_gamelib.c $(GUI)/wubu_gamelib_startmenu.c $(GUI)/wubu_gamelib_playtime.c $(GUI)/wubu_gamelib_config.c $(GUI)/wubu_gamelib_scan.c $(GUI)/wubu_settings.c $(GUI)/wubu_json.c $(GUI)/wubu_theme.c $(GUI)/wubu_proton.c $(GUI)/wubu_proton_util.c $(GUI)/wubu_proton_dxvk.c $(RT)/wubu_dxvk_conf.c $(GUI)/wubu_proton_exec.c $(GUI)/wubu_proton_config.c $(RT)/wubu_fs_util.c \
 		$(GUI)/wubu_gamelib_test.c \
 		-o $(GUI)/wubu_gamelib_test
 	$(GUI)/wubu_gamelib_test
@@ -765,7 +764,7 @@ test_anticheat:
 test_bottles:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) \
-		$(RT)/wubu_bottles.c $(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c $(RT)/wubu_bottles_test.c \
+		$(RT)/wubu_bottles.c $(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c $(RT)/wubu_bottles_test.c $(RT)/wubu_fs_util.c \
 		-o $(RT)/wubu_bottles_test
 	$(RT)/wubu_bottles_test
 
@@ -775,11 +774,12 @@ test_archd:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation \
 		-I$(RT) \
 		-DWUBD_TEST_MAIN \
-		$(RT)/wubu_archd.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c \
+		$(RT)/wubu_archd.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_fs_util.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_container.c \
 		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs.c $(RT)/styxfs_path.c $(RT)/styxfs_util.c \
 		$(RT)/wubu_archd_test.c \
+
 		-o $(RT)/wubd_archd_test -lpthread
 	$(RT)/wubd_archd_test
 
@@ -839,7 +839,7 @@ test_system:
 test_daemon_panel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBD_TEST_MAIN -Wno-format-truncation \
 		-I$(GUI) -I$(RT) -I$(KERNEL) \
-		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/dosgui_daemon_panel_test.c \
+		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/dosgui_daemon_panel_test.c $(RT)/wubu_fs_util.o \
 		$(RT)/wubu_archd.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_container.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs.c $(RT)/styxfs_path.c $(RT)/styxfs_util.c \
