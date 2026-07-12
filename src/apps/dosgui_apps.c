@@ -19,18 +19,24 @@
 
 /* -- Forward declarations for app callbacks ----------------------- */
 
+/* Notepad / REPL bind their own callbacks internally; expose them
+ * so the registry can wire them. */
+void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+
 /* WuBu Canvas: real layered image editor (see app_canvas.c). */
 void app_canvas_init(void);
 void app_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void app_canvas_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 void app_canvas_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 
-/* Notepad / REPL already bind their own callbacks internally; expose their
- * draw callbacks so the registry can wire them. */
-void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
-void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
-void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
-void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+/* WuBu File Manager: real Explorer engine (see app_explorer.c). */
+void app_explorer_init(void);
+void app_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void app_explorer_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+void app_explorer_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 
 /* -- Generic placeholder draw for apps without dedicated UI yet ------- */
 
@@ -81,8 +87,13 @@ DosGuiWindow* dosgui_launch_terminal(void) {
 }
 
 DosGuiWindow* dosgui_launch_file_manager(void) {
+    app_explorer_init();
     DosGuiWindow *win = dosgui_wm_create(100, 80, 800, 600, "File Manager");
-    if (win) { win->on_draw = app_placeholder_draw; }
+    if (win) {
+        win->on_draw = app_explorer_draw;
+        win->on_mouse = app_explorer_mouse;
+        win->on_key   = app_explorer_key;
+    }
     return win;
 }
 
