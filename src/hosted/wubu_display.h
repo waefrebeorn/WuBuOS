@@ -6,7 +6,7 @@
  * Zero X11 dependency. Raw kernel mode setting.
  *
  * Status: Direct DRM ioctls + custom GBM (Cells 388/389)
- * Implementation: wubu_drm_direct.c  --  no libdrm, no libgbm
+ * Implementation: wubu_display.c + wubu_gbm.c  --  no libdrm, no libgbm
  */
 #ifndef WUBU_DISPLAY_H
 #define WUBU_DISPLAY_H
