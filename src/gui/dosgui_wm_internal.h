@@ -119,6 +119,17 @@ bool dosgui_wm_get_auto_arrange(void);
 void reflow_all_icons_column(void);
 /* Re-flow all live icons alphabetically into a top-left column grid. */
 void dosgui_wm_sort_icons_by_name(void);
+/* Desktop icon sort modes (ReactOS "Arrange Icons By"): Name/Size/Type/Date. */
+typedef enum {
+    DOSGUI_SORT_NAME = 0,
+    DOSGUI_SORT_SIZE,
+    DOSGUI_SORT_TYPE,
+    DOSGUI_SORT_DATE
+} DosGuiSortMode;
+void dosgui_wm_sort_icons(DosGuiSortMode mode);
+/* Create a real folder / text document in ~/Desktop, re-enumerate + re-flow. */
+int dosgui_wm_new_folder(void);
+int dosgui_wm_new_text_doc(void);
 /* Write a real .desktop shortcut into ~/Desktop; returns 0 on success. */
 int  dosgui_wm_write_desktop_shortcut(const char *name, const char *exec);
 /* Re-enumerate desktop icons from ~/Desktop (real filesystem refresh). */

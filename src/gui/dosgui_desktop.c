@@ -57,6 +57,11 @@ int dosgui_desktop_init(void) {
                            i % 6, i / 6, d->icon_color, NULL);
     }
 
+    /* ReactOS explorer/desktop.cpp lesson: the desktop is a LIVE namespace.
+     * Enumerate ~/Desktop for .desktop shortcuts so they appear on boot,
+     * not only after a manual Refresh. */
+    dosgui_wm_refresh_desktop();
+
     /* Initialize daemon panel (system tray icons, socket connections) */
     dosgui_daemon_panel_init();
 
