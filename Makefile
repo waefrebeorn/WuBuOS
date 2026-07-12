@@ -44,7 +44,7 @@ GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/w
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscall.o $(BRIDGE)/wubu_syscall_vbe.o
 
 # ── App Objects ──────────────────────────────────────────────────
-APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_editor_macro.o $(APPS)/wubu_canvas.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o \
+APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_editor_macro.o $(APPS)/wubu_canvas.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o $(APPS)/app_canvas.o \
            $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
            $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o
 
@@ -162,7 +162,7 @@ worldsim: $(WS_OBJS)
 HOSTED_OBJS = \
 	$(HOSTED)/hosted.o $(HOSTED)/vbe_hosted.o \
 	$(HOSTED)/hosted_styxfs.o \
-	$(RT)/styx.o $(RT)/styx_fid.o $(RT)/styxfs.o $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o \
+	$(RT)/styx.o $(RT)/styx_fid.o $(RT)/styxfs.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o \
 	$(HOSTED)/memory_khosted.o $(HOSTED)/input_khosted.o $(HOSTED)/tasking_khosted.o $(HOSTED)/interrupt_khosted.o $(HOSTED)/wubu_math_khosted.o \
 	$(BRIDGE)/bridge.o $(BRIDGE)/wubu_syscall.o $(BRIDGE)/wubu_syscall_vbe.o \
 $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c \
@@ -173,7 +173,7 @@ $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_layout
 	$(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_proton_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o \
 	$(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.o $(COMP)/holyc_codegen.o $(COMP)/holyc_codegen_emit.o \
 	$(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o \
-	$(APPS)/repl.o $(APPS)/dosgui_apps.o \
+	$(APPS)/repl.o $(APPS)/notepad.o $(APPS)/dosgui_apps.o $(APPS)/app_canvas.o $(APPS)/wubu_canvas.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o \
 	$(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_minic.o $(JIT)/jit_minic_token.o \
 	$(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_container.o $(RT)/wubu_compat_db.o $(RT)/wubu_session.o $(GUI)/wubu_session_autostart.o $(RT)/wubu_arch.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o \
 	 $(HOSTED)/archd_hosted.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_spawn.o \
@@ -493,7 +493,7 @@ test_gui_screenshot:
 		$(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_draw.c $(KERNEL)/vbe.c $(GUI)/wubu_theme.c $(GUI)/wubu_notify.c \
 $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/wubu_wm.c $(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs.c $(RT)/styxfs_path.c $(RT)/styxfs_util.c \
 		$(KERNEL)/memory.c $(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S \
-		$(BRIDGE)/bridge.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(BRIDGE)/bridge.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(APPS)/app_canvas.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
@@ -588,7 +588,7 @@ test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(KERNEL)/vbe.c $(KERNEL)/memory.c \
 		$(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(BRIDGE)/bridge.c \
 $(GUI)/gui_dbuf.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_desktop.c $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_ops.c $(GUI)/dosgui_explorer_info.c $(GUI)/dosgui_explorer_fs.c $(GUI)/dosgui_explorer_fsops.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_format.c $(GUI)/dosgui_explorer_drives.c $(GUI)/dosgui_explorer_tree.c $(GUI)/dosgui_explorer_preview.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_term.c $(GUI)/dosgui_term_ansi.c $(GUI)/dosgui_term_pty.c $(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/wubu_theme.c $(GUI)/wubu_settings.c $(GUI)/wubu_json.c $(GUI)/wubu_session.c $(GUI)/wubu_session_autostart.c $(GUI)/wubu_notify.c $(GUI)/wubu_clipboard.c $(GUI)/wubu_clipboard_mime.c $(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_draw.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/wubu_trash.c $(GUI)/wubu_proton.c $(GUI)/wubu_proton_util.c $(GUI)/wubu_proton_dxvk.c $(RT)/wubu_dxvk_conf.c $(GUI)/wubu_proton_exec.c $(GUI)/wubu_proton_config.c $(GUI)/wubu_gamelib.c $(GUI)/wubu_gamelib_startmenu.c $(GUI)/wubu_gamelib_playtime.c $(GUI)/wubu_gamelib_config.c $(GUI)/wubu_gamelib_scan.c $(GUI)/wubu_deploy.c $(GUI)/wubu_deploy_util.c $(GUI)/wubu_deploy_gen.c $(GUI)/wubu_deploy_config.c $(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_wallpaper.c $(GUI)/wubu_welcome.c \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(APPS)/app_canvas.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_container.c $(RT)/wubu_compat_db.c $(RT)/wubu_session.c $(RT)/wubu_arch.c $(RT)/wubu_archd.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c \
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -o $(HOSTED)/hosted_test
@@ -724,7 +724,7 @@ test_pkgmgr:
 test_dosgui_apps:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) \
-		$(APPS)/dosgui_apps.c \
+		$(APPS)/dosgui_apps.c $(APPS)/app_canvas.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/wubu_canvas.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/repl/repl.c $(APPS)/control/control.c $(APPS)/editor/editor.c \
