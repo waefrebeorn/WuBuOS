@@ -30,7 +30,12 @@ typedef struct {
 
 /* Init: allocate framebuffer of given size */
 int  vbe_init(int width, int height);
+void vbe_shutdown(void);
 
+/* Access the allocated framebuffer (XRGB8888) and its dimensions. */
+uint32_t *vbe_framebuffer(void);
+int       vbe_width(void);
+int       vbe_height(void);
 /* Shutdown */
 void vbe_shutdown(void);
 
