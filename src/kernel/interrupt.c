@@ -7,6 +7,7 @@
  */
 
 #include "interrupt.h"
+#include "interrupt_apic.h"
 #include "tasking.h"  /* For task_timer_tick, g_current */
 #include "memory.h"   /* For mem_alloc */
 
@@ -137,10 +138,6 @@ static void (* const isr_entries[256])(void) = {
  * PIC I/O Ports
  * ------------------------------------------------------------------ */
 
-#define PIC1_CMD        0x20    /* Master PIC command */
-#define PIC1_DATA       0x21    /* Master PIC data */
-#define PIC2_CMD        0xA0    /* Slave PIC command */
-#define PIC2_DATA       0xA1    /* Slave PIC data */
 
 #define PIC_EOI         0x20    /* End of Interrupt command */
 
@@ -209,50 +206,17 @@ static void (* const isr_entries[256])(void) = {
 #define LAPIC_ICR_DELIVERY_INIT 0x500
 #define LAPIC_ICR_DELIVERY_STARTUP 0x600
 
-#define IOAPIC_BASE_DEFAULT    0xFEC00000
-#define IOAPIC_ID              0x00
-#define IOAPIC_VER             0x01
-#define IOAPIC_ARB             0x02
-#define IOAPIC_REDTBL          0x10
-#define IOAPIC_REDTBL_HIGH     0x11
-#define IOAPIC_RED_ENTRIES(v)  (((v) >> 16) & 0xFF)
-
-#define IOAPIC_RED_DELIV_FIXED 0x0
-#define IOAPIC_RED_DELIV_LOW_PRI 0x1
-#define IOAPIC_RED_DELIV_SMI   0x2
-#define IOAPIC_RED_DELIV_NMI   0x4
-#define IOAPIC_RED_DELIV_INIT  0x5
-#define IOAPIC_RED_DELIV_EXTINT 0x7
-#define IOAPIC_RED_DESTMODE_PHYS 0x0
-#define IOAPIC_RED_DESTMODE_LOG  0x8
-#define IOAPIC_RED_DELIV_STATUS  0x1000
-#define IOAPIC_RED_REMOTE_IRR    0x4000
-#define IOAPIC_RED_TRIGGER_LEVEL 0x8000
-#define IOAPIC_RED_POLARITY_LOW  0x2000
-#define IOAPIC_RED_MASKED        0x10000
-
 /* ------------------------------------------------------------------
  * MSR Registers
  * ------------------------------------------------------------------ */
 
-#define MSR_IA32_APIC_BASE     0x1B
-#define MSR_IA32_STAR          0xC0000081
-#define MSR_IA32_LSTAR         0xC0000082
-#define MSR_IA32_CSTAR         0xC0000083
-#define MSR_IA32_FMASK         0xC0000084
 #define MSR_IA32_KERNEL_GS_BASE 0xC0000101
 
 /* ------------------------------------------------------------------
  * TSS / IST
  * ------------------------------------------------------------------ */
 
-#define TSS_IST_COUNT          7
-#define TSS_SIZE               104    /* 16-byte aligned, includes IO map base */
 
-#define IST_EXCEPTION          1      /* IST for exceptions (DF, NMI, etc.) */
-#define IST_NMI                2      /* IST for NMI */
-#define IST_DEBUG              3      /* IST for debug */
-#define IST_TIMER              4      /* IST for timer */
 
 /* ------------------------------------------------------------------
  * IDT Constants
@@ -272,17 +236,17 @@ typedef struct {
 } IRQEntry;
 
 static IRQEntry g_irq_table[256];
-static uint32_t g_pit_hz = 0;
-static int      g_io_priv_ok = 0;
+uint32_t g_pit_hz = 0;
+int g_io_priv_ok = 0;
 static int      g_idt_initialized = 0;
 
 /* APIC state (moved up for forward reference) */
-static volatile uint32_t *g_lapic_base = NULL;
-static volatile uint32_t *g_ioapic_base = NULL;
-static uint32_t g_ioapic_irq_count = 0;
+volatile uint32_t *g_lapic_base = NULL;
+volatile uint32_t *g_ioapic_base = NULL;
+uint32_t g_ioapic_irq_count = 0;
 
 /* SIGSEGV handler for detecting I/O privilege in user space */
-static void sigsegv_handler(int sig, siginfo_t *info, void *ucontext) {
+void sigsegv_handler(int sig, siginfo_t *info, void *ucontext) {
     (void)sig; (void)info; (void)ucontext;
     g_io_priv_ok = 0;
 }
@@ -291,21 +255,7 @@ static void sigsegv_handler(int sig, siginfo_t *info, void *ucontext) {
  * x86 I/O Port Access (bare metal only)
  * ------------------------------------------------------------------ */
 
-#ifdef MYSEED_METAL
-static inline void outb(uint16_t port, uint8_t val) {
-    __asm__ volatile ("outb %0, %1" :: "a"(val), "Nd"(port) : "memory");
-}
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t val;
-    __asm__ volatile ("inb %1, %0" : "=a"(val) : "Nd"(port) : "memory");
-    return val;
-}
-
-static inline void lidt(const IDTPtr *ptr) {
-    __asm__ volatile ("lidt %0" :: "m"(*ptr) : "memory");
-}
-#endif
+#include "interrupt_io.h"
 
 /* ------------------------------------------------------------------
  * IDT Gate Construction
@@ -450,7 +400,7 @@ void interrupt_set_gate(uint8_t vector, uint64_t handler, uint16_t selector,
  * PIT Timer Handler (IRQ0 → vector 32 after remap)
  * ------------------------------------------------------------------ */
 
-static void pit_handler(uint8_t irq, void *ctx) {
+void pit_handler(uint8_t irq, void *ctx) {
     (void)irq; (void)ctx;
     task_timer_tick();
     interrupt_eoi(32);  /* IRQ0 remapped to vector 32 */
@@ -460,73 +410,6 @@ static void pit_handler(uint8_t irq, void *ctx) {
  * PIT Initialization
  * ------------------------------------------------------------------ */
 
-int pit_init(uint32_t hz) {
-#ifdef MYSEED_METAL
-    if (hz == 0 || hz > 1193182) return -1;
-
-    /* Install SIGSEGV handler to detect I/O privilege */
-    struct sigaction sa = {0};
-    sa.sa_sigaction = sigsegv_handler;
-    sa.sa_flags = SA_SIGINFO;
-    sigaction(SIGSEGV, &sa, NULL);
-
-    g_io_priv_ok = 1;
-
-    /* Try harmless port read */
-    uint8_t test_val;
-    __asm__ volatile (
-        "inb %1, %0"
-        : "=a"(test_val)
-        : "Nd"(0x80)
-        : "memory"
-    );
-
-    signal(SIGSEGV, SIG_DFL);
-
-    if (!g_io_priv_ok) {
-        return -1;  /* No I/O privilege */
-    }
-
-    g_pit_hz = hz;
-    uint32_t divisor = 1193182 / hz;
-
-    /* Configure PIT Channel 0: mode 3 (square wave), binary, lobyte/hibyte */
-    outb(PIT_CMD, 0x36);
-    outb(PIT_CH0_DATA, divisor & 0xFF);
-    outb(PIT_CH0_DATA, (divisor >> 8) & 0xFF);
-
-    /* Register IRQ0 handler (vector 32 after PIC remap) */
-    interrupt_register(32, pit_handler, NULL);
-
-    /* Enable IRQ0 on master PIC (unmask bit 0) */
-    uint8_t master_mask = inb(PIC1_DATA);
-    outb(PIC1_DATA, master_mask & ~0x01);
-
-    return 0;
-#else
-    (void)hz;
-    return -1;
-#endif
-}
-
-void pit_shutdown(void) {
-#ifdef MYSEED_METAL
-    if (g_pit_hz == 0) return;
-
-    /* Disable PIT */
-    outb(PIT_CMD, 0x30);
-    outb(PIT_CH0_DATA, 0xFF);
-
-    /* Mask IRQ0 */
-    uint8_t master_mask = inb(PIC1_DATA);
-    outb(PIC1_DATA, master_mask | 0x01);
-
-    interrupt_unregister(32);
-    g_pit_hz = 0;
-#else
-    /* No-op in hosted mode */
-#endif
-}
 
 /* ------------------------------------------------------------------
  * C-Level ISR Dispatcher
@@ -647,268 +530,21 @@ void interrupt_shutdown(void) {
  * ------------------------------------------------------------------ */
 
 #ifdef MYSEED_METAL
-static inline uint64_t rdmsr(uint32_t msr) {
-    uint32_t lo, hi;
-    __asm__ volatile ("rdmsr" : "=a"(lo), "=d"(hi) : "c"(msr));
-    return ((uint64_t)hi << 32) | lo;
-}
 
-static inline void wrmsr(uint32_t msr, uint64_t val) {
-    uint32_t lo = (uint32_t)val;
-    uint32_t hi = (uint32_t)(val >> 32);
-    __asm__ volatile ("wrmsr" :: "c"(msr), "a"(lo), "d"(hi) : "memory");
-}
-#endif
-
-
-/* ------------------------------------------------------------------
- * LAPIC Access (memory-mapped)
- * ------------------------------------------------------------------ */
-
-/* Read LAPIC register */
-#ifdef MYSEED_METAL
-static inline uint32_t lapic_read(uint32_t reg) {
-    if (!g_lapic_base) return 0;
-    return g_lapic_base[reg / 4];
-}
-
-static inline void lapic_write(uint32_t reg, uint32_t val) {
-    if (!g_lapic_base) return;
-    g_lapic_base[reg / 4] = val;
-}
-
-/* Read I/O APIC register (two-step: write index, read data) */
-static inline uint32_t ioapic_read(uint32_t reg) {
-    if (!g_ioapic_base) return 0;
-    g_ioapic_base[IOAPIC_ID / 4] = reg;
-    return g_ioapic_base[IOAPIC_VER / 4];  /* Data at offset 0x10/0x11 */
-}
-
-static inline void ioapic_write(uint32_t reg, uint32_t val) {
-    if (!g_ioapic_base) return;
-    g_ioapic_base[IOAPIC_ID / 4] = reg;
-    g_ioapic_base[IOAPIC_VER / 4 + 1] = val;  /* Data register at offset 0x10/0x11 + 4 */
-}
 #endif
 
 /* ------------------------------------------------------------------
  * TSS / IST Structures
  * ------------------------------------------------------------------ */
 
-typedef struct TSS {
-    uint32_t reserved0;
-    uint64_t rsp[3];
-    uint64_t reserved1;
-    uint64_t ist[TSS_IST_COUNT];
-    uint64_t reserved2;
-    uint16_t reserved3;
-    uint16_t io_map_base;
-} __attribute__((packed)) TSS;
 
-static TSS g_tss = {0};
-static uint8_t g_ist_stacks[4][8192] __attribute__((aligned(16)));  /* 8KB per IST stack */
+TSS g_tss = {0};
+uint8_t g_ist_stacks[4][8192] __attribute__((aligned(16)));  /* 8KB per IST stack */
 
 /* ------------------------------------------------------------------
  * APIC Initialization
  * ------------------------------------------------------------------ */
 
-int apic_init(void) {
-#ifdef MYSEED_METAL
-    /* --------------------------------------------------------------
-     * Enable LAPIC via MSR
-     * -------------------------------------------------------------- */
-    uint64_t apic_base = rdmsr(MSR_IA32_APIC_BASE);
-    apic_base |= 0x800;  /* Set EN bit (bit 11) */
-    apic_base &= ~0xFFF; /* Clear base address bits */
-    apic_base |= LAPIC_BASE_DEFAULT;
-    wrmsr(MSR_IA32_APIC_BASE, apic_base);
-
-    g_lapic_base = (volatile uint32_t *)LAPIC_BASE_DEFAULT;
-
-    /* --------------------------------------------------------------
-     * Configure LAPIC
-     * -------------------------------------------------------------- */
-
-    /* Enable LAPIC: set SVR bit 8 */
-    lapic_write(LAPIC_SVR, lapic_read(LAPIC_SVR) | LAPIC_SVR_ENABLE);
-
-    /* Set LAPIC timer to one-shot mode initially (will be configured per-use) */
-    lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED);
-    lapic_write(LAPIC_TIMER_DIV, 0x3);  /* Divide by 16 */
-
-    /* Mask LINT0, LINT1, ERROR LVT entries */
-    lapic_write(LAPIC_LVT_LINT0, LAPIC_LVT_MASKED);
-    lapic_write(LAPIC_LVT_LINT1, LAPIC_LVT_MASKED);
-    lapic_write(LAPIC_LVT_ERROR, LAPIC_LVT_MASKED);
-
-    /* --------------------------------------------------------------
-     * Detect and configure I/O APIC
-     * -------------------------------------------------------------- */
-    g_ioapic_base = (volatile uint32_t *)IOAPIC_BASE_DEFAULT;
-
-    /* Read I/O APIC version to get number of IRQ entries */
-    g_ioapic_base[IOAPIC_ID / 4] = IOAPIC_VER;
-    uint32_t ioapic_ver = g_ioapic_base[IOAPIC_VER / 4 + 1];
-    g_ioapic_irq_count = IOAPIC_RED_ENTRIES(ioapic_ver);
-
-    /* Mask all I/O APIC interrupts initially */
-    for (uint32_t i = 0; i < g_ioapic_irq_count; i++) {
-        ioapic_write(IOAPIC_REDTBL + i * 2, IOAPIC_RED_MASKED);
-        ioapic_write(IOAPIC_REDTBL_HIGH + i * 2, 0);
-    }
-
-    /* --------------------------------------------------------------
-     * Setup TSS / IST for exception handlers
-     * -------------------------------------------------------------- */
-
-    /* IST1: Exception stack (double fault, NMI, etc.) */
-    g_tss.ist[IST_EXCEPTION - 1] = (uint64_t)(g_ist_stacks[0] + sizeof(g_ist_stacks[0]));
-    /* IST2: NMI stack */
-    g_tss.ist[IST_NMI - 1] = (uint64_t)(g_ist_stacks[1] + sizeof(g_ist_stacks[1]));
-    /* IST3: Debug stack */
-    g_tss.ist[IST_DEBUG - 1] = (uint64_t)(g_ist_stacks[2] + sizeof(g_ist_stacks[2]));
-    /* IST4: Timer stack */
-    g_tss.ist[IST_TIMER - 1] = (uint64_t)(g_ist_stacks[3] + sizeof(g_ist_stacks[3]));
-
-    /* Load TSS (kernel will do ltr in GDT setup - this is a stub) */
-    __asm__ volatile ("ltr %%ax" :: "a"((uint16_t)0x28) : "memory");
-
-    return 0;
-#else
-    (void)g_lapic_base;
-    (void)g_ioapic_base;
-    (void)g_ioapic_irq_count;
-    (void)g_tss;
-    return -1;
-#endif
-}
-
-/* ------------------------------------------------------------------
- * I/O APIC IRQ Routing
- * ------------------------------------------------------------------ */
-
-int ioapic_route_irq(uint8_t irq, uint8_t vector, uint8_t dest_apic_id) {
-#ifdef MYSEED_METAL
-    if (irq >= g_ioapic_irq_count) return -1;
-
-    /* Redirection table entry: vector, delivery mode fixed, destination mode physical */
-    uint32_t red_low = vector | IOAPIC_RED_DELIV_FIXED | IOAPIC_RED_DESTMODE_PHYS;
-    uint32_t red_high = (uint32_t)dest_apic_id << 24;
-
-    ioapic_write(IOAPIC_REDTBL + irq * 2, red_low);
-    ioapic_write(IOAPIC_REDTBL_HIGH + irq * 2, red_high);
-
-    return 0;
-#else
-    (void)irq; (void)vector; (void)dest_apic_id;
-    return -1;
-#endif
-}
-
-int ioapic_mask_irq(uint8_t irq) {
-#ifdef MYSEED_METAL
-    if (irq >= g_ioapic_irq_count) return -1;
-    uint32_t red = ioapic_read(IOAPIC_REDTBL + irq * 2);
-    ioapic_write(IOAPIC_REDTBL + irq * 2, red | IOAPIC_RED_MASKED);
-    return 0;
-#else
-    (void)irq;
-    return -1;
-#endif
-}
-
-int ioapic_unmask_irq(uint8_t irq) {
-#ifdef MYSEED_METAL
-    if (irq >= g_ioapic_irq_count) return -1;
-    uint32_t red = ioapic_read(IOAPIC_REDTBL + irq * 2);
-    ioapic_write(IOAPIC_REDTBL + irq * 2, red & ~IOAPIC_RED_MASKED);
-    return 0;
-#else
-    (void)irq;
-    return -1;
-#endif
-}
-
-/* ------------------------------------------------------------------
- * LAPIC Timer (for per-CPU timer interrupts)
- * ------------------------------------------------------------------ */
-
-int lapic_timer_init(uint32_t hz, uint8_t vector) {
-#ifdef MYSEED_METAL
-    if (!g_lapic_base) return -1;
-
-    /* Mask timer LVT */
-    lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED);
-
-    /* Configure timer: periodic mode, vector */
-    lapic_write(LAPIC_LVT_TIMER, vector | (0x2 << 17));  /* Periodic mode = bit 17 */
-    lapic_write(LAPIC_TIMER_DIV, 0x3);  /* Divide by 16 */
-
-    /* Calibrate using PIT (rough approximation) */
-    /* For now, use a fixed initial count - real impl would calibrate */
-    lapic_write(LAPIC_TIMER_INIT_CNT, 1000000 / hz);
-
-    return 0;
-#else
-    (void)hz; (void)vector;
-    return -1;
-#endif
-}
-
-void lapic_eoi(void) {
-#ifdef MYSEED_METAL
-    if (g_lapic_base) {
-        lapic_write(LAPIC_EOI, 0);
-    }
-#endif
-}
-
-/* ------------------------------------------------------------------
- * IPI (Inter-Processor Interrupts)
- * ------------------------------------------------------------------ */
-
-int lapic_send_ipi(uint32_t dest_apic_id, uint8_t vector, uint8_t delivery_mode) {
-#ifdef MYSEED_METAL
-    if (!g_lapic_base) return -1;
-
-    uint32_t icr_high = dest_apic_id << 24;
-    uint32_t icr_low = vector | delivery_mode | LAPIC_ICR_LEVEL_ASSERT;
-
-    lapic_write(LAPIC_ICR_HIGH, icr_high);
-    lapic_write(LAPIC_ICR_LOW, icr_low);
-
-    /* Wait for delivery */
-    while (lapic_read(LAPIC_ICR_LOW) & (1 << 12)) {
-        /* Busy wait */
-    }
-
-    return 0;
-#else
-    (void)dest_apic_id; (void)vector; (void)delivery_mode;
-    return -1;
-#endif
-}
-
-int lapic_broadcast_ipi(uint8_t vector, uint8_t delivery_mode) {
-#ifdef MYSEED_METAL
-    if (!g_lapic_base) return -1;
-
-    uint32_t icr_low = vector | delivery_mode | LAPIC_ICR_LEVEL_ASSERT | LAPIC_ICR_DEST_ALL_INC;
-    uint32_t icr_high = 0;
-
-    lapic_write(LAPIC_ICR_HIGH, icr_high);
-    lapic_write(LAPIC_ICR_LOW, icr_low);
-
-    while (lapic_read(LAPIC_ICR_LOW) & (1 << 12)) {
-        /* Busy wait */
-    }
-
-    return 0;
-#else
-    (void)vector; (void)delivery_mode;
-    return -1;
-#endif
-}
 
 /* ------------------------------------------------------------------
  * SYSCALL/SYSRET Fast Path
@@ -916,34 +552,6 @@ int lapic_broadcast_ipi(uint8_t vector, uint8_t delivery_mode) {
 
 extern void syscall_entry(void);  /* Defined in isr_stubs.S */
 
-int syscall_init(void) {
-#ifdef MYSEED_METAL
-    /* STAR MSR: bits 63:48 = SYSCALL CS/SS, bits 47:32 = SYSRET CS/SS */
-    /* Kernel GDT: code=0x08 (index 1), data=0x10 (index 2) */
-    /* User GDT: code=0x23 (index 4, RPL=3), data=0x2B (index 5, RPL=3) */
-    /* SYSCALL: CS=0x08, SS=0x10 → SYSRET: CS=0x23, SS=0x2B */
-    uint64_t star = ((uint64_t)0x08 << 32) | ((uint64_t)0x23 << 48);
-    wrmsr(MSR_IA32_STAR, star);
-
-    /* LSTAR: 64-bit syscall entry point */
-    wrmsr(MSR_IA32_LSTAR, (uint64_t)syscall_entry);
-
-    /* CSTAR: compat mode syscall entry (not used) */
-    wrmsr(MSR_IA32_CSTAR, 0);
-
-    /* FMASK: RFLAGS to clear on syscall (IF, TF, DF, RF, NT) */
-    wrmsr(MSR_IA32_FMASK, 0x4700);  /* IF=0x200, TF=0x100, DF=0x400, RF=0x10000, NT=0x4000 */
-
-    /* Enable SYSCALL/SYSRET in EFER */
-    uint64_t efer = rdmsr(0xC0000080);
-    efer |= 1;  /* SCE bit */
-    wrmsr(0xC0000080, efer);
-
-    return 0;
-#else
-    return -1;
-#endif
-}
 
 /* ------------------------------------------------------------------
  * IRQ Routing Infrastructure (PCI/MSI)
@@ -1069,38 +677,6 @@ int interrupt_init_full(void) {
  * Timer Calibration (PIT vs HPET vs TSC)
  * ------------------------------------------------------------------ */
 
-uint64_t timer_calibrate_tsc(void) {
-#ifdef MYSEED_METAL
-    /* Read TSC, wait 10ms via PIT, read TSC again */
-    uint64_t tsc_start, tsc_end;
-
-    __asm__ volatile ("rdtsc" : "=a"(tsc_start), "=d"(tsc_end));
-    tsc_start = ((uint64_t)tsc_end << 32) | tsc_start;
-
-    /* Wait ~10ms using PIT */
-    for (volatile int i = 0; i < 1000000; i++) { __asm__ volatile ("pause"); }
-
-    __asm__ volatile ("rdtsc" : "=a"(tsc_start), "=d"(tsc_end));
-    tsc_end = ((uint64_t)tsc_end << 32) | tsc_start;
-
-    return tsc_end - tsc_start;  /* TSC ticks per ~10ms */
-#else
-    return 0;
-#endif
-}
-
-int timer_init_deadline(uint64_t ns) {
-#ifdef MYSEED_METAL
-    if (!g_lapic_base) return -1;
-    /* Set LAPIC timer to one-shot with deadline */
-    lapic_write(LAPIC_LVT_TIMER, 240 | (0x0 << 17));  /* One-shot mode */
-    lapic_write(LAPIC_TIMER_INIT_CNT, (uint32_t)(ns / 1000));  /* Rough */
-    return 0;
-#else
-    (void)ns;
-    return -1;
-#endif
-}
 
 /* ------------------------------------------------------------------
  * Interrupt Statistics / Debug
