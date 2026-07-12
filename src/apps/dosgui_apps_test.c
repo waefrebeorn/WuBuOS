@@ -6,21 +6,20 @@
  * - Regedit (Windows Registry Editor clone)
  * - Calculator (Standard, Scientific, Graphing)
  * - Notepad++ (Editor with tabs, syntax highlighting)
- * - Paint (MS Paint style)
+ * - WuBu Canvas (layered Photoshop-class image editor)
  * - File Manager (9P/Styx operations)
  */
 
 #include "dosgui_apps.h"
 #include "calc/calc.h"
 #include "notepad/notepad.h"
-#include "paint.h"
+#include "wubu_canvas.h"
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
 #include "fm/fm.h"
 #include "repl/repl.h"
 #include "control/control.h"
 #include "editor/editor.h"
-#include "canvas/canvas.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
@@ -154,67 +153,78 @@ static void test_notepad_launch(void) {
 }
 
 /* ================================================================
- * Paint Tests (using API)
+ * WuBu Canvas Tests (real layered image editor engine)
+ * Replaces the removed MS-Paint toy (paint.c) test suite.
  * ================================================================ */
 
-static void test_paint_create_destroy(void) {
-    TEST("paint: create and destroy");
-    PaintState *p = paint_create();
-    CHECK(p != NULL, "paint created");
-    CHECK(p->current_tool == PAINT_TOOL_BRUSH, "default tool brush");
-    CHECK(p->fg_color == 0x00000000, "fg black");
-    CHECK(p->bg_color == 0x00FFFFFF, "bg white");
-    CHECK(p->brush_size == 3, "brush size 3");
-    paint_destroy(p);
+static void test_canvas_create_destroy(void) {
+    TEST("canvas: create and destroy");
+    WubuCanvas *cv = wubu_cv_create(256, 256);
+    CHECK(cv != NULL, "canvas created");
+    CHECK(cv->w == 256 && cv->h == 256, "dimensions set");
+    CHECK(cv->n_layers >= 1, "background layer auto-added");
+    wubu_cv_destroy(cv);
     PASS();
 }
 
-static void test_paint_add_shape(void) {
-    TEST("paint: add shapes via API");
-    PaintState *p = paint_create();
-    int old_count = p->shape_count;
-    paint_add_shape(p, 10, 10, 100, 100, 0x00FF0000, false);
-    CHECK(p->shape_count == old_count + 1, "shape added");
-    paint_destroy(p);
+static void test_canvas_layers(void) {
+    TEST("canvas: layer add / get / remove");
+    WubuCanvas *cv = wubu_cv_create(128, 128);
+    int base = cv->n_layers;
+    int idx = wubu_cv_layer_add(cv, "Paint");
+    CHECK(idx == base, "layer added at tail");
+    WubuLayer *l = wubu_cv_layer_get(cv, idx);
+    CHECK(l != NULL, "layer get returns layer");
+    CHECK(strcmp(l->name, "Paint") == 0, "layer name set");
+    wubu_cv_layer_set_opacity(cv, idx, 128);
+    CHECK(l->opacity == 128, "opacity set");
+    wubu_cv_layer_remove(cv, idx);
+    CHECK(cv->n_layers == base, "layer removed");
+    wubu_cv_destroy(cv);
     PASS();
 }
 
-static void test_paint_undo_redo(void) {
-    TEST("paint: undo/redo via API");
-    PaintState *p = paint_create();
-    int old_count = p->shape_count;
-    paint_save_undo(p);
-    paint_add_shape(p, 0, 0, 10, 10, 0x00FF0000, false);
-    CHECK(p->shape_count == old_count + 1, "one shape");
-    paint_undo(p);
-    CHECK(p->shape_count == old_count, "first undone");
-    paint_save_undo(p);
-    paint_add_shape(p, 20, 20, 30, 30, 0x0000FF00, false);
-    CHECK(p->shape_count == old_count + 1, "one shape again");
-    paint_undo(p);
-    CHECK(p->shape_count == old_count, "second undone");
-    paint_destroy(p);
+static void test_canvas_brush_composite(void) {
+    TEST("canvas: brush draws + composite produces pixels");
+    WubuCanvas *cv = wubu_cv_create(64, 64);
+    int pidx = wubu_cv_layer_add(cv, "Paint");
+    cv->active_layer = pidx;
+    wubu_cv_layer_set_blend(cv, pidx, BLEND_NORMAL);
+    wubu_cv_brush(cv, 32, 32);
+    wubu_cv_brush(cv, 33, 32);
+
+    uint32_t *out = calloc((size_t)64 * 64, sizeof(uint32_t));
+    wubu_cv_composite(cv, out, 64, 64);
+    /* A non-zero pixel should exist somewhere (brush dab landed). */
+    bool any = false;
+    for (int i = 0; i < 64 * 64; i++) if (out[i] != 0) { any = true; break; }
+    CHECK(any, "composite produced non-zero pixels");
+    free(out);
+    wubu_cv_destroy(cv);
     PASS();
 }
 
-static void test_paint_tool_switch(void) {
-    TEST("paint: tool switching via API");
-    PaintState *p = paint_create();
-    paint_set_tool(p, PAINT_TOOL_LINE);
-    CHECK(p->current_tool == PAINT_TOOL_LINE, "line tool");
-    paint_set_tool(p, PAINT_TOOL_ELLIPSE);
-    CHECK(p->current_tool == PAINT_TOOL_ELLIPSE, "ellipse tool");
-    paint_set_tool(p, PAINT_TOOL_FILL);
-    CHECK(p->current_tool == PAINT_TOOL_FILL, "fill tool");
-    paint_set_tool(p, PAINT_TOOL_BRUSH);
-    CHECK(p->current_tool == PAINT_TOOL_BRUSH, "brush tool");
-    paint_destroy(p);
+static void test_canvas_undo_redo(void) {
+    TEST("canvas: undo/redo history");
+    WubuCanvas *cv = wubu_cv_create(64, 64);
+    int pidx = wubu_cv_layer_add(cv, "Paint");
+    cv->active_layer = pidx;
+    int before = cv->n_layers;
+    wubu_cv_brush(cv, 10, 10);
+    wubu_cv_undo(cv);
+    /* After undo the active layer pixel at (10,10) should be cleared again. */
+    WubuLayer *l = wubu_cv_layer_get(cv, pidx);
+    CHECK(l->pixels[10 * l->w + 10] == 0, "brush undone");
+    wubu_cv_redo(cv);
+    CHECK(l->pixels[10 * l->w + 10] != 0, "brush redone");
+    CHECK(cv->n_layers == before, "layer count stable");
+    wubu_cv_destroy(cv);
     PASS();
 }
 
-static void test_paint_launch(void) {
-    TEST("paint: launch returns window");
-    DosGuiWindow *win = paint_launch();
+static void test_canvas_launch(void) {
+    TEST("canvas: launch returns window");
+    DosGuiWindow *win = dosgui_launch_canvas();
     CHECK(win != NULL, "window created");
     PASS();
 }
@@ -526,25 +536,6 @@ static void test_editor_launch(void) {
 }
 
 /* ================================================================
- * Canvas Tests
- * ================================================================ */
-
-static void test_canvas_create_destroy(void) {
-    TEST("canvas: create and destroy");
-    CanvasState *cv = canvas_create();
-    CHECK(cv != NULL, "canvas created");
-    canvas_destroy(cv);
-    PASS();
-}
-
-static void test_canvas_launch(void) {
-    TEST("canvas: launch returns window");
-    DosGuiWindow *win = canvas_launch();
-    CHECK(win != NULL, "window created");
-    PASS();
-}
-
-/* ================================================================
  * Main Test Runner
  * ================================================================ */
 
@@ -563,12 +554,12 @@ int main(void) {
     test_notepad_lang_detect();
     test_notepad_launch();
     
-    printf("\n-- Paint --\n");
-    test_paint_create_destroy();
-    test_paint_add_shape();
-    test_paint_undo_redo();
-    test_paint_tool_switch();
-    test_paint_launch();
+    printf("\n-- WuBu Canvas (image editor) --\n");
+    test_canvas_create_destroy();
+    test_canvas_layers();
+    test_canvas_brush_composite();
+    test_canvas_undo_redo();
+    test_canvas_launch();
     
     printf("\n-- Task Manager (Win11 Style) --\n");
     test_tmgr_create_destroy();
@@ -608,10 +599,6 @@ int main(void) {
     printf("\n-- Editor --\n");
     test_editor_create_destroy();
     test_editor_launch();
-    
-    printf("\n-- Canvas --\n");
-    test_canvas_create_destroy();
-    test_canvas_launch();
     
     printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
