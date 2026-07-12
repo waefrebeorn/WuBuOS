@@ -29,7 +29,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o
 
 # ── Metal Objects ────────────────────────────────────────────────
-METAL_OBJS = $(HOSTED)/wubu_metal.o
+METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o
 
 # ── Hosted Objects ───────────────────────────────────────────────
 HOSTED_OBJS_LIST = $(HOSTED)/wubu_gbm.o $(HOSTED)/wubu_vulkan_loader.o $(HOSTED)/wubu_vulkan_swapchain.o $(HOSTED)/wubu_vulkan_cmd.o $(HOSTED)/wubu_vulkan_compute.o $(HOSTED)/wubu_metal_audio.o
@@ -683,7 +683,7 @@ test_proton2:
 test_metal:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DMYSEED_METAL -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST\
 		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -I$(SHELL_DIR) -I$(COMP) -I$(JIT) \
-		$(HOSTED)/wubu_metal.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
+		$(HOSTED)/wubu_metal.c $(HOSTED)/wubu_metal_evdev.c $(HOSTED)/wubu_metal_x11.c $(HOSTED)/wubu_metal_vulkan.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(HOSTED)/wubu_metal_test.c \
 		-o $(HOSTED)/wubu_metal_test -lm
