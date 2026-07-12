@@ -415,28 +415,11 @@ static int wubu_proton_ensure_prefix(const char *prefix_id) {
     return wubu_proton_mkdir_p(dxvk_conf);
 }
 
-int wubu_proton_dxvk_config_write(const char *prefix_id, const char *config_content) {
-    if (!prefix_id || !config_content) return -1;
-    char prefix_path[512];
-    if (wubu_proton_prefix_path(prefix_id, prefix_path, sizeof(prefix_path)) < 0) return -1;
-    if (wubu_proton_ensure_prefix(prefix_id) < 0) return -1;
-    char dxvk_conf[512];
-    snprintf(dxvk_conf, sizeof(dxvk_conf),
-             "%s/drive_c/users/steamuser/AppData/Local/DXVK/dxvk.conf", prefix_path);
-    return dxvk_conf_write(dxvk_conf, config_content);
-}
-
-int wubu_proton_dxvk_config_read(const char *prefix_id, char *out_config, size_t size) {
-    if (!prefix_id || !out_config || size == 0) return -1;
-    char prefix_path[512];
-    if (wubu_proton_prefix_path(prefix_id, prefix_path, sizeof(prefix_path)) < 0) return -1;
-    char dxvk_conf[512];
-    snprintf(dxvk_conf, sizeof(dxvk_conf),
-             "%s/drive_c/users/steamuser/AppData/Local/DXVK/dxvk.conf", prefix_path);
-    return dxvk_conf_read(dxvk_conf, out_config, size);
-}
-
-/* Resolve the dxvk.conf path for a prefix (runtime VSL-proton layout). */
+/* --- DXVK config: this build supplies only the VSL layout resolver -----
+ * The actual wubu_proton_dxvk_* implementation lives in
+ * wubu_proton_dxvk.c (dedup home). We register our conf-path
+ * layout and delegate everything else. No config logic here.
+ */
 static int dxvk_runtime_conf_path(const char *prefix_id, char *out, size_t size) {
     if (wubu_proton_prefix_path(prefix_id, out, size) < 0) return -1;
     size_t n = strlen(out);
@@ -445,93 +428,9 @@ static int dxvk_runtime_conf_path(const char *prefix_id, char *out, size_t size)
     return 0;
 }
 
-int wubu_proton_dxvk_set_hud(const char *prefix_id, bool enable, const char *options) {
-    if (!prefix_id) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    char buf[8192];
-    if (dxvk_conf_read(path, buf, sizeof(buf)) < 0) buf[0] = '\0';
-    dxvk_conf_set_key(buf, sizeof(buf), "hud", enable ? (options ? options : "fps") : NULL);
-    return dxvk_conf_write(path, buf);
-}
-
-int wubu_proton_dxvk_set_async(const char *prefix_id, bool async) {
-    if (!prefix_id) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    char buf[8192];
-    if (dxvk_conf_read(path, buf, sizeof(buf)) < 0) buf[0] = '\0';
-    dxvk_conf_set_key(buf, sizeof(buf), "async", async ? "true" : "false");
-    return dxvk_conf_write(path, buf);
-}
-
-int wubu_proton_dxvk_set_nvapi_hack(const char *prefix_id, bool enable) {
-    if (!prefix_id) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    char buf[8192];
-    if (dxvk_conf_read(path, buf, sizeof(buf)) < 0) buf[0] = '\0';
-    dxvk_conf_set_key(buf, sizeof(buf), "nvapiHack", enable ? "true" : "false");
-    return dxvk_conf_write(path, buf);
-}
-
-int wubu_proton_dxvk_set_present_mode(const char *prefix_id, bool mailbox) {
-    if (!prefix_id) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    char buf[8192];
-    if (dxvk_conf_read(path, buf, sizeof(buf)) < 0) buf[0] = '\0';
-    dxvk_conf_set_key(buf, sizeof(buf), "presentMode", mailbox ? "1" : "0");
-    return dxvk_conf_write(path, buf);
-}
-
-int wubu_proton_dxvk_set_memory_limits(const char *prefix_id, int device_mb, int shared_mb) {
-    if (!prefix_id) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    char buf[8192];
-    if (dxvk_conf_read(path, buf, sizeof(buf)) < 0) buf[0] = '\0';
-    char v[32];
-    if (device_mb >= 0) {
-        snprintf(v, sizeof(v), "%d", device_mb);
-        dxvk_conf_set_key(buf, sizeof(buf), "maxDeviceMemory", v);
-    } else {
-        dxvk_conf_set_key(buf, sizeof(buf), "maxDeviceMemory", NULL);
-    }
-    if (shared_mb >= 0) {
-        snprintf(v, sizeof(v), "%d", shared_mb);
-        dxvk_conf_set_key(buf, sizeof(buf), "maxSharedMemory", v);
-    } else {
-        dxvk_conf_set_key(buf, sizeof(buf), "maxSharedMemory", NULL);
-    }
-    return dxvk_conf_write(path, buf);
-}
-
-int wubu_proton_dxvk_reset_config(const char *prefix_id) {
-    if (!prefix_id) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    return unlink(path);
-}
-
-int wubu_proton_dxvk_config_ui_get(const char *prefix_id, DxvkConfigUI *out_ui) {
-    if (!prefix_id || !out_ui) return -1;
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    char buf[8192];
-    if (dxvk_conf_read(path, buf, sizeof(buf)) < 0) buf[0] = '\0';
-    dxvk_conf_parse_ui(buf, out_ui);
-    strncpy(out_ui->prefix_id, prefix_id, sizeof(out_ui->prefix_id) - 1);
-    return 0;
-}
-
-int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui) {
-    if (!prefix_id || !ui) return -1;
-    char buf[8192];
-    dxvk_conf_build_ui(ui, buf, sizeof(buf));
-    char path[512];
-    if (dxvk_runtime_conf_path(prefix_id, path, sizeof(path)) < 0) return -1;
-    return dxvk_conf_write(path, buf);
+__attribute__((constructor))
+static void dxvk_runtime_register(void) {
+    wubu_proton_dxvk_set_resolver(dxvk_runtime_conf_path);
 }
 
 
