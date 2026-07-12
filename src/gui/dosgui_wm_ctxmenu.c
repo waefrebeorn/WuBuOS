@@ -481,11 +481,49 @@ static void ctx_action_view_desktop(void) {
                        NULL, 1, 2000);
 }
 
+static void ctx_action_new_folder(void) {
+    if (dosgui_wm_new_folder() == 0) {
+        wubu_notify_simple("Desktop", "New Folder",
+                           "Folder created on ~/Desktop", NULL, 1, 1500);
+    } else {
+        wubu_notify_simple("Desktop", "New Folder",
+                           "Could not create folder", NULL, 1, 1500);
+    }
+}
+
+static void ctx_action_new_text_doc(void) {
+    if (dosgui_wm_new_text_doc() == 0) {
+        wubu_notify_simple("Desktop", "New Text Document",
+                           "Text document created on ~/Desktop", NULL, 1, 1500);
+    } else {
+        wubu_notify_simple("Desktop", "New Text Document",
+                           "Could not create document", NULL, 1, 1500);
+    }
+}
+
+static void ctx_action_sort_by_size(void) {
+    dosgui_wm_sort_icons(DOSGUI_SORT_SIZE);
+    wubu_notify_simple("Desktop", "Sort By Size",
+                       "Icons arranged by size", NULL, 1, 1500);
+}
+
+static void ctx_action_sort_by_type(void) {
+    dosgui_wm_sort_icons(DOSGUI_SORT_TYPE);
+    wubu_notify_simple("Desktop", "Sort By Type",
+                       "Icons arranged by type", NULL, 1, 1500);
+}
+
 static void ctx_action_sort_by_name(void) {
     /* Real alphabetical re-flow. */
     dosgui_wm_sort_icons_by_name();
     wubu_notify_simple("Desktop", "Sort By Name",
                        "Icons arranged alphabetically", NULL, 1, 1500);
+}
+
+static void ctx_action_sort_by_date(void) {
+    dosgui_wm_sort_icons(DOSGUI_SORT_DATE);
+    wubu_notify_simple("Desktop", "Sort By Date Modified",
+                       "Icons arranged by date", NULL, 1, 1500);
 }
 
 static void ctx_action_refresh(void) {
@@ -523,20 +561,20 @@ void dosgui_desktop_show_context_menu(int mx, int my) {
     if (!menu) return;
     
     dosgui_ctx_menu_add_item(menu, "New", NULL);
-    
+
     DosGuiContextMenu *newmenu = dosgui_ctx_menu_add_submenu(menu, "New");
     dosgui_ctx_menu_add_item(newmenu, "Shortcut", ctx_action_create_shortcut);
-    dosgui_ctx_menu_add_item(newmenu, "Folder", NULL);
-    dosgui_ctx_menu_add_item(newmenu, "Text Document", NULL);
-    
+    dosgui_ctx_menu_add_item(newmenu, "Folder", ctx_action_new_folder);
+    dosgui_ctx_menu_add_item(newmenu, "Text Document", ctx_action_new_text_doc);
+
     dosgui_ctx_menu_add_separator(menu);
     dosgui_ctx_menu_add_item(menu, "View", ctx_action_view_desktop);
-    
+
     DosGuiContextMenu *viewmenu = dosgui_ctx_menu_add_submenu(menu, "Sort By");
     dosgui_ctx_menu_add_item(viewmenu, "Name", ctx_action_sort_by_name);
-    dosgui_ctx_menu_add_item(viewmenu, "Size", NULL);
-    dosgui_ctx_menu_add_item(viewmenu, "Type", NULL);
-    dosgui_ctx_menu_add_item(viewmenu, "Date Modified", NULL);
+    dosgui_ctx_menu_add_item(viewmenu, "Size", ctx_action_sort_by_size);
+    dosgui_ctx_menu_add_item(viewmenu, "Type", ctx_action_sort_by_type);
+    dosgui_ctx_menu_add_item(viewmenu, "Date Modified", ctx_action_sort_by_date);
     
     dosgui_ctx_menu_add_separator(menu);
     dosgui_ctx_menu_add_item(menu, "Refresh", ctx_action_refresh);

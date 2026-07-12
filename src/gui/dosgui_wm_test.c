@@ -6,11 +6,17 @@
  */
 
 #include "dosgui_wm.h"
+#include "dosgui_wm_internal.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 
@@ -18,6 +24,32 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define PASS() do { printf("✅\n"); g_pass++; } while(0)
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
+
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+static void rm_rf(const char *path) {
+    /* Minimal recursive delete for test temp dirs. */
+    struct stat st;
+    if (stat(path, &st) != 0) return;
+    if (S_ISDIR(st.st_mode)) {
+        DIR *d = opendir(path);
+        if (d) {
+            struct dirent *e;
+            char buf[1024];
+            while ((e = readdir(d)) != NULL) {
+                if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) continue;
+                snprintf(buf, sizeof(buf), "%s/%s", path, e->d_name);
+                rm_rf(buf);
+            }
+            closedir(d);
+        }
+        rmdir(path);
+    } else {
+        unlink(path);
+    }
+}
 
 /* -- Lifecycle Tests ------------------------------------------- */
 
@@ -272,6 +304,134 @@ static void test_icon_get_bounds(void) {
     PASS();
 }
 
+
+/* -- Desktop Live Namespace Tests (Stream A: ReactOS explorer/desktop.cpp) -- */
+
+static void test_desktop_live_namespace_init(void) {
+    TEST("~/Desktop .desktop files appear as icons on init");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+    /* Drop two real .desktop shortcuts. */
+    char p1[600], p2[600];
+    snprintf(p1, sizeof(p1), "%s/Alpha.desktop", desk);
+    snprintf(p2, sizeof(p2), "%s/Bravo.desktop", desk);
+    FILE *f = fopen(p1, "w"); if (f) { fputs("[Desktop Entry]\n", f); fclose(f); }
+    f = fopen(p2, "w"); if (f) { fputs("[Desktop Entry]\n", f); fclose(f); }
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+
+    int found_alpha = 0, found_bravo = 0;
+    for (int i = 0; i < dosgui_wm_get_icon_count(); i++) {
+        DosGuiIcon *ic = dosgui_icon_get(i);
+        if (!ic || !ic->alive) continue;
+        if (strcasecmp(ic->name, "Alpha") == 0) found_alpha = 1;
+        if (strcasecmp(ic->name, "Bravo") == 0) found_bravo = 1;
+    }
+    CHECK(found_alpha, "Alpha.desktop surfaced as desktop icon");
+    CHECK(found_bravo, "Bravo.desktop surfaced as desktop icon");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
+static void test_desktop_new_folder(void) {
+    TEST("New Folder creates a real dir + live icon");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+    int before = dosgui_wm_get_icon_count();
+
+    int rc = dosgui_wm_new_folder();
+    CHECK(rc == 0, "dosgui_wm_new_folder returns 0");
+    CHECK(access(desk, 0) == 0 && access(desk, 0) == 0, "folder exists");
+    /* The new folder must be a real directory on disk. */
+    char folder[600];
+    snprintf(folder, sizeof(folder), "%s/New Folder", desk);
+    struct stat st;
+    CHECK(stat(folder, &st) == 0 && S_ISDIR(st.st_mode), "New Folder is a real directory");
+    CHECK(dosgui_wm_get_icon_count() > before, "new icon added after folder creation");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
+static void test_desktop_new_text_doc(void) {
+    TEST("New Text Document creates a real file + live icon");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+    int before = dosgui_wm_get_icon_count();
+
+    int rc = dosgui_wm_new_text_doc();
+    CHECK(rc == 0, "dosgui_wm_new_text_doc returns 0");
+    char doc[600];
+    snprintf(doc, sizeof(doc), "%s/New Text Document.txt", desk);
+    struct stat st;
+    CHECK(stat(doc, &st) == 0 && S_ISREG(st.st_mode), "New Text Document is a real file");
+    CHECK(dosgui_wm_get_icon_count() > before, "new icon added after document creation");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
+static void test_desktop_sort_by_size(void) {
+    TEST("Sort By Size reorders icons by stat size");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+    /* Two .desktop files of different sizes. */
+    char small[600], big[600];
+    snprintf(small, sizeof(small), "%s/Small.desktop", desk);
+    snprintf(big, sizeof(big), "%s/Big.desktop", desk);
+    FILE *f = fopen(small, "w"); if (f) { fputc('x', f); fclose(f); }
+    f = fopen(big, "w"); if (f) { for (int i = 0; i < 64; i++) fputc('x', f); fclose(f); }
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+
+    /* Force Name sort first (stable), then Size sort. */
+    dosgui_wm_sort_icons(DOSGUI_SORT_NAME);
+    dosgui_wm_sort_icons(DOSGUI_SORT_SIZE);
+
+    /* Find the two icons and confirm Big precedes Small (ascending size). */
+    int small_idx = -1, big_idx = -1;
+    for (int i = 0; i < dosgui_wm_get_icon_count(); i++) {
+        DosGuiIcon *ic = dosgui_icon_get(i);
+        if (!ic || !ic->alive) continue;
+        if (strcasecmp(ic->name, "Big") == 0) big_idx = i;
+        if (strcasecmp(ic->name, "Small") == 0) small_idx = i;
+    }
+    CHECK(small_idx >= 0 && big_idx >= 0, "both icons present after sort");
+    CHECK(big_idx < small_idx, "Big (larger) icon ordered before Small by size");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
 /* -- Main ------------------------------------------------------ */
 /* -- Invalidation / dirty-tracking Tests ----------------------- */
 
@@ -342,6 +502,10 @@ int main(void) {
     test_fable_text_width();
     test_fable_primitives_exist();
     test_invalidate_tracking();
+    test_desktop_live_namespace_init();
+    test_desktop_new_folder();
+    test_desktop_new_text_doc();
+    test_desktop_sort_by_size();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
