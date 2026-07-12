@@ -56,3 +56,22 @@
 - **Parallel**: ReactOS NT transliterate first 10 syscalls (E1); wire daemons as
   Desktop backends (E2/E3/E4).
 - Every gap = "rewriting from scratch in C". Defensive guards / ABI void-casts = NOT gaps.
+
+## 2026-07-12 (session 2) — Desktop Vision Study + Stream A
+- **Studied all three desktops**: WuBuOS Win98/XP shell, Wayland hosted-client display
+  path (hosted.c SHM->host compositor; correct Inferno-emu design, NOT re-implement
+  gamescope), ReactOS explorer/desktop.cpp + desk.cpl + ntuser/desktop.c, and the NT
+  personality (vsl_nt_bridge.h: 297-syscall pipeline, only 20/297 transliterated).
+- **Vision doc written**: DESKTOP_VISION_PLAN.md — 6-layer map (TempleOS HolyC soul ->
+  ZealOS -> Styx9 -> NT personality (SteamOS) -> Win98/XP shell -> SteamOS-on-Arch).
+- **Stream A DONE (desktop live namespace + missing context-menu actions)**:
+  - dosgui_wm_refresh_desktop() now enumerates FOLDERS + FILES + .desktop (was
+    .desktop-only) -> ReactOS explorer/desktop.cpp namespace.
+  - dosgui_wm_new_folder() / dosgui_wm_new_text_doc() create real fs objects in
+    ~/Desktop; dosgui_desktop_init() refreshes on boot (live namespace, not only manual).
+  - dosgui_wm_sort_icons(Name/Size/Type/Date) via stat(target); context menu's 5
+    previously-NULL actions wired (New Folder / New Text Doc / Sort Size/Type/Date).
+  - test_dosgui_wm 23/23 (+4 regression tests). Full gate green.
+- **Remaining (roadmap, not done this session)**: E1 NT transliteration batches 3+;
+  E2 SteamOS gamescope/input/cloud; Styx9 registry-namespace glue.
+
