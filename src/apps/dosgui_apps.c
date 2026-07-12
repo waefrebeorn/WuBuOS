@@ -14,7 +14,6 @@
 #include "repl/repl.h"
 #include "control/control.h"
 #include "editor/editor.h"
-#include "canvas/canvas.h"
 #include "../gui/dosgui_wm.h"
 #include "../runtime/wubu_host_exec.h"
 #include <stdlib.h>
@@ -32,7 +31,7 @@ static AppEntry g_apps[] = {
     {DESK_ICON_MY_COMPUTER,   "My Computer",   dosgui_launch_file_manager},
     {DESK_ICON_TEMPLE_REPL,  "HolyC REPL",    dosgui_launch_temple_repl},
     {DESK_ICON_NOTEPAD,      "Notepad",       dosgui_launch_notepad},
-    {DESK_ICON_PAINT,        "Paint",         dosgui_launch_paint},
+    {DESK_ICON_PAINT,        "WuBu Canvas",   dosgui_launch_canvas},
     {DESK_ICON_CALCULATOR,   "Calculator",    dosgui_launch_calculator},
     {DESK_ICON_TERMINAL,     "Terminal",      dosgui_launch_terminal},
     {DESK_ICON_EXPLORER,     "File Manager",  dosgui_launch_file_manager},
@@ -85,10 +84,10 @@ DosGuiWindow* dosgui_launch_notepad(void)         {
     DosGuiWindow* win = dosgui_wm_create(150, 100, 640, 480, "Notepad");
     return win;
 }
-DosGuiWindow* dosgui_launch_paint(void)           { 
+DosGuiWindow* dosgui_launch_paint(void)           {
     fprintf(stderr, "DEBUG: dosgui_launch_paint called\n");
-    DosGuiWindow* win = dosgui_wm_create(200, 120, 800, 600, "Paint");
-    return win;
+    /* Paint icon now launches the real layered image editor (wubu_canvas). */
+    return dosgui_launch_canvas();
 }
 DosGuiWindow* dosgui_launch_calculator(void)      { 
     fprintf(stderr, "DEBUG: dosgui_launch_calculator called\n");
