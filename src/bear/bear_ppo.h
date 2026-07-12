@@ -190,6 +190,10 @@ void bear_ppo_update(BearPolicyNet* policy, BearValueNet* critic,
 void bear_ppo_apply_gradients(BearPolicyNet* policy, BearValueNet* critic,
                                BearOptimizer* opt_policy, BearOptimizer* opt_critic);
 
+/* Clip gradients of policy + critic to max_norm (returns current grad norm).
+ * Shared between the loss module and the trainer iteration loop. */
+float bear_ppo_clip_grad_norm(BearPolicyNet* policy, BearValueNet* critic, float max_norm);
+
 /* ===================================================================
  * Main Training Loop
  * =================================================================== */

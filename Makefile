@@ -59,7 +59,7 @@ TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o $(TOOLS)/screenshot.o
 SHELL_OBJS = $(SHELL_DIR)/wubu_shell.o
 
 # ── Bear RL Objects ──────────────────────────────────────────────
-BEAR_OBJS = $(BEAR)/bear_arena.o $(BEAR)/bear_env.o $(BEAR)/bear_env_npole.o $(BEAR)/bear_nn.o $(BEAR)/bear_nn_ckpt.o $(BEAR)/bear_ppo.o $(BEAR)/bear_opt.o $(BEAR)/bear_cudnn.o $(BEAR)/bear_cudnn_cublas.o $(BEAR)/bear_cudnn_cuda.o $(BEAR)/bear_vulkan_soft.o
+BEAR_OBJS = $(BEAR)/bear_arena.o $(BEAR)/bear_env.o $(BEAR)/bear_env_npole.o $(BEAR)/bear_nn.o $(BEAR)/bear_nn_ckpt.o $(BEAR)/bear_ppo_traj.o $(BEAR)/bear_ppo_loss.o $(BEAR)/bear_ppo_trainer.o $(BEAR)/bear_opt.o $(BEAR)/bear_cudnn.o $(BEAR)/bear_cudnn_cublas.o $(BEAR)/bear_cudnn_cuda.o $(BEAR)/bear_vulkan_soft.o
 
 # ── Audio Objects ─────────────────────────────────────────────────
 AUDIO_OBJS = $(AUDIO)/wubu_audio.o $(AUDIO)/wubu_audio_chips.o $(AUDIO)/wubu_audio_furnace.o $(AUDIO)/wubu_audio_sf2.o $(AUDIO)/wubu_audio_daw.o $(AUDIO)/wubu_audio_engine.o
@@ -91,7 +91,7 @@ bear: $(BEAR_OBJS)
 
 bear_train: $(BEAR_OBJS) $(BEAR)/bear_train.o
 	$(CC) $(CFLAGS) -I$(BEAR) -I$(RT) -I$(KERNEL) \
-		$(BEAR)/bear_arena.o $(BEAR)/bear_env.o $(BEAR)/bear_env_npole.o $(BEAR)/bear_nn.o $(BEAR)/bear_nn_ckpt.o $(BEAR)/bear_ppo.o $(BEAR)/bear_opt.o $(BEAR)/bear_cudnn.o $(BEAR)/bear_cudnn_cublas.o $(BEAR)/bear_cudnn_cuda.o $(BEAR)/bear_train.o $(BEAR)/bear_vulkan_soft.o \
+		$(BEAR)/bear_arena.o $(BEAR)/bear_env.o $(BEAR)/bear_env_npole.o $(BEAR)/bear_nn.o $(BEAR)/bear_nn_ckpt.o $(BEAR)/bear_ppo_traj.o $(BEAR)/bear_ppo_loss.o $(BEAR)/bear_ppo_trainer.o $(BEAR)/bear_opt.o $(BEAR)/bear_cudnn.o $(BEAR)/bear_cudnn_cublas.o $(BEAR)/bear_cudnn_cuda.o $(BEAR)/bear_train.o $(BEAR)/bear_vulkan_soft.o \
 		-lm -o $(BEAR)/bear_train
 	@echo "✅ Bear RL training binary built (./src/bear/bear_train)"
 
