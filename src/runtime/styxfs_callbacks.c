@@ -1,11 +1,8 @@
 /*
- * styxfs.c  --  StyxFS: 9P2000/Styx Filesystem for .wubu Containers
- *
- * Implements a filesystem namespace backed by .wubu containers.
- * Each .wubu container is exposed as a file in the Styx namespace.
- * Mount points allow composing multiple container repositories.
+ * styxfs_callbacks.c -- StyxFS 9P2000/Styx callback handlers.
+ * Extracted from the monolithic styxfs.c. Depends on styxfs_internal.h for
+ * the shared file-table + server helpers. C11, no god headers.
  */
-
 #define _GNU_SOURCE
 #include "styxfs.h"
 #include "styxfs_internal.h"
@@ -18,275 +15,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <string.h>
-
-/* -- Internal Helpers ------------------------------------------ */
-
-/* Simple in-memory filesystem node */
-typedef enum {
-    STYXFS_NODE_ROOT = 0,
-    STYXFS_NODE_DIR,
-    STYXFS_NODE_FILE,
-} styxfs_node_type;
-
-typedef struct styxfs_node {
-    char name[256];
-    styxfs_node_type type;
-    uint64_t qid_path;
-    uint32_t mode;
-    uint32_t atime;
-    uint32_t mtime;
-    uint64_t length;
-    uint8_t *data;          /* For files: file contents */
-    size_t data_size;
-    struct styxfs_node *parent;
-    struct styxfs_node *children;  /* For dirs: linked list of children */
-    struct styxfs_node *next_sibling;
-} styxfs_node_t;
-
-static styxfs_node_t *g_root_node = NULL;
-
-static styxfs_node_t *find_child(styxfs_node_t *parent, const char *name) {
-    if (!parent) return NULL;
-    for (styxfs_node_t *c = parent->children; c; c = c->next_sibling) {
-        if (strcmp(c->name, name) == 0) return c;
-    }
-    return NULL;
-}
-
-static styxfs_node_t *create_node(const char *name, styxfs_node_type type, styxfs_node_t *parent) {
-    styxfs_node_t *n = (styxfs_node_t *)calloc(1, sizeof(styxfs_node_t));
-    if (!n) return NULL;
-    strncpy(n->name, name, 255);
-    n->type = type;
-    n->mode = (type == STYXFS_NODE_DIR) ? 040755 : 0100644;
-    n->atime = (uint32_t)time(NULL);
-    n->mtime = n->atime;
-    n->parent = parent;
-    return n;
-}
-
-static void add_child(styxfs_node_t *parent, styxfs_node_t *child) {
-    if (!parent || !child) return;
-    child->next_sibling = parent->children;
-    parent->children = child;
-}
-
-static styxfs_node_t *resolve_path_nodes(const char *path) {
-    if (!g_root_node) return NULL;
-    if (strcmp(path, "/") == 0) return g_root_node;
-    
-    char buf[STYXFS_MAX_PATH];
-    strncpy(buf, path, STYXFS_MAX_PATH - 1);
-    buf[STYXFS_MAX_PATH - 1] = '\0';
-    
-    styxfs_node_t *cur = g_root_node;
-    char *p = buf + 1; /* skip leading / */
-    while (*p) {
-        char *slash = strchr(p, '/');
-        if (slash) *slash = '\0';
-        if (*p == '\0') break;
-        cur = find_child(cur, p);
-        if (!cur) return NULL;
-        if (!slash) break;
-        p = slash + 1;
-    }
-    return cur;
-}
-
-static uint64_t next_qid_path(styxfs_server_t *srv) {
-    return ++srv->next_qid_path;
-}
-
-static styxfs_file_t *file_alloc(styxfs_server_t *srv) {
-    for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
-        if (!srv->open_files[i].in_use) {
-            memset(&srv->open_files[i], 0, sizeof(styxfs_file_t));
-            srv->open_files[i].in_use = 1;
-            return &srv->open_files[i];
-        }
-    }
-    return NULL;
-}
-
-static styxfs_file_t *file_lookup(styxfs_server_t *srv, uint64_t qid_path) {
-    for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
-        if (srv->open_files[i].in_use && srv->open_files[i].qid_path == qid_path)
-            return &srv->open_files[i];
-    }
-    return NULL;
-}
-
-static void file_free(styxfs_server_t *srv, uint64_t qid_path) {
-    styxfs_file_t *f = file_lookup(srv, qid_path);
-    if (f) {
-        if (f->container_payload) free(f->container_payload);
-        if (f->write_buf) free(f->write_buf);
-        f->in_use = 0;
-    }
-}
-
-/* Path normalization: ensure leading slash, no trailing slash (except root) */
-void normalize_path(char *path) {
-    if (!path || !*path) { strcpy(path, "/"); return; }
-    if (path[0] != '/') {
-        char tmp[STYXFS_MAX_PATH];
-        snprintf(tmp, sizeof(tmp), "/%s", path);
-        strcpy(path, tmp);
-    }
-    size_t len = strlen(path);
-    while (len > 1 && path[len - 1] == '/') {
-        path[len - 1] = '\0';
-        len--;
-    }
-}
-
-/* -- Server Lifecycle ----------------------------------------- */
-
-void styxfs_init(styxfs_server_t *srv) {
-    memset(srv, 0, sizeof(*srv));
-    srv->readonly = 0;
-    srv->next_qid_path = 1;
-}
-
-/* Create a root directory entry */
-static int ensure_root(styxfs_server_t *srv) {
-    styxfs_file_t *root = file_lookup(srv, 0);
-    if (root) return 0;
-    root = file_alloc(srv);
-    if (!root) return -1;
-    root->qid_path = 0;
-    root->qid_type = STX_QTDIR;
-    root->qid_version = 1;
-    strcpy(root->path, "/");
-    return 0;
-}
-
-/* -- Mount Operations ----------------------------------------- */
-
-int styxfs_mount(styxfs_server_t *srv, const char *path, const char *source, int is_repo) {
-    if (!srv || !path || !source) return -1;
-    ensure_root(srv);
-
-    /* Allocate mount entry */
-    styxfs_mount_t *m = (styxfs_mount_t*)calloc(1, sizeof(styxfs_mount_t));
-    if (!m) return -1;
-    strncpy(m->path, path, STYXFS_MAX_PATH - 1);
-    strncpy(m->source, source, STYXFS_MAX_PATH - 1);
-    m->is_container_repo = is_repo;
-
-    /* Add to mount list */
-    m->next = srv->mounts;
-    srv->mounts = m;
-
-    /* Create directory entry for mount point */
-    styxfs_file_t *dir = file_alloc(srv);
-    if (!dir) { free(m); return -1; }
-    dir->qid_path = next_qid_path(srv);
-    dir->qid_type = STX_QTDIR;
-    dir->qid_version = 1;
-    strncpy(dir->path, path, STYXFS_MAX_PATH - 1);
-    normalize_path(dir->path);
-
-    return 0;
-}
-
-int styxfs_unmount(styxfs_server_t *srv, const char *path) {
-    if (!srv || !path) return -1;
-    styxfs_mount_t **pp = &srv->mounts;
-    while (*pp) {
-        if (strcmp((*pp)->path, path) == 0) {
-            styxfs_mount_t *m = *pp;
-            *pp = m->next;
-            free(m);
-            return 0;
-        }
-        pp = &(*pp)->next;
-    }
-    return -1;
-}
-
-void styxfs_set_readonly(styxfs_server_t *srv, int readonly) {
-    if (srv) srv->readonly = readonly;
-}
-
-/* -- Scan Repository ------------------------------------------ */
-
-int styxfs_scan_repo(styxfs_server_t *srv, const char *mount_path, const char *fs_path) {
-    if (!srv || !mount_path) return -1;
-    ensure_root(srv);
-
-    /* Open directory and scan for .wubu files */
-    DIR *d = opendir(fs_path);
-    if (!d) {
-        /* Directory doesn't exist - not an error, just nothing to scan */
-        return 0;
-    }
-
-    struct dirent *de;
-    while ((de = readdir(d)) != NULL) {
-        if (styxfs_is_wubu_container(de->d_name)) {
-            /* Build full path to container */
-            char container_path[STYXFS_MAX_PATH];
-            snprintf(container_path, sizeof(container_path), "%s/%s", fs_path, de->d_name);
-
-            /* Load container header to verify */
-            WUBU_HEADER hdr;
-            uint8_t *payload = NULL;
-            size_t payload_size = 0;
-            if (styxfs_load_container(container_path, &hdr, &payload, &payload_size) == 0) {
-                /* Register as a file in the namespace */
-                char namespace_path[STYXFS_MAX_PATH];
-                if (strcmp(mount_path, "/") == 0) {
-                    snprintf(namespace_path, sizeof(namespace_path), "/%s", de->d_name);
-                } else {
-                    snprintf(namespace_path, sizeof(namespace_path), "%s/%s", mount_path, de->d_name);
-                }
-
-                /* Create file entry */
-                styxfs_file_t *f = file_alloc(srv);
-                if (f) {
-                    f->qid_path = next_qid_path(srv);
-                    f->qid_type = STX_QTFILE;
-                    f->qid_version = 1;
-                    strncpy(f->path, namespace_path, STYXFS_MAX_PATH - 1);
-                    f->container_hdr = hdr;
-                    f->container_payload = payload;
-                    f->payload_size = payload_size;
-                    f->file_mode = 0100755; /* Executable container */
-                    f->is_dir = false;
-                    f->atime = (uint32_t)time(NULL);
-                    f->mtime = f->atime;
-                } else if (payload) {
-                    free(payload);
-                }
-            }
-        }
-    }
-    closedir(d);
-    return 0;
-}
-
-/* -- Styx Serve (dispatch) ------------------------------------ */
-
-int styxfs_serve(styxfs_server_t *srv,
-                  const uint8_t *inbuf, uint32_t inlen,
-                  uint8_t *outbuf, uint32_t *outlen) {
-    if (!srv || !inbuf || !outbuf || !outlen) return -1;
-    /* Delegate to base styx_serve with our callbacks */
-    return styx_serve(&srv->base, inbuf, inlen, outbuf, outlen);
-}
-
 /* -- Callbacks ------------------------------------------------ */
 
 /* Helper: get styxfs_server_t from base */
-static styxfs_server_t *get_server(styx_server_t *base) {
+styxfs_server_t *styxfs_get_server(styx_server_t *base) {
     /* base is the first member of styxfs_server_t */
     return (styxfs_server_t *)base;
 }
 
 /* Helper: resolve a fid to its path */
-static const char *fid_to_path(styxfs_server_t *srv, uint32_t fid) {
+const char *styxfs_fid_to_path(styxfs_server_t *srv, uint32_t fid) {
     for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
         if (srv->open_files[i].in_use && srv->open_files[i].qid_path == (uint64_t)fid)
             return srv->open_files[i].path;
@@ -297,7 +35,7 @@ static const char *fid_to_path(styxfs_server_t *srv, uint32_t fid) {
 /* Helper: build a full path from a base path and walk name */
 
 int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     (void)aname;
     /* Attach: associate fid with root directory */
     for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
@@ -325,12 +63,12 @@ int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname) {
 int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
                     const char **wname, int nwname,
                     styx_qid_t *qids, int *nwqid) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     *nwqid = 0;
     
     if (nwname == 0) {
         /* Clone fid: newfid gets same path */
-        const char *src_path = fid_to_path(srv, fid);
+        const char *src_path = styxfs_fid_to_path(srv, fid);
         for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
             if (!srv->open_files[i].in_use) {
                 memset(&srv->open_files[i], 0, sizeof(styxfs_file_t));
@@ -350,7 +88,7 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
     }
     
     char cur_path_buf[STYXFS_MAX_PATH];
-    strncpy(cur_path_buf, fid_to_path(srv, fid), STYXFS_MAX_PATH - 1);
+    strncpy(cur_path_buf, styxfs_fid_to_path(srv, fid), STYXFS_MAX_PATH - 1);
     
     for (int i = 0; i < nwname && i < 16; i++) {
         char new_path[STYXFS_MAX_PATH];
@@ -394,7 +132,7 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
                 srv->open_files[i].qid_version = 1;
                 /* Build final path */
                 char final_path[STYXFS_MAX_PATH];
-                strncpy(final_path, fid_to_path(srv, fid), STYXFS_MAX_PATH - 1);
+                strncpy(final_path, styxfs_fid_to_path(srv, fid), STYXFS_MAX_PATH - 1);
                 for (int j = 0; j < nwname && j < *nwqid; j++) {
                     char tmp[STYXFS_MAX_PATH];
                     build_path(tmp, sizeof(tmp), final_path, wname[j]);
@@ -411,7 +149,7 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
 
 int styxfs_open_cb(styx_server_t *base, uint32_t fid, int mode,
                     styx_qid_t *qid) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     
     for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
         if (srv->open_files[i].in_use && srv->open_files[i].qid_path == (uint64_t)fid) {
@@ -427,12 +165,12 @@ int styxfs_open_cb(styx_server_t *base, uint32_t fid, int mode,
 
 int styxfs_create_cb(styx_server_t *base, uint32_t fid, const char *name,
                       uint32_t perm, int mode, styx_qid_t *qid) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     (void)mode;
     
     if (srv->readonly) return -1;
     
-    const char *parent_path = fid_to_path(srv, fid);
+    const char *parent_path = styxfs_fid_to_path(srv, fid);
     char new_path[STYXFS_MAX_PATH];
     build_path(new_path, sizeof(new_path), parent_path, name);
     
@@ -440,7 +178,7 @@ int styxfs_create_cb(styx_server_t *base, uint32_t fid, const char *name,
         if (!srv->open_files[i].in_use) {
             memset(&srv->open_files[i], 0, sizeof(styxfs_file_t));
             srv->open_files[i].in_use = 1;
-            srv->open_files[i].qid_path = next_qid_path(srv);
+            srv->open_files[i].qid_path = styxfs_next_qid_path(srv);
             srv->open_files[i].qid_type = (perm & 0x80000000) ? STX_QTDIR : STX_QTFILE;
             srv->open_files[i].qid_version = 1;
             strncpy(srv->open_files[i].path, new_path, STYXFS_MAX_PATH - 1);
@@ -458,7 +196,7 @@ int styxfs_create_cb(styx_server_t *base, uint32_t fid, const char *name,
 int styxfs_read_cb(styx_server_t *base, uint32_t fid,
                     uint64_t offset, uint32_t count,
                     uint8_t *data, uint32_t *nread) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     *nread = 0;
     
     for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
@@ -570,7 +308,7 @@ int styxfs_read_cb(styx_server_t *base, uint32_t fid,
 int styxfs_write_cb(styx_server_t *base, uint32_t fid,
                      uint64_t offset, uint32_t count,
                      const uint8_t *data, uint32_t *nwritten) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     *nwritten = 0;
     
     if (srv->readonly) return -1;
@@ -598,7 +336,7 @@ int styxfs_write_cb(styx_server_t *base, uint32_t fid,
 }
 
 int styxfs_clunk_cb(styx_server_t *base, uint32_t fid) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     
     for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
         if (srv->open_files[i].in_use && srv->open_files[i].qid_path == (uint64_t)fid) {
@@ -612,14 +350,14 @@ int styxfs_clunk_cb(styx_server_t *base, uint32_t fid) {
 }
 
 int styxfs_remove_cb(styx_server_t *base, uint32_t fid) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     if (srv->readonly) return -1;
     return styxfs_clunk_cb(base, fid);
 }
 
 int styxfs_stat_cb(styx_server_t *base, uint32_t fid,
                     styx_dir_t *dir) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     
     memset(dir, 0, sizeof(*dir));
     
@@ -672,7 +410,7 @@ int styxfs_stat_cb(styx_server_t *base, uint32_t fid,
 
 int styxfs_wstat_cb(styx_server_t *base, uint32_t fid,
                      const styx_dir_t *dir) {
-    styxfs_server_t *srv = get_server(base);
+    styxfs_server_t *srv = styxfs_get_server(base);
     if (srv->readonly) return -1;
 
     /* Find the open file by fid (qid_path) */
@@ -760,240 +498,5 @@ int styxfs_build_dirent(styxfs_server_t *srv, const char *path,
     (void)offset; (void)count;
     if (out_size) *out_size = 0;
     return 0;
-}
-
-
-
-/* -- Global server instance --------------------------------------- */
-
-styxfs_server_t *g_styxfs_server = NULL;
-
-/* -- POSIX-like File API Implementation --------------------------- */
-
-/* stat - get file status */
-int styxfs_stat(const char *path, struct stat *st) {
-    if (!g_styxfs_server || !path || !st) return -1;
-    
-    styxfs_file_t *f = styxfs_resolve(g_styxfs_server, path, 0);
-    if (!f) return -1;
-    
-    memset(st, 0, sizeof(struct stat));
-    
-    if (f->qid_type == STX_QTDIR || f->is_dir) {
-        st->st_mode = S_IFDIR | 0755;
-    } else {
-        st->st_mode = S_IFREG | 0644;
-    }
-    
-    st->st_size = (off_t)f->payload_size;
-    st->st_mtime = (time_t)f->mtime;
-    st->st_atime = (time_t)f->atime;
-    st->st_ctime = (time_t)f->mtime;
-    st->st_nlink = 1;
-    st->st_uid = 0;
-    st->st_gid = 0;
-    
-    return 0;
-}
-
-/* create - create file/directory */
-int styxfs_create(const char *path, int mode, int perm) {
-    if (!g_styxfs_server || !path) return -1;
-    if (g_styxfs_server->readonly) return -1;
-    
-    int is_dir = (mode & 0xF000) == 0x4000; /* S_IFDIR */
-    
-    styxfs_file_t *f = styxfs_resolve(g_styxfs_server, path, 1);
-    if (f) return -1; /* Already exists */
-    
-    f = file_alloc(g_styxfs_server);
-    if (!f) return -1;
-    
-    f->qid_path = next_qid_path(g_styxfs_server);
-    f->qid_type = is_dir ? STX_QTDIR : STX_QTFILE;
-    f->qid_version = 1;
-    strncpy(f->path, path, STYXFS_MAX_PATH - 1);
-    f->is_dir = is_dir;
-    f->file_mode = (uint16_t)(perm & 0777);
-    f->atime = (uint32_t)time(NULL);
-    f->mtime = f->atime;
-    
-    return 0;
-}
-
-/* remove - remove file */
-int styxfs_remove(const char *path) {
-    if (!g_styxfs_server || !path) return -1;
-    if (g_styxfs_server->readonly) return -1;
-    
-    styxfs_file_t *f = styxfs_resolve(g_styxfs_server, path, 0);
-    if (!f) return -1;
-    
-    if (f->container_payload) free(f->container_payload);
-    if (f->write_buf) free(f->write_buf);
-    f->in_use = 0;
-    
-    return 0;
-}
-
-/* rename - rename/move file */
-int styxfs_rename(const char *oldpath, const char *newpath) {
-    if (!g_styxfs_server || !oldpath || !newpath) return -1;
-    if (g_styxfs_server->readonly) return -1;
-    
-    styxfs_file_t *f = styxfs_resolve(g_styxfs_server, oldpath, 0);
-    if (!f) return -1;
-    
-    styxfs_file_t *dest = styxfs_resolve(g_styxfs_server, newpath, 0);
-    if (dest) return -1; /* Destination exists */
-    
-    strncpy(f->path, newpath, STYXFS_MAX_PATH - 1);
-    f->mtime = (uint32_t)time(NULL);
-    f->qid_version++;
-    
-    return 0;
-}
-
-/* open - open file, returns fd index */
-int styxfs_open(const char *path, int flags) {
-    if (!g_styxfs_server || !path) return -1;
-    
-    styxfs_file_t *f = styxfs_resolve(g_styxfs_server, path, 0);
-    if (!f) {
-        /* Try to create if O_CREAT */
-        if (flags & 0x40) { /* O_CREAT */
-            f = file_alloc(g_styxfs_server);
-            if (!f) return -1;
-            f->qid_path = next_qid_path(g_styxfs_server);
-            f->qid_type = STX_QTFILE;
-            f->qid_version = 1;
-            strncpy(f->path, path, STYXFS_MAX_PATH - 1);
-            f->is_dir = false;
-            f->atime = (uint32_t)time(NULL);
-            f->mtime = f->atime;
-        } else {
-            return -1;
-        }
-    }
-    
-    f->mode = flags & 3; /* OREAD, OWRITE, ORDWR */
-    
-    /* Return index as fd (1-based to distinguish from 0) */
-    for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
-        if (&g_styxfs_server->open_files[i] == f) {
-            return i + 1;
-        }
-    }
-    return -1;
-}
-
-/* read - read from file descriptor */
-ssize_t styxfs_read(int fd, void *buf, size_t count) {
-    if (!g_styxfs_server) return -1;
-    if (fd < 1 || fd > STYXFS_MAX_OPEN_FILES) return -1;
-    
-    styxfs_file_t *f = &g_styxfs_server->open_files[fd - 1];
-    if (!f->in_use) return -1;
-    
-    if (f->qid_type == STX_QTDIR || f->is_dir) {
-        return -1; /* Cannot read directory as file */
-    }
-    
-    if (f->container_payload && f->payload_size > 0) {
-        uint64_t file_size = (uint64_t)f->payload_size;
-        if (f->offset >= file_size) return 0;
-        uint64_t avail = file_size - f->offset;
-        size_t to_read = (count < avail) ? count : (size_t)avail;
-        if (buf && to_read > 0) {
-            memcpy(buf, f->container_payload + f->offset, to_read);
-        }
-        f->offset += to_read;
-        return (ssize_t)to_read;
-    }
-    
-    if (f->write_buf && f->write_offset > 0) {
-        uint64_t file_size = (uint64_t)f->write_offset;
-        if (f->offset >= file_size) return 0;
-        uint64_t avail = file_size - f->offset;
-        size_t to_read = (count < avail) ? count : (size_t)avail;
-        if (buf && to_read > 0) {
-            memcpy(buf, f->write_buf + f->offset, to_read);
-        }
-        f->offset += to_read;
-        return (ssize_t)to_read;
-    }
-    
-    return 0;
-}
-
-/* write - write to file descriptor */
-ssize_t styxfs_write(int fd, const void *buf, size_t count) {
-    if (!g_styxfs_server) return -1;
-    if (fd < 1 || fd > STYXFS_MAX_OPEN_FILES) return -1;
-    
-    styxfs_file_t *f = &g_styxfs_server->open_files[fd - 1];
-    if (!f->in_use) return -1;
-    if (g_styxfs_server->readonly) return -1;
-    
-    if (f->qid_type == STX_QTDIR || f->is_dir) {
-        return -1; /* Cannot write directory */
-    }
-    
-    uint64_t end = f->offset + count;
-    if (end > (uint64_t)f->write_buf_size) {
-        size_t new_size = (size_t)(end + 4096);
-        uint8_t *new_buf = (uint8_t *)realloc(f->write_buf, new_size);
-        if (!new_buf) return -1;
-        f->write_buf = new_buf;
-        f->write_buf_size = new_size;
-    }
-    if (buf && count > 0) {
-        memcpy(f->write_buf + f->offset, buf, count);
-    }
-    f->offset = (size_t)end;
-    if (f->write_offset < (size_t)end) {
-        f->write_offset = (size_t)end;
-    }
-    f->mtime = (uint32_t)time(NULL);
-    f->qid_version++;
-    
-    return (ssize_t)count;
-}
-
-/* close - close file descriptor */
-int styxfs_close(int fd) {
-    if (!g_styxfs_server) return -1;
-    if (fd < 1 || fd > STYXFS_MAX_OPEN_FILES) return -1;
-    
-    styxfs_file_t *f = &g_styxfs_server->open_files[fd - 1];
-    if (!f->in_use) return 0;
-    
-    /* If there's a write buffer, commit it to payload */
-    if (f->write_buf && f->write_offset > 0) {
-        if (f->container_payload) free(f->container_payload);
-        f->container_payload = f->write_buf;
-        f->payload_size = f->write_offset;
-        f->write_buf = NULL;
-        f->write_buf_size = 0;
-        f->write_offset = 0;
-    }
-    
-    f->in_use = 0;
-    return 0;
-}
-
-/* Resolve a StyxFS namespace path to a backing host directory path.
- * Chooses the LONGEST matching mount prefix (most specific), then joins the
- * remaining components onto the mount's source. If no mount matches, the path
- * is used verbatim (a direct host path). */
-
-/* mkdir - make directory */
-int styxfs_mkdir(const char *path, mode_t mode) {
-    return styxfs_create(path, S_IFDIR, mode);
-}
-
-/* rmdir - remove directory */
-int styxfs_rmdir(const char *path) {
-    return styxfs_remove(path);
 }
 
