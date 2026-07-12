@@ -150,8 +150,7 @@ void dosgui_desktop_launch(int icon_id) {
 /* -- Render ------------------------------------------------------ */
 
 void dosgui_desktop_render(uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb;
-    dosgui_wm_render_desktop(fb, fb_w, fb_h);
+    dosgui_wm_render(fb, fb_w, fb_h);
 }
 
 /* -- Tick ------------------------------------------------------- */
