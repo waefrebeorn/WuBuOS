@@ -3,6 +3,7 @@
  */
 
 #include "bear_cudnn.h"
+#include "bear_simd.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
