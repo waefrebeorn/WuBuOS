@@ -24,4 +24,17 @@ bool archd_write_file(const char *path, const char *content);
 int  archd_mkdir_p(const char *path, mode_t mode);
 int  archd_rm_rf(const char *path);
 
+/* -- Daemon core shared state/functions -------------------------- *
+ * wubu_archd.c was split into wubu_archd_daemon.c (lifecycle + main)
+ * and wubu_archd_svc.c (pkg/repo/svc/aur/hook/health/gpu mgmt). The
+ * file-statics below are now shared across both siblings via this header.
+ * Single definition each (no double-coding).                          */
+
+/* Logging / pidfile / socket / root-scan shared by daemon + svc modules. */
+void archd_log(WubuArchd *d, int level, const char *fmt, ...);
+int  archd_write_pid(WubuArchd *d);
+void archd_remove_pid(void);
+int  archd_socket_create(WubuArchd *d);
+int  archd_scan_roots(WubuArchd *d);
+
 #endif /* WUBU_ARCHD_INTERNAL_H */
