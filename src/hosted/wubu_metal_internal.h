@@ -136,7 +136,7 @@ void wubu_disp_poll_events(void);
 WubuDispBackend wubu_disp_current(void);
 int wubu_disp_force(WubuDispBackend backend);
 int wubu_disp_get_modes(int *widths, int *heights, int max);
-void wubu_disp_gaad_nearest(int w, int h, int *out_w *out_w, int *out_h);
+void wubu_disp_gaad_nearest(int w, int h, int *out_w, int *out_h);
 
 int wubu_input_init(void);
 void wubu_input_shutdown(void);

@@ -32,7 +32,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
 METAL_OBJS = $(HOSTED)/wubu_metal.o
 
 # ── Hosted Objects ───────────────────────────────────────────────
-HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o $(HOSTED)/wubu_gbm.o $(HOSTED)/wubu_vulkan.o
+HOSTED_OBJS_LIST = $(HOSTED)/wubu_drm_direct.o $(HOSTED)/wubu_gbm.o $(HOSTED)/wubu_vulkan.o $(HOSTED)/wubu_metal_audio.o
 
 # ── JIT Objects ──────────────────────────────────────────────────
 JIT_OBJS = $(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_minic.o $(JIT)/jit_minic_token.o
@@ -120,12 +120,12 @@ gui: $(GUI_OBJS)
 bridge: $(BRIDGE_OBJS)
 	@echo "✅ Bridge built"
 
-apps: $(APP_OBJS)
+apps: $(APP_OBJS) $(APP_RT_OBJS)
 	@echo "✅ Apps built"
 
 # ── Game / App Targets ───────────────────────────────────────────
 
-paint: $(APP_OBJS) $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(APP_RT_OBJS) $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
+paint: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTED)/archd_hosted.o $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
 	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) -I$(JIT) -I$(HOSTED) \
 		-Wl,--start-group \
 		$(APPS)/paint.c $(APPS)/doom.c $(APPS)/apps_standalone.c $(GUI_OBJS) \
@@ -141,7 +141,7 @@ paint: $(APP_OBJS) $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(APP_RT_OBJS) $(GUI)/
 		-lm -lsqlite3 -lzstd -lz -lwayland-client -lxkbcommon -ldl -lvulkan -ljson-c -o $(APPS)/paint
 	@echo "✅ Paint built (./src/apps/paint)"
 
-doom: $(APP_OBJS) $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(APP_RT_OBJS) $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
+doom: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTED)/archd_hosted.o $(GUI)/standalone_hosted_shim.o $(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o
 	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) -I$(JIT) -I$(HOSTED) \
 		-Wl,--start-group \
 		$(APPS)/doom.c $(APPS)/paint.c $(APPS)/apps_standalone.c $(GUI_OBJS) \
@@ -250,7 +250,7 @@ $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
 	$(CC) $(CFLAGS) -I$(HOSTED) -x c -c $< -o $@
 
 # Link-only target: reuses the .o files above. Edit one file -> one .o rebuild + relink.
-hosted: $(HOSTED_OBJS)
+hosted: $(HOSTED_OBJS) $(RT_OBJS)
 	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED_OBJS) $(RT)/wubu_fs_util.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -o $(HOSTED)/wubu
