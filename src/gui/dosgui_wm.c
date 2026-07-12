@@ -35,7 +35,7 @@ DosGuiWM g_dwm = {0};
 void raise_win(int i);
 void close_win(int i);
 int  hit_test(int x, int y);
-void draw_window(int idx);
+void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h);
 void draw_desktop_bg(int fb_w, int fb_h);
 const WubuThemeColors *tc(void);
 const WubuTheme *theme(void);
@@ -118,7 +118,7 @@ int hit_test(int x, int y) {
 
 const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 const WubuTheme *theme(void) { return wubu_theme_get(); }
-void draw_window(int idx) {
+void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
     DosGuiWindow *w = &g_dwm.windows[idx];
     if (!w->alive) return;
     bool active = (idx == g_dwm.focused_id);
@@ -191,7 +191,10 @@ void draw_window(int idx) {
     }
 
     if (w->on_draw) {
-        w->on_draw(w, NULL, cw, ch);
+        /* Pass the real framebuffer + full dimensions so apps can render
+         * into their content region (origin at cx,cy). Apps that draw via
+         * the global vbe_* backbuffer ignore these and still work. */
+        w->on_draw(w, fb, fb_w, fb_h);
     }
 }
 

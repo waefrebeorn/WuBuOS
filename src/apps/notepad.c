@@ -19,14 +19,14 @@ struct NotepadState {
 
 static struct NotepadState g_notepad = {0};
 
-static void notepad_draw(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void dosgui_notepad_draw(WmWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     int x = win->x + 4, y = win->y + WM_TITLE_HEIGHT + 4;
     /* White text area */
     vbe_fill_rect(x, y, win->w - 8, win->h - WM_TITLE_HEIGHT - 8, 0x00FFFFFF);
 }
 
-static void notepad_handle_key(WmWindow *win, uint32_t key, uint32_t mods) {
+void dosgui_notepad_key(WmWindow *win, uint32_t key, uint32_t mods) {
     (void)win; (void)mods;
     if (key == 8 && g_notepad.cursor_pos > 0) {
         g_notepad.cursor_pos--;
@@ -53,7 +53,7 @@ void notepad_open(const char *filename) {
     WmWindow *win = wm_create_window(100, 80, 500, 400,
                                     filename ? filename : "Untitled - Notepad");
     if (win) {
-        win->on_draw = notepad_draw;
-        win->on_key = notepad_handle_key;
+        win->on_draw = dosgui_notepad_draw;
+        win->on_key = dosgui_notepad_key;
     }
 }

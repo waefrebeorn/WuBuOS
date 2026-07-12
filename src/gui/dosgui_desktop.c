@@ -29,33 +29,7 @@
 static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 static const WubuTheme *theme(void) { return wubu_theme_get(); }
 
-/* -- App Registry ------------------------------------------- */
-
-typedef struct {
-    const char *name;
-    const char *title;
-    int         icon_type;
-    /* External launch command (for real host apps like doom) */
-    const char *exec_cmd;
-} AppEntry;
-
-static AppEntry g_apps[] = {
-    { "My Computer",  "My Computer",   DESK_ICON_MY_COMPUTER,   NULL },
-    { "Temple REPL",  "HolyC REPL",    DESK_ICON_TEMPLE_REPL,   NULL },
-    { "Notepad",      "Notepad",       DESK_ICON_NOTEPAD,       NULL },
-    { "Paint",        "Paint",         DESK_ICON_PAINT,         NULL },
-    { "Calculator",   "Calculator",    DESK_ICON_CALCULATOR,    NULL },
-    { "Terminal",     "Terminal",      DESK_ICON_TERMINAL,      NULL },
-    { "File Manager", "File Manager",  DESK_ICON_EXPLORER,      NULL },
-    { "Settings",     "Control Panel", DESK_ICON_SETTINGS,      NULL },
-    { "Editor",       "Editor",        DESK_ICON_COUNT,         NULL },
-    { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,     NULL },
-    { "FreeDoom",     "FreeDoom",      DESK_ICON_COUNT + 2,     NULL },
-    { "HolyC Term",   "HolyC Terminal", DESK_ICON_COUNT + 3,    NULL },
-    { "Container Manager", "Containers", DESK_ICON_COUNT + 4,  NULL },
-    { "HolyC Sessions", "HolyC Sessions", DESK_ICON_COUNT + 5,  NULL },
-};
-#define NUM_APPS (sizeof(g_apps) / sizeof(g_apps[0]))
+/* -- App Registry (single source of truth: dosgui_apps.c) -------- */
 
 /* Tracking launched app windows for re-focus */
 typedef struct {
@@ -71,19 +45,17 @@ static int g_launched_count = 0;
 /* -- Setup Icons ---------------------------------------------------- */
 
 int dosgui_desktop_init(void) {
-    /* Register desktop icons with dosgui_wm */
-    dosgui_icon_add("My Computer",  0, 0, dosgui_launch_my_computer);
-    dosgui_icon_add("Temple REPL",  0, 1, dosgui_launch_temple_repl);
-    dosgui_icon_add("Notepad",      0, 2, dosgui_launch_notepad);
-    dosgui_icon_add("Paint",        0, 3, dosgui_launch_paint);
-    dosgui_icon_add("Calculator",   0, 4, dosgui_launch_calculator);
-    dosgui_icon_add("Terminal",     0, 5, dosgui_launch_terminal);
-    dosgui_icon_add("File Manager", 0, 6, dosgui_launch_file_manager);
-    dosgui_icon_add("Settings",     0, 7, dosgui_launch_settings);
-    dosgui_icon_add("Editor",       1, 0, dosgui_launch_editor);
-    dosgui_icon_add("WuBu Canvas",  1, 1, dosgui_launch_canvas);
-    dosgui_icon_add("FreeDoom",     1, 2, dosgui_launch_freedoom);
-    dosgui_icon_add("HolyC Term",   1, 3, dosgui_launch_holyc_term);
+    /* Register desktop icons from the single app registry. */
+    for (int i = 0; i < g_app_def_count; i++) {
+        const DosGuiAppDef *d = &g_app_defs[i];
+        /* Skip duplicate entries that map to the same launch (e.g. Paint==Canvas). */
+        bool dup = false;
+        for (int j = 0; j < i; j++)
+            if (g_app_defs[j].launch == d->launch && g_app_defs[j].icon_type == d->icon_type) { dup = true; break; }
+        if (dup) continue;
+        dosgui_icon_add_ex(d->name, DESK_ICON_APP, NULL,
+                           i % 6, i / 6, d->icon_color, NULL);
+    }
 
     /* Initialize daemon panel (system tray icons, socket connections) */
     dosgui_daemon_panel_init();
@@ -152,11 +124,9 @@ void dosgui_launch_app(const char *name) {
 }
 
 void dosgui_desktop_launch(int icon_id) {
-    if (icon_id < 0 || (size_t)icon_id >= NUM_APPS) return;
+    if (icon_id < 0 || icon_id >= g_app_def_count) return;
 
-    AppEntry *app = &g_apps[icon_id];
-
-    /* Check if already launched — re-focus */
+    /* Re-focus an already-launched in-process window. */
     for (int i = 0; i < g_launched_count; i++) {
         if (g_launched[i].active && g_launched[i].app_idx == icon_id &&
             g_launched[i].win_id > 0) {
@@ -166,24 +136,14 @@ void dosgui_desktop_launch(int icon_id) {
         }
     }
 
-    if (app->exec_cmd) {
-        /* External host app */
-        launch_host_app(app->exec_cmd);
-        /* Also create a placeholder window */
-        DosGuiWindow *win = dosgui_wm_create(
-            100 + (g_launched_count * 30) % 200,
-            80 + (g_launched_count * 25) % 150,
-            640, 480, app->title);
-        if (win && g_launched_count < 16) {
-            g_launched[g_launched_count].app_idx = icon_id;
-            g_launched[g_launched_count].win_id = win->id;
-            g_launched[g_launched_count].pid = 0;
-            g_launched[g_launched_count].active = 1;
-            g_launched_count++;
-        }
-    } else {
-        /* In-process app window - uses dosgui_apps */
-        dosgui_launch_app(app->name);
+    const DosGuiAppDef *d = &g_app_defs[icon_id];
+    DosGuiWindow *win = d->launch();
+    if (win && g_launched_count < 16) {
+        g_launched[g_launched_count].app_idx = icon_id;
+        g_launched[g_launched_count].win_id = win->id;
+        g_launched[g_launched_count].pid = 0;
+        g_launched[g_launched_count].active = 1;
+        g_launched_count++;
     }
 }
 

@@ -746,6 +746,35 @@ void wubu_cv_undo(WubuCanvas *cv) {
     snap->pixels = NULL;
 }
 
+void wubu_cv_redo(WubuCanvas *cv) {
+    if (!cv || g_redo_sp <= 0 || cv->active_layer < 0) return;
+    WubuLayer *l = &cv->layers[cv->active_layer];
+    if (!l->pixels) return;
+
+    /* Save current to undo */
+    if (g_undo_sp >= UNDO_MAX) {
+        if (g_undo_stack[0].pixels) free(g_undo_stack[0].pixels);
+        memmove(&g_undo_stack[0], &g_undo_stack[1], (UNDO_MAX - 1) * sizeof(UndoSnapshot));
+        g_undo_sp = UNDO_MAX - 1;
+    }
+    g_undo_stack[g_undo_sp].w = l->w;
+    g_undo_stack[g_undo_sp].h = l->h;
+    g_undo_stack[g_undo_sp].pixels = (uint32_t*)malloc((size_t)l->w * l->h * sizeof(uint32_t));
+    if (g_undo_stack[g_undo_sp].pixels) {
+        memcpy(g_undo_stack[g_undo_sp].pixels, l->pixels, (size_t)l->w * l->h * sizeof(uint32_t));
+        g_undo_sp++;
+    }
+
+    /* Restore from redo */
+    g_redo_sp--;
+    UndoSnapshot *snap = &g_redo_stack[g_redo_sp];
+    if (snap->pixels && snap->w == l->w && snap->h == l->h) {
+        memcpy(l->pixels, snap->pixels, (size_t)l->w * l->h * sizeof(uint32_t));
+    }
+    free(snap->pixels);
+    snap->pixels = NULL;
+}
+
 static void undo_push_snapshot(WubuCanvas *cv) {
     if (!cv || cv->active_layer < 0) return;
     WubuLayer *l = &cv->layers[cv->active_layer];

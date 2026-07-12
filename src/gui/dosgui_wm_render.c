@@ -64,7 +64,7 @@ void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h) {
         int idx = g_dwm.zorder[j];
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (w->alive && w->desktop == g_dwm.current_desktop && !(w->flags & DOSGUI_WIN_MINIMIZED))
-            draw_window(idx);
+            draw_window(idx, fb, fb_w, fb_h);
     }
 
     dosgui_taskbar_render(fb, fb_w, fb_h);
