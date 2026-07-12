@@ -51,6 +51,10 @@ int vbe_init(int width, int height) {
     return 0;
 }
 
+uint32_t *vbe_framebuffer(void) { return g_vbe.fb; }
+int       vbe_width(void)       { return g_vbe.width; }
+int       vbe_height(void)      { return g_vbe.height; }
+
 void vbe_shutdown(void) {
     if (g_vbe.fb)   VBE_FREE(g_vbe.fb);
     if (g_vbe.back) VBE_FREE(g_vbe.back);
