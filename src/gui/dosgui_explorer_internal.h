@@ -52,6 +52,15 @@
 
 /* -- Internal helpers exposed for sub-modules ---------------------- */
 
+/* -- Tree scan + breadcrumb + history + context-menu helpers -------- */
+/* (extracted from dosgui_explorer.c into dosgui_explorer_tree.c) */
+void ex_scan_directory(const char *path);
+void ex_tree_scan(ExTreeNode *node);
+void ex_add_to_history(ExExplorerState *ex, const char *path);
+void ex_show_context_menu(ExExplorerState *ex, int mx, int my, int entry_idx);
+void ex_hide_context_menu(ExExplorerState *ex);
+void dosgui_explorer_update_drive_list(void);
+
 /* Update breadcrumbs (called by zip module after populating entries) */
 void ex_update_breadcrumbs(ExExplorerState *ex);
 
