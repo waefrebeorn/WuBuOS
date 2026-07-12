@@ -15,6 +15,7 @@
 /* -- JSON literal extraction (wubu_bottles_json.c) ---------------- */
 const char *json_find_string_literal(const char *json, const char *key);
 int         json_find_int_literal(const char *json, const char *key);
-bool        json_find_bool_literal(const char *json, const char *key);
+/* -- Recursive delete (wubu_bottles_fs.c, wraps wubu_fs_util) -- */
+int bottles_rm_rf(const char *path);
 
 #endif /* WUBU_BOTTLES_INTERNAL_H */

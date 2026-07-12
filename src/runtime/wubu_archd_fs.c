@@ -11,17 +11,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <ftw.h>
-#include <sys/stat.h>
-
-static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
-    (void)sb; (void)typeflag; (void)ftwbuf;
-    return unlink(fpath) == 0 ? 0 : -1;
-}
+#include "wubu_fs_util.h"
 
 int archd_rm_rf(const char *path) {
-    if (!path) return -1;
-    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+    return wubu_fs_rm_rf(path);
 }
 
 /* -- Helper: run command via fork+exec (no system()) ---------------- */

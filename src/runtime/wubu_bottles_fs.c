@@ -12,19 +12,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
-#include <ftw.h>
-#include <sys/stat.h>
-
-/* Forward decl (static helper used by bottles_rm_rf) */
-static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf);
-
-static int unlink_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
-    (void)sb; (void)typeflag; (void)ftwbuf;
-    return unlink(fpath) == 0 ? 0 : -1;
-}
+#include "wubu_fs_util.h"
 
 int bottles_rm_rf(const char *path) {
-    if (!path) return -1;
-    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+    return wubu_fs_rm_rf(path);
 }
 
