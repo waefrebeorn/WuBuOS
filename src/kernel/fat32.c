@@ -13,6 +13,7 @@
  */
 
 #include "fat32.h"
+#include "fat32_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -23,7 +24,7 @@
 /* -- Internal Helpers --------------------------------------------- */
 
 /* Read a single FAT entry (4 bytes) for given cluster */
-static int fat_read_entry(fat32_volume *vol, uint32_t cluster, uint32_t *out) {
+int fat_read_entry(fat32_volume *vol, uint32_t cluster, uint32_t *out) {
     /* FAT entries are 4 bytes each, 128 per sector */
     uint32_t entries_per_sector = FAT32_SECTOR_SIZE / 4;
     uint32_t fat_sector = cluster / entries_per_sector;
@@ -46,7 +47,7 @@ static int fat_read_entry(fat32_volume *vol, uint32_t cluster, uint32_t *out) {
 }
 
 /* Write a single FAT entry */
-static int fat_write_entry(fat32_volume *vol, uint32_t cluster, uint32_t value) {
+int fat_write_entry(fat32_volume *vol, uint32_t cluster, uint32_t value) {
     uint32_t entries_per_sector = FAT32_SECTOR_SIZE / 4;
     uint32_t fat_sector = cluster / entries_per_sector;
     uint32_t fat_offset = cluster % entries_per_sector;
@@ -84,76 +85,6 @@ static void fat_cache_invalidate(fat32_volume *vol) {
 /* -- Internal: 8.3 Name Conversion ------------------------------- */
 
 /* Convert "filename.ext" → 8.3 format (space-padded, uppercased) */
-static void name_to_83(const char *src, char name83[11]) {
-    memset(name83, ' ', 11);
-
-    if (strcmp(src, ".") == 0) {
-        name83[0] = '.';
-        return;
-    }
-    if (strcmp(src, "..") == 0) {
-        name83[0] = '.';
-        name83[1] = '.';
-        return;
-    }
-
-    /* Copy name part (before '.') */
-    int i = 0;
-    while (i < 8 && *src && *src != '.')
-        name83[i++] = (char)toupper((unsigned char)*src++);
-
-    /* Skip dot */
-    if (*src == '.') src++;
-
-    /* Copy extension */
-    int j = 8;
-    while (j < 11 && *src)
-        name83[j++] = (char)toupper((unsigned char)*src++);
-}
-
-/* Convert 8.3 format → readable name */
-static void name_from_83(const char name83[11], char *dst, size_t dst_size) {
-    size_t k = 0;
-
-    /* Find end of name part */
-    int name_end = 7;
-    while (name_end >= 0 && name83[name_end] == ' ') name_end--;
-
-    for (int i = 0; i <= name_end && k < dst_size - 1; i++)
-        dst[k++] = name83[i];
-
-    /* Find end of extension */
-    int ext_end = 10;
-    while (ext_end >= 8 && name83[ext_end] == ' ') ext_end--;
-
-    if (ext_end >= 8 && name83[0] != '.') {
-        if (k < dst_size - 1) dst[k++] = '.';
-        for (int i = 8; i <= ext_end && k < dst_size - 1; i++)
-            dst[k++] = name83[i];
-    }
-
-    dst[k] = '\0';
-}
-
-/* LFN checksum (ZealOS FATNameXSum) */
-static uint8_t lfn_checksum(const char name83[11]) {
-    uint8_t sum = 0;
-    for (int i = 0; i < 11; i++) {
-        sum = (uint8_t)(((sum & 1) ? 0x80 : 0) + (sum >> 1) + (uint8_t)name83[i]);
-    }
-    return sum;
-}
-
-/* Case-insensitive compare */
-static int name_cmp(const char *a, const char *b) {
-    while (*a && *b) {
-        int ca = toupper((unsigned char)*a);
-        int cb = toupper((unsigned char)*b);
-        if (ca != cb) return ca - cb;
-        a++; b++;
-    }
-    return toupper((unsigned char)*a) - toupper((unsigned char)*b);
-}
 
 /* -- Internal: DOS Date/Time -------------------------------------- */
 
@@ -354,91 +285,6 @@ int fat32_format(const fat32_blk_ops *blk, uint64_t sector_count,
 
 /* -- Cluster Operations ------------------------------------------- */
 
-uint32_t fat32_next_cluster(fat32_volume *vol, uint32_t cluster) {
-    if (cluster < 2) return 0;
-    uint32_t entry;
-    if (fat_read_entry(vol, cluster, &entry) != 0) return 0;
-    if (entry >= FAT32_CLUSTER_EOC) return 0;  /* End of chain */
-    return entry;
-}
-
-uint64_t fat32_cluster_to_lba(fat32_volume *vol, uint32_t cluster) {
-    if (cluster < 2) return 0;
-    return vol->data_lba + (uint64_t)(cluster - 2) * vol->sectors_per_cluster;
-}
-
-uint32_t fat32_lba_to_cluster(fat32_volume *vol, uint64_t lba) {
-    if (lba < vol->data_lba) return 0;
-    uint32_t cluster = (uint32_t)((lba - vol->data_lba) / vol->sectors_per_cluster) + 2;
-    return cluster;
-}
-
-uint32_t fat32_alloc_clusters(fat32_volume *vol, uint32_t count, uint32_t hint) {
-    if (count == 0) return 0;
-
-    uint32_t start = (hint >= 2) ? hint : 2;
-    if (start < 2) start = 2;
-
-    /* Scan for free clusters */
-    uint32_t first = 0;
-    uint32_t found = 0;
-    uint32_t cluster = start;
-
-    for (uint32_t scanned = 0; scanned < vol->total_clusters; scanned++) {
-        if (cluster >= vol->total_clusters) cluster = 2;
-
-        uint32_t entry;
-        if (fat_read_entry(vol, cluster, &entry) != 0) return 0;
-
-        if (entry == FAT32_CLUSTER_FREE) {
-            if (found == 0) first = cluster;
-            found++;
-            if (found >= count) break;
-        } else {
-            found = 0;
-            first = 0;
-        }
-        cluster++;
-    }
-
-    if (found < count) return 0;  /* Not enough free clusters */
-
-    /* Link the chain */
-    for (uint32_t i = 0; i < count; i++) {
-        uint32_t c = first + i;
-        uint32_t next = (i < count - 1) ? (c + 1) : FAT32_CLUSTER_EOC;
-        if (fat_write_entry(vol, c, next) != 0) return 0;
-    }
-
-    /* Update hint */
-    vol->next_free = first + count;
-    if (vol->next_free >= vol->total_clusters) vol->next_free = 2;
-    if (vol->free_clusters > count) vol->free_clusters -= count;
-
-    return first;
-}
-
-void fat32_free_chain(fat32_volume *vol, uint32_t cluster) {
-    while (cluster >= 2 && cluster < FAT32_CLUSTER_EOC) {
-        uint32_t next;
-        if (fat_read_entry(vol, cluster, &next) != 0) break;
-        fat_write_entry(vol, cluster, FAT32_CLUSTER_FREE);
-        vol->free_clusters++;
-        if (next >= FAT32_CLUSTER_EOC) break;
-        cluster = next;
-    }
-}
-
-uint32_t fat32_count_free(fat32_volume *vol) {
-    uint32_t count = 0;
-    for (uint32_t c = 2; c < vol->total_clusters; c++) {
-        uint32_t entry;
-        if (fat_read_entry(vol, c, &entry) != 0) break;
-        if (entry == FAT32_CLUSTER_FREE) count++;
-    }
-    vol->free_clusters = count;
-    return count;
-}
 
 /* -- Directory Operations ----------------------------------------- */
 

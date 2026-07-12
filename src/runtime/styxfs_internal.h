@@ -16,6 +16,11 @@
 
 /* -- Shared internal helpers ------------------------------------- */
 void normalize_path(char *path);
+void build_path(char *out, size_t out_size, const char *base, const char *name);
+int  path_is_mounted(styxfs_server_t *srv, const char *path);
+int  count_children(styxfs_server_t *srv, const char *path);
+void styxfs_path_to_host(styxfs_server_t *srv, const char *path,
+                         char *out, size_t out_size);
 styxfs_mount_t *styxfs_find_mount(styxfs_server_t *srv, const char *path, char *rel_path);
 styxfs_file_t *styxfs_resolve(styxfs_server_t *srv, const char *path, int create_if_missing);
 int  styxfs_load_container(const char *path, WUBU_HEADER *out_hdr, uint8_t **out_payload, size_t *out_size);
