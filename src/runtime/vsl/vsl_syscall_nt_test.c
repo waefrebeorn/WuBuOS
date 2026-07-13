@@ -892,6 +892,96 @@ int main(void) {
         munmap(mp, 4096);
     }
 
+    /* 35. Blitz batch: high-value file/mem/section/sync/registry surface. */
+    {
+        int64_t r;  /* dispatch result for this block */
+        /* NtQueryAttributesFile (146) — stat a real file. */
+        char qa_path[] = "/tmp/wubu_nt_qattr";
+        int qfd = open(qa_path, O_RDWR|O_CREAT, 0644); close(qfd);
+        uint8_t qabuf[40]; memset(qabuf, 0, sizeof(qabuf));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)qa_path;
+        args[1] = (uint64_t)(uintptr_t)qabuf;
+        r = vsl_nt_syscall_dispatch(&ctx, 146, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryAttributesFile stats a real file");
+        unlink(qa_path);
+
+        /* NtDeleteFile (66) — unlink by name. */
+        char df_path[] = "/tmp/wubu_nt_delfile";
+        int dfd = open(df_path, O_RDWR|O_CREAT, 0644); close(dfd);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)df_path;
+        r = vsl_nt_syscall_dispatch(&ctx, 66, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtDeleteFile removes a real file");
+        CHECK(access(df_path, F_OK) != 0, "NtDeleteFile target is gone");
+
+        /* NtProtectVirtualMemory (144) — mprotect a private mapping. */
+        void *pm = mmap(NULL, 4096, PROT_READ, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+        CHECK(pm != MAP_FAILED, "mmap for NtProtectVirtualMemory");
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)(uintptr_t)pm;
+        args[2] = 4096;
+        args[3] = 0x4; /* PAGE_READWRITE */
+        r = vsl_nt_syscall_dispatch(&ctx, 144, args, 4);
+        CHECK(r == NT_STATUS_SUCCESS, "NtProtectVirtualMemory mprotects the range");
+        munmap(pm, 4096);
+
+        /* NtLockVirtualMemory (109) / NtUnlockVirtualMemory (277). */
+        void *lm = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+        CHECK(lm != MAP_FAILED, "mmap for NtLockVirtualMemory");
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)(uintptr_t)lm; args[2] = 4096;
+        r = vsl_nt_syscall_dispatch(&ctx, 109, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtLockVirtualMemory mlock");
+        r = vsl_nt_syscall_dispatch(&ctx, 277, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtUnlockVirtualMemory munlock");
+        munmap(lm, 4096);
+
+        /* NtOpenSection (132) + NtQuerySection (176). */
+        uint32_t sec = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&sec;
+        r = vsl_nt_syscall_dispatch(&ctx, 132, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenSection mints a handle");
+        uint8_t sinfo[16]; memset(sinfo, 0, sizeof(sinfo));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)sec; args[2] = (uint64_t)(uintptr_t)sinfo;
+        r = vsl_nt_syscall_dispatch(&ctx, 176, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQuerySection reports section info");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)sec;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+
+        /* NtLoadKey (103) + NtUnloadKey (273). */
+        uint32_t hk = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&hk;
+        r = vsl_nt_syscall_dispatch(&ctx, 103, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtLoadKey mounts a hive");
+        CHECK(hk != 0, "NtLoadKey returns a hive key");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)hk;
+        r = vsl_nt_syscall_dispatch(&ctx, 273, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtUnloadKey unmounts the hive");
+
+        /* NtFlushKey (84) on a fresh key — should succeed (nothing to flush). */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)1;
+        r = vsl_nt_syscall_dispatch(&ctx, 84, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtFlushKey succeeds");
+
+        /* NtOpenMutant (127) + NtOpenSemaphore (133). */
+        uint32_t om = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&om;
+        r = vsl_nt_syscall_dispatch(&ctx, 127, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenMutant mints a handle");
+        uint32_t os = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&os;
+        r = vsl_nt_syscall_dispatch(&ctx, 133, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenSemaphore mints a handle");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)om;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)os;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);

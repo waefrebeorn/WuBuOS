@@ -245,6 +245,66 @@ int64_t vsl_nt_query_system_time(uint64_t a_time_out, uint64_t b,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtFlushKey (84): values are written synchronously as files, so a flush is a
+ * best-effort fsync of the registry root directory tree. */
+int64_t vsl_nt_flush_key(uint64_t a_key, uint64_t b, uint64_t c,
+                         uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    if (!a_key) return NT_STATUS_INVALID_PARAMETER;
+    /* Walk the key's directory and fsync each value file. */
+    char dir[768];
+    snprintf(dir, sizeof(dir), "%s/key_%llu", g_nt_reg_root,
+             (unsigned long long)a_key);
+    DIR *dp = opendir(dir);
+    if (!dp) return NT_STATUS_SUCCESS;  /* nothing to flush */
+    struct dirent *de;
+    while ((de = readdir(dp))) {
+        if (de->d_name[0] == '.') continue;
+        char fp[1024]; snprintf(fp, sizeof(fp), "%s/%s", dir, de->d_name);
+        int fd = open(fp, O_RDONLY);
+        if (fd >= 0) { fsync(fd); close(fd); }
+    }
+    closedir(dp);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtLoadKey (103): mount a hive — create its directory under the registry root. */
+int64_t vsl_nt_load_key(uint64_t a_key_out, uint64_t b_obj_attr,
+                        uint64_t c_file, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_obj_attr; (void)c_file; (void)d; (void)e; (void)f;
+    if (!a_key_out) return NT_STATUS_INVALID_PARAMETER;
+    static uint32_t hive_seq = 100000;
+    uint32_t hk = ++hive_seq;
+    char dir[768];
+    snprintf(dir, sizeof(dir), "%s/hive_%u", g_nt_reg_root, hk);
+    if (mkdir_p(dir) != 0) return NT_STATUS_UNSUCCESSFUL;
+    *(uint32_t *)a_key_out = hk;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtUnloadKey (273): unmount a hive — remove its directory tree. */
+int64_t vsl_nt_unload_key(uint64_t a_key, uint64_t b, uint64_t c,
+                          uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    if (!a_key) return NT_STATUS_INVALID_PARAMETER;
+    char dir[768];
+    snprintf(dir, sizeof(dir), "%s/hive_%llu", g_nt_reg_root,
+             (unsigned long long)a_key);
+    /* Recursive remove. */
+    DIR *dd = opendir(dir);
+    if (dd) {
+        struct dirent *de;
+        while ((de = readdir(dd))) {
+            if (de->d_name[0] == '.') continue;
+            char fp[1024]; snprintf(fp, sizeof(fp), "%s/%s", dir, de->d_name);
+            unlink(fp);
+        }
+        closedir(dd);
+    }
+    rmdir(dir);
+    return NT_STATUS_SUCCESS;
+}
+
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
@@ -257,4 +317,7 @@ void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[183-1] = vsl_nt_query_system_time;
     tbl[186-1] = vsl_nt_query_value_key;
     tbl[257-1] = vsl_nt_set_value_key;
+    tbl[84-1] = vsl_nt_flush_key;
+    tbl[103-1] = vsl_nt_load_key;
+    tbl[273-1] = vsl_nt_unload_key;
 }

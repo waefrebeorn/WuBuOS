@@ -247,7 +247,49 @@ int64_t vsl_nt_open_thread(uint64_t a_thr_out, uint64_t b_access,
     return NT_STATUS_SUCCESS;
 }
 
-/* ----------------------------------------------------------------------
+/* NtWaitForMultipleObjects (281): wait on any of the supplied handles.
+ * a = count, b = handles array, c = wait-all flag, d = alertable, e = timeout. */
+int64_t vsl_nt_wait_for_multiple_objects(uint64_t a_count, uint64_t b_handles,
+                                     uint64_t c_waitall, uint64_t d_alert,
+                                     uint64_t e_timeout, uint64_t f) {
+    (void)d_alert; (void)e_timeout; (void)f;
+    if (!a_count || !b_handles) return NT_STATUS_INVALID_PARAMETER;
+    uint32_t *hs = (uint32_t *)(uintptr_t)b_handles;
+    int count = (int)a_count;
+    for (int i = 0; i < count; i++) {
+        uint32_t h = hs[i];
+        int fd;
+        if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, h, &fd) != 0) continue;
+        uint64_t v = 0;
+        ssize_t n = read(fd, &v, sizeof(v));
+        if (n == (ssize_t)sizeof(v) && v > 0) {
+            uint64_t z = 0; write(fd, &z, sizeof(z));
+            return (int64_t)i;
+        }
+    }
+    if (c_waitall) return NT_STATUS_WAIT_0;
+    return NT_STATUS_TIMEOUT;
+}
+
+/* NtOpenMutant (127) / NtOpenSemaphore (133): mint a fresh sync object handle. */
+int64_t vsl_nt_open_mutant(uint64_t a_out, uint64_t b_access,
+                           uint64_t c_obj_attr, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_access; (void)c_obj_attr; (void)d; (void)e; (void)f;
+    if (!a_out) return NT_STATUS_INVALID_PARAMETER;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_MUTANT);
+    if (h == 0) return NT_STATUS_UNSUCCESSFUL;
+    *(uint32_t *)a_out = h;
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_open_semaphore(uint64_t a_out, uint64_t b_access,
+                              uint64_t c_obj_attr, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_access; (void)c_obj_attr; (void)d; (void)e; (void)f;
+    if (!a_out) return NT_STATUS_INVALID_PARAMETER;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_SEMAPHORE);
+    if (h == 0) return NT_STATUS_UNSUCCESSFUL;
+    *(uint32_t *)a_out = h;
+    return NT_STATUS_SUCCESS;
+}
 
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size) {
@@ -261,4 +303,7 @@ void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[198-1] = vsl_nt_release_semaphore;
     tbl[215-1] = vsl_nt_resume_thread;
     tbl[282-1] = vsl_nt_wait_for_single_object;
+    tbl[127-1] = vsl_nt_open_mutant;
+    tbl[133-1] = vsl_nt_open_semaphore;
+    tbl[281-1] = vsl_nt_wait_for_multiple_objects;
 }

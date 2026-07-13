@@ -110,8 +110,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 66 transliterated) — 231 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 66 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10 + batch 7: 8 + batch 8: 8).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 88 transliterated) — 209 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 88 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10 + batch 7: 8 + batch 8: 8 + blitz: 22).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
@@ -186,7 +186,20 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   Ordinals verified against `reactos-study/ntoskrnl/sysfuncs.lst`; `NtResetVirtualMemory`
   macro added to `vsl_nt_bridge.h` (was missing). `test_vsl_nt` lite build now **149/0**
   (16 new Batch-8 checks asserting real file I/O + volume query + decommit work).
-- This is the single largest block: **231 remaining = "rewrite-from-scratch" work items.**
+- Blitz (2026-07-13): **22 more syscalls in one push** — file/mem/section/sync/registry
+  surface a real loader drives: `NtDeleteFile`(66), `NtQueryAttributesFile`(146),
+  `NtQueryFullAttributesFile`(157), `NtSetVolumeInformationFile`(258),
+  `NtQueryDirectoryFile`(152), `NtProtectVirtualMemory`(144), `NtQueryVirtualMemory`(187),
+  `NtLockVirtualMemory`(109), `NtUnlockVirtualMemory`(277), `NtOpenSection`(132),
+  `NtQuerySection`(176), `NtFlushVirtualMemory`(85), `NtSuspendThread`(264),
+  `NtTerminateThread`(268), `NtQueryInformationThread`(163), `NtSetInformationProcess`(238),
+  `NtWaitForMultipleObjects`(281), `NtOpenMutant`(127), `NtOpenSemaphore`(133),
+  `NtFlushKey`(84), `NtLoadKey`(103), `NtUnloadKey`(273). All do real POSIX work
+  (unlink/stat/mprotect/mlock/msync/SIGSTOP/pthread_cancel/tgkill/eventfd-read/
+  fsync-dir-tree/rmdir-hive). Ordinals verified vs `sysfuncs.lst`. Added missing
+  `NT_STATUS_*` codes (TIMEOUT/WAIT_0/ALERTED/NO_MORE_FILES/BUFFER_OVERFLOW) to bridge.h.
+  `test_vsl_nt` lite build now **165/0** (14 new blitz checks). **Total 88 transliterated, 209 remain.**
+- This is the single largest block: **209 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |

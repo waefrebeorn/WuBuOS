@@ -34,6 +34,11 @@
 #define NT_STATUS_END_OF_FILE            0xC0000011
 #define NT_STATUS_PENDING                0x00000103
 #define NT_STATUS_MORE_ENTRIES           0x00000105
+#define NT_STATUS_TIMEOUT                0x00000102
+#define NT_STATUS_WAIT_0                 0x00000000
+#define NT_STATUS_ALERTED                0x00000101
+#define NT_STATUS_NO_MORE_FILES          0x8000001A
+#define NT_STATUS_BUFFER_OVERFLOW        0x80000005
 
 /* ========================================================================
  * NT System Call Numbers (from sysfuncs.lst - 297 syscalls)
