@@ -68,6 +68,20 @@ typedef struct {
 
 extern hosted_state_t *g_hosted_state;
 
+/* ── Cross-module Wayland sub-state (owned by hosted_wayland_*.c) ────
+ * After the monolith split, a few globals/functions are referenced by more
+ * than one sub-module. They are defined (strong) in their owning module and
+ * declared here so the siblings can see them without leaking into the public
+ * hosted.h. Each is prefixed with the owning module for clarity. */
+extern shm_buffer_t    g_shm_bufs[SHM_BUFFERS];   /* owned by hosted_wayland_shm.c */
+extern int             g_cur_buf;                   /* owned by hosted_wayland_shm.c */
+void shm_buffer_create(shm_buffer_t *buf, int w, int h);   /* shm module */
+void shm_buffer_destroy(shm_buffer_t *buf);                 /* shm module */
+
+/* touch_listener is defined (const, non-static) in hosted_wayland_input.c and
+ * referenced by seat_capabilities() in the same module. */
+extern const struct wl_touch_listener touch_listener;
+
 /* ── Entry points driven by the hosted.c launcher core ─────────────── */
 int  hosted_wl_connect(hosted_state_t *state);
 /* Tear down the Wayland connection (destroy globals, disconnect). */
@@ -76,5 +90,13 @@ void hosted_wl_disconnect(void);
 void hosted_wl_dispatch(void);
 /* Blit the VBE back-buffer into the current SHM buffer + commit. */
 void hosted_wl_frame_render(void);
+
+/* ── Sub-module lifecycle hooks (declared so the facade can orchestrate) ── */
+void wl_shm_init(hosted_state_t *state);
+void wl_shm_term(void);
+void wl_input_init(hosted_state_t *state);
+void wl_input_term(void);
+void wl_surface_init(hosted_state_t *state);
+void wl_surface_term(void);
 
 #endif /* WUBU_HOSTED_INTERNAL_H */
