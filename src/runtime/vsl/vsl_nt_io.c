@@ -417,6 +417,159 @@ int64_t vsl_nt_display_string(uint64_t a_str, uint64_t b, uint64_t c,
     return NT_STATUS_SUCCESS;
 }
 
+/* ======================================================================
+ * BATCH 9 — Object Manager: directory objects + generic object queries.
+ * Real VSL/Linux work (real dirs under the NT namespace root, handle-table
+ * introspection). Part of the E1 NT-bridge decomposition.
+ * ==================================================================== */
+
+/* NtCreateDirectoryObject (37): create a real directory under the NT object
+ * namespace root and mint a DIRECTORY-type handle. The backing path is stored
+ * in handle->data so NtQueryDirectoryObject / NtOpenDirectoryObject can read
+ * it back. a = OBJECT_ATTRIBUTES* (path), b = handle_out. */
+int64_t vsl_nt_create_directory_object(uint64_t a_obj_attr, uint64_t b_handle_out,
+                                       uint64_t c_attributes, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c_attributes; (void)d; (void)e; (void)f;
+    if (!b_handle_out) return NT_STATUS_INVALID_PARAMETER;
+    const char *name = (const char *)(uintptr_t)a_obj_attr;
+    if (!name || !*name) return NT_STATUS_INVALID_PARAMETER;
+    char path[768];
+    snprintf(path, sizeof(path), "%s/objdir_%s", g_nt_reg_root, name);
+    if (mkdir(path, 0755) != 0 && errno != EEXIST)
+        return vsl_errno_to_nt_status(errno);
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_DIRECTORY);
+    if (h == 0) return NT_STATUS_UNSUCCESSFUL;
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)strdup(path);
+            break;
+        }
+    }
+    *(uint32_t *)b_handle_out = h;
+    return (int64_t)h;
+}
+
+/* NtQueryDirectoryObject (153): enumerate one entry of the directory object
+ * backing dir. a = handle, b = out buffer, c = out len, d = name_out,
+ * e = context (restart flag), f = entry index. Returns one name per call. */
+int64_t vsl_nt_query_directory_object(uint64_t a_handle, uint64_t b_buf,
+                                      uint64_t c_len, uint64_t d_name,
+                                      uint64_t e_restart, uint64_t f_index) {
+    (void)e_restart; (void)f_index;
+    if (!a_handle || !b_buf) return NT_STATUS_INVALID_PARAMETER;
+    uint64_t d0 = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_handle, &d0) != 0 || !d0)
+        return NT_STATUS_INVALID_HANDLE;
+    const char *dir = (const char *)(uintptr_t)d0;
+    DIR *dp = opendir(dir);
+    if (!dp) return NT_STATUS_UNSUCCESSFUL;
+    struct dirent *de;
+    uint32_t idx = (uint32_t)f_index;
+    uint32_t cur = 0;
+    while ((de = readdir(dp)) != NULL) {
+        if (de->d_name[0]=='.' && (de->d_name[1]=='\0' ||
+            (de->d_name[1]=='.' && de->d_name[2]=='\0'))) continue;
+        if (cur++ == idx) break;
+    }
+    if (!de) { closedir(dp); return NT_STATUS_NO_MORE_FILES; }
+    uint8_t *out = (uint8_t *)(uintptr_t)b_buf;
+    uint32_t namelen = (uint32_t)strlen(de->d_name);
+    uint32_t reclen = 8 + namelen;
+    if (reclen > (uint32_t)c_len) { closedir(dp); return NT_STATUS_BUFFER_OVERFLOW; }
+    memcpy(out, &reclen, 4);
+    memcpy(out + 4, &namelen, 4);
+    memcpy(out + 8, de->d_name, namelen);
+    if (d_name) {
+        char *np = (char *)(uintptr_t)d_name;
+        memcpy(np, de->d_name, namelen);
+        np[namelen] = '\0';
+    }
+    closedir(dp);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtMakeTemporaryObject (111): mark a handle temporary (no real kernel state
+ * needed for the bridge; we record it via the handle's styx_fid flag). */
+int64_t vsl_nt_make_temporary_object(uint64_t a_handle, uint64_t b, uint64_t c,
+                                     uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    if (!a_handle) return NT_STATUS_INVALID_PARAMETER;
+    /* Find the slot and flip a temporary marker (reuse styx_fid high bit). */
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].nt_handle == (uint32_t)a_handle) {
+            g_nt_ctx->handle_table[i].styx_fid |= 0x8000000000000000ULL;
+            return NT_STATUS_SUCCESS;
+        }
+    }
+    return NT_STATUS_INVALID_HANDLE;
+}
+
+/* NtQueryObject (171): return OBJECT_TYPE_INFORMATION (type name string) for
+ * the given handle. a = handle, b = out buffer, c = len, d = retlen_out. */
+int64_t vsl_nt_query_object(uint64_t a_handle, uint64_t b_buf, uint64_t c_len,
+                            uint64_t d_retlen, uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    if (!a_handle || !b_buf) return NT_STATUS_INVALID_PARAMETER;
+    nt_object_type_t t = NT_OBJECT_TYPE_UNKNOWN;
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].nt_handle == (uint32_t)a_handle) {
+            t = g_nt_ctx->handle_table[i].type;
+            break;
+        }
+    }
+    if (t == NT_OBJECT_TYPE_UNKNOWN) return NT_STATUS_INVALID_HANDLE;
+    const char *tn = vsl_nt_object_type_name(t);
+    uint32_t namelen = (uint32_t)strlen(tn);
+    uint32_t reclen = 8 + namelen * 2;  /* UNICODE-string layout: len(4) + maxlen(4) + ptr(8) + wchars */
+    uint8_t *out = (uint8_t *)(uintptr_t)b_buf;
+    if (reclen > (uint32_t)c_len) return NT_STATUS_BUFFER_OVERFLOW;
+    memcpy(out, &namelen, 4);          /* Length */
+    memcpy(out + 4, &namelen, 4);      /* MaximumLength */
+    /* Write name as UTF-16LE (ASCII subset). */
+    for (uint32_t i = 0; i < namelen; i++) {
+        out[8 + i*2]   = (uint8_t)tn[i];
+        out[8 + i*2+1] = 0;
+    }
+    if (d_retlen) *(uint32_t *)d_retlen = reclen;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryPerformanceCounter (174): real monotonically-increasing counter via
+ * clock_gettime(CLOCK_MONOTONIC). a = counter_out (uint64_t 100ns ticks),
+ * b = freq_out (optional). */
+int64_t vsl_nt_query_performance_counter(uint64_t a_counter, uint64_t b_freq,
+                                         uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    if (!a_counter) return NT_STATUS_INVALID_PARAMETER;
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
+        return vsl_errno_to_nt_status(errno);
+    uint64_t ticks = (uint64_t)ts.tv_sec * 10000000ULL + (uint64_t)ts.tv_nsec / 100ULL;
+    *(uint64_t *)a_counter = ticks;
+    if (b_freq) *(uint64_t *)b_freq = 10000000ULL;  /* 100ns ticks => 10 MHz */
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryTimerResolution (185): report the system clock resolution via
+ * clock_getres(CLOCK_MONOTONIC). a = min_out, b = max_out, c = cur_out
+ * (all in 100ns units). */
+int64_t vsl_nt_query_timer_resolution(uint64_t a_min, uint64_t b_max,
+                                      uint64_t c_cur, uint64_t d, uint64_t e, uint64_t f) {
+    (void)d; (void)e; (void)f;
+    struct timespec res;
+    if (clock_getres(CLOCK_MONOTONIC, &res) != 0)
+        return vsl_errno_to_nt_status(errno);
+    uint64_t ns = (uint64_t)res.tv_sec * 1000000000ULL + (uint64_t)res.tv_nsec;
+    uint32_t hunded_ns = (uint32_t)((ns + 99) / 100);  /* round up to 100ns */
+    if (a_min) *(uint32_t *)a_min = hunded_ns;
+    if (b_max) *(uint32_t *)b_max = 1000000;   /* 100ms max */
+    if (c_cur) *(uint32_t *)c_cur = hunded_ns;
+    return NT_STATUS_SUCCESS;
+}
+
 void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[28-1] = vsl_nt_close;
@@ -444,4 +597,11 @@ void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[83-1] = vsl_nt_flush_instruction_cache;
     tbl[106-1] = vsl_nt_lock_file;
     tbl[276-1] = vsl_nt_unlock_file;
+    /* Batch 9: object manager + perf */
+    tbl[37-1] = vsl_nt_create_directory_object;
+    tbl[153-1] = vsl_nt_query_directory_object;
+    tbl[111-1] = vsl_nt_make_temporary_object;
+    tbl[171-1] = vsl_nt_query_object;
+    tbl[174-1] = vsl_nt_query_performance_counter;
+    tbl[185-1] = vsl_nt_query_timer_resolution;
 }

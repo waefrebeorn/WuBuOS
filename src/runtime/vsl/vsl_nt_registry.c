@@ -414,6 +414,92 @@ int64_t vsl_nt_initialize_registry(uint64_t a_flag, uint64_t b, uint64_t c,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtDeleteValueKey (69): delete a value (a backing file) from a key.
+ * a = key handle, b = value name. */
+int64_t vsl_nt_delete_value_key(uint64_t a_key, uint64_t b_valname,
+                                uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    if (!a_key || !b_valname) return NT_STATUS_INVALID_PARAMETER;
+    uint64_t d0 = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_key, &d0) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    const char *dirname = (const char *)(uintptr_t)d0;
+    if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    const char *valname = (const char *)b_valname;
+    char path[768];
+    snprintf(path, sizeof(path), "%s/%s", dirname, valname);
+    if (unlink(path) != 0) {
+        if (errno == ENOENT) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+        return vsl_errno_to_nt_status(errno);
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryOpenSubKeys (172): return the count of immediate subkeys (sub-dirs)
+ * under the given key. a = key handle, b = count_out. */
+int64_t vsl_nt_query_open_subkeys(uint64_t a_key, uint64_t b_count_out,
+                                  uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    if (!a_key || !b_count_out) return NT_STATUS_INVALID_PARAMETER;
+    uint64_t d0 = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_key, &d0) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    const char *dirname = (const char *)(uintptr_t)d0;
+    if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    DIR *dir = opendir(dirname);
+    if (!dir) return NT_STATUS_INVALID_HANDLE;
+    int count = 0;
+    struct dirent *de;
+    while ((de = readdir(dir)) != NULL) {
+        if (de->d_name[0]=='.' && (de->d_name[1]=='\0' ||
+            (de->d_name[1]=='.' && de->d_name[2]=='\0'))) continue;
+        /* Only count sub-directories (subkeys); values are regular files. */
+        struct stat st;
+        char child[768];
+        snprintf(child, sizeof(child), "%s/%s", dirname, de->d_name);
+        if (stat(child, &st) == 0 && S_ISDIR(st.st_mode)) count++;
+    }
+    closedir(dir);
+    *(uint32_t *)b_count_out = (uint32_t)count;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryKey (168): return KEY_BASIC_INFORMATION (class 2): last-write time
+ * (8) + title-index (4) + name-length (4) + name (NUL-terminated). a = key,
+ * b = info class, c = out buffer, d = out len, e = result-len out. */
+int64_t vsl_nt_query_key(uint64_t a_key, uint64_t b_class, uint64_t c_info,
+                         uint64_t d_len, uint64_t e_result_len, uint64_t f) {
+    (void)b_class; (void)f;
+    if (!a_key || !c_info) return NT_STATUS_INVALID_PARAMETER;
+    uint64_t d0 = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_key, &d0) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    const char *dirname = (const char *)(uintptr_t)d0;
+    if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    /* Recover the key's NT name from the handle data stored by NtCreateKey/
+     * NtOpenKey. vsl_nt_key_dir returns the backing dir; the leaf basename is
+     * the key name (after the registry root translation). */
+    const char *leaf = strrchr(dirname, '/');
+    const char *keyname = leaf ? leaf + 1 : dirname;
+    uint32_t namelen = (uint32_t)strlen(keyname);
+    uint32_t reclen = 16 + namelen + 1;
+    uint8_t *out = (uint8_t *)(uintptr_t)c_info;
+    if (reclen > (uint32_t)d_len) return NT_STATUS_BUFFER_OVERFLOW;
+    /* LastWriteTime: use dir mtime in 100ns ticks since 1601. */
+    struct stat st;
+    uint64_t lwt = 0;
+    if (stat(dirname, &st) == 0)
+        lwt = (uint64_t)st.st_mtime * 10000000ULL + 116444736000000000ULL;
+    memcpy(out, &lwt, 8);
+    uint32_t title_idx = 0;
+    memcpy(out + 8, &title_idx, 4);
+    memcpy(out + 12, &namelen, 4);
+    memcpy(out + 16, keyname, namelen);
+    out[16 + namelen] = '\0';
+    if (e_result_len) *(uint32_t *)e_result_len = reclen;
+    return NT_STATUS_SUCCESS;
+}
+
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
@@ -435,4 +521,7 @@ void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[202-1] = vsl_nt_replace_key;
     tbl[213-1] = vsl_nt_restore_key;
     tbl[216-1] = vsl_nt_save_key;
+    tbl[69-1] = vsl_nt_delete_value_key;
+    tbl[172-1] = vsl_nt_query_open_subkeys;
+    tbl[168-1] = vsl_nt_query_key;
 }

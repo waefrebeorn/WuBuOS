@@ -1088,6 +1088,158 @@ int main(void) {
         CHECK(r == NT_STATUS_SUCCESS, "NtInitializeRegistry accepts");
     }
 
+    /* 37. Batch 9: Object Manager + Performance (real VSL work). */
+    {
+        /* NtCreateDirectoryObject (37) -- real dir under the namespace root. */
+        uint32_t od = 0;
+        char odname[] = "MyObjDir";
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)odname;
+        args[1] = (uint64_t)(uintptr_t)&od;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 37, args, 3);
+        CHECK(r != NT_STATUS_INVALID_PARAMETER, "NtCreateDirectoryObject returns a handle");
+        CHECK(od != 0, "NtCreateDirectoryObject handle nonzero");
+
+        /* NtQueryObject (171) on the directory handle reports type "Directory". */
+        uint8_t oinfo[64];
+        uint32_t oret = 0;
+        memset(oinfo, 0, sizeof(oinfo));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)od;
+        args[1] = (uint64_t)(uintptr_t)oinfo;
+        args[2] = sizeof(oinfo);
+        args[3] = (uint64_t)(uintptr_t)&oret;
+        r = vsl_nt_syscall_dispatch(&ctx, 171, args, 4);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryObject returns SUCCESS");
+        /* OBJECT_TYPE_INFORMATION: name length at offset 0, name at offset 8 (UTF-16LE). */
+        uint32_t tnlen = *(uint32_t *)oinfo;
+        CHECK(tnlen == strlen("Directory"), "NtQueryObject reports Directory type name");
+
+        /* NtMakeTemporaryObject (111) -- succeeds on a valid handle. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)od;
+        r = vsl_nt_syscall_dispatch(&ctx, 111, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtMakeTemporaryObject marks the handle");
+
+        /* NtQueryDirectoryObject (153) -- enumerate the (empty) dir. */
+        uint8_t doinfo[64];
+        memset(doinfo, 0, sizeof(doinfo));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)od;
+        args[1] = (uint64_t)(uintptr_t)doinfo;
+        args[2] = sizeof(doinfo);
+        args[3] = (uint64_t)(uintptr_t)NULL;
+        args[5] = 0;  /* index 0 */
+        r = vsl_nt_syscall_dispatch(&ctx, 153, args, 4);
+        /* Empty dir => NO_MORE_FILES; that still proves the syscall ran real work. */
+        CHECK(r == NT_STATUS_NO_MORE_FILES || r == NT_STATUS_SUCCESS,
+              "NtQueryDirectoryObject enumerates (empty dir => NO_MORE_FILES)");
+
+        /* NtQueryPerformanceCounter (174) -- real monotonic clock. */
+        uint64_t pc = 0, pc2 = 0, freq = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&pc;
+        args[1] = (uint64_t)(uintptr_t)&freq;
+        r = vsl_nt_syscall_dispatch(&ctx, 174, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryPerformanceCounter SUCCESS");
+        CHECK(pc != 0, "NtQueryPerformanceCounter returns nonzero ticks");
+        CHECK(freq == 10000000ULL, "NtQueryPerformanceCounter reports 10MHz (100ns ticks)");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&pc2;
+        vsl_nt_syscall_dispatch(&ctx, 174, args, 2);
+        CHECK(pc2 >= pc, "NtQueryPerformanceCounter is monotonic");
+
+        /* NtQueryTimerResolution (185) -- real clock resolution. */
+        uint32_t tmin = 0, tmax = 0, tcur = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&tmin;
+        args[1] = (uint64_t)(uintptr_t)&tmax;
+        args[2] = (uint64_t)(uintptr_t)&tcur;
+        r = vsl_nt_syscall_dispatch(&ctx, 185, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryTimerResolution SUCCESS");
+        CHECK(tcur != 0 && tmax != 0, "NtQueryTimerResolution returns real resolution");
+
+        /* Clean up the directory object handle. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)od;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+    }
+
+    /* 38. Batch 9b: Registry value-delete + key-query + subkey-count. */
+    {
+        /* Build a key with a value + a subkey, then exercise the new syscalls. */
+        uint32_t rk = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\Batch9";
+        args[4] = (uint64_t)(uintptr_t)&rk;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (Batch9) SUCCESS");
+
+        /* Set a value. */
+        const char *v = "valdata";
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)rk; args[1] = (uint64_t)(uintptr_t)"Data";
+        args[2] = 3; args[3] = (uint64_t)(uintptr_t)v; args[4] = strlen(v);
+        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey (Batch9) writes value");
+
+        /* Create a subkey so QueryOpenSubKeys > 0. */
+        uint32_t sk = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\Batch9\\Sub";
+        args[4] = (uint64_t)(uintptr_t)&sk;
+        r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey (subkey) */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (subkey) SUCCESS");
+
+        /* NtQueryOpenSubKeys (172) -- count immediate subkeys (>= 1). */
+        uint32_t subcount = 0xFF;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)rk;
+        args[1] = (uint64_t)(uintptr_t)&subcount;
+        r = vsl_nt_syscall_dispatch(&ctx, 172, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryOpenSubKeys SUCCESS");
+        CHECK(subcount >= 1, "NtQueryOpenSubKeys counts the subkey");
+
+        /* NtQueryKey (168) -- KEY_BASIC_INFORMATION (name + last-write time). */
+        uint8_t kinfo[128];
+        uint32_t kres = 0;
+        memset(kinfo, 0, sizeof(kinfo));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)rk;
+        args[2] = (uint64_t)(uintptr_t)kinfo;
+        args[3] = sizeof(kinfo);
+        args[4] = (uint64_t)(uintptr_t)&kres;
+        r = vsl_nt_syscall_dispatch(&ctx, 168, args, 5);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryKey SUCCESS");
+        CHECK(kres > 16, "NtQueryKey writes KEY_BASIC_INFORMATION");
+        /* Last-write time (100ns ticks since 1601) must be nonzero. */
+        uint64_t lwt = *(uint64_t *)kinfo;
+        CHECK(lwt != 0, "NtQueryKey reports nonzero LastWriteTime");
+
+        /* NtDeleteValueKey (69) -- remove the value, then confirm it's gone. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)rk;
+        args[1] = (uint64_t)(uintptr_t)"Data";
+        r = vsl_nt_syscall_dispatch(&ctx, 69, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtDeleteValueKey removes the value");
+        /* Re-query the (now-deleted) value => NOT_FOUND. */
+        uint8_t qbuf[32]; uint32_t qret = 0;
+        memset(qbuf, 0, sizeof(qbuf));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)rk; args[1] = (uint64_t)(uintptr_t)"Data";
+        args[3] = (uint64_t)(uintptr_t)qbuf; args[4] = sizeof(qbuf);
+        args[5] = (uint64_t)(uintptr_t)&qret;
+        r = vsl_nt_syscall_dispatch(&ctx, 186, args, 5); /* NtQueryValueKey */
+        CHECK(r == NT_STATUS_OBJECT_NAME_NOT_FOUND,
+              "NtQueryValueKey after NtDeleteValueKey => NOT_FOUND");
+
+        /* Cleanup. */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)sk;
+        vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* delete subkey */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)rk;
+        vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* delete parent key */
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
