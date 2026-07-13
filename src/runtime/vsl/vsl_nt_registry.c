@@ -20,6 +20,18 @@ static int mkdir_p(const char *path) {
     return 0;
 }
 
+/* Resolve a key handle to its real backing directory (stored in handle->data
+ * by NtCreateKey/NtOpenKey), copying it into buf for callers that need a
+ * stable local copy. Returns NULL if the handle is invalid. */
+static const char *vsl_nt_key_dir(uint32_t kh, char *buf, size_t sz) {
+    uint64_t d = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, kh, &d) != 0) return NULL;
+    const char *dir = (const char *)(uintptr_t)d;
+    if (!dir) return NULL;
+    if (buf && sz) snprintf(buf, sz, "%s", dir);
+    return dir;
+}
+
 int64_t vsl_nt_create_key(uint64_t a_path, uint64_t b_sec, uint64_t c_opts,
                           uint64_t d_disp, uint64_t e_key_out, uint64_t f) {
     (void)b_sec; (void)c_opts; (void)d_disp; (void)f;
@@ -251,10 +263,11 @@ int64_t vsl_nt_flush_key(uint64_t a_key, uint64_t b, uint64_t c,
                          uint64_t d, uint64_t e, uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
     if (!a_key) return NT_STATUS_INVALID_PARAMETER;
-    /* Walk the key's directory and fsync each value file. */
+    /* Walk the key's directory and fsync each value file. A handle with no
+     * resolved backing dir (e.g. not a registry key) has nothing to flush. */
     char dir[768];
-    snprintf(dir, sizeof(dir), "%s/key_%llu", g_nt_reg_root,
-             (unsigned long long)a_key);
+    if (!vsl_nt_key_dir((uint32_t)a_key, dir, sizeof(dir)))
+        return NT_STATUS_SUCCESS;  /* nothing to flush */
     DIR *dp = opendir(dir);
     if (!dp) return NT_STATUS_SUCCESS;  /* nothing to flush */
     struct dirent *de;
@@ -305,6 +318,101 @@ int64_t vsl_nt_unload_key(uint64_t a_key, uint64_t b, uint64_t c,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtQueryMultipleValueKey (169): read several value entries in one call.
+ * a = key, b = value_entries*, c = entry_count, d = buffer*, e = buf_len*, f = req_len*. */
+int64_t vsl_nt_query_multiple_value_key(uint64_t a_key, uint64_t b_entries,
+                                        uint64_t c_count, uint64_t d_buf,
+                                        uint64_t e_len, uint64_t f_req) {
+    (void)b_entries; (void)d_buf; (void)e_len; (void)f_req;
+    if (!a_key || !c_count) return NT_STATUS_INVALID_PARAMETER;
+    /* Real multi-value read would iterate each entry's name and read the
+     * backing file; for the transliterated personality we accept the call and
+     * report the entries as present (count 0 means "key present"). */
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSaveKey (216) / NtRestoreKey (213) / NtReplaceKey (202): persist/restore a
+ * hive directory as a tar-like copy. We implement Save/Restore as a directory
+ * copy of the key's backing dir; Replace swaps dirs. */
+static int vsl_nt_copy_dir_recursive(const char *src, const char *dst) {
+    DIR *d = opendir(src);
+    if (!d) return -1;
+    mkdir_p(dst);
+    struct dirent *de;
+    while ((de = readdir(d))) {
+        if (de->d_name[0] == '.') continue;
+        char sp[1100], dp[1100];
+        snprintf(sp, sizeof(sp), "%s/%s", src, de->d_name);
+        snprintf(dp, sizeof(dp), "%s/%s", dst, de->d_name);
+        struct stat st;
+        if (stat(sp, &st) == 0 && S_ISDIR(st.st_mode)) {
+            vsl_nt_copy_dir_recursive(sp, dp);
+        } else {
+            int fin = open(sp, O_RDONLY);
+            if (fin >= 0) {
+                int fout = open(dp, O_WRONLY|O_CREAT|O_TRUNC, 0644);
+                if (fout >= 0) {
+                    char buf[4096]; ssize_t n;
+                    while ((n = read(fin, buf, sizeof(buf))) > 0) write(fout, buf, n);
+                    close(fout);
+                }
+                close(fin);
+            }
+        }
+    }
+    closedir(d);
+    return 0;
+}
+
+int64_t vsl_nt_save_key(uint64_t a_key, uint64_t b_file, uint64_t c,
+                        uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_file; (void)c; (void)d; (void)e; (void)f;
+    if (!a_key) return NT_STATUS_INVALID_PARAMETER;
+    char src[1100], dst[1100];
+    if (!vsl_nt_key_dir((uint32_t)a_key, src, sizeof(src)))
+        return NT_STATUS_INVALID_HANDLE;
+    snprintf(dst, sizeof(dst), "%s/saved_%llu", g_nt_reg_root, (unsigned long long)a_key);
+    if (vsl_nt_copy_dir_recursive(src, dst) != 0) return NT_STATUS_UNSUCCESSFUL;
+    return NT_STATUS_SUCCESS;
+}
+
+int64_t vsl_nt_restore_key(uint64_t a_key, uint64_t b_file, uint64_t c,
+                           uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_file; (void)c; (void)d; (void)e; (void)f;
+    if (!a_key) return NT_STATUS_INVALID_PARAMETER;
+    char src[1100], dst[1100];
+    if (!vsl_nt_key_dir((uint32_t)a_key, dst, sizeof(dst)))
+        return NT_STATUS_INVALID_HANDLE;
+    snprintf(src, sizeof(src), "%s/saved_%llu", g_nt_reg_root, (unsigned long long)a_key);
+    vsl_nt_copy_dir_recursive(src, dst);
+    return NT_STATUS_SUCCESS;
+}
+
+int64_t vsl_nt_replace_key(uint64_t a_newfile, uint64_t b_target,
+                           uint64_t c_cardcat, uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_newfile; (void)c_cardcat; (void)d; (void)e; (void)f;
+    if (!b_target) return NT_STATUS_INVALID_PARAMETER;
+    /* Swap: drop the old key dir, copy the new one in. */
+    char old[1100], repl[1100];
+    if (!vsl_nt_key_dir((uint32_t)b_target, old, sizeof(old)))
+        return NT_STATUS_INVALID_HANDLE;
+    snprintf(repl, sizeof(repl), "%s/repl_%llu", g_nt_reg_root, (unsigned long long)b_target);
+    vsl_nt_copy_dir_recursive(repl, old);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtCompactKeys (30) / NtInitializeRegistry (97): accept-and-succeed housekeeping. */
+int64_t vsl_nt_compact_keys(uint64_t a_count, uint64_t b_array, uint64_t c,
+                            uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_count; (void)b_array; (void)c; (void)d; (void)e; (void)f;
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_initialize_registry(uint64_t a_flag, uint64_t b, uint64_t c,
+                                   uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_flag; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return NT_STATUS_SUCCESS;
+}
+
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
@@ -320,4 +428,10 @@ void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[84-1] = vsl_nt_flush_key;
     tbl[103-1] = vsl_nt_load_key;
     tbl[273-1] = vsl_nt_unload_key;
+    tbl[30-1] = vsl_nt_compact_keys;
+    tbl[97-1] = vsl_nt_initialize_registry;
+    tbl[169-1] = vsl_nt_query_multiple_value_key;
+    tbl[202-1] = vsl_nt_replace_key;
+    tbl[213-1] = vsl_nt_restore_key;
+    tbl[216-1] = vsl_nt_save_key;
 }

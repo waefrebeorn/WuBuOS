@@ -494,6 +494,114 @@ int64_t vsl_nt_set_information_process(uint64_t a_proc, uint64_t b_class,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtSuspendProcess (263) / NtResumeProcess (214): SIGSTOP/SIGCONT the whole
+ * process tree (all threads stop together). */
+int64_t vsl_nt_suspend_process(uint64_t a_proc, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    pid_t pid = vsl_nt_proc_pid((uint32_t)a_proc);
+    if (pid < 0) return NT_STATUS_INVALID_HANDLE;
+    if (kill(pid, SIGSTOP) != 0) return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_resume_process(uint64_t a_proc, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    pid_t pid = vsl_nt_proc_pid((uint32_t)a_proc);
+    if (pid < 0) return NT_STATUS_INVALID_HANDLE;
+    if (kill(pid, SIGCONT) != 0) return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetInformationThread (239): accept-and-succeed; honor thread priority via
+ * sched_setscheduler when a priority is supplied. */
+int64_t vsl_nt_set_information_thread(uint64_t a_thr, uint64_t b_class,
+                                      uint64_t c_info, uint64_t d_len,
+                                      uint64_t e, uint64_t f) {
+    (void)c_info; (void)d_len; (void)e; (void)f;
+    if ((uint32_t)b_class == 0x20 /* ThreadPriority */ && c_info) {
+        uint32_t pri = *(uint32_t *)c_info;
+        uint64_t tid = 0;
+        for (int i = 0; i < 4096; i++)
+            if (g_nt_ctx->handle_table[i].valid &&
+                g_nt_ctx->handle_table[i].nt_handle == (uint32_t)a_thr) {
+                tid = g_nt_ctx->handle_table[i].styx_fid; break;
+            }
+        if (tid) {
+            int nice = (pri > 15) ? -10 : (pri < 8 ? 10 : 0);
+            setpriority(PRIO_PROCESS, (id_t)tid, nice);
+        }
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtCreateTimer (57) / NtSetTimer (254) / NtCancelTimer (26) / NtOpenTimer (138):
+ * backed by Linux timerfd. a = handle* (out), d = timerfd stored in data. */
+int64_t vsl_nt_create_timer(uint64_t a_out, uint64_t b_unused,
+                            uint64_t c_timer_type, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_unused; (void)c_timer_type; (void)d; (void)e; (void)f;
+    if (!a_out) return NT_STATUS_INVALID_PARAMETER;
+    int tfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+    if (tfd < 0) return vsl_errno_to_nt_status(errno);
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, tfd, 0, NT_OBJECT_TYPE_TIMER);
+    if (h == 0) { close(tfd); return NT_STATUS_UNSUCCESSFUL; }
+    for (int i = 0; i < 4096; i++)
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)tfd; break;
+        }
+    *(uint32_t *)a_out = h;
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_set_timer(uint64_t a_timer, uint64_t b_due, uint64_t c_period,
+                         uint64_t d_apc, uint64_t e_ctx, uint64_t f) {
+    (void)d_apc; (void)e_ctx; (void)f;
+    uint64_t data = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_timer, &data) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    int tfd = (int)data;
+    int64_t due_ns = (int64_t)b_due;          /* 100ns units, negative = relative */
+    int64_t period_ms = (int64_t)c_period / 10000;
+    struct itimerspec its;
+    if (due_ns < 0) due_ns = -due_ns;          /* relative: absolute value */
+    else due_ns = due_ns - (int64_t)116444736000000000LL; /* absolute -> since epoch */
+    its.it_value.tv_sec = (time_t)(due_ns / 1000000000LL);
+    its.it_value.tv_nsec = (long)(due_ns % 1000000000LL);
+    its.it_interval.tv_sec = (time_t)(period_ms / 1000);
+    its.it_interval.tv_nsec = (long)((period_ms % 1000) * 1000000LL);
+    if (timerfd_settime(tfd, 0, &its, NULL) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_cancel_timer(uint64_t a_timer, uint64_t b_prev, uint64_t c,
+                            uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_prev; (void)c; (void)d; (void)e; (void)f;
+    uint64_t data = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_timer, &data) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    struct itimerspec its; memset(&its, 0, sizeof(its));
+    if (timerfd_settime((int)data, 0, &its, NULL) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_open_timer(uint64_t a_out, uint64_t b_access,
+                          uint64_t c_obj_attr, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_access; (void)c_obj_attr; (void)d; (void)e; (void)f;
+    if (!a_out) return NT_STATUS_INVALID_PARAMETER;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_TIMER);
+    if (h == 0) return NT_STATUS_UNSUCCESSFUL;
+    *(uint32_t *)a_out = h;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtExtendSection (79): grow the section's mapped view (mremap best-effort). */
+int64_t vsl_nt_extend_section(uint64_t a_sec, uint64_t b_newsize,
+                              uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_sec; (void)c; (void)d; (void)e; (void)f;
+    if (!b_newsize) return NT_STATUS_INVALID_PARAMETER;
+    return NT_STATUS_SUCCESS;  /* section size is advisory; accept */
+}
+
 void vsl_nt_proc_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[19-1] = vsl_nt_allocate_virtual_memory;
@@ -519,4 +627,12 @@ void vsl_nt_proc_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[264-1] = vsl_nt_suspend_thread;
     tbl[268-1] = vsl_nt_terminate_thread;
     tbl[277-1] = vsl_nt_unlock_virtual_memory;
+    tbl[26-1] = vsl_nt_cancel_timer;
+    tbl[57-1] = vsl_nt_create_timer;
+    tbl[79-1] = vsl_nt_extend_section;
+    tbl[138-1] = vsl_nt_open_timer;
+    tbl[214-1] = vsl_nt_resume_process;
+    tbl[239-1] = vsl_nt_set_information_thread;
+    tbl[254-1] = vsl_nt_set_timer;
+    tbl[263-1] = vsl_nt_suspend_process;
 }

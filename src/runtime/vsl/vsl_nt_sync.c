@@ -291,19 +291,48 @@ int64_t vsl_nt_open_semaphore(uint64_t a_out, uint64_t b_access,
     return NT_STATUS_SUCCESS;
 }
 
-/* Register this batch's NT handlers into the global dispatch table. */
+/* NtOpenDirectoryObject (120) / NtQuerySymbolicLinkObject (179): mint handles.
+ * Directory objects are namespace roots; symbolic links resolve to a target
+ * path we echo back. */
+int64_t vsl_nt_open_directory_object(uint64_t a_out, uint64_t b_access,
+                                     uint64_t c_obj_attr, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_access; (void)c_obj_attr; (void)d; (void)e; (void)f;
+    if (!a_out) return NT_STATUS_INVALID_PARAMETER;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_DIRECTORY);
+    if (h == 0) return NT_STATUS_UNSUCCESSFUL;
+    *(uint32_t *)a_out = h;
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_query_symbolic_link_object(uint64_t a_link, uint64_t b_name,
+                                          uint64_t c_len, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c_len; (void)d; (void)e; (void)f;
+    if (!a_link || !b_name) return NT_STATUS_INVALID_PARAMETER;
+    /* A symbolic-link object stores its target in the handle data field. */
+    uint64_t target = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_link, &target) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    const char *t = (const char *)(uintptr_t)target;
+    if (!t) t = "\\";
+    size_t n = strlen(t) + 1;
+    memcpy((void *)(uintptr_t)b_name, t, n);
+    return NT_STATUS_SUCCESS;
+}
+
+/* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[46-1] = vsl_nt_create_mutant;
     tbl[54-1] = vsl_nt_create_semaphore;
     tbl[72-1] = vsl_nt_duplicate_object;
+    tbl[120-1] = vsl_nt_open_directory_object;
+    tbl[127-1] = vsl_nt_open_mutant;
+    tbl[133-1] = vsl_nt_open_semaphore;
     tbl[135-1] = vsl_nt_open_thread;
     tbl[162-1] = vsl_nt_query_information_process;
+    tbl[179-1] = vsl_nt_query_symbolic_link_object;
     tbl[197-1] = vsl_nt_release_mutant;
     tbl[198-1] = vsl_nt_release_semaphore;
     tbl[215-1] = vsl_nt_resume_thread;
-    tbl[282-1] = vsl_nt_wait_for_single_object;
-    tbl[127-1] = vsl_nt_open_mutant;
-    tbl[133-1] = vsl_nt_open_semaphore;
     tbl[281-1] = vsl_nt_wait_for_multiple_objects;
+    tbl[282-1] = vsl_nt_wait_for_single_object;
 }
