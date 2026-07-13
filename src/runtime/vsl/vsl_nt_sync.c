@@ -318,6 +318,139 @@ int64_t vsl_nt_query_symbolic_link_object(uint64_t a_link, uint64_t b_name,
     return NT_STATUS_SUCCESS;
 }
 
+/* ======================================================================
+ * BATCH 10 — Synchronization object queries + system execution-state hints.
+ * Real VSL/Linux work (eventfd read, mutex trylock probe, sem_getvalue).
+ * ==================================================================== */
+
+/* NtQueryEvent (156): report the event's signaled state. An eventfd with
+ * counter > 0 is signaled. We peek via a non-consuming read if O_NONBLOCK. */
+int64_t vsl_nt_query_event(uint64_t a_event, uint64_t b_info, uint64_t c_len,
+                           uint64_t d_result_len, uint64_t e, uint64_t f) {
+    (void)b_info; (void)c_len; (void)d_result_len; (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_event, &fd) != 0 || fd < 0)
+        return NT_STATUS_INVALID_HANDLE;
+    uint64_t v = 0;
+    ssize_t n = read(fd, &v, sizeof(v));
+    if (n == (ssize_t)sizeof(v)) {
+        /* Non-consuming peek: re-arm the counter. A signaled event reads >0;
+         * we restore it so the event's semantics are preserved. */
+        uint64_t restore = v;
+        write(fd, &restore, sizeof(restore));
+        *(uint32_t *)b_info = (v > 0) ? 1 : 0;  /* EVENT_BASIC_INFORMATION: State */
+    } else {
+        *(uint32_t *)b_info = 0;
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryMutant (170): report whether the recursive mutex is currently owned.
+ * Probe with a non-blocking trylock: if it succeeds the mutex was free (not
+ * owned), so we immediately unlock to restore state; otherwise it's owned. */
+int64_t vsl_nt_query_mutant(uint64_t a_mut, uint64_t b_info, uint64_t c_len,
+                             uint64_t d_result_len, uint64_t e, uint64_t f) {
+    (void)b_info; (void)c_len; (void)d_result_len; (void)e; (void)f;
+    uint64_t data = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_mut, &data) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    pthread_mutex_t *m = (pthread_mutex_t *)(uintptr_t)data;
+    if (!m) return NT_STATUS_INVALID_HANDLE;
+    int owned = 1;
+    if (pthread_mutex_trylock(m) == 0) {
+        owned = 0;                       /* was free -> not owned */
+        pthread_mutex_unlock(m);
+    }
+    if (b_info) {
+        /* MUTANT_BASIC_INFORMATION: CurrentCount(4) + Owned(4) + OwnerTid(4). */
+        uint8_t *out = (uint8_t *)(uintptr_t)b_info;
+        uint32_t count = owned ? 1 : 0;
+        memcpy(out, &count, 4);
+        memcpy(out + 4, &owned, 4);
+        uint32_t tid = 0;
+        memcpy(out + 8, &tid, 4);
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQuerySemaphore (178): report the current semaphore count via sem_getvalue. */
+int64_t vsl_nt_query_semaphore(uint64_t a_sem, uint64_t b_info, uint64_t c_len,
+                               uint64_t d_result_len, uint64_t e, uint64_t f) {
+    (void)c_len; (void)d_result_len; (void)e; (void)f;
+    uint64_t data = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_sem, &data) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    sem_t *s = (sem_t *)(uintptr_t)data;
+    if (!s) return NT_STATUS_INVALID_HANDLE;
+    int val = 0;
+    if (sem_getvalue(s, &val) != 0) return vsl_errno_to_nt_status(errno);
+    if (b_info) {
+        /* SEMAPHORE_BASIC_INFORMATION: CurrentCount(4) + MaximumCount(4). */
+        uint8_t *out = (uint8_t *)(uintptr_t)b_info;
+        uint32_t cur = (uint32_t)(val < 0 ? 0 : val);
+        uint32_t max = 0x7FFFFFFF;
+        memcpy(out, &cur, 4);
+        memcpy(out + 4, &max, 4);
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetInformationObject (237): set object-specific information. We honor
+ * ObjectHandleFlagInformation (class 1): marking a handle 'protected' (no
+ * close) is recorded in the handle's styx_fid high bit (mirrors MakeTemporary). */
+int64_t vsl_nt_set_information_object(uint64_t a_handle, uint64_t b_class,
+                                      uint64_t c_info, uint64_t d_len,
+                                      uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    if (!a_handle) return NT_STATUS_INVALID_PARAMETER;
+    if ((uint32_t)b_class == 1 && c_info) {   /* ObjectHandleFlagInformation */
+        uint32_t flags = *(uint32_t *)(uintptr_t)c_info;
+        for (int i = 0; i < 4096; i++) {
+            if (g_nt_ctx->handle_table[i].valid &&
+                g_nt_ctx->handle_table[i].nt_handle == (uint32_t)a_handle) {
+                if (flags & 0x1)  /* ProtectFromClose */
+                    g_nt_ctx->handle_table[i].styx_fid |= 0x4000000000000000ULL;
+                else
+                    g_nt_ctx->handle_table[i].styx_fid &= ~0x4000000000000000ULL;
+                return NT_STATUS_SUCCESS;
+            }
+        }
+        return NT_STATUS_INVALID_HANDLE;
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetThreadExecutionState (253): informs the OS the system should stay
+ * awake (EsSystemRequired etc.). On Linux there is no portable per-process
+ * inhibitor without dbus; we honor the contract by succeeding (a real loader
+ * only needs the call to not fail). */
+int64_t vsl_nt_set_thread_execution_state(uint64_t a_state, uint64_t b,
+                                          uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    /* EsContinualIdle / EsUserPresent => no requirement; anything else is a
+     * keep-awake hint we accept. Invalid flags are rejected. */
+    if (a_state == 0 || a_state > 0x80000000ULL) return NT_STATUS_INVALID_PARAMETER;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetTimerResolution (255): change the system timer resolution. The Linux
+ * clock resolution is fixed; we accept the request and report the (unchanged)
+ * resolution back through the optional current-out argument. */
+int64_t vsl_nt_set_timer_resolution(uint64_t a_desired, uint64_t b_set,
+                                    uint64_t c_current_out, uint64_t d,
+                                    uint64_t e, uint64_t f) {
+    (void)a_desired; (void)b_set; (void)d; (void)e; (void)f;
+    struct timespec res;
+    if (clock_getres(CLOCK_MONOTONIC, &res) != 0)
+        return vsl_errno_to_nt_status(errno);
+    if (c_current_out) {
+        uint64_t ns = (uint64_t)res.tv_sec * 1000000000ULL + (uint64_t)res.tv_nsec;
+        *(uint32_t *)c_current_out = (uint32_t)((ns + 99) / 100);  /* 100ns units */
+    }
+    (void)a_desired;
+    return NT_STATUS_SUCCESS;
+}
+
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
@@ -335,4 +468,11 @@ void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[215-1] = vsl_nt_resume_thread;
     tbl[281-1] = vsl_nt_wait_for_multiple_objects;
     tbl[282-1] = vsl_nt_wait_for_single_object;
+    /* Batch 10: sync queries + execution-state hints */
+    tbl[156-1] = vsl_nt_query_event;
+    tbl[170-1] = vsl_nt_query_mutant;
+    tbl[178-1] = vsl_nt_query_semaphore;
+    tbl[237-1] = vsl_nt_set_information_object;
+    tbl[253-1] = vsl_nt_set_thread_execution_state;
+    tbl[255-1] = vsl_nt_set_timer_resolution;
 }

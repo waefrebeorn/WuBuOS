@@ -1,5 +1,6 @@
 #include "vsl_nt_internal.h"
 #include "wubu_fs_util.h"
+#include <utime.h>
 
 /* mkdir -p semantics: create every component of `path`, tolerating EEXIST.
  * Returns 0 on success, -1 on error. */
@@ -500,6 +501,33 @@ int64_t vsl_nt_query_key(uint64_t a_key, uint64_t b_class, uint64_t c_info,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtSetInformationKey (236): set key metadata. We honor
+ * KeyWriteTimeInformation (class 1): set the key dir's mtime via utimensat
+ * (real work). Other classes (KeyValueInformation) are accepted. */
+int64_t vsl_nt_set_information_key(uint64_t a_key, uint64_t b_class,
+                                   uint64_t c_info, uint64_t d_len,
+                                   uint64_t e, uint64_t f) {
+    (void)d_len; (void)e; (void)f;
+    if (!a_key) return NT_STATUS_INVALID_PARAMETER;
+    uint64_t d0 = 0;
+    if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_key, &d0) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    const char *dirname = (const char *)(uintptr_t)d0;
+    if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    if ((uint32_t)b_class == 1 && c_info) {   /* KeyWriteTimeInformation */
+        /* Input is a LARGE_INTEGER (100ns ticks since 1601) at c_info. */
+        uint64_t ticks = *(uint64_t *)(uintptr_t)c_info;
+        uint64_t secs = (ticks - 116444736000000000ULL) / 10000000ULL;
+        struct utimbuf tb;
+        tb.actime = (time_t)secs;
+        tb.modtime = (time_t)secs;
+        if (utime(dirname, &tb) != 0)
+            return vsl_errno_to_nt_status(errno);
+        return NT_STATUS_SUCCESS;
+    }
+    return NT_STATUS_SUCCESS;
+}
+
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
@@ -524,4 +552,5 @@ void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[69-1] = vsl_nt_delete_value_key;
     tbl[172-1] = vsl_nt_query_open_subkeys;
     tbl[168-1] = vsl_nt_query_key;
+    tbl[236-1] = vsl_nt_set_information_key;
 }
