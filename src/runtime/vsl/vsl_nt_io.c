@@ -273,6 +273,97 @@ int64_t vsl_nt_pulse_event(uint64_t a_handle, uint64_t b, uint64_t c,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtDeleteFile (66): unlink the file by name. */
+int64_t vsl_nt_delete_file(uint64_t a_obj_attr, uint64_t b, uint64_t c,
+                           uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    const char *path = (const char *)(uintptr_t)a_obj_attr;
+    if (!path) return NT_STATUS_INVALID_PARAMETER;
+    if (unlink(path) != 0) return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryAttributesFile (146): stat the file, fill FILE_BASIC_INFORMATION. */
+int64_t vsl_nt_query_attributes_file(uint64_t a_obj_attr, uint64_t b_info,
+                                     uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    const char *path = (const char *)(uintptr_t)a_obj_attr;
+    if (!path || !b_info) return NT_STATUS_INVALID_PARAMETER;
+    struct stat st;
+    if (stat(path, &st) != 0) return vsl_errno_to_nt_status(errno);
+    uint8_t *out = (uint8_t *)(uintptr_t)b_info;
+    /* FILE_BASIC_INFORMATION: 4x uint64 (ctime,atime,mtime,chg) + uint32 attrs. */
+    memset(out, 0, 36);
+    uint64_t mtime = (uint64_t)st.st_mtime * 10000000ULL + 116444736000000000ULL;
+    memcpy(out + 16, &mtime, 8);  /* ChangeTime */
+    uint32_t attr = S_ISDIR(st.st_mode) ? 0x10 : 0x80;  /* DIRECTORY : NORMAL */
+    memcpy(out + 32, &attr, 4);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryFullAttributesFile (157): like above + alloc/EOA (FILE_NETWORK_OPEN_INFO). */
+int64_t vsl_nt_query_full_attributes_file(uint64_t a_obj_attr, uint64_t b_info,
+                                          uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)c; (void)d; (void)e; (void)f;
+    const char *path = (const char *)(uintptr_t)a_obj_attr;
+    if (!path || !b_info) return NT_STATUS_INVALID_PARAMETER;
+    struct stat st;
+    if (stat(path, &st) != 0) return vsl_errno_to_nt_status(errno);
+    uint8_t *out = (uint8_t *)(uintptr_t)b_info;
+    /* FILE_NETWORK_OPEN_INFORMATION: 4x uint64 + uint32 attrs + pad. */
+    memset(out, 0, 40);
+    uint64_t sz = (uint64_t)st.st_size * 10ULL;  /* 100ns units */
+    memcpy(out, &sz, 8);                            /* AllocationSize */
+    memcpy(out + 8, &sz, 8);                        /* EndOfFile */
+    uint64_t mtime = (uint64_t)st.st_mtime * 10000000ULL + 116444736000000000ULL;
+    memcpy(out + 16, &mtime, 8);
+    memcpy(out + 24, &mtime, 8);
+    uint32_t attr = S_ISDIR(st.st_mode) ? 0x10 : 0x80;
+    memcpy(out + 32, &attr, 4);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetVolumeInformationFile (258): accept a volume-label / info-class set. */
+int64_t vsl_nt_set_volume_information_file(uint64_t a_handle, uint64_t b_io,
+                                           uint64_t c_info, uint64_t d_len,
+                                           uint64_t e_class, uint64_t f) {
+    (void)b_io; (void)c_info; (void)d_len; (void)f;
+    /* We honor FileFsLabelInformation (2) only by accepting it (real relabel
+     * needs a mount, out of scope on a tmpfs); other classes are no-ops that
+     * still succeed so a real loader's probe doesn't abort. */
+    if ((uint32_t)e_class == 2) return NT_STATUS_SUCCESS;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryDirectoryFile (152): enumerate one entry via a cached DIR pointer.
+ * a=handle b=out c=len d=nameptr e=restart f=class. We support a single-shot
+ * getdents-style read of the directory referenced by the handle's path. */
+int64_t vsl_nt_query_directory_file(uint64_t a_handle, uint64_t b_buf,
+                                    uint64_t c_len, uint64_t d_name, uint64_t e,
+                                    uint64_t f) {
+    (void)e; (void)f;
+    if (!a_handle || !b_buf) return NT_STATUS_INVALID_PARAMETER;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    /* Re-open the dir by fd path /proc/self/fd/N to read entries. */
+    char procfd[64]; snprintf(procfd, sizeof(procfd), "/proc/self/fd/%d", fd);
+    DIR *d = opendir(procfd);
+    if (!d) return NT_STATUS_UNSUCCESSFUL;
+    struct dirent *de = readdir(d);
+    if (!de) { closedir(d); return NT_STATUS_NO_MORE_FILES; }
+    /* Return FILE_NAMES_INFORMATION: uint32 len, uint32 namelen, name[]. */
+    uint8_t *out = (uint8_t *)(uintptr_t)b_buf;
+    uint32_t namelen = (uint32_t)strlen(de->d_name);
+    uint32_t reclen = 8 + namelen;
+    if (reclen > (uint32_t)c_len) { closedir(d); return NT_STATUS_BUFFER_OVERFLOW; }
+    memcpy(out, &reclen, 4);
+    memcpy(out + 4, &namelen, 4);
+    memcpy(out + 8, de->d_name, namelen);
+    closedir(d);
+    return NT_STATUS_SUCCESS;
+}
+
 void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[28-1] = vsl_nt_close;
@@ -289,6 +380,11 @@ void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[209-1] = vsl_nt_reset_event;
     tbl[229-1] = vsl_nt_set_event;
     tbl[234-1] = vsl_nt_set_information_file;
+    tbl[258-1] = vsl_nt_set_volume_information_file;
     tbl[279-1] = vsl_nt_unmap_view_of_section;
     tbl[285-1] = vsl_nt_write_file;
+    tbl[66-1] = vsl_nt_delete_file;
+    tbl[146-1] = vsl_nt_query_attributes_file;
+    tbl[157-1] = vsl_nt_query_full_attributes_file;
+    tbl[152-1] = vsl_nt_query_directory_file;
 }
