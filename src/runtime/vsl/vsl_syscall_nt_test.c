@@ -791,11 +791,21 @@ int main(void) {
         uint32_t page_sz = *(uint32_t *)(sinfo);
         CHECK(page_sz == (uint32_t)sysconf(_SC_PAGESIZE), "NtQuerySystemInformation reports real page size");
 
+        /* Capture the key's backing directory handle BEFORE deleting, so we
+         * can assert the recursive delete actually removed the tree. */
+        uint64_t keydir = 0;
+        CHECK(vsl_nt_handle_to_data(&ctx, key, &keydir) == 0 && keydir != 0,
+              "NtCreateKey key exposes a real backing dir");
+
         /* Clean up the key. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)key;
         r = vsl_nt_syscall_dispatch(&ctx, 67, args, 1);  /* NtDeleteKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtDeleteKey removes the registry key");
+        /* The recursive delete must actually remove the backing dir tree
+         * (key dir + its value file), not just free the handle. */
+        CHECK(access((const char *)(uintptr_t)keydir, F_OK) != 0,
+              "NtDeleteKey recursively removed the key directory tree");
     }
 
     /* 34. Batch 8: file + section + memory + yield surface (real VSL work). */
