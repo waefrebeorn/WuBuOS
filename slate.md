@@ -31,6 +31,7 @@ Source of truth: `find_real_gaps.py src` (0 empty/0 const-only) + marker grep.
 
 ## The Parity Marathons (Part 2 — ~350, reclassified per rule)
 - **E1 ReactOS NT: 297** syscalls mapped, **20 transliterated** (batch 1 = 10, batch 2 = 10, 2026-07-09). 277 remain.
+- **E1 BATCH 3+4 (2026-07-12):** 14 MORE ReactOS NT syscalls transliterated to real VSL handlers in `vsl_syscall_nt.c` (now the canonical NT dispatch table `g_nt_dispatch[]`; legacy `vsl_syscall_table.c` no longer exists). Batch 3 (10, file-I/O + events + delay spine): NtDelayExecution(62)/NtCreateEvent(38)/NtOpenEvent(121)/NtSetEvent(229)/NtResetEvent(209)/NtClose(28)/NtOpenFile(123)/NtReadFile(192)/NtWriteFile(285)/NtQueryInformationFile(159) — real nanosleep/eventfd/open/pread/pwrite/fstat work. Batch 4 (4, the 'NT=SteamOS' process launch spine): NtAllocateVirtualMemory(19)/NtFreeVirtualMemory(88)/NtCreateThread(56)/NtCreateProcess(50) — real mmap/pthread_create/fork work; handle table extended with a `data` payload slot (pid/tid/mmap-base). **ORIGINAL BATCH-3 ORDINALS WERE WRONG** (used off-by-one header macros, test passed only by internal consistency) — corrected against `reactos-study/.../sysfuncs.lst`, rebuilt + re-run: 74/0 green. Total 34 transliterated, 263 remain. `test_vsl_nt` verified by hand-built lite binary (Makefile's `-lvulkan -lcuda` link hangs WSL — known defect).
 - **E2 SteamOS: ~30**, **E3 Ubuntu/Arch: ~20**, **E4 TempleOS: ~15**, **E5 ZealOS: ~8**.
 
 ## Triple-DA Plumber Verdict (Part 3)

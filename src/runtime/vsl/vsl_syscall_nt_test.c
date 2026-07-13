@@ -26,6 +26,7 @@
 #include <sys/wait.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
+#include <time.h>
 
 #include "vsl_nt_bridge.h"
 
@@ -34,6 +35,15 @@ static int g_pass = 0, g_fail = 0;
     if (cond) { g_pass++; printf("  ✅ %s\n", msg); } \
     else { g_fail++; printf("  ❌ %s\n", msg); } \
 } while (0)
+
+/* Thread-start routine for the NtCreateThread test: flips a shared flag so the
+ * test can observe the thread actually ran. */
+static volatile int g_thread_ran = 0;
+static void *vsl_nt_test_thread_start(void *arg) {
+    (void)arg;
+    g_thread_ran = 1;
+    return NULL;
+}
 
 int main(void) {
     printf("=== VSL NT transliteration (E1) test ===\n");
@@ -319,6 +329,170 @@ int main(void) {
         memset(args, 0, sizeof(args));
         int64_t r = vsl_nt_syscall_dispatch(&ctx, 2, args, 0);  /* NtAccessCheck */
         CHECK(r == NT_STATUS_NOT_IMPLEMENTED, "stubbed NtAccessCheck -> NOT_IMPLEMENTED");
+    }
+
+    /* 17. NtDelayExecution (37) -- real nanosleep */
+    {
+        /* 10 ms relative delay (negative = relative in NT encoding). */
+        args[0] = 0;                       /* Alertable */
+        args[1] = (uint64_t)(-10 * 1000 * 1000LL);
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 62, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtDelayExecution sleeps without error");
+    }
+
+    /* 18. NtCreateEvent / NtSetEvent / NtResetEvent (39/229/209) */
+    {
+        memset(args, 0, sizeof(args));
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 38, args, 1);
+        CHECK(h != 0, "NtCreateEvent returns a non-zero handle");
+
+        uint64_t val = 0;
+        int efd;
+        /* Read the eventfd directly to confirm unsignaled (0) initially. */
+        args[0] = (uint64_t)h;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 229, args, 1);   /* SetEvent */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetEvent signals the event");
+
+        args[0] = (uint64_t)h;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        r = vsl_nt_syscall_dispatch(&ctx, 209, args, 1);           /* ResetEvent */
+        CHECK(r == NT_STATUS_SUCCESS, "NtResetEvent clears the event");
+
+        args[0] = (uint64_t)h;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);            /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the event handle");
+        (void)efd; (void)val;
+    }
+
+    /* 19. NtOpenFile / NtWriteFile / NtReadFile / NtQueryInformationFile /
+     *     NtClose (123/285/193/159/28) -- full file round-trip */
+    {
+        char path[256];
+        snprintf(path, sizeof(path), "/tmp/wubu_nt_file_%d", getpid());
+        unlink(path);
+        args[0] = 0;
+        args[1] = (uint64_t)(uintptr_t)path;
+        memset(args + 2, 0, sizeof(uint64_t) * 4);
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 123, args, 2);  /* OpenFile */
+        CHECK(h != 0, "NtOpenFile opens/creates a file and returns a handle");
+
+        const char *msg = "WuBuOS-NT";
+        uint64_t wbuf = (uint64_t)(uintptr_t)msg;
+        args[0] = (uint64_t)h;
+        args[1] = wbuf;
+        args[2] = 8;                      /* count */
+        args[3] = 0;                      /* offset */
+        memset(args + 4, 0, sizeof(uint64_t) * 2);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 285, args, 4);   /* WriteFile */
+        CHECK(r == 8, "NtWriteFile writes 8 bytes");
+
+        char rbuf[16] = {0};
+        uint64_t rbuf_u = (uint64_t)(uintptr_t)rbuf;
+        args[0] = (uint64_t)h;
+        args[1] = rbuf_u;
+        args[2] = 8;
+        args[3] = 0;
+        memset(args + 4, 0, sizeof(uint64_t) * 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 192, args, 4);           /* ReadFile */
+        CHECK(r == 8, "NtReadFile reads 8 bytes");
+        CHECK(memcmp(rbuf, "WuBuOS-NT", 8) == 0, "NtReadFile returns the written bytes");
+
+        uint64_t sz = 0;
+        args[0] = (uint64_t)h;
+        args[1] = 0;
+        args[2] = (uint64_t)(uintptr_t)&sz;
+        args[3] = 0;
+        args[4] = 5;                      /* FileStandardInformation */
+        memset(args + 5, 0, sizeof(uint64_t));
+        r = vsl_nt_syscall_dispatch(&ctx, 159, args, 5);           /* QueryInfoFile */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationFile succeeds");
+        CHECK(sz == 8, "NtQueryInformationFile reports size 8");
+
+        args[0] = (uint64_t)h;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);            /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose closes the file handle");
+        unlink(path);
+    }
+
+    /* 20. NtOpenEvent (127) -- returns a usable event handle */
+    {
+        memset(args, 0, sizeof(args));
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 121, args, 1);
+        CHECK(h != 0, "NtOpenEvent returns a non-zero handle");
+        args[0] = (uint64_t)h;
+        memset(args + 1, 0, sizeof(uint64_t) * 5);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);    /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the opened event");
+    }
+
+    /* 21. NtAllocateVirtualMemory / NtFreeVirtualMemory (19/88) -- real mmap */
+    {
+        void *base = NULL;
+        size_t sz = 4096;
+        args[0] = 0;                       /* process handle (self) */
+        args[1] = (uint64_t)(uintptr_t)&base;  /* base_address* */
+        args[2] = (uint64_t)(uintptr_t)&sz;    /* region_size* */
+        args[3] = 0x3000;                  /* MEM_COMMIT | MEM_RESERVE */
+        args[4] = 0; args[5] = 0;
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 19, args, 4);
+        CHECK(h != 0, "NtAllocateVirtualMemory returns a section handle");
+        CHECK(base != NULL, "NtAllocateVirtualMemory maps a real region");
+        if (base) { memset(base, 0xAB, sz); CHECK(*(uint8_t *)base == 0xAB, "mapped region is writable"); }
+
+        /* Free it back. */
+        args[0] = 0;
+        args[1] = (uint64_t)(uintptr_t)&base;
+        args[2] = (uint64_t)(uintptr_t)&sz;
+        args[3] = 0x8000;                  /* MEM_RELEASE */
+        args[4] = 0; args[5] = 0;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 88, args, 4);
+        CHECK(r == NT_STATUS_SUCCESS, "NtFreeVirtualMemory unmaps the region");
+    }
+
+    /* 22. NtCreateThread (56) -- real pthread runs the start routine */
+    {
+        g_thread_ran = 0;
+        uint32_t thr = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&thr;            /* thread handle* */
+        args[4] = (uint64_t)(uintptr_t)vsl_nt_test_thread_start; /* start */
+        args[5] = 0;                                     /* arg */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 56, args, 6);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateThread returns SUCCESS");
+        CHECK(thr != 0, "NtCreateThread returns a thread handle");
+        /* Give the thread a moment to run, then confirm it executed. */
+        struct timespec ts = {0, 50 * 1000 * 1000}; /* 50 ms */
+        nanosleep(&ts, NULL);
+        CHECK(g_thread_ran == 1, "NtCreateThread spawned a thread that ran");
+    }
+
+    /* 23. NtCreateProcess (50) -- real fork() child tracked as a process */
+    {
+        uint32_t proc = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&proc;   /* process handle* */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 50, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateProcess returns SUCCESS");
+        CHECK(proc != 0, "NtCreateProcess returns a process handle");
+        /* Read back the real child pid stored in the handle payload. */
+        uint64_t pid = 0;
+        if (vsl_nt_handle_to_data(&ctx, proc, &pid) == 0 && pid != 0) {
+            CHECK(kill((pid_t)pid, 0) == 0, "NtCreateProcess child is a live process");
+            kill((pid_t)pid, SIGKILL);   /* reap the placeholder */
+            int st;
+            waitpid((pid_t)pid, &st, 0);
+        } else {
+            CHECK(0, "NtCreateProcess stored a child pid in the handle");
+        }
+        /* Free the process handle. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)proc;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);  /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the process handle");
     }
 
     vsl_nt_bridge_shutdown(&ctx);

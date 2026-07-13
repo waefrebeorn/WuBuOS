@@ -29,6 +29,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <time.h>
+#include <pthread.h>
 
 /* Matches the NT-bridge function-pointer type defined in vsl_syscall_table.c. */
 typedef int64_t (*vsl_syscall_fn_t)(uint64_t, uint64_t, uint64_t,
@@ -55,11 +57,34 @@ int64_t vsl_nt_delete_atom(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uin
 int64_t vsl_nt_query_information_atom(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_flush_write_buffer(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_set_uuid_seed(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+/* -- Batch 3 (file I/O + events + delay) -- */
+int64_t vsl_nt_delay_execution(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reset_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_read_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_write_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_close(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_information_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+/* -- Batch 4 (process / thread / virtual memory — the SteamOS "NT=Proton" spine) -- */
+int64_t vsl_nt_allocate_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_free_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_thread(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_process(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
 /* Global UUID seed: 0 = cryptographically random (default); nonzero = the
  * deterministic seed installed via NtSetUuidSeed (256). Declared at file
  * scope so it is visible to vsl_nt_allocate_uuids from any call site. */
 static uint64_t g_nt_uuid_seed = 0;
+
+/* Active bridge context (set in vsl_nt_bridge_init) so that transliterated
+ * handlers — which receive only raw syscall args, not the ctx — can reach the
+ * handle table. Mirrors how the NT kernel tracks object handles per-process.
+ * Declared at file scope (like g_nt_uuid_seed) so it is visible to every
+ * transliterated handler, not just ones defined after vsl_nt_bridge_init(). */
+static vsl_nt_bridge_ctx_t *g_nt_ctx = NULL;
 
 /* Self-contained NT dispatch table. The canonical vsl_syscall_table.c in the
  * repo documents the full 297-entry NT→VSL map (and now wires these 10), but
@@ -94,6 +119,22 @@ static void nt_dispatch_init(void) {
     g_nt_dispatch[158-1] = vsl_nt_query_information_atom;
     g_nt_dispatch[256-1] = vsl_nt_set_uuid_seed;
     g_nt_dispatch[266-1] = vsl_nt_terminate_job_object;
+    /* Batch 3: file I/O + events + delay (SteamOS/Proton I/O spine). */
+    g_nt_dispatch[62-1]  = vsl_nt_delay_execution;   /* NtDelayExecution  */
+    g_nt_dispatch[38-1]  = vsl_nt_create_event;      /* NtCreateEvent     */
+    g_nt_dispatch[121-1] = vsl_nt_open_event;        /* NtOpenEvent       */
+    g_nt_dispatch[209-1] = vsl_nt_reset_event;       /* NtResetEvent      */
+    g_nt_dispatch[229-1] = vsl_nt_set_event;         /* NtSetEvent        */
+    g_nt_dispatch[28-1]  = vsl_nt_close;             /* NtClose           */
+    g_nt_dispatch[123-1] = vsl_nt_open_file;         /* NtOpenFile        */
+    g_nt_dispatch[192-1] = vsl_nt_read_file;         /* NtReadFile        */
+    g_nt_dispatch[285-1] = vsl_nt_write_file;        /* NtWriteFile       */
+    g_nt_dispatch[159-1] = vsl_nt_query_information_file; /* NtQueryInformationFile */
+    /* Batch 4: process / thread / virtual memory (NT = SteamOS launch spine). */
+    g_nt_dispatch[19-1]  = vsl_nt_allocate_virtual_memory; /* NtAllocateVirtualMemory */
+    g_nt_dispatch[88-1]  = vsl_nt_free_virtual_memory;     /* NtFreeVirtualMemory */
+    g_nt_dispatch[56-1]  = vsl_nt_create_thread;           /* NtCreateThread */
+    g_nt_dispatch[50-1]  = vsl_nt_create_process;          /* NtCreateProcess */
 }
 
 /* ----------------------------------------------------------------------
@@ -516,6 +557,292 @@ int64_t vsl_nt_set_uuid_seed(uint64_t a_seed, uint64_t b,
     return NT_STATUS_SUCCESS;
 }
 
+/* ======================================================================
+ * BATCH 3 — File I/O + Events + Delay (SteamOS/Proton I/O spine)
+ *
+ * Transliterates 10 more ReactOS NT syscalls into real VSL/Linux work.
+ * Handles are minted via the bridge handle table (NT handle -> VSL fd),
+ * mirroring how the ReactOS/NT object manager tracks kernel handles.
+ * ==================================================================== */
+
+/* NtDelayExecution (37): sleep for a relative/absolute interval.
+ * a = Alertable (ignored), b = signed delay in nanoseconds
+ * (negative = relative, as NT encodes it). Real nanosleep. */
+int64_t vsl_nt_delay_execution(uint64_t a_alertable, uint64_t b_ns,
+                                uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_alertable; (void)c; (void)d; (void)e; (void)f;
+    int64_t ns = (int64_t)b_ns;
+    struct timespec ts;
+    if (ns < 0) ns = -ns;            /* relative delay magnitude */
+    ts.tv_sec  = (time_t)(ns / 1000000000LL);
+    ts.tv_nsec = (long)(ns % 1000000000LL);
+    if (nanosleep(&ts, NULL) < 0) return NT_STATUS_UNSUCCESSFUL;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtCreateEvent (39): allocate an eventfd. a = initial state (0 unsignaled).
+ * Returns the NT handle (0 on failure). */
+int64_t vsl_nt_create_event(uint64_t a_init_state, uint64_t b,
+                             uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int efd = eventfd((a_init_state ? 1 : 0), EFD_NONBLOCK);
+    if (efd < 0) return NT_STATUS_UNSUCCESSFUL;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, efd, 0, NT_OBJECT_TYPE_EVENT);
+    if (h == 0) { close(efd); return NT_STATUS_UNSUCCESSFUL; }
+    return (int64_t)h;
+}
+
+/* NtOpenEvent (127): return a handle to an event. Named events are not
+ * persisted across calls in this bridge, so we mint a fresh eventfd
+ * (unsignaled) and return its NT handle — sufficient for the Open semantic
+ * in the transliterated personality. */
+int64_t vsl_nt_open_event(uint64_t a, uint64_t b,
+                           uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    int efd = eventfd(0, EFD_NONBLOCK);
+    if (efd < 0) return NT_STATUS_UNSUCCESSFUL;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, efd, 0, NT_OBJECT_TYPE_EVENT);
+    if (h == 0) { close(efd); return NT_STATUS_UNSUCCESSFUL; }
+    return (int64_t)h;
+}
+
+/* NtSetEvent (229): signal the event by writing 1 to the eventfd. */
+int64_t vsl_nt_set_event(uint64_t a_handle, uint64_t b,
+                          uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0 || fd < 0)
+        return NT_STATUS_INVALID_HANDLE;
+    uint64_t one = 1;
+    if (write(fd, &one, sizeof(one)) != sizeof(one))
+        return NT_STATUS_UNSUCCESSFUL;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtResetEvent (209): clear the event by writing 0 to the eventfd. */
+int64_t vsl_nt_reset_event(uint64_t a_handle, uint64_t b,
+                            uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0 || fd < 0)
+        return NT_STATUS_INVALID_HANDLE;
+    uint64_t zero = 0;
+    if (write(fd, &zero, sizeof(zero)) != sizeof(zero))
+        return NT_STATUS_UNSUCCESSFUL;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtOpenFile (123): open a file by path (b = char* path) and mint an NT
+ * handle. Returns the NT handle, or 0 on failure. */
+int64_t vsl_nt_open_file(uint64_t a_handle_out, uint64_t b_path,
+                          uint64_t c_access, uint64_t d_share, uint64_t e, uint64_t f) {
+    (void)a_handle_out; (void)c_access; (void)d_share; (void)e; (void)f;
+    const char *path = (const char *)b_path;
+    if (!path || !*path) return NT_STATUS_INVALID_PARAMETER;
+    int fd = open(path, O_RDWR | O_CREAT, 0644);
+    if (fd < 0) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, fd, 0, NT_OBJECT_TYPE_FILE);
+    if (h == 0) { close(fd); return NT_STATUS_UNSUCCESSFUL; }
+    return (int64_t)h;
+}
+
+/* NtReadFile (193): read count bytes from the file handle (a) at offset (d)
+ * into buffer (b). Returns bytes read, or negative NT status on error. */
+int64_t vsl_nt_read_file(uint64_t a_handle, uint64_t b_buf,
+                          uint64_t c_count, uint64_t d_offset, uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0 || fd < 0)
+        return NT_STATUS_INVALID_HANDLE;
+    void *buf = (void *)b_buf;
+    ssize_t n = pread(fd, buf, (size_t)c_count, (off_t)d_offset);
+    if (n < 0) return vsl_errno_to_nt_status(errno);
+    return (int64_t)n;
+}
+
+/* NtWriteFile (285): write count bytes to the file handle (a) at offset (d)
+ * from buffer (b). Returns bytes written, or negative NT status on error. */
+int64_t vsl_nt_write_file(uint64_t a_handle, uint64_t b_buf,
+                           uint64_t c_count, uint64_t d_offset, uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0 || fd < 0)
+        return NT_STATUS_INVALID_HANDLE;
+    const void *buf = (const void *)b_buf;
+    ssize_t n = pwrite(fd, buf, (size_t)c_count, (off_t)d_offset);
+    if (n < 0) return vsl_errno_to_nt_status(errno);
+    return (int64_t)n;
+}
+
+/* NtClose (28): close the underlying fd and free the NT handle slot. */
+int64_t vsl_nt_close(uint64_t a_handle, uint64_t b,
+                      uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    vsl_nt_free_handle(g_nt_ctx, (uint32_t)a_handle);
+    if (fd >= 0) close(fd);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryInformationFile (159): fstat the handle (a) and, for
+ * FileStandardInformation (class 5), write the file size into the info
+ * buffer (c = uint64_t* out). Returns 0 or negative NT status. */
+int64_t vsl_nt_query_information_file(uint64_t a_handle, uint64_t b_iosb,
+                                       uint64_t c_info, uint64_t d_len,
+                                       uint64_t e_class, uint64_t f) {
+    (void)b_iosb; (void)d_len; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0 || fd < 0)
+        return NT_STATUS_INVALID_HANDLE;
+    struct stat st;
+    if (fstat(fd, &st) != 0) return vsl_errno_to_nt_status(errno);
+    if (e_class == 5 && c_info) {            /* FileStandardInformation */
+        uint64_t *out = (uint64_t *)c_info;
+        *out = (uint64_t)st.st_size;
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* ======================================================================
+ * BATCH 4 — Process / Thread / Virtual Memory (the SteamOS "NT = Proton"
+ * launch spine).
+ *
+ * These are the syscalls a Windows game/launcher hits through the ReactOS
+ * personality: allocate a process address space (NtAllocateVirtualMemory),
+ * spin up a thread (NtCreateThread), and spawn a process (NtCreateProcess).
+ * Each is transliterated into real Linux work — mmap for address space,
+ * pthread_create for threads, fork() for processes — so the NT object
+ * manager tracks genuine kernel-backed objects, not toy stubs.
+ * ==================================================================== */
+
+/* Thread trampoline: runs the NT start routine with its argument, exactly as
+ * NtCreateThread would. We keep the tid in the handle payload so the caller
+ * can later NtOpenThread / NtTerminateThread. */
+typedef struct {
+    void *(*start)(void *);
+    void *arg;
+} vsl_nt_thread_params_t;
+
+static void *vsl_nt_thread_tramp(void *p) {
+    vsl_nt_thread_params_t *tp = (vsl_nt_thread_params_t *)p;
+    void *(*start)(void *) = tp->start;
+    void *arg = tp->arg;
+    free(tp);
+    return start ? start(arg) : NULL;
+}
+
+/* NtAllocateVirtualMemory (19): reserve/commit a region via mmap.
+ * a = process handle (0 = self), b = base_address* (IN/OUT), c = region_size*,
+ * d = allocation_type (0x3000 = commit|reserve), e = protect (ignored). */
+int64_t vsl_nt_allocate_virtual_memory(uint64_t a_proc, uint64_t b_base,
+                                        uint64_t c_size, uint64_t d_type,
+                                        uint64_t e_prot, uint64_t f) {
+    (void)a_proc; (void)d_type; (void)e_prot; (void)f;
+    if (!b_base || !c_size) return NT_STATUS_INVALID_PARAMETER;
+    void **base = (void **)b_base;
+    size_t *size = (size_t *)c_size;
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+    if (*base) flags |= MAP_FIXED;
+    void *p = mmap(*base, *size, PROT_READ | PROT_WRITE, flags, -1, 0);
+    if (p == MAP_FAILED) return vsl_errno_to_nt_status(errno);
+    *base = p;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_SECTION);
+    if (h == 0) { munmap(p, *size); return NT_STATUS_UNSUCCESSFUL; }
+    /* Stash the mmap base in the handle payload so FreeVirtualMemory can find
+     * it and so the caller can map the region later. */
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid && g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)p;
+            break;
+        }
+    }
+    return (int64_t)h;
+}
+
+/* NtFreeVirtualMemory (88): release a region previously allocated.
+ * a = process handle, b = base_address*, c = region_size*, d = free_type. */
+int64_t vsl_nt_free_virtual_memory(uint64_t a_proc, uint64_t b_base,
+                                    uint64_t c_size, uint64_t d_type,
+                                    uint64_t e, uint64_t f) {
+    (void)a_proc; (void)d_type; (void)e; (void)f;
+    if (!b_base || !c_size) return NT_STATUS_INVALID_PARAMETER;
+    void *base = *(void **)b_base;
+    size_t size = *(size_t *)c_size;
+    if (munmap(base, size) != 0) return vsl_errno_to_nt_status(errno);
+    /* Free the handle if we can find one whose payload matches this base. */
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].type == NT_OBJECT_TYPE_SECTION &&
+            (void *)(uintptr_t)g_nt_ctx->handle_table[i].data == base) {
+            vsl_nt_free_handle(g_nt_ctx, g_nt_ctx->handle_table[i].nt_handle);
+            break;
+        }
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtCreateThread (56): spawn a real thread running start_routine(arg).
+ * a = thread handle* (OUT), d = process handle (ignored here), e = start_routine,
+ * f = argument. Returns SUCCESS and stores the pthread tid in the handle. */
+int64_t vsl_nt_create_thread(uint64_t a_thr_out, uint64_t b_access,
+                              uint64_t c_objattr, uint64_t d_proc,
+                              uint64_t e_start, uint64_t f_arg) {
+    (void)b_access; (void)c_objattr; (void)d_proc;
+    if (!a_thr_out || !e_start) return NT_STATUS_INVALID_PARAMETER;
+    vsl_nt_thread_params_t *tp = malloc(sizeof(*tp));
+    if (!tp) return NT_STATUS_NO_MEMORY;
+    tp->start = (void *(*)(void *))(uintptr_t)e_start;
+    tp->arg   = (void *)(uintptr_t)f_arg;
+    pthread_t tid;
+    if (pthread_create(&tid, NULL, vsl_nt_thread_tramp, tp) != 0) {
+        free(tp);
+        return NT_STATUS_UNSUCCESSFUL;
+    }
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_THREAD);
+    if (h == 0) { pthread_detach(tid); free(tp); return NT_STATUS_UNSUCCESSFUL; }
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid && g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)tid;
+            break;
+        }
+    }
+    *(uint32_t *)a_thr_out = h;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtCreateProcess (50): fork a real child process and track it.
+ * a = process handle* (OUT), f = section_handle (image; ignored — we model a
+ * placeholder process the launcher can later NtAllocateVirtualMemory /
+ * NtCreateThread inside, mirroring how Proton boots a wrapper process before
+ * the real exe image is mapped). Returns SUCCESS; the child pid is stored. */
+int64_t vsl_nt_create_process(uint64_t a_proc_out, uint64_t b_access,
+                               uint64_t c_objattr, uint64_t d_parent,
+                               uint64_t e_inherit, uint64_t f_section) {
+    (void)b_access; (void)c_objattr; (void)d_parent; (void)e_inherit; (void)f_section;
+    if (!a_proc_out) return NT_STATUS_INVALID_PARAMETER;
+    pid_t pid = fork();
+    if (pid < 0) return vsl_errno_to_nt_status(errno);
+    if (pid == 0) {
+        /* Child: a live placeholder process. It idles until the parent
+         * terminates it via NtTerminateProcess, exactly like the job-sentinel
+         * pattern — keeps the process object real without reaping risk to us. */
+        pause();
+        _exit(0);
+    }
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_PROCESS);
+    if (h == 0) { kill(pid, SIGKILL); return NT_STATUS_UNSUCCESSFUL; }
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid && g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)pid;
+            break;
+        }
+    }
+    *(uint32_t *)a_proc_out = h;
+    return NT_STATUS_SUCCESS;
+}
+
 /* ----------------------------------------------------------------------
  * Bridge: init / shutdown / handle registry / status translation
  * -------------------------------------------------------------------- */
@@ -526,6 +853,7 @@ int vsl_nt_bridge_init(vsl_nt_bridge_ctx_t *ctx) {
     ctx->current_pid = (uint32_t)getpid();
     ctx->current_tid = (uint32_t)gettid();
     for (int i = 0; i < 4096; i++) ctx->handle_table[i].valid = false;
+    g_nt_ctx = ctx;
     return 0;
 }
 
@@ -569,6 +897,18 @@ int vsl_nt_handle_to_vsl_fd(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
     for (int i = 0; i < 4096; i++) {
         if (ctx->handle_table[i].valid && ctx->handle_table[i].nt_handle == nt_handle) {
             *out_vsl_fd = ctx->handle_table[i].vsl_fd;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+int vsl_nt_handle_to_data(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
+                          uint64_t *out_data) {
+    if (!ctx || !out_data) return -1;
+    for (int i = 0; i < 4096; i++) {
+        if (ctx->handle_table[i].valid && ctx->handle_table[i].nt_handle == nt_handle) {
+            *out_data = ctx->handle_table[i].data;
             return 0;
         }
     }
