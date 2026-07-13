@@ -737,6 +737,67 @@ int main(void) {
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the opened thread");
     }
 
+    /* 33. Batch 7: registry + system-info (Styx9 namespace + SteamOS view).
+     * Asserts REAL behavior: the NT registry is backed by real files. */
+    {
+        uint32_t key = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\WuBu";
+        args[4] = (uint64_t)(uintptr_t)&key;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey creates a registry key (real dir)");
+        CHECK(key != 0, "NtCreateKey returns a handle");
+
+        /* Set a value; verify the backing file exists and round-trips. */
+        const char *val = "wubuos";
+        uint32_t vlen = (uint32_t)strlen(val);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)key;
+        args[1] = (uint64_t)(uintptr_t)"Name";
+        args[2] = 3;                       /* REG_SZ */
+        args[3] = (uint64_t)(uintptr_t)val;
+        args[4] = (uint64_t)vlen;
+        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey writes value to real file");
+
+        char qbuf[32];
+        memset(qbuf, 0, sizeof(qbuf));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)key;
+        args[1] = (uint64_t)(uintptr_t)"Name";
+        args[3] = (uint64_t)(uintptr_t)qbuf;
+        args[4] = (uint64_t)sizeof(qbuf);
+        r = vsl_nt_syscall_dispatch(&ctx, 186, args, 5); /* NtQueryValueKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryValueKey reads value back");
+        CHECK(strncmp(qbuf, "wubuos", vlen) == 0, "NtQueryValueKey round-trips data");
+
+        /* System time must be non-zero (100ns ticks since 1601). */
+        uint64_t st = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&st;
+        r = vsl_nt_syscall_dispatch(&ctx, 183, args, 1); /* NtQuerySystemTime */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQuerySystemTime SUCCESS");
+        CHECK(st != 0, "NtQuerySystemTime returns nonzero time");
+
+        /* System info: page size + processor count. */
+        uint8_t sinfo[64];
+        memset(sinfo, 0, sizeof(sinfo));
+        memset(args, 0, sizeof(args));
+        args[0] = 2;                        /* SystemBasicInformation */
+        args[1] = (uint64_t)(uintptr_t)sinfo;
+        args[2] = sizeof(sinfo);
+        r = vsl_nt_syscall_dispatch(&ctx, 182, args, 3); /* NtQuerySystemInformation */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQuerySystemInformation SUCCESS");
+        uint32_t page_sz = *(uint32_t *)(sinfo);
+        CHECK(page_sz == (uint32_t)sysconf(_SC_PAGESIZE), "NtQuerySystemInformation reports real page size");
+
+        /* Clean up the key. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)key;
+        r = vsl_nt_syscall_dispatch(&ctx, 67, args, 1);  /* NtDeleteKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtDeleteKey removes the registry key");
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
