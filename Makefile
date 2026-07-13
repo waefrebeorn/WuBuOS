@@ -753,7 +753,7 @@ test_anticheat:
 test_bottles:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) \
-		$(RT)/wubu_bottles.c $(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c $(RT)/wubu_bottles_test.c $(RT)/wubu_fs_util.c \
+		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c $(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c $(RT)/wubu_bottles_test.c $(RT)/wubu_fs_util.c \
 		-o $(RT)/wubu_bottles_test
 	$(RT)/wubu_bottles_test
 
