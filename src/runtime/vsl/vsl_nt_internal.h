@@ -147,7 +147,11 @@ int64_t vsl_nt_write_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint
 void vsl_nt_atoms_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_job_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size);
-void vsl_nt_proc_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_vmem_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_process_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_thread_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_section_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_timer_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size);
 

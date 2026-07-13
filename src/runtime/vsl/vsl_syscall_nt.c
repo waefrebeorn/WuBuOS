@@ -3,7 +3,8 @@
  *
  * FACADE of a decomposed dispatch table. Real handlers live in modules:
  *   vsl_nt_atoms.c (batch 1)   vsl_nt_job.c    (batch 2)
- *   vsl_nt_io.c    (batch 3)   vsl_nt_proc.c   (batches 4+5)
+ *   vsl_nt_io.c    (batch 3)   vsl_nt_vmem.c / vsl_nt_process.c / vsl_nt_thread.c
+ *                          / vsl_nt_section.c / vsl_nt_timer.c  (batches 4+5)
  *   vsl_nt_sync.c  (batch 6)   vsl_nt_registry.c (batch 7)
  * Each module registers its handlers into g_nt_dispatch[] via a
  * vsl_nt_<subsys>_register() call below. 117/297 NT syscalls transliterated;
@@ -75,7 +76,11 @@ static void nt_dispatch_init(void) {
     vsl_nt_atoms_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_job_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_io_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_proc_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_vmem_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_process_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_thread_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_section_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_timer_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_sync_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_registry_register(g_nt_dispatch, NT_TBL_SIZE);
 }
