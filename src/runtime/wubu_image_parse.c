@@ -226,7 +226,7 @@ int wubu_parse_wubufile(const char *path, WubuBuildContext *ctx) {
                 /* EXPOSE 80/tcp 443/tcp ... */
                 char *port = strtok(inst.args, " \t");
                 while (port && stage->port_count < WUBU_MAX_PORTS) {
-                    strncpy(stage->ports[stage->port_count], port, 31);
+                    stage->ports[stage->port_count] = atoi(port);
                     stage->port_count++;
                     port = strtok(NULL, " \t");
                 }
