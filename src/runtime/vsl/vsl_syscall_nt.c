@@ -6,7 +6,7 @@
  *   vsl_nt_io.c    (batch 3)   vsl_nt_proc.c   (batches 4+5)
  *   vsl_nt_sync.c  (batch 6)   vsl_nt_registry.c (batch 7)
  * Each module registers its handlers into g_nt_dispatch[] via a
- * vsl_nt_<subsys>_register() call below. 58/297 NT syscalls transliterated;
+ * vsl_nt_<subsys>_register() call below. 117/297 NT syscalls transliterated;
  * the rest fall through to vsl_sys_nosys (VSL_NT_MAP_STUB).
  *
  * Reference study: reactos-study/reactos/ntoskrnl/ + dll/ntdll/
@@ -180,6 +180,37 @@ uint32_t vsl_errno_to_nt_status(int errno_val) {
         case ENOSYS: return NT_STATUS_NOT_IMPLEMENTED;
         default:     return NT_STATUS_UNSUCCESSFUL;
     }
+}
+
+/* Object-type <-> name mapping (used by NtQueryObject and for diagnostics). */
+const char *vsl_nt_object_type_name(nt_object_type_t type) {
+    switch (type) {
+        case NT_OBJECT_TYPE_PROCESS:         return "Process";
+        case NT_OBJECT_TYPE_THREAD:          return "Thread";
+        case NT_OBJECT_TYPE_FILE:            return "File";
+        case NT_OBJECT_TYPE_DIRECTORY:       return "Directory";
+        case NT_OBJECT_TYPE_SYMBOLIC_LINK:   return "SymbolicLink";
+        case NT_OBJECT_TYPE_EVENT:           return "Event";
+        case NT_OBJECT_TYPE_MUTANT:          return "Mutant";
+        case NT_OBJECT_TYPE_SEMAPHORE:       return "Semaphore";
+        case NT_OBJECT_TYPE_TIMER:           return "Timer";
+        case NT_OBJECT_TYPE_KEY:             return "Key";
+        case NT_OBJECT_TYPE_SECTION:         return "Section";
+        case NT_OBJECT_TYPE_JOB:             return "Job";
+        case NT_OBJECT_TYPE_PORT:            return "Port";
+        case NT_OBJECT_TYPE_TOKEN:           return "Token";
+        default:                             return "Unknown";
+    }
+}
+
+nt_object_type_t vsl_nt_object_type_from_name(const char *nt_type_name) {
+    if (!nt_type_name) return NT_OBJECT_TYPE_UNKNOWN;
+    /* Linear scan is fine: the enum has ~25 entries. */
+    for (nt_object_type_t t = NT_OBJECT_TYPE_UNKNOWN;
+         t <= NT_OBJECT_TYPE_WORK_ITEM; t = (nt_object_type_t)((int)t + 1)) {
+        if (strcmp(vsl_nt_object_type_name(t), nt_type_name) == 0) return t;
+    }
+    return NT_OBJECT_TYPE_UNKNOWN;
 }
 
 /* ----------------------------------------------------------------------
