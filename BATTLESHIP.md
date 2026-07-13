@@ -110,8 +110,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 20 transliterated) — 277 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 20 implemented (batch 1: 10 + batch 2: 10).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 34 transliterated) — 263 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 34 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
@@ -128,7 +128,22 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   group (so terminate does NOT kill the caller). `NtSetUuidSeed` makes UUID gen
   deterministic. Wired into `vsl_syscall_table[]` + local dispatch; regression in
   `vsl_syscall_nt_test.c` (now 49 checks, up from 25).
-- This is the single largest block: **277 remaining = "rewrite-from-scratch" work items.**
+- Batch 3+4 (2026-07-12) transliterated (real VSL handlers, `vsl_syscall_nt.c`; the
+  `g_nt_dispatch[]` table here IS the canonical NT dispatch — the old
+  `vsl_syscall_table.c` no longer exists in this repo). Batch 3 (10, file-I/O +
+  events + delay spine): `NtDelayExecution` (62), `NtCreateEvent` (38), `NtOpenEvent`
+  (121), `NtSetEvent` (229), `NtResetEvent` (209), `NtClose` (28), `NtOpenFile` (123),
+  `NtReadFile` (192), `NtWriteFile` (285), `NtQueryInformationFile` (159) — real
+  nanosleep/eventfd/open/pread/pwrite/fstat work. Batch 4 (4, the "NT=SteamOS"
+  process-launch spine): `NtAllocateVirtualMemory` (19), `NtFreeVirtualMemory` (88),
+  `NtCreateThread` (56), `NtCreateProcess` (50) — real mmap/pthread_create/fork work;
+  the handle table gained a `data` payload slot (pid/tid/mmap-base). **Batch-3 was
+  committed with WRONG ordinals** (off-by-one header macros; the test passed only by
+  internal consistency) — corrected against `reactos-study/ntoskrnl/sysfuncs.lst`,
+  rebuilt + re-run: 74/0 green. `test_vsl_nt` is verified via a hand-built lite binary
+  because the Makefile's `make test_vsl_nt` link (`-lvulkan -lcuda`) hangs under WSL2
+  (known defect; the NT test exercises no GPU path).
+- This is the single largest block: **263 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |

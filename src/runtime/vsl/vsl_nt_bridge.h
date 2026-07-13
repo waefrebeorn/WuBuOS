@@ -92,7 +92,7 @@
 #define NT_SYSCALL_NTOPENFILE                0x007B  /* NtOpenFile */
 #define NT_SYSCALL_NTCREATENAMEDPIPEFILE     0x002F  /* NtCreateNamedPipeFile */
 #define NT_SYSCALL_NTCREATEMAILSLOTFILE      0x002D  /* NtCreateMailslotFile */
-#define NT_SYSCALL_NTREADFILE                0x00C1  /* NtReadFile */
+#define NT_SYSCALL_NTREADFILE                0x00C0  /* NtReadFile */
 #define NT_SYSCALL_NTWRITEFILE               0x011D  /* NtWriteFile */
 #define NT_SYSCALL_NTREADFILESCATTER         0x00C2  /* NtReadFileScatter */
 #define NT_SYSCALL_NTWRITEFILEGATHER         0x011E  /* NtWriteFileGather */
@@ -131,8 +131,8 @@
 #define NT_SYSCALL_NTNOTIFYCHANGEMULTIPLEKEYS 0x0077  /* NtNotifyChangeMultipleKeys */
 
 /* Synchronization Objects */
-#define NT_SYSCALL_NTCREATEEVENT             0x0027  /* NtCreateEvent */
-#define NT_SYSCALL_NTOPENEVENT               0x007F  /* NtOpenEvent */
+#define NT_SYSCALL_NTCREATEEVENT             0x0026  /* NtCreateEvent */
+#define NT_SYSCALL_NTOPENEVENT               0x0079  /* NtOpenEvent */
 #define NT_SYSCALL_NTPULSEEVENT              0x0091  /* NtPulseEvent */
 #define NT_SYSCALL_NTSETEVENT                0x00E5  /* NtSetEvent */
 #define NT_SYSCALL_NTRESETEVENT              0x00D1  /* NtResetEvent */
@@ -226,7 +226,8 @@
 #define NT_SYSCALL_NTQUERYSYSTEMINFORMATION  0x00B2  /* NtQuerySystemInformation */
 #define NT_SYSCALL_NTSETSYSTEMINFORMATION    0x00EB  /* NtSetSystemInformation */
 #define NT_SYSCALL_NTQUERYSYSTEMTIME         0x00B3  /* NtQuerySystemTime */
-#define NT_SYSCALL_NTSETSYSTEMTIME           0x00EC  /* NtSetSystemTime */
+#define NT_SYSCALL_NTSETSYSTEMTIME         0x00EC  /* NtSetSystemTime */
+#define NT_SYSCALL_NTDELAYEXECUTION        0x003E  /* NtDelayExecution */
 #define NT_SYSCALL_NTQUERYPERFORMANCECOUNTER 0x00A6  /* NtQueryPerformanceCounter */
 #define NT_SYSCALL_NTQUERYINTERVALPROFILE    0x00A6  /* NtQueryIntervalProfile */
 #define NT_SYSCALL_NTSETINTERVALPROFILE      0x00E1  /* NtSetIntervalProfile */
@@ -425,6 +426,7 @@ typedef struct {
         uint32_t nt_handle;
         int vsl_fd;           /* VSL file descriptor */
         uint64_t styx_fid;    /* Styx9 fid */
+        uint64_t data;        /* opaque payload: pid_t for PROC/THREAD, mmap base for SECTION/VMEM */
         nt_object_type_t type;
         bool valid;
     } handle_table[4096];
@@ -472,6 +474,9 @@ int64_t vsl_nt_syscall_dispatch(vsl_nt_bridge_ctx_t *ctx,
 /* Handle translation */
 int vsl_nt_handle_to_vsl_fd(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle, int *out_vsl_fd);
 int vsl_nt_handle_to_styx_fid(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle, uint64_t *out_styx_fid);
+/* Returns the opaque payload stored in the handle slot (pid_t for PROC/THREAD,
+ * mmap base for SECTION/VMEM, etc.). Returns 0 and -1 if the handle is invalid. */
+int vsl_nt_handle_to_data(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle, uint64_t *out_data);
 uint32_t vsl_nt_allocate_handle(vsl_nt_bridge_ctx_t *ctx, int vsl_fd, uint64_t styx_fid, nt_object_type_t type);
 int vsl_nt_free_handle(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle);
 
@@ -483,38 +488,15 @@ const char *vsl_nt_object_type_name(nt_object_type_t type);
 int vsl_nt_status_to_errno(uint32_t nt_status);
 uint32_t vsl_errno_to_nt_status(int errno_val);
 
-/* Memory management helpers */
-int vsl_nt_allocate_virtual_memory(vsl_nt_bridge_ctx_t *ctx,
-                                    void **base_address,
-                                    size_t *region_size,
-                                    uint32_t allocation_type,
-                                    uint32_t protect);
-int vsl_nt_free_virtual_memory(vsl_nt_bridge_ctx_t *ctx,
-                                void **base_address,
-                                size_t *region_size,
-                                uint32_t free_type);
+/* Memory management — implemented as NT syscalls (Batch 4). These are the
+ * real transliterated handlers dispatched via g_nt_dispatch[] (raw syscall
+ * arg ABI), not the old ctx-rich helper prototypes which were never wired. */
+int64_t vsl_nt_allocate_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_free_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
-/* Thread/Process helpers */
-int vsl_nt_create_thread(vsl_nt_bridge_ctx_t *ctx,
-                          uint32_t *out_thread_handle,
-                          uint32_t desired_access,
-                          void *object_attributes,
-                          uint32_t process_handle,
-                          void *start_routine,
-                          void *argument,
-                          uint32_t create_flags,
-                          uint32_t stack_size,
-                          uint32_t max_stack_size);
-
-int vsl_nt_create_process(vsl_nt_bridge_ctx_t *ctx,
-                           uint32_t *out_process_handle,
-                           uint32_t desired_access,
-                           void *object_attributes,
-                           uint32_t parent_process,
-                           bool inherit_handles,
-                           uint32_t section_handle,
-                           void *debug_port,
-                           void *exception_port);
+/* Thread/Process — implemented as NT syscalls (Batch 4). */
+int64_t vsl_nt_create_thread(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_process(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
 /* File/I/O helpers */
 int vsl_nt_create_file(vsl_nt_bridge_ctx_t *ctx,
