@@ -38,37 +38,6 @@ extern WubuAudio        g_audio;
 extern bool             g_initialized;
 
 /* ====================================================================
- * DRM/KMS DISPLAY BACKEND
- * ==================================================================== */
-#ifdef WUBU_USE_DRM
-#include <xf86drm.h>
-#include <xf86drmMode.h>
-#endif
-
-/* Forward declarations for DRM types when headers not available */
-typedef struct _drmModeModeInfo drmModeModeInfo;
-typedef struct _drmModeObjectProperties drmModeObjectProperties;
-
-/* DRM internal functions */
-int drm_find_connector(int fd, void **out_conn, void **out_enc, void **out_crtc);
-int drm_create_fb(int fd, int width, int height, uint32_t *fb_id, uint32_t **fb_map);
-int drm_get_connector_props(int fd, uint32_t connector_id,
-                            uint32_t **out_props, uint64_t **out_values, int *out_count);
-int drm_get_crtc_props(int fd, uint32_t crtc_id,
-                       uint32_t **out_props, uint64_t **out_values, int *out_count);
-int drm_get_plane_props(int fd, uint32_t plane_id,
-                        uint32_t **out_props, uint64_t **out_values, int *out_count);
-int drm_atomic_commit(int fd, uint32_t crtc_id, uint32_t fb_id, uint32_t connector_id,
-                      void *mode, int x, int y);
-
-/* DRM public API */
-int wubu_drm_init(int width, int height);
-void wubu_drm_shutdown(void);
-void wubu_drm_flip(void);
-int wubu_drm_set_mode(int width, int height, int refresh_hz);
-int wubu_drm_get_modes(int *widths, int *heights, int max);
-
-/* ====================================================================
  * EVDEV INPUT BACKEND
  * ==================================================================== */
 int wubu_evdev_find_device(const char *type, int *out_fd);

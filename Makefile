@@ -29,7 +29,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o
 
 # ── Metal Objects ────────────────────────────────────────────────
-METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o
+METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
 
 # ── Hosted Objects ───────────────────────────────────────────────
 HOSTED_OBJS_LIST = $(HOSTED)/wubu_gbm.o $(HOSTED)/wubu_vulkan_loader.o $(HOSTED)/wubu_vulkan_swapchain.o $(HOSTED)/wubu_vulkan_cmd.o $(HOSTED)/wubu_vulkan_compute.o $(HOSTED)/wubu_metal_audio.o
@@ -300,6 +300,10 @@ $(TOOLS)/%.o: $(TOOLS)/%.c
 
 $(HOSTED)/%.o: $(HOSTED)/%.c
 	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -c $< -o $@
+
+# DRM/KMS backend: real libdrm engine is live (WUBU_USE_DRM), not dead stubs.
+$(HOSTED)/wubu_metal_drm.o: $(HOSTED)/wubu_metal_drm.c
+	$(CC) $(CFLAGS) -DWUBU_USE_DRM -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -c $< -o $@
 
 $(AUDIO)/%.o: $(AUDIO)/%.c
 	$(CC) $(CFLAGS) -I$(AUDIO) -I$(KERNEL) -I$(RT) -c $< -o $@
@@ -685,12 +689,12 @@ test_proton2:
 	$(RT)/wubu_proton2_test
 
 test_metal:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DMYSEED_METAL -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST\
-		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -I$(SHELL_DIR) -I$(COMP) -I$(JIT) \
-		$(HOSTED)/wubu_metal.c $(HOSTED)/wubu_metal_evdev.c $(HOSTED)/wubu_metal_x11.c $(HOSTED)/wubu_metal_vulkan.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
-		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DMYSEED_METAL -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_USE_DRM\
+		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -I$(SHELL_DIR) -I$(COMP) -I$(JIT) -I/usr/include/libdrm \
+		$(HOSTED)/wubu_metal.c $(HOSTED)/wubu_metal_evdev.c $(HOSTED)/wubu_metal_x11.c $(HOSTED)/wubu_metal_vulkan.c $(HOSTED)/wubu_metal_drm.c $(HOSTED)/wubu_metal_audio.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
+		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/interrupt_apic.c $(KERNEL)/interrupt_pit.c $(KERNEL)/interrupt_syscall.c $(KERNEL)/interrupt_timer.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(HOSTED)/wubu_metal_test.c \
-		-o $(HOSTED)/wubu_metal_test -lm
+		-o $(HOSTED)/wubu_metal_test -lm -ldrm -ldl
 	$(HOSTED)/wubu_metal_test
 
 test_audio:
