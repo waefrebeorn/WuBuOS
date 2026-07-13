@@ -48,7 +48,33 @@ int styx_read_cb(styx_server_t *srv, uint32_t fid, uint64_t offset,
                  uint32_t count, uint8_t *data, uint32_t *nread);
 int styx_stat_cb(styx_server_t *srv, uint32_t fid, styx_dir_t *dir);
 
-/* Shared FID lookup used by the callbacks. */
+/* Forward FID lookup used by the callbacks. */
 styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid);
+
+/* ── Shared Wayland/launcher globals ────────────────────────────────
+ * Defined once (in hosted.c for g_hosted_state; in hosted_wayland.c for
+ * the SHM pool + key/pointer state).  Both TUs need the types, so the
+ * shm_buffer_t / SHM_BUFFERS definition lives here. */
+typedef struct {
+    struct wl_buffer *wl_buf;
+    uint32_t         *pixels;
+    int               width;
+    int               height;
+    int               stride;
+    int               fd;
+} shm_buffer_t;
+
+#define SHM_BUFFERS 2
+
+extern hosted_state_t *g_hosted_state;
+
+/* ── Entry points driven by the hosted.c launcher core ─────────────── */
+int  hosted_wl_connect(hosted_state_t *state);
+/* Tear down the Wayland connection (destroy globals, disconnect). */
+void hosted_wl_disconnect(void);
+/* Pump pending Wayland events. */
+void hosted_wl_dispatch(void);
+/* Blit the VBE back-buffer into the current SHM buffer + commit. */
+void hosted_wl_frame_render(void);
 
 #endif /* WUBU_HOSTED_INTERNAL_H */
