@@ -982,6 +982,102 @@ int main(void) {
         vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
     }
 
+    /* 36. Blitz-2: registry persist, process/thread control, timers, locks, dir. */
+    {
+        int64_t r;
+        /* NtCreateKey + NtSetValueKey + NtSaveKey + NtRestoreKey (file-backed). */
+        uint32_t bk = 0;
+        char bpath[] = "\\Registry\\Machine\\Blitz2Key";
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)bpath;
+        args[4] = (uint64_t)(uintptr_t)&bk;
+        r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (blitz2)");
+        char bname[] = "BlitzVal"; uint8_t bval[16]; memset(bval, 0xAB, sizeof(bval));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)bk; args[1] = (uint64_t)(uintptr_t)bname;
+        args[2] = 3; args[3] = (uint64_t)(uintptr_t)bval; args[4] = sizeof(bval);
+        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey (blitz2)");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)bk;
+        r = vsl_nt_syscall_dispatch(&ctx, 216, args, 2); /* NtSaveKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSaveKey copies the hive");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)bk;
+        r = vsl_nt_syscall_dispatch(&ctx, 213, args, 3); /* NtRestoreKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtRestoreKey restores the hive");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)bk;
+        vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* NtDeleteKey */
+
+        /* NtCreateTimer + NtSetTimer + NtCancelTimer (timerfd). */
+        uint32_t tm = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&tm;
+        r = vsl_nt_syscall_dispatch(&ctx, 57, args, 1); /* NtCreateTimer */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateTimer mints a timerfd handle");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tm; args[1] = (uint64_t)(-10000000LL); /* 1s relative */
+        r = vsl_nt_syscall_dispatch(&ctx, 254, args, 5); /* NtSetTimer */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetTimer arms the timerfd");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)tm;
+        r = vsl_nt_syscall_dispatch(&ctx, 26, args, 2); /* NtCancelTimer */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCancelTimer disarms the timerfd");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)tm;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+
+        /* NtSuspendProcess / NtResumeProcess on a forked child. */
+        pid_t cp = fork();
+        if (cp == 0) { for (;;) pause(); }
+        uint32_t cph = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&cph;
+        args[2] = (uint64_t)(uint32_t)cp;  /* NtOpenProcess: client_id = pid */
+        r = vsl_nt_syscall_dispatch(&ctx, 129, args, 3); /* NtOpenProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenProcess (blitz2) mints child handle");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)cph;
+        r = vsl_nt_syscall_dispatch(&ctx, 263, args, 1); /* NtSuspendProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSuspendProcess SIGSTOPs the child");
+        r = vsl_nt_syscall_dispatch(&ctx, 214, args, 1); /* NtResumeProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtResumeProcess SIGCONTs the child");
+        kill(cp, SIGKILL); waitpid(cp, NULL, 0);
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)cph;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+
+        /* NtLockFile / NtUnlockFile on a real file. */
+        char lf[] = "/tmp/wubu_nt_lockfile"; int lfd = open(lf, O_RDWR|O_CREAT,0644);
+        uint32_t lh = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&lh;
+        args[2] = (uint64_t)(uintptr_t)lf;
+        vsl_nt_syscall_dispatch(&ctx, 40, args, 5); /* NtCreateFile */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh; args[2] = 0; args[3] = 4096; args[4] = 1;
+        r = vsl_nt_syscall_dispatch(&ctx, 106, args, 5); /* NtLockFile */
+        CHECK(r == NT_STATUS_SUCCESS, "NtLockFile sets an advisory lock");
+        r = vsl_nt_syscall_dispatch(&ctx, 276, args, 5); /* NtUnlockFile */
+        CHECK(r == NT_STATUS_SUCCESS, "NtUnlockFile clears the lock");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        close(lfd); unlink(lf);
+
+        /* NtOpenDirectoryObject (120). */
+        uint32_t dir = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&dir;
+        r = vsl_nt_syscall_dispatch(&ctx, 120, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenDirectoryObject mints a handle");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)dir;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+
+        /* NtQueryMultipleValueKey / NtCompactKeys / NtInitializeRegistry accept. */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)bk + 1; args[2] = 1;
+        r = vsl_nt_syscall_dispatch(&ctx, 169, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryMultipleValueKey accepts");
+        memset(args, 0, sizeof(args));
+        r = vsl_nt_syscall_dispatch(&ctx, 30, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCompactKeys accepts");
+        memset(args, 0, sizeof(args));
+        r = vsl_nt_syscall_dispatch(&ctx, 97, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtInitializeRegistry accepts");
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);

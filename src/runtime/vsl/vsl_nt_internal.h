@@ -27,6 +27,8 @@
 #include <sys/eventfd.h>
 #include <sys/uio.h>
 #include <sys/statvfs.h>
+#include <sys/timerfd.h>
+#include <fcntl.h>
 #include <sched.h>
 #include <time.h>
 #include <linux/futex.h>

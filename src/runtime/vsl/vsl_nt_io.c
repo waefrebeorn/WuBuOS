@@ -364,6 +364,59 @@ int64_t vsl_nt_query_directory_file(uint64_t a_handle, uint64_t b_buf,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtLockFile (106) / NtUnlockFile (276): POSIX fcntl(F_SETLK) advisory locks.
+ * a = handle, b = key (ignored), c = offset (lo), d = length (lo),
+ * e = lock mode (1=exclusive,0=shared), f = non-blocking. */
+int64_t vsl_nt_lock_file(uint64_t a_handle, uint64_t b_key, uint64_t c_off,
+                         uint64_t d_len, uint64_t e_mode, uint64_t f_nonblock) {
+    (void)b_key; (void)f_nonblock;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    struct flock fl; memset(&fl, 0, sizeof(fl));
+    fl.l_type = ((uint32_t)e_mode == 1) ? F_WRLCK : F_RDLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = (off_t)c_off;
+    fl.l_len = (off_t)d_len;
+    if (fcntl(fd, F_SETLK, &fl) != 0) return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+int64_t vsl_nt_unlock_file(uint64_t a_handle, uint64_t b_key, uint64_t c_off,
+                           uint64_t d_len, uint64_t e, uint64_t f) {
+    (void)b_key; (void)e; (void)f;
+    int fd;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    struct flock fl; memset(&fl, 0, sizeof(fl));
+    fl.l_type = F_UNLCK;
+    fl.l_whence = SEEK_SET;
+    fl.l_start = (off_t)c_off;
+    fl.l_len = (off_t)d_len;
+    if (fcntl(fd, F_SETLK, &fl) != 0) return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtFlushInstructionCache (83): no-op on x86 (coherent I/D caches). */
+int64_t vsl_nt_flush_instruction_cache(uint64_t a_proc, uint64_t b_base,
+                                        uint64_t c_size, uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_proc; (void)b_base; (void)c_size; (void)d; (void)e; (void)f;
+    __builtin___clear_cache((void *)(uintptr_t)b_base,
+                             (void *)(uintptr_t)(b_base + c_size));
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtDisplayString (71): write the message to stdout (debug console). */
+int64_t vsl_nt_display_string(uint64_t a_str, uint64_t b, uint64_t c,
+                              uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    const char *s = (const char *)(uintptr_t)a_str;
+    if (!s) return NT_STATUS_INVALID_PARAMETER;
+    fputs(s, stdout);
+    fputc('\n', stdout);
+    fflush(stdout);
+    return NT_STATUS_SUCCESS;
+}
+
 void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[28-1] = vsl_nt_close;
@@ -387,4 +440,8 @@ void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[146-1] = vsl_nt_query_attributes_file;
     tbl[157-1] = vsl_nt_query_full_attributes_file;
     tbl[152-1] = vsl_nt_query_directory_file;
+    tbl[71-1] = vsl_nt_display_string;
+    tbl[83-1] = vsl_nt_flush_instruction_cache;
+    tbl[106-1] = vsl_nt_lock_file;
+    tbl[276-1] = vsl_nt_unlock_file;
 }
