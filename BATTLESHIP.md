@@ -110,8 +110,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 50 transliterated) — 247 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 50 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 58 transliterated) — 239 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 58 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10 + batch 7: 8).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
@@ -161,7 +161,21 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   type-dispatched wait (eventfd/mutex/sem/waitpid/pthread_join), handle clone for
   duplicate. NtCreateThread extended to honor `CREATE_SUSPENDED` (0x4). `test_vsl_nt`
   now 123/0.
-- This is the single largest block: **247 remaining = "rewrite-from-scratch" work items.**
+- Batch 7 (2026-07-13) transliterated (real VSL handlers) — the **registry +
+  system-info** surface (Styx9 namespace + SteamOS system view): `NtCreateKey` (44),
+  `NtOpenKey` (126), `NtSetValueKey` (257), `NtQueryValueKey` (186), `NtEnumerateKey`
+  (76), `NtEnumerateValueKey` (78), `NtDeleteKey` (67), `NtQuerySystemInformation`
+  (182), `NtQuerySystemTime` (183). The NT registry is backed by **real files**
+  (key = dir, value = `[type:4][len:4][data]` file) under `/tmp/wubu_nt_reg_<pid>`;
+  `NtQuerySystemTime` returns 100ns ticks since 1601; `NtQuerySystemInformation`
+  (class 2) reports real page size + CPU count. Ordinals verified against
+  `reactos-study/ntoskrnl/sysfuncs.lst`. **Also this cycle: `vsl_syscall_nt.c`
+  (1464 LOC monolith) was decomposed** into a slim facade (`vsl_syscall_nt.c`,
+  214 LOC) + six self-contained modules (`vsl_nt_atoms/io/job/proc/sync/registry.c`,
+  ~1450 LOC total) behind `vsl_nt_internal.h`; each module registers its handlers
+  into `g_nt_dispatch[]` via a `vsl_nt_<subsys>_register()` hook. `test_vsl_nt` lite
+  build now 133/0 (10 new Batch-7 checks asserting real file-backed registry work).
+- This is the single largest block: **239 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |
