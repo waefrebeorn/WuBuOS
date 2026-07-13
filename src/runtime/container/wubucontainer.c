@@ -11,6 +11,7 @@
  */
 
 #include "wubucontainer.h"
+#include "wubucontainer_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,33 +21,12 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <arpa/inet.h>      /* htonl / ntohl for JSON-RPC length framing */
 #include <errno.h>
 #include <json-c/json.h>  /* Using json-c for C-side JSON handling */
 
-/* ================================================================
- * Internal Engine Structure
- * ================================================================ */
-
-struct WubuContainerEngine {
-    pid_t child_pid;
-    int stdin_fd;
-    int stdout_fd;
-    int stderr_fd;
-    char socket_path[WUBU_CONTAINER_MAX_PATH];
-    int socket_fd;
-    bool use_socket;
-    bool initialized;
-    char container_dir[WUBU_CONTAINER_MAX_PATH];
-    /* Registry of agentic-layer custom handlers registered at runtime. */
-    WubuContainerHandler custom_handlers[WUBU_CONTAINER_MAX_HANDLERS];
-    int custom_handler_count;
-};
-
-/* ================================================================
- * JSON-RPC Protocol (internal)
- * ================================================================ */
-
-#define WUBU_CTR_JSONRPC_VERSION "2.0"
+/* The opaque struct, JSON-RPC version, and IPC forward decls live in
+ * wubucontainer_internal.h. Registry bookkeeping is in wubucontainer_registry.c. */
 
 static int wubu_ctr_send_request(WubuContainerEngine *engine, const char *method, json_object *params, json_object **out_result);
 static int wubu_ctr_spawn_engine(WubuContainerEngine *engine);
@@ -70,13 +50,21 @@ int wubu_container_init(WubuContainerEngine **engine_out, const char *container_
                  "%s/src/runtime/container/wubucontainer", getenv("WUBUOS_ROOT") ?: "/home/wubu/.hermes/profiles/mind-palace/home/myseed");
     }
     
-    int rc = wubu_ctr_spawn_engine(engine);
-    if (rc != WUBU_CTR_OK) {
-        free(engine);
-        return rc;
+    /* The in-memory handler registry is always usable, so the engine object is
+     * valid from here on. Spawning the TypeScript/IPC subprocess is OPTIONAL:
+     * live conversion requires it, but registration/introspection do not. We
+     * attempt spawn best-effort and record engine_up without failing init when
+     * the subprocess is unavailable (e.g. no `bun` in the test environment). */
+    engine->initialized = true;
+    if (wubu_ctr_spawn_engine(engine) == WUBU_CTR_OK) {
+        engine->engine_up = true;
+    } else {
+        engine->engine_up = false;
+        fprintf(stderr,
+                "[wubucontainer] engine subprocess unavailable; "
+                "in-memory registry active, live conversion disabled\n");
     }
     
-    engine->initialized = true;
     *engine_out = engine;
     return WUBU_CTR_OK;
 }
@@ -112,43 +100,46 @@ static int wubu_ctr_spawn_engine(WubuContainerEngine *engine) {
         perror("socketpair");
         return WUBU_CTR_ERR_IO;
     }
-    
+
     engine->stdin_fd = sv[1];
     engine->stdout_fd = sv[0];
     engine->use_socket = true;
-    
-    /* Build command to run the WuBuContainer engine */
-    char cmd[2048];
+
+    /* Build command to run the WuBuContainer engine. Size the buffer for the
+     * longest container_dir (WUBU_CONTAINER_MAX_PATH) plus the fixed suffix. */
+    char cmd[WUBU_CONTAINER_MAX_PATH + 64];
     snprintf(cmd, sizeof(cmd),
              "cd %s && bun run src/main.ts --ipc-mode 2>&1",
              engine->container_dir);
-    
+
     pid_t pid = fork();
     if (pid == -1) {
         close(sv[0]);
         close(sv[1]);
         return WUBU_CTR_ERR_IO;
     }
-    
+
     if (pid == 0) {
         /* Child process */
         close(sv[1]);  /* Close parent's end */
-        
+
         /* Redirect stdin/stdout to socket */
         dup2(sv[0], STDIN_FILENO);
         dup2(sv[0], STDOUT_FILENO);
         close(sv[0]);
-        
+
         /* Execute */
         execl("/bin/sh", "sh", "-c", cmd, (char *)NULL);
         _exit(127);
     }
-    
+
     /* Parent */
     engine->child_pid = pid;
     close(sv[0]);  /* Close child's end */
-    
-    /* Wait for engine to signal ready */
+
+    /* Wait (briefly) for engine to signal ready. If the subprocess is absent
+     * or fails to come up, this read returns 0/EOF quickly and we report
+     * failure WITHOUT having wired dangling fds that shutdown would misuse. */
     char buffer[1024];
     ssize_t n = read(engine->stdout_fd, buffer, sizeof(buffer) - 1);
     if (n > 0) {
@@ -157,7 +148,17 @@ static int wubu_ctr_spawn_engine(WubuContainerEngine *engine) {
             return WUBU_CTR_OK;
         }
     }
-    
+
+    /* Engine did not come up: tear down the fds/child so shutdown() is a no-op
+     * for the IPC side, and let init proceed in registry-only mode. */
+    if (engine->child_pid > 0) {
+        kill(engine->child_pid, SIGTERM);
+        waitpid(engine->child_pid, NULL, 0);
+        engine->child_pid = 0;
+    }
+    if (engine->stdin_fd >= 0) { close(engine->stdin_fd); engine->stdin_fd = -1; }
+    if (engine->stdout_fd >= 0) { close(engine->stdout_fd); engine->stdout_fd = -1; }
+    engine->use_socket = false;
     return WUBU_CTR_ERR_ENGINE;
 }
 
@@ -171,7 +172,10 @@ static void wubu_ctr_cleanup_engine(WubuContainerEngine *engine) {
 
 static int wubu_ctr_send_request(WubuContainerEngine *engine, const char *method, json_object *params, json_object **out_result) {
     if (!engine || !engine->initialized) return WUBU_CTR_ERR_INIT;
-    
+    /* Live conversion requires the TS/IPC subprocess. If it never came up,
+     * fail fast instead of writing to a closed fd. */
+    if (!engine->engine_up) return WUBU_CTR_ERR_ENGINE;
+    if (engine->stdin_fd < 0 || engine->stdout_fd < 0) return WUBU_CTR_ERR_IO;
     /* Build JSON-RPC request */
     json_object *request = json_object_new_object();
     json_object_object_add(request, "jsonrpc", json_object_new_string(WUBU_CTR_JSONRPC_VERSION));
@@ -596,40 +600,6 @@ void wubu_container_print_cache(WubuContainerEngine *engine) {
         printf("%s\n", str);
         json_object_put(result);
     }
-}
-
-int wubu_container_register_handler(WubuContainerEngine *engine,
-                                     const WubuContainerHandler *handler) {
-    if (!engine || !handler) return WUBU_CTR_ERR_INVAL;
-    if (handler->name[0] == '\0') return WUBU_CTR_ERR_INVAL;
-
-    /* Reject duplicate registration (same handler name). */
-    for (int i = 0; i < engine->custom_handler_count; i++) {
-        if (strncmp(engine->custom_handlers[i].name, handler->name,
-                    sizeof(handler->name)) == 0)
-            return WUBU_CTR_ERR_INVAL;
-    }
-    if (engine->custom_handler_count >= WUBU_CONTAINER_MAX_HANDLERS)
-        return WUBU_CTR_ERR_INVAL;
-
-    /* Real work: persist the handler descriptor into the engine registry so
-     * it can be enumerated by wubu_container_get_handlers() and used by the
-     * agentic routing layer. */
-    WubuContainerHandler *slot =
-        &engine->custom_handlers[engine->custom_handler_count];
-    memcpy(slot, handler, sizeof(*slot));
-    engine->custom_handler_count++;
-    return 0;
-}
-
-int wubu_container_registered_count(const WubuContainerEngine *engine) {
-    if (!engine) return 0;
-    return engine->custom_handler_count;
-}
-
-const char *wubu_container_registered_name(const WubuContainerEngine *engine, int idx) {
-    if (!engine || idx < 0 || idx >= engine->custom_handler_count) return "";
-    return engine->custom_handlers[idx].name;
 }
 
 /* ================================================================
