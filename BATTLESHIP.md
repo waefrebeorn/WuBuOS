@@ -110,8 +110,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 40 transliterated) — 257 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 40 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 50 transliterated) — 247 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 50 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
@@ -151,7 +151,17 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   `kill()`+bounded `waitpid(WNOHANG)` reap for termination (no self-kill, no hang),
   `mmap` for the section. `vsl_nt_terminate_process` refuses to kill self. `test_vsl_nt`
   now 94/0.
-- This is the single largest block: **257 remaining = "rewrite-from-scratch" work items.**
+- Batch 6 (2026-07-12) transliterated (real VSL handlers, `vsl_syscall_nt.c`) — the
+  **thread lifecycle + wait/sync + mutant/semaphore** surface a real NT process
+  needs: `NtResumeThread` (215), `NtWaitForSingleObject` (282), `NtDuplicateObject`
+  (72), `NtQueryInformationProcess` (162), `NtCreateMutant` (46)/`NtReleaseMutant`
+  (197), `NtCreateSemaphore` (54)/`NtReleaseSemaphore` (198), `NtOpenThread` (135).
+  Real POSIX work: CREATE_SUSPENDED thread gated by a condvar (resumed via
+  NtResumeThread), `pthread_mutex` (recursive) for mutants, `sem_t` for semaphores,
+  type-dispatched wait (eventfd/mutex/sem/waitpid/pthread_join), handle clone for
+  duplicate. NtCreateThread extended to honor `CREATE_SUSPENDED` (0x4). `test_vsl_nt`
+  now 123/0.
+- This is the single largest block: **247 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |

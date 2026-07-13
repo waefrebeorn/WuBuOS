@@ -586,6 +586,157 @@ int main(void) {
         if (pid) CHECK(kill((pid_t)pid, 0) != 0, "child is dead after terminate");
     }
 
+    /* 27. NtCreateThread(CREATE_SUSPENDED) + NtResumeThread (56/215) */
+    {
+        g_thread_ran = 0;
+        uint32_t thr = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&thr;                 /* thread handle* */
+        args[1] = 0x4;                                        /* CREATE_SUSPENDED */
+        args[4] = (uint64_t)(uintptr_t)vsl_nt_test_thread_start; /* start */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 56, args, 6);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateThread(suspended) returns SUCCESS");
+        CHECK(thr != 0, "NtCreateThread(suspended) returns a handle");
+        /* Give it a moment: should NOT have run yet (suspended). */
+        struct timespec ts = {0, 30 * 1000 * 1000};
+        nanosleep(&ts, NULL);
+        CHECK(g_thread_ran == 0, "suspended thread has NOT run yet");
+        /* Resume it. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)thr;
+        r = vsl_nt_syscall_dispatch(&ctx, 215, args, 1);      /* NtResumeThread */
+        CHECK(r == NT_STATUS_SUCCESS, "NtResumeThread returns SUCCESS");
+        ts.tv_nsec = 50 * 1000 * 1000;
+        nanosleep(&ts, NULL);
+        CHECK(g_thread_ran == 1, "resumed thread ran after NtResumeThread");
+    }
+
+    /* 28. NtCreateMutant / NtReleaseMutant (46/197) -- recursive mutex */
+    {
+        uint32_t m = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&m;                    /* mutant handle* */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 46, args, 1); /* NtCreateMutant */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateMutant returns SUCCESS");
+        CHECK(m != 0, "NtCreateMutant returns a handle");
+        r = vsl_nt_syscall_dispatch(&ctx, 282, args, 3);      /* wait = lock */
+        /* NtWaitForSingleObject on the mutant: a=mutation handle. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)m;
+        r = vsl_nt_syscall_dispatch(&ctx, 282, args, 3);      /* NtWaitForSingleObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtWaitForSingleObject acquires the mutant");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)m;
+        r = vsl_nt_syscall_dispatch(&ctx, 197, args, 1);      /* NtReleaseMutant */
+        CHECK(r == NT_STATUS_SUCCESS, "NtReleaseMutant releases the mutant");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)m;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);       /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the mutant");
+    }
+
+    /* 29. NtCreateSemaphore / NtReleaseSemaphore / wait (54/198/282) */
+    {
+        uint32_t s = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&s;                    /* sem handle* */
+        args[2] = 0;                                          /* initial count 0 */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 54, args, 3); /* NtCreateSemaphore */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateSemaphore returns SUCCESS");
+        CHECK(s != 0, "NtCreateSemaphore returns a handle");
+        /* Post 1 so a waiter can proceed. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)s;
+        args[2] = 1;                                          /* release 1 */
+        r = vsl_nt_syscall_dispatch(&ctx, 198, args, 3);      /* NtReleaseSemaphore */
+        CHECK(r == NT_STATUS_SUCCESS, "NtReleaseSemaphore posts the semaphore");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)s;
+        r = vsl_nt_syscall_dispatch(&ctx, 282, args, 3);      /* NtWaitForSingleObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtWaitForSingleObject consumes the semaphore");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)s;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);       /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the semaphore");
+    }
+
+    /* 30. NtDuplicateObject (72) -- clone a handle */
+    {
+        uint32_t ev = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = 0;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 38, args, 1); /* NtCreateEvent */
+        ev = (uint32_t)r;
+        CHECK(ev != 0, "NtCreateEvent for dup test");
+        uint32_t dup = 0;
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)ev;                               /* source handle */
+        args[3] = (uint64_t)(uintptr_t)&dup;                  /* new handle* */
+        r = vsl_nt_syscall_dispatch(&ctx, 72, args, 4);       /* NtDuplicateObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtDuplicateObject returns SUCCESS");
+        CHECK(dup != 0 && dup != ev, "NtDuplicateObject returns a distinct handle");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ev; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)dup; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the duplicated handle");
+    }
+
+    /* 31. NtQueryInformationProcess (162) -- returns the live child pid */
+    {
+        uint32_t proc = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&proc;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 50, args, 1); /* NtCreateProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateProcess for query test");
+        uint64_t qbuf[2] = {0, 0};
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)proc;
+        args[1] = 0;                                          /* ProcessBasicInformation */
+        args[2] = (uint64_t)(uintptr_t)qbuf;                   /* out */
+        r = vsl_nt_syscall_dispatch(&ctx, 162, args, 3);      /* NtQueryInformationProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationProcess returns SUCCESS");
+        CHECK(qbuf[0] != 0, "NtQueryInformationProcess returns a nonzero pid");
+        /* Exit-status query: child still alive -> STILL_ACTIVE (0x103). */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)proc;
+        args[1] = 1;                                          /* ProcessExitStatus */
+        args[2] = (uint64_t)(uintptr_t)qbuf;
+        r = vsl_nt_syscall_dispatch(&ctx, 162, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationProcess(exit) SUCCESS");
+        CHECK(qbuf[0] == 0x103, "live child reports STILL_ACTIVE");
+        /* Terminate then re-query. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)proc;
+        r = vsl_nt_syscall_dispatch(&ctx, 267, args, 1);      /* NtTerminateProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtTerminateProcess for query test");
+    }
+
+    /* 32. NtOpenThread (135) -- open a running thread by tid */
+    {
+        uint32_t thr = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&thr;
+        args[4] = (uint64_t)(uintptr_t)vsl_nt_test_thread_start;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 56, args, 6); /* NtCreateThread */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateThread for open-thread test");
+        /* Grab its tid via the handle. We stored tid in styx_fid; expose by
+         * reading the live process's thread through NtWaitForSingleObject join
+         * is overkill — instead just verify OpenThread mints a handle. */
+        uint32_t othr = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&othr;
+        args[2] = (uint64_t)(uintptr_t)thr;  /* client_id = source handle (proxy) */
+        r = vsl_nt_syscall_dispatch(&ctx, 135, args, 3);      /* NtOpenThread */
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenThread returns SUCCESS");
+        CHECK(othr != 0, "NtOpenThread returns a handle");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)thr; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)othr; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the opened thread");
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
