@@ -26,7 +26,13 @@
 
 static int wubu_fs_unlink_cb(const char *fpath, const struct stat *sb,
                              int typeflag, struct FTW *ftwbuf) {
-    (void)sb; (void)typeflag; (void)ftwbuf;
+    (void)sb; (void)ftwbuf;
+    /* With FTW_DEPTH, directories are reported as FTW_DP (post-order visits).
+     * A directory must be removed with rmdir, not unlink -- unlink returns
+     * EISDIR on a directory, which nftw would propagate as a failure and
+     * abort the traversal, leaving the tree in place. */
+    if (typeflag == FTW_DP)
+        return rmdir(fpath) == 0 ? 0 : -1;
     return unlink(fpath) == 0 ? 0 : -1;
 }
 

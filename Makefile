@@ -421,6 +421,7 @@ test_vsl_nt:
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_nt.c $(RT)/vsl/vsl_nt_atoms.c $(RT)/vsl/vsl_nt_job.c $(RT)/vsl/vsl_nt_io.c $(RT)/vsl/vsl_nt_proc.c $(RT)/vsl/vsl_nt_sync.c $(RT)/vsl/vsl_nt_registry.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c \
 		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
 		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/vsl/vsl_gpu_vulkan.c \
+		$(RT)/wubu_fs_util.c \
 		$(RT)/vsl/vsl_syscall_nt_test.c \
 		-o $(RT)/wubu_vsl_nt_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_test

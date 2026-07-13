@@ -1,4 +1,5 @@
 #include "vsl_nt_internal.h"
+#include "wubu_fs_util.h"
 
 /* mkdir -p semantics: create every component of `path`, tolerating EEXIST.
  * Returns 0 on success, -1 on error. */
@@ -209,10 +210,10 @@ int64_t vsl_nt_delete_key(uint64_t a_key, uint64_t b, uint64_t c,
         return NT_STATUS_INVALID_HANDLE;
     const char *dirname = (const char *)(uintptr_t)d0;
     if (!dirname) return NT_STATUS_INVALID_HANDLE;
-    /* Remove the key directory (recursive rmdir of values + subkeys). */
-    char cmd[768];
-    snprintf(cmd, sizeof(cmd), "rm -rf '%s'", dirname);
-    int rc = system(cmd);
+    /* Remove the key directory (recursive rmdir of values + subkeys).
+     * Use the canonical filesystem helper instead of system("rm -rf ...")
+     * -- no shell, no injection vector from NT key paths. */
+    int rc = wubu_fs_rm_rf(dirname);
     vsl_nt_free_handle(g_nt_ctx, (uint32_t)a_key);
     return rc == 0 ? NT_STATUS_SUCCESS : NT_STATUS_UNSUCCESSFUL;
 }
