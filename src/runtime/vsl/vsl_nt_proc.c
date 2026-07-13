@@ -245,6 +245,38 @@ int64_t vsl_nt_map_view_of_section(uint64_t a_sec, uint64_t b_proc,
     if (view == MAP_FAILED) return vsl_errno_to_nt_status(errno);
     (void)sec_base;
     *(void **)c_base = view;
+    /* Stash view size in the section handle's styx_fid so NtUnmapViewOfSection
+     * can munmap the correct range (and free the handle). */
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].type == NT_OBJECT_TYPE_SECTION &&
+            (void *)(uintptr_t)g_nt_ctx->handle_table[i].data == sec_base) {
+            g_nt_ctx->handle_table[i].styx_fid = view_sz;
+            break;
+        }
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtResetVirtualMemory (283): decommit (MADV_DONTNEED) the given region so its
+ * physical pages are discarded but the virtual range stays reserved. */
+int64_t vsl_nt_reset_virtual_memory(uint64_t a_proc, uint64_t b_base,
+                                    uint64_t c_size, uint64_t d,
+                                    uint64_t e, uint64_t f) {
+    (void)a_proc; (void)d; (void)e; (void)f;
+    if (!b_base || !c_size) return NT_STATUS_INVALID_PARAMETER;
+    void *base = (void *)(uintptr_t)b_base;
+    size_t size = (size_t)c_size;  /* size passed by value (simplified ABI) */
+    if (madvise(base, size, MADV_DONTNEED) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtYieldExecution (289): voluntarily surrender the CPU (sched_yield). */
+int64_t vsl_nt_yield_execution(uint64_t a, uint64_t b, uint64_t c,
+                               uint64_t d, uint64_t e, uint64_t f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    sched_yield();
     return NT_STATUS_SUCCESS;
 }
 
@@ -252,8 +284,8 @@ int64_t vsl_nt_map_view_of_section(uint64_t a_sec, uint64_t b_proc,
  * a = process handle, b = base address, c = buffer, d = size*, e = bytes_written*.
  * Uses process_vm_writev for genuine cross-process writes. */
 int64_t vsl_nt_write_virtual_memory(uint64_t a_proc, uint64_t b_base,
-                                      uint64_t c_buf, uint64_t d_size,
-                                      uint64_t e_written, uint64_t f) {
+                                     uint64_t c_buf, uint64_t d_size,
+                                     uint64_t e_written, uint64_t f) {
     (void)f;
     if (!b_base || !c_buf || !d_size) return NT_STATUS_INVALID_PARAMETER;
     pid_t pid = vsl_nt_proc_pid((uint32_t)a_proc);
@@ -286,21 +318,6 @@ int64_t vsl_nt_read_virtual_memory(uint64_t a_proc, uint64_t b_base,
     return NT_STATUS_SUCCESS;
 }
 
-/* ======================================================================
- * BATCH 6 — Thread lifecycle + wait/sync + mutant/semaphore.
- *
- * Completes the synchronization surface a real NT process needs: create a
- * thread suspended and resume it (NtResumeThread), block on any waitable
- * object (NtWaitForSingleObject), clone a handle (NtDuplicateObject), query
- * process info (NtQueryInformationProcess), and the two classic NT lock
- * primitives (NtCreateMutant/NtReleaseMutant, NtCreateSemaphore/
- * NtReleaseSemaphore) plus NtOpenThread. All do genuine POSIX work.
- * ==================================================================== */
-
-/* NtResumeThread (215): release a thread created with CREATE_SUSPENDED.
- * a = thread handle. Signals the trampoline's gate condvar (stored in data). */
-
-/* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_proc_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[19-1] = vsl_nt_allocate_virtual_memory;
@@ -312,5 +329,7 @@ void vsl_nt_proc_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[129-1] = vsl_nt_open_process;
     tbl[195-1] = vsl_nt_write_virtual_memory;
     tbl[267-1] = vsl_nt_terminate_process;
+    tbl[283-1] = vsl_nt_reset_virtual_memory;
     tbl[288-1] = vsl_nt_read_virtual_memory;
+    tbl[289-1] = vsl_nt_yield_execution;
 }
