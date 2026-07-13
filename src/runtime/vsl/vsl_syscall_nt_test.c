@@ -495,6 +495,97 @@ int main(void) {
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the process handle");
     }
 
+    /* 24. NtOpenProcess / NtWriteVirtualMemory / NtReadVirtualMemory (129/195/288)
+     *     -- genuine cross-process memory via process_vm_writev/readv (self). */
+    {
+        uint32_t ph = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&ph;   /* process handle* */
+        args[2] = 0;                          /* client_id 0 = open self */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 129, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenProcess(self) returns SUCCESS");
+        CHECK(ph != 0, "NtOpenProcess returns a handle");
+
+        uint8_t src[8] = {1,2,3,4,5,6,7,8};
+        uint8_t dst[8] = {0};
+        uint64_t wsize = 8, rsize = 8, written = 0, read = 0;
+        /* Write into our own dst buffer via the process memory path. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ph;
+        args[1] = (uint64_t)(uintptr_t)dst;       /* base */
+        args[2] = (uint64_t)(uintptr_t)src;       /* buffer */
+        args[3] = (uint64_t)(uintptr_t)&wsize;    /* size* */
+        args[4] = (uint64_t)(uintptr_t)&written;  /* bytes_written* */
+        r = vsl_nt_syscall_dispatch(&ctx, 195, args, 5);
+        CHECK(r == NT_STATUS_SUCCESS, "NtWriteVirtualMemory writes into process memory");
+        CHECK(written == 8, "NtWriteVirtualMemory reports 8 bytes written");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ph;
+        args[1] = (uint64_t)(uintptr_t)dst;       /* base */
+        args[2] = (uint64_t)(uintptr_t)src;       /* reuse src as read buffer */
+        args[3] = (uint64_t)(uintptr_t)&rsize;    /* size* */
+        args[4] = (uint64_t)(uintptr_t)&read;     /* bytes_read* */
+        r = vsl_nt_syscall_dispatch(&ctx, 288, args, 5);
+        CHECK(r == NT_STATUS_SUCCESS, "NtReadVirtualMemory reads from process memory");
+        CHECK(read == 8, "NtReadVirtualMemory reports 8 bytes read");
+        CHECK(memcmp(src, dst, 8) == 0, "NtReadVirtualMemory reads back the written bytes");
+
+        /* Close self-process handle. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ph;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the OpenProcess handle");
+    }
+
+    /* 25. NtCreateSection / NtMapViewOfSection (53/114) -- real mmap section. */
+    {
+        uint32_t sec = 0;
+        size_t sec_sz = 8192;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&sec;        /* section handle* */
+        args[2] = (uint64_t)(uintptr_t)&sec_sz;     /* max size* */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 53, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateSection returns SUCCESS");
+        CHECK(sec != 0, "NtCreateSection returns a section handle");
+
+        void *view = NULL;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)sec;                    /* section handle */
+        args[1] = 0;                                /* process handle (self) */
+        args[2] = (uint64_t)(uintptr_t)&view;       /* base* */
+        r = vsl_nt_syscall_dispatch(&ctx, 114, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtMapViewOfSection maps a view");
+        CHECK(view != NULL, "NtMapViewOfSection returns a mapped base");
+        if (view) { memset(view, 0x5A, 16); CHECK(*(uint8_t *)view == 0x5A, "mapped view is writable"); }
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)sec;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the section handle");
+    }
+
+    /* 26. NtTerminateProcess (267) -- real kill+reap of a forked child. */
+    {
+        uint32_t proc = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&proc;       /* process handle* */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 50, args, 1);  /* NtCreateProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateProcess (for terminate test) SUCCESS");
+        CHECK(proc != 0, "NtCreateProcess returns a handle");
+
+        uint64_t pid = 0;
+        vsl_nt_handle_to_data(&ctx, proc, &pid);
+        CHECK(pid != 0, "process handle carries a live child pid");
+        if (pid) CHECK(kill((pid_t)pid, 0) == 0, "child is alive before terminate");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)proc;
+        r = vsl_nt_syscall_dispatch(&ctx, 267, args, 1); /* NtTerminateProcess */
+        CHECK(r == NT_STATUS_SUCCESS, "NtTerminateProcess kills + reaps the child");
+        if (pid) CHECK(kill((pid_t)pid, 0) != 0, "child is dead after terminate");
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);

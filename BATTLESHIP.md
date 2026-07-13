@@ -110,8 +110,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 34 transliterated) — 263 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 34 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 40 transliterated) — 257 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 40 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
@@ -143,7 +143,15 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   rebuilt + re-run: 74/0 green. `test_vsl_nt` is verified via a hand-built lite binary
   because the Makefile's `make test_vsl_nt` link (`-lvulkan -lcuda`) hangs under WSL2
   (known defect; the NT test exercises no GPU path).
-- This is the single largest block: **263 remaining = "rewrite-from-scratch" work items.**
+- Batch 5 (2026-07-12) transliterated (real VSL handlers, `vsl_syscall_nt.c`) — the
+  process/memory **launch path**, i.e. what a Proton-style loader drives to boot an
+  image: `NtOpenProcess` (129), `NtTerminateProcess` (267), `NtCreateSection` (53),
+  `NtMapViewOfSection` (114), `NtWriteVirtualMemory` (195), `NtReadVirtualMemory`
+  (288). Real work: `process_vm_writev`/`process_vm_readv` for cross-process memory,
+  `kill()`+bounded `waitpid(WNOHANG)` reap for termination (no self-kill, no hang),
+  `mmap` for the section. `vsl_nt_terminate_process` refuses to kill self. `test_vsl_nt`
+  now 94/0.
+- This is the single largest block: **257 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
 | Subsystem | Gap |
