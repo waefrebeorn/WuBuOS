@@ -1,5 +1,8 @@
 #ifndef WUBU_VSL_NT_INTERNAL_H
 #define WUBU_VSL_NT_INTERNAL_H
+/* Expose BSD/GNU extras (MADV_*, etc.) even when the Makefile sets
+ * -D_POSIX_C_SOURCE. Must precede any system include. */
+#define _DEFAULT_SOURCE
 /* Shared surface for the E1 NT-bridge decomposition of vsl_syscall_nt.c.
  * Each vsl_nt_<subsys>.c implements a batch of transliterated NT handlers;
  * this header exposes the shared statics/helpers/types every submodule needs,
@@ -23,6 +26,8 @@
 #include <sys/mman.h>
 #include <sys/eventfd.h>
 #include <sys/uio.h>
+#include <sys/statvfs.h>
+#include <sched.h>
 #include <time.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
