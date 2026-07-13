@@ -154,16 +154,141 @@ int64_t vsl_nt_query_information_file(uint64_t a_handle, uint64_t b_iosb,
  * ==================================================================== */
 
 /* Register this batch's NT handlers into the global dispatch table. */
+int64_t vsl_nt_flush_buffers_file(uint64_t a_handle, uint64_t b, uint64_t c,
+                                 uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int vsl_fd = -1;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &vsl_fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    /* fsync the backing fd (tolerate pipes/specials where fsync is invalid). */
+    if (fsync(vsl_fd) != 0 && errno != EINVAL && errno != EROFS)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtCreateFile (40): open/create a real file, mint an NT handle. */
+int64_t vsl_nt_create_file_nt(uint64_t a_handle_out, uint64_t b_access,
+                           uint64_t c_obj_attr, uint64_t d_io_status,
+                           uint64_t e_alloc_size, uint64_t f) {
+    (void)b_access; (void)c_obj_attr; (void)d_io_status; (void)e_alloc_size; (void)f;
+    if (!a_handle_out) return NT_STATUS_INVALID_PARAMETER;
+    /* c_obj_attr (OBJECT_ATTRIBUTES*) carries the path in its ObjectName; for
+     * the bridge we accept the path directly as c_obj_attr (simplified ABI). */
+    const char *path = (const char *)c_obj_attr;
+    if (!path) return NT_STATUS_INVALID_PARAMETER;
+    int fd = open(path, O_RDWR | O_CREAT, 0644);
+    if (fd < 0) return vsl_errno_to_nt_status(errno);
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, fd, 0, NT_OBJECT_TYPE_FILE);
+    if (h == 0) { close(fd); return NT_STATUS_UNSUCCESSFUL; }
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].nt_handle == h) break;
+    }
+    *(uint32_t *)a_handle_out = h;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtUnmapViewOfSection (279): release a mapped view (munmap the base). */
+int64_t vsl_nt_unmap_view_of_section(uint64_t a_proc, uint64_t b_base,
+                                     uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)a_proc; (void)c; (void)d; (void)e; (void)f;
+    if (!b_base) return NT_STATUS_INVALID_PARAMETER;
+    void *base = (void *)(uintptr_t)b_base;
+    /* Find the section handle whose payload matches, to learn the size. */
+    size_t size = 0;
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid &&
+            g_nt_ctx->handle_table[i].type == NT_OBJECT_TYPE_SECTION &&
+            (void *)(uintptr_t)g_nt_ctx->handle_table[i].data == base) {
+            size = g_nt_ctx->handle_table[i].styx_fid;  /* size stashed in styx_fid */
+            vsl_nt_free_handle(g_nt_ctx, g_nt_ctx->handle_table[i].nt_handle);
+            break;
+        }
+    }
+    if (size == 0) size = sysconf(_SC_PAGESIZE);
+    if (munmap(base, size) != 0) return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryVolumeInformationFile (184): report total/free bytes for the file's fs. */
+int64_t vsl_nt_query_volume_information_file(uint64_t a_handle, uint64_t b_info,
+                                             uint64_t c_len, uint64_t d_fs_info,
+                                             uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    if (!a_handle || !d_fs_info) return NT_STATUS_INVALID_PARAMETER;
+    int vsl_fd = -1;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &vsl_fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    struct statvfs vfs;
+    if (fstatvfs(vsl_fd, &vfs) != 0) return vsl_errno_to_nt_status(errno);
+    /* FILE_FS_FULL_SIZE_INFORMATION layout: TotalAllocationUnits(8),
+     * CallerAvailableAllocationUnits(8), ActualAvailableAllocationUnits(8),
+     * SectorsPerUnit(4), BytesPerSector(4). */
+    uint8_t *out = (uint8_t *)(uintptr_t)d_fs_info;
+    uint64_t total = (uint64_t)vfs.f_blocks * vfs.f_frsize;
+    uint64_t free  = (uint64_t)vfs.f_bfree  * vfs.f_frsize;
+    uint64_t avail = (uint64_t)vfs.f_bavail * vfs.f_frsize;
+    memcpy(out, &total, 8);
+    memcpy(out + 8, &avail, 8);
+    memcpy(out + 16, &free, 8);
+    uint32_t spu = vfs.f_frsize / vfs.f_bsize;
+    uint32_t bps = (uint32_t)vfs.f_bsize;
+    memcpy(out + 24, &spu, 4);
+    memcpy(out + 28, &bps, 4);
+    if (c_len) *(uint32_t *)c_len = 32;
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetInformationFile (234): honor FileEndOfFileInformation (truncate). */
+int64_t vsl_nt_set_information_file(uint64_t a_handle, uint64_t b_io_status,
+                                    uint64_t c_info, uint64_t d_info_len,
+                                    uint64_t e_class, uint64_t f) {
+    (void)b_io_status; (void)d_info_len; (void)f;
+    if (!a_handle || !c_info) return NT_STATUS_INVALID_PARAMETER;
+    int vsl_fd = -1;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &vsl_fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    if ((uint32_t)e_class == 5) {  /* FileEndOfFileInformation */
+        int64_t new_size;
+        memcpy(&new_size, (const void *)(uintptr_t)c_info, 8);
+        if (ftruncate(vsl_fd, (off_t)new_size) != 0)
+            return vsl_errno_to_nt_status(errno);
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtPulseEvent (145): set then immediately reset the eventfd (one-shot signal). */
+int64_t vsl_nt_pulse_event(uint64_t a_handle, uint64_t b, uint64_t c,
+                           uint64_t d, uint64_t e, uint64_t f) {
+    (void)b; (void)c; (void)d; (void)e; (void)f;
+    int vsl_fd = -1;
+    if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &vsl_fd) != 0)
+        return NT_STATUS_INVALID_HANDLE;
+    uint64_t one = 1;
+    if (write(vsl_fd, &one, sizeof(one)) != (ssize_t)sizeof(one))
+        return NT_STATUS_UNSUCCESSFUL;
+    uint64_t val = 0;
+    if (read(vsl_fd, &val, sizeof(val)) != (ssize_t)sizeof(val))
+        return NT_STATUS_UNSUCCESSFUL;
+    return NT_STATUS_SUCCESS;
+}
+
 void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[28-1] = vsl_nt_close;
     tbl[38-1] = vsl_nt_create_event;
+    tbl[40-1] = vsl_nt_create_file_nt;
     tbl[62-1] = vsl_nt_delay_execution;
+    tbl[82-1] = vsl_nt_flush_buffers_file;
     tbl[121-1] = vsl_nt_open_event;
     tbl[123-1] = vsl_nt_open_file;
+    tbl[145-1] = vsl_nt_pulse_event;
     tbl[159-1] = vsl_nt_query_information_file;
+    tbl[184-1] = vsl_nt_query_volume_information_file;
     tbl[192-1] = vsl_nt_read_file;
     tbl[209-1] = vsl_nt_reset_event;
     tbl[229-1] = vsl_nt_set_event;
+    tbl[234-1] = vsl_nt_set_information_file;
+    tbl[279-1] = vsl_nt_unmap_view_of_section;
     tbl[285-1] = vsl_nt_write_file;
 }

@@ -66,6 +66,7 @@
 /* Memory Management */
 #define NT_SYSCALL_NTALLOCATEVIRTUALMEMORY   0x0013  /* NtAllocateVirtualMemory */
 #define NT_SYSCALL_NTFREEVIRTUALMEMORY       0x0058  /* NtFreeVirtualMemory */
+#define NT_SYSCALL_NTRESETVIRTUALMEMORY      0x011B  /* NtResetVirtualMemory */
 #define NT_SYSCALL_NTPROTECTVIRTUALMEMORY    0x0090  /* NtProtectVirtualMemory */
 #define NT_SYSCALL_NTQUERYVIRTUALMEMORY      0x00BB  /* NtQueryVirtualMemory */
 #define NT_SYSCALL_NTLOCKVIRTUALMEMORY       0x006D  /* NtLockVirtualMemory */

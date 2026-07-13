@@ -798,6 +798,100 @@ int main(void) {
         CHECK(r == NT_STATUS_SUCCESS, "NtDeleteKey removes the registry key");
     }
 
+    /* 34. Batch 8: file + section + memory + yield surface (real VSL work). */
+    {
+        /* NtCreateFile (40) — create a real temp file, get an NT handle. */
+        uint32_t fh = 0;
+        char cf_path[] = "/tmp/wubu_nt_createfile";
+        unlink(cf_path);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&fh;
+        args[2] = (uint64_t)(uintptr_t)cf_path;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 40, args, 5);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateFile creates a real file");
+        CHECK(fh != 0, "NtCreateFile returns a handle");
+
+        /* NtWriteFile / NtReadFile round-trip via the existing handlers. */
+        const char *msg8 = "batch8";
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)fh;
+        args[1] = (uint64_t)(uintptr_t)msg8;
+        args[2] = (uint64_t)strlen(msg8);
+        r = vsl_nt_syscall_dispatch(&ctx, 285, args, 3);
+        CHECK(r == (int64_t)strlen(msg8), "NtWriteFile writes via NtCreateFile handle");
+        char rd8[16]; memset(rd8, 0, sizeof(rd8));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)fh;
+        args[1] = (uint64_t)(uintptr_t)rd8;
+        args[2] = (uint64_t)sizeof(rd8);
+        r = vsl_nt_syscall_dispatch(&ctx, 192, args, 3);
+        CHECK(r == (int64_t)strlen(msg8), "NtReadFile reads via NtCreateFile handle");
+        CHECK(strncmp(rd8, "batch8", 6) == 0, "NtCreateFile+NtReadFile round-trip");
+
+        /* NtSetInformationFile (234) truncate to 0 via FileEndOfFileInformation. */
+        int64_t zero = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)fh;
+        args[2] = (uint64_t)(uintptr_t)&zero;
+        args[4] = 5;  /* FileEndOfFileInformation */
+        r = vsl_nt_syscall_dispatch(&ctx, 234, args, 5);
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetInformationFile truncates the file");
+
+        /* NtFlushBuffersFile (82) — fsync the fd. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)fh;
+        r = vsl_nt_syscall_dispatch(&ctx, 82, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtFlushBuffersFile fsyncs the fd");
+
+        /* NtQueryVolumeInformationFile (184) — real total/free bytes. */
+        uint8_t vol[32]; memset(vol, 0, sizeof(vol));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)fh;
+        args[3] = (uint64_t)(uintptr_t)vol;
+        r = vsl_nt_syscall_dispatch(&ctx, 184, args, 4);
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryVolumeInformationFile SUCCESS");
+        uint64_t total_bytes = *(uint64_t *)vol;
+        CHECK(total_bytes > 0, "NtQueryVolumeInformationFile reports nonzero total bytes");
+
+        /* NtClose (28) the file handle. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)fh;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the NtCreateFile handle");
+        unlink(cf_path);
+
+        /* NtPulseEvent (145) — one-shot signal on an eventfd. */
+        uint32_t ev = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&ev;
+        r = vsl_nt_syscall_dispatch(&ctx, 38, args, 1); /* NtCreateEvent */
+        CHECK(r != 0, "NtCreateEvent for pulse test");
+        ev = (uint32_t)r;  /* NtCreateEvent returns the handle as its result */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ev;
+        r = vsl_nt_syscall_dispatch(&ctx, 145, args, 1); /* NtPulseEvent */
+        CHECK(r == NT_STATUS_SUCCESS, "NtPulseEvent sets+resets the event");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ev;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the pulse event");
+
+        /* NtYieldExecution (289) — sched_yield, must return SUCCESS. */
+        memset(args, 0, sizeof(args));
+        r = vsl_nt_syscall_dispatch(&ctx, 289, args, 0);
+        CHECK(r == NT_STATUS_SUCCESS, "NtYieldExecution SUCCESS");
+
+        /* NtResetVirtualMemory (283) — decommit a private mapping. */
+        void *mp = mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+        CHECK(mp != MAP_FAILED, "mmap for NtResetVirtualMemory test");
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)(uintptr_t)mp;
+        args[2] = (uint64_t)4096;
+        r = vsl_nt_syscall_dispatch(&ctx, 283, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtResetVirtualMemory decommits the region");
+        munmap(mp, 4096);
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
