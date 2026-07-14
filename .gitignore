@@ -42,5 +42,10 @@ inferno-os/
 dist/*.tar.gz
 
 # Hosted binary (rebuilt from source)
-src/hosted/wubuvendor/
+src/hosted/wubu
+vendor/
 node_modules/
+
+# build artifacts
+src/hosted/wubu
+vendor/

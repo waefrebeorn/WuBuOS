@@ -11,6 +11,8 @@
  *   systemctl status gamescope   ->   cat             /n/svc/root/gamescope/status
  *   bottles-cli run <name>       ->   echo run    > /n/bottles/<name>/ctl
  *   bottles-cli verify <name>    ->   cat             /n/bottles/<name>/verify
+ *   snapper rollback <id>        ->   echo <id>   > /n/snap/<c>/rollback
+ *   snapper list                 ->   cat             /n/snap/<c>/list
  *
  * The bridge synthesizes a real /n tree on disk (so it can be served by the
  * existing Styx/9P host server) and maps file reads/writes to the archd
@@ -28,6 +30,7 @@
 
 #include "wubu_archd.h"   /* WubuArchd, WubuArchService, WubuArchServiceState */
 #include "wubu_bottles.h" /* WubuBottle */
+#include "wubu_snapshot.h" /* WubuSnapshotManager, WubuSnapshot */
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +84,24 @@ int wubu_ns_publish_bottle(const WubuBottle *b, const char *name);
 /* Pure dispatcher for bottle actions. action in {"run","verify"}.
  * Returns the bottle API result. This is what a 9P write to ctl calls. */
 int wubu_ns_bottle_action(WubuBottle *b, const char *action);
+
+/* -- Snapshot publishing (rip off snapper/btrfs rollback) --------- */
+
+/* Publish a container's snapshots as /n/snap/<container>/{list,create,
+ * rollback,delete}. list = formatted wubu_snapshot_list snapshot; the ctl
+ * files map writes to wubu_ns_snap_create/rollback/delete. Returns 0/-1. */
+int wubu_ns_publish_snapshots(WubuSnapshotManager *mgr, const char *container_id);
+
+/* Render the snapshot list for a container into buf (one line per snap:
+ * "<id>\t<label>\t<status>\t<size_bytes>"). Returns bytes written or -1. */
+int wubu_ns_snap_list_str(WubuSnapshotManager *mgr, const char *container_id,
+                          char *buf, size_t buf_size);
+
+/* Pure dispatchers (what a 9P write to the ctl files calls). */
+int wubu_ns_snap_create(WubuSnapshotManager *mgr, const char *container_id,
+                        const char *label);
+int wubu_ns_snap_rollback(WubuSnapshotManager *mgr, const char *snapshot_id);
+int wubu_ns_snap_delete(WubuSnapshotManager *mgr, const char *snapshot_id);
 
 #ifdef __cplusplus
 }
