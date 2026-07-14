@@ -78,8 +78,14 @@ void load_default_wallpaper(void) {
 void draw_wallpaper(int fb_w, int fb_h) {
     int task_h = taskbar_height_dynamic();
 
+    /* Always base-fill the desktop rect with the theme background first.
+     * Wallpaper modes (CENTER/FIT/FILL) leave surrounding margins unpainted,
+     * and a centered image smaller than the screen would otherwise expose the
+     * raw vbe_clear() black instead of the theme bg. TILE/STRETCH fully cover
+     * the rect, so this fill is harmless there. */
+    vbe_fill_rect(0, 0, fb_w, fb_h - task_h, tc()->desktop_bg);
+
     if (!g_dwm.wallpaper) {
-        vbe_fill_rect(0, 0, fb_w, fb_h - task_h, tc()->desktop_bg);
         return;
     }
 

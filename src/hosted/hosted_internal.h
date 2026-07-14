@@ -99,4 +99,19 @@ void wl_input_term(void);
 void wl_surface_init(hosted_state_t *state);
 void wl_surface_term(void);
 
+/* ── Split-out launcher-core sub-modules (C11 opaque-safe decomposition) ──
+ * Each owns a single concern so hosted.c stays a thin facade:
+ *   hosted_render.c  -- frame composition (render_desktop) + input routing
+ *   hosted_pe.c      -- Windows/PE launch executor (Proton + cgroup sandbox)
+ *   hosted_run.c     -- run loop, shutdown, blit, mode + ready/wm accessors */
+void hosted_render_desktop(hosted_state_t *state);
+void hosted_input_dispatch(void);
+int  hosted_pe_executor(const void *data, size_t size, const char *cmdline);
+int  hosted_run(hosted_state_t *state);
+void hosted_shutdown(hosted_state_t *state);
+void hosted_blit(hosted_state_t *state);
+void hosted_set_mode(hosted_state_t *state, hosted_mode_t mode);
+int  hosted_kernel_ready(void);
+int  hosted_wm_has_windows(void);
+
 #endif /* WUBU_HOSTED_INTERNAL_H */

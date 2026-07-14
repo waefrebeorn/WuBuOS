@@ -38,7 +38,7 @@ packages with dep DAG + repo sources. /n/pkg/repos is the Chaotic-AUR vibe
 pkg code, no duplication.
 
 =====================================================================
-P3 — /n/kernel/scheduler  (CachyOS scheduler-manager vibe)
+P3 — /n/kernel/scheduler  [DONE — wubu_ns_kernel.c, 13/13 green]
 =====================================================================
 SOURCE: linux-cachyos PKGBUILD `_cpusched` ∈ {bore,eevdf,bmq,rt,rt-bore,
 hardened}; runtime flip via scx-manager (sched-ext). BORE = patch on EEVDF for
@@ -62,7 +62,7 @@ lib32-* multilib libs are the canonical "game won't launch" gap — our dep
 installer should resolve exactly these.
 
 =====================================================================
-P5 — /n/hw  (chwd GPU-detect vibe)
+P5 — /n/hw  [DONE — wubu_ns_kernel.c, 13/13 green]
 =====================================================================
 SOURCE: chwd (dep of cachyos-kernel-manager) auto-detects + flips NVIDIA/AMD.
 WuBuOS already has wubu_proton2_gpu.c / wubu_proton2_device.c.
@@ -78,8 +78,8 @@ kernel-manager, chwd, hello). WuBuOS expresses ALL of them through the SAME
 
   snapper rollback     -> echo <id> > /n/snap/<c>/rollback     [DONE]
   chaotic-aur install  -> echo x    > /n/pkg/install        [DONE]
-  kernel-manager GUI   -> echo bore  > /n/kernel/scheduler
-  chwd GPU switch      -> echo amd   > /n/hw/primary/mode
+  kernel-manager GUI   -> echo bore  > /n/kernel/scheduler   [DONE]
+  chwd GPU switch      -> echo amd   > /n/hw/<gpu>/mode       [DONE]
   cachyos-hello        -> (writes the above files)
   bottles-cli run      -> echo run   > /n/bottles/<n>/ctl   (DONE)
 
