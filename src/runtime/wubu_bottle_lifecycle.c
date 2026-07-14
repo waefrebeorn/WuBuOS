@@ -451,13 +451,33 @@ int wubu_bottle_uninstall(WubuBottle *bottle) {
 int wubu_bottle_run(WubuBottle *bottle) {
     if (!bottle) return -1;
     char cmd[2048];
+    const char *launcher = NULL;
     if (bottle->type == BOTTLE_TYPE_PROTON && bottle->prefix_path[0]) {
         snprintf(cmd, sizeof(cmd), "%s/proton launch -- \"%s\" %s 2>/dev/null",
             bottle->prefix_path, bottle->exe_path[0] ? bottle->exe_path : "wine", bottle->args);
+        /* Resolve the real proton launcher; refuse to fork a missing binary. */
+        static char proton_bin[2048];
+        snprintf(proton_bin, sizeof(proton_bin), "%s/proton", bottle->prefix_path);
+        launcher = proton_bin;
     } else {
         snprintf(cmd, sizeof(cmd), "wine \"%s\" %s 2>/dev/null",
             bottle->exe_path[0] ? bottle->exe_path : "explorer.exe", bottle->args);
+        /* wine must be resolvable on PATH; refuse to fork a missing binary. */
+        launcher = "wine";
     }
+    /* Fail fast instead of hanging on a nonexistent launcher (angel-coder:
+     * a run that launches a missing binary must error, not block). For an
+     * absolute path we test the file directly; for a bare name we test the
+     * usual PATH locations. */
+    int launcher_ok;
+    if (strchr(launcher, '/') != NULL) {
+        launcher_ok = (access(launcher, X_OK) == 0);
+    } else {
+        char probe[2048];
+        launcher_ok = (snprintf(probe, sizeof(probe), "/usr/bin/%s", launcher) && access(probe, X_OK) == 0)
+                   || (snprintf(probe, sizeof(probe), "/bin/%s", launcher) && access(probe, X_OK) == 0);
+    }
+    if (!launcher_ok) return -1;
     pid_t pid = fork();
     if (pid < 0) return -1;
     if (pid == 0) {
