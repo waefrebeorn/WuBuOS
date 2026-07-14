@@ -12,7 +12,7 @@ subtree ships with a `*_test.c` asserting file<->API routing (like
 wubu_ns_bridge_test, 29/29 green).
 
 =====================================================================
-P1 — /n/snap  (CachyOS "rollback vibe", their #1 praised feature)
+P1 — /n/snap  [DONE — wubu_ns_snap.c, 16/16 green]
 =====================================================================
 SOURCE: CachyOS wiki "Why CachyOS?" + btrfs/Snapper integration; WuBuOS
 already has wubu_snapshot_{create,list,rollback,diff,gc} (wubu_snapshot.h).
@@ -26,14 +26,16 @@ FILES: src/runtime/wubu_ns_snap.c (+ _test.c). Wire into test_ns_bridge or a
 new test_ns_snap. Reuses g_ns_root + ns_mkdir from wubu_ns_bridge.c.
 
 =====================================================================
-P2 — /n/pkg  (Chaotic-AUR "prebuilt, no-compile" vibe)
+P2 — /n/pkg  [DONE — wubu_ns_pkg.c, 13/13 green]
 =====================================================================
 SOURCE: Chaotic-AUR docs (aur.chaotic.cx) — prebuilt AUR binaries, `pacman -S`
 works without local makepkg. WuBuOS parallel: oci/ layer + container/wubucontainer.
 
-BUILD: /n/pkg/available (lists cached OCI images) + /n/pkg/install <name>
-(pull+run via oci_registry/oci_runtime_spec). The "install anything instantly"
-vibe without a distro package manager.
+BUILD (as shipped): /n/pkg/{install,remove,list,repos,addrepo} wrapping the REAL
+wubu_pkg_* API (pkg_install/remove/list/add_repo) -- flatpak-style .wubu
+packages with dep DAG + repo sources. /n/pkg/repos is the Chaotic-AUR vibe
+(enable a prebuilt-binary repo). list/repos are live views. Reuses existing
+pkg code, no duplication.
 
 =====================================================================
 P3 — /n/kernel/scheduler  (CachyOS scheduler-manager vibe)
@@ -74,8 +76,8 @@ CachyOS implements each vibe as a SEPARATE daemon/tool (snapper, pacman,
 kernel-manager, chwd, hello). WuBuOS expresses ALL of them through the SAME
 /n 9P namespace the ns_bridge already provides:
 
-  snapper rollback     -> echo <id> > /n/snap/<c>/rollback
-  chaotic-aur install  -> echo x    > /n/pkg/install
+  snapper rollback     -> echo <id> > /n/snap/<c>/rollback     [DONE]
+  chaotic-aur install  -> echo x    > /n/pkg/install        [DONE]
   kernel-manager GUI   -> echo bore  > /n/kernel/scheduler
   chwd GPU switch      -> echo amd   > /n/hw/primary/mode
   cachyos-hello        -> (writes the above files)
