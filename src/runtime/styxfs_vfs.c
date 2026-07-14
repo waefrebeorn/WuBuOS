@@ -123,6 +123,20 @@ void styxfs_init(styxfs_server_t *srv) {
     memset(srv, 0, sizeof(*srv));
     srv->readonly = 0;
     srv->next_qid_path = 1;
+
+    /* Wire the filesystem callbacks. Without these, styx_serve() falls back
+     * to its NULL-callback defaults (walk/read/write unsupported), so /n is
+     * unservable over 9P. The callbacks live in styxfs_callbacks.c. */
+    styx_server_t *base = &srv->base;
+    base->attach = styxfs_attach_cb;
+    base->walk   = styxfs_walk_cb;
+    base->open   = styxfs_open_cb;
+    base->read   = styxfs_read_cb;
+    base->write  = styxfs_write_cb;
+    base->clunk  = styxfs_clunk_cb;
+    base->remove = styxfs_remove_cb;
+    base->stat   = styxfs_stat_cb;
+    base->wstat  = styxfs_wstat_cb;
 }
 
 /* Create a root directory entry */

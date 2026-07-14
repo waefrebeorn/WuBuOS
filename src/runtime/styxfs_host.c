@@ -19,6 +19,14 @@ void styxfs_path_to_host(styxfs_server_t *srv, const char *path,
     size_t best_len = 0;
     for (styxfs_mount_t *m = srv->mounts; m; m = m->next) {
         size_t mlen = strlen(m->path);
+        if (mlen == 1 && m->path[0] == '/') {
+            /* Root mount "/" covers everything; prefer it as the base so
+             * subpaths like /snap/... map to <source>/snap/... . */
+            if (path[0] == '/') {
+                if (mlen > best_len) { best = m; best_len = mlen; }
+                continue;
+            }
+        }
         if (strncmp(path, m->path, mlen) == 0 &&
             (path[mlen] == '/' || path[mlen] == '\0')) {
             if (mlen > best_len) { best = m; best_len = mlen; }

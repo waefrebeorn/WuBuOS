@@ -347,7 +347,7 @@ test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hol
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat
+test_medium_other: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -766,7 +766,7 @@ test_ns_bridge:
 		$(RT)/wubu_container.c $(RT)/container/wubucontainer_registry.c \
 		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_util.c \
+		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/wubu_ns_bridge_test.c \
 		-o $(RT)/wubu_ns_bridge_test
 	$(RT)/wubu_ns_bridge_test
@@ -798,6 +798,20 @@ test_ns_kernel:
 		/tmp/wubu_ns_kernel_test.o \
 		-o $(RT)/wubu_ns_kernel_test
 	$(RT)/wubu_ns_kernel_test
+
+
+test_ns_9p:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_9p_test.c -o /tmp/wubu_ns_9p_test.o
+	$(CC) -O0 -no-pie \
+		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
+		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
+		$(RT)/wubu_fs_util.o \
+		$(RT)/styx.o $(RT)/styx_fid.o \
+		$(RT)/styxfs_server.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
+		$(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/wubu_container.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o \
+		/tmp/wubu_ns_9p_test.o \
+		-ljson-c -o $(RT)/wubu_ns_9p_test
+	$(RT)/wubu_ns_9p_test
 
 
 

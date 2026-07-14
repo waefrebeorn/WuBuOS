@@ -22,6 +22,11 @@ void build_path(char *out, size_t out_size, const char *base, const char *name) 
 int path_is_mounted(styxfs_server_t *srv, const char *path) {
     for (styxfs_mount_t *m = srv->mounts; m; m = m->next) {
         size_t mlen = strlen(m->path);
+        if (mlen == 1 && m->path[0] == '/') {
+            /* Root mount "/" covers the entire namespace. */
+            if (path[0] == '/') return 1;
+            continue;
+        }
         if (strncmp(path, m->path, mlen) == 0 &&
             (path[mlen] == '/' || path[mlen] == '\0')) {
             return 1;
