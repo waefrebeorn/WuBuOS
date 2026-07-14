@@ -110,6 +110,14 @@ int wubu_ns_pkg_install(PkgManager *mgr, const char *name);
 int wubu_ns_pkg_remove(PkgManager *mgr, const char *name);
 int wubu_ns_pkg_add_repo(PkgManager *mgr, const char *name, const char *url);
 
+/* -- Kernel + HW (rip off kernel-manager / chwd) -------------- */
+typedef int (*wubu_ns_gpu_detect_fn)(char *name, int name_len, char *pci, int pci_len);
+int wubu_ns_publish_kernel(wubu_ns_gpu_detect_fn detect_fn);
+int wubu_ns_sched_set(const char *policy);
+const char *wubu_ns_sched_get(void);
+int wubu_ns_hw_detect(wubu_ns_gpu_detect_fn detect_fn, char *mode_out, size_t n);
+int wubu_ns_hw_set_mode(const char *gpu, const char *mode);
+
 #ifdef __cplusplus
 }
 #endif
