@@ -31,6 +31,7 @@
 #include "wubu_archd.h"   /* WubuArchd, WubuArchService, WubuArchServiceState */
 #include "wubu_bottles.h" /* WubuBottle */
 #include "wubu_snapshot.h" /* WubuSnapshotManager, WubuSnapshot */
+#include "wubu_pkg.h"     /* PkgManager, PkgEntry */
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,6 +103,12 @@ int wubu_ns_snap_create(WubuSnapshotManager *mgr, const char *container_id,
                         const char *label);
 int wubu_ns_snap_rollback(WubuSnapshotManager *mgr, const char *snapshot_id);
 int wubu_ns_snap_delete(WubuSnapshotManager *mgr, const char *snapshot_id);
+
+/* -- Packages (rip off pacman/Chaotic-AUR) -------------------- */
+int wubu_ns_publish_pkg(PkgManager *mgr);
+int wubu_ns_pkg_install(PkgManager *mgr, const char *name);
+int wubu_ns_pkg_remove(PkgManager *mgr, const char *name);
+int wubu_ns_pkg_add_repo(PkgManager *mgr, const char *name, const char *url);
 
 #ifdef __cplusplus
 }
