@@ -110,6 +110,8 @@ void snap_icon_to_grid(DosGuiIcon *icon);
 int  icon_grid_x(int x);
 int  icon_grid_y(int y);
 void snap_window_to_gaad(DosGuiWindow *w);
+int  dosgui_icon_hit_test(int mx, int my);
+DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);
 int  spawn_window(int x, int y, int w, int h, const char *title);
 
 /* -- Desktop view options (Stream 3) -- */
