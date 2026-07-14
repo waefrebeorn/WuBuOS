@@ -14,6 +14,7 @@
 | **SteamOS 3.x** | `steamos/steamos_study.md` | ~20KB | gamescope, Proton (DXVK/VKD3D), Pressure Vessel, Steam Input, Steam Networking, Shader cache |
 | **TempleOS/ZealOS** | `templeos/templeos_study.md` | ~17KB | HolyC JIT, Doc/DolDoc, RedSea FS, Ring-0, VGA/VESA, PC Speaker, ZealOS parity |
 | **Arch Linux** | `arch/arch_study.md` | ~19KB | pacman/alpm, AUR, ABS/makepkg, systemd, mkinitcpio, NetworkManager, PipeWire, security |
+| **CachyOS** (lineage) | `steamos/steamos_study.md` §CachyOS + `docs/cachyos_source_steal.md` + `vendor/cachyos/` | source-cloned | performance Arch sibling; scheduler (BORE/EEVDF/scx), gaming-meta deps, chwd hw-detect, snapper rollback, Chaotic-AUR — all mapped to /n 9P control plane |
 
 ---
 
