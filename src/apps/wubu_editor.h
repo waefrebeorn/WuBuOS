@@ -216,6 +216,12 @@ void wubu_ed_redo(WubuEditor *ed);
 bool wubu_ed_can_undo(WubuEditor *ed);
 bool wubu_ed_can_redo(WubuEditor *ed);
 
+/* Undo-stack push primitive (also used by editing ops + find/replace).
+ * Defined in wubu_editor_undo.c; declared here so cross-module callers
+ * (wubu_editor.c, wubu_editor_find.c) can record undo entries. */
+void wubu_ed_undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col,
+                       const char *text, int text_len);
+
 /* Selection */
 void wubu_ed_select_all(WubuEditor *ed);
 void wubu_ed_cut(WubuEditor *ed);
