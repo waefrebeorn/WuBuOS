@@ -12,6 +12,7 @@
 #include "input.h"
 #include "wubu_gaad.h"
 #include "ps2.h"
+#include "klog.h"
 #include "../hosted/wubu_metal.h"
 #include <stdint.h>
 
@@ -93,10 +94,14 @@ extern void wubu_shell_run(void *arg);
 void kernel_main(void *boot_info) {
     (void)boot_info;  /* Parsed from registers in crt0.S */
 
+    klog_init();
+    klog_printf("WuBuOS: kernel_main entered (long mode OK)\n");
+
     /* 1. Zero BSS */
     uint64_t *bss = &_bss_start;
     uint64_t *bss_end = &_bss_end;
     while (bss < bss_end) *bss++ = 0;
+    klog_printf("WuBuOS: BSS zeroed\n");
 
     /* 2. Initialize memory allocator FIRST (everything needs it) */
     /* Calculate available memory from Limine memmap */
@@ -110,13 +115,17 @@ void kernel_main(void *boot_info) {
         }
     }
     if (mem_init(mem_size) != 0) {
+        klog_printf("WuBuOS PANIC: mem_init failed\n");
         for (;;) { CLI(); HLT(); }
     }
+    klog_printf("WuBuOS: heap initialized (%u MB)\n", (unsigned)(mem_size >> 20));
 
     /* 3. Initialize interrupt subsystem (IDT, PIC, PIT) */
     if (!interrupt_init()) {
+        klog_printf("WuBuOS PANIC: interrupt_init failed\n");
         for (;;) { CLI(); HLT(); }
     }
+    klog_printf("WuBuOS: interrupts initialized\n");
 
     /* 4. Initialize VBE/DRM-KMS framebuffer */
     int fb_width = 1920, fb_height = 1080;
@@ -129,7 +138,9 @@ void kernel_main(void *boot_info) {
         /* VBE init will use this directly */
     }
     if (vbe_init(fb_width, fb_height) != 0) {
-        for (;;) { CLI(); HLT(); }
+        klog_printf("WuBuOS: VBE init failed (non-fatal under emulator)\n");
+    } else {
+        klog_printf("WuBuOS: VBE initialized (%ux%u)\n", fb_width, fb_height);
     }
 
     /* 5. Initialize GAAD (φ-structured allocation for window snap) */
@@ -142,16 +153,19 @@ void kernel_main(void *boot_info) {
     /* 6b. Initialize PS/2 keyboard/mouse for bare metal */
     int fb_w = 1920, fb_h = 1080;
     if (limine_framebuffer_request.response) {
-        struct limine_framebuffer *fb = limine_framebuffer_request.response;
-        fb_w = fb->width;
-        fb_h = fb->height;
+        struct limine_framebuffer *fb2 = limine_framebuffer_request.response;
+        fb_w = fb2->width;
+        fb_h = fb2->height;
     }
     ps2_init(fb_w, fb_h);
+    klog_printf("WuBuOS: input/PS2 initialized\n");
 
     /* 7. Initialize tasking (cooperative scheduler, PIT timer) */
     if (tasking_init() != 0) {
+        klog_printf("WuBuOS PANIC: tasking_init failed\n");
         for (;;) { CLI(); HLT(); }
     }
+    klog_printf("WuBuOS: tasking initialized\n");
 
     /* 8. Enable preemptive scheduling (timer-driven) */
     extern void task_preempt_enable(void);
@@ -161,8 +175,10 @@ void kernel_main(void *boot_info) {
     CTask *shell = task_create("wubu_shell", wubu_shell_run, NULL,
                                 256 * 1024, PRIO_NORMAL);
     if (!shell) {
+        klog_printf("WuBuOS PANIC: shell task_create failed\n");
         for (;;) { CLI(); HLT(); }
     }
+    klog_printf("WuBuOS: shell task created, yielding\n");
 
     /* 10. Switch to shell task (first context switch) */
     task_yield();  /* Never returns */
