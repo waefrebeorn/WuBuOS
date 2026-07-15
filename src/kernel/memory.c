@@ -14,6 +14,16 @@
 #include <string.h>
 #include <stdio.h>
 
+/* Kernel diagnostics: under the freestanding bare-metal build there is no
+ * libc stdio, so route debug output through the serial klog. Hosted test
+ * binaries keep the normal mem_log( ...) path. */
+#ifdef MYSEED_METAL
+#  include "klog.h"
+#  define mem_log(...) klog_printf(__VA_ARGS__)
+#else
+#  define mem_log(...) fprintf(stderr, __VA_ARGS__)
+#endif
+
 /* -- Internal: Spinlock ------------------------------------------- */
 
 static inline void heap_lock(CHeapCtrl *hc) {
@@ -212,7 +222,7 @@ void mem_free(void *ptr) {
     CMemUsed *mu = (CMemUsed *)((uint8_t *)ptr - MEM_RED_ZONE_SIZE - offsetof(CMemUsed, start));
     
     if (mu->signature != MEM_USED_SIGNATURE) {
-        fprintf(stderr, "mem_free: BAD SIGNATURE %p (got 0x%08X)\n",
+        mem_log( "mem_free: BAD SIGNATURE %p (got 0x%08X)\n",
                 ptr, mu->signature);
         return;
     }
@@ -445,7 +455,7 @@ int mem_validate_all(void) {
         while (u) {
             CMemUsed *mu = (CMemUsed *)u;
             if (mu->signature == MEM_USED_SIGNATURE && check_canaries(mu) != 0) {
-                fprintf(stderr, "CORRUPT: hash bucket %d block %p size=%u\n",
+                mem_log( "CORRUPT: hash bucket %d block %p size=%u\n",
                         i, (void *)((uint8_t *)mu->start + MEM_RED_ZONE_SIZE), mu->size);
                 corrupt++;
             }
@@ -458,7 +468,7 @@ int mem_validate_all(void) {
     while (cur) {
         CMemUsed *mu = (CMemUsed *)cur;
         if (mu->signature == MEM_USED_SIGNATURE && check_canaries(mu) != 0) {
-            fprintf(stderr, "CORRUPT: free list block %p size=%u\n",
+            mem_log( "CORRUPT: free list block %p size=%u\n",
                     (void *)((uint8_t *)mu->start + MEM_RED_ZONE_SIZE), mu->size);
             corrupt++;
         }
@@ -472,7 +482,7 @@ int mem_validate_all(void) {
 /* mem_debug_dump — visual heap state to stderr */
 void mem_debug_dump(void) {
     if (!g_heap) {
-        fprintf(stderr, "mem_debug_dump: heap not initialized\n");
+        mem_log( "mem_debug_dump: heap not initialized\n");
         return;
     }
     
@@ -482,15 +492,15 @@ void mem_debug_dump(void) {
     
     heap_lock(hc);
     
-    fprintf(stderr, "\n╔══════════════════════════════════════╗\n");
-    fprintf(stderr, "║       WuBuOS Heap Debug Dump         ║\n");
-    fprintf(stderr, "╠══════════════════════════════════════╣\n");
-    fprintf(stderr, "║ Heap base:  %p                ║\n", (void *)g_heap_base);
-    fprintf(stderr, "║ Heap size:  %zu bytes          ║\n", g_heap_total);
-    fprintf(stderr, "║ Used:       %zu bytes          ║\n", hc->used_size);
-    fprintf(stderr, "║ Available:  %zu bytes          ║\n", hc->max_size - hc->used_size);
-    fprintf(stderr, "║ Signature:  0x%08X            ║\n", hc->hc_signature);
-    fprintf(stderr, "╠══════════════════════════════════════╣\n");
+    mem_log( "\n╔══════════════════════════════════════╗\n");
+    mem_log( "║       WuBuOS Heap Debug Dump         ║\n");
+    mem_log( "╠══════════════════════════════════════╣\n");
+    mem_log( "║ Heap base:  %p                ║\n", (void *)g_heap_base);
+    mem_log( "║ Heap size:  %zu bytes          ║\n", g_heap_total);
+    mem_log( "║ Used:       %zu bytes          ║\n", hc->used_size);
+    mem_log( "║ Available:  %zu bytes          ║\n", hc->max_size - hc->used_size);
+    mem_log( "║ Signature:  0x%08X            ║\n", hc->hc_signature);
+    mem_log( "╠══════════════════════════════════════╣\n");
     
     /* Walk hash buckets and count */
     for (int i = 0; i < MEM_HEAP_HASH_SIZE; i++) {
@@ -500,12 +510,12 @@ void mem_debug_dump(void) {
             if (mu->signature == MEM_USED_SIGNATURE) {
                 total_used += mu->size; n_used++;
                 int rz = check_canaries(mu);
-                fprintf(stderr, "║ [USED]  %p  size=%5u  rz=%s  ║\n",
+                mem_log( "║ [USED]  %p  size=%5u  rz=%s  ║\n",
                         (void *)((uint8_t *)mu->start + MEM_RED_ZONE_SIZE),
                         mu->size, rz == 0 ? "OK" : "BAD");
             } else {
                 total_free += mu->size; n_free++;
-                fprintf(stderr, "║ [FREE]  %p  size=%5u            ║\n",
+                mem_log( "║ [FREE]  %p  size=%5u            ║\n",
                         (void *)mu, mu->size);
             }
             u = u->next;
@@ -518,21 +528,21 @@ void mem_debug_dump(void) {
         if (mu->signature == MEM_USED_SIGNATURE) {
             total_used += mu->size; n_used++;
             int rz = check_canaries(mu);
-            fprintf(stderr, "║ [USED]  %p  size=%5u  rz=%s  ║\n",
+            mem_log( "║ [USED]  %p  size=%5u  rz=%s  ║\n",
                     (void *)((uint8_t *)mu->start + MEM_RED_ZONE_SIZE),
                     mu->size, rz == 0 ? "OK" : "BAD");
         } else {
             total_free += mu->size; n_free++;
-            fprintf(stderr, "║ [FREE]  %p  size=%5u            ║\n",
+            mem_log( "║ [FREE]  %p  size=%5u            ║\n",
                     (void *)mu, mu->size);
         }
         cur = cur->next;
     }
     
-    fprintf(stderr, "╠══════════════════════════════════════╣\n");
-    fprintf(stderr, "║ Used blocks:  %d  (%zu bytes)  ║\n", n_used, total_used);
-    fprintf(stderr, "║ Free blocks:  %d  (%zu bytes)  ║\n", n_free, total_free);
-    fprintf(stderr, "╚══════════════════════════════════════╝\n\n");
+    mem_log( "╠══════════════════════════════════════╣\n");
+    mem_log( "║ Used blocks:  %d  (%zu bytes)  ║\n", n_used, total_used);
+    mem_log( "║ Free blocks:  %d  (%zu bytes)  ║\n", n_free, total_free);
+    mem_log( "╚══════════════════════════════════════╝\n\n");
     
     heap_unlock(hc);
 }

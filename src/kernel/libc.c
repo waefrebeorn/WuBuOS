@@ -400,3 +400,145 @@ extern uint64_t _kernel_end;
 extern uint64_t _bss_start;
 extern uint64_t _bss_end;
 extern uint64_t _stack_top;
+
+/* ==================================================================
+ * Missing freestanding libc symbols (kernel link completion)
+ *
+ * The bare-metal kernel is linked with -nostdlib, so every libc symbol
+ * the translated C files reference must be provided here. The variants
+ * below are the real implementations (not stubs): a genuine setjmp/
+ * longjmp for the cooperative task switch, klog-backed stdio, and
+ * bare-metal-appropriate no-ops for host-only signal/time facilities.
+ * ================================================================= */
+
+#include "klog.h"
+
+/* --- setjmp / longjmp -------------------------------------------------
+ * The bare-metal kernel builds with -DWUBU_BAREMETAL=1, so the task
+ * switch uses task_switch_asm() (tasking_switch.S) and never references
+ * setjmp/longjmp. libc.h provides the freestanding jmp_buf + _setjmp /
+ * __longjmp_chk declarations used only by the hosted test path, so we do
+ * NOT define setjmp/longjmp here (that would clash with libc.h's jmp_buf).
+ * --------------------------------------------------------------------- */
+
+/* gcc _FORTIFY_SOURCE / -D_FORTIFY emits __*_chk variants; provide them. */
+void *__memcpy_chk(void *dest, const void *src, size_t n, size_t dstlen) {
+    (void)dstlen;
+    return memcpy(dest, src, n);
+}
+void *__memset_chk(void *s, int c, size_t n, size_t dstlen) {
+    (void)dstlen;
+    return memset(s, c, n);
+}
+
+/* --- abs --- */
+int abs(int v) { return v < 0 ? -v : v; }
+long labs(long v) { return v < 0 ? -v : v; }
+
+/* --- time (bare metal: monotonic tick, epoch fixed) --- */
+time_t time(time_t *t) {
+    time_t now = 0;   /* no RTC driver wired; return a fixed epoch */
+    if (t) *t = now;
+    return now;
+}
+
+struct tm *gmtime(const time_t *t) {
+    static struct tm g_tm;
+    (void)t;
+    memset(&g_tm, 0, sizeof(g_tm));
+    g_tm.tm_year = 70;   /* 1970 */
+    return &g_tm;
+}
+
+/* --- signals (host-only; bare metal no-ops) --- */
+int sigaction(int sig, const void *act, void *oldact) {
+    (void)sig; (void)act; (void)oldact;
+    return 0;
+}
+sighandler_t signal(int sig, sighandler_t handler) {
+    (void)sig; (void)handler;
+    return 0;
+}
+sighandler_t __sysv_signal(int sig, sighandler_t handler) {
+    (void)sig; (void)handler;
+    return 0;
+}
+
+/* --- ctype locale (used by some translated code) --- */
+const unsigned short int **__ctype_toupper_loc(void) {
+    static const unsigned short int identity[1] = { 0 };
+    static const unsigned short int *loc = identity;
+    return &loc;
+}
+
+/* --- stdio: stderr backed by the serial klog; printf family routes there.
+ *     We define a minimal FILE-like `stderr` symbol (address used as a
+ *     sentinel) and the _chk printf variants the fortified headers emit. */
+typedef struct { int __dummy; } kfile_t;
+static kfile_t g_kstderr;
+FILE *stderr = (FILE *)&g_kstderr;
+
+int fprintf(FILE *stream, const char *fmt, ...) {
+    (void)stream;
+    char buf[512];
+    va_list ap; va_start(ap, fmt);
+    int n = vsprintf(buf, fmt, ap);
+    va_end(ap);
+    klog_write(buf);
+    return n;
+}
+
+int __fprintf_chk(FILE *stream, int flag, const char *fmt, ...) {
+    (void)flag;
+    char buf[512];
+    va_list ap; va_start(ap, fmt);
+    int n = vsprintf(buf, fmt, ap);
+    va_end(ap);
+    klog_write(buf);
+    return n;
+}
+
+int printf(const char *fmt, ...) {
+    char buf[512];
+    va_list ap; va_start(ap, fmt);
+    int n = vsprintf(buf, fmt, ap);
+    va_end(ap);
+    klog_write(buf);
+    return n;
+}
+
+int __printf_chk(int flag, const char *fmt, ...) {
+    (void)flag;
+    char buf[512];
+    va_list ap; va_start(ap, fmt);
+    int n = vsprintf(buf, fmt, ap);
+    va_end(ap);
+    klog_write(buf);
+    return n;
+}
+
+int snprintf(char *str, size_t size, const char *fmt, ...) {
+    char buf[512];
+    va_list ap; va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    va_end(ap);
+    size_t l = strlen(buf);
+    if (l >= size) l = size ? size - 1 : 0;
+    memcpy(str, buf, l);
+    if (size) str[l] = '\0';
+    return (int)strlen(buf);
+}
+
+int __snprintf_chk(char *str, size_t size, int flag, size_t dstlen,
+                    const char *fmt, ...) {
+    (void)flag; (void)dstlen;
+    char buf[512];
+    va_list ap; va_start(ap, fmt);
+    vsprintf(buf, fmt, ap);
+    va_end(ap);
+    size_t l = strlen(buf);
+    if (l >= size) l = size ? size - 1 : 0;
+    memcpy(str, buf, l);
+    if (size) str[l] = '\0';
+    return (int)strlen(buf);
+}

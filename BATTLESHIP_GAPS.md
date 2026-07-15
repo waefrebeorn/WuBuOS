@@ -556,13 +556,17 @@ These are inherited from NanoShellOS. Most are cosmetic TODOs (colors, safety ch
 | 226 | startmenu_search | — | Search functionality | ✅ |
 | 227 | startmenu_pinned | — | Pinned items | ✅ |
 
-### 🟡 src/shell/wubu_shell.c — Shell (0 explicit markers, form-not-function)
-| # | Function | Line | What It Should Do | REAL_GAP |
-|---|----------|------|-------------------|----------|
-| 228 | shell_history | — | Command history | ✅ |
-| 229 | shell_completion | — | Tab completion | ✅ |
-| 230 | shell_pipe | — | Pipe support | ✅ |
-| 231 | shell_redirect | — | I/O redirection | ✅ |
+### 🟢 src/shell/ — Shell (REAL engine, split modules, 9/9 tests green)
+| # | Function | Module | What It Should Do | REAL_GAP |
+|---|----------|--------|-------------------|----------|
+| 228 | shell_history | wubu_shell_history.c | Command history ring buffer + up/down nav | ✅ real |
+| 229 | shell_completion | wubu_shell_complete.c | Tab completion vs builtin+program table | ✅ real |
+| 230 | shell_pipe | wubu_shell_exec.c | Multi-stage pipelines (`|`) | ✅ real |
+| 231 | shell_redirect | wubu_shell_exec.c | I/O redir (`>`, `>>`, `<`, `2>`, `2>&1`) | ✅ real |
+
+Implemented as 4 self-contained modules behind `wubu_shell_internal.h`
+(opaque `ShellState`, no god headers). `make test_shell` → 9/9 PASS.
+`;` command separators also supported.
 
 ### 🟡 src/runtime/wubu_ct_bwrap.c — Bubblewrap (0 explicit markers, form-not-function)
 | # | Function | Line | What It Should Do | REAL_GAP |
@@ -572,6 +576,23 @@ These are inherited from NanoShellOS. Most are cosmetic TODOs (colors, safety ch
 ---
 
 ## TIER 4 — BARE METAL (Hardware Access)
+
+### ✅ Kernel link/build break — FIXED (2026-07-14)
+The `kernel` target was unbuildable under `-nostdlib`/`mcmodel=kernel`. Root causes
+and fixes (all in `src/kernel/` + `Makefile`):
+- `kernel.ld`: added `_kernel_start`/`_stack_top`; split VMA(higher-half) from LMA
+  (physical 1MB) via PHDRS+AT(); absolute low-physical scratch symbols for crt0.
+- `crt0.S`: page-table setup + long-mode far-jump rewritten position-independent
+  (call/pop EIP + assembly offsets) so no higher-half 32-bit immediates (which
+  `-mcmodel=kernel` rejects as `R_X86_64_32`).
+- `Makefile`: kernel objects now build with `-DWUBU_BAREMETAL=1` (real asm task
+  switch via `tasking_switch.S`) instead of the hosted setjmp/longjmp path.
+- `libc.c`: completed freestanding libc (abs, time, gmtime, sigaction/__sysv_signal
+  no-ops, __ctype_toupper_loc, __*_chk memcpy/memset, fprintf/printf family → klog).
+- `klog.c`/`klog.h`: new serial COM1 log sink; `memory.c` diagnostics route through
+  it under `MYSEED_METAL` (hosted keeps fprintf). `klog_init()` wired in metal_main.
+- Result: `make kernel` → `kernel.elf` links (✅). Runtime boot needs QEMU
+  validation (not available in this env) — link is verified, execution unverified.
 
 ### ⬜ src/kernel/vbe.c — VBE (0 explicit markers, form-not-function)
 | # | Function | Line | What It Should Do | REAL_GAP |
