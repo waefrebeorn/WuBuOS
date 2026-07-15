@@ -3,6 +3,9 @@
 
 CC      = gcc
 CFLAGS  = -Wall -Wextra -Wno-unused-function -std=c11 -O2 -g -D_POSIX_C_SOURCE=200809L -Wno-array-bounds -DWUBU_NO_LIBM -I/usr/include/libdrm -Wno-unused-result -Wno-implicit-function-declaration -Wno-return-type -Wno-unused-variable -Wno-format-truncation -Wno-unused-parameter
+# Kernel objects are freestanding and use the real assembly context switch
+# (WUBU_BAREMETAL), not the hosted setjmp/longjmp path.
+KERNEL_CFLAGS = -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM
 LDFLAGS = -lcublas -lcudnn -lcudart
 
 # ── Directories ──────────────────────────────────────────────────
@@ -26,7 +29,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
@@ -52,12 +55,13 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_e
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
 COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.o $(COMP)/holyc_codegen.o $(COMP)/holyc_codegen_emit.o $(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o $(COMP)/holyc_ptx.o
-RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_spawn.o $(RT)/wubu_fs_util.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dxvk.o  $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/styx.o $(RT)/styxfs_server.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_proton2.o $(RT)/wubu_proton2_gpu.o $(RT)/wubu_proton2_device.o $(RT)/wubu_proton2_gamescope.o $(RT)/wubu_proton2_launch.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_image.o $(RT)/wubu_image_cache.o $(RT)/wubu_image_parse.o $(RT)/wubu_image_manifest.o $(RT)/wubu_image_ops.o $(RT)/wubu_image_tar.o $(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_diff.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o $(RT)/wubu_snapshot_tag.o $(RT)/wubu_snapshot_gc.o $(RT)/wubu_snapshot_xport.o $(RT)/wubu_network.o $(RT)/wubu_network_fw.o $(RT)/wubu_network_svc.o $(RT)/wubu_network_cni.o $(RT)/wubu_network_wg.o $(RT)/wubu_network_ts.o $(RT)/wubu_network_dns.o $(RT)/wubu_network_qos.o $(RT)/wubu_network_create.o $(RT)/wubu_netlink.o $(RT)/wubu_archd_daemon.o $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.o $(RT)/wubu_ns_bridge.o $(RT)/wubu_ns_fs.o $(RT)/wubu_ns_pkg.o $(RT)/wubu_pkg.o $(RT)/wubu_ns_snap.o $(RT)/wubu_bottle_lifecycle.o $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.o $(RT)/wubu_bottle_flatpak.o $(RT)/wubu_bottle_ops.o $(RT)/wubu_bottles_json.o $(RT)/wubu_bottles_fs.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_lifecycle.o $(RT)/holyd_lifecycle_app.o $(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o $(RT)/vsl/vsl_nt_atoms.o $(RT)/vsl/vsl_nt_job.o $(RT)/vsl/vsl_nt_io.o $(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o $(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o $(RT)/vsl/vsl_nt_registry.o $(RT)/vsl/vsl_syscall_proc.o $(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_descriptor.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o $(RT)/wubu_ns_kernel.o
+RT_OBJS   = $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_spawn.o $(RT)/wubu_fs_util.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dxvk.o  $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styxfs_server.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_proton2.o $(RT)/wubu_proton2_gpu.o $(RT)/wubu_proton2_device.o $(RT)/wubu_proton2_gamescope.o $(RT)/wubu_proton2_launch.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_image.o $(RT)/wubu_image_cache.o $(RT)/wubu_image_parse.o $(RT)/wubu_image_manifest.o $(RT)/wubu_image_ops.o $(RT)/wubu_image_tar.o $(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_diff.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o $(RT)/wubu_snapshot_tag.o $(RT)/wubu_snapshot_gc.o $(RT)/wubu_snapshot_xport.o $(RT)/wubu_network.o $(RT)/wubu_network_fw.o $(RT)/wubu_network_svc.o $(RT)/wubu_network_cni.o $(RT)/wubu_network_wg.o $(RT)/wubu_network_ts.o $(RT)/wubu_network_dns.o $(RT)/wubu_network_qos.o $(RT)/wubu_network_create.o $(RT)/wubu_netlink.o $(RT)/wubu_archd_daemon.o $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.o $(RT)/wubu_ns_bridge.o $(RT)/wubu_ns_fs.o $(RT)/wubu_ns_pkg.o $(RT)/wubu_pkg.o $(RT)/wubu_ns_snap.o $(RT)/wubu_bottle_lifecycle.o $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.o $(RT)/wubu_bottle_flatpak.o $(RT)/wubu_bottle_ops.o $(RT)/wubu_bottles_json.o $(RT)/wubu_bottles_fs.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_lifecycle.o $(RT)/holyd_lifecycle_app.o $(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o $(RT)/vsl/vsl_nt_atoms.o $(RT)/vsl/vsl_nt_job.o $(RT)/vsl/vsl_nt_io.o $(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o $(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o $(RT)/vsl/vsl_nt_registry.o $(RT)/vsl/vsl_syscall_proc.o $(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_descriptor.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o $(RT)/wubu_ns_kernel.o
 
 TOOLS_OBJS = $(TOOLS)/iso9660.o $(TOOLS)/weight_check.o $(TOOLS)/screenshot.o
 
 # ── Shell Objects ────────────────────────────────────────────────
-SHELL_OBJS = $(SHELL_DIR)/wubu_shell.o
+SHELL_OBJS = $(SHELL_DIR)/wubu_shell.o $(SHELL_DIR)/wubu_shell_history.o \
+             $(SHELL_DIR)/wubu_shell_complete.o $(SHELL_DIR)/wubu_shell_exec.o
 
 # ── Bear RL Objects ──────────────────────────────────────────────
 BEAR_OBJS = $(BEAR)/bear_arena.o $(BEAR)/bear_env.o $(BEAR)/bear_env_npole.o $(BEAR)/bear_nn_policy.o $(BEAR)/bear_nn_value.o $(BEAR)/bear_nn_ckpt.o $(BEAR)/bear_ppo_traj.o $(BEAR)/bear_ppo_loss.o $(BEAR)/bear_ppo_trainer.o $(BEAR)/bear_opt.o $(BEAR)/bear_cudnn.o $(BEAR)/bear_cudnn_cublas.o $(BEAR)/bear_cudnn_cuda.o $(BEAR)/bear_vulkan_soft.o
@@ -69,8 +73,12 @@ AUDIO_OBJS = $(AUDIO)/wubu_audio.o $(AUDIO)/wubu_audio_chips.o $(AUDIO)/wubu_aud
 
 .PHONY: all clean test kernel jit gui bridge apps worldsim
 
-shell: $(SHELL_OBJS)
-	@echo "✅ Shell built"
+shell: $(SHELL_DIR)/wubu_shell
+	@echo "✅ Shell built (./src/shell/wubu_shell)"
+
+$(SHELL_DIR)/wubu_shell: $(SHELL_OBJS)
+	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) \
+		$(SHELL_OBJS) -o $@
 
 $(SHELL_DIR)/%.o: $(SHELL_DIR)/%.c
 	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) -c $< -o $@
@@ -102,6 +110,33 @@ kernel: $(KERNEL_OBJS) $(KERNEL)/crt0.o $(KERNEL)/metal_main.o
 		$(KERNEL)/crt0.o $(KERNEL)/metal_main.o $(KERNEL_OBJS) \
 		-o $(KERNEL)/kernel.elf
 	@echo "✅ Bare-metal kernel.elf built"
+
+# ── Bare-metal boot / QEMU validation harness ──────────────────────────
+# boot.S is a self-contained 16-bit BIOS bootsector that loads kernel.elf
+# (concatenated at LBA 1), parses its ELF64 program headers, switches to
+# 32-bit protected mode, and jumps to the kernel entry. It assembles to a
+# clean 512-byte image (SeaBIOS loads a raw sector at linear 0, so `.org 0`
+# is used and the AA55 signature lands at offset 510). The `qemu` target
+# packs boot.bin + kernel.elf into a 1.44MB floppy image and boots it,
+# capturing the serial boot trace on stdout.
+$(KERNEL)/boot.bin: $(KERNEL)/boot.S
+	$(CC) -c -m16 -ffreestanding -nostdlib -I$(KERNEL) $(KERNEL)/boot.S -o $(KERNEL)/boot.o
+	objcopy -O binary -j .text $(KERNEL)/boot.o $(KERNEL)/boot.bin
+	truncate -s 512 $(KERNEL)/boot.bin
+
+$(KERNEL)/disk.img: $(KERNEL)/boot.bin $(KERNEL)/kernel.elf
+	cat $(KERNEL)/boot.bin $(KERNEL)/kernel.elf /dev/zero | head -c 1474560 > $(KERNEL)/disk.img
+
+boot: $(KERNEL)/boot.bin
+	@echo "✅ Bootsector built (./src/kernel/boot.bin, 512 bytes)"
+
+qemu: $(KERNEL)/kernel.elf
+	@echo "▶ Booting WuBuOS kernel in QEMU via multiboot (-kernel)..."
+	qemu-system-x86_64 -kernel $(KERNEL)/kernel.elf -serial stdio \
+		-display none -m 128 -no-reboot \
+		-device isa-debug-exit,iobase=0xf4 || true
+
+
 
 jit: $(JIT_OBJS)
 	@echo "✅ JIT built"
@@ -163,7 +198,7 @@ worldsim: $(WS_OBJS)
 HOSTED_OBJS = \
 	$(HOSTED)/hosted.o $(HOSTED)/hosted_render.o $(HOSTED)/hosted_pe.o $(HOSTED)/hosted_run.o $(HOSTED)/hosted_wayland.o $(HOSTED)/hosted_wayland_shm.o $(HOSTED)/hosted_wayland_input.o $(HOSTED)/hosted_wayland_surface.o $(HOSTED)/vbe_hosted.o \
 	$(HOSTED)/hosted_styxfs.o \
-	$(RT)/styx.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o \
+	$(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o \
 	$(HOSTED)/memory_khosted.o $(HOSTED)/input_khosted.o $(HOSTED)/tasking_khosted.o $(HOSTED)/interrupt_khosted.o $(HOSTED)/wubu_math_khosted.o \
 	$(BRIDGE)/bridge.o $(BRIDGE)/wubu_syscall.o $(BRIDGE)/wubu_syscall_vbe.o \
 $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c \
@@ -207,7 +242,7 @@ APP_RT_OBJS = \
 	$(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o \
 	$(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o \
 	$(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o \
-	$(RT)/oci/oci_runtime_spec.o $(RT)/styx.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o $(RT)/vsl/vsl.o \
+	$(RT)/oci/oci_runtime_spec.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o $(RT)/vsl/vsl.o \
 	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_gpu_vulkan.o \
 	$(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_syscall.o \
 	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o \
@@ -243,7 +278,7 @@ hosted: $(HOSTED_OBJS) $(RT_OBJS)
 # ── Compilation Rules ────────────────────────────────────────────
 
 $(KERNEL)/%.o: $(KERNEL)/%.c
-	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
 
 $(RT)/%.o: $(RT)/%.c
 	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -c $< -o $@
@@ -318,10 +353,10 @@ $(BEAR)/%.o: $(BEAR)/%.cu
 
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S
-	$(CC) $(CFLAGS) -DMYSEED_METAL -DWa -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
 
 $(KERNEL)/libc.o: $(KERNEL)/libc.c
-	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
 
 # ── Tests ────────────────────────────────────────────────────────
 
@@ -347,7 +382,7 @@ test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hol
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat
+test_medium_other: test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat test_shell
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -393,8 +428,8 @@ test_holyc: $(JIT_OBJS)
 	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test -ldl
 	$(COMP)/holyc_test
 
-test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/styx.o $(RT)/wubu_ct_isolate.o
-	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c -o $(RT)/wubu_container_test -ldl
+test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/wubu_ct_isolate.o
+	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c -o $(RT)/wubu_container_test -ldl
 	$(RT)/wubu_container_test
 
 test_container_registry:
@@ -446,7 +481,7 @@ test_syscall:
 	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -I$(BRIDGE) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) -DMYSEED_METAL \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
 		$(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o \
 		$(BRIDGE)/wubu_syscall.c $(BRIDGE)/wubu_syscall_vbe.c $(BRIDGE)/wubu_syscall_test.c \
 		-o $(BRIDGE)/wubu_syscall_test -lvulkan
@@ -456,11 +491,11 @@ test_proton:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/wubu_proton.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_proton_test.c -o $(RT)/wubu_proton_test
 	$(RT)/wubu_proton_test
 
-test_launch: $(RT)/wubu_container.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_host_exec.o $(RT)/wubu_session.o $(RT)/styx.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/wubu_launch_test.o
+test_launch: $(RT)/wubu_container.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/wubu_ct_isolate.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_host_exec.o $(RT)/wubu_session.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/wubu_launch_test.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 		$(RT)/wubu_container.c $(RT)/wubu_proton.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_session.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_session.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/wubu_launch_test.c \
 		-o $(RT)/wubu_launch_test -ldl
 	$(RT)/wubu_launch_test
@@ -471,6 +506,15 @@ test_compat:
 		$(RT)/wubu_compat_db.c $(RT)/wubu_compat_db_test.c \
 		-o $(RT)/wubu_compat_db_test
 	$(RT)/wubu_compat_db_test
+
+test_shell: $(SHELL_DIR)/wubu_shell.o $(SHELL_DIR)/wubu_shell_history.o \
+            $(SHELL_DIR)/wubu_shell_complete.o $(SHELL_DIR)/wubu_shell_exec.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_SHELL_NO_MAIN \
+		-I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) \
+		$(SHELL_DIR)/wubu_shell.c $(SHELL_DIR)/wubu_shell_history.c \
+		$(SHELL_DIR)/wubu_shell_complete.c $(SHELL_DIR)/wubu_shell_exec.c \
+		$(SHELL_DIR)/wubu_shell_test.c -o $(SHELL_DIR)/wubu_shell_test
+	$(SHELL_DIR)/wubu_shell_test
 
 test_ahci:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/ahci.c $(KERNEL)/ahci_test.c -o $(KERNEL)/ahci_test
@@ -500,7 +544,7 @@ test_gui_screenshot:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_SCREENSHOT_WITH_WM \
 		-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) \
 		$(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_draw.c $(KERNEL)/vbe.c $(GUI)/wubu_theme.c $(GUI)/wubu_notify.c \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/wubu_wm.c $(HOSTED)/hosted.c $(HOSTED)/hosted_wayland.c $(HOSTED)/hosted_wayland_shm.o $(HOSTED)/hosted_wayland_input.o $(HOSTED)/hosted_wayland_surface.o $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/wubu_wm.c $(HOSTED)/hosted.c $(HOSTED)/hosted_wayland.c $(HOSTED)/hosted_wayland_shm.o $(HOSTED)/hosted_wayland_input.o $(HOSTED)/hosted_wayland_surface.o $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(KERNEL)/memory.c $(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S \
 		$(BRIDGE)/bridge.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(APPS)/app_canvas.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
@@ -585,11 +629,11 @@ test_dosgui_term:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -I$(GUI) -I$(KERNEL) $(GUI)/dosgui_term.c $(GUI)/dosgui_term_tabs.c $(GUI)/dosgui_term_render.c $(GUI)/dosgui_term_ansi.c $(GUI)/dosgui_term_pty.c $(GUI)/wubu_theme.c $(GUI)/dosgui_term_test_stub.c $(KERNEL)/vbe.c $(GUI)/dosgui_term_test.c -o $(GUI)/dosgui_term_test
 	$(GUI)/dosgui_term_test
 test_styx:
-	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styx_test.c -o $(RT)/styx_test
+	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styx_test.c -o $(RT)/styx_test
 	$(RT)/styx_test
 
 test_styxfs:
-	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c -o $(RT)/styxfs_test
+	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c -o $(RT)/styxfs_test
 	$(RT)/styxfs_test
 
 HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)
@@ -606,14 +650,14 @@ test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
 
 test_host_exec:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \
 		-o $(RT)/wubu_host_exec_test
 	$(RT)/wubu_host_exec_test
 
 test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_arch_test.c $(APPS)/wubu_freedoom.c \
 		-o $(RT)/wubu_arch_test
 	$(RT)/wubu_arch_test
@@ -621,7 +665,7 @@ test_arch:
 test_ramdisk:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_ramdisk_test.c \
 		-o $(RT)/wubu_ramdisk_test
 	$(RT)/wubu_ramdisk_test
@@ -636,7 +680,7 @@ test_gaad:
 test_wubu_wm:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(RT) \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(GUI)/wubu_theme.c $(GUI)/wubu_wm.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(GUI)/wubu_theme.c $(GUI)/wubu_wm.c \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/vbe.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(GUI)/wubu_wm_test.c \
@@ -664,7 +708,7 @@ test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(RT) \
 $(APPS)/wubu_editor.c $(APPS)/wubu_editor_bookmark.c $(APPS)/wubu_editor_macro.c $(APPS)/wubu_canvas.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c $(RT)/wubu_spawn.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \
 		$(APPS)/wubu_apps2_test.c \
 		-o $(APPS)/wubu_apps2_test -lz -lm
 	$(APPS)/wubu_apps2_test
@@ -684,7 +728,7 @@ test_proton2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_proton2.c $(RT)/wubu_proton2_launch.c $(RT)/wubu_proton2_gamescope.c $(RT)/wubu_proton2_device.c $(RT)/wubu_proton2_gpu.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_arch.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_container.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_container.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_proton2_test.c \
 		-o $(RT)/wubu_proton2_test
@@ -725,7 +769,7 @@ test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(RT) \
 		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_db.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_pkgmgr_remote.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_theme.c \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \
 		$(RT)/oci/oci_http_client.c \
 		$(GUI)/wubu_pkgmgr_test.c \
 		-o $(GUI)/wubu_pkgmgr_test -lsqlite3 -lzstd
@@ -767,7 +811,7 @@ test_ns_bridge:
 		$(RT)/wubu_container.c $(RT)/container/wubucontainer_registry.c \
 		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/wubu_ns_bridge_test.c \
 		-o $(RT)/wubu_ns_bridge_test
 	$(RT)/wubu_ns_bridge_test
@@ -807,7 +851,7 @@ test_ns_9p:
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
 		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
 		$(RT)/wubu_fs_util.o \
-		$(RT)/styx.o $(RT)/styx_fid.o \
+		$(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o \
 		$(RT)/styxfs_server.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
 		$(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/wubu_container.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o \
 		/tmp/wubu_ns_9p_test.o \
@@ -840,7 +884,7 @@ test_archd:
 		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_fs_util.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_container.c \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/wubu_archd_test.c \
 
 		-o $(RT)/wubd_archd_test -lpthread
@@ -905,7 +949,7 @@ test_daemon_panel:
 		$(GUI)/dosgui_daemon_panel.c $(GUI)/dosgui_service_mgr.c $(GUI)/dosgui_daemon_panel_test.c $(RT)/wubu_fs_util.o \
 		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
-		$(RT)/wubu_container.c $(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/wubu_container.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		-o $(GUI)/dosgui_daemon_panel_test -lpthread
 	$(GUI)/dosgui_daemon_panel_test
 
@@ -916,7 +960,7 @@ test_service_mgr:
 		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c $(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_container.c $(RT)/wubu_fs_util.o \
-		$(RT)/styx.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(GUI)/dosgui_service_mgr.c $(GUI)/dosgui_service_mgr_test.c \
 		-o $(GUI)/dosgui_service_mgr_test -lpthread
 	$(GUI)/dosgui_service_mgr_test
