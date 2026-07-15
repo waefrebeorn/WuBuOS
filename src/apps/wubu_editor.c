@@ -185,7 +185,8 @@ int wubu_ed_close_tab(WubuEditor *ed, int tab_idx) {
 
 /* -- Undo/Redo Internal -------------------------------------------- */
 
-static void undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col, const char *text, int text_len);
+/* undo recording is done via the public wubu_ed_undo_push() primitive
+ * (defined in wubu_editor_undo.c). */
 
 /* -- Insert Character --------------------------------------------- */
 
@@ -198,7 +199,7 @@ void wubu_ed_insert_char(WubuEditor *ed, char ch) {
     if (tab->cursor_col > line->len) tab->cursor_col = line->len;
     /* Record undo: the inserted character */
     char ustr[2] = {ch, '\0'};
-    undo_push(tab, UNDO_INSERT, tab->cursor_line, tab->cursor_col, ustr, 1);
+    wubu_ed_undo_push(tab, UNDO_INSERT, tab->cursor_line, tab->cursor_col, ustr, 1);
     memmove(&line->text[tab->cursor_col + 1],
             &line->text[tab->cursor_col],
             line->len - tab->cursor_col + 1);
@@ -256,7 +257,7 @@ void wubu_ed_delete_char(WubuEditor *ed) {
         /* Delete character before cursor */
         char deleted = line->text[tab->cursor_col - 1];
         char ustr[2] = {deleted, '\0'};
-        undo_push(tab, UNDO_DELETE, tab->cursor_line, tab->cursor_col - 1, ustr, 1);
+        wubu_ed_undo_push(tab, UNDO_DELETE, tab->cursor_line, tab->cursor_col - 1, ustr, 1);
         tab->cursor_col--;
         memmove(&line->text[tab->cursor_col],
                 &line->text[tab->cursor_col + 1],
@@ -271,7 +272,7 @@ void wubu_ed_delete_char(WubuEditor *ed) {
         char undo_buf[WUBU_ED_MAX_LINE_LEN];
         memcpy(undo_buf, line->text, (size_t)line->len);
         undo_buf[line->len] = '\0';
-        undo_push(tab, UNDO_DELETE, tab->cursor_line, 0, undo_buf, line->len);
+        wubu_ed_undo_push(tab, UNDO_DELETE, tab->cursor_line, 0, undo_buf, line->len);
         
         tab->cursor_col = prev->len;
         memcpy(&prev->text[prev->len], line->text, (size_t)line->len);
@@ -310,356 +311,9 @@ void wubu_ed_insert_text(WubuEditor *ed, const char *text) {
     }
 }
 
-/* -- Undo/Redo ---------------------------------------------------- */
-
-static void undo_push(WubuEdTab *tab, WubuUndoKind kind, int line, int col, const char *text, int text_len) {
-    if (!tab || tab->undo_count >= WUBU_ED_MAX_UNDO) return;
-    WubuUndo *u = &tab->undo_stack[tab->undo_pos];
-    u->kind = kind;
-    u->line = line;
-    u->col = col;
-    if (text && text_len > 0) {
-        int len = text_len < WUBU_ED_MAX_LINE_LEN ? text_len : WUBU_ED_MAX_LINE_LEN - 1;
-        memcpy(u->text, text, (size_t)len);
-        u->text[len] = '\0';
-        u->text_len = len;
-    } else {
-        u->text[0] = '\0';
-        u->text_len = 0;
-    }
-    tab->undo_pos = (tab->undo_pos + 1) % WUBU_ED_MAX_UNDO;
-    tab->undo_count++;
-}
-
-void wubu_ed_undo(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!tab || tab->undo_count == 0) return;
-    
-    tab->undo_pos = (tab->undo_pos - 1 + WUBU_ED_MAX_UNDO) % WUBU_ED_MAX_UNDO;
-    WubuUndo *u = &tab->undo_stack[tab->undo_pos];
-    
-    switch (u->kind) {
-    case UNDO_INSERT: {
-        /* Undo an insert = delete the inserted text */
-        if (u->line >= tab->n_lines) break;
-        WubuEdLine *line = &tab->lines[u->line];
-        if (u->col + u->text_len > line->len) break;
-        /* Remove the inserted characters */
-        memmove(&line->text[u->col], &line->text[u->col + u->text_len],
-                line->len - u->col - u->text_len + 1);
-        line->len -= u->text_len;
-        tab->cursor_line = u->line;
-        tab->cursor_col = u->col;
-        break;
-    }
-    case UNDO_DELETE: {
-        /* Undo a delete = re-insert the deleted text */
-        if (u->line >= tab->n_lines) break;
-        WubuEdLine *line = &tab->lines[u->line];
-        if (line->len + u->text_len >= WUBU_ED_MAX_LINE_LEN) break;
-        memmove(&line->text[u->col + u->text_len], &line->text[u->col],
-                line->len - u->col + 1);
-        memcpy(&line->text[u->col], u->text, (size_t)u->text_len);
-        line->len += u->text_len;
-        tab->cursor_line = u->line;
-        tab->cursor_col = u->col + u->text_len;
-        break;
-    }
-    case UNDO_REPLACE: {
-        /* Undo a replace = restore original text */
-        if (u->line >= tab->n_lines) break;
-        WubuEdLine *line = &tab->lines[u->line];
-        if (u->col + u->text_len > line->len) break;
-        memcpy(&line->text[u->col], u->text, (size_t)u->text_len);
-        tab->cursor_line = u->line;
-        tab->cursor_col = u->col;
-        break;
-    }
-    }
-    
-    tab->undo_count--;
-    tab->modified = true;
-}
-
-void wubu_ed_redo(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!tab) return;
-    
-    /* Redo is complex; for now, simple redo of inserts */
-    int redo_idx = tab->undo_pos;
-    if (redo_idx >= WUBU_ED_MAX_UNDO) return;
-    
-    WubuUndo *u = &tab->undo_stack[redo_idx];
-    if (u->kind == UNDO_INSERT && u->line < tab->n_lines) {
-        WubuEdLine *line = &tab->lines[u->line];
-        if (line->len + u->text_len < WUBU_ED_MAX_LINE_LEN) {
-            memmove(&line->text[u->col + u->text_len], &line->text[u->col],
-                    line->len - u->col + 1);
-            memcpy(&line->text[u->col], u->text, (size_t)u->text_len);
-            line->len += u->text_len;
-            tab->cursor_line = u->line;
-            tab->cursor_col = u->col + u->text_len;
-            tab->undo_pos = (tab->undo_pos + 1) % WUBU_ED_MAX_UNDO;
-            tab->undo_count++;
-            tab->modified = true;
-        }
-    }
-}
-
-bool wubu_ed_can_undo(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    return tab && tab->undo_count > 0;
-}
-
-bool wubu_ed_can_redo(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!tab) return false;
-    int redo_idx = tab->undo_pos;
-    return redo_idx < WUBU_ED_MAX_UNDO && tab->undo_stack[redo_idx].kind != 0;
-}
-
-/* -- Selection ------------------------------------------------------ */
-
-void wubu_ed_select_all(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!tab) return;
-    tab->sel_start_line = 0;
-    tab->sel_start_col = 0;
-    tab->sel_end_line = tab->n_lines - 1;
-    tab->sel_end_col = tab->lines[tab->n_lines - 1].len;
-}
-
-/* Helper: get selected text into a buffer, returns allocated string */
-static char *get_selection(WubuEdTab *tab, size_t *out_len) {
-    if (!tab || tab->sel_start_line < 0 || tab->sel_end_line < 0) return NULL;
-    if (tab->sel_start_line > tab->sel_end_line) return NULL;
-    
-    /* Calculate total size needed */
-    size_t total = 0;
-    for (int i = tab->sel_start_line; i <= tab->sel_end_line; i++) {
-        if (i >= tab->n_lines) break;
-        int start_col = (i == tab->sel_start_line) ? tab->sel_start_col : 0;
-        int end_col = (i == tab->sel_end_line) ? tab->sel_end_col : tab->lines[i].len;
-        if (start_col > tab->lines[i].len) start_col = tab->lines[i].len;
-        if (end_col > tab->lines[i].len) end_col = tab->lines[i].len;
-        if (end_col > start_col) total += (size_t)(end_col - start_col);
-        if (i < tab->sel_end_line) total++; /* newline */
-    }
-    
-    char *buf = (char *)malloc(total + 1);
-    if (!buf) return NULL;
-    
-    size_t pos = 0;
-    for (int i = tab->sel_start_line; i <= tab->sel_end_line; i++) {
-        if (i >= tab->n_lines) break;
-        int start_col = (i == tab->sel_start_line) ? tab->sel_start_col : 0;
-        int end_col = (i == tab->sel_end_line) ? tab->sel_end_col : tab->lines[i].len;
-        if (start_col > tab->lines[i].len) start_col = tab->lines[i].len;
-        if (end_col > tab->lines[i].len) end_col = tab->lines[i].len;
-        if (end_col > start_col) {
-            memcpy(buf + pos, tab->lines[i].text + start_col, (size_t)(end_col - start_col));
-            pos += (size_t)(end_col - start_col);
-        }
-        if (i < tab->sel_end_line) buf[pos++] = '\n';
-    }
-    buf[pos] = '\0';
-    if (out_len) *out_len = pos;
-    return buf;
-}
-
-/* Helper: delete selection */
-static void delete_selection(WubuEditor *ed, WubuEdTab *tab) {
-    if (!tab || tab->sel_start_line < 0 || tab->sel_end_line < 0) return;
-    
-    int sl = tab->sel_start_line, sc = tab->sel_start_col;
-    int el = tab->sel_end_line, ec = tab->sel_end_col;
-    
-    if (sl == el) {
-        /* Single line */
-        WubuEdLine *line = &tab->lines[sl];
-        if (sc > line->len) sc = line->len;
-        if (ec > line->len) ec = line->len;
-        memmove(&line->text[sc], &line->text[ec], line->len - ec + 1);
-        line->len -= (ec - sc);
-    } else {
-        /* Multi-line: keep start of first line + end of last line */
-        WubuEdLine *first = &tab->lines[sl];
-        WubuEdLine *last = &tab->lines[el];
-        if (sc > first->len) sc = first->len;
-        if (ec > last->len) ec = last->len;
-        /* Truncate first line at selection start */
-        first->text[sc] = '\0';
-        first->len = sc;
-        /* Append end of last line */
-        int rest = last->len - ec;
-        if (sc + rest < WUBU_ED_MAX_LINE_LEN) {
-            memcpy(&first->text[sc], &last->text[ec], (size_t)rest);
-            first->len = sc + rest;
-            first->text[first->len] = '\0';
-        }
-        /* Remove lines sl+1 through el */
-        int remove_count = el - sl;
-        memmove(&tab->lines[sl + 1], &tab->lines[el + 1],
-                (tab->n_lines - el - 1) * sizeof(WubuEdLine));
-        tab->n_lines -= remove_count;
-    }
-    
-    tab->cursor_line = sl;
-    tab->cursor_col = sc;
-    tab->sel_start_line = -1;
-    tab->sel_end_line = -1;
-    tab->modified = true;
-}
-
-void wubu_ed_cut(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!tab) return;
-    
-    size_t sel_len;
-    char *sel = get_selection(tab, &sel_len);
-    if (!sel || sel_len == 0) { free(sel); return; }
-    
-    /* Copy to clipboard */
-    free(ed->clipboard);
-    ed->clipboard = sel;
-    ed->clipboard_size = sel_len;
-    
-    /* Delete selection */
-    delete_selection(ed, tab);
-}
-
-void wubu_ed_copy(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!tab) return;
-    
-    size_t sel_len;
-    char *sel = get_selection(tab, &sel_len);
-    if (!sel || sel_len == 0) { free(sel); return; }
-    
-    free(ed->clipboard);
-    ed->clipboard = sel;
-    ed->clipboard_size = sel_len;
-}
-
-void wubu_ed_paste(WubuEditor *ed) {
-    if (!ed || !ed->clipboard || ed->clipboard_size == 0) return;
-    wubu_ed_insert_text(ed, ed->clipboard);
-}
-
-/* -- Find/Replace ---------------------------------------------------- */
-
-int wubu_ed_find_next(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!ed || !ed->find.find_text[0]) return -1;
-    
-    int start_line = tab->cursor_line;
-    int start_col = tab->cursor_col + 1; /* Start after cursor */
-    
-    for (int pass = 0; pass < 2; pass++) {
-        for (int i = start_line; i < tab->n_lines; i++) {
-            WubuEdLine *line = &tab->lines[i];
-            int col = (i == start_line) ? start_col : 0;
-            if (col >= line->len) continue;
-            
-            const char *found = strstr(line->text + col, ed->find.find_text);
-            if (found) {
-                int found_col = (int)(found - line->text);
-                tab->cursor_line = i;
-                tab->cursor_col = found_col;
-                ed->find.last_found_line = i;
-                ed->find.last_found_col = found_col;
-                return i;
-            }
-        }
-        /* Wrap around */
-        start_line = 0;
-        start_col = 0;
-    }
-    return -1;
-}
-
-int wubu_ed_find_prev(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!ed || !ed->find.find_text[0]) return -1;
-    
-    int start_line = tab->cursor_line;
-    int start_col = tab->cursor_col - 1;
-    
-    for (int i = start_line; i >= 0; i--) {
-        WubuEdLine *line = &tab->lines[i];
-        int col = (i == start_line) ? start_col : line->len;
-        if (col < 0 || col >= line->len) continue;
-        
-        /* Search backward in this line */
-        for (int c = col; c >= 0; c--) {
-            if (strncmp(line->text + c, ed->find.find_text,
-                        strlen(ed->find.find_text)) == 0) {
-                tab->cursor_line = i;
-                tab->cursor_col = c;
-                ed->find.last_found_line = i;
-                ed->find.last_found_col = c;
-                return i;
-            }
-        }
-    }
-    return -1;
-}
-
-int wubu_ed_replace_next(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!ed || !ed->find.find_text[0]) return -1;
-    
-    if (ed->find.last_found_line >= 0 && ed->find.last_found_line < tab->n_lines) {
-        WubuEdLine *line = &tab->lines[ed->find.last_found_line];
-        int flen = (int)strlen(ed->find.find_text);
-        int rlen = (int)strlen(ed->find.replace_text);
-        if (ed->find.last_found_col + flen <= line->len) {
-            /* Record undo */
-            char undo_buf[WUBU_ED_MAX_LINE_LEN];
-            memcpy(undo_buf, line->text + ed->find.last_found_col, (size_t)flen);
-            undo_buf[flen] = '\0';
-            undo_push(tab, UNDO_REPLACE, ed->find.last_found_line,
-                      ed->find.last_found_col, undo_buf, flen);
-            
-            /* Do replace */
-            memmove(&line->text[ed->find.last_found_col + rlen],
-                    &line->text[ed->find.last_found_col + flen],
-                    line->len - ed->find.last_found_col - flen + 1);
-            memcpy(&line->text[ed->find.last_found_col], ed->find.replace_text, (size_t)rlen);
-            line->len = line->len - flen + rlen;
-            tab->cursor_col = ed->find.last_found_col + rlen;
-            tab->modified = true;
-            
-            /* Find next */
-            return wubu_ed_find_next(ed);
-        }
-    }
-    return wubu_ed_find_next(ed);
-}
-
-int wubu_ed_replace_all(WubuEditor *ed) {
-    WubuEdTab *tab = wubu_ed_current_tab(ed);
-    if (!ed || !ed->find.find_text[0]) return 0;
-    
-    int count = 0;
-    for (int i = 0; i < tab->n_lines; i++) {
-        WubuEdLine *line = &tab->lines[i];
-        int flen = (int)strlen(ed->find.find_text);
-        int rlen = (int)strlen(ed->find.replace_text);
-        char *pos = line->text;
-        while ((pos = strstr(pos, ed->find.find_text)) != NULL) {
-            int col = (int)(pos - line->text);
-            memmove(&line->text[col + rlen], &line->text[col + flen],
-                    line->len - col - flen + 1);
-            memcpy(&line->text[col], ed->find.replace_text, (size_t)rlen);
-            line->len = line->len - flen + rlen;
-            pos = line->text + col + rlen;
-            count++;
-            tab->modified = true;
-        }
-    }
-    return count;
-}
+/* -- Undo/Redo ------------------------------------------------------- */
+/* Implemented in wubu_editor_undo.c (wubu_ed_undo / _redo / _can_undo /
+ * _can_redo and the wubu_ed_undo_push primitive). */
 
 /* -- Code Folding --------------------------------------------------- */
 
