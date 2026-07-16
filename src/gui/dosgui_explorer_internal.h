@@ -68,6 +68,24 @@ void ex_update_breadcrumbs(ExExplorerState *ex);
 extern ExExplorerState g_explorer;
 extern ExExplorerState *g_sort_ctx;
 
+/* -- Shared input/find state (defined in dosgui_explorer.c, used by
+ *     dosgui_explorer_input.c) ------------------------------------- */
+extern bool g_shift_pressed;
+extern bool g_ctrl_pressed;
+
+/* -- Find subsystem state + helper (defined in dosgui_explorer.c,
+ *     used by dosgui_explorer_input.c) ----------------------------- */
+#define EX_FIND_MAX_LEN 256
+typedef struct {
+    bool    active;
+    char    query[EX_FIND_MAX_LEN];
+    int     query_len;
+    int     last_match;     /* index of last match, -1 = none */
+    bool    case_sensitive;
+} ExFindState;
+extern ExFindState g_find_state;
+int str_contains_nocase(const char *haystack, const char *needle);
+
 /* -- 9P/Styx filesystem backend (implemented in dosgui_explorer_fs.c) --
  * Thin shim mapping POSIX-style ops onto the Styx 9P filesystem (styxfs_*). */
 int ex_9p_stat(const char *path, struct stat *st);
