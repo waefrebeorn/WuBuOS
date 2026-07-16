@@ -5,6 +5,8 @@
  */
 
 #include "wubu_proton.h"
+#include <string.h>
+#include <strings.h>   /* strcasecmp */
 
 int wubu_proton_register_dll(wubu_proton_t *p, const char *name,
                               proton_dll_type_t type) {

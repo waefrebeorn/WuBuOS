@@ -216,6 +216,10 @@ int  wubu_proton_register_api(wubu_proton_t *p, const proton_api_map_t *map);
  * Returns -1 if not found. */
 int  wubu_proton_translate_api(wubu_proton_t *p, const char *win32_name);
 
+/* Register the built-in Windows DLL catalog (kernel32, user32, ...).
+ * Defined in wubu_proton_api.c; called from wubu_proton_init. */
+int  wubu_proton_load_default_dlls(wubu_proton_t *p);
+
 /* Load the built-in API translation table (Kernel32, User32, etc.) */
 int  wubu_proton_load_default_apis(wubu_proton_t *p);
 
