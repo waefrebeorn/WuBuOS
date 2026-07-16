@@ -6,6 +6,65 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/* -- Self-contained ZIP fixture builder ---------------------------- */
+/* Builds a minimal but spec-valid uncompressed (STORE) ZIP at `path`
+ * containing `nfiles` entries named data0.bin..dataN.bin, each with
+ * repeating byte content.  Lets the zip-mount test run without any
+ * external `zip` tool or pre-existing fixture file. */
+static int make_real_zip(const char *path, int nfiles) {
+    FILE *f = fopen(path, "wb");
+    if (!f) return -1;
+    uint32_t sig_lfh = 0x04034b50u, sig_cdh = 0x02014b50u, sig_eocd = 0x06054b50u;
+    uint32_t cdir_off = 0, cdir_size = 0;
+    uint16_t n = (uint16_t)nfiles;
+    for (int i = 0; i < nfiles; i++) {
+        char name[32];
+        snprintf(name, sizeof(name), "data%d.bin", i);
+        uint16_t nl = (uint16_t)strlen(name);
+        size_t payload = 16 + (size_t)i;          /* distinct sizes */
+        /* local file header */
+        fwrite(&sig_lfh, 1, 4, f);
+        uint16_t ver = 20, flags = 0, method = 0, mt = 0, md = 0;
+        uint32_t crc = 0, csize = (uint32_t)payload, usize = (uint32_t)payload;
+        uint16_t el = 0, cl = 0;
+        fwrite(&ver, 1, 2, f); fwrite(&flags, 1, 2, f); fwrite(&method, 1, 2, f);
+        fwrite(&mt, 1, 2, f);  fwrite(&md, 1, 2, f);
+        fwrite(&crc, 1, 4, f); fwrite(&csize, 1, 4, f); fwrite(&usize, 1, 4, f);
+        fwrite(&nl, 1, 2, f);  fwrite(&el, 1, 2, f);
+        fwrite(name, 1, nl, f);
+        for (size_t b = 0; b < payload; b++) fputc((int)(b & 0xff), f);
+        cdir_off += (uint32_t)(30 + nl + payload);
+    }
+    for (int i = 0; i < nfiles; i++) {
+        char name[32];
+        snprintf(name, sizeof(name), "data%d.bin", i);
+        uint16_t nl = (uint16_t)strlen(name);
+        size_t payload = 16 + (size_t)i;
+        fwrite(&sig_cdh, 1, 4, f);
+        uint16_t vmb = 20, vnd = 20, flags = 0, method = 0, mt = 0, md = 0;
+        uint32_t crc = 0, csize = (uint32_t)payload, usize = (uint32_t)payload;
+        uint16_t el = 0, cl = 0, dns = 0, ia = 0; uint32_t ea = 0, lho = 0;
+        uint16_t dc = 0;
+        fwrite(&vmb, 1, 2, f); fwrite(&vnd, 1, 2, f); fwrite(&flags, 1, 2, f);
+        fwrite(&method, 1, 2, f); fwrite(&mt, 1, 2, f); fwrite(&md, 1, 2, f);
+        fwrite(&crc, 1, 4, f); fwrite(&csize, 1, 4, f); fwrite(&usize, 1, 4, f);
+        fwrite(&nl, 1, 2, f);  fwrite(&el, 1, 2, f);  fwrite(&cl, 1, 2, f);
+        fwrite(&dns, 1, 2, f); fwrite(&ia, 1, 2, f);  fwrite(&ea, 1, 4, f);
+        fwrite(&lho, 1, 4, f); fwrite(name, 1, nl, f);
+        cdir_size += (uint32_t)(46 + nl);
+    }
+    fwrite(&sig_eocd, 1, 4, f);
+    uint16_t dsn = 0, ds = 0, tt = n, tt2 = n;
+    uint32_t cds = cdir_size, cdo = cdir_off; uint16_t cl = 0;
+    fwrite(&dsn, 1, 2, f); fwrite(&ds, 1, 2, f);
+    fwrite(&tt, 1, 2, f);  fwrite(&tt2, 1, 2, f);
+    fwrite(&cds, 1, 4, f); fwrite(&cdo, 1, 4, f); fwrite(&cl, 1, 2, f);
+    fclose(f);
+    return 0;
+}
 
 /* -- Test Helpers ------------------------------------------------- */
 
@@ -326,6 +385,8 @@ static void test_zip(void) {
     
     TEST_ASSERT(!dosgui_explorer_is_in_zip(), "initially not in zip");
 
+        /* Build a real, spec-valid ZIP fixture so the test is self-sufficient */
+        TEST_ASSERT(make_real_zip("/tmp/test.zip", 5) == 0, "create zip fixture");
         /* Test with real zip file */
         bool ret = dosgui_explorer_mount_zip("/tmp/test.zip");
         TEST_ASSERT(ret, "mount_zip returns true for real zip");
