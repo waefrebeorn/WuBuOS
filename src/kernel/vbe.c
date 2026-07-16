@@ -15,34 +15,41 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdbool.h>
 
 /* Choose allocator based on build mode */
 #ifdef VBE_HOSTED
+  #include <stdio.h>
   #define VBE_ALLOC(size) calloc(1, size)
   #define VBE_FREE(ptr)  free(ptr)
+  #define VBE_LOG(...)    fprintf(stderr, __VA_ARGS__)
 #else
+  /* Freestanding bare-metal: NO libc stdio.  Route diagnostics through the
+   * real serial klog (already proven working in kernel_main) instead of the
+   * nonexistent fprintf/stderr, which would bind to garbage and triple-fault
+   * the first time vbe_init runs on real hardware. */
   #include "memory.h"
+  #include "klog.h"
   #define VBE_ALLOC(size) mem_alloc(size)
   #define VBE_FREE(ptr)  mem_free(ptr)
+  #define VBE_LOG(...)    klog_printf(__VA_ARGS__)
 #endif
 
 static VBEState g_vbe = {0};
 
 int vbe_init(int width, int height) {
-    fprintf(stderr, "[DEBUG] vbe_init: width=%d, height=%d\n", width, height);
+    VBE_LOG("[DEBUG] vbe_init: width=%d, height=%d\n", width, height);
     g_vbe.width  = width;
     g_vbe.height = height;
     g_vbe.bpp    = 32;
     g_vbe.fb_size = (size_t)width * height * 4;
-    fprintf(stderr, "[DEBUG] vbe_init: fb_size=%zu\n", g_vbe.fb_size);
+    VBE_LOG("[DEBUG] vbe_init: fb_size=%zu\n", g_vbe.fb_size);
 
     g_vbe.fb   = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
     g_vbe.back = (uint32_t *)VBE_ALLOC(g_vbe.fb_size);
-    fprintf(stderr, "[DEBUG] vbe_init: fb=%p, back=%p\n", (void*)g_vbe.fb, (void*)g_vbe.back);
+    VBE_LOG("[DEBUG] vbe_init: fb=%p, back=%p\n", (void*)g_vbe.fb, (void*)g_vbe.back);
     if (!g_vbe.fb || !g_vbe.back) {
-        fprintf(stderr, "[DEBUG] vbe_init: allocation failed!\n");
+        VBE_LOG("[DEBUG] vbe_init: allocation failed!\n");
         return -1;
     }
 

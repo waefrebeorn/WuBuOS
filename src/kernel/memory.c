@@ -10,9 +10,17 @@
 
 #include "memory.h"
 
+#ifndef MYSEED_METAL
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#else
+/* Freestanding kernel: no libc.  memset/memcpy are provided by the kernel's
+ * own libc.c and linked in; declare them locally rather than pulling a host
+ * <string.h> (which would drag in the wrong, hosted definitions). */
+void *memset(void *s, int c, size_t n);
+void *memcpy(void *dest, const void *src, size_t n);
+#endif
 
 /* Kernel diagnostics: under the freestanding bare-metal build there is no
  * libc stdio, so route debug output through the serial klog. Hosted test
@@ -89,9 +97,24 @@ static void *alloc_pages(size_t n_pages) {
 /* -- Init / Shutdown ---------------------------------------------- */
 
 int mem_init(size_t total_bytes) {
+#ifdef MYSEED_METAL
+    /* Freestanding kernel path: do NOT call libc malloc() -- the bare-metal
+     * bump allocator (libc.c) is only initialized on explicit libm_heap_init()
+     * which kernel_main never calls, so malloc() returns NULL/garbage and the
+     * first CHeapCtrl write triple-faults.  Instead use a FIXED physical
+     * address as the heap backing store.  The kernel page tables identity-map
+     * the low 4GB (PD_ident[0] covers 0..1GB), so a low-physical address is a
+     * valid virtual address in its own right (PA == VA) and needs no extra
+     * higher-half PT mapping.  0x400000 (4MB) is clear of the loaded kernel
+     * image (< ~0x123000), the bootloader scratch (0x90000..0x90060), and the
+     * page tables (~0x123000), and of the multiboot info (placed ~1.9GB). */
+    #define KERNEL_HEAP_PHYS 0x400000UL
+    g_heap_base = (uint8_t *)KERNEL_HEAP_PHYS;
+#else
     g_heap_base = malloc(total_bytes);
     if (!g_heap_base) return -1;
-    
+#endif
+
     g_heap_total = total_bytes;
     g_next_page  = (uint8_t *)g_heap_base;
     g_heap_end   = g_next_page + total_bytes;
@@ -99,19 +122,19 @@ int mem_init(size_t total_bytes) {
     size_t hc_pages = (sizeof(CHeapCtrl) + MEM_PAG_SIZE - 1) / MEM_PAG_SIZE;
     g_heap = (CHeapCtrl *)alloc_pages(hc_pages);
     if (!g_heap) return -1;
-    
     memset(g_heap, 0, sizeof(CHeapCtrl));
     g_heap->hc_signature = HEAP_CTRL_SIGNATURE;
     g_heap->locked_flags = 0;
     g_heap->used_size = 0;
     g_heap->max_size = total_bytes - MEM_PAG_SIZE;
-    
     return 0;
 }
 
 void mem_shutdown(void) {
     if (g_heap_base) {
+#ifndef MYSEED_METAL
         free(g_heap_base);
+#endif
         g_heap_base = NULL;
         g_heap = NULL;
         g_next_page = NULL;
