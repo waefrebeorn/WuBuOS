@@ -17,4 +17,9 @@
 /* -- Shared payload-type resolver (defined in wubu_container.c) ---- */
 WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size);
 
+/* -- DOS 16-bit backend (defined in wubu_exec_dos.c) ----------- */
+WUBU_PAYLOAD_TYPE wubu_exec_dos_classify(const void *data, size_t size,
+                                          const char *filename);
+int64_t wubu_exec_dos(const void *data, size_t size, const char *filename);
+
 #endif /* WUBU_EXEC_INTERNAL_H */

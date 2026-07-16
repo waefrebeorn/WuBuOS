@@ -28,7 +28,14 @@ int main(void) {
     /* Payload detection (drives the launch route). */
     printf("[Payload Detection]\n");
     {
-        uint8_t mz[8] = { 'M','Z',0,0,0,0,0,0 };
+        /* MZ with a real PE header (e_lfanew->"PE\0\0") -> Win PE.
+         * A bare MZ with no PE signature is now a 16-bit DOS EXE routed to
+         * the FreeDOS emergency layer, so the launch test must use a true PE. */
+        uint8_t mz[0x48];
+        memset(mz, 0, sizeof(mz));
+        mz[0]='M'; mz[1]='Z';
+        mz[0x3C]=0x40;                       /* e_lfanew -> offset 0x40 */
+        mz[0x40]='P'; mz[0x41]='E'; mz[0x42]=0; mz[0x43]=0;
         uint8_t elf[4] = { 0x7F,'E','L','F' };
         uint8_t wubu[8];
         memcpy(wubu, WUBU_MAGIC, WUBU_MAGIC_SIZE);

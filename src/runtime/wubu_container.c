@@ -28,9 +28,23 @@ WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size) {
     if (size >= 4 && p[0] == 0x7F && p[1] == 'E' && p[2] == 'L' && p[3] == 'F')
         return WUBU_PAYLOAD_LINUX_ELF;
 
-    /* PE/COFF magic: "MZ" */
-    if (size >= 2 && p[0] == 'M' && p[1] == 'Z')
-        return WUBU_PAYLOAD_WIN_PE;
+    /* PE/COFF magic: "MZ" prefix. PE is a superset of the DOS "MZ" EXE: a
+     * real PE carries a "PE\0\0" signature at the offset named by the MZ
+     * e_lfanew field (0x3C). A plain 16-bit DOS .EXE has MZ but NO PE
+     * signature, so we route it to the FreeDOS emergency layer instead of
+     * Proton. */
+    if (size >= 2 && p[0] == 'M' && p[1] == 'Z') {
+        bool is_pe = false;
+        if (size >= 0x40 + 4) {
+            uint32_t e_lfanew;
+            memcpy(&e_lfanew, p + 0x3C, 4);
+            if (e_lfanew + 4 <= size &&
+                p[e_lfanew] == 'P' && p[e_lfanew+1] == 'E' &&
+                p[e_lfanew+2] == 0 && p[e_lfanew+3] == 0)
+                is_pe = true;
+        }
+        return is_pe ? WUBU_PAYLOAD_WIN_PE : WUBU_PAYLOAD_DOS_EXE;
+    }
 
     /* Mach-O magic: 0xFEEDFACE or 0xFEEDFACF or 0xCEFAEDFE or 0xCFFAEDFE */
     if (size >= 4) {

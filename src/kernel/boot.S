@@ -32,7 +32,9 @@
 _start16:
     cli
     cld                         /* lodsb/stosb must increment, not decrement */
-    xorw %ax, %ax
+    /* Boot sector physically sits at linear 0x7C00.  Point the data segments
+     * there so near references line up with reality (boot contract). */
+    movw $0x07C0, %ax
     movw %ax, %ds
     movw %ax, %es
     movw %ax, %ss
@@ -44,6 +46,25 @@ _start16:
 
     movw $str_boot, %si
     call serial_puts
+
+    /* ================================================================
+     * EMERGENCY 16-BIT RESCUE PATH
+     * ----------------------------------------------------------------
+     * WuBuOS is a 64-bit OS. On hardware that lacks long mode, or when
+     * the user holds the emergency key during boot, we chainload the
+     * FreeDOS-based rescue layer instead of proceeding to 64-bit.
+     *
+     * Detection order:
+     *   1. CPUID leaf 0x80000001 ECX bit 29 == 0  -> NO long mode.
+     *   2. Emergency key held (Left Shift) at boot.
+     * Either condition -> load the rescue shim (always at a fixed LBA,
+     * RESCUE_LBA) into 0x7C00 and jump to it. The shim enables A20 and
+     * hands off to the real 16-bit OS (FreeDOS / WuBuDOS) stored on the
+     * rescue FAT image.
+     * ================================================================ */
+    call check_emergency
+    testb %al, %al
+    jnz  do_rescue
 
     /* Load the kernel ELF (LBA 1+) into 0x10000 (conventional RAM). */
     movw $disk_dap, %si
@@ -90,7 +111,11 @@ _start16:
     movl %eax, %edi            /* save physical entry for later */
 
     movl $str_elfok, %esi
-    call serial_puts32
+    /* In pmode DS base = 0 and the string is below 64K (org 0), so the
+     * low-16-bit near pointer in SI addresses it correctly. */
+    movl %esi, %eax
+    movw %ax, %si
+    call serial_puts
 
     /* Walk program headers, copying each PT_LOAD segment to its LMA. */
     xorl %ecx, %ecx
@@ -154,9 +179,9 @@ serial_putc:                     /* al = byte */
     inb  %dx, %al
     testb $0x20, %al           /* THR empty? */
     jz   1b
-    movw $0x3F8, %dx           /* THR */
-    popw %dx
-    popw %ax
+    popw %dx                   /* restore dx (was port placeholder) */
+    popw %ax                   /* restore byte into al */
+    movw $0x3F8, %dx           /* THR port */
     outb %al, %dx
     ret
 
@@ -174,29 +199,51 @@ serial_puts:                    /* si = NUL-terminated string */
     popw %si
     ret
 
-/* ---- 32-bit serial helper (flat segment, DS base = 0) ------------------- */
+/* ---- Emergency 16-bit rescue detector + chainloader -------------------- */
+/* RESCUE_LBA: fixed location of the rescue shim on the boot disk. The
+ * unified WuBuOS disk image places the rescue shim (512B) followed by the
+ * rescue FAT image (FreeDOS/WuBuDOS). boot.S is 512B-limited, so this is
+ * the minimal trigger; all heavy A20/chainload logic lives in the shim. */
+#define RESCUE_LBA 64
 
-serial_puts32:                 /* esi = NUL-terminated string */
-    pushl %esi
-    pushl %eax
-    pushw %dx
-1:
-    lodsb
-    testb %al, %al
-    jz   2f
-    movw $0x3FD, %dx
-3:
-    inb  %dx, %al
-    testb $0x20, %al
-    jz   3b
-    movw $0x3F8, %dx
-    outb %al, %dx
-    jmp  1b
-2:
-    popw %dx
-    pop  %eax
-    pop  %esi
+/* check_emergency: al != 0 if we must boot the 16-bit rescue layer.
+ *   - CPUID 0x80000001 ECX bit 29 (LM) clear  -> no 64-bit -> rescue.
+ *   - Left Shift held at boot (BIOS kbd flag @ 0x40:0x17 bit 1) -> rescue. */
+check_emergency:
+    xorw %ax, %ax
+    movl $0x80000001, %eax
+    cpuid
+    testl $0x20000000, %ecx
+    jz   .emer
+    pushw %bx
+    movw $0x0040, %bx
+    movw %bx, %ds
+    movb 0x17, %bl
+    movw $0x07C0, %bx
+    movw %bx, %ds
+    testb $0x02, %bl
+    popw %bx
+    jz   .done
+.emer:
+    movb $1, %al
+.done:
     ret
+
+/* do_rescue: load the rescue shim (RESCUE_LBA) into 0x7C00 and jump. */
+do_rescue:
+    movb $'R', %al
+    call serial_putc
+    movw $rescue_dap, %si
+    movb $0x42, %ah
+    int  $0x13
+    jc   disk_err
+    jmp  $0x0000, $0x7C00
+
+rescue_dap:
+    .byte 0x10, 0
+    .word 1
+    .word 0x7C00, 0x0000
+    .quad RESCUE_LBA
 
 /* ---- Diagnostics strings ------------------------------------------------- */
 
@@ -236,5 +283,9 @@ disk_dap:
     .word 0x1000                /* dest segment (0x1000:0 = 0x10000) */
     .quad 1                     /* start LBA = 1 (sector 0 = this bootsector) */
 
-    .space 510 - (. - _start16), 0
+/* Boot signature must sit at byte offset 510 of the sector regardless of
+ * how much code precedes it. Use .org to pin it absolutely rather than a
+ * location-relative .space (which goes negative and drops the sig once the
+ * bootsector code grows past 510 bytes). */
+    .org 510
     .word 0xAA55                /* boot signature */

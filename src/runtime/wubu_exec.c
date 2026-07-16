@@ -403,6 +403,14 @@ int64_t wubu_exec(const void *data, size_t size, const char *filename) {
     }
 
     /* Raw file  --  wrap in implicit .wubu and dispatch */
+    /* DOS 16-bit: route .COM/.EXE to the FreeDOS emergency layer. The MZ/ZM
+     * magic is caught by wubu_detect_format; raw .COM (no magic) is caught
+     * here via filename so a 16-bit blob is never mis-routed to ELF/PE. */
+    {
+        WUBU_PAYLOAD_TYPE dos_t = wubu_exec_dos_classify(data, size, filename);
+        if (dos_t == WUBU_PAYLOAD_DOS_COM || dos_t == WUBU_PAYLOAD_DOS_EXE)
+            return wubu_exec_dos(data, size, filename);
+    }
     switch (type) {
         case WUBU_PAYLOAD_LINUX_ELF:
             return wubu_exec_linux_elf(data, size);
