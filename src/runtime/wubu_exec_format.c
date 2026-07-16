@@ -15,7 +15,8 @@ const char *wubu_payload_name(WUBU_PAYLOAD_TYPE type) {
         case WUBU_PAYLOAD_C_SRC:         return "C Source";
         case WUBU_PAYLOAD_LINUX_ELF:     return "Linux ELF (VSL)";
         case WUBU_PAYLOAD_WIN_PE:        return "Windows PE (Proton)";
-        case WUBU_PAYLOAD_MAC_MACHO:     return "macOS Mach-O (VSL)";
+        case WUBU_PAYLOAD_DOS_COM:     return "DOS 16-bit .COM (FreeDOS)";
+        case WUBU_PAYLOAD_DOS_EXE:     return "DOS 16-bit .EXE (FreeDOS)";
         case WUBU_PAYLOAD_SHELL_SCRIPT:  return "Shell Script (VSL)";
         case WUBU_PAYLOAD_PYTHON:        return "Python Script (VSL)";
         case WUBU_PAYLOAD_WASM:          return "WebAssembly";

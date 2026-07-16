@@ -4,6 +4,7 @@
 
 #include "wubu_container.h"
 #include "wubu_exec.h"
+#include "wubu_exec_internal.h"
 #include "../compiler/holyc.h"
 
 #include <stdio.h>
@@ -84,8 +85,12 @@ int main(void) {
         T(wubu_detect_payload_type(elf, sizeof(elf)) == WUBU_PAYLOAD_LINUX_ELF,
           "detect ELF");
 
-        /* PE */
-        uint8_t pe[] = {'M', 'Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00};
+        /* PE: MZ prefix + a "PE\0\0" signature referenced by e_lfanew (0x3C). */
+        uint8_t pe[0x48];
+        memset(pe, 0, sizeof(pe));
+        pe[0]='M'; pe[1]='Z';
+        pe[0x3C]=0x40;                        /* e_lfanew -> offset 0x40 */
+        pe[0x40]='P'; pe[0x41]='E'; pe[0x42]=0; pe[0x43]=0;
         T(wubu_detect_payload_type(pe, sizeof(pe)) == WUBU_PAYLOAD_WIN_PE,
           "detect PE");
 
@@ -324,6 +329,47 @@ int main(void) {
         uint8_t macho_magic[] = {0xCF, 0xFA, 0xED, 0xFE};  /* 64-bit Mach-O */
         r = wubu_exec(macho_magic, 4, "test.macho");
         T(r == WUBU_EXEC_ERR_FMT, "raw Mach-O fails gracefully (no Darling)");
+    }
+
+    /* -- DOS 16-bit detection (emergency layer routing) -- */
+    printf("\n[DOS 16-bit Detection]\n");
+    {
+        /* .EXE with MZ magic -> DOS_EXE */
+        uint8_t mz[] = { 'M','Z', 0x90, 0x00, 0x03, 0x00, 0x00, 0x00 };
+        T(wubu_exec_dos_classify(mz, sizeof(mz), "prog.exe") == WUBU_PAYLOAD_DOS_EXE,
+          "MZ header -> DOS_EXE");
+        /* ZM (byte-swapped) also valid */
+        uint8_t zm[] = { 'Z','M', 0x90, 0x00 };
+        T(wubu_exec_dos_classify(zm, sizeof(zm), "prog.exe") == WUBU_PAYLOAD_DOS_EXE,
+          "ZM header -> DOS_EXE");
+        /* raw .COM (no magic) detected by filename */
+        uint8_t com[] = { 0xB4, 0x09, 0xBA, 0x07, 0x00, 0xCD, 0x21, 0xC3 };
+        T(wubu_exec_dos_classify(com, sizeof(com), "hello.com") == WUBU_PAYLOAD_DOS_COM,
+          "hello.com (no magic) -> DOS_COM via filename");
+        /* raw blob with no magic + no .com/.exe name -> NOT DOS */
+        uint8_t blob[] = { 0xDE, 0xAD, 0xBE, 0xEF };
+        T(wubu_exec_dos_classify(blob, sizeof(blob), "random.bin") == WUBU_PAYLOAD_DATA,
+          "random.bin -> DATA (not mis-routed to DOS)");
+        /* NULL filename: MZ still detected, COM not */
+        T(wubu_exec_dos_classify(mz, sizeof(mz), NULL) == WUBU_PAYLOAD_DOS_EXE,
+          "MZ with NULL name still -> DOS_EXE");
+        T(wubu_exec_dos_classify(com, sizeof(com), NULL) == WUBU_PAYLOAD_DATA,
+          "raw COM with NULL name -> DATA (cannot infer)");
+        /* wubu_detect_payload_type must NOT return DOS for an ELF (no magic clash) */
+        uint8_t elf[] = { 0x7F, 'E','L','F', 0x02, 0x01 };
+        T(wubu_detect_payload_type(elf, sizeof(elf)) == WUBU_PAYLOAD_LINUX_ELF,
+          "ELF stays ELF (DOS detection does not shadow it)");
+        /* MZ via the shared resolver */
+        T(wubu_detect_payload_type(mz, sizeof(mz)) == WUBU_PAYLOAD_DOS_EXE,
+          "shared resolver: MZ (no PE hdr) -> DOS_EXE");
+        /* A real PE: MZ prefix + PE signature at e_lfanew must stay WIN_PE */
+        uint8_t pe[0x48];
+        memset(pe, 0, sizeof(pe));
+        pe[0]='M'; pe[1]='Z';
+        pe[0x3C]=0x40;                        /* e_lfanew -> offset 0x40 */
+        pe[0x40]='P'; pe[0x41]='E'; pe[0x42]=0; pe[0x43]=0;
+        T(wubu_detect_payload_type(pe, sizeof(pe)) == WUBU_PAYLOAD_WIN_PE,
+          "shared resolver: MZ+PE hdr -> WIN_PE (not DOS)");
     }
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
