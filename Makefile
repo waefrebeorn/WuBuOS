@@ -29,7 +29,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
@@ -422,7 +422,7 @@ test_worldsim: $(KERNEL)/wubu_math.o
 	$(WS)/test_worldsim
 
 test_fat32: $(KERNEL)/fat32.o
-	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/fat32.c $(KERNEL)/fat32_name.c $(KERNEL)/fat32_cluster.c $(KERNEL)/fat32_test.c -o $(KERNEL)/fat32_test
+	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/fat32.c $(KERNEL)/fat32_fat.c $(KERNEL)/fat32_dir.c $(KERNEL)/fat32_file.c $(KERNEL)/fat32_format.c $(KERNEL)/fat32_name.c $(KERNEL)/fat32_cluster.c $(KERNEL)/fat32_test.c -o $(KERNEL)/fat32_test
 	$(KERNEL)/fat32_test
 
 test_holyc: $(JIT_OBJS)
