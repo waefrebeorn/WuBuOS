@@ -8,6 +8,7 @@
 
 #include "interrupt.h"
 #include "interrupt_apic.h"
+#include "interrupt_pic.h"
 #include "tasking.h"  /* For task_timer_tick, g_current */
 #include "memory.h"   /* For mem_alloc */
 
@@ -134,89 +135,8 @@ static void (* const isr_entries[256])(void) = {
     isr248, isr249, isr250, isr251, isr252, isr253, isr254, isr255
 };
 
-/* ------------------------------------------------------------------
- * PIC I/O Ports
- * ------------------------------------------------------------------ */
-
-
-#define PIC_EOI         0x20    /* End of Interrupt command */
-
-#define ICW1_ICW4       0x01    /* ICW4 needed */
-#define ICW1_SINGLE     0x02    /* Single (cascade) mode */
-#define ICW1_INTERVAL4  0x04    /* Call address interval 4 (8) */
-#define ICW1_LEVEL      0x08    /* Level triggered (edge) */
-#define ICW1_INIT       0x10    /* Initialization */
-
-#define ICW4_8086       0x01    /* 8086/88 mode */
-#define ICW4_AUTO       0x02    /* Auto EOI */
-#define ICW4_BUF_SLAVE  0x08    /* Buffered mode/slave */
-#define ICW4_BUF_MASTER 0x0C    /* Buffered mode/master */
-#define ICW4_SFNM       0x10    /* Special fully nested mode */
-
-/* ------------------------------------------------------------------
- * PIT I/O Ports
- * ------------------------------------------------------------------ */
-
-#define PIT_CH0_DATA    0x40
-#define PIT_CMD         0x43
-
-/* ------------------------------------------------------------------
- * APIC Registers (Memory-Mapped)
- * ------------------------------------------------------------------ */
-
-#define LAPIC_BASE_MSR      0x1B            /* IA32_APIC_BASE MSR */
-#define LAPIC_BASE_DEFAULT  0xFEE00000      /* Default LAPIC base address */
-
-#define LAPIC_ID               0x020
-#define LAPIC_VERSION          0x030
-#define LAPIC_TPR              0x080
-#define LAPIC_APR              0x090
-#define LAPIC_PPR              0x0A0
-#define LAPIC_EOI              0x0B0
-#define LAPIC_RRD              0x0C0
-#define LAPIC_LDR              0x0D0
-#define LAPIC_DFR              0x0E0
-#define LAPIC_SVR              0x0F0
-#define LAPIC_ISR              0x100
-#define LAPIC_TMR              0x180
-#define LAPIC_IRR              0x200
-#define LAPIC_ESR              0x280
-#define LAPIC_ICR_LOW          0x300
-#define LAPIC_ICR_HIGH         0x310
-#define LAPIC_LVT_TIMER        0x320
-#define LAPIC_LVT_THERMAL      0x330
-#define LAPIC_LVT_PERF         0x340
-#define LAPIC_LVT_LINT0        0x350
-#define LAPIC_LVT_LINT1        0x360
-#define LAPIC_LVT_ERROR        0x370
-#define LAPIC_TIMER_INIT_CNT   0x380
-#define LAPIC_TIMER_CUR_CNT    0x390
-#define LAPIC_TIMER_DIV        0x3E0
-
-#define LAPIC_SVR_ENABLE       0x100
-#define LAPIC_LVT_MASKED       0x10000
-#define LAPIC_ICR_DEST_SELF    0x40000
-#define LAPIC_ICR_DEST_ALL_INC 0x80000
-#define LAPIC_ICR_DEST_ALL_BUT 0xC0000
-#define LAPIC_ICR_LEVEL_ASSERT 0x4000
-#define LAPIC_ICR_LEVEL_DEASSERT 0x0000
-#define LAPIC_ICR_TRIGGER_LEVEL 0x8000
-#define LAPIC_ICR_DELIVERY_FIXED 0x0000
-#define LAPIC_ICR_DELIVERY_NMI 0x400
-#define LAPIC_ICR_DELIVERY_INIT 0x500
-#define LAPIC_ICR_DELIVERY_STARTUP 0x600
-
-/* ------------------------------------------------------------------
- * MSR Registers
- * ------------------------------------------------------------------ */
-
-#define MSR_IA32_KERNEL_GS_BASE 0xC0000101
-
-/* ------------------------------------------------------------------
- * TSS / IST
- * ------------------------------------------------------------------ */
-
-
+/* PIC I/O ports, ICW constants, and APIC register offsets live in
+ * interrupt_pic.h / interrupt_apic.h (extracted from this file). */
 
 /* ------------------------------------------------------------------
  * IDT Constants
@@ -273,39 +193,6 @@ static inline void idt_set_gate(IDTEntry *gate, uint64_t handler, uint16_t selec
 }
 
 /* ------------------------------------------------------------------
- * PIC Remapping
- * ------------------------------------------------------------------ */
-
-static void pic_remap(uint8_t offset1, uint8_t offset2) {
-#ifdef MYSEED_METAL
-    uint8_t mask1 = inb(PIC1_DATA);  /* Save masks */
-    uint8_t mask2 = inb(PIC2_DATA);
-
-    /* ICW1: Initialize PICs */
-    outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
-    outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
-
-    /* ICW2: Remap IRQs to vectors offset1/offset2 */
-    outb(PIC1_DATA, offset1);   /* Master: IRQ0-7 → vectors offset1..offset1+7 */
-    outb(PIC2_DATA, offset2);   /* Slave:  IRQ8-15 → vectors offset2..offset2+7 */
-
-    /* ICW3: Master IRQ2 connects to slave */
-    outb(PIC1_DATA, 0x04);      /* Master: slave on IRQ2 */
-    outb(PIC2_DATA, 0x02);      /* Slave:  cascade identity 2 */
-
-    /* ICW4: 8086 mode */
-    outb(PIC1_DATA, ICW4_8086);
-    outb(PIC2_DATA, ICW4_8086);
-
-    /* Restore masks */
-    outb(PIC1_DATA, mask1);
-    outb(PIC2_DATA, mask2);
-#else
-    (void)offset1; (void)offset2;
-#endif
-}
-
-/* ------------------------------------------------------------------
  * ISR Handler Registration (C-level)
  * ------------------------------------------------------------------ */
 
@@ -324,17 +211,13 @@ void interrupt_unregister(uint8_t irq) {
 }
 
 /* ------------------------------------------------------------------
- * PIC EOI
+ * PIC EOI  (delegates to the extracted PIC module; also EOIs the
+ * I/O APIC when we are using it)
  * ------------------------------------------------------------------ */
 
 void interrupt_eoi(uint8_t irq) {
 #ifdef MYSEED_METAL
-    if (irq >= 40) {           /* IRQ8-15 (remapped to 40-47) */
-        outb(PIC2_CMD, PIC_EOI);  /* Slave */
-    }
-    if (irq >= 32) {           /* IRQ0-7 (remapped to 32-39) */
-        outb(PIC1_CMD, PIC_EOI);  /* Master */
-    }
+    pic_eoi(irq);
     /* Also send EOI to I/O APIC if we're using it */
     if (g_ioapic_base && (irq - 32) < g_ioapic_irq_count) {
         lapic_eoi();
@@ -469,6 +352,7 @@ int interrupt_init(void) {
     /* Clear IRQ table */
     memset(g_irq_table, 0, sizeof(g_irq_table));
     g_idt_initialized = 0;
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'i', %%al\n outb %%al, %%dx" ::: "dx","al");
 
 #ifdef MYSEED_METAL
     /* --------------------------------------------------------------
@@ -497,13 +381,18 @@ int interrupt_init(void) {
     /* --------------------------------------------------------------
      * Remap PIC: IRQ0-7 → 32-39, IRQ8-15 → 40-47
      * -------------------------------------------------------------- */
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'p', %%al\n outb %%al, %%dx" ::: "dx","al");
     pic_remap(32, 40);
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'q', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* --------------------------------------------------------------
      * Load IDT
      * -------------------------------------------------------------- */
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'l', %%al\n outb %%al, %%dx" ::: "dx","al");
     lidt(&idt_ptr);
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'m', %%al\n outb %%al, %%dx" ::: "dx","al");
     g_idt_initialized = 1;
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'n', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     return 0;
 #else
@@ -555,63 +444,12 @@ extern void syscall_entry(void);  /* Defined in isr_stubs.S */
 
 /* ------------------------------------------------------------------
  * IRQ Routing Infrastructure (PCI/MSI)
+ * Moved to interrupt_pic.c (irq_route_add / irq_route_remove).
  * ------------------------------------------------------------------ */
 
-typedef struct IRQRoute {
-    uint8_t  src_irq;        /* Source IRQ (PCI pin, APIC line) */
-    uint8_t  dst_vector;     /* Destination vector (32-255) */
-    uint8_t  dest_apic_id;   /* Target APIC ID */
-    uint16_t flags;          /* LEVEL/EDGE, ACTIVE_HIGH/LOW */
-    struct IRQRoute *next;
-} IRQRoute;
-
-static IRQRoute *g_irq_routes = NULL;
-
-int irq_route_add(uint8_t src_irq, uint8_t dst_vector, uint8_t dest_apic_id, uint16_t flags) {
-#ifdef MYSEED_METAL
-    IRQRoute *route = (IRQRoute *)mem_alloc(sizeof(IRQRoute));
-    if (!route) return -1;
-
-    route->src_irq = src_irq;
-    route->dst_vector = dst_vector;
-    route->dest_apic_id = dest_apic_id;
-    route->flags = flags;
-    route->next = g_irq_routes;
-    g_irq_routes = route;
-
-    /* Program I/O APIC if this is a legacy IRQ */
-    if (src_irq < g_ioapic_irq_count) {
-        ioapic_route_irq(src_irq, dst_vector, dest_apic_id);
-    }
-
-    return 0;
-#else
-    (void)src_irq; (void)dst_vector; (void)dest_apic_id; (void)flags;
-    return -1;
-#endif
-}
-
-int irq_route_remove(uint8_t src_irq) {
-#ifdef MYSEED_METAL
-    IRQRoute **pp = &g_irq_routes;
-    while (*pp) {
-        if ((*pp)->src_irq == src_irq) {
-            IRQRoute *tmp = *pp;
-            *pp = (*pp)->next;
-            mem_free(tmp);
-            return 0;
-        }
-        pp = &(*pp)->next;
-    }
-    return -1;
-#else
-    (void)src_irq;
-    return -1;
-#endif
-}
 
 /* ------------------------------------------------------------------
- * Interrupt / Exception Handlers with IST
+ * Exception Handlers with IST
  * ------------------------------------------------------------------ */
 
 /* Double fault handler (uses IST1) */
