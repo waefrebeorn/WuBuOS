@@ -157,6 +157,19 @@ wubu_cap_object_t *wubu_cap_handle_resolve(wubu_cap_handle_table_t *t,
                                           uint64_t required_rights);
 /* Close a handle: bumps local gen so stale tokens fail. */
 int      wubu_cap_handle_close(wubu_cap_handle_table_t *t, wubu_cap_token_t tok);
+/* Scan the table for any live cap of `kind` covering `required_rights`.
+ * Returns WUBU_CAP_OK on match, WUBU_CAP_EPERM otherwise. Used for
+ * capability-kind gates (e.g. CAP_KIND_SYSTEM) where the table is authority. */
+int      wubu_cap_handle_resolve_kind(wubu_cap_handle_table_t *t, int32_t pid,
+                                     uint16_t kind, uint64_t required_rights);
+
+/* ---- Bootcap cascade root (GrahaOS CAP_KIND_SYSTEM) ---- */
+void     wubu_cap_system_init(void);
+uint32_t wubu_cap_system_bootcap_idx(void);
+int      wubu_cap_system_install_to_pid(wubu_cap_handle_table_t *t, int32_t pid,
+                                     uint64_t rights_subset);
+int      wubu_cap_system_resolve(wubu_cap_handle_table_t *t, int32_t pid,
+                                 uint64_t required_rights);
 
 /* ---- Pretty-print for diagnostics ---- */
 int wubu_cap_token_describe(wubu_cap_token_t tok, char *buf, int buflen);

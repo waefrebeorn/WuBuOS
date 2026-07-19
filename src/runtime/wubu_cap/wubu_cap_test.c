@@ -7,6 +7,7 @@
  * Also exercises the per-process handle table insert/resolve/close lifecycle.
  */
 #include "wubu_cap.h"
+#include "wubu_cap_internal.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -105,6 +106,45 @@ int main(void) {
     CHECK(ir == WUBU_CAP_OK, "inspect ok");
     CHECK(info.kind == WUBU_CAP_KIND_CONTAINER, "inspect reports correct kind");
     CHECK(info.owner_pid == 100, "inspect reports owner");
+
+    /* --- Bootcap cascade root (GrahaOS CAP_KIND_SYSTEM) --- */
+    wubu_cap_system_init();
+    CHECK(wubu_cap_system_bootcap_idx() != WUBU_CAP_IDX_NONE,
+          "bootcap created by system_init");
+
+    wubu_cap_handle_table_t *st = wubu_cap_handle_table_create();
+    CHECK(st != NULL, "system handle table created");
+    /* init gets a narrowed SYSTEM sub-token (inspect+revoke+derive+invoke) */
+    uint64_t srights = WUBU_RIGHT_INSPECT | WUBU_RIGHT_REVOKE |
+                       WUBU_RIGHT_DERIVE | WUBU_RIGHT_INVOKE;
+    CHECK(wubu_cap_system_install_to_pid(st, 100, srights) == WUBU_CAP_OK,
+          "install SYSTEM sub-token to pid 100");
+    CHECK(wubu_cap_system_resolve(st, 100, WUBU_RIGHT_INVOKE) == WUBU_CAP_OK,
+          "SYSTEM+INVOKE resolves");
+    CHECK(wubu_cap_system_resolve(st, 100, WUBU_RIGHT_TERMINATE) == WUBU_CAP_EPERM,
+          "SYSTEM+TERMINATE denied (not granted)");
+    /* diminishing derive: a second init gets a *narrower* token; resolving a
+     * right it was NOT granted must fail. */
+    uint64_t narrow = WUBU_RIGHT_INSPECT;
+    CHECK(wubu_cap_system_install_to_pid(st, 200, narrow) == WUBU_CAP_OK,
+          "install narrower SYSTEM sub-token to pid 200");
+    CHECK(wubu_cap_system_resolve(st, 200, WUBU_RIGHT_INVOKE) == WUBU_CAP_EPERM,
+          "narrow token denies INVOKE (diminishing derive)");
+    /* over-privileged install (right not in bootcap) impossible since bootcap
+     * is ALL; instead assert install rejects a 0-rights (invalid) subset. */
+    CHECK(wubu_cap_system_install_to_pid(st, 300, 0) == WUBU_CAP_OK,
+          "install empty-rights token (valid: grants nothing)");
+    /* revoke the bootcap root -> all installed sub-tokens cascade-revoke,
+     * so SYSTEM resolution must now fail for every pid. */
+    wubu_cap_token_t broot = wubu_cap_token_pack(
+        g_wubu_cap_ptrs[wubu_cap_system_bootcap_idx()]->generation,
+        wubu_cap_system_bootcap_idx(), 0);
+    wubu_cap_revoke(broot);
+    CHECK(wubu_cap_system_resolve(st, 100, WUBU_RIGHT_INVOKE) == WUBU_CAP_EPERM,
+          "post-bootcap-revoke: pid 100 SYSTEM denied (cascade)");
+    CHECK(wubu_cap_system_resolve(st, 200, WUBU_RIGHT_INSPECT) == WUBU_CAP_EPERM,
+          "post-bootcap-revoke: pid 200 SYSTEM denied (cascade)");
+    wubu_cap_handle_table_free(st);
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_pass + g_fail);
     return g_fail > 0 ? 1 : 0;

@@ -144,3 +144,30 @@ int wubu_cap_handle_close(wubu_cap_handle_table_t *t, wubu_cap_token_t tok) {
     pthread_mutex_unlock(&t->lock);
     return WUBU_CAP_OK;
 }
+
+/* Scan the table for any live handle whose underlying object is of `kind`
+ * and whose rights cover `required_rights` (and is not revoked). Returns
+ * WUBU_CAP_OK on a match, WUBU_CAP_EPERM otherwise. Used for capability-kind
+ * gates (e.g. CAP_KIND_SYSTEM) without needing the caller to hold a specific
+ * token -- the table itself is the authority. */
+int wubu_cap_handle_resolve_kind(wubu_cap_handle_table_t *t, int32_t pid,
+                                 uint16_t kind, uint64_t required_rights) {
+    if (!t) return WUBU_CAP_EPERM;
+    pthread_mutex_lock(&t->lock);
+    for (uint32_t slot = 1; slot < t->capacity; slot++) {
+        wubu_cap_hentry_t *e = &t->entries[slot];
+        if (e->object_idx == WUBU_CAP_IDX_NONE) continue;
+        wubu_cap_object_t *obj = g_wubu_cap_ptrs[e->object_idx];
+        if (!obj || obj->deleted) continue;
+        if (obj->kind != kind) continue;
+        /* Re-pack with object gen so wubu_cap_resolve does the audience +
+         * rights + revoke-generation check against the registry. */
+        wubu_cap_token_t otok = wubu_cap_token_pack(obj->generation,
+                                                    e->object_idx, e->token_flags);
+        pthread_mutex_unlock(&t->lock);
+        wubu_cap_object_t *r = wubu_cap_resolve(pid, otok, required_rights);
+        return (r != NULL) ? WUBU_CAP_OK : WUBU_CAP_EPERM;
+    }
+    pthread_mutex_unlock(&t->lock);
+    return WUBU_CAP_EPERM;
+}
