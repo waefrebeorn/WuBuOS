@@ -8,6 +8,7 @@
 #include "dosgui_wm.h"
 #include "dosgui_wm_internal.h"
 #include "wubu_trash.h"
+#include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
@@ -210,6 +211,31 @@ static void test_render_draws_glyphs_and_selection(void) {
      * top-left corner of the selected icon cell. */
     uint32_t corner = vbe_get_pixel(fi->x, fi->y);
     CHECK(corner == 0x00FFFFFF, "selection focus rect drawn at icon corner");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
+/* Regression for the XP Luna drop-shadow: a window must cast a soft blended
+ * shadow to its bottom-right under Luna themes (and none under Win98). */
+static void test_render_window_drop_shadow(void) {
+    TEST("XP window casts a soft drop-shadow");
+    wubu_theme_set(THEME_XP_LUNA_BLUE);
+    vbe_init(256, 256);
+    dosgui_wm_init(256, 256);
+    dosgui_wm_create(10, 10, 120, 90, "Shadowed");
+    dosgui_wm_render(NULL, 256, 256);
+
+    /* Luminance of a pixel in the shadow band (just right of the window) vs a
+     * reference desktop pixel far from any window. The shadow blends a dark
+     * colour over the desktop, so it must be visibly darker. */
+    int sx = 10 + 120 + 3, sy = 10 + 45;       /* shadow band, right side */
+    int rx = 240, ry = 20;                       /* reference desktop pixel */
+    uint32_t sp = vbe_get_pixel(sx, sy);
+    uint32_t rp = vbe_get_pixel(rx, ry);
+    int sl = (int)((sp >> 16 & 0xFF) + (sp >> 8 & 0xFF) + (sp & 0xFF));
+    int rl = (int)((rp >> 16 & 0xFF) + (rp >> 8 & 0xFF) + (rp & 0xFF));
+    CHECK(sl < rl, "shadow pixel darker than reference desktop");
 
     dosgui_wm_shutdown();
     PASS();
@@ -735,6 +761,7 @@ int main(void) {
     test_taskbar_height();
     test_render_no_crash();
     test_render_draws_glyphs_and_selection();
+    test_render_window_drop_shadow();
     test_add_icon();
     test_icon_hit_test();
     test_icon_layout_persist_restore();

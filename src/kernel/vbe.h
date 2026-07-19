@@ -107,6 +107,10 @@ void vbe_shade_rect(int x, int y, int w, int h);
 /* Vertical gradient fill. */
 void vbe_vgradient(int x, int y, int w, int h, uint32_t top, uint32_t bottom);
 
+/* Alpha-blended rectangle: blend `color` over the existing pixels using the
+ * given alpha (0 = unchanged, 255 = fully color). Used for soft drop-shadows. */
+void vbe_blend_rect(int x, int y, int w, int h, uint32_t color, int alpha);
+
 /* Horizontal gradient fill. */
 void vbe_hgradient(int x, int y, int w, int h, uint32_t left, uint32_t right);
 
