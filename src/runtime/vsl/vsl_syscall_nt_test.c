@@ -357,7 +357,7 @@ int main(void) {
 
         args[0] = (uint64_t)h;
         memset(args + 1, 0, sizeof(uint64_t) * 5);
-        r = vsl_nt_syscall_dispatch(&ctx, 209, args, 1);           /* ResetEvent */
+        r = vsl_nt_syscall_dispatch(&ctx, 211, args, 1);           /* ResetEvent */
         CHECK(r == NT_STATUS_SUCCESS, "NtResetEvent clears the event");
 
         args[0] = (uint64_t)h;
@@ -1238,6 +1238,157 @@ int main(void) {
         vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* delete subkey */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)rk;
         vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* delete parent key */
+    }
+
+    /* 26. Batch 11 — job set + job info (finish in-flight NT work). */
+    {
+        uint32_t job = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&job;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 42, args, 1);
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateJobObject (set/info test) SUCCESS");
+        CHECK(job != 0, "job handle assigned");
+
+        /* Set a basic limit (class 0) and read it back via query. */
+        uint32_t limit[16];
+        memset(limit, 0, sizeof(limit));
+        limit[1] = 0x00002000;  /* LimitFlags = JOB_OBJECT_LIMIT_BREAKAWAY_OK */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)job;
+        args[1] = 0;            /* JobObjectBasicLimitInformation */
+        args[2] = (uint64_t)(uintptr_t)limit;
+        args[3] = sizeof(limit);
+        r = vsl_nt_syscall_dispatch(&ctx, 235, args, 4);  /* NtSetInformationJobObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetInformationJobObject stores limit");
+
+        uint8_t qinfo[64];
+        uint32_t qlen = sizeof(qinfo);
+        memset(qinfo, 0, sizeof(qinfo));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)job;
+        args[1] = 0;            /* JobObjectBasicLimitInformation */
+        args[2] = (uint64_t)(uintptr_t)qinfo;
+        args[3] = qlen;
+        r = vsl_nt_syscall_dispatch(&ctx, 160, args, 4);  /* NtQueryInformationJobObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationJobObject SUCCESS");
+        CHECK(((uint32_t *)qinfo)[1] == 0x00002000,
+              "NtQueryInformationJobObject returns the stored LimitFlags");
+
+        /* Job set containing our job id must validate. */
+        uint32_t members[2] = { job, 0 };
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)members;
+        r = vsl_nt_syscall_dispatch(&ctx, 43, args, 1);   /* NtCreateJobSet */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateJobSet accepts a live job member");
+
+        /* Cleanup. */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)job;
+        vsl_nt_syscall_dispatch(&ctx, 266, args, 1);  /* NtTerminateJobObject */
+    }
+
+    /* 27. Batch 11 — IO completion port lifecycle (41/242/199). */
+    {
+        uint32_t ioh = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&ioh;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 41, args, 1);  /* NtCreateIoCompletion */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateIoCompletion SUCCESS");
+        CHECK(ioh != 0, "IO completion handle assigned");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ioh;
+        r = vsl_nt_syscall_dispatch(&ctx, 242, args, 1);  /* NtSetIoCompletion */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetIoCompletion posts a completion");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ioh;
+        r = vsl_nt_syscall_dispatch(&ctx, 199, args, 1);  /* NtRemoveIoCompletion */
+        CHECK(r == 1, "NtRemoveIoCompletion drains the posted completion");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)ioh;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);  /* NtClose */
+    }
+
+    /* 28. Batch 11 — symbolic link object create/open/query (55/134/179). */
+    {
+        uint32_t lh = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&lh;
+        args[1] = (uint64_t)(uintptr_t)"\\??\\WuBuLink";
+        args[3] = (uint64_t)(uintptr_t)"\\Device\\HarddiskVolume1\\target";
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 55, args, 4);  /* NtCreateSymbolicLinkObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateSymbolicLinkObject SUCCESS");
+        CHECK(lh != 0, "symbolic link handle assigned");
+
+        uint8_t tgt[512]; uint32_t tlen = 0;
+        memset(tgt, 0, sizeof(tgt));
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)lh;
+        args[1] = (uint64_t)(uintptr_t)tgt;
+        args[2] = (uint64_t)(uintptr_t)&tlen;
+        r = vsl_nt_syscall_dispatch(&ctx, 179, args, 3);  /* NtQuerySymbolicLinkObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtQuerySymbolicLinkObject SUCCESS");
+        CHECK(tlen == strlen("\\Device\\HarddiskVolume1\\target"),
+              "NtQuerySymbolicLinkObject reports target length");
+
+        /* Re-open by name. */
+        uint32_t lh2 = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&lh2;
+        args[1] = (uint64_t)(uintptr_t)"\\??\\WuBuLink";
+        r = vsl_nt_syscall_dispatch(&ctx, 134, args, 2);  /* NtOpenSymbolicLinkObject */
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenSymbolicLinkObject re-opens by name");
+        CHECK(lh2 != 0, "re-opened link handle assigned");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh2;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+    }
+
+    /* 29. Batch 11 — event pair (39) + LPC port handshake (49/34/1/32). */
+    {
+        uint32_t hi = 0, lo = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&hi;
+        args[1] = (uint64_t)(uintptr_t)&lo;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 39, args, 2);  /* NtCreateEventPair */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateEventPair SUCCESS");
+        CHECK(hi != 0 && lo != 0, "both event-pair ends assigned");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)hi;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)lo;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+
+        /* LPC: create a port, connect, accept+complete, request/reply. */
+        uint32_t srv = 0, cli = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&srv;
+        r = vsl_nt_syscall_dispatch(&ctx, 49, args, 1);  /* NtCreatePort */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreatePort SUCCESS");
+        CHECK(srv != 0, "server port handle assigned");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&cli;
+        r = vsl_nt_syscall_dispatch(&ctx, 34, args, 1);  /* NtConnectPort */
+        CHECK(r == NT_STATUS_SUCCESS, "NtConnectPort SUCCESS");
+        CHECK(cli != 0, "client port handle assigned");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)srv;
+        r = vsl_nt_syscall_dispatch(&ctx, 1, args, 1);   /* NtAcceptConnectPort */
+        CHECK(r == NT_STATUS_SUCCESS, "NtAcceptConnectPort SUCCESS");
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)srv;
+        r = vsl_nt_syscall_dispatch(&ctx, 32, args, 1);   /* NtCompleteConnectPort */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCompleteConnectPort SUCCESS");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)cli;
+        r = vsl_nt_syscall_dispatch(&ctx, 209, args, 1);  /* NtRequestWaitReplyPort */
+        CHECK(r == NT_STATUS_SUCCESS, "NtRequestWaitReplyPort handshake SUCCESS");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)srv;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)cli;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
     }
 
     vsl_nt_bridge_shutdown(&ctx);

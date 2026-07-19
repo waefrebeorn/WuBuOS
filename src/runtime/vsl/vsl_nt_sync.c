@@ -305,16 +305,19 @@ int64_t vsl_nt_open_directory_object(uint64_t a_out, uint64_t b_access,
 }
 int64_t vsl_nt_query_symbolic_link_object(uint64_t a_link, uint64_t b_name,
                                           uint64_t c_len, uint64_t d, uint64_t e, uint64_t f) {
-    (void)c_len; (void)d; (void)e; (void)f;
+    (void)d; (void)e; (void)f;
     if (!a_link || !b_name) return NT_STATUS_INVALID_PARAMETER;
     /* A symbolic-link object stores its target in the handle data field. */
     uint64_t target = 0;
     if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a_link, &target) != 0)
         return NT_STATUS_INVALID_HANDLE;
     const char *t = (const char *)(uintptr_t)target;
-    if (!t) t = "\\";
-    size_t n = strlen(t) + 1;
-    memcpy((void *)(uintptr_t)b_name, t, n);
+    if (!t) t = "\\\\";
+    size_t n = strlen(t);
+    memcpy((void *)(uintptr_t)b_name, t, n + 1);  /* include NUL terminator */
+    /* c_len is a pointer to the returned length (NT returns the string length
+     * WITHOUT the NUL terminator). */
+    if (c_len) *(uint32_t *)(uintptr_t)c_len = (uint32_t)n;
     return NT_STATUS_SUCCESS;
 }
 
