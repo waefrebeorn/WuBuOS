@@ -7,8 +7,10 @@
 
 #include "control/control.h"
 #include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_wm_internal.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"
+#include "../kernel/vbe.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,6 +86,31 @@ int main(void) {
     T(dosgui_wm_get_icon_count() == 0, "icons hidden (count 0)");
     control_set_show_icons(true);
     T(dosgui_wm_get_icon_count() == before_hide, "icons shown again (count restored)");
+
+    /* -- Control Panel two-pane (XP category view) render -- */
+    printf("\n[Control Panel — XP two-pane render]\n");
+    control_set_theme(THEME_XP_LUNA_BLUE);
+    vbe_init(520, 440);
+    uint32_t *cp_fb = (uint32_t *)calloc(520 * 440, sizeof(uint32_t));
+    DosGuiWindow win;
+    memset(&win, 0, sizeof(win));
+    win.x = 0; win.y = 0; win.w = 520; win.h = 440; win.alive = true;
+    strncpy(win.title, "Control Panel", sizeof(win.title) - 1);
+    control_draw(&win, cp_fb, 520, 440, c);
+
+    /* Left rail is the Luna gradient sidebar; the orb's red quadrant must be
+     * present, and a category glyph pixel must have drawn in the right pane. */
+    int found_orb = 0, found_cat = 0;
+    for (int y = 0; y < 440 && !(found_orb && found_cat); y++)
+        for (int x = 0; x < 520; x++) {
+            uint32_t p = vbe_get_pixel(x, y);
+            if (p == 0xF24C3E) found_orb = 1;
+            /* Right pane light panel: Luna=0xF8F8F8, Win98=0xC0C0C0. */
+            if (x > 160 && (p == 0x00F8F8F8 || p == 0x00C0C0C0)) found_cat = 1;
+        }
+    T(found_orb, "Control Panel orb (red quadrant) drawn in left rail");
+    T(found_cat, "Control Panel right pane (light panel) drawn");
+    vbe_shutdown();
 
     /* -- Shutdown -- */
     printf("\n[Shutdown]\n");

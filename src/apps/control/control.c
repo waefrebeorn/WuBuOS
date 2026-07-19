@@ -4,6 +4,7 @@
 
 #include "control.h"
 #include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_wm_internal.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"
@@ -25,25 +26,76 @@ void control_destroy(ControlState *ctrl) {
 void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlState *ctrl) {
     (void)fb_w; (void)fb_h; (void)ctrl;
     if (!win || !fb) return;
-    int x = win->x, y = win->y;
-    vbe_fill_rect(x, y, win->w, win->h, 0x00E0E0E0);
-    vbe_draw_text(x + 12, y + 8, "Control Panel - Desktop", 0x000000, 1);
 
+    int tbh = title_bar_height();
+    int bw  = border_width();
+    int cx = win->x + bw;
+    int cy = win->y + tbh;            /* content origin, below the title bar */
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+
+    /* Right pane background (light panel). */
+    vbe_fill_rect(cx, cy, cw, ch, theme()->Luna_start_button ? 0x00F8F8F8 : 0x00C0C0C0);
+
+    /* -- Left rail (XP blue gradient) -- */
+    int lw = 150;
+    if (theme()->Luna_start_button)
+        vbe_vgradient(cx, cy, lw, ch, tc()->startmenu_sidebar, tc()->startmenu_sidebar_grad_end);
+    else
+        vbe_fill_rect(cx, cy, lw, ch, 0x00C0C0C0);
+
+    /* Orb + "Control Panel" banner. */
+    int ox = cx + 12, oy = cy + 12;
+    vbe_fill_rect(ox,      oy,      7, 7, 0xF24C3E);
+    vbe_fill_rect(ox + 8,  oy,      7, 7, 0x6FCF3C);
+    vbe_fill_rect(ox,      oy + 8,  7, 7, 0x39A0EC);
+    vbe_fill_rect(ox + 8,  oy + 8,  7, 7, 0xFFC90E);
+    vbe_draw_text(cx + 12, cy + 32, "Control Panel", 0x00FFFFFF, 1);
+
+    /* "See also" link list (static, XP-style). */
+    vbe_draw_text(cx + 12, cy + 64, "See also", 0x00FFFFFF, 1);
+    vbe_draw_text(cx + 12, cy + 80, "Switch to Classic View", 0x00E0E0FF, 1);
+    vbe_draw_text(cx + 12, cy + 96, "Taskbar and Start Menu", 0x00E0E0FF, 1);
+    vbe_draw_text(cx + 12, cy + 112, "Folder Options", 0x00E0E0FF, 1);
+
+    /* -- Right pane: "Pick a category" + icon grid -- */
+    vbe_draw_text(cx + lw + 14, cy + 10, "Pick a category", 0x00000000, 1);
+
+    /* Wallpaper/placement status (Appearance and Themes detail line). */
     const WubuSettings *s = wubu_settings_get();
     char buf[256];
     snprintf(buf, sizeof(buf), "Wallpaper: %s",
              (s && s->theme.wallpaper_path[0]) ? s->theme.wallpaper_path : "(default gradient)");
-    vbe_draw_text(x + 12, y + 40, buf, 0x000000, 1);
-
+    vbe_draw_text(cx + lw + 14, cy + 26, buf, 0x00333333, 1);
     static const char *modes[] = {"Center", "Tile", "Stretch", "Fit", "Fill"};
     int m = s ? s->theme.wallpaper_mode : 1;
     if (m < 0 || m > 4) m = 1;
     snprintf(buf, sizeof(buf), "Placement: %s", modes[m]);
-    vbe_draw_text(x + 12, y + 60, buf, 0x000000, 1);
+    vbe_draw_text(cx + lw + 14, cy + 40, buf, 0x00333333, 1);
 
-    /* Preview swatch of the configured placement mode. */
-    vbe_fill_rect(x + 12, y + 80, 64, 48, 0x00408080);
-    vbe_rect(x + 12, y + 80, 64, 48, 0x000000);
+    /* Category grid (2 columns x 4 rows) with glyph + label. */
+    struct Cat { const char *name; DeskIconType type; };
+    static const struct Cat cats[] = {
+        {"Appearance and Themes", DESK_ICON_APP},
+        {"Display",               DESK_ICON_FILE},
+        {"Folder Options",        DESK_ICON_FOLDER},
+        {"Taskbar and Start Menu",DESK_ICON_APP},
+        {"Date and Time",         DESK_ICON_FILE},
+        {"Sound and Audio",       DESK_ICON_FILE},
+        {"System",                DESK_ICON_APP},
+        {"User Accounts",         DESK_ICON_FOLDER},
+    };
+    int gx0 = cx + lw + 14, gy0 = cy + 60, cellw = 170, cellh = 70;
+    int ncols = 2;
+    for (int i = 0; i < 8; i++) {
+        int col = i % ncols, row = i / ncols;
+        int gx = gx0 + col * cellw;
+        int gy = gy0 + row * cellh;
+        dosgui_wm_draw_icon_glyph(cats[i].type, gx, gy,
+                                  tc()->btn_face, tc()->border_light,
+                                  tc()->border_dark, tc()->win_title_active);
+        vbe_draw_text(gx + 36, gy + 4, cats[i].name, 0x00000000, 1);
+    }
 }
 
 /* Apply a Desktop-tab change: persist wallpaper path + placement mode to
