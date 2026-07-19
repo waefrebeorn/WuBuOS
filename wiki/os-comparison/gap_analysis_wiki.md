@@ -3,6 +3,14 @@
 **Purpose**: Actionable gap tracking — every row maps to a WuBuOS file and REAL_GAP count
 **Updated**: 2026-06-29
 
+> **⚠️ STALE-METRICS NOTICE (2026-07-19):** the file-path columns below were written
+> before the monolith-dissolution campaign. The *old* monolith names
+> (`runtime/wubu_dxvk.c`, `apps/wubu_canvas.c`, `runtime/wubu_proton.c`,
+> `gui/wubu_clipboard.c`) have been updated inline to their **current** module paths
+> where found, but the gap *counts* (~400, etc.) and "NEW" markers predate the
+> dissolution. Verified current tree: **468 `.c` / 214 `.h` / ~105K LOC / 91 test
+> targets**. See `docs/MONOLITH_DISSOLUTION.md` for the authoritative old→new map.
+
 ---
 
 ## ══════════════════════════════════════════════════════════════════════════════════
@@ -46,7 +54,7 @@
 | # | Ref OS Feature | WuBuOS File | Status | REAL_GAPs | Priority | Sessions |
 |---|----------------|-------------|--------|-----------|----------|----------|
 | 1.1 | gamescope compositor (VRR, HDR, FSR, nested Wayland) | `hosted/wubu_gamescope.c` (NEW) | ❌ Missing | ~200 | 1 | 5 |
-| 1.2 | DXVK (D3D9/10/11 → Vulkan translation) | `runtime/wubu_dxvk.c` (NEW) | ❌ Missing | ~400 | 1 | 6 |
+| 1.2 | DXVK (D3D9/10/11 → Vulkan translation) | `runtime/wubu_proton_dxvk.c` + `runtime/wubu_dxvk_conf.c` (was `wubu_dxvk.c`) | ❌ Missing | ~400 | 1 | 6 |
 | 1.3 | VKD3D-Proton (D3D12 → Vulkan translation) | `runtime/wubu_vkd3d.c` (NEW) | ❌ Missing | ~500 | 1 | 8 |
 | 1.4 | Pressure Vessel (full namespaces, seccomp, Steam Runtime) | `wubu_ct_isolate.c` (extend) | 🟡 Partial (user/pid ns only) | ~150 | 1 | 4 |
 | 1.5 | Steam Input (controller configs, gyro, haptics, action sets) | `input/wubu_steaminput.c` (NEW) | ❌ Missing | ~180 | 2 | 5 |
@@ -154,7 +162,7 @@
 |---|------------------|------|--------|-----------|----------|----------|
 | 5.1 | VSL syscall handlers (332 void casts remaining) | `runtime/wubu_vsl.c` | 🟡 45/377 done | 332 | 1 | 8 |
 | 5.2 | Hosted Wayland metal (DRM/ALSA/Pulse/X11/Vulkan surface) | `hosted/wubu_metal.c` | ❌ 31 void casts + 6 weak | ~100 | 1 | 4 |
-| 5.3 | Canvas subsystem (layers, filters, Vulkan texture, export) | `apps/wubu_canvas.c` | ❌ 41 void casts + 3 system() | ~100 | 2 | 4 |
+| 5.3 | Canvas subsystem (layers, filters, Vulkan texture, export) | `apps/wubu_canvas_*.c` + `apps/app_canvas.c` (was `apps/wubu_canvas.c`) | ❌ 41 void casts + 3 system() | ~100 | 2 | 4 |
 | 5.4 | HolyC codegen (JIT backpatching, register allocation) | `compiler/holyc_codegen.c` | ❌ 29 placeholders | ~200 | 1 | 8 |
 | 5.5 | StyxFS 9P callbacks (auth, wstat, fsync, symlink, mknod, mkdir) | `runtime/styxfs.c` | 🟡 8/14 done | ~50 | 2 | 2 |
 | 5.6 | Control panel applets (display, network, sound, user, datetime) | `apps/control.c` | ❌ 20 void casts | ~80 | 3 | 3 |
@@ -165,7 +173,7 @@
 | 5.11 | Bear Vulkan full GPU integration (26 void casts remaining) | `bear/bear_vulkan.c` | 🟡 7/33 done | ~100 | 2 | 4 |
 | 5.12 | Hosted Wayland callbacks (seat, data device, touch, tablet, xdg-shell) | `hosted/hosted.c` | 🟡 ~30 void casts | ~80 | 2 | 3 |
 | 5.13 | wubu_holyd HolyC DOS daemon (REPL, persistent state, symbols) | `runtime/wubu_holyd.c` | 🟡 Sessions/windows/9P/eval wired | ~150 | 1 | 4 |
-| 5.14 | wubu_proton (DXVK, VKD3D, Steam Runtime, prefix mgmt, compat DB) | `runtime/wubu_proton.c` | 🟡 PE loader + Wine launch | ~400 | 1 | 8 |
+| 5.14 | wubu_proton (DXVK, VKD3D, Steam Runtime, prefix mgmt, compat DB) | `runtime/wubu_proton*.c` + `wubu_proton2*.c` (was `runtime/wubu_proton.c`) | 🟡 PE loader + Wine launch | ~400 | 1 | 8 |
 
 ---
 
@@ -180,7 +188,7 @@
 | GUI: Terminal | `gui/dosgui_term.c` | 23 | 0 |
 | GUI: Explorer | `gui/dosgui_explorer.c` | 31 | 0 |
 | GUI: Start Menu | `gui/dosgui_startmenu.c` | 24 | 2 |
-| GUI: Clipboard | `gui/wubu_clipboard.c` | 43 | 0 |
+| GUI: Clipboard | `gui/wubu_clipboard.c` + `gui/wubu_clipboard_{mime,wl}.c` (was single `gui/wubu_clipboard.c`) | 43 | 0 |
 | Bear: Vulkan | `bear/bear_vulkan.c` | 7 | 0 |
 | Kernel: Interrupt | `kernel/interrupt.c` | 41 | 0 |
 | Bridge: Syscall | `bridge/wubu_syscall.c` | 97 | 2 |
@@ -203,7 +211,7 @@
 | 1 | 5.2 | `hosted/wubu_metal.c` | Implement DRM/KMS atomic commit |
 | 2 | 5.1 | `runtime/wubu_vsl.c` | Implement clone flags (namespaces) |
 | 3 | 5.4 | `compiler/holyc_codegen.c` | Implement JIT backpatching |
-| 4 | 5.3 | `apps/wubu_canvas.c` | Implement layer compositing |
+| 4 | 5.3 | `apps/wubu_canvas_*.c` + `apps/app_canvas.c` (was `apps/wubu_canvas.c`) | Implement layer compositing |
 | 5 | 5.5 | `runtime/styxfs.c` | Implement auth/wstat/fsync |
 | 6 | 0.1 | `runtime/wubu_dbus.c` | Implement D-Bus daemon + libdbus |
 | 7 | 5.14 | `runtime/wubu_proton.c` | Integrate DXVK loader |
