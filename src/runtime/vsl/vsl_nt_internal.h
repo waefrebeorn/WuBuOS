@@ -65,6 +65,16 @@ typedef struct {
 } nt_job_entry_t;
 extern nt_job_entry_t g_nt_jobs[NT_JOB_MAX];
 extern uint32_t g_nt_job_next;
+
+/* Live forked child processes (job sentinels, NtCreateProcess children, ...).
+ * Recorded at fork() time so vsl_nt_bridge_shutdown can unconditionally reap
+ * them even if the owning handle was closed mid-session — prevents leaking
+ * sleeping pause() children when the caller (e.g. a regression test) exits. */
+#define NT_CHILD_MAX 512
+extern pid_t g_nt_child_pids[NT_CHILD_MAX];
+extern int   g_nt_child_count;
+/* Record a forked child pid (called from the parent branch right after fork). */
+void vsl_nt_track_child(pid_t pid);
 extern uint64_t g_nt_luid_counter;
 
 /* Token / security subsystem (real privilege enforcement, not a stub).

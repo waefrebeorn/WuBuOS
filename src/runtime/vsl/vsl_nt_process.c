@@ -76,6 +76,7 @@ int64_t vsl_nt_create_process(uint64_t a_proc_out, uint64_t b_access,
         pause();
         _exit(0);
     }
+    vsl_nt_track_child(pid);
     uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_PROCESS);
     if (h == 0) { kill(pid, SIGKILL); return NT_STATUS_UNSUCCESSFUL; }
     for (int i = 0; i < 4096; i++) {
