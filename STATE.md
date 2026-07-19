@@ -245,3 +245,25 @@
   test_dosgui_wm 30/30. make runtime + make hosted + test_high_gui (9/0) green.
 - wubu_theme.h + wubu_theme.c ABI: added win_shadow field (5 themes).
 
+## 2026-07-19 (session, part 7) — XP two-pane Control Panel
+- **Gap**: control.c was a stub drawing plain "Control Panel - Desktop" text
+  over the whole window (even overlapping the title bar). No XP category view.
+- **Reworked control_draw into the XP two-pane layout**:
+  * Left rail: Luna blue vertical gradient (reuses startmenu_sidebar ->
+    startmenu_sidebar_grad_end), 4-pane orb logo + "Control Panel" banner,
+    and a "See also" link list -- the iconic XP left rail.
+  * Right pane: light panel with "Pick a category" header, the live
+    wallpaper/placement status line (Appearance and Themes detail), and an
+    8-category icon grid (2x4) drawn with the shared dosgui_wm_draw_icon_glyph
+    so categories read as real XP icons (Appearance/Themes, Display, Folder
+    Options, Taskbar, Date/Time, Sound, System, User Accounts).
+  * Win98 (non-Luna) falls back to a flat silver rail + silver panel.
+  * Content now originates below the title bar (was drawing over it).
+- control.c now includes dosgui_wm_internal.h (for title_bar_height + the
+  glyph helper) -- still self-contained, no god-header reach-through beyond
+  the WM public+internal boundary.
+- **Regression test**: control_test gains an XP two-pane render check -- sets
+  THEME_XP_LUNA_BLUE, draws the panel into a framebuffer, scans for the orb's
+  red quadrant (left rail) and the light right-pane panel. test_control 20/20.
+- Runtime/hosted green; test_dosgui_wm 30/30; test_high_gui 9/0.
+
