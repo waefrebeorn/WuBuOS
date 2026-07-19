@@ -1,15 +1,24 @@
-# WuBuOS Mind Palace — Current State (v22 — 2026-07-08)
+# WuBuOS — Current State (verified 2026-07-19)
 
 ```
 ╔════════════════════════════════════════════════════════════════════════╗
 ║     🌱  W U B U O S                                                       ║
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers    ║
-║     461 C files · ~104K LOC · 90 test targets green                     ║
-║     ~400 REAL_GAPs = ~40 code + ~370 parity marathons · 64 targets       ║
+║     468 C files · 214 H files · ~105K LOC · 91 test targets             ║
+║     Repo: /home/wubu/wubuos   (verified from git + Makefile)             ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 ```
 
-## Battleship Status (v22 — 2026-07-08, Triple DA, HONEST RE-AUDIT)
+## Repo facts (verified 2026-07-19)
+- **468 `.c` / 214 `.h` / ~105,459 LOC** (tracked `src/`).
+- **91 `make test_*` targets.**
+- `make runtime` builds clean under `-O2`.
+- **Historical note:** `BATTLESHIP.md` v22 (and this file's older sections) described
+  "~40 code gaps + ~370 parity, 64 targets, ~15K LOC". Those are stale — the
+  monolith-dissolution campaign grew the tree to 468 `.c` / ~105K LOC / 91 targets.
+  See `docs/MONOLITH_DISSOLUTION.md`.
+
+## Battleship Status (carried from v22, numbers updated)
 - **~40 verifiable code-level REAL_GAPs** in `src/` (10 `system()` + 23 stub-phrase
   + 6 bare-metal no-ops). Confirmed by reading each function body. This is the TRUE
   reproducible sprint board.

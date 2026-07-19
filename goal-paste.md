@@ -43,9 +43,14 @@
 - **DONE**: 8086/DOS emulator execution hanging fixed (`step()` infinite prefix loop
   in `wubu_dos_emu_decode.c`) + two dead API stubs wired (`wubu_dos_emu_step`,
   `wubu_dos_emu_peek16`). `make test_dos_emu` → 22/22. Commit `714f21d`.
-- **Deferred**: `scripts/` + `src/runtime/wubu_manifest/` (untracked, not in Makefile);
-  `wubucontainer` submodule `-dirty` (own working tree, untouched).
-- Repo now **461 `.c` / ~104K LOC / 90 test targets** (docs reconciled to match).
+- **DONE**: `wubu_manifest` wired into `make test_manifest` (15/15). Commit `4b08acb`.
+- **DONE**: repo relocated to `/home/wubu/wubuos`; VSL GPU/Vulkan source folded into
+  `src/runtime/vsl/gpu/`. Commit `addfdf0`.
+- **DONE**: `wubucontainer` submodule dropper (`stub.c`) removed upstream (`8f480e0`),
+  parent pin updated. No open submodule work.
+- Repo now **468 `.c` / 214 `.h` / ~105K LOC / 91 test targets** (docs reconciled to match).
+  NOTE: older docs (BATTLESHIP v22, OS_BIBLE) still cite "~40 + ~370 gaps, 64 targets,
+  ~15K LOC" — those are stale post-monolith-dissolution; see `docs/MONOLITH_DISSOLUTION.md`.
 
 ## Reproducible verification (run before trusting any handoff)
 ```bash
