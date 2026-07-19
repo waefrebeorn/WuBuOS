@@ -65,6 +65,11 @@ uint32_t g_nt_job_next = 0x1000;
 
 extern uint64_t g_nt_luid_counter;
 
+/* Token table (real privilege enforcement). */
+nt_token_entry_t g_nt_tokens[NT_TOKEN_MAX];
+
+uint32_t g_nt_token_next = 0x2000;
+
 /* Shared dispatch table. */
 extern int64_t vsl_sys_nosys(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
@@ -83,6 +88,7 @@ static void nt_dispatch_init(void) {
     vsl_nt_timer_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_sync_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_registry_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_token_register(g_nt_dispatch, NT_TBL_SIZE);
 }
 
 /* ----------------------------------------------------------------------

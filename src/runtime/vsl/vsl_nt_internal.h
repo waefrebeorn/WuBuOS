@@ -67,6 +67,87 @@ extern nt_job_entry_t g_nt_jobs[NT_JOB_MAX];
 extern uint32_t g_nt_job_next;
 extern uint64_t g_nt_luid_counter;
 
+/* Token / security subsystem (real privilege enforcement, not a stub).
+ * A token holds a real set of privileges (LUID + attributes) and groups
+ * (SIDs). NtAccessCheck actually compares a required privilege set against
+ * the token's held privileges and returns ACCESS_DENIED when not satisfied. */
+#define NT_TOKEN_MAX        512
+#define NT_PRIV_MAX         64   /* privileges held by one token */
+#define NT_GROUP_MAX        64   /* SIDs/groups held by one token */
+typedef struct {
+    uint32_t  luid_low;
+    uint32_t  luid_high;
+    uint32_t  attr;       /* SE_PRIVILEGE_ENABLED / _DISABLED / _REMOVED */
+} nt_privilege_t;
+
+typedef struct {
+    uint32_t  sid;        /* simplified 32-bit SID for the bridge */
+    uint32_t  attr;       /* SE_GROUP_ENABLED / _MANDATORY / _OWNER */
+} nt_group_t;
+
+typedef struct {
+    bool      used;
+    uint32_t  token_id;       /* opaque cookie returned to callers */
+    uint64_t  luid_low, luid_high;  /* token authentication LUID */
+    uint32_t  session_id;
+    nt_privilege_t priv[NT_PRIV_MAX];
+    uint32_t  priv_count;
+    nt_group_t     group[NT_GROUP_MAX];
+    uint32_t  group_count;
+    uint32_t  imp_level;      /* impersonation level */
+    bool      restricted;
+} nt_token_entry_t;
+extern nt_token_entry_t g_nt_tokens[NT_TOKEN_MAX];
+extern uint32_t g_nt_token_next;
+
+/* Well-known privilege LUIDs (NT constant values, low part; high = 0).
+ * These are the stable public LUID values Windows assigns each privilege. */
+#define NT_PRIV_SE_CREATE_TOKEN           0x00000002
+#define NT_PRIV_SE_ASSIGNPRIMARYTOKEN     0x00000003
+#define NT_PRIV_SE_LOCK_MEMORY            0x00000004
+#define NT_PRIV_SE_INCREASE_QUOTA         0x00000005
+#define NT_PRIV_SE_UNSOLICITED_INPUT      0x00000006
+#define NT_PRIV_SE_MACHINE_ACCOUNT        0x00000007
+#define NT_PRIV_SE_TCB                    0x00000008
+#define NT_PRIV_SE_SECURITY               0x00000009
+#define NT_PRIV_SE_TAKE_OWNERSHIP         0x0000000A
+#define NT_PRIV_SE_LOAD_DRIVER            0x0000000B
+#define NT_PRIV_SE_SYSTEM_PROFILE         0x0000000C
+#define NT_PRIV_SE_SYSTEMTIME             0x0000000D
+#define NT_PRIV_SE_PROF_SINGLE_PROCESS    0x0000000E
+#define NT_PRIV_SE_INC_BASE_PRIORITY      0x0000000F
+#define NT_PRIV_SE_CREATE_PAGEFILE        0x00000010
+#define NT_PRIV_SE_CREATE_PERMANENT       0x00000011
+#define NT_PRIV_SE_BACKUP                 0x00000012
+#define NT_PRIV_SE_RESTORE                0x00000013
+#define NT_PRIV_SE_SHUTDOWN               0x00000014
+#define NT_PRIV_SE_DEBUG                  0x00000015
+#define NT_PRIV_SE_AUDIT                  0x00000016
+#define NT_PRIV_SE_SYSTEM_ENVIRONMENT     0x00000017
+#define NT_PRIV_SE_CHANGE_NOTIFY          0x00000018
+#define NT_PRIV_SE_REMOTE_SHUTDOWN        0x00000019
+#define NT_PRIV_SE_UNDOCK                 0x0000001A
+#define NT_PRIV_SE_SYNC_AGENT             0x0000001B
+#define NT_PRIV_SE_ENABLE_DELEGATION      0x0000001C
+#define NT_PRIV_SE_MANAGE_VOLUME          0x0000001D
+#define NT_PRIV_SE_IMPERSONATE            0x0000001E
+#define NT_PRIV_SE_CREATE_GLOBAL          0x0000001F
+#define NT_PRIV_SE_TRUSTED_CREDMAN_ACCESS 0x00000020
+#define NT_PRIV_SE_RELABEL                0x00000021
+#define NT_PRIV_SE_INCREASE_WORKING_SET   0x00000022
+#define NT_PRIV_SE_TIME_ZONE              0x00000023
+#define NT_PRIV_SE_CREATE_SYMBOLIC_LINK   0x00000024
+
+/* Privilege attribute flags (NT). */
+#define NT_PRIV_ATTR_ENABLED      0x00000002
+#define NT_PRIV_ATTR_ENABLED_BY_DEFAULT 0x00000001
+#define NT_PRIV_ATTR_REMOVED      0x00000004
+#define NT_PRIV_ATTR_USED_FOR_ACCESS 0x80000000
+
+/* Helper: does token `t` hold privilege LUID (low) as ENABLED? */
+bool vsl_nt_token_has_priv(const nt_token_entry_t *t, uint32_t luid_low);
+/* Helper: add/remove a privilege from a token (NtAdjustPrivilegesToken). */
+int  vsl_nt_token_set_priv(nt_token_entry_t *t, uint32_t luid_low, uint32_t attr);
 /* Thread params (batches 4/6) */
 typedef struct {
     void *(*start)(void *);
@@ -177,5 +258,6 @@ void vsl_nt_section_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_timer_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size);
 
 #endif /* WUBU_VSL_NT_INTERNAL_H */
