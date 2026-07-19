@@ -59,6 +59,30 @@ void control_desktop_apply(const char *wallpaper_path, int mode) {
     if (dosgui_wm_is_initialized()) dosgui_wm_reload_wallpaper();
 }
 
+/* Switch the active theme (Win98 Classic / XP Luna Blue / XP Media Orange /
+ * Zune / WuBu Custom). Persists theme_id and applies it live (ReactOS
+ * themeui.dll / desk.cpl lesson). */
+void control_set_theme(int theme_id) {
+    if (theme_id < 0 || theme_id >= THEME_COUNT) return;
+    WubuSettings *s = wubu_settings_mut();
+    if (!s) return;
+    s->theme.theme_id = theme_id;
+    wubu_settings_save();
+    wubu_theme_set((WubuThemeId)theme_id);
+}
+
+void control_set_auto_arrange(bool on) {
+    dosgui_wm_set_auto_arrange(on);   /* persists + re-flows live */
+}
+
+void control_set_show_icons(bool show) {
+    WubuSettings *s = wubu_settings_mut();
+    if (!s) return;
+    s->theme.show_desktop_icons = show;
+    wubu_settings_save();
+    dosgui_wm_set_icons_visible(show);   /* live show/hide via public WM API */
+}
+
 DosGuiWindow* control_launch(void) {
     return dosgui_wm_create(80, 60, 520, 440, "Control Panel");
 }

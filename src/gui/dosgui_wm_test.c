@@ -609,6 +609,37 @@ static void test_icon_multiselect_delete(void) {
     PASS();
 }
 
+/* Regression: auto-arrange toggle persists to settings and re-applies on boot. */
+static void test_auto_arrange_persists_restart(void) {
+    TEST("auto-arrange toggle persists + re-applies on boot");
+    char dsk[512];
+    snprintf(dsk, sizeof(dsk), "/tmp/wubu_arr_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", dsk, 1);
+    setenv("XDG_CONFIG_HOME", dsk, 1);
+    rm_rf(dsk); mkdir(dsk, 0755);
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_set_auto_arrange(true);
+    const WubuSettings *s = wubu_settings_get();
+    CHECK(s->theme.auto_arrange == true, "settings recorded auto-arrange ON");
+
+    /* Simulate restart: reload settings, re-init WM, then run the EXACT
+     * boot-path restore line from dosgui_desktop_init():
+     *   dosgui_wm_set_auto_arrange(s->theme.auto_arrange);
+     * (calling the full dosgui_desktop_init() would pull in the DOS emulator
+     * subsystem; the restore logic is a single setter call, tested here.) */
+    dosgui_wm_shutdown();
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_set_auto_arrange(wubu_settings_get()->theme.auto_arrange);
+    CHECK(dosgui_wm_get_auto_arrange() == true, "auto-arrange ON after re-init (boot path)");
+
+    dosgui_wm_shutdown();
+    rm_rf(dsk);
+    PASS();
+}
+
 /* -- Main ------------------------------------------------------ */
 /* -- Invalidation / dirty-tracking Tests ----------------------- */
 
@@ -687,6 +718,7 @@ int main(void) {
     test_icon_drag_persist_restore();
     test_icon_delete_moves_to_trash();
     test_icon_multiselect_delete();
+    test_auto_arrange_persists_restart();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

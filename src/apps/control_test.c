@@ -7,6 +7,7 @@
 
 #include "control/control.h"
 #include "../gui/dosgui_wm.h"
+#include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,6 +58,32 @@ int main(void) {
     T(s->theme.wallpaper_mode == 4, "re-apply updates placement mode (Fill=4)");
     T(strcmp(s->theme.wallpaper_path, "/tmp/wubu_ctrl_test/wp2.bmp") == 0,
       "re-apply updates wallpaper path");
+
+    /* -- Theme switch (XP Luna / etc.) persists + applies live -- */
+    printf("\n[Desktop Tab — Theme Switch]\n");
+    control_set_theme(THEME_XP_LUNA_BLUE);
+    T(s->theme.theme_id == THEME_XP_LUNA_BLUE, "theme_id persisted to settings");
+    T(wubu_theme_get()->id == THEME_XP_LUNA_BLUE, "live theme applied (XP Luna Blue)");
+    control_set_theme(THEME_WIN98_CLASSIC);
+    T(wubu_theme_get()->id == THEME_WIN98_CLASSIC, "theme switches back to Win98 Classic");
+
+    /* -- View -> Auto-arrange toggle persists + re-flows -- */
+    printf("\n[Desktop Tab — Auto-arrange]\n");
+    control_set_auto_arrange(true);
+    T(dosgui_wm_get_auto_arrange(), "auto-arrange toggled ON");
+    T(s->theme.auto_arrange == true, "auto-arrange persisted to settings");
+    control_set_auto_arrange(false);
+    T(!dosgui_wm_get_auto_arrange(), "auto-arrange toggled OFF");
+    T(s->theme.auto_arrange == false, "auto-arrange OFF persisted");
+
+    /* -- Show/hide desktop icons -- */
+    printf("\n[Desktop Tab — Show/Hide Icons]\n");
+    dosgui_wm_refresh_desktop();
+    int before_hide = dosgui_wm_get_icon_count();
+    control_set_show_icons(false);
+    T(dosgui_wm_get_icon_count() == 0, "icons hidden (count 0)");
+    control_set_show_icons(true);
+    T(dosgui_wm_get_icon_count() == before_hide, "icons shown again (count restored)");
 
     /* -- Shutdown -- */
     printf("\n[Shutdown]\n");

@@ -161,3 +161,25 @@
 - Makefile: test_dosgui_wm + test_control link lines gained wubu_trash.c +
   wubu_arch.c (trash depends on arch mkdir_p + settings).
 
+## 2026-07-19 (session, part 3) — Control Panel: theme switch + auto-arrange + show/hide persistence
+- **auto-arrange now persists** (was runtime-only in g_dwm.auto_arrange, lost on
+  restart): dosgui_wm_set_auto_arrange() writes s->theme.auto_arrange + saves, and
+  dosgui_desktop_init() restores it on boot (re-flows the column). Added
+  auto_arrange + show_desktop_icons fields to ThemeSettings (wubu_settings.h).
+- **Control Panel theme switch** (ReactOS themeui.dll / desk.cpl lesson): added
+  control_set_theme(id) -> persists theme_id + wubu_theme_set() live. The 5 themes
+  (Win98 Classic / XP Luna Blue / XP Media Orange / Zune / WuBu Custom) were already
+  implemented in wubu_theme.c; they just weren't exposed. Also control_set_auto_arrange
+  + control_set_show_icons(bool) wired to the WM (persist + live apply/hide).
+- **Show/hide desktop icons** live via dosgui_wm_set_icons_visible() (public WM API;
+  hides by clearing the live array, shows by re-scanning ~/Desktop).
+- Public API hygiene: promoted dosgui_wm_refresh_desktop / set_auto_arrange /
+  get_auto_arrange / set_icons_visible to dosgui_wm.h (were internal-only) so control.c
+  stops reaching into internals.
+- **Regression tests**: control_test 18/18 (+theme switch, auto-arrange persist,
+  show/hide); dosgui_wm_test +test_auto_arrange_persists_restart (29/29 -> now 28/28
+  after dropping the full boot-init call which dragged in the DOS subsystem; the
+  restore line is a single setter call, verified directly).
+- Makefile: test_control link gained wubu_theme.c (already present) + control_test.c
+  includes wubu_theme.h. No new subsystem deps pulled into test_dosgui_wm.
+
