@@ -130,8 +130,86 @@ int64_t vsl_nt_is_process_in_job(uint64_t a_process, uint64_t b_job_id,
     return 0;
 }
 
-/* Atom maintenance (63/158). */
-/* NtDeleteAtom (63): drop the named atom from the local table. */
+/* Find a job slot by id (shared helper). Returns index or -1. */
+static int vsl_nt_job_find(uint32_t job_id) {
+    for (int i = 0; i < NT_JOB_MAX; i++)
+        if (g_nt_jobs[i].used && g_nt_jobs[i].job_id == job_id)
+            return i;
+    return -1;
+}
+
+/* NtCreateJobSet (43): create a set of jobs that are scheduled as a unit.
+ * We record a new job-set cookie (reusing the job table; a job set is a
+ * no-op container whose members are the already-registered jobs in `a_jobs`).
+ * Real work: validate every member id resolves to a live job. */
+int64_t vsl_nt_create_job_set(uint64_t a_jobs, uint64_t b_flags,
+                               uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)b_flags; (void)c; (void)d; (void)e; (void)f;
+    const uint32_t *ids = (const uint32_t *)a_jobs;
+    if (!ids) return NT_STATUS_INVALID_PARAMETER;
+    /* a_jobs points at a ULONG array of (NumJobs) ids; the count is in b_flags'
+     * high 32 bits is not exposed, so we accept the array until a 0 terminator
+     * (job ids start at 0x1000, never 0). Each must reference a live job. */
+    for (int i = 0; i < 64; i++) {
+        uint32_t id = ids[i];
+        if (id == 0) break;
+        if (vsl_nt_job_find(id) < 0) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtQueryInformationJobObject (160): report job accounting/limits.
+ * Class 0 (BasicLimitInformation) returns the last-set basic limit + the
+ * job's pgid as the "process id of the job" field. */
+int64_t vsl_nt_query_information_job_object(uint64_t a_job_id, uint64_t b_class,
+                                             uint64_t c_info, uint64_t d_len,
+                                             uint64_t e, uint64_t f) {
+    (void)e; (void)f;
+    uint32_t job_id = (uint32_t)a_job_id;
+    int slot = vsl_nt_job_find(job_id);
+    if (slot < 0) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+    if (!c_info || !d_len) return NT_STATUS_INVALID_PARAMETER;
+    uint8_t *out = (uint8_t *)(uintptr_t)c_info;
+    memset(out, 0, (size_t)d_len);
+    if (b_class == 0) {  /* JobObjectBasicLimitInformation */
+        /* Per ReactOS layout: PER_PROCESS_LIMIT + LIMIT_FLAGS (2x ULONG),
+         * then MinimumWorkingSetSize, MaximumWorkingSetSize (2x PVOID),
+         * then ActiveProcessLimit, Affinity, PriorityClass, UIRestrictions,
+         * then BasicUIRestrictions, Reserved, and finally
+         * IoRateControlTolerance (ULONG) — 16 fields totalling 56 bytes on
+         * 64-bit. We populate LimitFlags (=basic_limit) + the job pgid in the
+         * reserved/Reserved2 slot. */
+        if (d_len >= 16) {
+            uint32_t *u = (uint32_t *)out;
+            u[1] = (uint32_t)g_nt_jobs[slot].basic_limit;  /* LimitFlags */
+            u[11] = (uint32_t)g_nt_jobs[slot].pgid;        /* job pgid */
+        }
+    } else if (b_class == 8) {  /* JobObjectBasicProcessIdList */
+        /* First ULONG = NumberOfProcessIdsInList (0 — we don't track members),
+         * second ULONG = NumberOfProcessIds (0). */
+        if (d_len >= 8) { uint32_t *u = (uint32_t *)out; u[0] = 0; u[1] = 0; }
+    }
+    return NT_STATUS_SUCCESS;
+}
+
+/* NtSetInformationJobObject (235): apply job limits/accounting.
+ * Class 0 (BasicLimitInformation) stores LimitFlags in the job for later
+ * query. Other classes are accepted (the bridge doesn't enforce NT job
+ * scheduling policy on Linux process groups). */
+int64_t vsl_nt_set_information_job_object(uint64_t a_job_id, uint64_t b_class,
+                                          uint64_t c_info, uint64_t d_len,
+                                          uint64_t e, uint64_t f) {
+    (void)d_len; (void)e; (void)f;
+    uint32_t job_id = (uint32_t)a_job_id;
+    int slot = vsl_nt_job_find(job_id);
+    if (slot < 0) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+    if (!c_info) return NT_STATUS_INVALID_PARAMETER;
+    if (b_class == 0) {  /* JobObjectBasicLimitInformation */
+        const uint32_t *u = (const uint32_t *)(uintptr_t)c_info;
+        g_nt_jobs[slot].basic_limit = (uint64_t)u[1];  /* LimitFlags field */
+    }
+    return NT_STATUS_SUCCESS;
+}
 
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_job_register(vsl_syscall_fn_t *tbl, int size) {
@@ -142,4 +220,8 @@ void vsl_nt_job_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[99-1] = vsl_nt_is_process_in_job;
     tbl[125-1] = vsl_nt_open_job_object;
     tbl[266-1] = vsl_nt_terminate_job_object;
+    /* Batch 11 (finish in-flight job work) */
+    tbl[43-1]  = vsl_nt_create_job_set;
+    tbl[160-1] = vsl_nt_query_information_job_object;
+    tbl[235-1] = vsl_nt_set_information_job_object;
 }

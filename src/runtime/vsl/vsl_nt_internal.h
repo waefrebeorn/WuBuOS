@@ -61,6 +61,7 @@ typedef struct {
     uint32_t job_id;
     pid_t    pgid;
     bool     used;
+    uint64_t basic_limit;  /* last NtSetInformationJobObject limit (class 0) */
 } nt_job_entry_t;
 extern nt_job_entry_t g_nt_jobs[NT_JOB_MAX];
 extern uint32_t g_nt_job_next;
@@ -141,6 +142,28 @@ int64_t vsl_nt_terminate_process(uint64_t, uint64_t, uint64_t, uint64_t, uint64_
 int64_t vsl_nt_wait_for_single_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_write_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_write_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_io_completion(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_io_completion(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_io_completion(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_io_completion(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_remove_io_completion(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_symbolic_link_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_symbolic_link_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_named_pipe_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_mailslot_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_device_io_control_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_fs_control_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_waitable_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_connect_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_listen_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_accept_connect_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_complete_connect_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_request_wait_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
 /* -- Per-module dispatch registration: each submodule registers its handlers
  *    into the shared g_nt_dispatch[] table. -- */
