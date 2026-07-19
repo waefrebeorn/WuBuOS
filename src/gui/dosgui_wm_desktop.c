@@ -44,8 +44,20 @@ void snap_icon_to_grid(DosGuiIcon *icon) {
 
 /* -- Desktop view options (Stream 3) --------------------------------- */
 
+/* Forward decl: defined just below; called by set_auto_arrange + boot path. */
+static void reflow_icons_column(void);
+
 void dosgui_wm_set_auto_arrange(bool on) {
     g_dwm.auto_arrange = on;
+    /* Persist the toggle (ReactOS NTUSER auto-arrange setting) so it survives
+     * a restart. */
+    WubuSettings *s = wubu_settings_mut();
+    if (s) {
+        s->theme.auto_arrange = on;
+        wubu_settings_save();
+    }
+    /* Apply immediately: when turning ON, re-flow icons into the column. */
+    if (on) reflow_icons_column();
 }
 
 bool dosgui_wm_get_auto_arrange(void) {
@@ -73,6 +85,17 @@ static void reflow_icons_column(void) {
 /* Public wrapper so other modules (context menu) can re-flow icons. */
 void reflow_all_icons_column(void) {
     reflow_icons_column();
+}
+
+/* Live show/hide of all desktop icons (Control Panel "Show desktop icons"). */
+void dosgui_wm_set_icons_visible(bool show) {
+    if (!dosgui_wm_is_initialized()) return;
+    if (show) {
+        dosgui_wm_refresh_desktop();
+    } else {
+        for (int i = 0; i < g_dwm.icon_count; i++) g_dwm.icons[i].alive = false;
+        g_dwm.icon_count = 0;
+    }
 }
 
 /* Resolve the user's Desktop directory (XDG or ~/Desktop). */

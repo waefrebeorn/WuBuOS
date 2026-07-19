@@ -44,6 +44,8 @@ typedef struct {
     uint32_t custom_colors[16];      /* Custom color overrides */
     IconLayoutEntry icon_layout[WUBU_ICON_LAYOUT_MAX];  /* Persisted desktop icon grid */
     int            icon_layout_count;
+    bool auto_arrange;               /* View -> Auto-arrange toggle (persisted) */
+    bool show_desktop_icons;         /* Control Panel: hide/show desktop icons */
 } ThemeSettings;
 
 /* -- Font Settings ------------------------------------------------ */
