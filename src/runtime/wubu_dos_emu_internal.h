@@ -1,4 +1,7 @@
-/* wubu_dos_emu_internal.h -- opaque engine internals for the 8086/DOS shim. */
+/* wubu_dos_emu_internal.h -- opaque engine internals for the 8086/DOS shim.
+ * Forward declarations ONLY. Each .c file is self-contained: it defines the
+ * functions it owns and includes this header for the cross-module prototypes.
+ * No function bodies here (keeps modules independent + link-clean). */
 #ifndef WUBU_DOS_EMU_INTERNAL_H
 #define WUBU_DOS_EMU_INTERNAL_H
 #include "wubu_dos_emu.h"
@@ -60,75 +63,67 @@ struct WubuDosEmu {
     uint8_t  rep_prefix; /* 0 none, 1 REP/REPE, 2 REPNE */
 };
 
-/* phys() is a tiny address-compute helper used by every leaf module, so it
- * is defined inline here (header-only, no god-header: this is the shim's
- * internal API surface only). All other helpers are declared here and
- * defined exactly once in their owning leaf module (non-static). */
-
-static inline uint32_t phys(WubuDosEmu *e, uint16_t seg, uint16_t off) {
-    (void)e;
-    return ((uint32_t)seg << 4) + off;
-}
-
-int dos_handle_to_fd(WubuDosEmu *e, uint16_t h);
-void int16(WubuDosEmu *e);
-uint16_t reg_read(WubuDosEmu *e, int modrm, int w);
-void logic16(WubuDosEmu *e, uint16_t v);
-uint16_t seg_for(WubuDosEmu *e, int id);
-void put_char(WubuDosEmu *e, char c);
-void wubu_dos_emu_key(WubuDosEmu *e, uint8_t ascii);
-void do_cmps(WubuDosEmu *e, int w);
-int wubu_dos_emu_step(WubuDosEmu *e);
-uint16_t add16(WubuDosEmu *e, uint16_t a, uint16_t b, int cin);
-void logic8(WubuDosEmu *e, uint8_t v);
-int wubu_dos_emu_load_exe(WubuDosEmu *e, const uint8_t *data, size_t size);
-int step(WubuDosEmu *e);
-void ww(WubuDosEmu *e, int i, uint16_t v);
-void reg_write(WubuDosEmu *e, int modrm, int w, uint16_t v);
+/* ---- forward declarations (no bodies) ---- */
 int decode_main(WubuDosEmu *e, uint8_t op);
-uint16_t pop16(WubuDosEmu *e);
-int wubu_dos_emu_load_com(WubuDosEmu *e, const uint8_t *data, size_t size);
-uint16_t do_shift16(WubuDosEmu *e, int op, uint16_t v, int cnt);
-void do_scas(WubuDosEmu *e, int w);
-void wr8(WubuDosEmu *e, uint16_t s, uint16_t o, uint8_t v);
-int getF(WubuDosEmu *e, uint16_t b);
-int parity8(uint8_t v);
-int cond_met(WubuDosEmu *e, int cc);
-uint16_t rw(WubuDosEmu *e, int i);
-uint16_t dos_handle_alloc(WubuDosEmu *e, int host_fd);
-void wubu_dos_emu_regs(const WubuDosEmu *e, uint16_t *ax, uint16_t *bx, uint16_t *cx, uint16_t *dx,                        uint16_t *si, uint16_t *di, uint16_t *ip, uint16_t *flags, uint16_t *cs);
-void do_lods(WubuDosEmu *e, int w);
-void rm_write(WubuDosEmu *e, int modrm, int w, uint16_t v);
-uint16_t sub16(WubuDosEmu *e, uint16_t a, uint16_t b, int cin);
-void int21(WubuDosEmu *e);
-void do_movs(WubuDosEmu *e, int w);
-uint8_t rb(WubuDosEmu *e, int i);
-uint8_t add8(WubuDosEmu *e, uint8_t a, uint8_t b, int cin);
-void scroll_up(WubuDosEmu *e, int top, int left, int bot, int right, int lines, uint8_t attr);
 uint16_t *regp(WubuDosEmu *e, int i);
-uint16_t rm_read(WubuDosEmu *e, int modrm, int w);
-void wr16(WubuDosEmu *e, uint16_t s, uint16_t o, uint16_t v);
-void wb(WubuDosEmu *e, int i, uint8_t v);
+uint16_t reg_read(WubuDosEmu *e, int modrm, int w);
+uint16_t pop16(WubuDosEmu *e);
+void scroll_up(WubuDosEmu *e, int top, int left, int bot, int right, int lines, uint8_t attr);
+int dos_handle_to_fd(WubuDosEmu *e, uint16_t h);
+uint32_t phys(WubuDosEmu *e, uint16_t seg, uint16_t off);
 uint8_t alu8(WubuDosEmu *e, int arith, uint8_t a, uint8_t b);
-void ea(WubuDosEmu *e, int modrm, uint16_t *seg, uint16_t *off);
-void wubu_dos_emu_destroy(WubuDosEmu *e);
-uint16_t fetch16(WubuDosEmu *e);
-size_t wubu_dos_emu_text(const WubuDosEmu *e, char *out, size_t out_size);
-uint8_t rd8(WubuDosEmu *e, uint16_t s, uint16_t o);
-WubuDosEmu *wubu_dos_emu_create(void);
-uint8_t fetch8(WubuDosEmu *e);
-void setF(WubuDosEmu *e, uint16_t b, int v);
-uint8_t sub8(WubuDosEmu *e, uint8_t a, uint8_t b, int cin);
-int wubu_dos_emu_exit_code(const WubuDosEmu *e);
-uint16_t rd16(WubuDosEmu *e, uint16_t s, uint16_t o);
-uint16_t alu16(WubuDosEmu *e, int arith, uint16_t a, uint16_t b);
-void push16(WubuDosEmu *e, uint16_t v);
+void int16(WubuDosEmu *e);
+uint16_t seg_for(WubuDosEmu *e, int id);
+void ww(WubuDosEmu *e, int i, uint16_t v);
 uint8_t do_shift8(WubuDosEmu *e, int op, uint8_t v, int cnt);
 void do_stos(WubuDosEmu *e, int w);
-size_t wubu_dos_emu_frame_rgba(const WubuDosEmu *e, uint8_t *rgba, int *out_w, int *out_h);
-uint16_t wubu_dos_emu_peek16(const WubuDosEmu *e, uint16_t seg, uint16_t off);
-WubuDosEmuState wubu_dos_emu_run(WubuDosEmu *e, uint64_t max_steps);
-uint8_t kbd_pop(WubuDosEmu *e);
+uint8_t rd8(WubuDosEmu *e, uint16_t s, uint16_t o);
+void logic8(WubuDosEmu *e, uint8_t v);
+uint16_t do_shift16(WubuDosEmu *e, int op, uint16_t v, int cnt);
+int wubu_dos_emu_exit_code(const WubuDosEmu *e);
+uint16_t rw(WubuDosEmu *e, int i);
+void wubu_dos_emu_regs(const WubuDosEmu *e, uint16_t *ax, uint16_t *bx, uint16_t *cx, uint16_t *dx, uint16_t *si, uint16_t *di, uint16_t *ip, uint16_t *flags, uint16_t *cs);
+void wr16(WubuDosEmu *e, uint16_t s, uint16_t o, uint16_t v);
+int wubu_dos_emu_load_com(WubuDosEmu *e, const uint8_t *data, size_t size);
+void rm_write(WubuDosEmu *e, int modrm, int w, uint16_t v);
+void wubu_dos_emu_destroy(WubuDosEmu *e);
+void reg_write(WubuDosEmu *e, int modrm, int w, uint16_t v);
+uint16_t rm_read(WubuDosEmu *e, int modrm, int w);
+void push16(WubuDosEmu *e, uint16_t v);
 void int10(WubuDosEmu *e);
+int wubu_dos_emu_load_exe(WubuDosEmu *e, const uint8_t *data, size_t size);
+void wb(WubuDosEmu *e, int i, uint8_t v);
+int step(WubuDosEmu *e);
+int getF(WubuDosEmu *e, uint16_t b);
+uint16_t fetch16(WubuDosEmu *e);
+size_t wubu_dos_emu_text(const WubuDosEmu *e, char *out, size_t out_size);
+int wubu_dos_emu_step(WubuDosEmu *e);
+void do_movs(WubuDosEmu *e, int w);
+uint16_t sub16(WubuDosEmu *e, uint16_t a, uint16_t b, int cin);
+void int21(WubuDosEmu *e);
+uint8_t kbd_pop(WubuDosEmu *e);
+int parity8(uint8_t v);
+void wr8(WubuDosEmu *e, uint16_t s, uint16_t o, uint8_t v);
+void do_scas(WubuDosEmu *e, int w);
+void wubu_dos_emu_key(WubuDosEmu *e, uint8_t ascii);
+uint8_t rb(WubuDosEmu *e, int i);
+void ea(WubuDosEmu *e, int modrm, uint16_t *seg, uint16_t *off);
+uint16_t alu16(WubuDosEmu *e, int arith, uint16_t a, uint16_t b);
+void setF(WubuDosEmu *e, uint16_t b, int v);
+WubuDosEmuState wubu_dos_emu_run(WubuDosEmu *e, uint64_t max_steps);
+uint16_t add16(WubuDosEmu *e, uint16_t a, uint16_t b, int cin);
+uint16_t rd16(WubuDosEmu *e, uint16_t s, uint16_t o);
+uint8_t add8(WubuDosEmu *e, uint8_t a, uint8_t b, int cin);
+void do_lods(WubuDosEmu *e, int w);
+WubuDosEmu *wubu_dos_emu_create(void);
+uint16_t wubu_dos_emu_peek16(const WubuDosEmu *e, uint16_t seg, uint16_t off);
+uint8_t sub8(WubuDosEmu *e, uint8_t a, uint8_t b, int cin);
+uint16_t dos_handle_alloc(WubuDosEmu *e, int host_fd);
+uint8_t fetch8(WubuDosEmu *e);
+size_t wubu_dos_emu_frame_rgba(const WubuDosEmu *e, uint8_t *rgba, int *out_w, int *out_h);
+int cond_met(WubuDosEmu *e, int cc);
+void do_cmps(WubuDosEmu *e, int w);
+void logic16(WubuDosEmu *e, uint16_t v);
+void put_char(WubuDosEmu *e, char c);
 
 #endif

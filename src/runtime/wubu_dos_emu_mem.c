@@ -1,8 +1,13 @@
 /* wubu_dos_emu_mem.c -- WuBuOS 8086/DOS shim leaf module (self-contained C11). */
 #include "wubu_dos_emu_internal.h"
 
-void wr8(WubuDosEmu *e, uint16_t s, uint16_t o, uint8_t v) {
-    e->mem[phys(e, s, o) & (WUBU_DOS_MEM_SIZE - 1)] = v;
+uint32_t phys(WubuDosEmu *e, uint16_t seg, uint16_t off) {
+    (void)e;
+    return ((uint32_t)seg << 4) + off;
+}
+
+uint8_t rd8(WubuDosEmu *e, uint16_t s, uint16_t o) {
+    return e->mem[phys(e, s, o) & (WUBU_DOS_MEM_SIZE - 1)];
 }
 
 void wr16(WubuDosEmu *e, uint16_t s, uint16_t o, uint16_t v) {
@@ -14,12 +19,12 @@ uint16_t fetch16(WubuDosEmu *e) { uint8_t lo = fetch8(e); uint8_t hi = fetch8(e)
 
 /* ============================ registers ============================ */
 
-uint8_t rd8(WubuDosEmu *e, uint16_t s, uint16_t o) {
-    return e->mem[phys(e, s, o) & (WUBU_DOS_MEM_SIZE - 1)];
+void wr8(WubuDosEmu *e, uint16_t s, uint16_t o, uint8_t v) {
+    e->mem[phys(e, s, o) & (WUBU_DOS_MEM_SIZE - 1)] = v;
 }
-
-uint8_t fetch8(WubuDosEmu *e) { uint8_t v = rd8(e, e->cs, e->ip); e->ip++; return v; }
 
 uint16_t rd16(WubuDosEmu *e, uint16_t s, uint16_t o) {
     return (uint16_t)rd8(e, s, o) | ((uint16_t)rd8(e, s, (uint16_t)(o + 1)) << 8);
 }
+
+uint8_t fetch8(WubuDosEmu *e) { uint8_t v = rd8(e, e->cs, e->ip); e->ip++; return v; }

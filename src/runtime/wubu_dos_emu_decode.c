@@ -1,25 +1,6 @@
 /* wubu_dos_emu_decode.c -- WuBuOS 8086/DOS shim leaf module (self-contained C11). */
 #include "wubu_dos_emu_internal.h"
 
-int step(WubuDosEmu *e) {
-    e->seg_prefix = 0; e->rep_prefix = 0;
-    /* Prefixes. */
-    for (;;) {
-        uint8_t op = fetch8(e);
-        if (op == 0x26) { e->seg_prefix = 1; continue; }
-        if (op == 0x2E) { e->seg_prefix = 2; continue; }
-        if (op == 0x36) { e->seg_prefix = 3; continue; }
-        if (op == 0x3E) { e->seg_prefix = 4; continue; }
-        if (op == 0xF0) continue;       /* LOCK */
-        if (op == 0xF2) { e->rep_prefix = 2; continue; }
-        if (op == 0xF3) { e->rep_prefix = 1; continue; }
-        return decode_main(e, op);
-    }
-}
-
-/* decode_main defined below (forward decl kept in same TU). */
-
-
 int decode_main(WubuDosEmu *e, uint8_t op) {
     int w = (op & 1);
     switch (op) {
@@ -273,7 +254,7 @@ int decode_main(WubuDosEmu *e, uint8_t op) {
                 case 0: rm_write(e, m, 1, add16(e, rm_read(e, m, 1), 1, 0)); break;
                 case 1: rm_write(e, m, 1, sub16(e, rm_read(e, m, 1), 1, 0)); break;
                 case 2: push16(e, e->ip); e->ip = rm_read(e, m, 1); break;       /* CALL near */
-                case 3: { uint16_t s, o; ea(e, m, &s, &o); uint16_t ipv = rd16(e, s, o); uint16_t csv = rd16(e, s, (uint16_t)(o + 2)); fprintf(stderr, "[callfar] o=%04X ipv=%04X csv=%04X\n", o, ipv, csv); push16(e, e->cs); push16(e, e->ip); e->cs = csv; e->ip = ipv; } break; /* CALL far */
+                case 3: { uint16_t s, o; ea(e, m, &s, &o); uint16_t ipv = rd16(e, s, o); uint16_t csv = rd16(e, s, (uint16_t)(o + 2)); push16(e, e->cs); push16(e, e->ip); e->cs = csv; e->ip = ipv; } break; /* CALL far */
                 case 4: e->ip = rm_read(e, m, 1); break;                        /* JMP near */
                 case 5: { uint16_t s, o; ea(e, m, &s, &o); e->cs = rd16(e, s, (uint16_t)(o+2)); e->ip = rd16(e, s, o); } break; /* JMP far */
                 case 6: push16(e, rm_read(e, m, 1)); break;                     /* PUSH r/m */
@@ -288,6 +269,26 @@ int decode_main(WubuDosEmu *e, uint8_t op) {
 }
 
 /* ============================ public API ============================ */
+
+int step(WubuDosEmu *e) {
+    e->seg_prefix = 0; e->rep_prefix = 0;
+    /* Prefixes. */
+    for (;;) {
+        uint8_t op = fetch8(e);
+        if (op == 0x26) { e->seg_prefix = 1; continue; }
+        if (op == 0x2E) { e->seg_prefix = 2; continue; }
+        if (op == 0x36) { e->seg_prefix = 3; continue; }
+        if (op == 0x3E) { e->seg_prefix = 4; continue; }
+        if (op == 0xF0) continue;       /* LOCK */
+        if (op == 0xF2) { e->rep_prefix = 2; continue; }
+        if (op == 0xF3) { e->rep_prefix = 1; continue; }
+        /* Not a prefix: this is the real opcode. Hand it to the decoder. */
+        return decode_main(e, op);
+    }
+}
+
+/* decode_main defined below (forward decl kept in same TU). */
+
 
 int cond_met(WubuDosEmu *e, int cc) {
     switch (cc) {
