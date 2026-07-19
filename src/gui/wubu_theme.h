@@ -72,6 +72,9 @@ typedef struct {
     uint32_t select_bg;
     uint32_t select_text;
 
+    /* Window drop-shadow colour (XP Luna only; 0 = none / Win98 style). */
+    uint32_t win_shadow;
+
     /* Scrollbar */
     uint32_t scroll_track;
     uint32_t scroll_thumb;

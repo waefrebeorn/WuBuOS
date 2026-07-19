@@ -306,6 +306,21 @@ void vbe_vgradient(int x, int y, int w, int h, uint32_t top, uint32_t bottom) {
     }
 }
 
+void vbe_blend_rect(int x, int y, int w, int h, uint32_t color, int alpha) {
+    if (alpha <= 0) return;
+    if (alpha > 255) alpha = 255;
+    for (int dy = 0; dy < h; dy++) {
+        int py = y + dy;
+        if (py < 0 || py >= g_vbe.height) continue;
+        for (int dx = 0; dx < w; dx++) {
+            int px = x + dx;
+            if (px < 0 || px >= g_vbe.width) continue;
+            uint32_t dst = g_vbe.back[py * g_vbe.width + px];
+            g_vbe.back[py * g_vbe.width + px] = lerp_color(dst, color, alpha, 255);
+        }
+    }
+}
+
 void vbe_hgradient(int x, int y, int w, int h, uint32_t left, uint32_t right) {
     int den = w > 1 ? w - 1 : 1;
     for (int col = 0; col < w; col++) {

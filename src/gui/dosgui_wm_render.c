@@ -35,6 +35,16 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
     const int tbh = title_bar_height();
     const int bw  = border_width();
 
+    /* XP Luna soft drop-shadow: a blended offset rect drawn BEFORE the window
+     * body so the window paints over it. Win98 (win_shadow == 0) gets none. */
+    if (theme()->Luna_start_button && tc()->win_shadow != 0) {
+        int off = 4;
+        vbe_blend_rect(w->x + off + 1, w->y + off + 1, w->w, w->h,
+                       tc()->win_shadow, 40);   /* soft outer */
+        vbe_blend_rect(w->x + off, w->y + off, w->w, w->h,
+                       tc()->win_shadow, 90);   /* inner */
+    }
+
     vbe_fill_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->win_face);
     if (rad > 0) vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
     else            vbe_rect(w->x, w->y, w->w, w->h, tc()->border_dark);

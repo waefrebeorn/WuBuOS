@@ -226,3 +226,22 @@
   theme.c consumers recompiled. make runtime + make hosted + test_high_gui (9/0)
   + test_dosgui_wm (29/29) all green.
 
+## 2026-07-19 (session, part 6) — XP Luna window drop-shadows
+- **Gap**: windows had no drop-shadow; XP's signature soft shadow under active
+  windows was missing (Chicago/Win98 correctly has none, but Luna should).
+- **Real soft shadow** (not a hard box): added public vbe_blend_rect(x,y,w,h,
+  color,alpha) to vbe.c/vbe.h, reusing the existing static lerp_color() to
+  alpha-blend a dark colour over whatever is beneath (wallpaper/icons). Drawn
+  in dosgui_wm_render draw_window BEFORE the window body (so the body paints
+  over it) as a 2-level offset rect (soft outer alpha 40 + inner alpha 90),
+  offset (4,4) -- the classic Luna cast.
+- **Theme-gated**: only when theme()->Luna_start_button && win_shadow != 0, so
+  Win98 (win_shadow = 0) gets no shadow (Chicago-correct). New theme field
+  win_shadow: Luna Blue = 0x14141E (soft navy); Win98 = 0; Media/Zune/WuBu dark
+  themes = 0x000000 (black reads as soft on dark bg).
+- **Regression test**: test_render_window_drop_shadow -- XP theme, create a
+  window, render, assert the pixel in the shadow band (right of window) is
+  darker (lower RGB luminance) than a reference desktop pixel.
+  test_dosgui_wm 30/30. make runtime + make hosted + test_high_gui (9/0) green.
+- wubu_theme.h + wubu_theme.c ABI: added win_shadow field (5 themes).
+
