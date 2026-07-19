@@ -324,11 +324,33 @@ int main(void) {
         CHECK(r == NT_STATUS_SUCCESS, "NtAlertResumeThread (wake+resume) SUCCESS");
     }
 
-    /* 10. A still-stubbed syscall returns NOT_IMPLEMENTED through dispatch */
+    /* 10. NtAccessCheck (2) is NO LONGER a stub — Batch 12 promoted it to a
+     * real privilege-enforcement handler. A default token with no required
+     * privileges requested (empty set) must now return SUCCESS, not
+     * NOT_IMPLEMENTED. This proves the stub->real inversion landed. */
     {
         memset(args, 0, sizeof(args));
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 2, args, 0);  /* NtAccessCheck */
-        CHECK(r == NT_STATUS_NOT_IMPLEMENTED, "stubbed NtAccessCheck -> NOT_IMPLEMENTED");
+        /* Empty PRIVILEGE_SET (count=0): control=0 (any) => ok when count==0. */
+        uint32_t empty_ps[8];
+        memset(empty_ps, 0, sizeof(empty_ps));
+        uint32_t dftok = 0;
+        args[0] = (uint64_t)(uintptr_t)&dftok;
+        vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* open a default token */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)dftok;
+        args[1] = (uint64_t)(uintptr_t)empty_ps;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);  /* NtAccessCheck */
+        CHECK(r == NT_STATUS_SUCCESS,
+              "NtAccessCheck now real -> SUCCESS (not NOT_IMPLEMENTED)");
+    }
+
+    /* 10b. A TRULY-unimplemented slot (syscall 0, never registered) still
+     * falls through to the stub and returns NOT_IMPLEMENTED. */
+    {
+        memset(args, 0, sizeof(args));
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 0, args, 0);
+        CHECK(r == NT_STATUS_NOT_IMPLEMENTED,
+              "unregistered syscall 0 -> NOT_IMPLEMENTED (stub intact)");
     }
 
     /* 17. NtDelayExecution (37) -- real nanosleep */
@@ -1389,6 +1411,128 @@ int main(void) {
         vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)cli;
         vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+    }
+
+    /* 30. Batch 12 — Token / security subsystem (REAL privilege enforcement).
+     * Asserts fixed behavior: a default token holds ordinary privileges but
+     * DENIES a privileged op; granting/removing a privilege really changes the
+     * access decision; PrivilegeCheck + CompareTokens + Duplicate are coherent;
+     * an anonymized token loses every privilege. */
+    {
+        /* PRIVILEGE_SET for NtAccessCheck: {count, control, la[]{low,high,attr}}. */
+        uint32_t ps[16];
+        /* TOKEN_PRIVILEGES for NtAdjust/PrivilegeCheck: {count, la[]{..}}. */
+        uint32_t tp[16];
+        const uint32_t SE_SHUTDOWN = 0x14;  /* held by default token */
+        const uint32_t SE_DEBUG    = 0x15;  /* NOT held by default */
+        const uint32_t ATTR_EN     = 0x02;  /* NT_PRIV_ATTR_ENABLED */
+
+        uint32_t tok = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&tok;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* NtOpenProcessToken */
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenProcessToken SUCCESS");
+        CHECK(tok != 0, "NtOpenProcessToken returns a token handle");
+
+        /* Default token HOLDS SeShutdownPrivilege -> access check passes. */
+        ps[0] = 1; ps[1] = 0;                 /* count=1, control=0 (any) */
+        ps[2] = SE_SHUTDOWN; ps[3] = 0; ps[4] = ATTR_EN;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
+        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2); /* NtAccessCheck */
+        CHECK(r == NT_STATUS_SUCCESS, "NtAccessCheck passes for a held privilege");
+
+        /* Remove SeShutdownPrivilege for real, then DENY. */
+        tp[0] = 1; tp[1] = SE_SHUTDOWN; tp[2] = 0; tp[3] = ATTR_EN | 0x04; /* +REMOVED */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[2] = (uint64_t)(uintptr_t)tp;
+        r = vsl_nt_syscall_dispatch(&ctx, 13, args, 3); /* NtAdjustPrivilegesToken */
+        CHECK(r == NT_STATUS_SUCCESS, "NtAdjustPrivilegesToken removes SeShutdownPrivilege");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
+        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        CHECK(r == NT_STATUS_ACCESS_DENIED, "NtAccessCheck DENIES after privilege removed");
+
+        /* Default token LACKS SeDebugPrivilege -> deny. */
+        ps[2] = SE_DEBUG;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
+        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        CHECK(r == NT_STATUS_ACCESS_DENIED, "NtAccessCheck DENIES a missing privilege");
+
+        /* Grant SeDebugPrivilege for real, then pass. */
+        tp[0] = 1; tp[1] = SE_DEBUG; tp[2] = 0; tp[3] = ATTR_EN;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[2] = (uint64_t)(uintptr_t)tp;
+        r = vsl_nt_syscall_dispatch(&ctx, 13, args, 3);
+        CHECK(r == NT_STATUS_SUCCESS, "NtAdjustPrivilegesToken adds SeDebugPrivilege");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
+        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtAccessCheck passes AFTER privilege granted");
+
+        /* NtPrivilegeCheck reports the held set via a BOOLEAN out-param. */
+        uint32_t res = 0;
+        memset(tp, 0, sizeof(tp)); tp[0] = 1; tp[1] = SE_DEBUG; tp[2] = 0; tp[3] = ATTR_EN;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)tp; args[2] = (uint64_t)(uintptr_t)&res;
+        r = vsl_nt_syscall_dispatch(&ctx, 141, args, 3); /* NtPrivilegeCheck */
+        CHECK(r == NT_STATUS_SUCCESS, "NtPrivilegeCheck SUCCESS");
+        CHECK(res == 1, "NtPrivilegeCheck reports privilege present");
+
+        /* NtCompareTokens: identical tokens compare equal; a modified token
+         * does not. */
+        uint32_t tok2 = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&tok2;
+        r = vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* fresh default token */
+        CHECK(r == NT_STATUS_SUCCESS, "second NtOpenProcessToken SUCCESS");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok2; args[1] = (uint64_t)tok2;
+        r = vsl_nt_syscall_dispatch(&ctx, 31, args, 2); /* NtCompareTokens */
+        CHECK(r == 1, "NtCompareTokens equal for identical token");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = (uint64_t)tok2;  /* tok != tok2 (modified) */
+        r = vsl_nt_syscall_dispatch(&ctx, 31, args, 2);
+        CHECK(r == 0, "NtCompareTokens unequal for modified vs default token");
+
+        /* NtDuplicateToken deep-copies the privilege set. */
+        uint32_t dtok = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&dtok; args[1] = (uint64_t)tok;
+        r = vsl_nt_syscall_dispatch(&ctx, 73, args, 2); /* NtDuplicateToken */
+        CHECK(r == NT_STATUS_SUCCESS, "NtDuplicateToken SUCCESS");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)dtok; args[1] = (uint64_t)tok;
+        r = vsl_nt_syscall_dispatch(&ctx, 31, args, 2);
+        CHECK(r == 1, "NtDuplicateToken copies privilege set (compare equal)");
+
+        /* NtSetInformationToken (session id) accepted. */
+        uint32_t sid = 7;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok; args[1] = 9; /* TokenSessionId */ args[2] = (uint64_t)(uintptr_t)&sid;
+        r = vsl_nt_syscall_dispatch(&ctx, 240, args, 3); /* NtSetInformationToken */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetInformationToken TokenSessionId SUCCESS");
+
+        /* NtOpenThreadToken returns a handle. */
+        uint32_t thtok = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&thtok;
+        r = vsl_nt_syscall_dispatch(&ctx, 136, args, 1); /* NtOpenThreadToken */
+        CHECK(r == NT_STATUS_SUCCESS, "NtOpenThreadToken SUCCESS");
+        CHECK(thtok != 0, "NtOpenThreadToken returns a handle");
+
+        /* NtImpersonateAnonymousToken strips ALL privileges -> access denied
+         * even for a privilege the base default token held. */
+        uint32_t tok3 = 0;
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&tok3;
+        vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* fresh default token */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)tok3;
+        r = vsl_nt_syscall_dispatch(&ctx, 94, args, 1); /* NtImpersonateAnonymousToken */
+        CHECK(r == NT_STATUS_SUCCESS, "NtImpersonateAnonymousToken SUCCESS");
+        ps[2] = SE_SHUTDOWN;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)tok3; args[1] = (uint64_t)(uintptr_t)ps;
+        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        CHECK(r == NT_STATUS_ACCESS_DENIED, "Anonymized token loses all privileges");
     }
 
     vsl_nt_bridge_shutdown(&ctx);
