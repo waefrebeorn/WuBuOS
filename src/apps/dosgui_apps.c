@@ -10,9 +10,12 @@
  */
 
 #include "dosgui_apps.h"
+#include "dosgui_dos_window.h"
 #include "../gui/dosgui_wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "../runtime/wubu_dos_proc.h"
+#include "../runtime/wubu_container.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -120,6 +123,58 @@ DosGuiWindow* dosgui_launch_canvas(void) {
     return win;
 }
 
+/*
+ * DOS Box: launch a real 16-bit .COM/.EXE INSIDE WuBuOS (in-process 8086
+ * interpreter) and host its captured framebuffer in a desktop window. This is
+ * the genuine consumer of the dosgui_dos_window + wubu_dos_proc engines — not
+ * a placeholder. `path` may be NULL, in which case a tiny built-in demo .COM
+ * is assembled and run so the box always has something real to show.
+ */
+static const uint8_t g_demo_com[] = {
+    0xB4,0x09,             /* MOV AH,09h */
+    0xBA,0x10,0x01,        /* MOV DX,msg  (offset 0x0110) */
+    0xCD,0x21,             /* INT 21h     (DOS print $-string) */
+    0xB4,0x4C,0x00,0x00,   /* MOV AX,4C00h ; INT 21h/4Ch (exit) */
+    /* msg at 0x0110 */    'W','u','B','u','O','S',' ','D','O','S',' ','B','o','x','!',0x0D,0x0A,'$'
+};
+
+DosGuiWindow* dosgui_launch_dos_box(const char *path) {
+    WubuDosProc *proc = NULL;
+    if (path) {
+        /* Extension-based format detection. */
+        int fmt = WUBU_PAYLOAD_DOS_COM;
+        const char *ext = strrchr(path, '.');
+        if (ext && (strcmp(ext, ".exe") == 0 || strcmp(ext, ".EXE") == 0))
+            fmt = WUBU_PAYLOAD_DOS_EXE;
+        proc = wubu_dos_proc_launch(path, fmt);
+    } else {
+        /* No binary supplied: run the built-in demo COM from memory. */
+        char tmp[256];
+        snprintf(tmp, sizeof(tmp), "/tmp/wubu_dosbox_demo_%d.com", (int)getpid());
+        FILE *f = fopen(tmp, "wb");
+        if (f) {
+            fwrite(g_demo_com, 1, sizeof(g_demo_com), f);
+            fclose(f);
+            proc = wubu_dos_proc_launch(tmp, WUBU_PAYLOAD_DOS_COM);
+            remove(tmp);
+        }
+    }
+    if (!proc) {
+        /* Engine failed to start; surface a real window reporting the fault
+         * rather than silently returning NULL. */
+        DosGuiWindow *win = dosgui_wm_create(140, 120, 480, 240, "DOS Box (failed)");
+        if (win) win->on_draw = app_placeholder_draw;
+        return win;
+    }
+    /* Host the live DOS process in a desktop window (mounts into Styx). */
+    return dosgui_dos_window_spawn(proc, 1);
+}
+
+/* Registry entry point: launches the built-in demo COM (no path needed). */
+static DosGuiWindow* dosgui_launch_dos_box_default(void) {
+    return dosgui_launch_dos_box(NULL);
+}
+
 DosGuiWindow* dosgui_launch_holyc_term(void) {
     dosgui_wm_spawn_holyc_term(80, 60, 640, 480);
     return NULL;
@@ -139,6 +194,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Editor",       "Editor",        DESK_ICON_COUNT + 0,   0x008080FF, dosgui_launch_editor },
     { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,   0x000080FF, dosgui_launch_canvas },
     { "HolyC Term",   "HolyC Terminal",DESK_ICON_COUNT + 3,   0x00800080, dosgui_launch_holyc_term },
+    { "DOS Box",      "DOS Box",        DESK_ICON_COUNT + 4,   0x0000C000, dosgui_launch_dos_box_default },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 

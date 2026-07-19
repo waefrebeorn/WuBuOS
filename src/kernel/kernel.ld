@@ -3,10 +3,22 @@
  *
  * Links the kernel to run at a higher-half virtual address
  * (0xffffffff80000000 + 1MB) but to be LOADED at a low physical address
- * (1MB). The VMA/LMA split (via PHDRS + AT()) is what lets the 32-bit
- * boot stub (crt0.S) reference page-table and kernel bases with plain
+ * (1MB). The VMA/LMA split (via a single PT_LOAD + AT()) is what lets the
+ * 32-bit boot stub (crt0.S) reference page-table and kernel bases with plain
  * 32-bit immediates: it uses the *_phys symbols (low physical addresses),
  * while the running kernel uses the higher-half VMA symbols.
+ *
+ * CRITICAL LAYOUT INVARIANT (do not regress):
+ *   The ENTIRE kernel (text + data + bss) lives in ONE PT_LOAD segment with a
+ *   single AT(0x100000).  GNU ld then places every section at
+ *       LMA = VMA - 0xffffffff80000000
+ *   exactly, so the file offset of a section equals (LMA - 0x100000) and the
+ *   section-header walk in crt0.S (physical(v) = elf_base + sh_offset +
+ *   (v - sh_addr)) resolves every VMA to its true load address.  Using
+ *   separate per-section AT() values (the previous bug) broke this: .data's
+ *   LMA (0x112720) diverged from its file offset (0x14000), so crt0 mapped
+ *   .data's VMA onto the wrong physical page and the first read of a .data
+ *   global triple-faulted.  Keep it ONE segment, ONE AT().
  *
  * Compatible with the Limine/Stivale2 boot protocol.
  */
@@ -17,10 +29,8 @@ ENTRY(_start)
 KERNEL_PHYS = 0x100000;
 
 PHDRS {
-    /* Load segment: VMA is higher-half, LMA is physical 1MB. */
-    text PT_LOAD FLAGS(5) ;   /* R+X */
-    data PT_LOAD FLAGS(6) ;   /* R+W */
-    bss  PT_LOAD FLAGS(6) ;   /* R+W */
+    /* Single load segment: VMA higher-half, LMA = VMA - 0x80000000. */
+    kernel PT_LOAD FLAGS(7) ;   /* R+W+X (permissive; fine for early boot) */
 }
 
 SECTIONS
@@ -29,35 +39,29 @@ SECTIONS
     . = 0xffffffff80000000 + 0x100000;
 
     /* Kernel text (code + rodata).
-     * NOTE: AT(0) + NO file-alignment places the .text segment's FILE offset
-     * at 0, so the ELF image is contiguous from the very start of the file.
-     * This is required so `qemu -kernel` / multiboot loaders map the whole
-     * image 1:1 to a page-aligned physical base; otherwise a higher-half VMA
-     * page can straddle two physical pages and the 4KB page-table mapping
-     * cannot represent it.  The 32-bit boot stub computes the real physical
-     * base at runtime (scans for the "WuBuOS" signature), so the VMA/LMA split
-     * here is only used by the linker for the *_phys symbols. */
-    .text : AT(0) {
+     * AT(0x100000) means file offset 0 of the segment is loaded at physical
+     * 1MB; every later section's LMA = VMA - 0xffffffff80000000. */
+    .text : AT(KERNEL_PHYS) {
         *(.multiboot_header)
         *(.limine_requests)
         *(.text*)
         *(.rodata*)
         *(.gcc_except_table)
         KEEP(*(.eh_frame*))
-    } :text
+    } :kernel
 
-    /* Kernel data (initialized) */
-    .data : AT(KERNEL_PHYS + SIZEOF(.text)) ALIGN(0x1000) {
+    /* Kernel data (initialized) — same segment, LMA follows .text. */
+    .data : {
         *(.data*)
-    } :data
+    } :kernel
 
-    /* BSS (zero-initialized) */
-    .bss : AT(KERNEL_PHYS + SIZEOF(.text) + SIZEOF(.data)) ALIGN(0x1000) {
+    /* BSS (zero-initialized) — same segment. */
+    .bss : {
         _bss_start = .;
         *(.bss*)
         *(COMMON)
         _bss_end = .;
-    } :bss
+    } :kernel
 
     /* End of kernel (higher-half VMA). */
     _kernel_end = .;
@@ -96,6 +100,7 @@ SECTIONS
     pd_high_base     = 0x90028;   /* PD  for higher-half kernel */
     limine_boot_info = 0x90030;
     long_mode_jmp    = 0x90038;   /* 6-byte far-jump target for ljmp */
+    boot_magic       = 0x90058;   /* scratch: boot protocol magic captured at _start */
 
     /* Discard sections */
     /DISCARD/ : {

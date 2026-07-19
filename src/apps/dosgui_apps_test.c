@@ -48,7 +48,6 @@ void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 }
 
 /* Stubs for container functions */
-void* wubu_ct_bwrap_freedoom(const char* name) { (void)name; return NULL; }
 int wubu_ct_start_bwrap(void* ct) { (void)ct; return 0; }
 void wubu_ct_destroy(void* ct) { (void)ct; }
 

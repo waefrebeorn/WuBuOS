@@ -38,9 +38,8 @@ void app_codec_init(void);
 
 /*
  * NOTE: The Wolfenstein-3D-style raycaster (src/apps/doom.c) and the MS-Paint
- * toy (src/apps/paint.c) were removed. Doom lives only as wubu_freedoom
- * (prboom-plus + freedoom WADs in an Arch container); the image editor is the
- * layered wubu_canvas engine (app_draw_canvas). No paint/doom draw hooks remain.
+ * toy (src/apps/paint.c) were removed. The image editor is the layered
+ * wubu_canvas engine (app_draw_canvas). No paint/doom draw hooks remain.
  */
 
 #endif
