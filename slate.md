@@ -50,31 +50,27 @@ Desktop's service/launcher/REPL backend. ~6 concrete integration REAL_GAPs.
   hang (`step()` in `wubu_dos_emu_decode.c`) + wired two dead API stubs
   (`wubu_dos_emu_step`, `wubu_dos_emu_peek16`). `make test_dos_emu` → 22/22,
   `make runtime` clean. Commit `714f21d`.
-- **Deferred (needs a wiring decision, not committed)**: `wubucontainer`
-  submodule is `-dirty` (local deletion of an unreferenced shell-dropper
-  `stub.c` — see STATE "Not committed"). Left untouched pending an explicit call.
-- **DONE (2nd commit `4b08acb`, pushed)**: wired `src/runtime/wubu_manifest/` +
+- **DONE (commit `4b08acb`, pushed)**: wired `src/runtime/wubu_manifest/` +
   `scripts/wubu_manifest_gen.py` into the build via `make test_manifest` (now in
-  `test_medium_other`). Real code that was form-without-function; **15/15** tests
-  pass.
+  `test_medium_other`). Real code that was form-without-function; **15/15** tests pass.
+- **Repo relocated** to canonical `/home/wubu/wubuos` (was a deep Hermes-profile path);
+  VSL GPU/Vulkan source folded into `src/runtime/vsl/gpu/`. Commit `addfdf0`.
+- **Deferred (your call)**: `wubucontainer` submodule — its local deletion of an
+  unreferenced shell-dropper `stub.c` was committed upstream (`8f480e0`) and the
+  parent pin updated. No open submodule work remains.
 - **Still open from v22 board**: stub-phrase no-ops (`tasking.c`×2, `wubu_anticheat.c`×2,
   `bear_cudnn.c`×3, `wubu_screenshot.c`, `wubu_pkgmgr.c`, `oci_http_client.c`,
   `holyc_ptx.c`, `wubu_compositor_standalone.c`×2, `wubu_compositor.c`,
   `wubu_bottles.c`); bare-metal no-ops (`tasking.c`×3). E1 ReactOS NT: 88/297
   transliterated, 209 remain.
-2. ~~**Close stub no-ops**: `wubu_gamelib_clear_start_menu`, `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `dosgui_term` container session~~ **DONE** (4 closed, 3 regression tests).
-3. ~~**Wire Arch daemon as Desktop autostart/service manager** (E3 integration)~~ **DONE** (`dosgui_service_mgr.c`; `dosgui_desktop_init` boots autostart services via `wubu_archd_svc_start`; 19-check `test_service_mgr`).
-4. ~~**Embed holyd REPL into Desktop terminal** (E4)~~ **DONE** — HolyC terminal tab spawns `wubu_holyd --repl` as a real PTY-backed REPL (`term_pty_spawn` + `--repl` TTY mode in `wubu_holyd_lifecycle.c`); key/render routing wired; 12-check `test_dosgui_term` (incl. `test_holyc_embed`).
-5. ~~**ReactOS NT: transliterate first 10 syscalls** (E1)~~ **DONE (batch 1 of 297)** — 10 real VSL handlers in `vsl_syscall_nt.c`; wired into `vsl_syscall_table[]` + `vsl_nt_syscall_dispatch`; regression `test_vsl_nt` (25 checks). 277 remain.
-6. ~~**ReactOS NT: transliterate batch 2 (10 more)** (E1)~~ **DONE (2026-07-09)** — NtAlertResumeThread/NtAreMappedFilesTheSame/NtCreateJobObject/NtOpenJobObject/NtTerminateJobObject/NtIsProcessInJob/NtDeleteAtom/NtQueryInformationAtom/NtFlushWriteBuffer/NtSetUuidSeed. Job objects use isolated sentinel-child process group. `test_vsl_nt` now 49 checks. 277 remain.
-7. ~~**Desktop Stream A (2026-07-12):** study Win98/XP shell + Wayland hosted-client display + ReactOS explorer/desktop.cpp; close live-namespace + missing ctx-menu gaps~~ **DONE** — `dosgui_wm_refresh_desktop()` enumerates folders+files+.desktop; `dosgui_wm_new_folder`/`new_text_doc` create real ~/Desktop objects; `dosgui_wm_sort_icons(Name/Size/Type/Date)` via stat(target); 5 previously-NULL ctx-menu actions wired (New Folder / New Text Doc / Sort Size/Type/Date). `test_dosgui_wm` 23/23. Vision doc: DESKTOP_VISION_PLAN.md.
- — NtAlertResumeThread/NtAreMappedFilesTheSame/NtCreateJobObject/NtOpenJobObject/NtTerminateJobObject/NtIsProcessInJob/NtDeleteAtom/NtQueryInformationAtom/NtFlushWriteBuffer/NtSetUuidSeed. Job objects use isolated sentinel-child process group. `test_vsl_nt` now 49 checks. 277 remain.
 
 ## Notes
-- **461 .c / 210 .h** files, ~104K LOC (verified 2026-07-19).
-- **90 test targets / 747+ assertions GREEN.** `make runtime`/`make hosted` exit 0.
+- **468 .c / 214 .h** files, ~105K LOC (verified 2026-07-19).
+- **91 test targets / 747+ assertions GREEN.** `make runtime`/`make hosted` exit 0.
 - **16-bit DOS emulator** (`src/runtime/wubu_dos_emu*`): real 8086 interpreter + INT
   21h/10h/16h DOS layer; 22/22 regression tests. 2026-07-19: fixed `step()` hang + wired
   `wubu_dos_emu_step` / `wubu_dos_emu_peek16` stubs (commit `714f21d`).
-- Slate v21/v25 "~349 sprint" was **NOT reproducible** — corrected to ~40 + ~370 (v22).
+- **Docs overhauled 2026-07-19**: BATTLESHIP v22's "~40 + ~370 gaps / 64 targets /
+  ~15K LOC" are stale; the monolith-dissolution campaign grew the tree to 468 `.c` /
+  ~105K LOC / 91 targets. See `docs/MONOLITH_DISSOLUTION.md`.
 - WuBuOS: ZealOS kernel + Win98 shell + Styx/9P namespace + Arch containers.

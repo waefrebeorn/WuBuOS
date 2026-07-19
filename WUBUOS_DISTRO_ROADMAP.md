@@ -1,4 +1,11 @@
-# WuBuOS Distro Roadmap — ~400 REAL_GAP Aligned (Triple DA v22, HONEST RE-AUDIT)
+# WuBuOS Distro Roadmap — REAL_GAP Aligned (Triple DA v22 lineage)
+
+> **⚠️ STALE-METRICS NOTICE (2026-07-19):** This document was written 2026-07-08 and
+> describes "~40 code gaps + ~370 parity marathons, 64 targets, ~15K LOC". Those
+> figures are **out of date**. The monolith-dissolution campaign grew the tree to
+> **468 `.c` / 214 `.h` / ~105K LOC / 91 test targets** (verified from `git ls-files`
+> + `Makefile`). The *gap methodology* here is still valid; the *numbers* are not.
+> See `docs/MONOLITH_DISSOLUTION.md` for the current module map.
 
 ## Vision
 **Arch NT + Proton + HolyC DOS on modified Linux 6.x kernel — single hosted binary runs everywhere.**

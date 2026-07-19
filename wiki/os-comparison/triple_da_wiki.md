@@ -348,7 +348,7 @@
 | Priority | Gap | Required For | WuBuOS File | Sessions |
 |----------|-----|--------------|-------------|----------|
 | 1.1 | gamescope compositor (VRR, HDR, FSR, nested Wayland) | SteamOS gaming | `hosted/wubu_gamescope.c` | 5 |
-| 1.2 | DXVK (D3D9/10/11 → Vulkan) | Proton/Windows games | `runtime/wubu_dxvk.c` | 6 |
+| 1.2 | DXVK (D3D9/10/11 → Vulkan) | Proton/Windows games | `runtime/wubu_proton_dxvk.c` + `runtime/wubu_dxvk_conf.c` (was `runtime/wubu_dxvk.c`) | 6 |
 | 1.3 | VKD3D-Proton (D3D12 → Vulkan) | DX12 games | `runtime/wubu_vkd3d.c` | 8 |
 | 1.4 | Pressure Vessel (full namespaces, seccomp, Steam Runtime) | Game containers | `wubu_ct_isolate.c` | 4 |
 | 1.5 | Steam Input (controller configs, gyro, haptics) | Steam Deck controls | `input/wubu_steaminput.c` | 5 |

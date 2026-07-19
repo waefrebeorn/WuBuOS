@@ -42,7 +42,7 @@ WuBuOS is a **GUI shell + container runtime** wrapping the **ZealOS kernel**. It
 | **Wayland Native** | No X11 code; DRM/KMS + Wayland client |
 | **C11 Portability** | Maximum portability, no C++ dependencies |
 | **Theme Engine** | 4 switchable themes (Ctrl+T): Win98, XP Luna Blue, XP Media Orange, WuBu Green |
-| **Honesty Over Inflation** | ~15K real LOC, not 41K; no fake features |
+| **Honesty Over Inflation** | Real, verified LOC (~105K tracked `src/` as of 2026-07-19), not inflated; no fake features |
 | **Release Early, Release Honest** | Every claimed feature works at runtime |
 
 ### Non-Goals
@@ -339,7 +339,7 @@ Each `.wubu` container gets private view:
 ### 13.1 Make Targets
 - `make all` — builds hosted binary + all test targets
 - `make gui` — builds GUI targets
-- `make test` — runs 747+ assertions across 30+ targets
+- `make test` — runs the full gate across **91 test targets** (747+ assertions)
 - `make hosted` — single static binary
 
 ### 13.2 Compiler Flags
@@ -359,7 +359,7 @@ Each `.wubu` container gets private view:
 ## 14. Testing Strategy
 
 ### 14.1 Test Categories
-- **Unit**: 747+ assertions, 30+ targets
+- **Unit**: 747+ assertions across **91 test targets**
 - **Integration**: Container lifecycle, 9P ops, VSL syscalls
 - **Headless**: `./src/hosted/wubu -h` runs all GUI tests without compositor
 

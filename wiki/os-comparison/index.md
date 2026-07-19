@@ -63,7 +63,7 @@ wiki/os-comparison/
 | **REAL_GAPs** | 1562 |
 | **Tests Passing** | 747+ across 30+ suites |
 | **C Files** | 73 |
-| **Lines of Code** | ~15K real LOC |
+| **Lines of Code** | ~105K tracked `src/` (468 `.c` / 214 `.h`, verified 2026-07-19) |
 | **Gaps Closed** | 128+ from previous count |
 
 ### Completed

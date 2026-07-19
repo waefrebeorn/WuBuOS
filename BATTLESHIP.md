@@ -1,10 +1,17 @@
-# WuBuOS BATTLESHIP — REAL_GAP Board v22 (2026-07-08, Triple DA)
+# WuBuOS BATTLESHIP — REAL_GAP Board (v22 lineage, 2026-07-08)
+
+> **⚠️ STALE-METRICS NOTICE (2026-07-19):** This board was authored 2026-07-08 and
+> cites "~40 code gaps + ~370 parity marathons, 64 targets, ~15K LOC". Those numbers
+> are **out of date** after the monolith-dissolution campaign: the tree is now
+> **468 `.c` / 214 `.h` / ~105K LOC / 91 test targets** (verified). The *board
+> structure* (code-level gaps vs parity marathons) and the *honesty discipline* remain
+> correct; the specific counts need re-running against current `src/`. See
+> `docs/MONOLITH_DISSOLUTION.md`.
 
 ```
 ╔════════════════════════════════════════════════════════════════════════╗
-║  W U B U O S   B A T T L E S H I P   v23                                ║
-║  ~400 REAL_GAPs = ~25 code-level (verified, post-cycle) + ~370 parity marathons ║
-║  Triple DA · form≠function filtered · reproducible scanner            ║
+║  W U B U O S   B A T T L E S H I P   (v22 lineage, numbers stale)      ║
+║  see docs/MONOLITH_DISSOLUTION.md for verified 2026-07-19 metrics      ║
 ╚════════════════════════════════════════════════════════════════════════╝
 ```
 

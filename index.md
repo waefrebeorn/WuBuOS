@@ -1,10 +1,18 @@
 # WuBuOS Mind Palace Index
 
+> **Verified 2026-07-19:** 468 `.c` / 214 `.h` / ~105K LOC / **91 test targets**.
+> The older v22 docs (BATTLESHIP.md, this index's historical blocks) say
+> "~40 + ~370 gaps, 64 targets, ~15K LOC" — those are stale; see
+> `docs/MONOLITH_DISSOLUTION.md`. This index points to current material; the
+> study/reference trees under `os-studies/`, `reference/`, and `wiki/` are
+> intentionally historical analyses and may carry older figures.
+
 ## Core Architecture
-- [BATTLESHIP.md](BATTLESHIP.md) — ~400 REAL_GAPs v22: ~40 code-level (Part 1) + ~370 parity marathons (Part 2) + plumber deep-dive (Part 3) + DA audit (Part 4)
-- [README.md](README.md) — Project overview, architecture, quick start (honest v22)
-- [STATE.md](STATE.md) — Current state, progress, vaulted accomplishments (v22)
+- [BATTLESHIP.md](BATTLESHIP.md) — REAL_GAP board (v22 lineage; numbers stale, see note)
+- [README.md](README.md) — Project overview, architecture, quick start (verified 2026-07-19)
+- [STATE.md](STATE.md) — Current state, progress (verified 2026-07-19)
 - [OS_BIBLE.md](OS_BIBLE.md) — Complete OS specification
+- [docs/MONOLITH_DISSOLUTION.md](docs/MONOLITH_DISSOLUTION.md) — old monolith → new module map
 
 ## Gallery
 - [screenshots/](screenshots/) — Live screenshots of the WuBuOS desktop, apps, and themes
@@ -39,7 +47,7 @@
 - [src/shell/](src/shell/) — Unified GUI shell
 - [src/worldsim/](src/worldsim/) — GAAD, terrain, entity, physics
 
-## Test Targets (make test_XXX) — 64 targets, 747+ assertions GREEN
+## Test Targets (make test_XXX) — 91 targets
 | Target | Description |
 |--------|-------------|
 | test_jit | JIT compiler (82) |
@@ -63,14 +71,15 @@
 | test_txfs | TXFS (25) |
 | test_ahci | AHCI disk (16) |
 | test_audio | Audio engine (14) |
-| test_vsl | VSL syscalls (52) |
+| test_vsl | VSL syscalls (87) |
 | test_bridge | Syscall bridge (25) |
 | test_bridge_flip | DOS flip (13) |
 | test_holyc_ptx | PTX backend (31) |
 | test_wallpaper | Desktop wallpaper (18) |
 | test_dos_emu | 16-bit DOS emulator (22) |
 | test_dos_emu_smoke | Minimal DOS .COM run |
-| … | (full gate = 90 targets) |
+| test_manifest | Unified syscall manifest (15) |
+| … | (full gate = 91 targets) |
 
 ## Key Skills (Hermes)
 - `systems-programming` — OS dev, kernel, JIT, GUI, daemons, C pitfalls
