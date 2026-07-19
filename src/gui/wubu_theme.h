@@ -64,6 +64,7 @@ typedef struct {
     /* Start menu */
     uint32_t startmenu_bg;
     uint32_t startmenu_sidebar;
+    uint32_t startmenu_sidebar_grad_end;  /* gradient bottom (XP blue->green); == sidebar if none */
     uint32_t startmenu_hover;
     uint32_t startmenu_text;
 

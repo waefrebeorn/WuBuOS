@@ -3,6 +3,7 @@
  */
 
 #include "dosgui_startmenu.h"
+#include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
 
@@ -45,6 +46,32 @@ static void test_render_no_crash(void) {
     PASS();
 }
 
+/* Regression for the XP Luna start-menu chrome: the sidebar must draw a
+ * vertical gradient (blue -> green) and the orb logo must render. */
+static void test_xp_sidebar_gradient_and_orb(void) {
+    TEST("XP start menu draws gradient sidebar + orb");
+    dosgui_startmenu_init();
+    wubu_theme_set(THEME_XP_LUNA_BLUE);
+    vbe_init(640, 480);
+    dosgui_startmenu_open();
+    dosgui_startmenu_render(NULL, 640, 480);
+
+    /* Scan the VBE buffer for signature XP colours (stored as-is, no swap). */
+    int found_blue = 0, found_orb_red = 0;
+    for (int y = 0; y < 480 && !(found_blue && found_orb_red); y++)
+        for (int x = 0; x < 640; x++) {
+            uint32_t p = vbe_get_pixel(x, y);
+            if (p == 0x00539E) { found_blue = 1; break; }      /* Luna sidebar blue */
+            if (p == 0xF24C3E) { found_orb_red = 1; break; }    /* orb red quadrant */
+        }
+    CHECK(found_blue, "XP sidebar gradient (Luna blue) drawn");
+    CHECK(found_orb_red, "XP orb logo (red quadrant) drawn");
+
+    dosgui_startmenu_close();
+    vbe_shutdown();
+    PASS();
+}
+
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     dosgui_startmenu_init();
@@ -65,6 +92,7 @@ int main(void) {
     test_init();
     test_open_close();
     test_render_no_crash();
+    test_xp_sidebar_gradient_and_orb();
     test_multiple_toggles();
 
     printf("\n========================================================\n");
