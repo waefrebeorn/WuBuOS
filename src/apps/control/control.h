@@ -7,6 +7,7 @@
 #define WUBU_CONTROL_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct DosGuiWindow DosGuiWindow;
 
@@ -22,5 +23,15 @@ void control_set_tab(ControlState *ctrl, int tab);
 
 /* Desktop tab: apply wallpaper path + placement mode (persists + live reload). */
 void control_desktop_apply(const char *wallpaper_path, int mode);
+
+/* Desktop tab: switch the active theme (Win98 Classic / XP Luna / etc.),
+ * persists theme_id + applies it live via wubu_theme_set. */
+void control_set_theme(int theme_id);
+
+/* Desktop tab: toggle View -> Auto-arrange (persists, re-flows live). */
+void control_set_auto_arrange(bool on);
+
+/* Desktop tab: show/hide desktop icons. */
+void control_set_show_icons(bool show);
 
 #endif

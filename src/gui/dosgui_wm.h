@@ -285,6 +285,11 @@ bool dosgui_wm_is_initialized(void);
 int  dosgui_wm_wallpaper_mode(void);
 int  dosgui_wm_wallpaper_w(void);
 int  dosgui_wm_wallpaper_h(void);
+/* Desktop view options (ReactOS explorer/desktop.cpp lesson). */
+void dosgui_wm_refresh_desktop(void);       /* Re-scan ~/Desktop for live icons */
+void dosgui_wm_set_auto_arrange(bool on);   /* Toggle + persist auto-arrange */
+bool dosgui_wm_get_auto_arrange(void);
+void dosgui_wm_set_icons_visible(bool show);/* Live show/hide all desktop icons */
 
 /* -- Invalidation tracking (legacy wm_invalidate compat) --------- */
 void dosgui_wm_invalidate(DosGuiWindow *win);

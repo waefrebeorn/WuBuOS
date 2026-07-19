@@ -11,6 +11,7 @@
 #include "dosgui_wm.h"
 #include "dosgui_daemon_panel.h"
 #include "wubu_trash.h"
+#include "wubu_settings.h"
 #include "dosgui_startmenu.h"
 #include "dosgui_service_mgr.h"
 #include "../apps/dosgui_apps.h"
@@ -66,6 +67,14 @@ int dosgui_desktop_init(void) {
     /* Re-apply any persisted icon layout (drag-end positions saved via
      * dosgui_wm_save_icon_layout) so positions survive a real restart. */
     dosgui_wm_restore_icon_layout();
+
+    /* Restore the persisted View -> Auto-arrange toggle (ReactOS NTUSER).
+     * Using the public setter also re-flows the icons live. */
+    WubuSettings *s = wubu_settings_get();
+    if (s) dosgui_wm_set_auto_arrange(s->theme.auto_arrange);
+
+    /* Control Panel: hide desktop icons on demand. */
+    if (s && !s->theme.show_desktop_icons) dosgui_wm_set_icons_visible(false);
 
     /* Initialize the trash/Recycle Bin so context-menu Delete moves files
      * there (ReactOS shell32 lesson) instead of just hiding the icon. */
