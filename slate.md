@@ -50,9 +50,13 @@ Desktop's service/launcher/REPL backend. ~6 concrete integration REAL_GAPs.
   hang (`step()` in `wubu_dos_emu_decode.c`) + wired two dead API stubs
   (`wubu_dos_emu_step`, `wubu_dos_emu_peek16`). `make test_dos_emu` → 22/22,
   `make runtime` clean. Commit `714f21d`.
-- **Deferred (needs a wiring decision, not committed)**: `scripts/` +
-  `src/runtime/wubu_manifest/` (untracked new code, not in Makefile); `wubucontainer`
-  submodule is `-dirty` (its own working tree — left untouched).
+- **Deferred (needs a wiring decision, not committed)**: `wubucontainer`
+  submodule is `-dirty` (local deletion of an unreferenced shell-dropper
+  `stub.c` — see STATE "Not committed"). Left untouched pending an explicit call.
+- **DONE (2nd commit `4b08acb`, pushed)**: wired `src/runtime/wubu_manifest/` +
+  `scripts/wubu_manifest_gen.py` into the build via `make test_manifest` (now in
+  `test_medium_other`). Real code that was form-without-function; **15/15** tests
+  pass.
 - **Still open from v22 board**: stub-phrase no-ops (`tasking.c`×2, `wubu_anticheat.c`×2,
   `bear_cudnn.c`×3, `wubu_screenshot.c`, `wubu_pkgmgr.c`, `oci_http_client.c`,
   `holyc_ptx.c`, `wubu_compositor_standalone.c`×2, `wubu_compositor.c`,
