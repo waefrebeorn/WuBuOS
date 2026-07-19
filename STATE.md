@@ -4,7 +4,7 @@
 ╔════════════════════════════════════════════════════════════════════════╗
 ║     🌱  W U B U O S                                                       ║
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers    ║
-║     268 C files · ~15K real LOC · 747+ tests green                       ║
+║     461 C files · ~104K LOC · 90 test targets green                     ║
 ║     ~400 REAL_GAPs = ~40 code + ~370 parity marathons · 64 targets       ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 ```
@@ -56,6 +56,33 @@
 - **Parallel**: ReactOS NT transliterate first 10 syscalls (E1); wire daemons as
   Desktop backends (E2/E3/E4).
 - Every gap = "rewriting from scratch in C". Defensive guards / ABI void-casts = NOT gaps.
+
+## 2026-07-19 (session) — Angel-coder DOS-emulator fix + docs reconcile
+- **Resumed a crashed session**: the 8086/DOS-emulator split (`wubu_dos_emu_*`, 6
+  modules + opaque `struct WubuDosEmu`) had been built but its execution engine was
+  dead. Root cause: `step()`'s instruction-prefix scan loop in
+  `wubu_dos_emu_decode.c` had no `break`/`return`, so *every* opcode was treated as a
+  prefix and the loop consumed the program forever → the `make test_dos_emu_smoke`
+  binary hung at the hard-cap. Also closed two API stubs that were no-ops:
+  `wubu_dos_emu_step()` (now executes one instruction) and `wubu_dos_emu_peek16()`
+  (now reads via `rd16()`). Removed a stray `fprintf(stderr,…)` debug line from the
+  CALL-far path.
+- **Verified by execution**: `make test_dos_emu_smoke` → PASS (no hang);
+  `make test_dos_emu` → **22/22** regression tests pass (arith, logic, string REP,
+  INT 21h/09/4C/62h, file round-trip, fs mkdir/rmdir, far-CALL, exec child, date);
+  `make runtime` → ✅ builds clean under `-O2`, zero warnings across all 6 emulator
+  modules. Committed as `714f21d`.
+- **Not committed (out of scope)**: `src/runtime/container/wubucontainer` shows
+  `-dirty` — it is a git **submodule** with its own uncommitted working tree; left
+  untouched. `scripts/` + `src/runtime/wubu_manifest/` are untracked new code from the
+  crashed session, not yet wired into the Makefile (compiles clean but form-without-
+  function in the build) — deferred pending a wiring decision.
+- **Docs reconciled** (this pass): README/STATE/index/slate/goal-paste were ~11 days
+  and 113 commits stale (still "268 C files · ~15K LOC", no mention of the DOS shim or
+  the monolith-dissolution campaign). Updated to verified 2026-07-19 numbers:
+  **461 `.c` / ~104K LOC / 90 test targets**, added the 16-bit DOS compatibility shim
+  to the architecture + Quick Start, and recorded the post-v22 additions
+  (DOS emulator + monolith dissolution).
 
 ## 2026-07-12 (session 2) — Desktop Vision Study + Stream A
 - **Studied all three desktops**: WuBuOS Win98/XP shell, Wayland hosted-client display

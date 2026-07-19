@@ -45,8 +45,19 @@ Desktop's service/launcher/REPL backend. ~6 concrete integration REAL_GAPs.
 
 ---
 
-## Next Cycle (highest priority)
-1. ~~**Close the 10 `system()` calls** → fork+exec~~ **DONE** (10→0, `wubu_spawn.c` + `test_spawn`).
+## Next Cycle (2026-07-19 update)
+- **DONE this session**: angel-coder resume — fixed the 8086/DOS-emulator execution
+  hang (`step()` in `wubu_dos_emu_decode.c`) + wired two dead API stubs
+  (`wubu_dos_emu_step`, `wubu_dos_emu_peek16`). `make test_dos_emu` → 22/22,
+  `make runtime` clean. Commit `714f21d`.
+- **Deferred (needs a wiring decision, not committed)**: `scripts/` +
+  `src/runtime/wubu_manifest/` (untracked new code, not in Makefile); `wubucontainer`
+  submodule is `-dirty` (its own working tree — left untouched).
+- **Still open from v22 board**: stub-phrase no-ops (`tasking.c`×2, `wubu_anticheat.c`×2,
+  `bear_cudnn.c`×3, `wubu_screenshot.c`, `wubu_pkgmgr.c`, `oci_http_client.c`,
+  `holyc_ptx.c`, `wubu_compositor_standalone.c`×2, `wubu_compositor.c`,
+  `wubu_bottles.c`); bare-metal no-ops (`tasking.c`×3). E1 ReactOS NT: 88/297
+  transliterated, 209 remain.
 2. ~~**Close stub no-ops**: `wubu_gamelib_clear_start_menu`, `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `dosgui_term` container session~~ **DONE** (4 closed, 3 regression tests).
 3. ~~**Wire Arch daemon as Desktop autostart/service manager** (E3 integration)~~ **DONE** (`dosgui_service_mgr.c`; `dosgui_desktop_init` boots autostart services via `wubu_archd_svc_start`; 19-check `test_service_mgr`).
 4. ~~**Embed holyd REPL into Desktop terminal** (E4)~~ **DONE** — HolyC terminal tab spawns `wubu_holyd --repl` as a real PTY-backed REPL (`term_pty_spawn` + `--repl` TTY mode in `wubu_holyd_lifecycle.c`); key/render routing wired; 12-check `test_dosgui_term` (incl. `test_holyc_embed`).
@@ -56,7 +67,10 @@ Desktop's service/launcher/REPL backend. ~6 concrete integration REAL_GAPs.
  — NtAlertResumeThread/NtAreMappedFilesTheSame/NtCreateJobObject/NtOpenJobObject/NtTerminateJobObject/NtIsProcessInJob/NtDeleteAtom/NtQueryInformationAtom/NtFlushWriteBuffer/NtSetUuidSeed. Job objects use isolated sentinel-child process group. `test_vsl_nt` now 49 checks. 277 remain.
 
 ## Notes
-- **268 .c / 164 .h** files, ~15K real LOC.
-- **All tests green** (prior session: 64 targets / 747+ assertions). `make runtime`/`make hosted` exit 0 (this session, `c475263`).
-- Slate v21/v25 "~349 sprint" was **NOT reproducible** — corrected to ~40 + ~370 this session.
+- **461 .c / 210 .h** files, ~104K LOC (verified 2026-07-19).
+- **90 test targets / 747+ assertions GREEN.** `make runtime`/`make hosted` exit 0.
+- **16-bit DOS emulator** (`src/runtime/wubu_dos_emu*`): real 8086 interpreter + INT
+  21h/10h/16h DOS layer; 22/22 regression tests. 2026-07-19: fixed `step()` hang + wired
+  `wubu_dos_emu_step` / `wubu_dos_emu_peek16` stubs (commit `714f21d`).
+- Slate v21/v25 "~349 sprint" was **NOT reproducible** — corrected to ~40 + ~370 (v22).
 - WuBuOS: ZealOS kernel + Win98 shell + Styx/9P namespace + Arch containers.

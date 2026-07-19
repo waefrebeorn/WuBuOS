@@ -30,7 +30,7 @@
 - [src/compiler/](src/compiler/) — HolyC lexer, parser, codegen, PTX backend
 - [src/audio/](src/audio/) — DAW, Furnace (30+ chips), TinySoundFont, AI plugins
 - [src/hosted/](src/hosted/) — DRM/KMS, Vulkan, X11, WSL2, macOS AVF
-- [src/runtime/](src/runtime/) — Styx/9P, VSL, containers, Arch, network, snapshot
+- [src/runtime/](src/runtime/) — Styx/9P, VSL, containers, Arch, network, snapshot, **16-bit DOS emulator** (`wubu_dos_emu*`)
 - [src/gui/](src/gui/) — Win98 WM, desktop, startmenu, explorer, terminal
 - [src/bear/](src/bear/) — RL training, Vulkan/CUDA, n-pole physics
 - [src/apps/](src/apps/) — Editor, canvas, codec, freedoom, calc, control
@@ -68,7 +68,9 @@
 | test_bridge_flip | DOS flip (13) |
 | test_holyc_ptx | PTX backend (31) |
 | test_wallpaper | Desktop wallpaper (18) |
-| … | (full gate = 64 targets) |
+| test_dos_emu | 16-bit DOS emulator (22) |
+| test_dos_emu_smoke | Minimal DOS .COM run |
+| … | (full gate = 90 targets) |
 
 ## Key Skills (Hermes)
 - `systems-programming` — OS dev, kernel, JIT, GUI, daemons, C pitfalls
