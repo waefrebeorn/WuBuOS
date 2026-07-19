@@ -12,6 +12,7 @@
  */
 
 #include "dosgui_wm_internal.h"
+#include "wubu_trash.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -73,11 +74,34 @@ static void dialog_rename_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int
 
 static void dialog_delete_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     if (key == 'y' || key == 'Y') {
+        int deleted = 0;
+        /* Delete the specifically-targeted icon (single right-click delete). */
         if (g_delete_target) {
+            /* Move the underlying ~/Desktop file/folder to the Recycle Bin
+             * (ReactOS shell32 CDesktopFolder::Delete / SHFileOperation lesson)
+             * so the deletion is recoverable, not just an in-memory hide. */
+            if (g_delete_target->target[0])
+                wubu_trash_move(g_delete_target->target);
             g_delete_target->alive = false;
-            wubu_notify_simple("Desktop", "Deleted", "Icon removed", NULL, 1, 2000);
+            g_delete_target->selected = false;
+            deleted++;
+            g_delete_target = NULL;
         }
-        g_delete_target = NULL;
+        /* Also delete any multi-selected icons (Ctrl/Shift group select). */
+        for (int i = 0; i < g_dwm.icon_count; i++) {
+            if (g_dwm.icons[i].alive && g_dwm.icons[i].selected) {
+                if (g_dwm.icons[i].target[0])
+                    wubu_trash_move(g_dwm.icons[i].target);
+                g_dwm.icons[i].alive = false;
+                g_dwm.icons[i].selected = false;
+                deleted++;
+            }
+        }
+        /* Compact the array so refresh/sort see a dense list. */
+        dosgui_wm_compact_icons();
+        wubu_notify_simple("Desktop", "Deleted",
+                           deleted ? "Item(s) moved to Recycle Bin" : "Icon removed",
+                           NULL, 1, 2000);
         dosgui_wm_destroy(win);
     } else if (key == 'n' || key == 'N' || key == 27) {
         g_delete_target = NULL;
