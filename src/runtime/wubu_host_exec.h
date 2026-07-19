@@ -168,12 +168,6 @@ WubuCt *wubu_ct_native(const char *name, const char *root);
  */
 WubuCt *wubu_ct_bwrap_native(const char *name);
 
-/*
- * Create a FreeDoom container using bubblewrap.
- * Shares Wayland socket + GPU + audio. Launches dsda-doom.
- */
-WubuCt *wubu_ct_bwrap_freedoom(const char *name);
-
 /* Bubblewrap start function (replaces wubu_ct_start for hosted mode) */
 int wubu_ct_start_bwrap(WubuCt *ct);
 

@@ -64,8 +64,10 @@ DosGuiWindow* dosgui_launch_settings(void);
 DosGuiWindow* dosgui_launch_editor(void);
 DosGuiWindow* dosgui_launch_canvas(void);
 DosGuiWindow* dosgui_launch_holyc_term(void);
+/* Launch a real 16-bit .COM/.EXE (path may be NULL → built-in demo .COM). */
+DosGuiWindow* dosgui_launch_dos_box(const char *path);
 
 /* External container apps (no in-process window). */
-void dosgui_launch_freedoom(void);
+void dosgui_launch_explorer(void);
 
 #endif

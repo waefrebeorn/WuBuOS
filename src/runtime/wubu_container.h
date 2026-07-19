@@ -60,6 +60,16 @@ typedef enum {
     /* macOS Mach-O  --  run via VSL/Darling */
     WUBU_PAYLOAD_MAC_MACHO    = 0x12,
 
+    /* DOS 16-bit real-mode binary  --  run via the in-process 8086 compat
+     * shim (wubu_dos_emu), tracked as a WuBuOS process and surfaced in the
+     * desktop "compatible window". Split by sub-format so the loader can
+     * route correctly:
+     *   .COM  (WUBU_PAYLOAD_DOS_COM)  --  raw 0x100-based image, no header.
+     *   .EXE  (WUBU_PAYLOAD_DOS_EXE)  --  "MZ" header, relocatable.
+     * Both map to the same shim execution backend (wubu_exec_dos). */
+    WUBU_PAYLOAD_DOS_COM      = 0x13,
+    WUBU_PAYLOAD_DOS_EXE      = 0x14,
+
     /* Shell script  --  run via VSL bash */
     WUBU_PAYLOAD_SHELL_SCRIPT = 0x20,
 

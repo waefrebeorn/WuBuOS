@@ -182,34 +182,3 @@ WubuCt *wubu_ct_bwrap_native(const char *name) {
     ct->net_enabled = true;
     return ct;
 }
-
-/* -- Preset: Bwrap FreeDoom Container ------------------------------- */
-
-WubuCt *wubu_ct_bwrap_freedoom(const char *name) {
-    WubuCt *ct = wubu_ct_bwrap_native(name);
-    if (!ct) return NULL;
-    
-    ct->gpu_passthrough = true;
-    
-    /* FreeDoom needs Wayland display + audio */
-    const char *wayland_disp = getenv("WAYLAND_DISPLAY");
-    if (wayland_disp) {
-        char env[256];
-        snprintf(env, sizeof(env), "WAYLAND_DISPLAY=%s", wayland_disp);
-        wubu_ct_add_env(ct, env);
-    }
-    wubu_ct_add_env(ct, "SDL_VIDEODRIVER=wayland");
-    wubu_ct_add_env(ct, "SDL_AUDIODRIVER=pulseaudio");
-    
-    /* Command: dsda-doom with freedoom.wad */
-    char *args[] = {
-        "/usr/games/dsda-doom",
-        "-iwad", "/usr/share/games/doom/freedoom1.wad",
-        "-geometry", "1024x768",
-        "-window",
-        NULL
-    };
-    wubu_ct_set_cmd(ct, 6, args);
-    
-    return ct;
-}

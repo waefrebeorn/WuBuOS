@@ -28,10 +28,25 @@
 .extern g_current_task
 
 /* ------------------------------------------------------------------
- * Macro: ISR_STUB(vector)
+ * Macros: ISR_STUB(vector)
  * Generates entry point for interrupt vector.
- * Always pushes dummy error_code + vector for uniform frame.
+ *
+ * x86-64 ABI: the CPU pushes a hardware error code for vectors
+ *   8, 10, 11, 12, 13, 14, 17, 30.  For those we must NOT push a
+ *   dummy, or the stack frame is misaligned by 8 bytes and the
+ *   trailing iretq pops the wrong RIP/CS/RFLAGS -> immediate #GP ->
+ *   double fault -> triple fault.  Everything else gets a dummy 0 so
+ *   common_isr_handler sees a uniform frame.
  * ------------------------------------------------------------------ */
+.macro ISR_STUB_NOERR vector
+.global isr\vector
+.hidden isr\vector
+.align 16
+isr\vector:
+    push \vector        /* Push vector number (CPU already pushed error code) */
+    jmp common_isr_handler
+.endm
+
 .macro ISR_STUB vector
 .global isr\vector
 .hidden isr\vector
@@ -55,16 +70,16 @@ ISR_STUB 4    /* #OF Overflow */
 ISR_STUB 5    /* #BR Bound Range Exceeded */
 ISR_STUB 6    /* #UD Invalid Opcode */
 ISR_STUB 7    /* #NM Device Not Available */
-ISR_STUB 8    /* #DF Double Fault */
+ISR_STUB_NOERR 8    /* #DF Double Fault (CPU pushes error code) */
 ISR_STUB 9    /* Coprocessor Segment Overrun */
-ISR_STUB 10   /* #TS Invalid TSS */
-ISR_STUB 11   /* #NP Segment Not Present */
-ISR_STUB 12   /* #SS Stack Segment Fault */
-ISR_STUB 13   /* #GP General Protection Fault */
-ISR_STUB 14   /* #PF Page Fault */
+ISR_STUB_NOERR 10   /* #TS Invalid TSS */
+ISR_STUB_NOERR 11   /* #NP Segment Not Present */
+ISR_STUB_NOERR 12   /* #SS Stack Segment Fault */
+ISR_STUB_NOERR 13   /* #GP General Protection Fault */
+ISR_STUB_NOERR 14   /* #PF Page Fault */
 ISR_STUB 15   /* Reserved */
 ISR_STUB 16   /* #MF x87 FPU Floating-Point Error */
-ISR_STUB 17   /* #AC Alignment Check */
+ISR_STUB_NOERR 17   /* #AC Alignment Check */
 ISR_STUB 18   /* #MC Machine Check */
 ISR_STUB 19   /* #XM SIMD Floating-Point Exception */
 ISR_STUB 20   /* #VE Virtualization Exception */
@@ -77,7 +92,7 @@ ISR_STUB 26   /* Reserved */
 ISR_STUB 27   /* Reserved */
 ISR_STUB 28   /* Reserved */
 ISR_STUB 29   /* Reserved */
-ISR_STUB 30   /* #SX Security Exception */
+ISR_STUB_NOERR 30   /* #SX Security Exception (CPU pushes error code) */
 ISR_STUB 31   /* Reserved */
 
 /* Hardware IRQs (32-47) remapped to 0x20-0x2F by PIC */
@@ -342,6 +357,26 @@ common_isr_handler:
 
     mov rdi, rsp          /* RDI = frame pointer (InterruptFrame*) */
     mov rsi, [rsp + 120]  /* RSI = vector number */
+
+    /* DIAGNOSTIC: emit the faulting vector as a hex digit so the serial
+     * trace tells us WHICH vector triple-faults the moment the IDT is live.
+     * Vectors 0-15 -> '0'-'9','A'-'F'; 16-255 -> raw modulo mapped to 'p'.. */
+    mov rcx, rsi
+    cmp rcx, 15
+    ja  .vec_hi
+    add cl, '0'
+    cmp cl, '9'
+    jbe .vec_emit
+    add cl, ('A' - '9' - 1)
+    jmp .vec_emit
+.vec_hi:
+    /* 16..255 -> 'p' + (vec>>4) to stay printable */
+    shr rcx, 4
+    add cl, 'p'
+.vec_emit:
+    mov dx, 0x3F8
+    mov al, cl
+    out dx, al
 
     call isr_dispatch
 
