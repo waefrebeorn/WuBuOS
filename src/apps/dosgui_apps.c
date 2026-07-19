@@ -16,11 +16,18 @@
 #include "../gui/wubu_theme.h"
 #include "../runtime/wubu_dos_proc.h"
 #include "../runtime/wubu_container.h"
+#include "../apps/cmd/cmd.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 /* -- Forward declarations for app callbacks ----------------------- */
+
+/* Terminal (cmd.c) adapter callbacks — forward-declared so
+ * dosgui_launch_terminal can bind them. */
+static void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+static void dosgui_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 
 /* Notepad / REPL bind their own callbacks internally; expose them
  * so the registry can wire them. */
@@ -85,8 +92,34 @@ DosGuiWindow* dosgui_launch_calculator(void) {
 
 DosGuiWindow* dosgui_launch_terminal(void) {
     DosGuiWindow *win = dosgui_wm_create(300, 160, 800, 600, "Terminal");
-    if (win) { win->on_draw = app_placeholder_draw; }
+    if (!win) return NULL;
+
+    /* Real terminal engine: a pty-backed shell rendered in-window. */
+    WubuCmd *cmd = wubu_cmd_create(80, 24);
+    if (cmd) wubu_cmd_spawn_shell(cmd, NULL);   /* NULL -> $SHELL / /bin/sh */
+    win->user_data = cmd;
+    win->on_draw  = dosgui_terminal_draw;
+    win->on_key   = dosgui_terminal_key;
+    win->on_mouse = dosgui_terminal_mouse;
     return win;
+}
+
+/* -- Terminal (cmd.c) adapters: bridge DosGuiWindow callbacks to WubuCmd -- */
+
+static void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    WubuCmd *cmd = (WubuCmd *)win->user_data;
+    if (cmd) wubu_cmd_draw(cmd, (void *)win, fb, fb_w, fb_h);
+}
+
+static void dosgui_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)mods;
+    WubuCmd *cmd = (WubuCmd *)win->user_data;
+    if (cmd) wubu_cmd_key(cmd, (int)key);
+}
+
+static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    (void)win; (void)x; (void)y; (void)btn; (void)kind;
+    /* Terminal has no mouse-driven UI yet; pty input is keyboard-only. */
 }
 
 DosGuiWindow* dosgui_launch_file_manager(void) {
