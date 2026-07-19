@@ -4,7 +4,7 @@
 ╔════════════════════════════════════════════════════════════════════════╗
 ║     🌱  W U B U O S                                                       ║
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers    ║
-║     268 C files · ~15K real LOC · 747+ tests green                       ║
+║     461 C files · ~104K LOC · 90 test targets green                     ║
 ║     ~40 code REAL_GAPs + ~370 parity marathons (Triple DA) · 64 targets  ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 ```
@@ -18,6 +18,7 @@
 - **Styx/9P**: Real filesystem namespace backed by .wubu containers (9P2000)
 - **Arch containers**: Fork+exec into Arch Linux rootfs (bwrap isolation, no syscall emulation)
 - **HolyC JIT**: Self-hosted x86-64 encoder, disassembler, register allocator, minic compiler
+- **16-bit DOS compatibility**: Real 8086 interpreter + INT 21h/10h/16h DOS layer — runs .COM/.EXE in-process, captures a text screen + RGBA frame for the Desktop "compatible window" (22/22 regression tests)
 - **Bear RL**: PPO training with Vulkan compute pipelines
 - **Desktop**: Win98-style wallpaper (real BMP decode + 5 placement modes), icons, taskbar, systray
 
@@ -28,7 +29,9 @@ make all                 # full build
 make hosted              # hosted binary (runs on Linux)
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-make test                # all 64 targets, 747+ assertions
+make test                # all 90 test targets, 747+ assertions
+make test_dos_emu        # 16-bit DOS emulator (22 regression tests)
+make test_dos_emu_smoke  # minimal DOS .COM run
 python3 ~/.hermes/profiles/mind-palace/skills/software-development/wubuos-battleship-gaps/scripts/find_real_gaps.py src   # honest gap scan
 ```
 
@@ -43,10 +46,23 @@ python3 ~/.hermes/profiles/mind-palace/skills/software-development/wubuos-battle
 | **ZealOS name parity** | 96/96 |
 | **Baseline stub class** | CLOSED (0 empty bodies, 0 const-only-no-syscall in `src/`) |
 
-> **Honesty note**: BATTLESHIP v21's "~400 sprint gaps" was not reproducible — the
+> **Honesty note**: BATTLESHIP v21's "~-400 sprint gaps" was not reproducible — the
 > scanner was broken. v22 partitions the ~400 into ~40 verifiable code gaps + ~370
 > parity marathons (per the rule "rewriting from scratch in C = REAL_GAP, including
 > ReactOS gaps to WuBuOS"). See `BATTLESHIP.md` Part 1/2/3/4.
+
+### Recent additions (post-v22, 2026-07-15 → 2026-07-19)
+- **16-bit DOS compatibility shim** (`src/runtime/wubu_dos_emu*`): a real 8086
+  interpreter + INT 21h/10h/16h DOS layer that runs `.COM`/`.EXE` in-process and
+  captures a text screen + RGBA frame. 22/22 regression tests green; wired into
+  `make test_dos_emu` / `make test_dos_emu_smoke`. (2026-07-19: fixed an execution
+  hang in `step()` + wired two dead API stubs — `wubu_dos_emu_step`,
+  `wubu_dos_emu_peek16`.)
+- **Monolith dissolution campaign** (2026-07-15 → 2026-07-18): large modules
+  (`wubu_editor.c`, `wubu_canvas.c`, `styx.c`, `wubu_proton.c`, `wubu_clipboard.c`,
+  `dosgui_explorer.c`, startmenu, etc.) split into opaque C11 leaf modules with
+  minimal includes; Win98 Terminal engine wired to the real `cmd.c`; DOS Box window
+  engine + bare-metal boot/interrupt PIC/IRQ split. Repo grew to 461 `.c` / ~104K LOC.
 
 ## Screenshots
 

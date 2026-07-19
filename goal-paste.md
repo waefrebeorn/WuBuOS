@@ -39,6 +39,14 @@
 4. **Embed holyd REPL into Desktop terminal** (E4; kills `dosgui_term.c:642` Not-Implemented).
 5. **ReactOS NT: transliterate first 10 syscalls** (E1) — each = "rewrite in C."
 
+## Status update (2026-07-19)
+- **DONE**: 8086/DOS emulator execution hanging fixed (`step()` infinite prefix loop
+  in `wubu_dos_emu_decode.c`) + two dead API stubs wired (`wubu_dos_emu_step`,
+  `wubu_dos_emu_peek16`). `make test_dos_emu` → 22/22. Commit `714f21d`.
+- **Deferred**: `scripts/` + `src/runtime/wubu_manifest/` (untracked, not in Makefile);
+  `wubucontainer` submodule `-dirty` (own working tree, untouched).
+- Repo now **461 `.c` / ~104K LOC / 90 test targets** (docs reconciled to match).
+
 ## Reproducible verification (run before trusting any handoff)
 ```bash
 cd /home/wubu/.hermes/profiles/mind-palace/home/myseed
