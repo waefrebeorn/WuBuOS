@@ -62,6 +62,10 @@ int dosgui_desktop_init(void) {
      * not only after a manual Refresh. */
     dosgui_wm_refresh_desktop();
 
+    /* Re-apply any persisted icon layout (drag-end positions saved via
+     * dosgui_wm_save_icon_layout) so positions survive a real restart. */
+    dosgui_wm_restore_icon_layout();
+
     /* Initialize daemon panel (system tray icons, socket connections) */
     dosgui_daemon_panel_init();
 

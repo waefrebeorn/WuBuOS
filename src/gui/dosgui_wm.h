@@ -164,7 +164,7 @@ void dosgui_taskbar_update_clock(time_t now);
 
 /* -- Desktop Icons ----------------------------------------------- */
 
-#define DOSGUI_MAX_ICONS 16
+#define DOSGUI_MAX_ICONS 64
 #define DOSGUI_ICON_SIZE 32
 #define DOSGUI_ICON_GAP  8
 
@@ -191,7 +191,7 @@ typedef struct {
     void (*on_execute)(void); /* Execute action */
 } DosGuiIcon;
 
-#define DOSGUI_MAX_ICONS 16
+#define DOSGUI_MAX_ICONS 64
 #define DOSGUI_ICON_SIZE 32
 #define DOSGUI_ICON_GAP  8
 

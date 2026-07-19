@@ -13,7 +13,7 @@
 #include <stdbool.h>
 
 /* -- Desktop Icon Layout (persistent, ReactOS NTUSER.DAT-style) --- */
-#define WUBU_ICON_LAYOUT_MAX 16
+#define WUBU_ICON_LAYOUT_MAX 64
 typedef struct {
     char name[32];      /* Icon display name (match key) */
     int  grid_x;        /* Persisted grid column */

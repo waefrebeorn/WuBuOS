@@ -432,6 +432,92 @@ static void test_desktop_sort_by_size(void) {
     PASS();
 }
 
+/* Regression: the desktop must retain MORE than the old 16-icon cap when
+ * ~/Desktop holds many entries (refresh used to silently drop them). */
+static void test_desktop_many_icons_retained(void) {
+    TEST("refresh retains >16 icons (no silent drop at cap)");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+
+    /* Create 30 real .desktop files in ~/Desktop. */
+    for (int i = 0; i < 30; i++) {
+        char p[640];
+        snprintf(p, sizeof(p), "%s/App%02d.desktop", desk, i);
+        FILE *f = fopen(p, "w");
+        if (f) { fputs("[Desktop Entry]\n", f); fclose(f); }
+    }
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+
+    int found = 0;
+    for (int i = 0; i < dosgui_wm_get_icon_count(); i++) {
+        DosGuiIcon *ic = dosgui_icon_get(i);
+        if (ic && ic->alive) found++;
+    }
+    CHECK(found >= 20, "at least 20 of 30 desktop entries surfaced as icons");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
+/* Regression: dragging an icon + ending the drag persists its grid position
+ * so it survives a restore (ReactOS-style layout persistence). */
+static void test_icon_drag_persist_restore(void) {
+    TEST("drag-end saves + restore reapplies icon position");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+    char p[640];
+    snprintf(p, sizeof(p), "%s/Pin.desktop", desk);
+    FILE *f = fopen(p, "w"); if (f) { fputs("[Desktop Entry]\n", f); fclose(f); }
+
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+
+    /* Find the icon and simulate a drag: move it to grid (3,4), then persist. */
+    int idx = -1;
+    for (int i = 0; i < dosgui_wm_get_icon_count(); i++) {
+        DosGuiIcon *ic = dosgui_icon_get(i);
+        if (ic && ic->alive && strcasecmp(ic->name, "Pin") == 0) { idx = i; break; }
+    }
+    CHECK(idx >= 0, "Pin icon present");
+    DosGuiIcon *ic = dosgui_icon_get(idx);
+    ic->grid_x = 3; ic->grid_y = 4;
+    ic->x = 20 + 3 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    ic->y = 20 + 4 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    dosgui_wm_save_icon_layout();   /* what the drag-end handler now calls */
+
+    /* Simulate restart: re-init (desktop.c boot path re-enumerates ~/Desktop),
+     * then restore persisted positions -- matching real boot flow. */
+    dosgui_wm_shutdown();
+    wubu_settings_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();   /* dosgui_desktop_init() does this on boot */
+    dosgui_wm_restore_icon_layout();
+
+    int ridx = -1;
+    for (int i = 0; i < dosgui_wm_get_icon_count(); i++) {
+        DosGuiIcon *rc = dosgui_icon_get(i);
+        if (rc && rc->alive && strcasecmp(rc->name, "Pin") == 0) { ridx = i; break; }
+    }
+    CHECK(ridx >= 0, "Pin icon present after re-init");
+    DosGuiIcon *rc = dosgui_icon_get(ridx);
+    CHECK(rc->grid_x == 3 && rc->grid_y == 4, "persisted grid (3,4) restored");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
 /* -- Main ------------------------------------------------------ */
 /* -- Invalidation / dirty-tracking Tests ----------------------- */
 
@@ -506,6 +592,8 @@ int main(void) {
     test_desktop_new_folder();
     test_desktop_new_text_doc();
     test_desktop_sort_by_size();
+    test_desktop_many_icons_retained();
+    test_icon_drag_persist_restore();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
