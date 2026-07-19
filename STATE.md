@@ -73,10 +73,19 @@
   `make runtime` → ✅ builds clean under `-O2`, zero warnings across all 6 emulator
   modules. Committed as `714f21d`.
 - **Not committed (out of scope)**: `src/runtime/container/wubucontainer` shows
-  `-dirty` — it is a git **submodule** with its own uncommitted working tree; left
-  untouched. `scripts/` + `src/runtime/wubu_manifest/` are untracked new code from the
-  crashed session, not yet wired into the Makefile (compiles clean but form-without-
-  function in the build) — deferred pending a wiring decision.
+  `-dirty` — git **submodule** whose local working tree has *deleted*
+  `src/handlers/shToElf/stub.c`. That file is a self-extracting **shell-dropper**
+  pattern (reads `/proc/self/exe`, seeks `cmd_size` bytes back from EOF, execs
+  `bash -c <payload>`); it is unreferenced by any WuBuContainer build and is NOT
+  WuBuOS code. Left for an explicit decision — silently committing into a sub-repo
+  (or restoring a dropper) is out of bounds.
+- **Manifest wired in (later this session)**: `src/runtime/wubu_manifest/` + the
+  `scripts/wubu_manifest_gen.py` codegen entry point were committed and wired into
+  `make test_manifest` (now part of `test_medium_other` under `make test`). The
+  unified syscall manifest (JSON parser + load/resolve/cap-gate/emit API + data +
+  unit tests) had been real, complete code from the crashed session but was NOT in
+  the Makefile — a form-without-function gap. `make test_manifest` → **15/15** pass.
+  Committed as `4b08acb` (pushed).
 - **Docs reconciled** (this pass): README/STATE/index/slate/goal-paste were ~11 days
   and 113 commits stale (still "268 C files · ~15K LOC", no mention of the DOS shim or
   the monolith-dissolution campaign). Updated to verified 2026-07-19 numbers:
