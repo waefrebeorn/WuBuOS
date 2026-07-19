@@ -133,28 +133,12 @@ typedef struct {
     uint32_t dir_offset;               /* Entry offset within cluster */
 } fat32_file_info;
 
-/* -- FAT32 Volume State ------------------------------------------ */
-
-typedef struct {
-    fat32_blk_ops     blk;          /* Block device operations */
-    bool               mounted;     /* Volume is mounted and valid */
-    uint32_t           sectors_per_cluster;
-    uint32_t           bytes_per_cluster;
-    uint32_t           reserved_sectors;
-    uint32_t           num_fats;
-    uint32_t           sectors_per_fat;
-    uint32_t           root_cluster;
-    uint64_t           fat1_lba;    /* First FAT table LBA */
-    uint64_t           fat2_lba;    /* Second FAT table LBA */
-    uint64_t           data_lba;    /* First data sector LBA */
-    uint32_t           total_clusters;
-    uint32_t           free_clusters; /* Cached count */
-    uint32_t           next_free;     /* Hint for next alloc */
-    uint64_t           fs_info_lba;
-    /* Cached FAT sector */
-    uint32_t           cached_fat_sector;
-    uint32_t          *fat_cache;     /* One sector of FAT entries */
-} fat32_volume;
+/* -- FAT32 Volume State ------------------------------------------
+ * OPAQUE: the concrete layout lives in fat32_internal.h (self-contained
+ * modules access it; public API consumers see only the forward decl). This
+ * enforces the "no god headers / minimal includes" rule -- callers depend on
+ * behavior, not on the volume's field layout. */
+typedef struct fat32_volume fat32_volume;
 
 /* -- Open File Handle -------------------------------------------- */
 

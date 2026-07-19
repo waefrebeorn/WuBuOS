@@ -7,6 +7,7 @@
  */
 
 #include "fat32.h"
+#include "fat32_internal.h"   /* test is white-box: needs concrete fat32_volume layout */
 
 #include <stdio.h>
 #include <stdlib.h>

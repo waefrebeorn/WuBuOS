@@ -47,25 +47,6 @@ _start16:
     movw $str_boot, %si
     call serial_puts
 
-    /* ================================================================
-     * EMERGENCY 16-BIT RESCUE PATH
-     * ----------------------------------------------------------------
-     * WuBuOS is a 64-bit OS. On hardware that lacks long mode, or when
-     * the user holds the emergency key during boot, we chainload the
-     * FreeDOS-based rescue layer instead of proceeding to 64-bit.
-     *
-     * Detection order:
-     *   1. CPUID leaf 0x80000001 ECX bit 29 == 0  -> NO long mode.
-     *   2. Emergency key held (Left Shift) at boot.
-     * Either condition -> load the rescue shim (always at a fixed LBA,
-     * RESCUE_LBA) into 0x7C00 and jump to it. The shim enables A20 and
-     * hands off to the real 16-bit OS (FreeDOS / WuBuDOS) stored on the
-     * rescue FAT image.
-     * ================================================================ */
-    call check_emergency
-    testb %al, %al
-    jnz  do_rescue
-
     /* Load the kernel ELF (LBA 1+) into 0x10000 (conventional RAM). */
     movw $disk_dap, %si
     movb $0x42, %ah            /* BIOS: extended read sectors (LBA) */
@@ -198,52 +179,6 @@ serial_puts:                    /* si = NUL-terminated string */
     popw %ax
     popw %si
     ret
-
-/* ---- Emergency 16-bit rescue detector + chainloader -------------------- */
-/* RESCUE_LBA: fixed location of the rescue shim on the boot disk. The
- * unified WuBuOS disk image places the rescue shim (512B) followed by the
- * rescue FAT image (FreeDOS/WuBuDOS). boot.S is 512B-limited, so this is
- * the minimal trigger; all heavy A20/chainload logic lives in the shim. */
-#define RESCUE_LBA 64
-
-/* check_emergency: al != 0 if we must boot the 16-bit rescue layer.
- *   - CPUID 0x80000001 ECX bit 29 (LM) clear  -> no 64-bit -> rescue.
- *   - Left Shift held at boot (BIOS kbd flag @ 0x40:0x17 bit 1) -> rescue. */
-check_emergency:
-    xorw %ax, %ax
-    movl $0x80000001, %eax
-    cpuid
-    testl $0x20000000, %ecx
-    jz   .emer
-    pushw %bx
-    movw $0x0040, %bx
-    movw %bx, %ds
-    movb 0x17, %bl
-    movw $0x07C0, %bx
-    movw %bx, %ds
-    testb $0x02, %bl
-    popw %bx
-    jz   .done
-.emer:
-    movb $1, %al
-.done:
-    ret
-
-/* do_rescue: load the rescue shim (RESCUE_LBA) into 0x7C00 and jump. */
-do_rescue:
-    movb $'R', %al
-    call serial_putc
-    movw $rescue_dap, %si
-    movb $0x42, %ah
-    int  $0x13
-    jc   disk_err
-    jmp  $0x0000, $0x7C00
-
-rescue_dap:
-    .byte 0x10, 0
-    .word 1
-    .word 0x7C00, 0x0000
-    .quad RESCUE_LBA
 
 /* ---- Diagnostics strings ------------------------------------------------- */
 
