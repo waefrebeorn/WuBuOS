@@ -117,7 +117,7 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             }
         } else {
             if (focused) {
-                vbe_fill_rect(bx, by, bw, 22, 0x000080);
+                vbe_fill_rect(bx, by, bw, 22, tc()->select_bg);
                 vbe_3d_sunken_colors(bx, by, bw, 22,
                                       tc()->border_light, tc()->border_face,
                                       tc()->border_dark, tc()->border_darkest);
