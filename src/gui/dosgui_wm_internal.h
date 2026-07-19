@@ -109,6 +109,13 @@ void draw_wallpaper(int fb_w, int fb_h);
 void snap_icon_to_grid(DosGuiIcon *icon);
 int  icon_grid_x(int x);
 int  icon_grid_y(int y);
+
+/* Icon glyph rendering (Chicago -> XP): recognizable 32x32 pixel-art per
+ * icon type, themed via the 4 supplied colors (face/light/dark/accent). */
+void dosgui_wm_draw_icon_glyph(DeskIconType type, int ox, int oy,
+                               uint32_t c0, uint32_t c1,
+                               uint32_t c2, uint32_t c3);
+void dosgui_wm_draw_icon_selection(int ox, int oy);
 void snap_window_to_gaad(DosGuiWindow *w);
 int  dosgui_icon_hit_test(int mx, int my);
 DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);

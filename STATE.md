@@ -183,3 +183,27 @@
 - Makefile: test_control link gained wubu_theme.c (already present) + control_test.c
   includes wubu_theme.h. No new subsystem deps pulled into test_dosgui_wm.
 
+## 2026-07-19 (session, part 4) — Chicago -> XP desktop visual polish
+- **Root cause of "messy desktop"**: every icon was a flat colored box
+  (icon_bg = teal/blue + icon_border) with no recognizable shape; no selection
+  highlight; title-bar gradient left un-themed rounded corner wedges; taskbar
+  focused button hardcoded navy 0x000080 instead of theme color.
+- **Real icon glyphs** (new self-contained dosgui_wm_icon_glyphs.c): recognizable
+  32x32 pixel-art per type -- folder (tab+body), app (mini window w/ title bar),
+  file (page + folded corner), drive (slot+LED), URL (globe), shortcut (file +
+  arrow). Themed via 4 colors (face/light/dark/accent) so they read on both
+  Win98 silver and XP Luna blue. Replaces the flat-box draw in dosgui_wm_render.
+- **Selection highlight**: selected icon gets an XP-style navy translucent box
+  + 1px white focus rect, and its label text renders on a navy plate (white
+  text) instead of shadow-only. Honors the existing `selected` flag.
+- **Title-bar gradient now fills the rounded window incl. corners**: was drawn
+  only w-2*rad wide, leaving corner wedges in the body color; now re-clips the
+  corner to win_face + re-applies gradient so the whole title band is themed.
+- **Taskbar focused button** uses tc()->select_bg (theme) instead of hardcoded
+  0x000080 -- correct under every theme.
+- **Regression test**: test_render_draws_glyphs_and_selection -- verifies the
+  folder glyph drew >20 non-bg pixels and the selection focus rect is present at
+  the icon corner. test_dosgui_wm 29/29; test_control 18/18.
+- Makefile: dosgui_wm_icon_glyphs.c added to GUI_OBJS + every GUI link recipe
+  (runtime/hosted/test_dosgui_wm/test_control/dosgui_apps_test/hosted).
+

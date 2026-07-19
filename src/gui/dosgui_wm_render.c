@@ -41,10 +41,21 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Title bar */
     if (theme()->gradient_title) {
-        if (active) vbe_hgradient(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad,
+        int gx = w->x, gy = w->y, gw = w->w, gh = tbh;
+        if (active) vbe_hgradient(gx, gy, gw, gh,
                               theme()->title_gradient.color_start, theme()->title_gradient.color_end);
-        else       vbe_hgradient(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad,
+        else       vbe_hgradient(gx, gy, gw, gh,
                               theme()->title_gradient_ina.color_start, theme()->title_gradient_ina.color_end);
+        /* Restore the rounded top corners: the gradient filled the whole
+         * title band, so paint the corner wedges back to the window face. */
+        if (rad > 0) {
+            vbe_fill_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->win_face);
+            if (active) vbe_hgradient(w->x, w->y, w->w, tbh - rad,
+                                  theme()->title_gradient.color_start, theme()->title_gradient.color_end);
+            else       vbe_hgradient(w->x, w->y, w->w, tbh - rad,
+                                  theme()->title_gradient_ina.color_start, theme()->title_gradient_ina.color_end);
+            vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
+        }
     } else {
         vbe_title_bar(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad, active);
     }
@@ -101,14 +112,27 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
 
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *icon = &g_dwm.icons[i];
-        vbe_fill_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, tc()->icon_bg);
-        vbe_rect(icon->x, icon->y, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, tc()->icon_border);
+        if (!icon->alive) continue;
+
+        /* Selection highlight (XP active-selection: navy box + focus rect). */
+        if (icon->selected)
+            dosgui_wm_draw_icon_selection(icon->x, icon->y);
+
+        /* Recognizable glyph instead of a flat colored box. Fall back to the
+         * icon_color box only if the slot is somehow empty. */
+        uint32_t accent = icon->icon_color ? icon->icon_color : tc()->win_title_active;
+        dosgui_wm_draw_icon_glyph(icon->type, icon->x, icon->y,
+                                  /* face */ tc()->btn_face,
+                                  /* light */ tc()->border_light,
+                                  /* dark */ tc()->border_dark,
+                                  /* accent */ accent);
 
         int label_y = icon->y + DOSGUI_ICON_SIZE + 2;
         int max_label_w = DOSGUI_ICON_SIZE + 4;
         int text_w = vbe_text_width(icon->name, 1);
 
         if (label_y + 8 <= fb_h) {
+            uint32_t txt_col = icon->selected ? tc()->win_title_text : tc()->icon_text;
             if (text_w > max_label_w) {
                 char truncated[32];
                 int len = strlen(icon->name);
@@ -124,11 +148,20 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
                 } else {
                     strcpy(truncated, "...");
                 }
+                /* Shadow then text; on selection also draw a navy plate behind. */
+                if (icon->selected) {
+                    int sw = vbe_text_width(truncated, 1);
+                    vbe_fill_rect(icon->x - 1, label_y - 1, sw + 2, 10, tc()->select_bg);
+                }
                 vbe_draw_text(icon->x + 1, label_y, truncated, tc()->icon_text_shadow, 1);
-                vbe_draw_text(icon->x, label_y - 1, truncated, tc()->icon_text, 1);
+                vbe_draw_text(icon->x, label_y - 1, truncated, txt_col, 1);
             } else {
+                if (icon->selected) {
+                    int sw = vbe_text_width(icon->name, 1);
+                    vbe_fill_rect(icon->x - 1, label_y - 1, sw + 2, 10, tc()->select_bg);
+                }
                 vbe_draw_text(icon->x + 1, label_y, icon->name, tc()->icon_text_shadow, 1);
-                vbe_draw_text(icon->x, label_y - 1, icon->name, tc()->icon_text, 1);
+                vbe_draw_text(icon->x, label_y - 1, icon->name, txt_col, 1);
             }
         }
     }

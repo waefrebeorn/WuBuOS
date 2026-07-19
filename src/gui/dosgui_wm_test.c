@@ -183,6 +183,38 @@ static void test_render_no_crash(void) {
     dosgui_wm_shutdown();
 }
 
+/* Regression for the Chicago->XP desktop polish: icons must draw a real
+ * glyph (not a flat box) and a selected icon must show a selection rect. */
+static void test_render_draws_glyphs_and_selection(void) {
+    TEST("render draws icon glyphs + selection highlight");
+    vbe_init(256, 256);
+    dosgui_wm_init(256, 256);
+
+    int folder = dosgui_icon_add_ex("Projects", DESK_ICON_FOLDER, NULL, 0, 0, 0, NULL);
+    int file   = dosgui_icon_add_ex("Notes.txt", DESK_ICON_FILE, NULL, 1, 0, 0, NULL);
+    DosGuiIcon *fi = dosgui_icon_get(folder);
+    DosGuiIcon *li = dosgui_icon_get(file);
+    CHECK(fi && li, "both icons added");
+    if (fi) fi->selected = true;   /* select the folder icon */
+
+    dosgui_wm_render(NULL, 256, 256);
+
+    /* Glyph check: count non-background pixels inside the folder icon cell. */
+    int glyph_pixels = 0;
+    for (int y = fi->y; y < fi->y + DOSGUI_ICON_SIZE; y++)
+        for (int x = fi->x; x < fi->x + DOSGUI_ICON_SIZE; x++)
+            if (vbe_get_pixel(x, y) != 0) glyph_pixels++;
+    CHECK(glyph_pixels > 20, "folder glyph drew recognizable pixels");
+
+    /* Selection check: the white focus outline pixel should appear at the
+     * top-left corner of the selected icon cell. */
+    uint32_t corner = vbe_get_pixel(fi->x, fi->y);
+    CHECK(corner == 0x00FFFFFF, "selection focus rect drawn at icon corner");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 /* -- Icon Tests ------------------------------------------------ */
 
 static void test_add_icon(void) {
@@ -702,6 +734,7 @@ int main(void) {
     test_mouse_drag_window();
     test_taskbar_height();
     test_render_no_crash();
+    test_render_draws_glyphs_and_selection();
     test_add_icon();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
