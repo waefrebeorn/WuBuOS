@@ -259,18 +259,33 @@ void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     int main_h = g_main_count * mh + 4;
     
     if (t->Luna_start_button) {
-        /* XP Style: Sidebar on left */
+        /* XP Style: blue panel + gradient sidebar (the iconic Luna look). */
         vbe_shade_rect(MENU_X + 2, menu_y + 2, mw, main_h);
         vbe_fill_rect_rounded(MENU_X, menu_y, mw, main_h, 4, tc()->startmenu_bg);
         vbe_rect_rounded(MENU_X, menu_y, mw, main_h, 4, tc()->border_dark);
-        
-        /* Sidebar */
-        vbe_fill_rect_rounded(MENU_X, menu_y, sw, main_h, 4, tc()->startmenu_sidebar);
-        /* Draw "WuBuOS" or Windows logo area in sidebar */
-        vbe_draw_text(MENU_X + 4, menu_y + 6, "WuBuOS", 0xFFFFFF, 1);
+
+        /* Sidebar: vertical gradient (blue top -> theme foot colour). This is
+         * the signature XP chrome; flat on non-gradient themes. */
+        vbe_vgradient(MENU_X, menu_y, sw, main_h,
+                      tc()->startmenu_sidebar, tc()->startmenu_sidebar_grad_end);
+        vbe_rect_rounded(MENU_X, menu_y, sw, main_h, 4, tc()->border_dark);
+
+        /* Header banner: a small 4-pane orb logo + bold "WuBuOS" wordmark. */
+        int hdr = 26;
+        vbe_vgradient(MENU_X + 4, menu_y + 4, sw - 8, hdr - 4,
+                      tc()->startmenu_sidebar, tc()->startmenu_sidebar_grad_end);
+        /* Orb: four coloured quadrants (Windows-flag style) inside a 16x16 box. */
+        int ox = MENU_X + 8, oy = menu_y + 8;
+        vbe_fill_rect(ox,      oy,      7, 7, 0xF24C3E); /* red TL */
+        vbe_fill_rect(ox + 8,  oy,      7, 7, 0x6FCF3C); /* green TR */
+        vbe_fill_rect(ox,      oy + 8,  7, 7, 0x39A0EC); /* blue BL */
+        vbe_fill_rect(ox + 8,  oy + 8,  7, 7, 0xFFC90E); /* yellow BR */
+        vbe_draw_text(MENU_X + 8, menu_y + hdr + 2, "WuBuOS", 0xFFFFFF, 1);
+
+        /* Footer: Log off / Turn Off (as in XP). */
         if (main_h > 80) {
-            vbe_draw_text(MENU_X + 4, menu_y + main_h - 30, "Log off", 0xCCCCCC, 1);
-            vbe_draw_text(MENU_X + 4, menu_y + main_h - 18, "Turn Off", 0xCCCCCC, 1);
+            vbe_draw_text(MENU_X + 4, menu_y + main_h - 30, "Log off", 0xDDDDDD, 1);
+            vbe_draw_text(MENU_X + 4, menu_y + main_h - 18, "Turn Off", 0xDDDDDD, 1);
         }
     } else {
         /* Win98 Style */

@@ -204,6 +204,25 @@
 - **Regression test**: test_render_draws_glyphs_and_selection -- verifies the
   folder glyph drew >20 non-bg pixels and the selection focus rect is present at
   the icon corner. test_dosgui_wm 29/29; test_control 18/18.
-- Makefile: dosgui_wm_icon_glyphs.c added to GUI_OBJS + every GUI link recipe
+- Makefile: dosgui_wm_icon_glyphs.c linked into GUI_OBJS + every GUI recipe
   (runtime/hosted/test_dosgui_wm/test_control/dosgui_apps_test/hosted).
+
+## 2026-07-19 (session, part 5) — XP Luna Start Menu chrome
+- **The XP start menu was functional but flat**: the sidebar was a single
+  solid color with plain "WuBuOS" text -- missing the signature Luna look.
+- **Sidebar vertical gradient** (blue top -> theme foot colour): new theme
+  field startmenu_sidebar_grad_end; XP Luna = green foot (the iconic blue->green
+  pane). Non-gradient themes set grad_end == sidebar (flat, Win98 stays navy).
+- **Header banner + orb logo**: a 4-pane Windows-flag orb (red/green/blue/yellow
+  quadrants) above a bold "WuBuOS" wordmark in the sidebar header, matching XP.
+- **All 5 themes** got startmenu_sidebar_grad_end (Win98 navy, XP green, Media
+  orange, Zune green, WuBu orange) so every theme renders consistently.
+- Menu-item hover was already themed (XP uses select_bg blue) -- verified, not
+  changed.
+- **Regression test**: test_xp_sidebar_gradient_and_orb -- sets THEME_XP_LUNA_BLUE,
+  opens + renders, scans the VBE buffer for the Luna-blue sidebar pixel and the
+  orb's red quadrant. test_dosgui_startmenu 5/5.
+- ABI note: wubu_theme.h gained one field (startmenu_sidebar_grad_end); all
+  theme.c consumers recompiled. make runtime + make hosted + test_high_gui (9/0)
+  + test_dosgui_wm (29/29) all green.
 
