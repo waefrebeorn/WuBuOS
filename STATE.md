@@ -120,3 +120,25 @@
 - **Remaining (roadmap, not done this session)**: E1 NT transliteration batches 3+;
   E2 SteamOS gamescope/input/cloud; Styx9 registry-namespace glue.
 
+## 2026-07-19 (session) — Desktop icon-cap + persistence fixes + build-integrity cure
+- **Root-cause fix (build integrity)**: editing a header (DOSGUI_MAX_ICONS 16->64 in
+  dosgui_wm.h) shifted the in-memory DosGuiWM layout, but prebuilt .o files linked into
+  test_dosgui_wm were stale (compiled against the old header) -> icon_count read at the
+  wrong offset -> 7 phantom test failures (all routes through dosgui_icon_get). Fixed
+  two ways: (1) Makefile pattern rules now emit .d files (-MMD -MP) and the Makefile
+  `-include`s them, so any header edit rebuilds dependent objects; (2) test_dosgui_wm
+  recipe converted from mixing prebuilt .o + fresh .c to all-.c (self-contained, can't
+  link stale objects). Added *.d to .gitignore.
+- **DOSGUI_MAX_ICONS 16 -> 64** (dosgui_wm.h x2) + WUBU_ICON_LAYOUT_MAX 16 -> 64
+  (wubu_settings.h) so a real ~/Desktop with >16 entries is no longer silently dropped
+  by refresh_desktop, and layout persistence covers the same range.
+- **Drag-end persistence**: dosgui_wm_input.c drag-end handler now calls
+  dosgui_wm_save_icon_layout() (was snap-only) -> positions survive restart.
+- **Restore at boot**: dosgui_desktop_init() now calls dosgui_wm_restore_icon_layout()
+  after refresh_desktop(), so persisted drag positions re-apply on real boot (was
+  refresh-only -> saved positions ignored at startup).
+- **Regression tests added** (dosgui_wm_test.c): test_desktop_many_icons_retained
+  (refresh keeps >16 icons) + test_icon_drag_persist_restore (drag-end save -> restore
+  reapplies grid). test_dosgui_wm now 25/25. test_control 9/9, test_wallpaper all pass,
+  test_high_gui green.
+

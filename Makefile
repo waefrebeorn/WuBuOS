@@ -77,6 +77,12 @@ AUDIO_OBJS = $(AUDIO)/wubu_audio.o $(AUDIO)/wubu_audio_chips.o $(AUDIO)/wubu_aud
 
 .PHONY: all clean test kernel jit gui bridge apps worldsim
 
+# Header dependency tracking: every .c compile now emits a .d file (via -MMD
+# -MP in the pattern rules). Including them makes `make` rebuild an object
+# whenever any header it includes changes -- previously a header edit left
+# stale .o files linked into test binaries, causing phantom test failures.
+-include $(shell find src -name '*.d' 2>/dev/null)
+
 shell: $(SHELL_DIR)/wubu_shell
 	@echo "✅ Shell built (./src/shell/wubu_shell)"
 
@@ -85,7 +91,7 @@ $(SHELL_DIR)/wubu_shell: $(SHELL_OBJS)
 		$(SHELL_OBJS) -o $@
 
 $(SHELL_DIR)/%.o: $(SHELL_DIR)/%.c
-	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) -MMD -MP -c $< -o $@
 
 all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs
 	@echo "✅ WuBuOS built"
@@ -223,20 +229,20 @@ HOSTED_OBJS = \
 # Kernel sources for the hosted (userspace PIE) binary: compile with the default
 # CFLAGS (no -fno-pie / -mcmodel=kernel) so they link into a PIE executable.
 $(HOSTED)/%_khosted.o: $(KERNEL)/%.c
-	$(CC) $(CFLAGS) -I$(KERNEL) -I$(HOSTED) -I$(GUI) -I$(RT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(KERNEL) -I$(HOSTED) -I$(GUI) -I$(RT) -MMD -MP -c $< -o $@
 
 # vbe.c with -DVBE_HOSTED for the in-process hosted framebuffer.
 $(HOSTED)/vbe_hosted.o: $(KERNEL)/vbe.c
-	$(CC) $(CFLAGS) -DVBE_HOSTED -I$(KERNEL) -I$(HOSTED) -I$(GUI) -I$(RT) -c $< -o $@
+	$(CC) $(CFLAGS) -DVBE_HOSTED -I$(KERNEL) -I$(HOSTED) -I$(GUI) -I$(RT) -MMD -MP -c $< -o $@
 
 # archd without its daemon main (the hosted shell owns main).
 $(HOSTED)/archd_hosted.o: $(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_fs.c
-	$(CC) $(CFLAGS) -DWUBD_TEST_MAIN -I$(RT) -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -DWUBD_TEST_MAIN -I$(RT) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # holyd lifecycle without its daemon main (standalone apps own no archd/holyd
 # daemon; this variant exposes wubu_holyd_lifecycle's helpers without main()).
 $(RT)/holyd_lifecycle_app.o: $(RT)/wubu_holyd_lifecycle.c
-	$(CC) $(CFLAGS) -DWUBD_TEST_MAIN -I$(RT) -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -DWUBD_TEST_MAIN -I$(RT) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # Full runtime objects for standalone GUI apps (paint/doom). Excludes the
 # daemon main() objects (wubu_archd.o, wubu_holyd_lifecycle.o) and uses the
@@ -269,10 +275,10 @@ APP_RT_OBJS = \
 	$(RT)/wubu_vsl.o $(HOSTED)/archd_hosted.o $(RT)/holyd_lifecycle_app.o
 
 $(HOSTED)/primary-selection-private.o: $(HOSTED)/primary-selection-private.c
-	$(CC) $(CFLAGS) -I$(HOSTED) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(HOSTED) -MMD -MP -c $< -o $@
 
 $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
-	$(CC) $(CFLAGS) -I$(HOSTED) -x c -c $< -o $@
+	$(CC) $(CFLAGS) -I$(HOSTED) -x c -MMD -MP -c $< -o $@
 
 # Link-only target: reuses the .o files above. Edit one file -> one .o rebuild + relink.
 hosted: $(HOSTED_OBJS) $(RT_OBJS)
@@ -283,74 +289,74 @@ hosted: $(HOSTED_OBJS) $(RT_OBJS)
 # ── Compilation Rules ────────────────────────────────────────────
 
 $(KERNEL)/%.o: $(KERNEL)/%.c
-	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
 $(RT)/%.o: $(RT)/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -MMD -MP -c $< -o $@
 
 $(JIT)/%.o: $(JIT)/%.c
-	$(CC) $(CFLAGS) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(JIT) -MMD -MP -c $< -o $@
 
 $(GUI)/%.o: $(GUI)/%.c
-	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) `pkg-config --cflags wlroots vulkan gbm libdrm 2>/dev/null` -c $< -o $@
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) `pkg-config --cflags wlroots vulkan gbm libdrm 2>/dev/null` -MMD -MP -c $< -o $@
 
 $(BRIDGE)/%.o: $(BRIDGE)/%.c
-	$(CC) $(CFLAGS) -I$(BRIDGE) -I$(KERNEL) -I$(WS) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(BRIDGE) -I$(KERNEL) -I$(WS) -MMD -MP -c $< -o $@
 
 $(APPS)/%.o: $(APPS)/%.c
-	$(CC) $(CFLAGS) -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -MMD -MP -c $< -o $@
 
 $(APPS)/calc/%.o: $(APPS)/calc/%.c
-	$(CC) $(CFLAGS) -I$(APPS)/calc -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(APPS)/calc -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -MMD -MP -c $< -o $@
 
 $(APPS)/notepad/%.o: $(APPS)/notepad/%.c
-	$(CC) $(CFLAGS) -I$(APPS)/notepad -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(APPS)/notepad -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -MMD -MP -c $< -o $@
 
 $(APPS)/cmd/%.o: $(APPS)/cmd/%.c
-	$(CC) $(CFLAGS) -I$(APPS)/cmd -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(APPS)/cmd -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -MMD -MP -c $< -o $@
 
 $(APPS)/taskmgr/%.o: $(APPS)/taskmgr/%.c
-	$(CC) $(CFLAGS) -I$(APPS)/taskmgr -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(APPS)/taskmgr -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -MMD -MP -c $< -o $@
 
 $(APPS)/regedit/%.o: $(APPS)/regedit/%.c
-	$(CC) $(CFLAGS) -I$(APPS)/regedit -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(APPS)/regedit -I$(APPS) -I$(JIT) -I$(GUI) -I$(KERNEL) -I$(RT) -I$(COMP) -MMD -MP -c $< -o $@
 
 $(WS)/%.o: $(WS)/%.c
-	$(CC) $(CFLAGS) -I$(WS) -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(WS) -I$(KERNEL) -MMD -MP -c $< -o $@
 
 $(COMP)/%.o: $(COMP)/%.c
-	$(CC) $(CFLAGS) -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 $(RT)/%.o: $(RT)/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(RT) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # VSL submodule objects
 $(RT)/vsl/%.o: $(RT)/vsl/%.c
-	$(CC) $(CFLAGS) -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # OCI submodule objects
 $(RT)/oci/%.o: $(RT)/oci/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/oci -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/oci -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # Container submodule objects
 $(RT)/container/%.o: $(RT)/container/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/container -I$(COMP) -I$(JIT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/container -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 $(TOOLS)/%.o: $(TOOLS)/%.c
-	$(CC) $(CFLAGS) -I$(TOOLS) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(TOOLS) -MMD -MP -c $< -o $@
 
 $(HOSTED)/%.o: $(HOSTED)/%.c
-	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -MMD -MP -c $< -o $@
 
 # DRM/KMS backend: real libdrm engine is live (WUBU_USE_DRM), not dead stubs.
 $(HOSTED)/wubu_metal_drm.o: $(HOSTED)/wubu_metal_drm.c
-	$(CC) $(CFLAGS) -DWUBU_USE_DRM -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -c $< -o $@
+	$(CC) $(CFLAGS) -DWUBU_USE_DRM -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -MMD -MP -c $< -o $@
 
 $(AUDIO)/%.o: $(AUDIO)/%.c
-	$(CC) $(CFLAGS) -I$(AUDIO) -I$(KERNEL) -I$(RT) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(AUDIO) -I$(KERNEL) -I$(RT) -MMD -MP -c $< -o $@
 
 $(BEAR)/%.o: $(BEAR)/%.c
-	$(CC) $(CFLAGS) -I$(BEAR) -I$(RT) -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) -I$(BEAR) -I$(RT) -I$(KERNEL) -MMD -MP -c $< -o $@
 
 # CUDA files
 $(BEAR)/%.o: $(BEAR)/%.cu
@@ -358,10 +364,10 @@ $(BEAR)/%.o: $(BEAR)/%.cu
 
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S
-	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
 $(KERNEL)/libc.o: $(KERNEL)/libc.c
-	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
 # ── Tests ────────────────────────────────────────────────────────
 
@@ -654,9 +660,9 @@ test_dbuf:
 
 test_dosgui_wm: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
-			$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c \
+		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c \
 		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c \
 		$(GUI)/dosgui_wm_test.c -o $(GUI)/dosgui_wm_test -lm
