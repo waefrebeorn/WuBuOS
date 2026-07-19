@@ -19,9 +19,11 @@
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
 #include <fcntl.h>
 #include <sys/eventfd.h>
 #include <sys/mman.h>
@@ -108,8 +110,64 @@ int vsl_nt_bridge_init(vsl_nt_bridge_ctx_t *ctx) {
     return 0;
 }
 
+/* Live-child tracker (see vsl_nt_internal.h). */
+pid_t g_nt_child_pids[NT_CHILD_MAX];
+int   g_nt_child_count = 0;
+
+void vsl_nt_track_child(pid_t pid) {
+    if (pid <= 0 || g_nt_child_count >= NT_CHILD_MAX) return;
+    g_nt_child_pids[g_nt_child_count++] = pid;
+}
+
 void vsl_nt_bridge_shutdown(vsl_nt_bridge_ctx_t *ctx) {
     if (!ctx) return;
+    /* Reap every child process the bridge forked during the session so the
+     * caller (e.g. the regression test) never leaks sleeping sentinel
+     * processes that block in pause() forever. We reap from three sources:
+     *  (a) explicitly tracked forked children (bulletproof, survives handle
+     *      close mid-session),
+     *  (b) job sentinels still in g_nt_jobs[],
+     *  (c) live PROCESS/THREAD handles whose data field holds a child pid. */
+    for (int i = 0; i < g_nt_child_count; i++) {
+        pid_t pid = g_nt_child_pids[i];
+        if (pid > 0) {
+            kill(pid, SIGKILL);
+            int status = 0; pid_t wr;
+            for (int t = 0; t < 20; t++) {
+                wr = waitpid(pid, &status, WNOHANG);
+                if (wr > 0 || wr < 0) break;
+                usleep(10000);
+            }
+        }
+    }
+    g_nt_child_count = 0;
+    for (int i = 0; i < NT_JOB_MAX; i++) {
+        if (g_nt_jobs[i].used && g_nt_jobs[i].pgid > 0) {
+            kill(g_nt_jobs[i].pgid, SIGKILL);
+            int status = 0; pid_t wr;
+            for (int t = 0; t < 20; t++) {
+                wr = waitpid(g_nt_jobs[i].pgid, &status, WNOHANG);
+                if (wr > 0 || wr < 0) break;
+                usleep(10000);
+            }
+        }
+    }
+    for (int i = 0; i < 4096; i++) {
+        if (ctx->handle_table[i].valid &&
+            (ctx->handle_table[i].type == NT_OBJECT_TYPE_PROCESS ||
+             ctx->handle_table[i].type == NT_OBJECT_TYPE_THREAD)) {
+            pid_t pid = (pid_t)ctx->handle_table[i].data;
+            if (pid > 0) {
+                kill(pid, SIGKILL);
+                int status = 0; pid_t wr;
+                for (int t = 0; t < 20; t++) {
+                    wr = waitpid(pid, &status, WNOHANG);
+                    if (wr > 0 || wr < 0) break;
+                    usleep(10000);
+                }
+            }
+        }
+    }
     for (int i = 0; i < 4096; i++) ctx->handle_table[i].valid = false;
 }
 

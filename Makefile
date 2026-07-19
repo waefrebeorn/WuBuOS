@@ -483,22 +483,40 @@ test_apps:
 		$(RT)/wubu_proton.c $(RT)/wubu_proton_api.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_apps_test.c -o $(RT)/wubu_apps_test -ldl -lvulkan
 	$(RT)/wubu_apps_test
 
-test_vsl:
+# Incremental object list for the VSL NT test: each .o builds via the
+# $(RT)/vsl/%.o / $(RT)/%.o pattern rules ONLY when its .c changed, so
+# re-running the test after a one-file edit is seconds, not a 7-minute
+# single-TU recompile. (Previously the recipe fed 15 .c files to one $(CC)
+# invocation, recompiling everything every time.)
+VSL_NT_OBJS = \
+	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o \
+	$(RT)/vsl/vsl_nt_atoms.o $(RT)/vsl/vsl_nt_job.o $(RT)/vsl/vsl_nt_io.o \
+	$(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o \
+	$(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o \
+	$(RT)/vsl/vsl_nt_registry.o $(RT)/vsl/vsl_nt_token.o $(RT)/vsl/vsl_syscall_proc.o \
+	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o \
+	$(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o \
+	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o \
+	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_nt_test.o
+
+# Same incremental-linking fix as test_vsl_nt: build each .o via the pattern
+# rules so a one-file edit recompiles only that file (seconds, not minutes).
+VSL_OBJS = \
+	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_proc.o \
+	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o \
+	$(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o \
+	$(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o \
+	$(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_vsl_test.o
+
+test_vsl: $(VSL_OBJS)
 	$(CC) -O0 -g -D_GNU_SOURCE -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
-		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c \
-		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
-		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/vsl/vsl_gpu_vulkan.c \
-		$(RT)/wubu_vsl_test.c \
+		$(VSL_OBJS) \
 		-o $(RT)/wubu_vsl_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_test
 
-test_vsl_nt:
+test_vsl_nt: $(VSL_NT_OBJS)
 	$(CC) -O0 -g -D_GNU_SOURCE -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
-		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_nt.c $(RT)/vsl/vsl_nt_atoms.c $(RT)/vsl/vsl_nt_job.c $(RT)/vsl/vsl_nt_io.c $(RT)/vsl/vsl_nt_vmem.c $(RT)/vsl/vsl_nt_process.c $(RT)/vsl/vsl_nt_thread.c $(RT)/vsl/vsl_nt_section.c $(RT)/vsl/vsl_nt_timer.c $(RT)/vsl/vsl_nt_sync.c $(RT)/vsl/vsl_nt_registry.c $(RT)/vsl/vsl_nt_token.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c \
-		$(RT)/vsl/vsl_memory.c $(RT)/vsl/vsl_file.c $(RT)/vsl/vsl_driver.c \
-		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/vsl/vsl_gpu_vulkan.c \
-		$(RT)/wubu_fs_util.c \
-		$(RT)/vsl/vsl_syscall_nt_test.c \
+		$(VSL_NT_OBJS) \
 		-o $(RT)/wubu_vsl_nt_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_test
 

@@ -57,6 +57,7 @@ int64_t vsl_nt_create_job_object(uint64_t a_out_handle, uint64_t b_name,
         setpgid(0, 0);
         for (;;) pause();
     }
+    vsl_nt_track_child(child);
     /* Parent: record the sentinel's pgid (== its pid) as the job's group. */
     g_nt_jobs[slot].pgid  = child;
     g_nt_jobs[slot].job_id = g_nt_job_next++;
