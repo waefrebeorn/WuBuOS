@@ -4,12 +4,14 @@
 #include "../../gui/dosgui_wm.h"
 #include "../../runtime/wubu_host_exec.h"
 
+#define _GNU_SOURCE             /* for kill(), ioctl(), pty.h */
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <pty.h>
 #include <signal.h>
@@ -25,7 +27,7 @@ typedef struct {
     int current;
 } HistoryBuffer;
 
-typedef struct {
+typedef struct WubuCmd {
     int cols, rows;
     int pty_fd;
     pid_t child_pid;
@@ -41,9 +43,9 @@ typedef struct {
     int ansi_len;
     bool in_escape;
     bool in_csi;
-} CmdState;
+} WubuCmd;
 
-static CmdState g_cmd = {0};
+static WubuCmd g_cmd = {0};
 
 static void cmd_pty_write(const char *data, int len) {
     if (g_cmd.pty_fd > 0) {
@@ -135,7 +137,10 @@ WubuCmd* wubu_cmd_create(int cols, int rows) {
 
 void wubu_cmd_destroy(WubuCmd *cmd) {
     if (g_cmd.child_pid > 0) {
-        kill(g_cmd.child_pid, SIGTERM);
+        /* forkpty put the child in its own process group (session leader).
+         * Kill the whole group so the shell and any children it spawned die,
+         * then reap. SIGKILL guarantees no interactive-shell ignore of TERM. */
+        kill(-g_cmd.child_pid, SIGKILL);
         waitpid(g_cmd.child_pid, NULL, 0);
         g_cmd.child_pid = 0;
     }
@@ -238,6 +243,39 @@ void wubu_cmd_resize(WubuCmd *cmd, int cols, int rows) {
         ioctl(g_cmd.pty_fd, TIOCSWINSZ, &ws);
         kill(g_cmd.child_pid, SIGWINCH);
     }
+}
+
+void wubu_cmd_history_add(WubuCmd *cmd, const char *line) {
+    if (!line || !*line) return;
+    HistoryBuffer *h = &g_cmd.history;
+    if (h->count < CMD_MAX_HISTORY) {
+        strncpy(h->lines[h->count], line, CMD_MAX_LINE - 1);
+        h->lines[h->count][CMD_MAX_LINE - 1] = '\0';
+        h->count++;
+        h->head = h->count;
+    } else {
+        /* Ring buffer: drop the oldest, shift down. */
+        for (int i = 1; i < CMD_MAX_HISTORY; i++)
+            strncpy(h->lines[i - 1], h->lines[i], CMD_MAX_LINE);
+        strncpy(h->lines[CMD_MAX_HISTORY - 1], line, CMD_MAX_LINE - 1);
+        h->lines[CMD_MAX_HISTORY - 1][CMD_MAX_LINE - 1] = '\0';
+        h->head = CMD_MAX_HISTORY;
+    }
+    h->current = h->head;
+}
+
+const char *wubu_cmd_history_prev(WubuCmd *cmd) {
+    HistoryBuffer *h = &g_cmd.history;
+    if (h->count == 0) return NULL;
+    if (h->current > 0) h->current--;
+    return h->lines[h->current];
+}
+
+const char *wubu_cmd_history_next(WubuCmd *cmd) {
+    HistoryBuffer *h = &g_cmd.history;
+    if (h->count == 0) return NULL;
+    if (h->current < h->head) h->current++;
+    return h->lines[h->current];
 }
 
 static void cmd_draw_prompt(void *win, int cx, int cy, int cw, int ch) {
