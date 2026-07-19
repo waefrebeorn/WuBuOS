@@ -117,8 +117,8 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 > work item. These are marathons tracked ABOVE the sprint board, NOT micro-counted
 > as 400 individual lines — but they ARE the honest bulk of the ~400.
 
-### EPIC E1 — ReactOS NT Emulation (297 syscalls → 88 transliterated) — 209 REAL_GAPs
-- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 88 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10 + batch 7: 8 + batch 8: 8 + blitz: 22).**
+### EPIC E1 — ReactOS NT Emulation (297 syscalls → 148 transliterated) — 149 REAL_GAPs
+- NT→VSL→Styx9→ZealOS→TempleOS pipeline: **mapped, 148 implemented (batch 1: 10 + batch 2: 10 + batch 3: 10 + batch 4: 4 + batch 5: 6 + batch 6: 10 + batch 7: 8 + batch 8: 8 + blitz: 22 + batch 11: 24).**
 - Every NT syscall (`NtCreateFile`, `NtReadFile`, `NtDeviceIoControlFile`, …) needs a
   VSL handler that does real work, not a `VSL_NT_MAP_STUB` flag
   (`src/runtime/vsl/vsl_nt_bridge.h:376` defines `VSL_NT_MAP_STUB 0x08 — not yet implemented`).
@@ -206,6 +206,28 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
   fsync-dir-tree/rmdir-hive). Ordinals verified vs `sysfuncs.lst`. Added missing
   `NT_STATUS_*` codes (TIMEOUT/WAIT_0/ALERTED/NO_MORE_FILES/BUFFER_OVERFLOW) to bridge.h.
   `test_vsl_nt` lite build now **165/0** (14 new blitz checks). **Total 88 transliterated, 209 remain.**
+- Batch 11 (2026-07-19) transliterated — **24 more syscalls**: finished the
+  in-flight job-object work (`NtCreateJobSet` 43, `NtQueryInformationJobObject`
+  160, `NtSetInformationJobObject` 235) plus the IO/sync/port surface a real
+  Win32 app drives: `NtCreateIoCompletion`(41)/`NtOpenIoCompletion`(124)/
+  `NtQueryIoCompletion`(167)/`NtSetIoCompletion`(242)/`NtRemoveIoCompletion`(199,
+  eventfd-backed), `NtCreateSymbolicLinkObject`(55)/`NtOpenSymbolicLinkObject`(134,
+  name→target map), `NtCreateEventPair`(39)/`NtOpenEventPair`(122, dual eventfds),
+  `NtCreateNamedPipeFile`(47)/`NtCreateMailslotFile`(45, real FIFOs),
+  `NtDeviceIoControlFile`(70)/`NtFsControlFile`(89, ioctl), and the LPC port
+  family `NtCreateWaitablePort`(59)/`NtCreatePort`(49)/`NtConnectPort`(34)/
+  `NtListenPort`(101)/`NtAcceptConnectPort`(1)/`NtCompleteConnectPort`(32)/
+  `NtReplyPort`(203)/`NtRequestWaitReplyPort`(209, eventfd-handshaked). Also closed
+  **2 pre-existing handler bugs**: `NtResetEvent`(211) was writing 0 to the eventfd
+  (EINVAL) — now consumes the counter (was at wrong ordinal 209); and
+  `NtQuerySymbolicLinkObject` now writes the returned length. **Plus fixed 2
+  Makefile gate bugs** that broke `make test` from a clean tree: `test_syscall` and
+  `test_wubu` linked `wubu_dos_emu.o` without the supporting emu TUs (`mem/regs/
+  alu/int/decode`) → undefined `step`/`rd16`; and `test_ns_kernel` linked
+  `wubu_ns_kernel.o`/`wubu_ns_fs.o` without compiling them. `test_vsl_nt` lite build
+  now **230/0** (14 new Batch-11 checks: job-set/info round-trip, IO completion
+  post/drain, symlink create/open/query, event pair, LPC handshake). **Total 148
+  transliterated, 149 remain.**
 - This is the single largest block: **209 remaining = "rewrite-from-scratch" work items.**
 
 ### EPIC E2 — SteamOS Parity (~30 missing subsystems) — ~30
