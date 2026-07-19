@@ -276,6 +276,8 @@ int dosgui_wm_get_icon_count(void);
 
 /* -- Icon persistence & wallpaper reload (Desktop fixup Stream 2/4) - */
 DosGuiIcon *dosgui_icon_get(int idx);
+/* Compact dead (alive==false) icons out of the array, keeping icon_count dense. */
+void dosgui_wm_compact_icons(void);
 void dosgui_wm_save_icon_layout(void);      /* Persist live icon grid into settings */
 void dosgui_wm_restore_icon_layout(void);   /* Restore live icon grid from settings */
 void dosgui_wm_reload_wallpaper(void);      /* Re-decode wallpaper from settings path */

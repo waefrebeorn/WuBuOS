@@ -142,3 +142,22 @@
   reapplies grid). test_dosgui_wm now 25/25. test_control 9/9, test_wallpaper all pass,
   test_high_gui green.
 
+## 2026-07-19 (session, part 2) — Desktop delete -> Recycle Bin + multi-select
+- **Delete now routes to trash** (ReactOS shell32 CDesktopFolder::Delete lesson):
+  dialog_delete_on_key confirms, then wubu_trash_move(icon->target) moves the
+  underlying ~/Desktop file/folder to the Recycle Bin (recoverable) instead of just
+  hiding the icon. wubu_trash_init() wired into dosgui_desktop_init() so the trash
+  dir exists at boot (was only initialized by the trash unit test -> production
+  deletes silently no-op'd before).
+- **Multi-select delete**: the selected flag (already on DosGuiIcon) is now honored --
+  confirm-delete removes every alive+selected icon (trashing each target), not just
+  the single hit icon.
+- **dosgui_wm_compact_icons()** added (dosgui_wm_icons.c, declared in dosgui_wm.h):
+  compacts dead (alive==false) entries out of the array after delete so icon_count
+  stays dense for refresh/sort/hit-test.
+- **Regression tests**: test_icon_delete_moves_to_trash (underlying file leaves
+  ~/Desktop, count drops) + test_icon_multiselect_delete (whole selected group removed
+  + compacted). test_dosgui_wm now 27/27.
+- Makefile: test_dosgui_wm + test_control link lines gained wubu_trash.c +
+  wubu_arch.c (trash depends on arch mkdir_p + settings).
+
