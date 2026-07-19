@@ -1,6 +1,16 @@
 /* wubu_dos_emu_int.c -- WuBuOS 8086/DOS shim leaf module (self-contained C11). */
 #include "wubu_dos_emu_internal.h"
 
+void scroll_up(WubuDosEmu *e, int top, int left, int bot, int right, int lines, uint8_t attr) {
+    if (lines <= 0) return;
+    for (int y = top; y <= bot - lines; y++) {
+        memcpy(e->text[y] + left, e->text[y + lines] + left, (size_t)(right - left + 1));
+        memcpy(e->attr[y] + left, e->attr[y + lines] + left, (size_t)(right - left + 1));
+    }
+    for (int y = bot - lines + 1; y <= bot; y++)
+        for (int x = left; x <= right; x++) { e->text[y][x] = ' '; e->attr[y][x] = attr; }
+}
+
 int dos_handle_to_fd(WubuDosEmu *e, uint16_t h) {
     if (h <= 2) return (int)h;                 /* stdin/out/err */
     int slot = (int)h - 1;
@@ -19,36 +29,37 @@ void int16(WubuDosEmu *e) {
     }
 }
 
-void put_char(WubuDosEmu *e, char c) {
-    if (c == '\r') { e->cur_x = 0; return; }
-    if (c == '\n') { e->cur_x = 0; e->cur_y++; }
-    else if (c == '\b') { if (e->cur_x > 0) e->cur_x--; }
-    else {
-        if (e->cur_x >= WUBU_DOS_TEXT_COLS) { e->cur_x = 0; e->cur_y++; }
-        if (e->cur_y >= WUBU_DOS_TEXT_ROWS) { scroll_up(e, 0, 0, WUBU_DOS_TEXT_ROWS - 1, WUBU_DOS_TEXT_COLS - 1, 1, (uint8_t)e->cur_attr); e->cur_y = WUBU_DOS_TEXT_ROWS - 1; }
-        e->text[e->cur_y][e->cur_x] = (uint8_t)c;
-        e->attr[e->cur_y][e->cur_x] = (uint8_t)e->cur_attr;
-        e->cur_x++;
+void int10(WubuDosEmu *e) {
+    uint8_t ah = (uint8_t)(e->ax >> 8);
+    switch (ah) {
+        case 0x00: /* set mode: ignore, keep 80x25 text */ break;
+        case 0x01: break; /* cursor shape */
+        case 0x02: e->cur_y = (e->dx >> 8) & 0xFF; e->cur_x = e->dx & 0xFF; break;
+        case 0x03: e->ax = (uint16_t)((e->cur_attr << 8) | 0); e->dx = (uint16_t)((e->cur_y << 8) | e->cur_x); break;
+        case 0x06: { int lines = e->ax & 0xFF; uint8_t at = (uint8_t)(e->bx & 0xFF);
+                     int ch = (e->cx >> 8) & 0xFF, cl = e->cx & 0xFF, dh = (e->dx >> 8) & 0xFF, dl = e->dx & 0xFF;
+                     if (lines == 0) scroll_up(e, ch, cl, dh, dl, WUBU_DOS_TEXT_ROWS, at);
+                     e->cur_x = cl; e->cur_y = ch; break; }
+        case 0x07: { int lines = e->ax & 0xFF; uint8_t at = (uint8_t)(e->bx & 0xFF);
+                     int ch = (e->cx >> 8) & 0xFF, cl = e->cx & 0xFF, dh = (e->dx >> 8) & 0xFF, dl = e->dx & 0xFF;
+                     /* scroll down: shift rows toward bottom */
+                     if (lines == 0 || lines >= (dh - ch + 1)) { for (int y = ch; y <= dh; y++) for (int x = cl; x <= dl; x++) { e->text[y][x]=' '; e->attr[y][x]=at; } }
+                     else { for (int y = dh; y >= ch + lines; y--) { memcpy(e->text[y]+cl, e->text[y-lines]+cl, dl-cl+1); memcpy(e->attr[y]+cl, e->attr[y-lines]+cl, dl-cl+1); } for (int y = ch; y < ch + lines; y++) for (int x = cl; x <= dl; x++) { e->text[y][x]=' '; e->attr[y][x]=at; } }
+                     e->cur_x = cl; e->cur_y = ch; break; }
+        case 0x08: e->ax = (uint16_t)((e->attr[e->cur_y][e->cur_x] << 8) | e->text[e->cur_y][e->cur_x]); break;
+        case 0x09: { char c = (char)(e->ax & 0xFF); uint8_t a = (uint8_t)(e->bx & 0xFF);
+                     int x = e->cur_x, y = e->cur_y;
+                     if (x < WUBU_DOS_TEXT_COLS && y < WUBU_DOS_TEXT_ROWS) { e->text[y][x]=c; e->attr[y][x]=a; }
+                     if (x < WUBU_DOS_TEXT_COLS - 1) e->cur_x = x + 1;
+                     break; }
+        case 0x0E: put_char(e, (char)(e->ax & 0xFF)); break;
+        case 0x0F: e->ax = 0x5000; e->bx = 0; break; /* mode 3, 80 cols */
+        case 0x13: { int cx = e->cx; uint16_t off = e->dx; uint16_t s = e->es;
+                     int row = (e->dx >> 8) & 0xFF, col = e->dx & 0xFF; uint8_t at = (uint8_t)(e->bx & 0xFF);
+                     for (int i = 0; i < cx; i++) { char c = (char)rd8(e, s, (uint16_t)(off + i)); e->cur_y = row; e->cur_x = col + i; e->cur_attr = at; put_char(e, c); } break; }
+        default: break;
     }
-    if (e->cur_y >= WUBU_DOS_TEXT_ROWS) e->cur_y = WUBU_DOS_TEXT_ROWS - 1;
 }
-
-/* ============================ DOS host file table ============================ */
-/* Translate a DOS handle (slot+1) to a host fd; console handles 0/1/2 map to
- * the host 0/1/2. Returns the host fd, or -1 if the handle is not open. */
-
-uint16_t dos_handle_alloc(WubuDosEmu *e, int host_fd) {
-    for (int i = 3; i < 64; i++) {
-        if (!e->host_used[i]) {
-            e->host_used[i] = 1;
-            e->host_fd[i] = host_fd;
-            return (uint16_t)(i + 1);
-        }
-    }
-    return 0; /* no free handle */
-}
-
-/* ============================ INT handlers ============================ */
 
 void int21(WubuDosEmu *e) {
     uint8_t ah = (uint8_t)(e->ax >> 8);
@@ -58,7 +69,6 @@ void int21(WubuDosEmu *e) {
         case 0x05: break; /* printer */
         case 0x06: { uint8_t dl = (uint8_t)(e->dx & 0xFF);
                      if (dl == 0xFF) { uint8_t v = kbd_pop(e); e->ax = v; setF(e, F_ZF, v ? 0 : 1); }
-                     else put_char(e, (char)dl);
                      break; }
         case 0x09: { uint16_t off = e->dx, s = e->ds; int i = 0;
                      while (i < 4096) { char c = (char)rd8(e, s, (uint16_t)(off + i)); if (c == '$') break; put_char(e, c); i++; } break; }
@@ -162,16 +172,6 @@ void int21(WubuDosEmu *e) {
 
 /* ============================ shifts/rolls ============================ */
 
-void scroll_up(WubuDosEmu *e, int top, int left, int bot, int right, int lines, uint8_t attr) {
-    if (lines <= 0) return;
-    for (int y = top; y <= bot - lines; y++) {
-        memcpy(e->text[y] + left, e->text[y + lines] + left, (size_t)(right - left + 1));
-        memcpy(e->attr[y] + left, e->attr[y + lines] + left, (size_t)(right - left + 1));
-    }
-    for (int y = bot - lines + 1; y <= bot; y++)
-        for (int x = left; x <= right; x++) { e->text[y][x] = ' '; e->attr[y][x] = attr; }
-}
-
 uint8_t kbd_pop(WubuDosEmu *e) {
     if (e->khead == e->ktail) return 0;
     uint8_t v = e->kbuf[e->khead];
@@ -179,35 +179,33 @@ uint8_t kbd_pop(WubuDosEmu *e) {
     return v;
 }
 
-void int10(WubuDosEmu *e) {
-    uint8_t ah = (uint8_t)(e->ax >> 8);
-    switch (ah) {
-        case 0x00: /* set mode: ignore, keep 80x25 text */ break;
-        case 0x01: break; /* cursor shape */
-        case 0x02: e->cur_y = (e->dx >> 8) & 0xFF; e->cur_x = e->dx & 0xFF; break;
-        case 0x03: e->ax = (uint16_t)((e->cur_attr << 8) | 0); e->dx = (uint16_t)((e->cur_y << 8) | e->cur_x); break;
-        case 0x06: { int lines = e->ax & 0xFF; uint8_t at = (uint8_t)(e->bx & 0xFF);
-                     int ch = (e->cx >> 8) & 0xFF, cl = e->cx & 0xFF, dh = (e->dx >> 8) & 0xFF, dl = e->dx & 0xFF;
-                     if (lines == 0) scroll_up(e, ch, cl, dh, dl, WUBU_DOS_TEXT_ROWS, at);
-                     else scroll_up(e, ch, cl, dh, dl, lines, at);
-                     e->cur_x = cl; e->cur_y = ch; break; }
-        case 0x07: { int lines = e->ax & 0xFF; uint8_t at = (uint8_t)(e->bx & 0xFF);
-                     int ch = (e->cx >> 8) & 0xFF, cl = e->cx & 0xFF, dh = (e->dx >> 8) & 0xFF, dl = e->dx & 0xFF;
-                     /* scroll down: shift rows toward bottom */
-                     if (lines == 0 || lines >= (dh - ch + 1)) { for (int y = ch; y <= dh; y++) for (int x = cl; x <= dl; x++) { e->text[y][x]=' '; e->attr[y][x]=at; } }
-                     else { for (int y = dh; y >= ch + lines; y--) { memcpy(e->text[y]+cl, e->text[y-lines]+cl, dl-cl+1); memcpy(e->attr[y]+cl, e->attr[y-lines]+cl, dl-cl+1); } for (int y = ch; y < ch + lines; y++) for (int x = cl; x <= dl; x++) { e->text[y][x]=' '; e->attr[y][x]=at; } }
-                     e->cur_x = cl; e->cur_y = ch; break; }
-        case 0x08: e->ax = (uint16_t)((e->attr[e->cur_y][e->cur_x] << 8) | e->text[e->cur_y][e->cur_x]); break;
-        case 0x09: { char c = (char)(e->ax & 0xFF); uint8_t a = (uint8_t)(e->bx & 0xFF);
-                     int x = e->cur_x, y = e->cur_y;
-                     if (x < WUBU_DOS_TEXT_COLS && y < WUBU_DOS_TEXT_ROWS) { e->text[y][x]=c; e->attr[y][x]=a; }
-                     if (x < WUBU_DOS_TEXT_COLS - 1) e->cur_x = x + 1;
-                     break; }
-        case 0x0E: put_char(e, (char)(e->ax & 0xFF)); break;
-        case 0x0F: e->ax = 0x5000; e->bx = 0; break; /* mode 3, 80 cols */
-        case 0x13: { int cx = e->cx; uint16_t off = e->dx; uint16_t s = e->es;
-                     int row = (e->dx >> 8) & 0xFF, col = e->dx & 0xFF; uint8_t at = (uint8_t)(e->bx & 0xFF);
-                     for (int i = 0; i < cx; i++) { char c = (char)rd8(e, s, (uint16_t)(off + i)); e->cur_y = row; e->cur_x = col + i; e->cur_attr = at; put_char(e, c); } break; }
-        default: break;
+uint16_t dos_handle_alloc(WubuDosEmu *e, int host_fd) {
+    for (int i = 3; i < 64; i++) {
+        if (!e->host_used[i]) {
+            e->host_used[i] = 1;
+            e->host_fd[i] = host_fd;
+            return (uint16_t)(i + 1);
+        }
     }
+    return 0; /* no free handle */
 }
+
+/* ============================ INT handlers ============================ */
+
+void put_char(WubuDosEmu *e, char c) {
+    if (c == '\r') { e->cur_x = 0; return; }
+    if (c == '\n') { e->cur_x = 0; e->cur_y++; }
+    else if (c == '\b') { if (e->cur_x > 0) e->cur_x--; }
+    else {
+        if (e->cur_x >= WUBU_DOS_TEXT_COLS) { e->cur_x = 0; e->cur_y++; }
+        if (e->cur_y >= WUBU_DOS_TEXT_ROWS) { scroll_up(e, 0, 0, WUBU_DOS_TEXT_ROWS - 1, WUBU_DOS_TEXT_COLS - 1, 1, (uint8_t)e->cur_attr); e->cur_y = WUBU_DOS_TEXT_ROWS - 1; }
+        e->text[e->cur_y][e->cur_x] = (uint8_t)c;
+        e->attr[e->cur_y][e->cur_x] = (uint8_t)e->cur_attr;
+        e->cur_x++;
+    }
+    if (e->cur_y >= WUBU_DOS_TEXT_ROWS) e->cur_y = WUBU_DOS_TEXT_ROWS - 1;
+}
+
+/* ============================ DOS host file table ============================ */
+/* Translate a DOS handle (slot+1) to a host fd; console handles 0/1/2 map to
+ * the host 0/1/2. Returns the host fd, or -1 if the handle is not open. */

@@ -1,30 +1,46 @@
-/* wubu_dos_emu.c -- WuBuOS 8086/DOS shim public API. */
+/* wubu_dos_emu.c -- WuBuOS 8086/DOS shim public API (create/destroy/load/run/capture). */
 #include "wubu_dos_emu_internal.h"
 
-void wubu_dos_emu_key(WubuDosEmu *e, uint8_t ascii) {
+int wubu_dos_emu_exit_code(const WubuDosEmu *e) { return e ? e->exit_code : -1; }
+
+void wubu_dos_emu_regs(const WubuDosEmu *e, uint16_t *ax, uint16_t *bx, uint16_t *cx, uint16_t *dx,
+                       uint16_t *si, uint16_t *di, uint16_t *ip, uint16_t *flags, uint16_t *cs) {
     if (!e) return;
-    /* Map a few common ASCII bytes to plausible scancodes for INT 16h. */
-    static const uint8_t sc[256] = {0};
-    (void)sc;
-    uint8_t scan = 0x1E; /* default 'A' style; good enough for ah=0 top byte */
-    if (ascii >= 'a' && ascii <= 'z') scan = (uint8_t)(0x1E + (ascii - 'a'));
-    else if (ascii >= 'A' && ascii <= 'Z') scan = (uint8_t)(0x1E + (ascii - 'A'));
-    else if (ascii >= '0' && ascii <= '9') scan = (uint8_t)(0x02 + (ascii - '0'));
-    else if (ascii == ' ') scan = 0x39;
-    else if (ascii == '\r' || ascii == '\n') scan = 0x1C;
-    else if (ascii == '\b') scan = 0x0E;
-    else if (ascii == '\t') scan = 0x0F;
-    else if (ascii == 0x1B) scan = 0x01;
-    int next = (e->ktail + 1) & 63;
-    if (next == e->khead) return; /* full */
-    e->kbuf[e->ktail] = ascii; e->kscan[e->ktail] = scan; e->ktail = next;
+    if (ax) *ax = e->ax;
+    if (bx) *bx = e->bx;
+    if (cx) *cx = e->cx;
+    if (dx) *dx = e->dx;
+    if (si) *si = e->si;
+    if (di) *di = e->di;
+    if (ip) *ip = e->ip;
+    if (flags) *flags = e->flags;
+    if (cs) *cs = e->cs;
 }
 
-int wubu_dos_emu_step(WubuDosEmu *e) {
-    if (!e || e->state != WUBU_DOS_RUNNING) return -1;
-    e->steps++;
-    return step(e);
+
+int wubu_dos_emu_load_com(WubuDosEmu *e, const uint8_t *data, size_t size) {
+    if (!e || !data || size == 0) return -1;
+    if (size > WUBU_DOS_MEM_SIZE - 0x100) return -1;
+    memset(e->mem, 0, WUBU_DOS_MEM_SIZE);
+    /* Build a real 80-byte PSP at seg 0x1000:0. */
+    e->psp_seg = e->ds;
+    wr8(e, e->ds, 0, 0xCD); wr8(e, e->ds, 1, 0x20); /* int 20h at PSP:0 */
+    wr8(e, e->ds, 2, 0x9A);                          /* far JMP (unused) */
+    wr16(e, e->ds, 0x16, 0);                          /* parent PSP = 0 */
+    wr16(e, e->ds, 0x2C, 0);                          /* environment seg = 0 */
+    wr16(e, e->ds, 0x80, 0x80);                       /* DTA = PSP:0x80 */
+    /* Default command tail (CR only) so a program that reads PSP:0x80 sees an
+     * empty line; real cmdline could be injected via a dedicated API. */
+    wr8(e, e->ds, 0x80, 0x0D);
+    /* Copy program to 0x100. */
+    for (size_t i = 0; i < size; i++) wr8(e, e->cs, (uint16_t)(0x100 + i), data[i]);
+    e->ip = 0x100;
+    e->state = WUBU_DOS_RUNNING;
+    return 0;
 }
+
+void wubu_dos_emu_destroy(WubuDosEmu *e) { free(e); }
+
 
 int wubu_dos_emu_load_exe(WubuDosEmu *e, const uint8_t *data, size_t size) {
     if (!e || !data || size < 28) return -1;
@@ -68,45 +84,6 @@ int wubu_dos_emu_load_exe(WubuDosEmu *e, const uint8_t *data, size_t size) {
 }
 
 
-int wubu_dos_emu_load_com(WubuDosEmu *e, const uint8_t *data, size_t size) {
-    if (!e || !data || size == 0) return -1;
-    if (size > WUBU_DOS_MEM_SIZE - 0x100) return -1;
-    memset(e->mem, 0, WUBU_DOS_MEM_SIZE);
-    /* Build a real 80-byte PSP at seg 0x1000:0. */
-    e->psp_seg = e->ds;
-    wr8(e, e->ds, 0, 0xCD); wr8(e, e->ds, 1, 0x20); /* int 20h at PSP:0 */
-    wr8(e, e->ds, 2, 0x9A);                          /* far JMP (unused) */
-    wr16(e, e->ds, 0x16, 0);                          /* parent PSP = 0 */
-    wr16(e, e->ds, 0x2C, 0);                          /* environment seg = 0 */
-    wr16(e, e->ds, 0x80, 0x80);                       /* DTA = PSP:0x80 */
-    /* Default command tail (CR only) so a program that reads PSP:0x80 sees an
-     * empty line; real cmdline could be injected via a dedicated API. */
-    wr8(e, e->ds, 0x80, 0x0D);
-    /* Copy program to 0x100. */
-    for (size_t i = 0; i < size; i++) wr8(e, e->cs, (uint16_t)(0x100 + i), data[i]);
-    e->ip = 0x100;
-    e->state = WUBU_DOS_RUNNING;
-    return 0;
-}
-
-void wubu_dos_emu_regs(const WubuDosEmu *e, uint16_t *ax, uint16_t *bx, uint16_t *cx, uint16_t *dx,
-                       uint16_t *si, uint16_t *di, uint16_t *ip, uint16_t *flags, uint16_t *cs) {
-    if (!e) return;
-    if (ax) *ax = e->ax;
-    if (bx) *bx = e->bx;
-    if (cx) *cx = e->cx;
-    if (dx) *dx = e->dx;
-    if (si) *si = e->si;
-    if (di) *di = e->di;
-    if (ip) *ip = e->ip;
-    if (flags) *flags = e->flags;
-    if (cs) *cs = e->cs;
-}
-
-
-void wubu_dos_emu_destroy(WubuDosEmu *e) { free(e); }
-
-
 size_t wubu_dos_emu_text(const WubuDosEmu *e, char *out, size_t out_size) {
     if (!e || !out || out_size == 0) return 0;
     size_t n = 0;
@@ -122,6 +99,48 @@ size_t wubu_dos_emu_text(const WubuDosEmu *e, char *out, size_t out_size) {
     return n;
 }
 
+int wubu_dos_emu_step(WubuDosEmu *e) {
+    if (!e || e->state != WUBU_DOS_RUNNING) return -1;
+    int r = step(e);
+    e->steps++;
+    return r;
+}
+
+void wubu_dos_emu_key(WubuDosEmu *e, uint8_t ascii) {
+    if (!e) return;
+    /* Map a few common ASCII bytes to plausible scancodes for INT 16h. */
+    static const uint8_t sc[256] = {0};
+    (void)sc;
+    uint8_t scan = 0x1E; /* default 'A' style; good enough for ah=0 top byte */
+    if (ascii >= 'a' && ascii <= 'z') scan = (uint8_t)(0x1E + (ascii - 'a'));
+    else if (ascii >= 'A' && ascii <= 'Z') scan = (uint8_t)(0x1E + (ascii - 'A'));
+    else if (ascii >= '0' && ascii <= '9') scan = (uint8_t)(0x02 + (ascii - '0'));
+    else if (ascii == ' ') scan = 0x39;
+    else if (ascii == '\r' || ascii == '\n') scan = 0x1C;
+    else if (ascii == '\b') scan = 0x0E;
+    else if (ascii == '\t') scan = 0x0F;
+    else if (ascii == 0x1B) scan = 0x01;
+    int next = (e->ktail + 1) & 63;
+    if (next == e->khead) return; /* full */
+    e->kbuf[e->ktail] = ascii; e->kscan[e->ktail] = scan; e->ktail = next;
+}
+
+WubuDosEmuState wubu_dos_emu_run(WubuDosEmu *e, uint64_t max_steps) {
+    if (!e) return WUBU_DOS_ERROR;
+    /* Safety ceiling so a runaway/ill-formed program can never hang the host
+     * process (e.g. a COM that falls through into a zeroed region and loops
+     * on no-op instructions). max_steps==0 means "no caller-imposed limit",
+     * not "unbounded". */
+    uint64_t hard_cap = (max_steps != 0) ? max_steps : 20000000ULL;
+    while (e->state == WUBU_DOS_RUNNING) {
+        if (e->steps >= hard_cap) { e->state = WUBU_DOS_ERROR; break; }
+        int r = step(e);
+        e->steps++;
+        if (r < 0) break;
+    }
+    return e->state;
+}
+
 WubuDosEmu *wubu_dos_emu_create(void) {
     WubuDosEmu *e = (WubuDosEmu *)calloc(1, sizeof(*e));
     if (!e) return NULL;
@@ -133,7 +152,10 @@ WubuDosEmu *wubu_dos_emu_create(void) {
     return e;
 }
 
-int wubu_dos_emu_exit_code(const WubuDosEmu *e) { return e ? e->exit_code : -1; }
+uint16_t wubu_dos_emu_peek16(const WubuDosEmu *e, uint16_t seg, uint16_t off) {
+    if (!e) return 0;
+    return rd16((WubuDosEmu *)e, seg, off);
+}
 
 size_t wubu_dos_emu_frame_rgba(const WubuDosEmu *e, uint8_t *rgba, int *out_w, int *out_h) {
     if (!e || !rgba) return 0;
@@ -172,25 +194,4 @@ size_t wubu_dos_emu_frame_rgba(const WubuDosEmu *e, uint8_t *rgba, int *out_w, i
     if (out_w) *out_w = W;
     if (out_h) *out_h = H;
     return (size_t)W * H * 4;
-}
-
-uint16_t wubu_dos_emu_peek16(const WubuDosEmu *e, uint16_t seg, uint16_t off) {
-    if (!e) return 0;
-    return rd16((WubuDosEmu *)e, seg, off);
-}
-
-WubuDosEmuState wubu_dos_emu_run(WubuDosEmu *e, uint64_t max_steps) {
-    if (!e) return WUBU_DOS_ERROR;
-    /* Safety ceiling so a runaway/ill-formed program can never hang the host
-     * process (e.g. a COM that falls through into a zeroed region and loops
-     * on no-op instructions). max_steps==0 means "no caller-imposed limit",
-     * not "unbounded". */
-    uint64_t hard_cap = (max_steps != 0) ? max_steps : 20000000ULL;
-    while (e->state == WUBU_DOS_RUNNING) {
-        if (e->steps >= hard_cap) { e->state = WUBU_DOS_ERROR; break; }
-        int r = step(e);
-        e->steps++;
-        if (r < 0) break;
-    }
-    return e->state;
 }
