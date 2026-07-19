@@ -10,6 +10,7 @@
 #include "dosgui_desktop.h"
 #include "dosgui_wm.h"
 #include "dosgui_daemon_panel.h"
+#include "wubu_trash.h"
 #include "dosgui_startmenu.h"
 #include "dosgui_service_mgr.h"
 #include "../apps/dosgui_apps.h"
@@ -66,8 +67,9 @@ int dosgui_desktop_init(void) {
      * dosgui_wm_save_icon_layout) so positions survive a real restart. */
     dosgui_wm_restore_icon_layout();
 
-    /* Initialize daemon panel (system tray icons, socket connections) */
-    dosgui_daemon_panel_init();
+    /* Initialize the trash/Recycle Bin so context-menu Delete moves files
+     * there (ReactOS shell32 lesson) instead of just hiding the icon. */
+    wubu_trash_init();
 
     /* E3 integration: wubu_archd (16/16) is the Desktop's service/autostart
      * manager. Initialize it and boot every registered autostart service. */

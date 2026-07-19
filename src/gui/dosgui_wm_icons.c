@@ -63,3 +63,17 @@ DosGuiIcon *dosgui_icon_get(int idx) {
     if (idx < 0 || idx >= g_dwm.icon_count) return NULL;
     return &g_dwm.icons[idx];
 }
+
+/* Remove dead (alive==false) icon entries, compacting the array so that
+ * icon_count stays dense. Used after a delete so refresh/sort/hit-test see a
+ * contiguous list. Preserves order of the surviving icons. */
+void dosgui_wm_compact_icons(void) {
+    int w = 0;
+    for (int r = 0; r < g_dwm.icon_count; r++) {
+        if (g_dwm.icons[r].alive) {
+            if (w != r) g_dwm.icons[w] = g_dwm.icons[r];
+            w++;
+        }
+    }
+    g_dwm.icon_count = w;
+}

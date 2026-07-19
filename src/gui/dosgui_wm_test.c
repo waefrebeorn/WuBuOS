@@ -7,6 +7,7 @@
 
 #include "dosgui_wm.h"
 #include "dosgui_wm_internal.h"
+#include "wubu_trash.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
@@ -518,6 +519,96 @@ static void test_icon_drag_persist_restore(void) {
     PASS();
 }
 
+/* Regression: Delete routes the underlying ~/Desktop file to the Recycle Bin
+ * (not just an in-memory hide) and compacts the icon array. */
+static void test_icon_delete_moves_to_trash(void) {
+    TEST("Delete moves underlying file to trash + compacts");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_deltest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("XDG_DATA_HOME", desk, 1);   /* trash lives under XDG data home */
+    rm_rf(desk);
+    mkdir(desk, 0755);
+    char p[640];
+    snprintf(p, sizeof(p), "%s/Note.desktop", desk);
+    FILE *f = fopen(p, "w"); if (f) { fputs("[Desktop Entry]\n", f); fclose(f); }
+
+    wubu_settings_init();
+    wubu_trash_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+
+    int before = dosgui_wm_get_icon_count();
+    int idx = -1;
+    for (int i = 0; i < before; i++) {
+        DosGuiIcon *ic = dosgui_icon_get(i);
+        if (ic && ic->alive && strcasecmp(ic->name, "Note") == 0) { idx = i; break; }
+    }
+    CHECK(idx >= 0, "Note icon present");
+    DosGuiIcon *ic = dosgui_icon_get(idx);
+    CHECK(ic->target[0] != '\0', "icon carries real fs target path");
+
+    /* Simulate confirm-delete of the single icon (replicates dialog_delete_on_key). */
+    if (ic->target[0]) wubu_trash_move(ic->target);
+    ic->alive = false;
+    dosgui_wm_compact_icons();
+
+    CHECK(dosgui_wm_get_icon_count() == before - 1, "icon count dropped by 1 after delete");
+    /* Underlying file must be gone from ~/Desktop (moved to trash). */
+    struct stat st;
+    CHECK(stat(p, &st) != 0, "underlying .desktop removed from ~/Desktop");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
+/* Regression: multi-select delete removes the whole selected group + compacts. */
+static void test_icon_multiselect_delete(void) {
+    TEST("multi-select delete removes all selected icons");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_msel_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("XDG_DATA_HOME", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+    for (int k = 0; k < 3; k++) {
+        char pp[640];
+        snprintf(pp, sizeof(pp), "%s/Item%d.desktop", desk, k);
+        FILE *f = fopen(pp, "w"); if (f) { fputs("[Desktop Entry]\n", f); fclose(f); }
+    }
+
+    wubu_settings_init();
+    wubu_trash_init();
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_refresh_desktop();
+
+    int before = dosgui_wm_get_icon_count();
+    /* Select every live icon. */
+    int sel = 0;
+    for (int i = 0; i < before; i++) {
+        DosGuiIcon *ic = dosgui_icon_get(i);
+        if (ic && ic->alive) { ic->selected = true; sel++; }
+    }
+    CHECK(sel >= 3, "at least 3 icons selected");
+
+    /* Replicate dialog_delete_on_key multi-select branch. */
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        if (g_dwm.icons[i].alive && g_dwm.icons[i].selected) {
+            if (g_dwm.icons[i].target[0]) wubu_trash_move(g_dwm.icons[i].target);
+            g_dwm.icons[i].alive = false;
+            g_dwm.icons[i].selected = false;
+        }
+    }
+    dosgui_wm_compact_icons();
+
+    CHECK(dosgui_wm_get_icon_count() == before - sel, "all selected icons removed + compacted");
+
+    dosgui_wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
+
 /* -- Main ------------------------------------------------------ */
 /* -- Invalidation / dirty-tracking Tests ----------------------- */
 
@@ -594,6 +685,8 @@ int main(void) {
     test_desktop_sort_by_size();
     test_desktop_many_icons_retained();
     test_icon_drag_persist_restore();
+    test_icon_delete_moves_to_trash();
+    test_icon_multiselect_delete();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
