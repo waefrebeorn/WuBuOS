@@ -184,6 +184,96 @@ static void test_render_no_crash(void) {
     dosgui_wm_shutdown();
 }
 
+/* Regression: Win98 Classic (flat, rad==0) windows must render the THEME's
+ * navy title color (win_title_active = 0x000080), NOT the old hardcoded
+ * XP-blue gradient (0x0A2A6A..0x3A6EA5) that vbe_title_bar() used to emit.
+ * A regression to the hardcoded shade would re-introduce the "broken GUI /
+ * wrong Chicago theme" bug. */
+static void test_render_win98_title_bar_is_theme_navy(void) {
+    TEST("Win98 title bar uses theme navy, not hardcoded XP-blue");
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    vbe_init(256, 256);
+    dosgui_wm_init(256, 256);
+
+    DosGuiWindow *w = dosgui_wm_create(10, 10, 160, 100, "Navy Title");
+    CHECK(w, "window created");
+    if (w) w->on_draw = NULL;
+
+    dosgui_wm_render(NULL, 256, 256);
+
+    /* Sample the active (focused) title bar: center of the band, a few px
+     * down from the top edge. Under Win98 this must be the theme navy
+     * 0x000080, never the XP-blue gradient (which would be a much lighter
+     * blue like 0x3A6EA5). */
+    int tx = w->x + w->w / 2;
+    int ty = w->y + 4;
+    uint32_t c = vbe_get_pixel(tx, ty);
+    CHECK(c == 0x000080, "title bar pixel is theme navy (0x000080)");
+
+    /* And confirm the old XP-blue shade is NOT what we got. */
+    CHECK(c != 0x003A6EA5 && c != 0x000A2A6A, "title bar is not the old XP-blue gradient");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
+/* Regression: the VBE scissor/clip rect must confine pixel writes. A buggy
+ * on_draw (or any primitive) must NEVER paint outside the clip -- this is
+ * what prevents "content bleeding into neighboring windows" artifacts. */
+static void test_vbe_clip_confines_pixels(void) {
+    TEST("vbe clip rect confines pixel writes");
+    vbe_init(64, 64);
+
+    vbe_clear(0x00000000);
+    vbe_set_clip(10, 10, 20, 20);
+    /* Attempt to paint far outside the clip -- must be rejected. */
+    vbe_set_pixel(2, 2, 0x00FF0000);
+    vbe_set_pixel(63, 63, 0x00FF0000);
+    vbe_fill_rect(0, 0, 64, 64, 0x00FF0000);
+    CHECK(vbe_get_pixel(2, 2) == 0x00000000, "pixel outside clip untouched");
+    CHECK(vbe_get_pixel(63, 63) == 0x00000000, "far corner outside clip untouched");
+    /* Pixel inside the clip must land. */
+    vbe_set_pixel(15, 15, 0x0000FF00);
+    CHECK(vbe_get_pixel(15, 15) == 0x0000FF00, "pixel inside clip lands");
+
+    vbe_reset_clip();
+    vbe_set_pixel(2, 2, 0x00FF0000);
+    CHECK(vbe_get_pixel(2, 2) == 0x00FF0000, "after reset_clip, pixel writes again");
+    PASS();
+}
+
+/* Regression: a window whose body would extend into the taskbar band must
+ * be clipped ABOVE the taskbar -- its title bar / close "X" must never paint
+ * over the taskbar (the "FILE MANAGER CLOSE" text-merge artifact). */
+static void test_render_window_clipped_above_taskbar(void) {
+    TEST("window body never bleeds into the taskbar band");
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    vbe_init(256, 256);
+    dosgui_wm_init(256, 256);
+
+    int task_h = dosgui_taskbar_height();   /* 28 for Win98 */
+    int tb_top = 256 - task_h;
+
+    /* Create a window whose bottom extends well past the taskbar. */
+    DosGuiWindow *w = dosgui_wm_create(20, tb_top - 10, 120, 120, "Low Win");
+    CHECK(w, "window created");
+    if (w) w->on_draw = NULL;
+    dosgui_wm_render(NULL, 256, 256);
+
+    /* No window-title (navy) pixel may appear inside the taskbar band. */
+    int bleed = 0;
+    for (int y = tb_top; y < 256; y++)
+        for (int x = 0; x < 256; x++) {
+            uint32_t c = vbe_get_pixel(x, y);
+            int r = c & 0xFF, g = (c >> 8) & 0xFF, b = (c >> 16) & 0xFF;
+            if (b > 80 && r < 60 && g < 60) bleed++;   /* navy title in band */
+        }
+    CHECK(bleed == 0, "no window-title pixel painted in the taskbar band");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 /* Regression for the Chicago->XP desktop polish: icons must draw a real
  * glyph (not a flat box) and a selected icon must show a selection rect. */
 static void test_render_draws_glyphs_and_selection(void) {
@@ -762,6 +852,9 @@ int main(void) {
     test_render_no_crash();
     test_render_draws_glyphs_and_selection();
     test_render_window_drop_shadow();
+    test_render_win98_title_bar_is_theme_navy();
+    test_vbe_clip_confines_pixels();
+    test_render_window_clipped_above_taskbar();
     test_add_icon();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
