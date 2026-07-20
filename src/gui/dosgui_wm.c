@@ -47,6 +47,7 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     g_dwm.screen_h = screen_h;
     g_dwm.focused_id = -1;
     g_dwm.drag_id = -1;
+    g_dwm.resize_id = -1;
     g_dwm.drag_icon_id = -1;
     g_dwm.current_desktop = 0;
     g_dwm.desktop_count = 9;

@@ -21,6 +21,27 @@
 #include <stdio.h>
 #include <time.h>
 
+/* Chicago/Mac edge + corner resize: classify which border(s) the point is
+ * over for the given window. Returns a bitmask: 1=left 2=right 4=top 8=bottom
+ * (combinations give the 8 resize handles). Returns 0 if not on a border. */
+static int hit_test_edge(DosGuiWindow *w, int x, int y) {
+    int bw = border_width();
+    int corner = bw * 2;            /* diagonal grab zones */
+    int edge = 0;
+    bool on_top = (y >= w->y && y < w->y + bw) || (y >= w->y && y < w->y + corner && x >= w->x && x < w->x + corner);
+    bool on_bot = (y >= w->y + w->h - bw && y < w->y + w->h) ||
+                  (y >= w->y + w->h - corner && y < w->y + w->h && x >= w->x + w->w - corner && x < w->x + w->w);
+    bool on_left  = (x >= w->x && x < w->x + bw) ||
+                    (x >= w->x && x < w->x + corner && y >= w->y && y < w->y + corner);
+    bool on_right = (x >= w->x + w->w - bw && x < w->x + w->w) ||
+                    (x >= w->x + w->w - corner && x < w->x + w->w && y >= w->y + w->h - corner && y < w->y + w->h);
+    if (on_left)  edge |= 1;
+    if (on_right) edge |= 2;
+    if (on_top)   edge |= 4;
+    if (on_bot)   edge |= 8;
+    return edge;
+}
+
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     /* Alt+Tab: cycle through windows */
     bool alt_held = (mods & 0x08) != 0;
@@ -52,26 +73,12 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
-    /* First, try to dispatch to focused window */
-    if (g_dwm.focused_id >= 0) {
-        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
-        if (w->alive && w->on_key) {
-            w->on_key(w, key, mods);
-            return;
-        }
-    }
-
-    /* Global hotkeys */
+    /* Global hotkeys take precedence over the focused window's on_key
+     * handler, so system keys (close / maximize / theme / virtual-desktop)
+     * work even when an app captures keystrokes. */
     if (key == 111 && g_dwm.focused_id >= 0) {
         close_win(g_dwm.focused_id);
-    }
-    if ((mods & 0x4) && key == 0x14) {
-        wubu_theme_cycle();
-        fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
-    }
-    if (key == 0x3F) {
-        wubu_theme_cycle();
-        fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
+        return;
     }
     if (key == 0x57 && g_dwm.focused_id >= 0) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
@@ -86,6 +93,17 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
             w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - taskbar_height_dynamic();
             w->flags |= DOSGUI_WIN_MAXIMIZED;
         }
+        return;
+    }
+    if ((mods & 0x4) && key == 0x14) {
+        wubu_theme_cycle();
+        fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
+        return;
+    }
+    if (key == 0x3F) {
+        wubu_theme_cycle();
+        fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
+        return;
     }
     if ((mods & 0x4) && (mods & 0x8)) {
         if (key == 0xE04B) {
@@ -93,7 +111,18 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         } else if (key == 0xE04D) {
             g_dwm.current_desktop = (g_dwm.current_desktop + 1) % g_dwm.desktop_count;
         }
+        return;
     }
+
+    /* Then dispatch ordinary keys to the focused window. */
+    if (g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive && w->on_key) {
+            w->on_key(w, key, mods);
+            return;
+        }
+    }
+
     /* Win+Shift+Left/Right: Move focused window to adjacent desktop */
     if ((mods & 0x09) == 0x09) {  /* Win + Shift */
         if (key == 0xE04B) {  /* Left arrow */
@@ -286,6 +315,21 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             }
         }
 
+        /* Edge/corner resize (Chicago/Mac baseline) -- takes priority over
+         * title-bar drag when the grab is on a window border. */
+        if (!(w->flags & DOSGUI_WIN_MAXIMIZED)) {
+            int e = hit_test_edge(w, x, y);
+            if (e) {
+                g_dwm.resize_id = i;
+                g_dwm.resize_edge = e;
+                g_dwm.resize_ox = x;
+                g_dwm.resize_oy = y;
+                g_dwm.resize_ow = w->w;
+                g_dwm.resize_oh = w->h;
+                return;
+            }
+        }
+
         if (y < w->y + tbh) {
             g_dwm.drag_id = i;
             g_dwm.drag_ox = x - w->x;
@@ -297,6 +341,7 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             }
         }
     } else if (kind == 2) {
+        if (g_dwm.resize_id >= 0) g_dwm.resize_id = -1;
         if (g_dwm.drag_id >= 0 && g_dwm.windows[g_dwm.drag_id].alive) {
             DosGuiWindow *w = &g_dwm.windows[g_dwm.drag_id];
             /* Apply GAAD snap on drag end */
@@ -309,7 +354,29 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             g_dwm.drag_icon_id = -1;
         }
     } else if (kind == 0) {
-        if (g_dwm.drag_id >= 0 && g_dwm.windows[g_dwm.drag_id].alive) {
+        if (g_dwm.resize_id >= 0 && g_dwm.windows[g_dwm.resize_id].alive) {
+            DosGuiWindow *w = &g_dwm.windows[g_dwm.resize_id];
+            int dx = x - g_dwm.resize_ox;
+            int dy = y - g_dwm.resize_oy;
+            int e = g_dwm.resize_edge;
+            int min_w = 80, min_h = 40;
+            if (e & 1) {  /* left */
+                int nw = g_dwm.resize_ow - dx;
+                if (nw >= min_w) { w->x = g_dwm.resize_ox - (g_dwm.resize_ow - nw); w->w = nw; }
+            }
+            if (e & 2) {  /* right */
+                int nw = g_dwm.resize_ow + dx;
+                if (nw >= min_w) w->w = nw;
+            }
+            if (e & 4) {  /* top */
+                int nh = g_dwm.resize_oh - dy;
+                if (nh >= min_h) { w->y = g_dwm.resize_oy - (g_dwm.resize_oh - nh); w->h = nh; }
+            }
+            if (e & 8) {  /* bottom */
+                int nh = g_dwm.resize_oh + dy;
+                if (nh >= min_h) w->h = nh;
+            }
+        } else if (g_dwm.drag_id >= 0 && g_dwm.windows[g_dwm.drag_id].alive) {
             DosGuiWindow *w = &g_dwm.windows[g_dwm.drag_id];
             if (!(w->flags & DOSGUI_WIN_MAXIMIZED)) {
                 w->x = x - g_dwm.drag_ox;
