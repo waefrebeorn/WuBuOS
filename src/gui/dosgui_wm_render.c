@@ -67,33 +67,39 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
             vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
         }
     } else {
-        vbe_title_bar(w->x + rad, w->y + rad, w->w - 2*rad, tbh - rad, active);
+        /* Flat Chicago title bar — theme-driven (Win98 Classic = navy).
+         * Do NOT call vbe_title_bar(): it hardcodes an XP-blue gradient that
+         * is wrong for the silver theme. Draw the theme's title color flat
+         * across the band, clipped to the (square) window body. */
+        uint32_t tb_col = active ? tc()->win_title_active : tc()->win_title_inactive;
+        vbe_fill_rect(w->x, w->y, w->w, tbh, tb_col);
     }
 
-    /* Title text */
+    /* Title text -- vertically centered in the title bar band. */
     uint32_t title_color = active ? tc()->win_title_text : tc()->win_title_text_ina;
     int text_x = w->x + 8;
-    int text_y = w->y + rad + (tbh - rad - 8) / 2;
+    int text_y = w->y + (tbh - 8) / 2;          /* 8 = glyph cell height */
     vbe_draw_text(text_x, text_y, w->title, title_color, 1);
 
-    /* Close button */
-    int close_x = w->x + w->w - rad - 18;
-    int close_y = w->y + rad + 2;
-    vbe_fill_rect_rounded(close_x, close_y, 14, 12, 2, active ? tc()->border_darkest : tc()->btn_face);
-    vbe_rect_rounded(close_x, close_y, 14, 12, 2, tc()->border_dark);
-    vbe_draw_text(close_x + 5, close_y + 2, "X", active ? 0x00FFFFFF : 0x00808080, 1);
+    /* Close button -- centered on the title-bar's right edge, 2px in. */
+    int btn_h = 14, btn_w = 16;
+    int close_x = w->x + w->w - rad - btn_w - 2;
+    int close_y = w->y + (tbh - btn_h) / 2;
+    vbe_fill_rect_rounded(close_x, close_y, btn_w, btn_h, 2, active ? tc()->border_darkest : tc()->btn_face);
+    vbe_rect_rounded(close_x, close_y, btn_w, btn_h, 2, tc()->border_dark);
+    vbe_draw_text(close_x + 5, close_y + 3, "X", active ? 0x00FFFFFF : 0x00808080, 1);
 
     /* Maximize / minimize buttons (Luna style) */
     if (theme()->Luna_start_button) {
-        int max_x = close_x - 20;
-        vbe_fill_rect_rounded(max_x, close_y, 14, 12, 2, active ? tc()->border_face : tc()->btn_face);
-        vbe_rect_rounded(max_x, close_y, 14, 12, 2, tc()->border_dark);
-        vbe_draw_text(max_x + 4, close_y + 2, "[", active ? 0x00FFFFFF : 0x00808080, 1);
+        int max_x = close_x - btn_w - 2;
+        vbe_fill_rect_rounded(max_x, close_y, btn_w, btn_h, 2, active ? tc()->border_face : tc()->btn_face);
+        vbe_rect_rounded(max_x, close_y, btn_w, btn_h, 2, tc()->border_dark);
+        vbe_draw_text(max_x + 5, close_y + 3, "[", active ? 0x00FFFFFF : 0x00808080, 1);
 
-        int min_x = close_x - 40;
-        vbe_fill_rect_rounded(min_x, close_y, 14, 12, 2, active ? tc()->border_face : tc()->btn_face);
-        vbe_rect_rounded(min_x, close_y, 14, 12, 2, tc()->border_dark);
-        vbe_draw_text(min_x + 5, close_y + 2, "_", active ? 0x00FFFFFF : 0x00808080, 1);
+        int min_x = max_x - btn_w - 2;
+        vbe_fill_rect_rounded(min_x, close_y, btn_w, btn_h, 2, active ? tc()->border_face : tc()->btn_face);
+        vbe_rect_rounded(min_x, close_y, btn_w, btn_h, 2, tc()->border_dark);
+        vbe_draw_text(min_x + 5, close_y + 3, "_", active ? 0x00FFFFFF : 0x00808080, 1);
     }
 
     /* Content region */
@@ -110,8 +116,13 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 
     if (w->on_draw) {
         /* Real framebuffer + dims so apps render into their content region.
-         * Apps using the global vbe_* backbuffer ignore these and still work. */
+         * Apps using the global vbe_* backbuffer ignore these and still work.
+         * CRITICAL: confine the app's drawing to the content rect with the VBE
+         * scissor so a buggy on_draw can NEVER bleed into neighboring windows
+         * or outside the frame (the "content bleeding" artifact). */
+        vbe_set_clip(cx, cy, cw, ch);
         w->on_draw(w, fb, fb_w, fb_h);
+        vbe_reset_clip();
     }
 }
 
@@ -179,8 +190,16 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     for (int j = 0; j < g_dwm.nz; j++) {
         int idx = g_dwm.zorder[j];
         DosGuiWindow *w = &g_dwm.windows[idx];
-        if (w->alive && w->desktop == g_dwm.current_desktop && !(w->flags & DOSGUI_WIN_MINIMIZED))
+        if (w->alive && w->desktop == g_dwm.current_desktop && !(w->flags & DOSGUI_WIN_MINIMIZED)) {
+            /* Confine the entire window frame to the area ABOVE the taskbar.
+             * Without this, a window whose bottom extends into the taskbar
+             * band would paint its title bar / close "X" over the taskbar,
+             * producing the "FILE MANAGER CLOSE" text-merge artifact. */
+            int task_h = taskbar_height_dynamic();
+            vbe_set_clip(0, 0, fb_w, fb_h - task_h);
             draw_window(idx, fb, fb_w, fb_h);
+            vbe_reset_clip();
+        }
     }
 
     dosgui_taskbar_render(fb, fb_w, fb_h);

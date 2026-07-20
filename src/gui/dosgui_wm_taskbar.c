@@ -19,7 +19,7 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
 
     vbe_fill_rect(0, ty, fb_w, th, tc()->taskbar_bg);
     vbe_hline(0, fb_w - 1, ty, tc()->taskbar_border);
-    int by = ty + (th - 24) / 2;
+    int by = ty + (th - 22) / 2;
     int start_w = theme()->Luna_start_button ? 54 : 60;
     
     if (theme()->Luna_start_button) {
@@ -29,11 +29,15 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                                       tc()->border_dark, tc()->border_darkest);
         vbe_draw_text(8, by + 8, "Start", tc()->start_btn_text, 1);
     } else {
-        vbe_fill_rect(4, by, 60, 22, tc()->start_btn_face);
-        vbe_3d_raised_colors(4, by, 60, 22,
+        /* Win98 Classic Start button: full-height-ish 3D raised silver
+         * button, text vertically centered, with a 2px inner margin. */
+        int sbh = 22;
+        int sby = ty + (th - sbh) / 2;
+        vbe_fill_rect(4, sby, 60, sbh, tc()->start_btn_face);
+        vbe_3d_raised_colors(4, sby, 60, sbh,
                               tc()->border_light, tc()->border_face,
                               tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(8, by + 6, "+ NEW", tc()->start_btn_text, 1);
+        vbe_draw_text(10, sby + (sbh - 8) / 2, "Start", tc()->start_btn_text, 1);
     }
 
     int bx = theme()->Luna_start_button ? 82 : 72;
@@ -50,131 +54,39 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
         if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
         if (w->desktop != g_dwm.current_desktop) continue;
-        int bw = (int)strlen(w->title) * 6 + 16;
-        if (bw > 160) bw = 160;
+        int tw = vbe_text_width(w->title, 1);
+        int bw = tw + 24;                      /* padding either side */
+        if (bw < 120) bw = 120;                /* min width like real Win98 */
+        if (bw > 200) bw = 200;                /* cap so long titles don't eat the bar */
         bool focused = (g_dwm.zorder[j] == g_dwm.focused_id);
         
         /* Check if button would overlap reserved area */
         if (bx + bw > g_dwm.screen_w - right_reserve) break;
         
-        if (theme()->rounded_buttons) {
-            if (focused) {
-                vbe_fill_rect_rounded(bx, by, bw, 22, 3, tc()->select_bg);
-                vbe_3d_sunken_rounded_colors(bx, by, bw, 22, 3,
-                                              tc()->border_light, tc()->border_face,
-                                              tc()->border_dark, tc()->border_darkest);
-                /* Draw truncated title with ellipsis */
-                {
-                    int text_w = vbe_text_width(w->title, 1);
-                    int max_text_w = bw - 16;
-                    if (text_w > max_text_w) {
-                        char truncated[64];
-                        int len = strlen(w->title);
-                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) { /* -6 for "..." */
-                            len--;
-                            strncpy(truncated, w->title, len);
-                            truncated[len] = '\0';
-                        }
-                        if (len > 0) {
-                            strncpy(truncated + len, "...", 3);
-                            truncated[len + 3] = '\0';
-                        } else {
-                            strcpy(truncated, "...");
-                        }
-                        vbe_draw_text(bx + 8, by + 7, truncated, tc()->select_text, 1);
-                    } else {
-                        vbe_draw_text(bx + 8, by + 7, w->title, tc()->select_text, 1);
-                    }
-                }
-            } else {
-                vbe_fill_rect_rounded(bx, by, bw, 22, 3, tc()->btn_face);
-                vbe_3d_raised_rounded_colors(bx, by, bw, 22, 3,
-                                              tc()->border_light, tc()->border_face,
-                                              tc()->border_dark, tc()->border_darkest);
-                /* Draw truncated title with ellipsis */
-                {
-                    int text_w = vbe_text_width(w->title, 1);
-                    int max_text_w = bw - 16;
-                    if (text_w > max_text_w) {
-                        char truncated[64];
-                        int len = strlen(w->title);
-                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
-                            len--;
-                            strncpy(truncated, w->title, len);
-                            truncated[len] = '\0';
-                        }
-                        if (len > 0) {
-                            strncpy(truncated + len, "...", 3);
-                            truncated[len + 3] = '\0';
-                        } else {
-                            strcpy(truncated, "...");
-                        }
-                        vbe_draw_text(bx + 8, by + 7, truncated, tc()->btn_text, 1);
-                    } else {
-                        vbe_draw_text(bx + 8, by + 7, w->title, tc()->btn_text, 1);
-                    }
-                }
-            }
-        } else {
-            if (focused) {
-                vbe_fill_rect(bx, by, bw, 22, tc()->select_bg);
-                vbe_3d_sunken_colors(bx, by, bw, 22,
-                                      tc()->border_light, tc()->border_face,
-                                      tc()->border_dark, tc()->border_darkest);
-                /* Draw truncated title with ellipsis */
-                {
-                    int text_w = vbe_text_width(w->title, 1);
-                    int max_text_w = bw - 16;
-                    if (text_w > max_text_w) {
-                        char truncated[64];
-                        int len = strlen(w->title);
-                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
-                            len--;
-                            strncpy(truncated, w->title, len);
-                            truncated[len] = '\0';
-                        }
-                        if (len > 0) {
-                            strncpy(truncated + len, "...", 3);
-                            truncated[len + 3] = '\0';
-                        } else {
-                            strcpy(truncated, "...");
-                        }
-                        vbe_draw_text(bx + 8, by + 6, truncated, 0xFFFFFF, 1);
-                    } else {
-                        vbe_draw_text(bx + 8, by + 6, w->title, 0xFFFFFF, 1);
-                    }
-                }
-            } else {
-                vbe_fill_rect(bx, by, bw, 22, tc()->btn_face);
-                vbe_3d_raised_colors(bx, by, bw, 22,
-                                      tc()->border_light, tc()->border_face,
-                                      tc()->border_dark, tc()->border_darkest);
-                /* Draw truncated title with ellipsis */
-                {
-                    int text_w = vbe_text_width(w->title, 1);
-                    int max_text_w = bw - 16;
-                    if (text_w > max_text_w) {
-                        char truncated[64];
-                        int len = strlen(w->title);
-                        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
-                            len--;
-                            strncpy(truncated, w->title, len);
-                            truncated[len] = '\0';
-                        }
-                        if (len > 0) {
-                            strncpy(truncated + len, "...", 3);
-                            truncated[len + 3] = '\0';
-                        } else {
-                            strcpy(truncated, "...");
-                        }
-                        vbe_draw_text(bx + 8, by + 6, truncated, tc()->btn_text, 1);
-                    } else {
-                        vbe_draw_text(bx + 8, by + 6, w->title, tc()->btn_text, 1);
-                    }
-                }
-            }
+        int bh = 22;
+        int bby = ty + (th - bh) / 2;
+        char truncated[64];
+        strncpy(truncated, w->title, sizeof(truncated) - 1);
+        truncated[sizeof(truncated) - 1] = '\0';
+        /* truncate to fit button width (bw - 16 for padding + icon gap) */
+        while (strlen(truncated) > 1 && vbe_text_width(truncated, 1) > bw - 26) {
+            truncated[strlen(truncated) - 1] = '\0';
         }
-        bx += bw + 2;
+
+        if (focused) {
+            vbe_fill_rect(bx, bby, bw, bh, tc()->select_bg);
+            vbe_3d_sunken_colors(bx, bby, bw, bh,
+                                  tc()->border_light, tc()->border_face,
+                                  tc()->border_dark, tc()->border_darkest);
+            vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->select_text, 1);
+        } else {
+            vbe_fill_rect(bx, bby, bw, bh, tc()->btn_face);
+            vbe_3d_raised_colors(bx, bby, bw, bh,
+                                  tc()->border_light, tc()->border_face,
+                                  tc()->border_dark, tc()->border_darkest);
+            vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->btn_text, 1);
+        }
+        bx += bw + 3;   /* 3px gap between buttons */
         if (bx > g_dwm.screen_w - right_reserve) break;
     }
 
@@ -224,6 +136,10 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 
     int desk_x = tray_x - 150;
+    /* Virtual-desktop pager: only show when more than one desktop exists.
+     * Rendering 9 always-on numbered tabs on a single-desktop machine is
+     * the confusing "1 2 3 4 5 6 7 8 9 COMPUTER" garbage. */
+    if (g_dwm.desktop_count > 1) {
     for (int d = 0; d < g_dwm.desktop_count; d++) {
         int dx = desk_x + d * 16;
         if (d == g_dwm.current_desktop) {
@@ -241,6 +157,7 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             char label = (d == 9) ? 'M' : ('1' + d);
             vbe_draw_text(dx + 3, ty + (th - 8) / 2, &label, tc()->btn_text, 1);
         }
+    }
     }
 
     /* -- Status bar tip (cycling keyboard hint) ------------------ */
