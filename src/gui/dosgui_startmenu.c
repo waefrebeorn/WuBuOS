@@ -541,6 +541,10 @@ void dosgui_startmenu_build_programs_db(void) {
     strcpy(e->name, "Terminal"); strcpy(e->executable, "Terminal");
     strcpy(e->category, "System"); e->is_builtin = true;
 
+    e = &g_program_db.entries[g_program_db.count++];
+    strcpy(e->name, "EDR Activity"); strcpy(e->executable, "EDR Activity");
+    strcpy(e->category, "System"); e->is_builtin = true;
+
     /* Scan /apps for .wubu manifests — adds discovered apps dynamically.
      * In hosted mode, /apps maps to <install_prefix>/apps/ on the host.
      * Each app gets its own entry derived from the manifest filename. */

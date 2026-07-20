@@ -245,7 +245,65 @@
   test_dosgui_wm 30/30. make runtime + make hosted + test_high_gui (9/0) green.
 - wubu_theme.h + wubu_theme.c ABI: added win_shadow field (5 themes).
 
-## 2026-07-19 (session, part 8) — AGI transparency edict + real windowing
+## 2026-07-19 (session, part 9) — EDR disclosure surface LIVE (production)
+### Research-grounded AGI-OS requirements (user: "continue and online research all needs")
+Synthesized the authoritative landscape (AIOS arXiv:2403.16971; Agent-OS
+Koubaa 2025 blueprint; mindstudio 9 components; OpenAI Computer-Using Agent)
+into WuBuOS's disclosure-first design. Core principle confirmed by the user:
+**disclosure IS the security model** — the OS is intentionally insecure; the
+user keeps power through total visibility of every syscall AND every AGI
+action, not through containment. There are no guardrails/sandboxes to add.
+The genuine AGI-OS needs (all mapped to existing WuBuOS subsystems):
+1. Kernel/runtime that schedules agents + manages context/memory/storage (ZealOS
+   core + Styx/9P namespace + VSL already cover this).
+2. Tool/IO mediation through ONE input path a human also uses (wubu_ui over
+   dosgui_wm_handle_mouse/key — done; proven watchable).
+3. **Transparency/observability as the trust layer** (EDR engine + this part's
+   disclosure surface — done).
+4. Audit trail: structured, high-fidelity, searchable event log (EDR ring +
+   edr_recent_events — done).
+5. Replay / timeline debug (edr_replay + dashboard tail — done).
+6. User-controlled master switch (edr_analytics_set_enabled — done; the
+   "giant toggle" the user mandated, surfaced in the dashboard UI).
+7. Self-improvement loop: feedback-driven learning (future; needs an
+   experience store — noted, not built this session).
+
+### This part: the disclosure surface is now REAL and in the production binary
+- **EDR read API** (wubu_edr.h + edr_core.c): `edr_recent_events(EdrEventView*,
+  max, min_type, max_type)` — a NON-destructive snapshot walk of the live 64k
+  event ring (oldest->newest, newest `max` copied). `EdrEventView` is an opaque
+  caller-safe struct (type/pid/extra_pid/ts_ns/u64a/u64b/u32/detail[256]) so
+  dashboards read events without touching EDR internals. `edr_event_type_name()`
+  + `edr_agent_action_name()` give human-readable labels. The ring is walked by
+  index, never popping, so the dashboard tailing never starves the behavioural
+  modules' drain.
+- **EDR Activity Dashboard** (src/apps/edr_dash.c): a real, scrollable,
+  filterable window — the user-facing half of the edict. Features: filter chips
+  (All / Agent / Proc / Net / File / Alerts), live tail of the EDR ring rendered
+  as a timestamped timeline (agent actions in blue), an Alerts panel (reads the
+  real alert buffer), a footer with totals + agent-event counter, and the
+  **giant analytics toggle** rendered inline (green ON / red OFF) that flips
+  `edr_analytics_set_enabled` live and shows the state change immediately.
+  Keyboard: Up/Down scroll, 'a' toggle analytics, 't' toggle auto-tail.
+- **Registered** in the single app registry (g_app_defs, DESK_ICON_COUNT+5) and
+  the Start-menu System category, so it opens from Start -> EDR Activity and is
+  launchable by name (dosgui_launch_app("EDR Activity") -> edr_dash_launch()).
+- **Production wiring**: the real `hosted` binary now defines `-DWUBU_EDR_AGENT`,
+  links `$(EDR_SRC)` + a flagged `wubu_ui_hosted.o` + `edr_dash.o`, and depends
+  on `$(EDR_OBJS)`. So the AGI->EDR telemetry is LIVE in the shipping OS, not
+  just the test harness. (Flagged object avoids clashing with the unflagged
+  `wubu_ui.o` used by unit tests that don't link EDR.)
+- **Test**: extended wubu_edr_agent_test.c with 6 read-API assertions
+  (snapshot non-empty, contains a real EDR_EV_AGENT_ACTION, type-filtered view
+  returns ONLY agent events, name maps correct, snapshot is non-destructive).
+  test_edr_agent now 13/13.
+
+### Regression (this part)
+make runtime ✅, make hosted ✅ (links EDR + wubu_ui + dashboard in production),
+test_edr_agent 13/13, test_high_gui 9/0, test_control 20/20, test_dosgui_wm
+30/30, test_dosgui_startmenu 5/5.
+
+
 ### EDR: every AGI action is a first-class, searchable event (user edict)
 - **Gap (edict)**: all AGI/automation activity must flow through the EDR engine
   using the SAME reporting methodology as OS syscall/network telemetry, with a

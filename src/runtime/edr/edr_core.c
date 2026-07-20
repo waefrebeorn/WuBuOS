@@ -460,6 +460,64 @@ int edr_log_agent_action(uint16_t action, int x, int y, int btn,
                          cur, (uint64_t)key, action, detail);
 }
 
+/* ================================================================
+ * Read snapshot -- the disclosure surface (non-destructive)
+ * ================================================================ */
+int edr_recent_events(EdrEventView *out, int max, int min_type, int max_type) {
+    if (!out || max <= 0) return 0;
+    /* Walk the ring oldest->newest without disturbing head/tail. The ring is
+     * monotonic; available events are [head, tail). Copy at most `max`. */
+    uint64_t head = g_queue.head;
+    uint64_t tail = g_queue.tail;
+    if (tail <= head) return 0;
+    uint64_t avail = tail - head;
+    uint64_t start = (avail > (uint64_t)max) ? (tail - (uint64_t)max) : head;
+    int n = 0;
+    for (uint64_t i = start; i < tail && n < max; i++) {
+        EdrEvent *ev = g_queue.buffer[i & (EDR_MAX_EVENTS - 1)];
+        if (!ev) continue;
+        if (min_type > 0 && (int)ev->header.type < min_type) continue;
+        if (max_type > 0 && (int)ev->header.type > max_type) continue;
+        EdrEventView *v = &out[n++];
+        v->type      = ev->header.type;
+        v->pid       = ev->header.pid;
+        v->extra_pid = ev->header.extra_pid;
+        v->ts_ns     = ev->header.timestamp;
+        v->u64a      = ev->header.u64a;
+        v->u64b      = ev->header.u64b;
+        v->u32       = ev->header.u32;
+        const char *d = (const char *)EDR_EVENT_DATA(ev);
+        snprintf(v->detail, sizeof(v->detail), "%s", d ? d : "");
+    }
+    return n;
+}
+
+static const char *g_edr_type_names[] = {
+    "ProcessCreate", "ProcessExit", "ThreadCreate", "ImageLoad",
+    "FileCreate", "FileWrite", "FileDelete", "FileRename",
+    "RegCreateKey", "RegSetValue", "RegDeleteKey", "RegDeleteValue",
+    "NetConnect", "DnsQuery", "DriverLoad", "LdapQuery",
+    "WmiOp", "UserAcctCreated", "SchedTask", "ScriptExec",
+    "Behavioral", "ProcHandleAccess", "EtwTi", "NamedPipe",
+    "FileSetInfo", "AgentAction"
+};
+
+const char *edr_event_type_name(uint16_t type) {
+    if (type >= 1 && type <= 26) return g_edr_type_names[type - 1];
+    return "Unknown";
+}
+
+const char *edr_agent_action_name(uint16_t action) {
+    switch (action) {
+        case EDR_AGENT_MOUSE_MOVE: return "MouseMove";
+        case EDR_AGENT_MOUSE_DOWN: return "MouseDown";
+        case EDR_AGENT_MOUSE_UP:   return "MouseUp";
+        case EDR_AGENT_KEY:        return "Key";
+        case EDR_AGENT_TYPE:       return "Type";
+        default: return "Agent";
+    }
+}
+
 /* Re-export for tests that want the count without draining the queue. */
 uint64_t edr_agent_events_logged(void) { return g_agent_events_logged; }
 
