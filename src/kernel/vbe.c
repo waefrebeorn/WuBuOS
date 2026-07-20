@@ -70,13 +70,35 @@ void vbe_shutdown(void) {
 
 VBEState *vbe_state(void) { return &g_vbe; }
 
+/* -- Scissor / clip rectangle ------------------------------------- */
+void vbe_set_clip(int x, int y, int w, int h) {
+    g_vbe.clip_x = x; g_vbe.clip_y = y;
+    g_vbe.clip_w = w; g_vbe.clip_h = h;
+    g_vbe.clip_enabled = (w > 0 && h > 0);
+}
+void vbe_reset_clip(void) {
+    g_vbe.clip_enabled = 0;
+    g_vbe.clip_x = g_vbe.clip_y = g_vbe.clip_w = g_vbe.clip_h = 0;
+}
+void vbe_get_clip(int *x, int *y, int *w, int *h) {
+    if (x) *x = g_vbe.clip_x;
+    if (y) *y = g_vbe.clip_y;
+    if (w) *w = g_vbe.clip_w;
+    if (h) *h = g_vbe.clip_h;
+}
+
 void vbe_swap(void) {
     memcpy(g_vbe.fb, g_vbe.back, g_vbe.fb_size);
 }
 
 void vbe_set_pixel(int x, int y, uint32_t color) {
-    if (x >= 0 && x < g_vbe.width && y >= 0 && y < g_vbe.height)
-        g_vbe.back[y * g_vbe.width + x] = color;
+    if (x < 0 || x >= g_vbe.width || y < 0 || y >= g_vbe.height) return;
+    if (g_vbe.clip_enabled) {
+        if (x < g_vbe.clip_x || x >= g_vbe.clip_x + g_vbe.clip_w ||
+            y < g_vbe.clip_y || y >= g_vbe.clip_y + g_vbe.clip_h)
+            return;
+    }
+    g_vbe.back[y * g_vbe.width + x] = color;
 }
 
 uint32_t vbe_get_pixel(int x, int y) {

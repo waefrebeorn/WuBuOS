@@ -50,3 +50,4 @@ node_modules/
 # build artifacts
 src/hosted/wubu
 vendor/
+src/tools/wubu_shot_apps

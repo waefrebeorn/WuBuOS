@@ -26,6 +26,9 @@ typedef struct {
     int       height;
     int       bpp;       /* Bits per pixel (always 32) */
     size_t    fb_size;   /* Total bytes: width * height * 4 */
+    /* Scissor / clip rectangle (0,0,0,0 = disabled). */
+    int       clip_x, clip_y, clip_w, clip_h;
+    int       clip_enabled;
 } VBEState;
 
 /* Init: allocate framebuffer of given size */
@@ -131,6 +134,14 @@ void vbe_3d_sunken_rounded_colors(int x, int y, int w, int h, int radius,
 
 /* Fable-style software mouse cursor (18-row arrow with outline). */
 void vbe_draw_cursor(int mx, int my);
+
+/* -- Clipping (scissor) rectangle --------------------------------- */
+/* Sets a scissor rect; all subsequent pixel writes are confined to it.
+ * Pass x=y=w=h=0 (or call vbe_reset_clip) to disable. Used by the WM to
+ * guarantee a window's on_draw content can never bleed outside its frame. */
+void vbe_set_clip(int x, int y, int w, int h);
+void vbe_reset_clip(void);
+void vbe_get_clip(int *x, int *y, int *w, int *h);
 
 /* Win98 gradient title bar (active: navy→blue, inactive: gray flat). */
 void vbe_title_bar(int x, int y, int w, int h, int active);

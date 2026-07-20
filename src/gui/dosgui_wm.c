@@ -50,7 +50,8 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     g_dwm.resize_id = -1;
     g_dwm.drag_icon_id = -1;
     g_dwm.current_desktop = 0;
-    g_dwm.desktop_count = 9;
+    g_dwm.desktop_count = 1;   /* Single desktop by default (like Win98); the
+                                 pager only appears when >1 is configured. */
     g_dwm.systray_count = 0;
     g_dwm.notif_count = 0;
     g_dwm.next_notif_id = 1;
