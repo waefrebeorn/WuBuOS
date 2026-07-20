@@ -484,8 +484,20 @@ static HCASTNode *parse_expr(HCParser *p) {
 HCASTNode *parse_block(HCParser *p) {
     expect(p, HC_TOK_LBRACE);
     HCASTNode *block = hc_ast_new(HC_AST_BLOCK);
+    if (!block) { p->has_error = true; return NULL; }
     while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
+        int start_pos = p->lex->pos;
         hc_ast_add_stmt(block, parse_stmt(p));
+        /* Guard against a statement that fails to consume any input. An
+         * unrecognized token (e.g. garbage source) would otherwise leave the
+         * lexer position unchanged, spin the loop forever, exhaust memory,
+         * and crash when hc_ast_new() returns NULL. Bail out cleanly as a
+         * parse error so the caller reports it instead of segfaulting. */
+        if (!p->has_error && p->lex->pos == start_pos) {
+            parse_error(p, "unexpected token in block");
+            break;
+        }
+        if (p->has_error) break;
     }
     expect(p, HC_TOK_RBRACE);
     return block;

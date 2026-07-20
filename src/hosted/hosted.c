@@ -37,6 +37,8 @@
 #include "../gui/wm.h"
 #include "../gui/dosgui_startmenu.h"
 #include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_wm_holyc_term.h"
+#include "../runtime/wubu_holyc_agi.h"
 #include "../gui/dosgui_desktop.h"
 #include "../runtime/styx.h"
 #include "../bridge/bridge.h"
@@ -121,6 +123,13 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
     dosgui_wm_init(state->width, state->height);
     fprintf(stderr, "DEBUG: dosgui_wm_init done\n");
+
+    /* Wire the HolyC Terminal to the live ring-0 AGI compiler: the same
+     * compile+run path a human uses, but with EDR disclosure of every
+     * agent-authored eval (the transparency edict). The terminal module
+     * itself stays decoupled -- it only sees the injected function pointer. */
+    holyc_term_set_eval(wubu_holyc_eval);
+    wubu_holyd_set_pointer_handler(dosgui_wm_handle_mouse);
     dosgui_desktop_init();
     fprintf(stderr, "DEBUG: dosgui_desktop_init done\n");
     dosgui_startmenu_init();
