@@ -100,6 +100,9 @@ void dosgui_wm_move_focused_window(int delta);
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods);
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind);
+/* Current rendered cursor position (set by the input path; used by the AGI
+ * automation layer to press/release buttons at the live cursor). */
+void dosgui_wm_get_mouse(int *x, int *y);
 /* kind: 0=move, 1=down, 2=up */
 
 /* -- Rendering --------------------------------------------------- */

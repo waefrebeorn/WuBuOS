@@ -53,6 +53,21 @@ enum {
     EDR_EV_ETW_TI                = 23,
     EDR_EV_NAMED_PIPE_CREATE     = 24,
     EDR_EV_FILE_SET_BASIC_INFO   = 25,
+    /* AGI / UI-automation action: every synthetic mouse/keyboard/type the
+     * agent issues is logged here so a human can search and replay exactly
+     * what the operating system did on the agent's behalf. Mirrors the same
+     * reporting methodology as process/file/network events. */
+    EDR_EV_AGENT_ACTION          = 26,
+};
+
+/* Agent (UI-automation) action sub-types carried in an EDR_EV_AGENT_ACTION
+ * event's u32 field. */
+enum {
+    EDR_AGENT_MOUSE_MOVE = 1,
+    EDR_AGENT_MOUSE_DOWN = 2,
+    EDR_AGENT_MOUSE_UP   = 3,
+    EDR_AGENT_KEY        = 4,
+    EDR_AGENT_TYPE       = 5,
 };
 
 /* Alert */
@@ -101,6 +116,34 @@ int  edr_replay(const char *json_path);
 int  edr_get_alerts(EdrAlert *buf, int max);
 int  edr_get_process_count(void);
 const EdrProcessInfo *edr_get_process(uint32_t pid);
+
+/* ================================================================
+ * Agent (AGI) transparency -- the "giant toggle" + event logging
+ * ================================================================ */
+
+/* Master analytics switch. When disabled, NO agent/UI-automation events are
+ * recorded (and, by policy, the user forfeits debug-report / bug-fix
+ * eligibility because they are no longer part of the analytic corpus).
+ * Persisted to EDR_CONFIG_PATH "/analytics" so the choice survives reboot. */
+void edr_analytics_set_enabled(bool on);
+bool edr_analytics_enabled(void);
+
+/* Generic typed event push: allocates an EdrEvent (header + inline detail),
+ * fills the header with a fresh timestamp + the caller's pid, and enqueues it
+ * on the same lock-free queue every other telemetry source uses. Honors the
+ * analytics toggle. Returns 0 on success, -1 if disabled or queue full. */
+int  edr_log_event(uint16_t type, uint32_t pid, uint32_t extra_pid,
+                   uint64_t u64a, uint64_t u64b, uint32_t u32,
+                   const char *detail);
+
+/* Convenience for the UI-automation layer: log one agent action. `action` is
+ * an EDR_AGENT_* sub-type; x/y/btn/key describe the input; `detail` is a
+ * human-readable summary (e.g. "click at 100,200"). */
+int  edr_log_agent_action(uint16_t action, int x, int y, int btn,
+                           uint32_t key, const char *detail);
+
+/* Total agent events logged since process start (for tests / audit). */
+uint64_t edr_agent_events_logged(void);
 
 #ifdef __cplusplus
 }

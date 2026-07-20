@@ -53,6 +53,12 @@ typedef struct {
     int             drag_id;
     int             drag_ox, drag_oy;
 
+    /* Resize state (Chicago/Mac edge + corner resize) */
+    int             resize_id;
+    int             resize_edge;   /* 0 none, bits: 1=left 2=right 4=top 8=bottom */
+    int             resize_ox, resize_oy;  /* grab offset within window */
+    int             resize_ow, resize_oh;  /* original w/h at grab */
+
     /* Desktop icons */
     DosGuiIcon       icons[DOSGUI_MAX_ICONS];
     int             icon_count;

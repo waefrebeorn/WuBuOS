@@ -75,6 +75,11 @@ int hit_test(int x, int y) {
     return -1;
 }
 
+void dosgui_wm_get_mouse(int *x, int *y) {
+    if (x) *x = g_dwm.mouse_x;
+    if (y) *y = g_dwm.mouse_y;
+}
+
 DosGuiWindow *dosgui_wm_create(int x, int y, int w, int h,
                                const char *title) {
     int i = spawn_window(x, y, w, h, title);
