@@ -245,6 +245,71 @@
   test_dosgui_wm 30/30. make runtime + make hosted + test_high_gui (9/0) green.
 - wubu_theme.h + wubu_theme.c ABI: added win_shadow field (5 themes).
 
+## 2026-07-19 (session, part 8) — AGI transparency edict + real windowing
+### EDR: every AGI action is a first-class, searchable event (user edict)
+- **Gap (edict)**: all AGI/automation activity must flow through the EDR engine
+  using the SAME reporting methodology as OS syscall/network telemetry, with a
+  master "analytics" toggle a user can flip off (forfeiting debug-report
+  eligibility). Previously AGI UI actions were invisible to EDR.
+- **New event type** `EDR_EV_AGENT_ACTION = 26` in wubu_edr.h, with sub-types
+  `EDR_AGENT_MOUSE_MOVE/DOWN/UP/KEY/TYPE`. Carries packed cursor (x<<32|y) in
+  u64a, key in u64b, action in u32, human summary in inline detail.
+- **Master analytics toggle** `edr_analytics_set_enabled(bool)` /
+  `edr_analytics_enabled()` in edr_core.c: gates ALL `edr_log_event()` calls
+  (returns -1 when off). Persisted to `EDR_CONFIG_PATH "/analytics"` so the
+  choice survives reboot; loaded in `edr_start()`.
+- **Generic log helper** `edr_log_event(type,pid,extra,ua,ub,u32,detail)`:
+  heap-allocates an EdrEvent (packed header + inline detail), stamps a fresh
+  nanosecond timestamp + caller pid, and enqueues on the SAME lock-free
+  `g_queue` every other telemetry source uses. So agent actions ride the
+  identical pipeline (worker thread -> behavioural module -> alerts) as process/
+  file/network events and are replayable via `edr_replay()` / searchable.
+- **wubu_ui.c** (automation layer) now calls `edr_log_agent_action(...)` on
+  every synthetic mouse/key/type, **gated by `-DWUBU_EDR_AGENT`** so the hosted
+  test harness (which does not build EDR) stays clean. The real OS binary
+  defines the flag and links EDR, so the AGI path is transparent in production.
+- **Integration test** `test_edr_agent` (new Makefile target): drives the WM
+  through wubu_ui WITH the flag, asserts (a) the agent drag actually moved the
+  window (WM obeyed), (b) agent actions landed in EDR as EDR_EV_AGENT_ACTION
+  events, (c) toggling analytics OFF stops logging and ON resumes. 7/7 green.
+  NOTE: the target compiles wubu_ui.c to `wubu_ui_agent.o` (flagged) and links
+  the real WM (NOT dosgui_wm_test_stub's weak handle_mouse) so the drag drives
+  the genuine window manager.
+
+### Real Chicago/Mac windowing + AGI control layer
+- **Resize (Chicago/Mac baseline) missing**: windows could be moved and the
+  close/min/max buttons worked, but EDGE/CORNER resize did not exist.
+  Added `hit_test_edge(w,bw)` (bitmask: L/R/T/B) + resize state (resize_id,
+  resize_edge, resize_ox/oy/ow/oh, resize_cursor) to internal.h; wired into
+  dosgui_wm_input.c kind==1 (start, before title-drag) and kind==0 (apply,
+  min 80x40, keeps opposite edge fixed). `wubu_ui_drag` already interpolates
+  so the cursor + window track live (watchable by a human).
+- **`resize_id` init bug (root cause of flaky move)**: `g_dwm.resize_id`
+  defaulted to 0 (from memset), and the move handler's `if (resize_id >= 0)`
+  treated 0 as an ACTIVE resize, so the `else if (drag_id>=0)` DRAG branch was
+  DEAD CODE -- windows never moved via drag. Fixed: `resize_id = -1` in
+  dosgui_wm_init (drag_id already -1). This hardened test_dosgui_wm to 30/30
+  and made test_dosgui_ui move/resize pass.
+- **Global-hotkey precedence bug**: focused window's `on_key` returned BEFORE
+  the global `key==111` (close) / `key==0x57` (maximize) / theme / virtual-
+  desktop hotkeys, so a window that captured keys could swallow system keys.
+  Reordered dosgui_wm_handle_key so GLOBAL hotkeys run first (with early
+  return) and ordinary keys fall through to `on_key`. Real WM-correct behavior.
+- **wubu_ui automation layer** (src/gui/wubu_ui.c/.h): mouse_move/down/up,
+  click, drag (interpolated), key, type, record/replay ring buffer. Thin
+  facade over dosgui_wm_handle_mouse/key -- the SAME entry points a human's
+  input device uses -- so a person watching sees the cursor move and windows
+  obey. `test_dosgui_ui` 7/7 proves move/close/resize/type/record/replay.
+- **test_edr_agent** target + clean rule added to Makefile; `wubu_edr_agent_test.c`
+  added. `dosgui_wm_test_stub.c` rewritten to drop its weak `dosgui_wm_handle_mouse`
+  (so the real handler binds) while keeping startmenu/launch/hosted no-ops for
+  unit tests.
+
+### Regression status (this part)
+test_dosgui_wm 30/30, test_dosgui_ui 7/7, test_edr_agent 7/7, test_high_gui 9/0,
+make runtime ✅, make hosted ✅.
+
+
 ## 2026-07-19 (session, part 7) — XP two-pane Control Panel
 - **Gap**: control.c was a stub drawing plain "Control Panel - Desktop" text
   over the whole window (even overlapping the title bar). No XP category view.

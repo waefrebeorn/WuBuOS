@@ -354,8 +354,12 @@ static void *edr_worker_loop(void *arg) {
  * Public Lifecycle API
  * ================================================================ */
 
+/* Forward decl so edr_start() can call the analytics loader defined below. */
+static void edr_analytics_load(void);
+
 int edr_start(void) {
     g_running = true;
+    edr_analytics_load();   /* honor persisted master toggle */
     edr_register_module(&g_yara_module);
     edr_register_module(&g_behavioral_module);
     g_active_module = &g_behavioral_module;
@@ -381,6 +385,83 @@ void edr_stop(void) {
     edr_proc_pin_stop();
     edr_poller_stop();
 }
+
+/* ================================================================
+ * Agent (AGI) transparency -- master analytics toggle + event logging
+ * ================================================================ */
+
+/* Master analytics switch (the "giant toggle"). Default ON. When OFF, no
+ * agent/UI-automation events are recorded; by policy the user then forfeits
+ * debug-report / bug-fix eligibility (they are no longer in the corpus). */
+static volatile bool g_analytics_enabled = true;
+static uint64_t      g_agent_events_logged = 0;
+
+bool edr_analytics_enabled(void) { return g_analytics_enabled; }
+
+void edr_analytics_set_enabled(bool on) {
+    g_analytics_enabled = on;
+    /* Persist the choice so it survives reboot (best-effort). */
+    char path[EDR_MAX_PATH];
+    snprintf(path, sizeof(path), "%s/analytics", EDR_CONFIG_PATH);
+    FILE *f = fopen(path, "w");
+    if (f) { fputc(on ? '1' : '0', f); fclose(f); }
+}
+
+/* Load the persisted toggle (called from edr_start). */
+static void edr_analytics_load(void) {
+    char path[EDR_MAX_PATH];
+    snprintf(path, sizeof(path), "%s/analytics", EDR_CONFIG_PATH);
+    FILE *f = fopen(path, "r");
+    if (f) {
+        int c = fgetc(f); fclose(f);
+        g_analytics_enabled = (c != '0');
+    }
+}
+
+int edr_log_event(uint16_t type, uint32_t pid, uint32_t extra_pid,
+                  uint64_t u64a, uint64_t u64b, uint32_t u32,
+                  const char *detail) {
+    if (!g_analytics_enabled) return -1;   /* master toggle gates everything */
+
+
+    size_t dlen = detail ? strlen(detail) + 1 : 1;
+    EdrEvent *ev = (EdrEvent *)malloc(sizeof(EdrEventHeader) + dlen);
+    if (!ev) return -1;
+    memset(ev, 0, sizeof(EdrEventHeader));
+    ev->header.version   = 1;
+    ev->header.type      = type;
+    ev->header.size      = (uint32_t)(sizeof(EdrEventHeader) + dlen);
+    ev->header.timestamp = (uint64_t)time(NULL) * 1000000000ULL;
+    ev->header.pid       = pid;
+    ev->header.tid       = 0;
+    ev->header.extra_pid = extra_pid;
+    ev->header.u64a      = u64a;
+    ev->header.u64b      = u64b;
+    ev->header.u32       = u32;
+    ev->header.var_count = detail ? 1 : 0;
+    if (detail) memcpy(EDR_EVENT_DATA(ev), detail, dlen);
+
+    g_agent_events_logged++;
+    if (!edr_queue_push(ev)) { free(ev); return -1; }
+    return 0;
+}
+
+int edr_log_agent_action(uint16_t action, int x, int y, int btn,
+                          uint32_t key, const char *detail) {
+    char buf[256];
+    if (!detail) {
+        snprintf(buf, sizeof(buf), "agent:%u x=%d y=%d btn=%d key=%u",
+                 action, x, y, btn, key);
+        detail = buf;
+    }
+    /* u64a = packed cursor (x<<32 | y); u32 = action sub-type. */
+    uint64_t cur = ((uint64_t)(uint32_t)x << 32) | (uint32_t)y;
+    return edr_log_event(EDR_EV_AGENT_ACTION, (uint32_t)getpid(), 0,
+                         cur, (uint64_t)key, action, detail);
+}
+
+/* Re-export for tests that want the count without draining the queue. */
+uint64_t edr_agent_events_logged(void) { return g_agent_events_logged; }
 
 /* ================================================================
  * Public Query API
