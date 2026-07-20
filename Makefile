@@ -17,6 +17,7 @@ BRIDGE  = src/bridge
 APPS    = src/apps
 WS      = src/worldsim
 RT      = src/runtime
+FRAMEWORK = src/framework
 TOOLS   = src/tools
 HOSTED  = src/hosted
 AUDIO   = src/audio
@@ -618,19 +619,6 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dos
 		$(GUI)/wubu_screenshot_test -lwayland-client -lxkbcommon -lm
 	$(GUI)/wubu_screenshot_test
 
-# Headless GUI screenshot harness: render the real Win98 WM + desktop to
-# PPM (no display server). Cloned from test_dosgui_wm's clean WM link line;
-# window content is drawn by the harness itself (no app-graph deps).
-test_gui_screenshot_apps: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o
-	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(TOOLS) -I$(APPS) -I$(RT) \
-	$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \
-		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c $(TOOLS)/screenshot.c \
-		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
-		$(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
-		$(TOOLS)/wubu_shot_apps.c -o $(TOOLS)/wubu_shot_apps -lm
-	$(TOOLS)/wubu_shot_apps
-
 # Clipboard regression: wubu_screenshot.c with its 4 GUI external refs
 # stubbed in the test TU, so we verify real PNG clipboard encode without
 # the full WM/Wayland stack.
@@ -1142,6 +1130,22 @@ test_holyc_agi:
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
 		$(RT)/wubu_holyc_agi_test.c -o $(RT)/wubu_holyc_agi_test -lpthread
+	$(RT)/wubu_holyc_agi_test
+
+test_framework:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM -DWUBU_EDR_AGENT -DVBE_HOSTED \
+		-I$(RT) -I$(RT)/edr -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(FRAMEWORK) \
+		$(EDR_SRC) \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_9p.c $(RT)/holyd_lifecycle_app.o \
+		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \
+		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
+		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
+		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
+		$(FRAMEWORK)/wubufx.c $(FRAMEWORK)/wubufx_test.c -o $(FRAMEWORK)/wubufx_test -lpthread
+	$(FRAMEWORK)/wubufx_test
+
 
 
 test_txn: $(RT)/wubu_txn/wubu_txn.c $(RT)/wubu_txn/wubu_txn_test.c
