@@ -281,9 +281,11 @@ $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
 	$(CC) $(CFLAGS) -I$(HOSTED) -x c -MMD -MP -c $< -o $@
 
 # Link-only target: reuses the .o files above. Edit one file -> one .o rebuild + relink.
-hosted: $(HOSTED_OBJS) $(RT_OBJS)
-	$(CC) $(CFLAGS) -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
+hosted: $(HOSTED_OBJS) $(RT_OBJS) $(EDR_OBJS) $(APPS)/edr_dash.o
+	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -I$(GUI) -I$(KERNEL) -I$(RT) -MMD -MP -c $(GUI)/wubu_ui.c -o $(GUI)/wubu_ui_hosted.o
+	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
+		$(EDR_SRC) $(GUI)/wubu_ui_hosted.o $(APPS)/edr_dash.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
 # ── Compilation Rules ────────────────────────────────────────────
@@ -1086,6 +1088,9 @@ test_spawn:
 
 EDR_SRC = $(RT)/wubu_edr.c $(RT)/edr/edr_core.c $(RT)/edr/edr_proc_pin.c \
           $(RT)/edr/edr_fanotify.c $(RT)/edr/edr_poller.c
+
+EDR_OBJS = $(RT)/wubu_edr.o $(RT)/edr/edr_core.o $(RT)/edr/edr_proc_pin.o \
+           $(RT)/edr/edr_fanotify.o $(RT)/edr/edr_poller.o
 
 test_edr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

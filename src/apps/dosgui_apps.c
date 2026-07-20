@@ -213,6 +213,10 @@ DosGuiWindow* dosgui_launch_holyc_term(void) {
     return NULL;
 }
 
+DosGuiWindow* dosgui_launch_edr_dashboard(void) {
+    return edr_dash_launch();
+}
+
 /* -- The single registry table ------------------------------------ */
 
 const DosGuiAppDef g_app_defs[] = {
@@ -228,6 +232,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,   0x000080FF, dosgui_launch_canvas },
     { "HolyC Term",   "HolyC Terminal",DESK_ICON_COUNT + 3,   0x00800080, dosgui_launch_holyc_term },
     { "DOS Box",      "DOS Box",        DESK_ICON_COUNT + 4,   0x0000C000, dosgui_launch_dos_box_default },
+    { "EDR Activity", "EDR Activity",  DESK_ICON_COUNT + 5,   0x00C00000, dosgui_launch_edr_dashboard },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 

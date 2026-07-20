@@ -66,6 +66,37 @@ int main(void) {
     wubu_ui_click(100, 100, 1);
     T(edr_agent_events_logged() > on_before, "with analytics ON again, logging resumes");
 
+    /* -- Read snapshot API (the disclosure surface) -- */
+    edr_analytics_set_enabled(true);
+    wubu_ui_click(300, 300, 1);   /* ensure at least one fresh agent event */
+    EdrEventView buf[64];
+    int n = edr_recent_events(buf, 64, 0, 0);
+    T(n > 0, "edr_recent_events() returns a non-empty snapshot");
+    /* Find an agent action in the snapshot. */
+    int saw_agent = 0;
+    for (int i = 0; i < n; i++)
+        if (buf[i].type == EDR_EV_AGENT_ACTION) { saw_agent = 1; break; }
+    T(saw_agent, "snapshot contains a real EDR_EV_AGENT_ACTION event");
+
+    /* Filtering by type window 26..26 yields ONLY agent events. */
+    EdrEventView fbuf[64];
+    int fn = edr_recent_events(fbuf, 64, 26, 26);
+    int only_agent = 1;
+    for (int i = 0; i < fn; i++)
+        if (fbuf[i].type != EDR_EV_AGENT_ACTION) { only_agent = 0; break; }
+    T(fn > 0 && only_agent, "type-filtered snapshot returns only agent actions");
+
+    /* Names are human-readable (for the dashboard). */
+    T(strcmp(edr_event_type_name(EDR_EV_AGENT_ACTION), "AgentAction") == 0,
+      "edr_event_type_name maps the agent type");
+    T(strcmp(edr_agent_action_name(EDR_AGENT_MOUSE_DOWN), "MouseDown") == 0,
+      "edr_agent_action_name maps the sub-type");
+
+    /* Snapshot is NON-destructive: a second call returns the same data. */
+    EdrEventView buf2[64];
+    int n2 = edr_recent_events(buf2, 64, 0, 0);
+    T(n2 == n, "edr_recent_events is a non-destructive snapshot (count stable)");
+
     dosgui_wm_shutdown();
     vbe_shutdown();
     edr_stop();

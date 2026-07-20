@@ -145,6 +145,34 @@ int  edr_log_agent_action(uint16_t action, int x, int y, int btn,
 /* Total agent events logged since process start (for tests / audit). */
 uint64_t edr_agent_events_logged(void);
 
+/* ================================================================
+ * Read snapshot -- the disclosure surface
+ * ================================================================
+ * Non-destructive copy of the most recent events from the live ring so a
+ * dashboard can render / search / tail exactly what the OS + agents did,
+ * without disturbing the queue the behavioural modules drain. This is the
+ * user-facing half of the "disclosure is the security model" principle. */
+
+/* Opaque view of one event, safe for callers to read (no struct internals). */
+typedef struct {
+    uint16_t type;        /* EdrEventType */
+    uint32_t pid;
+    uint32_t extra_pid;
+    uint64_t ts_ns;       /* nanosecond timestamp */
+    uint64_t u64a, u64b;
+    uint32_t u32;
+    char     detail[256]; /* human summary (inline) */
+} EdrEventView;
+
+/* Copy the newest `max` events into `out` (oldest-first). Returns the count
+ * actually copied. A negative `min_type`/`max_type` pair filters by type;
+ * pass 0/0 to fetch all. This is a SNAPSHOT -- it never removes events. */
+int edr_recent_events(EdrEventView *out, int max, int min_type, int max_type);
+
+/* Human-readable name for an event type / agent sub-type (for the UI). */
+const char *edr_event_type_name(uint16_t type);
+const char *edr_agent_action_name(uint16_t action);
+
 #ifdef __cplusplus
 }
 #endif
