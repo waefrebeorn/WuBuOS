@@ -6,9 +6,37 @@
  *
  * NOTE: g_holyc_terms[] is defined as a static global in dosgui_wm.c.
  * This module provides the helper functions that operate on it.
+ *
+ * Evaluation is dependency-injected (see dosgui_wm_holyc_term.h). The default
+ * evaluator is a direct, self-contained JIT compile+run via the public HolyC
+ * compiler API. The hosted binary injects the richer wubu_holyc_agi path
+ * (holyd daemon + EDR disclosure) at the composition root, so this module
+ * stays decoupled from the runtime AGI/EDR layer.
  */
+
 #include "dosgui_wm_internal.h"
-#include "../compiler/holyc.h"
+#include "dosgui_wm_holyc_term.h"
+
+#include "holyc_codegen.h"   /* public compiler API: hc_eval */
+
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
+/* -- Injected evaluator (DI) -------------------------------------- */
+
+static int holyc_eval_default(const char *src, char *out, size_t out_size) {
+    if (!src || !out || out_size == 0) return -1;
+    int64_t r = hc_eval(src);
+    snprintf(out, out_size, "%lld", (long long)r);
+    return 0;
+}
+
+static holyc_term_eval_fn g_eval = holyc_eval_default;
+
+void holyc_term_set_eval(holyc_term_eval_fn fn) {
+    g_eval = fn ? fn : holyc_eval_default;
+}
 
 /* -- HolyC Terminal Implementation (matching original code) ------- */
 
@@ -41,7 +69,7 @@ void holyc_term_add_history(HolycTerm *term, const char *cmd) {
 }
 
 void holyc_term_eval(HolycTerm *term, const char *cmd) {
-    char result[256] = {0};
+    if (!term || !cmd) return;
 
     if (strcmp(cmd, "exit") == 0) {
         holyc_term_add_line(term, "Goodbye.");
@@ -55,15 +83,22 @@ void holyc_term_eval(HolycTerm *term, const char *cmd) {
         return;
     }
     if (strcmp(cmd, "help") == 0) {
-        holyc_term_add_line(term, "HolyC Terminal commands:");
-        holyc_term_add_line(term, "  exit  - Close terminal");
-        holyc_term_add_line(term, "  clear - Clear screen");
-        holyc_term_add_line(term, "  help  - This help");
+        holyc_term_add_line(term, "HolyC Terminal -- live ring-0 compiler.");
+        holyc_term_add_line(term, "  Type HolyC expressions/statements; they compile + run now.");
+        holyc_term_add_line(term, "  e.g. 1+2+3   { I64 x=5; x*x; }   I64 sq(I64 n){return n*n;} sq(9);");
+        holyc_term_add_line(term, "  State (vars/functions) persists across lines. exit/clear/help builtins.");
         return;
     }
 
-    snprintf(result, sizeof(result), "OK: %s", cmd);
-    holyc_term_add_line(term, result);
+    /* Real compile + execute via the injected evaluator. */
+    char result[1024];
+    int ret = g_eval(cmd, result, sizeof(result));
+    char line[1280];
+    if (ret == 0)
+        snprintf(line, sizeof(line), "» %s", result);
+    else
+        snprintf(line, sizeof(line), "⚠ %s", result);
+    holyc_term_add_line(term, line);
 }
 
 void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {

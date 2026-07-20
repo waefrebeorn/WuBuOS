@@ -291,12 +291,19 @@ int  wubu_holyd_window_list(WubuHoly *d, const char *session,
 
 /* -- Input Routing ------------------------------------------------ */
 
+/* Pointer-event handler injected by the composition root. The daemon does
+ * NOT link the WM: it emits normalized pointer events and lets the desktop
+ * (or a test stub, or nothing) decide what to do with them. Default is a
+ * no-op so daemon-only builds/tests stay decoupled from the GUI layer. */
+typedef void (*wubu_holyd_pointer_fn)(int x, int y, int btn, int kind);
+void wubu_holyd_set_pointer_handler(wubu_holyd_pointer_fn fn);
+
 int  wubu_holyd_input_key(WubuHoly *d, const char *session,
-                           int keycode, int modifiers);
+                          int keycode, int modifiers);
 int  wubu_holyd_input_mouse(WubuHoly *d, const char *session,
-                             int x, int y, int buttons);
+                            int x, int y, int buttons);
 int  wubu_holyd_input_paste(WubuHoly *d, const char *session,
-                             const char *text);
+                            const char *text);
 
 /* -- 9P Namespace ------------------------------------------------- */
 

@@ -4,6 +4,17 @@
 
 #include "wubu_holyd_internal.h"
 
+/* -- Injected pointer handler (DI) -------------------------------- */
+/* The daemon stays decoupled from the WM. The composition root (hosted
+ * binary) injects dosgui_wm_handle_mouse; daemon-only builds/tests leave the
+ * default no-op, so this module never forces the entire WM into a daemon link. */
+
+static wubu_holyd_pointer_fn g_pointer_handler = NULL;
+
+void wubu_holyd_set_pointer_handler(wubu_holyd_pointer_fn fn) {
+    g_pointer_handler = fn;
+}
+
 /* -- Input Routing ------------------------------------------------ */
 
 int wubu_holyd_input_key(WubuHoly *d, const char *session,
@@ -22,7 +33,7 @@ int wubu_holyd_input_key(WubuHoly *d, const char *session,
 }
 
 int wubu_holyd_input_mouse(WubuHoly *d, const char *session,
-                             int x, int y, int buttons) {
+                            int x, int y, int buttons) {
     WubuHolySession *s = holyd_find_session(d, session);
     if (!s) return -1;
 
@@ -35,27 +46,25 @@ int wubu_holyd_input_mouse(WubuHoly *d, const char *session,
         /* Only forward if mouse is within window bounds */
         if (local_x >= 0 && local_x < win->w &&
             local_y >= 0 && local_y < win->h && win->visible) {
-            /* Hit test: window accepts the mouse event.
-             * Forward to the DosGui WM which handles focus,
-             * drag, resize, and client-area dispatch. */
-            {
-                /* Translate buttons bitmask to btn+kind.
-                 * buttons: bit0=LMB, bit1=RMB, bit2=MMB.
-                 * kind: 0=move, 1=down, 2=up.
-                 * We detect transitions via prev_buttons. */
-                int prev = s->prev_buttons;
-                int kind = 0; /* default: move (no change) */
-                int btn = 0;
-                if (buttons && !prev) {
-                    kind = 1; /* press */
-                    btn = (buttons & 1) ? 1 : (buttons & 4) ? 3 : 2;
-                } else if (!buttons && prev) {
-                    kind = 2; /* release */
-                    btn = (prev & 1) ? 1 : (prev & 4) ? 3 : 2;
-                }
-                dosgui_wm_handle_mouse(x, y, btn, kind);
-                s->prev_buttons = buttons;
+            /* Translate buttons bitmask to btn+kind.
+             * buttons: bit0=LMB, bit1=RMB, bit2=MMB.
+             * kind: 0=move, 1=down, 2=up; detect transitions via prev_buttons. */
+            int prev = s->prev_buttons;
+            int kind = 0; /* default: move (no change) */
+            int btn = 0;
+            if (buttons && !prev) {
+                kind = 1; /* press */
+                btn = (buttons & 1) ? 1 : (buttons & 4) ? 3 : 2;
+            } else if (!buttons && prev) {
+                kind = 2; /* release */
+                btn = (prev & 1) ? 1 : (prev & 4) ? 3 : 2;
             }
+            s->prev_buttons = buttons;
+            /* Emit a normalized pointer event to the injected handler.
+             * No-op when unset (daemon-only build), so the daemon link
+             * stays decoupled from the WM. */
+            if (g_pointer_handler)
+                g_pointer_handler(x, y, btn, kind);
         }
     } else {
         /* No focused window: try to find the window under the cursor */
