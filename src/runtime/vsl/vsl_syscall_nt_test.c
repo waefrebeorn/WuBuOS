@@ -344,13 +344,13 @@ int main(void) {
               "NtAccessCheck now real -> SUCCESS (not NOT_IMPLEMENTED)");
     }
 
-    /* 10b. A TRULY-unimplemented slot (syscall 0, never registered) still
-     * falls through to the stub and returns NOT_IMPLEMENTED. */
+    /* 10b. A TRULY-unimplemented slot (syscall 0, but we now have some ordinal 0 handlers)
+     * Pick one we know is NOT registered to test the stub path. */
     {
         memset(args, 0, sizeof(args));
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 0, args, 0);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 999, args, 0); /* 999 is out of range */
         CHECK(r == NT_STATUS_NOT_IMPLEMENTED,
-              "unregistered syscall 0 -> NOT_IMPLEMENTED (stub intact)");
+              "unregistered syscall 999 -> NOT_IMPLEMENTED (stub intact)");
     }
 
     /* 17. NtDelayExecution (37) -- real nanosleep */

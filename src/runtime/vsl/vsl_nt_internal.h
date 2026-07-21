@@ -275,6 +275,14 @@ int64_t vsl_nt_set_boot_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint
 int64_t vsl_nt_set_boot_options(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_query_driver_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_set_driver_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+
+/* --- Ordinal 0 syscalls --- */
+int64_t vsl_nt_flush_write_buffer(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_is_system_resume_automatic(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_test_alert(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_yield_execution(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_port_information_process(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_get_current_processor_number(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_load_driver(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_unload_driver(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_load_key2(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
