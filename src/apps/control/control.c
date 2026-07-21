@@ -24,10 +24,10 @@ void control_destroy(ControlState *ctrl) {
     free(ctrl);
 }
 
-static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *content) {
+static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *content, ControlState *ctrl) {
     (void)win;
     if (!content) return;
-    ControlState *c = (ControlState*)win->user_data;
+    ControlState *c = ctrl;
     if (!c) return;
 
     int cx = content->x;
@@ -111,7 +111,7 @@ void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlSt
     ChromeContentRect content = dosgui_chrome_draw_window(win, vbe->back, fb_w, fb_h);
 
     /* Draw control panel content within chrome-provided rect. */
-    control_draw_content(win, &content);
+    control_draw_content(win, &content, c);
 }
 
 /* Apply a Desktop-tab change: persist wallpaper path + placement mode to
