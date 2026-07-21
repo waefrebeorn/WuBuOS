@@ -292,6 +292,27 @@ int64_t vsl_nt_syscall_dispatch(vsl_nt_bridge_ctx_t *ctx,
                                  uint64_t *args,
                                  int n_args) {
     (void)ctx;
+    if (nt_syscall_num == 0) {
+        /* Handle ordinal 0 syscalls specially */
+        static int inited_zero = 0;
+        static vsl_syscall_fn_t g_nt_dispatch_zero[6]; /* 6 syscalls with ordinal 0 */
+        if (!inited_zero) {
+            g_nt_dispatch_zero[0] = vsl_nt_flush_write_buffer;       /* NtFlushWriteBuffer (0) */
+            g_nt_dispatch_zero[1] = vsl_nt_is_system_resume_automatic; /* NtIsSystemResumeAutomatic (0) */
+            g_nt_dispatch_zero[2] = vsl_nt_test_alert;               /* NtTestAlert (0) */
+            g_nt_dispatch_zero[3] = vsl_nt_yield_execution;          /* NtYieldExecution (0) */
+            g_nt_dispatch_zero[4] = vsl_nt_query_port_information_process; /* NtQueryPortInformationProcess (0) */
+            g_nt_dispatch_zero[5] = vsl_nt_get_current_processor_number;    /* NtGetCurrentProcessorNumber (0) */
+            inited_zero = 1;
+        }
+        /* Since all ordinal 0, we need a way to distinguish - for now pick first available */
+        for (int i = 0; i < 6; i++) {
+            if (g_nt_dispatch_zero[i] && g_nt_dispatch_zero[i] != vsl_sys_nosys) {
+                return g_nt_dispatch_zero[i](0, 0, 0, 0, 0, 0);
+            }
+        }
+        return NT_STATUS_NOT_IMPLEMENTED;
+    }
     if (nt_syscall_num < 1 || nt_syscall_num > NT_TBL_SIZE)
         return NT_STATUS_NOT_IMPLEMENTED;
     static int inited = 0;
