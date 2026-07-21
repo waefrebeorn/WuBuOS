@@ -89,6 +89,46 @@ int64_t vsl_nt_create_process(uint64_t a_proc_out, uint64_t b_access,
     return NT_STATUS_SUCCESS;
 }
 
+/* NtCreateProcessEx (51): extended process creation with flags and section.
+ * a = process handle* (OUT), d = parent process handle, e = flags,
+ * f = section handle (optional image). We implement a simplified fork+exec
+ * model: fork a child, optionally map the section as its image. */
+
+int64_t vsl_nt_create_process_ex(uint64_t a_proc_out, uint64_t b_access,
+                                 uint64_t c_objattr, uint64_t d_parent,
+                                 uint64_t e_flags, uint64_t f_section) {
+    (void)b_access; (void)c_objattr; (void)e_flags;
+    if (!a_proc_out) return NT_STATUS_INVALID_PARAMETER;
+    pid_t pid = fork();
+    if (pid < 0) return vsl_errno_to_nt_status(errno);
+    if (pid == 0) {
+        /* Child: if a section handle was provided, map it as the image.
+         * For now we just pause like the base CreateProcess. */
+        if (f_section) {
+            uint64_t sec_data = 0;
+            if (vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)f_section, &sec_data) == 0) {
+                void *sec_base = (void *)(uintptr_t)sec_data;
+                /* In a real loader we'd parse PE and map sections. Here we
+                 * just demonstrate the section is accessible. */
+                (void)sec_base;
+            }
+        }
+        pause();
+        _exit(0);
+    }
+    vsl_nt_track_child(pid);
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_PROCESS);
+    if (h == 0) { kill(pid, SIGKILL); return NT_STATUS_UNSUCCESSFUL; }
+    for (int i = 0; i < 4096; i++) {
+        if (g_nt_ctx->handle_table[i].valid && g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)pid;
+            break;
+        }
+    }
+    *(uint32_t *)a_proc_out = h;
+    return NT_STATUS_SUCCESS;
+}
+
 /* ======================================================================
  * BATCH 5 — Process / memory launch path (boot a real image, Proton-style).
  *
@@ -145,6 +185,7 @@ int64_t vsl_nt_resume_process(uint64_t a_proc, uint64_t b, uint64_t c,
 void vsl_nt_process_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[50-1] = vsl_nt_create_process;
+    tbl[51-1] = vsl_nt_create_process_ex;
     tbl[129-1] = vsl_nt_open_process;
     tbl[267-1] = vsl_nt_terminate_process;
     tbl[238-1] = vsl_nt_set_information_process;

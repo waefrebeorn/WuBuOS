@@ -41,6 +41,14 @@ void wubu_cv_destroy(WubuCanvas *cv) {
     free(cv);
 }
 
+int wubu_cv_get_w(const WubuCanvas *cv)            { return cv ? cv->w : 0; }
+int wubu_cv_get_h(const WubuCanvas *cv)            { return cv ? cv->h : 0; }
+int wubu_cv_layer_count(const WubuCanvas *cv)      { return cv ? cv->n_layers : 0; }
+int wubu_cv_get_active_layer(const WubuCanvas *cv) { return cv ? cv->active_layer : 0; }
+void wubu_cv_set_active_layer(WubuCanvas *cv, int idx) {
+    if (cv && idx >= 0 && idx < cv->n_layers) cv->active_layer = idx;
+}
+
 /* -- Layer Operations --------------------------------------------- */
 
 int wubu_cv_layer_add(WubuCanvas *cv, const char *name) {

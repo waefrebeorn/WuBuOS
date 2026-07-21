@@ -41,4 +41,13 @@ void taskmgr_add_cpu_sample(TaskManagerState *tm, double cpu);
 /* Tab switching */
 void taskmgr_set_tab(TaskManagerState *tm, TMTab tab);
 
+/* Read-only inspection accessors (opaque-struct safe; for tests/debug). */
+int    taskmgr_get_active_tab(const TaskManagerState *tm);
+int    taskmgr_process_count(const TaskManagerState *tm);
+int    taskmgr_process_pid(const TaskManagerState *tm, int i);
+const char *taskmgr_process_name(const TaskManagerState *tm, int i);
+double taskmgr_process_cpu(const TaskManagerState *tm, int i);
+double taskmgr_total_cpu(const TaskManagerState *tm);
+int    taskmgr_hist_idx(const TaskManagerState *tm);
+
 #endif

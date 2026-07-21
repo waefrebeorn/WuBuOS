@@ -34,4 +34,7 @@ void control_set_auto_arrange(bool on);
 /* Desktop tab: show/hide desktop icons. */
 void control_set_show_icons(bool show);
 
+/* Read-only inspection accessor (opaque-struct safe; for tests/debug). */
+int control_get_tab(const ControlState *ctrl);
+
 #endif

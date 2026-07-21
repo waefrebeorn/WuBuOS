@@ -5,6 +5,7 @@
  */
 
 #include "calc.h"
+#include <math.h>
 
 double calc_apply_op(int op, double a, double b, bool *err) {
     switch (op) {
