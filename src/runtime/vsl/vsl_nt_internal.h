@@ -172,6 +172,9 @@ void *vsl_nt_thread_tramp(void *p);
 /* Process-handle -> pid resolver (proc module) */
 pid_t vsl_nt_proc_pid(uint32_t proc_handle);
 
+/* Process creation extended (batch 5) */
+int64_t vsl_nt_create_process_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+
 /* Handle-registry helpers live in the facade (vsl_nt_bridge.h declares them). */
 
 /* -- Handler prototypes (every transliterated NT handler) -- */
@@ -207,6 +210,7 @@ int64_t vsl_nt_free_user_phys_pages(uint64_t, uint64_t, uint64_t, uint64_t, uint
 int64_t vsl_nt_free_virtual_memory(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_is_process_in_job(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_map_view_of_section(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_unmap_view_of_section(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_open_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_open_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_open_job_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
@@ -256,6 +260,133 @@ int64_t vsl_nt_complete_connect_port(uint64_t, uint64_t, uint64_t, uint64_t, uin
 int64_t vsl_nt_request_wait_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 int64_t vsl_nt_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
+/* --- vsl_nt_misc.c (blitz) --- */
+int64_t vsl_nt_add_boot_entry(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_add_driver_entry(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_delete_boot_entry(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_delete_driver_entry(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_modify_boot_entry(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_modify_driver_entry(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_enumerate_boot_entries(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_enumerate_driver_entries(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_boot_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_boot_options(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_boot_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_boot_options(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_driver_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_driver_entry_order(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_load_driver(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_unload_driver(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_load_key2(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_load_key_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_unload_key2(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_unload_key_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_save_key_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_save_merged_keys(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_rename_key(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_lock_registry_key(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_lock_product_activation_keys(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_compress_key(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_make_permanent_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_open_sub_keys_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_security_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_debug_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_debug_active_process(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_debug_continue(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_remove_process_debug(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_wait_for_debug_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_information_debug_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_debug_filter_state(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_debug_filter_state(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_system_debug_control(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_default_locale(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_default_locale(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_default_ui_language(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_default_ui_language(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_install_ui_language(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_system_environment_value(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_system_environment_value_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_system_environment_value(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_system_environment_value_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_enumerate_system_environment_values_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_system_information(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_system_time(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_shutdown_system(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_system_power_state(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_initiate_power_action(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_power_information(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_get_device_power_state(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_cancel_device_wakeup_request(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_request_device_wakeup(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_request_wakeup_latency(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_is_system_resume_automatic(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_plug_play_control(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_get_plug_play_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_paging_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_apphelp_cache_control(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_callback_return(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_continue(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_profile(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_start_profile(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_stop_profile(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_interval_profile(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_interval_profile(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_test_alert(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_trace_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_translate_file_path(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_get_context_thread(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_context_thread(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_raise_exception(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_raise_hard_error(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_default_hard_error_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_event_boost_priority(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_signal_and_wait_for_single_object(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_get_current_processor_number(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_port_information_process(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_wait_for_multiple_objects32(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_queue_apc_thread(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_register_thread_terminate_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_get_write_watch(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reset_write_watch(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_map_user_physical_pages(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_map_user_physical_pages_scatter(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_ldt_entries(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_high_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_low_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_high_wait_low_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_low_wait_high_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_wait_low_event_pair(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_ea_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_ea_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_quota_information_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_quota_information_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_read_file_scatter(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_write_file_gather(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_information_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_information_token(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_volume_information_file(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_vdm_control(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reply_wait_receive_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reply_wait_receive_port_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reply_wait_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_request_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_request_wait_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reply_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_reply_wait_receive_port_ex(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_secure_connect_port(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_keyed_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_keyed_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_release_keyed_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_wait_for_keyed_event(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_transaction(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_transaction(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_commit_transaction(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_rollback_transaction(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_query_information_transaction(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_set_information_transaction(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_create_key_transacted(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int64_t vsl_nt_open_key_transacted(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+
 /* -- Per-module dispatch registration: each submodule registers its handlers
  *    into the shared g_nt_dispatch[] table. -- */
 void vsl_nt_atoms_register(vsl_syscall_fn_t *tbl, int size);
@@ -269,5 +400,6 @@ void vsl_nt_timer_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_misc_register(vsl_syscall_fn_t *tbl, int size);
 
 #endif /* WUBU_VSL_NT_INTERNAL_H */

@@ -9,14 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Internal struct definitions (opaque to outside) */
-struct RegKey {
-    char name[REG_MAX_NAME];
-    struct RegKey *parent;
-    struct RegKey *children;
-    struct RegKey *next_sibling;
-    int child_count;
-};
+/* RegKey is defined in regedit.h (public leaf struct). */
 
 struct RegValue {
     char name[REG_MAX_NAME];
@@ -103,6 +96,33 @@ void regedit_expand_key(RegeditState *reg, void *key) {
     if (reg->expand_depth < REG_MAX_DEPTH) {
         reg->expanded_keys[reg->expand_depth++] = (intptr_t)key;
     }
+}
+
+int regedit_get_expand_depth(const RegeditState *reg) {
+    return reg ? reg->expand_depth : 0;
+}
+bool regedit_search_open(const RegeditState *reg) {
+    return reg ? reg->search_dialog_open : false;
+}
+const char *regedit_get_search_text(const RegeditState *reg) {
+    return reg ? reg->search_text : "";
+}
+const RegKey *regedit_get_current_key(const RegeditState *reg) {
+    return reg ? reg->current_key : NULL;
+}
+const RegKey *regedit_get_root_key(const RegeditState *reg, int i) {
+    return (reg && i >= 0 && i < 6) ? &reg->root_keys[i] : NULL;
+}
+int regedit_value_count(const RegeditState *reg) {
+    return reg ? reg->value_count : 0;
+}
+void regedit_set_search_text(RegeditState *reg, const char *text) {
+    if (!reg || !text) return;
+    strncpy(reg->search_text, text, sizeof(reg->search_text) - 1);
+    reg->search_text[sizeof(reg->search_text) - 1] = '\0';
+}
+void regedit_set_search_open(RegeditState *reg, bool open) {
+    if (reg) reg->search_dialog_open = open;
 }
 
 void regedit_collapse_key(RegeditState *reg, void *key) {

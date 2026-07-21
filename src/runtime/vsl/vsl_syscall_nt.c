@@ -91,6 +91,7 @@ static void nt_dispatch_init(void) {
     vsl_nt_sync_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_registry_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_token_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_misc_register(g_nt_dispatch, NT_TBL_SIZE);
 }
 
 /* ----------------------------------------------------------------------

@@ -40,6 +40,10 @@ void notepad_new_tab(NotepadState *np);
 void notepad_close_tab(NotepadState *np, int idx);
 void notepad_switch_tab(NotepadState *np, int idx);
 
+/* Read-only inspection accessors (opaque-struct safe; for tests/debug). */
+int np_tab_count(const NotepadState *np);
+int np_active_tab(const NotepadState *np);
+
 /* Text operations */
 void notepad_insert_char(NotepadState *np, char c);
 void notepad_delete_char(NotepadState *np);

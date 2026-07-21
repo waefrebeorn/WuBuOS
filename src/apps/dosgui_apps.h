@@ -69,8 +69,17 @@ DosGuiWindow* dosgui_launch_dos_box(const char *path);
 
 /* EDR Activity Dashboard (disclosure surface). Defined in apps/edr_dash.c. */
 DosGuiWindow* edr_dash_launch(void);
+DosGuiWindow* dosgui_launch_edr_dashboard(void);
+
+/* DOS Box launchers (defined in apps/dosgui_apps.c) */
+DosGuiWindow* dosgui_launch_dos_box(const char *path);
+DosGuiWindow* dosgui_launch_dos_box_default(void);
 
 /* External container apps (no in-process window). */
 void dosgui_launch_explorer(void);
+
+/* DOS Box launchers (defined in apps/dosgui_apps.c) */
+DosGuiWindow* dosgui_launch_dos_box(const char *path);
+DosGuiWindow* dosgui_launch_dos_box_default(void);
 
 #endif

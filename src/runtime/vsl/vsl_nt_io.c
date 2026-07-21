@@ -929,7 +929,7 @@ void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[229-1] = vsl_nt_set_event;
     tbl[234-1] = vsl_nt_set_information_file;
     tbl[258-1] = vsl_nt_set_volume_information_file;
-    tbl[279-1] = vsl_nt_unmap_view_of_section;
+    tbl[278-1] = vsl_nt_unmap_view_of_section;
     tbl[285-1] = vsl_nt_write_file;
     tbl[66-1] = vsl_nt_delete_file;
     tbl[146-1] = vsl_nt_query_attributes_file;

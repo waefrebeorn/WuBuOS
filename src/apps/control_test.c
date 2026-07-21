@@ -91,23 +91,64 @@ int main(void) {
     printf("\n[Control Panel — XP two-pane render]\n");
     control_set_theme(THEME_XP_LUNA_BLUE);
     vbe_init(520, 440);
-    uint32_t *cp_fb = (uint32_t *)calloc(520 * 440, sizeof(uint32_t));
     DosGuiWindow win;
     memset(&win, 0, sizeof(win));
     win.x = 0; win.y = 0; win.w = 520; win.h = 440; win.alive = true;
     strncpy(win.title, "Control Panel", sizeof(win.title) - 1);
-    control_draw(&win, cp_fb, 520, 440, c);
 
-    /* Left rail is the Luna gradient sidebar; the orb's red quadrant must be
-     * present, and a category glyph pixel must have drawn in the right pane. */
+    /* Draw to back buffer */
+    control_draw(&win, vbe_framebuffer(), 520, 440, c);
+
+    /* Swap so drawing appears in front buffer */
+    vbe_swap();
+
+    /* Read from front buffer after swap */
+    uint32_t *fb2 = vbe_framebuffer();
+
+    /* Content rect: border(1) + titlebar(24 for Luna) = 25 for y, border(1) for x. */
+    int content_x = 1;  /* border */
+    int content_y = 26; /* border + title bar (24 for Luna) + 1 */
+    int content_w = 520 - 2;  /* 2 borders */
+    int content_h = 440 - 26 - 1; /* total - titlebar - border */
+
     int found_orb = 0, found_cat = 0;
     for (int y = 0; y < 440 && !(found_orb && found_cat); y++)
         for (int x = 0; x < 520; x++) {
-            uint32_t p = vbe_get_pixel(x, y);
+            uint32_t p = fb2[y * 520 + x];
             if (p == 0xF24C3E) found_orb = 1;
-            /* Right pane light panel: Luna=0xF8F8F8, Win98=0xC0C0C0. */
-            if (x > 160 && (p == 0x00F8F8F8 || p == 0x00C0C0C0)) found_cat = 1;
+            /* Right pane light panel: theme uses 0xE8E8E8 for Luna, 0xC0C0C0 for Win98. 
+             * Also check for variations. */
+            if (x > content_x + 160 && (p == 0x00F8F8F8 || p == 0x00C0C0C0 || p == 0x00E8E8E8)) found_cat = 1;
         }
+
+    /* Debug: print pixels around orb location */
+    if (!found_orb) {
+        printf("DEBUG: scanning for orb around (%d, %d)...\n", content_x + 12, content_y + 12);
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                int x = content_x + 12 + dx;
+                int y = content_y + 12 + dy;
+                if (x >= 0 && x < 520 && y >= 0 && y < 440) {
+                    uint32_t p = fb2[y * 520 + x];
+                    if (p != 0) printf("  Pixel at (%d,%d) = 0x%08X\n", x, y, p);
+                }
+            }
+        }
+    }
+
+    /* Debug: print right pane pixels */
+    if (!found_cat) {
+        printf("DEBUG: scanning right pane...\n");
+        for (int x = content_x + 160; x < content_x + 170; x++) {
+            for (int y = content_y + 60; y < content_y + 70; y++) {
+                if (x >= 0 && x < 520 && y >= 0 && y < 440) {
+                    uint32_t p = fb2[y * 520 + x];
+                    if (p != 0) printf("DEBUG: right pane at (%d,%d) = 0x%08X\n", x, y, p);
+                }
+            }
+        }
+    }
+
     T(found_orb, "Control Panel orb (red quadrant) drawn in left rail");
     T(found_cat, "Control Panel right pane (light panel) drawn");
     vbe_shutdown();

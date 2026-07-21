@@ -65,6 +65,9 @@ void notepad_switch_tab(NotepadState *np, int idx) {
     if (idx >= 0 && idx < np->tab_count) np->active_tab = idx;
 }
 
+int np_tab_count(const NotepadState *np)  { return np ? np->tab_count : 0; }
+int np_active_tab(const NotepadState *np) { return np ? np->active_tab : 0; }
+
 void notepad_insert_char(NotepadState *np, char c) { (void)np; (void)c; }
 void notepad_delete_char(NotepadState *np) { (void)np; }
 void notepad_newline(NotepadState *np) { (void)np; }

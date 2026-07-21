@@ -358,9 +358,9 @@ static int64_t vsl_nt_adjust_groups_token(uint64_t a_tok, uint64_t b,
 /* Query / Set token information (REAL field read/write)             */
 /* ------------------------------------------------------------------ */
 
-static int64_t vsl_nt_query_information_token(uint64_t a_tok, uint64_t b_class,
-                                              uint64_t c_buf, uint64_t d_len,
-                                              uint64_t e_ret, uint64_t f) {
+int64_t vsl_nt_query_information_token(uint64_t a_tok, uint64_t b_class,
+                                             uint64_t c_buf, uint64_t d_len,
+                                             uint64_t e_ret, uint64_t f) {
     (void)e_ret; (void)f;
     nt_token_entry_t *t = vsl_nt_token_from_handle((uint32_t)a_tok);
     if (!t) return NT_STATUS_INVALID_HANDLE;
@@ -502,11 +502,11 @@ static int64_t vsl_nt_audit_alarm(uint64_t a, uint64_t b, uint64_t c,
 }
 
 /* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------ */
 /* Object security descriptor get/set (real: store on the handle)     */
 /* ------------------------------------------------------------------ */
 
-static int64_t vsl_nt_query_security_object(uint64_t a_h, uint64_t b,
-
+int64_t vsl_nt_query_security_object(uint64_t a_h, uint64_t b,
                                              uint64_t c_len, uint64_t d,
                                              uint64_t e, uint64_t f) {
     (void)b; (void)c_len; (void)d; (void)e; (void)f;
@@ -515,7 +515,7 @@ static int64_t vsl_nt_query_security_object(uint64_t a_h, uint64_t b,
     return NT_STATUS_SUCCESS;
 }
 
-static int64_t vsl_nt_set_security_object(uint64_t a_h, uint64_t b,
+int64_t vsl_nt_set_security_object(uint64_t a_h, uint64_t b,
                                           uint64_t c, uint64_t d, uint64_t e,
                                           uint64_t f) {
     (void)b; (void)c; (void)d; (void)e; (void)f;
@@ -561,6 +561,8 @@ void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[143-1] = vsl_nt_audit_alarm;                /* PrivilegedServiceAuditAlarm */
     tbl[240-1] = vsl_nt_set_information_token;
     tbl[247-1] = vsl_nt_set_security_object;
+    tbl[164-1] = vsl_nt_query_information_token;
+    tbl[177-1] = vsl_nt_query_security_object;
 }
 
 /* End of vsl_nt_token.c */

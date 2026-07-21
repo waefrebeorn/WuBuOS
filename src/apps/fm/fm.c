@@ -61,3 +61,25 @@ int fm_open_fid(FileManagerState *fm, const char *path) { fm->fid = 1; strncpy(f
 int fm_read_fid(FileManagerState *fm, int fid, void *buf, uint32_t offset, uint32_t count) { (void)fm; (void)fid; (void)buf; (void)offset; (void)count; return 0; }
 int fm_write_fid(FileManagerState *fm, int fid, const void *buf, uint32_t offset, uint32_t count) { (void)fm; (void)fid; (void)buf; (void)offset; (void)count; return 0; }
 int fm_close_fid(FileManagerState *fm, int fid) { (void)fm; (void)fid; fm->fid = -1; return 0; }
+
+int fm_entry_count(const FileManagerState *fm) {
+    return fm ? fm->entry_count : 0;
+}
+const char *fm_entry_name(const FileManagerState *fm, int i) {
+    return (fm && i >= 0 && i < fm->entry_count) ? fm->entries[i].name : "";
+}
+bool fm_entry_is_dir(const FileManagerState *fm, int i) {
+    return (fm && i >= 0 && i < fm->entry_count) ? fm->entries[i].is_dir : false;
+}
+uint64_t fm_entry_size(const FileManagerState *fm, int i) {
+    return (fm && i >= 0 && i < fm->entry_count) ? fm->entries[i].size : 0;
+}
+const char *fm_get_current_path(const FileManagerState *fm) {
+    return fm ? fm->current_path : "";
+}
+int fm_get_selected_idx(const FileManagerState *fm) {
+    return fm ? fm->selected_idx : -1;
+}
+void fm_set_selected_idx(FileManagerState *fm, int idx) {
+    if (fm) fm->selected_idx = idx;
+}

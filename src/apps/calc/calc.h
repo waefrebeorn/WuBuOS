@@ -44,6 +44,9 @@ void calc_set_base(CalcState *calc, int base);
 /* Read current display value (for inspection / tests) */
 double calc_get_display(const CalcState *calc);
 bool   calc_in_error(const CalcState *calc);
+/* Read current mode / base (for inspection / tests — opaque-struct safe) */
+int    calc_get_mode(const CalcState *calc);
+int    calc_get_base(const CalcState *calc);
 
 /* Operation / function discriminators.
  * Digits are passed as the literal 0..15 (programmer base up to 16).
