@@ -29,98 +29,14 @@
 static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
     DosGuiWindow *w = &g_dwm.windows[idx];
     if (!w->alive) return;
-    bool active = (idx == g_dwm.focused_id);
 
-    const int rad = theme_radius();
-    const int tbh = title_bar_height();
-    const int bw  = border_width();
+    /* Use standardized chrome to draw window frame + title bar + buttons.
+     * Returns content rect for app to draw within. */
+    ChromeContentRect content = dosgui_chrome_draw_window(&g_dwm.windows[idx], fb, fb_w, fb_h);
 
-    /* XP Luna soft drop-shadow: a blended offset rect drawn BEFORE the window
-     * body so the window paints over it. Win98 (win_shadow == 0) gets none. */
-    if (theme()->Luna_start_button && tc()->win_shadow != 0) {
-        int off = 4;
-        vbe_blend_rect(w->x + off + 1, w->y + off + 1, w->w, w->h,
-                       tc()->win_shadow, 40);   /* soft outer */
-        vbe_blend_rect(w->x + off, w->y + off, w->w, w->h,
-                       tc()->win_shadow, 90);   /* inner */
-    }
-
-    vbe_fill_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->win_face);
-    if (rad > 0) vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
-    else            vbe_rect(w->x, w->y, w->w, w->h, tc()->border_dark);
-
-    /* Title bar */
-    if (theme()->gradient_title) {
-        int gx = w->x, gy = w->y, gw = w->w, gh = tbh;
-        if (active) vbe_hgradient(gx, gy, gw, gh,
-                              theme()->title_gradient.color_start, theme()->title_gradient.color_end);
-        else       vbe_hgradient(gx, gy, gw, gh,
-                              theme()->title_gradient_ina.color_start, theme()->title_gradient_ina.color_end);
-        /* Restore the rounded top corners: the gradient filled the whole
-         * title band, so paint the corner wedges back to the window face. */
-        if (rad > 0) {
-            vbe_fill_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->win_face);
-            if (active) vbe_hgradient(w->x, w->y, w->w, tbh - rad,
-                                  theme()->title_gradient.color_start, theme()->title_gradient.color_end);
-            else       vbe_hgradient(w->x, w->y, w->w, tbh - rad,
-                                  theme()->title_gradient_ina.color_start, theme()->title_gradient_ina.color_end);
-            vbe_rect_rounded(w->x, w->y, w->w, w->h, rad, tc()->border_dark);
-        }
-    } else {
-        /* Flat Chicago title bar — theme-driven (Win98 Classic = navy).
-         * Do NOT call vbe_title_bar(): it hardcodes an XP-blue gradient that
-         * is wrong for the silver theme. Draw the theme's title color flat
-         * across the band, clipped to the (square) window body. */
-        uint32_t tb_col = active ? tc()->win_title_active : tc()->win_title_inactive;
-        vbe_fill_rect(w->x, w->y, w->w, tbh, tb_col);
-    }
-
-    /* Title text -- vertically centered in the title bar band. */
-    uint32_t title_color = active ? tc()->win_title_text : tc()->win_title_text_ina;
-    int text_x = w->x + 8;
-    int text_y = w->y + (tbh - 8) / 2;          /* 8 = glyph cell height */
-    vbe_draw_text(text_x, text_y, w->title, title_color, 1);
-
-    /* Close button -- centered on the title-bar's right edge, 2px in. */
-    int btn_h = 14, btn_w = 16;
-    int close_x = w->x + w->w - rad - btn_w - 2;
-    int close_y = w->y + (tbh - btn_h) / 2;
-    vbe_fill_rect_rounded(close_x, close_y, btn_w, btn_h, 2, active ? tc()->border_darkest : tc()->btn_face);
-    vbe_rect_rounded(close_x, close_y, btn_w, btn_h, 2, tc()->border_dark);
-    vbe_draw_text(close_x + 5, close_y + 3, "X", active ? 0x00FFFFFF : 0x00808080, 1);
-
-    /* Maximize / minimize buttons (Luna style) */
-    if (theme()->Luna_start_button) {
-        int max_x = close_x - btn_w - 2;
-        vbe_fill_rect_rounded(max_x, close_y, btn_w, btn_h, 2, active ? tc()->border_face : tc()->btn_face);
-        vbe_rect_rounded(max_x, close_y, btn_w, btn_h, 2, tc()->border_dark);
-        vbe_draw_text(max_x + 5, close_y + 3, "[", active ? 0x00FFFFFF : 0x00808080, 1);
-
-        int min_x = max_x - btn_w - 2;
-        vbe_fill_rect_rounded(min_x, close_y, btn_w, btn_h, 2, active ? tc()->border_face : tc()->btn_face);
-        vbe_rect_rounded(min_x, close_y, btn_w, btn_h, 2, tc()->border_dark);
-        vbe_draw_text(min_x + 5, close_y + 3, "_", active ? 0x00FFFFFF : 0x00808080, 1);
-    }
-
-    /* Content region */
-    int cx = w->x + bw;
-    int cy = w->y + tbh;
-    int cw = w->w - 2 * bw;
-    int ch = w->h - tbh - bw;
-
-    vbe_fill_rect_rounded(cx, cy, cw, ch, rad, tc()->win_face);
-    if (rad > 0) vbe_3d_sunken_rounded_colors(cx - 1, cy - 1, cw + 2, ch + 2, rad + 1,
-                                              tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-    else            vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
-                                        tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-
+    /* Content region: clip and call app's on_draw if present */
     if (w->on_draw) {
-        /* Real framebuffer + dims so apps render into their content region.
-         * Apps using the global vbe_* backbuffer ignore these and still work.
-         * CRITICAL: confine the app's drawing to the content rect with the VBE
-         * scissor so a buggy on_draw can NEVER bleed into neighboring windows
-         * or outside the frame (the "content bleeding" artifact). */
-        vbe_set_clip(cx, cy, cw, ch);
+        vbe_set_clip(content.x, content.y, content.w, content.h);
         w->on_draw(w, fb, fb_w, fb_h);
         vbe_reset_clip();
     }

@@ -38,7 +38,7 @@ typedef enum {
 } DosGuiWinFlags;
 
 typedef struct DosGuiWindow DosGuiWindow;
-struct DosGuiWindow {
+typedef struct DosGuiWindow {
     int            id;
     DosGuiWinFlags flags;
     int            x, y, w, h;
@@ -57,7 +57,8 @@ struct DosGuiWindow {
     /* Resize callback */
     void         (*on_resize)(DosGuiWindow *win, int w, int h);
     void          *user_data;
-};
+    uint32_t      icon_color;   /* Fallback colored box for title bar icon */
+} DosGuiWindow;
 
 /* -- Lifecycle ---------------------------------------------------- */
 
@@ -299,6 +300,33 @@ void dosgui_wm_invalidate(DosGuiWindow *win);
 void dosgui_wm_invalidate_all(void);
 bool dosgui_wm_poll_dirty(int *out_id);   /* drain; -1 = redraw all */
 int  dosgui_wm_dirty_count(void);         /* -1 if full-redraw pending */
+
+/* -- Window Chrome (standardized window decorations) ------------- */
+
+/* Content rect returned for app to draw within */
+typedef struct {
+    int x, y, w, h;
+} ChromeContentRect;
+
+/* Button hit-test result */
+typedef enum {
+    CHROME_BTN_NONE = 0,
+    CHROME_BTN_CLOSE,
+    CHROME_BTN_MAXIMIZE,
+    CHROME_BTN_MINIMIZE,
+} ChromeButton;
+
+/* Draw complete window chrome (frame, title bar, buttons).
+ * Returns content rect for app to draw within. */
+ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
+                                            uint32_t *fb, int fb_w, int fb_h);
+
+/* Hit-test title bar buttons: returns which button (if any) contains point.
+ * Coordinates are window-relative (0,0 = window top-left). */
+int dosgui_chrome_hit_test_button(DosGuiWindow *win, int mx, int my);
+
+/* Handle title bar button click (close/maximize/minimize) */
+void dosgui_chrome_handle_button_click(DosGuiWindow *win, int button);
 
 /* -- HolyC Terminal ---------------------------------------------- */
 

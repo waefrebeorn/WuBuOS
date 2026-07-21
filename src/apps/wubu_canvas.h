@@ -218,6 +218,13 @@ struct WubuCanvas {
 WubuCanvas *wubu_cv_create(int w, int h);
 void        wubu_cv_destroy(WubuCanvas *cv);
 
+/* Read-only inspection accessors (opaque-struct safe; for tests/debug). */
+int wubu_cv_get_w(const WubuCanvas *cv);
+int wubu_cv_get_h(const WubuCanvas *cv);
+int wubu_cv_layer_count(const WubuCanvas *cv);
+int wubu_cv_get_active_layer(const WubuCanvas *cv);
+void wubu_cv_set_active_layer(WubuCanvas *cv, int idx);
+
 /* -- Layer Operations -------------------------------------------- */
 
 int   wubu_cv_layer_add(WubuCanvas *cv, const char *name);

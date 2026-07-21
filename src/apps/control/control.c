@@ -5,6 +5,7 @@
 #include "control.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_wm_internal.h"
+#include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"
@@ -23,16 +24,16 @@ void control_destroy(ControlState *ctrl) {
     free(ctrl);
 }
 
-void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlState *ctrl) {
-    (void)fb_w; (void)fb_h; (void)ctrl;
-    if (!win || !fb) return;
+static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *content) {
+    (void)win;
+    if (!content) return;
+    ControlState *c = (ControlState*)win->user_data;
+    if (!c) return;
 
-    int tbh = title_bar_height();
-    int bw  = border_width();
-    int cx = win->x + bw;
-    int cy = win->y + tbh;            /* content origin, below the title bar */
-    int cw = win->w - 2 * bw;
-    int ch = win->h - tbh - bw;
+    int cx = content->x;
+    int cy = content->y;
+    int cw = content->w;
+    int ch = content->h;
 
     /* Right pane background (light panel). */
     vbe_fill_rect(cx, cy, cw, ch, theme()->Luna_start_button ? 0x00F8F8F8 : 0x00C0C0C0);
@@ -98,6 +99,21 @@ void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlSt
     }
 }
 
+void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlState *ctrl) {
+    (void)fb_w; (void)fb_h;
+    if (!win || !fb) return;
+    ControlState *c = ctrl ? ctrl : (ControlState*)win->user_data;
+    if (!c) return;
+
+    /* Draw chrome (frame + title bar + buttons) and get content rect.
+     * VBE drawing functions write to back buffer, so we pass the back buffer. */
+    VBEState *vbe = vbe_state();
+    ChromeContentRect content = dosgui_chrome_draw_window(win, vbe->back, fb_w, fb_h);
+
+    /* Draw control panel content within chrome-provided rect. */
+    control_draw_content(win, &content);
+}
+
 /* Apply a Desktop-tab change: persist wallpaper path + placement mode to
  * settings, then trigger a live wallpaper reload if the WM is running.
  * Mirrors ReactOS desk.cpl SetDesktopSettings() + refresh message. */
@@ -135,10 +151,35 @@ void control_set_show_icons(bool show) {
     dosgui_wm_set_icons_visible(show);   /* live show/hide via public WM API */
 }
 
+static void control_draw_wm(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    ControlState *c = win ? (ControlState*)win->user_data : NULL;
+    control_draw(win, fb, fb_w, fb_h, c);
+}
+
+/* Keyboard: "," / "." cycle tabs; still accepts the public control_set_tab. */
+static void control_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)mods;
+    ControlState *c = win ? (ControlState*)win->user_data : NULL;
+    if (!c) return;
+    if (key == ',' ) control_set_tab(c, (c->active_tab + 8) % 9);
+    else if (key == '.') control_set_tab(c, (c->active_tab + 1) % 9);
+}
+
 DosGuiWindow* control_launch(void) {
-    return dosgui_wm_create(80, 60, 520, 440, "Control Panel");
+    DosGuiWindow *win = dosgui_wm_create(80, 60, 520, 440, "Control Panel");
+    if (win) {
+        ControlState *c = control_create();
+        win->user_data = c;
+        win->on_draw  = control_draw_wm;
+        win->on_key   = control_key;
+    }
+    return win;
 }
 
 void control_set_tab(ControlState *ctrl, int tab) {
     if (tab >= 0 && tab < 9) ctrl->active_tab = tab;
+}
+
+int control_get_tab(const ControlState *ctrl) {
+    return ctrl ? ctrl->active_tab : 0;
 }

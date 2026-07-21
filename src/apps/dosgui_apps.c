@@ -17,6 +17,8 @@
 #include "../runtime/wubu_dos_proc.h"
 #include "../runtime/wubu_container.h"
 #include "../apps/cmd/cmd.h"
+#include "../apps/calc/calc.h"
+#include "../apps/control/control.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -63,9 +65,9 @@ static void app_placeholder_draw(DosGuiWindow *win, uint32_t *fb,
 /* -- Launch functions (create window + bind callbacks) ------------ */
 
 DosGuiWindow* dosgui_launch_my_computer(void) {
-    DosGuiWindow *win = dosgui_wm_create(60, 60, 640, 480, "My Computer");
-    if (win) { win->on_draw = app_placeholder_draw; }
-    return win;
+    /* My Computer is the filesystem root -- bound to the real Explorer
+     * engine (not a placeholder). The explorer shows the Styx9 root. */
+    return dosgui_launch_file_manager();
 }
 
 DosGuiWindow* dosgui_launch_temple_repl(void) {
@@ -85,9 +87,8 @@ DosGuiWindow* dosgui_launch_paint(void) {
 }
 
 DosGuiWindow* dosgui_launch_calculator(void) {
-    DosGuiWindow *win = dosgui_wm_create(250, 140, 400, 500, "Calculator");
-    if (win) { win->on_draw = app_placeholder_draw; }
-    return win;
+    /* Real calculator engine (Standard/Scientific/Programmer/Graphing). */
+    return calc_launch();
 }
 
 DosGuiWindow* dosgui_launch_terminal(void) {
@@ -134,15 +135,13 @@ DosGuiWindow* dosgui_launch_file_manager(void) {
 }
 
 DosGuiWindow* dosgui_launch_settings(void) {
-    DosGuiWindow *win = dosgui_wm_create(350, 180, 640, 480, "Control Panel");
-    if (win) { win->on_draw = app_placeholder_draw; }
-    return win;
+    /* Real Control Panel engine (9 tabs: Display, Theme, Desktop, ...). */
+    return control_launch();
 }
 
 DosGuiWindow* dosgui_launch_editor(void) {
-    DosGuiWindow *win = dosgui_wm_create(400, 200, 800, 600, "Editor");
-    if (win) { win->on_draw = app_placeholder_draw; }
-    return win;
+    /* Editor reuses the real Notepad engine (genuine text editing). */
+    return dosgui_launch_notepad();
 }
 
 DosGuiWindow* dosgui_launch_canvas(void) {
@@ -204,7 +203,7 @@ DosGuiWindow* dosgui_launch_dos_box(const char *path) {
 }
 
 /* Registry entry point: launches the built-in demo COM (no path needed). */
-static DosGuiWindow* dosgui_launch_dos_box_default(void) {
+DosGuiWindow* dosgui_launch_dos_box_default(void) {
     return dosgui_launch_dos_box(NULL);
 }
 
@@ -246,8 +245,13 @@ const DosGuiAppDef *dosgui_app_find(int icon_type) {
 
 const DosGuiAppDef *dosgui_app_find_by_name(const char *name) {
     if (!name) return NULL;
+    /* Match by registry/launch key (name) OR by display title, so a caller
+     * can resolve an app by the label a user clicks ("Control Panel") as well
+     * as the canonical key ("Settings"). */
     for (int i = 0; i < g_app_def_count; i++)
-        if (strcmp(g_app_defs[i].name, name) == 0) return &g_app_defs[i];
+        if (strcmp(g_app_defs[i].name, name) == 0 ||
+            strcmp(g_app_defs[i].title, name) == 0)
+            return &g_app_defs[i];
     return NULL;
 }
 
