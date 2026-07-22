@@ -30,6 +30,16 @@ typedef enum {
  * Returns PID, or -1 on error. */
 int vsl_create_process(const void *elf_data, size_t elf_size);
 
+/* Create a VSL process from a Mach-O binary.
+ * macho_data: Mach-O binary in memory
+ * macho_size: size of Mach-O binary
+ * Returns PID, -1 on error, -2 if 32-bit unsupported. */
+int vsl_create_process_macho(const void *macho_data, size_t macho_size);
+
+/* Auto-detect binary type (ELF or Mach-O) and create process.
+ * Returns PID or -1 on error. */
+int vsl_create_process_any(const void *binary_data, size_t binary_size);
+
 /* Destroy a VSL process.
  * Returns 0 on success. */
 int vsl_destroy_process(uint32_t pid);

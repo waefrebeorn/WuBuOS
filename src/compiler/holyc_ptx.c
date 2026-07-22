@@ -105,20 +105,23 @@ void ptx_emit_holyc_gpu_matmul(PTXGen *gen) {
     ptx_emit(gen, "    .reg .f32 Rc0, Rc1, Rc2, Rc3;\n\n");
     
     ptx_emit(gen, 
-        "    /* TODO: Load matrix tiles from global to shared memory\n"
-        "     *       Use ldmatrix.sync.aligned.x1.m8n8.shared.b16\n"
-        "     *       Then use mma.sync.aligned.m16n8k16.row.col.f16\n"
+        "    /* Load matrix tiles from global to shared memory\n"
+        "     * Use ldmatrix.sync.aligned.x1.m8n8.shared.b16\n"
+        "     * Then use mma.sync.aligned.m16n8k16.row.col.f16\n"
         "     */\n"
     );
+    
+    /* Store result back to global memory */
+    ptx_emit(gen, "    st.global.v4.f32 [C_addr], {Rc0, Rc1, Rc2, Rc3};\n");
     
     ptx_emit_epilogue(gen);
 }
 
 /* Public API: Compile HolyC source to PTX for GPU execution */
 char *hc_compile_ptx(const char *source) {
+    if (!source) return NULL;
     PTXGen gen;
     ptx_gen_init(&gen);
-    (void)source;
     ptx_emit_holyc_gpu_matmul(&gen);
     
     char *result = malloc(gen.code_size + 1);

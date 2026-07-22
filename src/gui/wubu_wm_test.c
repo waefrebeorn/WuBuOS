@@ -24,7 +24,7 @@ static void test_theme_init(void) {
 }
 
 static void test_theme_cycle(void) {
-    TEST("theme_cycle goes 98→XP→Orange→WuBu→98");
+    TEST("theme_cycle goes 98→XP→Orange→WuBu→Zune→98");
     wubu_theme_init();
     wubu_theme_cycle();
     CHECK(wubu_theme_current() == THEME_XP_LUNA_BLUE, "should be XP Luna");
@@ -32,6 +32,8 @@ static void test_theme_cycle(void) {
     CHECK(wubu_theme_current() == THEME_XP_MEDIA_ORANGE, "should be Media Orange");
     wubu_theme_cycle();
     CHECK(wubu_theme_current() == THEME_WUBU_CUSTOM, "should be WuBu Green");
+    wubu_theme_cycle();
+    CHECK(wubu_theme_current() == THEME_ZUNE, "should be Zune");
     wubu_theme_cycle();
     CHECK(wubu_theme_current() == THEME_WIN98_CLASSIC, "should wrap to Win98");
     PASS();
@@ -41,7 +43,7 @@ static void test_theme_colors_win98(void) {
     TEST("Win98 theme has teal desktop");
     wubu_theme_set(THEME_WIN98_CLASSIC);
     const WubuThemeColors *c = wubu_theme_colors();
-    CHECK(c->desktop_bg == 0x00808000, "teal = 0x008080 in XRGB");
+    CHECK(c->desktop_bg == 0x008080, "teal = 0x008080");
     PASS();
 }
 

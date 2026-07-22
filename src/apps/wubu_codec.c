@@ -99,6 +99,61 @@ int wubu_codec_probe(const char *path, WubuMediaInfo *info) {
 
 /* -- Decode -------------------------------------------------------- */
 
+/* Forward declarations */
+static int dec_popen(const char *cmd, int *out_pid);
+static void dec_close_pipe(WubuDecoder *dec);
+
+/* Start ffmpeg decoder process, return pipe fd for reading raw frames */
+static int dec_start_ffmpeg(WubuDecoder *dec, const char *seek_str) {
+    char cmd[2048];
+    if (dec->info.type == WUBU_MEDIA_AUDIO || 
+        (dec->info.type == WUBU_MEDIA_UNKNOWN)) {
+        /* Audio: PCM s16le interleaved */
+        snprintf(cmd, sizeof(cmd),
+            "ffmpeg -v quiet %s -i '%s' -f s16le -acodec pcm_s16le - 2>/dev/null",
+            seek_str ? seek_str : "", dec->path);
+    } else {
+        /* Video/default: raw RGBA frames */
+        snprintf(cmd, sizeof(cmd),
+            "ffmpeg -v quiet %s -i '%s' -f rawvideo -pix_fmt rgba - 2>/dev/null",
+            seek_str ? seek_str : "", dec->path);
+    }
+    int pipe_fd = dec_popen(cmd, &dec->pid);
+    return pipe_fd;
+}
+
+/* popen with pipe fd read, no shell wrapping */
+static int dec_popen(const char *cmd, int *out_pid) {
+    int fds[2];
+    if (pipe(fds) != 0) return -1;
+    pid_t pid = fork();
+    if (pid < 0) { close(fds[0]); close(fds[1]); return -1; }
+    if (pid == 0) {
+        /* Child: exec ffmpeg, write to pipe */
+        close(fds[0]);
+        dup2(fds[1], STDOUT_FILENO);
+        close(fds[1]);
+        /* Parse cmd string into argv (simple split on spaces) */
+        char *buf = strdup(cmd);
+        if (!buf) _exit(1);
+        char *argv[64];
+        int argc = 0;
+        char *tok = strtok(buf, " ");
+        while (tok && argc < 63) { argv[argc++] = tok; tok = strtok(NULL, " "); }
+        argv[argc] = NULL;
+        execvp(argv[0], argv);
+        _exit(1);
+    }
+    close(fds[1]);
+    if (out_pid) *out_pid = (int)pid;
+    return fds[0];
+}
+
+static void dec_close_pipe(WubuDecoder *dec) {
+    if (dec->pipe_fd >= 0) { close(dec->pipe_fd); dec->pipe_fd = -1; }
+    if (dec->pid > 0) { kill(dec->pid, SIGTERM); waitpid(dec->pid, NULL, 0); dec->pid = 0; }
+}
+
 WubuDecoder *wubu_dec_open(const char *path) {
     if (!path) return NULL;
     WubuDecoder *dec = (WubuDecoder*)calloc(1, sizeof(WubuDecoder));
@@ -108,39 +163,70 @@ WubuDecoder *wubu_dec_open(const char *path) {
     dec->pipe_fd = -1;
     dec->pid = 0;
     dec->eof = false;
+    /* Start ffmpeg child process */
+    dec->pipe_fd = dec_start_ffmpeg(dec, NULL);
     return dec;
 }
 
 void wubu_dec_close(WubuDecoder *dec) {
     if (!dec) return;
-    if (dec->pipe_fd >= 0) close(dec->pipe_fd);
-    if (dec->pid > 0) kill(dec->pid, SIGTERM);
+    dec_close_pipe(dec);
     free(dec);
 }
 
 int wubu_dec_video_frame(WubuDecoder *dec, WubuVideoFrame *frame) {
-    if (!dec || !frame || dec->pipe_fd < 0) return -1;
-    /* Read raw RGBA frame from pipe */
-    size_t frame_size = (size_t)(frame->width * frame->height * 4);
-    if (frame_size == 0) return -1;
+    if (!dec || !frame) return -1;
+    if (dec->pipe_fd < 0) return -1;
+    if (dec->eof) return -1;
+    /* For video: read raw RGBA frame (width * height * 4 bytes) */
+    int w = frame->width > 0 ? frame->width : dec->info.width;
+    int h = frame->height > 0 ? frame->height : dec->info.height;
+    if (w <= 0 || h <= 0) return -1;
+    size_t frame_size = (size_t)(w * h * 4);
     if (!frame->data) {
         frame->data = malloc(frame_size);
         if (!frame->data) return -1;
         frame->owns_data = true;
     }
+    frame->width = w;
+    frame->height = h;
     ssize_t n = read(dec->pipe_fd, frame->data, frame_size);
     if (n < 0) return -1;
     frame->data_size = (size_t)n;
     frame->eof = (n == 0);
+    dec->eof = frame->eof;
     return (n == (ssize_t)frame_size) ? 0 : -1;
 }
 
 int wubu_dec_audio_frame(WubuDecoder *dec, WubuAudioFrame *frame) {
-    (void)dec; (void)frame; return -1;
+    if (!dec || !frame) return -1;
+    if (dec->pipe_fd < 0) return -1;
+    if (dec->eof) return -1;
+    /* Read PCM s16le audio frame (arbitrary chunk size ~4096 samples) */
+    size_t buf_size = 4096 * sizeof(int16_t) * 2; /* stereo fallback */
+    if (!frame->samples) {
+        frame->samples = malloc(buf_size);
+        if (!frame->samples) return -1;
+    }
+    memset(frame->samples, 0, buf_size);
+    ssize_t n = read(dec->pipe_fd, frame->samples, buf_size);
+    if (n < 0) return -1;
+    if (n == 0) { dec->eof = true; return -1; }
+    frame->n_samples = (int)(n / sizeof(int16_t));
+    frame->channels = 2;  /* default stereo */
+    frame->sample_rate = 44100;
+    return 0;
 }
 
 int wubu_dec_seek(WubuDecoder *dec, double timestamp) {
-    (void)dec; (void)timestamp; return -1;
+    if (!dec) return -1;
+    /* Close current ffmpeg, reopen with seek */
+    dec_close_pipe(dec);
+    char seek[64];
+    snprintf(seek, sizeof(seek), "-ss %.3f", timestamp);
+    dec->pipe_fd = dec_start_ffmpeg(dec, seek);
+    dec->eof = false;
+    return (dec->pipe_fd >= 0) ? 0 : -1;
 }
 
 const WubuMediaInfo *wubu_dec_info(WubuDecoder *dec) {
@@ -148,6 +234,49 @@ const WubuMediaInfo *wubu_dec_info(WubuDecoder *dec) {
 }
 
 /* -- Encode -------------------------------------------------------- */
+
+/* Start ffmpeg encoder process, return pipe fd for writing raw frames */
+static int enc_start_ffmpeg(WubuEncoder *enc) {
+    char cmd[2048];
+    if (enc->codec_v[0]) {
+        /* Video encoder: pipe raw RGBA frames to ffmpeg */
+        snprintf(cmd, sizeof(cmd),
+            "ffmpeg -y -v quiet -f rawvideo -pix_fmt rgba -s %dx%d -r %d/%d -i -"
+            " -c:v %s -b:v %lld '%s' 2>/dev/null",
+            enc->width, enc->height,
+            enc->fps_num, enc->fps_den,
+            enc->codec_v, (long long)enc->bit_rate_v,
+            enc->path);
+    } else {
+        /* Audio-only encoder */
+        snprintf(cmd, sizeof(cmd),
+            "ffmpeg -y -v quiet -f s16le -ar 44100 -ac 2 -i - "
+            "-c:a %s -b:a %ld '%s' 2>/dev/null",
+            enc->codec_a, (long)enc->bit_rate_a, enc->path);
+    }
+    /* popen with WRITE pipe (child reads from stdin) */
+    int fds[2];
+    if (pipe(fds) != 0) return -1;
+    pid_t pid = fork();
+    if (pid < 0) { close(fds[0]); close(fds[1]); return -1; }
+    if (pid == 0) {
+        close(fds[1]);
+        dup2(fds[0], STDIN_FILENO);
+        close(fds[0]);
+        char *buf = strdup(cmd);
+        if (!buf) _exit(1);
+        char *argv[64];
+        int argc = 0;
+        char *tok = strtok(buf, " ");
+        while (tok && argc < 63) { argv[argc++] = tok; tok = strtok(NULL, " "); }
+        argv[argc] = NULL;
+        execvp(argv[0], argv);
+        _exit(1);
+    }
+    close(fds[0]);
+    enc->pid = (int)pid;
+    return fds[1];  /* write end */
+}
 
 WubuEncoder *wubu_enc_open(const char *path, const char *format,
                             const char *codec_v, const char *codec_a,
@@ -164,22 +293,33 @@ WubuEncoder *wubu_enc_open(const char *path, const char *format,
     enc->fps_num = fps; enc->fps_den = 1;
     enc->bit_rate_v = bit_rate_v; enc->bit_rate_a = bit_rate_a;
     enc->pipe_fd = -1; enc->pid = 0;
+    /* Start ffmpeg child process */
+    enc->pipe_fd = enc_start_ffmpeg(enc);
     return enc;
 }
 
 void wubu_enc_close(WubuEncoder *enc) {
     if (!enc) return;
-    if (enc->pipe_fd >= 0) close(enc->pipe_fd);
+    if (enc->pipe_fd >= 0) { close(enc->pipe_fd); enc->pipe_fd = -1; }
     if (enc->pid > 0) { kill(enc->pid, SIGTERM); waitpid(enc->pid, NULL, 0); }
     free(enc);
 }
 
 int wubu_enc_video_frame(WubuEncoder *enc, const WubuVideoFrame *frame) {
-    (void)enc; (void)frame; return -1;
+    if (!enc || !frame) return -1;
+    if (enc->pipe_fd < 0) return -1;
+    if (!frame->data || frame->data_size == 0) return -1;
+    ssize_t n = write(enc->pipe_fd, frame->data, frame->data_size);
+    return (n == (ssize_t)frame->data_size) ? 0 : -1;
 }
 
 int wubu_enc_audio_frame(WubuEncoder *enc, const WubuAudioFrame *frame) {
-    (void)enc; (void)frame; return -1;
+    if (!enc || !frame) return -1;
+    if (enc->pipe_fd < 0) return -1;
+    if (!frame->samples || frame->n_samples <= 0) return -1;
+    size_t sz = (size_t)frame->n_samples * sizeof(int16_t);
+    ssize_t n = write(enc->pipe_fd, frame->samples, sz);
+    return (n == (ssize_t)sz) ? 0 : -1;
 }
 
 /* -- Transcode ---------------------------------------------------- */
@@ -188,17 +328,28 @@ int wubu_transcode_start(WubuTranscode *job) {
     if (!job) return -1;
     if (!wubu_codec_available()) return -1;
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd),
-        "ffmpeg -y -i '%s' -c:v %s -c:a %s%s%s %s '%s' 2>/dev/null &",
-        job->src,
-        job->codec_v[0] ? job->codec_v : "copy",
-        job->codec_a[0] ? job->codec_a : "copy",
-        job->width > 0 ? " -s " : "", job->width > 0 ? "" : "",
-        job->gpu_accel ? " -hwaccel auto" : "",
-        job->dst);
-
-    (void)cmd;
+    /* Execute transcode in background */
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        /* Child: run ffmpeg */
+        char *argv[] = {
+            "ffmpeg", "-y", "-i", job->src,
+            "-c:v", job->codec_v[0] ? job->codec_v : "copy",
+            "-c:a", job->codec_a[0] ? job->codec_a : "copy",
+            job->gpu_accel ? "-hwaccel" : "", job->gpu_accel ? "auto" : "",
+            job->dst, NULL
+        };
+        /* Filter out empty strings from argv */
+        int ac = 0;
+        for (int i = 0; argv[i]; i++) {
+            if (argv[i][0]) argv[ac++] = argv[i];
+        }
+        argv[ac] = NULL;
+        execvp("ffmpeg", argv);
+        _exit(1);
+    }
+    job->pid = (int)pid;
     job->running = true;
     job->progress = 0;
     return 0;
