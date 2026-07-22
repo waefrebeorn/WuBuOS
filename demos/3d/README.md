@@ -60,19 +60,35 @@ Metal AIR → Vulkan SPIR-V. A Mach-O Metal app's GPU work is thus
 served by WuBuOS's Vulkan capability (lavapipe/D3D12 here), exactly
 like the ELF/PE legs. We are an agnostic operator for all hardware.
 
-### Render proof (macho_demo.macho)
-`macho_demo.c` is a self-contained OpenGL hello-triangle compiled
-to a Mach-O via Darling's `xclang` toolchain (`build_macho.sh`).
-`macho_watcher.sh` (detached) waits for the Darling build to finish,
-builds `macho_demo.macho`, runs it `darling macho_demo.macho`
-under Xvfb, and captures `proof_macho_render.png`. Darling is built
-from the local `darling-ref/` subtree (root + clang/flex/bison installed;
-OpenGL→host-Mesa shim enabled, `ENABLE_METAL=AUTO`).
+### Build status (honest, this host)
+Darling was built from the local `darling-ref/` subtree (root + clang/flex/
+bison + libc6-dev + libbsd-dev installed; `-fno-debug-macro`
+applied to clear the objc4 debug-macro clash on Clang-18).
 
-Status: backend + demo source committed; auto-build/render proof in flight
-(`/tmp/macho_watcher.log`). No Apple SDK needed — Darling serves
-OpenGL from `basic-headers` onto lavapipe. The render is a REAL 3D
-pipeline via the VSL capability layer, same bar as the ELF/PE legs.
+- `darling` (loader) — **BUILT + RUNS** (`master @ e947f0d5`).
+- `mldr` / `mldr32` (Mach-O loaders) — **BUILT**.
+- `xclang` / `xcrun` (Darling's Mach-O *cross-compiler*) — **FAILED**
+  to build on this Clang-18 / Ubuntu-24.04 toolchain (each component
+  hits a different incompatibility: objc4 `debug-ness macros`,
+  `xcrun` missing `TARGET_OS_NANO`, etc.).
+
+Consequence: Darling can **LOAD/RUN** a Mach-O, but we **cannot
+COMPILE a new Mach-O** here without the cross-compiler. The
+`wubu_exec_launch_macho()` → `wubu_ct_macho()` (CT_MACHO) →
+`darling <macho>` path is fully wired and `darling` executes, so a
+Mach-O dropped in would run as a first-class WubuCt. The only gap
+is *producing* the reputable macOS 3D Mach-O binary on this box.
+
+### Path forward (not faked)
+1. Fix `xclang`/`xcrun` build flags for Clang-18 (per-component
+   `-fno-debug-macro` + SDK macro defines) → then `build_macho.sh`
+   compiles `macho_demo.c` and `macho_watcher.sh` captures the
+   render proof. OR
+2. Obtain a prebuilt reputable macOS 3D Mach-O (e.g. a CI artifact
+   from a Mac runner) and run it through `wubu_exec_launch_macho`.
+
+The ELF + PE legs remain the verified "confirmed full hardware usage"
+proof; the Mach-O leg is architecture-complete and loader-ready.
 
 ## How to run through WuBuOS
 
