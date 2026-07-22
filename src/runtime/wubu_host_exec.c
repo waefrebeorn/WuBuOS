@@ -49,7 +49,8 @@ const char *wubu_ct_runtime_name(CtRuntime runtime) {
         case CT_NATIVE:  return "native";
         case CT_PROTON:  return "Proton";
         case CT_HOLYC:   return "HolyC";
-        default:         return "unknown";
+        case CT_MACHO:   return "Mach-O";
+        default:          return "unknown";
     }
 }
 
@@ -423,5 +424,31 @@ WubuCt *wubu_ct_native(const char *name, const char *root) {
     
     ct->net_enabled = true;
     
+    return ct;
+}
+
+/* -- Preset: Darwin / Mach-O Container (agnostic HW operator) ---- */
+
+/*
+ * Mach-O apps are Darwin binaries. WuBuOS runs them as a first-class
+ * WubuCt process: fork + chroot into an Arch root that has Darling
+ * installed, then exec `darling <macho>` as the container's argv[0].
+ * VSL serves the GPU capability underneath (Vulkan via lavapipe/D3D12,
+ * Metal shaders transposed to SPIR-V by the metal2vulkan shim), so the
+ * same container machinery that drives ELF/PE also drives Mach-O -- we are
+ * an agnostic operator across all execution container types.
+ */
+WubuCt *wubu_ct_macho(const char *name, const char *root) {
+    WubuCt *ct = wubu_ct_create(name, root, CT_MACHO);
+    if (!ct) return NULL;
+
+    /* Darling needs the network + GPU passthrough to serve Vulkan/Metal. */
+    ct->net_enabled     = true;
+    ct->gpu_passthrough = true;
+
+    /* Point Darling at the Metal->Vulkan transposition shim if present. */
+    wubu_ct_add_env(ct, "WUBU_METAL2VULKAN=1");
+    wubu_ct_add_env(ct, "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json");
+
     return ct;
 }
