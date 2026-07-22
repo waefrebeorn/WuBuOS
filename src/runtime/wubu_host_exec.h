@@ -44,6 +44,7 @@ typedef enum {
     CT_NATIVE    = 2,     /* Direct host exec */
     CT_PROTON    = 3,     /* Wine/Proton for Windows apps */
     CT_HOLYC     = 4,     /* HolyC JIT session */
+    CT_MACHO     = 5,     /* Darwin/Mach-O app via Darling (VSL-served) */
 } CtRuntime;
 
 /* 9P/Styx bind mount: host path → guest path */
@@ -154,11 +155,20 @@ void wubu_ct_set_limits(WubuCt *ct, uint64_t mem_mb, int cpu_count);
 WubuCt *wubu_ct_steamos(const char *name, const char *root);
 
 /*
- * Create a native Linux container preset.
- * Base: Arch rootfs
- * GPU: optional
- */
-WubuCt *wubu_ct_native(const char *name, const char *root);
+ /* Create a native Linux container preset.
+  * Base: Arch rootfs
+  * GPU: optional
+  */
+ WubuCt *wubu_ct_native(const char *name, const char *root);
+
+ /*
+  * Create a Darwin/Mach-O container preset (agnostic hardware operator).
+  * Base: Arch rootfs with Darling installed at /darling.
+  * Launcher: darling runs the Mach-O binary; VSL serves the GPU
+  * capability (Vulkan via lavapipe/D3D12, Metal via metal2vulkan shim).
+  * GPU: enabled (DRM/KMS passthrough into the container).
+  */
+ WubuCt *wubu_ct_macho(const char *name, const char *root);
 
 /* -- Bubblewrap Presets (Hosted Demo) ------------------------------- */
 
