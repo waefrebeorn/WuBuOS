@@ -114,9 +114,10 @@ int64_t wubu_exec_python(const char *script, size_t script_size);
  */
 int64_t wubu_exec_wasm(const void *wasm_data, size_t wasm_size);
 
-/*
- * Execute a macOS Mach-O binary via Darling/VSL fallback.
- */
+/* Register a Mach-O loader callback (called by VSL init). */
+void wubu_exec_register_macho_loader(int (*loader)(const void*, size_t));
+
+/* Execute a macOS Mach-O binary via Darling/VSL fallback. */
 int64_t wubu_exec_macho(const void *macho_data, size_t macho_size);
 
 /*

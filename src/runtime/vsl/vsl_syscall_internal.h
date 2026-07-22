@@ -417,4 +417,8 @@ int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
 int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs);
 void vsl_get_syscall_stats(uint64_t *out_count, uint64_t *out_errors);
 
+/* -- macOS syscall dispatch (vsl_syscall_mac.c) ------------------ */
+int64_t vsl_mac_syscall_dispatch(uint64_t syscall_raw, uint64_t a, uint64_t b,
+                                  uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+
 #endif /* VSL_SYSCALL_INTERNAL_H */

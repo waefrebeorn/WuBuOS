@@ -196,6 +196,10 @@ int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
 }
 
 int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs) {
+    /* If the syscall number has macOS class bits set, route to macOS dispatch */
+    if (num & 0xFF000000) {
+        return vsl_mac_syscall_dispatch(num, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
+    }
     return vsl_syscall(num, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
 }
 
