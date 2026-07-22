@@ -51,3 +51,6 @@ node_modules/
 src/hosted/wubu
 vendor/
 src/tools/wubu_shot_apps
+
+# Local reference dump (kept locally, not committed)
+darling-ref/
