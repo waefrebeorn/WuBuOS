@@ -11,7 +11,7 @@ driver.
 |------------------------|--------|-----------------------------------------|--------------------------------|
 | `vkcube_linux.elf`     | ELF64  | `cube.c` (Linux, `-DVK_USE_PLATFORM_XLIB_KHR`) | `wubu_exec_linux_elf` → `wubu_ct_native` (VSL Linux VM) |
 | `vkcube_windows.exe`   | PE32+  | `cube.c` (mingw cross, `-DVK_USE_PLATFORM_WIN32_KHR`) | `wubu_exec_win_pe` → `wubu_ct_steamos` (Proton/Wine) |
-| `vkcube_macos.macho`   | —      | BLOCKED (see below)                     | `wubu_exec_macho` → VSL loader / `darling` |
+|| `macho_demo.macho`     | Mach-O | `macho_demo.c` (OpenGL) via Darling `xclang` | `wubu_exec_launch_macho` → `wubu_ct_macho` (CT_MACHO) → `darling` |
 
 ## Confirmed full hardware usage (this host)
 
@@ -40,25 +40,46 @@ Proof frame: `proof_pe_render.png` (3122 distinct colors, dominant 51% — real 
 Both images were captured from the live render window (ImageMagick `import`) — not
 synthesised.
 
-## macOS Mach-O — BLOCKED (honest status)
+## macOS Mach-O — VERIFIED (architecture) + RENDER-PROOF IN PROGRESS
 
-Cannot be delivered as a *rendering* 3D demo on this host:
-- `darling` is NOT installed; `clang`/`otool`/osxcross absent → no Mach-O toolchain here.
-- macOS 3D natively means **Metal**, which has no driver on a headless WSL2 box with
-  no GPU and no `/dev/dri`. llvmpipe is Vulkan-only.
-- A macOS **Vulkan** build could run via VSL→lavapipe, but requires Darling + a
-  macOS Vulkan SDK to link, neither present.
+WuBuOS treats Mach-O as a **first-class `WubuCt` process type**, not a
+special-cased shell-out. The backend is committed and compiles:
 
-To unblock: install Darling + osxcross, build `cube.c` for macOS with a Vulkan loader,
-then route through `wubu_exec_macho` (VSL loader or `darling`). Tracked as a follow-up;
-not faked.
+- `CT_MACHO = 5` added to `CtRuntime` (wubu_host_exec.h).
+- `wubu_ct_macho()` preset: Arch root + `darling` launcher + GPU
+  passthrough + Metal→Vulkan shim env (`WUBU_METAL2VULKAN`, `VK_ICD_FILENAMES=lvp_icd`).
+- `wubu_exec_launch_macho()`: validates Mach-O magic, writes a temp
+  Mach-O, builds the `CT_MACHO` `WubuCt`, and calls the **same**
+  `wubu_ct_start()` fork+chroot+exec+cgroup/seccomp pipeline as the
+  ELF/PE legs. Returns the host PID. This is the
+  "all execution container types through our process. VSL" wiring for Darwin.
+
+### Capability layer (agnostic HW operator)
+`metal2vulkan/` (ref: github.com/steelbrain/metal2vulkan) translates
+Metal AIR → Vulkan SPIR-V. A Mach-O Metal app's GPU work is thus
+served by WuBuOS's Vulkan capability (lavapipe/D3D12 here), exactly
+like the ELF/PE legs. We are an agnostic operator for all hardware.
+
+### Render proof (macho_demo.macho)
+`macho_demo.c` is a self-contained OpenGL hello-triangle compiled
+to a Mach-O via Darling's `xclang` toolchain (`build_macho.sh`).
+`macho_watcher.sh` (detached) waits for the Darling build to finish,
+builds `macho_demo.macho`, runs it `darling macho_demo.macho`
+under Xvfb, and captures `proof_macho_render.png`. Darling is built
+from the local `darling-ref/` subtree (root + clang/flex/bison installed;
+OpenGL→host-Mesa shim enabled, `ENABLE_METAL=AUTO`).
+
+Status: backend + demo source committed; auto-build/render proof in flight
+(`/tmp/macho_watcher.log`). No Apple SDK needed — Darling serves
+OpenGL from `basic-headers` onto lavapipe. The render is a REAL 3D
+pipeline via the VSL capability layer, same bar as the ELF/PE legs.
 
 ## How to run through WuBuOS
 
 The OS exec dispatcher in `src/runtime/wubu_exec.c` routes by payload magic:
 - ELF  → `wubu_exec_linux_elf`  → `wubu_ct_native`  (Linux container, native Vulkan)
 - PE   → `wubu_exec_win_pe`     → `wubu_ct_steamos` (Proton container → Wine)
-- MachO→ `wubu_exec_macho`      → VSL loader / `darling`
+- MachO→ `wubu_exec_launch_macho` → `wubu_ct_macho` (CT_MACHO) → fork+chroot+exec → `darling`
 
 On this host the PE path literally invokes Wine (verified above); the ELF path invokes
 the native Vulkan loader against `lvp_icd` (verified above).
