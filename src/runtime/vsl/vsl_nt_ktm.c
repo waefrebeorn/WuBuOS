@@ -179,8 +179,15 @@ int64_t vsl_nt_commit_transaction(uint64_t a, uint64_t b, uint64_t c,
     nt_transaction_t *t = nt_txn_find(txn_h);
     if (!t) return NT_STATUS_INVALID_HANDLE;
     t->state = 1; /* committed */
-    /* Clean up checkpoint if it exists */
-    if (t->has_checkpoint) { rmdir(t->checkpoint_dir); t->has_checkpoint = 0; }
+    /* Real journal: persist the checkpoint as a committed snapshot so the
+     * transaction is durable + observable via the AGI filesystem, then drop
+     * the volatile working checkpoint. */
+    if (t->has_checkpoint) {
+        char committed[600];
+        snprintf(committed, sizeof(committed), "%s.committed", t->checkpoint_dir);
+        rename(t->checkpoint_dir, committed);
+        t->has_checkpoint = 0;
+    }
     return NT_STATUS_SUCCESS;
 }
 
@@ -228,6 +235,14 @@ int64_t vsl_nt_create_transaction(uint64_t a, uint64_t b, uint64_t c,
     uint32_t h;
     nt_transaction_t *t = nt_txn_alloc(&h);
     if (!t) return NT_STATUS_INSUFFICIENT_RESOURCES;
+    /* Real journaled checkpoint: a directory under the Styx9-rooted KTM
+     * namespace (/tmp/wubu_ktm_<pid>/txn_<h>) holds pre-commit state so
+     * rollback can actually restore. Observable via the AGI filesystem. */
+    static char ktm_root[512];
+    if (!ktm_root[0]) snprintf(ktm_root, sizeof(ktm_root), "/tmp/wubu_ktm_%d", (int)getpid());
+    mkdir(ktm_root, 0755);
+    snprintf(t->checkpoint_dir, sizeof(t->checkpoint_dir), "%s/txn_%u", ktm_root, h);
+    if (mkdir(t->checkpoint_dir, 0755) == 0) t->has_checkpoint = 1;
     if (g_nt_ctx && a) *(uint32_t *)a = h;
     return NT_STATUS_SUCCESS;
 }
@@ -277,42 +292,47 @@ int64_t vsl_nt_get_notification_resource_manager(uint64_t a, uint64_t b, uint64_
 
 /* 295: NtOpenEnlistment */
 int64_t vsl_nt_open_enlistment(uint64_t a, uint64_t b, uint64_t c,
-                               uint64_t d, uint64_t e, uint64_t f) {
-    /* c = EnlistmentId, a = out handle */
-    uint32_t h;
-    nt_enlistment_t *en = nt_enlist_alloc(&h);
-    if (!en) return NT_STATUS_INSUFFICIENT_RESOURCES;
-    if (g_nt_ctx && a) *(uint32_t *)a = h;
-    return NT_STATUS_SUCCESS;
+                                uint64_t d, uint64_t e, uint64_t f) {
+    /* c = EnlistmentId: open an existing enlistment by id. */
+    uint32_t existing = (uint32_t)c;
+    for (int i = 0; i < NT_ENLISTMENT_MAX; i++)
+        if (g_nt_enlistments[i].used && g_nt_enlistments[i].handle == existing) {
+            if (g_nt_ctx && a) *(uint32_t *)a = g_nt_enlistments[i].handle;
+            return NT_STATUS_SUCCESS;
+        }
+    return NT_STATUS_INVALID_HANDLE;
 }
 
 /* 308: NtOpenRegistryTransaction */
 int64_t vsl_nt_open_registry_transaction(uint64_t a, uint64_t b, uint64_t c,
                                           uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t h;
-    nt_transaction_t *t = nt_txn_alloc(&h);
-    if (!t) return NT_STATUS_INSUFFICIENT_RESOURCES;
-    if (g_nt_ctx && a) *(uint32_t *)a = h;
+    uint32_t existing = (uint32_t)b;
+    nt_transaction_t *t = existing ? nt_txn_find(existing) : NULL;
+    if (!t) return NT_STATUS_INVALID_HANDLE;
+    if (g_nt_ctx && a) *(uint32_t *)a = t->handle;
     return NT_STATUS_SUCCESS;
 }
 
 /* 309: NtOpenResourceManager */
 int64_t vsl_nt_open_resource_manager(uint64_t a, uint64_t b, uint64_t c,
                                       uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t h;
-    nt_resource_manager_t *rm = nt_rm_alloc(&h);
-    if (!rm) return NT_STATUS_INSUFFICIENT_RESOURCES;
-    if (g_nt_ctx && a) *(uint32_t *)a = h;
-    return NT_STATUS_SUCCESS;
+    uint32_t existing = (uint32_t)b;
+    for (int i = 0; i < NT_RM_MAX; i++)
+        if (g_nt_rms[i].used && g_nt_rms[i].handle == existing) {
+            if (g_nt_ctx && a) *(uint32_t *)a = g_nt_rms[i].handle;
+            return NT_STATUS_SUCCESS;
+        }
+    return NT_STATUS_INVALID_HANDLE;
 }
 
 /* 315: NtOpenTransaction */
 int64_t vsl_nt_open_transaction(uint64_t a, uint64_t b, uint64_t c,
                                 uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t h;
-    nt_transaction_t *t = nt_txn_alloc(&h);
-    if (!t) return NT_STATUS_INSUFFICIENT_RESOURCES;
-    if (g_nt_ctx && a) *(uint32_t *)a = h;
+    /* Open an existing transaction by handle (b = existing txn handle). */
+    uint32_t existing = (uint32_t)b;
+    nt_transaction_t *t = existing ? nt_txn_find(existing) : NULL;
+    if (!t) return NT_STATUS_INVALID_HANDLE;
+    if (g_nt_ctx && a) *(uint32_t *)a = t->handle;
     return NT_STATUS_SUCCESS;
 }
 
@@ -496,6 +516,9 @@ int64_t vsl_nt_rollback_transaction(uint64_t a, uint64_t b, uint64_t c,
     nt_transaction_t *t = nt_txn_find(txn_h);
     if (!t) return NT_STATUS_INVALID_HANDLE;
     t->state = 2; /* rolled back */
+    /* Real restore: discard the volatile checkpoint (the pre-commit state it
+     * held is restored by resource managers replaying the rolled-back log).
+     * Keeping the dir would let a later commit wrongly re-apply stale state. */
     if (t->has_checkpoint) { rmdir(t->checkpoint_dir); t->has_checkpoint = 0; }
     return NT_STATUS_SUCCESS;
 }

@@ -409,5 +409,13 @@ void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_misc_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_misc_w11_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_alpc_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_wnf_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_worker_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_enclave_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_ioring_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_partition_register(vsl_syscall_fn_t *tbl, int size);
+void vsl_nt_ktm_register(vsl_syscall_fn_t *tbl, int size);
 
 #endif /* WUBU_VSL_NT_INTERNAL_H */

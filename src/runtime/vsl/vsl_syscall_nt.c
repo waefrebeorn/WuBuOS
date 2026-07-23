@@ -75,11 +75,15 @@ uint32_t g_nt_token_next = 0x2000;
 /* Shared dispatch table. */
 extern int64_t vsl_sys_nosys(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
-#define NT_TBL_SIZE 297
+#define NT_TBL_SIZE 512
 static vsl_syscall_fn_t g_nt_dispatch[NT_TBL_SIZE];
 
 static void nt_dispatch_init(void) {
     for (int i = 0; i < NT_TBL_SIZE; i++) g_nt_dispatch[i] = vsl_sys_nosys;
+    /* W11-only sys_ stubs run FIRST so every real vsl_nt_* handler that
+     * follows overwrites any colliding slot; misc_w11 keeps only the 17
+     * genuinely-empty slots it uniquely occupies. */
+    vsl_nt_misc_w11_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_atoms_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_job_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_io_register(g_nt_dispatch, NT_TBL_SIZE);
@@ -100,7 +104,6 @@ static void nt_dispatch_init(void) {
     vsl_nt_ioring_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_partition_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_ktm_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_misc_w11_register(g_nt_dispatch, NT_TBL_SIZE);
 }
 
 /* ----------------------------------------------------------------------
@@ -114,6 +117,7 @@ int vsl_nt_bridge_init(vsl_nt_bridge_ctx_t *ctx) {
     ctx->current_tid = (uint32_t)gettid();
     for (int i = 0; i < 4096; i++) ctx->handle_table[i].valid = false;
     g_nt_ctx = ctx;
+    nt_dispatch_init();
     /* Registry root: /tmp/wubu_nt_reg_<pid>. Real files back the NT registry. */
     snprintf(g_nt_reg_root, sizeof(g_nt_reg_root), "/tmp/wubu_nt_reg_%d", (int)getpid());
     mkdir(g_nt_reg_root, 0755);

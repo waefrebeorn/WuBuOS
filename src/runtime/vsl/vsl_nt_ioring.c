@@ -125,8 +125,12 @@ int64_t vsl_nt_query_ioring_capabilities(uint64_t a, uint64_t b, uint64_t c,
 int64_t vsl_nt_set_information_ioring(uint64_t a, uint64_t b, uint64_t c,
                                       uint64_t d, uint64_t e, uint64_t f) {
     uint32_t ring_h = (uint32_t)a;
-    if (!nt_ioring_find(ring_h)) return NT_STATUS_INVALID_HANDLE;
-    /* InformationClass = b, buffer = c, buffer_len = d */
+    nt_ioring_t *r = nt_ioring_find(ring_h);
+    if (!r) return NT_STATUS_INVALID_HANDLE;
+    /* InformationClass = b; persist the requested entry count (d = buffer_len)
+     * into the ring so the configuration is observable + applied on submit. */
+    if (d) r->entries = (uint32_t)d;
+    (void)c;
     return NT_STATUS_SUCCESS;
 }
 

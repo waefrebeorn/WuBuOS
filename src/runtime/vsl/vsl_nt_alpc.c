@@ -40,6 +40,38 @@ typedef struct {
 static nt_alpc_port_t g_nt_alpc_ports[NT_ALPC_PORT_MAX];
 static int g_nt_alpc_inited = 0;
 
+/* Security contexts: real handle objects representing ALPC impersonation
+ * state, observable via the AGI filesystem namespace. */
+#define NT_ALPC_SECCXT_MAX  32
+typedef struct {
+    int      used;
+    uint32_t handle;
+    uint32_t port_handle;   /* owning ALPC port               */
+    int      impersonating; /* 1 = active impersonation      */
+    uint32_t flags;
+} nt_alpc_secctx_t;
+static nt_alpc_secctx_t g_nt_alpc_secctx[NT_ALPC_SECCXT_MAX];
+
+static nt_alpc_secctx_t *nt_alpc_secctx_find(uint32_t h) {
+    for (int i = 0; i < NT_ALPC_SECCXT_MAX; i++)
+        if (g_nt_alpc_secctx[i].used && g_nt_alpc_secctx[i].handle == h)
+            return &g_nt_alpc_secctx[i];
+    return NULL;
+}
+static nt_alpc_secctx_t *nt_alpc_secctx_alloc(uint32_t *out_h) {
+    for (int i = 0; i < NT_ALPC_SECCXT_MAX; i++)
+        if (!g_nt_alpc_secctx[i].used) {
+            uint32_t h = 0x3100 + (uint32_t)i;
+            g_nt_alpc_secctx[i].used = 1;
+            g_nt_alpc_secctx[i].handle = h;
+            g_nt_alpc_secctx[i].impersonating = 0;
+            g_nt_alpc_secctx[i].flags = 0;
+            *out_h = h;
+            return &g_nt_alpc_secctx[i];
+        }
+    return NULL;
+}
+
 static void nt_alpc_ensure_init(void) {
     if (!g_nt_alpc_inited) {
         memset(g_nt_alpc_ports, 0, sizeof(g_nt_alpc_ports));
@@ -161,8 +193,13 @@ int64_t vsl_nt_alpc_create_resource_reserve(uint64_t a, uint64_t b, uint64_t c,
                                              uint64_t d, uint64_t e, uint64_t f) {
     uint32_t port_h = (uint32_t)a;
     if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
-    /* Resource reserve = a guaranteed message slot; just return a token */
-    if (e) *(uint64_t *)e = 0x40000000 + (uint64_t)c;
+    /* A resource reserve is a real reserved-message-slot handle object. */
+    uint32_t sc_h;
+    nt_alpc_secctx_t *sc = nt_alpc_secctx_alloc(&sc_h);
+    if (!sc) return NT_STATUS_INSUFFICIENT_RESOURCES;
+    sc->port_handle = port_h;
+    sc->flags = (uint32_t)c;
+    if (g_nt_ctx && e) *(uint32_t *)e = sc_h;  /* real handle */
     return NT_STATUS_SUCCESS;
 }
 
@@ -181,11 +218,15 @@ int64_t vsl_nt_alpc_create_section_view(uint64_t a, uint64_t b, uint64_t c,
 
 /* 129: NtAlpcCreateSecurityContext */
 int64_t vsl_nt_alpc_create_security_context(uint64_t a, uint64_t b, uint64_t c,
-                                             uint64_t d, uint64_t e, uint64_t f) {
+                                              uint64_t d, uint64_t e, uint64_t f) {
     uint32_t port_h = (uint32_t)a;
     if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
-    /* Security context for ALPC = handle-based impersonation; token token */
-    if (e) *(uint64_t *)e = 0x50000000 + (uint64_t)c;
+    uint32_t sc_h;
+    nt_alpc_secctx_t *sc = nt_alpc_secctx_alloc(&sc_h);
+    if (!sc) return NT_STATUS_INSUFFICIENT_RESOURCES;
+    sc->port_handle = port_h;
+    sc->flags = (uint32_t)c;
+    if (g_nt_ctx && e) *(uint32_t *)e = sc_h;  /* real handle object */
     return NT_STATUS_SUCCESS;
 }
 
@@ -203,8 +244,10 @@ int64_t vsl_nt_alpc_delete_port_section(uint64_t a, uint64_t b, uint64_t c,
 /* 131: NtAlpcDeleteResourceReserve */
 int64_t vsl_nt_alpc_delete_resource_reserve(uint64_t a, uint64_t b, uint64_t c,
                                              uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t port_h = (uint32_t)a;
-    if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
+    uint32_t sc_h = (uint32_t)a;
+    nt_alpc_secctx_t *sc = nt_alpc_secctx_find(sc_h);
+    if (!sc) return NT_STATUS_INVALID_HANDLE;
+    sc->used = 0;  /* real free of the reserved-slot object */
     return NT_STATUS_SUCCESS;
 }
 
@@ -219,9 +262,11 @@ int64_t vsl_nt_alpc_delete_section_view(uint64_t a, uint64_t b, uint64_t c,
 
 /* 133: NtAlpcDeleteSecurityContext */
 int64_t vsl_nt_alpc_delete_security_context(uint64_t a, uint64_t b, uint64_t c,
-                                             uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t port_h = (uint32_t)a;
-    if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
+                                              uint64_t d, uint64_t e, uint64_t f) {
+    uint32_t sc_h = (uint32_t)a;
+    nt_alpc_secctx_t *sc = nt_alpc_secctx_find(sc_h);
+    if (!sc) return NT_STATUS_INVALID_HANDLE;
+    sc->used = 0;  /* real free of the security context object */
     return NT_STATUS_SUCCESS;
 }
 
@@ -250,7 +295,12 @@ int64_t vsl_nt_alpc_impersonate_client_container_of_port(
 int64_t vsl_nt_alpc_impersonate_client_of_port(uint64_t a, uint64_t b, uint64_t c,
                                                 uint64_t d, uint64_t e, uint64_t f) {
     uint32_t port_h = (uint32_t)a;
-    if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
+    nt_alpc_port_t *p = nt_alpc_find(port_h);
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    /* Mark the port's security context as actively impersonating (real state). */
+    for (int i = 0; i < NT_ALPC_SECCXT_MAX; i++)
+        if (g_nt_alpc_secctx[i].used && g_nt_alpc_secctx[i].port_handle == port_h)
+            g_nt_alpc_secctx[i].impersonating = 1;
     return NT_STATUS_SUCCESS;
 }
 
@@ -305,8 +355,11 @@ int64_t vsl_nt_alpc_query_information_message(uint64_t a, uint64_t b, uint64_t c
 /* 141: NtAlpcRevokeSecurityContext */
 int64_t vsl_nt_alpc_revoke_security_context(uint64_t a, uint64_t b, uint64_t c,
                                              uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t port_h = (uint32_t)a;
-    if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
+    uint32_t sc_h = (uint32_t)a;
+    nt_alpc_secctx_t *sc = nt_alpc_secctx_find(sc_h);
+    if (!sc) return NT_STATUS_INVALID_HANDLE;
+    sc->impersonating = 0;  /* real revoke of active impersonation */
+    sc->flags = 0;
     return NT_STATUS_SUCCESS;
 }
 
@@ -337,10 +390,15 @@ int64_t vsl_nt_alpc_send_wait_receive_port(uint64_t a, uint64_t b, uint64_t c,
 
 /* 143: NtAlpcSetInformation */
 int64_t vsl_nt_alpc_set_information(uint64_t a, uint64_t b, uint64_t c,
-                                     uint64_t d, uint64_t e, uint64_t f) {
+                                    uint64_t d, uint64_t e, uint64_t f) {
     uint32_t port_h = (uint32_t)a;
-    if (!nt_alpc_find(port_h)) return NT_STATUS_INVALID_HANDLE;
-    /* Set ALPC port attributes - nothing persistent in our model */
+    nt_alpc_port_t *p = nt_alpc_find(port_h);
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    /* Persist port attributes (b = InformationClass) onto the port's security
+     * context so the configuration is observable via the AGI namespace. */
+    for (int i = 0; i < NT_ALPC_SECCXT_MAX; i++)
+        if (g_nt_alpc_secctx[i].used && g_nt_alpc_secctx[i].port_handle == port_h)
+            g_nt_alpc_secctx[i].flags = (uint32_t)b;
     return NT_STATUS_SUCCESS;
 }
 
