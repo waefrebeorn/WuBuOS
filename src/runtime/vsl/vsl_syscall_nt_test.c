@@ -58,7 +58,7 @@ int main(void) {
         args[0] = (uint64_t)(uintptr_t)"WinBuAtom";
         args[1] = (uint64_t)(uintptr_t)&atom;
         memset(args + 2, 0, sizeof(uint64_t) * 4);
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 9, args, 2);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 77, args, 2);
         CHECK(r == NT_STATUS_SUCCESS, "NtAddAtom returns SUCCESS");
         CHECK(atom != 0, "NtAddAtom assigns a nonzero atom id");
 
@@ -94,7 +94,7 @@ int main(void) {
         memset(&luid, 0, sizeof(luid));
         args[0] = (uint64_t)(uintptr_t)&luid;
         memset(args + 1, 0, sizeof(uint64_t) * 5);
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 16, args, 1);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 89, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtAllocateLocallyUniqueId returns SUCCESS");
         CHECK(luid.low != 0, "LUID low part assigned");
     }
@@ -162,7 +162,7 @@ int main(void) {
         args[1] = num;                     /* number of pages */
         args[2] = (uint64_t)(uintptr_t)&base;
         memset(args + 3, 0, sizeof(uint64_t) * 3);
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 17, args, 3);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 102, args, 3);
         CHECK(r != NT_STATUS_NO_MEMORY && r > 0, "NtAllocateUserPhysicalPages returns base address");
         CHECK(base != 0, "NtAllocateUserPhysicalPages fills base out-param");
 
@@ -256,7 +256,7 @@ int main(void) {
 
         args[0] = job;
         memset(args + 1, 0, sizeof(uint64_t) * 5);
-        r = vsl_nt_syscall_dispatch(&ctx, 266, args, 1);
+        r = vsl_nt_syscall_dispatch(&ctx, 466, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtTerminateJobObject frees the job");
 
         /* Re-opening a terminated job must fail. */
@@ -274,7 +274,7 @@ int main(void) {
         args[0] = (uint64_t)(uintptr_t)"JobAtomTest";
         args[1] = (uint64_t)(uintptr_t)&atom;
         memset(args + 2, 0, sizeof(uint64_t) * 4);
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 9, args, 2);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 77, args, 2);
         CHECK(r == NT_STATUS_SUCCESS, "NtAddAtom (for delete test) succeeds");
         CHECK(atom != 0, "atom id assigned");
 
@@ -320,7 +320,7 @@ int main(void) {
         args[0] = (uint64_t)(uintptr_t)&futex_var;
         args[1] = (uint64_t)getpid();
         memset(args + 2, 0, sizeof(uint64_t) * 4);
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 14, args, 2);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 187, args, 2);
         CHECK(r == NT_STATUS_SUCCESS, "NtAlertResumeThread (wake+resume) SUCCESS");
     }
 
@@ -335,11 +335,11 @@ int main(void) {
         memset(empty_ps, 0, sizeof(empty_ps));
         uint32_t dftok = 0;
         args[0] = (uint64_t)(uintptr_t)&dftok;
-        vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* open a default token */
+        vsl_nt_syscall_dispatch(&ctx, 307, args, 1); /* open a default token */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)dftok;
         args[1] = (uint64_t)(uintptr_t)empty_ps;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);  /* NtAccessCheck */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 244, args, 2);  /* NtAccessCheck */
         CHECK(r == NT_STATUS_SUCCESS,
               "NtAccessCheck now real -> SUCCESS (not NOT_IMPLEMENTED)");
     }
@@ -366,7 +366,7 @@ int main(void) {
     /* 18. NtCreateEvent / NtSetEvent / NtResetEvent (39/229/209) */
     {
         memset(args, 0, sizeof(args));
-        int64_t h = vsl_nt_syscall_dispatch(&ctx, 38, args, 1);
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 72, args, 1);
         CHECK(h != 0, "NtCreateEvent returns a non-zero handle");
 
         uint64_t val = 0;
@@ -384,7 +384,7 @@ int main(void) {
 
         args[0] = (uint64_t)h;
         memset(args + 1, 0, sizeof(uint64_t) * 5);
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);            /* NtClose */
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);            /* NtClose */
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the event handle");
         (void)efd; (void)val;
     }
@@ -435,7 +435,7 @@ int main(void) {
 
         args[0] = (uint64_t)h;
         memset(args + 1, 0, sizeof(uint64_t) * 5);
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);            /* NtClose */
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);            /* NtClose */
         CHECK(r == NT_STATUS_SUCCESS, "NtClose closes the file handle");
         unlink(path);
     }
@@ -447,7 +447,7 @@ int main(void) {
         CHECK(h != 0, "NtOpenEvent returns a non-zero handle");
         args[0] = (uint64_t)h;
         memset(args + 1, 0, sizeof(uint64_t) * 5);
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);    /* NtClose */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);    /* NtClose */
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the opened event");
     }
 
@@ -483,7 +483,7 @@ int main(void) {
         args[0] = (uint64_t)(uintptr_t)&thr;            /* thread handle* */
         args[4] = (uint64_t)(uintptr_t)vsl_nt_test_thread_start; /* start */
         args[5] = 0;                                     /* arg */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 56, args, 6);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 78, args, 6);
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateThread returns SUCCESS");
         CHECK(thr != 0, "NtCreateThread returns a thread handle");
         /* Give the thread a moment to run, then confirm it executed. */
@@ -497,7 +497,7 @@ int main(void) {
         uint32_t proc = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&proc;   /* process handle* */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 50, args, 1);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 192, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateProcess returns SUCCESS");
         CHECK(proc != 0, "NtCreateProcess returns a process handle");
         /* Read back the real child pid stored in the handle payload. */
@@ -513,7 +513,7 @@ int main(void) {
         /* Free the process handle. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)proc;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);  /* NtClose */
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);  /* NtClose */
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the process handle");
     }
 
@@ -524,7 +524,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&ph;   /* process handle* */
         args[2] = 0;                          /* client_id 0 = open self */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 129, args, 3);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 38, args, 3);
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenProcess(self) returns SUCCESS");
         CHECK(ph != 0, "NtOpenProcess returns a handle");
 
@@ -556,7 +556,7 @@ int main(void) {
         /* Close self-process handle. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)ph;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the OpenProcess handle");
     }
 
@@ -583,7 +583,7 @@ int main(void) {
 
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)sec;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the section handle");
     }
 
@@ -592,7 +592,7 @@ int main(void) {
         uint32_t proc = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&proc;       /* process handle* */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 50, args, 1);  /* NtCreateProcess */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 192, args, 1);  /* NtCreateProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateProcess (for terminate test) SUCCESS");
         CHECK(proc != 0, "NtCreateProcess returns a handle");
 
@@ -603,7 +603,7 @@ int main(void) {
 
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)proc;
-        r = vsl_nt_syscall_dispatch(&ctx, 267, args, 1); /* NtTerminateProcess */
+        r = vsl_nt_syscall_dispatch(&ctx, 44, args, 1); /* NtTerminateProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtTerminateProcess kills + reaps the child");
         if (pid) CHECK(kill((pid_t)pid, 0) != 0, "child is dead after terminate");
     }
@@ -616,7 +616,7 @@ int main(void) {
         args[0] = (uint64_t)(uintptr_t)&thr;                 /* thread handle* */
         args[1] = 0x4;                                        /* CREATE_SUSPENDED */
         args[4] = (uint64_t)(uintptr_t)vsl_nt_test_thread_start; /* start */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 56, args, 6);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 78, args, 6);
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateThread(suspended) returns SUCCESS");
         CHECK(thr != 0, "NtCreateThread(suspended) returns a handle");
         /* Give it a moment: should NOT have run yet (suspended). */
@@ -626,7 +626,7 @@ int main(void) {
         /* Resume it. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)thr;
-        r = vsl_nt_syscall_dispatch(&ctx, 215, args, 1);      /* NtResumeThread */
+        r = vsl_nt_syscall_dispatch(&ctx, 82, args, 1);      /* NtResumeThread */
         CHECK(r == NT_STATUS_SUCCESS, "NtResumeThread returns SUCCESS");
         ts.tv_nsec = 50 * 1000 * 1000;
         nanosleep(&ts, NULL);
@@ -638,22 +638,22 @@ int main(void) {
         uint32_t m = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&m;                    /* mutant handle* */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 46, args, 1); /* NtCreateMutant */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 186, args, 1); /* NtCreateMutant */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateMutant returns SUCCESS");
         CHECK(m != 0, "NtCreateMutant returns a handle");
-        r = vsl_nt_syscall_dispatch(&ctx, 282, args, 3);      /* wait = lock */
+        r = vsl_nt_syscall_dispatch(&ctx, 119, args, 3);      /* wait = lock */
         /* NtWaitForSingleObject on the mutant: a=mutation handle. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)m;
-        r = vsl_nt_syscall_dispatch(&ctx, 282, args, 3);      /* NtWaitForSingleObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 119, args, 3);      /* NtWaitForSingleObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtWaitForSingleObject acquires the mutant");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)m;
-        r = vsl_nt_syscall_dispatch(&ctx, 197, args, 1);      /* NtReleaseMutant */
+        r = vsl_nt_syscall_dispatch(&ctx, 32, args, 1);      /* NtReleaseMutant */
         CHECK(r == NT_STATUS_SUCCESS, "NtReleaseMutant releases the mutant");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)m;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);       /* NtClose */
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);       /* NtClose */
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the mutant");
     }
 
@@ -663,22 +663,22 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&s;                    /* sem handle* */
         args[2] = 0;                                          /* initial count 0 */
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 54, args, 3); /* NtCreateSemaphore */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 199, args, 3); /* NtCreateSemaphore */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateSemaphore returns SUCCESS");
         CHECK(s != 0, "NtCreateSemaphore returns a handle");
         /* Post 1 so a waiter can proceed. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)s;
         args[2] = 1;                                          /* release 1 */
-        r = vsl_nt_syscall_dispatch(&ctx, 198, args, 3);      /* NtReleaseSemaphore */
+        r = vsl_nt_syscall_dispatch(&ctx, 7, args, 3);      /* NtReleaseSemaphore */
         CHECK(r == NT_STATUS_SUCCESS, "NtReleaseSemaphore posts the semaphore");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)s;
-        r = vsl_nt_syscall_dispatch(&ctx, 282, args, 3);      /* NtWaitForSingleObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 119, args, 3);      /* NtWaitForSingleObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtWaitForSingleObject consumes the semaphore");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)s;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);       /* NtClose */
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);       /* NtClose */
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the semaphore");
     }
 
@@ -687,20 +687,20 @@ int main(void) {
         uint32_t ev = 0;
         memset(args, 0, sizeof(args));
         args[0] = 0;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 38, args, 1); /* NtCreateEvent */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 72, args, 1); /* NtCreateEvent */
         ev = (uint32_t)r;
         CHECK(ev != 0, "NtCreateEvent for dup test");
         uint32_t dup = 0;
         memset(args, 0, sizeof(args));
         args[1] = (uint64_t)ev;                               /* source handle */
         args[3] = (uint64_t)(uintptr_t)&dup;                  /* new handle* */
-        r = vsl_nt_syscall_dispatch(&ctx, 72, args, 4);       /* NtDuplicateObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 60, args, 4);       /* NtDuplicateObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtDuplicateObject returns SUCCESS");
         CHECK(dup != 0 && dup != ev, "NtDuplicateObject returns a distinct handle");
         memset(args, 0, sizeof(args));
-        args[0] = (uint64_t)ev; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        args[0] = (uint64_t)ev; r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         memset(args, 0, sizeof(args));
-        args[0] = (uint64_t)dup; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        args[0] = (uint64_t)dup; r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the duplicated handle");
     }
 
@@ -709,14 +709,14 @@ int main(void) {
         uint32_t proc = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&proc;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 50, args, 1); /* NtCreateProcess */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 192, args, 1); /* NtCreateProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateProcess for query test");
         uint64_t qbuf[2] = {0, 0};
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)proc;
         args[1] = 0;                                          /* ProcessBasicInformation */
         args[2] = (uint64_t)(uintptr_t)qbuf;                   /* out */
-        r = vsl_nt_syscall_dispatch(&ctx, 162, args, 3);      /* NtQueryInformationProcess */
+        r = vsl_nt_syscall_dispatch(&ctx, 25, args, 3);      /* NtQueryInformationProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationProcess returns SUCCESS");
         CHECK(qbuf[0] != 0, "NtQueryInformationProcess returns a nonzero pid");
         /* Exit-status query: child still alive -> STILL_ACTIVE (0x103). */
@@ -724,13 +724,13 @@ int main(void) {
         args[0] = (uint64_t)proc;
         args[1] = 1;                                          /* ProcessExitStatus */
         args[2] = (uint64_t)(uintptr_t)qbuf;
-        r = vsl_nt_syscall_dispatch(&ctx, 162, args, 3);
+        r = vsl_nt_syscall_dispatch(&ctx, 25, args, 3);
         CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationProcess(exit) SUCCESS");
         CHECK(qbuf[0] == 0x103, "live child reports STILL_ACTIVE");
         /* Terminate then re-query. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)proc;
-        r = vsl_nt_syscall_dispatch(&ctx, 267, args, 1);      /* NtTerminateProcess */
+        r = vsl_nt_syscall_dispatch(&ctx, 44, args, 1);      /* NtTerminateProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtTerminateProcess for query test");
     }
 
@@ -740,7 +740,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&thr;
         args[4] = (uint64_t)(uintptr_t)vsl_nt_test_thread_start;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 56, args, 6); /* NtCreateThread */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 78, args, 6); /* NtCreateThread */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateThread for open-thread test");
         /* Grab its tid via the handle. We stored tid in styx_fid; expose by
          * reading the live process's thread through NtWaitForSingleObject join
@@ -749,13 +749,13 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&othr;
         args[2] = (uint64_t)(uintptr_t)thr;  /* client_id = source handle (proxy) */
-        r = vsl_nt_syscall_dispatch(&ctx, 135, args, 3);      /* NtOpenThread */
+        r = vsl_nt_syscall_dispatch(&ctx, 313, args, 3);      /* NtOpenThread */
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenThread returns SUCCESS");
         CHECK(othr != 0, "NtOpenThread returns a handle");
         memset(args, 0, sizeof(args));
-        args[0] = (uint64_t)thr; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        args[0] = (uint64_t)thr; r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         memset(args, 0, sizeof(args));
-        args[0] = (uint64_t)othr; r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        args[0] = (uint64_t)othr; r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the opened thread");
     }
 
@@ -766,7 +766,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\WuBu";
         args[4] = (uint64_t)(uintptr_t)&key;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 29, args, 5); /* NtCreateKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey creates a registry key (real dir)");
         CHECK(key != 0, "NtCreateKey returns a handle");
 
@@ -779,7 +779,7 @@ int main(void) {
         args[2] = 3;                       /* REG_SZ */
         args[3] = (uint64_t)(uintptr_t)val;
         args[4] = (uint64_t)vlen;
-        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 96, args, 5); /* NtSetValueKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey writes value to real file");
 
         char qbuf[32];
@@ -789,7 +789,7 @@ int main(void) {
         args[1] = (uint64_t)(uintptr_t)"Name";
         args[3] = (uint64_t)(uintptr_t)qbuf;
         args[4] = (uint64_t)sizeof(qbuf);
-        r = vsl_nt_syscall_dispatch(&ctx, 186, args, 5); /* NtQueryValueKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 23, args, 5); /* NtQueryValueKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtQueryValueKey reads value back");
         CHECK(strncmp(qbuf, "wubuos", vlen) == 0, "NtQueryValueKey round-trips data");
 
@@ -797,7 +797,7 @@ int main(void) {
         uint64_t st = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&st;
-        r = vsl_nt_syscall_dispatch(&ctx, 183, args, 1); /* NtQuerySystemTime */
+        r = vsl_nt_syscall_dispatch(&ctx, 91, args, 1); /* NtQuerySystemTime */
         CHECK(r == NT_STATUS_SUCCESS, "NtQuerySystemTime SUCCESS");
         CHECK(st != 0, "NtQuerySystemTime returns nonzero time");
 
@@ -808,7 +808,7 @@ int main(void) {
         args[0] = 2;                        /* SystemBasicInformation */
         args[1] = (uint64_t)(uintptr_t)sinfo;
         args[2] = sizeof(sinfo);
-        r = vsl_nt_syscall_dispatch(&ctx, 182, args, 3); /* NtQuerySystemInformation */
+        r = vsl_nt_syscall_dispatch(&ctx, 54, args, 3); /* NtQuerySystemInformation */
         CHECK(r == NT_STATUS_SUCCESS, "NtQuerySystemInformation SUCCESS");
         uint32_t page_sz = *(uint32_t *)(sinfo);
         CHECK(page_sz == (uint32_t)sysconf(_SC_PAGESIZE), "NtQuerySystemInformation reports real page size");
@@ -822,7 +822,7 @@ int main(void) {
         /* Clean up the key. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)key;
-        r = vsl_nt_syscall_dispatch(&ctx, 67, args, 1);  /* NtDeleteKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 220, args, 1);  /* NtDeleteKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtDeleteKey removes the registry key");
         /* The recursive delete must actually remove the backing dir tree
          * (key dir + its value file), not just free the handle. */
@@ -839,7 +839,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&fh;
         args[2] = (uint64_t)(uintptr_t)cf_path;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 40, args, 5);
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 85, args, 5);
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateFile creates a real file");
         CHECK(fh != 0, "NtCreateFile returns a handle");
 
@@ -888,7 +888,7 @@ int main(void) {
         /* NtClose (28) the file handle. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)fh;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the NtCreateFile handle");
         unlink(cf_path);
 
@@ -896,16 +896,16 @@ int main(void) {
         uint32_t ev = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&ev;
-        r = vsl_nt_syscall_dispatch(&ctx, 38, args, 1); /* NtCreateEvent */
+        r = vsl_nt_syscall_dispatch(&ctx, 72, args, 1); /* NtCreateEvent */
         CHECK(r != 0, "NtCreateEvent for pulse test");
         ev = (uint32_t)r;  /* NtCreateEvent returns the handle as its result */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)ev;
-        r = vsl_nt_syscall_dispatch(&ctx, 145, args, 1); /* NtPulseEvent */
+        r = vsl_nt_syscall_dispatch(&ctx, 328, args, 1); /* NtPulseEvent */
         CHECK(r == NT_STATUS_SUCCESS, "NtPulseEvent sets+resets the event");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)ev;
-        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        r = vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtClose frees the pulse event");
 
         /* NtYieldExecution (289) — sched_yield, must return SUCCESS. */
@@ -981,7 +981,7 @@ int main(void) {
         r = vsl_nt_syscall_dispatch(&ctx, 176, args, 3);
         CHECK(r == NT_STATUS_SUCCESS, "NtQuerySection reports section info");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)sec;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1); /* NtClose */
 
         /* NtLoadKey (103) + NtUnloadKey (273). */
         uint32_t hk = 0;
@@ -1009,9 +1009,9 @@ int main(void) {
         r = vsl_nt_syscall_dispatch(&ctx, 133, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenSemaphore mints a handle");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)om;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)os;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
     }
 
     /* 36. Blitz-2: registry persist, process/thread control, timers, locks, dir. */
@@ -1023,39 +1023,39 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)bpath;
         args[4] = (uint64_t)(uintptr_t)&bk;
-        r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 29, args, 5); /* NtCreateKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (blitz2)");
         char bname[] = "BlitzVal"; uint8_t bval[16]; memset(bval, 0xAB, sizeof(bval));
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)bk; args[1] = (uint64_t)(uintptr_t)bname;
         args[2] = 3; args[3] = (uint64_t)(uintptr_t)bval; args[4] = sizeof(bval);
-        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 96, args, 5); /* NtSetValueKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey (blitz2)");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)bk;
-        r = vsl_nt_syscall_dispatch(&ctx, 216, args, 2); /* NtSaveKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 401, args, 2); /* NtSaveKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtSaveKey copies the hive");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)bk;
-        r = vsl_nt_syscall_dispatch(&ctx, 213, args, 3); /* NtRestoreKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 393, args, 3); /* NtRestoreKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtRestoreKey restores the hive");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)bk;
-        vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* NtDeleteKey */
+        vsl_nt_syscall_dispatch(&ctx, 220, args, 1); /* NtDeleteKey */
 
         /* NtCreateTimer + NtSetTimer + NtCancelTimer (timerfd). */
         uint32_t tm = 0;
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&tm;
-        r = vsl_nt_syscall_dispatch(&ctx, 57, args, 1); /* NtCreateTimer */
+        r = vsl_nt_syscall_dispatch(&ctx, 203, args, 1); /* NtCreateTimer */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateTimer mints a timerfd handle");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tm; args[1] = (uint64_t)(-10000000LL); /* 1s relative */
-        r = vsl_nt_syscall_dispatch(&ctx, 254, args, 5); /* NtSetTimer */
+        r = vsl_nt_syscall_dispatch(&ctx, 98, args, 5); /* NtSetTimer */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetTimer arms the timerfd");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)tm;
-        r = vsl_nt_syscall_dispatch(&ctx, 26, args, 2); /* NtCancelTimer */
+        r = vsl_nt_syscall_dispatch(&ctx, 97, args, 2); /* NtCancelTimer */
         CHECK(r == NT_STATUS_SUCCESS, "NtCancelTimer disarms the timerfd");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)tm;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1); /* NtClose */
 
         /* NtSuspendProcess / NtResumeProcess on a forked child. */
         pid_t cp = fork();
@@ -1064,30 +1064,30 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&cph;
         args[2] = (uint64_t)(uint32_t)cp;  /* NtOpenProcess: client_id = pid */
-        r = vsl_nt_syscall_dispatch(&ctx, 129, args, 3); /* NtOpenProcess */
+        r = vsl_nt_syscall_dispatch(&ctx, 38, args, 3); /* NtOpenProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenProcess (blitz2) mints child handle");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)cph;
-        r = vsl_nt_syscall_dispatch(&ctx, 263, args, 1); /* NtSuspendProcess */
+        r = vsl_nt_syscall_dispatch(&ctx, 462, args, 1); /* NtSuspendProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtSuspendProcess SIGSTOPs the child");
-        r = vsl_nt_syscall_dispatch(&ctx, 214, args, 1); /* NtResumeProcess */
+        r = vsl_nt_syscall_dispatch(&ctx, 394, args, 1); /* NtResumeProcess */
         CHECK(r == NT_STATUS_SUCCESS, "NtResumeProcess SIGCONTs the child");
         kill(cp, SIGKILL); waitpid(cp, NULL, 0);
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)cph;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
 
         /* NtLockFile / NtUnlockFile on a real file. */
         char lf[] = "/tmp/wubu_nt_lockfile"; int lfd = open(lf, O_RDWR|O_CREAT,0644);
         uint32_t lh = 0;
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&lh;
         args[2] = (uint64_t)(uintptr_t)lf;
-        vsl_nt_syscall_dispatch(&ctx, 40, args, 5); /* NtCreateFile */
+        vsl_nt_syscall_dispatch(&ctx, 85, args, 5); /* NtCreateFile */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh; args[2] = 0; args[3] = 4096; args[4] = 1;
-        r = vsl_nt_syscall_dispatch(&ctx, 106, args, 5); /* NtLockFile */
+        r = vsl_nt_syscall_dispatch(&ctx, 275, args, 5); /* NtLockFile */
         CHECK(r == NT_STATUS_SUCCESS, "NtLockFile sets an advisory lock");
-        r = vsl_nt_syscall_dispatch(&ctx, 276, args, 5); /* NtUnlockFile */
+        r = vsl_nt_syscall_dispatch(&ctx, 477, args, 5); /* NtUnlockFile */
         CHECK(r == NT_STATUS_SUCCESS, "NtUnlockFile clears the lock");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         close(lfd); unlink(lf);
 
         /* NtOpenDirectoryObject (120). */
@@ -1096,7 +1096,7 @@ int main(void) {
         r = vsl_nt_syscall_dispatch(&ctx, 120, args, 1);
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenDirectoryObject mints a handle");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)dir;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
 
         /* NtQueryMultipleValueKey / NtCompactKeys / NtInitializeRegistry accept. */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)bk + 1; args[2] = 1;
@@ -1184,7 +1184,7 @@ int main(void) {
         /* Clean up the directory object handle. */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)od;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
     }
 
     /* 38. Batch 9b: Registry value-delete + key-query + subkey-count. */
@@ -1194,7 +1194,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\Batch9";
         args[4] = (uint64_t)(uintptr_t)&rk;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 29, args, 5); /* NtCreateKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (Batch9) SUCCESS");
 
         /* Set a value. */
@@ -1202,7 +1202,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)rk; args[1] = (uint64_t)(uintptr_t)"Data";
         args[2] = 3; args[3] = (uint64_t)(uintptr_t)v; args[4] = strlen(v);
-        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 96, args, 5); /* NtSetValueKey */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey (Batch9) writes value");
 
         /* Create a subkey so QueryOpenSubKeys > 0. */
@@ -1210,7 +1210,7 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\Batch9\\Sub";
         args[4] = (uint64_t)(uintptr_t)&sk;
-        r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey (subkey) */
+        r = vsl_nt_syscall_dispatch(&ctx, 29, args, 5); /* NtCreateKey (subkey) */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (subkey) SUCCESS");
 
         /* NtQueryOpenSubKeys (172) -- count immediate subkeys (>= 1). */
@@ -1251,15 +1251,15 @@ int main(void) {
         args[0] = (uint64_t)rk; args[1] = (uint64_t)(uintptr_t)"Data";
         args[3] = (uint64_t)(uintptr_t)qbuf; args[4] = sizeof(qbuf);
         args[5] = (uint64_t)(uintptr_t)&qret;
-        r = vsl_nt_syscall_dispatch(&ctx, 186, args, 5); /* NtQueryValueKey */
+        r = vsl_nt_syscall_dispatch(&ctx, 23, args, 5); /* NtQueryValueKey */
         CHECK(r == NT_STATUS_OBJECT_NAME_NOT_FOUND,
               "NtQueryValueKey after NtDeleteValueKey => NOT_FOUND");
 
         /* Cleanup. */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)sk;
-        vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* delete subkey */
+        vsl_nt_syscall_dispatch(&ctx, 220, args, 1); /* delete subkey */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)rk;
-        vsl_nt_syscall_dispatch(&ctx, 67, args, 1); /* delete parent key */
+        vsl_nt_syscall_dispatch(&ctx, 220, args, 1); /* delete parent key */
     }
 
     /* 26. Batch 11 — job set + job info (finish in-flight NT work). */
@@ -1280,7 +1280,7 @@ int main(void) {
         args[1] = 0;            /* JobObjectBasicLimitInformation */
         args[2] = (uint64_t)(uintptr_t)limit;
         args[3] = sizeof(limit);
-        r = vsl_nt_syscall_dispatch(&ctx, 235, args, 4);  /* NtSetInformationJobObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 425, args, 4);  /* NtSetInformationJobObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetInformationJobObject stores limit");
 
         uint8_t qinfo[64];
@@ -1291,7 +1291,7 @@ int main(void) {
         args[1] = 0;            /* JobObjectBasicLimitInformation */
         args[2] = (uint64_t)(uintptr_t)qinfo;
         args[3] = qlen;
-        r = vsl_nt_syscall_dispatch(&ctx, 160, args, 4);  /* NtQueryInformationJobObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 342, args, 4);  /* NtQueryInformationJobObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtQueryInformationJobObject SUCCESS");
         CHECK(((uint32_t *)qinfo)[1] == 0x00002000,
               "NtQueryInformationJobObject returns the stored LimitFlags");
@@ -1300,12 +1300,12 @@ int main(void) {
         uint32_t members[2] = { job, 0 };
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)members;
-        r = vsl_nt_syscall_dispatch(&ctx, 43, args, 1);   /* NtCreateJobSet */
+        r = vsl_nt_syscall_dispatch(&ctx, 181, args, 1);   /* NtCreateJobSet */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateJobSet accepts a live job member");
 
         /* Cleanup. */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)job;
-        vsl_nt_syscall_dispatch(&ctx, 266, args, 1);  /* NtTerminateJobObject */
+        vsl_nt_syscall_dispatch(&ctx, 466, args, 1);  /* NtTerminateJobObject */
     }
 
     /* 27. Batch 11 — IO completion port lifecycle (41/242/199). */
@@ -1313,22 +1313,22 @@ int main(void) {
         uint32_t ioh = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&ioh;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 41, args, 1);  /* NtCreateIoCompletion */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 178, args, 1);  /* NtCreateIoCompletion */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateIoCompletion SUCCESS");
         CHECK(ioh != 0, "IO completion handle assigned");
 
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)ioh;
-        r = vsl_nt_syscall_dispatch(&ctx, 242, args, 1);  /* NtSetIoCompletion */
+        r = vsl_nt_syscall_dispatch(&ctx, 435, args, 1);  /* NtSetIoCompletion */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetIoCompletion posts a completion");
 
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)ioh;
-        r = vsl_nt_syscall_dispatch(&ctx, 199, args, 1);  /* NtRemoveIoCompletion */
+        r = vsl_nt_syscall_dispatch(&ctx, 77, args, 1);  /* NtRemoveIoCompletion */
         CHECK(r == 1, "NtRemoveIoCompletion drains the posted completion");
 
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)ioh;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);  /* NtClose */
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);  /* NtClose */
     }
 
     /* 28. Batch 11 — symbolic link object create/open/query (55/134/179). */
@@ -1338,7 +1338,7 @@ int main(void) {
         args[0] = (uint64_t)(uintptr_t)&lh;
         args[1] = (uint64_t)(uintptr_t)"\\??\\WuBuLink";
         args[3] = (uint64_t)(uintptr_t)"\\Device\\HarddiskVolume1\\target";
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 55, args, 4);  /* NtCreateSymbolicLinkObject */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 200, args, 4);  /* NtCreateSymbolicLinkObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateSymbolicLinkObject SUCCESS");
         CHECK(lh != 0, "symbolic link handle assigned");
 
@@ -1348,7 +1348,7 @@ int main(void) {
         args[0] = (uint64_t)lh;
         args[1] = (uint64_t)(uintptr_t)tgt;
         args[2] = (uint64_t)(uintptr_t)&tlen;
-        r = vsl_nt_syscall_dispatch(&ctx, 179, args, 3);  /* NtQuerySymbolicLinkObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 363, args, 3);  /* NtQuerySymbolicLinkObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtQuerySymbolicLinkObject SUCCESS");
         CHECK(tlen == strlen("\\Device\\HarddiskVolume1\\target"),
               "NtQuerySymbolicLinkObject reports target length");
@@ -1358,14 +1358,14 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&lh2;
         args[1] = (uint64_t)(uintptr_t)"\\??\\WuBuLink";
-        r = vsl_nt_syscall_dispatch(&ctx, 134, args, 2);  /* NtOpenSymbolicLinkObject */
+        r = vsl_nt_syscall_dispatch(&ctx, 312, args, 2);  /* NtOpenSymbolicLinkObject */
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenSymbolicLinkObject re-opens by name");
         CHECK(lh2 != 0, "re-opened link handle assigned");
 
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)lh2;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
     }
 
     /* 29. Batch 11 — event pair (39) + LPC port handshake (49/34/1/32). */
@@ -1374,43 +1374,43 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&hi;
         args[1] = (uint64_t)(uintptr_t)&lo;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 39, args, 2);  /* NtCreateEventPair */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 176, args, 2);  /* NtCreateEventPair */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreateEventPair SUCCESS");
         CHECK(hi != 0 && lo != 0, "both event-pair ends assigned");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)hi;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)lo;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
 
         /* LPC: create a port, connect, accept+complete, request/reply. */
         uint32_t srv = 0, cli = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&srv;
-        r = vsl_nt_syscall_dispatch(&ctx, 49, args, 1);  /* NtCreatePort */
+        r = vsl_nt_syscall_dispatch(&ctx, 190, args, 1);  /* NtCreatePort */
         CHECK(r == NT_STATUS_SUCCESS, "NtCreatePort SUCCESS");
         CHECK(srv != 0, "server port handle assigned");
 
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&cli;
-        r = vsl_nt_syscall_dispatch(&ctx, 34, args, 1);  /* NtConnectPort */
+        r = vsl_nt_syscall_dispatch(&ctx, 164, args, 1);  /* NtConnectPort */
         CHECK(r == NT_STATUS_SUCCESS, "NtConnectPort SUCCESS");
         CHECK(cli != 0, "client port handle assigned");
 
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)srv;
-        r = vsl_nt_syscall_dispatch(&ctx, 1, args, 1);   /* NtAcceptConnectPort */
+        r = vsl_nt_syscall_dispatch(&ctx, 106, args, 1);   /* NtAcceptConnectPort */
         CHECK(r == NT_STATUS_SUCCESS, "NtAcceptConnectPort SUCCESS");
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)srv;
-        r = vsl_nt_syscall_dispatch(&ctx, 32, args, 1);   /* NtCompleteConnectPort */
+        r = vsl_nt_syscall_dispatch(&ctx, 162, args, 1);   /* NtCompleteConnectPort */
         CHECK(r == NT_STATUS_SUCCESS, "NtCompleteConnectPort SUCCESS");
 
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)cli;
-        r = vsl_nt_syscall_dispatch(&ctx, 209, args, 1);  /* NtRequestWaitReplyPort */
+        r = vsl_nt_syscall_dispatch(&ctx, 34, args, 1);  /* NtRequestWaitReplyPort */
         CHECK(r == NT_STATUS_SUCCESS, "NtRequestWaitReplyPort handshake SUCCESS");
 
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)srv;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)cli;
-        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        vsl_nt_syscall_dispatch(&ctx, 15, args, 1);
     }
 
     /* 30. Batch 12 — Token / security subsystem (REAL privilege enforcement).
@@ -1430,7 +1430,7 @@ int main(void) {
         uint32_t tok = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&tok;
-        int64_t r = vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* NtOpenProcessToken */
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 307, args, 1); /* NtOpenProcessToken */
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenProcessToken SUCCESS");
         CHECK(tok != 0, "NtOpenProcessToken returns a token handle");
 
@@ -1439,36 +1439,36 @@ int main(void) {
         ps[2] = SE_SHUTDOWN; ps[3] = 0; ps[4] = ATTR_EN;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
-        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2); /* NtAccessCheck */
+        r = vsl_nt_syscall_dispatch(&ctx, 244, args, 2); /* NtAccessCheck */
         CHECK(r == NT_STATUS_SUCCESS, "NtAccessCheck passes for a held privilege");
 
         /* Remove SeShutdownPrivilege for real, then DENY. */
         tp[0] = 1; tp[1] = SE_SHUTDOWN; tp[2] = 0; tp[3] = ATTR_EN | 0x04; /* +REMOVED */
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[2] = (uint64_t)(uintptr_t)tp;
-        r = vsl_nt_syscall_dispatch(&ctx, 13, args, 3); /* NtAdjustPrivilegesToken */
+        r = vsl_nt_syscall_dispatch(&ctx, 65, args, 3); /* NtAdjustPrivilegesToken */
         CHECK(r == NT_STATUS_SUCCESS, "NtAdjustPrivilegesToken removes SeShutdownPrivilege");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
-        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 244, args, 2);
         CHECK(r == NT_STATUS_ACCESS_DENIED, "NtAccessCheck DENIES after privilege removed");
 
         /* Default token LACKS SeDebugPrivilege -> deny. */
         ps[2] = SE_DEBUG;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
-        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 244, args, 2);
         CHECK(r == NT_STATUS_ACCESS_DENIED, "NtAccessCheck DENIES a missing privilege");
 
         /* Grant SeDebugPrivilege for real, then pass. */
         tp[0] = 1; tp[1] = SE_DEBUG; tp[2] = 0; tp[3] = ATTR_EN;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[2] = (uint64_t)(uintptr_t)tp;
-        r = vsl_nt_syscall_dispatch(&ctx, 13, args, 3);
+        r = vsl_nt_syscall_dispatch(&ctx, 65, args, 3);
         CHECK(r == NT_STATUS_SUCCESS, "NtAdjustPrivilegesToken adds SeDebugPrivilege");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)ps;
-        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 244, args, 2);
         CHECK(r == NT_STATUS_SUCCESS, "NtAccessCheck passes AFTER privilege granted");
 
         /* NtPrivilegeCheck reports the held set via a BOOLEAN out-param. */
@@ -1476,7 +1476,7 @@ int main(void) {
         memset(tp, 0, sizeof(tp)); tp[0] = 1; tp[1] = SE_DEBUG; tp[2] = 0; tp[3] = ATTR_EN;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = (uint64_t)(uintptr_t)tp; args[2] = (uint64_t)(uintptr_t)&res;
-        r = vsl_nt_syscall_dispatch(&ctx, 141, args, 3); /* NtPrivilegeCheck */
+        r = vsl_nt_syscall_dispatch(&ctx, 322, args, 3); /* NtPrivilegeCheck */
         CHECK(r == NT_STATUS_SUCCESS, "NtPrivilegeCheck SUCCESS");
         CHECK(res == 1, "NtPrivilegeCheck reports privilege present");
 
@@ -1484,39 +1484,39 @@ int main(void) {
          * does not. */
         uint32_t tok2 = 0;
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&tok2;
-        r = vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* fresh default token */
+        r = vsl_nt_syscall_dispatch(&ctx, 307, args, 1); /* fresh default token */
         CHECK(r == NT_STATUS_SUCCESS, "second NtOpenProcessToken SUCCESS");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok2; args[1] = (uint64_t)tok2;
-        r = vsl_nt_syscall_dispatch(&ctx, 31, args, 2); /* NtCompareTokens */
+        r = vsl_nt_syscall_dispatch(&ctx, 161, args, 2); /* NtCompareTokens */
         CHECK(r == 1, "NtCompareTokens equal for identical token");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = (uint64_t)tok2;  /* tok != tok2 (modified) */
-        r = vsl_nt_syscall_dispatch(&ctx, 31, args, 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 161, args, 2);
         CHECK(r == 0, "NtCompareTokens unequal for modified vs default token");
 
         /* NtDuplicateToken deep-copies the privilege set. */
         uint32_t dtok = 0;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)(uintptr_t)&dtok; args[1] = (uint64_t)tok;
-        r = vsl_nt_syscall_dispatch(&ctx, 73, args, 2); /* NtDuplicateToken */
+        r = vsl_nt_syscall_dispatch(&ctx, 66, args, 2); /* NtDuplicateToken */
         CHECK(r == NT_STATUS_SUCCESS, "NtDuplicateToken SUCCESS");
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)dtok; args[1] = (uint64_t)tok;
-        r = vsl_nt_syscall_dispatch(&ctx, 31, args, 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 161, args, 2);
         CHECK(r == 1, "NtDuplicateToken copies privilege set (compare equal)");
 
         /* NtSetInformationToken (session id) accepted. */
         uint32_t sid = 7;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok; args[1] = 9; /* TokenSessionId */ args[2] = (uint64_t)(uintptr_t)&sid;
-        r = vsl_nt_syscall_dispatch(&ctx, 240, args, 3); /* NtSetInformationToken */
+        r = vsl_nt_syscall_dispatch(&ctx, 429, args, 3); /* NtSetInformationToken */
         CHECK(r == NT_STATUS_SUCCESS, "NtSetInformationToken TokenSessionId SUCCESS");
 
         /* NtOpenThreadToken returns a handle. */
         uint32_t thtok = 0;
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&thtok;
-        r = vsl_nt_syscall_dispatch(&ctx, 136, args, 1); /* NtOpenThreadToken */
+        r = vsl_nt_syscall_dispatch(&ctx, 36, args, 1); /* NtOpenThreadToken */
         CHECK(r == NT_STATUS_SUCCESS, "NtOpenThreadToken SUCCESS");
         CHECK(thtok != 0, "NtOpenThreadToken returns a handle");
 
@@ -1524,14 +1524,14 @@ int main(void) {
          * even for a privilege the base default token held. */
         uint32_t tok3 = 0;
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)(uintptr_t)&tok3;
-        vsl_nt_syscall_dispatch(&ctx, 130, args, 1); /* fresh default token */
+        vsl_nt_syscall_dispatch(&ctx, 307, args, 1); /* fresh default token */
         memset(args, 0, sizeof(args)); args[0] = (uint64_t)tok3;
-        r = vsl_nt_syscall_dispatch(&ctx, 94, args, 1); /* NtImpersonateAnonymousToken */
+        r = vsl_nt_syscall_dispatch(&ctx, 260, args, 1); /* NtImpersonateAnonymousToken */
         CHECK(r == NT_STATUS_SUCCESS, "NtImpersonateAnonymousToken SUCCESS");
         ps[2] = SE_SHUTDOWN;
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)tok3; args[1] = (uint64_t)(uintptr_t)ps;
-        r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
+        r = vsl_nt_syscall_dispatch(&ctx, 244, args, 2);
         CHECK(r == NT_STATUS_ACCESS_DENIED, "Anonymized token loses all privileges");
     }
 

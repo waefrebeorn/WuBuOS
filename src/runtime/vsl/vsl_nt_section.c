@@ -114,9 +114,9 @@ int64_t vsl_nt_extend_section(uint64_t a_sec, uint64_t b_newsize,
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_section_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[53-1] = vsl_nt_create_section;
-    tbl[114-1] = vsl_nt_map_view_of_section;
-    tbl[132-1] = vsl_nt_open_section;
-    tbl[176-1] = vsl_nt_query_section;
-    tbl[79-1] = vsl_nt_extend_section;
+    tbl[74-1] = vsl_nt_create_section;
+    tbl[40-1] = vsl_nt_map_view_of_section;
+    tbl[55-1] = vsl_nt_open_section;
+    tbl[81-1] = vsl_nt_query_section;
+    tbl[234-1] = vsl_nt_extend_section;
 }

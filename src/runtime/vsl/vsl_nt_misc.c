@@ -5,6 +5,7 @@
  * Ordinals from reactos-study/reactos/ntoskrnl/sysfuncs.lst (line = 1-based).
  */
 #include "vsl_nt_internal.h"
+#include "vsl_nt_ordinal_translate.h"
 #include <sys/utsname.h>
 #include <sys/sysinfo.h>
 #include <sys/times.h>
@@ -827,126 +828,126 @@ int64_t vsl_nt_wait_for_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t
 void vsl_nt_misc_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     /* Boot/driver entries */
-    tbl[10-1] = vsl_nt_add_boot_entry;
-    tbl[11-1] = vsl_nt_add_driver_entry;
-    tbl[64-1] = vsl_nt_delete_boot_entry;
-    tbl[65-1] = vsl_nt_delete_driver_entry;
-    tbl[115-1] = vsl_nt_modify_boot_entry;
-    tbl[116-1] = vsl_nt_modify_driver_entry;
-    tbl[74-1] = vsl_nt_enumerate_boot_entries;
-    tbl[75-1] = vsl_nt_enumerate_driver_entries;
-    tbl[147-1] = vsl_nt_query_boot_entry_order;
-    tbl[148-1] = vsl_nt_query_boot_options;
-    tbl[220-1] = vsl_nt_set_boot_entry_order;
-    tbl[221-1] = vsl_nt_set_boot_options;
-    tbl[154-1] = vsl_nt_query_driver_entry_order;
-    tbl[227-1] = vsl_nt_set_driver_entry_order;
+    tbl[106-1] = vsl_nt_add_boot_entry;
+    tbl[107-1] = vsl_nt_add_driver_entry;
+    tbl[217-1] = vsl_nt_delete_boot_entry;
+    tbl[218-1] = vsl_nt_delete_driver_entry;
+    tbl[287-1] = vsl_nt_modify_boot_entry;
+    tbl[288-1] = vsl_nt_modify_driver_entry;
+    tbl[230-1] = vsl_nt_enumerate_boot_entries;
+    tbl[231-1] = vsl_nt_enumerate_driver_entries;
+    tbl[330-1] = vsl_nt_query_boot_entry_order;
+    tbl[331-1] = vsl_nt_query_boot_options;
+    tbl[406-1] = vsl_nt_set_boot_entry_order;
+    tbl[407-1] = vsl_nt_set_boot_options;
+    tbl[335-1] = vsl_nt_query_driver_entry_order;
+    tbl[415-1] = vsl_nt_set_driver_entry_order;
     /* Driver load/unload */
-    tbl[102-1] = vsl_nt_load_driver;
-    tbl[272-1] = vsl_nt_unload_driver;
+    tbl[269-1] = vsl_nt_load_driver;
+    tbl[473-1] = vsl_nt_unload_driver;
     /* Registry hive load/unload/save/merge/rename/lock */
-    tbl[104-1] = vsl_nt_load_key2;
-    tbl[105-1] = vsl_nt_load_key_ex;
-    tbl[274-1] = vsl_nt_unload_key2;
-    tbl[275-1] = vsl_nt_unload_key_ex;
-    tbl[217-1] = vsl_nt_save_key_ex;
-    tbl[218-1] = vsl_nt_save_merged_keys;
-    tbl[201-1] = vsl_nt_rename_key;
-    tbl[108-1] = vsl_nt_lock_registry_key;
-    tbl[107-1] = vsl_nt_lock_product_activation_keys;
-    tbl[33-1] = vsl_nt_compress_key;
+    tbl[272-1] = vsl_nt_load_key2;
+    tbl[274-1] = vsl_nt_load_key_ex;
+    tbl[475-1] = vsl_nt_unload_key2;
+    tbl[476-1] = vsl_nt_unload_key_ex;
+    tbl[402-1] = vsl_nt_save_key_ex;
+    tbl[403-1] = vsl_nt_save_merged_keys;
+    tbl[385-1] = vsl_nt_rename_key;
+    tbl[277-1] = vsl_nt_lock_registry_key;
+    tbl[276-1] = vsl_nt_lock_product_activation_keys;
+    tbl[163-1] = vsl_nt_compress_key;
     /* Object manager */
-    tbl[110-1] = vsl_nt_make_permanent_object;
-    tbl[173-1] = vsl_nt_query_open_sub_keys_ex;
+    tbl[279-1] = vsl_nt_make_permanent_object;
+    tbl[356-1] = vsl_nt_query_open_sub_keys_ex;
     /* Debug */
-    tbl[36-1] = vsl_nt_create_debug_object;
-    tbl[60-1] = vsl_nt_debug_active_process;
-    tbl[61-1] = vsl_nt_debug_continue;
-    tbl[200-1] = vsl_nt_remove_process_debug;
-    tbl[280-1] = vsl_nt_wait_for_debug_event;
-    tbl[233-1] = vsl_nt_set_information_debug_object;
-    tbl[149-1] = vsl_nt_query_debug_filter_state;
-    tbl[223-1] = vsl_nt_set_debug_filter_state;
-    tbl[265-1] = vsl_nt_system_debug_control;
+    tbl[171-1] = vsl_nt_create_debug_object;
+    tbl[214-1] = vsl_nt_debug_active_process;
+    tbl[215-1] = vsl_nt_debug_continue;
+    tbl[384-1] = vsl_nt_remove_process_debug;
+    tbl[484-1] = vsl_nt_wait_for_debug_event;
+    tbl[422-1] = vsl_nt_set_information_debug_object;
+    tbl[332-1] = vsl_nt_query_debug_filter_state;
+    tbl[411-1] = vsl_nt_set_debug_filter_state;
+    tbl[464-1] = vsl_nt_system_debug_control;
     /* Locale/language */
-    tbl[150-1] = vsl_nt_query_default_locale;
-    tbl[225-1] = vsl_nt_set_default_locale;
+    tbl[21-1] = vsl_nt_query_default_locale;
+    tbl[413-1] = vsl_nt_set_default_locale;
     tbl[151-1] = vsl_nt_query_default_ui_language;
     tbl[226-1] = vsl_nt_set_default_ui_language;
     tbl[165-1] = vsl_nt_query_install_ui_language;
     /* System environment */
-    tbl[180-1] = vsl_nt_query_system_environment_value;
-    tbl[181-1] = vsl_nt_query_system_environment_value_ex;
-    tbl[248-1] = vsl_nt_set_system_environment_value;
-    tbl[249-1] = vsl_nt_set_system_environment_value_ex;
-    tbl[77-1] = vsl_nt_enumerate_system_environment_values_ex;
+    tbl[364-1] = vsl_nt_query_system_environment_value;
+    tbl[365-1] = vsl_nt_query_system_environment_value_ex;
+    tbl[442-1] = vsl_nt_set_system_environment_value;
+    tbl[443-1] = vsl_nt_set_system_environment_value_ex;
+    tbl[232-1] = vsl_nt_enumerate_system_environment_values_ex;
     /* System info/time/power */
-    tbl[250-1] = vsl_nt_set_system_information;
-    tbl[252-1] = vsl_nt_set_system_time;
-    tbl[259-1] = vsl_nt_shutdown_system;
-    tbl[251-1] = vsl_nt_set_system_power_state;
-    tbl[98-1] = vsl_nt_initiate_power_action;
-    tbl[140-1] = vsl_nt_power_information;
-    tbl[91-1] = vsl_nt_get_device_power_state;
+    tbl[444-1] = vsl_nt_set_system_information;
+    tbl[446-1] = vsl_nt_set_system_time;
+    tbl[454-1] = vsl_nt_shutdown_system;
+    tbl[445-1] = vsl_nt_set_system_power_state;
+    tbl[265-1] = vsl_nt_initiate_power_action;
+    tbl[95-1] = vsl_nt_power_information;
+    tbl[253-1] = vsl_nt_get_device_power_state;
     tbl[24-1] = vsl_nt_cancel_device_wakeup_request;
     tbl[207-1] = vsl_nt_request_device_wakeup;
     tbl[210-1] = vsl_nt_request_wakeup_latency;
-    tbl[100-1] = vsl_nt_is_system_resume_automatic;
-    tbl[139-1] = vsl_nt_plug_play_control;
+    tbl[266-1] = vsl_nt_is_system_resume_automatic;
+    tbl[317-1] = vsl_nt_plug_play_control;
     tbl[92-1] = vsl_nt_get_plug_play_event;
-    tbl[48-1] = vsl_nt_create_paging_file;
+    tbl[188-1] = vsl_nt_create_paging_file;
     /* Misc accept-and-succeed with real semantics */
-    tbl[20-1] = vsl_nt_apphelp_cache_control;
-    tbl[23-1] = vsl_nt_callback_return;
-    tbl[35-1] = vsl_nt_continue;
-    tbl[52-1] = vsl_nt_create_profile;
-    tbl[261-1] = vsl_nt_start_profile;
-    tbl[262-1] = vsl_nt_stop_profile;
-    tbl[166-1] = vsl_nt_query_interval_profile;
-    tbl[241-1] = vsl_nt_set_interval_profile;
-    tbl[269-1] = vsl_nt_test_alert;
-    tbl[270-1] = vsl_nt_trace_event;
-    tbl[271-1] = vsl_nt_translate_file_path;
+    tbl[76-1] = vsl_nt_apphelp_cache_control;
+    tbl[5-1] = vsl_nt_callback_return;
+    tbl[67-1] = vsl_nt_continue;
+    tbl[194-1] = vsl_nt_create_profile;
+    tbl[458-1] = vsl_nt_start_profile;
+    tbl[459-1] = vsl_nt_stop_profile;
+    tbl[349-1] = vsl_nt_query_interval_profile;
+    tbl[434-1] = vsl_nt_set_interval_profile;
+    tbl[467-1] = vsl_nt_test_alert;
+    tbl[94-1] = vsl_nt_trace_event;
+    tbl[471-1] = vsl_nt_translate_file_path;
     /* Thread context */
-    tbl[90-1] = vsl_nt_get_context_thread;
-    tbl[222-1] = vsl_nt_set_context_thread;
-    tbl[190-1] = vsl_nt_raise_exception;
-    tbl[191-1] = vsl_nt_raise_hard_error;
-    tbl[224-1] = vsl_nt_set_default_hard_error_port;
+    tbl[250-1] = vsl_nt_get_context_thread;
+    tbl[410-1] = vsl_nt_set_context_thread;
+    tbl[372-1] = vsl_nt_raise_exception;
+    tbl[373-1] = vsl_nt_raise_hard_error;
+    tbl[412-1] = vsl_nt_set_default_hard_error_port;
     /* Event helpers */
-    tbl[230-1] = vsl_nt_set_event_boost_priority;
-    tbl[260-1] = vsl_nt_signal_and_wait_for_single_object;
+    tbl[45-1] = vsl_nt_set_event_boost_priority;
+    tbl[456-1] = vsl_nt_signal_and_wait_for_single_object;
     /* Misc */
-    tbl[295-1] = vsl_nt_get_current_processor_number;
-    tbl[294-1] = vsl_nt_query_port_information_process;
-    tbl[296-1] = vsl_nt_wait_for_multiple_objects32;
-    tbl[189-1] = vsl_nt_queue_apc_thread;
-    tbl[196-1] = vsl_nt_register_thread_terminate_port;
-    tbl[93-1] = vsl_nt_get_write_watch;
-    tbl[212-1] = vsl_nt_reset_write_watch;
-    tbl[112-1] = vsl_nt_map_user_physical_pages;
-    tbl[113-1] = vsl_nt_map_user_physical_pages_scatter;
-    tbl[243-1] = vsl_nt_set_ldt_entries;
+    tbl[251-1] = vsl_nt_get_current_processor_number;
+    tbl[357-1] = vsl_nt_query_port_information_process;
+    tbl[26-1] = vsl_nt_wait_for_multiple_objects32;
+    tbl[69-1] = vsl_nt_queue_apc_thread;
+    tbl[380-1] = vsl_nt_register_thread_terminate_port;
+    tbl[259-1] = vsl_nt_get_write_watch;
+    tbl[392-1] = vsl_nt_reset_write_watch;
+    tbl[285-1] = vsl_nt_map_user_physical_pages;
+    tbl[3-1] = vsl_nt_map_user_physical_pages_scatter;
+    tbl[437-1] = vsl_nt_set_ldt_entries;
     /* Event pairs */
-    tbl[231-1] = vsl_nt_set_high_event_pair;
-    tbl[244-1] = vsl_nt_set_low_event_pair;
-    tbl[232-1] = vsl_nt_set_high_wait_low_event_pair;
-    tbl[245-1] = vsl_nt_set_low_wait_high_event_pair;
-    tbl[284-1] = vsl_nt_wait_low_event_pair;
+    tbl[418-1] = vsl_nt_set_high_event_pair;
+    tbl[438-1] = vsl_nt_set_low_event_pair;
+    tbl[419-1] = vsl_nt_set_high_wait_low_event_pair;
+    tbl[439-1] = vsl_nt_set_low_wait_high_event_pair;
+    tbl[488-1] = vsl_nt_wait_low_event_pair;
     /* EA / quota */
-    tbl[155-1] = vsl_nt_query_ea_file;
-    tbl[228-1] = vsl_nt_set_ea_file;
-    tbl[175-1] = vsl_nt_query_quota_information_file;
-    tbl[246-1] = vsl_nt_set_quota_information_file;
+    tbl[336-1] = vsl_nt_query_ea_file;
+    tbl[416-1] = vsl_nt_set_ea_file;
+    tbl[358-1] = vsl_nt_query_quota_information_file;
+    tbl[440-1] = vsl_nt_set_quota_information_file;
     /* Scatter/gather IO */
-    tbl[193-1] = vsl_nt_read_file_scatter;
-    tbl[286-1] = vsl_nt_write_file_gather;
+    tbl[46-1] = vsl_nt_read_file_scatter;
+    tbl[27-1] = vsl_nt_write_file_gather;
     /* Port/token info */
-    tbl[161-1] = vsl_nt_query_information_port;
+    tbl[343-1] = vsl_nt_query_information_port;
     /* LPC */
-    tbl[204-1] = vsl_nt_reply_wait_receive_port;
-    tbl[205-1] = vsl_nt_reply_wait_receive_port_ex;
-    tbl[206-1] = vsl_nt_reply_wait_reply_port;
+    tbl[11-1] = vsl_nt_reply_wait_receive_port;
+    tbl[43-1] = vsl_nt_reply_wait_receive_port_ex;
+    tbl[389-1] = vsl_nt_reply_wait_reply_port;
     /* 188: NtQueryVolumeInformationFile (5) -- report volume size/free space */
 int64_t vsl_nt_query_volume_information_file(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)a;(void)b;(void)c;(void)d;(void)e;(void)f;
@@ -960,23 +961,23 @@ int64_t vsl_nt_vdm_control(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint6
 }
 
 /* LPC */
-tbl[204-1] = vsl_nt_reply_wait_receive_port;
-tbl[205-1] = vsl_nt_reply_wait_receive_port_ex;
-tbl[206-1] = vsl_nt_reply_wait_reply_port;
-tbl[208-1] = vsl_nt_request_port;
-tbl[194-1] = vsl_nt_read_request_data;
-tbl[287-1] = vsl_nt_write_request_data;
-tbl[219-1] = vsl_nt_secure_connect_port;
+tbl[11-1] = vsl_nt_reply_wait_receive_port;
+tbl[43-1] = vsl_nt_reply_wait_receive_port_ex;
+tbl[389-1] = vsl_nt_reply_wait_reply_port;
+tbl[390-1] = vsl_nt_request_port;
+tbl[84-1] = vsl_nt_read_request_data;
+tbl[87-1] = vsl_nt_write_request_data;
+tbl[404-1] = vsl_nt_secure_connect_port;
 /* Notify change */
-tbl[117-1] = vsl_nt_notify_change_directory_file;
-tbl[118-1] = vsl_nt_notify_change_key;
-tbl[119-1] = vsl_nt_notify_change_multiple_keys;
+tbl[289-1] = vsl_nt_notify_change_directory_file;
+tbl[291-1] = vsl_nt_notify_change_key;
+tbl[292-1] = vsl_nt_notify_change_multiple_keys;
 /* Keyed events */
-tbl[290-1] = vsl_nt_create_keyed_event;
-tbl[291-1] = vsl_nt_open_keyed_event;
-tbl[292-1] = vsl_nt_release_keyed_event;
-tbl[293-1] = vsl_nt_wait_for_keyed_event;
+tbl[183-1] = vsl_nt_create_keyed_event;
+tbl[302-1] = vsl_nt_open_keyed_event;
+tbl[381-1] = vsl_nt_release_keyed_event;
+tbl[485-1] = vsl_nt_wait_for_keyed_event;
 /* Final two */
-tbl[188-1] = vsl_nt_query_volume_information_file;
-tbl[279-1] = vsl_nt_vdm_control;
+tbl[73-1] = vsl_nt_query_volume_information_file;
+tbl[482-1] = vsl_nt_vdm_control;
 }

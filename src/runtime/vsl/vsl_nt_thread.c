@@ -161,10 +161,10 @@ int64_t vsl_nt_yield_execution(uint64_t a, uint64_t b, uint64_t c,
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_thread_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[56-1] = vsl_nt_create_thread;
-    tbl[163-1] = vsl_nt_query_information_thread;
-    tbl[264-1] = vsl_nt_suspend_thread;
-    tbl[268-1] = vsl_nt_terminate_thread;
-    tbl[239-1] = vsl_nt_set_information_thread;
-    tbl[289-1] = vsl_nt_yield_execution;
+    tbl[78-1] = vsl_nt_create_thread;
+    tbl[37-1] = vsl_nt_query_information_thread;
+    tbl[463-1] = vsl_nt_suspend_thread;
+    tbl[83-1] = vsl_nt_terminate_thread;
+    tbl[13-1] = vsl_nt_set_information_thread;
+    tbl[70-1] = vsl_nt_yield_execution;
 }

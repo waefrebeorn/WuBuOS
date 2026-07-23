@@ -193,14 +193,14 @@ int64_t vsl_nt_flush_virtual_memory(uint64_t a_proc, uint64_t b_base,
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_vmem_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[19-1] = vsl_nt_allocate_virtual_memory;
-    tbl[88-1] = vsl_nt_free_virtual_memory;
+    tbl[24-1] = vsl_nt_allocate_virtual_memory;
+    tbl[30-1] = vsl_nt_free_virtual_memory;
     tbl[283-1] = vsl_nt_reset_virtual_memory;
-    tbl[85-1] = vsl_nt_flush_virtual_memory;
-    tbl[109-1] = vsl_nt_lock_virtual_memory;
-    tbl[144-1] = vsl_nt_protect_virtual_memory;
-    tbl[187-1] = vsl_nt_query_virtual_memory;
-    tbl[195-1] = vsl_nt_write_virtual_memory;
-    tbl[277-1] = vsl_nt_unlock_virtual_memory;
-    tbl[288-1] = vsl_nt_read_virtual_memory;
+    tbl[243-1] = vsl_nt_flush_virtual_memory;
+    tbl[278-1] = vsl_nt_lock_virtual_memory;
+    tbl[80-1] = vsl_nt_protect_virtual_memory;
+    tbl[35-1] = vsl_nt_query_virtual_memory;
+    tbl[58-1] = vsl_nt_write_virtual_memory;
+    tbl[478-1] = vsl_nt_unlock_virtual_memory;
+    tbl[63-1] = vsl_nt_read_virtual_memory;
 }

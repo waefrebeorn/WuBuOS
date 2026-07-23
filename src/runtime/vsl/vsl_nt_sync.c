@@ -457,25 +457,25 @@ int64_t vsl_nt_set_timer_resolution(uint64_t a_desired, uint64_t b_set,
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[46-1] = vsl_nt_create_mutant;
-    tbl[54-1] = vsl_nt_create_semaphore;
-    tbl[72-1] = vsl_nt_duplicate_object;
-    tbl[120-1] = vsl_nt_open_directory_object;
-    tbl[127-1] = vsl_nt_open_mutant;
-    tbl[133-1] = vsl_nt_open_semaphore;
-    tbl[135-1] = vsl_nt_open_thread;
-    tbl[162-1] = vsl_nt_query_information_process;
-    tbl[179-1] = vsl_nt_query_symbolic_link_object;
-    tbl[197-1] = vsl_nt_release_mutant;
-    tbl[198-1] = vsl_nt_release_semaphore;
-    tbl[215-1] = vsl_nt_resume_thread;
-    tbl[281-1] = vsl_nt_wait_for_multiple_objects;
-    tbl[282-1] = vsl_nt_wait_for_single_object;
+    tbl[186-1] = vsl_nt_create_mutant;
+    tbl[199-1] = vsl_nt_create_semaphore;
+    tbl[60-1] = vsl_nt_duplicate_object;
+    tbl[88-1] = vsl_nt_open_directory_object;
+    tbl[303-1] = vsl_nt_open_mutant;
+    tbl[310-1] = vsl_nt_open_semaphore;
+    tbl[313-1] = vsl_nt_open_thread;
+    tbl[25-1] = vsl_nt_query_information_process;
+    tbl[363-1] = vsl_nt_query_symbolic_link_object;
+    tbl[32-1] = vsl_nt_release_mutant;
+    tbl[10-1] = vsl_nt_release_semaphore;
+    tbl[82-1] = vsl_nt_resume_thread;
+    tbl[91-1] = vsl_nt_wait_for_multiple_objects;
+    tbl[4-1] = vsl_nt_wait_for_single_object;
     /* Batch 10: sync queries + execution-state hints */
-    tbl[156-1] = vsl_nt_query_event;
-    tbl[170-1] = vsl_nt_query_mutant;
-    tbl[178-1] = vsl_nt_query_semaphore;
-    tbl[237-1] = vsl_nt_set_information_object;
-    tbl[253-1] = vsl_nt_set_thread_execution_state;
-    tbl[255-1] = vsl_nt_set_timer_resolution;
+    tbl[86-1] = vsl_nt_query_event;
+    tbl[354-1] = vsl_nt_query_mutant;
+    tbl[362-1] = vsl_nt_query_semaphore;
+    tbl[92-1] = vsl_nt_set_information_object;
+    tbl[447-1] = vsl_nt_set_thread_execution_state;
+    tbl[450-1] = vsl_nt_set_timer_resolution;
 }

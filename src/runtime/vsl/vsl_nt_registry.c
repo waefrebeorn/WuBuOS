@@ -531,26 +531,26 @@ int64_t vsl_nt_set_information_key(uint64_t a_key, uint64_t b_class,
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[44-1] = vsl_nt_create_key;
-    tbl[67-1] = vsl_nt_delete_key;
-    tbl[76-1] = vsl_nt_enumerate_key;
-    tbl[78-1] = vsl_nt_enumerate_value_key;
-    tbl[126-1] = vsl_nt_open_key;
-    tbl[182-1] = vsl_nt_query_system_information;
-    tbl[183-1] = vsl_nt_query_system_time;
-    tbl[186-1] = vsl_nt_query_value_key;
-    tbl[257-1] = vsl_nt_set_value_key;
-    tbl[84-1] = vsl_nt_flush_key;
-    tbl[103-1] = vsl_nt_load_key;
-    tbl[273-1] = vsl_nt_unload_key;
-    tbl[30-1] = vsl_nt_compact_keys;
-    tbl[97-1] = vsl_nt_initialize_registry;
-    tbl[169-1] = vsl_nt_query_multiple_value_key;
-    tbl[202-1] = vsl_nt_replace_key;
-    tbl[213-1] = vsl_nt_restore_key;
-    tbl[216-1] = vsl_nt_save_key;
-    tbl[69-1] = vsl_nt_delete_value_key;
+    tbl[29-1] = vsl_nt_create_key;
+    tbl[220-1] = vsl_nt_delete_key;
+    tbl[50-1] = vsl_nt_enumerate_key;
+    tbl[19-1] = vsl_nt_enumerate_value_key;
+    tbl[18-1] = vsl_nt_open_key;
+    tbl[54-1] = vsl_nt_query_system_information;
+    tbl[91-1] = vsl_nt_query_system_time;
+    tbl[23-1] = vsl_nt_query_value_key;
+    tbl[96-1] = vsl_nt_set_value_key;
+    tbl[241-1] = vsl_nt_flush_key;
+    tbl[271-1] = vsl_nt_load_key;
+    tbl[474-1] = vsl_nt_unload_key;
+    tbl[158-1] = vsl_nt_compact_keys;
+    tbl[264-1] = vsl_nt_initialize_registry;
+    tbl[353-1] = vsl_nt_query_multiple_value_key;
+    tbl[387-1] = vsl_nt_replace_key;
+    tbl[393-1] = vsl_nt_restore_key;
+    tbl[401-1] = vsl_nt_save_key;
+    tbl[223-1] = vsl_nt_delete_value_key;
     tbl[172-1] = vsl_nt_query_open_subkeys;
-    tbl[168-1] = vsl_nt_query_key;
-    tbl[236-1] = vsl_nt_set_information_key;
+    tbl[22-1] = vsl_nt_query_key;
+    tbl[426-1] = vsl_nt_set_information_key;
 }

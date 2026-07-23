@@ -1,4 +1,5 @@
 #include "vsl_nt_internal.h"
+#include "vsl_nt_ordinal_translate.h"
 
 /* vsl_nt_job.c -- NT transliteration Batch 2: job objects.
  * Real VSL/Linux work; part of the E1 NT-bridge decomposition of vsl_syscall_nt.c.
@@ -215,14 +216,14 @@ int64_t vsl_nt_set_information_job_object(uint64_t a_job_id, uint64_t b_class,
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_job_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[14-1] = vsl_nt_alert_resume_thread;
+    tbl[111-1] = vsl_nt_alert_resume_thread;
     tbl[21-1] = vsl_nt_are_mapped_files_same;
-    tbl[42-1] = vsl_nt_create_job_object;
-    tbl[99-1] = vsl_nt_is_process_in_job;
-    tbl[125-1] = vsl_nt_open_job_object;
-    tbl[266-1] = vsl_nt_terminate_job_object;
+    tbl[180-1] = vsl_nt_create_job_object;
+    tbl[79-1] = vsl_nt_is_process_in_job;
+    tbl[298-1] = vsl_nt_open_job_object;
+    tbl[466-1] = vsl_nt_terminate_job_object;
     /* Batch 11 (finish in-flight job work) */
-    tbl[43-1]  = vsl_nt_create_job_set;
-    tbl[160-1] = vsl_nt_query_information_job_object;
-    tbl[235-1] = vsl_nt_set_information_job_object;
+    tbl[181-1] = vsl_nt_create_job_set;
+    tbl[342-1] = vsl_nt_query_information_job_object;
+    tbl[425-1] = vsl_nt_set_information_job_object;
 }

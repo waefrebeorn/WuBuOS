@@ -73,8 +73,8 @@ int64_t vsl_nt_open_timer(uint64_t a_out, uint64_t b_access,
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_timer_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[26-1] = vsl_nt_cancel_timer;
-    tbl[57-1] = vsl_nt_create_timer;
-    tbl[138-1] = vsl_nt_open_timer;
-    tbl[254-1] = vsl_nt_set_timer;
+    tbl[97-1] = vsl_nt_cancel_timer;
+    tbl[203-1] = vsl_nt_create_timer;
+    tbl[314-1] = vsl_nt_open_timer;
+    tbl[98-1] = vsl_nt_set_timer;
 }

@@ -184,11 +184,11 @@ int64_t vsl_nt_resume_process(uint64_t a_proc, uint64_t b, uint64_t c,
 /* Register this module's NT handlers into the global dispatch table. */
 void vsl_nt_process_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[50-1] = vsl_nt_create_process;
-    tbl[51-1] = vsl_nt_create_process_ex;
-    tbl[129-1] = vsl_nt_open_process;
-    tbl[267-1] = vsl_nt_terminate_process;
-    tbl[238-1] = vsl_nt_set_information_process;
-    tbl[214-1] = vsl_nt_resume_process;
-    tbl[263-1] = vsl_nt_suspend_process;
+    tbl[192-1] = vsl_nt_create_process;
+    tbl[77-1] = vsl_nt_create_process_ex;
+    tbl[38-1] = vsl_nt_open_process;
+    tbl[44-1] = vsl_nt_terminate_process;
+    tbl[28-1] = vsl_nt_set_information_process;
+    tbl[394-1] = vsl_nt_resume_process;
+    tbl[462-1] = vsl_nt_suspend_process;
 }

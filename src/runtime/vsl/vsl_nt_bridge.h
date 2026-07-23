@@ -24,6 +24,8 @@
 #define NT_STATUS_INVALID_PARAMETER      0xC000000D
 #define NT_STATUS_NO_MEMORY              0xC0000017
 #define NT_STATUS_OBJECT_NAME_NOT_FOUND  0xC0000034
+#define NT_STATUS_INSUFFICIENT_RESOURCES 0xC000009A
+#define NT_STATUS_NOT_SAME_DEVICE        0xC00000D4
 #define NT_STATUS_OBJECT_NAME_COLLISION  0xC0000035
 #define NT_STATUS_FILE_NOT_FOUND         0xC000000F
 #define NT_STATUS_NO_SUCH_FILE           0xC000000F
@@ -458,6 +460,9 @@ typedef struct {
     struct {
         /* IRP tracking */
     } io;
+
+    /* WNF (Windows Notification Facility) */
+    uint32_t wnf_notify_event;
     
 } vsl_nt_bridge_ctx_t;
 

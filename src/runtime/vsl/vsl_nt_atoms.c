@@ -1,4 +1,5 @@
 #include "vsl_nt_internal.h"
+#include "vsl_nt_ordinal_translate.h"
 
 /* Shared atom-name lookup used by add/find/delete/query. */
 static uint32_t nt_atom_lookup(const char *name) {
@@ -279,18 +280,18 @@ int64_t vsl_nt_set_uuid_seed(uint64_t a_seed, uint64_t b,
 /* Register this batch's NT handlers into the global dispatch table. */
 void vsl_nt_atoms_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[9-1] = vsl_nt_add_atom;
-    tbl[15-1] = vsl_nt_alert_thread;
-    tbl[16-1] = vsl_nt_allocate_luid;
-    tbl[17-1] = vsl_nt_alloc_user_phys_pages;
-    tbl[18-1] = vsl_nt_allocate_uuids;
+    tbl[71-1] = vsl_nt_add_atom;
+    tbl[112-1] = vsl_nt_alert_thread;
+    tbl[101-1] = vsl_nt_allocate_luid;
+    tbl[102-1] = vsl_nt_alloc_user_phys_pages;
+    tbl[119-1] = vsl_nt_allocate_uuids;
     tbl[22-1] = vsl_nt_assign_job;
-    tbl[25-1] = vsl_nt_cancel_io_file;
-    tbl[27-1] = vsl_nt_clear_event;
-    tbl[63-1] = vsl_nt_delete_atom;
-    tbl[81-1] = vsl_nt_find_atom;
-    tbl[86-1] = vsl_nt_flush_write_buffer;
+    tbl[93-1] = vsl_nt_cancel_io_file;
+    tbl[62-1] = vsl_nt_clear_event;
+    tbl[216-1] = vsl_nt_delete_atom;
+    tbl[20-1] = vsl_nt_find_atom;
+    tbl[244-1] = vsl_nt_flush_write_buffer;
     tbl[87-1] = vsl_nt_free_user_phys_pages;
-    tbl[158-1] = vsl_nt_query_information_atom;
-    tbl[256-1] = vsl_nt_set_uuid_seed;
+    tbl[338-1] = vsl_nt_query_information_atom;
+    tbl[451-1] = vsl_nt_set_uuid_seed;
 }

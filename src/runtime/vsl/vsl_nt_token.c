@@ -17,6 +17,7 @@
  */
 
 #include "vsl_nt_internal.h"
+#include "vsl_nt_ordinal_translate.h"
 
 /* ------------------------------------------------------------------ */
 /* Token table helpers                                                 */
@@ -532,37 +533,37 @@ int64_t vsl_nt_set_security_object(uint64_t a_h, uint64_t b,
 void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     /* Access check family (2..8) */
-    tbl[2-1]  = vsl_nt_access_check;
-    tbl[3-1]  = vsl_nt_access_check_and_audit;
-    tbl[4-1]  = vsl_nt_access_check_by_type;
-    tbl[5-1]  = vsl_nt_access_check_and_audit;       /* ByTypeAndAuditAlarm */
-    tbl[6-1]  = vsl_nt_access_check_by_type;         /* ByTypeResultList */
-    tbl[7-1]  = vsl_nt_access_check_and_audit;       /* ByTypeResultListAndAuditAlarm */
-    tbl[8-1]  = vsl_nt_access_check_and_audit;       /* ByTypeResultListAndAuditAlarmByHandle */
+    tbl[0-1] = vsl_nt_access_check;
+    tbl[302-1] = vsl_nt_access_check_and_audit;
+    tbl[99-1] = vsl_nt_access_check_by_type;
+    tbl[26-1] = vsl_nt_access_check_and_audit;       /* ByTypeAndAuditAlarm */
+    tbl[99-1] = vsl_nt_access_check_by_type;         /* ByTypeResultList */
+    tbl[98-1] = vsl_nt_access_check_and_audit;       /* ByTypeResultListAndAuditAlarm */
+    tbl[78-1] = vsl_nt_access_check_and_audit;       /* ByTypeResultListAndAuditAlarmByHandle */
     /* Token lifecycle (12/13/29/31/58/68/73/80/94/95/96/128/130/131/136/137/141/142/143/164/177/223/240/247) */
-    tbl[12-1] = vsl_nt_adjust_groups_token;
-    tbl[13-1] = vsl_nt_adjust_privileges_token;
+    tbl[108-1] = vsl_nt_adjust_groups_token;
+    tbl[65-1] = vsl_nt_adjust_privileges_token;
     tbl[29-1] = vsl_nt_audit_alarm;                  /* CloseObjectAuditAlarm */
-    tbl[31-1] = vsl_nt_compare_tokens;
-    tbl[58-1] = vsl_nt_create_token;
+    tbl[161-1] = vsl_nt_compare_tokens;
+    tbl[205-1] = vsl_nt_create_token;
     tbl[68-1] = vsl_nt_audit_alarm;                  /* DeleteObjectAuditAlarm */
-    tbl[73-1] = vsl_nt_duplicate_token;
-    tbl[80-1] = vsl_nt_filter_token;
-    tbl[94-1] = vsl_nt_impersonate_anonymous_token;
-    tbl[95-1] = vsl_nt_impersonate_client_of_port;
-    tbl[96-1] = vsl_nt_impersonate_thread;
+    tbl[66-1] = vsl_nt_duplicate_token;
+    tbl[236-1] = vsl_nt_filter_token;
+    tbl[260-1] = vsl_nt_impersonate_anonymous_token;
+    tbl[31-1] = vsl_nt_impersonate_client_of_port;
+    tbl[261-1] = vsl_nt_impersonate_thread;
     tbl[128-1] = vsl_nt_audit_alarm;                /* OpenObjectAuditAlarm */
-    tbl[130-1] = vsl_nt_open_process_token;
-    tbl[131-1] = vsl_nt_open_process_token;         /* OpenProcessTokenEx */
-    tbl[136-1] = vsl_nt_open_thread_token;
-    tbl[137-1] = vsl_nt_open_thread_token;          /* OpenThreadTokenEx */
-    tbl[141-1] = vsl_nt_privilege_check;
+    tbl[307-1] = vsl_nt_open_process_token;
+    tbl[307-1] = vsl_nt_open_process_token;         /* OpenProcessTokenEx */
+    tbl[36-1] = vsl_nt_open_thread_token;
+    tbl[36-1] = vsl_nt_open_thread_token;          /* OpenThreadTokenEx */
+    tbl[322-1] = vsl_nt_privilege_check;
     tbl[142-1] = vsl_nt_audit_alarm;                /* PrivilegeObjectAuditAlarm */
     tbl[143-1] = vsl_nt_audit_alarm;                /* PrivilegedServiceAuditAlarm */
-    tbl[240-1] = vsl_nt_set_information_token;
-    tbl[247-1] = vsl_nt_set_security_object;
-    tbl[164-1] = vsl_nt_query_information_token;
-    tbl[177-1] = vsl_nt_query_security_object;
+    tbl[429-1] = vsl_nt_set_information_token;
+    tbl[441-1] = vsl_nt_set_security_object;
+    tbl[33-1] = vsl_nt_query_information_token;
+    tbl[360-1] = vsl_nt_query_security_object;
 }
 
 /* End of vsl_nt_token.c */

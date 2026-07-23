@@ -508,6 +508,9 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o \
 	$(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o \
 	$(RT)/vsl/vsl_nt_registry.o $(RT)/vsl/vsl_nt_token.o $(RT)/vsl/vsl_nt_misc.o $(RT)/vsl/vsl_syscall_proc.o \
+	$(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_partition.o \
+	$(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_worker.o $(RT)/vsl/vsl_nt_ktm.o \
+	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_misc_w11.o \
 	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o \
 	$(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o \
 	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o \

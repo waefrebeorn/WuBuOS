@@ -1,4 +1,5 @@
 #include "vsl_nt_internal.h"
+#include "vsl_nt_ordinal_translate.h"
 
 /* vsl_nt_io.c -- NT transliteration Batch 3: file I/O + events + delay.
  * Real VSL/Linux work; part of the E1 NT-bridge decomposition of vsl_syscall_nt.c.
@@ -914,59 +915,59 @@ int64_t vsl_nt_reply_port(uint64_t a_port, uint64_t b_msg,
 
 void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
-    tbl[28-1] = vsl_nt_close;
-    tbl[38-1] = vsl_nt_create_event;
+    tbl[15-1] = vsl_nt_close;
+    tbl[72-1] = vsl_nt_create_event;
     tbl[40-1] = vsl_nt_create_file_nt;
-    tbl[62-1] = vsl_nt_delay_execution;
-    tbl[82-1] = vsl_nt_flush_buffers_file;
-    tbl[121-1] = vsl_nt_open_event;
-    tbl[123-1] = vsl_nt_open_file;
-    tbl[145-1] = vsl_nt_pulse_event;
-    tbl[159-1] = vsl_nt_query_information_file;
-    tbl[184-1] = vsl_nt_query_volume_information_file;
-    tbl[192-1] = vsl_nt_read_file;
-    tbl[209-1] = vsl_nt_reset_event;
-    tbl[229-1] = vsl_nt_set_event;
-    tbl[234-1] = vsl_nt_set_information_file;
-    tbl[258-1] = vsl_nt_set_volume_information_file;
-    tbl[278-1] = vsl_nt_unmap_view_of_section;
-    tbl[285-1] = vsl_nt_write_file;
-    tbl[66-1] = vsl_nt_delete_file;
-    tbl[146-1] = vsl_nt_query_attributes_file;
-    tbl[157-1] = vsl_nt_query_full_attributes_file;
-    tbl[152-1] = vsl_nt_query_directory_file;
-    tbl[71-1] = vsl_nt_display_string;
-    tbl[83-1] = vsl_nt_flush_instruction_cache;
-    tbl[106-1] = vsl_nt_lock_file;
-    tbl[276-1] = vsl_nt_unlock_file;
+    tbl[52-1] = vsl_nt_delay_execution;
+    tbl[75-1] = vsl_nt_flush_buffers_file;
+    tbl[64-1] = vsl_nt_open_event;
+    tbl[51-1] = vsl_nt_open_file;
+    tbl[328-1] = vsl_nt_pulse_event;
+    tbl[17-1] = vsl_nt_query_information_file;
+    tbl[73-1] = vsl_nt_query_volume_information_file;
+    tbl[6-1] = vsl_nt_read_file;
+    tbl[391-1] = vsl_nt_reset_event;
+    tbl[14-1] = vsl_nt_set_event;
+    tbl[39-1] = vsl_nt_set_information_file;
+    tbl[452-1] = vsl_nt_set_volume_information_file;
+    tbl[42-1] = vsl_nt_unmap_view_of_section;
+    tbl[8-1] = vsl_nt_write_file;
+    tbl[219-1] = vsl_nt_delete_file;
+    tbl[61-1] = vsl_nt_query_attributes_file;
+    tbl[337-1] = vsl_nt_query_full_attributes_file;
+    tbl[53-1] = vsl_nt_query_directory_file;
+    tbl[227-1] = vsl_nt_display_string;
+    tbl[240-1] = vsl_nt_flush_instruction_cache;
+    tbl[275-1] = vsl_nt_lock_file;
+    tbl[477-1] = vsl_nt_unlock_file;
     /* Batch 9: object manager + perf */
-    tbl[37-1] = vsl_nt_create_directory_object;
-    tbl[153-1] = vsl_nt_query_directory_object;
-    tbl[111-1] = vsl_nt_make_temporary_object;
-    tbl[171-1] = vsl_nt_query_object;
-    tbl[174-1] = vsl_nt_query_performance_counter;
-    tbl[185-1] = vsl_nt_query_timer_resolution;
+    tbl[172-1] = vsl_nt_create_directory_object;
+    tbl[334-1] = vsl_nt_query_directory_object;
+    tbl[280-1] = vsl_nt_make_temporary_object;
+    tbl[16-1] = vsl_nt_query_object;
+    tbl[49-1] = vsl_nt_query_performance_counter;
+    tbl[367-1] = vsl_nt_query_timer_resolution;
     /* Batch 11: IO completion, symbolic link, event pair, pipes, LPC ports */
-    tbl[41-1]  = vsl_nt_create_io_completion;
-    tbl[124-1] = vsl_nt_open_io_completion;
-    tbl[167-1] = vsl_nt_query_io_completion;
-    tbl[242-1] = vsl_nt_set_io_completion;
-    tbl[199-1] = vsl_nt_remove_io_completion;
-    tbl[55-1]  = vsl_nt_create_symbolic_link_object;
-    tbl[134-1] = vsl_nt_open_symbolic_link_object;
-    tbl[39-1]  = vsl_nt_create_event_pair;
-    tbl[122-1] = vsl_nt_open_event_pair;
-    tbl[47-1]  = vsl_nt_create_named_pipe_file;
-    tbl[45-1]  = vsl_nt_create_mailslot_file;
-    tbl[70-1]  = vsl_nt_device_io_control_file;
-    tbl[89-1]  = vsl_nt_fs_control_file;
-    tbl[59-1]  = vsl_nt_create_waitable_port;
-    tbl[49-1]  = vsl_nt_create_port;
-    tbl[34-1]  = vsl_nt_connect_port;
-    tbl[101-1] = vsl_nt_listen_port;
-    tbl[1-1]   = vsl_nt_accept_connect_port;
-    tbl[32-1]  = vsl_nt_complete_connect_port;
-    tbl[203-1] = vsl_nt_reply_port;
-    tbl[209-1] = vsl_nt_request_wait_reply_port;
-    tbl[211-1] = vsl_nt_reset_event;
+    tbl[178-1] = vsl_nt_create_io_completion;
+    tbl[297-1] = vsl_nt_open_io_completion;
+    tbl[350-1] = vsl_nt_query_io_completion;
+    tbl[435-1] = vsl_nt_set_io_completion;
+    tbl[9-1] = vsl_nt_remove_io_completion;
+    tbl[200-1] = vsl_nt_create_symbolic_link_object;
+    tbl[312-1] = vsl_nt_open_symbolic_link_object;
+    tbl[176-1] = vsl_nt_create_event_pair;
+    tbl[296-1] = vsl_nt_open_event_pair;
+    tbl[187-1] = vsl_nt_create_named_pipe_file;
+    tbl[185-1] = vsl_nt_create_mailslot_file;
+    tbl[7-1] = vsl_nt_device_io_control_file;
+    tbl[57-1] = vsl_nt_fs_control_file;
+    tbl[211-1] = vsl_nt_create_waitable_port;
+    tbl[190-1] = vsl_nt_create_port;
+    tbl[164-1] = vsl_nt_connect_port;
+    tbl[268-1] = vsl_nt_listen_port;
+    tbl[2-1] = vsl_nt_accept_connect_port;
+    tbl[162-1] = vsl_nt_complete_connect_port;
+    tbl[12-1] = vsl_nt_reply_port;
+    tbl[34-1] = vsl_nt_request_wait_reply_port;
+    tbl[391-1] = vsl_nt_reset_event;
 }
