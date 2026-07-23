@@ -925,7 +925,7 @@ void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[159-1] = vsl_nt_query_information_file;
     tbl[184-1] = vsl_nt_query_volume_information_file;
     tbl[192-1] = vsl_nt_read_file;
-    tbl[209-1] = vsl_nt_reset_event;
+    tbl[211-1] = vsl_nt_reset_event;
     tbl[229-1] = vsl_nt_set_event;
     tbl[234-1] = vsl_nt_set_information_file;
     tbl[258-1] = vsl_nt_set_volume_information_file;
