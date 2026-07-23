@@ -959,10 +959,7 @@ int64_t vsl_nt_vdm_control(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint6
     return NT_STATUS_SUCCESS;
 }
 
-/* LPC */
-tbl[204-1] = vsl_nt_reply_wait_receive_port;
-tbl[205-1] = vsl_nt_reply_wait_receive_port_ex;
-tbl[206-1] = vsl_nt_reply_wait_reply_port;
+/* LPC (canonical ReactOS ordinals; registered once above at 204/205/206) */
 tbl[208-1] = vsl_nt_request_port;
 tbl[194-1] = vsl_nt_read_request_data;
 tbl[287-1] = vsl_nt_write_request_data;
