@@ -1,6 +1,55 @@
-# WuBuOS Slate — Active Work Surface (v26)
+# WuBuOS Slate — Active Work Surface (v30 — 2026-07-23)
 
-## Current Focus: **TRIPLE-DA AUDIT DONE — ~400 REAL_GAPs RECLASSIFIED (40 code + 370 parity)**
+## Current State: Devil's-Advocate prestige update done; gate GREEN
+
+**Phase**: Perpetual gap-closer loop. Execute, don't plan.
+**Baseline**: `make clean && make runtime && make hosted && make test` exit 0.
+**Repo**: `/home/wubu/.hermes/profiles/mind-palace/home/myseed/`
+**Last commits**: `4357a05` (recover session: fix era-apps JIT SIGSEGV + Win32
+seccomp + 2 VSL personalities), then `HEAD` (prestige update below).
+**Test targets**: 91 (verified 2026-07-19).
+
+## This Session (2026-07-23) — Devil's-Advocate Prestige Update
+
+Recovered-from-crash work committed + pushed (`4357a05`). This session adds the
+prestige maintenance layer:
+
+1. **DA review of daemon→desktop integration** against SteamOS / Ubuntu / Arch /
+   TempleOS — read ACTUAL code (`dosgui_service_mgr.c`, `wubu_archd_svc.c`,
+   `wubu_dos_proc.c`, `dosgui_wm_holyc_term.c`, `dosgui_era_apps.c`), not handoffs.
+   Full Triple-DA → `skills/software-development/wubuos-battleship-gaps/references/devils-advocate-prestige-daemon-desktop-2026-07-23.md`.
+
+2. **Gaps fixed + committed (`4357a05`)**: HolyC JIT `call 0` SIGSEGV (G1),
+   `wubu_ct_start` `execv`-ignored-env Wine SIGSYS (G2), CP/M + Classic Mac VSL
+   personalities unwired (G3), `hosted` link broken (G4).
+
+3. **NEW gaps surfaced (N1–N8) → BATTLESHIP.md.** Headline **N1 (security)**:
+   `wubu_archd_svc_*` + `health_check` use `popen("arch-chroot %s systemctl %s")`
+   — shell-injection vector the 2026-07-08 `system()` purge MISSED, and a no-op
+   without an Arch root. N2 (no real supervisor), N3 (no D-Bus/service bus —
+   leverage the project's OWN Styx/9P namespace as `/n/services/*`), N4 (silent
+   boot failures), N5 (no per-user scope), N6/N7 (no persistent `WubuTempleSession`
+   uniting holyd+dos_proc+FS; REPL↔DOS disjoint — lean INTO TempleOS's monolithic
+   ring-0 model, don't clone systemd), N8 (no health heartbeat).
+
+4. **Resolution (angel-coder)**: WuBuOS should NOT clone systemd. Its leverage is
+   the Styx/9P namespace as the integration bus (architecture: "ONE Styx namespace
+   instead of a pile of bespoke daemons"). N2/N3 → model `WubuUnit`, publish under
+   `/n/services/*`, desktop watches it. N6/N7 → model `WubuTempleSession`
+   (in-process, TempleOS-faithful). N1 is a security MUST-FIX first.
+
+## Architecture Status (verified)
+- Hosted binary: `make runtime` + `make hosted` clean.
+- `make test` ALL PASSED; `test_era_apps` / `test_vsl_cpm` / `test_vsl_macclassic` ALL PASSED.
+- VSL personalities: Linux/pOSIX, macOS/XNU (0xFF), CP/M BDOS (0xC0), Classic Mac
+  68K (0xB0), ReactOS NT (0xFF→NT), DOS INT 21h (separate in-process 8086, by design).
+- Daemon integration: `wubu_archd` wired as Desktop service mgr (E3, real) BUT svc
+  ops are `popen` shell-outs (N1) → no-op without Arch root. `wubu_holyd` wired as
+  HolyC terminal window (real, E4). `wubu_dos_proc` reachable via era-apps + dos window.
+
+---
+
+
 **Mode**: Perpetual gap-closer loop — execute until ~400 → 0.
 **Constraint**: "Rewriting from scratch in C" = closing a gap. No stubs, no scaffolding, no "for later".
 
