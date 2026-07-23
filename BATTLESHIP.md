@@ -15,7 +15,31 @@
 ╚════════════════════════════════════════════════════════════════════════╝
 ```
 
-> **CRITICAL HONESTY CORRECTION (2026-07-08):** the prior v21 "~400 sprint gaps"
+> **DEVIL'S-ADVOCATE PRESTIGE UPDATE (2026-07-23):** daemon→desktop integration
+> reviewed against SteamOS / Ubuntu / Arch / TempleOS. Full Triple-DA in
+> `skills/software-development/wubuos-battleship-gaps/references/devils-advocate-prestige-daemon-desktop-2026-07-23.md`.
+> New gaps surfaced (verified by reading actual code, not handoff text):
+> - **N1 (🔴 SECURITY)** `wubu_archd_svc_*` + `health_check` use
+>   `popen("arch-chroot %s systemctl %s")` — shell-injection vector AND no-op
+>   without an Arch root. The 2026-07-08 `system()` purge missed `popen`.
+> - **N2 (🔴)** No real service supervisor — `wubu_archd` only wraps external
+>   `systemctl`; no in-WuBuOS unit model (deps/restart/stdout capture).
+> - **N3 (🟠)** No D-Bus / service bus → desktop can't discover late/restarted
+>   daemons. Leverage the project's OWN Styx/9P namespace as the bus
+>   (`/n/services/*`) instead of importing D-Bus.
+> - **N4 (🟠)** `dosgui_service_mgr_boot()` failures silent (no tray/toast/retry).
+> - **N5 (🟡)** No per-user (`systemd --user`) scope.
+> - **N6 (🟡)** No persistent "TempleOS DOS daemon" lifecycle object uniting
+>   `wubu_holyd` + `wubu_dos_proc` + FS. TempleOS is monolithic ring-0 — WuBuOS
+>   should model `WubuTempleSession` (in-process), NOT imitate systemd.
+> - **N7 (🟡)** HolyC REPL ↔ DOS window disjoint (no cross-spawn/inspect).
+> - **N8 (🟡)** Daemon health not polled by desktop (no heartbeat).
+> Also fixed+committed this session (see reference §A): HolyC JIT `call 0`
+> SIGSEGV (G1), `wubu_ct_start` `execv`-ignored-env Wine SIGSYS (G2), CP/M +
+> Classic Mac VSL personalities unwired (G3), `hosted` link broken (G4).
+> All verified GREEN via `make clean && make runtime && make hosted && make test`.
+
+
 > was **NOT reproducible**. The canonical scanner was broken (SyntaxError + sweeping
 > vendored `reference/` libs for 2329 false hits). The fixed `find_real_gaps.py src`
 > reports **0 empty bodies and 0 const-only-no-syscall gaps in `src/`** — the
