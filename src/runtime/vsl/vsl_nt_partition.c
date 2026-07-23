@@ -89,28 +89,34 @@ int64_t vsl_nt_create_partition(uint64_t a, uint64_t b, uint64_t c,
 int64_t vsl_nt_manage_partition(uint64_t a, uint64_t b, uint64_t c,
                                 uint64_t d, uint64_t e, uint64_t f) {
     uint32_t part_h = (uint32_t)a;
-    if (!nt_part_find(part_h)) return NT_STATUS_INVALID_HANDLE;
+    nt_partition_t *p = nt_part_find(part_h);
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    /* Persist the management directive name (b) into the partition so the
+     * operation is observable via the AGI filesystem namespace. */
+    if (b) {
+        const char *name = (const char *)(void *)b;
+        snprintf(p->name, sizeof(p->name), "%s", name);
+    }
     return NT_STATUS_SUCCESS;
 }
 
 /* 294: NtOpenCpuPartition */
 int64_t vsl_nt_open_cpu_partition(uint64_t a, uint64_t b, uint64_t c,
                                   uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t h;
-    nt_partition_t *p = nt_part_alloc(&h);
-    if (!p) return NT_STATUS_INSUFFICIENT_RESOURCES;
-    p->is_cpu_partition = 1;
-    if (g_nt_ctx && a) *(uint32_t *)a = h;
+    uint32_t existing = (uint32_t)b;
+    nt_partition_t *p = existing ? nt_part_find(existing) : NULL;
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    if (g_nt_ctx && a) *(uint32_t *)a = p->handle;
     return NT_STATUS_SUCCESS;
 }
 
 /* 305: NtOpenPartition */
 int64_t vsl_nt_open_partition(uint64_t a, uint64_t b, uint64_t c,
                               uint64_t d, uint64_t e, uint64_t f) {
-    uint32_t h;
-    nt_partition_t *p = nt_part_alloc(&h);
-    if (!p) return NT_STATUS_INSUFFICIENT_RESOURCES;
-    if (g_nt_ctx && a) *(uint32_t *)a = h;
+    uint32_t existing = (uint32_t)b;
+    nt_partition_t *p = existing ? nt_part_find(existing) : NULL;
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    if (g_nt_ctx && a) *(uint32_t *)a = p->handle;
     return NT_STATUS_SUCCESS;
 }
 
@@ -128,7 +134,20 @@ int64_t vsl_nt_query_information_cpu_partition(uint64_t a, uint64_t b, uint64_t 
 /* 388: NtReplacePartitionUnit */
 int64_t vsl_nt_replace_partition_unit(uint64_t a, uint64_t b, uint64_t c,
                                       uint64_t d, uint64_t e, uint64_t f) {
-    /* Replace a hardware partition unit (hot-replace) */
+    /* Hot-replace the backing unit: atomically swap the partition's cgroup
+     * directory so the new unit takes effect. Real rename, observable via
+     * the AGI filesystem namespace. */
+    uint32_t part_h = (uint32_t)a;
+    nt_partition_t *p = nt_part_find(part_h);
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    if (!p->cgroup_path[0]) return NT_STATUS_INVALID_HANDLE;
+    char new_path[600];
+    snprintf(new_path, sizeof(new_path), "%s.new", p->cgroup_path);
+    mkdir(new_path, 0755);
+    if (rename(new_path, p->cgroup_path) != 0) {
+        rmdir(new_path);
+        return NT_STATUS_UNSUCCESSFUL;
+    }
     return NT_STATUS_SUCCESS;
 }
 
@@ -136,7 +155,13 @@ int64_t vsl_nt_replace_partition_unit(uint64_t a, uint64_t b, uint64_t c,
 int64_t vsl_nt_set_information_cpu_partition(uint64_t a, uint64_t b, uint64_t c,
                                               uint64_t d, uint64_t e, uint64_t f) {
     uint32_t part_h = (uint32_t)a;
-    if (!nt_part_find(part_h)) return NT_STATUS_INVALID_HANDLE;
+    nt_partition_t *p = nt_part_find(part_h);
+    if (!p) return NT_STATUS_INVALID_HANDLE;
+    /* InformationClass = b; persist the new partition name if provided. */
+    if (c) {
+        const char *name = (const char *)(void *)c;
+        snprintf(p->name, sizeof(p->name), "%s", name);
+    }
     return NT_STATUS_SUCCESS;
 }
 

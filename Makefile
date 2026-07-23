@@ -520,7 +520,28 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
 	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o
 
-# Same incremental-linking fix as test_vsl_nt: build each .o via the pattern
+# Behavioral regression test for the NT 6.1/W11 extension personalities.
+# Uses the engine objects but its own main() (excludes the canonical nt test .o).
+VSL_NT_EXT_OBJS = \
+	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o \
+	$(RT)/vsl/vsl_syscall_mac.o $(RT)/vsl/vsl_syscall_mac_bsd.o $(RT)/vsl/vsl_syscall_mac_mach.o \
+	$(RT)/vsl/vsl_nt_atoms.o $(RT)/vsl/vsl_nt_job.o $(RT)/vsl/vsl_nt_io.o \
+	$(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o \
+	$(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o \
+	$(RT)/vsl/vsl_nt_registry.o $(RT)/vsl/vsl_nt_token.o $(RT)/vsl/vsl_nt_misc.o $(RT)/vsl/vsl_syscall_proc.o \
+	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o \
+	$(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o \
+	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o \
+	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o \
+	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
+	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
+	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o
+
+test_vsl_nt_ext: $(VSL_NT_EXT_OBJS)
+	$(CC) -O0 -g -D_GNU_SOURCE -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
+		$(VSL_NT_EXT_OBJS) \
+		-o $(RT)/wubu_vsl_nt_ext_test -ldl -lvulkan -lcuda
+	$(RT)/wubu_vsl_nt_ext_test
 # rules so a one-file edit recompiles only that file (seconds, not minutes).
 VSL_OBJS = \
 	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_proc.o \
