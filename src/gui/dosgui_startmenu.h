@@ -101,6 +101,11 @@ typedef struct {
     uint64_t last_run;
     int run_count;
     bool is_builtin;
+    /* VSL syscall personality this app exercises (0 = native/Linux,
+     * 0xC0 = CP/M BDOS, 0xB0 = Classic Mac 68K, 0xFF = macOS XNU,
+     * 0xNT = ReactOS NT). Lets the desktop group "one rep app per era"
+     * and prove each personality is reachable from the shell. */
+    uint32_t vsl_personality;
 } SmProgramEntry;
 
 typedef struct {

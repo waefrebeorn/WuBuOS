@@ -42,7 +42,7 @@ HOSTED_OBJS_LIST = $(HOSTED)/wubu_gbm.o $(HOSTED)/wubu_vulkan_loader.o $(HOSTED)
 JIT_OBJS = $(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_minic.o $(JIT)/jit_minic_token.o
 
 # ── GUI Objects ──────────────────────────────────────────────────
-GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.o $(GUI)/wubu_session.o $(GUI)/wubu_session_autostart.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_clipboard_wl.o $(GUI)/wubu_clipboard_mime.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_screenshot_draw.o $(GUI)/wubu_screenshot_png.o $(GUI)/wubu_wayland_stub.o $(GUI)/wubu_mime.o $(GUI)/wubu_mime_desktop.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_ui.o $(GUI)/wubu_ui_hosted.o $(GUI)/wubu_proton_util.o $(RT)/wubu_fs_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wm.o $(GUI)/wubu_wm_desktop.o $(GUI)/wubu_wm_input.o $(GUI)/wubu_wm_render.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_startmenu_db.o $(GUI)/dosgui_startmenu_search.o $(GUI)/dosgui_startmenu_tree.o $(GUI)/dosgui_startmenu_power.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_explorer_input.o $(GUI)/dosgui_explorer_ops.o $(GUI)/dosgui_explorer_info.o $(GUI)/dosgui_explorer_format.o $(GUI)/dosgui_explorer_drives.o $(GUI)/dosgui_explorer_tree.o $(GUI)/dosgui_explorer_preview.o $(GUI)/dosgui_explorer_render.o $(GUI)/dosgui_explorer_fs.o $(GUI)/dosgui_explorer_fsops.o $(GUI)/dosgui_term.o $(GUI)/dosgui_term_tabs.o $(GUI)/dosgui_term_render.o $(GUI)/dosgui_term_ansi.o $(GUI)/dosgui_term_pty.o $(GUI)/dosgui_daemon_panel.o $(GUI)/dosgui_service_mgr.o $(GUI)/dosgui_dos_window.o $(GUI)/dosgui_window_chrome.o
+GUI_OBJS = $(GUI)/gui_dbuf.o $(GUI)/wubu_theme.o $(GUI)/wubu_settings.o $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.o $(GUI)/wubu_session.o $(GUI)/wubu_session_autostart.o $(GUI)/wubu_notify.o $(GUI)/wubu_clipboard.o $(GUI)/wubu_clipboard_wl.o $(GUI)/wubu_clipboard_mime.o $(GUI)/wubu_screenshot.o $(GUI)/wubu_screenshot_draw.o $(GUI)/wubu_screenshot_png.o $(GUI)/wubu_wayland_stub.o $(GUI)/wubu_mime.o $(GUI)/wubu_mime_desktop.o $(GUI)/wubu_trash.o $(GUI)/wubu_proton.o $(GUI)/wubu_ui.o $(GUI)/wubu_ui_hosted.o $(GUI)/wubu_proton_util.o $(RT)/wubu_fs_util.o $(GUI)/wubu_proton_dxvk.o $(RT)/wubu_proton_dxvk.o $(RT)/wubu_dxvk_conf.o $(GUI)/wubu_proton_exec.o $(GUI)/wubu_proton_config.o $(GUI)/wubu_gamelib.o $(GUI)/wubu_gamelib_config.o $(GUI)/wubu_gamelib_startmenu.o $(GUI)/wubu_gamelib_playtime.o $(GUI)/wubu_gamelib_scan.o $(GUI)/wubu_deploy.o $(GUI)/wubu_deploy_config.o $(GUI)/wubu_deploy_util.o $(GUI)/wubu_deploy_gen.o $(GUI)/wubu_pkgmgr.o $(GUI)/wubu_pkgmgr_resolve.o $(GUI)/wubu_pkgmgr_verify.o $(GUI)/wubu_pkgmgr_manifest.o $(GUI)/wubu_pkgmgr_db.o $(GUI)/wubu_pkgmgr_pkg.o $(GUI)/wubu_pkgmgr_install.o $(GUI)/wubu_pkgmgr_txn.o $(GUI)/wubu_pkgmgr_remote.o $(GUI)/wubu_wm.o $(GUI)/wubu_wm_desktop.o $(GUI)/wubu_wm_input.o $(GUI)/wubu_wm_render.o $(GUI)/dosgui_wm.o $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/wubu_wallpaper.o $(GUI)/wubu_welcome.o $(GUI)/dosgui_desktop.o $(GUI)/dosgui_startmenu.o $(GUI)/dosgui_startmenu_db.o $(GUI)/dosgui_startmenu_search.o $(GUI)/dosgui_startmenu_tree.o $(GUI)/dosgui_startmenu_power.o $(GUI)/dosgui_explorer.o $(GUI)/dosgui_explorer_input.o $(GUI)/dosgui_explorer_ops.o $(GUI)/dosgui_explorer_info.o $(GUI)/dosgui_explorer_format.o $(GUI)/dosgui_explorer_drives.o $(GUI)/dosgui_explorer_tree.o $(GUI)/dosgui_explorer_preview.o $(GUI)/dosgui_explorer_render.o $(GUI)/dosgui_explorer_fs.o $(GUI)/dosgui_explorer_fsops.o $(GUI)/dosgui_term.o $(GUI)/dosgui_term_tabs.o $(GUI)/dosgui_term_render.o $(GUI)/dosgui_term_ansi.o $(GUI)/dosgui_term_pty.o $(GUI)/dosgui_daemon_panel.o $(GUI)/dosgui_service_mgr.o $(GUI)/dosgui_dos_window.o $(GUI)/dosgui_window_chrome.o $(GUI)/dosgui_era_apps.o
 
 # ── Bridge Objects ───────────────────────────────────────────────
 BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscall.o $(BRIDGE)/wubu_syscall_vbe.o
@@ -55,7 +55,7 @@ APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_e
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
 
-COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.o $(COMP)/holyc_codegen.o $(COMP)/holyc_codegen_emit.o $(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o $(COMP)/holyc_ptx.o
+COMP_OBJS = $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.o $(COMP)/holyc_codegen.o $(COMP)/holyc_codegen_emit.o $(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o $(COMP)/holyc_runtime.o $(COMP)/holyc_ptx.o
 RT_OBJS   = $(RT)/wubu_container.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_exec_container.o $(RT)/wubu_spawn.o $(RT)/wubu_fs_util.o $(RT)/wubu_vsl.o $(RT)/wubu_proton.o $(RT)/wubu_proton_api.o $(RT)/wubu_proton_dxvk.o  $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_server.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_arch.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_proton2.o $(RT)/wubu_proton2_gpu.o $(RT)/wubu_proton2_device.o $(RT)/wubu_proton2_gamescope.o $(RT)/wubu_proton2_launch.o $(RT)/wubu_gc.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_image.o $(RT)/wubu_image_cache.o $(RT)/wubu_image_parse.o $(RT)/wubu_image_manifest.o $(RT)/wubu_image_ops.o $(RT)/wubu_image_tar.o $(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_diff.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o $(RT)/wubu_snapshot_tag.o $(RT)/wubu_snapshot_gc.o $(RT)/wubu_snapshot_xport.o $(RT)/wubu_network.o $(RT)/wubu_network_fw.o $(RT)/wubu_network_svc.o $(RT)/wubu_network_cni.o $(RT)/wubu_network_wg.o $(RT)/wubu_network_ts.o $(RT)/wubu_network_dns.o $(RT)/wubu_network_qos.o $(RT)/wubu_network_create.o $(RT)/wubu_netlink.o $(RT)/wubu_archd_daemon.o $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.o $(RT)/wubu_ns_bridge.o $(RT)/wubu_ns_fs.o $(RT)/wubu_ns_pkg.o $(RT)/wubu_pkg.o $(RT)/wubu_ns_snap.o $(RT)/wubu_bottle_lifecycle.o $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.o $(RT)/wubu_bottle_flatpak.o $(RT)/wubu_bottle_ops.o $(RT)/wubu_bottles_json.o $(RT)/wubu_bottles_fs.o $(RT)/wubu_archd_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o $(RT)/wubu_cap/wubu_cap_handle.o
 
 # In-process 8086/DOS shim: public API + leaf engine modules. Always link as a unit.
@@ -183,7 +183,7 @@ canvas: apps runtime $(GUI_OBJS) $(KERNEL_OBJS) $(JIT_OBJS) $(COMP_OBJS) $(HOSTE
 		$(GUI)/standalone_hosted_shim.o \
 		$(HOSTED)/primary-selection-private.o $(HOSTED)/xdg-shell-private.o \
 		$(APP_OBJS) \
-		$(JIT_OBJS) $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(JIT_OBJS) $(COMP)/holyc_lexer.o $(COMP)/holyc_parse.o $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
 		-Wl,--end-group \
 		-lm -lsqlite3 -lzstd -lz -lwayland-client -lxkbcommon -ldl -lvulkan -ljson-c -o $(APPS)/canvas
 	@echo "✅ Canvas (wubu_canvas) built (./src/apps/canvas)"
@@ -222,7 +222,7 @@ HOSTED_OBJS = \
 	$(COMP)/holyc_codegen_expr.o $(COMP)/holyc_codegen_stmt.o $(COMP)/holyc_codegen_api.o \
 	$(APPS)/repl.o $(APPS)/notepad.o $(APPS)/dosgui_apps.o $(APPS)/cmd/cmd.o $(APPS)/app_canvas.o $(APPS)/app_explorer.o $(APPS)/wubu_canvas_layers.o $(APPS)/wubu_canvas_draw.o $(APPS)/wubu_canvas_filter.o $(APPS)/wubu_canvas_transform.o $(APPS)/wubu_canvas_plugin.o $(APPS)/wubu_canvas_undo.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_image_codec.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o \
 	$(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_minic.o $(JIT)/jit_minic_token.o \
-	$(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_exec_container.o $(RT)/wubu_container.o $(RT)/wubu_compat_db.o $(RT)/wubu_session.o $(GUI)/wubu_session_autostart.o $(RT)/wubu_arch.o $(RT)/wubu_archd_util.o \
+	$(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(GUI)/dosgui_window_chrome.o $(GUI)/dosgui_era_apps.o $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_exec.o $(RT)/wubu_exec_format.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_exec_container.o $(RT)/wubu_container.o $(RT)/wubu_compat_db.o $(RT)/wubu_session.o $(GUI)/wubu_session_autostart.o $(RT)/wubu_arch.o $(RT)/wubu_archd_util.o \
 	 $(HOSTED)/archd_hosted.o $(RT)/wubu_ramdisk.o $(RT)/wubu_ramdisk_format.o $(RT)/wubu_spawn.o \
 	$(RT)/oci/oci_http_client.o \
 	$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
@@ -256,9 +256,10 @@ APP_RT_OBJS = \
 	$(RT)/oci/oci_runtime_spec.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_server.o $(RT)/styxfs_util.o $(RT)/vsl/vsl.o \
 	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_gpu_vulkan.o \
 	$(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_syscall.o \
+	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o \
 	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o \
 	$(RT)/vsl/vsl_syscall_nt.o $(RT)/vsl/vsl_nt_atoms.o $(RT)/vsl/vsl_nt_job.o $(RT)/vsl/vsl_nt_io.o $(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o $(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o $(RT)/vsl/vsl_nt_registry.o $(RT)/vsl/vsl_nt_token.o $(RT)/vsl/vsl_nt_misc.o $(RT)/vsl/vsl_syscall_proc.o $(RT)/wubu_arch.o \
-	$(RT)/wubu_archd_util.o $(RT)/wubu_container.o $(RT)/wubu_compat_db.o $(RT)/wubu_session.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o \
+	$(RT)/wubu_archd_util.o $(RT)/wubu_container.o $(RT)/wubu_compat_db.o $(RT)/wubu_session.o $(RT)/wubu_ct_bwrap.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o \
 	$(RT)/wubu_exec.o $(RT)/wubu_exec_container.o $(RT)/wubu_exec_format.o \
 	$(RT)/wubu_exec_macho.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_gc.o $(RT)/wubu_holyd.o \
 	$(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_input.o \
@@ -282,12 +283,13 @@ $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.code
 	$(CC) $(CFLAGS) -I$(HOSTED) -x c -MMD -MP -c $< -o $@
 
 # Link-only target: reuses the .o files above. Edit one file -> one .o rebuild + relink.
-hosted: $(HOSTED_OBJS) $(RT_OBJS) $(EDR_OBJS) $(APPS)/edr_dash.o
+hosted: $(HOSTED_OBJS) $(RT_OBJS) $(EDR_OBJS) $(APPS)/edr_dash.o $(RT)/wubu_holyc_agi.o $(RT)/holyd_lifecycle_app.o
 	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -I$(GUI) -I$(KERNEL) -I$(RT) -MMD -MP -c $(GUI)/wubu_ui.c -o $(GUI)/wubu_ui_hosted.o
 	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(HOSTED_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
 		$(EDR_SRC) $(GUI)/wubu_ui_hosted.o $(APPS)/edr_dash.o \
 		$(RT)/wubu_holyc_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/holyd_lifecycle_app.o \
+		$(COMP)/holyc_runtime.o \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -o $(HOSTED)/wubu
 	@echo "✅ WuBuOS hosted binary built (./src/hosted/wubu)"
 # ── Compilation Rules ────────────────────────────────────────────
@@ -405,7 +407,7 @@ test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 tes
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
-test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other
+test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
@@ -444,11 +446,11 @@ test_fat32: $(KERNEL)/fat32.o
 	$(KERNEL)/fat32_test
 
 test_holyc: $(JIT_OBJS)
-	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test -ldl
+	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test -ldl
 	$(COMP)/holyc_test
 
-test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o
-	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o -o $(RT)/wubu_container_test -ldl
+test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o
+	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o -o $(RT)/wubu_container_test -ldl
 	$(RT)/wubu_container_test
 
 test_dos_emu: $(RT)/wubu_dos_emu.o
@@ -470,7 +472,7 @@ test_manifest:
 	cd $(CURDIR) && $(RT)/wubu_manifest_test
 
 
-test_dos_proc: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o
+test_dos_proc: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 			$(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_dos.c \
@@ -504,6 +506,7 @@ test_apps:
 # invocation, recompiling everything every time.)
 VSL_NT_OBJS = \
 	$(RT)/vsl/vsl.o $(RT)/vsl/vsl_syscall.o $(RT)/vsl/vsl_syscall_nt.o \
+	$(RT)/vsl/vsl_syscall_mac.o $(RT)/vsl/vsl_syscall_mac_bsd.o $(RT)/vsl/vsl_syscall_mac_mach.o \
 	$(RT)/vsl/vsl_nt_atoms.o $(RT)/vsl/vsl_nt_job.o $(RT)/vsl/vsl_nt_io.o \
 	$(RT)/vsl/vsl_nt_vmem.o $(RT)/vsl/vsl_nt_process.o $(RT)/vsl/vsl_nt_thread.o \
 	$(RT)/vsl/vsl_nt_section.o $(RT)/vsl/vsl_nt_timer.o $(RT)/vsl/vsl_nt_sync.o \
@@ -511,7 +514,8 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_syscall_fileio.o $(RT)/vsl/vsl_syscall_memory.o $(RT)/vsl/vsl_syscall_net.o \
 	$(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o \
 	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o \
-	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_nt_test.o
+	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_nt_test.o \
+	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o
 
 # Same incremental-linking fix as test_vsl_nt: build each .o via the pattern
 # rules so a one-file edit recompiles only that file (seconds, not minutes).
@@ -521,7 +525,8 @@ VSL_OBJS = \
 	$(RT)/vsl/vsl_syscall_net.o $(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o \
 	$(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o \
 	$(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o \
-	$(RT)/vsl/vsl_macho.o $(RT)/vsl/vsl_syscall_mac.o $(RT)/vsl/vsl_syscall_mac_bsd.o $(RT)/vsl/vsl_syscall_mac_mach.o $(RT)/wubu_vsl_test.o
+	$(RT)/vsl/vsl_macho.o $(RT)/vsl/vsl_syscall_mac.o $(RT)/vsl/vsl_syscall_mac_bsd.o $(RT)/vsl/vsl_syscall_mac_mach.o \
+	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/wubu_vsl_test.o
 
 test_vsl: $(VSL_OBJS)
 	$(CC) -O0 -g -D_GNU_SOURCE -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
@@ -548,6 +553,18 @@ test_vsl_mac:
 		-o $(RT)/vsl/vsl_mac_syscall_test -lpthread
 	$(RT)/vsl/vsl_mac_syscall_test
 
+test_vsl_cpm:
+	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -I$(RT) -I$(RT)/vsl \
+		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/vsl/vsl_macho.c $(RT)/vsl/vsl_syscall_mac.c $(RT)/vsl/vsl_syscall_mac_bsd.c $(RT)/vsl/vsl_syscall_mac_mach.c $(RT)/vsl/vsl_syscall_cpm.c $(RT)/vsl/vsl_syscall_macclassic.c $(RT)/vsl/vsl_syscall_cpm_test.c \
+		-o $(RT)/vsl/vsl_cpm_test -lpthread -lvulkan
+	$(RT)/vsl/vsl_cpm_test
+
+test_vsl_macclassic:
+	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -I$(RT) -I$(RT)/vsl \
+		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/vsl/vsl_macho.c $(RT)/vsl/vsl_syscall_mac.c $(RT)/vsl/vsl_syscall_mac_bsd.c $(RT)/vsl/vsl_syscall_mac_mach.c $(RT)/vsl/vsl_syscall_cpm.c $(RT)/vsl/vsl_syscall_macclassic.c $(RT)/vsl/vsl_syscall_macclassic_test.c \
+		-o $(RT)/vsl/vsl_macclassic_test -lpthread -lvulkan
+	$(RT)/vsl/vsl_macclassic_test
+
 test_bridge:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(BRIDGE) -I$(KERNEL) -I$(WS) \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(BRIDGE)/vbe_ws_bridge.c \
@@ -561,11 +578,12 @@ test_bridge_flip:
 
 test_syscall:
 	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -I$(BRIDGE) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) -DMYSEED_METAL \
-		$(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
 		$(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 					$(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/vsl/vsl.c $(RT)/vsl/vsl_syscall.c $(RT)/vsl/vsl_syscall_proc.c $(RT)/vsl/vsl_syscall_fileio.c $(RT)/vsl/vsl_syscall_memory.c $(RT)/vsl/vsl_syscall_net.c $(RT)/vsl/vsl_process.c $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o $(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o $(RT)/vsl/vsl_gpu_vulkan.o $(RT)/vsl/vsl_macho.c $(RT)/vsl/vsl_syscall_mac.c $(RT)/vsl/vsl_syscall_mac_bsd.c $(RT)/vsl/vsl_syscall_mac_mach.c \
+ $(RT)/vsl/vsl_syscall_cpm.c $(RT)/vsl/vsl_syscall_macclassic.c \
 		$(BRIDGE)/wubu_syscall.c $(BRIDGE)/wubu_syscall_vbe.c $(BRIDGE)/wubu_syscall_test.c \
 		-o $(BRIDGE)/wubu_syscall_test -lvulkan
 	$(BRIDGE)/wubu_syscall_test
@@ -574,7 +592,7 @@ test_proton:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/wubu_proton.c $(RT)/wubu_proton_api.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_proton_test.c -o $(RT)/wubu_proton_test
 	$(RT)/wubu_proton_test
 
-test_launch: $(RT)/wubu_container.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_host_exec.o $(RT)/wubu_session.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/wubu_launch_test.o
+test_launch: $(RT)/wubu_container.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o $(RT)/wubu_proton_pe.o $(RT)/wubu_dxvk_conf.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/wubu_host_exec.o $(RT)/wubu_session.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/wubu_launch_test.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 		$(RT)/wubu_container.c $(RT)/wubu_proton.c $(RT)/wubu_proton_api.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
@@ -728,7 +746,7 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dos
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
-		$(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(GUI)/dosgui_window_chrome.c \
 		$(GUI)/dosgui_wm_test.c -o $(GUI)/dosgui_wm_test -lm
 	$(GUI)/dosgui_wm_test
@@ -738,7 +756,7 @@ test_dosgui_ui: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI
 $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_ui.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
 		$(GUI)/dosgui_window_chrome.c \
 		$(GUI)/wubu_ui_test.c -o $(GUI)/wubu_ui_test -lm
@@ -749,7 +767,7 @@ test_wallpaper:
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_wallpaper_test.c -o $(GUI)/wubu_wallpaper_test
 	$(GUI)/wubu_wallpaper_test
 
-test_dosgui_dos_window: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(RT)/wubu_dos_emu.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o
+test_dosgui_dos_window: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(RT)/wubu_dos_proc.o $(RT)/wubu_dos_emu.o $(RT)/wubu_exec_wasm.o $(RT)/wubu_exec_macho.o $(RT)/wubu_exec_container.o $(RT)/wubu_host_exec.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o $(RT)/wubu_ct_isolate_cgroup.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(GUI) -I$(RT) -I$(COMP) -I$(KERNEL) -I$(JIT) -I$(HOSTED) \
 		$(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_dos.c \
@@ -772,15 +790,31 @@ test_calc:
 $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
 		$(GUI)/dosgui_window_chrome.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/calc/calc_test.c -o $(APPS)/calc/calc_test -lm
 	$(APPS)/calc/calc_test
 
 test_dosgui_startmenu:
-	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_startmenu_db.c $(GUI)/dosgui_startmenu_search.c $(GUI)/dosgui_startmenu_tree.c $(GUI)/dosgui_startmenu_power.c $(GUI)/wubu_theme.c $(GUI)/dosgui_startmenu_test_stub.c $(GUI)/dosgui_startmenu_test.c $(KERNEL)/vbe.c -o $(GUI)/dosgui_startmenu_test
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_startmenu_db.c $(GUI)/dosgui_startmenu_search.c $(GUI)/dosgui_startmenu_tree.c $(GUI)/dosgui_startmenu_power.c $(GUI)/dosgui_era_apps.c $(GUI)/wubu_theme.c $(GUI)/dosgui_startmenu_test_stub.c $(GUI)/dosgui_startmenu_test.c $(KERNEL)/vbe.c -o $(GUI)/dosgui_startmenu_test
 	$(GUI)/dosgui_startmenu_test
+
+# Era-apps launcher test: exercises the personality->exec routing in the
+# RUNTIME layer (where the exec backends live), NOT the hosted GUI stack.
+# Links RT_OBJS + the OCI/image leaf objects the runtime graph needs, plus
+# the era_apps + theme objects and system libs. g_program_db is provided
+# locally (the launcher-under-test does not touch it).
+test_era_apps: $(RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OBJS) $(JIT_OBJS)
+	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) \
+		$(GUI)/dosgui_era_apps_test.c $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o \
+		$(RT_OBJS) $(COMP_OBJS) $(JIT_OBJS) \
+		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
+		$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
+		$(RT)/wubu_ct_isolate_cgroup.o \
+		-Wl,--allow-multiple-definition -no-pie \
+		-ljson-c -lsqlite3 -lzstd -lz -ldl -lvulkan -lm -lpthread -o $(GUI)/dosgui_era_apps_test
+	$(GUI)/dosgui_era_apps_test
 
 test_dosgui_explorer:
 		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) $(GUI)/dosgui_explorer.c $(GUI)/dosgui_explorer_input.c $(GUI)/dosgui_explorer_ops.c $(GUI)/dosgui_explorer_info.c $(GUI)/dosgui_explorer_zip.c $(GUI)/dosgui_explorer_format.c $(GUI)/dosgui_explorer_drives.c $(GUI)/dosgui_explorer_tree.c $(GUI)/dosgui_explorer_preview.c $(GUI)/dosgui_explorer_render.c $(GUI)/dosgui_explorer_fs.c $(GUI)/dosgui_explorer_fsops.c $(GUI)/wubu_theme.c $(GUI)/dosgui_explorer_test_stub.c $(KERNEL)/vbe.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/dosgui_explorer_test.c -o $(GUI)/dosgui_explorer_test
@@ -793,7 +827,7 @@ test_styx:
 	$(RT)/styx_test
 
 test_styxfs:
-	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) -o $(RT)/styxfs_test
+	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) -o $(RT)/styxfs_test
 	$(RT)/styxfs_test
 
 HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)
@@ -877,7 +911,7 @@ test_control: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/
 $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
 		$(APPS)/control/control.c \
 		$(GUI)/dosgui_window_chrome.c \
@@ -1056,7 +1090,7 @@ test_holyd: $(RT)/wubu_holyd_repl.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(GUI) \
 		-DWUBD_TEST_MAIN \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_9p.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_lifecycle.c \
 		$(RT)/wubu_holyd_test.c \
@@ -1071,7 +1105,7 @@ test_holyd: $(RT)/wubu_holyd_repl.o
 wubu_holyd_bin:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(GUI) \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_9p.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_lifecycle.c \
 		$(GUI)/dosgui_wm_test_stub.c \
@@ -1180,7 +1214,7 @@ test_edr_agent:
 		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_ui_agent.o $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \
 		$(GUI)/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
 		$(RT)/wubu_edr_agent_test.c -o $(RT)/wubu_edr_agent_test -lpthread
 	$(RT)/wubu_edr_agent_test
@@ -1189,7 +1223,7 @@ test_holyc_agi:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM -DWUBU_EDR_AGENT -DVBE_HOSTED \
 		-I$(RT) -I$(RT)/edr -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) \
 		$(EDR_SRC) \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_9p.c $(RT)/holyd_lifecycle_app.o \
 		$(RT)/wubu_holyc_agi.c \
@@ -1204,7 +1238,7 @@ test_framework:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM -DWUBU_EDR_AGENT -DVBE_HOSTED \
 		-I$(RT) -I$(RT)/edr -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(FRAMEWORK) \
 		$(EDR_SRC) \
-		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_9p.c $(RT)/holyd_lifecycle_app.o \
 		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/dosgui_wm_clock.c $(GUI)/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_desktop.c \

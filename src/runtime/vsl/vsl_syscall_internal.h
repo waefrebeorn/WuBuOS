@@ -421,4 +421,12 @@ void vsl_get_syscall_stats(uint64_t *out_count, uint64_t *out_errors);
 int64_t vsl_mac_syscall_dispatch(uint64_t syscall_raw, uint64_t a, uint64_t b,
                                   uint64_t c, uint64_t d, uint64_t e, uint64_t f);
 
+/* -- CP/M BDOS syscall dispatch (vsl_syscall_cpm.c) ------------- */
+int64_t vsl_cpm_syscall_dispatch(uint64_t fn, uint64_t de, uint64_t hl,
+                                  uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+
+/* -- Classic Mac OS (68K A-line trap) dispatch (vsl_syscall_macclassic.c) -- */
+int64_t vsl_macclassic_syscall_dispatch(uint64_t trap, uint64_t a, uint64_t b,
+                                         uint64_t c, uint64_t d, uint64_t e, uint64_t f);
+
 #endif /* VSL_SYSCALL_INTERNAL_H */

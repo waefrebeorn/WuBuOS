@@ -54,3 +54,4 @@ src/tools/wubu_shot_apps
 
 # Local reference dump (kept locally, not committed)
 darling-ref/
+metal2vulkan/

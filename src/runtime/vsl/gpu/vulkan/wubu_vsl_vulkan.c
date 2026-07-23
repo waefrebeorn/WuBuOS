@@ -49,6 +49,11 @@ static WubuVkBackend detect_backend(const WubuVkInstanceCreateInfo *create_info)
         access("/dev/virtgpu", F_OK) == 0) {
         return WUBU_VK_BACKEND_VENUS;
     }
+
+    // Check for WSL2 GPU-PV (real host GPU via /dev/dxg, served by gfxstream_vk)
+    if (access("/dev/dxg", F_OK) == 0) {
+        return WUBU_VK_BACKEND_DXG;
+    }
     
     // Check for VSL GPU device (bare metal)
     if (create_info->vsl_gpu_device && access(create_info->vsl_gpu_device, F_OK) == 0) {
@@ -79,6 +84,7 @@ static const char *backend_name(WubuVkBackend b) {
         case WUBU_VK_BACKEND_VENUS: return "VirtIO-GPU Venus";
         case WUBU_VK_BACKEND_VSL_GPU: return "VSL GPU Driver";
         case WUBU_VK_BACKEND_LINUX_ICD: return "Linux ICD Loader";
+        case WUBU_VK_BACKEND_DXG: return "WSL2 GPU-PV /dev/dxg (gfxstream)";
         default: return "Unknown";
     }
 }
@@ -280,6 +286,7 @@ VkResult wubu_vsl_vk_create_instance(
             result = load_venus_icd(instance, &vk_create_info, allocator);
             break;
         case WUBU_VK_BACKEND_LINUX_ICD:
+        case WUBU_VK_BACKEND_DXG:
             result = load_linux_icd(instance, &vk_create_info, allocator);
             break;
         case WUBU_VK_BACKEND_VSL_GPU:
@@ -336,6 +343,7 @@ VkResult wubu_vsl_vk_enumerate_physical_devices(
                 props[i].max_frames_in_flight = 3;
                 break;
             case WUBU_VK_BACKEND_LINUX_ICD:
+        case WUBU_VK_BACKEND_DXG:
                 snprintf(props[i].device_path, sizeof(props[i].device_path), "Linux ICD: %s", props2.properties.deviceName);
                 props[i].supports_dmabuf = true;
                 props[i].supports_explicit_sync = true;
@@ -457,6 +465,7 @@ const char **wubu_vsl_vk_get_required_instance_extensions(WubuVkBackend backend,
             *count = sizeof(venus_exts)/sizeof(venus_exts[0]);
             return venus_exts;
         case WUBU_VK_BACKEND_LINUX_ICD:
+        case WUBU_VK_BACKEND_DXG:
             *count = sizeof(linux_icd_exts)/sizeof(linux_icd_exts[0]);
             return linux_icd_exts;
         case WUBU_VK_BACKEND_VSL_GPU:

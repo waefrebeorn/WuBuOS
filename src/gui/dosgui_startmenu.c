@@ -12,6 +12,7 @@
 
 #include "dosgui_startmenu_internal.h"
 #include "dosgui_startmenu.h"
+#include "dosgui_era_apps.h"
 #include "dosgui_desktop.h"
 #include "dosgui_wm.h"
 #include "../kernel/vbe.h"
@@ -827,6 +828,10 @@ void dosgui_startmenu_init_enhanced(void) {
     dosgui_startmenu_build_programs_db();
     dosgui_startmenu_search_init();
     dosgui_startmenu_tree_build();
+    /* Register the "one app per computing era" set, tagging each with its VSL
+     * syscall personality so the shell can prove every OS personality is
+     * reachable as a first-class process. (CP/M 0xC0, Mac 0xB0, etc.) */
+    dosgui_era_apps_register();
 }
 
 void dosgui_startmenu_shutdown(void) {

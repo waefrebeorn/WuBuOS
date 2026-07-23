@@ -84,3 +84,24 @@ static inline int ex_border_w(void) {
 
 
 int wubu_mime_scan_desktop_dirs(void) { return 0; }
+
+/* ---- era-apps launcher stubs ----
+ * This GUI-only test links dosgui_startmenu.c (which calls
+ * dosgui_era_apps_register()) and dosgui_era_apps.c, but it does NOT pull in
+ * the runtime exec backends (wubu_dos_proc / wubu_exec_*). Those are exercised
+ * end-to-end by the runtime-layer test_era_apps target. Here we provide
+ * link-compatible no-ops so the startmenu registry test stays self-contained. */
+#include "wubu_exec.h"
+#include "wubu_dos_proc.h"
+WubuDosProc *wubu_dos_proc_launch(const char *dos_path, int fmt) {
+    (void)dos_path; (void)fmt; return NULL;
+}
+int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
+    (void)pe_data; (void)pe_size; return -1;
+}
+int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
+    (void)elf_data; (void)elf_size; return -1;
+}
+int64_t wubu_exec_holyc(const char *source, size_t source_size) {
+    (void)source; (void)source_size; return -1;
+}
