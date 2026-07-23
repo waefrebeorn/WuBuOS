@@ -92,6 +92,15 @@ static void nt_dispatch_init(void) {
     vsl_nt_registry_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_token_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_misc_register(g_nt_dispatch, NT_TBL_SIZE);
+    /* Windows 11 / extended personalities (ALPC, WNF, Enclave, IoRing, Partition, KTM, WorkerFactory) */
+    vsl_nt_alpc_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_wnf_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_worker_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_enclave_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_ioring_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_partition_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_ktm_register(g_nt_dispatch, NT_TBL_SIZE);
+    vsl_nt_misc_w11_register(g_nt_dispatch, NT_TBL_SIZE);
 }
 
 /* ----------------------------------------------------------------------
