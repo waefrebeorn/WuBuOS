@@ -515,7 +515,10 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_process.o $(RT)/vsl/vsl_memory.o $(RT)/vsl/vsl_file.o \
 	$(RT)/vsl/vsl_driver.o $(RT)/vsl/vsl_shared.o $(RT)/vsl/vsl_elf.o \
 	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_nt_test.o \
-	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o
+	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o \
+	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
+	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
+	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o
 
 # Same incremental-linking fix as test_vsl_nt: build each .o via the pattern
 # rules so a one-file edit recompiles only that file (seconds, not minutes).
