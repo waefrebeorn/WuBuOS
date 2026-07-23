@@ -130,9 +130,12 @@ int64_t vsl_nt_query_information_worker_factory(uint64_t a, uint64_t b, uint64_t
 
 /* 382: NtReleaseWorkerFactoryWorker */
 int64_t vsl_nt_release_worker_factory_worker(uint64_t a, uint64_t b, uint64_t c,
-                                             uint64_t d, uint64_t e, uint64_t f) {
+                                                uint64_t d, uint64_t e, uint64_t f) {
     uint32_t wf_h = (uint32_t)a;
-    if (!nt_worker_find(wf_h)) return NT_STATUS_INVALID_HANDLE;
+    nt_worker_factory_t *wf = nt_worker_find(wf_h);
+    if (!wf) return NT_STATUS_INVALID_HANDLE;
+    /* Release one worker thread from the factory's pool (real decrement). */
+    if (wf->thread_count > 0) wf->thread_count--;
     return NT_STATUS_SUCCESS;
 }
 
