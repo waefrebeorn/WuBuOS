@@ -5,6 +5,23 @@
 
 #include "holyc_codegen_internal.h"
 
+/* Trap for an unresolved function call. The JIT emits a call to this (instead
+ * of a raw `call 0`) when it cannot resolve an identifier to an internal
+ * function or a registered extern. It never returns; it aborts with a clear
+ * message so a missing HolyC builtin fails loudly instead of SIGSEGV-ing on a
+ * null function pointer. Declared here so both call sites can reference it. */
+__attribute__((noreturn))
+void hc_trap_unresolved_call(const char *name);
+
+__attribute__((noreturn))
+void hc_trap_unresolved_call(const char *name) {
+    fprintf(stderr, "[holyc] unresolved function call%s%s -- no such function or "
+                    "extern registered (crash avoided)\n",
+            name ? ": " : "", name ? name : "");
+    fflush(stderr);
+    abort();
+}
+
 /* -- Global (data-section) variable access helpers ---------------- */
 /* A module-level var_decl lives in the data section (see VAR_DECL in
  * holyc_codegen_stmt.c). Its symbol offset is negative; the magnitude is the
@@ -803,13 +820,26 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                             emit_mov_rax_imm64(gen, (int64_t)func_addr);
                             emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
                         } else {
-                            /* Function not found - emit call to 0 (will crash at runtime) */
-                            emit_mov_rax_imm64(gen, 0);
+                            /* Function not found - trap instead of `call 0`
+                             * (which would NULL-deref and SIGSEGV at runtime).
+                             * Pass the callee name as the trap's first arg (rdi). */
+                            const char *nm = (node->callee && node->callee->ident)
+                                                ? node->callee->ident : NULL;
+                            emit_mov_rax_imm64(gen, (int64_t)(uintptr_t)nm);
+                            /* mov rdi, rax : 48 89 C7 */
+                            emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC7);
+                            emit_mov_rax_imm64(gen, (int64_t)(uintptr_t)hc_trap_unresolved_call);
                             emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
                         }
                     }
                 } else {
+                    /* Non-ident callee (e.g. function pointer) with no
+                     * resolvable address: trap instead of `call 0`. */
                     emit_mov_rax_imm64(gen, 0);
+                    /* mov rdi, rax : 48 89 C7 */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC7);
+                    emit_mov_rax_imm64(gen, (int64_t)(uintptr_t)hc_trap_unresolved_call);
+                    emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
                 }
             }
             break;

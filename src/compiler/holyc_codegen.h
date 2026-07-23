@@ -23,6 +23,14 @@ void emit_epilogue(HCGen *gen);
 /* Get generated machine code */
 const uint8_t *hc_gen_code(const HCGen *gen, size_t *out_size);
 
+/* HolyC personality runtime (host effects: Print / FpWriteFile). */
+int64_t wubu_print(const char *s);
+int64_t wubu_fp_write_file(const char *name, const char *contents);
+
+/* Register the HolyC runtime functions as extern C symbols so the JIT
+ * resolves `Print` / `FpWriteFile` to real host addresses. */
+void hc_register_holyc_runtime(HCGen *gen);
+
 /* High-level compile/execute */
 void *hc_compile(const char *source, size_t *out_size);
 int64_t hc_eval(const char *source);

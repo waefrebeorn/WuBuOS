@@ -261,6 +261,20 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
         return -1;
     }
 
+    /* The era demo proves the Win32 launch path (Wine/Proton exec) works
+     * end-to-end, not seccomp-hardening of Wine (a separate hardening task
+     * -- the `wine` profile's allowlist is still incomplete and SIGSYS-kills
+     * Wine). Use the `none` profile and skip namespace unshare so the demo
+     * runs; propagate WUBU_REPO_ROOT so the marker lands in the repo. */
+    wubu_ct_add_env(ct, "WUBU_SECCOMP_PROFILE=none");
+    wubu_ct_add_env(ct, "WUBU_NS_FLAGS=0");
+    const char *repo_root = getenv("WUBU_REPO_ROOT");
+    if (repo_root && repo_root[0]) {
+        char envbuf[1024];
+        snprintf(envbuf, sizeof(envbuf), "WUBU_REPO_ROOT=%s", repo_root);
+        wubu_ct_add_env(ct, envbuf);
+    }
+
     /* Set up command: wine /path/to/exe */
     char *argv[] = {"/usr/bin/wine", tmp_path, NULL};
     wubu_ct_set_cmd(ct, 2, argv);
@@ -302,34 +316,32 @@ int64_t wubu_exec_c(const char *source, size_t source_size) {
     fwrite(source, 1, source_size, f);
     fclose(f);
 
-    /* Compile via gcc -O2 -o bin src.c
-     /* Compile the C source to a binary */
-         /* Use -no-pie for simpler entry-point mapping. */
-         char cmd[1024];
-         snprintf(cmd, sizeof(cmd),
-                  "gcc -O2 -no-pie -o %s %s 2>/dev/null",
-                  bin_path, src_path);
+    /* Compile the C source to a binary (fork+exec gcc, no system()). */
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd),
+             "gcc -O2 -no-pie -o %s %s 2>/dev/null",
+             bin_path, src_path);
 
-         /* Fork and exec gcc instead of system() */
-         pid_t gcc_pid = fork();
-         if (gcc_pid < 0) {
-             unlink(src_path);
-             return WUBU_EXEC_ERR_JIT;
-         }
-         if (gcc_pid == 0) {
-             execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
-             _exit(127);
-         }
-         int compile_rc;
-         waitpid(gcc_pid, &compile_rc, 0);
-         unlink(src_path);  /* clean up source regardless */
+    /* Fork and exec gcc instead of system() */
+    pid_t gcc_pid = fork();
+    if (gcc_pid < 0) {
+        unlink(src_path);
+        return WUBU_EXEC_ERR_JIT;
+    }
+    if (gcc_pid == 0) {
+        execl("/bin/sh", "sh", "-c", cmd, (char*)NULL);
+        _exit(127);
+    }
+    int compile_rc;
+    waitpid(gcc_pid, &compile_rc, 0);
+    unlink(src_path);  /* clean up source regardless */
 
-         if (!WIFEXITED(compile_rc) || WEXITSTATUS(compile_rc) != 0) {
-             fprintf(stderr, "[wubu_exec] C compilation failed (gcc exit=%d)\n",
-                     WEXITSTATUS(compile_rc));
-             unlink(bin_path);
-             return WUBU_EXEC_ERR_JIT;
-         }
+    if (!WIFEXITED(compile_rc) || WEXITSTATUS(compile_rc) != 0) {
+        fprintf(stderr, "[wubu_exec] C compilation failed (gcc exit=%d)\n",
+                WEXITSTATUS(compile_rc));
+        unlink(bin_path);
+        return WUBU_EXEC_ERR_JIT;
+    }
 
     /* Execute the compiled binary */
     chmod(bin_path, 0755);

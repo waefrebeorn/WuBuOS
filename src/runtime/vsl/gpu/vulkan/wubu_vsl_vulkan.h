@@ -4,9 +4,10 @@
  * Provides Vulkan 1.3+ API on WuBuOS via:
  *   - WSL/VM: VirtIO-GPU Venus (Vulkan → VirGL → host GPU)
  *   - Bare metal: VSL GPU driver (custom kernel driver)
- *   - Hosted Linux: Standard ICD loader (libvulkan_nouveau.so, radv, anv)
- * 
- * Architecture:
+ *   - Hosted Linux: Standard ICD loader (nouveau, radv, anv)
+ *   - WSL2 GPU-PV: /dev/dxg (gfxstream_vk) — real host GPU
+ *   - Machine-wide: /etc/profile.d/wubu-gpu-shim.sh selects ICDs
+
  *   App → vsl_vkCreateInstance() → VSL ICD Selector → Backend
  *                                              ├─ Venus (VirtIO)
  *                                              ├─ VSL GPU (bare metal)
@@ -38,6 +39,7 @@ typedef enum {
     WUBU_VK_BACKEND_VENUS   = 1,  // VirtIO-GPU Venus (WSL/VM)
     WUBU_VK_BACKEND_VSL_GPU = 2,  // Bare metal VSL GPU driver
     WUBU_VK_BACKEND_LINUX_ICD = 3, // Standard Linux ICD (hosted)
+    WUBU_VK_BACKEND_DXG     = 4,  // WSL2 GPU-PV via /dev/dxg (gfxstream_vk)
 } WubuVkBackend;
 
 // VSL Vulkan instance create info (extends VkInstanceCreateInfo)
