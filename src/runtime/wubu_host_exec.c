@@ -268,6 +268,16 @@ int wubu_ct_start(WubuCt *ct) {
     /* Cell 420: Setup isolation (cgroups v2 + seccomp) before fork */
     wubu_ct_setup_isolation(ct);
 
+    /* Capture the parent's current working directory BEFORE forking so the
+     * child can re-enter it. The era-apps launcher (and any caller that
+     * passes a relative output path to its payload) expects the container's
+     * CWD to match the launching process's CWD. When chroot to a real root
+     * fs succeeds the child stays in that root; otherwise it runs in the
+     * host namespace and this chdir lands it in the real host CWD so
+     * CWD-relative file writes are visible to the parent. */
+    char parent_cwd[1024];
+    if (!getcwd(parent_cwd, sizeof(parent_cwd))) parent_cwd[0] = '\0';
+
     /* Fork */
     pid_t pid = fork();
     if (pid < 0) {
@@ -278,17 +288,42 @@ int wubu_ct_start(WubuCt *ct) {
     if (pid == 0) {
         /* -- CHILD: container process -------------------------- */
 
+        /* Apply container env overrides (wubu_ct_add_env) into the child's
+         * environment BEFORE anything that reads them. The previous code used
+         * execv(), which ignored ct->envp entirely -- so isolation profile /
+         * namespace / repo-root settings never reached the payload and the
+         * default full-isolation seccomp killed things like Wine (SIGSYS).
+         * This MUST run before wubu_ct_child_isolation(), which reads
+         * WUBU_SECCOMP_PROFILE / WUBU_NS_FLAGS from the environment. */
+        for (int i = 0; i < WUBU_CT_MAX_ENV && ct->envp[i]; i++) {
+            char *eq = strchr(ct->envp[i], '=');
+            if (eq) {
+                *eq = '\0';
+                setenv(ct->envp[i], eq + 1, 1);
+                *eq = '=';
+            }
+        }
+
         /* Cell 420: Apply child isolation (cgroup attach + seccomp filter) */
         wubu_ct_child_isolation();
         
-        /* chroot into container root (Arch base) */
-        if (ct->root[0] && chroot(ct->root) != 0) {
-            /* If chroot fails (no root fs), fall through  -- 
-             * container runs in host namespace as fallback */
-            fprintf(stderr, "wubu_ct: chroot(%s) failed: %s\n",
-                    ct->root, strerror(errno));
-        } else if (ct->root[0]) {
-            chdir("/");
+        /* chroot into container root (Arch base). A root of "/" or "" means
+         * "run in the host namespace" -- chroot("/") is a no-op that would
+         * still force CWD to "/", so we skip it and instead re-enter the
+         * launching process's CWD so CWD-relative payload output is visible
+         * to the parent. */
+        bool did_chroot = false;
+        if (ct->root[0] && strcmp(ct->root, "/") != 0) {
+            if (chroot(ct->root) == 0) {
+                did_chroot = true;
+                chdir("/");
+            } else {
+                fprintf(stderr, "wubu_ct: chroot(%s) failed: %s\n",
+                        ct->root, strerror(errno));
+            }
+        }
+        if (!did_chroot && parent_cwd[0]) {
+            chdir(parent_cwd);
         }
         
         /* Set uid/gid */
@@ -446,9 +481,16 @@ WubuCt *wubu_ct_macho(const char *name, const char *root) {
     ct->net_enabled     = true;
     ct->gpu_passthrough = true;
 
-    /* Point Darling at the Metal->Vulkan transposition shim if present. */
+    /* Point Mach-O at the Metal->Vulkan transposition shim if present.
+     * Prefer the real GPU-PV ICD (/dev/dxg -> gfxstream) and always keep
+     * llvmpipe as a guaranteed fallback so Vulkan calls are properly
+     * processed even when the host GPU is unavailable. VK_ICD_FILENAMES is
+     * normally supplied machine-wide by /etc/profile.d/wubu-gpu-shim.sh; we
+     * only set it here if it was absent. */
     wubu_ct_add_env(ct, "WUBU_METAL2VULKAN=1");
-    wubu_ct_add_env(ct, "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json");
+    if (!getenv("VK_ICD_FILENAMES")) {
+        wubu_ct_add_env(ct, "VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/gfxstream_vk_icd.json:/usr/share/vulkan/icd.d/lvp_icd.json");
+    }
 
     return ct;
 }

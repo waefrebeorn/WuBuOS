@@ -15,6 +15,7 @@
 #include "dosgui_startmenu.h"
 #include "dosgui_service_mgr.h"
 #include "../apps/dosgui_apps.h"
+#include "dosgui_era_apps.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "dosgui_wm.h"
@@ -138,9 +139,19 @@ void dosgui_launch_app(const char *name) {
         holyd_tray_click();
         return;
     }
-    fprintf(stderr, "DEBUG: Calling dosgui_app_launch_by_name\n");
-    dosgui_app_launch_by_name(name);
-    fprintf(stderr, "DEBUG: dosgui_app_launch_by_name returned\n");
+    /* Builtin in-process apps (Calculator, Notepad, etc.). */
+    if (dosgui_app_launch_by_name(name) != NULL) {
+        fprintf(stderr, "DEBUG: dosgui_app_launch_by_name returned\n");
+        return;
+    }
+    /* Fallback: era apps (one-per-era registry). These launch through their
+     * VSL syscall personality's REAL exec backend (DOS->8086 shim, Win->Wine,
+     * Linux->VSL ELF, HolyC->JIT). Gaps (CP/M, Classic Mac) report clearly. */
+    if (dosgui_era_apps_launch_by_name(name) == 0) {
+        fprintf(stderr, "DEBUG: launched era app '%s' via VSL personality\n", name);
+        return;
+    }
+    fprintf(stderr, "DEBUG: no launch path for '%s'\n", name);
 }
 
 void dosgui_desktop_launch(int icon_id) {

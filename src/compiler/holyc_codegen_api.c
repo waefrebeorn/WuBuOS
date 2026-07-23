@@ -146,6 +146,10 @@ int64_t hc_eval(const char *source) {
     gen.data = NULL;
     gen.data_size = 0;
     gen.data_cap = 0;
+    /* Register the HolyC personality runtime (Print / FpWriteFile) so calls
+     * to those builtins resolve to real host functions instead of a null
+     * pointer (previously the JIT emitted `call 0`, SIGSEGV at runtime). */
+    hc_register_holyc_runtime(&gen);
     emit_prologue(&gen);
 
     if (ast->kind == HC_AST_BLOCK) {
