@@ -118,13 +118,6 @@ On 2026-07-19 its `shToElf/stub.c` self-extracting shell-ELF dropper was removed
 
 ## License
 
-WuBuOS — MIT License (ZealOS kernel under its own license).
-
-
----
-
-## License
-
 This project is licensed under the **Waefrebeorn Umbrella License v3.0**.
 See the [LICENSE](LICENSE) file for the full license text.
 
