@@ -116,6 +116,8 @@ The `src/runtime/container/wubucontainer` tree is a git **submodule** (WuBuConta
 On 2026-07-19 its `shToElf/stub.c` self-extracting shell-ELF dropper was removed
 (commit `8f480e0` in that repo; parent pin updated). It contains no WuBuOS code.
 
+---
+
 ## License
 
 This project is licensed under the **Waefrebeorn Umbrella License v3.0**.
