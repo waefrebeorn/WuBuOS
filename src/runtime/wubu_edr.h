@@ -72,7 +72,7 @@ enum {
 
 /* Alert */
 typedef struct {
-    char     id[17];          /* hex FNV-1a */
+    char     id[64];          /* UUIDv7 (RFC 9562) */
     char     rule_name[128];
     char     severity[16];    /* malicious / suspicious / info */
     uint32_t pid;

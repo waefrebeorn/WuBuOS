@@ -18,6 +18,8 @@
 #define _GNU_SOURCE
 
 #include "wubu_edr.h"
+#include "wubu_uuid.h"
+#include "wubu_gdpr_age.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
