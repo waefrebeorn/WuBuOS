@@ -403,7 +403,7 @@ test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hol
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat test_shell test_cap test_txn test_cmd test_dos_emu_smoke test_manifest
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_deploy test_daemon_panel test_math test_pkgmgr test_gamelib test_mime test_trash test_system test_launch test_compat test_shell test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -461,6 +461,15 @@ test_dos_emu_smoke: $(RT)/wubu_dos_emu.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
 		$(RT)/wubu_dos_emu.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(RT)/wubu_dos_emu_smoke.c -o $(RT)/wubu_dos_emu_smoke
 	$(RT)/wubu_dos_emu_smoke
+
+# DA-3: verifier + self-improvement loop integration test
+test_bytropix_verifier:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_bytropix_verifier \
+		tools/test_bytropix_verifier.c \
+		$(RT)/wubu_selfimprove.c \
+		$(RT)/wubu_verifier_bytropix.c \
+		$(RT)/wubu_trace.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_bytropix_verifier
 
 # Unified syscall manifest (load/resolve/cap-gate/emit). Runs from the repo
 # root so it can load src/runtime/wubu_manifest/wubu_manifest.json by path.
