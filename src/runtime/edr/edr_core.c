@@ -107,8 +107,9 @@ void edr_alert_push(const char *rule, const char *sev,
                      const char *desc) {
     if (g_alert_count >= EDR_ALERT_CAPACITY) return;
     EdrAlert *a = &g_alerts[g_alert_count++];
-    char key[256]; snprintf(key, sizeof(key), "%s-%u-%lu", rule, pid, (unsigned long)time(NULL));
-    snprintf(a->id, sizeof(a->id), "%016lx", fnv1a(key));
+    /* Use UUIDv7 for audit-trail traceable alert IDs (GDPR-compliant:
+     * timestamp + counter only, no user identity or hardware info). */
+    wubu_uuid_v7(a->id, sizeof(a->id));
     snprintf(a->rule_name, sizeof(a->rule_name), "%s", rule);
     snprintf(a->severity, sizeof(a->severity), "%s", sev);
     a->pid = pid; a->timestamp = (uint64_t)time(NULL) * 1000000000ULL;
@@ -372,6 +373,11 @@ int edr_start(void) {
     edr_proc_pin_start();
     edr_poller_start();
 
+    /* GDPR age verification gate — runs once at boot. If no consent state
+     * exists, the user must pass the age screen before agent transparency
+     * events can be recorded. OS kernel telemetry is NOT blocked. */
+    wubu_gdpr_age_check(); /* load existing state */
+
     pthread_create(&g_worker, NULL, edr_worker_loop, NULL);
     return 0;
 }
@@ -387,6 +393,14 @@ void edr_stop(void) {
 }
 
 /* ================================================================
+ * GDPR Age Verification (Art 8: age of consent = 16)
+ * ================================================================
+ * edr_log_agent_action() and edr_log_event() now require prior
+ * GDPR age consent. If the user has not completed the age
+ * verification screen, agent actions are silently dropped
+ * (fail-closed). This prevents EU minors from being recorded
+ * without consent.
+ * ================================================================
  * Agent (AGI) transparency -- master analytics toggle + event logging
  * ================================================================ */
 
@@ -422,6 +436,17 @@ int edr_log_event(uint16_t type, uint32_t pid, uint32_t extra_pid,
                   uint64_t u64a, uint64_t u64b, uint32_t u32,
                   const char *detail) {
     if (!g_analytics_enabled) return -1;   /* master toggle gates everything */
+
+    /* GDPR Art 8 gate: agent/UI-automation events require age consent.
+     * Event types 25+ (AGENT_ACTION, BEHAVIORAL, etc.) are gated.
+     * Telemetry from the OS kernel itself is NOT gated (legitimate interest). */
+    if (type >= EDR_EV_AGENT_ACTION) {
+        wubu_age_status_t age = wubu_gdpr_age_check();
+        if (age != WUBU_AGE_CONSENTED) {
+            /* Fail-closed: don't record agent events without age consent */
+            return -1;
+        }
+    }
 
 
     size_t dlen = detail ? strlen(detail) + 1 : 1;

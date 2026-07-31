@@ -1224,10 +1224,12 @@ test_spawn:
 # ── EDR Engine ──────────────────────────────────────────────────
 
 EDR_SRC = $(RT)/wubu_edr.c $(RT)/edr/edr_core.c $(RT)/edr/edr_proc_pin.c \
-          $(RT)/edr/edr_fanotify.c $(RT)/edr/edr_poller.c
+          $(RT)/edr/edr_fanotify.c $(RT)/edr/edr_poller.c \
+          $(RT)/wubu_uuid.c $(RT)/wubu_gdpr_age.c
 
 EDR_OBJS = $(RT)/wubu_edr.o $(RT)/edr/edr_core.o $(RT)/edr/edr_proc_pin.o \
-           $(RT)/edr/edr_fanotify.o $(RT)/edr/edr_poller.o
+           $(RT)/edr/edr_fanotify.o $(RT)/edr/edr_poller.o \
+           $(RT)/wubu_uuid.o $(RT)/wubu_gdpr_age.o
 
 test_edr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
@@ -1235,6 +1237,12 @@ test_edr:
 		$(EDR_SRC) $(RT)/wubu_edr_test.c \
 		-o $(RT)/wubu_edr_test -lpthread
 	$(RT)/wubu_edr_test
+
+test_uuid:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+		-I$(RT) -I$(RT)/edr \
+		$(RT)/wubu_uuid.c $(RT)/wubu_uuid_test.c -o $(RT)/wubu_uuid_test -lpthread
+	$(RT)/wubu_uuid_test
 
 test_edr_agent:
 	rm -f $(GUI)/wubu_ui_agent.o
