@@ -481,7 +481,29 @@ recursive_learn:
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/recursive_learn
 
-# Unified syscall manifest (load/resolve/cap-gate/emit). Runs from the repo
+# Recursive OPTIMIZER: 1000-step sweep + hill-climb + self-tuning of the
+# loop's OWN hyperparameters. Drives gen_text/test_512k_budget (wubuwizard)
+# as the independent verifier + speed probe. Crash-proof: every measurement is
+# timeout + return-code guarded. Persists frontier to optimizer_state.json.
+recursive_optimize:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/recursive_optimize \
+		tools/recursive_optimize.c \
+		$(RT)/wubu_selfimprove.c \
+		$(RT)/wubu_trace.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/recursive_optimize
+
+# gap_audit: enumerate >=1000 adversarial AGI-surface inputs (Styx/9P parser,
+# FID table, FS server, operator, OOM budget) and confirm each is handled
+# gracefully (no crash, clean reject or valid reply). This is the recursive
+# safety loop: enumerate -> fuzz -> verify -> fill.
+gap_audit:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/gap_audit \
+		tools/gap_audit.c \
+		$(RT)/styx_serve.c $(RT)/styx_fid.c $(RT)/styx_names.c \
+		$(RT)/styx_enc.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/gap_audit
+
+
 # root so it can load src/runtime/wubu_manifest/wubu_manifest.json by path.
 test_manifest:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Isrc/runtime/wubu_manifest \
