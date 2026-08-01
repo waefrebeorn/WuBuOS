@@ -17,7 +17,8 @@ int styx_parse_version(const uint8_t *buf, uint32_t len,
     (void)len;
     if (buf[4] != STX_RVERSION) return -1;
     *msize = styx_get32(buf + 7);
-    const uint8_t *p = styx_getstr(buf + 11, version, STYX_MAX_FNAME);
+    const uint8_t *p = styx_getstr(buf + 11, version, STYX_MAX_FNAME,
+                                   (int)len - 11);
     (void)p;
     return 0;
 }
@@ -28,7 +29,7 @@ int styx_parse_attach(const uint8_t *buf, uint32_t len,
     if (buf[4] != STX_TATTACH) return -1;
     *fid = styx_get32(buf + 7);
     *afid = styx_get32(buf + 11);
-    styx_getstr(buf + 15, aname, STYX_MAX_FNAME);
+    styx_getstr(buf + 15, aname, STYX_MAX_FNAME, (int)len - 15);
     return 0;
 }
 
@@ -86,7 +87,9 @@ int styx_parse_walk(const uint8_t *buf, uint32_t len,
     if (*nwname > 16) *nwname = 16;
     const uint8_t *p = buf + 17;
     for (int i = 0; i < *nwname; i++) {
-        p = styx_getstr(p, wnames[i], STYX_MAX_FNAME);
+        int avail = (int)len - (int)(p - buf);
+        p = styx_getstr(p, wnames[i], STYX_MAX_FNAME, avail);
+        if (!p) break;
     }
     return 0;
 }

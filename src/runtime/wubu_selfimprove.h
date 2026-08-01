@@ -48,6 +48,17 @@ void wubu_selfimprove_approve(wubu_selfimprove_t *s, bool approved);
 void wubu_selfimprove_set_frozen(wubu_selfimprove_t *s, bool frozen);
 bool wubu_selfimprove_is_frozen(const wubu_selfimprove_t *s);
 
+/* Operator hook: when a self-modification is PROMOTED by the loop, the OS
+ * operator can apply it (restart a subsystem, apply a safe self-patch, emit a
+ * trace directive). This is what turns the passive scorer into an ACTIVE
+ * operator system for AGI — the loop measures -> verifies -> promotes -> the
+ * operator ACTS. The hook runs in the verifier's stead only after independent
+ * sign-off (DA-3), never auto-mutating the running OS without the gate. */
+typedef int (*wubu_operator_fn)(const wubu_trace_span_t *span, void *ud);
+
+/* Wire the operator hook (fires on each promoted change). NULL = no-op. */
+void wubu_selfimprove_set_operator(wubu_selfimprove_t *s, wubu_operator_fn fn, void *ud);
+
 /* Stats for the operator dashboard. */
 int wubu_selfimprove_total(const wubu_selfimprove_t *s);
 int wubu_selfimprove_promoted(const wubu_selfimprove_t *s);
