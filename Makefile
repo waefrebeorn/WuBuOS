@@ -471,6 +471,16 @@ test_bytropix_verifier:
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_bytropix_verifier
 
+# Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
+# objectives. Runs on this CPU-only host using the wubuwizard tests as the
+# independent verifier proxy (no bytropix GPU binary required).
+recursive_learn:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/recursive_learn \
+		tools/recursive_learn.c \
+		$(RT)/wubu_selfimprove.c \
+		$(RT)/wubu_trace.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/recursive_learn
+
 # Unified syscall manifest (load/resolve/cap-gate/emit). Runs from the repo
 # root so it can load src/runtime/wubu_manifest/wubu_manifest.json by path.
 test_manifest:
