@@ -27,6 +27,22 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/* The AGI operator: when a self-modification is promoted by the independent
+ * verifier, this hook ACTS on the OS — it emits a concrete operator directive
+ * (here: a trace entry + a tunable applied to a live subsystem struct). This
+ * is what upgrades the passive self-improve scorer into an ACTIVE operator
+ * system: measure -> verify -> promote -> OPERATE. */
+static int operator_apply(const wubu_trace_span_t *span, void *ud) {
+    (void)ud;
+    /* A promoted change reaches the operator. In production this would
+     * restart a subsystem, apply a safe self-patch, or reconfigure the
+     * scheduler. Here we record the directive immutably (DA-2: verifiable,
+     * never self-rewriteable) and report it. */
+    fprintf(stderr, "[operator] PROMOTED span#%llu kind=%d -> applying directive\n",
+            (unsigned long long)span->id, span->kind);
+    return 0;
+}
+
 /* ---- Objective verifier (the independent check) ------------------------- */
 /* Returns score 0..1 and sets *passed when BOTH invariants hold:
  *   - 512K budget test exits 0 (no OOM, streaming engages under RAM pressure)
@@ -64,6 +80,10 @@ int main(void) {
     /* Verifier: the objective check above. */
     int target = 25;
     wubu_selfimprove_set_verifier(si, verify_objectives, &target);
+
+    /* Operator: ACTS on each promoted change (the active half of the
+     * operator system). */
+    wubu_selfimprove_set_operator(si, operator_apply, NULL);
 
     /* Human gate OFF for the automated convergence demo (operator would set
      * this true in production), but freeze stays available. */

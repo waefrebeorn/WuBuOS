@@ -283,12 +283,22 @@ static inline int styx_putstr(uint8_t *buf, const char *s) {
     return 2 + n;
 }
 
-/* Read string; returns pointer past string or NULL on error */
+/* Read string; returns pointer past string or NULL on error.
+ * `avail` = number of bytes remaining in the buffer from `buf` (incl. the
+ * 2-byte length prefix). Clamps the declared length to BOTH the output buffer
+ * and the available bytes so a malformed/truncated frame can never read or
+ * write past the message boundary (crash/overflow hardening for AGI-facing
+ * Styx). Pass avail from the caller's remaining-message math. */
 static inline const uint8_t *styx_getstr(const uint8_t *buf,
-                                          char *out, int outsz) {
+                                          char *out, int outsz,
+                                          int avail) {
+    if (avail < 2) return NULL;            /* not even a length prefix */
     uint16_t n = styx_get16(buf);
-    if (n >= (uint16_t)outsz) n = (uint16_t)(outsz - 1);
-    memcpy(out, buf + 2, n);
+    int maxcopy = outsz - 1;
+    if (n > (uint16_t)maxcopy) n = (uint16_t)maxcopy;
+    int have = avail - 2;                  /* bytes after the length prefix */
+    if ((int)n > have) n = (uint16_t)have; /* never read past the frame */
+    if (n > 0) memcpy(out, buf + 2, n);
     out[n] = '\0';
     return buf + 2 + n;
 }

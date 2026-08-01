@@ -13,6 +13,21 @@
 #include "styx_internal.h"
 #include <string.h>
 
+/* Crash-hardening: every message handler must confirm the declared msg_size
+ * covers the fields it reads before touching inbuf. A short/malformed frame
+ * must produce a clean Rerror, never an out-of-bounds read (the AGI-facing
+ * Styx server must never crash on hostile or truncated input). */
+#define STYX_NEED(off) do { \
+    if ((uint32_t)(off) > msg_size) { \
+        styx_error(tag, "Truncated message", outbuf, outlen); \
+        return 0; \
+    } \
+} while (0)
+
+/* Outbound safety: a response builder must never write past STYX_MAX_MSG.
+ * Returns -1 (caller emits Rerror) if it would. */
+#define STYX_FITS(off) ((uint32_t)(off) <= STYX_MAX_MSG)
+
 /* -- Server Initialization ---------------------------------------- */
 
 void styx_init(styx_server_t *srv) {
@@ -78,9 +93,12 @@ static int build_ropen(uint8_t *buf, uint32_t *len,
 static int build_rread(uint8_t *buf, uint32_t *len,
                        uint16_t tag, const uint8_t *data,
                        uint32_t count) {
+    if (count > STYX_MAX_DATA) count = STYX_MAX_DATA;
+    /* Defensive: a callback must never ask us to copy more than it claimed. */
     uint32_t pos = 7;
+    if (pos + 4 + count > STYX_MAX_MSG) count = STYX_MAX_MSG - pos - 4;
     styx_put32(buf + pos, count); pos += 4;
-    if (count > 0) memcpy(buf + pos, data, count);
+    if (count > 0 && data) memcpy(buf + pos, data, count);
     pos += count;
     styx_write_header(buf, pos, STX_RREAD, tag);
     *len = pos;
@@ -155,8 +173,10 @@ int styx_serve(styx_server_t *srv,
     case STX_TVERSION: {
         /* Negotiate protocol version */
         uint32_t c_msize = styx_get32(inbuf + 7);
+        STYX_NEED(11 + 2);
         char c_version[16] = {0};
-        styx_getstr(inbuf + 11, c_version, sizeof(c_version));
+        styx_getstr(inbuf + 11, c_version, sizeof(c_version),
+                    (int)msg_size - 11);
 
         /* Accept if 9P2000 or 9P2000.u */
         if (strncmp(c_version, "9P2000", 6) != 0 &&
@@ -178,10 +198,13 @@ int styx_serve(styx_server_t *srv,
     }
 
     case STX_TATTACH: {
+        STYX_NEED(15);
         uint32_t fid = styx_get32(inbuf + 7);
         (void)styx_get32(inbuf + 11); /* afid  --  unused in ring-0 single-user */
         char aname[STYX_MAX_FNAME] = {0};
-        styx_getstr(inbuf + 15, aname, sizeof(aname));
+        /* aname is a string starting at offset 15; the string reader bounds
+         * itself against the buffer end (inbuf+msg_size) so this is safe. */
+        styx_getstr(inbuf + 15, aname, sizeof(aname), (int)msg_size - 15);
 
         if (!srv->attach) {
             /* Default: allocate fid for root */
@@ -242,7 +265,9 @@ int styx_serve(styx_server_t *srv,
 
         const uint8_t *p = inbuf + 17;
         for (int i = 0; i < nwname_actual; i++) {
-            p = styx_getstr(p, wnames[i], STYX_MAX_FNAME);
+            int avail = (int)msg_size - (int)(p - inbuf);
+            p = styx_getstr(p, wnames[i], STYX_MAX_FNAME, avail);
+            if (!p) break;
             wname_ptrs[i] = wnames[i];
         }
 
@@ -317,6 +342,13 @@ int styx_serve(styx_server_t *srv,
         uint32_t fid = styx_get32(inbuf + 7);
         uint64_t offset = styx_get64(inbuf + 11);
         uint32_t count = styx_get32(inbuf + 19);
+
+        /* The write payload begins at inbuf+23 and is `count` bytes long.
+         * Never let a malicious/truncated frame read past the message. */
+        if ((uint64_t)23 + count > msg_size) {
+            styx_error(tag, "Write payload overruns message", outbuf, outlen);
+            return 0;
+        }
 
         styx_fid_t *f = styx_fid_lookup(srv, fid);
         if (!f) {
@@ -411,10 +443,10 @@ int styx_serve(styx_server_t *srv,
         dir.atime = styx_get32(p); p += 4;
         dir.mtime = styx_get32(p); p += 4;
         dir.length = styx_get64(p); p += 8;
-        p = styx_getstr(p, dir.name, STYX_MAX_FNAME);
-        p = styx_getstr(p, dir.uid, STYX_MAX_FNAME);
-        p = styx_getstr(p, dir.gid, STYX_MAX_FNAME);
-        p = styx_getstr(p, dir.muid, STYX_MAX_FNAME);
+        p = styx_getstr(p, dir.name, STYX_MAX_FNAME, (int)msg_size - (int)(p - inbuf));
+        p = styx_getstr(p, dir.uid, STYX_MAX_FNAME, (int)msg_size - (int)(p - inbuf));
+        p = styx_getstr(p, dir.gid, STYX_MAX_FNAME, (int)msg_size - (int)(p - inbuf));
+        p = styx_getstr(p, dir.muid, STYX_MAX_FNAME, (int)msg_size - (int)(p - inbuf));
         (void)p;
 
         if (srv->wstat(srv, fid, &dir) != 0) {

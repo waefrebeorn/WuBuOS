@@ -371,14 +371,66 @@ static void test_bad_fid_stat(void) {
 
 /* -- Edge Cases --------------------------------------------------- */
 
-static void test_truncated_message(void) {
-    TEST("Truncated message → handled gracefully");
+/* Crash-fuzz: feed hostile/truncated frames and assert styx_serve NEVER
+ * crashes (no segfault/abort) and always returns a clean Rerror. This is the
+ * "no crashing toward AGI" guarantee for the Styx operator surface. */
+static void test_crash_fuzz(void) {
+    TEST("Crash-fuzz: hostile frames never crash");
     setup();
-    uint8_t tiny[4] = {0, 0, 0, 4};
-    int ret = styx_serve(&g_srv, tiny, 4, g_outbuf, &g_outlen);
-    CHECK(ret == -1, "Truncated message returns -1");
+
+    /* 1. Header says size 7 but buffer is only 4 (short header). */
+    {
+        uint8_t f[4] = {0,0,0,7};
+        int r = styx_serve(&g_srv, f, 4, g_outbuf, &g_outlen);
+        CHECK(r == -1, "short header -> -1");
+    }
+    /* 2. Tversion claiming a 300-byte version string (OOB string read). */
+    {
+        uint8_t f[STYX_MAX_MSG];
+        memset(f, 0, sizeof(f));
+        styx_put32(f, 7 + 4 + 2 + 300);   /* msg_size */
+        f[4] = STX_TVERSION;
+        styx_put16(f + 5, 1);
+        styx_put32(f + 7, 8192);          /* msize */
+        styx_put16(f + 11, 300);          /* claims 300-byte version string */
+        int r = styx_serve(&g_srv, f, 7 + 4 + 2 + 300, g_outbuf, &g_outlen);
+        CHECK(r == 0, "oversize version string handled");
+        CHECK(g_outbuf[4] == STX_RERROR, "produces Rerror not crash");
+    }
+    /* 3. Twrite with count claiming more bytes than the message holds. */
+    {
+        uint8_t f[64];
+        memset(f, 0, sizeof(f));
+        styx_put32(f, 64); f[4] = STX_TWRITE; styx_put16(f+5, 7);
+        styx_put32(f + 7, 1);             /* fid */
+        styx_put64(f + 11, 0);            /* offset */
+        styx_put32(f + 19, 100000);       /* count >> message size */
+        int r = styx_serve(&g_srv, f, 64, g_outbuf, &g_outlen);
+        CHECK(r == 0, "write overrun handled");
+        CHECK(g_outbuf[4] == STX_RERROR, "write overrun -> Rerror");
+    }
+    /* 4. All-zero garbage (msg_size=0 means inlen<7 path; msg_size huge
+     *     but tiny buffer -> bounds checks must catch it). */
+    {
+        uint8_t f[8] = {0};
+        styx_put32(f, 999999);            /* claims 1MB message */
+        f[4] = STX_TATTACH;               /* type that reads strings */
+        int r = styx_serve(&g_srv, f, 8, g_outbuf, &g_outlen);
+        CHECK(r == 0, "garbage attach handled");
+        CHECK(g_outbuf[4] == STX_RERROR || g_outbuf[4] == STX_RATTACH,
+              "garbage attach -> Rerror or safe attach");
+    }
+    /* 5. Unknown message type -> Rerror, no crash. */
+    {
+        uint8_t f[8] = {0};
+        styx_put32(f, 8); f[4] = 0x7F;    /* invalid type */
+        int r = styx_serve(&g_srv, f, 8, g_outbuf, &g_outlen);
+        CHECK(r == 0, "unknown type handled");
+        CHECK(g_outbuf[4] == STX_RERROR, "unknown type -> Rerror");
+    }
     PASS();
 }
+
 
 static void test_unknown_message_type(void) {
     TEST("Unknown message type → Rerror");
@@ -393,6 +445,15 @@ static void test_unknown_message_type(void) {
     styx_put16(g_inbuf + 5, 0);
     styx_serve(&g_srv, g_inbuf, 7, g_outbuf, &g_outlen);
     CHECK(g_outbuf[4] == STX_RERROR, "Rerror for unknown type");
+    PASS();
+}
+
+static void test_truncated_message(void) {
+    TEST("Truncated message → handled gracefully");
+    setup();
+    uint8_t tiny[4] = {0, 0, 0, 4};
+    int ret = styx_serve(&g_srv, tiny, 4, g_outbuf, &g_outlen);
+    CHECK(ret == -1, "Truncated message returns -1");
     PASS();
 }
 
@@ -449,7 +510,7 @@ static void test_put_get_str(void) {
     int n = styx_putstr(buf, hello);
     CHECK(n > 0, "Put should return > 0");
     
-    const uint8_t *p = styx_getstr(buf, out, sizeof(out));
+    const uint8_t *p = styx_getstr(buf, out, sizeof(out), (int)sizeof(buf));
     CHECK(p != NULL, "Get should return pointer");
     CHECK(strcmp(out, hello) == 0, "Strings should match");
     PASS();
@@ -464,7 +525,7 @@ static void test_string_empty(void) {
     CHECK(n == 2, "Empty string puts 2 bytes (length=0)");
     CHECK(buf[0] == 0 && buf[1] == 0, "Length should be 0");
     
-    styx_getstr(buf, out, sizeof(out));
+    styx_getstr(buf, out, sizeof(out), (int)sizeof(buf));
     CHECK(strcmp(out, "") == 0, "Empty string round-trip");
     PASS();
 }
@@ -481,7 +542,7 @@ static void test_string_truncation(void) {
     int n = styx_putstr(buf, longstr);
     CHECK(n <= STYX_MAX_FNAME + 2, "String should be capped");
     
-    styx_getstr(buf, out, sizeof(out));
+    styx_getstr(buf, out, sizeof(out), (int)sizeof(buf));
     CHECK(strlen(out) < 8, "Output should be truncated to buffer size");
     PASS();
 }
@@ -554,6 +615,7 @@ int main(void) {
     test_bad_fid_stat();
     test_truncated_message();
     test_unknown_message_type();
+    test_crash_fuzz();
     
     /* Encoding */
     test_put_get_16();

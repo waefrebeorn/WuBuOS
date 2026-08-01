@@ -17,6 +17,8 @@ struct wubu_selfimprove {
     bool frozen;            /* DA-3 user freeze */
     int total;
     int promoted;
+    wubu_operator_fn operator_fn;  /* fires on each promoted change */
+    void *op_ud;
     wubu_trace_span_t store[SI_MAX];
     int count;
     int weight[SI_MAX];     /* higher for failed/divergent (DA-2) */
@@ -33,6 +35,10 @@ void wubu_selfimprove_destroy(wubu_selfimprove_t *s) { free(s); }
 
 void wubu_selfimprove_set_verifier(wubu_selfimprove_t *s, wubu_verifier_fn fn, void *ud) {
     if (s) { s->verifier = fn; s->ud = ud; }
+}
+
+void wubu_selfimprove_set_operator(wubu_selfimprove_t *s, wubu_operator_fn fn, void *ud) {
+    if (s) { s->operator_fn = fn; s->op_ud = ud; }
 }
 
 int wubu_selfimprove_ingest(wubu_selfimprove_t *s, const wubu_trace_span_t *span,
@@ -58,9 +64,14 @@ int wubu_selfimprove_cycle(wubu_selfimprove_t *s) {
         (void)score;
         if (passed) {
             /* A self-modification event is recorded (gated), never auto-applied
-             * to the running OS without the operator promoting it out-of-band. */
+             * to the running OS without the operator promoting it out-of-band.
+             * The operator hook FIRES HERE: it is the action step of the AGI
+             * operator system — apply the change, restart a subsystem, emit a
+             * trace directive. Still gated by independent sign-off (DA-3). */
             promoted_this++;
             s->promoted++;
+            if (s->operator_fn)
+                s->operator_fn(&s->store[i], s->op_ud);
         }
     }
     /* Reset for next cycle; weights already captured in stats. */
