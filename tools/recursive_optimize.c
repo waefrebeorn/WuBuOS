@@ -37,7 +37,7 @@
 #undef MAX_STEPS
 #define MAX_STEPS MAX_STEPS_OVERRIDE
 #endif
-#define N_DIM 5
+#define N_DIM 10
 
 /* Tunable parameter space (the AGI-loop targets). */
 typedef struct {
@@ -46,6 +46,15 @@ typedef struct {
     int max_ctx;      /* context window target */
     int banks;        /* rambus KV interleave banks */
     int frame_us;     /* gamebud decode frame budget (us) */
+    /* Decoder-policy dims (wired into wubu_generate via wubu_integrate,
+     * read by wubu_decode_policy_default() from WUBU_* env). Closing the
+     * observe->decide->act loop: the operator now tunes the live decode
+     * policy, not just OS-level knobs. */
+    int stream_sink;  /* stream_kv sink (WUBU_STREAM_SINK) */
+    int stream_window;/* stream_kv rolling window (WUBU_STREAM_WINDOW) */
+    int kv_budget;    /* kv_budget keep fraction x100 (WUBU_KV_BUDGET) */
+    int hybrid_period;/* linear_attn hybrid period (WUBU_HYBRID_PERIOD, 0=off) */
+    int pd;           /* pd_serve pull-route enable (WUBU_PD) */
 } config_t;
 
 /* Measured outcome. */
@@ -93,12 +102,21 @@ static result_t measure(const config_t *c) {
     if (cc.max_ctx < 4096) cc.max_ctx = 4096; if (cc.max_ctx > 524288) cc.max_ctx = 524288;
     if (cc.banks < 1) cc.banks = 1; if (cc.banks > 32) cc.banks = 32;
     if (cc.frame_us < 1000) cc.frame_us = 1000; if (cc.frame_us > 50000) cc.frame_us = 50000;
+    if (cc.stream_sink < 0) cc.stream_sink = 0; if (cc.stream_sink > 256) cc.stream_sink = 256;
+    if (cc.stream_window < 64) cc.stream_window = 64; if (cc.stream_window > 65536) cc.stream_window = 65536;
+    if (cc.kv_budget < 10) cc.kv_budget = 10; if (cc.kv_budget > 100) cc.kv_budget = 100;
+    if (cc.hybrid_period < 0) cc.hybrid_period = 0; if (cc.hybrid_period > 16) cc.hybrid_period = 16;
+    if (cc.pd < 0) cc.pd = 0; if (cc.pd > 1) cc.pd = 1;
 
-    char env[256];
+    char env[512];
     snprintf(env, sizeof(env),
              "WUBU_SWA=%d WUBU_CHUNK_PREFILL=%d MAX_CTX=%d "
-             "WUBU_RAMBUS_BANKS=%d WUBU_FRAME_US=%d",
-             cc.swa, cc.chunk, cc.max_ctx, cc.banks, cc.frame_us);
+             "WUBU_RAMBUS_BANKS=%d WUBU_FRAME_US=%d "
+             "WUBU_STREAM_SINK=%d WUBU_STREAM_WINDOW=%d "
+             "WUBU_KV_BUDGET=%.2f WUBU_HYBRID_PERIOD=%d WUBU_PD=%d",
+             cc.swa, cc.chunk, cc.max_ctx, cc.banks, cc.frame_us,
+             cc.stream_sink, cc.stream_window,
+             (double)cc.kv_budget / 100.0, cc.hybrid_period, cc.pd);
 
     /* Speed probe: gen_text with a hard timeout (never hang the loop).
      * Run from WUWIZ so gen_text finds its relative data files. Use `env
@@ -179,17 +197,25 @@ static int operator_apply(const wubu_trace_span_t *span, void *ud) {
     if (f) {
         fprintf(f, "{\"applied_step\":%d,\"config\":{"
                     "\"swa\":%d,\"chunk\":%d,\"max_ctx\":%d,\"banks\":%d,"
-                    "\"frame_us\":%d},\"tok_s\":%.3f,\"oom_safe\":%d}\n",
+                    "\"frame_us\":%d,\"stream_sink\":%d,\"stream_window\":%d,"
+                    "\"kv_budget\":%.2f,\"hybrid_period\":%d,\"pd\":%d},"
+                    "\"tok_s\":%.3f,\"oom_safe\":%d}\n",
                  best->step_found, best->cfg.swa, best->cfg.chunk,
                  best->cfg.max_ctx, best->cfg.banks, best->cfg.frame_us,
+                 best->cfg.stream_sink, best->cfg.stream_window,
+                 (double)best->cfg.kv_budget / 100.0, best->cfg.hybrid_period,
+                 best->cfg.pd,
                  best->res.tok_s, best->res.oom_safe);
         fclose(f);
     }
     fprintf(stderr,
             "[operator] APPLY best@step%d: swa=%d chunk=%d ctx=%d banks=%d "
-            "frame=%d -> %.2f tok/s oom=%d\n",
+            "frame=%d sink=%d win=%d budget=%.2f hybrid=%d pd=%d -> %.2f tok/s oom=%d\n",
             best->step_found, best->cfg.swa, best->cfg.chunk, best->cfg.max_ctx,
-            best->cfg.banks, best->cfg.frame_us, best->res.tok_s, best->res.oom_safe);
+            best->cfg.banks, best->cfg.frame_us, best->cfg.stream_sink,
+            best->cfg.stream_window, (double)best->cfg.kv_budget / 100.0,
+            best->cfg.hybrid_period, best->cfg.pd, best->res.tok_s,
+            best->res.oom_safe);
     (void)span;
     return 0;
 }
@@ -200,10 +226,15 @@ static void persist(const best_t *best, int step, const hyper_t *hy) {
     if (!f) return;
     fprintf(f, "{\"step\":%d,\"best\":{"
                "\"swa\":%d,\"chunk\":%d,\"max_ctx\":%d,\"banks\":%d,\"frame_us\":%d,"
+               "\"stream_sink\":%d,\"stream_window\":%d,\"kv_budget\":%.2f,"
+               "\"hybrid_period\":%d,\"pd\":%d,"
                "\"tok_s\":%.3f,\"oom_safe\":%d,\"score\":%.4f},\n",
             step, best->cfg.swa, best->cfg.chunk, best->cfg.max_ctx,
-            best->cfg.banks, best->cfg.frame_us, best->res.tok_s,
-            best->res.oom_safe, best->score);
+            best->cfg.banks, best->cfg.frame_us,
+            best->cfg.stream_sink, best->cfg.stream_window,
+            (double)best->cfg.kv_budget / 100.0, best->cfg.hybrid_period,
+            best->cfg.pd,
+            best->res.tok_s, best->res.oom_safe, best->score);
     fprintf(f, " \"hyper\":{\"sweep_width\":%d,\"mutate_step\":%.3f,"
                "\"strictness\":%.3f}}\n", hy->sweep_width, hy->mutate_step,
             hy->strictness);
@@ -228,15 +259,17 @@ static void self_tune(hyper_t *hy, int recent_progress, int step) {
 }
 
 /* ---- initial grid (first sweep) ---------------------------------------- */
+/* order: swa, chunk, max_ctx, banks, frame_us, stream_sink, stream_window,
+ *        kv_budget(x100), hybrid_period(0=off), pd(0/1) */
 static const config_t SEED_GRID[] = {
-    {0,    4096, 262144, 8, 20000},
-    {512,  1024, 262144, 8, 20000},
-    {2048, 1024, 262144, 4, 16000},
-    {1024, 2048, 524288, 8, 20000},
-    {4096, 4096, 524288, 16, 12000},
-    {0,    8192, 131072, 8, 20000},
-    {256,  512,  524288, 8, 8000},
-    {8192, 2048, 262144, 16, 10000},
+    {0,    4096, 262144, 8, 20000, 4,  512,   100, 0, 0},
+    {512,  1024, 262144, 8, 20000, 4,  512,   100, 0, 0},
+    {2048, 1024, 262144, 4, 16000, 8,  1024,  100, 4, 0},
+    {1024, 2048, 524288, 8, 20000, 4,  512,   100, 0, 0},
+    {4096, 4096, 524288, 16, 12000, 16, 2048, 100, 8, 0},
+    {0,    8192, 131072, 8, 20000, 4,  512,   100, 0, 0},
+    {256,  512,  524288, 8, 8000,  2,  256,   100, 0, 0},
+    {8192, 2048, 262144, 16, 10000, 4,  512,   100, 0, 1},
 };
 
 int main(void) {
@@ -300,6 +333,11 @@ int main(void) {
                 case 2: c.max_ctx  = (int)(c.max_ctx  + dir * frac * 262144); if (c.max_ctx<4096) c.max_ctx=4096; if (c.max_ctx>524288) c.max_ctx=524288; break;
                 case 3: c.banks    = (int)(c.banks    + dir * frac * 16); if (c.banks<1) c.banks=1; if (c.banks>32) c.banks=32; break;
                 case 4: c.frame_us = (int)(c.frame_us + dir * frac * 20000); if (c.frame_us<1000) c.frame_us=1000; if (c.frame_us>50000) c.frame_us=50000; break;
+                case 5: c.stream_sink    = (int)(c.stream_sink    + dir * frac * 64);    if (c.stream_sink<0) c.stream_sink=0; if (c.stream_sink>256) c.stream_sink=256; break;
+                case 6: c.stream_window  = (int)(c.stream_window  + dir * frac * 4096);  if (c.stream_window<64) c.stream_window=64; if (c.stream_window>65536) c.stream_window=65536; break;
+                case 7: c.kv_budget      = (int)(c.kv_budget      + dir * frac * 20);    if (c.kv_budget<10) c.kv_budget=10; if (c.kv_budget>100) c.kv_budget=100; break;
+                case 8: c.hybrid_period  = (int)(c.hybrid_period  + dir * frac * 4);     if (c.hybrid_period<0) c.hybrid_period=0; if (c.hybrid_period>16) c.hybrid_period=16; break;
+                case 9: c.pd             = (int)(c.pd             + dir * frac * 1);     if (c.pd<0) c.pd=0; if (c.pd>1) c.pd=1; break;
             }
         }
 
