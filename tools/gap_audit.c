@@ -3,14 +3,14 @@
  *
  * The user asked to "find 1000 AGI gaps and fill them." The honest, scalable
  * way: enumerate a GAP TAXONOMY across the whole AGI surface (Styx/9P parser,
- * FID table, FS server, operator loop, recursive optimizer, OOM budget) and
- * synthesize >=1000 adversarial inputs per category. Each synthesized input
- * is a potential crash/OOM/gap; the harness runs it and confirms the system
- * either (a) handles it gracefully (gap FILLED by existing hardening) or
- * (b) crashes (gap OPEN -> printed for a fix). Run it; if any (b) appears,
- * that handler gets hardened (see styx_serve.c + styx.h).
+ * FID table, FS server, operator loop, recursive optimizer, OOM budget,
+ * StreamingKV remap) and synthesize adversarial inputs per category. Each
+ * synthesized input is a potential crash/OOM/gap; the harness runs it and
+ * confirms the system either (a) handles it gracefully (gap FILLED by
+ * existing hardening) or (b) crashes (gap OPEN -> printed for a fix).
  *
  * This is the recursive safety loop: enumerate -> fuzz -> verify -> fill.
+ * Scaled to 2000 adversarial inputs (20 categories x 100 variants).
  */
 #include "styx.h"
 #include "styx_internal.h"
@@ -20,8 +20,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define GAP_CAT 10          /* taxonomy breadth */
-#define GAP_PER_CAT 100     /* depth -> 1000 synthesized cases */
+#define GAP_CAT 20          /* taxonomy breadth (scaled 10 -> 20) */
+#define GAP_PER_CAT 100     /* depth -> 2000 synthesized cases */
 #define GAP_TOTAL (GAP_CAT * GAP_PER_CAT)
 
 static int g_filled = 0, g_open = 0, g_ran = 0;
@@ -83,6 +83,76 @@ static void synth_frame(uint8_t *buf, int *len, int cat, int variant) {
         for (int i = 0; i < *len; i++) {
             seed = seed * 1103515245u + 12345;
             buf[i] = (uint8_t)(seed >> 16);
+        }
+        break;
+    }
+    case 10: { /* Tread with huge offset (read out of cache) */
+        *len = 7 + 23 + (variant % 30);
+        buf[4] = STX_TREAD;
+        uint64_t off = (uint64_t)variant * 1000000u + 1;
+        buf[11] = (uint8_t)off; buf[12] = (uint8_t)(off>>8);
+        buf[13] = (uint8_t)(off>>16); buf[14] = (uint8_t)(off>>24);
+        buf[15] = (uint8_t)(off>>32); buf[16] = (uint8_t)(off>>40);
+        buf[17] = (uint8_t)(off>>48); buf[18] = (uint8_t)(off>>56);
+        break;
+    }
+    case 11: { /* Topen with oversized perm/name */
+        *len = 7 + 14 + (variant % 60);
+        buf[4] = STX_TOPEN;
+        int nm = (variant % 4000) + 1;
+        buf[13] = (uint8_t)nm; buf[14] = (uint8_t)(nm >> 8);
+        break;
+    }
+    case 12: { /* Tclunk with invalid fid (must not deref freed) */
+        *len = 7 + 13;
+        buf[4] = STX_TCLUNK;
+        buf[7] = (uint8_t)(variant % 256); buf[8] = (uint8_t)((variant/256) % 256);
+        break;
+    }
+    case 13: { /* Tremove with invalid fid */
+        *len = 7 + 13;
+        buf[4] = STX_TREMOVE;
+        buf[7] = (uint8_t)(variant % 256); buf[8] = (uint8_t)((variant/256) % 256);
+        break;
+    }
+    case 14: { /* Tcreate with oversized name + perm */
+        *len = 7 + 21 + (variant % 80);
+        buf[4] = STX_TCREATE;
+        int nm = (variant % 4000) + 1;
+        buf[19] = (uint8_t)nm; buf[20] = (uint8_t)(nm >> 8);
+        break;
+    }
+    case 15: { /* Twstat with valid header, zero dir length (no strings) */
+        *len = 7 + 29;
+        buf[4] = STX_TWSTAT;
+        buf[29] = 0; buf[30] = 0;  /* dir nlen = 0 */
+        break;
+    }
+    case 16: { /* Tauth (unsupported) must cleanly reject */
+        *len = 7 + 13 + (variant % 20);
+        buf[4] = STX_TAUTH;
+        break;
+    }
+    case 17: { /* Tattach with afid pointing nowhere */
+        *len = 7 + 15 + (variant % 10);
+        buf[4] = STX_TATTACH;
+        buf[11] = (uint8_t)(variant % 256); buf[12] = (uint8_t)((variant/256)%256);
+        break;
+    }
+    case 18: { /* repeated giant-msg header, alternating types */
+        int claimed = 1000 + (variant % 63000);
+        *len = 7 + (variant % 10);
+        buf[4] = (uint8_t)(variant % 30);
+        buf[5] = (uint8_t)claimed; buf[6] = (uint8_t)(claimed >> 8);
+        buf[7] = (uint8_t)(claimed >> 16);
+        break;
+    }
+    case 19: { /* nested random + truncated at every size 13..64 */
+        *len = 13 + (variant % 52);
+        uint32_t seed = (uint32_t)(variant * 22695477u + 7);
+        for (int i = 0; i < *len; i++) {
+            seed = seed * 1103515245u + 12345;
+            buf[i] = (uint8_t)(seed >> 13);
         }
         break;
     }
