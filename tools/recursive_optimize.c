@@ -37,7 +37,7 @@
 #undef MAX_STEPS
 #define MAX_STEPS MAX_STEPS_OVERRIDE
 #endif
-#define N_DIM 10
+#define N_DIM 13
 
 /* Tunable parameter space (the AGI-loop targets). */
 typedef struct {
@@ -55,6 +55,10 @@ typedef struct {
     int kv_budget;    /* kv_budget keep fraction x100 (WUBU_KV_BUDGET) */
     int hybrid_period;/* linear_attn hybrid period (WUBU_HYBRID_PERIOD, 0=off) */
     int pd;           /* pd_serve pull-route enable (WUBU_PD) */
+    /* AGI-OS integration (pass 31): latency/context/safety governance dims */
+    int latency_class;/* 0=DT,1=SRT,2=HRT (WUBU_LATENCY_CLASS) */
+    int ctx_window;   /* context paging capacity as % of max_ctx (10..100) */
+    int containment_sev; /* graduated-containment severity floor x100 (0..100) */
 } config_t;
 
 /* Measured outcome. */
@@ -107,16 +111,22 @@ static result_t measure(const config_t *c) {
     if (cc.kv_budget < 10) cc.kv_budget = 10; if (cc.kv_budget > 100) cc.kv_budget = 100;
     if (cc.hybrid_period < 0) cc.hybrid_period = 0; if (cc.hybrid_period > 16) cc.hybrid_period = 16;
     if (cc.pd < 0) cc.pd = 0; if (cc.pd > 1) cc.pd = 1;
+    if (cc.latency_class < 0) cc.latency_class = 0; if (cc.latency_class > 2) cc.latency_class = 2;
+    if (cc.ctx_window < 10) cc.ctx_window = 10; if (cc.ctx_window > 100) cc.ctx_window = 100;
+    if (cc.containment_sev < 0) cc.containment_sev = 0; if (cc.containment_sev > 100) cc.containment_sev = 100;
 
-    char env[512];
+    const char *lcstr = cc.latency_class == 2 ? "HRT" : (cc.latency_class == 1 ? "SRT" : "DT");
+    char env[640];
     snprintf(env, sizeof(env),
              "WUBU_SWA=%d WUBU_CHUNK_PREFILL=%d MAX_CTX=%d "
              "WUBU_RAMBUS_BANKS=%d WUBU_FRAME_US=%d "
              "WUBU_STREAM_SINK=%d WUBU_STREAM_WINDOW=%d "
-             "WUBU_KV_BUDGET=%.2f WUBU_HYBRID_PERIOD=%d WUBU_PD=%d",
+             "WUBU_KV_BUDGET=%.2f WUBU_HYBRID_PERIOD=%d WUBU_PD=%d "
+             "WUBU_LATENCY_CLASS=%s WUBU_CTX_WINDOW=%d WUBU_CONTAINMENT_SEV=%.2f",
              cc.swa, cc.chunk, cc.max_ctx, cc.banks, cc.frame_us,
              cc.stream_sink, cc.stream_window,
-             (double)cc.kv_budget / 100.0, cc.hybrid_period, cc.pd);
+             (double)cc.kv_budget / 100.0, cc.hybrid_period, cc.pd,
+             lcstr, cc.ctx_window, (double)cc.containment_sev / 100.0);
 
     /* Speed probe: gen_text with a hard timeout (never hang the loop).
      * Run from WUWIZ so gen_text finds its relative data files. Use `env
@@ -198,24 +208,28 @@ static int operator_apply(const wubu_trace_span_t *span, void *ud) {
         fprintf(f, "{\"applied_step\":%d,\"config\":{"
                     "\"swa\":%d,\"chunk\":%d,\"max_ctx\":%d,\"banks\":%d,"
                     "\"frame_us\":%d,\"stream_sink\":%d,\"stream_window\":%d,"
-                    "\"kv_budget\":%.2f,\"hybrid_period\":%d,\"pd\":%d},"
+                    "\"kv_budget\":%.2f,\"hybrid_period\":%d,\"pd\":%d,"
+                    "\"latency_class\":%d,\"ctx_window\":%d,\"containment_sev\":%.2f},"
                     "\"tok_s\":%.3f,\"oom_safe\":%d}\n",
                  best->step_found, best->cfg.swa, best->cfg.chunk,
                  best->cfg.max_ctx, best->cfg.banks, best->cfg.frame_us,
                  best->cfg.stream_sink, best->cfg.stream_window,
                  (double)best->cfg.kv_budget / 100.0, best->cfg.hybrid_period,
-                 best->cfg.pd,
+                 best->cfg.pd, best->cfg.latency_class, best->cfg.ctx_window,
+                 (double)best->cfg.containment_sev / 100.0,
                  best->res.tok_s, best->res.oom_safe);
         fclose(f);
     }
     fprintf(stderr,
             "[operator] APPLY best@step%d: swa=%d chunk=%d ctx=%d banks=%d "
-            "frame=%d sink=%d win=%d budget=%.2f hybrid=%d pd=%d -> %.2f tok/s oom=%d\n",
+            "frame=%d sink=%d win=%d budget=%.2f hybrid=%d pd=%d "
+            "lat=%d ctxwin=%d sev=%.2f -> %.2f tok/s oom=%d\n",
             best->step_found, best->cfg.swa, best->cfg.chunk, best->cfg.max_ctx,
             best->cfg.banks, best->cfg.frame_us, best->cfg.stream_sink,
             best->cfg.stream_window, (double)best->cfg.kv_budget / 100.0,
-            best->cfg.hybrid_period, best->cfg.pd, best->res.tok_s,
-            best->res.oom_safe);
+            best->cfg.hybrid_period, best->cfg.pd, best->cfg.latency_class,
+            best->cfg.ctx_window, (double)best->cfg.containment_sev / 100.0,
+            best->res.tok_s, best->res.oom_safe);
     (void)span;
     return 0;
 }
@@ -228,12 +242,14 @@ static void persist(const best_t *best, int step, const hyper_t *hy) {
                "\"swa\":%d,\"chunk\":%d,\"max_ctx\":%d,\"banks\":%d,\"frame_us\":%d,"
                "\"stream_sink\":%d,\"stream_window\":%d,\"kv_budget\":%.2f,"
                "\"hybrid_period\":%d,\"pd\":%d,"
+               "\"latency_class\":%d,\"ctx_window\":%d,\"containment_sev\":%.2f,"
                "\"tok_s\":%.3f,\"oom_safe\":%d,\"score\":%.4f},\n",
             step, best->cfg.swa, best->cfg.chunk, best->cfg.max_ctx,
             best->cfg.banks, best->cfg.frame_us,
             best->cfg.stream_sink, best->cfg.stream_window,
             (double)best->cfg.kv_budget / 100.0, best->cfg.hybrid_period,
-            best->cfg.pd,
+            best->cfg.pd, best->cfg.latency_class, best->cfg.ctx_window,
+            (double)best->cfg.containment_sev / 100.0,
             best->res.tok_s, best->res.oom_safe, best->score);
     fprintf(f, " \"hyper\":{\"sweep_width\":%d,\"mutate_step\":%.3f,"
                "\"strictness\":%.3f}}\n", hy->sweep_width, hy->mutate_step,
@@ -260,16 +276,18 @@ static void self_tune(hyper_t *hy, int recent_progress, int step) {
 
 /* ---- initial grid (first sweep) ---------------------------------------- */
 /* order: swa, chunk, max_ctx, banks, frame_us, stream_sink, stream_window,
- *        kv_budget(x100), hybrid_period(0=off), pd(0/1) */
+ *        kv_budget(x100), hybrid_period(0=off), pd(0/1),
+ *        latency_class(0=DT,1=SRT,2=HRT), ctx_window(% of max_ctx),
+ *        containment_sev(x100) */
 static const config_t SEED_GRID[] = {
-    {0,    4096, 262144, 8, 20000, 4,  512,   100, 0, 0},
-    {512,  1024, 262144, 8, 20000, 4,  512,   100, 0, 0},
-    {2048, 1024, 262144, 4, 16000, 8,  1024,  100, 4, 0},
-    {1024, 2048, 524288, 8, 20000, 4,  512,   100, 0, 0},
-    {4096, 4096, 524288, 16, 12000, 16, 2048, 100, 8, 0},
-    {0,    8192, 131072, 8, 20000, 4,  512,   100, 0, 0},
-    {256,  512,  524288, 8, 8000,  2,  256,   100, 0, 0},
-    {8192, 2048, 262144, 16, 10000, 4,  512,   100, 0, 1},
+    {0,    4096, 262144, 8, 20000, 4,  512,   100, 0, 0, 0, 100, 30},
+    {512,  1024, 262144, 8, 20000, 4,  512,   100, 0, 0, 1, 100, 30},
+    {2048, 1024, 262144, 4, 16000, 8,  1024,  100, 4, 0, 0,  90, 20},
+    {1024, 2048, 524288, 8, 20000, 4,  512,   100, 0, 0, 2, 100, 50},
+    {4096, 4096, 524288, 16, 12000, 16, 2048, 100, 8, 0, 1, 100, 40},
+    {0,    8192, 131072, 8, 20000, 4,  512,   100, 0, 0, 0,  70, 10},
+    {256,  512,  524288, 8, 8000,  2,  256,   100, 0, 0, 0, 100, 30},
+    {8192, 2048, 262144, 16, 10000, 4,  512,   100, 0, 1, 1, 100, 30},
 };
 
 int main(void) {
@@ -338,6 +356,9 @@ int main(void) {
                 case 7: c.kv_budget      = (int)(c.kv_budget      + dir * frac * 20);    if (c.kv_budget<10) c.kv_budget=10; if (c.kv_budget>100) c.kv_budget=100; break;
                 case 8: c.hybrid_period  = (int)(c.hybrid_period  + dir * frac * 4);     if (c.hybrid_period<0) c.hybrid_period=0; if (c.hybrid_period>16) c.hybrid_period=16; break;
                 case 9: c.pd             = (int)(c.pd             + dir * frac * 1);     if (c.pd<0) c.pd=0; if (c.pd>1) c.pd=1; break;
+                case 10: c.latency_class  = (int)(c.latency_class  + dir * frac * 1);     if (c.latency_class<0) c.latency_class=0; if (c.latency_class>2) c.latency_class=2; break;
+                case 11: c.ctx_window     = (int)(c.ctx_window     + dir * frac * 20);    if (c.ctx_window<10) c.ctx_window=10; if (c.ctx_window>100) c.ctx_window=100; break;
+                case 12: c.containment_sev= (int)(c.containment_sev+ dir * frac * 20);    if (c.containment_sev<0) c.containment_sev=0; if (c.containment_sev>100) c.containment_sev=100; break;
             }
         }
 
