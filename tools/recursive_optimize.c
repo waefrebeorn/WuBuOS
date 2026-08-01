@@ -29,15 +29,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
+#include <time.h>
 
 #define WUWIZ "/home/wubu/wubuwizard"
 #define STATE_FILE "/home/wubu/wubuos/optimizer_state.json"
+#define DGM_ARCHIVE "/home/wubu/wubuos/dgm_archive.json"
+#define COORD_FILE "/home/wubu/wubuwizard/research/COORDINATION.md"
 #define MAX_STEPS 1000
 #ifdef MAX_STEPS_OVERRIDE
 #undef MAX_STEPS
 #define MAX_STEPS MAX_STEPS_OVERRIDE
 #endif
-#define N_DIM 13
+#define N_DIM 15
 
 /* Tunable parameter space (the AGI-loop targets). */
 typedef struct {
@@ -59,6 +62,9 @@ typedef struct {
     int latency_class;/* 0=DT,1=SRT,2=HRT (WUBU_LATENCY_CLASS) */
     int ctx_window;   /* context paging capacity as % of max_ctx (10..100) */
     int containment_sev; /* graduated-containment severity floor x100 (0..100) */
+    /* Meta-game (pass 34): DGM-style self-improvement dims */
+    int skill_inject;  /* 0/1: replay skill-library into decode (AH09) */
+    int degrade_tier;  /* graceful degradation target billions (AH15), 0=auto */
 } config_t;
 
 /* Measured outcome. */
@@ -75,6 +81,40 @@ typedef struct {
     double   score;   /* weighted objective */
     int      step_found;
 } best_t;
+
+/* ---- CoAgent-style coordination (AH01): intent-lock the operator's outputs
+ * so the OTHER concurrently-working agent cannot clobber them mid-write. ---- */
+static void coord_lock(void) {
+    FILE *f = fopen(COORD_FILE, "a");
+    if (f) { fprintf(f, "LOCK recursive_optimize %s %ld 10\n",
+                     "operator_applied.json,optimizestate.json,dgm_archive.json",
+                     (long)time(NULL)); fclose(f); }
+}
+static void coord_unlock(void) {
+    FILE *f = fopen(COORD_FILE, "a");
+    if (f) { fprintf(f, "UNLOCK recursive_optimize %s %ld\n",
+                     "operator_applied.json,optimizestate.json,dgm_archive.json",
+                     (long)time(NULL)); fclose(f); }
+}
+
+/* ---- DGM-style archive (AH05/AH06): append EVERY evaluated variant (incl.
+ * non-best) to a branch-tree JSON, so weak variants survive as stepping
+ * stones. verified=1 only if gen_text returned 0 AND tok_s parsed (AH08). ---- */
+static void dgm_archive_append(int step, const config_t *c, const result_t *r,
+                               double sc, int verified) {
+    FILE *f = fopen(DGM_ARCHIVE, "a");
+    if (!f) return;
+    if (step == 0) fprintf(f, "[\n");   /* open array on first */
+    fprintf(f, "{\"step\":%d,\"swa\":%d,\"ctx\":%d,\"lat\":%d,\"win\":%d,"
+                "\"budget\":%.2f,\"hybrid\":%d,\"pd\":%d,\"lc\":%d,\"cw\":%d,"
+                "\"sev\":%.2f,\"skill\":%d,\"deg\":%d,\"tok_s\":%.3f,\"oom\":%d,"
+                "\"score\":%.4f,\"verified\":%d},\n",
+            step, c->swa, c->max_ctx, c->stream_sink, c->stream_window,
+            (double)c->kv_budget/100.0, c->hybrid_period, c->pd, c->latency_class,
+            c->ctx_window, (double)c->containment_sev/100.0, c->skill_inject,
+            c->degrade_tier, r->tok_s, r->oom_safe, sc, verified);
+    fclose(f);
+}
 
 /* The optimizer's OWN hyperparameters (recursively tuned). */
 typedef struct {
@@ -114,19 +154,23 @@ static result_t measure(const config_t *c) {
     if (cc.latency_class < 0) cc.latency_class = 0; if (cc.latency_class > 2) cc.latency_class = 2;
     if (cc.ctx_window < 10) cc.ctx_window = 10; if (cc.ctx_window > 100) cc.ctx_window = 100;
     if (cc.containment_sev < 0) cc.containment_sev = 0; if (cc.containment_sev > 100) cc.containment_sev = 100;
+    if (cc.skill_inject < 0) cc.skill_inject = 0; if (cc.skill_inject > 1) cc.skill_inject = 1;
+    if (cc.degrade_tier < 0) cc.degrade_tier = 0; if (cc.degrade_tier > 70) cc.degrade_tier = 70;
 
     const char *lcstr = cc.latency_class == 2 ? "HRT" : (cc.latency_class == 1 ? "SRT" : "DT");
-    char env[640];
+    char env[768];
     snprintf(env, sizeof(env),
              "WUBU_SWA=%d WUBU_CHUNK_PREFILL=%d MAX_CTX=%d "
              "WUBU_RAMBUS_BANKS=%d WUBU_FRAME_US=%d "
              "WUBU_STREAM_SINK=%d WUBU_STREAM_WINDOW=%d "
              "WUBU_KV_BUDGET=%.2f WUBU_HYBRID_PERIOD=%d WUBU_PD=%d "
-             "WUBU_LATENCY_CLASS=%s WUBU_CTX_WINDOW=%d WUBU_CONTAINMENT_SEV=%.2f",
+             "WUBU_LATENCY_CLASS=%s WUBU_CTX_WINDOW=%d WUBU_CONTAINMENT_SEV=%.2f "
+             "WUBU_SKILL_INJECT=%d WUBU_DEGRADE_TIER=%d",
              cc.swa, cc.chunk, cc.max_ctx, cc.banks, cc.frame_us,
              cc.stream_sink, cc.stream_window,
              (double)cc.kv_budget / 100.0, cc.hybrid_period, cc.pd,
-             lcstr, cc.ctx_window, (double)cc.containment_sev / 100.0);
+             lcstr, cc.ctx_window, (double)cc.containment_sev / 100.0,
+             cc.skill_inject, cc.degrade_tier);
 
     /* Speed probe: gen_text with a hard timeout (never hang the loop).
      * Run from WUWIZ so gen_text finds its relative data files. Use `env
@@ -199,6 +243,9 @@ static float verify_objectives(const wubu_trace_span_t *span, void *ud, bool *pa
 static int operator_apply(const wubu_trace_span_t *span, void *ud) {
     best_t *best = (best_t *)ud;
     if (!best) return -1;
+    /* CoAgent coordination: claim the output files before writing (AH01),
+     * so the other concurrently-working agent cannot clobber mid-write. */
+    coord_lock();
     /* The operator ACTS: it writes the promoted config to a file the running
      * OS reads (the Styx namespace would expose this at /n/operator/config).
      * This is the concrete "operate" half of the AGI operator system — not
@@ -209,7 +256,8 @@ static int operator_apply(const wubu_trace_span_t *span, void *ud) {
                     "\"swa\":%d,\"chunk\":%d,\"max_ctx\":%d,\"banks\":%d,"
                     "\"frame_us\":%d,\"stream_sink\":%d,\"stream_window\":%d,"
                     "\"kv_budget\":%.2f,\"hybrid_period\":%d,\"pd\":%d,"
-                    "\"latency_class\":%d,\"ctx_window\":%d,\"containment_sev\":%.2f},"
+                    "\"latency_class\":%d,\"ctx_window\":%d,\"containment_sev\":%.2f,"
+                    "\"skill_inject\":%d,\"degrade_tier\":%d},"
                     "\"tok_s\":%.3f,\"oom_safe\":%d}\n",
                  best->step_found, best->cfg.swa, best->cfg.chunk,
                  best->cfg.max_ctx, best->cfg.banks, best->cfg.frame_us,
@@ -217,19 +265,22 @@ static int operator_apply(const wubu_trace_span_t *span, void *ud) {
                  (double)best->cfg.kv_budget / 100.0, best->cfg.hybrid_period,
                  best->cfg.pd, best->cfg.latency_class, best->cfg.ctx_window,
                  (double)best->cfg.containment_sev / 100.0,
+                 best->cfg.skill_inject, best->cfg.degrade_tier,
                  best->res.tok_s, best->res.oom_safe);
         fclose(f);
     }
     fprintf(stderr,
             "[operator] APPLY best@step%d: swa=%d chunk=%d ctx=%d banks=%d "
             "frame=%d sink=%d win=%d budget=%.2f hybrid=%d pd=%d "
-            "lat=%d ctxwin=%d sev=%.2f -> %.2f tok/s oom=%d\n",
+            "lat=%d ctxwin=%d sev=%.2f skill=%d deg=%d -> %.2f tok/s oom=%d\n",
             best->step_found, best->cfg.swa, best->cfg.chunk, best->cfg.max_ctx,
             best->cfg.banks, best->cfg.frame_us, best->cfg.stream_sink,
             best->cfg.stream_window, (double)best->cfg.kv_budget / 100.0,
             best->cfg.hybrid_period, best->cfg.pd, best->cfg.latency_class,
             best->cfg.ctx_window, (double)best->cfg.containment_sev / 100.0,
+            best->cfg.skill_inject, best->cfg.degrade_tier,
             best->res.tok_s, best->res.oom_safe);
+    coord_unlock();
     (void)span;
     return 0;
 }
@@ -243,6 +294,7 @@ static void persist(const best_t *best, int step, const hyper_t *hy) {
                "\"stream_sink\":%d,\"stream_window\":%d,\"kv_budget\":%.2f,"
                "\"hybrid_period\":%d,\"pd\":%d,"
                "\"latency_class\":%d,\"ctx_window\":%d,\"containment_sev\":%.2f,"
+               "\"skill_inject\":%d,\"degrade_tier\":%d,"
                "\"tok_s\":%.3f,\"oom_safe\":%d,\"score\":%.4f},\n",
             step, best->cfg.swa, best->cfg.chunk, best->cfg.max_ctx,
             best->cfg.banks, best->cfg.frame_us,
@@ -250,6 +302,7 @@ static void persist(const best_t *best, int step, const hyper_t *hy) {
             (double)best->cfg.kv_budget / 100.0, best->cfg.hybrid_period,
             best->cfg.pd, best->cfg.latency_class, best->cfg.ctx_window,
             (double)best->cfg.containment_sev / 100.0,
+            best->cfg.skill_inject, best->cfg.degrade_tier,
             best->res.tok_s, best->res.oom_safe, best->score);
     fprintf(f, " \"hyper\":{\"sweep_width\":%d,\"mutate_step\":%.3f,"
                "\"strictness\":%.3f}}\n", hy->sweep_width, hy->mutate_step,
@@ -278,16 +331,16 @@ static void self_tune(hyper_t *hy, int recent_progress, int step) {
 /* order: swa, chunk, max_ctx, banks, frame_us, stream_sink, stream_window,
  *        kv_budget(x100), hybrid_period(0=off), pd(0/1),
  *        latency_class(0=DT,1=SRT,2=HRT), ctx_window(% of max_ctx),
- *        containment_sev(x100) */
+ *        containment_sev(x100), skill_inject(0/1), degrade_tier(0=auto) */
 static const config_t SEED_GRID[] = {
-    {0,    4096, 262144, 8, 20000, 4,  512,   100, 0, 0, 0, 100, 30},
-    {512,  1024, 262144, 8, 20000, 4,  512,   100, 0, 0, 1, 100, 30},
-    {2048, 1024, 262144, 4, 16000, 8,  1024,  100, 4, 0, 0,  90, 20},
-    {1024, 2048, 524288, 8, 20000, 4,  512,   100, 0, 0, 2, 100, 50},
-    {4096, 4096, 524288, 16, 12000, 16, 2048, 100, 8, 0, 1, 100, 40},
-    {0,    8192, 131072, 8, 20000, 4,  512,   100, 0, 0, 0,  70, 10},
-    {256,  512,  524288, 8, 8000,  2,  256,   100, 0, 0, 0, 100, 30},
-    {8192, 2048, 262144, 16, 10000, 4,  512,   100, 0, 1, 1, 100, 30},
+    {0,    4096, 262144, 8, 20000, 4,  512,   100, 0, 0, 0, 100, 30, 0, 0},
+    {512,  1024, 262144, 8, 20000, 4,  512,   100, 0, 0, 1, 100, 30, 0, 0},
+    {2048, 1024, 262144, 4, 16000, 8,  1024,  100, 4, 0, 0,  90, 20, 0, 0},
+    {1024, 2048, 524288, 8, 20000, 4,  512,   100, 0, 0, 2, 100, 50, 0, 0},
+    {4096, 4096, 524288, 16, 12000, 16, 2048, 100, 8, 0, 1, 100, 40, 0, 0},
+    {0,    8192, 131072, 8, 20000, 4,  512,   100, 0, 0, 0,  70, 10, 0, 0},
+    {256,  512,  524288, 8, 8000,  2,  256,   100, 0, 0, 0, 100, 30, 0, 0},
+    {8192, 2048, 262144, 16, 10000, 4,  512,   100, 0, 1, 1, 100, 30, 0, 0},
 };
 
 int main(void) {
@@ -312,6 +365,9 @@ int main(void) {
         config_t c = SEED_GRID[i];
         result_t r = measure(&c);
         double sc = score_of(&r, &hy);
+        /* DGM archive: record EVERY variant (incl. non-best) as a branch-tree
+         * node. verified only if gen_text returned 0 AND oom_safe (AH08). */
+        dgm_archive_append(step, &c, &r, sc, (r.feasible && r.oom_safe) ? 1 : 0);
         wubu_trace_span_t span; memset(&span, 0, sizeof(span));
         span.id = (uint64_t)(step + 1);
         span.kind = WUBU_TRACE_SELFMOD;
@@ -359,11 +415,16 @@ int main(void) {
                 case 10: c.latency_class  = (int)(c.latency_class  + dir * frac * 1);     if (c.latency_class<0) c.latency_class=0; if (c.latency_class>2) c.latency_class=2; break;
                 case 11: c.ctx_window     = (int)(c.ctx_window     + dir * frac * 20);    if (c.ctx_window<10) c.ctx_window=10; if (c.ctx_window>100) c.ctx_window=100; break;
                 case 12: c.containment_sev= (int)(c.containment_sev+ dir * frac * 20);    if (c.containment_sev<0) c.containment_sev=0; if (c.containment_sev>100) c.containment_sev=100; break;
+                case 13: c.skill_inject   = (int)(c.skill_inject   + dir * frac * 1);     if (c.skill_inject<0) c.skill_inject=0; if (c.skill_inject>1) c.skill_inject=1; break;
+                case 14: c.degrade_tier   = (int)(c.degrade_tier   + dir * frac * 34);    if (c.degrade_tier<0) c.degrade_tier=0; if (c.degrade_tier>70) c.degrade_tier=70; break;
             }
         }
 
         result_t r = measure(&c);
         double sc = score_of(&r, &hy);
+        /* DGM archive: record EVERY variant (incl. non-best) as a branch-tree
+         * node. verified only if gen_text returned 0 AND oom_safe (AH08). */
+        dgm_archive_append(step, &c, &r, sc, (r.feasible && r.oom_safe) ? 1 : 0);
 
         wubu_trace_span_t span; memset(&span, 0, sizeof(span));
         span.id = (uint64_t)(step + 1);
