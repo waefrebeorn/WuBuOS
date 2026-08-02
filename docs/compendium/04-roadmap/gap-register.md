@@ -21,7 +21,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A10. Runtime PCR: wubu_sha256 (FIPS 180-4, own C11) + every promotion chains into a kernel-side runtime PCR; `attest` command verified live (rtPCR chained).
 - [x] A11. PS/2 ack/self-test validation + device-ID handshakes (live: kbd 0x83 / mouse 0x00).
       device-id handshake.
-- [ ] A12. ps2.c: no mouse handling (keyboard only? verified: input.h has
+- [x] A12. ps2 mouse feeds the unified HID ring (wubu_hid_feed_mouse).
       KeyEvent; MouseEvent unused by ps2).
 - [ ] A13. AHCI: no HBA reset / port error recovery (status bits never
       cleared on error).
