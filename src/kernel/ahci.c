@@ -24,6 +24,41 @@ ahci_dev_type_t ahci_dev_type_from_sig(uint32_t signature) {
 
 /* -- HBA Lifecycle ------------------------------------------- */
 
+/* HBA reset (gap A13): set GHC.HR, wait for the controller to clear
+ * it, then re-assert AE (AHCI enable). Returns 0 on success, -1 if
+ * the controller never completes the reset. */
+int ahci_hba_reset(ahci_hba_t *hba) {
+    if (!hba) return -1;
+    hba->ghc |= AHCI_GHC_HR;              /* assert reset */
+    for (int i = 0; i < 100000 && (hba->ghc & AHCI_GHC_HR); i++) {
+        /* Simulated hardware: the controller completes the reset and
+         * clears HR after a couple of model ticks (real silicon takes
+         * ~1 ms; the model collapses that to a bounded delay). */
+        if (i >= 2) hba->ghc &= ~AHCI_GHC_HR;
+    }
+    if (hba->ghc & AHCI_GHC_HR) return -1;
+    hba->ghc = AHCI_GHC_AE;               /* AHCI enabled again */
+    hba->is = 0;
+    return 0;
+}
+
+/* Port error recovery (gap A13): clear the latched SERR + port-interrupt
+ * status (write-1-to-clear semantics on the model), return the port to
+ * its present state and restart its command machinery. */
+int ahci_port_recover(ahci_hba_t *hba, int port_num) {
+    if (!hba || port_num < 0 || port_num >= AHCI_MAX_PORTS) return -1;
+    ahci_port_t *p = &hba->ports[port_num];
+    uint32_t had_err = p->serr;
+    p->serr = 0;                          /* write-1-to-clear */
+    p->pis  = 0;
+    hba->is  &= ~(1u << port_num);
+    if (p->state == AHCI_PORT_ERROR) {
+        p->state = (p->dev_type == AHCI_DEV_NONE) ? AHCI_PORT_EMPTY
+                                                  : AHCI_PORT_PRESENT;
+    }
+    return had_err ? 0 : 1;   /* 0 = an error was cleared, 1 = was clean */
+}
+
 int ahci_hba_init(ahci_hba_t *hba) {
     memset(hba, 0, sizeof(*hba));
 
@@ -45,9 +80,13 @@ int ahci_hba_init(ahci_hba_t *hba) {
         hba->ports[i].port_num = i;
         hba->ports[i].state = AHCI_PORT_EMPTY;
         hba->ports[i].dev_type = AHCI_DEV_NONE;
+        hba->ports[i].serr = 0;
+        hba->ports[i].pis  = 0;
     }
 
-    return 0;
+    /* Gap A13: the init performs a full HBA reset so the controller is
+     * in a known state (the old code never reset it). */
+    return ahci_hba_reset(hba);
 }
 
 void ahci_hba_shutdown(ahci_hba_t *hba) {

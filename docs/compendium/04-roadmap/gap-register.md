@@ -23,7 +23,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
       device-id handshake.
 - [x] A12. ps2 mouse feeds the unified HID ring (wubu_hid_feed_mouse).
       KeyEvent; MouseEvent unused by ps2).
-- [ ] A13. AHCI: no HBA reset / port error recovery (status bits never
+- [x] A13. AHCI HBA reset (GHC.HR cycle) + port error recovery (SERR/PIS write-1-to-clear).
       cleared on error).
 - [ ] A14. AHCI: only the boot disk; no multi-drive enumeration.
 - [ ] A15. FAT32: no dirty-volume flag, no fsck, no journal.
