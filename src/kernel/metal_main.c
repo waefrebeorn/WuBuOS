@@ -15,9 +15,46 @@
 #include "wubu_gaad.h"
 #include "wubu_agi_kernel.h"
 #include "wubu_attest.h"
+#include "wubu_hive.h"   /* G5: the metal's long-term memory */
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
+
+/* Gap G5: the metal's long-term hive -- file-scope (the AGI's memory
+ * adapter cannot be a nested function). */
+static wubu_hive_t *g_hive;
+static uint64_t g_lm_count;
+static int lm_put(const char *op, uint64_t id, const char *payload, void *ud)
+{
+    (void)op; (void)id; (void)ud;
+    if (!g_hive || !payload) return -1;
+    if (++g_lm_count % 25 != 0) return 0;   /* same cadence as the echo */
+    extern void *mem_alloc(size_t);
+    size_t len = 0;
+    for (const char *p = payload; *p; p++) len++;
+    char *copy = (char *)mem_alloc(len + 1);
+    if (!copy) return -1;
+    for (size_t i = 0; i < len; i++) copy[i] = payload[i];
+    copy[len] = '\0';
+    extern void *wubu_hive_insert(wubu_hive_t *, void *);
+    return (wubu_hive_insert(g_hive, copy) != NULL) ? 0 : -1;
+}
+
+void metal_lm_setup(void *agi)
+{
+    extern void *mem_alloc(size_t);
+    extern void mem_free(void *);
+    extern wubu_hive_t *wubu_hive_new(size_t, void *(*)(size_t), void (*)(void *));
+    extern void wubu_agi_kernel_set_memory(wubu_agi_kernel_t *,
+                                           int (*)(const char *, uint64_t,
+                                                   const char *, void *),
+                                           void *);
+    g_hive = wubu_hive_new(64, mem_alloc, mem_free);
+    if (g_hive) {
+        wubu_agi_kernel_set_memory((wubu_agi_kernel_t *)agi, lm_put, NULL);
+        klog_printf("WuBuOS: long-term hive armed (gap G5)\n");
+    }
+}
 #include <stdint.h>
 
 /* Inline assembly helpers for freestanding mode */
@@ -355,6 +392,13 @@ void kernel_main(void *boot_info) {
     extern void wubu_verifier_install(void);
     wubu_verifier_install();
     klog_printf("WuBuOS: independent verifier installed (promote loop live)\n");
+
+    /* 9c. Gap G5: the metal's long-term memory -- a C11 hive fed by the
+     * AGI's memory hook (every promoted span is retained). Rate-limited
+     * to the same cadence as the console echo (the flood would burn the
+     * heap); the hive is the seed of the persisted store. */
+    extern void metal_lm_setup(void *);
+    metal_lm_setup(agi);
 
     /* 10. Enter the cooperative supervisor run loop (spawns agent task,
      *     yields to the PIT-ticked scheduler). Never returns. */

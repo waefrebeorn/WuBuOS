@@ -41,7 +41,10 @@ struct wubu_agi_kernel {
 
     /* Self-improve bookkeeping. */
     wubu_agi_verifier_fn verifier;
-    void            *verifier_ud;
+    void *               verifier_ud;
+    /* G5: long-term memory hook (the metal's hive) */
+    wubu_agi_memory_fn   memory_fn;
+    void *               memory_ud;
     bool             frozen;
     int              promoted_total;
     uint64_t         last_promote_tick;   /* D7: supervisor watchdog   */
@@ -347,6 +350,15 @@ void wubu_agi_kernel_set_verifier(wubu_agi_kernel_t *k,
     k->verifier_ud = ud;
 }
 
+/* Gap G5: wire the long-term-memory hook (the metal's hive adapter). */
+void wubu_agi_kernel_set_memory(wubu_agi_kernel_t *k,
+                                wubu_agi_memory_fn fn, void *ud)
+{
+    if (!k) return;
+    k->memory_fn = fn;
+    k->memory_ud = ud;
+}
+
 int wubu_agi_kernel_agent_emit(wubu_agi_kernel_t *k, uint64_t parent,
                                const char *payload)
 {
@@ -397,6 +409,10 @@ int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
              * watchdog's heartbeat). */
             extern uint64_t task_tick_count(void);
             k->last_promote_tick = task_tick_count();
+            /* G5: long-term memory -- hand the promoted span to the
+             * metal's hive (retained across boots). */
+            if (k->memory_fn)
+                k->memory_fn("put", s->id, s->data, k->memory_ud);
             /* Rate-limited console echo (every 25th promotion): the
              * console stays a live window, not a firehose. */
             if (klog_printf && (k->promoted_total % 25) == 0)
