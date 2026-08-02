@@ -70,4 +70,5 @@ void wubu_spin_unlock(wubu_spinlock_t *l)
 
 /* ---- tasking hosted shims (the main loop reaps DYING tasks) --------- */
 void task_reap(void) { }
+uint64_t task_tick_count(void) { return 0; }
 
