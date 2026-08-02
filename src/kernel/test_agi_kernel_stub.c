@@ -47,3 +47,13 @@ void vbe_fill_circle(int cx, int cy, int r, uint32_t c) { (void)cx;(void)cy;(voi
 void vbe_fill_rect_rounded(int x, int y, int w, int h, int r, uint32_t c) { (void)x;(void)y;(void)w;(void)h;(void)r;(void)c; }
 void vbe_rect_rounded(int x, int y, int w, int h, int r, uint32_t c) { (void)x;(void)y;(void)w;(void)h;(void)r;(void)c; }
 void vbe_draw_text(int x, int y, const char *s, uint32_t c, int scale) { (void)x;(void)y;(void)s;(void)c;(void)scale; }
+
+/* ---- wubu_console hosted stub (the run loop spawns it) -------------- */
+void wubu_console_task(void *arg) { (void)arg; }
+
+/* ---- wubu_theme hosted stubs (agi_theme_step writes /theme nodes) --- */
+int wubu_theme_node_set(const char *p, uint32_t v) { (void)p; (void)v; return 0; }
+int wubu_theme_node_get(const char *p, uint32_t *v) { (void)p; if (v) *v = 0; return 0; }
+void wubu_theme_apply(void) {}
+const void *wubu_theme_get(void) { return NULL; }
+
