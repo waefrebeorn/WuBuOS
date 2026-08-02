@@ -146,11 +146,52 @@ static void test_sim_disk_destroy(void) {
     ahci_enumerate_ports(&hba);
     ahci_port_init(&hba, 0);
     ahci_sim_disk_create(&hba, 0, 1);
-
     ahci_sim_disk_destroy(&hba, 0);
     CHECK(hba.ports[0].sim_disk == NULL, "sim_disk should be NULL");
     CHECK(hba.ports[0].sim_disk_size == 0, "size should be 0");
     CHECK(hba.ports[0].lba_count == 0, "lba_count should be 0");
+
+    ahci_hba_shutdown(&hba);
+    PASS();
+}
+
+/* Gap A14: two independent drives on ports 0 + 1 -- each keeps its own
+ * disk, and a sector written to one never leaks into the other. */
+static void test_multi_drive(void) {
+    TEST("multi-drive (ports 0+1 independent)");
+    ahci_hba_t hba;
+    ahci_hba_init(&hba);
+    int n = ahci_enumerate_ports(&hba);
+    CHECK(n >= 2, "both ports enumerated");
+    CHECK(ahci_port_init(&hba, 0) == 0, "port 0 init");
+    CHECK(ahci_port_init(&hba, 1) == 0, "port 1 init");
+    CHECK(ahci_sim_disk_create(&hba, 0, 4) == 0, "port 0 disk (4MB)");
+    CHECK(ahci_sim_disk_create(&hba, 1, 2) == 0, "port 1 disk (2MB)");
+
+    uint8_t w0[512], w1[512], r0[512], r1[512];
+    memset(w0, 0xAA, sizeof(w0));
+    memset(w1, 0x55, sizeof(w1));
+    memset(r0, 0, sizeof(r0));
+    memset(r1, 0, sizeof(r1));
+
+    CHECK(hba.ports[0].state == AHCI_PORT_ACTIVE, "port 0 active pre-write");
+    CHECK(hba.ports[1].state == AHCI_PORT_ACTIVE, "port 1 active pre-write");
+    CHECK(hba.ports[0].sim_disk != NULL, "port 0 disk present");
+    CHECK(hba.ports[1].sim_disk != NULL, "port 1 disk present");
+
+    CHECK(ahci_write(&hba, 0, 100, 1, w0) == 1, "write port 0");
+    CHECK(ahci_write(&hba, 1, 100, 1, w1) == 1, "write port 1");
+    CHECK(ahci_read(&hba, 0, 100, 1, r0) == 1, "read port 0");
+    CHECK(ahci_read(&hba, 1, 100, 1, r1) == 1, "read port 1");
+
+    CHECK(r0[0] == 0xAA, "port 0 readback");
+    CHECK(r1[0] == 0x55, "port 1 readback");
+
+    /* cross-check: writing to port 0 leaves port 1 untouched */
+    CHECK(ahci_write(&hba, 0, 200, 1, w1) == 1, "rewrite port 0");
+    memset(r1, 0, sizeof(r1));
+    CHECK(ahci_read(&hba, 1, 100, 1, r1) == 1, "reread port 1");
+    CHECK(r1[0] == 0x55, "port 1 unaffected by port 0 write");
 
     ahci_hba_shutdown(&hba);
     PASS();
@@ -403,6 +444,7 @@ int main(void) {
     /* Sim Disk */
     test_sim_disk_create();
     test_sim_disk_destroy();
+    test_multi_drive();
 
     /* IDENTIFY */
     test_identify();
