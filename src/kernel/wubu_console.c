@@ -763,6 +763,26 @@ int wubu_console_exec(const char *line)
         }
         return 0;
     }
+    if (strcmp(argv[0], "usb") == 0) {           /* Gap E1: the xHCI driver */
+        extern int wubu_xhci_probe(void *);
+        extern int wubu_xhci_start(void *);
+        struct {
+            int present; uint64_t mmio_base, op_base;
+            uint32_t cap_length, hcs_params, hcc_params, db_off, rt_off;
+            uint32_t port_count, slot_count;
+        } x;
+        if (wubu_xhci_probe(&x) == 0 && x.present) {
+            extern int wubu_xhci_slot_alloc(void *);
+            klog_printf("usb: xHCI %u slots %u ports; starting...\n",
+                        (unsigned)x.slot_count, (unsigned)x.port_count);
+            wubu_xhci_start(&x);
+            int slot = wubu_xhci_slot_alloc(&x);
+            klog_printf("usb: slot %d allocated (HID transfer path pending)\n", slot);
+        } else {
+            klog_printf("usb: no xHCI controller on the bus\n");
+        }
+        return 0;
+    }
     if (strcmp(argv[0], "smp") == 0) {           /* Gap I2: AP bring-up */
         extern uint32_t wubu_smp_start_aps(void);
         extern uint32_t wubu_smp_cpu_count(void);
