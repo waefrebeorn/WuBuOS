@@ -294,23 +294,23 @@ _start:
     /* ------------------------------------------------------------
      * Enable PAE, PGE, NXE
      * ------------------------------------------------------------ */
-    movl %cr4, %esi
-    orl $(1 << 5) | (1 << 7), %esi
-
     /* Gap C10: SMEP (bit 20) + SMAP (bit 21), when the CPU has them
-     * (CPUID.7.0.EBX). The kernel is the only thing mapped so far, so
-     * no user page can be executed/read from the kernel's perspective
-     * -- the bits harden the future user/kernel split now. */
+     * (CPUID.7.0.EBX). CPUID first (it clobbers EAX/ECX/EDX), then the
+     * CR4 read-modify-write in EAX. NOTE: ESI holds the image base
+     * here -- it must survive untouched. */
     movl $7, %eax
     xorl %ecx, %ecx
     cpuid                       /* EBX = feature flags (leaf 7.0) */
-    testl $(1 << 20), %ebx      /* SMEP */
+    movl %ebx, %edx             /* keep the feature flags */
+    movl %cr4, %eax
+    orl $(1 << 5) | (1 << 7), %eax
+    testl $(1 << 20), %edx      /* SMEP */
     jz 1f
-    orl $(1 << 20), %esi
-    testl $(1 << 21), %ebx      /* SMAP */
+    orl $(1 << 20), %eax
+    testl $(1 << 21), %edx      /* SMAP */
     jz 1f
-    orl $(1 << 21), %esi
-1:  movl %esi, %cr4
+    orl $(1 << 21), %eax
+1:  movl %eax, %cr4
 
     /* Set NX bit in EFER */
     movl $0xC0000080, %ecx
