@@ -50,7 +50,14 @@ typedef struct TaskContext {
 } TaskContext;
 
 /* STATIC ABI CONTRACT with tasking_switch.S: the fxsave area sits at
- * offset 144 (16-aligned); the GP-register layout above it is exact. */
+ * offset 144 (16-aligned); the GP-register layout above it is exact.
+ * Gap H7: every offset the switch touches is asserted at compile time. */
+_Static_assert(offsetof(TaskContext, r15) == 0,    "r15 offset");
+_Static_assert(offsetof(TaskContext, rsi) == 72,   "rsi offset (restored last)");
+_Static_assert(offsetof(TaskContext, rax) == 112,  "rax offset");
+_Static_assert(offsetof(TaskContext, rip) == 120,  "rip offset");
+_Static_assert(offsetof(TaskContext, rsp) == 128,  "rsp offset");
+_Static_assert(offsetof(TaskContext, rflags) == 136, "rflags offset");
 _Static_assert(offsetof(TaskContext, fxsave) == 144, "fxsave offset");
 _Static_assert(sizeof(TaskContext) == 656, "task context size");
 

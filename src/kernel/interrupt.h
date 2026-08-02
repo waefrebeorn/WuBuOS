@@ -168,9 +168,17 @@ uint64_t interrupt_get_count(uint8_t irq);
 /* Gap C5: nested-ISR overruns observed (NMI during an ISR etc.). */
 uint32_t interrupt_isr_overruns(void);
 
+/* Gap G10: the exception counters (vectors 0..31) -- the AGI's window
+ * into the kernel's fault state. */
+uint64_t interrupt_exception_count(uint8_t vec);
+
 /* Syscall API */
 typedef int64_t (*syscall_fn_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 int syscall_register(uint32_t num, syscall_fn_t handler);
+/* Gap H1/H3: the syscall registry docs + audit. */
+void syscall_set_name(uint32_t num, const char *name);
+uint64_t syscall_call_count(uint32_t num);
+const char *syscall_name(uint32_t num);
 int64_t syscall_handler(InterruptFrame *frame, uint64_t num);
 #endif
 

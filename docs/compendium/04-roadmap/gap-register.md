@@ -108,16 +108,16 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] G7. Superseded by D7 (supervisor watchdog).
 - [x] G8. Gamepad event path verified (feed_gamepad -> ring -> poll, host-tested); the hardware driver rides on the E1 USB-HID arc.
 - [x] G9. See B10 (this batch) (B10).
-- [ ] G10. No AGI-side fault awareness (C11).
+- [x] G10. The AGI sees the kernel's fault state: exception counters (0..31) + spurious + overruns in 'uptime'.
 
 ## H. Syscall / ABI (P1)
-- [ ] H1. Syscall table undocumented (numbers/return codes).
-- [ ] H2. Syscall args (pointers) not validated.
-- [ ] H3. No syscall audit log.
+- [x] H1. Syscall registry: names + docs accessors + 'syscalls' console command; get_uptime + klog registered.
+- [x] H2. The dispatcher rejects pointer-sized args inside the kernel window (-EFAULT).
+- [x] H3. Per-syscall call counters + the 'syscalls' audit command.
 - [ ] H4. No ring-3 boundary (all ring 0; the hedged-human design needs it).
-- [ ] H5. sysretq rflags sanitization (C6).
+- [x] H5. Superseded by C6 (the sysretq RFLAGS sanitizer ships with the C6 close).
 - [ ] H6. No vDSO/vsyscall page.
-- [ ] H7. No static ABI asserts for InterruptFrame/TaskContext offsets (the
+- [x] H7. Static ABI asserts for every InterruptFrame + TaskContext offset the asm touches.
       phantom-field bug class can regress).
 
 ## I. Boot / early (P1)
@@ -135,7 +135,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] J3. commands.md generated from the dispatch table (this batch) (console command list).
 - [ ] J4. Ledger TEMPLATE not lint-enforced.
 - [ ] J5. gen_docs api scanner caps 40 prototypes/header (truncation).
-- [ ] J6. The kernel.ld ALIGN(16) fix has no boot-time assertion.
+- [x] J6. Boot-time image-alignment check (kernel start + stack top % 16) before any heap use.
 - [ ] J7. parity.md: Windows/macOS rows PLANNED with no leg files.
 
 ## K. Parity (P1)

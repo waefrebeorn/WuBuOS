@@ -76,11 +76,20 @@ static int cmd_help(void)
 static int cmd_uptime(void)
 {
     wubu_agi_kernel_t *agi = wubu_agi_kernel_global();
-    klog_printf("tick=%u agi_uptime_ms=%u regions=%d promoted=%d\n",
+    /* Gap G10: the AGI sees the kernel's fault state (exceptions 0..31,
+     * spurious, overruns). */
+    extern uint64_t interrupt_exception_count(uint8_t);
+    extern uint32_t interrupt_isr_overruns(void);
+    uint64_t faults = 0;
+    for (int v = 0; v < 32; v++) faults += interrupt_exception_count((uint8_t)v);
+    klog_printf("tick=%u agi_uptime_ms=%u regions=%d promoted=%d faults=%u spurious=%u overruns=%u\n",
                 (unsigned)task_tick_count(),
                 (unsigned)wubu_agi_kernel_uptime_ms(agi),
                 wubu_agi_kernel_region_count(agi),
-                wubu_agi_kernel_promoted_total(agi));
+                wubu_agi_kernel_promoted_total(agi),
+                (unsigned)faults,
+                (unsigned)interrupt_exception_count(0xFF),
+                (unsigned)interrupt_isr_overruns());
     return 0;
 }
 
@@ -646,6 +655,23 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
     if (strcmp(argv[0], "run") == 0)             return cmd_run(argc, argv);
+    if (strcmp(argv[0], "syscalls") == 0) {      /* Gap H1/H3 */
+        extern const char *syscall_name(uint32_t);
+        extern uint64_t syscall_call_count(uint32_t);
+        klog_printf("-- syscall table (registered + audited) --\n");
+        int shown = 0;
+        for (uint32_t n = 0; n < 512; n++) {
+            const char *nm = syscall_name(n);
+            uint64_t c = syscall_call_count(n);
+            if (nm || c > 0) {
+                klog_printf("  %u %s calls=%u\n", (unsigned)n,
+                            nm ? nm : "(anon)", (unsigned)c);
+                shown++;
+            }
+        }
+        if (shown == 0) klog_printf("  (no syscalls registered)\n");
+        return 0;
+    }
     if (strcmp(argv[0], "reboot") == 0)          return cmd_reboot();
     klog_printf("console: unknown command '%s' (try 'help')\n", argv[0]);
     return -1;
