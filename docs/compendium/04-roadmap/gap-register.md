@@ -154,4 +154,4 @@ C11/B12 fault statistics + console `stats` → B10/G9 AGI memory-pressure
 awareness → F7 `make check` → J2/J3 doc closes. Then the ledger.
 
 ## The freeze (open, highest priority)
-- [ ] A2x. The tick-12/33/153 wild-control-flow freeze: CR3 clobbered to 0x70000, RIP mid-instruction #UD, timing-dependent; stable config = no-ring-lock + span-ID promote message. See 03-learned/didnt-work.md.
+- [x] A2x. The tick-12/33/153 freeze -- SOLVED: the unbounded serial_tx wait spun forever under backpressure (a slow/no reader stops the UART THR-empty). The 'wild control flow' was the spin's state (serial registers + kernel text). Fix: serial_tx is BOUNDED (65536 polls then drop) -- the kernel never blocks on the debug channel. Soak 156->203, zero faults, 9s no-reader survival.

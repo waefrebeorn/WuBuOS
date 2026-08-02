@@ -172,3 +172,22 @@ Copy TEMPLATE.md for new entries.*
 - **When it may change:** the 'OVER' display's root (rsp sampled below the
   base) needs a follow-up with a real CTask dump; guard pages come with
   the multi-address-space work.
+
+## 2026-08-02 — THE FREEZE SOLVED: the unbounded serial_tx
+- **Context:** the tick-12/33/153 freeze (extensive forensics).
+- **Root cause (finally):** the freeze's CPU state was the SERIAL SPIN --
+  RAX=0xffffffff, RDX=0x3fd (the LSR port), RIP in the serial code,
+  IF=0. The unbounded `while ((inb(LSR) & 0x20) == 0);` in serial_tx
+  spun FOREVER whenever a slow/no serial reader backed up the socket
+  (the UART's THR-empty stops). The "wild control flow" (the CR3=0x70000
+  + the mid-instruction RIP) was the SPIN's state, not corruption. Every
+  timing perturbation moved the freeze point because it changed the TX
+  rate -- the flood (slow loop) hid it, the rate-limit (fast loop)
+  exposed it.
+- **Fix:** serial_tx waits a BOUNDED number of polls then DROPS the char
+  -- the serial is a debug channel, the kernel must never block on it.
+- **Evidence:** soak 156->203 ticks, promoted 20710, ZERO faults; 9
+  seconds with NO serial reader: the kernel survives (the old code
+  froze instantly). make check ALL GREEN.
+- **When it may change:** the dropped chars under backpressure are the
+  cost -- a TX ring buffer (ISR-fed) is the future polish.
