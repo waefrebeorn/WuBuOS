@@ -86,6 +86,8 @@ grep -q "WuBuOS: kernel_main entered"             build/agi-boot.log || { echo "
 grep -q "firmware attestation consumed"           build/agi-boot.log || { echo "MISSING: kernel consumed attestation"; PASS=0; }
 grep -q "AGI kernel booted"                       build/agi-boot.log || { echo "MISSING: AGI kernel booted"; PASS=0; }
 grep -q "AGI: firmware attestation VALID"         build/agi-boot.log || { echo "MISSING: AGI attestation VALID"; PASS=0; }
+grep -q "Bonzi Buddy loop active"                 build/agi-boot.log || { echo "MISSING: Bonzi Buddy loop active"; PASS=0; }
+grep -q "bonzi: heartbeat"                        build/agi-boot.log || { echo "MISSING: bonzi heartbeat (loop alive)"; PASS=0; }
 if grep -q "PANIC\|TRIPLE\|TRIPLE FAULT" build/agi-boot.log; then echo "ERROR MARKERS PRESENT"; PASS=0; fi
 
 if [ "$PASS" -eq 1 ]; then

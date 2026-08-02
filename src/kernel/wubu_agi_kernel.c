@@ -12,6 +12,7 @@
 #include "wubu_agi_kernel.h"
 #include "wubu_gaad.h"
 #include "wubu_attest.h"
+#include "wubu_bonzi.h"
 #include "tasking.h"
 #include "klog.h"
 #include "vbe.h"
@@ -215,6 +216,13 @@ void wubu_agi_kernel_run(wubu_agi_kernel_t *k)
     if (klog_printf)
         klog_printf("WuBuOS AGI: agent realm task spawned (%s)\n",
                     k->agent_task ? "ok" : "FAIL");
+    /* Spawn the Bonzi Buddy human interface task: draws the gorilla +
+     * console on the framebuffer, polls the PS/2 keyboard, dispatches real
+     * ring-0 actions, and feeds every human interaction into the trace. */
+    if (task_create("bonzi", wubu_bonzi_task, k, 128 * 1024, PRIO_NORMAL)) {
+        if (klog_printf)
+            klog_printf("WuBuOS AGI: Bonzi Buddy task spawned\n");
+    }
     /* The cooperative loop is driven by the PIT timer (wubu_agi_kernel_tick).
      * On bare metal we yield to the scheduler; the timer interrupt ticks us.
      * We do NOT busy-HLT -- the agent task + supervisor run cooperatively. */
