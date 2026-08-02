@@ -611,6 +611,11 @@ void handle_page_fault(InterruptFrame *frame) {
             return;                     /* retry the faulting instruction */
         /* OOM in the demand path: fall through to the panic dump */
     }
+    /* Gap B4: copy-on-write -- a write fault on a shared (RO) page
+     * makes a private copy + remaps writable, then retries. */
+    extern int wubu_vmm_cow_fault(uint64_t);
+    if (wubu_vmm_cow_fault(cr2) == 1)
+        return;
     /* In a real kernel: demand paging, COW, etc. */
     extern int klog_printf(const char *fmt, ...);
     uint64_t *sp = frame ? (uint64_t *)(uintptr_t)frame->rsp : NULL;
