@@ -19,7 +19,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] A8. No crash dump to the disk (the ledger wants evidence, not dumps).
 - [x] A9. Hex progress codes: the crt0 + metal_main boot markers emit 2-digit hex checkpoints (01 crt0 -> 37 final), verified live.
 - [x] A10. Runtime PCR: wubu_sha256 (FIPS 180-4, own C11) + every promotion chains into a kernel-side runtime PCR; `attest` command verified live (rtPCR chained).
-- [ ] A11. ps2.c: 13 conditionals total; no ack/self-test validation, no
+- [x] A11. PS/2 ack/self-test validation + device-ID handshakes (live: kbd 0x83 / mouse 0x00).
       device-id handshake.
 - [ ] A12. ps2.c: no mouse handling (keyboard only? verified: input.h has
       KeyEvent; MouseEvent unused by ps2).

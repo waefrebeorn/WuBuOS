@@ -435,7 +435,6 @@ extern void task_yield(void);
 extern int mem_init(uint64_t size);
 extern int vbe_init(int w, int h);
 extern void input_init(void);
-extern void ps2_init(int w, int h);
 extern int tasking_init(void);
 extern int interrupt_init(void);
 

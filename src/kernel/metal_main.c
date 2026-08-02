@@ -249,7 +249,11 @@ void kernel_main(void *boot_info) {
         fb_w = fb2->width;
         fb_h = fb2->height;
     }
-    ps2_init(fb_w, fb_h);
+    ps2_probe_t ps2p;
+    ps2_init(fb_w, fb_h, &ps2p);
+    klog_printf("WuBuOS: PS2 self-test=%d kbd_id=%x mouse_id=%x ack=%d flags=%x\n",
+                ps2p.self_test, (unsigned)ps2p.kbd_id,
+                (unsigned)ps2p.mouse_id, ps2p.mouse_ack, (unsigned)ps2p.flags);
     klog_printf("WuBuOS: input/PS2 initialized\n");
 
     /* 7. Initialize tasking (cooperative scheduler, PIT timer) */

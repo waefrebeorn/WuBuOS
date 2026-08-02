@@ -20,8 +20,23 @@ extern volatile uint8_t ps2_mouse_buttons;
 /* Keyboard */
 extern volatile bool ps2_key_pressed[256];
 
-/* Initialize PS/2 controller, keyboard, and mouse */
-void ps2_init(int screen_w, int screen_h);
+/* Initialize PS/2 controller, keyboard, and mouse. The optional probe
+ * receives the validated self-test / device-ID / ACK results (gap A11):
+ * NULL skips the reporting, the init still validates. */
+typedef struct {
+    int      self_test;   /* 0 = 0xAA->0x55 OK; -1 timeout; -2 wrong */
+    int      kbd_id;      /* >=0: keyboard device ID (0x83/0xAB/...) */
+    int      mouse_id;    /* >=0: mouse device ID (0x00/0x03/0x04/...) */
+    int      mouse_ack;   /* 0 = F6+F4 ACKed; -1 timeout; -2 wrong   */
+    uint32_t flags;       /* PS2_PROBE_* bits */
+} ps2_probe_t;
+
+#define PS2_PROBE_SELFTEST_OK   0x01
+#define PS2_PROBE_KBD_OK        0x02
+#define PS2_PROBE_MOUSE_ACK_OK  0x04
+#define PS2_PROBE_MOUSE_OK      0x08
+
+void ps2_init(int screen_w, int screen_h, ps2_probe_t *probe);
 
 /* Keyboard handler - call from IRQ1 (interrupt 0x21) */
 void ps2_keyboard_handler(void);
