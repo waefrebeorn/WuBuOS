@@ -191,3 +191,20 @@ Copy TEMPLATE.md for new entries.*
   froze instantly). make check ALL GREEN.
 - **When it may change:** the dropped chars under backpressure are the
   cost -- a TX ring buffer (ISR-fed) is the future polish.
+
+## 2026-08-02 — THE "CORRUPTION" WAS THE FIRMWARE'S SHELL IDLE (resolved)
+- **The hunt:** the no-input boots showed RIP=0x2010e0, CR3=0x70000,
+  RSP=0x9ef18, IF=0 -- framed as a kernel wild-jump corruption.
+- **The truth:** those boots NEVER LAUNCHED THE KERNEL. WuBuFW boots
+  into its own interactive shell and waits for input ("exit" hands off
+  to the kernel). The 0x2010e0/0x70000/0x9e000 values are the
+  FIRMWARE's text/stack/page-table state -- the shell's idle wait, not
+  a kernel bug.
+- **Proof:** with the "exit" handoff the kernel runs a 15s soak with
+  ZERO faults and the RIP in the normal higher-half text
+  (ffffffff80101928). The kernel's REAL freezes (the qsoak's tick-12
+  serial spin) were real and are fixed (bounded TX + the no-retry
+  contract).
+- **Lesson:** the QEMU monitor forensics must confirm the KERNEL is
+  running (serial marker / "live console up") before reading the CPU
+  state -- a firmware-shell boot looks like an arbitrary kernel state.
