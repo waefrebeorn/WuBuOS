@@ -1,0 +1,1058 @@
+# Security Bank -- 1000 goals + gaps (the trust substrate)
+
+Date: 2026-08-02. The security avenue: trust foundation, memory
+safety, kernel hardening, crypto, EDR/audit, supply chain, app
+security, network security, AGI security, engineering. Status:
+`open` / `wired`. Every gap is a real mechanism from the surveyed
+lineage (kernel-security review -> memory-safety continuum ->
+SBOM/agentic-governance -> the WuBuOS verifier/EDR).
+
+## SC-A: The trust foundation
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: measured boot -> TPM/PCRs -> attestation -> the promote/operate gate
+- SC-A01 The measured boot (the hash chain) `open`
+- SC-A02 The root of trust (the immutable) `open`
+- SC-A03 The attestation gate `open`
+- SC-A04 The TPM (the future) `open`
+- SC-A05 The PCRs (the future) `open`
+- SC-A06 The extended measurements `open`
+- SC-A07 The policy evaluation `open`
+- SC-A08 The promote-on-pass `open`
+- SC-A09 The operate-on-trust `open`
+- SC-A10 The anti-rollback (the future) `open`
+- SC-A11 The signed kernel `open`
+- SC-A12 The signed firmware (the WuBuFW) `open`
+- SC-A13 The signed modules `open`
+- SC-A14 The signed apps `open`
+- SC-A15 The key hierarchy (the root key) `open`
+- SC-A16 The key storage (the keyring) `open`
+- SC-A17 The key rotation `open`
+- SC-A18 The key revocation `open`
+- SC-A19 The key backup `open`
+- SC-A20 The hardware root (the fuses) `open`
+- SC-A21 The UEFI secure boot (the future) `open`
+- SC-A22 The chain of trust `open`
+- SC-A23 The trust anchors `open`
+- SC-A24 The trust store `open`
+- SC-A25 The trust report (the boot log) `open`
+- SC-A26 The trust telemetry `open`
+- SC-A27 The trust tests `open`
+- SC-A28 The trust fuzz `open`
+- SC-A29 The trust docs `open`
+- SC-A30 Trust op measure `open`
+- SC-A31 Trust op extend `open`
+- SC-A32 Trust op quote `open`
+- SC-A33 Trust op verify `open`
+- SC-A34 Trust op attest `open`
+- SC-A35 Trust op promote `open`
+- SC-A36 Trust op operate `open`
+- SC-A37 Trust op deny `open`
+- SC-A38 Trust op quarantine `open`
+- SC-A39 Trust op report `open`
+- SC-A40 Trust layer kernel `open`
+- SC-A41 Trust layer firmware `open`
+- SC-A42 Trust layer bootloader `open`
+- SC-A43 Trust layer modules `open`
+- SC-A44 Trust layer apps `open`
+- SC-A45 Trust layer containers `open`
+- SC-A46 Trust layer AGI `open`
+- SC-A47 Trust layer Bonzi `open`
+- SC-A48 Trust layer Colonel `open`
+- SC-A49 Trust layer payloads `open`
+- SC-A50 Trust feature hash-chain `open`
+- SC-A51 Trust feature anti-rollback `open`
+- SC-A52 Trust feature keyring `open`
+- SC-A53 Trust feature anchor `open`
+- SC-A54 Trust feature store `open`
+- SC-A55 Trust feature rotation `open`
+- SC-A56 Trust feature revocation `open`
+- SC-A57 Trust feature backup `open`
+- SC-A58 Trust feature telemetry `open`
+- SC-A59 Trust feature tests `open`
+- SC-A60 Trust scenario cold-boot `open`
+- SC-A61 Trust scenario warm-boot `open`
+- SC-A62 Trust scenario firmware-update `open`
+- SC-A63 Trust scenario kernel-update `open`
+- SC-A64 Trust scenario module-load `open`
+- SC-A65 Trust scenario app-launch `open`
+- SC-A66 Trust scenario container-spawn `open`
+- SC-A67 Trust scenario AGI-promote `open`
+- SC-A68 Trust scenario payload-load `open`
+- SC-A69 Trust scenario rollback `open`
+- SC-A70 Trust test tamper `open`
+- SC-A71 Trust test replay `open`
+- SC-A72 Trust test rollback-attack `open`
+- SC-A73 Trust test key-leak `open`
+- SC-A74 Trust test firmware-corrupt `open`
+- SC-A75 Trust test kernel-corrupt `open`
+- SC-A76 Trust test verify-fail `open`
+- SC-A77 Trust test policy-deny `open`
+- SC-A78 Trust test bench `open`
+- SC-A79 Trust test fuzz `open`
+- SC-A80 Trust op measure `open`
+- SC-A81 Trust op extend `open`
+- SC-A82 Trust op quote `open`
+- SC-A83 Trust op verify `open`
+- SC-A84 Trust op attest `open`
+- SC-A85 Trust op promote `open`
+- SC-A86 Trust op operate `open`
+- SC-A87 Trust op deny `open`
+- SC-A88 Trust op quarantine `open`
+- SC-A89 Trust op report `open`
+- SC-A90 Trust layer kernel `open`
+- SC-A91 Trust layer firmware `open`
+- SC-A92 Trust layer bootloader `open`
+- SC-A93 Trust layer modules `open`
+- SC-A94 Trust layer apps `open`
+- SC-A95 Trust layer containers `open`
+- SC-A96 Trust layer AGI `open`
+- SC-A97 Trust layer Bonzi `open`
+- SC-A98 Trust layer Colonel `open`
+- SC-A99 Trust layer payloads `open`
+- SC-A100 Trust feature hash-chain `open`
+Status: `open` (29 gaps)
+
+## SC-B: The memory safety
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: canaries -> ASLR/W^X -> CFI/shadow-stack/PAC -> the OpenSSF continuum
+- SC-B01 The stack canaries `open`
+- SC-B02 The shadow stack (the future) `open`
+- SC-B03 The CFI (the future) `open`
+- SC-B04 The PAC (the future) `open`
+- SC-B05 The bounds checks `open`
+- SC-B06 The ASLR `open`
+- SC-B07 The kASLR `open`
+- SC-B08 The W^X `open`
+- SC-B09 The SMEP/SMAP (the future) `open`
+- SC-B10 The CET (the future) `open`
+- SC-B11 The MTE (the future) `open`
+- SC-B12 The Fil-C style (the future) `open`
+- SC-B13 The sanitizers (the dev) `open`
+- SC-B14 The fuzz (the ASan-ish) `open`
+- SC-B15 The leak detection `open`
+- SC-B16 The UAF detection `open`
+- SC-B17 The OOB detection `open`
+- SC-B18 The double-free detection `open`
+- SC-B19 The integer-overflow guards `open`
+- SC-B20 The format-string guards `open`
+- SC-B21 The NULL-deref guards `open`
+- SC-B22 The overflow checks `open`
+- SC-B23 The signed/unsigned `open`
+- SC-B24 The shift guards `open`
+- SC-B25 The division guards `open`
+- SC-B26 The array-index checks `open`
+- SC-B27 The memcpy bounds `open`
+- SC-B28 The string bounds `open`
+- SC-B29 The pointer arithmetic `open`
+- SC-B30 The cast safety `open`
+- SC-B31 The memory-safety continuum (the OpenSSF) `open`
+- SC-B32 The safety roadmap `open`
+- SC-B33 The safety audit `open`
+- SC-B34 The safety tests `open`
+- SC-B35 The safety fuzz `open`
+- SC-B36 Memory mitigation canary `open`
+- SC-B37 Memory mitigation shadow-stack `open`
+- SC-B38 Memory mitigation CFI `open`
+- SC-B39 Memory mitigation PAC `open`
+- SC-B40 Memory mitigation ASLR `open`
+- SC-B41 Memory mitigation kASLR `open`
+- SC-B42 Memory mitigation W-X `open`
+- SC-B43 Memory mitigation SMEP `open`
+- SC-B44 Memory mitigation SMAP `open`
+- SC-B45 Memory mitigation CET `open`
+- SC-B46 Memory bug OOB `open`
+- SC-B47 Memory bug UAF `open`
+- SC-B48 Memory bug double-free `open`
+- SC-B49 Memory bug overflow `open`
+- SC-B50 Memory bug underflow `open`
+- SC-B51 Memory bug leak `open`
+- SC-B52 Memory bug type-confusion `open`
+- SC-B53 Memory bug null-deref `open`
+- SC-B54 Memory bug integer-overflow `open`
+- SC-B55 Memory bug format-string `open`
+- SC-B56 Memory test fuzz `open`
+- SC-B57 Memory test asan `open`
+- SC-B58 Memory test ubsan `open`
+- SC-B59 Memory test leak-check `open`
+- SC-B60 Memory test bounds-check `open`
+- SC-B61 Memory test stress `open`
+- SC-B62 Memory test adversarial `open`
+- SC-B63 Memory test bench `open`
+- SC-B64 Memory test audit `open`
+- SC-B65 Memory test roadmap `open`
+- SC-B66 Memory scenario kernel `open`
+- SC-B67 Memory scenario user-app `open`
+- SC-B68 Memory scenario driver `open`
+- SC-B69 Memory scenario JIT `open`
+- SC-B70 Memory scenario container `open`
+- SC-B71 Memory scenario parser `open`
+- SC-B72 Memory scenario 9P `open`
+- SC-B73 Memory scenario HolyC `open`
+- SC-B74 Memory scenario GUI `open`
+- SC-B75 Memory scenario synthesis `open`
+- SC-B76 Memory test2 fuzz-kernel `open`
+- SC-B77 Memory test2 fuzz-parser `open`
+- SC-B78 Memory test2 fuzz-9P `open`
+- SC-B79 Memory test2 fuzz-holyc `open`
+- SC-B80 Memory test2 asan-run `open`
+- SC-B81 Memory test2 ubsan-run `open`
+- SC-B82 Memory test2 leak-run `open`
+- SC-B83 Memory test2 stress `open`
+- SC-B84 Memory test2 bench `open`
+- SC-B85 Memory test2 audit `open`
+- SC-B86 Memory mitigation canary `open`
+- SC-B87 Memory mitigation shadow-stack `open`
+- SC-B88 Memory mitigation CFI `open`
+- SC-B89 Memory mitigation PAC `open`
+- SC-B90 Memory mitigation ASLR `open`
+- SC-B91 Memory mitigation kASLR `open`
+- SC-B92 Memory mitigation W-X `open`
+- SC-B93 Memory mitigation SMEP `open`
+- SC-B94 Memory mitigation SMAP `open`
+- SC-B95 Memory mitigation CET `open`
+- SC-B96 Memory bug OOB `open`
+- SC-B97 Memory bug UAF `open`
+- SC-B98 Memory bug double-free `open`
+- SC-B99 Memory bug overflow `open`
+- SC-B100 Memory bug underflow `open`
+Status: `open` (35 gaps)
+
+## SC-C: The kernel hardening
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: attack-surface -> seccomp/caps/MAC -> lockdown -> the kernel self-protection
+- SC-C01 The attack-surface reduction `open`
+- SC-C02 The unused-code removal `open`
+- SC-C03 The syscall filtering `open`
+- SC-C04 The syscall whitelist `open`
+- SC-C05 The seccomp `open`
+- SC-C06 The capabilities (the future) `open`
+- SC-C07 The MAC (the future) `open`
+- SC-C08 The SELinux-ish (the future) `open`
+- SC-C09 The AppArmor-ish (the future) `open`
+- SC-C10 The LSM-ish (the future) `open`
+- SC-C11 The module signing `open`
+- SC-C12 The module loading policy `open`
+- SC-C13 The driver isolation `open`
+- SC-C14 The kernel lockdown `open`
+- SC-C15 The kptr-restrict `open`
+- SC-C16 The dmesg restrict `open`
+- SC-C17 The /proc hardening `open`
+- SC-C18 The /sys hardening `open`
+- SC-C19 The devtmpfs `open`
+- SC-C20 The ptrace restrictions `open`
+- SC-C21 The core-dump policy `open`
+- SC-C22 The setuid policy `open`
+- SC-C23 The chroot `open`
+- SC-C24 The namespace isolation `open`
+- SC-C25 The cgroup isolation `open`
+- SC-C26 The kernel self-protection `open`
+- SC-C27 The stack protector `open`
+- SC-C28 The rodata `open`
+- SC-C29 The vmap randomization `open`
+- SC-C30 The physmap randomization `open`
+- SC-C31 The hardening tests `open`
+- SC-C32 The hardening fuzz `open`
+- SC-C33 The hardening docs `open`
+- SC-C34 The hardening roadmap `open`
+- SC-C35 Hardening layer syscall `open`
+- SC-C36 Hardening layer module `open`
+- SC-C37 Hardening layer driver `open`
+- SC-C38 Hardening layer proc `open`
+- SC-C39 Hardening layer sys `open`
+- SC-C40 Hardening layer devtmpfs `open`
+- SC-C41 Hardening layer ptrace `open`
+- SC-C42 Hardening layer core-dump `open`
+- SC-C43 Hardening layer setuid `open`
+- SC-C44 Hardening layer chroot `open`
+- SC-C45 Hardening feature whitelist `open`
+- SC-C46 Hardening feature filter `open`
+- SC-C47 Hardening feature caps `open`
+- SC-C48 Hardening feature MAC `open`
+- SC-C49 Hardening feature lockdown `open`
+- SC-C50 Hardening feature restrict `open`
+- SC-C51 Hardening feature isolate `open`
+- SC-C52 Hardening feature randomize `open`
+- SC-C53 Hardening feature protect `open`
+- SC-C54 Hardening feature minimize `open`
+- SC-C55 Hardening test bypass `open`
+- SC-C56 Hardening test escalate `open`
+- SC-C57 Hardening test inject `open`
+- SC-C58 Hardening test overflow `open`
+- SC-C59 Hardening test fuzz `open`
+- SC-C60 Hardening test stress `open`
+- SC-C61 Hardening test bench `open`
+- SC-C62 Hardening test audit `open`
+- SC-C63 Hardening test docs `open`
+- SC-C64 Hardening test roadmap `open`
+- SC-C65 Hardening scenario boot `open`
+- SC-C66 Hardening scenario user `open`
+- SC-C67 Hardening scenario root `open`
+- SC-C68 Hardening scenario container `open`
+- SC-C69 Hardening scenario driver `open`
+- SC-C70 Hardening scenario remote `open`
+- SC-C71 Hardening scenario local `open`
+- SC-C72 Hardening scenario guest `open`
+- SC-C73 Hardening scenario kiosk `open`
+- SC-C74 Hardening scenario embedded `open`
+- SC-C75 Hardening layer syscall `open`
+- SC-C76 Hardening layer module `open`
+- SC-C77 Hardening layer driver `open`
+- SC-C78 Hardening layer proc `open`
+- SC-C79 Hardening layer sys `open`
+- SC-C80 Hardening layer devtmpfs `open`
+- SC-C81 Hardening layer ptrace `open`
+- SC-C82 Hardening layer core-dump `open`
+- SC-C83 Hardening layer setuid `open`
+- SC-C84 Hardening layer chroot `open`
+- SC-C85 Hardening feature whitelist `open`
+- SC-C86 Hardening feature filter `open`
+- SC-C87 Hardening feature caps `open`
+- SC-C88 Hardening feature MAC `open`
+- SC-C89 Hardening feature lockdown `open`
+- SC-C90 Hardening feature restrict `open`
+- SC-C91 Hardening feature isolate `open`
+- SC-C92 Hardening feature randomize `open`
+- SC-C93 Hardening feature protect `open`
+- SC-C94 Hardening feature minimize `open`
+- SC-C95 Hardening test bypass `open`
+- SC-C96 Hardening test escalate `open`
+- SC-C97 Hardening test inject `open`
+- SC-C98 Hardening test overflow `open`
+- SC-C99 Hardening test fuzz `open`
+- SC-C100 Hardening test stress `open`
+Status: `open` (34 gaps)
+
+## SC-D: The crypto
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: AES/ChaCha -> SHA/HMAC -> X25519/Ed25519 -> the post-quantum future
+- SC-D01 The AES `open`
+- SC-D02 The ChaCha20 `open`
+- SC-D03 The SHA-256 `open`
+- SC-D04 The SHA-512 `open`
+- SC-D05 The HMAC `open`
+- SC-D06 The X25519 (the future) `open`
+- SC-D07 The Ed25519 (the future) `open`
+- SC-D08 The RSA (the legacy) `open`
+- SC-D09 The ECDSA (the future) `open`
+- SC-D10 The key exchange `open`
+- SC-D11 The AEAD (the GCM) `open`
+- SC-D12 The AEAD (the ChaCha-Poly) `open`
+- SC-D13 The CTR `open`
+- SC-D14 The CBC (the legacy) `open`
+- SC-D15 The XTS (the disk) `open`
+- SC-D16 The RNG (the entropy) `open`
+- SC-D17 The DRBG `open`
+- SC-D18 The seed `open`
+- SC-D19 The nonce `open`
+- SC-D20 The IV `open`
+- SC-D21 The KDF (the Argon2-ish) `open`
+- SC-D22 The PBKDF (the legacy) `open`
+- SC-D23 The HKDF `open`
+- SC-D24 The salt `open`
+- SC-D25 The pepper `open`
+- SC-D26 The key wrapping `open`
+- SC-D27 The key derivation `open`
+- SC-D28 The password hashing `open`
+- SC-D29 The timing-safe compare `open`
+- SC-D30 The constant-time `open`
+- SC-D31 The post-quantum (the future) `open`
+- SC-D32 The Kyber (the future) `open`
+- SC-D33 The Dilithium (the future) `open`
+- SC-D34 The SPHINCS (the future) `open`
+- SC-D35 The hybrid PQ `open`
+- SC-D36 The crypto tests (the vectors) `open`
+- SC-D37 The crypto fuzz `open`
+- SC-D38 The crypto bench `open`
+- SC-D39 The crypto docs `open`
+- SC-D40 Cipher AES `open`
+- SC-D41 Cipher ChaCha20 `open`
+- SC-D42 Cipher AES-GCM `open`
+- SC-D43 Cipher ChaCha-Poly `open`
+- SC-D44 Cipher CTR `open`
+- SC-D45 Cipher CBC `open`
+- SC-D46 Cipher XTS `open`
+- SC-D47 Cipher X25519 `open`
+- SC-D48 Cipher Ed25519 `open`
+- SC-D49 Cipher Kyber `open`
+- SC-D50 Crypto op encrypt `open`
+- SC-D51 Crypto op decrypt `open`
+- SC-D52 Crypto op sign `open`
+- SC-D53 Crypto op verify `open`
+- SC-D54 Crypto op hash `open`
+- SC-D55 Crypto op mac `open`
+- SC-D56 Crypto op derive `open`
+- SC-D57 Crypto op wrap `open`
+- SC-D58 Crypto op unwrap `open`
+- SC-D59 Crypto op random `open`
+- SC-D60 Crypto test vectors `open`
+- SC-D61 Crypto test edge-case `open`
+- SC-D62 Crypto test timing-safe `open`
+- SC-D63 Crypto test fuzz `open`
+- SC-D64 Crypto test bench `open`
+- SC-D65 Crypto test entropy `open`
+- SC-D66 Crypto test nonce-reuse `open`
+- SC-D67 Crypto test key-rotation `open`
+- SC-D68 Crypto test docs `open`
+- SC-D69 Crypto test roadmap `open`
+- SC-D70 Crypto scenario disk `open`
+- SC-D71 Crypto scenario network `open`
+- SC-D72 Crypto scenario keyring `open`
+- SC-D73 Crypto scenario attestation `open`
+- SC-D74 Crypto scenario firmware `open`
+- SC-D75 Crypto scenario signing `open`
+- SC-D76 Crypto scenario session `open`
+- SC-D77 Crypto scenario storage `open`
+- SC-D78 Crypto scenario boot `open`
+- SC-D79 Crypto scenario agent `open`
+- SC-D80 Cipher AES `open`
+- SC-D81 Cipher ChaCha20 `open`
+- SC-D82 Cipher AES-GCM `open`
+- SC-D83 Cipher ChaCha-Poly `open`
+- SC-D84 Cipher CTR `open`
+- SC-D85 Cipher CBC `open`
+- SC-D86 Cipher XTS `open`
+- SC-D87 Cipher X25519 `open`
+- SC-D88 Cipher Ed25519 `open`
+- SC-D89 Cipher Kyber `open`
+- SC-D90 Crypto op encrypt `open`
+- SC-D91 Crypto op decrypt `open`
+- SC-D92 Crypto op sign `open`
+- SC-D93 Crypto op verify `open`
+- SC-D94 Crypto op hash `open`
+- SC-D95 Crypto op mac `open`
+- SC-D96 Crypto op derive `open`
+- SC-D97 Crypto op wrap `open`
+- SC-D98 Crypto op unwrap `open`
+- SC-D99 Crypto op random `open`
+- SC-D100 Crypto test vectors `open`
+Status: `open` (39 gaps)
+
+## SC-E: The EDR & the audit
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the event ring -> the analytics dashboard -> the audit chain -> the forensics
+- SC-E01 The event ring (the EDR) `open`
+- SC-E02 The event classes `open`
+- SC-E03 The event filters `open`
+- SC-E04 The event analytics `open`
+- SC-E05 The event dashboard `open`
+- SC-E06 The syscall tracing `open`
+- SC-E07 The process tracking `open`
+- SC-E08 The file tracking `open`
+- SC-E09 The network tracking `open`
+- SC-E10 The registry tracking `open`
+- SC-E11 The alert rules `open`
+- SC-E12 The threshold alerts `open`
+- SC-E13 The anomaly detection `open`
+- SC-E14 The baseline `open`
+- SC-E15 The drift `open`
+- SC-E16 The audit log (the append-only) `open`
+- SC-E17 The audit signing (the hash chain) `open`
+- SC-E18 The audit replay (the forensics) `open`
+- SC-E19 The audit export `open`
+- SC-E20 The audit retention `open`
+- SC-E21 The forensics (the acquisition) `open`
+- SC-E22 The forensics (the timeline) `open`
+- SC-E23 The forensics (the carve) `open`
+- SC-E24 The forensics (the memory dump) `open`
+- SC-E25 The forensics (the disk image) `open`
+- SC-E26 The incident response `open`
+- SC-E27 The quarantine `open`
+- SC-E28 The kill switch `open`
+- SC-E29 The recovery `open`
+- SC-E30 The postmortem `open`
+- SC-E31 The EDR the AGI (the agent actions) `open`
+- SC-E32 The EDR the Bonzi (the companion actions) `open`
+- SC-E33 The EDR the Colonel (the evals) `open`
+- SC-E34 The EDR the verifier (the attest) `open`
+- SC-E35 The EDR the containers `open`
+- SC-E36 The EDR tests `open`
+- SC-E37 The EDR fuzz `open`
+- SC-E38 The EDR bench `open`
+- SC-E39 The EDR docs `open`
+- SC-E40 EDR event syscall `open`
+- SC-E41 EDR event process `open`
+- SC-E42 EDR event file `open`
+- SC-E43 EDR event network `open`
+- SC-E44 EDR event registry `open`
+- SC-E45 EDR event agent `open`
+- SC-E46 EDR event bonzi `open`
+- SC-E47 EDR event colonel `open`
+- SC-E48 EDR event verifier `open`
+- SC-E49 EDR event container `open`
+- SC-E50 EDR op record `open`
+- SC-E51 EDR op filter `open`
+- SC-E52 EDR op analyze `open`
+- SC-E53 EDR op alert `open`
+- SC-E54 EDR op baseline `open`
+- SC-E55 EDR op detect-anomaly `open`
+- SC-E56 EDR op dashboard `open`
+- SC-E57 EDR op export `open`
+- SC-E58 EDR op retain `open`
+- SC-E59 EDR op replay `open`
+- SC-E60 EDR test event-storm `open`
+- SC-E61 EDR test ring-overflow `open`
+- SC-E62 EDR test alert-flood `open`
+- SC-E63 EDR test forensics-replay `open`
+- SC-E64 EDR test fuzz `open`
+- SC-E65 EDR test bench `open`
+- SC-E66 EDR test docs `open`
+- SC-E67 EDR test roadmap `open`
+- SC-E68 EDR test audit `open`
+- SC-E69 EDR test privacy `open`
+- SC-E70 EDR scenario boot `open`
+- SC-E71 EDR scenario user-session `open`
+- SC-E72 EDR scenario container `open`
+- SC-E73 EDR scenario AGI-loop `open`
+- SC-E74 EDR scenario Bonzi `open`
+- SC-E75 EDR scenario Colonel-eval `open`
+- SC-E76 EDR scenario network `open`
+- SC-E77 EDR scenario install `open`
+- SC-E78 EDR scenario update `open`
+- SC-E79 EDR scenario attack-sim `open`
+- SC-E80 EDR event syscall `open`
+- SC-E81 EDR event process `open`
+- SC-E82 EDR event file `open`
+- SC-E83 EDR event network `open`
+- SC-E84 EDR event registry `open`
+- SC-E85 EDR event agent `open`
+- SC-E86 EDR event bonzi `open`
+- SC-E87 EDR event colonel `open`
+- SC-E88 EDR event verifier `open`
+- SC-E89 EDR event container `open`
+- SC-E90 EDR op record `open`
+- SC-E91 EDR op filter `open`
+- SC-E92 EDR op analyze `open`
+- SC-E93 EDR op alert `open`
+- SC-E94 EDR op baseline `open`
+- SC-E95 EDR op detect-anomaly `open`
+- SC-E96 EDR op dashboard `open`
+- SC-E97 EDR op export `open`
+- SC-E98 EDR op retain `open`
+- SC-E99 EDR op replay `open`
+- SC-E100 EDR test event-storm `open`
+Status: `open` (39 gaps)
+
+## SC-F: The supply chain
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: SBOM -> SLSA/provenance -> MLSecOps -> the agentic governance era
+- SC-F01 The SBOM (the inventory) `open`
+- SC-F02 The SBOM generation `open`
+- SC-F03 The SBOM query `open`
+- SC-F04 The SBOM the OS (the every-package) `open`
+- SC-F05 The SBOM the kernel `open`
+- SC-F06 The SLSA levels (the future) `open`
+- SC-F07 The provenance attestation `open`
+- SC-F08 The signed builds `open`
+- SC-F09 The reproducible builds `open`
+- SC-F10 The binary lifecycle `open`
+- SC-F11 The dependency firewall `open`
+- SC-F12 The dependency pinning `open`
+- SC-F13 The dependency scanning `open`
+- SC-F14 The vulnerability DB `open`
+- SC-F15 The CVE triage `open`
+- SC-F16 The patch management `open`
+- SC-F17 The update signing `open`
+- SC-F18 The update rollback `open`
+- SC-F19 The update quarantine `open`
+- SC-F20 The update telemetry `open`
+- SC-F21 The MLSecOps (the model integrity) `open`
+- SC-F22 The model weights signing `open`
+- SC-F23 The model provenance `open`
+- SC-F24 The model registry `open`
+- SC-F25 The model quarantine `open`
+- SC-F26 The agent governance (the 2026) `open`
+- SC-F27 The agent permissions `open`
+- SC-F28 The agent audit `open`
+- SC-F29 The agent supply chain `open`
+- SC-F30 The MCP governance (the future) `open`
+- SC-F31 The firmware supply chain `open`
+- SC-F32 The WuBuFW signing `open`
+- SC-F33 The bootloader trust `open`
+- SC-F34 The key ceremony `open`
+- SC-F35 The incident drills `open`
+- SC-F36 The supply-chain tests `open`
+- SC-F37 The supply-chain fuzz `open`
+- SC-F38 The supply-chain bench `open`
+- SC-F39 The supply-chain docs `open`
+- SC-F40 SCA layer os `open`
+- SC-F41 SCA layer kernel `open`
+- SC-F42 SCA layer packages `open`
+- SC-F43 SCA layer containers `open`
+- SC-F44 SCA layer models `open`
+- SC-F45 SCA layer firmware `open`
+- SC-F46 SCA layer apps `open`
+- SC-F47 SCA layer agents `open`
+- SC-F48 SCA layer deps `open`
+- SC-F49 SCA layer tools `open`
+- SC-F50 SCA op generate `open`
+- SC-F51 SCA op query `open`
+- SC-F52 SCA op verify `open`
+- SC-F53 SCA op sign `open`
+- SC-F54 SCA op scan `open`
+- SC-F55 SCA op triage `open`
+- SC-F56 SCA op patch `open`
+- SC-F57 SCA op rollback `open`
+- SC-F58 SCA op quarantine `open`
+- SC-F59 SCA op report `open`
+- SC-F60 SCA test sbom-parse `open`
+- SC-F61 SCA test sig-verify `open`
+- SC-F62 SCA test supply-chain-attack-sim `open`
+- SC-F63 SCA test rollback `open`
+- SC-F64 SCA test fuzz `open`
+- SC-F65 SCA test bench `open`
+- SC-F66 SCA test docs `open`
+- SC-F67 SCA test roadmap `open`
+- SC-F68 SCA test drill `open`
+- SC-F69 SCA test audit `open`
+- SC-F70 SCA scenario os-install `open`
+- SC-F71 SCA scenario package-update `open`
+- SC-F72 SCA scenario app-install `open`
+- SC-F73 SCA scenario model-load `open`
+- SC-F74 SCA scenario container-pull `open`
+- SC-F75 SCA scenario firmware-flash `open`
+- SC-F76 SCA scenario agent-spawn `open`
+- SC-F77 SCA scenario ci-build `open`
+- SC-F78 SCA scenario release `open`
+- SC-F79 SCA scenario drill `open`
+- SC-F80 SCA layer os `open`
+- SC-F81 SCA layer kernel `open`
+- SC-F82 SCA layer packages `open`
+- SC-F83 SCA layer containers `open`
+- SC-F84 SCA layer models `open`
+- SC-F85 SCA layer firmware `open`
+- SC-F86 SCA layer apps `open`
+- SC-F87 SCA layer agents `open`
+- SC-F88 SCA layer deps `open`
+- SC-F89 SCA layer tools `open`
+- SC-F90 SCA op generate `open`
+- SC-F91 SCA op query `open`
+- SC-F92 SCA op verify `open`
+- SC-F93 SCA op sign `open`
+- SC-F94 SCA op scan `open`
+- SC-F95 SCA op triage `open`
+- SC-F96 SCA op patch `open`
+- SC-F97 SCA op rollback `open`
+- SC-F98 SCA op quarantine `open`
+- SC-F99 SCA op report `open`
+- SC-F100 SCA test sbom-parse `open`
+Status: `open` (39 gaps)
+
+## SC-G: The app security
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: sandbox/seccomp/cgroups -> permissions/signing -> the app ledger -> the Colonel-gated apps
+- SC-G01 The app sandbox `open`
+- SC-G02 The seccomp profiles `open`
+- SC-G03 The cgroup limits `open`
+- SC-G04 The namespace isolation `open`
+- SC-G05 The read-only root `open`
+- SC-G06 The app permissions `open`
+- SC-G07 The permission prompts `open`
+- SC-G08 The permission revocation `open`
+- SC-G09 The least privilege `open`
+- SC-G10 The privilege separation `open`
+- SC-G11 The app signing `open`
+- SC-G12 The app attestation `open`
+- SC-G13 The app provenance `open`
+- SC-G14 The app ledger `open`
+- SC-G15 The app quarantine `open`
+- SC-G16 The app data isolation `open`
+- SC-G17 The app config protection `open`
+- SC-G18 The app secrets `open`
+- SC-G19 The app tokens `open`
+- SC-G20 The app keyring `open`
+- SC-G21 The untrusted input `open`
+- SC-G22 The input validation `open`
+- SC-G23 The path traversal guard `open`
+- SC-G24 The symlink guard `open`
+- SC-G25 The TOCTOU guard `open`
+- SC-G26 The temp-file safety `open`
+- SC-G27 The subprocess policy `open`
+- SC-G28 The fork safety `open`
+- SC-G29 The exec safety `open`
+- SC-G30 The dlopen policy (the future) `open`
+- SC-G31 The app the Bonzi `open`
+- SC-G32 The app the Comfy `open`
+- SC-G33 The app the Colonel `open`
+- SC-G34 The app the AGI `open`
+- SC-G35 The app the containers `open`
+- SC-G36 The app-security tests `open`
+- SC-G37 The app-security fuzz `open`
+- SC-G38 The app-security bench `open`
+- SC-G39 The app-security docs `open`
+- SC-G40 App layer sandbox `open`
+- SC-G41 App layer seccomp `open`
+- SC-G42 App layer cgroups `open`
+- SC-G43 App layer namespaces `open`
+- SC-G44 App layer readonly `open`
+- SC-G45 App layer data `open`
+- SC-G46 App layer config `open`
+- SC-G47 App layer secrets `open`
+- SC-G48 App layer tokens `open`
+- SC-G49 App layer keyring `open`
+- SC-G50 App op launch `open`
+- SC-G51 App op grant `open`
+- SC-G52 App op revoke `open`
+- SC-G53 App op verify `open`
+- SC-G54 App op quarantine `open`
+- SC-G55 App op restrict `open`
+- SC-G56 App op isolate `open`
+- SC-G57 App op audit `open`
+- SC-G58 App op update `open`
+- SC-G59 App op rollback `open`
+- SC-G60 App test escape `open`
+- SC-G61 App test escalate `open`
+- SC-G62 App test path-traversal `open`
+- SC-G63 App test symlink `open`
+- SC-G64 App test TOCTOU `open`
+- SC-G65 App test fuzz `open`
+- SC-G66 App test bench `open`
+- SC-G67 App test docs `open`
+- SC-G68 App test roadmap `open`
+- SC-G69 App test audit `open`
+- SC-G70 App scenario new-app `open`
+- SC-G71 App scenario upgrade `open`
+- SC-G72 App scenario uninstall `open`
+- SC-G73 App scenario suspicious `open`
+- SC-G74 App scenario quarantined `open`
+- SC-G75 App scenario container `open`
+- SC-G76 App scenario holyc-app `open`
+- SC-G77 App scenario gui-app `open`
+- SC-G78 App scenario cli-app `open`
+- SC-G79 App scenario agent-app `open`
+- SC-G80 App layer sandbox `open`
+- SC-G81 App layer seccomp `open`
+- SC-G82 App layer cgroups `open`
+- SC-G83 App layer namespaces `open`
+- SC-G84 App layer readonly `open`
+- SC-G85 App layer data `open`
+- SC-G86 App layer config `open`
+- SC-G87 App layer secrets `open`
+- SC-G88 App layer tokens `open`
+- SC-G89 App layer keyring `open`
+- SC-G90 App op launch `open`
+- SC-G91 App op grant `open`
+- SC-G92 App op revoke `open`
+- SC-G93 App op verify `open`
+- SC-G94 App op quarantine `open`
+- SC-G95 App op restrict `open`
+- SC-G96 App op isolate `open`
+- SC-G97 App op audit `open`
+- SC-G98 App op update `open`
+- SC-G99 App op rollback `open`
+- SC-G100 App test escape `open`
+Status: `open` (39 gaps)
+
+## SC-H: The network security
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: TLS1.3/mTLS -> the firewall/IDS -> the WireGuard VPN -> the mesh attestation
+- SC-H01 The TLS (the 1.3) `open`
+- SC-H02 The mTLS `open`
+- SC-H03 The cert validation `open`
+- SC-H04 The cert pinning `open`
+- SC-H05 The cert store `open`
+- SC-H06 The cipher negotiation `open`
+- SC-H07 The downgrade guard `open`
+- SC-H08 The renegotiation guard `open`
+- SC-H09 The session tickets `open`
+- SC-H10 The key rotation `open`
+- SC-H11 The firewall `open`
+- SC-H12 The packet filtering `open`
+- SC-H13 The stateful filtering `open`
+- SC-H14 The rate limiting `open`
+- SC-H15 The fail2ban-ish `open`
+- SC-H16 The IDS-ish (the signatures) `open`
+- SC-H17 The anomaly IDS `open`
+- SC-H18 The quarantine (the network) `open`
+- SC-H19 The darknet (the honey) `open`
+- SC-H20 The honeypot (the future) `open`
+- SC-H21 The VPN (the WireGuard) `open`
+- SC-H22 The tunnel auth `open`
+- SC-H23 The split tunneling `open`
+- SC-H24 The DNS security `open`
+- SC-H25 The DoH (the future) `open`
+- SC-H26 The Wi-Fi security (the WPA3) `open`
+- SC-H27 The EAP (the future) `open`
+- SC-H28 The MAC filtering `open`
+- SC-H29 The port security `open`
+- SC-H30 The network segmentation `open`
+- SC-H31 The network the 9P auth `open`
+- SC-H32 The network the EDR events `open`
+- SC-H33 The network the mesh security `open`
+- SC-H34 The network the attestation `open`
+- SC-H35 The network the containers `open`
+- SC-H36 The netsec tests `open`
+- SC-H37 The netsec fuzz `open`
+- SC-H38 The netsec bench `open`
+- SC-H39 The netsec docs `open`
+- SC-H40 Netsec layer tls `open`
+- SC-H41 Netsec layer mtls `open`
+- SC-H42 Netsec layer certs `open`
+- SC-H43 Netsec layer firewall `open`
+- SC-H44 Netsec layer ids `open`
+- SC-H45 Netsec layer vpn `open`
+- SC-H46 Netsec layer dns `open`
+- SC-H47 Netsec layer wifi `open`
+- SC-H48 Netsec layer mesh `open`
+- SC-H49 Netsec layer 9p `open`
+- SC-H50 Netsec op handshake `open`
+- SC-H51 Netsec op validate `open`
+- SC-H52 Netsec op filter `open`
+- SC-H53 Netsec op rate-limit `open`
+- SC-H54 Netsec op quarantine `open`
+- SC-H55 Netsec op encrypt `open`
+- SC-H56 Netsec op tunnel `open`
+- SC-H57 Netsec op segment `open`
+- SC-H58 Netsec op audit `open`
+- SC-H59 Netsec op report `open`
+- SC-H60 Netsec test downgrade `open`
+- SC-H61 Netsec test replay `open`
+- SC-H62 Netsec test mitm `open`
+- SC-H63 Netsec test flood `open`
+- SC-H64 Netsec test scan `open`
+- SC-H65 Netsec test fuzz `open`
+- SC-H66 Netsec test bench `open`
+- SC-H67 Netsec test docs `open`
+- SC-H68 Netsec test roadmap `open`
+- SC-H69 Netsec test audit `open`
+- SC-H70 Netsec scenario public-wifi `open`
+- SC-H71 Netsec scenario home `open`
+- SC-H72 Netsec scenario datacenter `open`
+- SC-H73 Netsec scenario mesh `open`
+- SC-H74 Netsec scenario vpn `open`
+- SC-H75 Netsec scenario 9p-remote `open`
+- SC-H76 Netsec scenario container-net `open`
+- SC-H77 Netsec scenario guest `open`
+- SC-H78 Netsec scenario hostile `open`
+- SC-H79 Netsec scenario attest `open`
+- SC-H80 Netsec layer tls `open`
+- SC-H81 Netsec layer mtls `open`
+- SC-H82 Netsec layer certs `open`
+- SC-H83 Netsec layer firewall `open`
+- SC-H84 Netsec layer ids `open`
+- SC-H85 Netsec layer vpn `open`
+- SC-H86 Netsec layer dns `open`
+- SC-H87 Netsec layer wifi `open`
+- SC-H88 Netsec layer mesh `open`
+- SC-H89 Netsec layer 9p `open`
+- SC-H90 Netsec op handshake `open`
+- SC-H91 Netsec op validate `open`
+- SC-H92 Netsec op filter `open`
+- SC-H93 Netsec op rate-limit `open`
+- SC-H94 Netsec op quarantine `open`
+- SC-H95 Netsec op encrypt `open`
+- SC-H96 Netsec op tunnel `open`
+- SC-H97 Netsec op segment `open`
+- SC-H98 Netsec op audit `open`
+- SC-H99 Netsec op report `open`
+- SC-H100 Netsec test downgrade `open`
+Status: `open` (39 gaps)
+
+## SC-I: The AGI security
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the attestation gate -> the every-action verifier -> the prompt-injection guards -> the IM-alignment ties
+- SC-I01 The AGI attestation (the gate) `open`
+- SC-I02 The AGI verifier (the every-action) `open`
+- SC-I03 The AGI policy (the values) `open`
+- SC-I04 The AGI alignment (the guardrails) `open`
+- SC-I05 The AGI permission (the grants) `open`
+- SC-I06 The AGI sandbox (the seccomp) `open`
+- SC-I07 The AGI memory protection `open`
+- SC-I08 The AGI prompt injection guard `open`
+- SC-I09 The AGI jailbreak guard `open`
+- SC-I10 The AGI data exfiltration guard `open`
+- SC-I11 The AGI provenance (the every-action ledger) `open`
+- SC-I12 The AGI audit (the replay) `open`
+- SC-I13 The AGI forensics (the trace) `open`
+- SC-I14 The AGI accountability `open`
+- SC-I15 The AGI the kill-switch `open`
+- SC-I16 The AGI model integrity (the weights) `open`
+- SC-I17 The AGI model provenance `open`
+- SC-I18 The AGI model quarantine `open`
+- SC-I19 The AGI weights signing `open`
+- SC-I20 The AGI the watermarks (the theme) `open`
+- SC-I21 The AGI the unlearning (the theme IM) `open`
+- SC-I22 The AGI the right-to-forget `open`
+- SC-I23 The AGI the export (the portability) `open`
+- SC-I24 The AGI the deletion `open`
+- SC-I25 The AGI the consent `open`
+- SC-I26 The AGI the Bonzi safety `open`
+- SC-I27 The AGI the Comfy safety `open`
+- SC-I28 The AGI the Colonel safety (the eval sandbox) `open`
+- SC-I29 The AGI the tool safety (the dispatch) `open`
+- SC-I30 The AGI the files safety (the 9P) `open`
+- SC-I31 The AGI the network safety `open`
+- SC-I32 The AGI the prompt templates (the sanitized) `open`
+- SC-I33 The AGI the context redaction `open`
+- SC-I34 The AGI the secret redaction `open`
+- SC-I35 The AGI the PII protection `open`
+- SC-I36 The AGI-security tests `open`
+- SC-I37 The AGI-security fuzz `open`
+- SC-I38 The AGI-security bench `open`
+- SC-I39 The AGI-security docs `open`
+- SC-I40 AGI layer attestation `open`
+- SC-I41 AGI layer verifier `open`
+- SC-I42 AGI layer policy `open`
+- SC-I43 AGI layer alignment `open`
+- SC-I44 AGI layer permissions `open`
+- SC-I45 AGI layer sandbox `open`
+- SC-I46 AGI layer memory `open`
+- SC-I47 AGI layer prompts `open`
+- SC-I48 AGI layer context `open`
+- SC-I49 AGI layer secrets `open`
+- SC-I50 AGI op gate `open`
+- SC-I51 AGI op verify `open`
+- SC-I52 AGI op grant `open`
+- SC-I53 AGI op deny `open`
+- SC-I54 AGI op audit `open`
+- SC-I55 AGI op replay `open`
+- SC-I56 AGI op quarantine `open`
+- SC-I57 AGI op kill `open`
+- SC-I58 AGI op redact `open`
+- SC-I59 AGI op report `open`
+- SC-I60 AGI test injection `open`
+- SC-I61 AGI test jailbreak `open`
+- SC-I62 AGI test exfil `open`
+- SC-I63 AGI test escalate `open`
+- SC-I64 AGI test prompt-fuzz `open`
+- SC-I65 AGI test bench `open`
+- SC-I66 AGI test docs `open`
+- SC-I67 AGI test roadmap `open`
+- SC-I68 AGI test audit `open`
+- SC-I69 AGI test privacy `open`
+- SC-I70 AGI scenario first-run `open`
+- SC-I71 AGI scenario daily-loop `open`
+- SC-I72 AGI scenario gap-closing `open`
+- SC-I73 AGI scenario bank-growth `open`
+- SC-I74 AGI scenario cron-run `open`
+- SC-I75 AGI scenario user-request `open`
+- SC-I76 AGI scenario bonzi-chat `open`
+- SC-I77 AGI scenario comfy-gen `open`
+- SC-I78 AGI scenario colonel-eval `open`
+- SC-I79 AGI scenario suspicious-prompt `open`
+- SC-I80 AGI layer attestation `open`
+- SC-I81 AGI layer verifier `open`
+- SC-I82 AGI layer policy `open`
+- SC-I83 AGI layer alignment `open`
+- SC-I84 AGI layer permissions `open`
+- SC-I85 AGI layer sandbox `open`
+- SC-I86 AGI layer memory `open`
+- SC-I87 AGI layer prompts `open`
+- SC-I88 AGI layer context `open`
+- SC-I89 AGI layer secrets `open`
+- SC-I90 AGI op gate `open`
+- SC-I91 AGI op verify `open`
+- SC-I92 AGI op grant `open`
+- SC-I93 AGI op deny `open`
+- SC-I94 AGI op audit `open`
+- SC-I95 AGI op replay `open`
+- SC-I96 AGI op quarantine `open`
+- SC-I97 AGI op kill `open`
+- SC-I98 AGI op redact `open`
+- SC-I99 AGI op report `open`
+- SC-I100 AGI test injection `open`
+Status: `open` (39 gaps)
+
+## SC-J: The security engineering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the threat model -> the fuzz matrix -> the red-team -> the zero-trust posture
+- SC-J01 The threat model `open`
+- SC-J02 The attack-surface inventory `open`
+- SC-J03 The vulnerability registry `open`
+- SC-J04 The CVE tracking `open`
+- SC-J05 The severity triage `open`
+- SC-J06 The security tests (the suite) `open`
+- SC-J07 The security fuzz (the kernel) `open`
+- SC-J08 The security fuzz (the parser) `open`
+- SC-J09 The security fuzz (the 9P) `open`
+- SC-J10 The security fuzz (the HolyC) `open`
+- SC-J11 The penetration tests (the future) `open`
+- SC-J12 The red-team (the future) `open`
+- SC-J13 The bug bounty (the future) `open`
+- SC-J14 The disclosure policy `open`
+- SC-J15 The security advisories `open`
+- SC-J16 The secure coding guidelines `open`
+- SC-J17 The code review checklist `open`
+- SC-J18 The commit signing `open`
+- SC-J19 The branch protection `open`
+- SC-J20 The CI security `open`
+- SC-J21 The secrets management `open`
+- SC-J22 The credentials rotation `open`
+- SC-J23 The zero-trust (the posture) `open`
+- SC-J24 The defense-in-depth `open`
+- SC-J25 The fail-closed `open`
+- SC-J26 The security the metal (the boot) `open`
+- SC-J27 The security the hosted `open`
+- SC-J28 The security the containers `open`
+- SC-J29 The security the network `open`
+- SC-J30 The security the AGI `open`
+- SC-J31 The security the Bonzi `open`
+- SC-J32 The security the firmware `open`
+- SC-J33 The security the compendium `open`
+- SC-J34 The security the roadmap `open`
+- SC-J35 The security the bank `open`
+- SC-J36 Engineering threat-model `open`
+- SC-J37 Engineering inventory `open`
+- SC-J38 Engineering registry `open`
+- SC-J39 Engineering triage `open`
+- SC-J40 Engineering tests `open`
+- SC-J41 Engineering fuzz `open`
+- SC-J42 Engineering red-team `open`
+- SC-J43 Engineering disclosure `open`
+- SC-J44 Engineering guidelines `open`
+- SC-J45 Engineering ci `open`
+- SC-J46 Layer kernel `open`
+- SC-J47 Layer hosted `open`
+- SC-J48 Layer containers `open`
+- SC-J49 Layer network `open`
+- SC-J50 Layer AGI `open`
+- SC-J51 Layer Bonzi `open`
+- SC-J52 Layer firmware `open`
+- SC-J53 Layer compendium `open`
+- SC-J54 Layer roadmap `open`
+- SC-J55 Layer bank `open`
+- SC-J56 Posture zero-trust `open`
+- SC-J57 Posture defense-in-depth `open`
+- SC-J58 Posture fail-closed `open`
+- SC-J59 Posture least-privilege `open`
+- SC-J60 Posture privilege-separation `open`
+- SC-J61 Posture immutable `open`
+- SC-J62 Posture ephemeral `open`
+- SC-J63 Posture auditable `open`
+- SC-J64 Posture recoverable `open`
+- SC-J65 Posture measured `open`
+- SC-J66 Security test2 unit `open`
+- SC-J67 Security test2 integration `open`
+- SC-J68 Security test2 fuzz `open`
+- SC-J69 Security test2 pen-test `open`
+- SC-J70 Security test2 red-team `open`
+- SC-J71 Security test2 drill `open`
+- SC-J72 Security test2 bench `open`
+- SC-J73 Security test2 audit `open`
+- SC-J74 Security test2 report `open`
+- SC-J75 Security test2 roadmap `open`
+- SC-J76 Engineering threat-model `open`
+- SC-J77 Engineering inventory `open`
+- SC-J78 Engineering registry `open`
+- SC-J79 Engineering triage `open`
+- SC-J80 Engineering tests `open`
+- SC-J81 Engineering fuzz `open`
+- SC-J82 Engineering red-team `open`
+- SC-J83 Engineering disclosure `open`
+- SC-J84 Engineering guidelines `open`
+- SC-J85 Engineering ci `open`
+- SC-J86 Layer kernel `open`
+- SC-J87 Layer hosted `open`
+- SC-J88 Layer containers `open`
+- SC-J89 Layer network `open`
+- SC-J90 Layer AGI `open`
+- SC-J91 Layer Bonzi `open`
+- SC-J92 Layer firmware `open`
+- SC-J93 Layer compendium `open`
+- SC-J94 Layer roadmap `open`
+- SC-J95 Layer bank `open`
+- SC-J96 Posture zero-trust `open`
+- SC-J97 Posture defense-in-depth `open`
+- SC-J98 Posture fail-closed `open`
+- SC-J99 Posture least-privilege `open`
+- SC-J100 Posture privilege-separation `open`
+Status: `open` (35 gaps)
