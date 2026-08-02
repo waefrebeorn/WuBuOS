@@ -54,6 +54,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_smbios.o $(KERNEL)/wubu_vdso.o \
               $(KERNEL)/wubu_swap.o $(KERNEL)/wubu_as.o \
               $(KERNEL)/wubu_user.o $(KERNEL)/wubu_iommu.o \
+              $(KERNEL)/wubu_smp.o $(KERNEL)/wubu_smp_tramp.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 

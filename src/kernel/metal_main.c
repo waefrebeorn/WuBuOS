@@ -481,22 +481,13 @@ void kernel_main(void *boot_info) {
         }
     }
 
-    /* E5: the IOMMU/VT-d plane -- DMAR discovery + capability read
-     * (the anticheat's below-OS plane). */
-    {
-        extern int wubu_iommu_probe(void *);
-        struct {
-            int found; uint32_t cap, ecap; uint64_t rtaddr;
-            uint16_t segment; uint8_t version, flags;
-        } io;
-        if (wubu_iommu_probe(&io) == 0 && io.found) {
-            klog_printf("WuBuOS: IOMMU/DMAR v%u cap=%x seg=%u\n",
-                        (unsigned)io.version, (unsigned)io.cap,
-                        (unsigned)io.segment);
-        } else {
-            klog_printf("WuBuOS: no IOMMU/DMAR table\n");
-        }
-    }
+    /* I2: SMP -- the AP bring-up is a console command (the `smp`
+     * command runs the INIT-SIPI-SIPI sequence + reports the alive APs;
+     * the boot keeps the APIC untouched to stay QEMU-single-CPU-safe). */
+
+    /* E5: the IOMMU/VT-d plane -- the DMAR discovery + capability read
+     * live behind the `iommu` console command (the MMIO capability
+     * reads are machine-specific and the boot stays quiet on them). */
 
     /* A19: the HPET -- the high-precision time source (its MMIO base
      * comes from the ACPI HPET table; the counter is enabled + read). */
