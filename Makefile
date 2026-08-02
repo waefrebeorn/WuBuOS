@@ -30,7 +30,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/wubu_bonzi.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
@@ -77,13 +77,18 @@ AUDIO_OBJS = $(AUDIO)/wubu_audio.o $(AUDIO)/wubu_audio_chips.o $(AUDIO)/wubu_aud
 
 # ── Targets ─────────────────────────────────────────────────────
 
-.PHONY: all clean test kernel jit gui bridge apps worldsim firmware uefi test_uefi test_agi_metal
+.PHONY: all clean test kernel jit gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs
 
 # ---- WuBuFW: our own C11 UEFI firmware (no EDK2 / no OVMF) ----------
 FW = src/firmware
 
 firmware uefi:
 	$(FW)/build.sh
+
+# Regenerate the programmatically-created compendium sections (01-reference)
+# from the source tree. Run after every code-change batch.
+docs:
+	python3 tools/gen_docs.py
 
 # Builds firmware + PE payload + FAT32/GPT ESP, boots in QEMU, asserts
 # the payload's 28-check conformance run passes.
@@ -952,6 +957,12 @@ test_gaad:
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/wubu_gaad_test.c \
 		-o $(KERNEL)/wubu_gaad_test
 	$(KERNEL)/wubu_gaad_test
+test_hive:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_hive.c $(KERNEL)/test_hive.c \
+		-o $(KERNEL)/test_hive
+	$(KERNEL)/test_hive
+
 test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(KERNEL) \

@@ -322,7 +322,31 @@ void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
                 handle_gpf(frame);
                 break;
             default:
-                /* Unhandled exception - halt */
+                /* Unhandled exception - log raw frame + LAPIC state + halt */
+                {
+                    extern int klog_printf(const char *fmt, ...);
+                    extern uint64_t task_tick_count(void);
+                    extern volatile uint32_t *g_lapic_base;
+                    uint64_t *raw = (uint64_t *)frame;
+                    uint32_t irr0 = 0, irr1 = 0, isr0 = 0;
+                    if (g_lapic_base) {
+                        irr0 = g_lapic_base[0x200 / 4];
+                        irr1 = g_lapic_base[0x210 / 4];
+                        isr0 = g_lapic_base[0x100 / 4];
+                    }
+                    /* raw[14]=stub error, raw[15]=stub vector, raw[16..20]=iret */
+                    klog_printf("WuBuOS FAULT: vec=%u tick=%u raw14=%x raw15=%x raw16=%x raw17=%x raw18=%x raw19=%x raw20=%x irr=%x%08x isr=%x\n",
+                                (unsigned)vector,
+                                (unsigned)task_tick_count(),
+                                (unsigned)(raw ? (uint64_t)raw[14] : 0),
+                                (unsigned)(raw ? (uint64_t)raw[15] : 0),
+                                (unsigned)(raw ? (uint64_t)raw[16] : 0),
+                                (unsigned)(raw ? (uint64_t)raw[17] : 0),
+                                (unsigned)(raw ? (uint64_t)raw[18] : 0),
+                                (unsigned)(raw ? (uint64_t)raw[19] : 0),
+                                (unsigned)(raw ? (uint64_t)raw[20] : 0),
+                                (unsigned)irr1, (unsigned)irr0, (unsigned)isr0);
+                }
                 while (1) { __asm__ volatile ("hlt"); }
         }
         return;
@@ -475,14 +499,38 @@ void handle_nmi(InterruptFrame *frame) {
 void handle_page_fault(InterruptFrame *frame) {
     uint64_t cr2;
     __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
-    (void)frame; (void)cr2;
     /* In a real kernel: demand paging, COW, etc. */
+    extern int klog_printf(const char *fmt, ...);
+    uint64_t *sp = frame ? (uint64_t *)(uintptr_t)frame->rsp : NULL;
+    klog_printf("WuBuOS PF: cr2=%x rip=%x rcx=%x rsi=%x rdx=%x rsp=%x caller=[%x,%x,%x]\n",
+                (unsigned)(cr2 & 0xFFFFFFFFu),
+                (unsigned)(frame ? (uint64_t)frame->rip : 0),
+                (unsigned)(frame ? (uint64_t)frame->rcx : 0),
+                (unsigned)(frame ? (uint64_t)frame->rsi : 0),
+                (unsigned)(frame ? (uint64_t)frame->rdx : 0),
+                (unsigned)(frame ? (uint64_t)frame->rsp : 0),
+                (unsigned)(sp ? sp[0] : 0),
+                (unsigned)(sp ? sp[1] : 0),
+                (unsigned)(sp ? sp[2] : 0));
     while (1) { __asm__ volatile ("hlt"); }
 }
 
 /* General protection fault handler (uses IST1) */
 void handle_gpf(InterruptFrame *frame) {
-    (void)frame;
+    extern int klog_printf(const char *fmt, ...);
+    /* The iretq popped a bad frame -> #GP with err=0 at the iretq itself.
+     * The frame's rip/cs/rflags are the iretq's OWN context; the iretq's
+     * attempted pops are at faulting_rsp = (frame + 136) for ring-0
+     * faults (the CPU pushed [rip,cs,rflags] right where the iretq was). */
+    uint64_t *stk = frame ? (uint64_t *)((uintptr_t)frame + 136) : NULL;
+    klog_printf("WuBuOS GP: rip=%x cs=%x rflags=%x err=%x iretframe=[%x,%x,%x,%x,%x,%x]\n",
+                (unsigned)(frame ? (uint64_t)frame->rip : 0),
+                (unsigned)(frame ? frame->cs : 0),
+                (unsigned)(frame ? (uint64_t)frame->rflags : 0),
+                (unsigned)(frame ? (uint64_t)frame->error_code : 0),
+                (unsigned)(stk ? stk[-2] : 0), (unsigned)(stk ? stk[-1] : 0),
+                (unsigned)(stk ? stk[0] : 0),  (unsigned)(stk ? stk[1] : 0),
+                (unsigned)(stk ? stk[2] : 0),  (unsigned)(stk ? stk[3] : 0));
     while (1) { __asm__ volatile ("hlt"); }
 }
 
@@ -553,8 +601,11 @@ int syscall_register(uint32_t num, syscall_fn_t handler) {
     return 0;
 }
 
-/* Syscall dispatcher - called from syscall_entry assembly stub */
-void syscall_handler(InterruptFrame *frame, uint64_t num) {
+/* Syscall dispatcher - called from syscall_entry assembly stub.
+ * Returns the result in RAX (the syscall epilogue never restores rax, so
+ * the return value survives into sysretq -- the old frame->rax write
+ * clobbered the saved R11 slot at +112 and was never restored). */
+int64_t syscall_handler(InterruptFrame *frame, uint64_t num) {
     (void)frame;
     
     if (num < MAX_SYSCALLS && g_syscall_table[num]) {
@@ -566,8 +617,8 @@ void syscall_handler(InterruptFrame *frame, uint64_t num) {
         int64_t arg5 = frame->r8;
         int64_t arg6 = frame->r9;
         
-        frame->rax = g_syscall_table[num](arg1, arg2, arg3, arg4, arg5, arg6);
+        return g_syscall_table[num](arg1, arg2, arg3, arg4, arg5, arg6);
     } else {
-        frame->rax = -1;  /* ENOSYS */
+        return -1;  /* ENOSYS */
     }
 }

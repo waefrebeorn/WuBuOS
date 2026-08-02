@@ -37,6 +37,9 @@ static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
 /* Forward declaration for assembly context switch */
 #if WUBU_BAREMETAL
 extern void task_switch_asm(TaskContext *old_ctx, TaskContext *new_ctx);
+/* First-run trampoline (see task_create): the assembly switch lands here
+ * on a brand-new task's stack; it calls the task's entry, then retires it. */
+static void task_trampoline(void);
 #endif
 
 /* -- Helpers ------------------------------------------------------ */
@@ -107,6 +110,15 @@ CTask *task_create(const char *name, void (*entry)(void *arg), void *arg,
     t->user_data = mem_alloc(sizeof(TaskJmp));
     if (!t->user_data) { mem_free(t->stack_base); mem_free(t); return NULL; }
     memset(t->user_data, 0, sizeof(TaskJmp));
+
+#if WUBU_BAREMETAL
+    /* Prime the first-run context: the first switch jumps to the trampoline
+     * on the new stack. rflags IF (0x200) set so the PIT can preempt the
+     * task immediately. */
+    t->context.rsp    = (uint64_t)((uint8_t *)t->stack_base + stack_sz);
+    t->context.rip    = (uint64_t)(uintptr_t)&task_trampoline;
+    t->context.rflags = 0x200;
+#endif
 
     task_insert(t);
     return t;
@@ -213,15 +225,9 @@ void task_timer_tick(void) {
 }
 
 /* Enable/disable preemptive scheduling */
-#if WUBU_BAREMETAL
-void task_preempt_enable(void)  { /* stub */ }
-void task_preempt_disable(void) { /* stub */ }
-int  task_preempt_enabled(void) { return 0; }
-#else
 void task_preempt_enable(void)  { g_preemptive = 1; }
 void task_preempt_disable(void) { g_preemptive = 0; }
 int  task_preempt_enabled(void) { return g_preemptive; }
-#endif
 
 /* -- Idle Task ------------------------------------------------------ */
 
@@ -235,9 +241,43 @@ void task_idle(void *arg) {
 /* -- Yield / Block / Unblock / Sleep ------------------------------ */
 
 #if WUBU_BAREMETAL
+/* First-run trampoline: the assembly context switch restored this task's
+ * primed context and jumped here (g_current == this task). Call the entry,
+ * then retire the task (state = DYING so the scheduler skips it; the stack
+ * stays allocated -- the kernel boots once). */
+static void task_trampoline(void)
+{
+    CTask *self = g_current;
+    if (self && self->entry) {
+        uint64_t sp;
+        __asm__ volatile("movq %%rsp, %0" : "=r"(sp));
+        sp &= ~15ULL;                       /* SysV 16-byte stack alignment */
+        __asm__ volatile("movq %0, %%rsp" :: "r"(sp));
+        self->entry(self->entry_arg);
+    }
+    if (self) self->state = TASK_DYING;
+    for (;;) task_yield();
+}
+
 void task_yield(void) {
-    /* Bare-metal: context switch to next task */
-    HLT();
+    /* Bare-metal: real round-robin context switch via the assembly switch. */
+    if (!g_current || !g_initialized) return;
+
+    CTask *old = g_current;
+    CTask *next = task_schedule_next();
+    if (!next || next == old) return;
+
+    old->state = TASK_READY;
+    next->state = TASK_RUNNING;
+    g_current = next;
+    /* The switch must be atomic: a PIT IRQ landing between the RSP restore
+     * and the jmp would push the iret frame on the wrong stack and re-enter
+     * the scheduler mid-switch (corruption). The ISR path is already safe
+     * (hardware clears IF on interrupt entry; the iret restores it). */
+    __asm__ volatile("cli");
+    task_switch_asm(&old->context, &next->context);
+    __asm__ volatile("sti");
+    /* Resumed here when the scheduler returns to this task. */
 }
 #else
 void task_yield(void) {

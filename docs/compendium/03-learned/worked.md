@@ -1,0 +1,47 @@
+# 03-learned — What Worked
+
+*The prestige ledger: verified wins with evidence. Append-only; newest last.
+Copy TEMPLATE.md for new entries.*
+
+## 2026-08-02 — Higher-half entry via absolute jump
+- **Context:** the whole kernel ran at identity addresses because crt0 used a
+  relative `call kernel_main` from physical code.
+- **What worked:** `movabs rax, kernel_main; jmp rax` — fault RIPs are now
+  proper higher-half addresses.
+- **Evidence:** fault frames changed from physical (0x10ed00) to
+  `0xffffffff8010f900`-style.
+
+## 2026-08-02 — The vector read: [rsp+112], not [rsp+120]
+- **Context:** every interrupt "looked like vector 0" (#DE) — the #DE hunt.
+- **What worked:** the stub pushes [error, vector]; after the register
+  pushes the VECTOR (the last push) sits at +112 and the error at +120.
+  The C code had read +120 (the error). One-byte offset, whole-system
+  impact.
+- **Evidence:** `raw14=20 raw15=0` (vector 32 at +112, error 0 at +120);
+  after the fix, interrupts deliver and `tick` advances.
+
+## 2026-08-02 — Save RAX in the ISR
+- **Context:** "memcpy writes to 0xff000000" #PF during the live session.
+- **What worked:** the common ISR handler now saves/restores rax (15 regs).
+  The ISR's C code clobbers caller-saved rax; an interrupt mid-memcpy-loop
+  corrupted the dest held in rax.
+- **Evidence:** the #PF is gone; full live session stable
+  (`tick=24→173`, `agi_uptime_ms` advancing, `attest_valid=1`).
+
+## 2026-08-02 — Monitor-based debugging (QEMU physical dumps)
+- **Context:** in-weeds fault hunts.
+- **What worked:** `xp /Ngx <phys>` physical memory dumps via the QEMU
+  monitor (BSS at phys 0x117c40 = higher-half 0xffffffff80117c40) —
+  proved g_vbe was NOT corrupted and isolated the fault to the ISR rax
+  clobber. Frames printed as raw qword slots (raw14..raw20) before the
+  struct was trustworthy.
+- **Evidence:** the BSS dump showing fb=0x402018/back=0xbec018/size=0x7e9000
+  all correct — the corruption had to be a register, not memory.
+
+## 2026-08-02 — Cooperative scheduling as the stable base
+- **Context:** the preempt resume #GPs.
+- **What worked:** cooperative round-robin (task_yield) + the 100 Hz tick
+  (wakes sleepers, advances the AGI) delivers the entire live system
+  without preemption.
+- **Evidence:** console, bonzi, agent, uptime, sleep, attestation all green
+  in one boot.

@@ -13,6 +13,7 @@
 #include "wubu_gaad.h"
 #include "wubu_attest.h"
 #include "wubu_bonzi.h"
+#include "wubu_console.h"
 #include "tasking.h"
 #include "klog.h"
 #include "vbe.h"
@@ -222,6 +223,12 @@ void wubu_agi_kernel_run(wubu_agi_kernel_t *k)
     if (task_create("bonzi", wubu_bonzi_task, k, 128 * 1024, PRIO_NORMAL)) {
         if (klog_printf)
             klog_printf("WuBuOS AGI: Bonzi Buddy task spawned\n");
+    }
+    /* Spawn the live console task: COM1 REPL -- the TempleOS-style live
+     * development surface of the OS (commands + HolyC in ring 0). */
+    if (task_create("console", wubu_console_task, k, 64 * 1024, PRIO_NORMAL)) {
+        if (klog_printf)
+            klog_printf("WuBuOS AGI: live console task spawned\n");
     }
     /* The cooperative loop is driven by the PIT timer (wubu_agi_kernel_tick).
      * On bare metal we yield to the scheduler; the timer interrupt ticks us.
