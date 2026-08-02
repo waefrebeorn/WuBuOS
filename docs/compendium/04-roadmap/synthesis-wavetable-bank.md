@@ -1,0 +1,1058 @@
+# Synthesis Wavetable Bank -- 1000 goals + gaps
+
+Date: 2026-08-02. The WuBuOS synthesis avenue ('be the best').
+Every gap is a real synthesis mechanism from the surveyed decades
+(analog -> modular -> FM -> wavetable -> granular -> physical -> AI audio),
+written as a C11-shaped goal for the wubu_sound engine. Status: `open` =
+not yet in engine; `wired` = implemented + tested. Closed by the recursive
+loop per the M1/M2 meta-plan rules.
+
+## WT-A: Oscillators & wave generation
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: Wolfgang Palm wavetable lineage -> DX FM -> granular -> physical modeling -> AI audio
+- WT-A01 Bandlimited wavetable oscillator (2048-sample tables, per-octave variants) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A02 polyBLEP anti-aliased saw/square (MinBLEP family) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A03 Wavetable morphing (interpolation between frames) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A04 Linear + cubic interpolation phase readout `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A05 Phase-accumulator oscillator core (the universal clock) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A06 Hard sync (slave osc resets on master) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A07 FM operator (sine carrier + modulator, DX-style) `open`
+- WT-A08 Phase modulation (the Casio PD lineage) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A09 Phase distortion (Casio CZ waveshaping) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A10 Vector synthesis (4-way crossfade, Sequential VS) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A11 Supersaw (7-detuned saws stacked) `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A12 Unison + detune spread `wired` (wubu_waveosc, test_synth PASSES)
+- WT-A13 Sub-oscillator (octave-down pulse/sine) `open`
+- WT-A14 White/pink/brown noise generators `open`
+- WT-A15 Granular cloud oscillator (grain scheduler) `open`
+- WT-A16 Karplus-Strong plucked-string `open`
+- WT-A17 Physical string model (waveguide) `open`
+- WT-A18 Physical reed model (wind) `open`
+- WT-A19 Vocal formant oscillator (vowel tables) `open`
+- WT-A20 Spectral oscillator (summed harmonics) `open`
+- WT-A21 Additive partial bank (N sine partials) `open`
+- WT-A22 Waveform freeze (sample-and-hold the wave) `open`
+- WT-A23 Cross-modulation (osc A FM's osc B) `open`
+- WT-A24 Ring modulation (bipolar product) `open`
+- WT-A25 Amplitude modulation `open`
+- WT-A26 Oscillator drift (analog instability model) `open`
+- WT-A27 Per-osc phase offset `open`
+- WT-A28 Keyboard tracking (osc pitch vs key) `open`
+- WT-A29 Glide/portamento (lag between notes) `open`
+- WT-A30 Pitch bend range handling `open`
+- WT-A31 Microtuning tables (non-12TET) `open`
+- WT-A32 Oscillator sync + FM combined `open`
+- WT-A33 Wavetable import (user PCM -> frames) `open`
+- WT-A34 Wavetable editor (draw/morph frames) `open`
+- WT-A35 Noise + tone mix oscillator `open`
+- WT-A36 Envelope-controlled pitch (pitch ADSR) `open`
+- WT-A37 Random pitch (sample-and-hold vibrato) `open`
+- WT-A38 Chord oscillator (stacked intervals) `open`
+- WT-A39 Oscillator blend (dual-osc balance) `open`
+- WT-A40 Thru-zero FM (bipolar phase) `open`
+- WT-A41 Feedback FM (self-modulated carrier) `open`
+- WT-A42 Linear FM depth scaling `open`
+- WT-A43 Exponential FM (analog-style) `open`
+- WT-A44 Waveshaper on the oscillator output `open`
+- WT-A45 Bit-reduction on the oscillator (lo-fi) `open`
+- WT-A46 Oscillator startup transient (attack click) `open`
+- WT-A47 Anti-imaging output filter (post-osc) `open`
+- WT-A48 Multi-sample wavetable (2D: frame x sample) `open`
+- WT-A49 Crossfade length control (morph smoothing) `open`
+- WT-A50 Morph curve selection (linear/equal-power) `open`
+- WT-A51 Oscillator voice-steal behavior `open`
+- WT-A52 Per-voice random detune (organic unison) `open`
+- WT-A53 Oscillator sync sweep (classic bass) `open`
+- WT-A54 FM ratio presets (harmonics table) `open`
+- WT-A55 Oscillator phase reset on note-on `open`
+- WT-A56 Sample playback oscillator (PCM) `open`
+- WT-A57 Loop-point control (sample loops) `open`
+- WT-A58 Pitch-synchronous granular (formant-preserving) `open`
+- WT-A59 Time-stretch granular `open`
+- WT-A60 Formant-corrected transpose `open`
+- WT-A61 Oscillator blend envelope (crossfade over time) `open`
+- WT-A62 Waveshape drift (LFO-driven morph) `open`
+- WT-A63 Oscillator output pan (stereo placement) `open`
+- WT-A64 Per-oscillator output routing (mixer tap) `open`
+- WT-A65 Oscillator BPM-sync pitch (tempo-locked) `open`
+- WT-A66 Subharmonic generation (divide-down) `open`
+- WT-A67 Squared FM (the DX7 bell) `open`
+- WT-A68 Complex operator chains (algorithm editor) `open`
+- WT-A69 Operator feedback gain control `open`
+- WT-A70 Modulator index envelope `open`
+- WT-A71 Carrier/modulator ratio detune `open`
+- WT-A72 Global osc detune drift (ensemble) `open`
+- WT-A73 Zero-crossing noise burst (metallic) `open`
+- WT-A74 Grain density control (granular) `open`
+- WT-A75 Grain pitch randomization `open`
+- WT-A76 Grain envelope (attack/decay per grain) `open`
+- WT-A77 Grain pan scatter `open`
+- WT-A78 Granular buffer capture (live input) `open`
+- WT-A79 Physical-model excitation (pluck/pick/breath) `open`
+- WT-A80 Waveguide delay length (string tuning) `open`
+- WT-A81 Damping control (string decay) `open`
+- WT-A82 String stiffness (inharmonicity) `open`
+- WT-A83 Physical model excitation noise `open`
+- WT-A84 Karplus-Strong filter control (pluck timbre) `open`
+- WT-A85 Formant tracker (vowel morph over time) `open`
+- WT-A86 Spectral partial drift (evolving timbre) `open`
+- WT-A87 Additive inharmonic partials (bell) `open`
+- WT-A88 Additive envelope per partial `open`
+- WT-A89 Vector joystick input (4-way mix) `open`
+- WT-A90 Oscillator FM into the filter (pre-filter) `open`
+- WT-A91 Oscillator output level scaling `open`
+- WT-A92 DC-blocker after the oscillator `open`
+- WT-A93 Oscillator calibration (pitch accuracy test) `open`
+- WT-A94 Zero-latency phase (sample-accurate) `open`
+- WT-A95 Polyphonic osc allocation (voice per note) `open`
+- WT-A96 Oscillator energy accounting (ties the IJ ledger) `open`
+- WT-A97 Oscillator phase jitter model `open`
+- WT-A98 Oscillator warm-up drift `open`
+- WT-A99 Oscillator FM index normalize `open`
+- WT-A100 Wavetable frame count selection `open`
+Status: `open` (96 gaps)
+
+## WT-B: Filters & tone shaping
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: Moog ladder -> SEM -> SVF -> ZDF/TAE -> formant banks
+- WT-B01 Moog ladder 4-pole lowpass (virtual analog) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B02 TB-303 resonant lowpass (acid) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B03 State-variable filter (SVF: LP/BP/HP) `open`
+- WT-B04 12 dB/octave + 24 dB/octave modes `open`
+- WT-B05 Oberheim SEM filter `wired` (wubu_ladder, test_synth PASSES)
+- WT-B06 Korg 35 filter `open`
+- WT-B07 ARP filter `open`
+- WT-B08 Wasp filter (8-pole weirdness) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B09 Comb filter (feedback delay) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B10 Phaser (allpass chain) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B11 Notch filter `wired` (wubu_ladder, test_synth PASSES)
+- WT-B12 Bandpass filter `open`
+- WT-B13 Highpass filter `wired` (wubu_ladder, test_synth PASSES)
+- WT-B14 Filter drive/saturation (pre-filter overdrive) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B15 Self-oscillation (resonant peak -> sine) `wired` (wubu_ladder, test_synth PASSES)
+- WT-B16 Key tracking (cutoff follows pitch) `open`
+- WT-B17 Filter envelope (ADSR to cutoff) `open`
+- WT-B18 LFO-modulated cutoff (auto-wah) `open`
+- WT-B19 Filter FM (audio-rate cutoff modulation) `open`
+- WT-B20 Dual filter (parallel/serial routing) `open`
+- WT-B21 Filter morph (LP <-> BP <-> HP) `open`
+- WT-B22 Formant filters (vowel banks) `open`
+- WT-B23 Vocal formant bank (5 bandpass vowels) `open`
+- WT-B24 Comb filter for metallic tones `open`
+- WT-B25 Delay-line comb (Karplus-related) `open`
+- WT-B26 Filter resonance compensation (gain scaling) `open`
+- WT-B27 Filter stability (no self-osc runaway) `open`
+- WT-B28 State-variable z-domain stability `open`
+- WT-B29 One-pole filters (cheap CPU) `open`
+- WT-B30 Biquad parametric EQ section `open`
+- WT-B31 Filter cascade (multi-stage) `open`
+- WT-B32 Filter mixer (dry/wet blend) `open`
+- WT-B33 Filter pre-filter mixer (osc blend in) `open`
+- WT-B34 Post-filter drive (tube-ish saturation) `open`
+- WT-B35 Filter output pan `open`
+- WT-B36 Envelope follower to filter (auto-wah) `open`
+- WT-B37 Filter key-scaling curves (variable) `open`
+- WT-B38 Filter polarity inversion `open`
+- WT-B39 Filter phase response control `open`
+- WT-B40 Linear-phase filter mode `open`
+- WT-B41 Filter oversampling (2x/4x, alias control) `open`
+- WT-B42 Zero-delay feedback filters (ZDF) `open`
+- WT-B43 Trapezoidal integration filters (TAE) `open`
+- WT-B44 Filter saturation curves (soft clip models) `open`
+- WT-B45 Diode-ladder filter (acid 4-pole) `open`
+- WT-B46 Transistor-ladder filter (Moog exact) `open`
+- WT-B47 Filter self-noise (analog hiss model) `open`
+- WT-B48 Filter cutoff calibration `open`
+- WT-B49 Filter envelope retrigger `open`
+- WT-B50 Filter velocity tracking `open`
+- WT-B51 Filter aftertouch routing `open`
+- WT-B52 Filter macro (cutoff+resonance combined) `open`
+- WT-B53 Filter sweep presets (classic sweeps) `open`
+- WT-B54 Filter output clip guard `open`
+- WT-B55 Filter energy accounting `open`
+- WT-B56 Multiband filter (split bands) `open`
+- WT-B57 Crossfade filter (morph between two) `open`
+- WT-B58 Filter input gain staging `open`
+- WT-B59 Filter saturation amount (drive knob) `open`
+- WT-B60 Filter resonance Q compensation `open`
+- WT-B61 Filter envelope amount (bipolar) `open`
+- WT-B62 Filter curve shaping (exponential cutoff) `open`
+- WT-B63 Filter tracking split point `open`
+- WT-B64 Filter modulation routing (mod matrix) `open`
+- WT-B65 Filter LFO sync (tempo-locked sweeps) `open`
+- WT-B66 Filter stereo (per-channel cutoff) `open`
+- WT-B67 Filter in feedback loop (global) `open`
+- WT-B68 Filter before/after amp envelope `open`
+- WT-B69 Filter parallel with dry path `open`
+- WT-B70 Filter series 12+24 (36 dB) `open`
+- WT-B71 Filter keyboard zone (split keys) `open`
+- WT-B72 Filter preset morph (between filter types) `open`
+- WT-B73 Filter CPU budget governor `open`
+- WT-B74 Filter tests (frequency response asserts) `open`
+- WT-B75 Filter DC offset rejection `open`
+- WT-B76 Filter numerical stability (double-precision state) `open`
+- WT-B77 Filter overshoot guard `open`
+- WT-B78 Filter state reset (voice allocation) `open`
+- WT-B79 Filter audio-rate envelope (fast) `open`
+- WT-B80 Filter sample-rate independence `open`
+- WT-B81 Filter topology selector (auto) `open`
+- WT-B82 Filter resonance tracking compensation `open`
+- WT-B83 Filter drive EQ (pre-emphasis) `open`
+- WT-B84 Filter post gain normalization `open`
+- WT-B85 Filter morph smooth (no zipper) `open`
+- WT-B86 Filter parameter smoothing (linear/exp) `open`
+- WT-B87 Filter cutoff display (Hz readout) `open`
+- WT-B88 Filter type visualizer (response curve) `open`
+- WT-B89 Filter input drive trim `open`
+- WT-B90 Filter Q display (resonance readout) `open`
+- WT-B91 Filter envelope retrigger mode `open`
+- WT-B92 Filter stereo link `open`
+- WT-B93 Filter cutoff Hz display `open`
+- WT-B94 Filter type morph smooth `open`
+- WT-B95 Filter response assert test `open`
+- WT-B96 Filter self-osc sine quality `open`
+- WT-B97 Filter overshoot recovery `open`
+- WT-B98 Filter parameter smoothing time `open`
+- WT-B99 Filter CPU benchmark `open`
+- WT-B100 Filter preset morph `open`
+Status: `open` (88 gaps)
+
+## WT-C: Modulation & envelopes
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: Moog/EMS envelopes -> ADSR -> mod-matrix -> MPE -> generative CV
+- WT-C01 ADSR envelope (attack/decay/sustain/release) `open`
+- WT-C02 Multi-stage envelope (DADSR, 8-stage) `open`
+- WT-C03 LFO with all waveforms (sine/tri/square/saw/S&H) `open`
+- WT-C04 Sample & hold (random stepped) `open`
+- WT-C05 Modulation matrix (source x destination) `open`
+- WT-C06 Bipolar/unipolar modulation `open`
+- WT-C07 Macro controls (one knob -> many params) `open`
+- WT-C08 Velocity -> amplitude mapping `open`
+- WT-C09 Aftertouch -> vibrato routing `open`
+- WT-C10 Mod wheel -> filter/wah `open`
+- WT-C11 MIDI CC input routing `open`
+- WT-C12 Envelope curves (linear/exponential) `open`
+- WT-C13 Envelope retrigger behavior `open`
+- WT-C14 Envelope loop (sustain cycling) `open`
+- WT-C15 Envelope hold stage `open`
+- WT-C16 LFO sync (tempo-locked rate) `open`
+- WT-C17 LFO fade-in (vibrato swell) `open`
+- WT-C18 LFO phase offset `open`
+- WT-C19 LFO one-shot mode `open`
+- WT-C20 Random LFO (smoothed noise) `open`
+- WT-C21 Slew/lag on modulation (portamento for CV) `open`
+- WT-C22 Modulation depth scaling `open`
+- WT-C23 Modulation routing display (visual cables) `open`
+- WT-C24 Envelope amount scaling `open`
+- WT-C25 Velocity curve selection `open`
+- WT-C26 Keytrack modulation (pitch->cutoff) `open`
+- WT-C27 Envelope follower (audio -> CV) `open`
+- WT-C28 External CV input (modular bridge) `open`
+- WT-C29 Sample-rate reduction as modulation (lo-fi) `open`
+- WT-C30 Ring mod as modulation (bipolar) `open`
+- WT-C31 Modulation bipolarity display `open`
+- WT-C32 LFO-to-pitch depth (vibrato) `open`
+- WT-C33 LFO-to-amp (tremolo) `open`
+- WT-C34 Envelope-to-pitch (pitch ADSR) `open`
+- WT-C35 Mod matrix CPU budget `open`
+- WT-C36 Modulation morph (crossfade two patches) `open`
+- WT-C37 Envelope time scaling (legato) `open`
+- WT-C38 Envelope trigger from sequencer `open`
+- WT-C39 Envelope pause (hold at stage) `open`
+- WT-C40 Modulation curves (sine/tan shaped) `open`
+- WT-C41 LFO waveform morph (sine<->tri) `open`
+- WT-C42 Random envelope (generative) `open`
+- WT-C43 Envelope loop count `open`
+- WT-C44 Modulation depth display (percent) `open`
+- WT-C45 Envelope follower smoothing `open`
+- WT-C46 Mod wheel curve `open`
+- WT-C47 Velocity split points `open`
+- WT-C48 Aftertouch curve `open`
+- WT-C49 MIDI CC smoothing `open`
+- WT-C50 Mod matrix priority (later wins) `open`
+- WT-C51 LFO stereo phase (dual LFO) `open`
+- WT-C52 Envelope keyboard scaling `open`
+- WT-C53 Envelope time keytrack `open`
+- WT-C54 Modulation undo/redo (patch history) `open`
+- WT-C55 Macro morph (performance macro) `open`
+- WT-C56 Envelope stage display (visual) `open`
+- WT-C57 Modulation LED meter `open`
+- WT-C58 Envelope peak hold `open`
+- WT-C59 LFO reset on note `open`
+- WT-C60 Envelope attack click prevention `open`
+- WT-C61 Envelope release time max (long pads) `open`
+- WT-C62 Modulation routing presets `open`
+- WT-C63 Envelope curve editor `open`
+- WT-C64 LFO waveform editor `open`
+- WT-C65 Mod matrix visual (source->dest lines) `open`
+- WT-C66 Envelope time quantization (musical) `open`
+- WT-C67 Envelope gating (staccato) `open`
+- WT-C68 Modulation rate (update rate for CV) `open`
+- WT-C69 Envelope bipolar (both directions) `open`
+- WT-C70 Modulation freeze (hold current value) `open`
+- WT-C71 Envelope scaling by velocity `open`
+- WT-C72 LFO chaos (random walk) `open`
+- WT-C73 Envelope trigger from audio (sidechain) `open`
+- WT-C74 Mod matrix learn (automap) `open`
+- WT-C75 Macro assignment editor `open`
+- WT-C76 Envelope time LFO (rate modulation) `open`
+- WT-C77 Modulation depth LFO (modulating the mod) `open`
+- WT-C78 Envelope sustain pedal input `open`
+- WT-C79 LFO wave one-cycle (percussive) `open`
+- WT-C80 Envelope ducking (sidechain) `open`
+- WT-C81 Modulation energy accounting `open`
+- WT-C82 Envelope trigger on sustain `open`
+- WT-C83 LFO depth negative polarity `open`
+- WT-C84 Mod matrix source selector `open`
+- WT-C85 Envelope time scaling curve `open`
+- WT-C86 LFO rate display (Hz/BPM) `open`
+- WT-C87 Mod wheel -> macro mapping `open`
+- WT-C88 Envelope loop with release `open`
+- WT-C89 LFO crossfade (two LFOs) `open`
+- WT-C90 Modulation depth negative `open`
+- WT-C91 Envelope velocity curve select `open`
+- WT-C92 LFO sync phase reset `open`
+- WT-C93 Mod matrix save `open`
+- WT-C94 Envelope sustain level display `open`
+- WT-C95 LFO rate multiply `open`
+- WT-C96 Envelope decay curve select `open`
+- WT-C97 Modulation bipolar display `open`
+- WT-C98 LFO wave duty `open`
+- WT-C99 Envelope loop point `open`
+- WT-C100 LFO phase randomize `open`
+Status: `open` (81 gaps)
+
+## WT-D: Synthesis methods (the full family)
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: The full synthesis family: every method from analog to AI, all C11
+- WT-D01 Subtractive synthesis path (osc->filter->amp) `open`
+- WT-D02 Additive synthesis engine (partial bank) `open`
+- WT-D03 FM synthesis engine (operator algorithms) `open`
+- WT-D04 Wavetable synthesis engine (frame morph) `open`
+- WT-D05 Granular synthesis engine (grain cloud) `open`
+- WT-D06 Physical modeling engine (string/wind) `open`
+- WT-D07 Formant synthesis engine (vocal) `open`
+- WT-D08 Spectral synthesis engine (FFT-based) `open`
+- WT-D09 Vector synthesis engine (4-way) `open`
+- WT-D10 Phase distortion engine (Casio) `open`
+- WT-D11 Sample-based engine (PCM) `open`
+- WT-D12 Karplus-Strong engine (pluck) `open`
+- WT-D13 Virtual analog engine (VA osc+filters) `open`
+- WT-D14 West-coast synthesis (waveshaping + LPG) `open`
+- WT-D15 East-coast synthesis (subtractive) `open`
+- WT-D16 Drum synthesis (kick/snare/hat engines) `open`
+- WT-D17 Bass synthesis (sub + filter designs) `open`
+- WT-D18 Pad synthesis (detuned stacked) `open`
+- WT-D19 Lead synthesis (resonant + drive) `open`
+- WT-D20 String synth (ensemble detune) `open`
+- WT-D21 Organ synthesis (drawbar additive) `open`
+- WT-D22 Bell synthesis (inharmonic partials) `open`
+- WT-D23 Glass/metallic synthesis (FM) `open`
+- WT-D24 Wind instrument synthesis (breath model) `open`
+- WT-D25 Brass synthesis (lip + bore model) `open`
+- WT-D26 Plucked bass synthesis (K-S) `open`
+- WT-D27 Vocal synthesis (formant + noise) `open`
+- WT-D28 SFX synthesis (risers, impacts) `open`
+- WT-D29 Transition synthesis (downlifters) `open`
+- WT-D30 Ambient synthesis (granular pads) `open`
+- WT-D31 Generative synthesis (random patches) `open`
+- WT-D32 Hybrid synthesis (wavetable + FM) `open`
+- WT-D33 Multitimbral engine (multiple voices) `open`
+- WT-D34 Performance synth (split/layer) `open`
+- WT-D35 Monophonic synth (legato mode) `open`
+- WT-D36 Polyphonic synth (voice allocation) `open`
+- WT-D37 Unison synth (stacked voices) `open`
+- WT-D38 Bidirectional synthesis (analysis-synthesis) `open`
+- WT-D39 Cross-synthesis (vocoder core) `open`
+- WT-D40 Vocoder (filterbank + carrier) `open`
+- WT-D41 Talk box emulation `open`
+- WT-D42 Morphing synthesis (between two sounds) `open`
+- WT-D43 Timbre morph (spectral interpolation) `open`
+- WT-D44 Pitch-synchronous granular morph `open`
+- WT-D45 Resynthesis (audio -> additive partials) `open`
+- WT-D46 Audio-to-MIDI (pitch tracking) `open`
+- WT-D47 Loop slicing (breakbeats) `open`
+- WT-D48 Beat-synced granular (tempo-locked) `open`
+- WT-D49 Reverse synthesis (backwards grains) `open`
+- WT-D50 Time-stretch synthesis (phase vocoder) `open`
+- WT-D51 Formant-preserving time-stretch `open`
+- WT-D52 Pitch-shift synthesis (harmonizer) `open`
+- WT-D53 Harmonizer (interval stacking) `open`
+- WT-D54 Chorus ensemble synthesis (dimension) `open`
+- WT-D55 BBD chorus (bucket brigade model) `open`
+- WT-D56 Ensemble detune synthesis (Junos) `open`
+- WT-D57 Supersaw synthesis (Roland JP-8000) `open`
+- WT-D58 Hoover synthesis (detuned saw stack) `open`
+- WT-D59 Acid synthesis (303 bassline) `open`
+- WT-D60 Trance gate synthesis (rhythmic gating) `open`
+- WT-D61 Dubstep wobble (LFO-synced filter) `open`
+- WT-D62 Psytrance bass (kick+resonant) `open`
+- WT-D63 Cinematic trailer percussion `open`
+- WT-D64 Game SFX (classic 8-bit beeps) `open`
+- WT-D65 Chiptune synthesis (square/triangle/NES) `open`
+- WT-D66 Tracker synthesis (mod/amiga) `open`
+- WT-D67 FM drum (DX kick/hat) `open`
+- WT-D68 Analog drum model (trigger-based) `open`
+- WT-D69 Noise drum (snare/hat) `open`
+- WT-D70 Kick drum synthesis (pitch envelope) `open`
+- WT-D71 Snare synthesis (noise + tone) `open`
+- WT-D72 Hat synthesis (highpass noise) `open`
+- WT-D73 Clap synthesis (multi-noise burst) `open`
+- WT-D74 Tom synthesis (pitched drum) `open`
+- WT-D75 Percussion synthesis (generic trigger) `open`
+- WT-D76 Bass drop synthesis (pitch sweep) `open`
+- WT-D77 Riser synthesis (filter + noise sweep) `open`
+- WT-D78 Impact synthesis (pitch drop + crunch) `open`
+- WT-D79 Whoosh synthesis (filtered noise) `open`
+- WT-D80 UI sound synthesis (click/confirm/error) `open`
+- WT-D81 Notification synthesis (chimes) `open`
+- WT-D82 Startup sound synthesis (chord) `open`
+- WT-D83 Branding jingle synthesis `open`
+- WT-D84 Ambient texture synthesis (generative) `open`
+- WT-D85 Spatial synthesis (pan/width) `open`
+- WT-D86 Stereo widening synthesis (Haas) `open`
+- WT-D87 Binaural synthesis (HRTF pan) `open`
+- WT-D88 Wet/dry mix architecture (parallel) `open`
+- WT-D89 Insert/return routing (effects loops) `open`
+- WT-D90 Voice architecture (osc bank + filter + amp + fx) `open`
+- WT-D91 Performance macros (per-voice controls) `open`
+- WT-D92 Patch morphing (between two presets) `open`
+- WT-D93 Preset randomization (generative patches) `open`
+- WT-D94 Preset similarity (patch distances) `open`
+- WT-D95 Preset archiving (versioned) `open`
+- WT-D96 Synthesis benchmark (voice-count stress) `open`
+- WT-D97 Cross-synthesis morph (vocoder) `open`
+- WT-D98 Resynthesis partials count `open`
+- WT-D99 Granular time-stretch ratio `open`
+- WT-D100 Formant shift (vowel morph) `open`
+Status: `open` (96 gaps)
+
+## WT-E: Effects & spatial
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: Freeverb -> convolution -> tape echoes -> master processing, all synthesized
+- WT-E01 Stereo delay (tempo-synced) `open`
+- WT-E02 Ping-pong delay `open`
+- WT-E03 Tape echo model (wow + flutter) `open`
+- WT-E04 Digital delay (clean) `open`
+- WT-E05 Multi-tap delay (rhythmic patterns) `open`
+- WT-E06 Convolution reverb (impulse response) `open`
+- WT-E07 Algorithmic reverb (Freeverb) `open`
+- WT-E08 Hall/room/plate reverb models `open`
+- WT-E09 Chorus (modulated delay) `open`
+- WT-E10 Flanger (short modulated delay) `open`
+- WT-E11 Phaser (allpass chain) `open`
+- WT-E12 Analog-style phaser (Oberheim) `open`
+- WT-E13 Distortion (hard clip) `open`
+- WT-E14 Overdrive (soft clip) `open`
+- WT-E15 Fuzz (asymmetric clip) `open`
+- WT-E16 Tube saturation model `open`
+- WT-E17 Compressor (VCA model) `open`
+- WT-E18 Sidechain compressor (ducking) `open`
+- WT-E19 Limiter (brickwall) `open`
+- WT-E20 Gate (noise gate) `open`
+- WT-E21 Parametric EQ (biquad banks) `open`
+- WT-E22 Graphic EQ (fixed bands) `open`
+- WT-E23 Bit-crusher (lo-fi) `open`
+- WT-E24 Sample-rate reducer (decimator) `open`
+- WT-E25 Vocoder (filterbank) `open`
+- WT-E26 Tremolo (LFO amp) `open`
+- WT-E27 Vibrato (LFO pitch) `open`
+- WT-E28 Auto-wah (envelope filter) `open`
+- WT-E29 Wah pedal model `open`
+- WT-E30 Octaver (sub-octave generator) `open`
+- WT-E31 Harmonizer (pitch shift) `open`
+- WT-E32 Detune chorus (BBD) `open`
+- WT-E33 Dimension chorus (Roland) `open`
+- WT-E34 Stereo widener (mid/side) `open`
+- WT-E35 Haas effect (delay pan) `open`
+- WT-E36 Reverb pre-delay `open`
+- WT-E37 Reverb damping `open`
+- WT-E38 Reverb diffusion `open`
+- WT-E39 Delay feedback `open`
+- WT-E40 Delay filter (dark repeats) `open`
+- WT-E41 Effects chain (serial routing) `open`
+- WT-E42 Effects parallel routing `open`
+- WT-E43 Dry/wet per-effect `open`
+- WT-E44 Effects bus (send/return) `open`
+- WT-E45 Master limiter (final stage) `open`
+- WT-E46 Effects energy accounting `open`
+- WT-E47 Effects CPU budget `open`
+- WT-E48 Convolution IR loader (wav IR) `open`
+- WT-E49 Impulse capture (record IR) `open`
+- WT-E50 Reverb freeze (sustain) `open`
+- WT-E51 Delay ping-pong spread `open`
+- WT-E52 Effects presets (classic settings) `open`
+- WT-E53 Effects morph (between two settings) `open`
+- WT-E54 Sidechain routing (external) `open`
+- WT-E55 Effects latency compensation `open`
+- WT-E56 Zero-latency effects (realtime) `open`
+- WT-E57 Effects oversampling `open`
+- WT-E58 Effects automation (parameter sweep) `open`
+- WT-E59 Effects LFO sync `open`
+- WT-E60 Spatial audio (stereo field) `open`
+- WT-E61 Mid/side processing `open`
+- WT-E62 Stereo width control `open`
+- WT-E63 Mono compatibility check `open`
+- WT-E64 Bass mono fold `open`
+- WT-E65 Effects snapshot (state save) `open`
+- WT-E66 Effects chain editor (drag order) `open`
+- WT-E67 Effects visualizer (meter) `open`
+- WT-E68 Level metering (peak/RMS) `open`
+- WT-E69 LUFS loudness meter `open`
+- WT-E70 True peak meter `open`
+- WT-E71 Effects bypass (zero-latency) `open`
+- WT-E72 Effects A/B compare `open`
+- WT-E73 Effects undo/redo `open`
+- WT-E74 Convolution reverb CPU-bounded `open`
+- WT-E75 Algorithmic reverb variants (plate/spring) `open`
+- WT-E76 Spring reverb model `open`
+- WT-E77 Effects for OS UI (chime reverb) `open`
+- WT-E78 Notification effects (per-app) `open`
+- WT-E79 Sound scheme effects (Win98 vs XP) `open`
+- WT-E80 Master EQ curve `open`
+- WT-E81 Effects preset randomizer `open`
+- WT-E82 Effects MIDI control `open`
+- WT-E83 Effects CV input (modular bridge) `open`
+- WT-E84 Effects in the mod matrix `open`
+- WT-E85 Effects stereo routing (per-voice) `open`
+- WT-E86 Effects benchmark `open`
+- WT-E87 Reverb input filtering `open`
+- WT-E88 Delay feedback saturation `open`
+- WT-E89 Compressor ratio display `open`
+- WT-E90 EQ band solo `open`
+- WT-E91 Reverb pre-delay sync `open`
+- WT-E92 Effects chain save `open`
+- WT-E93 Sidechain threshold `open`
+- WT-E94 Limiter ceiling control `open`
+- WT-E95 Effects latency report `open`
+- WT-E96 Reverb tail length `open`
+- WT-E97 Effects benchmark `open`
+- WT-E98 Effects morph A/B `open`
+- WT-E99 Reverb early reflections `open`
+- WT-E100 Delay tap pattern editor `open`
+Status: `open` (86 gaps)
+
+## WT-F: Sequencing, UI & composition
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: Step sequencers -> DAW patterns -> generative/Euclidean -> OS-integrated sonification
+- WT-F01 Step sequencer (16 steps, per-step pitch/velocity) `open`
+- WT-F02 Arpeggiator (up/down/random patterns) `open`
+- WT-F03 Pattern chains (song mode) `open`
+- WT-F04 Pattern persistence (save/load) `open`
+- WT-F05 Preset browser (search by tag) `open`
+- WT-F06 Modulation drawing (drawable LFO/envelope) `open`
+- WT-F07 Virtual patch cables (visual routing) `open`
+- WT-F08 Knob recording (automation capture) `open`
+- WT-F09 Piano roll editor (notes + velocity) `open`
+- WT-F10 MIDI input (keyboard/host) `open`
+- WT-F11 MIDI output (send notes) `open`
+- WT-F12 Clock sync (BPM master) `open`
+- WT-F13 Swing/shuffle (groove timing) `open`
+- WT-F14 Probability gates (per-step chance) `open`
+- WT-F15 Random pattern generation `open`
+- WT-F16 Humanize (velocity/timing jitter) `open`
+- WT-F17 Song arrangement (tracks + scenes) `open`
+- WT-F18 Scene launching (session view) `open`
+- WT-F19 Performance mode (macros + pads) `open`
+- WT-F20 Patch morphing (performance knob) `open`
+- WT-F21 Undo/redo (patch + arrangement) `open`
+- WT-F22 Patch versioning (timeline) `open`
+- WT-F23 Patch diff (compare two) `open`
+- WT-F24 Wavetable browser (frame navigation) `open`
+- WT-F25 Filter sweep visualization `open`
+- WT-F26 Spectrum analyzer (real-time) `open`
+- WT-F27 Oscilloscope view (waveform) `open`
+- WT-F28 Modulation monitor (CV activity) `open`
+- WT-F29 Patch architecture view (signal flow) `open`
+- WT-F30 Synthesis tutorial mode (guided) `open`
+- WT-F31 Preset tags (genre/character) `open`
+- WT-F32 Preset search (fuzzy) `open`
+- WT-F33 Preset star rating `open`
+- WT-F34 Preset randomizer with constraints `open`
+- WT-F35 One-knob design (macro-first UI) `open`
+- WT-F36 Touch-friendly controls (big knobs) `open`
+- WT-F37 Keyboard shortcuts (DAW-style) `open`
+- WT-F38 MIDI learn (automap) `open`
+- WT-F39 Automation curves (editable) `open`
+- WT-F40 Step velocity lane `open`
+- WT-F41 Step probability lane `open`
+- WT-F42 Micro-timing (per-step offset) `open`
+- WT-F43 Polyphonic step sequencer (chords) `open`
+- WT-F44 Arpeggiator gate modes (legato) `open`
+- WT-F45 Sequencer randomization (generative) `open`
+- WT-F46 Euclidean rhythms (pattern generator) `open`
+- WT-F47 Fibonacci rhythms `open`
+- WT-F48 Chaos sequencer (random walk) `open`
+- WT-F49 Turing machine sequencer (bit shift) `open`
+- WT-F50 Sequencer energy accounting `open`
+- WT-F51 BPM sync all modulators `open`
+- WT-F52 Song export (render to WAV) `open`
+- WT-F53 Live input routing (mic/instrument) `open`
+- WT-F54 Direct monitoring (zero-latency) `open`
+- WT-F55 Recording (capture performance) `open`
+- WT-F56 Undo for recording (punch) `open`
+- WT-F57 Session state snapshot (crash recovery) `open`
+- WT-F58 Patch performance cache (no glitch) `open`
+- WT-F59 Sequencer CPU budget `open`
+- WT-F60 Pattern probability chain (evolving) `open`
+- WT-F61 Sequencer scale constraints `open`
+- WT-F62 Note quantize (grid snap) `open`
+- WT-F63 Note humanize (off-grid) `open`
+- WT-F64 MIDI channel routing `open`
+- WT-F65 Multi-timbral sequencing (per-track) `open`
+- WT-F66 Drum rack (pad per sound) `open`
+- WT-F67 Sound browser (per-instrument) `open`
+- WT-F68 Drum pattern probability `open`
+- WT-F69 Fills (auto-transition patterns) `open`
+- WT-F70 Song automation (per-scene) `open`
+- WT-F71 Performance pads (trigger scenes) `open`
+- WT-F72 Sequencer follow mode (playback cursor) `open`
+- WT-F73 Arrangement editing (clip grid) `open`
+- WT-F74 Clip launching (session) `open`
+- WT-F75 Sequencer loop modes (one-shot/loop) `open`
+- WT-F76 Pattern length variation (per-pattern) `open`
+- WT-F77 Time signature support `open`
+- WT-F78 Tempo automation `open`
+- WT-F79 Sequencer transport (play/stop/record) `open`
+- WT-F80 MIDI clock out (sync external) `open`
+- WT-F81 OS-integrated transport (with the WuBuOS) `open`
+- WT-F82 Patch-to-Bonzi (sounds for the companion) `open`
+- WT-F83 Sound scheme sequencer (UI event patterns) `open`
+- WT-F84 Startup jingle sequencer `open`
+- WT-F85 Notification sound patterns `open`
+- WT-F86 Sequencer for AGI (sonified state changes) `open`
+- WT-F87 Sonification of the AGI loop (promotions) `open`
+- WT-F88 Sonification of the energy ledger `open`
+- WT-F89 Patch autosave (crash safety) `open`
+- WT-F90 Preset import (sysex) `open`
+- WT-F91 Preset export (sysex) `open`
+- WT-F92 Wavetable import (PCM frames) `open`
+- WT-F93 Wavetable export (wav) `open`
+- WT-F94 Session export (full render) `open`
+- WT-F95 Sequencer per-step note length `open`
+- WT-F96 Arpeggiator pattern presets `open`
+- WT-F97 Song scene names `open`
+- WT-F98 Preset browser sort `open`
+- WT-F99 Piano roll zoom `open`
+- WT-F100 Step velocity humanize `open`
+Status: `open` (94 gaps)
+
+## WT-G: OS integration & the WuBuOS avenue
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: The WuBuOS avenue: synthesis as an OS capability, wired to the AGI, the Bonzi, the energy ledger, and the metal
+- WT-G01 Audio sink wiring (the platform playback layer) `open`
+- WT-G02 WAV writer sink (the immediate playback path) `open`
+- WT-G03 Sample-accurate scheduling (no glitches) `open`
+- WT-G04 Voice allocation (polyphony manager) `open`
+- WT-G05 Realtime safety (no allocs in the audio thread) `open`
+- WT-G06 Latency budget (bounded render time) `open`
+- WT-G07 MIDI driver (input/output) `open`
+- WT-G08 Device selection (output device matrix) `open`
+- WT-G09 Sample rate selection (22k/44.1k/48k) `open`
+- WT-G10 Buffer size control `open`
+- WT-G11 Audio thread priority (OS scheduling) `open`
+- WT-G12 Underrun handling (glitch recovery) `open`
+- WT-G13 Multicore voice render (parallel voices) `open`
+- WT-G14 Voice stealing (oldest/quietest) `open`
+- WT-G15 Memory budget (voices x buffers bounded) `open`
+- WT-G16 WAV recording (capture to disk) `open`
+- WT-G17 Streaming output (continuous render) `open`
+- WT-G18 The sound applet integration (volume/mute/events) `open`
+- WT-G19 Boot-time startup chord (desktop init) `open`
+- WT-G20 Per-event volume (sound scheme) `open`
+- WT-G21 Mute-all (global toggle) `open`
+- WT-G22 Per-app sounds (notification routing) `open`
+- WT-G23 Theme sound schemes (Win98 vs XP sets) `open`
+- WT-G24 OS event mapping (click/error/notify/startup) `open`
+- WT-G25 Sonification of system state (disk/CPU) `open`
+- WT-G26 Sonification of the AGI (promote chime) `open`
+- WT-G27 The kernel-side beeper (metal fallback) `open`
+- WT-G28 PC speaker emulation (classic beeps) `open`
+- WT-G29 The metal audio (bare-metal synthesis) `open`
+- WT-G30 RTC-timed sequencing (metal tempo) `open`
+- WT-G31 The WuBuOS music player (wav playback) `open`
+- WT-G32 The WuBuOS synthesis lab app (the GUI) `open`
+- WT-G33 The patch browser app `open`
+- WT-G34 The wavetable editor app `open`
+- WT-G35 The waveform visualizer app `open`
+- WT-G36 The spectrum analyzer app `open`
+- WT-G37 The MIDI keyboard app (virtual) `open`
+- WT-G38 The drum machine app `open`
+- WT-G39 The step sequencer app `open`
+- WT-G40 The sound recorder app `open`
+- WT-G41 The sound scheme editor app `open`
+- WT-G42 The AGI sound designer (the engine picks sounds) `open`
+- WT-G43 The AGI composer (music generation) `open`
+- WT-G44 The AGI voice (TTS integration) `open`
+- WT-G45 The Bonzi voice synthesis (companion speech) `open`
+- WT-G46 The Bonzi chime (companion events) `open`
+- WT-G47 The startup logo sound `open`
+- WT-G48 The shutdown chord `open`
+- WT-G49 The error sound per severity `open`
+- WT-G50 The notification sound per priority `open`
+- WT-G51 The window open/close sounds `open`
+- WT-G52 The maximize/minimize sounds `open`
+- WT-G53 The drag-drop sounds `open`
+- WT-G54 The menu click sounds `open`
+- WT-G55 The desktop theme sound sets `open`
+- WT-G56 The Control Panel test tones `open`
+- WT-G57 The hardware-detection audio report (the detected matrix as tones) `open`
+- WT-G58 The CPUID sonification (tier -> tone) `open`
+- WT-G59 The energy-ledger sonification (budget -> pitch) `open`
+- WT-G60 The boot progress tones (the code-01..37 as blips) `open`
+- WT-G61 The kernel panic sound (emergency) `open`
+- WT-G62 The AGI promotion fanfare `open`
+- WT-G63 The AGI checkpoint save sound `open`
+- WT-G64 The AGI restore sound `open`
+- WT-G65 The AGI unlearning sound (the forget chime) `open`
+- WT-G66 The alignment drift alarm `open`
+- WT-G67 The reward-hacking alert `open`
+- WT-G68 The loop-ledger heartbeat (soft tick) `open`
+- WT-G69 The 1000-gap closing fanfare (per closing batch) `open`
+- WT-G70 The sound engine tests (all events asserted) `open`
+- WT-G71 The synthesis benchmark (voices @ CPU) `open`
+- WT-G72 The audio latency benchmark `open`
+- WT-G73 The sound-scheme migration (Win98 <-> XP) `open`
+- WT-G74 The volume persistence (settings) `open`
+- WT-G75 The mute persistence `open`
+- WT-G76 The per-app volume persistence `open`
+- WT-G77 The audio device persistence `open`
+- WT-G78 The sound state snapshot (crash recovery) `open`
+- WT-G79 The audio thread watchdog `open`
+- WT-G80 The synthesis module registry (the module-design principle) `open`
+- WT-G81 The modular signal graph (virtual patch in the OS) `open`
+- WT-G82 The module A/B compare `open`
+- WT-G83 The module latency display `open`
+- WT-G84 The module CPU display `open`
+- WT-G85 The module energy display `open`
+- WT-G86 The module input/output meters `open`
+- WT-G87 The module presets (per-module) `open`
+- WT-G88 The module chaining (drag order) `open`
+- WT-G89 The module undo/redo `open`
+- WT-G90 The module docs (each module self-documents) `open`
+- WT-G91 The module test suite (per-module asserts) `open`
+- WT-G92 The module fuzz (adversarial params) `open`
+- WT-G93 The module ABI stability `open`
+- WT-G94 The module versioning `open`
+- WT-G95 The module hot-swap (realtime) `open`
+- WT-G96 The synthesis avenue roadmap (the WT-bank as the plan) `open`
+- WT-G97 Audio sink fallback (no device) `open`
+- WT-G98 Buffer underrun log `open`
+- WT-G99 Voice pool stats `open`
+- WT-G100 MIDI channel filter `open`
+Status: `open` (96 gaps)
+
+## WT-H: AI synthesis & the AGI
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: Neural audio -> diffusion -> the AGI as designer/composer/curator, all on-metal C11
+- WT-H01 Neural waveform generation (autoencoder) `open`
+- WT-H02 Style transfer for timbres `open`
+- WT-H03 Latent space synthesis (encode -> morph) `open`
+- WT-H04 AI patch recommendation (describe -> patch) `open`
+- WT-H05 Generative patch design (randomize intelligently) `open`
+- WT-H06 AI mixing assistant (levels/EQ suggestions) `open`
+- WT-H07 Source separation (stems) `open`
+- WT-H08 Voice extraction (from mixed audio) `open`
+- WT-H09 AI voicing (chord -> arrangement) `open`
+- WT-H10 AI melody generation `open`
+- WT-H11 AI bassline generation `open`
+- WT-H12 AI drum pattern generation `open`
+- WT-H13 Synth modeling from audio (capture -> patch) `open`
+- WT-H14 Preset similarity search (semantic) `open`
+- WT-H15 AI sound tagging (auto tags) `open`
+- WT-H16 AI sound matching (find the sound you describe) `open`
+- WT-H17 The AGI as sound designer (natural-language design) `open`
+- WT-H18 The AGI as composer (full tracks) `open`
+- WT-H19 The AGI as audio engineer (mix/master) `open`
+- WT-H20 The AGI sound-scheme curator (per-mood themes) `open`
+- WT-H21 The AGI learning the user's taste (preference) `open`
+- WT-H22 The AGI generating UI sounds (per-app identities) `open`
+- WT-H23 The AGI generating the Bonzi's voice `open`
+- WT-H24 The AGI generating startup jingles `open`
+- WT-H25 The AGI sonifying the AGI (self-heard state) `open`
+- WT-H26 Neural audio codec (compressed synthesis) `open`
+- WT-H27 Diffusion-based audio generation `open`
+- WT-H28 Audio inpainting (fill gaps) `open`
+- WT-H29 Audio super-resolution (lo-fi -> hi-fi) `open`
+- WT-H30 Bandwidth extension (missing harmonics) `open`
+- WT-H31 AI reverb (learned IRs) `open`
+- WT-H32 AI mastering (auto finalize) `open`
+- WT-H33 AI noise reduction (denoise) `open`
+- WT-H34 AI de-click/de-pop `open`
+- WT-H35 AI de-esser `open`
+- WT-H36 AI stereo widening (learned) `open`
+- WT-H37 AI stem arrangement (structural) `open`
+- WT-H38 AI remix (style transformation) `open`
+- WT-H39 AI cover generation (new arrangement) `open`
+- WT-H40 AI synth parameter auto-tuning (optimize a patch) `open`
+- WT-H41 AI filter curve learning (match a reference) `open`
+- WT-H42 AI envelope learning (match a transient) `open`
+- WT-H43 AI oscillator modeling (learn a waveform) `open`
+- WT-H44 AI drum synthesis (generate drum hits) `open`
+- WT-H45 AI vocal synthesis (singing) `open`
+- WT-H46 AI instrumental synthesis (playable instruments) `open`
+- WT-H47 AI generative soundscapes (ambient) `open`
+- WT-H48 AI generative SFX (game/UI) `open`
+- WT-H49 AI notification design (brand-consistent) `open`
+- WT-H50 AI sound branding (logo jingles) `open`
+- WT-H51 AI podcast intro/outro generation `open`
+- WT-H52 AI ambient music for the desktop (mood-reactive) `open`
+- WT-H53 AI music that reacts to the user's typing (adaptive) `open`
+- WT-H54 AI music that reacts to the AGI's state (promote music) `open`
+- WT-H55 AI music under the energy ledger (adaptive budget) `open`
+- WT-H56 AI music on the metal (bare-metal generative) `open`
+- WT-H57 AI synthesis model portability (the C11 engine) `open`
+- WT-H58 AI synthesis on CPU (no GPU needed) `open`
+- WT-H59 AI synthesis with the hwdetect tier (SIMD dispatch) `open`
+- WT-H60 AI synthesis quantization (quantized models) `open`
+- WT-H61 AI synthesis latency (realtime generation) `open`
+- WT-H62 AI synthesis tests (musicality asserts) `open`
+- WT-H63 AI synthesis energy accounting `open`
+- WT-H64 The AGI music memory (the Hopfield patterns as melodies) `open`
+- WT-H65 The AGI remembering user melodies `open`
+- WT-H66 The AGI improvising on the user's themes `open`
+- WT-H67 The AGI composing with the user (collaborative) `open`
+- WT-H68 The AGI teaching synthesis (the tutor) `open`
+- WT-H69 The AGI explaining synthesis (the mentor) `open`
+- WT-H70 The AGI exploring synthesis (curiosity-driven patches) `open`
+- WT-H71 The AGI discovering new timbres (novelty search) `open`
+- WT-H72 The AGI finding the user's favorite sounds (preference) `open`
+- WT-H73 The AGI organizing the sound library (curation) `open`
+- WT-H74 The AGI naming patches (naming) `open`
+- WT-H75 The AGI writing patch descriptions (documentation) `open`
+- WT-H76 The AGI reviewing patches (critique) `open`
+- WT-H77 The AGI improving patches (evolution) `open`
+- WT-H78 The AGI evolving the wavetable bank (self-extending) `open`
+- WT-H79 The AGI composing the OS sounds (the OS's own identity) `open`
+- WT-H80 The AGI composing the startup sound per-user `open`
+- WT-H81 The AGI adaptive audio (the OS sounds evolve) `open`
+- WT-H82 The AGI audio privacy (no data leaves the machine) `open`
+- WT-H83 The AGI audio provenance (every sound attributed) `open`
+- WT-H84 The AGI audio ledger (every generation logged) `open`
+- WT-H85 The AGI audio alignment (sounds match values) `open`
+- WT-H86 The AGI audio safety (no harmful sounds) `open`
+- WT-H87 The AGI audio accessibility (sound -> visual cues) `open`
+- WT-H88 The AGI audio tests (the full suite) `open`
+- WT-H89 The AI synthesis avenue roadmap (the WT-H bank) `open`
+- WT-H90 AI patch embedding (vector) `open`
+- WT-H91 AI timbre similarity search `open`
+- WT-H92 AI generative constraints `open`
+- WT-H93 AI composer key/scale `open`
+- WT-H94 AI mixer presets `open`
+- WT-H95 AI stem balance `open`
+- WT-H96 AI de-esser amount `open`
+- WT-H97 AI reverb IR selection `open`
+- WT-H98 AI mastering target loudness `open`
+- WT-H99 AI melody variation seed `open`
+- WT-H100 AI synth model size budget `open`
+Status: `open` (89 gaps)
+
+## WT-I: Sound design craft (the library)
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: The craft: presets + design language + the OS identity + the Bonzi moods, all synthesized in-house
+- WT-I01 The classic bass presets (Moog/TB-303/DX) `open`
+- WT-I02 The classic lead presets (saw/resonant) `open`
+- WT-I03 The classic pad presets (detuned/strings) `open`
+- WT-I04 The classic bell/glass (FM) `open`
+- WT-I05 The classic pluck (subtractive envelope) `open`
+- WT-I06 The classic brass (lip model) `open`
+- WT-I07 The classic strings (ensemble) `open`
+- WT-I08 The classic organ (drawbars) `open`
+- WT-I09 The classic piano-ish (additive/FM) `open`
+- WT-I10 The classic choir (formant) `open`
+- WT-I11 The classic SFX (sci-fi) `open`
+- WT-I12 The classic game SFX (8-bit) `open`
+- WT-I13 The classic UI sounds (Win98/XP) `open`
+- WT-I14 The riser presets `open`
+- WT-I15 The impact presets `open`
+- WT-I16 The whoosh presets `open`
+- WT-I17 The transition presets (downlifters) `open`
+- WT-I18 The ambient presets (generative pads) `open`
+- WT-I19 The glitch presets (bit-crushed) `open`
+- WT-I20 The lo-fi presets (warm + dusty) `open`
+- WT-I21 The cinematic presets (epic) `open`
+- WT-I22 The horror presets (dark) `open`
+- WT-I23 The comedy presets (quirky) `open`
+- WT-I24 The notification presets (chimes) `open`
+- WT-I25 The alarm presets (urgency) `open`
+- WT-I26 The confirmation presets (positive) `open`
+- WT-I27 The error presets (negative) `open`
+- WT-I28 The startup presets (branding) `open`
+- WT-I29 The shutdown presets (closing) `open`
+- WT-I30 The drum presets (kick/snare/hat/clap/tom) `open`
+- WT-I31 The percussion presets (shakers/tambourine) `open`
+- WT-I32 The rhythmic presets (plucks with delay) `open`
+- WT-I33 The acid presets (303 lines) `open`
+- WT-I34 The trance presets (supersaw) `open`
+- WT-I35 The dubstep presets (wobble) `open`
+- WT-I36 The house presets (pianos/keys) `open`
+- WT-I37 The techno presets (percussive) `open`
+- WT-I38 The hip-hop presets (808-ish) `open`
+- WT-I39 The EDM presets (drops) `open`
+- WT-I40 The ambient-drone presets `open`
+- WT-I41 The meditative presets `open`
+- WT-I42 The sci-fi UI presets `open`
+- WT-I43 The spaceship presets `open`
+- WT-I44 The robot presets (vocoder-ish) `open`
+- WT-I45 The nature presets (wind/water) `open`
+- WT-I46 The rain presets (noise + filtering) `open`
+- WT-I47 The thunder presets `open`
+- WT-I48 The heartbeat presets `open`
+- WT-I49 The alarm clock presets `open`
+- WT-I50 The phone presets (ring tones) `open`
+- WT-I51 The messenger presets (pop) `open`
+- WT-I52 The email presets (whoosh) `open`
+- WT-I53 The calendar presets (soft bell) `open`
+- WT-I54 The low-battery presets (warning) `open`
+- WT-I55 The charging presets (chime) `open`
+- WT-I56 The boot presets (per-theme) `open`
+- WT-I57 The shutdown presets (per-theme) `open`
+- WT-I58 The error presets (per-severity) `open`
+- WT-I59 The notification presets (per-priority) `open`
+- WT-I60 The Bonzi mood sounds (happy/sad/neutral) `open`
+- WT-I61 The Bonzi interaction sounds (petting/clicking) `open`
+- WT-I62 The Bonzi idle sounds (breathing) `open`
+- WT-I63 The AGI working sounds (thinking) `open`
+- WT-I64 The AGI promotion sounds (success) `open`
+- WT-I65 The AGI learning sounds (progress) `open`
+- WT-I66 The AGI celebrating sounds (achievement) `open`
+- WT-I67 The user-milestone sounds (level-up) `open`
+- WT-I68 The task-complete sounds (done) `open`
+- WT-I69 The focus sounds (start timer) `open`
+- WT-I70 The break sounds (pause) `open`
+- WT-I71 The morning sounds (wake) `open`
+- WT-I72 The evening sounds (wind-down) `open`
+- WT-I73 The seasonal sounds (holiday themes) `open`
+- WT-I74 The weather-reactive sounds (rain mode) `open`
+- WT-I75 The mood-reactive desktop (the theme follows mood) `open`
+- WT-I76 The sound-scheme per-theme (Win98 vs XP vs Zune) `open`
+- WT-I77 The sound-scheme editor (assign per event) `open`
+- WT-I78 The sound-scheme import/export `open`
+- WT-I79 The sound-scheme randomizer (design exploration) `open`
+- WT-I80 The sound-design templates (per-genre) `open`
+- WT-I81 The sound-design tutorials (in the app) `open`
+- WT-I82 The sound-design tests (perceptually asserted) `open`
+- WT-I83 The sound-design energy budget (design under J) `open`
+- WT-I84 The sound-design ledger (every preset attributed) `open`
+- WT-I85 The sound-design provenance (who designed what) `open`
+- WT-I86 The sound-design archive (versioned presets) `open`
+- WT-I87 The sound-design benchmark (the best per category) `open`
+- WT-I88 The sound-design avenue roadmap (the WT-I bank) `open`
+- WT-I89 Preset metadata (author/date) `open`
+- WT-I90 Preset energy profile `open`
+- WT-I91 Preset similarity clustering `open`
+- WT-I92 Sound scheme per-user `open`
+- WT-I93 Mood-reactive sound palette `open`
+- WT-I94 Preset quality gate `open`
+- WT-I95 Preset A/B listening `open`
+- WT-I96 Preset archiver (zip) `open`
+- WT-I97 Preset randomizer seed `open`
+- WT-I98 Sound design cookbook index `open`
+- WT-I99 Preset benchmark `open`
+- WT-I100 Sound scheme export `open`
+Status: `open` (88 gaps)
+
+## WT-J: Engineering & education (module design)
+Status: `open` = not yet in engine; `wired` = implemented+tested.
+### 7-hop convergence: The engineering discipline: modular design, realtime safety, tests, education, and the loop closing the bank
+- WT-J01 The synthesis module registry (the modular principle) `open`
+- WT-J02 The module interface contract (in/out/params) `open`
+- WT-J03 The module signal flow graph `open`
+- WT-J04 The module audio-rate/control-rate split `open`
+- WT-J05 The module polyphony contract (per-voice state) `open`
+- WT-J06 The module CPU meter (per-module) `open`
+- WT-J07 The module latency meter `open`
+- WT-J08 The module energy meter (ties the IJ ledger) `open`
+- WT-J09 The module A/B compare `open`
+- WT-J10 The module dry/wet (per-module) `open`
+- WT-J11 The module preset (per-module save) `open`
+- WT-J12 The module chain (drag-order routing) `open`
+- WT-J13 The module undo/redo `open`
+- WT-J14 The module hot-swap (realtime replace) `open`
+- WT-J15 The module versioning (ABI) `open`
+- WT-J16 The module tests (per-module asserts) `open`
+- WT-J17 The module fuzz (adversarial params) `open`
+- WT-J18 The module docs (self-documenting) `open`
+- WT-J19 The module registry UI (the lab browser) `open`
+- WT-J20 The module graph save (the patch = the graph) `open`
+- WT-J21 The module graph render (visual cables) `open`
+- WT-J22 The module graph CPU (visual load) `open`
+- WT-J23 The module graph energy `open`
+- WT-J24 The module graph latency `open`
+- WT-J25 The module graph undo `open`
+- WT-J26 The module graph presets (complete patches) `open`
+- WT-J27 The synthesis lab app (the module playground) `open`
+- WT-J28 The wavetable editor app (frames + morph) `open`
+- WT-J29 The filter design app (response curves) `open`
+- WT-J30 The envelope editor app (curves) `open`
+- WT-J31 The LFO editor app (waveforms) `open`
+- WT-J32 The FM algorithm editor (operator chains) `open`
+- WT-J33 The additive editor (partials) `open`
+- WT-J34 The granular editor (grain params) `open`
+- WT-J35 The physical-model editor (string/reed) `open`
+- WT-J36 The spectral editor (FFT morph) `open`
+- WT-J37 The mixer app (levels + routing) `open`
+- WT-J38 The spectrum analyzer app `open`
+- WT-J39 The oscilloscope app `open`
+- WT-J40 The level meters app `open`
+- WT-J41 The tuner app (pitch detection) `open`
+- WT-J42 The metronome app `open`
+- WT-J43 The recorder app `open`
+- WT-J44 The MIDI monitor app `open`
+- WT-J45 The patch browser app `open`
+- WT-J46 The preset tagger app `open`
+- WT-J47 The preset search app `open`
+- WT-J48 The preset randomizer app `open`
+- WT-J49 The sound-library app (the curated sounds) `open`
+- WT-J50 The education: the synthesis tutor (interactive) `open`
+- WT-J51 The education: the filter-sweep demo `open`
+- WT-J52 The education: the FM-explainer (visual operators) `open`
+- WT-J53 The education: the additive-demo (partials) `open`
+- WT-J54 The education: the granular-demo `open`
+- WT-J55 The education: the waveform-demo (visual) `open`
+- WT-J56 The education: the envelope-demo `open`
+- WT-J57 The education: the LFO-demo `open`
+- WT-J58 The education: the patch-lab (guided) `open`
+- WT-J59 The education: the module-101 (each module explained) `open`
+- WT-J60 The education: the synthesis-timeline (history) `open`
+- WT-J61 The education: the sound-design-cookbook (recipes) `open`
+- WT-J62 The education: the ear-training (identify filters) `open`
+- WT-J63 The education: the quiz (knowledge checks) `open`
+- WT-J64 The education: the achievements (progress) `open`
+- WT-J65 The engineering: the sample-accurate scheduler `open`
+- WT-J66 The engineering: the audio-thread safety `open`
+- WT-J67 The engineering: the lock-free voice pool `open`
+- WT-J68 The engineering: the CPU budget governor `open`
+- WT-J69 The engineering: the memory budget `open`
+- WT-J70 The engineering: the zero-allocation render path `open`
+- WT-J71 The engineering: the WAV I/O `open`
+- WT-J72 The engineering: the MIDI I/O `open`
+- WT-J73 The engineering: the device matrix (hwdetect-armed) `open`
+- WT-J74 The engineering: the SIMD dispatch (the hwdetect tier) `open`
+- WT-J75 The engineering: the metal path (bare-metal audio) `open`
+- WT-J76 The engineering: the tests (the full suite) `open`
+- WT-J77 The engineering: the benchmark (voices @ CPU) `open`
+- WT-J78 The engineering: the fuzz (param crash-safety) `open`
+- WT-J79 The engineering: the docs (the compendium entry) `open`
+- WT-J80 The engineering: the roadmap (this bank as the plan) `open`
+- WT-J81 The 1000-gap tracker (this bank's ledger) `open`
+- WT-J82 The 1000-gap closing order (priority by the cross-links) `open`
+- WT-J83 The 1000-gap fanfare (the closing sounds) `open`
+- WT-J84 The avenue's place in the AGI vision (sound as a sense) `open`
+- WT-J85 The avenue's place in the Mind Palace (the wiki pages) `open`
+- WT-J86 The avenue's place in the compendium (the Wikipedia-style entry) `open`
+- WT-J87 The avenue's place in the OS (the sound applet + the lab) `open`
+- WT-J88 The avenue's energy accounting (the synthesis J ledger) `open`
+- WT-J89 The avenue's provenance (every sound attributed) `open`
+- WT-J90 The avenue's accessibility (sound -> visual) `open`
+- WT-J91 The avenue's privacy (no telemetry) `open`
+- WT-J92 The avenue's security (no untrusted code) `open`
+- WT-J93 The avenue's tests (green at every batch) `open`
+- WT-J94 The avenue's commits (the history tells the story) `open`
+- WT-J95 The avenue's benchmark vs the best (the goal) `open`
+- WT-J96 The avenue's self-improvement (the loop closes the bank) `open`
+- WT-J97 Module param smoothing default `open`
+- WT-J98 Module graph cycle guard `open`
+- WT-J99 Lab app menu structure `open`
+- WT-J100 Tutor progress save `open`
+Status: `open` (96 gaps)

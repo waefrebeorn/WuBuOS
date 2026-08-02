@@ -445,7 +445,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_wubu_sound test_dosgui_cp_sound test_hwdetect test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper test_control test_calc
+test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper test_control test_calc
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -858,6 +858,10 @@ test_dbuf:
 test_dosgui_cp_sound: $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h $(GUI)/wubu_sound.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_cp_sound.c $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_cp_sound -lm
 	./$(GUI)/test_dosgui_cp_sound
+
+test_synth: $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c $(GUI)/wubu_waveosc.h $(GUI)/wubu_ladder.h
+	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_synth.c $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c -o $(GUI)/test_synth -lm
+	./$(GUI)/test_synth
 
 test_wubu_sound: $(GUI)/wubu_sound.c $(GUI)/wubu_sound.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_wubu_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_wubu_sound -lm
