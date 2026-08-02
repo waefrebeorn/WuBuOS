@@ -2,9 +2,9 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Public API (header-sourced)
-> Generated 2026-08-02 13:52 UTC -- prototypes extracted from the headers = the real interface contracts.
+> Generated 2026-08-02 14:17 UTC -- prototypes extracted from the headers = the real interface contracts.
 
-> 653 prototypes across the tree.
+> 665 prototypes across the tree.
 
 ## `src/tools/iso9660.h`
 
@@ -104,6 +104,7 @@
 ## `src/kernel/interrupt.h`
 
 - `pit_shutdown(void)`
+- `interrupt_exception_count(uint8_t vec)`
 
 ## `src/kernel/interrupt_pic.h`
 
@@ -158,6 +159,7 @@
 - `wubu_agi_kernel_tick(wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_freeze(wubu_agi_kernel_t *k, bool frozen)`
 - `wubu_agi_kernel_is_frozen(const wubu_agi_kernel_t *k)`
+- `wubu_agi_kernel_has_memory(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_trace_count(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_promoted_total(const wubu_agi_kernel_t *k)`
@@ -201,6 +203,10 @@
 - `wubu_hive_empty(const wubu_hive_t *h)`
 - `wubu_hive_erase_at(wubu_hive_t *h, wubu_hive_iter_t *it)`
 
+## `src/kernel/wubu_hpet.h`
+
+- `wubu_hpet_probe(uint64_t *period_fs)`
+
 ## `src/kernel/wubu_memmap.h`
 
 - `wubu_memmap_init(wubu_memmap_info_t *info)`
@@ -213,6 +219,10 @@
 
 - `wubu_rtc_read(wubu_rtc_tm *tm)`
 - `wubu_rtc_12h_to_24h(uint8_t reg)`
+
+## `src/kernel/wubu_self_test.h`
+
+- `wubu_self_test_run(uint32_t *total)`
 
 ## `src/kernel/wubu_serial.h`
 
@@ -1056,6 +1066,14 @@
 - `wubu_input_poll(void)`
 - `wubu_input_key_down(uint32_t key)`
 - `wubu_input_mouse_pos(int *x, int *y)`
+- `wubu_input_gamepads(char names[][64])`
+- `wubu_audio_init(int sample_rate, int channels, int buffer_frames)`
+- `wubu_audio_shutdown(void)`
+- `wubu_audio_submit(const float *buf, int frames)`
+- `wubu_audio_cpu_load(void)`
+- `wubu_metal_init(int width, int height)`
+- `wubu_metal_run(void)`
+- `wubu_metal_shutdown(void)`
 
 ## `src/apps/calc.h`
 

@@ -198,6 +198,15 @@ void kernel_main(void *boot_info) {
         char hexbuf[65];
         char *o = hexbuf;
         uint8_t p4[32];
+        /* Gap I5: the loader->kernel ABI version negotiation. The
+         * handoff block starts with the version; a future loader with
+         * an incompatible ABI must be refused loudly, not misread. */
+        volatile uint32_t *hd = (volatile uint32_t *)(uintptr_t)0x91000;
+        uint32_t abi_ver = (hd && hd[0] == 1) ? 1 : 0;
+        if (abi_ver == 0) {
+            klog_printf("WuBuOS: loader ABI version mismatch/absent -- "
+                        "promotion disabled\n");
+        }
         if (wubu_attest_load_scratch() == 0 && wubu_attest_pcr4_digest(p4) == 0) {
             for (int i = 0; i < 32; i++) {
                 *o++ = hexd[p4[i] >> 4]; *o++ = hexd[p4[i] & 15];

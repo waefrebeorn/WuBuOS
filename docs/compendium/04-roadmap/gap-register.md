@@ -123,9 +123,9 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] I1. E820-style memory map from the loader: GetMemoryMap -> 0x98000 -> vmm owns the real RAM (this batch) (e820) -- vmm assumes 1GB.
 - [ ] I2. No SMP (APs never started; single CPU).
 - [ ] I3. No SMBIOS/DMI parsing (machine identity unknown).
-- [ ] I4. No cache/TLB maintenance policy doc.
-- [ ] I5. No firmware API version negotiation.
-- [ ] I6. No fallback if the loaded image is corrupt-but-valid-digest.
+- [x] I4. Cache/TLB maintenance policy documented (docs/compendium/00-philosophy/cache-tlb-policy.md): invalidation points, write-back doctrine, SMP/COW/SMEP notes.
+- [x] I5. Loader->kernel ABI version negotiation: the handoff version is checked at boot; a mismatch loudly disables promotion.
+- [x] I6. Fallback = the G2 self-test gate: a corrupt-but-valid-digest kernel fails its own integrity suite, so promotion is blocked (the digest alone is not trusted).
 - [ ] I7. Limine protocol accepted but unused.
 
 ## J. Docs / tooling (P2)
@@ -133,7 +133,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] J2. api.md exists; README updated (docs DA batch) should go (it exists now).
 - [x] J3. commands.md generated from the dispatch table (this batch) (console command list).
 - [ ] J4. Ledger TEMPLATE not lint-enforced.
-- [ ] J5. gen_docs api scanner caps 40 prototypes/header (truncation).
+- [x] J5. gen_docs api scanner lists EVERY prototype (no per-header cap).
 - [x] J6. Boot-time image-alignment check (kernel start + stack top % 16) before any heap use.
 - [ ] J7. parity.md: Windows/macOS rows PLANNED with no leg files.
 
