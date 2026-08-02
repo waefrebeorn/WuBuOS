@@ -481,7 +481,7 @@ syscall_entry:
      * no masking at all, so a user that entered with NT/IOPL/AC/RF/VM
      * set would survive with them. Clear those; IF + the status flags
      * pass through (the user controls its own IF). */
-    movabs $0xFFFFFFFFFFFF8CFF, rdx
+    movabs rdx, 0xFFFFFFFFFFFF8CFF
     and r11, rdx
 
     /* Restore user RSP and SS */

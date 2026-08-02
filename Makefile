@@ -30,7 +30,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/wubu_lfn.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o $(KERNEL)/wubu_theme.o $(KERNEL)/wubu_hid.o $(KERNEL)/wubu_verifier.o $(KERNEL)/wubu_tss.o $(KERNEL)/wubu_sync.o $(KERNEL)/wubu_vmm.o $(KERNEL)/wubu_memmap.o $(KERNEL)/wubu_serial.o $(KERNEL)/wubu_sha256.o $(KERNEL)/wubu_rtc.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/wubu_lfn.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o $(KERNEL)/wubu_theme.o $(KERNEL)/wubu_hid.o $(KERNEL)/wubu_verifier.o $(KERNEL)/wubu_tss.o $(KERNEL)/wubu_sync.o $(KERNEL)/wubu_vmm.o $(KERNEL)/wubu_memmap.o $(KERNEL)/wubu_serial.o $(KERNEL)/wubu_sha256.o $(KERNEL)/wubu_rtc.o $(KERNEL)/wubu_acpi.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
@@ -974,7 +974,7 @@ test_theme_hid:
 .PHONY: check
 check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1019,6 +1019,13 @@ test_lfn:
 		$(KERNEL)/test_lfn.c $(KERNEL)/wubu_lfn.c \
 		-o $(KERNEL)/test_lfn
 	$(KERNEL)/test_lfn
+
+# ACPI discovery (gap A18): RSDP -> RSDT/XSDT -> FADT (synthetic tables)
+test_acpi:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/test_acpi.c \
+		-o $(KERNEL)/test_acpi
+	$(KERNEL)/test_acpi
 
 test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

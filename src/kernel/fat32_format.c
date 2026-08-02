@@ -66,6 +66,14 @@ int fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk) {
     return 0;
 }
 
+/* Gap F3: the console's run command mounts into this module-owned
+ * volume (the struct is opaque; the module keeps its storage). */
+fat32_volume *fat32_boot_volume(void)
+{
+    static fat32_volume vol;
+    return &vol;
+}
+
 void fat32_unmount(fat32_volume *vol) {
     if (vol->fat_cache) {
         free(vol->fat_cache);
