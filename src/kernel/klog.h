@@ -28,4 +28,8 @@ void klog_write_n(const char *s, size_t n);
  * only -- not a full printf. */
 int klog_printf(const char *fmt, ...);
 
+/* Panic ring (gap A7): the last ~4 KB of klog output, always captured in
+ * RAM. Snapshot it (oldest-first, NUL'd) for the fault post-mortem. */
+int klog_ring_snapshot(char *out, size_t bufsz);
+
 #endif /* WUBU_KLOG_H */

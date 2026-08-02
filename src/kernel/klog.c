@@ -20,6 +20,32 @@
 
 static int g_klog_ready;
 
+/* In-RAM panic ring (gap A7): the last KLOG_RING_SZ bytes of output,
+ * always captured, so a fault's post-mortem can dump what happened
+ * before the panic (the kernel's crash evidence). */
+#define KLOG_RING_SZ 4096
+static char g_ring[KLOG_RING_SZ];
+static uint32_t g_ring_pos;
+
+static inline void ring_putc(char c) {
+    g_ring[g_ring_pos] = c;
+    g_ring_pos = (g_ring_pos + 1) % KLOG_RING_SZ;
+}
+
+/* Snapshot the ring (oldest-first) into `out` (bufsz bytes, NUL'd).
+ * Returns the number of bytes copied. For the fault post-mortem. */
+int klog_ring_snapshot(char *out, size_t bufsz) {
+    if (!out || bufsz == 0) return 0;
+    uint32_t n = 0;
+    for (uint32_t i = 0; i < KLOG_RING_SZ && n + 1 < bufsz; i++) {
+        char c = g_ring[(g_ring_pos + i) % KLOG_RING_SZ];
+        if (c == '\0') continue;      /* unwritten slots are skipped */
+        out[n++] = c;
+    }
+    out[n] = '\0';
+    return (int)n;
+}
+
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ __volatile__("outb %0, %1" :: "a"(val), "Nd"(port));
 }
@@ -47,10 +73,17 @@ void klog_init(void) {
 }
 
 static void putc_raw(char c) {
+    /* ALWAYS captured in the panic ring (gap A7) -- the post-mortem. */
+    ring_putc(c);
     if (!g_klog_ready) return;
-    /* Wait for THR empty. */
-    while ((inb(COM1_LSR) & 0x20) == 0) klog_pause();
-    outb(COM1_DATA, (uint8_t)c);
+    /* BOUNDED TX wait (the tick-12/33/153 freeze): a slow/no serial
+     * reader stops the UART THR-empty; the old unbounded wait spun the
+     * CPU forever. The serial is a debug channel -- wait a bounded
+     * number of polls, then DROP the character. */
+    for (int i = 0; i < 65536; i++) {
+        if (inb(COM1_LSR) & 0x20) { outb(COM1_DATA, (uint8_t)c); return; }
+    }
+    /* timeout: the char is dropped; the kernel continues */
 }
 
 void klog_write(const char *s) {

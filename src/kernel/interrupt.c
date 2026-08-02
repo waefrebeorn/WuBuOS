@@ -20,6 +20,9 @@
 /* Forward declare InterruptFrame for the dispatcher */
 struct InterruptFrame;
 
+/* A7: the panic-ring post-mortem dump (defined near the PF handler) */
+static void panic_dump_ring(void);
+
 /* Forward declare exception handlers */
 void handle_double_fault(InterruptFrame *frame);
 void handle_nmi(InterruptFrame *frame);
@@ -347,6 +350,7 @@ void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
                                 (unsigned)(raw ? (uint64_t)raw[20] : 0),
                                 (unsigned)irr1, (unsigned)irr0, (unsigned)isr0);
                 }
+                panic_dump_ring();
                 while (1) { __asm__ volatile ("hlt"); }
         }
         return;
@@ -501,6 +505,22 @@ void handle_nmi(InterruptFrame *frame) {
 }
 
 /* Page fault handler (uses IST1) */
+/* Dump the klog panic ring (gap A7) before halting -- the post-mortem
+ * evidence: the last 4 KB of kernel output leading to the fault. */
+static void panic_dump_ring(void)
+{
+    extern int  klog_printf(const char *, ...);
+    extern int  klog_ring_snapshot(char *, size_t);
+    extern void klog_write_n(const char *, size_t);
+    static char buf[2048];
+    int n = klog_ring_snapshot(buf, sizeof(buf));
+    if (n > 0) {
+        klog_printf("-- panic ring (%d bytes) --\n", n);
+        klog_write_n(buf, (size_t)n);
+        klog_printf("\n-- end ring --\n");
+    }
+}
+
 void handle_page_fault(InterruptFrame *frame) {
     uint64_t cr2;
     __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
@@ -527,6 +547,7 @@ void handle_page_fault(InterruptFrame *frame) {
                 (unsigned)(sp ? sp[0] : 0),
                 (unsigned)(sp ? sp[1] : 0),
                 (unsigned)(sp ? sp[2] : 0));
+    panic_dump_ring();
     while (1) { __asm__ volatile ("hlt"); }
 }
 
@@ -546,6 +567,7 @@ void handle_gpf(InterruptFrame *frame) {
                 (unsigned)(stk ? stk[-2] : 0), (unsigned)(stk ? stk[-1] : 0),
                 (unsigned)(stk ? stk[0] : 0),  (unsigned)(stk ? stk[1] : 0),
                 (unsigned)(stk ? stk[2] : 0),  (unsigned)(stk ? stk[3] : 0));
+    panic_dump_ring();
     while (1) { __asm__ volatile ("hlt"); }
 }
 
