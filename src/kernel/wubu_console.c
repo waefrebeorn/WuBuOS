@@ -66,6 +66,7 @@ static int cmd_help(void)
                 "  agi status|freeze|unfreeze|promote|trace\n"
                 "  holyc <src>          compile+run HolyC (metal port)\n"
                 "  cls                  scroll the serial\n"
+                "  run <file>           execute a FAT32 script\n"
                 "  reboot               VM reboot (isa-debug-exit)\n");
     return 0;
 }
@@ -437,6 +438,92 @@ static int cmd_cls(void)
     return 0;
 }
 
+/* Gap F3: `run <file>` -- execute the lines of a FAT32 file as console
+ * commands. The volume is mounted lazily over the AHCI port-0 sim disk
+ * (the hosted/metal disk adapter: ahci_read/ahci_write). */
+static int ahci_blk_read(void *ctx, uint64_t lba, uint32_t n, void *buf)
+{
+    extern int ahci_read(ahci_hba_t *, int, uint64_t, uint32_t, void *);
+    return (ahci_read((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
+}
+static int ahci_blk_write(void *ctx, uint64_t lba, uint32_t n, const void *buf)
+{
+    extern int ahci_write(ahci_hba_t *, int, uint64_t, uint32_t, const void *);
+    return (ahci_write((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
+}
+
+static int cmd_run(int argc, char **argv)
+{
+    extern int  wubu_console_exec(char *);
+    if (argc < 2) { klog_printf("run: usage 'run <file>'\n"); return 0; }
+
+    static fat32_volume g_vol;
+    static int g_mounted = 0;
+    static ahci_hba_t  g_hba;
+    if (!g_mounted) {
+        extern int  ahci_hba_init(ahci_hba_t *);
+        extern int  ahci_enumerate_ports(ahci_hba_t *);
+        extern int  ahci_port_init(ahci_hba_t *, int);
+        extern int  ahci_sim_disk_create(ahci_hba_t *, int, int);
+        if (ahci_hba_init(&g_hba) != 0 || ahci_enumerate_ports(&g_hba) <= 0 ||
+            ahci_port_init(&g_hba, 0) != 0 ||
+            ahci_sim_disk_create(&g_hba, 0, 8) != 0) {
+            klog_printf("run: disk unavailable\n");
+            return 0;
+        }
+        fat32_blk_ops ops = {
+            .read = ahci_blk_read, .write = ahci_blk_write,
+            .ctx = &g_hba, .n_sectors = 8 * 1024 * 1024 / 512
+        };
+        extern int fat32_mount(fat32_volume *, const fat32_blk_ops *);
+        if (fat32_mount(&g_vol, &ops) != 0) {
+            klog_printf("run: no FAT32 volume\n");
+            return 0;
+        }
+        g_mounted = 1;
+    }
+
+    extern int  fat32_find(fat32_volume *, uint32_t, const char *,
+                           fat32_file_info *);
+    extern int  fat32_open(fat32_volume *, uint32_t, const char *,
+                           fat32_file *);
+    extern size_t fat32_read(fat32_file *, void *, size_t);
+    fat32_file_info fi;
+    if (fat32_find(&g_vol, 0, argv[1], &fi) != 0) {
+        klog_printf("run: '%s' not found\n", argv[1]);
+        return 0;
+    }
+    fat32_file fp;
+    if (fat32_open(&g_vol, 0, argv[1], &fp) != 0) {
+        klog_printf("run: cannot open '%s'\n", argv[1]);
+        return 0;
+    }
+    char buf[1024];
+    size_t rd = fat32_read(&fp, buf, sizeof(buf) - 1);
+    if (rd == 0) { klog_printf("run: '%s' empty\n", argv[1]); return 0; }
+    buf[rd] = '\0';
+    /* execute line by line (the exec re-splits) */
+    char *line = buf;
+    int nrun = 0;
+    while (*line) {
+        char *nl = line;
+        while (*nl && *nl != '\n' && *nl != '\r') nl++;
+        char save = *nl;
+        *nl = '\0';
+        if (*line && *line != '#') {
+            char copy[256];
+            strncpy(copy, line, sizeof(copy) - 1);
+            copy[sizeof(copy) - 1] = '\0';
+            wubu_console_exec(copy);
+            nrun++;
+        }
+        if (!save) break;
+        line = nl + 1;
+    }
+    klog_printf("run: %s: %d commands executed\n", argv[1], nrun);
+    return 0;
+}
+
 static int cmd_reboot(void)
 {
     klog_printf("WuBuOS: reboot requested\n");
@@ -484,6 +571,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
+    if (strcmp(argv[0], "run") == 0)             return cmd_run(argc, argv);
     if (strcmp(argv[0], "reboot") == 0)          return cmd_reboot();
     klog_printf("console: unknown command '%s' (try 'help')\n", argv[0]);
     return -1;
@@ -540,6 +628,39 @@ void wubu_console_task(void *arg)
             } else if (c >= 0x20 && c < 0x7F && n + 1 < sizeof(line)) {
                 line[n++] = (char)c;
                 serial_tx(c);
+            } else if (c == '\t') {
+                /* Gap F2: tab completion -- complete the current word
+                 * against the known commands (first word only). */
+                static const char *cmds[] = {
+                    "help", "uptime", "mem", "tasks", "pci", "theme",
+                    "hid", "vmm", "stats", "dump", "attest", "date",
+                    "agi", "holyc", "cls", "reboot"
+                };
+                int ncmds = (int)(sizeof(cmds) / sizeof(cmds[0]));
+                if (n > 0 && line[0] != ' ') {
+                    int word_end = n;
+                    if (line[word_end - 1] == ' ') { word_end--; }
+                    int ws = 0;
+                    while (ws < word_end && line[ws] != ' ') ws++;
+                    if (ws == word_end) {        /* single word: a command */
+                        const char *match = NULL;
+                        for (int i = 0; i < ncmds; i++) {
+                            if (strncmp(cmds[i], line, (size_t)n) == 0) {
+                                if (match) { match = NULL; break; } /* ambiguous */
+                                match = cmds[i];
+                            }
+                        }
+                        if (match) {
+                            for (size_t i = (size_t)n; match[i]; i++) {
+                                line[n++] = match[i];
+                                serial_tx((uint8_t)match[i]);
+                            }
+                            serial_tx(' ');
+                            line[n++] = ' ';
+                            line[n] = 0;
+                        }
+                    }
+                }
             } else if (c == 0x1B) {
                 /* ESC sequence: Up/Down arrow = ESC [ A / B (gap F1) */
                 wubu_serial_pop(&c);          /* '[' */
