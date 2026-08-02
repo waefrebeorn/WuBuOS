@@ -243,6 +243,10 @@ void wubu_agi_kernel_run(wubu_agi_kernel_t *k)
      * On bare metal we yield to the scheduler; the timer interrupt ticks us.
      * We do NOT busy-HLT -- the agent task + supervisor run cooperatively. */
     for (;;) {
+        /* Reap the DYING tasks (gap A5): the heap is not ISR-safe, so
+         * the free happens here in the main task's context. */
+        extern void task_reap(void);
+        task_reap();
         task_yield();
     }
 }
@@ -388,7 +392,9 @@ int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
                 wubu_attest_extend_runtime(run, sizeof(run));
             }
             k->promoted_total++;
-            if (klog_printf)
+            /* Rate-limited console echo (every 25th promotion): the
+             * console stays a live window, not a firehose. */
+            if (klog_printf && (k->promoted_total % 25) == 0)
                 klog_printf("WuBuOS AGI: PROMOTED span id=%u\n",
                             (unsigned)s->id);
         }

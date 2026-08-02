@@ -497,11 +497,19 @@ void handle_double_fault(InterruptFrame *frame) {
     while (1) { __asm__ volatile ("hlt"); }
 }
 
-/* NMI handler (uses IST2) */
+/* NMI handler (uses IST2) -- gap A3: distinct from the generic fault
+ * path. An NMI is a HARDWARE error (ECC, watchdog, I/O channel check):
+ * log it distinctly + dump the panic ring, then halt. Recovery is a
+ * future gap; the evidence is what matters now. */
 void handle_nmi(InterruptFrame *frame) {
-    (void)frame;
-    /* In a real kernel: log hardware error, attempt recovery */
-    while (1) { __asm__ volatile ("hlt"); }
+    extern int klog_printf(const char *, ...);
+    extern void panic_dump_ring(void);
+    klog_printf("WuBuOS NMI: hardware error (rip=%x cs=%x rflags=%x)\n",
+                (unsigned)(frame ? (uint64_t)frame->rip : 0),
+                (unsigned)(frame ? frame->cs : 0),
+                (unsigned)(frame ? (uint64_t)frame->rflags : 0));
+    panic_dump_ring();
+    while (1) { __asm__ __volatile__ ("hlt"); }
 }
 
 /* Page fault handler (uses IST1) */
@@ -532,6 +540,9 @@ static void panic_dump_ring(void)
         klog_printf("\n-- end ring --\n");
     }
 }
+
+/* Public wrapper for the watchdog / NMI paths (the panic ring dump). */
+void interrupt_panic_dump(void) { panic_dump_ring(); }
 
 void handle_page_fault(InterruptFrame *frame) {
     uint64_t cr2;

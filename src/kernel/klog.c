@@ -79,23 +79,23 @@ static inline int putc_raw(char c) {
     /* BOUNDED TX wait (the tick-12/33/153 freeze): a slow/no serial
      * reader stops the UART THR-empty; the old unbounded wait spun the
      * CPU forever. The serial is a debug channel -- wait a bounded
-     * number of polls, then DROP the character. The DROP returns -1 so
-     * the message ABORTS (never retried -- an unbounded retry under
-     * backpressure is a spin). */
+     * number of polls, then DROP the character and CONTINUE (the
+     * message keeps going; nothing ever retries or aborts, so the CPU
+     * can never spin and user responses always complete). */
     for (int i = 0; i < 65536; i++) {
         if (inb(COM1_LSR) & 0x20) { outb(COM1_DATA, (uint8_t)c); return 0; }
     }
-    return -1;   /* timeout: the char is dropped, the message aborts */
+    return 0;   /* timeout: the char is dropped, the message continues */
 }
 
 void klog_write(const char *s) {
     if (!s) return;
-    while (*s && putc_raw(*s++) == 0) { }
+    while (*s) putc_raw(*s++);
 }
 
 void klog_write_n(const char *s, size_t n) {
-    for (size_t i = 0; i < n; i++)
-        if (putc_raw(s[i]) < 0) break;   /* abort on the drop */
+    if (!s) return;
+    for (size_t i = 0; i < n; i++) putc_raw(s[i]);
 }
 
 /* --- tiny printf subset --- */
@@ -119,19 +119,13 @@ int klog_printf(const char *fmt, ...) {
     va_start(ap, fmt);
     int written = 0;
     for (const char *p = fmt; *p; p++) {
-        if (*p != '%') {
-            if (putc_raw(*p) < 0) break;   /* abort on the drop */
-            written++; continue;
-        }
+        if (*p != '%') { putc_raw(*p); written++; continue; }
         p++;
         switch (*p) {
             case 's': {
                 const char *s = va_arg(ap, const char *);
                 if (!s) s = "(null)";
-                while (*s) {
-                    if (putc_raw(*s) < 0) { va_end(ap); return written; }
-                    written++; s++;
-                }
+                while (*s) { putc_raw(*s); written++; s++; }
                 break;
             }
             case 'd': case 'i':
