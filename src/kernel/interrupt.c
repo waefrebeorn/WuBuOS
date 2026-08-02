@@ -294,6 +294,10 @@ void pit_handler(uint8_t irq, void *ctx) {
      * init (returns early if the singleton has no verifier / is frozen). */
     extern wubu_agi_kernel_t *wubu_agi_kernel_global(void);
     wubu_agi_kernel_tick(wubu_agi_kernel_global());
+    /* Gap E3: drain the serial TX ring whenever the timer fires (the
+     * THR is almost always free at 100 Hz, so the ring flushes fast). */
+    extern void klog_tx_poll(void);
+    klog_tx_poll();
     interrupt_eoi(32);  /* IRQ0 remapped to vector 32 */
 }
 

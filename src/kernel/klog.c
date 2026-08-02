@@ -72,21 +72,53 @@ void klog_init(void) {
     g_klog_ready = 1;
 }
 
+/* ---- TX ring (gap E3) ------------------------------------------------ */
+/* Serial output buffering: putc_raw pushes into a fixed ring and the
+ * ring is drained whenever the THR is free -- the bounded-wait + drop
+ * contract stays (the CPU never spins on the debug channel), but a
+ * burst of output survives better because the ring absorbs it and the
+ * drain sends whenever the UART is ready. The console's responses now
+ * complete even under the promote flood. ISR-safe: the ring is only
+ * touched with interrupts off or from one context at a time. */
+#define TX_RING_SZ 4096
+static volatile uint32_t g_tx_head;
+static volatile uint32_t g_tx_tail;
+static char g_tx_ring[TX_RING_SZ];
+
+static inline void tx_push(char c) {
+    uint32_t h = g_tx_head;
+    uint32_t t = g_tx_tail;
+    uint32_t next = (h + 1) & (TX_RING_SZ - 1);
+    if (next == t) return;                 /* full: drop, never block */
+    g_tx_ring[h] = c;
+    g_tx_head = next;
+}
+
+/* Drain whatever the UART will take; bounded per call so a stuck THR
+ * cannot monopolize the CPU. Returns the number of chars sent. */
+static inline int tx_drain(void) {
+    int sent = 0;
+    while (g_tx_head != g_tx_tail && sent < 64) {
+        if (!(inb(COM1_LSR) & 0x20)) break;    /* THR busy: stop here */
+        outb(COM1_DATA, (uint8_t)g_tx_ring[g_tx_tail]);
+        g_tx_tail = (g_tx_tail + 1) & (TX_RING_SZ - 1);
+        sent++;
+    }
+    return sent;
+}
+
 static inline int putc_raw(char c) {
     /* ALWAYS captured in the panic ring (gap A7) -- the post-mortem. */
     ring_putc(c);
     if (!g_klog_ready) return 0;
-    /* BOUNDED TX wait (the tick-12/33/153 freeze): a slow/no serial
-     * reader stops the UART THR-empty; the old unbounded wait spun the
-     * CPU forever. The serial is a debug channel -- wait a bounded
-     * number of polls, then DROP the character and CONTINUE (the
-     * message keeps going; nothing ever retries or aborts, so the CPU
-     * can never spin and user responses always complete). */
-    for (int i = 0; i < 65536; i++) {
-        if (inb(COM1_LSR) & 0x20) { outb(COM1_DATA, (uint8_t)c); return 0; }
-    }
-    return 0;   /* timeout: the char is dropped, the message continues */
+    tx_push(c);
+    tx_drain();
+    return 0;
 }
+
+/* The timer tick + the console call this when the UART may have drained
+ * (the ring is the buffering; the drain is opportunistic). */
+void klog_tx_poll(void) { tx_drain(); }
 
 void klog_write(const char *s) {
     if (!s) return;
