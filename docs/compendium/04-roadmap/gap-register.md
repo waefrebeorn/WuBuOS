@@ -37,7 +37,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] B1. vmm bitmap allocator + free path (verified test_vmm ALL PASS).
 - [x] B2. Demand-zero regions: #PF alloc+map+RETRY live (verified `vmm touch`).
 - [ ] B3. No swap: demand pages are never evicted (the "VM+swap" P0 item).
-- [ ] B4. No COW.
+- [x] B4. COW: wubu_vmm_map_shared (RO + ref) + the #PF handler's wubu_vmm_cow_fault (private copy + writable remap when shared; writable-in-place when sole); refcount contract host-tested.
 - [x] B5. (detection-first) low-water + OVER flag; guard pages follow with multi-AS.
 - [x] B6. Stack low-water tracking: per-task stack_min at every switch; `tasks` reports usage / OVER.
 - [ ] B7. Single address space (kernel+future user share CR3); no

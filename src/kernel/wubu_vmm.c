@@ -259,4 +259,60 @@ int wubu_vmm_demand_fill(uint64_t va)
 
 uint64_t wubu_vmm_free_count(void) { return g_free_pages; }
 uint32_t wubu_vmm_demand_count(void) { return g_demand_n; }
+
+/* ---- gap B4: copy-on-write ------------------------------------------ */
+
+/* Map `phys` at `virt` read-only and take a reference on it -- the
+ * COW contract: the first write faults, the fault handler copies, and
+ * the copy becomes writable while the shared original stays RO. */
+int wubu_vmm_map_shared(uint64_t virt, uint64_t phys)
+{
+    wubu_vmm_ref(phys, 1);
+    /* map without the writable bit (flags: P=1, U/S=0, W=0) */
+    return wubu_vmm_map_page(virt, phys, 1);
+}
+
+/* The COW fault: called when a write faults on a shared (RO) page.
+ * If the page is genuinely shared (refcount > 1) a private copy is
+ * made and remapped writable; the shared original loses one ref.
+ * Returns 1 when handled (the instruction retries), 0 when the fault
+ * is not a COW fault. */
+int wubu_vmm_cow_fault(uint64_t va)
+{
+    uint64_t page_base = va & ~(PAGE - 1);
+    /* walk the live tables for the current PTE (identity rules: the
+     * demand region lives in the higher-half window) */
+    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint32_t i4 = (uint32_t)(page_base >> 39) & 0x1FF;
+    uint32_t i3 = (uint32_t)(page_base >> 30) & 0x1FF;
+    uint32_t i2 = (uint32_t)(page_base >> 21) & 0x1FF;
+    uint32_t i1 = (uint32_t)(page_base >> 12) & 0x1FF;
+    uint64_t *pdp = (uint64_t *)vmm_phys_of(pml4[i4] & ~0xFFFull);
+    if (!(pml4[i4] & 1) || !(pdp[i3] & 1)) return 0;
+    uint64_t *pd = (uint64_t *)vmm_phys_of(pdp[i3] & ~0xFFFull);
+    if (!(pd[i2] & 1)) return 0;
+    uint64_t *pt = (uint64_t *)vmm_phys_of(pd[i2] & ~0xFFFull);
+    uint64_t pte = pt[i1];
+    if (!(pte & 1)) return 0;
+    if (pte & 2) return 0;             /* already writable: not COW */
+
+    uint64_t phys = pte & ~0xFFFull;
+    if (wubu_vmm_refcount(phys) <= 1) {
+        /* sole owner: just make it writable, no copy needed */
+        pt[i1] = pte | 2;
+        __asm__ __volatile__("invlpg (%0)" : : "r"(page_base) : "memory");
+        return 1;
+    }
+
+    /* shared: copy into a fresh page + remap writable */
+    uint64_t copy = wubu_vmm_alloc_pages(1);
+    if (!copy) return 0;
+    uint64_t *src = (uint64_t *)phys;
+    uint64_t *dst = (uint64_t *)copy;
+    for (int i = 0; i < 512; i++) dst[i] = src[i];
+    wubu_vmm_free_pages(phys, 1);      /* drop the shared reference */
+    pt[i1] = (copy & ~0xFFFull) | 3;   /* P|W|U */
+    __asm__ __volatile__("invlpg (%0)" : : "r"(page_base) : "memory");
+    return 1;
+}
 uint32_t wubu_vmm_demand_faults(void) { return g_demand_faults; }
