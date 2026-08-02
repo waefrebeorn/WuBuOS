@@ -45,7 +45,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] B8. Page reference counting: per-page refcounts, alloc=1, wubu_vmm_ref/unref; only the last unref releases (host-tested).
 - [x] B9. Heap coalescing: mem_free merges the adjacent free block + mem_validate_coalescing walks the linear heap (host-tested).
 - [x] B10. AGI memory-pressure awareness: agi_theme_step dims the desktop (this batch) (the Colonel can't see pressure).
-- [ ] B11. The vmm's used-region table is hardcoded (no e820).
+- [x] B11. vmm used-region table: the kernel image's bounds come from the linker symbols + the e820 top-cut; the fixed boot layout stays explicit.
 - [x] B12. Fault statistics: interrupt_get_count + `stats` (this batch) tracked in the kernel (evidence gap).
 
 ## C. ISR / fault paths (P0)
