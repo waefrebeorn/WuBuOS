@@ -152,3 +152,6 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 ISR + wubu_sync FIFO (metal-uses the spinlock/FIFO) → F5 hexdump command →
 C11/B12 fault statistics + console `stats` → B10/G9 AGI memory-pressure
 awareness → F7 `make check` → J2/J3 doc closes. Then the ledger.
+
+## The freeze (open, highest priority)
+- [ ] A2x. The tick-12/33/153 wild-control-flow freeze: CR3 clobbered to 0x70000, RIP mid-instruction #UD, timing-dependent; stable config = no-ring-lock + span-ID promote message. See 03-learned/didnt-work.md.

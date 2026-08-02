@@ -75,3 +75,20 @@ tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.
 - **When it may change:** the next session picks up the freeze with the
   QEMU forensics (the CR3=0x70000 + the conventional-memory stack point
   at a low-memory corruption -- the loader/firmware area).
+
+## 2026-08-02 — Freeze follow-up: the ring lock + snapshot surface a #UD
+- **Attempt:** the full race fix (ring spinlock + NUL-guaranteed verifier
+  snapshot + the promote klog outside the lock).
+- **Result:** a REAL fault appeared (vec=6 #UD at tick 22): RIP
+  =0x80111f04 = the memcpy's byte-loop MID-INSTRUCTION (the 0x0e byte =
+  the old PUSH-CS opcode, invalid in 64-bit) -- the RIP itself was
+  corrupted BEFORE the fault. Same wild-control-flow family as the CR3
+  clobber. Reverted to the stable config (soak 153->203, promoted
+  20754, zero faults).
+- **Lesson:** the corruption is a WILD CONTROL FLOW (corrupted RIP /
+  return address), not a data race the lock can fix; the timing
+  changes (lock, rate-limit, WP, stack size) only move WHEN it
+  surfaces. The CR3=0x70000 + the conventional-memory-top stack point
+  at the low-memory/loader region. OPEN -- next session: watch the
+  stack for the first corrupted return address via a QEMU hardware
+  breakpoint on the memcpy caller, or gate the promote loop entirely.
