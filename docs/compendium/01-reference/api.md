@@ -2,9 +2,9 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Public API (header-sourced)
-> Generated 2026-08-02 14:17 UTC -- prototypes extracted from the headers = the real interface contracts.
+> Generated 2026-08-02 17:06 UTC -- prototypes extracted from the headers = the real interface contracts.
 
-> 665 prototypes across the tree.
+> 671 prototypes across the tree.
 
 ## `src/tools/iso9660.h`
 
@@ -164,6 +164,7 @@
 - `wubu_agi_kernel_trace_count(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_promoted_total(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k)`
+- `wubu_agi_kernel_restore(wubu_agi_kernel_t *k, const wubu_agi_ckp_t *in)`
 - `wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_last_promote_tick(const wubu_agi_kernel_t *k)`
 
@@ -184,6 +185,10 @@
 ## `src/kernel/wubu_bonzi.h`
 
 - `wubu_bonzi_tick(wubu_bonzi_t *b)`
+
+## `src/kernel/wubu_crash.h`
+
+- `wubu_crash_pickup(void)`
 
 ## `src/kernel/wubu_gaad.h`
 
@@ -232,6 +237,12 @@
 
 - `wubu_sha256(const void *data, size_t len, uint8_t out[WUBU_SHA256_SZ])`
 
+## `src/kernel/wubu_smbios.h`
+
+- `wubu_smbios_find_eps(void)`
+- `wubu_smbios_probe(wubu_smbios_t *out)`
+- `wubu_smbios_walk(uint64_t table, wubu_smbios_t *out)`
+
 ## `src/kernel/wubu_sync.h`
 
 - `wubu_spin_lock(wubu_spinlock_t *l)`
@@ -245,6 +256,10 @@
 ## `src/kernel/wubu_usb.h`
 
 - `wubu_usb_init(void)`
+
+## `src/kernel/wubu_vdso.h`
+
+- `wubu_vdso_init(void)`
 
 ## `src/kernel/wubu_vmm.h`
 

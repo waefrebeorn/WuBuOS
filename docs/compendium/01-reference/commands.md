@@ -2,11 +2,12 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Console Commands
-> Generated 2026-08-02 14:17 UTC -- parsed from wubu_console.c's dispatch table.
+> Generated 2026-08-02 17:06 UTC -- parsed from wubu_console.c's dispatch table.
 
 - `agi`
 - `attest`
 - `cls`
+- `crash`
 - `date`
 - `dump`
 - `help`

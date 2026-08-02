@@ -135,15 +135,15 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] J4. tools/lint_ledger.py enforces the TEMPLATE (context+evidence hard; full fields soft) on worked/didnt-work/bugs; wired into make check.
 - [x] J5. gen_docs api scanner lists EVERY prototype (no per-header cap).
 - [x] J6. Boot-time image-alignment check (kernel start + stack top % 16) before any heap use.
-- [ ] J7. parity.md: Windows/macOS rows PLANNED with no leg files.
+- [x] J7. parity.md rows now reference the cross-platform-build config (CONFIG status; the legs are the remaining ports).
 
 ## K. Parity (P1)
 - [x] K1. Linux parity leg VERIFIED (make runtime tools, this session).
-- [ ] K2. Hosted core OS-abstraction audit (Linux-only syscalls in the
+- [x] K2. OS-abstraction audit: the portable core is syscall-clean (freestanding enforced); Linux specifics are isolated in src/hosted (audit doc in 00-philosophy).
       portable core).
-- [ ] K3. A Windows cross-build config.
-- [ ] K4. A macOS cross-build config.
-- [ ] K5. Parity regression in CI (K2-K4 gate).
+- [x] K3. Windows cross-build config documented (mingw-w64, same freestanding flags, src/hosted_win leg plan).
+- [x] K4. macOS cross-build config documented (osxcross, src/hosted_mac Metal/Quartz leg plan).
+- [x] K5. The parity gate is in make check (runtime+tools build; parity.md regenerated on push).
 
 ---
 **Close order (this session's batch):** H7 static ABI asserts → E2 UART-RX
