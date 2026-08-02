@@ -290,6 +290,9 @@ void interrupt_set_gate(uint8_t vector, uint64_t handler, uint16_t selector,
 void pit_handler(uint8_t irq, void *ctx) {
     (void)irq; (void)ctx;
     task_timer_tick();
+    /* Gap E7: feed the 8254 watchdog every tick (2s window). */
+    extern void wdt_feed(uint32_t);
+    wdt_feed(2000);
     /* Tick the ring-0 AGI supervisor (cooperative, non-blocking). Safe before
      * init (returns early if the singleton has no verifier / is frozen). */
     extern wubu_agi_kernel_t *wubu_agi_kernel_global(void);
