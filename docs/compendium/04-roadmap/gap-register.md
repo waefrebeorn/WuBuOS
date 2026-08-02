@@ -54,8 +54,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] C3. Live fault counters (#PF/#GP/#DF/#UD/spurious) in the panic dump + `stats`.
 - [x] C4. LAPIC spurious vector: 0xFF bails before any EOI; counted via interrupt_count(0xFF).
 - [x] C5. ISR-overrun counter: nested dispatch (NMI during an ISR) counted + shown in the panic dump.
-- [ ] C6. syscall exit (sysretq) has no rflags sanitization (the iretq has it).
-- [ ] C7. No alignment-check (AC) policy.
+- [x] C6. sysretq sanitizes user RFLAGS (NT/IOPL/TF/RF/VM/AC masked; IF passes).
+- [x] C7. AC policy: CR0.AM cleared at boot + AC masked on every exit path (C6/iretq/popfq).
 - [x] C8. FPU/SSE saved on switch: fxsave/fxrstor in tasking_switch.S, primed first-run contexts (this batch) on context switch -- tasks share xmm0-15
       + mxcsr; the movaps-class corruption is a live hazard.
 - [x] C9. CR0.WP set at paging-enable (crt0) -- kernel can't write RO pages (kernel can write RO pages silently).
@@ -79,7 +79,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] E2. UART RX interrupt-driven: IOAPIC pin 4 -> vector 36 -> wubu_sync FIFO + safe poll backup (this batch), not interrupt-driven (console busy-polls; no
       serial ISR -> no ISR-queue usage of wubu_sync).
 - [ ] E3. No serial output buffering.
-- [ ] E4. PCI report doesn't filter by class (no device roles).
+- [x] E4. PCI report annotates device roles (storage/network/display/usb/...).
 - [ ] E5. No IOMMU/VT-d (the anticheat below-OS plane).
 - [ ] E6. No disk cache flush policy.
 - [ ] E7. No watchdog timer (the 8254/HPET not used as a WDT).
@@ -88,7 +88,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] F1. Console command history: ESC-[A/B recall (8-line ring, live).
 - [ ] F2. No tab completion.
 - [ ] F3. No script execution ("run <file>").
-- [ ] F4. Help text doesn't enumerate all commands.
+- [x] F4. help enumerates every command (theme/hid/vmm/stats/dump/attest/date/agi/...).
 - [x] F5. In-OS hexdump: console `dump <addr> [bytes]` (this batch) command (`mem <addr> <bytes>`) -- the live
       debugger the kernel needs (today: external qemu-monitor scripts).
 - [x] F6. `regs`: CR0/2/3/4 + EFER + LAPIC live.

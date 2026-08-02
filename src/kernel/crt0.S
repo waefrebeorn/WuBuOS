@@ -327,6 +327,11 @@ _start:
      * code/rodata; the resulting #PF is the evidence). */
     movl %cr0, %eax
     orl $((1 << 31) | (1 << 16)), %eax
+    /* Gap C7: the alignment-check (AC) policy -- CR0.AM stays CLEAR,
+     * so even a user that sets EFLAGS.AC gets no #AC alignment checks
+     * (the AC flag is additionally masked at every exit path: the C6
+     * sysretq sanitizer + the iretq/popfq masks). */
+    andl $~((1 << 18)), %eax          /* clear AM */
     movl %eax, %cr0
 
     /* marker: paging on */

@@ -476,6 +476,14 @@ syscall_entry:
     pop r11
     pop rcx
 
+    /* Gap C6: sanitize the user RFLAGS before sysretq. The iretq path
+     * already masks NT/IOPL/TF; sysretq restores RFLAGS from R11 with
+     * no masking at all, so a user that entered with NT/IOPL/AC/RF/VM
+     * set would survive with them. Clear those; IF + the status flags
+     * pass through (the user controls its own IF). */
+    movabs $0xFFFFFFFFFFFF8CFF, rdx
+    and r11, rdx
+
     /* Restore user RSP and SS */
     add rsp, 16
     /* Note: SYSRET requires RCX=RIP, R11=RFLAGS, RSP=user_rsp, SS=user_ss */
