@@ -29,7 +29,10 @@ static inline uint8_t serial_rx_ready(void) {
 static inline uint8_t serial_rx(void) {
     return inb(COM1_PORT);
 }
-static inline void serial_tx(uint8_t c) {
+/* Returns 0 ALWAYS (the drop is a silent success): the callers must
+ * NEVER retry a dropped char -- an unbounded retry under backpressure
+ * is a spin (the trace showed `call tx; test eax; js` looping forever). */
+static inline int serial_tx(uint8_t c) {
     /* BOUNDED TX wait (the tick-12/33/153 freeze root cause): when a
      * slow/no reader backs up the serial socket, the UART's THR-empty
      * stops and the OLD unbounded wait spun the CPU FOREVER (the kernel
@@ -37,9 +40,10 @@ static inline void serial_tx(uint8_t c) {
      * DEBUG channel -- the kernel must never block on it: wait a bounded
      * number of polls, then DROP the character. */
     for (int i = 0; i < 65536; i++) {
-        if (inb(COM1_LSR) & 0x20) { outb(COM1_PORT, c); return; }
+        if (inb(COM1_LSR) & 0x20) { outb(COM1_PORT, c); return 0; }
     }
     /* timeout: the char is dropped; the kernel continues */
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */
