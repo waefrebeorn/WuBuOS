@@ -21,23 +21,51 @@ void wubu_spin_init(wubu_spinlock_t *l)
     if (!l) return;
     l->locked = 0;
     l->irq_state = 0;
+    l->owner = NULL;
+    l->owner_prio_saved = 0;
+    l->boosted = 0;
 }
 
 void wubu_spin_lock(wubu_spinlock_t *l)
 {
+    extern struct CTask *task_current(void);
+    extern int task_prio_get(const struct CTask *);
+    extern void task_prio_set(struct CTask *, int);
     if (!l) return;
     uint64_t flags = read_rflags();
     __asm__ __volatile__("cli" ::: "memory");   /* irq-safe acquire */
     while (__atomic_test_and_set(&l->locked, __ATOMIC_ACQUIRE)) {
+        /* Gap D3: priority inheritance -- if a higher-priority task is
+         * spinning on a lock a lower-priority task holds, boost the
+         * holder to the waiter's priority so the scheduler gives it the
+         * CPU to finish and release. Restored at unlock. */
+        if (l->owner && !l->boosted) {
+            struct CTask *me = task_current();
+            int my_p = me ? task_prio_get(me) : 0;
+            int own_p = task_prio_get(l->owner);
+            if (my_p > own_p) {
+                l->boosted = 1;
+                l->owner_prio_saved = own_p;
+                task_prio_set(l->owner, my_p);
+            }
+        }
         /* spin; IF is already off, so no IRQ can arrive mid-spin */
         __asm__ __volatile__("pause");
     }
+    l->owner = task_current();
     l->irq_state = (uint32_t)(flags & 0x200u);  /* keep the IF bit */
 }
 
 void wubu_spin_unlock(wubu_spinlock_t *l)
 {
     if (!l) return;
+    /* Gap D3: undo any priority inheritance the waiters applied. */
+    if (l->boosted && l->owner) {
+        extern void task_prio_set(struct CTask *, int);
+        task_prio_set(l->owner, l->owner_prio_saved);
+    }
+    l->boosted = 0;
+    l->owner = NULL;
     __atomic_clear(&l->locked, __ATOMIC_RELEASE);
     if (l->irq_state & 0x200u)
         __asm__ __volatile__("sti" ::: "memory");

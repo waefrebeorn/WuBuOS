@@ -63,9 +63,9 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] C11. Exception counters exposed: console `stats` (this batch) to the AGI/console.
 
 ## D. Tasking (P0/P1)
-- [ ] D1. No idle task (the run loop busy-yields).
-- [ ] D2. No sleep wakeup optimization.
-- [ ] D3. No priority-inversion handling.
+- [x] D1. Idle task HALTs (IF pre-set in the task context; the PIT wakes each hlt).
+- [x] D2. Sleep wakeup: g_next_wake tracks the earliest pending wake; the O(n) scan runs only when due.
+- [x] D3. Priority inheritance in wubu_spin_lock: a higher waiter boosts the holder (restored at unlock) + task_prio_get/set accessors.
 - [x] D4. task_create failure paths audited: every alloc-failure frees the partial task (stack/user_data/CTask).
 - [x] D5. Per-task CPU accounting: total_ticks share shown as cpu=%% in the tasks command.
 - [x] D6. wubu_sync USED: the vmm allocator (shared ISR/main path) takes the spinlock (this batch) (spinlock unused
