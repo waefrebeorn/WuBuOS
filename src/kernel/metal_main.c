@@ -370,6 +370,11 @@ void kernel_main(void *boot_info) {
     extern int wdt_arm(uint32_t);
     wdt_arm(2000);
 
+    /* Gap H6: publish the vDSO page (read-only, counters refreshed by
+     * the tick -- user space reads time without a trap). */
+    extern int wubu_vdso_init(void);
+    wubu_vdso_init();
+
     /* 9. Boot the AGI kernel supervisor (ring-0 operator + agent realm).
      *    This replaces the old `for(;;) HLT();` shell: the OS is now an AGI
      *    kernel -- it decomposes the viewport via GAAD, spawns a co-resident
