@@ -748,6 +748,30 @@ int wubu_console_exec(const char *line)
                         0xffffffff9fff0000ull);
         return 0;   /* unreachable -- the user code loops */
     }
+    if (strcmp(argv[0], "iommu") == 0) {         /* Gap E5: the VT-d plane */
+        extern int wubu_iommu_probe(void *);
+        struct {
+            int found; uint32_t cap, ecap; uint64_t rtaddr;
+            uint16_t segment; uint8_t version, flags;
+        } io;
+        if (wubu_iommu_probe(&io) == 0 && io.found) {
+            klog_printf("iommu: DMAR v%u cap=%x ecap=%x seg=%u\n",
+                        (unsigned)io.version, (unsigned)io.cap,
+                        (unsigned)io.ecap, (unsigned)io.segment);
+        } else {
+            klog_printf("iommu: no DMAR table\n");
+        }
+        return 0;
+    }
+    if (strcmp(argv[0], "smp") == 0) {           /* Gap I2: AP bring-up */
+        extern uint32_t wubu_smp_start_aps(void);
+        extern uint32_t wubu_smp_cpu_count(void);
+        klog_printf("smp: INIT-SIPI-SIPI...\n");
+        uint32_t aps = wubu_smp_start_aps();
+        klog_printf("smp: %u APs alive (total %u CPUs)\n",
+                    (unsigned)aps, (unsigned)wubu_smp_cpu_count());
+        return 0;
+    }
     klog_printf("console: unknown command '%s' (try 'help')\n", argv[0]);
     return -1;
 }

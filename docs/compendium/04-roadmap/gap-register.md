@@ -121,7 +121,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 
 ## I. Boot / early (P1)
 - [x] I1. E820-style memory map from the loader: GetMemoryMap -> 0x98000 -> vmm owns the real RAM (this batch) (e820) -- vmm assumes 1GB.
-- [ ] I2. No SMP (APs never started; single CPU).
+- [x] I2. wubu_smp: AP bring-up (INIT-SIPI-SIPI, a 16-bit->64-bit trampoline pinned at 0x8000, per-CPU alive counters, control block at 0x7000); boot probe reports the alive AP count. (Per-CPU scheduling is the follow-on.)
 - [x] I3. wubu_smbios: SMBIOS entry-point discovery + structure walk (BIOS/system strings), synthetic-table tests green, boot probe.
 - [x] I4. Cache/TLB maintenance policy documented (docs/compendium/00-philosophy/cache-tlb-policy.md): invalidation points, write-back doctrine, SMP/COW/SMEP notes.
 - [x] I5. Loader->kernel ABI version negotiation: the handoff version is checked at boot; a mismatch loudly disables promotion.
