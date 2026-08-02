@@ -98,7 +98,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] F10. No crash-file pickup (post-mortem from the metal).
 
 ## G. AGI modules (P1)
-- [ ] G1. Verifier is static policy; DA-3 wants runtime PCRs.
+- [x] G1. The verifier's promotion gate now includes the runtime-PCR integrity (a live chain adds score; none = below threshold).
 - [ ] G2. Verifier doesn't consult the TEST SUITE results (the DA's
       "test-suite verifier" is not wired).
 - [ ] G3. OPEN: the soft cap re-triggered the tick-12 freeze (timing-dependent corruption -- tracked).
