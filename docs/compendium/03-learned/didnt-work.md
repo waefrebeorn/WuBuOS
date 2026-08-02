@@ -113,3 +113,20 @@ tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.
   calls wubu_agi_kernel_cycle (the promote) from the timer ISR again
   -- the "task-context only" doctrine is violated; the kernel is
   stable anyway, but the cycle belongs in the bonzi task.
+
+## 2026-08-02 — The verifier's unbounded payload scan spun the kernel (FIXED)
+- The well-formedness loop (`for (p = payload; *p; p++)`) read the span
+  data as a NUL-terminated string, but the ring's data window is NOT
+  reliably terminated -> an unterminated span ran the scan off the end
+  forever, halting the kernel at the first promote cycle (RIP parked in
+  wubu_verifier_score). FIX: every payload scan in wubu_verifier is now
+  bounded to WUBU_VERIFIER_MAX_LEN and stops at a NUL.
+- The boot also crawled: an 8.25 MB framebuffer copy went through the
+  byte-loop memcpy (tens of seconds under TCG). FIX: memcpy word-copies
+  the aligned bulk (8 bytes/iter), byte-falls-back. Boot went from
+  >90s to the normal few seconds.
+
+## 2026-08-02 — wubu_crash_pickup at the early boot hung the boot (FIXED)
+- The F10 pickup initialized the AHCI sim disk during the attestation
+  block (before the kernel's own disk setup) -> boot hang. Moved the
+  pickup to after the AGI kernel is booted, when the disk is up.

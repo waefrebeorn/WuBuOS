@@ -48,6 +48,13 @@ void *calloc(size_t nmemb, size_t size) {
 void *memcpy(void *dest, const void *src, size_t n) {
     uint8_t *d = (uint8_t *)dest;
     const uint8_t *s = (const uint8_t *)src;
+    /* word-copy the aligned bulk: the byte loop is brutally slow under
+     * TCG for the multi-MB framebuffer copies at boot (a 8.25 MB copy
+     * was taking the kernel tens of seconds). */
+    while (n >= 8 && ((uintptr_t)d & 7) == 0 && ((uintptr_t)s & 7) == 0) {
+        *(uint64_t *)d = *(const uint64_t *)s;
+        d += 8; s += 8; n -= 8;
+    }
     while (n--) *d++ = *s++;
     return dest;
 }

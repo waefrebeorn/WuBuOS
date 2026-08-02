@@ -509,6 +509,67 @@ static int cmd_agi(int argc, char **argv)
                     wubu_agi_kernel_trace_count(agi));
         return 0;
     }
+    if (strcmp(argv[1], "checkpoint") == 0) {   /* Gap G6 */
+        /* persist the continuity state to AGI.CKP on the FAT32 volume */
+        extern int wubu_agi_kernel_checkpoint(const wubu_agi_kernel_t *,
+                                              wubu_agi_ckp_t *);
+        extern fat32_volume *fat32_boot_volume(void);
+        extern int fat32_create(fat32_volume *, uint32_t, const char *,
+                                uint8_t, fat32_file_info *);
+        extern int fat32_open(fat32_volume *, uint32_t, const char *,
+                              const char *, fat32_file *);
+        extern size_t fat32_write(fat32_file *, const void *, size_t);
+        extern void fat32_close(fat32_file *);
+        extern int fat32_flush(fat32_volume *);
+        wubu_agi_ckp_t ck;
+        if (wubu_agi_kernel_checkpoint(agi, &ck) != 0) {
+            klog_printf("agi: checkpoint failed\n");
+            return 0;
+        }
+        fat32_volume *vol = fat32_boot_volume();
+        fat32_file_info fi;
+        fat32_file f;
+        if (fat32_create(vol, 0, "AGI.CKP", 0, &fi) != 0 ||
+            fat32_open(vol, 0, "AGI.CKP", "w", &f) != 0 ||
+            fat32_write(&f, &ck, sizeof(ck)) != sizeof(ck)) {
+            klog_printf("agi: checkpoint save failed (no volume?)\n");
+            return 0;
+        }
+        fat32_close(&f);
+        fat32_flush(vol);
+        klog_printf("agi: checkpoint saved (promoted=%d)\n",
+                    wubu_agi_kernel_promoted_total(agi));
+        return 0;
+    }
+    if (strcmp(argv[1], "restore") == 0) {      /* Gap G6 */
+        extern int wubu_agi_kernel_restore(wubu_agi_kernel_t *,
+                                           const wubu_agi_ckp_t *);
+        extern fat32_volume *fat32_boot_volume(void);
+        extern int fat32_find(fat32_volume *, uint32_t, const char *,
+                              fat32_file_info *);
+        extern int fat32_open(fat32_volume *, uint32_t, const char *,
+                              const char *, fat32_file *);
+        extern size_t fat32_read(fat32_file *, void *, size_t);
+        extern void fat32_close(fat32_file *);
+        fat32_volume *vol = fat32_boot_volume();
+        fat32_file_info fi;
+        fat32_file f;
+        wubu_agi_ckp_t ck;
+        if (fat32_find(vol, 0, "AGI.CKP", &fi) != 0 ||
+            fat32_open(vol, 0, "AGI.CKP", "r", &f) != 0 ||
+            fat32_read(&f, &ck, sizeof(ck)) != sizeof(ck)) {
+            klog_printf("agi: no checkpoint to restore\n");
+            return 0;
+        }
+        fat32_close(&f);
+        if (wubu_agi_kernel_restore(agi, &ck) != 0) {
+            klog_printf("agi: checkpoint invalid\n");
+            return 0;
+        }
+        klog_printf("agi: checkpoint restored (promoted=%d)\n",
+                    wubu_agi_kernel_promoted_total(agi));
+        return 0;
+    }
     return cmd_help();
 }
 
