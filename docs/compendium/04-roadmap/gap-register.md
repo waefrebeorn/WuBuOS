@@ -102,7 +102,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] G2. Verifier doesn't consult the TEST SUITE results (the DA's
       "test-suite verifier" is not wired).
 - [ ] G3. OPEN: the soft cap re-triggered the tick-12 freeze (timing-dependent corruption -- tracked).
-- [ ] G4. Theme writes not persisted (reset each boot).
+- [x] G4. Theme persistence: theme save/load to THEME.FX on the FAT32 volume (node list -> file; file -> node set + apply).
 - [ ] G5. No long-term memory on metal (hive is hosted-side).
 - [ ] G6. No AGI crash recovery (checkpoints, DA-2.6).
 - [x] G7. Superseded by D7 (supervisor watchdog).

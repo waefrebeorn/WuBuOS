@@ -175,6 +175,82 @@ static int cmd_theme(int argc, char **argv)
         klog_printf("theme: cycled\n");
         return 0;
     }
+    if (argc >= 2 && strcmp(argv[1], "save") == 0) {
+        /* Gap G4: persist the nodes to THEME.FX on the FAT32 volume
+         * (the same lazy mount the run command uses). */
+        extern fat32_volume *fat32_boot_volume(void);
+        fat32_volume *vol = fat32_boot_volume();
+        char buf[2048];
+        int n = wubu_theme_node_list(buf, (int)sizeof(buf));
+        if (n <= 0) { klog_printf("theme: nothing to save\n"); return 0; }
+        buf[sizeof(buf) - 1] = '\0';
+        extern int fat32_create(fat32_volume *, uint32_t, const char *,
+                                uint8_t, fat32_file_info *);
+        extern int fat32_open(fat32_volume *, uint32_t, const char *,
+                              const char *, fat32_file *);
+        extern size_t fat32_write(fat32_file *, const void *, size_t);
+        extern void fat32_close(fat32_file *);
+        extern int fat32_flush(fat32_volume *);
+        fat32_file_info fi;
+        fat32_file f;
+        size_t len = 0;
+        for (const char *p = buf; *p; p++) len++;
+        if (fat32_create(vol, 0, "THEME.FX", 0, &fi) != 0 ||
+            fat32_open(vol, 0, "THEME.FX", "w", &f) != 0 ||
+            fat32_write(&f, buf, len) != 0) {
+            klog_printf("theme: save failed (no volume?)\n");
+            return 0;
+        }
+        fat32_close(&f);
+        fat32_flush(vol);
+        klog_printf("theme: saved %d nodes to THEME.FX\n", n);
+        return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "load") == 0) {
+        /* Gap G4: reload THEME.FX: each 'name=value' line re-applies. */
+        extern fat32_volume *fat32_boot_volume(void);
+        fat32_volume *vol = fat32_boot_volume();
+        extern int fat32_find(fat32_volume *, uint32_t, const char *,
+                              fat32_file_info *);
+        extern int fat32_open(fat32_volume *, uint32_t, const char *,
+                              const char *, fat32_file *);
+        extern size_t fat32_read(fat32_file *, void *, size_t);
+        extern void fat32_close(fat32_file *);
+        fat32_file_info fi;
+        fat32_file f;
+        if (fat32_find(vol, 0, "THEME.FX", &fi) != 0 ||
+            fat32_open(vol, 0, "THEME.FX", "r", &f) != 0) {
+            klog_printf("theme: no THEME.FX\n");
+            return 0;
+        }
+        char buf[2048];
+        size_t rd = fat32_read(&f, buf, sizeof(buf) - 1);
+        fat32_close(&f);
+        if (rd == 0) { klog_printf("theme: THEME.FX empty\n"); return 0; }
+        buf[rd] = '\0';
+        int loaded = 0;
+        char *line = buf;
+        while (*line) {
+            char *nl = line;
+            while (*nl && *nl != '\n' && *nl != '\r') nl++;
+            char save = *nl;
+            *nl = '\0';
+            char *eq = line;
+            while (*eq && *eq != '=') eq++;
+            if (*eq == '=' && eq != line) {
+                *eq = '\0';
+                char *end = NULL;
+                uint32_t v = (uint32_t)strtoul(eq + 1, &end, 16);
+                if (end && *end == '\0' && wubu_theme_node_set(line, v) == 0)
+                    loaded++;
+            }
+            if (!save) break;
+            line = nl + 1;
+        }
+        if (loaded > 0) wubu_theme_apply();
+        klog_printf("theme: loaded %d nodes from THEME.FX\n", loaded);
+        return 0;
+    }
     char buf[2048];
     int n = wubu_theme_node_list(buf, (int)sizeof(buf));
     if (n > 0 && (int)sizeof(buf) > 0) buf[sizeof(buf) - 1] = '\0';
