@@ -321,6 +321,26 @@ void kernel_main(void *boot_info) {
                         (unsigned)bt.h, (unsigned)bt.m, (unsigned)bt.s);
     }
 
+    /* ACPI (gap A18): read the real firmware tables -- RSDP -> XSDT ->
+     * FADT -- instead of assuming the memory map. */
+    {
+        extern int wubu_acpi_init(void *);
+        struct {
+            uint64_t dsdt_addr, x_facs_addr;
+            uint8_t  sci_irq, acpi_enable, acpi_disable, pm_tmr_len,
+                     revision, minor;
+            int      found;
+        } ac;
+        if (wubu_acpi_init(&ac) == 0 && ac.found) {
+            klog_printf("WuBuOS: ACPI FADT rev=%u minor=%u sci=%u pmtmr=%u dsdt=%x\n",
+                        (unsigned)ac.revision, (unsigned)ac.minor,
+                        (unsigned)ac.sci_irq, (unsigned)ac.pm_tmr_len,
+                        (unsigned)ac.dsdt_addr);
+        } else {
+            klog_printf("WuBuOS: ACPI tables not found\n");
+        }
+    }
+
     /* 9b. Wire the INDEPENDENT verifier (DA-3): this ACTIVATES the
      *     self-improve loop -- without a verifier the cycle refuses to
      *     promote (dormant by design). The verifier is a fixed,

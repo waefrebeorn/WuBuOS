@@ -13,6 +13,8 @@
 #include "wubu_pci.h"
 #include "wubu_agi_kernel.h"
 #include "wubu_rtc.h"   /* date command (gap A17) */
+#include "ahci.h"       /* run command (gap F3) */
+#include "fat32.h"      /* run command (gap F3) */
 #include "tasking.h"
 #include "memory.h"
 #include "klog.h"
@@ -202,7 +204,7 @@ static int cmd_vmm(int argc, char **argv)
     extern uint64_t wubu_vmm_free_count(void);
     extern uint32_t wubu_vmm_demand_count(void);
     extern uint32_t wubu_vmm_demand_faults(void);
-    extern int      wubu_vmm_alloc_pages(uint64_t, uint32_t);
+    extern uint64_t wubu_vmm_alloc_pages(uint32_t);
     extern void     wubu_vmm_free_pages(uint64_t, uint32_t);
     (void)argc; (void)argv;
     uint64_t *demo = (uint64_t *)0xffffffff90000000ull;
@@ -230,7 +232,7 @@ static int cmd_vmm(int argc, char **argv)
         /* `vmm free <hex-phys> [n]` -- release a previously allocated
          * physical range (the refcounted path, gap B8). */
         char *end = NULL;
-        uint64_t phys = strtoull(argv[2], &end, 16);
+        uint64_t phys = strtoul(argv[2], &end, 16);
         uint32_t np = (argc >= 4) ? (uint32_t)strtoul(argv[3], NULL, 10) : 1;
         if (!end || *end != '\0' || phys < 0x1000000ull) {
             klog_printf("vmm: bad phys (want hex, >= 16MB)\n");
@@ -454,10 +456,11 @@ static int ahci_blk_write(void *ctx, uint64_t lba, uint32_t n, const void *buf)
 
 static int cmd_run(int argc, char **argv)
 {
-    extern int  wubu_console_exec(char *);
+    extern int  wubu_console_exec(const char *);
+    extern fat32_volume *fat32_boot_volume(void);
     if (argc < 2) { klog_printf("run: usage 'run <file>'\n"); return 0; }
 
-    static fat32_volume g_vol;
+    fat32_volume *g_vol = fat32_boot_volume();
     static int g_mounted = 0;
     static ahci_hba_t  g_hba;
     if (!g_mounted) {
@@ -476,25 +479,20 @@ static int cmd_run(int argc, char **argv)
             .ctx = &g_hba, .n_sectors = 8 * 1024 * 1024 / 512
         };
         extern int fat32_mount(fat32_volume *, const fat32_blk_ops *);
-        if (fat32_mount(&g_vol, &ops) != 0) {
+        if (fat32_mount(g_vol, &ops) != 0) {
             klog_printf("run: no FAT32 volume\n");
             return 0;
         }
         g_mounted = 1;
     }
 
-    extern int  fat32_find(fat32_volume *, uint32_t, const char *,
-                           fat32_file_info *);
-    extern int  fat32_open(fat32_volume *, uint32_t, const char *,
-                           fat32_file *);
-    extern size_t fat32_read(fat32_file *, void *, size_t);
     fat32_file_info fi;
-    if (fat32_find(&g_vol, 0, argv[1], &fi) != 0) {
+    if (fat32_find(g_vol, 0, argv[1], &fi) != 0) {
         klog_printf("run: '%s' not found\n", argv[1]);
         return 0;
     }
     fat32_file fp;
-    if (fat32_open(&g_vol, 0, argv[1], &fp) != 0) {
+    if (fat32_open(g_vol, 0, argv[1], "r", &fp) != 0) {
         klog_printf("run: cannot open '%s'\n", argv[1]);
         return 0;
     }

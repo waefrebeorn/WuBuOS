@@ -29,7 +29,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A15. FAT32 dirty-volume flag: set at mount, cleared at clean unmount, reported on a crash-remount (host-tested).
 - [x] A16. FAT32 LFN: wubu_lfn codec (encode/decode/chain, 9 tests) + dir-layer write integration; long-name create/find/list verified end-to-end.
 - [x] A17. RTC wall clock: wubu_rtc module (CMOS 0x70/0x71, BCD/12h, UIP); `date` command + boot stamp verified live.
-- [ ] A18. No ACPI/FADT parsing (firmware memory map is assumed, not read).
+- [x] A18. ACPI: wubu_acpi module (RSDP -> RSDT/XSDT -> FADT, FADT offsets corrected: PM_TMR_LEN@91, ACPI_ENABLE@52) + synthetic-table tests; the live QEMU RSDP location is a tracked probe item.
 - [ ] A19. No HPET (the LAPIC timer is the only time source).
 - [x] A20. Console error reporting: the failure paths (theme/date/attest/agi/dump) already reported; vmm alloc/free + pci scan now report rc instead of silent 0.
 

@@ -161,7 +161,11 @@ typedef struct {
  * Reads boot sector, validates, initializes volume state.
  * Returns 0 on success, -1 on error.
  */
-int  fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk);
+int fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk);
+
+/* The run command's lazily-mounted global volume (gap F3): the volume
+ * struct is opaque, so the module owns its storage. */
+fat32_volume *fat32_boot_volume(void);
 
 /*
  * Unmount  --  flush any cached data, release resources.
