@@ -23,6 +23,7 @@
  */
 #include "wubu_bonzi.h"
 #include "wubu_agi_kernel.h"
+#include "wubu_theme.h"
 #include "wubu_attest.h"
 #include "vbe.h"
 #include "input.h"
@@ -180,8 +181,10 @@ static void bn_dispatch(wubu_bonzi_t *b, const char *line)
 
 static void bn_draw_gorilla(wubu_bonzi_t *b, int x0, int y0, int w, int h)
 {
-    const uint32_t fur   = 0x006030A0;
-    const uint32_t fur_d = 0x00402070;
+    /* Theme-driven: the /theme namespace colors the gorilla live. */
+    const WubuKTheme *t = wubu_theme_get();
+    const uint32_t fur   = t ? t->gorilla_fur   : 0x006030A0u;
+    const uint32_t fur_d = t ? t->gorilla_belly : 0x00402070u;
     const uint32_t face  = 0x00E0A060;
     const uint32_t white = 0x00FFFFFF;
     const uint32_t eye   = 0x00000000;
@@ -217,11 +220,14 @@ static void bn_draw(wubu_bonzi_t *b)
 
     /* Speech bubble (last reply) */
     {
+        const WubuKTheme *t = wubu_theme_get();
         int bx = 240, by = h - 410;
         int bw = (w - 260 > 640) ? 640 : w - 260;
         int bh = 64;
-        vbe_fill_rect_rounded(bx, by, bw, bh, 10, 0x00FFFFFF);
-        vbe_rect_rounded(bx, by, bw, bh, 10, 0x00402070);
+        uint32_t bubble = t ? t->speech_bubble : 0x00FFFFFFu;
+        uint32_t border = t ? t->speech_border : 0x00402070u;
+        vbe_fill_rect_rounded(bx, by, bw, bh, 10, bubble);
+        vbe_rect_rounded(bx, by, bw, bh, 10, border);
         char up[128];
         bn_upper_str(up, b->reply, sizeof(up));
         vbe_draw_text(bx + 12, by + 12, up, 0x00401060, 1);

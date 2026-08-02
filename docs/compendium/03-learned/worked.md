@@ -45,3 +45,18 @@ Copy TEMPLATE.md for new entries.*
   without preemption.
 - **Evidence:** console, bonzi, agent, uptime, sleep, attestation all green
   in one boot.
+
+## 2026-08-02 — The /theme namespace + unified HID on metal
+- **Context:** Kevin-Bacon pass 3 build-out — the self-modifying graphic set
+  and the GameInput-style input layer.
+- **What worked:** `wubu_theme` (a writable node tree `/theme/...` with an
+  EDR write counter; presets seed it, `wubu_theme_apply()` re-derives the
+  draw struct) + `wubu_hid` (one event model for keyboard/mouse/gamepad,
+  common time base, per-device filters + master disable). Bonzi's gorilla +
+  speech bubble now read the theme — `theme set /theme/gorilla/fur ff0000`
+  re-skins the framebuffer live on metal.
+- **Evidence:** host `test_theme_hid` ALL PASS; live console
+  `theme set /theme/win/title_active 123456` → node list shows
+  `00123456`, writes=19; stable boot probes green.
+- **When it may change:** the /theme tree becomes the real Styx9 namespace
+  when the fs lands on metal; the HID ring gets the xHCI USB feeder.
