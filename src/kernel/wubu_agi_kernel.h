@@ -91,6 +91,10 @@ void wubu_agi_kernel_set_verifier(wubu_agi_kernel_t *k,
 void wubu_agi_kernel_set_memory(wubu_agi_kernel_t *k,
                                 wubu_agi_memory_fn fn, void *ud);
 
+/* Gap G2: the self-test suite needs to know whether the memory hook is
+ * armed (the long-term hive survived the boot). */
+int wubu_agi_kernel_has_memory(const wubu_agi_kernel_t *k);
+
 /* ---- Agent realm API (REALM_AGENT, in-process tasking thread) -------- */
 
 /* Emit an AGENT trace span from the agent realm. Append-only, immutable.

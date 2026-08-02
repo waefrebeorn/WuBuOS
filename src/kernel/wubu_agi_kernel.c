@@ -359,6 +359,11 @@ void wubu_agi_kernel_set_memory(wubu_agi_kernel_t *k,
     k->memory_ud = ud;
 }
 
+int wubu_agi_kernel_has_memory(const wubu_agi_kernel_t *k)
+{
+    return k ? (k->memory_fn != NULL) : 0;
+}
+
 int wubu_agi_kernel_agent_emit(wubu_agi_kernel_t *k, uint64_t parent,
                                const char *payload)
 {

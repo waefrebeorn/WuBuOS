@@ -99,8 +99,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 
 ## G. AGI modules (P1)
 - [x] G1. The verifier's promotion gate now includes the runtime-PCR integrity (a live chain adds score; none = below threshold).
-- [ ] G2. Verifier doesn't consult the TEST SUITE results (the DA's
-      "test-suite verifier" is not wired).
+- [x] G2. The verifier now consults the kernel's OWN test suite: wubu_self_test (heap integrity, coalescing, lock, trace, hive) adds +10 only when EVERY check passes; a sick kernel cannot promote.
 - [ ] G3. OPEN: the soft cap re-triggered the tick-12 freeze (timing-dependent corruption -- tracked).
 - [x] G4. Theme persistence: theme save/load to THEME.FX on the FAT32 volume (node list -> file; file -> node set + apply).
 - [x] G5. The metal's long-term hive: C11 hive wired into the kernel, the AGI's memory hook stores every 25th promoted span (rate-limited) -- live-verified 'hive armed'.
