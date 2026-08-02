@@ -151,3 +151,24 @@ Copy TEMPLATE.md for new entries.*
   loader: "memmap @ 0x98000 (5 regions)"; vmm free_pages=113664.
 - **When it may change:** the memmap table is capped at 8 regions; a
   machine with more fragments needs the cap raised.
+
+## 2026-08-02 — Close batch 3: canaries, WP, stack tracking, dump hardening
+- **Context:** gap-register batch (A6/C9/B5/B6 + diagnostics).
+- **What worked:**
+  1. Heap canaries live: mem_validate_all wired into the `mem` command --
+     'canaries=OK' on metal (the red-zone machinery existed, never ran).
+  2. CR0.WP at paging-enable (crt0): the kernel can no longer silently
+     write RO pages.
+  3. Stack low-water tracking: per-task stack_min at every switch + the
+     `tasks` command reports usage % / OVER. FLAGGED the agi-agent's
+     256KB stack as OVER -> bumped to 512KB.
+  4. dump hardening: wubu_vmm_is_mapped validates every page before
+     reading -- a typo'd address now prints 'UNMAPPED' instead of
+     #PF-halting the OS (the dump of 0x8011ac50 halted the console).
+  5. The klog %llu lesson AGAIN: the AGI's 'PROMOTED span %llu' flooded
+     the serial every tick (prints literally). Fixed both %llu sites.
+- **Evidence:** make check ALL GREEN; live: spam=0, faults=NONE, canaries
+  OK, stats tick/irq32 equal, dump UNMAPPED path verified.
+- **When it may change:** the 'OVER' display's root (rsp sampled below the
+  base) needs a follow-up with a real CTask dump; guard pages come with
+  the multi-address-space work.

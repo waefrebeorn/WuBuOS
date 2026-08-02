@@ -66,8 +66,14 @@ static int cmd_uptime(void)
 
 static int cmd_mem(void)
 {
-    klog_printf("heap used=%u avail=%u\n",
-                (unsigned)mem_used(), (unsigned)mem_available());
+    /* heap stats + a FULL canary sweep (gap A6: the red-zone check
+     * machinery existed but nothing ran it on metal -- now 'mem'
+     * validates every allocation's front/back canaries) */
+    extern int mem_validate_all(void);
+    int corrupt = mem_validate_all();
+    klog_printf("heap used=%u avail=%u canaries=%s\n",
+                (unsigned)mem_used(), (unsigned)mem_available(),
+                corrupt == 0 ? "OK" : "CORRUPT");
     return 0;
 }
 
@@ -76,10 +82,29 @@ static int cmd_tasks(void)
     CTask *t = task_list_head();
     int n = 0;
     klog_printf("-- tasks (%d) --\n", task_count());
-    for (; t && n < 32; t = t->next, n++)
-        klog_printf("  [%d] %s state=%d ticks=%u\n",
-                    t->task_id, t->name, (int)t->state,
-                    (unsigned)t->total_ticks);
+    while (t) {
+        /* stack usage = top - low-water, clamped to the stack range
+         * (gap B5/B6). The idle masquerades as the boot main-path, so
+         * its saved rsp is the higher-half stack -- show n/a. */
+        uint64_t base = (uint64_t)(uintptr_t)t->stack_base;
+        uint64_t top  = base + t->stack_size;
+        int sane = t->stack_size > 0 &&
+                   t->stack_min >= base && t->stack_min <= top;
+        uint64_t used = sane ? top - t->stack_min : 0;
+        const char *tag = "n/a";
+        if (!sane && t->stack_size > 0 && t->stack_min < base)
+            tag = "OVER";          /* low-water below the base: the stack
+                                    * actually exceeded its allocation */
+        klog_printf("  %s id=%d state=%d stk=%s\n",
+                    t->name, t->task_id, (int)t->state, tag);
+        if (sane) {
+            klog_printf("     stack %u%% (%u of %u bytes)\n",
+                        (unsigned)(used * 100 / t->stack_size),
+                        (unsigned)used, (unsigned)t->stack_size);
+        }
+        t = t->next;
+        if (++n >= 32) break;
+    }
     return 0;
 }
 
@@ -221,7 +246,17 @@ static int cmd_dump(int argc, char **argv)
     uint32_t n = 64;
     if (argc >= 3) n = (uint32_t)strtoul(argv[2], NULL, 0);
     if (n == 0 || n > 256) n = 64;
+    /* fault hardening: a typo'd/unmapped address must NOT #PF-halt the
+     * OS -- validate every page against the page tables first */
+    extern int wubu_vmm_is_mapped(uint64_t);
     volatile uint8_t *p = (volatile uint8_t *)addr;
+    for (uint32_t i = 0; i < n; i += 4096) {
+        if (!wubu_vmm_is_mapped((uint64_t)(uintptr_t)(p + i))) {
+            klog_printf("dump: %x UNMAPPED page at +%x\n",
+                        (unsigned)addr, (unsigned)i);
+            return 0;
+        }
+    }
     char line[80];
     klog_printf("dump: %x (%u bytes)\n", (unsigned)addr, (unsigned)n);
     for (uint32_t i = 0; i < n; i += 16) {

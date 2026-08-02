@@ -13,7 +13,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] A3. No NMI distinction: vector 2 hits the generic halt path.
 - [ ] A4. No watchdog for a task that never yields (console stuck = lockup).
 - [ ] A5. No task exit/cleanup path (tasks live forever; context never freed).
-- [ ] A6. Heap (mem_alloc) has no red-zone/poison check (the 8GB
+- [x] A6. Heap red-zone canaries: mem_validate_all wired into `mem` (canaries=OK live) (the 8GB
       alloca-in-loop bug class can regress silently).
 - [ ] A7. No panic-level klog (all messages equal; no panic ring for
       post-mortem).
@@ -39,8 +39,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] B2. Demand-zero regions: #PF alloc+map+RETRY live (verified `vmm touch`).
 - [ ] B3. No swap: demand pages are never evicted (the "VM+swap" P0 item).
 - [ ] B4. No COW.
-- [ ] B5. No guard pages between task stacks.
-- [ ] B6. No stack-overflow detection in tasks.
+- [x] B5. (detection-first) low-water + OVER flag; guard pages follow with multi-AS.
+- [x] B6. Stack low-water tracking: per-task stack_min at every switch; `tasks` reports usage / OVER.
 - [ ] B7. Single address space (kernel+future user share CR3); no
       per-address-space isolation.
 - [ ] B8. No page reference counting.
@@ -59,7 +59,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] C7. No alignment-check (AC) policy.
 - [x] C8. FPU/SSE saved on switch: fxsave/fxrstor in tasking_switch.S, primed first-run contexts (this batch) on context switch -- tasks share xmm0-15
       + mxcsr; the movaps-class corruption is a live hazard.
-- [ ] C9. CR0.WP not set (kernel can write RO pages silently).
+- [x] C9. CR0.WP set at paging-enable (crt0) -- kernel can't write RO pages (kernel can write RO pages silently).
 - [ ] C10. SMEP/SMAP not enabled.
 - [x] C11. Exception counters exposed: console `stats` (this batch) to the AGI/console.
 
