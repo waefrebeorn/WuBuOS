@@ -117,7 +117,8 @@ typedef enum {
     AHCI_PORT_EMPTY = 0,
     AHCI_PORT_PRESENT = 1,
     AHCI_PORT_ACTIVE = 2,
-    AHCI_PORT_FAULT = 3
+    AHCI_PORT_FAULT = 3,
+    AHCI_PORT_ERROR = 4     /* latched a SERR (gap A13: recoverable) */
 } ahci_port_state_t;
 
 /* Device type from IDENTIFY */
@@ -165,6 +166,12 @@ typedef struct {
     ahci_cmd_table_t  *cmd_table;    /* Command table + PRDT */
     ahci_identify_t    identify;     /* Device IDENTIFY data */
 
+    /* Port error/interrupt status registers (gap A13): the SERR bits
+     * latch protocol errors and are write-1-to-clear; PIS mirrors the
+     * HBA's port-interrupt bits. */
+    uint32_t          serr;
+    uint32_t          pis;
+
     /* Hosted simulation backing */
     uint8_t           *sim_disk;     /* Simulated disk buffer */
     uint64_t           sim_disk_size;/* Simulated disk size in bytes */
@@ -191,7 +198,11 @@ typedef struct {
 /* -- HBA Lifecycle ------------------------------------------- */
 
 /* Initialize HBA (in real kernel: takes ABAR address; hosted: simulated) */
-int  ahci_hba_init(ahci_hba_t *hba);
+int ahci_hba_init(ahci_hba_t *hba);
+
+/* Gap A13: HBA reset + port error recovery. */
+int ahci_hba_reset(ahci_hba_t *hba);
+int ahci_port_recover(ahci_hba_t *hba, int port_num);
 
 /* Shutdown HBA */
 void ahci_hba_shutdown(ahci_hba_t *hba);

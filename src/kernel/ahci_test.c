@@ -18,6 +18,33 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 
 /* -- HBA Lifecycle Tests ------------------------------------- */
 
+static void test_hba_reset_and_recover(void) {
+    TEST("HBA reset + port error recovery (A13)");
+    ahci_hba_t hba;
+    CHECK(ahci_hba_init(&hba) == 0, "init (with reset) succeeds");
+    CHECK(hba.ghc & AHCI_GHC_AE, "AE set after reset");
+    CHECK(hba.ghc & AHCI_GHC_HR ? 0 : 1, "HR cleared after reset");
+
+    /* enumerate + latch a fake SERR on port 0 */
+    CHECK(ahci_enumerate_ports(&hba) > 0, "ports enumerate");
+    hba.ports[0].serr = 0x00000400u;      /* DIAG.X (transient) */
+    hba.ports[0].state = AHCI_PORT_ERROR;
+    hba.ports[0].dev_type = AHCI_DEV_SATA;
+    hba.is |= 1u;
+
+    int rc = ahci_port_recover(&hba, 0);
+    CHECK(rc == 0, "recover reports the cleared error");
+    CHECK(hba.ports[0].serr == 0, "SERR cleared");
+    CHECK(hba.ports[0].pis == 0, "PIS cleared");
+    CHECK((hba.is & 1u) == 0, "HBA IS bit cleared");
+    CHECK(hba.ports[0].state == AHCI_PORT_PRESENT, "port back to PRESENT");
+
+    /* a clean port reports 1 */
+    CHECK(ahci_port_recover(&hba, 1) == 1, "clean port reports clean");
+    ahci_hba_shutdown(&hba);
+    PASS();
+}
+
 static void test_hba_init(void) {
     TEST("HBA init");
     ahci_hba_t hba;
@@ -365,6 +392,7 @@ int main(void) {
 
     /* Lifecycle */
     test_hba_init();
+    test_hba_reset_and_recover();
     test_hba_capabilities();
 
     /* Port Management */
