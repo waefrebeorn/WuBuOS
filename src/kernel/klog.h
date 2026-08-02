@@ -16,6 +16,9 @@
 
 /* Initialize the COM1 UART (8N1, 115200). Safe to call once at boot. */
 void klog_init(void);
+/* Gap E3: opportunistic drain of the serial TX ring (call from the
+ * timer tick + the console's idle path). */
+void klog_tx_poll(void);
 
 /* Write a raw NUL-terminated string to the log sink. */
 void klog_write(const char *s);

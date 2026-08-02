@@ -78,7 +78,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] E1. USB HID: wubu_usb.h is design-only (xHCI/HID implementation).
 - [x] E2. UART RX interrupt-driven: IOAPIC pin 4 -> vector 36 -> wubu_sync FIFO + safe poll backup (this batch), not interrupt-driven (console busy-polls; no
       serial ISR -> no ISR-queue usage of wubu_sync).
-- [ ] E3. No serial output buffering.
+- [x] E3. Serial TX ring (4KB): putc pushes, the timer tick + console idle drain; the console's interactive responses now complete under the flood (live-verified).
 - [x] E4. PCI report annotates device roles (storage/network/display/usb/...).
 - [ ] E5. No IOMMU/VT-d (the anticheat below-OS plane).
 - [ ] E6. No disk cache flush policy.

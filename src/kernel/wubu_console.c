@@ -513,7 +513,9 @@ void wubu_console_task(void *arg)
          * (the data register is a destructive read, whichever side wins). */
         extern int  wubu_serial_pop(uint8_t *);
         extern void wubu_serial_drain(void);
+        extern void klog_tx_poll(void);
         wubu_serial_drain();
+        klog_tx_poll();   /* gap E3: flush the serial TX ring */
         uint8_t c;
         if (wubu_serial_pop(&c) == 0) {
             if (c == '\r' || c == '\n') {
