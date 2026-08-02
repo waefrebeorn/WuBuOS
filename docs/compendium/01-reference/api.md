@@ -193,6 +193,10 @@
 - `wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)`
 - `wubu_pci_scan(wubu_pci_dev_t *out, int max)`
 
+## `wubu_verifier` (src/kernel/wubu_verifier.c)
+
+- `wubu_verifier_install(void)`
+
 ## `fw_agi` (src/firmware/fw_agi.c)
 
 - `fw_agi_publish_attest(void)`
