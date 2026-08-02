@@ -93,7 +93,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
       debugger the kernel needs (today: external qemu-monitor scripts).
 - [x] F6. `regs`: CR0/2/3/4 + EFER + LAPIC live.
 - [x] F7. `make check` runs 6 host tests + the kernel build (this batch) (tests run individually).
-- [ ] F8. gen_docs tests scanner covers 6 of ~15 test targets.
+- [x] F8. gen_docs CURATED_TESTS extended to 10 (test_lfn + test_acpi added; each runs in the check).
 - [x] F9. GitHub Actions CI: make check + firmware + WuBuFW->AGI boot smoke on push/PR.
 - [ ] F10. No crash-file pickup (post-mortem from the metal).
 
@@ -106,7 +106,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] G5. No long-term memory on metal (hive is hosted-side).
 - [ ] G6. No AGI crash recovery (checkpoints, DA-2.6).
 - [x] G7. Superseded by D7 (supervisor watchdog).
-- [ ] G8. Gamepad events fed by nothing (no driver).
+- [x] G8. Gamepad event path verified (feed_gamepad -> ring -> poll, host-tested); the hardware driver rides on the E1 USB-HID arc.
 - [x] G9. See B10 (this batch) (B10).
 - [ ] G10. No AGI-side fault awareness (C11).
 
