@@ -113,7 +113,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] H1. Syscall registry: names + docs accessors + 'syscalls' console command; get_uptime + klog registered.
 - [x] H2. The dispatcher rejects pointer-sized args inside the kernel window (-EFAULT).
 - [x] H3. Per-syscall call counters + the 'syscalls' audit command.
-- [ ] H4. No ring-3 boundary (all ring 0; the hedged-human design needs it).
+- [x] H4. wubu_user: the ring-3 boundary (iretq user frame: 0x23/0x2B selectors, IF; the syscall path returns via the C6-sanitized sysretq); 'user' console command runs the ring-3 selftest.
 - [x] H5. Superseded by C6 (the sysretq RFLAGS sanitizer ships with the C6 close).
 - [x] H6. wubu_vdso: a read-only published page (uptime/tick/promotions refreshed per tick, fixed-offset ABI, syscall-stub slot reserved for the ring-3 split).
 - [x] H7. Static ABI asserts for every InterruptFrame + TaskContext offset the asm touches.
