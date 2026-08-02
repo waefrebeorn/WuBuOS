@@ -80,7 +80,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
       serial ISR -> no ISR-queue usage of wubu_sync).
 - [x] E3. Serial TX ring (4KB): putc pushes, the timer tick + console idle drain; the console's interactive responses now complete under the flood (live-verified).
 - [x] E4. PCI report annotates device roles (storage/network/display/usb/...).
-- [ ] E5. No IOMMU/VT-d (the anticheat below-OS plane).
+- [x] E5. wubu_iommu: DMAR table discovery (via the ACPI walk) + DRHD parse + VT-d capability reads (CAP/ECAP); host-tested + boot probe. (Root/context-table wiring is the follow-on.)
 - [x] E6. FAT write-behind cache: dirty-tracking + fat32_flush (both FAT copies) + eviction/close/unmount flush (host-tested).
 - [x] E7. 8254 channel-2 hardware watchdog: armed at boot (2s one-shot), fed every PIT tick, OUT-line expiry readable; count helpers host-tested.
 
