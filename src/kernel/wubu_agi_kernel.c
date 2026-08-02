@@ -110,8 +110,8 @@ static void agi_agent_task(void *arg)
          * observable state. The supervisor learns from these spans. */
         int regions = k->decomp.n_regions;
         snprintf(buf, sizeof(buf),
-                 "agent.step=%llu regions=%d viewport=%dx%d",
-                 (unsigned long long)step, regions, k->fb_w, k->fb_h);
+                 "agent.step=%u regions=%d viewport=%dx%d",
+                 (unsigned)step, regions, k->fb_w, k->fb_h);
         wubu_agi_kernel_agent_emit(k, 0, buf);
 
         /* Emit a periodic self-mod proposal (gated event). The supervisor
@@ -211,9 +211,12 @@ wubu_agi_kernel_t *wubu_agi_kernel_init(int fb_w, int fb_h)
 void wubu_agi_kernel_run(wubu_agi_kernel_t *k)
 {
     if (!k) return;
-    /* Spawn the agent realm as a co-resident kernel task (REALM_AGENT). */
+    /* Spawn the agent realm as a co-resident kernel task (REALM_AGENT).
+     * 512 KB: the low-water tracking flagged the 256 KB stack as
+     * OVER -- the AGI cycle's call chain (verifier + trace + theme)
+     * was exhausting it. */
     k->agent_task = task_create("agi-agent", agi_agent_task, k,
-                                 256 * 1024, PRIO_NORMAL);
+                                 512 * 1024, PRIO_NORMAL);
     if (klog_printf)
         klog_printf("WuBuOS AGI: agent realm task spawned (%s)\n",
                     k->agent_task ? "ok" : "FAIL");
@@ -365,8 +368,10 @@ int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
             promoted++;
             k->promoted_total++;
             if (klog_printf)
-                klog_printf("WuBuOS AGI: PROMOTED span %llu (%s)\n",
-                            (unsigned long long)s->id, s->data);
+                /* klog has NO %llu (prints literally): the promote flood
+                 * was 'PROMOTED span %llu ()' on every tick. */
+                klog_printf("WuBuOS AGI: PROMOTED span (%s)\n",
+                            s->data[0] ? s->data : "?");
         }
     }
     return promoted;

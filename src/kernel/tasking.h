@@ -67,6 +67,9 @@ struct CTask {
     /* Scheduling */
     TaskContext    context;          /* Saved register state          */
     uint64_t      *stack_base;       /* Bottom of allocated stack     */
+    uint64_t       stack_min;        /* LOW-WATER RSP ever seen (gap
+                                      * B5/B6: stack-overflow detection --
+                                      * updated after every switch)     */
     size_t         stack_size;       /* Stack size in bytes           */
 
     /* Timing */
