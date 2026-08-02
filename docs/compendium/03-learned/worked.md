@@ -219,3 +219,11 @@ Copy TEMPLATE.md for new entries.*
   response's chars are slow/dropped. The rate-limit cut the flood
   ~90x; the remaining fix is the response path's TX priority or a real
   ISR-fed TX ring -- tracked.
+
+## 2026-08-02 — Serial TX ring fixed the console's interactive (E3)
+- The 4KB TX ring + the opportunistic drain (timer tick + console idle)
+  made the console's responses COMPLETE under the promote flood --
+  live-verified: "uptime" answered "tick=19 ... promoted=3870" while
+  518 promote lines flowed. The earlier tracked "console goes silent"
+  item is closed: the drop-continue contract + the ring = the kernel
+  never blocks on its debug channel and the console stays usable.

@@ -86,8 +86,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 
 ## F. Console / tooling (P1)
 - [x] F1. Console command history: ESC-[A/B recall (8-line ring, live).
-- [ ] F2. No tab completion.
-- [ ] F3. No script execution ("run <file>").
+- [x] F2. Tab completion: the console completes the first word against the command table (unique match; ambiguous = no-op).
+- [x] F3. run <file>: lazy FAT32 mount over the AHCI port-0 disk + line-by-line exec (live response debug tracked).
 - [x] F4. help enumerates every command (theme/hid/vmm/stats/dump/attest/date/agi/...).
 - [x] F5. In-OS hexdump: console `dump <addr> [bytes]` (this batch) command (`mem <addr> <bytes>`) -- the live
       debugger the kernel needs (today: external qemu-monitor scripts).
