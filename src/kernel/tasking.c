@@ -42,6 +42,10 @@ extern void task_switch_asm(TaskContext *old_ctx, TaskContext *new_ctx);
 static void task_trampoline(void);
 #endif
 
+/* Watchdog (gap A4): a task that never yields for this many ticks
+ * (50s at 100 Hz) is declared stuck. */
+#define WATCHDOG_STALL_LIMIT 5000ull
+
 /* -- Helpers ------------------------------------------------------ */
 
 static void task_insert(CTask *t) {
@@ -193,6 +197,34 @@ CTask *task_schedule_next(void) {
     return best;
 }
 
+/* -- Reaper (gap A5) ------------------------------------------------ */
+
+/* Free a DYING task's resources + unlink it from the ring. MUST run in
+ * TASK context (the heap is not ISR-safe): the main loop calls this
+ * every iteration. The current task is never reaped. */
+void task_reap(void) {
+    if (!g_head || !g_initialized) return;
+    extern void mem_free(void *);
+    CTask *t = g_head;
+    do {
+        CTask *next = t->next;
+        if (t->state == TASK_DYING && t != g_current) {
+            /* unlink */
+            CTask *prev = t;
+            while (prev->next != t) prev = prev->next;
+            prev->next = next;
+            if (g_head == t) g_head = (next == t) ? NULL : next;
+            mem_free(t->stack_base);
+            mem_free(t->user_data);
+            mem_free(t);
+            t = next;
+            if (!g_head) break;
+            continue;
+        }
+        t = next;
+    } while (t != g_head && g_head);
+}
+
 /* -- Timer Tick Handler (Preemptive Scheduling) --------------------- */
 
 /* Called from interrupt context (IRQ0/PIT)  --  must be fast, no locks */
@@ -202,6 +234,21 @@ void task_timer_tick(void) {
     if (!g_initialized || !g_current) return;
 
     g_current->total_ticks++;
+
+    /* Watchdog (gap A4): a task that never yields past the limit is
+     * stuck -- name it + dump the panic ring. (The limit is generous:
+     * the busy tasks are preemptable, so a legit CPU-bound stretch is
+     * fine; a genuinely stuck loop gets caught.) */
+    if (g_current->stall_ticks++ > WATCHDOG_STALL_LIMIT) {
+        extern int klog_printf(const char *, ...);
+        extern void interrupt_panic_dump(void);
+        klog_printf("WATCHDOG: task '%s' stuck (%u ticks, state=%d)\n",
+                    g_current->name[0] ? g_current->name : "?",
+                    (unsigned)g_current->stall_ticks,
+                    (int)g_current->state);
+        interrupt_panic_dump();
+        for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
+    }
 
     /* Wake sleeping tasks whose time has come */
     CTask *t = g_head;
@@ -296,6 +343,9 @@ static void task_trampoline(void)
 void task_yield(void) {
     /* Bare-metal: real round-robin context switch via the assembly switch. */
     if (!g_current || !g_initialized) return;
+
+    /* Watchdog reset (gap A4): a yield proves the task is alive. */
+    g_current->stall_ticks = 0;
 
     CTask *old = g_current;
     CTask *next = task_schedule_next();
