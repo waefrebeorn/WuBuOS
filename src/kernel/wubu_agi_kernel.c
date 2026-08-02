@@ -373,10 +373,20 @@ int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
         s->consumed = true;
         if (passed) {
             promoted++;
-            /* Growth + a rate-limited log. NOTE: the soft cap and the
-             * `% 25` rate-limit BOTH re-triggered the tick-12 freeze
-             * (timing-dependent corruption -- under investigation); the
-             * plain ID message + the ring lock are the stable form. */
+            /* Runtime PCR extension (gap A10): every promotion chains
+             * the promoted span id + the uptime into the runtime PCR --
+             * the measured-boot chain follows the kernel's behavior. */
+            {
+                uint8_t run[8];
+                uint32_t pid = (uint32_t)s->id;
+                run[0] = (uint8_t)(pid >> 24); run[1] = (uint8_t)(pid >> 16);
+                run[2] = (uint8_t)(pid >> 8);  run[3] = (uint8_t)pid;
+                uint64_t ut = k->uptime_ms;
+                run[4] = (uint8_t)(ut >> 24); run[5] = (uint8_t)(ut >> 16);
+                run[6] = (uint8_t)(ut >> 8);  run[7] = (uint8_t)ut;
+                extern int wubu_attest_extend_runtime(const void *, size_t);
+                wubu_attest_extend_runtime(run, sizeof(run));
+            }
             k->promoted_total++;
             if (klog_printf)
                 klog_printf("WuBuOS AGI: PROMOTED span id=%u\n",

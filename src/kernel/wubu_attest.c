@@ -22,6 +22,15 @@ static bool          g_valid = false;
 static uint8_t       g_kernel_sha[WUBU_AGI_PCR_SZ];
 static uint32_t      g_kernel_size = 0;
 
+/* Runtime PCR (gap A10): a kernel-side PCR beyond the firmware's 0-7.
+ * The kernel EXTENDS it with its runtime state (promotions, uptime,
+ * counters) so the measured-boot chain continues into the running
+ * kernel -- the anti-cheat's live proof that the kernel's behavior is
+ * the one the boot measured. Starts as SHA-256 of the empty string;
+ * every extension chains: pcr = sha256(pcr || data). */
+static uint8_t g_runtime_pcr[WUBU_AGI_PCR_SZ];
+static bool    g_runtime_pcr_live = false;
+
 static int attest_copy(const void *raw)
 {
     if (!raw) return -1;
@@ -94,6 +103,55 @@ int wubu_attest_kernel_digest(uint8_t out[WUBU_AGI_PCR_SZ])
 {
     if (!g_valid || !out) return -1;
     memcpy(out, g_kernel_sha, WUBU_AGI_PCR_SZ);
+    return 0;
+}
+
+/* ---- Runtime PCR (gap A10) ---- */
+
+/* One-shot extend: pcr := sha256(pcr || data). The runtime PCR starts
+ * as the digest of the empty string, so the first extension chains from
+ * a known value. */
+int wubu_attest_extend_runtime(const void *data, size_t len)
+{
+    extern int wubu_sha256(const void *, size_t, uint8_t[WUBU_AGI_PCR_SZ]);
+    if (!g_valid || (!data && len)) return -1;
+
+    if (!g_runtime_pcr_live) {
+        wubu_sha256(NULL, 0, g_runtime_pcr);   /* sha256("") */
+        g_runtime_pcr_live = true;
+    }
+    /* chain: pcr_new = sha256(pcr_old || data) */
+    uint8_t buf[WUBU_AGI_PCR_SZ * 2 + 64];
+    memcpy(buf, g_runtime_pcr, WUBU_AGI_PCR_SZ);
+    size_t n = WUBU_AGI_PCR_SZ;
+    const uint8_t *p = (const uint8_t *)data;
+    while (len) {
+        size_t chunk = len < 64 ? len : 64;
+        memcpy(buf + n, p, chunk);
+        n += chunk;
+        p += chunk;
+        len -= chunk;
+        if (n >= WUBU_AGI_PCR_SZ + 64) {
+            wubu_sha256(buf, n, g_runtime_pcr);
+            n = WUBU_AGI_PCR_SZ;
+            memcpy(buf, g_runtime_pcr, WUBU_AGI_PCR_SZ);
+        }
+    }
+    if (n > WUBU_AGI_PCR_SZ)
+        wubu_sha256(buf, n, g_runtime_pcr);
+    else if (n == WUBU_AGI_PCR_SZ && len == 0)
+        wubu_sha256(buf, n, g_runtime_pcr);
+    return 0;
+}
+
+int wubu_attest_runtime_pcr(uint8_t out[WUBU_AGI_PCR_SZ])
+{
+    if (!g_valid || !out) return -1;
+    if (!g_runtime_pcr_live) {
+        wubu_sha256(NULL, 0, g_runtime_pcr);
+        g_runtime_pcr_live = true;
+    }
+    memcpy(out, g_runtime_pcr, WUBU_AGI_PCR_SZ);
     return 0;
 }
 

@@ -23,6 +23,7 @@
 #ifndef WUBU_ATTEST_H
 #define WUBU_ATTEST_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -90,7 +91,12 @@ int  wubu_attest_pcr(unsigned i, uint8_t out[WUBU_AGI_PCR_SZ]);
 /* Convenience: PCR4 = the boot image digest (code-as-data). */
 int  wubu_attest_pcr4_digest(uint8_t out[WUBU_AGI_PCR_SZ]);
 /* SHA-256 of the kernel ELF as measured by the loader. */
-int  wubu_attest_kernel_digest(uint8_t out[WUBU_AGI_PCR_SZ]);
+int wubu_attest_kernel_digest(uint8_t out[WUBU_AGI_PCR_SZ]);
+
+/* Runtime PCR (gap A10): the kernel-side extension of the measured-boot
+ * chain. Every call chains: pcr := sha256(pcr || data). */
+int wubu_attest_extend_runtime(const void *data, size_t len);
+int wubu_attest_runtime_pcr(uint8_t out[WUBU_AGI_PCR_SZ]);
 uint32_t wubu_attest_kernel_size(void);
 
 #endif /* WUBU_ATTEST_H */
