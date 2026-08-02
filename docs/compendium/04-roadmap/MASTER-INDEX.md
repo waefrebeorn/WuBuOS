@@ -17,9 +17,10 @@ for the AGI to bounce off of. "This is the beginning of an AGI."
 | Kernel (KR) | `docs/compendium/04-roadmap/kernel-bank.md` | open | 1000 |
 | AI-Engine (AIE) | `docs/compendium/04-roadmap/engine-bank.md` | open | 1000 |
 | Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | open | 1000 |
-| **TOTAL** | | | **~8243** |
+| Security (SC) | `docs/compendium/04-roadmap/security-bank.md` | open | 1000 |
+| **TOTAL** | | | **~9243** |
 
-Path to 25,000: 17 more thousand-gap avenues (DevTools, Media, Games,
+Path to 25,000: 16 more thousand-gap avenues (DevTools, Media, Games,
 Robotics, Science, Math, Security, Cloud, Web, IoT, Accessibility, Education,
 Comms, Mobility, Energy, Privacy, Community) -- each spawned by a fresh
 7-hop research wave and closed by the recursive loop.
@@ -37,6 +38,9 @@ its key sources here + registers them below.
 | Continuous Batching (Brenndoerfer) | `continuous-batching.md` | 96327 | AI-Engine |
 | Adaptive User Interfaces 2026 (Yenra) | `adaptive-user-interfaces.md` | 38416 | Human |
 | Wavetable Synthesis (WolfSound) | `wavetable-synthesis.md` | 26421 | Synthesis |
+| Kernel Security Review (MDPI) | `kernel-security-review.md` | 119215 | Security |
+| Memory Safety Continuum (OpenSSF) | `memory-safety-continuum.md` | 8167 | Security |
+| Supply Chain 2026 (Cloudsmith) | `supply-chain-2026.md` | 23981 | Security |
 
 Also available (Hermes cache, not yet copied): the 15-chain sweep results
 (KV eviction, Hopfield, preference-opt, serving, PIM, tokenization, linear
@@ -73,6 +77,11 @@ masterpiece-architecture references (in the skill library).
   (BLET/BLIP/MinBLEP/polyBLEP, per-octave tables, interpolation).
 - The GUI lineage: Win98/XP design -> Wayland compositing -> Plan9/Inferno
   namespace -> the TempleOS everything-through-HolyC philosophy.
+- The Security avenue: kernel-level security review (MDPI 26/8/2452:
+  Dirty COW/Meltdown/Spectre, MAC, kASLR) -> the OpenSSF memory-safety
+  continuum (CFI/shadow-stack/PAC, ~70% of bugs) -> the 2026
+  supply-chain governance era (SBOM -> SLSA -> MLSecOps -> agentic
+  governance) -> the WuBuOS verifier/EDR lineage.
 
 ## The closing ledger (the loop's own numbers)
 
