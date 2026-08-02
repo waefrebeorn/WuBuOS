@@ -1,38 +1,48 @@
 # WuBuOS AGI Operating System — Architecture (firmware-mediated)
 
-## Status: VERIFIED — full boot chain green
+## Status: VERIFIED — REAL kernel boots on WuBuFW (measured boot chain green)
 
-`make test_uefi` / `./run.sh` → **RESULT: PASS -- payload ran on WuBuFW and all checks passed** (28/28 firmware conformance).
+- `make test_uefi` — conformance payload on WuBuFW: **28/28 PASS** (regression).
+- `make test_agi_metal` — the REAL bare-metal AGI kernel (`src/kernel/kernel.elf`)
+  boots as a WuBuFW measured payload: **RESULT: PASS — measured boot chain green**.
+  Full chain: firmware measures+verifies the chainloader (PCR4 + AuthentiCode)
+  → loader reads KERNEL.ELF off the ESP, SHA-256s it, stashes the attestation
+  handoff in low RAM → ExitBootServices → 32-bit teardown → crt0 → kernel_main
+  consumes the attestation → AGI supervisor boots with the root-of-trust gate
+  LIVE. `wubu_attest.{c,h}` (kernel) ↔ `fw_agi_attest.h` (shared wire format)
+  ↔ `src/firmware/loader/` (chainloader) is the closed loop.
 
-## Boot evidence (latest `./run.sh` serial)
+## Boot evidence (real kernel, latest `make test_agi_metal` serial)
 
 ```
-[acpi] no RSDP found
-[drv] bound AHCI at 0:3.0
-[drv] bound NVMe at 0:4.0
-[drv] bound XHCI at 0:5.0
-[drv] bound e1000 at 0:2.0
-[drv] bound GPU/GOP at 0:1.0
-[drv] 5 driver(s) bound
-[measure] PCR5 <- ... GPT header + entries
-[measure] PCR7 <- ... SecureBoot=0
 [agi] attestation table published (PCR0-7, SB=0 setup=1)
-[tpm] no TPM detected - measurements are software-only
-[tpm] PCR extend math (SHA-256 TCG vector): PASS
 [sb] secureboot policy engine selftest: PASS
-[sb] signed payload verifies under enforcement: PASS
-[sb] no embedded certificate -> reject
-[sb] unsigned payload rejected under enforcement: PASS
-[tpm] event log: 3 events, 197 bytes
 [boot] vol0 \EFI\BOOT\BOOTX64.EFI (6656 bytes)
-[agi] PCR4 extended with image digest; PCR4 now:
-[agi] attestation table published (PCR0-7, SB=0 setup=1)
+[agi] PCR4 extended with image digest; PCR4 now: 02B03ABC...
 [agi] attest-and-boot: OS image \EFI\BOOT\BOOTX64.EFI verified + measured
-[fw] starting payload image (entry=0x4000000, st=0x...)
-=== WuBuOS EFI payload: firmware conformance run ===
-=== results: 28 passed, 0 failed ===
-WUBUFW_SELFTEST_OK
-RESULT: PASS -- payload ran on WuBuFW and all checks passed
+[fw] starting payload image (entry=0x4000000)
+[wubufw-loader] WuBuOS chainloader v1
+[wubufw-loader] attestation table: FOUND (boot=0 sb=0 pcr4=02B03ABC...)
+[wubufw-loader] reading \EFI\BOOT\KERNEL.ELF
+[wubufw-loader] ELF64 ok: phnum=1 entry=FFFFFFFF8010012C
+[wubufw-loader] loaded 1 PT_LOAD at 0x100000 (BSS zeroed)
+[wubufw-loader] kernel sha256=989983AE403D01FD15A66FDC6194ECB5131651BDF45C62A61EB4BD87C6022517
+[wubufw-loader] handoff @ 0x91000 (attest=92000)
+[wubufw-loader] boot services exited (0) -- handing control to kernel @ 10012C
+MPGCEWXYJKSIWuBuOS: 64-bit long mode entered, stack up
+QZAhiWuBuOS: kernel_main entered (long mode OK)
+jWuBuOS: BSS zeroed
+WuBuOS: firmware attestation consumed (boot=0 sb=0 setup=1 pcr4=02B03ABC...)
+kqrWuBuOS: heap initialized (64 MB)
+B1ipqlmnogWuBuOS: interrupts initialized
+2WuBuOS: VBE initialized (1920x1080)
+33WuBuOS: GAAD viewport decomposed (1920x1080, 6 regions)
+45WuBuOS: input/PS2 initialized
+6WuBuOS: tasking initialized
+78WuBuOS AGI: GAAD viewport 1920x1080 -> 34 regions
+WuBuOS AGI: firmware attestation VALID (root of trust live)
+WuBuOS: AGI kernel booted (regions=34)
+9WuBuOS AGI: agent realm task spawned (ok)
 ```
 
 ## The platform (3 rings)
@@ -43,7 +53,7 @@ RESULT: PASS -- payload ran on WuBuFW and all checks passed
    - AX02/AX03: seccomp sandbox + formal verification of generated C11
 3. **Human surface** (WuBuFX GUI): Bonzi Buddy agent persona + Comfy node-graph editor. The human *bonzi* (queries the AGI, gets causal explanations) and *comfy* (edits the node graph of optimizer↔attestation↔memory). `wubufx_app_launch` routes real actions.
 
-## Boot sequence (`make test_agi` / `make test_uefi`)
+## Boot sequence (`make test_agi` / `make test_uefi` / `make test_agi_metal`)
 ```
 WuBuFW firmware
   → firmware self-tests (ConInit, Mem, Time, PCI, ACPI, drivers)
@@ -54,13 +64,25 @@ WuBuFW firmware
         carrying {magic, version, pcr[8][32], sb_enabled, sb_setup_mode, boot_count}
   → fw_boot_run() → shell (interactive) / auto-boot
   → user 'exit' (or bootpath) → fw_agi_attest_and_boot(path):
-        1. read image from ESP volume (fw_vol_read_file)
+        1. read image from ESP volume (fw_vol_read_file)          [the chainloader]
         2. fw_sb_verify() AuthentiCode + policy gate  (refuse drift)
         3. SHA-256 → fw_tpm_pcr_extend(4)            (code-as-data into PCR4)
         4. fw_agi_publish_attest() re-pins fresh PCRs
         5. fw_image_create() → fw_pe_load() → fw_alloc_pages_at(ImageBase)
         6. fw_bs_start_image() hands control: efi_main(image, SystemTable)
-  → payload efi_main runs → WUBUFW_SELFTEST_OK / WUBUFW_SELFTEST_FAIL
+  → [wubufw-loader] efi_main (src/firmware/loader/loader.c):
+        1. locate WUBU_AGI_ATTEST config table (PCR0-7 + SB state)
+        2. read \EFI\BOOT\KERNEL.ELF via EFI file protocol (up to 4MB)
+        3. validate ELF64, load every PT_LOAD at its physical LMA (0x100000),
+           zero BSS
+        4. SHA-256 the kernel ELF → handoff block @ 0x91000 (ptr @ 0x90040):
+           {magic, version, kernel_size, kernel_sha256[32], attest_addr@0x92000}
+        5. ExitBootServices(image, mapkey) → 64→32 protected-mode teardown
+           (teardown.S: clear CR0.PG, CR4.PAE) → jump to physical _start
+  → crt0.S builds its own tables (PT_high maps 0xffffffff80100000 → 0x100000)
+  → kernel_main: wubu_attest_load_scratch() consumes the handoff
+  → AGI supervisor: root-of-trust gate LIVE — cycle() refuses promotion
+    without a valid firmware attestation (no attestation → no self-modification)
 ```
 
 ## AGI shim: fw_agi.c (the attestation channel)

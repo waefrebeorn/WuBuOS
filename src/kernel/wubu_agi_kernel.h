@@ -103,4 +103,12 @@ int    wubu_agi_kernel_promoted_total(const wubu_agi_kernel_t *k);
 int    wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k);
 uint64_t wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k);
 
+/* Firmware root-of-trust state captured at init (wubu_attest consumed). */
+bool   wubu_agi_kernel_attest_valid(const wubu_agi_kernel_t *k);
+
+/* Copy the data of the idx-th trace span (oldest-first) into out.
+ * Returns 0 on success, -1 if out of range. */
+int    wubu_agi_kernel_span_data(const wubu_agi_kernel_t *k, int idx,
+                                 char *out, size_t outsz);
+
 #endif /* WUBU_AGI_KERNEL_H */

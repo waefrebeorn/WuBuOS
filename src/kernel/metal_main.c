@@ -12,6 +12,7 @@
 #include "input.h"
 #include "wubu_gaad.h"
 #include "wubu_agi_kernel.h"
+#include "wubu_attest.h"
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
@@ -131,6 +132,29 @@ void kernel_main(void *boot_info) {
     klog_printf("WuBuOS: kernel_main entered (long mode OK)\n");
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'j', %%al\n outb %%al, %%dx" ::: "dx","al");
     klog_printf("WuBuOS: BSS zeroed\n");
+
+    /* 1b. Consume the WuBuFW loader handoff (firmware attestation +
+     * kernel digest). The AGI supervisor gates self-improvement promotion
+     * on this: no attestation -> no self-modification. */
+    {
+        static const char hexd[] = "0123456789ABCDEF";
+        char hexbuf[65];
+        char *o = hexbuf;
+        uint8_t p4[32];
+        if (wubu_attest_load_scratch() == 0 && wubu_attest_pcr4_digest(p4) == 0) {
+            for (int i = 0; i < 32; i++) {
+                *o++ = hexd[p4[i] >> 4]; *o++ = hexd[p4[i] & 15];
+            }
+            *o = 0;
+            klog_printf("WuBuOS: firmware attestation consumed (boot=%d sb=%d setup=%d pcr4=%s)\n",
+                        (int)wubu_attest_boot_counter(),
+                        wubu_attest_sb_enabled() ? 1 : 0,
+                        wubu_attest_setup_mode() ? 1 : 0, hexbuf);
+        } else {
+            klog_printf("WuBuOS: no firmware attestation (loader handoff absent) "
+                        "-- self-improve promotion disabled\n");
+        }
+    }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'k', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 2. Initialize memory allocator FIRST (everything needs it) */

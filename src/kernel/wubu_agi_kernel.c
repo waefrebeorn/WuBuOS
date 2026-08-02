@@ -11,6 +11,7 @@
  */
 #include "wubu_agi_kernel.h"
 #include "wubu_gaad.h"
+#include "wubu_attest.h"
 #include "tasking.h"
 #include "klog.h"
 #include "vbe.h"
@@ -37,6 +38,11 @@ struct wubu_agi_kernel {
     void            *verifier_ud;
     bool             frozen;
     int              promoted_total;
+
+    /* Firmware root of trust (WuBuFW attestation, consumed at init). */
+    bool             attest_valid;
+    uint32_t         kernel_size;
+    uint8_t          kernel_digest[WUBU_AGI_PCR_SZ];
 
     /* Uptime (ms), advanced by tick(). */
     uint64_t         uptime_ms;
@@ -146,9 +152,56 @@ wubu_agi_kernel_t *wubu_agi_kernel_init(int fb_w, int fb_h)
     g_agi.uptime_ms = 0;
     g_agi.agent_alive = false;
 
+    /* Firmware root of trust: consume the attestation snapshot the WuBuFW
+     * loader handed over (metal_main calls wubu_attest_load_scratch() first).
+     * If the firmware's measurement chain is not live, the supervisor will
+     * REFUSE to promote any self-improvement change (see cycle()). */
+    g_agi.attest_valid = wubu_attest_valid();
+    g_agi.kernel_size  = wubu_attest_kernel_size();
+    wubu_attest_kernel_digest(g_agi.kernel_digest);
+
+    /* Record the boot's root-of-trust state as an immutable trace span
+     * (code-as-data: the supervisor's own start is observable). */
+    {
+        static const char hexd[] = "0123456789ABCDEF";
+        char sbuf[WUBU_AGI_SPAN_DATA];
+        if (g_agi.attest_valid) {
+            uint8_t p4[WUBU_AGI_PCR_SZ];
+            char p4hex[2 * WUBU_AGI_PCR_SZ + 1];
+            char kh[2 * WUBU_AGI_PCR_SZ + 1];
+            char *o = p4hex;
+            if (wubu_attest_pcr4_digest(p4) == 0) {
+                for (int i = 0; i < WUBU_AGI_PCR_SZ; i++) {
+                    *o++ = hexd[p4[i] >> 4]; *o++ = hexd[p4[i] & 15];
+                }
+            } else {
+                *o++ = '?';
+            }
+            *o = 0;
+            o = kh;
+            for (int i = 0; i < WUBU_AGI_PCR_SZ; i++) {
+                *o++ = hexd[g_agi.kernel_digest[i] >> 4];
+                *o++ = hexd[g_agi.kernel_digest[i] & 15];
+            }
+            *o = 0;
+            snprintf(sbuf, sizeof(sbuf),
+                     "attest: valid sb=%u setup=%u boot=%u pcr4=%s kern=%s sz=%u",
+                     wubu_attest_sb_enabled() ? 1u : 0u,
+                     wubu_attest_setup_mode() ? 1u : 0u,
+                     wubu_attest_boot_counter(), p4hex, kh, g_agi.kernel_size);
+        } else {
+            snprintf(sbuf, sizeof(sbuf),
+                     "attest: ABSENT -- self-improve promotion disabled");
+        }
+        agi_ring_push(&g_agi, WUBU_AGI_SPAN_SUPER, 0, sbuf);
+    }
+
     if (klog_printf) {
         klog_printf("WuBuOS AGI: GAAD viewport %dx%d -> %d regions\n",
                     g_agi.fb_w, g_agi.fb_h, g_agi.decomp.n_regions);
+        klog_printf("WuBuOS AGI: firmware attestation %s\n",
+                    g_agi.attest_valid ? "VALID (root of trust live)" :
+                                         "ABSENT (promotion disabled)");
     }
     return &g_agi;
 }
@@ -204,7 +257,11 @@ int wubu_agi_kernel_agent_emit(wubu_agi_kernel_t *k, uint64_t parent,
 
 int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
 {
-    if (!k || k->frozen || !k->verifier) return 0;  /* DA-3 safe default */
+    /* DA-3 safe default + firmware root-of-trust gate: no promotion without
+     * (a) a running loop, (b) an INDEPENDENT verifier, (c) a LIVE firmware
+     * attestation. A self-modification chain is only trusted while the
+     * WuBuFW measurement chain (PCR0-7 + AuthentiCode) is present. */
+    if (!k || k->frozen || !k->verifier || !k->attest_valid) return 0;
 
     int promoted = 0;
     /* Scan the ring for unconsumed spans; score each via the INDEPENDENT
@@ -240,5 +297,23 @@ int      wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k)
            { return k ? k->decomp.n_regions : 0; }
 uint64_t wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k)
            { return k ? k->uptime_ms : 0; }
+bool     wubu_agi_kernel_attest_valid(const wubu_agi_kernel_t *k)
+           { return k ? k->attest_valid : false; }
+
+/* Copy the data of the idx-th trace span (oldest-first) into out.
+ * Returns 0 on success, -1 if out of range. */
+int wubu_agi_kernel_span_data(const wubu_agi_kernel_t *k, int idx,
+                              char *out, size_t outsz)
+{
+    if (!k || !out || outsz == 0) return -1;
+    if (idx < 0 || idx >= k->ring_count) return -1;
+    int slot = (k->ring_head - k->ring_count + idx);
+    if (slot < 0) slot += WUBU_AGI_TRACE_CAP;
+    size_t n = strlen(k->ring[slot].data);
+    if (n >= outsz) n = outsz - 1;
+    memcpy(out, k->ring[slot].data, n);
+    out[n] = '\0';
+    return 0;
+}
 
 wubu_agi_kernel_t *wubu_agi_kernel_global(void) { return &g_agi; }
