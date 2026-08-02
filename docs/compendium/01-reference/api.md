@@ -2,9 +2,9 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Public API (header-sourced)
-> Generated 2026-08-02 11:02 UTC -- prototypes extracted from the headers = the real interface contracts.
+> Generated 2026-08-02 13:52 UTC -- prototypes extracted from the headers = the real interface contracts.
 
-> 636 prototypes across the tree.
+> 653 prototypes across the tree.
 
 ## `src/tools/iso9660.h`
 
@@ -113,15 +113,23 @@
 
 ## `src/kernel/klog.h`
 
+- `klog_tx_poll(void)`
 - `klog_printf(const char *fmt, ...)`
+- `klog_ring_snapshot(char *out, size_t bufsz)`
 
 ## `src/kernel/memory.h`
 
 - `mem_free(void *ptr)`
 - `mem_bloom_scan(uint32_t target_sig, MemBloomFn callback, void *ctx)`
 
+## `src/kernel/ps2.h`
+
+- `ps2_init(int screen_w, int screen_h, ps2_probe_t *probe)`
+
 ## `src/kernel/tasking.h`
 
+- `task_prio_get(const struct CTask *t)`
+- `task_prio_set(struct CTask *t, int prio)`
 - `task_timer_tick(void)`
 - `task_switch_to(CTask *target)`
 
@@ -138,6 +146,12 @@
 - `vbe_reset_clip(void)`
 - `vbe_get_clip(int *x, int *y, int *w, int *h)`
 
+## `src/kernel/wubu_acpi.h`
+
+- `wubu_acpi_find_rsdp(void)`
+- `wubu_acpi_find_table(const char sig[4])`
+- `wubu_acpi_find_table_from(uint64_t rsdp, const char sig[4])`
+
 ## `src/kernel/wubu_agi_kernel.h`
 
 - `wubu_agi_kernel_run(wubu_agi_kernel_t *k)`
@@ -149,6 +163,7 @@
 - `wubu_agi_kernel_promoted_total(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k)`
 - `wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k)`
+- `wubu_agi_kernel_last_promote_tick(const wubu_agi_kernel_t *k)`
 
 ## `src/kernel/wubu_apic.h`
 
@@ -160,6 +175,9 @@
 - `wubu_attest_ingest(const void *raw)`
 - `wubu_attest_ingest_handoff(const void *handoff)`
 - `wubu_attest_load_scratch(void)`
+- `wubu_attest_extend_runtime(const void *data, size_t len)`
+- `wubu_attest_runtime_pcr(uint8_t out[WUBU_AGI_PCR_SZ])`
+- `wubu_attest_kernel_size(void)`
 
 ## `src/kernel/wubu_bonzi.h`
 
@@ -191,9 +209,18 @@
 
 - `wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)`
 
+## `src/kernel/wubu_rtc.h`
+
+- `wubu_rtc_read(wubu_rtc_tm *tm)`
+- `wubu_rtc_12h_to_24h(uint8_t reg)`
+
 ## `src/kernel/wubu_serial.h`
 
 - `wubu_serial_drain(void)`
+
+## `src/kernel/wubu_sha256.h`
+
+- `wubu_sha256(const void *data, size_t len, uint8_t out[WUBU_SHA256_SZ])`
 
 ## `src/kernel/wubu_sync.h`
 
@@ -211,6 +238,8 @@
 
 ## `src/kernel/wubu_vmm.h`
 
+- `wubu_vmm_ref(uint64_t phys, uint32_t n)`
+- `wubu_vmm_refcount(uint64_t phys)`
 - `wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)`
 - `wubu_vmm_register_demand(uint64_t base, uint32_t pages)`
 - `wubu_vmm_demand_fill(uint64_t va)`
