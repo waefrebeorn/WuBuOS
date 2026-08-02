@@ -107,6 +107,10 @@ static int cmd_pci(void)
 {
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
+    if (n < 0) {                     /* Gap A20: report the scan failure */
+        klog_printf("pci: scan FAILED (rc=%d)\n", n);
+        return 0;
+    }
     klog_printf("-- PCI bus 0 (%d devices) --\n", n);
     for (int i = 0; i < n; i++)
         klog_printf("  %02x:%02x.%x %04x:%04x class=%02x.%02x.%02x bar0=%x bar1=%x\n",
@@ -183,6 +187,22 @@ static int cmd_vmm(int argc, char **argv)
         klog_printf("vmm: demand page touched, readback=%x (faults=%u)\n",
                     (unsigned)demo[0],
                     (unsigned)wubu_vmm_demand_faults());
+        return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "alloc") == 0 && argc >= 3) {
+        /* Gap A20: report the allocator's failure instead of silently
+         * returning 0. */
+        uint32_t np = (uint32_t)strtoul(argv[2], NULL, 10);
+        int rc = wubu_vmm_alloc_pages(0xffffffff91000000ull, np);
+        klog_printf("vmm: alloc %u pages -> %s\n", np,
+                    rc == 0 ? "ok" : "FAILED");
+        return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "free") == 0 && argc >= 3) {
+        uint32_t np = (uint32_t)strtoul(argv[2], NULL, 10);
+        wubu_vmm_free_pages(0xffffffff91000000ull, np);
+        klog_printf("vmm: freed %u pages (free=%u)\n", np,
+                    (unsigned)wubu_vmm_free_count());
         return 0;
     }
     klog_printf("vmm: free_pages=%u demand_regions=%u faults=%u\n",
