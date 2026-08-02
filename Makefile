@@ -51,6 +51,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_sha256.o $(KERNEL)/wubu_rtc.o \
               $(KERNEL)/wubu_acpi.o $(KERNEL)/wubu_wdt.o \
               $(KERNEL)/wubu_hpet.o $(KERNEL)/wubu_crash.o \
+              $(KERNEL)/wubu_smbios.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
@@ -996,7 +997,7 @@ test_theme_hid:
 .PHONY: check
 check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1062,6 +1063,13 @@ test_hpet:
 		$(KERNEL)/test_hpet.c \
 		-o $(KERNEL)/test_hpet
 	$(KERNEL)/test_hpet
+
+# SMBIOS/DMI walk (gap I3): synthetic tables
+test_smbios:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/test_smbios.c \
+		-o $(KERNEL)/test_smbios
+	$(KERNEL)/test_smbios
 
 test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

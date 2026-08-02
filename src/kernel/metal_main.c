@@ -443,6 +443,30 @@ void kernel_main(void *boot_info) {
         }
     }
 
+    /* I3: SMBIOS/DMI -- the firmware's machine description (BIOS +
+     * system strings). */
+    {
+        extern int wubu_smbios_probe(void *);
+        struct {
+            uint8_t  bios_major, bios_minor;
+            uint16_t bios_vendor_len, system_manufacturer_len,
+                     system_product_len, system_version_len,
+                     system_serial_len;
+            uint32_t tables;
+            int      found;
+        } sm;
+        if (wubu_smbios_probe(&sm) == 0 && sm.found) {
+            klog_printf("WuBuOS: SMBIOS %u tables (bios %u.%u mfr=%u prod=%u serial=%u)\n",
+                        (unsigned)sm.tables,
+                        (unsigned)sm.bios_major, (unsigned)sm.bios_minor,
+                        (unsigned)sm.system_manufacturer_len,
+                        (unsigned)sm.system_product_len,
+                        (unsigned)sm.system_serial_len);
+        } else {
+            klog_printf("WuBuOS: no SMBIOS tables\n");
+        }
+    }
+
     /* A19: the HPET -- the high-precision time source (its MMIO base
      * comes from the ACPI HPET table; the counter is enabled + read). */
     {
