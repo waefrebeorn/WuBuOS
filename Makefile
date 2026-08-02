@@ -30,7 +30,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
@@ -77,7 +77,7 @@ AUDIO_OBJS = $(AUDIO)/wubu_audio.o $(AUDIO)/wubu_audio_chips.o $(AUDIO)/wubu_aud
 
 # ── Targets ─────────────────────────────────────────────────────
 
-.PHONY: all clean test kernel jit gui bridge apps worldsim firmware uefi test_uefi
+.PHONY: all clean test kernel jit gui bridge apps worldsim firmware uefi test_uefi test_agi_metal
 
 # ---- WuBuFW: our own C11 UEFI firmware (no EDK2 / no OVMF) ----------
 FW = src/firmware
@@ -89,6 +89,12 @@ firmware uefi:
 # the payload's 28-check conformance run passes.
 test_uefi:
 	$(FW)/run.sh
+
+# Boots the REAL WuBuOS bare-metal AGI kernel as a WuBuFW measured payload:
+# firmware attestation -> chainloader (SHA-256 + handoff) -> kernel_main ->
+# AGI supervisor with the root-of-trust gate live. Asserts every hop.
+test_agi_metal:
+	$(FW)/run-agi.sh
 
 # Header dependency tracking: every .c compile now emits a .d file (via -MMD
 # -MP in the pattern rules). Including them makes `make` rebuild an object
@@ -950,6 +956,7 @@ test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(KERNEL) \
 		$(KERNEL)/wubu_agi_kernel.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
+		$(KERNEL)/wubu_attest.c \
 		$(KERNEL)/test_agi_kernel.c $(KERNEL)/test_agi_kernel_stub.c \
 		-o $(KERNEL)/test_agi_kernel
 	$(KERNEL)/test_agi_kernel

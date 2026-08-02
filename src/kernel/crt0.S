@@ -246,12 +246,20 @@ _start:
     movl %eax, 4080(%ebp)            /* PDP_high[510] -> PD_high */
 
     /* Build PT_high (ebx+0x5000): map higher-half VA 0xffffffff80000000 +
-     * i*4KB to the kernel's physical image.  Image base = PML4 - 0x200000. */
+     * i*4KB to the kernel's physical image.  Image base = PML4 - 0x200000.
+     *
+     * CRITICAL: the write pointer must start at PT_high + 256*8, because
+     * PT_high[i] is the mapping for VA index i, and the kernel image starts
+     * at VA index 256 (0xffffffff80100000).  Starting at PT_high (the old
+     * bug) shifted every mapping 256 slots early: PT_high[0] got i=256's
+     * value and the kernel's higher-half VA 0xffffffff80100000 resolved to
+     * physical 0x200000 (the firmware image under WuBuFW, zeros under
+     * qemu -kernel) -- strings silently read firmware/zero memory. */
     movl %ebx, %eax
     subl $0x200000, %eax             /* %eax = image physical base */
     movl %eax, %ebp                  /* %ebp = image base */
     movl %ebx, %eax
-    addl $0x5000, %eax               /* %eax = PT_high ptr */
+    addl $(0x5000 + 256 * 8), %eax   /* %eax = PT_high[256] ptr */
     movl $256, %edi                  /* first higher-half kernel page index */
 .pt_outer:
     cmpl $784, %edi

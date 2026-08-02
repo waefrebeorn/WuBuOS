@@ -19,26 +19,13 @@
 #include "fw.h"
 #include "fw_tpm.h"
 #include "fw_secureboot.h"
+#include "fw_agi_attest.h"
 extern EFI_SYSTEM_TABLE *g_systab;
 extern EFI_HANDLE g_vol_handle[8];
 extern EFI_STATUS fw_image_create(void *buf, uint64_t size, EFI_HANDLE device, EFI_HANDLE *out);
 
-/* Published to the OS image via an EFI Configuration Table. */
-#define WUBU_AGI_ATTEST_GUID \
-    { 0x2a1f7c4d, 0x9b3e, 0x4c1a, { 0xbd, 0x8f, 0x2e, 0x71, 0x09, 0x5c, 0x33, 0xa7 } }
-
-typedef struct {
-    uint64_t  magic;              /* WUBU_AGI_MAGIC */
-    uint32_t  version;            /* 1 */
-    uint32_t  sb_enabled;         /* Secure Boot enforcement active */
-    uint32_t  sb_setup_mode;      /* 1 = setup (no policy) */
-    uint32_t  sb_db_count;
-    uint32_t  pcr_count;          /* always 8 */
-    uint32_t  boot_counter;       /* increments each verified boot */
-    uint8_t   pcr[8][32];         /* PCR0..PCR7 snapshot */
-} fw_agi_attest_t;
-
-#define WUBU_AGI_MAGIC 0x4147494F75427557ULL /* "WuBuOIA\x00" little-endian-ish */
+/* Published to the OS image via an EFI Configuration Table. The layout +
+ * GUID live in fw_agi_attest.h (shared with the loader and the kernel). */
 
 static fw_agi_attest_t g_agit;
 static int g_agit_ready = 0;
