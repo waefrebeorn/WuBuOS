@@ -289,6 +289,12 @@ void ps2_mouse_handler(void) {
         ps2_mouse_x = nx;
         ps2_mouse_y = ny;
         ps2_mouse_buttons = b0 & 0x07;
+
+        /* Feed the unified input layer (gap A12): the keyboard already
+         * feeds wubu_hid; the mouse joins the same ring so every
+         * consumer sees one event model with a common time base. */
+        extern void wubu_hid_feed_mouse(int, int, int, int, int, int);
+        wubu_hid_feed_mouse(nx, ny, dx, dy, (int)(b0 & 0x07), 0);
         break;
     }
     }
