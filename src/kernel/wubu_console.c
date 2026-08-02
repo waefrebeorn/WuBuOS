@@ -740,6 +740,14 @@ int wubu_console_exec(const char *line)
         interrupt_panic_dump();
         return 0;
     }
+    if (strcmp(argv[0], "user") == 0) {          /* Gap H4: ring-3 boundary */
+        extern void wubu_user_enter(uint64_t, uint64_t);
+        extern void wubu_user_selftest(void);
+        klog_printf("user: iretq to ring 3 (syscall roundtrip)...\n");
+        wubu_user_enter((uint64_t)(uintptr_t)wubu_user_selftest,
+                        0xffffffff9fff0000ull);
+        return 0;   /* unreachable -- the user code loops */
+    }
     klog_printf("console: unknown command '%s' (try 'help')\n", argv[0]);
     return -1;
 }
