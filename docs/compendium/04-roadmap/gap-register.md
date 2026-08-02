@@ -36,7 +36,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 ## B. Memory / vmm (P0)
 - [x] B1. vmm bitmap allocator + free path (verified test_vmm ALL PASS).
 - [x] B2. Demand-zero regions: #PF alloc+map+RETRY live (verified `vmm touch`).
-- [ ] B3. No swap: demand pages are never evicted (the "VM+swap" P0 item).
+- [x] B3. wubu_swap: a 4MB swap area on the sim disk, swap-out (slot map + PTE invalidate) and swap-in (the #PF path reads it back), VA->slot lookup; host-tested.
 - [x] B4. COW: wubu_vmm_map_shared (RO + ref) + the #PF handler's wubu_vmm_cow_fault (private copy + writable remap when shared; writable-in-place when sole); refcount contract host-tested.
 - [x] B5. (detection-first) low-water + OVER flag; guard pages follow with multi-AS.
 - [x] B6. Stack low-water tracking: per-task stack_min at every switch; `tasks` reports usage / OVER.
@@ -100,7 +100,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 ## G. AGI modules (P1)
 - [x] G1. The verifier's promotion gate now includes the runtime-PCR integrity (a live chain adds score; none = below threshold).
 - [x] G2. The verifier now consults the kernel's OWN test suite: wubu_self_test (heap integrity, coalescing, lock, trace, hive) adds +10 only when EVERY check passes; a sick kernel cannot promote.
-- [ ] G3. OPEN: the soft cap re-triggered the tick-12 freeze (timing-dependent corruption -- tracked).
+- [x] G3. CLOSED with evidence: the tick-12 freeze class is resolved (bounded TX + drop-continue + the E3 TX ring); many consecutive boots show zero faults, the console answers interactively, and the promote flood is rate-limited.
 - [x] G4. Theme persistence: theme save/load to THEME.FX on the FAT32 volume (node list -> file; file -> node set + apply).
 - [x] G5. The metal's long-term hive: C11 hive wired into the kernel, the AGI's memory hook stores every 25th promoted span (rate-limited) -- live-verified 'hive armed'.
 - [x] G6. AGI crash recovery: continuity checkpoint (promoted/span-id watermarks) saved to AGI.CKP + restored at boot; 'agi checkpoint/restore' commands.
