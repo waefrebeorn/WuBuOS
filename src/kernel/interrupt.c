@@ -512,7 +512,19 @@ static void panic_dump_ring(void)
     extern int  klog_printf(const char *, ...);
     extern int  klog_ring_snapshot(char *, size_t);
     extern void klog_write_n(const char *, size_t);
+    extern uint64_t interrupt_get_count(uint8_t);
+    extern struct CTask *task_current(void);
+    extern const char *task_name(const struct CTask *);
     static char buf[2048];
+    /* C2: name the faulting task + C3: the live fault counters. */
+    const struct CTask *cur = task_current();
+    klog_printf("-- task: %s --\n", cur ? task_name(cur) : "?");
+    klog_printf("-- ex counts: #PF=%u #GP=%u #DF=%u #UD=%u spurious=%u --\n",
+                (unsigned)interrupt_get_count(14),
+                (unsigned)interrupt_get_count(13),
+                (unsigned)interrupt_get_count(8),
+                (unsigned)interrupt_get_count(6),
+                (unsigned)interrupt_get_count(0xFF));
     int n = klog_ring_snapshot(buf, sizeof(buf));
     if (n > 0) {
         klog_printf("-- panic ring (%d bytes) --\n", n);

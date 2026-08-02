@@ -28,7 +28,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] A14. AHCI: only the boot disk; no multi-drive enumeration.
 - [ ] A15. FAT32: no dirty-volume flag, no fsck, no journal.
 - [ ] A16. FAT32: no LFN support? (8.3 only) -- verify + close.
-- [ ] A17. No RTC/CMOS wall clock (uptime is tick-relative).
+- [x] A17. RTC wall clock: wubu_rtc module (CMOS 0x70/0x71, BCD/12h, UIP); `date` command + boot stamp verified live.
 - [ ] A18. No ACPI/FADT parsing (firmware memory map is assumed, not read).
 - [ ] A19. No HPET (the LAPIC timer is the only time source).
 - [ ] A20. Console errors silent: 132 bare `return 0;` paths swallow failure.
@@ -50,8 +50,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 
 ## C. ISR / fault paths (P0)
 - [x] C1. iretq frame-rflags NT mask (the preempt fix, 62e3da3).
-- [ ] C2. Fault dumps don't name the faulting task.
-- [ ] C3. No fault counters (the soak proves "zero faults" only via probes).
+- [x] C2. The panic post-mortem names the faulting task (task_name accessor).
+- [x] C3. Live fault counters (#PF/#GP/#DF/#UD/spurious) in the panic dump + `stats`.
 - [ ] C4. LAPIC spurious vector 0xFF: handler sanity unchecked.
 - [ ] C5. No ISR-overrun counter.
 - [ ] C6. syscall exit (sysretq) has no rflags sanitization (the iretq has it).

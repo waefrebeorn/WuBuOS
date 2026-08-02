@@ -99,6 +99,12 @@ int task_count(void);
 /* Get global tick counter. */
 uint64_t task_tick_count(void);
 
+/* Opaque accessors: the running task's name + the current task (for the
+ * fault post-mortem, gap C2). */
+struct CTask;
+const char *task_name(const struct CTask *t);
+struct CTask *task_get_current(void);
+
 /* -- Task Lifecycle ----------------------------------------------- */
 
 /*

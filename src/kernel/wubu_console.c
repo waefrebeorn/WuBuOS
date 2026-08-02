@@ -12,6 +12,7 @@
 #include "wubu_console.h"
 #include "wubu_pci.h"
 #include "wubu_agi_kernel.h"
+#include "wubu_rtc.h"   /* date command (gap A17) */
 #include "tasking.h"
 #include "memory.h"
 #include "klog.h"
@@ -284,6 +285,43 @@ static int cmd_attest(int argc, char **argv)
     return 0;
 }
 
+/* date: the CMOS RTC wall clock (gap A17). */
+static int cmd_date(int argc, char **argv)
+{
+    extern int wubu_rtc_read(wubu_rtc_tm *);
+    wubu_rtc_tm tm;
+    (void)argc; (void)argv;
+    if (wubu_rtc_read(&tm) != 0) {
+        klog_printf("date: RTC not available\n");
+        return 0;
+    }
+    /* klog has NO width/precision (%04u prints literally): hand-format
+     * the date into a buffer + one plain %s. */
+    {
+        static const char *hz = "0123456789";
+        char line[32];
+        int o = 0;
+        unsigned vals[6] = { tm.year, tm.mon, tm.day,
+                             tm.hour, tm.min, tm.sec };
+        for (int v = 0; v < 6; v++) {
+            if (v == 1 || v == 2) line[o++] = '-';
+            if (v == 3) line[o++] = ' ';
+            if (v == 4 || v == 5) line[o++] = ':';
+            /* zero-pad: year is 4 digits; the rest are 2 */
+            int digits = (v == 0) ? 4 : 2;
+            unsigned val = vals[v];
+            for (int d = digits - 1; d >= 0; d--) {
+                unsigned pow10 = 1;
+                for (int k = 0; k < d; k++) pow10 *= 10;
+                line[o++] = hz[val / pow10 % 10];
+            }
+        }
+        line[o] = '\0';
+        klog_printf("date: %s\n", line);
+    }
+    return 0;
+}
+
 static int cmd_agi(int argc, char **argv)
 {
     wubu_agi_kernel_t *agi = wubu_agi_kernel_global();
@@ -376,6 +414,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "stats") == 0)           return cmd_stats(argc, argv);
     if (strcmp(argv[0], "dump") == 0)            return cmd_dump(argc, argv);
     if (strcmp(argv[0], "attest") == 0)          return cmd_attest(argc, argv);
+    if (strcmp(argv[0], "date") == 0)            return cmd_date(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
