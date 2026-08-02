@@ -77,7 +77,18 @@ AUDIO_OBJS = $(AUDIO)/wubu_audio.o $(AUDIO)/wubu_audio_chips.o $(AUDIO)/wubu_aud
 
 # ── Targets ─────────────────────────────────────────────────────
 
-.PHONY: all clean test kernel jit gui bridge apps worldsim
+.PHONY: all clean test kernel jit gui bridge apps worldsim firmware uefi test_uefi
+
+# ---- WuBuFW: our own C11 UEFI firmware (no EDK2 / no OVMF) ----------
+FW = src/firmware
+
+firmware uefi:
+	$(FW)/build.sh
+
+# Builds firmware + PE payload + FAT32/GPT ESP, boots in QEMU, asserts
+# the payload's 28-check conformance run passes.
+test_uefi:
+	$(FW)/run.sh
 
 # Header dependency tracking: every .c compile now emits a .d file (via -MMD
 # -MP in the pattern rules). Including them makes `make` rebuild an object

@@ -181,6 +181,7 @@ void kernel_main(void *boot_info) {
     } else {
         klog_printf("WuBuOS: VBE initialized (%ux%u)\n", fb_width, fb_height);
     }
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 5. Initialize GAAD (φ-structured allocation for window snap) */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");

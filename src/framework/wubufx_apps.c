@@ -10,6 +10,8 @@
 #include "wubufx.h"
 #include "../gui/dosgui_wm.h"   /* DosGuiWindow full definition */
 #include "../apps/dosgui_apps.h"
+#include "../apps/bonzi/bonzi.h"
+#include "../apps/comfy/comfy.h"
 #include "../runtime/wubu_edr.h"
 #include <stdlib.h>
 #include <string.h>
@@ -57,6 +59,14 @@ static const WubufxAppDef g_wubufx_apps[] = {
     { "edr_dashboard","EDR Activity", "edr_dashboard",
       WUBUFX_CAP_READ | WUBUFX_CAP_EDR,
       dosgui_launch_edr_dashboard },
+
+    { "bonzi",       "Bonzi Buddy",  "bonzi",
+      WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC | WUBUFX_CAP_AGI,
+      bonzi_launch },
+
+    { "comfy",       "Comfy",        "comfy",
+      WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC,
+      comfy_launch },
 };
 static const int g_wubufx_app_count = sizeof(g_wubufx_apps) / sizeof(g_wubufx_apps[0]);
 
