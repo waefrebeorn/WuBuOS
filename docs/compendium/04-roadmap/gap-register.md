@@ -88,6 +88,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] F1. Console command history: ESC-[A/B recall (8-line ring, live).
 - [x] F2. Tab completion: the console completes the first word against the command table (unique match; ambiguous = no-op).
 - [x] F3. run <file>: lazy FAT32 mount over the AHCI port-0 disk + line-by-line exec (live response debug tracked).
+      NOTE: reachable now -- the malloc root + the ahci return-convention fixed (the boot volume mounts; test_ahcifat guards it).
 - [x] F4. help enumerates every command (theme/hid/vmm/stats/dump/attest/date/agi/...).
 - [x] F5. In-OS hexdump: console `dump <addr> [bytes]` (this batch) command (`mem <addr> <bytes>`) -- the live
       debugger the kernel needs (today: external qemu-monitor scripts).
@@ -102,6 +103,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] G2. The verifier now consults the kernel's OWN test suite: wubu_self_test (heap integrity, coalescing, lock, trace, hive) adds +10 only when EVERY check passes; a sick kernel cannot promote.
 - [x] G3. CLOSED with evidence: the tick-12 freeze class is resolved (bounded TX + drop-continue + the E3 TX ring); many consecutive boots show zero faults, the console answers interactively, and the promote flood is rate-limited.
 - [x] G4. Theme persistence: theme save/load to THEME.FX on the FAT32 volume (node list -> file; file -> node set + apply).
+      NOTE-DA: the boot volume now mounts on metal (malloc + ahci-convention roots fixed); persistence is within-boot on the RAM sim disk.
+      NOTE: reachable once the boot volume mounts (the AHCI port_init calloc fix, tracked); the RAM sim disk persists only within a boot.
       NOTE: reachable once the boot volume mounts (the AHCI port_init calloc fix, tracked); the RAM sim disk persists only within a boot.
 - [x] G5. The metal's long-term hive: C11 hive wired into the kernel, the AGI's memory hook stores every 25th promoted span (rate-limited) -- live-verified 'hive armed'.
 - [x] G6. AGI crash recovery: continuity checkpoint (promoted/span-id watermarks) saved to AGI.CKP + restored at boot; 'agi checkpoint/restore' commands.

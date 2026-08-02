@@ -1003,7 +1003,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1083,6 +1083,15 @@ test_vdso:
 		$(KERNEL)/test_vdso.c \
 		-o $(KERNEL)/test_vdso
 	$(KERNEL)/test_vdso
+
+# AHCI+FAT32 integration (the F3 family): format+mount+create through
+# the real ahci sim backend (regression: the sector-count return
+# convention vs the fat32 0-on-success contract)
+test_ahcifat:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/test_ahcifat.c \
+		-o $(KERNEL)/test_ahcifat
+	$(KERNEL)/test_ahcifat
 
 # swap (gap B3): slot map + eviction contract
 test_swap:

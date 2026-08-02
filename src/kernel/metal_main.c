@@ -23,15 +23,17 @@
 #include "../hosted/wubu_metal.h"
 
 /* Gap DA: the boot volume's AHCI block adapters (the fat32_blk_ops
- * contract: ctx = the ahci hba, port 0). */
+ * contract: ctx = the ahci hba, port 0). The ahci read/write return
+ * the SECTOR COUNT; the fat32 layer expects 0 on success -- the raw
+ * returns made every format/mount fail through this backend. */
 static int wubu_bootvol_read(void *ctx, uint64_t lba, uint32_t n, void *buf)
 {
-    return ahci_read((ahci_hba_t *)ctx, 0, lba, n, buf);
+    return (ahci_read((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
 }
 static int wubu_bootvol_write(void *ctx, uint64_t lba, uint32_t n,
                               const void *buf)
 {
-    return ahci_write((ahci_hba_t *)ctx, 0, lba, n, buf);
+    return (ahci_write((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
 }
 
 /* Gap G5: the metal's long-term hive -- file-scope (the AGI's memory
@@ -466,8 +468,6 @@ void kernel_main(void *boot_info) {
         if (d1 == 0) d2 = ahci_enumerate_ports(bhba);
         if (d2 > 0) d3 = ahci_port_init(bhba, 0);
         if (d3 == 0) d4 = ahci_sim_disk_create(bhba, 0, 8);
-        klog_printf("bootvol-dbg: hba=%d en=%d p=%d d=%d p0state=%d\n",
-                    d1, d2, d3, d4, (int)bhba->ports[0].state);
         if (d4 == 0) {
             static fat32_blk_ops bops = {
                 .read = NULL, .write = NULL, .ctx = NULL,
