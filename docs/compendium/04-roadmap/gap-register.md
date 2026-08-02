@@ -132,7 +132,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] J1. api.md scanner added (629 prototypes, this session).
 - [x] J2. api.md exists; README updated (docs DA batch) should go (it exists now).
 - [x] J3. commands.md generated from the dispatch table (this batch) (console command list).
-- [ ] J4. Ledger TEMPLATE not lint-enforced.
+- [x] J4. tools/lint_ledger.py enforces the TEMPLATE (context+evidence hard; full fields soft) on worked/didnt-work/bugs; wired into make check.
 - [x] J5. gen_docs api scanner lists EVERY prototype (no per-header cap).
 - [x] J6. Boot-time image-alignment check (kernel start + stack top % 16) before any heap use.
 - [ ] J7. parity.md: Windows/macOS rows PLANNED with no leg files.

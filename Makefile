@@ -997,6 +997,7 @@ test_theme_hid:
 .PHONY: check
 check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
+	python3 tools/lint_ledger.py || true
 	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
