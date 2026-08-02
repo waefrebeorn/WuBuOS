@@ -306,6 +306,17 @@ void kernel_main(void *boot_info) {
     klog_printf("WuBuOS: AGI kernel booted (regions=%d)\n",
                 wubu_agi_kernel_region_count(agi));
 
+    /* Boot wall clock (gap A17): the RTC is read once at boot; the
+     * 'date' console command reads it live. */
+    {
+        extern int wubu_rtc_read(void *);
+        struct { uint8_t s, m, h, d, mo; uint16_t y; } bt;
+        if (wubu_rtc_read(&bt) == 0)
+            klog_printf("WuBuOS: boot clock %u-%u-%u %u:%u:%u\n",
+                        (unsigned)bt.y, (unsigned)bt.mo, (unsigned)bt.d,
+                        (unsigned)bt.h, (unsigned)bt.m, (unsigned)bt.s);
+    }
+
     /* 9b. Wire the INDEPENDENT verifier (DA-3): this ACTIVATES the
      *     self-improve loop -- without a verifier the cycle refuses to
      *     promote (dormant by design). The verifier is a fixed,

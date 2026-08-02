@@ -72,6 +72,9 @@ static void task_remove(CTask *t) {
 /* -- Accessors ---------------------------------------------------- */
 
 CTask *task_current(void)    { return g_current; }
+const char *task_name(const CTask *t) {
+    return (t && t->name[0]) ? t->name : "?";
+}
 CTask *task_list_head(void)  { return g_head; }
 int    task_count(void) {
     if (!g_head) return 0;
