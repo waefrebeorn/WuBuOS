@@ -585,6 +585,14 @@ static void panic_dump_ring(void)
         klog_write_n(buf, (size_t)n);
         klog_printf("\n-- end ring --\n");
     }
+    /* Gap A8: the crash record goes to the disk (the evidence outlives
+     * the boot; the pickup reports it next boot). */
+    {
+        extern int wubu_crash_dump(const char *, uint64_t, uint64_t,
+                                   uint32_t);
+        if (wubu_crash_dump("kernel panic", 0, 0, 0) == 0)
+            klog_printf("-- crash record written to disk --\n");
+    }
 }
 
 /* Public wrapper for the watchdog / NMI paths (the panic ring dump). */
