@@ -1,0 +1,1053 @@
+# Kernel Bank -- 1000 goals + gaps (the metal)
+
+Date: 2026-08-02. Status: `open` / `wired`.
+
+## KR-A: The scheduler
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: PIT tick -> preemption -> priority/inheritance -> the deadline future
+- KR-A01 The preemptive scheduler `open`
+- KR-A02 The tick (the PIT) `open`
+- KR-A03 The round-robin `open`
+- KR-A04 The priorities `open`
+- KR-A05 The nice levels `open`
+- KR-A06 The time slices `open`
+- KR-A07 The preemption points `open`
+- KR-A08 The voluntary yield `open`
+- KR-A09 The sleep queue `open`
+- KR-A10 The wakeup `open`
+- KR-A11 The wait queues `open`
+- KR-A12 The semaphores `open`
+- KR-A13 The mutexes `open`
+- KR-A14 The spinlocks `open`
+- KR-A15 The rwlocks `open`
+- KR-A16 The condition vars `open`
+- KR-A17 The futex-ish `open`
+- KR-A18 The RCU (future) `open`
+- KR-A19 The per-CPU runqueues `open`
+- KR-A20 The load balance `open`
+- KR-A21 The migration `open`
+- KR-A22 The idle loop `open`
+- KR-A23 The idle task `open`
+- KR-A24 The task states `open`
+- KR-A25 The task context switch `open`
+- KR-A26 The fxsave/fxrstor `open`
+- KR-A27 The lazy FPU `open`
+- KR-A28 The syscall entry `open`
+- KR-A29 The syscall exit `open`
+- KR-A30 The interrupt entry `open`
+- KR-A31 The interrupt exit `open`
+- KR-A32 The softirq-ish `open`
+- KR-A33 The tasklets-ish `open`
+- KR-A34 The work queues `open`
+- KR-A35 The timers `open`
+- KR-A36 The hrtimers `open`
+- KR-A37 The POSIX clocks `open`
+- KR-A38 The deadline scheduling (future) `open`
+- KR-A39 The CFS-ish (future) `open`
+- KR-A40 The EDF (future) `open`
+- KR-A41 The SCHED_FIFO `open`
+- KR-A42 The SCHED_RR `open`
+- KR-A43 The SCHED_OTHER `open`
+- KR-A44 The priority inheritance `open`
+- KR-A45 The PI chain `open`
+- KR-A46 The deadlock detect `open`
+- KR-A47 The lock ordering `open`
+- KR-A48 The scheduler tests `open`
+- KR-A49 The scheduler bench `open`
+- KR-A50 The scheduler fuzz `open`
+- KR-A51 The scheduler energy `open`
+- KR-A52 Scheduler feature priority `open`
+- KR-A53 Scheduler feature timeslice `open`
+- KR-A54 Scheduler feature preempt `open`
+- KR-A55 Scheduler feature yield `open`
+- KR-A56 Scheduler feature sleep `open`
+- KR-A57 Scheduler feature wake `open`
+- KR-A58 Scheduler feature wait `open`
+- KR-A59 Scheduler feature signal `open`
+- KR-A60 Scheduler feature inherit `open`
+- KR-A61 Scheduler feature deadlock-detect `open`
+- KR-A62 Scheduler test hog `open`
+- KR-A63 Scheduler test starve `open`
+- KR-A64 Scheduler test priority-inversion `open`
+- KR-A65 Scheduler test lock-contention `open`
+- KR-A66 Scheduler test many-tasks `open`
+- KR-A67 Scheduler test sleep-storm `open`
+- KR-A68 Scheduler test wake-storm `open`
+- KR-A69 Scheduler test idle-spin `open`
+- KR-A70 Scheduler test context-switch-rate `open`
+- KR-A71 Scheduler test latency `open`
+- KR-A72 Scheduler layer runqueue `open`
+- KR-A73 Scheduler layer waitqueue `open`
+- KR-A74 Scheduler layer timer `open`
+- KR-A75 Scheduler layer workqueue `open`
+- KR-A76 Scheduler layer softirq `open`
+- KR-A77 Scheduler layer tasklet `open`
+- KR-A78 Scheduler layer idle `open`
+- KR-A79 Scheduler layer migration `open`
+- KR-A80 Scheduler layer balance `open`
+- KR-A81 Scheduler layer tick `open`
+- KR-A82 Scheduler feature priority `open`
+- KR-A83 Scheduler feature timeslice `open`
+- KR-A84 Scheduler feature preempt `open`
+- KR-A85 Scheduler feature yield `open`
+- KR-A86 Scheduler feature sleep `open`
+- KR-A87 Scheduler feature wake `open`
+- KR-A88 Scheduler feature wait `open`
+- KR-A89 Scheduler feature signal `open`
+- KR-A90 Scheduler feature inherit `open`
+- KR-A91 Scheduler feature deadlock-detect `open`
+- KR-A92 Scheduler test hog `open`
+- KR-A93 Scheduler test starve `open`
+- KR-A94 Scheduler test priority-inversion `open`
+- KR-A95 Scheduler test lock-contention `open`
+- KR-A96 Scheduler test many-tasks `open`
+- KR-A97 Scheduler test sleep-storm `open`
+- KR-A98 Scheduler test wake-storm `open`
+- KR-A99 Scheduler test idle-spin `open`
+- KR-A100 Scheduler test context-switch-rate `open`
+Status: `open` (51 gaps)
+
+## KR-B: The memory management
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: buddy -> paging -> swap -> the mem_alloc kernel heap
+- KR-B01 The physical allocator `open`
+- KR-B02 The buddy `open`
+- KR-B03 The slabs (future) `open`
+- KR-B04 The page tables `open`
+- KR-B05 The 4-level walk `open`
+- KR-B06 The TLB `open`
+- KR-B07 The TLB shootdown `open`
+- KR-B08 The huge pages `open`
+- KR-B09 The 1G pages `open`
+- KR-B10 The kernel heap (mem_alloc) `open`
+- KR-B11 The malloc delegation `open`
+- KR-B12 The user heap `open`
+- KR-B13 The mmap `open`
+- KR-B14 The brk `open`
+- KR-B15 The stack guard `open`
+- KR-B16 The canaries `open`
+- KR-B17 The ASLR `open`
+- KR-B18 The NX bits `open`
+- KR-B19 The W^X `open`
+- KR-B20 The COW pages `open`
+- KR-B21 The demand paging `open`
+- KR-B22 The page faults `open`
+- KR-B23 The swap in `open`
+- KR-B24 The swap out `open`
+- KR-B25 The swap the 8-sector `open`
+- KR-B26 The OOM killer `open`
+- KR-B27 The memory cgroups `open`
+- KR-B28 The memory quotas `open`
+- KR-B29 The memory accounting `open`
+- KR-B30 The leak detect `open`
+- KR-B31 The heap walk `open`
+- KR-B32 The heap verify `open`
+- KR-B33 The fragmentation `open`
+- KR-B34 The compaction (future) `open`
+- KR-B35 The NUMA (future) `open`
+- KR-B36 The pinned pages `open`
+- KR-B37 The DMA pools `open`
+- KR-B38 The IOMMU (the console cmd) `open`
+- KR-B39 The ACPI memory map `open`
+- KR-B40 The e820 `open`
+- KR-B41 The EFI map `open`
+- KR-B42 The reserved regions `open`
+- KR-B43 The memory tests `open`
+- KR-B44 The memory bench `open`
+- KR-B45 The memory fuzz `open`
+- KR-B46 The memory energy `open`
+- KR-B47 Memory feature buddy `open`
+- KR-B48 Memory feature slab `open`
+- KR-B49 Memory feature page-table `open`
+- KR-B50 Memory feature tlb `open`
+- KR-B51 Memory feature huge `open`
+- KR-B52 Memory feature mmap `open`
+- KR-B53 Memory feature swap `open`
+- KR-B54 Memory feature oom `open`
+- KR-B55 Memory feature quota `open`
+- KR-B56 Memory feature account `open`
+- KR-B57 Memory test alloc-storm `open`
+- KR-B58 Memory test frag `open`
+- KR-B59 Memory test leak `open`
+- KR-B60 Memory test double-free `open`
+- KR-B61 Memory test use-after-free `open`
+- KR-B62 Memory test overflow `open`
+- KR-B63 Memory test underflow `open`
+- KR-B64 Memory test alignment `open`
+- KR-B65 Memory test huge-alloc `open`
+- KR-B66 Memory test null `open`
+- KR-B67 Memory layer phys `open`
+- KR-B68 Memory layer virt `open`
+- KR-B69 Memory layer kernel-heap `open`
+- KR-B70 Memory layer user-heap `open`
+- KR-B71 Memory layer page-cache `open`
+- KR-B72 Memory layer swap `open`
+- KR-B73 Memory layer dma `open`
+- KR-B74 Memory layer iommu `open`
+- KR-B75 Memory layer acpi-map `open`
+- KR-B76 Memory layer efi-map `open`
+- KR-B77 Memory feature buddy `open`
+- KR-B78 Memory feature slab `open`
+- KR-B79 Memory feature page-table `open`
+- KR-B80 Memory feature tlb `open`
+- KR-B81 Memory feature huge `open`
+- KR-B82 Memory feature mmap `open`
+- KR-B83 Memory feature swap `open`
+- KR-B84 Memory feature oom `open`
+- KR-B85 Memory feature quota `open`
+- KR-B86 Memory feature account `open`
+- KR-B87 Memory test alloc-storm `open`
+- KR-B88 Memory test frag `open`
+- KR-B89 Memory test leak `open`
+- KR-B90 Memory test double-free `open`
+- KR-B91 Memory test use-after-free `open`
+- KR-B92 Memory test overflow `open`
+- KR-B93 Memory test underflow `open`
+- KR-B94 Memory test alignment `open`
+- KR-B95 Memory test huge-alloc `open`
+- KR-B96 Memory test null `open`
+- KR-B97 Memory layer phys `open`
+- KR-B98 Memory layer virt `open`
+- KR-B99 Memory layer kernel-heap `open`
+- KR-B100 Memory layer user-heap `open`
+Status: `open` (46 gaps)
+
+## KR-C: The interrupts & devices
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: IDT/LAPIC -> PCI/MMIO -> AHCI/xHCI -> the ring buffers
+- KR-C01 The IDT `open`
+- KR-C02 The vectors `open`
+- KR-C03 The PIC (legacy) `open`
+- KR-C04 The LAPIC `open`
+- KR-C05 The IOAPIC `open`
+- KR-C06 The EOI `open`
+- KR-C07 The spurious `open`
+- KR-C08 The nested (future) `open`
+- KR-C09 The IRQ affinity `open`
+- KR-C10 The MSI (future) `open`
+- KR-C11 The MSI-X (future) `open`
+- KR-C12 The handler registry `open`
+- KR-C13 The shared IRQs `open`
+- KR-C14 The bottom halves `open`
+- KR-C15 The deferred work `open`
+- KR-C16 The softirq-ish `open`
+- KR-C17 The tasklet-ish `open`
+- KR-C18 The workqueue `open`
+- KR-C19 The irqbalance-ish `open`
+- KR-C20 The irq stats `open`
+- KR-C21 The irq latency `open`
+- KR-C22 The device model `open`
+- KR-C23 The PCI `open`
+- KR-C24 The PCIe `open`
+- KR-C25 The BARs `open`
+- KR-C26 The MMIO `open`
+- KR-C27 The port I/O `open`
+- KR-C28 The DMA `open`
+- KR-C29 The scatter-gather `open`
+- KR-C30 The ring buffers `open`
+- KR-C31 The completion queues `open`
+- KR-C32 The poll mode `open`
+- KR-C33 The interrupt mode `open`
+- KR-C34 The hybrid `open`
+- KR-C35 The device tree (future) `open`
+- KR-C36 The ACPI `open`
+- KR-C37 The SMBIOS `open`
+- KR-C38 The HPET `open`
+- KR-C39 The PIT `open`
+- KR-C40 The RTC `open`
+- KR-C41 The CMOS `open`
+- KR-C42 The UART `open`
+- KR-C43 The PS/2 `open`
+- KR-C44 The keyboard `open`
+- KR-C45 The mouse `open`
+- KR-C46 The display (the VBE) `open`
+- KR-C47 The AHCI `open`
+- KR-C48 The xHCI (future) `open`
+- KR-C49 The NVMe (future) `open`
+- KR-C50 The sound (future) `open`
+- KR-C51 The GPU (future) `open`
+- KR-C52 The device tests `open`
+- KR-C53 The device bench `open`
+- KR-C54 The device fuzz `open`
+- KR-C55 The device energy `open`
+- KR-C56 Device feature probe `open`
+- KR-C57 Device feature remove `open`
+- KR-C58 Device feature reset `open`
+- KR-C59 Device feature suspend `open`
+- KR-C60 Device feature resume `open`
+- KR-C61 Device feature irq `open`
+- KR-C62 Device feature dma `open`
+- KR-C63 Device feature mmio `open`
+- KR-C64 Device feature port-io `open`
+- KR-C65 Device feature ring `open`
+- KR-C66 Device test hotplug `open`
+- KR-C67 Device test power-cut `open`
+- KR-C68 Device test timeout `open`
+- KR-C69 Device test stall `open`
+- KR-C70 Device test corrupt `open`
+- KR-C71 Device test queue-full `open`
+- KR-C72 Device test descriptor-leak `open`
+- KR-C73 Device test irq-storm `open`
+- KR-C74 Device test dma-race `open`
+- KR-C75 Device test reset-loop `open`
+- KR-C76 Device layer pci `open`
+- KR-C77 Device layer ahci `open`
+- KR-C78 Device layer xhci `open`
+- KR-C79 Device layer uart `open`
+- KR-C80 Device layer ps2 `open`
+- KR-C81 Device layer vbe `open`
+- KR-C82 Device layer hpet `open`
+- KR-C83 Device layer pit `open`
+- KR-C84 Device layer rtc `open`
+- KR-C85 Device layer cmos `open`
+- KR-C86 Device feature probe `open`
+- KR-C87 Device feature remove `open`
+- KR-C88 Device feature reset `open`
+- KR-C89 Device feature suspend `open`
+- KR-C90 Device feature resume `open`
+- KR-C91 Device feature irq `open`
+- KR-C92 Device feature dma `open`
+- KR-C93 Device feature mmio `open`
+- KR-C94 Device feature port-io `open`
+- KR-C95 Device feature ring `open`
+- KR-C96 Device test hotplug `open`
+- KR-C97 Device test power-cut `open`
+- KR-C98 Device test timeout `open`
+- KR-C99 Device test stall `open`
+- KR-C100 Device test corrupt `open`
+Status: `open` (55 gaps)
+
+## KR-D: The syscalls & VSL
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the syscall table -> the kernel stacks -> the VSL NT bridge
+- KR-D01 The syscall table `open`
+- KR-D02 The syscall args `open`
+- KR-D03 The syscall return `open`
+- KR-D04 The errno `open`
+- KR-D05 The syscall stack `open`
+- KR-D06 The kernel stack (the 8KB) `open`
+- KR-D07 The user/kernel boundary `open`
+- KR-D08 The copy-in `open`
+- KR-D09 The copy-out `open`
+- KR-D10 The access check `open`
+- KR-D11 The fd table `open`
+- KR-D12 The fd flags `open`
+- KR-D13 The fd dup `open`
+- KR-D14 The fd close `open`
+- KR-D15 The fd poll `open`
+- KR-D16 The file table `open`
+- KR-D17 The file ops `open`
+- KR-D18 The file offsets `open`
+- KR-D19 The file locks (future) `open`
+- KR-D20 The file leases (future) `open`
+- KR-D21 The process table `open`
+- KR-D22 The process spawn `open`
+- KR-D23 The exec `open`
+- KR-D24 The exit `open`
+- KR-D25 The wait `open`
+- KR-D26 The signals (future) `open`
+- KR-D27 The signal masks (future) `open`
+- KR-D28 The sigreturn (future) `open`
+- KR-D29 The ptrace (future) `open`
+- KR-D30 The seccomp `open`
+- KR-D31 The VSL the NT bridge `open`
+- KR-D32 The 297 NT syscalls `open`
+- KR-D33 The VSL the translation `open`
+- KR-D34 The VSL the adapters `open`
+- KR-D35 The VSL the errors `open`
+- KR-D36 The syscall tests `open`
+- KR-D37 The syscall bench `open`
+- KR-D38 The syscall fuzz `open`
+- KR-D39 The syscall energy `open`
+- KR-D40 Syscall feature table `open`
+- KR-D41 Syscall feature args `open`
+- KR-D42 Syscall feature return `open`
+- KR-D43 Syscall feature errno `open`
+- KR-D44 Syscall feature stack `open`
+- KR-D45 Syscall feature copy-in `open`
+- KR-D46 Syscall feature copy-out `open`
+- KR-D47 Syscall feature access-check `open`
+- KR-D48 Syscall feature fd `open`
+- KR-D49 Syscall feature poll `open`
+- KR-D50 Syscall test bad-ptr `open`
+- KR-D51 Syscall test bad-fd `open`
+- KR-D52 Syscall test bad-arg `open`
+- KR-D53 Syscall test oob `open`
+- KR-D54 Syscall test race `open`
+- KR-D55 Syscall test reentrant `open`
+- KR-D56 Syscall test interrupt-during `open`
+- KR-D57 Syscall test stress `open`
+- KR-D58 Syscall test bench `open`
+- KR-D59 Syscall test fuzz `open`
+- KR-D60 VSL feature nt-map `open`
+- KR-D61 VSL feature translate `open`
+- KR-D62 VSL feature adapter `open`
+- KR-D63 VSL feature errno-map `open`
+- KR-D64 VSL feature handle `open`
+- KR-D65 VSL feature path `open`
+- KR-D66 VSL feature registry `open`
+- KR-D67 VSL feature service `open`
+- KR-D68 VSL feature dll `open`
+- KR-D69 VSL feature import `open`
+- KR-D70 Syscall feature table `open`
+- KR-D71 Syscall feature args `open`
+- KR-D72 Syscall feature return `open`
+- KR-D73 Syscall feature errno `open`
+- KR-D74 Syscall feature stack `open`
+- KR-D75 Syscall feature copy-in `open`
+- KR-D76 Syscall feature copy-out `open`
+- KR-D77 Syscall feature access-check `open`
+- KR-D78 Syscall feature fd `open`
+- KR-D79 Syscall feature poll `open`
+- KR-D80 Syscall test bad-ptr `open`
+- KR-D81 Syscall test bad-fd `open`
+- KR-D82 Syscall test bad-arg `open`
+- KR-D83 Syscall test oob `open`
+- KR-D84 Syscall test race `open`
+- KR-D85 Syscall test reentrant `open`
+- KR-D86 Syscall test interrupt-during `open`
+- KR-D87 Syscall test stress `open`
+- KR-D88 Syscall test bench `open`
+- KR-D89 Syscall test fuzz `open`
+- KR-D90 VSL feature nt-map `open`
+- KR-D91 VSL feature translate `open`
+- KR-D92 VSL feature adapter `open`
+- KR-D93 VSL feature errno-map `open`
+- KR-D94 VSL feature handle `open`
+- KR-D95 VSL feature path `open`
+- KR-D96 VSL feature registry `open`
+- KR-D97 VSL feature service `open`
+- KR-D98 VSL feature dll `open`
+- KR-D99 VSL feature import `open`
+- KR-D100 Syscall scenario clone `open`
+Status: `open` (39 gaps)
+
+## KR-E: The boot & the firmware
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: crt0 A9 codes -> measured boot -> attestation -> the AGI kernel boot
+- KR-E01 The reset vector `open`
+- KR-E02 The real mode `open`
+- KR-E03 The protected mode `open`
+- KR-E04 The long mode `open`
+- KR-E05 The paging enable `open`
+- KR-E06 The GDT `open`
+- KR-E07 The IDT setup `open`
+- KR-E08 The crt0 (the A9 codes) `open`
+- KR-E09 The BSS clear `open`
+- KR-E10 The stack setup `open`
+- KR-E11 The kernel image `open`
+- KR-E12 The image start symbol `open`
+- KR-E13 The alignment assert `open`
+- KR-E14 The metal main `open`
+- KR-E15 The console init `open`
+- KR-E16 The serial init `open`
+- KR-E17 The klog `open`
+- KR-E18 The heap init `open`
+- KR-E19 The mem_alloc init `open`
+- KR-E20 The APIC init `open`
+- KR-E21 The timer init `open`
+- KR-E22 The scheduler start `open`
+- KR-E23 The verifier (the attestation) `open`
+- KR-E24 The measured boot `open`
+- KR-E25 The PCRs (the TPM future) `open`
+- KR-E26 The policy gate `open`
+- KR-E27 The promote `open`
+- KR-E28 The operate `open`
+- KR-E29 The AGI kernel boot `open`
+- KR-E30 The Colonel boot `open`
+- KR-E31 The console REPL `open`
+- KR-E32 The boot volume mount `open`
+- KR-E33 The FAT32 attach `open`
+- KR-E34 The AHCI init `open`
+- KR-E35 The userland start `open`
+- KR-E36 The GUI start (the hosted) `open`
+- KR-E37 The Wayland init (the hosted) `open`
+- KR-E38 The WuBuFW firmware `open`
+- KR-E39 The WuBuFW menu `open`
+- KR-E40 The WuBuFW verify `open`
+- KR-E41 The WuBuFW kernel load `open`
+- KR-E42 The dual boot (future) `open`
+- KR-E43 The UEFI (future) `open`
+- KR-E44 The Limine (future) `open`
+- KR-E45 The boot tests `open`
+- KR-E46 The boot bench `open`
+- KR-E47 The boot fuzz `open`
+- KR-E48 The boot energy `open`
+- KR-E49 Boot feature reset `open`
+- KR-E50 Boot feature real `open`
+- KR-E51 Boot feature protected `open`
+- KR-E52 Boot feature long `open`
+- KR-E53 Boot feature paging `open`
+- KR-E54 Boot feature gdt `open`
+- KR-E55 Boot feature idt `open`
+- KR-E56 Boot feature bss `open`
+- KR-E57 Boot feature stack `open`
+- KR-E58 Boot feature main `open`
+- KR-E59 Boot test cold `open`
+- KR-E60 Boot test warm `open`
+- KR-E61 Boot test watchdog `open`
+- KR-E62 Boot test corrupt-image `open`
+- KR-E63 Boot test bad-bpb `open`
+- KR-E64 Boot test disk-missing `open`
+- KR-E65 Boot test verify-fail `open`
+- KR-E66 Boot test policy-fail `open`
+- KR-E67 Boot test s3-resume `open`
+- KR-E68 Boot test reboot-loop `open`
+- KR-E69 Boot layer crt0 `open`
+- KR-E70 Boot layer firmware `open`
+- KR-E71 Boot layer loader `open`
+- KR-E72 Boot layer kernel `open`
+- KR-E73 Boot layer console `open`
+- KR-E74 Boot layer serial `open`
+- KR-E75 Boot layer klog `open`
+- KR-E76 Boot layer heap `open`
+- KR-E77 Boot layer apic `open`
+- KR-E78 Boot layer scheduler `open`
+- KR-E79 Boot feature reset `open`
+- KR-E80 Boot feature real `open`
+- KR-E81 Boot feature protected `open`
+- KR-E82 Boot feature long `open`
+- KR-E83 Boot feature paging `open`
+- KR-E84 Boot feature gdt `open`
+- KR-E85 Boot feature idt `open`
+- KR-E86 Boot feature bss `open`
+- KR-E87 Boot feature stack `open`
+- KR-E88 Boot feature main `open`
+- KR-E89 Boot test cold `open`
+- KR-E90 Boot test warm `open`
+- KR-E91 Boot test watchdog `open`
+- KR-E92 Boot test corrupt-image `open`
+- KR-E93 Boot test bad-bpb `open`
+- KR-E94 Boot test disk-missing `open`
+- KR-E95 Boot test verify-fail `open`
+- KR-E96 Boot test policy-fail `open`
+- KR-E97 Boot test s3-resume `open`
+- KR-E98 Boot test reboot-loop `open`
+- KR-E99 Boot layer crt0 `open`
+- KR-E100 Boot layer firmware `open`
+Status: `open` (48 gaps)
+
+## KR-F: The SMP & the concurrency
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: SIPI -> per-CPU -> lock-free rings -> the task-safe mutex
+- KR-F01 The AP startup `open`
+- KR-F02 The SIPI `open`
+- KR-F03 The APIC ID `open`
+- KR-F04 The per-CPU areas `open`
+- KR-F05 The per-CPU runqueues `open`
+- KR-F06 The spinlock the cli `open`
+- KR-F07 The spinlock the ISR-safe `open`
+- KR-F08 The lock-free rings `open`
+- KR-F09 The RCU (future) `open`
+- KR-F10 The seq locks (future) `open`
+- KR-F11 The ticket locks (future) `open`
+- KR-F12 The mutex the task-safe `open`
+- KR-F13 The yield lock `open`
+- KR-F14 The condvar `open`
+- KR-F15 The barrier `open`
+- KR-F16 The atomics `open`
+- KR-F17 The cmpxchg `open`
+- KR-F18 The memory ordering `open`
+- KR-F19 The acquire/release `open`
+- KR-F20 The fence `open`
+- KR-F21 The TLB shootdown `open`
+- KR-F22 The IPI `open`
+- KR-F23 The reschedule IPI `open`
+- KR-F24 The CPU hotplug (future) `open`
+- KR-F25 The NUMA (future) `open`
+- KR-F26 The load balancing `open`
+- KR-F27 The work stealing `open`
+- KR-F28 The concurrency tests `open`
+- KR-F29 The concurrency stress `open`
+- KR-F30 The concurrency fuzz `open`
+- KR-F31 The concurrency energy `open`
+- KR-F32 SMP feature sipi `open`
+- KR-F33 SMP feature apic-id `open`
+- KR-F34 SMP feature percpu `open`
+- KR-F35 SMP feature spinlock `open`
+- KR-F36 SMP feature lockfree `open`
+- KR-F37 SMP feature atomic `open`
+- KR-F38 SMP feature fence `open`
+- KR-F39 SMP feature ipi `open`
+- KR-F40 SMP feature shootdown `open`
+- KR-F41 SMP feature hotplug `open`
+- KR-F42 SMP test spin-contention `open`
+- KR-F43 SMP test deadlock `open`
+- KR-F44 SMP test livelock `open`
+- KR-F45 SMP test missed-wakeup `open`
+- KR-F46 SMP test lost-ipi `open`
+- KR-F47 SMP test tlb-stale `open`
+- KR-F48 SMP test memory-order `open`
+- KR-F49 SMP test cache-coherence `open`
+- KR-F50 SMP test stress `open`
+- KR-F51 SMP test fuzz `open`
+- KR-F52 SMP feature sipi `open`
+- KR-F53 SMP feature apic-id `open`
+- KR-F54 SMP feature percpu `open`
+- KR-F55 SMP feature spinlock `open`
+- KR-F56 SMP feature lockfree `open`
+- KR-F57 SMP feature atomic `open`
+- KR-F58 SMP feature fence `open`
+- KR-F59 SMP feature ipi `open`
+- KR-F60 SMP feature shootdown `open`
+- KR-F61 SMP feature hotplug `open`
+- KR-F62 SMP test spin-contention `open`
+- KR-F63 SMP test deadlock `open`
+- KR-F64 SMP test livelock `open`
+- KR-F65 SMP test missed-wakeup `open`
+- KR-F66 SMP test lost-ipi `open`
+- KR-F67 SMP test tlb-stale `open`
+- KR-F68 SMP test memory-order `open`
+- KR-F69 SMP test cache-coherence `open`
+- KR-F70 SMP test stress `open`
+- KR-F71 SMP test fuzz `open`
+- KR-F72 SMP scenario 2-core `open`
+- KR-F73 SMP scenario 4-core `open`
+- KR-F74 SMP scenario 8-core `open`
+- KR-F75 SMP scenario many-core `open`
+- KR-F76 SMP scenario nested-irq `open`
+- KR-F77 SMP scenario ipi-storm `open`
+- KR-F78 SMP scenario tlb-storm `open`
+- KR-F79 SMP scenario lock-heavy `open`
+- KR-F80 SMP scenario lock-free `open`
+- KR-F81 SMP scenario stress `open`
+- KR-F82 SMP feature sipi `open`
+- KR-F83 SMP feature apic-id `open`
+- KR-F84 SMP feature percpu `open`
+- KR-F85 SMP feature spinlock `open`
+- KR-F86 SMP feature lockfree `open`
+- KR-F87 SMP feature atomic `open`
+- KR-F88 SMP feature fence `open`
+- KR-F89 SMP feature ipi `open`
+- KR-F90 SMP feature shootdown `open`
+- KR-F91 SMP feature hotplug `open`
+- KR-F92 SMP test spin-contention `open`
+- KR-F93 SMP test deadlock `open`
+- KR-F94 SMP test livelock `open`
+- KR-F95 SMP test missed-wakeup `open`
+- KR-F96 SMP test lost-ipi `open`
+- KR-F97 SMP test tlb-stale `open`
+- KR-F98 SMP test memory-order `open`
+- KR-F99 SMP test cache-coherence `open`
+- KR-F100 SMP test stress `open`
+Status: `open` (31 gaps)
+
+## KR-G: The security & the verifier
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: measured boot -> attestation -> EDR -> the seccomp sandbox
+- KR-G01 The measured boot `open`
+- KR-G02 The hash chain `open`
+- KR-G03 The SHA-256 `open`
+- KR-G04 The HMAC `open`
+- KR-G05 The policy gate `open`
+- KR-G06 The attestation `open`
+- KR-G07 The TPM (future) `open`
+- KR-G08 The PCRs (future) `open`
+- KR-G09 The anti-rollback (future) `open`
+- KR-G10 The signed kernel `open`
+- KR-G11 The signed modules `open`
+- KR-G12 The signed apps `open`
+- KR-G13 The verifier the kernel `open`
+- KR-G14 The verifier the modules `open`
+- KR-G15 The verifier the apps `open`
+- KR-G16 The EDR the events `open`
+- KR-G17 The EDR the analytics `open`
+- KR-G18 The EDR the dashboard `open`
+- KR-G19 The audit log `open`
+- KR-G20 The forensics `open`
+- KR-G21 The permissions `open`
+- KR-G22 The capabilities (future) `open`
+- KR-G23 The MAC (future) `open`
+- KR-G24 The sandbox `open`
+- KR-G25 The seccomp `open`
+- KR-G26 The cgroups `open`
+- KR-G27 The namespace isolation `open`
+- KR-G28 The container security `open`
+- KR-G29 The memory safety `open`
+- KR-G30 The bounds checks `open`
+- KR-G31 The stack canaries `open`
+- KR-G32 The ASLR `open`
+- KR-G33 The W^X `open`
+- KR-G34 The kASLR (future) `open`
+- KR-G35 The ret2usr guard `open`
+- KR-G36 The SMEP/SMAP (future) `open`
+- KR-G37 The CET (future) `open`
+- KR-G38 The security tests `open`
+- KR-G39 The security fuzz `open`
+- KR-G40 The security bench `open`
+- KR-G41 The security energy `open`
+- KR-G42 Security feature measure `open`
+- KR-G43 Security feature hash `open`
+- KR-G44 Security feature hmac `open`
+- KR-G45 Security feature attest `open`
+- KR-G46 Security feature policy `open`
+- KR-G47 Security feature verify `open`
+- KR-G48 Security feature edr `open`
+- KR-G49 Security feature audit `open`
+- KR-G50 Security feature sandbox `open`
+- KR-G51 Security feature seccomp `open`
+- KR-G52 Security test tamper `open`
+- KR-G53 Security test replay `open`
+- KR-G54 Security test bypass `open`
+- KR-G55 Security test escalate `open`
+- KR-G56 Security test inject `open`
+- KR-G57 Security test overflow `open`
+- KR-G58 Security test rop `open`
+- KR-G59 Security test ret2usr `open`
+- KR-G60 Security test evil-module `open`
+- KR-G61 Security test evil-app `open`
+- KR-G62 Security feature measure `open`
+- KR-G63 Security feature hash `open`
+- KR-G64 Security feature hmac `open`
+- KR-G65 Security feature attest `open`
+- KR-G66 Security feature policy `open`
+- KR-G67 Security feature verify `open`
+- KR-G68 Security feature edr `open`
+- KR-G69 Security feature audit `open`
+- KR-G70 Security feature sandbox `open`
+- KR-G71 Security feature seccomp `open`
+- KR-G72 Security test tamper `open`
+- KR-G73 Security test replay `open`
+- KR-G74 Security test bypass `open`
+- KR-G75 Security test escalate `open`
+- KR-G76 Security test inject `open`
+- KR-G77 Security test overflow `open`
+- KR-G78 Security test rop `open`
+- KR-G79 Security test ret2usr `open`
+- KR-G80 Security test evil-module `open`
+- KR-G81 Security test evil-app `open`
+- KR-G82 Security scenario boot `open`
+- KR-G83 Security scenario user-app `open`
+- KR-G84 Security scenario container `open`
+- KR-G85 Security scenario kernel-module `open`
+- KR-G86 Security scenario remote `open`
+- KR-G87 Security scenario local `open`
+- KR-G88 Security scenario guest `open`
+- KR-G89 Security scenario root `open`
+- KR-G90 Security scenario untrusted-payload `open`
+- KR-G91 Security scenario attest `open`
+- KR-G92 Security feature measure `open`
+- KR-G93 Security feature hash `open`
+- KR-G94 Security feature hmac `open`
+- KR-G95 Security feature attest `open`
+- KR-G96 Security feature policy `open`
+- KR-G97 Security feature verify `open`
+- KR-G98 Security feature edr `open`
+- KR-G99 Security feature audit `open`
+- KR-G100 Security feature sandbox `open`
+Status: `open` (41 gaps)
+
+## KR-H: The drivers & the metal
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: probe/remove -> the AHCI/xHCI -> the console-gated IOMMU/SMP
+- KR-H01 The driver model `open`
+- KR-H02 The probe `open`
+- KR-H03 The remove `open`
+- KR-H04 The suspend (future) `open`
+- KR-H05 The resume (future) `open`
+- KR-H06 The PCI driver `open`
+- KR-H07 The AHCI driver `open`
+- KR-H08 The xHCI driver (future) `open`
+- KR-H09 The UART driver `open`
+- KR-H10 The PS/2 driver `open`
+- KR-H11 The keyboard driver `open`
+- KR-H12 The mouse driver `open`
+- KR-H13 The VBE driver `open`
+- KR-H14 The HPET driver `open`
+- KR-H15 The PIT driver `open`
+- KR-H16 The RTC driver `open`
+- KR-H17 The CMOS driver `open`
+- KR-H18 The SMBIOS reader `open`
+- KR-H19 The ACPI parser `open`
+- KR-H20 The IOMMU (the cmd) `open`
+- KR-H21 The SMP (the cmd) `open`
+- KR-H22 The GPU (future) `open`
+- KR-H23 The audio (future) `open`
+- KR-H24 The network (future) `open`
+- KR-H25 The NVMe (future) `open`
+- KR-H26 The driver registration `open`
+- KR-H27 The driver matching `open`
+- KR-H28 The driver init order `open`
+- KR-H29 The driver error paths `open`
+- KR-H30 The driver power (future) `open`
+- KR-H31 The driver tests `open`
+- KR-H32 The driver fuzz `open`
+- KR-H33 The driver bench `open`
+- KR-H34 The driver energy `open`
+- KR-H35 Driver feature register `open`
+- KR-H36 Driver feature match `open`
+- KR-H37 Driver feature probe `open`
+- KR-H38 Driver feature remove `open`
+- KR-H39 Driver feature error-path `open`
+- KR-H40 Driver feature power `open`
+- KR-H41 Driver feature suspend `open`
+- KR-H42 Driver feature resume `open`
+- KR-H43 Driver feature hotplug `open`
+- KR-H44 Driver feature bench `open`
+- KR-H45 Driver test probe-fail `open`
+- KR-H46 Driver test irq-storm `open`
+- KR-H47 Driver test dma-fail `open`
+- KR-H48 Driver test timeout `open`
+- KR-H49 Driver test stall `open`
+- KR-H50 Driver test corrupt `open`
+- KR-H51 Driver test hot-unplug `open`
+- KR-H52 Driver test reprobe `open`
+- KR-H53 Driver test power-cycle `open`
+- KR-H54 Driver test fuzz `open`
+- KR-H55 Driver feature register `open`
+- KR-H56 Driver feature match `open`
+- KR-H57 Driver feature probe `open`
+- KR-H58 Driver feature remove `open`
+- KR-H59 Driver feature error-path `open`
+- KR-H60 Driver feature power `open`
+- KR-H61 Driver feature suspend `open`
+- KR-H62 Driver feature resume `open`
+- KR-H63 Driver feature hotplug `open`
+- KR-H64 Driver feature bench `open`
+- KR-H65 Driver test probe-fail `open`
+- KR-H66 Driver test irq-storm `open`
+- KR-H67 Driver test dma-fail `open`
+- KR-H68 Driver test timeout `open`
+- KR-H69 Driver test stall `open`
+- KR-H70 Driver test corrupt `open`
+- KR-H71 Driver test hot-unplug `open`
+- KR-H72 Driver test reprobe `open`
+- KR-H73 Driver test power-cycle `open`
+- KR-H74 Driver test fuzz `open`
+- KR-H75 Driver scenario probe `open`
+- KR-H76 Driver scenario dma `open`
+- KR-H77 Driver scenario irq `open`
+- KR-H78 Driver scenario poll `open`
+- KR-H79 Driver scenario error `open`
+- KR-H80 Driver scenario hotplug `open`
+- KR-H81 Driver scenario power `open`
+- KR-H82 Driver scenario suspend `open`
+- KR-H83 Driver scenario resume `open`
+- KR-H84 Driver scenario bench `open`
+- KR-H85 Driver feature register `open`
+- KR-H86 Driver feature match `open`
+- KR-H87 Driver feature probe `open`
+- KR-H88 Driver feature remove `open`
+- KR-H89 Driver feature error-path `open`
+- KR-H90 Driver feature power `open`
+- KR-H91 Driver feature suspend `open`
+- KR-H92 Driver feature resume `open`
+- KR-H93 Driver feature hotplug `open`
+- KR-H94 Driver feature bench `open`
+- KR-H95 Driver test probe-fail `open`
+- KR-H96 Driver test irq-storm `open`
+- KR-H97 Driver test dma-fail `open`
+- KR-H98 Driver test timeout `open`
+- KR-H99 Driver test stall `open`
+- KR-H100 Driver test corrupt `open`
+Status: `open` (34 gaps)
+
+## KR-I: The hosted & the metal duality
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the hosted scaffold -> the metal target -> the parity matrix
+- KR-I01 The hosted layer (the scaffold) `open`
+- KR-I02 The metal layer (the target) `open`
+- KR-I03 The PARITY project `open`
+- KR-I04 The dual paths `open`
+- KR-I05 The make runtime `open`
+- KR-I06 The make hosted `open`
+- KR-I07 The make check `open`
+- KR-I08 The metal boot verify `open`
+- KR-I09 The hosted tests `open`
+- KR-I10 The kernel build `open`
+- KR-I11 The docs build `open`
+- KR-I12 The ledger lint `open`
+- KR-I13 The 18 curated tests `open`
+- KR-I14 The full gate `open`
+- KR-I15 The parity matrix `open`
+- KR-I16 The host bridge `open`
+- KR-I17 The VSL on Linux `open`
+- KR-I18 The VSL on Windows (future) `open`
+- KR-I19 The VSL on macOS (future) `open`
+- KR-I20 The Wayland host `open`
+- KR-I21 The VBE host `open`
+- KR-I22 The input host `open`
+- KR-I23 The audio host (future) `open`
+- KR-I24 The GPU host `open`
+- KR-I25 The container host `open`
+- KR-I26 The 9P host `open`
+- KR-I27 The duality tests `open`
+- KR-I28 The duality bench `open`
+- KR-I29 The duality energy `open`
+- KR-I30 Duality feature hosted `open`
+- KR-I31 Duality feature metal `open`
+- KR-I32 Duality feature parity `open`
+- KR-I33 Duality feature check `open`
+- KR-I34 Duality feature build `open`
+- KR-I35 Duality feature test `open`
+- KR-I36 Duality feature docs `open`
+- KR-I37 Duality feature lint `open`
+- KR-I38 Duality feature matrix `open`
+- KR-I39 Duality feature probe `open`
+- KR-I40 Duality test hosted-boot `open`
+- KR-I41 Duality test metal-boot `open`
+- KR-I42 Duality test hosted-tests `open`
+- KR-I43 Duality test kernel-build `open`
+- KR-I44 Duality test docs-build `open`
+- KR-I45 Duality test ledger-lint `open`
+- KR-I46 Duality test parity-diff `open`
+- KR-I47 Duality test qemu-boot `open`
+- KR-I48 Duality test serial-probe `open`
+- KR-I49 Duality test bench `open`
+- KR-I50 Duality feature hosted `open`
+- KR-I51 Duality feature metal `open`
+- KR-I52 Duality feature parity `open`
+- KR-I53 Duality feature check `open`
+- KR-I54 Duality feature build `open`
+- KR-I55 Duality feature test `open`
+- KR-I56 Duality feature docs `open`
+- KR-I57 Duality feature lint `open`
+- KR-I58 Duality feature matrix `open`
+- KR-I59 Duality feature probe `open`
+- KR-I60 Duality test hosted-boot `open`
+- KR-I61 Duality test metal-boot `open`
+- KR-I62 Duality test hosted-tests `open`
+- KR-I63 Duality test kernel-build `open`
+- KR-I64 Duality test docs-build `open`
+- KR-I65 Duality test ledger-lint `open`
+- KR-I66 Duality test parity-diff `open`
+- KR-I67 Duality test qemu-boot `open`
+- KR-I68 Duality test serial-probe `open`
+- KR-I69 Duality test bench `open`
+- KR-I70 Duality scenario dev-loop `open`
+- KR-I71 Duality scenario ci `open`
+- KR-I72 Duality scenario release `open`
+- KR-I73 Duality scenario metal-only `open`
+- KR-I74 Duality scenario hosted-only `open`
+- KR-I75 Duality scenario both `open`
+- KR-I76 Duality scenario parity-check `open`
+- KR-I77 Duality scenario docs `open`
+- KR-I78 Duality scenario ledger `open`
+- KR-I79 Duality scenario bench `open`
+- KR-I80 Duality feature hosted `open`
+- KR-I81 Duality feature metal `open`
+- KR-I82 Duality feature parity `open`
+- KR-I83 Duality feature check `open`
+- KR-I84 Duality feature build `open`
+- KR-I85 Duality feature test `open`
+- KR-I86 Duality feature docs `open`
+- KR-I87 Duality feature lint `open`
+- KR-I88 Duality feature matrix `open`
+- KR-I89 Duality feature probe `open`
+- KR-I90 Duality test hosted-boot `open`
+- KR-I91 Duality test metal-boot `open`
+- KR-I92 Duality test hosted-tests `open`
+- KR-I93 Duality test kernel-build `open`
+- KR-I94 Duality test docs-build `open`
+- KR-I95 Duality test ledger-lint `open`
+- KR-I96 Duality test parity-diff `open`
+- KR-I97 Duality test qemu-boot `open`
+- KR-I98 Duality test serial-probe `open`
+- KR-I99 Duality test bench `open`
+- KR-I100 Duality scenario dev-loop `open`
+Status: `open` (29 gaps)
+
+## KR-J: The kernel avenue engineering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the engineering discipline for the kernel avenue
+- KR-J01 The module registry `open`
+- KR-J02 The test matrix `open`
+- KR-J03 The boot tests `open`
+- KR-J04 The metal probes `open`
+- KR-J05 The QEMU harness `open`
+- KR-J06 The serial discipline `open`
+- KR-J07 The klog format limits `open`
+- KR-J08 The ISR gating `open`
+- KR-J09 The energy accounting `open`
+- KR-J10 The telemetry `open`
+- KR-J11 The watchdog `open`
+- KR-J12 The docs spec `open`
+- KR-J13 The roadmap `open`
+- KR-J14 The cross-link to the FS `open`
+- KR-J15 The cross-link to the network `open`
+- KR-J16 The cross-link to the AGI `open`
+- KR-J17 The cross-link to the Colonel `open`
+- KR-J18 The cross-link to the GUI `open`
+- KR-J19 The cross-link to the synthesis `open`
+- KR-J20 The milestones `open`
+- KR-J21 Engineering registry `open`
+- KR-J22 Engineering tests `open`
+- KR-J23 Engineering fuzz `open`
+- KR-J24 Engineering bench `open`
+- KR-J25 Engineering energy `open`
+- KR-J26 Engineering telemetry `open`
+- KR-J27 Engineering watchdog `open`
+- KR-J28 Engineering docs `open`
+- KR-J29 Engineering roadmap `open`
+- KR-J30 Engineering milestones `open`
+- KR-J31 Cross-link FS `open`
+- KR-J32 Cross-link network `open`
+- KR-J33 Cross-link AGI `open`
+- KR-J34 Cross-link Colonel `open`
+- KR-J35 Cross-link GUI `open`
+- KR-J36 Cross-link synthesis `open`
+- KR-J37 Cross-link wubuwizard `open`
+- KR-J38 Cross-link compendium `open`
+- KR-J39 Cross-link mind-palace `open`
+- KR-J40 Cross-link verifier `open`
+- KR-J41 Engineering registry `open`
+- KR-J42 Engineering tests `open`
+- KR-J43 Engineering fuzz `open`
+- KR-J44 Engineering bench `open`
+- KR-J45 Engineering energy `open`
+- KR-J46 Engineering telemetry `open`
+- KR-J47 Engineering watchdog `open`
+- KR-J48 Engineering docs `open`
+- KR-J49 Engineering roadmap `open`
+- KR-J50 Engineering milestones `open`
+- KR-J51 Cross-link FS `open`
+- KR-J52 Cross-link network `open`
+- KR-J53 Cross-link AGI `open`
+- KR-J54 Cross-link Colonel `open`
+- KR-J55 Cross-link GUI `open`
+- KR-J56 Cross-link synthesis `open`
+- KR-J57 Cross-link wubuwizard `open`
+- KR-J58 Cross-link compendium `open`
+- KR-J59 Cross-link mind-palace `open`
+- KR-J60 Cross-link verifier `open`
+- KR-J61 Avenue test unit `open`
+- KR-J62 Avenue test integration `open`
+- KR-J63 Avenue test boot `open`
+- KR-J64 Avenue test metal `open`
+- KR-J65 Avenue test hosted `open`
+- KR-J66 Avenue test fuzz `open`
+- KR-J67 Avenue test bench `open`
+- KR-J68 Avenue test energy `open`
+- KR-J69 Avenue test docs `open`
+- KR-J70 Avenue test roadmap `open`
+- KR-J71 Engineering registry `open`
+- KR-J72 Engineering tests `open`
+- KR-J73 Engineering fuzz `open`
+- KR-J74 Engineering bench `open`
+- KR-J75 Engineering energy `open`
+- KR-J76 Engineering telemetry `open`
+- KR-J77 Engineering watchdog `open`
+- KR-J78 Engineering docs `open`
+- KR-J79 Engineering roadmap `open`
+- KR-J80 Engineering milestones `open`
+- KR-J81 Cross-link FS `open`
+- KR-J82 Cross-link network `open`
+- KR-J83 Cross-link AGI `open`
+- KR-J84 Cross-link Colonel `open`
+- KR-J85 Cross-link GUI `open`
+- KR-J86 Cross-link synthesis `open`
+- KR-J87 Cross-link wubuwizard `open`
+- KR-J88 Cross-link compendium `open`
+- KR-J89 Cross-link mind-palace `open`
+- KR-J90 Cross-link verifier `open`
+- KR-J91 Avenue test unit `open`
+- KR-J92 Avenue test integration `open`
+- KR-J93 Avenue test boot `open`
+- KR-J94 Avenue test metal `open`
+- KR-J95 Avenue test hosted `open`
+- KR-J96 Avenue test fuzz `open`
+- KR-J97 Avenue test bench `open`
+- KR-J98 Avenue test energy `open`
+- KR-J99 Avenue test docs `open`
+- KR-J100 Avenue test roadmap `open`
+Status: `open` (20 gaps)
