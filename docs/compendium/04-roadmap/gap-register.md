@@ -59,7 +59,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] C8. FPU/SSE saved on switch: fxsave/fxrstor in tasking_switch.S, primed first-run contexts (this batch) on context switch -- tasks share xmm0-15
       + mxcsr; the movaps-class corruption is a live hazard.
 - [x] C9. CR0.WP set at paging-enable (crt0) -- kernel can't write RO pages (kernel can write RO pages silently).
-- [ ] C10. SMEP/SMAP not enabled.
+- [x] C10. SMEP/SMAP enabled at boot when the CPUID supports them (CR4 bits 20/21, CPUID-gated).
 - [x] C11. Exception counters exposed: console `stats` (this batch) to the AGI/console.
 
 ## D. Tasking (P0/P1)
@@ -94,7 +94,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] F6. `regs`: CR0/2/3/4 + EFER + LAPIC live.
 - [x] F7. `make check` runs 6 host tests + the kernel build (this batch) (tests run individually).
 - [ ] F8. gen_docs tests scanner covers 6 of ~15 test targets.
-- [ ] F9. No CI config.
+- [x] F9. GitHub Actions CI: make check + firmware + WuBuFW->AGI boot smoke on push/PR.
 - [ ] F10. No crash-file pickup (post-mortem from the metal).
 
 ## G. AGI modules (P1)
