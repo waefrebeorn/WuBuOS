@@ -122,7 +122,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 ## I. Boot / early (P1)
 - [x] I1. E820-style memory map from the loader: GetMemoryMap -> 0x98000 -> vmm owns the real RAM (this batch) (e820) -- vmm assumes 1GB.
 - [ ] I2. No SMP (APs never started; single CPU).
-- [ ] I3. No SMBIOS/DMI parsing (machine identity unknown).
+- [x] I3. wubu_smbios: SMBIOS entry-point discovery + structure walk (BIOS/system strings), synthetic-table tests green, boot probe.
 - [x] I4. Cache/TLB maintenance policy documented (docs/compendium/00-philosophy/cache-tlb-policy.md): invalidation points, write-back doctrine, SMP/COW/SMEP notes.
 - [x] I5. Loader->kernel ABI version negotiation: the handoff version is checked at boot; a mismatch loudly disables promotion.
 - [x] I6. Fallback = the G2 self-test gate: a corrupt-but-valid-digest kernel fails its own integrity suite, so promotion is blocked (the digest alone is not trusted).
