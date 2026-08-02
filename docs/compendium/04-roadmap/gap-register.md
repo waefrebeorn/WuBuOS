@@ -26,7 +26,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A13. AHCI HBA reset (GHC.HR cycle) + port error recovery (SERR/PIS write-1-to-clear).
       cleared on error).
 - [ ] A14. AHCI: only the boot disk; no multi-drive enumeration.
-- [ ] A15. FAT32: no dirty-volume flag, no fsck, no journal.
+- [x] A15. FAT32 dirty-volume flag: set at mount, cleared at clean unmount, reported on a crash-remount (host-tested).
 - [x] A16. FAT32 LFN: wubu_lfn codec (encode/decode/chain, 9 tests) + dir-layer write integration; long-name create/find/list verified end-to-end.
 - [x] A17. RTC wall clock: wubu_rtc module (CMOS 0x70/0x71, BCD/12h, UIP); `date` command + boot stamp verified live.
 - [ ] A18. No ACPI/FADT parsing (firmware memory map is assumed, not read).

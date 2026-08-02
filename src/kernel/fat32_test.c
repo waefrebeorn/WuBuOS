@@ -216,6 +216,39 @@ static void test_cluster_lba_conversion(void) {
 
 /* -- Test: Create and Find File ----------------------------------- */
 
+static void test_dirty_flag(void) {
+    TEST(dirty_volume_flag);
+    ram_disk_init();
+    fat32_blk_ops ops = ram_blk_ops();
+    fat32_format(&ops, RAM_DISK_SECTORS, "TEST");
+
+    /* mount: the flag starts clean, gets SET (the volume is in use) */
+    fat32_volume vol;
+    int rc = fat32_mount(&vol, &ops);
+    ASSERT_EQ(rc, 0, "mount failed");
+    ASSERT_EQ(vol.dirty, false, "clean volume reports clean");
+
+    /* simulate a crash: verify the on-disk flag is set while mounted,
+     * then that a fresh mount (as after a reboot) sees it */
+    fat32_boot_sector bs;
+    ops.read(ops.ctx, 0, 1, &bs);
+    ASSERT_EQ(bs.fat_flags & 0x80, 0x80, "dirty flag set on disk while mounted");
+
+    /* crash: skip the unmount; a fresh mount sees the dirty volume */
+    fat32_volume vol2;
+    rc = fat32_mount(&vol2, &ops);
+    ASSERT_EQ(rc, 0, "remount failed");
+    ASSERT_EQ(vol2.dirty, true, "remount reports dirty after a crash");
+
+    /* clean unmount clears it */
+    fat32_unmount(&vol2);
+    ops.read(ops.ctx, 0, 1, &bs);
+    ASSERT_EQ(bs.fat_flags & 0x80, 0, "unmount clears the dirty flag");
+
+    fat32_unmount(&vol);
+    PASS();
+}
+
 static void test_create_and_find(void) {
     TEST(create_and_find);
     ram_disk_init();
@@ -730,6 +763,7 @@ int main(void) {
     test_double_mount();
     test_boot_sector_validation();
     test_cluster_chain();
+    test_dirty_flag();
     test_cluster_lba_conversion();
     test_create_and_find();
     test_create_find_lfn();

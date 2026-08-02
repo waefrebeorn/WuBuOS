@@ -36,6 +36,15 @@ int fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk) {
     vol->total_clusters = (uint32_t)((blk->n_sectors - vol->data_lba) / bs.sectors_per_cluster) + 2;
     vol->fs_info_lba = bs.fs_info_sector;
 
+    /* Gap A15: the dirty-volume flag (extended-flags bit 7). A previous
+     * crash left it set -> report it; a clean volume gets it SET now
+     * (the volume is in use) and the unmount clears it. */
+    vol->dirty = (bs.fat_flags & 0x80) ? true : false;
+    if (!vol->dirty) {
+        bs.fat_flags |= 0x80;
+        blk->write(blk->ctx, 0, 1, &bs);
+    }
+
     /* Read FSInfo for free cluster count */
     if (bs.fs_info_sector > 0) {
         uint8_t fsinfo_buf[FAT32_SECTOR_SIZE];
@@ -62,7 +71,16 @@ void fat32_unmount(fat32_volume *vol) {
         free(vol->fat_cache);
         vol->fat_cache = NULL;
     }
+    /* Gap A15: a clean unmount clears the dirty flag. */
+    if (vol->mounted) {
+        fat32_boot_sector bs;
+        if (vol->blk.read(vol->blk.ctx, 0, 1, &bs) == 0) {
+            bs.fat_flags &= (uint16_t)~0x80;
+            vol->blk.write(vol->blk.ctx, 0, 1, &bs);
+        }
+    }
     vol->mounted = false;
+    vol->dirty = false;
 }
 
 int fat32_format(const fat32_blk_ops *blk, uint64_t sector_count,

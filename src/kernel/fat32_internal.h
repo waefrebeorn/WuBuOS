@@ -26,6 +26,8 @@
 struct fat32_volume {
     fat32_blk_ops     blk;          /* Block device operations */
     bool               mounted;     /* Volume is mounted and valid */
+    bool               dirty;       /* Dirty-volume flag read at mount
+                                     * (FAT32 extended-flags bit 7)   */
     uint32_t           sectors_per_cluster;
     uint32_t           bytes_per_cluster;
     uint32_t           reserved_sectors;
