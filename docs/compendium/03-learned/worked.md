@@ -76,3 +76,17 @@ Copy TEMPLATE.md for new entries.*
 - **When it may change:** the static scorer becomes the test-suite
   verifier (kernel self-tests gate real changes); the theme step gets more
   signals (agent focus, load, time of day).
+
+## 2026-08-02 — The new-generation doc scanners (docs DA overhaul)
+- **Context:** the generator covered 4 of 16 src dirs (135 of 582 modules);
+  tests.md was a static list; no live state; no parity evidence.
+- **What worked:** gen_docs.py rebuilt as a scanner suite — modules (full
+  recursive walk, 582), api (629 header-sourced prototypes), tests (RUNS
+  the curated suite, records PASS/FAIL), state (BOOTS QEMU, records the
+  live vitals), parity (BUILDS the hosted targets, records the matrix).
+- **Evidence:** the tests scanner immediately caught a REAL regression
+  (agi_theme_step broke test_agi_kernel — fixed via stub additions);
+  final run 4/4 PASS; Linux parity leg VERIFIED (make runtime tools).
+- **When it may change:** the state scanner becomes a heartbeat; the
+  verifier doctrine extends to docs (a change that breaks make docs or a
+  curated test is not promotable).
