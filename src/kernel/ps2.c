@@ -36,13 +36,76 @@ static inline void ps2_wait_read(void) {
             return;
 }
 
-static void mouse_cmd(uint8_t cmd) {
+/* Read one byte from the data port with a bounded wait (gap A11: the
+ * old path assumed every command's response arrived). Returns -1 on
+ * timeout so the caller can distinguish a real ACK from silence. */
+static int ps2_read_byte(uint8_t *out) {
+    ps2_wait_read();
+    if (!(inb(0x64) & 1)) return -1;   /* timeout: nothing arrived */
+    if (out) *out = inb(0x60);
+    return 0;
+}
+
+/* Issue a controller command + validate the ACK (0xFA) / the response
+ * against an expected byte. Returns 0 on match, -1 on timeout, -2 on
+ * a wrong byte. */
+static int ps2_cmd_ack(uint8_t cmd, uint8_t expect, bool strict) {
+    ps2_wait_write();
+    outb(0x64, cmd);
+    uint8_t r;
+    if (ps2_read_byte(&r) != 0) return -1;
+    if (strict && r != expect) return -2;
+    return 0;
+}
+
+/* Controller self-test (0xAA must answer 0x55). */
+static int ps2_self_test(void) {
+    return ps2_cmd_ack(0xAA, 0x55, true);
+}
+
+/* Device ID handshake (0xF2 to a port's device). The device answers
+ * with an ACK (0xFA) first, then the ID: the keyboard sends 0xAB 0x83
+ * (or a single 0xAB), the mouse a single ID byte (0x00/0x03/0x04/...).
+ * Returns the ID (>=0) or a negative error. */
+static int ps2_dev_id(void) {
+    ps2_wait_write();
+    outb(0x60, 0xF2);
+    uint8_t r;
+    if (ps2_read_byte(&r) != 0) return -1;      /* nothing at all */
+    if (r == 0xFA) {                             /* ACK: read the ID */
+        if (ps2_read_byte(&r) != 0) return -1;
+    }
+    if (r == 0xAB) {           /* keyboard: 0xAB then the type byte */
+        uint8_t r2;
+        if (ps2_read_byte(&r2) == 0) return (int)r2;
+        return 0xAB;           /* single-byte keyboard ID */
+    }
+    return (int)r;             /* mouse / other device ID byte */
+}
+
+/* Device-ID handshake for the AUX (mouse) port: the 0xD4 prefix routes
+ * the 0xF2 to the second device. */
+static int ps2_aux_dev_id(void) {
+    ps2_wait_write();
+    outb(0x64, 0xD4);
+    ps2_wait_write();
+    outb(0x60, 0xF2);
+    uint8_t r;
+    if (ps2_read_byte(&r) != 0) return -1;
+    if (r == 0xFA) {                             /* ACK: read the ID */
+        if (ps2_read_byte(&r) != 0) return -1;
+    }
+    return (int)r;             /* the mouse's ID byte */
+}
+
+static int mouse_cmd(uint8_t cmd) {
     ps2_wait_write();
     outb(0x64, 0xD4);           /* next byte goes to the aux device */
     ps2_wait_write();
     outb(0x60, cmd);
-    ps2_wait_read();
-    (void)inb(0x60);            /* eat the ACK (0xFA) */
+    uint8_t ack;
+    if (ps2_read_byte(&ack) != 0) return -1;
+    return (ack == 0xFA) ? 0 : -2;
 }
 
 /* ================================================================
@@ -63,13 +126,27 @@ volatile bool ps2_key_pressed[256] = {0};
  * Initialization
  * ================================================================ */
 
-void ps2_init(int screen_w, int screen_h) {
+void ps2_init(int screen_w, int screen_h, ps2_probe_t *probe) {
     g_screen_w = screen_w;
     g_screen_h = screen_h;
+    if (probe) {
+        probe->self_test = 0;
+        probe->kbd_id = 0;
+        probe->mouse_id = 0;
+        probe->mouse_ack = 0;
+        probe->flags = 0;
+    }
 
     /* Drain stale data */
     while (inb(0x64) & 1)
         (void)inb(0x60);
+
+    /* Controller self-test (0xAA -> 0x55) + report the result. */
+    int st = ps2_self_test();
+    if (probe) {
+        probe->self_test = st;
+        if (st == 0) probe->flags |= PS2_PROBE_SELFTEST_OK;
+    }
 
     /* Enable aux port (mouse) */
     ps2_wait_write();
@@ -90,9 +167,26 @@ void ps2_init(int screen_w, int screen_h) {
     ps2_wait_write();
     outb(0x60, cb);
 
-    /* Mouse defaults + enable data reporting */
-    mouse_cmd(0xF6);
-    mouse_cmd(0xF4);
+    /* Device-ID handshake for the keyboard port (gap A11). */
+    int kbd_id = ps2_dev_id();
+    if (probe) {
+        probe->kbd_id = kbd_id;
+        if (kbd_id >= 0) probe->flags |= PS2_PROBE_KBD_OK;
+    }
+
+    /* Mouse defaults + enable data reporting; validate the ACKs now
+     * instead of eating them blindly. */
+    int m1 = mouse_cmd(0xF6);
+    int m2 = mouse_cmd(0xF4);
+    if (probe) {
+        probe->mouse_ack = (m1 == 0 && m2 == 0) ? 0 : -1;
+        if (m1 == 0 && m2 == 0) probe->flags |= PS2_PROBE_MOUSE_ACK_OK;
+    }
+    int mid = ps2_aux_dev_id();
+    if (probe) {
+        probe->mouse_id = mid;
+        if (mid >= 0) probe->flags |= PS2_PROBE_MOUSE_OK;
+    }
 
     /* Drain again before interrupts go live */
     while (inb(0x64) & 1)
