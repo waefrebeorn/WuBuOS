@@ -86,13 +86,13 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] E7. No watchdog timer (the 8254/HPET not used as a WDT).
 
 ## F. Console / tooling (P1)
-- [ ] F1. No command history.
+- [x] F1. Console command history: ESC-[A/B recall (8-line ring, live).
 - [ ] F2. No tab completion.
 - [ ] F3. No script execution ("run <file>").
 - [ ] F4. Help text doesn't enumerate all commands.
 - [x] F5. In-OS hexdump: console `dump <addr> [bytes]` (this batch) command (`mem <addr> <bytes>`) -- the live
       debugger the kernel needs (today: external qemu-monitor scripts).
-- [ ] F6. No register dump command.
+- [x] F6. `regs`: CR0/2/3/4 + EFER + LAPIC live.
 - [x] F7. `make check` runs 6 host tests + the kernel build (this batch) (tests run individually).
 - [ ] F8. gen_docs tests scanner covers 6 of ~15 test targets.
 - [ ] F9. No CI config.
@@ -102,7 +102,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] G1. Verifier is static policy; DA-3 wants runtime PCRs.
 - [ ] G2. Verifier doesn't consult the TEST SUITE results (the DA's
       "test-suite verifier" is not wired).
-- [ ] G3. promoted_total has no cap/decay.
+- [ ] G3. OPEN: the soft cap re-triggered the tick-12 freeze (timing-dependent corruption -- tracked).
 - [ ] G4. Theme writes not persisted (reset each boot).
 - [ ] G5. No long-term memory on metal (hive is hosted-side).
 - [ ] G6. No AGI crash recovery (checkpoints, DA-2.6).

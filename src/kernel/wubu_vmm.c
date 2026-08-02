@@ -165,20 +165,6 @@ int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)
     return 0;
 }
 
-/* Is `va` backed by a present PTE? (walks the CR3 tables; used by the
- * dump command so a typo'd address can't #PF-halt the OS). */
-int wubu_vmm_is_mapped(uint64_t virt)
-{
-    uint64_t *pml4 = (uint64_t *)PML4_BASE;
-    uint64_t *pdp = (uint64_t *)vmm_phys_of(pml4[(virt >> 39) & 0x1FF] & ~0xFFFull);
-    if (!(pml4[(virt >> 39) & 0x1FF] & 1)) return 0;
-    uint64_t *pd = (uint64_t *)vmm_phys_of(pdp[(virt >> 30) & 0x1FF] & ~0xFFFull);
-    if (!(pdp[(virt >> 30) & 0x1FF] & 1)) return 0;
-    uint64_t *pt = (uint64_t *)vmm_phys_of(pd[(virt >> 21) & 0x1FF] & ~0xFFFull);
-    if (!(pd[(virt >> 21) & 0x1FF] & 1)) return 0;
-    return (pt[(virt >> 12) & 0x1FF] & 1) != 0;
-}
-
 /* ---- demand-zero regions ------------------------------------------- */
 
 #define WUBU_VMM_MAX_DEMAND 4

@@ -60,3 +60,11 @@ const void *wubu_theme_get(void) { return NULL; }
 /* ---- wubu_vmm hosted stub (agi_theme_step reads memory pressure) --- */
 uint64_t wubu_vmm_free_count(void) { return 0xFFFFFFFFull; }
 
+/* ---- wubu_sync hosted shims (the ring's cli-based lock is ring-0) --- */
+#include "wubu_sync.h"
+void wubu_spin_init(wubu_spinlock_t *l) { l->locked = 0; l->irq_state = 0; }
+void wubu_spin_lock(wubu_spinlock_t *l)
+{ while (__atomic_test_and_set(&l->locked, __ATOMIC_ACQUIRE)) {} }
+void wubu_spin_unlock(wubu_spinlock_t *l)
+{ __atomic_clear(&l->locked, __ATOMIC_RELEASE); }
+
