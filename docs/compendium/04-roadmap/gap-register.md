@@ -16,7 +16,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A6. Heap red-zone canaries: mem_validate_all wired into `mem` (canaries=OK live) (the 8GB
       alloca-in-loop bug class can regress silently).
 - [x] A7. Panic ring: the klog captures the last 4KB in RAM; fault handlers dump it (post-mortem).
-- [ ] A8. No crash dump to the disk (the ledger wants evidence, not dumps).
+- [x] A8. wubu_crash: the panic path writes the A7 ring + reason to the sim disk's last sector (raw ahci IO, ISR-safe); 'crash' console command forces it.
 - [x] A9. Hex progress codes: the crt0 + metal_main boot markers emit 2-digit hex checkpoints (01 crt0 -> 37 final), verified live.
 - [x] A10. Runtime PCR: wubu_sha256 (FIPS 180-4, own C11) + every promotion chains into a kernel-side runtime PCR; `attest` command verified live (rtPCR chained).
 - [x] A11. PS/2 ack/self-test validation + device-ID handshakes (live: kbd 0x83 / mouse 0x00).
@@ -95,7 +95,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] F7. `make check` runs 6 host tests + the kernel build (this batch) (tests run individually).
 - [x] F8. gen_docs CURATED_TESTS extended to 10 (test_lfn + test_acpi added; each runs in the check).
 - [x] F9. GitHub Actions CI: make check + firmware + WuBuFW->AGI boot smoke on push/PR.
-- [ ] F10. No crash-file pickup (post-mortem from the metal).
+- [x] F10. The boot picks up + reports any crash record left by a previous boot (the evidence outlives the crash).
 
 ## G. AGI modules (P1)
 - [x] G1. The verifier's promotion gate now includes the runtime-PCR integrity (a live chain adds score; none = below threshold).

@@ -220,6 +220,9 @@ void kernel_main(void *boot_info) {
             klog_printf("WuBuOS: no firmware attestation (loader handoff absent) "
                         "-- self-improve promotion disabled\n");
         }
+        /* Gap F10: pick up any crash record left by a previous boot. */
+        extern int wubu_crash_pickup(void);
+        wubu_crash_pickup();
     }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'1', %%al\n outb %%al, %%dx" ::: "dx","al");
 

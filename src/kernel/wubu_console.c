@@ -673,6 +673,12 @@ int wubu_console_exec(const char *line)
         return 0;
     }
     if (strcmp(argv[0], "reboot") == 0)          return cmd_reboot();
+    if (strcmp(argv[0], "crash") == 0) {         /* Gap A8: force a dump */
+        extern void interrupt_panic_dump(void);
+        klog_printf("crash: forcing the panic dump (A7 ring -> serial + disk)\n");
+        interrupt_panic_dump();
+        return 0;
+    }
     klog_printf("console: unknown command '%s' (try 'help')\n", argv[0]);
     return -1;
 }
