@@ -115,7 +115,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] H3. Per-syscall call counters + the 'syscalls' audit command.
 - [ ] H4. No ring-3 boundary (all ring 0; the hedged-human design needs it).
 - [x] H5. Superseded by C6 (the sysretq RFLAGS sanitizer ships with the C6 close).
-- [ ] H6. No vDSO/vsyscall page.
+- [x] H6. wubu_vdso: a read-only published page (uptime/tick/promotions refreshed per tick, fixed-offset ABI, syscall-stub slot reserved for the ring-3 split).
 - [x] H7. Static ABI asserts for every InterruptFrame + TaskContext offset the asm touches.
       phantom-field bug class can regress).
 

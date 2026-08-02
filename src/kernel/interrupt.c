@@ -293,6 +293,12 @@ void pit_handler(uint8_t irq, void *ctx) {
     /* Gap E7: feed the 8254 watchdog every tick (2s window). */
     extern void wdt_feed(uint32_t);
     wdt_feed(2000);
+    /* Gap H6: refresh the vDSO counters every tick. */
+    extern void wubu_vdso_update(uint64_t, uint64_t, uint32_t);
+    wubu_vdso_update(wubu_agi_kernel_uptime_ms(wubu_agi_kernel_global()),
+                     task_tick_count(),
+                     (uint32_t)wubu_agi_kernel_promoted_total(
+                         wubu_agi_kernel_global()));
     /* Tick the ring-0 AGI supervisor (cooperative, non-blocking). Safe before
      * init (returns early if the singleton has no verifier / is frozen). */
     extern wubu_agi_kernel_t *wubu_agi_kernel_global(void);
