@@ -36,6 +36,12 @@
 typedef float (*wubu_agi_verifier_fn)(const char *payload, uint64_t ts_ms,
                                       void *ud, bool *passed);
 
+/* Gap G5: the AGI's long-term-memory hook (metal: the hive). Invoked
+ * with op "put" on every promotion (the span's payload + id) so the
+ * promoted knowledge is retained beyond the boot. Returns 0 on success. */
+typedef int (*wubu_agi_memory_fn)(const char *op, uint64_t span_id,
+                                  const char *payload, void *ud);
+
 typedef enum {
     WUBU_AGI_SPAN_AGENT    = 0,   /* agent reasoning/tool-call step */
     WUBU_AGI_SPAN_SELFMOD  = 1,   /* a self-improvement change (gated) */
@@ -80,6 +86,10 @@ bool wubu_agi_kernel_is_frozen(const wubu_agi_kernel_t *k);
 /* Wire the independent verifier (DA-3). NULL => loop refuses to promote. */
 void wubu_agi_kernel_set_verifier(wubu_agi_kernel_t *k,
                                   wubu_agi_verifier_fn fn, void *ud);
+
+/* Gap G5: wire the long-term-memory hook. */
+void wubu_agi_kernel_set_memory(wubu_agi_kernel_t *k,
+                                wubu_agi_memory_fn fn, void *ud);
 
 /* ---- Agent realm API (REALM_AGENT, in-process tasking thread) -------- */
 
