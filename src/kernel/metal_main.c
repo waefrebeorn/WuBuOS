@@ -117,7 +117,7 @@ void kernel_main(void *boot_info) {
     /* Raw serial heartbeat (no klog/string dependency) so we can tell from
      * the QEMU -serial trace whether we actually reached kernel_main and
      * where the boot dies.  'Z' = entered, 'A' = BSS zeroed, 'B' = heap ok. */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'Z', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx\n movb $'6', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 1. Zero BSS FIRST -- before any subsystem init.  klog_init() below
      * sets g_klog_ready (a BSS variable); zeroing BSS *after* init would
@@ -125,14 +125,14 @@ void kernel_main(void *boot_info) {
     uint64_t *bss = &_bss_start;
     uint64_t *bss_end = &_bss_end;
     while (bss < bss_end) *bss++ = 0;
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'A', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* Diagnostic: emit fixed bytes (no deref) to bracket klog_init. */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'h', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx\n movb $'8', %%al\n outb %%al, %%dx" ::: "dx","al");
     klog_init();
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'i', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
     klog_printf("WuBuOS: kernel_main entered (long mode OK)\n");
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'j', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'0', %%al\n outb %%al, %%dx" ::: "dx","al");
     klog_printf("WuBuOS: BSS zeroed\n");
 
     /* 1b. Consume the WuBuFW loader handoff (firmware attestation +
@@ -157,14 +157,14 @@ void kernel_main(void *boot_info) {
                         "-- self-improve promotion disabled\n");
         }
     }
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'k', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'1', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 2. Initialize memory allocator FIRST (everything needs it) */
     /* Calculate available memory from Limine memmap (only if we actually
      * booted via Limine; g_limine_ok is set by crt0 and gates the otherwise
      * uninitialized .response pointers so a multiboot boot can't deref garbage). */
     uint64_t mem_size = 64 * 1024 * 1024;  /* Default 64MB fallback */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'q', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'2', %%al\n outb %%al, %%dx" ::: "dx","al");
     if (0 && limine_memmap_request.response) {
         struct limine_memmap_response *resp = limine_memmap_request.response;
         for (uint64_t i = 0; i < resp->entry_count; i++) {
@@ -173,22 +173,22 @@ void kernel_main(void *boot_info) {
             }
         }
     }
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'r', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");
     if (mem_init(mem_size) != 0) {
         klog_printf("WuBuOS PANIC: mem_init failed\n");
         for (;;) { CLI(); HLT(); }
     }
     klog_printf("WuBuOS: heap initialized (%u MB)\n", (unsigned)(mem_size >> 20));
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'B', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'4', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 3. Initialize interrupt subsystem (IDT, PIC, PIT) */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'1', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'5', %%al\n outb %%al, %%dx" ::: "dx","al");
     if (interrupt_init() != 0) {
         klog_printf("WuBuOS PANIC: interrupt_init failed\n");
         for (;;) { CLI(); HLT(); }
     }
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'o', %%al\n outb %%al, %%dx" ::: "dx","al");
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'g', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'6', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
     klog_printf("WuBuOS: interrupts initialized\n");
 
     /* 3b. Program the PIT (IRQ0 @ 100 Hz) + register the timer handler.
@@ -215,7 +215,7 @@ void kernel_main(void *boot_info) {
     klog_printf("WuBuOS: interrupts enabled (APIC mode)\n");
 
     /* 4. Initialize VBE/DRM-KMS framebuffer */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'8', %%al\n outb %%al, %%dx" ::: "dx","al");
     int fb_width = 1920, fb_height = 1080;
     struct limine_framebuffer *fb = NULL;
     if (g_limine_ok && limine_framebuffer_request.response) {
@@ -230,19 +230,19 @@ void kernel_main(void *boot_info) {
     } else {
         klog_printf("WuBuOS: VBE initialized (%ux%u)\n", fb_width, fb_height);
     }
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 5. Initialize GAAD (φ-structured allocation for window snap) */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'0', %%al\n outb %%al, %%dx" ::: "dx","al");
     extern void wubu_gaad_init(void);
     wubu_gaad_init();
 
     /* 6. Initialize input subsystem (PS/2 + evdev fallback) */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'4', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'1', %%al\n outb %%al, %%dx" ::: "dx","al");
     input_init();
 
     /* 6b. Initialize PS/2 keyboard/mouse for bare metal */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'5', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'2', %%al\n outb %%al, %%dx" ::: "dx","al");
     int fb_w = 1920, fb_h = 1080;
     if (g_limine_ok && limine_framebuffer_request.response) {
         struct limine_framebuffer *fb2 = limine_framebuffer_request.response;
@@ -253,7 +253,7 @@ void kernel_main(void *boot_info) {
     klog_printf("WuBuOS: input/PS2 initialized\n");
 
     /* 7. Initialize tasking (cooperative scheduler, PIT timer) */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'6', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");
     if (tasking_init() != 0) {
         klog_printf("WuBuOS PANIC: tasking_init failed\n");
         for (;;) { CLI(); HLT(); }
@@ -282,7 +282,7 @@ void kernel_main(void *boot_info) {
      * the restored rflags (the kernel never hardware-task-switches). */
     extern void wubu_tss_init(void);
     wubu_tss_init();
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'4', %%al\n outb %%al, %%dx" ::: "dx","al");
     extern void task_preempt_enable(void);
     task_preempt_enable();
 
@@ -291,7 +291,7 @@ void kernel_main(void *boot_info) {
      *    kernel -- it decomposes the viewport via GAAD, spawns a co-resident
      *    REALM_AGENT task, and runs the independent-verifier self-improve loop
      *    ticked by the PIT timer. Safe by default (no verifier => no promote). */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'8', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'5', %%al\n outb %%al, %%dx" ::: "dx","al");
     int agi_w = 1920, agi_h = 1080;
     if (g_limine_ok && limine_framebuffer_request.response) {
         struct limine_framebuffer *fb3 = limine_framebuffer_request.response;
@@ -328,11 +328,11 @@ void kernel_main(void *boot_info) {
 
     /* 10. Enter the cooperative supervisor run loop (spawns agent task,
      *     yields to the PIT-ticked scheduler). Never returns. */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'6', %%al\n outb %%al, %%dx" ::: "dx","al");
     wubu_agi_kernel_run(agi);  /* Never returns */
 
     /* Unreachable: clean isa-debug-exit so the VM halts instead of looping. */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'H', %%al\n outb %%al, %%dx\n"
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'7', %%al\n outb %%al, %%dx\n"
                          "movb $0, %%al\n movw $0xf4, %%dx\n outb %%al, %%dx" ::: "dx","al");
 
     /* Unreachable */
