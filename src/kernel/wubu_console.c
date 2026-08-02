@@ -89,10 +89,17 @@ static int cmd_tasks(void)
     CTask *t = task_list_head();
     int n = 0;
     klog_printf("-- tasks (%d) --\n", task_count());
-    for (; t && n < 32; t = t->next, n++)
-        klog_printf("  [%d] %s state=%d ticks=%u\n",
+    extern uint64_t task_tick_count(void);
+    uint64_t total = task_tick_count();
+    for (; t && n < 32; t = t->next, n++) {
+        /* Gap D5: per-task CPU accounting -- the share of all ticks
+         * this task has consumed. */
+        uint32_t pct = 0;
+        if (total > 0) pct = (uint32_t)((t->total_ticks * 100) / total);
+        klog_printf("  [%d] %s state=%d ticks=%u cpu=%u%%\n",
                     t->task_id, t->name, (int)t->state,
-                    (unsigned)t->total_ticks);
+                    (unsigned)t->total_ticks, (unsigned)pct);
+    }
     return 0;
 }
 
