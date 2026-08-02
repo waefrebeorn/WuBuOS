@@ -260,6 +260,24 @@ int wubu_vmm_demand_fill(uint64_t va)
 uint64_t wubu_vmm_free_count(void) { return g_free_pages; }
 uint32_t wubu_vmm_demand_count(void) { return g_demand_n; }
 
+/* Gap B3: unmap a VA -- clear its PTE + invalidate the TLB entry. */
+int wubu_vmm_unmap(uint64_t virt)
+{
+    uint64_t *pml4 = (uint64_t *)PML4_BASE;
+    uint32_t i4 = (uint32_t)(virt >> 39) & 0x1FF;
+    uint32_t i3 = (uint32_t)(virt >> 30) & 0x1FF;
+    uint32_t i2 = (uint32_t)(virt >> 21) & 0x1FF;
+    uint32_t i1 = (uint32_t)(virt >> 12) & 0x1FF;
+    uint64_t *pdp = (uint64_t *)vmm_phys_of(pml4[i4] & ~0xFFFull);
+    if (!(pml4[i4] & 1) || !(pdp[i3] & 1)) return -1;
+    uint64_t *pd = (uint64_t *)vmm_phys_of(pdp[i3] & ~0xFFFull);
+    if (!(pd[i2] & 1)) return -1;
+    uint64_t *pt = (uint64_t *)vmm_phys_of(pd[i2] & ~0xFFFull);
+    pt[i1] = 0;
+    __asm__ __volatile__("invlpg (%0)" : : "r"(virt) : "memory");
+    return 0;
+}
+
 /* ---- gap B4: copy-on-write ------------------------------------------ */
 
 /* Map `phys` at `virt` read-only and take a reference on it -- the

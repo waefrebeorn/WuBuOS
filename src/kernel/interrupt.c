@@ -626,6 +626,12 @@ void handle_page_fault(InterruptFrame *frame) {
     extern int wubu_vmm_cow_fault(uint64_t);
     if (wubu_vmm_cow_fault(cr2) == 1)
         return;
+    /* Gap B3: swap -- a fault on a swapped-out VA reads it back. */
+    extern int wubu_swap_va_slot(uint64_t);
+    extern int wubu_swap_in(uint64_t, uint32_t);
+    int slot = wubu_swap_va_slot(cr2);
+    if (slot >= 0 && wubu_swap_in(cr2, (uint32_t)slot) == 0)
+        return;
     /* In a real kernel: demand paging, COW, etc. */
     extern int klog_printf(const char *fmt, ...);
     uint64_t *sp = frame ? (uint64_t *)(uintptr_t)frame->rsp : NULL;

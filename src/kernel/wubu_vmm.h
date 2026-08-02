@@ -39,6 +39,8 @@ uint16_t wubu_vmm_refcount(uint64_t phys);
  * intermediate tables come from the page allocator). flags: 3 = RW+present.
  * Returns 0 on success. */
 int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags);
+/* Gap B3: unmap a VA (clear its PTE + invlpg). 0 on success. */
+int wubu_vmm_unmap(uint64_t virt);
 /* Gap B4: copy-on-write -- map shared (RO) + the fault handler. */
 int wubu_vmm_map_shared(uint64_t virt, uint64_t phys);
 int wubu_vmm_cow_fault(uint64_t va);
