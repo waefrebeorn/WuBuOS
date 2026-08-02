@@ -314,8 +314,11 @@ _start:
     movb $'E', %al
     outb %al, %dx
 
+    /* PG + WP (gap C9): write-protect enforcement -- the kernel can no
+     * longer silently write RO pages (catches stray stores into the
+     * code/rodata; the resulting #PF is the evidence). */
     movl %cr0, %eax
-    orl $(1 << 31), %eax
+    orl $((1 << 31) | (1 << 16)), %eax
     movl %eax, %cr0
 
     /* marker: paging on */

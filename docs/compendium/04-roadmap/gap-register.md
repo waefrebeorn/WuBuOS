@@ -15,8 +15,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] A5. No task exit/cleanup path (tasks live forever; context never freed).
 - [x] A6. Heap red-zone canaries: mem_validate_all wired into `mem` (canaries=OK live) (the 8GB
       alloca-in-loop bug class can regress silently).
-- [ ] A7. No panic-level klog (all messages equal; no panic ring for
-      post-mortem).
+- [x] A7. Panic ring: the klog captures the last 4KB in RAM; fault handlers dump it (post-mortem).
 - [ ] A8. No crash dump to the disk (the ledger wants evidence, not dumps).
 - [ ] A9. Early boot uses single-char markers -- no hex progress codes.
 - [ ] A10. No runtime PCR extension (attestation is boot-time only).
