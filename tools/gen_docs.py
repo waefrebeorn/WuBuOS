@@ -273,10 +273,12 @@ def scan_parity():
                f"**{build_status}** | "
                f"{', '.join(l[:-2] for l in legs[:4]) or 'core'} | "
                f"{'VERIFIED' if build_status == 'PASS' else 'CHECK'} |\n")
-    out.append("| Windows (WSL host / native) | cross build | core + "
-               "win32 leg (planned) | PLANNED |\n")
-    out.append("| macOS | cross build | core + metal leg (see "
-               "wubuos-macos-leg-proof) | PLANNED |\n")
+    out.append("| Windows (WSL host / native) | cross build (see "
+               "00-philosophy/cross-platform-build.md, gap K3) | core + "
+               "win32 leg (planned) | CONFIG |\n")
+    out.append("| macOS | cross build (see "
+               "00-philosophy/cross-platform-build.md, gap K4) | core + "
+               "metal leg (see wubuos-macos-leg-proof) | CONFIG |\n")
     return "".join(out)
 
 

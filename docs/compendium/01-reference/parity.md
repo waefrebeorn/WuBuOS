@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Parity (compiled binaries across OSes)
-> Generated 2026-08-02 14:17 UTC -- the PARITY project: the hosted layer is the scaffold that must run on Linux/Windows/macOS.
+> Generated 2026-08-02 17:06 UTC -- the PARITY project: the hosted layer is the scaffold that must run on Linux/Windows/macOS.
 
 ## Hosted core (portable abstraction)
 wubu_metal.c, wubu_metal.h
@@ -22,5 +22,5 @@ wubu_metal.c, wubu_metal.h
 | Platform | Build | Runtime legs | Status |
 |----------|-------|--------------|--------|
 | Linux (this host) | `make runtime tools` -> **PASS** | wubu_metal_audio, wubu_metal_drm, wubu_metal_evdev, wubu_metal_test | VERIFIED |
-| Windows (WSL host / native) | cross build | core + win32 leg (planned) | PLANNED |
-| macOS | cross build | core + metal leg (see wubuos-macos-leg-proof) | PLANNED |
+| Windows (WSL host / native) | cross build (see 00-philosophy/cross-platform-build.md, gap K3) | core + win32 leg (planned) | CONFIG |
+| macOS | cross build (see 00-philosophy/cross-platform-build.md, gap K4) | core + metal leg (see wubuos-macos-leg-proof) | CONFIG |

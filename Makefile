@@ -998,6 +998,7 @@ test_theme_hid:
 check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
+	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
 	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
