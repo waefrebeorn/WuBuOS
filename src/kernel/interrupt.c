@@ -10,6 +10,7 @@
 #include "interrupt_apic.h"
 #include "interrupt_pic.h"
 #include "tasking.h"  /* For task_timer_tick, g_current */
+#include "wubu_agi_kernel.h"  /* For PIT-ticked supervisor */
 #include "memory.h"   /* For mem_alloc */
 
 #include <string.h>
@@ -286,6 +287,10 @@ void interrupt_set_gate(uint8_t vector, uint64_t handler, uint16_t selector,
 void pit_handler(uint8_t irq, void *ctx) {
     (void)irq; (void)ctx;
     task_timer_tick();
+    /* Tick the ring-0 AGI supervisor (cooperative, non-blocking). Safe before
+     * init (returns early if the singleton has no verifier / is frozen). */
+    extern wubu_agi_kernel_t *wubu_agi_kernel_global(void);
+    wubu_agi_kernel_tick(wubu_agi_kernel_global());
     interrupt_eoi(32);  /* IRQ0 remapped to vector 32 */
 }
 
