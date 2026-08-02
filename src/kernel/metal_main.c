@@ -73,6 +73,21 @@ extern uint64_t _bss_start;
 extern uint64_t _bss_end;
 extern uint64_t _stack_top;
 
+/* Gap J6: the kernel.ld ALIGN(16) fix -- assert at BOOT time (the
+ * linker symbols are not compile-time constants) that the image + the
+ * stack top are 16-byte aligned, so a future linker-script drift trips
+ * a loud early halt instead of the movaps #GP class of corruption. */
+static inline void kernel_alignment_assert(void)
+{
+    if ((uintptr_t)_kernel_start % 16 != 0 ||
+        (uintptr_t)_stack_top % 16 != 0) {
+        /* serial port 1 raw: the earliest possible scream */
+        klog_printf("WuBuOS PANIC: kernel image misaligned (ld script?)\n");
+        for (;;) __asm__ __volatile__("cli; hlt");
+    }
+}
+
+
 /* =================================================================
  * Limine boot-protocol detection flag
  *
@@ -151,6 +166,9 @@ extern void wubu_shell_run(void *arg);
 
 void kernel_main(void *boot_info) {
     (void)boot_info;  /* Parsed from registers in crt0.S */
+    /* Gap J6: the image-alignment boot check FIRST (before anything
+     * touches the heap -- the movaps #GP class of corruption). */
+    kernel_alignment_assert();
     /* Raw serial heartbeat (no klog/string dependency) so we can tell from
      * the QEMU -serial trace whether we actually reached kernel_main and
      * where the boot dies.  'Z' = entered, 'A' = BSS zeroed, 'B' = heap ok. */
