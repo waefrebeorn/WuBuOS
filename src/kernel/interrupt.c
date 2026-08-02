@@ -307,8 +307,31 @@ void pit_handler(uint8_t irq, void *ctx) {
  * Called from common_isr_handler in isr_stubs.S
  * ------------------------------------------------------------------ */
 
+/* Gap C5: ISR depth + nested-overrun counters (file scope so the
+ * accessor can see them). */
+static volatile uint32_t g_isr_depth = 0;
+static volatile uint32_t g_isr_overruns = 0;
+
+uint32_t interrupt_isr_overruns(void) { return g_isr_overruns; }
+
 void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
     interrupt_count(vector);
+
+    /* Gap C5: ISR-overrun counter. Interrupt gates clear IF, so the
+     * only legal nesting is an NMI (or a same-priority LAPIC event).
+     * A second entry while one is active is an overrun: count it. */
+    if (g_isr_depth > 0) g_isr_overruns++;
+    g_isr_depth++;
+
+    /* Gap C4: the LAPIC's spurious vector (0xFF). A spurious interrupt
+     * is delivered when the CPU's priority blocks the real one; it must
+     * NOT get an EOI (there is nothing to acknowledge) and must not
+     * disturb the ISR bookkeeping. The count is already tracked by
+     * interrupt_count(0xFF); here we just bail before any EOI path. */
+    if (vector == 255) {
+        g_isr_depth--;
+        return;
+    }
 
     /* Handle exceptions (0-31) */
     if (vector < 32) {
@@ -365,6 +388,7 @@ void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
             /* Spurious or unhandled IRQ - send EOI anyway */
             interrupt_eoi(vector);
         }
+        g_isr_depth--;
         return;
     }
 
@@ -373,8 +397,10 @@ void isr_dispatch(uint8_t vector, struct InterruptFrame *frame) {
         if (g_irq_table[vector].handler) {
             g_irq_table[vector].handler(vector, g_irq_table[vector].ctx);
         }
+        g_isr_depth--;
         return;
     }
+    g_isr_depth--;
 }
 
 /* ------------------------------------------------------------------
@@ -527,12 +553,13 @@ static void panic_dump_ring(void)
     /* C2: name the faulting task + C3: the live fault counters. */
     const struct CTask *cur = task_current();
     klog_printf("-- task: %s --\n", cur ? task_name(cur) : "?");
-    klog_printf("-- ex counts: #PF=%u #GP=%u #DF=%u #UD=%u spurious=%u --\n",
+    klog_printf("-- ex counts: #PF=%u #GP=%u #DF=%u #UD=%u spurious=%u overruns=%u --\n",
                 (unsigned)interrupt_get_count(14),
                 (unsigned)interrupt_get_count(13),
                 (unsigned)interrupt_get_count(8),
                 (unsigned)interrupt_get_count(6),
-                (unsigned)interrupt_get_count(0xFF));
+                (unsigned)interrupt_get_count(0xFF),
+                (unsigned)interrupt_isr_overruns());
     int n = klog_ring_snapshot(buf, sizeof(buf));
     if (n > 0) {
         klog_printf("-- panic ring (%d bytes) --\n", n);

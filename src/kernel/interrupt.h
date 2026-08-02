@@ -165,6 +165,9 @@ int timer_init_deadline(uint64_t ns);
 void interrupt_count(uint8_t irq);
 uint64_t interrupt_get_count(uint8_t irq);
 
+/* Gap C5: nested-ISR overruns observed (NMI during an ISR etc.). */
+uint32_t interrupt_isr_overruns(void);
+
 /* Syscall API */
 typedef int64_t (*syscall_fn_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 int syscall_register(uint32_t num, syscall_fn_t handler);

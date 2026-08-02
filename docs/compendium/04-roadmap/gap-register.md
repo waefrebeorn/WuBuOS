@@ -52,8 +52,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] C1. iretq frame-rflags NT mask (the preempt fix, 62e3da3).
 - [x] C2. The panic post-mortem names the faulting task (task_name accessor).
 - [x] C3. Live fault counters (#PF/#GP/#DF/#UD/spurious) in the panic dump + `stats`.
-- [ ] C4. LAPIC spurious vector 0xFF: handler sanity unchecked.
-- [ ] C5. No ISR-overrun counter.
+- [x] C4. LAPIC spurious vector: 0xFF bails before any EOI; counted via interrupt_count(0xFF).
+- [x] C5. ISR-overrun counter: nested dispatch (NMI during an ISR) counted + shown in the panic dump.
 - [ ] C6. syscall exit (sysretq) has no rflags sanitization (the iretq has it).
 - [ ] C7. No alignment-check (AC) policy.
 - [x] C8. FPU/SSE saved on switch: fxsave/fxrstor in tasking_switch.S, primed first-run contexts (this batch) on context switch -- tasks share xmm0-15
