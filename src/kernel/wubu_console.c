@@ -54,12 +54,16 @@ static int cmd_help(void)
                 "  help                 this list\n"
                 "  uptime               kernel ticks + AGI uptime\n"
                 "  mem                  heap used/available\n"
-                "  tasks                task table\n"
-                "  pci                  PCI bus 0 device scan\n"
-                "  agi status           AGI supervisor state\n"
-                "  agi freeze|unfreeze  stop/resume the self-improve loop\n"
-                "  agi promote          promote the pending trace (gated)\n"
-                "  agi trace            immutable AGI trace tail\n"
+                "  tasks                task table (per-task CPU share)\n"
+                "  pci                  PCI scan with device roles\n"
+                "  theme [set|cycle]    /theme graphic-set namespace\n"
+                "  hid                  unified input ring stats\n"
+                "  vmm [touch|alloc|free] demand pages + allocator\n"
+                "  stats                live exception counters\n"
+                "  dump <addr> [n]      in-OS hexdump (mapping-gated)\n"
+                "  attest               measured-boot chain + runtime PCR\n"
+                "  date                 RTC wall clock\n"
+                "  agi status|freeze|unfreeze|promote|trace\n"
                 "  holyc <src>          compile+run HolyC (metal port)\n"
                 "  cls                  scroll the serial\n"
                 "  reboot               VM reboot (isa-debug-exit)\n");
@@ -103,6 +107,26 @@ static int cmd_tasks(void)
     return 0;
 }
 
+/* Gap E4: PCI class -> human role label. */
+static const char *pci_role(uint8_t cls, uint8_t sub)
+{
+    switch (cls) {
+        case 0x01: return "storage";          /* 01: mass storage */
+        case 0x02: return "network";          /* 02: network */
+        case 0x03: return "display";          /* 03: display */
+        case 0x04: return "multimedia";
+        case 0x05: return "memory";
+        case 0x06: return "bridge";
+        case 0x07: return "comm";
+        case 0x08: return "system";           /* 08: generic system */
+        case 0x0C: return sub == 0x03 ? "usb" : "serial-bus";
+        case 0x0D: return "wireless";
+        case 0x11: return "signal";
+        case 0x12: return "coprocessor";
+        default:   return "other";
+    }
+}
+
 static int cmd_pci(void)
 {
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
@@ -113,9 +137,10 @@ static int cmd_pci(void)
     }
     klog_printf("-- PCI bus 0 (%d devices) --\n", n);
     for (int i = 0; i < n; i++)
-        klog_printf("  %02x:%02x.%x %04x:%04x class=%02x.%02x.%02x bar0=%x bar1=%x\n",
+        klog_printf("  %02x:%02x.%x %04x:%04x %s (%02x.%02x.%02x) bar0=%x bar1=%x\n",
                     devs[i].bus, devs[i].dev, devs[i].fn,
                     devs[i].vendor, devs[i].device,
+                    pci_role(devs[i].class_code, devs[i].subclass),
                     devs[i].class_code, devs[i].subclass, devs[i].prog_if,
                     (unsigned)devs[i].bar0, (unsigned)devs[i].bar1);
     return 0;
