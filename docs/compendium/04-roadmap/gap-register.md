@@ -66,8 +66,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] D1. No idle task (the run loop busy-yields).
 - [ ] D2. No sleep wakeup optimization.
 - [ ] D3. No priority-inversion handling.
-- [ ] D4. task_create leak on failure paths.
-- [ ] D5. No per-task CPU accounting.
+- [x] D4. task_create failure paths audited: every alloc-failure frees the partial task (stack/user_data/CTask).
+- [x] D5. Per-task CPU accounting: total_ticks share shown as cpu=%% in the tasks command.
 - [x] D6. wubu_sync USED: the vmm allocator (shared ISR/main path) takes the spinlock (this batch) (spinlock unused
       on metal).
 - [ ] D7. No watchdog for the AGI supervisor itself (frozen is manual).
