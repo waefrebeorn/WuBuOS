@@ -267,7 +267,6 @@ void kernel_main(void *boot_info) {
     wubu_theme_init();
     wubu_hid_init();
     klog_printf("WuBuOS: /theme namespace + unified input ready\n");
-
     /* 8. Timer-driven PREEMPTION is DISABLED (stable cooperative base).
      * The preempt resume path has a tracked #GP: the resumed iretq pops a
      * shifted frame with the NT flag set (0x4006) and no TSS exists in the
@@ -295,6 +294,15 @@ void kernel_main(void *boot_info) {
     }
     klog_printf("WuBuOS: AGI kernel booted (regions=%d)\n",
                 wubu_agi_kernel_region_count(agi));
+
+    /* 9b. Wire the INDEPENDENT verifier (DA-3): this ACTIVATES the
+     *     self-improve loop -- without a verifier the cycle refuses to
+     *     promote (dormant by design). The verifier is a fixed,
+     *     kernel-resident scorer (well-formedness + emitter trust +
+     *     semantic budget); the test-suite-as-verifier doctrine grows it. */
+    extern void wubu_verifier_install(void);
+    wubu_verifier_install();
+    klog_printf("WuBuOS: independent verifier installed (promote loop live)\n");
 
     /* 10. Enter the cooperative supervisor run loop (spawns agent task,
      *     yields to the PIT-ticked scheduler). Never returns. */

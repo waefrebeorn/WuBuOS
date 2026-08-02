@@ -238,12 +238,71 @@ void wubu_agi_kernel_run(wubu_agi_kernel_t *k)
     }
 }
 
+static void agi_theme_step(wubu_agi_kernel_t *k);
+
 void wubu_agi_kernel_tick(wubu_agi_kernel_t *k)
 {
     if (!k) return;
     k->uptime_ms += 10;   /* PIT ticks at ~100 Hz -> 10 ms */
     /* Run a bounded self-improve cycle step each tick. */
     wubu_agi_kernel_cycle(k);
+    /* The Colonel re-skins the desktop from its own state: the /theme
+     * namespace is AGI-writable, so health + mood show up live. */
+    agi_theme_step(k);
+}
+
+/* AGI-writable graphic set: derive theme nodes from the supervisor state.
+ * Writes only on CHANGE (the EDR write counter = real changes). The
+ * desktop is the Colonel's vitals: attestation failure turns the title
+ * bar red; growth (promotions) warms the gorilla's fur toward gold;
+ * frozen mutes the desktop. */
+
+/* 0..100 RGB lerp helper (no float, integer math). */
+static uint32_t lerp_rgb(uint32_t a, uint32_t b, int t)
+{
+    int r = (int)((a >> 16) & 0xFF) + (((int)((b >> 16) & 0xFF) -
+              (int)((a >> 16) & 0xFF)) * t) / 100;
+    int g = (int)((a >> 8) & 0xFF) + (((int)((b >> 8) & 0xFF) -
+              (int)((a >> 8) & 0xFF)) * t) / 100;
+    int bl = (int)(a & 0xFF) + (((int)(b & 0xFF) - (int)(a & 0xFF)) * t) / 100;
+    if (r < 0) r = 0; else if (r > 255) r = 255;
+    if (g < 0) g = 0; else if (g > 255) g = 255;
+    if (bl < 0) bl = 0; else if (bl > 255) bl = 255;
+    return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)bl;
+}
+
+static void agi_theme_step(wubu_agi_kernel_t *k)
+{
+    extern int  wubu_theme_node_set(const char *, uint32_t);
+    extern void wubu_theme_apply(void);
+    if (!k) return;
+
+    /* title: attestation is the root of trust */
+    uint32_t title = k->attest_valid ? 0x00006040u : 0x00A00000u;
+    uint32_t cur = 0;
+    extern int wubu_theme_node_get(const char *, uint32_t *);
+    if (wubu_theme_node_get("/theme/win/title_active", &cur) != 0 ||
+        cur != title) {
+        wubu_theme_node_set("/theme/win/title_active", title);
+    }
+
+    /* mood -> gorilla fur: green (calm) -> gold (growing) */
+    int mood = (int)k->promoted_total;
+    if (mood > 20) mood = 20;                 /* cap the growth ramp */
+    if (!k->attest_valid) mood = 0;           /* no trust, no warmth */
+    uint32_t fur = lerp_rgb(0x00806040u, 0x00E0A000u, mood * 5);
+    if (wubu_theme_node_get("/theme/gorilla/fur", &cur) != 0 ||
+        cur != fur) {
+        wubu_theme_node_set("/theme/gorilla/fur", fur);
+    }
+
+    /* frozen -> muted desktop */
+    uint32_t bg = k->frozen ? 0x00404040u : 0x00003020u;
+    if (wubu_theme_node_get("/theme/desktop/bg", &cur) != 0 || cur != bg) {
+        wubu_theme_node_set("/theme/desktop/bg", bg);
+    }
+
+    wubu_theme_apply();
 }
 
 void wubu_agi_kernel_freeze(wubu_agi_kernel_t *k, bool frozen)

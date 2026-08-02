@@ -60,3 +60,19 @@ Copy TEMPLATE.md for new entries.*
   `00123456`, writes=19; stable boot probes green.
 - **When it may change:** the /theme tree becomes the real Styx9 namespace
   when the fs lands on metal; the HID ring gets the xHCI USB feeder.
+
+## 2026-08-02 — The promote loop is LIVE + the Colonel re-skins itself
+- **Context:** the DA-3 self-improve loop was dormant (verifier=NULL on
+  metal). Built wubu_verifier (well-formedness + emitter trust + semantic
+  budget; deterministic, kernel-resident) + the AGI-writable theme step.
+- **What worked:** installing the verifier ACTIVATED promotion — the AGI
+  now consumes + promotes spans every tick (promoted climbs live); the
+  tick's agi_theme_step derives theme nodes from supervisor state
+  (attestation → title color, promoted_total → gorilla fur lerp green→gold,
+  frozen → muted desktop), writing only on change (EDR-counted).
+- **Evidence:** live console `promoted=1365→4550→7736`;
+  `/theme/gorilla/fur = 00e0a000` (gold at mood cap);
+  test_verifier ALL PASS; stable boot green.
+- **When it may change:** the static scorer becomes the test-suite
+  verifier (kernel self-tests gate real changes); the theme step gets more
+  signals (agent focus, load, time of day).

@@ -79,6 +79,7 @@
 - `make test_gaad`
 - `make test_hive`
 - `make test_theme_hid`
+- `make test_verifier`
 - `make test_agi_kernel`
 - `make test_wubu_wm`
 - `make test_holyc_ptx`
