@@ -10,6 +10,7 @@
 
 #include "wubu_vmm.h"
 #include "wubu_sync.h"
+#include "wubu_memmap.h"
 
 #define PAGE 4096ull
 
@@ -52,7 +53,7 @@ void wubu_vmm_init(void)
         { 0x100000ull, 0x200000ull },   /* kernel image + crt0 tables */
         { 0x200000ull, 0x500000ull },   /* page tables + early structures */
         { 0x400000ull, 0x4400000ull },  /* the mem_alloc heap (64 MB) */
-        { 0x90000ull,  0x98000ull  },   /* attestation stash */
+        { 0x90000ull,  0x99000ull  },   /* attestation stash + memmap */
         { 0x70000ull,  0x78000ull  },   /* early stack */
     };
     for (uint32_t i = 0; i < sizeof(used) / sizeof(used[0]); i++) {
@@ -61,6 +62,18 @@ void wubu_vmm_init(void)
         if (e > WUBU_VMM_PHYS_END)  e = WUBU_VMM_PHYS_END;
         for (uint64_t p = b; p < e; p += PAGE)
             bm_set((uint32_t)((p - WUBU_VMM_PHYS_BASE) / PAGE));
+    }
+
+    /* E820 (gap I1): the allocator owns ONLY real RAM. If the BIOS map
+     * says the largest usable region ends below 1 GB (e.g. 512 MB in
+     * QEMU), everything above that is marked used. */
+    wubu_memmap_info_t mm;
+    if (wubu_memmap_init(&mm) > 0 && mm.found) {
+        uint64_t real_end = mm.base + mm.len;
+        if (real_end < WUBU_VMM_PHYS_END) {
+            for (uint64_t p = real_end; p < WUBU_VMM_PHYS_END; p += PAGE)
+                bm_set((uint32_t)((p - WUBU_VMM_PHYS_BASE) / PAGE));
+        }
     }
 }
 

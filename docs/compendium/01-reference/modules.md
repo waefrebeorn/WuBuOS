@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Modules
-> Generated 2026-08-02 10:48 UTC -- recursive src/ walk, 587 modules.
+> Generated 2026-08-02 11:02 UTC -- recursive src/ walk, 589 modules.
 
 | Tree | Module | Lines | Depends on | Purpose |
 |------|--------|------:|------------|---------|
@@ -125,7 +125,7 @@
 | `firmware/` | `fw_tpm` | 388 | fw.h, fw_acpi.h, fw_tpm.h, string.h | fw_tpm.c  --  WuBuFW TPM 2.0 driver (TIS/FIFO + CRB) and measured boot. Kernel-level anti-cheat (EAC |
 | `firmware/` | `fw_tpmlog` | 119 | fw.h, fw_tpm.h | fw_tpmlog.c  --  TCG 2.0 crypto-agile event log. The event log is what makes PCR values *meaningful* |
 | `firmware/` | `fw_xhci` | 128 | fw.h, fw_pci.h | fw_xhci.c  --  WuBuFW USB 3 (xHCI) host controller driver. Firmware-scope USB: bring the controller  |
-| `firmware/` | `loader` | 301 | efi.h, fw_agi_attest.h, sha256.h, stddef.h, stdint.h | loader.c -- WuBuOS WuBuFW chainloader (the REAL kernel as measured payload). This is the bridge betw |
+| `firmware/` | `loader` | 339 | efi.h, fw_agi_attest.h, sha256.h, stddef.h, stdint.h | loader.c -- WuBuOS WuBuFW chainloader (the REAL kernel as measured payload). This is the bridge betw |
 | `firmware/` | `sha256` | 94 | sha256.h, string.h | sha256.c -- self-contained SHA-256 for the WuBuOS EFI chainloader. FIPS 180-4. Freestanding C11 (onl |
 | `firmware/` | `hello` | 243 | efi.h | hello.c  --  WuBuOS test EFI application. Exercises the firmware for real: ConOut, memory map, Alloc |
 | `firmware/` | `mkesp` | 340 | stdint.h, stdio.h, stdlib.h, string.h | mkesp.c  --  WuBuOS FAT32 ESP image builder (C11, self-contained). Creates a GPT-partitioned disk im |
@@ -304,7 +304,7 @@
 | `kernel/` | `fat32_test` | 714 | assert.h, fat32.h, fat32_internal.h, stdio.h, stdlib.h, string.h | fat32_test.c  --  My Seed FAT32 Filesystem Test Suite Uses a RAM-backed block device for fast, deter |
 | `kernel/` | `input` | 129 | input.h, string.h | input.c  --  My Seed Input Subsystem (hosted stub) Circular buffers for keyboard/mouse events with p |
 | `kernel/` | `input_test` | 278 | input.h, stdio.h, string.h | input_test.c  --  Kernel Input Subsystem Test Suite Cell 202: Tests for input queue (keyboard/mouse  |
-| `kernel/` | `interrupt` | 634 | interrupt.h, interrupt_apic.h, interrupt_io.h, interrupt_pic.h, memory.h, signal | interrupt.c  --  My Seed IDT/PIC Interrupt Controller Full x86_64 IDT implementation with 256 interr |
+| `kernel/` | `interrupt` | 639 | interrupt.h, interrupt_apic.h, interrupt_io.h, interrupt_pic.h, memory.h, signal | interrupt.c  --  My Seed IDT/PIC Interrupt Controller Full x86_64 IDT implementation with 256 interr |
 | `kernel/` | `interrupt_apic` | 200 | interrupt.h, interrupt_apic.h, interrupt_io.h, memory.h, signal.h, stdint.h, str | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
 | `kernel/` | `interrupt_pic` | 107 | interrupt_apic.h, interrupt_io.h, interrupt_pic.h, memory.h, stdint.h | interrupt_pic.c -- 8259 PIC layer + IRQ routing for the WuBuOS kernel. Extracted from the monolithic |
 | `kernel/` | `interrupt_pic_test` | 55 | interrupt_apic.h, interrupt_pic.h, stdio.h, string.h | interrupt_pic_test.c -- unit test for the extracted PIC + IRQ routing module (interrupt_pic.c). Buil |
@@ -315,9 +315,9 @@
 | `kernel/` | `libc` | 589 | klog.h, stdarg.h, stddef.h, stdint.h | Minimal libc for bare-metal kernel |
 | `kernel/` | `memory` | 571 | memory.h, stdio.h, stdlib.h, string.h | memory.c  --  My Seed Kernel Memory Subsystem Implementation Clean C11 reimplementation of ZealOS he |
 | `kernel/` | `memory_test` | 293 | assert.h, memory.h, stdio.h, stdlib.h, string.h | memory_test.c  --  Test suite for My Seed Kernel Memory Subsystem |
-| `kernel/` | `metal_main` | 362 | input.h, interrupt.h, interrupt_apic.h, klog.h, memory.h, ps2.h, stdint.h, taski | metal_main.c  --  WuBuOS Bare-Metal Kernel Entry Point Called from crt0.S after Limine/Stivale2 boot |
+| `kernel/` | `metal_main` | 365 | input.h, interrupt.h, interrupt_apic.h, klog.h, memory.h, ps2.h, stdint.h, taski | metal_main.c  --  WuBuOS Bare-Metal Kernel Entry Point Called from crt0.S after Limine/Stivale2 boot |
 | `kernel/` | `ps2` | 224 | input.h, interrupt.h, ps2.h, stdint.h | ps2.c  --  PS/2 Keyboard and Mouse Driver (Bare Metal) Ported from Mythos Fable (filipvabrousek/osde |
-| `kernel/` | `tasking` | 519 | interrupt.h, libc.h, memory.h, setjmp.h, stddef.h, stdint.h, string.h, tasking.h | tasking.c  --  My Seed Kernel Task Management (hosted test impl) Uses setjmp/longjmp for context swi |
+| `kernel/` | `tasking` | 527 | interrupt.h, libc.h, memory.h, setjmp.h, stddef.h, stdint.h, string.h, tasking.h | tasking.c  --  My Seed Kernel Task Management (hosted test impl) Uses setjmp/longjmp for context swi |
 | `kernel/` | `tasking_test` | 181 | assert.h, memory.h, stdio.h, stdlib.h, string.h, tasking.h | tasking_test.c  --  Test suite for My Seed Tasking Subsystem |
 | `kernel/` | `test_agi_kernel` | 195 | stdio.h, string.h, wubu_agi_kernel.h, wubu_attest.h, wubu_bonzi.h | test_agi_kernel.c -- Verify the WuBuOS bare-metal AGI kernel supervisor runs correctly (hosted harne |
 | `kernel/` | `test_agi_kernel_stub` | 62 | input.h, klog.h, stdio.h, tasking.h, vbe.h | test_agi_kernel_stub.c -- Minimal kernel-API shims so wubu_agi_kernel.c links + runs in the HOSTED u |
@@ -325,7 +325,7 @@
 | `kernel/` | `test_sync` | 97 | pthread.h, stdbool.h, stdint.h, stdio.h, wubu_sync.c, wubu_sync.h | test_sync.c -- host tests for wubu_sync (spinlock + ISR-safe FIFO). |
 | `kernel/` | `test_theme_hid` | 92 | assert.h, stddef.h, stdint.h, stdio.h, string.h, wubu_hid.c, wubu_hid.h, wubu_th | test_theme_hid.c -- host tests for the /theme namespace + unified HID. Builds the two freestanding k |
 | `kernel/` | `test_verifier` | 65 | stdbool.h, stdint.h, stdio.h, wubu_verifier.c, wubu_verifier.h | test_verifier.c -- host tests for the DA-3 independent verifier. Builds wubu_verifier.c with a minim |
-| `kernel/` | `test_vmm` | 65 | stdint.h, stdio.h, wubu_sync.h, wubu_vmm.c, wubu_vmm.h | test_vmm.c -- host tests for wubu_vmm (bitmap allocator + demand registry). The page-table map + dem |
+| `kernel/` | `test_vmm` | 70 | stdint.h, stdio.h, wubu_memmap.h, wubu_sync.h, wubu_vmm.c, wubu_vmm.h | test_vmm.c -- host tests for wubu_vmm (bitmap allocator + demand registry). The page-table map + dem |
 | `kernel/` | `txfs` | 345 | stdio.h, stdlib.h, string.h, txfs.h | txfs.c  --  WuBuOS Transactional Filesystem Layer Implementation Cell 100: Journal-based atomic file |
 | `kernel/` | `txfs_test` | 572 | stdio.h, stdlib.h, string.h, txfs.h | txfs_test.c  --  Test Suite for WuBuOS Transactional Filesystem Cell 100: Tests journal-based atomic |
 | `kernel/` | `vbe` | 591 | klog.h, math.h, memory.h, stdbool.h, stdio.h, stdlib.h, string.h, vbe.h | vbe.c  --  WuBuOS VBE Framebuffer Implementation Two modes: - Kernel mode (default): uses mem_alloc/ |
@@ -333,18 +333,20 @@
 | `kernel/` | `wubu_apic` | 106 | interrupt.h, interrupt_apic.h, klog.h, stdint.h, wubu_apic.h | wubu_apic.c -- local APIC + I/O APIC bring-up (q35-correct delivery). Steps (see wubu_apic.h for the |
 | `kernel/` | `wubu_attest` | 103 | string.h, wubu_attest.h | wubu_attest.c -- WuBuOS kernel-side firmware attestation consumer (ring-0). Freestanding C11: no mal |
 | `kernel/` | `wubu_bonzi` | 361 | input.h, klog.h, stdio.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_at | wubu_bonzi.c -- Bonzi Buddy: bare-metal AGI agent persona (ring-0 task). Freestanding C11. Runs as a |
-| `kernel/` | `wubu_console` | 349 | klog.h, libc.h, memory.h, stdint.h, string.h, tasking.h, wubu_agi_kernel.h, wubu | wubu_console.c -- live ring-0 console REPL (TempleOS-style). The metal kernel owns a COM1 interactiv |
+| `kernel/` | `wubu_console` | 380 | klog.h, libc.h, memory.h, stdint.h, string.h, tasking.h, wubu_agi_kernel.h, wubu | wubu_console.c -- live ring-0 console REPL (TempleOS-style). The metal kernel owns a COM1 interactiv |
 | `kernel/` | `wubu_gaad` | 595 | math.h, stdlib.h, string.h, wubu_gaad.h, wubu_math.h | wubu_gaad.c  --  WuBuOS Golden Aspect Adaptive Decomposition Cell 393: GAAD  --  the universal resol |
 | `kernel/` | `wubu_gaad_test` | 269 | assert.h, stdio.h, stdlib.h, string.h, wubu_gaad.h | wubu_gaad_test.c  --  GAAD: Golden Aspect Adaptive Decomposition Cell 393: Tests for the universal r |
 | `kernel/` | `wubu_hid` | 146 | wubu_hid.h | wubu_hid.c  --  WuBuOS Unified HID Layer (GameInput-style) A single ring of unified events, common t |
 | `kernel/` | `wubu_hive` | 211 | string.h, wubu_hive.h | wubu_hive.c -- C11 "luddite hive" (see wubu_hive.h for the design). Linked fixed-capacity blocks + b |
 | `kernel/` | `wubu_math` | 581 | math.h, stddef.h, stdint.h, stdio.h | wubu_math.c  --  WuBuOS Pure C Math Library Cell 420: Pure C implementations replacing libm. IEEE 75 |
+| `kernel/` | `wubu_memmap` | 37 | wubu_memmap.h | wubu_memmap.c  --  WuBuOS Memory Map (E820, gap I1) Parses the E820 table collected by boot.S. Type  |
 | `kernel/` | `wubu_pci` | 92 | libc.h, stdint.h, wubu_pci.h | wubu_pci.c -- minimal PCI config-space access (0xCF8/0xCFC). The metal kernel previously had no PCI  |
+| `kernel/` | `wubu_serial` | 122 | wubu_serial.h, wubu_sync.h | wubu_serial.c  --  WuBuOS Serial Console (interrupt-driven RX, gap E2) COM1 RX via the UART data-rea |
 | `kernel/` | `wubu_sync` | 88 | wubu_sync.h | wubu_sync.c  --  WuBuOS Synchronization Primitives (freestanding) See wubu_sync.h. The spinlock save |
 | `kernel/` | `wubu_theme` | 218 | stddef.h, stdio.h, wubu_theme.h | wubu_theme.c  --  WuBuOS Metal Theme Engine + /theme Namespace The graphic set as a writable node tr |
-| `kernel/` | `wubu_tss` | 53 | stddef.h, stdint.h, wubu_tss.h | wubu_tss.c  --  WuBuOS TSS64 + GDT (freestanding) See wubu_tss.h. The GDT is rebuilt at runtime so t |
+| `kernel/` | `wubu_tss` | 63 | stddef.h, stdint.h, wubu_tss.h | wubu_tss.c  --  WuBuOS TSS64 + GDT (freestanding) See wubu_tss.h. The GDT is rebuilt at runtime so t |
 | `kernel/` | `wubu_verifier` | 107 | wubu_agi_kernel.h, wubu_verifier.h | wubu_verifier.c  --  WuBuOS Independent Verifier (DA-3 promotion gate) Deterministic, kernel-residen |
-| `kernel/` | `wubu_vmm` | 203 | wubu_sync.h, wubu_vmm.h | wubu_vmm.c  --  WuBuOS Virtual Memory (freestanding, metal) Bitmap page allocator + CR3 page-table w |
+| `kernel/` | `wubu_vmm` | 216 | wubu_memmap.h, wubu_sync.h, wubu_vmm.h | wubu_vmm.c  --  WuBuOS Virtual Memory (freestanding, metal) Bitmap page allocator + CR3 page-table w |
 | `runtime/` | `wubucontainer` | 697 | errno.h, fcntl.h, inet.h, json.h, socket.h, stat.h, stdio.h, stdlib.h, string.h, | wubucontainer.c  --  WuBuContainer Conversion Toolkit C Implementation Implements the C-side interfa |
 | `runtime/` | `wubucontainer_registry` | 51 | string.h, wubucontainer_internal.h | wubucontainer_registry.c -- In-memory handler registry for the WuBuContainer agentic layer. This is  |
 | `runtime/` | `wubucontainer_test` | 52 | assert.h, stdio.h, string.h, wubucontainer.h | wubucontainer_test.c -- Regression test for wubu_container_register_handler. Verifies the handler re |

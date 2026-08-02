@@ -118,6 +118,14 @@ CTask *task_create(const char *name, void (*entry)(void *arg), void *arg,
     t->context.rsp    = (uint64_t)((uint8_t *)t->stack_base + stack_sz);
     t->context.rip    = (uint64_t)(uintptr_t)&task_trampoline;
     t->context.rflags = 0x200;
+    /* Prime the FPU/SSE area (gap C8): a zeroed FXSAVE area is
+     * fxrstor-legal, but the standard defaults are cleaner -- FCW 0x37F
+     * (x87: round-nearest + all exceptions masked) + MXCSR 0x1F80 (all
+     * exceptions masked). Without this a first-run fxrstor could #GP on
+     * an unvalidated control word. */
+    memset(t->context.fxsave, 0, sizeof(t->context.fxsave));
+    *(uint16_t *)(t->context.fxsave + 0)  = 0x037F;  /* FCW  */
+    *(uint32_t *)(t->context.fxsave + 24) = 0x1F80;  /* MXCSR */
 #endif
 
     task_insert(t);

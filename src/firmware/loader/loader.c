@@ -280,6 +280,44 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     out(u"[wubufw-loader] handoff @ 0x91000 (attest=");
     outhex(hd->attest_addr); out(u")\r\n");
 
+    /* 5b. Collect the FIRMWARE memory map into 0x98000 (kernel E820-style,
+     *     gap I1): u16 count, then {u64 base, u64 len, u32 type=1} entries
+     *     for every EfiConventionalMemory range.  The kernel's vmm then
+     *     owns the REAL RAM size instead of a hardcoded 1 GB. */
+    {
+        UINTN msz2 = 0, mkey2 = 0, dsz2 = 0;
+        UINT32 dver2 = 0;
+        BS->GetMemoryMap(&msz2, NULL, &mkey2, &dsz2, &dver2);   /* size */
+        if (msz2 > 0) {
+            uint8_t *buf = NULL;
+            if (BS->AllocatePool(EfiLoaderData, msz2 + dsz2,
+                                 (void **)&buf) == EFI_SUCCESS) {
+                if (BS->GetMemoryMap(&msz2, (EFI_MEMORY_DESCRIPTOR *)buf,
+                                     &mkey2, &dsz2, &dver2) == EFI_SUCCESS) {
+                    uint16_t n = 0;
+                    uint8_t *outp = (uint8_t *)(uintptr_t)0x98000;
+                    l_memset(outp, 0, 2 + 8 * 20);
+                    for (UINTN i = 0; i < msz2 / dsz2 && n < 8; i++) {
+                        EFI_MEMORY_DESCRIPTOR *d =
+                            (EFI_MEMORY_DESCRIPTOR *)(buf + i * dsz2);
+                        if (d->Type == EfiConventionalMemory) {
+                            uint64_t base = d->PhysicalStart;
+                            uint64_t len  = d->NumberOfPages * 4096;
+                            *(volatile uint64_t *)(outp + 2 + (UINTN)n * 20 + 0) = base;
+                            *(volatile uint64_t *)(outp + 2 + (UINTN)n * 20 + 8) = len;
+                            *(volatile uint32_t *)(outp + 2 + (UINTN)n * 20 + 16) = 1;
+                            n++;
+                        }
+                    }
+                    *(volatile uint16_t *)outp = n;
+                    out(u"[wubufw-loader] memmap @ 0x98000 (");
+                    outhex(n); out(u" regions)\r\n");
+                }
+                BS->FreePool(buf);
+            }
+        }
+    }
+
     /* 6. Exit boot services, then hand off. */
     UINTN msz = 0, mapkey = 0, dsz = 0;
     UINT32 dver = 0;

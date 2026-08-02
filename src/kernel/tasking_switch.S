@@ -38,8 +38,11 @@
 
 task_switch_asm:
     /* -- Save old context (RDI) ----------------------------------- */
-    /* We need to save registers before we clobber RDI/RSI */
+    /* FPU/SSE state first (gap C8): the caller's live xmm/x87 state is
+     * the task's state. fxsave requires 16-byte alignment: 144 % 16 = 0. */
+    fxsave 144(%rdi)
 
+    /* We need to save registers before we clobber RDI/RSI */
     /* Save callee-saved registers first */
     movq %r15,  0(%rdi)
     movq %r14,  8(%rdi)
@@ -88,6 +91,12 @@ task_switch_asm:
     movq 40(%rsi), %r10
     movq 48(%rsi), %r9
     movq 56(%rsi), %r8
+
+    /* Restore FPU/SSE state (gap C8).  First-run contexts are PRIMED by
+     * tasking.c (valid FCW/MXCSR), so fxrstor is legal even before the
+     * first save.  Must use RSI (still the base) -- and no SSE in the
+     * rest of the switch. */
+    fxrstor 144(%rsi)
 
     /* Restore caller-saved (EXCEPT rsi -- still the base) */
     movq 64(%rsi), %rdi
