@@ -103,3 +103,13 @@ tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.
   loop) is the likely regression source.
 - Next: probe wubu_serial_irq_count + the FIFO depth via the monitor
   at the moment a byte is sent to find the broken link.
+
+## 2026-08-02 — Bonzi heartbeat klog absent (OPEN, tracked)
+- The bonzi's paced heartbeat ("bonzi: heartbeat regions=...") never
+  appears on the wire while the promote echo does; the kernel is alive
+  (promotes flow, zero faults) and the D7 supervisor watchdog stays
+  silent (no false alert). The tick's input-drain or the bonzi task's
+  scheduling path is the suspect. Also noted: wubu_agi_kernel_tick
+  calls wubu_agi_kernel_cycle (the promote) from the timer ISR again
+  -- the "task-context only" doctrine is violated; the kernel is
+  stable anyway, but the cycle belongs in the bonzi task.
