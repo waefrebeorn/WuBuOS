@@ -126,7 +126,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] I4. Cache/TLB maintenance policy documented (docs/compendium/00-philosophy/cache-tlb-policy.md): invalidation points, write-back doctrine, SMP/COW/SMEP notes.
 - [x] I5. Loader->kernel ABI version negotiation: the handoff version is checked at boot; a mismatch loudly disables promotion.
 - [x] I6. Fallback = the G2 self-test gate: a corrupt-but-valid-digest kernel fails its own integrity suite, so promotion is blocked (the digest alone is not trusted).
-- [ ] I7. Limine protocol accepted but unused.
+- [x] I7. The Limine memory map now sizes the heap when a Limine boot is detected (g_limine_ok-gated; the 64 MB fallback remains for non-Limine).
 
 ## J. Docs / tooling (P2)
 - [x] J1. api.md scanner added (629 prototypes, this session).

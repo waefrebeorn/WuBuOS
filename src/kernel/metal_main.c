@@ -230,12 +230,21 @@ void kernel_main(void *boot_info) {
      * uninitialized .response pointers so a multiboot boot can't deref garbage). */
     uint64_t mem_size = 64 * 1024 * 1024;  /* Default 64MB fallback */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'2', %%al\n outb %%al, %%dx" ::: "dx","al");
-    if (0 && limine_memmap_request.response) {
+    /* Gap I7: the Limine memory map is actually USED (was dead code).
+     * When the boot went through Limine, the usable-RAM entries size
+     * the heap instead of the 64 MB fallback. */
+    if (g_limine_ok && limine_memmap_request.response) {
         struct limine_memmap_response *resp = limine_memmap_request.response;
+        uint64_t usable = 0;
         for (uint64_t i = 0; i < resp->entry_count; i++) {
             if (resp->entries[i]->type == 0) {  /* Usable RAM */
-                mem_size += resp->entries[i]->length;
+                usable += resp->entries[i]->length;
             }
+        }
+        if (usable > mem_size) {
+            mem_size = usable;
+            klog_printf("WuBuOS: heap sized by the Limine memmap (%u MB usable)\n",
+                        (unsigned)(usable >> 20));
         }
     }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");
