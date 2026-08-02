@@ -10,14 +10,14 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
       log a full raw frame + LAPIC state + halt (verified interrupt.c:392).
 - [x] A2. Double-fault IST: wubu_tss IST1 (dedicated 8KB stack) + gate ist=1 (this batch): no IST stack -> a #DF in a #DF triple-faults
       to reset. CLOSE: give vector 8 an IST via wubu_tss.
-- [ ] A3. No NMI distinction: vector 2 hits the generic halt path.
-- [ ] A4. No watchdog for a task that never yields (console stuck = lockup).
-- [ ] A5. No task exit/cleanup path (tasks live forever; context never freed).
+- [x] A3. NMI (IST2) logs the hardware-error frame + dumps the panic ring.
+- [x] A4. Watchdog: per-task stall counter (reset on yield); past 50s the stuck task is named + the ring dumped.
+- [x] A5. Reaper: DYING tasks unlinked + freed in task context (main loop).
 - [x] A6. Heap red-zone canaries: mem_validate_all wired into `mem` (canaries=OK live) (the 8GB
       alloca-in-loop bug class can regress silently).
 - [x] A7. Panic ring: the klog captures the last 4KB in RAM; fault handlers dump it (post-mortem).
 - [ ] A8. No crash dump to the disk (the ledger wants evidence, not dumps).
-- [ ] A9. Early boot uses single-char markers -- no hex progress codes.
+- [x] A9. Hex progress codes: the crt0 + metal_main boot markers emit 2-digit hex checkpoints (01 crt0 -> 37 final), verified live.
 - [x] A10. Runtime PCR: wubu_sha256 (FIPS 180-4, own C11) + every promotion chains into a kernel-side runtime PCR; `attest` command verified live (rtPCR chained).
 - [ ] A11. ps2.c: 13 conditionals total; no ack/self-test validation, no
       device-id handshake.

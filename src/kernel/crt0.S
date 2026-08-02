@@ -132,10 +132,22 @@ _start:
      * register; that path is secondary and reuses this constant.) */
     movl $0x100000, %esi              /* image physical base (LMA) */
 
+    /* Hex progress codes (gap A9): each checkpoint emits two ASCII hex
+     * digits on COM1 (DX must hold 0x3F8 -- set below). The code map:
+     * 01 crt0 entry  02 long-mode CPUID  03 paging tables built
+     * 04 GDT/CR3     05 paging ON        06 WP set
+     * 07 long-mode ok 08 higher-half     09 kernel_main reached
+     * 0A .. 0F later boot stages (see the markers). */
+    .macro MARKER hi lo
+        movb $\hi, %al
+        outb %al, %dx
+        movb $\lo, %al
+        outb %al, %dx
+    .endm
+
     /* Early boot marker: proves _start runs under qemu -kernel/multiboot. */
     movw $0x3F8, %dx
-    movb $'M', %al
-    outb %al, %dx
+    MARKER '0','1'                    /* 01: crt0 entry */
 
     /* Check CPUID for long mode support */
     movl $0x80000000, %eax
@@ -150,8 +162,7 @@ _start:
 
     /* marker: long-mode supported */
     movw $0x3F8, %dx
-    movb $'P', %al
-    outb %al, %dx
+    MARKER '0','2'
 
     /* (1GiB-page capability is not required; we use 2MB PDEs below.) */
 
@@ -278,8 +289,7 @@ _start:
 
     /* marker: page tables built */
     movw $0x3F8, %dx
-    movb $'G', %al
-    outb %al, %dx
+    MARKER '0','3'
 
     /* ------------------------------------------------------------
      * Enable PAE, PGE, NXE
@@ -300,8 +310,7 @@ _start:
 
     /* marker: CR3 loaded */
     movw $0x3F8, %dx
-    movb $'C', %al
-    outb %al, %dx
+    MARKER '0','4'
 
     /* Enable Long Mode + Paging */
     movl $0xC0000080, %ecx
@@ -311,8 +320,7 @@ _start:
 
     /* marker: EFER.LM set */
     movw $0x3F8, %dx
-    movb $'E', %al
-    outb %al, %dx
+    MARKER '0','5'
 
     /* PG + WP (gap C9): write-protect enforcement -- the kernel can no
      * longer silently write RO pages (catches stray stores into the
@@ -323,8 +331,7 @@ _start:
 
     /* marker: paging on */
     movw $0x3F8, %dx
-    movb $'W', %al
-    outb %al, %dx
+    MARKER '0','6'
 
     /* Get the physical (load) address of the current instruction via a
      * call/pop.  The kernel is loaded at its physical LMA and identity-
@@ -344,8 +351,7 @@ _start:
 
     /* marker: gdt64 loaded */
     movw $0x3F8, %dx
-    movb $'X', %al
-    outb %al, %dx
+    MARKER '0','7'
 
     /* Long-mode entry: far jump to the PHYSICAL .long_mode_start.
      * In 32-bit protected mode a far indirect jump reads a 6-byte m16:32
@@ -357,21 +363,18 @@ _start:
     movw $0x08, 4(%edi)              /* selector = 64-bit code in gdt64 @4 */
 
     /* marker: about to ljmp to 64-bit (physical entry) */
-    movb $'Y', %al
-    outb %al, %dx
+    MARKER '0','8'
     ljmp *(%edi)
 
 .no_long_mode:
     movw $0x3F8, %dx
-    movb $'L', %al
-    outb %al, %dx
+    MARKER '0','9'
     hlt
     jmp .no_long_mode
 
 .no_1gb_pages:
     movw $0x3F8, %dx
-    movb $'H', %al
-    outb %al, %dx
+    MARKER '1','0'
     hlt
     jmp .no_1gb_pages
 
@@ -379,8 +382,7 @@ _start:
 .long_mode_start:
     /* marker: entered 64-bit long mode (running at physical load address) */
     movw $0x3F8, %dx
-    movb $'J', %al
-    outb %al, %dx
+    MARKER '1','1'
 
     /* 64-bit segments. */
     movw $0x10, %ax
@@ -392,8 +394,7 @@ _start:
 
     /* marker: 64-bit segments set */
     movw $0x3F8, %dx
-    movb $'K', %al
-    outb %al, %dx
+    MARKER '1','2'
 
     /* Early boot stack: physical 0x70000 (identity-mapped by PD_ident[0],
      * which covers 0..2MB).  We switch to the higher-half _stack_top before
@@ -402,15 +403,13 @@ _start:
 
     /* marker: stack up */
     movw $0x3F8, %dx
-    movb $'S', %al
-    outb %al, %dx
+    MARKER '1','3'
 
     call klog_init
 
     /* marker: klog_init returned */
     movw $0x3F8, %dx
-    movb $'I', %al
-    outb %al, %dx
+    MARKER '1','4'
 
     /* Decide whether we booted via Limine (EAX=0x2BADB002 means multiboot). */
     movl $0, %eax
@@ -424,8 +423,7 @@ _start:
 
     /* marker: klog printed */
     movw $0x3F8, %dx
-    movb $'Q', %al
-    outb %al, %dx
+    MARKER '1','5'
 
     jmp .lm_after_msg
 .lm_msg:
