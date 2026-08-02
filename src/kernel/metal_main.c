@@ -290,6 +290,12 @@ void kernel_main(void *boot_info) {
     extern void task_preempt_enable(void);
     task_preempt_enable();
 
+    /* Gap E7: arm the 8254 channel-2 hardware watchdog (2s one-shot);
+     * the PIT tick feeds it from here on. If the kernel ever stalls,
+     * the countdown fires and the panic path reports it. */
+    extern int wdt_arm(uint32_t);
+    wdt_arm(2000);
+
     /* 9. Boot the AGI kernel supervisor (ring-0 operator + agent realm).
      *    This replaces the old `for(;;) HLT();` shell: the OS is now an AGI
      *    kernel -- it decomposes the viewport via GAAD, spawns a co-resident
