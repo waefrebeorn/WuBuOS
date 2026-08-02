@@ -40,7 +40,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] B4. COW: wubu_vmm_map_shared (RO + ref) + the #PF handler's wubu_vmm_cow_fault (private copy + writable remap when shared; writable-in-place when sole); refcount contract host-tested.
 - [x] B5. (detection-first) low-water + OVER flag; guard pages follow with multi-AS.
 - [x] B6. Stack low-water tracking: per-task stack_min at every switch; `tasks` reports usage / OVER.
-- [ ] B7. Single address space (kernel+future user share CR3); no
+- [x] B7. wubu_as: per-address-space isolation (private PML4 trees cloned from the kernel window, bind/switch/destroy lifecycle, pool-bounded); host-tested.
       per-address-space isolation.
 - [x] B8. Page reference counting: per-page refcounts, alloc=1, wubu_vmm_ref/unref; only the last unref releases (host-tested).
 - [x] B9. Heap coalescing: mem_free merges the adjacent free block + mem_validate_coalescing walks the linear heap (host-tested).
