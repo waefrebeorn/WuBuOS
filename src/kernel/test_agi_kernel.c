@@ -15,6 +15,7 @@
  */
 #include "wubu_agi_kernel.h"
 #include "wubu_attest.h"
+#include "wubu_bonzi.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -141,6 +142,49 @@ int main(void)
     uint64_t before = wubu_agi_kernel_uptime_ms(k);
     wubu_agi_kernel_tick(k);
     CHECK(wubu_agi_kernel_uptime_ms(k) > before, "PIT tick advances uptime");
+
+    /* ---- Bonzi Buddy loop (bare-metal human interface) ---- */
+    wubu_bonzi_t *bz = wubu_bonzi_init(k);
+    CHECK(bz != NULL, "bonzi init (gorilla + console drawn)");
+    CHECK(wubu_bonzi_handle_line(bz, "hello") == 1, "bonzi handles 'hello'");
+    CHECK(strstr(wubu_bonzi_last_reply(bz), "BONZI") != NULL, "bonzi greets");
+
+    CHECK(wubu_bonzi_handle_line(bz, "freeze") == 1, "bonzi dispatches 'freeze'");
+    CHECK(wubu_agi_kernel_is_frozen(k), "freeze reached the real supervisor");
+    CHECK(wubu_bonzi_handle_line(bz, "unfreeze") == 1, "bonzi dispatches 'unfreeze'");
+    CHECK(!wubu_agi_kernel_is_frozen(k), "unfreeze reached the real supervisor");
+
+    CHECK(wubu_bonzi_handle_line(bz, "attest") == 1, "bonzi dispatches 'attest'");
+    CHECK(strstr(wubu_bonzi_last_reply(bz), "PCR4=") != NULL,
+          "attest replies with PCR4 digest");
+    CHECK(wubu_bonzi_handle_line(bz, "pcr 4") == 1, "bonzi dispatches 'pcr 4'");
+    CHECK(strstr(wubu_bonzi_last_reply(bz), "PCR4=") != NULL,
+          "pcr 4 replies with the PCR4 digest");
+    CHECK(wubu_bonzi_handle_line(bz, "status") == 1, "bonzi dispatches 'status'");
+    CHECK(strstr(wubu_bonzi_last_reply(bz), "ATTEST=VALID") != NULL,
+          "status reports the live firmware attestation");
+    CHECK(wubu_bonzi_handle_line(bz, "promote") == 1, "bonzi dispatches 'promote'");
+    CHECK(strstr(wubu_bonzi_last_reply(bz), "PROMOTED") != NULL,
+          "promote ran a real DA-3 cycle");
+    CHECK(wubu_bonzi_handle_line(bz, "help") == 1, "bonzi dispatches 'help'");
+    CHECK(wubu_bonzi_handle_line(bz, "crack the cipher") == 1,
+          "unknown intent still routes to the operator");
+    CHECK(strstr(wubu_bonzi_last_reply(bz), "ROUTING") != NULL,
+          "unknown line routed to the operator");
+
+    /* Every bonzi interaction is a trace span (human loop feeds the AGI). */
+    {
+        char sp[WUBU_AGI_SPAN_DATA];
+        int found = 0;
+        int n = wubu_agi_kernel_trace_count(k);
+        for (int i = 0; i < n; i++) {
+            if (wubu_agi_kernel_span_data(k, i, sp, sizeof(sp)) == 0 &&
+                strstr(sp, "bonzi.cmd=FREEZE") != NULL) { found = 1; break; }
+        }
+        CHECK(found, "bonzi interactions recorded as trace spans");
+    }
+    CHECK(wubu_bonzi_action_count(bz) == 9, "bonzi action count == 9");
+    CHECK(wubu_bonzi_tick(bz) == 0, "bonzi tick with no keys does nothing");
 
     if (fails > 0) {
         printf("\n%d TEST(S) FAILED\n", fails);
