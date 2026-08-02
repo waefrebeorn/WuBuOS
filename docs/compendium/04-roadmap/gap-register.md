@@ -103,7 +103,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] G3. OPEN: the soft cap re-triggered the tick-12 freeze (timing-dependent corruption -- tracked).
 - [x] G4. Theme persistence: theme save/load to THEME.FX on the FAT32 volume (node list -> file; file -> node set + apply).
 - [x] G5. The metal's long-term hive: C11 hive wired into the kernel, the AGI's memory hook stores every 25th promoted span (rate-limited) -- live-verified 'hive armed'.
-- [ ] G6. No AGI crash recovery (checkpoints, DA-2.6).
+- [x] G6. AGI crash recovery: continuity checkpoint (promoted/span-id watermarks) saved to AGI.CKP + restored at boot; 'agi checkpoint/restore' commands.
 - [x] G7. Superseded by D7 (supervisor watchdog).
 - [x] G8. Gamepad event path verified (feed_gamepad -> ring -> poll, host-tested); the hardware driver rides on the E1 USB-HID arc.
 - [x] G9. See B10 (this batch) (B10).

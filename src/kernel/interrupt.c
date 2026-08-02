@@ -324,6 +324,10 @@ static uint64_t g_irq_counts[256] = {0};
 
 uint32_t interrupt_isr_overruns(void) { return g_isr_overruns; }
 
+/* Gap G2: the ISR-depth accessor (the self-test suite needs to know
+ * whether it is running from the timer-ticked promote cycle). */
+uint32_t interrupt_isr_depth(void) { return g_isr_depth; }
+
 /* Gap G10: the AGI's fault awareness -- the exception counters (vectors
  * 0..31) so the supervisor can see the kernel's fault state. */
 uint64_t interrupt_exception_count(uint8_t vec)

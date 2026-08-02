@@ -442,6 +442,27 @@ uint64_t wubu_agi_kernel_last_promote_tick(const wubu_agi_kernel_t *k)
 bool     wubu_agi_kernel_attest_valid(const wubu_agi_kernel_t *k)
            { return k ? k->attest_valid : false; }
 
+/* Gap G6: crash recovery -- the continuity checkpoint. */
+int wubu_agi_kernel_checkpoint(const wubu_agi_kernel_t *k, wubu_agi_ckp_t *out)
+{
+    if (!k || !out) return -1;
+    out->magic            = WUBU_AGI_CKP_MAGIC;
+    out->promoted_total   = (uint32_t)k->promoted_total;
+    out->region_count     = (uint32_t)k->decomp.n_regions;
+    out->next_span_id     = (uint64_t)k->span_id;
+    out->last_promote_tick = k->last_promote_tick;
+    return 0;
+}
+
+int wubu_agi_kernel_restore(wubu_agi_kernel_t *k, const wubu_agi_ckp_t *in)
+{
+    if (!k || !in || in->magic != WUBU_AGI_CKP_MAGIC) return -1;
+    k->promoted_total = (int)in->promoted_total;
+    if (in->next_span_id > k->span_id)
+        k->span_id = in->next_span_id;        /* keep id monotonicity */
+    return 0;
+}
+
 /* Copy the data of the idx-th trace span (oldest-first) into out.
  * Returns 0 on success, -1 if out of range. */
 int wubu_agi_kernel_span_data(const wubu_agi_kernel_t *k, int idx,

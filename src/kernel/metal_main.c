@@ -16,6 +16,7 @@
 #include "wubu_agi_kernel.h"
 #include "wubu_attest.h"
 #include "wubu_hive.h"   /* G5: the metal's long-term memory */
+#include "fat32.h"       /* G6: the AGI checkpoint file */
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
@@ -220,9 +221,6 @@ void kernel_main(void *boot_info) {
             klog_printf("WuBuOS: no firmware attestation (loader handoff absent) "
                         "-- self-improve promotion disabled\n");
         }
-        /* Gap F10: pick up any crash record left by a previous boot. */
-        extern int wubu_crash_pickup(void);
-        wubu_crash_pickup();
     }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'1', %%al\n outb %%al, %%dx" ::: "dx","al");
 
@@ -382,6 +380,37 @@ void kernel_main(void *boot_info) {
     }
     klog_printf("WuBuOS: AGI kernel booted (regions=%d)\n",
                 wubu_agi_kernel_region_count(agi));
+
+    /* Gap F10: pick up any crash record left by a previous boot (the
+     * disk is up now -- the AHCI init would have hung the early boot). */
+    extern int wubu_crash_pickup(void);
+    wubu_crash_pickup();
+
+    /* Gap G6: crash recovery -- restore the continuity checkpoint if a
+     * previous boot left one (AGI.CKP on the FAT32 volume). */
+    {
+        extern int wubu_agi_kernel_restore(wubu_agi_kernel_t *,
+                                           const wubu_agi_ckp_t *);
+        extern fat32_volume *fat32_boot_volume(void);
+        extern int fat32_find(fat32_volume *, uint32_t, const char *,
+                              fat32_file_info *);
+        extern int fat32_open(fat32_volume *, uint32_t, const char *,
+                              const char *, fat32_file *);
+        extern size_t fat32_read(fat32_file *, void *, size_t);
+        extern void fat32_close(fat32_file *);
+        fat32_volume *vol = fat32_boot_volume();
+        fat32_file_info fi;
+        fat32_file f;
+        wubu_agi_ckp_t ck;
+        if (fat32_find(vol, 0, "AGI.CKP", &fi) == 0 &&
+            fat32_open(vol, 0, "AGI.CKP", "r", &f) == 0 &&
+            fat32_read(&f, &ck, sizeof(ck)) == sizeof(ck)) {
+            fat32_close(&f);
+            if (wubu_agi_kernel_restore(agi, &ck) == 0)
+                klog_printf("WuBuOS: AGI checkpoint restored (promoted=%d)\n",
+                            wubu_agi_kernel_promoted_total(agi));
+        }
+    }
 
     /* Boot wall clock (gap A17): the RTC is read once at boot; the
      * 'date' console command reads it live. */

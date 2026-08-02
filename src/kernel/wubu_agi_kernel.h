@@ -115,6 +115,25 @@ wubu_agi_kernel_t *wubu_agi_kernel_global(void);
 int    wubu_agi_kernel_trace_count(const wubu_agi_kernel_t *k);
 int    wubu_agi_kernel_promoted_total(const wubu_agi_kernel_t *k);
 int    wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k);
+
+/* Gap G6: crash recovery -- save/restore the supervisor's continuity
+ * state (promotion count, region count, span-id watermarks). The
+ * checkpoint is the AGI's survival state across boots/crashes. */
+typedef struct {
+    uint32_t magic;              /* WUBU_AGI_CKP_MAGIC */
+    uint32_t promoted_total;
+    uint32_t region_count;
+    uint64_t next_span_id;
+    uint64_t last_promote_tick;
+} wubu_agi_ckp_t;
+#define WUBU_AGI_CKP_MAGIC 0x4147434Bu   /* 'AGCK' */
+
+/* Fill a checkpoint from the kernel's live state (0 on success). */
+int wubu_agi_kernel_checkpoint(const wubu_agi_kernel_t *k,
+                               wubu_agi_ckp_t *out);
+/* Restore a checkpoint into the kernel (0 on success; only the
+ * continuity counters are written back). */
+int wubu_agi_kernel_restore(wubu_agi_kernel_t *k, const wubu_agi_ckp_t *in);
 uint64_t wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k);
 
 /* Gap D7: the tick of the last successful promotion (the supervisor

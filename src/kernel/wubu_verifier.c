@@ -22,20 +22,24 @@ static const char *const k_verbs[] = {
     "freeze", "unfreeze", "trace", "theme", "hid", "task",
 };
 
-/* kernel-local tokenizer: does `s` contain `tok` at a token boundary? */
+/* kernel-local tokenizer: does `s` contain `tok` at a token boundary?
+ * BOUNDED to WUBU_VERIFIER_MAX_LEN (the span payload is not reliably
+ * NUL-terminated -- an unbounded scan runs off the end forever). */
 static int has_token(const char *s, const char *tok)
 {
     size_t tl = 0;
     while (tok[tl]) tl++;
     int ends_dot = (tl > 0 && tok[tl - 1] == '.');
-    for (const char *p = s; *p; p++) {
-        if (*p == *tok) {
+    for (size_t pos = 0; pos < WUBU_VERIFIER_MAX_LEN; pos++) {
+        const char *p = s + pos;
+        if (*p == 0) break;
+        if (*p == *tok && pos + tl <= WUBU_VERIFIER_MAX_LEN) {
             int match = 1;
             for (size_t i = 0; i < tl; i++)
                 if (p[i] != tok[i]) { match = 0; break; }
             if (match) {
-                char before = (p == s) ? ' ' : p[-1];
-                char after = p[tl];
+                char before = (pos == 0) ? ' ' : p[-1];
+                char after = (pos + tl < WUBU_VERIFIER_MAX_LEN) ? p[tl] : ' ';
                 int before_ok = (before < 'a' || before > 'z') &&
                                 (before < '0' || before > '9');
                 /* a trailing '.' is part of a dotted emitter name: the
@@ -58,13 +62,20 @@ float wubu_verifier_score(const char *payload, uint64_t ts_ms,
     if (!payload) return 0.0f;
 
     /* -- well-formedness ------------------------------------------ */
+    /* BOUNDED scan: the span payload is not reliably NUL-terminated
+     * (the ring's data buffer is a fixed window), so a *p-driven loop
+     * could run off the end forever. Scan at most MAX_LEN bytes and
+     * stop at a NUL. */
     size_t len = 0;
-    for (const char *p = payload; *p; p++) {
-        if ((unsigned char)*p < 32 || (unsigned char)*p > 126)
+    for (size_t i = 0; i < WUBU_VERIFIER_MAX_LEN; i++) {
+        unsigned char c = (unsigned char)payload[i];
+        if (c == 0) break;
+        if (c < 32 || c > 126)
             return 0.0f;                  /* non-printable => reject */
-        if (++len > WUBU_VERIFIER_MAX_LEN)
-            return 0.0f;                  /* overlong => reject */
+        len++;
     }
+    if (len == WUBU_VERIFIER_MAX_LEN && payload[WUBU_VERIFIER_MAX_LEN] != 0)
+        return 0.0f;                      /* overlong => reject */
     if (len < WUBU_VERIFIER_MIN_LEN)
         return 0.0f;                      /* noise => reject */
 
@@ -85,9 +96,11 @@ float wubu_verifier_score(const char *payload, uint64_t ts_ms,
 
     /* structure: balanced '=' and '%' presence (kv spans score higher) */
     int eq = 0, pct = 0;
-    for (const char *p = payload; *p; p++) {
-        if (*p == '=') eq++;
-        if (*p == '%') pct++;
+    for (size_t i = 0; i < WUBU_VERIFIER_MAX_LEN; i++) {
+        char c = payload[i];
+        if (c == 0) break;
+        if (c == '=') eq++;
+        if (c == '%') pct++;
     }
     if (eq > 0) score += 15.0f;
     if (pct > 0) score += 10.0f;
