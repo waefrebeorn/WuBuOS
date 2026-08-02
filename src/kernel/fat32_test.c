@@ -62,6 +62,8 @@ static fat32_blk_ops ram_blk_ops(void) {
 static int g_tests_run = 0;
 static int g_tests_pass = 0;
 
+static int list_cb(const fat32_file_info *info, void *ctx);
+
 #define TEST(name) \
     do { \
         g_tests_run++; \
@@ -245,6 +247,37 @@ static void test_create_and_find(void) {
     PASS();
 }
 
+static void test_create_find_lfn(void) {
+    TEST(create_and_find_long_name_lfn);
+    ram_disk_init();
+    fat32_blk_ops ops = ram_blk_ops();
+    fat32_format(&ops, RAM_DISK_SECTORS, "TEST");
+
+    fat32_volume vol;
+    fat32_mount(&vol, &ops);
+
+    /* A long name needs a VFAT LFN chain (gap A16). */
+    const char *longname = "Quarterly Report 2026 Final.txt";
+    fat32_file_info info;
+    int rc = fat32_create(&vol, 0, longname, FAT32_ATTR_ARCHIVE, &info);
+    ASSERT_EQ(rc, 0, "long-name create failed");
+    ASSERT_NEQ(info.first_cluster, 0, "no cluster assigned");
+
+    /* find by the full long name */
+    fat32_file_info found;
+    rc = fat32_find(&vol, 0, longname, &found);
+    ASSERT_EQ(rc, 0, "long-name find failed");
+    ASSERT_STREQ(found.name, longname, "long name mismatch");
+
+    /* list: the dir listing must surface the long name */
+    int seen = 0;
+    fat32_dir_read(&vol, 0, list_cb, &seen);
+    ASSERT_EQ(seen, 1, "listing count");
+
+    fat32_unmount(&vol);
+    PASS();
+}
+
 /* -- Test: Create Directory --------------------------------------- */
 
 static void test_create_directory(void) {
@@ -305,6 +338,13 @@ static void test_directory_listing(void) {
 
     fat32_unmount(&vol);
     PASS();
+}
+
+/* callback used by the LFN listing test (counts non-dot entries) */
+static int list_cb(const fat32_file_info *info, void *ctx) {
+    (void)info;
+    (*(int *)ctx)++;
+    return 0;
 }
 
 /* -- Test: Delete File -------------------------------------------- */
@@ -692,6 +732,7 @@ int main(void) {
     test_cluster_chain();
     test_cluster_lba_conversion();
     test_create_and_find();
+    test_create_find_lfn();
     test_create_directory();
     test_directory_listing();
     test_delete_file();

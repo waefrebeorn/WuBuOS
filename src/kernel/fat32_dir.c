@@ -1,6 +1,7 @@
 /* fat32_dir.c -- directory enumeration, lookup, create, delete (leaf module).
  * Opaque fat32_volume via fat32_internal.h. C11, minimal includes. */
 #include "fat32_internal.h"
+#include "wubu_lfn.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -232,7 +233,13 @@ int fat32_create(fat32_volume *vol, uint32_t dir_cluster,
         free(buf);
     }
 
-    /* Find free directory entry slot */
+    /* Find free directory entry slot -- a run of (n_lfn + 1) free
+     * slots when the name needs a VFAT LFN chain (gap A16): the LFN
+     * entries go in the slots BEFORE the 8.3 entry, on-disk order
+     * (last chunk first). */
+    uint8_t lfn_entries[WUBU_LFN_MAX_ENTRIES][WUBU_LFN_ENTRY_SZ];
+    int n_lfn = wubu_lfn_build_entries(name, lfn_entries,
+                                       WUBU_LFN_MAX_ENTRIES);
     uint32_t cluster = dir_cluster;
     uint8_t *buf = (uint8_t *)malloc(vol->bytes_per_cluster);
     if (!buf) return -1;
@@ -243,46 +250,59 @@ int fat32_create(fat32_volume *vol, uint32_t dir_cluster,
         if (rc != 0) { free(buf); return -1; }
 
         uint32_t entries_per_cluster = vol->bytes_per_cluster / FAT32_DIR_ENTRY_SIZE;
-        for (uint32_t i = 0; i < entries_per_cluster; i++) {
-            fat32_dir_entry *de = (fat32_dir_entry *)(buf + i * FAT32_DIR_ENTRY_SIZE);
-            if ((uint8_t)de->name[0] == 0x00 || (uint8_t)de->name[0] == 0xE5) {
-                /* Free slot  --  create entry here */
-                memset(de, 0, sizeof(*de));
-                char name83[11];
-                name_to_83(name, name83);
-                memcpy(de->name, name83, 8);
-                memcpy(de->ext, name83 + 8, 3);
-                de->attr = attr;
-                de->cluster_lo = (uint16_t)(new_cluster & 0xFFFF);
-                de->cluster_hi = (uint16_t)(new_cluster >> 16);
-                if (!(attr & FAT32_ATTR_DIRECTORY))
-                    de->file_size = 0;
-
-                /* Set timestamp */
-                time_t now = time(NULL);
-                uint16_t dt, tm;
-                datetime_to_dos(now, &tm, &dt);
-                de->create_time = tm;
-                de->create_date = dt;
-                de->write_time = tm;
-                de->write_date = dt;
-                de->access_date = dt;
-
-                /* Write back */
-                rc = vol->blk.write(vol->blk.ctx, lba, vol->sectors_per_cluster, buf);
-                free(buf);
-
-                if (out) {
-                    memset(out, 0, sizeof(*out));
-                    strncpy(out->name, name, FAT32_MAX_NAME);
-                    out->first_cluster = new_cluster;
-                    out->file_size = 0;
-                    out->attr = attr;
-                    out->dir_cluster = cluster;
-                    out->dir_offset = i;
+        for (uint32_t i = 0; i + (uint32_t)n_lfn < entries_per_cluster; i++) {
+            int run_free = 1;
+            for (int k = 0; k <= n_lfn; k++) {
+                fat32_dir_entry *chk = (fat32_dir_entry *)(buf + (i + k) * FAT32_DIR_ENTRY_SIZE);
+                if (!((uint8_t)chk->name[0] == 0x00 || (uint8_t)chk->name[0] == 0xE5)) {
+                    run_free = 0;
+                    break;
                 }
-                return (rc == 0) ? 0 : -1;
             }
+            if (!run_free) continue;
+
+            /* write the LFN chain (on-disk order: last chunk first) */
+            for (int k = 0; k < n_lfn; k++) {
+                memcpy(buf + (i + k) * FAT32_DIR_ENTRY_SIZE,
+                       lfn_entries[k], WUBU_LFN_ENTRY_SZ);
+            }
+            /* the 8.3 entry at the end of the run */
+            fat32_dir_entry *de = (fat32_dir_entry *)(buf + (i + n_lfn) * FAT32_DIR_ENTRY_SIZE);
+            memset(de, 0, sizeof(*de));
+            char name83[11];
+            name_to_83(name, name83);
+            memcpy(de->name, name83, 8);
+            memcpy(de->ext, name83 + 8, 3);
+            de->attr = attr;
+            de->cluster_lo = (uint16_t)(new_cluster & 0xFFFF);
+            de->cluster_hi = (uint16_t)(new_cluster >> 16);
+            if (!(attr & FAT32_ATTR_DIRECTORY))
+                de->file_size = 0;
+
+            /* Set timestamp */
+            time_t now = time(NULL);
+            uint16_t dt, tm;
+            datetime_to_dos(now, &tm, &dt);
+            de->create_time = tm;
+            de->create_date = dt;
+            de->write_time = tm;
+            de->write_date = dt;
+            de->access_date = dt;
+
+            /* Write back */
+            rc = vol->blk.write(vol->blk.ctx, lba, vol->sectors_per_cluster, buf);
+            free(buf);
+
+            if (out) {
+                memset(out, 0, sizeof(*out));
+                strncpy(out->name, name, FAT32_MAX_NAME);
+                out->first_cluster = new_cluster;
+                out->file_size = 0;
+                out->attr = attr;
+                out->dir_cluster = cluster;
+                out->dir_offset = i + n_lfn;
+            }
+            return (rc == 0) ? 0 : -1;
         }
 
         /* Need to extend directory  --  allocate another cluster */
