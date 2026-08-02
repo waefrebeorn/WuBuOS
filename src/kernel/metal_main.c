@@ -384,6 +384,24 @@ void kernel_main(void *boot_info) {
         }
     }
 
+    /* A19: the HPET -- the high-precision time source (its MMIO base
+     * comes from the ACPI HPET table; the counter is enabled + read). */
+    {
+        extern uint64_t wubu_hpet_probe(uint64_t *);
+        extern void     wubu_hpet_enable(uint64_t);
+        extern uint64_t wubu_hpet_ns(uint64_t, uint64_t);
+        uint64_t hpet_fs = 0;
+        uint64_t hpet = wubu_hpet_probe(&hpet_fs);
+        if (hpet) {
+            wubu_hpet_enable(hpet);
+            klog_printf("WuBuOS: HPET @ %x period=%u fs cnt=%u ns\n",
+                        (unsigned)hpet, (unsigned)hpet_fs,
+                        (unsigned)wubu_hpet_ns(hpet, hpet_fs));
+        } else {
+            klog_printf("WuBuOS: no HPET (PIT/LAPIC remain)\n");
+        }
+    }
+
     /* 9b. Wire the INDEPENDENT verifier (DA-3): this ACTIVATES the
      *     self-improve loop -- without a verifier the cycle refuses to
      *     promote (dormant by design). The verifier is a fixed,

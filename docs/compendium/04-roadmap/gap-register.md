@@ -30,7 +30,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A16. FAT32 LFN: wubu_lfn codec (encode/decode/chain, 9 tests) + dir-layer write integration; long-name create/find/list verified end-to-end.
 - [x] A17. RTC wall clock: wubu_rtc module (CMOS 0x70/0x71, BCD/12h, UIP); `date` command + boot stamp verified live.
 - [x] A18. ACPI: wubu_acpi module (RSDP -> RSDT/XSDT -> FADT, FADT offsets corrected: PM_TMR_LEN@91, ACPI_ENABLE@52) + synthetic-table tests; the live QEMU RSDP location is a tracked probe item.
-- [ ] A19. No HPET (the LAPIC timer is the only time source).
+- [x] A19. wubu_hpet module: ACPI HPET-table discovery + MMIO counter (period from GCAP_ID); tick->ns host-tested. The live QEMU RSDP location remains the tracked A18 probe item.
 - [x] A20. Console error reporting: the failure paths (theme/date/attest/agi/dump) already reported; vmm alloc/free + pci scan now report rc instead of silent 0.
 
 ## B. Memory / vmm (P0)
