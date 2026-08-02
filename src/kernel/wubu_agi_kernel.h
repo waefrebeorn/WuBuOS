@@ -103,6 +103,10 @@ int    wubu_agi_kernel_promoted_total(const wubu_agi_kernel_t *k);
 int    wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k);
 uint64_t wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k);
 
+/* Gap D7: the tick of the last successful promotion (the supervisor
+ * watchdog's heartbeat -- the bonzi alerts when this goes stale). */
+uint64_t wubu_agi_kernel_last_promote_tick(const wubu_agi_kernel_t *k);
+
 /* Firmware root-of-trust state captured at init (wubu_attest consumed). */
 bool   wubu_agi_kernel_attest_valid(const wubu_agi_kernel_t *k);
 
