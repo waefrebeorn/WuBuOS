@@ -23,6 +23,16 @@ static uint8_t *heap_ptr = NULL;
 static uint8_t *heap_end = NULL;
 
 void *malloc(size_t size) {
+    /* The kernel heap is the ONE allocator of record. The legacy libm
+     * bump (heap_ptr) was never initialized on metal (kernel_main never
+     * calls libm_heap_init), so every calloc/malloc returned NULL there
+     * -- the silent root of the F3 'run' failure, the AHCI port_init
+     * failure, the crash-disk, and the boot volume. Delegate to the
+     * kernel allocator first; fall back to the bump only for the
+     * hosted pre-heap window (mem_init itself, before g_heap exists). */
+    extern void *mem_alloc(size_t);
+    void *p = mem_alloc(size);
+    if (p) return p;
     if (!heap_ptr) return NULL;
     size = (size + 7) & ~7;  /* 8-byte align */
     if (heap_ptr + size > heap_end) return NULL;
@@ -32,7 +42,9 @@ void *malloc(size_t size) {
 }
 
 void free(void *ptr) {
-    (void)ptr;
+    if (!ptr) return;
+    extern void mem_free(void *);
+    mem_free(ptr);
 }
 
 void *calloc(size_t nmemb, size_t size) {

@@ -529,10 +529,12 @@ static int cmd_agi(int argc, char **argv)
         fat32_volume *vol = fat32_boot_volume();
         fat32_file_info fi;
         fat32_file f;
-        if (fat32_create(vol, 0, "AGI.CKP", 0, &fi) != 0 ||
-            fat32_open(vol, 0, "AGI.CKP", "w", &f) != 0 ||
-            fat32_write(&f, &ck, sizeof(ck)) != sizeof(ck)) {
-            klog_printf("agi: checkpoint save failed (no volume?)\n");
+        int cr = fat32_create(vol, 0, "AGI.CKP", 0, &fi);
+        int op = fat32_open(vol, 0, "AGI.CKP", "w", &f);
+        size_t wr = (op == 0) ? fat32_write(&f, &ck, sizeof(ck)) : 0;
+        if (cr != 0 || op != 0 || wr != sizeof(ck)) {
+            klog_printf("agi: checkpoint save failed (no volume?) cr=%d op=%d wr=%u\n",
+                        cr, op, (unsigned)wr);
             return 0;
         }
         fat32_close(&f);

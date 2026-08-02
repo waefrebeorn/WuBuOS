@@ -227,3 +227,11 @@ Copy TEMPLATE.md for new entries.*
   518 promote lines flowed. The earlier tracked "console goes silent"
   item is closed: the drop-continue contract + the ring = the kernel
   never blocks on its debug channel and the console stays usable.
+
+## 2026-08-02 — The F3-family root: the metal's malloc returned NULL
+- **Context:** the boot volume mount + the `run` command + the crash disk all failed on metal while the identical host tests passed.
+- **What worked:** two real roots, both fixed: (1) the libc bump `malloc` was never initialized on metal (kernel_main never calls libm_heap_init), so EVERY calloc/malloc returned NULL -- now delegates to the kernel's mem_alloc (with the bump fallback for the hosted pre-heap window); (2) the ahci read/write return the SECTOR COUNT while the fat32 layer expects 0-on-success -- the boot-volume adapters now normalize.
+- **Why (root cause / reason):** VERIFIED by instrumenting the boot: `c1=0` (calloc NULL with 48MB available + a valid heap) pointed at the allocator, and the host repro showed `format: -1` (the ahci's 1 != 0). After the fixes: `boot FAT32 volume mounted (hba=0 en=2 p=0 d=0 a=0)` on metal + the host's format/mount/create/write all 0.
+- **Evidence:** `c1=0 avail=50475904 used=16628864 val=0`; `format: -1` through the raw ahci vs `format: 0` through the normalized adapters; test_ahcifat now in make check.
+- **When it may change:** the G4/G6 saves are now reachable (boot volume mounted); their klog responses are still subject to the serial drop policy under the promote flood.
+- **Related:** libc.c malloc, metal_main.c bootvol adapters, fat32_boot_attach, ahci.c return convention.
