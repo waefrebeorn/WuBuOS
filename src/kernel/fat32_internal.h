@@ -43,6 +43,7 @@ struct fat32_volume {
     uint64_t           fs_info_lba;
     /* Cached FAT sector */
     uint32_t           cached_fat_sector;
+    int                cached_dirty;   /* E6: write-behind dirty flag */
     uint32_t          *fat_cache;     /* One sector of FAT entries */
 };
 
