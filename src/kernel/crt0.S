@@ -437,8 +437,16 @@ _start:
     /* Switch to the higher-half _stack_top before entering kernel_main. */
     movabsq $_stack_top, %rsp
 
-    /* Call kernel_main (never returns). */
-    call kernel_main
+    /* Call kernel_main (never returns).  ABSOLUTE jump: the crt0 executes
+     * at the physical load address, so a RELATIVE `call kernel_main`
+     * (E8 disp32, linker-computed for the higher-half) lands at the
+     * PHYSICAL kernel_main and the ENTIRE kernel then runs through the
+     * identity map (RIP-relative + movabs references only work because the
+     * higher-half is a mirror -- fragile, and it corrupted interrupt
+     * frames on delivery).  Force the higher-half entry so every reference
+     * resolves consistently. */
+    movabsq $kernel_main, %rax
+    call *%rax
 
     /* Should never return */
     cli

@@ -9,6 +9,8 @@
 #include "tasking.h"
 #include "vbe.h"
 #include "interrupt.h"
+#include "interrupt_apic.h"
+#include "wubu_apic.h"
 #include "input.h"
 #include "wubu_gaad.h"
 #include "wubu_agi_kernel.h"
@@ -189,6 +191,29 @@ void kernel_main(void *boot_info) {
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'g', %%al\n outb %%al, %%dx" ::: "dx","al");
     klog_printf("WuBuOS: interrupts initialized\n");
 
+    /* 3b. Program the PIT (IRQ0 @ 100 Hz) + register the timer handler.
+     * WITHOUT this, g_tick never advances: task_sleep never wakes tasks,
+     * preemption never fires, and the AGI supervisor uptime stays 0. */
+    if (pit_init(100) != 0) {
+        klog_printf("WuBuOS PANIC: pit_init failed\n");
+        for (;;) { CLI(); HLT(); }
+    }
+    klog_printf("WuBuOS: PIT timer @ 100 Hz\n");
+
+    /* 3c. Enable the APIC (q35-correct delivery) + interrupts GLOBALLY.
+     * crt0 cli'd at entry and nothing ever sti'd, so no hardware IRQ was
+     * delivered: g_tick stayed 0 (task_sleep never woke tasks, no
+     * preemption) and the AGI uptime never advanced.  And on q35 the
+     * PIT/keyboard/mouse lines are wired to the I/O APIC, whose
+     * redirection table was never programmable (broken accessor) -- the
+     * APIC bring-up fixes both. */
+    if (wubu_apic_enable() != 0) {
+        klog_printf("WuBuOS PANIC: APIC enable failed\n");
+        for (;;) { CLI(); HLT(); }
+    }
+    STI();
+    klog_printf("WuBuOS: interrupts enabled (APIC mode)\n");
+
     /* 4. Initialize VBE/DRM-KMS framebuffer */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx" ::: "dx","al");
     int fb_width = 1920, fb_height = 1080;
@@ -235,10 +260,13 @@ void kernel_main(void *boot_info) {
     }
     klog_printf("WuBuOS: tasking initialized\n");
 
-    /* 8. Enable preemptive scheduling (timer-driven) */
-    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
-    extern void task_preempt_enable(void);
-    task_preempt_enable();
+    /* 8. Timer-driven PREEMPTION is DISABLED (stable cooperative base).
+     * The preempt resume path has a tracked #GP: the resumed iretq pops a
+     * shifted frame with the NT flag set (0x4006) and no TSS exists in the
+     * GDT -> the iretq attempts a task-return and faults.  Evidence logged
+     * in docs/compendium/03-learned/didnt-work.md.  Cooperative round-robin
+     * + the 100 Hz tick (uptime/sleep/AGI cycle) deliver the live system.
+     * extern void task_preempt_enable(void); task_preempt_enable(); */
 
     /* 9. Boot the AGI kernel supervisor (ring-0 operator + agent realm).
      *    This replaces the old `for(;;) HLT();` shell: the OS is now an AGI

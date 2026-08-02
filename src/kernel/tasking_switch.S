@@ -73,7 +73,11 @@ task_switch_asm:
     movq %rax, 120(%rdi)
 
     /* -- Restore new context (RSI) -------------------------------- */
-    /* RSI already has new_ctx pointer */
+    /* CRITICAL: keep RSI = new_ctx as the base until the LAST restore.
+     * The old code restored RSI (offset 72) mid-sequence, so the later
+     * reads (rflags/rsp/rip) dereferenced the context's SAVED rsi value --
+     * for a first-run task that is 0 -> #PF; for a resumed task it is
+     * whatever the task last had -> garbage stack/jump. */
 
     /* Restore callee-saved */
     movq  0(%rsi), %r15
@@ -85,25 +89,35 @@ task_switch_asm:
     movq 48(%rsi), %r9
     movq 56(%rsi), %r8
 
-    /* Restore caller-saved */
+    /* Restore caller-saved (EXCEPT rsi -- still the base) */
     movq 64(%rsi), %rdi
-    movq 72(%rsi), %rsi
     movq 80(%rsi), %rbp
     movq 88(%rsi), %rdx
     movq 96(%rsi), %rcx
     movq 104(%rsi), %rbx
     movq 112(%rsi), %rax
 
-    /* Restore RFLAGS */
+    /* Restore RFLAGS (still on the old stack -- fine).  The popfq restores
+     * the target task's IF (1 for normal tasks), which would let a timer
+     * IRQ land between HERE and the RSP/RIP restores -- the IRQ pushes its
+     * iret frame on the OLD stack and the nested preempt switch corrupts
+     * this restore (classic garbage-RSP #PF).  CLI right after so the
+     * remainder of the switch is atomic; the resuming path (iretq of a
+     * resumed ISR, task_yield's sti, or a trampoline entry) re-enables IF. */
     movq 136(%rsi), %rax
     pushq %rax
     popfq
+    cli
 
     /* Restore RSP - new stack pointer */
     movq 128(%rsi), %rsp
 
     /* Restore RIP - jump to new instruction pointer */
     movq 120(%rsi), %rax
+
+    /* Restore RSI last -- the context switch base is no longer needed. */
+    movq 72(%rsi), %rsi
+
     jmp *%rax
 
 /* End of task_switch_asm */

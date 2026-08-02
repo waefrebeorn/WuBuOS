@@ -42,10 +42,22 @@ typedef struct IDTPtr {
  * ------------------------------------------------------------------ */
 
 typedef struct InterruptFrame {
-    /* Pushed by common_isr_handler (callee-saved + caller-saved) */
-    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
-    uint64_t rdi, rsi, rbp, rbx, rdx, rcx, rax;
-    /* Pushed by stub + CPU */
+    /* Pushed by common_isr_handler: EXACTLY the 15 registers the assembly
+     * pushes, in REVERSE push order -- the LAST push (rax) sits at +0:
+     *   push order: rdi,rsi,rdx,rcx,r8,r9,r10,r11,rbx,rbp,r12,r13,r14,r15,rax
+     *   frame:      rax,r15,r14,r13,r12,rbp,rbx,r11,r10,r9,r8,rcx,rdx,rsi,rdi
+     * rax IS saved: the ISR's C code freely clobbers it (caller-saved), so an
+     * interrupt mid-loop (e.g. memcpy's dest held in rax) must restore it --
+     * the classic "memcpy writes to 0xff000000" corruption. */
+    uint64_t rax;
+    uint64_t r15, r14, r13, r12;
+    uint64_t rbp, rbx, r11, r10;
+    uint64_t r9, r8, rcx, rdx;
+    uint64_t rsi, rdi;
+    /* Pushed by the stub + CPU: the stub pushes the CPU's error code
+     * FIRST (or a dummy 0), then the vector number.  After the 15
+     * register pushes the vector (the LAST push) sits at +120 and the
+     * error code at +128. */
     uint64_t vector;         /* Interrupt vector (0-255) */
     uint64_t error_code;     /* Error code (0 for vectors without) */
     uint64_t rip;            /* Return instruction pointer */
@@ -142,8 +154,7 @@ uint64_t interrupt_get_count(uint8_t irq);
 /* Syscall API */
 typedef int64_t (*syscall_fn_t)(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 int syscall_register(uint32_t num, syscall_fn_t handler);
-void syscall_handler(InterruptFrame *frame, uint64_t num);
-
+int64_t syscall_handler(InterruptFrame *frame, uint64_t num);
 #endif
 
 #endif /* MYSEED_INTERRUPT_H */

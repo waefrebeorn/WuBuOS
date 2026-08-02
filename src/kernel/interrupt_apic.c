@@ -28,8 +28,10 @@ int apic_init(void) {
      * Configure LAPIC
      * -------------------------------------------------------------- */
 
-    /* Enable LAPIC: set SVR bit 8 */
-    lapic_write(LAPIC_SVR, lapic_read(LAPIC_SVR) | LAPIC_SVR_ENABLE);
+    /* Enable LAPIC: set SVR bit 8 + a SAFE spurious vector (0xFF).  The
+     * reset SVR's vector field is 0, so a spurious APIC event would
+     * deliver VECTOR 0 (#DE) and kill the kernel. */
+    lapic_write(LAPIC_SVR, 0x100 | 0xFF);
 
     /* Set LAPIC timer to one-shot mode initially (will be configured per-use) */
     lapic_write(LAPIC_LVT_TIMER, LAPIC_LVT_MASKED);
@@ -45,9 +47,9 @@ int apic_init(void) {
      * -------------------------------------------------------------- */
     g_ioapic_base = (volatile uint32_t *)IOAPIC_BASE_DEFAULT;
 
-    /* Read I/O APIC version to get number of IRQ entries */
-    g_ioapic_base[IOAPIC_ID / 4] = IOAPIC_VER;
-    uint32_t ioapic_ver = g_ioapic_base[IOAPIC_VER / 4 + 1];
+    /* Read I/O APIC version to get number of IRQ entries (via the fixed
+     * select/window accessor -- the old inline read garbage here). */
+    uint32_t ioapic_ver = ioapic_read(IOAPIC_VER);
     g_ioapic_irq_count = IOAPIC_RED_ENTRIES(ioapic_ver);
 
     /* Mask all I/O APIC interrupts initially */
@@ -56,21 +58,9 @@ int apic_init(void) {
         ioapic_write(IOAPIC_REDTBL_HIGH + i * 2, 0);
     }
 
-    /* --------------------------------------------------------------
-     * Setup TSS / IST for exception handlers
-     * -------------------------------------------------------------- */
-
-    /* IST1: Exception stack (double fault, NMI, etc.) */
-    g_tss.ist[IST_EXCEPTION - 1] = (uint64_t)(g_ist_stacks[0] + sizeof(g_ist_stacks[0]));
-    /* IST2: NMI stack */
-    g_tss.ist[IST_NMI - 1] = (uint64_t)(g_ist_stacks[1] + sizeof(g_ist_stacks[1]));
-    /* IST3: Debug stack */
-    g_tss.ist[IST_DEBUG - 1] = (uint64_t)(g_ist_stacks[2] + sizeof(g_ist_stacks[2]));
-    /* IST4: Timer stack */
-    g_tss.ist[IST_TIMER - 1] = (uint64_t)(g_ist_stacks[3] + sizeof(g_ist_stacks[3]));
-
-    /* Load TSS (kernel will do ltr in GDT setup - this is a stub) */
-    __asm__ volatile ("ltr %%ax" :: "a"((uint16_t)0x28) : "memory");
+    /* NOTE: the TSS/IST wiring is skipped -- the kernel's GDT has no TSS
+     * descriptor, so the historical `ltr` here would #GP.  The IDT gates
+     * all use IST=0 and the kernel does not (yet) use IST stacks. */
 
     return 0;
 #else

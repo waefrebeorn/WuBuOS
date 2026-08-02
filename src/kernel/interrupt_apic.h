@@ -134,11 +134,17 @@ static inline uint32_t lapic_read(uint32_t reg) {
 static inline void lapic_write(uint32_t reg, uint32_t val) {
     g_lapic_base[reg / 4] = val;
 }
+/* IOAPIC access: the register window is IOREGSEL at byte 0x00 + IOWIN at
+ * byte 0x10.  `reg` is the register INDEX (e.g. 0x10 = REDTBL0).  The old
+ * code treated the MMIO as a flat array (base + reg), which wrote to
+ * reserved offsets and NEVER programmed the redirection table. */
 static inline uint32_t ioapic_read(uint32_t reg) {
-    return *(volatile uint32_t *)(g_ioapic_base + reg);
+    g_ioapic_base[0] = reg;              /* select register */
+    return g_ioapic_base[4];             /* read IOWIN (byte 0x10) */
 }
 static inline void ioapic_write(uint32_t reg, uint32_t val) {
-    *(volatile uint32_t *)(g_ioapic_base + reg) = val;
+    g_ioapic_base[0] = reg;              /* select register */
+    g_ioapic_base[4] = val;              /* write IOWIN (byte 0x10) */
 }
 
 #endif /* WUBU_INTERRUPT_APIC_H */

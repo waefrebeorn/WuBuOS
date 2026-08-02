@@ -345,42 +345,31 @@ common_isr_handler:
     push r13
     push r14
     push r15
+    push rax              /* rax MUST be saved: the ISR's C code clobbers
+                             caller-saved regs; without this an interrupt
+                             mid-loop corrupts rax in the interrupted code
+                             (memcpy dest -> writes to 0xff000000) */
 
     /* RSP now points to our saved registers.
      * Stack layout (from RSP):
-     *   r15, r14, r13, r12, rbp, rbx, r11, r10, r9, r8, rcx, rdx, rsi, rdi  (14 * 8 = 112)
-     *   error_code (8), vector (8)                                               (16)
+     *   rax, r15, ..., rdi                                          (15 * 8 = 120)
+     *   vector (8), error_code (8)  [stub pushed error THEN vector; the
+     *                                vector, the LAST push, sits at +120]  (16)
      *   RIP, CS, RFLAGS, RSP, SS (pushed by CPU)                                 (40)
-     * Total offset to vector = 112 + 8 = 120
-     * Total offset to error_code = 112
+     * Total offset to vector = 120
      */
 
-    mov rdi, rsp          /* RDI = frame pointer (InterruptFrame*) */
-    mov rsi, [rsp + 120]  /* RSI = vector number */
-
-    /* DIAGNOSTIC: emit the faulting vector as a hex digit so the serial
-     * trace tells us WHICH vector triple-faults the moment the IDT is live.
-     * Vectors 0-15 -> '0'-'9','A'-'F'; 16-255 -> raw modulo mapped to 'p'.. */
-    mov rcx, rsi
-    cmp rcx, 15
-    ja  .vec_hi
-    add cl, '0'
-    cmp cl, '9'
-    jbe .vec_emit
-    add cl, ('A' - '9' - 1)
-    jmp .vec_emit
-.vec_hi:
-    /* 16..255 -> 'p' + (vec>>4) to stay printable */
-    shr rcx, 4
-    add cl, 'p'
-.vec_emit:
-    mov dx, 0x3F8
-    mov al, cl
-    out dx, al
+    mov rdi, [rsp + 120]        /* RDI = vector number (the stub's LAST
+                                   push sits at +120 after the 15 regs;
+                                   error code at +128) */
+    mov rsi, rsp                /* RSI = InterruptFrame* (rax base; the
+                                   struct's rip field sits at +136 == the
+                                   iret frame's RIP) */
 
     call isr_dispatch
 
-    /* Restore registers (reverse order) */
+    /* Restore registers (reverse order: rax first) */
+    pop rax
     pop r15
     pop r14
     pop r13
@@ -396,7 +385,7 @@ common_isr_handler:
     pop rsi
     pop rdi
 
-    /* Pop error_code and vector */
+    /* Pop vector and error_code */
     add rsp, 16
 
     iretq
@@ -445,6 +434,8 @@ syscall_entry:
     push r13
     push r14
     push r15
+    push rax                /* save rax too so the frame layout matches
+                               InterruptFrame (rax@0 .. rdi@112) */
 
     /* RDI = frame pointer for handler */
     mov rdi, rsp
@@ -452,7 +443,9 @@ syscall_entry:
 
     call syscall_handler
 
-    /* Restore registers */
+    /* Restore registers: skip the saved rax (the handler's return value
+     * is already in rax and must survive into sysretq) */
+    add rsp, 8
     pop r15
     pop r14
     pop r13
@@ -487,7 +480,7 @@ syscall_entry:
 .hidden idt_ptr
 .align 8
 idt_ptr:
-    .word 2047          /* Limit: 256 * 16 - 1 */
+    .word 4095          /* Limit: 256 * 16 - 1 (full IDT) */
     .quad idt_table     /* Base: address of IDT table */
 
 /* ------------------------------------------------------------------
