@@ -31,7 +31,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A17. RTC wall clock: wubu_rtc module (CMOS 0x70/0x71, BCD/12h, UIP); `date` command + boot stamp verified live.
 - [ ] A18. No ACPI/FADT parsing (firmware memory map is assumed, not read).
 - [ ] A19. No HPET (the LAPIC timer is the only time source).
-- [ ] A20. Console errors silent: 132 bare `return 0;` paths swallow failure.
+- [x] A20. Console error reporting: the failure paths (theme/date/attest/agi/dump) already reported; vmm alloc/free + pci scan now report rc instead of silent 0.
 
 ## B. Memory / vmm (P0)
 - [x] B1. vmm bitmap allocator + free path (verified test_vmm ALL PASS).
