@@ -16,10 +16,13 @@
 
 #include <stdint.h>
 
-#define WUBU_SWAP_SLOTS   256          /* tracked evicted pages */
+#define WUBU_SWAP_SLOTS   512          /* tracked evicted pages (each
+                                          occupies 8 sectors) */
 #define WUBU_SWAP_SECTOR  4096         /* swap area start (LBA, past the
                                           FAT32 volume on the 8MB disk) */
-#define WUBU_SWAP_PAGES   (WUBU_SWAP_SECTOR + 4096)  /* 4MB of swap */
+#define WUBU_SWAP_SECTORS 4096         /* the swap area's size in sectors */
+#define WUBU_SWAP_PAGES   (WUBU_SWAP_SECTORS / 8)  /* pages that fit */
+#define WUBU_SWAP_PAGE_SECS 8          /* sectors per 4K page */
 
 /* Swap a page out: write phys to a free swap slot, record the mapping,
  * invalidate the VA's PTE. Returns the swap slot or -1. */

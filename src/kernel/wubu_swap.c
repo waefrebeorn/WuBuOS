@@ -11,18 +11,11 @@
  */
 #include "wubu_swap.h"
 #include "wubu_vmm.h"
-
-extern int ahci_read(void *hba, int port, uint64_t lba, uint32_t n, void *buf);
-extern int ahci_write(void *hba, int port, uint64_t lba, uint32_t n,
-                      const void *buf);
-extern int ahci_hba_init(void *hba);
-extern int ahci_enumerate_ports(void *hba);
-extern int ahci_port_init(void *hba, int port);
-extern int ahci_sim_disk_create(void *hba, int port, int mb);
+#include "ahci.h"   /* the typed ahci accessors (the swap drives the sim disk) */
 
 #define PAGE 4096ull
 
-static uint8_t g_hba[512];
+static ahci_hba_t g_hba;
 static int g_hba_ready = 0;
 static int g_slots[WUBU_SWAP_SLOTS];     /* free-slot bitmap: -1 free */
 static uint32_t g_swap_count = 0;
@@ -36,10 +29,10 @@ static uint64_t g_va_addr[WUBU_SWAP_SLOTS];
 static void disk_ensure(void)
 {
     if (!g_hba_ready) {
-        if (ahci_hba_init(g_hba) == 0 &&
-            ahci_enumerate_ports(g_hba) > 0 &&
-            ahci_port_init(g_hba, 0) == 0)
-            ahci_sim_disk_create(g_hba, 0, 8);
+        if (ahci_hba_init(&g_hba) == 0 &&
+            ahci_enumerate_ports(&g_hba) > 0 &&
+            ahci_port_init(&g_hba, 0) == 0)
+            ahci_sim_disk_create(&g_hba, 0, 8);
         g_hba_ready = 1;
     }
 }
@@ -79,8 +72,10 @@ int wubu_swap_out(uint64_t va, uint64_t phys)
 
     disk_ensure();
     if (!g_hba_ready) return -1;
-    uint64_t lba = WUBU_SWAP_SECTOR + (uint64_t)slot;
-    if (ahci_write(g_hba, 0, lba, 1, (const void *)(uintptr_t)phys) != 1)
+    /* a 4K page is 8 sectors: the slot owns WUBU_SWAP_PAGE_SECS sectors */
+    uint64_t lba = WUBU_SWAP_SECTOR + (uint64_t)slot * WUBU_SWAP_PAGE_SECS;
+    if (ahci_write(&g_hba, 0, lba, WUBU_SWAP_PAGE_SECS,
+                   (const void *)(uintptr_t)phys) != WUBU_SWAP_PAGE_SECS)
         return -1;
 
     g_slots[slot] = 1;
@@ -110,8 +105,9 @@ int wubu_swap_in(uint64_t va, uint32_t slot)
     if (frame < 0) return -1;
 
     uint64_t phys = WUBU_VMM_PHYS_BASE + (uint64_t)frame * PAGE;
-    uint64_t lba = WUBU_SWAP_SECTOR + (uint64_t)slot;
-    if (ahci_read(g_hba, 0, lba, 1, (void *)(uintptr_t)phys) != 1)
+    uint64_t lba = WUBU_SWAP_SECTOR + (uint64_t)slot * WUBU_SWAP_PAGE_SECS;
+    if (ahci_read(&g_hba, 0, lba, WUBU_SWAP_PAGE_SECS,
+                  (void *)(uintptr_t)phys) != WUBU_SWAP_PAGE_SECS)
         return -1;
 
     /* restore the mapping + release the slot */

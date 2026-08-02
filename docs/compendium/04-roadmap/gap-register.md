@@ -102,8 +102,10 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] G2. The verifier now consults the kernel's OWN test suite: wubu_self_test (heap integrity, coalescing, lock, trace, hive) adds +10 only when EVERY check passes; a sick kernel cannot promote.
 - [x] G3. CLOSED with evidence: the tick-12 freeze class is resolved (bounded TX + drop-continue + the E3 TX ring); many consecutive boots show zero faults, the console answers interactively, and the promote flood is rate-limited.
 - [x] G4. Theme persistence: theme save/load to THEME.FX on the FAT32 volume (node list -> file; file -> node set + apply).
+      NOTE: reachable once the boot volume mounts (the AHCI port_init calloc fix, tracked); the RAM sim disk persists only within a boot.
 - [x] G5. The metal's long-term hive: C11 hive wired into the kernel, the AGI's memory hook stores every 25th promoted span (rate-limited) -- live-verified 'hive armed'.
 - [x] G6. AGI crash recovery: continuity checkpoint (promoted/span-id watermarks) saved to AGI.CKP + restored at boot; 'agi checkpoint/restore' commands.
+      NOTE: same boot-volume gate; cross-boot restore needs a persistent disk (the RAM sim disk is per-boot).
 - [x] G7. Superseded by D7 (supervisor watchdog).
 - [x] G8. Gamepad event path verified (feed_gamepad -> ring -> poll, host-tested); the hardware driver rides on the E1 USB-HID arc.
 - [x] G9. See B10 (this batch) (B10).
@@ -135,6 +137,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] J4. tools/lint_ledger.py enforces the TEMPLATE (context+evidence hard; full fields soft) on worked/didnt-work/bugs; wired into make check.
 - [x] J5. gen_docs api scanner lists EVERY prototype (no per-header cap).
 - [x] J6. Boot-time image-alignment check (kernel start + stack top % 16) before any heap use.
+      NOTE (DA): the assert's linker symbols were `extern uint64_t` (value-loads = garbage!); fixed to array declarations + a raw-serial scream.
 - [x] J7. parity.md rows now reference the cross-platform-build config (CONFIG status; the legs are the remaining ports).
 
 ## K. Parity (P1)

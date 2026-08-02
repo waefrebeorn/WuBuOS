@@ -74,6 +74,28 @@ fat32_volume *fat32_boot_volume(void)
     return &vol;
 }
 
+/* Gap DA: attach + mount the boot volume against a caller-provided
+ * block backend. If the media has no valid FAT32 boot sector, format
+ * it first (a fresh RAM disk). Without this the G4/G6 persistence
+ * paths could never fire (the volume was never mounted). */
+int fat32_boot_attach(const fat32_blk_ops *ops)
+{
+    if (!ops) return -1;
+    fat32_volume *vol = fat32_boot_volume();
+    if (vol->mounted) return 0;
+
+    /* is the media already a FAT32 volume? (the boot sector's BPB) */
+    fat32_boot_sector bs;
+    int formatted = (ops->read(ops->ctx, 0, 1, &bs) == 0 &&
+                     bs.bytes_per_sector == FAT32_SECTOR_SIZE &&
+                     bs.sectors_per_fat != 0);
+    if (!formatted) {
+        if (fat32_format(ops, ops->n_sectors, "WUBUOS") != 0)
+            return -1;
+    }
+    return fat32_mount(vol, ops);
+}
+
 void fat32_unmount(fat32_volume *vol) {
     if (vol->fat_cache) {
         /* Gap E6: flush the write-behind cache before dropping it. */

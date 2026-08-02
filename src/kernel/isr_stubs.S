@@ -414,17 +414,19 @@ syscall_entry:
      *   RDI, RSI, RDX, R10, R8, R9 = args 1-6 (same as System V ABI)
      *   RAX = syscall number
      *
-     * We need to save user context and switch to kernel stack.
-     * IST is not used for syscall (trap gate), so we use the kernel stack.
+     * SYSCALL does NOT switch stacks: the CPU enters ring 0 with the
+     * USER RSP. Running the kernel on the user stack is a privilege
+     * hole (and with SMAP the first push would fault), so the entry
+     * parks the user RSP in a static slot and switches to the kernel's
+     * dedicated syscall stack. The exit restores the user RSP.
      */
 
     /* Swap to kernel GS base (if using FS/GS for per-CPU data) */
     swapgs
 
-    /* Save user RSP and SS so we can return with SYSRET */
-    mov [rsp - 8], rsp      /* Save user RSP below current stack */
-    mov [rsp - 16], ss      /* Save user SS */
-    sub rsp, 16
+    /* Save the user RSP in a static slot + switch to the syscall stack */
+    mov [rip + syscall_user_rsp], rsp
+    mov rsp, [rip + syscall_stack_top]
 
     /* Save user registers that SYSCALL clobbers (RCX, R11) */
     push rcx                /* User RIP */
@@ -446,7 +448,7 @@ syscall_entry:
     push r14
     push r15
     push rax                /* save rax too so the frame layout matches
-                               InterruptFrame (rax@0 .. rdi@112) */
+                              InterruptFrame (rax@0 .. rdi@112) */
 
     /* RDI = frame pointer for handler */
     mov rdi, rsp
@@ -484,12 +486,23 @@ syscall_entry:
     movabs rdx, 0xFFFFFFFFFFFF8CFF
     and r11, rdx
 
-    /* Restore user RSP and SS */
-    add rsp, 16
-    /* Note: SYSRET requires RCX=RIP, R11=RFLAGS, RSP=user_rsp, SS=user_ss */
+    /* Restore the user RSP (the kernel syscall stack is done) */
+    mov rsp, [rip + syscall_user_rsp]
 
     swapgs
     sysretq
+
+/* The dedicated syscall stack + the user-RSP save slot (BSS). */
+.section .bss
+.align 16
+syscall_user_rsp:
+    .quad 0
+syscall_stack:
+    .skip 8192
+syscall_stack_end:
+.text
+/* the top of the syscall stack (a symbol constant, resolved at link) */
+.set syscall_stack_top, syscall_stack_end
 
 /* ------------------------------------------------------------------
  * IDT Pointer (for lidt)
