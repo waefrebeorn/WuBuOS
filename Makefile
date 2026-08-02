@@ -445,7 +445,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper test_control test_calc
+test_high_gui: gui runtime test_wubu_sound test_dosgui_cp_sound test_hwdetect test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper test_control test_calc
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -854,6 +854,18 @@ test_txfs:
 test_dbuf:
 	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/gui_dbuf.c $(GUI)/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
 	$(GUI)/gui_dbuf_test
+
+test_dosgui_cp_sound: $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h $(GUI)/wubu_sound.h
+	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_cp_sound.c $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_cp_sound -lm
+	./$(GUI)/test_dosgui_cp_sound
+
+test_wubu_sound: $(GUI)/wubu_sound.c $(GUI)/wubu_sound.h
+	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_wubu_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_wubu_sound -lm
+	./$(GUI)/test_wubu_sound
+
+test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect
+	./src/runtime/tests/test_hwdetect
 
 test_dosgui_wm: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_window_chrome.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
