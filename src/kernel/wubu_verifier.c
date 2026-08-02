@@ -109,6 +109,17 @@ float wubu_verifier_score(const char *payload, uint64_t ts_ms,
         /* else: no chain -> no bonus; below threshold -> not promoted */
     }
 
+    /* Gap G2: the test-suite gate -- the kernel's own integrity suite
+     * (heap + lock + trace + hive). A sick kernel must not promote:
+     * the suite adds +10 only when EVERY check passes; a failure caps
+     * the score below the threshold. */
+    {
+        extern uint32_t wubu_self_test_run(uint32_t *);
+        uint32_t total = 0;
+        uint32_t passed = wubu_self_test_run(&total);
+        if (total > 0 && passed == total) score += 10.0f;
+    }
+
     if (score > 100.0f) score = 100.0f;
     if (passed) *passed = (score >= WUBU_VERIFIER_THRESHOLD);
     return score;
