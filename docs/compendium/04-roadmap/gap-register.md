@@ -18,7 +18,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] A7. Panic ring: the klog captures the last 4KB in RAM; fault handlers dump it (post-mortem).
 - [ ] A8. No crash dump to the disk (the ledger wants evidence, not dumps).
 - [ ] A9. Early boot uses single-char markers -- no hex progress codes.
-- [ ] A10. No runtime PCR extension (attestation is boot-time only).
+- [x] A10. Runtime PCR: wubu_sha256 (FIPS 180-4, own C11) + every promotion chains into a kernel-side runtime PCR; `attest` command verified live (rtPCR chained).
 - [ ] A11. ps2.c: 13 conditionals total; no ack/self-test validation, no
       device-id handshake.
 - [ ] A12. ps2.c: no mouse handling (keyboard only? verified: input.h has

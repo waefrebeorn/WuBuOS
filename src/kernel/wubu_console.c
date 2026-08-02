@@ -248,6 +248,42 @@ static int cmd_dump(int argc, char **argv)
     return 0;
 }
 
+/* attest: the measured-boot chain + the runtime PCR (gap A10). */
+static int cmd_attest(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    extern int  wubu_attest_runtime_pcr(uint8_t out[32]);
+    extern int  wubu_attest_pcr(unsigned, uint8_t[32]);
+    extern int  wubu_attest_kernel_digest(uint8_t[32]);
+    uint8_t p[32];
+    char line[80];
+    int o;
+
+    klog_printf("attest: measured-boot chain + runtime PCR\n");
+    if (wubu_attest_pcr(0, p) == 0) {
+        o = 0;
+        for (int i = 0; i < 32; i++, o += 2)
+            dump_hex_byte(line + o, p[i]);
+        line[o] = '\0';
+        klog_printf("  pcr0  = %s\n", line);
+    }
+    if (wubu_attest_kernel_digest(p) == 0) {
+        o = 0;
+        for (int i = 0; i < 32; i++, o += 2)
+            dump_hex_byte(line + o, p[i]);
+        line[o] = '\0';
+        klog_printf("  ksha  = %s (kernel measured by WuBuFW)\n", line);
+    }
+    if (wubu_attest_runtime_pcr(p) == 0) {
+        o = 0;
+        for (int i = 0; i < 32; i++, o += 2)
+            dump_hex_byte(line + o, p[i]);
+        line[o] = '\0';
+        klog_printf("  rtPCR = %s (runtime, chained per promotion)\n", line);
+    }
+    return 0;
+}
+
 static int cmd_agi(int argc, char **argv)
 {
     wubu_agi_kernel_t *agi = wubu_agi_kernel_global();
@@ -339,6 +375,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "vmm") == 0)             return cmd_vmm(argc, argv);
     if (strcmp(argv[0], "stats") == 0)           return cmd_stats(argc, argv);
     if (strcmp(argv[0], "dump") == 0)            return cmd_dump(argc, argv);
+    if (strcmp(argv[0], "attest") == 0)          return cmd_attest(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
