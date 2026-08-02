@@ -1,0 +1,1057 @@
+# GUI Gap Index -- 1000 goals + gaps
+
+Date: 2026-08-02. The 'best most modular AI-powered OS ever' GUI
+register, plus the cross-OS loading vision. EVERYTHING flows through
+the HolyC Colonel (the TempleOS/ZealOS lineage): apps, OS code, and
+cross-OS payloads dispatch through the Colonel. Status: `open` =
+not yet built; `wired` = implemented + tested.
+
+## GU-A: The windowing core
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Win98 WM -> XP/Win11 windowing -> Wayland compositing -> the Colonel dispatch
+- GU-A01 Focus model (click-to-focus + focus-follows-mouse modes) `open`
+- GU-A02 Z-order management (raise/lower/always-on-top) `open`
+- GU-A03 Drag-move with the live preview `open`
+- GU-A04 Resize with the edge/corner handles `open`
+- GU-A05 Minimize/maximize/restore state machine `open`
+- GU-A06 Aero-snap (left/right/quadrant snap) `open`
+- GU-A07 Keyboard-driven window placement (win+arrows) `open`
+- GU-A08 Virtual desktops (spaces with per-desktop windows) `open`
+- GU-A09 Window groups (tabbed windows) `open`
+- GU-A10 Window stacking (cascade/tile) `open`
+- GU-A11 Multi-monitor awareness (per-monitor DPI) `open`
+- GU-A12 DPI scaling (per-monitor 100-200%) `open`
+- GU-A13 Window persistence (restore layout at boot) `open`
+- GU-A14 Window state snapshot (crash recovery) `open`
+- GU-A15 Per-window opacity `open`
+- GU-A16 Window shake-to-minimize `open`
+- GU-A17 Window roll-up (titlebar collapse) `open`
+- GU-A18 Window shake-to-peek `open`
+- GU-A19 Alt-Tab switcher (with live thumbnails) `open`
+- GU-A20 Taskbar preview thumbnails `open`
+- GU-A21 Window borders (themed chrome) `open`
+- GU-A22 Client-area vs chrome-area hit testing `open`
+- GU-A23 Window message routing (the Colonel dispatch) `open`
+- GU-A24 Window event queue (bounded, priority) `open`
+- GU-A25 Window timer events (per-window tick) `open`
+- GU-A26 Window invalidation (damage tracking) `open`
+- GU-A27 Window occlusion culling (hidden = no render) `open`
+- GU-A28 Window focus ring (accessibility) `open`
+- GU-A29 Modal windows (dialog modality) `open`
+- GU-A30 Window owner relationships (child windows) `open`
+- GU-A31 Popup windows (transient) `open`
+- GU-A32 Tooltip windows (delayed show) `open`
+- GU-A33 Menu windows (dismiss on outside-click) `open`
+- GU-A34 Window-level undo (restore closed window) `open`
+- GU-A35 Window registry (all windows discoverable) `open`
+- GU-A36 Window telemetry (per-window CPU/fps) `open`
+- GU-A37 Window GPU-acceleration (the compositor path) `open`
+- GU-A38 Window software fallback (llvmpipe-safe) `open`
+- GU-A39 Window resize smoothness (no tearing) `open`
+- GU-A40 Window scroll wheel routing `open`
+- GU-A41 Window drag-drop target (the OLE-ish) `open`
+- GU-A42 Window clipboard integration `open`
+- GU-A43 Window keyboard shortcuts (per-window) `open`
+- GU-A44 Window speech (the screen-reader hooks) `open`
+- GU-A45 Window motion (the transitions engine) `open`
+- GU-A46 Window sounds (the OS event sounds) `open`
+- GU-A47 Window theming (per-window theme override) `open`
+- GU-A48 Window localization (RTL support) `open`
+- GU-A49 Window IME input (per-window) `open`
+- GU-A50 Window touch handling (per-window) `open`
+- GU-A51 Window gestures (per-window) `open`
+- GU-A52 Window memory budget (per-window cap) `open`
+- GU-A53 Window leak detection (the GC watch) `open`
+- GU-A54 Window frame rate governor (idle = low fps) `open`
+- GU-A55 Window energy accounting (the IJ ledger tie) `open`
+- GU-A56 Window debug overlay (the inspector) `open`
+- GU-A57 Window test suite (the WM asserts) `open`
+- GU-A58 Window fuzz (adversarial events) `open`
+- GU-A59 Window benchmark (100-window stress) `open`
+- GU-A60 Window state serialization (the 9P export) `open`
+- GU-A61 Window remote control (the 9P window protocol) `open`
+- GU-A62 Window nesting (embed a window in a window) `open`
+- GU-A63 Window compositing (the double-buffer) `open`
+- GU-A64 Window partial damage (dirty rects) `open`
+- GU-A65 Window triple-buffering (the future) `open`
+- GU-A66 Window present timing (vsync) `open`
+- GU-A67 Window adaptive refresh (the power save) `open`
+- GU-A68 Window cursor handling (per-window cursors) `open`
+- GU-A69 Window icon (the taskbar + alt-tab) `open`
+- GU-A70 Window class registration (the app framework) `open`
+- GU-A71 Window style bits (the Win32-style) `open`
+- GU-A72 Window extended styles (the modern) `open`
+- GU-A73 Window messages (the wm_* enum) `open`
+- GU-A74 Window procedure (the dispatch table) `open`
+- GU-A75 Window creation path (the Colonel gated) `open`
+- GU-A76 Window destruction path (the cleanup) `open`
+- GU-A77 Window enumeration (the 9P /win namespace) `open`
+- GU-A78 Window focus history (the alt-tab MRU) `open`
+- GU-A79 Window activation policy (the rules) `open`
+- GU-A80 Window transparency hit-testing `open`
+- GU-A81 Window snap layouts (the 11-style) `open`
+- GU-A82 Window corner rounding (the XP vibes) `open`
+- GU-A83 Window shadow (the soft shadow) `open`
+- GU-A84 Window glow (the active glow) `open`
+- GU-A85 Window animations (open/close/minimize) `open`
+- GU-A86 Window open animation (the grow) `open`
+- GU-A87 Window close animation (the shrink) `open`
+- GU-A88 Window minimize animation (to taskbar) `open`
+- GU-A89 Window restore animation (from taskbar) `open`
+- GU-A90 Window shake (the find-window shake) `open`
+- GU-A91 Window magnifier (the loupe) `open`
+- GU-A92 Window region clipping (the complex shapes) `open`
+- GU-A93 Window layered windows (the WS_EX_LAYERED) `open`
+- GU-A94 Window key preview (the before-dispatch) `open`
+- GU-A95 Window mouse capture (the drag capture) `open`
+- GU-A96 Window focus steal prevention `open`
+- GU-A97 Window message coalescing (the burst filter) `open`
+- GU-A98 Window render cache (the static-window fast path) `open`
+- GU-A99 Window idle render (the static = no redraw) `open`
+- GU-A100 Window test: the 10K-message soak `open`
+Status: `open` (100 gaps)
+
+## GU-B: The chrome & rendering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Win98 bevels -> XP Luna glass -> Wayland compositing -> HolyC-drawn chrome
+- GU-B01 Title bar (themed gradient + text + buttons) `open`
+- GU-B02 Title bar buttons (min/max/close with states) `open`
+- GU-B03 Title bar drag region `open`
+- GU-B04 Control bevels (the Win98 3D look) `open`
+- GU-B05 Button states (normal/hover/pressed/disabled) `open`
+- GU-B06 Checkbox + radio rendering `open`
+- GU-B07 Scrollbar rendering (themed) `open`
+- GU-B08 Slider rendering (the volume bar family) `open`
+- GU-B09 Combo box rendering `open`
+- GU-B10 Menu rendering (the hover + submenu) `open`
+- GU-B11 Toolbar rendering (the icon buttons) `open`
+- GU-B12 Status bar rendering (the panels) `open`
+- GU-B13 Tab strip rendering (the terminal tabs) `open`
+- GU-B14 Progress bar rendering (the XP glow) `open`
+- GU-B15 Tooltip rendering (the delayed bubble) `open`
+- GU-B16 Text rendering (the 64-glyph font family) `open`
+- GU-B17 Font scaling (the DPI) `open`
+- GU-B18 Font anti-aliasing (the gray-scale) `open`
+- GU-B19 Icon rendering (the pixel-glyph family) `open`
+- GU-B20 Icon states (the selected plate) `open`
+- GU-B21 Cursor rendering (the animated cursors) `open`
+- GU-B22 Window shadow (the soft drop shadow) `open`
+- GU-B23 Window glow (the active-state glow) `open`
+- GU-B24 Focus rectangle (the dotted XP style) `open`
+- GU-B25 Selection plate (the navy translucent) `open`
+- GU-B26 Drag ghost (the translucent drag preview) `open`
+- GU-B27 Rounded corners (the radius from the theme) `open`
+- GU-B28 Gradients (the title bar + the start menu) `open`
+- GU-B29 Borders (the bevels + the resize edges) `open`
+- GU-B30 The compositor (the double-buffer) `open`
+- GU-B31 The compositor damage tracking `open`
+- GU-B32 The compositor partial presents `open`
+- GU-B33 The compositor GPU path (the Vulkan) `open`
+- GU-B34 The compositor fallback (the VBE) `open`
+- GU-B35 The pixel formats (RGB565/RGB888/ARGB) `open`
+- GU-B36 The scaling filter (the smooth upscale) `open`
+- GU-B37 The color management (the gamma) `open`
+- GU-B38 The high-contrast mode (the theme) `open`
+- GU-B39 The dark mode (the theme) `open`
+- GU-B40 The theme engine (the 5+ themes) `open`
+- GU-B41 The theme live-switch (no restart) `open`
+- GU-B42 The theme persistence (the settings) `open`
+- GU-B43 The theme accent colors (the per-app) `open`
+- GU-B44 The theme sound schemes (the Win98/XP) `open`
+- GU-B45 The wallpaper engine (the stretch/tile/center) `open`
+- GU-B46 The wallpaper slideshow (the rotation) `open`
+- GU-B47 The wallpaper live (the animated) `open`
+- GU-B48 The screensaver (the blank + the moving) `open`
+- GU-B49 The boot splash (the themed) `open`
+- GU-B50 The login screen (the themed) `open`
+- GU-B51 The shutdown screen (the themed) `open`
+- GU-B52 The pixel-art glyph set (the 32x32 family) `open`
+- GU-B53 The glyph theme mapping (the 4-color) `open`
+- GU-B54 The text measuring (the width calc) `open`
+- GU-B55 The text wrapping (the word wrap) `open`
+- GU-B56 The text ellipsis (the truncation) `open`
+- GU-B57 The text selection (the inverse) `open`
+- GU-B58 The text cursor (the blinking) `open`
+- GU-B59 The text scrolling (the smooth) `open`
+- GU-B60 The line spacing (the leading) `open`
+- GU-B61 The glyph cache (the fast path) `open`
+- GU-B62 The render test (the pixel asserts) `open`
+- GU-B63 The render benchmark (the fps) `open`
+- GU-B64 The render fuzz (the garbage params) `open`
+- GU-B65 The render thread (the async present) `open`
+- GU-B66 The render priority (the foreground first) `open`
+- GU-B67 The render budget (the frame time) `open`
+- GU-B68 The render energy (the IJ ledger) `open`
+- GU-B69 The blur (the frosted glass) `open`
+- GU-B70 The transparency (the per-window alpha) `open`
+- GU-B71 The rounded window masks `open`
+- GU-B72 The animated transitions (the crossfade) `open`
+- GU-B73 The morph transitions (the grow/shrink) `open`
+- GU-B74 The easing curves (the cubic/overshoot) `open`
+- GU-B75 The motion-reduction mode (the accessibility) `open`
+- GU-B76 The color-blind palettes (the theme) `open`
+- GU-B77 The OLED dark (the pure black) `open`
+- GU-B78 The paper white (the reading mode) `open`
+- GU-B79 The sepia (the reading comfort) `open`
+- GU-B80 The contrast adjust (the slider) `open`
+- GU-B81 The saturation adjust (the slider) `open`
+- GU-B82 The hue shift (the filter) `open`
+- GU-B83 The night light (the blue reduction) `open`
+- GU-B84 The render queue (the frame ordering) `open`
+- GU-B85 The render isolation (the app can't corrupt) `open`
+- GU-B86 The render telemetry (the per-frame stats) `open`
+- GU-B87 The render watchdog (the hang detection) `open`
+- GU-B88 The Chrome-standard (the window-standardization) `open`
+- GU-B89 The chrome test (the 9 themes x controls) `open`
+- GU-B90 The chrome benchmark (the paint cost) `open`
+- GU-B91 The chrome fuzz (the malformed themes) `open`
+- GU-B92 The chrome docs (the theme spec) `open`
+- GU-B93 The Colonel chrome (the HolyC-drawn chrome) `open`
+- GU-B94 The GPU chrome (the Vulkan-composited) `open`
+- GU-B95 The chrome energy (the idle = zero paint) `open`
+- GU-B96 The chrome accessibility (the contrast audit) `open`
+- GU-B97 The chrome energy (idle = zero paint) `open`
+- GU-B98 The chrome accessibility audit `open`
+- GU-B99 The render isolation assert `open`
+- GU-B100 The glyph fallback `open`
+Status: `open` (96 gaps)
+
+## GU-C: The desktop & shell
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Win98 shell -> XP Start/taskbar -> Win11 widgets -> the 9P desktop-as-folder
+- GU-C01 Desktop icons (the pixel-glyph family) `open`
+- GU-C02 Icon selection (the navy plate) `open`
+- GU-C03 Icon drag (the snap-to-grid) `open`
+- GU-C04 Icon auto-arrange (the persist) `open`
+- GU-C05 Icon rename (the inline edit) `open`
+- GU-C06 Icon delete (the Recycle Bin) `open`
+- GU-C07 Icon properties (the dialog) `open`
+- GU-C08 Desktop context menu (the New/View/Refresh) `open`
+- GU-C09 Desktop wallpaper (the center/tile/stretch) `open`
+- GU-C10 Desktop widgets (the clock/weather/CPU) `open`
+- GU-C11 Desktop gadgets (the mini-apps) `open`
+- GU-C12 Desktop scrolling (the pages) `open`
+- GU-C13 Taskbar (the themed bar) `open`
+- GU-C14 Taskbar buttons (the running windows) `open`
+- GU-C15 Taskbar grouping (the same-app stacks) `open`
+- GU-C16 Taskbar hover (the preview) `open`
+- GU-C17 Taskbar clock (the HH:MM) `open`
+- GU-C18 Taskbar tray (the icons) `open`
+- GU-C19 Taskbar notification badges `open`
+- GU-C20 Taskbar quick-launch (the pins) `open`
+- GU-C21 Taskbar auto-hide `open`
+- GU-C22 Taskbar position (the 4 edges) `open`
+- GU-C23 Taskbar multi-monitor `open`
+- GU-C24 Start menu (the two-column XP layout) `open`
+- GU-C25 Start menu search (the live filter) `open`
+- GU-C26 Start menu recent programs (the MRU) `open`
+- GU-C27 Start menu All Programs (the tree) `open`
+- GU-C28 Start menu power (the shutdown/restart) `open`
+- GU-C29 Start menu pins (the user favorites) `open`
+- GU-C30 Start menu the Colonel (the HolyC command) `open`
+- GU-C31 Notification center (the sliding panel) `open`
+- GU-C32 Notification actions (the reply/clear) `open`
+- GU-C33 Notification urgency (the colors) `open`
+- GU-C34 Notification history (the log) `open`
+- GU-C35 Notification sounds (the events) `open`
+- GU-C36 Quick settings (the toggles) `open`
+- GU-C37 Volume mixer (the per-app) `open`
+- GU-C38 Wi-Fi quick toggle `open`
+- GU-C39 Brightness quick toggle `open`
+- GU-C40 Bluetooth quick toggle `open`
+- GU-C41 Battery indicator `open`
+- GU-C42 Network indicator `open`
+- GU-C43 Keyboard layout indicator `open`
+- GU-C44 Desktop search (the global find) `open`
+- GU-C45 Desktop file search (the index) `open`
+- GU-C46 Desktop app search (the launcher) `open`
+- GU-C47 Desktop settings (the Control Panel) `open`
+- GU-C48 Desktop themes (the applier) `open`
+- GU-C49 Desktop sounds (the scheme applier) `open`
+- GU-C50 Desktop wallpaper picker (the gallery) `open`
+- GU-C51 Desktop slideshow (the rotation) `open`
+- GU-C52 Desktop virtual desktops (the switcher) `open`
+- GU-C53 Desktop overview (the expose) `open`
+- GU-C54 Desktop preview (the peek) `open`
+- GU-C55 Desktop snap (the layouts) `open`
+- GU-C56 Desktop widgets bar (the panel) `open`
+- GU-C57 Desktop clock widget (the analog) `open`
+- GU-C58 Desktop weather widget `open`
+- GU-C59 Desktop CPU widget (the meter) `open`
+- GU-C60 Desktop memory widget `open`
+- GU-C61 Desktop network widget (the graph) `open`
+- GU-C62 Desktop disk widget `open`
+- GU-C63 Desktop battery widget `open`
+- GU-C64 Desktop calendar widget `open`
+- GU-C65 Desktop notes widget (the sticky) `open`
+- GU-C66 Desktop todo widget `open`
+- GU-C67 Desktop RSS widget `open`
+- GU-C68 Desktop music widget (the now playing) `open`
+- GU-C69 Desktop AGI widget (the status) `open`
+- GU-C70 Desktop Bonzi widget (the companion) `open`
+- GU-C71 Desktop folder (the desktop IS a folder) `open`
+- GU-C72 Desktop path (the 9P ~/Desktop) `open`
+- GU-C73 Desktop persistence (the layout save) `open`
+- GU-C74 Desktop restore (the boot restore) `open`
+- GU-C75 Desktop cleanup (the clutter manager) `open`
+- GU-C76 Desktop grouping (the folders) `open`
+- GU-C77 Desktop sorting (the by name/type/date) `open`
+- GU-C78 Desktop renaming (the F2) `open`
+- GU-C79 Desktop delete (the trash) `open`
+- GU-C80 Desktop drag-drop (the apps/urls) `open`
+- GU-C81 Desktop shortcuts (the .lnk-ish) `open`
+- GU-C82 Desktop URL shortcuts (the web) `open`
+- GU-C83 Desktop mount points (the drives) `open`
+- GU-C84 Desktop network places (the 9P) `open`
+- GU-C85 Desktop recycle bin (the restore) `open`
+- GU-C86 Desktop empty-state (the first boot) `open`
+- GU-C87 Desktop onboarding (the tour) `open`
+- GU-C88 Desktop security (the lock screen) `open`
+- GU-C89 Desktop lock (the screen lock) `open`
+- GU-C90 Desktop user switch (the sessions) `open`
+- GU-C91 Desktop guest mode (the ephemeral) `open`
+- GU-C92 Desktop multi-user (the profiles) `open`
+- GU-C93 Desktop permissions (the app sandbox) `open`
+- GU-C94 Desktop telemetry (the user consent) `open`
+- GU-C95 Desktop privacy (the no-telemetry default) `open`
+- GU-C96 Desktop energy (the idle dimming) `open`
+- GU-C97 Desktop sleep (the suspend) `open`
+- GU-C98 Desktop hibernate (the resume) `open`
+- GU-C99 Desktop fast startup (the cached shell) `open`
+- GU-C100 Desktop crash recovery (the shell watchdog) `open`
+Status: `open` (104 gaps)
+
+## GU-D: The apps (the built-in family)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Win98 accessories -> the XP suite -> the AGI apps (Bonzi/Comfy/inspector) -> the Colonel IDE
+- GU-D01 Calculator (the standard) `open`
+- GU-D02 Calculator (the scientific) `open`
+- GU-D03 Calculator (the programmer) `open`
+- GU-D04 Notepad (the plain text) `open`
+- GU-D05 Notepad (the search) `open`
+- GU-D06 Notepad (the autosave) `open`
+- GU-D07 Paint (the canvas) `open`
+- GU-D08 Paint (the brushes) `open`
+- GU-D09 Paint (the shapes) `open`
+- GU-D10 File Manager (the two-pane) `open`
+- GU-D11 File Manager (the tree) `open`
+- GU-D12 File Manager (the preview) `open`
+- GU-D13 Terminal (the PTY) `open`
+- GU-D14 Terminal (the tabs) `open`
+- GU-D15 Terminal (the HolyC session) `open`
+- GU-D16 Terminal (the scrollback search) `open`
+- GU-D17 Terminal (the ANSI) `open`
+- GU-D18 Control Panel (the applets) `open`
+- GU-D19 Control Panel (the display applet) `open`
+- GU-D20 Control Panel (the network applet) `open`
+- GU-D21 Control Panel (the sound applet) `open`
+- GU-D22 Control Panel (the theme applet) `open`
+- GU-D23 Task Manager (the processes) `open`
+- GU-D24 Task Manager (the kill) `open`
+- GU-D25 Task Manager (the CPU graph) `open`
+- GU-D26 Music player (the WAV/MP3/OGG) `open`
+- GU-D27 Music player (the playlist) `open`
+- GU-D28 Music player (the synthesis jams) `open`
+- GU-D29 Image viewer (the PNG/JPG) `open`
+- GU-D30 Image viewer (the zoom) `open`
+- GU-D31 Video player (the MP4) `open`
+- GU-D32 Browser (the web) `open`
+- GU-D33 Browser (the tabs) `open`
+- GU-D34 Browser (the bookmarks) `open`
+- GU-D35 Email client (the SMTP/IMAP) `open`
+- GU-D36 Chat client (the 9P messaging) `open`
+- GU-D37 Text editor (the code) `open`
+- GU-D38 Text editor (the syntax) `open`
+- GU-D39 Text editor (the LSP) `open`
+- GU-D40 IDE (the build) `open`
+- GU-D41 IDE (the debug) `open`
+- GU-D42 The Colonel IDE (the HolyC editor) `open`
+- GU-D43 The Colonel REPL (the HolyC terminal) `open`
+- GU-D44 The HolyC debugger (the breakpoints) `open`
+- GU-D45 The package manager GUI (the pacman) `open`
+- GU-D46 The container manager GUI (the pods) `open`
+- GU-D47 The snapshot GUI (the restore) `open`
+- GU-D48 The network GUI (the firewall) `open`
+- GU-D49 The disk GUI (the format) `open`
+- GU-D50 The disk GUI (the partitions) `open`
+- GU-D51 The settings app (the aggregated) `open`
+- GU-D52 The accessibility app `open`
+- GU-D53 The sound lab (the synthesis) `open`
+- GU-D54 The wavetable editor (the frames) `open`
+- GU-D55 The spectrum analyzer (the live) `open`
+- GU-D56 The oscilloscope (the live) `open`
+- GU-D57 The MIDI app (the keyboard) `open`
+- GU-D58 The drum machine (the pads) `open`
+- GU-D59 The step sequencer (the patterns) `open`
+- GU-D60 The Bonzi app (the companion) `open`
+- GU-D61 The Comfy app (the AGI dispatch) `open`
+- GU-D62 The AGI status app (the loop) `open`
+- GU-D63 The AGI inspector (the memory) `open`
+- GU-D64 The AGI planner (the goals) `open`
+- GU-D65 The AGI ledger (the DA audit) `open`
+- GU-D66 The EDR dashboard (the security) `open`
+- GU-D67 The log viewer (the kernel log) `open`
+- GU-D68 The system monitor (the sensors) `open`
+- GU-D69 The hardware info app (the hwdetect) `open`
+- GU-D70 The boot log viewer (the A9 codes) `open`
+- GU-D71 The verifier app (the attestation) `open`
+- GU-D72 The user guide (the help) `open`
+- GU-D73 The tutorial app (the onboarding) `open`
+- GU-D74 The games (the FreeDoom) `open`
+- GU-D75 The games (the chess) `open`
+- GU-D76 The games (the minesweeper) `open`
+- GU-D77 The games (the solitaire) `open`
+- GU-D78 The games (the snake) `open`
+- GU-D79 The screensaver preview `open`
+- GU-D80 The clock app (the world time) `open`
+- GU-D81 The calendar app (the events) `open`
+- GU-D82 The weather app `open`
+- GU-D83 The calculator unit (the conversions) `open`
+- GU-D84 The notes app (the sticky) `open`
+- GU-D85 The todo app (the tasks) `open`
+- GU-D86 The OCR app (the text from image) `open`
+- GU-D87 The clipboard history (the manager) `open`
+- GU-D88 The screenshot app (the region) `open`
+- GU-D89 The screen recorder `open`
+- GU-D90 The magnifier app `open`
+- GU-D91 The character map `open`
+- GU-D92 The run dialog (the win+R) `open`
+- GU-D93 The file association app (the MIME) `open`
+- GU-D94 The default apps app `open`
+- GU-D95 The uninstaller app `open`
+- GU-D96 The software center (the curated) `open`
+- GU-D97 The update app (the system) `open`
+- GU-D98 The backup app (the snapshot) `open`
+- GU-D99 The restore app (the rollback) `open`
+- GU-D100 The app framework (the registry) `open`
+Status: `open` (103 gaps)
+
+## GU-E: The input & accessibility
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Keyboard/mouse basics -> multi-touch -> IME -> screen-reader -> the Colonel-routed input
+- GU-E01 Keyboard input (the scancode map) `open`
+- GU-E02 Keyboard repeat (the OS-level) `open`
+- GU-E03 Keyboard layout switching (the IME) `open`
+- GU-E04 Keyboard shortcuts (the global registry) `open`
+- GU-E05 Mouse input (the motion) `open`
+- GU-E06 Mouse buttons (the 5-button) `open`
+- GU-E07 Mouse wheel (the smooth scroll) `open`
+- GU-E08 Mouse acceleration (the curve) `open`
+- GU-E09 Mouse capture (the drag) `open`
+- GU-E10 Mouse cursor hotspot (the pixel) `open`
+- GU-E11 Touch input (the multi-touch) `open`
+- GU-E12 Touch gestures (the pinch/swipe) `open`
+- GU-E13 Stylus input (the pressure) `open`
+- GU-E14 Pen tilt (the stylus) `open`
+- GU-E15 Gamepad input (the joystick) `open`
+- GU-E16 Motion input (the accelerometer) `open`
+- GU-E17 Text input (the composition) `open`
+- GU-E18 IME (the CJK) `open`
+- GU-E19 IME (the on-screen keyboard) `open`
+- GU-E20 Autocomplete (the suggestions) `open`
+- GU-E21 Auto-correct (the typos) `open`
+- GU-E22 Spellcheck (the red underline) `open`
+- GU-E23 Clipboard (the text) `open`
+- GU-E24 Clipboard (the images) `open`
+- GU-E25 Clipboard (the history) `open`
+- GU-E26 Drag-drop (the OLE-ish) `open`
+- GU-E27 Drag-drop (the files) `open`
+- GU-E28 Drag-drop (the text) `open`
+- GU-E29 Focus navigation (the tab order) `open`
+- GU-E30 Focus ring (the visible) `open`
+- GU-E31 Arrow-key navigation (the controls) `open`
+- GU-E32 Screen reader (the text-to-speech) `open`
+- GU-E33 Screen reader (the UI tree) `open`
+- GU-E34 High contrast (the theme) `open`
+- GU-E35 Font scaling (the 100-200%) `open`
+- GU-E36 Text scaling (the magnifier) `open`
+- GU-E37 Color-blind palettes (the theme) `open`
+- GU-E38 Motion reduction (the accessibility) `open`
+- GU-E39 Sticky keys (the one-hand) `open`
+- GU-E40 Slow keys (the tremor) `open`
+- GU-E41 Bounce keys (the double-press) `open`
+- GU-E42 Toggle keys (the alert) `open`
+- GU-E43 Mouse keys (the numpad) `open`
+- GU-E44 Narrator (the full reader) `open`
+- GU-E45 Live captions (the speech-to-text) `open`
+- GU-E46 Voice input (the dictation) `open`
+- GU-E47 Eye tracking (the future) `open`
+- GU-E48 Switch access (the scanning) `open`
+- GU-E49 Braille display (the future) `open`
+- GU-E50 The accessibility test suite `open`
+- GU-E51 The accessibility audit (the WCAG-ish) `open`
+- GU-E52 The accessibility report (the contrast) `open`
+- GU-E53 The accessibility settings app `open`
+- GU-E54 The accessibility quick-toggle (the shortcut) `open`
+- GU-E55 The input latency budget (the <16ms) `open`
+- GU-E56 The input priority (the realtime) `open`
+- GU-E57 The input coalescing (the burst) `open`
+- GU-E58 The input queue (the bounded) `open`
+- GU-E59 The input fuzz (the garbage events) `open`
+- GU-E60 The input benchmark (the 10K events) `open`
+- GU-E61 The input test (the synthetic) `open`
+- GU-E62 The input recorder (the macro) `open`
+- GU-E63 The input playback (the demo) `open`
+- GU-E64 The input replay (the debug) `open`
+- GU-E65 The input capture (the games) `open`
+- GU-E66 The input exclusivity (the modal) `open`
+- GU-E67 The input routing (the Colonel dispatch) `open`
+- GU-E68 The input mapping (the remap) `open`
+- GU-E69 The input profiles (the per-app) `open`
+- GU-E70 The input energy (the idle polling) `open`
+- GU-E71 The input wake (the wake-on-key) `open`
+- GU-E72 The keyboard LED (the caps lock) `open`
+- GU-E73 The keyboard firmware (the 9P) `open`
+- GU-E74 The mouse firmware (the 9P) `open`
+- GU-E75 The touch firmware (the 9P) `open`
+- GU-E76 The hotkey daemon (the global) `open`
+- GU-E77 The shortcut editor (the UI) `open`
+- GU-E78 The shortcut conflicts (the resolver) `open`
+- GU-E79 The shortcut discovery (the docs) `open`
+- GU-E80 The command palette (the ctrl+shift+p) `open`
+- GU-E81 The palette fuzzy match `open`
+- GU-E82 The palette actions (the every-command) `open`
+- GU-E83 The palette history `open`
+- GU-E84 The gesture editor (the custom) `open`
+- GU-E85 The mouse gestures (the strokes) `open`
+- GU-E86 The touch gestures (the custom) `open`
+- GU-E87 The input module docs `open`
+- GU-E88 The input module docs `open`
+- GU-E89 The input latency meter `open`
+- GU-E90 The palette commands `open`
+- GU-E91 The gesture conflict resolver `open`
+- GU-E92 The IME candidate window `open`
+- GU-E93 The input module docs `open`
+- GU-E94 The input latency meter (the debug) `open`
+- GU-E95 The palette commands (the every-action) `open`
+- GU-E96 The gesture conflict resolver `open`
+- GU-E97 The IME candidate window `open`
+- GU-E98 The accessibility quick-toggle (the shortcut) `open`
+- GU-E99 The input latency budget (the <16ms) `open`
+- GU-E100 The input priority (the realtime) `open`
+Status: `open` (87 gaps)
+
+## GU-F: The IPC & namespace
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Plan9/Inferno namespace -> 9P windows -> the AGI/Bonzi/EDR buses -> the Colonel-routed IPC
+- GU-F01 The 9P namespace (the everything-is-a-file) `open`
+- GU-F02 The /win namespace (the windows as files) `open`
+- GU-F03 The /apps namespace (the apps as files) `open`
+- GU-F04 The /dev namespace (the devices) `open`
+- GU-F05 The /sys namespace (the system) `open`
+- GU-F06 The /proc namespace (the processes) `open`
+- GU-F07 The /net namespace (the network) `open`
+- GU-F08 The /snd namespace (the synthesis) `open`
+- GU-F09 The /agix namespace (the AGI) `open`
+- GU-F10 The /bonzi namespace (the companion) `open`
+- GU-F11 The window protocol (the 9P window ops) `open`
+- GU-F12 The clipboard protocol (the 9P read/write) `open`
+- GU-F13 The drag-drop protocol (the 9P move) `open`
+- GU-F14 The DDE-ish (the dynamic data) `open`
+- GU-F15 The OLE-ish (the object embedding) `open`
+- GU-F16 The app messaging (the pub/sub) `open`
+- GU-F17 The service registry (the discover) `open`
+- GU-F18 The event bus (the system events) `open`
+- GU-F19 The app-to-app calls (the RPC) `open`
+- GU-F20 The remote desktop (the 9P view) `open`
+- GU-F21 The session sharing (the multi-user) `open`
+- GU-F22 The window forwarding (the remote) `open`
+- GU-F23 The app sandbox (the seccomp) `open`
+- GU-F24 The app isolation (the cgroups) `open`
+- GU-F25 The app permissions (the grants) `open`
+- GU-F26 The app data (the per-app dirs) `open`
+- GU-F27 The app config (the settings) `open`
+- GU-F28 The app state (the snapshot) `open`
+- GU-F29 The app upgrade (the versioned) `open`
+- GU-F30 The app rollback (the previous) `open`
+- GU-F31 The app signing (the attestation) `open`
+- GU-F32 The app provenance (the ledger) `open`
+- GU-F33 The app energy (the per-app budget) `open`
+- GU-F34 The app watchdog (the hang kill) `open`
+- GU-F35 The app crash report (the dialog) `open`
+- GU-F36 The app crash recovery (the restart) `open`
+- GU-F37 The app unresponsive (the dim) `open`
+- GU-F38 The app telemetry (the consent) `open`
+- GU-F39 The app privacy (the no-default) `open`
+- GU-F40 The namespace test suite `open`
+- GU-F41 The namespace fuzz (the malformed 9P) `open`
+- GU-F42 The namespace benchmark (the ops/sec) `open`
+- GU-F43 The namespace docs (the spec) `open`
+- GU-F44 The clipboard sync (the OS-level) `open`
+- GU-F45 The clipboard security (the redact) `open`
+- GU-F46 The drag-drop security (the verify) `open`
+- GU-F47 The IPC security (the authenticate) `open`
+- GU-F48 The IPC encryption (the localhost TLS) `open`
+- GU-F49 The IPC priority (the realtime) `open`
+- GU-F50 The IPC backpressure (the bounded) `open`
+- GU-F51 The IPC coalescing (the burst) `open`
+- GU-F52 The IPC the Colonel (the HolyC message) `open`
+- GU-F53 The IPC the AGI (the goal messages) `open`
+- GU-F54 The IPC the Bonzi (the mood messages) `open`
+- GU-F55 The IPC the EDR (the events) `open`
+- GU-F56 The IPC the verifier (the attest) `open`
+- GU-F57 The IPC the console (the commands) `open`
+- GU-F58 The IPC the firmware (the WuBuFW) `open`
+- GU-F59 The IPC the kernel (the syscalls) `open`
+- GU-F60 The IPC the VSL (the NT translation) `open`
+- GU-F61 The IPC the containers (the 9P mount) `open`
+- GU-F62 The IPC the network (the remote 9P) `open`
+- GU-F63 The IPC the web (the fetch) `open`
+- GU-F64 The IPC the localhost (the loopback) `open`
+- GU-F65 The IPC the unix sockets `open`
+- GU-F66 The IPC the shared memory `open`
+- GU-F67 The IPC the pipes `open`
+- GU-F68 The IPC the signals `open`
+- GU-F69 The IPC the timers `open`
+- GU-F70 The IPC the clocks `open`
+- GU-F71 The IPC the entropy `open`
+- GU-F72 The IPC the random `open`
+- GU-F73 The IPC the UUIDs `open`
+- GU-F74 The IPC the serialization (the JSON) `open`
+- GU-F75 The IPC the serialization (the binary) `open`
+- GU-F76 The IPC the schemas (the versioned) `open`
+- GU-F77 The IPC the errors (the typed) `open`
+- GU-F78 The IPC the logging (the structured) `open`
+- GU-F79 The IPC the tracing (the spans) `open`
+- GU-F80 The IPC the metrics (the counters) `open`
+- GU-F81 The IPC the health (the pings) `open`
+- GU-F82 The IPC the discovery (the mDNS-ish) `open`
+- GU-F83 The IPC the handoff (the session) `open`
+- GU-F84 The IPC the resume (the state) `open`
+- GU-F85 The IPC the undo (the journal) `open`
+- GU-F86 The IPC the redo `open`
+- GU-F87 The IPC the transactions `open`
+- GU-F88 The IPC the locks (the lease) `open`
+- GU-F89 The IPC the queues (the FIFO) `open`
+- GU-F90 The IPC the ring (the bounded) `open`
+- GU-F91 The IPC the fanout (the broadcast) `open`
+- GU-F92 The IPC the filter (the subscribe) `open`
+- GU-F93 The IPC the transform (the pipeline) `open`
+- GU-F94 The IPC the test (the 100-app) `open`
+- GU-F95 The IPC the benchmark (the msgs/sec) `open`
+- GU-F96 The IPC the fuzz (the 9P mutation) `open`
+- GU-F97 The IPC the docs (the protocol) `open`
+- GU-F98 The IPC docs `open`
+- GU-F99 The IPC benchmark `open`
+- GU-F100 The IPC fuzz `open`
+Status: `open` (97 gaps)
+
+## GU-G: The AGI-GUI (the brain's face)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: The Bonzi + the Comfy + the loop's face -> the AGI as the OS's own UI -> everything Colonel-gated
+- GU-G01 The Bonzi companion (the avatar) `open`
+- GU-G02 The Bonzi moods (the valence/arousal) `open`
+- GU-G03 The Bonzi animations (the idle/bounce) `open`
+- GU-G04 The Bonzi speech (the TTS) `open`
+- GU-G05 The Bonzi listening (the STT) `open`
+- GU-G06 The Bonzi memory (the Hopfield recall) `open`
+- GU-G07 The Bonzi learning (the user model) `open`
+- GU-G08 The Bonzi suggestions (the proactive) `open`
+- GU-G09 The Bonzi notifications (the moods) `open`
+- GU-G10 The Bonzi settings (the persona) `open`
+- GU-G11 The Comfy dispatch (the real command) `open`
+- GU-G12 The Comfy pipeline (the image gen) `open`
+- GU-G13 The Comfy the OS (the desktop control) `open`
+- GU-G14 The AGI status widget (the live loop) `open`
+- GU-G15 The AGI activity (the sonification) `open`
+- GU-G16 The AGI thoughts (the ticker) `open`
+- GU-G17 The AGI goals (the planner view) `open`
+- GU-G18 The AGI ledger (the DA audit view) `open`
+- GU-G19 The AGI memory (the inspector) `open`
+- GU-G20 The AGI recalls (the search) `open`
+- GU-G21 The AGI suggestions (the chips) `open`
+- GU-G22 The AGI asks (the clarify dialog) `open`
+- GU-G23 The AGI voice (the TTS) `open`
+- GU-G24 The AGI listening (the STT) `open`
+- GU-G25 The AGI vision (the screen read) `open`
+- GU-G26 The AGI actions (the confirmed) `open`
+- GU-G27 The AGI undo (the action journal) `open`
+- GU-G28 The AGI permissions (the grants) `open`
+- GU-G29 The AGI energy (the budget view) `open`
+- GU-G30 The AGI alignment (the values view) `open`
+- GU-G31 The AGI provenance (the every-action ledger) `open`
+- GU-G32 The AGI the OS (the control) `open`
+- GU-G33 The AGI the kernel (the ring-0) `open`
+- GU-G34 The AGI the Colonel (the HolyC eval) `open`
+- GU-G35 The AGI the compiler (the codegen) `open`
+- GU-G36 The AGI the tests (the self-test) `open`
+- GU-G37 The AGI the gaps (the bank view) `open`
+- GU-G38 The AGI the closing (the progress) `open`
+- GU-G39 The AGI the fanfare (the achievements) `open`
+- GU-G40 The AGI the tutor (the explain) `open`
+- GU-G41 The AGI the mentor (the guide) `open`
+- GU-G42 The AGI the critic (the DA view) `open`
+- GU-G43 The AGI the explorer (the curiosity) `open`
+- GU-G44 The AGI the artist (the canvas) `open`
+- GU-G45 The AGI the composer (the music) `open`
+- GU-G46 The AGI the sound designer (the patches) `open`
+- GU-G47 The AGI the UI designer (the adaptive) `open`
+- GU-G48 The AGI the adaptive UI (the layout) `open`
+- GU-G49 The AGI the adaptive themes (the mood) `open`
+- GU-G50 The AGI the proactive (the anticipate) `open`
+- GU-G51 The AGI the reactive (the respond) `open`
+- GU-G52 The AGI the collaborative (the co-edit) `open`
+- GU-G53 The AGI the delegated (the tasks) `open`
+- GU-G54 The AGI the monitored (the oversight) `open`
+- GU-G55 The AGI the audited (the triple-DA) `open`
+- GU-G56 The AGI the honest (the calibration) `open`
+- GU-G57 The AGI the private (the local) `open`
+- GU-G58 The AGI the secure (the attestation) `open`
+- GU-G59 The AGI the accessible (the voice-first) `open`
+- GU-G60 The AGI the multimodal (the text/voice/vision) `open`
+- GU-G61 The AGI the multilingual (the 100+ langs) `open`
+- GU-G62 The AGI the personalized (the user model) `open`
+- GU-G63 The AGI the contextual (the app-aware) `open`
+- GU-G64 The AGI the stateful (the session) `open`
+- GU-G65 The AGI the memory (the persistent) `open`
+- GU-G66 The AGI the forgetful (the unlearning) `open`
+- GU-G67 The AGI the curious (the novelty) `open`
+- GU-G68 The AGI the playful (the jokes) `open`
+- GU-G69 The AGI the kind (the empathy) `open`
+- GU-G70 The AGI the honest (the limits) `open`
+- GU-G71 The AGI the safe (the guardrails) `open`
+- GU-G72 The AGI the aligned (the values) `open`
+- GU-G73 The AGI the explainable (the reasons) `open`
+- GU-G74 The AGI the inspectable (the traces) `open`
+- GU-G75 The AGI the controllable (the off switch) `open`
+- GU-G76 The AGI the testable (the suite) `open`
+- GU-G77 The AGI the benchmark (the eval) `open`
+- GU-G78 The AGI the upgradeable (the weights) `open`
+- GU-G79 The AGI the versioned (the model registry) `open`
+- GU-G80 The AGI the A/B (the compare) `open`
+- GU-G81 The AGI the rollback (the previous) `open`
+- GU-G82 The AGI the observability (the metrics) `open`
+- GU-G83 The AGI the telemetry (the local) `open`
+- GU-G84 The AGI the audit log (the append-only) `open`
+- GU-G85 The AGI the forensics (the replay) `open`
+- GU-G86 The AGI the compliance (the GDPR-ish) `open`
+- GU-G87 The AGI the deletion (the right-to-forget) `open`
+- GU-G88 The AGI the export (the data portability) `open`
+- GU-G89 The AGI the import (the resume) `open`
+- GU-G90 The AGI the onboarding (the first run) `open`
+- GU-G91 The AGI the tutorial (the tour) `open`
+- GU-G92 The AGI the help (the F1) `open`
+- GU-G93 The AGI the docs (the self-documenting) `open`
+- GU-G94 The AGI the test (the GUI suite) `open`
+- GU-G95 The AGI the benchmark (the interaction) `open`
+- GU-G96 The AGI the fuzz (the prompts) `open`
+- GU-G97 The AGI the roadmap (this bank) `open`
+- GU-G98 The AGI roadmap `open`
+- GU-G99 The AGI fuzz `open`
+- GU-G100 The AGI benchmark `open`
+Status: `open` (97 gaps)
+
+## GU-H: The modularity & the Colonel
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: The module discipline (opaque structs, no monoliths) -> everything through the HolyC Colonel
+- GU-H01 The app module registry (the discover) `open`
+- GU-H02 The app ABI (the stable) `open`
+- GU-H03 The app API (the documented) `open`
+- GU-H04 The app framework (the wubufx) `open`
+- GU-H05 The app lifecycle (the init/run/exit) `open`
+- GU-H06 The app hot-reload (the dev loop) `open`
+- GU-H07 The app sandbox (the seccomp) `open`
+- GU-H08 The app isolation (the cgroups) `open`
+- GU-H09 The app permissions (the grant) `open`
+- GU-H10 The app signing (the attest) `open`
+- GU-H11 The app versioning (the semver) `open`
+- GU-H12 The app dependencies (the graph) `open`
+- GU-H13 The app plugins (the extension) `open`
+- GU-H14 The app themes (the per-app) `open`
+- GU-H15 The app fonts (the embed) `open`
+- GU-H16 The app assets (the 9P mount) `open`
+- GU-H17 The app config (the JSON) `open`
+- GU-H18 The app state (the snapshot) `open`
+- GU-H19 The app logs (the structured) `open`
+- GU-H20 The app errors (the typed) `open`
+- GU-H21 The app crash (the dialog) `open`
+- GU-H22 The app watchdog (the hang) `open`
+- GU-H23 The app priority (the foreground) `open`
+- GU-H24 The app energy (the budget) `open`
+- GU-H25 The app telemetry (the consent) `open`
+- GU-H26 The app docs (the generated) `open`
+- GU-H27 The app test (the smoke) `open`
+- GU-H28 The app bench (the launch) `open`
+- GU-H29 The app fuzz (the inputs) `open`
+- GU-H30 The Colonel as the app core (the HolyC) `open`
+- GU-H31 The Colonel as the OS core (the ring-0) `open`
+- GU-H32 The Colonel as the shell core (the UI) `open`
+- GU-H33 The Colonel as the loader core (the .wubu) `open`
+- GU-H34 The Colonel as the AGI core (the eval) `open`
+- GU-H35 The Colonel as the verifier core (the attest) `open`
+- GU-H36 The Colonel as the console core (the REPL) `open`
+- GU-H37 The Colonel as the IDE core (the editor) `open`
+- GU-H38 The Colonel as the debugger core (the breaks) `open`
+- GU-H39 The Colonel as the scheduler core (the tasks) `open`
+- GU-H40 The Colonel as the memory core (the GC) `open`
+- GU-H41 The Colonel as the IPC core (the messages) `open`
+- GU-H42 The Colonel as the render core (the HolyC UI) `open`
+- GU-H43 The Colonel as the theme core (the HolyC themes) `open`
+- GU-H44 The Colonel as the sound core (the HolyC synth) `open`
+- GU-H45 The Colonel as the AI core (the HolyC models) `open`
+- GU-H46 The Colonel as the network core (the HolyC 9P) `open`
+- GU-H47 The Colonel as the storage core (the HolyC FS) `open`
+- GU-H48 The Colonel as the security core (the HolyC MAC) `open`
+- GU-H49 The Colonel as the test core (the HolyC asserts) `open`
+- GU-H50 The Colonel as the bench core (the HolyC perf) `open`
+- GU-H51 The Colonel as the fuzz core (the HolyC mutation) `open`
+- GU-H52 The Colonel as the docs core (the HolyC help) `open`
+- GU-H53 The Colonel as the upgrade core (the HolyC patches) `open`
+- GU-H54 The Colonel as the module core (the HolyC modules) `open`
+- GU-H55 The HolyC module system (the .HC files) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-H56 The HolyC #include (the header) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-H57 The HolyC symbol table (the export) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-H58 The HolyC FFI (the C calls) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-H59 The HolyC FFI (the syscalls) `open`
+- GU-H60 The HolyC FFI (the 9P) `open`
+- GU-H61 The HolyC FFI (the Vulkan) `open`
+- GU-H62 The HolyC FFI (the CUDA) `open`
+- GU-H63 The HolyC FFI (the audio) `open`
+- GU-H64 The HolyC FFI (the GUI) `open`
+- GU-H65 The HolyC FFI (the kernel) `open`
+- GU-H66 The HolyC REPL (the persistent) `open`
+- GU-H67 The HolyC debugger (the breakpoints) `open`
+- GU-H68 The HolyC watch (the variables) `open`
+- GU-H69 The HolyC stack (the trace) `open`
+- GU-H70 The HolyC step (the single) `open`
+- GU-H71 The HolyC inspect (the memory) `open`
+- GU-H72 The HolyC disasm (the x86-64) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-H73 The HolyC profiles (the perf) `open`
+- GU-H74 The HolyC compile (the AOT) `open`
+- GU-H75 The HolyC JIT (the eval) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-H76 The HolyC PTX (the GPU) `open`
+- GU-H77 The HolyC docs (the ZealOS parity) `open`
+- GU-H78 The HolyC tests (the suite) `open`
+- GU-H79 The HolyC fuzz (the parser) `open`
+- GU-H80 The HolyC bench (the eval/sec) `open`
+- GU-H81 The module graph (the deps view) `open`
+- GU-H82 The module health (the CI) `open`
+- GU-H83 The module publish (the registry) `open`
+- GU-H84 The module install (the 9P pull) `open`
+- GU-H85 The module rollback (the previous) `open`
+- GU-H86 The module quarantine (the bad) `open`
+- GU-H87 The module signing (the verify) `open`
+- GU-H88 The module update (the delta) `open`
+- GU-H89 The module cache (the compiled) `open`
+- GU-H90 The module warm (the preload) `open`
+- GU-H91 The module cold (the lazy) `open`
+- GU-H92 The module swap (the hot) `open`
+- GU-H93 The module dead (the collect) `open`
+- GU-H94 The module stats (the size) `open`
+- GU-H95 The module energy (the per-module) `open`
+- GU-H96 The module audit (the provenance) `open`
+- GU-H97 The module standard (the template) `open`
+- GU-H98 The module docs (the generator) `open`
+- GU-H99 The module test (the per-module) `open`
+- GU-H100 The module bench (the per-module) `open`
+Status: `open` (102 gaps)
+
+## GU-I: The polish & motion
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: The XP/98 vibes -> the motion spec -> the synthesized sound scheme -> the Bonzi moods, all theme-driven
+- GU-I01 The XP Luna vibes (the blue gradient) `open`
+- GU-I02 The Win98 vibes (the silver bevel) `open`
+- GU-I03 The theme transitions (the crossfade) `open`
+- GU-I04 The window open animation (the grow) `open`
+- GU-I05 The window close animation (the shrink) `open`
+- GU-I06 The minimize animation (to the taskbar) `open`
+- GU-I07 The maximize animation (the expand) `open`
+- GU-I08 The restore animation (the shrink back) `open`
+- GU-I09 The menu fade (the 80ms) `open`
+- GU-I10 The menu slide (the 120ms) `open`
+- GU-I11 The tooltip fade (the 200ms) `open`
+- GU-I12 The tooltip delay (the 500ms) `open`
+- GU-I13 The button pulse (the hover) `open`
+- GU-I14 The button click (the press) `open`
+- GU-I15 The icon bounce (the launch) `open`
+- GU-I16 The taskbar glow (the hover) `open`
+- GU-I17 The tray pop (the notify) `open`
+- GU-I18 The notification slide (the panel) `open`
+- GU-I19 The notification fade (the dismiss) `open`
+- GU-I20 The search expand (the start menu) `open`
+- GU-I21 The cursor blink (the text) `open`
+- GU-I22 The selection fade (the plate) `open`
+- GU-I23 The wallpaper crossfade (the slideshow) `open`
+- GU-I24 The boot sequence (the logo + the chime) `open`
+- GU-I25 The login sequence (the theme) `open`
+- GU-I26 The shutdown sequence (the chord) `open`
+- GU-I27 The splash screen (the fast) `open`
+- GU-I28 The first-run tour (the arrows) `open`
+- GU-I29 The hover states (the every-control) `open`
+- GU-I30 The pressed states (the every-control) `open`
+- GU-I31 The disabled states (the dim) `open`
+- GU-I32 The focus states (the ring) `open`
+- GU-I33 The scroll momentum (the wheel) `open`
+- GU-I34 The touch feedback (the ripple) `open`
+- GU-I35 The drag feedback (the ghost) `open`
+- GU-I36 The drop feedback (the highlight) `open`
+- GU-I37 The snap feedback (the outline) `open`
+- GU-I38 The resize feedback (the live) `open`
+- GU-I39 The move feedback (the live) `open`
+- GU-I40 The progress shimmer (the XP bar) `open`
+- GU-I41 The busy cursor (the spinner) `open`
+- GU-I42 The wait cursor (the hourglass) `open`
+- GU-I43 The error shake (the dialog) `open`
+- GU-I44 The success pop (the toast) `open`
+- GU-I45 The warning pulse (the badge) `open`
+- GU-I46 The sounds (the event scheme) `open`
+- GU-I47 The sound volume (the per-event) `open`
+- GU-I48 The sound themes (the Win98/XP) `open`
+- GU-I49 The sound preview (the applet) `open`
+- GU-I50 The haptics (the touch) `open`
+- GU-I51 The accessibility motion (the reduced) `open`
+- GU-I52 The color transitions (the theme) `open`
+- GU-I53 The font transitions (the DPI) `open`
+- GU-I54 The layout transitions (the resize) `open`
+- GU-I55 The adaptive layout (the window size) `open`
+- GU-I56 The responsive panels (the collapse) `open`
+- GU-I57 The overview zoom (the expose) `open`
+- GU-I58 The peek blur (the preview) `open`
+- GU-I59 The transparency (the acrylic-ish) `open`
+- GU-I60 The rounded corners (the theme) `open`
+- GU-I61 The shadows (the depth) `open`
+- GU-I62 The elevation (the z-depth) `open`
+- GU-I63 The light mode (the theme) `open`
+- GU-I64 The dark mode (the theme) `open`
+- GU-I65 The auto mode (the time) `open`
+- GU-I66 The OLED mode (the pure black) `open`
+- GU-I67 The paper mode (the reading) `open`
+- GU-I68 The sepia mode (the comfort) `open`
+- GU-I69 The contrast mode (the high) `open`
+- GU-I70 The color-blind mode (the palette) `open`
+- GU-I71 The night mode (the blue cut) `open`
+- GU-I72 The animation timings (the spec) `open`
+- GU-I73 The easing curves (the spec) `open`
+- GU-I74 The motion budget (the fps guard) `open`
+- GU-I75 The motion energy (the IJ ledger) `open`
+- GU-I76 The motion test (the frame asserts) `open`
+- GU-I77 The motion bench (the 60fps) `open`
+- GU-I78 The motion fuzz (the params) `open`
+- GU-I79 The startup chime (the synthesized) `open`
+- GU-I80 The shutdown chord (the synthesized) `open`
+- GU-I81 The notification chime (the synthesized) `open`
+- GU-I82 The error sound (the synthesized) `open`
+- GU-I83 The click sound (the synthesized) `open`
+- GU-I84 The maximize blip (the synthesized) `open`
+- GU-I85 The minimize blip (the synthesized) `open`
+- GU-I86 The restore blip (the synthesized) `open`
+- GU-I87 The Bonzi sounds (the moods) `open`
+- GU-I88 The AGI sounds (the promotions) `open`
+- GU-I89 The achievement fanfare (the closing) `open`
+- GU-I90 The level-up sound (the milestones) `open`
+- GU-I91 The ambient music (the mood-reactive) `open`
+- GU-I92 The typing sound (the optional) `open`
+- GU-I93 The completion sound (the tasks) `open`
+- GU-I94 The morning sound (the wake) `open`
+- GU-I95 The evening sound (the wind-down) `open`
+- GU-I96 The holiday themes (the seasonal) `open`
+- GU-I97 The pride themes (the flags) `open`
+- GU-I98 The user themes (the custom) `open`
+- GU-I99 The theme gallery (the browse) `open`
+- GU-I100 The theme share (the export) `open`
+Status: `open` (104 gaps)
+
+## GU-J: The cross-OS loading (all the OSes through the Colonel)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: The .wubu magic dispatch -> the PE/ELF/Mach-O/WASM/DOS loaders -> the VSL NT bridge -> ALL through the HolyC Colonel
+- GU-J01 The .wubu universal format (the dispatch) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-J02 The ELF loader (the native) `open`
+- GU-J03 The PE loader (the Windows) `open`
+- GU-J04 The Mach-O loader (the macOS) `open`
+- GU-J05 The WASM loader (the web) `open`
+- GU-J06 The HolyC source loader (the eval) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-J07 The C source loader (the compile) `open`
+- GU-J08 The Python loader (the script) `open`
+- GU-J09 The Node loader (the script) `open`
+- GU-J10 The shell script loader `open`
+- GU-J11 The batch loader (the DOS) `open`
+- GU-J12 The DOS EXE loader (the 8086 emu) `open`
+- GU-J13 The COM loader (the 8086) `open`
+- GU-J14 The NES loader (the rom) `open`
+- GU-J15 The GB loader (the rom) `open`
+- GU-J16 The SNES loader (the future) `open`
+- GU-J17 The Amiga loader (the future) `open`
+- GU-J18 The Atari loader (the future) `open`
+- GU-J19 The C64 loader (the future) `open`
+- GU-J20 The ZX Spectrum loader (the future) `open`
+- GU-J21 The DOSBox integration (the DOS) `open`
+- GU-J22 The Wine integration (the Win32) `open`
+- GU-J23 The Proton integration (the Steam) `open`
+- GU-J24 The GameScope integration (the fullscreen) `open`
+- GU-J25 The DXVK integration (the DX9-11) `open`
+- GU-J26 The VKD3D integration (the DX12) `open`
+- GU-J27 The WineVulkan (the DX-vulkan) `open`
+- GU-J28 The native Linux (the ELF) `open`
+- GU-J29 The flatpak (the bundles) `open`
+- GU-J30 The snap (the bundles) `open`
+- GU-J31 The AppImage (the bundles) `open`
+- GU-J32 The OCI containers (the pods) `open`
+- GU-J33 The Arch packages (the pacman) `open`
+- GU-J34 The AUR (the community) `open`
+- GU-J35 The Steam Runtime (the soldier) `open`
+- GU-J36 The 9P remote (the network OS) `open`
+- GU-J37 The SSH (the remote shell) `open`
+- GU-J38 The VNC (the remote desktop) `open`
+- GU-J39 The RDP (the future) `open`
+- GU-J40 The Wayland clients (the native) `open`
+- GU-J41 The X11 clients (the XWayland-ish) `open`
+- GU-J42 The VSL (the NT syscall bridge) `open`
+- GU-J43 The 297 NT syscalls (the mapping) `open`
+- GU-J44 The win32k (the GUI syscalls) `open`
+- GU-J45 The kernel-mode (the drivers) `open`
+- GU-J46 The user-mode (the apps) `open`
+- GU-J47 The 8086 emulation (the in-process) `open`
+- GU-J48 The x86-64 native (the JIT) `open`
+- GU-J49 The ARM (the future) `open`
+- GU-J50 The RISC-V (the future) `open`
+- GU-J51 The GPU shaders (the SPIR-V) `open`
+- GU-J52 The Metal kernels (the AVF) `open`
+- GU-J53 The CUDA kernels (the PTX) `open`
+- GU-J54 The Vulkan pipelines (the compute) `open`
+- GU-J55 The HolyC as the loader (the Colonel eval) `open`
+- GU-J56 The HolyC as the runtime (the host effects) `open`
+- GU-J57 The HolyC as the bridge (the FFI) `open`
+- GU-J58 The loader magic detection (the bytes) `open`
+- GU-J59 The loader security (the verify) `open`
+- GU-J60 The loader sandbox (the seccomp) `open`
+- GU-J61 The loader energy (the budget) `open`
+- GU-J62 The loader telemetry (the launches) `open`
+- GU-J63 The loader tests (the each-format) `open`
+- GU-J64 The loader fuzz (the garbage bytes) `open`
+- GU-J65 The loader bench (the launch ms) `open`
+- GU-J66 The cross-OS GUI (the Win98 shell for all) `open`
+- GU-J67 The cross-OS themes (the unified) `open`
+- GU-J68 The cross-OS clipboard (the bridge) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-J69 The cross-OS drag-drop (the bridge) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-J70 The cross-OS files (the 9P mount) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-J71 The cross-OS sound (the bridge) `wired` (wubu_colonel, test_colonel PASSES)
+- GU-J72 The cross-OS MIDI (the future) `open`
+- GU-J73 The cross-OS GPU (the unified) `open`
+- GU-J74 The cross-OS networking (the bridge) `open`
+- GU-J75 The cross-OS printing (the future) `open`
+- GU-J76 The cross-OS devices (the 9P /dev) `open`
+- GU-J77 The cross-OS time (the sync) `open`
+- GU-J78 The cross-OS users (the mapping) `open`
+- GU-J79 The cross-OS permissions (the grants) `open`
+- GU-J80 The cross-OS data (the migration) `open`
+- GU-J81 The cross-OS backup (the snapshot) `open`
+- GU-J82 The cross-OS restore (the rollback) `open`
+- GU-J83 The cross-OS update (the delta) `open`
+- GU-J84 The cross-OS quarantine (the bad) `open`
+- GU-J85 The cross-OS attest (the verifier) `open`
+- GU-J86 The cross-OS ledger (the provenance) `open`
+- GU-J87 The cross-OS audit (the EDR) `open`
+- GU-J88 The cross-OS support (the docs) `open`
+- GU-J89 The cross-OS tests (the matrix) `open`
+- GU-J90 The cross-OS bench (the compare) `open`
+- GU-J91 The Colonel manifest (the everything via HolyC) `open`
+- GU-J92 The Colonel dispatch (the loader routing) `open`
+- GU-J93 The Colonel sandbox (the HolyC-isolated) `open`
+- GU-J94 The Colonel verifier (the attest-gated) `open`
+- GU-J95 The Colonel ABI (the stable) `open`
+- GU-J96 The Colonel versioning (the semver) `open`
+- GU-J97 The Colonel registry (the modules) `open`
+- GU-J98 The Colonel compiler (the AOT) `open`
+- GU-J99 The Colonel interpreter (the REPL) `open`
+- GU-J100 The Colonel kernel (the ring-0) `open`
+Status: `open` (104 gaps)
