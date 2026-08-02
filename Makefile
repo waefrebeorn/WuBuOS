@@ -30,7 +30,7 @@ JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm
 
 # ── Kernel Objects ───────────────────────────────────────────────
 KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
-              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o $(KERNEL)/wubu_theme.o $(KERNEL)/wubu_hid.o $(KERNEL)/wubu_verifier.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
+              $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o $(KERNEL)/isr_stubs.o $(KERNEL)/fat32.o $(KERNEL)/fat32_fat.o $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o $(KERNEL)/fat32_cluster.o $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o $(KERNEL)/wubu_theme.o $(KERNEL)/wubu_hid.o $(KERNEL)/wubu_verifier.o $(KERNEL)/wubu_tss.o $(KERNEL)/wubu_sync.o $(KERNEL)/wubu_vmm.o $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
@@ -976,6 +976,20 @@ test_verifier:
 		$(KERNEL)/test_verifier.c \
 		-o $(KERNEL)/test_verifier
 	$(KERNEL)/test_verifier
+
+# spinlock + ISR-safe FIFO
+test_sync:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -pthread \
+		$(KERNEL)/test_sync.c \
+		-o $(KERNEL)/test_sync
+	$(KERNEL)/test_sync
+
+# virtual memory (bitmap allocator + demand registry; map/fill are metal)
+test_vmm:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/test_vmm.c \
+		-o $(KERNEL)/test_vmm
+	$(KERNEL)/test_vmm
 
 test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

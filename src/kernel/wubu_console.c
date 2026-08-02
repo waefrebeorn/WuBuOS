@@ -131,7 +131,7 @@ static int cmd_theme(int argc, char **argv)
     return 0;
 }
 
-/* Unified input: `input` — per-device stats + drain the ring. */
+/* Unified input: `hid` — per-device stats + drain the ring. */
 static int cmd_input(int argc, char **argv)
 {
     extern uint32_t wubu_hid_stats(uint8_t);
@@ -143,6 +143,32 @@ static int cmd_input(int argc, char **argv)
                 (unsigned)wubu_hid_stats(0),
                 (unsigned)wubu_hid_stats(1),
                 (unsigned)wubu_hid_stats(2));
+    return 0;
+}
+
+/* Virtual memory: `vmm` — report + a live demand-fault demo. */
+static int cmd_vmm(int argc, char **argv)
+{
+    extern uint64_t wubu_vmm_free_count(void);
+    extern uint32_t wubu_vmm_demand_count(void);
+    extern uint32_t wubu_vmm_demand_faults(void);
+    extern int      wubu_vmm_alloc_pages(uint64_t, uint32_t);
+    extern void     wubu_vmm_free_pages(uint64_t, uint32_t);
+    (void)argc; (void)argv;
+    uint64_t *demo = (uint64_t *)0xffffffff90000000ull;
+    if (argc >= 2 && strcmp(argv[1], "touch") == 0) {
+        /* the FIRST touch faults: the #PF handler allocates + maps +
+         * retries (demand paging on metal) */
+        demo[0] = 0x12345678;
+        klog_printf("vmm: demand page touched, readback=%x (faults=%u)\n",
+                    (unsigned)demo[0],
+                    (unsigned)wubu_vmm_demand_faults());
+        return 0;
+    }
+    klog_printf("vmm: free_pages=%u demand_regions=%u faults=%u\n",
+                (unsigned)wubu_vmm_free_count(),
+                (unsigned)wubu_vmm_demand_count(),
+                (unsigned)wubu_vmm_demand_faults());
     return 0;
 }
 
@@ -234,6 +260,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "pci") == 0)             return cmd_pci();
     if (strcmp(argv[0], "theme") == 0)           return cmd_theme(argc, argv);
     if (strcmp(argv[0], "hid") == 0)             return cmd_input(argc, argv);
+    if (strcmp(argv[0], "vmm") == 0)             return cmd_vmm(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();

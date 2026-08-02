@@ -103,8 +103,14 @@ task_switch_asm:
      * iret frame on the OLD stack and the nested preempt switch corrupts
      * this restore (classic garbage-RSP #PF).  CLI right after so the
      * remainder of the switch is atomic; the resuming path (iretq of a
-     * resumed ISR, task_yield's sti, or a trampoline entry) re-enables IF. */
+     * resumed ISR, task_yield's sti, or a trampoline entry) re-enables IF.
+     * ALSO: mask NT (bit 14) + reserved bits (15) out of the restored
+     * flags -- the kernel never uses hardware task switches, and an NT
+     * flag reaching an iretq makes it attempt a task-return (-> #GP with
+     * no TSS; the tracked preempt bug).  The iretq's own frame rflags is
+     * likewise sanitized by wubu_tss + this mask. */
     movq 136(%rsi), %rax
+    andq $-16384, %rax   /* 0xFFFFC000 sign-extended: clears NT (14) + 15 */
     pushq %rax
     popfq
     cli

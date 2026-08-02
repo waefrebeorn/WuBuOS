@@ -74,6 +74,10 @@ SECTIONS
      *   _stack_top    -- top of the early boot stack (just after the BSS). */
     _kernel_start = .;
     _kernel_phys_start = KERNEL_PHYS;
+    . = ALIGN(16);          /* the ABI requires rsp % 16 == 8 at the kernel
+                               entry (a call pushes 8); a misaligned stack
+                               makes the compiler's 16-byte SSE stores
+                               (movaps) #GP -- the vmm-init crash. */
     . = . + 0x10000;            /* 64 KiB early boot stack */
     _stack_top = .;
 

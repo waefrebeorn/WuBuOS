@@ -2,9 +2,9 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Public API (header-sourced)
-> Generated 2026-08-02 10:08 UTC -- prototypes extracted from the headers = the real interface contracts.
+> Generated 2026-08-02 10:29 UTC -- prototypes extracted from the headers = the real interface contracts.
 
-> 629 prototypes across the tree.
+> 634 prototypes across the tree.
 
 ## `src/tools/iso9660.h`
 
@@ -187,6 +187,11 @@
 
 - `wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)`
 
+## `src/kernel/wubu_sync.h`
+
+- `wubu_spin_lock(wubu_spinlock_t *l)`
+- `wubu_fifo_init(wubu_fifo_t *f, uint32_t cap)`
+
 ## `src/kernel/wubu_theme.h`
 
 - `wubu_theme_node_set(const char *path, uint32_t value)`
@@ -195,6 +200,12 @@
 ## `src/kernel/wubu_usb.h`
 
 - `wubu_usb_init(void)`
+
+## `src/kernel/wubu_vmm.h`
+
+- `wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags)`
+- `wubu_vmm_register_demand(uint64_t base, uint32_t pages)`
+- `wubu_vmm_demand_fill(uint64_t va)`
 
 ## `src/runtime/ct_iso_cgroup.h`
 

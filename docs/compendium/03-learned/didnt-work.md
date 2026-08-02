@@ -44,3 +44,14 @@ newest last. Copy TEMPLATE.md for new entries.*
   IOREGSEL@0x00 / IOWIN@0x10 select-window protocol.
 - **Evidence:** the fixed accessors read the correct 23-pin version.
 - **When it may change:** never — the select-window protocol is hardware.
+
+## 2026-08-02 — RESOLVED: timer preemption works (the #GP is dead)
+The tracked #GP is FIXED. Root cause confirmed: the iretq ran with the NT
+flag (bit 14) set in the frame's rflags -> hardware task-return -> #GP
+(garbage TR; no TSS). Three-part fix:
+1. `wubu_tss` -- a real TSS64 + GDT descriptor (stray task-returns defined).
+2. `tasking_switch.S` -- the rflags restore masks NT out (`and -16384`).
+3. `isr_stubs.S` -- the iretq itself masks the frame's rflags slot before
+   returning (the definitive guarantee: the iretq can never pop NT).
+Evidence: 8s soak under FULL timer preemption, 5 samples, ZERO faults;
+tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.

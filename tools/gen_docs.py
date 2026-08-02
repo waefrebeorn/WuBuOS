@@ -176,7 +176,7 @@ def scan_symbols():
 
 # ------------------------------------------------------------- tests (RUNS)
 CURATED_TESTS = ["test_hive", "test_agi_kernel", "test_theme_hid",
-                 "test_verifier"]
+                 "test_verifier", "test_sync", "test_vmm"]
 
 
 def scan_tests():
