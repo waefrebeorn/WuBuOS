@@ -1,0 +1,1053 @@
+# AI-Engine Bank -- 1000 goals + gaps (the serving core)
+
+Date: 2026-08-02. Status: `open` / `wired`.
+
+## AIE-A: The serving core (batching)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Orca -> vLLM -> PagedAttention -> chunked prefill
+- AIE-A01 The continuous batching (Orca) `open`
+- AIE-A02 The iteration-level scheduling `open`
+- AIE-A03 The static batching (the baseline) `open`
+- AIE-A04 The dynamic batching `open`
+- AIE-A05 The request queue `open`
+- AIE-A06 The running set `open`
+- AIE-A07 The swapped set `open`
+- AIE-A08 The waiting set `open`
+- AIE-A09 The preemption (the swap) `open`
+- AIE-A10 The recompute `open`
+- AIE-A11 The chunked prefill `open`
+- AIE-A12 The prefix caching `open`
+- AIE-A13 The prompt caching `open`
+- AIE-A14 The beam caching `open`
+- AIE-A15 The radix cache `open`
+- AIE-A16 The max-num-seqs `open`
+- AIE-A17 The gpu-memory-utilization `open`
+- AIE-A18 The batch composition `open`
+- AIE-A19 The token budget `open`
+- AIE-A20 The scheduler policy `open`
+- AIE-A21 The FCFS `open`
+- AIE-A22 The shortest-remaining `open`
+- AIE-A23 The priority classes `open`
+- AIE-A24 The starvation guard `open`
+- AIE-A25 The fairness `open`
+- AIE-A26 The backpressure `open`
+- AIE-A27 The overload policy `open`
+- AIE-A28 The queue depth `open`
+- AIE-A29 The latency SLO `open`
+- AIE-A30 The throughput target `open`
+- AIE-A31 The batching tests `open`
+- AIE-A32 The batching bench `open`
+- AIE-A33 The batching fuzz `open`
+- AIE-A34 The batching energy `open`
+- AIE-A35 Batching feature queue `open`
+- AIE-A36 Batching feature running `open`
+- AIE-A37 Batching feature swapped `open`
+- AIE-A38 Batching feature preempt `open`
+- AIE-A39 Batching feature recompute `open`
+- AIE-A40 Batching feature prefix-cache `open`
+- AIE-A41 Batching feature chunked-prefill `open`
+- AIE-A42 Batching feature max-seqs `open`
+- AIE-A43 Batching feature token-budget `open`
+- AIE-A44 Batching feature priority `open`
+- AIE-A45 Batching test burst `open`
+- AIE-A46 Batching test long-tail `open`
+- AIE-A47 Batching test mixed-length `open`
+- AIE-A48 Batching test overload `open`
+- AIE-A49 Batching test preempt-storm `open`
+- AIE-A50 Batching test swap-thrash `open`
+- AIE-A51 Batching test prefix-hit `open`
+- AIE-A52 Batching test cold-start `open`
+- AIE-A53 Batching test throughput `open`
+- AIE-A54 Batching test latency `open`
+- AIE-A55 Batching feature queue `open`
+- AIE-A56 Batching feature running `open`
+- AIE-A57 Batching feature swapped `open`
+- AIE-A58 Batching feature preempt `open`
+- AIE-A59 Batching feature recompute `open`
+- AIE-A60 Batching feature prefix-cache `open`
+- AIE-A61 Batching feature chunked-prefill `open`
+- AIE-A62 Batching feature max-seqs `open`
+- AIE-A63 Batching feature token-budget `open`
+- AIE-A64 Batching feature priority `open`
+- AIE-A65 Batching test burst `open`
+- AIE-A66 Batching test long-tail `open`
+- AIE-A67 Batching test mixed-length `open`
+- AIE-A68 Batching test overload `open`
+- AIE-A69 Batching test preempt-storm `open`
+- AIE-A70 Batching test swap-thrash `open`
+- AIE-A71 Batching test prefix-hit `open`
+- AIE-A72 Batching test cold-start `open`
+- AIE-A73 Batching test throughput `open`
+- AIE-A74 Batching test latency `open`
+- AIE-A75 Batching scenario offline-batch `open`
+- AIE-A76 Batching scenario online-serving `open`
+- AIE-A77 Batching scenario mixed `open`
+- AIE-A78 Batching scenario burst `open`
+- AIE-A79 Batching scenario steady `open`
+- AIE-A80 Batching scenario long-context `open`
+- AIE-A81 Batching scenario short-context `open`
+- AIE-A82 Batching scenario multi-model `open`
+- AIE-A83 Batching scenario priority `open`
+- AIE-A84 Batching scenario overload `open`
+- AIE-A85 Batching feature queue `open`
+- AIE-A86 Batching feature running `open`
+- AIE-A87 Batching feature swapped `open`
+- AIE-A88 Batching feature preempt `open`
+- AIE-A89 Batching feature recompute `open`
+- AIE-A90 Batching feature prefix-cache `open`
+- AIE-A91 Batching feature chunked-prefill `open`
+- AIE-A92 Batching feature max-seqs `open`
+- AIE-A93 Batching feature token-budget `open`
+- AIE-A94 Batching feature priority `open`
+- AIE-A95 Batching test burst `open`
+- AIE-A96 Batching test long-tail `open`
+- AIE-A97 Batching test mixed-length `open`
+- AIE-A98 Batching test overload `open`
+- AIE-A99 Batching test preempt-storm `open`
+- AIE-A100 Batching test swap-thrash `open`
+Status: `open` (34 gaps)
+
+## AIE-B: The KV cache engine
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: PagedAttention -> GQA -> the IO-theme eviction frontier -> the tiers
+- AIE-B01 The PagedAttention `open`
+- AIE-B02 The KV blocks `open`
+- AIE-B03 The block allocator `open`
+- AIE-B04 The block table `open`
+- AIE-B05 The block eviction `open`
+- AIE-B06 The copy-on-write blocks `open`
+- AIE-B07 The fork (the beam) `open`
+- AIE-B08 The append `open`
+- AIE-B09 The lookup `open`
+- AIE-B10 The free-list `open`
+- AIE-B11 The fragmentation (the solved) `open`
+- AIE-B12 The pre-allocation `open`
+- AIE-B13 The watermark `open`
+- AIE-B14 The swap to CPU `open`
+- AIE-B15 The swap to disk `open`
+- AIE-B16 The KV compression (the theme IO) `open`
+- AIE-B17 The KV quant (the theme B) `open`
+- AIE-B18 The sink tokens (the theme IO) `open`
+- AIE-B19 The head-adaptive (the IO) `open`
+- AIE-B20 The eviction policies (the IO) `open`
+- AIE-B21 The multi-query (the MQA) `open`
+- AIE-B22 The grouped-query (the GQA) `open`
+- AIE-B23 The sliding window `open`
+- AIE-B24 The local attention `open`
+- AIE-B25 The sparse attention `open`
+- AIE-B26 The cache tests `open`
+- AIE-B27 The cache bench `open`
+- AIE-B28 The cache fuzz `open`
+- AIE-B29 The cache energy `open`
+- AIE-B30 KV feature blocks `open`
+- AIE-B31 KV feature alloc `open`
+- AIE-B32 KV feature evict `open`
+- AIE-B33 KV feature copy-on-write `open`
+- AIE-B34 KV feature fork `open`
+- AIE-B35 KV feature append `open`
+- AIE-B36 KV feature lookup `open`
+- AIE-B37 KV feature free-list `open`
+- AIE-B38 KV feature watermark `open`
+- AIE-B39 KV feature swap `open`
+- AIE-B40 KV test frag `open`
+- AIE-B41 KV test alloc-storm `open`
+- AIE-B42 KV test evict-churn `open`
+- AIE-B43 KV test fork-burst `open`
+- AIE-B44 KV test append-heavy `open`
+- AIE-B45 KV test lookup-miss `open`
+- AIE-B46 KV test swap-thrash `open`
+- AIE-B47 KV test memory-limit `open`
+- AIE-B48 KV test throughput `open`
+- AIE-B49 KV test latency `open`
+- AIE-B50 KV feature blocks `open`
+- AIE-B51 KV feature alloc `open`
+- AIE-B52 KV feature evict `open`
+- AIE-B53 KV feature copy-on-write `open`
+- AIE-B54 KV feature fork `open`
+- AIE-B55 KV feature append `open`
+- AIE-B56 KV feature lookup `open`
+- AIE-B57 KV feature free-list `open`
+- AIE-B58 KV feature watermark `open`
+- AIE-B59 KV feature swap `open`
+- AIE-B60 KV test frag `open`
+- AIE-B61 KV test alloc-storm `open`
+- AIE-B62 KV test evict-churn `open`
+- AIE-B63 KV test fork-burst `open`
+- AIE-B64 KV test append-heavy `open`
+- AIE-B65 KV test lookup-miss `open`
+- AIE-B66 KV test swap-thrash `open`
+- AIE-B67 KV test memory-limit `open`
+- AIE-B68 KV test throughput `open`
+- AIE-B69 KV test latency `open`
+- AIE-B70 KV scenario long-context `open`
+- AIE-B71 KV scenario beam-search `open`
+- AIE-B72 KV scenario multi-turn `open`
+- AIE-B73 KV scenario streaming `open`
+- AIE-B74 KV scenario heavy-fork `open`
+- AIE-B75 KV scenario memory-tight `open`
+- AIE-B76 KV scenario memory-rich `open`
+- AIE-B77 KV scenario swap `open`
+- AIE-B78 KV scenario quant `open`
+- AIE-B79 KV scenario evict `open`
+- AIE-B80 KV feature blocks `open`
+- AIE-B81 KV feature alloc `open`
+- AIE-B82 KV feature evict `open`
+- AIE-B83 KV feature copy-on-write `open`
+- AIE-B84 KV feature fork `open`
+- AIE-B85 KV feature append `open`
+- AIE-B86 KV feature lookup `open`
+- AIE-B87 KV feature free-list `open`
+- AIE-B88 KV feature watermark `open`
+- AIE-B89 KV feature swap `open`
+- AIE-B90 KV test frag `open`
+- AIE-B91 KV test alloc-storm `open`
+- AIE-B92 KV test evict-churn `open`
+- AIE-B93 KV test fork-burst `open`
+- AIE-B94 KV test append-heavy `open`
+- AIE-B95 KV test lookup-miss `open`
+- AIE-B96 KV test swap-thrash `open`
+- AIE-B97 KV test memory-limit `open`
+- AIE-B98 KV test throughput `open`
+- AIE-B99 KV test latency `open`
+- AIE-B100 KV scenario long-context `open`
+Status: `open` (29 gaps)
+
+## AIE-C: The prefill & decode
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: prefill/decode -> spec decode -> flash attention -> the parallels
+- AIE-C01 The prefill phase `open`
+- AIE-C02 The decode phase `open`
+- AIE-C03 The fused prefill `open`
+- AIE-C04 The split prefill (the future) `open`
+- AIE-C05 The decode the token-by-token `open`
+- AIE-C06 The speculative decoding (the theme) `open`
+- AIE-C07 The draft model `open`
+- AIE-C08 The verify batch `open`
+- AIE-C09 The acceptance rate `open`
+- AIE-C10 The break-even (the IJ) `open`
+- AIE-C11 The self-speculation (the future) `open`
+- AIE-C12 The n-gram drafts (the future) `open`
+- AIE-C13 The prompt lookups (the future) `open`
+- AIE-C14 The multi-token predict `open`
+- AIE-C15 The Medusa (the future) `open`
+- AIE-C16 The flash attention (the kernel) `open`
+- AIE-C17 The flash decode `open`
+- AIE-C18 The flash prefill `open`
+- AIE-C19 The attention tiling `open`
+- AIE-C20 The online softmax `open`
+- AIE-C21 The causal mask (the fused) `open`
+- AIE-C22 The head dims `open`
+- AIE-C23 The sequence parallel (the future) `open`
+- AIE-C24 The tensor parallel (the future) `open`
+- AIE-C25 The pipeline parallel (the future) `open`
+- AIE-C26 The prefill tests `open`
+- AIE-C27 The prefill bench `open`
+- AIE-C28 The prefill fuzz `open`
+- AIE-C29 The prefill energy `open`
+- AIE-C30 Phase feature prefill `open`
+- AIE-C31 Phase feature decode `open`
+- AIE-C32 Phase feature fused `open`
+- AIE-C33 Phase feature spec `open`
+- AIE-C34 Phase feature draft `open`
+- AIE-C35 Phase feature verify `open`
+- AIE-C36 Phase feature accept `open`
+- AIE-C37 Phase feature self-spec `open`
+- AIE-C38 Phase feature n-gram `open`
+- AIE-C39 Phase feature multi-token `open`
+- AIE-C40 Phase test long-prompt `open`
+- AIE-C41 Phase test short-prompt `open`
+- AIE-C42 Phase test high-accept `open`
+- AIE-C43 Phase test low-accept `open`
+- AIE-C44 Phase test verify-miss `open`
+- AIE-C45 Phase test draft-thrash `open`
+- AIE-C46 Phase test batch-mix `open`
+- AIE-C47 Phase test throughput `open`
+- AIE-C48 Phase test latency `open`
+- AIE-C49 Phase test memory `open`
+- AIE-C50 Phase feature prefill `open`
+- AIE-C51 Phase feature decode `open`
+- AIE-C52 Phase feature fused `open`
+- AIE-C53 Phase feature spec `open`
+- AIE-C54 Phase feature draft `open`
+- AIE-C55 Phase feature verify `open`
+- AIE-C56 Phase feature accept `open`
+- AIE-C57 Phase feature self-spec `open`
+- AIE-C58 Phase feature n-gram `open`
+- AIE-C59 Phase feature multi-token `open`
+- AIE-C60 Phase test long-prompt `open`
+- AIE-C61 Phase test short-prompt `open`
+- AIE-C62 Phase test high-accept `open`
+- AIE-C63 Phase test low-accept `open`
+- AIE-C64 Phase test verify-miss `open`
+- AIE-C65 Phase test draft-thrash `open`
+- AIE-C66 Phase test batch-mix `open`
+- AIE-C67 Phase test throughput `open`
+- AIE-C68 Phase test latency `open`
+- AIE-C69 Phase test memory `open`
+- AIE-C70 Phase scenario prompt-heavy `open`
+- AIE-C71 Phase scenario decode-heavy `open`
+- AIE-C72 Phase scenario spec-heavy `open`
+- AIE-C73 Phase scenario hybrid `open`
+- AIE-C74 Phase scenario long-prompt `open`
+- AIE-C75 Phase scenario short-prompt `open`
+- AIE-C76 Phase scenario batch-mix `open`
+- AIE-C77 Phase scenario low-ram `open`
+- AIE-C78 Phase scenario high-ram `open`
+- AIE-C79 Phase scenario latency-slo `open`
+- AIE-C80 Phase feature prefill `open`
+- AIE-C81 Phase feature decode `open`
+- AIE-C82 Phase feature fused `open`
+- AIE-C83 Phase feature spec `open`
+- AIE-C84 Phase feature draft `open`
+- AIE-C85 Phase feature verify `open`
+- AIE-C86 Phase feature accept `open`
+- AIE-C87 Phase feature self-spec `open`
+- AIE-C88 Phase feature n-gram `open`
+- AIE-C89 Phase feature multi-token `open`
+- AIE-C90 Phase test long-prompt `open`
+- AIE-C91 Phase test short-prompt `open`
+- AIE-C92 Phase test high-accept `open`
+- AIE-C93 Phase test low-accept `open`
+- AIE-C94 Phase test verify-miss `open`
+- AIE-C95 Phase test draft-thrash `open`
+- AIE-C96 Phase test batch-mix `open`
+- AIE-C97 Phase test throughput `open`
+- AIE-C98 Phase test latency `open`
+- AIE-C99 Phase test memory `open`
+- AIE-C100 Phase scenario prompt-heavy `open`
+Status: `open` (29 gaps)
+
+## AIE-D: The kernels & the compute
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: GEMM/GEMV -> SIMD tiers -> Vulkan -> the future CUDA/metal
+- AIE-D01 The GEMM `open`
+- AIE-D02 The GEMV `open`
+- AIE-D03 The matmul tiling `open`
+- AIE-D04 The vectorized (the AVX2) `open`
+- AIE-D05 The AVX512 (the hwdetect) `open`
+- AIE-D06 The FMA `open`
+- AIE-D07 The BF16 (the future) `open`
+- AIE-D08 The FP16 (the future) `open`
+- AIE-D09 The INT8 (the future) `open`
+- AIE-D10 The INT4 (the future) `open`
+- AIE-D11 The SIMD dispatch (the tier) `open`
+- AIE-D12 The scalar fallback `open`
+- AIE-D13 The multi-thread (the OMP-ish) `open`
+- AIE-D14 The work partition `open`
+- AIE-D15 The false sharing `open`
+- AIE-D16 The cache blocking `open`
+- AIE-D17 The register blocking `open`
+- AIE-D18 The unrolling `open`
+- AIE-D19 The swizzling (the future) `open`
+- AIE-D20 The SIMT (the future) `open`
+- AIE-D21 The Vulkan compute `open`
+- AIE-D22 The CUDA (the future) `open`
+- AIE-D23 The PTX (the future) `open`
+- AIE-D24 The metal (the future) `open`
+- AIE-D25 The WebGPU (the future) `open`
+- AIE-D26 The kernel tests `open`
+- AIE-D27 The kernel bench `open`
+- AIE-D28 The kernel fuzz `open`
+- AIE-D29 The kernel energy `open`
+- AIE-D30 Kernel feature gemm `open`
+- AIE-D31 Kernel feature gemv `open`
+- AIE-D32 Kernel feature tiling `open`
+- AIE-D33 Kernel feature vector `open`
+- AIE-D34 Kernel feature avx2 `open`
+- AIE-D35 Kernel feature avx512 `open`
+- AIE-D36 Kernel feature fma `open`
+- AIE-D37 Kernel feature dispatch `open`
+- AIE-D38 Kernel feature fallback `open`
+- AIE-D39 Kernel feature threads `open`
+- AIE-D40 Kernel test shape-mismatch `open`
+- AIE-D41 Kernel test zero-dims `open`
+- AIE-D42 Kernel test large-dims `open`
+- AIE-D43 Kernel test unaligned `open`
+- AIE-D44 Kernel test misaligned `open`
+- AIE-D45 Kernel test bounds `open`
+- AIE-D46 Kernel test nan `open`
+- AIE-D47 Kernel test inf `open`
+- AIE-D48 Kernel test overflow `open`
+- AIE-D49 Kernel test bench `open`
+- AIE-D50 Kernel feature gemm `open`
+- AIE-D51 Kernel feature gemv `open`
+- AIE-D52 Kernel feature tiling `open`
+- AIE-D53 Kernel feature vector `open`
+- AIE-D54 Kernel feature avx2 `open`
+- AIE-D55 Kernel feature avx512 `open`
+- AIE-D56 Kernel feature fma `open`
+- AIE-D57 Kernel feature dispatch `open`
+- AIE-D58 Kernel feature fallback `open`
+- AIE-D59 Kernel feature threads `open`
+- AIE-D60 Kernel test shape-mismatch `open`
+- AIE-D61 Kernel test zero-dims `open`
+- AIE-D62 Kernel test large-dims `open`
+- AIE-D63 Kernel test unaligned `open`
+- AIE-D64 Kernel test misaligned `open`
+- AIE-D65 Kernel test bounds `open`
+- AIE-D66 Kernel test nan `open`
+- AIE-D67 Kernel test inf `open`
+- AIE-D68 Kernel test overflow `open`
+- AIE-D69 Kernel test bench `open`
+- AIE-D70 Kernel scenario small-model `open`
+- AIE-D71 Kernel scenario large-model `open`
+- AIE-D72 Kernel scenario batch-1 `open`
+- AIE-D73 Kernel scenario batch-N `open`
+- AIE-D74 Kernel scenario quantized `open`
+- AIE-D75 Kernel scenario fp32 `open`
+- AIE-D76 Kernel scenario fp16 `open`
+- AIE-D77 Kernel scenario int8 `open`
+- AIE-D78 Kernel scenario mixed `open`
+- AIE-D79 Kernel scenario cpu-only `open`
+- AIE-D80 Kernel feature gemm `open`
+- AIE-D81 Kernel feature gemv `open`
+- AIE-D82 Kernel feature tiling `open`
+- AIE-D83 Kernel feature vector `open`
+- AIE-D84 Kernel feature avx2 `open`
+- AIE-D85 Kernel feature avx512 `open`
+- AIE-D86 Kernel feature fma `open`
+- AIE-D87 Kernel feature dispatch `open`
+- AIE-D88 Kernel feature fallback `open`
+- AIE-D89 Kernel feature threads `open`
+- AIE-D90 Kernel test shape-mismatch `open`
+- AIE-D91 Kernel test zero-dims `open`
+- AIE-D92 Kernel test large-dims `open`
+- AIE-D93 Kernel test unaligned `open`
+- AIE-D94 Kernel test misaligned `open`
+- AIE-D95 Kernel test bounds `open`
+- AIE-D96 Kernel test nan `open`
+- AIE-D97 Kernel test inf `open`
+- AIE-D98 Kernel test overflow `open`
+- AIE-D99 Kernel test bench `open`
+- AIE-D100 Kernel scenario small-model `open`
+Status: `open` (29 gaps)
+
+## AIE-E: The model loading
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: safetensors -> mmap -> the weight streaming -> the expert paging
+- AIE-E01 The safetensors reader `open`
+- AIE-E02 The GGUF reader (the future) `open`
+- AIE-E03 The checkpoint loader `open`
+- AIE-E04 The shard loader `open`
+- AIE-E05 The mmap loader `open`
+- AIE-E06 The lazy load `open`
+- AIE-E07 The weight streaming (the wubuwizard) `open`
+- AIE-E08 The expert paging (the SSD) `open`
+- AIE-E09 The weight quant on load `open`
+- AIE-E10 The dequant `open`
+- AIE-E11 The layout transpose `open`
+- AIE-E12 The memory budget `open`
+- AIE-E13 The peak memory `open`
+- AIE-E14 The workspace `open`
+- AIE-E15 The scratch `open`
+- AIE-E16 The model registry `open`
+- AIE-E17 The model versions `open`
+- AIE-E18 The model A/B `open`
+- AIE-E19 The model rollback `open`
+- AIE-E20 The model quarantine `open`
+- AIE-E21 The loader tests `open`
+- AIE-E22 The loader bench `open`
+- AIE-E23 The loader fuzz `open`
+- AIE-E24 The loader energy `open`
+- AIE-E25 Loader feature safetensors `open`
+- AIE-E26 Loader feature shards `open`
+- AIE-E27 Loader feature mmap `open`
+- AIE-E28 Loader feature lazy `open`
+- AIE-E29 Loader feature stream `open`
+- AIE-E30 Loader feature page-experts `open`
+- AIE-E31 Loader feature quant-on-load `open`
+- AIE-E32 Loader feature dequant `open`
+- AIE-E33 Loader feature transpose `open`
+- AIE-E34 Loader feature budget `open`
+- AIE-E35 Loader test corrupt-header `open`
+- AIE-E36 Loader test truncated `open`
+- AIE-E37 Loader test size-mismatch `open`
+- AIE-E38 Loader test dtype-mismatch `open`
+- AIE-E39 Loader test shard-missing `open`
+- AIE-E40 Loader test mmap-fail `open`
+- AIE-E41 Loader test oom `open`
+- AIE-E42 Loader test stream-race `open`
+- AIE-E43 Loader test bench `open`
+- AIE-E44 Loader test fuzz `open`
+- AIE-E45 Loader feature safetensors `open`
+- AIE-E46 Loader feature shards `open`
+- AIE-E47 Loader feature mmap `open`
+- AIE-E48 Loader feature lazy `open`
+- AIE-E49 Loader feature stream `open`
+- AIE-E50 Loader feature page-experts `open`
+- AIE-E51 Loader feature quant-on-load `open`
+- AIE-E52 Loader feature dequant `open`
+- AIE-E53 Loader feature transpose `open`
+- AIE-E54 Loader feature budget `open`
+- AIE-E55 Loader test corrupt-header `open`
+- AIE-E56 Loader test truncated `open`
+- AIE-E57 Loader test size-mismatch `open`
+- AIE-E58 Loader test dtype-mismatch `open`
+- AIE-E59 Loader test shard-missing `open`
+- AIE-E60 Loader test mmap-fail `open`
+- AIE-E61 Loader test oom `open`
+- AIE-E62 Loader test stream-race `open`
+- AIE-E63 Loader test bench `open`
+- AIE-E64 Loader test fuzz `open`
+- AIE-E65 Loader scenario cold `open`
+- AIE-E66 Loader scenario warm `open`
+- AIE-E67 Loader scenario cache `open`
+- AIE-E68 Loader scenario stream `open`
+- AIE-E69 Loader scenario quant-on-load `open`
+- AIE-E70 Loader scenario memory-tight `open`
+- AIE-E71 Loader scenario memory-rich `open`
+- AIE-E72 Loader scenario shard-many `open`
+- AIE-E73 Loader scenario corrupt `open`
+- AIE-E74 Loader scenario missing `open`
+- AIE-E75 Loader feature safetensors `open`
+- AIE-E76 Loader feature shards `open`
+- AIE-E77 Loader feature mmap `open`
+- AIE-E78 Loader feature lazy `open`
+- AIE-E79 Loader feature stream `open`
+- AIE-E80 Loader feature page-experts `open`
+- AIE-E81 Loader feature quant-on-load `open`
+- AIE-E82 Loader feature dequant `open`
+- AIE-E83 Loader feature transpose `open`
+- AIE-E84 Loader feature budget `open`
+- AIE-E85 Loader test corrupt-header `open`
+- AIE-E86 Loader test truncated `open`
+- AIE-E87 Loader test size-mismatch `open`
+- AIE-E88 Loader test dtype-mismatch `open`
+- AIE-E89 Loader test shard-missing `open`
+- AIE-E90 Loader test mmap-fail `open`
+- AIE-E91 Loader test oom `open`
+- AIE-E92 Loader test stream-race `open`
+- AIE-E93 Loader test bench `open`
+- AIE-E94 Loader test fuzz `open`
+- AIE-E95 Loader scenario cold `open`
+- AIE-E96 Loader scenario warm `open`
+- AIE-E97 Loader scenario cache `open`
+- AIE-E98 Loader scenario stream `open`
+- AIE-E99 Loader scenario quant-on-load `open`
+- AIE-E100 Loader scenario memory-tight `open`
+Status: `open` (24 gaps)
+
+## AIE-F: The sampling & the decode loop
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: top-k/p -> penalties -> grammar constraints -> the streaming loop
+- AIE-F01 The logits `open`
+- AIE-F02 The temperature `open`
+- AIE-F03 The top-k `open`
+- AIE-F04 The top-p `open`
+- AIE-F05 The min-p `open`
+- AIE-F06 The repetition penalty `open`
+- AIE-F07 The frequency penalty `open`
+- AIE-F08 The presence penalty `open`
+- AIE-F09 The tail-free (the future) `open`
+- AIE-F10 The typical (the future) `open`
+- AIE-F11 The mirostat (the future) `open`
+- AIE-F12 The greedy `open`
+- AIE-F13 The beam search `open`
+- AIE-F14 The sampling seed `open`
+- AIE-F15 The RNG `open`
+- AIE-F16 The deterministic `open`
+- AIE-F17 The stop tokens `open`
+- AIE-F18 The max tokens `open`
+- AIE-F19 The eos handling `open`
+- AIE-F20 The bos `open`
+- AIE-F21 The special tokens `open`
+- AIE-F22 The logit bias `open`
+- AIE-F23 The JSON schema (the future) `open`
+- AIE-F24 The grammar (the future) `open`
+- AIE-F25 The token heal (the future) `open`
+- AIE-F26 The banned tokens `open`
+- AIE-F27 The decode loop `open`
+- AIE-F28 The incremental decode `open`
+- AIE-F29 The streaming output `open`
+- AIE-F30 The abort `open`
+- AIE-F31 The pause `open`
+- AIE-F32 The sampling tests `open`
+- AIE-F33 The sampling bench `open`
+- AIE-F34 The sampling fuzz `open`
+- AIE-F35 The sampling energy `open`
+- AIE-F36 Sampling feature temperature `open`
+- AIE-F37 Sampling feature top-k `open`
+- AIE-F38 Sampling feature top-p `open`
+- AIE-F39 Sampling feature min-p `open`
+- AIE-F40 Sampling feature penalty `open`
+- AIE-F41 Sampling feature bias `open`
+- AIE-F42 Sampling feature beam `open`
+- AIE-F43 Sampling feature greedy `open`
+- AIE-F44 Sampling feature seed `open`
+- AIE-F45 Sampling feature deterministic `open`
+- AIE-F46 Sampling test degenerate `open`
+- AIE-F47 Sampling test repeat `open`
+- AIE-F48 Sampling test all-banned `open`
+- AIE-F49 Sampling test zero-prob `open`
+- AIE-F50 Sampling test nan-logits `open`
+- AIE-F51 Sampling test huge-vocab `open`
+- AIE-F52 Sampling test seed-repro `open`
+- AIE-F53 Sampling test stream-abort `open`
+- AIE-F54 Sampling test bench `open`
+- AIE-F55 Sampling test fuzz `open`
+- AIE-F56 Sampling feature temperature `open`
+- AIE-F57 Sampling feature top-k `open`
+- AIE-F58 Sampling feature top-p `open`
+- AIE-F59 Sampling feature min-p `open`
+- AIE-F60 Sampling feature penalty `open`
+- AIE-F61 Sampling feature bias `open`
+- AIE-F62 Sampling feature beam `open`
+- AIE-F63 Sampling feature greedy `open`
+- AIE-F64 Sampling feature seed `open`
+- AIE-F65 Sampling feature deterministic `open`
+- AIE-F66 Sampling test degenerate `open`
+- AIE-F67 Sampling test repeat `open`
+- AIE-F68 Sampling test all-banned `open`
+- AIE-F69 Sampling test zero-prob `open`
+- AIE-F70 Sampling test nan-logits `open`
+- AIE-F71 Sampling test huge-vocab `open`
+- AIE-F72 Sampling test seed-repro `open`
+- AIE-F73 Sampling test stream-abort `open`
+- AIE-F74 Sampling test bench `open`
+- AIE-F75 Sampling test fuzz `open`
+- AIE-F76 Sampling scenario creative `open`
+- AIE-F77 Sampling scenario deterministic `open`
+- AIE-F78 Sampling scenario code `open`
+- AIE-F79 Sampling scenario chat `open`
+- AIE-F80 Sampling scenario long-gen `open`
+- AIE-F81 Sampling scenario short-gen `open`
+- AIE-F82 Sampling scenario repeat-prone `open`
+- AIE-F83 Sampling scenario all-banned `open`
+- AIE-F84 Sampling scenario temperature-0 `open`
+- AIE-F85 Sampling scenario top-k-small `open`
+- AIE-F86 Sampling feature temperature `open`
+- AIE-F87 Sampling feature top-k `open`
+- AIE-F88 Sampling feature top-p `open`
+- AIE-F89 Sampling feature min-p `open`
+- AIE-F90 Sampling feature penalty `open`
+- AIE-F91 Sampling feature bias `open`
+- AIE-F92 Sampling feature beam `open`
+- AIE-F93 Sampling feature greedy `open`
+- AIE-F94 Sampling feature seed `open`
+- AIE-F95 Sampling feature deterministic `open`
+- AIE-F96 Sampling test degenerate `open`
+- AIE-F97 Sampling test repeat `open`
+- AIE-F98 Sampling test all-banned `open`
+- AIE-F99 Sampling test zero-prob `open`
+- AIE-F100 Sampling test nan-logits `open`
+Status: `open` (35 gaps)
+
+## AIE-G: The context & the memory window
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: RoPE -> NTK scaling -> the IO eviction -> the memory themes (IP/BB)
+- AIE-G01 The context window `open`
+- AIE-G02 The position encoding (the RoPE) `open`
+- AIE-G03 The ALiBi (the future) `open`
+- AIE-G04 The scaling (the NTK) `open`
+- AIE-G05 The YaRN (the future) `open`
+- AIE-G06 The long context `open`
+- AIE-G07 The context compaction (the theme) `open`
+- AIE-G08 The summarization `open`
+- AIE-G09 The key/query eviction (the IO) `open`
+- AIE-G10 The attention sinks (the IO) `open`
+- AIE-G11 The sliding contexts `open`
+- AIE-G12 The ring buffer `open`
+- AIE-G13 The segment switching `open`
+- AIE-G14 The context restore `open`
+- AIE-G15 The KV reload `open`
+- AIE-G16 The working set `open`
+- AIE-G17 The scratchpad `open`
+- AIE-G18 The thought chains `open`
+- AIE-G19 The plan memory `open`
+- AIE-G20 The episodic memory `open`
+- AIE-G21 The semantic memory (the theme) `open`
+- AIE-G22 The procedural memory (the theme) `open`
+- AIE-G23 The associative (the IP) `open`
+- AIE-G24 The consolidation (the sleep) `open`
+- AIE-G25 The rehearsal `open`
+- AIE-G26 The context tests `open`
+- AIE-G27 The context bench `open`
+- AIE-G28 The context fuzz `open`
+- AIE-G29 The context energy `open`
+- AIE-G30 Context feature rope `open`
+- AIE-G31 Context feature ntk `open`
+- AIE-G32 Context feature scaling `open`
+- AIE-G33 Context feature sink `open`
+- AIE-G34 Context feature evict `open`
+- AIE-G35 Context feature compact `open`
+- AIE-G36 Context feature summarize `open`
+- AIE-G37 Context feature restore `open`
+- AIE-G38 Context feature window `open`
+- AIE-G39 Context feature ring `open`
+- AIE-G40 Context test long-seq `open`
+- AIE-G41 Context test position-jump `open`
+- AIE-G42 Context test sink-loss `open`
+- AIE-G43 Context test evict-storm `open`
+- AIE-G44 Context test compact-drift `open`
+- AIE-G45 Context test restore-parity `open`
+- AIE-G46 Context test window-slide `open`
+- AIE-G47 Context test bench `open`
+- AIE-G48 Context test fuzz `open`
+- AIE-G49 Context test energy `open`
+- AIE-G50 Context feature rope `open`
+- AIE-G51 Context feature ntk `open`
+- AIE-G52 Context feature scaling `open`
+- AIE-G53 Context feature sink `open`
+- AIE-G54 Context feature evict `open`
+- AIE-G55 Context feature compact `open`
+- AIE-G56 Context feature summarize `open`
+- AIE-G57 Context feature restore `open`
+- AIE-G58 Context feature window `open`
+- AIE-G59 Context feature ring `open`
+- AIE-G60 Context test long-seq `open`
+- AIE-G61 Context test position-jump `open`
+- AIE-G62 Context test sink-loss `open`
+- AIE-G63 Context test evict-storm `open`
+- AIE-G64 Context test compact-drift `open`
+- AIE-G65 Context test restore-parity `open`
+- AIE-G66 Context test window-slide `open`
+- AIE-G67 Context test bench `open`
+- AIE-G68 Context test fuzz `open`
+- AIE-G69 Context test energy `open`
+- AIE-G70 Context scenario 1k `open`
+- AIE-G71 Context scenario 8k `open`
+- AIE-G72 Context scenario 32k `open`
+- AIE-G73 Context scenario 128k `open`
+- AIE-G74 Context scenario 1m `open`
+- AIE-G75 Context scenario multi-turn `open`
+- AIE-G76 Context scenario summarized `open`
+- AIE-G77 Context scenario compacted `open`
+- AIE-G78 Context scenario evicted `open`
+- AIE-G79 Context scenario restored `open`
+- AIE-G80 Context feature rope `open`
+- AIE-G81 Context feature ntk `open`
+- AIE-G82 Context feature scaling `open`
+- AIE-G83 Context feature sink `open`
+- AIE-G84 Context feature evict `open`
+- AIE-G85 Context feature compact `open`
+- AIE-G86 Context feature summarize `open`
+- AIE-G87 Context feature restore `open`
+- AIE-G88 Context feature window `open`
+- AIE-G89 Context feature ring `open`
+- AIE-G90 Context test long-seq `open`
+- AIE-G91 Context test position-jump `open`
+- AIE-G92 Context test sink-loss `open`
+- AIE-G93 Context test evict-storm `open`
+- AIE-G94 Context test compact-drift `open`
+- AIE-G95 Context test restore-parity `open`
+- AIE-G96 Context test window-slide `open`
+- AIE-G97 Context test bench `open`
+- AIE-G98 Context test fuzz `open`
+- AIE-G99 Context test energy `open`
+- AIE-G100 Context scenario 1k `open`
+Status: `open` (29 gaps)
+
+## AIE-H: The MoE & the big models
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: top-k routing -> aux-loss balancing -> the IZ frontier -> the SSD offload
+- AIE-H01 The expert routing `open`
+- AIE-H02 The top-k experts `open`
+- AIE-H03 The shared experts `open`
+- AIE-H04 The load balancing (the aux-loss) `open`
+- AIE-H05 The z-loss `open`
+- AIE-H06 The expert parallelism (the future) `open`
+- AIE-H07 The expert offload (the SSD) `open`
+- AIE-H08 The expert cache (the hot) `open`
+- AIE-H09 The routing cache `open`
+- AIE-H10 The softmax routing `open`
+- AIE-H11 The routing-free MoE (the theme IZ) `open`
+- AIE-H12 The PathMoE (the theme IZ) `open`
+- AIE-H13 The deepseek balancing (the IZ) `open`
+- AIE-H14 The capacity factor `open`
+- AIE-H15 The token dropping `open`
+- AIE-H16 The MoE tests `open`
+- AIE-H17 The MoE bench `open`
+- AIE-H18 The MoE fuzz `open`
+- AIE-H19 The MoE energy `open`
+- AIE-H20 MoE feature router `open`
+- AIE-H21 MoE feature top-k `open`
+- AIE-H22 MoE feature shared `open`
+- AIE-H23 MoE feature balance `open`
+- AIE-H24 MoE feature z-loss `open`
+- AIE-H25 MoE feature capacity `open`
+- AIE-H26 MoE feature drop `open`
+- AIE-H27 MoE feature cache `open`
+- AIE-H28 MoE feature offload `open`
+- AIE-H29 MoE feature parallel `open`
+- AIE-H30 MoE test imbalance `open`
+- AIE-H31 MoE test token-drop `open`
+- AIE-H32 MoE test router-thrash `open`
+- AIE-H33 MoE test expert-hot `open`
+- AIE-H34 MoE test expert-cold `open`
+- AIE-H35 MoE test offload-swap `open`
+- AIE-H36 MoE test balance-drift `open`
+- AIE-H37 MoE test bench `open`
+- AIE-H38 MoE test fuzz `open`
+- AIE-H39 MoE test energy `open`
+- AIE-H40 MoE feature router `open`
+- AIE-H41 MoE feature top-k `open`
+- AIE-H42 MoE feature shared `open`
+- AIE-H43 MoE feature balance `open`
+- AIE-H44 MoE feature z-loss `open`
+- AIE-H45 MoE feature capacity `open`
+- AIE-H46 MoE feature drop `open`
+- AIE-H47 MoE feature cache `open`
+- AIE-H48 MoE feature offload `open`
+- AIE-H49 MoE feature parallel `open`
+- AIE-H50 MoE test imbalance `open`
+- AIE-H51 MoE test token-drop `open`
+- AIE-H52 MoE test router-thrash `open`
+- AIE-H53 MoE test expert-hot `open`
+- AIE-H54 MoE test expert-cold `open`
+- AIE-H55 MoE test offload-swap `open`
+- AIE-H56 MoE test balance-drift `open`
+- AIE-H57 MoE test bench `open`
+- AIE-H58 MoE test fuzz `open`
+- AIE-H59 MoE test energy `open`
+- AIE-H60 MoE scenario 8-experts `open`
+- AIE-H61 MoE scenario 16-experts `open`
+- AIE-H62 MoE scenario 64-experts `open`
+- AIE-H63 MoE scenario 2-active `open`
+- AIE-H64 MoE scenario 4-active `open`
+- AIE-H65 MoE scenario shared `open`
+- AIE-H66 MoE scenario offloaded `open`
+- AIE-H67 MoE scenario cached `open`
+- AIE-H68 MoE scenario balanced `open`
+- AIE-H69 MoE scenario imbalanced `open`
+- AIE-H70 MoE feature router `open`
+- AIE-H71 MoE feature top-k `open`
+- AIE-H72 MoE feature shared `open`
+- AIE-H73 MoE feature balance `open`
+- AIE-H74 MoE feature z-loss `open`
+- AIE-H75 MoE feature capacity `open`
+- AIE-H76 MoE feature drop `open`
+- AIE-H77 MoE feature cache `open`
+- AIE-H78 MoE feature offload `open`
+- AIE-H79 MoE feature parallel `open`
+- AIE-H80 MoE test imbalance `open`
+- AIE-H81 MoE test token-drop `open`
+- AIE-H82 MoE test router-thrash `open`
+- AIE-H83 MoE test expert-hot `open`
+- AIE-H84 MoE test expert-cold `open`
+- AIE-H85 MoE test offload-swap `open`
+- AIE-H86 MoE test balance-drift `open`
+- AIE-H87 MoE test bench `open`
+- AIE-H88 MoE test fuzz `open`
+- AIE-H89 MoE test energy `open`
+- AIE-H90 MoE scenario 8-experts `open`
+- AIE-H91 MoE scenario 16-experts `open`
+- AIE-H92 MoE scenario 64-experts `open`
+- AIE-H93 MoE scenario 2-active `open`
+- AIE-H94 MoE scenario 4-active `open`
+- AIE-H95 MoE scenario shared `open`
+- AIE-H96 MoE scenario offloaded `open`
+- AIE-H97 MoE scenario cached `open`
+- AIE-H98 MoE scenario balanced `open`
+- AIE-H99 MoE scenario imbalanced `open`
+- AIE-H100 MoE op2 route `open`
+Status: `open` (19 gaps)
+
+## AIE-I: The serving topology
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: single -> multi-model -> the API layer -> the usage/limits
+- AIE-I01 The single-model `open`
+- AIE-I02 The multi-model `open`
+- AIE-I03 The model multiplexing `open`
+- AIE-I04 The per-request model `open`
+- AIE-I05 The routing (the load) `open`
+- AIE-I06 The affinity `open`
+- AIE-I07 The preemption the model `open`
+- AIE-I08 The model swap `open`
+- AIE-I09 The warm pool `open`
+- AIE-I10 The cold start `open`
+- AIE-I11 The model warming `open`
+- AIE-I12 The API (the OpenAI-ish) `open`
+- AIE-I13 The streaming API `open`
+- AIE-I14 The batch API `open`
+- AIE-I15 The embeddings API `open`
+- AIE-I16 The rerank (the future) `open`
+- AIE-I17 The token counting `open`
+- AIE-I18 The usage tracking `open`
+- AIE-I19 The rate limits `open`
+- AIE-I20 The API keys `open`
+- AIE-I21 The auth `open`
+- AIE-I22 The serving tests `open`
+- AIE-I23 The serving bench `open`
+- AIE-I24 The serving fuzz `open`
+- AIE-I25 The serving energy `open`
+- AIE-I26 Topology feature single `open`
+- AIE-I27 Topology feature multi `open`
+- AIE-I28 Topology feature multiplex `open`
+- AIE-I29 Topology feature route `open`
+- AIE-I30 Topology feature affinity `open`
+- AIE-I31 Topology feature swap `open`
+- AIE-I32 Topology feature warm `open`
+- AIE-I33 Topology feature cold `open`
+- AIE-I34 Topology feature api `open`
+- AIE-I35 Topology feature limits `open`
+- AIE-I36 Topology test model-swap `open`
+- AIE-I37 Topology test cold-start `open`
+- AIE-I38 Topology test multi-tenant `open`
+- AIE-I39 Topology test rate-limit `open`
+- AIE-I40 Topology test auth-fail `open`
+- AIE-I41 Topology test stream-drop `open`
+- AIE-I42 Topology test abort-mid `open`
+- AIE-I43 Topology test bench `open`
+- AIE-I44 Topology test fuzz `open`
+- AIE-I45 Topology test energy `open`
+- AIE-I46 Topology feature single `open`
+- AIE-I47 Topology feature multi `open`
+- AIE-I48 Topology feature multiplex `open`
+- AIE-I49 Topology feature route `open`
+- AIE-I50 Topology feature affinity `open`
+- AIE-I51 Topology feature swap `open`
+- AIE-I52 Topology feature warm `open`
+- AIE-I53 Topology feature cold `open`
+- AIE-I54 Topology feature api `open`
+- AIE-I55 Topology feature limits `open`
+- AIE-I56 Topology test model-swap `open`
+- AIE-I57 Topology test cold-start `open`
+- AIE-I58 Topology test multi-tenant `open`
+- AIE-I59 Topology test rate-limit `open`
+- AIE-I60 Topology test auth-fail `open`
+- AIE-I61 Topology test stream-drop `open`
+- AIE-I62 Topology test abort-mid `open`
+- AIE-I63 Topology test bench `open`
+- AIE-I64 Topology test fuzz `open`
+- AIE-I65 Topology test energy `open`
+- AIE-I66 Topology scenario single-user `open`
+- AIE-I67 Topology scenario many-users `open`
+- AIE-I68 Topology scenario mixed-models `open`
+- AIE-I69 Topology scenario hot-swap `open`
+- AIE-I70 Topology scenario cold-start `open`
+- AIE-I71 Topology scenario api-only `open`
+- AIE-I72 Topology scenario cli-only `open`
+- AIE-I73 Topology scenario gui-only `open`
+- AIE-I74 Topology scenario embedded `open`
+- AIE-I75 Topology scenario hosted `open`
+- AIE-I76 Topology feature single `open`
+- AIE-I77 Topology feature multi `open`
+- AIE-I78 Topology feature multiplex `open`
+- AIE-I79 Topology feature route `open`
+- AIE-I80 Topology feature affinity `open`
+- AIE-I81 Topology feature swap `open`
+- AIE-I82 Topology feature warm `open`
+- AIE-I83 Topology feature cold `open`
+- AIE-I84 Topology feature api `open`
+- AIE-I85 Topology feature limits `open`
+- AIE-I86 Topology test model-swap `open`
+- AIE-I87 Topology test cold-start `open`
+- AIE-I88 Topology test multi-tenant `open`
+- AIE-I89 Topology test rate-limit `open`
+- AIE-I90 Topology test auth-fail `open`
+- AIE-I91 Topology test stream-drop `open`
+- AIE-I92 Topology test abort-mid `open`
+- AIE-I93 Topology test bench `open`
+- AIE-I94 Topology test fuzz `open`
+- AIE-I95 Topology test energy `open`
+- AIE-I96 Topology scenario single-user `open`
+- AIE-I97 Topology scenario many-users `open`
+- AIE-I98 Topology scenario mixed-models `open`
+- AIE-I99 Topology scenario hot-swap `open`
+- AIE-I100 Topology scenario cold-start `open`
+Status: `open` (25 gaps)
+
+## AIE-J: The engine avenue engineering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the engineering discipline for the engine avenue
+- AIE-J01 The module registry `open`
+- AIE-J02 The test matrix `open`
+- AIE-J03 The bench harness `open`
+- AIE-J04 The energy accounting `open`
+- AIE-J05 The telemetry `open`
+- AIE-J06 The watchdog `open`
+- AIE-J07 The quantization QA `open`
+- AIE-J08 The determinism `open`
+- AIE-J09 The cross-model parity `open`
+- AIE-J10 The docs spec `open`
+- AIE-J11 The roadmap `open`
+- AIE-J12 The cross-link to the wubuwizard `open`
+- AIE-J13 The cross-link to the KV `open`
+- AIE-J14 The cross-link to the energy `open`
+- AIE-J15 The cross-link to the hwdetect `open`
+- AIE-J16 The cross-link to the kernel `open`
+- AIE-J17 The cross-link to the GUI `open`
+- AIE-J18 The milestones `open`
+- AIE-J19 Engineering registry `open`
+- AIE-J20 Engineering tests `open`
+- AIE-J21 Engineering bench `open`
+- AIE-J22 Engineering energy `open`
+- AIE-J23 Engineering telemetry `open`
+- AIE-J24 Engineering watchdog `open`
+- AIE-J25 Engineering qa `open`
+- AIE-J26 Engineering determinism `open`
+- AIE-J27 Engineering parity `open`
+- AIE-J28 Engineering docs `open`
+- AIE-J29 Cross-link wubuwizard `open`
+- AIE-J30 Cross-link KV `open`
+- AIE-J31 Cross-link energy `open`
+- AIE-J32 Cross-link hwdetect `open`
+- AIE-J33 Cross-link kernel `open`
+- AIE-J34 Cross-link GUI `open`
+- AIE-J35 Cross-link synthesis `open`
+- AIE-J36 Cross-link Bonzi `open`
+- AIE-J37 Cross-link compendium `open`
+- AIE-J38 Cross-link roadmap `open`
+- AIE-J39 Engineering registry `open`
+- AIE-J40 Engineering tests `open`
+- AIE-J41 Engineering bench `open`
+- AIE-J42 Engineering energy `open`
+- AIE-J43 Engineering telemetry `open`
+- AIE-J44 Engineering watchdog `open`
+- AIE-J45 Engineering qa `open`
+- AIE-J46 Engineering determinism `open`
+- AIE-J47 Engineering parity `open`
+- AIE-J48 Engineering docs `open`
+- AIE-J49 Cross-link wubuwizard `open`
+- AIE-J50 Cross-link KV `open`
+- AIE-J51 Cross-link energy `open`
+- AIE-J52 Cross-link hwdetect `open`
+- AIE-J53 Cross-link kernel `open`
+- AIE-J54 Cross-link GUI `open`
+- AIE-J55 Cross-link synthesis `open`
+- AIE-J56 Cross-link Bonzi `open`
+- AIE-J57 Cross-link compendium `open`
+- AIE-J58 Cross-link roadmap `open`
+- AIE-J59 Avenue test unit `open`
+- AIE-J60 Avenue test integration `open`
+- AIE-J61 Avenue test bench `open`
+- AIE-J62 Avenue test soak `open`
+- AIE-J63 Avenue test fuzz `open`
+- AIE-J64 Avenue test energy `open`
+- AIE-J65 Avenue test determinism `open`
+- AIE-J66 Avenue test parity `open`
+- AIE-J67 Avenue test docs `open`
+- AIE-J68 Avenue test roadmap `open`
+- AIE-J69 Engineering registry `open`
+- AIE-J70 Engineering tests `open`
+- AIE-J71 Engineering bench `open`
+- AIE-J72 Engineering energy `open`
+- AIE-J73 Engineering telemetry `open`
+- AIE-J74 Engineering watchdog `open`
+- AIE-J75 Engineering qa `open`
+- AIE-J76 Engineering determinism `open`
+- AIE-J77 Engineering parity `open`
+- AIE-J78 Engineering docs `open`
+- AIE-J79 Cross-link wubuwizard `open`
+- AIE-J80 Cross-link KV `open`
+- AIE-J81 Cross-link energy `open`
+- AIE-J82 Cross-link hwdetect `open`
+- AIE-J83 Cross-link kernel `open`
+- AIE-J84 Cross-link GUI `open`
+- AIE-J85 Cross-link synthesis `open`
+- AIE-J86 Cross-link Bonzi `open`
+- AIE-J87 Cross-link compendium `open`
+- AIE-J88 Cross-link roadmap `open`
+- AIE-J89 Avenue test unit `open`
+- AIE-J90 Avenue test integration `open`
+- AIE-J91 Avenue test bench `open`
+- AIE-J92 Avenue test soak `open`
+- AIE-J93 Avenue test fuzz `open`
+- AIE-J94 Avenue test energy `open`
+- AIE-J95 Avenue test determinism `open`
+- AIE-J96 Avenue test parity `open`
+- AIE-J97 Avenue test docs `open`
+- AIE-J98 Avenue test roadmap `open`
+- AIE-J99 Avenue op2 audit `open`
+- AIE-J100 Avenue op2 review `open`
+Status: `open` (18 gaps)

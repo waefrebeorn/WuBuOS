@@ -1,0 +1,1056 @@
+# Storage Bank -- 1000 goals + gaps (the metal's data)
+
+Date: 2026-08-02. The storage avenue: the block layer, FAT, TXFS,
+9P namespace, CoW/snapshots, databases, compression, tmpfs, flash.
+Status: `open` / `wired`. Every gap is a real mechanism from the
+surveyed lineage (AHCI->NVMe->CoW->littlefs->LSM stores).
+
+## FS-A: The block layer & media
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: AHCI -> NVMe -> CoW/RAID -> flash wear-leveling (littlefs) -> the 9P block namespace
+- FS-A01 Block device abstraction (the 9P /dev/block) `open`
+- FS-A02 Sector read/write (the AHCI adapter) `open`
+- FS-A03 Sector count convention (the ahci returns-count rule) `open`
+- FS-A04 Block cache (the LRU) `open`
+- FS-A05 Block prefetch (the sequential) `open`
+- FS-A06 Block flush (the ordered) `open`
+- FS-A07 Block barriers (the ordering) `open`
+- FS-A08 Trim/discard (the flash) `open`
+- FS-A09 Wear leveling (the flash blocks) `open`
+- FS-A10 Bad block management `open`
+- FS-A11 Partition table (the MBR/GPT) `open`
+- FS-A12 Partition mounting `open`
+- FS-A13 Sector remapping (the bad-sector) `open`
+- FS-A14 Read-ahead window (the adaptive) `open`
+- FS-A15 Write-back caching (the policies) `open`
+- FS-A16 Write-through mode `open`
+- FS-A17 O_DIRECT (the bypass) `open`
+- FS-A18 Block queue (the merged) `open`
+- FS-A19 Block priority (the QoS) `open`
+- FS-A20 Block energy (the IJ ledger) `open`
+- FS-A21 Block benchmarks (the MB/s) `open`
+- FS-A22 Block fuzz (the sector corruption) `open`
+- FS-A23 Block tests (the roundtrip) `open`
+- FS-A24 NVMe support (the future) `open`
+- FS-A25 AHCI port enumeration (the metal) `open`
+- FS-A26 SATA vs virtio (the hosted) `open`
+- FS-A27 RAM disk (the wubu_ramdisk) `open`
+- FS-A28 Loop device (the image file) `open`
+- FS-A29 Device mapper (the stacking) `open`
+- FS-A30 RAID-0 (the stripe) `open`
+- FS-A31 RAID-1 (the mirror) `open`
+- FS-A32 RAID-5 (the parity) `open`
+- FS-A33 RAID-10 `open`
+- FS-A34 Snapshot blocks (the CoW) `open`
+- FS-A35 Block dedup (the hash) `open`
+- FS-A36 Block compression (the zstd) `open`
+- FS-A37 Block encryption (the AES) `open`
+- FS-A38 Block checksums (the end-to-end) `open`
+- FS-A39 Block journal (the intent log) `open`
+- FS-A40 Block recovery (the crash) `open`
+- FS-A41 Block hotplug (the USB) `open`
+- FS-A42 Block stats (the iostat) `open`
+- FS-A43 Block latency (the p99) `open`
+- FS-A44 Block ioctl (the control) `open`
+- FS-A45 Block partition resize `open`
+- FS-A46 Block resize (the grow) `open`
+- FS-A47 Block online shrink `open`
+- FS-A48 Block read-only (the switch) `open`
+- FS-A49 Block verify (the scrub) `open`
+- FS-A50 Block self-test (the health) `open`
+- FS-A51 Block error injection (the test) `open`
+- FS-A52 Block quota (the per-volume) `open`
+- FS-A53 Block multi-queue (the SMP) `open`
+- FS-A54 Block interrupt coalescing `open`
+- FS-A55 Block poll mode (the busy) `open`
+- FS-A56 Block async I/O (the io_uring-ish) `open`
+- FS-A57 Block zero-copy (the splice) `open`
+- FS-A58 Block mmap (the direct) `open`
+- FS-A59 Block copy-on-read (the cache) `open`
+- FS-A60 Block cache tiering (the hot/cold) `open`
+- FS-A61 Block in-memory (the tmpfs) `open`
+- FS-A62 Block image formats (the qcow-ish) `open`
+- FS-A63 Block snapshot chains `open`
+- FS-A64 Block thin provisioning `open`
+- FS-A65 Block overcommit (the copy-on-write) `open`
+- FS-A66 Block sparse (the holes) `open`
+- FS-A67 Block punch (the hole) `open`
+- FS-A68 Block clone (the reflink) `open`
+- FS-A69 Block dedup inline (the live) `open`
+- FS-A70 Block compression inline `open`
+- FS-A71 Block encryption inline `open`
+- FS-A72 Block checksum inline `open`
+- FS-A73 Block write amplification (the counter) `open`
+- FS-A74 Block lifetime (the wear counter) `open`
+- FS-A75 Block health prediction `open`
+- FS-A76 Block retirement (the failing) `open`
+- FS-A77 Block remap on fail `open`
+- FS-A78 Block degraded mode (the RAID) `open`
+- FS-A79 Block rebuild (the resync) `open`
+- FS-A80 Block patrol read `open`
+- FS-A81 Block media scan `open`
+- FS-A82 Block self-healing (the parity) `open`
+- FS-A83 Block scrub scheduling `open`
+- FS-A84 Block notifications (the events) `open`
+- FS-A85 Block tests: the full matrix `open`
+- FS-A86 Block docs: the spec `open`
+- FS-A87 Block the roadmap: this bank `open`
+- FS-A88 Block cache policy FIFO `open`
+- FS-A89 Block cache policy LRU `open`
+- FS-A90 Block cache policy LFU `open`
+- FS-A91 Block cache policy 2Q `open`
+- FS-A92 Block cache policy ARC `open`
+- FS-A93 Block cache policy clock `open`
+- FS-A94 Block cache policy segmented `open`
+- FS-A95 Block cache policy weighted `open`
+- FS-A96 Block cache policy scan-resistant `open`
+- FS-A97 Block cache policy hot/cold `open`
+- FS-A98 Block I/O mode sync `open`
+- FS-A99 Block I/O mode async `open`
+- FS-A100 Block I/O mode barrier `open`
+Status: `open` (87 gaps)
+
+## FS-B: The FAT family (the metal's own)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the metal boot volume -> VFAT/exFAT -> flash-aware FAT (littlefs lessons) -> the 9P bridge
+- FS-B01 FAT12/16/32 read (the boot volume) `open`
+- FS-B02 FAT32 write (the boot volume) `open`
+- FS-B03 FAT directory cache `open`
+- FS-B04 FAT long file names (the VFAT) `open`
+- FS-B05 FAT cluster chains (the traversal) `open`
+- FS-B06 FAT free cluster tracking `open`
+- FS-B07 FAT fragmentation (the defrag) `open`
+- FS-B08 FAT write atomicity (the journal-ish) `open`
+- FS-B09 FAT power-loss recovery (the scan) `open`
+- FS-B10 FAT timestamp (the DOS time) `open`
+- FS-B11 FAT attributes (the hidden/system) `open`
+- FS-B12 FAT case sensitivity (the 8.3) `open`
+- FS-B13 FAT unicode (the UTF-16) `open`
+- FS-B14 FAT volume label `open`
+- FS-B15 FAT boot sector verify `open`
+- FS-B16 FAT BPB parsing (the geometry) `open`
+- FS-B17 FAT multiple FATs (the mirror) `open`
+- FS-B18 FAT dirty bit (the check) `open`
+- FS-B19 FAT chkdsk (the repair) `open`
+- FS-B20 FAT cluster size selection `open`
+- FS-B21 FAT large clusters (the 64K) `open`
+- FS-B22 FAT exFAT (the future) `open`
+- FS-B23 FAT on flash (the wear-aware) `open`
+- FS-B24 FAT on RAM disk (the fast) `open`
+- FS-B25 FAT on AHCI (the boot volume) `open`
+- FS-B26 FAT on the 9P (the bridge) `open`
+- FS-B27 FAT as the interchange (the USB) `open`
+- FS-B28 FAT directory iteration `open`
+- FS-B29 FAT file create/delete/rename `open`
+- FS-B30 FAT file truncate `open`
+- FS-B31 FAT file append `open`
+- FS-B32 FAT file seek (the cluster jump) `open`
+- FS-B33 FAT contiguous files (the fast) `open`
+- FS-B34 FAT defrag (the moving) `open`
+- FS-B35 FAT repair (the orphan clusters) `open`
+- FS-B36 FAT journal (the write-ahead) `open`
+- FS-B37 FAT check (the consistency) `open`
+- FS-B38 FAT test: the roundtrip suite `open`
+- FS-B39 FAT test: the power-cut simulator `open`
+- FS-B40 FAT fuzz: the corrupted BPB `open`
+- FS-B41 FAT benchmark: the MB/s `open`
+- FS-B42 FAT docs: the spec (the register) `open`
+- FS-B43 FAT op create `open`
+- FS-B44 FAT op delete `open`
+- FS-B45 FAT op rename `open`
+- FS-B46 FAT op truncate `open`
+- FS-B47 FAT op append `open`
+- FS-B48 FAT op seek `open`
+- FS-B49 FAT op iterate `open`
+- FS-B50 FAT op mkdir `open`
+- FS-B51 FAT op rmdir `open`
+- FS-B52 FAT op stat `open`
+- FS-B53 FAT safety dirty-bit `open`
+- FS-B54 FAT safety chkdsk `open`
+- FS-B55 FAT safety orphan-scan `open`
+- FS-B56 FAT safety journal `open`
+- FS-B57 FAT safety power-cut-recover `open`
+- FS-B58 FAT safety double-FAT-mirror `open`
+- FS-B59 FAT safety checksum `open`
+- FS-B60 FAT safety cluster-walk `open`
+- FS-B61 FAT safety crosslink-detect `open`
+- FS-B62 FAT safety boot-verify `open`
+- FS-B63 FAT compat 8.3 `open`
+- FS-B64 FAT compat VFAT-LFN `open`
+- FS-B65 FAT compat UTF-16 `open`
+- FS-B66 FAT compat exFAT `open`
+- FS-B67 FAT compat FAT12 `open`
+- FS-B68 FAT compat FAT16 `open`
+- FS-B69 FAT compat FAT32 `open`
+- FS-B70 FAT compat volume-label `open`
+- FS-B71 FAT compat hidden-attr `open`
+- FS-B72 FAT compat readonly-attr `open`
+- FS-B73 FAT layer AHCI-adapter `open`
+- FS-B74 FAT layer ramdisk `open`
+- FS-B75 FAT layer 9P-bridge `open`
+- FS-B76 FAT layer boot-volume `open`
+- FS-B77 FAT layer usb `open`
+- FS-B78 FAT layer image-file `open`
+- FS-B79 FAT layer dd-image `open`
+- FS-B80 FAT layer partition `open`
+- FS-B81 FAT layer embedded `open`
+- FS-B82 FAT layer SD `open`
+- FS-B83 FAT media AHCI `open`
+- FS-B84 FAT media SATA `open`
+- FS-B85 FAT media USB `open`
+- FS-B86 FAT media SD `open`
+- FS-B87 FAT media ramdisk `open`
+- FS-B88 FAT media image `open`
+- FS-B89 FAT media partition `open`
+- FS-B90 FAT media boot `open`
+- FS-B91 FAT media swap `open`
+- FS-B92 FAT media archive `open`
+- FS-B93 FAT utility format-tool `open`
+- FS-B94 FAT utility check-tool `open`
+- FS-B95 FAT utility defrag `open`
+- FS-B96 FAT utility label `open`
+- FS-B97 FAT utility resize `open`
+- FS-B98 FAT utility mount `open`
+- FS-B99 FAT utility umount `open`
+- FS-B100 FAT utility sync `open`
+Status: `open` (42 gaps)
+
+## FS-C: The native TXFS (the ZealOS lineage)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: ZealOS TXFS -> transactional design -> CoW snapshots -> the AGI state store
+- FS-C01 TXFS design (the transactional) `open`
+- FS-C02 TXFS superblock `open`
+- FS-C03 TXFS tree structure (the B-tree-ish) `open`
+- FS-C04 TXFS transactions (the atomic) `open`
+- FS-C05 TXFS commit (the fsync) `open`
+- FS-C06 TXFS rollback (the crash) `open`
+- FS-C07 TXFS journal (the replay) `open`
+- FS-C08 TXFS snapshots (the branching) `open`
+- FS-C09 TXFS copy-on-write (the never-modify) `open`
+- FS-C10 TXFS free space (the bitmap) `open`
+- FS-C11 TXFS fragmentation (the aging) `open`
+- FS-C12 TXFS directories (the trees) `open`
+- FS-C13 TXFS files (the extents) `open`
+- FS-C14 TXFS extents (the contiguous) `open`
+- FS-C15 TXFS sparse files `open`
+- FS-C16 TXFS hard links `open`
+- FS-C17 TXFS symlinks `open`
+- FS-C18 TXFS permissions (the ACL) `open`
+- FS-C19 TXFS ownership (the users) `open`
+- FS-C20 TXFS xattrs (the metadata) `open`
+- FS-C21 TXFS timestamps (the nanosecond) `open`
+- FS-C22 TXFS versioning (the file history) `open`
+- FS-C23 TXFS dedup (the hashes) `open`
+- FS-C24 TXFS compression (the inline) `open`
+- FS-C25 TXFS encryption (the at-rest) `open`
+- FS-C26 TXFS checksums (the tree) `open`
+- FS-C27 TXFS scrub (the verify) `open`
+- FS-C28 TXFS repair (the self-heal) `open`
+- FS-C29 TXFS quotas (the per-user) `open`
+- FS-C30 TXFS resize (the grow) `open`
+- FS-C31 TXFS shrink (the careful) `open`
+- FS-C32 TXFS mount options (the tunables) `open`
+- FS-C33 TXFS the boot volume (the metal) `open`
+- FS-C34 TXFS the 9P bridge `open`
+- FS-C35 TXFS the AGI memory (the state store) `open`
+- FS-C36 TXFS the Bonzi memory (the moods) `open`
+- FS-C37 TXFS the ledger (the append-only) `open`
+- FS-C38 TXFS the snapshots (the system state) `open`
+- FS-C39 TXFS the rollback (the system restore) `open`
+- FS-C40 TXFS the GC (the deleted space) `open`
+- FS-C41 TXFS the defrag (the aging) `open`
+- FS-C42 TXFS the tests (the crash suite) `open`
+- FS-C43 TXFS the fuzz (the tree corruption) `open`
+- FS-C44 TXFS the benchmark (the ops/sec) `open`
+- FS-C45 TXFS the docs (the ZealOS parity) `open`
+- FS-C46 TXFS op mount `open`
+- FS-C47 TXFS op create `open`
+- FS-C48 TXFS op read `open`
+- FS-C49 TXFS op write `open`
+- FS-C50 TXFS op delete `open`
+- FS-C51 TXFS op commit `open`
+- FS-C52 TXFS op rollback `open`
+- FS-C53 TXFS op snapshot `open`
+- FS-C54 TXFS op restore `open`
+- FS-C55 TXFS op gc `open`
+- FS-C56 TXFS tree superblock `open`
+- FS-C57 TXFS tree extent-map `open`
+- FS-C58 TXFS tree dir-tree `open`
+- FS-C59 TXFS tree free-bitmap `open`
+- FS-C60 TXFS tree checksum-tree `open`
+- FS-C61 TXFS tree journal `open`
+- FS-C62 TXFS tree version-log `open`
+- FS-C63 TXFS tree space-map `open`
+- FS-C64 TXFS tree inode-table `open`
+- FS-C65 TXFS tree root-ref `open`
+- FS-C66 TXFS safety atomic-commit `open`
+- FS-C67 TXFS safety replay `open`
+- FS-C68 TXFS safety verify `open`
+- FS-C69 TXFS safety repair `open`
+- FS-C70 TXFS safety self-heal `open`
+- FS-C71 TXFS safety scrub `open`
+- FS-C72 TXFS safety quota-enforce `open`
+- FS-C73 TXFS safety readonly `open`
+- FS-C74 TXFS safety degraded `open`
+- FS-C75 TXFS safety import `open`
+- FS-C76 TXFS integration boot-volume `open`
+- FS-C77 TXFS integration 9P `open`
+- FS-C78 TXFS integration AGI-state `open`
+- FS-C79 TXFS integration Bonzi-moods `open`
+- FS-C80 TXFS integration ledger `open`
+- FS-C81 TXFS integration system-restore `open`
+- FS-C82 TXFS integration user-backup `open`
+- FS-C83 TXFS integration kernel `open`
+- FS-C84 TXFS integration firmware `open`
+- FS-C85 TXFS integration host `open`
+- FS-C86 TXFS utility format-tool `open`
+- FS-C87 TXFS utility check-tool `open`
+- FS-C88 TXFS utility defrag `open`
+- FS-C89 TXFS utility resize `open`
+- FS-C90 TXFS utility snap `open`
+- FS-C91 TXFS utility rollback `open`
+- FS-C92 TXFS utility scrub `open`
+- FS-C93 TXFS utility quota `open`
+- FS-C94 TXFS utility dump `open`
+- FS-C95 TXFS utility restore `open`
+- FS-C96 TXFS consumer system `open`
+- FS-C97 TXFS consumer user `open`
+- FS-C98 TXFS consumer AGI `open`
+- FS-C99 TXFS consumer Bonzi `open`
+- FS-C100 TXFS consumer kernel `open`
+Status: `open` (45 gaps)
+
+## FS-D: The 9P namespace (everything is a file)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Plan9 -> Inferno -> the Styx/9P everything-as-file -> the AGI's whole world as files
+- FS-D01 The 9P protocol (the version/auth/walk) `open`
+- FS-D02 The 9P fid lifecycle (the alloc/free) `open`
+- FS-D03 The 9P walk (the path resolution) `open`
+- FS-D04 The 9P open modes (the flags) `open`
+- FS-D05 The 9P read/write (the offset) `open`
+- FS-D06 The 9P clunk (the cleanup) `open`
+- FS-D07 The 9P stat/wstat (the metadata) `open`
+- FS-D08 The 9P remove (the delete) `open`
+- FS-D09 The 9P create (the mkdir/file) `open`
+- FS-D10 The 9P attach (the session) `open`
+- FS-D11 The 9P mount (the namespace) `open`
+- FS-D12 The 9P files (the everything) `open`
+- FS-D13 The /win namespace (the windows) `open`
+- FS-D14 The /apps namespace (the registry) `open`
+- FS-D15 The /dev namespace (the devices) `open`
+- FS-D16 The /sys namespace (the system) `open`
+- FS-D17 The /proc namespace (the processes) `open`
+- FS-D18 The /net namespace (the network) `open`
+- FS-D19 The /snd namespace (the synthesis) `open`
+- FS-D20 The /agix namespace (the AGI) `open`
+- FS-D21 The /bonzi namespace (the companion) `open`
+- FS-D22 The /mem namespace (the memory) `open`
+- FS-D23 The /time namespace (the clocks) `open`
+- FS-D24 The /rand namespace (the entropy) `open`
+- FS-D25 The /usr namespace (the users) `open`
+- FS-D26 The /etc namespace (the config) `open`
+- FS-D27 The /tmp namespace (the scratch) `open`
+- FS-D28 The /var namespace (the logs) `open`
+- FS-D29 The /boot namespace (the kernel) `open`
+- FS-D30 The /firmware namespace (the WuBuFW) `open`
+- FS-D31 The /host namespace (the host bridge) `open`
+- FS-D32 The /container namespace (the pods) `open`
+- FS-D33 The /9p-remote (the network mounts) `open`
+- FS-D34 The 9P client (the wubu bridge) `open`
+- FS-D35 The 9P server (the hosted) `open`
+- FS-D36 The 9P kernel server (the metal) `open`
+- FS-D37 The 9P auth (the tokens) `open`
+- FS-D38 The 9P permissions (the grants) `open`
+- FS-D39 The 9P quotas (the per-fid) `open`
+- FS-D40 The 9P cache (the page cache) `open`
+- FS-D41 The 9P sync (the flush) `open`
+- FS-D42 The 9P watch (the events) `open`
+- FS-D43 The 9P streams (the pipes-as-files) `open`
+- FS-D44 The 9P sockets (the network-as-files) `open`
+- FS-D45 The 9P devices (the hardware-as-files) `open`
+- FS-D46 The 9P windows (the GUI-as-files) `open`
+- FS-D47 The 9P apps (the launch-as-file) `open`
+- FS-D48 The 9P the Colonel (the eval-as-file) `open`
+- FS-D49 The 9P the AGI (the goal-as-file) `open`
+- FS-D50 The 9P the Bonzi (the mood-as-file) `open`
+- FS-D51 The 9P the EDR (the event-as-file) `open`
+- FS-D52 The 9P the verifier (the attest-as-file) `open`
+- FS-D53 The 9P the ledger (the append-as-file) `open`
+- FS-D54 The 9P tests (the protocol suite) `open`
+- FS-D55 The 9P fuzz (the malformed) `open`
+- FS-D56 The 9P bench (the ops/sec) `open`
+- FS-D57 The 9P docs (the Plan9 lineage) `open`
+- FS-D58 9P op version `open`
+- FS-D59 9P op auth `open`
+- FS-D60 9P op attach `open`
+- FS-D61 9P op walk `open`
+- FS-D62 9P op open `open`
+- FS-D63 9P op read `open`
+- FS-D64 9P op write `open`
+- FS-D65 9P op clunk `open`
+- FS-D66 9P op remove `open`
+- FS-D67 9P op create `open`
+- FS-D68 9P namespace win `open`
+- FS-D69 9P namespace apps `open`
+- FS-D70 9P namespace dev `open`
+- FS-D71 9P namespace sys `open`
+- FS-D72 9P namespace proc `open`
+- FS-D73 9P namespace net `open`
+- FS-D74 9P namespace snd `open`
+- FS-D75 9P namespace agix `open`
+- FS-D76 9P namespace bonzi `open`
+- FS-D77 9P namespace host `open`
+- FS-D78 9P feature cache `open`
+- FS-D79 9P feature flush `open`
+- FS-D80 9P feature watch `open`
+- FS-D81 9P feature quota `open`
+- FS-D82 9P feature auth `open`
+- FS-D83 9P feature perms `open`
+- FS-D84 9P feature streams `open`
+- FS-D85 9P feature sockets `open`
+- FS-D86 9P feature mount `open`
+- FS-D87 9P feature remote `open`
+- FS-D88 9P integration Colonel-eval `open`
+- FS-D89 9P integration AGI-goals `open`
+- FS-D90 9P integration EDR-events `open`
+- FS-D91 9P integration verifier `open`
+- FS-D92 9P integration ledger `open`
+- FS-D93 9P integration kernel `open`
+- FS-D94 9P integration firmware `open`
+- FS-D95 9P integration containers `open`
+- FS-D96 9P integration GUI-windows `open`
+- FS-D97 9P integration devices `open`
+- FS-D98 9P test walk `open`
+- FS-D99 9P test open `open`
+- FS-D100 9P test read `open`
+Status: `open` (57 gaps)
+
+## FS-E: The CoW & snapshots
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: ZFS/btrfs CoW -> snapshot trees -> the system restore -> the AGI checkpointing
+- FS-E01 Copy-on-write (the never-in-place) `open`
+- FS-E02 CoW extents (the reflink) `open`
+- FS-E03 CoW files (the clone) `open`
+- FS-E04 Snapshot (the point-in-time) `open`
+- FS-E05 Snapshot branching (the tree) `open`
+- FS-E06 Snapshot diff (the delta) `open`
+- FS-E07 Snapshot restore (the rollback) `open`
+- FS-E08 Snapshot export (the image) `open`
+- FS-E09 Snapshot import `open`
+- FS-E10 Snapshot GC (the orphan) `open`
+- FS-E11 Snapshot retention (the policy) `open`
+- FS-E12 Snapshot schedule (the cron) `open`
+- FS-E13 Snapshot verify (the checksum) `open`
+- FS-E14 Snapshot send/receive (the remote) `open`
+- FS-E15 Snapshot encryption `open`
+- FS-E16 Snapshot compression `open`
+- FS-E17 Snapshot dedup (the cross-snapshot) `open`
+- FS-E18 Snapshot the OS state (the system restore) `open`
+- FS-E19 Snapshot the user state (the backup) `open`
+- FS-E20 Snapshot the AGI state (the checkpoint) `open`
+- FS-E21 Snapshot the Bonzi state (the persona) `open`
+- FS-E22 Snapshot the kernel (the boot rollback) `open`
+- FS-E23 Snapshot the firmware (the WuBuFW rollback) `open`
+- FS-E24 Snapshot the boot volume `open`
+- FS-E25 Snapshot the home `open`
+- FS-E26 Snapshot the config `open`
+- FS-E27 Snapshot the logs `open`
+- FS-E28 Snapshot the database `open`
+- FS-E29 Snapshot the container (the layer) `open`
+- FS-E30 Snapshot the VM (the future) `open`
+- FS-E31 Snapshot the tests (the restore suite) `open`
+- FS-E32 Snapshot the fuzz (the corruption) `open`
+- FS-E33 Snapshot the bench (the restore ms) `open`
+- FS-E34 Snapshot the docs (the spec) `open`
+- FS-E35 CoW op clone `open`
+- FS-E36 CoW op reflink `open`
+- FS-E37 CoW op snapshot `open`
+- FS-E38 CoW op diff `open`
+- FS-E39 CoW op restore `open`
+- FS-E40 CoW op export `open`
+- FS-E41 CoW op import `open`
+- FS-E42 CoW op branch `open`
+- FS-E43 CoW op merge `open`
+- FS-E44 CoW op gc `open`
+- FS-E45 Snapshot policy hourly `open`
+- FS-E46 Snapshot policy daily `open`
+- FS-E47 Snapshot policy weekly `open`
+- FS-E48 Snapshot policy monthly `open`
+- FS-E49 Snapshot policy manual `open`
+- FS-E50 Snapshot policy pre-upgrade `open`
+- FS-E51 Snapshot policy pre-install `open`
+- FS-E52 Snapshot policy pre-boot `open`
+- FS-E53 Snapshot policy retention-N `open`
+- FS-E54 Snapshot policy on-demand `open`
+- FS-E55 Snapshot state OS `open`
+- FS-E56 Snapshot state user-home `open`
+- FS-E57 Snapshot state AGI `open`
+- FS-E58 Snapshot state Bonzi `open`
+- FS-E59 Snapshot state kernel `open`
+- FS-E60 Snapshot state firmware `open`
+- FS-E61 Snapshot state boot-volume `open`
+- FS-E62 Snapshot state config `open`
+- FS-E63 Snapshot state database `open`
+- FS-E64 Snapshot state container `open`
+- FS-E65 CoW layer extents `open`
+- FS-E66 CoW layer blocks `open`
+- FS-E67 CoW layer files `open`
+- FS-E68 CoW layer dirs `open`
+- FS-E69 CoW layer metadata `open`
+- FS-E70 CoW layer journal `open`
+- FS-E71 CoW layer bitmap `open`
+- FS-E72 CoW layer tree `open`
+- FS-E73 CoW layer log `open`
+- FS-E74 CoW layer inode `open`
+- FS-E75 Snapshot target pre-upgrade `open`
+- FS-E76 Snapshot target pre-package `open`
+- FS-E77 Snapshot target pre-boot `open`
+- FS-E78 Snapshot target pre-hack `open`
+- FS-E79 Snapshot target post-setup `open`
+- FS-E80 Snapshot target daily `open`
+- FS-E81 Snapshot target weekly `open`
+- FS-E82 Snapshot target manual `open`
+- FS-E83 Snapshot target checkpoint `open`
+- FS-E84 Snapshot target milestone `open`
+- FS-E85 Snapshot op list `open`
+- FS-E86 Snapshot op mount `open`
+- FS-E87 Snapshot op diff `open`
+- FS-E88 Snapshot op verify `open`
+- FS-E89 Snapshot op compact `open`
+- FS-E90 Snapshot op clone `open`
+- FS-E91 Snapshot op send `open`
+- FS-E92 Snapshot op receive `open`
+- FS-E93 Snapshot op protect `open`
+- FS-E94 Snapshot op expire `open`
+- FS-E95 CoW scenario write-storm `open`
+- FS-E96 CoW scenario clone-storm `open`
+- FS-E97 CoW scenario snapshot-storm `open`
+- FS-E98 CoW scenario rollback-loop `open`
+- FS-E99 CoW scenario gc-pressure `open`
+- FS-E100 CoW scenario space-exhaust `open`
+Status: `open` (34 gaps)
+
+## FS-F: The databases & stores (the AGI's memory)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: WAL/LSM (RocksDB lineage) -> the vector store -> the AGI's fact + memory + source stores
+- FS-F01 The KV store (the key-value) `open`
+- FS-F02 The KV persistence (the WAL) `open`
+- FS-F03 The KV cache (the LRU) `open`
+- FS-F04 The KV tiers (the hot/cold) `open`
+- FS-F05 The B-tree store (the ordered) `open`
+- FS-F06 The LSM tree (the write-optimized) `open`
+- FS-F07 The column store (the analytics) `open`
+- FS-F08 The document store (the JSON) `open`
+- FS-F09 The graph store (the links) `open`
+- FS-F10 The vector store (the embeddings) `open`
+- FS-F11 The vector index (the HNSW-ish) `open`
+- FS-F12 The full-text index (the inverted) `open`
+- FS-F13 The WAL (the write-ahead) `open`
+- FS-F14 The checkpoint (the flush) `open`
+- FS-F15 The compaction (the LSM) `open`
+- FS-F16 The merge (the SST) `open`
+- FS-F17 The bloom filters (the prob) `open`
+- FS-F18 The transactions (the atomic) `open`
+- FS-F19 The isolation (the levels) `open`
+- FS-F20 The concurrency (the MVCC) `open`
+- FS-F21 The locking (the optimistic) `open`
+- FS-F22 The recovery (the replay) `open`
+- FS-F23 The corruption detection (the checksums) `open`
+- FS-F24 The repair (the self-heal) `open`
+- FS-F25 The backup (the dump) `open`
+- FS-F26 The restore (the load) `open`
+- FS-F27 The migration (the versioned) `open`
+- FS-F28 The replication (the future) `open`
+- FS-F29 The sharding (the future) `open`
+- FS-F30 The queries (the declarative) `open`
+- FS-F31 The indexes (the secondary) `open`
+- FS-F32 The schema (the versioned) `open`
+- FS-F33 The migration (the alter) `open`
+- FS-F34 The joins (the hash) `open`
+- FS-F35 The aggregates (the group) `open`
+- FS-F36 The window functions (the analytics) `open`
+- FS-F37 The time-series (the append) `open`
+- FS-F38 The retention (the TTL) `open`
+- FS-F39 The compression (the column) `open`
+- FS-F40 The encryption (the at-rest) `open`
+- FS-F41 The audit (the append-only) `open`
+- FS-F42 The KV for the AGI memory (the facts) `open`
+- FS-F43 The KV for the Bonzi (the moods) `open`
+- FS-F44 The KV for the settings (the config) `open`
+- FS-F45 The KV for the ledger (the events) `open`
+- FS-F46 The KV for the caches (the hot) `open`
+- FS-F47 The KV for the sessions (the state) `open`
+- FS-F48 The KV for the tasks (the todo) `open`
+- FS-F49 The KV for the goals (the bank) `open`
+- FS-F50 The KV for the sources (the archive) `open`
+- FS-F51 The store tests (the roundtrip) `open`
+- FS-F52 The store fuzz (the corruption) `open`
+- FS-F53 The store bench (the ops/sec) `open`
+- FS-F54 The store docs (the spec) `open`
+- FS-F55 Store type KV `open`
+- FS-F56 Store type B-tree `open`
+- FS-F57 Store type LSM `open`
+- FS-F58 Store type column `open`
+- FS-F59 Store type document `open`
+- FS-F60 Store type graph `open`
+- FS-F61 Store type vector `open`
+- FS-F62 Store type fulltext `open`
+- FS-F63 Store type time-series `open`
+- FS-F64 Store type queue `open`
+- FS-F65 Store op put `open`
+- FS-F66 Store op get `open`
+- FS-F67 Store op scan `open`
+- FS-F68 Store op delete `open`
+- FS-F69 Store op batch `open`
+- FS-F70 Store op transaction `open`
+- FS-F71 Store op merge `open`
+- FS-F72 Store op compact `open`
+- FS-F73 Store op checkpoint `open`
+- FS-F74 Store op recover `open`
+- FS-F75 Store safety WAL `open`
+- FS-F76 Store safety checksum `open`
+- FS-F77 Store safety corrupt-detect `open`
+- FS-F78 Store safety repair `open`
+- FS-F79 Store safety backup `open`
+- FS-F80 Store safety restore `open`
+- FS-F81 Store safety migrate `open`
+- FS-F82 Store safety encrypt `open`
+- FS-F83 Store safety audit `open`
+- FS-F84 Store safety quota `open`
+- FS-F85 Store consumer AGI-facts `open`
+- FS-F86 Store consumer Bonzi-moods `open`
+- FS-F87 Store consumer settings `open`
+- FS-F88 Store consumer ledger `open`
+- FS-F89 Store consumer cache `open`
+- FS-F90 Store consumer sessions `open`
+- FS-F91 Store consumer tasks `open`
+- FS-F92 Store consumer goals `open`
+- FS-F93 Store consumer sources `open`
+- FS-F94 Store consumer archive `open`
+- FS-F95 Store test put `open`
+- FS-F96 Store test get `open`
+- FS-F97 Store test scan `open`
+- FS-F98 Store test delete `open`
+- FS-F99 Store test batch `open`
+- FS-F100 Store test txn `open`
+Status: `open` (54 gaps)
+
+## FS-G: The compression & dedup
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: zlib -> zstd -> content-hash dedup -> the AGI source archive
+- FS-G01 The zlib deflate (the classic) `open`
+- FS-G02 The zstd (the modern) `open`
+- FS-G03 The LZ4 (the fast) `open`
+- FS-G04 The LZMA (the ratio) `open`
+- FS-G05 The brotli (the text) `open`
+- FS-G06 The Huffman (the entropy) `open`
+- FS-G07 The arithmetic coding (the future) `open`
+- FS-G08 The delta encoding (the versioned) `open`
+- FS-G09 The dictionary (the repeated) `open`
+- FS-G10 The block compression (the FS) `open`
+- FS-G11 The file compression (the per-file) `open`
+- FS-G12 The stream compression (the pipe) `open`
+- FS-G13 The network compression (the 9P) `open`
+- FS-G14 The log compression (the rotate) `open`
+- FS-G15 The image compression (the PNG) `open`
+- FS-G16 The audio compression (the WAV->FLAC) `open`
+- FS-G17 The video compression (the future) `open`
+- FS-G18 The dedup (the content hash) `open`
+- FS-G19 The dedup inline (the write path) `open`
+- FS-G20 The dedup offline (the scan) `open`
+- FS-G21 The dedup cross-file `open`
+- FS-G22 The dedup cross-snapshot `open`
+- FS-G23 The dedup the AGI sources (the archive) `open`
+- FS-G24 The dedup the wavetable (the frames) `open`
+- FS-G25 The dedup the KV (the repeated) `open`
+- FS-G26 The dedup tests (the hashes) `open`
+- FS-G27 The dedup bench (the ratio) `open`
+- FS-G28 The compression bench (the MB/s) `open`
+- FS-G29 The compression docs (the spec) `open`
+- FS-G30 Codec zlib `open`
+- FS-G31 Codec zstd `open`
+- FS-G32 Codec LZ4 `open`
+- FS-G33 Codec LZMA `open`
+- FS-G34 Codec brotli `open`
+- FS-G35 Codec deflate `open`
+- FS-G36 Codec snappy `open`
+- FS-G37 Codec huffman `open`
+- FS-G38 Codec arithmetic `open`
+- FS-G39 Codec delta `open`
+- FS-G40 Compression mode stream `open`
+- FS-G41 Compression mode file `open`
+- FS-G42 Compression mode block `open`
+- FS-G43 Compression mode inline `open`
+- FS-G44 Compression mode offline `open`
+- FS-G45 Compression mode async `open`
+- FS-G46 Compression mode multi-thread `open`
+- FS-G47 Compression mode bounded-memory `open`
+- FS-G48 Compression mode dictionary `open`
+- FS-G49 Compression mode preset `open`
+- FS-G50 Dedup scope inline `open`
+- FS-G51 Dedup scope offline `open`
+- FS-G52 Dedup scope cross-file `open`
+- FS-G53 Dedup scope cross-snapshot `open`
+- FS-G54 Dedup scope cross-backup `open`
+- FS-G55 Dedup scope content-hash `open`
+- FS-G56 Dedup scope chunked `open`
+- FS-G57 Dedup scope whole-file `open`
+- FS-G58 Dedup scope rolling `open`
+- FS-G59 Dedup scope archive `open`
+- FS-G60 Compression consumer FS `open`
+- FS-G61 Compression consumer 9P `open`
+- FS-G62 Compression consumer log `open`
+- FS-G63 Compression consumer image `open`
+- FS-G64 Compression consumer audio `open`
+- FS-G65 Compression consumer KV `open`
+- FS-G66 Compression consumer snapshot `open`
+- FS-G67 Compression consumer network `open`
+- FS-G68 Compression consumer archive `open`
+- FS-G69 Compression consumer swap `open`
+- FS-G70 Dedup axis chunk-size `open`
+- FS-G71 Dedup axis hash `open`
+- FS-G72 Dedup axis index `open`
+- FS-G73 Dedup axis memory-budget `open`
+- FS-G74 Dedup axis parallel `open`
+- FS-G75 Dedup axis inline `open`
+- FS-G76 Dedup axis scan `open`
+- FS-G77 Dedup axis report `open`
+- FS-G78 Dedup axis verify `open`
+- FS-G79 Dedup axis reclaim `open`
+- FS-G80 Codec tuning level-1 `open`
+- FS-G81 Codec tuning level-9 `open`
+- FS-G82 Codec tuning level-19 `open`
+- FS-G83 Codec tuning window-32K `open`
+- FS-G84 Codec tuning window-128K `open`
+- FS-G85 Codec tuning dict-4K `open`
+- FS-G86 Codec tuning dict-64K `open`
+- FS-G87 Codec tuning threads-1 `open`
+- FS-G88 Codec tuning threads-8 `open`
+- FS-G89 Codec tuning mem-bounded `open`
+- FS-G90 Dedup test ratio `open`
+- FS-G91 Dedup test hash-collide `open`
+- FS-G92 Dedup test chunk-boundary `open`
+- FS-G93 Dedup test parallel `open`
+- FS-G94 Dedup test memory `open`
+- FS-G95 Dedup test inline-live `open`
+- FS-G96 Dedup test offline-scan `open`
+- FS-G97 Dedup test verify `open`
+- FS-G98 Dedup test bench `open`
+- FS-G99 Dedup test fuzz `open`
+- FS-G100 Compress bench ratio `open`
+Status: `open` (29 gaps)
+
+## FS-H: The memory & tmpfs
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: page cache -> tmpfs -> the swap -> the AGI's memory tiers
+- FS-H01 The tmpfs (the RAM disk) `open`
+- FS-H02 The page cache (the files) `open`
+- FS-H03 The dentry cache (the paths) `open`
+- FS-H04 The inode cache (the metadata) `open`
+- FS-H05 The buffer cache (the blocks) `open`
+- FS-H06 The read-ahead (the sequential) `open`
+- FS-H07 The write-behind (the dirty) `open`
+- FS-H08 The writeback (the flush) `open`
+- FS-H09 The reclaim (the LRU) `open`
+- FS-H10 The pressure (the memory) `open`
+- FS-H11 The OOM (the killer) `open`
+- FS-H12 The swap (the 8-sector swap) `open`
+- FS-H13 The swap the AGI (the KV offload) `open`
+- FS-H14 The mmap (the shared) `open`
+- FS-H15 The madvise (the hints) `open`
+- FS-H16 The mlock (the pinned) `open`
+- FS-H17 The huge pages (the THP) `open`
+- FS-H18 The NUMA (the local) `open`
+- FS-H19 The cgroup (the limit) `open`
+- FS-H20 The quota (the per-user) `open`
+- FS-H21 The tmpfs the boot (the initrd) `open`
+- FS-H22 The tmpfs the logs (the volatile) `open`
+- FS-H23 The tmpfs the AGI scratch `open`
+- FS-H24 The tmpfs the compile (the JIT) `open`
+- FS-H25 The memory tests (the allocator) `open`
+- FS-H26 The memory bench (the MB/s) `open`
+- FS-H27 The memory docs (the spec) `open`
+- FS-H28 Memory structure page `open`
+- FS-H29 Memory structure dentry `open`
+- FS-H30 Memory structure inode `open`
+- FS-H31 Memory structure buffer `open`
+- FS-H32 Memory structure swap `open`
+- FS-H33 Memory structure tmpfs `open`
+- FS-H34 Memory structure mmap `open`
+- FS-H35 Memory structure huge `open`
+- FS-H36 Memory structure compressed `open`
+- FS-H37 Memory structure reclaimable `open`
+- FS-H38 Memory policy LRU `open`
+- FS-H39 Memory policy clock `open`
+- FS-H40 Memory policy pressure `open`
+- FS-H41 Memory policy shrinker `open`
+- FS-H42 Memory policy writeback `open`
+- FS-H43 Memory policy prefetch `open`
+- FS-H44 Memory policy readahead `open`
+- FS-H45 Memory policy pin `open`
+- FS-H46 Memory policy mlock `open`
+- FS-H47 Memory policy quota `open`
+- FS-H48 Memory consumer boot `open`
+- FS-H49 Memory consumer kernel `open`
+- FS-H50 Memory consumer AGI-KV `open`
+- FS-H51 Memory consumer JIT `open`
+- FS-H52 Memory consumer GUI `open`
+- FS-H53 Memory consumer container `open`
+- FS-H54 Memory consumer network `open`
+- FS-H55 Memory consumer synthesis `open`
+- FS-H56 Memory consumer logs `open`
+- FS-H57 Memory consumer scratch `open`
+- FS-H58 Memory op alloc `open`
+- FS-H59 Memory op free `open`
+- FS-H60 Memory op reclaim `open`
+- FS-H61 Memory op shrink `open`
+- FS-H62 Memory op pin `open`
+- FS-H63 Memory op swap-in `open`
+- FS-H64 Memory op swap-out `open`
+- FS-H65 Memory op fault `open`
+- FS-H66 Memory op prefetch `open`
+- FS-H67 Memory op drop `open`
+- FS-H68 Memory tier hot `open`
+- FS-H69 Memory tier warm `open`
+- FS-H70 Memory tier cold `open`
+- FS-H71 Memory tier swap `open`
+- FS-H72 Memory tier disk `open`
+- FS-H73 Memory tier network `open`
+- FS-H74 Memory tier compress `open`
+- FS-H75 Memory tier dedup `open`
+- FS-H76 Memory tier shared `open`
+- FS-H77 Memory tier locked `open`
+- FS-H78 Memory scenario low-mem `open`
+- FS-H79 Memory scenario swap-storm `open`
+- FS-H80 Memory scenario page-fault-storm `open`
+- FS-H81 Memory scenario allocator-frag `open`
+- FS-H82 Memory scenario leak-watch `open`
+- FS-H83 Memory scenario oom-guard `open`
+- FS-H84 Memory scenario cgroup-pressure `open`
+- FS-H85 Memory scenario tmpfs-full `open`
+- FS-H86 Memory scenario mlock-contention `open`
+- FS-H87 Memory scenario hugepage-frag `open`
+- FS-H88 Memory test alloc-fuzz `open`
+- FS-H89 Memory test reclaim `open`
+- FS-H90 Memory test swap-roundtrip `open`
+- FS-H91 Memory test mmap `open`
+- FS-H92 Memory test mlock `open`
+- FS-H93 Memory test quota `open`
+- FS-H94 Memory test tmpfs-full `open`
+- FS-H95 Memory test leak-detect `open`
+- FS-H96 Memory test bench `open`
+- FS-H97 Memory test stress `open`
+- FS-H98 Memory bench alloc `open`
+- FS-H99 Memory bench free `open`
+- FS-H100 Memory bench realloc `open`
+Status: `open` (27 gaps)
+
+## FS-I: The flash & wear (the metal storage)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: NOR/NAND physics -> littlefs -> wear leveling -> the metal boot storage
+- FS-I01 The flash model (the erase-before-write) `open`
+- FS-I02 The wear leveling (the equal) `open`
+- FS-I03 The write amplification (the counter) `open`
+- FS-I04 The read disturb (the refresh) `open`
+- FS-I05 The data retention (the refresh) `open`
+- FS-I06 The bad blocks (the map) `open`
+- FS-I07 The spare blocks (the pool) `open`
+- FS-I08 The GC of flash (the reclaim) `open`
+- FS-I09 The over-provisioning (the headroom) `open`
+- FS-I10 The TRIM (the discard) `open`
+- FS-I11 The secure erase (the wipe) `open`
+- FS-I12 The flash controller (the FTL-ish) `open`
+- FS-I13 The littlefs lessons (the design) `open`
+- FS-I14 The power-loss safety (the brownout) `open`
+- FS-I15 The checksums (the detect) `open`
+- FS-I16 The copy-back (the verify) `open`
+- FS-I17 The multi-plane (the parallel) `open`
+- FS-I18 The interleaving (the channels) `open`
+- FS-I19 The ECC (the correction) `open`
+- FS-I20 The metadata protection `open`
+- FS-I21 The flash the boot volume (the metal) `open`
+- FS-I22 The flash the SD card (the future) `open`
+- FS-I23 The flash the eMMC (the future) `open`
+- FS-I24 The flash the USB (the future) `open`
+- FS-I25 The flash tests (the wear sim) `open`
+- FS-I26 The flash bench (the writes) `open`
+- FS-I27 The flash docs (the spec) `open`
+- FS-I28 Flash layer FTL `open`
+- FS-I29 Flash layer wear-level `open`
+- FS-I30 Flash layer bad-block `open`
+- FS-I31 Flash layer spare-pool `open`
+- FS-I32 Flash layer GC `open`
+- FS-I33 Flash layer trim `open`
+- FS-I34 Flash layer secure-erase `open`
+- FS-I35 Flash layer ECC `open`
+- FS-I36 Flash layer read-disturb `open`
+- FS-I37 Flash layer retention `open`
+- FS-I38 Flash media NOR `open`
+- FS-I39 Flash media NAND-SLC `open`
+- FS-I40 Flash media NAND-MLC `open`
+- FS-I41 Flash media NAND-TLC `open`
+- FS-I42 Flash media eMMC `open`
+- FS-I43 Flash media SD `open`
+- FS-I44 Flash media USB `open`
+- FS-I45 Flash media boot-volume `open`
+- FS-I46 Flash media SD-card `open`
+- FS-I47 Flash media optane `open`
+- FS-I48 Flash safety power-loss `open`
+- FS-I49 Flash safety brownout `open`
+- FS-I50 Flash safety checksum `open`
+- FS-I51 Flash safety copy-back `open`
+- FS-I52 Flash safety verify `open`
+- FS-I53 Flash safety refresh `open`
+- FS-I54 Flash safety quarantine `open`
+- FS-I55 Flash safety remap `open`
+- FS-I56 Flash safety degrade `open`
+- FS-I57 Flash safety health `open`
+- FS-I58 Flash feature wear-counter `open`
+- FS-I59 Flash feature health `open`
+- FS-I60 Flash feature lifetime `open`
+- FS-I61 Flash feature retire `open`
+- FS-I62 Flash feature refresh `open`
+- FS-I63 Flash feature patrol `open`
+- FS-I64 Flash feature scrub `open`
+- FS-I65 Flash feature reserve `open`
+- FS-I66 Flash feature over-provision `open`
+- FS-I67 Flash feature secure-wipe `open`
+- FS-I68 Flash test wear-sim `open`
+- FS-I69 Flash test power-cut `open`
+- FS-I70 Flash test corrupt-inject `open`
+- FS-I71 Flash test read-disturb `open`
+- FS-I72 Flash test retention `open`
+- FS-I73 Flash test GC-storm `open`
+- FS-I74 Flash test full-write `open`
+- FS-I75 Flash test random-write `open`
+- FS-I76 Flash test sequential `open`
+- FS-I77 Flash test endurance `open`
+- FS-I78 Flash scenario log-storm `open`
+- FS-I79 Flash scenario boot-loop `open`
+- FS-I80 Flash scenario update-storm `open`
+- FS-I81 Flash scenario rpmb-write `open`
+- FS-I82 Flash scenario wear-exhaust `open`
+- FS-I83 Flash scenario bad-block-growth `open`
+- FS-I84 Flash scenario read-heavy-aging `open`
+- FS-I85 Flash scenario temp-extreme `open`
+- FS-I86 Flash scenario power-cycles `open`
+- FS-I87 Flash scenario factory-fresh `open`
+- FS-I88 Flash bench seq-read `open`
+- FS-I89 Flash bench seq-write `open`
+- FS-I90 Flash bench rand-read `open`
+- FS-I91 Flash bench rand-write `open`
+- FS-I92 Flash bench mixed `open`
+- FS-I93 Flash bench small-write `open`
+- FS-I94 Flash bench gc-cost `open`
+- FS-I95 Flash bench wear-rate `open`
+- FS-I96 Flash bench power-loss `open`
+- FS-I97 Flash bench endurance `open`
+- FS-I98 Flash doc spec `open`
+- FS-I99 Flash doc wear-model `open`
+- FS-I100 Flash doc controller `open`
+Status: `open` (27 gaps)
+
+## FS-J: The storage avenue engineering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the engineering discipline for the whole storage avenue
+- FS-J01 The storage module registry `open`
+- FS-J02 The block test suite `open`
+- FS-J03 The FS test suite `open`
+- FS-J04 The 9P test suite `open`
+- FS-J05 The crash-simulator (the power cuts) `open`
+- FS-J06 The corruption injector `open`
+- FS-J07 The repair validator `open`
+- FS-J08 The benchmark harness `open`
+- FS-J09 The energy accounting (the J) `open`
+- FS-J10 The telemetry (the io stats) `open`
+- FS-J11 The watchdog (the hang) `open`
+- FS-J12 The quarantine (the bad media) `open`
+- FS-J13 The docs (the spec) `open`
+- FS-J14 The roadmap (this bank) `open`
+- FS-J15 Engineering module-registry `open`
+- FS-J16 Engineering test-suite `open`
+- FS-J17 Engineering crash-sim `open`
+- FS-J18 Engineering corrupt-inject `open`
+- FS-J19 Engineering repair-validate `open`
+- FS-J20 Engineering bench `open`
+- FS-J21 Engineering energy `open`
+- FS-J22 Engineering telemetry `open`
+- FS-J23 Engineering watchdog `open`
+- FS-J24 Engineering quarantine `open`
+- FS-J25 Docs spec `open`
+- FS-J26 Docs API `open`
+- FS-J27 Docs driver-guide `open`
+- FS-J28 Docs FS-guide `open`
+- FS-J29 Docs 9P-guide `open`
+- FS-J30 Docs flash-guide `open`
+- FS-J31 Docs troubleshoot `open`
+- FS-J32 Docs FAQ `open`
+- FS-J33 Docs roadmap `open`
+- FS-J34 Docs glossary `open`
+- FS-J35 Integration kernel `open`
+- FS-J36 Integration hosted `open`
+- FS-J37 Integration metal `open`
+- FS-J38 Integration boot `open`
+- FS-J39 Integration AGI `open`
+- FS-J40 Integration Bonzi `open`
+- FS-J41 Integration GUI `open`
+- FS-J42 Integration containers `open`
+- FS-J43 Integration network `open`
+- FS-J44 Integration firmware `open`
+- FS-J45 Quality tests `open`
+- FS-J46 Quality fuzz `open`
+- FS-J47 Quality bench `open`
+- FS-J48 Quality CI `open`
+- FS-J49 Quality coverage `open`
+- FS-J50 Quality lint `open`
+- FS-J51 Quality docs `open`
+- FS-J52 Quality review `open`
+- FS-J53 Quality release `open`
+- FS-J54 Quality regression `open`
+- FS-J55 Avenue storage `open`
+- FS-J56 Avenue block `open`
+- FS-J57 Avenue FS `open`
+- FS-J58 Avenue 9P `open`
+- FS-J59 Avenue CoW `open`
+- FS-J60 Avenue DB `open`
+- FS-J61 Avenue compress `open`
+- FS-J62 Avenue tmpfs `open`
+- FS-J63 Avenue flash `open`
+- FS-J64 Avenue metal `open`
+- FS-J65 Future NVMe `open`
+- FS-J66 Future RDMA `open`
+- FS-J67 Future FUSE `open`
+- FS-J68 Future overlay `open`
+- FS-J69 Future erasure `open`
+- FS-J70 Future keyring `open`
+- FS-J71 Future dm-crypt `open`
+- FS-J72 Future NFS `open`
+- FS-J73 Future S3 `open`
+- FS-J74 Future object `open`
+- FS-J75 Milestone M1-block `open`
+- FS-J76 Milestone M2-FAT `open`
+- FS-J77 Milestone M3-TXFS `open`
+- FS-J78 Milestone M4-9P `open`
+- FS-J79 Milestone M5-CoW `open`
+- FS-J80 Milestone M6-DB `open`
+- FS-J81 Milestone M7-compress `open`
+- FS-J82 Milestone M8-tmpfs `open`
+- FS-J83 Milestone M9-flash `open`
+- FS-J84 Milestone M10-metal `open`
+- FS-J85 Ledger open-count `open`
+- FS-J86 Ledger wired-count `open`
+- FS-J87 Ledger close-rate `open`
+- FS-J88 Ledger priority `open`
+- FS-J89 Ledger cross-links `open`
+- FS-J90 Ledger provenance `open`
+- FS-J91 Ledger energy `open`
+- FS-J92 Ledger tests `open`
+- FS-J93 Ledger fuzz `open`
+- FS-J94 Ledger roadmap `open`
+- FS-J95 Cross-link synthesis `open`
+- FS-J96 Cross-link GUI `open`
+- FS-J97 Cross-link AGI `open`
+- FS-J98 Cross-link Bonzi `open`
+- FS-J99 Cross-link kernel `open`
+- FS-J100 Cross-link network `open`
+Status: `open` (14 gaps)

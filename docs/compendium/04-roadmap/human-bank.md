@@ -1,0 +1,1053 @@
+# Human Bank -- 1000 goals + gaps (the user's world)
+
+Date: 2026-08-02. Status: `open` / `wired`.
+
+## HX-A: The user model
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the user profile -> the implicit learning -> the privacy-first
+- HX-A01 The user profile `open`
+- HX-A02 The preferences `open`
+- HX-A03 The tastes `open`
+- HX-A04 The habits `open`
+- HX-A05 The patterns `open`
+- HX-A06 The skill level `open`
+- HX-A07 The pace `open`
+- HX-A08 The fatigue `open`
+- HX-A09 The mood `open`
+- HX-A10 The context `open`
+- HX-A11 The session state `open`
+- HX-A12 The continuity `open`
+- HX-A13 The long-term memory `open`
+- HX-A14 The recall `open`
+- HX-A15 The forgetting curve `open`
+- HX-A16 The preference learning `open`
+- HX-A17 The implicit signals `open`
+- HX-A18 The explicit ratings `open`
+- HX-A19 The A/B `open`
+- HX-A20 The drift detection `open`
+- HX-A21 The privacy (the local) `open`
+- HX-A22 The export `open`
+- HX-A23 The deletion `open`
+- HX-A24 The consent `open`
+- HX-A25 The audit `open`
+- HX-A26 The user model tests `open`
+- HX-A27 The user model bench `open`
+- HX-A28 The user model fuzz `open`
+- HX-A29 The user model energy `open`
+- HX-A30 User feature profile `open`
+- HX-A31 User feature prefs `open`
+- HX-A32 User feature taste `open`
+- HX-A33 User feature habit `open`
+- HX-A34 User feature pattern `open`
+- HX-A35 User feature skill `open`
+- HX-A36 User feature pace `open`
+- HX-A37 User feature mood `open`
+- HX-A38 User feature context `open`
+- HX-A39 User feature state `open`
+- HX-A40 User test drift `open`
+- HX-A41 User test cold-start `open`
+- HX-A42 User test privacy `open`
+- HX-A43 User test export `open`
+- HX-A44 User test delete `open`
+- HX-A45 User test consent `open`
+- HX-A46 User test audit `open`
+- HX-A47 User test conflict `open`
+- HX-A48 User test bench `open`
+- HX-A49 User test fuzz `open`
+- HX-A50 User feature profile `open`
+- HX-A51 User feature prefs `open`
+- HX-A52 User feature taste `open`
+- HX-A53 User feature habit `open`
+- HX-A54 User feature pattern `open`
+- HX-A55 User feature skill `open`
+- HX-A56 User feature pace `open`
+- HX-A57 User feature mood `open`
+- HX-A58 User feature context `open`
+- HX-A59 User feature state `open`
+- HX-A60 User test drift `open`
+- HX-A61 User test cold-start `open`
+- HX-A62 User test privacy `open`
+- HX-A63 User test export `open`
+- HX-A64 User test delete `open`
+- HX-A65 User test consent `open`
+- HX-A66 User test audit `open`
+- HX-A67 User test conflict `open`
+- HX-A68 User test bench `open`
+- HX-A69 User test fuzz `open`
+- HX-A70 User scenario new-user `open`
+- HX-A71 User scenario power-user `open`
+- HX-A72 User scenario casual `open`
+- HX-A73 User scenario child `open`
+- HX-A74 User scenario elder `open`
+- HX-A75 User scenario adhd `open`
+- HX-A76 User scenario blind `open`
+- HX-A77 User scenario deaf `open`
+- HX-A78 User scenario multilingual `open`
+- HX-A79 User scenario privacy-first `open`
+- HX-A80 User feature profile `open`
+- HX-A81 User feature prefs `open`
+- HX-A82 User feature taste `open`
+- HX-A83 User feature habit `open`
+- HX-A84 User feature pattern `open`
+- HX-A85 User feature skill `open`
+- HX-A86 User feature pace `open`
+- HX-A87 User feature mood `open`
+- HX-A88 User feature context `open`
+- HX-A89 User feature state `open`
+- HX-A90 User test drift `open`
+- HX-A91 User test cold-start `open`
+- HX-A92 User test privacy `open`
+- HX-A93 User test export `open`
+- HX-A94 User test delete `open`
+- HX-A95 User test consent `open`
+- HX-A96 User test audit `open`
+- HX-A97 User test conflict `open`
+- HX-A98 User test bench `open`
+- HX-A99 User test fuzz `open`
+- HX-A100 User scenario new-user `open`
+Status: `open` (29 gaps)
+
+## HX-B: The adaptive UI (AUI)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: AUI research -> legible/reversible/fair -> the adaptive OS
+- HX-B01 The adaptive layout `open`
+- HX-B02 The adaptive theme `open`
+- HX-B03 The adaptive font `open`
+- HX-B04 The adaptive density `open`
+- HX-B05 The adaptive complexity `open`
+- HX-B06 The novice mode `open`
+- HX-B07 The expert mode `open`
+- HX-B08 The progressive disclosure `open`
+- HX-B09 The contextual menus `open`
+- HX-B10 The contextual help `open`
+- HX-B11 The adaptive shortcuts `open`
+- HX-B12 The adaptive defaults `open`
+- HX-B13 The workload adaptation `open`
+- HX-B14 The context adaptation `open`
+- HX-B15 The ability adaptation `open`
+- HX-B16 The legibility (the AUI rule) `open`
+- HX-B17 The reversibility (the AUI rule) `open`
+- HX-B18 The fairness (the AUI rule) `open`
+- HX-B19 The transparency `open`
+- HX-B20 The user control `open`
+- HX-B21 The adaptation logs `open`
+- HX-B22 The adaptation tests `open`
+- HX-B23 The adaptation bench `open`
+- HX-B24 The adaptation fuzz `open`
+- HX-B25 The adaptation energy `open`
+- HX-B26 AUI feature layout `open`
+- HX-B27 AUI feature theme `open`
+- HX-B28 AUI feature font `open`
+- HX-B29 AUI feature density `open`
+- HX-B30 AUI feature complexity `open`
+- HX-B31 AUI feature novice `open`
+- HX-B32 AUI feature expert `open`
+- HX-B33 AUI feature disclosure `open`
+- HX-B34 AUI feature context-menu `open`
+- HX-B35 AUI feature shortcuts `open`
+- HX-B36 AUI test legibility `open`
+- HX-B37 AUI test reversibility `open`
+- HX-B38 AUI test fairness `open`
+- HX-B39 AUI test transparency `open`
+- HX-B40 AUI test control `open`
+- HX-B41 AUI test adaptation-log `open`
+- HX-B42 AUI test bench `open`
+- HX-B43 AUI test fuzz `open`
+- HX-B44 AUI test energy `open`
+- HX-B45 AUI test audit `open`
+- HX-B46 AUI feature layout `open`
+- HX-B47 AUI feature theme `open`
+- HX-B48 AUI feature font `open`
+- HX-B49 AUI feature density `open`
+- HX-B50 AUI feature complexity `open`
+- HX-B51 AUI feature novice `open`
+- HX-B52 AUI feature expert `open`
+- HX-B53 AUI feature disclosure `open`
+- HX-B54 AUI feature context-menu `open`
+- HX-B55 AUI feature shortcuts `open`
+- HX-B56 AUI test legibility `open`
+- HX-B57 AUI test reversibility `open`
+- HX-B58 AUI test fairness `open`
+- HX-B59 AUI test transparency `open`
+- HX-B60 AUI test control `open`
+- HX-B61 AUI test adaptation-log `open`
+- HX-B62 AUI test bench `open`
+- HX-B63 AUI test fuzz `open`
+- HX-B64 AUI test energy `open`
+- HX-B65 AUI test audit `open`
+- HX-B66 AUI scenario small-screen `open`
+- HX-B67 AUI scenario large-screen `open`
+- HX-B68 AUI scenario low-vision `open`
+- HX-B69 AUI scenario high-contrast `open`
+- HX-B70 AUI scenario reduced-motion `open`
+- HX-B71 AUI scenario busy `open`
+- HX-B72 AUI scenario relaxed `open`
+- HX-B73 AUI scenario expert `open`
+- HX-B74 AUI scenario novice `open`
+- HX-B75 AUI scenario distracted `open`
+- HX-B76 AUI feature layout `open`
+- HX-B77 AUI feature theme `open`
+- HX-B78 AUI feature font `open`
+- HX-B79 AUI feature density `open`
+- HX-B80 AUI feature complexity `open`
+- HX-B81 AUI feature novice `open`
+- HX-B82 AUI feature expert `open`
+- HX-B83 AUI feature disclosure `open`
+- HX-B84 AUI feature context-menu `open`
+- HX-B85 AUI feature shortcuts `open`
+- HX-B86 AUI test legibility `open`
+- HX-B87 AUI test reversibility `open`
+- HX-B88 AUI test fairness `open`
+- HX-B89 AUI test transparency `open`
+- HX-B90 AUI test control `open`
+- HX-B91 AUI test adaptation-log `open`
+- HX-B92 AUI test bench `open`
+- HX-B93 AUI test fuzz `open`
+- HX-B94 AUI test energy `open`
+- HX-B95 AUI test audit `open`
+- HX-B96 AUI scenario small-screen `open`
+- HX-B97 AUI scenario large-screen `open`
+- HX-B98 AUI scenario low-vision `open`
+- HX-B99 AUI scenario high-contrast `open`
+- HX-B100 AUI scenario reduced-motion `open`
+Status: `open` (25 gaps)
+
+## HX-C: The learning & the education
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the tutor -> spaced repetition -> mastery learning
+- HX-C01 The tutor `open`
+- HX-C02 The mentor `open`
+- HX-C03 The coach `open`
+- HX-C04 The guide `open`
+- HX-C05 The explainer `open`
+- HX-C06 The Socratic mode `open`
+- HX-C07 The step-by-step `open`
+- HX-C08 The worked examples `open`
+- HX-C09 The practice `open`
+- HX-C10 The spaced repetition `open`
+- HX-C11 The flashcards `open`
+- HX-C12 The quizzes `open`
+- HX-C13 The assessments `open`
+- HX-C14 The progress tracking `open`
+- HX-C15 The mastery `open`
+- HX-C16 The curriculum `open`
+- HX-C17 The prerequisites `open`
+- HX-C18 The remediation `open`
+- HX-C19 The enrichment `open`
+- HX-C20 The pacing `open`
+- HX-C21 The teach-the-teacher `open`
+- HX-C22 The learning styles (the future) `open`
+- HX-C23 The gamification `open`
+- HX-C24 The badges `open`
+- HX-C25 The streaks `open`
+- HX-C26 The learning tests `open`
+- HX-C27 The learning bench `open`
+- HX-C28 The learning fuzz `open`
+- HX-C29 The learning energy `open`
+- HX-C30 Learning feature tutor `open`
+- HX-C31 Learning feature mentor `open`
+- HX-C32 Learning feature coach `open`
+- HX-C33 Learning feature socratic `open`
+- HX-C34 Learning feature worked-example `open`
+- HX-C35 Learning feature practice `open`
+- HX-C36 Learning feature spaced `open`
+- HX-C37 Learning feature quiz `open`
+- HX-C38 Learning feature progress `open`
+- HX-C39 Learning feature mastery `open`
+- HX-C40 Learning test remediation `open`
+- HX-C41 Learning test enrichment `open`
+- HX-C42 Learning test pacing `open`
+- HX-C43 Learning test prereq `open`
+- HX-C44 Learning test gamification `open`
+- HX-C45 Learning test streak `open`
+- HX-C46 Learning test badge `open`
+- HX-C47 Learning test bench `open`
+- HX-C48 Learning test fuzz `open`
+- HX-C49 Learning test energy `open`
+- HX-C50 Learning feature tutor `open`
+- HX-C51 Learning feature mentor `open`
+- HX-C52 Learning feature coach `open`
+- HX-C53 Learning feature socratic `open`
+- HX-C54 Learning feature worked-example `open`
+- HX-C55 Learning feature practice `open`
+- HX-C56 Learning feature spaced `open`
+- HX-C57 Learning feature quiz `open`
+- HX-C58 Learning feature progress `open`
+- HX-C59 Learning feature mastery `open`
+- HX-C60 Learning test remediation `open`
+- HX-C61 Learning test enrichment `open`
+- HX-C62 Learning test pacing `open`
+- HX-C63 Learning test prereq `open`
+- HX-C64 Learning test gamification `open`
+- HX-C65 Learning test streak `open`
+- HX-C66 Learning test badge `open`
+- HX-C67 Learning test bench `open`
+- HX-C68 Learning test fuzz `open`
+- HX-C69 Learning test energy `open`
+- HX-C70 Learning scenario math `open`
+- HX-C71 Learning scenario coding `open`
+- HX-C72 Learning scenario music `open`
+- HX-C73 Learning scenario language `open`
+- HX-C74 Learning scenario history `open`
+- HX-C75 Learning scenario science `open`
+- HX-C76 Learning scenario os-skills `open`
+- HX-C77 Learning scenario synthesis `open`
+- HX-C78 Learning scenario agi `open`
+- HX-C79 Learning scenario first-boot `open`
+- HX-C80 Learning feature tutor `open`
+- HX-C81 Learning feature mentor `open`
+- HX-C82 Learning feature coach `open`
+- HX-C83 Learning feature socratic `open`
+- HX-C84 Learning feature worked-example `open`
+- HX-C85 Learning feature practice `open`
+- HX-C86 Learning feature spaced `open`
+- HX-C87 Learning feature quiz `open`
+- HX-C88 Learning feature progress `open`
+- HX-C89 Learning feature mastery `open`
+- HX-C90 Learning test remediation `open`
+- HX-C91 Learning test enrichment `open`
+- HX-C92 Learning test pacing `open`
+- HX-C93 Learning test prereq `open`
+- HX-C94 Learning test gamification `open`
+- HX-C95 Learning test streak `open`
+- HX-C96 Learning test badge `open`
+- HX-C97 Learning test bench `open`
+- HX-C98 Learning test fuzz `open`
+- HX-C99 Learning test energy `open`
+- HX-C100 Learning scenario math `open`
+Status: `open` (29 gaps)
+
+## HX-D: The companion (the Bonzi human side)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the JE-theme engine -> the empathy/calibration -> the presence
+- HX-D01 The empathy `open`
+- HX-D02 The warmth `open`
+- HX-D03 The humor `open`
+- HX-D04 The playfulness `open`
+- HX-D05 The personality `open`
+- HX-D06 The consistency `open`
+- HX-D07 The honesty `open`
+- HX-D08 The calibration `open`
+- HX-D09 The boundaries `open`
+- HX-D10 The consent `open`
+- HX-D11 The loneliness support `open`
+- HX-D12 The encouragement `open`
+- HX-D13 The celebration `open`
+- HX-D14 The commiseration `open`
+- HX-D15 The presence `open`
+- HX-D16 The idle chat `open`
+- HX-D17 The small talk `open`
+- HX-D18 The stories `open`
+- HX-D19 The jokes `open`
+- HX-D20 The riddles `open`
+- HX-D21 The memories shared `open`
+- HX-D22 The rituals `open`
+- HX-D23 The greetings `open`
+- HX-D24 The farewells `open`
+- HX-D25 The check-ins `open`
+- HX-D26 The companion tests `open`
+- HX-D27 The companion bench `open`
+- HX-D28 The companion fuzz `open`
+- HX-D29 The companion energy `open`
+- HX-D30 Companion feature empathy `open`
+- HX-D31 Companion feature warmth `open`
+- HX-D32 Companion feature humor `open`
+- HX-D33 Companion feature consistency `open`
+- HX-D34 Companion feature honesty `open`
+- HX-D35 Companion feature calibration `open`
+- HX-D36 Companion feature boundary `open`
+- HX-D37 Companion feature consent `open`
+- HX-D38 Companion feature presence `open`
+- HX-D39 Companion feature ritual `open`
+- HX-D40 Companion test mood-drift `open`
+- HX-D41 Companion test persona-consistency `open`
+- HX-D42 Companion test calibration `open`
+- HX-D43 Companion test boundary-hold `open`
+- HX-D44 Companion test memory-recall `open`
+- HX-D45 Companion test bench `open`
+- HX-D46 Companion test fuzz `open`
+- HX-D47 Companion test energy `open`
+- HX-D48 Companion test audit `open`
+- HX-D49 Companion test privacy `open`
+- HX-D50 Companion feature empathy `open`
+- HX-D51 Companion feature warmth `open`
+- HX-D52 Companion feature humor `open`
+- HX-D53 Companion feature consistency `open`
+- HX-D54 Companion feature honesty `open`
+- HX-D55 Companion feature calibration `open`
+- HX-D56 Companion feature boundary `open`
+- HX-D57 Companion feature consent `open`
+- HX-D58 Companion feature presence `open`
+- HX-D59 Companion feature ritual `open`
+- HX-D60 Companion test mood-drift `open`
+- HX-D61 Companion test persona-consistency `open`
+- HX-D62 Companion test calibration `open`
+- HX-D63 Companion test boundary-hold `open`
+- HX-D64 Companion test memory-recall `open`
+- HX-D65 Companion test bench `open`
+- HX-D66 Companion test fuzz `open`
+- HX-D67 Companion test energy `open`
+- HX-D68 Companion test audit `open`
+- HX-D69 Companion test privacy `open`
+- HX-D70 Companion scenario morning `open`
+- HX-D71 Companion scenario evening `open`
+- HX-D72 Companion scenario working `open`
+- HX-D73 Companion scenario break `open`
+- HX-D74 Companion scenario sad `open`
+- HX-D75 Companion scenario happy `open`
+- HX-D76 Companion scenario anxious `open`
+- HX-D77 Companion scenario bored `open`
+- HX-D78 Companion scenario celebrating `open`
+- HX-D79 Companion scenario alone `open`
+- HX-D80 Companion feature empathy `open`
+- HX-D81 Companion feature warmth `open`
+- HX-D82 Companion feature humor `open`
+- HX-D83 Companion feature consistency `open`
+- HX-D84 Companion feature honesty `open`
+- HX-D85 Companion feature calibration `open`
+- HX-D86 Companion feature boundary `open`
+- HX-D87 Companion feature consent `open`
+- HX-D88 Companion feature presence `open`
+- HX-D89 Companion feature ritual `open`
+- HX-D90 Companion test mood-drift `open`
+- HX-D91 Companion test persona-consistency `open`
+- HX-D92 Companion test calibration `open`
+- HX-D93 Companion test boundary-hold `open`
+- HX-D94 Companion test memory-recall `open`
+- HX-D95 Companion test bench `open`
+- HX-D96 Companion test fuzz `open`
+- HX-D97 Companion test energy `open`
+- HX-D98 Companion test audit `open`
+- HX-D99 Companion test privacy `open`
+- HX-D100 Companion scenario morning `open`
+Status: `open` (29 gaps)
+
+## HX-E: The voice & the speech
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: TTS/STT -> prosody -> the voice identity -> the privacy
+- HX-E01 The TTS (the voice) `open`
+- HX-E02 The STT (the listening) `open`
+- HX-E03 The prosody `open`
+- HX-E04 The emotion in voice `open`
+- HX-E05 The pacing `open`
+- HX-E06 The SSML-ish (the future) `open`
+- HX-E07 The voice identity `open`
+- HX-E08 The voice cloning (the future) `open`
+- HX-E09 The accents `open`
+- HX-E10 The languages `open`
+- HX-E11 The voice commands `open`
+- HX-E12 The wake word `open`
+- HX-E13 The barge-in `open`
+- HX-E14 The noise handling `open`
+- HX-E15 The echo cancel (the future) `open`
+- HX-E16 The captions `open`
+- HX-E17 The live transcription `open`
+- HX-E18 The speaker diarization (the future) `open`
+- HX-E19 The voice settings `open`
+- HX-E20 The voice privacy `open`
+- HX-E21 The voice tests `open`
+- HX-E22 The voice bench `open`
+- HX-E23 The voice fuzz `open`
+- HX-E24 The voice energy `open`
+- HX-E25 Voice feature tts `open`
+- HX-E26 Voice feature stt `open`
+- HX-E27 Voice feature prosody `open`
+- HX-E28 Voice feature emotion `open`
+- HX-E29 Voice feature pacing `open`
+- HX-E30 Voice feature identity `open`
+- HX-E31 Voice feature accent `open`
+- HX-E32 Voice feature language `open`
+- HX-E33 Voice feature wake `open`
+- HX-E34 Voice feature captions `open`
+- HX-E35 Voice test noise `open`
+- HX-E36 Voice test barge-in `open`
+- HX-E37 Voice test echo `open`
+- HX-E38 Voice test diarize `open`
+- HX-E39 Voice test privacy `open`
+- HX-E40 Voice test bench `open`
+- HX-E41 Voice test fuzz `open`
+- HX-E42 Voice test energy `open`
+- HX-E43 Voice test latency `open`
+- HX-E44 Voice test quality `open`
+- HX-E45 Voice feature tts `open`
+- HX-E46 Voice feature stt `open`
+- HX-E47 Voice feature prosody `open`
+- HX-E48 Voice feature emotion `open`
+- HX-E49 Voice feature pacing `open`
+- HX-E50 Voice feature identity `open`
+- HX-E51 Voice feature accent `open`
+- HX-E52 Voice feature language `open`
+- HX-E53 Voice feature wake `open`
+- HX-E54 Voice feature captions `open`
+- HX-E55 Voice test noise `open`
+- HX-E56 Voice test barge-in `open`
+- HX-E57 Voice test echo `open`
+- HX-E58 Voice test diarize `open`
+- HX-E59 Voice test privacy `open`
+- HX-E60 Voice test bench `open`
+- HX-E61 Voice test fuzz `open`
+- HX-E62 Voice test energy `open`
+- HX-E63 Voice test latency `open`
+- HX-E64 Voice test quality `open`
+- HX-E65 Voice scenario quiet `open`
+- HX-E66 Voice scenario noisy `open`
+- HX-E67 Voice scenario meeting `open`
+- HX-E68 Voice scenario driving `open`
+- HX-E69 Voice scenario accent `open`
+- HX-E70 Voice scenario language `open`
+- HX-E71 Voice scenario whisper `open`
+- HX-E72 Voice scenario shout `open`
+- HX-E73 Voice scenario kids `open`
+- HX-E74 Voice scenario elder `open`
+- HX-E75 Voice feature tts `open`
+- HX-E76 Voice feature stt `open`
+- HX-E77 Voice feature prosody `open`
+- HX-E78 Voice feature emotion `open`
+- HX-E79 Voice feature pacing `open`
+- HX-E80 Voice feature identity `open`
+- HX-E81 Voice feature accent `open`
+- HX-E82 Voice feature language `open`
+- HX-E83 Voice feature wake `open`
+- HX-E84 Voice feature captions `open`
+- HX-E85 Voice test noise `open`
+- HX-E86 Voice test barge-in `open`
+- HX-E87 Voice test echo `open`
+- HX-E88 Voice test diarize `open`
+- HX-E89 Voice test privacy `open`
+- HX-E90 Voice test bench `open`
+- HX-E91 Voice test fuzz `open`
+- HX-E92 Voice test energy `open`
+- HX-E93 Voice test latency `open`
+- HX-E94 Voice test quality `open`
+- HX-E95 Voice scenario quiet `open`
+- HX-E96 Voice scenario noisy `open`
+- HX-E97 Voice scenario meeting `open`
+- HX-E98 Voice scenario driving `open`
+- HX-E99 Voice scenario accent `open`
+- HX-E100 Voice scenario language `open`
+Status: `open` (24 gaps)
+
+## HX-F: The games & the play
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the classics -> the learning games -> the achievements
+- HX-F01 The chess `open`
+- HX-F02 The minesweeper `open`
+- HX-F03 The solitaire `open`
+- HX-F04 The snake `open`
+- HX-F05 The tetris (the future) `open`
+- HX-F06 The sudoku `open`
+- HX-F07 The word games `open`
+- HX-F08 The trivia `open`
+- HX-F09 The puzzles `open`
+- HX-F10 The memory games `open`
+- HX-F11 The learning games `open`
+- HX-F12 The serious games `open`
+- HX-F13 The party games (the future) `open`
+- HX-F14 The multiplayer (the future) `open`
+- HX-F15 The leaderboards `open`
+- HX-F16 The achievements `open`
+- HX-F17 The challenges `open`
+- HX-F18 The daily quests `open`
+- HX-F19 The streaks `open`
+- HX-F20 The scores `open`
+- HX-F21 The game engine (the simple) `open`
+- HX-F22 The game loop `open`
+- HX-F23 The input `open`
+- HX-F24 The audio (the synthesis) `open`
+- HX-F25 The themes `open`
+- HX-F26 The games tests `open`
+- HX-F27 The games bench `open`
+- HX-F28 The games fuzz `open`
+- HX-F29 The games energy `open`
+- HX-F30 Game feature chess `open`
+- HX-F31 Game feature mines `open`
+- HX-F32 Game feature solitaire `open`
+- HX-F33 Game feature snake `open`
+- HX-F34 Game feature sudoku `open`
+- HX-F35 Game feature trivia `open`
+- HX-F36 Game feature puzzle `open`
+- HX-F37 Game feature memory `open`
+- HX-F38 Game feature achievements `open`
+- HX-F39 Game feature streaks `open`
+- HX-F40 Game test rules `open`
+- HX-F41 Game test undo `open`
+- HX-F42 Game test scoring `open`
+- HX-F43 Game test input `open`
+- HX-F44 Game test audio `open`
+- HX-F45 Game test theme `open`
+- HX-F46 Game test bench `open`
+- HX-F47 Game test fuzz `open`
+- HX-F48 Game test energy `open`
+- HX-F49 Game test save `open`
+- HX-F50 Game feature chess `open`
+- HX-F51 Game feature mines `open`
+- HX-F52 Game feature solitaire `open`
+- HX-F53 Game feature snake `open`
+- HX-F54 Game feature sudoku `open`
+- HX-F55 Game feature trivia `open`
+- HX-F56 Game feature puzzle `open`
+- HX-F57 Game feature memory `open`
+- HX-F58 Game feature achievements `open`
+- HX-F59 Game feature streaks `open`
+- HX-F60 Game test rules `open`
+- HX-F61 Game test undo `open`
+- HX-F62 Game test scoring `open`
+- HX-F63 Game test input `open`
+- HX-F64 Game test audio `open`
+- HX-F65 Game test theme `open`
+- HX-F66 Game test bench `open`
+- HX-F67 Game test fuzz `open`
+- HX-F68 Game test energy `open`
+- HX-F69 Game test save `open`
+- HX-F70 Game scenario quick-5-min `open`
+- HX-F71 Game scenario long-session `open`
+- HX-F72 Game scenario kids `open`
+- HX-F73 Game scenario family `open`
+- HX-F74 Game scenario solo `open`
+- HX-F75 Game scenario challenge `open`
+- HX-F76 Game scenario relax `open`
+- HX-F77 Game scenario learning `open`
+- HX-F78 Game scenario party `open`
+- HX-F79 Game scenario offline `open`
+- HX-F80 Game feature chess `open`
+- HX-F81 Game feature mines `open`
+- HX-F82 Game feature solitaire `open`
+- HX-F83 Game feature snake `open`
+- HX-F84 Game feature sudoku `open`
+- HX-F85 Game feature trivia `open`
+- HX-F86 Game feature puzzle `open`
+- HX-F87 Game feature memory `open`
+- HX-F88 Game feature achievements `open`
+- HX-F89 Game feature streaks `open`
+- HX-F90 Game test rules `open`
+- HX-F91 Game test undo `open`
+- HX-F92 Game test scoring `open`
+- HX-F93 Game test input `open`
+- HX-F94 Game test audio `open`
+- HX-F95 Game test theme `open`
+- HX-F96 Game test bench `open`
+- HX-F97 Game test fuzz `open`
+- HX-F98 Game test energy `open`
+- HX-F99 Game test save `open`
+- HX-F100 Game scenario quick-5-min `open`
+Status: `open` (29 gaps)
+
+## HX-G: The art & the creation
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the canvas -> the synthesis -> the generative future
+- HX-G01 The canvas app `open`
+- HX-G02 The brushes `open`
+- HX-G03 The layers (the future) `open`
+- HX-G04 The shapes `open`
+- HX-G05 The text `open`
+- HX-G06 The colors `open`
+- HX-G07 The palettes `open`
+- HX-G08 The filters (the future) `open`
+- HX-G09 The undo history `open`
+- HX-G10 The export `open`
+- HX-G11 The music (the synthesis) `open`
+- HX-G12 The composition (the seq) `open`
+- HX-G13 The wavetable editor `open`
+- HX-G14 The patch designer `open`
+- HX-G15 The mix `open`
+- HX-G16 The writing (the notes) `open`
+- HX-G17 The structuring (the outline) `open`
+- HX-G18 The ideas (the ideation) `open`
+- HX-G19 The mind-maps (the future) `open`
+- HX-G20 The poetry (the future) `open`
+- HX-G21 The photography (the future) `open`
+- HX-G22 The video (the future) `open`
+- HX-G23 The 3D (the future) `open`
+- HX-G24 The generative art (the future) `open`
+- HX-G25 The ASCII art `open`
+- HX-G26 The creation tests `open`
+- HX-G27 The creation bench `open`
+- HX-G28 The creation fuzz `open`
+- HX-G29 The creation energy `open`
+- HX-G30 Creation feature canvas `open`
+- HX-G31 Creation feature brush `open`
+- HX-G32 Creation feature shape `open`
+- HX-G33 Creation feature text `open`
+- HX-G34 Creation feature color `open`
+- HX-G35 Creation feature palette `open`
+- HX-G36 Creation feature undo `open`
+- HX-G37 Creation feature export `open`
+- HX-G38 Creation feature music `open`
+- HX-G39 Creation feature patch `open`
+- HX-G40 Creation test undo-depth `open`
+- HX-G41 Creation test export-parity `open`
+- HX-G42 Creation test palette `open`
+- HX-G43 Creation test brush `open`
+- HX-G44 Creation test bench `open`
+- HX-G45 Creation test fuzz `open`
+- HX-G46 Creation test energy `open`
+- HX-G47 Creation test doc `open`
+- HX-G48 Creation test save `open`
+- HX-G49 Creation test restore `open`
+- HX-G50 Creation feature canvas `open`
+- HX-G51 Creation feature brush `open`
+- HX-G52 Creation feature shape `open`
+- HX-G53 Creation feature text `open`
+- HX-G54 Creation feature color `open`
+- HX-G55 Creation feature palette `open`
+- HX-G56 Creation feature undo `open`
+- HX-G57 Creation feature export `open`
+- HX-G58 Creation feature music `open`
+- HX-G59 Creation feature patch `open`
+- HX-G60 Creation test undo-depth `open`
+- HX-G61 Creation test export-parity `open`
+- HX-G62 Creation test palette `open`
+- HX-G63 Creation test brush `open`
+- HX-G64 Creation test bench `open`
+- HX-G65 Creation test fuzz `open`
+- HX-G66 Creation test energy `open`
+- HX-G67 Creation test doc `open`
+- HX-G68 Creation test save `open`
+- HX-G69 Creation test restore `open`
+- HX-G70 Creation scenario sketch `open`
+- HX-G71 Creation scenario paint `open`
+- HX-G72 Creation scenario music `open`
+- HX-G73 Creation scenario patch `open`
+- HX-G74 Creation scenario song `open`
+- HX-G75 Creation scenario notes `open`
+- HX-G76 Creation scenario ideas `open`
+- HX-G77 Creation scenario journal `open`
+- HX-G78 Creation scenario design `open`
+- HX-G79 Creation scenario experiment `open`
+- HX-G80 Creation feature canvas `open`
+- HX-G81 Creation feature brush `open`
+- HX-G82 Creation feature shape `open`
+- HX-G83 Creation feature text `open`
+- HX-G84 Creation feature color `open`
+- HX-G85 Creation feature palette `open`
+- HX-G86 Creation feature undo `open`
+- HX-G87 Creation feature export `open`
+- HX-G88 Creation feature music `open`
+- HX-G89 Creation feature patch `open`
+- HX-G90 Creation test undo-depth `open`
+- HX-G91 Creation test export-parity `open`
+- HX-G92 Creation test palette `open`
+- HX-G93 Creation test brush `open`
+- HX-G94 Creation test bench `open`
+- HX-G95 Creation test fuzz `open`
+- HX-G96 Creation test energy `open`
+- HX-G97 Creation test doc `open`
+- HX-G98 Creation test save `open`
+- HX-G99 Creation test restore `open`
+- HX-G100 Creation scenario sketch `open`
+Status: `open` (29 gaps)
+
+## HX-H: The accessibility & the inclusion
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the WCAG-ish -> the audit -> the inclusive default
+- HX-H01 The screen reader `open`
+- HX-H02 The high contrast `open`
+- HX-H03 The large fonts `open`
+- HX-H04 The motion reduction `open`
+- HX-H05 The captions `open`
+- HX-H06 The voice control `open`
+- HX-H07 The switch access `open`
+- HX-H08 The keyboard nav `open`
+- HX-H09 The focus visible `open`
+- HX-H10 The error clarity `open`
+- HX-H11 The plain language `open`
+- HX-H12 The translations (the future) `open`
+- HX-H13 The localization (the future) `open`
+- HX-H14 The RTL (the future) `open`
+- HX-H15 The color-blind `open`
+- HX-H16 The seizure-safe (the future) `open`
+- HX-H17 The dyslexia-friendly (the future) `open`
+- HX-H18 The motor-friendly (the future) `open`
+- HX-H19 The hearing-friendly `open`
+- HX-H20 The vision-friendly `open`
+- HX-H21 The audit `open`
+- HX-H22 The tests `open`
+- HX-H23 The user feedback `open`
+- HX-H24 The iteration `open`
+- HX-H25 The energy `open`
+- HX-H26 Accessibility feature reader `open`
+- HX-H27 Accessibility feature contrast `open`
+- HX-H28 Accessibility feature fonts `open`
+- HX-H29 Accessibility feature motion `open`
+- HX-H30 Accessibility feature captions `open`
+- HX-H31 Accessibility feature voice-control `open`
+- HX-H32 Accessibility feature switch `open`
+- HX-H33 Accessibility feature keyboard `open`
+- HX-H34 Accessibility feature focus `open`
+- HX-H35 Accessibility feature language `open`
+- HX-H36 Accessibility test audit `open`
+- HX-H37 Accessibility test contrast-ratio `open`
+- HX-H38 Accessibility test focus-order `open`
+- HX-H39 Accessibility test screen-reader `open`
+- HX-H40 Accessibility test motion-reduced `open`
+- HX-H41 Accessibility test bench `open`
+- HX-H42 Accessibility test fuzz `open`
+- HX-H43 Accessibility test energy `open`
+- HX-H44 Accessibility test feedback `open`
+- HX-H45 Accessibility test iteration `open`
+- HX-H46 Accessibility feature reader `open`
+- HX-H47 Accessibility feature contrast `open`
+- HX-H48 Accessibility feature fonts `open`
+- HX-H49 Accessibility feature motion `open`
+- HX-H50 Accessibility feature captions `open`
+- HX-H51 Accessibility feature voice-control `open`
+- HX-H52 Accessibility feature switch `open`
+- HX-H53 Accessibility feature keyboard `open`
+- HX-H54 Accessibility feature focus `open`
+- HX-H55 Accessibility feature language `open`
+- HX-H56 Accessibility test audit `open`
+- HX-H57 Accessibility test contrast-ratio `open`
+- HX-H58 Accessibility test focus-order `open`
+- HX-H59 Accessibility test screen-reader `open`
+- HX-H60 Accessibility test motion-reduced `open`
+- HX-H61 Accessibility test bench `open`
+- HX-H62 Accessibility test fuzz `open`
+- HX-H63 Accessibility test energy `open`
+- HX-H64 Accessibility test feedback `open`
+- HX-H65 Accessibility test iteration `open`
+- HX-H66 Accessibility scenario blind `open`
+- HX-H67 Accessibility scenario low-vision `open`
+- HX-H68 Accessibility scenario deaf `open`
+- HX-H69 Accessibility scenario hard-of-hearing `open`
+- HX-H70 Accessibility scenario motor `open`
+- HX-H71 Accessibility scenario cognitive `open`
+- HX-H72 Accessibility scenario temporary `open`
+- HX-H73 Accessibility scenario situational `open`
+- HX-H74 Accessibility scenario aging `open`
+- HX-H75 Accessibility scenario neurodivergent `open`
+- HX-H76 Accessibility feature reader `open`
+- HX-H77 Accessibility feature contrast `open`
+- HX-H78 Accessibility feature fonts `open`
+- HX-H79 Accessibility feature motion `open`
+- HX-H80 Accessibility feature captions `open`
+- HX-H81 Accessibility feature voice-control `open`
+- HX-H82 Accessibility feature switch `open`
+- HX-H83 Accessibility feature keyboard `open`
+- HX-H84 Accessibility feature focus `open`
+- HX-H85 Accessibility feature language `open`
+- HX-H86 Accessibility test audit `open`
+- HX-H87 Accessibility test contrast-ratio `open`
+- HX-H88 Accessibility test focus-order `open`
+- HX-H89 Accessibility test screen-reader `open`
+- HX-H90 Accessibility test motion-reduced `open`
+- HX-H91 Accessibility test bench `open`
+- HX-H92 Accessibility test fuzz `open`
+- HX-H93 Accessibility test energy `open`
+- HX-H94 Accessibility test feedback `open`
+- HX-H95 Accessibility test iteration `open`
+- HX-H96 Accessibility scenario blind `open`
+- HX-H97 Accessibility scenario low-vision `open`
+- HX-H98 Accessibility scenario deaf `open`
+- HX-H99 Accessibility scenario hard-of-hearing `open`
+- HX-H100 Accessibility scenario motor `open`
+Status: `open` (25 gaps)
+
+## HX-I: The wellbeing & the healthy
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the focus/breaks -> the journaling -> the no-shame design
+- HX-I01 The focus timer `open`
+- HX-I02 The breaks `open`
+- HX-I03 The reminders `open`
+- HX-I04 The posture (the future) `open`
+- HX-I05 The screen time `open`
+- HX-I06 The blue light `open`
+- HX-I07 The bedtime `open`
+- HX-I08 The morning routine `open`
+- HX-I09 The evening routine `open`
+- HX-I10 The journaling `open`
+- HX-I11 The gratitude (the future) `open`
+- HX-I12 The breathing (the future) `open`
+- HX-I13 The meditation (the future) `open`
+- HX-I14 The mood check-ins `open`
+- HX-I15 The trends `open`
+- HX-I16 The gentle nudges `open`
+- HX-I17 The celebrating wins `open`
+- HX-I18 The supportive tone `open`
+- HX-I19 The no-shame design `open`
+- HX-I20 The user control `open`
+- HX-I21 The wellbeing tests `open`
+- HX-I22 The wellbeing bench `open`
+- HX-I23 The wellbeing fuzz `open`
+- HX-I24 The wellbeing energy `open`
+- HX-I25 Wellbeing feature focus `open`
+- HX-I26 Wellbeing feature breaks `open`
+- HX-I27 Wellbeing feature reminders `open`
+- HX-I28 Wellbeing feature screen-time `open`
+- HX-I29 Wellbeing feature blue-light `open`
+- HX-I30 Wellbeing feature bedtime `open`
+- HX-I31 Wellbeing feature routine `open`
+- HX-I32 Wellbeing feature journal `open`
+- HX-I33 Wellbeing feature mood-check `open`
+- HX-I34 Wellbeing feature trends `open`
+- HX-I35 Wellbeing test gentle `open`
+- HX-I36 Wellbeing test no-shame `open`
+- HX-I37 Wellbeing test control `open`
+- HX-I38 Wellbeing test support `open`
+- HX-I39 Wellbeing test celebration `open`
+- HX-I40 Wellbeing test bench `open`
+- HX-I41 Wellbeing test fuzz `open`
+- HX-I42 Wellbeing test energy `open`
+- HX-I43 Wellbeing test privacy `open`
+- HX-I44 Wellbeing test audit `open`
+- HX-I45 Wellbeing feature focus `open`
+- HX-I46 Wellbeing feature breaks `open`
+- HX-I47 Wellbeing feature reminders `open`
+- HX-I48 Wellbeing feature screen-time `open`
+- HX-I49 Wellbeing feature blue-light `open`
+- HX-I50 Wellbeing feature bedtime `open`
+- HX-I51 Wellbeing feature routine `open`
+- HX-I52 Wellbeing feature journal `open`
+- HX-I53 Wellbeing feature mood-check `open`
+- HX-I54 Wellbeing feature trends `open`
+- HX-I55 Wellbeing test gentle `open`
+- HX-I56 Wellbeing test no-shame `open`
+- HX-I57 Wellbeing test control `open`
+- HX-I58 Wellbeing test support `open`
+- HX-I59 Wellbeing test celebration `open`
+- HX-I60 Wellbeing test bench `open`
+- HX-I61 Wellbeing test fuzz `open`
+- HX-I62 Wellbeing test energy `open`
+- HX-I63 Wellbeing test privacy `open`
+- HX-I64 Wellbeing test audit `open`
+- HX-I65 Wellbeing scenario morning `open`
+- HX-I66 Wellbeing scenario night `open`
+- HX-I67 Wellbeing scenario deep-work `open`
+- HX-I68 Wellbeing scenario break `open`
+- HX-I69 Wellbeing scenario stress `open`
+- HX-I70 Wellbeing scenario burnout `open`
+- HX-I71 Wellbeing scenario sick `open`
+- HX-I72 Wellbeing scenario post-workout `open`
+- HX-I73 Wellbeing scenario weekend `open`
+- HX-I74 Wellbeing scenario holiday `open`
+- HX-I75 Wellbeing feature focus `open`
+- HX-I76 Wellbeing feature breaks `open`
+- HX-I77 Wellbeing feature reminders `open`
+- HX-I78 Wellbeing feature screen-time `open`
+- HX-I79 Wellbeing feature blue-light `open`
+- HX-I80 Wellbeing feature bedtime `open`
+- HX-I81 Wellbeing feature routine `open`
+- HX-I82 Wellbeing feature journal `open`
+- HX-I83 Wellbeing feature mood-check `open`
+- HX-I84 Wellbeing feature trends `open`
+- HX-I85 Wellbeing test gentle `open`
+- HX-I86 Wellbeing test no-shame `open`
+- HX-I87 Wellbeing test control `open`
+- HX-I88 Wellbeing test support `open`
+- HX-I89 Wellbeing test celebration `open`
+- HX-I90 Wellbeing test bench `open`
+- HX-I91 Wellbeing test fuzz `open`
+- HX-I92 Wellbeing test energy `open`
+- HX-I93 Wellbeing test privacy `open`
+- HX-I94 Wellbeing test audit `open`
+- HX-I95 Wellbeing scenario morning `open`
+- HX-I96 Wellbeing scenario night `open`
+- HX-I97 Wellbeing scenario deep-work `open`
+- HX-I98 Wellbeing scenario break `open`
+- HX-I99 Wellbeing scenario stress `open`
+- HX-I100 Wellbeing scenario burnout `open`
+Status: `open` (24 gaps)
+
+## HX-J: The human avenue engineering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the engineering discipline for the human avenue
+- HX-J01 The module registry `open`
+- HX-J02 The test matrix `open`
+- HX-J03 The A/B harness `open`
+- HX-J04 The energy accounting `open`
+- HX-J05 The telemetry `open`
+- HX-J06 The privacy audit `open`
+- HX-J07 The consent flows `open`
+- HX-J08 The docs spec `open`
+- HX-J09 The roadmap `open`
+- HX-J10 The cross-link to the GUI `open`
+- HX-J11 The cross-link to the Bonzi `open`
+- HX-J12 The cross-link to the AGI `open`
+- HX-J13 The cross-link to the synthesis `open`
+- HX-J14 The cross-link to the wubuwizard `open`
+- HX-J15 The cross-link to the compendium `open`
+- HX-J16 The milestones `open`
+- HX-J17 Engineering registry `open`
+- HX-J18 Engineering tests `open`
+- HX-J19 Engineering a-b `open`
+- HX-J20 Engineering energy `open`
+- HX-J21 Engineering telemetry `open`
+- HX-J22 Engineering privacy `open`
+- HX-J23 Engineering consent `open`
+- HX-J24 Engineering docs `open`
+- HX-J25 Engineering roadmap `open`
+- HX-J26 Engineering milestones `open`
+- HX-J27 Cross-link GUI `open`
+- HX-J28 Cross-link Bonzi `open`
+- HX-J29 Cross-link AGI `open`
+- HX-J30 Cross-link synthesis `open`
+- HX-J31 Cross-link wubuwizard `open`
+- HX-J32 Cross-link compendium `open`
+- HX-J33 Cross-link mind-palace `open`
+- HX-J34 Cross-link kernel `open`
+- HX-J35 Cross-link network `open`
+- HX-J36 Cross-link storage `open`
+- HX-J37 Engineering registry `open`
+- HX-J38 Engineering tests `open`
+- HX-J39 Engineering a-b `open`
+- HX-J40 Engineering energy `open`
+- HX-J41 Engineering telemetry `open`
+- HX-J42 Engineering privacy `open`
+- HX-J43 Engineering consent `open`
+- HX-J44 Engineering docs `open`
+- HX-J45 Engineering roadmap `open`
+- HX-J46 Engineering milestones `open`
+- HX-J47 Cross-link GUI `open`
+- HX-J48 Cross-link Bonzi `open`
+- HX-J49 Cross-link AGI `open`
+- HX-J50 Cross-link synthesis `open`
+- HX-J51 Cross-link wubuwizard `open`
+- HX-J52 Cross-link compendium `open`
+- HX-J53 Cross-link mind-palace `open`
+- HX-J54 Cross-link kernel `open`
+- HX-J55 Cross-link network `open`
+- HX-J56 Cross-link storage `open`
+- HX-J57 Avenue test unit `open`
+- HX-J58 Avenue test integration `open`
+- HX-J59 Avenue test a-b `open`
+- HX-J60 Avenue test usability `open`
+- HX-J61 Avenue test privacy-audit `open`
+- HX-J62 Avenue test fuzz `open`
+- HX-J63 Avenue test bench `open`
+- HX-J64 Avenue test energy `open`
+- HX-J65 Avenue test docs `open`
+- HX-J66 Avenue test roadmap `open`
+- HX-J67 Engineering registry `open`
+- HX-J68 Engineering tests `open`
+- HX-J69 Engineering a-b `open`
+- HX-J70 Engineering energy `open`
+- HX-J71 Engineering telemetry `open`
+- HX-J72 Engineering privacy `open`
+- HX-J73 Engineering consent `open`
+- HX-J74 Engineering docs `open`
+- HX-J75 Engineering roadmap `open`
+- HX-J76 Engineering milestones `open`
+- HX-J77 Cross-link GUI `open`
+- HX-J78 Cross-link Bonzi `open`
+- HX-J79 Cross-link AGI `open`
+- HX-J80 Cross-link synthesis `open`
+- HX-J81 Cross-link wubuwizard `open`
+- HX-J82 Cross-link compendium `open`
+- HX-J83 Cross-link mind-palace `open`
+- HX-J84 Cross-link kernel `open`
+- HX-J85 Cross-link network `open`
+- HX-J86 Cross-link storage `open`
+- HX-J87 Avenue test unit `open`
+- HX-J88 Avenue test integration `open`
+- HX-J89 Avenue test a-b `open`
+- HX-J90 Avenue test usability `open`
+- HX-J91 Avenue test privacy-audit `open`
+- HX-J92 Avenue test fuzz `open`
+- HX-J93 Avenue test bench `open`
+- HX-J94 Avenue test energy `open`
+- HX-J95 Avenue test docs `open`
+- HX-J96 Avenue test roadmap `open`
+- HX-J97 Avenue op2 audit `open`
+- HX-J98 Avenue op2 review `open`
+- HX-J99 Avenue op2 release `open`
+- HX-J100 Avenue op2 regression `open`
+Status: `open` (16 gaps)

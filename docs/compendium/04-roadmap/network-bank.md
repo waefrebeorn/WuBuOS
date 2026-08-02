@@ -1,0 +1,1053 @@
+# Network Bank -- 1000 goals + gaps
+
+Date: 2026-08-02. Status: `open` / `wired`.
+
+## NW-A: The transport (TCP/QUIC)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: TCP -> QUIC -> NIC offload (IO-TCP) -> the zero-copy path
+- NW-A01 TCP send/receive `open`
+- NW-A02 TCP window `open`
+- NW-A03 TCP congestion (cubic) `open`
+- NW-A04 TCP retransmit `open`
+- NW-A05 TCP timeouts `open`
+- NW-A06 TCP fast-recovery `open`
+- NW-A07 TCP keepalive `open`
+- NW-A08 TCP offload (the NIC) `open`
+- NW-A09 IO-TCP split stack `open`
+- NW-A10 QUIC the protocol `open`
+- NW-A11 QUIC handshake (1-RTT) `open`
+- NW-A12 QUIC 0-RTT `open`
+- NW-A13 QUIC streams `open`
+- NW-A14 QUIC flow control `open`
+- NW-A15 QUIC loss recovery `open`
+- NW-A16 QUIC congestion (BBR-ish) `open`
+- NW-A17 UDP the datagram `open`
+- NW-A18 UDP checksum `open`
+- NW-A19 UDP broadcast `open`
+- NW-A20 UDP multicast `open`
+- NW-A21 UDP the games path `open`
+- NW-A22 SCTP the future `open`
+- NW-A23 TLS the handshake `open`
+- NW-A24 TLS 1.3 `open`
+- NW-A25 TLS the records `open`
+- NW-A26 TLS the session tickets `open`
+- NW-A27 MTU discovery `open`
+- NW-A28 Nagle vs delay `open`
+- NW-A29 The cork `open`
+- NW-A30 The zero-copy `open`
+- NW-A31 The socket API `open`
+- NW-A32 The listen backlog `open`
+- NW-A33 The accept loop `open`
+- NW-A34 The connection pool `open`
+- NW-A35 The idle timeout `open`
+- NW-A36 The half-close `open`
+- NW-A37 The RST handling `open`
+- NW-A38 The congestion state `open`
+- NW-A39 The pacing `open`
+- NW-A40 The BBR `open`
+- NW-A41 The loss-based `open`
+- NW-A42 The delay-based `open`
+- NW-A43 The transport test `open`
+- NW-A44 The transport bench `open`
+- NW-A45 The transport fuzz `open`
+- NW-A46 The transport energy `open`
+- NW-A47 TCP feature SACK `open`
+- NW-A48 TCP feature fast-open `open`
+- NW-A49 TCP feature window-scaling `open`
+- NW-A50 TCP feature timestamps `open`
+- NW-A51 TCP feature ECN `open`
+- NW-A52 TCP feature cork `open`
+- NW-A53 TCP feature nodelay `open`
+- NW-A54 TCP feature keepalive `open`
+- NW-A55 TCP feature reuseaddr `open`
+- NW-A56 TCP feature linger `open`
+- NW-A57 QUIC feature connection-id `open`
+- NW-A58 QUIC feature stream-priority `open`
+- NW-A59 QUIC feature datagrams `open`
+- NW-A60 QUIC feature migration `open`
+- NW-A61 QUIC feature 0-rtt-replay-guard `open`
+- NW-A62 QUIC feature key-update `open`
+- NW-A63 QUIC feature path-validation `open`
+- NW-A64 QUIC feature amplification-limit `open`
+- NW-A65 QUIC feature spin-bit `open`
+- NW-A66 QUIC feature version-negotiation `open`
+- NW-A67 Transport test seq-loss `open`
+- NW-A68 Transport test reorder `open`
+- NW-A69 Transport test duplicate `open`
+- NW-A70 Transport test corrupt `open`
+- NW-A71 Transport test delay `open`
+- NW-A72 Transport test jitter `open`
+- NW-A73 Transport test burst `open`
+- NW-A74 Transport test congestion `open`
+- NW-A75 Transport test window-stall `open`
+- NW-A76 Transport test rst `open`
+- NW-A77 Transport layer socket `open`
+- NW-A78 Transport layer listen `open`
+- NW-A79 Transport layer accept `open`
+- NW-A80 Transport layer connect `open`
+- NW-A81 Transport layer send `open`
+- NW-A82 Transport layer recv `open`
+- NW-A83 Transport layer close `open`
+- NW-A84 Transport layer shutdown `open`
+- NW-A85 Transport layer poll `open`
+- NW-A86 Transport layer select `open`
+- NW-A87 TCP feature SACK `open`
+- NW-A88 TCP feature fast-open `open`
+- NW-A89 TCP feature window-scaling `open`
+- NW-A90 TCP feature timestamps `open`
+- NW-A91 TCP feature ECN `open`
+- NW-A92 TCP feature cork `open`
+- NW-A93 TCP feature nodelay `open`
+- NW-A94 TCP feature keepalive `open`
+- NW-A95 TCP feature reuseaddr `open`
+- NW-A96 TCP feature linger `open`
+- NW-A97 QUIC feature connection-id `open`
+- NW-A98 QUIC feature stream-priority `open`
+- NW-A99 QUIC feature datagrams `open`
+- NW-A100 QUIC feature migration `open`
+Status: `open` (46 gaps)
+
+## NW-B: The internet layer
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: IPv4/v6 -> routing -> tunnels/VPN -> eBPF-ish filtering
+- NW-B01 IPv4 the header `open`
+- NW-B02 IPv4 fragmentation `open`
+- NW-B03 IPv6 the header `open`
+- NW-B04 IPv6 extension headers `open`
+- NW-B05 IP routing `open`
+- NW-B06 The routing table `open`
+- NW-B07 The longest-prefix `open`
+- NW-B08 The ARP `open`
+- NW-B09 The ND (IPv6) `open`
+- NW-B10 The ICMP `open`
+- NW-B11 The ICMPv6 `open`
+- NW-B12 The DHCP `open`
+- NW-B13 The DHCPv6 `open`
+- NW-B14 The NAT `open`
+- NW-B15 The NAT64 `open`
+- NW-B16 The firewall `open`
+- NW-B17 The netfilter-ish `open`
+- NW-B18 The iptables-ish `open`
+- NW-B19 The forwarding `open`
+- NW-B20 The encapsulation `open`
+- NW-B21 The tunnels `open`
+- NW-B22 The GRE `open`
+- NW-B23 The VXLAN `open`
+- NW-B24 The WireGuard `open`
+- NW-B25 The Tailscale `open`
+- NW-B26 The eBPF-ish `open`
+- NW-B27 The packet filter `open`
+- NW-B28 The rate limit `open`
+- NW-B29 The QoS classes `open`
+- NW-B30 The priority queue `open`
+- NW-B31 The traffic shaping `open`
+- NW-B32 The packet capture `open`
+- NW-B33 The pcap `open`
+- NW-B34 The loopback `open`
+- NW-B35 The multi-homing `open`
+- NW-B36 The failover `open`
+- NW-B37 The load balance `open`
+- NW-B38 The ECMP `open`
+- NW-B39 The BGP (future) `open`
+- NW-B40 The IP test `open`
+- NW-B41 The IP bench `open`
+- NW-B42 The IP fuzz `open`
+- NW-B43 The IP energy `open`
+- NW-B44 Routing feature static `open`
+- NW-B45 Routing feature default `open`
+- NW-B46 Routing feature metric `open`
+- NW-B47 Routing feature tie-break `open`
+- NW-B48 Routing feature recursive `open`
+- NW-B49 Routing feature policy `open`
+- NW-B50 Routing feature source-based `open`
+- NW-B51 Routing feature per-host `open`
+- NW-B52 Routing feature blackhole `open`
+- NW-B53 Routing feature reject `open`
+- NW-B54 NAT feature snat `open`
+- NW-B55 NAT feature dnat `open`
+- NW-B56 NAT feature masquerade `open`
+- NW-B57 NAT feature hairpin `open`
+- NW-B58 NAT feature conntrack `open`
+- NW-B59 NAT feature timeout `open`
+- NW-B60 NAT feature table `open`
+- NW-B61 NAT feature flush `open`
+- NW-B62 NAT feature log `open`
+- NW-B63 NAT feature persist `open`
+- NW-B64 Packet op classify `open`
+- NW-B65 Packet op mark `open`
+- NW-B66 Packet op meter `open`
+- NW-B67 Packet op police `open`
+- NW-B68 Packet op queue `open`
+- NW-B69 Packet op drop `open`
+- NW-B70 Packet op mirror `open`
+- NW-B71 Packet op redirect `open`
+- NW-B72 Packet op encap `open`
+- NW-B73 Packet op decap `open`
+- NW-B74 Routing feature static `open`
+- NW-B75 Routing feature default `open`
+- NW-B76 Routing feature metric `open`
+- NW-B77 Routing feature tie-break `open`
+- NW-B78 Routing feature recursive `open`
+- NW-B79 Routing feature policy `open`
+- NW-B80 Routing feature source-based `open`
+- NW-B81 Routing feature per-host `open`
+- NW-B82 Routing feature blackhole `open`
+- NW-B83 Routing feature reject `open`
+- NW-B84 NAT feature snat `open`
+- NW-B85 NAT feature dnat `open`
+- NW-B86 NAT feature masquerade `open`
+- NW-B87 NAT feature hairpin `open`
+- NW-B88 NAT feature conntrack `open`
+- NW-B89 NAT feature timeout `open`
+- NW-B90 NAT feature table `open`
+- NW-B91 NAT feature flush `open`
+- NW-B92 NAT feature log `open`
+- NW-B93 NAT feature persist `open`
+- NW-B94 Packet op classify `open`
+- NW-B95 Packet op mark `open`
+- NW-B96 Packet op meter `open`
+- NW-B97 Packet op police `open`
+- NW-B98 Packet op queue `open`
+- NW-B99 Packet op drop `open`
+- NW-B100 Packet op mirror `open`
+Status: `open` (43 gaps)
+
+## NW-C: The application layer
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: HTTP/1.1 -> H2 -> H3/QUIC -> 9P-over-TCP -> the proxy/broker family
+- NW-C01 HTTP/1.1 the parser `open`
+- NW-C02 HTTP/2 the frames `open`
+- NW-C03 HTTP/3 the QUIC `open`
+- NW-C04 The request/response `open`
+- NW-C05 The headers `open`
+- NW-C06 The cookies `open`
+- NW-C07 The cache `open`
+- NW-C08 The ETag `open`
+- NW-C09 The redirects `open`
+- NW-C10 The gzip transfer `open`
+- NW-C11 The keep-alive `open`
+- NW-C12 The chunked `open`
+- NW-C13 The WebSocket `open`
+- NW-C14 The SSE `open`
+- NW-C15 The REST the JSON `open`
+- NW-C16 The DNS the resolver `open`
+- NW-C17 The DNS cache `open`
+- NW-C18 The mDNS `open`
+- NW-C19 The DoH (future) `open`
+- NW-C20 The FTP (future) `open`
+- NW-C21 The SSH (future) `open`
+- NW-C22 The SMTP (future) `open`
+- NW-C23 The IMAP (future) `open`
+- NW-C24 The 9P over TCP `open`
+- NW-C25 The MQTT (future) `open`
+- NW-C26 The gRPC (future) `open`
+- NW-C27 The URL parse `open`
+- NW-C28 The URI encode `open`
+- NW-C29 The form parse `open`
+- NW-C30 The multipart `open`
+- NW-C31 The TLS SNI `open`
+- NW-C32 The virtual hosts `open`
+- NW-C33 The proxy `open`
+- NW-C34 The reverse proxy `open`
+- NW-C35 The load balancer `open`
+- NW-C36 The health check `open`
+- NW-C37 The retry `open`
+- NW-C38 The backoff `open`
+- NW-C39 The circuit breaker `open`
+- NW-C40 The app test `open`
+- NW-C41 The app bench `open`
+- NW-C42 The app fuzz `open`
+- NW-C43 The app energy `open`
+- NW-C44 HTTP feature cache-control `open`
+- NW-C45 HTTP feature etag `open`
+- NW-C46 HTTP feature if-modified `open`
+- NW-C47 HTTP feature range `open`
+- NW-C48 HTTP feature accept-encoding `open`
+- NW-C49 HTTP feature content-encoding `open`
+- NW-C50 HTTP feature compression `open`
+- NW-C51 HTTP feature chunked `open`
+- NW-C52 HTTP feature trailers `open`
+- NW-C53 HTTP feature early-hints `open`
+- NW-C54 HTTP method GET `open`
+- NW-C55 HTTP method POST `open`
+- NW-C56 HTTP method PUT `open`
+- NW-C57 HTTP method PATCH `open`
+- NW-C58 HTTP method DELETE `open`
+- NW-C59 HTTP method HEAD `open`
+- NW-C60 HTTP method OPTIONS `open`
+- NW-C61 HTTP method CONNECT `open`
+- NW-C62 HTTP method TRACE `open`
+- NW-C63 HTTP method QUERY `open`
+- NW-C64 DNS feature A `open`
+- NW-C65 DNS feature AAAA `open`
+- NW-C66 DNS feature CNAME `open`
+- NW-C67 DNS feature MX `open`
+- NW-C68 DNS feature TXT `open`
+- NW-C69 DNS feature SRV `open`
+- NW-C70 DNS feature PTR `open`
+- NW-C71 DNS feature NS `open`
+- NW-C72 DNS feature SOA `open`
+- NW-C73 DNS feature CAA `open`
+- NW-C74 App layer url `open`
+- NW-C75 App layer query `open`
+- NW-C76 App layer form `open`
+- NW-C77 App layer json `open`
+- NW-C78 App layer cookie `open`
+- NW-C79 App layer session `open`
+- NW-C80 App layer auth `open`
+- NW-C81 App layer proxy `open`
+- NW-C82 App layer tunnel `open`
+- NW-C83 App layer websocket `open`
+- NW-C84 HTTP feature cache-control `open`
+- NW-C85 HTTP feature etag `open`
+- NW-C86 HTTP feature if-modified `open`
+- NW-C87 HTTP feature range `open`
+- NW-C88 HTTP feature accept-encoding `open`
+- NW-C89 HTTP feature content-encoding `open`
+- NW-C90 HTTP feature compression `open`
+- NW-C91 HTTP feature chunked `open`
+- NW-C92 HTTP feature trailers `open`
+- NW-C93 HTTP feature early-hints `open`
+- NW-C94 HTTP method GET `open`
+- NW-C95 HTTP method POST `open`
+- NW-C96 HTTP method PUT `open`
+- NW-C97 HTTP method PATCH `open`
+- NW-C98 HTTP method DELETE `open`
+- NW-C99 HTTP method HEAD `open`
+- NW-C100 HTTP method OPTIONS `open`
+Status: `open` (43 gaps)
+
+## NW-D: The 9P networking
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the local 9P -> the remote 9P -> the agent mesh
+- NW-D01 The 9P remote mount `open`
+- NW-D02 The 9P auth tokens `open`
+- NW-D03 The 9P transport `open`
+- NW-D04 The 9P keepalive `open`
+- NW-D05 The 9P reconnects `open`
+- NW-D06 The 9P caching `open`
+- NW-D07 The 9P flush `open`
+- NW-D08 The 9P watch `open`
+- NW-D09 The 9P quotas `open`
+- NW-D10 The 9P permissions `open`
+- NW-D11 The 9P the namespace merge `open`
+- NW-D12 The 9P the /net `open`
+- NW-D13 The 9P the remote OS `open`
+- NW-D14 The 9P the cluster `open`
+- NW-D15 The 9P the agent mesh `open`
+- NW-D16 The 9P the Bonzi remote `open`
+- NW-D17 The 9P the AGI remote `open`
+- NW-D18 The 9P the sync `open`
+- NW-D19 The 9P the security `open`
+- NW-D20 The 9P the tests `open`
+- NW-D21 9P feature auth `open`
+- NW-D22 9P feature attach `open`
+- NW-D23 9P feature walk `open`
+- NW-D24 9P feature open `open`
+- NW-D25 9P feature read `open`
+- NW-D26 9P feature write `open`
+- NW-D27 9P feature clunk `open`
+- NW-D28 9P feature remove `open`
+- NW-D29 9P feature create `open`
+- NW-D30 9P feature stat `open`
+- NW-D31 9P remote dial `open`
+- NW-D32 9P remote reconnect `open`
+- NW-D33 9P remote timeout `open`
+- NW-D34 9P remote retry `open`
+- NW-D35 9P remote backoff `open`
+- NW-D36 9P remote multiplex `open`
+- NW-D37 9P remote compress `open`
+- NW-D38 9P remote encrypt `open`
+- NW-D39 9P remote cache `open`
+- NW-D40 9P remote sync `open`
+- NW-D41 9P mesh registry `open`
+- NW-D42 9P mesh discovery `open`
+- NW-D43 9P mesh heartbeat `open`
+- NW-D44 9P mesh lease `open`
+- NW-D45 9P mesh elect `open`
+- NW-D46 9P mesh gossip `open`
+- NW-D47 9P mesh replicate `open`
+- NW-D48 9P mesh partition `open`
+- NW-D49 9P mesh merge `open`
+- NW-D50 9P mesh distribute `open`
+- NW-D51 9P feature auth `open`
+- NW-D52 9P feature attach `open`
+- NW-D53 9P feature walk `open`
+- NW-D54 9P feature open `open`
+- NW-D55 9P feature read `open`
+- NW-D56 9P feature write `open`
+- NW-D57 9P feature clunk `open`
+- NW-D58 9P feature remove `open`
+- NW-D59 9P feature create `open`
+- NW-D60 9P feature stat `open`
+- NW-D61 9P remote dial `open`
+- NW-D62 9P remote reconnect `open`
+- NW-D63 9P remote timeout `open`
+- NW-D64 9P remote retry `open`
+- NW-D65 9P remote backoff `open`
+- NW-D66 9P remote multiplex `open`
+- NW-D67 9P remote compress `open`
+- NW-D68 9P remote encrypt `open`
+- NW-D69 9P remote cache `open`
+- NW-D70 9P remote sync `open`
+- NW-D71 9P mesh registry `open`
+- NW-D72 9P mesh discovery `open`
+- NW-D73 9P mesh heartbeat `open`
+- NW-D74 9P mesh lease `open`
+- NW-D75 9P mesh elect `open`
+- NW-D76 9P mesh gossip `open`
+- NW-D77 9P mesh replicate `open`
+- NW-D78 9P mesh partition `open`
+- NW-D79 9P mesh merge `open`
+- NW-D80 9P mesh distribute `open`
+- NW-D81 9P scenario local `open`
+- NW-D82 9P scenario remote `open`
+- NW-D83 9P scenario wifi `open`
+- NW-D84 9P scenario mobile `open`
+- NW-D85 9P scenario cluster `open`
+- NW-D86 9P scenario agent-mesh `open`
+- NW-D87 9P scenario sync `open`
+- NW-D88 9P scenario offline `open`
+- NW-D89 9P scenario quota-hit `open`
+- NW-D90 9P scenario auth-fail `open`
+- NW-D91 9P feature auth `open`
+- NW-D92 9P feature attach `open`
+- NW-D93 9P feature walk `open`
+- NW-D94 9P feature open `open`
+- NW-D95 9P feature read `open`
+- NW-D96 9P feature write `open`
+- NW-D97 9P feature clunk `open`
+- NW-D98 9P feature remove `open`
+- NW-D99 9P feature create `open`
+- NW-D100 9P feature stat `open`
+Status: `open` (20 gaps)
+
+## NW-E: The protocols & formats
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: JSON/TOML/YAML -> varint/binary -> the versioned schemas
+- NW-E01 The JSON parse/write `open`
+- NW-E02 The JSON schema `open`
+- NW-E03 The BSON (future) `open`
+- NW-E04 The MessagePack (future) `open`
+- NW-E05 The Protobuf (future) `open`
+- NW-E06 The XML (future) `open`
+- NW-E07 The YAML `open`
+- NW-E08 The TOML `open`
+- NW-E09 The CSV `open`
+- NW-E10 The URL-encoded `open`
+- NW-E11 The Base64 `open`
+- NW-E12 The Hex `open`
+- NW-E13 The UTF-8 validate `open`
+- NW-E14 The UTF-16 `open`
+- NW-E15 The charset detect `open`
+- NW-E16 The MIME types `open`
+- NW-E17 The multipart `open`
+- NW-E18 The token auth `open`
+- NW-E19 The JWT (future) `open`
+- NW-E20 The OAuth (future) `open`
+- NW-E21 The serialization versioning `open`
+- NW-E22 The schema registry `open`
+- NW-E23 The binary format `open`
+- NW-E24 The endian `open`
+- NW-E25 The varint `open`
+- NW-E26 The protocol tests `open`
+- NW-E27 The protocol fuzz `open`
+- NW-E28 The protocol bench `open`
+- NW-E29 The protocol energy `open`
+- NW-E30 Format feature parse `open`
+- NW-E31 Format feature serialize `open`
+- NW-E32 Format feature validate `open`
+- NW-E33 Format feature schema `open`
+- NW-E34 Format feature version `open`
+- NW-E35 Format feature migrate `open`
+- NW-E36 Format feature stream `open`
+- NW-E37 Format feature pretty `open`
+- NW-E38 Format feature minify `open`
+- NW-E39 Format feature escape `open`
+- NW-E40 Format test malformed `open`
+- NW-E41 Format test truncated `open`
+- NW-E42 Format test overflow `open`
+- NW-E43 Format test nested-deep `open`
+- NW-E44 Format test huge `open`
+- NW-E45 Format test unicode `open`
+- NW-E46 Format test binary `open`
+- NW-E47 Format test empty `open`
+- NW-E48 Format test null `open`
+- NW-E49 Format test duplicate-keys `open`
+- NW-E50 Format feature parse `open`
+- NW-E51 Format feature serialize `open`
+- NW-E52 Format feature validate `open`
+- NW-E53 Format feature schema `open`
+- NW-E54 Format feature version `open`
+- NW-E55 Format feature migrate `open`
+- NW-E56 Format feature stream `open`
+- NW-E57 Format feature pretty `open`
+- NW-E58 Format feature minify `open`
+- NW-E59 Format feature escape `open`
+- NW-E60 Format test malformed `open`
+- NW-E61 Format test truncated `open`
+- NW-E62 Format test overflow `open`
+- NW-E63 Format test nested-deep `open`
+- NW-E64 Format test huge `open`
+- NW-E65 Format test unicode `open`
+- NW-E66 Format test binary `open`
+- NW-E67 Format test empty `open`
+- NW-E68 Format test null `open`
+- NW-E69 Format test duplicate-keys `open`
+- NW-E70 Format scenario tiny `open`
+- NW-E71 Format scenario huge `open`
+- NW-E72 Format scenario nested `open`
+- NW-E73 Format scenario streamed `open`
+- NW-E74 Format scenario binary `open`
+- NW-E75 Format scenario text `open`
+- NW-E76 Format scenario unicode `open`
+- NW-E77 Format scenario escaped `open`
+- NW-E78 Format scenario empty `open`
+- NW-E79 Format scenario null `open`
+- NW-E80 Format op parse `open`
+- NW-E81 Format op emit `open`
+- NW-E82 Format op validate `open`
+- NW-E83 Format op normalize `open`
+- NW-E84 Format op minify `open`
+- NW-E85 Format op pretty `open`
+- NW-E86 Format op merge `open`
+- NW-E87 Format op diff `open`
+- NW-E88 Format op patch `open`
+- NW-E89 Format op convert `open`
+- NW-E90 Format feature parse `open`
+- NW-E91 Format feature serialize `open`
+- NW-E92 Format feature validate `open`
+- NW-E93 Format feature schema `open`
+- NW-E94 Format feature version `open`
+- NW-E95 Format feature migrate `open`
+- NW-E96 Format feature stream `open`
+- NW-E97 Format feature pretty `open`
+- NW-E98 Format feature minify `open`
+- NW-E99 Format feature escape `open`
+- NW-E100 Format test malformed `open`
+Status: `open` (29 gaps)
+
+## NW-F: The security & trust
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: TLS1.3 -> AEAD -> attestation -> the EDR integration
+- NW-F01 The TLS chain verify `open`
+- NW-F02 The cert store `open`
+- NW-F03 The pinning `open`
+- NW-F04 The perfect-forward `open`
+- NW-F05 The cipher suites `open`
+- NW-F06 The AEAD (the ChaCha/AES) `open`
+- NW-F07 The hash (the SHA-256) `open`
+- NW-F08 The HMAC `open`
+- NW-F09 The key exchange `open`
+- NW-F10 The Ed25519 (future) `open`
+- NW-F11 The X25519 (future) `open`
+- NW-F12 The session keys `open`
+- NW-F13 The ticket rotation `open`
+- NW-F14 The renegotiation `open`
+- NW-F15 The ALPN `open`
+- NW-F16 The SNI `open`
+- NW-F17 The OCSP (future) `open`
+- NW-F18 The CT (future) `open`
+- NW-F19 The mTLS `open`
+- NW-F20 The client certs `open`
+- NW-F21 The token replay guard `open`
+- NW-F22 The CSRF (future) `open`
+- NW-F23 The rate limiting `open`
+- NW-F24 The fail2ban-ish `open`
+- NW-F25 The quarantine `open`
+- NW-F26 The threat model `open`
+- NW-F27 The attestation `open`
+- NW-F28 The EDR integration `open`
+- NW-F29 The audit log `open`
+- NW-F30 The forensics `open`
+- NW-F31 The security tests `open`
+- NW-F32 The security fuzz `open`
+- NW-F33 The security bench `open`
+- NW-F34 The security energy `open`
+- NW-F35 Security feature cipher `open`
+- NW-F36 Security feature hash `open`
+- NW-F37 Security feature mac `open`
+- NW-F38 Security feature kdf `open`
+- NW-F39 Security feature random `open`
+- NW-F40 Security feature nonce `open`
+- NW-F41 Security feature iv `open`
+- NW-F42 Security feature salt `open`
+- NW-F43 Security feature pepper `open`
+- NW-F44 Security feature keyring `open`
+- NW-F45 Security test replay `open`
+- NW-F46 Security test tamper `open`
+- NW-F47 Security test downgrade `open`
+- NW-F48 Security test oracle `open`
+- NW-F49 Security test padding `open`
+- NW-F50 Security test timing `open`
+- NW-F51 Security test side-channel `open`
+- NW-F52 Security test length `open`
+- NW-F53 Security test truncation `open`
+- NW-F54 Security test key-rotation `open`
+- NW-F55 Security feature cipher `open`
+- NW-F56 Security feature hash `open`
+- NW-F57 Security feature mac `open`
+- NW-F58 Security feature kdf `open`
+- NW-F59 Security feature random `open`
+- NW-F60 Security feature nonce `open`
+- NW-F61 Security feature iv `open`
+- NW-F62 Security feature salt `open`
+- NW-F63 Security feature pepper `open`
+- NW-F64 Security feature keyring `open`
+- NW-F65 Security test replay `open`
+- NW-F66 Security test tamper `open`
+- NW-F67 Security test downgrade `open`
+- NW-F68 Security test oracle `open`
+- NW-F69 Security test padding `open`
+- NW-F70 Security test timing `open`
+- NW-F71 Security test side-channel `open`
+- NW-F72 Security test length `open`
+- NW-F73 Security test truncation `open`
+- NW-F74 Security test key-rotation `open`
+- NW-F75 Security scenario public-net `open`
+- NW-F76 Security scenario local-only `open`
+- NW-F77 Security scenario container `open`
+- NW-F78 Security scenario metal `open`
+- NW-F79 Security scenario agent-mesh `open`
+- NW-F80 Security scenario vpn `open`
+- NW-F81 Security scenario guest `open`
+- NW-F82 Security scenario root `open`
+- NW-F83 Security scenario service-account `open`
+- NW-F84 Security scenario device `open`
+- NW-F85 Security feature cipher `open`
+- NW-F86 Security feature hash `open`
+- NW-F87 Security feature mac `open`
+- NW-F88 Security feature kdf `open`
+- NW-F89 Security feature random `open`
+- NW-F90 Security feature nonce `open`
+- NW-F91 Security feature iv `open`
+- NW-F92 Security feature salt `open`
+- NW-F93 Security feature pepper `open`
+- NW-F94 Security feature keyring `open`
+- NW-F95 Security test replay `open`
+- NW-F96 Security test tamper `open`
+- NW-F97 Security test downgrade `open`
+- NW-F98 Security test oracle `open`
+- NW-F99 Security test padding `open`
+- NW-F100 Security test timing `open`
+Status: `open` (34 gaps)
+
+## NW-G: The mesh & the AGI swarm
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the agent mesh -> consensus -> the AGI swarm closing the banks
+- NW-G01 The agent registry `open`
+- NW-G02 The agent discovery `open`
+- NW-G03 The agent heartbeat `open`
+- NW-G04 The agent lease `open`
+- NW-G05 The agent election `open`
+- NW-G06 The agent consensus (the RAFT-ish) `open`
+- NW-G07 The agent gossip `open`
+- NW-G08 The agent replication `open`
+- NW-G09 The agent partitions `open`
+- NW-G10 The agent merging `open`
+- NW-G11 The task distribution `open`
+- NW-G12 The task queue `open`
+- NW-G13 The task stealing `open`
+- NW-G14 The task results `open`
+- NW-G15 The task retry `open`
+- NW-G16 The task timeout `open`
+- NW-G17 The coordinator `open`
+- NW-G18 The worker pool `open`
+- NW-G19 The leader `open`
+- NW-G20 The followers `open`
+- NW-G21 The mesh the AGI goals `open`
+- NW-G22 The mesh the AGI closing `open`
+- NW-G23 The mesh the banks `open`
+- NW-G24 The mesh the sources `open`
+- NW-G25 The mesh the Bonzi `open`
+- NW-G26 The mesh the ledger `open`
+- NW-G27 The mesh the verifier `open`
+- NW-G28 The mesh the tests `open`
+- NW-G29 The mesh the bench `open`
+- NW-G30 The mesh the docs `open`
+- NW-G31 Mesh op register `open`
+- NW-G32 Mesh op discover `open`
+- NW-G33 Mesh op heartbeat `open`
+- NW-G34 Mesh op elect `open`
+- NW-G35 Mesh op distribute `open`
+- NW-G36 Mesh op collect `open`
+- NW-G37 Mesh op retry `open`
+- NW-G38 Mesh op timeout `open`
+- NW-G39 Mesh op cancel `open`
+- NW-G40 Mesh op report `open`
+- NW-G41 Mesh test partition `open`
+- NW-G42 Mesh test rejoin `open`
+- NW-G43 Mesh test leader-fail `open`
+- NW-G44 Mesh test slow-node `open`
+- NW-G45 Mesh test flaky-net `open`
+- NW-G46 Mesh test duplicate `open`
+- NW-G47 Mesh test stale `open`
+- NW-G48 Mesh test clock-skew `open`
+- NW-G49 Mesh test storm `open`
+- NW-G50 Mesh test quorum-lost `open`
+- NW-G51 Mesh op register `open`
+- NW-G52 Mesh op discover `open`
+- NW-G53 Mesh op heartbeat `open`
+- NW-G54 Mesh op elect `open`
+- NW-G55 Mesh op distribute `open`
+- NW-G56 Mesh op collect `open`
+- NW-G57 Mesh op retry `open`
+- NW-G58 Mesh op timeout `open`
+- NW-G59 Mesh op cancel `open`
+- NW-G60 Mesh op report `open`
+- NW-G61 Mesh test partition `open`
+- NW-G62 Mesh test rejoin `open`
+- NW-G63 Mesh test leader-fail `open`
+- NW-G64 Mesh test slow-node `open`
+- NW-G65 Mesh test flaky-net `open`
+- NW-G66 Mesh test duplicate `open`
+- NW-G67 Mesh test stale `open`
+- NW-G68 Mesh test clock-skew `open`
+- NW-G69 Mesh test storm `open`
+- NW-G70 Mesh test quorum-lost `open`
+- NW-G71 Mesh scenario 3-node `open`
+- NW-G72 Mesh scenario 10-node `open`
+- NW-G73 Mesh scenario 100-node `open`
+- NW-G74 Mesh scenario geo `open`
+- NW-G75 Mesh scenario flaky `open`
+- NW-G76 Mesh scenario partitioned `open`
+- NW-G77 Mesh scenario leaderless `open`
+- NW-G78 Mesh scenario single-node `open`
+- NW-G79 Mesh scenario churn `open`
+- NW-G80 Mesh scenario upgrade `open`
+- NW-G81 Mesh op register `open`
+- NW-G82 Mesh op discover `open`
+- NW-G83 Mesh op heartbeat `open`
+- NW-G84 Mesh op elect `open`
+- NW-G85 Mesh op distribute `open`
+- NW-G86 Mesh op collect `open`
+- NW-G87 Mesh op retry `open`
+- NW-G88 Mesh op timeout `open`
+- NW-G89 Mesh op cancel `open`
+- NW-G90 Mesh op report `open`
+- NW-G91 Mesh test partition `open`
+- NW-G92 Mesh test rejoin `open`
+- NW-G93 Mesh test leader-fail `open`
+- NW-G94 Mesh test slow-node `open`
+- NW-G95 Mesh test flaky-net `open`
+- NW-G96 Mesh test duplicate `open`
+- NW-G97 Mesh test stale `open`
+- NW-G98 Mesh test clock-skew `open`
+- NW-G99 Mesh test storm `open`
+- NW-G100 Mesh test quorum-lost `open`
+Status: `open` (30 gaps)
+
+## NW-H: The performance & observability
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: epoll -> ring buffers -> zero-copy -> the perf regression gate
+- NW-H01 The throughput meter `open`
+- NW-H02 The latency meter `open`
+- NW-H03 The p50/p95/p99 `open`
+- NW-H04 The bandwidth `open`
+- NW-H05 The packet rate `open`
+- NW-H06 The retransmit rate `open`
+- NW-H07 The RTT `open`
+- NW-H08 The jitter `open`
+- NW-H09 The queue depth `open`
+- NW-H10 The backpressure `open`
+- NW-H11 The tracing (the spans) `open`
+- NW-H12 The metrics (the counters) `open`
+- NW-H13 The logs (the structured) `open`
+- NW-H14 The dashboards `open`
+- NW-H15 The alerts `open`
+- NW-H16 The thresholds `open`
+- NW-H17 The baselines `open`
+- NW-H18 The regressions `open`
+- NW-H19 The profiling `open`
+- NW-H20 The flame graph (future) `open`
+- NW-H21 The zero-copy `open`
+- NW-H22 The splice `open`
+- NW-H23 The sendfile `open`
+- NW-H24 The MSG_ZEROCOPY (future) `open`
+- NW-H25 The ring buffers `open`
+- NW-H26 The poll (the epoll-ish) `open`
+- NW-H27 The io_uring (future) `open`
+- NW-H28 The multi-queue `open`
+- NW-H29 The RSS (future) `open`
+- NW-H30 The XDP (future) `open`
+- NW-H31 The perf tests `open`
+- NW-H32 The perf bench `open`
+- NW-H33 The perf fuzz `open`
+- NW-H34 The perf energy `open`
+- NW-H35 Observability counters `open`
+- NW-H36 Observability gauges `open`
+- NW-H37 Observability histograms `open`
+- NW-H38 Observability traces `open`
+- NW-H39 Observability spans `open`
+- NW-H40 Observability events `open`
+- NW-H41 Observability logs `open`
+- NW-H42 Observability alerts `open`
+- NW-H43 Observability dashboards `open`
+- NW-H44 Observability reports `open`
+- NW-H45 Perf op throughput `open`
+- NW-H46 Perf op latency `open`
+- NW-H47 Perf op p99 `open`
+- NW-H48 Perf op rtt `open`
+- NW-H49 Perf op jitter `open`
+- NW-H50 Perf op bandwidth `open`
+- NW-H51 Perf op packet-rate `open`
+- NW-H52 Perf op queue-depth `open`
+- NW-H53 Perf op retransmit `open`
+- NW-H54 Perf op cpu-cost `open`
+- NW-H55 Observability counters `open`
+- NW-H56 Observability gauges `open`
+- NW-H57 Observability histograms `open`
+- NW-H58 Observability traces `open`
+- NW-H59 Observability spans `open`
+- NW-H60 Observability events `open`
+- NW-H61 Observability logs `open`
+- NW-H62 Observability alerts `open`
+- NW-H63 Observability dashboards `open`
+- NW-H64 Observability reports `open`
+- NW-H65 Perf op throughput `open`
+- NW-H66 Perf op latency `open`
+- NW-H67 Perf op p99 `open`
+- NW-H68 Perf op rtt `open`
+- NW-H69 Perf op jitter `open`
+- NW-H70 Perf op bandwidth `open`
+- NW-H71 Perf op packet-rate `open`
+- NW-H72 Perf op queue-depth `open`
+- NW-H73 Perf op retransmit `open`
+- NW-H74 Perf op cpu-cost `open`
+- NW-H75 Perf scenario bench `open`
+- NW-H76 Perf scenario soak `open`
+- NW-H77 Perf scenario spike `open`
+- NW-H78 Perf scenario warmup `open`
+- NW-H79 Perf scenario steady `open`
+- NW-H80 Perf scenario microbench `open`
+- NW-H81 Perf scenario macrobench `open`
+- NW-H82 Perf scenario end-to-end `open`
+- NW-H83 Perf scenario p99-tail `open`
+- NW-H84 Perf scenario max-rate `open`
+- NW-H85 Observability counters `open`
+- NW-H86 Observability gauges `open`
+- NW-H87 Observability histograms `open`
+- NW-H88 Observability traces `open`
+- NW-H89 Observability spans `open`
+- NW-H90 Observability events `open`
+- NW-H91 Observability logs `open`
+- NW-H92 Observability alerts `open`
+- NW-H93 Observability dashboards `open`
+- NW-H94 Observability reports `open`
+- NW-H95 Perf op throughput `open`
+- NW-H96 Perf op latency `open`
+- NW-H97 Perf op p99 `open`
+- NW-H98 Perf op rtt `open`
+- NW-H99 Perf op jitter `open`
+- NW-H100 Perf op bandwidth `open`
+Status: `open` (34 gaps)
+
+## NW-I: The offline & resilience
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: backoff -> circuit breakers -> offline-first -> the CRDT future
+- NW-I01 The offline queue `open`
+- NW-I02 The retry with backoff `open`
+- NW-I03 The exponential backoff `open`
+- NW-I04 The jitter `open`
+- NW-I05 The circuit breaker `open`
+- NW-I06 The bulkhead `open`
+- NW-I07 The timeout hierarchy `open`
+- NW-I08 The deadline propagation `open`
+- NW-I09 The fallback `open`
+- NW-I10 The degrade `open`
+- NW-I11 The cached responses `open`
+- NW-I12 The stale-while-revalidate `open`
+- NW-I13 The offline-first `open`
+- NW-I14 The sync on reconnect `open`
+- NW-I15 The conflict resolution `open`
+- NW-I16 The last-write-wins `open`
+- NW-I17 The CRDT (future) `open`
+- NW-I18 The idempotency `open`
+- NW-I19 The dedup `open`
+- NW-I20 The at-least-once `open`
+- NW-I21 The exactly-once (future) `open`
+- NW-I22 The outage mode `open`
+- NW-I23 The maintenance mode `open`
+- NW-I24 The read-only `open`
+- NW-I25 The graceful drain `open`
+- NW-I26 The graceful shutdown `open`
+- NW-I27 The reconnect storm guard `open`
+- NW-I28 The resilience tests `open`
+- NW-I29 The resilience fuzz `open`
+- NW-I30 The resilience bench `open`
+- NW-I31 The resilience energy `open`
+- NW-I32 Resilience feature retry `open`
+- NW-I33 Resilience feature backoff `open`
+- NW-I34 Resilience feature jitter `open`
+- NW-I35 Resilience feature breaker `open`
+- NW-I36 Resilience feature bulkhead `open`
+- NW-I37 Resilience feature timeout `open`
+- NW-I38 Resilience feature fallback `open`
+- NW-I39 Resilience feature degrade `open`
+- NW-I40 Resilience feature cache `open`
+- NW-I41 Resilience feature sync `open`
+- NW-I42 Resilience test outage `open`
+- NW-I43 Resilience test reconnect-storm `open`
+- NW-I44 Resilience test slow-downstream `open`
+- NW-I45 Resilience test blackhole `open`
+- NW-I46 Resilience test dns-fail `open`
+- NW-I47 Resilience test tls-fail `open`
+- NW-I48 Resilience test quota-exceed `open`
+- NW-I49 Resilience test throttle `open`
+- NW-I50 Resilience test partial-fail `open`
+- NW-I51 Resilience test restart `open`
+- NW-I52 Resilience feature retry `open`
+- NW-I53 Resilience feature backoff `open`
+- NW-I54 Resilience feature jitter `open`
+- NW-I55 Resilience feature breaker `open`
+- NW-I56 Resilience feature bulkhead `open`
+- NW-I57 Resilience feature timeout `open`
+- NW-I58 Resilience feature fallback `open`
+- NW-I59 Resilience feature degrade `open`
+- NW-I60 Resilience feature cache `open`
+- NW-I61 Resilience feature sync `open`
+- NW-I62 Resilience test outage `open`
+- NW-I63 Resilience test reconnect-storm `open`
+- NW-I64 Resilience test slow-downstream `open`
+- NW-I65 Resilience test blackhole `open`
+- NW-I66 Resilience test dns-fail `open`
+- NW-I67 Resilience test tls-fail `open`
+- NW-I68 Resilience test quota-exceed `open`
+- NW-I69 Resilience test throttle `open`
+- NW-I70 Resilience test partial-fail `open`
+- NW-I71 Resilience test restart `open`
+- NW-I72 Resilience scenario single-fail `open`
+- NW-I73 Resilience scenario cascade `open`
+- NW-I74 Resilience scenario slowdown `open`
+- NW-I75 Resilience scenario blackout `open`
+- NW-I76 Resilience scenario partial `open`
+- NW-I77 Resilience scenario restart `open`
+- NW-I78 Resilience scenario upgrade `open`
+- NW-I79 Resilience scenario config-error `open`
+- NW-I80 Resilience scenario clock-jump `open`
+- NW-I81 Resilience scenario resource-exhaust `open`
+- NW-I82 Resilience feature retry `open`
+- NW-I83 Resilience feature backoff `open`
+- NW-I84 Resilience feature jitter `open`
+- NW-I85 Resilience feature breaker `open`
+- NW-I86 Resilience feature bulkhead `open`
+- NW-I87 Resilience feature timeout `open`
+- NW-I88 Resilience feature fallback `open`
+- NW-I89 Resilience feature degrade `open`
+- NW-I90 Resilience feature cache `open`
+- NW-I91 Resilience feature sync `open`
+- NW-I92 Resilience test outage `open`
+- NW-I93 Resilience test reconnect-storm `open`
+- NW-I94 Resilience test slow-downstream `open`
+- NW-I95 Resilience test blackhole `open`
+- NW-I96 Resilience test dns-fail `open`
+- NW-I97 Resilience test tls-fail `open`
+- NW-I98 Resilience test quota-exceed `open`
+- NW-I99 Resilience test throttle `open`
+- NW-I100 Resilience test partial-fail `open`
+Status: `open` (31 gaps)
+
+## NW-J: The network avenue engineering
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the engineering discipline for the network avenue
+- NW-J01 The module registry `open`
+- NW-J02 The test matrix `open`
+- NW-J03 The protocol fuzz `open`
+- NW-J04 The bench harness `open`
+- NW-J05 The energy accounting `open`
+- NW-J06 The telemetry `open`
+- NW-J07 The watchdog `open`
+- NW-J08 The quarantine `open`
+- NW-J09 The docs spec `open`
+- NW-J10 The roadmap `open`
+- NW-J11 The cross-link to the FS `open`
+- NW-J12 The cross-link to the 9P `open`
+- NW-J13 The cross-link to the kernel `open`
+- NW-J14 The cross-link to the AGI `open`
+- NW-J15 The cross-link to the Bonzi `open`
+- NW-J16 The cross-link to the GUI `open`
+- NW-J17 The cross-link to the synthesis `open`
+- NW-J18 The cross-link to the wubuwizard `open`
+- NW-J19 The cross-link to the compendium `open`
+- NW-J20 The milestones `open`
+- NW-J21 Engineering registry `open`
+- NW-J22 Engineering tests `open`
+- NW-J23 Engineering fuzz `open`
+- NW-J24 Engineering bench `open`
+- NW-J25 Engineering energy `open`
+- NW-J26 Engineering telemetry `open`
+- NW-J27 Engineering watchdog `open`
+- NW-J28 Engineering quarantine `open`
+- NW-J29 Engineering docs `open`
+- NW-J30 Engineering roadmap `open`
+- NW-J31 Cross-link FS `open`
+- NW-J32 Cross-link 9P `open`
+- NW-J33 Cross-link kernel `open`
+- NW-J34 Cross-link AGI `open`
+- NW-J35 Cross-link Bonzi `open`
+- NW-J36 Cross-link GUI `open`
+- NW-J37 Cross-link synthesis `open`
+- NW-J38 Cross-link wubuwizard `open`
+- NW-J39 Cross-link compendium `open`
+- NW-J40 Cross-link mind-palace `open`
+- NW-J41 Milestone M1-socket `open`
+- NW-J42 Milestone M2-http `open`
+- NW-J43 Milestone M3-quic `open`
+- NW-J44 Milestone M4-9p-net `open`
+- NW-J45 Milestone M5-mesh `open`
+- NW-J46 Milestone M6-tls `open`
+- NW-J47 Milestone M7-vpn `open`
+- NW-J48 Milestone M8-perf `open`
+- NW-J49 Milestone M9-resilience `open`
+- NW-J50 Milestone M10-docs `open`
+- NW-J51 Engineering registry `open`
+- NW-J52 Engineering tests `open`
+- NW-J53 Engineering fuzz `open`
+- NW-J54 Engineering bench `open`
+- NW-J55 Engineering energy `open`
+- NW-J56 Engineering telemetry `open`
+- NW-J57 Engineering watchdog `open`
+- NW-J58 Engineering quarantine `open`
+- NW-J59 Engineering docs `open`
+- NW-J60 Engineering roadmap `open`
+- NW-J61 Cross-link FS `open`
+- NW-J62 Cross-link 9P `open`
+- NW-J63 Cross-link kernel `open`
+- NW-J64 Cross-link AGI `open`
+- NW-J65 Cross-link Bonzi `open`
+- NW-J66 Cross-link GUI `open`
+- NW-J67 Cross-link synthesis `open`
+- NW-J68 Cross-link wubuwizard `open`
+- NW-J69 Cross-link compendium `open`
+- NW-J70 Cross-link mind-palace `open`
+- NW-J71 Milestone M1-socket `open`
+- NW-J72 Milestone M2-http `open`
+- NW-J73 Milestone M3-quic `open`
+- NW-J74 Milestone M4-9p-net `open`
+- NW-J75 Milestone M5-mesh `open`
+- NW-J76 Milestone M6-tls `open`
+- NW-J77 Milestone M7-vpn `open`
+- NW-J78 Milestone M8-perf `open`
+- NW-J79 Milestone M9-resilience `open`
+- NW-J80 Milestone M10-docs `open`
+- NW-J81 Avenue test unit `open`
+- NW-J82 Avenue test integration `open`
+- NW-J83 Avenue test system `open`
+- NW-J84 Avenue test soak `open`
+- NW-J85 Avenue test fuzz `open`
+- NW-J86 Avenue test bench `open`
+- NW-J87 Avenue test energy `open`
+- NW-J88 Avenue test telemetry `open`
+- NW-J89 Avenue test watchdog `open`
+- NW-J90 Avenue test docs `open`
+- NW-J91 Engineering registry `open`
+- NW-J92 Engineering tests `open`
+- NW-J93 Engineering fuzz `open`
+- NW-J94 Engineering bench `open`
+- NW-J95 Engineering energy `open`
+- NW-J96 Engineering telemetry `open`
+- NW-J97 Engineering watchdog `open`
+- NW-J98 Engineering quarantine `open`
+- NW-J99 Engineering docs `open`
+- NW-J100 Engineering roadmap `open`
+Status: `open` (20 gaps)
