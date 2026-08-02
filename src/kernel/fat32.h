@@ -170,6 +170,10 @@ int fat32_flush(fat32_volume *vol);
  * struct is opaque, so the module owns its storage. */
 fat32_volume *fat32_boot_volume(void);
 
+/* Attach + mount the boot volume against a block backend, formatting
+ * the media first when it has no valid FAT32 boot sector. */
+int fat32_boot_attach(const fat32_blk_ops *ops);
+
 /*
  * Unmount  --  flush any cached data, release resources.
  */

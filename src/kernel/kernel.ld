@@ -42,6 +42,8 @@ SECTIONS
      * AT(0x100000) means file offset 0 of the segment is loaded at physical
      * 1MB; every later section's LMA = VMA - 0xffffffff80000000. */
     .text : AT(KERNEL_PHYS) {
+        _image_start = .;       /* the loaded image's TRUE start (16-aligned
+                                   ABI check; _kernel_start is the bss end) */
         *(.multiboot_header)
         *(.limine_requests)
         *(.text*)

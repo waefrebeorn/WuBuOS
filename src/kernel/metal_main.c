@@ -17,9 +17,22 @@
 #include "wubu_attest.h"
 #include "wubu_hive.h"   /* G5: the metal's long-term memory */
 #include "fat32.h"       /* G6: the AGI checkpoint file */
+#include "ahci.h"        /* Gap DA: the boot volume's disk backend */
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
+
+/* Gap DA: the boot volume's AHCI block adapters (the fat32_blk_ops
+ * contract: ctx = the ahci hba, port 0). */
+static int wubu_bootvol_read(void *ctx, uint64_t lba, uint32_t n, void *buf)
+{
+    return ahci_read((ahci_hba_t *)ctx, 0, lba, n, buf);
+}
+static int wubu_bootvol_write(void *ctx, uint64_t lba, uint32_t n,
+                              const void *buf)
+{
+    return ahci_write((ahci_hba_t *)ctx, 0, lba, n, buf);
+}
 
 /* Gap G5: the metal's long-term hive -- file-scope (the AGI's memory
  * adapter cannot be a nested function). */
@@ -68,11 +81,15 @@ void metal_lm_setup(void *agi)
 /* ==================================================================
  * External symbols from linker script / crt0
  * ================================================================= */
-extern uint64_t _kernel_start;
-extern uint64_t _kernel_end;
-extern uint64_t _bss_start;
-extern uint64_t _bss_end;
-extern uint64_t _stack_top;
+/* External symbols from linker script / crt0.
+ * ARRAY declarations: the linker symbols are ADDRESSES; `extern
+ * uint64_t x` would make the compiler LOAD the value AT the symbol
+ * (garbage) instead of taking its address. */
+extern char _kernel_start[];
+extern char _kernel_end[];
+extern char _bss_start[];
+extern char _bss_end[];
+extern char _stack_top[];
 
 /* Gap J6: the kernel.ld ALIGN(16) fix -- assert at BOOT time (the
  * linker symbols are not compile-time constants) that the image + the
@@ -80,9 +97,30 @@ extern uint64_t _stack_top;
  * a loud early halt instead of the movaps #GP class of corruption. */
 static inline void kernel_alignment_assert(void)
 {
-    if ((uintptr_t)_kernel_start % 16 != 0 ||
+    /* ARRAY declarations: the linker symbols are ADDRESSES, and
+     * `extern uint64_t x` would make the compiler LOAD the value AT the
+     * symbol (garbage!) instead of taking its address. The array form
+     * makes (uintptr_t)x the symbol's address. This was the silent
+     * intermittent boot hang: the assert read whatever sat at the image
+     * start / stack top and fired on the garbage. */
+    extern char _image_start[], _stack_top[];
+    /* The ABI: the kernel is entered with rsp % 16 == 8 (a call pushed
+     * 8); the compiler's 16-byte SSE stores then land on 16-byte
+     * boundaries. A misaligned image or stack makes movaps #GP -- the
+     * vmm-init crash class. NOTE: _kernel_start is the BSS END in the
+     * linker script (a historical misnomer); _image_start is the true
+     * text base and the right thing to check. */
+    if ((uintptr_t)_image_start % 16 != 0 ||
         (uintptr_t)_stack_top % 16 != 0) {
-        /* serial port 1 raw: the earliest possible scream */
+        /* Raw serial FIRST: klog is not initialized yet at this point,
+         * so a klog_printf-only panic is a SILENT halt. The raw bytes
+         * make the failure visible in the boot trace. */
+        __asm__ __volatile__(
+            "movw $0x3F8, %%dx\n movb $'A', %%al\n outb %%al, %%dx\n"
+            "movb $'L', %%al\n outb %%al, %%dx\n"
+            "movb $'I', %%al\n outb %%al, %%dx\n"
+            "movb $'G', %%al\n outb %%al, %%dx\n"
+            "movb $'!', %%al\n outb %%al, %%dx\n" ::: "dx", "al");
         klog_printf("WuBuOS PANIC: kernel image misaligned (ld script?)\n");
         for (;;) __asm__ __volatile__("cli; hlt");
     }
@@ -399,6 +437,52 @@ void kernel_main(void *boot_info) {
      * disk is up now -- the AHCI init would have hung the early boot). */
     extern int wubu_crash_pickup(void);
     wubu_crash_pickup();
+
+    /* Gap DA: the boot FAT32 volume -- the G4/G6 persistence paths were
+     * DEAD on metal (nothing ever mounted the volume, so every save/
+     * restore hit vol->mounted and failed). Attach the volume here:
+     * create the AHCI sim disk, format it when bare, mount it.
+     * NOTE: the HBA is HEAP-allocated (a static one would add ~27KB to
+     * the BSS and shift the image end past its 16-byte alignment --
+     * the boot-time alignment assert's crash class). */
+    {
+        extern int ahci_hba_init(ahci_hba_t *);
+        extern int ahci_enumerate_ports(ahci_hba_t *);
+        extern int ahci_port_init(ahci_hba_t *, int);
+        extern int ahci_sim_disk_create(ahci_hba_t *, int, int);
+        extern int fat32_boot_attach(const fat32_blk_ops *);
+        extern void *mem_alloc(size_t);
+        extern void mem_free(void *);
+        extern void *memset(void *, int, size_t);
+        ahci_hba_t *bhba = (ahci_hba_t *)mem_alloc(sizeof(ahci_hba_t));
+        static int bvol_ok = 0;
+        int d1 = -1, d2 = -1, d3 = -1, d4 = -1, d5 = -1;
+        if (bhba) {
+            /* the heap memory is not zeroed: the AHCI init expects a
+             * clean hba (the port states are checked as EMPTY) */
+            memset(bhba, 0, sizeof(*bhba));
+            d1 = ahci_hba_init(bhba);
+        }
+        if (d1 == 0) d2 = ahci_enumerate_ports(bhba);
+        if (d2 > 0) d3 = ahci_port_init(bhba, 0);
+        if (d3 == 0) d4 = ahci_sim_disk_create(bhba, 0, 8);
+        klog_printf("bootvol-dbg: hba=%d en=%d p=%d d=%d p0state=%d\n",
+                    d1, d2, d3, d4, (int)bhba->ports[0].state);
+        if (d4 == 0) {
+            static fat32_blk_ops bops = {
+                .read = NULL, .write = NULL, .ctx = NULL,
+                .n_sectors = 8 * 1024 * 1024 / 512,
+            };
+            bops.ctx = bhba;
+            bops.read = wubu_bootvol_read;
+            bops.write = wubu_bootvol_write;
+            d5 = fat32_boot_attach(&bops);
+            if (d5 == 0) bvol_ok = 1;
+        }
+        klog_printf("WuBuOS: boot FAT32 volume %s (hba=%d en=%d p=%d d=%d a=%d)\n",
+                    bvol_ok ? "mounted" : "unavailable",
+                    d1, d2, d3, d4, d5);
+    }
 
     /* Gap G6: crash recovery -- restore the continuity checkpoint if a
      * previous boot left one (AGI.CKP on the FAT32 volume). */

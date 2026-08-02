@@ -50,9 +50,21 @@ static void xhci_write64(uint64_t a, uint64_t v)
     *(volatile uint64_t *)(uintptr_t)a = v;
 }
 
+static uint64_t xhci_read64(uint64_t a)
+{
+    return *(volatile uint64_t *)(uintptr_t)a;
+}
+
 /* the static command ring (in low memory so the controller can DMA) */
 static uint8_t g_cmd_ring[XHCI_RING_TRBS * XHCI_TRB_SIZE] __attribute__((aligned(64)));
 static uint32_t g_cmd_dequeue;   /* TRB index */
+
+/* the static event ring (16 TRBs) + its ERST segment -- without these
+ * the controller DMAs completion events to garbage once a command
+ * completes (a real crash on hardware). */
+#define XHCI_EV_TRBS 16
+static uint8_t g_ev_ring[XHCI_EV_TRBS * XHCI_TRB_SIZE] __attribute__((aligned(64)));
+static uint8_t g_erst[16] __attribute__((aligned(64)));
 
 static int xhci_pci_bar0(uint64_t *bar)
 {
@@ -114,11 +126,25 @@ int wubu_xhci_start(wubu_xhci_t *xh)
         }
     }
 
-    /* the command ring: zero it, point CRCR (RCS=1), then run */
+    /* the command ring: zero it, point CRCR (RCS=1) */
     for (uint32_t i = 0; i < sizeof(g_cmd_ring); i++) g_cmd_ring[i] = 0;
     g_cmd_dequeue = 0;
     uint64_t crcr = (uint64_t)(uintptr_t)g_cmd_ring | 1u;  /* RCS */
     xhci_write64(op + OP_CRCR, crcr);
+
+    /* the event ring: zero the ring + the ERST segment, program the
+     * first interrupter's ERSTSZ/ERSTBA/ERDP so completions land in a
+     * real buffer (the runtime registers at rt_base; interrupter 0 at
+     * rt_base + 0x20). */
+    uint64_t rt = xh->mmio_base + xh->rt_off;
+    for (uint32_t i = 0; i < sizeof(g_ev_ring); i++) g_ev_ring[i] = 0;
+    for (uint32_t i = 0; i < sizeof(g_erst); i++) g_erst[i] = 0;
+    *(uint64_t *)&g_erst[0] = (uint64_t)(uintptr_t)g_ev_ring;
+    *(uint32_t *)&g_erst[8] = XHCI_EV_TRBS;      /* the segment size */
+    xhci_write32(rt + 0x28, 1);                  /* ERSTSZ = 1 segment */
+    xhci_write64(rt + 0x30, (uint64_t)(uintptr_t)g_erst);  /* ERSTBA */
+    xhci_write64(rt + 0x38, (uint64_t)(uintptr_t)g_ev_ring); /* ERDP */
+    xhci_write32(rt + 0x20, 0);                  /* IMAN: clear pending */
 
     xhci_write32(op + OP_USBCMD, CMD_RUN);
     return 0;

@@ -130,3 +130,11 @@ tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.
 - The F10 pickup initialized the AHCI sim disk during the attestation
   block (before the kernel's own disk setup) -> boot hang. Moved the
   pickup to after the AGI kernel is booted, when the disk is up.
+
+## 2026-08-02 — Triple-DA session: four real bugs + one honest gap
+- **Context:** the 106-gap register was declared closed; the DA discipline demands the closed items actually work.
+- **What didn't work:** (1) the syscall entry ran the kernel on the USER RSP (SMAP fault / privilege hole) -- fixed with a dedicated syscall stack; (2) the swap wrote ONE 512-byte sector per 4K page (page data past sector 0 lost) -- fixed to 8-sector IO; (3) the xHCI start never programmed an event ring (completions would DMA to garbage on hardware) -- fixed; (4) the J6 alignment assert declared the linker symbols `extern uint64_t`, so the compiler LOADED THE VALUE AT the symbol (garbage) instead of its address -- the silent intermittent boot hang, fixed with array declarations; (5) the G4/G6 persistence paths were DEAD (the FAT32 boot volume was never mounted).
+- **Why (root cause / reason):** VERIFIED: the assert's disassembly showed the value-loads; the boot's RIP sat in the mem_alloc hash loop until the array-style fix. The boot volume's attach is host-verified but blocked on metal by an AHCI port_init calloc failure (p0state=PRESENT, the calloc returns NULL).
+- **Evidence:** `RIP=00000000002010ee` oscillating (the allocator loop); `ALIG!WuBuOS PANIC` after the raw-scream fix; `bootvol-dbg: hba=0 en=2 p=-1 d=-1 p0state=1`; test_swap now asserts 8-sector IO; test_xhci asserts ERSTBA/ERDP.
+- **When it may change:** the metal AHCI port_init calloc failure (the F3 family root: 'run' never worked) is tracked; the boot volume lands with it.
+- **Related:** wubu_swap, wubu_xhci, isr_stubs.S, metal_main.c (J6), fat32_boot_attach.
