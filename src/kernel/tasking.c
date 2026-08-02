@@ -31,6 +31,7 @@ static CTask   *g_current   = NULL;
 static CTask   *g_head      = NULL;  /* Doubly-linked circular list */
 static int      g_next_id   = 1;
 static uint64_t g_tick      = 0;
+static uint64_t g_next_wake = ~0ull;   /* D2: earliest pending wake   */
 static int      g_initialized = 0;
 static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
 
@@ -88,6 +89,10 @@ int    task_count(void) {
     return n;
 }
 uint64_t task_tick_count(void) { return g_tick; }
+
+/* Gap D3: priority accessors for the sync module's inheritance. */
+int task_prio_get(const CTask *t) { return t ? (int)t->priority : 0; }
+void task_prio_set(CTask *t, int prio) { if (t) t->priority = (TaskPriority)prio; }
 
 /* -- Task Lifecycle ----------------------------------------------- */
 
@@ -250,15 +255,24 @@ void task_timer_tick(void) {
         for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
     }
 
-    /* Wake sleeping tasks whose time has come */
-    CTask *t = g_head;
-    if (t) {
-        do {
-            if (t->state == TASK_SLEEPING && g_tick >= t->wake_tick) {
-                t->state = TASK_READY;
-            }
-            t = t->next;
-        } while (t != g_head);
+    /* Wake sleeping tasks whose time has come. Gap D2: the wakeup
+     * scan tracks the EARLIEST pending wake so a tick with nothing to
+     * wake (the common case) skips the O(n) walk entirely. */
+    if (g_tick >= g_next_wake) {
+        g_next_wake = ~0ull;
+        CTask *t = g_head;
+        if (t) {
+            do {
+                if (t->state == TASK_SLEEPING) {
+                    if (g_tick >= t->wake_tick) {
+                        t->state = TASK_READY;
+                    } else if (t->wake_tick < g_next_wake) {
+                        g_next_wake = t->wake_tick;
+                    }
+                }
+                t = t->next;
+            } while (t != g_head);
+        }
     }
 
     /* Preemptive scheduling: if enabled, yield current task */
@@ -314,9 +328,10 @@ int  task_preempt_enabled(void) { return g_preemptive; }
 
 void task_idle(void *arg) {
     (void)arg;
-    while (1) {
-        task_yield();
-    }
+    /* Gap D1: the idle task HALTs instead of busy-yielding. This task's
+     * primed rflags has IF set (0x200), so the PIT's vector-32 interrupt
+     * wakes each hlt; there is no sti to shadow. */
+    for (;;) __asm__ __volatile__("hlt");
 }
 
 /* -- Yield / Block / Unblock / Sleep ------------------------------ */
@@ -408,6 +423,8 @@ void task_sleep(uint64_t ticks) {
     if (g_current) {
         g_current->state = TASK_SLEEPING;
         g_current->wake_tick = g_tick + ticks;
+        if (g_current->wake_tick < g_next_wake)  /* D2 */
+            g_next_wake = g_current->wake_tick;
         task_yield();
     }
 }

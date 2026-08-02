@@ -22,6 +22,12 @@
 typedef struct {
     volatile uint32_t locked;
     uint32_t          irq_state;   /* saved RFLAGS (IF) for irq-safe lock */
+    /* Gap D3: priority-inheritance bookkeeping -- the owner task (set
+     * at acquire) + the saved pre-boost priority + whether a higher
+     * waiter boosted it while the lock was contended. */
+    struct CTask     *owner;
+    int               owner_prio_saved;
+    int               boosted;
 } wubu_spinlock_t;
 
 /* Initialize (unlocked). */

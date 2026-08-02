@@ -102,6 +102,11 @@ int task_count(void);
 /* Get global tick counter. */
 uint64_t task_tick_count(void);
 
+/* Gap D3: priority get/set for the sync module's priority-inheritance
+ * protocol (the boost/unboost of a lock holder). */
+int      task_prio_get(const struct CTask *t);
+void     task_prio_set(struct CTask *t, int prio);
+
 /* Reaper (gap A5): free + unlink the DYING tasks. TASK context only. */
 void task_reap(void);
 
