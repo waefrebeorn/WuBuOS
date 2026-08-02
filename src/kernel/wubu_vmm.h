@@ -30,6 +30,11 @@ void wubu_vmm_init(void);
 uint64_t wubu_vmm_alloc_pages(uint32_t n);
 void     wubu_vmm_free_pages(uint64_t phys, uint32_t n);
 
+/* Gap B8: reference counts -- take a reference on allocated pages
+ * (COW/shared foundation) + read a page's current count. */
+void     wubu_vmm_ref(uint64_t phys, uint32_t n);
+uint16_t wubu_vmm_refcount(uint64_t phys);
+
 /* Map one 4K page at `virt` -> `phys` (walks/creates the CR3 tables;
  * intermediate tables come from the page allocator). flags: 3 = RW+present.
  * Returns 0 on success. */
