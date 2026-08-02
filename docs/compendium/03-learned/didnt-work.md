@@ -55,3 +55,23 @@ flag (bit 14) set in the frame's rflags -> hardware task-return -> #GP
    returning (the definitive guarantee: the iretq can never pop NT).
 Evidence: 8s soak under FULL timer preemption, 5 samples, ZERO faults;
 tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.
+
+## 2026-08-02 — The tick-12/33/153 freeze (OPEN, tracked)
+- **Context:** the batch-3 kernel froze deterministically (tick 12, then
+  33/57/153 as changes perturbed it) -- no faults, silent halt.
+- **Evidence:** QEMU monitor at the freeze: CR3=0x70000 (the early-stack
+  address!), RIP=0x2010e0 (kernel serial code), RSP=0x9ef18 (top of
+  conventional RAM), RCX=0x3d5/RDX=0x3fd (UART); the page tables at
+  0x300000 were INTACT (watchpoints never fired); the CPU had wandered
+  into the kernel text with a garbage stack.
+- **What was ruled out (each perturbed the freeze point instead of
+  fixing it):** the ring race lock (tick 12 -> 153), the promote %s on
+  span data (tick 12 -> 33 -- the data is not reliably NUL-terminated;
+  the ID is safe), CR0.WP (12 -> 57), the idle HLT (no effect), the
+  fxsave/fxrstor (no effect), the low-water tracking (no effect).
+- **Stable configuration (committed):** the batch-2 base + the promote
+  message prints the span ID (never the data) + the console additions.
+  Soak: 155 -> 203 ticks, promoted 20838, ZERO faults.
+- **When it may change:** the next session picks up the freeze with the
+  QEMU forensics (the CR3=0x70000 + the conventional-memory stack point
+  at a low-memory corruption -- the loader/firmware area).

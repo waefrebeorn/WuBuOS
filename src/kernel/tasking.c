@@ -116,7 +116,6 @@ CTask *task_create(const char *name, void (*entry)(void *arg), void *arg,
      * on the new stack. rflags IF (0x200) set so the PIT can preempt the
      * task immediately. */
     t->context.rsp    = (uint64_t)((uint8_t *)t->stack_base + stack_sz);
-    t->stack_min      = t->context.rsp;   /* start at the top */
     t->context.rip    = (uint64_t)(uintptr_t)&task_trampoline;
     t->context.rflags = 0x200;
     /* Prime the FPU/SSE area (gap C8): a zeroed FXSAVE area is
@@ -213,12 +212,6 @@ void task_timer_tick(void) {
 #if WUBU_BAREMETAL
             /* Real metal: assembly context switch */
             task_switch_asm(&old->context, &next->context);
-            /* stack low-water tracking (gap B5/B6): the console 'tasks'
-             * command reports usage = top - low-water. (The alarm was
-             * too noisy -- the idle/main-path rsp pollutes the sample;
-             * tracking + the clamped display is the reliable part.) */
-            if (old->context.rsp < old->stack_min)
-                old->stack_min = old->context.rsp;
 #else
             /* Hosted: use setjmp/longjmp via task_yield logic */
             TaskJmp *old_jmp = (TaskJmp *)old->user_data;
@@ -292,9 +285,6 @@ void task_yield(void) {
     __asm__ volatile("cli");
     task_switch_asm(&old->context, &next->context);
     __asm__ volatile("sti");
-    /* stack low-water tracking (gap B5/B6) */
-    if (old->context.rsp < old->stack_min)
-        old->stack_min = old->context.rsp;
     /* Resumed here when the scheduler returns to this task. */
 }
 #else
