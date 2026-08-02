@@ -49,12 +49,21 @@ void wubu_vmm_init(void)
     g_free_pages = WUBU_VMM_BITMAP_BITS;
 
     /* mark USED: kernel image + heap + vbe buffers + early stack */
-    /* kernel: 0x100000 .. 0x1400000 (image + bss + page tables + pool) */
     /* heap (mem_alloc): 0x400000 .. 0x4400000 (64 MB) */
     /* vbe: 0x402018 .. 0x1402018 overlaps heap? no -- the heap starts at
      * 0x400000; the vbe alloc comes FROM the heap. So heap covers both. */
+    /* Gap B11: the kernel image's bounds come from the LINKER symbols
+     * (not a hardcoded range): whatever the image actually grew to is
+     * protected from the allocator. The rest of the boot layout (page
+     * tables, heap, attestation stash, early stack) is fixed by the
+     * linker script + crt0, so those stay explicit. */
+    extern char _kernel_start[], _kernel_end[], _stack_top[];
+    uint64_t k_start = (uint64_t)(uintptr_t)_kernel_start;
+    uint64_t k_end   = (uint64_t)(uintptr_t)_stack_top;
+    if (k_start >= 0xffffffff80000000ull) k_start -= 0xffffffff80000000ull;
+    if (k_end   >= 0xffffffff80000000ull) k_end   -= 0xffffffff80000000ull;
     struct { uint64_t base, end; } used[] = {
-        { 0x100000ull, 0x200000ull },   /* kernel image + crt0 tables */
+        { k_start,    k_end      },  /* kernel image + bss + stack (symbols) */
         { 0x200000ull, 0x500000ull },   /* page tables + early structures */
         { 0x400000ull, 0x4400000ull },  /* the mem_alloc heap (64 MB) */
         { 0x90000ull,  0x99000ull  },   /* attestation stash + memmap */
