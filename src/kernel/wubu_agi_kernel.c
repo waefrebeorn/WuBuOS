@@ -44,6 +44,7 @@ struct wubu_agi_kernel {
     void            *verifier_ud;
     bool             frozen;
     int              promoted_total;
+    uint64_t         last_promote_tick;   /* D7: supervisor watchdog   */
 
     /* Firmware root of trust (WuBuFW attestation, consumed at init). */
     bool             attest_valid;
@@ -392,6 +393,10 @@ int wubu_agi_kernel_cycle(wubu_agi_kernel_t *k)
                 wubu_attest_extend_runtime(run, sizeof(run));
             }
             k->promoted_total++;
+            /* D7: record the last successful promotion (the supervisor
+             * watchdog's heartbeat). */
+            extern uint64_t task_tick_count(void);
+            k->last_promote_tick = task_tick_count();
             /* Rate-limited console echo (every 25th promotion): the
              * console stays a live window, not a firehose. */
             if (klog_printf && (k->promoted_total % 25) == 0)
@@ -411,6 +416,8 @@ int      wubu_agi_kernel_region_count(const wubu_agi_kernel_t *k)
            { return k ? k->decomp.n_regions : 0; }
 uint64_t wubu_agi_kernel_uptime_ms(const wubu_agi_kernel_t *k)
            { return k ? k->uptime_ms : 0; }
+uint64_t wubu_agi_kernel_last_promote_tick(const wubu_agi_kernel_t *k)
+           { return k ? k->last_promote_tick : 0; }
 bool     wubu_agi_kernel_attest_valid(const wubu_agi_kernel_t *k)
            { return k ? k->attest_valid : false; }
 

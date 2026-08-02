@@ -70,8 +70,8 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] D5. Per-task CPU accounting: total_ticks share shown as cpu=%% in the tasks command.
 - [x] D6. wubu_sync USED: the vmm allocator (shared ISR/main path) takes the spinlock (this batch) (spinlock unused
       on metal).
-- [ ] D7. No watchdog for the AGI supervisor itself (frozen is manual).
-- [ ] D8. No task names in dumps (C2).
+- [x] D7. Supervisor watchdog: last_promote_tick heartbeat; the bonzi alerts on a 50s promotion stall.
+- [x] D8. Superseded by C2 (task-named post-mortem dumps).
 - [x] D9. Preemption fixed + soak-verified (62e3da3).
 
 ## E. Drivers (P1)
@@ -105,7 +105,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] G4. Theme writes not persisted (reset each boot).
 - [ ] G5. No long-term memory on metal (hive is hosted-side).
 - [ ] G6. No AGI crash recovery (checkpoints, DA-2.6).
-- [ ] G7. No supervisor watchdog (D7).
+- [x] G7. Superseded by D7 (supervisor watchdog).
 - [ ] G8. Gamepad events fed by nothing (no driver).
 - [x] G9. See B10 (this batch) (B10).
 - [ ] G10. No AGI-side fault awareness (C11).

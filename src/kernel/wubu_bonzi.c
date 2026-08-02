@@ -319,6 +319,22 @@ int wubu_bonzi_tick(wubu_bonzi_t *b)
             klog_printf("bonzi: heartbeat regions=%d attest=%s\n",
                         wubu_agi_kernel_region_count(b->agi),
                         wubu_attest_valid() ? "VALID" : "ABSENT");
+
+        /* Gap D7: the supervisor watchdog. The AGI self-improve loop
+         * must promote continuously; a frozen loop (or one whose cycle
+         * is stuck) makes last_promote_tick go stale. Alert loudly --
+         * the kernel's A4 watchdog covers the tasks, this covers the
+         * supervisor's actual output. */
+        extern uint64_t task_tick_count(void);
+        uint64_t last = wubu_agi_kernel_last_promote_tick(b->agi);
+        uint64_t now_tick = task_tick_count();
+        if (!wubu_agi_kernel_is_frozen(b->agi) && last > 0 &&
+            now_tick - last > 5000) {   /* 50 s of no promotions */
+            if (klog_printf)
+                klog_printf("SUPERVISOR WATCHDOG: no promotion for %u ticks (loop stalled?)\n",
+                            (unsigned)(now_tick - last));
+            wubu_agi_kernel_agent_emit(b->agi, 1, "supervisor.stall detected");
+        }
     }
 
     /* Paced redraw (~5 Hz) + mouth animation. */
