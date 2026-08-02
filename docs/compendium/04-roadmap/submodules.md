@@ -27,6 +27,20 @@ From `docs/DA_DESIGN_AUDIT.md` (triple-DA of the AGI OS design).
 - [ ] `wubu_editor` — live text editor (Genera feel) on fb + serial
 - [ ] `wubu_human` — hedged human-command gateway (allowlist + audit)
 
+## P1 — graphic set system + translation layers (Kevin-Bacon pass 3)
+- [ ] `/theme` namespace — the graphic set as Styx9 nodes (colors, chrome,
+      fonts, sprites, layout); the compositor reads it every frame
+- [ ] Damage-rect compositor (WuBuFX Phase G) — dirty-region rendering so
+      live re-skins are cheap
+- [ ] AGI-writable graphic set — the Colonel writes /theme through the
+      capability gate (EDR-disclosed); the desktop re-skins live
+- [ ] GameInput-style unified input — one event model for all devices
+      (keyboard/mouse/gamepad/controller), common time base
+- [ ] GDI/DirectX → /theme translation shim — the DXVK lesson: one
+      translation target per domain
+- [ ] VSL speed doctrine — in-process dispatch (Wine 11 lesson), batching,
+      zero-copy where possible
+
 ## Discipline
 Every module ships with: its header as the interface contract, a
 compendium entry (generated reference + addendum notes), and console
