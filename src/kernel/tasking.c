@@ -97,6 +97,12 @@ CTask *task_create(const char *name, void (*entry)(void *arg), void *arg,
 
     t->stack_base = (uint64_t *)mem_alloc(stack_sz);
     if (!t->stack_base) { mem_free(t); return NULL; }
+    /* Stack canary (the overflow tripwire): 8 bytes at the LOW end of
+     * the stack -- a stack that grows down past its base clobbers the
+     * canary BEFORE anything else. Checked at every switch; a trip is
+     * the corruption's smoking gun (the panic ring holds the last
+     * messages). */
+    *(volatile uint64_t *)t->stack_base = 0xCAFEBABECAFEBABEULL;
 
     t->task_signature = TASK_SIGNATURE_VAL;
     t->state    = TASK_READY;
@@ -145,6 +151,12 @@ void task_destroy(CTask *task) {
 }
 
 /* -- Scheduler ---------------------------------------------------- */
+
+static int task_stack_ok(const CTask *t)
+{
+    if (!t || !t->stack_base) return 1;   /* not our stack: don't trip */
+    return *(volatile uint64_t *)t->stack_base == 0xCAFEBABECAFEBABEULL;
+}
 
 CTask *task_schedule_next(void) {
     if (!g_head) return NULL;
@@ -206,6 +218,17 @@ void task_timer_tick(void) {
     if (g_preemptive) {
         CTask *next = task_schedule_next();
         if (next && next != g_current) {
+            /* Stack canary tripwire: a clobbered base = a stack grew
+             * past its allocation. The trip is the corruption's smoking
+             * gun; the panic ring (last 4KB of klog) is dumped via the
+             * serial -- the corruptor's last messages are the evidence. */
+            if (!task_stack_ok(g_current) || !task_stack_ok(next)) {
+                extern int klog_printf(const char *, ...);
+                klog_printf("STACK CANARY TRIPPED: cur=%s next=%s\n",
+                            g_current ? g_current->name : "?",
+                            next ? next->name : "?");
+                for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
+            }
             /* Switch context  --  save old, restore new */
             g_current->state = TASK_READY;
             next->state = TASK_RUNNING;
