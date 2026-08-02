@@ -97,6 +97,55 @@ static int cmd_pci(void)
     return 0;
 }
 
+/* /theme graphic-set namespace: `theme`, `theme set <path> <hex>`,
+ * `theme cycle`.  Writing a node re-skins the next Bonzi frame live. */
+static int cmd_theme(int argc, char **argv)
+{
+    extern int  wubu_theme_node_set(const char *, uint32_t);
+    extern int  wubu_theme_node_list(char *, int);
+    extern uint32_t wubu_theme_write_count(void);
+    extern void wubu_theme_apply(void);
+    extern void wubu_theme_cycle(void);
+    if (argc >= 2 && strcmp(argv[1], "set") == 0 && argc >= 4) {
+        char *end = NULL;
+        uint32_t v = (uint32_t)strtoul(argv[3], &end, 16);
+        if (!end || *end != '\0' || wubu_theme_node_set(argv[2], v) != 0) {
+            klog_printf("theme: unknown path or bad value\n");
+            return 0;
+        }
+        wubu_theme_apply();
+        klog_printf("theme: %s = %x (writes=%u)\n", argv[2],
+                    (unsigned)v, (unsigned)wubu_theme_write_count());
+        return 0;
+    }
+    if (argc >= 2 && strcmp(argv[1], "cycle") == 0) {
+        wubu_theme_cycle();
+        klog_printf("theme: cycled\n");
+        return 0;
+    }
+    char buf[2048];
+    int n = wubu_theme_node_list(buf, (int)sizeof(buf));
+    if (n > 0 && (int)sizeof(buf) > 0) buf[sizeof(buf) - 1] = '\0';
+    klog_printf("-- /theme (%d nodes, %u writes) --\n%s", n,
+                (unsigned)wubu_theme_write_count(), n > 0 ? buf : "");
+    return 0;
+}
+
+/* Unified input: `input` — per-device stats + drain the ring. */
+static int cmd_input(int argc, char **argv)
+{
+    extern uint32_t wubu_hid_stats(uint8_t);
+    extern int      wubu_hid_queued(void);
+    extern uint32_t wubu_hid_overflow(void);
+    (void)argc; (void)argv;
+    klog_printf("hid: queued=%d overflow=%u keys=%u mouse=%u gamepad=%u\n",
+                wubu_hid_queued(), (unsigned)wubu_hid_overflow(),
+                (unsigned)wubu_hid_stats(0),
+                (unsigned)wubu_hid_stats(1),
+                (unsigned)wubu_hid_stats(2));
+    return 0;
+}
+
 static int cmd_agi(int argc, char **argv)
 {
     wubu_agi_kernel_t *agi = wubu_agi_kernel_global();
@@ -183,6 +232,8 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "mem") == 0)             return cmd_mem();
     if (strcmp(argv[0], "tasks") == 0)           return cmd_tasks();
     if (strcmp(argv[0], "pci") == 0)             return cmd_pci();
+    if (strcmp(argv[0], "theme") == 0)           return cmd_theme(argc, argv);
+    if (strcmp(argv[0], "hid") == 0)             return cmd_input(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();

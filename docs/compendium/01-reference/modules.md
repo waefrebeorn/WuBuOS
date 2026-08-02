@@ -26,29 +26,32 @@
 | `interrupt_syscall` | 41 | 1 | interrupt.h, interrupt_apic.h, interrupt_io.h, memory.h, signal.h, stdint.h, string.h, tas | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
 | `interrupt_timer` | 45 | 2 | interrupt.h, interrupt_apic.h, interrupt_io.h, memory.h, signal.h, stdint.h, string.h, tas | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
 | `klog` | 125 | 1 | klog.h, stdarg.h, stddef.h, stdint.h | klog.c -- WuBuOS bare-metal kernel log sink (serial COM1) Self-contained freestanding output. Writes to the CO |
-| `libc` | 544 | 4 | klog.h, stdarg.h, stddef.h, stdint.h | Minimal libc for bare-metal kernel |
+| `libc` | 589 | 6 | klog.h, stdarg.h, stddef.h, stdint.h | Minimal libc for bare-metal kernel |
 | `memory` | 571 | 0 | memory.h, stdio.h, stdlib.h, string.h | memory.c  --  My Seed Kernel Memory Subsystem Implementation Clean C11 reimplementation of ZealOS heap design. |
 | `memory_test` | 293 | 0 | assert.h, memory.h, stdio.h, stdlib.h, string.h | memory_test.c  --  Test suite for My Seed Kernel Memory Subsystem |
-| `metal_main` | 338 | 4 | input.h, interrupt.h, interrupt_apic.h, klog.h, memory.h, ps2.h, stdint.h, tasking.h, vbe. | metal_main.c  --  WuBuOS Bare-Metal Kernel Entry Point Called from crt0.S after Limine/Stivale2 boot. Initiali |
-| `ps2` | 220 | 2 | input.h, interrupt.h, ps2.h, stdint.h | ps2.c  --  PS/2 Keyboard and Mouse Driver (Bare Metal) Ported from Mythos Fable (filipvabrousek/osdev) for WuB |
+| `metal_main` | 346 | 4 | input.h, interrupt.h, interrupt_apic.h, klog.h, memory.h, ps2.h, stdint.h, tasking.h, vbe. | metal_main.c  --  WuBuOS Bare-Metal Kernel Entry Point Called from crt0.S after Limine/Stivale2 boot. Initiali |
+| `ps2` | 224 | 2 | input.h, interrupt.h, ps2.h, stdint.h | ps2.c  --  PS/2 Keyboard and Mouse Driver (Bare Metal) Ported from Mythos Fable (filipvabrousek/osdev) for WuB |
 | `tasking` | 519 | 2 | interrupt.h, libc.h, memory.h, setjmp.h, stddef.h, stdint.h, string.h, tasking.h | tasking.c  --  My Seed Kernel Task Management (hosted test impl) Uses setjmp/longjmp for context switching in  |
 | `tasking_test` | 181 | 1 | assert.h, memory.h, stdio.h, stdlib.h, string.h, tasking.h | tasking_test.c  --  Test suite for My Seed Tasking Subsystem |
 | `test_agi_kernel` | 195 | 0 | stdio.h, string.h, wubu_agi_kernel.h, wubu_attest.h, wubu_bonzi.h | test_agi_kernel.c -- Verify the WuBuOS bare-metal AGI kernel supervisor runs correctly (hosted harness; the sa |
 | `test_agi_kernel_stub` | 49 | 1 | input.h, klog.h, stdio.h, tasking.h, vbe.h | test_agi_kernel_stub.c -- Minimal kernel-API shims so wubu_agi_kernel.c links + runs in the HOSTED unit test w |
 | `test_hive` | 183 | 1 | stdio.h, stdlib.h, string.h, wubu_hive.h | test_hive.c -- wubu_hive (C11 luddite hive) unit tests. Verifies the three-way tradeoff the hand-drawn diagram |
+| `test_theme_hid` | 92 | 0 | assert.h, stddef.h, stdint.h, stdio.h, string.h, wubu_hid.c, wubu_hid.h, wubu_theme.c, wub | test_theme_hid.c -- host tests for the /theme namespace + unified HID. Builds the two freestanding kernel modu |
 | `txfs` | 345 | 6 | stdio.h, stdlib.h, string.h, txfs.h | txfs.c  --  WuBuOS Transactional Filesystem Layer Implementation Cell 100: Journal-based atomic filesystem ope |
 | `txfs_test` | 572 | 0 | stdio.h, stdlib.h, string.h, txfs.h | txfs_test.c  --  Test Suite for WuBuOS Transactional Filesystem Cell 100: Tests journal-based atomic operation |
 | `vbe` | 591 | 10 | klog.h, math.h, memory.h, stdbool.h, stdio.h, stdlib.h, string.h, vbe.h | vbe.c  --  WuBuOS VBE Framebuffer Implementation Two modes: - Kernel mode (default): uses mem_alloc/mem_free f |
 | `wubu_agi_kernel` | 334 | 2 | klog.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_attest.h, wubu_bonzi.h, wubu_c | wubu_agi_kernel.c -- WuBuOS Bare-Metal AGI Kernel Supervisor (ring-0). Freestanding C11: NO malloc, NO pthread |
 | `wubu_apic` | 106 | 1 | interrupt.h, interrupt_apic.h, klog.h, stdint.h, wubu_apic.h | wubu_apic.c -- local APIC + I/O APIC bring-up (q35-correct delivery). Steps (see wubu_apic.h for the "why"): 1 |
 | `wubu_attest` | 103 | 8 | string.h, wubu_attest.h | wubu_attest.c -- WuBuOS kernel-side firmware attestation consumer (ring-0). Freestanding C11: no malloc, no pt |
-| `wubu_bonzi` | 355 | 0 | input.h, klog.h, stdio.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_attest.h, wu | wubu_bonzi.c -- Bonzi Buddy: bare-metal AGI agent persona (ring-0 task). Freestanding C11. Runs as a kernel ta |
-| `wubu_console` | 225 | 0 | klog.h, libc.h, memory.h, stdint.h, string.h, tasking.h, wubu_agi_kernel.h, wubu_console.h | wubu_console.c -- live ring-0 console REPL (TempleOS-style). The metal kernel owns a COM1 interactive shell: p |
+| `wubu_bonzi` | 361 | 0 | input.h, klog.h, stdio.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_attest.h, wu | wubu_bonzi.c -- Bonzi Buddy: bare-metal AGI agent persona (ring-0 task). Freestanding C11. Runs as a kernel ta |
+| `wubu_console` | 276 | 0 | klog.h, libc.h, memory.h, stdint.h, string.h, tasking.h, wubu_agi_kernel.h, wubu_console.h | wubu_console.c -- live ring-0 console REPL (TempleOS-style). The metal kernel owns a COM1 interactive shell: p |
 | `wubu_gaad` | 595 | 2 | math.h, stdlib.h, string.h, wubu_gaad.h, wubu_math.h | wubu_gaad.c  --  WuBuOS Golden Aspect Adaptive Decomposition Cell 393: GAAD  --  the universal resolution tran |
 | `wubu_gaad_test` | 269 | 0 | assert.h, stdio.h, stdlib.h, string.h, wubu_gaad.h | wubu_gaad_test.c  --  GAAD: Golden Aspect Adaptive Decomposition Cell 393: Tests for the universal resolution  |
+| `wubu_hid` | 146 | 8 | wubu_hid.h | wubu_hid.c  --  WuBuOS Unified HID Layer (GameInput-style) A single ring of unified events, common time base ( |
 | `wubu_hive` | 211 | 2 | string.h, wubu_hive.h | wubu_hive.c -- C11 "luddite hive" (see wubu_hive.h for the design). Linked fixed-capacity blocks + bit skipfie |
 | `wubu_math` | 581 | 1 | math.h, stddef.h, stdint.h, stdio.h | wubu_math.c  --  WuBuOS Pure C Math Library Cell 420: Pure C implementations replacing libm. IEEE 754 complian |
 | `wubu_pci` | 92 | 2 | libc.h, stdint.h, wubu_pci.h | wubu_pci.c -- minimal PCI config-space access (0xCF8/0xCFC). The metal kernel previously had no PCI access at  |
+| `wubu_theme` | 218 | 0 | stddef.h, stdio.h, wubu_theme.h | wubu_theme.c  --  WuBuOS Metal Theme Engine + /theme Namespace The graphic set as a writable node tree. Preset |
 | `fw_acpi` | 135 | 0 | fw.h, fw_acpi.h, fw_pci.h | fw_acpi.c  --  WuBuFW ACPI table discovery and publication. On a QEMU/x86 machine the firmware normally *build |
 | `fw_acpiload` | 166 | 0 | fw.h, fw_acpi.h, fw_fwcfg.h | fw_acpiload.c  --  Execute QEMU's etc/table-loader linker script. The loader is a sequence of fixed-size comma |
 | `fw_agi` | 132 | 2 | fw.h, fw_agi_attest.h, fw_secureboot.h, fw_tpm.h | fw_agi.c  --  WuBuOS AGI OS kernel shim (firmware-resident microkernel). This is the firmware-side half of the |

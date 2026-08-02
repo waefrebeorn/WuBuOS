@@ -260,6 +260,14 @@ void kernel_main(void *boot_info) {
     }
     klog_printf("WuBuOS: tasking initialized\n");
 
+    /* 7b. The /theme graphic-set namespace (self-modifying UI) +
+     *     the unified input layer (GameInput-style, one event model). */
+    extern void wubu_theme_init(void);
+    extern void wubu_hid_init(void);
+    wubu_theme_init();
+    wubu_hid_init();
+    klog_printf("WuBuOS: /theme namespace + unified input ready\n");
+
     /* 8. Timer-driven PREEMPTION is DISABLED (stable cooperative base).
      * The preempt resume path has a tracked #GP: the resumed iretq pops a
      * shifted frame with the NT flag set (0x4006) and no TSS exists in the

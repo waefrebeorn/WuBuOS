@@ -130,6 +130,10 @@ void ps2_keyboard_handler(void) {
             char c = keymap[sc];
             if (c) {
                 input_key_push_simple(c);  /* Push ASCII char to input queue */
+                /* Feed the unified input layer too (GameInput-style):
+                 * one event model for every device, common time base. */
+                extern void wubu_hid_feed_key(uint32_t, bool, uint32_t);
+                wubu_hid_feed_key((uint32_t)(uint8_t)c, true, 0);
             }
         }
     } else {

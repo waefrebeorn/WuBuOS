@@ -128,6 +128,51 @@ char *itoa(int value, char *str, int base) {
     return str;
 }
 
+/* strtoul/strtol -- needed by the console (theme values), the future
+ * HolyC runtime, and the VSL tables. Handles 0x/0X hex, 0 octal,
+ * decimal; skips leading whitespace. Minimal, freestanding. */
+unsigned long strtoul(const char *nptr, char **endptr, int base) {
+    const char *s = nptr;
+    unsigned long acc = 0;
+    int any = 0;
+    while (*s == ' ' || *s == '\t' || *s == '\n') s++;
+    if (base == 0) {
+        if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) { base = 16; s += 2; }
+        else if (s[0] == '0') base = 8;
+        else base = 10;
+    } else if (base == 16 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+        s += 2;
+    }
+    for (;; s++) {
+        unsigned char c = (unsigned char)*s;
+        int d;
+        if (c >= '0' && c <= '9') d = c - '0';
+        else if (c >= 'a' && c <= 'z') d = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'Z') d = c - 'A' + 10;
+        else break;
+        if (d >= base) break;
+        acc = acc * (unsigned long)base + (unsigned long)d;
+        any = 1;
+    }
+    if (endptr) *endptr = (char *)(any ? s : nptr);
+    return any ? acc : 0;
+}
+
+long strtol(const char *nptr, char **endptr, int base) {
+    const char *s = nptr;
+    int neg = 0;
+    while (*s == ' ' || *s == '\t' || *s == '\n') s++;
+    if (*s == '-') { neg = 1; s++; }
+    else if (*s == '+') s++;
+    {
+        char *e = NULL;
+        unsigned long v = strtoul(s, &e, base);
+        if (endptr) *endptr = e;
+        if (neg) return (long)(0UL - v);
+        return (long)v;
+    }
+}
+
 /* Formatted output - minimal printf */
 static int putchar(void (*putc)(char), char c) {
     putc(c);

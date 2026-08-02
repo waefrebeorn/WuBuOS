@@ -86,6 +86,8 @@
 ## `libc` (src/kernel/libc.c)
 
 - `free(void *ptr)`
+- `strtoul(const char *nptr, char **endptr, int base)`
+- `strtol(const char *nptr, char **endptr, int base)`
 - `fprintf(FILE *stream, const char *fmt, ...)`
 - `printf(const char *fmt, ...)`
 - `snprintf(char *str, size_t size, const char *fmt, ...)`
@@ -165,6 +167,17 @@
 
 - `wubu_clamp(int val, int lo, int hi)`
 - `wubu_gaad_region_scale(const WubuGaadTranslate *t, int region_idx)`
+
+## `wubu_hid` (src/kernel/wubu_hid.c)
+
+- `wubu_hid_init(void)`
+- `wubu_hid_feed_key(uint32_t keycode, bool down, uint32_t mods)`
+- `wubu_hid_feed_mouse(int x, int y, int dx, int dy, int buttons, int scroll)`
+- `wubu_hid_feed_gamepad(uint32_t buttons, const int16_t *axes, int naxes)`
+- `wubu_hid_poll(WubuInputEvent *out)`
+- `wubu_hid_filter(uint8_t device, uint32_t kind_mask)`
+- `wubu_hid_disable(uint8_t device, bool disabled)`
+- `wubu_hid_stats(uint8_t device)`
 
 ## `wubu_hive` (src/kernel/wubu_hive.c)
 
