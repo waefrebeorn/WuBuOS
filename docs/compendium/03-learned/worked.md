@@ -90,3 +90,21 @@ Copy TEMPLATE.md for new entries.*
 - **When it may change:** the state scanner becomes a heartbeat; the
   verifier doctrine extends to docs (a change that breaks make docs or a
   curated test is not promotable).
+
+## 2026-08-02 — Preemption FIXED + demand paging live + stack-alignment bug
+- **Context:** the tracked #GP (resumed iretq with NT) + the P0 tier.
+- **What worked (3 wins):**
+  1. Preemption: wubu_tss (real TSS64 + GDT descriptor) + NT-mask in the
+     switch's rflags restore + the iretq's frame-rflags masked at the exit
+     (the definitive guarantee). 8s soak under FULL preemption, 5 samples,
+     ZERO faults; tick 12->204 @100Hz, promoted 1138->20718.
+  2. wubu_vmm: bitmap page allocator + CR3 page-table map + DEMAND-ZERO
+     regions; the #PF handler now does real work (alloc+map+retry).
+     Verified live: `vmm touch` -> faults=0 -> readback=12345678 faults=1
+     (the iretq retried the faulting instruction).
+  3. The vmm init surfaced a latent ABI bug: _stack_top was not 16-aligned,
+     so the compiler's movaps #GP'd. Fixed with ALIGN(16) in kernel.ld.
+- **Evidence:** soak + demand demo above; test_sync ALL PASS (20000 values,
+  SPSC, in order); test_vmm ALL PASS; stable boot green.
+- **When it may change:** the demand regions become the real segment/store
+  substrate; the spinlock gets its metal workout when a driver uses it.

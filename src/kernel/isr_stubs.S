@@ -388,6 +388,17 @@ common_isr_handler:
     /* Pop vector and error_code */
     add rsp, 16
 
+    /* HARDENED IRETQ: mask NT (0x4000) + reserved (0x8000) out of the
+     * frame's rflags slot right before the return.  Even if a stray
+     * popfq/corrupted frame puts NT into the popped flags, the iretq
+     * can never attempt a hardware task-return (which #GPs).  The
+     * kernel never uses hardware task switches. */
+    /* -16384 = 0xFFFFC000 (signed imm32, sign-extends): clears bits
+     * 14-15 (NT + reserved) -- the kernel never hardware-task-switches */
+    mov rax, [rsp + 16]
+    and rax, -16384
+    mov [rsp + 16], rax
+
     iretq
 
 /* ------------------------------------------------------------------

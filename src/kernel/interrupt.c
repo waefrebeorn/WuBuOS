@@ -499,6 +499,16 @@ void handle_nmi(InterruptFrame *frame) {
 void handle_page_fault(InterruptFrame *frame) {
     uint64_t cr2;
     __asm__ volatile ("mov %%cr2, %0" : "=r"(cr2));
+    /* Real virtual memory: a fault inside a registered demand-zero region
+     * allocates a fresh page, maps it, and RETURNS -- the iretq retries
+     * the faulting instruction. Everything else is a genuine kernel bug. */
+    extern int  wubu_vmm_is_demand(uint64_t);
+    extern int  wubu_vmm_demand_fill(uint64_t);
+    if (wubu_vmm_is_demand(cr2)) {
+        if (wubu_vmm_demand_fill(cr2) == 0)
+            return;                     /* retry the faulting instruction */
+        /* OOM in the demand path: fall through to the panic dump */
+    }
     /* In a real kernel: demand paging, COW, etc. */
     extern int klog_printf(const char *fmt, ...);
     uint64_t *sp = frame ? (uint64_t *)(uintptr_t)frame->rsp : NULL;

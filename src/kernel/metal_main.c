@@ -261,19 +261,27 @@ void kernel_main(void *boot_info) {
     klog_printf("WuBuOS: tasking initialized\n");
 
     /* 7b. The /theme graphic-set namespace (self-modifying UI) +
-     *     the unified input layer (GameInput-style, one event model). */
+     *     the unified input layer (GameInput-style, one event model) +
+     *     the vmm (page allocator + demand-zero regions). */
     extern void wubu_theme_init(void);
     extern void wubu_hid_init(void);
+    extern void wubu_vmm_init(void);
+    extern uint64_t wubu_vmm_register_demand(uint64_t, uint32_t);
     wubu_theme_init();
     wubu_hid_init();
-    klog_printf("WuBuOS: /theme namespace + unified input ready\n");
-    /* 8. Timer-driven PREEMPTION is DISABLED (stable cooperative base).
-     * The preempt resume path has a tracked #GP: the resumed iretq pops a
-     * shifted frame with the NT flag set (0x4006) and no TSS exists in the
-     * GDT -> the iretq attempts a task-return and faults.  Evidence logged
-     * in docs/compendium/03-learned/didnt-work.md.  Cooperative round-robin
-     * + the 100 Hz tick (uptime/sleep/AGI cycle) deliver the live system.
-     * extern void task_preempt_enable(void); task_preempt_enable(); */
+    wubu_vmm_init();
+    /* a demand-zero demo region in the free higher-half space */
+    wubu_vmm_register_demand(0xffffffff90000000ull, 4096);
+    klog_printf("WuBuOS: /theme + unified input + vmm ready\n");
+    /* 8. Timer-driven PREEMPTION. The tracked #GP (resumed iretq with the
+     * NT flag + no TSS) is fixed: wubu_tss installs a real TSS64 + GDT
+     * (stray task-returns defined), and tasking_switch.S masks NT out of
+     * the restored rflags (the kernel never hardware-task-switches). */
+    extern void wubu_tss_init(void);
+    wubu_tss_init();
+    __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'7', %%al\n outb %%al, %%dx" ::: "dx","al");
+    extern void task_preempt_enable(void);
+    task_preempt_enable();
 
     /* 9. Boot the AGI kernel supervisor (ring-0 operator + agent realm).
      *    This replaces the old `for(;;) HLT();` shell: the OS is now an AGI
