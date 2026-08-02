@@ -208,3 +208,14 @@ Copy TEMPLATE.md for new entries.*
 - **Lesson:** the QEMU monitor forensics must confirm the KERNEL is
   running (serial marker / "live console up") before reading the CPU
   state -- a firmware-shell boot looks like an arbitrary kernel state.
+
+## 2026-08-02 — Console RX chain verified alive (the loss is TX-side)
+- Probe: the monitor xp of wubu_serial's statics -- one byte bumps
+  g_irq_count 0->1 (vector-36 IRQ fires) and the FIFO count returns to
+  0 (the console task consumes it). The RX chain (UART -> IRQ ->
+  wubu_sync FIFO -> console drain/pop) is fully alive.
+- The typed command's response still doesn't appear: under the
+  promote-flood backpressure the bounded TX drops chars, so the
+  response's chars are slow/dropped. The rate-limit cut the flood
+  ~90x; the remaining fix is the response path's TX priority or a real
+  ISR-fed TX ring -- tracked.
