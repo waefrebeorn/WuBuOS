@@ -126,3 +126,28 @@ Copy TEMPLATE.md for new entries.*
 - **When it may change:** 105 gaps remain OPEN in the register -- the
   next close batches are the IST/double-fault, FPU save on switch, the
   e820 memory map, and the UART-RX ISR.
+
+## 2026-08-02 — Close batch 2: FPU save, IST, interrupt UART, e820
+- **Context:** gap-register close batch (A2/C8/E2/I1 + F5 polish).
+- **What worked:**
+  1. FPU/SSE on switch (C8): fxsave/fxrstor in tasking_switch.S + primed
+     first-run contexts (FCW 0x37F + MXCSR 0x1F80). The memset exposed a
+     latent heap ABI bug: CMemUsed's 8-byte header made every payload
+     8-off -> the compiler's movaps #GP'd on the CTask. Fixed: padded the
+     header to 16 bytes (all mem_alloc payloads now 16-aligned).
+  2. Double-fault IST (A2): wubu_tss IST1 (8KB dedicated stack) + the
+     vector-8 gate rides it -- a task-stack overflow can't triple-fault.
+  3. Interrupt-driven UART (E2): IOAPIC pin 4 -> vector 36 -> the wubu_sync
+     FIFO; console pops it, safe poll backup. Console verified interactive
+     over the IRQ path.
+  4. Real memory map (I1): the LEGACY boot.S path never runs (the chain is
+     WuBuFW -> BOOTX64.EFI loader -> kernel), so the LOADER now collects
+     GetMemoryMap before ExitBootServices into 0x98000; the vmm owns the
+     REAL RAM: free_pages 244736 -> 113664 (512MB QEMU).
+  5. dump command reworked: klog has no %02x (prints literally) -- manual
+     hex into a buffer + plain %s. Live-verified dumping the memmap.
+- **Evidence:** make check ALL GREEN; soak: 4 samples ZERO faults under
+  full preemption with the FPU save live; console interactive OK;
+  loader: "memmap @ 0x98000 (5 regions)"; vmm free_pages=113664.
+- **When it may change:** the memmap table is capped at 8 regions; a
+  machine with more fragments needs the cap raised.

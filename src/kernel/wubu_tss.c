@@ -12,6 +12,9 @@
 
 static uint64_t g_gdt[8];        /* 0:null 8:code 16:data 24:tss 32:u-code 40:u-data */
 static uint8_t  g_tss[104];      /* the TSS64 (minimum 104 bytes) */
+static uint8_t  g_ist1_stack[8192] __attribute__((aligned(16)));
+/* IST1 top (the TSS stores the TOP; the stack grows down) */
+#define WUBU_IST1_TOP ((uintptr_t)g_ist1_stack + sizeof(g_ist1_stack))
 
 static void gdt_set_tss64(uint64_t *gdt, int idx, uintptr_t base)
 {
@@ -41,6 +44,13 @@ void wubu_tss_init(void)
         g_tss[i] = 0;
     g_tss[102] = 0xFF;
     g_tss[103] = 0xFF;
+
+    /* IST1 (gap A2): a DEDICATED double-fault stack. When the CPU detects
+     * a #DF while servicing an exception it switches to IST1 -- a stack
+     * overflow in a task can no longer triple-fault (the #DF handler gets
+     * clean stack + a real dump). TSS64 layout: IST1 = offset 36, 8 bytes.
+     * The IST field holds the TOP of the stack. */
+    *(uint64_t *)(g_tss + 36) = (uint64_t)WUBU_IST1_TOP;
 
     /* Load the new GDT (the old selectors stay valid: same entries) */
     struct { uint16_t limit; uint64_t base; } __attribute__((packed)) gdtr;

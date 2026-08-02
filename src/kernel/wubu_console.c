@@ -193,7 +193,23 @@ static int cmd_stats(int argc, char **argv)
 }
 
 /* In-OS hexdump: `dump <addr> [bytes]` — the live debugger (gap F5).
- * addr is a raw 32-bit address; bytes defaults to 64, max 256. */
+ * addr is a raw 32-bit address; bytes defaults to 64, max 256.
+ * klog has NO width/precision support (%02x prints literally), so the
+ * line is hand-formatted into a buffer + one plain %s. */
+static void dump_hex_byte(char *o, uint8_t v)
+{
+    static const char *hx = "0123456789abcdef";
+    o[0] = hx[v >> 4];
+    o[1] = hx[v & 0xF];
+}
+static void dump_hex_qword(char *o, uint32_t v)
+{
+    for (int i = 7; i >= 0; i--) {
+        static const char *hx = "0123456789abcdef";
+        o[i] = hx[v & 0xF];
+        v >>= 4;
+    }
+}
 static int cmd_dump(int argc, char **argv)
 {
     (void)argc;
@@ -206,12 +222,20 @@ static int cmd_dump(int argc, char **argv)
     if (argc >= 3) n = (uint32_t)strtoul(argv[2], NULL, 0);
     if (n == 0 || n > 256) n = 64;
     volatile uint8_t *p = (volatile uint8_t *)addr;
+    char line[80];
     klog_printf("dump: %x (%u bytes)\n", (unsigned)addr, (unsigned)n);
     for (uint32_t i = 0; i < n; i += 16) {
-        klog_printf("%08x  ", (unsigned)(addr + i));
-        for (uint32_t j = 0; j < 16 && i + j < n; j++)
-            klog_printf("%02x ", (unsigned)p[i + j]);
-        klog_printf("\n");
+        int o = 0;
+        dump_hex_qword(line, (uint32_t)(addr + i));
+        line[8] = ' ';
+        line[9] = ' ';
+        o = 10;
+        for (uint32_t j = 0; j < 16 && i + j < n; j++, o += 3) {
+            dump_hex_byte(line + o, p[i + j]);
+            line[o + 2] = ' ';
+        }
+        line[o] = '\0';
+        klog_printf("%s\n", line);
     }
     return 0;
 }
@@ -329,8 +353,15 @@ void wubu_console_task(void *arg)
     klog_printf("WuBuOS: live console up (COM1, ring 0)\n");
     wubu_console_prompt();
     for (;;) {
-        if (serial_rx_ready()) {
-            uint8_t c = serial_rx();
+        /* RX: interrupt-driven (gap E2) -- the UART IRQ pushes the
+         * wubu_sync FIFO; the poll backup drains the UART into the FIFO
+         * when the IRQ path is quiet. Each byte is consumed exactly once
+         * (the data register is a destructive read, whichever side wins). */
+        extern int  wubu_serial_pop(uint8_t *);
+        extern void wubu_serial_drain(void);
+        wubu_serial_drain();
+        uint8_t c;
+        if (wubu_serial_pop(&c) == 0) {
             if (c == '\r' || c == '\n') {
                 serial_tx('\r'); serial_tx('\n');
                 line[n] = 0;

@@ -53,6 +53,32 @@ _start16:
     int  $0x13
     jc   disk_err
 
+    /* Collect the BIOS memory map (E820) into 0x98000 (gap I1).
+     * Layout: u16 count @ 0x98000, then up to 8 entries of
+     * {u64 base, u64 length, u32 type} (20 bytes each). */
+    movw $0x9800, %ax
+    movw %ax, %es
+    xorw %di, %di
+    xorl %ebx, %ebx           /* first call: continuation = 0 */
+    xorw %bp, %bp             /* entry counter */
+1:  movl $0xE820, %eax
+    movl $0x534D4150, %edx     /* 'SMAP' */
+    movl $20, %ecx             /* entry size (we ignore the ACPI 3.0 ext) */
+    int  $0x15
+    jc   e820_done             /* carry = no more entries / not supported */
+    cmpl $0x534D4150, %eax     /* signature check */
+    jne  e820_done
+    addw $20, %di              /* advance the ES:DI buffer */
+    incw %bp
+    cmpw $8, %bp
+    jge  e820_done             /* cap at 8 entries */
+    testl %ebx, %ebx
+    jnz  1b
+e820_done:
+    movw %bp, %es:(0x98000)    /* count (u16 is fine for <=8) */
+    movb $'m', %al
+    call serial_putc
+
     movw $str_loaded, %si
     call serial_puts
 

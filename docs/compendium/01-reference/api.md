@@ -2,9 +2,9 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Public API (header-sourced)
-> Generated 2026-08-02 10:48 UTC -- prototypes extracted from the headers = the real interface contracts.
+> Generated 2026-08-02 11:02 UTC -- prototypes extracted from the headers = the real interface contracts.
 
-> 634 prototypes across the tree.
+> 636 prototypes across the tree.
 
 ## `src/tools/iso9660.h`
 
@@ -183,9 +183,17 @@
 - `wubu_hive_empty(const wubu_hive_t *h)`
 - `wubu_hive_erase_at(wubu_hive_t *h, wubu_hive_iter_t *it)`
 
+## `src/kernel/wubu_memmap.h`
+
+- `wubu_memmap_init(wubu_memmap_info_t *info)`
+
 ## `src/kernel/wubu_pci.h`
 
 - `wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)`
+
+## `src/kernel/wubu_serial.h`
+
+- `wubu_serial_drain(void)`
 
 ## `src/kernel/wubu_sync.h`
 

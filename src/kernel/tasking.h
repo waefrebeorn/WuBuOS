@@ -43,7 +43,16 @@ typedef struct TaskContext {
     uint64_t rip;
     uint64_t rsp;
     uint64_t rflags;
+    /* FPU/SSE state (gap C8): fxsave/fxrstor area, 16-byte aligned.
+     * The switch saves/restores it so tasks don't leak xmm0-15/mxcsr
+     * into each other (the movaps-corruption hazard). */
+    uint8_t  fxsave[512] __attribute__((aligned(16)));
 } TaskContext;
+
+/* STATIC ABI CONTRACT with tasking_switch.S: the fxsave area sits at
+ * offset 144 (16-aligned); the GP-register layout above it is exact. */
+_Static_assert(offsetof(TaskContext, fxsave) == 144, "fxsave offset");
+_Static_assert(sizeof(TaskContext) == 656, "task context size");
 
 /* -- Task Control Block ------------------------------------------- */
 

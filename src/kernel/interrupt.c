@@ -407,6 +407,11 @@ int interrupt_init(void) {
         idt_set_gate(&idt_table[i], handler_addr, 0x08, gate_type, 0);
     }
 
+    /* Double fault (vector 8) rides IST1 (gap A2): the TSS's dedicated
+     * #DF stack, so a task-stack overflow can't triple-fault. */
+    idt_set_gate(&idt_table[8], (uint64_t)isr_entries[8], 0x08,
+                 IDT_GATE_INT, 1);
+
     /* --------------------------------------------------------------
      * Remap PIC: IRQ0-7 → 32-39, IRQ8-15 → 40-47
      * -------------------------------------------------------------- */

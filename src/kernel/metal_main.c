@@ -270,9 +270,12 @@ void kernel_main(void *boot_info) {
     wubu_theme_init();
     wubu_hid_init();
     wubu_vmm_init();
+    /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
+    extern void wubu_serial_init(void);
+    wubu_serial_init();
     /* a demand-zero demo region in the free higher-half space */
     wubu_vmm_register_demand(0xffffffff90000000ull, 4096);
-    klog_printf("WuBuOS: /theme + unified input + vmm ready\n");
+    klog_printf("WuBuOS: /theme + unified input + vmm + serial ready\n");
     /* 8. Timer-driven PREEMPTION. The tracked #GP (resumed iretq with the
      * NT flag + no TSS) is fixed: wubu_tss installs a real TSS64 + GDT
      * (stray task-returns defined), and tasking_switch.S masks NT out of

@@ -52,6 +52,10 @@ typedef struct CMemUsed CMemUsed;
 struct CMemUsed {
     uint32_t     signature;  /* MEM_USED_SIGNATURE when allocated */
     uint32_t     size;       /* Total bytes including this header */
+    uint64_t     pad;        /* ABI: 16-byte header so user data + the
+                              * front canary keep 16-byte alignment
+                              * (movaps-safe -- the fxsave-area memset
+                              * #GP'd on an 8-off CTask). */
     /* User data starts at CMemUsed.start = offsetof(CMemUsed, start) */
     char         start[];
 };

@@ -8,7 +8,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 ## A. Kernel robustness (P0)
 - [x] A1. ISR vector coverage: ALL 256 vectors get stubs; unknown vectors
       log a full raw frame + LAPIC state + halt (verified interrupt.c:392).
-- [ ] A2. Double-fault IST: no IST stack -> a #DF in a #DF triple-faults
+- [x] A2. Double-fault IST: wubu_tss IST1 (dedicated 8KB stack) + gate ist=1 (this batch): no IST stack -> a #DF in a #DF triple-faults
       to reset. CLOSE: give vector 8 an IST via wubu_tss.
 - [ ] A3. No NMI distinction: vector 2 hits the generic halt path.
 - [ ] A4. No watchdog for a task that never yields (console stuck = lockup).
@@ -57,7 +57,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] C5. No ISR-overrun counter.
 - [ ] C6. syscall exit (sysretq) has no rflags sanitization (the iretq has it).
 - [ ] C7. No alignment-check (AC) policy.
-- [ ] C8. FPU/SSE state NOT saved on context switch -- tasks share xmm0-15
+- [x] C8. FPU/SSE saved on switch: fxsave/fxrstor in tasking_switch.S, primed first-run contexts (this batch) on context switch -- tasks share xmm0-15
       + mxcsr; the movaps-class corruption is a live hazard.
 - [ ] C9. CR0.WP not set (kernel can write RO pages silently).
 - [ ] C10. SMEP/SMAP not enabled.
@@ -77,7 +77,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 
 ## E. Drivers (P1)
 - [ ] E1. USB HID: wubu_usb.h is design-only (xHCI/HID implementation).
-- [ ] E2. UART RX is polled, not interrupt-driven (console busy-polls; no
+- [x] E2. UART RX interrupt-driven: IOAPIC pin 4 -> vector 36 -> wubu_sync FIFO + safe poll backup (this batch), not interrupt-driven (console busy-polls; no
       serial ISR -> no ISR-queue usage of wubu_sync).
 - [ ] E3. No serial output buffering.
 - [ ] E4. PCI report doesn't filter by class (no device roles).
@@ -122,7 +122,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
       phantom-field bug class can regress).
 
 ## I. Boot / early (P1)
-- [ ] I1. No firmware memory map (e820) -- vmm assumes 1GB.
+- [x] I1. E820-style memory map from the loader: GetMemoryMap -> 0x98000 -> vmm owns the real RAM (this batch) (e820) -- vmm assumes 1GB.
 - [ ] I2. No SMP (APs never started; single CPU).
 - [ ] I3. No SMBIOS/DMI parsing (machine identity unknown).
 - [ ] I4. No cache/TLB maintenance policy doc.
