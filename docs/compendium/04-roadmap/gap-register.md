@@ -43,7 +43,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [ ] B7. Single address space (kernel+future user share CR3); no
       per-address-space isolation.
 - [ ] B8. No page reference counting.
-- [ ] B9. mem_alloc free-list has no coalescing validation.
+- [x] B9. Heap coalescing: mem_free merges the adjacent free block + mem_validate_coalescing walks the linear heap (host-tested).
 - [x] B10. AGI memory-pressure awareness: agi_theme_step dims the desktop (this batch) (the Colonel can't see pressure).
 - [ ] B11. The vmm's used-region table is hardcoded (no e820).
 - [x] B12. Fault statistics: interrupt_get_count + `stats` (this batch) tracked in the kernel (evidence gap).

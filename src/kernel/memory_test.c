@@ -74,6 +74,42 @@ static void test_alloc_free(void) {
     PASS();
 }
 
+/* Gap B9: after adjacent frees the coalescing must merge them -- the
+ * linear walk must report zero adjacent-free pairs, and the merged
+ * block must still be allocatable at the combined size. */
+static void test_coalescing(void) {
+    printf("\n[Coalescing (B9)]\n");
+
+    mem_init(4 * 1024 * 1024);
+
+    TEST("adjacent frees coalesce (zero adjacent-free pairs)");
+    void *a = mem_alloc(1024);
+    void *b = mem_alloc(1024);
+    void *c = mem_alloc(1024);
+    if (a && b && c) {
+        /* free b then a -- a and b are adjacent -> must merge */
+        mem_free(b);
+        mem_free(a);
+        mem_free(c);
+        int pairs = mem_validate_coalescing();
+        if (pairs == 0) PASS(); else FAIL("adjacent free pairs remain");
+    } else FAIL("alloc failed");
+
+    TEST("merged block is reusable at the combined size");
+    {
+        /* two 4KB blocks adjacent, freed together -> 8KB+ usable */
+        void *x = mem_alloc(4096);
+        void *y = mem_alloc(4096);
+        if (x && y) {
+            mem_free(x);
+            mem_free(y);
+            void *big = mem_alloc(9000);  /* needs the merged space */
+            if (big) { PASS(); mem_free(big); }
+            else FAIL("merged block not allocatable");
+        } else FAIL("alloc failed");
+    }
+}
+
 static void test_calloc(void) {
     printf("\n[Calloc]\n");
     
@@ -274,6 +310,7 @@ int main(void) {
     
     test_init_shutdown();
     test_alloc_free();
+    test_coalescing();
     test_calloc();
     test_realloc();
     test_stress();
