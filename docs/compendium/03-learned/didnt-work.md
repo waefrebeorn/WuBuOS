@@ -92,3 +92,14 @@ tick 12->204 at 100Hz, promoted 1138->20718, attest_valid=1.
   at the low-memory/loader region. OPEN -- next session: watch the
   stack for the first corrupted return address via a QEMU hardware
   breakpoint on the memcpy caller, or gate the promote loop entirely.
+
+## 2026-08-02 — Console RX regression (OPEN, tracked)
+- The kernel's TX is alive (promote flood flows); the console's RX is
+  dead: the typed command's ECHO never appears, so the console task
+  never receives the byte. Worked earlier (attest/date/history were
+  verified live on metal), regressed in the A4/A5/A9 window.
+- Suspect chain: UART RX -> vector-36 IRQ -> wubu_sync FIFO -> console
+  drain/pop. The A4 watchdog (task_timer_tick) or the A5 reaper (main
+  loop) is the likely regression source.
+- Next: probe wubu_serial_irq_count + the FIFO depth via the monitor
+  at the moment a byte is sent to find the broken link.
