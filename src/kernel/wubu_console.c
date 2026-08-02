@@ -29,8 +29,16 @@ static inline uint8_t serial_rx(void) {
     return inb(COM1_PORT);
 }
 static inline void serial_tx(uint8_t c) {
-    while ((inb(COM1_LSR) & 0x20) == 0) { /* wait for THR empty */ }
-    outb(COM1_PORT, c);
+    /* BOUNDED TX wait (the tick-12/33/153 freeze root cause): when a
+     * slow/no reader backs up the serial socket, the UART's THR-empty
+     * stops and the OLD unbounded wait spun the CPU FOREVER (the kernel
+     * appeared frozen with the serial-register state). The serial is a
+     * DEBUG channel -- the kernel must never block on it: wait a bounded
+     * number of polls, then DROP the character. */
+    for (int i = 0; i < 65536; i++) {
+        if (inb(COM1_LSR) & 0x20) { outb(COM1_PORT, c); return; }
+    }
+    /* timeout: the char is dropped; the kernel continues */
 }
 
 /* ------------------------------------------------------------------ */
