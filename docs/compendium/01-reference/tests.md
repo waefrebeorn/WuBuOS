@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Tests
-> Generated 2026-08-02 10:29 UTC -- the scanner RUNS the curated host tests and records the results.
+> Generated 2026-08-02 10:48 UTC -- the scanner RUNS the curated host tests and records the results.
 
 - `make test_hive` -> **PASS**  (ALL HIVE TESTS PASSED)
 - `make test_agi_kernel` -> **PASS**  (ALL AGI KERNEL TESTS PASSED)

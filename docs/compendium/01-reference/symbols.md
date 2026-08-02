@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Symbols
-> Generated 2026-08-02 10:29 UTC -- all built ELFs.
+> Generated 2026-08-02 10:48 UTC -- all built ELFs.
 
 
 ## src/kernel/kernel.elf

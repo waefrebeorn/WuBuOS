@@ -9,8 +9,15 @@
  */
 
 #include "wubu_vmm.h"
+#include "wubu_sync.h"
 
 #define PAGE 4096ull
+
+/* The allocator is shared between the #PF handler (ISR context, demand
+ * fill) and the kernel main path (future heap/segments): protect the
+ * bitmap with wubu_sync's spinlock (gap D6 -- the first real metal user
+ * of the sync module). cli-based: atomic on this single CPU. */
+static wubu_spinlock_t g_vmm_lock;
 
 /* ---- the allocator bitmap ------------------------------------------ */
 
@@ -31,6 +38,7 @@ static uint32_t bm_test(uint32_t idx) {
 
 void wubu_vmm_init(void)
 {
+    wubu_spin_init(&g_vmm_lock);
     for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS / 8; i++)
         g_bitmap[i] = 0;
     g_free_pages = WUBU_VMM_BITMAP_BITS;
@@ -59,6 +67,8 @@ void wubu_vmm_init(void)
 uint64_t wubu_vmm_alloc_pages(uint32_t n)
 {
     if (n == 0 || n > 64) return 0;
+    uint64_t out = 0;
+    wubu_spin_lock(&g_vmm_lock);
     /* first-fit scan for n consecutive free pages */
     uint32_t run = 0, start = 0;
     for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS; i++) {
@@ -67,13 +77,15 @@ uint64_t wubu_vmm_alloc_pages(uint32_t n)
             if (++run == n) {
                 for (uint32_t j = start; j < start + n; j++)
                     bm_set(j);
-                return WUBU_VMM_PHYS_BASE + (uint64_t)start * PAGE;
+                out = WUBU_VMM_PHYS_BASE + (uint64_t)start * PAGE;
+                break;
             }
         } else {
             run = 0;
         }
     }
-    return 0;
+    wubu_spin_unlock(&g_vmm_lock);
+    return out;
 }
 
 void wubu_vmm_free_pages(uint64_t phys, uint32_t n)
@@ -81,11 +93,13 @@ void wubu_vmm_free_pages(uint64_t phys, uint32_t n)
     if (phys < WUBU_VMM_PHYS_BASE) return;
     uint64_t off = phys - WUBU_VMM_PHYS_BASE;
     if (off % PAGE != 0) return;
+    wubu_spin_lock(&g_vmm_lock);
     for (uint32_t i = 0; i < n; i++) {
         uint32_t idx = (uint32_t)(off / PAGE) + i;
         if (idx < WUBU_VMM_BITMAP_BITS && bm_test(idx))
             bm_clear(idx);
     }
+    wubu_spin_unlock(&g_vmm_lock);
 }
 
 /* ---- page-table mapping (walks the CR3 tables) ---------------------- */

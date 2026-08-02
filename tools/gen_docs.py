@@ -198,7 +198,26 @@ def scan_tests():
     return "".join(out)
 
 
-# ------------------------------------------------------ state (boots QEMU)
+# ------------------------------------------------------------------ commands
+def scan_commands():
+    """Console command list (gap J3): parsed from wubu_console.c's dispatch
+    table -- the REAL command set, never a stale hand list."""
+    out = [BANNER, f"# Console Commands\n> Generated {GEN_AT} -- parsed from "
+                   f"wubu_console.c's dispatch table.\n\n"]
+    src = os.path.join(ROOT, "src", "kernel", "wubu_console.c")
+    if not os.path.exists(src):
+        return "".join(out) + "(wubu_console.c not found)\n"
+    cmds = []
+    for line in open(src, errors="replace"):
+        m = re.search(r'strcmp\(argv\[0\],\s*"([a-z]+)"\)', line)
+        if m:
+            cmds.append(m.group(1))
+    for c in sorted(set(cmds)):
+        out.append(f"- `{c}`\n")
+    return "".join(out)
+
+
+# ------------------------------------------------------- state (boots QEMU)
 def scan_state():
     out = [BANNER, f"# Live State\n> Generated {GEN_AT} -- boots the metal "
                    f"kernel in QEMU and records the console probes.\n\n"]
@@ -263,6 +282,7 @@ def main():
     files = {
         "modules.md": scan_modules(),
         "api.md": scan_api(),
+        "commands.md": scan_commands(),
         "symbols.md": scan_symbols(),
         "tests.md": scan_tests(),
         "state.md": scan_state(),

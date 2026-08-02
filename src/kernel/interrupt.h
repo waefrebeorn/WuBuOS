@@ -5,11 +5,11 @@
  * Uses assembly ISR stubs (isr_stubs.S) for vector entry points.
  * Common handler dispatches to C handlers or preemptive scheduler.
  */
-#ifndef MYSEED_INTERRUPT_H
-#define MYSEED_INTERRUPT_H
+#ifndef INTERRUPT_H
+#define INTERRUPT_H
 
 #include <stdint.h>
-#include <stddef.h>
+#include <stddef.h>   /* offsetof (for the static ABI asserts) */
 
 /* ------------------------------------------------------------------
  * IDT Structures (x86_64 16-byte interrupt gate)
@@ -66,6 +66,20 @@ typedef struct InterruptFrame {
     uint64_t rsp;            /* Stack pointer (user/kernel) */
     uint64_t ss;             /* Stack segment */
 } InterruptFrame;
+
+/* STATIC ABI ASSERTS: the frame layout is a live contract with
+ * isr_stubs.S -- a phantom field or a shifted order silently corrupts
+ * EVERY fault dump (the historical 'everything looked like vector 0'
+ * bug class). The asserts fire at COMPILE time, not boot time. */
+_Static_assert(offsetof(InterruptFrame, rax)    == 0,   "rax offset");
+_Static_assert(offsetof(InterruptFrame, rdi)    == 112, "rdi offset");
+_Static_assert(offsetof(InterruptFrame, vector) == 120, "vector offset");
+_Static_assert(offsetof(InterruptFrame, error_code) == 128, "err offset");
+_Static_assert(offsetof(InterruptFrame, rip)    == 136, "rip offset");
+_Static_assert(offsetof(InterruptFrame, cs)     == 144, "cs offset");
+_Static_assert(offsetof(InterruptFrame, rflags) == 152, "rflags offset");
+_Static_assert(offsetof(InterruptFrame, rsp)    == 160, "rsp offset");
+_Static_assert(sizeof(InterruptFrame)           == 176, "frame size");
 
 /* ------------------------------------------------------------------
  * ISR Handler Type
