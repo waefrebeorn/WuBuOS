@@ -15,6 +15,10 @@ static inline void pause(void) { __asm__ __volatile__("pause"); }
 
 static inline uint64_t rdtsc(void);
 
+/* strtoul/strtol -- console + the future HolyC runtime + VSL tables. */
+unsigned long strtoul(const char *nptr, char **endptr, int base);
+long strtol(const char *nptr, char **endptr, int base);
+
 static inline void lgdt(void *ptr);
 
 static inline uint64_t read_cr0(void);

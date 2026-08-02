@@ -108,3 +108,21 @@ Copy TEMPLATE.md for new entries.*
   SPSC, in order); test_vmm ALL PASS; stable boot green.
 - **When it may change:** the demand regions become the real segment/store
   substrate; the spinlock gets its metal workout when a driver uses it.
+
+## 2026-08-02 — The 115-gap register + the first close batch
+- **Context:** "devil's advocate find 100+ gaps and close them".
+- **What worked:** a systematic sweep (53 kernel C files / 18K LOC / 29
+  stub markers / 132 silent return-0s) -> docs/compendium/04-roadmap/
+  gap-register.md with 115 VERIFIED gaps (A..K categories). Closed in
+  this batch (10): static ABI asserts for InterruptFrame (compile-time
+  frame contract), `stats` command (fault counters exposed), `dump`
+  hexdump command (the in-OS debugger), AGI memory-pressure awareness
+  (the desktop dims under pressure -- B10/G9), wubu_sync spinlock used
+  by the vmm allocator (D6 -- the sync module's first metal user),
+  `make check` (6 tests + kernel build), commands.md generator (J3).
+- **Evidence:** make check ALL GREEN; live: stats (tick=12 irq32=12,
+  zero exceptions), vmm touch (faults=1), dump 117c60 (the g_vbe struct
+  hexdump); the static assert caught the frame-size=176 discrepancy.
+- **When it may change:** 105 gaps remain OPEN in the register -- the
+  next close batches are the IST/double-fault, FPU save on switch, the
+  e820 memory map, and the UART-RX ISR.

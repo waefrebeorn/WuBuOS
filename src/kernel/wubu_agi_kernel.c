@@ -296,8 +296,18 @@ static void agi_theme_step(wubu_agi_kernel_t *k)
         wubu_theme_node_set("/theme/gorilla/fur", fur);
     }
 
-    /* frozen -> muted desktop */
-    uint32_t bg = k->frozen ? 0x00404040u : 0x00003020u;
+    /* frozen -> muted desktop; MEMORY PRESSURE (gap B10/G9) -> the
+     * desktop dims so the Colonel's skin shows the system's breathing
+     * room (below 10k free pages ~ 40 MB = pressured). */
+    extern uint64_t wubu_vmm_free_count(void);
+    uint64_t free_pg = wubu_vmm_free_count();
+    uint32_t bg;
+    if (free_pg < 10000ull)
+        bg = 0x00101010u;                          /* pressured */
+    else if (k->frozen)
+        bg = 0x00404040u;
+    else
+        bg = 0x00003020u;
     if (wubu_theme_node_get("/theme/desktop/bg", &cur) != 0 || cur != bg) {
         wubu_theme_node_set("/theme/desktop/bg", bg);
     }

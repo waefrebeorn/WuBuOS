@@ -57,3 +57,6 @@ int wubu_theme_node_get(const char *p, uint32_t *v) { (void)p; if (v) *v = 0; re
 void wubu_theme_apply(void) {}
 const void *wubu_theme_get(void) { return NULL; }
 
+/* ---- wubu_vmm hosted stub (agi_theme_step reads memory pressure) --- */
+uint64_t wubu_vmm_free_count(void) { return 0xFFFFFFFFull; }
+

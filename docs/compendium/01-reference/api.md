@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Public API (header-sourced)
-> Generated 2026-08-02 10:29 UTC -- prototypes extracted from the headers = the real interface contracts.
+> Generated 2026-08-02 10:48 UTC -- prototypes extracted from the headers = the real interface contracts.
 
 > 634 prototypes across the tree.
 

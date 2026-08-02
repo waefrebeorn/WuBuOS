@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Live State
-> Generated 2026-08-02 10:29 UTC -- boots the metal kernel in QEMU and records the console probes.
+> Generated 2026-08-02 10:48 UTC -- boots the metal kernel in QEMU and records the console probes.
 
 ```
 [agi] attestation table published (PCR0-7, SB=0 setup=1)
@@ -14,8 +14,8 @@ WuBuOS AGI: firmware attestation VALID (root of trust live)
 WuBuOS: independent verifier installed (promote loop live)
 WuBuOS AGI: Bonzi Buddy loop active (fb=1920x1080)
 WuBuOS: live console up (COM1, ring 0)
-tick=12 agi_uptime_ms=110 regions=34 promoted=1138
-agi: frozen=0 attest_valid=1 traces=256 promoted=6147 uptime_ms=590
+tick=12 agi_uptime_ms=110 regions=34 promoted=1137
+agi: frozen=0 attest_valid=1 traces=256 promoted=6145 uptime_ms=590
 bonzi: heartbeat regions=34 attest=VALID
 
 ```

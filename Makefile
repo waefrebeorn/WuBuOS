@@ -970,6 +970,14 @@ test_theme_hid:
 		-o $(KERNEL)/test_theme_hid
 	$(KERNEL)/test_theme_hid
 
+# ── Aggregate checks (gap F7: one command runs everything) ──────────
+.PHONY: check
+check:
+	@echo "== WuBuOS check: host tests + metal build + docs =="
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm
+	$(MAKE) -s kernel
+	@echo "== all checks passed =="
+
 # DA-3 independent verifier (self-improve promotion gate)
 test_verifier:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \

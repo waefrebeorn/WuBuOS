@@ -1,0 +1,154 @@
+# Gap Register — 100+ bare-metal gaps (triple-DA hunt, 2026-08-02)
+
+*Devil's-advocate gap hunt. Every item is VERIFIED against the code
+(sweep: 53 kernel C files / 18K LOC, 29 TODO/stub markers, 132 silent
+`return 0;`). Status: OPEN / CLOSED (with the commit). Priority P0 (kernel
+correctness), P1 (subsystem), P2 (tooling/docs).*
+
+## A. Kernel robustness (P0)
+- [x] A1. ISR vector coverage: ALL 256 vectors get stubs; unknown vectors
+      log a full raw frame + LAPIC state + halt (verified interrupt.c:392).
+- [ ] A2. Double-fault IST: no IST stack -> a #DF in a #DF triple-faults
+      to reset. CLOSE: give vector 8 an IST via wubu_tss.
+- [ ] A3. No NMI distinction: vector 2 hits the generic halt path.
+- [ ] A4. No watchdog for a task that never yields (console stuck = lockup).
+- [ ] A5. No task exit/cleanup path (tasks live forever; context never freed).
+- [ ] A6. Heap (mem_alloc) has no red-zone/poison check (the 8GB
+      alloca-in-loop bug class can regress silently).
+- [ ] A7. No panic-level klog (all messages equal; no panic ring for
+      post-mortem).
+- [ ] A8. No crash dump to the disk (the ledger wants evidence, not dumps).
+- [ ] A9. Early boot uses single-char markers -- no hex progress codes.
+- [ ] A10. No runtime PCR extension (attestation is boot-time only).
+- [ ] A11. ps2.c: 13 conditionals total; no ack/self-test validation, no
+      device-id handshake.
+- [ ] A12. ps2.c: no mouse handling (keyboard only? verified: input.h has
+      KeyEvent; MouseEvent unused by ps2).
+- [ ] A13. AHCI: no HBA reset / port error recovery (status bits never
+      cleared on error).
+- [ ] A14. AHCI: only the boot disk; no multi-drive enumeration.
+- [ ] A15. FAT32: no dirty-volume flag, no fsck, no journal.
+- [ ] A16. FAT32: no LFN support? (8.3 only) -- verify + close.
+- [ ] A17. No RTC/CMOS wall clock (uptime is tick-relative).
+- [ ] A18. No ACPI/FADT parsing (firmware memory map is assumed, not read).
+- [ ] A19. No HPET (the LAPIC timer is the only time source).
+- [ ] A20. Console errors silent: 132 bare `return 0;` paths swallow failure.
+
+## B. Memory / vmm (P0)
+- [x] B1. vmm bitmap allocator + free path (verified test_vmm ALL PASS).
+- [x] B2. Demand-zero regions: #PF alloc+map+RETRY live (verified `vmm touch`).
+- [ ] B3. No swap: demand pages are never evicted (the "VM+swap" P0 item).
+- [ ] B4. No COW.
+- [ ] B5. No guard pages between task stacks.
+- [ ] B6. No stack-overflow detection in tasks.
+- [ ] B7. Single address space (kernel+future user share CR3); no
+      per-address-space isolation.
+- [ ] B8. No page reference counting.
+- [ ] B9. mem_alloc free-list has no coalescing validation.
+- [x] B10. AGI memory-pressure awareness: agi_theme_step dims the desktop (this batch) (the Colonel can't see pressure).
+- [ ] B11. The vmm's used-region table is hardcoded (no e820).
+- [x] B12. Fault statistics: interrupt_get_count + `stats` (this batch) tracked in the kernel (evidence gap).
+
+## C. ISR / fault paths (P0)
+- [x] C1. iretq frame-rflags NT mask (the preempt fix, 62e3da3).
+- [ ] C2. Fault dumps don't name the faulting task.
+- [ ] C3. No fault counters (the soak proves "zero faults" only via probes).
+- [ ] C4. LAPIC spurious vector 0xFF: handler sanity unchecked.
+- [ ] C5. No ISR-overrun counter.
+- [ ] C6. syscall exit (sysretq) has no rflags sanitization (the iretq has it).
+- [ ] C7. No alignment-check (AC) policy.
+- [ ] C8. FPU/SSE state NOT saved on context switch -- tasks share xmm0-15
+      + mxcsr; the movaps-class corruption is a live hazard.
+- [ ] C9. CR0.WP not set (kernel can write RO pages silently).
+- [ ] C10. SMEP/SMAP not enabled.
+- [x] C11. Exception counters exposed: console `stats` (this batch) to the AGI/console.
+
+## D. Tasking (P0/P1)
+- [ ] D1. No idle task (the run loop busy-yields).
+- [ ] D2. No sleep wakeup optimization.
+- [ ] D3. No priority-inversion handling.
+- [ ] D4. task_create leak on failure paths.
+- [ ] D5. No per-task CPU accounting.
+- [x] D6. wubu_sync USED: the vmm allocator (shared ISR/main path) takes the spinlock (this batch) (spinlock unused
+      on metal).
+- [ ] D7. No watchdog for the AGI supervisor itself (frozen is manual).
+- [ ] D8. No task names in dumps (C2).
+- [x] D9. Preemption fixed + soak-verified (62e3da3).
+
+## E. Drivers (P1)
+- [ ] E1. USB HID: wubu_usb.h is design-only (xHCI/HID implementation).
+- [ ] E2. UART RX is polled, not interrupt-driven (console busy-polls; no
+      serial ISR -> no ISR-queue usage of wubu_sync).
+- [ ] E3. No serial output buffering.
+- [ ] E4. PCI report doesn't filter by class (no device roles).
+- [ ] E5. No IOMMU/VT-d (the anticheat below-OS plane).
+- [ ] E6. No disk cache flush policy.
+- [ ] E7. No watchdog timer (the 8254/HPET not used as a WDT).
+
+## F. Console / tooling (P1)
+- [ ] F1. No command history.
+- [ ] F2. No tab completion.
+- [ ] F3. No script execution ("run <file>").
+- [ ] F4. Help text doesn't enumerate all commands.
+- [x] F5. In-OS hexdump: console `dump <addr> [bytes]` (this batch) command (`mem <addr> <bytes>`) -- the live
+      debugger the kernel needs (today: external qemu-monitor scripts).
+- [ ] F6. No register dump command.
+- [x] F7. `make check` runs 6 host tests + the kernel build (this batch) (tests run individually).
+- [ ] F8. gen_docs tests scanner covers 6 of ~15 test targets.
+- [ ] F9. No CI config.
+- [ ] F10. No crash-file pickup (post-mortem from the metal).
+
+## G. AGI modules (P1)
+- [ ] G1. Verifier is static policy; DA-3 wants runtime PCRs.
+- [ ] G2. Verifier doesn't consult the TEST SUITE results (the DA's
+      "test-suite verifier" is not wired).
+- [ ] G3. promoted_total has no cap/decay.
+- [ ] G4. Theme writes not persisted (reset each boot).
+- [ ] G5. No long-term memory on metal (hive is hosted-side).
+- [ ] G6. No AGI crash recovery (checkpoints, DA-2.6).
+- [ ] G7. No supervisor watchdog (D7).
+- [ ] G8. Gamepad events fed by nothing (no driver).
+- [x] G9. See B10 (this batch) (B10).
+- [ ] G10. No AGI-side fault awareness (C11).
+
+## H. Syscall / ABI (P1)
+- [ ] H1. Syscall table undocumented (numbers/return codes).
+- [ ] H2. Syscall args (pointers) not validated.
+- [ ] H3. No syscall audit log.
+- [ ] H4. No ring-3 boundary (all ring 0; the hedged-human design needs it).
+- [ ] H5. sysretq rflags sanitization (C6).
+- [ ] H6. No vDSO/vsyscall page.
+- [ ] H7. No static ABI asserts for InterruptFrame/TaskContext offsets (the
+      phantom-field bug class can regress).
+
+## I. Boot / early (P1)
+- [ ] I1. No firmware memory map (e820) -- vmm assumes 1GB.
+- [ ] I2. No SMP (APs never started; single CPU).
+- [ ] I3. No SMBIOS/DMI parsing (machine identity unknown).
+- [ ] I4. No cache/TLB maintenance policy doc.
+- [ ] I5. No firmware API version negotiation.
+- [ ] I6. No fallback if the loaded image is corrupt-but-valid-digest.
+- [ ] I7. Limine protocol accepted but unused.
+
+## J. Docs / tooling (P2)
+- [x] J1. api.md scanner added (629 prototypes, this session).
+- [x] J2. api.md exists; README updated (docs DA batch) should go (it exists now).
+- [x] J3. commands.md generated from the dispatch table (this batch) (console command list).
+- [ ] J4. Ledger TEMPLATE not lint-enforced.
+- [ ] J5. gen_docs api scanner caps 40 prototypes/header (truncation).
+- [ ] J6. The kernel.ld ALIGN(16) fix has no boot-time assertion.
+- [ ] J7. parity.md: Windows/macOS rows PLANNED with no leg files.
+
+## K. Parity (P1)
+- [x] K1. Linux parity leg VERIFIED (make runtime tools, this session).
+- [ ] K2. Hosted core OS-abstraction audit (Linux-only syscalls in the
+      portable core).
+- [ ] K3. A Windows cross-build config.
+- [ ] K4. A macOS cross-build config.
+- [ ] K5. Parity regression in CI (K2-K4 gate).
+
+---
+**Close order (this session's batch):** H7 static ABI asserts → E2 UART-RX
+ISR + wubu_sync FIFO (metal-uses the spinlock/FIFO) → F5 hexdump command →
+C11/B12 fault statistics + console `stats` → B10/G9 AGI memory-pressure
+awareness → F7 `make check` → J2/J3 doc closes. Then the ledger.

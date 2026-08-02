@@ -172,6 +172,50 @@ static int cmd_vmm(int argc, char **argv)
     return 0;
 }
 
+/* Fault/interrupt statistics: `stats` — the exception counters exposed
+ * (gap C11/B12: the soak proved "zero faults" only via external probes). */
+static int cmd_stats(int argc, char **argv)
+{
+    extern uint64_t interrupt_get_count(uint8_t);
+    extern uint64_t task_tick_count(void);
+    (void)argc; (void)argv;
+    /* exceptions (0-19 relevant) + the timer vector */
+    klog_printf("stats: tick=%u ex=0:%u 6:%u 8:%u 13:%u 14:%u 18:%u irq32=%u\n",
+                (unsigned)task_tick_count(),
+                (unsigned)interrupt_get_count(0),
+                (unsigned)interrupt_get_count(6),
+                (unsigned)interrupt_get_count(8),
+                (unsigned)interrupt_get_count(13),
+                (unsigned)interrupt_get_count(14),
+                (unsigned)interrupt_get_count(18),
+                (unsigned)interrupt_get_count(32));
+    return 0;
+}
+
+/* In-OS hexdump: `dump <addr> [bytes]` — the live debugger (gap F5).
+ * addr is a raw 32-bit address; bytes defaults to 64, max 256. */
+static int cmd_dump(int argc, char **argv)
+{
+    (void)argc;
+    if (argc < 2) {
+        klog_printf("dump: usage 'dump <addr> [bytes]'\n");
+        return 0;
+    }
+    uint64_t addr = strtoul(argv[1], NULL, 16);  /* addresses are hex */
+    uint32_t n = 64;
+    if (argc >= 3) n = (uint32_t)strtoul(argv[2], NULL, 0);
+    if (n == 0 || n > 256) n = 64;
+    volatile uint8_t *p = (volatile uint8_t *)addr;
+    klog_printf("dump: %x (%u bytes)\n", (unsigned)addr, (unsigned)n);
+    for (uint32_t i = 0; i < n; i += 16) {
+        klog_printf("%08x  ", (unsigned)(addr + i));
+        for (uint32_t j = 0; j < 16 && i + j < n; j++)
+            klog_printf("%02x ", (unsigned)p[i + j]);
+        klog_printf("\n");
+    }
+    return 0;
+}
+
 static int cmd_agi(int argc, char **argv)
 {
     wubu_agi_kernel_t *agi = wubu_agi_kernel_global();
@@ -261,6 +305,8 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "theme") == 0)           return cmd_theme(argc, argv);
     if (strcmp(argv[0], "hid") == 0)             return cmd_input(argc, argv);
     if (strcmp(argv[0], "vmm") == 0)             return cmd_vmm(argc, argv);
+    if (strcmp(argv[0], "stats") == 0)           return cmd_stats(argc, argv);
+    if (strcmp(argv[0], "dump") == 0)            return cmd_dump(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();

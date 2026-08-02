@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Modules
-> Generated 2026-08-02 10:29 UTC -- recursive src/ walk, 587 modules.
+> Generated 2026-08-02 10:48 UTC -- recursive src/ walk, 587 modules.
 
 | Tree | Module | Lines | Depends on | Purpose |
 |------|--------|------:|------------|---------|
@@ -320,20 +320,20 @@
 | `kernel/` | `tasking` | 519 | interrupt.h, libc.h, memory.h, setjmp.h, stddef.h, stdint.h, string.h, tasking.h | tasking.c  --  My Seed Kernel Task Management (hosted test impl) Uses setjmp/longjmp for context swi |
 | `kernel/` | `tasking_test` | 181 | assert.h, memory.h, stdio.h, stdlib.h, string.h, tasking.h | tasking_test.c  --  Test suite for My Seed Tasking Subsystem |
 | `kernel/` | `test_agi_kernel` | 195 | stdio.h, string.h, wubu_agi_kernel.h, wubu_attest.h, wubu_bonzi.h | test_agi_kernel.c -- Verify the WuBuOS bare-metal AGI kernel supervisor runs correctly (hosted harne |
-| `kernel/` | `test_agi_kernel_stub` | 59 | input.h, klog.h, stdio.h, tasking.h, vbe.h | test_agi_kernel_stub.c -- Minimal kernel-API shims so wubu_agi_kernel.c links + runs in the HOSTED u |
+| `kernel/` | `test_agi_kernel_stub` | 62 | input.h, klog.h, stdio.h, tasking.h, vbe.h | test_agi_kernel_stub.c -- Minimal kernel-API shims so wubu_agi_kernel.c links + runs in the HOSTED u |
 | `kernel/` | `test_hive` | 183 | stdio.h, stdlib.h, string.h, wubu_hive.h | test_hive.c -- wubu_hive (C11 luddite hive) unit tests. Verifies the three-way tradeoff the hand-dra |
 | `kernel/` | `test_sync` | 97 | pthread.h, stdbool.h, stdint.h, stdio.h, wubu_sync.c, wubu_sync.h | test_sync.c -- host tests for wubu_sync (spinlock + ISR-safe FIFO). |
 | `kernel/` | `test_theme_hid` | 92 | assert.h, stddef.h, stdint.h, stdio.h, string.h, wubu_hid.c, wubu_hid.h, wubu_th | test_theme_hid.c -- host tests for the /theme namespace + unified HID. Builds the two freestanding k |
 | `kernel/` | `test_verifier` | 65 | stdbool.h, stdint.h, stdio.h, wubu_verifier.c, wubu_verifier.h | test_verifier.c -- host tests for the DA-3 independent verifier. Builds wubu_verifier.c with a minim |
-| `kernel/` | `test_vmm` | 56 | stdint.h, stdio.h, wubu_vmm.c, wubu_vmm.h | test_vmm.c -- host tests for wubu_vmm (bitmap allocator + demand registry). The page-table map + dem |
+| `kernel/` | `test_vmm` | 65 | stdint.h, stdio.h, wubu_sync.h, wubu_vmm.c, wubu_vmm.h | test_vmm.c -- host tests for wubu_vmm (bitmap allocator + demand registry). The page-table map + dem |
 | `kernel/` | `txfs` | 345 | stdio.h, stdlib.h, string.h, txfs.h | txfs.c  --  WuBuOS Transactional Filesystem Layer Implementation Cell 100: Journal-based atomic file |
 | `kernel/` | `txfs_test` | 572 | stdio.h, stdlib.h, string.h, txfs.h | txfs_test.c  --  Test Suite for WuBuOS Transactional Filesystem Cell 100: Tests journal-based atomic |
 | `kernel/` | `vbe` | 591 | klog.h, math.h, memory.h, stdbool.h, stdio.h, stdlib.h, string.h, vbe.h | vbe.c  --  WuBuOS VBE Framebuffer Implementation Two modes: - Kernel mode (default): uses mem_alloc/ |
-| `kernel/` | `wubu_agi_kernel` | 393 | klog.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_attest.h, wubu_bonzi | wubu_agi_kernel.c -- WuBuOS Bare-Metal AGI Kernel Supervisor (ring-0). Freestanding C11: NO malloc,  |
+| `kernel/` | `wubu_agi_kernel` | 403 | klog.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_attest.h, wubu_bonzi | wubu_agi_kernel.c -- WuBuOS Bare-Metal AGI Kernel Supervisor (ring-0). Freestanding C11: NO malloc,  |
 | `kernel/` | `wubu_apic` | 106 | interrupt.h, interrupt_apic.h, klog.h, stdint.h, wubu_apic.h | wubu_apic.c -- local APIC + I/O APIC bring-up (q35-correct delivery). Steps (see wubu_apic.h for the |
 | `kernel/` | `wubu_attest` | 103 | string.h, wubu_attest.h | wubu_attest.c -- WuBuOS kernel-side firmware attestation consumer (ring-0). Freestanding C11: no mal |
 | `kernel/` | `wubu_bonzi` | 361 | input.h, klog.h, stdio.h, string.h, tasking.h, vbe.h, wubu_agi_kernel.h, wubu_at | wubu_bonzi.c -- Bonzi Buddy: bare-metal AGI agent persona (ring-0 task). Freestanding C11. Runs as a |
-| `kernel/` | `wubu_console` | 303 | klog.h, libc.h, memory.h, stdint.h, string.h, tasking.h, wubu_agi_kernel.h, wubu | wubu_console.c -- live ring-0 console REPL (TempleOS-style). The metal kernel owns a COM1 interactiv |
+| `kernel/` | `wubu_console` | 349 | klog.h, libc.h, memory.h, stdint.h, string.h, tasking.h, wubu_agi_kernel.h, wubu | wubu_console.c -- live ring-0 console REPL (TempleOS-style). The metal kernel owns a COM1 interactiv |
 | `kernel/` | `wubu_gaad` | 595 | math.h, stdlib.h, string.h, wubu_gaad.h, wubu_math.h | wubu_gaad.c  --  WuBuOS Golden Aspect Adaptive Decomposition Cell 393: GAAD  --  the universal resol |
 | `kernel/` | `wubu_gaad_test` | 269 | assert.h, stdio.h, stdlib.h, string.h, wubu_gaad.h | wubu_gaad_test.c  --  GAAD: Golden Aspect Adaptive Decomposition Cell 393: Tests for the universal r |
 | `kernel/` | `wubu_hid` | 146 | wubu_hid.h | wubu_hid.c  --  WuBuOS Unified HID Layer (GameInput-style) A single ring of unified events, common t |
@@ -344,7 +344,7 @@
 | `kernel/` | `wubu_theme` | 218 | stddef.h, stdio.h, wubu_theme.h | wubu_theme.c  --  WuBuOS Metal Theme Engine + /theme Namespace The graphic set as a writable node tr |
 | `kernel/` | `wubu_tss` | 53 | stddef.h, stdint.h, wubu_tss.h | wubu_tss.c  --  WuBuOS TSS64 + GDT (freestanding) See wubu_tss.h. The GDT is rebuilt at runtime so t |
 | `kernel/` | `wubu_verifier` | 107 | wubu_agi_kernel.h, wubu_verifier.h | wubu_verifier.c  --  WuBuOS Independent Verifier (DA-3 promotion gate) Deterministic, kernel-residen |
-| `kernel/` | `wubu_vmm` | 189 | wubu_vmm.h | wubu_vmm.c  --  WuBuOS Virtual Memory (freestanding, metal) Bitmap page allocator + CR3 page-table w |
+| `kernel/` | `wubu_vmm` | 203 | wubu_sync.h, wubu_vmm.h | wubu_vmm.c  --  WuBuOS Virtual Memory (freestanding, metal) Bitmap page allocator + CR3 page-table w |
 | `runtime/` | `wubucontainer` | 697 | errno.h, fcntl.h, inet.h, json.h, socket.h, stat.h, stdio.h, stdlib.h, string.h, | wubucontainer.c  --  WuBuContainer Conversion Toolkit C Implementation Implements the C-side interfa |
 | `runtime/` | `wubucontainer_registry` | 51 | string.h, wubucontainer_internal.h | wubucontainer_registry.c -- In-memory handler registry for the WuBuContainer agentic layer. This is  |
 | `runtime/` | `wubucontainer_test` | 52 | assert.h, stdio.h, string.h, wubucontainer.h | wubucontainer_test.c -- Regression test for wubu_container_register_handler. Verifies the handler re |
