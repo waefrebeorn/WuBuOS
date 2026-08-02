@@ -257,6 +257,35 @@ void mem_free(void *ptr) {
     
     CMemUnused *u = (CMemUnused *)mu;
     u->signature = MEM_UNUSED_SIGNATURE;
+    u->next = NULL;
+
+    /* Gap B9: coalesce with the adjacent free block BEFORE linking.
+     * The next block starts right after this one; if it is free too,
+     * unlink it from wherever it sits and absorb its size. */
+    uint8_t *heap_end = (uint8_t *)hc + sizeof(CHeapCtrl) + hc->max_size;
+    if ((uint8_t *)mu + mu->size < heap_end) {
+        CMemUsed *nxt = (CMemUsed *)((uint8_t *)mu + mu->size);
+        if (nxt->signature == MEM_UNUSED_SIGNATURE) {
+            CMemUnused *nu = (CMemUnused *)nxt;
+            if (nxt->size < MEM_HEAP_HASH_SIZE) {
+                CMemUnused **head = &hc->heap_hash[nxt->size];
+                CMemUnused *c = *head, *p = NULL;
+                while (c && c != nu) { p = c; c = c->next; }
+                if (c == nu) {
+                    if (p) p->next = c->next;
+                    else *head = c->next;
+                }
+            } else {
+                CMemUnused *c = hc->malloc_free_list.next, *p = NULL;
+                while (c && c != nu) { p = c; c = c->next; }
+                if (c == nu) {
+                    if (p) p->next = c->next;
+                    else hc->malloc_free_list.next = c->next;
+                }
+            }
+            mu->size += nxt->size;
+        }
+    }
     
     if (mu->size < MEM_HEAP_HASH_SIZE) {
         /* Small: return to hash bucket */
@@ -500,6 +529,39 @@ int mem_validate_all(void) {
     
     heap_unlock(hc);
     return corrupt;
+}
+
+/* mem_validate_coalescing — gap B9: the free-list coalescing invariant.
+ * Walks the linear heap and counts pairs of ADJACENT blocks that are
+ * both free: a coalescing allocator must merge them at free time, so
+ * any such pair is a fragmentation/corruption signal. The block layout
+ * is the CMemUsed header (whose `size` spans header + red zones +
+ * payload), so the next block sits at ((uint8_t*)cur + cur->size). */
+int mem_validate_coalescing(void) {
+    if (!g_heap) return -1;
+
+    CHeapCtrl *hc = g_heap;
+    heap_lock(hc);
+
+    int adjacent_free = 0;
+    uint8_t *walk = (uint8_t *)hc + sizeof(CHeapCtrl);
+    uint8_t *end  = (uint8_t *)hc + sizeof(CHeapCtrl) + hc->max_size;
+    while (walk && walk < end) {
+        CMemUsed *mu = (CMemUsed *)walk;
+        if (mu->size == 0 || mu->size > hc->max_size) break;  /* bad header */
+        uint8_t *next = walk + mu->size;
+        if (next < end) {
+            CMemUsed *nxt = (CMemUsed *)next;
+            if (mu->signature == MEM_UNUSED_SIGNATURE &&
+                nxt->signature == MEM_UNUSED_SIGNATURE) {
+                adjacent_free++;
+            }
+        }
+        walk = next;
+    }
+
+    heap_unlock(hc);
+    return adjacent_free;
 }
 
 /* mem_debug_dump — visual heap state to stderr */

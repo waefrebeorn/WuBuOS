@@ -147,4 +147,7 @@ void mem_debug_dump(void);
 /* Validate all blocks and report any corruption. Returns number of corrupt blocks. */
 int mem_validate_all(void);
 
+/* Gap B9: count adjacent free-block pairs (the coalescing invariant). */
+int mem_validate_coalescing(void);
+
 #endif /* MYSEED_MEMORY_H */
