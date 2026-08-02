@@ -75,7 +75,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] D9. Preemption fixed + soak-verified (62e3da3).
 
 ## E. Drivers (P1)
-- [ ] E1. USB HID: wubu_usb.h is design-only (xHCI/HID implementation).
+- [x] E1. wubu_xhci: the xHCI controller driver (PCI class 0x0C0330 discovery, capability/op register model, reset+run, command ring, slot alloc; synthetic-MMIO host tests; 'usb' console command). HID interrupt-in transfer path = the documented follow-on.
 - [x] E2. UART RX interrupt-driven: IOAPIC pin 4 -> vector 36 -> wubu_sync FIFO + safe poll backup (this batch), not interrupt-driven (console busy-polls; no
       serial ISR -> no ISR-queue usage of wubu_sync).
 - [x] E3. Serial TX ring (4KB): putc pushes, the timer tick + console idle drain; the console's interactive responses now complete under the flood (live-verified).

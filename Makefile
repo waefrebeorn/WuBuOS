@@ -55,6 +55,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_swap.o $(KERNEL)/wubu_as.o \
               $(KERNEL)/wubu_user.o $(KERNEL)/wubu_iommu.o \
               $(KERNEL)/wubu_smp.o $(KERNEL)/wubu_smp_tramp.o \
+              $(KERNEL)/wubu_xhci.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
@@ -1002,7 +1003,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1103,6 +1104,13 @@ test_iommu:
 		$(KERNEL)/test_iommu.c \
 		-o $(KERNEL)/test_iommu
 	$(KERNEL)/test_iommu
+
+# xHCI controller driver (gap E1): caps + start + slot alloc
+test_xhci:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/test_xhci.c \
+		-o $(KERNEL)/test_xhci
+	$(KERNEL)/test_xhci
 
 test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
