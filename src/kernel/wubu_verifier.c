@@ -9,6 +9,7 @@
 
 #include "wubu_verifier.h"
 #include "wubu_agi_kernel.h"
+#include "wubu_attest.h"   /* G1: the runtime PCR is part of the gate */
 
 /* known emitters: a span must name one of these after the first token */
 static const char *const k_emitters[] = {
@@ -91,6 +92,22 @@ float wubu_verifier_score(const char *payload, uint64_t ts_ms,
     if (eq > 0) score += 15.0f;
     if (pct > 0) score += 10.0f;
     if (len > 60) score += 5.0f;          /* substantive payload */
+
+    /* Gap G1: the runtime-PCR integrity is part of the promotion gate
+     * (DA-3 wants runtime attestation, not just static policy). The
+     * runtime PCR chains every promotion; if the chain is absent the
+     * span is not promoted -- the anti-cheat root is part of the score. */
+    {
+        extern int wubu_attest_runtime_pcr(uint8_t[WUBU_AGI_PCR_SZ]);
+        uint8_t pcr[WUBU_AGI_PCR_SZ];
+        if (wubu_attest_runtime_pcr(pcr) == 0) {
+            int nonzero = 0;
+            for (int i = 0; i < (int)sizeof(pcr); i++)
+                if (pcr[i]) { nonzero = 1; break; }
+            if (nonzero) score += 10.0f;       /* chain live */
+        }
+        /* else: no chain -> no bonus; below threshold -> not promoted */
+    }
 
     if (score > 100.0f) score = 100.0f;
     if (passed) *passed = (score >= WUBU_VERIFIER_THRESHOLD);
