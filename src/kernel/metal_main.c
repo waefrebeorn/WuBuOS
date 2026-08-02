@@ -11,6 +11,7 @@
 #include "interrupt.h"
 #include "input.h"
 #include "wubu_gaad.h"
+#include "wubu_agi_kernel.h"
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
@@ -214,19 +215,30 @@ void kernel_main(void *boot_info) {
     extern void task_preempt_enable(void);
     task_preempt_enable();
 
-    /* 9. Create shell task (Win98 desktop + HolyC REPL) */
+    /* 9. Boot the AGI kernel supervisor (ring-0 operator + agent realm).
+     *    This replaces the old `for(;;) HLT();` shell: the OS is now an AGI
+     *    kernel -- it decomposes the viewport via GAAD, spawns a co-resident
+     *    REALM_AGENT task, and runs the independent-verifier self-improve loop
+     *    ticked by the PIT timer. Safe by default (no verifier => no promote). */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'8', %%al\n outb %%al, %%dx" ::: "dx","al");
-    CTask *shell = task_create("wubu_shell", wubu_shell_run, NULL,
-                                256 * 1024, PRIO_NORMAL);
-    if (!shell) {
-        klog_printf("WuBuOS PANIC: shell task_create failed\n");
+    int agi_w = 1920, agi_h = 1080;
+    if (g_limine_ok && limine_framebuffer_request.response) {
+        struct limine_framebuffer *fb3 = limine_framebuffer_request.response;
+        agi_w = (int)fb3->width;
+        agi_h = (int)fb3->height;
+    }
+    wubu_agi_kernel_t *agi = wubu_agi_kernel_init(agi_w, agi_h);
+    if (!agi) {
+        klog_printf("WuBuOS PANIC: agi_kernel_init failed\n");
         for (;;) { CLI(); HLT(); }
     }
-    klog_printf("WuBuOS: shell task created, yielding\n");
+    klog_printf("WuBuOS: AGI kernel booted (regions=%d)\n",
+                wubu_agi_kernel_region_count(agi));
 
-    /* 10. Switch to shell task (first context switch) */
+    /* 10. Enter the cooperative supervisor run loop (spawns agent task,
+     *     yields to the PIT-ticked scheduler). Never returns. */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
-    task_yield();  /* Never returns */
+    wubu_agi_kernel_run(agi);  /* Never returns */
 
     /* Unreachable: clean isa-debug-exit so the VM halts instead of looping. */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'H', %%al\n outb %%al, %%dx\n"
@@ -236,30 +248,38 @@ void kernel_main(void *boot_info) {
     for (;;) { CLI(); HLT(); }
 }
 
+/* Shell task entry point -- retained as the AGI operator's host surface.
+ * On bare metal the supervisor (wubu_agi_kernel_run) is the live loop; this
+ * remains available as a co-resident task if the operator spawns it. */
+void wubu_shell_run(void *arg) {
+    (void)arg;
+    for (;;) {
+        task_yield();
+    }
+}
+
+/* GAAD initialization -- real work: decompose the active framebuffer into
+ * golden-ratio regions so the WM/agent viewport is φ-structured from boot. */
+void wubu_gaad_init(void) {
+    int w = 1920, h = 1080;
+    if (g_limine_ok && limine_framebuffer_request.response) {
+        struct limine_framebuffer *fb = limine_framebuffer_request.response;
+        w = (int)fb->width;
+        h = (int)fb->height;
+    }
+    static WubuGaadDecomp g_gaad_boot;   /* persists for WM snapping */
+    wubu_gaad_decompose(w, h, WUBU_GAAD_MAX_DEPTH, &g_gaad_boot);
+    if (klog_printf)
+        klog_printf("WuBuOS: GAAD viewport decomposed (%dx%d, %d regions)\n",
+                    w, h, g_gaad_boot.n_regions);
+}
+
 /* ==================================================================
  * Panic Handler
  */
 void kernel_panic(const char *msg) {
-     (void)msg;
-     CLI();
-     /* Would draw msg to framebuffer */
-     for (;;) { HLT(); }
- }
-
-/* ================================================================
- * Bare-Metal Stubs for Hosted Functions
- * ================================================================= */
-
-/* GAAD initialization stub */
-void wubu_gaad_init(void) {
-    /* No-op for bare metal - GAAD needs heap allocator */
-}
-
-/* Shell task entry point */
-void wubu_shell_run(void *arg) {
-    (void)arg;
-    /* Bare-metal shell - would start HolyC REPL or Win98 desktop */
-    for (;;) {
-        HLT();
-    }
+    (void)msg;
+    CLI();
+    /* Would draw msg to framebuffer */
+    for (;;) { HLT(); }
 }
