@@ -163,6 +163,9 @@ typedef struct {
  */
 int fat32_mount(fat32_volume *vol, const fat32_blk_ops *blk);
 
+/* Gap E6: flush the FAT write-behind cache to both FAT copies. */
+int fat32_flush(fat32_volume *vol);
+
 /* The run command's lazily-mounted global volume (gap F3): the volume
  * struct is opaque, so the module owns its storage. */
 fat32_volume *fat32_boot_volume(void);

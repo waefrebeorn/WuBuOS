@@ -756,6 +756,34 @@ static void test_zero_length_file(void) {
 
 /* -- Main --------------------------------------------------------- */
 
+/* Gap E6: the FAT write-behind cache -- an entry write marks the cache
+ * dirty; flush() syncs both FAT copies; the value survives invalidation. */
+static void test_cache_flush(void) {
+    TEST(fat_write_behind_flush);
+    ram_disk_init();
+    fat32_blk_ops ops = ram_blk_ops();
+    fat32_format(&ops, RAM_DISK_SECTORS, "TEST");
+
+    fat32_volume vol;
+    int rc = fat32_mount(&vol, &ops);
+    ASSERT_EQ(rc, 0, "mount failed");
+
+    rc = fat_write_entry(&vol, 5, 0x1234567);
+    ASSERT_EQ(rc, 0, "write entry");
+    ASSERT_EQ(vol.cached_dirty, 1, "cache dirty after write");
+
+    rc = fat32_flush(&vol);
+    ASSERT_EQ(rc, 0, "flush");
+    ASSERT_EQ(vol.cached_dirty, 0, "cache clean after flush");
+    uint32_t v = 0;
+    rc = fat_read_entry(&vol, 5, &v);
+    ASSERT_EQ(rc, 0, "reread entry");
+    ASSERT_EQ((int)v, 0x1234567, "entry value after flush");
+
+    fat32_unmount(&vol);
+    PASS();
+}
+
 int main(void) {
     printf("=== FAT32 Test Suite ===\n\n");
 
@@ -764,6 +792,7 @@ int main(void) {
     test_boot_sector_validation();
     test_cluster_chain();
     test_dirty_flag();
+    test_cache_flush();
     test_cluster_lba_conversion();
     test_create_and_find();
     test_create_find_lfn();

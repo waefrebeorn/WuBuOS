@@ -76,8 +76,12 @@ fat32_volume *fat32_boot_volume(void)
 
 void fat32_unmount(fat32_volume *vol) {
     if (vol->fat_cache) {
+        /* Gap E6: flush the write-behind cache before dropping it. */
+        extern int fat32_flush(fat32_volume *);
+        if (vol->cached_dirty) fat32_flush(vol);
         free(vol->fat_cache);
         vol->fat_cache = NULL;
+        vol->cached_dirty = 0;
     }
     /* Gap A15: a clean unmount clears the dirty flag. */
     if (vol->mounted) {

@@ -81,7 +81,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] E3. Serial TX ring (4KB): putc pushes, the timer tick + console idle drain; the console's interactive responses now complete under the flood (live-verified).
 - [x] E4. PCI report annotates device roles (storage/network/display/usb/...).
 - [ ] E5. No IOMMU/VT-d (the anticheat below-OS plane).
-- [ ] E6. No disk cache flush policy.
+- [x] E6. FAT write-behind cache: dirty-tracking + fat32_flush (both FAT copies) + eviction/close/unmount flush (host-tested).
 - [ ] E7. No watchdog timer (the 8254/HPET not used as a WDT).
 
 ## F. Console / tooling (P1)
