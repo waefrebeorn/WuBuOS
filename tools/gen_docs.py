@@ -140,7 +140,9 @@ def scan_api():
                 continue
             rel = os.path.relpath(p, ROOT)
             out.append(f"## `{rel}`\n\n")
-            for a in apis[:40]:
+            # Gap J5: no per-header cap -- the api reference lists every
+            # prototype (the previous 40/header cap silently truncated).
+            for a in apis:
                 out.append(f"- `{a}`\n")
                 count += 1
             out.append("\n")

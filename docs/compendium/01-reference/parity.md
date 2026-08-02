@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Parity (compiled binaries across OSes)
-> Generated 2026-08-02 13:52 UTC -- the PARITY project: the hosted layer is the scaffold that must run on Linux/Windows/macOS.
+> Generated 2026-08-02 14:17 UTC -- the PARITY project: the hosted layer is the scaffold that must run on Linux/Windows/macOS.
 
 ## Hosted core (portable abstraction)
 wubu_metal.c, wubu_metal.h
