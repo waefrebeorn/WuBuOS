@@ -24,6 +24,8 @@ static wubu_spinlock_t g_vmm_lock;
 
 static uint8_t g_bitmap[WUBU_VMM_BITMAP_BITS / 8];
 static uint64_t g_free_pages;
+/* Gap B8: per-page reference counts (uint16 per page; 0 = free). */
+static uint16_t g_refs[WUBU_VMM_BITMAP_BITS];
 
 static void bm_set(uint32_t idx) {
     g_bitmap[idx >> 3] |= (uint8_t)(1u << (idx & 7));
@@ -42,6 +44,8 @@ void wubu_vmm_init(void)
     wubu_spin_init(&g_vmm_lock);
     for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS / 8; i++)
         g_bitmap[i] = 0;
+    for (uint32_t i = 0; i < WUBU_VMM_BITMAP_BITS; i++)
+        g_refs[i] = 0;
     g_free_pages = WUBU_VMM_BITMAP_BITS;
 
     /* mark USED: kernel image + heap + vbe buffers + early stack */
@@ -88,8 +92,10 @@ uint64_t wubu_vmm_alloc_pages(uint32_t n)
         if (bm_test(i) == 0) {
             if (run == 0) start = i;
             if (++run == n) {
-                for (uint32_t j = start; j < start + n; j++)
+                for (uint32_t j = start; j < start + n; j++) {
                     bm_set(j);
+                    g_refs[j] = 1;      /* gap B8: fresh alloc, ref=1 */
+                }
                 out = WUBU_VMM_PHYS_BASE + (uint64_t)start * PAGE;
                 break;
             }
@@ -101,6 +107,33 @@ uint64_t wubu_vmm_alloc_pages(uint32_t n)
     return out;
 }
 
+/* Gap B8: take a reference on already-allocated pages (the COW/shared
+ * foundation). The pages must currently be allocated (ref >= 1). */
+void wubu_vmm_ref(uint64_t phys, uint32_t n)
+{
+    if (phys < WUBU_VMM_PHYS_BASE) return;
+    uint64_t off = phys - WUBU_VMM_PHYS_BASE;
+    if (off % PAGE != 0) return;
+    wubu_spin_lock(&g_vmm_lock);
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t idx = (uint32_t)(off / PAGE) + i;
+        if (idx < WUBU_VMM_BITMAP_BITS && bm_test(idx) && g_refs[idx] < 0xFFFF)
+            g_refs[idx]++;
+    }
+    wubu_spin_unlock(&g_vmm_lock);
+}
+
+/* Gap B8: the reference count of the page holding `phys`. */
+uint16_t wubu_vmm_refcount(uint64_t phys)
+{
+    if (phys < WUBU_VMM_PHYS_BASE) return 0;
+    uint64_t off = phys - WUBU_VMM_PHYS_BASE;
+    if (off % PAGE != 0) return 0;
+    uint32_t idx = (uint32_t)(off / PAGE);
+    if (idx >= WUBU_VMM_BITMAP_BITS) return 0;
+    return g_refs[idx];
+}
+
 void wubu_vmm_free_pages(uint64_t phys, uint32_t n)
 {
     if (phys < WUBU_VMM_PHYS_BASE) return;
@@ -109,8 +142,12 @@ void wubu_vmm_free_pages(uint64_t phys, uint32_t n)
     wubu_spin_lock(&g_vmm_lock);
     for (uint32_t i = 0; i < n; i++) {
         uint32_t idx = (uint32_t)(off / PAGE) + i;
-        if (idx < WUBU_VMM_BITMAP_BITS && bm_test(idx))
-            bm_clear(idx);
+        if (idx >= WUBU_VMM_BITMAP_BITS || !bm_test(idx)) continue;
+        /* Gap B8: a reference-counted release -- only the last unref
+         * actually returns the page to the allocator. */
+        if (g_refs[idx] > 0) g_refs[idx]--;
+        if (g_refs[idx] == 0)
+            bm_clear(idx);   /* the last unref returns the page */
     }
     wubu_spin_unlock(&g_vmm_lock);
 }

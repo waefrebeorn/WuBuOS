@@ -42,7 +42,7 @@ correctness), P1 (subsystem), P2 (tooling/docs).*
 - [x] B6. Stack low-water tracking: per-task stack_min at every switch; `tasks` reports usage / OVER.
 - [ ] B7. Single address space (kernel+future user share CR3); no
       per-address-space isolation.
-- [ ] B8. No page reference counting.
+- [x] B8. Page reference counting: per-page refcounts, alloc=1, wubu_vmm_ref/unref; only the last unref releases (host-tested).
 - [x] B9. Heap coalescing: mem_free merges the adjacent free block + mem_validate_coalescing walks the linear heap (host-tested).
 - [x] B10. AGI memory-pressure awareness: agi_theme_step dims the desktop (this batch) (the Colonel can't see pressure).
 - [ ] B11. The vmm's used-region table is hardcoded (no e820).

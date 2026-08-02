@@ -191,18 +191,28 @@ static int cmd_vmm(int argc, char **argv)
     }
     if (argc >= 2 && strcmp(argv[1], "alloc") == 0 && argc >= 3) {
         /* Gap A20: report the allocator's failure instead of silently
-         * returning 0. */
+         * returning 0. (The signature is alloc_pages(n) -- the phys is
+         * chosen by the allocator.) */
         uint32_t np = (uint32_t)strtoul(argv[2], NULL, 10);
-        int rc = wubu_vmm_alloc_pages(0xffffffff91000000ull, np);
-        klog_printf("vmm: alloc %u pages -> %s\n", np,
-                    rc == 0 ? "ok" : "FAILED");
+        uint64_t p = wubu_vmm_alloc_pages(np);
+        klog_printf("vmm: alloc %u pages -> %s (%x)\n", np,
+                    p ? "ok" : "FAILED", (unsigned)p);
+        if (p) wubu_vmm_free_pages(p, np);
         return 0;
     }
     if (argc >= 2 && strcmp(argv[1], "free") == 0 && argc >= 3) {
-        uint32_t np = (uint32_t)strtoul(argv[2], NULL, 10);
-        wubu_vmm_free_pages(0xffffffff91000000ull, np);
-        klog_printf("vmm: freed %u pages (free=%u)\n", np,
-                    (unsigned)wubu_vmm_free_count());
+        /* `vmm free <hex-phys> [n]` -- release a previously allocated
+         * physical range (the refcounted path, gap B8). */
+        char *end = NULL;
+        uint64_t phys = strtoull(argv[2], &end, 16);
+        uint32_t np = (argc >= 4) ? (uint32_t)strtoul(argv[3], NULL, 10) : 1;
+        if (!end || *end != '\0' || phys < 0x1000000ull) {
+            klog_printf("vmm: bad phys (want hex, >= 16MB)\n");
+            return 0;
+        }
+        wubu_vmm_free_pages(phys, np);
+        klog_printf("vmm: released %u pages @%x (free=%u)\n", np,
+                    (unsigned)phys, (unsigned)wubu_vmm_free_count());
         return 0;
     }
     klog_printf("vmm: free_pages=%u demand_regions=%u faults=%u\n",
