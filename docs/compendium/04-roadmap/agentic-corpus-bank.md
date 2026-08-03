@@ -322,9 +322,9 @@ refs: tau-bench DB-state + Atropos format rewards + Orchard GRPO
 - AC-C100 verification: held-out replay `open`
 ## AC-D: user simulation (the tau-bench tool-agent-USER vertex)
 
-- AC-D01 the tool-agent-USER third vertex: simulate the user, not just the tools `open`
+- AC-D01 the tool-agent-USER third vertex: simulate the user, not just the tools `wired` -- wubu_user_sim: the goal-constraint user with react/verify/utter
 - AC-D02 LLM-based user simulator driven by per-task scenario instructions `open`
-- AC-D03 user simulator with domain policy documents the agent must follow `open`
+- AC-D03 user simulator with domain policy documents the agent must follow `open` (the persona template layer)
 - AC-D04 diverse user personas (goals, temperaments, verbosity, expertise) `open`
 - AC-D05 user-simulator goals as data generators (each scenario -> a training task) `open`
 - AC-D06 stateful user simulation: the user reacts to the agent's actual actions `open`
@@ -532,12 +532,12 @@ refs: Orchard Env + E2B/Daytona/Modal comparison
 - AC-E100 fidelity axis: observability `open`
 ## AC-F: RL recipes (trajectory-level GRPO, credit-assignment SFT)
 
-- AC-F01 multi-turn trajectory-level GRPO (the Orchard recipe) `open`
-- AC-F02 group-relative advantage: sample G trajectories, advantage = (r - mean)/std `open`
-- AC-F03 broadcast the trajectory reward to EVERY assistant token across all turns `open`
+- AC-F01 multi-turn trajectory-level GRPO (the Orchard recipe) `wired` -- wubu_traj_grpo, the FD-verified advantage + the asymmetric-PPO clip (the clip-boundary active-test bug caught by the FD)
+- AC-F02 group-relative advantage: sample G trajectories, advantage = (r - mean)/std `wired`
+- AC-F03 broadcast the trajectory reward to EVERY assistant token across all turns `wired`
 - AC-F04 mask observation/environment tokens out of the loss `open`
-- AC-F05 asymmetric PPO clipping (eps_lo 0.2, eps_hi 0.28) without KL/entropy regularization `open`
-- AC-F06 no per-trajectory 1/T normalization (longer tasks not down-weighted) `open`
+- AC-F05 asymmetric PPO clipping (eps_lo 0.2, eps_hi 0.28) without KL/entropy regularization `wired`
+- AC-F06 no per-trajectory 1/T normalization (longer tasks not down-weighted) `wired` -- the no-1/T test: equal rewards give equal per-token grads regardless of length
 - AC-F07 credit-assignment SFT: learn from productive segments of unresolved trajectories `open`
 - AC-F08 Balanced Adaptive Rollout for sparse-reward RL (allocating rollouts by difficulty) `open`
 - AC-F09 two-stage training: SFT on curated teacher trajectories THEN RL from the SFT checkpoint `open`
@@ -638,10 +638,10 @@ refs: Orchard SWE/GUI/Claw recipes
 ## AC-G: masking & packing (the 69%-output-token doctrine)
 
 - AC-G01 input-masked training: 69%-output-token doctrine (only the assistant's tokens train) `open`
-- AC-G02 observation-token masking in agent trajectories (Orchard) `open`
+- AC-G02 observation-token masking in agent trajectories (Orchard) `wired` -- wubu_traj_sft: user/obs/tool_resp segments masked, assistant/think/tool_call train
 - AC-G03 loss-masking for heterogeneous data (Hermes 4) `open`
 - AC-G04 efficient packing of variable-length trajectories into fixed-length windows `open`
-- AC-G05 packing with cross-sample loss masking (no attention across samples) `open`
+- AC-G05 packing with cross-sample loss masking (no attention across samples) `open` (the SFT format emits the per-segment masks; packing next)
 - AC-G06 length-control fine-tuning (cap/penalize runaway generations) `open`
 - AC-G07 reserved-token agentic grammar (<think>, <tool_call>, <tool_response> delimiters) `open`
 - AC-G08 strict <think>/</think> delimiter enforcement (the Atropos Answer-Format env) `open`
