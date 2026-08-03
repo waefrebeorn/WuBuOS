@@ -441,7 +441,7 @@ Status: OPT-D -- 100 gaps, all `open`.
 - OPT-E08 hyperparameter transfer: the LR survives the expansion `open`
 - OPT-E09 the depth-doubling initialization (the stack/identity family) `wired` -- wubu_grow_stack_block: the G_stack copy (+2,310,912 params/block)
 - OPT-E10 the Net2Net lineage: function-preserving for convs/BERT `open`
-- OPT-E11 the incremental growth (Yuan): dynamic stabilization at growth points `open`
+- OPT-E11 the incremental growth (Yuan): dynamic stabilization at growth points `wired` -- wubu_plateau: the loss-trend trigger fires the growth on the plateau (the amoeba diagnostic)
 - OPT-E12 the weight/activation/gradient stabilization scheme `open`
 - OPT-E13 the 'still hungry' test: the deepest layer's grad norm vs the mean `open`
 - OPT-E14 the plateau detector: the EMA loss slope flattens -> grow `open`
