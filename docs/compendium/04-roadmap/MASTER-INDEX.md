@@ -16,7 +16,7 @@ for the AGI to bounce off of. "This is the beginning of an AGI."
 | Network (NW) | `docs/compendium/04-roadmap/network-bank.md` | open | 1000 |
 | Kernel (KR) | `docs/compendium/04-roadmap/kernel-bank.md` | open | 1000 |
 | AI-Engine (AIE) | `docs/compendium/04-roadmap/engine-bank.md` | open | 1000 |
-| Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | open | 1000 |
+| Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | 300 wired (HX-A user model, HX-B timing, HX-D companion) | 1000 |
 | Security (SC) | `docs/compendium/04-roadmap/security-bank.md` | open | 1000 |
 | **TOTAL** | | | **~9243** |
 

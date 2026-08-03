@@ -12,6 +12,7 @@
 #include "../apps/dosgui_apps.h"
 #include "../apps/bonzi/bonzi.h"
 #include "../apps/comfy/comfy.h"
+#include "../apps/tandem/tandem.h"
 #include "../runtime/wubu_edr.h"
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,10 @@ static const WubufxAppDef g_wubufx_apps[] = {
     { "comfy",       "Comfy",        "comfy",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC,
       comfy_launch },
+
+    { "tandem",      "Tandem",       "tandem",
+      WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC | WUBUFX_CAP_AGI,
+      tandem_launch },
 };
 static const int g_wubufx_app_count = sizeof(g_wubufx_apps) / sizeof(g_wubufx_apps[0]);
 

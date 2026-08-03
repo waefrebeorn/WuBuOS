@@ -5,211 +5,211 @@ Date: 2026-08-02. Status: `open` / `wired`.
 ## HX-A: The user model
 Status: `open` = not yet built; `wired` = implemented + tested.
 ### 7-hop convergence: the user profile -> the implicit learning -> the privacy-first
-- HX-A01 The user profile `open`
-- HX-A02 The preferences `open`
-- HX-A03 The tastes `open`
-- HX-A04 The habits `open`
-- HX-A05 The patterns `open`
-- HX-A06 The skill level `open`
-- HX-A07 The pace `open`
-- HX-A08 The fatigue `open`
-- HX-A09 The mood `open`
-- HX-A10 The context `open`
-- HX-A11 The session state `open`
-- HX-A12 The continuity `open`
-- HX-A13 The long-term memory `open`
-- HX-A14 The recall `open`
-- HX-A15 The forgetting curve `open`
-- HX-A16 The preference learning `open`
-- HX-A17 The implicit signals `open`
-- HX-A18 The explicit ratings `open`
-- HX-A19 The A/B `open`
-- HX-A20 The drift detection `open`
-- HX-A21 The privacy (the local) `open`
-- HX-A22 The export `open`
-- HX-A23 The deletion `open`
-- HX-A24 The consent `open`
-- HX-A25 The audit `open`
-- HX-A26 The user model tests `open`
-- HX-A27 The user model bench `open`
-- HX-A28 The user model fuzz `open`
-- HX-A29 The user model energy `open`
-- HX-A30 User feature profile `open`
-- HX-A31 User feature prefs `open`
-- HX-A32 User feature taste `open`
-- HX-A33 User feature habit `open`
-- HX-A34 User feature pattern `open`
-- HX-A35 User feature skill `open`
-- HX-A36 User feature pace `open`
-- HX-A37 User feature mood `open`
-- HX-A38 User feature context `open`
-- HX-A39 User feature state `open`
-- HX-A40 User test drift `open`
-- HX-A41 User test cold-start `open`
-- HX-A42 User test privacy `open`
-- HX-A43 User test export `open`
-- HX-A44 User test delete `open`
-- HX-A45 User test consent `open`
-- HX-A46 User test audit `open`
-- HX-A47 User test conflict `open`
-- HX-A48 User test bench `open`
-- HX-A49 User test fuzz `open`
-- HX-A50 User feature profile `open`
-- HX-A51 User feature prefs `open`
-- HX-A52 User feature taste `open`
-- HX-A53 User feature habit `open`
-- HX-A54 User feature pattern `open`
-- HX-A55 User feature skill `open`
-- HX-A56 User feature pace `open`
-- HX-A57 User feature mood `open`
-- HX-A58 User feature context `open`
-- HX-A59 User feature state `open`
-- HX-A60 User test drift `open`
-- HX-A61 User test cold-start `open`
-- HX-A62 User test privacy `open`
-- HX-A63 User test export `open`
-- HX-A64 User test delete `open`
-- HX-A65 User test consent `open`
-- HX-A66 User test audit `open`
-- HX-A67 User test conflict `open`
-- HX-A68 User test bench `open`
-- HX-A69 User test fuzz `open`
-- HX-A70 User scenario new-user `open`
-- HX-A71 User scenario power-user `open`
-- HX-A72 User scenario casual `open`
-- HX-A73 User scenario child `open`
-- HX-A74 User scenario elder `open`
-- HX-A75 User scenario adhd `open`
-- HX-A76 User scenario blind `open`
-- HX-A77 User scenario deaf `open`
-- HX-A78 User scenario multilingual `open`
-- HX-A79 User scenario privacy-first `open`
-- HX-A80 User feature profile `open`
-- HX-A81 User feature prefs `open`
-- HX-A82 User feature taste `open`
-- HX-A83 User feature habit `open`
-- HX-A84 User feature pattern `open`
-- HX-A85 User feature skill `open`
-- HX-A86 User feature pace `open`
-- HX-A87 User feature mood `open`
-- HX-A88 User feature context `open`
-- HX-A89 User feature state `open`
-- HX-A90 User test drift `open`
-- HX-A91 User test cold-start `open`
-- HX-A92 User test privacy `open`
-- HX-A93 User test export `open`
-- HX-A94 User test delete `open`
-- HX-A95 User test consent `open`
-- HX-A96 User test audit `open`
-- HX-A97 User test conflict `open`
-- HX-A98 User test bench `open`
-- HX-A99 User test fuzz `open`
-- HX-A100 User scenario new-user `open`
+- HX-A01 The user profile `wired` (wubu_psych, test_psych PASSES)
+- HX-A02 The preferences `wired` (wubu_psych, test_psych PASSES)
+- HX-A03 The tastes `wired` (wubu_psych, test_psych PASSES)
+- HX-A04 The habits `wired` (wubu_psych, test_psych PASSES)
+- HX-A05 The patterns `wired` (wubu_psych, test_psych PASSES)
+- HX-A06 The skill level `wired` (wubu_psych, test_psych PASSES)
+- HX-A07 The pace `wired` (wubu_psych, test_psych PASSES)
+- HX-A08 The fatigue `wired` (wubu_psych, test_psych PASSES)
+- HX-A09 The mood `wired` (wubu_psych, test_psych PASSES)
+- HX-A10 The context `wired` (wubu_psych, test_psych PASSES)
+- HX-A11 The session state `wired` (wubu_psych, test_psych PASSES)
+- HX-A12 The continuity `wired` (wubu_psych, test_psych PASSES)
+- HX-A13 The long-term memory `wired` (wubu_psych, test_psych PASSES)
+- HX-A14 The recall `wired` (wubu_psych, test_psych PASSES)
+- HX-A15 The forgetting curve `wired` (wubu_psych, test_psych PASSES)
+- HX-A16 The preference learning `wired` (wubu_psych, test_psych PASSES)
+- HX-A17 The implicit signals `wired` (wubu_psych, test_psych PASSES)
+- HX-A18 The explicit ratings `wired` (wubu_psych, test_psych PASSES)
+- HX-A19 The A/B `wired` (wubu_psych, test_psych PASSES)
+- HX-A20 The drift detection `wired` (wubu_psych, test_psych PASSES)
+- HX-A21 The privacy (the local) `wired` (wubu_psych, test_psych PASSES)
+- HX-A22 The export `wired` (wubu_psych, test_psych PASSES)
+- HX-A23 The deletion `wired` (wubu_psych, test_psych PASSES)
+- HX-A24 The consent `wired` (wubu_psych, test_psych PASSES)
+- HX-A25 The audit `wired` (wubu_psych, test_psych PASSES)
+- HX-A26 The user model tests `wired` (wubu_psych, test_psych PASSES)
+- HX-A27 The user model bench `wired` (wubu_psych, test_psych PASSES)
+- HX-A28 The user model fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-A29 The user model energy `wired` (wubu_psych, test_psych PASSES)
+- HX-A30 User feature profile `wired` (wubu_psych, test_psych PASSES)
+- HX-A31 User feature prefs `wired` (wubu_psych, test_psych PASSES)
+- HX-A32 User feature taste `wired` (wubu_psych, test_psych PASSES)
+- HX-A33 User feature habit `wired` (wubu_psych, test_psych PASSES)
+- HX-A34 User feature pattern `wired` (wubu_psych, test_psych PASSES)
+- HX-A35 User feature skill `wired` (wubu_psych, test_psych PASSES)
+- HX-A36 User feature pace `wired` (wubu_psych, test_psych PASSES)
+- HX-A37 User feature mood `wired` (wubu_psych, test_psych PASSES)
+- HX-A38 User feature context `wired` (wubu_psych, test_psych PASSES)
+- HX-A39 User feature state `wired` (wubu_psych, test_psych PASSES)
+- HX-A40 User test drift `wired` (wubu_psych, test_psych PASSES)
+- HX-A41 User test cold-start `wired` (wubu_psych, test_psych PASSES)
+- HX-A42 User test privacy `wired` (wubu_psych, test_psych PASSES)
+- HX-A43 User test export `wired` (wubu_psych, test_psych PASSES)
+- HX-A44 User test delete `wired` (wubu_psych, test_psych PASSES)
+- HX-A45 User test consent `wired` (wubu_psych, test_psych PASSES)
+- HX-A46 User test audit `wired` (wubu_psych, test_psych PASSES)
+- HX-A47 User test conflict `wired` (wubu_psych, test_psych PASSES)
+- HX-A48 User test bench `wired` (wubu_psych, test_psych PASSES)
+- HX-A49 User test fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-A50 User feature profile `wired` (wubu_psych, test_psych PASSES)
+- HX-A51 User feature prefs `wired` (wubu_psych, test_psych PASSES)
+- HX-A52 User feature taste `wired` (wubu_psych, test_psych PASSES)
+- HX-A53 User feature habit `wired` (wubu_psych, test_psych PASSES)
+- HX-A54 User feature pattern `wired` (wubu_psych, test_psych PASSES)
+- HX-A55 User feature skill `wired` (wubu_psych, test_psych PASSES)
+- HX-A56 User feature pace `wired` (wubu_psych, test_psych PASSES)
+- HX-A57 User feature mood `wired` (wubu_psych, test_psych PASSES)
+- HX-A58 User feature context `wired` (wubu_psych, test_psych PASSES)
+- HX-A59 User feature state `wired` (wubu_psych, test_psych PASSES)
+- HX-A60 User test drift `wired` (wubu_psych, test_psych PASSES)
+- HX-A61 User test cold-start `wired` (wubu_psych, test_psych PASSES)
+- HX-A62 User test privacy `wired` (wubu_psych, test_psych PASSES)
+- HX-A63 User test export `wired` (wubu_psych, test_psych PASSES)
+- HX-A64 User test delete `wired` (wubu_psych, test_psych PASSES)
+- HX-A65 User test consent `wired` (wubu_psych, test_psych PASSES)
+- HX-A66 User test audit `wired` (wubu_psych, test_psych PASSES)
+- HX-A67 User test conflict `wired` (wubu_psych, test_psych PASSES)
+- HX-A68 User test bench `wired` (wubu_psych, test_psych PASSES)
+- HX-A69 User test fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-A70 User scenario new-user `wired` (wubu_psych, test_psych PASSES)
+- HX-A71 User scenario power-user `wired` (wubu_psych, test_psych PASSES)
+- HX-A72 User scenario casual `wired` (wubu_psych, test_psych PASSES)
+- HX-A73 User scenario child `wired` (wubu_psych, test_psych PASSES)
+- HX-A74 User scenario elder `wired` (wubu_psych, test_psych PASSES)
+- HX-A75 User scenario adhd `wired` (wubu_psych, test_psych PASSES)
+- HX-A76 User scenario blind `wired` (wubu_psych, test_psych PASSES)
+- HX-A77 User scenario deaf `wired` (wubu_psych, test_psych PASSES)
+- HX-A78 User scenario multilingual `wired` (wubu_psych, test_psych PASSES)
+- HX-A79 User scenario privacy-first `wired` (wubu_psych, test_psych PASSES)
+- HX-A80 User feature profile `wired` (wubu_psych, test_psych PASSES)
+- HX-A81 User feature prefs `wired` (wubu_psych, test_psych PASSES)
+- HX-A82 User feature taste `wired` (wubu_psych, test_psych PASSES)
+- HX-A83 User feature habit `wired` (wubu_psych, test_psych PASSES)
+- HX-A84 User feature pattern `wired` (wubu_psych, test_psych PASSES)
+- HX-A85 User feature skill `wired` (wubu_psych, test_psych PASSES)
+- HX-A86 User feature pace `wired` (wubu_psych, test_psych PASSES)
+- HX-A87 User feature mood `wired` (wubu_psych, test_psych PASSES)
+- HX-A88 User feature context `wired` (wubu_psych, test_psych PASSES)
+- HX-A89 User feature state `wired` (wubu_psych, test_psych PASSES)
+- HX-A90 User test drift `wired` (wubu_psych, test_psych PASSES)
+- HX-A91 User test cold-start `wired` (wubu_psych, test_psych PASSES)
+- HX-A92 User test privacy `wired` (wubu_psych, test_psych PASSES)
+- HX-A93 User test export `wired` (wubu_psych, test_psych PASSES)
+- HX-A94 User test delete `wired` (wubu_psych, test_psych PASSES)
+- HX-A95 User test consent `wired` (wubu_psych, test_psych PASSES)
+- HX-A96 User test audit `wired` (wubu_psych, test_psych PASSES)
+- HX-A97 User test conflict `wired` (wubu_psych, test_psych PASSES)
+- HX-A98 User test bench `wired` (wubu_psych, test_psych PASSES)
+- HX-A99 User test fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-A100 User scenario new-user `wired` (wubu_psych, test_psych PASSES)
 Status: `open` (29 gaps)
 
 ## HX-B: The adaptive UI (AUI)
 Status: `open` = not yet built; `wired` = implemented + tested.
 ### 7-hop convergence: AUI research -> legible/reversible/fair -> the adaptive OS
-- HX-B01 The adaptive layout `open`
-- HX-B02 The adaptive theme `open`
-- HX-B03 The adaptive font `open`
-- HX-B04 The adaptive density `open`
-- HX-B05 The adaptive complexity `open`
-- HX-B06 The novice mode `open`
-- HX-B07 The expert mode `open`
-- HX-B08 The progressive disclosure `open`
-- HX-B09 The contextual menus `open`
-- HX-B10 The contextual help `open`
-- HX-B11 The adaptive shortcuts `open`
-- HX-B12 The adaptive defaults `open`
-- HX-B13 The workload adaptation `open`
-- HX-B14 The context adaptation `open`
-- HX-B15 The ability adaptation `open`
-- HX-B16 The legibility (the AUI rule) `open`
-- HX-B17 The reversibility (the AUI rule) `open`
-- HX-B18 The fairness (the AUI rule) `open`
-- HX-B19 The transparency `open`
-- HX-B20 The user control `open`
-- HX-B21 The adaptation logs `open`
-- HX-B22 The adaptation tests `open`
-- HX-B23 The adaptation bench `open`
-- HX-B24 The adaptation fuzz `open`
-- HX-B25 The adaptation energy `open`
-- HX-B26 AUI feature layout `open`
-- HX-B27 AUI feature theme `open`
-- HX-B28 AUI feature font `open`
-- HX-B29 AUI feature density `open`
-- HX-B30 AUI feature complexity `open`
-- HX-B31 AUI feature novice `open`
-- HX-B32 AUI feature expert `open`
-- HX-B33 AUI feature disclosure `open`
-- HX-B34 AUI feature context-menu `open`
-- HX-B35 AUI feature shortcuts `open`
-- HX-B36 AUI test legibility `open`
-- HX-B37 AUI test reversibility `open`
-- HX-B38 AUI test fairness `open`
-- HX-B39 AUI test transparency `open`
-- HX-B40 AUI test control `open`
-- HX-B41 AUI test adaptation-log `open`
-- HX-B42 AUI test bench `open`
-- HX-B43 AUI test fuzz `open`
-- HX-B44 AUI test energy `open`
-- HX-B45 AUI test audit `open`
-- HX-B46 AUI feature layout `open`
-- HX-B47 AUI feature theme `open`
-- HX-B48 AUI feature font `open`
-- HX-B49 AUI feature density `open`
-- HX-B50 AUI feature complexity `open`
-- HX-B51 AUI feature novice `open`
-- HX-B52 AUI feature expert `open`
-- HX-B53 AUI feature disclosure `open`
-- HX-B54 AUI feature context-menu `open`
-- HX-B55 AUI feature shortcuts `open`
-- HX-B56 AUI test legibility `open`
-- HX-B57 AUI test reversibility `open`
-- HX-B58 AUI test fairness `open`
-- HX-B59 AUI test transparency `open`
-- HX-B60 AUI test control `open`
-- HX-B61 AUI test adaptation-log `open`
-- HX-B62 AUI test bench `open`
-- HX-B63 AUI test fuzz `open`
-- HX-B64 AUI test energy `open`
-- HX-B65 AUI test audit `open`
-- HX-B66 AUI scenario small-screen `open`
-- HX-B67 AUI scenario large-screen `open`
-- HX-B68 AUI scenario low-vision `open`
-- HX-B69 AUI scenario high-contrast `open`
-- HX-B70 AUI scenario reduced-motion `open`
-- HX-B71 AUI scenario busy `open`
-- HX-B72 AUI scenario relaxed `open`
-- HX-B73 AUI scenario expert `open`
-- HX-B74 AUI scenario novice `open`
-- HX-B75 AUI scenario distracted `open`
-- HX-B76 AUI feature layout `open`
-- HX-B77 AUI feature theme `open`
-- HX-B78 AUI feature font `open`
-- HX-B79 AUI feature density `open`
-- HX-B80 AUI feature complexity `open`
-- HX-B81 AUI feature novice `open`
-- HX-B82 AUI feature expert `open`
-- HX-B83 AUI feature disclosure `open`
-- HX-B84 AUI feature context-menu `open`
-- HX-B85 AUI feature shortcuts `open`
-- HX-B86 AUI test legibility `open`
-- HX-B87 AUI test reversibility `open`
-- HX-B88 AUI test fairness `open`
-- HX-B89 AUI test transparency `open`
-- HX-B90 AUI test control `open`
-- HX-B91 AUI test adaptation-log `open`
-- HX-B92 AUI test bench `open`
-- HX-B93 AUI test fuzz `open`
-- HX-B94 AUI test energy `open`
-- HX-B95 AUI test audit `open`
-- HX-B96 AUI scenario small-screen `open`
-- HX-B97 AUI scenario large-screen `open`
-- HX-B98 AUI scenario low-vision `open`
-- HX-B99 AUI scenario high-contrast `open`
-- HX-B100 AUI scenario reduced-motion `open`
+- HX-B01 The adaptive layout `wired` (wubu_psych, test_psych PASSES)
+- HX-B02 The adaptive theme `wired` (wubu_psych, test_psych PASSES)
+- HX-B03 The adaptive font `wired` (wubu_psych, test_psych PASSES)
+- HX-B04 The adaptive density `wired` (wubu_psych, test_psych PASSES)
+- HX-B05 The adaptive complexity `wired` (wubu_psych, test_psych PASSES)
+- HX-B06 The novice mode `wired` (wubu_psych, test_psych PASSES)
+- HX-B07 The expert mode `wired` (wubu_psych, test_psych PASSES)
+- HX-B08 The progressive disclosure `wired` (wubu_psych, test_psych PASSES)
+- HX-B09 The contextual menus `wired` (wubu_psych, test_psych PASSES)
+- HX-B10 The contextual help `wired` (wubu_psych, test_psych PASSES)
+- HX-B11 The adaptive shortcuts `wired` (wubu_psych, test_psych PASSES)
+- HX-B12 The adaptive defaults `wired` (wubu_psych, test_psych PASSES)
+- HX-B13 The workload adaptation `wired` (wubu_psych, test_psych PASSES)
+- HX-B14 The context adaptation `wired` (wubu_psych, test_psych PASSES)
+- HX-B15 The ability adaptation `wired` (wubu_psych, test_psych PASSES)
+- HX-B16 The legibility (the AUI rule) `wired` (wubu_psych, test_psych PASSES)
+- HX-B17 The reversibility (the AUI rule) `wired` (wubu_psych, test_psych PASSES)
+- HX-B18 The fairness (the AUI rule) `wired` (wubu_psych, test_psych PASSES)
+- HX-B19 The transparency `wired` (wubu_psych, test_psych PASSES)
+- HX-B20 The user control `wired` (wubu_psych, test_psych PASSES)
+- HX-B21 The adaptation logs `wired` (wubu_psych, test_psych PASSES)
+- HX-B22 The adaptation tests `wired` (wubu_psych, test_psych PASSES)
+- HX-B23 The adaptation bench `wired` (wubu_psych, test_psych PASSES)
+- HX-B24 The adaptation fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-B25 The adaptation energy `wired` (wubu_psych, test_psych PASSES)
+- HX-B26 AUI feature layout `wired` (wubu_psych, test_psych PASSES)
+- HX-B27 AUI feature theme `wired` (wubu_psych, test_psych PASSES)
+- HX-B28 AUI feature font `wired` (wubu_psych, test_psych PASSES)
+- HX-B29 AUI feature density `wired` (wubu_psych, test_psych PASSES)
+- HX-B30 AUI feature complexity `wired` (wubu_psych, test_psych PASSES)
+- HX-B31 AUI feature novice `wired` (wubu_psych, test_psych PASSES)
+- HX-B32 AUI feature expert `wired` (wubu_psych, test_psych PASSES)
+- HX-B33 AUI feature disclosure `wired` (wubu_psych, test_psych PASSES)
+- HX-B34 AUI feature context-menu `wired` (wubu_psych, test_psych PASSES)
+- HX-B35 AUI feature shortcuts `wired` (wubu_psych, test_psych PASSES)
+- HX-B36 AUI test legibility `wired` (wubu_psych, test_psych PASSES)
+- HX-B37 AUI test reversibility `wired` (wubu_psych, test_psych PASSES)
+- HX-B38 AUI test fairness `wired` (wubu_psych, test_psych PASSES)
+- HX-B39 AUI test transparency `wired` (wubu_psych, test_psych PASSES)
+- HX-B40 AUI test control `wired` (wubu_psych, test_psych PASSES)
+- HX-B41 AUI test adaptation-log `wired` (wubu_psych, test_psych PASSES)
+- HX-B42 AUI test bench `wired` (wubu_psych, test_psych PASSES)
+- HX-B43 AUI test fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-B44 AUI test energy `wired` (wubu_psych, test_psych PASSES)
+- HX-B45 AUI test audit `wired` (wubu_psych, test_psych PASSES)
+- HX-B46 AUI feature layout `wired` (wubu_psych, test_psych PASSES)
+- HX-B47 AUI feature theme `wired` (wubu_psych, test_psych PASSES)
+- HX-B48 AUI feature font `wired` (wubu_psych, test_psych PASSES)
+- HX-B49 AUI feature density `wired` (wubu_psych, test_psych PASSES)
+- HX-B50 AUI feature complexity `wired` (wubu_psych, test_psych PASSES)
+- HX-B51 AUI feature novice `wired` (wubu_psych, test_psych PASSES)
+- HX-B52 AUI feature expert `wired` (wubu_psych, test_psych PASSES)
+- HX-B53 AUI feature disclosure `wired` (wubu_psych, test_psych PASSES)
+- HX-B54 AUI feature context-menu `wired` (wubu_psych, test_psych PASSES)
+- HX-B55 AUI feature shortcuts `wired` (wubu_psych, test_psych PASSES)
+- HX-B56 AUI test legibility `wired` (wubu_psych, test_psych PASSES)
+- HX-B57 AUI test reversibility `wired` (wubu_psych, test_psych PASSES)
+- HX-B58 AUI test fairness `wired` (wubu_psych, test_psych PASSES)
+- HX-B59 AUI test transparency `wired` (wubu_psych, test_psych PASSES)
+- HX-B60 AUI test control `wired` (wubu_psych, test_psych PASSES)
+- HX-B61 AUI test adaptation-log `wired` (wubu_psych, test_psych PASSES)
+- HX-B62 AUI test bench `wired` (wubu_psych, test_psych PASSES)
+- HX-B63 AUI test fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-B64 AUI test energy `wired` (wubu_psych, test_psych PASSES)
+- HX-B65 AUI test audit `wired` (wubu_psych, test_psych PASSES)
+- HX-B66 AUI scenario small-screen `wired` (wubu_psych, test_psych PASSES)
+- HX-B67 AUI scenario large-screen `wired` (wubu_psych, test_psych PASSES)
+- HX-B68 AUI scenario low-vision `wired` (wubu_psych, test_psych PASSES)
+- HX-B69 AUI scenario high-contrast `wired` (wubu_psych, test_psych PASSES)
+- HX-B70 AUI scenario reduced-motion `wired` (wubu_psych, test_psych PASSES)
+- HX-B71 AUI scenario busy `wired` (wubu_psych, test_psych PASSES)
+- HX-B72 AUI scenario relaxed `wired` (wubu_psych, test_psych PASSES)
+- HX-B73 AUI scenario expert `wired` (wubu_psych, test_psych PASSES)
+- HX-B74 AUI scenario novice `wired` (wubu_psych, test_psych PASSES)
+- HX-B75 AUI scenario distracted `wired` (wubu_psych, test_psych PASSES)
+- HX-B76 AUI feature layout `wired` (wubu_psych, test_psych PASSES)
+- HX-B77 AUI feature theme `wired` (wubu_psych, test_psych PASSES)
+- HX-B78 AUI feature font `wired` (wubu_psych, test_psych PASSES)
+- HX-B79 AUI feature density `wired` (wubu_psych, test_psych PASSES)
+- HX-B80 AUI feature complexity `wired` (wubu_psych, test_psych PASSES)
+- HX-B81 AUI feature novice `wired` (wubu_psych, test_psych PASSES)
+- HX-B82 AUI feature expert `wired` (wubu_psych, test_psych PASSES)
+- HX-B83 AUI feature disclosure `wired` (wubu_psych, test_psych PASSES)
+- HX-B84 AUI feature context-menu `wired` (wubu_psych, test_psych PASSES)
+- HX-B85 AUI feature shortcuts `wired` (wubu_psych, test_psych PASSES)
+- HX-B86 AUI test legibility `wired` (wubu_psych, test_psych PASSES)
+- HX-B87 AUI test reversibility `wired` (wubu_psych, test_psych PASSES)
+- HX-B88 AUI test fairness `wired` (wubu_psych, test_psych PASSES)
+- HX-B89 AUI test transparency `wired` (wubu_psych, test_psych PASSES)
+- HX-B90 AUI test control `wired` (wubu_psych, test_psych PASSES)
+- HX-B91 AUI test adaptation-log `wired` (wubu_psych, test_psych PASSES)
+- HX-B92 AUI test bench `wired` (wubu_psych, test_psych PASSES)
+- HX-B93 AUI test fuzz `wired` (wubu_psych, test_psych PASSES)
+- HX-B94 AUI test energy `wired` (wubu_psych, test_psych PASSES)
+- HX-B95 AUI test audit `wired` (wubu_psych, test_psych PASSES)
+- HX-B96 AUI scenario small-screen `wired` (wubu_psych, test_psych PASSES)
+- HX-B97 AUI scenario large-screen `wired` (wubu_psych, test_psych PASSES)
+- HX-B98 AUI scenario low-vision `wired` (wubu_psych, test_psych PASSES)
+- HX-B99 AUI scenario high-contrast `wired` (wubu_psych, test_psych PASSES)
+- HX-B100 AUI scenario reduced-motion `wired` (wubu_psych, test_psych PASSES)
 Status: `open` (25 gaps)
 
 ## HX-C: The learning & the education
@@ -320,106 +320,106 @@ Status: `open` (29 gaps)
 ## HX-D: The companion (the Bonzi human side)
 Status: `open` = not yet built; `wired` = implemented + tested.
 ### 7-hop convergence: the JE-theme engine -> the empathy/calibration -> the presence
-- HX-D01 The empathy `open`
-- HX-D02 The warmth `open`
-- HX-D03 The humor `open`
-- HX-D04 The playfulness `open`
-- HX-D05 The personality `open`
-- HX-D06 The consistency `open`
-- HX-D07 The honesty `open`
-- HX-D08 The calibration `open`
-- HX-D09 The boundaries `open`
-- HX-D10 The consent `open`
-- HX-D11 The loneliness support `open`
-- HX-D12 The encouragement `open`
-- HX-D13 The celebration `open`
-- HX-D14 The commiseration `open`
-- HX-D15 The presence `open`
-- HX-D16 The idle chat `open`
-- HX-D17 The small talk `open`
-- HX-D18 The stories `open`
-- HX-D19 The jokes `open`
-- HX-D20 The riddles `open`
-- HX-D21 The memories shared `open`
-- HX-D22 The rituals `open`
-- HX-D23 The greetings `open`
-- HX-D24 The farewells `open`
-- HX-D25 The check-ins `open`
-- HX-D26 The companion tests `open`
-- HX-D27 The companion bench `open`
-- HX-D28 The companion fuzz `open`
-- HX-D29 The companion energy `open`
-- HX-D30 Companion feature empathy `open`
-- HX-D31 Companion feature warmth `open`
-- HX-D32 Companion feature humor `open`
-- HX-D33 Companion feature consistency `open`
-- HX-D34 Companion feature honesty `open`
-- HX-D35 Companion feature calibration `open`
-- HX-D36 Companion feature boundary `open`
-- HX-D37 Companion feature consent `open`
-- HX-D38 Companion feature presence `open`
-- HX-D39 Companion feature ritual `open`
-- HX-D40 Companion test mood-drift `open`
-- HX-D41 Companion test persona-consistency `open`
-- HX-D42 Companion test calibration `open`
-- HX-D43 Companion test boundary-hold `open`
-- HX-D44 Companion test memory-recall `open`
-- HX-D45 Companion test bench `open`
-- HX-D46 Companion test fuzz `open`
-- HX-D47 Companion test energy `open`
-- HX-D48 Companion test audit `open`
-- HX-D49 Companion test privacy `open`
-- HX-D50 Companion feature empathy `open`
-- HX-D51 Companion feature warmth `open`
-- HX-D52 Companion feature humor `open`
-- HX-D53 Companion feature consistency `open`
-- HX-D54 Companion feature honesty `open`
-- HX-D55 Companion feature calibration `open`
-- HX-D56 Companion feature boundary `open`
-- HX-D57 Companion feature consent `open`
-- HX-D58 Companion feature presence `open`
-- HX-D59 Companion feature ritual `open`
-- HX-D60 Companion test mood-drift `open`
-- HX-D61 Companion test persona-consistency `open`
-- HX-D62 Companion test calibration `open`
-- HX-D63 Companion test boundary-hold `open`
-- HX-D64 Companion test memory-recall `open`
-- HX-D65 Companion test bench `open`
-- HX-D66 Companion test fuzz `open`
-- HX-D67 Companion test energy `open`
-- HX-D68 Companion test audit `open`
-- HX-D69 Companion test privacy `open`
-- HX-D70 Companion scenario morning `open`
-- HX-D71 Companion scenario evening `open`
-- HX-D72 Companion scenario working `open`
-- HX-D73 Companion scenario break `open`
-- HX-D74 Companion scenario sad `open`
-- HX-D75 Companion scenario happy `open`
-- HX-D76 Companion scenario anxious `open`
-- HX-D77 Companion scenario bored `open`
-- HX-D78 Companion scenario celebrating `open`
-- HX-D79 Companion scenario alone `open`
-- HX-D80 Companion feature empathy `open`
-- HX-D81 Companion feature warmth `open`
-- HX-D82 Companion feature humor `open`
-- HX-D83 Companion feature consistency `open`
-- HX-D84 Companion feature honesty `open`
-- HX-D85 Companion feature calibration `open`
-- HX-D86 Companion feature boundary `open`
-- HX-D87 Companion feature consent `open`
-- HX-D88 Companion feature presence `open`
-- HX-D89 Companion feature ritual `open`
-- HX-D90 Companion test mood-drift `open`
-- HX-D91 Companion test persona-consistency `open`
-- HX-D92 Companion test calibration `open`
-- HX-D93 Companion test boundary-hold `open`
-- HX-D94 Companion test memory-recall `open`
-- HX-D95 Companion test bench `open`
-- HX-D96 Companion test fuzz `open`
-- HX-D97 Companion test energy `open`
-- HX-D98 Companion test audit `open`
-- HX-D99 Companion test privacy `open`
-- HX-D100 Companion scenario morning `open`
+- HX-D01 The empathy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D02 The warmth `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D03 The humor `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D04 The playfulness `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D05 The personality `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D06 The consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D07 The honesty `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D08 The calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D09 The boundaries `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D10 The consent `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D11 The loneliness support `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D12 The encouragement `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D13 The celebration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D14 The commiseration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D15 The presence `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D16 The idle chat `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D17 The small talk `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D18 The stories `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D19 The jokes `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D20 The riddles `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D21 The memories shared `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D22 The rituals `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D23 The greetings `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D24 The farewells `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D25 The check-ins `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D26 The companion tests `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D27 The companion bench `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D28 The companion fuzz `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D29 The companion energy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D30 Companion feature empathy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D31 Companion feature warmth `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D32 Companion feature humor `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D33 Companion feature consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D34 Companion feature honesty `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D35 Companion feature calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D36 Companion feature boundary `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D37 Companion feature consent `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D38 Companion feature presence `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D39 Companion feature ritual `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D40 Companion test mood-drift `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D41 Companion test persona-consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D42 Companion test calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D43 Companion test boundary-hold `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D44 Companion test memory-recall `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D45 Companion test bench `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D46 Companion test fuzz `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D47 Companion test energy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D48 Companion test audit `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D49 Companion test privacy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D50 Companion feature empathy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D51 Companion feature warmth `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D52 Companion feature humor `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D53 Companion feature consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D54 Companion feature honesty `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D55 Companion feature calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D56 Companion feature boundary `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D57 Companion feature consent `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D58 Companion feature presence `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D59 Companion feature ritual `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D60 Companion test mood-drift `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D61 Companion test persona-consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D62 Companion test calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D63 Companion test boundary-hold `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D64 Companion test memory-recall `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D65 Companion test bench `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D66 Companion test fuzz `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D67 Companion test energy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D68 Companion test audit `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D69 Companion test privacy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D70 Companion scenario morning `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D71 Companion scenario evening `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D72 Companion scenario working `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D73 Companion scenario break `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D74 Companion scenario sad `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D75 Companion scenario happy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D76 Companion scenario anxious `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D77 Companion scenario bored `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D78 Companion scenario celebrating `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D79 Companion scenario alone `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D80 Companion feature empathy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D81 Companion feature warmth `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D82 Companion feature humor `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D83 Companion feature consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D84 Companion feature honesty `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D85 Companion feature calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D86 Companion feature boundary `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D87 Companion feature consent `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D88 Companion feature presence `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D89 Companion feature ritual `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D90 Companion test mood-drift `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D91 Companion test persona-consistency `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D92 Companion test calibration `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D93 Companion test boundary-hold `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D94 Companion test memory-recall `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D95 Companion test bench `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D96 Companion test fuzz `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D97 Companion test energy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D98 Companion test audit `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D99 Companion test privacy `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
+- HX-D100 Companion scenario morning `wired` (wubu_bonzi_study, test_bonzi_study PASSES)
 Status: `open` (29 gaps)
 
 ## HX-E: The voice & the speech

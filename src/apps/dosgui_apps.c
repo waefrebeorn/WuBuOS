@@ -20,6 +20,7 @@
 #include "../apps/calc/calc.h"
 #include "../apps/bonzi/bonzi.h"
 #include "../apps/comfy/comfy.h"
+#include "../apps/tandem/tandem.h"
 #include "../apps/control/control.h"
 #include <stdlib.h>
 #include <string.h>
@@ -236,6 +237,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "EDR Activity", "EDR Activity",  DESK_ICON_COUNT + 5,   0x00C00000, dosgui_launch_edr_dashboard },
     { "Bonzi Buddy",  "Bonzi Buddy",   DESK_ICON_COUNT + 6,   0x00A030A0, bonzi_launch },
     { "Comfy",        "Comfy",          DESK_ICON_COUNT + 7,   0x0000A0C0, comfy_launch },
+    { "Tandem",       "Tandem",         DESK_ICON_COUNT + 8,   0x00C0A020, tandem_launch },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 
