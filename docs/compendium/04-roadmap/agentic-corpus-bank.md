@@ -637,7 +637,7 @@ refs: Orchard SWE/GUI/Claw recipes
 - AC-F100 data axis: freshness decay `open`
 ## AC-G: masking & packing (the 69%-output-token doctrine)
 
-- AC-G01 input-masked training: 69%-output-token doctrine (only the assistant's tokens train) `open`
+- AC-G01 input-masked training: 69%-output-token doctrine (only the assistant's tokens train) `wired` -- wubu_masked_ce: the masked next-token CE, the masked positions get zero grad, the unmasked FD-verified (8.3e-3 direct / 2e-2 -ffast-math), the masked-mean normalization
 - AC-G02 observation-token masking in agent trajectories (Orchard) `wired` -- wubu_traj_sft: user/obs/tool_resp segments masked, assistant/think/tool_call train
 - AC-G03 loss-masking for heterogeneous data (Hermes 4) `open`
 - AC-G04 efficient packing of variable-length trajectories into fixed-length windows `open`
