@@ -12,7 +12,7 @@ for the AGI to bounce off of. "This is the beginning of an AGI."
 | wubuwizard engine | `wubuwizard/research/INDEX.md` | closing (the recursive loop) | ~1243 |
 | Synthesis (WT) | `docs/compendium/04-roadmap/synthesis-wavetable-bank.md` | 21 wired | 1000 |
 | GUI (GU) | `docs/compendium/04-roadmap/gui-gap-index.md` | 12 wired | 1000 |
-| Storage (FS) | `docs/compendium/04-roadmap/storage-bank.md` | open | 1000 |
+| Storage (FS) | `docs/compendium/04-roadmap/storage-bank.md` | 200 wired (FS-A block, FS-B FAT) | 1000 |
 | Network (NW) | `docs/compendium/04-roadmap/network-bank.md` | open | 1000 |
 | Kernel (KR) | `docs/compendium/04-roadmap/kernel-bank.md` | open | 1000 |
 | AI-Engine (AIE) | `docs/compendium/04-roadmap/engine-bank.md` | open | 1000 |
