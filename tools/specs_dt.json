@@ -1,0 +1,92 @@
+{
+ "DT-A": [
+  ["The CAS backend", ["in-memory", "on-disk mmap", "littlefs-backed", "ramdisk", "9P-exported", "append-log", "sharded-by-prefix", "compressed-blob", "encrypted-at-rest", "read-only mirror"]],
+  ["The cache key includes", ["the compiler binary hash", "the command line", "the include tree", "the target triple", "the optimization level", "the sanitizer set", "the macro definitions", "the sysroot tree", "the language standard", "the environment allowlist"]],
+  ["The action cached", ["preprocess", "raw-tokenize", "parse", "type-check", "codegen", "assemble", "archive", "link", "tablegen", "doc-generate"]],
+  ["The CAS operation", ["put-blob", "get-blob", "put-node", "walk-DAG", "diff-trees", "merge-trees", "pin", "unpin", "sweep", "verify"]],
+  ["The build scenario", ["cold clean build", "primed clean build", "single-file edit", "header edit (wide fanout)", "branch switch", "rebase from upstream", "worktree switch", "flag-only change", "comment-only change", "whitespace-only change"]],
+  ["The CAS doc", ["spec", "design", "API reference", "on-disk format", "hash policy", "GC policy", "benchmark report", "failure modes", "tutorial", "roadmap"]],
+  ["The CAS test", ["unit", "integration", "concurrency", "crash-consistency", "corruption-recovery", "hash-collision handling", "size-limit", "eviction", "determinism", "soak"]]
+ ],
+ "DT-B": [
+  ["The front-end phase", ["lex", "preprocess", "parse", "semantic analysis", "constant evaluation", "IR emit", "optimize", "select", "allocate", "emit object"]],
+  ["The C11 feature", ["_Static_assert", "_Generic", "_Alignas/_Alignof", "anonymous struct/union", "compound literals", "designated initializers", "variadic macros", "flexible array members", "restrict pointers", "atomics (the subset)"]],
+  ["The diagnostic class", ["syntax error", "type mismatch", "implicit declaration", "unused variable", "shadowed declaration", "sign-compare", "uninitialized use", "unreachable code", "missing return", "format-string mismatch"]],
+  ["The optimization pass", ["mem2reg", "constant propagation", "common-subexpression elimination", "dead-store elimination", "loop-invariant code motion", "strength reduction", "tail-call elimination", "function inlining", "peephole", "block layout"]],
+  ["The query node", ["file-text", "token-stream", "parse-tree", "symbol-table", "type-of-expr", "function-body", "IR-of-function", "object-of-TU", "link-graph", "diagnostics-of-file"]],
+  ["The compiler test", ["conformance", "codegen golden", "optimization idempotence", "bootstrap fixpoint", "cross-check vs reference", "crash regression", "diagnostic wording", "performance", "memory ceiling", "fuzzed input"]],
+  ["The compiler doc", ["spec", "IR reference", "ABI notes", "pass pipeline", "diagnostics catalog", "extension policy", "bootstrap guide", "porting guide", "benchmark report", "roadmap"]]
+ ],
+ "DT-C": [
+  ["The LSP request", ["initialize", "shutdown", "didOpen", "didChange", "didSave", "willSaveWaitUntil", "foldingRange", "selectionRange", "documentLink", "callHierarchy"]],
+  ["The highlight token", ["keyword", "identifier", "type name", "function name", "macro", "string literal", "numeric literal", "comment", "operator", "preprocessor directive"]],
+  ["The incremental edit", ["single character insert", "single character delete", "paste block", "cut block", "undo", "redo", "multi-cursor edit", "find-and-replace-all", "auto-indent reflow", "file reload from disk"]],
+  ["The parser property", ["error recovery", "node reuse", "reparse span bound", "immutability", "thread safety", "memory ceiling", "grammar hot-reload", "ambiguity resolution", "unicode handling", "large-file degradation"]],
+  ["The editor scenario", ["10-line file", "10k-line file", "100k-line file", "generated header", "deeply nested macro", "mixed-language buffer", "broken syntax mid-edit", "rapid keystroke burst", "background reindex", "low-memory pressure"]],
+  ["The language service test", ["latency budget", "correctness vs compiler", "crash resilience", "protocol conformance", "concurrency", "cancellation", "memory leak", "grammar fuzz", "golden token stream", "regression corpus"]],
+  ["The editor doc", ["spec", "grammar authoring guide", "query cookbook", "LSP capability matrix", "performance notes", "theming guide", "keybinding reference", "troubleshooting", "benchmark report", "roadmap"]]
+ ],
+ "DT-D": [
+  ["The recorded event", ["syscall entry", "syscall exit", "signal delivery", "context switch", "mmap change", "rdtsc read", "cpuid read", "shared-memory read", "thread create", "process exit"]],
+  ["The replay guarantee", ["identical control flow", "identical register state", "identical heap addresses", "identical stack addresses", "identical syscall results", "identical signal timing", "identical thread interleaving", "identical file descriptors", "identical randomness", "identical clock reads"]],
+  ["The debug operation", ["continue", "step-in", "step-over", "step-out", "reverse-continue", "reverse-step", "run-to-cursor", "set-watchpoint", "evaluate-expression", "restart-replay"]],
+  ["The trace operation", ["record", "pack", "compress", "verify", "port", "prune", "index", "seek-to-event", "checkpoint", "export"]],
+  ["The debug scenario", ["intermittent test failure", "use-after-free", "data race", "deadlock", "infinite loop", "stack overflow", "corrupted state far from crash", "wrong value in a field", "crash in third-party code", "kernel-boundary bug"]],
+  ["The debugger test", ["record/replay equivalence", "reverse-exec correctness", "watchpoint precision", "multi-process capture", "container capture", "overhead budget", "trace portability", "unsupported-syscall handling", "checkpoint restore", "soak"]],
+  ["The debugger doc", ["spec", "usage guide", "syscall support matrix", "trace format", "chaos-mode notes", "IDE integration", "limitations", "performance report", "troubleshooting", "roadmap"]]
+ ],
+ "DT-E": [
+  ["The fuzz target", ["the FAT parser", "the littlefs image reader", "the 9P message decoder", "the ELF loader", "the font renderer", "the image decoder", "the wavetable loader", "the config parser", "the GGUF reader", "the syscall surface"]],
+  ["The mutation strategy", ["bit flip", "byte arithmetic", "block splice", "block delete", "block duplicate", "dictionary token insert", "havoc stack", "grammar-guided rewrite", "value-directed set", "taint-directed byte flip"]],
+  ["The sanitizer check", ["heap out-of-bounds", "stack out-of-bounds", "global out-of-bounds", "use-after-free", "use-after-return", "double free", "memory leak", "signed overflow", "shift out-of-range", "null dereference"]],
+  ["The corpus operation", ["seed import", "minimize", "merge", "dedupe", "coverage rank", "size cap", "age out", "split by target", "share across runs", "export for CI"]],
+  ["The fuzz scenario", ["short CI run", "overnight run", "post-crash reproduction", "regression replay", "directed to a patch", "differential vs reference", "snapshot restore per input", "kernel syscall sequence", "network message sequence", "GUI event sequence"]],
+  ["The test layer", ["unit", "component", "integration", "system", "property", "differential", "fuzz", "soak", "stress", "regression"]],
+  ["The fuzz doc", ["spec", "harness cookbook", "dictionary catalog", "coverage report", "triage runbook", "CI integration guide", "corpus policy", "known-limitations", "benchmark report", "roadmap"]]
+ ],
+ "DT-F": [
+  ["The counter", ["cycles", "instructions", "cache references", "cache misses", "branch instructions", "branch misses", "page faults", "context switches", "TLB misses", "stalled cycles"]],
+  ["The profile view", ["flat", "call-graph", "flamegraph", "icicle", "timeline", "histogram", "heatmap", "diff", "top-N", "annotated source"]],
+  ["The traced subsystem", ["scheduler", "memory allocator", "filesystem", "block IO", "network stack", "syscall layer", "GUI compositor", "audio engine", "inference engine", "the Colonel"]],
+  ["The sampling mode", ["timer-based", "event-based", "on-demand", "always-on low-rate", "burst", "targeted-thread", "targeted-process", "system-wide", "kernel-only", "user-only"]],
+  ["The profiling scenario", ["cold boot", "steady-state idle", "compile storm", "IO storm", "inference decode loop", "GUI redraw storm", "audio underrun hunt", "memory-pressure event", "latency spike hunt", "regression bisect"]],
+  ["The profiler test", ["overhead budget", "symbolization accuracy", "sample attribution", "buffer-loss accounting", "concurrency", "long-run stability", "clock monotonicity", "export-format validity", "determinism of aggregation", "regression"]],
+  ["The profiler doc", ["spec", "counter reference", "flamegraph guide", "trace schema", "overhead notes", "benchmark methodology", "interpretation guide", "troubleshooting", "case studies", "roadmap"]]
+ ],
+ "DT-G": [
+  ["The artifact kind", ["source tarball", "object archive", "shared library", "executable", "kernel image", "firmware blob", "model weights", "font pack", "wavetable pack", "doc bundle"]],
+  ["The supply-chain control", ["hash pin", "signature verify", "provenance attestation", "build reproducibility check", "dependency allowlist", "license gate", "advisory scan", "SBOM emit", "SBOM diff", "release approval"]],
+  ["The package operation", ["resolve", "fetch", "verify", "unpack", "build", "install", "upgrade", "downgrade", "remove", "audit"]],
+  ["The resolution property", ["determinism", "minimal version selection", "conflict detection", "cycle detection", "optional-dependency handling", "feature-flag unification", "platform filtering", "offline fallback", "lockfile stability", "diamond-dependency collapse"]],
+  ["The package scenario", ["fresh install", "airgapped install", "partial upgrade", "interrupted install", "disk-full install", "corrupted artifact", "revoked signature", "yanked version", "conflicting constraints", "rollback after failure"]],
+  ["The package test", ["resolution unit", "lockfile golden", "signature negative", "offline mode", "crash-consistency", "upgrade/downgrade matrix", "SBOM validity", "license audit", "performance", "soak"]],
+  ["The package doc", ["spec", "manifest reference", "lockfile format", "signing policy", "SBOM policy", "mirror setup", "offline guide", "security notes", "migration guide", "roadmap"]]
+ ],
+ "DT-H": [
+  ["The agent loop step", ["survey the repo", "read the bank", "pick the gap", "write the plan", "write the test", "write the code", "compile", "run tests", "audit", "commit"]],
+  ["The DA-1 correctness check", ["math soundness", "CPU-only feasibility", "memory-budget fit", "API contract match", "edge-case coverage", "numerical tolerance", "determinism", "concurrency safety", "error propagation", "regression impact"]],
+  ["The DA-2 privacy check", ["no external service", "no telemetry", "no weight download", "no phone-home", "no user-data egress", "local-only cache", "explicit consent gate", "data-retention bound", "log redaction", "airgap survivability"]],
+  ["The DA-3 robustness check", ["graceful degradation", "no numerical cliff", "bounded memory", "bounded time", "rollback path", "partial-failure handling", "resource-exhaustion behaviour", "corrupt-input behaviour", "version-skew behaviour", "restart safety"]],
+  ["The agent artifact", ["the gap ledger", "the close-rate meter", "the loop-ledger", "the collision note", "the commit message", "the design doc", "the research doc", "the source archive entry", "the master-index row", "the avenue page"]],
+  ["The agent scenario", ["a fresh avenue", "a half-closed theme", "a mis-marked wired gap", "a sibling-agent collision", "a failing regression", "a rejected DA audit", "an external-hardware gap", "a duplicate module", "a stale bank claim", "a backlog-cap breach"]],
+  ["The agent doc", ["spec", "loop protocol", "DA rubric", "ledger format", "collision protocol", "generator pipeline", "verification recipe", "failure post-mortems", "metrics report", "roadmap"]]
+ ],
+ "DT-I": [
+  ["The workbench widget", ["menu bar", "toolbar", "status bar", "tree view", "list view", "tab strip", "splitter", "dockable pane", "modal dialog", "context menu"]],
+  ["The editor interaction", ["click to place cursor", "drag to select", "double-click word select", "triple-click line select", "column select", "drag-and-drop text", "scroll wheel", "keyboard navigation", "bracket match jump", "code folding toggle"]],
+  ["The debug UI action", ["set breakpoint", "toggle breakpoint", "conditional breakpoint", "inspect variable on hover", "add to watch", "step through UI", "reverse-step through UI", "jump to frame", "view raw memory", "view registers"]],
+  ["The Bonzi dev behaviour", ["explain the error", "suggest the fix", "offer the refactor", "warn about the risk", "celebrate the green build", "stay quiet during typing", "yield on user input", "summarize the diff", "recall the last session", "ask before acting"]],
+  ["The workbench scenario", ["first launch", "large project open", "build with 500 errors", "long-running debug session", "low-resolution display", "keyboard-only operation", "high-latency filesystem", "crash recovery", "session restore", "multi-window layout"]],
+  ["The GUI test", ["widget unit", "event routing", "redraw correctness", "layout invariants", "input latency", "theme rendering", "accessibility path", "memory leak", "long-session soak", "regression screenshot"]],
+  ["The workbench doc", ["spec", "widget reference", "keybinding map", "theming guide", "layout persistence format", "Bonzi policy", "accessibility notes", "performance budget", "tutorial", "roadmap"]]
+ ],
+ "DT-J": [
+  ["The budget dimension", ["cold-build wall time", "incremental-build wall time", "editor keystroke latency", "debugger record overhead", "fuzz execs per second", "profiler sampling overhead", "peak resident memory", "disk footprint", "trace size per minute", "cache hit rate"]],
+  ["The cross-bank tie", ["FS block cache", "FS journaling", "NW remote cache transport", "KR syscall tracing", "KR scheduler hooks", "AIE model-assisted completion", "HX developer fatigue model", "SC signed toolchain", "GU workbench chrome", "WT audio dev tooling"]],
+  ["The CI stage", ["lint", "build", "unit test", "integration test", "sanitizer build", "fuzz smoke", "benchmark", "artifact sign", "SBOM emit", "publish"]],
+  ["The failure mode", ["cache poisoning", "nondeterministic build", "flaky test", "trace corruption", "symbol mismatch", "stale lockfile", "clock skew", "disk exhaustion", "OOM kill", "interrupted commit"]],
+  ["The DT scenario", ["a one-developer laptop", "an airgapped workstation", "a shared team cache", "a CI runner", "a low-memory 13GB box", "a first-boot WuBuOS install", "a self-host bootstrap", "a recovery-shell rebuild", "an AGI-driven overnight loop", "a live user pairing session"]],
+  ["The DT doc", ["spec", "architecture", "onboarding guide", "contribution guide", "release process", "benchmark methodology", "glossary", "FAQ", "post-mortem index", "roadmap"]],
+  ["The DT verification", ["exact gap count", "theme balance", "driver tags present", "source citations present", "cross-link coverage", "wired-claim recheck", "close-rate audit", "backlog-cap audit", "generator reproducibility", "index consistency"]]
+ ]
+}

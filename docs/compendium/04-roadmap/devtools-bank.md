@@ -1,0 +1,1060 @@
+# DevTools Bank -- 1000 goals + gaps (the toolchain substrate)
+
+Date: 2026-08-03. The DevTools avenue: the build CAS, the compiler,
+the editor/LSP, the record-replay debugger, the fuzz harness, the
+profiler, the package/artifact chain, the AGI dev-agent, the Win98
+workbench, and the engineering close. Status: `open` / `wired`.
+Every gap is a real mechanism from the surveyed lineage (LLVM CAS
+build caching -> query-based incremental compilers -> tree-sitter/LSP
+-> rr record/replay -> coverage-guided fuzzing 2026 -> the WuBuOS
+self-hosting toolchain).
+
+## DT-A: The build substrate (the CAS)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: LLVM CAS RFC -> Bazel/Buck/Turborepo content hashing -> the jonmsterling CAS incremental model -> the WuBuOS build daemon
+- DT-A01 The content-addressed store (the blob) `open`
+- DT-A02 The CAS node (data + refs) `open`
+- DT-A03 The CAS tree (name -> ref + kind) `open`
+- DT-A04 The strong hash (the content UUID) `open`
+- DT-A05 The implicit dedup (same content, same ID) `open`
+- DT-A06 The DAG of sub-objects `open`
+- DT-A07 The action cache (action -> result) `open`
+- DT-A08 The cache key from explicit inputs `open`
+- DT-A09 The no-validity-check rule (hit = correct) `open`
+- DT-A10 The in-memory CAS backend `open`
+- DT-A11 The on-disk CAS backend `open`
+- DT-A12 The CAS garbage collect (the pruning) `open`
+- DT-A13 The CAS size accounting `open`
+- DT-A14 The CAS integrity scrub `open`
+- DT-A15 The CAS filesystem view (read from a tree) `open`
+- DT-A16 The tracked filesystem (record accesses -> build a tree) `open`
+- DT-A17 The dependency scan (the depscan) `open`
+- DT-A18 The depscan daemon (the ingest server) `open`
+- DT-A19 The prefix map (cache hits across worktrees) `open`
+- DT-A20 The canonical output (reproducible builds) `open`
+- DT-A21 The de-canonicalized diagnostics `open`
+- DT-A22 The .d dependency file emit `open`
+- DT-A23 The raw-token cache (the pre-preprocessor lex) `open`
+- DT-A24 The identifier-table cache `open`
+- DT-A25 The object-as-CAS-ID output `open`
+- DT-A26 The archive of CAS IDs (the libtool path) `open`
+- DT-A27 The linker reads CAS IDs `open`
+- DT-A28 The two-stage cached link `open`
+- DT-A29 The linker input tree (the link cache key) `open`
+- DT-A30 The linker never re-reads the disk `open`
+- DT-A31 The CAS-optimized object schema `open`
+- DT-A32 The object split into a DAG (2-4x storage win) `open`
+- DT-A33 The per-function instruction outlining `open`
+- DT-A34 The function-local global import list `open`
+- DT-A35 The per-function constant pool `open`
+- DT-A36 The debug-info locality (metadata to the function) `open`
+- DT-A37 The task-level cache (finer than the file) `open`
+- DT-A38 The remote cache protocol (the future) `open`
+- DT-A39 The shared team cache `open`
+- DT-A40 The build identity problem (the multitenancy) `open`
+- DT-A41 The clean-build-with-primed-cache path `open`
+- DT-A42 The cache-miss telemetry `open`
+- DT-A43 The cache hit-rate report `open`
+- DT-A44 The CAS tests `open`
+- DT-A45 The CAS fuzz `open`
+- DT-A46 The CAS docs `open`
+- DT-A47 The CAS backend in-memory `open`
+- DT-A48 The CAS backend on-disk mmap `open`
+- DT-A49 The CAS backend littlefs-backed `open`
+- DT-A50 The CAS backend ramdisk `open`
+- DT-A51 The CAS backend 9P-exported `open`
+- DT-A52 The CAS backend append-log `open`
+- DT-A53 The CAS backend sharded-by-prefix `open`
+- DT-A54 The CAS backend compressed-blob `open`
+- DT-A55 The CAS backend encrypted-at-rest `open`
+- DT-A56 The CAS backend read-only mirror `open`
+- DT-A57 The cache key includes the compiler binary hash `open`
+- DT-A58 The cache key includes the command line `open`
+- DT-A59 The cache key includes the include tree `open`
+- DT-A60 The cache key includes the target triple `open`
+- DT-A61 The cache key includes the optimization level `open`
+- DT-A62 The cache key includes the sanitizer set `open`
+- DT-A63 The cache key includes the macro definitions `open`
+- DT-A64 The cache key includes the sysroot tree `open`
+- DT-A65 The cache key includes the language standard `open`
+- DT-A66 The cache key includes the environment allowlist `open`
+- DT-A67 The action cached preprocess `open`
+- DT-A68 The action cached raw-tokenize `open`
+- DT-A69 The action cached parse `open`
+- DT-A70 The action cached type-check `open`
+- DT-A71 The action cached codegen `open`
+- DT-A72 The action cached assemble `open`
+- DT-A73 The action cached archive `open`
+- DT-A74 The action cached link `open`
+- DT-A75 The action cached tablegen `open`
+- DT-A76 The action cached doc-generate `open`
+- DT-A77 The CAS operation put-blob `open`
+- DT-A78 The CAS operation get-blob `open`
+- DT-A79 The CAS operation put-node `open`
+- DT-A80 The CAS operation walk-DAG `open`
+- DT-A81 The CAS operation diff-trees `open`
+- DT-A82 The CAS operation merge-trees `open`
+- DT-A83 The CAS operation pin `open`
+- DT-A84 The CAS operation unpin `open`
+- DT-A85 The CAS operation sweep `open`
+- DT-A86 The CAS operation verify `open`
+- DT-A87 The build scenario cold clean build `open`
+- DT-A88 The build scenario primed clean build `open`
+- DT-A89 The build scenario single-file edit `open`
+- DT-A90 The build scenario header edit (wide fanout) `open`
+- DT-A91 The build scenario branch switch `open`
+- DT-A92 The build scenario rebase from upstream `open`
+- DT-A93 The build scenario worktree switch `open`
+- DT-A94 The build scenario flag-only change `open`
+- DT-A95 The build scenario comment-only change `open`
+- DT-A96 The build scenario whitespace-only change `open`
+- DT-A97 The CAS doc spec `open`
+- DT-A98 The CAS doc design `open`
+- DT-A99 The CAS doc API reference `open`
+- DT-A100 The CAS doc on-disk format `open`
+Status: `open` (100 gaps)
+
+## DT-B: The compiler toolchain (the WuBuCC)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the C11 front end -> query-based demand-driven compilation (Rust incremental, Swift request evaluator) -> Roslyn immutable incremental trees -> the self-hosting Colonel compiler
+- DT-B01 The C11 lexer `open`
+- DT-B02 The preprocessor (the macro engine) `open`
+- DT-B03 The include resolution `open`
+- DT-B04 The token stream cache `open`
+- DT-B05 The error-tolerant parse `open`
+- DT-B06 The AST (the tree) `open`
+- DT-B07 The symbol table `open`
+- DT-B08 The scope chain `open`
+- DT-B09 The type checker `open`
+- DT-B10 The constant folding `open`
+- DT-B11 The IR lowering `open`
+- DT-B12 The SSA construction `open`
+- DT-B13 The dataflow analysis `open`
+- DT-B14 The dead-code elimination `open`
+- DT-B15 The inlining `open`
+- DT-B16 The loop optimization `open`
+- DT-B17 The register allocation `open`
+- DT-B18 The instruction selection `open`
+- DT-B19 The x86-64 backend `open`
+- DT-B20 The aarch64 backend (the future) `open`
+- DT-B21 The object emit (ELF) `open`
+- DT-B22 The relocation table `open`
+- DT-B23 The symbol table emit `open`
+- DT-B24 The debug-info emit (DWARF) `open`
+- DT-B25 The linker (the WuBuLD) `open`
+- DT-B26 The static archive `open`
+- DT-B27 The dynamic link (the future) `open`
+- DT-B28 The LTO (the future) `open`
+- DT-B29 The demand-driven query model (the Rust/Swift shape) `open`
+- DT-B30 The request evaluator (the memoized query) `open`
+- DT-B31 The query dependency graph `open`
+- DT-B32 The red/green invalidation `open`
+- DT-B33 The lazy function-body parse `open`
+- DT-B34 The relative source locations `open`
+- DT-B35 The virtualized source position `open`
+- DT-B36 The diagnostics engine `open`
+- DT-B37 The fix-it hints `open`
+- DT-B38 The warning taxonomy `open`
+- DT-B39 The compiler self-host check `open`
+- DT-B40 The bootstrap (stage0 -> stage1 -> stage2) `open`
+- DT-B41 The stage-fixpoint test `open`
+- DT-B42 The compiler tests `open`
+- DT-B43 The compiler fuzz `open`
+- DT-B44 The compiler docs `open`
+- DT-B45 The front-end phase lex `open`
+- DT-B46 The front-end phase preprocess `open`
+- DT-B47 The front-end phase parse `open`
+- DT-B48 The front-end phase semantic analysis `open`
+- DT-B49 The front-end phase constant evaluation `open`
+- DT-B50 The front-end phase IR emit `open`
+- DT-B51 The front-end phase optimize `open`
+- DT-B52 The front-end phase select `open`
+- DT-B53 The front-end phase allocate `open`
+- DT-B54 The front-end phase emit object `open`
+- DT-B55 The C11 feature _Static_assert `open`
+- DT-B56 The C11 feature _Generic `open`
+- DT-B57 The C11 feature _Alignas/_Alignof `open`
+- DT-B58 The C11 feature anonymous struct/union `open`
+- DT-B59 The C11 feature compound literals `open`
+- DT-B60 The C11 feature designated initializers `open`
+- DT-B61 The C11 feature variadic macros `open`
+- DT-B62 The C11 feature flexible array members `open`
+- DT-B63 The C11 feature restrict pointers `open`
+- DT-B64 The C11 feature atomics (the subset) `open`
+- DT-B65 The diagnostic class syntax error `open`
+- DT-B66 The diagnostic class type mismatch `open`
+- DT-B67 The diagnostic class implicit declaration `open`
+- DT-B68 The diagnostic class unused variable `open`
+- DT-B69 The diagnostic class shadowed declaration `open`
+- DT-B70 The diagnostic class sign-compare `open`
+- DT-B71 The diagnostic class uninitialized use `open`
+- DT-B72 The diagnostic class unreachable code `open`
+- DT-B73 The diagnostic class missing return `open`
+- DT-B74 The diagnostic class format-string mismatch `open`
+- DT-B75 The optimization pass mem2reg `open`
+- DT-B76 The optimization pass constant propagation `open`
+- DT-B77 The optimization pass common-subexpression elimination `open`
+- DT-B78 The optimization pass dead-store elimination `open`
+- DT-B79 The optimization pass loop-invariant code motion `open`
+- DT-B80 The optimization pass strength reduction `open`
+- DT-B81 The optimization pass tail-call elimination `open`
+- DT-B82 The optimization pass function inlining `open`
+- DT-B83 The optimization pass peephole `open`
+- DT-B84 The optimization pass block layout `open`
+- DT-B85 The query node file-text `open`
+- DT-B86 The query node token-stream `open`
+- DT-B87 The query node parse-tree `open`
+- DT-B88 The query node symbol-table `open`
+- DT-B89 The query node type-of-expr `open`
+- DT-B90 The query node function-body `open`
+- DT-B91 The query node IR-of-function `open`
+- DT-B92 The query node object-of-TU `open`
+- DT-B93 The query node link-graph `open`
+- DT-B94 The query node diagnostics-of-file `open`
+- DT-B95 The compiler test conformance `open`
+- DT-B96 The compiler test codegen golden `open`
+- DT-B97 The compiler test optimization idempotence `open`
+- DT-B98 The compiler test bootstrap fixpoint `open`
+- DT-B99 The compiler test cross-check vs reference `open`
+- DT-B100 The compiler test crash regression `open`
+Status: `open` (100 gaps)
+
+## DT-C: The editor + the language service
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: tree-sitter incremental error-tolerant parsing -> LSP semantic tokens -> the Roslyn cascading classifiers -> the WuBuOS editor service
+- DT-C01 The incremental parser (the edit -> reparse span) `open`
+- DT-C02 The error-tolerant grammar `open`
+- DT-C03 The concrete syntax tree `open`
+- DT-C04 The CST -> AST lowering `open`
+- DT-C05 The tree query language (the s-expression match) `open`
+- DT-C06 The byte-range query `open`
+- DT-C07 The node capture (the highlight name) `open`
+- DT-C08 The lexical classification (instant) `open`
+- DT-C09 The syntactic classification `open`
+- DT-C10 The semantic classification (async) `open`
+- DT-C11 The embedded-language classification (the cascade) `open`
+- DT-C12 The cascading classifier threads `open`
+- DT-C13 The immutable tree sharing (no thread races) `open`
+- DT-C14 The node reuse ratio metric `open`
+- DT-C15 The sub-millisecond edit budget `open`
+- DT-C16 The LSP transport (the JSON-RPC) `open`
+- DT-C17 The initialize handshake `open`
+- DT-C18 The textDocument/didChange (the incremental sync) `open`
+- DT-C19 The textDocument/definition `open`
+- DT-C20 The textDocument/references `open`
+- DT-C21 The textDocument/hover `open`
+- DT-C22 The textDocument/completion `open`
+- DT-C23 The completion resolve (the lazy detail) `open`
+- DT-C24 The signatureHelp `open`
+- DT-C25 The documentSymbol `open`
+- DT-C26 The workspaceSymbol `open`
+- DT-C27 The semanticTokens/full `open`
+- DT-C28 The semanticTokens/delta `open`
+- DT-C29 The publishDiagnostics `open`
+- DT-C30 The diagnostic partitioning (syntax vs semantic vs analyzer) `open`
+- DT-C31 The codeAction (the quick fix) `open`
+- DT-C32 The rename (the semantic-safe) `open`
+- DT-C33 The formatting `open`
+- DT-C34 The rangeFormatting `open`
+- DT-C35 The inlayHint `open`
+- DT-C36 The N x M problem (one server, many editors) `open`
+- DT-C37 The mut/const highlight distinction `open`
+- DT-C38 The grammar size budget (the opt-in language pack) `open`
+- DT-C39 The grammar as a loadable module `open`
+- DT-C40 The multi-language buffer `open`
+- DT-C41 The editor tests `open`
+- DT-C42 The LSP conformance tests `open`
+- DT-C43 The editor docs `open`
+- DT-C44 The LSP request initialize `open`
+- DT-C45 The LSP request shutdown `open`
+- DT-C46 The LSP request didOpen `open`
+- DT-C47 The LSP request didChange `open`
+- DT-C48 The LSP request didSave `open`
+- DT-C49 The LSP request willSaveWaitUntil `open`
+- DT-C50 The LSP request foldingRange `open`
+- DT-C51 The LSP request selectionRange `open`
+- DT-C52 The LSP request documentLink `open`
+- DT-C53 The LSP request callHierarchy `open`
+- DT-C54 The highlight token keyword `open`
+- DT-C55 The highlight token identifier `open`
+- DT-C56 The highlight token type name `open`
+- DT-C57 The highlight token function name `open`
+- DT-C58 The highlight token macro `open`
+- DT-C59 The highlight token string literal `open`
+- DT-C60 The highlight token numeric literal `open`
+- DT-C61 The highlight token comment `open`
+- DT-C62 The highlight token operator `open`
+- DT-C63 The highlight token preprocessor directive `open`
+- DT-C64 The incremental edit single character insert `open`
+- DT-C65 The incremental edit single character delete `open`
+- DT-C66 The incremental edit paste block `open`
+- DT-C67 The incremental edit cut block `open`
+- DT-C68 The incremental edit undo `open`
+- DT-C69 The incremental edit redo `open`
+- DT-C70 The incremental edit multi-cursor edit `open`
+- DT-C71 The incremental edit find-and-replace-all `open`
+- DT-C72 The incremental edit auto-indent reflow `open`
+- DT-C73 The incremental edit file reload from disk `open`
+- DT-C74 The parser property error recovery `open`
+- DT-C75 The parser property node reuse `open`
+- DT-C76 The parser property reparse span bound `open`
+- DT-C77 The parser property immutability `open`
+- DT-C78 The parser property thread safety `open`
+- DT-C79 The parser property memory ceiling `open`
+- DT-C80 The parser property grammar hot-reload `open`
+- DT-C81 The parser property ambiguity resolution `open`
+- DT-C82 The parser property unicode handling `open`
+- DT-C83 The parser property large-file degradation `open`
+- DT-C84 The editor scenario 10-line file `open`
+- DT-C85 The editor scenario 10k-line file `open`
+- DT-C86 The editor scenario 100k-line file `open`
+- DT-C87 The editor scenario generated header `open`
+- DT-C88 The editor scenario deeply nested macro `open`
+- DT-C89 The editor scenario mixed-language buffer `open`
+- DT-C90 The editor scenario broken syntax mid-edit `open`
+- DT-C91 The editor scenario rapid keystroke burst `open`
+- DT-C92 The editor scenario background reindex `open`
+- DT-C93 The editor scenario low-memory pressure `open`
+- DT-C94 The language service test latency budget `open`
+- DT-C95 The language service test correctness vs compiler `open`
+- DT-C96 The language service test crash resilience `open`
+- DT-C97 The language service test protocol conformance `open`
+- DT-C98 The language service test concurrency `open`
+- DT-C99 The language service test cancellation `open`
+- DT-C100 The language service test memory leak `open`
+Status: `open` (100 gaps)
+
+## DT-D: The debugger (the record + replay)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: rr record/replay (arXiv 1705.05937) -> reverse execution via restartable checkpoints -> chaos mode -> the WuBuOS Colonel-aware debugger
+- DT-D01 The ptrace attach `open`
+- DT-D02 The breakpoint (the int3 patch) `open`
+- DT-D03 The hardware breakpoint `open`
+- DT-D04 The data watchpoint `open`
+- DT-D05 The single step `open`
+- DT-D06 The stack unwind `open`
+- DT-D07 The frame walk `open`
+- DT-D08 The variable read (the DWARF locate) `open`
+- DT-D09 The type pretty-print `open`
+- DT-D10 The expression evaluator `open`
+- DT-D11 The record mode (the trace capture) `open`
+- DT-D12 The syscall interception `open`
+- DT-D13 The syscall result log `open`
+- DT-D14 The nondeterministic-CPU-effect log (rdtsc, cpuid) `open`
+- DT-D15 The signal delivery log `open`
+- DT-D16 The async-event log (the tick count) `open`
+- DT-D17 The deterministic replay `open`
+- DT-D18 The identical address space guarantee `open`
+- DT-D19 The identical register guarantee `open`
+- DT-D20 The restartable checkpoint `open`
+- DT-D21 The reverse-continue (checkpoint + forward) `open`
+- DT-D22 The reverse-step `open`
+- DT-D23 The reverse-watchpoint (the who-wrote-this) `open`
+- DT-D24 The trace pack (the durable trace) `open`
+- DT-D25 The trace compression `open`
+- DT-D26 The trace portability (machine to machine) `open`
+- DT-D27 The multi-process record (the process tree) `open`
+- DT-D28 The container record `open`
+- DT-D29 The chaos mode (the schedule jitter) `open`
+- DT-D30 The single-core emulation (the design tradeoff) `open`
+- DT-D31 The shared-memory exclusion rule `open`
+- DT-D32 The recording overhead budget (<=1.2x) `open`
+- DT-D33 The fuzz + record pairing (record the random failure) `open`
+- DT-D34 The core dump `open`
+- DT-D35 The post-mortem load `open`
+- DT-D36 The gdb-protocol server (the remote stub) `open`
+- DT-D37 The IDE integration `open`
+- DT-D38 The scripting hooks `open`
+- DT-D39 The kernel debug (the Colonel path) `open`
+- DT-D40 The debugger tests `open`
+- DT-D41 The debugger docs `open`
+- DT-D42 The recorded event syscall entry `open`
+- DT-D43 The recorded event syscall exit `open`
+- DT-D44 The recorded event signal delivery `open`
+- DT-D45 The recorded event context switch `open`
+- DT-D46 The recorded event mmap change `open`
+- DT-D47 The recorded event rdtsc read `open`
+- DT-D48 The recorded event cpuid read `open`
+- DT-D49 The recorded event shared-memory read `open`
+- DT-D50 The recorded event thread create `open`
+- DT-D51 The recorded event process exit `open`
+- DT-D52 The replay guarantee identical control flow `open`
+- DT-D53 The replay guarantee identical register state `open`
+- DT-D54 The replay guarantee identical heap addresses `open`
+- DT-D55 The replay guarantee identical stack addresses `open`
+- DT-D56 The replay guarantee identical syscall results `open`
+- DT-D57 The replay guarantee identical signal timing `open`
+- DT-D58 The replay guarantee identical thread interleaving `open`
+- DT-D59 The replay guarantee identical file descriptors `open`
+- DT-D60 The replay guarantee identical randomness `open`
+- DT-D61 The replay guarantee identical clock reads `open`
+- DT-D62 The debug operation continue `open`
+- DT-D63 The debug operation step-in `open`
+- DT-D64 The debug operation step-over `open`
+- DT-D65 The debug operation step-out `open`
+- DT-D66 The debug operation reverse-continue `open`
+- DT-D67 The debug operation reverse-step `open`
+- DT-D68 The debug operation run-to-cursor `open`
+- DT-D69 The debug operation set-watchpoint `open`
+- DT-D70 The debug operation evaluate-expression `open`
+- DT-D71 The debug operation restart-replay `open`
+- DT-D72 The trace operation record `open`
+- DT-D73 The trace operation pack `open`
+- DT-D74 The trace operation compress `open`
+- DT-D75 The trace operation verify `open`
+- DT-D76 The trace operation port `open`
+- DT-D77 The trace operation prune `open`
+- DT-D78 The trace operation index `open`
+- DT-D79 The trace operation seek-to-event `open`
+- DT-D80 The trace operation checkpoint `open`
+- DT-D81 The trace operation export `open`
+- DT-D82 The debug scenario intermittent test failure `open`
+- DT-D83 The debug scenario use-after-free `open`
+- DT-D84 The debug scenario data race `open`
+- DT-D85 The debug scenario deadlock `open`
+- DT-D86 The debug scenario infinite loop `open`
+- DT-D87 The debug scenario stack overflow `open`
+- DT-D88 The debug scenario corrupted state far from crash `open`
+- DT-D89 The debug scenario wrong value in a field `open`
+- DT-D90 The debug scenario crash in third-party code `open`
+- DT-D91 The debug scenario kernel-boundary bug `open`
+- DT-D92 The debugger test record/replay equivalence `open`
+- DT-D93 The debugger test reverse-exec correctness `open`
+- DT-D94 The debugger test watchpoint precision `open`
+- DT-D95 The debugger test multi-process capture `open`
+- DT-D96 The debugger test container capture `open`
+- DT-D97 The debugger test overhead budget `open`
+- DT-D98 The debugger test trace portability `open`
+- DT-D99 The debugger test unsupported-syscall handling `open`
+- DT-D100 The debugger test checkpoint restore `open`
+Status: `open` (100 gaps)
+
+## DT-E: The test + fuzz harness
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Miller 1988 random input -> AFL coverage bitmap -> SanitizerCoverage/CMPLOG -> value+taint coverage 2026 -> syzkaller/KCOV -> the WuBuOS kernel fuzz
+- DT-E01 The unit-test runner `open`
+- DT-E02 The assertion library `open`
+- DT-E03 The test discovery `open`
+- DT-E04 The test isolation (the fork) `open`
+- DT-E05 The golden-file compare `open`
+- DT-E06 The property test (the generator) `open`
+- DT-E07 The differential test (two impls, one spec) `open`
+- DT-E08 The regression corpus `open`
+- DT-E09 The libFuzzer-shaped entry point `open`
+- DT-E10 The FuzzedDataProvider-style input carve `open`
+- DT-E11 The narrow-vs-broad harness rule `open`
+- DT-E12 The stateless harness rule `open`
+- DT-E13 The exec-per-second budget `open`
+- DT-E14 The deterministic-seed rule `open`
+- DT-E15 The max-input-length cap `open`
+- DT-E16 The edge-coverage bitmap `open`
+- DT-E17 The branch-tuple hash (src ^ dst, shift-by-one) `open`
+- DT-E18 The coverage guard callback `open`
+- DT-E19 The compare-operand trace (CMPLOG) `open`
+- DT-E20 The switch-table trace `open`
+- DT-E21 The context-sensitive coverage (the call-stack hash) `open`
+- DT-E22 The N-gram branch coverage `open`
+- DT-E23 The value coverage (the range binary-tree) `open`
+- DT-E24 The value histogram `open`
+- DT-E25 The taint tracking (byte -> variable) `open`
+- DT-E26 The security-weighted edges `open`
+- DT-E27 The corpus minimization (the merge) `open`
+- DT-E28 The corpus pruning `open`
+- DT-E29 The dictionary (the magic tokens) `open`
+- DT-E30 The structure-aware mutation `open`
+- DT-E31 The grammar-based generation `open`
+- DT-E32 The directed greybox (the target-distance) `open`
+- DT-E33 The mutation scheduler `open`
+- DT-E34 The energy assignment (the power schedule) `open`
+- DT-E35 The crash dedup (the stack hash) `open`
+- DT-E36 The crash minimization `open`
+- DT-E37 The determinism recheck `open`
+- DT-E38 The severity triage rubric `open`
+- DT-E39 The ASan-equivalent (the redzone) `open`
+- DT-E40 The UBSan-equivalent (the overflow trap) `open`
+- DT-E41 The leak check `open`
+- DT-E42 The kernel-coverage (the KCOV shape) `open`
+- DT-E43 The syscall fuzzer (the syzkaller shape) `open`
+- DT-E44 The snapshot fuzzing (the restore-per-input) `open`
+- DT-E45 The short-run CI fuzz `open`
+- DT-E46 The continuous fuzz job `open`
+- DT-E47 The fuzz tests `open`
+- DT-E48 The fuzz docs `open`
+- DT-E49 The fuzz target the FAT parser `open`
+- DT-E50 The fuzz target the littlefs image reader `open`
+- DT-E51 The fuzz target the 9P message decoder `open`
+- DT-E52 The fuzz target the ELF loader `open`
+- DT-E53 The fuzz target the font renderer `open`
+- DT-E54 The fuzz target the image decoder `open`
+- DT-E55 The fuzz target the wavetable loader `open`
+- DT-E56 The fuzz target the config parser `open`
+- DT-E57 The fuzz target the GGUF reader `open`
+- DT-E58 The fuzz target the syscall surface `open`
+- DT-E59 The mutation strategy bit flip `open`
+- DT-E60 The mutation strategy byte arithmetic `open`
+- DT-E61 The mutation strategy block splice `open`
+- DT-E62 The mutation strategy block delete `open`
+- DT-E63 The mutation strategy block duplicate `open`
+- DT-E64 The mutation strategy dictionary token insert `open`
+- DT-E65 The mutation strategy havoc stack `open`
+- DT-E66 The mutation strategy grammar-guided rewrite `open`
+- DT-E67 The mutation strategy value-directed set `open`
+- DT-E68 The mutation strategy taint-directed byte flip `open`
+- DT-E69 The sanitizer check heap out-of-bounds `open`
+- DT-E70 The sanitizer check stack out-of-bounds `open`
+- DT-E71 The sanitizer check global out-of-bounds `open`
+- DT-E72 The sanitizer check use-after-free `open`
+- DT-E73 The sanitizer check use-after-return `open`
+- DT-E74 The sanitizer check double free `open`
+- DT-E75 The sanitizer check memory leak `open`
+- DT-E76 The sanitizer check signed overflow `open`
+- DT-E77 The sanitizer check shift out-of-range `open`
+- DT-E78 The sanitizer check null dereference `open`
+- DT-E79 The corpus operation seed import `open`
+- DT-E80 The corpus operation minimize `open`
+- DT-E81 The corpus operation merge `open`
+- DT-E82 The corpus operation dedupe `open`
+- DT-E83 The corpus operation coverage rank `open`
+- DT-E84 The corpus operation size cap `open`
+- DT-E85 The corpus operation age out `open`
+- DT-E86 The corpus operation split by target `open`
+- DT-E87 The corpus operation share across runs `open`
+- DT-E88 The corpus operation export for CI `open`
+- DT-E89 The fuzz scenario short CI run `open`
+- DT-E90 The fuzz scenario overnight run `open`
+- DT-E91 The fuzz scenario post-crash reproduction `open`
+- DT-E92 The fuzz scenario regression replay `open`
+- DT-E93 The fuzz scenario directed to a patch `open`
+- DT-E94 The fuzz scenario differential vs reference `open`
+- DT-E95 The fuzz scenario snapshot restore per input `open`
+- DT-E96 The fuzz scenario kernel syscall sequence `open`
+- DT-E97 The fuzz scenario network message sequence `open`
+- DT-E98 The fuzz scenario GUI event sequence `open`
+- DT-E99 The test layer unit `open`
+- DT-E100 The test layer component `open`
+Status: `open` (100 gaps)
+
+## DT-F: The profiler + the tracing
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: perf counters -> flamegraph folding -> ring-buffer tracepoints -> the WuBuOS always-on profile
+- DT-F01 The sampling profiler (the timer interrupt) `open`
+- DT-F02 The stack sample `open`
+- DT-F03 The symbolization `open`
+- DT-F04 The flamegraph fold `open`
+- DT-F05 The self-vs-total time `open`
+- DT-F06 The call-graph aggregation `open`
+- DT-F07 The instrumentation profiler (the enter/exit hook) `open`
+- DT-F08 The cycle counter read `open`
+- DT-F09 The instruction counter `open`
+- DT-F10 The cache-miss counter `open`
+- DT-F11 The branch-miss counter `open`
+- DT-F12 The IPC metric `open`
+- DT-F13 The memory-bandwidth estimate `open`
+- DT-F14 The roofline placement `open`
+- DT-F15 The allocation profiler `open`
+- DT-F16 The peak-RSS track `open`
+- DT-F17 The heap-fragmentation report `open`
+- DT-F18 The lock-contention profile `open`
+- DT-F19 The wait-time attribution `open`
+- DT-F20 The scheduler trace `open`
+- DT-F21 The syscall latency histogram `open`
+- DT-F22 The IO latency histogram `open`
+- DT-F23 The p50/p95/p99 tail `open`
+- DT-F24 The tracepoint (the static probe) `open`
+- DT-F25 The dynamic probe (the patchable nop) `open`
+- DT-F26 The ring-buffer trace sink `open`
+- DT-F27 The per-CPU buffer `open`
+- DT-F28 The lost-event accounting `open`
+- DT-F29 The trace-event schema `open`
+- DT-F30 The trace viewer export `open`
+- DT-F31 The timeline view `open`
+- DT-F32 The span/parent tree (the tracing shape) `open`
+- DT-F33 The sampling overhead budget `open`
+- DT-F34 The always-on low-rate profile `open`
+- DT-F35 The differential profile (before/after) `open`
+- DT-F36 The regression detector `open`
+- DT-F37 The benchmark harness `open`
+- DT-F38 The benchmark stability (the pinned core) `open`
+- DT-F39 The profiler tests `open`
+- DT-F40 The profiler docs `open`
+- DT-F41 The counter cycles `open`
+- DT-F42 The counter instructions `open`
+- DT-F43 The counter cache references `open`
+- DT-F44 The counter cache misses `open`
+- DT-F45 The counter branch instructions `open`
+- DT-F46 The counter branch misses `open`
+- DT-F47 The counter page faults `open`
+- DT-F48 The counter context switches `open`
+- DT-F49 The counter TLB misses `open`
+- DT-F50 The counter stalled cycles `open`
+- DT-F51 The profile view flat `open`
+- DT-F52 The profile view call-graph `open`
+- DT-F53 The profile view flamegraph `open`
+- DT-F54 The profile view icicle `open`
+- DT-F55 The profile view timeline `open`
+- DT-F56 The profile view histogram `open`
+- DT-F57 The profile view heatmap `open`
+- DT-F58 The profile view diff `open`
+- DT-F59 The profile view top-N `open`
+- DT-F60 The profile view annotated source `open`
+- DT-F61 The traced subsystem scheduler `open`
+- DT-F62 The traced subsystem memory allocator `open`
+- DT-F63 The traced subsystem filesystem `open`
+- DT-F64 The traced subsystem block IO `open`
+- DT-F65 The traced subsystem network stack `open`
+- DT-F66 The traced subsystem syscall layer `open`
+- DT-F67 The traced subsystem GUI compositor `open`
+- DT-F68 The traced subsystem audio engine `open`
+- DT-F69 The traced subsystem inference engine `open`
+- DT-F70 The traced subsystem the Colonel `open`
+- DT-F71 The sampling mode timer-based `open`
+- DT-F72 The sampling mode event-based `open`
+- DT-F73 The sampling mode on-demand `open`
+- DT-F74 The sampling mode always-on low-rate `open`
+- DT-F75 The sampling mode burst `open`
+- DT-F76 The sampling mode targeted-thread `open`
+- DT-F77 The sampling mode targeted-process `open`
+- DT-F78 The sampling mode system-wide `open`
+- DT-F79 The sampling mode kernel-only `open`
+- DT-F80 The sampling mode user-only `open`
+- DT-F81 The profiling scenario cold boot `open`
+- DT-F82 The profiling scenario steady-state idle `open`
+- DT-F83 The profiling scenario compile storm `open`
+- DT-F84 The profiling scenario IO storm `open`
+- DT-F85 The profiling scenario inference decode loop `open`
+- DT-F86 The profiling scenario GUI redraw storm `open`
+- DT-F87 The profiling scenario audio underrun hunt `open`
+- DT-F88 The profiling scenario memory-pressure event `open`
+- DT-F89 The profiling scenario latency spike hunt `open`
+- DT-F90 The profiling scenario regression bisect `open`
+- DT-F91 The profiler test overhead budget `open`
+- DT-F92 The profiler test symbolization accuracy `open`
+- DT-F93 The profiler test sample attribution `open`
+- DT-F94 The profiler test buffer-loss accounting `open`
+- DT-F95 The profiler test concurrency `open`
+- DT-F96 The profiler test long-run stability `open`
+- DT-F97 The profiler test clock monotonicity `open`
+- DT-F98 The profiler test export-format validity `open`
+- DT-F99 The profiler test determinism of aggregation `open`
+- DT-F100 The profiler test regression `open`
+Status: `open` (100 gaps)
+
+## DT-G: The package + the artifact
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the CAS artifact store -> SBOM/SLSA provenance -> the offline-first WuBuOS package rule (no external services)
+- DT-G01 The manifest (the package spec) `open`
+- DT-G02 The semantic version `open`
+- DT-G03 The version constraint solve `open`
+- DT-G04 The lockfile (the resolved graph) `open`
+- DT-G05 The reproducible resolution `open`
+- DT-G06 The content-addressed artifact store `open`
+- DT-G07 The artifact signing `open`
+- DT-G08 The signature verify on install `open`
+- DT-G09 The provenance attestation (the SLSA shape) `open`
+- DT-G10 The SBOM emit `open`
+- DT-G11 The SBOM diff `open`
+- DT-G12 The dependency graph `open`
+- DT-G13 The transitive closure `open`
+- DT-G14 The vendored source tree `open`
+- DT-G15 The offline install (no network) `open`
+- DT-G16 The local mirror `open`
+- DT-G17 The build-from-source path `open`
+- DT-G18 The prebuilt binary path `open`
+- DT-G19 The ABI compatibility check `open`
+- DT-G20 The symbol-version check `open`
+- DT-G21 The install manifest (the file list) `open`
+- DT-G22 The uninstall (the exact reverse) `open`
+- DT-G23 The upgrade (the atomic swap) `open`
+- DT-G24 The rollback `open`
+- DT-G25 The pin/hold `open`
+- DT-G26 The license inventory `open`
+- DT-G27 The vulnerability match (the advisory feed) `open`
+- DT-G28 The stale-dependency report `open`
+- DT-G29 The unused-dependency report `open`
+- DT-G30 The duplicate-dependency collapse `open`
+- DT-G31 The artifact retention policy `open`
+- DT-G32 The cache eviction policy `open`
+- DT-G33 The artifact tests `open`
+- DT-G34 The artifact docs `open`
+- DT-G35 The artifact kind source tarball `open`
+- DT-G36 The artifact kind object archive `open`
+- DT-G37 The artifact kind shared library `open`
+- DT-G38 The artifact kind executable `open`
+- DT-G39 The artifact kind kernel image `open`
+- DT-G40 The artifact kind firmware blob `open`
+- DT-G41 The artifact kind model weights `open`
+- DT-G42 The artifact kind font pack `open`
+- DT-G43 The artifact kind wavetable pack `open`
+- DT-G44 The artifact kind doc bundle `open`
+- DT-G45 The supply-chain control hash pin `open`
+- DT-G46 The supply-chain control signature verify `open`
+- DT-G47 The supply-chain control provenance attestation `open`
+- DT-G48 The supply-chain control build reproducibility check `open`
+- DT-G49 The supply-chain control dependency allowlist `open`
+- DT-G50 The supply-chain control license gate `open`
+- DT-G51 The supply-chain control advisory scan `open`
+- DT-G52 The supply-chain control SBOM emit `open`
+- DT-G53 The supply-chain control SBOM diff `open`
+- DT-G54 The supply-chain control release approval `open`
+- DT-G55 The package operation resolve `open`
+- DT-G56 The package operation fetch `open`
+- DT-G57 The package operation verify `open`
+- DT-G58 The package operation unpack `open`
+- DT-G59 The package operation build `open`
+- DT-G60 The package operation install `open`
+- DT-G61 The package operation upgrade `open`
+- DT-G62 The package operation downgrade `open`
+- DT-G63 The package operation remove `open`
+- DT-G64 The package operation audit `open`
+- DT-G65 The resolution property determinism `open`
+- DT-G66 The resolution property minimal version selection `open`
+- DT-G67 The resolution property conflict detection `open`
+- DT-G68 The resolution property cycle detection `open`
+- DT-G69 The resolution property optional-dependency handling `open`
+- DT-G70 The resolution property feature-flag unification `open`
+- DT-G71 The resolution property platform filtering `open`
+- DT-G72 The resolution property offline fallback `open`
+- DT-G73 The resolution property lockfile stability `open`
+- DT-G74 The resolution property diamond-dependency collapse `open`
+- DT-G75 The package scenario fresh install `open`
+- DT-G76 The package scenario airgapped install `open`
+- DT-G77 The package scenario partial upgrade `open`
+- DT-G78 The package scenario interrupted install `open`
+- DT-G79 The package scenario disk-full install `open`
+- DT-G80 The package scenario corrupted artifact `open`
+- DT-G81 The package scenario revoked signature `open`
+- DT-G82 The package scenario yanked version `open`
+- DT-G83 The package scenario conflicting constraints `open`
+- DT-G84 The package scenario rollback after failure `open`
+- DT-G85 The package test resolution unit `open`
+- DT-G86 The package test lockfile golden `open`
+- DT-G87 The package test signature negative `open`
+- DT-G88 The package test offline mode `open`
+- DT-G89 The package test crash-consistency `open`
+- DT-G90 The package test upgrade/downgrade matrix `open`
+- DT-G91 The package test SBOM validity `open`
+- DT-G92 The package test license audit `open`
+- DT-G93 The package test performance `open`
+- DT-G94 The package test soak `open`
+- DT-G95 The package doc spec `open`
+- DT-G96 The package doc manifest reference `open`
+- DT-G97 The package doc lockfile format `open`
+- DT-G98 The package doc signing policy `open`
+- DT-G99 The package doc SBOM policy `open`
+- DT-G100 The package doc mirror setup `open`
+Status: `open` (100 gaps)
+
+## DT-H: The AGI dev-agent (the self-improving toolchain)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the recursive-self-improvement loop -> AI-augmented harness generation (2026) -> the M1/M2 meta-plan -> the WuBuOS growth cron
+- DT-H01 The repo survey (what exists before you build) `open`
+- DT-H02 The gap-bank read (where we aren't) `open`
+- DT-H03 The next-gap selection (the priority) `open`
+- DT-H04 The driver tag (module-need vs user-need vs integration) `open`
+- DT-H05 The plan emit (the implementation sketch) `open`
+- DT-H06 The code generation (own C11, no third-party) `open`
+- DT-H07 The compile-check loop `open`
+- DT-H08 The test-write-first rule `open`
+- DT-H09 The test-run loop `open`
+- DT-H10 The sanitizer-clean gate `open`
+- DT-H11 The regression gate (the full make check) `open`
+- DT-H12 The ledger flip (open -> wired) in the same commit `open`
+- DT-H13 The commit-message provenance (the convergence basis) `open`
+- DT-H14 The rollback on red (the git revert batch) `open`
+- DT-H15 The close-rate meter (closed / created) `open`
+- DT-H16 The backlog cap (the M2 rule) `open`
+- DT-H17 The close-commitment per wave (the M1 rule) `open`
+- DT-H18 The research-gap exclusion (external silicon never counts) `open`
+- DT-H19 The triple-DA audit (correctness/privacy/robustness) `open`
+- DT-H20 The DA-caught-bug ledger `open`
+- DT-H21 The collision protocol (commit only own files) `open`
+- DT-H22 The harness auto-generation (the fuzz target from a header) `open`
+- DT-H23 The dictionary extraction from source `open`
+- DT-H24 The corpus synthesis `open`
+- DT-H25 The crash auto-triage `open`
+- DT-H26 The coverage-gap analysis `open`
+- DT-H27 The harness optimization loop `open`
+- DT-H28 The patch proposal (the diff, not the file) `open`
+- DT-H29 The review checklist `open`
+- DT-H30 The self-review pass `open`
+- DT-H31 The knowledge-substrate write (the source archive) `open`
+- DT-H32 The bank generator (the reproducible pipeline) `open`
+- DT-H33 The exact-count verification `open`
+- DT-H34 The master-index registration `open`
+- DT-H35 The avenue cross-link graph `open`
+- DT-H36 The agent tests `open`
+- DT-H37 The agent docs `open`
+- DT-H38 The agent loop step survey the repo `open`
+- DT-H39 The agent loop step read the bank `open`
+- DT-H40 The agent loop step pick the gap `open`
+- DT-H41 The agent loop step write the plan `open`
+- DT-H42 The agent loop step write the test `open`
+- DT-H43 The agent loop step write the code `open`
+- DT-H44 The agent loop step compile `open`
+- DT-H45 The agent loop step run tests `open`
+- DT-H46 The agent loop step audit `open`
+- DT-H47 The agent loop step commit `open`
+- DT-H48 The DA-1 correctness check math soundness `open`
+- DT-H49 The DA-1 correctness check CPU-only feasibility `open`
+- DT-H50 The DA-1 correctness check memory-budget fit `open`
+- DT-H51 The DA-1 correctness check API contract match `open`
+- DT-H52 The DA-1 correctness check edge-case coverage `open`
+- DT-H53 The DA-1 correctness check numerical tolerance `open`
+- DT-H54 The DA-1 correctness check determinism `open`
+- DT-H55 The DA-1 correctness check concurrency safety `open`
+- DT-H56 The DA-1 correctness check error propagation `open`
+- DT-H57 The DA-1 correctness check regression impact `open`
+- DT-H58 The DA-2 privacy check no external service `open`
+- DT-H59 The DA-2 privacy check no telemetry `open`
+- DT-H60 The DA-2 privacy check no weight download `open`
+- DT-H61 The DA-2 privacy check no phone-home `open`
+- DT-H62 The DA-2 privacy check no user-data egress `open`
+- DT-H63 The DA-2 privacy check local-only cache `open`
+- DT-H64 The DA-2 privacy check explicit consent gate `open`
+- DT-H65 The DA-2 privacy check data-retention bound `open`
+- DT-H66 The DA-2 privacy check log redaction `open`
+- DT-H67 The DA-2 privacy check airgap survivability `open`
+- DT-H68 The DA-3 robustness check graceful degradation `open`
+- DT-H69 The DA-3 robustness check no numerical cliff `open`
+- DT-H70 The DA-3 robustness check bounded memory `open`
+- DT-H71 The DA-3 robustness check bounded time `open`
+- DT-H72 The DA-3 robustness check rollback path `open`
+- DT-H73 The DA-3 robustness check partial-failure handling `open`
+- DT-H74 The DA-3 robustness check resource-exhaustion behaviour `open`
+- DT-H75 The DA-3 robustness check corrupt-input behaviour `open`
+- DT-H76 The DA-3 robustness check version-skew behaviour `open`
+- DT-H77 The DA-3 robustness check restart safety `open`
+- DT-H78 The agent artifact the gap ledger `open`
+- DT-H79 The agent artifact the close-rate meter `open`
+- DT-H80 The agent artifact the loop-ledger `open`
+- DT-H81 The agent artifact the collision note `open`
+- DT-H82 The agent artifact the commit message `open`
+- DT-H83 The agent artifact the design doc `open`
+- DT-H84 The agent artifact the research doc `open`
+- DT-H85 The agent artifact the source archive entry `open`
+- DT-H86 The agent artifact the master-index row `open`
+- DT-H87 The agent artifact the avenue page `open`
+- DT-H88 The agent scenario a fresh avenue `open`
+- DT-H89 The agent scenario a half-closed theme `open`
+- DT-H90 The agent scenario a mis-marked wired gap `open`
+- DT-H91 The agent scenario a sibling-agent collision `open`
+- DT-H92 The agent scenario a failing regression `open`
+- DT-H93 The agent scenario a rejected DA audit `open`
+- DT-H94 The agent scenario an external-hardware gap `open`
+- DT-H95 The agent scenario a duplicate module `open`
+- DT-H96 The agent scenario a stale bank claim `open`
+- DT-H97 The agent scenario a backlog-cap breach `open`
+- DT-H98 The agent doc spec `open`
+- DT-H99 The agent doc loop protocol `open`
+- DT-H100 The agent doc DA rubric `open`
+Status: `open` (100 gaps)
+
+## DT-I: The dev GUI (the Win98 workbench)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the Win98/VS6 workbench lineage -> the WuBuFX window system -> the Bonzi companion (HX-D) as the pair-programmer
+- DT-I01 The project window (the tree view) `open`
+- DT-I02 The file open/save dialog `open`
+- DT-I03 The tabbed editor window `open`
+- DT-I04 The syntax-colored text control `open`
+- DT-I05 The gutter (line numbers) `open`
+- DT-I06 The fold margin `open`
+- DT-I07 The minimap `open`
+- DT-I08 The find/replace dialog `open`
+- DT-I09 The find-in-files pane `open`
+- DT-I10 The go-to-symbol palette `open`
+- DT-I11 The build output pane `open`
+- DT-I12 The error list (double-click to jump) `open`
+- DT-I13 The diagnostic squiggle `open`
+- DT-I14 The hover tooltip `open`
+- DT-I15 The completion popup `open`
+- DT-I16 The signature tooltip `open`
+- DT-I17 The debugger toolbar (step/over/out/reverse) `open`
+- DT-I18 The breakpoint margin click `open`
+- DT-I19 The watch window `open`
+- DT-I20 The locals window `open`
+- DT-I21 The call-stack window `open`
+- DT-I22 The memory hex view `open`
+- DT-I23 The register view `open`
+- DT-I24 The disassembly view `open`
+- DT-I25 The trace timeline widget `open`
+- DT-I26 The profiler flamegraph widget `open`
+- DT-I27 The test-runner pane (green/red) `open`
+- DT-I28 The fuzz dashboard `open`
+- DT-I29 The git status pane `open`
+- DT-I30 The diff view `open`
+- DT-I31 The commit dialog `open`
+- DT-I32 The terminal panel `open`
+- DT-I33 The Bonzi pair-programmer (the suggestion bubble) `open`
+- DT-I34 The Bonzi explains-the-error `open`
+- DT-I35 The Bonzi yields on user input `open`
+- DT-I36 The layout persistence `open`
+- DT-I37 The theme (the 98 chrome) `open`
+- DT-I38 The keyboard-first bindings `open`
+- DT-I39 The GUI tests `open`
+- DT-I40 The GUI docs `open`
+- DT-I41 The workbench widget menu bar `open`
+- DT-I42 The workbench widget toolbar `open`
+- DT-I43 The workbench widget status bar `open`
+- DT-I44 The workbench widget tree view `open`
+- DT-I45 The workbench widget list view `open`
+- DT-I46 The workbench widget tab strip `open`
+- DT-I47 The workbench widget splitter `open`
+- DT-I48 The workbench widget dockable pane `open`
+- DT-I49 The workbench widget modal dialog `open`
+- DT-I50 The workbench widget context menu `open`
+- DT-I51 The editor interaction click to place cursor `open`
+- DT-I52 The editor interaction drag to select `open`
+- DT-I53 The editor interaction double-click word select `open`
+- DT-I54 The editor interaction triple-click line select `open`
+- DT-I55 The editor interaction column select `open`
+- DT-I56 The editor interaction drag-and-drop text `open`
+- DT-I57 The editor interaction scroll wheel `open`
+- DT-I58 The editor interaction keyboard navigation `open`
+- DT-I59 The editor interaction bracket match jump `open`
+- DT-I60 The editor interaction code folding toggle `open`
+- DT-I61 The debug UI action set breakpoint `open`
+- DT-I62 The debug UI action toggle breakpoint `open`
+- DT-I63 The debug UI action conditional breakpoint `open`
+- DT-I64 The debug UI action inspect variable on hover `open`
+- DT-I65 The debug UI action add to watch `open`
+- DT-I66 The debug UI action step through UI `open`
+- DT-I67 The debug UI action reverse-step through UI `open`
+- DT-I68 The debug UI action jump to frame `open`
+- DT-I69 The debug UI action view raw memory `open`
+- DT-I70 The debug UI action view registers `open`
+- DT-I71 The Bonzi dev behaviour explain the error `open`
+- DT-I72 The Bonzi dev behaviour suggest the fix `open`
+- DT-I73 The Bonzi dev behaviour offer the refactor `open`
+- DT-I74 The Bonzi dev behaviour warn about the risk `open`
+- DT-I75 The Bonzi dev behaviour celebrate the green build `open`
+- DT-I76 The Bonzi dev behaviour stay quiet during typing `open`
+- DT-I77 The Bonzi dev behaviour yield on user input `open`
+- DT-I78 The Bonzi dev behaviour summarize the diff `open`
+- DT-I79 The Bonzi dev behaviour recall the last session `open`
+- DT-I80 The Bonzi dev behaviour ask before acting `open`
+- DT-I81 The workbench scenario first launch `open`
+- DT-I82 The workbench scenario large project open `open`
+- DT-I83 The workbench scenario build with 500 errors `open`
+- DT-I84 The workbench scenario long-running debug session `open`
+- DT-I85 The workbench scenario low-resolution display `open`
+- DT-I86 The workbench scenario keyboard-only operation `open`
+- DT-I87 The workbench scenario high-latency filesystem `open`
+- DT-I88 The workbench scenario crash recovery `open`
+- DT-I89 The workbench scenario session restore `open`
+- DT-I90 The workbench scenario multi-window layout `open`
+- DT-I91 The GUI test widget unit `open`
+- DT-I92 The GUI test event routing `open`
+- DT-I93 The GUI test redraw correctness `open`
+- DT-I94 The GUI test layout invariants `open`
+- DT-I95 The GUI test input latency `open`
+- DT-I96 The GUI test theme rendering `open`
+- DT-I97 The GUI test accessibility path `open`
+- DT-I98 The GUI test memory leak `open`
+- DT-I99 The GUI test long-session soak `open`
+- DT-I100 The GUI test regression screenshot `open`
+Status: `open` (100 gaps)
+
+## DT-J: The engineering close
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the threat model -> the budget matrix -> the cross-bank integration -> the DT roadmap
+- DT-J01 The DT threat model `open`
+- DT-J02 The DT performance budget `open`
+- DT-J03 The DT memory budget (13GB reality) `open`
+- DT-J04 The DT no-network rule `open`
+- DT-J05 The DT determinism rule `open`
+- DT-J06 The DT reproducibility check `open`
+- DT-J07 The DT integration with the storage bank (the CAS on littlefs) `open`
+- DT-J08 The DT integration with the network bank (the remote cache) `open`
+- DT-J09 The DT integration with the kernel bank (the syscall trace) `open`
+- DT-J10 The DT integration with the engine bank (the model-assisted tools) `open`
+- DT-J11 The DT integration with the human bank (the developer as the user) `open`
+- DT-J12 The DT integration with the security bank (the signed toolchain) `open`
+- DT-J13 The DT integration with the GUI bank (the workbench) `open`
+- DT-J14 The DT integration with the synthesis bank (the audio dev tools) `open`
+- DT-J15 The DT cross-bank gap ledger `open`
+- DT-J16 The DT close-rate report `open`
+- DT-J17 The DT CI matrix `open`
+- DT-J18 The DT smoke test `open`
+- DT-J19 The DT soak test `open`
+- DT-J20 The DT stress test `open`
+- DT-J21 The DT chaos test `open`
+- DT-J22 The DT upgrade test `open`
+- DT-J23 The DT downgrade test `open`
+- DT-J24 The DT cold-start benchmark `open`
+- DT-J25 The DT warm-cache benchmark `open`
+- DT-J26 The DT incremental-edit benchmark `open`
+- DT-J27 The DT full-rebuild benchmark `open`
+- DT-J28 The DT trace-size benchmark `open`
+- DT-J29 The DT spec doc `open`
+- DT-J30 The DT design doc `open`
+- DT-J31 The DT API reference `open`
+- DT-J32 The DT tutorial `open`
+- DT-J33 The DT troubleshooting guide `open`
+- DT-J34 The DT roadmap `open`
+- DT-J35 The DT bank ledger `open`
+- DT-J36 The budget dimension cold-build wall time `open`
+- DT-J37 The budget dimension incremental-build wall time `open`
+- DT-J38 The budget dimension editor keystroke latency `open`
+- DT-J39 The budget dimension debugger record overhead `open`
+- DT-J40 The budget dimension fuzz execs per second `open`
+- DT-J41 The budget dimension profiler sampling overhead `open`
+- DT-J42 The budget dimension peak resident memory `open`
+- DT-J43 The budget dimension disk footprint `open`
+- DT-J44 The budget dimension trace size per minute `open`
+- DT-J45 The budget dimension cache hit rate `open`
+- DT-J46 The cross-bank tie FS block cache `open`
+- DT-J47 The cross-bank tie FS journaling `open`
+- DT-J48 The cross-bank tie NW remote cache transport `open`
+- DT-J49 The cross-bank tie KR syscall tracing `open`
+- DT-J50 The cross-bank tie KR scheduler hooks `open`
+- DT-J51 The cross-bank tie AIE model-assisted completion `open`
+- DT-J52 The cross-bank tie HX developer fatigue model `open`
+- DT-J53 The cross-bank tie SC signed toolchain `open`
+- DT-J54 The cross-bank tie GU workbench chrome `open`
+- DT-J55 The cross-bank tie WT audio dev tooling `open`
+- DT-J56 The CI stage lint `open`
+- DT-J57 The CI stage build `open`
+- DT-J58 The CI stage unit test `open`
+- DT-J59 The CI stage integration test `open`
+- DT-J60 The CI stage sanitizer build `open`
+- DT-J61 The CI stage fuzz smoke `open`
+- DT-J62 The CI stage benchmark `open`
+- DT-J63 The CI stage artifact sign `open`
+- DT-J64 The CI stage SBOM emit `open`
+- DT-J65 The CI stage publish `open`
+- DT-J66 The failure mode cache poisoning `open`
+- DT-J67 The failure mode nondeterministic build `open`
+- DT-J68 The failure mode flaky test `open`
+- DT-J69 The failure mode trace corruption `open`
+- DT-J70 The failure mode symbol mismatch `open`
+- DT-J71 The failure mode stale lockfile `open`
+- DT-J72 The failure mode clock skew `open`
+- DT-J73 The failure mode disk exhaustion `open`
+- DT-J74 The failure mode OOM kill `open`
+- DT-J75 The failure mode interrupted commit `open`
+- DT-J76 The DT scenario a one-developer laptop `open`
+- DT-J77 The DT scenario an airgapped workstation `open`
+- DT-J78 The DT scenario a shared team cache `open`
+- DT-J79 The DT scenario a CI runner `open`
+- DT-J80 The DT scenario a low-memory 13GB box `open`
+- DT-J81 The DT scenario a first-boot WuBuOS install `open`
+- DT-J82 The DT scenario a self-host bootstrap `open`
+- DT-J83 The DT scenario a recovery-shell rebuild `open`
+- DT-J84 The DT scenario an AGI-driven overnight loop `open`
+- DT-J85 The DT scenario a live user pairing session `open`
+- DT-J86 The DT doc spec `open`
+- DT-J87 The DT doc architecture `open`
+- DT-J88 The DT doc onboarding guide `open`
+- DT-J89 The DT doc contribution guide `open`
+- DT-J90 The DT doc release process `open`
+- DT-J91 The DT doc benchmark methodology `open`
+- DT-J92 The DT doc glossary `open`
+- DT-J93 The DT doc FAQ `open`
+- DT-J94 The DT doc post-mortem index `open`
+- DT-J95 The DT doc roadmap `open`
+- DT-J96 The DT verification exact gap count `open`
+- DT-J97 The DT verification theme balance `open`
+- DT-J98 The DT verification driver tags present `open`
+- DT-J99 The DT verification source citations present `open`
+- DT-J100 The DT verification cross-link coverage `open`
+Status: `open` (100 gaps)
