@@ -117,11 +117,11 @@ refs: Hermes 4 DataForge/Atropos + Orchard + the CAI corpus
 - AC-B03 exclude benchmark-origin intents at the prompt level `open`
 - AC-B04 restrict to popular websites (SimilarWeb Top-100 + MOZ Top-500) to dodge captcha/broken pages `open`
 - AC-B05 semantic dedup of task intents at 0.99 cosine (greedy, Qwen3-Embedding-8B) `open`
-- AC-B06 trajectory-level dedup across corpora (the same task solved many times) `open`
+- AC-B06 trajectory-level dedup across corpora (the same task solved many times) `wired` -- wubu_dedup: the rolling-hash exact-window scan + the collision guard (measured FineMath 0.003%)
 - AC-B07 outcome-based trajectory filtering (keep only verified-success rollouts for SFT) `open`
 - AC-B08 partial-credit retention: keep productive segments of UNRESOLVED trajectories (credit-assignment SFT) `open`
 - AC-B09 length-budget filtering (drop over-long trajectories, cap context) `open`
-- AC-B10 format-validity filtering (parseable tool calls only) `open`
+- AC-B10 format-validity filtering (parseable tool calls only) `wired` -- the wubu_fmt JSON validator (the strict bracket start)
 - AC-B11 policy-compliance filtering (trajectories that followed the domain policy) `open`
 - AC-B12 cross-harness trajectory normalization (ReAct-style <-> tool-call style) `open`
 - AC-B13 judge-based trajectory scoring (LLM judge on the whole trace) `open`
@@ -218,7 +218,7 @@ refs: Orchard task filter + OpenHands outcome filtering
 ## AC-C: reward design & verification (verifiable over preference)
 
 - AC-C01 verifiable rewards over preference ratings: DB-state comparison (tau-bench style) `wired` -- wubu_db_verify/wubu_db_reward
-- AC-C02 binary format rewards decoupled from semantics (the Atropos Answer-Format env) `open`
+- AC-C02 binary format rewards decoupled from semantics (the Atropos Answer-Format env) `wired` -- wubu_fmt: JSON/think-delimiter/length/prefix checks + the combined reward
 - AC-C03 programmatic schema validation reward (Pydantic-style, dynamic schemas) `open`
 - AC-C04 RLVR-IFEval constraint rewards (every-Nth-word, JSON structure) `open`
 - AC-C05 unit-test-based rewards for code tasks (SWE-bench style) `open`
@@ -964,7 +964,7 @@ refs: the CAI corpus (230,935 trajectories, weekly retraining)
 - AC-J10 curriculum over tool complexity (single tool -> multi-tool -> long-horizon) `open`
 - AC-J11 small-context packing (the 35M context window bounds the trajectory length) `open`
 - AC-J12 the agentic SFT on top of the 4.44B pretraining stream (the corpus mix) `open`
-- AC-J13 per-domain token budgets for the small model (code 20%, tools 20%, ...) `open`
+- AC-J13 per-domain token budgets for the small model (code 20%, tools 20%, ...) `wired` -- wubu_mix: the weighted multi-stream sampler (the smooth weighted round-robin, the 045 mix recipe)
 - AC-J14 the user-simulator as the small model's data generator (no huge teacher needed) `open`
 - AC-J15 the environment as the small model's teacher (verifiable outcomes, not distillation) `open`
 - AC-J16 small-model eval with pass@k (repeated attempts compensate for capacity) `open`
