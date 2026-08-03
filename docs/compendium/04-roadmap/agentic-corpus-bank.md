@@ -129,7 +129,7 @@ refs: Hermes 4 DataForge/Atropos + Orchard + the CAI corpus
 - AC-B15 per-domain balance ratios (swe/gui/tool/personal targets) `open`
 - AC-B16 difficulty stratification (easy/medium/hard buckets per task family) `open`
 - AC-B17 train/test leakage audit: embed-based overlap scan against all eval sets `open`
-- AC-B18 trajectory freshness weighting (recency-biased sampling, the CAI cadence) `open`
+- AC-B18 trajectory freshness weighting (recency-biased sampling, the CAI cadence) `wired` -- wubu_recency: w(i) = base + (1-base)*(i/n)^power
 - AC-B19 user-utterance dedup (near-duplicate user turns across sessions) `open`
 - AC-B20 toxic/harmful trajectory filtering (safety blocks in the corpus) `open`
 - AC-B21 software-engineering curation: eval-contamination strip `open`
