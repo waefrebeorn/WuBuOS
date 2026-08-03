@@ -431,15 +431,15 @@ Status: OPT-D -- 100 gaps, all `open`.
 
 ## OPT-E:
 
-- OPT-E01 zero/one-layer progressive training: ~5x compute savings (Bu) `open`
+- OPT-E01 zero/one-layer progressive training: ~5x compute savings (Bu) `wired` -- wubu_grow_schedule (expand every 10% of the horizon, 10 events over the run)
 - OPT-E02 depth expansion at tau ~ 0.8T (the mixing-time rule) `open`
-- OPT-E03 function-preserving layer insertion: the gate closed at birth `open`
+- OPT-E03 function-preserving layer insertion: the gate closed at birth `wired` -- wubu_grow_insert_block: the zero-init residual block is an EXACT identity (DA oracle max|pre-post| = 0.000e+00)
 - OPT-E04 the WSD schedule: the expansion happens after warmup `open`
 - OPT-E05 mixing needs DATA not iterations (the batch-size independence) `open`
 - OPT-E06 single-stage expansion beats multi-stage (mixing-time transfer) `open`
 - OPT-E07 the feature-learning view: the new layer inherits the features `open`
 - OPT-E08 hyperparameter transfer: the LR survives the expansion `open`
-- OPT-E09 the depth-doubling initialization (the stack/identity family) `open`
+- OPT-E09 the depth-doubling initialization (the stack/identity family) `wired` -- wubu_grow_stack_block: the G_stack copy (+2,310,912 params/block)
 - OPT-E10 the Net2Net lineage: function-preserving for convs/BERT `open`
 - OPT-E11 the incremental growth (Yuan): dynamic stabilization at growth points `open`
 - OPT-E12 the weight/activation/gradient stabilization scheme `open`
