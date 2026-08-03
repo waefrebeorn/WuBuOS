@@ -1,0 +1,1057 @@
+# OPT: the optimization avenue -- 1000 gaps from the deep-dive research wave
+
+Status: generated 2026-08-03 from the deep-dive research
+(wubuwizard research/042 + the console wave + the Tri Dao / Zhiqi Bu corpora).
+Ledger: `open` = a real mechanism to close; `wired` = implemented + tested.
+Every gap is a REAL mechanism, driver-tagged; the loop closes them in batches.
+
+## OPT-A:
+
+- OPT-A01 folded sin/cos: one polynomial on [0,pi/4], every sine symmetry (Silas/Kaze) `open`
+- OPT-A02 compute-vs-fetch roofline: recompute beats table reads when the bus is hot `open`
+- OPT-A03 the folded polynomial lives in the instruction cache (no cache misses) `open`
+- OPT-A04 branchless selects (bitwise &/| on compares) so the fold vectorizes `open`
+- OPT-A05 header-only static-inline math (the opaque call cannot be SIMD'd) `open`
+- OPT-A06 Cody-Waite two-part range reduction for float precision `open`
+- OPT-A07 the quadrant fold via a float mod, no int conversions `open`
+- OPT-A08 the Pythagorean sqrt fold: one poly + one sqrt gives sin AND cos `open`
+- OPT-A09 the exponent fold (Carmack's fast inverse sqrt family) `open`
+- OPT-A10 fixed-point angle domains: the quarter IS a bit shift `open`
+- OPT-A11 minimax/Remez coefficient fitting on the folded interval `open`
+- OPT-A12 Taylor-on-a-small-range beats Taylor-on-the-full-range (fewer terms) `open`
+- OPT-A13 even/odd polynomial split: sin odd in r, cos even in r `open`
+- OPT-A14 the odd-polynomial pair beats the sqrt on modern silicon `open`
+- OPT-A15 atan2/atan fold via the same quarter symmetry `open`
+- OPT-A16 exp/log fold: range split + polynomial per binade `open`
+- OPT-A17 powf(x, n) -> exp2f(n*log2f(x)) on the fast path `open`
+- OPT-A18 reciprocal via the Newton refinement (no division) `open`
+- OPT-A19 division-free softmax: the max-subtract + exp2f trick `open`
+- OPT-A20 the demoscene procedural trig: no tables at all `open`
+- OPT-A21 precision-fold: compute at the accuracy the consumer needs (Kaze's 16-bit lesson) `open`
+- OPT-A22 vectorized table build: the fold's SIMD width beats scalar libm loops `open`
+- OPT-A23 deterministic math: the fold is bit-exact across builds (FD/parity oracles) `open`
+- OPT-A24 the assumptions maxim: enumerate every symmetry before adding terms `open`
+- OPT-A25 cos from sin via the phase shift (one reduction for both) `open`
+- OPT-A26 the '3rd-order is worse than 2nd-order' paradox: range beats degree `open`
+- OPT-A27 the N64 4096-entry table was a MIS-optimization (bus hits) `open`
+- OPT-A28 instruction-cache residency as a design constraint `open`
+- OPT-A29 the numerics community's coefficient search (community-driven fitting) `open`
+- OPT-A30 fold the log domain for logsumexp (the online-softmax family) `open`
+- OPT-A31 the danger of half-precision Gram folds (spurious negative eigenvalues) `open`
+- OPT-A32 restarting the Gram reconstruction partway (the stabilized fold) `open`
+- OPT-A33 symmetric GEMMs halve the fold's redundant work `open`
+- OPT-A34 the Chebyshev-type NS polynomials (faster convergence per iteration) `open`
+- OPT-A35 distribution-free matrix functions (PRISM) for the optimizer math `open`
+- OPT-A36 (topup) variant of compute-vs-fetch roofline: recompute beats table reads when  `open`
+- OPT-A37 (topup) variant of the folded polynomial lives in the instruction cache (no cac `open`
+- OPT-A38 (topup) variant of branchless selects (bitwise &/| on compares) so the fold vec `open`
+- OPT-A39 (topup) variant of header-only static-inline math (the opaque call cannot be SI `open`
+- OPT-A40 (topup) variant of Cody-Waite two-part range reduction for float precision `open`
+- OPT-A41 (topup) variant of the quadrant fold via a float mod, no int conversions `open`
+- OPT-A42 (topup) variant of the Pythagorean sqrt fold: one poly + one sqrt gives sin AND `open`
+- OPT-A43 (topup) variant of the exponent fold (Carmack's fast inverse sqrt family) `open`
+- OPT-A44 (topup) variant of fixed-point angle domains: the quarter IS a bit shift `open`
+- OPT-A45 (topup) variant of minimax/Remez coefficient fitting on the folded interval `open`
+- OPT-A46 (topup) variant of Taylor-on-a-small-range beats Taylor-on-the-full-range (fewe `open`
+- OPT-A47 (topup) variant of even/odd polynomial split: sin odd in r, cos even in r `open`
+- OPT-A48 (topup) variant of the odd-polynomial pair beats the sqrt on modern silicon `open`
+- OPT-A49 (topup) variant of atan2/atan fold via the same quarter symmetry `open`
+- OPT-A50 (topup) variant of exp/log fold: range split + polynomial per binade `open`
+- OPT-A51 (topup) variant of powf(x, n) -> exp2f(n*log2f(x)) on the fast path `open`
+- OPT-A52 (topup) variant of reciprocal via the Newton refinement (no division) `open`
+- OPT-A53 (topup) variant of division-free softmax: the max-subtract + exp2f trick `open`
+- OPT-A54 (topup) variant of the demoscene procedural trig: no tables at all `open`
+- OPT-A55 (topup) variant of precision-fold: compute at the accuracy the consumer needs ( `open`
+- OPT-A56 (topup) variant of vectorized table build: the fold's SIMD width beats scalar l `open`
+- OPT-A57 (topup) variant of deterministic math: the fold is bit-exact across builds (FD/ `open`
+- OPT-A58 (topup) variant of the assumptions maxim: enumerate every symmetry before addin `open`
+- OPT-A59 (topup) variant of cos from sin via the phase shift (one reduction for both) `open`
+- OPT-A60 (topup) variant of the '3rd-order is worse than 2nd-order' paradox: range beats `open`
+- OPT-A61 (topup) variant of the N64 4096-entry table was a MIS-optimization (bus hits) `open`
+- OPT-A62 (topup) variant of instruction-cache residency as a design constraint `open`
+- OPT-A63 (topup) variant of the numerics community's coefficient search (community-drive `open`
+- OPT-A64 (topup) variant of fold the log domain for logsumexp (the online-softmax family `open`
+- OPT-A65 (topup) variant of the danger of half-precision Gram folds (spurious negative e `open`
+- OPT-A66 (topup) variant of restarting the Gram reconstruction partway (the stabilized f `open`
+- OPT-A67 (topup) variant of symmetric GEMMs halve the fold's redundant work `open`
+- OPT-A68 (topup) variant of the Chebyshev-type NS polynomials (faster convergence per it `open`
+- OPT-A69 (topup) variant of distribution-free matrix functions (PRISM) for the optimizer `open`
+- OPT-A70 (topup) variant of folded sin/cos: one polynomial on [0,pi/4], every sine symme `open`
+- OPT-A71 (topup) variant of compute-vs-fetch roofline: recompute beats table reads when  `open`
+- OPT-A72 (topup) variant of the folded polynomial lives in the instruction cache (no cac `open`
+- OPT-A73 (topup) variant of branchless selects (bitwise &/| on compares) so the fold vec `open`
+- OPT-A74 (topup) variant of header-only static-inline math (the opaque call cannot be SI `open`
+- OPT-A75 (topup) variant of Cody-Waite two-part range reduction for float precision `open`
+- OPT-A76 (topup) variant of the quadrant fold via a float mod, no int conversions `open`
+- OPT-A77 (topup) variant of the Pythagorean sqrt fold: one poly + one sqrt gives sin AND `open`
+- OPT-A78 (topup) variant of the exponent fold (Carmack's fast inverse sqrt family) `open`
+- OPT-A79 (topup) variant of fixed-point angle domains: the quarter IS a bit shift `open`
+- OPT-A80 (topup) variant of minimax/Remez coefficient fitting on the folded interval `open`
+- OPT-A81 (topup) variant of Taylor-on-a-small-range beats Taylor-on-the-full-range (fewe `open`
+- OPT-A82 (topup) variant of even/odd polynomial split: sin odd in r, cos even in r `open`
+- OPT-A83 (topup) variant of the odd-polynomial pair beats the sqrt on modern silicon `open`
+- OPT-A84 (topup) variant of atan2/atan fold via the same quarter symmetry `open`
+- OPT-A85 (topup) variant of exp/log fold: range split + polynomial per binade `open`
+- OPT-A86 (topup) variant of powf(x, n) -> exp2f(n*log2f(x)) on the fast path `open`
+- OPT-A87 (topup) variant of reciprocal via the Newton refinement (no division) `open`
+- OPT-A88 (topup) variant of division-free softmax: the max-subtract + exp2f trick `open`
+- OPT-A89 (topup) variant of the demoscene procedural trig: no tables at all `open`
+- OPT-A90 (topup) variant of precision-fold: compute at the accuracy the consumer needs ( `open`
+- OPT-A91 (topup) variant of vectorized table build: the fold's SIMD width beats scalar l `open`
+- OPT-A92 (topup) variant of deterministic math: the fold is bit-exact across builds (FD/ `open`
+- OPT-A93 (topup) variant of the assumptions maxim: enumerate every symmetry before addin `open`
+- OPT-A94 (topup) variant of cos from sin via the phase shift (one reduction for both) `open`
+- OPT-A95 (topup) variant of the '3rd-order is worse than 2nd-order' paradox: range beats `open`
+- OPT-A96 (topup) variant of the N64 4096-entry table was a MIS-optimization (bus hits) `open`
+- OPT-A97 (topup) variant of instruction-cache residency as a design constraint `open`
+- OPT-A98 (topup) variant of the numerics community's coefficient search (community-drive `open`
+- OPT-A99 (topup) variant of fold the log domain for logsumexp (the online-softmax family `open`
+- OPT-A100 (topup) variant of the danger of half-precision Gram folds (spurious negative e `open`
+
+Status: OPT-A -- 100 gaps, all `open`.
+
+## OPT-B:
+
+- OPT-B01 the RDRAM lesson: the bus is a STREAM engine, never random-access `open`
+- OPT-B02 latency-hiding: 640ns RDRAM latency amortized by consecutive bursts `open`
+- OPT-B03 chunked transfers: move large contiguous blocks, not scattered cells `open`
+- OPT-B04 double buffering: compute on buffer A while buffer B transfers `open`
+- OPT-B05 the audio lesson: most time is moving large chunks (echoes/stereo) `open`
+- OPT-B06 prefetch: the weight cache warms the next layer during the current one `open`
+- OPT-B07 the weight cache: pointer-keyed, generation-invalidated (kills re-uploads) `open`
+- OPT-B08 H2D traffic accounting: the xfer cost is a first-class budget item `open`
+- OPT-B09 the resident_bytes rule: what fits on the device stays on the device `open`
+- OPT-B10 stream the cartridge: the checkpoint is read-mostly, streamed `open`
+- OPT-B11 the 9-bit bus: the 9th bit rides along for free (GPU metadata) `open`
+- OPT-B12 alignment: 64-byte cache-line-aligned buffers (the 12% win) `open`
+- OPT-B13 the CON layout fragility: a one-line change moves the whole RAM `open`
+- OPT-B14 measurement floors: the win must exceed the clock resolution `open`
+- OPT-B15 the cache-miss cost > the compute cost (the SM64 audio case) `open`
+- OPT-B16 layout by access: the row-major/column-major choice is a bus decision `open`
+- OPT-B17 the bump-allocator pool: no per-call malloc in the hot path `open`
+- OPT-B18 region reuse: the pool regions are recycled per microbatch `open`
+- OPT-B19 the DRAM/VRAM split is a cost, not a given (the unified-bus honesty) `open`
+- OPT-B20 PCIe bandwidth is the transfer ceiling (12GB/s measured) `open`
+- OPT-B21 the stream-read pattern: sequential access at full bus width `open`
+- OPT-B22 the klog ring: the console-log buffer as a streaming structure `open`
+- OPT-B23 the SD-card rule: downloads only, drvfs is slow (work on the SSD) `open`
+- OPT-B24 the corpus copy: shards move to the SSD before training `open`
+- OPT-B25 write-combining: accumulate the output row in registers before storing `open`
+- OPT-B26 non-temporal stores for streaming data (never re-read) `open`
+- OPT-B27 the 64K intro lesson: the ROM is the bus, the data rides it `open`
+- OPT-B28 chunk the CE: process the vocab in tiles to bound the memory `open`
+- OPT-B29 the checkpoint write: stream the save, don't scatter it `open`
+- OPT-B30 memory-bound vs compute-bound: the roofline tells you which `open`
+- OPT-B31 the memcpy floor: DMA is ~10% faster than a good software loop (GBA) `open`
+- OPT-B32 the IWRAM/EWRAM rule: hot data in the fast tier, cold in the slow `open`
+- OPT-B33 the pool tiers: CART (read-mostly) / RDRAM (working) / OPT (state) `open`
+- OPT-B34 the fsync discipline: checkpoints on the SSD, archives on the SD `open`
+- OPT-B35 the buffer growth: power-of-two doubling, never per-call realloc `open`
+- OPT-B36 (topup) variant of latency-hiding: 640ns RDRAM latency amortized by consecutive `open`
+- OPT-B37 (topup) variant of chunked transfers: move large contiguous blocks, not scatter `open`
+- OPT-B38 (topup) variant of double buffering: compute on buffer A while buffer B transfe `open`
+- OPT-B39 (topup) variant of the audio lesson: most time is moving large chunks (echoes/s `open`
+- OPT-B40 (topup) variant of prefetch: the weight cache warms the next layer during the c `open`
+- OPT-B41 (topup) variant of the weight cache: pointer-keyed, generation-invalidated (kil `open`
+- OPT-B42 (topup) variant of H2D traffic accounting: the xfer cost is a first-class budge `open`
+- OPT-B43 (topup) variant of the resident_bytes rule: what fits on the device stays on th `open`
+- OPT-B44 (topup) variant of stream the cartridge: the checkpoint is read-mostly, streame `open`
+- OPT-B45 (topup) variant of the 9-bit bus: the 9th bit rides along for free (GPU metadat `open`
+- OPT-B46 (topup) variant of alignment: 64-byte cache-line-aligned buffers (the 12% win) `open`
+- OPT-B47 (topup) variant of the CON layout fragility: a one-line change moves the whole  `open`
+- OPT-B48 (topup) variant of measurement floors: the win must exceed the clock resolution `open`
+- OPT-B49 (topup) variant of the cache-miss cost > the compute cost (the SM64 audio case) `open`
+- OPT-B50 (topup) variant of layout by access: the row-major/column-major choice is a bus `open`
+- OPT-B51 (topup) variant of the bump-allocator pool: no per-call malloc in the hot path `open`
+- OPT-B52 (topup) variant of region reuse: the pool regions are recycled per microbatch `open`
+- OPT-B53 (topup) variant of the DRAM/VRAM split is a cost, not a given (the unified-bus  `open`
+- OPT-B54 (topup) variant of PCIe bandwidth is the transfer ceiling (12GB/s measured) `open`
+- OPT-B55 (topup) variant of the stream-read pattern: sequential access at full bus width `open`
+- OPT-B56 (topup) variant of the klog ring: the console-log buffer as a streaming structu `open`
+- OPT-B57 (topup) variant of the SD-card rule: downloads only, drvfs is slow (work on the `open`
+- OPT-B58 (topup) variant of the corpus copy: shards move to the SSD before training `open`
+- OPT-B59 (topup) variant of write-combining: accumulate the output row in registers befo `open`
+- OPT-B60 (topup) variant of non-temporal stores for streaming data (never re-read) `open`
+- OPT-B61 (topup) variant of the 64K intro lesson: the ROM is the bus, the data rides it `open`
+- OPT-B62 (topup) variant of chunk the CE: process the vocab in tiles to bound the memory `open`
+- OPT-B63 (topup) variant of the checkpoint write: stream the save, don't scatter it `open`
+- OPT-B64 (topup) variant of memory-bound vs compute-bound: the roofline tells you which `open`
+- OPT-B65 (topup) variant of the memcpy floor: DMA is ~10% faster than a good software lo `open`
+- OPT-B66 (topup) variant of the IWRAM/EWRAM rule: hot data in the fast tier, cold in the `open`
+- OPT-B67 (topup) variant of the pool tiers: CART (read-mostly) / RDRAM (working) / OPT ( `open`
+- OPT-B68 (topup) variant of the fsync discipline: checkpoints on the SSD, archives on th `open`
+- OPT-B69 (topup) variant of the buffer growth: power-of-two doubling, never per-call rea `open`
+- OPT-B70 (topup) variant of the RDRAM lesson: the bus is a STREAM engine, never random-a `open`
+- OPT-B71 (topup) variant of latency-hiding: 640ns RDRAM latency amortized by consecutive `open`
+- OPT-B72 (topup) variant of chunked transfers: move large contiguous blocks, not scatter `open`
+- OPT-B73 (topup) variant of double buffering: compute on buffer A while buffer B transfe `open`
+- OPT-B74 (topup) variant of the audio lesson: most time is moving large chunks (echoes/s `open`
+- OPT-B75 (topup) variant of prefetch: the weight cache warms the next layer during the c `open`
+- OPT-B76 (topup) variant of the weight cache: pointer-keyed, generation-invalidated (kil `open`
+- OPT-B77 (topup) variant of H2D traffic accounting: the xfer cost is a first-class budge `open`
+- OPT-B78 (topup) variant of the resident_bytes rule: what fits on the device stays on th `open`
+- OPT-B79 (topup) variant of stream the cartridge: the checkpoint is read-mostly, streame `open`
+- OPT-B80 (topup) variant of the 9-bit bus: the 9th bit rides along for free (GPU metadat `open`
+- OPT-B81 (topup) variant of alignment: 64-byte cache-line-aligned buffers (the 12% win) `open`
+- OPT-B82 (topup) variant of the CON layout fragility: a one-line change moves the whole  `open`
+- OPT-B83 (topup) variant of measurement floors: the win must exceed the clock resolution `open`
+- OPT-B84 (topup) variant of the cache-miss cost > the compute cost (the SM64 audio case) `open`
+- OPT-B85 (topup) variant of layout by access: the row-major/column-major choice is a bus `open`
+- OPT-B86 (topup) variant of the bump-allocator pool: no per-call malloc in the hot path `open`
+- OPT-B87 (topup) variant of region reuse: the pool regions are recycled per microbatch `open`
+- OPT-B88 (topup) variant of the DRAM/VRAM split is a cost, not a given (the unified-bus  `open`
+- OPT-B89 (topup) variant of PCIe bandwidth is the transfer ceiling (12GB/s measured) `open`
+- OPT-B90 (topup) variant of the stream-read pattern: sequential access at full bus width `open`
+- OPT-B91 (topup) variant of the klog ring: the console-log buffer as a streaming structu `open`
+- OPT-B92 (topup) variant of the SD-card rule: downloads only, drvfs is slow (work on the `open`
+- OPT-B93 (topup) variant of the corpus copy: shards move to the SSD before training `open`
+- OPT-B94 (topup) variant of write-combining: accumulate the output row in registers befo `open`
+- OPT-B95 (topup) variant of non-temporal stores for streaming data (never re-read) `open`
+- OPT-B96 (topup) variant of the 64K intro lesson: the ROM is the bus, the data rides it `open`
+- OPT-B97 (topup) variant of chunk the CE: process the vocab in tiles to bound the memory `open`
+- OPT-B98 (topup) variant of the checkpoint write: stream the save, don't scatter it `open`
+- OPT-B99 (topup) variant of memory-bound vs compute-bound: the roofline tells you which `open`
+- OPT-B100 (topup) variant of the memcpy floor: DMA is ~10% faster than a good software lo `open`
+
+Status: OPT-B -- 100 gaps, all `open`.
+
+## OPT-C:
+
+- OPT-C01 PowerVR TBDR: the 32x32 on-chip tile, external memory at tile edges `open`
+- OPT-C02 flash-attention tiling: the Q/K/V tile in SRAM, the softmax online `open`
+- OPT-C03 the working-set rule: what the tile touches stays in the tile `open`
+- OPT-C04 tile-local blending: no high-bandwidth memory for the tile pass `open`
+- OPT-C05 the z-buffer-free tile: the depth state stays on-chip `open`
+- OPT-C06 attention tiling for training: the backward recomputes the scores `open`
+- OPT-C07 the tile size as a roofline variable (32x32 vs 64x64) `open`
+- OPT-C08 chunked prefill: 512K context in 4K chunks (the OOM->runs fix) `open`
+- OPT-C09 the KV cache tile: per-head tiles stream from DRAM `open`
+- OPT-C10 layer blocking: the weights of a layer fit in L2 `open`
+- OPT-C11 the ffn_gate tile: [seq, 2*FF] must be a contiguous tile `open`
+- OPT-C12 the matmul tile: block the K dim for L2 reuse `open`
+- OPT-C13 the head GEMM tiled over the vocab `open`
+- OPT-C14 the norm tiles: RMSNorm per position in registers `open`
+- OPT-C15 the swiglu tile: gate+up fused in the same cache lines `open`
+- OPT-C16 the residue: the checkpoint (the o_proj input) survives the tile `open`
+- OPT-C17 the selector tile: the convex blend over the checkpoint `open`
+- OPT-C18 the softmax online rescale: the running max/sum in the tile `open`
+- OPT-C19 the RoPE tile: the rotation is register-local to the head dim `open`
+- OPT-C20 tile the optimizer: the NS5's A/B matrices stay in the SMEM `open`
+- OPT-C21 tile the Gram: the square Gram is the tile that fits `open`
+- OPT-C22 the tile-streaming GQA: K/V tiles uploaded per pass (low VRAM) `open`
+- OPT-C23 the tile boundary sync: external memory only at the boundary `open`
+- OPT-C24 tile-first engineering: pick the tile, then the memory layout `open`
+- OPT-C25 the L2-resident weights: 2.6MB/layer < the L2 size `open`
+- OPT-C26 the seq-tiled backward: per-position gradients in the tile `open`
+- OPT-C27 the micro-tile for the 64-dim heads: the head fits in registers `open`
+- OPT-C28 the tile the demoscene taught us: the frame tile on the Amiga copper `open`
+- OPT-C29 the cache-blocked GEMM: the classic ijk->ikj blocking `open`
+- OPT-C30 the strip-mined softmax: vocab/8 per SIMD pass `open`
+- OPT-C31 the K-tile for the weight gradients: dW accumulates per tile `open`
+- OPT-C32 the halo: the causal mask is a tile-local constraint `open`
+- OPT-C33 the local-window attention: the 256-token window is a natural tile `open`
+- OPT-C34 the full-layer attention: the every-4th-layer tile is bigger `open`
+- OPT-C35 tile-aware MoE: only the selected experts' tiles load `open`
+- OPT-C36 (topup) variant of flash-attention tiling: the Q/K/V tile in SRAM, the softmax  `open`
+- OPT-C37 (topup) variant of the working-set rule: what the tile touches stays in the til `open`
+- OPT-C38 (topup) variant of tile-local blending: no high-bandwidth memory for the tile p `open`
+- OPT-C39 (topup) variant of the z-buffer-free tile: the depth state stays on-chip `open`
+- OPT-C40 (topup) variant of attention tiling for training: the backward recomputes the s `open`
+- OPT-C41 (topup) variant of the tile size as a roofline variable (32x32 vs 64x64) `open`
+- OPT-C42 (topup) variant of chunked prefill: 512K context in 4K chunks (the OOM->runs fi `open`
+- OPT-C43 (topup) variant of the KV cache tile: per-head tiles stream from DRAM `open`
+- OPT-C44 (topup) variant of layer blocking: the weights of a layer fit in L2 `open`
+- OPT-C45 (topup) variant of the ffn_gate tile: [seq, 2*FF] must be a contiguous tile `open`
+- OPT-C46 (topup) variant of the matmul tile: block the K dim for L2 reuse `open`
+- OPT-C47 (topup) variant of the head GEMM tiled over the vocab `open`
+- OPT-C48 (topup) variant of the norm tiles: RMSNorm per position in registers `open`
+- OPT-C49 (topup) variant of the swiglu tile: gate+up fused in the same cache lines `open`
+- OPT-C50 (topup) variant of the residue: the checkpoint (the o_proj input) survives the  `open`
+- OPT-C51 (topup) variant of the selector tile: the convex blend over the checkpoint `open`
+- OPT-C52 (topup) variant of the softmax online rescale: the running max/sum in the tile `open`
+- OPT-C53 (topup) variant of the RoPE tile: the rotation is register-local to the head di `open`
+- OPT-C54 (topup) variant of tile the optimizer: the NS5's A/B matrices stay in the SMEM `open`
+- OPT-C55 (topup) variant of tile the Gram: the square Gram is the tile that fits `open`
+- OPT-C56 (topup) variant of the tile-streaming GQA: K/V tiles uploaded per pass (low VRA `open`
+- OPT-C57 (topup) variant of the tile boundary sync: external memory only at the boundary `open`
+- OPT-C58 (topup) variant of tile-first engineering: pick the tile, then the memory layou `open`
+- OPT-C59 (topup) variant of the L2-resident weights: 2.6MB/layer < the L2 size `open`
+- OPT-C60 (topup) variant of the seq-tiled backward: per-position gradients in the tile `open`
+- OPT-C61 (topup) variant of the micro-tile for the 64-dim heads: the head fits in regist `open`
+- OPT-C62 (topup) variant of the tile the demoscene taught us: the frame tile on the Amig `open`
+- OPT-C63 (topup) variant of the cache-blocked GEMM: the classic ijk->ikj blocking `open`
+- OPT-C64 (topup) variant of the strip-mined softmax: vocab/8 per SIMD pass `open`
+- OPT-C65 (topup) variant of the K-tile for the weight gradients: dW accumulates per tile `open`
+- OPT-C66 (topup) variant of the halo: the causal mask is a tile-local constraint `open`
+- OPT-C67 (topup) variant of the local-window attention: the 256-token window is a natura `open`
+- OPT-C68 (topup) variant of the full-layer attention: the every-4th-layer tile is bigger `open`
+- OPT-C69 (topup) variant of tile-aware MoE: only the selected experts' tiles load `open`
+- OPT-C70 (topup) variant of PowerVR TBDR: the 32x32 on-chip tile, external memory at til `open`
+- OPT-C71 (topup) variant of flash-attention tiling: the Q/K/V tile in SRAM, the softmax  `open`
+- OPT-C72 (topup) variant of the working-set rule: what the tile touches stays in the til `open`
+- OPT-C73 (topup) variant of tile-local blending: no high-bandwidth memory for the tile p `open`
+- OPT-C74 (topup) variant of the z-buffer-free tile: the depth state stays on-chip `open`
+- OPT-C75 (topup) variant of attention tiling for training: the backward recomputes the s `open`
+- OPT-C76 (topup) variant of the tile size as a roofline variable (32x32 vs 64x64) `open`
+- OPT-C77 (topup) variant of chunked prefill: 512K context in 4K chunks (the OOM->runs fi `open`
+- OPT-C78 (topup) variant of the KV cache tile: per-head tiles stream from DRAM `open`
+- OPT-C79 (topup) variant of layer blocking: the weights of a layer fit in L2 `open`
+- OPT-C80 (topup) variant of the ffn_gate tile: [seq, 2*FF] must be a contiguous tile `open`
+- OPT-C81 (topup) variant of the matmul tile: block the K dim for L2 reuse `open`
+- OPT-C82 (topup) variant of the head GEMM tiled over the vocab `open`
+- OPT-C83 (topup) variant of the norm tiles: RMSNorm per position in registers `open`
+- OPT-C84 (topup) variant of the swiglu tile: gate+up fused in the same cache lines `open`
+- OPT-C85 (topup) variant of the residue: the checkpoint (the o_proj input) survives the  `open`
+- OPT-C86 (topup) variant of the selector tile: the convex blend over the checkpoint `open`
+- OPT-C87 (topup) variant of the softmax online rescale: the running max/sum in the tile `open`
+- OPT-C88 (topup) variant of the RoPE tile: the rotation is register-local to the head di `open`
+- OPT-C89 (topup) variant of tile the optimizer: the NS5's A/B matrices stay in the SMEM `open`
+- OPT-C90 (topup) variant of tile the Gram: the square Gram is the tile that fits `open`
+- OPT-C91 (topup) variant of the tile-streaming GQA: K/V tiles uploaded per pass (low VRA `open`
+- OPT-C92 (topup) variant of the tile boundary sync: external memory only at the boundary `open`
+- OPT-C93 (topup) variant of tile-first engineering: pick the tile, then the memory layou `open`
+- OPT-C94 (topup) variant of the L2-resident weights: 2.6MB/layer < the L2 size `open`
+- OPT-C95 (topup) variant of the seq-tiled backward: per-position gradients in the tile `open`
+- OPT-C96 (topup) variant of the micro-tile for the 64-dim heads: the head fits in regist `open`
+- OPT-C97 (topup) variant of the tile the demoscene taught us: the frame tile on the Amig `open`
+- OPT-C98 (topup) variant of the cache-blocked GEMM: the classic ijk->ikj blocking `open`
+- OPT-C99 (topup) variant of the strip-mined softmax: vocab/8 per SIMD pass `open`
+- OPT-C100 (topup) variant of the K-tile for the weight gradients: dW accumulates per tile `open`
+
+Status: OPT-C -- 100 gaps, all `open`.
+
+## OPT-D:
+
+- OPT-D01 Gram-NS: iterate on the square Gram XX^T, not the rectangular X (Tri Dao) -- IMPLEMENTED in gpu_barun_ns5_gram `wired`
+- OPT-D02 the rectangular FLOPs drop 5x: only the pre/post GEMMs are rectangular -- VERIFIED: 4.9G -> 2.3G MACs `wired`
+- OPT-D03 symmetric GEMM kernels: half the A=MM^T work is redundant -- partial: the square kernels are cuBLAS; the symmetric kernel is future `wired`
+- OPT-D04 the square-case-luck trap: a square-only probe passes while wide/tall breaks -- the test now covers 448x448, 448x2456, 1228x448, 448x64 `wired`
+- OPT-D05 the per-iteration Frobenius renormalization (fp32 stability) -- the trace_norm kernel scales the WHOLE G,R by 1/tr (the diagonal-only version diverged) `wired`
+- OPT-D06 the Gram restart: rebuild the Gram partway (half-precision stability) -- future `wired`
+- OPT-D07 the NS5 coefficients 3.4445/-4.7750/2.0315 on the folded interval -- in the Gram loop `wired`
+- OPT-D08 the Nesterov momentum: the lookahead buf + mu*buf -- already in the muon step `wired`
+- OPT-D09 the Moonlight RMS-0.2 per-matrix scale: bounded steps, AdamW-lr reuse `open`
+- OPT-D10 the tall-transpose: NS on the transposed matrix (cheaper Gram) `open`
+- OPT-D11 the Muon group = the 2D matrices; AdamW = the 1D params `open`
+- OPT-D12 the decoupled weight decay in the Muon step `open`
+- OPT-D13 the grad-norm clip: one global clip, then the per-group steps `open`
+- OPT-D14 the AdamW beta split: (0.9, 0.95) for the embed/norms `open`
+- OPT-D15 the optimizer state tiers: momentum in the fast tier `open`
+- OPT-D16 the batched optimizer: the grad-norm + updates as one pass `open`
+- OPT-D17 the deferred update: accumulate grads, update once per step `open`
+- OPT-D18 the Shampoo lineage: full-matrix preconditioners vs the NS approximation `open`
+- OPT-D19 the SOAP: Shampoo-style on the Adam path `open`
+- OPT-D20 the Dion: distributed orthonormalized updates `open`
+- OPT-D21 the Scion: norm-constrained LMOs (the Muon cousin) `open`
+- OPT-D22 the SPlus: stable whitening optimizers `open`
+- OPT-D23 the PRISM: distribution-free matrix functions for training `open`
+- OPT-D24 the Chebyshev NS: faster convergence per iteration (Grishina) `open`
+- OPT-D25 the flash-muon: NS with symmetric matmul routines `open`
+- OPT-D26 the Quack abstraction: symmetric GEMM kernels `open`
+- OPT-D27 the register-level atI fusion (the car-ride anecdote) `open`
+- OPT-D28 the critical-batch-size rule: the optimizer step amortizes over the batch `open`
+- OPT-D29 the WSD schedule: warmup-stable-decay beats cosine for growth `open`
+- OPT-D30 the optimizer step is 2-17% of wall time (the Gram-NS appendix) `open`
+- OPT-D31 the half-precision optimizer state (bf16 moments) `open`
+- OPT-D32 the NS workspace: max_cells = the biggest matrix, reused `open`
+- OPT-D33 the lookahead buffer aliasing trap (the NS5 transpose workspace) `open`
+- OPT-D34 the batch-level grad accumulation: the microbatches share the buffer `open`
+- OPT-D35 the clip-then-step order: clip the grads BEFORE the momentum `open`
+- OPT-D36 (topup) variant of the rectangular FLOPs drop 5x: only the pre/post GEMMs are r `open`
+- OPT-D37 (topup) variant of symmetric GEMM kernels: half the A=MM^T work is redundant `open`
+- OPT-D38 (topup) variant of the square-case-luck trap: a square-only probe passes while  `open`
+- OPT-D39 (topup) variant of the per-iteration Frobenius renormalization (fp32 stability) `open`
+- OPT-D40 (topup) variant of the Gram restart: rebuild the Gram partway (half-precision s `open`
+- OPT-D41 (topup) variant of the NS5 coefficients 3.4445/-4.7750/2.0315 on the folded int `open`
+- OPT-D42 (topup) variant of the Nesterov momentum: the lookahead buf + mu*buf `open`
+- OPT-D43 (topup) variant of the Moonlight RMS-0.2 per-matrix scale: bounded steps, AdamW `open`
+- OPT-D44 (topup) variant of the tall-transpose: NS on the transposed matrix (cheaper Gra `open`
+- OPT-D45 (topup) variant of the Muon group = the 2D matrices `open`
+- OPT-D46 (topup) variant of the decoupled weight decay in the Muon step `open`
+- OPT-D47 (topup) variant of the grad-norm clip: one global clip, then the per-group step `open`
+- OPT-D48 (topup) variant of the AdamW beta split: (0.9, 0.95) for the embed/norms `open`
+- OPT-D49 (topup) variant of the optimizer state tiers: momentum in the fast tier `open`
+- OPT-D50 (topup) variant of the batched optimizer: the grad-norm + updates as one pass `open`
+- OPT-D51 (topup) variant of the deferred update: accumulate grads, update once per step `open`
+- OPT-D52 (topup) variant of the Shampoo lineage: full-matrix preconditioners vs the NS a `open`
+- OPT-D53 (topup) variant of the SOAP: Shampoo-style on the Adam path `open`
+- OPT-D54 (topup) variant of the Dion: distributed orthonormalized updates `open`
+- OPT-D55 (topup) variant of the Scion: norm-constrained LMOs (the Muon cousin) `open`
+- OPT-D56 (topup) variant of the SPlus: stable whitening optimizers `open`
+- OPT-D57 (topup) variant of the PRISM: distribution-free matrix functions for training `open`
+- OPT-D58 (topup) variant of the Chebyshev NS: faster convergence per iteration (Grishina `open`
+- OPT-D59 (topup) variant of the flash-muon: NS with symmetric matmul routines `open`
+- OPT-D60 (topup) variant of the Quack abstraction: symmetric GEMM kernels `open`
+- OPT-D61 (topup) variant of the register-level atI fusion (the car-ride anecdote) `open`
+- OPT-D62 (topup) variant of the critical-batch-size rule: the optimizer step amortizes o `open`
+- OPT-D63 (topup) variant of the WSD schedule: warmup-stable-decay beats cosine for growt `open`
+- OPT-D64 (topup) variant of the optimizer step is 2-17% of wall time (the Gram-NS append `open`
+- OPT-D65 (topup) variant of the half-precision optimizer state (bf16 moments) `open`
+- OPT-D66 (topup) variant of the NS workspace: max_cells = the biggest matrix, reused `open`
+- OPT-D67 (topup) variant of the lookahead buffer aliasing trap (the NS5 transpose worksp `open`
+- OPT-D68 (topup) variant of the batch-level grad accumulation: the microbatches share th `open`
+- OPT-D69 (topup) variant of the clip-then-step order: clip the grads BEFORE the momentum `open`
+- OPT-D70 (topup) variant of Gram-NS: iterate on the square Gram XX^T, not the rectangula `open`
+- OPT-D71 (topup) variant of the rectangular FLOPs drop 5x: only the pre/post GEMMs are r `open`
+- OPT-D72 (topup) variant of symmetric GEMM kernels: half the A=MM^T work is redundant `open`
+- OPT-D73 (topup) variant of the square-case-luck trap: a square-only probe passes while  `open`
+- OPT-D74 (topup) variant of the per-iteration Frobenius renormalization (fp32 stability) `open`
+- OPT-D75 (topup) variant of the Gram restart: rebuild the Gram partway (half-precision s `open`
+- OPT-D76 (topup) variant of the NS5 coefficients 3.4445/-4.7750/2.0315 on the folded int `open`
+- OPT-D77 (topup) variant of the Nesterov momentum: the lookahead buf + mu*buf `open`
+- OPT-D78 (topup) variant of the Moonlight RMS-0.2 per-matrix scale: bounded steps, AdamW `open`
+- OPT-D79 (topup) variant of the tall-transpose: NS on the transposed matrix (cheaper Gra `open`
+- OPT-D80 (topup) variant of the Muon group = the 2D matrices `open`
+- OPT-D81 (topup) variant of the decoupled weight decay in the Muon step `open`
+- OPT-D82 (topup) variant of the grad-norm clip: one global clip, then the per-group step `open`
+- OPT-D83 (topup) variant of the AdamW beta split: (0.9, 0.95) for the embed/norms `open`
+- OPT-D84 (topup) variant of the optimizer state tiers: momentum in the fast tier `open`
+- OPT-D85 (topup) variant of the batched optimizer: the grad-norm + updates as one pass `open`
+- OPT-D86 (topup) variant of the deferred update: accumulate grads, update once per step `open`
+- OPT-D87 (topup) variant of the Shampoo lineage: full-matrix preconditioners vs the NS a `open`
+- OPT-D88 (topup) variant of the SOAP: Shampoo-style on the Adam path `open`
+- OPT-D89 (topup) variant of the Dion: distributed orthonormalized updates `open`
+- OPT-D90 (topup) variant of the Scion: norm-constrained LMOs (the Muon cousin) `open`
+- OPT-D91 (topup) variant of the SPlus: stable whitening optimizers `open`
+- OPT-D92 (topup) variant of the PRISM: distribution-free matrix functions for training `open`
+- OPT-D93 (topup) variant of the Chebyshev NS: faster convergence per iteration (Grishina `open`
+- OPT-D94 (topup) variant of the flash-muon: NS with symmetric matmul routines `open`
+- OPT-D95 (topup) variant of the Quack abstraction: symmetric GEMM kernels `open`
+- OPT-D96 (topup) variant of the register-level atI fusion (the car-ride anecdote) `open`
+- OPT-D97 (topup) variant of the critical-batch-size rule: the optimizer step amortizes o `open`
+- OPT-D98 (topup) variant of the WSD schedule: warmup-stable-decay beats cosine for growt `open`
+- OPT-D99 (topup) variant of the optimizer step is 2-17% of wall time (the Gram-NS append `open`
+- OPT-D100 (topup) variant of the half-precision optimizer state (bf16 moments) `open`
+
+Status: OPT-D -- 100 gaps, all `open`.
+
+## OPT-E:
+
+- OPT-E01 zero/one-layer progressive training: ~5x compute savings (Bu) `open`
+- OPT-E02 depth expansion at tau ~ 0.8T (the mixing-time rule) `open`
+- OPT-E03 function-preserving layer insertion: the gate closed at birth `open`
+- OPT-E04 the WSD schedule: the expansion happens after warmup `open`
+- OPT-E05 mixing needs DATA not iterations (the batch-size independence) `open`
+- OPT-E06 single-stage expansion beats multi-stage (mixing-time transfer) `open`
+- OPT-E07 the feature-learning view: the new layer inherits the features `open`
+- OPT-E08 hyperparameter transfer: the LR survives the expansion `open`
+- OPT-E09 the depth-doubling initialization (the stack/identity family) `open`
+- OPT-E10 the Net2Net lineage: function-preserving for convs/BERT `open`
+- OPT-E11 the incremental growth (Yuan): dynamic stabilization at growth points `open`
+- OPT-E12 the weight/activation/gradient stabilization scheme `open`
+- OPT-E13 the 'still hungry' test: the deepest layer's grad norm vs the mean `open`
+- OPT-E14 the plateau detector: the EMA loss slope flattens -> grow `open`
+- OPT-E15 the growth operator: observe -> decide -> mutate -> validate `open`
+- OPT-E16 the DA validation: the loss must NOT jump at the insertion point `open`
+- OPT-E17 the rollback: the previous checkpoint is the rollback point `open`
+- OPT-E18 the lineage ledger: every growth keeps the parent hash `open`
+- OPT-E19 the optimizer state at growth: fresh state for the new layer `open`
+- OPT-E20 the copied-OS experiment: copying state is less stable `open`
+- OPT-E21 the width expansion: doubling the dim with the zero-padded init `open`
+- OPT-E22 the MoE-ification: turning a layer into a small expert pool `open`
+- OPT-E23 the cartridge swap: the grown model is a NEW cartridge `open`
+- OPT-E24 the grow-then-archive: the best loss keeps the lineage `open`
+- OPT-E25 the RLHF gate: the oracle validates the grown model `open`
+- OPT-E26 the growth budget: the FLOPs accounting (6BTN formulation) `open`
+- OPT-E27 the 2% early-stop expansion: expand right after warmup `open`
+- OPT-E28 the depth-vs-width tradeoff: zero/one-layer is optimal `open`
+- OPT-E29 the 60x depth scaling (Bu's GPT2 run) `open`
+- OPT-E30 the growing-network theory: convex + Lipschitz convergence `open`
+- OPT-E31 the mixing-time transfer: the grown model catches up in data, not steps `open`
+- OPT-E32 the frozen-layer stages (the agarwal stacking family) `open`
+- OPT-E33 the growth as a first-class bus consumer (the U-Bus cartridge) `open`
+- OPT-E34 the per-stage LR restarts vs the continuous WSD `open`
+- OPT-E35 the growth diagnostics: the per-group grad norms on the bus `open`
+- OPT-E36 (topup) variant of depth expansion at tau ~ 0.8T (the mixing-time rule) `open`
+- OPT-E37 (topup) variant of function-preserving layer insertion: the gate closed at birt `open`
+- OPT-E38 (topup) variant of the WSD schedule: the expansion happens after warmup `open`
+- OPT-E39 (topup) variant of mixing needs DATA not iterations (the batch-size independenc `open`
+- OPT-E40 (topup) variant of single-stage expansion beats multi-stage (mixing-time transf `open`
+- OPT-E41 (topup) variant of the feature-learning view: the new layer inherits the featur `open`
+- OPT-E42 (topup) variant of hyperparameter transfer: the LR survives the expansion `open`
+- OPT-E43 (topup) variant of the depth-doubling initialization (the stack/identity family `open`
+- OPT-E44 (topup) variant of the Net2Net lineage: function-preserving for convs/BERT `open`
+- OPT-E45 (topup) variant of the incremental growth (Yuan): dynamic stabilization at grow `open`
+- OPT-E46 (topup) variant of the weight/activation/gradient stabilization scheme `open`
+- OPT-E47 (topup) variant of the 'still hungry' test: the deepest layer's grad norm vs th `open`
+- OPT-E48 (topup) variant of the plateau detector: the EMA loss slope flattens -> grow `open`
+- OPT-E49 (topup) variant of the growth operator: observe -> decide -> mutate -> validate `open`
+- OPT-E50 (topup) variant of the DA validation: the loss must NOT jump at the insertion p `open`
+- OPT-E51 (topup) variant of the rollback: the previous checkpoint is the rollback point `open`
+- OPT-E52 (topup) variant of the lineage ledger: every growth keeps the parent hash `open`
+- OPT-E53 (topup) variant of the optimizer state at growth: fresh state for the new layer `open`
+- OPT-E54 (topup) variant of the copied-OS experiment: copying state is less stable `open`
+- OPT-E55 (topup) variant of the width expansion: doubling the dim with the zero-padded i `open`
+- OPT-E56 (topup) variant of the MoE-ification: turning a layer into a small expert pool `open`
+- OPT-E57 (topup) variant of the cartridge swap: the grown model is a NEW cartridge `open`
+- OPT-E58 (topup) variant of the grow-then-archive: the best loss keeps the lineage `open`
+- OPT-E59 (topup) variant of the RLHF gate: the oracle validates the grown model `open`
+- OPT-E60 (topup) variant of the growth budget: the FLOPs accounting (6BTN formulation) `open`
+- OPT-E61 (topup) variant of the 2% early-stop expansion: expand right after warmup `open`
+- OPT-E62 (topup) variant of the depth-vs-width tradeoff: zero/one-layer is optimal `open`
+- OPT-E63 (topup) variant of the 60x depth scaling (Bu's GPT2 run) `open`
+- OPT-E64 (topup) variant of the growing-network theory: convex + Lipschitz convergence `open`
+- OPT-E65 (topup) variant of the mixing-time transfer: the grown model catches up in data `open`
+- OPT-E66 (topup) variant of the frozen-layer stages (the agarwal stacking family) `open`
+- OPT-E67 (topup) variant of the growth as a first-class bus consumer (the U-Bus cartridg `open`
+- OPT-E68 (topup) variant of the per-stage LR restarts vs the continuous WSD `open`
+- OPT-E69 (topup) variant of the growth diagnostics: the per-group grad norms on the bus `open`
+- OPT-E70 (topup) variant of zero/one-layer progressive training: ~5x compute savings (Bu `open`
+- OPT-E71 (topup) variant of depth expansion at tau ~ 0.8T (the mixing-time rule) `open`
+- OPT-E72 (topup) variant of function-preserving layer insertion: the gate closed at birt `open`
+- OPT-E73 (topup) variant of the WSD schedule: the expansion happens after warmup `open`
+- OPT-E74 (topup) variant of mixing needs DATA not iterations (the batch-size independenc `open`
+- OPT-E75 (topup) variant of single-stage expansion beats multi-stage (mixing-time transf `open`
+- OPT-E76 (topup) variant of the feature-learning view: the new layer inherits the featur `open`
+- OPT-E77 (topup) variant of hyperparameter transfer: the LR survives the expansion `open`
+- OPT-E78 (topup) variant of the depth-doubling initialization (the stack/identity family `open`
+- OPT-E79 (topup) variant of the Net2Net lineage: function-preserving for convs/BERT `open`
+- OPT-E80 (topup) variant of the incremental growth (Yuan): dynamic stabilization at grow `open`
+- OPT-E81 (topup) variant of the weight/activation/gradient stabilization scheme `open`
+- OPT-E82 (topup) variant of the 'still hungry' test: the deepest layer's grad norm vs th `open`
+- OPT-E83 (topup) variant of the plateau detector: the EMA loss slope flattens -> grow `open`
+- OPT-E84 (topup) variant of the growth operator: observe -> decide -> mutate -> validate `open`
+- OPT-E85 (topup) variant of the DA validation: the loss must NOT jump at the insertion p `open`
+- OPT-E86 (topup) variant of the rollback: the previous checkpoint is the rollback point `open`
+- OPT-E87 (topup) variant of the lineage ledger: every growth keeps the parent hash `open`
+- OPT-E88 (topup) variant of the optimizer state at growth: fresh state for the new layer `open`
+- OPT-E89 (topup) variant of the copied-OS experiment: copying state is less stable `open`
+- OPT-E90 (topup) variant of the width expansion: doubling the dim with the zero-padded i `open`
+- OPT-E91 (topup) variant of the MoE-ification: turning a layer into a small expert pool `open`
+- OPT-E92 (topup) variant of the cartridge swap: the grown model is a NEW cartridge `open`
+- OPT-E93 (topup) variant of the grow-then-archive: the best loss keeps the lineage `open`
+- OPT-E94 (topup) variant of the RLHF gate: the oracle validates the grown model `open`
+- OPT-E95 (topup) variant of the growth budget: the FLOPs accounting (6BTN formulation) `open`
+- OPT-E96 (topup) variant of the 2% early-stop expansion: expand right after warmup `open`
+- OPT-E97 (topup) variant of the depth-vs-width tradeoff: zero/one-layer is optimal `open`
+- OPT-E98 (topup) variant of the 60x depth scaling (Bu's GPT2 run) `open`
+- OPT-E99 (topup) variant of the growing-network theory: convex + Lipschitz convergence `open`
+- OPT-E100 (topup) variant of the mixing-time transfer: the grown model catches up in data `open`
+
+Status: OPT-E -- 100 gaps, all `open`.
+
+## OPT-F:
+
+- OPT-F01 the decomp-as-method: rebuild the binary as readable C (n64decomp) `open`
+- OPT-F02 the 100K-line reading discipline (Kaze's source sweep) `open`
+- OPT-F03 the map-file ledger: every function, every symbol, tracked `open`
+- OPT-F04 the oracle: the FD test as the decomp-equivalent proof `open`
+- OPT-F05 the IDO compiler archaeology: the compiler version changes everything `open`
+- OPT-F06 the function-by-function hand translation (no auto-decomp shortcuts) `open`
+- OPT-F07 the 16-byte chunk structure: the file boundaries from the padding `open`
+- OPT-F08 the debug-build leaks: the hidden rooms that unlock the secrets `open`
+- OPT-F09 the speedrunner motivation: the exploits need the source `open`
+- OPT-F10 decomp.me: the collaborative decomp platform `open`
+- OPT-F11 the ZRET spin-off: the Zelda team learned from the SM64 team `open`
+- OPT-F12 the shiftability goal: C-level edits, not assembly `open`
+- OPT-F13 the parity test: the rebuilt code must match the original byte-for-byte `open`
+- OPT-F14 the numeric verification: the gradients vs the finite differences `open`
+- OPT-F15 the 'tests != correct' doctrine: the FD is the source of truth `open`
+- OPT-F16 the ASan/UBSan gate: memory errors are the first DA pass `open`
+- OPT-F17 the build-integrity gate: the header deps tracked in the Makefile `open`
+- OPT-F18 the honest-open rule: never fabricate a gap to keep looping `open`
+- OPT-F19 the form-without-function audit: the comment claims vs the code `open`
+- OPT-F20 the orphan audit: no target, no test, no wiring = dead code `open`
+- OPT-F21 the parity tool: the recording forward == the released forward `open`
+- OPT-F22 the divergence bisection: seq=1 matches, seq=2 diverges -> find the layer `open`
+- OPT-F23 the in-place matmul trap: the output clobbers the input `open`
+- OPT-F24 the stride bug family: FF vs 2*FF indexing `open`
+- OPT-F25 the buffer-alias family: the checkpoint aliasing the o_proj output `open`
+- OPT-F26 the unzeroed-scratch family: the stale garbage propagation `open`
+- OPT-F27 the snapshot-before-overwrite rule in the gradient loops `open`
+- OPT-F28 the reproducibility: the deterministic seeds + the varied tokens `open`
+- OPT-F29 the degenerate-input trap: the FD test's identical tokens `open`
+- OPT-F30 the coverage audit: every parameter type, every layer, sampled `open`
+- OPT-F31 the reverse-engineered knowledge: the reference is the ROM `open`
+- OPT-F32 the compiler-flag audit: what -ffast-math actually changes `open`
+- OPT-F33 the cap_seq vs seq indexing trap (the allocated vs the used) `open`
+- OPT-F34 the ledger discipline: flip open->wired in the same commit `open`
+- OPT-F35 the triple-DA: correctness, privacy, robustness, per batch `open`
+- OPT-F36 (topup) variant of the 100K-line reading discipline (Kaze's source sweep) `open`
+- OPT-F37 (topup) variant of the map-file ledger: every function, every symbol, tracked `open`
+- OPT-F38 (topup) variant of the oracle: the FD test as the decomp-equivalent proof `open`
+- OPT-F39 (topup) variant of the IDO compiler archaeology: the compiler version changes e `open`
+- OPT-F40 (topup) variant of the function-by-function hand translation (no auto-decomp sh `open`
+- OPT-F41 (topup) variant of the 16-byte chunk structure: the file boundaries from the pa `open`
+- OPT-F42 (topup) variant of the debug-build leaks: the hidden rooms that unlock the secr `open`
+- OPT-F43 (topup) variant of the speedrunner motivation: the exploits need the source `open`
+- OPT-F44 (topup) variant of decomp.me: the collaborative decomp platform `open`
+- OPT-F45 (topup) variant of the ZRET spin-off: the Zelda team learned from the SM64 team `open`
+- OPT-F46 (topup) variant of the shiftability goal: C-level edits, not assembly `open`
+- OPT-F47 (topup) variant of the parity test: the rebuilt code must match the original by `open`
+- OPT-F48 (topup) variant of the numeric verification: the gradients vs the finite differ `open`
+- OPT-F49 (topup) variant of the 'tests != correct' doctrine: the FD is the source of tru `open`
+- OPT-F50 (topup) variant of the ASan/UBSan gate: memory errors are the first DA pass `open`
+- OPT-F51 (topup) variant of the build-integrity gate: the header deps tracked in the Mak `open`
+- OPT-F52 (topup) variant of the honest-open rule: never fabricate a gap to keep looping `open`
+- OPT-F53 (topup) variant of the form-without-function audit: the comment claims vs the c `open`
+- OPT-F54 (topup) variant of the orphan audit: no target, no test, no wiring = dead code `open`
+- OPT-F55 (topup) variant of the parity tool: the recording forward == the released forwa `open`
+- OPT-F56 (topup) variant of the divergence bisection: seq=1 matches, seq=2 diverges -> f `open`
+- OPT-F57 (topup) variant of the in-place matmul trap: the output clobbers the input `open`
+- OPT-F58 (topup) variant of the stride bug family: FF vs 2*FF indexing `open`
+- OPT-F59 (topup) variant of the buffer-alias family: the checkpoint aliasing the o_proj  `open`
+- OPT-F60 (topup) variant of the unzeroed-scratch family: the stale garbage propagation `open`
+- OPT-F61 (topup) variant of the snapshot-before-overwrite rule in the gradient loops `open`
+- OPT-F62 (topup) variant of the reproducibility: the deterministic seeds + the varied to `open`
+- OPT-F63 (topup) variant of the degenerate-input trap: the FD test's identical tokens `open`
+- OPT-F64 (topup) variant of the coverage audit: every parameter type, every layer, sampl `open`
+- OPT-F65 (topup) variant of the reverse-engineered knowledge: the reference is the ROM `open`
+- OPT-F66 (topup) variant of the compiler-flag audit: what -ffast-math actually changes `open`
+- OPT-F67 (topup) variant of the cap_seq vs seq indexing trap (the allocated vs the used) `open`
+- OPT-F68 (topup) variant of the ledger discipline: flip open->wired in the same commit `open`
+- OPT-F69 (topup) variant of the triple-DA: correctness, privacy, robustness, per batch `open`
+- OPT-F70 (topup) variant of the decomp-as-method: rebuild the binary as readable C (n64d `open`
+- OPT-F71 (topup) variant of the 100K-line reading discipline (Kaze's source sweep) `open`
+- OPT-F72 (topup) variant of the map-file ledger: every function, every symbol, tracked `open`
+- OPT-F73 (topup) variant of the oracle: the FD test as the decomp-equivalent proof `open`
+- OPT-F74 (topup) variant of the IDO compiler archaeology: the compiler version changes e `open`
+- OPT-F75 (topup) variant of the function-by-function hand translation (no auto-decomp sh `open`
+- OPT-F76 (topup) variant of the 16-byte chunk structure: the file boundaries from the pa `open`
+- OPT-F77 (topup) variant of the debug-build leaks: the hidden rooms that unlock the secr `open`
+- OPT-F78 (topup) variant of the speedrunner motivation: the exploits need the source `open`
+- OPT-F79 (topup) variant of decomp.me: the collaborative decomp platform `open`
+- OPT-F80 (topup) variant of the ZRET spin-off: the Zelda team learned from the SM64 team `open`
+- OPT-F81 (topup) variant of the shiftability goal: C-level edits, not assembly `open`
+- OPT-F82 (topup) variant of the parity test: the rebuilt code must match the original by `open`
+- OPT-F83 (topup) variant of the numeric verification: the gradients vs the finite differ `open`
+- OPT-F84 (topup) variant of the 'tests != correct' doctrine: the FD is the source of tru `open`
+- OPT-F85 (topup) variant of the ASan/UBSan gate: memory errors are the first DA pass `open`
+- OPT-F86 (topup) variant of the build-integrity gate: the header deps tracked in the Mak `open`
+- OPT-F87 (topup) variant of the honest-open rule: never fabricate a gap to keep looping `open`
+- OPT-F88 (topup) variant of the form-without-function audit: the comment claims vs the c `open`
+- OPT-F89 (topup) variant of the orphan audit: no target, no test, no wiring = dead code `open`
+- OPT-F90 (topup) variant of the parity tool: the recording forward == the released forwa `open`
+- OPT-F91 (topup) variant of the divergence bisection: seq=1 matches, seq=2 diverges -> f `open`
+- OPT-F92 (topup) variant of the in-place matmul trap: the output clobbers the input `open`
+- OPT-F93 (topup) variant of the stride bug family: FF vs 2*FF indexing `open`
+- OPT-F94 (topup) variant of the buffer-alias family: the checkpoint aliasing the o_proj  `open`
+- OPT-F95 (topup) variant of the unzeroed-scratch family: the stale garbage propagation `open`
+- OPT-F96 (topup) variant of the snapshot-before-overwrite rule in the gradient loops `open`
+- OPT-F97 (topup) variant of the reproducibility: the deterministic seeds + the varied to `open`
+- OPT-F98 (topup) variant of the degenerate-input trap: the FD test's identical tokens `open`
+- OPT-F99 (topup) variant of the coverage audit: every parameter type, every layer, sampl `open`
+- OPT-F100 (topup) variant of the reverse-engineered knowledge: the reference is the ROM `open`
+
+Status: OPT-F -- 100 gaps, all `open`.
+
+## OPT-G:
+
+- OPT-G01 the PS1 lesson: know the engine's limits, ADAPT THE DATA `open`
+- OPT-G02 affine texturing: the fixed-function limit -> subdivide to hide it `open`
+- OPT-G03 the GTE: the fixed-point vector unit for the projection math `open`
+- OPT-G04 the capability profile: every backend declares its limits `open`
+- OPT-G05 the selector: the roofline picks the backend per op `open`
+- OPT-G06 the fallback: the CPU path when the GPU can't or shouldn't `open`
+- OPT-G07 the precision modes: fp32, bf16, int8 with the accuracy budget `open`
+- OPT-G08 the subdivision rule: break the work until it fits the unit `open`
+- OPT-G09 the RSP/RDP split: the programmable vector unit vs the fixed engine `open`
+- OPT-G10 the RDP fixed-function: the rasterizer does what it does `open`
+- OPT-G11 the WDDM overhead: the tiny ops cost more than they save `open`
+- OPT-G12 the launch threshold: the GPU_MIN_FLOP rule `open`
+- OPT-G13 the xfer-vs-compute: the H2D cost is part of the decision `open`
+- OPT-G14 the resident-bytes honesty: 6GB VRAM is 6GB `open`
+- OPT-G15 the CPU-bound paths: the attention backward until the kernel lands `open`
+- OPT-G16 the stub-free rule: the 'GPU stub' is a real kernel or nothing `open`
+- OPT-G17 the capability table as data: gfops, bw, xfer, residency `open`
+- OPT-G18 the register backend: adding AMD/Intel/NPU = a table row `open`
+- OPT-G19 the power state: the GPU clocks ramp, the first call is slow `open`
+- OPT-G20 the warmup: the benchmark must warm the engine first `open`
+- OPT-G21 the IFUNC reality: libm is the SVML floor on modern glibc `open`
+- OPT-G22 the fixed-function wins: the NS5 GEMMs on the tensor core path `open`
+- OPT-G23 the adaptive tile: the tile size follows the capability table `open`
+- OPT-G24 the quant selector: the KV precision per the memory budget `open`
+- OPT-G25 the split-K: the parallel decode splits across the SMs `open`
+- OPT-G26 the MIG/segmentation: the device partitions as capabilities `open`
+- OPT-G27 the heterogeneous: CPU+GPU both working, the bus arbitrates `open`
+- OPT-G28 the offload threshold: what stays on the CPU, what moves `open`
+- OPT-G29 the degraded mode: no GPU -> the CPU-only path is the same code `open`
+- OPT-G30 the fallback verification: the CPU path is the FD oracle `open`
+- OPT-G31 the capability probe: measure at init, never assume `open`
+- OPT-G32 the driver versions: the CUDA UMD version in the table `open`
+- OPT-G33 the eager vs lazy: the first-call costs vs the steady state `open`
+- OPT-G34 the kernel registry: the ops are registered, not hardcoded `open`
+- OPT-G35 the honest selector: it pays the xfer, it doesn't hide it `open`
+- OPT-G36 (topup) variant of affine texturing: the fixed-function limit -> subdivide to h `open`
+- OPT-G37 (topup) variant of the GTE: the fixed-point vector unit for the projection math `open`
+- OPT-G38 (topup) variant of the capability profile: every backend declares its limits `open`
+- OPT-G39 (topup) variant of the selector: the roofline picks the backend per op `open`
+- OPT-G40 (topup) variant of the fallback: the CPU path when the GPU can't or shouldn't `open`
+- OPT-G41 (topup) variant of the precision modes: fp32, bf16, int8 with the accuracy budg `open`
+- OPT-G42 (topup) variant of the subdivision rule: break the work until it fits the unit `open`
+- OPT-G43 (topup) variant of the RSP/RDP split: the programmable vector unit vs the fixed `open`
+- OPT-G44 (topup) variant of the RDP fixed-function: the rasterizer does what it does `open`
+- OPT-G45 (topup) variant of the WDDM overhead: the tiny ops cost more than they save `open`
+- OPT-G46 (topup) variant of the launch threshold: the GPU_MIN_FLOP rule `open`
+- OPT-G47 (topup) variant of the xfer-vs-compute: the H2D cost is part of the decision `open`
+- OPT-G48 (topup) variant of the resident-bytes honesty: 6GB VRAM is 6GB `open`
+- OPT-G49 (topup) variant of the CPU-bound paths: the attention backward until the kernel `open`
+- OPT-G50 (topup) variant of the stub-free rule: the 'GPU stub' is a real kernel or nothi `open`
+- OPT-G51 (topup) variant of the capability table as data: gfops, bw, xfer, residency `open`
+- OPT-G52 (topup) variant of the register backend: adding AMD/Intel/NPU = a table row `open`
+- OPT-G53 (topup) variant of the power state: the GPU clocks ramp, the first call is slow `open`
+- OPT-G54 (topup) variant of the warmup: the benchmark must warm the engine first `open`
+- OPT-G55 (topup) variant of the IFUNC reality: libm is the SVML floor on modern glibc `open`
+- OPT-G56 (topup) variant of the fixed-function wins: the NS5 GEMMs on the tensor core pa `open`
+- OPT-G57 (topup) variant of the adaptive tile: the tile size follows the capability tabl `open`
+- OPT-G58 (topup) variant of the quant selector: the KV precision per the memory budget `open`
+- OPT-G59 (topup) variant of the split-K: the parallel decode splits across the SMs `open`
+- OPT-G60 (topup) variant of the MIG/segmentation: the device partitions as capabilities `open`
+- OPT-G61 (topup) variant of the heterogeneous: CPU+GPU both working, the bus arbitrates `open`
+- OPT-G62 (topup) variant of the offload threshold: what stays on the CPU, what moves `open`
+- OPT-G63 (topup) variant of the degraded mode: no GPU -> the CPU-only path is the same c `open`
+- OPT-G64 (topup) variant of the fallback verification: the CPU path is the FD oracle `open`
+- OPT-G65 (topup) variant of the capability probe: measure at init, never assume `open`
+- OPT-G66 (topup) variant of the driver versions: the CUDA UMD version in the table `open`
+- OPT-G67 (topup) variant of the eager vs lazy: the first-call costs vs the steady state `open`
+- OPT-G68 (topup) variant of the kernel registry: the ops are registered, not hardcoded `open`
+- OPT-G69 (topup) variant of the honest selector: it pays the xfer, it doesn't hide it `open`
+- OPT-G70 (topup) variant of the PS1 lesson: know the engine's limits, ADAPT THE DATA `open`
+- OPT-G71 (topup) variant of affine texturing: the fixed-function limit -> subdivide to h `open`
+- OPT-G72 (topup) variant of the GTE: the fixed-point vector unit for the projection math `open`
+- OPT-G73 (topup) variant of the capability profile: every backend declares its limits `open`
+- OPT-G74 (topup) variant of the selector: the roofline picks the backend per op `open`
+- OPT-G75 (topup) variant of the fallback: the CPU path when the GPU can't or shouldn't `open`
+- OPT-G76 (topup) variant of the precision modes: fp32, bf16, int8 with the accuracy budg `open`
+- OPT-G77 (topup) variant of the subdivision rule: break the work until it fits the unit `open`
+- OPT-G78 (topup) variant of the RSP/RDP split: the programmable vector unit vs the fixed `open`
+- OPT-G79 (topup) variant of the RDP fixed-function: the rasterizer does what it does `open`
+- OPT-G80 (topup) variant of the WDDM overhead: the tiny ops cost more than they save `open`
+- OPT-G81 (topup) variant of the launch threshold: the GPU_MIN_FLOP rule `open`
+- OPT-G82 (topup) variant of the xfer-vs-compute: the H2D cost is part of the decision `open`
+- OPT-G83 (topup) variant of the resident-bytes honesty: 6GB VRAM is 6GB `open`
+- OPT-G84 (topup) variant of the CPU-bound paths: the attention backward until the kernel `open`
+- OPT-G85 (topup) variant of the stub-free rule: the 'GPU stub' is a real kernel or nothi `open`
+- OPT-G86 (topup) variant of the capability table as data: gfops, bw, xfer, residency `open`
+- OPT-G87 (topup) variant of the register backend: adding AMD/Intel/NPU = a table row `open`
+- OPT-G88 (topup) variant of the power state: the GPU clocks ramp, the first call is slow `open`
+- OPT-G89 (topup) variant of the warmup: the benchmark must warm the engine first `open`
+- OPT-G90 (topup) variant of the IFUNC reality: libm is the SVML floor on modern glibc `open`
+- OPT-G91 (topup) variant of the fixed-function wins: the NS5 GEMMs on the tensor core pa `open`
+- OPT-G92 (topup) variant of the adaptive tile: the tile size follows the capability tabl `open`
+- OPT-G93 (topup) variant of the quant selector: the KV precision per the memory budget `open`
+- OPT-G94 (topup) variant of the split-K: the parallel decode splits across the SMs `open`
+- OPT-G95 (topup) variant of the MIG/segmentation: the device partitions as capabilities `open`
+- OPT-G96 (topup) variant of the heterogeneous: CPU+GPU both working, the bus arbitrates `open`
+- OPT-G97 (topup) variant of the offload threshold: what stays on the CPU, what moves `open`
+- OPT-G98 (topup) variant of the degraded mode: no GPU -> the CPU-only path is the same c `open`
+- OPT-G99 (topup) variant of the fallback verification: the CPU path is the FD oracle `open`
+- OPT-G100 (topup) variant of the capability probe: measure at init, never assume `open`
+
+Status: OPT-G -- 100 gaps, all `open`.
+
+## OPT-H:
+
+- OPT-H01 the AVX-512 width: 8 floats per instruction (Zen 4, measured) `open`
+- OPT-H02 the SVML floor: glibc's vector sincos is the trig bar `open`
+- OPT-H03 the inline-header pattern: the fold must be static-inline to SIMD `open`
+- OPT-H04 the branchless: the bitwise selects, never short-circuit && `open`
+- OPT-H05 the blend: the compiler emits blendps for the float ternaries `open`
+- OPT-H06 the FMA: the fmaf is one instruction, use it `open`
+- OPT-H07 the Horner: the polynomial in the nested form (no powf) `open`
+- OPT-H08 the data layout for SIMD: the [seq, dim] so the dim is contiguous `open`
+- OPT-H09 the structure-of-arrays: the head dims as the SIMD lane `open`
+- OPT-H10 the alignment: the 32-byte alignment for the ymm loads `open`
+- OPT-H11 the unroll: the compiler unrolls the known-trip loops `open`
+- OPT-H12 the GBA lesson: DMA is ~10% faster than a good loop (the loop wins) `open`
+- OPT-H13 the THUMB/ARM split: the 16-bit instructions for the IWRAM `open`
+- OPT-H14 the 32-bit vs 16-bit: the memory bus width is the instruction width `open`
+- OPT-H15 the scatter/gather avoidance: the SIMD needs the contiguous lanes `open`
+- OPT-H16 the reduction: the horizontal sum via the shuffle (hsum256) `open`
+- OPT-H17 the broadcast: the set1 pattern for the scalar broadcasts `open`
+- OPT-H18 the mul-add chains: the softmax as the FMA chain `open`
+- OPT-H19 the vectorized table build: the RoPE tables in SIMD width `open`
+- OPT-H20 the masked ops: the causal mask as the blend, not the branch `open`
+- OPT-H21 the swizzle: the 9-bit / 8-bit lane packing for the quant `open`
+- OPT-H22 the fixed-point SIMD: the integer lanes for the DSP math `open`
+- OPT-H23 the autovectorization: the -O3 -march=native + -ffast-math flags `open`
+- OPT-H24 the vectorization report: -fopt-info to see what the compiler did `open`
+- OPT-H25 the loop-invariant hoisting: the freq tables out of the loops `open`
+- OPT-H26 the register blocking: the 8x8 micro-kernel for the GEMM `open`
+- OPT-H27 the lane-broadcast bug: the set1 of the wrong lane `open`
+- OPT-H28 the ymm vs zmm: the AVX-512 512-bit vs the 256-bit `open`
+- OPT-H29 the downclock: the heavy AVX-512 can throttle the CPU `open`
+- OPT-H30 the dual-issue: the FMA + the mul can co-issue `open`
+- OPT-H31 the throughput table: the per-instruction latencies (Zen 4) `open`
+- OPT-H32 the scalar fallback: the tail of the loop not divisible by 8 `open`
+- OPT-H33 the vectorized head: the vocab softmax in the SIMD width `open`
+- OPT-H34 the interleaved pairs: sin+cos from one vectorized fold `open`
+- OPT-H35 the loop fusion: the norm + the residual in one pass `open`
+- OPT-H36 (topup) variant of the SVML floor: glibc's vector sincos is the trig bar `open`
+- OPT-H37 (topup) variant of the inline-header pattern: the fold must be static-inline to `open`
+- OPT-H38 (topup) variant of the branchless: the bitwise selects, never short-circuit && `open`
+- OPT-H39 (topup) variant of the blend: the compiler emits blendps for the float ternarie `open`
+- OPT-H40 (topup) variant of the FMA: the fmaf is one instruction, use it `open`
+- OPT-H41 (topup) variant of the Horner: the polynomial in the nested form (no powf) `open`
+- OPT-H42 (topup) variant of the data layout for SIMD: the [seq, dim] so the dim is conti `open`
+- OPT-H43 (topup) variant of the structure-of-arrays: the head dims as the SIMD lane `open`
+- OPT-H44 (topup) variant of the alignment: the 32-byte alignment for the ymm loads `open`
+- OPT-H45 (topup) variant of the unroll: the compiler unrolls the known-trip loops `open`
+- OPT-H46 (topup) variant of the GBA lesson: DMA is ~10% faster than a good loop (the loo `open`
+- OPT-H47 (topup) variant of the THUMB/ARM split: the 16-bit instructions for the IWRAM `open`
+- OPT-H48 (topup) variant of the 32-bit vs 16-bit: the memory bus width is the instructio `open`
+- OPT-H49 (topup) variant of the scatter/gather avoidance: the SIMD needs the contiguous  `open`
+- OPT-H50 (topup) variant of the reduction: the horizontal sum via the shuffle (hsum256) `open`
+- OPT-H51 (topup) variant of the broadcast: the set1 pattern for the scalar broadcasts `open`
+- OPT-H52 (topup) variant of the mul-add chains: the softmax as the FMA chain `open`
+- OPT-H53 (topup) variant of the vectorized table build: the RoPE tables in SIMD width `open`
+- OPT-H54 (topup) variant of the masked ops: the causal mask as the blend, not the branch `open`
+- OPT-H55 (topup) variant of the swizzle: the 9-bit / 8-bit lane packing for the quant `open`
+- OPT-H56 (topup) variant of the fixed-point SIMD: the integer lanes for the DSP math `open`
+- OPT-H57 (topup) variant of the autovectorization: the -O3 -march=native + -ffast-math f `open`
+- OPT-H58 (topup) variant of the vectorization report: -fopt-info to see what the compile `open`
+- OPT-H59 (topup) variant of the loop-invariant hoisting: the freq tables out of the loop `open`
+- OPT-H60 (topup) variant of the register blocking: the 8x8 micro-kernel for the GEMM `open`
+- OPT-H61 (topup) variant of the lane-broadcast bug: the set1 of the wrong lane `open`
+- OPT-H62 (topup) variant of the ymm vs zmm: the AVX-512 512-bit vs the 256-bit `open`
+- OPT-H63 (topup) variant of the downclock: the heavy AVX-512 can throttle the CPU `open`
+- OPT-H64 (topup) variant of the dual-issue: the FMA + the mul can co-issue `open`
+- OPT-H65 (topup) variant of the throughput table: the per-instruction latencies (Zen 4) `open`
+- OPT-H66 (topup) variant of the scalar fallback: the tail of the loop not divisible by 8 `open`
+- OPT-H67 (topup) variant of the vectorized head: the vocab softmax in the SIMD width `open`
+- OPT-H68 (topup) variant of the interleaved pairs: sin+cos from one vectorized fold `open`
+- OPT-H69 (topup) variant of the loop fusion: the norm + the residual in one pass `open`
+- OPT-H70 (topup) variant of the AVX-512 width: 8 floats per instruction (Zen 4, measured `open`
+- OPT-H71 (topup) variant of the SVML floor: glibc's vector sincos is the trig bar `open`
+- OPT-H72 (topup) variant of the inline-header pattern: the fold must be static-inline to `open`
+- OPT-H73 (topup) variant of the branchless: the bitwise selects, never short-circuit && `open`
+- OPT-H74 (topup) variant of the blend: the compiler emits blendps for the float ternarie `open`
+- OPT-H75 (topup) variant of the FMA: the fmaf is one instruction, use it `open`
+- OPT-H76 (topup) variant of the Horner: the polynomial in the nested form (no powf) `open`
+- OPT-H77 (topup) variant of the data layout for SIMD: the [seq, dim] so the dim is conti `open`
+- OPT-H78 (topup) variant of the structure-of-arrays: the head dims as the SIMD lane `open`
+- OPT-H79 (topup) variant of the alignment: the 32-byte alignment for the ymm loads `open`
+- OPT-H80 (topup) variant of the unroll: the compiler unrolls the known-trip loops `open`
+- OPT-H81 (topup) variant of the GBA lesson: DMA is ~10% faster than a good loop (the loo `open`
+- OPT-H82 (topup) variant of the THUMB/ARM split: the 16-bit instructions for the IWRAM `open`
+- OPT-H83 (topup) variant of the 32-bit vs 16-bit: the memory bus width is the instructio `open`
+- OPT-H84 (topup) variant of the scatter/gather avoidance: the SIMD needs the contiguous  `open`
+- OPT-H85 (topup) variant of the reduction: the horizontal sum via the shuffle (hsum256) `open`
+- OPT-H86 (topup) variant of the broadcast: the set1 pattern for the scalar broadcasts `open`
+- OPT-H87 (topup) variant of the mul-add chains: the softmax as the FMA chain `open`
+- OPT-H88 (topup) variant of the vectorized table build: the RoPE tables in SIMD width `open`
+- OPT-H89 (topup) variant of the masked ops: the causal mask as the blend, not the branch `open`
+- OPT-H90 (topup) variant of the swizzle: the 9-bit / 8-bit lane packing for the quant `open`
+- OPT-H91 (topup) variant of the fixed-point SIMD: the integer lanes for the DSP math `open`
+- OPT-H92 (topup) variant of the autovectorization: the -O3 -march=native + -ffast-math f `open`
+- OPT-H93 (topup) variant of the vectorization report: -fopt-info to see what the compile `open`
+- OPT-H94 (topup) variant of the loop-invariant hoisting: the freq tables out of the loop `open`
+- OPT-H95 (topup) variant of the register blocking: the 8x8 micro-kernel for the GEMM `open`
+- OPT-H96 (topup) variant of the lane-broadcast bug: the set1 of the wrong lane `open`
+- OPT-H97 (topup) variant of the ymm vs zmm: the AVX-512 512-bit vs the 256-bit `open`
+- OPT-H98 (topup) variant of the downclock: the heavy AVX-512 can throttle the CPU `open`
+- OPT-H99 (topup) variant of the dual-issue: the FMA + the mul can co-issue `open`
+- OPT-H100 (topup) variant of the throughput table: the per-instruction latencies (Zen 4) `open`
+
+Status: OPT-H -- 100 gaps, all `open`.
+
+## OPT-I:
+
+- OPT-I01 the PS1 GPU FIFO: the CPU writes commands, the GPU executes async `open`
+- OPT-I02 the Amiga copper: a program of memory/register writes the engine runs `open`
+- OPT-I03 the CUDA graphs: the kernel sequence captured and replayed `open`
+- OPT-I04 the display list: the RSP reads a list of ops (the N64 way) `open`
+- OPT-I05 the op queue: the U-Bus ops as a stream the backends consume `open`
+- OPT-I06 the async transfer: the H2D overlaps the compute `open`
+- OPT-I07 the double-buffered kernels: compute K while K+1 transfers `open`
+- OPT-I08 the dependency graph: the ops declare their inputs `open`
+- OPT-I09 the stream: the CUDA stream ordering as the schedule `open`
+- OPT-I10 the events: the sync points at the true dependencies only `open`
+- OPT-I11 the batching: the tiny ops coalesce into one launch `open`
+- OPT-I12 the deferred weight update: the grads accumulate, the sync once `open`
+- OPT-I13 the single-sync step: 270 sync points -> 1 (the skill's lesson) `open`
+- OPT-I14 the cooperative groups: the grid-wide sync for the reductions `open`
+- OPT-I15 the priority: the critical path ops go first `open`
+- OPT-I16 the overlap: the optimizer runs while the next batch loads `open`
+- OPT-I17 the command-list for the growth: the mutate as a scripted op `open`
+- OPT-I18 the copper-style register list: the config writes as data `open`
+- OPT-I19 the RSP microcode: the per-task vector program (the registry) `open`
+- OPT-I20 the task scheduling: the RCP tasks queued, the CPU free (Dietrich Epp) `open`
+- OPT-I21 the interrupt-driven: the completion events, not the polling `open`
+- OPT-I22 the fence: the memory ordering between the streams `open`
+- OPT-I23 the pipeline: the forward/backward/optimizer as a 3-stage pipeline `open`
+- OPT-I24 the batch scheduler: the microbatches stream through the stages `open`
+- OPT-I25 the prefetch-into-queue: the next layer's weights queued `open`
+- OPT-I26 the tail latency: the last op in the queue dominates `open`
+- OPT-I27 the queue depth: the async buffer count (2-4 is the sweet spot) `open`
+- OPT-I28 the submission cost: the launch overhead is a budget item `open`
+- OPT-I29 the graph capture: the FD test's 26 checks as a graph `open`
+- OPT-I30 the deterministic replay: the command list replays identically `open`
+- OPT-I31 the checkpoint as a command list: the save is a scripted stream `open`
+- OPT-I32 the scheduler observability: the queue depth in the report `open`
+- OPT-I33 the backpressure: the producer waits when the queue is full `open`
+- OPT-I34 the teardown: the in-flight ops drain before the free `open`
+- OPT-I35 the command-list validation: the graph is checked before the launch `open`
+- OPT-I36 (topup) variant of the Amiga copper: a program of memory/register writes the en `open`
+- OPT-I37 (topup) variant of the CUDA graphs: the kernel sequence captured and replayed `open`
+- OPT-I38 (topup) variant of the display list: the RSP reads a list of ops (the N64 way) `open`
+- OPT-I39 (topup) variant of the op queue: the U-Bus ops as a stream the backends consume `open`
+- OPT-I40 (topup) variant of the async transfer: the H2D overlaps the compute `open`
+- OPT-I41 (topup) variant of the double-buffered kernels: compute K while K+1 transfers `open`
+- OPT-I42 (topup) variant of the dependency graph: the ops declare their inputs `open`
+- OPT-I43 (topup) variant of the stream: the CUDA stream ordering as the schedule `open`
+- OPT-I44 (topup) variant of the events: the sync points at the true dependencies only `open`
+- OPT-I45 (topup) variant of the batching: the tiny ops coalesce into one launch `open`
+- OPT-I46 (topup) variant of the deferred weight update: the grads accumulate, the sync o `open`
+- OPT-I47 (topup) variant of the single-sync step: 270 sync points -> 1 (the skill's less `open`
+- OPT-I48 (topup) variant of the cooperative groups: the grid-wide sync for the reduction `open`
+- OPT-I49 (topup) variant of the priority: the critical path ops go first `open`
+- OPT-I50 (topup) variant of the overlap: the optimizer runs while the next batch loads `open`
+- OPT-I51 (topup) variant of the command-list for the growth: the mutate as a scripted op `open`
+- OPT-I52 (topup) variant of the copper-style register list: the config writes as data `open`
+- OPT-I53 (topup) variant of the RSP microcode: the per-task vector program (the registry `open`
+- OPT-I54 (topup) variant of the task scheduling: the RCP tasks queued, the CPU free (Die `open`
+- OPT-I55 (topup) variant of the interrupt-driven: the completion events, not the polling `open`
+- OPT-I56 (topup) variant of the fence: the memory ordering between the streams `open`
+- OPT-I57 (topup) variant of the pipeline: the forward/backward/optimizer as a 3-stage pi `open`
+- OPT-I58 (topup) variant of the batch scheduler: the microbatches stream through the sta `open`
+- OPT-I59 (topup) variant of the prefetch-into-queue: the next layer's weights queued `open`
+- OPT-I60 (topup) variant of the tail latency: the last op in the queue dominates `open`
+- OPT-I61 (topup) variant of the queue depth: the async buffer count (2-4 is the sweet sp `open`
+- OPT-I62 (topup) variant of the submission cost: the launch overhead is a budget item `open`
+- OPT-I63 (topup) variant of the graph capture: the FD test's 26 checks as a graph `open`
+- OPT-I64 (topup) variant of the deterministic replay: the command list replays identical `open`
+- OPT-I65 (topup) variant of the checkpoint as a command list: the save is a scripted str `open`
+- OPT-I66 (topup) variant of the scheduler observability: the queue depth in the report `open`
+- OPT-I67 (topup) variant of the backpressure: the producer waits when the queue is full `open`
+- OPT-I68 (topup) variant of the teardown: the in-flight ops drain before the free `open`
+- OPT-I69 (topup) variant of the command-list validation: the graph is checked before the `open`
+- OPT-I70 (topup) variant of the PS1 GPU FIFO: the CPU writes commands, the GPU executes  `open`
+- OPT-I71 (topup) variant of the Amiga copper: a program of memory/register writes the en `open`
+- OPT-I72 (topup) variant of the CUDA graphs: the kernel sequence captured and replayed `open`
+- OPT-I73 (topup) variant of the display list: the RSP reads a list of ops (the N64 way) `open`
+- OPT-I74 (topup) variant of the op queue: the U-Bus ops as a stream the backends consume `open`
+- OPT-I75 (topup) variant of the async transfer: the H2D overlaps the compute `open`
+- OPT-I76 (topup) variant of the double-buffered kernels: compute K while K+1 transfers `open`
+- OPT-I77 (topup) variant of the dependency graph: the ops declare their inputs `open`
+- OPT-I78 (topup) variant of the stream: the CUDA stream ordering as the schedule `open`
+- OPT-I79 (topup) variant of the events: the sync points at the true dependencies only `open`
+- OPT-I80 (topup) variant of the batching: the tiny ops coalesce into one launch `open`
+- OPT-I81 (topup) variant of the deferred weight update: the grads accumulate, the sync o `open`
+- OPT-I82 (topup) variant of the single-sync step: 270 sync points -> 1 (the skill's less `open`
+- OPT-I83 (topup) variant of the cooperative groups: the grid-wide sync for the reduction `open`
+- OPT-I84 (topup) variant of the priority: the critical path ops go first `open`
+- OPT-I85 (topup) variant of the overlap: the optimizer runs while the next batch loads `open`
+- OPT-I86 (topup) variant of the command-list for the growth: the mutate as a scripted op `open`
+- OPT-I87 (topup) variant of the copper-style register list: the config writes as data `open`
+- OPT-I88 (topup) variant of the RSP microcode: the per-task vector program (the registry `open`
+- OPT-I89 (topup) variant of the task scheduling: the RCP tasks queued, the CPU free (Die `open`
+- OPT-I90 (topup) variant of the interrupt-driven: the completion events, not the polling `open`
+- OPT-I91 (topup) variant of the fence: the memory ordering between the streams `open`
+- OPT-I92 (topup) variant of the pipeline: the forward/backward/optimizer as a 3-stage pi `open`
+- OPT-I93 (topup) variant of the batch scheduler: the microbatches stream through the sta `open`
+- OPT-I94 (topup) variant of the prefetch-into-queue: the next layer's weights queued `open`
+- OPT-I95 (topup) variant of the tail latency: the last op in the queue dominates `open`
+- OPT-I96 (topup) variant of the queue depth: the async buffer count (2-4 is the sweet sp `open`
+- OPT-I97 (topup) variant of the submission cost: the launch overhead is a budget item `open`
+- OPT-I98 (topup) variant of the graph capture: the FD test's 26 checks as a graph `open`
+- OPT-I99 (topup) variant of the deterministic replay: the command list replays identical `open`
+- OPT-I100 (topup) variant of the checkpoint as a command list: the save is a scripted str `open`
+
+Status: OPT-I -- 100 gaps, all `open`.
+
+## OPT-J:
+
+- OPT-J01 the 64k intro: the ENTIRE demo procedurally generated `open`
+- OPT-J02 procedural content beats storage: the weights as a generator `open`
+- OPT-J03 the demoscene trade-off: more memory for speed, DELIBERATELY `open`
+- OPT-J04 the bit-packing: the quant indices at the actual bit width `open`
+- OPT-J05 the 9th bit: the metadata rides the bus for free `open`
+- OPT-J06 the KV packing: INT3/INT4 per-token, the polar quant family `open`
+- OPT-J07 the Q8_0 block: the 32-element blocks with the scale `open`
+- OPT-J08 the block-diagonal Hadamard: the K rotation for the INT4 `open`
+- OPT-J09 the packed bitstream: 127 angles in 48 bytes (3 bits each) `open`
+- OPT-J10 the recursive polar: the tree-encoded angles (pre-order) `open`
+- OPT-J11 the Huffman-style: the entropy-coded token runs `open`
+- OPT-J12 the palette: the shared-codebook vectors for the VQ `open`
+- OPT-J13 the generative checkpoint: the weights from a seed + a generator `open`
+- OPT-J14 the procedural textures: the demo's textures are formulas `open`
+- OPT-J15 the math-from-memory: the fold vs the table (the Kaze lesson) `open`
+- OPT-J16 the storage-vs-compute slider: the roofline decides `open`
+- OPT-J17 the compressed activations: the checkpoint as the compressed state `open`
+- OPT-J18 the delta encoding: the checkpoints stored as diffs from the parent `open`
+- OPT-J19 the lineage packing: the parent hash + the diff = the new cartridge `open`
+- OPT-J20 the 8MB dreamcast: the entire GTA:VC port packed into 8MB `open`
+- OPT-J21 the streaming from the GD-ROM: the level data loads as needed `open`
+- OPT-J22 the procedural noise: the hash-based textures (the demoscene) `open`
+- OPT-J23 the SDFs: the signed distance fields as compact geometry `open`
+- OPT-J24 the bytecode: the shader/command programs packed tight `open`
+- OPT-J25 the 9-bit lanes: the per-lane metadata in the width `open`
+- OPT-J26 the packing audit: the storage_bytes vs the theoretical minimum `open`
+- OPT-J27 the tuple packing: the (sign, index, scale) in one word `open`
+- OPT-J28 the sub-word loads: the unaligned bit extraction (the demoscene) `open`
+- OPT-J29 the VQ codebooks: the shared atoms for the KV `open`
+- OPT-J30 the adaptive precision: the entropy-aware per-head bits (Ecco) `open`
+- OPT-J31 the procedural test data: the synthetic corpora generated, not stored `open`
+- OPT-J32 the cartridge-as-procedure: the growth operator generates the weights `open`
+- OPT-J33 the packing correctness: the round-trip tests for every format `open`
+- OPT-J34 the compressed lineage: the archive keeps the diffs, not the full models `open`
+- OPT-J35 the trade-off ledger: every pack decision recorded with its cost `open`
+- OPT-J36 (topup) variant of procedural content beats storage: the weights as a generator `open`
+- OPT-J37 (topup) variant of the demoscene trade-off: more memory for speed, DELIBERATELY `open`
+- OPT-J38 (topup) variant of the bit-packing: the quant indices at the actual bit width `open`
+- OPT-J39 (topup) variant of the 9th bit: the metadata rides the bus for free `open`
+- OPT-J40 (topup) variant of the KV packing: INT3/INT4 per-token, the polar quant family `open`
+- OPT-J41 (topup) variant of the Q8_0 block: the 32-element blocks with the scale `open`
+- OPT-J42 (topup) variant of the block-diagonal Hadamard: the K rotation for the INT4 `open`
+- OPT-J43 (topup) variant of the packed bitstream: 127 angles in 48 bytes (3 bits each) `open`
+- OPT-J44 (topup) variant of the recursive polar: the tree-encoded angles (pre-order) `open`
+- OPT-J45 (topup) variant of the Huffman-style: the entropy-coded token runs `open`
+- OPT-J46 (topup) variant of the palette: the shared-codebook vectors for the VQ `open`
+- OPT-J47 (topup) variant of the generative checkpoint: the weights from a seed + a gener `open`
+- OPT-J48 (topup) variant of the procedural textures: the demo's textures are formulas `open`
+- OPT-J49 (topup) variant of the math-from-memory: the fold vs the table (the Kaze lesson `open`
+- OPT-J50 (topup) variant of the storage-vs-compute slider: the roofline decides `open`
+- OPT-J51 (topup) variant of the compressed activations: the checkpoint as the compressed `open`
+- OPT-J52 (topup) variant of the delta encoding: the checkpoints stored as diffs from the `open`
+- OPT-J53 (topup) variant of the lineage packing: the parent hash + the diff = the new ca `open`
+- OPT-J54 (topup) variant of the 8MB dreamcast: the entire GTA:VC port packed into 8MB `open`
+- OPT-J55 (topup) variant of the streaming from the GD-ROM: the level data loads as neede `open`
+- OPT-J56 (topup) variant of the procedural noise: the hash-based textures (the demoscene `open`
+- OPT-J57 (topup) variant of the SDFs: the signed distance fields as compact geometry `open`
+- OPT-J58 (topup) variant of the bytecode: the shader/command programs packed tight `open`
+- OPT-J59 (topup) variant of the 9-bit lanes: the per-lane metadata in the width `open`
+- OPT-J60 (topup) variant of the packing audit: the storage_bytes vs the theoretical mini `open`
+- OPT-J61 (topup) variant of the tuple packing: the (sign, index, scale) in one word `open`
+- OPT-J62 (topup) variant of the sub-word loads: the unaligned bit extraction (the demosc `open`
+- OPT-J63 (topup) variant of the VQ codebooks: the shared atoms for the KV `open`
+- OPT-J64 (topup) variant of the adaptive precision: the entropy-aware per-head bits (Ecc `open`
+- OPT-J65 (topup) variant of the procedural test data: the synthetic corpora generated, n `open`
+- OPT-J66 (topup) variant of the cartridge-as-procedure: the growth operator generates th `open`
+- OPT-J67 (topup) variant of the packing correctness: the round-trip tests for every form `open`
+- OPT-J68 (topup) variant of the compressed lineage: the archive keeps the diffs, not the `open`
+- OPT-J69 (topup) variant of the trade-off ledger: every pack decision recorded with its  `open`
+- OPT-J70 (topup) variant of the 64k intro: the ENTIRE demo procedurally generated `open`
+- OPT-J71 (topup) variant of procedural content beats storage: the weights as a generator `open`
+- OPT-J72 (topup) variant of the demoscene trade-off: more memory for speed, DELIBERATELY `open`
+- OPT-J73 (topup) variant of the bit-packing: the quant indices at the actual bit width `open`
+- OPT-J74 (topup) variant of the 9th bit: the metadata rides the bus for free `open`
+- OPT-J75 (topup) variant of the KV packing: INT3/INT4 per-token, the polar quant family `open`
+- OPT-J76 (topup) variant of the Q8_0 block: the 32-element blocks with the scale `open`
+- OPT-J77 (topup) variant of the block-diagonal Hadamard: the K rotation for the INT4 `open`
+- OPT-J78 (topup) variant of the packed bitstream: 127 angles in 48 bytes (3 bits each) `open`
+- OPT-J79 (topup) variant of the recursive polar: the tree-encoded angles (pre-order) `open`
+- OPT-J80 (topup) variant of the Huffman-style: the entropy-coded token runs `open`
+- OPT-J81 (topup) variant of the palette: the shared-codebook vectors for the VQ `open`
+- OPT-J82 (topup) variant of the generative checkpoint: the weights from a seed + a gener `open`
+- OPT-J83 (topup) variant of the procedural textures: the demo's textures are formulas `open`
+- OPT-J84 (topup) variant of the math-from-memory: the fold vs the table (the Kaze lesson `open`
+- OPT-J85 (topup) variant of the storage-vs-compute slider: the roofline decides `open`
+- OPT-J86 (topup) variant of the compressed activations: the checkpoint as the compressed `open`
+- OPT-J87 (topup) variant of the delta encoding: the checkpoints stored as diffs from the `open`
+- OPT-J88 (topup) variant of the lineage packing: the parent hash + the diff = the new ca `open`
+- OPT-J89 (topup) variant of the 8MB dreamcast: the entire GTA:VC port packed into 8MB `open`
+- OPT-J90 (topup) variant of the streaming from the GD-ROM: the level data loads as neede `open`
+- OPT-J91 (topup) variant of the procedural noise: the hash-based textures (the demoscene `open`
+- OPT-J92 (topup) variant of the SDFs: the signed distance fields as compact geometry `open`
+- OPT-J93 (topup) variant of the bytecode: the shader/command programs packed tight `open`
+- OPT-J94 (topup) variant of the 9-bit lanes: the per-lane metadata in the width `open`
+- OPT-J95 (topup) variant of the packing audit: the storage_bytes vs the theoretical mini `open`
+- OPT-J96 (topup) variant of the tuple packing: the (sign, index, scale) in one word `open`
+- OPT-J97 (topup) variant of the sub-word loads: the unaligned bit extraction (the demosc `open`
+- OPT-J98 (topup) variant of the VQ codebooks: the shared atoms for the KV `open`
+- OPT-J99 (topup) variant of the adaptive precision: the entropy-aware per-head bits (Ecc `open`
+- OPT-J100 (topup) variant of the procedural test data: the synthetic corpora generated, n `open`
+
+Status: OPT-J -- 100 gaps, all `open`.
+
