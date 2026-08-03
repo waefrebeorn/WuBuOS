@@ -19,10 +19,11 @@ for the AGI to bounce off of. "This is the beginning of an AGI."
 | Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | 400 wired (HX-A model, HX-B timing, HX-C tutor, HX-D companion) | 1000 |
 | Security (SC) | `docs/compendium/04-roadmap/security-bank.md` | open | 1000 |
 | Agentic-Corpus (AG) | `docs/compendium/04-roadmap/agentic-corpus-bank.md` | 0 wired | 1000 |
-| DevTools (DT) | `docs/compendium/04-roadmap/devtools-bank.md` | open | 1000 |
-| **TOTAL** | | | **~10243** |
+|| DevTools (DT) | `docs/compendium/04-roadmap/devtools-bank.md` | closing (200 wired) | 1000 |
+|| Media (MD) | `docs/compendium/04-roadmap/media-bank.md` | open | 1000 |
+|| **TOTAL** | | | **~11243** |
 
-Path to 25,000: 15 more thousand-gap avenues (Media, Games,
+Path to 25,000: 14 more thousand-gap avenues (Games,
 Robotics, Science, Math, Security, Cloud, Web, IoT, Accessibility, Education,
 Comms, Mobility, Energy, Privacy, Community) -- each spawned by a fresh
 7-hop research wave and closed by the recursive loop.
@@ -50,6 +51,9 @@ its key sources here + registers them below.
 | rr record/replay debugging (arXiv 1705.05937) | `rr-record-replay-debugging.md` | 7606 | DevTools |
 | Tree-sitter vs LSP (+ Roslyn HN notes) | `tree-sitter-vs-lsp.md` | 6530 | DevTools |
 | Comprehensive Fuzzing Guide 2026 (46 sources) | `fuzzing-guide-2026.md` | 117530 | DevTools |
+| AV1 State 2026 (Forasoft) | `av1-state-2026.md` | 60855 | Media |
+| Neural Audio Codecs RVQ (Forasoft) | `neural-audio-codecs-rvq.md` | 39975 | Media |
+| Ultra-Fast Neural Video Compression (CVPR 2026) | `ultra-fast-neural-video-compression.md` | 60642 | Media |
 
 Also available (Hermes cache, not yet copied): the 15-chain sweep results
 (KV eviction, Hopfield, preference-opt, serving, PIM, tokenization, linear
@@ -104,11 +108,20 @@ masterpiece-architecture references (in the skill library).
   coverage, value coverage + taint tracking 2026, LibAFL/syzkaller/KCOV/Nyx)
   -> the WuBuOS self-hosting toolchain (the Colonel's own compiler, the Bonzi
   pair-programmer, the RSI dev-agent loop).
+- The Media avenue (2026-08-03): AV1/SVT-AV1 encoder optimization (2026
+  state: SVT-AV1 v4.0.0, preset 4-6 VOD, preset 12 real-time, 40% faster) ->
+  Opus/LC3plus low-latency audio (RFC 6716, 22.5ms delay, Bluetooth LE Audio) ->
+  neural audio codecs (SoundStream RVQ, EnCodec, TQCodec arXiv 2603.01592,
+  streamable NC arXiv 2504.06561) -> GStreamer zero-copy pipelines (dmabuf,
+  V4L2, KMS) -> learned neural video compression (CVPR 2026 Ultra-Fast NVC,
+  rate-distortion autoencoders, scene-adaptive NVC) -> the WuBuOS media
+  substrate (Bonzi player, Colonel video pipeline, hosted 9P media namespace).
 
 ## The closing ledger (the loop's own numbers)
 
 - The recursive loop: closes the wubuwizard INDEX (1243) + the WT/GU wired
-  gaps; the FS/NW/KR/AIE/HX banks are queued.
+  gaps; the FS/NW/KR/AIE/HX banks are queued; the DT bank is closing;
+  the MD (Media) bank is the newest avenue (1000 gaps, open).
 - The DA-3 meta-plan: `wubuwizard/research/049-triple-da-metaplan.md`.
 - The rules: honest-open (never fabricate), DA after every batch, the
   ledger-flip in the same commit, the sibling-collision protocol.
