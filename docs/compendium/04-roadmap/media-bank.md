@@ -1,0 +1,1058 @@
+# Media Bank -- 1000 goals + gaps (the media substrate)
+
+Date: 2026-08-03. The Media avenue: the video codec (AV1/HEVC/VVC), the audio codec (Opus/LC3/neural),
+the container + streaming format (WebM/MP4/DASH/HLS), the zero-copy media pipeline (GStreamer/dmabuf),
+the neural video compression (CVPR 2026 Ultra-Fast NVC), the media transport (RTP/WebRTC/9P),
+the media display (DRM/KMS/Wayland), the media application (Bonzi player), and the media integration.
+Status: `open` / `wired`. Every gap is a real mechanism from the surveyed lineage (AV1/SVT-AV1 ->
+Opus/LC3 -> neural audio codecs -> GStreamer zero-copy -> learned NVC -> the WuBuOS media substrate).
+
+## MD-A: The video codec substrate (AV1 + HEVC + VVC)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: AV1/SVT-AV1 (2026: SVT-AV1 v4.0.0, preset 4-6 VOD, preset 12 real-time, 40% faster) -> HEVC/H.265 (the real-time fallback) -> VVC/H.266 (the next-gen) -> the WuBuOS video pipeline (the Colonel's display + the Bonzi player)
+- MD-A01 The AV1 bitstream parser (the NAL-equivalent OBU) `open`
+- MD-A02 The AV1 superblock partition tree (64x64 down to 4x4) `open`
+- MD-A03 The AV1 intra-prediction modes (DC, H, V, Paeth, smooth, directional) `open`
+- MD-A04 The AV1 inter-prediction modes (global motion, WARP, affine) `open`
+- MD-A05 The AV1 reference frame management (last, golden, altref, buffered) `open`
+- MD-A06 The AV1 motion vector prediction (prev_mv, nearest, near, new) `open`
+- MD-A07 The AV1 loop filter (loop restoration + CDEF + luma + chroma) `open`
+- MD-A08 The AV1 quantization matrix (Q matrix, delta Q, segment-based) `open`
+- MD-A09 The AV1 rate control (the Q-index ladder, CRF, CBR, VBR) `open`
+- MD-A10 The AV1 tile columns + tile rows (the parallel decode) `open`
+- MD-A11 The AV1 film grain synthesis (the grain table + the synthesis pass) `open`
+- MD-A12 The SVT-AV1 preset 4-6 production sweet spot (VOD default 2026) `open`
+- MD-A13 The SVT-AV1 preset 12 real-time encode (1080p on a single core) `open`
+- MD-A14 The SVT-AV1 v4.0.0 speed improvements (40% faster on Intel/AMD) `open`
+- MD-A15 The SVT-AV1 content-adaptive encoding (CAE + DCA) `open`
+- MD-A16 The SVT-AV1 decoder complexity-aware optimization (DCA) `open`
+- MD-A17 The AV1 10-bit encode path (better PSNR/MS-SSIM/VMAF than 8-bit) `open`
+- MD-A18 The AV1 dual-ladder encode (AV1 + HEVC fallback for 20% tail) `open`
+- MD-A19 The HEVC CABAC entropy coder (the binary arithmetic coder) `open`
+- MD-A20 The HEVC CTU (coding tree unit, 64x64 quad-tree split) `open`
+- MD-A21 The HEVC SAO (sample adaptive offset filter) `open`
+- MD-A22 The HEVC ALF (adaptive loop filter) `open`
+- MD-A23 The HEVC temporal MV prediction (collocated MV from ref) `open`
+- MD-A24 The VVC (H.266) QTBT (quad-tree + binary tree partition) `open`
+- MD-A25 The VVC affine motion model (6-parameter + 8-parameter) `open`
+- MD-A26 The VVC ALF luma + chroma filter (separate controls) `open`
+- MD-A27 The VVC MRL (most recent reference) reference selection `open`
+- MD-A28 The VVC ISP (intra sub-partitioning, recursive quad split) `open`
+- MD-A29 The VVC explicit scaling list (the quant matrix preset) `open`
+- MD-A30 The AV1 encoder benchmark vs HEVC vs VVC (BD-rate table) `open`
+- MD-A31 The hardware AV1 encoder (Intel Arc, NVIDIA RTX 40+, AMD RDNA 3+) `open`
+- MD-A32 The hardware HEVC encoder (the real-time 4K60 path) `open`
+- MD-A33 The V4L2 AV1 encoder interface (the /dev/video* codec node) `open`
+- MD-A34 The VAAPI AV1 encode surface (the GPU memory path) `open`
+- MD-A35 The NVENC AV1 encode session (the NVIDIA driver path) `open`
+- MD-A36 The AMF AV1 encode (the AMD media framework path) `open`
+- MD-A37 The FFmpeg AV1 encode thread (the libaom + SVT-AV1 + rav1e wrapper) `open`
+- MD-A38 The FFmpeg HEVC encode thread (the x265 wrapper) `open`
+- MD-A39 The FFmpeg VVC encode thread (the libvvcc wrapper, experimental) `open`
+- MD-A40 The encode preset selector (the auto-tune for the workload) `open`
+- MD-A41 The encode quality target (the VMAF/PSNR/MS-SSIM goal) `open`
+- MD-A42 The encode speed budget (the frames-per-second constraint) `open`
+- MD-A43 The encode bitrate cap (the bandwidth ceiling) `open`
+- MD-A44 The encode resolution ladder (480p -> 720p -> 1080p -> 4K) `open`
+- MD-A45 The encode tile-grid strategy (the parallelism vs overhead trade) `open`
+- MD-A46 The encode lookahead buffer (the frame-skip decision) `open`
+- MD-A47 The encode scene-change detector (the keyframe trigger) `open`
+- MD-A48 The encode keyframe interval (the GOP size policy) `open`
+- MD-A49 The encode delta frame policy (the B-frame strategy) `open`
+- MD-A50 The encode noise sensitivity (the grain preservation flag) `open`
+- MD-A51 The encode color-space metadata (the BT.709/BT.2020/HLG tag) `open`
+- MD-A52 The video codec tests (the encode-decode round-trip check) `open`
+- MD-A53 The video codec docs (the encoder cookbook) `open`
+- MD-A54 The AV1 encoder preset preset 0 (slowest quality) `open`
+- MD-A55 The AV1 encoder preset preset 4 (VOD default) `open`
+- MD-A56 The AV1 encoder preset preset 6 (balanced) `open`
+- MD-A57 The AV1 encoder preset preset 8 (fast VOD) `open`
+- MD-A58 The AV1 encoder preset preset 10 (cloud transcode) `open`
+- MD-A59 The AV1 encoder preset preset 12 (real-time 1080p) `open`
+- MD-A60 The AV1 encoder preset preset 13 (fastest real-time) `open`
+- MD-A61 The AV1 encoder preset the SVT-AV1 v4.0.0 speed tier `open`
+- MD-A62 The AV1 encoder preset the Aurora1 hardware encoder `open`
+- MD-A63 The AV1 encoder preset the libaom reference encoder `open`
+- MD-A64 The AV1 encode workload 1080p30 screen content `open`
+- MD-A65 The AV1 encode workload 1080p30 camera content `open`
+- MD-A66 The AV1 encode workload 4K60 VOD content `open`
+- MD-A67 The AV1 encode workload 4K60 live content `open`
+- MD-A68 The AV1 encode workload 720p60 mobile content `open`
+- MD-A69 The AV1 encode workload 360p adaptive ladder rung `open`
+- MD-A70 The AV1 encode workload 1440p60 premium rung `open`
+- MD-A71 The AV1 encode workload 8K60 future-proof rung `open`
+- MD-A72 The AV1 encode workload VR 180/360 equirectangular `open`
+- MD-A73 The AV1 encode workload screen-share desktop content `open`
+- MD-A74 The AV1 quality target VMAF 90+ at 2Mbps `open`
+- MD-A75 The AV1 quality target VMAF 80+ at 1Mbps `open`
+- MD-A76 The AV1 quality target VMAF 70+ at 500kbps `open`
+- MD-A77 The AV1 quality target VMAF 60+ at 250kbps `open`
+- MD-A78 The AV1 quality target PSNR 35dB at 4Mbps `open`
+- MD-A79 The AV1 quality target PSNR 30dB at 2Mbps `open`
+- MD-A80 The AV1 quality target MS-SSIM 0.95+ at 2Mbps `open`
+- MD-A81 The AV1 quality target BD-rate vs HEVC -30% `open`
+- MD-A82 The AV1 quality target BD-rate vs H.264 -50% `open`
+- MD-A83 The AV1 quality target BD-rate vs VP9 -20% `open`
+- MD-A84 The HEVC encode profile Main profile (the default) `open`
+- MD-A85 The HEVC encode profile Main10 profile (10-bit) `open`
+- MD-A86 The HEVC encode profile Rext profile (scalable) `open`
+- MD-A87 The HEVC encode profile Still Picture profile `open`
+- MD-A88 The HEVC encode profile HEVC intra refresh `open`
+- MD-A89 The HEVC encode profile HEVC tiles + tiles cols `open`
+- MD-A90 The HEVC encode profile HEVC wavefront parallel `open`
+- MD-A91 The HEVC encode profile HEVC SAO on/off `open`
+- MD-A92 The HEVC encode profile HEVC ALF on/off `open`
+- MD-A93 The HEVC encode profile HEVC QP 22-52 ladder `open`
+- MD-A94 The VVC encode profile VVC Main profile `open`
+- MD-A95 The VVC encode profile VVC Main 10 profile `open`
+- MD-A96 The VVC encode profile VVC still picture `open`
+- MD-A97 The VVC encode profile VVC QTBT partition `open`
+- MD-A98 The VVC encode profile VVC affine motion `open`
+- MD-A99 The VVC encode profile VVC ALF luma+chroma `open`
+- MD-A100 The VVC encode profile VVC MRL reference `open`
+Status: `open` (53 gaps)
+
+## MD-B: The audio codec substrate (Opus + LC3 + neural)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: Opus (RFC 6716, SILK+CELT, 22.5ms delay) -> LC3/LC3plus (Bluetooth LE Audio, 2.5ms frame) -> SoundStream RVQ -> EnCodec -> TQCodec (arXiv 2603.01592) -> streamable neural codec (arXiv 2504.06561) -> the WuBuOS audio engine (the Bonzi player + the Colonel's audio pipeline)
+- MD-B01 The Opus SILK layer (the LPC-based speech coder) `open`
+- MD-B02 The Opus CELT layer (the MDCT-based music coder) `open`
+- MD-B03 The Opus hybrid switch (the speech/music decision) `open`
+- MD-B04 The Opus VBR mode (the bitrate allocation per frame) `open`
+- MD-B05 The Opus CBR mode (the fixed bitrate path) `open`
+- MD-B06 The Opus constrained-VBR mode (the quality floor) `open`
+- MD-B07 The Opus frame size (2.5ms, 5ms, 10ms, 20ms, 40ms, 60ms) `open`
+- MD-B08 The Opus algorithmic delay (22.5ms to 60ms, 5ms in restricted mode) `open`
+- MD-B09 The Opus bandwidth adaptation (narrowband -> fullband -> stereo) `open`
+- MD-B10 The Opus FEC (forward error correction, the packet loss concealment) `open`
+- MD-B11 The Opus DTX (discontinuous transmission, the silence compression) `open`
+- MD-B12 The Opus VAD (voice activity detection, the speech/music classifier) `open`
+- MD-B13 The Opus in-band FEC (the redundancy payload) `open`
+- MD-B14 The Opus side-band signaling (the config change mid-stream) `open`
+- MD-B15 The LC3 (Low Complexity Communication Codec, the Bluetooth LE Audio default) `open`
+- MD-B16 The LC3plus (the Fraunhofer superset, 96 kHz, 2.5ms frame) `open`
+- MD-B17 The LC3 bit allocation (the energy-based allocation) `open`
+- MD-B18 The LC3 tonality detection (the tonal vs noisey frame classifier) `open`
+- MD-B19 The LC3 pitch analysis (the pitch period + gain) `open`
+- MD-B20 The LC3 residual coding (the residual quantizer) `open`
+- MD-B21 The LC3 LTP (long-term prediction, the pitch filter) `open`
+- MD-B22 The LC3 TNS (temporal noise shaping, the masking model) `open`
+- MD-B23 The LC3 MSBC mode (the dual-channel sub-band coder) `open`
+- MD-B24 The neural audio codec shape (encoder + RVQ + decoder) `open`
+- MD-B25 The SoundStream RVQ (the residual vector quantization, the coin-change analogy) `open`
+- MD-B26 The SoundStream adversarial training (the discriminator, the crisp audio) `open`
+- MD-B27 The SoundStream 3-18 kbps multi-rate (the layer-dropping trick) `open`
+- MD-B28 The EnCodec (Meta, the music-quality neural codec) `open`
+- MD-B29 The EnCodec multi-scale STFT discriminator (the music percept) `open`
+- MD-B30 The EnCodec 24-48 kHz 24 kbps (the music streaming target) `open`
+- MD-B31 The TQCodec (arXiv 2603.01592, the high-fidelity music streaming codec) `open`
+- MD-B32 The TQCodec residual SimVQ (the improved RVQ with codebook utilization) `open`
+- MD-B33 The streamable neural codec (arXiv 2504.06561, the WebRTC-grade neural codec) `open`
+- MD-B34 The neural codec layer-dropping (the adaptive bitrate without re-encoding) `open`
+- MD-B35 The neural codec RVQ codebook size (the tradeoff: bits vs quality) `open`
+- MD-B36 The neural codec encoder complexity (the CPU budget for the encoder) `open`
+- MD-B37 The neural codec decoder complexity (the CPU budget for the decoder) `open`
+- MD-B38 The audio codec latency budget (the end-to-end delay constraint) `open`
+- MD-B39 The audio codec packet loss resilience (the concealment + FEC strategy) `open`
+- MD-B40 The audio codec JET buffer (the jitter equalizer + the playout delay) `open`
+- MD-B41 The audio codec A/B test (the subjective quality comparison) `open`
+- MD-B42 The audio codec objective metric (the POLQA, the PESQ, the STOI) `open`
+- MD-B43 The audio codec bandwidth adaptation (the network condition monitor) `open`
+- MD-B44 The audio codec echo cancellation (the AEC, the near-end vs far-end) `open`
+- MD-B45 The audio codec noise suppression (the NS, the RNNoise shape) `open`
+- MD-B46 The audio codec automatic gain control (the AGC, the level normalization) `open`
+- MD-B47 The audio codec test corpus (the speech + music + noise datasets) `open`
+- MD-B48 The audio codec docs (the codec selection guide) `open`
+- MD-B49 The Opus application mode VoIP (the 20ms frame) `open`
+- MD-B50 The Opus application mode Audio (the 60ms frame) `open`
+- MD-B51 The Opus application mode Lowdelay (the 5ms frame) `open`
+- MD-B52 The Opus application mode Restricted lowdelay (the 2.5ms frame) `open`
+- MD-B53 The Opus application mode Music (the 960ms frame) `open`
+- MD-B54 The Opus application mode Voice (the 40ms frame) `open`
+- MD-B55 The Opus application mode Conference (the 20ms frame) `open`
+- MD-B56 The Opus application mode Broadcast (the 60ms frame) `open`
+- MD-B57 The Opus application mode Gaming (the 10ms frame) `open`
+- MD-B58 The Opus application mode Streaming (the 40ms frame) `open`
+- MD-B59 The Opus bitrate target 6 kbps (narrowband speech) `open`
+- MD-B60 The Opus bitrate target 8 kbps (WB speech) `open`
+- MD-B61 The Opus bitrate target 12 kbps (fullband speech) `open`
+- MD-B62 The Opus bitrate target 16 kbps (fullband music) `open`
+- MD-B63 The Opus bitrate target 24 kbps (high-quality music) `open`
+- MD-B64 The Opus bitrate target 32 kbps (stereo music) `open`
+- MD-B65 The Opus bitrate target 48 kbps (transparent) `open`
+- MD-B66 The Opus bitrate target 64 kbps (archive quality) `open`
+- MD-B67 The Opus bitrate target 96 kbps (master quality) `open`
+- MD-B68 The Opus bitrate target 128 kbps (lossless-adjacent) `open`
+- MD-B69 The LC3 codec mode LC3 16kHz mono `open`
+- MD-B70 The LC3 codec mode LC3 16kHz stereo `open`
+- MD-B71 The LC3 codec mode LC3 48kHz mono `open`
+- MD-B72 The LC3 codec mode LC3 48kHz stereo `open`
+- MD-B73 The LC3 codec mode LC3plus 96kHz mono `open`
+- MD-B74 The LC3 codec mode LC3plus 96kHz stereo `open`
+- MD-B75 The LC3 codec mode LC3 2.5ms frame `open`
+- MD-B76 The LC3 codec mode LC3 5ms frame `open`
+- MD-B77 The LC3 codec mode LC3 7.5ms frame `open`
+- MD-B78 The LC3 codec mode LC3 10ms frame `open`
+- MD-B79 The neural codec codec SoundStream (Google, 2021) `open`
+- MD-B80 The neural codec codec EnCodec (Meta, 2022) `open`
+- MD-B81 The neural codec codec TQCodec (arXiv 2603.01592) `open`
+- MD-B82 The neural codec codec Streamable NC (arXiv 2504.06561) `open`
+- MD-B83 The neural codec codec DAC (Descript, improved RVQ) `open`
+- MD-B84 The neural codec codec Lyra v2 (Google, phone-ready) `open`
+- MD-B85 The neural codec codec VoiceBox (Meta, text-to-audio) `open`
+- MD-B86 The neural codec codec MusicLM audio (Google, music) `open`
+- MD-B87 The neural codec codec AudioLDM (latent diffusion) `open`
+- MD-B88 The neural codec codec WaveNet-style (Google, 2016) `open`
+- MD-B89 The neural codec rate 3 kbps (narrowband speech) `open`
+- MD-B90 The neural codec rate 6 kbps (fullband speech) `open`
+- MD-B91 The neural codec rate 12 kbps (fullband music) `open`
+- MD-B92 The neural codec rate 18 kbps (high-quality music) `open`
+- MD-B93 The neural codec rate 24 kbps (CD-adjacent) `open`
+- MD-B94 The neural codec rate 48 kbps (transparent) `open`
+- MD-B95 The neural codec rate 64 kbps (archive) `open`
+- MD-B96 The neural codec rate 96 kbps (master) `open`
+- MD-B97 The neural codec rate 128 kbps (near-lossless) `open`
+- MD-B98 The neural codec rate 256 kbps (transparent-high) `open`
+- MD-B99 The neural codec complexity encoder CPU budget (the encode time) `open`
+- MD-B100 The neural codec complexity decoder CPU budget (the decode time) `open`
+Status: `open` (48 gaps)
+
+## MD-C: The container + streaming format (WebM, MP4, Matroska, MPEG-DASH)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the Matroska/EBML schema -> the WebM subset for web delivery -> the MP4/BMFF box hierarchy -> the DASH MPD manifest -> the HLS m3u8 playlist -> the CMAF fMP4 chunked format -> the WuBuOS media container (the 9P-exported media namespace)
+- MD-C01 The Matroska container format (the EBML schema) `open`
+- MD-C02 The EBML (Extensible Binary Meta Language) reader `open`
+- MD-C03 The EBML ID + size encoding (the variable-length integer) `open`
+- MD-C04 The EBML master element (the container-within-a-container) `open`
+- MD-C05 The EBML unsigned integer (the 1-8 byte encoding) `open`
+- MD-C06 The EBML float (the IEEE 754 in EBML) `open`
+- MD-C07 The EBML date (the nanosecond Unix timestamp) `open`
+- MD-C08 The EBML string (the UTF-8 text payload) `open`
+- MD-C09 The EBML binary (the raw byte payload) `open`
+- MD-C10 The WebM container (the subset of Matroska for web) `open`
+- MD-C11 The WebM VP8/VP9/AV1 track (the video track in the Matroska schema) `open`
+- MD-C12 The WebM Opus/Vorbis/FLAC track (the audio track in the Matroska schema) `open`
+- MD-C13 The MP4 container (the ISO BMFF, the box hierarchy) `open`
+- MD-C14 The MP4 ftyp box (the file type declaration) `open`
+- MD-C15 The MP4 moov box (the movie metadata, the track + edit list) `open`
+- MD-C16 The MP4 mdat box (the media data, the raw sample payload) `open`
+- MD-C17 The MP4 trak box (the track, the media + header) `open`
+- MD-C18 The MP4 mdia box (the media, the handler + info + sample table) `open`
+- MD-C19 The MP4 minf box (the media information, the sample + chunk offset) `open`
+- MD-C20 The MP4 stbl box (the sample table, the chunk + sample descriptors) `open`
+- MD-C21 The MP4 stco box (the chunk offset table) `open`
+- MD-C22 The MP4 co64 box (the 64-bit chunk offset table) `open`
+- MD-C23 The MP4 stsc box (the sample-to-chunk mapping) `open`
+- MD-C24 The MP4 stsz box (the sample size table) `open`
+- MD-C25 The MP4 stts box (the sample-to-decoding-time offset table) `open`
+- MD-C26 The MP4 ctts box (the composition time offset table) `open`
+- MD-C27 The MP4 stss box (the sync sample table, the keyframe list) `open`
+- MD-C28 The MP4 sdtp box (the sample dependency type) `open`
+- MD-C29 The MP4 mehd box (the movie extension duration) `open`
+- MD-C30 The MP4 trex box (the track extension default values) `open`
+- MD-C31 The MP4 mvex box (the movie extension, the track fragment) `open`
+- MD-C32 The MP4 traf box (the track fragment, the decode -> sample table) `open`
+- MD-C33 The MP4 tfhd box (the track fragment header) `open`
+- MD-C34 The MP4 tfdt box (the track fragment decode timestamp) `open`
+- MD-C35 The MP4 trun box (the track run, the sample info per chunk) `open`
+- MD-C36 The DASH manifest (the MPD, the Media Presentation Description) `open`
+- MD-C37 The DASH SegmentBase (the initialization segment reference) `open`
+- MD-C38 The DASH SegmentList (the explicit segment URL list) `open`
+- MD-C39 The DASH SegmentTemplate (the URL template + timeline) `open`
+- MD-C40 The DASH Representation (the bandwidth + resolution + codec profile) `open`
+- MD-C41 The DASH AdaptationSet (the group of representations for the same content) `open`
+- MD-C42 The DASH Period (the temporal partition of the presentation) `open`
+- MD-C43 The HLS manifest (the m3u8 playlist, the Apple HTTP Live Streaming) `open`
+- MD-C44 The HLS EXT-X-STREAM-INF (the bandwidth + resolution variant) `open`
+- MD-C45 The HLS EXT-X-TARGETDURATION (the segment duration ceiling) `open`
+- MD-C46 The HLS EXT-X-MEDIA-SEQUENCE (the segment counter) `open`
+- MD-C47 The HLS EXT-X-PROGRAM-DATE-TIME (the wall-clock timestamp) `open`
+- MD-C48 The HLS fMP4 (the fragmented MP4, the CMAF shape) `open`
+- MD-C49 The CMAF common encryption (the CENC, the AES-128 CTR + pattern) `open`
+- MD-C50 The container round-trip test (the encode -> mux -> demux -> decode check) `open`
+- MD-C51 The container docs (the format specification reference) `open`
+- MD-C52 The Matroska EBML element EBML header (the version + read version) `open`
+- MD-C53 The Matroska EBML element EBML max ID length `open`
+- MD-C54 The Matroska EBML element EBML max size length `open`
+- MD-C55 The Matroska EBML element doc type (the Matroska) `open`
+- MD-C56 The Matroska EBML element doc type version `open`
+- MD-C57 The Matroska EBML element doc type read version `open`
+- MD-C58 The Matroska EBML element Void element (the padding) `open`
+- MD-C59 The Matroska EBML element CRC-32 element (the integrity) `open`
+- MD-C60 The Matroska EBML element Unknown element (the skip) `open`
+- MD-C61 The Matroska EBML element Master element (the container) `open`
+- MD-C62 The WebM container WebM EBML header `open`
+- MD-C63 The WebM container WebM Segment `open`
+- MD-C64 The WebM container WebM Info (the duration + date) `open`
+- MD-C65 The WebM container WebM Tracks (the track entry) `open`
+- MD-C66 The WebM container WebM Cluster (the frame group) `open`
+- MD-C67 The WebM container WebM SimpleBlock (the frame) `open`
+- MD-C68 The WebM container WebM BlockGroup (the block + duration) `open`
+- MD-C69 The WebM container WebM Cues (the index) `open`
+- MD-C70 The WebM container WebM Chapters `open`
+- MD-C71 The WebM container WebM Attachments (the fonts + covers) `open`
+- MD-C72 The MP4 box ftyp (the file type) `open`
+- MD-C73 The MP4 box moov (the movie metadata) `open`
+- MD-C74 The MP4 box mdat (the media data) `open`
+- MD-C75 The MP4 box mvex (the movie extension) `open`
+- MD-C76 The MP4 box trex (the track extension) `open`
+- MD-C77 The MP4 box moof (the movie fragment) `open`
+- MD-C78 The MP4 box traf (the track fragment) `open`
+- MD-C79 The MP4 box mfra (the movie fragment random access) `open`
+- MD-C80 The MP4 box skip (the padding) `open`
+- MD-C81 The MP4 box free (the free space) `open`
+- MD-C82 The MP4 moov sub-box mvhd (the movie header) `open`
+- MD-C83 The MP4 moov sub-box iods (the initial object descriptor) `open`
+- MD-C84 The MP4 moov sub-box trak (the track) `open`
+- MD-C85 The MP4 moov sub-box udta (the user data) `open`
+- MD-C86 The MP4 moov sub-box meta (the metadata) `open`
+- MD-C87 The MP4 moov sub-box mvex (the movie extension) `open`
+- MD-C88 The MP4 moov sub-box moof (the movie fragment) `open`
+- MD-C89 The MP4 moov sub-box mfra (the fragment random access) `open`
+- MD-C90 The MP4 moov sub-box skip `open`
+- MD-C91 The MP4 moov sub-box free `open`
+- MD-C92 The MP4 trak sub-box tkhd (the track header) `open`
+- MD-C93 The MP4 trak sub-box mdia (the media) `open`
+- MD-C94 The MP4 trak sub-box edts (the edit list) `open`
+- MD-C95 The MP4 trak sub-box tapt (the track aperture) `open`
+- MD-C96 The MP4 trak sub-box clipr (the clip region) `open`
+- MD-C97 The MP4 trak sub-box colr (the color profile) `open`
+- MD-C98 The MP4 trak sub-box mdhd (the media header) `open`
+- MD-C99 The MP4 trak sub-box hdlr (the handler reference) `open`
+- MD-C100 The MP4 trak sub-box minf (the media info) `open`
+Status: `open` (51 gaps)
+
+## MD-D: The zero-copy media pipeline (GStreamer + dmabuf + V4L2 + KMS)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: GStreamer pipeline model -> dmabuf zero-copy (the shared FD) -> V4L2 MMAP capture -> KMS scanout -> the Wayland compositor -> the WuBuOS display pipeline (the Colonel's framebuffer + the Bonzi compositor)
+- MD-D01 The GStreamer pipeline model (the src -> filter -> sink chain) `open`
+- MD-D02 The GStreamer element (the base class, the pad interface) `open`
+- MD-D03 The GStreamer pad (the src pad + the sink pad) `open`
+- MD-D04 The GStreamer caps (the capability negotiation, the format + resolution) `open`
+- MD-D05 The GStreamer buffer (the GstBuffer, the metadata + the memory list) `open`
+- MD-D06 The GStreamer memory (the GstMemory, the fd + offset + size) `open`
+- MD-D07 The GStreamer dmabuf memory (the fd-based shared memory) `open`
+- MD-D08 The GStreamer V4L2 src element (the camera device -> buffer) `open`
+- MD-D09 The GStreamer V4L2 sink element (the buffer -> display device) `open`
+- MD-D10 The GStreamer kmssink element (the KMS framebuffer output) `open`
+- MD-D11 The GStreamer waylandsink element (the Wayland surface output) `open`
+- MD-D12 The GStreamer ximagesink element (the X11 window output) `open`
+- MD-D13 The GStreamer glimagesink element (the OpenGL texture output) `open`
+- MD-D14 The dmabuf fd export (the DMA-BUF file descriptor, the shared buffer) `open`
+- MD-D15 The dmabuf fd import (the receiving process, the buffer attachment) `open`
+- MD-D16 The V4L2 buffer plane (the multi-planar format, the Y + U + V planes) `open`
+- MD-D17 The V4L2 DMABUF ioctl (the export + import buffer) `open`
+- MD-D18 The V4L2 MMAP buffer (the kernel mmap, the zero-copy capture) `open`
+- MD-D19 The V4L2 USERPTR buffer (the userspace pointer, the copy path) `open`
+- MD-D20 The KMS framebuffer (the DRM framebuffer, the scanout buffer) `open`
+- MD-D21 The KMS CRTC (the cathode ray tube controller, the output encoder) `open`
+- MD-D22 The KMS plane (the overlay plane, the src + dst + z-order) `open`
+- MD-D23 The DRM prime FD (the buffer export across drivers) `open`
+- MD-D24 The DRM gem buffer (the TTM buffer object, the GPU-local memory) `open`
+- MD-D25 The NVMM buffer (the NVIDIA memory, the Jetson zero-copy path) `open`
+- MD-D26 The ISP pipeline (the image signal processor, the raw -> RGB conversion) `open`
+- MD-D27 The GPU compositor (the Wayland compositor, the buffer reuse) `open`
+- MD-D28 The NPU inference pipeline (the buffer -> model -> output buffer) `open`
+- MD-D29 The zero-copy end-to-end path (camera -> ISP -> DMABUF -> GStreamer -> GPU/NPU -> sink) `open`
+- MD-D30 The zero-copy CPU overhead measurement (the perf stat, the context switches) `open`
+- MD-D31 The zero-copy frame-drop budget (the latency vs quality trade) `open`
+- MD-D32 The zero-copy pipeline test (the end-to-end latency check) `open`
+- MD-D33 The zero-copy pipeline benchmark (the throughput in frames/sec) `open`
+- MD-D34 The GStreamer pipeline description language (the gst-launch-1.0 syntax) `open`
+- MD-D35 The GStreamer debug category (the log level + the category filter) `open`
+- MD-D36 The GStreamer event (the EOS, the seek, the flush) `open`
+- MD-D37 The GStreamer query (the duration, the position, the latency) `open`
+- MD-D38 The GStreamer bus (the message pump, the error + warning + info) `open`
+- MD-D39 The GStreamer plugin (the shared library, the register + create) `open`
+- MD-D40 The GStreamer plugin registry (the scan + the cache) `open`
+- MD-D41 The GStreamer appsrc element (the push-based source) `open`
+- MD-D42 The GStreamer appsink element (the pull-based sink) `open`
+- MD-D43 The GStreamer tee element (the branch point, the copy vs passthrough) `open`
+- MD-D44 The GStreamer queue element (the buffering, the max-size-buffers) `open`
+- MD-D45 The GStreamer rate element (the playback speed, the time mapping) `open`
+- MD-D46 The GStreamer audio convert (the channel mix + resample) `open`
+- MD-D47 The GStreamer video convert (the colorspace + resolution conversion) `open`
+- MD-D48 The GStreamer capsfilter element (the format negotiation gate) `open`
+- MD-D49 The GStreamer identity element (the passthrough, the signal handoff) `open`
+- MD-D50 The GStreamer tests (the pipeline integration check) `open`
+- MD-D51 The GStreamer docs (the plugin cookbook) `open`
+- MD-D52 The GStreamer element v4l2src (the camera source) `open`
+- MD-D53 The GStreamer element v4l2sink (the camera sink) `open`
+- MD-D54 The GStreamer element kmssink (the KMS display) `open`
+- MD-D55 The GStreamer element waylandsink (the Wayland output) `open`
+- MD-D56 The GStreamer element ximagesink (the X11 output) `open`
+- MD-D57 The GStreamer element glimagesink (the OpenGL output) `open`
+- MD-D58 The GStreamer element appsink (the pull sink) `open`
+- MD-D59 The GStreamer element appsrc (the push source) `open`
+- MD-D60 The GStreamer element videoconvert (the colorspace convert) `open`
+- MD-D61 The GStreamer element videorate (the frame rate adjust) `open`
+- MD-D62 The GStreamer pad src pad (the output pad) `open`
+- MD-D63 The GStreamer pad sink pad (the input pad) `open`
+- MD-D64 The GStreamer pad pad link (the connection) `open`
+- MD-D65 The GStreamer pad pad caps (the capability) `open`
+- MD-D66 The GStreamer pad pad query (the info request) `open`
+- MD-D67 The GStreamer pad pad event (the control signal) `open`
+- MD-D68 The GStreamer pad pad buffer (the data chunk) `open`
+- MD-D69 The GStreamer pad pad allocator (the buffer source) `open`
+- MD-D70 The GStreamer pad pad activation mode `open`
+- MD-D71 The GStreamer pad pad proxy `open`
+- MD-D72 The GStreamer buffer GstBuffer (the buffer object) `open`
+- MD-D73 The GStreamer buffer GstBufferList (the buffer list) `open`
+- MD-D74 The GStreamer buffer GstMemory (the memory chunk) `open`
+- MD-D75 The GStreamer buffer GstMappedBuffer (the mapped view) `open`
+- MD-D76 The GStreamer buffer GstBuffer metadata `open`
+- MD-D77 The GStreamer buffer GstBuffer flags `open`
+- MD-D78 The GStreamer buffer GstBuffer pts/dts `open`
+- MD-D79 The GStreamer buffer GstBuffer duration `open`
+- MD-D80 The GStreamer buffer GstBuffer offset `open`
+- MD-D81 The GStreamer buffer GstBuffer size `open`
+- MD-D82 The dmabuf flow V4L2 buffer export (DMABUF ioctl) `open`
+- MD-D83 The dmabuf flow dmabuf fd import (the receiving fd) `open`
+- MD-D84 The dmabuf flow dmabuf fd export (the source fd) `open`
+- MD-D85 The dmabuf flow dmabuf fd passing (the Unix FD) `open`
+- MD-D86 The dmabuf flow dmabuf cache coherency `open`
+- MD-D87 The dmabuf flow dmabuf mapping (the mmap) `open`
+- MD-D88 The dmabuf flow dmabuf reservation (the vmap) `open`
+- MD-D89 The dmabuf flow dmabuf sync (the fence) `open`
+- MD-D90 The dmabuf flow dmabuf prime (the DRM prime) `open`
+- MD-D91 The dmabuf flow dmabuf zero-copy path `open`
+- MD-D92 The V4L2 buffer V4L2 MMAP buffer `open`
+- MD-D93 The V4L2 buffer V4L2 USERPTR buffer `open`
+- MD-D94 The V4L2 buffer V4L2 DMABUF buffer `open`
+- MD-D95 The V4L2 buffer V4L2 buffer queue `open`
+- MD-D96 The V4L2 buffer V4L2 buffer dequeue `open`
+- MD-D97 The V4L2 buffer V4L2 buffer query `open`
+- MD-D98 The V4L2 buffer V4L2 buffer format `open`
+- MD-D99 The V4L2 buffer V4L2 buffer request `open`
+- MD-D100 The V4L2 buffer V4L2 buffer metadata `open`
+Status: `open` (51 gaps)
+
+## MD-E: The neural video compression (learned NVC)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the rate-distortion autoencoder -> the scale-space Laplacian pyramid -> the hyper-prior entropy model -> the learned intra/inter prediction -> the Ultra-Fast NVC (CVPR 2026) -> the WuBuOS neural media pipeline (the Colonel's learned codec + the Bonzi adaptive stream)
+- MD-E01 The rate-distortion objective (R + lambda*D, the Lagrangian tradeoff) `open`
+- MD-E02 The autoencoder shape (encoder -> bottleneck -> decoder, the end-to-end train) `open`
+- MD-E03 The scale-space Laplacian pyramid (the multi-scale residual hierarchy) `open`
+- MD-E04 The hyper-prior (the latent prior network, the entropy model) `open`
+- MD-E05 The entropy model (the learned probability distribution, the NLL loss) `open`
+- MD-E06 The quantization (the uniform scalar quantizer, the step size) `open`
+- MD-E07 The de-quantization (the reconstruction, the half-step offset) `open`
+- MD-E08 The stochastic rounding (the noise injection, the gradient estimator) `open`
+- MD-E09 The anchor-based rate control (the VTM anchor, the BD-rate metric) `open`
+- MD-E10 The scene-adaptive NVC (the PNVC, the per-scene parameter tuning) `open`
+- MD-E11 The HiNeRV (the hierarchical recurrent video codec, the temporal model) `open`
+- MD-E12 The DCVC (the deep compression video codec, the CNN encoder) `open`
+- MD-E13 The DCVC-RT (the real-time DCVC, the speed-optimized variant) `open`
+- MD-E14 The C3 codec (the chunk-based coding, the temporal context) `open`
+- MD-E15 The NVRC (the neural video codec, the recurrent backbone) `open`
+- MD-E16 The GIViC (the generative image compression, the GAN backbone) `open`
+- MD-E17 The MaskCRT (the masked conditional random field, the spatial model) `open`
+- MD-E18 The Ultra-Fast NVC (CVPR 2026, the chunk-based R-D-C tradeoff) `open`
+- MD-E19 The chunk-based coding framework (the rate-distortion-complexity triple trade) `open`
+- MD-E20 The temporal reference selection (the keyframe + the P-frame + the B-frame) `open`
+- MD-E21 The motion-compensated prediction (the optical flow + the MV residual) `open`
+- MD-E22 The deformable convolution (the adaptive sampling, the spatial warp) `open`
+- MD-E23 The attention mechanism (the self-attention, the cross-frame attention) `open`
+- MD-E24 The transformer backbone (the ViT-style encoder, the global context) `open`
+- MD-E25 The CNN backbone (the ResNet-style encoder, the local context) `open`
+- MD-E26 The hybrid CNN+transformer backbone (the local + global features) `open`
+- MD-E27 The learned intra-prediction (the neural spatial predictor) `open`
+- MD-E28 The learned inter-prediction (the neural motion-compensated predictor) `open`
+- MD-E29 The learned loop filter (the neural restoration, the Deblocking CNN) `open`
+- MD-E30 The learned super-resolution (the SR post-processing, the enhancement) `open`
+- MD-E31 The neural codec training dataset (the UVG, the MCL-JCV, the HEVC B-E) `open`
+- MD-E32 The neural codec evaluation metric (the PSNR, MS-SSIM, VMAF, BD-rate) `open`
+- MD-E33 The neural codec complexity metric (the kMACs/px, the encode time) `open`
+- MD-E34 The neural codec rate control (the lambda ladder, the QP schedule) `open`
+- MD-E35 The neural codec entropy coding (the arithmetic coder, the hyper-prior) `open`
+- MD-E36 The neural codec progressive decoding (the layer-by-layer refinement) `open`
+- MD-E37 The neural codec adaptive rate (the bitrate switch mid-stream) `open`
+- MD-E38 The neural codec error concealment (the packet loss recovery) `open`
+- MD-E39 The neural codec end-to-end latency (the encode -> transmit -> decode budget) `open`
+- MD-E40 The neural codec hardware target (the CPU-only, the GPU, the NPU) `open`
+- MD-E41 The neural codec vs conventional codec (the BD-rate comparison table) `open`
+- MD-E42 The neural codec real-time feasibility (the encode speed vs quality trade) `open`
+- MD-E43 The neural codec deployment (the ONNX export, the TensorRT path) `open`
+- MD-E44 The neural codec tests (the encode-decode round-trip + the R-D evaluation) `open`
+- MD-E45 The neural codec docs (the architecture reference + the training guide) `open`
+- MD-E46 The NVC rate-distortion R + lambda*D (the Lagrangian) `open`
+- MD-E47 The NVC rate-distortion lambda = 0.85 (the default) `open`
+- MD-E48 The NVC rate-distortion lambda ladder (the QP scale) `open`
+- MD-E49 The NVC rate-distortion rate control (the target bitrate) `open`
+- MD-E50 The NVC rate-distortion distortion metric (the PSNR) `open`
+- MD-E51 The NVC rate-distortion perceptual metric (the VMAF) `open`
+- MD-E52 The NVC rate-distortion multi-scale distortion `open`
+- MD-E53 The NVC rate-distortion temporal distortion `open`
+- MD-E54 The NVC rate-distortion spatial distortion `open`
+- MD-E55 The NVC rate-distortion the rate-distortion curve `open`
+- MD-E56 The autoencoder encoder CNN (the spatial) `open`
+- MD-E57 The autoencoder decoder CNN (the spatial) `open`
+- MD-E58 The autoencoder encoder transformer (the temporal) `open`
+- MD-E59 The autoencoder decoder transformer (the temporal) `open`
+- MD-E60 The autoencoder latent bottleneck (the compression) `open`
+- MD-E61 The autoencoder latent dimension (the size) `open`
+- MD-E62 The autoencoder latent channels (the depth) `open`
+- MD-E63 The autoencoder latent quantize (the step) `open`
+- MD-E64 The autoencoder latent dequantize (the half-step) `open`
+- MD-E65 The autoencoder latent stochastic (the noise) `open`
+- MD-E66 The hyper-prior hyper encoder (the prior net) `open`
+- MD-E67 The hyper-prior hyper decoder (the posterior net) `open`
+- MD-E68 The hyper-prior hyper latent (the context) `open`
+- MD-E69 The hyper-prior hyper entropy (the model) `open`
+- MD-E70 The hyper-prior hyper context (the neighbor) `open`
+- MD-E71 The hyper-prior hyper prior (the Gaussian) `open`
+- MD-E72 The hyper-prior hyper scale (the variance) `open`
+- MD-E73 The hyper-prior hyper mean (the location) `open`
+- MD-E74 The hyper-prior hyper temperature (the temp) `open`
+- MD-E75 The hyper-prior hyper optimization (the NLL loss) `open`
+- MD-E76 The entropy model uniform (the baseline) `open`
+- MD-E77 The entropy model Gaussian (the simple) `open`
+- MD-E78 The entropy model hyperprior (the learned) `open`
+- MD-E79 The entropy model mixture (the multi-modal) `open`
+- MD-E80 The entropy model discretized logistic (the flexible) `open`
+- MD-E81 The entropy model conditional (the context) `open`
+- MD-E82 The entropy model autoregressive (the causal) `open`
+- MD-E83 The entropy model flow-based (the invertible) `open`
+- MD-E84 The entropy model VAE (the variational) `open`
+- MD-E85 The entropy model normalizing flow (the exact) `open`
+- MD-E86 The quantization uniform scalar (the step size) `open`
+- MD-E87 The quantization stochastic (the noise injection) `open`
+- MD-E88 The quantization deterministic (the half-step) `open`
+- MD-E89 The quantization LSQ (the learned step) `open`
+- MD-E90 The quantization LSQ+ (the improved LSQ) `open`
+- MD-E91 The quantization STE (the straight-through) `open`
+- MD-E92 The quantization rounding (the nearest integer) `open`
+- MD-E93 The quantization clipping (the range limit) `open`
+- MD-E94 The quantization per-channel (the per-dim) `open`
+- MD-E95 The quantization per-block (the per-block) `open`
+- MD-E96 The motion model global motion (the 8-param) `open`
+- MD-E97 The motion model affine motion (the 6-param) `open`
+- MD-E98 The motion model translational (the 2-param) `open`
+- MD-E99 The motion model rotational (the 1-param) `open`
+- MD-E100 The motion model zoom (the scale param) `open`
+Status: `open` (45 gaps)
+
+## MD-F: The media transport (RTP/RTCP + WebRTC + 9P media namespace)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: RTP/RTCP (the media transport) -> WebRTC (the real-time communication) -> 9P media namespace (the /n/media/ export) -> the WuBuOS media transport (the Colonel's 9P media server + the Bonzi stream)
+- MD-F01 The RTP header (the version + padding + extension + CSRC list) `open`
+- MD-F02 The RTP payload type (the codec identifier, the dynamic mapping) `open`
+- MD-F03 The RTP timestamp (the 90kHz clock for video, the 48kHz for audio) `open`
+- MD-F04 The RTP sequence number (the per-packet counter, the loss detection) `open`
+- MD-F05 The RTP SSRC (the synchronization source, the stream identifier) `open`
+- MD-F06 The RTP CSRC (the contributing source, the mixer list) `open`
+- MD-F07 The RTCP SR (the sender report, the NTP timestamp + RTP timestamp) `open`
+- MD-F08 The RTCP RR (the receiver report, the loss fraction + the jitter) `open`
+- MD-F09 The RTCP SDES (the source description, the CNAME + name + email) `open`
+- MD-F10 The RTCP BYE (the graceful departure, the reason code) `open`
+- MD-F11 The RTCP XR (the extended report, the loss RLE + the delay since last SR) `open`
+- MD-F12 The RTCP REMB (the receiver estimated maximum bitrate, the congestion signal) `open`
+- MD-F13 The RTCP TWCC (the transport-wide congestion control, the per-packet feedback) `open`
+- MD-F14 The WebRTC RTCPeerConnection (the offer/answer + the ICE candidate exchange) `open`
+- MD-F15 The WebRTC ICE (the connectivity check, the STUN + TURN traversal) `open`
+- MD-F16 The WebRTC DTLS (the transport-layer security, the SRTP key exchange) `open`
+- MD-F17 The WebRTC SRTP (the encrypted RTP, the AES-128-ICM + HMAC-SHA1) `open`
+- MD-F18 The WebRTC media stream (the audio track + the video track) `open`
+- MD-F19 The WebRTC transceiver (the direction + the codec negotiation) `open`
+- MD-F20 The WebRTC codec preference (the OPUS priority + the AV1 priority) `open`
+- MD-F21 The WebRTC bandwidth estimation (the GCC, the REMB + TWCC) `open`
+- MD-F22 The WebRTC jitter buffer (the adaptive playout delay, the packet reorder) `open`
+- MD-F23 The WebRTC NACK (the negative acknowledgment, the retransmission request) `open`
+- MD-F24 The WebRTC PLI (the picture loss indication, the keyframe request) `open`
+- MD-F25 The WebRTC FIR (the full intra request, the decoder refresh) `open`
+- MD-F26 The WebRTC SLI (the slice loss indication, the partial recovery) `open`
+- MD-F27 The 9P protocol (the Styx protocol, the 9P2000.L revision) `open`
+- MD-F28 The 9P message (the T-version + R-version handshake) `open`
+- MD-F29 The 9P walk (the path traversal, the QID + the fid) `open`
+- MD-F30 The 9P read (the file read, the offset + count) `open`
+- MD-F31 The 9P write (the file write, the offset + count) `open`
+- MD-F32 The 9P stat (the file metadata, the stat structure) `open`
+- MD-F33 The 9P open (the file open, the mode + the fid) `open`
+- MD-F34 The 9P create (the file create, the permissions) `open`
+- MD-F35 The 9P remove (the file remove, the fid) `open`
+- MD-F36 The 9P flush (the message abort, the old tag) `open`
+- MD-F37 The 9P attach (the connection attach, the auth) `open`
+- MD-F38 The 9P auth (the authentication, the Ahistor) `open`
+- MD-F39 The 9P error (the error response, the ename) `open`
+- MD-F40 The 9P media export (the /n/media/ path, the video + audio streams) `open`
+- MD-F41 The 9P media read (the chunked read, the offset + length) `open`
+- MD-F42 The 9P media write (the chunked write, the offset + length) `open`
+- MD-F43 The media transport test (the RTP round-trip + the 9P read/write) `open`
+- MD-F44 The media transport docs (the protocol reference + the API cookbook) `open`
+- MD-F45 The RTP header field version (the 2-bit) `open`
+- MD-F46 The RTP header field padding (the 1-bit) `open`
+- MD-F47 The RTP header field extension (the 1-bit) `open`
+- MD-F48 The RTP header field CSRC count (the 4-bit) `open`
+- MD-F49 The RTP header field marker (the 1-bit) `open`
+- MD-F50 The RTP header field payload type (the 7-bit) `open`
+- MD-F51 The RTP header field sequence number (the 16-bit) `open`
+- MD-F52 The RTP header field timestamp (the 32-bit) `open`
+- MD-F53 The RTP header field SSRC (the 32-bit) `open`
+- MD-F54 The RTP header field CSRC list (the 0-15 list) `open`
+- MD-F55 The RTCP packet SR (the sender report) `open`
+- MD-F56 The RTCP packet RR (the receiver report) `open`
+- MD-F57 The RTCP packet SDES (the source description) `open`
+- MD-F58 The RTCP packet BYE (the departure) `open`
+- MD-F59 The RTCP packet APP (the application) `open`
+- MD-F60 The RTCP packet XR (the extended report) `open`
+- MD-F61 The RTCP packet REMB (the max bitrate) `open`
+- MD-F62 The RTCP packet TWCC (the congestion control) `open`
+- MD-F63 The RTCP packet NACK (the negative ack) `open`
+- MD-F64 The RTCP packet FIR (the full intra req) `open`
+- MD-F65 The WebRTC signal offer (the SDP offer) `open`
+- MD-F66 The WebRTC signal answer (the SDP answer) `open`
+- MD-F67 The WebRTC signal ICE candidate (the address) `open`
+- MD-F68 The WebRTC signal ICE gathering (the candidate list) `open`
+- MD-F69 The WebRTC signal ICE connectivity check `open`
+- MD-F70 The WebRTC signal ICE nomination `open`
+- MD-F71 The WebRTC signal DTLS handshake (the crypto) `open`
+- MD-F72 The WebRTC signal SRTP setup (the encryption) `open`
+- MD-F73 The WebRTC signal media track (the stream) `open`
+- MD-F74 The WebRTC signal transceiver (the direction) `open`
+- MD-F75 The WebRTC congestion GCC (the Google algorithm) `open`
+- MD-F76 The WebRTC congestion REMB (the receiver estimate) `open`
+- MD-F77 The WebRTC congestion TWCC (the transport-wide) `open`
+- MD-F78 The WebRTC congestion loss-based (the packet loss) `open`
+- MD-F79 The WebRTC congestion delay-based (the RTT) `open`
+- MD-F80 The WebRTC congestion bandwidth estimation `open`
+- MD-F81 The WebRTC congestion probe (the test burst) `open`
+- MD-F82 The WebRTC congestion backoff (the reduction) `open`
+- MD-F83 The WebRTC congestion rampup (the increase) `open`
+- MD-F84 The WebRTC congestion steady-state (the target) `open`
+- MD-F85 The WebRTC media audio track (the Opus stream) `open`
+- MD-F86 The WebRTC media video track (the AV1 stream) `open`
+- MD-F87 The WebRTC media data channel (the SCTP) `open`
+- MD-F88 The WebRTC media simulcast (the spatial) `open`
+- MD-F89 The WebRTC media SVC (the scalable) `open`
+- MD-F90 The WebRTC media SFU (the selective forward) `open`
+- MD-F91 The WebRTC media MCU (the mix) `open`
+- MD-F92 The WebRTC media peer (the direct) `open`
+- MD-F93 The WebRTC media group (the mesh) `open`
+- MD-F94 The WebRTC media bridge (the relay) `open`
+- MD-F95 The 9P protocol message T-version (the handshake) `open`
+- MD-F96 The 9P protocol message R-version (the reply) `open`
+- MD-F97 The 9P protocol message T-attach (the connect) `open`
+- MD-F98 The 9P protocol message R-attach (the auth) `open`
+- MD-F99 The 9P protocol message T-walk (the traverse) `open`
+- MD-F100 The 9P protocol message R-walk (the result) `open`
+Status: `open` (44 gaps)
+
+## MD-G: The media display (the framebuffer + the compositor + the Wayland surface)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the DRM/KMS framebuffer -> the Wayland compositor + surface protocol -> the 9P display namespace -> the WuBuOS display pipeline (the Colonel's KMS driver + the Bonzi compositor + the WuBuFX window system)
+- MD-G01 The DRM connector (the physical output, the encoder + the CRTC) `open`
+- MD-G02 The DRM encoder (the digital/analog signal, the TMDS + LVDS) `open`
+- MD-G03 The DRM CRTC (the scanout engine, the mode + the framebuffer) `open`
+- MD-G04 The DRM framebuffer (the GEM buffer, the pitch + offset + modifier) `open`
+- MD-G05 The DRM plane (the overlay plane, the src + dst + z-order + alpha) `open`
+- MD-G06 The DRM property (the connector property, the CRTC property, the plane property) `open`
+- MD-G07 The DRM mode (the timing, the hdisplay + vdisplay + vrefresh) `open`
+- MD-G08 The DRM atomic commit (the test + commit + enable-vbye) `open`
+- MD-G09 The DRM KMS (the kernel mode setting, the modeset + the page flip) `open`
+- MD-G10 The DRM page flip (the vblank-synchronized buffer swap) `open`
+- MD-G11 The DRM FBDEV (the legacy framebuffer, the fb0 device) `open`
+- MD-G12 The Wayland display (the wl_display, the event loop) `open`
+- MD-G13 The Wayland registry (the global object discovery, the bind) `open`
+- MD-G14 The Wayland compositor (the wl_compositor, the surface + the layer) `open`
+- MD-G15 The Wayland surface (the wl_surface, the buffer + the damage) `open`
+- MD-G16 The Wayland buffer (the wl_buffer, the SHM + the dmabuf) `open`
+- MD-G17 The Wayland SHM pool (the shared memory, the fd + the size) `open`
+- MD-G18 The Wayland SHM buffer (the wl_shm_buffer, the format + the stride) `open`
+- MD-G19 The Wayland dmabuf feedback (the preferred format + the modifier) `open`
+- MD-G20 The Wayland subcompositor (the wl_subcompositor, the subsurface) `open`
+- MD-G21 The Wayland data device (the wl_data_device, the clipboard + the drag) `open`
+- MD-G22 The Wayland seat (the wl_seat, the keyboard + the pointer + the touch) `open`
+- MD-G23 The Wayland pointer (the wl_pointer, the enter + the leave + the motion) `open`
+- MD-G24 The Wayland keyboard (the wl_keyboard, the key + the modifiers) `open`
+- MD-G25 The Wayland touch (the wl_touch, the down + the up + the motion) `open`
+- MD-G26 The Wayland output (the wl_output, the geometry + the mode + the scale) `open`
+- MD-G27 The Wayland xdg_shell (the xdg_surface + the xdg_toplevel) `open`
+- MD-G28 The Wayland xdg surface (the configure + the commit + the frame callback) `open`
+- MD-G29 The Wayland xdg toplevel (the title + the app_id + the maximize + the fullscreen) `open`
+- MD-G30 The Wayland xdg popup (the transient + the parent + the position) `open`
+- MD-G31 The Wayland presentation feedback (the vsync + the refresh + the notify) `open`
+- MD-G32 The Wayland primary selection (the wl_primary_selection, the selection data) `open`
+- MD-G33 The Wayland cursor (the wl_cursor, the surface + the hotspot) `open`
+- MD-G34 The Wayland surface damage (the frame callback + the damage region) `open`
+- MD-G35 The Wayland surface commit (the buffer + the damage + the state) `open`
+- MD-G36 The compositor hit testing (the surface at a point, the stacking order) `open`
+- MD-G37 The compositor damage tracking (the accumulated damage + the repaint region) `open`
+- MD-G38 The compositor buffer recycling (the reuse + the age + the stamp) `open`
+- MD-G39 The compositor frame scheduling (the vsync + the deadline + the refresh) `open`
+- MD-G40 The compositor vsync timing (the refresh interval + the frame budget) `open`
+- MD-G41 The compositor latency measurement (the frame time + the queue delay) `open`
+- MD-G42 The compositor overlay planes (the hardware overlay, the primary + the cursor) `open`
+- MD-G43 The compositor gamma ramp (the LUT, the brightness + the contrast) `open`
+- MD-G44 The compositor color management (the ICC profile + the intent) `open`
+- MD-G45 The display test (the frame timing + the color accuracy + the tear check) `open`
+- MD-G46 The display docs (the DRM + Wayland reference + the WuBuOS framebuffer driver) `open`
+- MD-G47 The DRM connector HDMI connector (the digital) `open`
+- MD-G48 The DRM connector DP connector (the displayport) `open`
+- MD-G49 The DRM connector eDP connector (the embedded) `open`
+- MD-G50 The DRM connector VGA connector (the analog) `open`
+- MD-G51 The DRM connector LVDS connector (the panel) `open`
+- MD-G52 The DRM connector the encoder (the digital output) `open`
+- MD-G53 The DRM connector the CRTC (the scanout engine) `open`
+- MD-G54 The DRM connector the plane (the overlay) `open`
+- MD-G55 The DRM connector the property (the attribute) `open`
+- MD-G56 The DRM connector the mode (the timing) `open`
+- MD-G57 The DRM mode hdisplay (the width) `open`
+- MD-G58 The DRM mode vdisplay (the height) `open`
+- MD-G59 The DRM mode vrefresh (the Hz) `open`
+- MD-G60 The DRM mode hsync_start (the blank start) `open`
+- MD-G61 The DRM mode hsync_end (the blank end) `open`
+- MD-G62 The DRM mode htotal (the total) `open`
+- MD-G63 The DRM mode vsync_start (the blank start) `open`
+- MD-G64 The DRM mode vsync_end (the blank end) `open`
+- MD-G65 The DRM mode vtotal (the total) `open`
+- MD-G66 The DRM mode flags (the interlace + +ve) `open`
+- MD-G67 The DRM atomic the test (the dry-run) `open`
+- MD-G68 The DRM atomic the commit (the apply) `open`
+- MD-G69 The DRM atomic the enable-vbye (the event) `open`
+- MD-G70 The DRM atomic the async (the non-blocking) `open`
+- MD-G71 The DRM atomic the plane (the overlay) `open`
+- MD-G72 The DRM atomic the CRTC (the output) `open`
+- MD-G73 The DRM atomic the connector (the display) `open`
+- MD-G74 The DRM atomic the property (the attribute) `open`
+- MD-G75 The DRM atomic the blob (the property value) `open`
+- MD-G76 The DRM atomic the state (the full set) `open`
+- MD-G77 The Wayland protocol wl_display (the connection) `open`
+- MD-G78 The Wayland protocol wl_registry (the globals) `open`
+- MD-G79 The Wayland protocol wl_compositor (the surface factory) `open`
+- MD-G80 The Wayland protocol wl_surface (the buffer + damage) `open`
+- MD-G81 The Wayland protocol wl_buffer (the pixel data) `open`
+- MD-G82 The Wayland protocol wl_shm (the shared memory) `open`
+- MD-G83 The Wayland protocol wl_shm_pool (the pool) `open`
+- MD-G84 The Wayland protocol wl_seat (the input device) `open`
+- MD-G85 The Wayland protocol wl_output (the display output) `open`
+- MD-G86 The Wayland protocol wl_shell (the desktop shell) `open`
+- MD-G87 The Wayland surface wl_surface.commit (the buffer swap) `open`
+- MD-G88 The Wayland surface wl_surface.attach (the buffer) `open`
+- MD-G89 The Wayland surface wl_surface.damage (the region) `open`
+- MD-G90 The Wayland surface wl_surface.frame (the callback) `open`
+- MD-G91 The Wayland surface wl_surface.set_role (the type) `open`
+- MD-G92 The Wayland surface wl_surface.get_shell (the desktop) `open`
+- MD-G93 The Wayland surface wl_surface.get_popup (the menu) `open`
+- MD-G94 The Wayland surface wl_surface.get_toplevel (the window) `open`
+- MD-G95 The Wayland surface wl_surface.set_buffer_scale (the HiDPI) `open`
+- MD-G96 The Wayland surface wl_surface.set_buffer_transform (the rotation) `open`
+- MD-G97 The Wayland xdg xdg_wm_base (the manager) `open`
+- MD-G98 The Wayland xdg xdg_surface (the surface) `open`
+- MD-G99 The Wayland xdg xdg_toplevel (the window) `open`
+- MD-G100 The Wayland xdg xdg_popup (the menu) `open`
+Status: `open` (46 gaps)
+
+## MD-H: The media application (the Bonzi player + the WuBuOS media UI)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the Win98 media player lineage -> the Bonzi companion (HX-D) as the media player -> the WuBuOS media application (the Colonel's media UI + the Bonzi player)
+- MD-H01 The media player state machine (the idle + the loading + the playing + the paused) `open`
+- MD-H02 The media player URI (the file path + the 9P path + the http URL) `open`
+- MD-H03 The media player demux (the container parser + the track selector) `open`
+- MD-H04 The media player decoder (the video decoder + the audio decoder) `open`
+- MD-H05 The media player renderer (the video frame + the audio sample) `open`
+- MD-H06 The media player clock (the presentation timestamp, the playback rate) `open`
+- MD-H07 The media player seek (the time -> byte offset, the keyframe search) `open`
+- MD-H08 The media player playlist (the queue + the shuffle + the repeat) `open`
+- MD-H09 The media player subtitle (the SRT + the VTT + the ASS parser) `open`
+- MD-H10 The media player audio track (the language + the channel layout) `open`
+- MD-H11 The media player video track (the resolution + the codec + the HDR flag) `open`
+- MD-H12 The media player chapter (the navigation + the title) `open`
+- MD-H13 The media player menu (the OSD menu + the button + the slider) `open`
+- MD-H14 The media player fullscreen (the toggle + the escape + the pointer grab) `open`
+- MD-H15 The media player aspect ratio (the 4:3 + the 16:9 + the 21:9 + the auto) `open`
+- MD-H16 The media player zoom (the 0.5x + the 1x + the 2x + the fit + the fill) `open`
+- MD-H17 The media player rotation (the 0 + the 90 + the 180 + the 270) `open`
+- MD-H18 The media player mirroring (the horizontal flip, the vertical flip) `open`
+- MD-H19 The media player screenshot (the frame capture + the file save) `open`
+- MD-H20 The media player recording (the encode + the file write + the stop) `open`
+- MD-H21 The media player equalizer (the bass + the mid + the treble + the preset) `open`
+- MD-H22 The media player audio visualization (the waveform + the spectrum) `open`
+- MD-H23 The media player video effects (the brightness + the contrast + the saturation) `open`
+- MD-H24 The media player audio effects (the volume + the balance + the spatial) `open`
+- MD-H25 The media player bookmarks (the timestamp + the label + the list) `open`
+- MD-H26 The media player history (the recently played + the resume point) `open`
+- MD-H27 The media player preferences (the codec default + the quality + the cache) `open`
+- MD-H28 The media player keyboard shortcuts (the play/pause + the seek + the fullscreen) `open`
+- MD-H29 The media player mouse controls (the click + the drag + the scroll + the right-click) `open`
+- MD-H30 The media player touch controls (the tap + the swipe + the pinch + the long-press) `open`
+- MD-H31 The media player remote controls (the infrared + the keyboard + the gamepad) `open`
+- MD-H32 The media player accessibility (the captions + the audio description + the high-contrast) `open`
+- MD-H33 The media player theming (the 98 chrome + the dark mode + the compact) `open`
+- MD-H34 The media player integration (the 9P media export + the Wayland surface + the GStreamer pipeline) `open`
+- MD-H35 The media player tests (the format support + the seek accuracy + the latency) `open`
+- MD-H36 The media player docs (the user guide + the keyboard shortcut reference) `open`
+- MD-H37 The player state idle (the start state) `open`
+- MD-H38 The player state loading (the decode init) `open`
+- MD-H39 The player state playing (the active playback) `open`
+- MD-H40 The player state paused (the frozen state) `open`
+- MD-H41 The player state seeking (the jump in progress) `open`
+- MD-H42 The player state buffering (the data wait) `open`
+- MD-H43 The player state error (the failure state) `open`
+- MD-H44 The player state ended (the completion) `open`
+- MD-H45 The player state stopped (the shutdown) `open`
+- MD-H46 The player state preloading (the ahead buffer) `open`
+- MD-H47 The player control play (the start) `open`
+- MD-H48 The player control pause (the halt) `open`
+- MD-H49 The player control stop (the end) `open`
+- MD-H50 The player control seek (the jump) `open`
+- MD-H51 The player control set-rate (the speed) `open`
+- MD-H52 The player control set-volume (the level) `open`
+- MD-H53 The player control set-mute (the silence) `open`
+- MD-H54 The player control set-aspect (the ratio) `open`
+- MD-H55 The player control set-zoom (the scale) `open`
+- MD-H56 The player control set-rotation (the angle) `open`
+- MD-H57 The player track video track select `open`
+- MD-H58 The player track audio track select `open`
+- MD-H59 The player track subtitle track select `open`
+- MD-H60 The player track chapter select `open`
+- MD-H61 The player track angle select (the 3D) `open`
+- MD-H62 The player track audio description track `open`
+- MD-H63 The player track secondary audio track `open`
+- MD-H64 The player track audio normalize `open`
+- MD-H65 The player track subtitle render `open`
+- MD-H66 The player track subtitle style `open`
+- MD-H67 The player UI play/pause button `open`
+- MD-H68 The player UI seek slider `open`
+- MD-H69 The player UI volume slider `open`
+- MD-H70 The player UI fullscreen toggle `open`
+- MD-H71 The player UI aspect ratio menu `open`
+- MD-H72 The player UI zoom menu `open`
+- MD-H73 The player UI rotation menu `open`
+- MD-H74 The player UI track select menu `open`
+- MD-H75 The player UI chapter menu `open`
+- MD-H76 The player UI playlist menu `open`
+- MD-H77 The player feature screenshot (the capture) `open`
+- MD-H78 The player feature recording (the encode) `open`
+- MD-H79 The player feature bookmark (the save) `open`
+- MD-H80 The player feature history (the resume) `open`
+- MD-H81 The player feature playlist (the queue) `open`
+- MD-H82 The player feature shuffle (the random) `open`
+- MD-H83 The player feature repeat (the loop) `open`
+- MD-H84 The player feature autoplay (the next) `open`
+- MD-H85 The player feature picture-in-picture `open`
+- MD-H86 The player feature theater mode `open`
+- MD-H87 The player accessibility captions (the subtitle) `open`
+- MD-H88 The player accessibility audio description `open`
+- MD-H89 The player accessibility high-contrast mode `open`
+- MD-H90 The player accessibility large text `open`
+- MD-H91 The player accessibility keyboard navigation `open`
+- MD-H92 The player accessibility screen reader `open`
+- MD-H93 The player accessibility closed captions (CC1/CC2) `open`
+- MD-H94 The player accessibility SDH (the hearing impaired) `open`
+- MD-H95 The player accessibility sign language overlay `open`
+- MD-H96 The player accessibility the audio equalizer `open`
+- MD-H97 The player theming Win98 chrome (the classic) `open`
+- MD-H98 The player theming dark mode (the OLED) `open`
+- MD-H99 The player theming compact mode (the small) `open`
+- MD-H100 The player theming theater mode (the wide) `open`
+Status: `open` (36 gaps)
+
+## MD-I: The media integration (the 9P media namespace + the hosted media layer)
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the 9P media namespace (the /n/media/ path) -> the hosted media layer (the containerized media process) -> the WuBuOS media substrate (the Colonel's namespace + the Bonzi hosted media)
+- MD-I01 The 9P media root (the /n/media/ export root) `open`
+- MD-I02 The 9P video export (the /n/media/video/ directory) `open`
+- MD-I03 The 9P audio export (the /n/media/audio/ directory) `open`
+- MD-I04 The 9P image export (the /n/media/image/ directory) `open`
+- MD-I05 The 9P stream export (the /n/media/stream/ directory, the live feed) `open`
+- MD-I06 The 9P media stat (the file metadata, the duration + the resolution + the codec) `open`
+- MD-I07 The 9P media read (the chunked read, the offset + the count) `open`
+- MD-I08 The 9P media write (the chunked write, the append + the truncate) `open`
+- MD-I09 The 9P media watch (the inotify-style notification, the modify event) `open`
+- MD-I10 The 9P media lock (the advisory lock, the read lock + the write lock) `open`
+- MD-I11 The 9P media auth (the per-user access control, the read + the write + the admin) `open`
+- MD-I12 The 9P media quota (the per-user byte limit + the per-file limit) `open`
+- MD-I13 The 9P media cache (the client-side buffer, the read-ahead + the write-behind) `open`
+- MD-I14 The 9P media sync (the fsync + the datasync + the flush) `open`
+- MD-I15 The 9P media version (the 9P2000.L + the 9P2000.u + the 9P2000.x) `open`
+- MD-I16 The hosted media layer (the containerized media process, the resource limit) `open`
+- MD-I17 The hosted media process (the namespace + the cgroup + the seccomp) `open`
+- MD-I18 The hosted media container (the image + the runtime + the network) `open`
+- MD-I19 The hosted media bridge (the 9P mount + the pipe + the socket) `open`
+- MD-I20 The hosted media proxy (the protocol translation, the RTSP -> 9P) `open`
+- MD-I21 The hosted media gateway (the external -> internal, the NAT + the firewall) `open`
+- MD-I22 The hosted media monitor (the health check + the metrics + the alert) `open`
+- MD-I23 The hosted media recovery (the restart + the rollback + the replay) `open`
+- MD-I24 The hosted media scaling (the horizontal + the vertical + the bitrate) `open`
+- MD-I25 The hosted media failover (the primary + the standby + the switch) `open`
+- MD-I26 The hosted media load balancing (the round-robin + the least-conn + the hash) `open`
+- MD-I27 The hosted media QoS (the priority + the bandwidth + the latency) `open`
+- MD-I28 The hosted media security (the TLS + the auth + the audit) `open`
+- MD-I29 The hosted media logging (the access log + the error log + the audit log) `open`
+- MD-I30 The hosted media tracing (the span + the trace ID + the baggage) `open`
+- MD-I31 The hosted media config (the YAML + the env + the flag + the 9P read) `open`
+- MD-I32 The hosted media tests (the integration + the performance + the chaos) `open`
+- MD-I33 The hosted media docs (the architecture + the API + the operations guide) `open`
+- MD-I34 The 9P media export /n/media/ (the root export) `open`
+- MD-I35 The 9P media export /n/media/video/ (the video dir) `open`
+- MD-I36 The 9P media export /n/media/audio/ (the audio dir) `open`
+- MD-I37 The 9P media export /n/media/image/ (the image dir) `open`
+- MD-I38 The 9P media export /n/media/stream/ (the live dir) `open`
+- MD-I39 The 9P media export 9P stat (the metadata) `open`
+- MD-I40 The 9P media export 9P read (the chunked read) `open`
+- MD-I41 The 9P media export 9P write (the chunked write) `open`
+- MD-I42 The 9P media export 9P watch (the notify) `open`
+- MD-I43 The 9P media export 9P lock (the advisory) `open`
+- MD-I44 The hosted media process the container image `open`
+- MD-I45 The hosted media process the runtime (the namespace) `open`
+- MD-I46 The hosted media process the cgroup (the resource limit) `open`
+- MD-I47 The hosted media process the seccomp (the syscall filter) `open`
+- MD-I48 The hosted media process the network namespace `open`
+- MD-I49 The hosted media process the mount namespace `open`
+- MD-I50 The hosted media process the PID namespace `open`
+- MD-I51 The hosted media process the UTS namespace `open`
+- MD-I52 The hosted media process the IPC namespace `open`
+- MD-I53 The hosted media process the user namespace `open`
+- MD-I54 The hosted media bridge the 9P mount (the file bridge) `open`
+- MD-I55 The hosted media bridge the pipe (the stream bridge) `open`
+- MD-I56 The hosted media bridge the socket (the datagram bridge) `open`
+- MD-I57 The hosted media bridge the proxy (the protocol bridge) `open`
+- MD-I58 The hosted media bridge the gateway (the NAT bridge) `open`
+- MD-I59 The hosted media bridge the bridge (the network bridge) `open`
+- MD-I60 The hosted media bridge the tunnel (the encrypted bridge) `open`
+- MD-I61 The hosted media bridge the relay (the forward bridge) `open`
+- MD-I62 The hosted media bridge the filter (the policy bridge) `open`
+- MD-I63 The hosted media bridge the monitor (the health bridge) `open`
+- MD-I64 The hosted media QoS the priority (the class) `open`
+- MD-I65 The hosted media QoS the bandwidth (the ceiling) `open`
+- MD-I66 The hosted media QoS the latency (the budget) `open`
+- MD-I67 The hosted media QoS the jitter (the variance) `open`
+- MD-I68 The hosted media QoS the loss (the drop rate) `open`
+- MD-I69 The hosted media QoS the throughput (the rate) `open`
+- MD-I70 The hosted media QoS the queue (the buffer) `open`
+- MD-I71 The hosted media QoS the scheduler (the policy) `open`
+- MD-I72 The hosted media QoS the shaper (the limiter) `open`
+- MD-I73 The hosted media QoS the policer (the enforcer) `open`
+- MD-I74 The hosted media security the TLS (the encryption) `open`
+- MD-I75 The hosted media security the auth (the identity) `open`
+- MD-I76 The hosted media security the audit (the log) `open`
+- MD-I77 The hosted media security the cipher (the algorithm) `open`
+- MD-I78 The hosted media security the key (the secret) `open`
+- MD-I79 The hosted media security the cert (the credential) `open`
+- MD-I80 The hosted media security the CA (the trust anchor) `open`
+- MD-I81 The hosted media security the CRL (the revocation) `open`
+- MD-I82 The hosted media security the OCSP (the status) `open`
+- MD-I83 The hosted media security the mTLS (the mutual) `open`
+- MD-I84 The hosted media scaling horizontal (the more instances) `open`
+- MD-I85 The hosted media scaling vertical (the bigger instance) `open`
+- MD-I86 The hosted media scaling the bitrate (the quality level) `open`
+- MD-I87 The hosted media scaling the resolution (the pixel level) `open`
+- MD-I88 The hosted media scaling the codec (the efficiency level) `open`
+- MD-I89 The hosted media scaling the frame rate (the temporal level) `open`
+- MD-I90 The hosted media scaling the audio rate (the sample level) `open`
+- MD-I91 The hosted media scaling the buffer (the latency level) `open`
+- MD-I92 The hosted media scaling the pool (the resource level) `open`
+- MD-I93 The hosted media scaling the tier (the cost level) `open`
+- MD-I94 The hosted media failover the primary (the active) `open`
+- MD-I95 The hosted media failover the standby (the warm) `open`
+- MD-I96 The hosted media failover the cold (the backup) `open`
+- MD-I97 The hosted media failover the switch (the cutover) `open`
+- MD-I98 The hosted media failover the rollback (the revert) `open`
+- MD-I99 The hosted media failover the replay (the retransmit) `open`
+- MD-I100 The hosted media failover the drain (the drain active) `open`
+Status: `open` (33 gaps)
+
+## MD-J: The media engineering close
+Status: `open` = not yet built; `wired` = implemented + tested.
+### 7-hop convergence: the threat model -> the budget matrix -> the cross-bank integration -> the MD roadmap -> the WuBuOS media engineering close
+- MD-J01 The MD threat model (the media attack surface, the buffer overflow + the format parser) `open`
+- MD-J02 The MD performance budget (the encode latency + the decode latency + the end-to-end) `open`
+- MD-J03 The MD memory budget (the 13GB reality, the frame buffer + the codec state) `open`
+- MD-J04 The MD no-network rule (the offline-first media, the local codec + the local container) `open`
+- MD-J05 The MD determinism rule (the same input -> the same output, the reproducible encode) `open`
+- MD-J06 The MD reproducibility check (the encode-decode round-trip + the hash compare) `open`
+- MD-J07 The MD integration with the storage bank (the CAS on littlefs, the media artifact store) `open`
+- MD-J08 The MD integration with the network bank (the QUIC media transport, the 9P media export) `open`
+- MD-J09 The MD integration with the kernel bank (the DRM/KMS driver, the V4L2 codec node) `open`
+- MD-J10 The MD integration with the engine bank (the neural codec inference, the NPU path) `open`
+- MD-J11 The MD integration with the human bank (the media accessibility, the Bonzi companion) `open`
+- MD-J12 The MD integration with the security bank (the signed media pipeline, the CENC) `open`
+- MD-J13 The MD integration with the GUI bank (the Win98 media player, the Bonzi UI) `open`
+- MD-J14 The MD integration with the synthesis bank (the audio dev tools, the wavetable pipeline) `open`
+- MD-J15 The MD cross-bank gap ledger (the media gaps that touch other banks) `open`
+- MD-J16 The MD close-rate report (the encode-decode pass rate, the format support rate) `open`
+- MD-J17 The MD CI matrix (the codec + the container + the resolution + the bitrate grid) `open`
+- MD-J18 The MD smoke test (the encode -> mux -> demux -> decode -> verify) `open`
+- MD-J19 The MD soak test (the 24h encode-decode endurance, the memory leak check) `open`
+- MD-J20 The MD stress test (the 4K60 encode + the 8-channel audio, the CPU ceiling) `open`
+- MD-J21 The MD chaos test (the packet loss + the frame drop + the codec mismatch) `open`
+- MD-J22 The MD upgrade test (the codec version bump, the backward compat) `open`
+- MD-J23 The MD downgrade test (the fallback to HEVC when AV1 is unsupported) `open`
+- MD-J24 The MD cold-start benchmark (the first-frame decode latency) `open`
+- MD-J25 The MD warm-cache benchmark (the seek-to-keyframe latency) `open`
+- MD-J26 The MD incremental-edit benchmark (the re-encode after a trim) `open`
+- MD-J27 The MD full-rebuild benchmark (the transcode from scratch) `open`
+- MD-J28 The MD trace-size benchmark (the bitrate vs the quality vs the latency) `open`
+- MD-J29 The MD spec doc (the codec selection + the container format + the transport) `open`
+- MD-J30 The MD design doc (the architecture + the data flow + the failure modes) `open`
+- MD-J31 The MD API reference (the 9P media protocol + the GStreamer pipeline + the Wayland surface) `open`
+- MD-J32 The MD tutorial (the first encode + the first stream + the first display) `open`
+- MD-J33 The MD troubleshooting guide (the format not supported + the decode failure + the latency spike) `open`
+- MD-J34 The MD roadmap (the short-term + the mid-term + the long-term media milestones) `open`
+- MD-J35 The MD bank ledger (the gap count + the wired count + the close rate) `open`
+- MD-J36 The MD threat model the buffer overflow (the parser) `open`
+- MD-J37 The MD threat model the format confusion (the type) `open`
+- MD-J38 The MD threat model the integer overflow (the size) `open`
+- MD-J39 The MD threat model the null pointer (the missing) `open`
+- MD-J40 The MD threat model the use-after-free (the lifetime) `open`
+- MD-J41 The MD threat model the double-free (the release) `open`
+- MD-J42 The MD threat model the memory leak (the growth) `open`
+- MD-J43 The MD threat model the DoS (the resource exhaustion) `open`
+- MD-J44 The MD threat model the injection (the payload) `open`
+- MD-J45 The MD threat model the side-channel (the timing) `open`
+- MD-J46 The MD performance budget the encode latency (the ms) `open`
+- MD-J47 The MD performance budget the decode latency (the ms) `open`
+- MD-J48 The MD performance budget the end-to-end latency (the ms) `open`
+- MD-J49 The MD performance budget the CPU budget (the percent) `open`
+- MD-J50 The MD performance budget the memory budget (the MB) `open`
+- MD-J51 The MD performance budget the GPU budget (the percent) `open`
+- MD-J52 The MD performance budget the power budget (the watt) `open`
+- MD-J53 The MD performance budget the thermal budget (the C) `open`
+- MD-J54 The MD performance budget the bandwidth budget (the Mbps) `open`
+- MD-J55 The MD performance budget the latency budget (the ms) `open`
+- MD-J56 The MD memory budget the 13GB reality (the ceiling) `open`
+- MD-J57 The MD memory budget the frame buffer (the size) `open`
+- MD-J58 The MD memory budget the codec state (the context) `open`
+- MD-J59 The MD memory budget the decode pool (the buffer) `open`
+- MD-J60 The MD memory budget the encode pool (the buffer) `open`
+- MD-J61 The MD memory budget the cache (the hot data) `open`
+- MD-J62 The MD memory budget the scratch (the temp) `open`
+- MD-J63 The MD memory budget the metadata (the overhead) `open`
+- MD-J64 The MD memory budget the overhead (the padding) `open`
+- MD-J65 The MD memory budget the peak (the max) `open`
+- MD-J66 The MD no-network rule the offline-first (the default) `open`
+- MD-J67 The MD no-network rule the local codec (the built-in) `open`
+- MD-J68 The MD no-network rule the local container (the built) `open`
+- MD-J69 The MD no-network rule the local transport (the 9P) `open`
+- MD-J70 The MD no-network rule the local display (the KMS) `open`
+- MD-J71 The MD no-network rule the local audio (the device) `open`
+- MD-J72 The MD no-network rule the local storage (the disk) `open`
+- MD-J73 The MD no-network rule the local cache (the RAM) `open`
+- MD-J74 The MD no-network rule the local config (the file) `open`
+- MD-J75 The MD no-network rule the local log (the file) `open`
+- MD-J76 The MD determinism rule the same input (the file) `open`
+- MD-J77 The MD determinism rule the same output (the bits) `open`
+- MD-J78 The MD determinism rule the same latency (the ms) `open`
+- MD-J79 The MD determinism rule the same memory (the MB) `open`
+- MD-J80 The MD determinism rule the same CPU (the percent) `open`
+- MD-J81 The MD determinism rule the same codec (the profile) `open`
+- MD-J82 The MD determinism rule the same container (the format) `open`
+- MD-J83 The MD determinism rule the same transport (the protocol) `open`
+- MD-J84 The MD determinism rule the same display (the mode) `open`
+- MD-J85 The MD determinism rule the same result (the hash) `open`
+- MD-J86 The MD integration the storage bank (the CAS artifact) `open`
+- MD-J87 The MD integration the network bank (the QUIC transport) `open`
+- MD-J88 The MD integration the kernel bank (the DRM driver) `open`
+- MD-J89 The MD integration the engine bank (the NPU inference) `open`
+- MD-J90 The MD integration the human bank (the accessibility) `open`
+- MD-J91 The MD integration the security bank (the signed pipeline) `open`
+- MD-J92 The MD integration the GUI bank (the Bonzi UI) `open`
+- MD-J93 The MD integration the synthesis bank (the audio dev) `open`
+- MD-J94 The MD integration the devtools bank (the build CAS) `open`
+- MD-J95 The MD integration the wubuwizard bank (the model) `open`
+- MD-J96 The MD test the smoke test (the quick) `open`
+- MD-J97 The MD test the integration test (the full) `open`
+- MD-J98 The MD test the performance test (the benchmark) `open`
+- MD-J99 The MD test the stress test (the endurance) `open`
+- MD-J100 The MD test the chaos test (the failure) `open`
+Status: `open` (35 gaps)

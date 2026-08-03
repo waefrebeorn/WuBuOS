@@ -1,0 +1,1567 @@
+{
+  "MD-A": [
+    [
+      "The AV1 encoder preset",
+      [
+        "preset 0 (slowest quality)",
+        "preset 4 (VOD default)",
+        "preset 6 (balanced)",
+        "preset 8 (fast VOD)",
+        "preset 10 (cloud transcode)",
+        "preset 12 (real-time 1080p)",
+        "preset 13 (fastest real-time)",
+        "the SVT-AV1 v4.0.0 speed tier",
+        "the Aurora1 hardware encoder",
+        "the libaom reference encoder"
+      ]
+    ],
+    [
+      "The AV1 encode workload",
+      [
+        "1080p30 screen content",
+        "1080p30 camera content",
+        "4K60 VOD content",
+        "4K60 live content",
+        "720p60 mobile content",
+        "360p adaptive ladder rung",
+        "1440p60 premium rung",
+        "8K60 future-proof rung",
+        "VR 180/360 equirectangular",
+        "screen-share desktop content"
+      ]
+    ],
+    [
+      "The AV1 quality target",
+      [
+        "VMAF 90+ at 2Mbps",
+        "VMAF 80+ at 1Mbps",
+        "VMAF 70+ at 500kbps",
+        "VMAF 60+ at 250kbps",
+        "PSNR 35dB at 4Mbps",
+        "PSNR 30dB at 2Mbps",
+        "MS-SSIM 0.95+ at 2Mbps",
+        "BD-rate vs HEVC -30%",
+        "BD-rate vs H.264 -50%",
+        "BD-rate vs VP9 -20%"
+      ]
+    ],
+    [
+      "The HEVC encode profile",
+      [
+        "Main profile (the default)",
+        "Main10 profile (10-bit)",
+        "Rext profile (scalable)",
+        "Still Picture profile",
+        "HEVC intra refresh",
+        "HEVC tiles + tiles cols",
+        "HEVC wavefront parallel",
+        "HEVC SAO on/off",
+        "HEVC ALF on/off",
+        "HEVC QP 22-52 ladder"
+      ]
+    ],
+    [
+      "The VVC encode profile",
+      [
+        "VVC Main profile",
+        "VVC Main 10 profile",
+        "VVC still picture",
+        "VVC QTBT partition",
+        "VVC affine motion",
+        "VVC ALF luma+chroma",
+        "VVC MRL reference",
+        "VVC ISP sub-partition",
+        "VVC explicit scaling list",
+        "VVC QP 22-52 ladder"
+      ]
+    ],
+    [
+      "The hardware encode path",
+      [
+        "Intel Arc AV1 hardware",
+        "NVIDIA RTX 40 AV1 hardware",
+        "AMD RDNA 3 AV1 hardware",
+        "Apple M3 Pro AV1 hardware",
+        "Qualcomm Snapdragon AV1 HW",
+        "Intel HEVC hardware",
+        "NVIDIA HEVC hardware",
+        "AMD HEVC hardware",
+        "NVENC HEVC session",
+        "AMF HEVC session"
+      ]
+    ],
+    [
+      "The encode scenario",
+      [
+        "cold encode (first time)",
+        "warm encode (primed cache)",
+        "incremental re-encode",
+        "trim re-encode (cut segment)",
+        "resolution switch re-encode",
+        "bitrate switch re-encode",
+        "codec switch re-encode",
+        "batch encode (1000 files)",
+        "live encode (streaming)",
+        "adaptive ladder encode"
+      ]
+    ],
+    [
+      "The encode test",
+      [
+        "round-trip encode-decode",
+        "BD-rate vs reference",
+        "encode speed benchmark",
+        "decode speed benchmark",
+        "memory ceiling test",
+        "crash regression test",
+        "format compliance test",
+        "hardware decode test",
+        "10-bit encode test",
+        "HDR encode test"
+      ]
+    ],
+    [
+      "The encode docs",
+      [
+        "AV1 encode cookbook",
+        "HEVC encode cookbook",
+        "VVC encode cookbook",
+        "SVT-AV1 preset guide",
+        "FFmpeg encode reference",
+        "VAAPI encode guide",
+        "NVENC encode guide",
+        "AMF encode guide",
+        "V4L2 encode guide",
+        "encode benchmark report"
+      ]
+    ],
+    [
+      "The encode integration",
+      [
+        "CAS artifact store (the encoded file)",
+        "9P media export (the encoded stream)",
+        "GStreamer pipeline (the encode element)",
+        "V4L2 codec node (the hardware encoder)",
+        "DRM/KMS scanout (the display path)",
+        "Wayland surface (the compositor input)",
+        "Bonzi player (the playback UI)",
+        "the Colonel display pipeline",
+        "the WuBuOS media daemon",
+        "the adaptive bitrate ladder"
+      ]
+    ],
+    [
+      "The encode fallback",
+      [
+        "AV1 -> HEVC fallback",
+        "HEVC -> H.264 fallback",
+        "10-bit -> 8-bit fallback",
+        "4K -> 1080p fallback",
+        "60fps -> 30fps fallback",
+        "HDR -> SDR fallback",
+        "AV1 HW -> SW fallback",
+        "HEVC HW -> SW fallback",
+        "VVC -> HEVC fallback",
+        "the dual-ladder encode policy"
+      ]
+    ]
+  ],
+  "MD-B": [
+    [
+      "The Opus application mode",
+      [
+        "VoIP (the 20ms frame)",
+        "Audio (the 60ms frame)",
+        "Lowdelay (the 5ms frame)",
+        "Restricted lowdelay (the 2.5ms frame)",
+        "Music (the 960ms frame)",
+        "Voice (the 40ms frame)",
+        "Conference (the 20ms frame)",
+        "Broadcast (the 60ms frame)",
+        "Gaming (the 10ms frame)",
+        "Streaming (the 40ms frame)"
+      ]
+    ],
+    [
+      "The Opus bitrate target",
+      [
+        "6 kbps (narrowband speech)",
+        "8 kbps (WB speech)",
+        "12 kbps (fullband speech)",
+        "16 kbps (fullband music)",
+        "24 kbps (high-quality music)",
+        "32 kbps (stereo music)",
+        "48 kbps (transparent)",
+        "64 kbps (archive quality)",
+        "96 kbps (master quality)",
+        "128 kbps (lossless-adjacent)"
+      ]
+    ],
+    [
+      "The LC3 codec mode",
+      [
+        "LC3 16kHz mono",
+        "LC3 16kHz stereo",
+        "LC3 48kHz mono",
+        "LC3 48kHz stereo",
+        "LC3plus 96kHz mono",
+        "LC3plus 96kHz stereo",
+        "LC3 2.5ms frame",
+        "LC3 5ms frame",
+        "LC3 7.5ms frame",
+        "LC3 10ms frame"
+      ]
+    ],
+    [
+      "The neural codec codec",
+      [
+        "SoundStream (Google, 2021)",
+        "EnCodec (Meta, 2022)",
+        "TQCodec (arXiv 2603.01592)",
+        "Streamable NC (arXiv 2504.06561)",
+        "DAC (Descript, improved RVQ)",
+        "Lyra v2 (Google, phone-ready)",
+        "VoiceBox (Meta, text-to-audio)",
+        "MusicLM audio (Google, music)",
+        "AudioLDM (latent diffusion)",
+        "WaveNet-style (Google, 2016)"
+      ]
+    ],
+    [
+      "The neural codec rate",
+      [
+        "3 kbps (narrowband speech)",
+        "6 kbps (fullband speech)",
+        "12 kbps (fullband music)",
+        "18 kbps (high-quality music)",
+        "24 kbps (CD-adjacent)",
+        "48 kbps (transparent)",
+        "64 kbps (archive)",
+        "96 kbps (master)",
+        "128 kbps (near-lossless)",
+        "256 kbps (transparent-high)"
+      ]
+    ],
+    [
+      "The neural codec complexity",
+      [
+        "encoder CPU budget (the encode time)",
+        "decoder CPU budget (the decode time)",
+        "memory footprint (the model size)",
+        "latency budget (the frame delay)",
+        "throughput (the frames/sec)",
+        "batch size (the parallel frames)",
+        "quantization (the INT8/INT16)",
+        "ONNX export (the runtime)",
+        "TensorRT path (the GPU)",
+        "CPU-only path (the fallback)"
+      ]
+    ],
+    [
+      "The audio quality metric",
+      [
+        "POLQA (the ITU perceptual)",
+        "PESQ (the ITU speech)",
+        "STOI (the speech intelligibility)",
+        "DNSMOS (the neural MOS)",
+        "ViSQOL (the Google perceptual)",
+        "MOS-LQO (the mean opinion score)",
+        "SNR (the signal-to-noise)",
+        "PESQ-MOS (the mapped score)",
+        "STOI-MOS (the mapped score)",
+        "ABX subjective test"
+      ]
+    ],
+    [
+      "The audio test",
+      [
+        "round-trip encode-decode",
+        "POLQA score vs reference",
+        "PESQ score vs reference",
+        "latency benchmark",
+        "memory ceiling test",
+        "crash regression test",
+        "format compliance test",
+        "multi-rate switch test",
+        "packet loss resilience test",
+        "JET buffer test"
+      ]
+    ],
+    [
+      "The audio docs",
+      [
+        "Opus encode cookbook",
+        "LC3 encode cookbook",
+        "EnCodec cookbook",
+        "TQCodec cookbook",
+        "streamable NC cookbook",
+        "audio quality guide",
+        "latency tuning guide",
+        "JET buffer guide",
+        "AEC/NS cookbook",
+        "audio benchmark report"
+      ]
+    ],
+    [
+      "The audio integration",
+      [
+        "Opus in WebRTC (the default)",
+        "Opus in 9P media export",
+        "LC3 in Bluetooth LE Audio",
+        "EnCodec in the Bonzi player",
+        "TQCodec in the Colonel pipeline",
+        "GStreamer audio convert",
+        "Wayland audio surface",
+        "the WuBuOS audio engine",
+        "the audio device node",
+        "the audio device node"
+      ]
+    ],
+    [
+      "The audio fallback",
+      [
+        "Opus -> LC3 fallback",
+        "LC3 -> PCM fallback",
+        "neural -> Opus fallback",
+        "neural -> PCM fallback",
+        "96kHz -> 48kHz fallback",
+        "stereo -> mono fallback",
+        "VBR -> CBR fallback",
+        "lowbitrate -> highbitrate",
+        "AEC on -> AEC off",
+        "NS on -> NS off"
+      ]
+    ]
+  ],
+  "MD-C": [
+    [
+      "The Matroska EBML element",
+      [
+        "EBML header (the version + read version)",
+        "EBML max ID length",
+        "EBML max size length",
+        "doc type (the Matroska)",
+        "doc type version",
+        "doc type read version",
+        "Void element (the padding)",
+        "CRC-32 element (the integrity)",
+        "Unknown element (the skip)",
+        "Master element (the container)"
+      ]
+    ],
+    [
+      "The WebM container",
+      [
+        "WebM EBML header",
+        "WebM Segment",
+        "WebM Info (the duration + date)",
+        "WebM Tracks (the track entry)",
+        "WebM Cluster (the frame group)",
+        "WebM SimpleBlock (the frame)",
+        "WebM BlockGroup (the block + duration)",
+        "WebM Cues (the index)",
+        "WebM Chapters",
+        "WebM Attachments (the fonts + covers)"
+      ]
+    ],
+    [
+      "The MP4 box",
+      [
+        "ftyp (the file type)",
+        "moov (the movie metadata)",
+        "mdat (the media data)",
+        "mvex (the movie extension)",
+        "trex (the track extension)",
+        "moof (the movie fragment)",
+        "traf (the track fragment)",
+        "mfra (the movie fragment random access)",
+        "skip (the padding)",
+        "free (the free space)"
+      ]
+    ],
+    [
+      "The MP4 moov sub-box",
+      [
+        "mvhd (the movie header)",
+        "iods (the initial object descriptor)",
+        "trak (the track)",
+        "udta (the user data)",
+        "meta (the metadata)",
+        "mvex (the movie extension)",
+        "moof (the movie fragment)",
+        "mfra (the fragment random access)",
+        "skip",
+        "free"
+      ]
+    ],
+    [
+      "The MP4 trak sub-box",
+      [
+        "tkhd (the track header)",
+        "mdia (the media)",
+        "edts (the edit list)",
+        "tapt (the track aperture)",
+        "clipr (the clip region)",
+        "colr (the color profile)",
+        "mdhd (the media header)",
+        "hdlr (the handler reference)",
+        "minf (the media info)",
+        "stbl (the sample table)"
+      ]
+    ],
+    [
+      "The MP4 stbl sub-box",
+      [
+        "stsd (the sample description)",
+        "stts (the time-to-sample)",
+        "cts (the composition time)",
+        "stsc (the sample-to-chunk)",
+        "stco (the chunk offset)",
+        "co64 (the 64-bit offset)",
+        "stsz (the sample size)",
+        "stz2 (the compact size)",
+        "stss (the sync sample)",
+        "sdtp (the sample dependency)"
+      ]
+    ],
+    [
+      "The DASH manifest",
+      [
+        "MPD (the Media Presentation Description)",
+        "Period (the temporal partition)",
+        "AdaptationSet (the representation group)",
+        "Representation (the single stream)",
+        "SegmentBase (the init segment)",
+        "SegmentList (the explicit segments)",
+        "SegmentTemplate (the URL template)",
+        "Initialization (the init range)",
+        "RepresentationBase (the common attributes)",
+        "Role (the accessibility role)"
+      ]
+    ],
+    [
+      "The HLS manifest",
+      [
+        "m3u8 (the playlist format)",
+        "EXT-X-VERSION (the version)",
+        "EXT-X-TARGETDURATION (the segment max)",
+        "EXT-X-MEDIA-SEQUENCE (the counter)",
+        "EXT-X-STREAM-INF (the variant)",
+        "EXT-X-I-FRAME-STREAM-INF (the iframe)",
+        "EXT-X-MAP (the init segment)",
+        "EXT-X-PROGRAM-DATE-TIME (the wall clock)",
+        "EXT-X-DISCONTINUITY (the break)",
+        "EXT-X-ENDLIST (the final)"
+      ]
+    ],
+    [
+      "The CMAF format",
+      [
+        "fMP4 (the fragmented MP4)",
+        "CENC (the common encryption)",
+        "SAMPLE-AES (the AES-128-CTR)",
+        "TrackEncryptionBox (the per-track key)",
+        "SampleEncryptionBox (the per-sample IV)",
+        "PatternEncryption (the pattern)",
+        "CENC key rotation",
+        "CENC multi-DRM",
+        "CENC widevine",
+        "CENC fairplay"
+      ]
+    ],
+    [
+      "The container test",
+      [
+        "round-trip mux-demux",
+        "format compliance test",
+        "codec support matrix",
+        "resolution support matrix",
+        "bitrate support matrix",
+        "HDR format support",
+        "DASH manifest validate",
+        "HLS playlist validate",
+        "CMAF encryption test",
+        "container stress test"
+      ]
+    ],
+    [
+      "The container docs",
+      [
+        "Matroska spec reference",
+        "EBML spec reference",
+        "WebM spec reference",
+        "MP4/BMFF spec reference",
+        "DASH MPD spec reference",
+        "HLS spec reference",
+        "CMAF spec reference",
+        "CENC spec reference",
+        "container cookbook",
+        "container benchmark report"
+      ]
+    ]
+  ],
+  "MD-D": [
+    [
+      "The GStreamer element",
+      [
+        "v4l2src (the camera source)",
+        "v4l2sink (the camera sink)",
+        "kmssink (the KMS display)",
+        "waylandsink (the Wayland output)",
+        "ximagesink (the X11 output)",
+        "glimagesink (the OpenGL output)",
+        "appsink (the pull sink)",
+        "appsrc (the push source)",
+        "videoconvert (the colorspace convert)",
+        "videorate (the frame rate adjust)"
+      ]
+    ],
+    [
+      "The GStreamer pad",
+      [
+        "src pad (the output pad)",
+        "sink pad (the input pad)",
+        "pad link (the connection)",
+        "pad caps (the capability)",
+        "pad query (the info request)",
+        "pad event (the control signal)",
+        "pad buffer (the data chunk)",
+        "pad allocator (the buffer source)",
+        "pad activation mode",
+        "pad proxy"
+      ]
+    ],
+    [
+      "The GStreamer buffer",
+      [
+        "GstBuffer (the buffer object)",
+        "GstBufferList (the buffer list)",
+        "GstMemory (the memory chunk)",
+        "GstMappedBuffer (the mapped view)",
+        "GstBuffer metadata",
+        "GstBuffer flags",
+        "GstBuffer pts/dts",
+        "GstBuffer duration",
+        "GstBuffer offset",
+        "GstBuffer size"
+      ]
+    ],
+    [
+      "The dmabuf flow",
+      [
+        "V4L2 buffer export (DMABUF ioctl)",
+        "dmabuf fd import (the receiving fd)",
+        "dmabuf fd export (the source fd)",
+        "dmabuf fd passing (the Unix FD)",
+        "dmabuf cache coherency",
+        "dmabuf mapping (the mmap)",
+        "dmabuf reservation (the vmap)",
+        "dmabuf sync (the fence)",
+        "dmabuf prime (the DRM prime)",
+        "dmabuf zero-copy path"
+      ]
+    ],
+    [
+      "The V4L2 buffer",
+      [
+        "V4L2 MMAP buffer",
+        "V4L2 USERPTR buffer",
+        "V4L2 DMABUF buffer",
+        "V4L2 buffer queue",
+        "V4L2 buffer dequeue",
+        "V4L2 buffer query",
+        "V4L2 buffer format",
+        "V4L2 buffer request",
+        "V4L2 buffer metadata",
+        "V4L2 buffer timestamp"
+      ]
+    ],
+    [
+      "The KMS plane",
+      [
+        "primary plane (the main output)",
+        "overlay plane (the video overlay)",
+        "cursor plane (the hardware cursor)",
+        "plane z-order",
+        "plane src rectangle",
+        "plane dst rectangle",
+        "plane CRTC",
+        "plane encoder",
+        "plane connector",
+        "plane property"
+      ]
+    ],
+    [
+      "The zero-copy path",
+      [
+        "camera -> ISP -> DMABUF",
+        "DMABUF -> GStreamer",
+        "GStreamer -> GPU",
+        "GPU -> NPU",
+        "NPU -> display",
+        "V4L2 -> KMS",
+        "DRM -> scanout",
+        "9P -> client",
+        "pipe -> process",
+        "socket -> process"
+      ]
+    ],
+    [
+      "The pipeline test",
+      [
+        "end-to-end latency",
+        "frame drop rate",
+        "CPU overhead",
+        "memory usage",
+        "throughput (fps)",
+        "resolution support",
+        "format support",
+        "multi-stream",
+        "stress test",
+        "regression test"
+      ]
+    ],
+    [
+      "The pipeline benchmark",
+      [
+        "single-stream 1080p",
+        "multi-stream 4K",
+        "low-latency mode",
+        "high-throughput mode",
+        "power budget",
+        "thermal throttling",
+        "sustained load",
+        "burst load",
+        "cold start",
+        "warm start"
+      ]
+    ],
+    [
+      "The pipeline docs",
+      [
+        "GStreamer plugin guide",
+        "dmabuf API reference",
+        "V4L2 API reference",
+        "KMS API reference",
+        "DRM API reference",
+        "pipeline cookbook",
+        "zero-copy guide",
+        "performance guide",
+        "troubleshooting guide",
+        "pipeline benchmark report"
+      ]
+    ]
+  ],
+  "MD-E": [
+    [
+      "The NVC rate-distortion",
+      [
+        "R + lambda*D (the Lagrangian)",
+        "lambda = 0.85 (the default)",
+        "lambda ladder (the QP scale)",
+        "rate control (the target bitrate)",
+        "distortion metric (the PSNR)",
+        "perceptual metric (the VMAF)",
+        "multi-scale distortion",
+        "temporal distortion",
+        "spatial distortion",
+        "the rate-distortion curve"
+      ]
+    ],
+    [
+      "The autoencoder",
+      [
+        "encoder CNN (the spatial)",
+        "decoder CNN (the spatial)",
+        "encoder transformer (the temporal)",
+        "decoder transformer (the temporal)",
+        "latent bottleneck (the compression)",
+        "latent dimension (the size)",
+        "latent channels (the depth)",
+        "latent quantize (the step)",
+        "latent dequantize (the half-step)",
+        "latent stochastic (the noise)"
+      ]
+    ],
+    [
+      "The hyper-prior",
+      [
+        "hyper encoder (the prior net)",
+        "hyper decoder (the posterior net)",
+        "hyper latent (the context)",
+        "hyper entropy (the model)",
+        "hyper context (the neighbor)",
+        "hyper prior (the Gaussian)",
+        "hyper scale (the variance)",
+        "hyper mean (the location)",
+        "hyper temperature (the temp)",
+        "hyper optimization (the NLL loss)"
+      ]
+    ],
+    [
+      "The entropy model",
+      [
+        "uniform (the baseline)",
+        "Gaussian (the simple)",
+        "hyperprior (the learned)",
+        "mixture (the multi-modal)",
+        "discretized logistic (the flexible)",
+        "conditional (the context)",
+        "autoregressive (the causal)",
+        "flow-based (the invertible)",
+        "VAE (the variational)",
+        "normalizing flow (the exact)"
+      ]
+    ],
+    [
+      "The quantization",
+      [
+        "uniform scalar (the step size)",
+        "stochastic (the noise injection)",
+        "deterministic (the half-step)",
+        "LSQ (the learned step)",
+        "LSQ+ (the improved LSQ)",
+        "STE (the straight-through)",
+        "rounding (the nearest integer)",
+        "clipping (the range limit)",
+        "per-channel (the per-dim)",
+        "per-block (the per-block)"
+      ]
+    ],
+    [
+      "The motion model",
+      [
+        "global motion (the 8-param)",
+        "affine motion (the 6-param)",
+        "translational (the 2-param)",
+        "rotational (the 1-param)",
+        "zoom (the scale param)",
+        "shear (the skew param)",
+        "optical flow (the dense MV)",
+        "deformable (the adaptive)",
+        "neural flow (the learned)",
+        "warp (the spatial transform)"
+      ]
+    ],
+    [
+      "The prediction",
+      [
+        "intra (the spatial)",
+        "inter (the temporal)",
+        "skip (the zero-MV)",
+        "merge (the candidate list)",
+        "direct (the implicit MV)",
+        "bi-pred (the forward+backward)",
+        "tri-pred (the three ref)",
+        "hierarchical (the pyramid)",
+        "adaptive (the per-block)",
+        "neural (the learned predictor)"
+      ]
+    ],
+    [
+      "The loop filter",
+      [
+        "deblocking (the boundary)",
+        "SAO (the sample offset)",
+        "ALF (the adaptive loop)",
+        "CNN filter (the neural)",
+        "Wiener filter (the optimal)",
+        "bilateral filter (the edge-aware)",
+        "guided filter (the structure-aware)",
+        "non-local means (the patch)",
+        "self-similarity (the repeat)",
+        "wavelet (the multi-scale)"
+      ]
+    ],
+    [
+      "The NVC test",
+      [
+        "BD-rate vs VTM",
+        "BD-rate vs HEVC",
+        "BD-rate vs AV1",
+        "encode speed benchmark",
+        "decode speed benchmark",
+        "memory footprint",
+        "latency end-to-end",
+        "quality vs complexity",
+        "robustness to packet loss",
+        "reproducibility check"
+      ]
+    ],
+    [
+      "The NVC docs",
+      [
+        "NVC architecture reference",
+        "rate-distortion guide",
+        "training cookbook",
+        "evaluation guide",
+        "deployment guide",
+        "ONNX export guide",
+        "TensorRT guide",
+        "NVC benchmark report",
+        "NVC comparison table",
+        "NVC roadmap"
+      ]
+    ]
+  ],
+  "MD-F": [
+    [
+      "The RTP header field",
+      [
+        "version (the 2-bit)",
+        "padding (the 1-bit)",
+        "extension (the 1-bit)",
+        "CSRC count (the 4-bit)",
+        "marker (the 1-bit)",
+        "payload type (the 7-bit)",
+        "sequence number (the 16-bit)",
+        "timestamp (the 32-bit)",
+        "SSRC (the 32-bit)",
+        "CSRC list (the 0-15 list)"
+      ]
+    ],
+    [
+      "The RTCP packet",
+      [
+        "SR (the sender report)",
+        "RR (the receiver report)",
+        "SDES (the source description)",
+        "BYE (the departure)",
+        "APP (the application)",
+        "XR (the extended report)",
+        "REMB (the max bitrate)",
+        "TWCC (the congestion control)",
+        "NACK (the negative ack)",
+        "FIR (the full intra req)"
+      ]
+    ],
+    [
+      "The WebRTC signal",
+      [
+        "offer (the SDP offer)",
+        "answer (the SDP answer)",
+        "ICE candidate (the address)",
+        "ICE gathering (the candidate list)",
+        "ICE connectivity check",
+        "ICE nomination",
+        "DTLS handshake (the crypto)",
+        "SRTP setup (the encryption)",
+        "media track (the stream)",
+        "transceiver (the direction)"
+      ]
+    ],
+    [
+      "The WebRTC congestion",
+      [
+        "GCC (the Google algorithm)",
+        "REMB (the receiver estimate)",
+        "TWCC (the transport-wide)",
+        "loss-based (the packet loss)",
+        "delay-based (the RTT)",
+        "bandwidth estimation",
+        "probe (the test burst)",
+        "backoff (the reduction)",
+        "rampup (the increase)",
+        "steady-state (the target)"
+      ]
+    ],
+    [
+      "The WebRTC media",
+      [
+        "audio track (the Opus stream)",
+        "video track (the AV1 stream)",
+        "data channel (the SCTP)",
+        "simulcast (the spatial)",
+        "SVC (the scalable)",
+        "SFU (the selective forward)",
+        "MCU (the mix)",
+        "peer (the direct)",
+        "group (the mesh)",
+        "bridge (the relay)"
+      ]
+    ],
+    [
+      "The 9P protocol message",
+      [
+        "T-version (the handshake)",
+        "R-version (the reply)",
+        "T-attach (the connect)",
+        "R-attach (the auth)",
+        "T-walk (the traverse)",
+        "R-walk (the result)",
+        "T-open (the file open)",
+        "R-open (the fid)",
+        "T-read (the file read)",
+        "R-read (the data)"
+      ]
+    ],
+    [
+      "The 9P protocol message 2",
+      [
+        "T-write (the file write)",
+        "R-write (the count)",
+        "T-clunk (the fid close)",
+        "R-clunk (the done)",
+        "T-remove (the file delete)",
+        "R-remove (the done)",
+        "T-stat (the metadata)",
+        "R-stat (the stat entry)",
+        "T-wstat (the metadata set)",
+        "R-wstat (the done)"
+      ]
+    ],
+    [
+      "The 9P media path",
+      [
+        "/n/media/ (the root)",
+        "/n/media/video/ (the video dir)",
+        "/n/media/audio/ (the audio dir)",
+        "/n/media/image/ (the image dir)",
+        "/n/media/stream/ (the live dir)",
+        "9P read (the chunked read)",
+        "9P write (the chunked write)",
+        "9P stat (the metadata)",
+        "9P watch (the notify)",
+        "9P lock (the advisory lock)"
+      ]
+    ],
+    [
+      "The transport test",
+      [
+        "RTP round-trip",
+        "WebRTC handshake",
+        "9P media read/write",
+        "9P media stat",
+        "9P media watch",
+        "latency benchmark",
+        "throughput benchmark",
+        "packet loss test",
+        "reconnection test",
+        "security test"
+      ]
+    ],
+    [
+      "The transport docs",
+      [
+        "RTP RFC 3550 reference",
+        "WebRTC API reference",
+        "9P protocol spec",
+        "9P media cookbook",
+        "transport benchmark report",
+        "transport troubleshooting guide",
+        "RTP profile guide",
+        "WebRTC config guide",
+        "9P mount guide",
+        "transport roadmap"
+      ]
+    ]
+  ],
+  "MD-G": [
+    [
+      "The DRM connector",
+      [
+        "HDMI connector (the digital)",
+        "DP connector (the displayport)",
+        "eDP connector (the embedded)",
+        "VGA connector (the analog)",
+        "LVDS connector (the panel)",
+        "the encoder (the digital output)",
+        "the CRTC (the scanout engine)",
+        "the plane (the overlay)",
+        "the property (the attribute)",
+        "the mode (the timing)"
+      ]
+    ],
+    [
+      "The DRM mode",
+      [
+        "hdisplay (the width)",
+        "vdisplay (the height)",
+        "vrefresh (the Hz)",
+        "hsync_start (the blank start)",
+        "hsync_end (the blank end)",
+        "htotal (the total)",
+        "vsync_start (the blank start)",
+        "vsync_end (the blank end)",
+        "vtotal (the total)",
+        "flags (the interlace + +ve)"
+      ]
+    ],
+    [
+      "The DRM atomic",
+      [
+        "the test (the dry-run)",
+        "the commit (the apply)",
+        "the enable-vbye (the event)",
+        "the async (the non-blocking)",
+        "the plane (the overlay)",
+        "the CRTC (the output)",
+        "the connector (the display)",
+        "the property (the attribute)",
+        "the blob (the property value)",
+        "the state (the full set)"
+      ]
+    ],
+    [
+      "The Wayland protocol",
+      [
+        "wl_display (the connection)",
+        "wl_registry (the globals)",
+        "wl_compositor (the surface factory)",
+        "wl_surface (the buffer + damage)",
+        "wl_buffer (the pixel data)",
+        "wl_shm (the shared memory)",
+        "wl_shm_pool (the pool)",
+        "wl_seat (the input device)",
+        "wl_output (the display output)",
+        "wl_shell (the desktop shell)"
+      ]
+    ],
+    [
+      "The Wayland surface",
+      [
+        "wl_surface.commit (the buffer swap)",
+        "wl_surface.attach (the buffer)",
+        "wl_surface.damage (the region)",
+        "wl_surface.frame (the callback)",
+        "wl_surface.set_role (the type)",
+        "wl_surface.get_shell (the desktop)",
+        "wl_surface.get_popup (the menu)",
+        "wl_surface.get_toplevel (the window)",
+        "wl_surface.set_buffer_scale (the HiDPI)",
+        "wl_surface.set_buffer_transform (the rotation)"
+      ]
+    ],
+    [
+      "The Wayland xdg",
+      [
+        "xdg_wm_base (the manager)",
+        "xdg_surface (the surface)",
+        "xdg_toplevel (the window)",
+        "xdg_popup (the menu)",
+        "xdg_positioner (the placement)",
+        "xdg_surface.configure (the state)",
+        "xdg_toplevel.configure (the size)",
+        "xdg_toplevel.set_title (the name)",
+        "xdg_toplevel.set_app_id (the app)",
+        "xdg_surface.ack_configure (the sync)"
+      ]
+    ],
+    [
+      "The compositor",
+      [
+        "the render loop (the frame)",
+        "the damage region (the dirty)",
+        "the output (the display)",
+        "the surface (the window)",
+        "the layer (the stacking)",
+        "the seat (the input focus)",
+        "the pointer (the cursor)",
+        "the keyboard (the focus)",
+        "the touch (the gesture)",
+        "the subsurface (the child)"
+      ]
+    ],
+    [
+      "The display test",
+      [
+        "vsync timing (the refresh)",
+        "frame latency (the delay)",
+        "tearing check (the artifact)",
+        "color accuracy (the gamut)",
+        "HDR support (the range)",
+        "refresh rate (the Hz)",
+        "resolution (the pixels)",
+        "scaling (the HiDPI)",
+        "rotation (the angle)",
+        "overscan (the crop)"
+      ]
+    ],
+    [
+      "The display benchmark",
+      [
+        "single-window fps",
+        "multi-window fps",
+        "4K60 decode fps",
+        "4K60 encode fps",
+        "compositor latency",
+        "frame drop rate",
+        "CPU usage",
+        "GPU usage",
+        "memory usage",
+        "power draw"
+      ]
+    ],
+    [
+      "The display docs",
+      [
+        "DRM/KMS API reference",
+        "Wayland protocol spec",
+        "compositor cookbook",
+        "display benchmark report",
+        "display troubleshooting guide",
+        "HiDPI guide",
+        "HDR guide",
+        "color management guide",
+        "compositor architecture",
+        "display roadmap"
+      ]
+    ]
+  ],
+  "MD-H": [
+    [
+      "The player state",
+      [
+        "idle (the start state)",
+        "loading (the decode init)",
+        "playing (the active playback)",
+        "paused (the frozen state)",
+        "seeking (the jump in progress)",
+        "buffering (the data wait)",
+        "error (the failure state)",
+        "ended (the completion)",
+        "stopped (the shutdown)",
+        "preloading (the ahead buffer)"
+      ]
+    ],
+    [
+      "The player control",
+      [
+        "play (the start)",
+        "pause (the halt)",
+        "stop (the end)",
+        "seek (the jump)",
+        "set-rate (the speed)",
+        "set-volume (the level)",
+        "set-mute (the silence)",
+        "set-aspect (the ratio)",
+        "set-zoom (the scale)",
+        "set-rotation (the angle)"
+      ]
+    ],
+    [
+      "The player track",
+      [
+        "video track select",
+        "audio track select",
+        "subtitle track select",
+        "chapter select",
+        "angle select (the 3D)",
+        "audio description track",
+        "secondary audio track",
+        "audio normalize",
+        "subtitle render",
+        "subtitle style"
+      ]
+    ],
+    [
+      "The player UI",
+      [
+        "play/pause button",
+        "seek slider",
+        "volume slider",
+        "fullscreen toggle",
+        "aspect ratio menu",
+        "zoom menu",
+        "rotation menu",
+        "track select menu",
+        "chapter menu",
+        "playlist menu"
+      ]
+    ],
+    [
+      "The player feature",
+      [
+        "screenshot (the capture)",
+        "recording (the encode)",
+        "bookmark (the save)",
+        "history (the resume)",
+        "playlist (the queue)",
+        "shuffle (the random)",
+        "repeat (the loop)",
+        "autoplay (the next)",
+        "picture-in-picture",
+        "theater mode"
+      ]
+    ],
+    [
+      "The player accessibility",
+      [
+        "captions (the subtitle)",
+        "audio description",
+        "high-contrast mode",
+        "large text",
+        "keyboard navigation",
+        "screen reader",
+        "closed captions (CC1/CC2)",
+        "SDH (the hearing impaired)",
+        "sign language overlay",
+        "the audio equalizer"
+      ]
+    ],
+    [
+      "The player theming",
+      [
+        "Win98 chrome (the classic)",
+        "dark mode (the OLED)",
+        "compact mode (the small)",
+        "theater mode (the wide)",
+        "minimal mode (the clean)",
+        "high-contrast mode",
+        "custom theme (the CSS)",
+        "98 palette (the retro)",
+        "modern palette (the flat)",
+        "system theme (the auto)"
+      ]
+    ],
+    [
+      "The player integration",
+      [
+        "9P media export (the source)",
+        "GStreamer pipeline (the decode)",
+        "DRM/KMS (the display)",
+        "Wayland surface (the window)",
+        "Bonzi companion (the suggestion)",
+        "the Colonel display (the fullscreen)",
+        "the WuBuFX window (the frame)",
+        "the 9P namespace (the path)",
+        "the media daemon (the service)",
+        "the media cache (the buffer)"
+      ]
+    ],
+    [
+      "The player test",
+      [
+        "format support matrix",
+        "seek accuracy",
+        "latency measurement",
+        "memory usage",
+        "crash regression",
+        "format round-trip",
+        "subtitle sync",
+        "audio sync",
+        "chapter navigation",
+        "playlist behavior"
+      ]
+    ],
+    [
+      "The player docs",
+      [
+        "user guide",
+        "keyboard shortcut reference",
+        "accessibility guide",
+        "format support list",
+        "troubleshooting guide",
+        "the Bonzi player guide",
+        "the Colonel media guide",
+        "the WuBuOS media architecture",
+        "the media cookbook",
+        "the player roadmap"
+      ]
+    ]
+  ],
+  "MD-I": [
+    [
+      "The 9P media export",
+      [
+        "/n/media/ (the root export)",
+        "/n/media/video/ (the video dir)",
+        "/n/media/audio/ (the audio dir)",
+        "/n/media/image/ (the image dir)",
+        "/n/media/stream/ (the live dir)",
+        "9P stat (the metadata)",
+        "9P read (the chunked read)",
+        "9P write (the chunked write)",
+        "9P watch (the notify)",
+        "9P lock (the advisory)"
+      ]
+    ],
+    [
+      "The hosted media process",
+      [
+        "the container image",
+        "the runtime (the namespace)",
+        "the cgroup (the resource limit)",
+        "the seccomp (the syscall filter)",
+        "the network namespace",
+        "the mount namespace",
+        "the PID namespace",
+        "the UTS namespace",
+        "the IPC namespace",
+        "the user namespace"
+      ]
+    ],
+    [
+      "The hosted media bridge",
+      [
+        "the 9P mount (the file bridge)",
+        "the pipe (the stream bridge)",
+        "the socket (the datagram bridge)",
+        "the proxy (the protocol bridge)",
+        "the gateway (the NAT bridge)",
+        "the bridge (the network bridge)",
+        "the tunnel (the encrypted bridge)",
+        "the relay (the forward bridge)",
+        "the filter (the policy bridge)",
+        "the monitor (the health bridge)"
+      ]
+    ],
+    [
+      "The hosted media QoS",
+      [
+        "the priority (the class)",
+        "the bandwidth (the ceiling)",
+        "the latency (the budget)",
+        "the jitter (the variance)",
+        "the loss (the drop rate)",
+        "the throughput (the rate)",
+        "the queue (the buffer)",
+        "the scheduler (the policy)",
+        "the shaper (the limiter)",
+        "the policer (the enforcer)"
+      ]
+    ],
+    [
+      "The hosted media security",
+      [
+        "the TLS (the encryption)",
+        "the auth (the identity)",
+        "the audit (the log)",
+        "the cipher (the algorithm)",
+        "the key (the secret)",
+        "the cert (the credential)",
+        "the CA (the trust anchor)",
+        "the CRL (the revocation)",
+        "the OCSP (the status)",
+        "the mTLS (the mutual)"
+      ]
+    ],
+    [
+      "The hosted media scaling",
+      [
+        "horizontal (the more instances)",
+        "vertical (the bigger instance)",
+        "the bitrate (the quality level)",
+        "the resolution (the pixel level)",
+        "the codec (the efficiency level)",
+        "the frame rate (the temporal level)",
+        "the audio rate (the sample level)",
+        "the buffer (the latency level)",
+        "the pool (the resource level)",
+        "the tier (the cost level)"
+      ]
+    ],
+    [
+      "The hosted media failover",
+      [
+        "the primary (the active)",
+        "the standby (the warm)",
+        "the cold (the backup)",
+        "the switch (the cutover)",
+        "the rollback (the revert)",
+        "the replay (the retransmit)",
+        "the drain (the drain active)",
+        "the probe (the health check)",
+        "the alert (the notification)",
+        "the recovery (the restore)"
+      ]
+    ],
+    [
+      "The hosted media monitor",
+      [
+        "the health check (the alive)",
+        "the metrics (the stats)",
+        "the alert (the threshold)",
+        "the log (the record)",
+        "the trace (the span)",
+        "the dashboard (the view)",
+        "the graph (the trend)",
+        "the table (the detail)",
+        "the report (the summary)",
+        "the config (the rule)"
+      ]
+    ],
+    [
+      "The hosted media config",
+      [
+        "the YAML (the file)",
+        "the env (the variable)",
+        "the flag (the CLI)",
+        "the 9P read (the namespace)",
+        "the secret (the vault)",
+        "the override (the layer)",
+        "the default (the fallback)",
+        "the validate (the check)",
+        "the merge (the combine)",
+        "the apply (the set)"
+      ]
+    ],
+    [
+      "The hosted media docs",
+      [
+        "the architecture guide",
+        "the API reference",
+        "the operations guide",
+        "the troubleshooting guide",
+        "the security guide",
+        "the scaling guide",
+        "the failover guide",
+        "the monitoring guide",
+        "the config guide",
+        "the media roadmap"
+      ]
+    ]
+  ],
+  "MD-J": [
+    [
+      "The MD threat model",
+      [
+        "the buffer overflow (the parser)",
+        "the format confusion (the type)",
+        "the integer overflow (the size)",
+        "the null pointer (the missing)",
+        "the use-after-free (the lifetime)",
+        "the double-free (the release)",
+        "the memory leak (the growth)",
+        "the DoS (the resource exhaustion)",
+        "the injection (the payload)",
+        "the side-channel (the timing)"
+      ]
+    ],
+    [
+      "The MD performance budget",
+      [
+        "the encode latency (the ms)",
+        "the decode latency (the ms)",
+        "the end-to-end latency (the ms)",
+        "the CPU budget (the percent)",
+        "the memory budget (the MB)",
+        "the GPU budget (the percent)",
+        "the power budget (the watt)",
+        "the thermal budget (the C)",
+        "the bandwidth budget (the Mbps)",
+        "the latency budget (the ms)"
+      ]
+    ],
+    [
+      "The MD memory budget",
+      [
+        "the 13GB reality (the ceiling)",
+        "the frame buffer (the size)",
+        "the codec state (the context)",
+        "the decode pool (the buffer)",
+        "the encode pool (the buffer)",
+        "the cache (the hot data)",
+        "the scratch (the temp)",
+        "the metadata (the overhead)",
+        "the overhead (the padding)",
+        "the peak (the max)"
+      ]
+    ],
+    [
+      "The MD no-network rule",
+      [
+        "the offline-first (the default)",
+        "the local codec (the built-in)",
+        "the local container (the built)",
+        "the local transport (the 9P)",
+        "the local display (the KMS)",
+        "the local audio (the device)",
+        "the local storage (the disk)",
+        "the local cache (the RAM)",
+        "the local config (the file)",
+        "the local log (the file)"
+      ]
+    ],
+    [
+      "The MD determinism rule",
+      [
+        "the same input (the file)",
+        "the same output (the bits)",
+        "the same latency (the ms)",
+        "the same memory (the MB)",
+        "the same CPU (the percent)",
+        "the same codec (the profile)",
+        "the same container (the format)",
+        "the same transport (the protocol)",
+        "the same display (the mode)",
+        "the same result (the hash)"
+      ]
+    ],
+    [
+      "The MD integration",
+      [
+        "the storage bank (the CAS artifact)",
+        "the network bank (the QUIC transport)",
+        "the kernel bank (the DRM driver)",
+        "the engine bank (the NPU inference)",
+        "the human bank (the accessibility)",
+        "the security bank (the signed pipeline)",
+        "the GUI bank (the Bonzi UI)",
+        "the synthesis bank (the audio dev)",
+        "the devtools bank (the build CAS)",
+        "the wubuwizard bank (the model)"
+      ]
+    ],
+    [
+      "The MD test",
+      [
+        "the smoke test (the quick)",
+        "the integration test (the full)",
+        "the performance test (the benchmark)",
+        "the stress test (the endurance)",
+        "the chaos test (the failure)",
+        "the regression test (the compare)",
+        "the format test (the support)",
+        "the security test (the audit)",
+        "the usability test (the user)",
+        "the docs test (the accuracy)"
+      ]
+    ],
+    [
+      "The MD CI",
+      [
+        "the codec matrix (the grid)",
+        "the container matrix (the grid)",
+        "the resolution matrix (the grid)",
+        "the bitrate matrix (the grid)",
+        "the platform matrix (the grid)",
+        "the OS matrix (the grid)",
+        "the GPU matrix (the grid)",
+        "the CPU matrix (the grid)",
+        "the memory matrix (the grid)",
+        "the network matrix (the grid)"
+      ]
+    ],
+    [
+      "The MD spec",
+      [
+        "the codec selection (the guide)",
+        "the container format (the choice)",
+        "the transport protocol (the path)",
+        "the quality target (the metric)",
+        "the latency budget (the limit)",
+        "the memory budget (the limit)",
+        "the security policy (the rule)",
+        "the accessibility guide (the need)",
+        "the operations guide (the run)",
+        "the roadmap (the plan)"
+      ]
+    ],
+    [
+      "The MD design",
+      [
+        "the architecture (the diagram)",
+        "the data flow (the path)",
+        "the failure modes (the list)",
+        "the recovery modes (the list)",
+        "the performance model (the curve)",
+        "the quality model (the metric)",
+        "the security model (the threat)",
+        "the integration model (the map)",
+        "the test model (the matrix)",
+        "the rollout model (the plan)"
+      ]
+    ]
+  ]
+}
