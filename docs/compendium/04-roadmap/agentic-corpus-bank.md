@@ -217,7 +217,7 @@ refs: Orchard task filter + OpenHands outcome filtering
 - AC-B100 quality gate: benchmark-replay check `open`
 ## AC-C: reward design & verification (verifiable over preference)
 
-- AC-C01 verifiable rewards over preference ratings: DB-state comparison (tau-bench style) `open`
+- AC-C01 verifiable rewards over preference ratings: DB-state comparison (tau-bench style) `wired` -- wubu_db_verify/wubu_db_reward
 - AC-C02 binary format rewards decoupled from semantics (the Atropos Answer-Format env) `open`
 - AC-C03 programmatic schema validation reward (Pydantic-style, dynamic schemas) `open`
 - AC-C04 RLVR-IFEval constraint rewards (every-Nth-word, JSON structure) `open`
