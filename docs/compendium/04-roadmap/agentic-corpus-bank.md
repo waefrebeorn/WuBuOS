@@ -749,7 +749,7 @@ refs: Hermes 4 loss-masking + Orchard obs masking
 - AC-H05 Online-Mind2Web eval (the online variant) `open`
 - AC-H06 DeepShop eval (shopping workflows) `open`
 - AC-H07 SWE-bench Verified eval (real GitHub issues with unit tests) `open`
-- AC-H08 Claw-Eval pass@3 (personal-assistant scenarios, 3 attempts) `open`
+- AC-H08 Claw-Eval pass@3 (personal-assistant scenarios, 3 attempts) `wired` -- wubu_passk: the unbiased combinatorial estimator (5/10 -> pass@3 0.917)
 - AC-H09 harness-portability eval (the same policy under ReAct and ZeroClaw) `open`
 - AC-H10 agent-trajectory audit (completion, safety, robustness of the whole trace) `open`
 - AC-H11 LLM-as-judge with screenshot trails + user intent `open`
