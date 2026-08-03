@@ -74,6 +74,7 @@ DosGuiWindow* dosgui_launch_edr_dashboard(void);
 /* Bonzi Buddy desktop AGI agent + Comfy node-graph editor. */
 DosGuiWindow* bonzi_launch(void);
 DosGuiWindow* comfy_launch(void);
+DosGuiWindow* tandem_launch(void);
 
 /* DOS Box launchers (defined in apps/dosgui_apps.c) */
 DosGuiWindow* dosgui_launch_dos_box(const char *path);

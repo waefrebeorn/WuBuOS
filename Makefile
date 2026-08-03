@@ -57,6 +57,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_smp.o $(KERNEL)/wubu_smp_tramp.o \
               $(KERNEL)/wubu_xhci.o \
               $(KERNEL)/wubu_recovery.o \
+              $(KERNEL)/wubu_psych.o $(KERNEL)/wubu_bonzi_study.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
@@ -79,7 +80,7 @@ BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscal
 APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_editor_macro.o $(APPS)/wubu_editor_undo.o $(APPS)/wubu_editor_selection.o $(APPS)/wubu_editor_find.o $(APPS)/wubu_canvas_layers.o $(APPS)/wubu_canvas_draw.o $(APPS)/wubu_canvas_filter.o $(APPS)/wubu_canvas_transform.o $(APPS)/wubu_canvas_plugin.o $(APPS)/wubu_canvas_undo.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_image_codec.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o $(APPS)/cmd/cmd.o $(APPS)/app_canvas.o $(APPS)/app_explorer.o \
            $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
            $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o \
-           $(APPS)/bonzi/bonzi.o $(APPS)/comfy/comfy.o
+           $(APPS)/bonzi/bonzi.o $(APPS)/comfy/comfy.o $(APPS)/tandem/tandem.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
 WS_OBJS = $(WS)/terrain.o $(WS)/entity.o $(WS)/physics.o $(WS)/render.o $(WS)/sim.o
@@ -1024,7 +1025,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tandem
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1048,6 +1049,30 @@ test_fat2:
 		$(KERNEL)/test_fat2.c $(KERNEL)/wubu_fat2.c \
 		-o $(KERNEL)/test_fat2 -lm
 	$(KERNEL)/test_fat2
+
+# the HX human psychology + timing loops (the user model)
+test_psych:
+	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
+		$(KERNEL)/test_psych.c $(KERNEL)/wubu_psych.c \
+		-o $(KERNEL)/test_psych -lm
+	$(KERNEL)/test_psych
+
+# the HX-D Bonzi Buddy GUI study (the companion)
+test_bonzi_study:
+	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
+		$(KERNEL)/test_bonzi_study.c $(KERNEL)/wubu_bonzi_study.c \
+		$(KERNEL)/wubu_psych.c \
+		-o $(KERNEL)/test_bonzi_study -lm
+	$(KERNEL)/test_bonzi_study
+
+# the Tandem user+AGI shared desktop loop
+test_tandem:
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(KERNEL) -I$(APPS) -I$(APPS)/tandem \
+		$(APPS)/tandem/test_tandem.c $(KERNEL)/wubu_psych.c \
+		$(KERNEL)/wubu_bonzi_study.c \
+		-o $(APPS)/tandem/test_tandem -lm
+	$(APPS)/tandem/test_tandem
 
 # the FS-A block layer (device table + policy selectors, 100 gaps)
 test_blk:
