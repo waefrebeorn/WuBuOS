@@ -331,7 +331,7 @@ refs: tau-bench DB-state + Atropos format rewards + Orchard GRPO
 - AC-D07 user-simulator reflection strategy (the user reflects on the agent's responses) `open`
 - AC-D08 policy-following eval: compare final DB state to annotated goal state `open`
 - AC-D09 multi-turn user simulators with long-horizon goals `open`
-- AC-D10 user clarification behavior (users ask for clarification, agent must comply) `open`
+- AC-D10 user clarification behavior (users ask for clarification, agent must comply) `wired` -- wubu_ambig: missing-slot/unparseable-value ambiguity + the deterministic question
 - AC-D11 adversarial users (tricky phrasing, incomplete specs, changing minds) `open`
 - AC-D12 non-native users (grammar variance, terse requests) `open`
 - AC-D13 user priorities + budget constraints (price-sensitive, time-sensitive) `open`
