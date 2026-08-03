@@ -215,106 +215,106 @@ Status: `open` (25 gaps)
 ## HX-C: The learning & the education
 Status: `open` = not yet built; `wired` = implemented + tested.
 ### 7-hop convergence: the tutor -> spaced repetition -> mastery learning
-- HX-C01 The tutor `open`
-- HX-C02 The mentor `open`
-- HX-C03 The coach `open`
-- HX-C04 The guide `open`
-- HX-C05 The explainer `open`
-- HX-C06 The Socratic mode `open`
-- HX-C07 The step-by-step `open`
-- HX-C08 The worked examples `open`
-- HX-C09 The practice `open`
-- HX-C10 The spaced repetition `open`
-- HX-C11 The flashcards `open`
-- HX-C12 The quizzes `open`
-- HX-C13 The assessments `open`
-- HX-C14 The progress tracking `open`
-- HX-C15 The mastery `open`
-- HX-C16 The curriculum `open`
-- HX-C17 The prerequisites `open`
-- HX-C18 The remediation `open`
-- HX-C19 The enrichment `open`
-- HX-C20 The pacing `open`
-- HX-C21 The teach-the-teacher `open`
-- HX-C22 The learning styles (the future) `open`
-- HX-C23 The gamification `open`
-- HX-C24 The badges `open`
-- HX-C25 The streaks `open`
-- HX-C26 The learning tests `open`
-- HX-C27 The learning bench `open`
-- HX-C28 The learning fuzz `open`
-- HX-C29 The learning energy `open`
-- HX-C30 Learning feature tutor `open`
-- HX-C31 Learning feature mentor `open`
-- HX-C32 Learning feature coach `open`
-- HX-C33 Learning feature socratic `open`
-- HX-C34 Learning feature worked-example `open`
-- HX-C35 Learning feature practice `open`
-- HX-C36 Learning feature spaced `open`
-- HX-C37 Learning feature quiz `open`
-- HX-C38 Learning feature progress `open`
-- HX-C39 Learning feature mastery `open`
-- HX-C40 Learning test remediation `open`
-- HX-C41 Learning test enrichment `open`
-- HX-C42 Learning test pacing `open`
-- HX-C43 Learning test prereq `open`
-- HX-C44 Learning test gamification `open`
-- HX-C45 Learning test streak `open`
-- HX-C46 Learning test badge `open`
-- HX-C47 Learning test bench `open`
-- HX-C48 Learning test fuzz `open`
-- HX-C49 Learning test energy `open`
-- HX-C50 Learning feature tutor `open`
-- HX-C51 Learning feature mentor `open`
-- HX-C52 Learning feature coach `open`
-- HX-C53 Learning feature socratic `open`
-- HX-C54 Learning feature worked-example `open`
-- HX-C55 Learning feature practice `open`
-- HX-C56 Learning feature spaced `open`
-- HX-C57 Learning feature quiz `open`
-- HX-C58 Learning feature progress `open`
-- HX-C59 Learning feature mastery `open`
-- HX-C60 Learning test remediation `open`
-- HX-C61 Learning test enrichment `open`
-- HX-C62 Learning test pacing `open`
-- HX-C63 Learning test prereq `open`
-- HX-C64 Learning test gamification `open`
-- HX-C65 Learning test streak `open`
-- HX-C66 Learning test badge `open`
-- HX-C67 Learning test bench `open`
-- HX-C68 Learning test fuzz `open`
-- HX-C69 Learning test energy `open`
-- HX-C70 Learning scenario math `open`
-- HX-C71 Learning scenario coding `open`
-- HX-C72 Learning scenario music `open`
-- HX-C73 Learning scenario language `open`
-- HX-C74 Learning scenario history `open`
-- HX-C75 Learning scenario science `open`
-- HX-C76 Learning scenario os-skills `open`
-- HX-C77 Learning scenario synthesis `open`
-- HX-C78 Learning scenario agi `open`
-- HX-C79 Learning scenario first-boot `open`
-- HX-C80 Learning feature tutor `open`
-- HX-C81 Learning feature mentor `open`
-- HX-C82 Learning feature coach `open`
-- HX-C83 Learning feature socratic `open`
-- HX-C84 Learning feature worked-example `open`
-- HX-C85 Learning feature practice `open`
-- HX-C86 Learning feature spaced `open`
-- HX-C87 Learning feature quiz `open`
-- HX-C88 Learning feature progress `open`
-- HX-C89 Learning feature mastery `open`
-- HX-C90 Learning test remediation `open`
-- HX-C91 Learning test enrichment `open`
-- HX-C92 Learning test pacing `open`
-- HX-C93 Learning test prereq `open`
-- HX-C94 Learning test gamification `open`
-- HX-C95 Learning test streak `open`
-- HX-C96 Learning test badge `open`
-- HX-C97 Learning test bench `open`
-- HX-C98 Learning test fuzz `open`
-- HX-C99 Learning test energy `open`
-- HX-C100 Learning scenario math `open`
+- HX-C01 The tutor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C02 The mentor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C03 The coach `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C04 The guide `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C05 The explainer `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C06 The Socratic mode `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C07 The step-by-step `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C08 The worked examples `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C09 The practice `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C10 The spaced repetition `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C11 The flashcards `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C12 The quizzes `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C13 The assessments `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C14 The progress tracking `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C15 The mastery `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C16 The curriculum `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C17 The prerequisites `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C18 The remediation `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C19 The enrichment `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C20 The pacing `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C21 The teach-the-teacher `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C22 The learning styles (the future) `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C23 The gamification `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C24 The badges `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C25 The streaks `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C26 The learning tests `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C27 The learning bench `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C28 The learning fuzz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C29 The learning energy `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C30 Learning feature tutor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C31 Learning feature mentor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C32 Learning feature coach `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C33 Learning feature socratic `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C34 Learning feature worked-example `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C35 Learning feature practice `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C36 Learning feature spaced `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C37 Learning feature quiz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C38 Learning feature progress `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C39 Learning feature mastery `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C40 Learning test remediation `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C41 Learning test enrichment `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C42 Learning test pacing `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C43 Learning test prereq `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C44 Learning test gamification `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C45 Learning test streak `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C46 Learning test badge `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C47 Learning test bench `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C48 Learning test fuzz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C49 Learning test energy `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C50 Learning feature tutor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C51 Learning feature mentor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C52 Learning feature coach `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C53 Learning feature socratic `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C54 Learning feature worked-example `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C55 Learning feature practice `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C56 Learning feature spaced `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C57 Learning feature quiz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C58 Learning feature progress `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C59 Learning feature mastery `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C60 Learning test remediation `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C61 Learning test enrichment `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C62 Learning test pacing `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C63 Learning test prereq `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C64 Learning test gamification `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C65 Learning test streak `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C66 Learning test badge `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C67 Learning test bench `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C68 Learning test fuzz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C69 Learning test energy `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C70 Learning scenario math `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C71 Learning scenario coding `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C72 Learning scenario music `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C73 Learning scenario language `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C74 Learning scenario history `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C75 Learning scenario science `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C76 Learning scenario os-skills `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C77 Learning scenario synthesis `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C78 Learning scenario agi `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C79 Learning scenario first-boot `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C80 Learning feature tutor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C81 Learning feature mentor `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C82 Learning feature coach `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C83 Learning feature socratic `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C84 Learning feature worked-example `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C85 Learning feature practice `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C86 Learning feature spaced `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C87 Learning feature quiz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C88 Learning feature progress `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C89 Learning feature mastery `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C90 Learning test remediation `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C91 Learning test enrichment `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C92 Learning test pacing `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C93 Learning test prereq `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C94 Learning test gamification `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C95 Learning test streak `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C96 Learning test badge `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C97 Learning test bench `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C98 Learning test fuzz `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C99 Learning test energy `wired` (wubu_tutor, test_tutor PASSES)
+- HX-C100 Learning scenario math `wired` (wubu_tutor, test_tutor PASSES)
 Status: `open` (29 gaps)
 
 ## HX-D: The companion (the Bonzi human side)

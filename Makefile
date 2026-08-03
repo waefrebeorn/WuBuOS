@@ -57,7 +57,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_smp.o $(KERNEL)/wubu_smp_tramp.o \
               $(KERNEL)/wubu_xhci.o \
               $(KERNEL)/wubu_recovery.o \
-              $(KERNEL)/wubu_psych.o $(KERNEL)/wubu_bonzi_study.o \
+              $(KERNEL)/wubu_psych.o $(KERNEL)/wubu_bonzi_study.o $(KERNEL)/wubu_tutor.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
 
@@ -1025,7 +1025,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tandem
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tutor test_tandem
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1064,6 +1064,13 @@ test_bonzi_study:
 		$(KERNEL)/wubu_psych.c \
 		-o $(KERNEL)/test_bonzi_study -lm
 	$(KERNEL)/test_bonzi_study
+
+# the HX-C learning/education frontier (the recursive loop, human side)
+test_tutor:
+	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
+		$(KERNEL)/test_tutor.c $(KERNEL)/wubu_tutor.c \
+		-o $(KERNEL)/test_tutor -lm
+	$(KERNEL)/test_tutor
 
 # the Tandem user+AGI shared desktop loop
 test_tandem:
