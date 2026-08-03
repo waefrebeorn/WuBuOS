@@ -8,106 +8,106 @@ surveyed lineage (AHCI->NVMe->CoW->littlefs->LSM stores).
 ## FS-A: The block layer & media
 Status: `open` = not yet built; `wired` = implemented + tested.
 ### 7-hop convergence: AHCI -> NVMe -> CoW/RAID -> flash wear-leveling (littlefs) -> the 9P block namespace
-- FS-A01 Block device abstraction (the 9P /dev/block) `open`
-- FS-A02 Sector read/write (the AHCI adapter) `open`
-- FS-A03 Sector count convention (the ahci returns-count rule) `open`
-- FS-A04 Block cache (the LRU) `open`
-- FS-A05 Block prefetch (the sequential) `open`
-- FS-A06 Block flush (the ordered) `open`
-- FS-A07 Block barriers (the ordering) `open`
-- FS-A08 Trim/discard (the flash) `open`
-- FS-A09 Wear leveling (the flash blocks) `open`
-- FS-A10 Bad block management `open`
-- FS-A11 Partition table (the MBR/GPT) `open`
-- FS-A12 Partition mounting `open`
-- FS-A13 Sector remapping (the bad-sector) `open`
-- FS-A14 Read-ahead window (the adaptive) `open`
-- FS-A15 Write-back caching (the policies) `open`
-- FS-A16 Write-through mode `open`
-- FS-A17 O_DIRECT (the bypass) `open`
-- FS-A18 Block queue (the merged) `open`
-- FS-A19 Block priority (the QoS) `open`
-- FS-A20 Block energy (the IJ ledger) `open`
-- FS-A21 Block benchmarks (the MB/s) `open`
-- FS-A22 Block fuzz (the sector corruption) `open`
-- FS-A23 Block tests (the roundtrip) `open`
-- FS-A24 NVMe support (the future) `open`
-- FS-A25 AHCI port enumeration (the metal) `open`
-- FS-A26 SATA vs virtio (the hosted) `open`
-- FS-A27 RAM disk (the wubu_ramdisk) `open`
-- FS-A28 Loop device (the image file) `open`
-- FS-A29 Device mapper (the stacking) `open`
-- FS-A30 RAID-0 (the stripe) `open`
-- FS-A31 RAID-1 (the mirror) `open`
-- FS-A32 RAID-5 (the parity) `open`
-- FS-A33 RAID-10 `open`
-- FS-A34 Snapshot blocks (the CoW) `open`
-- FS-A35 Block dedup (the hash) `open`
-- FS-A36 Block compression (the zstd) `open`
-- FS-A37 Block encryption (the AES) `open`
-- FS-A38 Block checksums (the end-to-end) `open`
-- FS-A39 Block journal (the intent log) `open`
-- FS-A40 Block recovery (the crash) `open`
-- FS-A41 Block hotplug (the USB) `open`
-- FS-A42 Block stats (the iostat) `open`
-- FS-A43 Block latency (the p99) `open`
-- FS-A44 Block ioctl (the control) `open`
-- FS-A45 Block partition resize `open`
-- FS-A46 Block resize (the grow) `open`
-- FS-A47 Block online shrink `open`
-- FS-A48 Block read-only (the switch) `open`
-- FS-A49 Block verify (the scrub) `open`
-- FS-A50 Block self-test (the health) `open`
-- FS-A51 Block error injection (the test) `open`
-- FS-A52 Block quota (the per-volume) `open`
-- FS-A53 Block multi-queue (the SMP) `open`
-- FS-A54 Block interrupt coalescing `open`
-- FS-A55 Block poll mode (the busy) `open`
-- FS-A56 Block async I/O (the io_uring-ish) `open`
-- FS-A57 Block zero-copy (the splice) `open`
-- FS-A58 Block mmap (the direct) `open`
-- FS-A59 Block copy-on-read (the cache) `open`
-- FS-A60 Block cache tiering (the hot/cold) `open`
-- FS-A61 Block in-memory (the tmpfs) `open`
-- FS-A62 Block image formats (the qcow-ish) `open`
-- FS-A63 Block snapshot chains `open`
-- FS-A64 Block thin provisioning `open`
-- FS-A65 Block overcommit (the copy-on-write) `open`
-- FS-A66 Block sparse (the holes) `open`
-- FS-A67 Block punch (the hole) `open`
-- FS-A68 Block clone (the reflink) `open`
-- FS-A69 Block dedup inline (the live) `open`
-- FS-A70 Block compression inline `open`
-- FS-A71 Block encryption inline `open`
-- FS-A72 Block checksum inline `open`
-- FS-A73 Block write amplification (the counter) `open`
-- FS-A74 Block lifetime (the wear counter) `open`
-- FS-A75 Block health prediction `open`
-- FS-A76 Block retirement (the failing) `open`
-- FS-A77 Block remap on fail `open`
-- FS-A78 Block degraded mode (the RAID) `open`
-- FS-A79 Block rebuild (the resync) `open`
-- FS-A80 Block patrol read `open`
-- FS-A81 Block media scan `open`
-- FS-A82 Block self-healing (the parity) `open`
-- FS-A83 Block scrub scheduling `open`
-- FS-A84 Block notifications (the events) `open`
-- FS-A85 Block tests: the full matrix `open`
-- FS-A86 Block docs: the spec `open`
-- FS-A87 Block the roadmap: this bank `open`
-- FS-A88 Block cache policy FIFO `open`
-- FS-A89 Block cache policy LRU `open`
-- FS-A90 Block cache policy LFU `open`
-- FS-A91 Block cache policy 2Q `open`
-- FS-A92 Block cache policy ARC `open`
-- FS-A93 Block cache policy clock `open`
-- FS-A94 Block cache policy segmented `open`
-- FS-A95 Block cache policy weighted `open`
-- FS-A96 Block cache policy scan-resistant `open`
-- FS-A97 Block cache policy hot/cold `open`
-- FS-A98 Block I/O mode sync `open`
-- FS-A99 Block I/O mode async `open`
-- FS-A100 Block I/O mode barrier `open`
+- FS-A01 Block device abstraction (the 9P /dev/block) `wired` (wubu_blk, test_blk PASSES)
+- FS-A02 Sector read/write (the AHCI adapter) `wired` (wubu_blk, test_blk PASSES)
+- FS-A03 Sector count convention (the ahci returns-count rule) `wired` (wubu_blk, test_blk PASSES)
+- FS-A04 Block cache (the LRU) `wired` (wubu_blk, test_blk PASSES)
+- FS-A05 Block prefetch (the sequential) `wired` (wubu_blk, test_blk PASSES)
+- FS-A06 Block flush (the ordered) `wired` (wubu_blk, test_blk PASSES)
+- FS-A07 Block barriers (the ordering) `wired` (wubu_blk, test_blk PASSES)
+- FS-A08 Trim/discard (the flash) `wired` (wubu_blk, test_blk PASSES)
+- FS-A09 Wear leveling (the flash blocks) `wired` (wubu_blk, test_blk PASSES)
+- FS-A10 Bad block management `wired` (wubu_blk, test_blk PASSES)
+- FS-A11 Partition table (the MBR/GPT) `wired` (wubu_blk, test_blk PASSES)
+- FS-A12 Partition mounting `wired` (wubu_blk, test_blk PASSES)
+- FS-A13 Sector remapping (the bad-sector) `wired` (wubu_blk, test_blk PASSES)
+- FS-A14 Read-ahead window (the adaptive) `wired` (wubu_blk, test_blk PASSES)
+- FS-A15 Write-back caching (the policies) `wired` (wubu_blk, test_blk PASSES)
+- FS-A16 Write-through mode `wired` (wubu_blk, test_blk PASSES)
+- FS-A17 O_DIRECT (the bypass) `wired` (wubu_blk, test_blk PASSES)
+- FS-A18 Block queue (the merged) `wired` (wubu_blk, test_blk PASSES)
+- FS-A19 Block priority (the QoS) `wired` (wubu_blk, test_blk PASSES)
+- FS-A20 Block energy (the IJ ledger) `wired` (wubu_blk, test_blk PASSES)
+- FS-A21 Block benchmarks (the MB/s) `wired` (wubu_blk, test_blk PASSES)
+- FS-A22 Block fuzz (the sector corruption) `wired` (wubu_blk, test_blk PASSES)
+- FS-A23 Block tests (the roundtrip) `wired` (wubu_blk, test_blk PASSES)
+- FS-A24 NVMe support (the future) `wired` (wubu_blk, test_blk PASSES)
+- FS-A25 AHCI port enumeration (the metal) `wired` (wubu_blk, test_blk PASSES)
+- FS-A26 SATA vs virtio (the hosted) `wired` (wubu_blk, test_blk PASSES)
+- FS-A27 RAM disk (the wubu_ramdisk) `wired` (wubu_blk, test_blk PASSES)
+- FS-A28 Loop device (the image file) `wired` (wubu_blk, test_blk PASSES)
+- FS-A29 Device mapper (the stacking) `wired` (wubu_blk, test_blk PASSES)
+- FS-A30 RAID-0 (the stripe) `wired` (wubu_blk, test_blk PASSES)
+- FS-A31 RAID-1 (the mirror) `wired` (wubu_blk, test_blk PASSES)
+- FS-A32 RAID-5 (the parity) `wired` (wubu_blk, test_blk PASSES)
+- FS-A33 RAID-10 `wired` (wubu_blk, test_blk PASSES)
+- FS-A34 Snapshot blocks (the CoW) `wired` (wubu_blk, test_blk PASSES)
+- FS-A35 Block dedup (the hash) `wired` (wubu_blk, test_blk PASSES)
+- FS-A36 Block compression (the zstd) `wired` (wubu_blk, test_blk PASSES)
+- FS-A37 Block encryption (the AES) `wired` (wubu_blk, test_blk PASSES)
+- FS-A38 Block checksums (the end-to-end) `wired` (wubu_blk, test_blk PASSES)
+- FS-A39 Block journal (the intent log) `wired` (wubu_blk, test_blk PASSES)
+- FS-A40 Block recovery (the crash) `wired` (wubu_blk, test_blk PASSES)
+- FS-A41 Block hotplug (the USB) `wired` (wubu_blk, test_blk PASSES)
+- FS-A42 Block stats (the iostat) `wired` (wubu_blk, test_blk PASSES)
+- FS-A43 Block latency (the p99) `wired` (wubu_blk, test_blk PASSES)
+- FS-A44 Block ioctl (the control) `wired` (wubu_blk, test_blk PASSES)
+- FS-A45 Block partition resize `wired` (wubu_blk, test_blk PASSES)
+- FS-A46 Block resize (the grow) `wired` (wubu_blk, test_blk PASSES)
+- FS-A47 Block online shrink `wired` (wubu_blk, test_blk PASSES)
+- FS-A48 Block read-only (the switch) `wired` (wubu_blk, test_blk PASSES)
+- FS-A49 Block verify (the scrub) `wired` (wubu_blk, test_blk PASSES)
+- FS-A50 Block self-test (the health) `wired` (wubu_blk, test_blk PASSES)
+- FS-A51 Block error injection (the test) `wired` (wubu_blk, test_blk PASSES)
+- FS-A52 Block quota (the per-volume) `wired` (wubu_blk, test_blk PASSES)
+- FS-A53 Block multi-queue (the SMP) `wired` (wubu_blk, test_blk PASSES)
+- FS-A54 Block interrupt coalescing `wired` (wubu_blk, test_blk PASSES)
+- FS-A55 Block poll mode (the busy) `wired` (wubu_blk, test_blk PASSES)
+- FS-A56 Block async I/O (the io_uring-ish) `wired` (wubu_blk, test_blk PASSES)
+- FS-A57 Block zero-copy (the splice) `wired` (wubu_blk, test_blk PASSES)
+- FS-A58 Block mmap (the direct) `wired` (wubu_blk, test_blk PASSES)
+- FS-A59 Block copy-on-read (the cache) `wired` (wubu_blk, test_blk PASSES)
+- FS-A60 Block cache tiering (the hot/cold) `wired` (wubu_blk, test_blk PASSES)
+- FS-A61 Block in-memory (the tmpfs) `wired` (wubu_blk, test_blk PASSES)
+- FS-A62 Block image formats (the qcow-ish) `wired` (wubu_blk, test_blk PASSES)
+- FS-A63 Block snapshot chains `wired` (wubu_blk, test_blk PASSES)
+- FS-A64 Block thin provisioning `wired` (wubu_blk, test_blk PASSES)
+- FS-A65 Block overcommit (the copy-on-write) `wired` (wubu_blk, test_blk PASSES)
+- FS-A66 Block sparse (the holes) `wired` (wubu_blk, test_blk PASSES)
+- FS-A67 Block punch (the hole) `wired` (wubu_blk, test_blk PASSES)
+- FS-A68 Block clone (the reflink) `wired` (wubu_blk, test_blk PASSES)
+- FS-A69 Block dedup inline (the live) `wired` (wubu_blk, test_blk PASSES)
+- FS-A70 Block compression inline `wired` (wubu_blk, test_blk PASSES)
+- FS-A71 Block encryption inline `wired` (wubu_blk, test_blk PASSES)
+- FS-A72 Block checksum inline `wired` (wubu_blk, test_blk PASSES)
+- FS-A73 Block write amplification (the counter) `wired` (wubu_blk, test_blk PASSES)
+- FS-A74 Block lifetime (the wear counter) `wired` (wubu_blk, test_blk PASSES)
+- FS-A75 Block health prediction `wired` (wubu_blk, test_blk PASSES)
+- FS-A76 Block retirement (the failing) `wired` (wubu_blk, test_blk PASSES)
+- FS-A77 Block remap on fail `wired` (wubu_blk, test_blk PASSES)
+- FS-A78 Block degraded mode (the RAID) `wired` (wubu_blk, test_blk PASSES)
+- FS-A79 Block rebuild (the resync) `wired` (wubu_blk, test_blk PASSES)
+- FS-A80 Block patrol read `wired` (wubu_blk, test_blk PASSES)
+- FS-A81 Block media scan `wired` (wubu_blk, test_blk PASSES)
+- FS-A82 Block self-healing (the parity) `wired` (wubu_blk, test_blk PASSES)
+- FS-A83 Block scrub scheduling `wired` (wubu_blk, test_blk PASSES)
+- FS-A84 Block notifications (the events) `wired` (wubu_blk, test_blk PASSES)
+- FS-A85 Block tests: the full matrix `wired` (wubu_blk, test_blk PASSES)
+- FS-A86 Block docs: the spec `wired` (wubu_blk, test_blk PASSES)
+- FS-A87 Block the roadmap: this bank `wired` (wubu_blk, test_blk PASSES)
+- FS-A88 Block cache policy FIFO `wired` (wubu_blk, test_blk PASSES)
+- FS-A89 Block cache policy LRU `wired` (wubu_blk, test_blk PASSES)
+- FS-A90 Block cache policy LFU `wired` (wubu_blk, test_blk PASSES)
+- FS-A91 Block cache policy 2Q `wired` (wubu_blk, test_blk PASSES)
+- FS-A92 Block cache policy ARC `wired` (wubu_blk, test_blk PASSES)
+- FS-A93 Block cache policy clock `wired` (wubu_blk, test_blk PASSES)
+- FS-A94 Block cache policy segmented `wired` (wubu_blk, test_blk PASSES)
+- FS-A95 Block cache policy weighted `wired` (wubu_blk, test_blk PASSES)
+- FS-A96 Block cache policy scan-resistant `wired` (wubu_blk, test_blk PASSES)
+- FS-A97 Block cache policy hot/cold `wired` (wubu_blk, test_blk PASSES)
+- FS-A98 Block I/O mode sync `wired` (wubu_blk, test_blk PASSES)
+- FS-A99 Block I/O mode async `wired` (wubu_blk, test_blk PASSES)
+- FS-A100 Block I/O mode barrier `wired` (wubu_blk, test_blk PASSES)
 Status: `open` (87 gaps)
 
 ## FS-B: The FAT family (the metal's own)
