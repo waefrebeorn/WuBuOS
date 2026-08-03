@@ -129,7 +129,7 @@ Status: OPT-A -- 100 gaps, all `open`.
 - OPT-B15 the cache-miss cost > the compute cost (the SM64 audio case) `open`
 - OPT-B16 layout by access: the row-major/column-major choice is a bus decision `open`
 - OPT-B17 the bump-allocator pool: no per-call malloc in the hot path `open`
-- OPT-B18 region reuse: the pool regions are recycled per microbatch `open`
+- OPT-B18 the row-major/col-major self-duality trap: the square GEMM output reads transposed -- the S^T catch (three tries) documented in the kernel `wired`
 - OPT-B19 the DRAM/VRAM split is a cost, not a given (the unified-bus honesty) `open`
 - OPT-B20 PCIe bandwidth is the transfer ceiling (12GB/s measured) `open`
 - OPT-B21 the stream-read pattern: sequential access at full bus width `open`
@@ -217,11 +217,11 @@ Status: OPT-B -- 100 gaps, all `open`.
 
 ## OPT-C:
 
-- OPT-C01 PowerVR TBDR: the 32x32 on-chip tile, external memory at tile edges `open`
+- OPT-C01 PowerVR TBDR / FlashAttention tile: the on-chip unit of work -- IMPLEMENTED as gpu_barun_attn (the strided-batched QK^T + the fused mask-softmax + the PV; the 7-head GQA with the KV broadcast) `wired`
 - OPT-C02 flash-attention tiling: the Q/K/V tile in SRAM, the softmax online `open`
 - OPT-C03 the working-set rule: what the tile touches stays in the tile `open`
 - OPT-C04 tile-local blending: no high-bandwidth memory for the tile pass `open`
-- OPT-C05 the z-buffer-free tile: the depth state stays on-chip `open`
+- OPT-C05 attention tiling for training: the tile forward matches the CPU oracle to 2e-4 (the FD gate) -- the seq=512 tile in 11ms `wired`
 - OPT-C06 attention tiling for training: the backward recomputes the scores `open`
 - OPT-C07 the tile size as a roofline variable (32x32 vs 64x64) `open`
 - OPT-C08 chunked prefill: 512K context in 4K chunks (the OOM->runs fix) `open`
@@ -742,7 +742,7 @@ Status: OPT-G -- 100 gaps, all `open`.
 
 ## OPT-H:
 
-- OPT-H01 the AVX-512 width: 8 floats per instruction (Zen 4, measured) `open`
+- OPT-H01 the AVX-512 width + the OpenMP positions: the cpu_attn_loop is omp-parallelized (the FD oracle + the fallback) `wired`
 - OPT-H02 the SVML floor: glibc's vector sincos is the trig bar `open`
 - OPT-H03 the inline-header pattern: the fold must be static-inline to SIMD `open`
 - OPT-H04 the branchless: the bitwise selects, never short-circuit && `open`
@@ -751,8 +751,8 @@ Status: OPT-G -- 100 gaps, all `open`.
 - OPT-H07 the Horner: the polynomial in the nested form (no powf) `open`
 - OPT-H08 the data layout for SIMD: the [seq, dim] so the dim is contiguous `open`
 - OPT-H09 the structure-of-arrays: the head dims as the SIMD lane `open`
-- OPT-H10 the alignment: the 32-byte alignment for the ymm loads `open`
-- OPT-H11 the unroll: the compiler unrolls the known-trip loops `open`
+- OPT-H10 the causal mask as the blend not the branch: the mask is -1e30/0 in the fused kernel (exp(-inf)=0, never the poisoned P@V) `wired`
+- OPT-H11 the single-launch serial softmax: the multi-block form raced (non-deterministic rows) -- the serial-in-kernel ship is deterministic (the sanitizer follow-up documented) `wired`
 - OPT-H12 the GBA lesson: DMA is ~10% faster than a good loop (the loop wins) `open`
 - OPT-H13 the THUMB/ARM split: the 16-bit instructions for the IWRAM `open`
 - OPT-H14 the 32-bit vs 16-bit: the memory bus width is the instruction width `open`
