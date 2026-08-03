@@ -538,7 +538,7 @@ refs: Orchard Env + E2B/Daytona/Modal comparison
 - AC-F04 mask observation/environment tokens out of the loss `open`
 - AC-F05 asymmetric PPO clipping (eps_lo 0.2, eps_hi 0.28) without KL/entropy regularization `wired`
 - AC-F06 no per-trajectory 1/T normalization (longer tasks not down-weighted) `wired` -- the no-1/T test: equal rewards give equal per-token grads regardless of length
-- AC-F07 credit-assignment SFT: learn from productive segments of unresolved trajectories `open`
+- AC-F07 credit-assignment SFT: learn from productive segments of unresolved trajectories `wired` -- wubu_credit_mask (the leading-success prefix)
 - AC-F08 Balanced Adaptive Rollout for sparse-reward RL (allocating rollouts by difficulty) `open`
 - AC-F09 two-stage training: SFT on curated teacher trajectories THEN RL from the SFT checkpoint `open`
 - AC-F10 RL directly from the base model as the ablation (the blue curves) `open`
