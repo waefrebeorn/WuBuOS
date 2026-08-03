@@ -38,6 +38,9 @@ its key sources here + registers them below.
 | QUIC vs TCP (LogicMonitor) | `quic-vs-tcp.md` | 35463 | Network |
 | Continuous Batching (Brenndoerfer) | `continuous-batching.md` | 96327 | AI-Engine |
 | Adaptive User Interfaces 2026 (Yenra) | `adaptive-user-interfaces.md` | 38416 | Human |
+| Kaze Emanuar: FIXING the ENTIRE SM64 Source Code (transcript) | `kaze-fixing-entire-sm64-source.md` | 19308 | AGI-Design |
+| Kaze Emanuar: SM64 Audio Optimization (transcript) | `kaze-sm64-audio-optimization.md` | 12953 | AGI-Design |
+| Kaze Emanuar: the N64 optimization corpus (catalog) | `kaze-emanuar.md` | 3750 | AGI-Design |
 | Wavetable Synthesis (WolfSound) | `wavetable-synthesis.md` | 26421 | Synthesis |
 | Kernel Security Review (MDPI) | `kernel-security-review.md` | 119215 | Security |
 | Memory Safety Continuum (OpenSSF) | `memory-safety-continuum.md` | 8167 | Security |
