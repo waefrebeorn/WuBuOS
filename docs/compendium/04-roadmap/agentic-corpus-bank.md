@@ -120,7 +120,7 @@ refs: Hermes 4 DataForge/Atropos + Orchard + the CAI corpus
 - AC-B06 trajectory-level dedup across corpora (the same task solved many times) `wired` -- wubu_dedup: the rolling-hash exact-window scan + the collision guard (measured FineMath 0.003%)
 - AC-B07 outcome-based trajectory filtering (keep only verified-success rollouts for SFT) `open`
 - AC-B08 partial-credit retention: keep productive segments of UNRESOLVED trajectories (credit-assignment SFT) `open`
-- AC-B09 length-budget filtering (drop over-long trajectories, cap context) `open`
+- AC-B09 length-budget filtering (drop over-long trajectories, cap context) `wired` -- wubu_epcap: the longest fitting prefix with the full-fits flag
 - AC-B10 format-validity filtering (parseable tool calls only) `wired` -- the wubu_fmt JSON validator (the strict bracket start)
 - AC-B11 policy-compliance filtering (trajectories that followed the domain policy) `open`
 - AC-B12 cross-harness trajectory normalization (ReAct-style <-> tool-call style) `open`
