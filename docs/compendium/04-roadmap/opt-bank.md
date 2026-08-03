@@ -5,6 +5,10 @@ Status: generated 2026-08-03 from the deep-dive research
 Ledger: `open` = a real mechanism to close; `wired` = implemented + tested.
 Every gap is a REAL mechanism, driver-tagged; the loop closes them in batches.
 
+wired: 17 / 1000 (OPT-A01-03 foldmath, OPT-C01 tile, OPT-C06 backward,
+OPT-D01-06 NS/Gram, OPT-H01-12 OpenMP + the serial softmax + the
+shared-KV partials).
+
 ## OPT-A:
 
 - OPT-A01 folded sin/cos: one polynomial on [0,pi/4], every sine symmetry (Silas/Kaze) `open`
@@ -222,7 +226,7 @@ Status: OPT-B -- 100 gaps, all `open`.
 - OPT-C03 the working-set rule: what the tile touches stays in the tile `open`
 - OPT-C04 tile-local blending: no high-bandwidth memory for the tile pass `open`
 - OPT-C05 attention tiling for training: the tile forward matches the CPU oracle to 2e-4 (the FD gate) -- the seq=512 tile in 11ms `wired`
-- OPT-C06 attention tiling for training: the backward recomputes the scores `open`
+- OPT-C06 attention tiling for training: the backward recomputes the scores `wired` -- gpu_barun_attn_backward recomputes S/P (the same strided-batched + serial softmax), then dP = dO V^T, rs = rowsum(dO o O), dS = P o (dP - rs) * inv, dQ = dS K, dK/dV = the summed dS^T Q / P^T dO (the FD + direct verified: maxrel 5.4e-3, max|diff| ~6e-3)
 - OPT-C07 the tile size as a roofline variable (32x32 vs 64x64) `open`
 - OPT-C08 chunked prefill: 512K context in 4K chunks (the OOM->runs fix) `open`
 - OPT-C09 the KV cache tile: per-head tiles stream from DRAM `open`
@@ -752,6 +756,7 @@ Status: OPT-G -- 100 gaps, all `open`.
 - OPT-H08 the data layout for SIMD: the [seq, dim] so the dim is contiguous `open`
 - OPT-H09 the structure-of-arrays: the head dims as the SIMD lane `open`
 - OPT-H10 the causal mask as the blend not the branch: the mask is -1e30/0 in the fused kernel (exp(-inf)=0, never the poisoned P@V) `wired`
+- OPT-H12 the shared-KV accumulation under OpenMP: the naive parallel-for raced on the cross-row dk/dv -- the per-thread partials + the critical merge `wired`
 - OPT-H11 the single-launch serial softmax: the multi-block form raced (non-deterministic rows) -- the serial-in-kernel ship is deterministic (the sanitizer follow-up documented) `wired`
 - OPT-H12 the GBA lesson: DMA is ~10% faster than a good loop (the loop wins) `open`
 - OPT-H13 the THUMB/ARM split: the 16-bit instructions for the IWRAM `open`
