@@ -437,7 +437,7 @@ Status: OPT-D -- 100 gaps, all `open`.
 - OPT-E04 the WSD schedule: the expansion happens after warmup `open`
 - OPT-E05 mixing needs DATA not iterations (the batch-size independence) `open`
 - OPT-E06 single-stage expansion beats multi-stage (mixing-time transfer) `open`
-- OPT-E07 the feature-learning view: the new layer inherits the features `open`
+- OPT-E07 the feature-learning view: the new layer inherits the features `wired` -- the grown block's grads are FD-verified through the bp (rel 9.7e-4); the bp's is_sel now follows the per-block fire_sel rhythm
 - OPT-E08 hyperparameter transfer: the LR survives the expansion `open`
 - OPT-E09 the depth-doubling initialization (the stack/identity family) `wired` -- wubu_grow_stack_block: the G_stack copy (+2,310,912 params/block)
 - OPT-E10 the Net2Net lineage: function-preserving for convs/BERT `open`
