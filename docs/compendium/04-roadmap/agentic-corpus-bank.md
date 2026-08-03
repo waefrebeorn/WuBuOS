@@ -439,7 +439,7 @@ refs: Yao/Shinn/Razavi/Narasimhan tau-bench
 - AC-E10 task-domain abstraction: the same env service across swe/gui/tool/personal `open`
 - AC-E11 harness-agnostic trajectories (data collected under one harness, evaluated under another) `open`
 - AC-E12 snapshot/rollback for reproducible rollouts `open`
-- AC-E13 deterministic seeds for environment randomness (replayable rollouts) `open`
+- AC-E13 deterministic seeds for environment randomness (replayable rollouts) `wired` -- wubu_seed: splitmix64 + Fisher-Yates, same seed replays the same shuffle
 - AC-E14 browser automation primitives (click/hover/drag/write/press/scroll/goto/back/wait) `open`
 - AC-E15 tab management primitives (new/switch/close tabs) `open`
 - AC-E16 GUI screenshot streams as observations (vision agents) `open`
