@@ -1024,7 +1024,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1041,6 +1041,13 @@ test_sync:
 		$(KERNEL)/test_sync.c \
 		-o $(KERNEL)/test_sync
 	$(KERNEL)/test_sync
+
+# the FS-B FAT family (chains, BPB, recovery -- 100 gaps)
+test_fat2:
+	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
+		$(KERNEL)/test_fat2.c $(KERNEL)/wubu_fat2.c \
+		-o $(KERNEL)/test_fat2 -lm
+	$(KERNEL)/test_fat2
 
 # the FS-A block layer (device table + policy selectors, 100 gaps)
 test_blk:

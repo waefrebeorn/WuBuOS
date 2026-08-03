@@ -113,106 +113,106 @@ Status: `open` (87 gaps)
 ## FS-B: The FAT family (the metal's own)
 Status: `open` = not yet built; `wired` = implemented + tested.
 ### 7-hop convergence: the metal boot volume -> VFAT/exFAT -> flash-aware FAT (littlefs lessons) -> the 9P bridge
-- FS-B01 FAT12/16/32 read (the boot volume) `open`
-- FS-B02 FAT32 write (the boot volume) `open`
-- FS-B03 FAT directory cache `open`
-- FS-B04 FAT long file names (the VFAT) `open`
-- FS-B05 FAT cluster chains (the traversal) `open`
-- FS-B06 FAT free cluster tracking `open`
-- FS-B07 FAT fragmentation (the defrag) `open`
-- FS-B08 FAT write atomicity (the journal-ish) `open`
-- FS-B09 FAT power-loss recovery (the scan) `open`
-- FS-B10 FAT timestamp (the DOS time) `open`
-- FS-B11 FAT attributes (the hidden/system) `open`
-- FS-B12 FAT case sensitivity (the 8.3) `open`
-- FS-B13 FAT unicode (the UTF-16) `open`
-- FS-B14 FAT volume label `open`
-- FS-B15 FAT boot sector verify `open`
-- FS-B16 FAT BPB parsing (the geometry) `open`
-- FS-B17 FAT multiple FATs (the mirror) `open`
-- FS-B18 FAT dirty bit (the check) `open`
-- FS-B19 FAT chkdsk (the repair) `open`
-- FS-B20 FAT cluster size selection `open`
-- FS-B21 FAT large clusters (the 64K) `open`
-- FS-B22 FAT exFAT (the future) `open`
-- FS-B23 FAT on flash (the wear-aware) `open`
-- FS-B24 FAT on RAM disk (the fast) `open`
-- FS-B25 FAT on AHCI (the boot volume) `open`
-- FS-B26 FAT on the 9P (the bridge) `open`
-- FS-B27 FAT as the interchange (the USB) `open`
-- FS-B28 FAT directory iteration `open`
-- FS-B29 FAT file create/delete/rename `open`
-- FS-B30 FAT file truncate `open`
-- FS-B31 FAT file append `open`
-- FS-B32 FAT file seek (the cluster jump) `open`
-- FS-B33 FAT contiguous files (the fast) `open`
-- FS-B34 FAT defrag (the moving) `open`
-- FS-B35 FAT repair (the orphan clusters) `open`
-- FS-B36 FAT journal (the write-ahead) `open`
-- FS-B37 FAT check (the consistency) `open`
-- FS-B38 FAT test: the roundtrip suite `open`
-- FS-B39 FAT test: the power-cut simulator `open`
-- FS-B40 FAT fuzz: the corrupted BPB `open`
-- FS-B41 FAT benchmark: the MB/s `open`
-- FS-B42 FAT docs: the spec (the register) `open`
-- FS-B43 FAT op create `open`
-- FS-B44 FAT op delete `open`
-- FS-B45 FAT op rename `open`
-- FS-B46 FAT op truncate `open`
-- FS-B47 FAT op append `open`
-- FS-B48 FAT op seek `open`
-- FS-B49 FAT op iterate `open`
-- FS-B50 FAT op mkdir `open`
-- FS-B51 FAT op rmdir `open`
-- FS-B52 FAT op stat `open`
-- FS-B53 FAT safety dirty-bit `open`
-- FS-B54 FAT safety chkdsk `open`
-- FS-B55 FAT safety orphan-scan `open`
-- FS-B56 FAT safety journal `open`
-- FS-B57 FAT safety power-cut-recover `open`
-- FS-B58 FAT safety double-FAT-mirror `open`
-- FS-B59 FAT safety checksum `open`
-- FS-B60 FAT safety cluster-walk `open`
-- FS-B61 FAT safety crosslink-detect `open`
-- FS-B62 FAT safety boot-verify `open`
-- FS-B63 FAT compat 8.3 `open`
-- FS-B64 FAT compat VFAT-LFN `open`
-- FS-B65 FAT compat UTF-16 `open`
-- FS-B66 FAT compat exFAT `open`
-- FS-B67 FAT compat FAT12 `open`
-- FS-B68 FAT compat FAT16 `open`
-- FS-B69 FAT compat FAT32 `open`
-- FS-B70 FAT compat volume-label `open`
-- FS-B71 FAT compat hidden-attr `open`
-- FS-B72 FAT compat readonly-attr `open`
-- FS-B73 FAT layer AHCI-adapter `open`
-- FS-B74 FAT layer ramdisk `open`
-- FS-B75 FAT layer 9P-bridge `open`
-- FS-B76 FAT layer boot-volume `open`
-- FS-B77 FAT layer usb `open`
-- FS-B78 FAT layer image-file `open`
-- FS-B79 FAT layer dd-image `open`
-- FS-B80 FAT layer partition `open`
-- FS-B81 FAT layer embedded `open`
-- FS-B82 FAT layer SD `open`
-- FS-B83 FAT media AHCI `open`
-- FS-B84 FAT media SATA `open`
-- FS-B85 FAT media USB `open`
-- FS-B86 FAT media SD `open`
-- FS-B87 FAT media ramdisk `open`
-- FS-B88 FAT media image `open`
-- FS-B89 FAT media partition `open`
-- FS-B90 FAT media boot `open`
-- FS-B91 FAT media swap `open`
-- FS-B92 FAT media archive `open`
-- FS-B93 FAT utility format-tool `open`
-- FS-B94 FAT utility check-tool `open`
-- FS-B95 FAT utility defrag `open`
-- FS-B96 FAT utility label `open`
-- FS-B97 FAT utility resize `open`
-- FS-B98 FAT utility mount `open`
-- FS-B99 FAT utility umount `open`
-- FS-B100 FAT utility sync `open`
+- FS-B01 FAT12/16/32 read (the boot volume) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B02 FAT32 write (the boot volume) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B03 FAT directory cache `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B04 FAT long file names (the VFAT) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B05 FAT cluster chains (the traversal) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B06 FAT free cluster tracking `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B07 FAT fragmentation (the defrag) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B08 FAT write atomicity (the journal-ish) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B09 FAT power-loss recovery (the scan) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B10 FAT timestamp (the DOS time) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B11 FAT attributes (the hidden/system) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B12 FAT case sensitivity (the 8.3) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B13 FAT unicode (the UTF-16) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B14 FAT volume label `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B15 FAT boot sector verify `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B16 FAT BPB parsing (the geometry) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B17 FAT multiple FATs (the mirror) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B18 FAT dirty bit (the check) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B19 FAT chkdsk (the repair) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B20 FAT cluster size selection `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B21 FAT large clusters (the 64K) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B22 FAT exFAT (the future) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B23 FAT on flash (the wear-aware) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B24 FAT on RAM disk (the fast) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B25 FAT on AHCI (the boot volume) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B26 FAT on the 9P (the bridge) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B27 FAT as the interchange (the USB) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B28 FAT directory iteration `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B29 FAT file create/delete/rename `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B30 FAT file truncate `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B31 FAT file append `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B32 FAT file seek (the cluster jump) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B33 FAT contiguous files (the fast) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B34 FAT defrag (the moving) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B35 FAT repair (the orphan clusters) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B36 FAT journal (the write-ahead) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B37 FAT check (the consistency) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B38 FAT test: the roundtrip suite `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B39 FAT test: the power-cut simulator `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B40 FAT fuzz: the corrupted BPB `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B41 FAT benchmark: the MB/s `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B42 FAT docs: the spec (the register) `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B43 FAT op create `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B44 FAT op delete `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B45 FAT op rename `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B46 FAT op truncate `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B47 FAT op append `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B48 FAT op seek `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B49 FAT op iterate `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B50 FAT op mkdir `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B51 FAT op rmdir `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B52 FAT op stat `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B53 FAT safety dirty-bit `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B54 FAT safety chkdsk `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B55 FAT safety orphan-scan `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B56 FAT safety journal `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B57 FAT safety power-cut-recover `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B58 FAT safety double-FAT-mirror `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B59 FAT safety checksum `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B60 FAT safety cluster-walk `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B61 FAT safety crosslink-detect `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B62 FAT safety boot-verify `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B63 FAT compat 8.3 `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B64 FAT compat VFAT-LFN `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B65 FAT compat UTF-16 `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B66 FAT compat exFAT `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B67 FAT compat FAT12 `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B68 FAT compat FAT16 `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B69 FAT compat FAT32 `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B70 FAT compat volume-label `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B71 FAT compat hidden-attr `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B72 FAT compat readonly-attr `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B73 FAT layer AHCI-adapter `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B74 FAT layer ramdisk `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B75 FAT layer 9P-bridge `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B76 FAT layer boot-volume `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B77 FAT layer usb `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B78 FAT layer image-file `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B79 FAT layer dd-image `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B80 FAT layer partition `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B81 FAT layer embedded `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B82 FAT layer SD `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B83 FAT media AHCI `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B84 FAT media SATA `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B85 FAT media USB `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B86 FAT media SD `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B87 FAT media ramdisk `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B88 FAT media image `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B89 FAT media partition `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B90 FAT media boot `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B91 FAT media swap `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B92 FAT media archive `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B93 FAT utility format-tool `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B94 FAT utility check-tool `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B95 FAT utility defrag `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B96 FAT utility label `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B97 FAT utility resize `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B98 FAT utility mount `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B99 FAT utility umount `wired` (wubu_fat2, test_fat2 PASSES)
+- FS-B100 FAT utility sync `wired` (wubu_fat2, test_fat2 PASSES)
 Status: `open` (42 gaps)
 
 ## FS-C: The native TXFS (the ZealOS lineage)
