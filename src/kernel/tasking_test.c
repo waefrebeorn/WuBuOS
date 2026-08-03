@@ -4,6 +4,7 @@
 
 #include "tasking.h"
 #include "memory.h"
+#include "klog.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,22 @@
 #define FAIL(msg)  do { printf("❌ FAIL: %s\n", msg); failures++; } while(0)
 
 static int failures = 0;
+
+/* The watchdog path (tasking.c) calls interrupt_panic_dump() on a stuck
+ * task. In the hosted test that must be REAL work: dump the klog panic
+ * ring (the last ~4 KB of kernel log output) to stderr so the stuck
+ * task's evidence is visible -- the same contract as the bare-metal
+ * serial dump, routed to the host console instead of COM1. */
+void interrupt_panic_dump(void)
+{
+    char buf[4096 + 1];
+    int n = klog_ring_snapshot(buf, sizeof(buf));
+    if (n > 0)
+        fprintf(stderr, "--- klog panic ring (%d bytes) ---\n%.*s\n--- end ring ---\n",
+                n, n, buf);
+    else
+        fprintf(stderr, "--- klog panic ring: empty ---\n");
+}
 
 static void test_init_shutdown(void) {
     printf("\n[Init / Shutdown]\n");

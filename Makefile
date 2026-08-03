@@ -470,8 +470,8 @@ test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
 
-test_tasking: $(KERNEL)/memory.o
-	$(CC) $(CFLAGS) -DWUBU_BAREMETAL=0 -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/tasking.c $(KERNEL)/tasking_test.c -o $(KERNEL)/tasking_test
+test_tasking: $(KERNEL)/memory.o $(KERNEL)/klog.o
+	$(CC) $(CFLAGS) -DWUBU_BAREMETAL=0 -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/tasking.c $(KERNEL)/tasking_test.c -o $(KERNEL)/tasking_test
 	$(KERNEL)/tasking_test
 
 test_input:
