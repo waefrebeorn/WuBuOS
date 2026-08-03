@@ -18,6 +18,7 @@ for the AGI to bounce off of. "This is the beginning of an AGI."
 | AI-Engine (AIE) | `docs/compendium/04-roadmap/engine-bank.md` | open | 1000 |
 | Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | 400 wired (HX-A model, HX-B timing, HX-C tutor, HX-D companion) | 1000 |
 | Security (SC) | `docs/compendium/04-roadmap/security-bank.md` | open | 1000 |
+| Agentic-Corpus (AG) | `docs/compendium/04-roadmap/agentic-corpus-bank.md` | 0 wired | 1000 |
 | DevTools (DT) | `docs/compendium/04-roadmap/devtools-bank.md` | open | 1000 |
 | **TOTAL** | | | **~10243** |
 

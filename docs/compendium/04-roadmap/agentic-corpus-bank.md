@@ -1,0 +1,1057 @@
+# AG: the agentic-corpus avenue -- 1000 gaps for a USABLE agentic LLM
+
+Status: generated 2026-08-04 from research/044
+(agentic-corpus deep-dive: Malhotra/DataForge, Peng/Orchard, Yao/tau-bench,
+Wang/OpenHands, the CAI trajectory corpus). Ledger: `open` = a real mechanism
+to close; `wired` = implemented + tested.
+
+## AC-A: made-data synthesis (the DataForge graph recipe)
+
+- AC-A01 DataForge graph synthesis: seed passages -> struct->struct maps with PDDL pre/postconditions -> random DAG walks `open`
+- AC-A02 nested higher-order graphs: every graph is a node (single source, single target) to arbitrary depth `open`
+- AC-A03 passage transformation nodes (news -> rap, article -> debate transcript) as data-to-data maps `open`
+- AC-A04 instruction generation conditioned on the transformed passage (contextual tasks) `open`
+- AC-A05 standalone instruction generation: transformed passage as inspiration only (PersonaHub-like) `open`
+- AC-A06 specialized answer generators keyed to instruction types (sparse edges to the instruction stage) `open`
+- AC-A07 rubric judges per instruction type (coherence, relevance, complexity, style, tone) `open`
+- AC-A08 judge weights MUST differ from answer weights (judges favor their own generations) `open`
+- AC-A09 iterate the answer until the judge passes or max-iteration discard `open`
+- AC-A10 train on the INTERMEDIATE LLM calls too (instruction generation + judging become skills) `open`
+- AC-A11 pre-training seed cleaning: ModernBERT semantic dedup at 0.7 cosine `open`
+- AC-A12 recency-biased seed sampling from DCLM + FineWeb `open`
+- AC-A13 LLM-judge filtering of incomplete/ill-formatted seed passages `open`
+- AC-A14 recursive taxonomy enumeration via depth-first-search (n subdomains that partition) `open`
+- AC-A15 leaf taxonomies as prompt generators (tool-use formats, output formats parseable by code) `open`
+- AC-A16 rejection sampling over multiple teacher trajectories per task `open`
+- AC-A17 token-budget-aware winning-path selection per task group `open`
+- AC-A18 cross-teacher trajectory mixing (DeepHermes + larger models as teachers) `open`
+- AC-A19 deliberate format diversity: 150+ sampled output formats `open`
+- AC-A20 conversation-graph synthesis: multi-turn dialogues from task graphs `open`
+- AC-A21 software-engineering trajectory synthesis: task seeds from real usage intents `open`
+- AC-A22 software-engineering trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A23 software-engineering trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A24 software-engineering trajectory synthesis: format-constrained variants `open`
+- AC-A25 software-engineering trajectory synthesis: multi-teacher mixing `open`
+- AC-A26 web-navigation trajectory synthesis: task seeds from real usage intents `open`
+- AC-A27 web-navigation trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A28 web-navigation trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A29 web-navigation trajectory synthesis: format-constrained variants `open`
+- AC-A30 web-navigation trajectory synthesis: multi-teacher mixing `open`
+- AC-A31 GUI-computer-use trajectory synthesis: task seeds from real usage intents `open`
+- AC-A32 GUI-computer-use trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A33 GUI-computer-use trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A34 GUI-computer-use trajectory synthesis: format-constrained variants `open`
+- AC-A35 GUI-computer-use trajectory synthesis: multi-teacher mixing `open`
+- AC-A36 tool-API trajectory synthesis: task seeds from real usage intents `open`
+- AC-A37 tool-API trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A38 tool-API trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A39 tool-API trajectory synthesis: format-constrained variants `open`
+- AC-A40 tool-API trajectory synthesis: multi-teacher mixing `open`
+- AC-A41 retrieval-RAG trajectory synthesis: task seeds from real usage intents `open`
+- AC-A42 retrieval-RAG trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A43 retrieval-RAG trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A44 retrieval-RAG trajectory synthesis: format-constrained variants `open`
+- AC-A45 retrieval-RAG trajectory synthesis: multi-teacher mixing `open`
+- AC-A46 code-writing trajectory synthesis: task seeds from real usage intents `open`
+- AC-A47 code-writing trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A48 code-writing trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A49 code-writing trajectory synthesis: format-constrained variants `open`
+- AC-A50 code-writing trajectory synthesis: multi-teacher mixing `open`
+- AC-A51 office-productivity trajectory synthesis: task seeds from real usage intents `open`
+- AC-A52 office-productivity trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A53 office-productivity trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A54 office-productivity trajectory synthesis: format-constrained variants `open`
+- AC-A55 office-productivity trajectory synthesis: multi-teacher mixing `open`
+- AC-A56 scientific trajectory synthesis: task seeds from real usage intents `open`
+- AC-A57 scientific trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A58 scientific trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A59 scientific trajectory synthesis: format-constrained variants `open`
+- AC-A60 scientific trajectory synthesis: multi-teacher mixing `open`
+- AC-A61 personal-assistant trajectory synthesis: task seeds from real usage intents `open`
+- AC-A62 personal-assistant trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A63 personal-assistant trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A64 personal-assistant trajectory synthesis: format-constrained variants `open`
+- AC-A65 personal-assistant trajectory synthesis: multi-teacher mixing `open`
+- AC-A66 security-ops trajectory synthesis: task seeds from real usage intents `open`
+- AC-A67 security-ops trajectory synthesis: teacher rollouts with verifiable outcomes `open`
+- AC-A68 security-ops trajectory synthesis: rejection-sampled winning paths `open`
+- AC-A69 security-ops trajectory synthesis: format-constrained variants `open`
+- AC-A70 security-ops trajectory synthesis: multi-teacher mixing `open`
+
+refs: Hermes 4 DataForge/Atropos + Orchard + the CAI corpus
+
+- AC-A71 persona-diversity synthesis: personas from pretraining data `open`
+- AC-A72 persona-diversity synthesis: profession-specific personas `open`
+- AC-A73 persona-diversity synthesis: adversarial personas `open`
+- AC-A74 persona-diversity synthesis: non-expert personas `open`
+- AC-A75 persona-diversity synthesis: multilingual personas `open`
+- AC-A76 persona-diversity synthesis: domain-expert personas `open`
+- AC-A77 persona-diversity synthesis: novice personas `open`
+- AC-A78 persona-diversity synthesis: skeptical personas `open`
+- AC-A79 persona-diversity synthesis: power-user personas `open`
+- AC-A80 persona-diversity synthesis: disabled-access personas `open`
+- AC-A81 instruction-type coverage: transformation tasks `open`
+- AC-A82 instruction-type coverage: rhetorical analysis `open`
+- AC-A83 instruction-type coverage: competitive programming from passage `open`
+- AC-A84 instruction-type coverage: summarization variants `open`
+- AC-A85 instruction-type coverage: translation with style constraints `open`
+- AC-A86 instruction-type coverage: data-extraction tasks `open`
+- AC-A87 instruction-type coverage: creative writing from seeds `open`
+- AC-A88 instruction-type coverage: code from prose specs `open`
+- AC-A89 instruction-type coverage: question generation `open`
+- AC-A90 instruction-type coverage: debate transcript synthesis `open`
+- AC-A91 persona-diversity synthesis: personas from pretraining data `open`
+- AC-A92 persona-diversity synthesis: profession-specific personas `open`
+- AC-A93 persona-diversity synthesis: adversarial personas `open`
+- AC-A94 persona-diversity synthesis: non-expert personas `open`
+- AC-A95 persona-diversity synthesis: multilingual personas `open`
+- AC-A96 persona-diversity synthesis: domain-expert personas `open`
+- AC-A97 persona-diversity synthesis: novice personas `open`
+- AC-A98 persona-diversity synthesis: skeptical personas `open`
+- AC-A99 persona-diversity synthesis: power-user personas `open`
+- AC-A100 persona-diversity synthesis: disabled-access personas `open`
+## AC-B: trajectory curation & filtering (the Orchard 5-stage filter)
+
+- AC-B01 the Orchard 5-stage task filter: strip eval splits before training (contamination control) `open`
+- AC-B02 keep parent tasks only (drop decomposed children to avoid intra-family redundancy) `open`
+- AC-B03 exclude benchmark-origin intents at the prompt level `open`
+- AC-B04 restrict to popular websites (SimilarWeb Top-100 + MOZ Top-500) to dodge captcha/broken pages `open`
+- AC-B05 semantic dedup of task intents at 0.99 cosine (greedy, Qwen3-Embedding-8B) `open`
+- AC-B06 trajectory-level dedup across corpora (the same task solved many times) `open`
+- AC-B07 outcome-based trajectory filtering (keep only verified-success rollouts for SFT) `open`
+- AC-B08 partial-credit retention: keep productive segments of UNRESOLVED trajectories (credit-assignment SFT) `open`
+- AC-B09 length-budget filtering (drop over-long trajectories, cap context) `open`
+- AC-B10 format-validity filtering (parseable tool calls only) `open`
+- AC-B11 policy-compliance filtering (trajectories that followed the domain policy) `open`
+- AC-B12 cross-harness trajectory normalization (ReAct-style <-> tool-call style) `open`
+- AC-B13 judge-based trajectory scoring (LLM judge on the whole trace) `open`
+- AC-B14 diversity sampling over trajectory clusters (maximize coverage per cluster) `open`
+- AC-B15 per-domain balance ratios (swe/gui/tool/personal targets) `open`
+- AC-B16 difficulty stratification (easy/medium/hard buckets per task family) `open`
+- AC-B17 train/test leakage audit: embed-based overlap scan against all eval sets `open`
+- AC-B18 trajectory freshness weighting (recency-biased sampling, the CAI cadence) `open`
+- AC-B19 user-utterance dedup (near-duplicate user turns across sessions) `open`
+- AC-B20 toxic/harmful trajectory filtering (safety blocks in the corpus) `open`
+- AC-B21 software-engineering curation: eval-contamination strip `open`
+- AC-B22 software-engineering curation: parent-only retention `open`
+- AC-B23 software-engineering curation: popular-source restriction `open`
+- AC-B24 software-engineering curation: semantic dedup `open`
+- AC-B25 software-engineering curation: outcome filtering `open`
+- AC-B26 software-engineering curation: difficulty stratification `open`
+- AC-B27 web-navigation curation: eval-contamination strip `open`
+- AC-B28 web-navigation curation: parent-only retention `open`
+- AC-B29 web-navigation curation: popular-source restriction `open`
+- AC-B30 web-navigation curation: semantic dedup `open`
+- AC-B31 web-navigation curation: outcome filtering `open`
+- AC-B32 web-navigation curation: difficulty stratification `open`
+- AC-B33 GUI-computer-use curation: eval-contamination strip `open`
+- AC-B34 GUI-computer-use curation: parent-only retention `open`
+- AC-B35 GUI-computer-use curation: popular-source restriction `open`
+- AC-B36 GUI-computer-use curation: semantic dedup `open`
+- AC-B37 GUI-computer-use curation: outcome filtering `open`
+- AC-B38 GUI-computer-use curation: difficulty stratification `open`
+- AC-B39 tool-API curation: eval-contamination strip `open`
+- AC-B40 tool-API curation: parent-only retention `open`
+- AC-B41 tool-API curation: popular-source restriction `open`
+- AC-B42 tool-API curation: semantic dedup `open`
+- AC-B43 tool-API curation: outcome filtering `open`
+- AC-B44 tool-API curation: difficulty stratification `open`
+- AC-B45 retrieval-RAG curation: eval-contamination strip `open`
+- AC-B46 retrieval-RAG curation: parent-only retention `open`
+- AC-B47 retrieval-RAG curation: popular-source restriction `open`
+- AC-B48 retrieval-RAG curation: semantic dedup `open`
+- AC-B49 retrieval-RAG curation: outcome filtering `open`
+- AC-B50 retrieval-RAG curation: difficulty stratification `open`
+- AC-B51 code-writing curation: eval-contamination strip `open`
+- AC-B52 code-writing curation: parent-only retention `open`
+- AC-B53 code-writing curation: popular-source restriction `open`
+- AC-B54 code-writing curation: semantic dedup `open`
+- AC-B55 code-writing curation: outcome filtering `open`
+- AC-B56 code-writing curation: difficulty stratification `open`
+- AC-B57 office-productivity curation: eval-contamination strip `open`
+- AC-B58 office-productivity curation: parent-only retention `open`
+- AC-B59 office-productivity curation: popular-source restriction `open`
+- AC-B60 office-productivity curation: semantic dedup `open`
+- AC-B61 office-productivity curation: outcome filtering `open`
+- AC-B62 office-productivity curation: difficulty stratification `open`
+- AC-B63 scientific curation: eval-contamination strip `open`
+- AC-B64 scientific curation: parent-only retention `open`
+- AC-B65 scientific curation: popular-source restriction `open`
+- AC-B66 scientific curation: semantic dedup `open`
+- AC-B67 scientific curation: outcome filtering `open`
+- AC-B68 scientific curation: difficulty stratification `open`
+- AC-B69 personal-assistant curation: eval-contamination strip `open`
+- AC-B70 personal-assistant curation: parent-only retention `open`
+- AC-B71 personal-assistant curation: popular-source restriction `open`
+- AC-B72 personal-assistant curation: semantic dedup `open`
+- AC-B73 personal-assistant curation: outcome filtering `open`
+- AC-B74 personal-assistant curation: difficulty stratification `open`
+- AC-B75 security-ops curation: eval-contamination strip `open`
+- AC-B76 security-ops curation: parent-only retention `open`
+- AC-B77 security-ops curation: popular-source restriction `open`
+- AC-B78 security-ops curation: semantic dedup `open`
+- AC-B79 security-ops curation: outcome filtering `open`
+- AC-B80 security-ops curation: difficulty stratification `open`
+
+refs: Orchard task filter + OpenHands outcome filtering
+
+- AC-B81 filter stage: embed-dedup `open`
+- AC-B82 filter stage: judge-scored `open`
+- AC-B83 filter stage: length-capped `open`
+- AC-B84 filter stage: format-validated `open`
+- AC-B85 filter stage: policy-compliant `open`
+- AC-B86 filter stage: outcome-verified `open`
+- AC-B87 filter stage: recency-weighted `open`
+- AC-B88 filter stage: cluster-diverse `open`
+- AC-B89 filter stage: leakage-audited `open`
+- AC-B90 filter stage: safety-scrubbed `open`
+- AC-B91 quality gate: binary keep/drop `open`
+- AC-B92 quality gate: three-tier grading `open`
+- AC-B93 quality gate: per-domain quotas `open`
+- AC-B94 quality gate: difficulty-balance `open`
+- AC-B95 quality gate: teacher-consensus `open`
+- AC-B96 quality gate: human-spotcheck `open`
+- AC-B97 quality gate: frozen-holdout verify `open`
+- AC-B98 quality gate: gradient-noise probe `open`
+- AC-B99 quality gate: loss-curve sanity `open`
+- AC-B100 quality gate: benchmark-replay check `open`
+## AC-C: reward design & verification (verifiable over preference)
+
+- AC-C01 verifiable rewards over preference ratings: DB-state comparison (tau-bench style) `open`
+- AC-C02 binary format rewards decoupled from semantics (the Atropos Answer-Format env) `open`
+- AC-C03 programmatic schema validation reward (Pydantic-style, dynamic schemas) `open`
+- AC-C04 RLVR-IFEval constraint rewards (every-Nth-word, JSON structure) `open`
+- AC-C05 unit-test-based rewards for code tasks (SWE-bench style) `open`
+- AC-C06 tool-call parseability rewards (valid <tool_call> JSON) `open`
+- AC-C07 trajectory-level reward: one scalar per whole rollout (Orchard) `open`
+- AC-C08 group-relative advantage from a group of G trajectories (GRPO) `open`
+- AC-C09 asymmetric PPO clipping (eps_lo 0.2, eps_hi 0.28) without KL/entropy reg `open`
+- AC-C10 NO per-trajectory 1/T normalization (longer harder tasks not down-weighted) `open`
+- AC-C11 reward shaping by productive-segment detection (credit-assignment) `open`
+- AC-C12 format-failure penalty (-1 on repeated parse failures) `open`
+- AC-C13 judge-based trajectory reward (LLM judge vs screenshot trail + user intent) `open`
+- AC-C14 state-diff reward: compare end-state to annotated goal state `open`
+- AC-C15 intermediate-state rewards on subgoals (decomposed tasks) `open`
+- AC-C16 reward verification via replay (re-run the actions, re-check the state) `open`
+- AC-C17 reward hacking audit (find reward-exploiting trajectories in the corpus) `open`
+- AC-C18 reward calibration across domains (comparable scales per domain) `open`
+- AC-C19 sparse-vs-dense reward mix per task family `open`
+- AC-C20 human-verification subset (spot-check the reward on a sample) `open`
+- AC-C21 software-engineering reward: state-verified `open`
+- AC-C22 software-engineering reward: format-validated `open`
+- AC-C23 software-engineering reward: judge-scored `open`
+- AC-C24 software-engineering reward: unit-test-grounded `open`
+- AC-C25 software-engineering reward: policy-compliant `open`
+- AC-C26 software-engineering reward: subgoal-decomposed `open`
+- AC-C27 web-navigation reward: state-verified `open`
+- AC-C28 web-navigation reward: format-validated `open`
+- AC-C29 web-navigation reward: judge-scored `open`
+- AC-C30 web-navigation reward: unit-test-grounded `open`
+- AC-C31 web-navigation reward: policy-compliant `open`
+- AC-C32 web-navigation reward: subgoal-decomposed `open`
+- AC-C33 GUI-computer-use reward: state-verified `open`
+- AC-C34 GUI-computer-use reward: format-validated `open`
+- AC-C35 GUI-computer-use reward: judge-scored `open`
+- AC-C36 GUI-computer-use reward: unit-test-grounded `open`
+- AC-C37 GUI-computer-use reward: policy-compliant `open`
+- AC-C38 GUI-computer-use reward: subgoal-decomposed `open`
+- AC-C39 tool-API reward: state-verified `open`
+- AC-C40 tool-API reward: format-validated `open`
+- AC-C41 tool-API reward: judge-scored `open`
+- AC-C42 tool-API reward: unit-test-grounded `open`
+- AC-C43 tool-API reward: policy-compliant `open`
+- AC-C44 tool-API reward: subgoal-decomposed `open`
+- AC-C45 retrieval-RAG reward: state-verified `open`
+- AC-C46 retrieval-RAG reward: format-validated `open`
+- AC-C47 retrieval-RAG reward: judge-scored `open`
+- AC-C48 retrieval-RAG reward: unit-test-grounded `open`
+- AC-C49 retrieval-RAG reward: policy-compliant `open`
+- AC-C50 retrieval-RAG reward: subgoal-decomposed `open`
+- AC-C51 code-writing reward: state-verified `open`
+- AC-C52 code-writing reward: format-validated `open`
+- AC-C53 code-writing reward: judge-scored `open`
+- AC-C54 code-writing reward: unit-test-grounded `open`
+- AC-C55 code-writing reward: policy-compliant `open`
+- AC-C56 code-writing reward: subgoal-decomposed `open`
+- AC-C57 office-productivity reward: state-verified `open`
+- AC-C58 office-productivity reward: format-validated `open`
+- AC-C59 office-productivity reward: judge-scored `open`
+- AC-C60 office-productivity reward: unit-test-grounded `open`
+- AC-C61 office-productivity reward: policy-compliant `open`
+- AC-C62 office-productivity reward: subgoal-decomposed `open`
+- AC-C63 scientific reward: state-verified `open`
+- AC-C64 scientific reward: format-validated `open`
+- AC-C65 scientific reward: judge-scored `open`
+- AC-C66 scientific reward: unit-test-grounded `open`
+- AC-C67 scientific reward: policy-compliant `open`
+- AC-C68 scientific reward: subgoal-decomposed `open`
+- AC-C69 personal-assistant reward: state-verified `open`
+- AC-C70 personal-assistant reward: format-validated `open`
+- AC-C71 personal-assistant reward: judge-scored `open`
+- AC-C72 personal-assistant reward: unit-test-grounded `open`
+- AC-C73 personal-assistant reward: policy-compliant `open`
+- AC-C74 personal-assistant reward: subgoal-decomposed `open`
+- AC-C75 security-ops reward: state-verified `open`
+- AC-C76 security-ops reward: format-validated `open`
+- AC-C77 security-ops reward: judge-scored `open`
+- AC-C78 security-ops reward: unit-test-grounded `open`
+- AC-C79 security-ops reward: policy-compliant `open`
+- AC-C80 security-ops reward: subgoal-decomposed `open`
+
+refs: tau-bench DB-state + Atropos format rewards + Orchard GRPO
+
+- AC-C81 reward signal: binary success `open`
+- AC-C82 reward signal: partial-credit `open`
+- AC-C83 reward signal: group-relative advantage `open`
+- AC-C84 reward signal: format-only `open`
+- AC-C85 reward signal: semantic+format `open`
+- AC-C86 reward signal: state-diff `open`
+- AC-C87 reward signal: judge-severity `open`
+- AC-C88 reward signal: hindsight-relabeled `open`
+- AC-C89 reward signal: curriculum-scaled `open`
+- AC-C90 reward signal: sparse-with-subgoals `open`
+- AC-C91 verification: replay check `open`
+- AC-C92 verification: state audit `open`
+- AC-C93 verification: judge-consensus `open`
+- AC-C94 verification: human spot-check `open`
+- AC-C95 verification: hack probe `open`
+- AC-C96 verification: calibration test `open`
+- AC-C97 verification: ablation compare `open`
+- AC-C98 verification: FD-grad check `open`
+- AC-C99 verification: reward-model cross-check `open`
+- AC-C100 verification: held-out replay `open`
+## AC-D: user simulation (the tau-bench tool-agent-USER vertex)
+
+- AC-D01 the tool-agent-USER third vertex: simulate the user, not just the tools `open`
+- AC-D02 LLM-based user simulator driven by per-task scenario instructions `open`
+- AC-D03 user simulator with domain policy documents the agent must follow `open`
+- AC-D04 diverse user personas (goals, temperaments, verbosity, expertise) `open`
+- AC-D05 user-simulator goals as data generators (each scenario -> a training task) `open`
+- AC-D06 stateful user simulation: the user reacts to the agent's actual actions `open`
+- AC-D07 user-simulator reflection strategy (the user reflects on the agent's responses) `open`
+- AC-D08 policy-following eval: compare final DB state to annotated goal state `open`
+- AC-D09 multi-turn user simulators with long-horizon goals `open`
+- AC-D10 user clarification behavior (users ask for clarification, agent must comply) `open`
+- AC-D11 adversarial users (tricky phrasing, incomplete specs, changing minds) `open`
+- AC-D12 non-native users (grammar variance, terse requests) `open`
+- AC-D13 user priorities + budget constraints (price-sensitive, time-sensitive) `open`
+- AC-D14 escalation scenarios (user escalates, agent must handle) `open`
+- AC-D15 user-simulator consistency checks (the user does not contradict itself) `open`
+- AC-D16 user-utterance templates grounded in real support transcripts `open`
+- AC-D17 user simulator -> rollout loop: generate agentic training data at scale `open`
+- AC-D18 user-simulator calibration against real conversations (distribution match) `open`
+- AC-D19 multi-user sessions (the agent serves several users) `open`
+- AC-D20 user-simulator evaluation mode (the SAME simulator scores the agent) `open`
+- AC-D21 software-engineering user-sim: persona-driven `open`
+- AC-D22 software-engineering user-sim: policy-grounded `open`
+- AC-D23 software-engineering user-sim: state-verified `open`
+- AC-D24 software-engineering user-sim: reflective `open`
+- AC-D25 software-engineering user-sim: adversarial `open`
+- AC-D26 software-engineering user-sim: escalation-aware `open`
+- AC-D27 web-navigation user-sim: persona-driven `open`
+- AC-D28 web-navigation user-sim: policy-grounded `open`
+- AC-D29 web-navigation user-sim: state-verified `open`
+- AC-D30 web-navigation user-sim: reflective `open`
+- AC-D31 web-navigation user-sim: adversarial `open`
+- AC-D32 web-navigation user-sim: escalation-aware `open`
+- AC-D33 GUI-computer-use user-sim: persona-driven `open`
+- AC-D34 GUI-computer-use user-sim: policy-grounded `open`
+- AC-D35 GUI-computer-use user-sim: state-verified `open`
+- AC-D36 GUI-computer-use user-sim: reflective `open`
+- AC-D37 GUI-computer-use user-sim: adversarial `open`
+- AC-D38 GUI-computer-use user-sim: escalation-aware `open`
+- AC-D39 tool-API user-sim: persona-driven `open`
+- AC-D40 tool-API user-sim: policy-grounded `open`
+- AC-D41 tool-API user-sim: state-verified `open`
+- AC-D42 tool-API user-sim: reflective `open`
+- AC-D43 tool-API user-sim: adversarial `open`
+- AC-D44 tool-API user-sim: escalation-aware `open`
+- AC-D45 retrieval-RAG user-sim: persona-driven `open`
+- AC-D46 retrieval-RAG user-sim: policy-grounded `open`
+- AC-D47 retrieval-RAG user-sim: state-verified `open`
+- AC-D48 retrieval-RAG user-sim: reflective `open`
+- AC-D49 retrieval-RAG user-sim: adversarial `open`
+- AC-D50 retrieval-RAG user-sim: escalation-aware `open`
+- AC-D51 code-writing user-sim: persona-driven `open`
+- AC-D52 code-writing user-sim: policy-grounded `open`
+- AC-D53 code-writing user-sim: state-verified `open`
+- AC-D54 code-writing user-sim: reflective `open`
+- AC-D55 code-writing user-sim: adversarial `open`
+- AC-D56 code-writing user-sim: escalation-aware `open`
+- AC-D57 office-productivity user-sim: persona-driven `open`
+- AC-D58 office-productivity user-sim: policy-grounded `open`
+- AC-D59 office-productivity user-sim: state-verified `open`
+- AC-D60 office-productivity user-sim: reflective `open`
+- AC-D61 office-productivity user-sim: adversarial `open`
+- AC-D62 office-productivity user-sim: escalation-aware `open`
+- AC-D63 scientific user-sim: persona-driven `open`
+- AC-D64 scientific user-sim: policy-grounded `open`
+- AC-D65 scientific user-sim: state-verified `open`
+- AC-D66 scientific user-sim: reflective `open`
+- AC-D67 scientific user-sim: adversarial `open`
+- AC-D68 scientific user-sim: escalation-aware `open`
+- AC-D69 personal-assistant user-sim: persona-driven `open`
+- AC-D70 personal-assistant user-sim: policy-grounded `open`
+- AC-D71 personal-assistant user-sim: state-verified `open`
+- AC-D72 personal-assistant user-sim: reflective `open`
+- AC-D73 personal-assistant user-sim: adversarial `open`
+- AC-D74 personal-assistant user-sim: escalation-aware `open`
+- AC-D75 security-ops user-sim: persona-driven `open`
+- AC-D76 security-ops user-sim: policy-grounded `open`
+- AC-D77 security-ops user-sim: state-verified `open`
+- AC-D78 security-ops user-sim: reflective `open`
+- AC-D79 security-ops user-sim: adversarial `open`
+- AC-D80 security-ops user-sim: escalation-aware `open`
+
+refs: Yao/Shinn/Razavi/Narasimhan tau-bench
+
+- AC-D81 user trait: terse `open`
+- AC-D82 user trait: verbose `open`
+- AC-D83 user trait: expert `open`
+- AC-D84 user trait: novice `open`
+- AC-D85 user trait: impatient `open`
+- AC-D86 user trait: polite `open`
+- AC-D87 user trait: hostile `open`
+- AC-D88 user trait: distracted `open`
+- AC-D89 user trait: multi-tasking `open`
+- AC-D90 user trait: budget-conscious `open`
+- AC-D91 scenario type: support ticket `open`
+- AC-D92 scenario type: purchase `open`
+- AC-D93 scenario type: booking `open`
+- AC-D94 scenario type: troubleshooting `open`
+- AC-D95 scenario type: information retrieval `open`
+- AC-D96 scenario type: account management `open`
+- AC-D97 scenario type: refund `open`
+- AC-D98 scenario type: scheduling `open`
+- AC-D99 scenario type: report generation `open`
+- AC-D100 scenario type: urgent escalation `open`
+## AC-E: environment fidelity (env-as-a-service, Orchard Env)
+
+- AC-E01 environment-as-a-service: sandbox lifecycle, command exec, file I/O, network policy as reusable primitives `open`
+- AC-E02 runtime agent injection (task-specific Docker images run separately) `open`
+- AC-E03 direct routing of exec/file requests to sandbox Pod IPs (no k8s exec overhead) `open`
+- AC-E04 network isolation per sandbox (egress policy per task) `open`
+- AC-E05 asynchronous lifecycle management + heartbeat cleanup `open`
+- AC-E06 watch-based readiness tracking for sandbox provisioning `open`
+- AC-E07 0.28s command-execution latency target at scale `open`
+- AC-E08 1,000-sandbox stress test with 100% success `open`
+- AC-E09 sandbox cost estimation vs alternatives (the E2B/Daytona/Modal comparison) `open`
+- AC-E10 task-domain abstraction: the same env service across swe/gui/tool/personal `open`
+- AC-E11 harness-agnostic trajectories (data collected under one harness, evaluated under another) `open`
+- AC-E12 snapshot/rollback for reproducible rollouts `open`
+- AC-E13 deterministic seeds for environment randomness (replayable rollouts) `open`
+- AC-E14 browser automation primitives (click/hover/drag/write/press/scroll/goto/back/wait) `open`
+- AC-E15 tab management primitives (new/switch/close tabs) `open`
+- AC-E16 GUI screenshot streams as observations (vision agents) `open`
+- AC-E17 code-execution sandboxes with dependency installation `open`
+- AC-E18 database fixtures per task (retail, airline, banking schemas) `open`
+- AC-E19 the corpus as the trace of every step (the CAI doctrine: log EVERYTHING) `open`
+- AC-E20 feedback loop: the corpus is fed back into the environments that produced it `open`
+- AC-E21 software-engineering env: sandboxed execution `open`
+- AC-E22 software-engineering env: snapshot/rollback `open`
+- AC-E23 software-engineering env: network-isolated `open`
+- AC-E24 software-engineering env: state-verifiable `open`
+- AC-E25 software-engineering env: replayable `open`
+- AC-E26 software-engineering env: cost-bounded `open`
+- AC-E27 web-navigation env: sandboxed execution `open`
+- AC-E28 web-navigation env: snapshot/rollback `open`
+- AC-E29 web-navigation env: network-isolated `open`
+- AC-E30 web-navigation env: state-verifiable `open`
+- AC-E31 web-navigation env: replayable `open`
+- AC-E32 web-navigation env: cost-bounded `open`
+- AC-E33 GUI-computer-use env: sandboxed execution `open`
+- AC-E34 GUI-computer-use env: snapshot/rollback `open`
+- AC-E35 GUI-computer-use env: network-isolated `open`
+- AC-E36 GUI-computer-use env: state-verifiable `open`
+- AC-E37 GUI-computer-use env: replayable `open`
+- AC-E38 GUI-computer-use env: cost-bounded `open`
+- AC-E39 tool-API env: sandboxed execution `open`
+- AC-E40 tool-API env: snapshot/rollback `open`
+- AC-E41 tool-API env: network-isolated `open`
+- AC-E42 tool-API env: state-verifiable `open`
+- AC-E43 tool-API env: replayable `open`
+- AC-E44 tool-API env: cost-bounded `open`
+- AC-E45 retrieval-RAG env: sandboxed execution `open`
+- AC-E46 retrieval-RAG env: snapshot/rollback `open`
+- AC-E47 retrieval-RAG env: network-isolated `open`
+- AC-E48 retrieval-RAG env: state-verifiable `open`
+- AC-E49 retrieval-RAG env: replayable `open`
+- AC-E50 retrieval-RAG env: cost-bounded `open`
+- AC-E51 code-writing env: sandboxed execution `open`
+- AC-E52 code-writing env: snapshot/rollback `open`
+- AC-E53 code-writing env: network-isolated `open`
+- AC-E54 code-writing env: state-verifiable `open`
+- AC-E55 code-writing env: replayable `open`
+- AC-E56 code-writing env: cost-bounded `open`
+- AC-E57 office-productivity env: sandboxed execution `open`
+- AC-E58 office-productivity env: snapshot/rollback `open`
+- AC-E59 office-productivity env: network-isolated `open`
+- AC-E60 office-productivity env: state-verifiable `open`
+- AC-E61 office-productivity env: replayable `open`
+- AC-E62 office-productivity env: cost-bounded `open`
+- AC-E63 scientific env: sandboxed execution `open`
+- AC-E64 scientific env: snapshot/rollback `open`
+- AC-E65 scientific env: network-isolated `open`
+- AC-E66 scientific env: state-verifiable `open`
+- AC-E67 scientific env: replayable `open`
+- AC-E68 scientific env: cost-bounded `open`
+- AC-E69 personal-assistant env: sandboxed execution `open`
+- AC-E70 personal-assistant env: snapshot/rollback `open`
+- AC-E71 personal-assistant env: network-isolated `open`
+- AC-E72 personal-assistant env: state-verifiable `open`
+- AC-E73 personal-assistant env: replayable `open`
+- AC-E74 personal-assistant env: cost-bounded `open`
+- AC-E75 security-ops env: sandboxed execution `open`
+- AC-E76 security-ops env: snapshot/rollback `open`
+- AC-E77 security-ops env: network-isolated `open`
+- AC-E78 security-ops env: state-verifiable `open`
+- AC-E79 security-ops env: replayable `open`
+- AC-E80 security-ops env: cost-bounded `open`
+
+refs: Orchard Env + E2B/Daytona/Modal comparison
+
+- AC-E81 env primitive: sandbox lifecycle `open`
+- AC-E82 env primitive: command execution `open`
+- AC-E83 env primitive: file I/O `open`
+- AC-E84 env primitive: network policy `open`
+- AC-E85 env primitive: REST API `open`
+- AC-E86 env primitive: agent injection `open`
+- AC-E87 env primitive: screenshot capture `open`
+- AC-E88 env primitive: state serialization `open`
+- AC-E89 env primitive: resource quotas `open`
+- AC-E90 env primitive: cleanup/heartbeat `open`
+- AC-E91 fidelity axis: latency budget `open`
+- AC-E92 fidelity axis: concurrency scale `open`
+- AC-E93 fidelity axis: isolation level `open`
+- AC-E94 fidelity axis: reproducibility `open`
+- AC-E95 fidelity axis: cost-per-rollout `open`
+- AC-E96 fidelity axis: observation bandwidth `open`
+- AC-E97 fidelity axis: state auditability `open`
+- AC-E98 fidelity axis: failure injection `open`
+- AC-E99 fidelity axis: determinism `open`
+- AC-E100 fidelity axis: observability `open`
+## AC-F: RL recipes (trajectory-level GRPO, credit-assignment SFT)
+
+- AC-F01 multi-turn trajectory-level GRPO (the Orchard recipe) `open`
+- AC-F02 group-relative advantage: sample G trajectories, advantage = (r - mean)/std `open`
+- AC-F03 broadcast the trajectory reward to EVERY assistant token across all turns `open`
+- AC-F04 mask observation/environment tokens out of the loss `open`
+- AC-F05 asymmetric PPO clipping (eps_lo 0.2, eps_hi 0.28) without KL/entropy regularization `open`
+- AC-F06 no per-trajectory 1/T normalization (longer tasks not down-weighted) `open`
+- AC-F07 credit-assignment SFT: learn from productive segments of unresolved trajectories `open`
+- AC-F08 Balanced Adaptive Rollout for sparse-reward RL (allocating rollouts by difficulty) `open`
+- AC-F09 two-stage training: SFT on curated teacher trajectories THEN RL from the SFT checkpoint `open`
+- AC-F10 RL directly from the base model as the ablation (the blue curves) `open`
+- AC-F11 SFT loss only on the final assistant turn (system prompt + earlier turns as in-context history) `open`
+- AC-F12 rejection sampling of successful trajectories as the SFT pool `open`
+- AC-F13 on-policy rollouts through the TARGET harness (end-to-end training) `open`
+- AC-F14 per-task trajectory groups with the group-relative advantage (GRPO-style) `open`
+- AC-F15 reward computation on the whole trajectory (not per-step) `open`
+- AC-F16 token-budget-aware trajectory selection for the RL pool `open`
+- AC-F17 curriculum: easy tasks first, harder tasks as the policy improves `open`
+- AC-F18 online vs offline mixing (fresh rollouts + replayed corpus) `open`
+- AC-F19 KL-to-reference control in the GRPO variant (or deliberate omission, Orchard) `open`
+- AC-F20 rollout parallelism (thousands of concurrent agent tasks) `open`
+- AC-F21 software-engineering RL recipe: trajectory-GRPO `open`
+- AC-F22 software-engineering RL recipe: credit-assignment SFT `open`
+- AC-F23 software-engineering RL recipe: rejection sampling `open`
+- AC-F24 software-engineering RL recipe: adaptive rollout `open`
+- AC-F25 software-engineering RL recipe: curriculum RL `open`
+- AC-F26 software-engineering RL recipe: base-vs-SFT init `open`
+- AC-F27 web-navigation RL recipe: trajectory-GRPO `open`
+- AC-F28 web-navigation RL recipe: credit-assignment SFT `open`
+- AC-F29 web-navigation RL recipe: rejection sampling `open`
+- AC-F30 web-navigation RL recipe: adaptive rollout `open`
+- AC-F31 web-navigation RL recipe: curriculum RL `open`
+- AC-F32 web-navigation RL recipe: base-vs-SFT init `open`
+- AC-F33 GUI-computer-use RL recipe: trajectory-GRPO `open`
+- AC-F34 GUI-computer-use RL recipe: credit-assignment SFT `open`
+- AC-F35 GUI-computer-use RL recipe: rejection sampling `open`
+- AC-F36 GUI-computer-use RL recipe: adaptive rollout `open`
+- AC-F37 GUI-computer-use RL recipe: curriculum RL `open`
+- AC-F38 GUI-computer-use RL recipe: base-vs-SFT init `open`
+- AC-F39 tool-API RL recipe: trajectory-GRPO `open`
+- AC-F40 tool-API RL recipe: credit-assignment SFT `open`
+- AC-F41 tool-API RL recipe: rejection sampling `open`
+- AC-F42 tool-API RL recipe: adaptive rollout `open`
+- AC-F43 tool-API RL recipe: curriculum RL `open`
+- AC-F44 tool-API RL recipe: base-vs-SFT init `open`
+- AC-F45 retrieval-RAG RL recipe: trajectory-GRPO `open`
+- AC-F46 retrieval-RAG RL recipe: credit-assignment SFT `open`
+- AC-F47 retrieval-RAG RL recipe: rejection sampling `open`
+- AC-F48 retrieval-RAG RL recipe: adaptive rollout `open`
+- AC-F49 retrieval-RAG RL recipe: curriculum RL `open`
+- AC-F50 retrieval-RAG RL recipe: base-vs-SFT init `open`
+- AC-F51 code-writing RL recipe: trajectory-GRPO `open`
+- AC-F52 code-writing RL recipe: credit-assignment SFT `open`
+- AC-F53 code-writing RL recipe: rejection sampling `open`
+- AC-F54 code-writing RL recipe: adaptive rollout `open`
+- AC-F55 code-writing RL recipe: curriculum RL `open`
+- AC-F56 code-writing RL recipe: base-vs-SFT init `open`
+- AC-F57 office-productivity RL recipe: trajectory-GRPO `open`
+- AC-F58 office-productivity RL recipe: credit-assignment SFT `open`
+- AC-F59 office-productivity RL recipe: rejection sampling `open`
+- AC-F60 office-productivity RL recipe: adaptive rollout `open`
+- AC-F61 office-productivity RL recipe: curriculum RL `open`
+- AC-F62 office-productivity RL recipe: base-vs-SFT init `open`
+- AC-F63 scientific RL recipe: trajectory-GRPO `open`
+- AC-F64 scientific RL recipe: credit-assignment SFT `open`
+- AC-F65 scientific RL recipe: rejection sampling `open`
+- AC-F66 scientific RL recipe: adaptive rollout `open`
+- AC-F67 scientific RL recipe: curriculum RL `open`
+- AC-F68 scientific RL recipe: base-vs-SFT init `open`
+- AC-F69 personal-assistant RL recipe: trajectory-GRPO `open`
+- AC-F70 personal-assistant RL recipe: credit-assignment SFT `open`
+- AC-F71 personal-assistant RL recipe: rejection sampling `open`
+- AC-F72 personal-assistant RL recipe: adaptive rollout `open`
+- AC-F73 personal-assistant RL recipe: curriculum RL `open`
+- AC-F74 personal-assistant RL recipe: base-vs-SFT init `open`
+- AC-F75 security-ops RL recipe: trajectory-GRPO `open`
+- AC-F76 security-ops RL recipe: credit-assignment SFT `open`
+- AC-F77 security-ops RL recipe: rejection sampling `open`
+- AC-F78 security-ops RL recipe: adaptive rollout `open`
+- AC-F79 security-ops RL recipe: curriculum RL `open`
+- AC-F80 security-ops RL recipe: base-vs-SFT init `open`
+
+refs: Orchard SWE/GUI/Claw recipes
+
+- AC-F81 RL knob: advantage normalization `open`
+- AC-F82 RL knob: clip range `open`
+- AC-F83 RL knob: KL penalty `open`
+- AC-F84 RL knob: entropy bonus `open`
+- AC-F85 RL knob: advantage baseline `open`
+- AC-F86 RL knob: reward shaping `open`
+- AC-F87 RL knob: mini-batch size `open`
+- AC-F88 RL knob: rollout count G `open`
+- AC-F89 RL knob: learning rate schedule `open`
+- AC-F90 RL knob: warmup ratio `open`
+- AC-F91 data axis: teacher SFT pool `open`
+- AC-F92 data axis: on-policy rollouts `open`
+- AC-F93 data axis: offline replay `open`
+- AC-F94 data axis: curriculum order `open`
+- AC-F95 data axis: task difficulty mix `open`
+- AC-F96 data axis: trajectory length cap `open`
+- AC-F97 data axis: failure-trajectory reuse `open`
+- AC-F98 data axis: format-valid pool `open`
+- AC-F99 data axis: per-domain balance `open`
+- AC-F100 data axis: freshness decay `open`
+## AC-G: masking & packing (the 69%-output-token doctrine)
+
+- AC-G01 input-masked training: 69%-output-token doctrine (only the assistant's tokens train) `open`
+- AC-G02 observation-token masking in agent trajectories (Orchard) `open`
+- AC-G03 loss-masking for heterogeneous data (Hermes 4) `open`
+- AC-G04 efficient packing of variable-length trajectories into fixed-length windows `open`
+- AC-G05 packing with cross-sample loss masking (no attention across samples) `open`
+- AC-G06 length-control fine-tuning (cap/penalize runaway generations) `open`
+- AC-G07 reserved-token agentic grammar (<think>, <tool_call>, <tool_response> delimiters) `open`
+- AC-G08 strict <think>/</think> delimiter enforcement (the Atropos Answer-Format env) `open`
+- AC-G09 token-budget windows per task family (short tasks, long reasoning traces) `open`
+- AC-G10 masked vs unmasked ablation harness (verify the masking actually helps) `open`
+- AC-G11 system-prompt masking (the system prompt does not train) `open`
+- AC-G12 tool-schema masking (schemas are context, not labels) `open`
+- AC-G13 screenshot/vision-token masking in GUI trajectories `open`
+- AC-G14 user-turn masking (only the assistant's turns train) `open`
+- AC-G15 multi-turn packing with the trajectory as one sample `open`
+- AC-G16 packing efficiency metric (tokens-per-window utilization) `open`
+- AC-G17 sequence-length bucketing (group by length before packing) `open`
+- AC-G18 dynamic batching for mixed-length trajectories `open`
+- AC-G19 gradient accumulation over packed windows `open`
+- AC-G20 the masking curriculum: reasoning traces up to 16k-30k tokens `open`
+- AC-G21 software-engineering masking: obs-token masked `open`
+- AC-G22 software-engineering masking: assistant-only loss `open`
+- AC-G23 software-engineering masking: schema-in-context `open`
+- AC-G24 software-engineering masking: delimiter-enforced `open`
+- AC-G25 software-engineering masking: length-controlled `open`
+- AC-G26 software-engineering masking: packed-cross-sample `open`
+- AC-G27 web-navigation masking: obs-token masked `open`
+- AC-G28 web-navigation masking: assistant-only loss `open`
+- AC-G29 web-navigation masking: schema-in-context `open`
+- AC-G30 web-navigation masking: delimiter-enforced `open`
+- AC-G31 web-navigation masking: length-controlled `open`
+- AC-G32 web-navigation masking: packed-cross-sample `open`
+- AC-G33 GUI-computer-use masking: obs-token masked `open`
+- AC-G34 GUI-computer-use masking: assistant-only loss `open`
+- AC-G35 GUI-computer-use masking: schema-in-context `open`
+- AC-G36 GUI-computer-use masking: delimiter-enforced `open`
+- AC-G37 GUI-computer-use masking: length-controlled `open`
+- AC-G38 GUI-computer-use masking: packed-cross-sample `open`
+- AC-G39 tool-API masking: obs-token masked `open`
+- AC-G40 tool-API masking: assistant-only loss `open`
+- AC-G41 tool-API masking: schema-in-context `open`
+- AC-G42 tool-API masking: delimiter-enforced `open`
+- AC-G43 tool-API masking: length-controlled `open`
+- AC-G44 tool-API masking: packed-cross-sample `open`
+- AC-G45 retrieval-RAG masking: obs-token masked `open`
+- AC-G46 retrieval-RAG masking: assistant-only loss `open`
+- AC-G47 retrieval-RAG masking: schema-in-context `open`
+- AC-G48 retrieval-RAG masking: delimiter-enforced `open`
+- AC-G49 retrieval-RAG masking: length-controlled `open`
+- AC-G50 retrieval-RAG masking: packed-cross-sample `open`
+- AC-G51 code-writing masking: obs-token masked `open`
+- AC-G52 code-writing masking: assistant-only loss `open`
+- AC-G53 code-writing masking: schema-in-context `open`
+- AC-G54 code-writing masking: delimiter-enforced `open`
+- AC-G55 code-writing masking: length-controlled `open`
+- AC-G56 code-writing masking: packed-cross-sample `open`
+- AC-G57 office-productivity masking: obs-token masked `open`
+- AC-G58 office-productivity masking: assistant-only loss `open`
+- AC-G59 office-productivity masking: schema-in-context `open`
+- AC-G60 office-productivity masking: delimiter-enforced `open`
+- AC-G61 office-productivity masking: length-controlled `open`
+- AC-G62 office-productivity masking: packed-cross-sample `open`
+- AC-G63 scientific masking: obs-token masked `open`
+- AC-G64 scientific masking: assistant-only loss `open`
+- AC-G65 scientific masking: schema-in-context `open`
+- AC-G66 scientific masking: delimiter-enforced `open`
+- AC-G67 scientific masking: length-controlled `open`
+- AC-G68 scientific masking: packed-cross-sample `open`
+- AC-G69 personal-assistant masking: obs-token masked `open`
+- AC-G70 personal-assistant masking: assistant-only loss `open`
+- AC-G71 personal-assistant masking: schema-in-context `open`
+- AC-G72 personal-assistant masking: delimiter-enforced `open`
+- AC-G73 personal-assistant masking: length-controlled `open`
+- AC-G74 personal-assistant masking: packed-cross-sample `open`
+- AC-G75 security-ops masking: obs-token masked `open`
+- AC-G76 security-ops masking: assistant-only loss `open`
+- AC-G77 security-ops masking: schema-in-context `open`
+- AC-G78 security-ops masking: delimiter-enforced `open`
+- AC-G79 security-ops masking: length-controlled `open`
+- AC-G80 security-ops masking: packed-cross-sample `open`
+
+refs: Hermes 4 loss-masking + Orchard obs masking
+
+- AC-G81 mask target: observation tokens `open`
+- AC-G82 mask target: tool responses `open`
+- AC-G83 mask target: screenshot tokens `open`
+- AC-G84 mask target: user turns `open`
+- AC-G85 mask target: system prompt `open`
+- AC-G86 mask target: schema text `open`
+- AC-G87 mask target: intermediate reasoning `open`
+- AC-G88 mask target: environment feedback `open`
+- AC-G89 mask target: error outputs `open`
+- AC-G90 mask target: context history `open`
+- AC-G91 packing policy: fixed-window `open`
+- AC-G92 packing policy: bucketed `open`
+- AC-G93 packing policy: dyn-batch `open`
+- AC-G94 packing policy: cross-sample-masked `open`
+- AC-G95 packing policy: grad-accum `open`
+- AC-G96 packing policy: length-capped `open`
+- AC-G97 packing policy: trajectory-atomic `open`
+- AC-G98 packing policy: window-utilization-optimized `open`
+- AC-G99 packing policy: multi-turn-aligned `open`
+- AC-G100 packing policy: chunk-boundary-safe `open`
+## AC-H: agentic eval (stateful, leakage-free, pass@k)
+
+- AC-H01 stateful evaluation: compare the database state to the annotated goal state `open`
+- AC-H02 contamination control: strip eval splits from the training pool `open`
+- AC-H03 eval-task leakage audit (embed-based overlap scan) `open`
+- AC-H04 WebVoyager-style web-navigation eval (real websites, realistic goals) `open`
+- AC-H05 Online-Mind2Web eval (the online variant) `open`
+- AC-H06 DeepShop eval (shopping workflows) `open`
+- AC-H07 SWE-bench Verified eval (real GitHub issues with unit tests) `open`
+- AC-H08 Claw-Eval pass@3 (personal-assistant scenarios, 3 attempts) `open`
+- AC-H09 harness-portability eval (the same policy under ReAct and ZeroClaw) `open`
+- AC-H10 agent-trajectory audit (completion, safety, robustness of the whole trace) `open`
+- AC-H11 LLM-as-judge with screenshot trails + user intent `open`
+- AC-H12 format-validity eval (every assistant turn parses) `open`
+- AC-H13 policy-following eval (the agent obeyed the domain policy) `open`
+- AC-H14 long-horizon stability eval (task success across many turns) `open`
+- AC-H15 cost-aware eval (success per dollar, success per token) `open`
+- AC-H16 latency-aware eval (success within a time budget) `open`
+- AC-H17 replay eval (re-run the recorded actions, re-verify the state) `open`
+- AC-H18 cross-domain generalization eval (train on A, eval on B) `open`
+- AC-H19 ablations: SFT-only vs SFT+RL vs base (the blue/red curves) `open`
+- AC-H20 eval-set versioning (freeze + re-run for regression tracking) `open`
+- AC-H21 software-engineering eval: state-verified `open`
+- AC-H22 software-engineering eval: leakage-free `open`
+- AC-H23 software-engineering eval: pass@k `open`
+- AC-H24 software-engineering eval: cost-bounded `open`
+- AC-H25 software-engineering eval: replay-audited `open`
+- AC-H26 software-engineering eval: policy-compliant `open`
+- AC-H27 web-navigation eval: state-verified `open`
+- AC-H28 web-navigation eval: leakage-free `open`
+- AC-H29 web-navigation eval: pass@k `open`
+- AC-H30 web-navigation eval: cost-bounded `open`
+- AC-H31 web-navigation eval: replay-audited `open`
+- AC-H32 web-navigation eval: policy-compliant `open`
+- AC-H33 GUI-computer-use eval: state-verified `open`
+- AC-H34 GUI-computer-use eval: leakage-free `open`
+- AC-H35 GUI-computer-use eval: pass@k `open`
+- AC-H36 GUI-computer-use eval: cost-bounded `open`
+- AC-H37 GUI-computer-use eval: replay-audited `open`
+- AC-H38 GUI-computer-use eval: policy-compliant `open`
+- AC-H39 tool-API eval: state-verified `open`
+- AC-H40 tool-API eval: leakage-free `open`
+- AC-H41 tool-API eval: pass@k `open`
+- AC-H42 tool-API eval: cost-bounded `open`
+- AC-H43 tool-API eval: replay-audited `open`
+- AC-H44 tool-API eval: policy-compliant `open`
+- AC-H45 retrieval-RAG eval: state-verified `open`
+- AC-H46 retrieval-RAG eval: leakage-free `open`
+- AC-H47 retrieval-RAG eval: pass@k `open`
+- AC-H48 retrieval-RAG eval: cost-bounded `open`
+- AC-H49 retrieval-RAG eval: replay-audited `open`
+- AC-H50 retrieval-RAG eval: policy-compliant `open`
+- AC-H51 code-writing eval: state-verified `open`
+- AC-H52 code-writing eval: leakage-free `open`
+- AC-H53 code-writing eval: pass@k `open`
+- AC-H54 code-writing eval: cost-bounded `open`
+- AC-H55 code-writing eval: replay-audited `open`
+- AC-H56 code-writing eval: policy-compliant `open`
+- AC-H57 office-productivity eval: state-verified `open`
+- AC-H58 office-productivity eval: leakage-free `open`
+- AC-H59 office-productivity eval: pass@k `open`
+- AC-H60 office-productivity eval: cost-bounded `open`
+- AC-H61 office-productivity eval: replay-audited `open`
+- AC-H62 office-productivity eval: policy-compliant `open`
+- AC-H63 scientific eval: state-verified `open`
+- AC-H64 scientific eval: leakage-free `open`
+- AC-H65 scientific eval: pass@k `open`
+- AC-H66 scientific eval: cost-bounded `open`
+- AC-H67 scientific eval: replay-audited `open`
+- AC-H68 scientific eval: policy-compliant `open`
+- AC-H69 personal-assistant eval: state-verified `open`
+- AC-H70 personal-assistant eval: leakage-free `open`
+- AC-H71 personal-assistant eval: pass@k `open`
+- AC-H72 personal-assistant eval: cost-bounded `open`
+- AC-H73 personal-assistant eval: replay-audited `open`
+- AC-H74 personal-assistant eval: policy-compliant `open`
+- AC-H75 security-ops eval: state-verified `open`
+- AC-H76 security-ops eval: leakage-free `open`
+- AC-H77 security-ops eval: pass@k `open`
+- AC-H78 security-ops eval: cost-bounded `open`
+- AC-H79 security-ops eval: replay-audited `open`
+- AC-H80 security-ops eval: policy-compliant `open`
+
+refs: tau-bench + Orchard evals (WebVoyager/Online-Mind2Web/DeepShop/SWE-bench/Claw-Eval)
+
+- AC-H81 metric: success rate `open`
+- AC-H82 metric: pass@1 `open`
+- AC-H83 metric: pass@3 `open`
+- AC-H84 metric: state-diff score `open`
+- AC-H85 metric: format validity `open`
+- AC-H86 metric: policy compliance `open`
+- AC-H87 metric: turn efficiency `open`
+- AC-H88 metric: token cost `open`
+- AC-H89 metric: latency `open`
+- AC-H90 metric: human preference `open`
+- AC-H91 eval mode: frozen-holdout `open`
+- AC-H92 eval mode: live-web `open`
+- AC-H93 eval mode: sandbox-replay `open`
+- AC-H94 eval mode: simulated-user `open`
+- AC-H95 eval mode: cross-harness `open`
+- AC-H96 eval mode: ablation-compare `open`
+- AC-H97 eval mode: regression-batch `open`
+- AC-H98 eval mode: adversarial-set `open`
+- AC-H99 eval mode: generalization-probe `open`
+- AC-H100 eval mode: human-audit `open`
+## AC-I: corpus ops (the CAI cadence, feedback loops)
+
+- AC-I01 the CAI cadence: weekly-retraining on the rolling corpus `open`
+- AC-I02 trajectory logging as the corpus substrate (log every step, every session) `open`
+- AC-I03 session-structured corpus format (one JSONL session per trajectory) `open`
+- AC-I04 corpus feedback loop: the deployed agent's trajectories feed the next corpus `open`
+- AC-I05 the 540-session-logs / 60k-user-prompts per week rate as a scaling unit `open`
+- AC-I06 corpus versioning (immutable snapshots + diffable updates) `open`
+- AC-I07 rollout orchestration at scale (tens of thousands of concurrent agent tasks) `open`
+- AC-I08 traffic shaping: pretraining stream + agentic stream + RL rollouts as separate pipelines `open`
+- AC-I09 corpus dedup across streams (embed-based global dedup) `open`
+- AC-I10 data freshness policies (recency-weighted sampling, the CAI observation) `open`
+- AC-I11 corpus health metrics (token counts, domain balance, format validity per shard) `open`
+- AC-I12 shard-level validation before training (parse + length + format checks) `open`
+- AC-I13 corpus rollback (a bad shard is reverted, not retrained) `open`
+- AC-I14 privacy scrubbing of user data in the corpus `open`
+- AC-I15 personally-identifiable-information removal from trajectories `open`
+- AC-I16 safety blocks (harmful-request trajectories flagged, not trained) `open`
+- AC-I17 copyright/permission audit for scraped trajectory sources `open`
+- AC-I18 the corpus as a product: release slices with documented recipes `open`
+- AC-I19 telemetry-driven task seeding (real user intents become training tasks) `open`
+- AC-I20 continuous task mining from the deployed agent's failures `open`
+- AC-I21 software-engineering ops: rollout pipeline `open`
+- AC-I22 software-engineering ops: corpus sharding `open`
+- AC-I23 software-engineering ops: feedback loop `open`
+- AC-I24 software-engineering ops: freshness policy `open`
+- AC-I25 software-engineering ops: health metrics `open`
+- AC-I26 software-engineering ops: privacy scrub `open`
+- AC-I27 web-navigation ops: rollout pipeline `open`
+- AC-I28 web-navigation ops: corpus sharding `open`
+- AC-I29 web-navigation ops: feedback loop `open`
+- AC-I30 web-navigation ops: freshness policy `open`
+- AC-I31 web-navigation ops: health metrics `open`
+- AC-I32 web-navigation ops: privacy scrub `open`
+- AC-I33 GUI-computer-use ops: rollout pipeline `open`
+- AC-I34 GUI-computer-use ops: corpus sharding `open`
+- AC-I35 GUI-computer-use ops: feedback loop `open`
+- AC-I36 GUI-computer-use ops: freshness policy `open`
+- AC-I37 GUI-computer-use ops: health metrics `open`
+- AC-I38 GUI-computer-use ops: privacy scrub `open`
+- AC-I39 tool-API ops: rollout pipeline `open`
+- AC-I40 tool-API ops: corpus sharding `open`
+- AC-I41 tool-API ops: feedback loop `open`
+- AC-I42 tool-API ops: freshness policy `open`
+- AC-I43 tool-API ops: health metrics `open`
+- AC-I44 tool-API ops: privacy scrub `open`
+- AC-I45 retrieval-RAG ops: rollout pipeline `open`
+- AC-I46 retrieval-RAG ops: corpus sharding `open`
+- AC-I47 retrieval-RAG ops: feedback loop `open`
+- AC-I48 retrieval-RAG ops: freshness policy `open`
+- AC-I49 retrieval-RAG ops: health metrics `open`
+- AC-I50 retrieval-RAG ops: privacy scrub `open`
+- AC-I51 code-writing ops: rollout pipeline `open`
+- AC-I52 code-writing ops: corpus sharding `open`
+- AC-I53 code-writing ops: feedback loop `open`
+- AC-I54 code-writing ops: freshness policy `open`
+- AC-I55 code-writing ops: health metrics `open`
+- AC-I56 code-writing ops: privacy scrub `open`
+- AC-I57 office-productivity ops: rollout pipeline `open`
+- AC-I58 office-productivity ops: corpus sharding `open`
+- AC-I59 office-productivity ops: feedback loop `open`
+- AC-I60 office-productivity ops: freshness policy `open`
+- AC-I61 office-productivity ops: health metrics `open`
+- AC-I62 office-productivity ops: privacy scrub `open`
+- AC-I63 scientific ops: rollout pipeline `open`
+- AC-I64 scientific ops: corpus sharding `open`
+- AC-I65 scientific ops: feedback loop `open`
+- AC-I66 scientific ops: freshness policy `open`
+- AC-I67 scientific ops: health metrics `open`
+- AC-I68 scientific ops: privacy scrub `open`
+- AC-I69 personal-assistant ops: rollout pipeline `open`
+- AC-I70 personal-assistant ops: corpus sharding `open`
+- AC-I71 personal-assistant ops: feedback loop `open`
+- AC-I72 personal-assistant ops: freshness policy `open`
+- AC-I73 personal-assistant ops: health metrics `open`
+- AC-I74 personal-assistant ops: privacy scrub `open`
+- AC-I75 security-ops ops: rollout pipeline `open`
+- AC-I76 security-ops ops: corpus sharding `open`
+- AC-I77 security-ops ops: feedback loop `open`
+- AC-I78 security-ops ops: freshness policy `open`
+- AC-I79 security-ops ops: health metrics `open`
+- AC-I80 security-ops ops: privacy scrub `open`
+
+refs: the CAI corpus (230,935 trajectories, weekly retraining)
+
+- AC-I81 corpus stage: ingest `open`
+- AC-I82 corpus stage: dedup `open`
+- AC-I83 corpus stage: filter `open`
+- AC-I84 corpus stage: balance `open`
+- AC-I85 corpus stage: version `open`
+- AC-I86 corpus stage: validate `open`
+- AC-I87 corpus stage: scrub `open`
+- AC-I88 corpus stage: pack `open`
+- AC-I89 corpus stage: release `open`
+- AC-I90 corpus stage: archive `open`
+- AC-I91 ops metric: tokens/week `open`
+- AC-I92 ops metric: trajectories/day `open`
+- AC-I93 ops metric: success-rate drift `open`
+- AC-I94 ops metric: freshness age `open`
+- AC-I95 ops metric: domain balance `open`
+- AC-I96 ops metric: format validity `open`
+- AC-I97 ops metric: dedup ratio `open`
+- AC-I98 ops metric: rollout cost `open`
+- AC-I99 ops metric: feedback latency `open`
+- AC-I100 ops metric: shard health `open`
+## AC-J: small-model agentic data (the WuBu-35M budget)
+
+- AC-J01 the 35M-model agentic data budget: what a small model can actually learn `open`
+- AC-J02 task decomposition for small models (big tasks -> teachable subtasks) `open`
+- AC-J03 token-budget discipline: 35M params cannot absorb 30k-token traces -- distill them `open`
+- AC-J04 tool grammar as a first-class curriculum (one tool at a time) `open`
+- AC-J05 fewer, cleaner trajectories over more noisy ones (the 0.4K-trajectory lesson) `open`
+- AC-J06 rejection sampling with a SMALL teacher (self-distillation for the small model) `open`
+- AC-J07 format-first training (parseable tool calls before semantics) `open`
+- AC-J08 the <think>-lite variant: short reasoning traces within the small context `open`
+- AC-J09 small-model-friendly reward signals (binary format + state checks first) `open`
+- AC-J10 curriculum over tool complexity (single tool -> multi-tool -> long-horizon) `open`
+- AC-J11 small-context packing (the 35M context window bounds the trajectory length) `open`
+- AC-J12 the agentic SFT on top of the 4.44B pretraining stream (the corpus mix) `open`
+- AC-J13 per-domain token budgets for the small model (code 20%, tools 20%, ...) `open`
+- AC-J14 the user-simulator as the small model's data generator (no huge teacher needed) `open`
+- AC-J15 the environment as the small model's teacher (verifiable outcomes, not distillation) `open`
+- AC-J16 small-model eval with pass@k (repeated attempts compensate for capacity) `open`
+- AC-J17 failure-mode mining (the small model's errors become the next tasks) `open`
+- AC-J18 the agentic-inference loop: the small model's own trajectories feed its next corpus `open`
+- AC-J19 temperature/beam diversity in the small model's rollouts `open`
+- AC-J20 the growth path: the small agentic model's trajectories seed the bigger model `open`
+- AC-J21 software-engineering small-model: task-decomposition `open`
+- AC-J22 software-engineering small-model: tool-grammar curriculum `open`
+- AC-J23 software-engineering small-model: distilled-traces `open`
+- AC-J24 software-engineering small-model: short-reasoning `open`
+- AC-J25 software-engineering small-model: format-first `open`
+- AC-J26 software-engineering small-model: pass@k-eval `open`
+- AC-J27 web-navigation small-model: task-decomposition `open`
+- AC-J28 web-navigation small-model: tool-grammar curriculum `open`
+- AC-J29 web-navigation small-model: distilled-traces `open`
+- AC-J30 web-navigation small-model: short-reasoning `open`
+- AC-J31 web-navigation small-model: format-first `open`
+- AC-J32 web-navigation small-model: pass@k-eval `open`
+- AC-J33 GUI-computer-use small-model: task-decomposition `open`
+- AC-J34 GUI-computer-use small-model: tool-grammar curriculum `open`
+- AC-J35 GUI-computer-use small-model: distilled-traces `open`
+- AC-J36 GUI-computer-use small-model: short-reasoning `open`
+- AC-J37 GUI-computer-use small-model: format-first `open`
+- AC-J38 GUI-computer-use small-model: pass@k-eval `open`
+- AC-J39 tool-API small-model: task-decomposition `open`
+- AC-J40 tool-API small-model: tool-grammar curriculum `open`
+- AC-J41 tool-API small-model: distilled-traces `open`
+- AC-J42 tool-API small-model: short-reasoning `open`
+- AC-J43 tool-API small-model: format-first `open`
+- AC-J44 tool-API small-model: pass@k-eval `open`
+- AC-J45 retrieval-RAG small-model: task-decomposition `open`
+- AC-J46 retrieval-RAG small-model: tool-grammar curriculum `open`
+- AC-J47 retrieval-RAG small-model: distilled-traces `open`
+- AC-J48 retrieval-RAG small-model: short-reasoning `open`
+- AC-J49 retrieval-RAG small-model: format-first `open`
+- AC-J50 retrieval-RAG small-model: pass@k-eval `open`
+- AC-J51 code-writing small-model: task-decomposition `open`
+- AC-J52 code-writing small-model: tool-grammar curriculum `open`
+- AC-J53 code-writing small-model: distilled-traces `open`
+- AC-J54 code-writing small-model: short-reasoning `open`
+- AC-J55 code-writing small-model: format-first `open`
+- AC-J56 code-writing small-model: pass@k-eval `open`
+- AC-J57 office-productivity small-model: task-decomposition `open`
+- AC-J58 office-productivity small-model: tool-grammar curriculum `open`
+- AC-J59 office-productivity small-model: distilled-traces `open`
+- AC-J60 office-productivity small-model: short-reasoning `open`
+- AC-J61 office-productivity small-model: format-first `open`
+- AC-J62 office-productivity small-model: pass@k-eval `open`
+- AC-J63 scientific small-model: task-decomposition `open`
+- AC-J64 scientific small-model: tool-grammar curriculum `open`
+- AC-J65 scientific small-model: distilled-traces `open`
+- AC-J66 scientific small-model: short-reasoning `open`
+- AC-J67 scientific small-model: format-first `open`
+- AC-J68 scientific small-model: pass@k-eval `open`
+- AC-J69 personal-assistant small-model: task-decomposition `open`
+- AC-J70 personal-assistant small-model: tool-grammar curriculum `open`
+- AC-J71 personal-assistant small-model: distilled-traces `open`
+- AC-J72 personal-assistant small-model: short-reasoning `open`
+- AC-J73 personal-assistant small-model: format-first `open`
+- AC-J74 personal-assistant small-model: pass@k-eval `open`
+- AC-J75 security-ops small-model: task-decomposition `open`
+- AC-J76 security-ops small-model: tool-grammar curriculum `open`
+- AC-J77 security-ops small-model: distilled-traces `open`
+- AC-J78 security-ops small-model: short-reasoning `open`
+- AC-J79 security-ops small-model: format-first `open`
+- AC-J80 security-ops small-model: pass@k-eval `open`
+
+refs: the 0.4K-trajectory lesson (Orchard-GUI) applied to 35M params
+
+- AC-J81 small-model axis: context budget `open`
+- AC-J82 small-model axis: trajectory length cap `open`
+- AC-J83 small-model axis: tool count `open`
+- AC-J84 small-model axis: task horizon `open`
+- AC-J85 small-model axis: reasoning depth `open`
+- AC-J86 small-model axis: vocabulary reuse `open`
+- AC-J87 small-model axis: format strictness `open`
+- AC-J88 small-model axis: reward simplicity `open`
+- AC-J89 small-model axis: teacher size `open`
+- AC-J90 small-model axis: eval attempts `open`
+- AC-J91 curriculum stage: tool-intro `open`
+- AC-J92 curriculum stage: single-tool tasks `open`
+- AC-J93 curriculum stage: multi-tool tasks `open`
+- AC-J94 curriculum stage: stateful tasks `open`
+- AC-J95 curriculum stage: user-interaction `open`
+- AC-J96 curriculum stage: long-horizon `open`
+- AC-J97 curriculum stage: failure-recovery `open`
+- AC-J98 curriculum stage: self-correction `open`
+- AC-J99 curriculum stage: multi-turn persistence `open`
+- AC-J100 curriculum stage: deployment polish `open`
