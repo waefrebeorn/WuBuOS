@@ -198,14 +198,14 @@ _start:
        PD_high    = ebx+0x4000  (base+0x204000)
        PT_high    = ebx+0x5000  (base+0x205000) */
 
-    /* Zero all six page-table pages (6 * 4096 = 24576 bytes = 6144 dwords).
-     * IMPORTANT: only the 6 pages we actually allocated (0x200000..0x206000)
-     * are backed by RAM that qemu -kernel loaded/zeroed.  Zeroing past
-     * 0x206000 walks into unbacked guest RAM and QEMU faults the store
-     * (triple fault at the zero loop).  Use rep stosl over exactly 6 pages. */
+    /* Zero the page-table pages (7 * 4096 = 28672 bytes = 7168 dwords).
+     * IMPORTANT: the 6 original pages (PML4..PT_high) plus the 7th
+     * (PT_high2, which backs the >2MB higher-half slots 512..783 the
+     * mapping loop below writes) are in low RAM under QEMU's 512MB.
+     * Use rep stosl over exactly 7 pages. */
     movl %ebx, %edi                  /* edi = PML4 base */
     xorl %eax, %eax                  /* zero */
-    movl $6144, %ecx                 /* 6 pages * 1024 dwords */
+    movl $7168, %ecx                 /* 7 pages * 1024 dwords */
     rep  stosl
 
     /* PML4[0] -> PDP_ident (ebx+0x1000) */
@@ -248,6 +248,17 @@ _start:
     addl $0x5000, %eax
     orl  $0x3, %eax
     movl %eax, 0x4000(%ebx)          /* PD_high[0] -> PT_high */
+
+    /* PD_high[1] -> PT_high2 (ebx+0x6000): the mapping loop below writes
+     * higher-half slots 512..783 (VA 0xffffffff80200000..0xffffffff8030efff)
+     * into the page right after PT_high.  WITHOUT this wiring those
+     * entries were dead -- PD_high[1] stayed 0 and any access above the
+     * first 2MB of the higher half (e.g. a kernel whose _stack_top grows
+     * past 0xffffffff80200000) page-faulted on the very first stack push. */
+    movl %ebx, %eax
+    addl $0x6000, %eax
+    orl  $0x3, %eax
+    movl %eax, 0x4008(%ebx)          /* PD_high[1] -> PT_high2 */
 
     /* PDP_high[510] -> PD_high (CRITICAL higher-half wiring).
      * PDP_high base = %ebp (= ebx+0x3000); entry 510 -> +4080. */

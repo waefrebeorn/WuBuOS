@@ -13,6 +13,7 @@
 #include "wubu_pci.h"
 #include "wubu_agi_kernel.h"
 #include "wubu_rtc.h"   /* date command (gap A17) */
+#include "wubu_recovery.h" /* the 5+1 rollback substrate */
 #include "ahci.h"       /* run command (gap F3) */
 #include "fat32.h"      /* run command (gap F3) */
 #include "tasking.h"
@@ -67,6 +68,8 @@ static int cmd_help(void)
                 "  date                 RTC wall clock\n"
                 "  agi status|freeze|unfreeze|promote|trace\n"
                 "  holyc <src>          compile+run HolyC (metal port)\n"
+                "  live <expr>          Live Colonel: eval + - * / % r0..r7\n"
+                "  recovery             checkpoint|rollback <0..4>|jesus|status\n"
                 "  cls                  scroll the serial\n"
                 "  run <file>           execute a FAT32 script\n"
                 "  reboot               VM reboot (isa-debug-exit)\n");
@@ -578,7 +581,178 @@ static int cmd_agi(int argc, char **argv)
 static int cmd_holyc(int argc, char **argv)
 {
     (void)argc; (void)argv;
-    klog_printf("holyc: metal compiler port in progress -- see next boot\n");
+    klog_printf("holyc: the hosted compiler port runs in the GUI HolyC term -- "
+                "metal-side live coding is the 'live' command (Live Colonel)\n");
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* The Live Colonel: ring-0 live coding, TempleOS-style. The Colonel
+ * types an expression; the kernel evaluates it immediately and the
+ * result returns to the console. The evaluator is a tiny freestanding
+ * expression VM (no hosted JIT on metal): registers R0..R7 persist
+ * across evals (the Colonel's live state), and the `recovery`
+ * checkpoint ring snapshots them -- a live-coding mistake is one
+ * rollback away. */
+
+static int64_t live_regs[8];      /* the Colonel's persistent registers */
+static int      live_seq = 0;
+
+/* The Live Colonel expression evaluator: a recursive descent over
+ * + - * / % ( ) and the registers r0..r7 and integer literals. */
+static int live_peek(const char *s, int *i)
+{
+    while (s[*i] == ' ' || s[*i] == '\t') (*i)++;
+    return s[*i];
+}
+static int64_t live_expr(const char *s, int *i);
+
+static int64_t live_primary(const char *s, int *i)
+{
+    int c = live_peek(s, i);
+    if (c == '(') {
+        (*i)++;
+        int64_t v = live_expr(s, i);
+        live_peek(s, i);
+        if (s[*i] == ')') (*i)++;
+        return v;
+    }
+    if (c == 'r' || c == 'R') {
+        int reg = s[*i + 1] - '0';
+        *i += 2;
+        if (reg >= 0 && reg < 8) return live_regs[reg];
+        return 0;
+    }
+    if (c == '-' || c == '+') {
+        int sign = (c == '-') ? -1 : 1;
+        (*i)++;
+        return sign * live_primary(s, i);
+    }
+    /* integer literal */
+    int64_t v = 0;
+    while (s[*i] >= '0' && s[*i] <= '9') {
+        v = v * 10 + (s[*i] - '0');
+        (*i)++;
+    }
+    return v;
+}
+
+static int64_t live_mul(const char *s, int *i)
+{
+    int64_t v = live_primary(s, i);
+    for (;;) {
+        int c = live_peek(s, i);
+        if (c == '*') { (*i)++; v *= live_primary(s, i); }
+        else if (c == '/') { (*i)++; int64_t d = live_primary(s, i); v = d ? v / d : 0; }
+        else if (c == '%') { (*i)++; int64_t d = live_primary(s, i); v = d ? v % d : 0; }
+        else return v;
+    }
+}
+
+static int64_t live_expr(const char *s, int *i)
+{
+    int64_t v = live_mul(s, i);
+    for (;;) {
+        int c = live_peek(s, i);
+        if (c == '+') { (*i)++; v += live_mul(s, i); }
+        else if (c == '-') { (*i)++; v -= live_mul(s, i); }
+        else return v;
+    }
+}
+
+/* `live <expr>` -- evaluate and print (Live Colonel, ring 0). */
+static int cmd_live(int argc, char **argv)
+{
+    if (argc < 2) {
+        klog_printf("live: usage 'live <expr>' (registers r0..r7 persist)\n");
+        return 0;
+    }
+    int i = 0;
+    const char *s = argv[1];
+    /* the rest of the line is the expression (tokens are space-split,
+     * so rejoin is unnecessary for the supported grammar) */
+    int64_t r = live_expr(s, &i);
+    klog_printf("live[%d] = %d:%d\n", live_seq++,
+                (int)(int32_t)(r >> 32), (int)(int32_t)(r & 0xFFFFFFFF));
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* The recovery console: the 5+1 rollback substrate wired to the
+ * Colonel's live registers. */
+
+static wubu_recovery_t g_recovery;
+static int g_recovery_ready = 0;
+
+static void recovery_ensure(void)
+{
+    if (g_recovery_ready) return;
+    wubu_recovery_principles_t p;
+    memset(&p, 0, sizeof(p));
+    p.version = 1;
+    strncpy(p.identity, "wubuwizard-colonel", sizeof(p.identity) - 1);
+    p.max_rollback_attempts = WUBU_RECOVERY_SLOTS;
+    p.jesus_armed = 1;
+    p.human_gate_required = 1;
+    p.growth_loop = 1;
+    p.human_centric = 1;
+    p.no_third_party = 1;
+    p.no_stubs = 1;
+    p.license_origin = 3;
+    wubu_recovery_init(&g_recovery, &p);
+    g_recovery_ready = 1;
+}
+
+/* `recovery checkpoint|rollback <n>|jesus|status` */
+static int cmd_recovery(int argc, char **argv)
+{
+    recovery_ensure();
+    if (argc < 2) {
+        klog_printf("recovery: checkpoint | rollback <0..4> | jesus | status\n");
+        return 0;
+    }
+    if (strcmp(argv[1], "checkpoint") == 0) {
+        int s = wubu_recovery_checkpoint(&g_recovery, live_regs, sizeof(live_regs));
+        if (s >= 0) klog_printf("recovery: checkpoint %d (seq %u, live %u)\n",
+                                s, (unsigned)g_recovery.seq,
+                                (unsigned)wubu_recovery_live(&g_recovery));
+        return 0;
+    }
+    if (strcmp(argv[1], "rollback") == 0 && argc >= 3) {
+        int slot = (int)argv[2][0] - '0';
+        int64_t out[8];
+        int n = wubu_recovery_rollback(&g_recovery, (uint32_t)slot, out, sizeof(out));
+        if (n >= 0) {
+            for (int k = 0; k < 8; k++) live_regs[k] = out[k];
+            klog_printf("recovery: rolled back to slot %d\n", slot);
+        } else {
+            klog_printf("recovery: slot %d empty or invalid\n", slot);
+        }
+        return 0;
+    }
+    if (strcmp(argv[1], "jesus") == 0) {
+        int64_t clean[8];
+        wubu_recovery_principles_t divine;
+        int rc = wubu_recovery_jesus(&g_recovery, clean, sizeof(clean), &divine);
+        if (rc == 0) {
+            for (int k = 0; k < 8; k++) live_regs[k] = 0;
+            klog_printf("recovery: JESUS state -- clean slate, divine good intact "
+                        "(identity=%s human_centric=%u)\n",
+                        divine.identity, (unsigned)divine.human_centric);
+        } else if (rc == -2) {
+            klog_printf("recovery: jesus gated (disarmed -- human must re-arm)\n");
+        }
+        return 0;
+    }
+    if (strcmp(argv[1], "status") == 0) {
+        klog_printf("recovery: healthy=%d live=%u seq=%u rollbacks=%u jesus_used=%u\n",
+                    wubu_recovery_healthy(&g_recovery),
+                    (unsigned)wubu_recovery_live(&g_recovery),
+                    (unsigned)g_recovery.seq,
+                    (unsigned)g_recovery.rollback_count,
+                    (unsigned)g_recovery.jesus_used);
+        return 0;
+    }
     return 0;
 }
 
@@ -716,6 +890,8 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "date") == 0)            return cmd_date(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
     if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
+    if (strcmp(argv[0], "live") == 0)            return cmd_live(argc, argv);
+    if (strcmp(argv[0], "recovery") == 0)        return cmd_recovery(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();
     if (strcmp(argv[0], "run") == 0)             return cmd_run(argc, argv);
     if (strcmp(argv[0], "syscalls") == 0) {      /* Gap H1/H3 */
@@ -855,7 +1031,7 @@ void wubu_console_task(void *arg)
                 static const char *cmds[] = {
                     "help", "uptime", "mem", "tasks", "pci", "theme",
                     "hid", "vmm", "stats", "dump", "attest", "date",
-                    "agi", "holyc", "cls", "reboot"
+                    "agi", "holyc", "live", "recovery", "cls", "reboot"
                 };
                 int ncmds = (int)(sizeof(cmds) / sizeof(cmds[0]));
                 if (n > 0 && line[0] != ' ') {
