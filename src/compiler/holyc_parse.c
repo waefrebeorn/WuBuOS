@@ -334,7 +334,7 @@ static const BinOp eq_ops[] = {
     {HC_TOK_EOF,   0},
 };
 static const BinOp bitand_ops[] = {{HC_TOK_AMP, HC_AST_BITAND}, {HC_TOK_EOF, 0}};
-static const BinOp bitxor_ops[] = {{HC_TOK_CARET, HC_AST_XOR}, {HC_TOK_EOF, 0}};
+static const BinOp bitxor_ops[] = {{HC_TOK_CARET, HC_AST_BITXOR}, {HC_TOK_EOF, 0}};
 static const BinOp bitor_ops[]  = {{HC_TOK_PIPE, HC_AST_BITOR}, {HC_TOK_EOF, 0}};
 
 static HCASTNode *parse_binop(HCParser *p, HCASTNode *(*higher)(HCParser*), const BinOp *ops) {
