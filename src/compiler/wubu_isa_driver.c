@@ -15,6 +15,7 @@ extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_m68k;
 extern const wubu_isa_driver_t wubu_isa_i8086;
 extern const wubu_isa_driver_t wubu_isa_riscv;
+extern const wubu_isa_driver_t wubu_isa_6502;
 
 const wubu_isa_driver_t *wubu_isa_find(const char *name)
 {
@@ -30,5 +31,8 @@ const wubu_isa_driver_t *wubu_isa_find(const char *name)
     if (!strcmp(name, "riscv") || !strcmp(name, "rv64i") ||
         !strcmp(name, "riscv64") || !strcmp(name, "rv"))
         return &wubu_isa_riscv;
+    if (!strcmp(name, "6502") || !strcmp(name, "65c02") ||
+        !strcmp(name, "w65c02") || !strcmp(name, "6502x"))
+        return &wubu_isa_6502;
     return NULL;
 }
