@@ -88,7 +88,7 @@ src/
 
 **Honest — not "all done"**: the remaining VSL syscalls, the bare-metal
 context-switch no-ops, and the stub-phrase spots are tracked openly in
-[README's known-open-work](README.md) history, `BATTLESHIP_GAPS.md`, and the
+`BATTLESHIP_GAPS.md`, the `REACTOS_NT_SYSCALL_STUDY.md` audit, and the
 compendium ledger.
 
 ## Docs
