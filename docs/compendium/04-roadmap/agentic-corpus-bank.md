@@ -5,6 +5,18 @@ Status: generated 2026-08-04 from research/044
 Wang/OpenHands, the CAI trajectory corpus). Ledger: `open` = a real mechanism
 to close; `wired` = implemented + tested.
 
+## Seed data already on disk (wubuwizard, research/049)
+
+The bank's SYNTHESIS machinery (AC-A) consumes seed data. The first
+mini-datasets are packed and ready at
+`/home/wubu/models/corpus/agentic/wubu-agentic-pack.jsonl` (1,392
+conversations, seed 48):
+- nl2bash terminal tier (224) -- the bash-interaction seed for AC-E
+- AgentBench-OS tasks (1,000) -- the OS-task seed for AC-E/AC-F
+- ancient-subsystem Q/A (168, GENERATED from our VSL dispatch tables:
+  CP/M BDOS, Mac Classic 68K, DOS INT, XNU BSD) -- unique to WuBuOS.
+Generator: /home/wubu/research-ponds-work/tools/gen_ancient_corpus.py.
+
 ## AC-A: made-data synthesis (the DataForge graph recipe)
 
 - AC-A01 DataForge graph synthesis: seed passages -> struct->struct maps with PDDL pre/postconditions -> random DAG walks `open`
