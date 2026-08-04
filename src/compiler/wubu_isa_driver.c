@@ -13,6 +13,7 @@
 /* the built-in drivers, one per ISA (all extern in the header) */
 extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_m68k;
+extern const wubu_isa_driver_t wubu_isa_i8086;
 
 const wubu_isa_driver_t *wubu_isa_find(const char *name)
 {
@@ -22,5 +23,8 @@ const wubu_isa_driver_t *wubu_isa_find(const char *name)
     if (!strcmp(name, "m68k") || !strcmp(name, "68000") ||
         !strcmp(name, "motorola-68000") || !strcmp(name, "68k"))
         return &wubu_isa_m68k;
+    if (!strcmp(name, "8086") || !strcmp(name, "i8086") ||
+        !strcmp(name, "x86-16") || !strcmp(name, "8088"))
+        return &wubu_isa_i8086;
     return NULL;
 }
