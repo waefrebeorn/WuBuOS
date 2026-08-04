@@ -408,43 +408,53 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             emit_mov_rax_imm64(gen, 0);
             break;
 
-        /* Binary operations: eval left → rax, save to rdi, eval right → rax, swap, op */
+        /* Binary operations: eval left → rax, push it, eval right
+         * (rax=right, may clobber rdi), pop rdi (rdi=left), xchg
+         * (rax=left, rdi=right), op. The xchg is REQUIRED for the
+         * non-commutative ops (SUB/DIV/MOD/SHR) — dropping it reverses
+         * the operands (the 10-(3*2) = -4 bug the differential
+         * harness caught on our own first fix). */
         case HC_AST_ADD:
             gen_expr(gen, node->left);
-            emit_mov_rdi_rax(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
             emit_xchg_rax_rdi(gen);
             emit_add_rax_rdi(gen);
             break;
 
         case HC_AST_SUB:
             gen_expr(gen, node->left);
-            emit_mov_rdi_rax(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
             emit_xchg_rax_rdi(gen);
             emit_sub_rax_rdi(gen);
             break;
 
         case HC_AST_MUL:
             gen_expr(gen, node->left);
-            emit_mov_rdi_rax(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
             emit_xchg_rax_rdi(gen);
             emit_mul_rax_rdi(gen);
             break;
 
         case HC_AST_DIV:
             gen_expr(gen, node->left);
-            emit_mov_rdi_rax(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
             emit_xchg_rax_rdi(gen);
             emit_div_rax_rdi(gen);
             break;
 
         case HC_AST_MOD:
             gen_expr(gen, node->left);
-            emit_mov_rdi_rax(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
             emit_xchg_rax_rdi(gen);
             emit_div_rax_rdi(gen);
             /* Remainder is in rdx, move to rax */
@@ -455,80 +465,109 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
         /* Bitwise AND, OR, XOR */
         case HC_AST_BITAND:
             gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            /* save the LEFT operand across the right's evaluation —
+             * the right may itself be a binop that clobbers rdi (the
+             * 1|2&4 bug: the inner bitand destroyed rdi=left). push
+             * left, gen right (rax=right), pop rdi (rdi=left), xchg. */
+            emit_byte(gen, 0x50);              /* push rax (left) */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
+            emit_xchg_rax_rdi(gen);
             /* and rax, rdi: 48 21 F8 */
             emit_byte(gen, 0x48); emit_byte(gen, 0x21); emit_byte(gen, 0xF8);
             break;
 
         case HC_AST_BITOR:
             gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
+            emit_xchg_rax_rdi(gen);
             /* or rax, rdi: 48 09 F8 */
             emit_byte(gen, 0x48); emit_byte(gen, 0x09); emit_byte(gen, 0xF8);
             break;
 
         case HC_AST_XOR:
             gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            emit_byte(gen, 0x50);              /* push rax (left) */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
+            emit_xchg_rax_rdi(gen);
             /* xor rax, rdi: 48 31 F8 */
             emit_byte(gen, 0x48); emit_byte(gen, 0x31); emit_byte(gen, 0xF8);
             break;
 
         /* Shift left/right */
         case HC_AST_SHL:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);            /* rax=left, rdi=right */
             /* mov rcx, rdi (shift count must be in cl): 48 89 F9 */
             emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF9);
             emit_byte(gen, 0x48); emit_byte(gen, 0xD3); emit_byte(gen, 0xE0); /* shl rax, cl */
             break;
 
         case HC_AST_SHR:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);            /* rax=left, rdi=right */
             emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF9);
             emit_byte(gen, 0x48); emit_byte(gen, 0xD3); emit_byte(gen, 0xE8); /* shr rax, cl */
             break;
 
         /* Comparison ops: cmp rax, rdi then setcc */
         case HC_AST_EQ:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);
             emit_cmp_rax_rdi(gen);
             emit_setcc(gen, 0x94); /* sete */
             break;
 
         case HC_AST_NE:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);
             emit_cmp_rax_rdi(gen);
             emit_setcc(gen, 0x95); /* setne */
             break;
 
         case HC_AST_LT:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);
             emit_cmp_rax_rdi(gen);
             emit_setcc(gen, 0x9C); /* setl */
             break;
 
         case HC_AST_LE:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);
             emit_cmp_rax_rdi(gen);
             emit_setcc(gen, 0x9E); /* setle */
             break;
 
         case HC_AST_GT:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);
             emit_cmp_rax_rdi(gen);
             emit_setcc(gen, 0x9F); /* setg */
             break;
 
         case HC_AST_GE:
-            gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
-            gen_expr(gen, node->right); emit_xchg_rax_rdi(gen);
+            gen_expr(gen, node->left); emit_byte(gen, 0x50); /* push left */
+            gen_expr(gen, node->right);
+            emit_byte(gen, 0x5F);              /* pop rdi (left) */
+            emit_xchg_rax_rdi(gen);
             emit_cmp_rax_rdi(gen);
             emit_setcc(gen, 0x9D); /* setge */
             break;
