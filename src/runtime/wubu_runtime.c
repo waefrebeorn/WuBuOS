@@ -185,3 +185,145 @@ size_t wubu_runtime_count(const wubu_runtime_t *rt)
 {
     return rt ? rt->n_live : 0;
 }
+
+/* W3: enumerate the live spaces (the broker / -spaces view).
+ * cb(space, user) returns 0 to continue, nonzero to stop. */
+void wubu_runtime_list(const wubu_runtime_t *rt,
+                       int (*cb)(const wubu_rt_space_t *, void *),
+                       void *user)
+{
+    if (!rt || !cb) return;
+    wubu_hive_iter_t it;
+    void *e;
+    for (e = wubu_hive_first(rt->hive, &it); e; e = wubu_hive_next(rt->hive, &it)) {
+        const rt_slot_t *s = (const rt_slot_t *)e;
+        if (cb(&s->space, user)) return;
+    }
+}
+
+/* ====================================================================
+ * W4/W5 -- PERSISTENCE (the "nothing left in the dust" guarantee)
+ *
+ * A flat, versioned binary format: magic + version + count, then one
+ * fixed-size record per space (the struct fields + the personality
+ * name). No external deps, self-contained C11.
+ * ==================================================================== */
+
+#define WUBU_RT_FILE_MAGIC 0x57554252544E5350ull  /* "WUBRTNSP" */
+#define WUBU_RT_FILE_VER   1
+
+/* the on-disk record: fixed-size, so the file is a plain array */
+typedef struct {
+    uint64_t id;
+    uint64_t seq;
+    char name[64];
+    char language[48];
+    char compiler_ver[32];
+    char language_ver[32];
+    char abi_snapshot[96];
+    char created[32];
+    char namespace_path[64];
+    uint64_t heap_cap;
+    uint64_t heap_used;
+    int32_t state;
+    char personality[16];
+} rt_file_rec_t;
+
+typedef struct {
+    uint64_t magic;
+    uint32_t version;
+    uint32_t count;
+} rt_file_hdr_t;
+
+int wubu_runtime_save(const wubu_runtime_t *rt, const char *path)
+{
+    if (!rt || !path) return -1;
+    FILE *f = fopen(path, "wb");
+    if (!f) return -1;
+
+    rt_file_hdr_t hdr;
+    memset(&hdr, 0, sizeof(hdr));
+    hdr.magic = WUBU_RT_FILE_MAGIC;
+    hdr.version = WUBU_RT_FILE_VER;
+    hdr.count = (uint32_t)wubu_runtime_count(rt);
+    if (fwrite(&hdr, sizeof(hdr), 1, f) != 1) { fclose(f); return -1; }
+
+    wubu_hive_iter_t it;
+    void *e;
+    for (e = wubu_hive_first(rt->hive, &it); e; e = wubu_hive_next(rt->hive, &it)) {
+        const rt_slot_t *s = (const rt_slot_t *)e;
+        rt_file_rec_t rec;
+        memset(&rec, 0, sizeof(rec));
+        rec.id = s->space.id;
+        rec.seq = s->seq;
+        snprintf(rec.name, sizeof(rec.name), "%s", s->space.name);
+        snprintf(rec.language, sizeof(rec.language), "%s", s->space.language);
+        snprintf(rec.compiler_ver, sizeof(rec.compiler_ver), "%s",
+                 s->space.compiler_ver);
+        snprintf(rec.language_ver, sizeof(rec.language_ver), "%s",
+                 s->space.language_ver);
+        snprintf(rec.abi_snapshot, sizeof(rec.abi_snapshot), "%s",
+                 s->space.abi_snapshot);
+        snprintf(rec.created, sizeof(rec.created), "%s", s->space.created);
+        snprintf(rec.namespace_path, sizeof(rec.namespace_path), "%s",
+                 s->space.namespace_path);
+        rec.heap_cap = s->space.heap_cap;
+        rec.heap_used = s->space.heap_used;
+        rec.state = (int32_t)s->space.state;
+        snprintf(rec.personality, sizeof(rec.personality), "%s",
+                 s->space.personality ? s->space.personality->name : "");
+        if (fwrite(&rec, sizeof(rec), 1, f) != 1) { fclose(f); return -1; }
+    }
+    fclose(f);
+    return 0;
+}
+
+int wubu_runtime_load(wubu_runtime_t *rt, const char *path)
+{
+    if (!rt || !path) return -1;
+    FILE *f = fopen(path, "rb");
+    if (!f) return -1;
+
+    rt_file_hdr_t hdr;
+    if (fread(&hdr, sizeof(hdr), 1, f) != 1 ||
+        hdr.magic != WUBU_RT_FILE_MAGIC || hdr.version != WUBU_RT_FILE_VER) {
+        fclose(f);
+        return -1;               /* not ours / corrupt */
+    }
+
+    for (uint32_t i = 0; i < hdr.count; i++) {
+        rt_file_rec_t rec;
+        if (fread(&rec, sizeof(rec), 1, f) != 1) { fclose(f); return -1; }
+        if (rt->n_live >= rt->cfg.max_spaces) {
+            /* ring discipline: at cap, skip extra records */
+            continue;
+        }
+        rt_slot_t *s = (rt_slot_t *)calloc(1, sizeof(*s));
+        if (!s) { fclose(f); return -1; }
+        s->seq = rec.seq;
+        s->space.id = rec.id;
+        snprintf(s->space.name, sizeof(s->space.name), "%s", rec.name);
+        snprintf(s->space.language, sizeof(s->space.language), "%s", rec.language);
+        snprintf(s->space.compiler_ver, sizeof(s->space.compiler_ver), "%s",
+                 rec.compiler_ver);
+        snprintf(s->space.language_ver, sizeof(s->space.language_ver), "%s",
+                 rec.language_ver);
+        snprintf(s->space.abi_snapshot, sizeof(s->space.abi_snapshot), "%s",
+                 rec.abi_snapshot);
+        snprintf(s->space.created, sizeof(s->space.created), "%s", rec.created);
+        snprintf(s->space.namespace_path, sizeof(s->space.namespace_path), "%s",
+                 rec.namespace_path);
+        s->space.heap_cap = rec.heap_cap;
+        s->space.heap_used = rec.heap_used;
+        if (s->space.id >= rt->next_id) rt->next_id = s->space.id + 1;
+        if (wubu_hive_insert(rt->hive, s) != s) { free(s); continue; }
+        rt->n_live++;
+        /* personality + state AFTER the insert (set_personality finds
+         * the slot by id — it must already be in the hive) */
+        if (rec.personality[0])
+            wubu_runtime_set_personality(rt, rec.id, rec.personality);
+        wubu_runtime_find(rt, rec.id)->state = (wubu_rt_state_t)rec.state;
+    }
+    fclose(f);
+    return 0;
+}

@@ -117,44 +117,66 @@ The compiler already speaks this: the holyc CLI's `-c_developer`,
 front-end; wuburuntime is the runtime that gives each of those
 languages a **space to live in**.
 
-## The implementation wave (wubuos)
+## The implementation waves
 
-### Wave 1 (this session): the space registry — `wubu_runtime_space`
-- `include/wubu_runtime.h` + `src/wubu_runtime.c`: the space struct
-  (id/name/language/compiler_ver/language_ver/abi_snapshot/created/
-  heap/namespace/personality/state), the registry (create/find/
-  destroy/list), backed by the hive for the slots and the tensor
-  store for the snapshot metadata.
-- `tools/test_runtime.c`: the DA oracles —
-  1. create a space, read it back (round-trip, the snapshot is intact)
-  2. two runtimes (jvm-21, clr-9) coexist — separate ids, no overlap
-  3. the snapshot carries compiler_ver + language_ver + created date
-     (the "not left in the dust" guarantee)
-  4. ring-bounded: the registry caps at N spaces, recycles the oldest
-  5. namespace: each space maps to its own 9P path (/n/java/, /n/dotnet/)
-  6. the state machine: cold → warm → live → frozen
-  7. ASan clean
-- Wire into `make test_all`.
+### Wave 1 (DONE 2026-08-04): the space registry
+- `src/runtime/wubu_runtime.h` + `src/runtime/wubu_runtime.c`
+- `src/runtime/wubu_runtime_test.c` — 8 DA oracles, all pass (0 failures)
+- Hive-backed, ring-bounded (oldest recycled at cap), snapshot fields
+  (compiler_ver / language_ver / created) recorded at creation.
 
-### Wave 2: the compilation-space broker (the compiler integration)
-- the holyc CLI gains `-space <name>`: compiles INTO a named space,
-  recording compiler_ver + language_ver + date in the space metadata.
-- `-i_make_shit_code` + `-space java-jvm-21`: the foreign language's
-  output lands in the JVM's space — disorganization solved by
-  construction.
+### Wave 2 (DONE 2026-08-04): the compilation-space broker
+- `tools/holyc.c` gains the broker flags:
+  - `holyc -space <name> <file>` — compile INTO a named space; the
+    snapshot is recorded + printed (compiler_ver + language_ver + date).
+  - `holyc -space <name> -personality <kind> <file>` — attach a
+    personality (posix/image/wasi), the space warms.
+  - `holyc -i_make_shit_code -space <name> <file>` — foreign language
+    output lands in its runtime's space (both argument orders accepted).
+  - `holyc -spaces` — the view that ends the disorganization.
+- Built by `make holyc` (links wubu_hive + wubu_runtime +
+  personalities).
 
-### Wave 3: the runtime personalities (the gap filler)
-- each space's `personality` field wires to the VSL syscall dispatch
-  (the toast-OS personalities already in wubuos): a JVM space gets
-  the POSIX-ish personality, a Smalltalk space gets the image-aware
-  personality, a Wasm space gets WASI → native syscall mapping.
+### Wave 3 (DONE 2026-08-04): the runtime personalities (the gap filler)
+- `src/runtime/wubu_runtime_personalities.c` — per-space syscall
+  dispatch tables mapping a runtime's syscalls onto the OS-native
+  substrate:
+  - `posix` — direct native (open/read/write/close/malloc/free/exit).
+  - `image` — the Smalltalk-family personality (native substrate; the
+    space IS the image).
+  - `wasi` — sandboxed: sys_open refuses paths outside the `/n/`
+    namespace with the `WUBU_RT_SANDBOX_REFUSED` sentinel (a POLICY
+    refusal, distinct from an OS error).
+- API: `wubu_runtime_set_personality` / `wubu_runtime_call` /
+  `wubu_runtime_list`.
+- Test: 11 Wave-3 oracles (attach, dispatch heap/write, WASI sandbox
+  refuse/admit, cold-space dispatch refusal, enumeration).
+
+### Wave 4/5 (DONE 2026-08-04): persistence (the snapshot made real)
+- `wubu_runtime_save(rt, path)` / `wubu_runtime_load(rt, path)` — a
+  flat, versioned binary format (magic + version + count + fixed-size
+  records: every space + its snapshot + personality). No external deps.
+- The CLI boots by loading `$WUBURUNTIME_FILE` (default
+  `/tmp/wuburuntime.spaces`) and saves after every mutation — spaces
+  survive process exit, reboots, and compiler versions. THIS is the
+  "nothing left in the dust" guarantee, made real.
+- Test: `holyc -space` in one invocation, `holyc -spaces` in another
+  shows the same spaces with the same snapshot + personality.
+
+### The verified gate (2026-08-04)
+- `make test_runtime` — PASSED (0 failures, registry + personalities
+  + persistence).
+- `make holyc` — 0 errors. `make test_holyc` — 84/84.
+- Differential battery (HolyC vs gcc) — 33/33.
+- Persistence round-trip — 1 space survives across invocations.
 
 ### The honest scope
-- Wave 1 is real and testable now (the registry + snapshot).
-- Waves 2-3 are the roadmap; the OS-native runtime substrate (GC
-  hooks, exception mapping) is the long game — but the COMPILATION
-  SPACE abstraction is what ends the disorganization, and it's
-  buildable today.
+- Wave 1-5 are real and testable now (registry + broker +
+  personalities + persistence).
+- The full OS-native runtime substrate (GC hooks, exception mapping,
+  per-space cgroups/seccomp) is the long game — but the COMPILATION
+  SPACE abstraction + the snapshot persistence is what ends the
+  disorganization, and it works today.
 
 ## Registration
 

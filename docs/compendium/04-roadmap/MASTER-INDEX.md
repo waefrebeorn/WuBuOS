@@ -136,3 +136,18 @@ masterpiece-architecture references (in the skill library).
   real codegen bugs in its first run: the rdi-clobber family, all
   fixed), `src/compiler/brainfuck.c` (the meme flag, shipped: 8
   commands → x86-64 JIT, real loops).
+- WUBURUNTIME (2026-08-04): `02-architecture/wuburuntime.md` — the
+  7-hop on ALL the OO runtime families (C++ ABI, Smalltalk/FLEX,
+  JVM, CLR, V8 prototypes, Rust/Zig/Go/Swift, WASI/Wasm) → the
+  convergence principle (every OO runtime is a mini-OS fighting the
+  host) → the compilation-space abstraction: every runtime gets its
+  OWN named, versioned, isolated space with the snapshot guarantee
+  (compiler_ver + language_ver + created — nothing left in the dust).
+  Waves 1-5 ALL DONE: `src/runtime/wubu_runtime.c` (registry),
+  `wubu_runtime_personalities.c` (posix/image/wasi syscall dispatch),
+  persistence (`wubu_runtime_save/load`, the snapshot survives process
+  exit), the CLI broker (`tools/holyc.c`: -space / -personality /
+  -i_make_shit_code -space / -spaces). Tools: `make test_runtime`
+  (19 oracles, 0 failures), `tools/wuburuntime_demo.sh` (one-command
+  end-to-end), `tools/compiler_diff_battery.sh` (the 33-expression
+  bug-bank battery).
