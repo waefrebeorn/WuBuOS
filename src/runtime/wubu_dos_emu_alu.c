@@ -38,10 +38,13 @@ uint8_t do_shift8(WubuDosEmu *e, int op, uint8_t v, int cnt) {
     for (int i = 0; i < cnt; i++) {
         int oldcf = getF(e, F_CF);
         switch (op) {
-            case 0: case 1: { int msb = (res >> 7) & 1; res = (uint8_t)(res << 1); setF(e, F_CF, msb); } break;
-            case 2: case 3: { int bit7 = (res >> 7) & 1, bit0 = res & 1; res = (uint8_t)((res << 1) | oldcf); setF(e, F_CF, bit0); setF(e, F_OF, bit7 != bit0); } break;
-            case 4: { int bit0 = res & 1; res = (uint8_t)(res >> 1); setF(e, F_CF, bit0); } break;
-            case 5: { int bit0 = res & 1, msb = (res >> 7) & 1; res = (uint8_t)((res >> 1) | (msb << 7)); setF(e, F_CF, bit0); } break;
+            case 0: { int msb = (res >> 7) & 1; res = (uint8_t)((res << 1) | msb); setF(e, F_CF, msb); } break; /* ROL */
+            case 1: { int bit0 = res & 1; res = (uint8_t)((res >> 1) | (bit0 << 7)); setF(e, F_CF, bit0); } break; /* ROR */
+            case 2: { int bit7 = (res >> 7) & 1; res = (uint8_t)((res << 1) | oldcf); setF(e, F_CF, bit7); setF(e, F_OF, bit7 != oldcf); } break; /* RCL */
+            case 3: { int bit0 = res & 1; res = (uint8_t)((res >> 1) | (oldcf << 7)); setF(e, F_CF, bit0); setF(e, F_OF, bit0 != oldcf); } break; /* RCR */
+            case 4: { int msb = (res >> 7) & 1; res = (uint8_t)(res << 1); setF(e, F_CF, msb); setF(e, F_OF, 0); } break; /* SHL */
+            case 5: { int bit0 = res & 1; res = (uint8_t)(res >> 1); setF(e, F_CF, bit0); } break; /* SHR */
+            case 6: { int msb = (res >> 7) & 1; res = (uint8_t)(res << 1); setF(e, F_CF, msb); setF(e, F_OF, 0); } break; /* SAL (=SHL) */
             default: { int bit0 = res & 1; res = (uint8_t)((res >> 1) | (res & 0x80)); setF(e, F_CF, bit0); } break; /* SAR */
         }
     }
@@ -68,11 +71,14 @@ uint16_t do_shift16(WubuDosEmu *e, int op, uint16_t v, int cnt) {
     for (int i = 0; i < cnt; i++) {
         int oldcf = getF(e, F_CF);
         switch (op) {
-            case 0: case 1: { int msb = (res >> 15) & 1; res = (uint16_t)(res << 1); setF(e, F_CF, msb); } break;
-            case 2: case 3: { int bit15 = (res >> 15) & 1, bit0 = res & 1; res = (uint16_t)((res << 1) | oldcf); setF(e, F_CF, bit0); setF(e, F_OF, bit15 != bit0); } break;
-            case 4: { int bit0 = res & 1; res = (uint16_t)(res >> 1); setF(e, F_CF, bit0); } break;
-            case 5: { int bit0 = res & 1, msb = (res >> 15) & 1; res = (uint16_t)((res >> 1) | (msb << 15)); setF(e, F_CF, bit0); } break;
-            default: { int bit0 = res & 1; res = (uint16_t)((res >> 1) | (res & 0x8000)); setF(e, F_CF, bit0); } break;
+            case 0: { int msb = (res >> 15) & 1; res = (uint16_t)((res << 1) | msb); setF(e, F_CF, msb); } break; /* ROL */
+            case 1: { int bit0 = res & 1; res = (uint16_t)((res >> 1) | (bit0 << 15)); setF(e, F_CF, bit0); } break; /* ROR */
+            case 2: { int bit15 = (res >> 15) & 1; res = (uint16_t)((res << 1) | oldcf); setF(e, F_CF, bit15); setF(e, F_OF, bit15 != oldcf); } break; /* RCL */
+            case 3: { int bit0 = res & 1; res = (uint16_t)((res >> 1) | (oldcf << 15)); setF(e, F_CF, bit0); setF(e, F_OF, bit0 != oldcf); } break; /* RCR */
+            case 4: { int msb = (res >> 15) & 1; res = (uint16_t)(res << 1); setF(e, F_CF, msb); setF(e, F_OF, 0); } break; /* SHL */
+            case 5: { int bit0 = res & 1; res = (uint16_t)(res >> 1); setF(e, F_CF, bit0); } break; /* SHR */
+            case 6: { int msb = (res >> 15) & 1; res = (uint16_t)(res << 1); setF(e, F_CF, msb); setF(e, F_OF, 0); } break; /* SAL (=SHL) */
+            default: { int bit0 = res & 1; res = (uint16_t)((res >> 1) | (res & 0x8000)); setF(e, F_CF, bit0); } break; /* SAR */
         }
     }
     logic16(e, res);

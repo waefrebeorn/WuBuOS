@@ -113,8 +113,8 @@ int decode_main(WubuDosEmu *e, uint8_t op) {
         }
 
         /* ---- flags / misc ---- */
-        case 0x98: e->ax = (int8_t)(e->ax & 0xFF); return 0; /* CBW */
-        case 0x99: { if ((int8_t)(e->ax & 0xFF) < 0) e->dx = 0xFFFF; else e->dx = 0; return 0; } /* CWD */
+        case 0x98: e->ax = (int8_t)(e->ax & 0xFF); return 0; /* CBW: sign-extend AL into AX */
+        case 0x99: { if ((int16_t)e->ax < 0) e->dx = 0xFFFF; else e->dx = 0; return 0; } /* CWD: sign-extend AX into DX:AX */
         case 0x9C: push16(e, e->flags); return 0; /* PUSHF */
         case 0x9D: e->flags = pop16(e); return 0;  /* POPF */
         case 0x9E: { uint8_t ah = 0; ah |= getF(e,F_CF); ah |= getF(e,F_PF)<<2; ah |= getF(e,F_AF)<<4; ah |= getF(e,F_ZF)<<6; ah |= getF(e,F_SF)<<7; e->ax = (e->ax & 0x00FF) | (ah << 8); return 0; } /* SAHF */

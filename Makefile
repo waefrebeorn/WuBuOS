@@ -506,7 +506,7 @@ test_holyc: $(JIT_OBJS)
 # divergence is a FINDING. Every m68k encoding is oracle-verified against
 # GNU binutils via tools/verify_isa.sh.
 test_drivers: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -I$(COMP) -I$(JIT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c tools/mir_driver_test.c -o $(COMP)/mir_driver_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(RT)/wubu_dos_emu.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c tools/mir_driver_test.c -o $(COMP)/mir_driver_test
 	$(COMP)/mir_driver_test
 
 holyc: $(JIT_OBJS)
