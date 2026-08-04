@@ -221,12 +221,12 @@ Status: OPT-B -- 100 gaps, all `open`.
 
 ## OPT-C:
 
-- OPT-C01 PowerVR TBDR / FlashAttention tile: the on-chip unit of work -- IMPLEMENTED as gpu_barun_attn (the strided-batched QK^T + the fused mask-softmax + the PV; the 7-head GQA with the KV broadcast) `wired`
+- OPT-C01 PowerVR TBDR / FlashAttention tile: the on-chip unit of work -- IMPLEMENTED as gpu_wubu_attn (the strided-batched QK^T + the fused mask-softmax + the PV; the 7-head GQA with the KV broadcast) `wired`
 - OPT-C02 flash-attention tiling: the Q/K/V tile in SRAM, the softmax online `open`
 - OPT-C03 the working-set rule: what the tile touches stays in the tile `open`
 - OPT-C04 tile-local blending: no high-bandwidth memory for the tile pass `open`
 - OPT-C05 attention tiling for training: the tile forward matches the CPU oracle to 2e-4 (the FD gate) -- the seq=512 tile in 11ms `wired`
-- OPT-C06 attention tiling for training: the backward recomputes the scores `wired` -- gpu_barun_attn_backward recomputes S/P (the same strided-batched + serial softmax), then dP = dO V^T, rs = rowsum(dO o O), dS = P o (dP - rs) * inv, dQ = dS K, dK/dV = the summed dS^T Q / P^T dO (the FD + direct verified: maxrel 5.4e-3, max|diff| ~6e-3)
+- OPT-C06 attention tiling for training: the backward recomputes the scores `wired` -- gpu_wubu_attn_backward recomputes S/P (the same strided-batched + serial softmax), then dP = dO V^T, rs = rowsum(dO o O), dS = P o (dP - rs) * inv, dQ = dS K, dK/dV = the summed dS^T Q / P^T dO (the FD + direct verified: maxrel 5.4e-3, max|diff| ~6e-3)
 - OPT-C07 the tile size as a roofline variable (32x32 vs 64x64) `open`
 - OPT-C08 chunked prefill: 512K context in 4K chunks (the OOM->runs fix) `open`
 - OPT-C09 the KV cache tile: per-head tiles stream from DRAM `open`
@@ -326,7 +326,7 @@ Status: OPT-C -- 100 gaps, all `open`.
 
 ## OPT-D:
 
-- OPT-D01 Gram-NS: iterate on the square Gram XX^T, not the rectangular X (Tri Dao) -- IMPLEMENTED in gpu_barun_ns5_gram `wired`
+- OPT-D01 Gram-NS: iterate on the square Gram XX^T, not the rectangular X (Tri Dao) -- IMPLEMENTED in gpu_wubu_ns5_gram `wired`
 - OPT-D02 the rectangular FLOPs drop 5x: only the pre/post GEMMs are rectangular -- VERIFIED: 4.9G -> 2.3G MACs `wired`
 - OPT-D03 symmetric GEMM kernels: half the A=MM^T work is redundant -- partial: the square kernels are cuBLAS; the symmetric kernel is future `wired`
 - OPT-D04 the square-case-luck trap: a square-only probe passes while wide/tall breaks -- the test now covers 448x448, 448x2456, 1228x448, 448x64 `wired`
