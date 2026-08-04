@@ -5,9 +5,9 @@
  * Implements the API defined in wubu_compositor.h.
  */
 
-#define _GNU_SOURCE
 #include "wubu_compositor.h"
 #include "../runtime/styx.h"   /* full styx_server_t + styx_fid_lookup */
+#include "../runtime/wubu_std.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -168,7 +168,7 @@ void wubu_window_destroy(WuBuWindow *win) {
 void wubu_window_set_title(WuBuWindow *win, const char *title) {
     if (!win) return;
     free(win->title);
-    win->title = title ? strdup(title) : NULL;
+    win->title = title ? wubu_strdup(title) : NULL;
 }
 
 void wubu_window_set_geometry(WuBuWindow *win, const WuBuWindowGeometry *geom) {

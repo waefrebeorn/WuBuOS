@@ -4,7 +4,6 @@
 #include "../../gui/dosgui_wm.h"
 #include "../../runtime/wubu_host_exec.h"
 
-#define _GNU_SOURCE             /* for kill(), ioctl(), pty.h */
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

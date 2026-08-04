@@ -9,7 +9,6 @@
  * Uses shared wubu_ct_wait/kill/state from wubu_host_exec.c
  */
 
-#define _GNU_SOURCE
 #include "wubu_host_exec.h"
 
 #include <stdio.h>

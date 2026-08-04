@@ -5,7 +5,6 @@
  * This is the hosted version that runs on an existing Wayland compositor.
  */
 
-#define _GNU_SOURCE
 #include "wubu_compositor.h"
 #include <stdlib.h>
 #include <string.h>

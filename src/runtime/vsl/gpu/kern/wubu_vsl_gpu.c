@@ -4,7 +4,6 @@
 // Maps VSL GPU API to Linux DRM ioctls for WSL/hosted development.
 // On bare metal ZealOS, this would be replaced with VSL syscalls.
 
-#define _GNU_SOURCE
 #include "wubu_vsl_gpu.h"
 #include <fcntl.h>
 #include <unistd.h>

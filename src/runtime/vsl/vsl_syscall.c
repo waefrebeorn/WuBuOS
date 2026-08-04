@@ -8,9 +8,6 @@
  *   vsl_syscall_net.c    - socket, signals, timers, namespace, *at
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include "vsl_syscall_internal.h"
 
 /* -- Syscall Table ------------------------------------------------- */

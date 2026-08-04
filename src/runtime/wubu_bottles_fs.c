@@ -2,7 +2,6 @@
  * Extracted from wubu_bottles.c (separable leaf). Self-contained: ftw only.
  * C11, minimal includes.
  */
-#define _GNU_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #include "wubu_bottles.h"
 #include "wubu_bottles_internal.h"

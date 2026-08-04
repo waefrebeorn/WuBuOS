@@ -3,7 +3,6 @@
  * Extracted from the monolithic styxfs.c. Self-contained: depends only on
  * styxfs.h / styxfs_server.h / styxfs_internal.h. C11, no god headers.
  */
-#define _GNU_SOURCE
 #include "styxfs.h"
 #include "styxfs_internal.h"
 #include <stdlib.h>

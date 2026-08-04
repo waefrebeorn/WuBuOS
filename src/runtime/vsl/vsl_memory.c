@@ -2,9 +2,6 @@
  * vsl_memory.c  --  VSL Memory Management Implementation
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_memory.h"
 #include "vsl/vsl_process.h"

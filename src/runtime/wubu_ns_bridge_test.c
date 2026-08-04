@@ -6,7 +6,6 @@
  * systemctl. Real archd ops are exercised separately by wubu_archd_test.
  */
 
-#define _GNU_SOURCE
 #include "wubu_ns_bridge.h"
 #include "wubu_bottles.h"
 #include <stdio.h>

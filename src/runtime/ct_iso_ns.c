@@ -2,7 +2,6 @@
  * ct_iso_ns.c  --  WuBuOS container namespace unshare helper (Cell 420 split).
  */
 
-#define _GNU_SOURCE
 #include "ct_iso_ns.h"
 #include <sched.h>
 

@@ -3,7 +3,6 @@
  * The cgroup create/set/attach ops live in wubu_ct_isolate_cgroup.c.
  */
 
-#define _GNU_SOURCE
 #include "ct_iso_cgroup.h"
 #include "wubu_ct_isolate.h"
 

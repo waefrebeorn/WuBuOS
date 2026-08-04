@@ -3,7 +3,11 @@
  * Extracted from the monolithic styxfs.c. Depends on styxfs_internal.h for
  * the shared file-table + server helpers. C11, no god headers.
  */
+/* feature-gated symbols (FTW_DEPTH / CLONE_NEW* / st_atime /
+ * DT_DIR) hidden by the build's -D_POSIX_C_SOURCE=200809L — a
+ * legitimate GNU-surface use, kept localized. */
 #define _GNU_SOURCE
+
 #include "styxfs.h"
 #include "styxfs_internal.h"
 #include <stdlib.h>
