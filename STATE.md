@@ -1,10 +1,10 @@
-# WuBuOS — Current State (verified 2026-07-19)
+# WuBuOS — Current State (verified 2026-08-04)
 
 ```
 ╔════════════════════════════════════════════════════════════════════════╗
 ║     🌱  W U B U O S                                                       ║
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers    ║
-║     468 C files · 214 H files · ~105K LOC · 91 test targets             ║
+║     613 C files · 301 H files · 138 test targets                         ║
 ║     Repo: /home/wubu/wubuos   (verified from git + Makefile)             ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 ```
