@@ -125,3 +125,14 @@ masterpiece-architecture references (in the skill library).
 - The DA-3 meta-plan: `wubuwizard/research/049-triple-da-metaplan.md`.
 - The rules: honest-open (never fabricate), DA after every batch, the
   ledger-flip in the same commit, the sibling-collision protocol.
+- COMPILER DOCTRINE (2026-08-04): `02-architecture/compiler-doctrine.md`
+  — the 7-hop on making OUR compiler the best (TempleOS/HolyC →
+  retargetable backends → JIT regalloc → Csmith differential → ISA
+  ladder → self-hosting/CompCert → OSS-Fuzz), the bug-bank doctrine
+  (we know where we are by knowing where we aren't), and the language
+  taxonomy (C11 / C18-C2\* via -c_developer / assembly / HolyC /
+  brainfuck via -brainfuck / everything else via -i_make_shit_code).
+  Tools: `tools/compiler_diff.c` (the differential harness — caught 6
+  real codegen bugs in its first run: the rdi-clobber family, all
+  fixed), `src/compiler/brainfuck.c` (the meme flag, shipped: 8
+  commands → x86-64 JIT, real loops).
