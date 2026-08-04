@@ -65,3 +65,19 @@ src/kernel/*.elf
 dgm_archive.json
 operator_applied.json
 optimizer_state.json
+
+# ---- repo hygiene (2026-08-04) ----
+# python venv (visualization env — pip installs, not source)
+/venv_viz/
+# pip user install + build/dist outputs
+/.local/
+/dist/
+# capture artifacts
+/screenshots/
+/wubuos_demo.mp4
+/wubu_gui_shot
+/*.bin
+/*.zst
+/*.deb
+/control.tar.zst /data.tar.zst
+/__pycache__/
