@@ -4,7 +4,10 @@
 
 set -e
 
-PROJECT_ROOT="/home/wubu/.hermes/profiles/mind-palace/home/myseed"
+# DA 2026-08-04: the old path pointed at a dead myseed checkout under the
+# mind-palace profile; the canonical repo is this script's own directory.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR"
 ISO_DIR="$PROJECT_ROOT/iso_build"
 ISO_OUT="$PROJECT_ROOT/wubuos.iso"
 
