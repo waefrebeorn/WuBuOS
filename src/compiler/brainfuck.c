@@ -99,13 +99,11 @@ static void op_in(bf_code_t *c) {
     emit(c, 0x41); emit(c, 0x88); emit(c, 0x04); emit(c, 0x1C); /* mov byte [r12+rbx], al */
 }
 
-int main(int argc, char **argv)
+/* bf_run — compile `src` to x86-64 and execute it. Returns 0 on
+ * success (the meme, fulfilled). Exposed for the holyc CLI's
+ * -brainfuck flag. */
+int bf_run(const char *src)
 {
-    if (argc < 2) {
-        fprintf(stderr, "usage: %s <brainfuck-source>  (the meme flag: -brainfuck)\n", argv[0]);
-        return 2;
-    }
-    const char *src = argv[1];
     size_t n = strlen(src);
 
     bf_code_t c = {0};
@@ -214,3 +212,15 @@ int main(int argc, char **argv)
     free(tape_buf);
     return 0;
 }
+
+/* standalone use: `brainfuck <source>` (the meme flag works alone too) */
+#ifndef HOLYC_BF_EMBEDDED
+int main(int argc, char **argv)
+{
+    if (argc < 2) {
+        fprintf(stderr, "usage: %s <brainfuck-source>  (the meme flag: -brainfuck)\n", argv[0]);
+        return 2;
+    }
+    return bf_run(argv[1]);
+}
+#endif

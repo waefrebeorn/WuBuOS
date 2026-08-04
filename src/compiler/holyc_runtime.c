@@ -64,4 +64,21 @@ void hc_register_holyc_runtime(HCGen *gen) {
     gen->extern_funcs[gen->n_extern_funcs].c_name[HC_MAX_IDENT_LEN - 1] = '\0';
     gen->extern_funcs[gen->n_extern_funcs].func_addr = (void *)wubu_fp_write_file;
     gen->n_extern_funcs++;
+
+    /* -i_make_shit_code: every language's favorite function, registered
+     * so ANY submitted language's most common call resolves instead of
+     * a null-pointer SIGSEGV (we ballin). */
+    if (gen->n_extern_funcs >= 32) return;
+    strncpy(gen->extern_funcs[gen->n_extern_funcs].c_name, "print",
+            HC_MAX_IDENT_LEN - 1);
+    gen->extern_funcs[gen->n_extern_funcs].c_name[HC_MAX_IDENT_LEN - 1] = '\0';
+    gen->extern_funcs[gen->n_extern_funcs].func_addr = (void *)wubu_print;
+    gen->n_extern_funcs++;
+
+    if (gen->n_extern_funcs >= 32) return;
+    strncpy(gen->extern_funcs[gen->n_extern_funcs].c_name, "puts",
+            HC_MAX_IDENT_LEN - 1);
+    gen->extern_funcs[gen->n_extern_funcs].c_name[HC_MAX_IDENT_LEN - 1] = '\0';
+    gen->extern_funcs[gen->n_extern_funcs].func_addr = (void *)wubu_print;
+    gen->n_extern_funcs++;
 }
