@@ -501,6 +501,14 @@ test_holyc: $(JIT_OBJS)
 	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test -ldl
 	$(COMP)/holyc_test
 
+# the driver space battery: one MIR, N backends (x86-64 JIT + m68k interp).
+# The same MIR is compiled by every driver and differential-exec'd; any
+# divergence is a FINDING. Every m68k encoding is oracle-verified against
+# GNU binutils via tools/verify_isa.sh.
+test_drivers: $(JIT_OBJS)
+	$(CC) -O0 -g -std=c11 -I$(COMP) -I$(JIT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c tools/mir_driver_test.c -o $(COMP)/mir_driver_test
+	$(COMP)/mir_driver_test
+
 holyc: $(JIT_OBJS)
 	$(CC) -O0 -g -I$(COMP) -I$(JIT) -I$(RT) -I$(KERNEL) -DHOLYC_BF_EMBEDDED $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(COMP)/brainfuck.c $(KERNEL)/wubu_hive.c $(RT)/wubu_runtime.c $(RT)/wubu_runtime_personalities.c tools/holyc.c -o $(COMP)/holyc -ldl
 
