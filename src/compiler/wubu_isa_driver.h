@@ -7,14 +7,26 @@
  * driver contract — the same shape as wuburuntime's personalities:
  * a vtable each backend implements.
  *
- * The driver space (2026-08-04):
- *   x86-64   -> wubu_isa_x86_64.c   (native JIT, this machine)
- *   riscv    -> wubu_isa_riscv.c    (RV64I, executed by the interp)
+ * The driver space (2026-08-04, the everything-hardware map — see
+ * wubuwizard/research/ALL_HARDWARE_7HOP.md):
+ *   x86-64   -> wubu_isa_x86_64.c   (native JIT, this machine)  [DONE]
+ *   m68k     -> wubu_isa_m68k.c     (Motorola 68,000, interp)   [DONE]
+ *   riscv    -> (RV64I, executed by the interp)  (next wave)
  *   ptx      -> holyc_ptx.c         (NVIDIA GPU, the existing backend)
  *   arm64    -> (next wave)
+ *   gpu      -> Vulkan/WebGPU front (RDNA/Xe/Apple G13 covered by
+ *              ONE portable front — llama.cpp's 15-backend table is
+ *              the proof this pattern scales)
+ *   mcu      -> thin interpreters for 6502/Z80/8051/PIC/AVR/MSP430
+ *              (the AGI on a $0.10 chip — the CH32V003 tier)
  *
  * A driver: name, whether it can RUN code natively (JIT) or needs a
  * host interpreter, compile(MIR)->bytes, and run(bytes)->result.
+ *
+ * Oracle doctrine: every new driver's encodings are verified
+ * byte-for-byte against GNU binutils objdump (tools/verify_isa.sh)
+ * BEFORE shipping, and the differential battery (`make test_drivers`)
+ * runs every driver against gcc on 33+ expressions. No guessed opcodes.
  *
  * C11, self-contained.
  */
