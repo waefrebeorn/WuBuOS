@@ -11,9 +11,11 @@
  *
  * C11, minimal includes, self-contained.
  */
+/* nftw with FTW_DEPTH/FTW_DP is a GNU extension (POSIX nftw has only
+ * FTW_F/D/DNR/NS) — this is a legitimate GNU-API use, kept localized
+ * (the GNU-free doctrine allows it where the kernel/libc API demands
+ * it, like CPU affinity). */
 #define _GNU_SOURCE
-#define _POSIX_C_SOURCE 200809L
-
 #include "wubu_fs_util.h"
 
 #include <stdio.h>

@@ -1,11 +1,6 @@
 /*
  * vsl_process.c  --  VSL Process Management Implementation
  */
-#ifndef _GNU_SOURCE
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#endif
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_process.h"
 #include "vsl/vsl_elf.h"

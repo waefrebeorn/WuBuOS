@@ -5,6 +5,11 @@
  * C11, no god headers.
  */
 
+/* feature-gated symbols (FTW_DEPTH / CLONE_NEW* / st_atime /
+ * DT_DIR) hidden by the build's -D_POSIX_C_SOURCE=200809L — a
+ * legitimate GNU-surface use, kept localized. */
+#define _GNU_SOURCE
+
 #include "wubu_archd.h"
 #include "wubu_arch.h"
 #include "wubu_archd_internal.h"
@@ -39,7 +44,6 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
-#define _GNU_SOURCE
 
 #include "wubu_archd.h"
 #include "wubu_arch.h"

@@ -5,7 +5,6 @@
  * pure state store. Own small binary (link-budget discipline).
  */
 
-#define _GNU_SOURCE
 #include "wubu_ns_bridge.h"
 #include <stdio.h>
 #include <stdlib.h>

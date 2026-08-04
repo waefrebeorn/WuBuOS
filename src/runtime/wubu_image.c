@@ -10,7 +10,6 @@
  * - OCI image ref conversion
  */
 
-#define _GNU_SOURCE
 #include "wubu_image.h"
 #include "wubu_image_internal.h"
 #include "wubu_container.h"

@@ -2,7 +2,11 @@
  * Extracted from wubu_image.c (separable leaf). Self-contained: only
  * filesystem + ftw. C11, minimal includes.
  */
+/* feature-gated symbols (FTW_DEPTH / CLONE_NEW* / st_atime /
+ * DT_DIR) hidden by the build's -D_POSIX_C_SOURCE=200809L — a
+ * legitimate GNU-surface use, kept localized. */
 #define _GNU_SOURCE
+
 #include "wubu_image.h"
 #include "wubu_image_internal.h"
 #include <time.h>

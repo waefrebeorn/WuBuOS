@@ -10,7 +10,6 @@
  * C11, opaque structs, minimal includes.
  */
 
-#define _GNU_SOURCE
 
 #include "wubu_ns_bridge.h"
 #include "wubu_archd.h"   /* real wubu_archd_svc_* */

@@ -8,8 +8,8 @@
  * GPU passthrough: /dev/dri, /dev/nvidia → container.
  * 9P namespace: per-container Styx socket mount.
  */
-#define _GNU_SOURCE
 #include "wubu_host_exec.h"
+#include "wubu_std.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -108,7 +108,7 @@ int wubu_ct_set_cmd(WubuCt *ct, int argc, char **argv) {
     int n = argc < WUBU_CT_MAX_ARGS ? argc : WUBU_CT_MAX_ARGS;
     for (int i = 0; i < n; i++) {
         if (ct->argv[i]) free(ct->argv[i]);
-        ct->argv[i] = strdup(argv[i]);
+        ct->argv[i] = wubu_strdup(argv[i]);
     }
     return 0;
 }
@@ -118,7 +118,7 @@ int wubu_ct_add_env(WubuCt *ct, const char *env) {
     /* Find empty slot */
     for (int i = 0; i < WUBU_CT_MAX_ENV; i++) {
         if (!ct->envp[i]) {
-            ct->envp[i] = strdup(env);
+            ct->envp[i] = wubu_strdup(env);
             return 0;
         }
     }

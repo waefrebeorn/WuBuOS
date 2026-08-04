@@ -5,7 +5,6 @@
  * test's link budget is already spent on archd+bottles+styx).
  */
 
-#define _GNU_SOURCE
 #include "wubu_ns_bridge.h"
 #include "wubu_pkg.h"
 #include <stdio.h>

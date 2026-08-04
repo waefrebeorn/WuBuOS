@@ -21,7 +21,6 @@
  *   - Flatpak manifest generation
  */
 
-#define _GNU_SOURCE
 
 #include "wubu_bottles.h"
 #include "wubu_bottles_internal.h"

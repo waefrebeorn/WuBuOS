@@ -13,7 +13,6 @@
  * the same live data the bridge wrote), not just synthesized host files.
  */
 
-#define _GNU_SOURCE
 #include "wubu_ns_bridge.h"
 #include "wubu_snapshot.h"
 #include "styxfs.h"

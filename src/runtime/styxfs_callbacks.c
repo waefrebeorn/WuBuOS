@@ -17,9 +17,13 @@
  * C11, opaque-safe, minimal includes, no god headers.
  */
 
+/* d_type / DT_DIR come from dirent and are hidden by the build's
+ * -D_POSIX_C_SOURCE=200809L (glibc gates them behind _DEFAULT_SOURCE) —
+ * a legitimate feature-surface use, kept localized. */
 #define _GNU_SOURCE
 #include "styxfs.h"
 #include "styxfs_internal.h"
+#include "wubu_std.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -123,7 +127,7 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
         styx_fid_t *nf = styx_fid_alloc(base, newfid);
         if (!nf) return -1;
         nf->qid      = qids[nqid - 1];
-        nf->file_state = strdup(cur);
+        nf->file_state = wubu_strdup(cur);
     }
 
     *nwqid = nqid;
