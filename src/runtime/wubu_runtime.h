@@ -34,6 +34,45 @@ typedef enum {
     WUBU_RT_FROZEN       /* suspended / archived */
 } wubu_rt_state_t;
 
+/* ====================================================================
+ * WAVE 3 -- THE RUNTIME PERSONALITIES (the gap filler)
+ *
+ * Every OO runtime speaks syscalls its own way. The personality is a
+ * per-space dispatch table that maps a runtime's syscalls onto the
+ * OS-native substrate, so the JVM doesn't re-implement files and the
+ * Wasm instance doesn't re-implement threads.
+ * ==================================================================== */
+
+/* the syscalls a runtime can make (the shared substrate) */
+typedef enum {
+    WUBU_RT_SYS_OPEN = 0,
+    WUBU_RT_SYS_READ,
+    WUBU_RT_SYS_WRITE,
+    WUBU_RT_SYS_CLOSE,
+    WUBU_RT_SYS_HEAP_ALLOC,
+    WUBU_RT_SYS_HEAP_FREE,
+    WUBU_RT_SYS_EXIT,
+    WUBU_RT_SYS_COUNT
+} wubu_rt_syscall_t;
+
+/* the sandbox refusal sentinel: a personality returns this when its
+ * policy (e.g. WASI's namespace gate) refuses a syscall BEFORE the OS
+ * sees it — distinct from an OS error (-1/-errno), so tests can tell
+ * "refused by policy" from "admitted, then failed to resolve". */
+#define WUBU_RT_SANDBOX_REFUSED (-10000)
+
+/* a personality: the native dispatch table (the gap filler) */
+typedef struct {
+    const char *name;                      /* "posix" / "image" / "wasi" */
+    int (*sys_open)(const char *path, int flags);
+    int (*sys_read)(int fd, void *buf, size_t n);
+    int (*sys_write)(int fd, const void *buf, size_t n);
+    int (*sys_close)(int fd);
+    void *(*sys_heap_alloc)(size_t n);
+    void (*sys_heap_free)(void *p);
+    void (*sys_exit)(int code);
+} wubu_rt_personality_t;
+
 /* one compilation space (the core abstraction of wuburuntime) */
 typedef struct {
     uint64_t id;                 /* the hive slot id */
@@ -47,6 +86,7 @@ typedef struct {
     uint64_t heap_cap;           /* the runtime's memory region cap */
     uint64_t heap_used;          /* current usage (ring-bounded) */
     wubu_rt_state_t state;
+    const wubu_rt_personality_t *personality; /* wave 3: the gap filler */
 } wubu_rt_space_t;
 
 /* the registry config */
@@ -95,5 +135,37 @@ int wubu_runtime_destroy(wubu_runtime_t *rt, uint64_t id);
 
 /* O9: count live spaces. */
 size_t wubu_runtime_count(const wubu_runtime_t *rt);
+
+/* built-in personalities (the gap filler, real and native) */
+extern const wubu_rt_personality_t wubu_rt_personality_posix;
+extern const wubu_rt_personality_t wubu_rt_personality_image; /* Smalltalk */
+extern const wubu_rt_personality_t wubu_rt_personality_wasi;  /* sandboxed */
+
+/* W1: attach a personality to a space by kind name ("posix"/"image"/"wasi").
+ * Returns 0 on success, -1 on unknown kind or missing space. */
+int wubu_runtime_set_personality(wubu_runtime_t *rt, uint64_t id,
+                                 const char *kind);
+
+/* W2: dispatch one syscall through a space's personality. Returns the
+ * personality's result, or -1 if the space has no personality (cold). */
+int64_t wubu_runtime_call(wubu_runtime_t *rt, uint64_t id,
+                          wubu_rt_syscall_t sys, int64_t a1,
+                          int64_t a2, int64_t a3);
+
+/* W3: enumerate the live spaces (the broker / -spaces view).
+ * cb(space, user) returns 0 to continue, nonzero to stop. */
+void wubu_runtime_list(const wubu_runtime_t *rt,
+                       int (*cb)(const wubu_rt_space_t *, void *),
+                       void *user);
+
+/* W4: PERSISTENCE — the "nothing left in the dust" guarantee made
+ * real: save the whole registry (every space + its snapshot) to a
+ * file so spaces survive process exit, reboots, and compiler
+ * versions. Returns 0 on success. */
+int wubu_runtime_save(const wubu_runtime_t *rt, const char *path);
+
+/* W5: load a previously-saved registry into a fresh runtime.
+ * Returns 0 on success (missing/corrupt file -> -1, registry empty). */
+int wubu_runtime_load(wubu_runtime_t *rt, const char *path);
 
 #endif /* WUBU_RUNTIME_H */

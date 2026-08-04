@@ -17,10 +17,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 #include "wubu_runtime.h"
 
 static int failures = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("  FAIL: %s\n", m); failures++; } else { printf("  ok: %s\n", m); } } while (0)
+
+static int count_cb(const wubu_rt_space_t *sp, void *user)
+{
+    (void)sp;
+    (*(size_t *)user)++;
+    return 0;
+}
 
 int main(void)
 {
@@ -134,6 +142,79 @@ int main(void)
         CHECK(wubu_runtime_find(rt, id) == NULL, "gone after destroy");
         CHECK(wubu_runtime_count(rt) == 3, "count = 3 after destroy");
         CHECK(wubu_runtime_destroy(rt, 999999) == -1, "destroy unknown fails");
+    }
+
+    /* --- Wave 3 (the gap filler): personalities --- */
+    {
+        printf("[wave 3] personalities (the gap filler)\n");
+        uint64_t jvm = wubu_runtime_create(rt, "java-jvm-21", "java",
+                                           "holyc-0.1.0", "java-21",
+                                           "wubu-abi-v1", "/n/java/");
+        CHECK(jvm != 0, "re-create java-jvm-21 (after ring recycle)");
+
+        /* W1: attach a personality */
+        CHECK(wubu_runtime_set_personality(rt, jvm, "posix") == 0,
+              "attach posix personality");
+        wubu_rt_space_t *sp = wubu_runtime_find(rt, jvm);
+        CHECK(sp && sp->personality &&
+              !strcmp(sp->personality->name, "posix"),
+              "personality attached");
+        CHECK(sp && sp->state == WUBU_RT_WARM,
+              "attaching a personality warms the space");
+
+        /* unknown personality refused */
+        CHECK(wubu_runtime_set_personality(rt, jvm, "lisp") == -1,
+              "unknown personality refused");
+
+        /* W2: dispatch syscalls through the personality */
+        void *mem = (void *)(uintptr_t)wubu_runtime_call(
+            rt, jvm, WUBU_RT_SYS_HEAP_ALLOC, 64, 0, 0);
+        CHECK(mem != NULL, "heap alloc via posix personality");
+        wubu_runtime_call(rt, jvm, WUBU_RT_SYS_HEAP_FREE,
+                          (int64_t)(uintptr_t)mem, 0, 0);
+
+        /* write to a real fd (stdout) via the personality — the JVM's
+         * "syscall" maps to the OS-native substrate, not a re-implemented
+         * one */
+        int64_t w = wubu_runtime_call(rt, jvm, WUBU_RT_SYS_WRITE,
+                                      1, (int64_t)(uintptr_t)"JVM-says-hi\n",
+                                      13);
+        CHECK(w == 13, "write via posix personality (native)");
+
+        /* WASI sandbox: open outside /n/ refused */
+        uint64_t wasm = wubu_runtime_create(rt, "wasm-instance-2", "wasm",
+                                            "holyc-0.1.0", "wasi-p2",
+                                            "wubu-abi-v1", "/n/wasm2/");
+        CHECK(wasm != 0, "create wasm space");
+        CHECK(wubu_runtime_set_personality(rt, wasm, "wasi") == 0,
+              "attach wasi personality");
+        int64_t fd = wubu_runtime_call(rt, wasm, WUBU_RT_SYS_OPEN,
+                                       (int64_t)(uintptr_t)"/etc/passwd",
+                                       0, 0);
+        CHECK(fd == WUBU_RT_SANDBOX_REFUSED,
+              "wasi sandbox REFUSES /etc/passwd (outside /n/, by policy)");
+        /* inside the namespace root is admitted by policy (the actual
+         * resolution is the OS's business — in real WuBuOS /n/ is the
+         * styx namespace, not host root) */
+        fd = wubu_runtime_call(rt, wasm, WUBU_RT_SYS_OPEN,
+                               (int64_t)(uintptr_t)"/n/../tmp/wubu_rt_tape",
+                               4 /* O_CREAT */, 0);
+        CHECK(fd != WUBU_RT_SANDBOX_REFUSED, "wasi ADMITS /n/ paths");
+        if (fd >= 0) wubu_runtime_call(rt, wasm, WUBU_RT_SYS_CLOSE, fd, 0, 0);
+        remove("/tmp/wubu_rt_tape");
+
+        /* no personality attached yet -> dispatch refused */
+        uint64_t cold = wubu_runtime_create(rt, "cold-space", "c++",
+                                            "holyc-0.1.0", "abi-v1",
+                                            "wubu-abi-v1", "/n/cxx/");
+        CHECK(wubu_runtime_call(rt, cold, WUBU_RT_SYS_READ, 0, 0, 0) == -1,
+              "dispatch refused on a personality-less (cold) space");
+
+        /* W3: enumeration includes personalities */
+        size_t count = 0;
+        wubu_runtime_list(rt, count_cb, &count);
+        CHECK(count == wubu_runtime_count(rt),
+              "list enumerates every live space");
     }
 
     wubu_runtime_free(rt);
