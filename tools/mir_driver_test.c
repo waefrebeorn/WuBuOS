@@ -51,7 +51,7 @@ static int run_one(const char *expr, int64_t expected)
     wubu_mir_ret(&prog, result);
 
     /* every driver: compile + run */
-    const char *names[] = { "x86-64", "riscv", "m68k" };
+    const char *names[] = { "x86-64", "8086", "m68k" };
     int nd = 0;
     const wubu_isa_driver_t *drv[3] = {0};
     int64_t results[3] = {0};
