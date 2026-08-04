@@ -81,3 +81,4 @@ optimizer_state.json
 /*.deb
 /control.tar.zst /data.tar.zst
 /__pycache__/
+/.hermes/
