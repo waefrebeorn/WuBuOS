@@ -65,6 +65,7 @@ typedef struct wubu_isa_driver {
 extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_m68k;   /* the 68,000 (1979) */
 extern const wubu_isa_driver_t wubu_isa_i8086;  /* the x86 root (1978) */
+extern const wubu_isa_driver_t wubu_isa_riscv;
 /* (riscv driver: files were referenced but never landed — re-add on build) */
 
 /* D4: find a driver by name ("x86-64" / "8086" / "m68k"). NULL if unknown. */
