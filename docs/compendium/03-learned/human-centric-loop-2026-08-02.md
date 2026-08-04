@@ -1,9 +1,9 @@
-# The Human-Centric Loop: Tandem Desktop + the BarunLM Seed (2026-08-02)
+# The Human-Centric Loop: Tandem Desktop + the WuBu Seed (2026-08-02)
 
 > The AGI is not an app that sits on the desktop — it IS the desktop's
 > partner. The Tandem window renders the shared space; the psychology
 > engine times the AGI's actions to the human's patience; the recovery
-> substrate makes every AGI mistake reversible; and the BarunLM seed is
+> substrate makes every AGI mistake reversible; and the WuBu seed is
 > the second brain that grows in the training loop.
 
 ## The Tandem desktop (user + AGI together)
@@ -65,15 +65,15 @@ human-centric, no-third-party, no-stubs, growth-loop). The Live
 Colonel console commands: `live <expr>` (ring-0 expression eval with
 persistent r0..r7), `recovery checkpoint|rollback|jesus|status`.
 
-## The seed: BarunLM-35M (the second brain)
+## The seed: WuBu-35M (the second brain)
 
-The wizard is now a TRAINING engine. BarunLM-35M (35,072,768 params,
-Apache-2.0 upstream) is ported to C11 (`wubu_barun`), the released
+The wizard is now a TRAINING engine. WuBu-35M (35,072,768 params,
+Apache-2.0 upstream) is ported to C11 (`wubu`), the released
 checkpoint loads (SHA-256 verified), and the training core
-(`wubu_barun_train`: Muon + AdamW, mean-reduced CE, residual-path
+(`wubu_train`: Muon + AdamW, mean-reduced CE, residual-path
 gradient) learns — loss 9.53 → 3.81 in the test. The seed grows via
 the AGI brain-cluster loop: research repos → tokens → parameters →
-evaluation. See wubuwizard `docs/barunlm-seed.md`.
+evaluation. See wubuwizard `docs/wubu-seed.md`.
 
 ## Files (2026-08-02)
 
