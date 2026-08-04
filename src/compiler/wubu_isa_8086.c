@@ -102,20 +102,20 @@ static void emit_mov_bx_imm(i8086_emitter_t *e, int16_t v)
 {
     e8(e, 0xBB); e16(e, (uint16_t)v);
 }
-/* mov ax, [bp+disp] : 8B 46 disp16 */
+/* mov ax, [bp+disp] : 8B 46 disp8 (modrm 46 = mod=01, reg=AX, rm=BP => 8-bit disp) */
 static void emit_load_ax_slot(i8086_emitter_t *e, int16_t disp)
 {
-    e8(e, 0x8B); e8(e, 0x46); e16(e, (uint16_t)disp);
+    e8(e, 0x8B); e8(e, 0x46); e8(e, (uint8_t)disp);
 }
-/* mov [bp+disp], ax : 89 46 disp16 */
+/* mov [bp+disp], ax : 89 46 disp8 (modrm 46 = mod=01, reg=AX, rm=BP => 8-bit disp) */
 static void emit_store_ax_slot(i8086_emitter_t *e, int16_t disp)
 {
-    e8(e, 0x89); e8(e, 0x46); e16(e, (uint16_t)disp);
+    e8(e, 0x89); e8(e, 0x46); e8(e, (uint8_t)disp);
 }
-/* mov bx, [bp+disp] : 8B 5E disp16 */
+/* mov bx, [bp+disp] : 8B 5E disp8 (modrm 5E = mod=01, reg=BX, rm=BP => 8-bit disp) */
 static void emit_load_bx_slot(i8086_emitter_t *e, int16_t disp)
 {
-    e8(e, 0x8B); e8(e, 0x5E); e16(e, (uint16_t)disp);
+    e8(e, 0x8B); e8(e, 0x5E); e8(e, (uint8_t)disp);
 }
 /* mov ax, bx : 89 D8 */
 static void emit_mov_ax_bx(i8086_emitter_t *e) { e8(e, 0x89); e8(e, 0xD8); }
@@ -196,12 +196,12 @@ static int i8086_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
             case MIR_SUB: e8(&e, 0x29); e8(&e, 0xD8); break;   /* sub */
             case MIR_MUL: e8(&e, 0xF7); e8(&e, 0xE3); break;   /* mul bx: DX:AX=AX*BX */
             case MIR_DIV:
-                e8(&e, 0x31); e8(&e, 0xD2);   /* xor dx,dx (div uses DX:AX) */
-                e8(&e, 0xF7); e8(&e, 0xF3); break;   /* div bx (unsigned) */
+                e8(&e, 0x99);                    /* cwd (sign-extend AX into DX:AX for IDIV) */
+                e8(&e, 0xF7); e8(&e, 0xFB); break;   /* idiv bx (signed) */
             case MIR_MOD:
-                e8(&e, 0x31); e8(&e, 0xD2);   /* xor dx,dx */
-                e8(&e, 0xF7); e8(&e, 0xF3);   /* div bx: AX=quot, DX=rem */
-                e8(&e, 0x89); e8(&e, 0xD0);   /* mov ax,dx (the remainder) */
+                e8(&e, 0x99);                    /* cwd (sign-extend AX into DX:AX) */
+                e8(&e, 0xF7); e8(&e, 0xFB);      /* idiv bx: AX=quot, DX=rem (signed) */
+                e8(&e, 0x89); e8(&e, 0xD0);      /* mov ax,dx (the remainder) */
                 break;
             case MIR_AND: e8(&e, 0x21); e8(&e, 0xD8); break;
             case MIR_OR:  e8(&e, 0x09); e8(&e, 0xD8); break;

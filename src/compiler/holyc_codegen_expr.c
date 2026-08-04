@@ -487,7 +487,7 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             emit_byte(gen, 0x48); emit_byte(gen, 0x09); emit_byte(gen, 0xF8);
             break;
 
-        case HC_AST_XOR:
+        case HC_AST_BITXOR:
             gen_expr(gen, node->left); emit_mov_rdi_rax(gen);
             emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);

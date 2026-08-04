@@ -241,7 +241,6 @@ typedef enum {
     HC_AST_BITNOT,
     HC_AST_DEREF,
     HC_AST_ADDR,
-    HC_AST_XOR,
     HC_AST_MOD_ASSIGN,
     HC_AST_SHL_ASSIGN,
     HC_AST_SHR_ASSIGN,
