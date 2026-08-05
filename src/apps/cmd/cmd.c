@@ -2,6 +2,7 @@
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../../gui/dosgui_wm.h"
+#include "../../gui/dosgui_window_chrome.h"
 #include "../../runtime/wubu_host_exec.h"
 
 #include <string.h>
@@ -298,14 +299,14 @@ static void cmd_draw_prompt(void *win, int cx, int cy, int cw, int ch) {
 void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     if (!cmd || !win) return;
-    
+
     const WubuThemeColors *tc = wubu_theme_colors();
     DosGuiWindow *w = (DosGuiWindow*)win;
-    
-    int cx = w->x + DOSGUI_BORDER;
-    int cy = w->y + DOSGUI_TITLE_H;
-    int cw = w->w - 2 * DOSGUI_BORDER;
-    int ch = w->h - DOSGUI_TITLE_H - DOSGUI_BORDER;
+
+    /* Centralized chrome draws the frame/title bar; we draw content
+     * within the content rect. */
+    ChromeContentRect content = dosgui_chrome_draw_window(w, fb, fb_w, fb_h);
+    int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
 
     vbe_fill_rect(cx, cy, cw, ch, 0x00000000);
     vbe_3d_sunken_colors(cx - 1, cy - 1, cw + 2, ch + 2,
