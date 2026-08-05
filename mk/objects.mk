@@ -27,6 +27,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_hive.o \
               $(KERNEL)/wubu_bonzi.o $(KERNEL)/wubu_apic.o \
               $(KERNEL)/wubu_pci.o $(KERNEL)/wubu_console.o \
+              $(KERNEL)/wubu_console_colonel.o $(KERNEL)/wubu_console_recovery.o \
               $(KERNEL)/wubu_theme.o $(KERNEL)/wubu_hid.o \
               $(KERNEL)/wubu_verifier.o $(KERNEL)/wubu_tss.o \
               $(KERNEL)/wubu_sync.o $(KERNEL)/wubu_vmm.o \

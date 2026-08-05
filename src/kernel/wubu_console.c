@@ -1,15 +1,12 @@
-/*
- * wubu_console.c -- live ring-0 console REPL (TempleOS-style).
+/* wubu_console.c — Ring-0 debug console + CLI dispatch
  *
- * The metal kernel owns a COM1 interactive shell: poll the UART RX line,
- * echo characters, dispatch whole lines through wubu_console_exec().  The
- * same entry is callable from anywhere in ring 0 -- including the AGI
- * supervisor's agent task -- so the operating system IS a live development
- * environment: commands run here, HolyC will run here, drivers get built
- * here.  Polling-based (no IRQ dependency while the interrupt path is
- * being brought up).
+ * This is the core console. The two large sections extracted into:
+ *   wubu_console_colonel.c   — Live Colonel expression evaluator
+ *   wubu_console_recovery.c  — Recovery console (rollback substrate)
+ * C11, freestanding.
  */
 #include "wubu_console.h"
+#include "wubu_serial.h"
 #include "wubu_pci.h"
 #include "wubu_agi_kernel.h"
 #include "wubu_rtc.h"   /* date command (gap A17) */
@@ -23,31 +20,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define COM1_PORT 0x3F8
-#define COM1_LSR  (COM1_PORT + 5)
-
-static inline uint8_t serial_rx_ready(void) {
-    return (uint8_t)(inb(COM1_LSR) & 0x01);
-}
-static inline uint8_t serial_rx(void) {
-    return inb(COM1_PORT);
-}
-/* Returns 0 ALWAYS (the drop is a silent success): the callers must
- * NEVER retry a dropped char -- an unbounded retry under backpressure
- * is a spin (the trace showed `call tx; test eax; js` looping forever). */
-static inline int serial_tx(uint8_t c) {
-    /* BOUNDED TX wait (the tick-12/33/153 freeze root cause): when a
-     * slow/no reader backs up the serial socket, the UART's THR-empty
-     * stops and the OLD unbounded wait spun the CPU FOREVER (the kernel
-     * appeared frozen with the serial-register state). The serial is a
-     * DEBUG channel -- the kernel must never block on it: wait a bounded
-     * number of polls, then DROP the character. */
-    for (int i = 0; i < 65536; i++) {
-        if (inb(COM1_LSR) & 0x20) { outb(COM1_PORT, c); return 0; }
-    }
-    /* timeout: the char is dropped; the kernel continues */
-    return 0;
-}
 
 /* ------------------------------------------------------------------ */
 
@@ -587,271 +559,12 @@ static int cmd_holyc(int argc, char **argv)
 }
 
 /* ------------------------------------------------------------------ */
-/* The Live Colonel: ring-0 live coding, TempleOS-style. The Colonel
- * types an expression; the kernel evaluates it immediately and the
- * result returns to the console. The evaluator is a tiny freestanding
- * expression VM (no hosted JIT on metal): registers R0..R7 persist
- * across evals (the Colonel's live state), and the `recovery`
- * checkpoint ring snapshots them -- a live-coding mistake is one
- * rollback away. */
 
-static int64_t live_regs[8];      /* the Colonel's persistent registers */
-static int      live_seq = 0;
+/* --- Live Colonel + recovery console extracted to separate files ---
+ *   See: wubu_console_colonel.c
+ *   See: wubu_console_recovery.c
+ */
 
-/* The Live Colonel expression evaluator: a recursive descent over
- * + - * / % ( ) and the registers r0..r7 and integer literals. */
-static int live_peek(const char *s, int *i)
-{
-    while (s[*i] == ' ' || s[*i] == '\t') (*i)++;
-    return s[*i];
-}
-static int64_t live_expr(const char *s, int *i);
-
-static int64_t live_primary(const char *s, int *i)
-{
-    int c = live_peek(s, i);
-    if (c == '(') {
-        (*i)++;
-        int64_t v = live_expr(s, i);
-        live_peek(s, i);
-        if (s[*i] == ')') (*i)++;
-        return v;
-    }
-    if (c == 'r' || c == 'R') {
-        int reg = s[*i + 1] - '0';
-        *i += 2;
-        if (reg >= 0 && reg < 8) return live_regs[reg];
-        return 0;
-    }
-    if (c == '-' || c == '+') {
-        int sign = (c == '-') ? -1 : 1;
-        (*i)++;
-        return sign * live_primary(s, i);
-    }
-    /* integer literal */
-    int64_t v = 0;
-    while (s[*i] >= '0' && s[*i] <= '9') {
-        v = v * 10 + (s[*i] - '0');
-        (*i)++;
-    }
-    return v;
-}
-
-static int64_t live_mul(const char *s, int *i)
-{
-    int64_t v = live_primary(s, i);
-    for (;;) {
-        int c = live_peek(s, i);
-        if (c == '*') { (*i)++; v *= live_primary(s, i); }
-        else if (c == '/') { (*i)++; int64_t d = live_primary(s, i); v = d ? v / d : 0; }
-        else if (c == '%') { (*i)++; int64_t d = live_primary(s, i); v = d ? v % d : 0; }
-        else return v;
-    }
-}
-
-static int64_t live_expr(const char *s, int *i)
-{
-    int64_t v = live_mul(s, i);
-    for (;;) {
-        int c = live_peek(s, i);
-        if (c == '+') { (*i)++; v += live_mul(s, i); }
-        else if (c == '-') { (*i)++; v -= live_mul(s, i); }
-        else return v;
-    }
-}
-
-/* `live <expr>` -- evaluate and print (Live Colonel, ring 0). */
-static int cmd_live(int argc, char **argv)
-{
-    if (argc < 2) {
-        klog_printf("live: usage 'live <expr>' (registers r0..r7 persist)\n");
-        return 0;
-    }
-    int i = 0;
-    const char *s = argv[1];
-    /* the rest of the line is the expression (tokens are space-split,
-     * so rejoin is unnecessary for the supported grammar) */
-    int64_t r = live_expr(s, &i);
-    klog_printf("live[%d] = %d:%d\n", live_seq++,
-                (int)(int32_t)(r >> 32), (int)(int32_t)(r & 0xFFFFFFFF));
-    return 0;
-}
-
-/* ------------------------------------------------------------------ */
-/* The recovery console: the 5+1 rollback substrate wired to the
- * Colonel's live registers. */
-
-static wubu_recovery_t g_recovery;
-static int g_recovery_ready = 0;
-
-static void recovery_ensure(void)
-{
-    if (g_recovery_ready) return;
-    wubu_recovery_principles_t p;
-    memset(&p, 0, sizeof(p));
-    p.version = 1;
-    strncpy(p.identity, "wubuwizard-colonel", sizeof(p.identity) - 1);
-    p.max_rollback_attempts = WUBU_RECOVERY_SLOTS;
-    p.jesus_armed = 1;
-    p.human_gate_required = 1;
-    p.growth_loop = 1;
-    p.human_centric = 1;
-    p.no_third_party = 1;
-    p.no_stubs = 1;
-    p.license_origin = 3;
-    wubu_recovery_init(&g_recovery, &p);
-    g_recovery_ready = 1;
-}
-
-/* `recovery checkpoint|rollback <n>|jesus|status` */
-static int cmd_recovery(int argc, char **argv)
-{
-    recovery_ensure();
-    if (argc < 2) {
-        klog_printf("recovery: checkpoint | rollback <0..4> | jesus | status\n");
-        return 0;
-    }
-    if (strcmp(argv[1], "checkpoint") == 0) {
-        int s = wubu_recovery_checkpoint(&g_recovery, live_regs, sizeof(live_regs));
-        if (s >= 0) klog_printf("recovery: checkpoint %d (seq %u, live %u)\n",
-                                s, (unsigned)g_recovery.seq,
-                                (unsigned)wubu_recovery_live(&g_recovery));
-        return 0;
-    }
-    if (strcmp(argv[1], "rollback") == 0 && argc >= 3) {
-        int slot = (int)argv[2][0] - '0';
-        int64_t out[8];
-        int n = wubu_recovery_rollback(&g_recovery, (uint32_t)slot, out, sizeof(out));
-        if (n >= 0) {
-            for (int k = 0; k < 8; k++) live_regs[k] = out[k];
-            klog_printf("recovery: rolled back to slot %d\n", slot);
-        } else {
-            klog_printf("recovery: slot %d empty or invalid\n", slot);
-        }
-        return 0;
-    }
-    if (strcmp(argv[1], "jesus") == 0) {
-        int64_t clean[8];
-        wubu_recovery_principles_t divine;
-        int rc = wubu_recovery_jesus(&g_recovery, clean, sizeof(clean), &divine);
-        if (rc == 0) {
-            for (int k = 0; k < 8; k++) live_regs[k] = 0;
-            klog_printf("recovery: JESUS state -- clean slate, divine good intact "
-                        "(identity=%s human_centric=%u)\n",
-                        divine.identity, (unsigned)divine.human_centric);
-        } else if (rc == -2) {
-            klog_printf("recovery: jesus gated (disarmed -- human must re-arm)\n");
-        }
-        return 0;
-    }
-    if (strcmp(argv[1], "status") == 0) {
-        klog_printf("recovery: healthy=%d live=%u seq=%u rollbacks=%u jesus_used=%u\n",
-                    wubu_recovery_healthy(&g_recovery),
-                    (unsigned)wubu_recovery_live(&g_recovery),
-                    (unsigned)g_recovery.seq,
-                    (unsigned)g_recovery.rollback_count,
-                    (unsigned)g_recovery.jesus_used);
-        return 0;
-    }
-    return 0;
-}
-
-static int cmd_cls(void)
-{
-    for (int i = 0; i < 8; i++) serial_tx('\n');
-    return 0;
-}
-
-/* Gap F3: `run <file>` -- execute the lines of a FAT32 file as console
- * commands. The volume is mounted lazily over the AHCI port-0 sim disk
- * (the hosted/metal disk adapter: ahci_read/ahci_write). */
-static int ahci_blk_read(void *ctx, uint64_t lba, uint32_t n, void *buf)
-{
-    extern int ahci_read(ahci_hba_t *, int, uint64_t, uint32_t, void *);
-    return (ahci_read((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
-}
-static int ahci_blk_write(void *ctx, uint64_t lba, uint32_t n, const void *buf)
-{
-    extern int ahci_write(ahci_hba_t *, int, uint64_t, uint32_t, const void *);
-    return (ahci_write((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
-}
-
-static int cmd_run(int argc, char **argv)
-{
-    extern int  wubu_console_exec(const char *);
-    extern fat32_volume *fat32_boot_volume(void);
-    if (argc < 2) { klog_printf("run: usage 'run <file>'\n"); return 0; }
-
-    fat32_volume *g_vol = fat32_boot_volume();
-    static int g_mounted = 0;
-    static ahci_hba_t  g_hba;
-    if (!g_mounted) {
-        extern int  ahci_hba_init(ahci_hba_t *);
-        extern int  ahci_enumerate_ports(ahci_hba_t *);
-        extern int  ahci_port_init(ahci_hba_t *, int);
-        extern int  ahci_sim_disk_create(ahci_hba_t *, int, int);
-        if (ahci_hba_init(&g_hba) != 0 || ahci_enumerate_ports(&g_hba) <= 0 ||
-            ahci_port_init(&g_hba, 0) != 0 ||
-            ahci_sim_disk_create(&g_hba, 0, 8) != 0) {
-            klog_printf("run: disk unavailable\n");
-            return 0;
-        }
-        fat32_blk_ops ops = {
-            .read = ahci_blk_read, .write = ahci_blk_write,
-            .ctx = &g_hba, .n_sectors = 8 * 1024 * 1024 / 512
-        };
-        extern int fat32_mount(fat32_volume *, const fat32_blk_ops *);
-        if (fat32_mount(g_vol, &ops) != 0) {
-            klog_printf("run: no FAT32 volume\n");
-            return 0;
-        }
-        g_mounted = 1;
-    }
-
-    fat32_file_info fi;
-    if (fat32_find(g_vol, 0, argv[1], &fi) != 0) {
-        klog_printf("run: '%s' not found\n", argv[1]);
-        return 0;
-    }
-    fat32_file fp;
-    if (fat32_open(g_vol, 0, argv[1], "r", &fp) != 0) {
-        klog_printf("run: cannot open '%s'\n", argv[1]);
-        return 0;
-    }
-    char buf[1024];
-    size_t rd = fat32_read(&fp, buf, sizeof(buf) - 1);
-    if (rd == 0) { klog_printf("run: '%s' empty\n", argv[1]); return 0; }
-    buf[rd] = '\0';
-    /* execute line by line (the exec re-splits) */
-    char *line = buf;
-    int nrun = 0;
-    while (*line) {
-        char *nl = line;
-        while (*nl && *nl != '\n' && *nl != '\r') nl++;
-        char save = *nl;
-        *nl = '\0';
-        if (*line && *line != '#') {
-            char copy[256];
-            strncpy(copy, line, sizeof(copy) - 1);
-            copy[sizeof(copy) - 1] = '\0';
-            wubu_console_exec(copy);
-            nrun++;
-        }
-        if (!save) break;
-        line = nl + 1;
-    }
-    klog_printf("run: %s: %d commands executed\n", argv[1], nrun);
-    return 0;
-}
-
-static int cmd_reboot(void)
-{
-    klog_printf("WuBuOS: reboot requested\n");
-    __asm__ __volatile__("movb $0, %%al\n movw $0xf4, %%dx\n outb %%al, %%dx" ::: "al", "dx");
-    for (;;) { }
-}
-
-/* Split a line into argv (up to 8 tokens), returns argc. */
 static int split_line(char *line, char **argv, int max)
 {
     int argc = 0;

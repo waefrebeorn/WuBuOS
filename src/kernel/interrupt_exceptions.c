@@ -21,7 +21,6 @@ void handle_double_fault(InterruptFrame *frame) {
  * future gap; the evidence is what matters now. */
 void handle_nmi(InterruptFrame *frame) {
     extern int klog_printf(const char *, ...);
-    extern void panic_dump_ring(void);
     klog_printf("WuBuOS NMI: hardware error (rip=%x cs=%x rflags=%x)\n",
                 (unsigned)(frame ? (uint64_t)frame->rip : 0),
                 (unsigned)(frame ? frame->cs : 0),
@@ -33,7 +32,7 @@ void handle_nmi(InterruptFrame *frame) {
 /* Page fault handler (uses IST1) */
 /* Dump the klog panic ring (gap A7) before halting -- the post-mortem
  * evidence: the last 4 KB of kernel output leading to the fault. */
-static void panic_dump_ring(void)
+void panic_dump_ring(void)
 {
     extern int  klog_printf(const char *, ...);
     extern int  klog_ring_snapshot(char *, size_t);
@@ -136,28 +135,3 @@ void handle_gpf(InterruptFrame *frame) {
  * Enhanced IDT Initialization with IST and SYSCALL
  * ------------------------------------------------------------------ */
 
-int interrupt_init_full(void) {
-    if (interrupt_init() != 0) return -1;
-
-#ifdef MYSEED_METAL
-    /* Initialize APIC subsystem */
-    if (apic_init() != 0) return -1;
-
-    /* Initialize SYSCALL/SYSRET fast path */
-    if (syscall_init() != 0) return -1;
-
-    /* Initialize LAPIC timer at 100Hz on vector 0xF0 (240) */
-    if (lapic_timer_init(100, 240) != 0) return -1;
-
-    /* Set up exception handlers with IST */
-    interrupt_set_gate(8,  (uint64_t)handle_double_fault, 0x08, IDT_GATE_INT, IST_EXCEPTION);  /* #DF */
-    interrupt_set_gate(2,  (uint64_t)handle_nmi,            0x08, IDT_GATE_INT, IST_NMI);       /* NMI */
-    interrupt_set_gate(14, (uint64_t)handle_page_fault,     0x08, IDT_GATE_INT, IST_EXCEPTION); /* #PF */
-    interrupt_set_gate(13, (uint64_t)handle_gpf,            0x08, IDT_GATE_INT, IST_EXCEPTION); /* #GP */
-
-    /* Reload IDT with updated gates */
-    lidt(&idt_ptr);
-#endif
-
-    return 0;
-}

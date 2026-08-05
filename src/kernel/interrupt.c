@@ -21,7 +21,7 @@
 struct InterruptFrame;
 
 /* A7: the panic-ring post-mortem dump (defined near the PF handler) */
-static void panic_dump_ring(void);
+void panic_dump_ring(void);
 
 /* Forward declare exception handlers */
 void handle_double_fault(InterruptFrame *frame);
@@ -570,3 +570,30 @@ uint64_t interrupt_get_count(uint8_t irq) {
  *   interrupt_exceptions.c — handle_double_fault, handle_nmi, handle_page_fault, handle_gpf
  *   interrupt_syscall.c    — syscall registration + management table
  */
+
+int interrupt_init_full(void) {
+    if (interrupt_init() != 0) return -1;
+
+#ifdef MYSEED_METAL
+    /* Initialize APIC subsystem */
+    if (apic_init() != 0) return -1;
+
+    /* Initialize SYSCALL/SYSRET fast path */
+    if (syscall_init() != 0) return -1;
+
+    /* Initialize LAPIC timer at 100Hz on vector 0xF0 (240) */
+    if (lapic_timer_init(100, 240) != 0) return -1;
+
+    /* Set up exception handlers with IST */
+    interrupt_set_gate(8,  (uint64_t)handle_double_fault, 0x08, IDT_GATE_INT, IST_EXCEPTION);  /* #DF */
+    interrupt_set_gate(2,  (uint64_t)handle_nmi,            0x08, IDT_GATE_INT, IST_NMI);       /* NMI */
+    interrupt_set_gate(14, (uint64_t)handle_page_fault,     0x08, IDT_GATE_INT, IST_EXCEPTION); /* #PF */
+    interrupt_set_gate(13, (uint64_t)handle_gpf,            0x08, IDT_GATE_INT, IST_EXCEPTION); /* #GP */
+
+    /* Reload IDT with updated gates */
+    lidt(&idt_ptr);
+#endif
+
+    return 0;
+}
+

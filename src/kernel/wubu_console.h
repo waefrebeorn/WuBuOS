@@ -19,4 +19,11 @@ void wubu_console_task(void *arg);
 /* Print the prompt. */
 void wubu_console_prompt(void);
 
+/* Command dispatchers (in wubu_console_colonel.c / wubu_console_recovery.c) */
+int cmd_live(int argc, char **argv);
+int cmd_recovery(int argc, char **argv);
+int cmd_run(int argc, char **argv);
+int cmd_cls(void);
+int cmd_reboot(void);
+
 #endif /* WUBU_CONSOLE_H */
