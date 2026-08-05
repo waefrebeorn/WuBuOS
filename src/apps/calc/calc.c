@@ -13,6 +13,7 @@
 #include "calc_internal.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_wm_internal.h"
+#include "../gui/dosgui_window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
@@ -207,22 +208,24 @@ static void calc_draw_wm(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 }
 
 void calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, CalcState *c) {
-    (void)fb; (void)fb_w; (void)fb_h;
+    (void)fb_w; (void)fb_h;
     if (!win || !c) return;
+
+    /* Centralized window chrome: draw title bar + border, get content rect.
+     * ADR-001: apps draw ONLY within the chrome-provided content rect. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    int cx = content.x;
+    int cy = content.y;
+    int cw = content.w;
+    int ch = content.h;
 
     /* DIAGNOSTIC: capture the real window geometry so a bad-width crash
      * is observable instead of a silent SIGSEGV. */
     fprintf(stderr, "[calc_draw] id=%d title='%s' x=%d y=%d w=%d h=%d "
-                    "c=%p btn_cols=%d btn_rows=%d\n",
+                    "c=%p btn_cols=%d btn_rows=%d content={%d,%d,%d,%d}\n",
             win->id, win->title, win->x, win->y, win->w, win->h,
-            (void*)c, c->btn_cols, c->btn_rows);
-
-    int tbh = title_bar_height();
-    int bw  = border_width();
-    int cx = win->x + bw;
-    int cy = win->y + tbh;
-    int cw = win->w - 2 * bw;
-    int ch = win->h - tbh - bw;
+            (void*)c, c->btn_cols, c->btn_rows,
+            content.x, content.y, content.w, content.h);
 
     /* Guard: if the window geometry is degenerate (e.g. w<2*bw), do not
      * attempt to lay out the button grid — that would divide by a tiny /
