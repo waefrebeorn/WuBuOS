@@ -4,6 +4,7 @@
  * C11, minimal includes.
  */
 #include "wubu_network.h"
+#include "wubu_spawn.h"
 #include "wubu_network_internal.h"
 #include "wubu_netlink.h"
 
@@ -52,17 +53,15 @@ int wubu_ts_status(WubuNetworkManager *mgr, const char *network_id,
 
     /* Attempt to get real tailscale status, fall back to config summary */
     {
-        char ts_cmd[512];
-        snprintf(ts_cmd, sizeof(ts_cmd), "tailscale status --json 2>/dev/null");
-        FILE *fp = popen(ts_cmd, "r");
-        if (fp) {
-            size_t n = fread(status_out, 1, status_size - 1, fp);
-            if (n > 0) {
-                status_out[n] = '\0';
-                pclose(fp);
-                return 0;
-            }
-            pclose(fp);
+        char *ts_argv[] = { "tailscale", "status", "--json", NULL };
+        char *out = wubu_popen_read("tailscale", ts_argv);
+        if (out) {
+            size_t n = strlen(out);
+            if (n > status_size - 1) n = status_size - 1;
+            memcpy(status_out, out, n);
+            status_out[n] = '\0';
+            free(out);
+            return 0;
         }
     }
     /* Fallback: report from stored config */

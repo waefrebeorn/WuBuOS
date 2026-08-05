@@ -11,6 +11,7 @@
  */
 
 #include "wubu_image.h"
+#include "wubu_spawn.h"
 #include "wubu_image_internal.h"
 #include "wubu_container.h"
 #include "wubu_oci.h"
@@ -478,17 +479,19 @@ int wubu_image_import_oci(const char *oci_dir, WubuImageManifest *out_manifest) 
 int wubu_image_load_base_arch(const char *pkg_name, const char *version, WubuStage *stage) {
     if (!pkg_name || !stage) return -1;
     
-    /* Use pacman to get package info */
-    char cmd[WUBU_MAX_PATH + 64];
-    snprintf(cmd, sizeof(cmd), "pacman -Sddp '%s' 2>/dev/null | head -1", pkg_name);
-    FILE *f = popen(cmd, "r");
-    if (!f) return -1;
-    
+    /* Use pacman to get package info (shell-free) */
+    char *pac_argv[] = { "pacman", "-Sddp", (char *)pkg_name, NULL };
+    char *out = wubu_popen_read("pacman", pac_argv);
+    if (!out) return -1;
+
     char line[1024];
-    if (fgets(line, sizeof(line), f)) {
-        /* Parse package URL and download */
+    if (out[0]) {
+        /* take first line */
+        char *nl = strchr(out, '\n');
+        if (nl) *nl = '\0';
+        snprintf(line, sizeof(line), "%s", out);
     }
-    pclose(f);
+    free(out);
     return 0;
 }
 

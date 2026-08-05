@@ -22,4 +22,12 @@
  */
 int wubu_run_program(const char *file, char *const argv[], bool silent);
 
+/*
+ * wubu_popen_read — shell-free popen("r") replacement.
+ * Forks+execs `file argv[]` (NO shell, no injection), captures stdout into a
+ * heap buffer, NUL-terminates it, and returns it. Caller must free() the result.
+ * Returns NULL on fork/exec/read error. Like popen but argv-based and safe.
+ */
+char *wubu_popen_read(const char *file, char *const argv[]);
+
 #endif /* WUBUOS_SPAWN_H */

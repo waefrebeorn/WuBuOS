@@ -6,6 +6,7 @@
  */
 
 #include "wubu_deploy.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -510,10 +511,9 @@ bool wubu_deploy_validate_macos(const wubu_macos_config_t* config) {
 
 bool wubu_deploy_verify_output(const char* output_path, const char* expected_sha256) {
     if (!expected_sha256) return true;
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd), "sha256sum %s | cut -d' ' -f1", output_path);
     char actual[65];
-    if (!run_command_capture(cmd, actual, sizeof(actual))) return false;
+    char *sha_argv[] = { "sha256sum", (char *)output_path, NULL };
+    if (!wubu_deploy_run_capture("sha256sum", sha_argv, actual, sizeof(actual))) return false;
     actual[strcspn(actual, "\n")] = '\0';
     return strcmp(actual, expected_sha256) == 0;
 }

@@ -7,6 +7,7 @@
 #include "wubu_archd.h"
 #include "wubu_arch.h"
 #include "wubu_archd_internal.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,14 +94,14 @@ int wubu_archd_pkg_update(WubuArchd *d, const char *root) {
 int wubu_archd_pkg_list(WubuArchd *d, const char *root, char *out, size_t out_size) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s pacman -Q 2>/dev/null", r.path);
-    FILE *fp = popen(cmd, "r");
-    if (!fp) return -1;
-    size_t total = 0;
-    while (fgets(out + total, out_size - total, fp) && total < out_size - 1)
-        total += strlen(out + total);
-    pclose(fp);
+    char *argv[] = { "arch-chroot", (char *)r.path, "pacman", "-Q", NULL };
+    char *result = wubu_popen_read("arch-chroot", argv);
+    if (!result) return -1;
+    size_t n = strlen(result);
+    if (n > out_size - 1) n = out_size - 1;
+    memcpy(out, result, n);
+    out[n] = '\0';
+    free(result);
     return 0;
 }
 
@@ -111,44 +112,51 @@ int wubu_archd_aur_build(WubuArchd *d, const char *root, const char *pkg_name) {
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
     archd_log(d, 2, "Building AUR package '%s' in root '%s'", pkg_name, root);
     
-    char check_cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(check_cmd, sizeof(check_cmd), "arch-chroot %s which git 2>/dev/null", r.path);
-    FILE *fp = popen(check_cmd, "r");
-    if (!fp || pclose(fp) != 0) {
+    char *check_argv[] = { "arch-chroot", (char *)r.path, "which", "git", NULL };
+    char *check_out = wubu_popen_read("arch-chroot", check_argv);
+    if (!check_out || !check_out[0]) {
         archd_log(d, 0, "git not available in root '%s'", root);
+        free(check_out);
         return -1;
     }
+    free(check_out);
     
-    char build_cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(build_cmd, sizeof(build_cmd),
-             "arch-chroot %s /bin/bash -c 'cd /tmp && git clone https://aur.archlinux.org/%s.git 2>&1 && cd %s && makepkg -s --noconfirm 2>&1'",
-             r.path, pkg_name, pkg_name);
-    return run_cmd(build_cmd);
+    char *aur_argv[] = { "arch-chroot", (char *)r.path, "/bin/bash", "-c",
+                        "cd /tmp && git clone https://aur.archlinux.org/"
+                        "PKGNAME.git 2>&1 && cd PKGNAME && makepkg -s --noconfirm 2>&1", NULL };
+    return wubu_run_program("arch-chroot", aur_argv, false);
 }
 
 int wubu_archd_aur_search(WubuArchd *d, const char *query, char *out, size_t out_size) {
     if (!query || !out) return -1;
     
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    // Simpler approach: use curl to get raw JSON, then just return it
-    snprintf(cmd, sizeof(cmd),
-             "curl -s \"https://aur.archlinux.org/rpc/?v=5&type=search&arg=%s\" 2>/dev/null",
-             query);
-    
-    FILE *fp = popen(cmd, "r");
-    if (!fp) return -1;
+    char *aur_argv[] = { "curl", "-s",
+                        "https://aur.archlinux.org/rpc/?v=5&type=search&arg=QUERY", NULL };
+    char *result = wubu_popen_read("curl", aur_argv);
+    if (!result) return -1;
     
     size_t total = 0;
-    char buf[1024];
-    while (fgets(buf, sizeof(buf), fp) && total < out_size - 1) {
-        size_t len = strlen(buf);
+    char *p = result;
+    while (*p && total < out_size - 1) {
+        char *nl = strchr(p, '\n');
+        size_t len;
+        if (nl) {
+            len = (size_t)(nl - p);
+        } else {
+            len = strlen(p);
+        }
         if (total + len < out_size - 1) {
-            memcpy(out + total, buf, len);
+            memcpy(out + total, p, len);
             total += len;
         }
+        if (nl) {
+            p = nl + 1;
+        } else {
+            break;
+        }
     }
-    pclose(fp);
     out[total] = '\0';
+    free(result);
     return 0;
 }
 
@@ -309,21 +317,16 @@ int wubu_archd_svc_status(WubuArchd *d, const char *root, const char *svc,
     strncpy(out->name, svc, WUBU_ARCHD_MAX_PACKAGE_NAME - 1);
     strncpy(out->root_name, root, WUBU_ARCHD_MAX_ROOT_NAME - 1);
 
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd),
-             "arch-chroot %s systemctl is-active %s 2>/dev/null", r.path, svc);
-    FILE *fp = popen(cmd, "r");
-    if (!fp) { out->state = SERVICE_STATE_FAILED; return -1; }
-    char result[64] = {0};
-    if (fgets(result, sizeof(result), fp)) {
-        if (strncmp(result, "active", 6) == 0)
-            out->state = SERVICE_STATE_RUNNING;
-        else if (strncmp(result, "inactive", 8) == 0)
-            out->state = SERVICE_STATE_DISABLED;
-        else
-            out->state = SERVICE_STATE_FAILED;
-    }
-    pclose(fp);
+    char *svc_argv[] = { "arch-chroot", (char *)r.path, "systemctl", "is-active", (char *)svc, NULL };
+    char *result = wubu_popen_read("arch-chroot", svc_argv);
+    if (!result) { out->state = SERVICE_STATE_FAILED; return -1; }
+    if (strncmp(result, "active", 6) == 0)
+        out->state = SERVICE_STATE_RUNNING;
+    else if (strncmp(result, "inactive", 8) == 0)
+        out->state = SERVICE_STATE_DISABLED;
+    else
+        out->state = SERVICE_STATE_FAILED;
+    free(result);
     return 0;
 }
 
@@ -340,13 +343,11 @@ int wubu_archd_health_check(WubuArchd *d, const char *root) {
     }
 
     /* Check pacman database */
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s pacman -Qq 2>/dev/null | head -1", r.path);
-    FILE *fp = popen(cmd, "r");
-    if (!fp) return -1;
-    char buf[256];
-    int healthy = (fgets(buf, sizeof(buf), fp) != NULL);
-    pclose(fp);
+    char *health_argv[] = { "arch-chroot", (char *)r.path, "pacman", "-Qq", NULL };
+    char *result = wubu_popen_read("arch-chroot", health_argv);
+    if (!result) return -1;
+    int healthy = (result[0] != '\0');
+    free(result);
 
     if (healthy) {
         archd_log(d, 3, "Health check OK for root '%s'", root);

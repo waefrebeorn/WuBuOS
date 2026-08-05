@@ -14,6 +14,7 @@
  * This is exactly what makepkg and arch-chroot do.
  */
 #include "wubu_arch.h"
+#include "wubu_spawn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -418,14 +419,14 @@ WubuArchRoot *wubu_arch_root_info(const char *root_path) {
         info->has_steam = (access(path, X_OK) == 0);
 
         /* Estimate root size (rough) */
-        char cmd[1024];
-        snprintf(cmd, sizeof(cmd),
-                 "du -sm %s 2>/dev/null | cut -f1", root_path);
-        FILE *f = popen(cmd, "r");
-        if (f) {
-            if (fscanf(f, "%lu", (unsigned long*)&info->root_size_mb) < 1)
+        char *du_argv[] = { "du", "-sm", (char *)root_path, NULL };
+        char *out = wubu_popen_read("du", du_argv);
+        if (out) {
+            if (sscanf(out, "%lu", (unsigned long*)&info->root_size_mb) < 1)
                 info->root_size_mb = 0;
-            pclose(f);
+            free(out);
+        } else {
+            info->root_size_mb = 0;
         }
     } else {
         /* Check if directory exists at all */
