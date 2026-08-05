@@ -297,5 +297,7 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
             break;
         }
     }
-    return (int64_t)cpu.a;
+    /* sign-extend the 8-bit accumulator so the battery's negative
+     * expectations (-1 for ~0, etc.) agree with the other drivers */
+    return (int64_t)(int8_t)cpu.a;
 }
