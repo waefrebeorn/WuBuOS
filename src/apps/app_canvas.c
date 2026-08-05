@@ -15,6 +15,7 @@
 
 #include "dosgui_apps.h"
 #include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "wubu_canvas.h"
@@ -220,16 +221,19 @@ static void draw_status(CvState *s, DosGuiWindow *win, int mx, int my) {
 /* -- Draw (on_draw callback) ------------------------------------- */
 
 void app_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb; (void)fb_w; (void)fb_h;
     CvState *s = &g_cv_state;
     if (!s->cv) { app_canvas_init(); }
     if (!s->cv) return;
 
+    /* Centralized chrome draws the window frame, title bar, and buttons.
+     * We receive the content rect and draw only within it. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+
     /* Content rect: right of toolbar/palette gutters, above layers/status. */
-    int left  = win->x + 2 + 6 * (54 + 2) + 6;   /* past toolbar */
-    int right = win->x + win->w - 2 - (8 * 18) - 12; /* before palette */
-    int top   = win->y + 22 + 2 * (18 + 2) + 4;  /* past toolbar rows */
-    int bot   = win->y + win->h - 2 - 120 - 18;  /* above layers + status */
+    int left  = content.x + 6 * (54 + 2) + 6;   /* past toolbar */
+    int right = content.x + content.w - (8 * 18) - 12; /* before palette */
+    int top   = content.y + 2 * (18 + 2) + 4;   /* past toolbar rows */
+    int bot   = content.y + content.h - 120 - 18; /* above layers + status */
     s->content_x = left; s->content_y = top;
     s->content_w = right - left; s->content_h = bot - top;
     if (s->content_w < 64) s->content_w = 64;
