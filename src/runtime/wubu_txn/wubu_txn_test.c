@@ -8,6 +8,7 @@
  *   - commit() keeps the state and drains the buffer
  */
 #include "wubu_txn.h"
+#include "wubu_spawn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,7 +39,13 @@ int main(void) {
     char work[512], snaproot[512];
     snprintf(work, sizeof(work), "/tmp/wubu_txn_work_%d", (int)getpid());
     snprintf(snaproot, sizeof(snaproot), "/tmp/wubu_txn_snap_%d", (int)getpid());
-    system("rm -rf /tmp/wubu_txn_*");
+    char rmw[600], rms[600];
+    snprintf(rmw, sizeof(rmw), "%s", work);
+    snprintf(rms, sizeof(rms), "%s", snaproot);
+    char *aw[] = { "rm", "-rf", rmw, NULL };
+    char *as[] = { "rm", "-rf", rms, NULL };
+    wubu_run_program("rm", aw, true);
+    wubu_run_program("rm", as, true);
     mkdir(work, 0755);
     char before_path[512];
     snprintf(before_path, sizeof(before_path), "%s/state.txt", work);
@@ -80,7 +87,13 @@ int main(void) {
 
     wubu_txn_destroy(t);
     wubu_txn_destroy(t2);
-    system("rm -rf /tmp/wubu_txn_*");
+    char rmw2[600], rms2[600];
+    snprintf(rmw2, sizeof(rmw2), "/tmp/wubu_txn_work_%d", (int)getpid());
+    snprintf(rms2, sizeof(rms2), "/tmp/wubu_txn_snap_%d", (int)getpid());
+    char *aw2[] = { "rm", "-rf", rmw2, NULL };
+    char *as2[] = { "rm", "-rf", rms2, NULL };
+    wubu_run_program("rm", aw2, true);
+    wubu_run_program("rm", as2, true);
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_pass + g_fail);
     return g_fail > 0 ? 1 : 0;

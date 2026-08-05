@@ -6,6 +6,7 @@
 #include "wubu_editor.h"
 #include "wubu_canvas.h"
 #include "wubu_codec.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -286,7 +287,9 @@ static void test_cv_load_gif(void) {
         "im.save('/tmp/wubu-cv-rt.gif')\n";
     FILE *sf = fopen("/tmp/wubu-gif-gen.py", "w");
     fputs(py, sf); fclose(sf);
-    int pr = system("python3 /tmp/wubu-gif-gen.py");
+    int pr = wubu_run_program("python3",
+                              (char *const[]){ "python3", "/tmp/wubu-gif-gen.py", NULL },
+                              true);
     if (pr != 0) {
         /* Environment without PIL — degrade gracefully, still assert decode path */
         fprintf(stderr, "(PIL unavailable, skip GIF ground-truth) ");

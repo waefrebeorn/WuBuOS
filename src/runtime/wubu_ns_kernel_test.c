@@ -6,6 +6,7 @@
  */
 
 #include "wubu_ns_bridge.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,8 +78,8 @@ int main(void) {
 
     test_kernel_namespace();
 
-    char cmd[9000]; snprintf(cmd, sizeof(cmd), "rm -rf %s", g_tmp);
-    system(cmd);
+    char *argv[] = { "rm", "-rf", g_tmp, NULL };
+    wubu_run_program("rm", argv, true);
 
     printf("\n==================================================\n");
     printf("  Results: %d passed, %d failed\n", g_pass, g_fail);

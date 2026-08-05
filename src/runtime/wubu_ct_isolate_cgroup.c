@@ -13,6 +13,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 static int cgroup_write_file(const char *cgroup_path, const char *file, const char *value) {
     char path[WUBU_CGROUP_MAX_PATH];

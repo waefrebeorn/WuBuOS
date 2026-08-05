@@ -15,6 +15,7 @@
 
 #include "wubu_ns_bridge.h"
 #include "wubu_snapshot.h"
+#include "wubu_spawn.h"
 #include "styxfs.h"
 #include "styx.h"
 #include <stdio.h>
@@ -155,8 +156,8 @@ static void test_ns_over_9p(void) {
     cli_clunk(1);
     styxfs_unmount(g_srv, "/");
     wubu_snapshot_manager_shutdown(mgr); free(mgr);
-    char cmd[9000]; snprintf(cmd, sizeof(cmd), "rm -rf %s %s", root, store);
-    system(cmd);
+    char *argv[] = { "rm", "-rf", (char *)root, (char *)store, NULL };
+    wubu_run_program("rm", argv, true);
 }
 
 int main(void) {
