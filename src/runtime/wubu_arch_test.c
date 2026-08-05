@@ -12,6 +12,7 @@
  *   - FreeDoom init/config/destroy
  */
 #include "wubu_arch.h"
+#include "wubu_spawn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,11 +51,14 @@ static void test_arch_root_valid_faked(void) {
     TEST("arch_root_valid returns true for faked Arch root");
     const char *path = "/tmp/wubu-test-fake-arch-390";
     
-    /* Pre-create entire tree with mkdir -p equivalent */
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd),
-             "rm -rf %s && mkdir -p %s/usr/bin %s/etc", path, path, path);
-    (void)system(cmd);
+    /* Pre-create entire tree with mkdir -p equivalent (fork+exec, no shell) */
+    char bin_dir[600], etc_dir[600];
+    snprintf(bin_dir, sizeof(bin_dir), "%s/usr/bin", path);
+    snprintf(etc_dir, sizeof(etc_dir), "%s/etc", path);
+    char *rm_argv[] = { "rm", "-rf", (char *)path, NULL };
+    wubu_run_program("rm", rm_argv, true);
+    char *mkdir_argv[] = { "mkdir", "-p", (char *)path, bin_dir, etc_dir, NULL };
+    wubu_run_program("mkdir", mkdir_argv, true);
     
     char sub[512];
     /* Create /usr/bin/pacman */
@@ -70,8 +74,8 @@ static void test_arch_root_valid_faked(void) {
     bool valid = wubu_arch_root_valid(path);
 
     /* Cleanup */
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", path);
-    (void)system(cmd);
+    char *argv_c[] = { "rm", "-rf", (char *)path, NULL };
+    wubu_run_program("rm", argv_c, true);
 
     CHECK(valid, "should be true for faked Arch root");
     PASS();

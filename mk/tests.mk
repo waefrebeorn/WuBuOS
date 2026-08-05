@@ -615,7 +615,7 @@ test_host_exec:
 test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
+	$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_spawn.c $(RT)/wubu_arch_test.c \
 		-o $(RT)/wubu_arch_test
 	$(RT)/wubu_arch_test
 
@@ -909,10 +909,18 @@ test_audio:
 
 test_deploy:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
-		-I$(GUI) -I$(KERNEL) \
-		$(GUI)/wubu_deploy.c $(GUI)/wubu_deploy_util.c $(GUI)/wubu_deploy_gen.c $(GUI)/wubu_deploy_config.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_theme.c \
+		-I$(GUI) -I$(KERNEL) -I$(RT) \
+		$(GUI)/wubu_deploy.c $(GUI)/wubu_deploy_util.c $(GUI)/wubu_deploy_gen.c $(GUI)/wubu_deploy_config.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_theme.c \
+		$(RT)/wubu_spawn.c \
 		$(GUI)/wubu_deploy_test.c \
 		-o $(GUI)/wubu_deploy_test
+
+test_txn:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
+		$(RT)/wubu_txn/wubu_txn.c $(RT)/wubu_spawn.c \
+		$(RT)/wubu_txn/wubu_txn_test.c \
+		-o $(RT)/wubu_txn_test
+	$(RT)/wubu_txn_test
 
 test_bear_opt:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
@@ -968,7 +976,7 @@ test_ns_bridge:
 		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
-		$(RT)/wubu_ns_bridge_test.c \
+		$(RT)/wubu_spawn.c $(RT)/wubu_ns_bridge_test.c \
 		-o $(RT)/wubu_ns_bridge_test
 	$(RT)/wubu_ns_bridge_test
 
@@ -978,6 +986,7 @@ test_ns_snap:
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
 		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
 		$(RT)/wubu_fs_util.o \
+		$(RT)/wubu_spawn.c \
 		/tmp/wubu_ns_snap_test.o \
 		-o $(RT)/wubu_ns_snap_test
 	$(RT)/wubu_ns_snap_test
@@ -987,6 +996,7 @@ test_ns_pkg:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_pkg_test.c -o /tmp/wubu_ns_pkg_test.o
 	$(CC) -O0 -no-pie \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_pkg.o $(RT)/wubu_pkg.o \
+		$(RT)/wubu_spawn.c \
 		/tmp/wubu_ns_pkg_test.o \
 		-o $(RT)/wubu_ns_pkg_test
 	$(RT)/wubu_ns_pkg_test
@@ -998,6 +1008,7 @@ test_ns_kernel:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_fs.c -o $(RT)/wubu_ns_fs.o
 	$(CC) -O0 -no-pie \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_kernel.o \
+		$(RT)/wubu_spawn.c \
 		/tmp/wubu_ns_kernel_test.o \
 		-o $(RT)/wubu_ns_kernel_test
 	$(RT)/wubu_ns_kernel_test
@@ -1012,6 +1023,7 @@ test_ns_9p:
 		$(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o \
 		$(RT)/styxfs_server.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
 		$(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/wubu_container.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o \
+		$(RT)/wubu_spawn.c \
 		/tmp/wubu_ns_9p_test.o \
 		-ljson-c -o $(RT)/wubu_ns_9p_test
 	$(RT)/wubu_ns_9p_test

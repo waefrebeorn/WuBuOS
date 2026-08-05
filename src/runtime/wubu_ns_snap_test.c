@@ -10,6 +10,7 @@
 
 #include "wubu_ns_bridge.h"
 #include "wubu_snapshot.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -93,8 +94,8 @@ static void test_snapshot_namespace(void) {
     CHECK(lw2 == 0, "snap_list_str empty after delete");
 
     wubu_snapshot_manager_shutdown(mgr);
-    char cmd[9000]; snprintf(cmd, sizeof(cmd), "rm -rf %s", store);
-    system(cmd);
+    char *argv1[] = { "rm", "-rf", (char *)store, NULL };
+    wubu_run_program("rm", argv1, true);
     free(mgr);
 }
 
@@ -106,8 +107,8 @@ int main(void) {
 
     test_snapshot_namespace();
 
-    char cmd[9000]; snprintf(cmd, sizeof(cmd), "rm -rf %s", g_tmp);
-    system(cmd);
+    char *argv2[] = { "rm", "-rf", g_tmp, NULL };
+    wubu_run_program("rm", argv2, true);
 
     printf("\n==================================================\n");
     printf("  Results: %d passed, %d failed\n", g_pass, g_fail);

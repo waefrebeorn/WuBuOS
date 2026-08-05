@@ -7,6 +7,7 @@
  * faithful to GrahaOS; the backing store is host-portable and does real work.
  */
 #include "wubu_txn_internal.h"
+#include "wubu_spawn.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -23,23 +24,51 @@ static pthread_mutex_t g_caller_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* ---- Checkpoint: real recursive directory copy (honest, no stub) ---- */
 int wubu_txn_checkpoint_create(const char *src_dir, const char *dst_dir) {
-    char cmd[3 * WUBU_MAX_PATH + 64];
-    snprintf(cmd, sizeof(cmd), "rm -rf '%s' && mkdir -p '%s' && cp -a '%s'/. '%s'",
-             dst_dir, dst_dir, src_dir, dst_dir);
-    return system(cmd) == 0 ? 0 : -1;
+    char rm_arg[WUBU_MAX_PATH + 32];
+    snprintf(rm_arg, sizeof(rm_arg), "%s", dst_dir);
+    char *a1[] = { "rm", "-rf", rm_arg, NULL };
+    if (wubu_run_program("rm", a1, true) != 0) return -1;
+    char mk_arg[WUBU_MAX_PATH + 32];
+    snprintf(mk_arg, sizeof(mk_arg), "%s", dst_dir);
+    char *a2[] = { "mkdir", "-p", mk_arg, NULL };
+    if (wubu_run_program("mkdir", a2, true) != 0) return -1;
+    char src_slash[WUBU_MAX_PATH + 64];
+    snprintf(src_slash, sizeof(src_slash), "%s/.", src_dir);
+    char *a3[] = { "cp", "-a", src_slash, ".", NULL };
+    /* cp -a SRC/. . : run from DST dir to copy SRC's contents into DST */
+    char cwd[WUBU_MAX_PATH + 32];
+    if (!getcwd(cwd, sizeof(cwd))) return -1;
+    if (chdir(dst_dir) != 0) return -1;
+    int rc = wubu_run_program("cp", a3, true);
+    chdir(cwd);
+    return rc == 0 ? 0 : -1;
 }
 
 int wubu_txn_checkpoint_restore(const char *snapshot_dir, const char *live_dir) {
-    char cmd[3 * WUBU_MAX_PATH + 64];
-    snprintf(cmd, sizeof(cmd), "rm -rf '%s' && mkdir -p '%s' && cp -a '%s'/. '%s'",
-             live_dir, live_dir, snapshot_dir, live_dir);
-    return system(cmd) == 0 ? 0 : -1;
+    char rm_arg[WUBU_MAX_PATH + 32];
+    snprintf(rm_arg, sizeof(rm_arg), "%s", live_dir);
+    char *a1[] = { "rm", "-rf", rm_arg, NULL };
+    if (wubu_run_program("rm", a1, true) != 0) return -1;
+    char mk_arg[WUBU_MAX_PATH + 32];
+    snprintf(mk_arg, sizeof(mk_arg), "%s", live_dir);
+    char *a2[] = { "mkdir", "-p", mk_arg, NULL };
+    if (wubu_run_program("mkdir", a2, true) != 0) return -1;
+    char snap_slash[WUBU_MAX_PATH + 64];
+    snprintf(snap_slash, sizeof(snap_slash), "%s/.", snapshot_dir);
+    char *a3[] = { "cp", "-a", snap_slash, ".", NULL };
+    char cwd[WUBU_MAX_PATH + 32];
+    if (!getcwd(cwd, sizeof(cwd))) return -1;
+    if (chdir(live_dir) != 0) return -1;
+    int rc = wubu_run_program("cp", a3, true);
+    chdir(cwd);
+    return rc == 0 ? 0 : -1;
 }
 
 int wubu_txn_checkpoint_delete(const char *dir) {
-    char cmd[WUBU_MAX_PATH + 32];
-    snprintf(cmd, sizeof(cmd), "rm -rf '%s'", dir);
-    return system(cmd) == 0 ? 0 : -1;
+    char arg[WUBU_MAX_PATH + 32];
+    snprintf(arg, sizeof(arg), "%s", dir);
+    char *a[] = { "rm", "-rf", arg, NULL };
+    return wubu_run_program("rm", a, true) == 0 ? 0 : -1;
 }
 
 /* ---- Scope oracle ---- */

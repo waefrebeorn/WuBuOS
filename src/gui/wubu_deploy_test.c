@@ -3,6 +3,7 @@
  */
 
 #include "wubu_deploy.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -297,9 +298,10 @@ bool test_rootfs_creation(void) {
     const char* test_binary = "/home/wubu/.hermes/profiles/mind-palace/home/myseed/src/hosted/wubu";
     
     /* Remove any existing */
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", test_rootfs);
-    system(cmd);
+    char rm_arg[600];
+    snprintf(rm_arg, sizeof(rm_arg), "%s", test_rootfs);
+    char *argv[] = { "rm", "-rf", rm_arg, NULL };
+    wubu_run_program("rm", argv, true);
     
     /* Create - but we need the binary to exist */
     if (access(test_binary, F_OK) != 0) {
@@ -349,8 +351,10 @@ bool test_rootfs_creation(void) {
     TEST_ASSERT(st.st_mode & S_IXUSR, "init executable");
     
     /* Cleanup */
-    snprintf(cmd, sizeof(cmd), "rm -rf %s", test_rootfs);
-    system(cmd);
+    char rm_arg2[600];
+    snprintf(rm_arg2, sizeof(rm_arg2), "%s", test_rootfs);
+    char *argv2[] = { "rm", "-rf", rm_arg2, NULL };
+    wubu_run_program("rm", argv2, true);
     
     return true;
 }
