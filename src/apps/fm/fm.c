@@ -4,8 +4,10 @@
 
 #include "fm.h"
 #include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -31,7 +33,40 @@ void fm_destroy(FileManagerState *fm) {
 }
 
 void fm_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, FileManagerState *fm) {
-    (void)win; (void)fb; (void)fb_w; (void)fb_h; (void)fm;
+    if (!win || !fm) return;
+    /* Centralized chrome draws frame + title bar + buttons; we draw only within
+     * the content rect returned by the chrome module. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
+
+    /* Content background (theme-driven). */
+    const WubuThemeColors *tc = wubu_theme_colors();
+    vbe_fill_rect(cx, cy, cw, ch, tc->win_face);
+
+    /* Header row with current path. */
+    int row_h = 16;
+    vbe_fill_rect(cx, cy, cw, row_h, tc->win_title_active);
+    vbe_draw_text(cx + 4, cy + 3, fm->current_path, tc->win_title_text, 1);
+
+    /* Entry list. */
+    int list_y = cy + row_h + 2;
+    int max_items = (ch - row_h - 20) / row_h;
+    if (max_items < 1) max_items = 1;
+    for (int i = 0; i < max_items; i++) {
+        int li = fm->scroll_offset + i;
+        if (li >= fm->entry_count) break;
+        FMEntry *e = &fm->entries[li];
+        int y = list_y + i * row_h;
+        /* Selection highlight. */
+        if (li == fm->selected_idx)
+            vbe_fill_rect(cx, y, cw, row_h, tc->select_bg);
+        /* Icon + name. */
+        char label[260];
+        snprintf(label, sizeof(label), "%s  %s",
+                 e->is_dir ? "\xf0\x9f\x93\x81" : "\xf0\x9f\x93\x84", e->name);
+        vbe_draw_text(cx + 4, y + 3, label,
+                      li == fm->selected_idx ? tc->select_text : tc->btn_text, 1);
+    }
 }
 
 DosGuiWindow* fm_launch(void) {
