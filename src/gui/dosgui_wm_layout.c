@@ -10,7 +10,9 @@
 
 int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; }
 int taskbar_height_dynamic(void) { return theme()->Luna_start_button ? 30 : DOSGUI_TASK_H; }
-int border_width(void) { return theme()->rounded_buttons ? 3 : DOSGUI_BORDER; }
+/* Must match chrome_border_width() in dosgui_window_chrome.c (2:1) —
+ * a mismatch shifts every app's content rect and WM hit-testing by 1px. */
+int border_width(void) { return theme()->rounded_buttons ? 2 : 1; }
 int theme_radius(void) { return theme()->rounded_buttons ? 4 : 0; }
 
 /* ================================================================

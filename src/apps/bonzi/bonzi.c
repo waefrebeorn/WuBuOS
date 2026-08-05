@@ -13,7 +13,7 @@
  */
 #include "bonzi.h"
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
+#include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"
@@ -179,9 +179,12 @@ static void bonzi_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     BonziState *b = win ? (BonziState*)win->user_data : NULL;
     if (!b) return;
 
-    int cx = win->x, cy = win->y, cw = win->w, ch = win->h;
-    int body_y = cy + DOSGUI_TITLE_H + 2;
-    int body_h = ch - DOSGUI_TITLE_H - 2;
+    /* Centralized chrome draws the frame/title bar; we draw content
+     * within the content rect. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
+    int body_y = cy + 2;
+    int body_h = ch - 2;
 
     /* Chat panel background */
     vbe_fill_rect(cx + 2, body_y + 2, cw - 4, body_h - 90, 0x00F0F0F0);
