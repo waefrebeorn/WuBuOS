@@ -16,6 +16,7 @@
 #include "comfy.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_wm_internal.h"
+#include "../gui/dosgui_window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"
@@ -270,12 +271,16 @@ static void comfy_draw_node(ComfyState *c, ComfyNode *n, int focused) {
 }
 
 static void comfy_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    (void)fb; (void)fb_w; (void)fb_h;
+    (void)fb_w; (void)fb_h;
     ComfyState *c = win ? (ComfyState*)win->user_data : NULL;
     if (!c) return;
-    int cx = win->x, cy = win->y, cw = win->w, ch = win->h;
-    int body_y = cy + DOSGUI_TITLE_H + 2;
-    int body_h = ch - DOSGUI_TITLE_H - 2;
+
+    /* Centralized window chrome: draw title bar + border, get content rect.
+     * ADR-001: apps draw ONLY within the chrome-provided content rect. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
+    int body_y = cy + 2;
+    int body_h = ch - 2;  /* ch already excludes chrome (ADR-001) */
 
     /* canvas */
     vbe_fill_rect(cx + 2, body_y + 2, cw - 4, body_h - 70, 0x00F5F5F5);
