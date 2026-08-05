@@ -80,8 +80,8 @@ src/
 
 | Metric | Value |
 |---|---|
-| C source files | 613 (`git ls-files 'src/**/*.c'`) |
-| Test targets | 138 |
+| C source files | 632 (`git ls-files 'src/**/*.c'`) |
+| Test targets | 119 |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 |
 | E1 ReactOS NT | 88/297 syscalls transliterated (209 remain) |
