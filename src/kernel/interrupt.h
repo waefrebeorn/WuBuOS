@@ -180,6 +180,16 @@ void syscall_set_name(uint32_t num, const char *name);
 uint64_t syscall_call_count(uint32_t num);
 const char *syscall_name(uint32_t num);
 int64_t syscall_handler(InterruptFrame *frame, uint64_t num);
-#endif
 
-#endif /* MYSEED_INTERRUPT_H */
+/* Exception handlers (defined in interrupt_exceptions.c) */
+void handle_double_fault(InterruptFrame *frame);
+void handle_nmi(InterruptFrame *frame);
+void handle_page_fault(InterruptFrame *frame);
+void handle_gpf(InterruptFrame *frame);
+
+/* Panic dump (defined in interrupt_exceptions.c) */
+void panic_dump_ring(void);
+
+#endif /* MYSEED_METAL */
+
+#endif /* INTERRUPT_H */
