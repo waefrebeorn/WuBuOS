@@ -1,20 +1,21 @@
 /*
- * mir_driver_test.c -- the DRIVER SPACE battery (x86-64 + RISC-V + m68k).
+ * mir_driver_test.c -- the DRIVER SPACE battery.
  *
  * The same MIR program is compiled by EVERY ISA driver and executed:
  *   - x86-64: mmap+JIT (native)
+ *   - 8086:   16-bit real-mode, runs via the repo's in-process DOS emulator
+ *   - m68k:   Motorola 68000 encoder + interpreter
+ *   - 6502:   MOS 6502 encoder + interpreter (the 8-bit proof)
  *   - riscv:  RV64I encoder + interpreter
- *   - m68k:   Motorola 68000 encoder + interpreter (the "run on a
- *             68,000" proof)
  * The results must ALL agree with the gcc-verified expected value.
  * Any divergence is a FINDING (the bug-bank doctrine applied to the
  * whole driver space).
  *
- * Usage:  mir_driver_test   (runs the full battery on all 3 drivers)
+ * Usage:  mir_driver_test   (runs the full battery on all drivers)
  *         mir_driver_test <expr> <expected>  (one expression)
  *
- * C11, self-contained. Links holyc (for the AST), wubu_mir, and the
- * three drivers + interpreters.
+ * C11, self-contained. Links holyc (for the AST), wubu_mir, and all
+ * drivers + interpreters.
  */
 #include "holyc.h"
 #include "wubu_mir.h"
@@ -26,12 +27,12 @@
 
 static int failures = 0;
 static int total = 0;
+static int driver_count = 0;
 
 static int run_one(const char *expr, int64_t expected)
 {
     total++;
 
-    /* parse HolyC -> AST */
     HCLexer lex;
     hc_lex_init(&lex, expr);
     if (lex.has_error) { printf("  FAIL parse: %s\n", expr); failures++; return 1; }
@@ -51,16 +52,16 @@ static int run_one(const char *expr, int64_t expected)
     wubu_mir_ret(&prog, result);
 
     /* every driver: compile + run */
-    const char *names[] = { "x86-64", "8086", "m68k" };
+    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv" };
     int nd = 0;
-    const wubu_isa_driver_t *drv[3] = {0};
-    int64_t results[3] = {0};
+    const wubu_isa_driver_t *drv[5] = {0};
+    int64_t results[5] = {0};
     int ok = 1;
     char detail[512] = {0};
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 5; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
-        if (!d) continue;              /* driver not built — skip */
+        if (!d) continue;
         uint8_t *code = NULL;
         size_t csize = 0;
         if (d->compile(&prog, &code, &csize) != 0 || !code) {
@@ -80,8 +81,10 @@ static int run_one(const char *expr, int64_t expected)
         nd++;
     }
 
+    if (driver_count < nd) driver_count = nd;
+
     if (!ok) {
-        printf("  ⚠ FINDING: %s (expected %lld)  [%s]\n",
+        printf("  \u26a0 FINDING: %s (expected %lld)  [%s]\n",
                expr, (long long)expected, detail);
         failures++;
     } else {
@@ -100,13 +103,18 @@ static int run_one(const char *expr, int64_t expected)
 
 int main(int argc, char **argv)
 {
-    printf("=== mir_driver_test: the driver space (x86-64 + riscv + m68k) ===\n");
+    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv" };
+    int ndrv = 0;
+    for (int i = 0; i < 5; i++) {
+        if (wubu_isa_find(names[i])) ndrv++;
+    }
+
+    printf("=== mir_driver_test: the driver space (%d drivers) ===\n", ndrv);
 
     if (argc == 3) {
         return run_one(argv[1], strtoll(argv[2], NULL, 10)) ? 1 : 0;
     }
 
-    /* the full battery (same expressions as the gcc differential) */
     struct { const char *e; int64_t v; } B[] = {
         { "1+2", 3 }, { "7*6", 42 }, { "(1<<4)|3", 19 }, { "100/7", 14 },
         { "-5+10", 5 }, { "3>2 ? 1 : 0", 1 }, { "1<<2+1", 8 },
@@ -124,6 +132,6 @@ int main(int argc, char **argv)
 
     printf("\n=== %s (%d drivers, %d/%d expressions) ===\n",
            failures == 0 ? "DRIVER SPACE PASSED" : "DRIVER SPACE FAILED",
-           3, total - failures, total);
+           driver_count, total - failures, total);
     return failures == 0 ? 0 : 1;
 }

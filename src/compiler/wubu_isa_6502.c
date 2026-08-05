@@ -86,6 +86,8 @@ static uint8_t zp_slot(wubu_vr_t vr) { return (uint8_t)(vr + 1); }
 #define BNE     0xD0
 #define BMI     0x30
 #define BPL     0x10
+#define BCC     0x90
+#define BCS     0xB0
 
 /* ---- patch system ---- */
 typedef struct {
@@ -271,27 +273,39 @@ static int cpu6502_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_
             case MIR_EQ: cc = BEQ; break;
             case MIR_NE: cc = BNE; break;
             case MIR_LT: cc = BMI; break;
-            case MIR_GT: cc = BPL; break;
-            case MIR_LE: cc = BPL; break;   /* a <= b: BMI covers a < b */
+            case MIR_GT: cc = BPL; break;   /* a > b (8-bit signed: N=0) */
+            case MIR_LE: cc = BPL; break;   /* a <= b: branch when NOT (a>b)... handled below */
             case MIR_GE: cc = BPL; break;   /* a >= b */
             default: cc = BEQ; break;
             }
 
-            /* Bcc -> true; else fall through to false */
-            size_t cc_pos = e.n + 1;
-            e8(&e, cc); e8(&e, 0x00);
+            /* Pattern (single forward branch, NO label patch needed):
+             *   Bcc set1      ; condition true -> set 1
+             *   LDA #0        ; false
+             *   STA dst
+             *   JMP done      ; absolute target patched DIRECTLY (known at emit)
+             * set1:
+             *   LDA #1
+             *   STA dst
+             * done:
+             */
+            size_t cc_pos = e.n + 1;      /* displacement byte of the Bcc */
+            e8(&e, cc); e8(&e, 0x00);     /* placeholder displacement */
 
-            /* false: LDA #0; STA dst */
+            /* false path */
             lda_imm8(&e, 0);
             sta_zp8(&e, zp_slot(in->dst));
 
-            /* JMP done (forward) */
-            size_t jmp_d = e.n;
-            e8(&e, JMP_ABS); e16(&e, 0x0000);
-            if (np == cp) { cp = cp ? cp*2 : 16; patches = realloc(patches, cp * sizeof(cpu6502_patch_t)); }
-            patches[np].pos = jmp_d + 1; patches[np].patch_size = 2; patches[np].label = 0; np++;  /* label 0 = the test's end label... hmm */
+            /* JMP done — the target (done) is e.n + (3 + 4) after this
+             * instruction starts: JMP_ABS is 3 bytes, true path is
+             * LDA #1 (2) + STA dst (2) = 4 bytes. Patch it directly. */
+            size_t jmp_pos = e.n;         /* JMP_ABS opcode position */
+            e8(&e, JMP_ABS);
+            size_t done_pos = e.n + 3 + 4;
+            e8(&e, (uint8_t)(done_pos & 0xFF));
+            e8(&e, (uint8_t)((done_pos >> 8) & 0xFF));
 
-            /* true: LDA #1; STA dst */
+            /* true path */
             size_t true_pos = e.n;
             lda_imm8(&e, 1);
             sta_zp8(&e, zp_slot(in->dst));
@@ -301,6 +315,7 @@ static int cpu6502_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_
             if (rel < -128) rel = -128;
             if (rel > 127) rel = 127;
             e.code[cc_pos] = (uint8_t)(rel & 0xFF);
+            (void)jmp_pos;
             break;
         }
 
@@ -327,23 +342,45 @@ static int cpu6502_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_
         }
 
         case MIR_DIV: {
-            /* dividend = zp0 = a; quotient = 0 */
-            lda_zp8(&e, zp_slot(in->a));
-            sta_zp8(&e, 0x00);
-            lda_imm8(&e, 0);
-            sta_zp8(&e, zp_slot(in->dst));
+            /* Signed 8-bit division: dst = a / b (C99 truncation).
+             * scratch0 = |a| running dividend
+             * scratch1 (0xFB) = a sign byte, scratch2 (0xFA) = b sign byte
+             * loop: while (scratch0 >= |b|) { scratch0 -= |b|; dst++ }
+             * sign of result = a_sign XOR b_sign
+             */
+            /* save sign bytes */
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->a)); e8(&e, STA_ZP); e8(&e, 0xFB);
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->b)); e8(&e, STA_ZP); e8(&e, 0xFA);
+            /* |a| -> scratch0 */
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->a));
+            size_t div_a_pos = e.n + 1;
+            e8(&e, BPL); e8(&e, 0x00);
+            e8(&e, SEC);
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, SBC_ZP); e8(&e, zp_slot(in->a));
+            { int32_t rel = (int32_t)(e.n - (div_a_pos + 1)); e.code[div_a_pos] = (uint8_t)(rel & 0xFF); }
+            e8(&e, STA_ZP); e8(&e, 0x00);
+            /* |b| -> b slot (mutating source operand is fine) */
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->b));
+            size_t div_b_pos = e.n + 1;
+            e8(&e, BPL); e8(&e, 0x00);
+            e8(&e, SEC);
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, SBC_ZP); e8(&e, zp_slot(in->b));
+            { int32_t rel = (int32_t)(e.n - (div_b_pos + 1)); e.code[div_b_pos] = (uint8_t)(rel & 0xFF); }
+            e8(&e, STA_ZP); e8(&e, zp_slot(in->b));
+            /* quotient = 0 */
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, STA_ZP); e8(&e, zp_slot(in->dst));
 
             size_t dl = e.n;
-            e8(&e, SEC);
-            e8(&e, LDA_ZP); e8(&e, 0x00);
-            e8(&e, CMP_ZP); e8(&e, zp_slot(in->b));
-            size_t dl_bmi = e.n + 1;
-            e8(&e, BMI); e8(&e, 0x00);
-            /* zp0 -= b */
+            /* while (scratch0 >= |b|) */
             e8(&e, SEC);
             e8(&e, LDA_ZP); e8(&e, 0x00);
             e8(&e, SBC_ZP); e8(&e, zp_slot(in->b));
-            e8(&e, STA_ZP); e8(&e, 0x00);
+            size_t dl_bcc = e.n + 1;
+            e8(&e, BCC); e8(&e, 0x00);   /* borrow -> done */
+            e8(&e, STA_ZP); e8(&e, 0x00); /* scratch0 -= |b| */
             /* dst++ */
             e8(&e, LDA_ZP); e8(&e, zp_slot(in->dst));
             e8(&e, CLC);
@@ -352,29 +389,67 @@ static int cpu6502_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_
             /* loop back */
             e8(&e, JMP_ABS);
             e16(&e, (uint16_t)dl);
-            { int32_t rel = (int32_t)(e.n - (dl_bmi + 1)); e.code[dl_bmi] = (uint8_t)(rel & 0xFF); }
+            { int32_t rel = (int32_t)(e.n - (dl_bcc + 1)); e.code[dl_bcc] = (uint8_t)(rel & 0xFF); }
+            /* sign: if a_sign XOR b_sign negative -> dst = -dst */
+            e8(&e, LDA_ZP); e8(&e, 0xFB);
+            e8(&e, EOR_ZP); e8(&e, 0xFA);
+            size_t div_s_pos = e.n + 1;
+            e8(&e, BPL); e8(&e, 0x00);
+            e8(&e, SEC);
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, SBC_ZP); e8(&e, zp_slot(in->dst));
+            e8(&e, STA_ZP); e8(&e, zp_slot(in->dst));
+            { int32_t rel = (int32_t)(e.n - (div_s_pos + 1)); e.code[div_s_pos] = (uint8_t)(rel & 0xFF); }
             break;
         }
 
         case MIR_MOD: {
-            lda_zp8(&e, zp_slot(in->a));
-            sta_zp8(&e, 0x00);
-            lda_imm8(&e, 0);
-            sta_zp8(&e, zp_slot(in->dst));
+            /* Signed 8-bit remainder: dst = a % b (C99: sign of dividend).
+             * scratch0 = |a| running dividend
+             * scratch1 (0xFB) = a sign byte, scratch2 (0xFA) = b sign byte
+             * loop: while (scratch0 >= |b|) { scratch0 -= |b| }
+             * if a negative -> result = -scratch0
+             */
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->a)); e8(&e, STA_ZP); e8(&e, 0xFB);
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->b)); e8(&e, STA_ZP); e8(&e, 0xFA);
+            /* |a| -> scratch0 */
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->a));
+            size_t mod_a_pos = e.n + 1;
+            e8(&e, BPL); e8(&e, 0x00);
+            e8(&e, SEC);
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, SBC_ZP); e8(&e, zp_slot(in->a));
+            { int32_t rel = (int32_t)(e.n - (mod_a_pos + 1)); e.code[mod_a_pos] = (uint8_t)(rel & 0xFF); }
+            e8(&e, STA_ZP); e8(&e, 0x00);
+            /* |b| -> b slot */
+            e8(&e, LDA_ZP); e8(&e, zp_slot(in->b));
+            size_t mod_b_pos = e.n + 1;
+            e8(&e, BPL); e8(&e, 0x00);
+            e8(&e, SEC);
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, SBC_ZP); e8(&e, zp_slot(in->b));
+            { int32_t rel = (int32_t)(e.n - (mod_b_pos + 1)); e.code[mod_b_pos] = (uint8_t)(rel & 0xFF); }
+            e8(&e, STA_ZP); e8(&e, zp_slot(in->b));
 
             size_t ml = e.n;
             e8(&e, SEC);
             e8(&e, LDA_ZP); e8(&e, 0x00);
-            e8(&e, CMP_ZP); e8(&e, zp_slot(in->b));
-            size_t ml_bmi = e.n + 1;
-            e8(&e, BMI); e8(&e, 0x00);
-            e8(&e, SEC);
-            e8(&e, LDA_ZP); e8(&e, 0x00);
             e8(&e, SBC_ZP); e8(&e, zp_slot(in->b));
+            size_t ml_bcc = e.n + 1;
+            e8(&e, BCC); e8(&e, 0x00);
             e8(&e, STA_ZP); e8(&e, 0x00);
             e8(&e, JMP_ABS);
             e16(&e, (uint16_t)ml);
-            { int32_t rel = (int32_t)(e.n - (ml_bmi + 1)); e.code[ml_bmi] = (uint8_t)(rel & 0xFF); }
+            { int32_t rel = (int32_t)(e.n - (ml_bcc + 1)); e.code[ml_bcc] = (uint8_t)(rel & 0xFF); }
+            /* if a_sign negative -> result = -scratch0 */
+            e8(&e, LDA_ZP); e8(&e, 0xFB);
+            size_t mod_s_pos = e.n + 1;
+            e8(&e, BPL); e8(&e, 0x00);
+            e8(&e, SEC);
+            e8(&e, LDA_IMM); e8(&e, 0x00);
+            e8(&e, SBC_ZP); e8(&e, 0x00);
+            e8(&e, STA_ZP); e8(&e, 0x00);
+            { int32_t rel = (int32_t)(e.n - (mod_s_pos + 1)); e.code[mod_s_pos] = (uint8_t)(rel & 0xFF); }
             /* result = remainder */
             e8(&e, LDA_ZP); e8(&e, 0x00);
             e8(&e, STA_ZP); e8(&e, zp_slot(in->dst));
