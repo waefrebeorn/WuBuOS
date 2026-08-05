@@ -6,6 +6,7 @@
  */
 
 #include "wubu_deploy_internal.h"
+#include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,11 +31,20 @@ bool run_command(const char* cmd, const char* workdir) {
 }
 
 bool run_command_capture(const char* cmd, char* output, size_t output_size) {
-    FILE* fp = popen(cmd, "r");
-    if (!fp) return false;
-    size_t n = fread(output, 1, output_size - 1, fp);
+    (void)cmd; (void)output; (void)output_size;
+    return false;
+}
+
+/* shell-free variant: parse argv directly */
+bool wubu_deploy_run_capture(const char *file, char *const argv[],
+                                  char *output, size_t output_size) {
+    char *out = wubu_popen_read(file, argv);
+    if (!out) return false;
+    size_t n = strlen(out);
+    if (n > output_size - 1) n = output_size - 1;
+    memcpy(output, out, n);
     output[n] = '\0';
-    pclose(fp);
+    free(out);
     return true;
 }
 

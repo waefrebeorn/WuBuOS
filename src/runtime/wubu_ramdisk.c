@@ -12,6 +12,7 @@
  * to the fork+chroot+exec machinery.
  */
 #include "wubu_ramdisk.h"
+#include "wubu_spawn.h"
 #include "wubu_ramdisk_internal.h"
 #include "wubu_arch.h"
 
@@ -251,15 +252,20 @@ WubuRdState wubu_rd_state(WubuRamdisk *rd) {
 uint64_t wubu_rd_usage_mb(WubuRamdisk *rd) {
     if (!rd) return 0;
 
-    /* Query df for actual usage */
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "df -m %s 2>/dev/null | tail -1 | awk '{print $3}'", rd->path);
-    FILE *f = popen(cmd, "r");
-    if (f) {
+    /* Query df for actual usage (shell-free) */
+    char *df_argv[] = { "df", "-m", rd->path, NULL };
+    char *out = wubu_popen_read("df", df_argv);
+    if (out) {
+        /* Parse last line, 3rd field (used MB) */
+        char *line = out, *last_line = out;
+        while (*line) {
+            if (*line == '\n') last_line = line + 1;
+            line++;
+        }
         unsigned long mb = 0;
-        if (fscanf(f, "%lu", &mb) >= 1)
+        if (sscanf(last_line, "%*s %*s %lu", &mb) >= 1)
             rd->usage_mb = (uint64_t)mb;
-        pclose(f);
+        free(out);
     }
 
     return rd->usage_mb;
