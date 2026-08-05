@@ -5,6 +5,50 @@
 test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_proton test_proton2 test_spawn
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
+# ── Runtime Core Tests ─────────────────────────────────────────────
+test_network:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(COMP) -I$(JIT) \
+		$(RT)/wubu_network.c $(RT)/wubu_network_fw.c $(RT)/wubu_network_svc.c $(RT)/wubu_network_cni.c $(RT)/wubu_network_wg.c $(RT)/wubu_network_ts.c $(RT)/wubu_network_dns.c $(RT)/wubu_network_qos.c $(RT)/wubu_network_create.c $(RT)/wubu_netlink.c $(RT)/wubu_spawn.c $(RT)/wubu_network_test.c \
+		-o $(RT)/wubu_network_test -lpthread
+	$(RT)/wubu_network_test
+
+test_snapshot:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(COMP) -I$(JIT) \
+		$(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_gc.c $(RT)/wubu_snapshot_xport.c $(RT)/wubu_snapshot_diff.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_snapshot_copy.c $(RT)/wubu_snapshot_tag.c $(RT)/wubu_snapshot_test.c \
+		-o $(RT)/wubu_snapshot_test -lpthread
+	$(RT)/wubu_snapshot_test
+
+test_oci:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(KERNEL) -I$(RT)/oci \
+		$(RT)/oci/oci_http_client.c $(RT)/oci/oci_image_config.c $(RT)/oci/oci_image_manifest.c $(RT)/oci/oci_image_index.c \
+		$(RT)/oci/oci_blob_store.c $(RT)/oci/oci_convert.c $(RT)/oci/oci_registry.c \
+		$(RT)/oci/oci_runtime_spec.c $(RT)/oci/oci_hooks.c $(RT)/oci/oci_cleanup.c \
+		$(RT)/oci/oci_media_types.c $(RT)/oci/oci_descriptor.c \
+		$(RT)/wubu_image.c $(RT)/wubu_image_cache.c $(RT)/wubu_image_parse.c $(RT)/wubu_image_manifest.c $(RT)/wubu_image_ops.c $(RT)/wubu_image_tar.c $(RT)/wubu_spawn.c $(RT)/wubu_container.c $(RT)/wubu_oci_test.c \
+		-o $(RT)/wubu_oci_test -lm
+	$(RT)/wubu_oci_test
+
+test_holyd: $(RT)/wubu_holyd_repl.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(COMP) -I$(JIT) -I$(GUI) \
+		-DWUBD_TEST_MAIN \
+		$(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c \
+		$(JIT_SRCS) $(RT)/wubu_spawn.c \
+		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_9p.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_lifecycle.c \
+		$(RT)/wubu_holyd_test.c \
+		$(GUI)/dosgui_wm_test_stub.c \
+		-o $(RT)/wubd_holyd_test -lpthread
+	$(RT)/wubd_holyd_test
+
+test_spawn:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
+		$(RT)/wubu_spawn.c $(RT)/wubu_netlink.c $(RT)/wubu_spawn_test.c \
+		-o $(RT)/wubu_spawn_test
+	$(RT)/wubu_spawn_test
+
 # CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan)
 test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
