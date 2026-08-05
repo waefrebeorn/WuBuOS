@@ -34,7 +34,7 @@ make all                 # full build (kernel jit compiler runtime tools gui
 make hosted              # hosted binary (runs on Linux)
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-make test                # all 138 test targets
+make test                # all 124 test targets
 make test_agi_metal      # the measured-boot/AGI gate (the root of trust)
 build_iso.sh             # bootable ISO (kernel + limine)
 qemu-test.sh             # boot it under QEMU
@@ -80,8 +80,10 @@ src/
 
 | Metric | Value |
 |---|---|
-| C source files | 632 (`git ls-files 'src/**/*.c'`) |
-| Test targets | 119 |
+| C source files | 665 (`git ls-files 'src/**/*.c'`) |
+| C header files | 306 (`git ls-files 'src/**/*.h'`) |
+| Total C LOC | 187,689 (`find src -name '*.c' -o -name '*.h' | xargs wc -l`) |
+| Test targets | 124 (`make test` — critical/high/medium tiers) |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 |
 | E1 ReactOS NT | 88/297 syscalls transliterated (209 remain) |
