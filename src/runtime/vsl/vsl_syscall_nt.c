@@ -104,7 +104,6 @@ static void nt_dispatch_init(void) {
     vsl_nt_ioring_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_partition_register(g_nt_dispatch, NT_TBL_SIZE);
     vsl_nt_ktm_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_win11b_register(g_nt_dispatch, NT_TBL_SIZE);
 }
 
 /* ----------------------------------------------------------------------
