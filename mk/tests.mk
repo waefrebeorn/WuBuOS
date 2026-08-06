@@ -58,7 +58,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_dosgui_shell test_wallpaper test_control test_calc
+test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -421,7 +421,7 @@ test_trash:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) \
 		$(GUI)/wubu_trash.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_theme.c \
-		$(RT)/wubu_arch.c \
+		$(RT)/wubu_arch.c $(RT)/wubu_spawn.c \
 		$(GUI)/wubu_trash_test.c \
 		-o $(GUI)/wubu_trash_test
 	$(GUI)/wubu_trash_test
@@ -459,14 +459,6 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	-o wubu_gui_shot -no-pie -Wl,--allow-multiple-definition -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl
 	./wubu_gui_shot
 
-test_trash:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
-		-I$(GUI) -I$(KERNEL) -I$(RT) \
-		$(GUI)/wubu_trash.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_theme.c \
-		$(RT)/wubu_arch.c \
-		$(GUI)/wubu_trash_test.c \
-		-o $(GUI)/wubu_trash_test
-	$(GUI)/wubu_trash_test
 
 test_gamelib:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
@@ -589,6 +581,15 @@ test_dosgui_term:
 test_styx:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styx_test.c -o $(RT)/styx_test
 	$(RT)/styx_test
+
+test_compositor:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+		-I$(GUI) -I$(RT) -I$(KERNEL) -I/home/wubu/wlroots/include \
+		-I/usr/include/libdrm -I/usr/include/pixman-1 -DWLR_USE_UNSTABLE \
+		$(GUI)/wubu_compositor.c $(GUI)/xdg-shell-server-protocol.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
+		$(GUI)/wubu_compositor_test.c \
+		-o $(GUI)/wubu_compositor_test -lwayland-server -lm
+	$(GUI)/wubu_compositor_test
 
 test_styxfs:
 	$(CC) $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) -o $(RT)/styxfs_test
@@ -914,6 +915,18 @@ test_deploy:
 		$(RT)/wubu_spawn.c \
 		$(GUI)/wubu_deploy_test.c \
 		-o $(GUI)/wubu_deploy_test
+
+test_cap: $(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o \
+          $(RT)/wubu_cap/wubu_cap_revoke.o $(RT)/wubu_cap/wubu_cap_handle.o \
+          $(RT)/wubu_cap/wubu_cap_system.o \
+          $(RT)/wubu_cap/wubu_cap_test.c
+	$(CC) -O2 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -I$(RT)/wubu_cap -pthread \
+		$(RT)/wubu_cap/wubu_cap_object.c $(RT)/wubu_cap/wubu_cap_token.c \
+		$(RT)/wubu_cap/wubu_cap_revoke.c $(RT)/wubu_cap/wubu_cap_handle.c \
+		$(RT)/wubu_cap/wubu_cap_system.c \
+		$(RT)/wubu_cap/wubu_cap_test.c -o $(RT)/wubu_cap_test -lpthread
+	$(RT)/wubu_cap_test
+
 
 test_txn:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \

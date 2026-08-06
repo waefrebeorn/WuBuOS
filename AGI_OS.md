@@ -91,7 +91,7 @@ WuBuFW firmware
 - The payload receives the config table via `g_systab->ConfigurationTable` (LocateConfigurationTable by WUBU_AGI_ATTEST_GUID).
 
 ## Design notes / pitfalls hit & fixed
-- **Canonical dir**: `/home/wubu/wubuos` (w-u-b-u-o-s). The homoglyph shadow `wubunos` (extra `n`) was deleted; it had been silently intercepting write_file/patch calls.
+- **Canonical dir**: `/home/wubu/wubuos` (w-u-b-u-o-s). The homoglyph `wubunos` (extra `n`) is now a SYMLINK to `/home/wubu/wubuos` (created 2026-08-06) — a misspelled path resolves to the real repo instead of silently spawning a shadow directory (a shadow dir intercepted write_file/patch calls before). ALWAYS write `wubuos`; never `rm -rf /home/wubu/wubunos/` (trailing slash follows the symlink and would delete the real repo).
 - **fw_efi_build_tables() must precede any g_systab use**: without it, g_systab is NULL → attest publish silently no-ops (guarded) and fw_bs_start_image hands the payload a NULL SystemTable → crash. Fixed in fw_main.c init order.
 - **fw_image_create signature**: `EFI_STATUS fw_image_create(void *buf, uint64_t size, EFI_HANDLE device, EFI_HANDLE *out)` — declared in fw_main.c, defined in fw_bs_proto.c. Must be called with the already-read `img`/`sz`, not re-read from disk.
 - **PE entry point**: mkpe sets `AddressOfEntryPoint = 0x1000` (section RVA of .text). fw_pe reads `opt->AddressOfEntryPoint` (offset 16 in PE32+ OptionalHeader). Entry = ImageBase + AoE = 0x3FFF000 + 0x1000 = 0x4000000.

@@ -10,9 +10,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <wayland-server-core.h>
-#include <wlr/types/wlr_output.h>
-#include <wlr/types/wlr_surface.h>
 #include <vulkan/vulkan.h>
+#include "../runtime/styx.h"
+
+/* Forward declarations — wlroots headers carry unstable/internal deps that
+ * vary across wlroots versions; the compositor implementation uses only the
+ * public opaque structs by pointer, so forward-declare them here instead of
+ * pulling the hard #include <wlr/types/wlr_*> dependency chain. */
+struct wlr_output;
+struct wlr_surface;
+struct wlr_xdg_toplevel;
+struct wlr_layer_surface_v1;
+struct wlr_box;
 
 /* Forward declarations */
 typedef struct WuBuCompositor WuBuCompositor;
@@ -68,8 +77,8 @@ typedef struct {
 
 typedef struct {
     char name[64];
-    int x, y;              /* Position in global coordinates
-    int width, height;      /* Physical pixels */
+    int x, y;              /* Position in global coordinates */
+    int width, height;       /* Physical pixels */
     int phys_width, phys_height; /* mm */
     double scale;           /* Fractional scale */
     int refresh_rate;       /* mHz */
@@ -120,6 +129,9 @@ void wubu_compositor_set_cursor(WuBuCompositor *comp, struct wlr_surface *surfac
 
 /* 9P namespace path */
 const char *wubu_compositor_get_9p_path(WuBuCompositor *comp);
+
+/* 9P export of live state (the /n/compositor/* nodes) */
+int wubu_compositor_styx_export(WuBuCompositor *comp, styx_server_t *srv);
 
 /* ================================================================
  * Shell Integration (for dosgui_shell)

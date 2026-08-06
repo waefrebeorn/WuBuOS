@@ -265,7 +265,7 @@ int wubu_compositor_screenshot(WuBuCompositor *comp, WuBuOutput *out, void **dat
  * Cursor
  * ================================================================ */
 
-void wubu_compositor_set_cursor(WuBuCompositor *comp, struct wl_surface *surface, int hotspot_x, int hotspot_y) {
+void wubu_compositor_set_cursor(WuBuCompositor *comp, struct wlr_surface *surface, int hotspot_x, int hotspot_y) {
     (void)comp; (void)surface; (void)hotspot_x; (void)hotspot_y;
     /* Cursor handling - stub */
 }
@@ -445,18 +445,18 @@ const char *wubu_compositor_get_9p_path(WuBuCompositor *comp) {
  * ================================================================ */
 
 /* Called by shell when it creates a toplevel */
-struct xdg_toplevel *wubu_shell_create_toplevel(WuBuCompositor *comp, const char *app_id) {
+struct wlr_xdg_toplevel *wubu_shell_create_toplevel(WuBuCompositor *comp, const char *app_id) {
     (void)comp; (void)app_id;
     return NULL;  /* stub */
 }
 
 /* Called by shell for layer surfaces (panel, wallpaper) */
-struct wl_surface *wubu_shell_create_layer(WuBuCompositor *comp, struct wl_output *output, uint32_t layer, const char *namespace_) {
+struct wlr_layer_surface_v1 *wubu_shell_create_layer(WuBuCompositor *comp, struct wlr_output *output, uint32_t layer, const char *namespace_) {
     (void)comp; (void)output; (void)layer; (void)namespace_;
     return NULL;  /* stub */
 }
 
-void wubu_compositor_set_text_input_rect(WuBuCompositor *comp, struct wl_surface *surface, struct wl_box *box) {
+void wubu_compositor_set_text_input_rect(WuBuCompositor *comp, struct wlr_surface *surface, struct wlr_box *box) {
     (void)comp; (void)surface; (void)box;
     /* Text input - stub */
 }

@@ -27,13 +27,17 @@
 static int hit_test_edge(DosGuiWindow *w, int x, int y) {
     int bw = border_width();
     int corner = bw * 2;            /* diagonal grab zones */
+    /* The main edge grab zone must be at least 2px so a cursor positioned
+     * 2px inside the edge (a common grab in synthetic + real dragging)
+     * still classifies as a resize, not a title-bar / client drag. */
+    int grab = corner > 2 ? corner : 2;
     int edge = 0;
-    bool on_top = (y >= w->y && y < w->y + bw) || (y >= w->y && y < w->y + corner && x >= w->x && x < w->x + corner);
-    bool on_bot = (y >= w->y + w->h - bw && y < w->y + w->h) ||
+    bool on_top = (y >= w->y && y < w->y + grab) || (y >= w->y && y < w->y + corner && x >= w->x && x < w->x + corner);
+    bool on_bot = (y >= w->y + w->h - grab && y < w->y + w->h) ||
                   (y >= w->y + w->h - corner && y < w->y + w->h && x >= w->x + w->w - corner && x < w->x + w->w);
-    bool on_left  = (x >= w->x && x < w->x + bw) ||
+    bool on_left  = (x >= w->x && x < w->x + grab) ||
                     (x >= w->x && x < w->x + corner && y >= w->y && y < w->y + corner);
-    bool on_right = (x >= w->x + w->w - bw && x < w->x + w->w) ||
+    bool on_right = (x >= w->x + w->w - grab && x < w->x + w->w) ||
                     (x >= w->x + w->w - corner && x < w->x + w->w && y >= w->y + w->h - corner && y < w->y + w->h);
     if (on_left)  edge |= 1;
     if (on_right) edge |= 2;

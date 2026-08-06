@@ -5,7 +5,7 @@
  * wubu_tokens.h — Unified design tokens for CLI + GUI + themes.
  *
  * Single source of truth for visual identity (ADR-002 in both repos).
- * This is the wubunos (GUI) copy; wubuwizard has its own copy in
+ * This is the wubuos (GUI) copy; wubuwizard has its own copy in
  * include/wubu_tokens.h. Both kept in sync via the token contract.
  *
  * Generated from research/066-ux-cohesion-research.md (Theme J, rank 3:
