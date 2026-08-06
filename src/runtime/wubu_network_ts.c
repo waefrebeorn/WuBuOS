@@ -55,7 +55,7 @@ int wubu_ts_status(WubuNetworkManager *mgr, const char *network_id,
     {
         char *ts_argv[] = { "tailscale", "status", "--json", NULL };
         char *out = wubu_popen_read("tailscale", ts_argv);
-        if (out) {
+        if (out && out[0]) {
             size_t n = strlen(out);
             if (n > status_size - 1) n = status_size - 1;
             memcpy(status_out, out, n);

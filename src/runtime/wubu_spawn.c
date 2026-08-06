@@ -68,5 +68,12 @@ char *wubu_popen_read(const char *file, char *const argv[]) {
     close(pipefd[0]);
     int status = 0;
     while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+    /* execvp failure in the child (binary not found) exits 127 with no
+     * output — report that as "no result" (NULL) instead of a bogus
+     * empty string, so callers can fall back correctly. */
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 127) {
+        free(buf);
+        return NULL;
+    }
     return buf;
 }
