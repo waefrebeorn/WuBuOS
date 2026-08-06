@@ -2,7 +2,7 @@
 
 Architecture Decision Records for WuBuOS (the body).
 
-## wubunos
+## wubuos
 
 | #  | Title | Date |
 |----|-------|------|

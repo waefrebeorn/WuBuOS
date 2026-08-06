@@ -18,7 +18,7 @@ Create `wubu_tokens.h` with:
 - ANSI escape helpers (CLI)
 - `wubu_token_color()` resolver (maps logical name → hex/ANSI)
 
-Both wubuwizard (`include/wubu_tokens.h`) and wubunos (`src/gui/wubu_tokens.h`)
+Both wubuwizard (`include/wubu_tokens.h`) and wubuos (`src/gui/wubu_tokens.h`)
 maintain copies kept in sync via the token contract.
 
 ## Consequences
