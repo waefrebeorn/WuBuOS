@@ -18,6 +18,7 @@
 
 #include "dosgui_wm.h"
 #include "dosgui_wm_internal.h"
+#include "wubu_a11y.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -116,6 +117,13 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
             draw_window(idx, fb, fb_w, fb_h);
             vbe_reset_clip();
         }
+    }
+
+    /* Accessibility cluster: drawn over the focused window (top of z-order),
+     * before the taskbar so it never paints under it. */
+    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive) wubu_a11y_draw(w, fb, fb_w, fb_h);
     }
 
     dosgui_taskbar_render(fb, fb_w, fb_h);
