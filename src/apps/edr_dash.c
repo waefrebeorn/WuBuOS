@@ -16,6 +16,7 @@
 #include "wubu_edr.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_wm_internal.h"
+#include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
@@ -90,14 +91,14 @@ static void edr_dash_refresh(EdrDashState *s) {
 
 static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, void *user) {
     EdrDashState *s = (EdrDashState *)user;
-    (void)fb_w; (void)fb_h; (void)fb;
+    (void)fb_w; (void)fb_h;
     if (!win || !s) return;
-    int bw  = border_width();
-    int tbh = title_bar_height();
-    int cx = win->x + bw;
-    int cy = win->y + tbh;
-    int cw = win->w - 2 * bw;
-    int ch = win->h - tbh - bw;
+    /* Centralized window chrome — draw frame, get content rect. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, 0, 0);
+    int cx = content.x;
+    int cy = content.y;
+    int cw = content.w;
+    int ch = content.h;
 
     /* Content background. */
     uint32_t bg = theme()->Luna_start_button ? 0x00F0F0F0 : 0x00C0C0C0;
@@ -184,6 +185,7 @@ static void edr_dash_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     (void)btn; (void)kind;
     EdrDashState *s = edr_dash_state();
     if (!win || !s) return;
+    /* Content rect from chrome geometry (border_width=2, title_bar_height unified). */
     int bw  = border_width();
     int tbh = title_bar_height();
     int cx = win->x + bw;

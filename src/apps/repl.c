@@ -7,6 +7,7 @@
 #include "holyc.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/gui_dbuf.h"
+#include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
 #include <string.h>
@@ -48,10 +49,13 @@ static void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     gui_dbuf_clear(g_repl.db, 0x00000000);
 
-    int x = 4;
-    int y = 4;
-    int line_height = 10; /* 8px font + 2px spacing */
-    int max_visible = (win->h - DOSGUI_TITLE_H - 8) / line_height;
+    /* Centralized window chrome: draw frame + title bar, get content rect.
+     * ADR-001: apps draw ONLY within the chrome-provided content rect. */
+    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    int x = content.x + 4;
+    int y = content.y + 4;
+    int line_height = 10;
+    int max_visible = (content.h - 8) / line_height;
 
     /* Draw output lines (most recent at bottom) */
     int start = g_repl.line_count - max_visible;
