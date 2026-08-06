@@ -16,6 +16,7 @@
 #include "dosgui_wm_internal.h"
 #include "dosgui_startmenu.h"
 #include "dosgui_wm.h"
+#include "wubu_a11y.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -146,6 +147,15 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     int task_h = taskbar_height_dynamic();
     int tbh = title_bar_height();
     border_width();  // ensure theme is loaded
+
+    /* Accessibility cluster: give it first crack at the event when enabled
+     * and a window is focused. Returning true consumes the event so the
+     * normal taskbar/chromeo logic below cannot interfere. */
+    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
+        DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
+        if (fw->alive && wubu_a11y_mouse(fw, x, y, btn, kind))
+            return;
+    }
 
     if (y >= g_dwm.screen_h - task_h) {
         int by = g_dwm.screen_h - task_h + (task_h - 24) / 2;
