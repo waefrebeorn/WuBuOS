@@ -20,6 +20,7 @@
 #include "dosgui_wm_internal.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "wubu_tokens.h"   /* unified design tokens (CLI + GUI cohesion) */
 #include <string.h>
 
 /* -- Chrome constants ----------------------------------------------- */
@@ -225,7 +226,7 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
                     active ? tc()->border_darkest : tc()->btn_face);
         chrome_draw_3d_raised(close_x, close_y, 14, 14, 2);
         vbe_draw_text(close_x + 5, close_y + 3, "X",
-                      active ? 0x00FFFFFF : 0x00808080, 1);
+                      active ? WUBU_COLOR_ACCENT_GREEN : WUBU_COLOR_TEXT_DIM, 1);
     }
 
     /* Maximize button */
@@ -235,7 +236,7 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
                     active ? tc()->border_face : tc()->btn_face);
         chrome_draw_3d_raised(max_x, btn_y, 14, 14, 2);
         vbe_draw_text(max_x + 5, btn_y + 3, "[",
-                      active ? 0x00FFFFFF : 0x00808080, 1);
+                      active ? WUBU_COLOR_ACCENT_GREEN : WUBU_COLOR_TEXT_DIM, 1);
     }
 
     /* Minimize button */
@@ -245,7 +246,7 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
                     active ? tc()->border_face : tc()->btn_face);
         chrome_draw_3d_raised(min_x, btn_y, 14, 14, 2);
         vbe_draw_text(min_x + 5, btn_y + 3, "_",
-                      active ? 0x00FFFFFF : 0x00808080, 1);
+                      active ? WUBU_COLOR_ACCENT_GREEN : WUBU_COLOR_TEXT_DIM, 1);
     }
 
     /* -- Content rect for app to draw within -- */
