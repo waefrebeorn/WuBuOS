@@ -120,10 +120,12 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 
     /* Accessibility cluster: drawn over the focused window (top of z-order),
-     * before the taskbar so it never paints under it. */
+     * before the taskbar so it never paints under it. Skipped for minimized
+     * windows (nothing to grab). */
     if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
-        if (w->alive) wubu_a11y_draw(w, fb, fb_w, fb_h);
+        if (w->alive && !(w->flags & DOSGUI_WIN_MINIMIZED))
+            wubu_a11y_draw(w, fb, fb_w, fb_h);
     }
 
     dosgui_taskbar_render(fb, fb_w, fb_h);

@@ -106,7 +106,8 @@ static void corner_rect(DosGuiWindow *w, int *cx, int *cy) {
 /* -- Hit testing --------------------------------------------------- */
 
 WuBuA11yControl wubu_a11y_hit(DosGuiWindow *win, int x, int y) {
-    if (!win || !win->alive || !g_a11y_enabled) return WUBU_A11Y_NONE;
+    if (!win || !win->alive || (win->flags & DOSGUI_WIN_MINIMIZED) || !g_a11y_enabled)
+        return WUBU_A11Y_NONE;
 
     /* Resize corner first (it can overlap other windows' cluster zones). */
     int cx, cy; corner_rect(win, &cx, &cy);

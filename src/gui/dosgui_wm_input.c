@@ -153,7 +153,8 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
      * normal taskbar/chromeo logic below cannot interfere. */
     if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
         DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
-        if (fw->alive && wubu_a11y_mouse(fw, x, y, btn, kind))
+        if (fw->alive && !(fw->flags & DOSGUI_WIN_MINIMIZED) &&
+            wubu_a11y_mouse(fw, x, y, btn, kind))
             return;
     }
 
