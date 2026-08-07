@@ -76,6 +76,7 @@ optimizer_state.json
 /screenshots/
 /wubuos_demo.mp4
 /wubu_gui_shot
+/wubu_a11y_shot
 /*.bin
 /*.zst
 /*.deb
