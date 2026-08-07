@@ -67,10 +67,18 @@ typedef struct {
     int             drag_icon_id;
     int             drag_icon_ox, drag_icon_oy;
 
+    /* Rubber-band drag-select lasso (Classic Mac OS / Win98 lesson):
+     * press on empty desktop, drag a rect, release -> select icons inside. */
+    bool            lasso_active;
+    int             lasso_x0, lasso_y0;   /* anchor (press point) */
+    int             lasso_x1, lasso_y1;   /* current corner */
+
     /* Wallpaper */
     uint32_t       *wallpaper;
     int             wallpaper_w, wallpaper_h;
     int             wallpaper_mode; /* 0=center, 1=tile, 2=stretch, 3=fit, 4=fill */
+    uint32_t       *logo;           /* bundled logo badge (overlay, not scaled) */
+    int             logo_w, logo_h;
 
     /* Desktop view options (Stream 3) */
     bool            auto_arrange;   /* Snap icons into a top-left column/grid */
@@ -92,9 +100,15 @@ typedef struct {
     /* Last real time for clock */
     time_t          last_clock_update;
 
-    /* Mouse state */
+    /* Mouse state: mouse_x/y = INSTANT input target (logic uses these);
+     * cursor_x/y = eased RENDER position (human lag, fast-but-readable). */
     int             mouse_x, mouse_y;
+    int             cursor_x, cursor_y;
     int             ticks;
+
+    /* Taskbar clock (Win98 parity): recessed well + its own popup menu. */
+    bool            clock_menu_open;
+    int             clock_well_x, clock_well_y, clock_well_w, clock_well_h;
 } DosGuiWM;
 
 extern DosGuiWM g_dwm;
@@ -106,6 +120,14 @@ int  hit_test(int x, int y);
 const WubuThemeColors *tc(void);
 const WubuTheme *theme(void);
 char *dosgui_taskbar_get_clock_str(void);
+/* Clock popup menu (Win98 parity): click the clock well to open. */
+void dosgui_clock_menu_toggle(void);
+void dosgui_clock_menu_close(void);
+int  dosgui_clock_menu_is_open(void);
+void dosgui_clock_menu_rect(int fb_w, int fb_h, int *x, int *y, int *w, int *h);
+void dosgui_clock_menu_render(uint32_t *fb, int fb_w, int fb_h);
+/* Last-rendered clock well (clickable button) rect; zeros until first render. */
+void dosgui_clock_well(int *x, int *y, int *w, int *h);
 int  title_bar_height(void);
 int  taskbar_height_dynamic(void);
 int  border_width(void);
@@ -124,6 +146,7 @@ void dosgui_wm_draw_icon_glyph(DeskIconType type, int ox, int oy,
 void dosgui_wm_draw_icon_selection(int ox, int oy);
 void snap_window_to_gaad(DosGuiWindow *w);
 int  dosgui_icon_hit_test(int mx, int my);
+int  dosgui_icon_select_in_rect(int x0, int y0, int x1, int y1);
 DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);
 int  spawn_window(int x, int y, int w, int h, const char *title);
 

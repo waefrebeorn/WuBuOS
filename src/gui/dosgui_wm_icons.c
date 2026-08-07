@@ -64,6 +64,23 @@ DosGuiIcon *dosgui_icon_get(int idx) {
     return &g_dwm.icons[idx];
 }
 
+/* Rubber-band lasso select (Classic Mac / Win98 lesson): clear the current
+ * selection, then select every live icon whose 32x32 box intersects the
+ * (possibly inverted) rect.  Returns the number selected. */
+int dosgui_icon_select_in_rect(int x0, int y0, int x1, int y1) {
+    if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
+    if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
+    int n = 0;
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        DosGuiIcon *ic = &g_dwm.icons[i];
+        if (!ic->alive) continue;
+        ic->selected = (ic->x < x1 && ic->x + DOSGUI_ICON_SIZE > x0 &&
+                        ic->y < y1 && ic->y + DOSGUI_ICON_SIZE > y0);
+        if (ic->selected) n++;
+    }
+    return n;
+}
+
 /* Remove dead (alive==false) icon entries, compacting the array so that
  * icon_count stays dense. Used after a delete so refresh/sort/hit-test see a
  * contiguous list. Preserves order of the surviving icons. */

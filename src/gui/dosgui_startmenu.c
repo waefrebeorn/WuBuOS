@@ -18,6 +18,7 @@
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_mime.h"
+#include "../gui/wubu_bonzi.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
@@ -165,6 +166,15 @@ static void draw_menu_item(int x, int y, int w, const char *label,
     }
     
     /* Draw truncated label with ellipsis if too wide */
+    int label_x = x + 6;
+    if (type == 4) {
+        /* Checkbox: [x] when companion enabled, [ ] when disabled. */
+        vbe_fill_rect(label_x, y + (mh - 8) / 2, 10, 8, 0xFFFFFF);
+        vbe_rect(label_x, y + (mh - 8) / 2, 10, 8, 0x000000);
+        if (wubu_bonzi_is_enabled())
+            vbe_fill_rect(label_x + 2, y + (mh - 8) / 2 + 2, 6, 4, 0x000000);
+        label_x += 16;
+    }
     int max_text_w = w - 20; /* Reserve space for arrow and padding */
     if (has_submenu) max_text_w -= 16;
     int text_w = vbe_text_width(label, 1);
@@ -183,9 +193,9 @@ static void draw_menu_item(int x, int y, int w, const char *label,
         } else {
             strcpy(truncated, "...");
         }
-        vbe_draw_text(x + 6, y + (mh - 8) / 2, truncated, fg, 1);
+        vbe_draw_text(label_x, y + (mh - 8) / 2, truncated, fg, 1);
     } else {
-        vbe_draw_text(x + 6, y + (mh - 8) / 2, label, fg, 1);
+        vbe_draw_text(label_x, y + (mh - 8) / 2, label, fg, 1);
     }
     
     if (has_submenu) {
@@ -397,7 +407,12 @@ void dosgui_startmenu_handle_click(int x, int y) {
 
     MainMenuItem *mi = &g_main_items[idx];
     if (mi->type == 2) return; /* Separator */
-
+    if (mi->type == 4) {
+        /* Toggle companion (Bonzi Buddy) on/off. */
+        wubu_bonzi_set_enabled(!wubu_bonzi_is_enabled());
+        dosgui_startmenu_close();
+        return;
+    }
     if (mi->type == 1) {
         /* Toggle submenu */
         g_submenu_open = (g_submenu_open == mi->submenu_id) ? -1 : mi->submenu_id;

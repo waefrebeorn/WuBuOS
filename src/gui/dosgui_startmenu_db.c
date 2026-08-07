@@ -65,6 +65,14 @@ void dosgui_startmenu_build_main_menu(void) {
     /* Shutdown */
     g_main_items[g_main_count++] = (MainMenuItem){
         "Shut Down", 3, -1, "Shutdown"};
+
+    /* Separator */
+    g_main_items[g_main_count++] = (MainMenuItem){
+        "", 2, -1, ""};
+
+    /* WuBu Buddy on/off toggle. Type 4 = toggle. */
+    g_main_items[g_main_count++] = (MainMenuItem){
+        "WuBu Buddy", 4, -1, "WuBu Buddy"};
 }
 
 /* -- Submenu construction from MIME desktop entries ------------- */

@@ -65,6 +65,18 @@ typedef struct DosGuiWindow {
 int  dosgui_wm_init(int screen_w, int screen_h);
 void dosgui_wm_shutdown(void);
 
+/* Human typing (human-lag input): "type" text into a window with human
+ * rhythm — 28-51ms per key with jitter, an occasional ~240ms thinking pause,
+ * and a 120-220ms reaction delay before the first key.  Driven by the WM
+ * frame tick (dosgui_wm_typer_tick is called every render). */
+void dosgui_wm_typer_start(DosGuiWindow *win, const char *text);
+void dosgui_wm_typer_tick(int dt_ms);
+int  dosgui_wm_typer_busy(void);   /* 1 while a typing session is active */
+int  dosgui_wm_typer_pos(void);    /* chars delivered so far */
+
+/* The eased (human-lag) cursor render position, for verification. */
+void dosgui_wm_cursor_pos(int *x, int *y);
+
 /* -- Window Management ------------------------------------------- */
 
 DosGuiWindow *dosgui_wm_create(int x, int y, int w, int h,

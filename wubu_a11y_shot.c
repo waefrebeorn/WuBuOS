@@ -55,25 +55,24 @@ static void render_frame(const char *label) {
  * Panel anchors at (win_x + WUBU_A11Y_PANEL_OFFX, win_y + WUBU_A11Y_PANEL_OFFY)
  * = (win_x - 8, win_y - 8). Orb centers inside the panel: */
 #define PANEL_OFFX (-8)
-#define PANEL_OFFY (-8)
+#define PANEL_OFFY 16    /* hangs below the title bar (tbh 18 - 2) */
 static void y_center(int wx, int wy, int *cx, int *cy) {
     int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 26;  /* pill_center: px + A11Y_PILL_W/2 + 8 */
-    *cy = py + 13;  /* pill_center: py + A11Y_PILL_H/2 + 6 */
+    *cx = px + 22;  *cy = py + 22;   /* yellow crescent: top-left */
 }
 static void a_center(int wx, int wy, int *cx, int *cy) {
     int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 26;  /* orb_a_center */
-    *cy = py + 52;  /* orb_a_center */
+    *cx = px + 62;  *cy = py + 22;   /* green A: top-right, biggest */
 }
 static void b_center(int wx, int wy, int *cx, int *cy) {
     int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 58;  /* orb_b_center */
-    *cy = py + 52;  /* orb_b_center */
+    *cx = px + 62;  *cy = py + 56;   /* red B: bottom-right, smallest */
 }
-static void corner_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + w - 22;  /* corner_rect: bottom-right purple resize corner */
-    *cy = wy + h - 22;
+static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + 22;  *cy = wy + h - 26;   /* purple Y: window bottom-left */
+}
+static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + w - 22;  *cy = wy + h - 26; /* purple Y: window bottom-right */
 }
 
 int main(void) {
@@ -139,11 +138,11 @@ int main(void) {
     dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
     vbe_swap();
 
-    /* Frame 4: Purple corner resize drag. */
+    /* Frame 4: Purple Y crescent resize drag (bottom-left). */
     {
         int kx, ky;
-        corner_center(win->x, win->y, win->w, win->h, &kx, &ky);
-        dosgui_wm_handle_mouse(kx, ky, 1, 1);           /* press corner   */
+        p_bl(win->x, win->y, win->w, win->h, &kx, &ky);
+        dosgui_wm_handle_mouse(kx, ky, 1, 1);           /* press purple */
         dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
         dosgui_wm_handle_mouse(kx + 40, ky + 30, 1, 0);  /* drag SE        */

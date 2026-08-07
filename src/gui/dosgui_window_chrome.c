@@ -212,41 +212,48 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
     vbe_hline(win->x + bw, win->x + win->w - bw - 1, win->y + bw + tbh, tc()->border_dark);
 
     /* -- Title bar buttons -- */
+    /* Win98-authentic: silver 3D-raised buttons with BOLD BLACK pixel
+     * glyphs (drawn, NOT 8x8-font characters, and never green). */
     int btn_size = 14;
     int gap = 2;
 
     int start_x = win->x + win->w - bw - btn_size - 2;
     int btn_y = win->y + bw + (tbh - 14) / 2;
 
-    /* Close button (rightmost) */
+    /* Close button (rightmost): bold X */
     int close_x = start_x;
     int close_y = btn_y;
     {
-        chrome_fill(close_x, close_y, 14, 14,
-                    active ? tc()->border_darkest : tc()->btn_face);
+        chrome_fill(close_x, close_y, 14, 14, tc()->btn_face);
         chrome_draw_3d_raised(close_x, close_y, 14, 14, 2);
-        vbe_draw_text(close_x + 5, close_y + 3, "X",
-                      active ? WUBU_COLOR_ACCENT_GREEN : WUBU_COLOR_TEXT_DIM, 1);
+        for (int i = 3; i < 11; i++) {
+            vbe_set_pixel(close_x + i,     close_y + i,     0x000000);
+            vbe_set_pixel(close_x + i + 1, close_y + i,     0x000000);
+            vbe_set_pixel(close_x + i,     close_y + 14 - i, 0x000000);
+            vbe_set_pixel(close_x + i + 1, close_y + 14 - i, 0x000000);
+        }
     }
 
-    /* Maximize button */
+    /* Maximize button: square outline */
     int max_x = close_x - 14 - 2;
     {
-        chrome_fill(max_x, btn_y, 14, 14,
-                    active ? tc()->border_face : tc()->btn_face);
+        chrome_fill(max_x, btn_y, 14, 14, tc()->btn_face);
         chrome_draw_3d_raised(max_x, btn_y, 14, 14, 2);
-        vbe_draw_text(max_x + 5, btn_y + 3, "[",
-                      active ? WUBU_COLOR_ACCENT_GREEN : WUBU_COLOR_TEXT_DIM, 1);
+        for (int i = 3; i < 11; i++) {
+            vbe_set_pixel(max_x + i,     btn_y + 3,     0x000000);
+            vbe_set_pixel(max_x + i,     btn_y + 10,    0x000000);
+            vbe_set_pixel(max_x + 3,     btn_y + i,     0x000000);
+            vbe_set_pixel(max_x + 10,    btn_y + i,     0x000000);
+        }
     }
 
-    /* Minimize button */
+    /* Minimize button: horizontal bar at the bottom */
     int min_x = max_x - 14 - 2;
     {
-        chrome_fill(min_x, btn_y, 14, 14,
-                    active ? tc()->border_face : tc()->btn_face);
+        chrome_fill(min_x, btn_y, 14, 14, tc()->btn_face);
         chrome_draw_3d_raised(min_x, btn_y, 14, 14, 2);
-        vbe_draw_text(min_x + 5, btn_y + 3, "_",
-                      active ? WUBU_COLOR_ACCENT_GREEN : WUBU_COLOR_TEXT_DIM, 1);
+        for (int i = 3; i < 11; i++)
+            vbe_set_pixel(min_x + i, btn_y + 10, 0x000000);
     }
 
     /* -- Content rect for app to draw within -- */

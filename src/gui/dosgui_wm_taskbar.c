@@ -13,6 +13,16 @@
 
 int dosgui_taskbar_height(void) { return taskbar_height_dynamic(); }
 
+/* The Start button's emblem: the classic Win95-style 4-pane flag
+ * (red / green / blue / yellow) with a black outline. */
+static void draw_start_flag(int x, int y) {
+    vbe_fill_rect(x,     y,     7, 7, 0xFE0000);   /* red    */
+    vbe_fill_rect(x + 7, y,     7, 7, 0x00A800);   /* green  */
+    vbe_fill_rect(x,     y + 7, 7, 7, 0x0000A8);   /* blue   */
+    vbe_fill_rect(x + 7, y + 7, 7, 7, 0xFFC800);   /* yellow */
+    vbe_rect(x, y, 14, 14, 0x000000);              /* outline */
+}
+
 void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     int th = taskbar_height_dynamic();
     int ty = fb_h - th;
@@ -25,19 +35,22 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     if (theme()->Luna_start_button) {
         vbe_fill_rect_rounded(4, by, start_w + 20, 24, 4, tc()->start_btn_face);
         vbe_3d_raised_rounded_colors(4, by, start_w + 20, 24, 4,
-                                      tc()->border_light, tc()->border_face,
-                                      tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(8, by + 8, "Start", tc()->start_btn_text, 1);
+                                     tc()->border_light, tc()->border_face,
+                                     tc()->border_dark, tc()->border_darkest);
+        /* Win95-style 4-pane flag emblem (the Start button must have an icon). */
+        draw_start_flag(10, by + 5);
+        vbe_draw_text(28, by + 8, "Start", tc()->start_btn_text, 1);
     } else {
         /* Win98 Classic Start button: full-height-ish 3D raised silver
-         * button, text vertically centered, with a 2px inner margin. */
+         * button, 4-pane flag emblem + text, with a 2px inner margin. */
         int sbh = 22;
         int sby = ty + (th - sbh) / 2;
         vbe_fill_rect(4, sby, 60, sbh, tc()->start_btn_face);
         vbe_3d_raised_colors(4, sby, 60, sbh,
-                              tc()->border_light, tc()->border_face,
-                              tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(10, sby + (sbh - 8) / 2, "Start", tc()->start_btn_text, 1);
+                             tc()->border_light, tc()->border_face,
+                             tc()->border_dark, tc()->border_darkest);
+        draw_start_flag(8, sby + (sbh - 14) / 2);
+        vbe_draw_text(26, sby + (sbh - 8) / 2, "Start", tc()->start_btn_text, 1);
     }
 
     int bx = theme()->Luna_start_button ? 82 : 72;
@@ -107,13 +120,27 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Clock - use clk/clk_w from earlier in function */
     dosgui_taskbar_update_clock(time(NULL));
 
-    /* Ensure clock doesn't overlap window buttons - use bx as the left boundary */
+    /* The clock stays RIGHT-ALIGNED.  The window-button loop above already
+     * stops at screen_w - right_reserve, so buttons can never reach the
+     * clock.  The old "if (clock_x + clk_w > bx) clock_x = bx - clk_w - 10"
+     * check fired when bx=72 (no windows) and dragged the clock to x=22 —
+     * ON TOP of the Start button (user-reported 2026-08-06).  Never do
+     * that: clamp only at the Start-button edge as a hard floor. */
     int clock_x = fb_w - clk_w - 10;
-    if (clock_x + clk_w > bx) {
-        clock_x = bx - clk_w - 10;
-    }
-    if (clock_x < 0) clock_x = 10;
+    if (clock_x < 68) clock_x = 68;   /* right of the 60px Start button */
+    if (clock_x + clk_w > fb_w - 4) clock_x = fb_w - 4 - clk_w;
 
+    /* Win98 parity: the clock sits in a RECESSED (sunken) well and is a
+     * clickable button — clicking it opens the clock/calendar popup. */
+    int cw_y = ty + (th - 20) / 2;
+    g_dwm.clock_well_x = clock_x - 3;
+    g_dwm.clock_well_y = cw_y;
+    g_dwm.clock_well_w = clk_w + 6;
+    g_dwm.clock_well_h = 20;
+    vbe_fill_rect(clock_x - 3, cw_y, clk_w + 6, 20, tc()->btn_face);
+    vbe_3d_sunken_colors(clock_x - 3, cw_y, clk_w + 6, 20,
+                         tc()->border_light, tc()->border_face,
+                         tc()->border_dark, tc()->border_darkest);
     vbe_draw_text(clock_x, ty + (th - 8) / 2, clk,
                   theme()->Luna_start_button ? 0xFFFFFF : tc()->icon_text, 1);
 

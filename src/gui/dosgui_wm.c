@@ -23,6 +23,7 @@
 /* -- Includes ------------------------------------------------------ */
 #include "dosgui_wm_internal.h"
 #include "wubu_wallpaper.h"
+#include "wubu_bonzi.h"
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -58,7 +59,71 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     g_dwm.notif_center_open = false;
     g_dwm.last_clock_update = 0;
     load_default_wallpaper();
+    /* Desktop companion (Bonzi Buddy): the friendly AGI gateway.
+     * Positioned in the lower-left corner, above windows. Click opens the
+     * HolyC/AGI terminal. Idle animation (bob + blink) driven by the WM
+     * frame tick in dosgui_wm_frame(). */
+    wubu_bonzi_init(8, screen_h - 64);
     return 0;
+}
+
+/* -- Human typing engine ---------------------------------------------
+ * The AGI / automation "types" into a window with HUMAN rhythm: keystrokes
+ * land spaced 28-51ms apart with jitter, plus an occasional 240ms "thinking"
+ * pause and a 120-220ms reaction delay before the first key.  Deterministic
+ * (seeded LCG) so tests can assert the exact progress after N ticks. */
+
+static struct {
+    DosGuiWindow *win;
+    char         text[256];
+    int          pos;         /* next char to deliver */
+    int          delay_ms;    /* time until the next keystroke */
+    uint32_t     rng;
+} g_typer;
+
+static uint32_t typer_rand(uint32_t *s) {
+    *s = *s * 1664525u + 1013904223u;
+    return *s;
+}
+
+static int typer_next_delay(uint32_t *s) {
+    uint32_t r = typer_rand(s);
+    int d = 28 + (int)(r % 24);          /* 28..51 ms per keystroke */
+    if ((r >> 16) % 23 == 0) d += 240;   /* occasional thinking pause */
+    return d;
+}
+
+void dosgui_wm_typer_start(DosGuiWindow *win, const char *text) {
+    if (!win || !text) return;
+    memset(&g_typer, 0, sizeof(g_typer));
+    g_typer.win = win;
+    strncpy(g_typer.text, text, sizeof(g_typer.text) - 1);
+    g_typer.rng = 0x9E3779B9u ^ (uint32_t)(size_t)win;
+    /* human reaction delay before the first key */
+    g_typer.delay_ms = 120 + (int)(typer_rand(&g_typer.rng) % 100);
+}
+
+void dosgui_wm_typer_tick(int dt_ms) {
+    if (!g_typer.win) return;
+    if (!g_typer.win->alive) { g_typer.win = NULL; return; }
+    g_typer.delay_ms -= dt_ms;
+    while (g_typer.delay_ms <= 0 && g_typer.pos < (int)strlen(g_typer.text)) {
+        char c = g_typer.text[g_typer.pos++];
+        if (g_typer.win->on_key)
+            g_typer.win->on_key(g_typer.win, c, 0);
+        g_typer.delay_ms += typer_next_delay(&g_typer.rng);
+    }
+    if (g_typer.pos >= (int)strlen(g_typer.text))
+        g_typer.win = NULL;   /* finished */
+}
+
+int dosgui_wm_typer_busy(void) { return g_typer.win != NULL; }
+int dosgui_wm_typer_pos(void)  { return g_typer.pos; }
+
+/* The eased (human-lag) cursor render position. */
+void dosgui_wm_cursor_pos(int *x, int *y) {
+    if (x) *x = g_dwm.cursor_x;
+    if (y) *y = g_dwm.cursor_y;
 }
 
 void dosgui_wm_shutdown(void) {

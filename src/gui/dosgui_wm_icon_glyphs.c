@@ -118,11 +118,14 @@ void dosgui_wm_draw_icon_glyph(DeskIconType type, int ox, int oy,
 }
 
 /* Selection highlight: a translucent navy box with a 1px focus rect, drawn
- * behind/around the selected icon (XP active-selection look). */
+ * behind/around the selected icon (XP active-selection look).
+ * Real alpha: use vbe_blend_rect() which lerps against whatever is beneath.
+ * The old code drew 0x80300080 via vbe_set_pixel — the 0x80 "alpha" byte is
+ * DISCARDED by the XRGB8888 framebuffer, so it rendered as an opaque purple
+ * square, and the RGB 0x300080 isn't navy either. */
 void dosgui_wm_draw_icon_selection(int ox, int oy) {
-    /* Navy translucent fill (0x80 navy over whatever is below). */
-    uint32_t sel = 0x80300080;  /* ABGR: navy, ~50% */
-    glyph_rect(ox, oy, 0, 0, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE, sel);
+    vbe_blend_rect(ox, oy, DOSGUI_ICON_SIZE, DOSGUI_ICON_SIZE,
+                   0x000080 /* navy */, 90);
     /* Dashed-look focus outline (solid 1px is fine at this scale). */
     uint32_t f = 0x00FFFFFF;
     glyph_rect(ox, oy, 0, 0, DOSGUI_ICON_SIZE, 1, f);

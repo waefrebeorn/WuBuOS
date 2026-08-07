@@ -116,12 +116,13 @@ void wubu_wm_render(uint32_t *fb, int fb_w, int fb_h) {
              g_wm.desktops.current + 1, g_wm.desktops.count);
     vbe_draw_text(4, tb_y + 6, desktop_name, tc->btn_text, 0);
 
-    /* GAAD snap preview overlay */
+    /* GAAD snap preview overlay — real alpha blend (0x40FFFFFF via vbe_set_pixel
+     * would discard the alpha byte and paint opaque white). */
     if (g_wm.gaad_snap_preview) {
         for (int i = 0; i < g_wm.gaad.n_regions; i++) {
             int rx, ry, rw, rh;
             wubu_gaad_snap_pos(&g_wm.gaad, i, &rx, &ry, &rw, &rh);
-            vbe_rect(rx, ry, rw, rh, 0x40FFFFFF);
+            vbe_blend_rect(rx, ry, rw, rh, 0xFFFFFF, 60);
         }
     }
 }

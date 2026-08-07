@@ -19,6 +19,8 @@
 #include "dosgui_wm.h"
 #include "dosgui_wm_internal.h"
 #include "wubu_a11y.h"
+#include "wubu_bonzi.h"
+#include "../kernel/vbe.h"
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -46,6 +48,12 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 /* -- Full-screen render (the single entry point) ------------------- */
 
 void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
+    /* Advance the desktop companion animation clock (~60 Hz). */
+    wubu_bonzi_tick(16);
+    /* Advance any active human-typing session (keystrokes land with
+     * human rhythm, not all at once). */
+    dosgui_wm_typer_tick(16);
+
     draw_desktop_bg(fb_w, fb_h);
 
     for (int i = 0; i < g_dwm.icon_count; i++) {
@@ -104,6 +112,18 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
         }
     }
 
+    /* Rubber-band drag-select lasso (Classic Mac / Win98 lesson). */
+    if (g_dwm.lasso_active) {
+        int x0 = g_dwm.lasso_x0, y0 = g_dwm.lasso_y0;
+        int x1 = g_dwm.lasso_x1, y1 = g_dwm.lasso_y1;
+        if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
+        if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
+        int w = x1 - x0, h = y1 - y0;
+        /* Translucent navy fill + 1px solid border (Win98 rubber band). */
+        vbe_blend_rect(x0, y0, w, h, tc()->select_bg, 60);
+        vbe_rect(x0, y0, w, h, tc()->select_bg);
+    }
+
     for (int j = 0; j < g_dwm.nz; j++) {
         int idx = g_dwm.zorder[j];
         DosGuiWindow *w = &g_dwm.windows[idx];
@@ -128,9 +148,42 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
             wubu_a11y_draw(w, fb, fb_w, fb_h);
     }
 
+    /* Desktop mascot (Bonzi Buddy): drawn above windows, below taskbar.
+     * Balloon Help (System 7 lesson): when the cursor hovers a desktop
+     * icon, the buddy's bubble becomes a tip about that icon; otherwise
+     * it returns to the greeting. */
+    if (wubu_bonzi_is_enabled()) {
+        int hov = dosgui_icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
+        /* Only tip about an icon when NO window covers it (the cursor must
+         * actually be on the desktop, not on a window above the icon). */
+        if (hov >= 0 && hit_test(g_dwm.mouse_x, g_dwm.mouse_y) < 0) {
+            DosGuiIcon *hic = &g_dwm.icons[hov];
+            wubu_bonzi_set_bubble(hic->name, "Click to open");
+        } else {
+            wubu_bonzi_set_bubble("Hi! I'm WuBu Buddy!",
+                                  "Click me for the AGI!");
+        }
+        wubu_bonzi_draw(fb, fb_w, fb_h);
+    }
+
     dosgui_taskbar_render(fb, fb_w, fb_h);
     dosgui_notif_center_render(fb, fb_w, fb_h);
-    vbe_draw_cursor(g_dwm.mouse_x, g_dwm.mouse_y);
+
+    /* Clock popup menu (Win98 parity): the clock's own calendar panel. */
+    if (g_dwm.clock_menu_open)
+        dosgui_clock_menu_render(fb, fb_w, fb_h);
+
+    /* Human-lag cursor: the drawn cursor eases toward the input target
+     * (fast exponential approach — ~7 frames to converge, so motion reads
+     * as a quick human swipe, not an instant teleport).  Input LOGIC still
+     * uses g_dwm.mouse_x/y so clicks land exactly where intended. */
+    g_dwm.cursor_x += (int)((g_dwm.mouse_x - g_dwm.cursor_x) * 0.30f);
+    g_dwm.cursor_y += (int)((g_dwm.mouse_y - g_dwm.cursor_y) * 0.30f);
+    if (g_dwm.cursor_x == 0 && g_dwm.cursor_y == 0) {
+        g_dwm.cursor_x = g_dwm.mouse_x;
+        g_dwm.cursor_y = g_dwm.mouse_y;
+    }
+    vbe_draw_cursor(g_dwm.cursor_x, g_dwm.cursor_y);
 }
 
 /* -- Back-compat wrappers (kept for hosted.c / tests) ---------- */
