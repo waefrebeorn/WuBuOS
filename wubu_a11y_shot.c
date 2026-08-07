@@ -51,22 +51,19 @@ static void render_frame(const char *label) {
     g_frame++;
 }
 
-/* Cluster geometry — must match WubaA11yCluster in wubu_a11y.c/h.
- * Panel anchors at (win_x + WUBU_A11Y_PANEL_OFFX, win_y + WUBU_A11Y_PANEL_OFFY)
- * = (win_x - 8, win_y - 8). Orb centers inside the panel: */
-#define PANEL_OFFX (-8)
-#define PANEL_OFFY 16    /* hangs below the title bar (tbh 18 - 2) */
-static void y_center(int wx, int wy, int *cx, int *cy) {
-    int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 22;  *cy = py + 22;   /* yellow crescent: top-left */
+/* Cluster geometry — must match wubu_a11y.c. Reference-proportional
+ * (reference_trace.svg, 1280x1156 canvas): green A (0.363w, 0.401h) LEFT
+ * of red B (0.579w, 0.402h) SAME row; yellow crescent (0.289w, 0.216h)
+ * up-left. Radii 2.6:1 (real GC hardware: A 16.747mm, B 6.449mm). Purple
+ * resize crescents at the window's bottom corners. */
+static void y_center(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + (int)(w * 0.289f);  *cy = wy + (int)(h * 0.216f);
 }
-static void a_center(int wx, int wy, int *cx, int *cy) {
-    int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 62;  *cy = py + 22;   /* green A: top-right, biggest */
+static void a_center(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + (int)(w * 0.363f);  *cy = wy + (int)(h * 0.401f);
 }
-static void b_center(int wx, int wy, int *cx, int *cy) {
-    int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 62;  *cy = py + 56;   /* red B: bottom-right, smallest */
+static void b_center(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + (int)(w * 0.579f);  *cy = wy + (int)(h * 0.402f);
 }
 static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) {
     *cx = wx + 22;  *cy = wy + h - 26;   /* purple Y: window bottom-left */
@@ -108,7 +105,7 @@ int main(void) {
     /* Frame 2: Green A-orb press + drag -> window moves. */
     {
         int ax, ay;
-        a_center(win->x, win->y, &ax, &ay);
+        a_center(win->x, win->y, win->w, win->h, &ax, &ay);
         dosgui_wm_handle_mouse(ax, ay, 1, 1);           /* press A (down)  */
         dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
@@ -122,7 +119,7 @@ int main(void) {
     /* Frame 3: Yellow Y-pill click -> minimize. */
     {
         int ycx, ycy;
-        y_center(win->x, win->y, &ycx, &ycy);
+        y_center(win->x, win->y, win->w, win->h, &ycx, &ycy);
         dosgui_wm_handle_mouse(ycx, ycy, 1, 1);  /* press   */
         dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
@@ -155,7 +152,7 @@ int main(void) {
     /* Frame 5: Red B-orb click -> close (purge). */
     {
         int bcx, bcy;
-        b_center(win->x, win->y, &bcx, &bcy);
+        b_center(win->x, win->y, win->w, win->h, &bcx, &bcy);
         dosgui_wm_handle_mouse(bcx, bcy, 1, 1);  /* press   */
         dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();

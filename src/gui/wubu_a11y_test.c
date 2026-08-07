@@ -25,13 +25,21 @@
 #define TEST_W     300
 #define TEST_H     200
 
-/* Cluster orb centers (screen-space) for a window at (wx,wy).
- * GC layout: yellow crescent TL, green A TR (big, r-ratio 2:1 vs red),
- * red B BR (smallest). Purple resize crescents at the WINDOW's bottom
- * corners (not in the cluster). Mirrors the geometry in wubu_a11y.c. */
-static void a_center(int wx, int wy, int *cx, int *cy) { *cx = wx + 54; *cy = wy + 38; }
-static void b_center(int wx, int wy, int *cx, int *cy) { *cx = wx + 54; *cy = wy + 72; }
-static void y_center(int wx, int wy, int *cx, int *cy) { *cx = wx + 14; *cy = wy + 38; }
+/* Cluster orb centers (screen-space) for a window at (wx,wy) of size
+ * TEST_W x TEST_H. Reference-proportional (reference_trace.svg): green A
+ * LEFT of red B on the SAME row (0.363w,0.401h) / (0.579w,0.402h), yellow
+ * crescent up-left (0.289w,0.216h). Radii 2.6:1 (real GC: A 16.747mm,
+ * B 6.449mm). Purple resize crescents at the WINDOW's bottom corners.
+ * Mirrors the geometry in wubu_a11y.c. */
+static void a_center(int wx, int wy, int *cx, int *cy) {
+    *cx = wx + (int)(TEST_W * 0.363f);  *cy = wy + (int)(TEST_H * 0.401f);
+}
+static void b_center(int wx, int wy, int *cx, int *cy) {
+    *cx = wx + (int)(TEST_W * 0.579f);  *cy = wy + (int)(TEST_H * 0.402f);
+}
+static void y_center(int wx, int wy, int *cx, int *cy) {
+    *cx = wx + (int)(TEST_W * 0.289f);  *cy = wy + (int)(TEST_H * 0.216f);
+}
 static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + 22; *cy = wy + h - 26; }
 static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + w - 22; *cy = wy + h - 26; }
 

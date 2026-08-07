@@ -44,10 +44,11 @@
 #define A11Y_PURPLE_DARK 0xFF6A1B9A
 #define A11Y_GLYPH       0xFF212121  /* dark glyph on the orbs */
 
-#define A11Y_ORB_A_R   20   /* green A: BIGGEST (reference ratio 2:1 vs red) */
-#define A11Y_ORB_B_R   10   /* red B: smallest (reference: green r155/red r80) */
-#define A11Y_ORB_Y_R   11   /* yellow X: round-tip CRESCENT (reference shape) */
-#define A11Y_ORB_P_R   12   /* purple Y: round-tip CRESCENT, resize */
+#define A11Y_ORB_A_R   31   /* green A: BIGGEST (real GC 16.747mm A vs 6.449mm B
+                               = 2.6:1; 62px diameter >= WCAG AAA 44px) */
+#define A11Y_ORB_B_R   12   /* red B: smallest (24px = WCAG AA 2.5.8 min) */
+#define A11Y_ORB_Y_R   14   /* yellow X: round-tip CRESCENT (28px) */
+#define A11Y_ORB_P_R   14   /* purple Y: round-tip CRESCENT, resize (28px) */
 #define A11Y_PURPLE_FADE 46 /* px: within this the purple resize fades in */
 #define A11Y_PURGE_TOL  30  /* red: drag beyond this = full drag = purge */
 
@@ -85,32 +86,33 @@ bool wubu_a11y_is_enabled(void) { return g_a11y_enabled; }
 
 /* -- Panel geometry ------------------------------------------------ */
 
-/* Cluster geometry — matches the concept sketch: yellow pill TOP-LEFT
- * (minimize/rotate), big green drag orb below-left, red close/purge orb
- * right of it, on a soft lavender floating panel.
- * The panel hangs from the BOTTOM of the title bar into the window content
- * — the old OFFY=-8 put it half over the desktop + title bar, and its
- * translucent shadow straddled the white title text ("transparent overlap
- * white rectangles", user-flagged 2026-08-07). */
+/* Cluster geometry — reference-proportional (reference_trace.svg,
+ * 1280x1156 canvas): green center (465,464) = (0.363w, 0.401h), red
+ * (741,465) = (0.579w, 0.402h) — a HORIZONTAL pair, same row; yellow
+ * crescent (370,250) = (0.289w, 0.216h) floats up-left of green, slightly
+ * overlapping A's upper-left arc (the GC X/Y beans hug A). The cluster
+ * floats INSIDE the window face below the title bar — not jammed into the
+ * corner. Purple resize stays at the window's bottom-left AND bottom-right
+ * corners (edge detection, user-approved). */
 static void panel_rect(DosGuiWindow *w, int *px, int *py) {
-    *px = w->x + WUBU_A11Y_PANEL_OFFX;
-    *py = w->y + title_bar_height() - 2;   /* kiss the title bar's bottom */
+    *px = w->x + (int)(w->w * 0.363f) - A11Y_ORB_A_R;
+    *py = w->y + title_bar_height() + (int)((w->h - title_bar_height()) * 0.22f);
 }
 
 static void orb_a_center(DosGuiWindow *w, int *cx, int *cy) {
-    int px, py; panel_rect(w, &px, &py);
-    *cx = px + 62;      /* green A: top-right, biggest (GC vibe) */
-    *cy = py + 22;
+    /* green A: reference (0.363w, 0.401h) — LEFT of red, same row */
+    *cx = w->x + (int)(w->w * 0.363f);
+    *cy = w->y + (int)(w->h * 0.401f);
 }
 static void orb_b_center(DosGuiWindow *w, int *cx, int *cy) {
-    int px, py; panel_rect(w, &px, &py);
-    *cx = px + 62;      /* red B: bottom-right, smallest */
-    *cy = py + 56;
+    /* red B: reference (0.579w, 0.402h) — RIGHT of green, SAME cy */
+    *cx = w->x + (int)(w->w * 0.579f);
+    *cy = w->y + (int)(w->h * 0.402f);
 }
 static void orb_y_center(DosGuiWindow *w, int *cx, int *cy) {
-    int px, py; panel_rect(w, &px, &py);
-    *cx = px + 22;      /* yellow X: top-left, round-tip crescent */
-    *cy = py + 22;
+    /* yellow X: reference (0.289w, 0.216h) — up-left of green, minimize */
+    *cx = w->x + (int)(w->w * 0.289f);
+    *cy = w->y + (int)(w->h * 0.216f);
 }
 /* Purple resize crescents sit at the WINDOW's bottom-left AND bottom-right
  * corners ("the purple button is not in the right area of the window — it's

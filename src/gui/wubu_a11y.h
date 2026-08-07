@@ -40,9 +40,12 @@ typedef enum {
 
 /* Cluster panel metrics (screen-space, anchored at the window's top-left
  * rounded corner, slightly overlapping it so the corner reads as the
- * "safe to touch" affordance). */
-#define WUBU_A11Y_PANEL_W    80
-#define WUBU_A11Y_PANEL_H    90
+ * "safe to touch" affordance). The panel BACKGROUND is gone (buttons float
+ * on the window face); these bound the cluster for positioning/hit-test.
+ * Layout: yellow crescent TL, green A LEFT of red B on the SAME row
+ * (reference trace: green cx 465 < red cx 741, cy equal), 2.6:1 radii. */
+#define WUBU_A11Y_PANEL_W    124
+#define WUBU_A11Y_PANEL_H    80
 #define WUBU_A11Y_PANEL_OFFX -8   /* overlap the rounded corner */
 #define WUBU_A11Y_PANEL_OFFY -8
 

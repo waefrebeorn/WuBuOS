@@ -37,23 +37,24 @@ SHADOW  = "#C9BFE8"
 SILVER  = "#C0C0C0"; SILVER_EDGE = "#808080"
 NAVY    = "#000080"; WHITE       = "#FFFFFF"
 
-# ---- geometry (mirror of wubu_a11y.c) --------------------------------
-A_R = 20   # green A: biggest
-B_R = 10   # red B: smallest
-Y_R = 11   # yellow X: crescent
-P_R = 12   # purple Y: crescent (resize)
+# ---- geometry (mirror of wubu_a11y.c — research-corrected 2026-08-07)
+# Real GameCube hardware: A button 16.747mm, B button 6.449mm → 2.6:1.
+# Reference trace (1280x1156 canvas): green(465,464) LEFT of red(741,465),
+# SAME cy = horizontal pair. Yellow crescent (370,250) up-left of green.
+# All buttons >= WCAG AA 24px minimum.
+A_R = 31   # green A: 62px diameter >= WCAG AAA 44px
+B_R = 12   # red B:   24px = WCAG AA 2.5.8 min
+Y_R = 14   # yellow crescent: 28px
+P_R = 14   # purple crescent: 28px
 HOLLOW_DX, HOLLOW_DY = 0.707, 0.707   # down-right
 
-# window we draw the cluster on
-WX, WY, WW, WH = 60, 50, 460, 300
-TBH = 18
-# panel_rect: px = wx + OFFX(-8), py = wy + tbh - 2
-PX = WX - 8
-PY = WY + TBH - 2
-
-def orb_y():  return (PX + 22, PY + 22)
-def orb_a():  return (PX + 62, PY + 22)
-def orb_b():  return (PX + 62, PY + 56)
+# Reference-proportional demo window (canvas 1280x1156 → ratio 1.108:1)
+WX, WY, WW, WH = 40, 40, 540, 488
+TBH = 22
+# Cluster floats INSIDE the window below the title bar (NOT in the corner)
+def orb_y():  return (WX + int(WW * 0.289), WY + int(WH * 0.216))
+def orb_a():  return (WX + int(WW * 0.363), WY + int(WH * 0.401))
+def orb_b():  return (WX + int(WW * 0.579), WY + int(WH * 0.402))
 def orb_p_bl(): return (WX + 22, WY + WH - 26)
 def orb_p_br(): return (WX + WW - 22, WY + WH - 26)
 
@@ -131,8 +132,8 @@ def main(out):
     body.append(f'<rect x="{WX}" y="{WY}" width="{WW}" height="{WH}" fill="none" '
                 f'stroke="{SILVER_EDGE}" stroke-width="2"/>')
     body.append(f'<rect x="{WX}" y="{WY}" width="{WW}" height="{TBH}" fill="{NAVY}"/>')
-    body.append(f'<text x="{WX+10}" y="{WY+13}" font-family="monospace" font-size="12" '
-                f'fill="{WHITE}">A11y Demo</text>')
+    body.append(f'<text x="{WX+10}" y="{WY+15}" font-family="monospace" font-size="13" '
+                f'fill="{WHITE}">A11y Demo (reference-proportional)</text>')
 
     # YELLOW bean (TL) — crescent shadow + body + slot
     body.append(svg_crescent(yx, yy + 2, Y_R, SHADOW, opacity=0.37))
