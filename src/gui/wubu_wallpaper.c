@@ -125,8 +125,11 @@ static int decode_bmp(const char *path, WubuWallpaper *out) {
         for (int x = 0; x < w; x++) {
             uint8_t *p = rowbuf + x * bpp;
             uint8_t r = p[2], g = p[1], b = p[0];
-            /* XRGB8888: 0x00BBGGRR (matches VBE backbuffer). */
-            pixels[dst_y * w + x] = (uint32_t)((b << 16) | (g << 8) | r);
+            /* XRGB8888 framebuffer (R in bits 16-23, G in 8-15, B in 0-7).
+             * BMP files are stored BGR, so we re-pack here. The previous
+             * code packed (b<<16)|(g<<8)|r which swapped red/blue and turned
+             * the blue wallpaper gradient into an orange rectangle. */
+            pixels[dst_y * w + x] = (uint32_t)((r << 16) | (g << 8) | b);
         }
     }
 
