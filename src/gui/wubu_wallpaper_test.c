@@ -73,14 +73,16 @@ int main(void) {
 
     /* Bottom-up: src row 0 = bottom = blue,white ; src row 1 = top = red,green.
      * Decoded display buffer (dst_y=0 == top): top-left=red, top-right=green,
-     * bottom-left=blue, bottom-right=white. */
-    uint32_t px00 = wp.pixels[0];  /* top-left     = red   (0x000000FF) */
+     * bottom-left=blue, bottom-right=white.
+     * BMP stores pixels in BGR order; the VBE framebuffer is XRGB8888
+     * ((r<<16)|(g<<8)|b), so BMP red {0,0,255} -> framebuffer 0x00FF0000. */
+    uint32_t px00 = wp.pixels[0];  /* top-left     = red   (0x00FF0000) */
     uint32_t px10 = wp.pixels[1];  /* top-right    = green (0x0000FF00) */
-    uint32_t px01 = wp.pixels[2];  /* bottom-left  = blue  (0x00FF0000) */
+    uint32_t px01 = wp.pixels[2];  /* bottom-left  = blue  (0x000000FF) */
     uint32_t px11 = wp.pixels[3];  /* bottom-right = white (0x00FFFFFF) */
-    CHECK((px00 & 0xFFFFFF) == 0x000000FF, "top-left pixel is red");
+    CHECK((px00 & 0xFFFFFF) == 0x00FF0000, "top-left pixel is red");
     CHECK((px10 & 0xFFFFFF) == 0x0000FF00, "top-right pixel is green");
-    CHECK((px01 & 0xFFFFFF) == 0x00FF0000, "bottom-left pixel is blue");
+    CHECK((px01 & 0xFFFFFF) == 0x000000FF, "bottom-left pixel is blue");
     CHECK((px11 & 0xFFFFFF) == 0x00FFFFFF, "bottom-right pixel is white");
 
     wubu_wallpaper_free(&wp);
