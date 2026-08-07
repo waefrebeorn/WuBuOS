@@ -16,13 +16,15 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
-
-/* Choose allocator based on build mode */
 #ifdef VBE_HOSTED
-  #include <stdio.h>
-  #define VBE_ALLOC(size) calloc(1, size)
-  #define VBE_FREE(ptr)  free(ptr)
-  #define VBE_LOG(...)    fprintf(stderr, __VA_ARGS__)
+#  include <stdio.h>
+#  include <fcntl.h>   /* for O_RDWR (O_CLOEXEC needs POSIX 2008+) */
+#  include <unistd.h>
+#  include <sys/ioctl.h>
+#  include <linux/fb.h>
+#  define VBE_ALLOC(size) calloc(1, size)
+#  define VBE_FREE(ptr)  free(ptr)
+#  define VBE_LOG(...)    fprintf(stderr, __VA_ARGS__)
 #else
   /* Freestanding bare-metal: NO libc stdio.  Route diagnostics through the
    * real serial klog (already proven working in kernel_main) instead of the
@@ -88,7 +90,73 @@ void vbe_get_clip(int *x, int *y, int *w, int *h) {
 }
 
 void vbe_swap(void) {
-    memcpy(g_vbe.fb, g_vbe.back, g_vbe.fb_size);
+    VBEState *v = vbe_state();
+    vbe_backend_t *be = (vbe_backend_t *)v->backend;
+    if (be && be->present) {
+        /* Host owns the buffer; just flush via the backend's present hook. */
+        be->present(be);
+        return;
+    }
+    /* No backend: plain back-buffer copy (bare-metal / test). */
+    memcpy(v->fb, v->back, v->fb_size);
+}
+
+/* --- Modular display backend -------------------------------- */
+
+int vbe_set_backend(vbe_backend_type_t type,
+                    uint32_t *host_fb, int w, int h,
+                    vbe_backend_t *ops) {
+    VBEState *v = vbe_state();
+    if (!host_fb) return -1;
+    /* If already initialized with its own malloc buffers, free them —
+     * the host surface replaces them as the render target. */
+    if (v->fb && v->fb != host_fb)  VBE_FREE(v->fb);
+    if (v->back && v->back != host_fb) VBE_FREE(v->back);
+    v->fb   = host_fb;
+    v->back = host_fb;   /* render directly into the host surface */
+    v->width  = w;
+    v->height = h;
+    v->bpp    = 32;
+    v->fb_size = (size_t)w * h * 4;
+    v->backend = ops;
+    if (ops) ops->type = type;
+    VBE_LOG("[vbe] backend attached: type=%d %dx%d fb=%p\n", type, w, h, host_fb);
+    return 0;
+}
+
+int vbe_probe_native_mode(int *out_w, int *out_h) {
+    /* Try framebuffer ioctl (linux/fb.h) for the real display resolution.
+     * This works on bare-metal Linux with fbdev, and as a fallback on
+     * systems without DRM.  If unavailable, report failure so the caller
+     * can use a safe default. */
+#ifdef VBE_HOSTED
+    int fd = open("/dev/fb0", O_RDWR);
+    if (fd >= 0) {
+        struct fb_var_screeninfo vinfo;
+        if (ioctl(fd, FBIOGET_VSCREENINFO, &vinfo) == 0) {
+            close(fd);
+            if (out_w) *out_w = vinfo.xres;
+            if (out_h) *out_h = vinfo.yres;
+            VBE_LOG("[vbe] native mode via fbdev: %dx%d\n", vinfo.xres, vinfo.yres);
+            return 0;
+        }
+        close(fd);
+    }
+    /* Try Wayland compositor for the native output mode. */
+    const char *xdg = getenv("WAYLAND_DISPLAY");
+    if (xdg) {
+        VBE_LOG("[vbe] Wayland display '%s' active; using compositor mode\n", xdg);
+        /* The compositor provides the surface size; the host layer sets it
+         * via vbe_set_backend before the first render.  Report success so
+         * the caller doesn't clamp to a fallback. */
+        if (out_w) *out_w = 0;
+        if (out_h) *out_h = 0;
+        return 0;
+    }
+# else
+    (void)out_w; (void)out_h;
+#endif
+    return -1;
 }
 
 void vbe_set_pixel(int x, int y, uint32_t color) {

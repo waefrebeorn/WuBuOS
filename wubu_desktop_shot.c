@@ -1,20 +1,22 @@
 /*
- * wubu_desktop_shot.c  --  Full desktop-environment verification capture
+ * wubu_desktop_shot.c  --  Full desktop-environment verification capture.
  *
- * Exercises EVERY a11y action + desktop chrome in one run, capturing a PPM
- * frame after each step so the frames can be triple-verified:
+ * Exercises EVERY a11y action + desktop chrome + Bonzi Buddy companion in one
+ * run, capturing a PPM frame after each step so the frames can be triple-DA:
  *
- *   0. Clean desktop (wallpaper + taskbar + Start)
- *   1. Window created; a11y cluster visible (4 controls)
- *   2. Green A-orb drag -> window MOVED
- *   3. Yellow Y-pill CLICK -> window MINIMIZED (taskbar button appears)
- *   4. Taskbar button click -> window RESTORED
- *   5. Yellow Y-pill DRAG -> window ROTATED 90° (w/h swapped, center kept)
- *   6. Purple corner drag -> window RESIZED (wider + taller)
- *   7. Red B-orb click -> window CLOSED
- *   8. Second window + click-drag B on it -> PURGE + close
+ *   0.  Clean desktop (wallpaper + taskbar + Start + Bonzi Buddy)
+ *   1.  Window created; a11y cluster visible (4 controls)
+ *   2.  Green A-orb drag -> window MOVED
+ *   3.  Yellow Y-pill CLICK -> window MINIMIZED (taskbar button appears)
+ *   4.  Taskbar button click -> window RESTORED
+ *   5.  Yellow Y-pill DRAG -> window ROTATED 90 (w/h swapped, center kept)
+ *   6.  Purple corner drag -> window RESIZED (wider + taller)
+ *   7.  Red B-orb click -> window CLOSED
+ *   8.  Second window + click-drag B on it -> PURGE + close
+ *   9.  Start menu opens; Companion toggle checkbox visible (enabled)
+ *  10.  Toggle Companion off via Start menu; Bonzi Buddy disappears
  *
- * Every pixel comes from the real WM + theme + a11y renderer.
+ * Every pixel comes from the real WM + theme + a11y + bonzi renderer.
  */
 
 #ifndef VBE_HOSTED
@@ -34,6 +36,7 @@ int input_init(void) { return 0; }
 #include "src/gui/dosgui_wm.h"
 #include "src/gui/wubu_theme.h"
 #include "src/gui/wubu_a11y.h"
+#include "src/gui/wubu_bonzi.h"
 #include "src/tools/screenshot.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,26 +57,41 @@ static void render_frame(const char *label) {
 
 /* Cluster geometry — must match WubaA11yCluster in wubu_a11y.c. */
 #define PANEL_OFFX (-8)
-#define PANEL_OFFY (-8)
+#define PANEL_OFFY 16    /* hangs below the title bar (tbh 18 - 2) */
 static void y_center(int wx, int wy, int *cx, int *cy) {
     int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 26;  *cy = py + 13;
+    *cx = px + 22;  *cy = py + 22;   /* yellow crescent: top-left */
 }
 static void a_center(int wx, int wy, int *cx, int *cy) {
     int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 26;  *cy = py + 52;
+    *cx = px + 62;  *cy = py + 22;   /* green A: top-right, biggest */
 }
 static void b_center(int wx, int wy, int *cx, int *cy) {
     int px = wx + PANEL_OFFX, py = wy + PANEL_OFFY;
-    *cx = px + 58;  *cy = py + 52;
+    *cx = px + 62;  *cy = py + 56;   /* red B: bottom-right, smallest */
 }
-static void corner_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + w - 22;  *cy = wy + h - 22;
+static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + 22;  *cy = wy + h - 26;   /* purple Y: window bottom-left */
+}
+static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) {
+    *cx = wx + w - 22;  *cy = wy + h - 26; /* purple Y: window bottom-right */
 }
 
 static void tick(void) {
     dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+    if (dosgui_startmenu_is_open())
+        dosgui_startmenu_render(NULL, SHOT_W, SHOT_H);
     vbe_swap();
+}
+
+/* Start menu click helpers. The menu opens from the bottom-left. */
+static int start_btn_cx(void) {
+    int task_h = dosgui_taskbar_height();
+    return 32;  /* center-ish of 60px Start button */
+}
+static int start_btn_cy(void) {
+    int task_h = dosgui_taskbar_height();
+    return SHOT_H - task_h + 12;
 }
 
 int main(void) {
@@ -93,9 +111,23 @@ int main(void) {
     dosgui_wm_init(SHOT_W, SHOT_H);
     wubu_a11y_set_enabled(true);
 
-    /* Frame 0: clean desktop. */
+    /* Desktop icons (grid 0..2, row 0 -> x=20, y=20 + 60*col). */
+    dosgui_icon_add_ex("Computer",  DESK_ICON_APP,  NULL, 0, 0, 0, NULL);
+    dosgui_icon_add_ex("Documents", DESK_ICON_FOLDER, NULL, 1, 0, 0, NULL);
+    dosgui_icon_add_ex("Recycle",   DESK_ICON_FILE, NULL, 2, 0, 0, NULL);
+
+    /* Frame 0: clean desktop (wallpaper gradient + taskbar + Start + buddy). */
     tick();
     render_frame("00_clean_desktop");
+
+    /* Frames 0a-0h: idle animation (bob cycle + blink), 8 frames at ~300ms each.
+     * Demonstrates the smooth cosine bob, squash/stretch, and blink cycle. */
+    for (int i = 0; i < 8; i++) {
+        tick();
+        char lbl[32];
+        snprintf(lbl, sizeof(lbl), "00a_idle_%d", i);
+        render_frame(lbl);
+    }
 
     /* Frame 1: window with cluster. */
     DosGuiWindow *win = dosgui_wm_create(200, 150, 340, 220, "A11y Demo");
@@ -103,6 +135,16 @@ int main(void) {
     dosgui_wm_set_focus(win);
     tick();
     render_frame("01_cluster_over_window");
+
+    /* Frame 1b: purple Y crescents REVEAL when the cursor nears the window's
+     * bottom edge (Windows edge-detection — invisible until hovered). */
+    {
+        int pxx, pyy;
+        p_bl(win->x, win->y, win->w, win->h, &pxx, &pyy);
+        dosgui_wm_handle_mouse(pxx, pyy, 1, 0);   /* hover near purple BL */
+        tick();
+        render_frame("01b_purple_reveal");
+    }
 
     /* Frame 2: green A drag -> move. */
     {
@@ -140,7 +182,7 @@ int main(void) {
         render_frame("04_taskbar_restore");
     }
 
-    /* Frame 5: yellow Y DRAG -> rotate 90°. */
+    /* Frame 5: yellow Y DRAG -> rotate 90. */
     {
         int ycx, ycy;
         y_center(win->x, win->y, &ycx, &ycy);
@@ -152,16 +194,16 @@ int main(void) {
         render_frame("05_yellow_drag_rotate");
     }
 
-    /* Frame 6: purple corner drag -> resize. */
+    /* Frame 6: purple Y crescent drag (bottom-left) -> resize. */
     {
         int kx, ky;
-        corner_center(win->x, win->y, win->w, win->h, &kx, &ky);
+        p_bl(win->x, win->y, win->w, win->h, &kx, &ky);
         dosgui_wm_handle_mouse(kx, ky, 1, 1);
         tick();
         dosgui_wm_handle_mouse(kx + 60, ky + 40, 1, 0);
         dosgui_wm_handle_mouse(kx + 60, ky + 40, 1, 2);
         tick();
-        render_frame("06_purple_corner_resize");
+        render_frame("06_purple_crescent_resize");
     }
 
     /* Frame 7: red B click -> close. */
@@ -191,6 +233,136 @@ int main(void) {
         dosgui_wm_handle_mouse(bcx + 30, bcy + 30, 1, 2);
         tick();
         render_frame("09_red_drag_purge_close");
+
+        /* Frame 9b: STIM — a PARTIAL red drag (< 30px) is feedback, not a
+         * close: the orb pulses with a warm ring, the window stays. */
+        DosGuiWindow *win3 = dosgui_wm_create(260, 260, 240, 160, "Stim Demo");
+        if (win3) {
+            dosgui_wm_set_focus(win3);
+            tick();
+            int bx3, by3;
+            b_center(win3->x, win3->y, &bx3, &by3);
+            dosgui_wm_handle_mouse(bx3, by3, 1, 1);
+            tick();
+            dosgui_wm_handle_mouse(bx3 + 15, by3 + 15, 1, 0); /* partial */
+            dosgui_wm_handle_mouse(bx3 + 15, by3 + 15, 1, 2); /* release */
+            tick(); tick(); tick();   /* ~3 frames of the pulse ring */
+            render_frame("09b_red_stim_pulse");
+            printf("  [stim] window alive after partial drag: %d\n",
+                   (int)win3->alive);
+            dosgui_wm_destroy(win3);
+        }
+    }
+
+    /* Frame 10: open Start menu (via simulated Start button press). */
+    {
+        int task_h = dosgui_taskbar_height();
+        int by = SHOT_H - task_h + (task_h - 24) / 2;
+        dosgui_wm_handle_mouse(10, by + 12, 1, 1);  /* press Start */
+        tick();
+        dosgui_wm_handle_mouse(10, by + 12, 1, 2);  /* release Start */
+        tick();
+        render_frame("10_startmenu_open");
+    }
+
+    /* Frame 11: click the Companion toggle item -> Bonzi Buddy disappears. */
+    {
+        int task_h = dosgui_taskbar_height();
+        int mh = 24;
+        int menu_y = SHOT_H - task_h - (10 * mh + 4);
+        int cx = 56 + 18;  /* content_x + checkbox + gap */
+        int cy = menu_y + 2 + 9 * mh + mh / 2;
+        dosgui_wm_handle_mouse(cx, cy, 1, 1);  /* press Companion */
+        tick();
+        dosgui_wm_handle_mouse(cx, cy, 1, 2);  /* release */
+        tick();
+        render_frame("11_toggle_companion_off");
+    }
+
+    /* Re-enable the companion for the remaining frames. */
+    wubu_bonzi_set_enabled(true);
+    tick();
+
+    /* Frame 12: rubber-band drag-select lasso (Classic Mac / Win98 lesson).
+     * Icons sit at (20,20), (80,20), (140,20) [32x32 boxes, labels below].
+     * Press empty desktop at (10,15), drag to (180,55): the band covers all
+     * three icon boxes. */
+    {
+        dosgui_wm_handle_mouse(10, 15, 1, 1);   /* press empty desktop */
+        tick();
+        dosgui_wm_handle_mouse(180, 55, 1, 0);  /* drag to cover the icons */
+        tick();
+        render_frame("12_lasso_drag");
+        dosgui_wm_handle_mouse(180, 55, 1, 2);  /* release -> select */
+        tick();
+        render_frame("13_lasso_selected");
+        int nsel = 0;
+        for (int i = 0; i < 3; i++)
+            if (dosgui_icon_get(i) && dosgui_icon_get(i)->selected) nsel++;
+        printf("  [lasso] icons selected: %d/3\n", nsel);
+    }
+
+    /* Frame 14: Balloon Help (System 7 lesson) — hover an icon, the buddy
+     * bubble retargets to that icon's tip. */
+    {
+        dosgui_wm_handle_mouse(36, 36, 1, 0);   /* hover "Computer" icon */
+        tick();
+        render_frame("14_balloon_tip");
+    }
+
+    /* Frame 15: click the taskbar clock well -> its own popup menu
+     * (Win98 parity): date + time + mini calendar. */
+    {
+        tick();  /* ensure the well rect is current */
+        int wx, wy, ww, wh;
+        dosgui_clock_well(&wx, &wy, &ww, &wh);
+        printf("  [clock] well=(%d,%d %dx%d) menu=%d\n",
+               wx, wy, ww, wh, dosgui_clock_menu_is_open());
+        int cxw = wx + ww / 2;
+        int cyw = wy + wh / 2;
+        dosgui_wm_handle_mouse(cxw, cyw, 1, 1);  /* press clock well */
+        tick();
+        dosgui_wm_handle_mouse(cxw, cyw, 1, 2);  /* release */
+        tick();
+        render_frame("15_clock_menu");
+        printf("  [clock] menu open after click: %d\n", dosgui_clock_menu_is_open());
+        dosgui_clock_menu_close();
+        tick();
+    }
+
+    /* Human-lag cursor: a long mouse jump, then render — the DRAWN cursor
+     * must be partway (eased), not instantly at the target. */
+    {
+        int cx0, cy0;
+        dosgui_wm_cursor_pos(&cx0, &cy0);
+        dosgui_wm_handle_mouse(512, 384, 1, 0);  /* teleport the target */
+        tick();                                   /* one eased frame */
+        int cx1, cy1;
+        dosgui_wm_cursor_pos(&cx1, &cy1);
+        printf("  [cursor] eased %d,%d -> %d,%d (target 512,384) after 1 frame\n",
+               cx0, cy0, cx1, cy1);
+        /* 2 more frames: should keep converging */
+        tick(); tick();
+        int cx2, cy2;
+        dosgui_wm_cursor_pos(&cx2, &cy2);
+        printf("  [cursor] after 3 frames: %d,%d\n", cx2, cy2);
+    }
+
+    /* Human typing: keys land with human rhythm, not all at once. */
+    {
+        DosGuiWindow *tw = dosgui_wm_create(300, 200, 320, 160, "Type Test");
+        if (tw) {
+            dosgui_wm_typer_start(tw, "hello wubu");
+            int p0 = dosgui_wm_typer_pos();
+            for (int i = 0; i < 4; i++) tick();   /* ~64ms: reaction delay */
+            int p1 = dosgui_wm_typer_pos();
+            for (int i = 0; i < 30; i++) tick();  /* ~480ms more */
+            int p2 = dosgui_wm_typer_pos();
+            int busy = dosgui_wm_typer_busy();
+            printf("  [typer] pos after 0/4/34 ticks: %d/%d/%d (len 10), busy=%d\n",
+                   p0, p1, p2, busy);
+            dosgui_wm_destroy(tw);
+        }
     }
 
     printf("Done. %d frames written to %s\n", g_frame, OUT_DIR);

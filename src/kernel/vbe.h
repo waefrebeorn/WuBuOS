@@ -29,6 +29,14 @@ typedef struct {
     /* Scissor / clip rectangle (0,0,0,0 = disabled). */
     int       clip_x, clip_y, clip_w, clip_h;
     int       clip_enabled;
+    /* --- Modular display backend (agostic framebuffer) --- */
+    /* When a host provides a backing surface via vbe_set_backend(),
+     * `back` points at that surface and vbe_swap() calls the backend's
+     * present hook instead of memcpy. On bare metal the backend is NULL
+     * and vbe_swap does a plain back->fb copy. This lets the same VBE
+     * rendering code target DRM/KMS dumb buffers, Wayland SHM pools,
+     * or a plain malloc'd buffer — resolution-agnostic. */
+    void *backend;          /* opaque vbe_backend_t* (see below) */
 } VBEState;
 
 /* Init: allocate framebuffer of given size */
@@ -47,6 +55,45 @@ VBEState *vbe_state(void);
 
 /* Swap front/back buffers (call each frame) */
 void vbe_swap(void);
+
+/* --- Modular display backend (resolution-agnostic) ----------------
+ * A host-provided backing surface.  When set, `back` aliases the host's
+ * surface (no separate allocation, no memcpy on swap).  The optional
+ * `present` hook hands the completed frame to the host's compositor
+ * (e.g. DRM page-flip or Wayland surface commit).
+ *
+ * Backends:
+ *   VBE_BACKEND_MALLOC  — plain heap (bare-metal / test)
+ *   VBE_BACKEND_DRM     — DRM/KMS dumb buffer + page flip
+ *   VBE_BACKEND_WAYLAND — Wayland SHM surface (hosted mode)
+ * The backend type is a hint; vbe_swap dispatches on the vtable.
+ */
+typedef enum {
+    VBE_BACKEND_MALLOC = 0,
+    VBE_BACKEND_DRM     = 1,
+    VBE_BACKEND_WAYLAND = 2,
+} vbe_backend_type_t;
+
+typedef struct vbe_backend vbe_backend_t;
+struct vbe_backend {
+    vbe_backend_type_t type;
+    void *host_ctx;              /* opaque host context, or NULL */
+    void (*present)(vbe_backend_t *be);  /* flush frame to display */
+    void (*destroy)(vbe_backend_t *be); /* free host resources */
+};
+
+/* Attach a host-provided back buffer (host owns the memory).
+ * After this call vbe_framebuffer() returns `host_fb`; the VBE layer
+ * renders directly into it every frame via vbe_swap(). */
+int  vbe_set_backend(vbe_backend_type_t type,
+                     uint32_t *host_fb, int w, int h,
+                     vbe_backend_t *ops);
+
+/* --- Resolution auto-detection --------------------------------------- */
+/* Probe the connected display for its native mode.  Returns 0 and fills
+ * `out_w/out_h` on success; returns -1 if the host cannot report a mode,
+ * in which case the caller falls back to a safe default. */
+int  vbe_probe_native_mode(int *out_w, int *out_h);
 
 /* -- Drawing Primitives ------------------------------------------- */
 

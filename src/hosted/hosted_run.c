@@ -117,15 +117,22 @@ void hosted_shutdown(hosted_state_t *state) {
         if (f) {
             /* Write simple PPM format */
             fprintf(f, "P6\n%d %d\n255\n", state->width, state->height);
-            uint32_t *fb = state->framebuffer;
-            for (int y = 0; y < state->height; y++) {
-                for (int x = 0; x < state->width; x++) {
-                    uint32_t c = fb[y * state->width + x];
-                    fputc((c >> 16) & 0xFF, f);  /* R */
-                    fputc((c >> 8) & 0xFF, f);   /* G */
-                    fputc(c & 0xFF, f);          /* B */
-                }
+    /* Screenshot: read from the live VBE framebuffer (which may be an
+     * SHM surface in hosted mode, or a malloc buffer in headless/test). */
+    uint32_t *fb_src = NULL;
+    VBEState *vs = vbe_state();
+    if (vs && vs->fb) fb_src = vs->fb;
+    if (!fb_src && state->framebuffer) fb_src = state->framebuffer;
+    if (fb_src) {
+        for (int y = 0; y < state->height; y++) {
+            for (int x = 0; x < state->width; x++) {
+                uint32_t c = fb_src[y * state->width + x];
+                fputc((c >> 16) & 0xFF, f);  /* R */
+                fputc((c >> 8) & 0xFF, f);   /* G */
+                fputc(c & 0xFF, f);          /* B */
             }
+        }
+    }
             fclose(f);
             fprintf(stderr, "Screenshot saved to %s\n", state->screenshot_path);
         }

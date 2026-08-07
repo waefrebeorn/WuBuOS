@@ -25,6 +25,20 @@ void dosgui_launch_app(const char *name) { }
 
 /* Stub for shutdown */
 void dosgui_shutdown(void) { }
+void dosgui_platform_shutdown(void) { }
+
+/* -- Bonzi stub (startmenu test doesn't need the full mascot) -- */
+#include "wubu_bonzi.h"
+#include "dosgui_wm.h"  /* for DosGuiWindow type */
+/* wubu_bonzi.h already declares set_enabled/is_enabled; the full
+ * implementation is in wubu_bonzi.c (linked in). But the AGI gateway
+ * (wubu_bonzi_open_agi) calls dosgui_wm_spawn_holyc_term + set_focus,
+ * which are not linked here.  Provide a no-op so the symbol resolves. */
+void dosgui_wm_set_focus(DosGuiWindow *w) { (void)w; }
+/* dosgui_wm_spawn_holyc_term: no-op for menu test (Bonzi won't be clicked). */
+DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
+    (void)x; (void)y; (void)w; (void)h; return NULL;
+}
 
 /* Theme functions come from wubu_theme.c - no stubs needed */
 

@@ -42,34 +42,39 @@ void load_default_wallpaper(void) {
         /* Decode failed -> fall through to bundled default. */
     }
 
-    /* Bundled default wallpaper (ships with source, WuBuOS teal-blue gradient
-     * with centered "W" logo). Better than a raw gradient. */
+    /* Bundled default: full-screen procedural teal→blue gradient (crisp at
+     * any resolution) + the shipped "W" logo BMP drawn as a centered overlay
+     * badge on top (NOT stretched — a 256×144 bitmap scaled to 1024×768
+     * would be a blurry mess; xfdesktop keeps the wallpaper native and lets
+     * the compositor fill the rest). The logo badge is drawn by
+     * draw_wallpaper() from g_dwm.logo_* fields. */
     if (!(s && s->theme.wallpaper_path[0])) {
         const char *def_path = wubu_wallpaper_default_path();
         if (def_path) {
             WubuWallpaper wp;
             if (wubu_wallpaper_load(def_path, &wp) && wp.pixels) {
-                g_dwm.wallpaper = wp.pixels;
-                g_dwm.wallpaper_w = wp.w;
-                g_dwm.wallpaper_h = wp.h;
-                g_dwm.wallpaper_mode = WUBU_WP_CENTER;  /* show logo centered */
-                return;
+                g_dwm.logo = wp.pixels;          /* keep as badge, not wallpaper */
+                g_dwm.logo_w = wp.w;
+                g_dwm.logo_h = wp.h;
             }
         }
     }
 
-    /* Gradient fallback (classic WuBu teal→blue). */
+    /* Gradient fallback (classic WuBu teal→blue) — full-screen, no bitmap. */
     g_dwm.wallpaper_w = g_dwm.screen_w;
-    g_dwm.wallpaper_h = g_dwm.screen_h;
+    g_dwm.wallpaper_h = g_dwm.screen_h - taskbar_height_dynamic();
     g_dwm.wallpaper = (uint32_t*)malloc((size_t)g_dwm.wallpaper_w * g_dwm.wallpaper_h * 4);
     if (g_dwm.wallpaper) {
         for (int y = 0; y < g_dwm.wallpaper_h; y++) {
             for (int x = 0; x < g_dwm.wallpaper_w; x++) {
-                float fy = (float)y / g_dwm.wallpaper_h;
-                int r = (int)((0x00 * (1-fy) + 0x00 * fy));
-                int g = (int)((0x80 * (1-fy) + 0x40 * fy));
-                int b = (int)((0x80 * (1-fy) + 0x00 * fy));
-                uint32_t c = (uint32_t)((b << 16) | (g << 8) | r);
+                float fy = (float)y / (g_dwm.wallpaper_h > 1 ? g_dwm.wallpaper_h - 1 : 1);
+                int r = (int)((0x00 * (1-fy) + 0x08 * fy));
+                int g = (int)((0x80 * (1-fy) + 0x38 * fy));
+                int b = (int)((0x80 * (1-fy) + 0x90 * fy));
+                /* XRGB8888 framebuffer: R in bits 16-23, G in 8-15, B in 0-7.
+                 * The previous pack (b<<16)|(g<<8)|r swapped red/blue and
+                 * rendered the teal→blue gradient as orange-brown. */
+                uint32_t c = (uint32_t)((r << 16) | (g << 8) | b);
                 g_dwm.wallpaper[y * g_dwm.wallpaper_w + x] = c;
             }
         }
@@ -127,6 +132,11 @@ void draw_wallpaper(int fb_w, int fb_h) {
             }
         }
     }
+
+    /* NOTE: the old centered "W" logo-badge overlay (g_dwm.logo) was
+     * removed 2026-08-06 — it read as a stuck blue dialog box in the
+     * middle of the desktop (user: "you never removed that thing").
+     * The logo belongs on a boot/login splash, not the live desktop. */
 }
 
 void snap_window_to_gaad(DosGuiWindow *w) {

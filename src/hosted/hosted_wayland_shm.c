@@ -87,8 +87,13 @@ void hosted_wl_frame_render(void) {
     shm_buffer_t *buf = &g_shm_bufs[g_cur_buf];
     if (!buf->pixels) return;
 
+    /* With the VBE backend wired to SHM, vbe->fb already points at the
+     * SHM buffer — no copy needed.  The vbe_swap() call in the render
+     * loop writes back->fb, and back was set to g_shm_bufs[0].pixels
+     * by vbe_set_backend.  If the backend is not attached, fall back
+     * to copying the legacy standalone framebuffer. */
     VBEState *vs = vbe_state();
-    if (vs && vs->fb) {
+    if (vs && vs->fb && buf->pixels && buf->pixels != vs->fb) {
         memcpy(buf->pixels, vs->fb,
                (size_t)g_hosted_state->width * g_hosted_state->height * 4);
     }

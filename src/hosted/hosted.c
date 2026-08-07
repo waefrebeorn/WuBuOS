@@ -108,21 +108,32 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         }
     }
 
+    /* --- Display backend setup (modular, resolution-agnostic) ---
+     * Probe the native display resolution first.  If the host can't
+     * report a mode, fall back to HOSTED_DEFAULT_W/H.  Then attach the
+     * Wayland SHM surface as the VBE backing store so rendering writes
+     * directly into the compositor buffer (zero-copy path). */
+    {
+        int native_w = 0, native_h = 0;
+        if (vbe_probe_native_mode(&native_w, &native_h) == 0
+            && native_w > 0 && native_h > 0) {
+            state->width  = native_w;
+            state->height = native_h;
+        }
+        /* else: keep the -w flag or HOSTED_DEFAULT */
+    }
+
     state->depth = 32;
     state->fb_pitch = state->width * 4;
     state->framebuffer = (uint32_t*)calloc((size_t)state->width * state->height, 4);
     if (!state->framebuffer) { fprintf(stderr, "OOM\n"); return -1; }
 
     mem_init(1024 * 1024);
-    fprintf(stderr, "DEBUG: mem_init done\n");
     vbe_init(state->width, state->height);
-    fprintf(stderr, "DEBUG: vbe_init done\n");
     input_init();
-    fprintf(stderr, "DEBUG: input_init done\n");
 
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
     dosgui_wm_init(state->width, state->height);
-    fprintf(stderr, "DEBUG: dosgui_wm_init done\n");
 
     /* Wire the HolyC Terminal to the live ring-0 AGI compiler: the same
      * compile+run path a human uses, but with EDR disclosure of every

@@ -254,16 +254,22 @@ static void test_render_window_clipped_above_taskbar(void) {
     int task_h = dosgui_taskbar_height();   /* 28 for Win98 */
     int tb_top = 256 - task_h;
 
-    /* Create a window whose bottom extends well past the taskbar. */
-    DosGuiWindow *w = dosgui_wm_create(20, tb_top - 10, 120, 120, "Low Win");
+    /* Create a window whose bottom extends well past the taskbar.
+     * x=90 keeps its columns right of the Start button (x 4..64), whose
+     * 4-pane flag emblem legitimately contains a navy quadrant — the
+     * navy detector must only see the WINDOW's pixels. */
+    DosGuiWindow *w = dosgui_wm_create(90, tb_top - 10, 120, 120, "Low Win");
     CHECK(w, "window created");
     if (w) w->on_draw = NULL;
     dosgui_wm_render(NULL, 256, 256);
 
-    /* No window-title (navy) pixel may appear inside the taskbar band. */
+    /* No window-title (navy) pixel may appear inside the taskbar band.
+     * Skip x < 68: the Start button (x 4..64) legitimately contains a navy
+     * flag quadrant, so the navy detector must only probe the rest of the
+     * band (where the test window at x=90..210 would bleed if unclipped). */
     int bleed = 0;
     for (int y = tb_top; y < 256; y++)
-        for (int x = 0; x < 256; x++) {
+        for (int x = 68; x < 256; x++) {
             uint32_t c = vbe_get_pixel(x, y);
             int r = c & 0xFF, g = (c >> 8) & 0xFF, b = (c >> 16) & 0xFF;
             if (b > 80 && r < 60 && g < 60) bleed++;   /* navy title in band */

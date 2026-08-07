@@ -41,8 +41,8 @@ typedef enum {
 /* Cluster panel metrics (screen-space, anchored at the window's top-left
  * rounded corner, slightly overlapping it so the corner reads as the
  * "safe to touch" affordance). */
-#define WUBU_A11Y_PANEL_W    72
-#define WUBU_A11Y_PANEL_H    92
+#define WUBU_A11Y_PANEL_W    80
+#define WUBU_A11Y_PANEL_H    90
 #define WUBU_A11Y_PANEL_OFFX -8   /* overlap the rounded corner */
 #define WUBU_A11Y_PANEL_OFFY -8
 

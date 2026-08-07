@@ -17,6 +17,7 @@
 #include "dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
+#include "wubu_bonzi.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -148,6 +149,31 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     int tbh = title_bar_height();
     border_width();  // ensure theme is loaded
 
+    /* Start menu: when open, own the click — route PRESS events to the
+     * menu's hit-test before anything else grabs it.  A press (kind==1)
+     * on a menu item fires its action; a press outside the menu closes it.
+     * Releases (kind==2) are consumed here to prevent a second toggle
+     * from the Start-button release landing on a now-closed menu. */
+    if (dosgui_startmenu_is_open() && kind == 1) {
+        dosgui_startmenu_handle_click(x, y);
+        return;
+    }
+    if (dosgui_startmenu_is_open() && kind == 2) {
+        /* Swallow release while menu is open so the Start button's own
+         * release handler in the fall-through below can't re-toggle. */
+        return;
+    }
+
+    /* Clock popup (Win98 parity): a press OUTSIDE the open popup closes it
+     * (and the press still processes normally). */
+    if (g_dwm.clock_menu_open && kind == 1) {
+        int px, py, pw, ph;
+        dosgui_clock_menu_rect(g_dwm.screen_w, g_dwm.screen_h,
+                               &px, &py, &pw, &ph);
+        if (x < px || x >= px + pw || y < py || y >= py + ph)
+            dosgui_clock_menu_close();
+    }
+
     /* Accessibility cluster: give it first crack at the event when enabled
      * and a window is focused. Returning true consumes the event so the
      * normal taskbar/chromeo logic below cannot interfere. */
@@ -158,6 +184,10 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             return;
     }
 
+    /* Taskbar / Start button: must be checked BEFORE the Bonzi Buddy hit-test,
+     * because the buddy sits in the lower-left corner and its bounding box
+     * overlaps the taskbar region.  A click on the Start button or taskbar
+     * buttons must not be swallowed by the mascot. */
     if (y >= g_dwm.screen_h - task_h) {
         int by = g_dwm.screen_h - task_h + (task_h - 24) / 2;
         int start_w = theme()->Luna_start_button ? 54 : 60;
@@ -246,8 +276,22 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             return;
         }
 
+        /* Taskbar clock well (Win98 parity): clicking it opens/closes the
+         * clock + calendar popup. */
+        if (x >= g_dwm.clock_well_x && x < g_dwm.clock_well_x + g_dwm.clock_well_w &&
+            y >= g_dwm.clock_well_y && y < g_dwm.clock_well_y + g_dwm.clock_well_h) {
+            if (kind == 1) dosgui_clock_menu_toggle();
+            return;
+        }
+
         return;
     }
+
+    /* Desktop mascot (WuBu Buddy): chrome-less element above windows.
+     * Checked AFTER the taskbar region so Start button clicks aren't
+     * swallowed by the mascot's lower-left bounding box. */
+    if (wubu_bonzi_is_enabled() && wubu_bonzi_mouse(x, y, btn, kind))
+        return;
 
     if (kind == 1) {
         if (y >= g_dwm.screen_h - task_h) {
@@ -314,6 +358,11 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
                 dosgui_desktop_show_context_menu(x, y);
                 return;
             }
+            /* Left press on empty desktop: start the rubber-band
+             * drag-select lasso (Classic Mac / Win98 lesson). */
+            g_dwm.lasso_active = true;
+            g_dwm.lasso_x0 = x; g_dwm.lasso_y0 = y;
+            g_dwm.lasso_x1 = x; g_dwm.lasso_y1 = y;
             return;
         }
 
@@ -389,7 +438,18 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             dosgui_wm_save_icon_layout();   /* persist position (ReactOS-style) */
             g_dwm.drag_icon_id = -1;
         }
+        /* Release the lasso: select every icon the rubber band covers. */
+        if (g_dwm.lasso_active) {
+            dosgui_icon_select_in_rect(g_dwm.lasso_x0, g_dwm.lasso_y0,
+                                       g_dwm.lasso_x1, g_dwm.lasso_y1);
+            g_dwm.lasso_active = false;
+        }
     } else if (kind == 0) {
+        /* Live lasso update: stretch the rubber band with the cursor. */
+        if (g_dwm.lasso_active) {
+            g_dwm.lasso_x1 = x;
+            g_dwm.lasso_y1 = y;
+        }
         if (g_dwm.resize_id >= 0 && g_dwm.windows[g_dwm.resize_id].alive) {
             DosGuiWindow *w = &g_dwm.windows[g_dwm.resize_id];
             int dx = x - g_dwm.resize_ox;

@@ -66,6 +66,24 @@ int hosted_wl_connect(hosted_state_t *state) {
     /* Allocate the double-buffered SHM pool + wire it into g_wl (hosted_wayland_shm.c). */
     wl_shm_init(state);
 
+    /* Attach the Wayland SHM pool as the VBE backing store.
+     * After this, vbe_framebuffer() == shm_buf.pixels, so the render
+     * loop's memcpy in hosted_wl_frame_render is a no-op (same memory).
+     * The GUI renders into the VBE back buffer; vbe_swap copies it
+     * into the front SHM buffer which wl_surface_attach then displays. */
+    if (g_wl.shm && g_shm_bufs[0].pixels) {
+        vbe_backend_t *be = calloc(1, sizeof(vbe_backend_t));
+        if (be) {
+            be->type     = VBE_BACKEND_WAYLAND;
+            be->host_ctx = NULL;
+            be->present  = NULL;  /* hosted_wl_frame_render drives the commit */
+            be->destroy  = NULL;
+            vbe_set_backend(VBE_BACKEND_WAYLAND,
+                            g_shm_bufs[0].pixels,
+                            state->width, state->height, be);
+        }
+    }
+
     fprintf(stderr, "WuBuOS: Wayland %dx%d window\n", state->width, state->height);
     return 0;
 }
