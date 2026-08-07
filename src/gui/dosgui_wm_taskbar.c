@@ -52,8 +52,12 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     
     for (int j = 0; j < g_dwm.nz; j++) {
         DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
-        if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
+        if (!w->alive) continue;
         if (w->desktop != g_dwm.current_desktop) continue;
+        /* MINIMIZED windows MUST still draw a taskbar button — otherwise
+         * the window vanishes from the taskbar entirely and can never be
+         * restored (the "lost window" bug). Draw it with a sunken look. */
+        bool minimized = (w->flags & DOSGUI_WIN_MINIMIZED);
         int tw = vbe_text_width(w->title, 1);
         int bw = tw + 24;                      /* padding either side */
         if (bw < 120) bw = 120;                /* min width like real Win98 */
@@ -73,12 +77,19 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             truncated[strlen(truncated) - 1] = '\0';
         }
 
-        if (focused) {
+        if (focused && !minimized) {
             vbe_fill_rect(bx, bby, bw, bh, tc()->select_bg);
             vbe_3d_sunken_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
             vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->select_text, 1);
+        } else if (minimized) {
+            /* Sunken + dimmed: clearly "not on screen" but present. */
+            vbe_fill_rect(bx, bby, bw, bh, tc()->btn_face);
+            vbe_3d_sunken_colors(bx, bby, bw, bh,
+                                  tc()->border_light, tc()->border_face,
+                                  tc()->border_dark, tc()->border_darkest);
+            vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, tc()->btn_text, 1);
         } else {
             vbe_fill_rect(bx, bby, bw, bh, tc()->btn_face);
             vbe_3d_raised_colors(bx, bby, bw, bh,
