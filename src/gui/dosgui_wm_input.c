@@ -161,21 +161,42 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     if (y >= g_dwm.screen_h - task_h) {
         int by = g_dwm.screen_h - task_h + (task_h - 24) / 2;
         int start_w = theme()->Luna_start_button ? 54 : 60;
+        /* Start button hit region must match the DRAWN width
+         * (dosgui_wm_taskbar.c: Win98 draws 60px, Luna draws start_w+20).
+         * The old +20 made the hit zone extend to x<84 while the Win98
+         * button is only 60px wide — the phantom 20px swallowed the first
+         * taskbar button's left 12px (task buttons start at x=72), so
+         * clicking a minimized window's restore button's left edge opened
+         * the Start menu instead of restoring the window. */
+        int start_hit_w = theme()->Luna_start_button ? start_w + 20 : start_w;
 
-        if (x >= 4 && x < 4 + start_w + 20 && y >= by && y < by + 24) {
-            dosgui_startmenu_toggle();
+        if (x >= 4 && x < 4 + start_hit_w && y >= by && y < by + 24) {
+            /* Act on PRESS only — release at the same spot would toggle the
+             * menu closed again (same double-fire as the taskbar buttons). */
+            if (kind == 1) dosgui_startmenu_toggle();
             return;
         }
 
         int bx = theme()->Luna_start_button ? 82 : 72;
         for (int j = 0; j < g_dwm.nz; j++) {
             DosGuiWindow *w = &g_dwm.windows[g_dwm.zorder[j]];
-            if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
-            int bw = (int)strlen(w->title) * 6 + 16;
-            if (bw > 160) bw = 160;
+            if (!w->alive) continue;   /* MINIMIZED windows must be hit-testable:
+                                          their taskbar button restores them */
+            /* Button width MUST match dosgui_wm_taskbar.c render exactly
+             * (tw + 24, min 120, max 200) or the right part of a drawn
+             * button is unclickable. */
+            int tw = vbe_text_width(w->title, 1);
+            int bw = tw + 24;
+            if (bw < 120) bw = 120;
+            if (bw > 200) bw = 200;
             if (x >= bx && x < bx + bw && y >= by && y < by + 22) {
+                /* Act on PRESS only (kind==1). The same (x,y) arrives again
+                 * as kind==2 (release); acting there too makes one click
+                 * restore-then-immediately-reminimize (double-fire toggle). */
+                if (kind != 1) return;
                 if (w->flags & DOSGUI_WIN_MINIMIZED) {
                     w->flags &= ~DOSGUI_WIN_MINIMIZED;
+                    dosgui_wm_set_focus(w);   /* restore also refocuses */
                 } else if (g_dwm.focused_id == g_dwm.zorder[j]) {
                     w->flags |= DOSGUI_WIN_MINIMIZED;
                 } else {
@@ -183,7 +204,7 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
                 }
                 return;
             }
-            bx += bw + 2;
+            bx += bw + 3;   /* MUST match render gap (taskbar.c) */
             if (bx > g_dwm.screen_w - 160) break;
         }
 
