@@ -22,6 +22,31 @@
 #include <stdbool.h>
 #include <string.h>
 
+/* ---- Minimal no-op stubs for symbols the start-menu test path needs but
+ *      the WM/bonzi/vbe real modules are not linked into test_holyd.
+ *
+ *      These mirror dosgui_startmenu_test_stub.c's approach: provide the
+ *      handful of WM geometry + bonzi + VBE entry points the menu click
+ *      handler touches, so the format layer proves the dispatch machinery
+ *      without dragging in the entire GUI surface.
+ *
+ *      Sibling binaries (desktop_shot, a11y_shot, test_dosgui_wm ...) link
+ *      the REAL definitions AND this stub; they pass -Wl,--allow-multiple-
+ *      definition, so the linker keeps the real TU. When only this stub is
+ *      linked, these definitions satisfy the references. ---- */
+#if defined(WUBD_TEST_STUB_WM_NOOPS)
+int  dosgui_taskbar_height(void) { return 28; }
+int  dosgui_wm_screen_h(void)     { return 768; }
+int  dosgui_wm_screen_w(void)     { return 1024; }
+void dosgui_wm_set_focus(DosGuiWindow *w) { (void)w; }
+DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
+    (void)x; (void)y; (void)w; (void)h; return NULL;
+}
+void vbe_draw_text(int x, int y, const char *s, uint32_t c, int scale) {
+    (void)x; (void)y; (void)s; (void)c; (void)scale;
+}
+#endif /* WUBD_TEST_STUB_WM_NOOPS */
+
 /* --- Start menu: minimal testable implementation --- */
 
 /* Menu geometry (must match dosgui_startmenu.c constants). */
@@ -67,9 +92,7 @@ void dosgui_startmenu_handle_click(int x, int y) {
     int idx = (y - menu_y - 2) / mh;
     if (idx < 0 || idx >= TSM_N_ITEMS) return;
     if (tsm_items[idx].type == 4) {
-        /* Companion toggle */
-        extern void wubu_bonzi_set_enabled(bool on);
-        extern bool wubu_bonzi_is_enabled(void);
+        /* Companion toggle — bonzi lives in its own module + wubu_bonzi.h */
         wubu_bonzi_set_enabled(!wubu_bonzi_is_enabled());
         tsm_open = 0;
     } else if (tsm_items[idx].type == 3) {
@@ -149,4 +172,39 @@ void dosgui_platform_shutdown(void) { }
  * so return NULL -- ctx_action_play treats NULL as "no launch". */
 hosted_state_t *dosgui_wm_get_hosted_state(void) {
     return NULL;
+}
+
+/* Weak bonzi stubs: test binaries that do NOT link wubu_bonzi.c (test_control,
+ * desktop_shot, a11y_shot) still resolve the start-menu Companion toggle and
+ * the WM render/input calls to the mascot. Targets that DO link wubu_bonzi.c
+ * get the real strong definitions (linker drops the weak copies). */
+__attribute__((weak))
+void wubu_bonzi_set_enabled(bool on) { (void)on; }
+__attribute__((weak))
+bool wubu_bonzi_is_enabled(void)    { return false; }
+__attribute__((weak))
+bool wubu_bonzi_init(int x, int y)  { (void)x; (void)y; return false; }
+__attribute__((weak))
+int  wubu_bonzi_x(void)             { return 0; }
+__attribute__((weak))
+int  wubu_bonzi_y(void)             { return 0; }
+__attribute__((weak))
+int  wubu_bonzi_w(void)             { return 0; }
+__attribute__((weak))
+int  wubu_bonzi_h(void)             { return 0; }
+__attribute__((weak))
+void wubu_bonzi_tick(int dt_ms)    { (void)dt_ms; }
+__attribute__((weak))
+void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
+}
+__attribute__((weak))
+bool wubu_bonzi_mouse(int x, int y, int btn, int kind) {
+    (void)x; (void)y; (void)btn; (void)kind; return false;
+}
+__attribute__((weak))
+void wubu_bonzi_open_agi(void) { }
+__attribute__((weak))
+void wubu_bonzi_set_bubble(const char *l1, const char *l2) {
+    (void)l1; (void)l2;
 }
