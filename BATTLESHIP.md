@@ -19,15 +19,19 @@
 > reviewed against SteamOS / Ubuntu / Arch / TempleOS. Full Triple-DA in
 > `skills/software-development/wubuos-battleship-gaps/references/devils-advocate-prestige-daemon-desktop-2026-07-23.md`.
 > New gaps surfaced (verified by reading actual code, not handoff text):
-> - **N1 (🔴 SECURITY)** `wubu_archd_svc_*` + `health_check` use
->   `popen("arch-chroot %s systemctl %s")` — shell-injection vector AND no-op
->   without an Arch root. The 2026-07-08 `system()` purge missed `popen`.
-> - **N2 (🔴)** No real service supervisor — `wubu_archd` only wraps external
->   `systemctl`; no in-WuBuOS unit model (deps/restart/stdout capture).
-> - **N3 (🟠)** No D-Bus / service bus → desktop can't discover late/restarted
->   daemons. Leverage the project's OWN Styx/9P namespace as the bus
->   (`/n/services/*`) instead of importing D-Bus.
-> - **N4 (🟠)** `dosgui_service_mgr_boot()` failures silent (no tray/toast/retry).
+> - **N1 (🔴 SECURITY)** ~~`wubu_archd_svc_*` + `health_check` use~~ **CLOSED 2026-08-08**
+>   (commit 92319ce): run_argv/run_chroot_argv exec user strings via execv,
+>   never /bin/sh -c. test_archd_n1 gate: metacharacters inert.
+> - **N2 (🔴)** ~~No real service supervisor~~ **CLOSED 2026-08-08**
+>   (commit 228b75f): wubu_archd_svc_super wired into daemon lifecycle +
+>   ops; unit model (Requires=/After=, Type=, Restart=), plain-text journal.
+>   test_svc_super gate: 22 assertions pass.
+> - **N3 (🟠)** ~~No D-Bus / service bus~~ **CLOSED 2026-08-08** (commit
+>   228b75f): /n/svc/<root>/<svc>/{status,ctl} Styx tree routes through the
+>   supervisor — the project's OWN 9P namespace is the bus.
+> - **N4 (🟠)** ~~`dosgui_service_mgr_boot()` failures silent~~ **CLOSED
+>   2026-08-08** (commit 228b75f): per-failure CRITICAL toast via
+>   wubu_notify (daemon init/shutdown wired into desktop lifecycle).
 > - **N5 (🟡)** No per-user (`systemd --user`) scope.
 > - **N6 (🟡)** No persistent "TempleOS DOS daemon" lifecycle object uniting
 >   `wubu_holyd` + `wubu_dos_proc` + FS. TempleOS is monolithic ring-0 — WuBuOS
