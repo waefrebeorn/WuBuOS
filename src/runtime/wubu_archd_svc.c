@@ -7,6 +7,7 @@
 #include "wubu_archd.h"
 #include "wubu_arch.h"
 #include "wubu_archd_internal.h"
+#include "wubu_archd_svc.h"
 #include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -297,6 +298,9 @@ int wubu_archd_svc_enable(WubuArchd *d, const char *root, const char *svc) {
 }
 
 int wubu_archd_svc_disable(WubuArchd *d, const char *root, const char *svc) {
+    /* N2: when a supervisor is live, disable through it (stop + remove). */
+    wubu_svc_supervisor_t *sup = wubu_archd_svc_get_supervisor();
+    if (sup) return wubu_svc_supervisor_stop(sup, root, svc);
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
     /* N1: argv exec — svc is user input; no shell. */
@@ -305,6 +309,13 @@ int wubu_archd_svc_disable(WubuArchd *d, const char *root, const char *svc) {
 }
 
 int wubu_archd_svc_start(WubuArchd *d, const char *root, const char *svc) {
+    /* N2: supervisor-managed start (fork/exec, no systemd). */
+    wubu_svc_supervisor_t *sup = wubu_archd_svc_get_supervisor();
+    if (sup) {
+        if (wubu_svc_supervisor_add(sup, root, svc, NULL, NULL) == 0)
+            return wubu_svc_supervisor_start(sup, root, svc);
+        return -1;
+    }
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
     char *argv[] = { (char *)"systemctl", (char *)"start", (char *)svc, NULL };
@@ -312,6 +323,8 @@ int wubu_archd_svc_start(WubuArchd *d, const char *root, const char *svc) {
 }
 
 int wubu_archd_svc_stop(WubuArchd *d, const char *root, const char *svc) {
+    wubu_svc_supervisor_t *sup = wubu_archd_svc_get_supervisor();
+    if (sup) return wubu_svc_supervisor_stop(sup, root, svc);
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
     char *argv[] = { (char *)"systemctl", (char *)"stop", (char *)svc, NULL };
@@ -319,6 +332,8 @@ int wubu_archd_svc_stop(WubuArchd *d, const char *root, const char *svc) {
 }
 
 int wubu_archd_svc_restart(WubuArchd *d, const char *root, const char *svc) {
+    wubu_svc_supervisor_t *sup = wubu_archd_svc_get_supervisor();
+    if (sup) return wubu_svc_supervisor_restart(sup, root, svc);
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
     char *argv[] = { (char *)"systemctl", (char *)"restart", (char *)svc, NULL };

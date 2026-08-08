@@ -436,7 +436,7 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
           $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o \
           $(HOSTED_OBJS) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
           $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
-          $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
+          $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
           $(GUI)/wubu_ui_hosted.o \
           $(RT)/wubu_holyc_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o \
           $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o \
@@ -451,7 +451,7 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	wubu_gui_shot.c /tmp/hosted_test.o src/kernel/vbe.c \
 	$(HOSTED_OBJS) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
-	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
+	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 	$(GUI)/wubu_ui_hosted.o \
 	$(RT)/wubu_holyc_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
 	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
@@ -609,7 +609,7 @@ test_era_apps: $(RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OB
 	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(GUI)/dosgui_era_apps_test.c $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o \
 		$(RT_OBJS) $(COMP_OBJS) $(JIT_OBJS) \
-		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
+		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
 		$(RT)/wubu_ct_isolate_cgroup.o \
 		-Wl,--allow-multiple-definition -no-pie \
@@ -646,7 +646,7 @@ HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)
 # (styx/exec/container/oci_http_client/...) and would cause `multiple definition`.
 test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_HOSTED_TEST -DWUBD_TEST_MAIN -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
-		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o \
+		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -lpthread -ljson-c -lvulkan -o $(HOSTED)/hosted_test
 	$(HOSTED)/hosted_test
@@ -673,6 +673,17 @@ test_archd_n1:
 		$(RT)/wubu_archd_util.c $(RT)/test_archd_n1.c \
 		-o $(RT)/test_archd_n1
 	$(RT)/test_archd_n1
+
+# BATTLESHIP N2 (🔴): the in-process service supervisor is real.
+# fork/exec (no systemd, no shell), PID tracking, auto-restart,
+# ordered boot with Requires=/After= deps, Type=notify truthful
+# readiness, plain-text journal. 22 assertions.
+test_svc_super:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE \
+		-I$(RT) \
+		$(RT)/wubu_archd_svc_super.c $(RT)/test_svc_super.c \
+		-o $(RT)/test_svc_super
+	$(RT)/test_svc_super
 
 test_ramdisk:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
@@ -707,7 +718,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tutor test_tandem
+	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tutor test_tandem test_archd_n1 test_svc_super
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 
@@ -1037,7 +1048,7 @@ test_ns_bridge:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -DWUBD_TEST_MAIN \
 		-I$(RT) \
 		$(RT)/wubu_ns_fs.c $(RT)/wubu_ns_bridge.c \
-		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c \
+		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_svc_super.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c \
 		$(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_fs_util.c \
 		$(RT)/wubu_container.c $(RT)/container/wubucontainer_registry.c \
 		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \

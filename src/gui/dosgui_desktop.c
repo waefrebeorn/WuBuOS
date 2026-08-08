@@ -14,6 +14,7 @@
 #include "wubu_settings.h"
 #include "dosgui_startmenu.h"
 #include "dosgui_service_mgr.h"
+#include "wubu_notify.h"
 #include "../apps/dosgui_apps.h"
 #include "dosgui_era_apps.h"
 #include "../kernel/vbe.h"
@@ -82,7 +83,10 @@ int dosgui_desktop_init(void) {
     wubu_trash_init();
 
     /* E3 integration: wubu_archd (16/16) is the Desktop's service/autostart
-     * manager. Initialize it and boot every registered autostart service. */
+     * manager. Initialize it and boot every registered autostart service.
+     * N4: boot failures surface as desktop toasts, so the notification
+     * daemon must be live first. */
+    wubu_notify_init();
     if (dosgui_service_mgr_init() == 0) {
         dosgui_service_mgr_boot();
     }
@@ -105,6 +109,9 @@ void dosgui_desktop_shutdown(void) {
 
     /* Tear down the archd service manager (stops booted services). */
     dosgui_service_mgr_shutdown();
+
+    /* Tear down the notification daemon. */
+    wubu_notify_shutdown();
 }
 
 /* -- Launch ------------------------------------------------------ */

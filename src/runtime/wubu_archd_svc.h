@@ -37,6 +37,8 @@ int  wubu_svc_supervisor_stop(wubu_svc_supervisor_t *s, const char *root,
                               const char *svc);
 int  wubu_svc_supervisor_restart(wubu_svc_supervisor_t *s, const char *root,
                                  const char *svc);
+/* Stop every managed unit (SIGTERM + reap). Returns #stopped. */
+int  wubu_svc_supervisor_stop_all(wubu_svc_supervisor_t *s);
 int  wubu_svc_supervisor_status(wubu_svc_supervisor_t *s, const char *root,
                                 const char *svc, WubuArchService *out);
 /* Reap dead children, update states, honor auto_restart. Returns #reaped. */
