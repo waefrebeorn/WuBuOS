@@ -10,6 +10,7 @@
 
 # Test binaries
 src/*/test_*
+!src/runtime/test_archd_n1.c
 src/*/*_test
 src/**/*_test
 src/*/jit_stub

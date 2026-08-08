@@ -177,4 +177,10 @@ WubuArchRoot *wubu_arch_root_info(const char *root_path);
  */
 void wubu_arch_root_free(WubuArchRoot *info);
 
+/* -- N1 (BATTLESHIP): shell-free argv exec ------------------------ */
+/* Fork + execv (no /bin/sh -c): user-controlled arguments are inert.
+ * Implemented in wubu_archd_util.c; declared here for wubu_arch.c. */
+int  run_argv(const char *file, char *const argv[]);
+int  run_chroot_argv(const char *root, const char *file, char *const argv[]);
+
 #endif /* WUBU_ARCH_H */
