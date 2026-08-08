@@ -24,6 +24,8 @@
 #include <sys/wait.h>
 
 #define SUP_MAX WUBU_ARCHD_MAX_SERVICES
+#define RESTART_BACKOFF_BASE 1     /* seconds, doubles per restart */
+#define RESTART_BACKOFF_MAX  60    /* cap */
 
 typedef struct {
     char root[WUBU_ARCHD_MAX_ROOT_NAME];
@@ -34,6 +36,11 @@ typedef struct {
     time_t last_start, last_stop;
     int restart_count;
     bool auto_restart;
+    /* s6-style restart backoff: after each unexpected death the unit
+     * enters a backoff window that doubles per restart (1s, 2s, 4s...)
+     * capped at RESTART_BACKOFF_MAX — a crash-looping service pauses
+     * instead of hot-restarting forever. */
+    time_t backoff_until;
     /* Declarative unit model (systemd-good, no notorious parts). */
     wubu_svc_type_t type;          /* simple / forking / notify */
     bool notify_ready;                /* Type=notify: ready only after notify */
@@ -273,17 +280,30 @@ int wubu_svc_supervisor_status(wubu_svc_supervisor_t *s, const char *root,
 int wubu_svc_supervisor_reap(wubu_svc_supervisor_t *s) {
     if (!s) return 0;
     int reaped = 0;
+    time_t now = time(NULL);
     for (int i = 0; i < s->count; i++) {
         sup_entry_t *e = &s->entries[i];
         if (e->pid > 0 && !pid_alive(e->pid)) {
             int st; waitpid(e->pid, &st, 0);
             e->pid = 0;
             e->state = SERVICE_STATE_FAILED;
-            e->last_stop = time(NULL);
+            e->last_stop = now;
             reaped++;
-            if (e->auto_restart) {
+            if (e->auto_restart && now >= e->backoff_until) {
                 e->restart_count++;
+                /* exponential backoff: 1s, 2s, 4s, ... capped at 60s */
+                time_t delay = RESTART_BACKOFF_BASE;
+                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX; k++)
+                    delay *= 2;
+                if (delay > RESTART_BACKOFF_MAX) delay = RESTART_BACKOFF_MAX;
+                e->backoff_until = now + delay;
+                wubu_svc_supervisor_log(s, e->root, e->svc,
+                    "restarting (crash-loop backoff engaged)");
                 wubu_svc_supervisor_start(s, e->root, e->svc);
+            } else if (e->auto_restart) {
+                e->state = SERVICE_STATE_FAILED;
+                wubu_svc_supervisor_log(s, e->root, e->svc,
+                    "in restart backoff — pausing (crash loop guard)");
             }
         }
     }
@@ -474,17 +494,30 @@ void wubu_svc_supervisor_set_on_fail(wubu_svc_supervisor_t *s,
 int wubu_svc_supervisor_poll(wubu_svc_supervisor_t *s) {
     if (!s) return 0;
     int detected = 0;
+    time_t now = time(NULL);
     for (int i = 0; i < s->count; i++) {
         sup_entry_t *e = &s->entries[i];
         if (e->pid > 0 && !pid_alive(e->pid)) {
             int st;
             waitpid(e->pid, &st, 0);   /* reap */
             e->pid = 0;
-            e->last_stop = time(NULL);
-            if (e->auto_restart) {
+            e->last_stop = now;
+            if (e->auto_restart && now >= e->backoff_until) {
                 e->restart_count++;
+                time_t delay = RESTART_BACKOFF_BASE;
+                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX; k++)
+                    delay *= 2;
+                if (delay > RESTART_BACKOFF_MAX) delay = RESTART_BACKOFF_MAX;
+                e->backoff_until = now + delay;
                 wubu_svc_supervisor_start(s, e->root, e->svc);
                 continue;   /* restarted; not an "unexpected" death */
+            }
+            if (e->auto_restart) {
+                /* crash-loop guard: backoff window active, pause */
+                e->state = SERVICE_STATE_FAILED;
+                detected++;
+                if (g_on_fail) g_on_fail(e->root, e->svc, g_on_fail_ud);
+                continue;
             }
             /* Unexpected death: it was RUNNING, now gone, no restart. */
             e->state = SERVICE_STATE_FAILED;
