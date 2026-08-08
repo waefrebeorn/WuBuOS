@@ -7,6 +7,7 @@
  *
  * C11, opaque struct, minimal includes.
  */
+#define _GNU_SOURCE   /* chroot(), usleep() declarations */
 #define _POSIX_C_SOURCE 200809L
 
 #include "wubu_archd_svc.h"
@@ -144,7 +145,7 @@ static void exec_in_root(const char *root, const sup_entry_t *e) {
         if (chdir("/") != 0) _exit(127);
     }
     char *argv[9];
-    for (int k = 0; k < e->argc && k < 8; k++) argv[k] = e->argv[k];
+    for (int k = 0; k < e->argc && k < 8; k++) argv[k] = (char *)e->argv[k];
     argv[e->argc] = NULL;
     execv(e->exec, argv);
     _exit(127);
@@ -219,6 +220,24 @@ int wubu_svc_supervisor_restart(wubu_svc_supervisor_t *s, const char *root,
     if (!s) return -1;
     wubu_svc_supervisor_stop(s, root, svc);
     return wubu_svc_supervisor_start(s, root, svc);
+}
+
+/* Stop every managed unit (SIGTERM + reap). Used at daemon shutdown. */
+int wubu_svc_supervisor_stop_all(wubu_svc_supervisor_t *s) {
+    if (!s) return 0;
+    int stopped = 0;
+    for (int i = 0; i < s->count; i++) {
+        sup_entry_t *e = &s->entries[i];
+        if (e->pid > 0) {
+            kill(e->pid, SIGTERM);
+            int st; waitpid(e->pid, &st, 0);
+            e->pid = 0;
+            e->state = SERVICE_STATE_DISABLED;
+            e->last_stop = time(NULL);
+            stopped++;
+        }
+    }
+    return stopped;
 }
 
 int wubu_svc_supervisor_status(wubu_svc_supervisor_t *s, const char *root,
@@ -427,9 +446,9 @@ int wubu_svc_supervisor_logs(wubu_svc_supervisor_t *s, const char *root,
     sup_entry_t *e = find_e(s, root, svc);
     if (!e || !out) return -1;
     if ((size_t)e->jlen < n) n = (size_t)e->jlen;
-    memcpy(out, e->journal, n);
+    if (n > 0) memcpy(out, e->journal, n);
     out[n] = '\0';
-    return 0;
+    return (int)n;   /* return the copied length, not 0 */
 }
 
 /* -- Health heartbeat (N8 closure) ------------------------------- */

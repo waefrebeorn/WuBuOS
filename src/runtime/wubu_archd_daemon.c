@@ -48,6 +48,7 @@
 #include "wubu_archd.h"
 #include "wubu_arch.h"
 #include "wubu_archd_internal.h"
+#include "wubu_archd_svc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -271,6 +272,13 @@ int wubu_archd_init(WubuArchd *d, const WubuArchdConfig *config) {
     /* Scan existing roots */
     archd_scan_roots(d);
 
+    /* N2: create the in-process service supervisor (fork/exec units,
+     * auto-restart, deps, plain-text journal — no systemd, no shell).
+     * wubu_archd_svc_* ops route through it once registered. */
+    wubu_svc_supervisor_t *sup = wubu_svc_supervisor_create();
+    if (sup) wubu_archd_svc_set_supervisor(sup);
+    else     archd_log(d, 0, "supervisor init failed (services run external)");
+
     d->start_time = time(NULL);
     archd_log(d, 2, "Archd initialized: roots=%d socket=%s",
               d->root_count, d->config.socket_path);
@@ -311,6 +319,15 @@ void wubu_archd_stop(WubuArchd *d) {
 void wubu_archd_shutdown(WubuArchd *d) {
     if (!d) return;
     d->running = false;
+    /* N2: stop all supervised services and release the supervisor. */
+    wubu_svc_supervisor_t *sup = wubu_archd_svc_get_supervisor();
+    if (sup) {
+        int stopped = wubu_svc_supervisor_stop_all(sup);
+        if (stopped > 0)
+            archd_log(d, 2, "supervisor: stopped %d service(s)", stopped);
+        wubu_svc_supervisor_destroy(sup);
+        wubu_archd_svc_set_supervisor(NULL);
+    }
     if (d->server_fd >= 0) close(d->server_fd);
     if (d->epoll_fd >= 0) close(d->epoll_fd);
     unlink(d->config.socket_path);

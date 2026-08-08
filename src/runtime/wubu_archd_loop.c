@@ -9,6 +9,7 @@
  */
 
 #include "wubu_archd_internal.h"
+#include "wubu_archd_svc.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -123,6 +124,15 @@ void wubu_archd_event_loop(WubuArchd *d) {
         /* Periodic health checks */
         if (now - last_health >= d->config.health_check_interval_sec) {
             last_health = now;
+            /* N2: poll the in-process supervisor — reap dead children,
+             * auto-restart configured units, fire on_fail for the rest. */
+            wubu_svc_supervisor_t *sup = wubu_archd_svc_get_supervisor();
+            if (sup) {
+                int dead = wubu_svc_supervisor_poll(sup);
+                if (dead > 0)
+                    archd_log(d, 1, "supervisor: %d service(s) died unexpectedly",
+                              dead);
+            }
             for (int j = 0; j < d->root_count; j++) {
                 if (d->roots[j].state == ROOT_STATE_ACTIVE) {
                     wubu_archd_health_check(d, d->roots[j].name);

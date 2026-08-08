@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "wubu_notify.h"
 
 #ifndef DOSGUI_SVC_AUTOSTART_CONF
 #define DOSGUI_SVC_AUTOSTART_CONF "/etc/wubu/archd-autostart.conf"
@@ -110,12 +111,28 @@ DosguiBootResult dosgui_service_mgr_boot(void) {
         res.attempted++;
         e->booted = true;
         /* Real work: drive wubu_archd to start the service in its root.
-         * On a real host this runs `arch-chroot <root> systemctl start <svc>`.
-         * In a sandbox without Arch roots it returns <0, which we record. */
+         * With the N2 supervisor live this fork/execs the service binary;
+         * on a host without Arch roots it returns <0, which we record. */
         int r = wubu_archd_svc_start(&g_archd, e->root, e->svc);
         e->last_result = r;
-        if (r == 0) res.started++;
-        else        res.failed++;
+        if (r == 0) {
+            res.started++;
+        } else {
+            /* N4: boot failures are NOT silent — surface a toast. */
+            res.failed++;
+            Notification n;
+            memset(&n, 0, sizeof(n));
+            snprintf(n.app_name, sizeof(n.app_name), "Service Manager");
+            snprintf(n.summary, sizeof(n.summary),
+                     "Service '%s' failed to start", e->svc);
+            snprintf(n.body, sizeof(n.body),
+                     "root=%s ret=%d\n"
+                     "Check /tmp/wubu-svc/%s/%s.log (plain-text journal)",
+                     e->root, r, e->root, e->svc);
+            n.urgency = NOTIFY_URGENCY_CRITICAL;
+            n.timeout = -1;
+            wubu_notify_send(&n);
+        }
     }
     return res;
 }
