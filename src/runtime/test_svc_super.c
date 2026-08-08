@@ -128,12 +128,40 @@ int main(void) {
     int nr3 = wubu_svc_supervisor_boot(s3);
     CHECK(nr3 >= 1, "missing dep blocks dependent (boot reports not_ready)");
 
-    /* -- 8: journal ------------------------------------------------ */
+    /* -- 8. journal ------------------------------------------------ */
     wubu_svc_supervisor_log(s, ROOT, "svc1", "hello journal");
     char jbuf[512];
     int jn = wubu_svc_supervisor_logs(s, ROOT, "svc1", jbuf, sizeof(jbuf));
     CHECK(jn > 0 && strstr(jbuf, "hello journal") != NULL,
           "journal ring contains the log line");
+
+    /* -- 9. crash-loop backoff (s6 lesson) ------------------------- */
+    /* A unit that dies INSTANTLY must not hot-restart forever: after
+     * the first death the supervisor engages exponential backoff, so
+     * immediate re-polls see the backoff window and PAUSE. */
+    wubu_svc_supervisor_t *s4 = wubu_svc_supervisor_create();
+    /* /bin/true exits immediately = instant crash loop */
+    char *bt[] = { (char *)"/bin/true", NULL };
+    CHECK(wubu_svc_supervisor_add(s4, ROOT, "flaky", "/bin/true", bt) == 0,
+          "add crash-looping unit (/bin/true)");
+    wubu_svc_supervisor_set_restart(s4, ROOT, "flaky", true);
+    wubu_svc_supervisor_set_type(s4, ROOT, "flaky", SVC_TYPE_SIMPLE);
+    wubu_svc_supervisor_start(s4, ROOT, "flaky");
+    usleep(100000);
+    int n4 = wubu_svc_supervisor_poll(s4);   /* 1st death: restart + backoff */
+    CHECK(n4 == 0, "1st death restarts (backoff engaged, not 'unexpected')");
+    memset(&st, 0, sizeof(st));
+    wubu_svc_supervisor_status(s4, ROOT, "flaky", &st);
+    CHECK(st.restart_count >= 1, "restart_count >= 1 after 1st crash");
+    /* immediate second poll: still dying, but backoff window is active —
+     * the supervisor must NOT keep restarting (crash-loop guard) */
+    usleep(100000);
+    int n4b = wubu_svc_supervisor_poll(s4);
+    memset(&st, 0, sizeof(st));
+    wubu_svc_supervisor_status(s4, ROOT, "flaky", &st);
+    CHECK(st.pid == 0, "crash-loop guard: no hot restart inside backoff");
+    (void)n4b;
+    wubu_svc_supervisor_destroy(s4);
 
     wubu_svc_supervisor_destroy(s);
     wubu_svc_supervisor_destroy(s2);
