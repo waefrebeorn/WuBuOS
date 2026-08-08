@@ -40,6 +40,7 @@ test_holyd: $(RT)/wubu_holyd_repl.o
 		$(RT)/wubu_holyd.c $(RT)/wubu_holyd_session.c $(RT)/wubu_holyd_exec.c $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_window.c $(RT)/wubu_holyd_input.c $(RT)/wubu_holyd_9p.c $(RT)/wubu_holyd_save.c $(RT)/wubu_holyd_event.c $(RT)/wubu_holyd_lifecycle.c \
 		$(RT)/wubu_holyd_test.c \
 		$(GUI)/dosgui_wm_test_stub.c \
+		-DWUBD_TEST_STUB_WM_NOOPS \
 		-o $(RT)/wubd_holyd_test -lpthread
 	$(RT)/wubd_holyd_test
 
@@ -920,8 +921,8 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wub
 		$(COMP)/holyc_codegen.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_lexer.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c \
 		$(APPS)/control/control.c \
-		$(GUI)/dosgui_window_chrome.c \
-		$(APPS)/control_test.c -o $(APPS)/control_test -lm
+		$(GUI)/dosgui_window_chrome.c $(GUI)/wubu_bonzi.c \
+		$(APPS)/control_test.c -o $(APPS)/control_test -Wl,--allow-multiple-definition -lm
 	$(APPS)/control_test
 
 test_proton2:
