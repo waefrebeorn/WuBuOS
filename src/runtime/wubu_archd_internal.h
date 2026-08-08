@@ -20,6 +20,12 @@
 /* -- Process / fs helpers (wubu_archd_util.c) --------------------- */
 int  run_cmd(const char *cmd);
 int  run_chroot_cmd(const char *root, const char *fmt, ...);
+/* N1 (BATTLESHIP): shell-free argv exec. run_argv() forks + execv's
+ * (file, argv) directly — NO /bin/sh -c, so user-controlled arguments
+ * cannot inject shell metacharacters. run_chroot_argv() chroots first.
+ * Both return the child's exit status (>=0) or -1 on fork/exec failure. */
+int  run_argv(const char *file, char *const argv[]);
+int  run_chroot_argv(const char *root, const char *file, char *const argv[]);
 bool archd_write_file(const char *path, const char *content);
 int  archd_mkdir_p(const char *path, mode_t mode);
 int  archd_rm_rf(const char *path);

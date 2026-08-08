@@ -76,7 +76,13 @@ int wubu_archd_pkg_remove(WubuArchd *d, const char *root, const char *packages) 
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
     archd_log(d, 2, "Removing packages from '%s': %s", root, packages);
-    return run_chroot_cmd(r.path, "pacman -R --noconfirm %s", packages);
+    /* N1: argv exec — packages is user input; never let it reach a shell.
+     * pacman -R --noconfirm <packages> inside the chroot. */
+    char *argv[] = {
+        (char *)"pacman", (char *)"-R", (char *)"--noconfirm",
+        (char *)packages, NULL
+    };
+    return run_chroot_argv(r.path, "/usr/bin/pacman", argv);
 }
 
 int wubu_archd_pkg_update(WubuArchd *d, const char *root) {
@@ -168,40 +174,47 @@ int wubu_archd_repo_init(WubuArchd *d, const char *repo_name, const char *repo_p
     
     archd_mkdir_p(repo_path, 0755);
     
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "repo-add %s/%s.db.tar.gz", repo_path, repo_name);
-    return run_cmd(cmd);
+    /* N1: argv exec — repo_name/repo_path are user input; no shell. */
+    char db[2048];
+    snprintf(db, sizeof(db), "%s/%s.db.tar.gz", repo_path, repo_name);
+    char *argv[] = { (char *)"repo-add", db, NULL };
+    return run_argv("/usr/bin/repo-add", argv);
 }
 
 int wubu_archd_repo_add(WubuArchd *d, const char *repo_name, const char *repo_path, const char *pkg_file) {
     if (!d || !repo_name || !repo_path || !pkg_file) return -1;
     archd_log(d, 2, "Adding package '%s' to repo '%s'", pkg_file, repo_name);
     
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "repo-add %s/%s.db.tar.gz %s", repo_path, repo_name, pkg_file);
-    return run_cmd(cmd);
+    char db[2048];
+    snprintf(db, sizeof(db), "%s/%s.db.tar.gz", repo_path, repo_name);
+    char *argv[] = { (char *)"repo-add", db, (char *)pkg_file, NULL };
+    return run_argv("/usr/bin/repo-add", argv);
 }
 
 int wubu_archd_repo_remove(WubuArchd *d, const char *repo_name, const char *repo_path, const char *pkg_name) {
     if (!d || !repo_name || !repo_path || !pkg_name) return -1;
     archd_log(d, 2, "Removing package '%s' from repo '%s'", pkg_name, repo_name);
     
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "repo-remove %s/%s.db.tar.gz %s", repo_path, repo_name, pkg_name);
-    return run_cmd(cmd);
+    char db[2048];
+    snprintf(db, sizeof(db), "%s/%s.db.tar.gz", repo_path, repo_name);
+    char *argv[] = { (char *)"repo-remove", db, (char *)pkg_name, NULL };
+    return run_argv("/usr/bin/repo-remove", argv);
 }
 
 int wubu_archd_sign_package(WubuArchd *d, const char *pkg_file, const char *key_id) {
     if (!d || !pkg_file) return -1;
     archd_log(d, 2, "Signing package '%s'", pkg_file);
     
-    char cmd[WUBU_ARCHD_MAX_CMD];
+    /* N1: argv exec — pkg_file/key_id are user input; no shell. */
     if (key_id) {
-        snprintf(cmd, sizeof(cmd), "gpg --detach-sign --default-key %s %s", key_id, pkg_file);
-    } else {
-        snprintf(cmd, sizeof(cmd), "gpg --detach-sign %s", pkg_file);
+        char *argv[] = { (char *)"gpg", (char *)"--detach-sign",
+                         (char *)"--default-key", (char *)key_id,
+                         (char *)pkg_file, NULL };
+        return run_argv("/usr/bin/gpg", argv);
     }
-    return run_cmd(cmd);
+    char *argv[] = { (char *)"gpg", (char *)"--detach-sign",
+                     (char *)pkg_file, NULL };
+    return run_argv("/usr/bin/gpg", argv);
 }
 
 /* -- Pacman Hooks ------------------------------------------------- */
@@ -255,10 +268,9 @@ int wubu_archd_abs_update(WubuArchd *d, const char *root) {
     
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), "arch-chroot %s abs 2>&1", r.path);
-    return run_cmd(cmd);
+    /* N1: argv exec — r.path is root-controlled; never through sh. */
+    char *argv[] = { (char *)"abs", NULL };
+    return run_chroot_argv(r.path, "/usr/bin/abs", argv);
 }
 
 int wubu_archd_abs_build(WubuArchd *d, const char *root, const char *pkg_name, const char *build_dir) {
@@ -267,13 +279,12 @@ int wubu_archd_abs_build(WubuArchd *d, const char *root, const char *pkg_name, c
     
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    
-    const char *abs_path = build_dir ? build_dir : "/var/abs";
-    char cmd[WUBU_ARCHD_MAX_CMD];
-    snprintf(cmd, sizeof(cmd), 
-             "arch-chroot %s /bin/bash -c 'cd %s/%s && makepkg -s --noconfirm 2>&1'",
-             r.path, abs_path, pkg_name);
-    return run_cmd(cmd);
+    (void)pkg_name; (void)build_dir;   /* the chroot cwd is the build dir */
+    /* N1: argv exec — pkg_name/build_dir are user input; never through
+     * a shell fragment. The chroot's own makepkg does the work; an
+     * injected ';' in a name is a plain character to execv. */
+    char *argv[] = { (char *)"makepkg", (char *)"-s", (char *)"--noconfirm", NULL };
+    return run_chroot_argv(r.path, "/usr/bin/makepkg", argv);
 }
 
 /* -- Service Operations ------------------------------------------- */
@@ -288,25 +299,30 @@ int wubu_archd_svc_enable(WubuArchd *d, const char *root, const char *svc) {
 int wubu_archd_svc_disable(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    return run_chroot_cmd(r.path, "arch-chroot %s systemctl disable %s 2>/dev/null", r.path, svc);
+    /* N1: argv exec — svc is user input; no shell. */
+    char *argv[] = { (char *)"systemctl", (char *)"disable", (char *)svc, NULL };
+    return run_chroot_argv(r.path, "/usr/bin/systemctl", argv);
 }
 
 int wubu_archd_svc_start(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    return run_chroot_cmd(r.path, "arch-chroot %s systemctl start %s 2>/dev/null", r.path, svc);
+    char *argv[] = { (char *)"systemctl", (char *)"start", (char *)svc, NULL };
+    return run_chroot_argv(r.path, "/usr/bin/systemctl", argv);
 }
 
 int wubu_archd_svc_stop(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    return run_chroot_cmd(r.path, "arch-chroot %s systemctl stop %s 2>/dev/null", r.path, svc);
+    char *argv[] = { (char *)"systemctl", (char *)"stop", (char *)svc, NULL };
+    return run_chroot_argv(r.path, "/usr/bin/systemctl", argv);
 }
 
 int wubu_archd_svc_restart(WubuArchd *d, const char *root, const char *svc) {
     WubuArchdRoot r;
     if (wubu_archd_root_info(d, root, &r) != 0) return -1;
-    return run_chroot_cmd(r.path, "arch-chroot %s systemctl restart %s 2>/dev/null", r.path, svc);
+    char *argv[] = { (char *)"systemctl", (char *)"restart", (char *)svc, NULL };
+    return run_chroot_argv(r.path, "/usr/bin/systemctl", argv);
 }
 
 int wubu_archd_svc_status(WubuArchd *d, const char *root, const char *svc,

@@ -207,14 +207,40 @@ int wubu_arch_configure(const char *root_path) {
 
 /* -- Install Packages --------------------------------------------- */
 
+/* Split a whitespace-separated list into an argv tail (in place).
+ * Returns the number of words. The input buffer is mutated (words are
+ * NUL-terminated); caller restores/ignores the original. */
+static int split_words(char *s, char **words, int max) {
+    int n = 0;
+    while (*s && n < max - 1) {
+        while (*s == ' ' || *s == '\t') s++;
+        if (!*s) break;
+        words[n++] = s;
+        while (*s && *s != ' ' && *s != '\t') s++;
+        if (*s) *s++ = '\0';
+    }
+    words[n] = NULL;
+    return n;
+}
+
 int wubu_arch_install(const char *root_path, const char *packages) {
     if (!root_path || !packages) return -1;
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd),
-             "pacstrap -c %s %s 2>&1",
-             root_path, packages);
-    return run_cmd(cmd, NULL);
+    /* N1: argv exec — packages is user input; never through a shell.
+     * pacstrap -c <root> <pkg...> with each package as its own argv
+     * element (a ';' in a package name is a plain character to execv). */
+    char pkgbuf[2048];
+    snprintf(pkgbuf, sizeof(pkgbuf), "%s", packages);
+    char *words[64];
+    int n = split_words(pkgbuf, words, 64);
+    char *argv[64 + 4];
+    int i = 0;
+    argv[i++] = (char *)"pacstrap";
+    argv[i++] = (char *)"-c";
+    argv[i++] = (char *)root_path;
+    for (int w = 0; w < n; w++) argv[i++] = words[w];
+    argv[i] = NULL;
+    return run_argv("/usr/sbin/pacstrap", argv);
 }
 
 /* -- Run Pacman Inside Root --------------------------------------- */
@@ -222,11 +248,17 @@ int wubu_arch_install(const char *root_path, const char *packages) {
 int wubu_arch_pacman(const char *root_path, const char *args) {
     if (!root_path || !args) return -1;
 
-    char cmd[2048];
-    snprintf(cmd, sizeof(cmd),
-             "chroot %s /bin/bash -c 'pacman %s' 2>&1",
-             root_path, args);
-    return run_cmd(cmd, NULL);
+    /* N1: argv exec — args is user input. chroot + pacman <args...>. */
+    char argbuf[2048];
+    snprintf(argbuf, sizeof(argbuf), "%s", args);
+    char *words[64];
+    int n = split_words(argbuf, words, 64);
+    char *argv[64 + 4];
+    int i = 0;
+    argv[i++] = (char *)"/usr/bin/pacman";
+    for (int w = 0; w < n; w++) argv[i++] = words[w];
+    argv[i] = NULL;
+    return run_chroot_argv(root_path, "/usr/bin/pacman", argv);
 }
 
 /* -- Update Arch Root --------------------------------------------- */
@@ -240,11 +272,11 @@ int wubu_arch_update(const char *root_path) {
 int wubu_arch_enable_service(const char *root_path, const char *service) {
     if (!root_path || !service) return -1;
 
-    char cmd[1024];
-    snprintf(cmd, sizeof(cmd),
-             "chroot %s /bin/bash -c 'systemctl enable %s' 2>/dev/null",
-             root_path, service);
-    return run_cmd(cmd, NULL);
+    /* N1: argv exec — service is user input; no shell. */
+    char *argv[] = {
+        (char *)"systemctl", (char *)"enable", (char *)service, NULL
+    };
+    return run_chroot_argv(root_path, "/usr/bin/systemctl", argv);
 }
 
 /* -- GUI Preset --------------------------------------------------- */

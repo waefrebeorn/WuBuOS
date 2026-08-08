@@ -44,6 +44,41 @@ int run_chroot_cmd(const char *root, const char *fmt, ...) {
     return -1;
 }
 
+/* N1 (BATTLESHIP): shell-free argv exec. No /bin/sh -c anywhere in the
+ * child path — the argument vector is passed to execv() untouched, so
+ * user-controlled values (package names, service names, paths) are inert
+ * even when they contain ';', '$()', backticks, or other metacharacters. */
+int run_argv(const char *file, char *const argv[]) {
+    if (!file || !argv || !argv[0]) return -1;
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        execv(file, argv);
+        _exit(127);
+    }
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    return -1;
+}
+
+int run_chroot_argv(const char *root, const char *file, char *const argv[]) {
+    if (!root || !file || !argv || !argv[0]) return -1;
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        if (chroot(root) != 0 || chdir("/") != 0) _exit(126);
+        execv(file, argv);
+        _exit(127);
+    }
+    int status;
+    waitpid(pid, &status, 0);
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+    return -1;
+}
+
 bool archd_write_file(const char *path, const char *content) {
     FILE *f = fopen(path, "w");
     if (!f) return false;
