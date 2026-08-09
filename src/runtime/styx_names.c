@@ -28,8 +28,35 @@ static const char *g_msg_names[] = {
     [126] = "Twstat",   [127] = "Rwstat",
 };
 
+/* -- Message-name registry (the Revolver Doctrine) -----------------
+ * The 9P2000 standard table above is the SEED; the live registry is a
+ * runtime copy so extension message types (9P2000.e, custom server
+ * dialects) can be named without a recompile. styx_msg_name reads the
+ * LIVE copy, so a register is visible immediately. */
+#define STYX_MSG_REGISTRY_MAX 256
+static const char *g_styx_msg_registry[STYX_MSG_REGISTRY_MAX];
+static int g_styx_msg_registry_seeded = 0;
+
+static void styx_msg_registry_seed(void)
+{
+    if (g_styx_msg_registry_seeded) return;
+    for (int i = 0; i < 128 && i < STYX_MSG_REGISTRY_MAX; i++)
+        g_styx_msg_registry[i] = (i < 100 || i > 127) ? NULL : g_msg_names[i];
+    g_styx_msg_registry_seeded = 1;
+}
+
+int styx_msg_name_register(uint8_t type, const char *name)
+{
+    if (!name) return -1;
+    if (type >= STYX_MSG_REGISTRY_MAX) return -1;
+    styx_msg_registry_seed();
+    g_styx_msg_registry[type] = name;
+    return 0;
+}
+
 const char *styx_msg_name(uint8_t type) {
-    if (type >= 100 && type <= 127 && g_msg_names[type])
-        return g_msg_names[type];
+    styx_msg_registry_seed();
+    if (type < STYX_MSG_REGISTRY_MAX && g_styx_msg_registry[type])
+        return g_styx_msg_registry[type];
     return "Unknown";
 }
