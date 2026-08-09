@@ -520,17 +520,9 @@ int wubu_image_load_proton(const char *proton_version, WubuStage *stage) {
     return 0;
 }
 
-const char *wubu_arch_name(WubuArch arch) {
-    static const char *names[] = {"x86_64", "aarch64", "riscv64", "wasm"};
-    if (arch >= 0 && arch < 4) return names[arch];
-    return "unknown";
-}
-
-const char *wubu_os_name(WubuOS os) {
-    static const char *names[] = {"linux", "windows", "macos", "native"};
-    if (os >= 0 && os < 4) return names[os];
-    return "unknown";
-}
+/* -- Arch/OS name registry (the Revolver Doctrine) -------------------
+ * The arch/OS name tables + register API live in wubu_image_names.c
+ * (self-contained, no container deps — tests link just that file). */
 
 WubuArch wubu_arch_from_string(const char *str) {
     if (!str) return WUBU_ARCH_X86_64;

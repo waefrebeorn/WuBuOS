@@ -63,6 +63,18 @@ typedef struct {
 /* Get info about a known anti-cheat */
 const AntiCheatInfo *wubu_anticheat_info(AntiCheatType type);
 
+/* -- Anti-Cheat Registry (the Revolver Doctrine: hot-swappable DB) -- */
+
+/* Register a new anti-cheat cartridge at runtime. The built-in DB is
+ * seeded at first use; callers add NEW anti-cheats (a game ships a new
+ * AC -> the system learns it without a recompile). Overwrites an
+ * existing entry of the same type. Returns 0 on success, -1 on error. */
+int wubu_anticheat_db_register(const AntiCheatInfo *info);
+
+/* Replace the whole DB with a caller-provided set (probe-don't-assume:
+ * the runtime can load a policy cartridge). NULL clears to built-ins. */
+int wubu_anticheat_db_reset(const AntiCheatInfo *db, int count);
+
 /* Scan a Wine prefix for anti-cheat DLLs */
 int wubu_anticheat_scan_prefix(const char *prefix_path, AntiCheatType *out_types, int max);
 

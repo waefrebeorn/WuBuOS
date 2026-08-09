@@ -144,30 +144,88 @@ static const AntiCheatInfo anticheat_db[] = {
 #define AC_DB_COUNT (sizeof(anticheat_db) / sizeof(anticheat_db[0]))
 
 /* ==================================================================
+ * Anti-Cheat Registry (the Revolver Doctrine: hot-swappable DB)
+ *
+ * The built-in DB above is the SEED; the live registry is a runtime
+ * copy so new anti-cheats can be registered without a recompile
+ * (a game ships a new AC -> the system learns it). wubu_anticheat_info
+ * reads the LIVE copy, so a register/reset is visible immediately.
+ * ================================================================== */
+
+#define AC_REGISTRY_MAX 64   /* physical cylinder bound */
+static AntiCheatInfo g_ac_registry[AC_REGISTRY_MAX];
+static int g_ac_registry_n = 0;
+static int g_ac_registry_seeded = 0;
+
+static void ac_registry_seed(void)
+{
+    if (g_ac_registry_seeded) return;
+    for (size_t i = 0; i < AC_DB_COUNT && i < (size_t)AC_REGISTRY_MAX; i++)
+        g_ac_registry[i] = anticheat_db[i];
+    g_ac_registry_n = (int)AC_DB_COUNT;
+    g_ac_registry_seeded = 1;
+}
+
+int wubu_anticheat_db_register(const AntiCheatInfo *info)
+{
+    if (!info) return -1;
+    ac_registry_seed();
+    /* Overwrite an existing slot of the same type (the cartridge swap). */
+    for (int i = 0; i < g_ac_registry_n; i++) {
+        if (g_ac_registry[i].type == info->type) {
+            g_ac_registry[i] = *info;
+            return 0;
+        }
+    }
+    if (g_ac_registry_n >= AC_REGISTRY_MAX) return -1;
+    g_ac_registry[g_ac_registry_n++] = *info;
+    return 0;
+}
+
+int wubu_anticheat_db_reset(const AntiCheatInfo *db, int count)
+{
+    ac_registry_seed();
+    if (!db || count <= 0) {
+        /* Back to the built-in seeds. */
+        g_ac_registry_n = 0;
+        ac_registry_seed();
+        return 0;
+    }
+    if (count > AC_REGISTRY_MAX) count = AC_REGISTRY_MAX;
+    memcpy(g_ac_registry, db, (size_t)count * sizeof(AntiCheatInfo));
+    g_ac_registry_n = count;
+    return 0;
+}
+
+/* ==================================================================
  * Anti-Cheat Detection
  * ================================================================== */
 
 const AntiCheatInfo *wubu_anticheat_info(AntiCheatType type) {
-    if (type < 1 || type >= AC_DB_COUNT) return NULL;
-    return &anticheat_db[type];
+    ac_registry_seed();
+    for (int i = 0; i < g_ac_registry_n; i++)
+        if (g_ac_registry[i].type == type)
+            return &g_ac_registry[i];
+    return NULL;
 }
 
 int wubu_anticheat_scan_prefix(const char *prefix_path, AntiCheatType *out_types, int max) {
     if (!prefix_path || !out_types || max <= 0) return 0;
 
+    ac_registry_seed();
     int found = 0;
     char path[512];
 
-    for (int i = 1; i < AC_DB_COUNT && found < max; i++) {
-        if (!anticheat_db[i].dll_name[0]) continue;
+    for (int i = 0; i < g_ac_registry_n && found < max; i++) {
+        if (!g_ac_registry[i].dll_name[0]) continue;
 
-        snprintf(path, sizeof(path), "%s/drive_c/windows/system32/%s", prefix_path, anticheat_db[i].dll_name);
+        snprintf(path, sizeof(path), "%s/drive_c/windows/system32/%s", prefix_path, g_ac_registry[i].dll_name);
         if (access(path, F_OK) == 0) {
-            out_types[found++] = anticheat_db[i].type;
+            out_types[found++] = g_ac_registry[i].type;
         }
 
         /* Also check in game directory */
-        snprintf(path, sizeof(path), "%s/drive_c/Program Files/*/%s", prefix_path, anticheat_db[i].dll_name);
+        snprintf(path, sizeof(path), "%s/drive_c/Program Files/*/%s", prefix_path, g_ac_registry[i].dll_name);
         /* Could glob here for real implementation */
     }
 

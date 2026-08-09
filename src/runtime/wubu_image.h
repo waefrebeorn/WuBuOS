@@ -262,6 +262,12 @@ const char *wubu_os_name(WubuOS os);
 WubuArch wubu_arch_from_string(const char *str);
 WubuOS wubu_os_from_string(const char *str);
 
+/* Register an arch/OS name mapping at runtime (the Revolver Doctrine:
+ * the arch/OS tables seed from the built-in enum names; a new arch or
+ * OS persona registers its name without a recompile). Returns 0. */
+int wubu_arch_name_register(WubuArch arch, const char *name);
+int wubu_os_name_register(WubuOS os, const char *name);
+
 /* Cleanup */
 void wubu_build_context_free(WubuBuildContext *ctx);
 

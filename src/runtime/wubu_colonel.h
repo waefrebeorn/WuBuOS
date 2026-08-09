@@ -50,4 +50,10 @@ int wubu_colonel_dispatch(const char *line, wubu_colonel_t *c,
  * Returns 1 if the app is known (the GUI launches it), else 0. */
 int wubu_colonel_app_known(const char *name);
 
+/* Register a NEW app name at runtime (the Revolver Doctrine: the app
+ * set is a hot-swappable cylinder, not a soldered const list). A new
+ * .wubu container or GUI app registers its name so `colonel run <name>`
+ * and app_known() learn it without a recompile. Idempotent. */
+int wubu_colonel_app_register(const char *name);
+
 #endif

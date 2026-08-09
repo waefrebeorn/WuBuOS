@@ -13,6 +13,51 @@ static const char *const g_apps[] = {
 };
 #define N_APPS (int)(sizeof(g_apps) / sizeof(g_apps[0]))
 
+/* ==================================================================
+ * App Registry (the Revolver Doctrine: hot-swappable app set)
+ *
+ * The built-in app names SEED the registry; new apps can be installed
+ * at runtime (a new .wubu container or GUI app registers its name so
+ * `colonel run <name>` and app_known() learn it without a recompile).
+ * ================================================================== */
+
+#define COLONEL_APP_REGISTRY_MAX 128   /* physical cylinder bound */
+static char g_colonel_apps[COLONEL_APP_REGISTRY_MAX][64];
+static int  g_colonel_apps_n = 0;
+static int  g_colonel_apps_seeded = 0;
+
+static void colonel_apps_seed(void)
+{
+    if (g_colonel_apps_seeded) return;
+    for (int i = 0; i < N_APPS && i < COLONEL_APP_REGISTRY_MAX; i++) {
+        snprintf(g_colonel_apps[g_colonel_apps_n], 63, "%s", g_apps[i]);
+        g_colonel_apps_n++;
+    }
+    g_colonel_apps_seeded = 1;
+}
+
+int wubu_colonel_app_register(const char *name)
+{
+    if (!name || !name[0]) return -1;
+    colonel_apps_seed();
+    for (int i = 0; i < g_colonel_apps_n; i++)
+        if (strcmp(g_colonel_apps[i], name) == 0)
+            return 0;   /* already known (idempotent cartridge) */
+    if (g_colonel_apps_n >= COLONEL_APP_REGISTRY_MAX) return -1;
+    snprintf(g_colonel_apps[g_colonel_apps_n], 63, "%s", name);
+    g_colonel_apps_n++;
+    return 0;
+}
+
+int wubu_colonel_app_known(const char *name)
+{
+    if (!name || !name[0]) return 0;
+    colonel_apps_seed();
+    for (int i = 0; i < g_colonel_apps_n; i++)
+        if (strcmp(g_colonel_apps[i], name) == 0) return 1;
+    return 0;
+}
+
 static int skip_ws(const char **s)
 {
     while (**s == ' ' || **s == '\t') (*s)++;
@@ -104,12 +149,4 @@ int wubu_colonel_dispatch(const char *line, wubu_colonel_t *c,
     default:
         return WUBU_COLONEL_UNKNOWN;
     }
-}
-
-int wubu_colonel_app_known(const char *name)
-{
-    if (!name || !name[0]) return 0;
-    for (int i = 0; i < N_APPS; i++)
-        if (strcmp(g_apps[i], name) == 0) return 1;
-    return 0;
 }
