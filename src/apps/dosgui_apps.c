@@ -21,6 +21,10 @@
 #include "../apps/bonzi/bonzi.h"
 #include "../apps/comfy/comfy.h"
 #include "../apps/tandem/tandem.h"
+#include "../apps/taskmgr/taskmgr.h"
+#include "../apps/notes.h"
+#include "../apps/todo.h"
+#include "../apps/music.h"
 #include "../apps/control/control.h"
 #include <stdlib.h>
 #include <string.h>
@@ -238,6 +242,10 @@ const DosGuiAppDef g_app_defs[] = {
     { "Bonzi Buddy",  "Bonzi Buddy",   DESK_ICON_COUNT + 6,   0x00A030A0, bonzi_launch },
     { "Comfy",        "Comfy",          DESK_ICON_COUNT + 7,   0x0000A0C0, comfy_launch },
     { "Tandem",       "Tandem",         DESK_ICON_COUNT + 8,   0x00C0A020, tandem_launch },
+    { "Task Manager", "Task Manager",   DESK_ICON_COUNT + 9,   0x00C00000, taskmgr_launch },
+    { "Notes",        "Notes",          DESK_ICON_COUNT + 10,  0x00A0A000, notes_launch },
+    { "Todo",         "Todo",           DESK_ICON_COUNT + 11,  0x0000A0A0, todo_launch },
+    { "Music",        "Music",          DESK_ICON_COUNT + 12,  0x00A050C0, music_launch },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 

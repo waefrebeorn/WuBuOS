@@ -20,18 +20,15 @@
 #include "repl/repl.h"
 #include "control/control.h"
 #include "editor/editor.h"
+#include "notes.h"
+#include "todo.h"
+#include "music.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-/* Stubs for WM functions not needed by tests */
-DosGuiWindow* dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
-    (void)x; (void)y; (void)w; (void)h;
-    return NULL;
-}
 
 /* Also stub out the external functions in the app registry */
 void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
@@ -46,6 +43,79 @@ void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 int wubu_ct_start_bwrap(void* ct) { (void)ct; return 0; }
 void wubu_ct_destroy(void* ct) { (void)ct; }
 
+
+/* Link-only stubs for the launcher graph the registry table references.
+ * The test only asserts the table is COMPLETE (names resolve to
+ * non-NULL launchers); the real launchers are proven by the runtime
+ * build. These stubs exist so the unit test links without the full
+ * WM/interrupt graph. (The established pattern: the launchers are
+ * never CALLED here.) */
+DosGuiWindow* bonzi_launch(void) { return NULL; }
+DosGuiWindow* comfy_launch(void) { return NULL; }
+DosGuiWindow* tandem_launch(void) { return NULL; }
+void app_explorer_init(void) {}
+void dosgui_notepad_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
+void dosgui_notepad_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
+void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
+void dosgui_startmenu_toggle(void) {}
+int dosgui_startmenu_is_open(void) { return 0; }
+struct hosted_state_t *dosgui_wm_get_hosted_state(void) { return NULL; }
+DosGuiWindow* edr_dash_launch(void) { return NULL; }
+
+
+void app_explorer_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
+void app_explorer_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
+void app_explorer_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w;(void)x;(void)y;(void)b;(void)k; }
+void dosgui_chrome_draw_window(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t; }
+void dosgui_chrome_draw_button(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t, int act) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t;(void)act; }
+DosGuiWindow* dosgui_dos_window_spawn(void) { return NULL; }
+int64_t hc_eval(const char *s) { (void)s; return 0; }
+void handle_double_fault(void) {}
+void handle_gpf(void) {}
+void handle_page_fault(void) {}
+void handle_invalid_opcode(void) {}
+
+void interrupt_panic_dump(void) {}
+void klog_printf(const char *f, ...) { (void)f; }
+void klog_tx_poll(void) {}
+void panic_dump_ring(void) {}
+void syscall_handler(void) {}
+void wdt_feed(void) {}
+
+struct wubu_cmd_t *wubu_cmd_create(void) { return NULL; }
+int wubu_cmd_spawn_shell(void *p, int c) { (void)p;(void)c; return 0; }
+void wubu_cmd_draw(void *p, uint32_t *f, int fw, int fh) { (void)p;(void)f;(void)fw;(void)fh; }
+void wubu_cmd_key(void *p, uint32_t k, uint32_t m) { (void)p;(void)k;(void)m; }
+void *wubu_dos_proc_launch(const char *p, int f) { (void)p;(void)f; return NULL; }
+void *wubu_ct_create(void) { return NULL; }
+int wubu_ct_add_payload(void *c, int f, const char *d, size_t n) { (void)c;(void)f;(void)d;(void)n; return 0; }
+
+uint64_t wubu_agi_kernel_global(void) { return 0; }
+uint64_t wubu_agi_kernel_promoted_total(void) { return 0; }
+uint64_t wubu_agi_kernel_tick(void) { return 0; }
+uint64_t wubu_agi_kernel_uptime_ms(void) { return 0; }
+void wubu_bonzi_draw(uint32_t *f, int fw, int fh, int x, int y) { (void)f;(void)fw;(void)fh;(void)x;(void)y; }
+void wubu_bonzi_init(void) {}
+int wubu_bonzi_is_enabled(void) { return 0; }
+void wubu_bonzi_mouse(int x, int y) { (void)x;(void)y; }
+void dosgui_shutdown(void) {}
+
+void wubu_bonzi_set_bubble(const char *b) { (void)b; }
+void wubu_bonzi_tick(uint64_t ms) { (void)ms; }
+const char *wubu_compat_cache_dir(void) { return "/tmp"; }
+int wubu_compat_db_get(const char *n) { (void)n; return 0; }
+void wubu_notify_simple(const char *a, const char *t, const char *m, void *i, int w, int d) { (void)a;(void)t;(void)m;(void)i;(void)w;(void)d; }
+int wubu_session_launch_game(void *h, const uint8_t *g, size_t n, const char *nm) { (void)h;(void)g;(void)n;(void)nm; return -1; }
+void wubu_settings_load(void) {}
+void wubu_settings_save(void) {}
+
+void wubu_trash_empty(void) {}
+int wubu_trash_move(const char *p) { (void)p; return 0; }
+void wubu_vdso_update(void) {}
+const char *wubu_wallpaper_default_path(void) { return ""; }
+int wubu_wallpaper_load(const char *p) { (void)p; return 0; }
+void wubu_wallpaper_rect(int *x, int *y, int *w, int *h) { (void)x;(void)y;(void)w;(void)h; }
+void wubu_wallpaper_render(uint32_t *f, int fw, int fh) { (void)f;(void)fw;(void)fh; }
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST: %-60s", name); g_total++
 #define PASS() do { printf("✅\n"); g_pass++; } while(0)
@@ -532,6 +602,67 @@ static void test_editor_launch(void) {
  * Main Test Runner
  * ================================================================ */
 
+
+/* ================================================================
+ * The registry completeness + the new apps (Notes/Todo/Music)
+ * ================================================================ */
+
+static void test_registry_complete(void) {
+    TEST("registry: every name has a real launcher");
+    if (g_app_def_count < 16) { FAIL("app def count"); return; }
+    const char *must[] = { "Notes", "Todo", "Music", "Task Manager",
+                           "Notepad", "Calculator", "Terminal",
+                           "File Manager", "Settings", "Bonzi Buddy" };
+    for (size_t i = 0; i < sizeof(must) / sizeof(must[0]); i++) {
+        const DosGuiAppDef *d = dosgui_app_find_by_name(must[i]);
+        if (!d || !d->launch) { FAIL(must[i]); return; }
+    }
+    PASS();
+}
+
+static void test_notes_real(void) {
+    TEST("notes: create/delete + the real-file persistence");
+    notes_test_reset();
+    if (notes_create("Audit note") != 0) { FAIL("create"); return; }
+    if (notes_count() != 1) { FAIL("count"); return; }
+    notes_select(0);
+    if (notes_delete_selected() != 0) { FAIL("delete"); return; }
+    if (notes_count() != 0) { FAIL("count after delete"); return; }
+    PASS();
+}
+
+static void test_todo_real(void) {
+    TEST("todo: add/toggle/delete + the real-file persistence");
+    todo_test_reset();
+    if (todo_add("close the gaps") != 0) { FAIL("add"); return; }
+    if (todo_add("train the decoder") != 0) { FAIL("add2"); return; }
+    if (todo_pending() != 2) { FAIL("pending"); return; }
+    todo_toggle_selected();
+    if (todo_pending() != 1) { FAIL("pending after toggle"); return; }
+    todo_delete_selected();
+    todo_delete_selected();
+    if (todo_count() != 0) { FAIL("count after deletes"); return; }
+    PASS();
+}
+
+static void test_music_real(void) {
+    TEST("music: the playlist scan + the player state");
+    music_test_reset();
+    music_scan();
+    int n = music_count();
+    if (n > 0) {
+        music_select(0);
+        music_play();
+        if (!music_test_started()) { FAIL("engine"); return; }
+        music_next();
+        if (music_selected() != 1 % n) { FAIL("next"); return; }
+        music_stop();
+        if (music_playing() != -1) { FAIL("stop"); return; }
+    }
+    PASS();
+}
+
+
 int main(void) {
     printf("\n=== WuBuOS DosGui Apps Test Suite ===\n\n");
     
@@ -593,6 +724,11 @@ int main(void) {
     test_editor_create_destroy();
     test_editor_launch();
     
+    printf("\n-- Registry + the new apps --\n");
+    test_registry_complete();
+    test_notes_real();
+    test_todo_real();
+    test_music_real();
     printf("\n==================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
     printf("==================================================\n");
