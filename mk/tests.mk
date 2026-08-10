@@ -546,6 +546,10 @@ test_game_launch: $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test.c $(RT)/w
 	$(CC) $(CFLAGS) -I$(RT) $(RT)/wubu_game_launch_test.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_launch_test
 	./$(RT)/wubu_game_launch_test
 
+test_dosgui_bpm_games: $(GUI)/dosgui_bpm_games.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c $(GUI)/dosgui_bpm_games.h $(RT)/wubu_game_launch.h
+	$(CC) $(CFLAGS) -I$(GUI) -I$(RT) $(GUI)/test_dosgui_bpm_games.c $(GUI)/dosgui_bpm_games.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(GUI)/test_dosgui_bpm_games
+	./$(GUI)/test_dosgui_bpm_games
+
 test_synth: $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c $(GUI)/wubu_waveosc.h $(GUI)/wubu_ladder.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_synth.c $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c -o $(GUI)/test_synth -lm
 	./$(GUI)/test_synth
