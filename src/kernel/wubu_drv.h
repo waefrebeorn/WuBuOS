@@ -40,6 +40,11 @@ typedef struct wubu_drv_dev {
     uint16_t device;
     uint8_t  class_code;
     uint8_t  subclass;
+    /* the PCI BARs (the REAL hardware MMIO windows — wubu_pci reads
+     * them from the config space; the drivers map the probe MMIO from
+     * these on real hardware) */
+    uint64_t bar0;
+    uint64_t bar1;
     /* bound state */
     int             bound;
     int             probe_rc;
@@ -57,6 +62,10 @@ int wubu_drv_add_device(const wubu_drv_dev_t *dev);
 
 /* DRV5: enumerate the real PCI bus. */
 int wubu_drv_pci_scan(void);
+
+/* DRV5b: the BAR accessor — the real-hardware MMIO base. */
+int wubu_drv_dev_bar(const wubu_drv_dev_t *dev, uint64_t *bar0,
+                     uint64_t *bar1);
 
 /* DRV6: probe every device. */
 int wubu_drv_probe(void);

@@ -31,11 +31,11 @@ void dosgui_controlpanel_init(void)
     CpApplet applets[CP_MAX_APPLETS];
     int n = 0;
 
+    applets[n++] = dosgui_cp_create_display_applet();
+    applets[n++] = dosgui_cp_create_network_applet();
     applets[n++] = dosgui_cp_create_sound_applet();
+    applets[n++] = dosgui_cp_create_theme_applet();
     applets[n++] = dosgui_cp_create_hardware_applet();
-    /* the display/network/theme applets are declared (the header has
-     * the factories) but not yet built — the sidebar shows only the
-     * real applets, never stubs. */
 
     for (int i = 0; i < n && i < CP_MAX_APPLETS; i++) {
         g_controlpanel.applets[i] = applets[i];

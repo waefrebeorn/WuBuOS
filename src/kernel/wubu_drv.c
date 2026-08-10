@@ -121,7 +121,9 @@ static int drv_matches(const wubu_drv_t *drv, const wubu_drv_dev_t *dev)
 }
 
 /* DRV5: the PCI bus scan — enumerate the real bus (via wubu_pci) and
- * add every device to the table. Returns the device count. */
+ * add every device to the table, CARRYING the BARs (the real MMIO
+ * windows — the drivers map their probe MMIO from these). Returns the
+ * device count. */
 int wubu_drv_pci_scan(void)
 {
     wubu_pci_dev_t pci[WUBU_DRV_MAX_DEV];
@@ -134,9 +136,23 @@ int wubu_drv_pci_scan(void)
         dev.device = pci[i].device;
         dev.class_code = pci[i].class_code;
         dev.subclass = pci[i].subclass;
+        dev.bar0 = pci[i].bar0;
+        dev.bar1 = pci[i].bar1;
         wubu_drv_add_device(&dev);
     }
     return g_ndev;
+}
+
+/* DRV5b: the BAR accessor — the real-hardware MMIO base for a bound
+ * device (the drivers map their probe window from this). Returns 0 if
+ * the device has a BAR0. */
+int wubu_drv_dev_bar(const wubu_drv_dev_t *dev, uint64_t *bar0,
+                     uint64_t *bar1)
+{
+    if (!dev) return -1;
+    if (bar0) *bar0 = dev->bar0;
+    if (bar1) *bar1 = dev->bar1;
+    return dev->bar0 ? 0 : -1;
 }
 
 /* DRV6: probe — bind every device to its driver. Returns the number

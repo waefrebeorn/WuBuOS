@@ -10,7 +10,7 @@
 
 /* the world snapshot — the AGI's perception of the running OS.
  * Every field derives from a REAL driver's state. */
-typedef struct {
+typedef struct wubu_world {
     /* storage */
     int      has_nvme;
     uint32_t nvme_gb;

@@ -163,6 +163,16 @@ int main(void)
     if (wubu_nvme_block_size() != 512) FAIL("block size");
     printf("  PASS: the NVMe SSD is ready (512GB, 512B blocks)\n");
 
+    /* 2b. the REAL-hardware BAR glue: a device with a BAR0 exposes
+     * its MMIO base (the driver maps the probe window from this) */
+    wubu_drv_dev_t nvme_with_bar = *nvme;
+    nvme_with_bar.bar0 = 0xFC000000ULL;   /* a real NVMe BAR */
+    uint64_t bar0 = 0, bar1 = 0;
+    if (wubu_drv_dev_bar(&nvme_with_bar, &bar0, &bar1) != 0)
+        FAIL("bar accessor on a BAR'd device");
+    if (bar0 != 0xFC000000ULL) FAIL("bar0 = %llx", (unsigned long long)bar0);
+    printf("  PASS: the PCI BAR glue carries the real MMIO base\n");
+
     /* 3. the network */
     if (!wubu_net_wifi_link()) FAIL("wifi link down");
     if (!wubu_net_eth_link()) FAIL("eth link down");
