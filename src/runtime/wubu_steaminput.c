@@ -114,6 +114,10 @@ typedef struct {
 
 static wubu_si_t g_si;
 
+/* lizard mode: ON by default — the controller acts as a keyboard
+ * until a real client opens the device (matches hid-steam.c) */
+static int g_lizard = 1;
+
 /* SI1: init with the default config. */
 void wubu_si_init(void)
 {
@@ -150,6 +154,12 @@ void wubu_si_feed_button(int button, int down)
     if (down == g_si.held[button]) return;   /* no edge */
     g_si.held[button] = (uint8_t)down;
 
+    /* lizard mode ON: the controller is a keyboard — the mapped
+     * scancodes are emitted. lizard mode OFF (a real client opened
+     * the device): the mappings are cleared, nothing is emitted
+     * (the client reads the raw pad itself). */
+    if (!g_lizard) return;
+
     int32_t sc = g_si.cfg.buttons[button].scancode;
     KeyEvent ev;
     memset(&ev, 0, sizeof(ev));
@@ -184,6 +194,9 @@ void wubu_si_feed_axis(int axis, float value)
 {
     if (!g_si.initialized || axis < 0 || axis >= SI_N_AXES)
         return;
+    /* lizard mode OFF: the mappings are cleared (a real client owns
+     * the raw pad) — the axes emit nothing */
+    if (!g_lizard) return;
     if (value > -0.25f && value < 0.25f) return;   /* dead zone */
     int32_t key = value < 0 ? g_si.cfg.axes[axis].neg_key
                             : g_si.cfg.axes[axis].pos_key;
@@ -411,3 +424,26 @@ int wubu_si_parse_battery(const uint8_t *data, size_t size)
 /* the battery state (for the /n control plane) */
 int wubu_si_battery_mv(void) { return g_si.battery_mv; }
 int wubu_si_battery_pct(void) { return g_si.battery_pct; }
+
+/* ====================================================================
+ * LIZARD MODE — the last major steal from hid-steam.c.
+ *
+ * Valve's driver: the controller ACTS AS A KEYBOARD+MOUSE until a
+ * real client (Steam, a game) opens the input device — then it
+ * CLEARS the digital mappings and the trackpad-mouse (the controller
+ * becomes a raw gamepad). The "lizard" name comes from the mode
+ * where the pad pretends to be a keyboard "so it looks like a lizard
+ * wearing a keyboard".
+ *
+ * WuBuOS: lizard mode is ON by default (the map table is the
+ * controller-as-keyboard default). wubu_si_set_lizard_mode(false) is
+ * what a client does on open — it clears the mappings (nothing is
+ * emitted) until the client closes and lizard mode returns.
+ * ================================================================== */
+/* SI12: set lizard mode (1 = controller-as-keyboard, 0 = raw). */
+void wubu_si_set_lizard_mode(int enable)
+{
+    g_lizard = enable ? 1 : 0;
+}
+
+int wubu_si_lizard_mode(void) { return g_lizard; }

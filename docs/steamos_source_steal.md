@@ -84,11 +84,16 @@ via ns_mkdir/ns_write — zero new daemons, one namespace.
   (2026-08-09)**: `wubu_si_parse_battery()` (voltage mV at 12-13,
   percent at 14) + `/n/steaminput/battery`.
 - the lizard-mode toggle (ID_SET_DEFAULT_DIGITAL_MAPPINGS /
-  ID_CLEAR_DIGITAL_MAPPINGS) — the "controller acts as keyboard until
-  a real client opens" behavior
+  ID_CLEAR_DIGITAL_MAPPINGS) — **DONE (2026-08-09)**:
+  `wubu_si_set_lizard_mode()` — the controller acts as a keyboard
+  until a real client opens the device (the mappings clear, nothing
+  is emitted); closing restores the keyboard map. Matches
+  hid-steam.c's lizard semantics exactly.
 - the nintendo/hid-nintendo.c protocol for the Switch Pro controller
 
 ## Changelog
 
 - 2026-08-09 (32fc11b): Deck report protocol + EC + both /n subtrees.
-- 2026-08-09 (next): IMU gyro-to-mouse + battery decode + /n battery.
+- 2026-08-09 (938444b): IMU gyro-to-mouse + battery decode + /n battery.
+- 2026-08-09 (next): lizard mode (keyboard-until-client, from
+  hid-steam.c's lizard behavior).

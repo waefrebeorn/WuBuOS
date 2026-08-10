@@ -49,6 +49,13 @@ int wubu_si_parse_battery(const uint8_t *data, size_t size);
 int wubu_si_battery_mv(void);
 int wubu_si_battery_pct(void);
 
+/* SI12: lizard mode — ON (default) = the controller is a keyboard
+ * (mapped scancodes emitted); OFF = a real client opened the device,
+ * the mappings are cleared (nothing emitted). Stolen from
+ * hid-steam.c's lizard-mode behavior. */
+void wubu_si_set_lizard_mode(int enable);
+int wubu_si_lizard_mode(void);
+
 /* SI6/7: per-game config persistence. */
 int wubu_si_save(const char *path);
 int wubu_si_load(const char *path);
