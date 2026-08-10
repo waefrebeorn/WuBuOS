@@ -558,6 +558,18 @@ test_agi_play: $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_l
 	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_agi_play_test.c $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_agi_play_test
 	./$(RT)/wubu_agi_play_test
 
+test_pe_personality: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_pe_personality.c $(KERNEL)/wubu_pe_personality.h $(KERNEL)/wubu_pe_personality_test.c $(KERNEL)/libc_string.c
+	$(CC) -O1 -std=c11 -Wall -I$(KERNEL) $(KERNEL)/wubu_pe_personality_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe_personality.c $(KERNEL)/libc_string.c -o $(KERNEL)/wubu_pe_personality_test
+	$(KERNEL)/./wubu_pe_personality_test
+
+test_pe_load: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_pe_test.c
+	$(CC) -O1 -std=c11 -Wall -Wextra -I$(KERNEL) $(KERNEL)/wubu_pe_test.c $(KERNEL)/wubu_pe.c -o $(KERNEL)/wubu_pe_test
+	$(KERNEL)/./wubu_pe_test
+
+test_libc_string: $(KERNEL)/libc_string.c $(KERNEL)/libc.h
+	$(CC) -O1 -std=c11 -Wall -Wextra -I$(KERNEL) $(KERNEL)/libc_string_test.c $(KERNEL)/libc_string.c -o $(KERNEL)/libc_string_test
+	./$(KERNEL)/libc_string_test
+
 test_synth: $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c $(GUI)/wubu_waveosc.h $(GUI)/wubu_ladder.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_synth.c $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c -o $(GUI)/test_synth -lm
 	./$(GUI)/test_synth
