@@ -542,6 +542,10 @@ test_apps_gap: $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/dosgui_app
 	$(CC) $(CFLAGS) -I$(APPS) -I$(GUI) -I$(KERNEL) $(APPS)/dosgui_apps_gap_test.c $(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c $(APPS)/dosgui_apps_gap_test_stub.c $(GUI)/wubu_sound.c -o $(APPS)/dosgui_apps_gap_test -lm
 	./$(APPS)/dosgui_apps_gap_test
 
+test_game_launch: $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test.c $(RT)/wubu_game_launch_test_stub.c
+	$(CC) $(CFLAGS) -I$(RT) $(RT)/wubu_game_launch_test.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_launch_test
+	./$(RT)/wubu_game_launch_test
+
 test_synth: $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c $(GUI)/wubu_waveosc.h $(GUI)/wubu_ladder.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_synth.c $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c -o $(GUI)/test_synth -lm
 	./$(GUI)/test_synth
