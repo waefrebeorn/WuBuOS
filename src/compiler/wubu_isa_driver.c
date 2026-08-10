@@ -16,6 +16,7 @@ extern const wubu_isa_driver_t wubu_isa_m68k;
 extern const wubu_isa_driver_t wubu_isa_i8086;
 extern const wubu_isa_driver_t wubu_isa_riscv;
 extern const wubu_isa_driver_t wubu_isa_6502;
+extern const wubu_isa_driver_t wubu_isa_z80;
 
 const wubu_isa_driver_t *wubu_isa_find(const char *name)
 {
@@ -34,5 +35,8 @@ const wubu_isa_driver_t *wubu_isa_find(const char *name)
     if (!strcmp(name, "6502") || !strcmp(name, "65c02") ||
         !strcmp(name, "w65c02") || !strcmp(name, "6502x"))
         return &wubu_isa_6502;
+    if (!strcmp(name, "z80") || !strcmp(name, "zilog-z80") ||
+        !strcmp(name, "z180") || !strcmp(name, "8080-compat"))
+        return &wubu_isa_z80;
     return NULL;
 }

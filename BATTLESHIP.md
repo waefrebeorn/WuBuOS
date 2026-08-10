@@ -266,7 +266,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | Steam Networking (P2P) | not implemented |
 | Proton auto-config + prefix mgmt | partial (wubu_proton2) |
 | gamescope (nested compositor) | not implemented |
-| Pressure Vessel (runtime container) | not implemented |
+| Pressure Vessel (runtime container) | **IMPLEMENTED (2026-08-09)** — `src/runtime/wubu_pressure_vessel.{c,h}`: the Steam Linux Runtime container preset — runtime lib bind (ro) + the game's libs layered on top + the curated LD_LIBRARY_PATH (game first, runtime fills the gaps) + GPU/Wayland surfaces + launch via the bwrap runtime. `make test_pressure_vessel` 5/5 green |
 | Steam Cloud sync | not implemented |
 | Game mode / perf governor | not implemented |
 | **Arch daemon as Desktop boot backend** | exists (16/16) but NOT wired as SteamOS-style service manager for the Desktop |

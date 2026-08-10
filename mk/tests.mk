@@ -118,8 +118,12 @@ test_holyc: $(JIT_OBJS)
 # divergence is a FINDING. Every m68k encoding is oracle-verified against
 # GNU binutils via tools/verify_isa.sh.
 test_drivers: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c tools/mir_driver_test.c -o $(COMP)/mir_driver_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c tools/mir_driver_test.c -o $(COMP)/mir_driver_test
 	$(COMP)/mir_driver_test
+
+test_isa_driver: $(JIT_OBJS)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/test_isa_driver.c -o $(COMP)/test_isa_driver
+	$(COMP)/test_isa_driver
 
 holyc: $(JIT_OBJS)
 	$(CC) -O0 -g -I$(COMP) -I$(JIT) -I$(RT) -I$(KERNEL) -DHOLYC_BF_EMBEDDED $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/holyc_runtime.c $(COMP)/brainfuck.c $(KERNEL)/wubu_hive.c $(RT)/wubu_runtime.c $(RT)/wubu_runtime_personalities.c tools/holyc.c -o $(COMP)/holyc -ldl
@@ -954,6 +958,16 @@ test_proton2:
 		$(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_proton2_test.c \
 		-o $(RT)/wubu_proton2_test
+
+test_pressure_vessel:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_container.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/seccomp_registry.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/wubu_pressure_vessel.c \
+		$(RT)/wubu_pressure_vessel_test.c \
+		-o $(RT)/wubu_pressure_vessel_test
+	$(RT)/wubu_pressure_vessel_test
 	$(RT)/wubu_proton2_test
 
 test_metal:
