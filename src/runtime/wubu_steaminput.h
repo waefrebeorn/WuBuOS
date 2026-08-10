@@ -5,6 +5,7 @@
 #define WUBU_STEAMINPUT_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* the gamepad buttons (XInput layout) */
 enum {
@@ -33,6 +34,11 @@ int wubu_si_map_axis(int axis, int32_t neg_key, int32_t pos_key);
 /* SI4/5: feed raw gamepad events (the engine emits mapped input). */
 void wubu_si_feed_button(int button, int down);
 void wubu_si_feed_axis(int axis, float value);
+
+/* SI9: parse one 64-byte Steam Deck controller report (report ID 9,
+ * the protocol stolen from Valve's hid-steam.c) and route every
+ * decoded control through the mapping table. Returns the events. */
+int wubu_si_parse_deck_report(const uint8_t *data, size_t size);
 
 /* SI6/7: per-game config persistence. */
 int wubu_si_save(const char *path);

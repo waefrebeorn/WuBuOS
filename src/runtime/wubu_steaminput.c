@@ -263,3 +263,86 @@ int wubu_si_get(wubu_si_view_t *out)
     out->mouse_speed = g_si.cfg.mouse_speed;
     return 0;
 }
+
+/* ====================================================================
+ * THE STEAM DECK REPORT PARSER — stolen from Valve's hid-steam.c
+ * (drivers/hid/hid-steam.c, steam_do_deck_input_event). The Deck
+ * sends a 64-byte controller state report (report ID 9) every ~4ms:
+ *
+ *   byte 8  : TR2 TL2 TR TL Y B X A        (bit 0 = TR2 ... bit 7 = A)
+ *   byte 9  : dpad-up right left down | select mode start gripL2
+ *   byte 10 : gripR2 lpad-click rpad-click lpad-touch rpad-touch
+ *             unknown thumbL
+ *   byte 11 : (bit 2) = thumbR click
+ *   byte 13 : (bit 1) = gripL, (bit 2) = gripR
+ *   byte 14 : (bit 2) = base (the Steam button)
+ *   bytes 16/18 : left trackpad X/Y (when lpad-touched)
+ *   bytes 20/22 : right trackpad X/Y (when rpad-touched)
+ *   bytes 44/46 : left/right trigger (the ABS_HAT2Y/2X)
+ *   bytes 48/50 : left stick X/Y (Y is negated)
+ *   bytes 52/54 : right stick X/Y (Y is negated)
+ *
+ * The parser routes each decoded control through the SAME mapping
+ * table the feed API uses (buttons -> the mapped scancode, sticks ->
+ * the mapped key pairs), so a real Deck over USB/Bluetooth drives the
+ * same virtual input as the synthetic feed.
+ * ================================================================== */
+
+/* the per-button decode mapping: [byte-index][bit] -> SI button id */
+static const struct {
+    int byte;   /* the report byte */
+    int bit;    /* the bit within it */
+    int btn;    /* the SI button id */
+} si_deck_btns[] = {
+    { 8,  0, SI_RT  },  { 8,  1, SI_LT  },  { 8,  2, SI_RB  },
+    { 8,  3, SI_LB  },  { 8,  4, SI_Y   },  { 8,  5, SI_B   },
+    { 8,  6, SI_X   },  { 8,  7, SI_A   },
+    { 9,  0, SI_DPAD_UP },  { 9,  1, SI_DPAD_RIGHT },
+    { 9,  2, SI_DPAD_LEFT }, { 9,  3, SI_DPAD_DOWN },
+    { 9,  4, SI_BACK },  { 9,  5, SI_START },   /* mode = steam */
+    { 10, 6, SI_L3   },  { 11, 2, SI_R3   },
+    { 14, 2, SI_START },  /* the base/steam button acts as Start */
+};
+
+/* SI9: parse one 64-byte Deck controller report. Every decoded button
+ * and axis flows through the mapping table -> the kernel input queue.
+ * Returns the number of input events emitted. */
+int wubu_si_parse_deck_report(const uint8_t *data, size_t size)
+{
+    if (!g_si.initialized || !data || size < 64)
+        return -1;
+    int emitted = 0;
+
+    /* the buttons: compare against the held state, emit on edges */
+    for (size_t i = 0; i < sizeof(si_deck_btns) / sizeof(si_deck_btns[0]); i++) {
+        int byte = si_deck_btns[i].byte;
+        int bit  = si_deck_btns[i].bit;
+        int btn  = si_deck_btns[i].btn;
+        int down = (data[byte] >> bit) & 1;
+        if (down != g_si.held[btn]) {
+            wubu_si_feed_button(btn, down);
+            emitted++;
+        }
+    }
+
+    /* the sticks (bytes 48/50 = L, 52/54 = R; Y is negated) */
+    float lx = (int16_t)((data[48] | (data[49] << 8))) / 32767.0f;
+    float ly = -(int16_t)((data[50] | (data[51] << 8))) / 32767.0f;
+    float rx = (int16_t)((data[52] | (data[53] << 8))) / 32767.0f;
+    float ry = -(int16_t)((data[54] | (data[55] << 8))) / 32767.0f;
+    wubu_si_feed_axis(SI_LSTICK_X, lx);
+    wubu_si_feed_axis(SI_LSTICK_Y, ly);
+    wubu_si_feed_axis(SI_RSTICK_X, rx);
+    wubu_si_feed_axis(SI_RSTICK_Y, ry);
+    emitted += 4;
+
+    /* the triggers (bytes 44/46) — the LI/Rt to SI_LT/SI_RT */
+    int lt = data[44] | (data[45] << 8);
+    int rt = data[46] | (data[47] << 8);
+    if (lt > 8000)  { if (!g_si.held[SI_LT]) { wubu_si_feed_button(SI_LT, 1); emitted++; } }
+    else            { if (g_si.held[SI_LT])  { wubu_si_feed_button(SI_LT, 0); emitted++; } }
+    if (rt > 8000)  { if (!g_si.held[SI_RT]) { wubu_si_feed_button(SI_RT, 1); emitted++; } }
+    else            { if (g_si.held[SI_RT])  { wubu_si_feed_button(SI_RT, 0); emitted++; } }
+
+    return emitted;
+}

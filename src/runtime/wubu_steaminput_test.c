@@ -72,6 +72,33 @@ int main(void)
     if (wubu_si_load("/tmp/si_bad.bin") == 0) FAIL("corrupt file accepted");
     printf("  PASS: a corrupt config is refused\n");
 
+    /* 6. the REAL Steam Deck report protocol (stolen from hid-steam.c):
+     * a 64-byte report with A pressed (byte 8, bit 7 = 0x80) and the
+     * left stick pushed right (+32767 at bytes 48/49) must emit the
+     * mapped input: Space (0x39) + D (0x1F) */
+    uint8_t report[64];
+    memset(report, 0, sizeof(report));
+    report[8] = 0x80;              /* A */
+    report[48] = 0xFF; report[49] = 0x7F;   /* L-stick X = +32767 */
+    KeyEvent ev3;
+    while (input_key_poll(&ev3)) {}
+    int n = wubu_si_parse_deck_report(report, sizeof(report));
+    if (n < 2) FAIL("deck report emitted %d events, want >= 2", n);
+    /* the A -> Space press */
+    int got_a = 0, got_d = 0;
+    while (input_key_poll(&ev3)) {
+        if (ev3.scancode == 0x39) got_a = 1;   /* Space */
+        if (ev3.scancode == 0x1F) got_d = 1;   /* D */
+    }
+    if (!got_a) FAIL("deck A did not emit Space");
+    if (!got_d) FAIL("deck L-stick did not emit D");
+    printf("  PASS: the real Deck report decodes (A->Space, L-stick->D)\n");
+
+    /* 7. the report is refused when too short */
+    if (wubu_si_parse_deck_report(report, 32) >= 0)
+        FAIL("short deck report accepted");
+    printf("  PASS: a short deck report is refused\n");
+
     remove("/tmp/si_cfg.bin");
     remove("/tmp/si_bad.bin");
     printf("=== ALL STEAMINPUT TESTS PASSED (the Steam Input layer) ===\n");
