@@ -968,6 +968,14 @@ test_pressure_vessel:
 		$(RT)/wubu_pressure_vessel_test.c \
 		-o $(RT)/wubu_pressure_vessel_test
 	$(RT)/wubu_pressure_vessel_test
+
+test_gamemode:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_gamemode.c \
+		$(RT)/wubu_gamemode_test.c \
+		-o $(RT)/wubu_gamemode_test
+	$(RT)/wubu_gamemode_test
 	$(RT)/wubu_proton2_test
 
 test_metal:

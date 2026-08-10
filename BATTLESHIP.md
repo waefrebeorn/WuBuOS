@@ -268,7 +268,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | gamescope (nested compositor) | not implemented |
 | Pressure Vessel (runtime container) | **IMPLEMENTED (2026-08-09)** — `src/runtime/wubu_pressure_vessel.{c,h}`: the Steam Linux Runtime container preset — runtime lib bind (ro) + the game's libs layered on top + the curated LD_LIBRARY_PATH (game first, runtime fills the gaps) + GPU/Wayland surfaces + launch via the bwrap runtime. `make test_pressure_vessel` 5/5 green |
 | Steam Cloud sync | not implemented |
-| Game mode / perf governor | not implemented |
+| Game mode / perf governor | **IMPLEMENTED (2026-08-09)** — `src/runtime/wubu_gamemode.{c,h}`: the SteamOS game mode — init records the current cpufreq governor/power/nvidia state, activate switches every policy to `performance` + nvidia boost 1, deactivate RESTORES what init recorded (never guesses; the sysfs writes are best-effort, the mode state is always tracked). `make test_gamemode` 4/4 green |
 | **Arch daemon as Desktop boot backend** | exists (16/16) but NOT wired as SteamOS-style service manager for the Desktop |
 
 ### EPIC E3 — Ubuntu/Arch Parity (~20 missing subsystems) — ~20
