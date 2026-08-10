@@ -262,7 +262,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | Subsystem | Gap |
 |-----------|-----|
 | CEF/Chromium UI shell | not implemented |
-| Steam Input (controller config) | not implemented |
+| Steam Input (controller config) | **IMPLEMENTED (2026-08-09)** — `src/runtime/wubu_steaminput.{c,h}`: the controller→virtual-input mapping engine — per-button scancode binds + per-axis key pairs + the default controller-as-keyboard map (A=Space, L-stick=WASD, R-stick=mouse) + the kernel-queue emission + per-game config save/load (magic+version, corrupt refused). `make test_steaminput` 5/5 green |
 | Steam Networking (P2P) | not implemented |
 | Proton auto-config + prefix mgmt | partial (wubu_proton2) |
 | gamescope (nested compositor) | not implemented |

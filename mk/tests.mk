@@ -976,6 +976,15 @@ test_gamemode:
 		$(RT)/wubu_gamemode_test.c \
 		-o $(RT)/wubu_gamemode_test
 	$(RT)/wubu_gamemode_test
+
+test_steaminput:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(KERNEL) \
+		$(KERNEL)/input.c \
+		$(RT)/wubu_steaminput.c \
+		$(RT)/wubu_steaminput_test.c \
+		-o $(RT)/wubu_steaminput_test
+	$(RT)/wubu_steaminput_test
 	$(RT)/wubu_proton2_test
 
 test_metal:
