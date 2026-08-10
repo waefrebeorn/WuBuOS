@@ -827,6 +827,17 @@ test_acpi:
 		-o $(KERNEL)/test_acpi
 	$(KERNEL)/test_acpi
 
+test_drv:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
+		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
+		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
+		$(KERNEL)/wubu_pci.c \
+		$(KERNEL)/wubu_drv_test.c \
+		-o $(KERNEL)/wubu_drv_test
+	$(KERNEL)/wubu_drv_test
+
 # 8254 watchdog helpers (gap E7): count conversion + mode word
 test_wdt:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
@@ -1148,6 +1159,40 @@ test_ns_steaminput:
 		/tmp/wubu_ns_steaminput_test.o \
 		-o $(RT)/wubu_ns_steaminput_test
 	$(RT)/wubu_ns_steaminput_test
+
+test_steamrt:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_steamrt_test.c -o /tmp/wubu_steamrt_test.o
+	$(CC) -O0 -no-pie -I$(RT) \
+		$(RT)/wubu_steamrt.c \
+		/tmp/wubu_steamrt_test.o \
+		-o $(RT)/wubu_steamrt_test
+	$(RT)/wubu_steamrt_test
+
+test_ns_steamrt:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_steamrt_test.c -o /tmp/wubu_ns_steamrt_test.o
+	$(CC) -O0 -no-pie -I$(RT) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_steamrt.c $(RT)/wubu_steamrt.c \
+		/tmp/wubu_ns_steamrt_test.o \
+		-o $(RT)/wubu_ns_steamrt_test
+	$(RT)/wubu_ns_steamrt_test
+
+test_session:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_session_test.c -o /tmp/wubu_session_test.o
+	$(CC) -O0 -no-pie -I$(RT) \
+		$(RT)/wubu_session.c \
+		/tmp/wubu_session_test.o \
+		-o $(RT)/wubu_session_test
+	$(RT)/wubu_session_test
+
+test_ns_session:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_session_test.c -o /tmp/wubu_ns_session_test.o
+	$(CC) -O0 -no-pie -I$(RT) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_session.c $(RT)/wubu_session.c \
+		/tmp/wubu_ns_session_test.o \
+		-o $(RT)/wubu_ns_session_test
+	$(RT)/wubu_ns_session_test
 
 
 test_ns_9p:

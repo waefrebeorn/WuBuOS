@@ -1,27 +1,46 @@
 /*
- * wubu_session.h -- WuBuOS session management (SteamOS gamescope lesson).
- *
- * DESKTOP (Win98 shell) vs GAME (dedicated, fullscreen, controller-first,
- * shell-bypass) session split. The GAME path launches foreign binaries via
- * the Proton/container route (wubu_launch_windows), never an NT-kernel reimpl.
+ * wubu_session.h -- the session manager (SteamOS desktop-space steal).
  */
-
 #ifndef WUBU_SESSION_H
 #define WUBU_SESSION_H
 
-#include <stddef.h>
-#include "../hosted/hosted.h"   /* hosted_mode_t, hosted_state_t */
+/* the sessions (mirrors SteamOS's Game Mode / Desktop Mode) */
+enum {
+    WUBU_SESSION_GAME    = 0,   /* the gamescope compositor session */
+    WUBU_SESSION_DESKTOP = 1,   /* the dosgui/Plasma desktop session */
+};
 
-/* Human-readable name for a session mode. */
-const char *wubu_session_mode_name(hosted_mode_t mode);
+/* the session launch commands (what the switch produces) */
+#define WUBU_SESSION_GAME_CMD     "steam -steamos3 -steampal"
+#define WUBU_SESSION_DESKTOP_CMD  "wubu-desktop"
 
-/* Enter a dedicated GAME session and launch the binary via the Proton/
- * container path. Returns process id, or -1 on error. */
-int wubu_session_launch_game(hosted_state_t *state,
-                             const void *data, size_t size,
-                             const char *cmdline);
+/* SS1: init — start in the given session (desktop by default). */
+void wubu_session_init(int session);
 
-/* Enter the Win98 desktop session (comfy default; shell owns the screen). */
-void wubu_session_enter_desktop(hosted_state_t *state);
+/* SS2: the current session. */
+int wubu_session_current(void);
 
-#endif /* WUBU_SESSION_H */
+/* SS3: set to a specific session. Returns 0 on success. */
+int wubu_session_set(int session);
+
+/* SS4: switch to the OTHER session. */
+int wubu_session_switch(void);
+
+/* SS5: the launch command of the last switch. */
+const char *wubu_session_last_cmd(void);
+
+/* SS6: the test hooks. */
+typedef struct {
+    int  current;
+    int  initialized;
+    char last_cmd[1024];
+} wubu_session_view_t;
+int wubu_session_get(wubu_session_view_t *out);
+
+/* SS7: parse a session name ("game" / "desktop"), -1 on error. */
+int wubu_session_from_name(const char *name);
+
+/* the session names (for the /n control plane) */
+const char *wubu_session_name(int s);
+
+#endif
