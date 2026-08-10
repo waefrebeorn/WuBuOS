@@ -24,6 +24,7 @@ static const char *machine_name(uint16_t m)
     switch (m) {
     case 0x014C: return "i386";
     case 0x8664: return "x86_64";
+    case 0x003E: return "x86_64";
     case 0x01C0: return "arm";
     case 0xAA64: return "aarch64";
     case 0x01F0: return "ppc";
@@ -103,18 +104,32 @@ static void probe_macho(const uint8_t *p, size_t size)
     }
     printf("  format: Mach-O — %s\n", mstr);
     if (magic == 0xCAFEBABE || magic == 0xBEBAFECA) {
-        uint32_t n = 0;
-        memcpy(&n, p + 4, 4);
+        /* FAT_MAGIC on disk = CA FE BA BE — read as 0xBEBAFECA on an
+         * LE host; the fields are BIG-endian -> bswap. FAT_CIGAM on
+         * disk = BE BA FE CA — read as 0xCAFEBABE; the fields are
+         * already LE -> read raw. (Verified against the real
+         * OpenArena universal binary: cafe babe 0000 0002 = 2 slices,
+         * ppc64 + i386.) */
+        int swapped = (magic == 0xBEBAFECA);
+        uint32_t raw_n;
+        memcpy(&raw_n, p + 4, 4);
+        uint32_t n = swapped ? __builtin_bswap32(raw_n) : raw_n;
         printf("  fat slices: %u\n", n);
         for (uint32_t i = 0; i < n && i < 8; i++) {
             uint32_t cpu = 0, off = 0, sz = 0;
             memcpy(&cpu, p + 8 + i * 20, 4);
             memcpy(&off,  p + 8 + i * 20 + 8, 4);
             memcpy(&sz,   p + 8 + i * 20 + 12, 4);
+            if (swapped) {
+                cpu = __builtin_bswap32(cpu);
+                off = __builtin_bswap32(off);
+                sz  = __builtin_bswap32(sz);
+            }
             printf("    slice %u: cpu 0x%x (%s) off 0x%x size %u\n",
                    i, cpu,
-                   cpu == 7 ? "i386" : cpu == 0x01000007 ? "x86_64" :
-                   cpu == 12 ? "ppc" : cpu == 18 ? "ppc64" : "other",
+                   cpu == 7 || cpu == 0x01000007 ? "x86" :
+                   cpu == 0x0100000C ? "x86_64" :
+                   cpu == 12 || cpu == 18 ? "ppc" : "other",
                    off, sz);
         }
     } else if (size >= 8) {
