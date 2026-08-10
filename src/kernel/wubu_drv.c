@@ -37,7 +37,7 @@
 /* ---- the device table ---- */
 
 #define WUBU_DRV_MAX_DEV  32
-#define WUBU_DRV_MAX_DRV  16
+#define WUBU_DRV_MAX_DRV  24
 
 static wubu_drv_dev_t    g_devs[WUBU_DRV_MAX_DEV];
 static int               g_ndev;
@@ -71,6 +71,12 @@ void wubu_drv_init(void)
     extern const wubu_drv_t wubu_drv_usb_msc;
     extern const wubu_drv_t wubu_drv_usb_bt;
     extern const wubu_drv_t wubu_drv_thermal;
+    extern const wubu_drv_t wubu_drv_virtio_blk;
+    extern const wubu_drv_t wubu_drv_virtio_net;
+    extern const wubu_drv_t wubu_drv_virtio_gpu;
+    extern const wubu_drv_t wubu_drv_virtio_input;
+    extern const wubu_drv_t wubu_drv_arm_platform;
+    extern const wubu_drv_t wubu_drv_intel_platform;
     wubu_drv_register(&wubu_drv_nvme);
     wubu_drv_register(&wubu_drv_ahci);
     wubu_drv_register(&wubu_drv_wifi);
@@ -83,6 +89,12 @@ void wubu_drv_init(void)
     wubu_drv_register(&wubu_drv_usb_msc);
     wubu_drv_register(&wubu_drv_usb_bt);
     wubu_drv_register(&wubu_drv_thermal);
+    wubu_drv_register(&wubu_drv_virtio_blk);
+    wubu_drv_register(&wubu_drv_virtio_net);
+    wubu_drv_register(&wubu_drv_virtio_gpu);
+    wubu_drv_register(&wubu_drv_virtio_input);
+    wubu_drv_register(&wubu_drv_arm_platform);
+    wubu_drv_register(&wubu_drv_intel_platform);
 }
 
 /* DRV3: add a device to the bus table. Returns the slot, -1 full. */

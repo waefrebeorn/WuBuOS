@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* -- Applet System ------------------------------------------------- */
 
@@ -27,6 +28,7 @@ typedef enum {
     CP_APPLET_MOUSE       = 5,
     CP_APPLET_PROGRAMS    = 6,  /* Add/Remove Programs */
     CP_APPLET_SYSTEM      = 7,  /* System properties */
+    CP_APPLET_HARDWARE    = 8,  /* the machine the AGI perceives */
 } CpAppletId;
 
 typedef struct CpApplet CpApplet;
@@ -97,6 +99,10 @@ CpApplet dosgui_cp_create_display_applet(void);
 CpApplet dosgui_cp_create_network_applet(void);
 CpApplet dosgui_cp_create_sound_applet(void);
 CpApplet dosgui_cp_create_theme_applet(void);
+CpApplet dosgui_cp_create_hardware_applet(void);
+typedef int (*WorldStateFn)(char *buf, size_t cap);
+void dosgui_cp_hardware_set_provider(WorldStateFn fn);
+int dosgui_cp_hardware_test_render(char *out, size_t cap);
 
 /* -- Display Applet Types ------------------------------------------ */
 

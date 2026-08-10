@@ -17,6 +17,7 @@
 #include "../gui/wubu_settings.h"
 #include "../runtime/wubu_session.h"   /* session split (GAME mode) */
 #include "../runtime/wubu_compat_db.h" /* per-title ProtonDB profile */
+#include "../hosted/hosted.h"          /* hosted_state_t (the Play action) */
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>

@@ -4,6 +4,9 @@
 #ifndef WUBU_SESSION_H
 #define WUBU_SESSION_H
 
+#include <stdint.h>
+#include <stddef.h>
+
 /* the sessions (mirrors SteamOS's Game Mode / Desktop Mode) */
 enum {
     WUBU_SESSION_GAME    = 0,   /* the gamescope compositor session */
@@ -39,6 +42,12 @@ int wubu_session_get(wubu_session_view_t *out);
 
 /* SS7: parse a session name ("game" / "desktop"), -1 on error. */
 int wubu_session_from_name(const char *name);
+
+/* SS8: the GAME LAUNCH — the desktop's Play action. Writes the game
+ * bytes to a temp file + runs it shell-free. Returns the pid, -1 on
+ * failure. */
+int wubu_session_launch_game(void *hosted, const uint8_t *game,
+                             size_t size, const char *name);
 
 /* the session names (for the /n control plane) */
 const char *wubu_session_name(int s);

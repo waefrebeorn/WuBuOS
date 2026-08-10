@@ -35,6 +35,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 typedef struct {
     int  current;         /* WUBU_SESSION_* */
@@ -124,4 +127,47 @@ int wubu_session_from_name(const char *name)
     if (strcmp(name, "game") == 0) return WUBU_SESSION_GAME;
     if (strcmp(name, "desktop") == 0) return WUBU_SESSION_DESKTOP;
     return -1;
+}
+
+/* ====================================================================
+ * THE GAME LAUNCH (the desktop's Play action → a real process).
+ *
+ * The desktop shortcut holds the GAME BYTES (an ELF or a script).
+ * wubu_session_launch_game() writes them to a temp file, makes it
+ * executable, and runs it SHELL-FREE via wubu_run_program (no /bin/sh
+ * is ever spawned — the bytes come from the user's shortcut, so the
+ * shebang interpreter is exec'd directly by execvp). The launch is
+ * recorded in the session's last-command + the game session context.
+ * Returns the child pid, or -1 on failure.
+ * ================================================================== */
+int wubu_session_launch_game(void *hosted, const uint8_t *game,
+                             size_t size, const char *name)
+{
+    (void)hosted;
+    if (!game || size == 0 || !name) return -1;
+
+    /* write the game to a temp file (the shortcut's target) */
+    char path[600];
+    snprintf(path, sizeof(path), "/tmp/wubu_launch_%s", name);
+    FILE *f = fopen(path, "wb");
+    if (!f) return -1;
+    size_t w = fwrite(game, 1, size, f);
+    fclose(f);
+    if (w != size) return -1;
+    chmod(path, 0755);
+
+    /* run it shell-free: execvp resolves the shebang itself */
+    char *argv[2];
+    argv[0] = path;
+    argv[1] = NULL;
+    pid_t pid = fork();
+    if (pid < 0) return -1;
+    if (pid == 0) {
+        execvp(path, argv);
+        _exit(127);
+    }
+    /* the parent: record the launch + return the pid */
+    snprintf(g_ss.last_cmd, sizeof(g_ss.last_cmd), "game: %s (pid %d)",
+             name, (int)pid);
+    return (int)pid;
 }

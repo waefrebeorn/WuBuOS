@@ -518,6 +518,22 @@ test_dosgui_cp_sound: $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c $(GUI)/dosgui
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_cp_sound.c $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_cp_sound -lm
 	./$(GUI)/test_dosgui_cp_sound
 
+test_dosgui_cp_hardware: $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h
+	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_cp_hardware.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_cp_hardware -lm
+	./$(GUI)/test_dosgui_cp_hardware
+
+test_dosgui_controlpanel: $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h
+	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_controlpanel.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_controlpanel -lm
+	./$(GUI)/test_dosgui_controlpanel
+
+test_dosgui_bpm: $(GUI)/dosgui_bpm.c $(GUI)/dosgui_era_apps_test_stub.c $(GUI)/dosgui_bpm.h $(GUI)/dosgui_era_apps.h
+	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_bpm.c $(GUI)/dosgui_bpm.c $(GUI)/dosgui_era_apps_test_stub.c -o $(GUI)/test_dosgui_bpm
+	./$(GUI)/test_dosgui_bpm
+
+test_dosgui_wm_tray_world: $(GUI)/dosgui_wm_tray_world.c $(GUI)/dosgui_wm_systray_test_stub.c $(GUI)/dosgui_wm.h $(GUI)/dosgui_wm_tray_world.h $(KERNEL)/wubu_world.h
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) $(GUI)/test_dosgui_wm_tray_world.c $(GUI)/dosgui_wm_tray_world.c $(GUI)/dosgui_wm_systray_test_stub.c -o $(GUI)/test_dosgui_wm_tray_world
+	./$(GUI)/test_dosgui_wm_tray_world
+
 test_synth: $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c $(GUI)/wubu_waveosc.h $(GUI)/wubu_ladder.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_synth.c $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c -o $(GUI)/test_synth -lm
 	./$(GUI)/test_synth
@@ -835,10 +851,27 @@ test_drv:
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
 		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
 		$(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c \
+		$(KERNEL)/wubu_drv_intel.c \
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 	$(KERNEL)/wubu_drv_test
+
+test_machines:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
+		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
+		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
+		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
+		$(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c \
+		$(KERNEL)/wubu_drv_intel.c \
+		$(KERNEL)/wubu_pci.c \
+		$(KERNEL)/wubu_drv_machines_test.c \
+		-o $(KERNEL)/wubu_drv_machines_test
+	$(KERNEL)/wubu_drv_machines_test
 
 test_world:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
@@ -848,6 +881,8 @@ test_world:
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
 		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
 		$(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c \
+		$(KERNEL)/wubu_drv_intel.c \
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/wubu_world.c \
 		$(KERNEL)/wubu_world_test.c \
@@ -862,6 +897,8 @@ test_ns_world:
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
 		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
 		$(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/wubu_drv_virtio.c $(KERNEL)/wubu_drv_arm.c \
+		$(KERNEL)/wubu_drv_intel.c \
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/wubu_world.c \
 		$(RT)/wubu_ns_fs.o \
