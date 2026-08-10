@@ -66,6 +66,26 @@ extern int __printf_chk(int flag, const char *fmt, ...);
 extern uintptr_t __stack_chk_guard;
 void __stack_chk_fail(void);
 
+/* The string surface (libc_string.c — the split of the libc):
+ * strstr/strchr/strrchr/strcasestr/memmove/strdup/strncat/tolower/
+ * toupper/isspace/strtok_r/strerror + the bounded format wrappers. */
+char *strstr(const char *haystack, const char *needle);
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
+char *strcasestr(const char *haystack, const char *needle);
+void *memmove(void *dest, const void *src, size_t n);
+char *strdup(const char *s);
+char *strncat(char *dest, const char *src, size_t n);
+int tolower(int c);
+int toupper(int c);
+int isspace(int c);
+char *strtok_r(char *str, const char *delim, char **saveptr);
+char *strerror(int errnum);
+int vsnprintf(char *str, size_t size, const char *fmt, va_list ap);
+int snprintf(char *str, size_t size, const char *fmt, ...);
+int vprintf(const char *fmt, va_list ap);
+int printf(const char *fmt, ...);
+
 /* Setjmp/longjmp - bare metal stubs only */
 #ifdef WUBU_BAREMETAL
 #if !defined(jmp_buf) && !defined(__jmp_buf_defined) && !defined(_SETJMP_H)

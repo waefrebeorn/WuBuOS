@@ -605,3 +605,40 @@ int __snprintf_chk(char *str, size_t size, int flag, size_t dstlen,
     if (size) str[l] = '\0';
     return (int)strlen(buf);
 }
+/* KC04: the bounded format wrappers (vsprintf exists above; the
+ * kernel lacked snprintf/vsnprintf — the PE loader hit this). */
+int vsnprintf(char *str, size_t size, const char *fmt, va_list ap)
+{
+    if (!str || size == 0) return 0;
+    va_list ap2;
+    va_copy(ap2, ap);
+    int n = vsprintf(str, fmt, ap2);
+    va_end(ap2);
+    if ((size_t)n >= size) {
+        /* truncate + terminate (the standard contract) */
+        str[size - 1] = '\0';
+        return n;
+    }
+    return n;
+}
+
+int snprintf(char *str, size_t size, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(str, size, fmt, ap);
+    va_end(ap);
+    return n;
+}
+
+int vprintf(const char *fmt, va_list ap)
+{
+    (void)fmt; (void)ap;
+    return 0;
+}
+
+int printf(const char *fmt, ...)
+{
+    (void)fmt;
+    return 0;
+}
