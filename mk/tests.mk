@@ -554,6 +554,10 @@ test_game_session: $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu
 	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_game_session_test.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_session_test
 	./$(RT)/wubu_game_session_test
 
+test_agi_play: $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c
+	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_agi_play_test.c $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_agi_play_test
+	./$(RT)/wubu_agi_play_test
+
 test_synth: $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c $(GUI)/wubu_waveosc.h $(GUI)/wubu_ladder.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_synth.c $(GUI)/wubu_waveosc.c $(GUI)/wubu_ladder.c -o $(GUI)/test_synth -lm
 	./$(GUI)/test_synth
