@@ -985,6 +985,14 @@ test_steaminput:
 		$(RT)/wubu_steaminput_test.c \
 		-o $(RT)/wubu_steaminput_test
 	$(RT)/wubu_steaminput_test
+
+test_ec_control:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_ec_control.c \
+		$(RT)/wubu_ec_control_test.c \
+		-o $(RT)/wubu_ec_control_test
+	$(RT)/wubu_ec_control_test
 	$(RT)/wubu_proton2_test
 
 test_metal:
@@ -1121,6 +1129,25 @@ test_ns_kernel:
 		/tmp/wubu_ns_kernel_test.o \
 		-o $(RT)/wubu_ns_kernel_test
 	$(RT)/wubu_ns_kernel_test
+
+test_ns_ec:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_ec_test.c -o /tmp/wubu_ns_ec_test.o
+	$(CC) -O0 -no-pie \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_ec.c $(RT)/wubu_ec_control.c \
+		/tmp/wubu_ns_ec_test.o \
+		-o $(RT)/wubu_ns_ec_test
+	$(RT)/wubu_ns_ec_test
+
+test_ns_steaminput:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -I$(KERNEL) -c $(RT)/wubu_ns_steaminput_test.c -o /tmp/wubu_ns_steaminput_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_steaminput.c $(RT)/wubu_steaminput.c \
+		$(KERNEL)/input.c \
+		/tmp/wubu_ns_steaminput_test.o \
+		-o $(RT)/wubu_ns_steaminput_test
+	$(RT)/wubu_ns_steaminput_test
 
 
 test_ns_9p:
