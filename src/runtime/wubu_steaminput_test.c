@@ -125,6 +125,24 @@ int main(void)
     if (wubu_si_battery_mv() != 3900) FAIL("battery mV");
     printf("  PASS: the battery event decodes (3900 mV, 78%%)\n");
 
+    /* 10. lizard mode: ON by default (the keyboard map emits); a
+     * client opening the device turns it OFF (nothing is emitted);
+     * closing turns it back ON */
+    wubu_si_init();                        /* fresh held state */
+    if (!wubu_si_lizard_mode()) FAIL("lizard should start ON");
+    KeyEvent ev4;
+    while (input_key_poll(&ev4)) {}
+    wubu_si_feed_button(SI_A, 1);
+    if (!input_key_poll(&ev4)) FAIL("lizard ON did not emit Space");
+    while (input_key_poll(&ev4)) {}
+    wubu_si_set_lizard_mode(0);
+    wubu_si_feed_button(SI_A, 0);
+    wubu_si_feed_button(SI_A, 1);       /* a real client: raw pad */
+    if (input_key_poll(&ev4)) FAIL("lizard OFF still emits");
+    wubu_si_set_lizard_mode(1);
+    wubu_si_feed_button(SI_A, 0);
+    printf("  PASS: lizard mode toggles (keyboard until a client opens)\n");
+
     remove("/tmp/si_cfg.bin");
     remove("/tmp/si_bad.bin");
     printf("=== ALL STEAMINPUT TESTS PASSED (the Steam Input layer) ===\n");
