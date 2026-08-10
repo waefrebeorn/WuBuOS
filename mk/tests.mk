@@ -522,9 +522,13 @@ test_dosgui_cp_hardware: $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_cp_hardware.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_cp_hardware -lm
 	./$(GUI)/test_dosgui_cp_hardware
 
-test_dosgui_controlpanel: $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h
-	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_controlpanel.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_controlpanel -lm
+test_dosgui_controlpanel: $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/wubu_sound.c $(GUI)/wubu_theme.c $(GUI)/dosgui_controlpanel.h
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) $(GUI)/test_dosgui_controlpanel.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_cp_display.c $(GUI)/dosgui_cp_network.c $(GUI)/dosgui_cp_theme.c $(GUI)/wubu_sound.c $(GUI)/wubu_theme.c -o $(GUI)/test_dosgui_controlpanel -lm
 	./$(GUI)/test_dosgui_controlpanel
+
+test_dosgui_cp_dnt: $(GUI)/dosgui_cp_display.c $(GUI)/dosgui_cp_network.c $(GUI)/dosgui_cp_theme.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.c $(GUI)/wubu_theme.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h $(KERNEL)/wubu_world.h
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) $(GUI)/test_dosgui_cp_dnt.c $(GUI)/dosgui_cp_display.c $(GUI)/dosgui_cp_network.c $(GUI)/dosgui_cp_theme.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.c $(GUI)/wubu_theme.c $(GUI)/wubu_sound.c -o $(GUI)/test_dosgui_cp_dnt -lm
+	./$(GUI)/test_dosgui_cp_dnt
 
 test_dosgui_bpm: $(GUI)/dosgui_bpm.c $(GUI)/dosgui_era_apps_test_stub.c $(GUI)/dosgui_bpm.h $(GUI)/dosgui_era_apps.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_dosgui_bpm.c $(GUI)/dosgui_bpm.c $(GUI)/dosgui_era_apps_test_stub.c -o $(GUI)/test_dosgui_bpm

@@ -12,6 +12,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* the world snapshot type (forward — the applets include wubu_world.h) */
+struct wubu_world;
+
 /* -- Applet System ------------------------------------------------- */
 
 #define CP_MAX_APPLETS        8
@@ -103,6 +106,20 @@ CpApplet dosgui_cp_create_hardware_applet(void);
 typedef int (*WorldStateFn)(char *buf, size_t cap);
 void dosgui_cp_hardware_set_provider(WorldStateFn fn);
 int dosgui_cp_hardware_test_render(char *out, size_t cap);
+
+/* the Display applet (world-driven) */
+typedef const struct wubu_world *(*DisplaySnapFn)(void);
+void dosgui_cp_display_set_snapshot(DisplaySnapFn fn);
+int dosgui_cp_display_test_line(char *out, size_t cap);
+
+/* the Network applet (world-driven) */
+typedef const struct wubu_world *(*NetworkSnapFn)(void);
+void dosgui_cp_network_set_snapshot(NetworkSnapFn fn);
+int dosgui_cp_network_test_line(char *out, size_t cap);
+
+/* the Theme applet (the theme engine) */
+void dosgui_cp_theme_set_pending(int theme_id);
+int dosgui_cp_theme_test_line(char *out, size_t cap);
 
 /* -- Display Applet Types ------------------------------------------ */
 
