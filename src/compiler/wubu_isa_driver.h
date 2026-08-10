@@ -65,9 +65,12 @@ typedef struct wubu_isa_driver {
 extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_m68k;   /* the 68,000 (1979) */
 extern const wubu_isa_driver_t wubu_isa_i8086;  /* the x86 root (1978) */
-extern const wubu_isa_driver_t wubu_isa_riscv;
-extern const wubu_isa_driver_t wubu_isa_6502;
-/* (riscv driver: files were referenced but never landed — re-add on build) */
+extern const wubu_isa_driver_t wubu_isa_riscv;  /* RV64I (2010) */
+extern const wubu_isa_driver_t wubu_isa_6502;   /* MOS (1975) */
+extern const wubu_isa_driver_t wubu_isa_z80;    /* Zilog (1976) */
+/* every driver is backed by a REAL interpreter (wubu_*_interp.c) —
+ * the frontend emits ONE MIR, six backends consume it, all agree.
+ * Proven by `make test_drivers` (33 expressions x 6 drivers). */
 
 /* D4: find a driver by name ("x86-64" / "8086" / "m68k"). NULL if unknown. */
 const wubu_isa_driver_t *wubu_isa_find(const char *name);

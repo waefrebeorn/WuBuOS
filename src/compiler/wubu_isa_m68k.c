@@ -39,6 +39,7 @@ typedef struct {
     size_t frame;
     size_t *label_offsets;
     size_t n_labels;
+    size_t internal_seq;
 } m68k_emitter_t;
 
 static void e16(m68k_emitter_t *e, uint16_t w)
@@ -154,6 +155,14 @@ static size_t label_off(const m68k_emitter_t *e, uint32_t label)
     return (label < e->n_labels) ? e->label_offsets[label] : (size_t)-1;
 }
 
+/* an internal label: labels >= e->n_labels are free of MIR labels.
+ * (The emitter's n_labels is the SNAPSHOT taken at compile start —
+ * internal labels can never collide with this program's real ones.) */
+static uint32_t internal_label(m68k_emitter_t *e)
+{
+    return (uint32_t)(e->n_labels + e->internal_seq++);
+}
+
 typedef struct {
     size_t pos;
     uint32_t label;          /* forward target (label id) */
@@ -242,8 +251,8 @@ static int m68k_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_siz
             /* D0 = a; D1 = b; cmp.l d1,d0; bCC set1; moveq #0,d0; bra done;
              * set1: moveq #1,d0; done: store.
              * We use the MIR label mechanism: reserve two labels. */
-            uint32_t l_set1 = wubu_mir_new_label((wubu_mir_prog_t *)p);
-            uint32_t l_done = wubu_mir_new_label((wubu_mir_prog_t *)p);
+            uint32_t l_set1 = internal_label(&e);
+            uint32_t l_done = internal_label(&e);
             move_a6_d(&e, slot_disp(in->a), 0);
             move_a6_d(&e, slot_disp(in->b), 1);
             CMP_DD(1, 0);                    /* cmp.l d1,d0  (d0 - d1) */

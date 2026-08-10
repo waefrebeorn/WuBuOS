@@ -37,7 +37,40 @@ typedef struct {
     size_t frame;
     size_t *label_offsets;
     size_t n_labels;
+    size_t internal_seq;   /* fresh internal labels (>= n_labels) */
 } riscv_emitter_t;
+
+typedef struct {
+    size_t pos;            /* the offset of the branch's imm field */
+    size_t patch_size;     /* 4 (a whole branch/jal instruction) */
+    uint32_t label;
+} riscv_patch_t;
+
+/* an internal label: labels >= e->n_labels are free of MIR labels
+ * (MIR labels are 0..n_labels-1); e->n_labels is the SNAPSHOT taken
+ * at this driver's compile start. */
+static uint32_t rv_internal_label(riscv_emitter_t *e)
+{
+    return (uint32_t)(e->n_labels + e->internal_seq++);
+}
+
+static void note_label(riscv_emitter_t *e, uint32_t label, size_t off)
+{
+    if (label >= e->n_labels) {
+        size_t old = e->n_labels;
+        e->n_labels = label + 1;
+        e->label_offsets = realloc(e->label_offsets,
+                                   e->n_labels * sizeof(size_t));
+        for (size_t i = old; i < e->n_labels; i++)
+            e->label_offsets[i] = (size_t)-1;
+    }
+    e->label_offsets[label] = off;
+}
+
+static size_t label_off(const riscv_emitter_t *e, uint32_t label)
+{
+    return (label < e->n_labels) ? e->label_offsets[label] : (size_t)-1;
+}
 
 static void emit8(riscv_emitter_t *e, uint8_t b)
 {
@@ -200,6 +233,36 @@ static void beq(riscv_emitter_t *e, int rs1, int rs2, int32_t offset)
     emit32(e, inst);
 }
 
+/* BNE rs1, rs2, offset (B-type, funct3=1) */
+static void bne(riscv_emitter_t *e, int rs1, int rs2, int32_t offset)
+{
+    uint32_t imm12 = ((offset >> 12) & 0x1) << 7;
+    imm12 |= ((offset >> 5) & 0x3F) << 8;
+    imm12 |= ((offset >> 1) & 0xF) << 25;
+    imm12 |= ((offset >> 11) & 0x1) << 31;
+    uint32_t inst = imm12 | (rs2 << 20) | (rs1 << 15) | (0x1 << 12) | OPC_BRANCH;
+    emit32(e, inst);
+}
+
+/* the generic branch with a patch entry: emit a BEQ/BNE with a
+ * zero offset, then remember the position for the patch pass. */
+static void br_patch(riscv_emitter_t *e, int is_bne, int rs1, int rs2,
+                     uint32_t label, riscv_patch_t **patches,
+                     size_t *np, size_t *cap)
+{
+    size_t pos = e->n;
+    if (is_bne) bne(e, rs1, rs2, 0);
+    else        beq(e, rs1, rs2, 0);
+    if (*np == *cap) {
+        *cap = *cap ? *cap * 2 : 8;
+        *patches = realloc(*patches, *cap * sizeof(**patches));
+    }
+    (*patches)[*np].pos = pos;
+    (*patches)[*np].patch_size = 4;
+    (*patches)[*np].label = label;
+    (*np)++;
+}
+
 /* JAL rd, offset (J-type) */
 static void jal(riscv_emitter_t *e, int rd, int32_t offset)
 {
@@ -262,9 +325,6 @@ static void neg(riscv_emitter_t *e, int rd, int rs1)
 /* NOT rd, rs1 (xori rd, rs1, -1) */
 static void not_reg(riscv_emitter_t *e, int rd, int rs1)
 {
-    addi(e, rd, rs1, -1);  /* xori rd, rs1, -1 = ~rs1 */
-    /* Actually xori with -1 = NOT. But addi with -1 is NOT for unsigned;
-     * for signed it's the same bit pattern. Use xori explicitly: */
     /* xori rd, rs1, -1: imm[11:0]=0xFFF, opcode=0x13, funct3=0x4 (XORI) */
     uint32_t inst = (0xFFF << 20) | (rs1 << 15) | (4 << 12) | (rd << 7) | OPC_OP_IMM;
     emit32(e, inst);
@@ -289,6 +349,9 @@ static int riscv_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
     e.label_offsets = calloc(e.n_labels, sizeof(size_t));
     for (size_t i = 0; i < e.n_labels; i++) e.label_offsets[i] = (size_t)-1;
 
+    riscv_patch_t *patches = NULL;
+    size_t np = 0, cp = 0;
+
     /* prologue: allocate frame */
     addi(&e, REG_SP, REG_SP, -(int32_t)e.frame);
     /* save fp */
@@ -298,8 +361,8 @@ static int riscv_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
 
     for (size_t i = 0; i < p->n; i++) {
         const wubu_mir_instr_t *in = &p->ins[i];
-        if (in->op == MIR_LABEL) { /* labels are resolved by jal/jalr offsets */
-            /* note label position for branch patching */
+        if (in->op == MIR_LABEL) {
+            note_label(&e, in->label, e.n);
             continue;
         }
         switch (in->op) {
@@ -406,7 +469,9 @@ static int riscv_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
         }
         case MIR_NEG: {
             load_d(&e, REG_T0, REG_FP, (int32_t)slot_off(e.frame, in->a));
-            op_r(&e, FN7_SUB, REG_ZERO, REG_T0, FN3_ADD, REG_T0);  /* sub x0, t0 = -t0 */
+            /* rd = rs1 - rs2 = x0 - t0 = -t0. op_r's arg order is
+             * (funct7, rs2, rs1, funct3, rd): rs1 must be x0. */
+            op_r(&e, FN7_SUB, REG_T0, REG_ZERO, FN3_ADD, REG_T0);
             store_d(&e, REG_T0, REG_FP, (int32_t)slot_off(e.frame, in->dst));
             break;
         }
@@ -418,89 +483,84 @@ static int riscv_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
         }
         case MIR_EQ: case MIR_NE: case MIR_LT: case MIR_LE:
         case MIR_GT: case MIR_GE: {
-            /* Compare: load a, load b, compare, set result */
+            /* Compare: load a (t0), load b (t1), compute the boolean
+             * 0/1 into t0, store to dst. All signed:
+             *   LT:  slt t0, a, b
+             *   LE:  slt t0, b, a; xori t0, t0, 1   (b < a negated)
+             *   GT:  slt t0, b, a
+             *   GE:  slt t0, a, b; xori t0, t0, 1   (a < b negated)
+             *   EQ:  xor t0, a, b; sltiu t0, t0, 1 (equal iff xor==0)
+             *   NE:  xor t0, a, b; sltu t0, x0, t0 (!=0 iff xor!=0) */
             load_d(&e, REG_T0, REG_FP, (int32_t)slot_off(e.frame, in->a));
             load_d(&e, REG_T1, REG_FP, (int32_t)slot_off(e.frame, in->b));
-
-            /* For signed comparisons: SLT/SLTU */
-            /* We need to branch on the condition */
-            /* Set up: compute comparison, then branch */
-            uint32_t br_cc;  /* branch condition */
-            int set_true_reg = REG_T0;  /* register to set to 1 if true */
-
-            /* Compute comparison result in t0 first:
-             * For EQ/NE: sub t0, a, b; beq/beq */
-            /* For LT/GE: slt t0, a, b (signed) */
-            /* For LTU/GEU: sltu t0, a, b (unsigned) */
             switch (in->op) {
-            case MIR_EQ:
-                op_r(&e, FN7_SUB, REG_T1, REG_T0, FN3_ADD, REG_T0);
-                /* beq t0, x0, label_true */
-                /* We'll use a label-based approach */
-                br_cc = 0x6;  /* BEQ */
-                break;
-            case MIR_NE:
-                op_r(&e, FN7_SUB, REG_T1, REG_T0, FN3_ADD, REG_T0);
-                br_cc = 0x5;  /* BNE */
-                break;
             case MIR_LT:
                 op_r(&e, FN7_DEFAULT, REG_T1, REG_T0, FN3_SLT, REG_T0);
-                br_cc = 0x7;  /* BEQ (t0==1 means a<b) */
                 break;
             case MIR_LE:
-                /* a <= b iff b >= a iff !(b < a) iff slt t0, b, a; beq t0, x0, true */
                 op_r(&e, FN7_DEFAULT, REG_T0, REG_T1, FN3_SLT, REG_T0);
-                br_cc = 0x6;  /* BEQ (t0==0 means b>=a, i.e., a<=b) */
+                /* t0 = b < a; negate: xori t0, t0, 1 */
+                {
+                    uint32_t inst = (1 << 20) | (REG_T0 << 15) |
+                                    (0x4 << 12) | (REG_T0 << 7) | OPC_OP_IMM;
+                    emit32(&e, inst);
+                }
                 break;
             case MIR_GT:
-                /* a > b iff b < a */
                 op_r(&e, FN7_DEFAULT, REG_T0, REG_T1, FN3_SLT, REG_T0);
-                br_cc = 0x7;  /* BEQ */
                 break;
             case MIR_GE:
                 op_r(&e, FN7_DEFAULT, REG_T1, REG_T0, FN3_SLT, REG_T0);
-                br_cc = 0x6;  /* BEQ */
+                {
+                    uint32_t inst = (1 << 20) | (REG_T0 << 15) |
+                                    (0x4 << 12) | (REG_T0 << 7) | OPC_OP_IMM;
+                    emit32(&e, inst);
+                }
                 break;
-            default: br_cc = 0x6; break;
+            case MIR_EQ:
+                op_r(&e, FN7_DEFAULT, REG_T1, REG_T0, FN3_XOR, REG_T0);
+                /* sltiu t0, t0, 1: t0 = (xor == 0) */
+                {
+                    uint32_t inst = (1 << 20) | (REG_T0 << 15) |
+                                    (0x3 << 12) | (REG_T0 << 7) | OPC_OP_IMM;
+                    emit32(&e, inst);
+                }
+                break;
+            case MIR_NE:
+                op_r(&e, FN7_DEFAULT, REG_T1, REG_T0, FN3_XOR, REG_T0);
+                /* sltu t0, x0, t0: t0 = (xor != 0) — the R-type form
+                 * (a REGISTER compare; putting t0's number in an
+                 * immediate would compare the constant 5) */
+                op_r(&e, FN7_DEFAULT, REG_T0, REG_ZERO, FN3_SLTU, REG_T0);
+                break;
+            default:
+                break;
             }
+            store_d(&e, REG_T0, REG_FP, (int32_t)slot_off(e.frame, in->dst));
+            break;
+        }
 
-            /* emit: beq t0, x0, label_true (for EQ/LT/GT/GE) or
-             *       bne t0, x0, label_true (for NE, LE) */
-            /* For simplicity, use a label-based approach:
-             *   set result to 0, branch to done if condition false,
-             *   set result to 1, done: */
-            int32_t label_true = wubu_mir_new_label((wubu_mir_prog_t *)p);
-            int32_t label_done = wubu_mir_new_label((wubu_mir_prog_t *)p);
 
-            /* BEQ/BNE: opcode=0x63, funct3 depends on cc */
-            uint32_t funct3_br = (br_cc == 0x6) ? 0x0 : 0x1;  /* BEQ=0, BNE=1 */
-            /* We need to emit a branch that jumps to label_true if condition holds */
-            /* Placeholder — will be patched later */
-            uint32_t br_inst = (funct3_br << 12) | (REG_ZERO << 20) | (REG_T0 << 15) | OPC_BRANCH;
-            /* We'll patch the offset later; for now emit a dummy */
-            emit32(&e, br_inst);
+        case MIR_JZ: {
+            /* if (a == 0) pc = label: load a, beq t0, x0, label */
+            load_d(&e, REG_T0, REG_FP, (int32_t)slot_off(e.frame, in->a));
+            br_patch(&e, 0, REG_T0, REG_ZERO, in->label,
+                     &patches, &np, &cp);
+            break;
+        }
 
-            /* false path: result = 0 */
-            addi(&e, REG_T0, REG_ZERO, 0);
-            jal(&e, REG_ZERO, 0);  /* jump to done (placeholder) */
-            /* true path (label_true): result = 1 */
-            /* Note: we need to track label positions for patching */
-            /* For now, use a simpler approach: emit the full sequence inline */
-            /* This is getting complex — let me use a simpler strategy */
-
-            /* Simplified: just compute the comparison directly */
-            /* We already have the comparison result in t0 (0 or 1 for SLT/SLTU,
-             * or the subtraction zero flag for EQ/NE).
-             * For EQ/NE we need BEQ/BNE to skip the set-1 path. */
-
-            /* Actually, let me simplify: just use the comparison result directly.
-             * For EQ: sub, then SLTU with x0 gives 1 if equal (since sub==0).
-             * For NE: sub, then SLTU with x0 gives 0 if equal, 1 if not.
-             * This is getting too complex for inline. Let me use a simpler
-             * approach: compute the boolean directly. */
-
-            /* Undo the complex approach — just set t0 to 0, then use
-             * a branch to set it to 1 if the condition holds */
+        case MIR_JMP: {
+            /* pc = label: jal x0, label */
+            size_t pos = e.n;
+            jal(&e, REG_ZERO, 0);
+            if (np == cp) {
+                cp = cp ? cp * 2 : 8;
+                patches = realloc(patches, cp * sizeof(*patches));
+            }
+            patches[np].pos = pos;
+            patches[np].patch_size = 4;
+            patches[np].label = in->label;
+            np++;
             break;
         }
 
@@ -517,6 +577,36 @@ static int riscv_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
             break;
         }
     }
+    /* patch pass: resolve every branch/jal placeholder. Branches are
+     * B-type (imm12 in bits 7-11,25-31); JAL is J-type (imm20 in
+     * bits 12-31). The opcode distinguishes them: 0x63 = branch,
+     * 0x6F = JAL. */
+    for (size_t i = 0; i < np; i++) {
+        size_t t = label_off(&e, patches[i].label);
+        if (t == (size_t)-1) continue;
+        int32_t off = (int32_t)(t - patches[i].pos);
+        uint32_t inst;
+        memcpy(&inst, &e.code[patches[i].pos], 4);
+        if ((inst & 0x7F) == 0x6F) {
+            /* JAL (J-type): imm[20|10:1|11|19:12] */
+            uint32_t imm20 = ((off >> 20) & 0x1) << 31;
+            imm20 |= ((off >> 1) & 0x3FF) << 21;
+            imm20 |= ((off >> 11) & 0x1) << 20;
+            imm20 |= ((off >> 12) & 0xFF) << 12;
+            inst = (inst & 0x00000FFF) | imm20;
+        } else {
+            /* branch (B-type): imm[12|10:5|4:1|11] */
+            uint8_t funct3 = (inst >> 12) & 0x7;
+            uint32_t imm12 = ((off >> 12) & 0x1) << 7;
+            imm12 |= ((off >> 5) & 0x3F) << 8;
+            imm12 |= ((off >> 1) & 0xF) << 25;
+            imm12 |= ((off >> 11) & 0x1) << 31;
+            inst = (inst & 0x01FFF07F) | imm12 | (funct3 << 12);
+        }
+        memcpy(&e.code[patches[i].pos], &inst, 4);
+    }
+    free(patches);
+
 
     free(e.label_offsets);
     *out = e.code;

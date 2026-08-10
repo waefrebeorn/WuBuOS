@@ -21,6 +21,8 @@
 #include "wubu_mir.h"
 #include "wubu_mir_lower.h"
 #include "wubu_isa_driver.h"
+#include "holyc_lexer.h"
+#include "holyc_parser.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,14 +54,14 @@ static int run_one(const char *expr, int64_t expected)
     wubu_mir_ret(&prog, result);
 
     /* every driver: compile + run */
-    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv" };
+    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv", "z80" };
     int nd = 0;
-    const wubu_isa_driver_t *drv[5] = {0};
-    int64_t results[5] = {0};
+    const wubu_isa_driver_t *drv[6] = {0};
+    int64_t results[6] = {0};
     int ok = 1;
     char detail[512] = {0};
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         uint8_t *code = NULL;
@@ -103,9 +105,9 @@ static int run_one(const char *expr, int64_t expected)
 
 int main(int argc, char **argv)
 {
-    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv" };
+    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv", "z80" };
     int ndrv = 0;
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 6; i++) {
         if (wubu_isa_find(names[i])) ndrv++;
     }
 

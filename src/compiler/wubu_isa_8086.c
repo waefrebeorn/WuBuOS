@@ -35,7 +35,14 @@ typedef struct {
     size_t n, cap;
     size_t *label_offsets;
     size_t n_labels;
+    size_t internal_seq;
 } i8086_emitter_t;
+
+/* an internal label: labels >= e->n_labels are free of MIR labels. */
+static uint32_t internal_label(i8086_emitter_t *e)
+{
+    return (uint32_t)(e->n_labels + e->internal_seq++);
+}
 
 static void e8(i8086_emitter_t *e, uint8_t b)
 {
@@ -212,8 +219,8 @@ static int i8086_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
             break;
         case MIR_EQ: case MIR_NE: case MIR_LT: case MIR_LE: case MIR_GT: case MIR_GE:
         {
-            uint32_t l_set1 = wubu_mir_new_label((wubu_mir_prog_t *)p);
-            uint32_t l_done = wubu_mir_new_label((wubu_mir_prog_t *)p);
+            uint32_t l_set1 = internal_label(&e);
+            uint32_t l_done = internal_label(&e);
             emit_load_ax_slot(&e, slot_disp(in->a));
             emit_load_bx_slot(&e, slot_disp(in->b));
             e8(&e, 0x39); e8(&e, 0xD8);        /* cmp ax,bx (ax - bx) */

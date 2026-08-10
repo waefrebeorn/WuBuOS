@@ -29,7 +29,18 @@ typedef struct {
     size_t frame;
     size_t *label_offsets;
     size_t n_labels;
+    size_t internal_seq;   /* fresh internal labels (>= n_labels) */
 } z80_emitter_t;
+
+/* an internal label: labels >= e->n_labels are free of MIR labels
+ * (MIR labels are 0..n_labels-1). Note: the OTHER drivers may have
+ * grown p->n_labels via wubu_mir_new_label, so e->n_labels is the
+ * SNAPSHOT taken at this driver's compile start — internal labels
+ * starting there can never collide with this program's real labels. */
+static uint32_t internal_label(z80_emitter_t *e)
+{
+    return (uint32_t)(e->n_labels + e->internal_seq++);
+}
 
 static void e8(z80_emitter_t *e, uint8_t b)
 {
@@ -125,6 +136,8 @@ static uint16_t slot_addr(wubu_vr_t vr) { return (uint16_t)(vr * 2); }
 #define Z80_JP_Z_NN   0xCA
 #define Z80_JP_NC_NN  0xD2
 #define Z80_JP_C_NN   0xDA
+#define Z80_JP_P_NN   0xF2
+#define Z80_JP_M_NN   0xFA
 #define Z80_JR_D      0x18
 #define Z80_JR_NZ_D   0x20
 #define Z80_JR_Z_D    0x28
@@ -140,6 +153,17 @@ static uint16_t slot_addr(wubu_vr_t vr) { return (uint16_t)(vr * 2); }
 #define Z80_ADD_HL_DE 0x19
 #define Z80_ADD_HL_HL 0x29
 #define Z80_ADD_HL_SP 0x39
+
+/* the MUL/DIV/SHL/SHR/NEG helpers (all verified against objdump) */
+#define Z80_XOR_A     0xAF   /* A = 0 */
+#define Z80_ADD_A_A   0x87   /* A += A (doubles) */
+#define Z80_LD_C_A    0x4F
+#define Z80_LD_D_A    0x57
+#define Z80_LD_C_N    0x0E
+#define Z80_INC_D     0x14
+#define Z80_OR_A      0xB7   /* OR A, A (sets flags from A) */
+#define Z80_CB_PFX    0xCB
+#define Z80_SRL_A     0x3F   /* CB 3F: A >>= 1 (logical) */
 
 /* ---- patch system ---- */
 typedef struct {
@@ -207,33 +231,140 @@ static void store_a_to_slot(z80_emitter_t *e, uint16_t vd)
 }
 
 /* ---- comparison: computes a <op> b into dst (0/1) ---- */
-static void emit_compare(z80_emitter_t *e, uint8_t cp_op, uint16_t va,
+/* The Z80 CP B sets: C flag on borrow (a < b), Z flag on equality.
+ * Layout: the conditional jump(s) lead to set1 (true) or fall
+ * through to set0 (false). set0 stores 0 then JP done; set1 stores 1.
+ * GT is the inverted case: equal/less jump to set0, the fall-through
+ * IS set1 (a > b). */
+static void emit_compare(z80_emitter_t *e, int mir_op, uint16_t va,
                          uint16_t vb, uint16_t vdst,
                          z80_patch_t **patches, size_t *np, size_t *cap)
 {
-    /* LD A, (va); LD B, A; LD A, (vb); CP B  (A-B sets flags)
-     * then branch on flag + set dst = 1/0 */
-    e8(e, Z80_LD_A_NN);
-    e16(e, va);
-    e8(e, 0x47); /* LD B, A */
+    uint32_t set0 = internal_label(e);
+    uint32_t set1 = internal_label(e);
+    uint32_t done = internal_label(e);
+
+    /* LD A, (vb); LD B, A; LD A, (va); CP B
+     * -> A = va, B = vb; CP tests A-B = va-vb (sets C on va<vb,
+     * Z on va==vb). NOTE: the operand order matters — A must be va. */
     e8(e, Z80_LD_A_NN);
     e16(e, vb);
-    (void)cp_op; /* CP B: 0xB8 */
+    e8(e, 0x47); /* LD B, A — B = vb */
+    e8(e, Z80_LD_A_NN);
+    e16(e, va);
     e8(e, Z80_CP_B);
 
-    /* JP cc, set1 (cc depends on op); else fall through to 0 */
-    /* For simplicity we use the generic pattern: */
-    e8(e, Z80_LD_A_N);   /* LD A, 0 */
-    e8(e, 0x00);
-    store_a_to_slot(e, vdst);
-    e8(e, Z80_JP_NN);    /* JP done (patched) */
-    e16(e, 0x0000);
-    patch_push(e, patches, np, cap, e->n - 2, 2, 0);  /* label 0 = done */
-    /* set1: LD A, 1 */
-    e8(e, Z80_LD_A_N);
-    e8(e, 0x01);
-    store_a_to_slot(e, vdst);
+    /* Per-op: the conditional jumps + the two stores, each complete.
+     * set0 stores 0, set1 stores 1; both then JP done. */
+    switch (mir_op) {
+    case MIR_EQ: /* JP Z set1; set0; JP done; set1 */
+        e8(e, Z80_JP_Z_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        break;
+    case MIR_NE: /* JP NZ set1; set0; JP done; set1 */
+        e8(e, Z80_JP_NZ_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        break;
+    case MIR_LT: /* JP C set1; set0; JP done; set1 */
+        e8(e, Z80_JP_C_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        break;
+    case MIR_LE: /* JP C set1; JP Z set1; set0; JP done; set1 */
+        e8(e, Z80_JP_C_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        e8(e, Z80_JP_Z_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        break;
+    case MIR_GT: /* JP Z set0; JP C set0; set1; JP done; set0 */
+        e8(e, Z80_JP_Z_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set0);
+        e8(e, Z80_JP_C_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set0);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        break;
+    case MIR_GE: /* JP NC set1; set0; JP done; set1 */
+        e8(e, Z80_JP_NC_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        break;
+    default: /* JP Z set1; set0; JP done; set1 */
+        e8(e, Z80_JP_Z_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, set1);
+        note_label(e, set0, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x00);
+        store_a_to_slot(e, vdst);
+        e8(e, Z80_JP_NN);
+        e16(e, 0x0000);
+        patch_push(e, patches, np, cap, e->n - 2, 2, done);
+        note_label(e, set1, e->n);
+        e8(e, Z80_LD_A_N); e8(e, 0x01);
+        store_a_to_slot(e, vdst);
+        break;
+    }
+
     /* done: */
+    note_label(e, done, e->n);
 }
 
 static int z80_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size)
@@ -292,11 +423,14 @@ static int z80_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
             break;
 
         case MIR_SUB:
-            e8(&e, Z80_LD_A_NN);
-            e16(&e, va);
-            e8(&e, 0x47); /* LD B, A */
+            /* A = va - vb: LD A,(vb); LD B,A; LD A,(va); SUB B.
+             * The operand order matters (the first load must be the
+             * SUBTRAHEND into B, the second the minuend into A). */
             e8(&e, Z80_LD_A_NN);
             e16(&e, vb);
+            e8(&e, 0x47); /* LD B, A */
+            e8(&e, Z80_LD_A_NN);
+            e16(&e, va);
             e8(&e, Z80_SUB_B);
             store_a_to_slot(&e, vd);
             break;
@@ -331,34 +465,205 @@ static int z80_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
             store_a_to_slot(&e, vd);
             break;
 
-        case MIR_SHL:
-            /* repeated ADD A, A loop (count in B) */
-            e8(&e, Z80_LD_A_NN);
-            e16(&e, va);
+        case MIR_SHL: {
+            /* vd = va << vb: C = va, B = vb (count), A = 0
+             * loop: ADD A,A (double); DEC B; JR NZ loop */
+            uint32_t loop = internal_label(&e);
+            e8(&e, Z80_LD_A_NN); e16(&e, va);
+            e8(&e, Z80_LD_C_A);            /* C = va */
+            e8(&e, Z80_LD_A_NN); e16(&e, vb);
+            e8(&e, 0x47);                  /* LD B, A — the count */
+            e8(&e, 0x79);                  /* LD A, C — the value */
+            note_label(&e, loop, e.n);
+            e8(&e, Z80_ADD_A_A);           /* A += A (double) */
+            e8(&e, Z80_DEC_B);
+            size_t jr = e.n;
+            e8(&e, Z80_JR_NZ_D);
+            size_t jr_disp = e.n;
+            e8(&e, 0x00);
+            patch_push(&e, &patches, &np, &cp, jr_disp, 1, loop);
             store_a_to_slot(&e, vd);
-            /* LD B, (vb) */
-            e8(&e, Z80_LD_A_NN);
-            e16(&e, vb);
-            e8(&e, 0x47);
-            /* loop: LD A, (vd); ADD A, A; LD (vd), A; DEC B; JR NZ, loop */
-            size_t loop = e.n;
-            e8(&e, Z80_LD_A_NN);
-            e16(&e, vd);
-            e8(&e, Z80_ADD_A_B);  /* wait — ADD A, B is wrong; we need ADD A, A */
-            /* fix below */
             break;
+        }
+        case MIR_SHR: {
+            /* vd = va >> vb: C = va, B = vb, A = 0
+             * loop: SRL A is not enough — the value must be shifted.
+             * Use: LD A, (vd); SRL A (CB 3F); LD (vd), A; DEC B; JR NZ */
+            uint32_t loop = internal_label(&e);
+            /* vd = va */
+            e8(&e, Z80_LD_A_NN); e16(&e, va);
+            store_a_to_slot(&e, vd);
+            /* B = vb */
+            e8(&e, Z80_LD_A_NN); e16(&e, vb);
+            e8(&e, 0x47);                  /* LD B, A — the count */
+            note_label(&e, loop, e.n);
+            e8(&e, Z80_LD_A_NN); e16(&e, vd);
+            e8(&e, Z80_CB_PFX); e8(&e, Z80_SRL_A);   /* A >>= 1 */
+            store_a_to_slot(&e, vd);
+            e8(&e, Z80_DEC_B);
+            size_t jr2 = e.n;
+            e8(&e, Z80_JR_NZ_D);
+            size_t jr2_disp = e.n;
+            e8(&e, 0x00);
+            patch_push(&e, &patches, &np, &cp, jr2_disp, 1, loop);
+            break;
+        }
+        case MIR_MUL: {
+            /* vd = va * vb (8-bit, shift-add): C = va, B = vb,
+             * A = 0; loop: ADD A,C; DEC B; JR NZ */
+            uint32_t loop = internal_label(&e);
+            e8(&e, Z80_LD_A_NN); e16(&e, va);
+            e8(&e, Z80_LD_C_A);            /* C = va */
+            e8(&e, Z80_LD_A_NN); e16(&e, vb);
+            e8(&e, 0x47);                  /* LD B, A — the multiplier */
+            e8(&e, Z80_XOR_A);             /* A = 0 (the product) */
+            note_label(&e, loop, e.n);
+            e8(&e, Z80_ADD_A_C);           /* A += C */
+            e8(&e, Z80_DEC_B);
+            size_t jr3 = e.n;
+            e8(&e, Z80_JR_NZ_D);
+            size_t jr3_disp = e.n;
+            e8(&e, 0x00);
+            patch_push(&e, &patches, &np, &cp, jr3_disp, 1, loop);
+            store_a_to_slot(&e, vd);
+            break;
+        }
+        case MIR_DIV: case MIR_MOD: {
+            /* 8-bit SIGNED division: C = |dividend|, B = |divisor|,
+             * D = quotient, E = dividend sign (0/1), H = divisor
+             * sign (0/1). Negate the operands first (via JP P), run
+             * the unsigned subtract loop, then re-apply the sign:
+             *   DIV: result negated iff E XOR H
+             *   MOD: result negated iff E (the dividend's sign) */
+            uint32_t loop = internal_label(&e);
+            uint32_t done = internal_label(&e);
+            uint32_t pos1 = internal_label(&e);
+            uint32_t pos2 = internal_label(&e);
+            uint32_t pos3 = internal_label(&e);
 
+            /* C = va; E = 0 */
+            e8(&e, Z80_LD_A_NN); e16(&e, va);
+            e8(&e, Z80_LD_C_A);
+            e8(&e, Z80_LD_E_N); e8(&e, 0x00);
+            /* test the dividend sign: LD A,C; OR A; JP P, pos1 */
+            e8(&e, 0x79);                  /* LD A, C */
+            e8(&e, Z80_OR_A);
+            e8(&e, Z80_JP_P_NN);
+            e16(&e, 0x0000);
+            patch_push(&e, &patches, &np, &cp, e.n - 2, 2, pos1);
+            /* negative: C = 0 - C; E = 1 */
+            e8(&e, 0x79);                  /* LD A, C */
+            e8(&e, 0x47);                  /* LD B, A */
+            e8(&e, Z80_XOR_A);
+            e8(&e, Z80_SUB_B);             /* A = 0 - C */
+            e8(&e, Z80_LD_C_A);
+            e8(&e, Z80_LD_E_N); e8(&e, 0x01);
+            note_label(&e, pos1, e.n);
+
+            /* B = vb; test the divisor sign */
+            e8(&e, Z80_LD_A_NN); e16(&e, vb);
+            e8(&e, 0x47);                  /* LD B, A */
+            e8(&e, Z80_OR_A);              /* OR A sets flags from B's copy */
+            e8(&e, Z80_JP_P_NN);
+            e16(&e, 0x0000);
+            patch_push(&e, &patches, &np, &cp, e.n - 2, 2, pos2);
+            /* negative divisor: B = 0 - B; H = 1 */
+            e8(&e, Z80_LD_A_N); e8(&e, 0x00);
+            e8(&e, Z80_SUB_B);             /* A = 0 - B */
+            e8(&e, 0x47);                  /* LD B, A */
+            e8(&e, Z80_LD_H_N); e8(&e, 0x01);
+            e8(&e, Z80_JP_NN);
+            e16(&e, 0x0000);
+            patch_push(&e, &patches, &np, &cp, e.n - 2, 2, pos2);
+            /* positive divisor: H = 0 */
+            note_label(&e, pos2, e.n);
+            e8(&e, Z80_LD_H_N); e8(&e, 0x00);
+
+            /* the unsigned subtract loop: D = quotient */
+            e8(&e, Z80_XOR_A);
+            e8(&e, Z80_LD_D_A);
+            note_label(&e, loop, e.n);
+            e8(&e, 0x79);                  /* LD A, C */
+            e8(&e, Z80_CP_B);              /* A - B: C flag = borrow */
+            size_t jrc = e.n;
+            e8(&e, Z80_JR_C_D);            /* if A < B: done */
+            size_t jrc_disp = e.n;
+            e8(&e, 0x00);
+            e8(&e, 0x79);                  /* LD A, C */
+            e8(&e, Z80_SUB_B);             /* A = C - B */
+            e8(&e, Z80_LD_C_A);            /* C = new dividend */
+            e8(&e, Z80_INC_D);
+            size_t jr4 = e.n;
+            e8(&e, Z80_JR_D);
+            size_t jr4_disp = e.n;
+            e8(&e, 0x00);
+            patch_push(&e, &patches, &np, &cp, jr4_disp, 1, loop);
+
+            /* done: pick the result, then apply the sign */
+            note_label(&e, done, e.n);
+            if (in->op == MIR_MOD) {
+                /* MOD: the remainder is in C; negate iff E == 1.
+                 *   LD A,E; OR A; JP Z mod_pos
+                 *   (E==1) A = 0 - C; JP mod_done
+                 *   mod_pos: A = C
+                 *   mod_done: store */
+                uint32_t mod_pos = internal_label(&e);
+                uint32_t mod_done = internal_label(&e);
+                e8(&e, 0x7B);              /* LD A, E */
+                e8(&e, Z80_OR_A);
+                e8(&e, Z80_JP_Z_NN);
+                e16(&e, 0x0000);
+                patch_push(&e, &patches, &np, &cp, e.n - 2, 2, mod_pos);
+                e8(&e, 0x79);              /* LD A, C */
+                e8(&e, 0x47);              /* LD B, A */
+                e8(&e, Z80_XOR_A);
+                e8(&e, Z80_SUB_B);         /* A = 0 - C */
+                e8(&e, Z80_JP_NN);
+                e16(&e, 0x0000);
+                patch_push(&e, &patches, &np, &cp, e.n - 2, 2, mod_done);
+                note_label(&e, mod_pos, e.n);
+                e8(&e, 0x79);              /* LD A, C */
+                note_label(&e, mod_done, e.n);
+                store_a_to_slot(&e, vd);
+            } else {
+                /* DIV: the quotient is in D; negate iff E XOR H. */
+                uint32_t div_pos = internal_label(&e);
+                uint32_t div_done = internal_label(&e);
+                e8(&e, 0x7B);              /* LD A, E */
+                e8(&e, 0xAC);              /* XOR H -> A = E^H */
+                e8(&e, Z80_OR_A);
+                e8(&e, Z80_JP_Z_NN);
+                e16(&e, 0x0000);
+                patch_push(&e, &patches, &np, &cp, e.n - 2, 2, div_pos);
+                e8(&e, 0x7A);              /* LD A, D */
+                e8(&e, 0x47);              /* LD B, A */
+                e8(&e, Z80_XOR_A);
+                e8(&e, Z80_SUB_B);         /* A = 0 - D */
+                e8(&e, Z80_JP_NN);
+                e16(&e, 0x0000);
+                patch_push(&e, &patches, &np, &cp, e.n - 2, 2, div_done);
+                note_label(&e, div_pos, e.n);
+                e8(&e, 0x7A);              /* LD A, D */
+                note_label(&e, div_done, e.n);
+                store_a_to_slot(&e, vd);
+            }
+            /* patch the JR C done target directly */
+            if (jrc_disp > 0 && e.label_offsets[done] != (size_t)-1) {
+                int32_t rel = (int32_t)(e.label_offsets[done] - (jrc_disp + 1));
+                if (rel < -128) rel = -128;
+                if (rel > 127) rel = 127;
+                e.code[jrc_disp] = (uint8_t)(rel & 0xFF);
+            }
+            break;
+        }
         case MIR_NEG:
-            /* LD A, (va); XOR A; SUB B pattern — simple: LD A, 0; LD B, A... no.
-             * NEG = 0 - a: LD A, 0; LD B, A; LD A, (va); SUB B? No —
-             * SUB computes A-B. We want 0 - a. LD A, (va); CP A (sets Z);
-             * SUB A; SUB B... Simplest: XOR A; LD B, A; LD A, (va);
-             * then SUB B (A = a - 0). Hmm.
-             * Clean: LD A, (va); LD B, A; XOR A; SUB B  => A = 0 - a */
+            /* A = 0 - a: LD A,(va); LD B,A; XOR A; SUB B */
             e8(&e, Z80_LD_A_NN);
             e16(&e, va);
             e8(&e, 0x47); /* LD B, A */
-            e8(&e, Z80_XOR_B); /* XOR A, A (0xAF) — no, XOR B xors with B! */
+            e8(&e, Z80_XOR_A); /* A = 0 */
+            e8(&e, Z80_SUB_B); /* A = 0 - a */
+            store_a_to_slot(&e, vd);
             break;
 
         case MIR_NOT:
@@ -372,7 +677,7 @@ static int z80_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
 
         case MIR_EQ: case MIR_NE: case MIR_LT: case MIR_LE:
         case MIR_GT: case MIR_GE:
-            emit_compare(&e, Z80_CP_B, va, vb, vd, &patches, &np, &cp);
+            emit_compare(&e, in->op, va, vb, vd, &patches, &np, &cp);
             break;
 
         case MIR_JMP:

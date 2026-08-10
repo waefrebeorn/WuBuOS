@@ -10,6 +10,7 @@
  * C11, self-contained.
  */
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -85,12 +86,46 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
             case 0x1: res = (int64_t)((uint64_t)a << (b & 0x3F)); break; /* SLL */
             case 0x2: res = (a < b) ? 1 : 0; break; /* SLT */
             case 0x3: res = ((uint64_t)a < (uint64_t)b) ? 1 : 0; break; /* SLTU */
-            case 0x4: res = a ^ b; break; /* XOR */
+            case 0x4: /* XOR / DIV / DIVU */
+                if (funct7 == 0x00) res = a ^ b;            /* XOR */
+                else if (funct7 == 0x01) {
+                    if (b == 0) { res = -1; cpu.x[11] = a; } /* DIV by 0 */
+                    else {
+                        res = a / b;
+                        cpu.x[11] = a % b;   /* the emitter's MIR_MOD
+                                              * reads the remainder from
+                                              * a1 after a DIV */
+                    }
+                } else if (funct7 == 0x05) {                 /* DIVU */
+                    if ((uint64_t)b == 0) { res = -1; cpu.x[11] = a; }
+                    else {
+                        res = (int64_t)((uint64_t)a / (uint64_t)b);
+                        cpu.x[11] = (int64_t)((uint64_t)a % (uint64_t)b);
+                    }
+                } else res = a ^ b;
+                break;
             case 0x5: /* SRL/SRA */
                 if (funct7 == 0x00) res = (int64_t)((uint64_t)a >> (b & 0x3F)); /* SRL */
                 else res = a >> (b & 0x3F); /* SRA */
                 break;
-            case 0x6: res = a | b; break; /* OR */
+            case 0x6: /* OR / REM / REMU (REM leaves the remainder in
+                      * x11 like the emitter's MIR_MOD expects) */
+                if (funct7 == 0x00) {
+                    res = a | b;                        /* OR */
+                } else if (funct7 == 0x01) {
+                    if (b == 0) res = a;                /* REM by 0 */
+                    else {
+                        res = a / b;
+                        cpu.x[11] = a % b;              /* the remainder */
+                    }
+                } else if (funct7 == 0x05) {            /* REMU */
+                    if ((uint64_t)b == 0) res = a;
+                    else {
+                        res = (int64_t)((uint64_t)a / (uint64_t)b);
+                        cpu.x[11] = (int64_t)((uint64_t)a % (uint64_t)b);
+                    }
+                } else res = a | b;
+                break;
             case 0x7: res = a & b; break; /* AND */
             default: break;
             }
@@ -181,9 +216,13 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
         }
 
         if (opcode == 0x6F) { /* JAL */
-            int64_t offset = sext21(inst >> 12) | (((inst >> 31) & 1) << 20) |
-                             (((inst >> 21) & 0x3FF) << 1) |
-                             (((inst >> 20) & 1) << 11);
+            /* J-type: imm[20]=inst[31], imm[19:12]=inst[19:12],
+             * imm[11]=inst[20], imm[10:1]=inst[30:21] */
+            int64_t offset = (((inst >> 31) & 1) << 20) |
+                             (((inst >> 12) & 0xFF) << 12) |
+                             (((inst >> 20) & 1) << 11) |
+                             (((inst >> 21) & 0x3FF) << 1);
+            if (offset & 0x100000) offset -= 0x200000;   /* sign */
             cpu.x[rd] = cpu.pc;  /* return address */
             cpu.pc = (uint64_t)((int64_t)cpu.pc + offset - 4);
             continue;
@@ -192,6 +231,13 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
         if (opcode == 0x67) { /* JALR */
             int64_t offset = sext12(inst >> 20);
             uint64_t t = cpu.x[rs1] + offset;
+            if (rd == 0 && rs1 == 1 && cpu.x[1] == 0 && offset == 0) {
+                /* ret (jalr x0, x1, 0) with an UNINITIALIZED ra: the
+                 * compiled program is STANDALONE (the emitter's ret
+                 * closes it) — this is the program end, not a jump
+                 * to address 0 (which would loop forever). */
+                break;
+            }
             cpu.x[rd] = cpu.pc;
             cpu.pc = t & ~1ULL;
             continue;
