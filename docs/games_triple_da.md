@@ -84,3 +84,19 @@ is the research/065 implicit-feedback doctrine applied to games.
   long tail: our personalities host the real translation layers
 - [ ] the AGI PLAYING (the perception-action loop: the AGI drives the
   game + the world-state deltas as rewards) — the next wave
+
+## THE OPENARENA LAUNCH IS PROVEN (2026-08-09, real frame)
+
+The Linux game goal: **the REAL OpenArena 0.8.8 runs and renders** —
+the SHA1 matched the published value (37ab4199...), the extracted
+ioq3+oa 1.36_SVN1910M engine started under xvfb with the SDL-1.2 lib
+(from ~/opt, the house tool rule), loaded all 9 baseoa pk3s (maps,
+textures, players), and rendered its full 3D main menu — captured at
+/tmp/openarena_frame.png. The game is deployed to ~/.wubu/games/
+(openarena_linux.x86_64 + openarena_win.exe + openarena_mac.ub — the
+SAME package proves all three personalities: ELF, PE, FAT Mach-O).
+
+Also caught + fixed by probing the REAL binaries: the FAT/CIGAM
+endianness bug (the OpenArena universal binary is CA FE BA BE with
+BE fields — 2 slices ppc+x86; the inverted swap reported 33M slices).
+The wubu_game_probe tool now reads both endiannesses correctly.
