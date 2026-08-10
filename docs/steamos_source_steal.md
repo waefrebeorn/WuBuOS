@@ -97,3 +97,85 @@ via ns_mkdir/ns_write — zero new daemons, one namespace.
 - 2026-08-09 (938444b): IMU gyro-to-mouse + battery decode + /n battery.
 - 2026-08-09 (next): lizard mode (keyboard-until-client, from
   hid-steam.c's lizard behavior).
+
+## Proton stack integration + the desktop space (2026-08-09)
+
+### 4. The Steam Runtime (sniper) — `wubu_steamrt.c`
+
+The canonical sniper lib manifest was mined from the REAL repo
+(repo.steampowered.com/steamrt-sniper — HTTP 200, Debian 11 based,
+929 packages; the full 378-lib runtime list is in
+`docs/reference/sniper-runtime-libs.txt`). The 43 gaming-critical
+libs (libvulkan1, mesa-vulkan-drivers, libgl1-mesa-dri, libsdl2,
+libpipewire, libopenal, libwayland-client, libasound2-plugins, ...)
+are the DEPENDENCY TRUTH for the Proton runtime.
+
+wubu_steamrt builds the EXACT Proton launch environment:
+```
+STEAM_COMPAT_DATA_PATH=<compatdata>/<appid>
+STEAM_COMPAT_LIBRARY_PATHS=<game common dir>
+STEAM_COMPAT_TOOL_PATHS=<Proton dist>
+STEAM_COMPAT_INSTALLED=1
+WINEPREFIX=<compat>/pfx
+LD_LIBRARY_PATH=<game lib>:<sniper lib>
+```
++ wubu_steamrt_verify() — the manifest-first gap check (the
+pressure-vessel philosophy: the runtime fills what the host lacks).
+`make test_steamrt` 5/5, `make test_ns_steamrt` 3/3.
+/n/steamrt/{manifest,env,verify}.
+
+### 5. The desktop space — `wubu_session.c`
+
+SteamOS's session-select contract (Game Mode = gamescope session,
+Desktop Mode = Plasma session) mirrored for WuBuOS's two sessions:
+- GAME = the gamescope compositor session (steam -steamos3 -steampal)
+- DESKTOP = the dosgui desktop (wubu-desktop)
+
+wubu_session_init/set/switch/current + /n/session/current ("game"|
+"desktop") + /n/session/cmd. `make test_session` 5/5,
+`make test_ns_session` 3/3.
+
+### Scorecard (proton stack + desktop)
+
+| SteamOS mechanism | WuBuOS equivalent | Gate |
+|---|---|---|
+| sniper runtime libs | wubu_steamrt manifest + verify | 5/5 |
+| Proton launch env | wubu_steamrt_build_env | included |
+| steamos-session-select | wubu_session + /n/session | 5/5 |
+| the steamrt run.sh | the pressure-vessel LD_LIBRARY_PATH | 5/5 |
+
+## The real-hardware driver space (2026-08-09) — Steam Deck + laptop
+
+The goal: WuBuOS boots on a REAL Steam Deck + laptop. The kernel's
+bus layer (PCI/ACPI/XHCI/AHCI) existed; the DRIVER SPACE on top is
+now complete:
+
+### 6. The driver registry — `wubu_drv.c`
+
+The Linux-style device model: the buses enumerate devices, every
+driver carries an ID table, the registry matches + probes. The built-
+in table covers the Deck + laptop hardware:
+
+| Device | ID | Driver |
+|---|---|---|
+| AMD Van Gogh iGPU (Deck) | 1002:163F | gpu (KMS-lite: connector + mode + VRAM) |
+| Samsung 980/990 NVMe | 144D:A80A | nvme (admin queue + identify) |
+| SanDisk SN770 2230 | 15B7:5009 | nvme |
+| MediaTek RZ616 Wi-Fi (Deck) | 14C3:7922 | wifi (link + MAC) |
+| Intel AX201/AX211 | 8086:51F0/2723 | wifi |
+| Realtek r8168/r8169 | 10EC:8168 | net (link + MAC) |
+| AMD Van Gogh HDA (Deck) | 1022:1457 | hda (codec verb ring) |
+| ACPI battery | class 01/0C | battery (_BIF/_BST: capacity, percent) |
+| SATA class | 01/06 | ahci (the pre-existing controller) |
+
+`make test_drv` 6/6: the fake Deck bus binds every real device, the
+NVMe comes ready (512GB), the Wi-Fi MAC is read, the GPU modesets the
+1280x800 DSI panel, the battery reports 97%.
+
+### The remaining hardware classes (next steals)
+
+- the xHCI USB stack (wubu_xhci.c exists) — the Deck's USB-C + SD
+- the PS/2 + I2C HID keyboard/trackpad (input.c exists for the queue)
+- the EC fan/thermal (wubu_ec_control.c, done in the earlier wave)
+- the audio DAC path (the HDA codec -> the DMA engine)
+- the eDP/DSI backlight (the GPU driver's panel)

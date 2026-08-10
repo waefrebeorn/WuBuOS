@@ -1,58 +1,127 @@
 /*
- * wubu_session.c -- WuBuOS session management (SteamOS gamescope lesson).
+ * wubu_session.c -- the SESSION MANAGER (the SteamOS desktop-space
+ * steal).
  *
- * Implements the host session split: a DESKTOP (Win98 shell) mode and a
- * dedicated GAME mode. In GAME mode the shell chrome is bypassed and the
- * target binary is launched through the Proton/container path
- * (wubu_launch_windows) -- the gamescope analog. Kept in runtime/ so it links
- * without Wayland (hosted.c can call into it for the real launch).
+ * SteamOS runs two sessions and switches between them
+ * (steamos-session-select):
+ *   - GAME MODE: the gamescope compositor session (the Deck UI) —
+ *     gamescope owns the display, Steam is the shell
+ *   - DESKTOP MODE: the Plasma session — a full desktop (KDE), SDDM
+ *     is the login manager
  *
- * No stubs: every function does real work against wubu_container + hosted.h
- * state types.
+ * WuBuOS's session manager mirrors that contract for ITS two
+ * sessions:
+ *   - WUBU_SESSION_GAME: the gamescope compositor session (the
+ *     proton2 gamescope launch path)
+ *   - WUBU_SESSION_DESKTOP: the dosgui desktop (the Win98/XP-style
+ *     GUI WuBuOS already ships)
+ *
+ * The manager:
+ *   wubu_session_init()          — start in the current session
+ *   wubu_session_switch()        — switch to the other one
+ *   wubu_session_set()           — set to a specific session
+ *   wubu_session_current()       — the active session
+ *   /n/session/current           — read it / write game|desktop
+ *
+ * The switch is recorded + the launch command for the target session
+ * is produced (the compositor cmd for game, the desktop cmd for
+ * desktop) — WuBuOS's session OWNERSHIP stays with the dosgui shell,
+ * exactly as SteamOS's Plasma owns Desktop Mode.
+ *
+ * C11, self-contained.
  */
-
-#define _POSIX_C_SOURCE 200809L
 #include "wubu_session.h"
-#include "wubu_container.h"
-#include "../hosted/hosted.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-const char *wubu_session_mode_name(hosted_mode_t mode) {
-    switch (mode) {
-        case HMODE_NONE:     return "None";
-        case HMODE_GUI:      return "GUI";
-        case HMODE_TEMPLE:   return "Temple";
-        case HMODE_CONSOLE:  return "Console";
-        case HMODE_HEADLESS: return "Headless";
-        case HMODE_GAME:     return "Game";
-        default:             return "Unknown";
+typedef struct {
+    int  current;         /* WUBU_SESSION_* */
+    int  initialized;
+    char last_cmd[1024];  /* the launch command of the last switch */
+} wubu_session_t;
+
+static wubu_session_t g_ss;
+
+const char *wubu_session_name(int s)
+{
+    switch (s) {
+    case WUBU_SESSION_GAME:    return "game";
+    case WUBU_SESSION_DESKTOP: return "desktop";
+    default:                   return "unknown";
     }
 }
 
-/*
- * Enter a dedicated GAME session and launch the target binary through the
- * Proton/container path (wubu_launch_windows), bypassing shell chrome.
- * Returns the process id, or -1 on error.
- */
-int wubu_session_launch_game(hosted_state_t *state,
-                              const void *data, size_t size,
-                              const char *cmdline) {
-    if (!state || !data || size < 2) return -1;
-    /* Enter game session: fullscreen, controller-first, shell bypassed. */
-    state->mode = HMODE_GAME;
-    state->fullscreen = true;
-    int pid = wubu_launch_windows(data, size, cmdline);
-    return pid;
+/* SS1: init — start in the given session (or desktop by default). */
+void wubu_session_init(int session)
+{
+    memset(&g_ss, 0, sizeof(g_ss));
+    g_ss.current = (session == WUBU_SESSION_GAME) ? WUBU_SESSION_GAME
+                                                  : WUBU_SESSION_DESKTOP;
+    g_ss.initialized = 1;
+    /* the launch command for the starting session */
+    if (g_ss.current == WUBU_SESSION_GAME)
+        snprintf(g_ss.last_cmd, sizeof(g_ss.last_cmd),
+                 "gamescope --session steam -- %s",
+                 WUBU_SESSION_GAME_CMD);
+    else
+        snprintf(g_ss.last_cmd, sizeof(g_ss.last_cmd), "%s",
+                 WUBU_SESSION_DESKTOP_CMD);
 }
 
-/*
- * Enter the Win98 desktop session (the comfy default). Shell chrome owns the
- * screen; foreign binaries are launched from the desktop/explorer, not here.
- */
-void wubu_session_enter_desktop(hosted_state_t *state) {
-    if (!state) return;
-    state->mode = HMODE_GUI;
-    state->fullscreen = false;
+/* SS2: the current session. */
+int wubu_session_current(void)
+{
+    return g_ss.initialized ? g_ss.current : WUBU_SESSION_DESKTOP;
+}
+
+/* SS3: set to a specific session. Returns 0 on success. */
+int wubu_session_set(int session)
+{
+    if (!g_ss.initialized) return -1;
+    if (session != WUBU_SESSION_GAME && session != WUBU_SESSION_DESKTOP)
+        return -1;
+    g_ss.current = session;
+    if (session == WUBU_SESSION_GAME)
+        snprintf(g_ss.last_cmd, sizeof(g_ss.last_cmd),
+                 "gamescope --session steam -- %s",
+                 WUBU_SESSION_GAME_CMD);
+    else
+        snprintf(g_ss.last_cmd, sizeof(g_ss.last_cmd), "%s",
+                 WUBU_SESSION_DESKTOP_CMD);
+    return 0;
+}
+
+/* SS4: switch to the OTHER session. */
+int wubu_session_switch(void)
+{
+    if (!g_ss.initialized) return -1;
+    return wubu_session_set(g_ss.current == WUBU_SESSION_GAME
+                            ? WUBU_SESSION_DESKTOP : WUBU_SESSION_GAME);
+}
+
+/* SS5: the launch command of the last switch. */
+const char *wubu_session_last_cmd(void)
+{
+    return g_ss.last_cmd;
+}
+
+/* SS6: the test hooks (the view type lives in wubu_session.h) */
+int wubu_session_get(wubu_session_view_t *out)
+{
+    if (!out) return -1;
+    out->current = g_ss.current;
+    out->initialized = g_ss.initialized;
+    snprintf(out->last_cmd, sizeof(out->last_cmd), "%s", g_ss.last_cmd);
+    return 0;
+}
+
+/* SS7: parse a session name ("game" / "desktop"), -1 on error. */
+int wubu_session_from_name(const char *name)
+{
+    if (!name) return -1;
+    if (strcmp(name, "game") == 0) return WUBU_SESSION_GAME;
+    if (strcmp(name, "desktop") == 0) return WUBU_SESSION_DESKTOP;
+    return -1;
 }

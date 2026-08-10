@@ -264,7 +264,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | CEF/Chromium UI shell | not implemented |
 | Steam Input (controller config) | **IMPLEMENTED (2026-08-09)** — `src/runtime/wubu_steaminput.{c,h}`: the controller→virtual-input mapping engine + the REAL Steam Deck report protocol (stolen from Valve's hid-steam.c `steam_do_deck_input_event` — 64-byte Deck state report decode: buttons bytes 8-14, sticks 48-54, triggers 44-46, trackpads 16-22) + `/n/steaminput` control plane (`echo <64 hex> > /n/steaminput/report` parses a real report). `make test_steaminput` 7/7, `make test_ns_steaminput` 3/3 green |
 | Steam Networking (P2P) | not implemented |
-| Proton auto-config + prefix mgmt | partial (wubu_proton2) |
+| Proton auto-config + prefix mgmt | partial (wubu_proton2) — **+ the sniper runtime integration (2026-08-09): `wubu_steamrt.c` builds the EXACT Proton launch env (STEAM_COMPAT_DATA_PATH/LIBRARY_PATHS/TOOL_PATHS + WINEPREFIX + the game-first LD_LIBRARY_PATH) from the REAL sniper manifest (mined from repo.steampowered.com/steamrt-sniper, 43 critical libs; the full list in docs/reference/sniper-runtime-libs.txt). `make test_steamrt` 5/5, `test_ns_steamrt` 3/3 |
 | gamescope (nested compositor) | not implemented |
 | Pressure Vessel (runtime container) | **IMPLEMENTED (2026-08-09)** — `src/runtime/wubu_pressure_vessel.{c,h}`: the Steam Linux Runtime container preset — runtime lib bind (ro) + the game's libs layered on top + the curated LD_LIBRARY_PATH (game first, runtime fills the gaps) + GPU/Wayland surfaces + launch via the bwrap runtime. `make test_pressure_vessel` 5/5 green |
 | Steam Cloud sync | not implemented |
@@ -292,7 +292,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | Doc/DolDoc hypertext | not implemented |
 | Compiler-as-library | partial (holyd) |
 | RedSea filesystem | not implemented (FAT32/TXFS instead) |
-| Ring-0 direct hardware | partial (hosted) |
+| Ring-0 direct hardware | partial (hosted) — **+ the hardware driver registry (2026-08-09): `wubu_drv.c` + the NVMe/network/HDA/GPU/battery drivers — the Steam Deck + laptop bus binds (Van Gogh iGPU, Samsung NVMe, RZ616 Wi-Fi, Van Gogh HDA, the battery). `make test_drv` 6/6 green** |
 | **TempleOS DOS daemon as Desktop dev backend** | exists (31/31) but NOT wired as the Desktop's HolyC REPL-on-Win98-shell backend |
 
 ### EPIC E5 — ZealOS Parity (~8 missing subsystems) — ~8
