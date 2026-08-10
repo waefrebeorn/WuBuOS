@@ -77,11 +77,18 @@ via ns_mkdir/ns_write — zero new daemons, one namespace.
 
 ## Next steals (from the same source)
 
-- the `steam_do_deck_sensors_event` IMU path (gyro/accel) — the Deck's
-  gyro-to-mouse (the `SETTING_GYRO_MODE_*` enum is already mined)
+- the `steam_do_deck_sensors_event` IMU path (gyro/accel) — **DONE
+  (2026-08-09)**: `wubu_si_parse_deck_sensors()` — accel 24-28, gyro
+  30-34, the gyro drives mouse deltas (gyro-to-mouse aim).
+- the battery voltage (bytes 62-63) + the power_supply path — **DONE
+  (2026-08-09)**: `wubu_si_parse_battery()` (voltage mV at 12-13,
+  percent at 14) + `/n/steaminput/battery`.
 - the lizard-mode toggle (ID_SET_DEFAULT_DIGITAL_MAPPINGS /
   ID_CLEAR_DIGITAL_MAPPINGS) — the "controller acts as keyboard until
   a real client opens" behavior
-- the battery voltage (bytes 62-63) + the power_supply path in
-  hid-steam.c
 - the nintendo/hid-nintendo.c protocol for the Switch Pro controller
+
+## Changelog
+
+- 2026-08-09 (32fc11b): Deck report protocol + EC + both /n subtrees.
+- 2026-08-09 (next): IMU gyro-to-mouse + battery decode + /n battery.

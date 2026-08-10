@@ -40,6 +40,15 @@ void wubu_si_feed_axis(int axis, float value);
  * decoded control through the mapping table. Returns the events. */
 int wubu_si_parse_deck_report(const uint8_t *data, size_t size);
 
+/* SI10: parse the IMU (accel 24-28, gyro 30-34) of a Deck report;
+ * the gyro drives mouse deltas (the gyro-to-mouse aim). */
+int wubu_si_parse_deck_sensors(const uint8_t *data, size_t size);
+
+/* SI11: parse the battery event (voltage mV at 12-13, percent at 14). */
+int wubu_si_parse_battery(const uint8_t *data, size_t size);
+int wubu_si_battery_mv(void);
+int wubu_si_battery_pct(void);
+
 /* SI6/7: per-game config persistence. */
 int wubu_si_save(const char *path);
 int wubu_si_load(const char *path);

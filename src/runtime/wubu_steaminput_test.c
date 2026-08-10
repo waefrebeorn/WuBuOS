@@ -99,6 +99,32 @@ int main(void)
         FAIL("short deck report accepted");
     printf("  PASS: a short deck report is refused\n");
 
+    /* 8. the IMU: a gyro yaw (bytes 32/33 = gyro Z) must emit a mouse
+     * delta (the gyro-to-mouse aim feature) */
+    uint8_t sensors[64];
+    memset(sensors, 0, sizeof(sensors));
+    sensors[32] = 0x00; sensors[33] = 0x10;   /* gyro Z = +4096 */
+    MouseEvent mev;
+    int got_mouse = 0;
+    while (input_mouse_poll(&mev)) {}
+    int ns = wubu_si_parse_deck_sensors(sensors, sizeof(sensors));
+    if (ns < 1) FAIL("imu emitted %d events, want >= 1", ns);
+    while (input_mouse_poll(&mev)) {
+        if (mev.dx != 0 || mev.dy != 0) got_mouse = 1;
+    }
+    if (!got_mouse) FAIL("gyro did not move the mouse");
+    printf("  PASS: the IMU gyro-to-mouse works\n");
+
+    /* 9. the battery event: 3.9V at 78% */
+    uint8_t batt[15];
+    memset(batt, 0, sizeof(batt));
+    batt[12] = 0x3C; batt[13] = 0x0F;   /* 3900 mV */
+    batt[14] = 78;
+    if (wubu_si_parse_battery(batt, sizeof(batt)) != 78)
+        FAIL("battery percent");
+    if (wubu_si_battery_mv() != 3900) FAIL("battery mV");
+    printf("  PASS: the battery event decodes (3900 mV, 78%%)\n");
+
     remove("/tmp/si_cfg.bin");
     remove("/tmp/si_bad.bin");
     printf("=== ALL STEAMINPUT TESTS PASSED (the Steam Input layer) ===\n");

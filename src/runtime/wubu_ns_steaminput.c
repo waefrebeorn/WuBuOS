@@ -37,7 +37,22 @@ int wubu_ns_publish_steaminput(void)
     if (ns_write(sub, "controller-as-keyboard map active\n") != 0)
         return -1;
 
+    /* battery */
+    snprintf(sub, sizeof(sub), "steaminput/battery");
+    if (ns_write(sub, "0 mV, 0%\n") != 0)
+        return -1;
+
     return 0;
+}
+
+/* refresh /n/steaminput/battery from the module state */
+int wubu_ns_steaminput_refresh_battery(void)
+{
+    char sub[128], buf[64];
+    snprintf(sub, sizeof(sub), "steaminput/battery");
+    snprintf(buf, sizeof(buf), "%d mV, %d%%\n",
+             wubu_si_battery_mv(), wubu_si_battery_pct());
+    return ns_write(sub, buf);
 }
 
 /* `echo <64 hex bytes> > /n/steaminput/report` — parse a real Deck
