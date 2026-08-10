@@ -179,3 +179,43 @@ NVMe comes ready (512GB), the Wi-Fi MAC is read, the GPU modesets the
 - the EC fan/thermal (wubu_ec_control.c, done in the earlier wave)
 - the audio DAC path (the HDA codec -> the DMA engine)
 - the eDP/DSI backlight (the GPU driver's panel)
+
+## The complete hardware driver stack + the AGI world bridge (2026-08-09)
+
+The vision: WuBuOS is an AI operating system — the user plays games,
+browses, interacts with the AGI, and makes things. Every act is LIVE
+TRAINING DATA; the OS is a world the AGI perceives. The driver stack
+now covers the full Deck + laptop hardware, and the perception bridge
+closes the integration.
+
+### 7. The remaining hardware classes (all `make test_drv` green)
+
+| Driver | Hardware | What it proves |
+|---|---|---|
+| wubu_drv_sd | the Deck's SDHCI reader (1022:7906 + the 08/05 class) | 1TB card detect + capacity |
+| wubu_drv_usb | the USB classes on xHCI: HID (03/01), mass storage (08/06), BT (E0/01) | the class binding counts |
+| wubu_drv_thermal | the CPU/GPU/skin zones + the fan curve (the Deck's essence) | 72C -> 64% fan, throttle flag |
+| wubu_drv_bt | the RZ616's Bluetooth (E0/01) | via the USB BT class |
+
+### 8. The AGI world-state bridge — the OS as the training space
+
+`wubu_world.c` — the compact world snapshot assembled from the REAL
+driver state (never counters):
+
+```
+hw[nvme+sd+gpu+wifi+bat] net[wifi:1 eth:0] scr[1280x800 dsi vram:8192MB]
+power[bat:97% charging] heat[cpu:72C gpu:68C fan:64% thr:0]
+```
+
+- wubu_world_sample() assembles from the drivers' actual state
+- wubu_world_snapshot() = the AGI's in-process read (holyd, the
+  colony)
+- /n/world/state + /n/world/hw = the 9P control-plane read
+- the AGI trains on the DELTAS between samples — the world's motion
+  (a battery drain + a wifi drop are visible on the next sample)
+
+The live-link lesson: the network driver reads the LINK register on
+EVERY call (not a probe-time cache) so the world bridge sees the
+world change.
+
+`make test_world` 3/3, `make test_ns_world` 3/3.

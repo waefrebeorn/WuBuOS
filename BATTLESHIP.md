@@ -292,7 +292,7 @@ code-level total is **10 `system()` + 26-32 stub-phrase ≈ ~40 (range 36-42)**.
 | Doc/DolDoc hypertext | not implemented |
 | Compiler-as-library | partial (holyd) |
 | RedSea filesystem | not implemented (FAT32/TXFS instead) |
-| Ring-0 direct hardware | partial (hosted) — **+ the hardware driver registry (2026-08-09): `wubu_drv.c` + the NVMe/network/HDA/GPU/battery drivers — the Steam Deck + laptop bus binds (Van Gogh iGPU, Samsung NVMe, RZ616 Wi-Fi, Van Gogh HDA, the battery). `make test_drv` 6/6 green** |
+| Ring-0 direct hardware | partial (hosted) — **+ the hardware driver registry (2026-08-09): `wubu_drv.c` + the NVMe/network/HDA/GPU/battery/SD/USB-class/thermal drivers — the Steam Deck + laptop bus binds (Van Gogh iGPU, Samsung NVMe, RZ616 Wi-Fi, Van Gogh HDA, the SD reader, the battery, the fan policy). `make test_drv` 9/9 green** |
 | **TempleOS DOS daemon as Desktop dev backend** | exists (31/31) but NOT wired as the Desktop's HolyC REPL-on-Win98-shell backend |
 
 ### EPIC E5 — ZealOS Parity (~8 missing subsystems) — ~8

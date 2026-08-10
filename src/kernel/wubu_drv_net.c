@@ -92,9 +92,21 @@ void wubu_net_set_eth_mmio(volatile void *mmio)
     g_eth.mmio = (volatile uint8_t *)mmio;
 }
 
-/* the state */
-int wubu_net_wifi_link(void) { return g_wifi.link_up; }
-int wubu_net_eth_link(void)  { return g_eth.link_up; }
+/* the state — the link is read LIVE from the register window (the
+ * world bridge samples the world's motion, so a dropped link must be
+ * visible on the next sample) */
+int wubu_net_wifi_link(void)
+{
+    if (!g_wifi.mmio) return 0;
+    g_wifi.link_up = (g_wifi.mmio[NET_REG_LINK] & 1) != 0;
+    return g_wifi.link_up;
+}
+int wubu_net_eth_link(void)
+{
+    if (!g_eth.mmio) return 0;
+    g_eth.link_up = (g_eth.mmio[NET_REG_LINK] & 1) != 0;
+    return g_eth.link_up;
+}
 const uint8_t *wubu_net_wifi_mac(void) { return g_wifi.mac; }
 const uint8_t *wubu_net_eth_mac(void)  { return g_eth.mac; }
 int wubu_net_wifi_present(void) { return g_wifi.present; }

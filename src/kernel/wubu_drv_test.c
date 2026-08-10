@@ -25,6 +25,9 @@
 #include "wubu_drv_gpu.h"
 #include "wubu_drv_battery.h"
 #include "wubu_drv_ahci.h"
+#include "wubu_drv_sd.h"
+#include "wubu_drv_usb.h"
+#include "wubu_drv_thermal.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -78,6 +81,21 @@ int main(void)
     wubu_battery_set_present(1);
     wubu_battery_set_state(1, 40000, 41000, 3900, "B1001");
 
+    /* the SD reader: a 1TB card inserted */
+    static uint8_t sd_mmio[0x100];
+    memset(sd_mmio, 0, sizeof(sd_mmio));
+    sd_mmio[0x24] = 1u << 5;   /* the card-detect */
+    wubu_sd_set_mmio(sd_mmio);
+    static uint8_t sd_cid[16] = { 0x01, 0x02, 0x03, 0x04 };
+    wubu_sd_set_card(1, sd_cid, 1024 * 1024);   /* 1TB */
+
+    /* the thermal zones: cpu 72C, gpu 68C, skin 45C */
+    wubu_thermal_set_present(1);
+    wubu_thermal_set_temp(WUBU_THERMAL_CPU, 72);
+    wubu_thermal_set_temp(WUBU_THERMAL_GPU, 68);
+    wubu_thermal_set_temp(WUBU_THERMAL_SKIN, 45);
+    wubu_thermal_policy_update();
+
     /* the registry + the fake Deck bus */
     wubu_drv_init();
     wubu_hda_set_present(1);
@@ -99,14 +117,43 @@ int main(void)
     wubu_drv_add_device(&d);   /* the battery */
     d.vendor = 0x1B21; d.device = 0x1242; d.class_code = 0x0C; d.subclass = 0x03;
     wubu_drv_add_device(&d);   /* the USB 3 controller (unbound) */
+    d.vendor = 0x1022; d.device = 0x7906; d.class_code = 0x08; d.subclass = 0x05;
+    wubu_drv_add_device(&d);   /* the SDHCI reader */
+    /* the USB class devices (HID keyboard + mass storage + BT) */
+    d.vendor = 0x046D; d.device = 0xC31C; d.class_code = 0x03; d.subclass = 0x01;
+    wubu_drv_add_device(&d);   /* a USB HID keyboard */
+    d.vendor = 0x0781; d.device = 0x5581; d.class_code = 0x08; d.subclass = 0x06;
+    wubu_drv_add_device(&d);   /* a USB drive */
+    d.vendor = 0x0A5C; d.device = 0x8525; d.class_code = 0xE0; d.subclass = 0x01;
+    wubu_drv_add_device(&d);   /* the RZ616 BT */
+    d.vendor = 0x0000; d.device = 0x0000; d.class_code = 0x11; d.subclass = 0x00;
+    wubu_drv_add_device(&d);   /* the thermal controller */
 
-    if (wubu_drv_device_count() != 7) FAIL("device count = %d, want 7",
-                                           wubu_drv_device_count());
+    if (wubu_drv_device_count() != 12) FAIL("device count = %d, want 12",
+                                            wubu_drv_device_count());
 
-    /* 1. probe every device */
+    /* 1. probe every device: 12 devices - the unbound USB 3 ctrl */
     int probed = wubu_drv_probe();
-    if (probed != 6) FAIL("probed = %d, want 6 (all but the USB)", probed);
+    if (probed != 11) FAIL("probed = %d, want 11 (all but the USB)", probed);
     printf("  PASS: the registry binds every real Deck device\n");
+
+    /* 1b. the SD reader */
+    if (!wubu_sd_card_present()) FAIL("sd card not detected");
+    if (wubu_sd_capacity_mb() != 1024 * 1024) FAIL("sd capacity");
+    printf("  PASS: the SD reader detects the 1TB card\n");
+
+    /* 1c. the USB classes */
+    if (wubu_usb_hid_count() != 1) FAIL("usb hid count");
+    if (wubu_usb_msc_count() != 1) FAIL("usb msc count");
+    if (wubu_usb_bt_count() != 1) FAIL("usb bt count");
+    printf("  PASS: the USB classes bind (HID + mass storage + BT)\n");
+
+    /* 1d. the thermal policy: 72C cpu -> the 70-90 band gives
+     * 60 + (72-70)*2 = 64% fan, not throttled */
+    if (wubu_thermal_fan_duty() != 64)
+        FAIL("fan duty = %d, want 64 (72C)", wubu_thermal_fan_duty());
+    if (wubu_thermal_throttled()) FAIL("throttled at 72C");
+    printf("  PASS: the thermal policy drives the fan from the zones\n");
 
     /* 2. the NVMe */
     const wubu_drv_dev_t *nvme = wubu_drv_find("nvme");
@@ -140,11 +187,13 @@ int main(void)
     printf("  PASS: the battery reports 97%% while charging\n");
 
     /* 6. the summary */
-    char summary[4096];
+    char summary[8192];
     int lines = wubu_drv_summary(summary, sizeof(summary));
-    if (lines != 7) FAIL("summary lines = %d, want 7", lines);
+    if (lines != 12) FAIL("summary lines = %d, want 12", lines);
     if (!strstr(summary, "nvme") || !strstr(summary, "wifi") ||
-        !strstr(summary, "gpu") || !strstr(summary, "battery"))
+        !strstr(summary, "gpu") || !strstr(summary, "battery") ||
+        !strstr(summary, "sd") || !strstr(summary, "usb-hid") ||
+        !strstr(summary, "thermal"))
         FAIL("summary lacks the bound drivers");
     printf("  PASS: the boot summary shows the whole bus\n");
     printf("%s", summary);

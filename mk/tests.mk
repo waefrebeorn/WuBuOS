@@ -833,10 +833,42 @@ test_drv:
 		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
 		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
 		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
+		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
+		$(KERNEL)/wubu_drv_thermal.c \
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 	$(KERNEL)/wubu_drv_test
+
+test_world:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
+		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
+		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
+		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
+		$(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/wubu_pci.c \
+		$(KERNEL)/wubu_world.c \
+		$(KERNEL)/wubu_world_test.c \
+		-o $(KERNEL)/wubu_world_test
+	$(KERNEL)/wubu_world_test
+
+test_ns_world:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -I$(RT) \
+		$(KERNEL)/wubu_drv.c \
+		$(KERNEL)/wubu_drv_nvme.c $(KERNEL)/wubu_drv_net.c \
+		$(KERNEL)/wubu_drv_hda.c $(KERNEL)/wubu_drv_gpu.c \
+		$(KERNEL)/wubu_drv_battery.c $(KERNEL)/wubu_drv_ahci.c \
+		$(KERNEL)/wubu_drv_sd.c $(KERNEL)/wubu_drv_usb.c \
+		$(KERNEL)/wubu_drv_thermal.c \
+		$(KERNEL)/wubu_pci.c \
+		$(KERNEL)/wubu_world.c \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_world.c \
+		$(KERNEL)/wubu_ns_world_test.c \
+		-o $(KERNEL)/wubu_ns_world_test
+	$(KERNEL)/wubu_ns_world_test
 
 # 8254 watchdog helpers (gap E7): count conversion + mode word
 test_wdt:
