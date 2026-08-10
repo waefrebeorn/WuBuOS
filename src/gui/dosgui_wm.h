@@ -146,9 +146,11 @@ typedef struct {
 } DosGuiSysTrayIcon;
 
 int  dosgui_systray_add(const char *name, uint32_t color,
-                         void (*on_click)(void),
-                         void (*on_right_click)(void));
+                        void (*on_click)(void),
+                        void (*on_right_click)(void));
 void dosgui_systray_remove(const char *name);
+int dosgui_systray_update_color(const char *name, uint32_t color);
+uint32_t dosgui_systray_color(const char *name);
 void dosgui_systray_set_notification_count(const char *name, int count);
 
 /* -- Notification Center ------------------------------------------ */

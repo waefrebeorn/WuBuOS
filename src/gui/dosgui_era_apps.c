@@ -95,6 +95,11 @@ int dosgui_era_apps_runnable_count(void) {
     return n;
 }
 
+/* Total count (runnable + tracked gaps — BPM shows the gaps greyed). */
+int dosgui_era_apps_total_count(void) {
+    return ERA_APP_COUNT;
+}
+
 /* Count of distinct VSL personalities represented (runnable or gap). */
 int dosgui_era_apps_personality_coverage(uint32_t *out_personas, int max) {
     int n = 0;

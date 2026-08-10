@@ -9,7 +9,8 @@ static const char *const g_apps[] = {
     "calc", "notepad", "paint", "explorer", "terminal",
     "holyc", "controlpanel", "taskmgr", "canvas", "freedoom",
     "bonzi", "comfy", "settings", "packagemanager", "containermanager",
-    "sound", "music", "browser", "notes", "todo"
+    "sound", "music", "browser", "notes", "todo",
+    "bpm", "hardware"
 };
 #define N_APPS (int)(sizeof(g_apps) / sizeof(g_apps[0]))
 

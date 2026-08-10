@@ -66,6 +66,27 @@ void dosgui_systray_remove(const char *name) {
     }
 }
 
+/* Update an existing icon's color (the world-state tray calls this
+ * on every refresh). Returns 0 on success. */
+int dosgui_systray_update_color(const char *name, uint32_t color) {
+    for (int i = 0; i < g_dwm.systray_count; i++) {
+        if (strcmp(g_dwm.systray_icons[i].name, name) == 0) {
+            g_dwm.systray_icons[i].icon_color = color;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/* The current color of an icon (for the tests). Returns 0 if missing. */
+uint32_t dosgui_systray_color(const char *name) {
+    for (int i = 0; i < g_dwm.systray_count; i++) {
+        if (strcmp(g_dwm.systray_icons[i].name, name) == 0)
+            return g_dwm.systray_icons[i].icon_color;
+    }
+    return 0;
+}
+
 void dosgui_systray_set_notification_count(const char *name, int count) {
     for (int i = 0; i < g_dwm.systray_count; i++) {
         if (strcmp(g_dwm.systray_icons[i].name, name) == 0) {

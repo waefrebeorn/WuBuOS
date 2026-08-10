@@ -41,6 +41,9 @@ int dosgui_era_apps_launch_by_name(const char *name);
 /* Count of personalities actually runnable end-to-end on this host. */
 int dosgui_era_apps_runnable_count(void);
 
+/* Total count (runnable + tracked gaps — BPM shows the gaps greyed). */
+int dosgui_era_apps_total_count(void);
+
 /* Distinct VSL personality class bits represented (runnable or gap). */
 int dosgui_era_apps_personality_coverage(uint32_t *out_personas, int max);
 
