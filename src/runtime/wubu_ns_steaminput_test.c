@@ -69,6 +69,19 @@ int main(void)
     if (wubu_ns_steaminput_report(NULL) >= 0) FAIL("null report accepted");
     printf("  PASS: a short report is refused\n");
 
+    /* 4. the battery file + refresh */
+    snprintf(p, sizeof(p), "%s/steaminput/battery", NSROOT);
+    if (!read_file(p, buf, sizeof(buf))) FAIL("no battery");
+    uint8_t batt[15];
+    memset(batt, 0, sizeof(batt));
+    batt[12] = 0x3C; batt[13] = 0x0F;   /* 3900 mV */
+    batt[14] = 78;
+    wubu_si_parse_battery(batt, sizeof(batt));
+    if (wubu_ns_steaminput_refresh_battery() != 0) FAIL("refresh battery");
+    if (!read_file(p, buf, sizeof(buf))) FAIL("no battery after refresh");
+    if (!strstr(buf, "3900")) FAIL("battery file lacks 3900 mV: '%s'", buf);
+    printf("  PASS: the battery file refreshes\n");
+
     system("rm -rf " NSROOT);
     printf("=== ALL NS-STEAMINPUT TESTS PASSED ===\n");
     return 0;

@@ -23,7 +23,7 @@ $(KERNEL)/libc.o: $(KERNEL)/libc.c
 
 # Runtime objects
 $(RT)/%.o: $(RT)/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -MMD -MP -c $< -o $@
 
 # JIT objects
 $(JIT)/%.o: $(JIT)/%.c

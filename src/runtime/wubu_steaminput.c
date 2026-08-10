@@ -107,6 +107,9 @@ typedef struct {
     uint8_t held[SI_N_BUTTONS];
     /* the mouse position accumulator (stick -> mouse deltas) */
     int mouse_x, mouse_y;
+    /* the battery state (from the battery/status event) */
+    int battery_mv;
+    int battery_pct;
 } wubu_si_t;
 
 static wubu_si_t g_si;
@@ -346,3 +349,65 @@ int wubu_si_parse_deck_report(const uint8_t *data, size_t size)
 
     return emitted;
 }
+
+/* ====================================================================
+ * THE DECK SENSORS (IMU) + BATTERY — also stolen from hid-steam.c.
+ *
+ *   sensors (in the SAME 64-byte deck report):
+ *     bytes 24/26/28 : accelerometer X/Z/Y
+ *     bytes 30/32/34 : gyro X/Z/Y
+ *     (the timestamp increments by 4ms per report — the deck sends
+ *      every 4ms with no HID timestamp)
+ *
+ *   battery (the separate battery/status event, steam_do_battery_event):
+ *     offset 12-13 : u16 voltage (mV)
+ *     offset 14    : u8 battery percent
+ * ================================================================== */
+
+/* SI10: parse the IMU portion of a Deck report. The gyro Y axis is
+ * turned into mouse deltas (the gyro-to-mouse feature SteamOS uses
+ * for aim). Returns the number of mouse events emitted. */
+int wubu_si_parse_deck_sensors(const uint8_t *data, size_t size)
+{
+    if (!g_si.initialized || !data || size < 64)
+        return -1;
+    /* the raw readings (the same layout as hid-steam.c) */
+    int16_t accel_x = (int16_t)(data[24] | (data[25] << 8));
+    int16_t accel_z = -(int16_t)(data[26] | (data[27] << 8));
+    int16_t accel_y = (int16_t)(data[28] | (data[29] << 8));
+    int16_t gyro_x  = (int16_t)(data[30] | (data[31] << 8));
+    int16_t gyro_z  = -(int16_t)(data[32] | (data[33] << 8));
+    int16_t gyro_y  = (int16_t)(data[34] | (data[35] << 8));
+
+    /* the gyro-to-mouse: the yaw (gyro Z) drives the mouse X */
+    int dx = (int)(gyro_z * g_si.cfg.mouse_speed / 512);
+    int dy = (int)(gyro_x * g_si.cfg.mouse_speed / 512);
+    if (dx == 0 && dy == 0) return 0;
+    g_si.mouse_x += dx;
+    g_si.mouse_y += dy;
+    MouseEvent m;
+    memset(&m, 0, sizeof(m));
+    input_mouse_get_pos(&m.x, &m.y);
+    m.x += dx; m.y += dy;
+    m.dx = dx; m.dy = dy;
+    input_mouse_push(m);
+    return 1;
+}
+
+/* SI11: parse the battery event (the status report with the voltage
+ * + percent). Returns the percent, or -1 on error. */
+int wubu_si_parse_battery(const uint8_t *data, size_t size)
+{
+    if (!data || size < 15) return -1;
+    int16_t volts = (int16_t)(data[12] | (data[13] << 8));
+    int percent = data[14];
+    if (percent > 100) percent = 100;
+    /* stash the voltage in the module state for the tests */
+    g_si.battery_mv = volts;
+    g_si.battery_pct = percent;
+    return percent;
+}
+
+/* the battery state (for the /n control plane) */
+int wubu_si_battery_mv(void) { return g_si.battery_mv; }
+int wubu_si_battery_pct(void) { return g_si.battery_pct; }
