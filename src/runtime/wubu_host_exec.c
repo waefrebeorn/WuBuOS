@@ -10,6 +10,7 @@
  */
 #define _GNU_SOURCE  /* chroot() is XSI/POSIX, hidden under -std=c11 without this */
 #include "wubu_host_exec.h"
+#include "wubu_secmon.h"
 #include "wubu_std.h"
 
 #include <stdio.h>
@@ -376,6 +377,23 @@ int wubu_ct_start(WubuCt *ct) {
     }
     
     /* -- PARENT ------------------------------------------------ */
+    /* -- PARENT: attach the AGI syscall camera to the game process ----
+     * This is the interception layer: every syscall the game makes is
+     * captured and streamed to /kv/agent/sys_<pid>/<seq> so the Brain
+     * (wubuwizard) can observe the full behavior stream over 9P.
+     *
+     * The child has been fork()ed but not yet execv'd. We PTRACE_ATTACH
+     * here: the child will stop at the next syscall boundary (the exec),
+     * giving us a race-free observation point. The camera runs on-demand
+     * — callers poll wubu_secmon_poll() or block on wubu_secmon_wait(). */
+    if (getenv("WUBU_SECCOMP_PROFILE") &&
+        strcmp(getenv("WUBU_SECCOMP_PROFILE"), "none") != 0 &&
+        !ct->secmon) {
+        ct->secmon = wubu_secmon_create(0);
+        if (ct->secmon)
+            wubu_secmon_attach((wubu_secmon_t *)ct->secmon, pid);
+    }
+
     ct->pid = pid;
     ct->state = CT_RUNNING;
     
