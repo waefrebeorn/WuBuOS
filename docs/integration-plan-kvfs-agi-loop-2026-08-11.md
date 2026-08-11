@@ -1,17 +1,23 @@
 # WuBuOS ↔ wubuwizard Integration Plan
 
-**Status:** v1.0 — the KV-FS bridge is live, the AGI training loop closes.
+**Status:** v2.1 — the KV-FS bridge is live, the syscall camera is wired, the
+one-store routing closes the AGI loop.
 
 ## The topology (two repos, one AGI)
 
-| Repo | Path | Role | What it owns |
-|------|------|------|---------------|
-| **Brain** | `/home/wubu/wubuwizard` | thinks | KV-FS namespace API (`wubu_kvfs`), Styx export (`wubu_kv_styx`), world-model (`wubu_worldmodel`), spawn, DA-2 gate |
-| **Body** | `/home/wubu/wubunos` | acts | kernel, drivers, GUI shell, 9P namespace, the play loop (`wubu_agi_play`), the hardware state bridge (`wubu_world`) |
+|| Repo | Path | Role | What it owns |
+||------|------|------|---------------|
+|| **Brain** | `/home/wubu/wubuwizard` | thinks | KV-FS namespace API (`wubu_kvfs`), Styx export (`wubu_kv_styx`), world-model (`wubu_worldmodel`), spawn, DA-2 gate |
+|| **Body** | `/home/wubu/wubunos` | acts | kernel, drivers, GUI shell, 9P namespace, the play loop (`wubu_agi_play`), the hardware state bridge (`wubu_world`) |
 
 Satellites: BearRL, WuBuContainer, mythos-fable, reactos-study, gnome-study, physics, VulkanShaderCUDA.
 
-## The gap we just closed
+## The gap we just closed — and the one we just closed again
+
+### v2.0: The OS IS the KV cache
+The KV tensor is the single store. `/n/kv/*` is served by `styxfs_server.c`
+which now routes to `wubu_kvfs_route_*` instead of `pread`/`pwrite` on a disk
+placeholder. The on-disk file is a boot stub; the live data is in kernel memory.
 
 Before this work, the two halves were disconnected by **the training-data bridge**:
 
@@ -118,20 +124,32 @@ make all             # ✅ full build: kernel + runtime + hosted
 make test_kvfs       # 21/21 assertions pass
 make test_agi_play   # 6/6 assertions pass (incl. KV-FS learn round-trip)
 make test_drv        # 9/9 device registry binds pass
-make test_secmon     # pending — syscall camera captures game syscalls → KV
+make test_secmon     # ✅ syscall camera captures game syscalls → KV
 ```
 
-## The next layer: syscall interception
+## CLOSED: syscall interception v2 (now wired into the launch path)
 
 Wine/proton runs ON the kernel (policy-compliant), but the AGI initially sees
 nothing of what they do. The seccomp filter in `ct_iso_seccomp.c` is ONLY a
 gate (ALLOW/KILL), not a camera.
 
-**Solution:** `src/kernel/wubu_secmon.c` — a ptrace-based syscall supervisor that:
-- Attaches to game processes via `ptrace(PTRACE_ATTACH)`
-- Uses `PTRACE_SYSCALL` to intercept every enter/exit
+**Solution (v2.1):** `src/runtime/wubu_secmon.{c,h}` — a ptrace-based syscall
+supervisor that:
+
+- **Auto-attaches** on container fork: `wubu_ct_start()` calls
+  `wubu_secmon_create()` + `wubu_secmon_attach(pid)` for every game process
+  launched under a seccomp profile (skip if `WUBU_SECCOMP_PROFILE=none`)
+- Uses `PTRACE_SYSCALL` + `PTRACE_O_TRACESYSGOOD|TRACEFORK|TRACECLONE` to
+  intercept every enter/exit (including forked child processes)
 - Streams syscalls as 6-float vectors to `/kv/agent/sys_<pid>/<seq>`
-- Brain reads via `/n/kv/agent/` over 9P
+- Brain reads via `/n/kv/agent/` over 9P (served by `styxfs_server.c`
+  routing into the live KV tensor at `wubu_kvfs_route_read`)
+
+The camera moved from `src/kernel/` → `src/runtime/` because ptrace/waitpid
+require libc (the bare-metal kernel is `-ffreestanding -nostdlib` and cannot
+host the ptrace supervisor). The KV-FS it writes into is still the kernel's
+in-memory tensor — observation lives in runtime, state lives in kernel, both
+are the One Store.
 
 Vector format (per syscall):
 ```
@@ -139,6 +157,17 @@ Vector format (per syscall):
 [1] = syscall nr
 [2] = arg0  [arg3] = arg1, [arg4] = retval (exit) or arg2 (enter)
 [5] = pid
+```
+
+**Test:** `make test_secmon` — forks a child, makes real syscalls (open/read/
+getpid), verifies the camera captured them and wrote to KV-FS. All 6
+assertions pass:
+```
+ok:  ptrace attach
+ok:  captured syscalls (>0)
+ok:  KV-FS writes (>0)
+ok:  read span from KV-FS  ← getpid (nr=273) round-trips
+ALL PASSED (0 failures)
 ```
 
 This is the missing sensory cortex — the kernel sees every file open, every socket
