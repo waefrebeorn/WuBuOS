@@ -11,6 +11,7 @@
 #include "wubu_agi_play.h"
 #include "wubu_game_session.h"
 #include "../kernel/input.h"
+#include "../kernel/wubu_kvfs.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -82,6 +83,34 @@ int main(void)
     wubu_agi_play_stop();
     if (wubu_agi_play_tick() != -1) FAIL("tick after stop");
     printf("  PASS: stop bounds the play (no ticks after)\n");
+
+    /* 6. the AGI LEARNS into the KV-FS (the training stream writes
+     * /kv/world/tick_<N> as 4-packed floats: action, temp, battery, wifi).
+     * The Brain reads these over 9P at /n/kv/world/. */
+    wubu_agi_play_start("openarena", WUBU_GAME_LINUX);
+    /* reset the KVFS to a clean state for verification */
+    if (g_wubu_kvfs) { wubu_kvfs_free(g_wubu_kvfs); g_wubu_kvfs = NULL; }
+    if (g_wubu_kv_base) { free(g_wubu_kv_base); g_wubu_kv_base = NULL; }
+    g_wubu_kv_capacity = 0;
+    wubu_kvfs_kernel_init(256, 4096);
+    wubu_kvfs_mount(g_wubu_kvfs, "/kv/world", 0, 256);
+    /* run 5 ticks + learn */
+    for (int i = 0; i < 5; i++) {
+        wubu_agi_play_tick();
+        wubu_agi_play_learn();
+    }
+    /* verify the tick_4 vector landed in the KV tensor */
+    float vec[4] = {0};
+    int rc = wubu_kvfs_read(g_wubu_kvfs, "/kv/world/tick_4", g_wubu_kv_base, vec, 4);
+    if (rc != 0) FAIL("kvfs read tick_4 failed");
+    printf("  PASS: KV-FS learn writes tick_4 = [act=%g temp=%g bat=%g net=%g]\n",
+           vec[0], vec[1], vec[2], vec[3]);
+    if (vec[0] < 0 || vec[0] >= AGI_ACT_NONE) FAIL("tick_4 bad action label %g", vec[0]);
+
+    wubu_agi_play_stop();
+    /* cleanup */
+    if (g_wubu_kvfs) { wubu_kvfs_free(g_wubu_kvfs); g_wubu_kvfs = NULL; }
+    if (g_wubu_kv_base) { free(g_wubu_kv_base); g_wubu_kv_base = NULL; }
 
     printf("=== ALL AGI-PLAY TESTS PASSED (the AGI plays + learns) ===\n");
     return 0;

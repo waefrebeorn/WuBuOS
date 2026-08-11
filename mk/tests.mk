@@ -554,9 +554,22 @@ test_game_session: $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu
 	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_game_session_test.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_session_test
 	./$(RT)/wubu_game_session_test
 
-test_agi_play: $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_agi_play_test.c $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_agi_play_test
+test_agi_play: $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_ns_kv.c $(RT)/wubu_ns_fs.c
+	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_agi_play_test.c $(RT)/wubu_agi_play.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_ns_kv.c $(RT)/wubu_ns_fs.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c -o $(RT)/wubu_agi_play_test
 	./$(RT)/wubu_agi_play_test
+
+test_exec_games: $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_exec_games_test.c $(KERNEL)/wubu_kvfs.c
+	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(COMP) \
+		$(RT)/wubu_exec_games_test.c $(RT)/wubu_exec.c \
+		$(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
+		$(RT)/wubu_exec_dos.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_wasm.c \
+		$(RT)/wubu_host_exec.c $(KERNEL)/wubu_kvfs.c \
+		$(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
+		$(KERNEL)/wubu_pe.c $(KERNEL)/wubu_elf.c $(KERNEL)/wubu_macho.c \
+		$(KERNEL)/wubu_pe_personality.c \
+		-o $(RT)/wubu_exec_games_test
+	DISPLAY=:99 Xvfb :99 -screen 0 1024x768x24 &
+	./$(RT)/wubu_exec_games_test
 
 test_pe_personality: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_pe_personality.c $(KERNEL)/wubu_pe_personality.h $(KERNEL)/wubu_pe_personality_test.c $(KERNEL)/libc_string.c
 	$(CC) -O1 -std=c11 -Wall -I$(KERNEL) $(KERNEL)/wubu_pe_personality_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe_personality.c $(KERNEL)/libc_string.c -o $(KERNEL)/wubu_pe_personality_test
@@ -668,6 +681,7 @@ test_era_apps: $(RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OB
 		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
 		$(RT)/wubu_ct_isolate_cgroup.o \
+		$(KERNEL)/wubu_kvfs.o \
 		-Wl,--allow-multiple-definition -no-pie \
 		-ljson-c -lsqlite3 -lzstd -lz -ldl -lvulkan -lm -lpthread -o $(GUI)/dosgui_era_apps_test
 	$(GUI)/dosgui_era_apps_test
@@ -893,6 +907,13 @@ test_drv:
 		$(KERNEL)/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 	$(KERNEL)/wubu_drv_test
+
+test_kvfs:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_kvfs.c \
+		$(KERNEL)/wubu_kvfs_selftest.c \
+		-o $(KERNEL)/wubu_kvfs_selftest
+	$(KERNEL)/wubu_kvfs_selftest
 
 # ── Kernel decompressor selftests ──────────────────────────────
 # Each decoder links ONLY its own source + the kernel heap/libc.

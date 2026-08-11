@@ -23,6 +23,7 @@
 #include "wubu_agi_play.h"
 #include "wubu_game_session.h"
 #include "wubu_world.h"
+#include "../kernel/wubu_kvfs.h"
 #include "../kernel/input.h"
 
 #include <stdio.h>
@@ -65,6 +66,12 @@ static const char *action_name(int a)
 void wubu_agi_play_start(const char *game, WUBU_GAME_KIND kind)
 {
     memset(&g_play, 0, sizeof(g_play));
+    /* Initialize the KV-FS (the AGI's training substrate) if not live.
+     * The kernel KV-FS writes world-state deltas into /kv/world/tick_<N>
+     * and the Brain reads them over 9P at /n/kv/. */
+    if (!g_wubu_kvfs) {
+        wubu_kvfs_namespace_init();
+    }
     g_play.active = 1;
     wubu_game_session_begin(game, kind);
 }
@@ -136,22 +143,65 @@ int wubu_agi_play_tick(void)
     return action;
 }
 
-/* AP6: the experience ledger — a labeled (world -> action) line per
- * tick, appended to the game-session ledger. */
+/* AP6: the experience ledger — a (world -> action) vector written into
+ * the KV-FS (/kv/world/tick_<N>) as 4 packed floats so the Brain
+ * (wubuwizard) reads the FULL training stream over 9P at /n/kv/world/.
+ *
+ *   float[0] = action (0..6, the enum index)  -- the label
+ *   float[1] = cpu_temp
+ *   float[2] = battery_pct (0..100, or 255 if N/A)
+ *   float[3] = wifi_link (0..1, quantized)   -- the reward channel
+ *
+ * Each tick is a self-describing leaf file in the namespace. The Brain's
+ * KV reader (wubu_kvfs_handle_read) pulls them with zero string ops on
+ * the hot path — resolve once, memcpy per tick.
+ */
 void wubu_agi_play_learn(void)
 {
     if (!g_play.active) return;
     wubu_world_sample();
     const wubu_world_t *w = wubu_world_snapshot();
+    if (!g_wubu_kvfs || !g_wubu_kv_base) {
+        /* KV-FS not initialized — fall through to text log as fallback. */
+        FILE *f = fopen(wubu_game_session_log(), "a");
+        if (f) {
+            fprintf(f, "learn|%s|cpu:%dC bat:%d%% %s net:%d -> %s\n",
+                    wubu_game_session_active() ? "play" : "idle",
+                    w ? (int)w->cpu_temp : 0,
+                    w ? (int)w->battery_pct : 0,
+                    w && w->battery_charging ? "chg" : "disc",
+                    w ? w->wifi_link : 0,
+                    action_name(wubu_agi_play_policy(w)));
+            fclose(f);
+        }
+        return;
+    }
+
+    /* Build the world-state path for this tick: /kv/world/tick_<N> */
+    char path[96];
+    snprintf(path, sizeof(path), "/kv/world/tick_%d", g_play.ticks);
+
+    /* Ensure the /kv/world mount covers the write. The kernel init
+     * pre-mounts /kv/in and /kv/world over disjoint block ranges. */
+    int action = wubu_agi_play_policy(w);
+    float vec[4] = {
+        (float)action,
+        (float)(w ? w->cpu_temp : 0),
+        (float)(w ? w->battery_pct : 255),
+        (float)(w ? w->wifi_link : 0)
+    };
+    /* write 4 floats (16 bytes) at /kv/world/tick_<N> */
+    wubu_kvfs_write(g_wubu_kvfs, path, g_wubu_kv_base, vec, 4);
+
+    /* Also keep the text ledger for debugging (append mode, low-freq). */
     FILE *f = fopen(wubu_game_session_log(), "a");
     if (f) {
-        fprintf(f, "learn|%s|cpu:%dC bat:%d%% %s net:%d -> %s\n",
+        fprintf(f, "kvlearn|%s|t%d a=%d cpu=%dC bat=%d%% net=%d\n",
                 wubu_game_session_active() ? "play" : "idle",
+                g_play.ticks, action,
                 w ? (int)w->cpu_temp : 0,
                 w ? (int)w->battery_pct : 0,
-                w && w->battery_charging ? "chg" : "disc",
-                w ? w->wifi_link : 0,
-                action_name(wubu_agi_play_policy(w)));
+                w ? w->wifi_link : 0);
         fclose(f);
     }
 }

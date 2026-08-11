@@ -33,6 +33,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_drv_ahci.o \
               $(KERNEL)/wubu_drv_sd.o $(KERNEL)/wubu_drv_usb.o \
               $(KERNEL)/wubu_drv_thermal.o $(KERNEL)/wubu_world.o \
+              $(KERNEL)/wubu_kvfs.o \
               $(KERNEL)/wubu_drv_virtio.o $(KERNEL)/wubu_drv_arm.o \
               $(KERNEL)/wubu_drv_intel.o \
               $(KERNEL)/wubu_console_colonel.o $(KERNEL)/wubu_console_recovery.o \

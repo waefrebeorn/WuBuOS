@@ -170,8 +170,12 @@ void *mem_alloc(size_t size) {
             mu = (CMemUsed *)u;
             goto found;
         }
-        
-        /* Try free list */
+    }
+    
+    /* Try free list for ALL sizes (small and large).  Large freed blocks
+     * must be reusable, or repeated big allocations (e.g. CAB folder
+     * buffers) exhaust the pool even though freed memory is available. */
+    {
         CMemUnused **prev_ptr = &hc->malloc_free_list.next;
         CMemUnused  *cur = *prev_ptr;
         while (cur) {
@@ -207,9 +211,10 @@ found:
         /* Check if we should split */
         if (mu->size > total + sizeof(CMemUsed) + 16) {
             size_t rem_size = mu->size - total;
-            CMemUsed *rem = (CMemUsed *)((uint8_t *)mu + total);
+            CMemUnused *rem = (CMemUnused *)((uint8_t *)mu + total);
             rem->signature = MEM_UNUSED_SIGNATURE;
             rem->size = rem_size;
+            rem->next = NULL;
             
             CMemUnused *u = (CMemUnused *)rem;
             u->next = hc->malloc_free_list.next;
@@ -257,7 +262,8 @@ void mem_free(void *ptr) {
     
     CMemUnused *u = (CMemUnused *)mu;
     u->signature = MEM_UNUSED_SIGNATURE;
-    u->next = NULL;
+    u->size     = mu->size;   /* preserve size — was clobbered by old next-overlap */
+    u->next     = NULL;
 
     /* Gap B9: coalesce with the adjacent free block BEFORE linking.
      * The next block starts right after this one; if it is free too,
