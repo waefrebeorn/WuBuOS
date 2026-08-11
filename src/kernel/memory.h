@@ -40,11 +40,19 @@ typedef enum {
     HClf_LOCKED = 0,
 } HeapCtrlFlag;
 
-/* Free list node */
+/* Free-list node: overlays CMemUsed but MUST keep signature+size intact.
+ * In the original ZealOS the header layout is sig(4)+size(4), so the free
+ * node's `next` sits at the SAME offset as `signature` and `size`.
+ * That destroys the size on insert — killing all large-block reuse.
+ * We add an explicit `size` field and map `next` over the padding so the
+ * alloc/free walks never lose the block size.  See wubu-kgap: cab_extract
+ * extract-all returned NULL on the 2nd 146MB folder because freed large
+ * blocks were never matched by size. */
 typedef struct CMemUnused CMemUnused;
 struct CMemUnused {
-    CMemUnused *next;
     uint32_t     signature;  /* MEM_UNUSED_SIGNATURE when in free list */
+    uint32_t     size;       /* Total bytes of this free block (preserved!) */
+    CMemUnused   *next;      /* 8-byte aligned, no overlap with header fields */
 };
 
 /* Used allocation header */
