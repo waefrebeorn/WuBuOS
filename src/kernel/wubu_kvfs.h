@@ -89,4 +89,19 @@ extern size_t        g_wubu_kv_capacity;
 /* Called at kernel init; returns 0 on success, -1 on failure. */
 int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks);
 
+/* ---- THE DOCTRINE: the OS state IS the KV cache, served as 9P ----
+ * These route /n/kv/* reads to the live KV tensor (not the on-disk
+ * placeholder), so the filesystem and the KV cache are the SAME store.
+ * Used by the Styx/9P server's read/write callbacks. */
+const char *wubu_kvfs_route_path(const char *disk_path, const char *ns_root);
+
+/* Serve a read of a KV path from the live tensor. Returns 0 on success. */
+int wubu_kvfs_route_read(const char *kv_path, uint64_t offset,
+                         uint32_t count, uint8_t *data, uint32_t *nread);
+
+/* Serve a write to a KV path into the live tensor. Returns 0 on success. */
+int wubu_kvfs_route_write(const char *kv_path, uint64_t offset,
+                          uint32_t count, const uint8_t *data,
+                          uint32_t *nwritten);
+
 #endif /* WUBU_KVFS_KERNEL_H */

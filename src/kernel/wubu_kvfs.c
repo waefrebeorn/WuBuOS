@@ -387,3 +387,81 @@ int wubu_kvfs_kernel_init(uint32_t block_size, uint32_t total_blocks) {
     g_wubu_kv_capacity = total_floats;
     return 0;
 }
+
+/* ---- THE DOCTRINE: the OS state IS the KV cache, served as 9P ----
+ *
+ * The namespace /n tree is laid down on disk (so the host Styx server can
+ * serve it), but the /n/kv subtree is LIVE: reads must return the kernel
+ * KV tensor, not the on-disk placeholder. These helpers translate a
+ * namespace disk path (e.g. "<ns_root>/kv/world/tick_3") into the KV
+ * path ("/kv/world/tick_3") and serve the read straight from the tensor.
+ */
+
+/* Translate a namespace disk path to its KV path (e.g. "/kv/world/tick_3").
+ * Returns a pointer into a static buffer, or NULL if the path is not under
+ * the KV namespace (caller should fall back to a normal disk read). */
+const char *wubu_kvfs_route_path(const char *disk_path, const char *ns_root)
+{
+    if (!disk_path || !ns_root) return NULL;
+    const char *kv_marker = "/kv/";
+    /* the disk path is <ns_root>/kv/... ; find the "/kv/" suffix */
+    const char *found = strstr(disk_path, kv_marker);
+    if (!found) return NULL;
+    /* verify it's really under the ns_root (avoid matching unrelated paths) */
+    if (strncmp(disk_path, ns_root, strlen(ns_root)) != 0) return NULL;
+    return found;  /* "/kv/world/tick_3" */
+}
+
+/* Serve a read of a KV path from the live tensor. Reads n_floats = count/4.
+ * Returns 0 on success (nread set), -1 if path unmounted/not-resolvable. */
+int wubu_kvfs_route_read(const char *kv_path, uint64_t offset,
+                         uint32_t count, uint8_t *data, uint32_t *nread)
+{
+    if (!kv_path || !g_wubu_kvfs || !g_wubu_kv_base) return -1;
+
+    uint32_t blk; size_t rel;
+    if (wubu_kvfs_lookup(g_wubu_kvfs, kv_path, &blk, &rel) != 0) return -1;
+
+    /* The mount resolves to a base offset; rel is the hash of the suffix.
+     * Read count/4 floats starting at (base + rel + offset/4). */
+    const wubu_kvfs_mount_t *m = NULL;
+    int idx = kvfs_find_mount(g_wubu_kvfs, kv_path);
+    if (idx < 0 || idx >= g_wubu_kvfs->n_mounts) return -1;
+    m = &g_wubu_kvfs->mounts[idx];
+
+    size_t start_float = (size_t)(offset / 4);
+    size_t n_floats = (size_t)(count / 4);
+    if (n_floats == 0) n_floats = 1;
+    size_t base = m->abs_offset + rel;
+
+    if (base + n_floats > g_wubu_kv_capacity) return -1;
+    memcpy(data, (const uint8_t *)(g_wubu_kv_base + base + start_float),
+           n_floats * sizeof(float));
+    *nread = (uint32_t)(n_floats * sizeof(float));
+    return 0;
+}
+
+/* Serve a write to a KV path into the live tensor (mirror of route_read). */
+int wubu_kvfs_route_write(const char *kv_path, uint64_t offset,
+                          uint32_t count, const uint8_t *data, uint32_t *nwritten)
+{
+    if (!kv_path || !g_wubu_kvfs || !g_wubu_kv_base) return -1;
+
+    uint32_t blk; size_t rel;
+    if (wubu_kvfs_lookup(g_wubu_kvfs, kv_path, &blk, &rel) != 0) return -1;
+
+    int idx = kvfs_find_mount(g_wubu_kvfs, kv_path);
+    if (idx < 0 || idx >= g_wubu_kvfs->n_mounts) return -1;
+    const wubu_kvfs_mount_t *m = &g_wubu_kvfs->mounts[idx];
+
+    size_t start_float = (size_t)(offset / 4);
+    size_t n_floats = (size_t)(count / 4);
+    if (n_floats == 0) n_floats = 1;
+    size_t base = m->abs_offset + rel;
+
+    if (base + n_floats > g_wubu_kv_capacity) return -1;
+    memcpy((uint8_t *)(g_wubu_kv_base + base + start_float), data,
+           n_floats * sizeof(float));
+    *nwritten = (uint32_t)(n_floats * sizeof(float));
+    return 0;
+}

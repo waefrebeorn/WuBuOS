@@ -879,6 +879,14 @@ test_rtc:
 		-o $(KERNEL)/test_rtc
 	$(KERNEL)/test_rtc
 
+# THE DOCTRINE: the OS state IS the KV cache, served as 9P.
+# Proves /n/kv/* reads serve the live tensor, not the on-disk placeholder.
+test_kvfs_route:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_kvfs_route_test.c $(KERNEL)/wubu_kvfs.c \
+		-o $(KERNEL)/test_kvfs_route
+	$(KERNEL)/test_kvfs_route
+
 # VFAT LFN codec (gap A16): encode/decode + chain roundtrips
 test_lfn:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
