@@ -295,3 +295,54 @@ uint32_t wubu_adler32(const uint8_t *data, uint32_t len) {
     }
     return (b << 16) | a;
 }
+
+/*
+ * Gzip (RFC 1952) header parser + DEFLATE body dispatch.
+ *  Gzip header:  ID1(1)=0x1f, ID2(1)=0x8b, CM(1)=8, FLG(1),
+ *  MTIME(4), XFL(1), OS(1), then optional fields per FLG bits.
+ *  Body is raw DEFLATE, followed by CRC32(4) + ISIZE(4).
+ */
+int wubu_gunzip(const uint8_t *src, uint32_t slen,
+                uint8_t *dst, uint32_t dcap,
+                uint32_t *out_len, uint32_t *src_consumed) {
+    if (slen < 18) return -1;             /* min gzip header(10) + trailer(8) */
+    if (src[0] != 0x1f || src[1] != 0x8b) return -1;  /* magic */
+    if (src[2] != 8) return -1;           /* CM must be deflate(8) */
+    uint8_t flg = src[3];
+    uint32_t pos = 10;                    /* skip ID1+ID2+CM+FLG+MTIME+XFL+OS */
+
+    /* FEXTRA */
+    if (flg & 0x04) {
+        if (pos + 2 > slen) return -1;
+        uint16_t xlen = src[pos] | (src[pos+1] << 8);
+        pos += 2 + xlen;
+        if (pos > slen) return -1;
+    }
+    /* FNAME */
+    if (flg & 0x08) {
+        while (pos < slen && src[pos] != 0) pos++;
+        if (pos >= slen) return -1;
+        pos++;  /* skip NUL */
+    }
+    /* FCOMMENT */
+    if (flg & 0x10) {
+        while (pos < slen && src[pos] != 0) pos++;
+        if (pos >= slen) return -1;
+        pos++;
+    }
+    /* FHCRC */
+    if (flg & 0x02) {
+        pos += 2;
+        if (pos > slen) return -1;
+    }
+    if (pos > slen) return -1;
+
+    /* raw DEFLATE body from pos; trailer is the last 8 bytes */
+    uint32_t body_end = slen - 8;
+    if (pos > body_end) return -1;
+    uint32_t consumed = 0;
+    int rc = inflate_raw(src + pos, body_end - pos, dst, dcap, out_len, &consumed);
+    if (rc != 0) return rc;
+    if (src_consumed) *src_consumed = pos + consumed + 8;  /* gzip body + trailer */
+    return 0;
+}

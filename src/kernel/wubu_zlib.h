@@ -58,4 +58,13 @@ int wubu_inflate(const uint8_t *src, uint32_t slen,
 /* Adler-32 (zlib format). Used to verify inflate output integrity. */
 uint32_t wubu_adler32(const uint8_t *data, uint32_t len);
 
+/*
+ * Gzip stream (RFC 1952): header | DEFLATE body | CRC32 + ISIZE trailer.
+ * Parses the gzip header, skips to the DEFLATE body, runs wubu_inflate_raw,
+ * then reads the 8-byte trailer. Same output contract as the others.
+ */
+int wubu_gunzip(const uint8_t *src, uint32_t slen,
+                uint8_t *dst, uint32_t dcap,
+                uint32_t *out_len, uint32_t *src_consumed);
+
 #endif /* WUBU_ZLIB_H */

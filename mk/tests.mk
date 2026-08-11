@@ -1335,9 +1335,7 @@ test_ns_session:
 	$(RT)/wubu_ns_session_test
 
 
-test_ns_9p:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_9p_test.c -o /tmp/wubu_ns_9p_test.o
-	$(CC) -O0 -no-pie \
+	t$(CC) -O0 -no-pie \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
 		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
 		$(RT)/wubu_fs_util.o \
@@ -1348,3 +1346,15 @@ test_ns_9p:
 		/tmp/wubu_ns_9p_test.o \
 		-ljson-c -o $(RT)/wubu_ns_9p_test
 	$(RT)/wubu_ns_9p_test
+
+# Era game installer tools: kernel-owned decoders as host linkers.
+test_cab_extract:
+	$(CC) -O2 -std=c11 -I$(KERNEL) \
+		$(KERNEL)/cab_extract.c $(KERNEL)/wubu_cab.c $(KERNEL)/wubu_lzx.c \
+		$(KERNEL)/wubu_inflate.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
+		-o $(KERNEL)/cab_extract -lz
+test_zip_extract:
+	$(CC) -O2 -std=c11 -I$(KERNEL) \
+		$(KERNEL)/zip_extract.c $(KERNEL)/wubu_zip.c \
+		$(KERNEL)/wubu_inflate.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
+		-o $(KERNEL)/zip_extract -lz
