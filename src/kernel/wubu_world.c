@@ -66,8 +66,11 @@ void wubu_world_sample(void)
     g_world.has_eth = wubu_net_eth_present();
     g_world.eth_link = wubu_net_eth_link();
 
-    /* the display */
-    g_world.has_gpu = wubu_gpu_present();
+    /* the display — auto-detect WSL2 first so the GPU isn't missed.
+     * On bare metal, wubu_gpu_present_wsl() returns 0 (no /dev/dxg)
+     * and the PCI probe fills in from real hardware. On WSL2, it
+     * primes the GPU state from /dev/dxg and returns nonzero. */
+    g_world.has_gpu = wubu_gpu_present_wsl() || wubu_gpu_present();
     g_world.gpu_connector = wubu_gpu_connector();
     g_world.screen_w = (uint16_t)wubu_gpu_width();
     g_world.screen_h = (uint16_t)wubu_gpu_height();

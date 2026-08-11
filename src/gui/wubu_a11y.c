@@ -86,42 +86,69 @@ bool wubu_a11y_is_enabled(void) { return g_a11y_enabled; }
 
 /* -- Panel geometry ------------------------------------------------ */
 
-/* Cluster geometry — reference-proportional (reference_trace.svg,
- * 1280x1156 canvas): green center (465,464) = (0.363w, 0.401h), red
- * (741,465) = (0.579w, 0.402h) — a HORIZONTAL pair, same row; yellow
- * crescent (370,250) = (0.289w, 0.216h) floats up-left of green, slightly
- * overlapping A's upper-left arc (the GC X/Y beans hug A). The cluster
- * floats INSIDE the window face below the title bar — not jammed into the
- * corner. Purple resize stays at the window's bottom-left AND bottom-right
- * corners (edge detection, user-approved). */
-static void panel_rect(DosGuiWindow *w, int *px, int *py) {
-    *px = w->x + (int)(w->w * 0.363f) - A11Y_ORB_A_R;
-    *py = w->y + title_bar_height() + (int)((w->h - title_bar_height()) * 0.22f);
+/* -- Cluster geometry ------------------------------------------------
+ * Anchored to the window's CONTENT RECT (below the title bar, inside the
+ * border), not floating at arbitrary ratios. The content rect is what
+ * apps actually draw into; placing buttons at floating mid-window
+ * coordinates creates "random" placement that ignores chrome.
+ *
+ * Rules (synthesized from Apple HIG, MS WinUI, Wikipedia Window_decoration,
+ * Fitts's law, WCAG 2.5.5 / 2.5.8 — see docs/a11y-window-placement-research.md):
+ *
+ *   R1  Anchor = (win.x + border_w + 8, win.y + title_bar_height + 8)
+ *                — content area top-left + 8px breathing room.
+ *   R2  Cluster floats in the content area, NEVER over the title bar.
+ *   R3  Buttons scale with the content rect (proportional to it).
+ *   R4  Yellow X minimize:  ANCHOR + (0.18 cw, 0.16 ch) — up-left of green.
+ *   R5  Green A  maximize:  ANCHOR + (0.50 cw, 0.32 ch) — LEFT of red, same row.
+ *   R6  Red B    close:     ANCHOR + (0.66 cw, 0.32 ch) — RIGHT of green.
+ *   R7  Purple resize: window bottom-left AND bottom-right corners
+ *                       (asymmetric edge-detection — Fitts: corners are
+ *                       "infinite" edges so the cursor can't overshoot).
+ */
+static void cluster_anchor(DosGuiWindow *w, int *ax, int *ay) {
+    int bw  = border_width();
+    int tbh = title_bar_height();
+    *ax = w->x + bw + 8;
+    *ay = w->y + tbh + 8;
 }
 
+static void orb_y_center(DosGuiWindow *w, int *cx, int *cy) {
+    int ax, ay; cluster_anchor(w, &ax, &ay);
+    int bw  = border_width();
+    int tbh = title_bar_height();
+    int cw  = w->w - 2 * bw - 16;            /* content width  */
+    int ch  = w->h - tbh - bw - 16;          /* content height */
+    *cx = ax + (int)(cw * 0.18f);
+    *cy = ay + (int)(ch * 0.16f);
+}
 static void orb_a_center(DosGuiWindow *w, int *cx, int *cy) {
-    /* green A: reference (0.363w, 0.401h) — LEFT of red, same row */
-    *cx = w->x + (int)(w->w * 0.363f);
-    *cy = w->y + (int)(w->h * 0.401f);
+    int ax, ay; cluster_anchor(w, &ax, &ay);
+    int bw  = border_width();
+    int tbh = title_bar_height();
+    int cw  = w->w - 2 * bw - 16;
+    int ch  = w->h - tbh - bw - 16;
+    *cx = ax + (int)(cw * 0.50f);
+    *cy = ay + (int)(ch * 0.32f);
 }
 static void orb_b_center(DosGuiWindow *w, int *cx, int *cy) {
-    /* red B: reference (0.579w, 0.402h) — RIGHT of green, SAME cy */
-    *cx = w->x + (int)(w->w * 0.579f);
-    *cy = w->y + (int)(w->h * 0.402f);
+    int ax, ay; cluster_anchor(w, &ax, &ay);
+    int bw  = border_width();
+    int tbh = title_bar_height();
+    int cw  = w->w - 2 * bw - 16;
+    int ch  = w->h - tbh - bw - 16;
+    *cx = ax + (int)(cw * 0.66f);
+    *cy = ay + (int)(ch * 0.32f);
 }
-static void orb_y_center(DosGuiWindow *w, int *cx, int *cy) {
-    /* yellow X: reference (0.289w, 0.216h) — up-left of green, minimize */
-    *cx = w->x + (int)(w->w * 0.289f);
-    *cy = w->y + (int)(w->h * 0.216f);
-}
-/* Purple resize crescents sit at the WINDOW's bottom-left AND bottom-right
- * corners ("the purple button is not in the right area of the window — it's
- * a bottom-left and bottom-right edge detection"). */
 static void orb_p_bl(DosGuiWindow *w, int *cx, int *cy) {
-    *cx = w->x + 22;  *cy = w->y + w->h - 26;
+    int bw = border_width();
+    *cx = w->x + bw + 22;
+    *cy = w->y + w->h - bw - 22;
 }
 static void orb_p_br(DosGuiWindow *w, int *cx, int *cy) {
-    *cx = w->x + w->w - 22;  *cy = w->y + w->h - 26;
+    int bw = border_width();
+    *cx = w->x + w->w - bw - 22;
+    *cy = w->y + w->h - bw - 22;
 }
 
 /* -- Hit testing --------------------------------------------------- */
@@ -198,18 +225,31 @@ static void draw_orb(int cx, int cy, int r, uint32_t face, uint32_t dark) {
         }
 }
 
-/* Round-tip CRESCENT (reference-traced shape: the yellow tab is NOT a
- * circle — a curved band, thin at one end, fat at the other, with rounded
- * tips). Drawn as circle A minus an offset circle B; the tips where the
- * two circles cross are naturally rounded. dirx/diry = hollow direction. */
+/* TRUE BEAN CRESCENT (fixes the "two crescents" artifact — the old
+ * offset-0.62r construction made the two circles barely intersect,
+ * rendering a fat outer crescent + a small sliver crescent, looking
+ * like two stacked crescents). This is a CONCENTRIC ring subtraction:
+ * outer arc A minus inner arc B (same center, smaller radius), then
+ * the inner arc is OFFSET by (dirx, diry) so the band is thicker on
+ * one side and thin on the other — a bean / kidney / lune shape with
+ * a SINGLE continuous band and naturally-rounded tips where the offset
+ * inner arc meets the outer arc. */
 static void draw_crescent(int cx, int cy, int r, uint32_t face, uint32_t dark,
                           float dirx, float diry) {
-    int offx = (int)(dirx * r * 0.62f), offy = (int)(diry * r * 0.62f);
-    for (int dy = -r; dy <= r; dy++)
+    /* Bean shape: outer circle radius r, inner circle radius r * 0.45
+     * (band thickness = 55% of r on the THIN side), offset by 0.55 * r
+     * in (dirx, diry). The tips where the inner circle meets the outer
+     * are where r * 0.45 + offset_length = r, i.e. offset = 0.55 r. */
+    float off = r * 0.55f;
+    int   ox  = (int)(dirx * off);
+    int   oy  = (int)(diry * off);
+    int   ri  = (int)(r * 0.45f);  /* inner radius (same shape, smaller) */
+    for (int dy = -r; dy <= r; dy++) {
         for (int dx = -r; dx <= r; dx++) {
-            if (dx * dx + dy * dy > r * r) continue;          /* outside A */
-            int qx = dx - offx, qy = dy - offy;
-            if (qx * qx + qy * qy <= r * r) continue;         /* hollow B */
+            if (dx*dx + dy*dy > r*r) continue;            /* outside A */
+            int qx = dx - ox, qy = dy - oy;
+            if (qx*qx + qy*qy <= ri*ri) continue;          /* inside B (hollow) */
+            /* we are on the bean band — single shape, no second crescent */
             float nx = (float)dx / r, ny = (float)dy / r;
             uint32_t c = face;
             int tl = (int)((-nx - ny) * 0.5f * 255);
@@ -218,18 +258,24 @@ static void draw_crescent(int cx, int cy, int r, uint32_t face, uint32_t dark,
             if (br > 0) c = a11y_lerp(c, dark, br > 150 ? 150 : br);
             vbe_set_pixel(cx + dx, cy + dy, c);
         }
+    }
 }
 
-/* Crescent blended toward the framebuffer by alpha (edge-detection reveal). */
+/* Crescent blended toward the framebuffer by alpha (edge-detection reveal).
+ * Same bean construction as draw_crescent — NO separate shadow crescent,
+ * just a single shape at the requested alpha. */
 static void draw_crescent_fade(int cx, int cy, int r, uint32_t face,
                                uint32_t dark, float dirx, float diry,
                                int alpha) {
-    int offx = (int)(dirx * r * 0.62f), offy = (int)(diry * r * 0.62f);
-    for (int dy = -r; dy <= r; dy++)
+    float off = r * 0.55f;
+    int   ox  = (int)(dirx * off);
+    int   oy  = (int)(diry * off);
+    int   ri  = (int)(r * 0.45f);
+    for (int dy = -r; dy <= r; dy++) {
         for (int dx = -r; dx <= r; dx++) {
-            if (dx * dx + dy * dy > r * r) continue;
-            int qx = dx - offx, qy = dy - offy;
-            if (qx * qx + qy * qy <= r * r) continue;
+            if (dx*dx + dy*dy > r*r) continue;
+            int qx = dx - ox, qy = dy - oy;
+            if (qx*qx + qy*qy <= ri*ri) continue;
             float nx = (float)dx / r, ny = (float)dy / r;
             uint32_t c = face;
             int tl = (int)((-nx - ny) * 0.5f * 255);
@@ -239,6 +285,7 @@ static void draw_crescent_fade(int cx, int cy, int r, uint32_t face,
             vbe_set_pixel(cx + dx, cy + dy,
                           a11y_lerp(vbe_get_pixel(cx + dx, cy + dy), c, alpha));
         }
+    }
 }
 
 /* Grab glyph: DARK folded-corner diagonal (the reference's dark-green

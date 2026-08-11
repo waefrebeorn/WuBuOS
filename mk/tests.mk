@@ -922,9 +922,17 @@ test_drv:
 		$(KERNEL)/wubu_pci.c \
 		$(KERNEL)/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
-	$(KERNEL)/wubu_drv_test
+		$(KERNEL)/wubu_drv_test
 
-test_kvfs:
+test_hw_gpu: $(KERNEL)/wubu_hw_detect.c $(KERNEL)/wubu_hw_detect_selftest.c $(KERNEL)/wubu_drv_gpu.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/wubu_pci.c
+	$(CC) -O0 -g -Wall -Wextra -std=c11 -D_GNU_SOURCE -I$(KERNEL) \
+		$(KERNEL)/wubu_hw_detect_selftest.c \
+		$(KERNEL)/wubu_hw_detect.c $(KERNEL)/wubu_drv_gpu.c $(KERNEL)/wubu_kvfs.c \
+		$(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/wubu_pci.c \
+		-o $(KERNEL)/test_hw_gpu
+	$(KERNEL)/test_hw_gpu
+
+	test_kvfs:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
 		$(KERNEL)/wubu_kvfs.c \
 		$(KERNEL)/wubu_kvfs_selftest.c \

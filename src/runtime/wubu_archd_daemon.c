@@ -49,6 +49,7 @@
 #include "wubu_arch.h"
 #include "wubu_archd_internal.h"
 #include "wubu_archd_svc.h"
+#include "wubu_gpu_backend.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -278,6 +279,17 @@ int wubu_archd_init(WubuArchd *d, const WubuArchdConfig *config) {
     wubu_svc_supervisor_t *sup = wubu_svc_supervisor_create();
     if (sup) wubu_archd_svc_set_supervisor(sup);
     else     archd_log(d, 0, "supervisor init failed (services run external)");
+
+    /* GPU auto-detect (the magical OS): figure out whether we're on
+     * bare metal or WSL2 + pick the right GPU device path + Vulkan ICD
+     * — zero config. The Brain sees the verdict at /kv/world/hw_platform. */
+    if (config->gpu_detect) {
+        if (wubu_gpu_init() == 0) {
+            archd_log(d, 2, "GPU init OK: %s", wubu_gpu_backend_device_name());
+        } else {
+            archd_log(d, 1, "GPU init failed (headless or no device)");
+        }
+    }
 
     d->start_time = time(NULL);
     archd_log(d, 2, "Archd initialized: roots=%d socket=%s",
