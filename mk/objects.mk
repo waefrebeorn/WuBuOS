@@ -44,8 +44,8 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_sha256.o $(KERNEL)/wubu_rtc.o \
               $(KERNEL)/wubu_acpi.o $(KERNEL)/wubu_wdt.o \
               $(KERNEL)/wubu_hpet.o $(KERNEL)/wubu_crash.o \
-              $(KERNEL)/wubu_smbios.o $(KERNEL)/wubu_vdso.o \
-              $(KERNEL)/wubu_swap.o $(KERNEL)/wubu_as.o \
+              $(KERNEL)/wubu_smbios.o $(KERNEL)/wubu_vdso.o $(KERNEL)/wubu_swap.o \
+              $(KERNEL)/wubu_as.o $(KERNEL)/wubu_kvfs.o $(KERNEL)/wubu_secmon.o \
               $(KERNEL)/wubu_user.o $(KERNEL)/wubu_iommu.o \
               $(KERNEL)/wubu_smp.o $(KERNEL)/wubu_smp_tramp.o \
               $(KERNEL)/wubu_xhci.o \

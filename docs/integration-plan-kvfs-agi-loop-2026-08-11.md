@@ -118,7 +118,31 @@ make all             # ✅ full build: kernel + runtime + hosted
 make test_kvfs       # 21/21 assertions pass
 make test_agi_play   # 6/6 assertions pass (incl. KV-FS learn round-trip)
 make test_drv        # 9/9 device registry binds pass
+make test_secmon     # pending — syscall camera captures game syscalls → KV
 ```
+
+## The next layer: syscall interception
+
+Wine/proton runs ON the kernel (policy-compliant), but the AGI initially sees
+nothing of what they do. The seccomp filter in `ct_iso_seccomp.c` is ONLY a
+gate (ALLOW/KILL), not a camera.
+
+**Solution:** `src/kernel/wubu_secmon.c` — a ptrace-based syscall supervisor that:
+- Attaches to game processes via `ptrace(PTRACE_ATTACH)`
+- Uses `PTRACE_SYSCALL` to intercept every enter/exit
+- Streams syscalls as 6-float vectors to `/kv/agent/sys_<pid>/<seq>`
+- Brain reads via `/n/kv/agent/` over 9P
+
+Vector format (per syscall):
+```
+[0] = kind  (0=enter, 1=exit)
+[1] = syscall nr
+[2] = arg0  [arg3] = arg1, [arg4] = retval (exit) or arg2 (enter)
+[5] = pid
+```
+
+This is the missing sensory cortex — the kernel sees every file open, every socket
+connect, every draw call. The AGI learns the full behavior stream.
 
 ## The process going forward
 
