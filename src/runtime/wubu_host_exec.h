@@ -87,6 +87,9 @@ typedef struct {
     /* Command */
     char    *argv[WUBU_CT_MAX_ARGS];
     char    *envp[WUBU_CT_MAX_ENV];
+
+    /* AGI syscall camera (wubu_secmon_t*, opaque to keep this header clean) */
+    void    *secmon;
 } WubuCt;
 
 /* -- Container Lifecycle ------------------------------------------ */
