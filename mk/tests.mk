@@ -50,8 +50,8 @@ test_spawn:
 		-o $(RT)/wubu_spawn_test
 	$(RT)/wubu_spawn_test
 
-# CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan)
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct
+# CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan, decompressors)
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -893,6 +893,39 @@ test_drv:
 		$(KERNEL)/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 	$(KERNEL)/wubu_drv_test
+
+# ── Kernel decompressor selftests ──────────────────────────────
+# Each decoder links ONLY its own source + the kernel heap/libc.
+# Real game byte tests (Halo CAB, OpenArena ZIP, zlib payload); -lz
+# is used ONLY as an independent oracle inside zlib_selftest.
+test_zlib:
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -I$(KERNEL) \
+		$(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/libc_string.c \
+		$(KERNEL)/wubu_inflate.c $(KERNEL)/zlib_selftest.c \
+		-o $(KERNEL)/wubu_zlib_selftest -lz
+	$(KERNEL)/wubu_zlib_selftest
+
+test_zip:
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -I$(KERNEL) \
+		$(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/libc_string.c \
+		$(KERNEL)/wubu_zip.c $(KERNEL)/wubu_inflate.c $(KERNEL)/zip_selftest.c \
+		-o $(KERNEL)/wubu_zip_selftest
+	$(KERNEL)/wubu_zip_selftest
+
+test_lzx:
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -I$(KERNEL) \
+		$(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/libc_string.c \
+		$(KERNEL)/wubu_lzx.c $(KERNEL)/lzx_selftest.c \
+		-o $(KERNEL)/wubu_lzx_selftest
+	$(KERNEL)/wubu_lzx_selftest
+
+test_cab:
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -I$(KERNEL) \
+		$(KERNEL)/memory.c $(KERNEL)/klog.c $(KERNEL)/libc_string.c \
+		$(KERNEL)/wubu_cab.c $(KERNEL)/wubu_lzx.c $(KERNEL)/wubu_inflate.c \
+		$(KERNEL)/cab_selftest.c \
+		-o $(KERNEL)/wubu_cab_selftest
+	$(KERNEL)/wubu_cab_selftest
 
 test_machines:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
