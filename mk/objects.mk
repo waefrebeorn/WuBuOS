@@ -51,7 +51,8 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_recovery.o \
               $(KERNEL)/wubu_psych.o $(KERNEL)/wubu_bonzi_study.o $(KERNEL)/wubu_tutor.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
-              $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/klog.o
+              $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/libc_string.o $(KERNEL)/klog.o $(KERNEL)/wubu_pe.o $(KERNEL)/wubu_pe_personality.o $(KERNEL)/wubu_elf.o $(KERNEL)/wubu_macho.o \
+              $(KERNEL)/wubu_lzx.o $(KERNEL)/wubu_inflate.o $(KERNEL)/wubu_zip.o $(KERNEL)/wubu_cab.o
 
 # ── Metal Objects ────────────────────────────────────────────────
 METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_metal_x11.o $(HOSTED)/wubu_metal_vulkan.o $(HOSTED)/wubu_metal_drm.o
