@@ -12,6 +12,7 @@
  */
 
 #include "styx.h"
+#include "../kernel/wubu_kvfs.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,7 @@
 typedef struct {
     int fd;
     int in_use;
+    char path[STYXFS_MAX_PATH];   /* retained for KV-backed reads */
 } styxfs_host_file_t;
 
 typedef struct {
@@ -228,6 +230,7 @@ static int styxfs_open(styx_server_t *srv, uint32_t fid, int mode, styx_qid_t *q
     }
     
     fs->open_files[idx].fd = fd;
+    strncpy(fs->open_files[idx].path, path, STYXFS_MAX_PATH - 1);
     
     f->open_fid = f->fid;
     f->open_mode = mode;
@@ -261,7 +264,19 @@ static int styxfs_read(styx_server_t *srv, uint32_t fid, uint64_t offset,
     
     styxfs_host_file_t *of = styxfs_get_file(fs, idx);
     if (!of) return -1;
-    
+
+    /* THE DOCTRINE: the OS state IS the KV cache. If the open file lives
+     * under the KV namespace root, the read serves LIVE KV tensor data —
+     * not the on-disk placeholder. The filesystem and the KV cache are
+     * the SAME store; 9P is the lens the Brain mounts. */
+    extern const char *g_ns_root;
+    const char *kv = wubu_kvfs_route_path(of->path, g_ns_root);
+    if (kv) {
+        int rc = wubu_kvfs_route_read(kv, offset, count, data, (uint32_t *)nread);
+        if (rc == 0) return 0;
+        /* else fall through to disk read */
+    }
+
     ssize_t r = pread(of->fd, data, count, (off_t)offset);
     if (r < 0) return -1;
     
@@ -282,7 +297,19 @@ static int styxfs_write(styx_server_t *srv, uint32_t fid, uint64_t offset,
     
     styxfs_host_file_t *of = styxfs_get_file(fs, idx);
     if (!of) return -1;
-    
+
+    /* THE DOCTRINE (write side): /n/kv/* writes go into the KV tensor,
+     * not the on-disk placeholder. The Brain writes an experience tuple
+     * back and it lands in the KV cache the moment it's served. */
+    extern const char *g_ns_root;
+    const char *kv = wubu_kvfs_route_path(of->path, g_ns_root);
+    if (kv) {
+        int rc = wubu_kvfs_route_write(kv, offset, count, data,
+                                       (uint32_t *)nwritten);
+        if (rc == 0) return 0;
+        /* else fall through to disk write */
+    }
+
     ssize_t w = pwrite(of->fd, data, count, (off_t)offset);
     if (w < 0) return -1;
     
