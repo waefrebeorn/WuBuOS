@@ -73,6 +73,21 @@ char *strcasestr(const char *haystack, const char *needle)
     return NULL;
 }
 
+/* KC03: strcasecmp — case-insensitive byte comparison (ASCII).
+ * Returns <0, =0, >0 like strcmp. Used by wubu_pe_personality for
+ * DLL name matching (msvcrt.dll, winmm.dll, ...). */
+int strcasecmp(const char *a, const char *b)
+{
+    while (*a && *b) {
+        unsigned char ca = (unsigned char)*a, cb = (unsigned char)*b;
+        if (ca >= 'A' && ca <= 'Z') ca += 32;
+        if (cb >= 'A' && cb <= 'Z') cb += 32;
+        if (ca != cb) return ca - cb;
+        a++; b++;
+    }
+    return (unsigned char)*a - (unsigned char)*b;
+}
+
 /* KC03: memmove — the overlapping-safe copy. */
 void *memmove(void *dest, const void *src, size_t n)
 {

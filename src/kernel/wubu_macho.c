@@ -92,13 +92,12 @@ int wubu_fat_slices(const void *data, size_t size,
 const char *wubu_macho_cpu_name(uint32_t cpu)
 {
     switch (cpu) {
-    case 0x01000000 | 0x01: return "ppc64";     /* CPU_TYPE_POWERPC|64 */
-    case 0x01 | 0x01000000: return "ppc64";
-    case 0x01:             return "ppc";
-    case 0x07:             return "x86 (i386)";
-    case 0x01000007:       return "x86_64";
-    case 0x0100000C:       return "arm64";
-    case 0x0C:             return "arm";
+    case 0x01000012:       return "ppc64";     /* CPU_TYPE_POWERPC64 */
+    case 18:               return "ppc";       /* CPU_TYPE_POWERPC   */
+    case 7:                return "x86 (i386)";/* CPU_TYPE_X86       */
+    case 0x01000007:       return "x86_64";    /* CPU_TYPE_X86_64    */
+    case 0x0100000C:       return "arm64";     /* CPU_TYPE_ARM64     */
+    case 12:               return "arm";       /* CPU_TYPE_ARM       */
     default:               return "unknown";
     }
 }

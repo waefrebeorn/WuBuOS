@@ -89,3 +89,12 @@ wubu_desktop_shot
 # kernel decompressor selftest binaries
 src/kernel/wubu_*_selftest
 src/kernel/wubu_lzx.c.bak
+src/kernel/cab_extract
+src/kernel/zip_extract
+
+# extracted demo binaries (built from vendor/ by build_era.sh)
+demos/era/halo_pc/halo.exe
+demos/era/halo_mac/halo
+demos/era/quake3/quake3_pc.exe
+demos/era/quake3/quake3_mac.ub
+demos/era/quake3/quake3_linux.x86_64

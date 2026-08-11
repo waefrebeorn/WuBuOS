@@ -13,12 +13,12 @@
  *   2007 Linux native        -> 0x00  (VSL Linux table, wubu_exec_linux_elf)
  *   2020 HolyC / TempleOS    -> 0xF0  (HolyC JIT, hc_eval)
  *
- * Each entry's `executable` is a REAL artifact in demos/era/ (built by
- * demos/era/build_era.sh). `dosgui_era_apps_launch(idx)` runs it through the
- * correct personality's exec backend. Gaps (CP/M, Classic Mac) have
- * executable="" and runnable=false because WuBuOS has the syscall
- * PERSONALITY but NO CPU EMULATOR for those ISAs yet (documented in
- * docs/ERA_APPS_AND_RESOLVE_GAPS.md).
+ * Each entry's `executable` is a REAL artifact in demos/era/ (extracted by
+ * demos/era/build_era.sh from the kernel-owned CAB/ZIP/DMG decoders).
+ * `dosgui_era_apps_launch(idx)` runs it through the correct personality's
+ * exec backend. The remaining gaps (CP/M, Classic Mac) have executable=""
+ * and runnable=false because WuBuOS has the syscall PERSONALITY but NO
+ * CPU EMULATOR for those ISAs yet.
  *
  * C11, self-contained; depends only on dosgui_startmenu.h + wubu_exec.h.
  */
@@ -71,14 +71,19 @@ static const struct {
     /* 1984 -- Classic Mac 68K A-line traps. GAP: no 68000 CPU emulator. */
     { "Mac :: About",        "", "Era: Classic Mac 1984",
       ERA_PERSONA_MACCLASS, false },
-    /* 1993 -- Windows NT / Win32 via Proton+Wine (real, wubu_exec_win_pe). */
-    { "Win32 :: Era Demo",   "demos/era/win_era_demo.exe", "Era: Win32 1993",
+    /* 1993 -- Windows NT / Win32 via Proton+Wine (real, wubu_exec_win_pe).
+     *         Halo PC demo: PE/i386 extracted from halo_pc_trial_setup.exe's
+     *         embedded CAB by the kernel CAB/LZX decoder. */
+    { "Win32 :: Halo PC",    "demos/era/halo_pc/halo.exe", "Era: Win32 1993",
       ERA_PERSONA_NT, true },
-    /* 2001 -- macOS XNU (Mach-O via darling; render leg proven via metal2vulkan). */
-    { "macOS :: Era Demo",   "", "Era: macOS XNU 2001",
-      ERA_PERSONA_XNU, false },  /* gap: no xclang here to build a Mach-O demo */
-    /* 2007 -- Linux native ELF (runs via wubu_exec_linux_elf). */
-    { "Linux :: Era Demo",   "demos/era/linux_era_demo.elf", "Era: Linux 2007",
+    /* 2001 -- macOS XNU (Mach-O via darling; render leg proven).
+     *         Halo Mac demo: universal Mach-O (PPC+x86) extracted from
+     *         the DMG's PKG payload (cpio+gzip -> kernel DEFLATE). */
+    { "macOS :: Halo Mac",    "demos/era/halo_mac/halo", "Era: macOS XNU 2001",
+      ERA_PERSONA_XNU, true },
+    /* 2007 -- Linux native ELF (runs via wubu_exec_linux_elf).
+     *         Quake 3 (OpenArena): ELF/x86_64. */
+    { "Linux :: Quake 3",    "demos/era/quake3/quake3_linux.x86_64", "Era: Linux 2007",
       ERA_PERSONA_NATIVE, true },
     /* 2020 -- HolyC / TempleOS (JIT eval via hc_eval). */
     { "HolyC :: Era Demo",   "demos/era/holyc_era_demo.hc", "Era: HolyC 2020",
@@ -191,14 +196,23 @@ int dosgui_era_apps_launch(int idx) {
         return p ? 0 : -1;
     }
     case ERA_PERSONA_NT:    /* Win64 PE -> Wine/Proton */
-    case ERA_PERSONA_XNU: { /* Mach-O -> darling (falls through to Wine today) */
-        size_t sz = 0;
-        uint8_t *data = era_read_file(full, &sz);
-        if (!data) { fprintf(stderr, "[era] cannot read %s\n", full); return -1; }
-        int64_t rc = wubu_exec_win_pe(data, sz);
-        free(data);
-        return (rc >= 0) ? 0 : -1;
-    }
+        {
+            size_t sz = 0;
+            uint8_t *data = era_read_file(full, &sz);
+            if (!data) { fprintf(stderr, "[era] cannot read %s\n", full); return -1; }
+            int64_t rc = wubu_exec_win_pe(data, sz);
+            free(data);
+            return (rc >= 0) ? 0 : -1;
+        }
+    case ERA_PERSONA_XNU:   /* Mach-O -> VSL/Darling */
+        {
+            size_t sz = 0;
+            uint8_t *data = era_read_file(full, &sz);
+            if (!data) { fprintf(stderr, "[era] cannot read %s\n", full); return -1; }
+            int64_t rc = wubu_exec_macho(data, sz);
+            free(data);
+            return (rc >= 0) ? 0 : -1;
+        }
     case ERA_PERSONA_NATIVE: {  /* Linux ELF -> VSL */
         size_t sz = 0;
         uint8_t *data = era_read_file(full, &sz);
