@@ -30,6 +30,12 @@ const char *wubu_gpu_connector_name(int c);
 /* WSL2 passthrough (the magic OS detects its own runtime): on /dev/dxg
  * (WSL2 paravirtualized GPU), the hardware probe is skipped and this
  * stub fills in the state from the DXG backend. Returns nonzero on WSL. */
-int wubu_gpu_present_wsl(void);
+int  wubu_gpu_present_wsl(void);
+
+/* NOTE: Vulkan ICD selection (wubu_gpu_vulkan_icd, wubu_gpu_has_dzn,
+ * wubu_gpu_gallium_driver, wubu_gpu_env) was intentionally NOT declared
+ * here to avoid duplication. Those functions live in wubu_hw_detect.c
+ * as wubu_hw_vulkan_icd(), wubu_hw_has_dzn(), wubu_hw_vulkan_icd_chain().
+ * The runtime layer (wubu_wine_env.c) calls the wubu_hw_* functions. */
 
 #endif

@@ -18,6 +18,7 @@
 #include "wubu_hive.h"   /* G5: the metal's long-term memory */
 #include "fat32.h"       /* G6: the AGI checkpoint file */
 #include "ahci.h"        /* Gap DA: the boot volume's disk backend */
+#include "wubu_probe.h"  /* Gap DB: unified hardware discovery dispatcher */
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
@@ -369,6 +370,13 @@ void kernel_main(void *boot_info) {
                 ps2p.self_test, (unsigned)ps2p.kbd_id,
                 (unsigned)ps2p.mouse_id, ps2p.mouse_ack, (unsigned)ps2p.flags);
     klog_printf("WuBuOS: input/PS2 initialized\n");
+
+    /* 6c. Discover ALL hardware (GPU/audio/storage/network/input/power/
+     * virtual) via the unified probe dispatcher, then publish the machine
+     * matrix to KV-FS so the Brain reads /kv/world/hw_matrix. This is the
+     * "runs on everything" spine — every subsystem driver is bound here. */
+    wubu_probe_all();
+    klog_printf("WuBuOS: hardware probe complete (matrix published)\n");
 
     /* 7. Initialize tasking (cooperative scheduler, PIT timer) */
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'3', %%al\n outb %%al, %%dx\n movb $'3', %%al\n outb %%al, %%dx" ::: "dx","al");

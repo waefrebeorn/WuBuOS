@@ -1,0 +1,16 @@
+[Display]
+Resolution=1024x768
+RefreshRate=60
+Windowed=0
+
+[Sound]
+EnableDS3D=0
+EnableEAX=0
+
+[Input]
+InvertMouse=0
+
+[Performance]
+TextureQuality=1
+ShadowQuality=0
+ParticleQuality=1

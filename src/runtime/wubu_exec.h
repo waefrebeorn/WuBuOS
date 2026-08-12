@@ -90,6 +90,23 @@ int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size);
 int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size);
 
 /*
+ * Wine/Proton environment setup (wubu_wine_env.c)
+ */
+#include "wubu_host_exec.h"
+
+/*
+ * Set up Wine prefix and DXVK/Vulkan environment for Windows PE execution.
+ * Returns the prefix path (heap-allocated) or NULL on failure.
+ */
+char *wubu_wine_setup_prefix(const char *prefix_override);
+
+/*
+ * Configure Wine environment variables in a container.
+ * Adds DXVK, Vulkan ICD, DLL overrides, and WINEDEBUG settings.
+ */
+int wubu_wine_configure_env(WubuCt *ct, const char *wine_prefix);
+
+/*
  * Execute a HolyC source file  --  JIT compile and run.
  */
 int64_t wubu_exec_holyc(const char *source, size_t source_size);

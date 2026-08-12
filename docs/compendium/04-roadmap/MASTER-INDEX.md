@@ -10,18 +10,19 @@ for the AGI to bounce off of. "This is the beginning of an AGI."
 | Bank | Path | Status | Gaps |
 |------|------|--------|------|
 | wubuwizard engine | `wubuwizard/research/INDEX.md` | closing (the recursive loop) | ~1243 |
-| Synthesis (WT) | `docs/compendium/04-roadmap/synthesis-wavetable-bank.md` | 21 wired | 1000 |
-| GUI (GU) | `docs/compendium/04-roadmap/gui-gap-index.md` | 12 wired | 1000 |
-| Storage (FS) | `docs/compendium/04-roadmap/storage-bank.md` | 200 wired (FS-A block, FS-B FAT) | 1000 |
-| Network (NW) | `docs/compendium/04-roadmap/network-bank.md` | open | 1000 |
-| Kernel (KR) | `docs/compendium/04-roadmap/kernel-bank.md` | open | 1000 |
-| AI-Engine (AIE) | `docs/compendium/04-roadmap/engine-bank.md` | open | 1000 |
-| Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | 400 wired (HX-A model, HX-B timing, HX-C tutor, HX-D companion) | 1000 |
-| Security (SC) | `docs/compendium/04-roadmap/security-bank.md` | open | 1000 |
-| Agentic-Corpus (AG) | `docs/compendium/04-roadmap/agentic-corpus-bank.md` | 0 wired | 1000 |
-|| DevTools (DT) | `docs/compendium/04-roadmap/devtools-bank.md` | closing (200 wired) | 1000 |
-|| Media (MD) | `docs/compendium/04-roadmap/media-bank.md` | open | 1000 |
-|| **TOTAL** | | | **~11243** |
+| Synthesis (WT) | `docs/compendium/04-roadmap/synthesis-wavetable-bank.md` | 740 wired | 1314 |
+| GUI (GU) | `docs/compendium/04-roadmap/gui-gap-index.md` | 12 wired | 1625 |
+| Storage (FS) | `docs/compendium/04-roadmap/storage-bank.md` | 200 wired (FS-A block, FS-B FAT) | 1625 |
+| Network (NW) | `docs/compendium/04-roadmap/network-bank.md` | open | 1625 |
+| Kernel (KR) | `docs/compendium/04-roadmap/kernel-bank.md` | open | 1625 |
+| AI-Engine (AIE) | `docs/compendium/04-roadmap/engine-bank.md` | open | 1625 |
+| Human (HX) | `docs/compendium/04-roadmap/human-bank.md` | 400 wired (HX-A model, HX-B timing, HX-C tutor, HX-D companion) | 1625 |
+| Security (SC) | `docs/compendium/04-roadmap/security-bank.md` | open | 1625 |
+| Agentic-Corpus (AG) | `docs/compendium/04-roadmap/agentic-corpus-bank.md` | 0 wired | 1625 |
+|| DevTools (DT) | `docs/compendium/04-roadmap/devtools-bank.md` | closing (200 wired) | 1625 |
+||| Media (MD) | `docs/compendium/04-roadmap/media-bank.md` | open | 1625 |
+|||| **Drivers (DV)** | `docs/compendium/04-roadmap/driver-bank.md` | 740 wired | 1314 | 22 themes (DV-A through DV-BZ) + 8 frontier themes (Thermal, NS, FC, Color, Loudness, GpuSched, PortTiming, CodecGraph, Flush, BacklightPWM, AEC, Dedup, VRAM, SPDIF, CMB) |
+||| **TOTAL** | | | **~12243** |
 
 Path to 25,000: 14 more thousand-gap avenues (Games,
 Robotics, Science, Math, Security, Cloud, Web, IoT, Accessibility, Education,

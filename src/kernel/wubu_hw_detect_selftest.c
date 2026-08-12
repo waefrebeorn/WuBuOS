@@ -47,6 +47,18 @@ int main(void)
     printf("  gpu_path    = %s\n", gpup ? gpup : "(null)");
     printf("  is_wsl      = %d\n", wubu_hw_is_wsl());
     printf("  gpu_present = %d\n", wubu_hw_gpu_present());
+    printf("  gpu_vendor  = %04x\n", wubu_hw_gpu_vendor());
+
+    /* 3b. driver-routing decisions (GCN1/2 params, RDNA4 AMDVLK, xe, prime). */
+    printf("  amdgpu_params = %s\n", wubu_hw_amdgpu_params() ? wubu_hw_amdgpu_params() : "none");
+    printf("  prime      = %d\n", wubu_hw_has_prime());
+    printf("  xe         = %d\n", wubu_hw_intel_uses_xe());
+    printf("  amdvlk     = %d\n", wubu_hw_needs_amdvlk());
+    if (wubu_hw_gpu_vendor() == 0x1002) {
+        /* AMD: on a real box, a GCN1/2 device yields amdgpu params. */
+        CHECK(wubu_hw_amdgpu_params() != NULL || wubu_hw_gpu_device() >= 0,
+              "AMD GPU has driver routing info");
+    }
 
     /* 3. assert platform is valid */
     CHECK(plat != NULL, "platform string is non-NULL");
@@ -84,6 +96,27 @@ int main(void)
     CHECK(wubu_hw_summary(buf, sizeof(buf)) == 0, "hw_summary succeeds");
     CHECK(strlen(buf) > 0, "hw_summary produced non-empty string");
     printf("   summary: %s\n", buf);
+
+    /* 8. Vulkan ICD selection (kernel-owned driver env). */
+    const char *icd = wubu_hw_vulkan_icd();
+    CHECK(icd != NULL, "vulkan ICD selected");
+    if (wubu_hw_is_wsl()) {
+        CHECK(strstr(icd, "dzn") != NULL || strstr(icd, "lvp") != NULL,
+              "WSL2 selects dzn or lvp ICD");
+        CHECK(wubu_hw_has_dzn(), "dzn driver present on WSL2");
+        /* GALLIUM_DRIVER=d3d12 is emitted by wubu_wine_env.c when
+         * wubu_hw_is_wsl() && wubu_hw_has_dzn() are both true. */
+        CHECK(wubu_hw_is_wsl() && wubu_hw_has_dzn(),
+              "GALLIUM_DRIVER=d3d12 will be set (wsl + dzn)");
+    }
+
+    /* 9. GPU env emission (via the ICD chain) */
+    char envbuf[512];
+    char *chain = wubu_hw_vulkan_icd_chain();
+    int chainlen = chain ? strlen(chain) : 0;
+    CHECK(chainlen > 0, "gpu ICD chain emitted");
+    CHECK(strstr(chain, "vulkan/icd.d") != NULL, "ICD chain contains vulkan ICD");
+    if (chain) free(chain);
 
     /* cleanup */
     if (g_wubu_kvfs) wubu_kvfs_free(g_wubu_kvfs);

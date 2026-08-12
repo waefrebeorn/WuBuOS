@@ -243,11 +243,22 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
     if (p[0] != 'M' || p[1] != 'Z')
         return -1;
 
+    /* Set up Wine prefix with DXVK/Vulkan environment.
+     * The prefix gives Wine a proper Windows-compatible environment.
+     * wubu_wine_configure_env() (from the kernel's wubu_hw_detect) selects
+     * the correct Vulkan ICD: dzn + GALLIUM_DRIVER=d3d12 on WSL2 (Vulkan ->
+     * D3D12 -> /dev/dxg -> host GPU), nvidia on bare metal, with a
+     * PROTON_USE_WINED3D fallback for software rendering. */
+    char *wine_prefix = wubu_wine_setup_prefix(NULL);
+    if (!wine_prefix) {
+        return -1;
+    }
+
     /* Write PE to temp file for container execution */
     char tmp_path[256];
     snprintf(tmp_path, sizeof(tmp_path), "/tmp/wubu-pe-%d.exe", getpid());
     FILE *f = fopen(tmp_path, "wb");
-    if (!f) return -1;
+    if (!f) { free(wine_prefix); return -1; }
     fwrite(pe_data, 1, pe_size, f);
     fclose(f);
 
@@ -258,17 +269,27 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
     WubuCt *ct = wubu_ct_steamos("win-pe", root);
     if (!ct) {
         unlink(tmp_path);
+        free(wine_prefix);
         return -1;
     }
 
-    /* The era demo proves the Win32 launch path (Wine/Proton exec) works
-     * end-to-end, not seccomp-hardening of Wine (a separate hardening task
-     * -- the `wine` profile's allowlist is still incomplete and SIGSYS-kills
-     * Wine). Use the `none` profile and skip namespace unshare so the demo
-     * runs; propagate WUBU_REPO_ROOT so the marker lands in the repo. */
-    wubu_ct_add_env(ct, "WUBU_SECCOMP_PROFILE=none");
+    /* Configure Wine environment: DXVK, Vulkan ICD, DLL overrides.
+     * This wires the Proton translation layer into the Wine execution.
+     * GPU backend is auto-selected based on wubu_hw_detect (WSL2 vs bare metal). */
+    if (wubu_wine_configure_env(ct, wine_prefix) != 0) {
+        wubu_ct_destroy(ct);
+        unlink(tmp_path);
+        free(wine_prefix);
+        return -1;
+    }
+
+    /* AGI syscall camera: enable secmon for Wine observation.
+     * The camera captures Wine's syscall behavior for the AGI to learn from.
+     * We use a permissive but observable profile (not "none" which skips capture). */
+    wubu_ct_add_env(ct, "WUBU_SECCOMP_PROFILE=observe");
     wubu_ct_add_env(ct, "WUBU_NS_FLAGS=0");
     const char *repo_root = getenv("WUBU_REPO_ROOT");
+    /* Propagate WUBU_REPO_ROOT so the marker lands in the repo. */
     if (repo_root && repo_root[0]) {
         char envbuf[1024];
         snprintf(envbuf, sizeof(envbuf), "WUBU_REPO_ROOT=%s", repo_root);
@@ -285,6 +306,7 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
     if (rc != 0) {
         wubu_ct_destroy(ct);
         unlink(tmp_path);
+        free(wine_prefix);
         return -1;
     }
 
@@ -292,6 +314,7 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
     int exit_code = wubu_ct_wait(ct);
     wubu_ct_destroy(ct);
     unlink(tmp_path);
+    free(wine_prefix);
 
     return exit_code;
 }

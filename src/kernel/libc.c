@@ -493,6 +493,24 @@ void *__memset_chk(void *s, int c, size_t n, size_t dstlen) {
     (void)dstlen;
     return memset(s, c, n);
 }
+char *__strcpy_chk(char *dest, const char *src, size_t dstlen) {
+    (void)dstlen;
+    return strcpy(dest, src);
+}
+size_t __strlcpy_chk(char *dst, const char *src, size_t sz, size_t dstsz) {
+    (void)dstsz;
+    size_t n = strlen(src);
+    if (n >= sz) n = sz - 1;
+    memcpy(dst, src, n);
+    dst[n] = '\0';
+    return n;
+}
+char *__stpcpy_chk(char *dest, const char *src, size_t dstlen) {
+    (void)dstlen;
+    size_t i = 0;
+    while (src[i]) { dest[i] = src[i]; i++; }
+    return dest + i;
+}
 
 /* --- abs --- */
 int abs(int v) { return v < 0 ? -v : v; }
