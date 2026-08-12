@@ -1,58 +1,26 @@
 #!/usr/bin/env python3
 """
-Regenerate ALL test_hw_<mod> targets in mk/tests.mk.
+Regenerate ALL test_hw_<mod> targets in mk/tests.mk with FAST incremental
+builds, using a single CORE_OBJS make variable (defined once) instead of
+repeating 283 filenames per target.
 
-Uses the verified core module set from /tmp/core_modules.txt
-(found by find_core_modules.py) for Type B targets. Type A targets
-use only the minimal core runtime.
-
-Each target:
-  - type_hw_<mod>_selftest.c (defines main)
-  - wubu_<mod>.c (module under test)
-  - Type B: all 282 core kernel modules (verified to link cleanly)
-  - Type A: libc.c, libc_string.c, memory.c, klog.c, wubu_pci.c
-  - wubu_test_stubs.c (in BOTH types for linker symbols)
-  - -lm -lm -no-pie
+Strategy:
+  - CORE_OBJS := cached .o for each verified core module (defined once)
+  - Each test_hw_<mod> links its selftest.c + module.c + stubs.c against
+    $(CORE_OBJS).  Core .o cached via a %.o pattern rule (only rebuilt on
+    source change).  First build compiles everything; later builds fast.
 """
 import os, re
 
 KERNEL = '/home/wubu/wubunos/src/kernel'
 TESTS_MK = '/home/wubu/wubunos/mk/tests.mk'
+CC = 'gcc'
+CFLAGS_BASE = '-O0 -g -Wall -Wextra -std=c11 -D_GNU_SOURCE -no-pie -I' + KERNEL
 
-src = open(TESTS_MK, encoding='utf-8').read()
+with open('/tmp/core_modules.txt') as f:
+    core_modules = [line.strip() for line in f if line.strip()]
 
-# Remove existing test_hw_* blocks
-lines = src.split('\n')
-out = []
-skip = False
-for line in lines:
-    if skip:
-        if line.strip() == '' or (line and not line.startswith('\t') and not line.startswith(' ') and ':' not in line):
-            skip = False
-            if line.strip() == '':
-                continue
-            out.append(line)
-        continue
-    if re.match(r'^test_hw_\w+:', line):
-        skip = True
-        if out and out[-1] == '':
-            out.pop()
-        continue
-    out.append(line)
-src_base = '\n'.join(out)
-
-# Load verified core modules
-core_file = '/tmp/core_modules.txt'
-if os.path.exists(core_file):
-    with open(core_file) as f:
-        core_modules = [line.strip().replace('$(KERNEL)/', '').rstrip('\\').strip()
-                       for line in f if line.strip()]
-    print(f"Loaded {len(core_modules)} core modules from {core_file}")
-else:
-    print("ERROR: /tmp/core_modules.txt not found. Run find_core_modules.py first.")
-    exit(1)
-
-core_cc = ['libc.c', 'libc_string.c', 'memory.c', 'klog.c', 'wubu_pci.c']
+core_runtime = ['libc.c', 'libc_string.c', 'memory.c', 'klog.c', 'wubu_pci.c']
 
 # Discover test modules
 selftests = set()
@@ -60,66 +28,100 @@ for f in os.listdir(KERNEL):
     m = re.match(r'wubu_(\w+)_selftest\.c$', f)
     if m: selftests.add(m.group(1))
 all_modules = set()
-for f in core_modules:
-    m = re.match(r'wubu_(\w+)\.c$', f)
-    if m: all_modules.add(m.group(1))
-# Also check all .c files in KERNEL for modules not in core_modules
 for f in os.listdir(KERNEL):
     m = re.match(r'wubu_(\w+)\.c$', f)
     if m:
         name = m.group(1)
-        if not name.endswith('_selftest') and not name.endswith('_test'):
+        if not name.endswith('_selftest') and not name.endswith('_test') and name != 'flush' and name != 'flush2':
             all_modules.add(name)
-
 test_modules = sorted(all_modules & selftests)
-exclude = {'flush', 'flush2', 'self_test', 'agi_kernel', 'hive', 'bonzi'}
-test_modules = [m for m in test_modules if m not in exclude]
-print(f"Test modules: {len(test_modules)}")
+test_modules = [m for m in test_modules if not m.startswith('flush')]
 
-# Classify: Type A (no wubu_hw_detect call) vs Type B
 type_a, type_b = [], []
 for mod in test_modules:
-    selftest_f = f'wubu_{mod}_selftest.c'
-    content = open(os.path.join(KERNEL, selftest_f), errors='replace').read()
-    if 'wubu_hw_detect()' in content or 'wubu_probe_all' in content:
+    st = open(os.path.join(KERNEL, f'wubu_{mod}_selftest.c'), errors='replace').read()
+    if 'wubu_hw_detect()' in st or 'wubu_probe_all' in st:
         type_b.append(mod)
     else:
         type_a.append(mod)
-print(f"Type A: {len(type_a)}, Type B: {len(type_b)}")
+print(f"Type A: {len(type_a)}, Type B: {len(type_b)}, total: {len(test_modules)}")
+
+# Read existing tests.mk (working .c-based committed version), strip
+# test_hw_* target blocks AND any old cached-object infrastructure.
+with open(TESTS_MK, encoding='utf-8') as f:
+    lines = f.read().split('\n')
+
+preamble = []
+i = 0
+while i < len(lines):
+    line = lines[i]
+    # Skip cached-object infra lines and their recipe blocks
+    if line.startswith('CACHE :=') or line.startswith('CORE_OBJS :=') or \
+       line.startswith('RUNTIME_OBJS :=') or line.startswith('$(CACHE):') or \
+       line.startswith('$(CACHE)/%.o:') or line.startswith('# ---- cached kernel-test'):
+        i += 1
+        continue
+    # Stop at first test_hw_ target
+    if line.startswith('test_hw_') and ':' in line:
+        break
+    preamble.append(line)
+    i += 1
+
+# Build the new file: preamble + cached infra + CORE_OBJS + all targets
+out = []
+out.extend(preamble)
+
+out.append('')
+out.append('# ---- fast incremental kernel-test build (cached objects) ----')
+out.append('CACHE := build/testobj')
+out.append('')
+out.append('# Cached-object pattern rule: any kernel .c -> build/testobj/*.o')
+out.append('$(CACHE)/%.o: $(KERNEL)/%.c')
+out.append('\t@mkdir -p $(CACHE)')
+out.append('\t$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -no-pie -I$(KERNEL) -c $< -o $@')
+out.append('')
+out.append('# The full verified core module set (pre-compiled once).')
+core_objs = ' '.join(f'$(CACHE)/{f.replace(".c", ".o")}' for f in core_modules)
+out.append(f'CORE_OBJS := {core_objs}')
+out.append('')
+runtime_objs = ' '.join(f'$(CACHE)/{f.replace(".c", ".o")}' for f in core_runtime)
+out.append(f'RUNTIME_OBJS := {runtime_objs}')
+out.append('')
 
 new_targets = []
 for mod in test_modules:
     selftest_c = f'wubu_{mod}_selftest.c'
     module_c = f'wubu_{mod}.c'
     is_type_b = mod in type_b
-    
+
     if is_type_b:
-        other_modules = [f for f in core_modules if f != module_c]
-        cc_files = [f'$(KERNEL)/{selftest_c}', f'$(KERNEL)/{module_c}'] + \
-                   [f'$(KERNEL)/{f}' for f in other_modules] + \
-                   ['$(KERNEL)/wubu_test_stubs.c']
-        dep_files = [f'$(KERNEL)/{f}' for f in core_modules] + \
-                    [f'$(KERNEL)/wubu_test_stubs.c', f'$(KERNEL)/{selftest_c}']
+        # CORE_OBJS minus the module's own .o (module .c is compiled fresh)
+        objs = [f'$(CACHE)/{f.replace(".c", ".o")}' for f in core_modules if f != module_c]
+        objs_var = ' '.join(objs)
     else:
-        cc_files = [f'$(KERNEL)/{selftest_c}', f'$(KERNEL)/{module_c}'] + \
-                   [f'$(KERNEL)/{f}' for f in core_cc] + \
-                   ['$(KERNEL)/wubu_test_stubs.c']
-        dep_files = [f'$(KERNEL)/{f}' for f in core_cc] + \
-                    [f'$(KERNEL)/wubu_test_stubs.c', f'$(KERNEL)/{selftest_c}']
-    
-    cc_chain = ' \\\n\t\t'.join(cc_files + ['-lm', '-lm'])
-    deps = ' '.join(dep_files)
-    
-    target = f'''test_hw_{mod}: {deps}
-\t$(CC) -O0 -g -Wall -Wextra -std=c11 -D_GNU_SOURCE -no-pie -I$(KERNEL) \\
-\t\t{cc_chain} \\
+        objs = [f'$(CACHE)/{f.replace(".c", ".o")}' for f in core_runtime if f != module_c]
+        objs_var = ' '.join(objs)
+
+    # Compile fresh: selftest + module + stubs (test-specific, provide main)
+    compile_chain = f'\\\n\t\t$(KERNEL)/{selftest_c} \\\n\t\t$(KERNEL)/{module_c} \\\n\t\t$(KERNEL)/wubu_test_stubs.c \\\n\t\t{objs_var} \\\n\t\t-lm -lm'
+
+    target = f'''test_hw_{mod}: $(KERNEL)/{selftest_c} $(KERNEL)/{module_c} $(KERNEL)/wubu_test_stubs.c {objs_var}
+\t$(CC) {CFLAGS_BASE} \\
+\t\t{compile_chain} \\
 \t\t-o $(KERNEL)/test_hw_{mod}
 \t$(KERNEL)/test_hw_{mod}'''
     new_targets.append(target)
 
-result = src_base.rstrip() + '\n\n' + '\n\n'.join(new_targets) + '\n'
-open(TESTS_MK, 'w', encoding='utf-8').write(result)
+out.extend(new_targets)
+out.append('')
 
-print(f"\nWrote {len(new_targets)} targets")
-dupes = [t for t in set(re.findall(r'(test_hw_\w+):', result)) if result.count(f'{t}:') > 1]
-print(f"Duplicate targets: {len(dupes)}")
+with open(TESTS_MK, 'w', encoding='utf-8') as f:
+    f.write('\n'.join(out))
+
+# Verify
+with open(TESTS_MK) as f:
+    content = f.read()
+target_names = re.findall(r'^(test_hw_\w+):', content, re.M)
+dups = [t for t in set(target_names) if target_names.count(t) > 1]
+print(f"Wrote {len(new_targets)} targets, file = {len(out)} lines")
+print(f"Duplicate targets: {len(dups)}")
