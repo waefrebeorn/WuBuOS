@@ -4,7 +4,6 @@ PASS=0
 FAIL=0
 BUILD_ERR=0
 CRASH=0
-CRASH_LIST=""
 
 for target in $(grep "^test_hw_" mk/tests.mk | sed 's/:.*//' | sort -u); do
     mod="${target#test_hw_}"
@@ -21,12 +20,10 @@ for target in $(grep "^test_hw_" mk/tests.mk | sed 's/:.*//' | sort -u); do
     rc=$?
     if [ $rc -eq 139 ] || [ $rc -eq 134 ]; then
         CRASH=$((CRASH + 1))
-        CRASH_LIST="$CRASH_LIST $target"
         echo "CRASH($rc): $target"
     elif [ $rc -ne 0 ]; then
         FAIL=$((FAIL + 1))
-        tail -2 /tmp/test_log_$$
-        echo "FAIL: $target"
+        echo "FAIL: $target (exit=$rc)"
     else
         PASS=$((PASS + 1))
     fi
@@ -39,4 +36,3 @@ echo "FAIL: $FAIL"
 echo "BUILD_ERR: $BUILD_ERR"
 echo "CRASH: $CRASH"
 echo "TOTAL: $((PASS + FAIL + BUILD_ERR + CRASH))"
-echo "CRASHED: $CRASH_LIST"

@@ -2,12 +2,17 @@
 """
 Regenerate ALL test_hw_<mod> targets in mk/tests.mk.
 
-Each target: selftest + module .c + ALL compilable kernel modules +
-wubu_test_stubs.c + -lm -lm -no-pie.
+Uses the verified core module set from /tmp/core_modules.txt
+(found by find_core_modules.py) for Type B targets. Type A targets
+use only the minimal core runtime.
 
-wubu_test_stubs.c provides linker symbols normally supplied by the
-kernel's linker script and arch assembly (SMP trampolines, I/O ports,
-etc.) that aren't available in the standalone test harness.
+Each target:
+  - type_hw_<mod>_selftest.c (defines main)
+  - wubu_<mod>.c (module under test)
+  - Type B: all 282 core kernel modules (verified to link cleanly)
+  - Type A: libc.c, libc_string.c, memory.c, klog.c, wubu_pci.c
+  - wubu_test_stubs.c (in BOTH types for linker symbols)
+  - -lm -lm -no-pie
 """
 import os, re
 
@@ -36,47 +41,42 @@ for line in lines:
     out.append(line)
 src_base = '\n'.join(out)
 
-# Discover all non-selftest, non-test .c/.S files
-kernel_files = []
-selftests = set()
-for f in sorted(os.listdir(KERNEL)):
-    if f.endswith('.c'):
-        m = re.match(r'wubu_(\w+)_selftest\.c$', f)
-        if m:
-            selftests.add(m.group(1))
-            continue
-        m = re.match(r'wubu_(\w+)\.c$', f)
-        if m:
-            name = m.group(1)
-            if name.endswith('_selftest') or name.endswith('_test'):
-                continue
-            kernel_files.append(f)
-        elif not f.startswith('test_') and not f.endswith('_test.c') and f != 'cpio_extract.c' and f != 'wubu_test_stubs.c':
-            kernel_files.append(f)
-    elif f.endswith('.S'):
-        if not f.startswith('test_'):
-            kernel_files.append(f)
+# Load verified core modules
+core_file = '/tmp/core_modules.txt'
+if os.path.exists(core_file):
+    with open(core_file) as f:
+        core_modules = [line.strip().replace('$(KERNEL)/', '').rstrip('\\').strip()
+                       for line in f if line.strip()]
+    print(f"Loaded {len(core_modules)} core modules from {core_file}")
+else:
+    print("ERROR: /tmp/core_modules.txt not found. Run find_core_modules.py first.")
+    exit(1)
 
-# Exclude files that define main() or _start
-exclude_def = {'crt0.S', 'boot.S', 'zip_extract.c', 'cab_extract.c', 'lzx_selftest.c',
-                'zip_selftest.c', 'zlib_selftest.c', 'cab_selftest.c', 'wubu_math.c',
-                'cpio_extract.c', 'wubu_test_stubs.c'}
-kernel_files = [f for f in kernel_files if f not in exclude_def]
-
-print(f"Kernel files: {len(kernel_files)}")
+core_cc = ['libc.c', 'libc_string.c', 'memory.c', 'klog.c', 'wubu_pci.c']
 
 # Discover test modules
+selftests = set()
+for f in os.listdir(KERNEL):
+    m = re.match(r'wubu_(\w+)_selftest\.c$', f)
+    if m: selftests.add(m.group(1))
 all_modules = set()
-for f in kernel_files:
+for f in core_modules:
     m = re.match(r'wubu_(\w+)\.c$', f)
     if m: all_modules.add(m.group(1))
+# Also check all .c files in KERNEL for modules not in core_modules
+for f in os.listdir(KERNEL):
+    m = re.match(r'wubu_(\w+)\.c$', f)
+    if m:
+        name = m.group(1)
+        if not name.endswith('_selftest') and not name.endswith('_test'):
+            all_modules.add(name)
 
 test_modules = sorted(all_modules & selftests)
-exclude_mods = {'flush', 'flush2', 'self_test', 'agi_kernel', 'hive', 'bonzi'}
-test_modules = [m for m in test_modules if m not in exclude_mods]
+exclude = {'flush', 'flush2', 'self_test', 'agi_kernel', 'hive', 'bonzi'}
+test_modules = [m for m in test_modules if m not in exclude]
 print(f"Test modules: {len(test_modules)}")
 
-# Classify: Type B if calls wubu_hw_detect() or wubu_probe_all()
+# Classify: Type A (no wubu_hw_detect call) vs Type B
 type_a, type_b = [], []
 for mod in test_modules:
     selftest_f = f'wubu_{mod}_selftest.c'
@@ -93,20 +93,19 @@ for mod in test_modules:
     module_c = f'wubu_{mod}.c'
     is_type_b = mod in type_b
     
-    # ALL targets get the same kernel deps (all kernel files + stubs)
-    # For Type A, we only need core runtime (smaller, faster compile)
     if is_type_b:
-        other_modules = [f for f in kernel_files if f != module_c]
+        other_modules = [f for f in core_modules if f != module_c]
         cc_files = [f'$(KERNEL)/{selftest_c}', f'$(KERNEL)/{module_c}'] + \
                    [f'$(KERNEL)/{f}' for f in other_modules] + \
                    ['$(KERNEL)/wubu_test_stubs.c']
-        dep_files = [f'$(KERNEL)/{f}' for f in kernel_files] + \
+        dep_files = [f'$(KERNEL)/{f}' for f in core_modules] + \
                     [f'$(KERNEL)/wubu_test_stubs.c', f'$(KERNEL)/{selftest_c}']
     else:
-        core_cc = ['libc.c', 'libc_string.c', 'memory.c', 'klog.c', 'wubu_pci.c']
         cc_files = [f'$(KERNEL)/{selftest_c}', f'$(KERNEL)/{module_c}'] + \
-                   [f'$(KERNEL)/{f}' for f in core_cc]
-        dep_files = [f'$(KERNEL)/{f}' for f in core_cc] + [f'$(KERNEL)/{selftest_c}']
+                   [f'$(KERNEL)/{f}' for f in core_cc] + \
+                   ['$(KERNEL)/wubu_test_stubs.c']
+        dep_files = [f'$(KERNEL)/{f}' for f in core_cc] + \
+                    [f'$(KERNEL)/wubu_test_stubs.c', f'$(KERNEL)/{selftest_c}']
     
     cc_chain = ' \\\n\t\t'.join(cc_files + ['-lm', '-lm'])
     deps = ' '.join(dep_files)
