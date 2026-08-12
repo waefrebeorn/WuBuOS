@@ -1,27 +1,22 @@
 #!/usr/bin/env python3
 """
-Generate wubu_test_stubs.c using the compiler to discover which symbols
-are already defined. For each .c file, compile with -D to list all
-global symbols via `nm`. Then only stub symbols that are called by
-selftests but NOT defined anywhere.
+Generate wubu_test_stubs.c with stubs for functions that are CALLED
+(with parentheses) from selftests but NOT defined in any kernel .c/.h file.
+Uses nm to find actual symbol definitions (not regex on source code).
 """
 import os, re, subprocess
 
 KERNEL = '/home/wubu/wubunos/src/kernel'
-CC = 'gcc'
-CFLAGS = ['-O0', '-g', '-std=c11', '-D_GNU_SOURCE', '-I' + KERNEL]
 
-# Step 1: Get all defined global symbols from all kernel .c files
+# Get all defined global symbols from ALL compilable .c files
 all_defined = set()
 for f in sorted(os.listdir(KERNEL)):
-    if not f.endswith('.c'): continue
-    if '_selftest' in f or f == 'wubu_test_stubs.c' or f.startswith('test_') or f.endswith('_test.c'):
+    if not f.endswith('.c') or '_selftest' in f or f == 'wubu_test_stubs.c' or f.startswith('test_') or f.endswith('_test.c'):
         continue
-    obj = f'/tmp/stub_check_{f.replace(".c", ".o")}'
-    r = subprocess.run([CC] + CFLAGS + ['-c', '-o', obj, os.path.join(KERNEL, f)],
+    obj = f'/tmp/stub_sym_{f.replace(".c", ".o")}'
+    r = subprocess.run(['gcc', '-O0', '-g', '-std=c11', '-D_GNU_SOURCE', '-I' + KERNEL, '-c', '-o', obj, os.path.join(KERNEL, f)],
                        capture_output=True, text=True, timeout=15)
     if r.returncode != 0: continue
-    # Get symbols
     r2 = subprocess.run(['nm', obj], capture_output=True, text=True, timeout=5)
     for line in r2.stdout.split('\n'):
         parts = line.split()
@@ -31,28 +26,39 @@ for f in sorted(os.listdir(KERNEL)):
 
 print(f"Defined global symbols: {len(all_defined)}")
 
-# Step 2: Find all symbols called from selftests that start with wubu_
-called_wubu = set()
+# Find all wubu_* function CALLS in selftest files
+called_funcs = set()
 for f in sorted(os.listdir(KERNEL)):
-    m = re.match(r'wubu_(\w+)_selftest\.c$', f)
-    if not m: continue
-    mod = m.group(1)
-    if mod.endswith('_test'): continue
-    st = open(os.path.join(KERNEL, f), errors='replace').read()
-    for sym in re.findall(r'wubu_\w+', st):
-        if sym != f'wubu_{mod}_selftest':
-            called_wubu.add(sym)
+    if not re.match(r'wubu_\w+_selftest\.c$', f): continue
+    content = open(os.path.join(KERNEL, f), errors='replace').read()
+    # Match function calls: wubu_word() or wubu_word(args)
+    for m in re.finditer(r'\bwubu_\w+\s*\(', content):
+        func = m.group(0).rstrip()[:-1]  # remove the (
+        func = func.strip()
+        called_funcs.add(func)
 
-print(f"wubu_ symbols called from selftests: {len(called_wubu)}")
+# Also get function calls from wubu_hw_detect.c (which calls all probes)
+for f in ['wubu_hw_detect.c', 'wubu_probe.c']:
+    path = os.path.join(KERNEL, f)
+    if os.path.exists(path):
+        content = open(path, errors='replace').read()
+        for m in re.finditer(r'\bwubu_\w+\s*\(', content):
+            func = m.group(0).rstrip()[:-1].strip()
+            called_funcs.add(func)
 
-# Step 3: Find missing symbols (called but not defined)
-missing = called_wubu - all_defined
+print(f"Called wubu_ functions: {len(called_funcs)}")
+
+# Missing = called but not defined
+missing = called_funcs - all_defined
+missing = {m for m in missing if not m.startswith('wubu_') or len(m) > 12}  # filter module names
+
+# Actually: filter out bare module names (like wubu_accel) - only keep _probe, _summary, etc.
+missing = {m for m in missing if re.match(r'wubu_\w+_\w+', m) or m in ('wubu_kvfs_create', 'wubu_kvfs_open')}
+
 print(f"Missing (need stubs): {len(missing)}")
-for s in sorted(missing):
-    print(f"  {s}")
 
-# Step 4: Generate stubs
-stub_lines = ['#include <stdint.h>', '#include <unistd.h>', '#include <stddef.h>', '']
+# Generate stubs with smarter return types
+stub_lines = ['#include <stdint.h>', '#include <stddef.h>', '#include <unistd.h>', '']
 stub_lines.append('/* Linker-script symbols (kernel.ld) */')
 stub_lines.append('uint64_t _kernel_start = 0x00100000;')
 stub_lines.append('uint64_t _stack_top = 0x00200000;')
@@ -64,35 +70,45 @@ stub_lines.append('')
 stub_lines.append('/* Self-test runner */')
 stub_lines.append('int wubu_self_test_run(const char *name) { (void)name; return 0; }')
 stub_lines.append('')
-stub_lines.append('/* Globals from excluded arch modules */')
+stub_lines.append('/* Globals from excluded modules */')
 stub_lines.append('uint64_t task_tick_count = 0;')
 stub_lines.append('')
-stub_lines.append('')
 
-stub_lines.append('/* Auto-generated stubs for functions called by')
-stub_lines.append(' * selftests but not defined in any kernel .c file. */')
-for sym in sorted(missing):
-    if sym == 'wubu_self_test_run':
+stub_lines.append('/* Auto-generated stubs for functions called by selftests')
+stub_lines.append(' * but not defined in any kernel .c file. */')
+
+for func in sorted(missing):
+    if func in ('wubu_self_test_run', 'wubu_hw_detect'):
         continue
-    # Determine return type from selftest usage
-    # Check if used as string, pointer, int, void
-    return_type = 'void'
-    for f in os.listdir(KERNEL):
-        m = re.match(r'wubu_(\w+)_selftest\.c$', f)
-        if not m: continue
-        st = open(os.path.join(KERNEL, f), errors='replace').read()
-        # Look for the function call context
-        for line in st.split('\n'):
-            if sym in line and '(' in line and ')' in line:
-                if 'strcmp' in line or 'printf' in line or 'CHECK' in line:
-                    if sym + '(' in line and 'strcmp' in line:
-                        return_type = 'const char *'
-                        break
-                if 'CHECK' in line and sym + '(' in line and ';' not in line.split(sym)[0][-5:]:
-                    # Used as condition or value
-                    pass
-    stub_lines.append(f'void {sym}(void) {{}}  /* TODO: implement */')
+    # Determine return type from naming convention
+    if func.endswith('_summary'):
+        stub_lines.append(f'void {func}(char *out, size_t cap) {{ (void)out; (void)cap; }}')
+    elif func.endswith('_driver_for') or func.endswith('_codec_for') or \
+         func.endswith('_layout_for') or func.endswith('_for') or \
+         func.endswith('_str') or func.endswith('_path') or \
+         func.endswith('_name') or func.endswith('_driver') or \
+         func.endswith('_chain') or func.endswith('_config') or \
+         func.endswith('_mode') or func.endswith('_format') or \
+         func.endswith('_type') or func.endswith('_state') or \
+         func.endswith('_route') or func.endswith('_route'):
+        stub_lines.append(f'const char *{func}(void) {{ return NULL; }}')
+    elif func.endswith('_driver') or func.endswith('_state') or func.endswith('_params'):
+        stub_lines.append(f'const char *{func}(void) {{ return NULL; }}')
+    elif func.endswith('_present') or func.endswith('_available') or func.endswith('_count') or func.endswith('_has'):
+        stub_lines.append(f'int {func}(void) {{ return 0; }}')
+    elif func.endswith('_probe'):
+        stub_lines.append(f'void {func}(void) {{}}')
+    elif func.endswith('_create'):
+        stub_lines.append(f'void *{func}(void) {{ return NULL; }}')
+    elif func.endswith('_open'):
+        stub_lines.append(f'void *{func}(void) {{ return NULL; }}')
+    elif func.endswith('_free'):
+        stub_lines.append(f'void {func}(void *p) {{ (void)p; }}')
+    else:
+        # Check how it's called
+        stub_lines.append(f'void {func}(void) {{}}')
 
 content = '\n'.join(stub_lines) + '\n'
 open(os.path.join(KERNEL, 'wubu_test_stubs.c'), 'w').write(content)
-print(f"\nWrote {len(stub_lines)} lines to wubu_test_stubs.c")
+print(f"Wrote {len(stub_lines)} lines")
+print(f"Sample stubs: {sorted(missing)[:10]}")

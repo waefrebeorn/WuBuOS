@@ -599,29 +599,19 @@ int __printf_chk(int flag, const char *fmt, ...) {
 }
 
 int snprintf(char *str, size_t size, const char *fmt, ...) {
-    char buf[512];
     va_list ap; va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    int n = vsnprintf(str, size, fmt, ap);
     va_end(ap);
-    size_t l = strlen(buf);
-    if (l >= size) l = size ? size - 1 : 0;
-    memcpy(str, buf, l);
-    if (size) str[l] = '\0';
-    return (int)strlen(buf);
+    return n;
 }
 
 int __snprintf_chk(char *str, size_t size, int flag, size_t dstlen,
                     const char *fmt, ...) {
     (void)flag; (void)dstlen;
-    char buf[512];
     va_list ap; va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    int n = vsnprintf(str, size, fmt, ap);
     va_end(ap);
-    size_t l = strlen(buf);
-    if (l >= size) l = size ? size - 1 : 0;
-    memcpy(str, buf, l);
-    if (size) str[l] = '\0';
-    return (int)strlen(buf);
+    return n;
 }
 /* KC04: the bounded format wrappers (vsprintf exists above; the
  * kernel lacked snprintf/vsnprintf — the PE loader hit this). */

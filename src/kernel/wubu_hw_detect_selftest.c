@@ -115,7 +115,7 @@ int main(void)
     char *chain = wubu_hw_vulkan_icd_chain();
     int chainlen = chain ? strlen(chain) : 0;
     CHECK(chainlen > 0, "gpu ICD chain emitted");
-    CHECK(strstr(chain, "vulkan/icd.d") != NULL, "ICD chain contains vulkan ICD");
+    CHECK(chain != NULL && strstr(chain, "vulkan/icd.d") != NULL, "ICD chain contains vulkan ICD");
     if (chain) free(chain);
 
     /* cleanup */
