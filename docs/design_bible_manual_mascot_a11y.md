@@ -113,6 +113,14 @@ Verified by surveying `src/gui/` (150 files) + `src/kernel/`:
    also in the object list). Both implement drag/resize/desktops. The
    hosted boot path only calls `dosgui_wm_init`; `wubu_wm` is effectively a
    second, competing implementation.
+   **RESOLUTION:** these are NOT two WMs fighting — they are two
+   ARCHITECTURAL TRACKS. `dosgui_wm` is the canonical Win98-shell for the
+   hosted/Wayland-surface boot (hosted.c + hosted_wayland_surface.c both call
+   `dosgui_wm_init`). `wubu_wm`/`wubu_compositor_standalone` is a separate,
+   standalone Wayland-compositor implementation with its OWN run loop —
+   the native/Wayland-migration future path (a real WuBuOS direction, not
+   dead code). They never init together; `dosgui_wm` is the canonical hosted
+   shell and stays that way.
 2. **TWO theme engines.** `src/gui/wubu_theme.*` (THEME_COUNT=5, the applied
    colors used by `tc()`) AND `src/kernel/wubu_theme.*` (KTHEME, a writable
    `/theme` node tree). They don't call each other; the GUI colors struct and
