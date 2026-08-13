@@ -123,6 +123,11 @@ const WubuThemeColors *wubu_theme_colors(void);
 /* Get full theme struct */
 const WubuTheme *wubu_theme_get(void);
 
+/* Bridge the kernel /theme namespace into the live render colors: overlay
+ * every kernel node onto the applied theme. Call after the AGI/console
+ * writes a /theme node. Returns nodes applied. */
+int wubu_theme_sync_from_kernel(void);
+
 /* Cycle to next theme */
 void wubu_theme_cycle(void);
 

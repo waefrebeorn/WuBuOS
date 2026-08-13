@@ -829,6 +829,15 @@ test_theme_hid:
 		-o $(KERNEL)/test_theme_hid
 	$(KERNEL)/test_theme_hid
 
+# Kernel /theme namespace -> GUI render bridge (the AGI write surface feeds
+# the live GUI colors; hosted build links only the GUI theme, so the kernel
+# node layer is stubbed exactly as test_theme_hid models it).
+test_theme_bridge:
+	$(CC) -O0 -g -std=c11 -I$(GUI) \
+		$(GUI)/wubu_theme.c $(GUI)/wubu_theme_bridge_test.c \
+		-o $(GUI)/wubu_theme_bridge_test
+	$(GUI)/wubu_theme_bridge_test
+
 # ── Aggregate checks (gap F7: one command runs everything) ──────────
 .PHONY: check
 check:

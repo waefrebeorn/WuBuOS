@@ -245,8 +245,20 @@ static const WubuTheme g_themes[THEME_COUNT] = {
 
 static WubuThemeId g_current = THEME_WIN98_CLASSIC;
 
+/* LIVE colors: the base theme colors copied out, then overlaid by any
+ * kernel /theme node writes. Renderers read these (via wubu_theme_colors),
+ * so "the AGI writes a node and the next frame re-renders" actually works.
+ * This is the bridge between the GUI static table and the kernel's writable
+ * /theme namespace — one write surface (the AGI/console), one render read. */
+static WubuThemeColors g_live;
+
+static void live_seed_from_current(void) {
+    g_live = g_themes[g_current].colors;
+}
+
 int wubu_theme_init(void) {
     g_current = THEME_WIN98_CLASSIC;
+    live_seed_from_current();
     return 0;
 }
 
@@ -259,12 +271,42 @@ WubuThemeId wubu_theme_current(void) {
 }
 
 void wubu_theme_set(WubuThemeId id) {
-    if (id >= 0 && id < THEME_COUNT)
+    if (id >= 0 && id < THEME_COUNT) {
         g_current = id;
+        live_seed_from_current();
+    }
+}
+
+/* Overlay every kernel /theme node onto the live colors (the AGI write
+ * surface -> the render struct). Returns the number of nodes applied.
+ * The kernel node API may not be linked in GUI-only builds, so it's a
+ * weak reference: when the kernel theme engine is absent (hosted GUI
+ * tests), this returns 0 and the base theme stands. */
+extern __attribute__((weak)) int wubu_theme_node_get(const char *, uint32_t *);
+
+int wubu_theme_sync_from_kernel(void) {
+    uint32_t v;
+    int applied = 0;
+    if (!wubu_theme_node_get) return 0;
+#define SYNC(path, field) \
+    if (wubu_theme_node_get(path, &v) == 0) { g_live.field = v; applied++; }
+    SYNC("/theme/desktop/bg",          desktop_bg);
+    SYNC("/theme/win/face",            win_face);
+    SYNC("/theme/win/title_active",    win_title_active);
+    SYNC("/theme/win/title_text",      win_title_text);
+    SYNC("/theme/border/light",        border_light);
+    SYNC("/theme/border/dark",         border_dark);
+    SYNC("/theme/btn/face",            btn_face);
+    SYNC("/theme/btn/text",            btn_text);
+    SYNC("/theme/taskbar/bg",          taskbar_bg);
+    SYNC("/theme/select/bg",           select_bg);
+    SYNC("/theme/select/text",         select_text);
+#undef SYNC
+    return applied;
 }
 
 const WubuThemeColors *wubu_theme_colors(void) {
-    return &g_themes[g_current].colors;
+    return &g_live;
 }
 
 const WubuTheme *wubu_theme_get(void) {
@@ -272,7 +314,7 @@ const WubuTheme *wubu_theme_get(void) {
 }
 
 void wubu_theme_cycle(void) {
-    g_current = (WubuThemeId)((g_current + 1) % THEME_COUNT);
+    wubu_theme_set((WubuThemeId)((g_current + 1) % THEME_COUNT));
 }
 
 const char *wubu_theme_name(WubuThemeId id) {
