@@ -105,6 +105,50 @@ static HCType *resolve_var_type(HCGen *gen, const char *name)
     return NULL;
 }
 
+/* static type of an expression node: IDENT → symbol-table type; MEMBER →
+ * the member's declared type; ARROW → pointee member type; INDEX → element
+ * type; DEREF → pointee type. Used so nested access like q.p.x can resolve
+ * x's offset inside struct P (the parser doesn't attach types to nodes). */
+static HCType *expr_static_type(HCGen *gen, const HCASTNode *node)
+{
+    if (!node) return NULL;
+    switch (node->kind) {
+        case HC_AST_IDENT:
+            return resolve_var_type(gen, node->ident);
+        case HC_AST_MEMBER: {
+            HCType *bt = expr_static_type(gen, node->left);
+            if (bt && bt->kind == HC_TYPE_STRUCT) {
+                for (int i = 0; i < bt->n_members; i++)
+                    if (strcmp(bt->members[i].name, node->ident) == 0)
+                        return bt->members[i].type;
+            }
+            return NULL;
+        }
+        case HC_AST_ARROW: {
+            HCType *bt = expr_static_type(gen, node->left);
+            if (bt && bt->kind == HC_TYPE_PTR && bt->base && bt->base->kind == HC_TYPE_STRUCT) {
+                for (int i = 0; i < bt->base->n_members; i++)
+                    if (strcmp(bt->base->members[i].name, node->ident) == 0)
+                        return bt->base->members[i].type;
+            }
+            return NULL;
+        }
+        case HC_AST_INDEX: {
+            HCType *bt = expr_static_type(gen, node->left);
+            if (bt && (bt->kind == HC_TYPE_ARRAY || bt->kind == HC_TYPE_PTR) && bt->base)
+                return bt->base;
+            return NULL;
+        }
+        case HC_AST_DEREF: {
+            HCType *bt = expr_static_type(gen, node->child);
+            if (bt && bt->kind == HC_TYPE_PTR && bt->base) return bt->base;
+            return NULL;
+        }
+        default:
+            return NULL;
+    }
+}
+
 /* load `rax = var` — RIP-relative for globals, [rbp-off] for locals */
 static void emit_var_load(HCGen *gen, int off, int is_global)
 {
@@ -1136,9 +1180,7 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* rax now contains base address */
             /* Find member offset — resolve the base's struct type from the
              * symbol table (the parser doesn't attach types to IDENTs). */
-            HCType *btype = node->left->type;
-            if (!btype && node->left->kind == HC_AST_IDENT)
-                btype = resolve_var_type(gen, node->left->ident);
+            HCType *btype = expr_static_type(gen, node->left);
             if (btype && btype->kind == HC_TYPE_STRUCT) {
                 HCType *st = btype;
                 bool found = false;
@@ -1167,9 +1209,7 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
              * IS the address); a struct-VALUE ident would decay to &s. */
             emit_base_addr(gen, node->left);
             /* rax now contains base address (already a pointer) */
-            HCType *btype = node->left->type;
-            if (!btype && node->left->kind == HC_AST_IDENT)
-                btype = resolve_var_type(gen, node->left->ident);
+            HCType *btype = expr_static_type(gen, node->left);
             HCType *st = NULL;
             if (btype && btype->kind == HC_TYPE_PTR && btype->base && btype->base->kind == HC_TYPE_STRUCT)
                 st = btype->base;
