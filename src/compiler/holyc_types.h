@@ -64,7 +64,7 @@ typedef enum {
     HC_KW_CONST,
     HC_KW_VOLATILE,
     HC_KW_INLINE,
-    HC_KW_UNUSED,  /* dummy to keep enum open */
+    HC_KW_SIZEOF,  /* dummy to keep enum open (was HC_KW_UNUSED) */
 
     /* Operators */
     HC_TOK_PLUS,
@@ -210,6 +210,7 @@ typedef enum {
     HC_AST_GE,
     HC_AST_UNARY,
     HC_AST_CAST,
+    HC_AST_SIZEOF,   /* sizeof(type) / sizeof expr — emits the type size as a literal */
     HC_AST_CALL,
     HC_AST_FUNC_CALL,
     HC_AST_INDEX,
@@ -229,6 +230,8 @@ typedef enum {
     HC_AST_WHILE,
     HC_AST_FOR,
     HC_AST_DO_WHILE,
+    HC_AST_SWITCH,     /* switch(expr){case..} — cond=expr, body=block of CASE */
+    HC_AST_CASE,       /* case VAL: — cond=value expr (NULL=default), body=stmts */
     HC_AST_BLOCK,
     HC_AST_VAR_DECL,
     HC_AST_FUNC_DECL,

@@ -85,8 +85,15 @@ void emit_setcc(HCGen *gen, uint8_t set_op);
 
 /* -- Jump Emission (5-byte, always patchable) --------------------- */
 
-size_t emit_jcc_placeholder(HCGen *gen, uint8_t cc);
 size_t emit_jmp_placeholder(HCGen *gen);
+size_t emit_jcc_placeholder(HCGen *gen, uint8_t cc);
+
+/* switch dispatch helpers */
+void emit_push_rax(HCGen *gen);
+void emit_pop_rax(HCGen *gen);
+void emit_cmp_rax_mem_rsp(HCGen *gen);
+void emit_mov_rax_mem_rsp(HCGen *gen);
+void emit_add_rsp_8(HCGen *gen);
 
 /* Condition codes for Jcc */
 #define CC_O  0

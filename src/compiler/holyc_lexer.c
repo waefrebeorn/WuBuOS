@@ -76,6 +76,7 @@ static const HCKeyword hc_keywords[] = {
     {"const",    HC_KW_CONST},
     {"volatile", HC_KW_VOLATILE},
     {"inline",   HC_KW_INLINE},
+    {"sizeof",   HC_KW_SIZEOF},
 };
 
 #define N_KEYWORDS (sizeof(hc_keywords) / sizeof(hc_keywords[0]))

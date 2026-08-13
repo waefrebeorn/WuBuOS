@@ -800,6 +800,19 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             break;
         }
 
+        /* sizeof(type) or sizeof expr — emit the size as a constant. */
+        case HC_AST_SIZEOF: {
+            size_t sz = 0;
+            if (node->type) {
+                sz = hc_type_size(node->type);
+            } else {
+                HCType *st = node->child ? expr_static_type(gen, node->child) : NULL;
+                sz = st ? hc_type_size(st) : 8;   /* default I64 size */
+            }
+            emit_mov_rax_imm64(gen, (int64_t)sz);
+            break;
+        }
+
         /* Array index: expr[index] */
         case HC_AST_INDEX: {
             /* Determine element scale: char/byte arrays index by 1, wider

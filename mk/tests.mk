@@ -82,7 +82,7 @@ test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx
+test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
@@ -131,6 +131,14 @@ test_fat32: $(KERNEL)/fat32.o
 test_holyc: $(JIT_OBJS)
 	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyc_runtime.c $(COMP)/holyc_test.c -o $(COMP)/holyc_test -ldl
 	$(COMP)/holyc_test
+
+# the SELF-HOSTING GAP ENUMERATOR: runs every C11 construct the kernel +
+# desktop need through hc_eval in a forked child (crash-isolated). The
+# source of truth for compiler completeness. Battery count grows as we
+# close gaps (currently 91 probes: arithmetic through sizeof + switch).
+test_battery: $(JIT_OBJS)
+	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyc_runtime.c tools/selfhost_battery.c -o $(COMP)/selfhost_battery -ldl
+	$(COMP)/selfhost_battery
 
 # Tailslayer DRAM-refresh hedge gate: proves the software-prefetch
 # (prefetchnta) is emitted before every class of memory load the JIT

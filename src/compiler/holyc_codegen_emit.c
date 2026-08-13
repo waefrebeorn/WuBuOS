@@ -332,3 +332,22 @@ size_t emit_jmp_placeholder(HCGen *gen) {
     emit_dword(gen, 0);  /* placeholder */
     return patch_pos;
 }
+
+/* switch dispatch helpers */
+void emit_push_rax(HCGen *gen)     { emit_byte(gen, 0x50); }
+void emit_pop_rax(HCGen *gen)      { emit_byte(gen, 0x58); }
+/* cmp rax, [rsp]  — 48 39 04 24 */
+void emit_cmp_rax_mem_rsp(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x39);
+    emit_byte(gen, 0x04); emit_byte(gen, 0x24);
+}
+/* mov rax, [rsp]  — 48 8B 04 24 */
+void emit_mov_rax_mem_rsp(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x8B);
+    emit_byte(gen, 0x04); emit_byte(gen, 0x24);
+}
+/* add rsp, 8  — 48 83 C4 08 */
+void emit_add_rsp_8(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x83);
+    emit_byte(gen, 0xC4); emit_byte(gen, 0x08);
+}

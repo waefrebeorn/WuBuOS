@@ -116,6 +116,21 @@ static const Probe PROBES[] = {
     {"func ptr assign", "int add(int a,int b){return a+b;} int (*op)(int,int)=add; op(20,22);", 42},
     {"func ptr self", "int f(int x){int (*sq)(int)=f; return x;} f(5);", 5},
     {"bare func name as value", "int add(int a,int b){return a+b;} add;", 0, 1},  /* addr, nonzero */
+    /* ---- sizeof ---- */
+    {"sizeof int", "sizeof(int);", 4},
+    {"sizeof char", "sizeof(char);", 1},
+    {"sizeof struct", "struct S{int a;int b;}; sizeof(struct S);", 8},
+    {"sizeof var", "int x; sizeof(x);", 4},
+    {"sizeof array", "int a[3]; sizeof a;", 12},
+    {"sizeof member", "struct S{int a;int b;}; struct S s; sizeof(s.a);", 4},
+    {"sizeof nested struct", "struct P{int a;}; struct Q{struct P p; int b;}; sizeof(struct Q);", 8},
+    /* ---- switch ---- */
+    {"switch match", "int x=2; int r=0; switch(x){case 1:r=10;break;case 2:r=42;break;default:r=7;} r;", 42},
+    {"switch default", "int x=9; int r=0; switch(x){case 1:r=10;break;case 2:r=42;break;default:r=7;} r;", 7},
+    {"switch no-default no-match", "int x=9; int r=5; switch(x){case 1:r=10;break;case 2:r=42;break;} r;", 5},
+    {"switch fallthrough", "int x=1; int r=0; switch(x){case 1:r=41;case 2:r=42;break;} r;", 42},
+    {"switch expr case", "int x=2; int r=0; switch(x){case 1:r=10;break;case 1+1:r=30;break;} r;", 30},
+    {"switch in func", "int f(int a){int r=0; switch(a){case 3:r=5;break;case 4:r=6;break;default:r=0;} return r;} f(3);", 5},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))

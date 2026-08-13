@@ -288,6 +288,10 @@ struct_done:
 
 /* -- Parse Primary ------------------------------------------------ */
 
+/* sizeof expr parses a cast; declared here so parse_primary can use it
+ * before parse_cast's later forward-declaration. */
+static HCASTNode *parse_cast(HCParser *p);
+
 static HCASTNode *parse_primary(HCParser *p) {
     /* An enum constant ident is an int literal: `GREEN` → 1. */
     if (peek(p) == HC_TOK_IDENT) {
@@ -337,6 +341,30 @@ static HCASTNode *parse_primary(HCParser *p) {
             HCASTNode *n = hc_ast_new(HC_AST_IDENT);
             strncpy(n->ident, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
             advance(p);
+            return n;
+        }
+        case HC_KW_SIZEOF: {
+            /* sizeof(type) or sizeof expr — emit the type size as a literal.
+             * After '(': if it's a type keyword, parse the type; otherwise
+             * parse the inner expression and expect ')'. No backtracking —
+             * capturing lex->pos mid-token points past the token, so a
+             * pos-restore lands on the wrong char. */
+            advance(p); /* sizeof */
+            HCASTNode *n = hc_ast_new(HC_AST_SIZEOF);
+            if (peek(p) == HC_TOK_LPAREN) {
+                advance(p); /* ( */
+                int t = peek(p);
+                int is_type_kw = (t >= HC_KW_I0 && t <= HC_KW_VOLATILE);
+                if (is_type_kw) {
+                    n->type = parse_type(p);
+                    expect(p, HC_TOK_RPAREN);
+                    return n;
+                }
+                n->child = parse_expr(p);     /* sizeof (expr) */
+                expect(p, HC_TOK_RPAREN);
+                return n;
+            }
+            n->child = parse_cast(p);   /* sizeof expr (no parens) */
             return n;
         }
         case HC_TOK_LPAREN: {
@@ -719,6 +747,44 @@ static HCASTNode *parse_stmt(HCParser *p) {
             n->cond = NULL;  /* infinite loop if no while-clause */
         }
         match(p, HC_TOK_SEMI);
+        return n;
+    }
+
+    /* Switch statement: switch(expr) { case VAL: ... default: ... } */
+    if (match(p, HC_KW_SWITCH)) {
+        HCASTNode *n = hc_ast_new(HC_AST_SWITCH);
+        expect(p, HC_TOK_LPAREN);
+        n->cond = parse_expr(p);
+        expect(p, HC_TOK_RPAREN);
+        /* Parse the body as a sequence of case/default labels + statements.
+         * We collect case nodes (cond=value or NULL for default) in n->body's
+         * stmts array. */
+        HCASTNode *body = hc_ast_new(HC_AST_BLOCK);
+        expect(p, HC_TOK_LBRACE);
+        HCASTNode *current = NULL;   /* the case node being filled */
+        while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
+            if (match(p, HC_KW_CASE)) {
+                current = hc_ast_new(HC_AST_CASE);
+                current->cond = parse_expr(p);
+                expect(p, HC_TOK_COLON);
+                current->body = hc_ast_new(HC_AST_BLOCK);
+                hc_ast_add_stmt(body, current);
+            } else if (match(p, HC_KW_DEFAULT)) {
+                expect(p, HC_TOK_COLON);
+                current = hc_ast_new(HC_AST_CASE);
+                current->cond = NULL;   /* default */
+                current->body = hc_ast_new(HC_AST_BLOCK);
+                hc_ast_add_stmt(body, current);
+            } else {
+                if (!current) {
+                    parse_error(p, "statement before first case in switch");
+                    break;
+                }
+                hc_ast_add_stmt(current->body, parse_stmt(p));
+            }
+        }
+        expect(p, HC_TOK_RBRACE);
+        n->body = body;
         return n;
     }
 

@@ -102,3 +102,4 @@ build/
 *.gch
 src/compiler/holyc
 src/compiler/hedge_verify
+src/compiler/selfhost_battery

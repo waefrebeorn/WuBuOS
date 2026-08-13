@@ -442,6 +442,98 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
             }
             break;
 
+        /* switch(expr){ case V: ... default: ... }
+         *   eval expr -> rax
+         *   push rax                    ; [rsp] = switch value
+         *   ; dispatch chain — one per case:
+         *   ;   eval case value -> rax
+         *   ;   mov rdi, [rsp]          ; rdi = switch value
+         *   ;   cmp rdi, rax            ; equality (order irrelevant)
+         *   ;   je case_body_i          ; (patched to inline body)
+         *   ; (no match)
+         *   ;   jmp default_body  (or end if no default)
+         *   case_body_0: ... (contiguous, fallthrough naturally)
+         *   case_body_1: ...
+         *   default_body: ...
+         *   end: add rsp, 8             ; pop switch value
+         * Break inside a case jumps to end (via break_patches at this depth).
+         */
+        case HC_AST_SWITCH: {
+            int depth = gen->loop_depth;
+            gen->loop_depth++;
+            gen->n_break_patches[depth] = 0;
+            gen->n_continue_patches[depth] = 0;
+
+            gen_expr(gen, node->cond);      /* rax = switch value */
+            emit_push_rax(gen);             /* [rsp] = switch value */
+
+            HCASTNode *body = node->body;   /* block of CASE nodes */
+            int n_cases = body ? body->n_stmts : 0;
+            size_t je_patches[64];
+            int n_je = 0;
+
+            /* Dispatch chain — one compare+je per case. Keep the switch
+             * value on [rsp] (the push above). Per case:
+             *   gen case value -> rax; mov rdi, rax; mov rax,[rsp]; cmp rdi,rax
+             * The case value may be a full expression (clobbers rax), so we
+             * move it to rdi BEFORE reloading the switch value into rax. */
+            for (int i = 0; i < n_cases; i++) {
+                HCASTNode *c = body->stmts[i];
+                if (c->kind == HC_AST_CASE && c->cond) {
+                    gen_expr(gen, c->cond);     /* rax = case value */
+                    emit_mov_rdi_rax(gen);      /* rdi = case value */
+                    emit_mov_rax_mem_rsp(gen);  /* rax = switch value */
+                    emit_cmp_rax_rdi(gen);      /* cmp rdi, rax (equality) */
+                    size_t je = emit_jcc_placeholder(gen, CC_E);
+                    if (n_je < 64) je_patches[n_je++] = je;
+                }
+            }
+
+            /* no match: default or end */
+            int default_idx = -1;
+            for (int i = 0; i < n_cases; i++)
+                if (body->stmts[i]->kind == HC_AST_CASE && !body->stmts[i]->cond)
+                    default_idx = i;
+            size_t default_jmp = emit_jmp_placeholder(gen);  /* jmp default/end */
+
+            /* Pass 2: emit each case body inline (contiguous). Record the
+             * body start so the dispatch je can target it. */
+            size_t body_start[64];
+            for (int i = 0; i < n_cases; i++) {
+                body_start[i] = gen->code_size;
+                HCASTNode *c = body->stmts[i];
+                if (c->body)
+                    for (int s = 0; s < c->body->n_stmts; s++)
+                        gen_stmt(gen, c->body->stmts[s]);
+            }
+
+            size_t switch_end = gen->code_size;
+            emit_add_rsp_8(gen);            /* pop switch value */
+            switch_end = gen->code_size;    /* break targets AFTER the pop so
+                                             * every exit path balances rsp */
+
+            /* patch je targets */
+            int j = 0;
+            for (int i = 0; i < n_cases; i++)
+                if (body->stmts[i]->kind == HC_AST_CASE && body->stmts[i]->cond) {
+                    if (j < n_je) patch_rel32(gen, je_patches[j], body_start[i]);
+                    j++;
+                }
+            /* patch the no-match jmp -> default body or end */
+            patch_rel32(gen, default_jmp,
+                        (default_idx >= 0) ? body_start[default_idx] : switch_end);
+            /* patch breaks to switch_end */
+            for (int i = 0; i < gen->n_break_patches[depth]; i++)
+                patch_rel32(gen, gen->break_patches[depth][i], switch_end);
+            gen->loop_depth--;
+            break;
+        }
+
+        case HC_AST_CASE:
+            /* CASE nodes are only handled inside SWITCH; a stray one emits
+             * nothing (its body is emitted by the switch pass). */
+            break;
+
         case HC_AST_BREAK:
             /* Emit jump to loop end - will be patched when loop ends */
             if (gen->loop_depth > 0 && gen->loop_depth <= 10) {
