@@ -240,6 +240,7 @@ test_dos_proc: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(
 			$(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) \
 			$(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/wubu_ns_pkg_stub.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
 		$(RT)/styxfs_server.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(RT)/wubu_dos_proc_test.c \
@@ -689,6 +690,7 @@ test_dosgui_dos_window: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec
 		$(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_dos.c \
 		$(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/wubu_ns_pkg_stub.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
 		$(RT)/styxfs_server.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(GUI)/dosgui_dos_window.c $(GUI)/dosgui_dos_window_test.c $(GUI)/dosgui_dos_window_test_stub.c $(RT)/wubu_hc_eval_stub.c \
@@ -713,7 +715,8 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wub
 	$(APPS)/calc/calc_test
 
 test_dosgui_startmenu:
-			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_startmenu_db.c $(GUI)/dosgui_startmenu_search.c $(GUI)/dosgui_startmenu_tree.c $(GUI)/dosgui_startmenu_power.c $(GUI)/dosgui_era_apps.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_startmenu_test_stub.c $(GUI)/dosgui_startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c -o $(GUI)/dosgui_startmenu_test -lm
+			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) $(GUI)/dosgui_startmenu.c $(GUI)/dosgui_startmenu_db.c $(GUI)/dosgui_startmenu_search.c $(GUI)/dosgui_startmenu_tree.c $(GUI)/dosgui_startmenu_power.c $(GUI)/dosgui_era_apps.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_startmenu_test_stub.c $(GUI)/dosgui_startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
+			$(RT)/wubu_ns_pkg_stub.c -o $(GUI)/dosgui_startmenu_test -lm -ldl
 	$(GUI)/dosgui_startmenu_test
 
 # Era-apps launcher test: exercises the personality->exec routing in the
@@ -1149,6 +1152,7 @@ test_wubu_wm:
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(GUI)/wubu_theme.c $(GUI)/wubu_wm.c $(GUI)/wubu_wm_desktop.c $(GUI)/wubu_wm_input.c $(GUI)/wubu_wm_render.c \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/vbe.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/wubu_secmon.c $(RT)/wubu_wine_env.c \
 		$(GUI)/wubu_wm_test.c \
 		-o $(GUI)/wubu_wm_test
 	$(GUI)/wubu_wm_test

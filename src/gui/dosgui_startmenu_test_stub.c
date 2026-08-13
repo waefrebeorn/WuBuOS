@@ -5,6 +5,7 @@
 #include "dosgui_startmenu.h"
 #include "wubu_theme.h"
 #include "wubu_mime.h"
+#include "wubu_host_exec.h"
 #include <stdbool.h>
 
 /* Stub for taskbar height */
@@ -119,3 +120,11 @@ int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
 int64_t wubu_exec_holyc(const char *source, size_t source_size) {
     (void)source; (void)source_size; return -1;
 }
+/* mach-o backend + container isolation (referenced by era-apps; the test
+ * builds the program DB but never launches). Signatures match wubu_host_exec.h. */
+int64_t wubu_exec_macho(const void *macho, size_t macho_size) {
+    (void)macho; (void)macho_size; return -1;
+}
+void wubu_ct_destroy(WubuCt *ct) { (void)ct; }
+int  wubu_ct_start(WubuCt *ct) { (void)ct; return -1; }
+const char *wubu_ct_runtime_name(CtRuntime runtime) { (void)runtime; return "stub"; }
