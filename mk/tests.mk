@@ -170,7 +170,7 @@ test_runtime: $(KERNEL)/wubu_hive.c
 	$(RT)/wubu_runtime_test
 
 test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o
-	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyc_runtime.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o -o $(RT)/wubu_container_test -ldl \
+	$(CC) -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyc_runtime.c $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o $(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c -o $(RT)/wubu_container_test -ldl
 	$(RT)/wubu_container_test
 
 test_dos_emu: $(RT)/wubu_dos_emu.o
@@ -239,7 +239,7 @@ test_dos_proc: $(RT)/wubu_container.o $(RT)/wubu_exec.o $(RT)/wubu_exec_dos.o $(
 			$(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_dos.c \
 			$(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) \
 			$(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \ \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_ns_pkg_stub.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
 		$(RT)/styxfs_server.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
@@ -383,7 +383,8 @@ test_launch: $(RT)/wubu_container.o $(RT)/wubu_proton.o $(RT)/wubu_proton_dll.o 
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 		$(RT)/wubu_container.c $(RT)/wubu_proton.c $(RT)/wubu_proton_api.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_session.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \ \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_session.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
 		$(RT)/wubu_launch_test.c \
 		-o $(RT)/wubu_launch_test -ldl
 	$(RT)/wubu_launch_test
@@ -435,7 +436,7 @@ test_gui_screenshot: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o 
 $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.o $(GUI)/dosgui_wm_input.o $(GUI)/wubu_a11y.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/dosgui_wm_taskbar.c $(GUI)/dosgui_wm_desktop.c $(GUI)/dosgui_wm_icons.c $(GUI)/dosgui_wm_icon_glyphs.c $(GUI)/dosgui_wm_systray.c $(GUI)/dosgui_wm_ctxmenu.c $(GUI)/dosgui_wm_holyc_term.c $(GUI)/wubu_wm.c $(GUI)/wubu_wm_desktop.c $(GUI)/wubu_wm_input.c $(GUI)/wubu_wm_render.c $(HOSTED)/hosted.c $(HOSTED)/hosted_wayland.c $(HOSTED)/hosted_wayland_shm.o $(HOSTED)/hosted_wayland_input.o $(HOSTED)/hosted_wayland_surface.o $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
 		$(KERNEL)/memory.c $(KERNEL)/input.c $(KERNEL)/tasking.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S \
 		$(BRIDGE)/bridge.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(APPS)/repl.c $(APPS)/dosgui_apps.c $(APPS)/app_canvas.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \ \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_bwrap.c $(RT)/wubu_container.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_ns_pkg_stub.c
 		$(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o \
 		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
@@ -603,6 +604,7 @@ test_exec_games: $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_exec_games_
 		$(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
 		$(RT)/wubu_exec_dos.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_wasm.c \
 		$(RT)/wubu_host_exec.c $(KERNEL)/wubu_kvfs.c \
+		$(RT)/wubu_secmon.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
 		$(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
 		$(KERNEL)/wubu_pe.c $(KERNEL)/wubu_elf.c $(KERNEL)/wubu_macho.c \
 		$(KERNEL)/wubu_pe_personality.c \
@@ -776,14 +778,16 @@ test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
 
 test_host_exec:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
-		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \ \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \
+		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
 		-o $(RT)/wubu_host_exec_test
 	$(RT)/wubu_host_exec_test
 
 test_arch:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-	$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_spawn.c $(RT)/wubu_archd_util.c $(RT)/wubu_arch_test.c \ \
+	$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_spawn.c $(RT)/wubu_archd_util.c $(RT)/wubu_arch_test.c \
+		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
 		-o $(RT)/wubu_arch_test
 	$(RT)/wubu_arch_test
 
@@ -811,7 +815,8 @@ test_svc_super:
 test_ramdisk:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
 		-I$(RT) -I$(APPS) \
-		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \ \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
 		$(RT)/wubu_ramdisk_test.c \
 		-o $(RT)/wubu_ramdisk_test
 	$(RT)/wubu_ramdisk_test
@@ -1181,7 +1186,8 @@ test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(RT) \
 $(APPS)/wubu_editor.c $(APPS)/wubu_editor_bookmark.c $(APPS)/wubu_editor_macro.c $(APPS)/wubu_editor_undo.c $(APPS)/wubu_editor_selection.c $(APPS)/wubu_editor_find.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c $(RT)/wubu_spawn.c \
-		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \ \
+		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \
+		$(RT)/wubu_ns_pkg_stub.c \
 		$(APPS)/wubu_apps2_test.c \
 		-o $(APPS)/wubu_apps2_test -lz -lm
 	$(APPS)/wubu_apps2_test
@@ -1345,9 +1351,25 @@ test_ns_bridge:
 		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
-		$(RT)/wubu_spawn.c $(RT)/wubu_ns_bridge_test.c \
+		$(RT)/wubu_spawn.c $(RT)/wubu_gpu_backend.c $(RT)/wubu_ns_bridge_test.c \
+		$(RT)/wubu_hw_stub.c \
 		-o $(RT)/wubu_ns_bridge_test
 	$(RT)/wubu_ns_bridge_test
+
+test_ns_9p:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -DWUBD_TEST_MAIN \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_ns_9p_test.c $(RT)/wubu_ns_fs.c $(RT)/wubu_ns_bridge.c \
+		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_svc_super.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c \
+		$(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_fs_util.c \
+		$(RT)/wubu_container.c $(RT)/container/wubucontainer_registry.c \
+		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
+		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/wubu_spawn.c $(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_copy.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_ns_snap.c $(RT)/wubu_gpu_backend.c $(KERNEL)/memory.c \
+		$(RT)/wubu_hw_stub.c \
+		-o $(RT)/wubu_ns_9p_test
+	$(RT)/wubu_ns_9p_test
 
 test_ns_snap:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_snap_test.c -o /tmp/wubu_ns_snap_test.o
@@ -1476,30 +1498,6 @@ test_zip_extract:
 # Cached-object pattern rule: any kernel .c -> build/testobj/*.o
 	@mkdir -p $(CACHE)
 	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -no-pie -I$(KERNEL) -c $< -o $@
-
-# The full verified core module set (pre-compiled once).
-
-
-
-# ---- fast incremental kernel-test build (cached objects) ----
-
-# Cached-object pattern rule: any kernel .c -> build/testobj/*.o
-	@mkdir -p $(CACHE)
-	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -no-pie -I$(KERNEL) -c $< -o $@
-.PHONY: test_all
-test_all: test_hw_accel test_hw_adreno600 test_hw_adreno700 test_hw_aec test_hw_ampere test_hw_arctic_islands test_hw_audio test_hw_audiofw test_hw_auracast test_hw_backlight test_hw_backlightpwm test_hw_bap test_hw_bcache test_hw_bio test_hw_blkqos test_hw_bt test_hw_bta2dp test_hw_btamesh test_hw_btaudio test_hw_btbeacon test_hw_btclassic test_hw_bthfp test_hw_bus test_hw_calib test_hw_camera test_hw_can test_hw_chanmap test_hw_clock test_hw_cmb test_hw_codec test_hw_codecgraph test_hw_colormgmt test_hw_compress test_hw_compressor test_hw_compute test_hw_computectx test_hw_cuda test_hw_dapm test_hw_dapmwidget test_hw_dappath test_hw_dax test_hw_ddcci test_hw_decode test_hw_dedup test_hw_devmapper test_hw_display test_hw_dmcrypt test_hw_drm test_hw_drmx test_hw_dspgraph test_hw_dspmode test_hw_dsptrace test_hw_ducking test_hw_encode test_hw_eq test_hw_fantml test_hw_fbcon test_hw_fc test_hw_fence test_hw_fencesync test_hw_filter test_hw_fingerprint test_hw_fpga test_hw_fusefs test_hw_fw test_hw_gadget test_hw_gamepad test_hw_gamepadbm test_hw_gamepaddz test_hw_gpuband test_hw_gpucsched test_hw_gpudc test_hw_gpufw test_hw_gpufwupd test_hw_gpukms test_hw_gpumem test_hw_gpurst test_hw_gpusched test_hw_gpusensor test_hw_gpushader test_hw_gt2xx test_hw_hdr test_hw_hid test_hw_hidadv test_hw_hw_detect test_hw_ieccontrol test_hw_ima test_hw_input test_hw_instinct test_hw_intel_gma test_hw_intel_icelake test_hw_intel_skylake test_hw_intelgpu test_hw_ioprio test_hw_iosched test_hw_jack test_hw_jackdetect test_hw_jackimpedance test_hw_jackstate test_hw_kvfs test_hw_leaudio test_hw_leaudioldr test_hw_loudness test_hw_lvm test_hw_mali_g52 test_hw_mali_g720 test_hw_mali_g77 test_hw_mdraid test_hw_mem test_hw_memmgr test_hw_mixergraph test_hw_mixgraph test_hw_mmu test_hw_mst test_hw_multigig test_hw_navi10 test_hw_net test_hw_nfsclient test_hw_nfsmount test_hw_nicoffload test_hw_ns test_hw_nvidia_fermi test_hw_nvidia_kepler test_hw_nvidia_maxwell test_hw_nvidia_pascal test_hw_nvidia_turing test_hw_nvidia_volta test_hw_nvme_gen4 test_hw_nvme_gen5 test_hw_nvmehotplug test_hw_nvmepower test_hw_opencl test_hw_overclock test_hw_panel test_hw_pcipme test_hw_pcmlink test_hw_pcmplugin test_hw_pcmring test_hw_pd test_hw_pdpolicy test_hw_perf test_hw_perfmon test_hw_peripheral test_hw_phy test_hw_pm test_hw_pmicaudio test_hw_porttiming test_hw_power test_hw_powergate test_hw_powervr test_hw_probe test_hw_psr test_hw_ptp test_hw_ptp_sync test_hw_qos test_hw_quadro test_hw_radeon_5000 test_hw_radeon_6000 test_hw_radeon_legacy test_hw_raid test_hw_raid5 test_hw_raidcache test_hw_rdma test_hw_rendernode test_hw_renoir test_hw_rtc test_hw_samplerate test_hw_sata test_hw_securekey test_hw_sensor test_hw_smart test_hw_smc test_hw_smr test_hw_spdif test_hw_spdifrx test_hw_spdifstatus test_hw_spdiftx test_hw_storage test_hw_storagesched test_hw_switchdev test_hw_thermal test_hw_thermalthrottle test_hw_touch test_hw_tpm test_hw_trim test_hw_uac test_hw_uas test_hw_ucode test_hw_usb4 test_hw_usbf test_hw_vblank test_hw_vc4 test_hw_vc6 test_hw_vega test_hw_video test_hw_virt test_hw_vlanaudio test_hw_volcanic_islands test_hw_voltagectl test_hw_vpudecode test_hw_vpuencode test_hw_vram test_hw_vrr test_hw_vulkan14 test_hw_wifi7 test_hw_wifi_reg test_hw_wifiutil test_hw_writeback test_hw_xe3 test_hw_znszone test_hw_zoneappend test_hw_zonecap test_hw_zoned test_hw_zonefmt test_hw_zonseqwrite
-
-# The full verified core module set (pre-compiled once).
-
-
-
-# ---- fast incremental kernel-test build (cached objects) ----
-
-# Cached-object pattern rule: any kernel .c -> build/testobj/*.o
-	@mkdir -p $(CACHE)
-	$(CC) -O0 -g -std=c11 -D_GNU_SOURCE -no-pie -I$(KERNEL) -c $< -o $@
-.PHONY: test_all
-test_all: test_hw_accel test_hw_adreno600 test_hw_adreno700 test_hw_aec test_hw_ampere test_hw_arctic_islands test_hw_audio test_hw_audiofw test_hw_auracast test_hw_backlight test_hw_backlightpwm test_hw_bap test_hw_bcache test_hw_bio test_hw_blkqos test_hw_bt test_hw_bta2dp test_hw_btamesh test_hw_btaudio test_hw_btbeacon test_hw_btclassic test_hw_bthfp test_hw_bus test_hw_calib test_hw_camera test_hw_can test_hw_chanmap test_hw_clock test_hw_cmb test_hw_codec test_hw_codecgraph test_hw_colormgmt test_hw_compress test_hw_compressor test_hw_compute test_hw_computectx test_hw_cuda test_hw_dapm test_hw_dapmwidget test_hw_dappath test_hw_dax test_hw_ddcci test_hw_decode test_hw_dedup test_hw_devmapper test_hw_display test_hw_dmcrypt test_hw_drm test_hw_drmx test_hw_dspgraph test_hw_dspmode test_hw_dsptrace test_hw_ducking test_hw_encode test_hw_eq test_hw_fantml test_hw_fbcon test_hw_fc test_hw_fence test_hw_fencesync test_hw_filter test_hw_fingerprint test_hw_fpga test_hw_fusefs test_hw_fw test_hw_gadget test_hw_gamepad test_hw_gamepadbm test_hw_gamepaddz test_hw_gpuband test_hw_gpucsched test_hw_gpudc test_hw_gpufw test_hw_gpufwupd test_hw_gpukms test_hw_gpumem test_hw_gpurst test_hw_gpusched test_hw_gpusensor test_hw_gpushader test_hw_gt2xx test_hw_hdr test_hw_hid test_hw_hidadv test_hw_hw_detect test_hw_ieccontrol test_hw_ima test_hw_input test_hw_instinct test_hw_intel_gma test_hw_intel_icelake test_hw_intel_skylake test_hw_intelgpu test_hw_ioprio test_hw_iosched test_hw_jack test_hw_jackdetect test_hw_jackimpedance test_hw_jackstate test_hw_kvfs test_hw_leaudio test_hw_leaudioldr test_hw_loudness test_hw_lvm test_hw_mali_g52 test_hw_mali_g720 test_hw_mali_g77 test_hw_mdraid test_hw_mem test_hw_memmgr test_hw_mixergraph test_hw_mixgraph test_hw_mmu test_hw_mst test_hw_multigig test_hw_navi10 test_hw_net test_hw_nfsclient test_hw_nfsmount test_hw_nicoffload test_hw_ns test_hw_nvidia_fermi test_hw_nvidia_kepler test_hw_nvidia_maxwell test_hw_nvidia_pascal test_hw_nvidia_turing test_hw_nvidia_volta test_hw_nvme_gen4 test_hw_nvme_gen5 test_hw_nvmehotplug test_hw_nvmepower test_hw_opencl test_hw_overclock test_hw_panel test_hw_pcipme test_hw_pcmlink test_hw_pcmplugin test_hw_pcmring test_hw_pd test_hw_pdpolicy test_hw_perf test_hw_perfmon test_hw_peripheral test_hw_phy test_hw_pm test_hw_pmicaudio test_hw_porttiming test_hw_power test_hw_powergate test_hw_powervr test_hw_probe test_hw_psr test_hw_ptp test_hw_ptp_sync test_hw_qos test_hw_quadro test_hw_radeon_5000 test_hw_radeon_6000 test_hw_radeon_legacy test_hw_raid test_hw_raid5 test_hw_raidcache test_hw_rdma test_hw_rendernode test_hw_renoir test_hw_rtc test_hw_samplerate test_hw_sata test_hw_securekey test_hw_sensor test_hw_smart test_hw_smc test_hw_smr test_hw_spdif test_hw_spdifrx test_hw_spdifstatus test_hw_spdiftx test_hw_storage test_hw_storagesched test_hw_switchdev test_hw_thermal test_hw_thermalthrottle test_hw_touch test_hw_tpm test_hw_trim test_hw_uac test_hw_uas test_hw_ucode test_hw_usb4 test_hw_usbf test_hw_vblank test_hw_vc4 test_hw_vc6 test_hw_vega test_hw_video test_hw_virt test_hw_vlanaudio test_hw_volcanic_islands test_hw_voltagectl test_hw_vpudecode test_hw_vpuencode test_hw_vram test_hw_vrr test_hw_vulkan14 test_hw_wifi7 test_hw_wifi_reg test_hw_wifiutil test_hw_writeback test_hw_xe3 test_hw_znszone test_hw_zoneappend test_hw_zonecap test_hw_zoned test_hw_zonefmt test_hw_zonseqwrite
 
 # The full verified core module set (pre-compiled once).
 

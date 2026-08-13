@@ -19,3 +19,8 @@ const char *wubu_hw_vulkan_icd(void) { return 0; }
 const char *wubu_hw_gpu_path(void) { return 0; }
 const char *wubu_hw_vulkan_icd_chain(void) { return 0; }
 int  wubu_hw_detect(void) { return 0; }
+
+/* GPU backend probes (kernel-level in wubu_drv_gpu.c; stubs for tests) */
+const char *wubu_hw_platform(void) { return "linux"; }
+int  wubu_gpu_present_wsl(void) { return 0; }
+int  wubu_gpu_vram_mb(void) { return 0; }
