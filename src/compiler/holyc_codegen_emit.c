@@ -110,6 +110,41 @@ void emit_udiv_rax_rdi(HCGen *gen) {
     emit_byte(gen, 0xF7);  /* div rdi */
 }
 
+/* emit_mod_rax_rdi: rax %= rdi. cqo; idiv rdi leaves the remainder in
+ * rdx; move it back to rax. (Matches HC_AST_MOD's div-then-mov-rdx.) */
+void emit_mod_rax_rdi(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x99);   /* cqo (rdx:rax = rax) */
+    emit_byte(gen, 0x48); emit_byte(gen, 0xF7); emit_byte(gen, 0xFF); /* idiv rdi */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xD0); /* mov rax, rdx */
+}
+
+/* emit_shl_rax_rdi: rax <<= (rdi & 0x3f). Shift count must be in cl. */
+void emit_shl_rax_rdi(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF9); /* mov rcx, rdi */
+    emit_byte(gen, 0x48); emit_byte(gen, 0xD3); emit_byte(gen, 0xE0); /* shl rax, cl */
+}
+
+/* emit_shr_rax_rdi: rax >>= (rdi & 0x3f). Shift count must be in cl. */
+void emit_shr_rax_rdi(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xF9); /* mov rcx, rdi */
+    emit_byte(gen, 0x48); emit_byte(gen, 0xD3); emit_byte(gen, 0xE8); /* shr rax, cl */
+}
+
+/* emit_and_rax_rdi: rax &= rdi */
+void emit_and_rax_rdi(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x21); emit_byte(gen, 0xF8);
+}
+
+/* emit_or_rax_rdi: rax |= rdi */
+void emit_or_rax_rdi(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x09); emit_byte(gen, 0xF8);
+}
+
+/* emit_xor_rax_rdi: rax ^= rdi */
+void emit_xor_rax_rdi(HCGen *gen) {
+    emit_byte(gen, 0x48); emit_byte(gen, 0x31); emit_byte(gen, 0xF8);
+}
+
 void emit_xchg_rax_rdi(HCGen *gen) {
     emit_byte(gen, 0x48); emit_byte(gen, 0x87); emit_byte(gen, 0xF8);
 }

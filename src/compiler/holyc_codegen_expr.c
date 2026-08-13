@@ -58,6 +58,62 @@ void emit_global_store_rax(HCGen *gen, size_t global_offset) {
     }
 }
 
+/* ---- shared variable load/store for ASSIGN + compound-assigns ----
+ * A variable's symbol-table `stack_offset` is either POSITIVE (a stack
+ * local inside a function body) or NON-POSITIVE (a module-level global
+ * in the data section; `off <= 0` means `global_offset = -off`). The
+ * IDENT-load / Inc/Dec / &x paths already dispatch on `off <= 0` to the
+ * RIP-relative emitters; ASSIGN and every compound-assign used to emit
+ * `mov [rbp-off]` unconditionally — writing to a garbage high stack slot
+ * for globals → heap corruption + SIGSEGV in hc_eval's free(). */
+
+/* resolve a named variable: returns 1 if found, sets off (stack) or
+ * *is_global (with global_offset = -off). Creates an implicit local on
+ * first assignment if absent. */
+static int resolve_var(HCGen *gen, const char *name, int *off, int *is_global)
+{
+    for (int i = 0; i < gen->symbols.n_locals; i++) {
+        if (strcmp(gen->symbols.locals[i].name, name) == 0) {
+            *off = gen->symbols.locals[i].stack_offset;
+            *is_global = (*off <= 0);
+            return 1;
+        }
+    }
+    /* implicit declaration on first assignment → a new stack local */
+    *off = gen->symbols.stack_size + 8;
+    gen->symbols.stack_size += 8;
+    *is_global = 0;
+    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
+        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
+                name, HC_MAX_IDENT_LEN - 1);
+        gen->symbols.locals[gen->symbols.n_locals].stack_offset = *off;
+        gen->symbols.n_locals++;
+    }
+    return 1;
+}
+
+/* load `rax = var` — RIP-relative for globals, [rbp-off] for locals */
+static void emit_var_load(HCGen *gen, int off, int is_global)
+{
+    if (is_global) {
+        emit_global_load_rax(gen, (size_t)(-off));
+    } else {
+        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+    }
+}
+
+/* store `rax -> var` — RIP-relative for globals, [rbp-off] for locals */
+static void emit_var_store(HCGen *gen, int off, int is_global)
+{
+    if (is_global) {
+        emit_global_store_rax(gen, (size_t)(-off));
+    } else {
+        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+    }
+}
+
 /* ====================================================================
  * EXPRESSION GENERATION
  * ==================================================================== */
@@ -632,172 +688,54 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* Right-hand side → rax, then store to left-hand side */
             gen_expr(gen, node->right);
             if (node->left && node->left->kind == HC_AST_IDENT) {
-                /* Look up variable in symbol table */
-                bool found = false;
-                int off = 0;
-                for (int i = 0; i < gen->symbols.n_locals; i++) {
-                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
-                        off = gen->symbols.locals[i].stack_offset;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    /* Implicit variable declaration on first assignment */
-                    off = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += 8;
-                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
-                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
-                                node->left->ident, HC_MAX_IDENT_LEN - 1);
-                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
-                        gen->symbols.n_locals++;
-                    }
-                }
-                /* mov [rbp - off], rax: 48 89 85 disp32 */
-                emit_byte(gen, 0x48); /* REX.W */
-                emit_byte(gen, 0x89); /* mov */
-                emit_byte(gen, 0x85); /* [rbp+disp32] */
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                int off = 0, is_global = 0;
+                resolve_var(gen, node->left->ident, &off, &is_global);
+                emit_var_store(gen, off, is_global);
             }
             break;
 
-        /* Compound assignments: x += y means x = x + y */
+        /* Compound assignments: x op= y means x = x op y. Unified with
+         * the shared resolve/load/store helpers so a GLOBAL (module-level
+         * var, off<=0) is accessed RIP-relative — the old per-op code
+         * emitted `mov [rbp-off]` unconditionally and corrupted the stack
+         * for globals. Covers all 10 ops (+= -= *= /= %= <<= >>= &= |= ^=). */
         case HC_AST_ADD_ASSIGN:
-            if (node->left && node->left->kind == HC_AST_IDENT) {
-                /* Load current value of left var (with implicit declaration) */
-                bool found = false;
-                int off = 0;
-                for (int i = 0; i < gen->symbols.n_locals; i++) {
-                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
-                        off = gen->symbols.locals[i].stack_offset;
-                        /* mov rax, [rbp - off] with disp32: 48 8B 85 disp32 */
-                        emit_byte(gen, 0x48);
-                        emit_byte(gen, 0x8B);
-                        emit_byte(gen, 0x85);
-                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    /* Implicit declaration - initialize to 0 */
-                    off = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += 8;
-                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
-                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
-                                node->left->ident, HC_MAX_IDENT_LEN - 1);
-                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
-                        gen->symbols.n_locals++;
-                    }
-                    emit_mov_rax_imm64(gen, 0);
-                }
-                /* Add right-hand side */
-                emit_mov_rdi_rax(gen);
-                gen_expr(gen, node->right);
-                emit_xchg_rax_rdi(gen);
-                emit_add_rax_rdi(gen);
-                /* Store back */
-                /* mov [rbp - off], rax: 48 89 85 disp32 */
-                emit_byte(gen, 0x48); /* REX.W */
-                emit_byte(gen, 0x89); /* mov */
-                emit_byte(gen, 0x85); /* [rbp+disp32] */
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-            }
-            break;
-
         case HC_AST_SUB_ASSIGN:
-            if (node->left && node->left->kind == HC_AST_IDENT) {
-                bool found = false;
-                int off = 0;
-                for (int i = 0; i < gen->symbols.n_locals; i++) {
-                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
-                        off = gen->symbols.locals[i].stack_offset;
-                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    off = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += 8;
-                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
-                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
-                                node->left->ident, HC_MAX_IDENT_LEN - 1);
-                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
-                        gen->symbols.n_locals++;
-                    }
-                }
-                emit_mov_rdi_rax(gen);
-                gen_expr(gen, node->right);
-                emit_xchg_rax_rdi(gen);
-                emit_sub_rax_rdi(gen);
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-            }
-            break;
-
         case HC_AST_MUL_ASSIGN:
-            if (node->left && node->left->kind == HC_AST_IDENT) {
-                bool found = false;
-                int off = 0;
-                for (int i = 0; i < gen->symbols.n_locals; i++) {
-                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
-                        off = gen->symbols.locals[i].stack_offset;
-                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    off = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += 8;
-                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
-                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
-                                node->left->ident, HC_MAX_IDENT_LEN - 1);
-                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
-                        gen->symbols.n_locals++;
-                    }
-                }
-                emit_mov_rdi_rax(gen);
-                gen_expr(gen, node->right);
-                emit_xchg_rax_rdi(gen);
-                emit_mul_rax_rdi(gen);
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-            }
-            break;
-
         case HC_AST_DIV_ASSIGN:
+        case HC_AST_MOD_ASSIGN:
+        case HC_AST_SHL_ASSIGN:
+        case HC_AST_SHR_ASSIGN:
+        case HC_AST_AMP_ASSIGN:
+        case HC_AST_PIPE_ASSIGN:
+        case HC_AST_CARET_ASSIGN:
             if (node->left && node->left->kind == HC_AST_IDENT) {
-                bool found = false;
-                int off = 0;
-                for (int i = 0; i < gen->symbols.n_locals; i++) {
-                    if (strcmp(gen->symbols.locals[i].name, node->left->ident) == 0) {
-                        off = gen->symbols.locals[i].stack_offset;
-                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
-                        emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    off = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += 8;
-                    if (gen->symbols.n_locals < HC_MAX_LOCALS) {
-                        strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
-                                node->left->ident, HC_MAX_IDENT_LEN - 1);
-                        gen->symbols.locals[gen->symbols.n_locals].stack_offset = off;
-                        gen->symbols.n_locals++;
-                    }
-                }
+                int off = 0, is_global = 0;
+                resolve_var(gen, node->left->ident, &off, &is_global);
+                /* rax = left */
+                emit_var_load(gen, off, is_global);
+                /* rdi = left (via rdi/rax swap dance to survive right eval) */
                 emit_mov_rdi_rax(gen);
+                /* rax = right (may clobber rdi) */
                 gen_expr(gen, node->right);
+                /* rax=left, rdi=right  (the xchg is REQUIRED for the
+                 * non-commutative ops — see the rdi-clobber binop fix) */
                 emit_xchg_rax_rdi(gen);
-                emit_div_rax_rdi(gen);
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
-                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* rax op= rdi */
+                switch (node->kind) {
+                    case HC_AST_ADD_ASSIGN:     emit_add_rax_rdi(gen); break;
+                    case HC_AST_SUB_ASSIGN:     emit_sub_rax_rdi(gen); break;
+                    case HC_AST_MUL_ASSIGN:     emit_mul_rax_rdi(gen); break;
+                    case HC_AST_DIV_ASSIGN:     emit_div_rax_rdi(gen); break;
+                    case HC_AST_MOD_ASSIGN:     emit_mod_rax_rdi(gen); break;
+                    case HC_AST_SHL_ASSIGN:     emit_shl_rax_rdi(gen); break;
+                    case HC_AST_SHR_ASSIGN:     emit_shr_rax_rdi(gen); break;
+                    case HC_AST_AMP_ASSIGN:     emit_and_rax_rdi(gen); break;
+                    case HC_AST_PIPE_ASSIGN:    emit_or_rax_rdi(gen);  break;
+                    case HC_AST_CARET_ASSIGN:   emit_xor_rax_rdi(gen); break;
+                    default: break;
+                }
+                emit_var_store(gen, off, is_global);
             }
             break;
 

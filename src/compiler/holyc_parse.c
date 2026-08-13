@@ -463,6 +463,12 @@ static HCASTNode *parse_assign(HCParser *p) {
         case HC_TOK_MINUS_ASSIGN: assign_kind = HC_AST_SUB_ASSIGN; break;
         case HC_TOK_STAR_ASSIGN:  assign_kind = HC_AST_MUL_ASSIGN; break;
         case HC_TOK_SLASH_ASSIGN: assign_kind = HC_AST_DIV_ASSIGN; break;
+        case HC_TOK_PERCENT_ASSIGN: assign_kind = HC_AST_MOD_ASSIGN; break;
+        case HC_TOK_SHL_ASSIGN:   assign_kind = HC_AST_SHL_ASSIGN; break;
+        case HC_TOK_SHR_ASSIGN:   assign_kind = HC_AST_SHR_ASSIGN; break;
+        case HC_TOK_AMP_ASSIGN:   assign_kind = HC_AST_AMP_ASSIGN; break;
+        case HC_TOK_PIPE_ASSIGN:  assign_kind = HC_AST_PIPE_ASSIGN; break;
+        case HC_TOK_CARET_ASSIGN: assign_kind = HC_AST_CARET_ASSIGN; break;
         default: return left;
     }
 
