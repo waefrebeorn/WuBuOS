@@ -344,6 +344,14 @@ struct HCGen {
     char error[256];
     bool has_prologue;   /* set once emit_prologue() has built a stack frame */
     bool in_function;    /* true while emitting a function body (vs module-level) */
+    /* self-recursion support: while compiling a function body, its own name
+     * is recorded here so a call to itself can emit a rel32 placeholder that
+     * is patched to the final exec address after the body is copied. Without
+     * this, fib(n-1) inside fib() traps as unresolved (fib isn't registered
+     * in gen->functions until the body is finished). */
+    char current_function[HC_MAX_IDENT_LEN];
+    size_t self_call_patches[32];
+    int n_self_call_patches;
 };
 
 /* -- Compiler struct (full definition) --------------------------------------- */

@@ -843,6 +843,18 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                         if (func_addr) {
                             emit_mov_rax_imm64(gen, (int64_t)func_addr);
                             emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                        } else if (gen->n_self_call_patches < 32 &&
+                                   node->callee->ident[0] != '\0' &&
+                                   strcmp(node->callee->ident, gen->current_function) == 0) {
+                            /* Self-recursive call: this function is still being
+                             * compiled, so its address isn't registered yet.
+                             * Emit `call rel32` (E8 + placeholder disp32=0) and
+                             * record the position; patched to exec+0 after the
+                             * body is copied to executable memory. */
+                            size_t pos = gen->code_size;
+                            emit_byte(gen, 0xE8);
+                            emit_dword(gen, 0);   /* placeholder */
+                            gen->self_call_patches[gen->n_self_call_patches++] = pos;
                         } else {
                             /* Function not found - trap instead of `call 0`
                              * (which would NULL-deref and SIGSEGV at runtime).

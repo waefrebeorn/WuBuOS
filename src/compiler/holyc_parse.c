@@ -546,6 +546,21 @@ static HCASTNode *parse_stmt(HCParser *p) {
         return n;
     }
 
+    /* Do-while statement: do body while(cond); */
+    if (match(p, HC_KW_DO)) {
+        HCASTNode *n = hc_ast_new(HC_AST_DO_WHILE);
+        n->body = parse_stmt(p);
+        if (match(p, HC_KW_WHILE)) {
+            expect(p, HC_TOK_LPAREN);
+            n->cond = parse_expr(p);
+            expect(p, HC_TOK_RPAREN);
+        } else {
+            n->cond = NULL;  /* infinite loop if no while-clause */
+        }
+        match(p, HC_TOK_SEMI);
+        return n;
+    }
+
     /* For statement */
     if (match(p, HC_KW_FOR)) {
         HCASTNode *n = hc_ast_new(HC_AST_FOR);

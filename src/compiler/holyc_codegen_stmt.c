@@ -315,6 +315,11 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         gen->code_cap = 0;
                         /* Reset symbols but keep functions */
                         memset(&gen->symbols, 0, sizeof(HCSymTab));
+                        /* Record this function's own name so recursive calls
+                         * can emit a rel32 placeholder patched after copy. */
+                        strncpy(gen->current_function, node->ident, HC_MAX_IDENT_LEN - 1);
+                        gen->current_function[HC_MAX_IDENT_LEN - 1] = '\0';
+                        gen->n_self_call_patches = 0;
            
                         emit_prologue(gen);
            
@@ -375,6 +380,21 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                 void *exec = jit_alloc_exec(gen->code_size);
                 if (exec) {
                     memcpy(exec, gen->code, gen->code_size);
+                    /* Patch self-recursive calls: each placeholder was a
+                     * `call rel32` inside this body. After copy, the call's
+                     * target is exec+0 (the function's own start). disp32 is
+                     * relative to the instruction AFTER the call, so
+                     *   disp32 = -((size_t)patch_pos + 5)
+                     * (5 = len of E8 + disp32). Patch into the exec copy. */
+                    for (int si = 0; si < gen->n_self_call_patches; si++) {
+                        size_t pos = gen->self_call_patches[si];
+                        uint8_t *p = (uint8_t*)exec + pos;
+                        if (pos + 5 <= gen->code_size) {
+                            int32_t disp = (int32_t)(-(int32_t)(pos + 5));
+                            p[0] = 0xE8;                      /* call rel32 */
+                            memcpy(&p[1], &disp, sizeof(disp));
+                        }
+                    }
                     /* Restore main code buffer */
                     gen->code = saved_code;
                     gen->code_size = saved_code_size;
