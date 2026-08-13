@@ -48,7 +48,7 @@ const char *wubu_hid_driver_for(const char *vendor) {
 }
 
 /* ---- Simple presence/summary stubs. ---- */
-void wubu_file_exists(void) {}
+/* wubu_file_exists(int) is now a real function in wubu_gpu_icd.c */
 void wubu_hid_generic(void) {}
 void wubu_hid_ff(void) {}
 void wubu_hid_multitouch(void) {}

@@ -55,6 +55,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/libc_string.o $(KERNEL)/klog.o $(KERNEL)/wubu_pe.o $(KERNEL)/wubu_pe_personality.o $(KERNEL)/wubu_elf.o $(KERNEL)/wubu_macho.o \
               $(KERNEL)/wubu_lzx.o $(KERNEL)/wubu_inflate.o $(KERNEL)/wubu_zip.o $(KERNEL)/wubu_cab.o \
               $(KERNEL)/wubu_hw_detect.o \
+              $(KERNEL)/wubu_gpu_icd.o \
               $(KERNEL)/wubu_probe.o \
               $(KERNEL)/wubu_probe_matrix.o $(KERNEL)/wubu_audio.o \
               $(KERNEL)/wubu_storage.o $(KERNEL)/wubu_net.o \

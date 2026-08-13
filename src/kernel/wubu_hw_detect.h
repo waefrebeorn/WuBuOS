@@ -12,6 +12,11 @@
 
 #include <stddef.h>   /* size_t */
 
+#ifdef _GNU_SOURCE
+/* File-existence probe (defined in wubu_gpu_icd.c, used by wubu_hw_summary). */
+int wubu_file_exists(const char *path);
+#endif
+
 /* W1: run the detection. Call once at kernel init, before driver probe. */
 void wubu_hw_detect(void);
 
