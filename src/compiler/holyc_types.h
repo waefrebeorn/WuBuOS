@@ -232,6 +232,8 @@ typedef enum {
     HC_AST_DO_WHILE,
     HC_AST_SWITCH,     /* switch(expr){case..} — cond=expr, body=block of CASE */
     HC_AST_CASE,       /* case VAL: — cond=value expr (NULL=default), body=stmts */
+    HC_AST_GOTO,       /* goto label; — child=NULL, ident=label name */
+    HC_AST_LABEL,      /* label: — ident=label name, emits a marker at current pos */
     HC_AST_BLOCK,
     HC_AST_VAR_DECL,
     HC_AST_FUNC_DECL,
@@ -348,6 +350,13 @@ struct HCGen {
     int n_break_patches[10];
     size_t continue_patches[10][16];
     int n_continue_patches[10];
+    /* goto labels: a function-local registry of label names -> byte offset
+     * in the emitted code. Forward gotos record a jump patch that is
+     * resolved when the label is finally placed (or at function end). */
+    struct { char name[HC_MAX_IDENT_LEN]; int offset; } labels[128];
+    int n_labels;
+    struct { size_t patch_pos; int label_idx; } label_patches[512];
+    int n_label_patches;
     HCFunction functions[HC_MAX_FUNCTIONS];
     int n_functions;
     struct {

@@ -131,6 +131,26 @@ static const Probe PROBES[] = {
     {"switch fallthrough", "int x=1; int r=0; switch(x){case 1:r=41;case 2:r=42;break;} r;", 42},
     {"switch expr case", "int x=2; int r=0; switch(x){case 1:r=10;break;case 1+1:r=30;break;} r;", 30},
     {"switch in func", "int f(int a){int r=0; switch(a){case 3:r=5;break;case 4:r=6;break;default:r=0;} return r;} f(3);", 5},
+    /* ---- goto ---- */
+    {"goto forward", "int x=0; goto done; x=99; done: x=42; x;", 42},
+    {"goto loop", "int c=0; top: c++; if(c>=7) goto out; goto top; out: c;", 7},
+    {"goto skip init", "int x=0; goto skip; x=99; skip: x+1;", 1},
+    /* ---- multi-dimensional arrays ---- */
+    {"2d array write", "int a[2][3]; a[0][0]=5; a[0][0];", 5},
+    {"2d array far elem", "int a[2][3]; a[1][2]=9; a[1][2];", 9},
+    {"2d array sum", "int a[2][3]; a[0][0]=5; a[0][1]=7; a[0][0]+a[0][1];", 12},
+    {"2d sizeof", "int a[2][3]; sizeof a;", 24},
+    {"2d sizeof row", "int a[2][3]; sizeof(a[0]);", 12},
+    {"array->ptr decay", "int a[3]; a[1]=7; int* p=a; p[1];", 7},
+    {"array row decay", "int a[2][3]; a[0][1]=7; int* p=a[0]; p[1];", 7},
+    /* ---- nested pointer / deref member access ---- */
+    {"arrow read", "struct S{int a;}; struct S s; s.a=42; struct S* p=&s; p->a;", 42},
+    {"arrow write", "struct S{int a;}; struct S s; struct S* p=&s; p->a=9; s.a;", 9},
+    {"deref member read", "struct S{int a;}; struct S s; s.a=42; struct S* p=&s; (*p).a;", 42},
+    {"deref member write", "struct S{int a;}; struct S s; struct S* p=&s; (*p).a=42; s.a;", 42},
+    {"nested arrow", "struct P{int a;}; struct Q{struct P* p;}; struct P p; p.a=42; struct Q q; q.p=&p; q.p->a;", 42},
+    {"plain deref", "int x=42; int* p=&x; *p;", 42},
+    {"deref assign", "int x=0; int* p=&x; *p=7; x;", 7},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))

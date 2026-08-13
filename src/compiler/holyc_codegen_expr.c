@@ -111,7 +111,7 @@ static HCType *resolve_var_type(HCGen *gen, const char *name)
  * the member's declared type; ARROW → pointee member type; INDEX → element
  * type; DEREF → pointee type. Used so nested access like q.p.x can resolve
  * x's offset inside struct P (the parser doesn't attach types to nodes). */
-static HCType *expr_static_type(HCGen *gen, const HCASTNode *node)
+HCType *expr_static_type(HCGen *gen, const HCASTNode *node)
 {
     if (!node) return NULL;
     switch (node->kind) {
@@ -233,7 +233,7 @@ static void emit_sized_load_rax_off(HCGen *gen, int off, int size)
  * non-trivial target — previously only IDENT targets were assignable, so
  * `x[0]=42`, `s.a=42`, `*p=42` were silently dropped (returned 0). */
 static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node);
-static void emit_base_addr(HCGen *gen, const HCASTNode *node);
+void emit_base_addr(HCGen *gen, const HCASTNode *node);
 
 /* element size for pointer arithmetic: given a pointer/array-typed operand,
  * return sizeof(elem) (1 if not a pointer/array or unknown). */
@@ -293,8 +293,8 @@ static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node)
              * (a struct/array ident must decay to &x, not its value). */
             int scale = 1;
             HCType *bt = node->left->type;
-            if (!bt && node->left->kind == HC_AST_IDENT)
-                bt = resolve_var_type(gen, node->left->ident);
+            if (!bt)
+                bt = expr_static_type(gen, node->left);
             if (bt) {
                 if (bt->kind == HC_TYPE_PTR && bt->base)
                     scale = (hc_type_size(bt->base) > 1) ? (int)hc_type_size(bt->base) : 1;
@@ -349,7 +349,7 @@ static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node)
  * IDENT it's the pointer's value (which IS the address). Generic
  * expressions are evaluated normally. Used by INDEX/MEMBER/ARROW so the
  * base decays to an address instead of loading the struct's value. */
-static void emit_base_addr(HCGen *gen, const HCASTNode *node)
+void emit_base_addr(HCGen *gen, const HCASTNode *node)
 {
     if (!node) { emit_mov_rax_imm64(gen, 0); return; }
     if (node->kind == HC_AST_IDENT) {
@@ -384,10 +384,20 @@ static void emit_base_addr(HCGen *gen, const HCASTNode *node)
         gen_expr(gen, node);
         return;
     }
-    /* Nested container lvalue: q.p (member), a[i] (index), *p (deref).
-     * These need their ADDRESS, not their loaded value — otherwise
-     * `q.p.x = 42` computes the address of q.p by LOADING q.p's value
-     * (garbage) instead of its location. Recurse via emit_lvalue_addr. */
+    /* Nested composite lvalue: q.p (member), a[i] (index), *p (deref).
+     * What we need depends on the static type:
+     *   - pointer type   → LOAD the value (the pointer IS the address we
+     *     want). This is the `q.p->a` case where q.p is a `struct P*`
+     *     member — its ADDRESS (&q.p) would be wrong, we need q.p's VALUE.
+     *   - struct/array/union → the ADDRESS (recurse emit_lvalue_addr).
+     * Previously every composite was treated as needing its address, so
+     * `q.p->a` (nested pointer member) computed &q.p and dereferenced a
+     * garbage address. */
+    HCType *nt = expr_static_type(gen, node);
+    if (nt && nt->kind == HC_TYPE_PTR) {
+        gen_expr(gen, node);   /* load the pointer value */
+        return;
+    }
     if (emit_lvalue_addr(gen, node))
         return;
     gen_expr(gen, node);
@@ -820,8 +830,9 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
              * int/pointer arrays use the type size. */
             int scale = 1;
             HCType *bt = node->left->type;
-            if (!bt && node->left->kind == HC_AST_IDENT)
-                bt = resolve_var_type(gen, node->left->ident);
+            if (!bt)
+                bt = expr_static_type(gen, node->left);  /* handles nested
+                    INDEX / IDENT / MEMBER: `a[0][0]` outer left is INDEX */
             if (bt) {
                 if (bt->kind == HC_TYPE_PTR && bt->base) {
                     int esz = hc_type_size(bt->base);

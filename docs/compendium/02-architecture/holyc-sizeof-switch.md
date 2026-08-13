@@ -1,8 +1,7 @@
-# sizeof + switch — kernel-critical C11 constructs
+# sizeof + switch + goto + multi-dim arrays + nested pointer access
 
-**Status: SHIPPED + GREEN** (2026-08-13). Closes two kernel-critical gaps the
-compiler needed to compile the kernel + desktop, which use `sizeof(struct …)`
-in every driver and `switch` in every protocol/state machine.
+**Status: SHIPPED + GREEN** (2026-08-13). Closes five kernel-critical C11
+gaps the compiler needed to compile the kernel + desktop.
 
 ## sizeof
 
@@ -70,20 +69,64 @@ probes.
 
 ## Battery additions (selfhost_battery.c)
 
-7 `sizeof` + 6 `switch` probes → battery **78 → 91 probes, 91/91 PASS, 0
-WRONG, 0 CRASH**. (The nested-struct probe exposed a wrong *expectation* on
+7 `sizeof` + 6 `switch` + 3 `goto` + 7 `multi-dim array` + 7 `nested
+pointer/deref` probes → battery **78 → 108 probes, 108/108 PASS, 0 WRONG,
+0 CRASH**. (The nested-struct sizeof probe exposed a wrong *expectation* on
 my part — gcc confirms 8, compiler was right — fixed, not a compiler bug.)
+
+## goto
+
+`goto label;` + `label:` statement. HC_AST_GOTO (jmp placeholder + label
+patch registry) + HC_AST_LABEL (records current code position, patches any
+pending forward gotos). Forward and backward gotos verified (loop via goto,
+skip-init). Labels are function-local; `hc_gen_init` memsets the registry
+each compile so it's naturally scoped per `hc_eval`.
+
+Debugging lesson (again the pos-vs-token trap): detecting `ident:` needs a
+2-token lookahead. A pos-restore lands on the wrong char; instead capture
+the IDENT text / whole token BEFORE advancing, and restore by direct token
+assignment.
+
+## Multi-dimensional arrays
+
+`int a[2][3]` → ARRAY(ARRAY(int,3),2). The RIGHTMOST dimension is the
+INNERMOST: collect all `[N]` sizes then build innermost→outermost (the
+first attempt stacked them in source order, so `a[2][3]` had the dims
+reversed and sizeof was wrong). Nested INDEX resolves its scale via
+`expr_static_type` on the base (so `a[0][0]` outer scale = int size, not
+1). `sizeof a`=24, `sizeof a[0]`=12 (gcc agrees).
+
+## Array-to-pointer decay
+
+`int* p = a;` / `int* p = a[0];` must store the ADDRESS, not load the
+first element. VAR_DECL init now detects (declared type PTR + init static
+type ARRAY) and emits `emit_base_addr` instead of `gen_expr`. Requires
+`expr_static_type` + `emit_base_addr` exported across codegen submodules.
+
+## Nested pointer / deref member access
+
+`p->a`, `(*p).a`, `q.p->a` (arrow through a pointer member), and writes to
+all of them. Two root causes fixed:
+- `emit_base_addr` on a nested composite now dispatches on static type:
+  pointer → LOAD the value (that IS the address, e.g. `q.p->a` where q.p is
+  a `struct P*`); struct/array → compute the ADDRESS.
+- `(*p).a` parse: parse_cast's not-a-cast paren path orphaned trailing
+  postfix (`.a` dropped). Fix: rewind to the `(` (saved_pos-1) and delegate
+  to `parse_postfix`, which parses `(expr)` as a primary AND applies `.a`;
+  the caller's binop loop still applies `*4` to `(2+3)*4`. Paren arithmetic
+  (battery `paren`, `prec paren`) re-verified — this fix preserves it.
 
 ## Honest remainder
 
-- No `case`/`default` **duplicate detection** (a switch with two equal case
-  values just dispatches to the first; gcc warns, we don't).
-- No **jump-table** optimization — we emit a linear compare chain, O(n) per
-  dispatch. Fine for kernel switch sizes; a table is a future optimization.
-- `sizeof` of a `VLA`/dynamically-sized array is unsupported (arrays are
-  compile-time sized in this compiler).
+- No `case`/`default` duplicate detection.
+- No jump-table optimization — linear compare chain, O(n) dispatch.
+- `sizeof` of a VLA unsupported (arrays are compile-time sized).
+- **Struct-by-value RETURN is unsupported** (SysV ABI sret: struct returned
+  via a hidden pointer param). Passing a struct by value works; returning
+  one gives garbage. Requires ABI machinery for a hidden sret arg + the
+  caller passing a buffer. Documented, not yet implemented.
 
 ## Gates (all fresh-verified)
 
-- battery 91/91 PASS (was 78) — no regression
+- battery 108/108 PASS (was 78) — no regression
 - test_holyc 84/84, test_holyc_agi 11/11

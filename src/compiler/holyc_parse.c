@@ -589,15 +589,18 @@ static HCASTNode *parse_cast(HCParser *p) {
             n->type = cast_type;
             return n;
         }
-        /* Not a cast, backtrack fully and parse as parenthesized expression */
-        p->lex->pos = saved_pos;
+        /* Not a cast: restore to the `(` itself and parse as a normal
+         * parenthesized expression via parse_postfix. parse_postfix calls
+         * parse_primary's LPAREN case (which parses `(expr)` and returns the
+         * inner node) and then applies trailing postfix (.field, [idx], ->)
+         * — so `(*p).a` keeps `.a`. The caller's binop loop then applies
+         * `*4` to `(2+3)*4`. saved_pos points PAST the `(` (the lexer
+         * already consumed it), so rewind one char to land on `(`. */
+        p->lex->pos = saved_pos - 1;
         p->lex->line = saved_line;
         p->lex->col = saved_col;
-        /* Need to re-lex the token at saved position */
         hc_lex_next(p->lex);
-        HCASTNode *expr = parse_expr(p);
-        expect(p, HC_TOK_RPAREN);
-        return expr;
+        return parse_postfix(p);
     }
     return parse_unary(p);
 }
@@ -836,6 +839,40 @@ static HCASTNode *parse_stmt(HCParser *p) {
     if (match(p, HC_KW_CONTINUE)) {
         expect(p, HC_TOK_SEMI);
         return hc_ast_new(HC_AST_CONTINUE);
+    }
+
+    /* goto label; */
+    if (match(p, HC_KW_GOTO)) {
+        HCASTNode *n = hc_ast_new(HC_AST_GOTO);
+        if (peek(p) != HC_TOK_IDENT) {
+            parse_error(p, "goto requires a label name");
+            return n;
+        }
+        strncpy(n->ident, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+        advance(p);
+        expect(p, HC_TOK_SEMI);
+        return n;
+    }
+
+    /* Label: `ident:` — a statement label. Detect by peeking the token
+     * after the current IDENT. We save the whole token + lexer position,
+     * advance, and restore by direct assignment (a pos-restore + re-lex
+     * lands on the wrong char because lex->pos mid-token points past the
+     * token — same trap as sizeof). */
+    if (peek(p) == HC_TOK_IDENT) {
+        HCToken saved_tok = p->lex->tok;
+        int saved_pos = p->lex->pos;
+        advance(p);              /* ident */
+        bool is_label = (peek(p) == HC_TOK_COLON);
+        if (is_label) {
+            HCASTNode *n = hc_ast_new(HC_AST_LABEL);
+            strncpy(n->ident, saved_tok.text, HC_MAX_IDENT_LEN - 1);
+            advance(p);          /* : */
+            return n;
+        }
+        /* not a label: restore token + position to before `ident` */
+        p->lex->tok = saved_tok;
+        p->lex->pos = saved_pos;
     }
 
     /* Block */
@@ -1154,8 +1191,11 @@ HCASTNode *hc_parse_decl(HCParser *p) {
     HCASTNode *var = hc_ast_new(HC_AST_VAR_DECL);
     strncpy(var->ident, name, HC_MAX_IDENT_LEN - 1);
 
-    /* Array declarator: name[N] or name[] */
-    if (peek(p) == HC_TOK_LBRACKET) {
+    /* Array declarator: name[N][M]... — the RIGHTMOST dimension is the
+     * INNERMOST, so int a[2][3] is ARRAY(ARRAY(int,3),2) (2 rows of 3).
+     * Collect all sizes, then build the type innermost→outermost. */
+    int dims[8], n_dims = 0;
+    while (peek(p) == HC_TOK_LBRACKET) {
         advance(p); /* [ */
         int arr_size = 0;
         if (peek(p) != HC_TOK_RBRACKET) {
@@ -1163,12 +1203,20 @@ HCASTNode *hc_parse_decl(HCParser *p) {
             if (st == HC_TOK_INT) { arr_size = (int)p->lex->tok.int_val; advance(p); }
         }
         expect(p, HC_TOK_RBRACKET);
-        HCType *arr = (HCType *)calloc(1, sizeof(HCType));
-        arr->kind = HC_TYPE_ARRAY;
-        arr->base = type;
-        arr->array_size = arr_size;
-        arr->size = (arr_size > 0) ? hc_type_size(type) * arr_size : hc_type_size(type);
-        type = arr;
+        if (n_dims < 8) dims[n_dims++] = arr_size;
+    }
+    if (n_dims > 0) {
+        HCType *base_type = type;
+        for (int d = n_dims - 1; d >= 0; d--) {
+            HCType *arr = (HCType *)calloc(1, sizeof(HCType));
+            arr->kind = HC_TYPE_ARRAY;
+            arr->base = base_type;
+            arr->array_size = dims[d];
+            arr->size = (dims[d] > 0) ? hc_type_size(base_type) * dims[d]
+                                      : hc_type_size(base_type);
+            base_type = arr;
+        }
+        type = base_type;
     }
     var->type = type;
 

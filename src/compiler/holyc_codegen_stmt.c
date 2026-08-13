@@ -275,7 +275,12 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                     }
 
                     if (node->init) {
-                        gen_expr(gen, node->init);
+                        HCType *decl_t = node->type;
+                        HCType *init_t = expr_static_type(gen, node->init);
+                        bool decay = decl_t && decl_t->kind == HC_TYPE_PTR &&
+                                     init_t && init_t->kind == HC_TYPE_ARRAY;
+                        if (decay) emit_base_addr(gen, node->init);
+                        else       gen_expr(gen, node->init);
                         /* mov [rip + disp32], rax (patched after code_size known) */
                         size_t patch_pos = gen->code_size;
                         emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x05);
@@ -311,7 +316,18 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         gen->symbols.n_locals++;
                     }
                     if (node->init) {
-                        gen_expr(gen, node->init);
+                        /* Array-to-pointer decay: `int* p = a;` or
+                         * `int* p = a[0];` must store the ADDRESS of the
+                         * array (or row), not load its first element.
+                         * gen_expr would load the value — detect the case
+                         * (declared type is PTR, init static type is ARRAY)
+                         * and emit the base address instead. */
+                        HCType *decl_t = node->type;
+                        HCType *init_t = expr_static_type(gen, node->init);
+                        bool decay = decl_t && decl_t->kind == HC_TYPE_PTR &&
+                                     init_t && init_t->kind == HC_TYPE_ARRAY;
+                        if (decay) emit_base_addr(gen, node->init);
+                        else       gen_expr(gen, node->init);
                         /* mov [rbp - offset], rax: 48 89 85 disp32 */
                         emit_byte(gen, 0x48); /* REX.W */
                         emit_byte(gen, 0x89); /* mov */
@@ -532,6 +548,50 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
         case HC_AST_CASE:
             /* CASE nodes are only handled inside SWITCH; a stray one emits
              * nothing (its body is emitted by the switch pass). */
+            break;
+
+        case HC_AST_GOTO:
+            /* goto label; — emit a jmp placeholder. If the label was ALREADY
+             * placed (backward goto) patch it now; else record it for the
+             * forward patch when the label is placed. */
+            if (gen->n_labels < 128 && gen->n_label_patches < 512) {
+                int idx = -1;
+                for (int i = 0; i < gen->n_labels; i++)
+                    if (strcmp(gen->labels[i].name, node->ident) == 0) { idx = i; break; }
+                if (idx < 0) {
+                    idx = gen->n_labels++;
+                    strncpy(gen->labels[idx].name, node->ident, HC_MAX_IDENT_LEN - 1);
+                    gen->labels[idx].offset = -1;   /* unknown yet */
+                }
+                size_t patch = emit_jmp_placeholder(gen);
+                if (gen->labels[idx].offset >= 0)
+                    patch_rel32(gen, patch, gen->labels[idx].offset);
+                else {
+                    gen->label_patches[gen->n_label_patches].patch_pos = patch;
+                    gen->label_patches[gen->n_label_patches].label_idx = idx;
+                    gen->n_label_patches++;
+                }
+            }
+            break;
+
+        case HC_AST_LABEL:
+            /* label: — record current code position; patch any pending
+             * forward gotos that target this label. */
+            if (gen->n_labels < 128) {
+                int idx = -1;
+                for (int i = 0; i < gen->n_labels; i++)
+                    if (strcmp(gen->labels[i].name, node->ident) == 0) { idx = i; break; }
+                if (idx < 0) {
+                    idx = gen->n_labels++;
+                    strncpy(gen->labels[idx].name, node->ident, HC_MAX_IDENT_LEN - 1);
+                }
+                gen->labels[idx].offset = (int)gen->code_size;
+                /* patch any pending forward gotos */
+                for (int i = 0; i < gen->n_label_patches; i++)
+                    if (gen->label_patches[i].label_idx == idx)
+                        patch_rel32(gen, gen->label_patches[i].patch_pos,
+                                    gen->labels[idx].offset);
+            }
             break;
 
         case HC_AST_BREAK:

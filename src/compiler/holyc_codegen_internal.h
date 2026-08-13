@@ -118,6 +118,12 @@ void hc_gen_init(HCGen *gen);
 /* -- Expression Generation ---------------------------------------- */
 
 int gen_expr(HCGen *gen, const HCASTNode *node);
+/* static type of an expression (IDENT→symbol, INDEX→element, MEMBER→member
+ * type, etc.) — used across expr/stmt for decay + sizeof. */
+HCType *expr_static_type(HCGen *gen, const HCASTNode *node);
+/* lvalue address of an expression (rax = &expr); arrays decay to their
+ * address so `int* p = a[0]` stores the row address. */
+void emit_base_addr(HCGen *gen, const HCASTNode *node);
 
 /* -- Statement Generation ----------------------------------------- */
 
