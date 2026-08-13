@@ -59,6 +59,28 @@ on different channels.
 - The `WDH_MAX_ELEM` in the header bounds the elem-size (matches the init
   check), so the hedged-read stack buffers are sized statically.
 
+## Styx/9P export (/n/dram)
+
+`src/runtime/wubu_ns_dram.{c,h}` exposes the hedge over the namespace,
+same pattern as /n/ec and /n/steaminput (ns_mkdir/ns_write wrapping the
+real API, no new daemon):
+- `/n/dram/state`   "replicas N, elem N, slots N, trefi periodic"
+- `/n/dram/slots`, `/n/dram/replicas`, `/n/dram/elem`, `/n/dram/trefi`
+- `/n/dram/ctrl`    `echo 3:42 > /n/dram/ctrl` stores 42 in slot 3
+- `/n/dram/status`  one-line live summary
+Gate: `make test_ns_dram` (11/11), wired into test_medium_other.
+
+## Benchmark + honest finding
+
+`tools/bench_dram_hedge.c` (`make bench_dram_hedge`) compares cold
+unhedged clflush reads vs the hedged reader pool on this host: unhedged
+median ~320cyc vs hedged ~832cyc. The worker-pool handshake overhead
+(~500cyc of sync barriers) exceeds any refresh-stall savings here (no real
+DRAM pressure in the microbenchmark). The hedge's win needs hardware where
+one channel is actually mid-refresh. The compiler `prefetchnta` half
+remains the zero-cost "for all code" win (~1 cyc, no sync). This finding
+is recorded honestly — no claimed speedup the benchmark doesn't show.
+
 ## Verification
 
 - Channel stride: replicas exactly 256 B apart

@@ -86,7 +86,7 @@ test_high_bear: test_jit test_memory test_tasking test_input test_holyc test_hed
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -632,6 +632,11 @@ test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 test_dram_hedge: src/kernel/wubu_dram_hedge.c src/kernel/wubu_dram_hedge.h
 	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c src/kernel/tests/test_dram_hedge.c -o build/test_dram_hedge -lm -lpthread
 	./build/test_dram_hedge
+
+# DRAM-refresh hedge benchmark: cold unhedged reads vs hedged reader pool.
+bench_dram_hedge: src/kernel/wubu_dram_hedge.c tools/bench_dram_hedge.c
+	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c tools/bench_dram_hedge.c -o build/bench_dram_hedge -lm -lpthread
+	./build/bench_dram_hedge
 
 test_dosgui_wm: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_window_chrome.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
@@ -1369,6 +1374,16 @@ test_ns_steaminput:
 		/tmp/wubu_ns_steaminput_test.o \
 		-o $(RT)/wubu_ns_steaminput_test
 	$(RT)/wubu_ns_steaminput_test
+
+# the /n/dram control subtree (DRAM-refresh hedge over Styx/9P)
+test_ns_dram:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -I$(KERNEL) -c $(RT)/wubu_ns_dram_test.c -o /tmp/wubu_ns_dram_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_dram.c $(KERNEL)/wubu_dram_hedge.c \
+		/tmp/wubu_ns_dram_test.o \
+		-o $(RT)/wubu_ns_dram_test -lm -lpthread
+	$(RT)/wubu_ns_dram_test
 
 test_steamrt:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -Wno-format-truncation -I$(RT) -c $(RT)/wubu_steamrt_test.c -o /tmp/wubu_steamrt_test.o

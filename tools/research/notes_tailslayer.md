@@ -166,6 +166,35 @@ wrong fixup → garbage. **Fix: emit the prefetch FIRST, THEN compute
 `tools/probe/hedge_verify.c` proves each load class emits ≥1 prefetch
 and pure constants emit 0. Wired into `test_high_bear`.
 
+### HONEST BENCHMARK FINDING (2026-08-12, `make bench_dram_hedge`)
+`tools/bench_dram_hedge.c` compares cold clflush reads (unhedged) vs the
+reader-pool (hedged) on THIS WSL host:
+- UNHEDGED median ~320 cycles, p99.9 ~832
+- HEDGED median ~832-990 cycles, p99.9 ~2240-2600
+
+The hedged worker-pool is SLOWER per-read here. Reason: the two-thread
+spin handshake (__sync barriers + cache-line bouncing on shared ticket/
+done/winner) costs ~500+ cycles per read, while the unhedged clflush path
+on this host rarely hits a genuine refresh stall (no real DRAM pressure in
+a 50k-iteration microbenchmark). The hedge's tail-latency win only appears
+on hardware where one channel is actually mid-refresh frequently.
+
+This does NOT invalidate the port. The COMPILER half (09783f0) is the
+zero-cost "for all code" win: a `prefetchnta` hint costs ~1 cycle and no
+synchronization — it primes the read with essentially no overhead. The
+kernel worker-pool is the faithful but high-overhead version that pays off
+only on real DRAM-contended hardware (where the unhedged tail is ~150-750ns
+worse). Recorded honestly — do not claim a speedup the benchmark doesn't
+show.
+
+### /n/dram 9P export (2026-08-13, `make test_ns_dram` 11/11)
+`src/runtime/wubu_ns_dram.{c,h}` publishes the hedge over the Styx/9P
+namespace (same pattern as /n/ec, /n/steaminput):
+  /n/dram/state, /n/dram/{slots,replicas,elem,trefi}, /n/dram/ctrl,
+  /n/dram/status
+`echo 3:42 > /n/dram/ctrl` stores 42 in slot 3 (all replicas). Test
+11/11, wired into test_medium_other.
+
 ### Runtime / kernel
 `tools/research/tailslayer_hedge.h` — the standalone C shim (replicated
 insert + hedged read + trefi probe). Kernel-level channel-aware page
