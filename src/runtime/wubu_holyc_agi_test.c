@@ -10,6 +10,7 @@
 #include "wubu_holyc_agi.h"
 #include "wubu_edr.h"
 #include "wubu_holyd.h"
+#include "wubu_gdpr_age.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -27,6 +28,11 @@ static int eval_int(const char *src) {
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== WuBuOS Live HolyC Compiler AGI Layer Test ===\n\n");
+
+    /* The agent compile+run path is GDPR Art 8 gated: EDR records an
+     * agent action ONLY with age consent (fail-closed otherwise). Establish
+     * consent the same way a real user does before the AGI evals. */
+    wubu_gdpr_age_persist(WUBU_AGE_CONSENTED, 18);
 
     edr_analytics_set_enabled(true);
 

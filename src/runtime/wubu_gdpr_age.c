@@ -45,9 +45,19 @@ int wubu_gdpr_age_of_consent(void) {
     return 16; /* GDPR default — safe minimum */
 }
 
-/* Read consent cookie from /wubu/state/gdpr_age */
+/* The consent cookie lives at /wubu/state/gdpr_age on a real system.
+ * Unprivileged tests (and dev boxes where /wubu is not creatable)
+ * override it with $WUBU_GDPR_STATE — the same seam pattern as
+ * $WUBURUNTIME_FILE. */
+static const char *gdpr_state_path(void)
+{
+    const char *p = getenv("WUBU_GDPR_STATE");
+    return (p && p[0]) ? p : WUBU_GDPR_STATE_PATH;
+}
+
+/* Read consent cookie from /wubu/state/gdpr_age (or $WUBU_GDPR_STATE) */
 wubu_age_status_t wubu_gdpr_age_check(void) {
-    FILE *f = fopen(WUBU_GDPR_STATE_PATH, "r");
+    FILE *f = fopen(gdpr_state_path(), "r");
     if (!f) return WUBU_AGE_UNKNOWN;
     char line[128];
     if (!fgets(line, sizeof(line), f)) { fclose(f); return WUBU_AGE_UNKNOWN; }
@@ -80,7 +90,7 @@ int wubu_gdpr_age_persist(wubu_age_status_t status, int age) {
     uint64_t ts = (uint64_t)time(NULL) * 1000ULL;
     char status_char = 'D';
     if (status == WUBU_AGE_CONSENTED) status_char = 'C';
-    FILE *f = fopen(WUBU_GDPR_STATE_PATH, "w");
+    FILE *f = fopen(gdpr_state_path(), "w");
     if (!f) return -1;
     fprintf(f, "%c %d %s %llu\n", status_char, age, uuid, (unsigned long long)ts);
     fclose(f);
@@ -92,7 +102,7 @@ int wubu_gdpr_age_persist(wubu_age_status_t status, int age) {
 }
 
 void wubu_gdpr_age_reset(void) {
-    remove(WUBU_GDPR_STATE_PATH);
+    remove(gdpr_state_path());
     memset(&g_last_result, 0, sizeof(g_last_result));
 }
 
