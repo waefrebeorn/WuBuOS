@@ -34,6 +34,11 @@
 #include "holyc.h"
 #include "holyc_codegen.h"
 #include "wubu_runtime.h"
+#include "holyc_lexer.h"
+#include "holyc_parser.h"
+#include "wubu_mir.h"
+#include "wubu_mir_lower.h"
+#include "wubu_isa_driver.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +78,11 @@ static void usage(void)
         "                             personality (posix/image/wasi)\n"
         "  holyc -i_make_shit_code -space <name> <f>  foreign code into\n"
         "                             its runtime's space\n"
-        "  holyc -spaces              list the compilation spaces\n");
+        "  holyc -spaces              list the compilation spaces\n"
+        "  holyc -targets             list the ISA driver targets\n"
+        "  holyc -target <isa> <f>    compile <f> for the ISA driver\n"
+        "                             (one MIR -> x86-64/8086/m68k/6502/\n"
+        "                             riscv/z80) and run it\n");
 }
 
 /* read a whole file into a malloc'd buffer */
@@ -222,12 +231,107 @@ static int run_i_make_shit_code(const char *path)
     return 0;
 }
 
+/* -targets: list every ISA driver in the driver space (the compiler
+ * reaching ALL machine code — one MIR, N backends). */
+static int run_targets(void)
+{
+    const char *names[] = { "x86-64", "8086", "m68k", "6502", "riscv", "z80" };
+    int n = (int)(sizeof(names) / sizeof(names[0]));
+    int found = 0;
+    printf("  [targets] the ISA driver space (one MIR -> N backends):\n");
+    for (int i = 0; i < n; i++) {
+        const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
+        if (!d) continue;
+        printf("    %-8s  %-12s  %s\n", d->name, d->family,
+               d->exec == WUBU_ISA_NATIVE ? "native JIT" : "interpreter");
+        found++;
+    }
+    printf("  [targets] %d driver(s) reachable\n", found);
+    return found ? 0 : 1;
+}
+
+/* -target <isa> <file>: compile a source FILE for the chosen ISA via
+ * AST -> MIR (the hourglass neck) -> the driver's compile, then run it
+ * on the driver's interpreter/native JIT. Every driver that is
+ * reachable produces a machine-code program that RUNS — this is the
+ * "compile to ALL machine code" doctrine, made a real CLI flag. */
+static int run_target(const char *isa, const char *path)
+{
+    const wubu_isa_driver_t *d = wubu_isa_find(isa);
+    if (!d) {
+        fprintf(stderr, "holyc: unknown target '%s' (x86-64/8086/m68k/6502/"
+                "riscv/z80)\n", isa);
+        return 2;
+    }
+
+    char *src = read_file(path);
+    if (!src) { fprintf(stderr, "holyc: cannot read %s\n", path); return 1; }
+
+    /* strip a trailing newline/semicolon so the expr-parse is clean */
+    size_t len = strlen(src);
+    while (len > 0 && (src[len-1] == '\n' || src[len-1] == ';' ||
+                       src[len-1] == ' ' || src[len-1] == '\r'))
+        src[--len] = 0;
+
+    HCLexer lex;
+    hc_lex_init(&lex, src);
+    if (lex.has_error) {
+        fprintf(stderr, "holyc: lex error in %s\n", path);
+        free(src); return 1;
+    }
+    HCParser parse;
+    hc_parse_init(&parse, &lex);
+    HCASTNode *ast = hc_parse_expr(&parse);
+    if (!ast || parse.has_error) {
+        fprintf(stderr, "holyc: parse error in %s\n", path);
+        free(src); return 1;
+    }
+
+    /* AST -> MIR (the hourglass neck — ISA-neutral) */
+    wubu_mir_prog_t prog;
+    wubu_mir_init(&prog);
+    wubu_vr_t result = wubu_mir_lower_expr(&prog, ast);
+    wubu_mir_ret(&prog, result);
+    wubu_mir_dump(&prog);
+
+    /* driver.compile(MIR) -> machine code */
+    uint8_t *code = NULL;
+    size_t csize = 0;
+    if (d->compile(&prog, &code, &csize) != 0 || !code) {
+        fprintf(stderr, "holyc: target '%s' compile failed\n", d->name);
+        wubu_mir_free(&prog); hc_ast_free(ast); free(src);
+        return 1;
+    }
+
+    printf("  [target] %s: %zu bytes of %s machine code\n",
+           d->name, csize,
+           d->exec == WUBU_ISA_NATIVE ? "native" : d->family);
+
+    /* driver.run(code) -> the program's result */
+    int64_t r = d->run(code, csize, 0);
+    free(code);
+    printf("  [target] %s ran -> %lld\n", d->name, (long long)r);
+
+    wubu_mir_free(&prog);
+    hc_ast_free(ast);
+    free(src);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2) { usage(); return 2; }
 
     /* -spaces: the view that ends the disorganization */
     if (!strcmp(argv[1], "-spaces")) return run_spaces();
+
+    /* -targets: list every ISA driver. -target <isa> <file>: compile
+     * for that ISA (one MIR -> N backends, the hourglass neck). */
+    if (!strcmp(argv[1], "-targets")) return run_targets();
+    if (!strcmp(argv[1], "-target")) {
+        if (argc < 4) { usage(); return 2; }
+        return run_target(argv[2], argv[3]);
+    }
 
     /* -space <name> [-personality <kind>] <file>
      *    or -i_make_shit_code -space <name> <file> (either order) */
