@@ -28,21 +28,29 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>   /* pow() for WCAG luminance */
 
-/* -- A11y semantic palette (deliberate fixed colors: accessibility
- * psychology overrides theme churn; the image's soft neumorphic feel is
- * approximated with flat fills + raised light/dark edges). */
+/* The kernel math shim provides pow()/powf() under WUBU_NO_LIBM (hosted
+ * tests build freestanding; the shim maps pow->wubu_pow). */
+#ifdef WUBU_NO_LIBM
+#  include "../kernel/wubu_math.h"
+#endif
+
+/* A11y semantic palette (deliberate fixed colors: accessibility
+ * psychology overrides theme churn). WCAG-audited (UXA-44): the GLYPHS on
+ * the colored orbs are WHITE (dark-on-bright fails ~1.5-2.6:1), and the
+ * dark rim separates each orb from the silver window face. */
 #define A11Y_PANEL_FACE  0xFFE8E0F8  /* soft lavender squircle */
 #define A11Y_PANEL_DARK  0xFFC9BFE8  /* panel lower edge */
 #define A11Y_GREEN       0xFF42A85A  /* A orb (reference: ~66,170,93) */
-#define A11Y_GREEN_DARK  0xFF1B5E20  /* dark glyph on the green orb */
+#define A11Y_GREEN_DARK  0xFF1B5E20  /* rim/shade (darker green) */
 #define A11Y_YELLOW      0xFFDE9E44  /* Y pill (reference: ~222,158,68) */
-#define A11Y_YELLOW_DARK 0xFF7A4A10  /* pill handle slot */
+#define A11Y_YELLOW_DARK 0xFF8A5A20  /* pill handle slot / rim */
 #define A11Y_RED         0xFFE53935  /* B orb */
-#define A11Y_RED_DARK    0xFF8E1A1A  /* dark X (reference: ~133,38,34) */
+#define A11Y_RED_DARK    0xFFB71C1C  /* rim/shade */
 #define A11Y_PURPLE      0xFF9C27B0  /* resize corner */
-#define A11Y_PURPLE_DARK 0xFF6A1B9A
-#define A11Y_GLYPH       0xFF212121  /* dark glyph on the orbs */
+#define A11Y_PURPLE_DARK 0xFF7B1FA2
+#define A11Y_GLYPH       0xFFFFFFFF  /* WHITE glyph on the orbs (AA) */
 
 #define A11Y_ORB_A_R   31   /* green A: BIGGEST (real GC 16.747mm A vs 6.449mm B
                                = 2.6:1; 62px diameter >= WCAG AAA 44px) */
@@ -51,6 +59,45 @@
 #define A11Y_ORB_P_R   14   /* purple Y: round-tip CRESCENT, resize (28px) */
 #define A11Y_PURPLE_FADE 46 /* px: within this the purple resize fades in */
 #define A11Y_PURGE_TOL  30  /* red: drag beyond this = full drag = purge */
+
+/* WCAG 2.x relative luminance + contrast ratio (UXA-44 discipline from
+ * WuBuOffice: every a11y palette must meet AA 4.5:1). Returns the ratio. */
+static double a11y_lum(uint32_t c) {
+    double r = ((c >> 16) & 0xFF) / 255.0, g = ((c >> 8) & 0xFF) / 255.0,
+           b = (c & 0xFF) / 255.0;
+    double lin(double v) { return v <= 0.03928 ? v / 12.92
+                                               : pow((v + 0.055) / 1.055, 2.4); }
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+static double a11y_contrast(uint32_t a, uint32_t b) {
+    double l1 = a11y_lum(a), l2 = a11y_lum(b);
+    if (l1 < l2) { double t = l1; l1 = l2; l2 = t; }
+    return (l1 + 0.05) / (l2 + 0.05);
+}
+
+/* Audit: does the GameCube cluster palette meet WCAG AA against the window
+ * face? Two checks:
+ *   1. Boundary — each control's DARK RIM vs the silver window face must be
+ *      >= 3:1 (WCAG 1.4.11 non-text contrast: the rim is what separates the
+ *      colored orb from the window).
+ *   2. Readable glyph — the WHITE glyph on each of the 3 round orbs (A/B/purple)
+ *      vs its orb must be >= 3:1. The yellow bean's affordance is its shape
+ *      + rim, not a glyph. */
+double wubu_a11y_min_contrast(void) {
+    const uint32_t face = 0xFFC0C0C0;
+    double worst = 1e9;
+    double c;
+    /* boundary: rim vs face */
+    c = a11y_contrast(A11Y_GREEN_DARK, face);   if (c < worst) worst = c;
+    c = a11y_contrast(A11Y_RED_DARK, face);     if (c < worst) worst = c;
+    c = a11y_contrast(A11Y_YELLOW_DARK, face);  if (c < worst) worst = c;
+    c = a11y_contrast(A11Y_PURPLE_DARK, face);  if (c < worst) worst = c;
+    /* readable glyph: white on the round orbs */
+    c = a11y_contrast(A11Y_GLYPH, A11Y_GREEN);  if (c < worst) worst = c;
+    c = a11y_contrast(A11Y_GLYPH, A11Y_RED);    if (c < worst) worst = c;
+    c = a11y_contrast(A11Y_GLYPH, A11Y_PURPLE); if (c < worst) worst = c;
+    return worst;
+}
 
 /* GC-controller diamond layout (user's design philosophy, reference-traced):
  *      yellow (TL, minimize/rotate)   green A (TR, BIG, maximize/move)
@@ -360,7 +407,7 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     int ax, ay; orb_a_center(win, &ax, &ay);
     draw_orb_shadow(ax, ay, A11Y_ORB_A_R, A11Y_PANEL_DARK, 100);
     draw_orb(ax, ay, A11Y_ORB_A_R, A11Y_GREEN, A11Y_GREEN_DARK);
-    draw_grab_glyph(ax, ay, A11Y_ORB_A_R, A11Y_GREEN_DARK);
+    draw_grab_glyph(ax, ay, A11Y_ORB_A_R, A11Y_GLYPH);
     if (g_focus == WUBU_A11Y_GRAB)
         draw_focus_ring(ax, ay, A11Y_ORB_A_R, fb_w, fb_h);
 
@@ -374,7 +421,7 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     }
     draw_orb_shadow(bx, by, A11Y_ORB_B_R, A11Y_PANEL_DARK, 100);
     draw_orb(bx, by, A11Y_ORB_B_R, A11Y_RED, A11Y_RED_DARK);
-    draw_close_glyph(bx, by, A11Y_ORB_B_R, A11Y_RED_DARK);
+    draw_close_glyph(bx, by, A11Y_ORB_B_R, A11Y_GLYPH);
     if (g_focus == WUBU_A11Y_CLOSE)
         draw_focus_ring(bx, by, A11Y_ORB_B_R, fb_w, fb_h);
 
@@ -407,7 +454,7 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
         draw_crescent_fade(pxx2, pyy2, A11Y_ORB_P_R, A11Y_PURPLE, A11Y_PURPLE_DARK,
                            0.707f, 0.707f, alpha);
         /* diagonal grip in each crescent's belly (upper-left arc) */
-        uint32_t gcol = a11y_lerp(A11Y_PURPLE_DARK, A11Y_PURPLE, 255 - alpha);
+        uint32_t gcol = a11y_lerp(0xFFFFFF, A11Y_PURPLE_DARK, 255 - alpha);
         draw_resize_glyph(pxx  - 3, pyy  - 3, A11Y_ORB_P_R, gcol);
         draw_resize_glyph(pxx2 - 3, pyy2 - 3, A11Y_ORB_P_R, gcol);
     }

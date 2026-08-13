@@ -77,4 +77,9 @@ void wubu_a11y_minimize_window(DosGuiWindow *win);
 void wubu_a11y_close_window(DosGuiWindow *win);    /* end session */
 void wubu_a11y_purge_and_close(DosGuiWindow *win); /* empty trash + close */
 
+/* WCAG contrast audit: worst glyph-on-orb + orb-on-window-face ratio.
+ * >= 3.0 = AA UI-component minimum. Used by tests to keep the palette
+ * accessible (UXA-44). */
+double wubu_a11y_min_contrast(void);
+
 #endif /* WUBU_A11Y_H */

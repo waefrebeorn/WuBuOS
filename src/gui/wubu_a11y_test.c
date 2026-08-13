@@ -145,6 +145,13 @@ int main(void) {
     assert(dosgui_wm_is_minimized(kw));          /* Y click = minimize */
     dosgui_wm_destroy(kw);
 
+    /* --- WCAG contrast audit (UXA-44): palette must meet AA -------- */
+    {
+        double worst = wubu_a11y_min_contrast();
+        printf("  [a11y] WCAG min contrast ratio = %.2f:1\n", worst);
+        assert(worst >= 3.0);   /* AA UI-component minimum (WCAG 1.4.11) */
+    }
+
     printf("[ok] wubu_a11y: all cluster controls verified\n");
     dosgui_wm_shutdown();
     return 0;
