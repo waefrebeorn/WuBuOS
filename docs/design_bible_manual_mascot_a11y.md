@@ -117,6 +117,15 @@ Verified by surveying `src/gui/` (150 files) + `src/kernel/`:
    colors used by `tc()`) AND `src/kernel/wubu_theme.*` (KTHEME, a writable
    `/theme` node tree). They don't call each other; the GUI colors struct and
    the kernel node tree are two designs for the same thing.
+   **RESOLVED (bridge, `7699aeb`):** the kernel `/theme` namespace is now the
+   AGI write surface and the GUI reads it. `wubu_theme_sync_from_kernel()`
+   overlays every kernel node onto a mutable live-colors struct that
+   `wubu_theme_colors()`/`tc()` returns, so "the AGI writes a node and the
+   next frame re-renders" actually works (verified by `test_theme_bridge`).
+   The two still define the same function names (`wubu_theme_get` etc.) so
+   they can't be in ONE binary, but they're also never both linked: kernel
+   builds use the kernel engine, hosted/GUI builds use the GUI engine. The
+   write-surface is bridged via a weak reference (no-ops when kernel absent).
 3. **The a11y cluster couldn't link** (fixed above) — a symptom of the
    disorganization: a fully-designed feature shipped as dead code.
 4. **Manual mascot doesn't exist yet.** The white WuBu rabbit is only design
