@@ -54,3 +54,24 @@ pipelining → branchless → linear-scan RA → NUMA topology.
   self-fetch path (wubu_fw.c) that driver-modules must mirror. Sources:
   Linux MODULE_DEVICE_TABLE + udev modalias, DKMS, BPF CO-RE/BTF, Linux
   device-tree PCI nodes. Honest gaps enumerated.
+  **STATUS: BUILT + TESTED** — `wubu_drv_elf_load()` (in-kernel ELF64
+  relocatable loader w/ PLT trampolines + W^X), `wubu_drv_build()`,
+  `wubu_drv_install()`, `wubu_drv_install_report()`, manifest table.
+  9/9 self-install selftests green (cafe_demo loads on synthetic PCI 0xCAFE).
+  Committed `d1171db`.
+
+## React OS 2026 Onboarding + UI — NEW 2026-08-13
+- `reactos_onboarding_2026.md` — fresh `git clone --depth 1` of reactos
+  (commit 4c4e341d). Deep-mine of the 2026 wizard: `syssetup/wizard.c`
+  10-page property-sheet (Welcome→GPL→InstallType→Owner→Computer+AdminPassword
+  →Locale→DateTime/TimeZone→Theme→HardwareScan→Finish), `usetup.c` text-mode
+  TUI, `devmgr` Device Manager tree+list view, `explorer` shell (taskband/
+  startmnu/traywnd/desktop), winlogon+logonui login. **Definitive gap matrix:**
+  WuBuOS shell is 90%+ parity (wubu_welcome, dosgui_startmenu*, dosgui_wm,
+  dosgui_explorer*, dosgui_cp_*, wubu_session_autostart) but is MISSING:
+  (1) owner/computer-name identity wizard, (2) admin-password bootstrap,
+  (3) locale/keyboard/timezone picker, (4) login manager (winlogon/logonui),
+  (5) finish→reboot sequence, (6) text-mode installer (usetup), (7) interactive
+  Device-Manager GUI (WuBu has the KV-FS matrix but no tree-view browser).
+  Designs the Colonel `colonel_decide("wizard.*")` decision-tree hook that
+  makes each page a numeracy gate (infer what's knowable, ask only the rest).
