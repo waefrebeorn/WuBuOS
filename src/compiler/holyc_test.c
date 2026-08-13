@@ -237,7 +237,9 @@ int main(void) {
     /* -- Cast -- */
     printf("\n[Cast]\n");
     T("(I64)42", 42);
-    T("(I64)3.14", 4614253070214989087LL);  // Double bit pattern for 3.14
+    /* (I64)3.14 truncates toward zero to 3 — the cast-conversion fix (was
+     * previously the raw F64 bit pattern 4614253070214989087, a bug). */
+    T("(I64)3.14", 3);
 
     /* -- String Literals (Cell 311) -- */
     printf("\n[Cell 311: String Literals]\n");
