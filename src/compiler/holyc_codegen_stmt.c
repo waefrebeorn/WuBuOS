@@ -474,6 +474,22 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         emit_byte(gen, 0x4C); emit_byte(gen, 0x89); emit_byte(gen, 0x8D);
                         emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
                         break;
+                    default: {
+                        /* Stack args (i >= 6): SysV ABI puts the 6th arg at
+                         * [rbp+16] (rbp+8 = return addr, rbp+16 = arg6), the
+                         * 7th at [rbp+24], etc. The call site pushes stack
+                         * args right-to-left, so arg i is at
+                         *   [rbp + 16 + (i-6)*8].
+                         * Load it into rax then store to the local slot.
+                         *   mov rax, [rbp + disp] : 48 8B 85 disp32 */
+                        int sdisp = 16 + (i - 6) * 8;
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)sdisp);
+                        /* mov [rbp - offset], rax */
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                        break;
+                    }
                 }
             }
             /* SECOND PASS — struct-by-value params >8B arrive as POINTERS

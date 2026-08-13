@@ -198,6 +198,23 @@ static HCType *parse_type(HCParser *p) {
                 int max_align = 1;
                 while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
                     HCType *member_type = parse_type(p);
+                    /* Function-pointer member: `int (*fn)(int,int);` — the
+                     * member name is inside `(*...)`, so after parse_type
+                     * (which read `int`) the next token is `(` not IDENT.
+                     * Detect `(*` and build a pointer-to-function type. */
+                    bool mem_is_fnp = false;
+                    if (peek(p) == HC_TOK_LPAREN) {
+                        int saved_pos = p->lex->pos;
+                        advance(p); /* ( */
+                        if (peek(p) == HC_TOK_STAR) {
+                            advance(p); /* * */
+                            mem_is_fnp = true;
+                        } else {
+                            /* `(name)` — not a fn ptr, restore */
+                            p->lex->pos = saved_pos;
+                            hc_lex_next(p->lex);
+                        }
+                    }
                     if (peek(p) != HC_TOK_IDENT) {
                         parse_error(p, "expected member name");
                         break;
@@ -205,6 +222,42 @@ static HCType *parse_type(HCParser *p) {
                     if (t->n_members < HC_MAX_PARAMS) {
                         strncpy(t->members[t->n_members].name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
                         advance(p); /* consume member name */
+                        if (mem_is_fnp) {
+                            /* `int (*fn)(int,int)` — consume `)` then `(params)`.
+                             * Build PTR(FUNC(...)). */
+                            expect(p, HC_TOK_RPAREN);
+                            if (peek(p) == HC_TOK_LPAREN) {
+                                advance(p);
+                                HCType *fn = (HCType *)calloc(1, sizeof(HCType));
+                                fn->kind = HC_TYPE_FUNC;
+                                fn->param_types = (HCType **)calloc(HC_MAX_PARAMS, sizeof(HCType *));
+                                int pi = 0;
+                                if (peek(p) != HC_TOK_RPAREN) {
+                                    fn->param_types[pi] = parse_type(p);
+                                    if (peek(p) == HC_TOK_IDENT) advance(p);
+                                    pi++;
+                                    while (match(p, HC_TOK_COMMA) && pi < HC_MAX_PARAMS) {
+                                        fn->param_types[pi] = parse_type(p);
+                                        if (peek(p) == HC_TOK_IDENT) advance(p);
+                                        pi++;
+                                    }
+                                }
+                                fn->n_params = pi;
+                                expect(p, HC_TOK_RPAREN);
+                                HCType *fpt = (HCType *)calloc(1, sizeof(HCType));
+                                fpt->kind = HC_TYPE_PTR;
+                                fpt->base = fn;
+                                fpt->size = 8;
+                                member_type = fpt;
+                            } else {
+                                /* `int (*fn)` — plain pointer-to-int */
+                                HCType *pt = (HCType *)calloc(1, sizeof(HCType));
+                                pt->kind = HC_TYPE_PTR;
+                                pt->base = member_type;
+                                pt->size = 8;
+                                member_type = pt;
+                            }
+                        }
                         /* member may itself be an array: name[N] */
                         if (peek(p) == HC_TOK_LBRACKET) {
                             advance(p);
@@ -241,6 +294,14 @@ static HCType *parse_type(HCParser *p) {
                 if (comp_kind == HC_TYPE_UNION) {
                     t->size = max_size;
                     t->align = max_align;
+                } else {
+                    /* Trailing padding: the struct's size must be a multiple
+                     * of its alignment (gcc rounds `{int (*fn)(int,int); int
+                     * n;}` up to 16 because the pointer member aligns to 8).
+                     * Without this, sizeof underestimated structs whose last
+                     * member is narrower than an earlier wide member. */
+                    if (t->align > 0 && (t->size % t->align) != 0)
+                        t->size += t->align - (t->size % t->align);
                 }
                 /* register the tag so later `struct S x;` reuses this layout */
                 if (tag[0] != '\0') {

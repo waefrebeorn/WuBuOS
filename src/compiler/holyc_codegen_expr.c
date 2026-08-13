@@ -1314,6 +1314,19 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* System V AMD64 ABI: args in rdi, rsi, rdx, rcx, r8, r9 */
             {
                 int n_args = node->n_args;
+                /* Non-IDENT callee (s.fn, p->fn, (*fp), arr[i].fn): evaluate
+                 * the function-pointer expression FIRST and park it on the
+                 * stack, because arg setup clobbers the arg registers. A
+                 * MEMBER/INDEX/ARROW/DEREF callee's gen_expr may use rdi/rsi
+                 * internally for base addresses, which would destroy arg0/arg1
+                 * if evaluated after. The pop-into-rax right before call restores
+                 * it. */
+                bool nonident_callee = node->callee &&
+                                       node->callee->kind != HC_AST_IDENT;
+                if (nonident_callee) {
+                    gen_expr(gen, node->callee);   /* rax = fn pointer value */
+                    emit_byte(gen, 0x50);          /* push rax */
+                }
                 /* System V AMD64 ABI: args 0-5 in registers, 6+ on stack (right-to-left) */
                 if (n_args > 6) {
                     /* Evaluate and push stack args (6th, 7th, ...) right-to-left */
@@ -1401,13 +1414,12 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                         }
                     }
                 } else {
-                    /* Non-ident callee (e.g. function pointer) with no
-                     * resolvable address: trap instead of `call 0`. */
-                    emit_mov_rax_imm64(gen, 0);
-                    /* mov rdi, rax : 48 89 C7 */
-                    emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC7);
-                    emit_mov_rax_imm64(gen, (int64_t)(uintptr_t)hc_trap_unresolved_call);
-                    emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                    /* Non-ident callee (e.g. function pointer member s.fn):
+                     * the pointer was evaluated and pushed at the top of the
+                     * call (nonident_callee path). Pop it into rax and call
+                     * through it — a NULL stored value traps at call 0. */
+                    emit_byte(gen, 0x58);          /* pop rax (fn ptr) */
+                    emit_byte(gen, 0xFF); emit_byte(gen, 0xD0); /* call rax */
                 }
             }
             break;

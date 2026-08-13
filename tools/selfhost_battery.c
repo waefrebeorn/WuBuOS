@@ -202,6 +202,15 @@ static const Probe PROBES[] = {
     {"addr array elem", "int a[3]; a[1]=7; int* p=&a[1]; *p;", 7},
     {"deref int*", "struct S{int a;int b;}; struct S s; s.a=10; s.b=20; int* p=&s.a; *p;", 10},
     {"deref chain", "int x=5; int* p=&x; int** pp=&p; **pp;", 5},
+    /* ---- multi-arg calls + function-pointer struct members ---- */
+    {"7 args", "int f(int a,int b,int c,int d,int e,int f2,int g){return a+b+c+d+e+f2+g;} f(1,2,3,4,5,6,7);", 28},
+    {"8 args", "int f(int a,int b,int c,int d,int e,int f2,int g,int h){return a+b+c+d+e+f2+g+h;} f(1,2,3,4,5,6,7,8);", 36},
+    {"6 args", "int f(int a,int b,int c,int d,int e,int f2){return a+b+c+d+e+f2;} f(1,2,3,4,5,6);", 21},
+    {"fn ptr member", "struct S{int (*fn)(int,int); int n;}; int add(int x,int y){return x+y;} struct S s; s.fn=add; s.n=5; s.fn(3,4);", 7},
+    {"fn ptr member+field", "struct S{int (*fn)(int,int); int n;}; int add(int x,int y){return x+y;} struct S s; s.fn=add; s.n=5; s.fn(3,4)+s.n;", 12},
+    {"fn ptr member sz", "struct S{int (*fn)(int,int); int n;}; sizeof(struct S);", 16},
+    {"array member", "struct S{int a[3]; int n;}; struct S s; s.a[0]=1; s.a[1]=2; s.a[2]=3; s.n=3; s.a[0]+s.a[1]+s.a[2];", 6},
+    {"union", "union U{int a; long long b;}; union U u; u.a=5; u.b;", 5},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))

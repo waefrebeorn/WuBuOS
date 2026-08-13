@@ -235,6 +235,31 @@ construct coverage:
    address. Fix: emit `xor eax,eax` before epilogue for void-returning
    functions.
 
+## Multi-arg calls + function-pointer struct members (2026-08-13, battery 147→155)
+
+Battery **147 → 155 probes, 155/155 PASS**. Three more real gaps:
+
+1. **Stack args (i≥6) were never read by the callee.** The SysV register
+   args (rdi..r9, i=0..5) worked, but the callee's param prologue had no
+   case for i≥6 — the stack args the caller pushed were never copied into
+   the local slots, so `f(a..g)` (7 args) dropped the 7th. Fix: default
+   case reads arg i from `[rbp + 16 + (i-6)*8]` (rbp+8=ret, rbp+16=arg6)
+   into rax then stores to the slot.
+2. **Non-IDENT callees (s.fn, p->fn, (*fp), arr[i].fn) trapped.** The
+   FUNC_CALL codegen only resolved IDENT callees; everything else emitted
+   the unresolved trap. Fix: evaluate the function-pointer expression FIRST
+   and push it (arg setup clobbers rdi/rsi for INDEX/MEMBER bases), then
+   pop into rax right before `call rax`.
+3. **Function-pointer struct members didn't parse.** `int (*fn)(int,int);`
+   inside a struct hit "expected member name" (the name is inside `(*...)`,
+   so after parse_type the next token is `(` not IDENT). Fix: the struct
+   member loop detects `(*` and builds a PTR(FUNC(...)) type, consuming
+   `)` + `(params)`.
+4. **Struct trailing padding.** `sizeof(struct{int (*fn)(int,int); int
+   n;})` was 12; gcc gives 16 (the struct aligns to 8 because of the
+   pointer member). Fix: round the struct size up to a multiple of its
+   alignment after the member loop.
+
 ## Honest remainder
 
 - No `case`/`default` duplicate detection.
@@ -252,13 +277,14 @@ construct coverage:
 
 7 `sizeof` + 6 `switch` + 3 `goto` + 7 `multi-dim array` + 7 `nested
 pointer/deref` + 4 `sret return (≤8B)` + 5 `call member f().a` + 13
-`full SysV sret (>8B return + arg)` + 17 `runtime correctness` probes →
-battery **78 → 147 probes, 147/147 PASS, 0 WRONG, 0 CRASH**. (The
-nested-struct sizeof probe exposed a wrong *expectation* on my part — gcc
-confirms 8, compiler was right — fixed, not a compiler bug.)
+`full SysV sret (>8B return + arg)` + 17 `runtime correctness` + 8
+`multi-arg / fn-ptr member` probes → battery **78 → 155 probes, 155/155
+PASS, 0 WRONG, 0 CRASH**. (The nested-struct sizeof probe exposed a wrong
+*expectation* on my part — gcc confirms 8, compiler was right — fixed,
+not a compiler bug.)
 
 ## Gates (all fresh-verified)
 
-- battery 147/147 PASS (was 78) — no regression
+- battery 155/155 PASS (was 78) — no regression
 - test_holyc 84/84, test_holyc_agi 11/11
 - test_hedge PASS, test_dram_hedge 294/294
