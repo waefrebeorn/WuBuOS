@@ -339,11 +339,12 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     if (!win || !win->alive || !g_a11y_enabled) return;
 
-    int px, py; panel_rect(win, &px, &py);
     /* NOTE: no panel background. The buttons float DIRECTLY on the window
      * (the user: "these buttons need to properly be ON OUR WINDOW NO
      * BACKGROUND" — the lavender panel box + its translucent shadow read as
-     * a "bad JPEG transparency" cloud on the silver window face). */
+     * a "bad JPEG transparency" cloud on the silver window face).
+     * Vibe = GameCube: yellow bean TL, green A, red B, ghost purple beans
+     * at the bottom corners. The buttons are the whole UI — no card. */
 
     /* YELLOW X (top-left): round-tip CRESCENT = a BEAN (the real GC X/Y
      * buttons are bean-shaped — Space World prototype). The reference shows
