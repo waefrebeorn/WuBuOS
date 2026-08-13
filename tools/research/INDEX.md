@@ -40,3 +40,17 @@ pipelining → branchless → linear-scan RA → NUMA topology.
 - [ ] pext/pext variable-bit latency deep-dive (microcode penalty)
 - [ ] AVX-512 / AVX2 vector-width utilization for WUBU kernel math
 - [ ] HolyC→SPIR-V emitter prototype (the gpu_universal_layer §5/§7 next step)
+
+## Driver Self-Installation / Numeracy — NEW 2026-08-13
+- `driver_self_install.md` — the AGI-OS gap the user identified: WuBuOS
+  DISCOVERS hardware (wubu_probe.c, wubu_drv.c, PCI/USB/ACPI/VirtIO
+  buses, 40+ subsystem headers) but when a device has NO registered driver
+  it writes "unbound" and stops — it does NOT fetch/build/compile + load a
+  driver module. Research + design of the missing `wubu_drv_install()`
+  arm: modalias synthesis (pci/usb/acpi), a manifest table
+  (modalias→{local|pkg|git|fw_container}), DKMS-style in-kernel build,
+  in-memory module load + live re-probe, CO-RE-style relocations, batch
+  coldplug, GPU ICD self-install (real dGPU > llvmpipe), and the firmware
+  self-fetch path (wubu_fw.c) that driver-modules must mirror. Sources:
+  Linux MODULE_DEVICE_TABLE + udev modalias, DKMS, BPF CO-RE/BTF, Linux
+  device-tree PCI nodes. Honest gaps enumerated.
