@@ -520,7 +520,7 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
     for (int i = 0; i < mc->n_args && i < 6; i++) {
         MinicVar *v = scope_find(&mc->scope, mc->scope.vars[i].name);
         if (v) {
-            v->slot = -(8 * mc->n_args) + 8 * i;  /* arg0 at -8*n, arg1 at -8*(n-1), etc. */
+            v->slot = -(8 * mc->n_args) + 8 * i;  /* arg0 deepest: [rbp-8*n], arg[n-1] at [rbp-8] */
             v->is_arg = 0;  /* Now on stack, accessed via RBP */
         }
     }
@@ -604,12 +604,40 @@ JITResult jit_minic_compile(JITContext *ctx,
     if (is_expr) {
         size_t src_len = strlen(source);
         const char *fname = (fn_name && fn_name[0]) ? fn_name : "minic_fn";
-        size_t wrap_len = 80 + src_len + strlen(fname);
+        /* Probe which arg-names a-f the expression uses, so we declare
+         * exactly that many parameters (and no garbage registers). */
+        const char *names[] = {"a","b","c","d","e","f"};
+        int n_used = 0;
+        for (int i = 0; i < 6; i++) {
+            /* Match name as a standalone identifier (bounded by non-alpha). */
+            const char *p = source;
+            while ((p = strstr(p, names[i])) != NULL) {
+                char before = p == source ? ' ' : *(p - 1);
+                char after = p[strlen(names[i])];
+                if (!((before >= 'a' && before <= 'z') ||
+                      (before >= 'A' && before <= 'Z') || (before == '_') ||
+                      (after >= 'a' && after <= 'z') ||
+                      (after >= 'A' && after <= 'Z') || (after == '_'))) {
+                    n_used = i + 1;  /* at least up through this name */
+                    break;
+                }
+                p += strlen(names[i]);
+            }
+        }
+        if (n_used < 1) n_used = 1;  /* always declare at least arg 'a' */
+        /* Build the arg list: (long a, long b, ..., long <last>) */
+        char arglist[64] = "";
+        char *q = arglist;
+        for (int i = 0; i < n_used; i++) {
+            q += snprintf(q, sizeof(arglist) - (q - arglist),
+                          "%s%s%s", (i ? ", " : ""), "long ", names[i]);
+        }
+        size_t wrap_len = 160 + src_len + strlen(fname) + (size_t)(q - arglist);
         wrapped = (char *)malloc(wrap_len);
         if (!wrapped) return JIT_ERR_ALLOC;
         snprintf(wrapped, wrap_len,
-                 "long %s(long a, long b) { return (%s); }",
-                 fname, source);
+                 "long %s(%s) { return (%s); }",
+                 fname, arglist, source);
         compile_src = wrapped;
     }
 

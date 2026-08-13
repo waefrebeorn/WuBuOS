@@ -252,10 +252,12 @@ int wx86_sub_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
 
 int wx86_sub_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
     size_t start = e->pos;
-    uint8_t rex = wx86_rex(WREG_RBX, dst, true);  /* /5 = sub, reg_lo=5=rbx */
+    uint8_t rex = wx86_rex(WREG_RBX, dst, true);  /* REX.W */
     wx86_emit_byte(e, rex);
     wx86_emit_byte(e, 0x81);
-    wx86_emit_modrm(e, 3, WREG_RBX, dst);  /* /5 = sub */
+    /* 0x81 /5 = SUB r/m64, imm32. The reg field is the opcode EXTENSION (5),
+     * not a register — pass the literal extension value. */
+    wx86_emit_byte(e, (uint8_t)(0xC0 | (5 << 3) | reg_lo(dst)));  /* mod=11, /5, rm=dst */
     wx86_emit_dword(e, (uint32_t)imm);
     return (int)(e->pos - start);
 }

@@ -626,9 +626,7 @@ JITResult jit_compile(JITContext *ctx,
     
     switch (ctx->backend) {
         case JIT_BACKEND_MMAP:
-            if (lang != JIT_LANG_ASM && lang != JIT_LANG_C)
-                return JIT_ERR_BACKEND;  /* mmap only handles simple expressions/ASM */
-            return mmap_compile_simple(ctx, source, fn_name, out_func);
+            return jit_mir_compile_impl(ctx, source, lang, fn_name, out_func);
             
         case JIT_BACKEND_MIR:
             return jit_mir_compile_impl(ctx, source, lang, fn_name, out_func);
@@ -688,16 +686,31 @@ int64_t jit_call2(JITFunc *fn, int64_t a0, int64_t a1) {
     return 0;
 }
 
+/* Variadic call dispatcher. The JIT-compiled functions take int64_t args
+ * in the standard SysV register slots (RDI, RSI, RDX, RCX, R8, R9, ...).
+ * We dispatch by fn->n_args to a correctly-typed forwarder (jit_callN)
+ * so the caller's register setup isn't confused by variadic forwarding.
+ */
 void *jit_callv(JITFunc *fn, ...) {
-    /* Variadic call  --  the caller must ensure correct ABI */
-    if (fn && fn->code) {
-        void *code = fn->code;
-        /* This is inherently unsafe and platform-specific.
-         * For a proper implementation, use libffi. */
-        (void)code;
-        return NULL;
+    if (!fn || !fn->code) return NULL;
+    va_list ap;
+    va_start(ap, fn);
+    int64_t args[8] = {0};
+    for (int i = 0; i < 8; i++)
+        args[i] = va_arg(ap, int64_t);
+    va_end(ap);
+    int64_t res = 0;
+    switch (fn->n_args) {
+        case 0: res = ((int64_t (*)(void))fn->code)(); break;
+        case 1: res = ((int64_t (*)(int64_t))fn->code)(args[0]); break;
+        case 2: res = ((int64_t (*)(int64_t,int64_t))fn->code)(args[0], args[1]); break;
+        case 3: res = ((int64_t (*)(int64_t,int64_t,int64_t))fn->code)(args[0], args[1], args[2]); break;
+        case 4: res = ((int64_t (*)(int64_t,int64_t,int64_t,int64_t))fn->code)(args[0], args[1], args[2], args[3]); break;
+        case 5: res = ((int64_t (*)(int64_t,int64_t,int64_t,int64_t,int64_t))fn->code)(args[0], args[1], args[2], args[3], args[4]); break;
+        case 6: res = ((int64_t (*)(int64_t,int64_t,int64_t,int64_t,int64_t,int64_t))fn->code)(args[0], args[1], args[2], args[3], args[4], args[5]); break;
+        default: res = 0; break;
     }
-    return NULL;
+    return (void *)(intptr_t)res;
 }
 
 /* -- Function Management ----------------------------------------- */
