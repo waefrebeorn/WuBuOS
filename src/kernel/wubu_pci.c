@@ -15,6 +15,12 @@ extern void *memset(void *s, int c, size_t n);   /* kernel libc */
 #define PCI_CONFIG_ADDR 0xCF8
 #define PCI_CONFIG_DATA 0xCFC
 
+#ifdef WUBU_PCI_TEST_STUBS
+/* Test hook: the selftest provides its own config I/O
+ * (memory-backed fake config space) instead of real port I/O. */
+uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off);
+void     wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, uint32_t val);
+#else
 static inline void outl_(uint16_t port, uint32_t val) {
     __asm__ __volatile__("outl %0, %1" : : "a"(val), "Nd"(port));
 }
@@ -23,24 +29,31 @@ static inline uint32_t inl_(uint16_t port) {
     __asm__ __volatile__("inl %1, %0" : "=a"(v) : "Nd"(port));
     return v;
 }
-
-uint32_t wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
-{
+static inline uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off) {
     uint32_t addr = 0x80000000u | ((uint32_t)bus << 16) |
                     ((uint32_t)dev << 11) | ((uint32_t)fn << 8) |
                     ((uint32_t)off & 0xFCu);
     outl_(PCI_CONFIG_ADDR, addr);
     return inl_(PCI_CONFIG_DATA);
 }
-
-void wubu_pci_write32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off,
-                      uint32_t val)
-{
+static inline void wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, uint32_t val) {
     uint32_t addr = 0x80000000u | ((uint32_t)bus << 16) |
                     ((uint32_t)dev << 11) | ((uint32_t)fn << 8) |
                     ((uint32_t)off & 0xFCu);
     outl_(PCI_CONFIG_ADDR, addr);
     outl_(PCI_CONFIG_DATA, val);
+}
+#endif
+
+uint32_t wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
+{
+    return wubu_pci_read_config(bus, dev, fn, off);
+}
+
+void wubu_pci_write32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off,
+                      uint32_t val)
+{
+    wubu_pci_write_config(bus, dev, fn, off, val);
 }
 
 /* Read BAR0/BAR1 as a 64-bit physical address (mask type bits). */
