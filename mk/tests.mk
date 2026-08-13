@@ -630,7 +630,7 @@ test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 # Tailslayer DRAM-refresh hedge (kernel-level): replicated allocation with
 # 256-byte channel-stride addressing + hedged read + trefi probe.
 test_dram_hedge: src/kernel/wubu_dram_hedge.c src/kernel/wubu_dram_hedge.h
-	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c src/kernel/tests/test_dram_hedge.c -o build/test_dram_hedge -lm
+	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c src/kernel/tests/test_dram_hedge.c -o build/test_dram_hedge -lm -lpthread
 	./build/test_dram_hedge
 
 test_dosgui_wm: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_window_chrome.o

@@ -83,4 +83,15 @@ int       wdh_trefi_periodic(const wdh_hedge_t *h); /* 1 if refresh detectable *
  * detected on this machine (tail-latency mitigation is beneficial). */
 int wdh_probe_trefi(double *out_median_cyc, double *out_spike_pct);
 
+/* -- Hedged reader worker-pool (host builds with pthread) ---------------- */
+/* The faithful Tailslayer race-to-completion: N threads each pinned to a
+ * dedicated core spin on a generation signal; publishing a read index
+ * wakes all of them to load their OWN channel replica, and the first to
+ * complete atomically claims the result. Returns NULL if threads aren't
+ * compiled in (kernel metal build) or on spawn failure. */
+typedef struct wdh_reader wdh_reader_t;
+wdh_reader_t *wdh_reader_create(wdh_hedge_t *h, const int *cores, unsigned n_cores);
+int  wdh_reader_read(wdh_reader_t *r, size_t idx, void *out);
+void wdh_reader_destroy(wdh_reader_t *r);
+
 #endif /* WUBU_DRAM_HEDGE_H */

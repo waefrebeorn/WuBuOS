@@ -6,6 +6,10 @@
  * hooks (the channel-stride guarantee).
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE   /* sched_setaffinity / CPU_ZERO (host reader pool) */
+#endif
+
 #include "wubu_dram_hedge.h"
 
 #include <stdlib.h>
@@ -126,6 +130,159 @@ wdh_hedge_t *wdh_create(size_t elem_size, unsigned num_replicas)
     }
     return h;
 }
+
+/* =====================================================================
+ * Hedged reader worker-pool — the faithful Tailslayer race-to-completion
+ * =====================================================================
+ * Tailslayer's essence: N worker threads, each pinned to a DEDICATED core
+ * (sched_setaffinity), spin on a shared generation signal. When a read
+ * index is published, every worker simultaneously loads its OWN channel
+ * replica; the FIRST to complete atomically claims the result. DRAM
+ * refresh schedules across channels are uncorrelated, so the probability
+ * all channels are refreshing at once is ~0 — the winning replica (the
+ * one whose channel wasn't mid-refresh) returns in ~idle latency.
+ *
+ * Host build only (needs pthread/sched). The kernel metal build keeps the
+ * in-call hedged read (wdh_get); the reader pool is the full mechanism.
+ *
+ *   wdh_reader_t *r = wdh_reader_create(h, cores, n_cores);
+ *   wdh_reader_read(r, idx, out);   // publishes idx, races replicas
+ *   wdh_reader_destroy(r);
+ */
+#if defined(__linux__) && !defined(WUBU_DRAM_HEDGE_NOTHREADS)
+#define WDH_READER_THREADS 1
+#include <pthread.h>
+#include <sched.h>
+#endif
+
+#ifdef WDH_READER_THREADS
+
+typedef struct wdh_reader {
+    wdh_hedge_t *hedge;
+    unsigned     n_workers;
+    int          cores[WDH_MAX_REPLICAS];
+    pthread_t    threads[WDH_MAX_REPLICAS];
+    /* Shared handshake — sequential-read, provably correct:
+     *   ticket   monotonically-increasing generation (reader publishes)
+     *   cur_idx  the index to read (set before ticket, release-ordered)
+     *   done     count of workers that loaded the CURRENT generation
+     *   winner_val[k]  per-worker result buffer (each worker writes only
+     *                  its own slot — no torn-copy race).
+     * The reader waits for done == n_workers (every replica loaded the
+     * current index) before reading winner_val[0] (all replicas hold
+     * identical bytes, so any slot is correct). A worker increments done
+     * only while ticket==last, so a slow worker from a previous generation
+     * can't inflate done for the current one. */
+    volatile uint64_t  ticket;
+    volatile uint64_t  cur_idx;
+    volatile uint64_t  done;
+    volatile uint8_t   winner_val[WDH_MAX_REPLICAS][WDH_MAX_ELEM];
+    int                stop;           /* 1 => workers exit                */
+} wdh_reader_t;
+
+static void *wdh_worker(void *arg)
+{
+    /* worker k = its slot in the reader pool */
+    struct { wdh_reader_t *r; unsigned k; } *w = arg;
+    wdh_reader_t *r = w->r;
+    unsigned k = w->k;
+    if (k < r->n_workers && k < WDH_MAX_REPLICAS && r->cores[k] >= 0) {
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        CPU_SET(r->cores[k], &set);
+        sched_setaffinity(0, sizeof(set), &set);
+    }
+    uint64_t last = 0;
+    while (!r->stop) {
+        if (r->ticket == last) continue;   /* spin until new index */
+        last = r->ticket;
+        __sync_synchronize();              /* acquire: see cur_idx write */
+        uint64_t idx = r->cur_idx;
+        if (idx >= r->hedge->slots) continue;
+        const void *a = wdh_addr(r->hedge, idx, k);
+        size_t n = r->hedge->elem_size;
+        unsigned char *dst = (unsigned char *)r->winner_val[k];
+        for (size_t i = 0; i < n; i++) dst[i] = ((const unsigned char *)a)[i];
+        __sync_synchronize();
+        /* signal this replica loaded — but only for the CURRENT generation,
+         * so a slow worker from a previous read can't satisfy the wait. */
+        if (r->ticket == last)
+            __sync_fetch_and_add(&r->done, 1);
+    }
+    return NULL;
+}
+
+wdh_reader_t *wdh_reader_create(wdh_hedge_t *h, const int *cores, unsigned n_cores)
+{
+    if (!h || !cores || n_cores == 0 || n_cores > h->num_replicas) return NULL;
+    wdh_reader_t *r = (wdh_reader_t *)calloc(1, sizeof(*r));
+    if (!r) return NULL;
+    r->hedge = h;
+    r->n_workers = n_cores;
+    for (unsigned i = 0; i < n_cores; i++) r->cores[i] = cores[i];
+    r->done = 0;
+    r->stop = 0;
+    for (unsigned i = 0; i < n_cores; i++) {
+        struct { wdh_reader_t *r; unsigned k; } *w =
+            (void *)malloc(sizeof(*w));
+        if (!w) { wdh_reader_destroy(r); return NULL; }
+        w->r = r; w->k = i;
+        if (pthread_create(&r->threads[i], NULL, wdh_worker, w) != 0) {
+            free(w);
+            r->n_workers = i;              /* spawn what we have so far */
+            wdh_reader_destroy(r);
+            return NULL;
+        }
+    }
+    return r;
+}
+
+int wdh_reader_read(wdh_reader_t *r, size_t idx, void *out)
+{
+    if (!r || !out || idx >= r->hedge->slots) return -1;
+    /* Sequential-read handshake:
+     *   1. set cur_idx
+     *   2. reset done=0 (a stale worker's ticket==last guard can't inflate it
+     *      for THIS generation)
+     *   3. publish ticket = ticket+1
+     *   4. wait for every current-generation worker to signal done
+     *   5. read winner_val[0] — all replicas hold identical bytes.
+     * The reader fully completes a read before starting the next, so no
+     * stale value can satisfy a wait. */
+    r->cur_idx = idx;
+    __sync_synchronize();
+    r->done = 0;                          /* reset completion count */
+    __sync_synchronize();
+    uint64_t target = r->ticket + 1;
+    r->ticket = target;                   /* publish: workers wake */
+    __sync_synchronize();
+    while (r->done < r->n_workers) { /* spin until every replica loaded */ }
+    __sync_synchronize();
+    memcpy(out, (void *)r->winner_val[0], r->hedge->elem_size);
+    return 0;
+}
+
+void wdh_reader_destroy(wdh_reader_t *r)
+{
+    if (!r) return;
+    r->stop = 1;
+    __sync_synchronize();
+    r->ticket++;                          /* wake workers to see stop */
+    for (unsigned i = 0; i < r->n_workers; i++)
+        pthread_join(r->threads[i], NULL);
+    free(r);
+}
+
+#endif /* WDH_READER_THREADS */
+
+#ifndef WDH_READER_THREADS
+/* Kernel metal / no-pthread fallback: the reader pool is unavailable. */
+wdh_reader_t *wdh_reader_create(wdh_hedge_t *h, const int *cores, unsigned n)
+{ (void)h; (void)cores; (void)n; return NULL; }
+int wdh_reader_read(wdh_reader_t *r, size_t idx, void *out)
+{ (void)r; (void)idx; (void)out; return -1; }
+void wdh_reader_destroy(wdh_reader_t *r) { (void)r; }
+#endif
 
 void wdh_destroy(wdh_hedge_t *h)
 {

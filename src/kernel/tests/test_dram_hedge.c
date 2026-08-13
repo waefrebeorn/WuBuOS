@@ -98,6 +98,39 @@ static void test_probe(void) {
     CHECK(median > 0 && median < 5000, "median in sane range");
 }
 
+static void test_reader_pool(void) {
+    printf("== hedged reader worker-pool (race-to-completion) ==\n");
+    wdh_hedge_t *h = wdh_create(8, 2);
+    if (!h) { printf("  hedge create failed\n"); return; }
+    /* pin the two workers to distinct cores (0 and 2) so they don't share
+     * a physical core's execution ports */
+    int cores[2] = {0, 2};
+    wdh_reader_t *r = wdh_reader_create(h, cores, 2);
+    if (!r) {
+        printf("  reader pool unavailable on this build (no pthread) — skip\n");
+        wdh_destroy(h);
+        return;
+    }
+    unsigned char in[8] = {0xDE,0xAD,0xBE,0xEF,0x11,0x22,0x33,0x44};
+    unsigned char out[8] = {0};
+    int ok = 1;
+    for (size_t idx = 0; idx < 200; idx += 5) {
+        in[0] = (unsigned char)(idx & 0xFF);
+        in[1] = (unsigned char)((idx >> 8) & 0xFF);
+        wdh_put(h, idx, in);
+        memset(out, 0, sizeof out);
+        if (wdh_reader_read(r, idx, out) != 0) { ok = 0; break; }
+        if (memcmp(in, out, 8) != 0) {
+            printf("  mismatch idx=%zu want=%02x%02x.. got=%02x%02x..\n",
+                   idx, in[0], in[1], out[0], out[1]);
+            ok = 0; break;
+        }
+    }
+    CHECK(ok, "reader pool round-trips match across race");
+    wdh_reader_destroy(r);
+    wdh_destroy(h);
+}
+
 int main(void) {
     printf("=== WuBuOS DRAM-refresh hedge selftest ===\n");
     test_channel_stride();
@@ -105,6 +138,7 @@ int main(void) {
     test_roundtrip_4();
     test_replicated_writes();
     test_probe();
+    test_reader_pool();
     printf("\nResults: %d/%d passed, %d failed\n", checks - fails, checks, fails);
     return fails ? 1 : 0;
 }
