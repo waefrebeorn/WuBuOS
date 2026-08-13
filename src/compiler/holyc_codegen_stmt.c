@@ -482,6 +482,7 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                             node->ident, HC_MAX_IDENT_LEN - 1);
                     gen->functions[gen->n_functions].func_ptr = exec;
                     gen->functions[gen->n_functions].n_params = node->n_params;
+                    gen->functions[gen->n_functions].ret_type = node->type;
                     gen->n_functions++;
                 } else {
                     /* Restore on failure */

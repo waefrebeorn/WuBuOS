@@ -147,6 +147,20 @@ HCType *expr_static_type(HCGen *gen, const HCASTNode *node)
             if (bt && bt->kind == HC_TYPE_PTR && bt->base) return bt->base;
             return NULL;
         }
+        case HC_AST_FUNC_CALL: {
+            /* Static type of a call = the callee's declared return type.
+             * Look up the named function in the function table. This is what
+             * lets `f().a` (member access on a struct-return call) resolve
+             * the member's offset: expr_static_type(f().a) → int, but more
+             * importantly the MEMBER codegen needs f's struct ret_type to
+             * walk the base. */
+            if (node->callee && node->callee->kind == HC_AST_IDENT) {
+                for (int i = 0; i < gen->n_functions; i++)
+                    if (strcmp(gen->functions[i].name, node->callee->ident) == 0)
+                        return gen->functions[i].ret_type;
+            }
+            return NULL;
+        }
         default:
             return NULL;
     }

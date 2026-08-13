@@ -160,6 +160,14 @@ static const Probe PROBES[] = {
     {"ret struct b", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} struct S r; r=f(); r.b;", 7},
     {"ret single field", "struct S{int a;}; struct S f(){struct S s; s.a=5; return s;} struct S r; r=f(); r.a;", 5},
     {"ret struct sum", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} struct S r; r=f(); r.a+r.b;", 49},
+    /* ---- member access on a struct-return call result: f().a ----
+     * expr_static_type(FUNC_CALL) resolves the callee's declared return
+     * type via the function table, so MEMBER can walk the struct base. */
+    {"call member a", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} f().a;", 42},
+    {"call member b", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} f().b;", 7},
+    {"call member sum", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} f().a+f().b;", 49},
+    {"call member arg", "int f(int x){return x+1;} struct S{int a;}; struct S g(){struct S s; s.a=42; return s;} f(g().a);", 43},
+    {"call member mul", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} f().a*f().b;", 294},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))

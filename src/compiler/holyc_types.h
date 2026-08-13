@@ -291,6 +291,7 @@ struct HCFunction {
     char name[HC_MAX_IDENT_LEN];
     void *func_ptr;
     int n_params;
+    HCType *ret_type;   /* declared return type (struct → sret-capable) */
 };
 
 /* -- Lexer struct (full definition needed by lexer.c) ------------------------ */

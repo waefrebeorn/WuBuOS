@@ -1,6 +1,6 @@
-# sizeof + switch + goto + multi-dim arrays + nested pointer access + sret
+# sizeof + switch + goto + multi-dim arrays + nested pointer access + sret + f().a
 
-**Status: SHIPPED + GREEN** (2026-08-13). Closes six kernel-critical C11
+**Status: SHIPPED + GREEN** (2026-08-13). Closes seven kernel-critical C11
 gaps the compiler needed to compile the kernel + desktop.
 
 ## sizeof
@@ -137,6 +137,25 @@ Result: byte-exact memcpy of the returned struct into the LHS. Verified
 on `{int a;int b;}` (8B) and `{int a;}` (4B) structs; larger structs
 fall through to the legacy 8-byte path (see Honest remainder).
 
+## Member access on a struct-return call: f().a
+
+`struct S f(){...; return s;} f().a;` now works. The missing piece was
+that `expr_static_type` had no FUNC_CALL case, so the MEMBER codegen
+couldn't resolve the callee's return type and the base address was left
+in rax (giving the slot pointer, not the member). Fix:
+
+1. `HCFunction` gains a `ret_type` field, recorded from the FUNC_DECL's
+   declared return type (`node->type`) when the function is compiled.
+2. `expr_static_type` gains a FUNC_CALL case that looks up the named
+   callee's `ret_type` in the function table.
+
+With the static type resolvable, the existing MEMBER path works
+unchanged: `emit_base_addr(FUNC_CALL)` evaluates the call → rax = &slot,
+then `emit_sized_load_rax_off(off, msz)` loads `[rax + off]` = the member.
+
+Verified on `f().a`, `f().b`, `f().a+f().b`, `f(g().a)` (nested call with
+member as arg), `f().a*f().b`. Battery 112 → 117 probes.
+
 ## Honest remainder
 
 - No `case`/`default` duplicate detection.
@@ -153,20 +172,17 @@ fall through to the legacy 8-byte path (see Honest remainder).
   is the proper fix; not yet implemented.
 - **Struct-by-value ARG passing >8 bytes** — same root cause as the >8B
   return remainder above; the caller only stores 8 bytes into rdi.
-- **`f().a` where f returns a struct** — MEMBER on the call result still
-  treats rax as the scalar value, not as a pointer to the returned
-  struct. Workaround: assign to a struct variable first (`r=f(); r.a;`).
 
 ## Battery additions (selfhost_battery.c)
 
 7 `sizeof` + 6 `switch` + 3 `goto` + 7 `multi-dim array` + 7 `nested
-pointer/deref` + 4 `sret return (≤8B)` probes → battery **78 → 112
-probes, 112/112 PASS, 0 WRONG, 0 CRASH**. (The nested-struct sizeof
-probe exposed a wrong *expectation* on my part — gcc confirms 8,
-compiler was right — fixed, not a compiler bug.)
+pointer/deref` + 4 `sret return (≤8B)` + 5 `call member f().a` probes →
+battery **78 → 117 probes, 117/117 PASS, 0 WRONG, 0 CRASH**. (The
+nested-struct sizeof probe exposed a wrong *expectation* on my part —
+gcc confirms 8, compiler was right — fixed, not a compiler bug.)
 
 ## Gates (all fresh-verified)
 
-- battery 112/112 PASS (was 78) — no regression
+- battery 117/117 PASS (was 78) — no regression
 - test_holyc 84/84, test_holyc_agi 11/11
 - test_hedge PASS, test_dram_hedge 294/294
