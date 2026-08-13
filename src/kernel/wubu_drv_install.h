@@ -68,6 +68,12 @@ const wubu_drv_manifest_t *wubu_drv_manifest_lookup(const char *modalias);
  * wubu_drv_register). Returns the function address or NULL. */
 const void *wubu_drv_export_lookup(const char *sym);
 
+/* DI3 extended: wubu_drv_acquire() -- fetch source for git/pkg sources.
+ *   For git sources: clone into ~/opt/wubu_drivers/<driver_name>/
+ *   For fw_container: map firmware to driver interface.
+ *   Returns 0 on success, WUBU_DI_NO_SOURCE on failure. */
+int wubu_drv_acquire(const wubu_drv_manifest_t *m);
+
 /* DI6: load a compiled ET_REL .o in memory. `obj`/`obj_len` is the object
  * bytes. Reads ELF64 headers, copies PROGBITS, relocates against the
  * export table, calls the `wubu_mod_entry` symbol, which returns a

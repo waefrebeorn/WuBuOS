@@ -70,6 +70,10 @@
 #define R_X86_64_RELATIVE 8
 #define R_X86_64_GOTPCREL 9   /* GoTPCREL (r15w): treat as PLT for flat loader */
 
+/* Driver cache directory */
+#define WUBU_DRV_CACHE_DIR "~/opt/wubu_drivers"
+#define WUBU_MESA_UPSTREAM "https://gitlab.freedesktop.org/mesa/mesa.git"
+
 typedef struct {
     unsigned char e_ident[16];
     uint16_t e_type, e_machine;
@@ -124,8 +128,12 @@ static const wubu_drv_manifest_t g_manifest[] = {
     /* Qualcomm Adreno (Turnip). */
     { "pci:v00005143", "qcom_gpu", "git", "mesa/turnip" },
 
+    /* TEST STUB: tiny Mesa driver for self-install testing.
+       Points to local git repo for end-to-end verification. */
+    { "pci:v00001002d0000163F", "test_mesa_steamdeck", "git", "file:///tmp/mesa_stub_steamdeck" },
+
     /* VirtIO GPU (hosted / KVM leg). */
-    { "pci:v00001AF4", "virtio_gpu", "local", "src/kernel/wubu_drv_virtio_gpu.c" },
+    { "pci:v00001AF4", "virtio_gpu", "local", "src/kernel/wubu_drv_virtio.c" },
 
     /* a local test driver (self-install selftest). */
     { "pci:vCAFE", "cafe_demo", "local", "tools/probe/drv_demo.c" },
@@ -193,6 +201,73 @@ const void *wubu_drv_export_lookup(const char *sym)
         if (strcmp(g_exports[i].name, sym) == 0)
             return g_exports[i].addr;
     return NULL;
+}
+
+/* ------------------------------------------------------------------ */
+/* DI3: wubu_drv_acquire() -- fetch source for git/pkg sources.       */
+/*   For git sources: clone into ~/opt/wubu_drivers/<driver_name>/      */
+/*   Returns 0 on success, negative on failure.                        */
+/* ------------------------------------------------------------------ */
+int wubu_drv_acquire(const wubu_drv_manifest_t *m)
+{
+    if (!m) return -1;
+
+    if (strcmp(m->source, "git") != 0)
+        return 0; /* nothing to acquire for local/fw sources */
+
+    /* Build cache path: ~/opt/wubu_drivers/<driver_name> */
+    char cache_home[512];
+    const char *home = getenv("HOME");
+    if (!home) home = "/home/wubu";
+    snprintf(cache_home, sizeof(cache_home), "%s/opt/wubu_drivers", home);
+
+    char cache_dir[1024];
+    snprintf(cache_dir, sizeof(cache_dir), "%s/%s", cache_home, m->driver_name);
+
+    /* Check if already cached */
+    if (access(cache_dir, F_OK) == 0) {
+        char src_file[2048];
+        snprintf(src_file, sizeof(src_file), "%s/wubu_mod_entry.c", cache_dir);
+        if (access(src_file, F_OK) == 0)
+            return 0; /* already cached */
+    }
+
+    /* Create cache directory */
+    char mkdir_cmd[1024];
+    snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p %s 2>/dev/null", cache_home);
+    system(mkdir_cmd);
+
+    /* Check if path looks like a URL (starts with http://, https://, git://, file://)
+     * or is an absolute path */
+    int is_url = 0;
+    if (strncmp(m->path, "http://", 7) == 0 ||
+        strncmp(m->path, "https://", 8) == 0 ||
+        strncmp(m->path, "git://", 6) == 0 ||
+        strncmp(m->path, "file://", 7) == 0 ||
+        m->path[0] == '/') {
+        is_url = 1;
+    }
+    
+    char clone_cmd[4096];
+    if (is_url) {
+        /* It's already a git URL or file path */
+        snprintf(clone_cmd, sizeof(clone_cmd),
+                "rm -rf %s && git clone --depth 1 %s %s 2>/dev/null",
+                cache_dir, m->path, cache_dir);
+    } else {
+        /* It's a Mesa subpath like "mesa/radv" - clone from upstream */
+        snprintf(clone_cmd, sizeof(clone_cmd),
+                "rm -rf %s && git clone --depth 1 %s %s 2>/dev/null",
+                cache_dir, WUBU_MESA_UPSTREAM, cache_dir);
+    }
+
+    int rc = system(clone_cmd);
+    if (rc != 0) {
+        fprintf(stderr, "wubu_drv_acquire: git clone failed for %s\n", m->driver_name);
+        return -1;
+    }
+
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -423,40 +498,100 @@ void *wubu_drv_build(const wubu_drv_manifest_t *m, size_t *obj_len)
 {
     if (!m || !obj_len) return NULL;
     *obj_len = 0;
-    if (strcmp(m->source, "local") != 0)
-        return NULL; /* only local source trees are buildable here */
 
-    /* shell out: cc -c <path> -o <tmp.o>  (freestanding, no deps) */
-    char tmp[] = "/tmp/wubu_di_XXXXXX";
-    int fd = mkstemp(tmp);
-    if (fd < 0) return NULL;
-    close(fd);
-    char obj[64];
-    snprintf(obj, sizeof(obj), "%s.o", tmp);
-    char cmd[1024];
-    /* -mcmodel=large: emits R_X86_64_64 (movabs) for absolute addresses
-     * instead of R_X86_64_32, so full 64-bit relocation works for the
-     * mmap'd loader image (which lives at a high address). */
-    snprintf(cmd, sizeof(cmd),
-             "cc -O0 -fno-pic -fno-stack-protector -ffreestanding -mcmodel=large "
-             "-I%s -c %s -o %s 2>/dev/null", "src/kernel", m->path, obj);
-    int rc = system(cmd);
-    if (rc != 0) { unlink(tmp); unlink(obj); return NULL; }
+    /* Home directory for cache */
+    const char *home = getenv("HOME");
+    if (!home) home = "/home/wubu";
 
-    FILE *f = fopen(obj, "rb");
-    if (!f) { unlink(tmp); unlink(obj); return NULL; }
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    void *data = malloc((size_t)sz);
-    if (!data) { fclose(f); unlink(tmp); unlink(obj); return NULL; }
-    if (fread(data, 1, (size_t)sz, f) != (size_t)sz) {
-        free(data); fclose(f); unlink(tmp); unlink(obj); return NULL;
+    char cache_dir[2048];
+    snprintf(cache_dir, sizeof(cache_dir), "%s/opt/wubu_drivers/%s", home, m->driver_name);
+
+    if (strcmp(m->source, "local") == 0) {
+        /* Local source tree: build directly from m->path */
+        char tmp[] = "/tmp/wubu_di_XXXXXX";
+        int fd = mkstemp(tmp);
+        if (fd < 0) return NULL;
+        close(fd);
+        char obj[64];
+        snprintf(obj, sizeof(obj), "%s.o", tmp);
+        char cmd[2048];
+        /* -mcmodel=large: emits R_X86_64_64 (movabs) for absolute addresses
+         * instead of R_X86_64_32, so full 64-bit relocation works for the
+         * mmap'd loader image (which lives at a high address). */
+        snprintf(cmd, sizeof(cmd),
+                 "cc -O0 -fno-pic -fno-stack-protector -ffreestanding -mcmodel=large "
+                 "-I%s -c %s -o %s 2>/dev/null", "src/kernel", m->path, obj);
+        int rc = system(cmd);
+        if (rc != 0) { unlink(tmp); unlink(obj); return NULL; }
+
+        FILE *f = fopen(obj, "rb");
+        if (!f) { unlink(tmp); unlink(obj); return NULL; }
+        fseek(f, 0, SEEK_END);
+        long sz = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        void *data = malloc((size_t)sz);
+        if (!data) { fclose(f); unlink(tmp); unlink(obj); return NULL; }
+        if (fread(data, 1, (size_t)sz, f) != (size_t)sz) {
+            free(data); fclose(f); unlink(tmp); unlink(obj); return NULL;
+        }
+        fclose(f);
+        unlink(tmp); unlink(obj);
+        *obj_len = (size_t)sz;
+        return data;
     }
-    fclose(f);
-    unlink(tmp); unlink(obj);
-    *obj_len = (size_t)sz;
-    return data;
+
+    if (strcmp(m->source, "git") == 0) {
+        /* Git source: compile from the acquired cache directory.
+         * The source file is expected at <cache_dir>/wubu_mod_entry.c */
+        char src_file[2048];
+        snprintf(src_file, sizeof(src_file), "%s/wubu_mod_entry.c", cache_dir);
+
+        /* Check if source exists */
+        if (access(src_file, R_OK) != 0) {
+            fprintf(stderr, "wubu_drv_build: source file not found: %s\n", src_file);
+            return NULL;
+        }
+
+        char tmp[] = "/tmp/wubu_di_XXXXXX";
+        int fd = mkstemp(tmp);
+        if (fd < 0) return NULL;
+        close(fd);
+        char obj[64];
+        snprintf(obj, sizeof(obj), "%s.o", tmp);
+
+        /* Mesa include flags for compiling a Mesa-style driver.
+         * The minimal set: include the driver source directory itself
+         * so internal Mesa headers can be found. */
+        char cmd[4096];
+        snprintf(cmd, sizeof(cmd),
+                 "cc -O0 -fno-pic -fno-stack-protector -ffreestanding -mcmodel=large "
+                 "-I%s -c %s -o %s 2>/dev/null", cache_dir, src_file, obj);
+
+        int rc = system(cmd);
+        if (rc != 0) {
+            unlink(tmp); unlink(obj);
+            fprintf(stderr, "wubu_drv_build: gcc failed for %s\n", m->driver_name);
+            return NULL;
+        }
+
+        FILE *f = fopen(obj, "rb");
+        if (!f) { unlink(tmp); unlink(obj); return NULL; }
+        fseek(f, 0, SEEK_END);
+        long sz = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        void *data = malloc((size_t)sz);
+        if (!data) { fclose(f); unlink(tmp); unlink(obj); return NULL; }
+        if (fread(data, 1, (size_t)sz, f) != (size_t)sz) {
+            free(data); fclose(f); unlink(tmp); unlink(obj); return NULL;
+        }
+        fclose(f);
+        unlink(tmp); unlink(obj);
+        *obj_len = (size_t)sz;
+        return data;
+    }
+
+    /* pkg source type not yet implemented */
+    return NULL;
 }
 
 /* ------------------------------------------------------------------ */
@@ -474,20 +609,41 @@ int wubu_drv_install(const wubu_drv_dev_t *dev)
     const wubu_drv_manifest_t *m = wubu_drv_manifest_lookup(alias);
     if (!m) return WUBU_DI_NO_MANIFEST;
 
-    /* already installed (driver present for this family)? */
-    if (strstr(m->driver_name, "cafe") == NULL) {
-        /* generic families are installed at the GPU-layer; here we just
-         * confirm the manifest has a route and report source kind. The
-         * build+load path is proven by the cafe_demo local driver. */
-        return WUBU_DI_OK;
+    /* already bound? */
+    if (wubu_drv_is_bound(dev)) return WUBU_DI_BUSY;
+
+    /* step 3: ACQUIRE (for git/pkg sources) */
+    if (strcmp(m->source, "git") == 0 || strcmp(m->source, "pkg") == 0) {
+        if (wubu_drv_acquire(m) != 0) {
+            return WUBU_DI_NO_SOURCE;
+        }
     }
 
+    /* step 4: BUILD */
     size_t obj_len = 0;
     void *obj = wubu_drv_build(m, &obj_len);
     if (!obj) return WUBU_DI_BUILD_FAIL;
+
+    /* step 5: LOAD */
     int rc = wubu_drv_elf_load(obj, obj_len);
     free(obj);
-    return rc;
+
+    if (rc != WUBU_DI_OK) {
+        return rc;
+    }
+
+    /* step 6: RE-PROBE (bind the device now that driver is registered).
+     * The caller's device must be present in the bus table for the driver
+     * to match it — add it if not already registered, then probe. */
+    (void)wubu_drv_add_device(dev);
+    int probed = wubu_drv_probe();
+    if (probed < 1) {
+        /* Driver didn't bind this device, but it was loaded */
+        fprintf(stderr, "wubu_drv_install: driver loaded but probe found no match\n");
+        return WUBU_DI_LOAD_FAIL;
+    }
+
+    return WUBU_DI_OK;
 }
 
 /* DI9: report unbound devices for the AGI to author manifests. */

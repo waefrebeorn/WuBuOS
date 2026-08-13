@@ -72,6 +72,13 @@ typedef struct {
  * Bumps the EDR write counter. Returns 0 on success, -1 unknown path. */
 int  wubu_theme_node_set(const char *path, uint32_t value);
 
+/* Register a write-through observer: invoked with (path, value) on every
+ * successful node_set(). This is the "/theme" Styx/9P node write-through --
+ * the AGF density planner (wubu_density_plan) registers here so a kernel
+ * theme change triggers the planner's absorb/keep/prune cycle. NULL clears. */
+typedef void (*wubu_theme_write_observer_fn)(const char *path, uint32_t value);
+void wubu_theme_set_write_observer(wubu_theme_write_observer_fn fn);
+
 /* Read a node. Returns 0 on success, -1 unknown. */
 int  wubu_theme_node_get(const char *path, uint32_t *out);
 

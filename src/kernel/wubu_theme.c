@@ -26,6 +26,17 @@ static int           g_node_count;
 static uint32_t      g_writes;    /* EDR audit counter */
 static WubuKTheme    g_theme;
 
+/* /theme Styx/9P node write-through observer (NULL = unlinked). The AGF
+ * density planner (wubu_density_plan) registers here so a kernel theme change
+ * triggers the planner's absorb/keep/prune cycle. NULL-checked on every
+ * write so the engine stays freestanding without the planner linked. */
+static wubu_theme_write_observer_fn g_theme_write_observer;
+
+void wubu_theme_set_write_observer(wubu_theme_write_observer_fn fn)
+{
+    g_theme_write_observer = fn;
+}
+
 /* kernel-local string compare (no libc dependency) */
 static int str_eq(const char *a, const char *b)
 {
@@ -61,6 +72,12 @@ int wubu_theme_node_set(const char *path, uint32_t value)
 {
     if (!path || node_find(path) < 0) return -1;
     node_set(path, value);
+    /* /theme Styx/9P node write-through: a successful node write flows
+     * through to any registered observer (e.g. the AGF density planner),
+     * so a kernel theme change triggers the planner's absorb/keep/prune
+     * cycle. */
+    if (g_theme_write_observer)
+        g_theme_write_observer(path, value);
     return 0;
 }
 
