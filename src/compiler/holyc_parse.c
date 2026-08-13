@@ -151,7 +151,7 @@ static HCType *parse_type(HCParser *p) {
                     for (int i = 0; i < p->n_named_types; i++) {
                         if (strcmp(p->named_type_names[i], tag) == 0) {
                             p->named_types[i] = t;  /* redefinition wins */
-                            return t;
+                            goto struct_done;
                         }
                     }
                     if (p->n_named_types < 64) {
@@ -160,7 +160,7 @@ static HCType *parse_type(HCParser *p) {
                         p->n_named_types++;
                     }
                 }
-                return t;
+                goto struct_done;
             }
             t->kind = HC_TYPE_STRUCT;
             /* Forward/reference: `struct S x;` where S was defined earlier.
@@ -173,7 +173,7 @@ static HCType *parse_type(HCParser *p) {
                         *t = *reg;
                         t->name[0] = '\0';
                         strncpy(t->name, tag, HC_MAX_IDENT_LEN - 1);
-                        return t;
+                        goto struct_done;
                     }
                 }
             }
@@ -182,6 +182,7 @@ static HCType *parse_type(HCParser *p) {
         default: break; /* Keep default I64 */
     }
 
+struct_done:
     /* Pointer types: type * */
     while (peek(p) == HC_TOK_STAR) {
         advance(p);
