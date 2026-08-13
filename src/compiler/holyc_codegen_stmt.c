@@ -181,9 +181,14 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
          */
         case HC_AST_FOR: {
             int depth = gen->loop_depth;
-            /* init */
-            if (node->init_expr)
-                gen_expr(gen, node->init_expr);
+            /* init — can be an expression OR a var-declaration statement
+             * (`for(int i=0; ...)`). Dispatch on kind. */
+            if (node->init_expr) {
+                if (node->init_expr->kind == HC_AST_VAR_DECL)
+                    gen_stmt(gen, node->init_expr);
+                else
+                    gen_expr(gen, node->init_expr);
+            }
 
             size_t loop_top = gen->code_size;
 

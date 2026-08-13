@@ -550,8 +550,23 @@ static HCASTNode *parse_stmt(HCParser *p) {
     if (match(p, HC_KW_FOR)) {
         HCASTNode *n = hc_ast_new(HC_AST_FOR);
         expect(p, HC_TOK_LPAREN);
-        n->init_expr = parse_expr(p);
-        expect(p, HC_TOK_SEMI);
+        /* C11 allows a DECLARATION in the for-init (`for(int i=0; ...)`)
+         * which starts with a type keyword, not an expression. parse_expr
+         * would fail on `int i=0` (HC_KW_I32 isn't an expr). Detect a
+         * type-keyword start and route to hc_parse_decl instead. */
+        HCTokenType itok = peek(p);
+        bool type_start = (itok == HC_KW_I8 || itok == HC_KW_I16 ||
+                           itok == HC_KW_I32 || itok == HC_KW_I64 ||
+                           itok == HC_KW_U8  || itok == HC_KW_U16 ||
+                           itok == HC_KW_U32 || itok == HC_KW_U64 ||
+                           itok == HC_KW_F64 || itok == HC_KW_BOOL ||
+                           itok == HC_KW_U0);
+        if (type_start)
+            n->init_expr = hc_parse_decl(p);   /* consumes decl + trailing ; */
+        else {
+            n->init_expr = parse_expr(p);
+            expect(p, HC_TOK_SEMI);
+        }
         n->cond = parse_expr(p);
         expect(p, HC_TOK_SEMI);
         n->update = parse_expr(p);
