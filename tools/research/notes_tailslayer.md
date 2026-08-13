@@ -133,3 +133,41 @@ To port to the WuBuOS from-scratch kernel:
 → **Compound strategy**: fewer loads (linear-scan RA) + branchless (no
 mispredict stalls) + port-interleaved ALU chains (ashvardanian) + DRAM
 channel hedging (tailslayer) = tail latency eliminated at every layer.
+
+## WUBUOS IMPLEMENTATION (2026-08-12, shipped + green)
+
+The hedge is now IMPLICIT in the HC compiler — "for all code magically":
+
+### Compiler-level (the `prefetchnta` shim)
+`HCGen.hedge_loads` (default `true`, in `hc_gen_init`) makes every memory
+load the JIT emits be preceded by a software prefetch:
+- `emit_prefetch_rip`   → before RIP-relative global loads (IDENT read,
+  PRE/POST inc-dec, ASSIGN/compound load) — `0F 18 05 disp32`
+- `emit_prefetch_rbp`   → before stack-local loads — `0F 18 85 disp32`
+- `emit_prefetch_rax_off` → before sized member/element loads — `0F 18 80`
+- `emit_prefetch_rdi`   → before array-index loads (INDEX holds base in
+  rdi) — `0F 18 07`
+- `emit_prefetch_rax`   → before plain pointer dereferences — `0F 18 00`
+
+Files: `holyc_codegen_emit.c` (emitters + `wubu_hedge_prefetch_count`
+diagnostic counter), `holyc_codegen_expr.c` (wired into every load path),
+`holyc_types.h` (`hedge_loads` flag + `global_patches[128]` — doubled cap
+because the prefetch + load each record a patch).
+
+### VERIFIED ENCODING GOTCHA (a real bug caught this session)
+`emit_prefetch_rip` records a global_patch at `patch_pos = code_size + 3`.
+The FIRST wiring computed `patch_pos` BEFORE emitting the prefetch, so it
+pointed into the middle of the 7-byte prefetch → the load's disp32 got the
+wrong fixup → garbage. **Fix: emit the prefetch FIRST, THEN compute
+`patch_pos = code_size + 3`.** This mirrors the load's 7-byte shape
+(`48 8B 05`), so the shared patch formula applies verbatim.
+
+### Verification (permanent gate `make test_hedge`)
+`tools/probe/hedge_verify.c` proves each load class emits ≥1 prefetch
+and pure constants emit 0. Wired into `test_high_bear`.
+
+### Runtime / kernel
+`tools/research/tailslayer_hedge.h` — the standalone C shim (replicated
+insert + hedged read + trefi probe). Kernel-level channel-aware page
+allocation is the future step (see PORTING STRATEGY below).
+

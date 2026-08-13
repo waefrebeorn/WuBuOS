@@ -35,6 +35,11 @@ void hc_gen_init(HCGen *gen) {
     gen->data_cap = saved_data_cap;
     
     /* global_patches start fresh for each compilation - n_global_patches = 0 */
+    
+    /* Tailslayer DRAM hedge is ON by default: all compiled code gets a
+     * software prefetch before every load. The runtime/API can turn it
+     * off (gen.hedge_loads = false) for microbenchmarking the overhead. */
+    gen->hedge_loads = true;
 }
 
 /* ====================================================================
@@ -275,7 +280,7 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         size_t patch_pos = gen->code_size;
                         emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x05);
                         emit_dword(gen, 0);
-                        if (gen->n_global_patches < 32) {
+                        if (gen->n_global_patches < 128) {
                             gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos + 3;
                             gen->global_patches[gen->n_global_patches].global_offset = global_offset;
                             gen->n_global_patches++;

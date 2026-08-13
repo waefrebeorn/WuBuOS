@@ -315,6 +315,16 @@ struct HCParser {
     HCType *named_types[64];
     char named_type_names[64][HC_MAX_IDENT_LEN];
     int n_named_types;
+    /* typedef registry: `typedef int MyInt;` makes MyInt a type name the
+     * parser recognizes in later declarations. */
+    HCType *typedef_types[64];
+    char typedef_names[64][HC_MAX_IDENT_LEN];
+    int n_typedefs;
+    /* enum constants: `enum { RED, GREEN, BLUE }` gives GREEN value 1.
+     * Recorded so `int c = GREEN;` resolves GREEN as a constant ident. */
+    char enum_const_names[64][HC_MAX_IDENT_LEN];
+    int64_t enum_const_vals[64];
+    int n_enum_consts;
 };
 
 /* -- Code Generator struct (full definition needed by codegen.c) ------------- */
@@ -345,12 +355,19 @@ struct HCGen {
     struct {
         size_t code_patch_pos;
         size_t global_offset;
-    } global_patches[32];
+    } global_patches[128];
     int n_global_patches;
     bool has_error;
     char error[256];
     bool has_prologue;   /* set once emit_prologue() has built a stack frame */
     bool in_function;    /* true while emitting a function body (vs module-level) */
+    /* Tailslayer DRAM-refresh hedge: when true, every memory load the JIT
+     * emits is preceded by a software prefetch (`prefetchnta`) so the DRAM
+     * read is primed ahead of the actual load, hiding the periodic tREFI
+     * refresh stall (~150-750ns) that would otherwise hit cold reads.
+     * This is an IMPLICIT shim — it applies to all compiled code with no
+     * source changes (the "for all code magically" Tailslayer port). */
+    bool hedge_loads;
     /* self-recursion support: while compiling a function body, its own name
      * is recorded here so a call to itself can emit a rel32 placeholder that
      * is patched to the final exec address after the body is copied. Without

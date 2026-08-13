@@ -100,3 +100,5 @@ demos/era/quake3/quake3_mac.ub
 demos/era/quake3/quake3_linux.x86_64
 build/
 *.gch
+src/compiler/holyc
+src/compiler/hedge_verify

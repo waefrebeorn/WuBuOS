@@ -7,6 +7,8 @@ Last updated: 2026-08-12
 - `notes_tailslayer.md` — Full deep-dive: DRAM-refresh tail-latency hedge
   via channel-replicated hedged reads. The technique is a memory-subsystem
   shim, not a JIT. Port strategy for WuBuOS kernel + HC codegen.
+  **IMPLEMENTED**: HCGen.hedge_loads (default on) emits a `prefetchnta`
+  before every memory load class. Gate: `make test_hedge`.
 - `tailslayer_hedge.h` — C header shim: `ts_hedge_init/insert/read/probe`
   replicating Tailslayer's 1 GB hugepage + 256-byte channel-offset replication.
 - `trefi_probe.c` — DRAM refresh periodicity probe (clflush+reload,

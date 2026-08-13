@@ -37,10 +37,12 @@ void hc_trap_unresolved_call(const char *name) {
  * adjustment — matching holyd's patch loop. */
 
 void emit_global_load_rax(HCGen *gen, size_t global_offset) {
+    if (gen->hedge_loads)
+        emit_prefetch_rip(gen, global_offset);
     size_t patch_pos = gen->code_size + 3;   /* disp32 start */
     emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x05);
     emit_dword(gen, 0);                       /* placeholder disp32 */
-    if (gen->n_global_patches < 32) {
+    if (gen->n_global_patches < 128) {
         gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
         gen->global_patches[gen->n_global_patches].global_offset = global_offset;
         gen->n_global_patches++;
@@ -51,7 +53,7 @@ void emit_global_store_rax(HCGen *gen, size_t global_offset) {
     size_t patch_pos = gen->code_size + 3;   /* disp32 start */
     emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x05);
     emit_dword(gen, 0);                       /* placeholder disp32 */
-    if (gen->n_global_patches < 32) {
+    if (gen->n_global_patches < 128) {
         gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
         gen->global_patches[gen->n_global_patches].global_offset = global_offset;
         gen->n_global_patches++;
@@ -156,6 +158,8 @@ static void emit_var_load(HCGen *gen, int off, int is_global)
     if (is_global) {
         emit_global_load_rax(gen, (size_t)(-off));
     } else {
+        if (gen->hedge_loads)
+            emit_prefetch_rbp(gen, off);
         emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x85);
         emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
     }
@@ -201,6 +205,8 @@ static void emit_sized_store_rax_rdi(HCGen *gen, int size)
 /* load [rax+off] into rax, zero-extending to the element's width. */
 static void emit_sized_load_rax_off(HCGen *gen, int off, int size)
 {
+    if (gen->hedge_loads)
+        emit_prefetch_rax_off(gen, off);
     if (size <= 1) {
         /* movzx rax, byte [rax+disp32] : 48 0F B6 80 */
         emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB6); emit_byte(gen, 0x80);
@@ -270,7 +276,7 @@ static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node)
                 size_t patch_pos = gen->code_size + 3;
                 emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
                 emit_dword(gen, 0);
-                if (gen->n_global_patches < 32) {
+                if (gen->n_global_patches < 128) {
                     gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
                     gen->global_patches[gen->n_global_patches].global_offset = go;
                     gen->n_global_patches++;
@@ -364,7 +370,7 @@ static void emit_base_addr(HCGen *gen, const HCASTNode *node)
                 size_t patch_pos = gen->code_size + 3;
                 emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
                 emit_dword(gen, 0);
-                if (gen->n_global_patches < 32) {
+                if (gen->n_global_patches < 128) {
                     gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
                     gen->global_patches[gen->n_global_patches].global_offset = go;
                     gen->n_global_patches++;
@@ -460,7 +466,7 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                                 size_t patch_pos = gen->code_size + 3;
                                 emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
                                 emit_dword(gen, 0);
-                                if (gen->n_global_patches < 32) {
+                                if (gen->n_global_patches < 128) {
                                     gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
                                     gen->global_patches[gen->n_global_patches].global_offset = go;
                                     gen->n_global_patches++;
@@ -481,6 +487,8 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                              * Data address = exec + gen->code_size + data_offset
                              * disp32 = data_offset - 7 (placeholder; will be patched at runtime) */
                             int32_t rip_disp = data_offset - 7;
+                            if (gen->hedge_loads)
+                                emit_prefetch_rip(gen, (size_t)data_offset);
                             size_t patch_pos = gen->code_size + 3; /* Position of disp32 in instruction */
                             emit_byte(gen, 0x48); /* REX.W */
                             emit_byte(gen, 0x8B); /* mov rax, r/m64 */
@@ -488,13 +496,15 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                             emit_dword(gen, (uint32_t)rip_disp);
                             
                             /* Store patch info for runtime fixup (same logic as VAR_DECL stores) */
-                            if (gen->n_global_patches < 32) {
+                            if (gen->n_global_patches < 128) {
                                 gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
                                 gen->global_patches[gen->n_global_patches].global_offset = data_offset;
                                 gen->n_global_patches++;
                             }
                         } else {
                             /* Local variable on stack: mov rax, [rbp - off] with disp32: 48 8B 85 disp32 */
+                            if (gen->hedge_loads)
+                                emit_prefetch_rbp(gen, off);
                             emit_byte(gen, 0x48); /* REX.W */
                             emit_byte(gen, 0x8B); /* mov rax, r/m64 */
                             emit_byte(gen, 0x85); /* modrm: disp32 with rbp */
@@ -730,6 +740,8 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
         case HC_AST_DEREF: {
             gen_expr(gen, node->child);
             /* rax now contains pointer value. Load from it: mov rax, [rax] */
+            if (gen->hedge_loads)
+                emit_prefetch_rax(gen);
             emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x00); /* mov rax, [rax] */
             break;
         }
@@ -755,7 +767,7 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     size_t patch_pos = gen->code_size + 3;   /* disp32 start */
                     emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
                     emit_dword(gen, 0);                       /* placeholder disp32 */
-                    if (gen->n_global_patches < 32) {
+                    if (gen->n_global_patches < 128) {
                         gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
                         gen->global_patches[gen->n_global_patches].global_offset = go;
                         gen->n_global_patches++;
@@ -829,15 +841,23 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
              * so `"hi"[0]` returned 0x6968 (both chars packed) instead of
              * 'h'=104. */
             if (scale == 1) {
+                if (gen->hedge_loads)
+                    emit_prefetch_rdi(gen);
                 /* movzx rax, byte ptr [rdi]: 48 0F B6 07 */
                 emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB6); emit_byte(gen, 0x07);
             } else if (scale == 2) {
+                if (gen->hedge_loads)
+                    emit_prefetch_rdi(gen);
                 /* movzx rax, word ptr [rdi]: 48 0F B7 07 */
                 emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB7); emit_byte(gen, 0x07);
             } else if (scale == 4) {
+                if (gen->hedge_loads)
+                    emit_prefetch_rdi(gen);
                 /* mov rax, dword ptr [rdi]: 8B 07 */
                 emit_byte(gen, 0x8B); emit_byte(gen, 0x07);
             } else {
+                if (gen->hedge_loads)
+                    emit_prefetch_rdi(gen);
                 /* mov rax, qword ptr [rdi]: 48 8B 07 */
                 emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x07);
             }

@@ -69,6 +69,14 @@ void emit_xor_rax_rax(HCGen *gen);
 void emit_mov_rax_1(HCGen *gen);
 void emit_ret(HCGen *gen);
 void emit_prologue(HCGen *gen);
+
+/* prefetchnta [rdi] — array-element loads (INDEX path holds base in rdi) */
+void emit_prefetch_rdi(HCGen *gen);
+/* prefetchnta [rax] — plain pointer dereference loads */
+void emit_prefetch_rax(HCGen *gen);
+void emit_prefetch_rax_off(HCGen *gen, int32_t off);   /* [rax+disp32] */
+void emit_prefetch_rbp(HCGen *gen, int32_t off);       /* [rbp - off]  */
+void emit_prefetch_rip(HCGen *gen, size_t global_offset); /* [rip+disp32] */
 void emit_epilogue(HCGen *gen);
 
 /* -- Conditional Set Patterns ------------------------------------- */

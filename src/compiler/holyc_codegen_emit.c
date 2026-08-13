@@ -215,6 +215,73 @@ void emit_ret(HCGen *gen) {
     emit_byte(gen, 0xC3);
 }
 
+/* ====================================================================
+ * Tailslayer DRAM-refresh hedge — software-prefetch load hedging
+ * ====================================================================
+ * DRAM refresh (tREFI ~7.8us) stalls cold reads by ~150-750ns. A
+ * `prefetchnta` issued just before the actual load primes the cache so
+ * the read overlaps the refresh — the tailslayer trick made implicit
+ * in every compiled load. Encoding: 0F 18 /0 = prefetchnta, with the
+ * ModRM matching the load's addressing mode. All are 3 bytes + disp32
+ * (same shape as the 48 8B/89 05 RIP loads), so the shared global
+ * patch formula applies verbatim.
+ */
+
+/* Diagnostics: total prefetch instructions ever emitted (for the hedge
+ * verification probe). Monotonic across compilations — the probe checks
+ * >0 after compiling a load-bearing function. */
+unsigned long wubu_hedge_prefetch_count = 0;
+
+static void emit_prefetch_rax_disp32(HCGen *gen, uint32_t disp, uint8_t modrm) {
+    emit_byte(gen, 0x0F);
+    emit_byte(gen, 0x18);
+    emit_byte(gen, modrm);            /* e.g. 0x80 = [rax+disp32] */
+    emit_dword(gen, disp);
+    wubu_hedge_prefetch_count++;
+}
+
+/* prefetchnta [rdi] — array-element loads (INDEX path holds base in rdi) */
+void emit_prefetch_rdi(HCGen *gen) {
+    if (gen->hedge_loads) {
+        emit_byte(gen, 0x0F);
+        emit_byte(gen, 0x18);
+        emit_byte(gen, 0x07);            /* modrm 07 = [rdi] */
+        wubu_hedge_prefetch_count++;
+    }
+}
+
+/* prefetchnta [rax] — plain pointer dereference loads */
+void emit_prefetch_rax(HCGen *gen) {
+    if (gen->hedge_loads) {
+        emit_byte(gen, 0x0F);
+        emit_byte(gen, 0x18);
+        emit_byte(gen, 0x00);            /* modrm 00 = [rax] */
+        wubu_hedge_prefetch_count++;
+    }
+}
+
+/* prefetchnta [rax+disp32] — used by sized/element loads */
+void emit_prefetch_rax_off(HCGen *gen, int32_t off) {
+    emit_prefetch_rax_disp32(gen, (uint32_t)off, 0x80);
+}
+
+/* prefetchnta [rbp - off] — stack-local loads */
+void emit_prefetch_rbp(HCGen *gen, int32_t off) {
+    emit_prefetch_rax_disp32(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF), 0x85);
+}
+
+/* prefetchnta [rip + disp32] — RIP-relative global loads.
+ * Records a global_patch so the disp32 is fixed up to the data section. */
+void emit_prefetch_rip(HCGen *gen, size_t global_offset) {
+    size_t patch_pos = gen->code_size + 3;   /* disp32 start */
+    emit_prefetch_rax_disp32(gen, 0, 0x05);
+    if (gen->n_global_patches < 128) {
+        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+        gen->global_patches[gen->n_global_patches].global_offset = global_offset;
+        gen->n_global_patches++;
+    }
+}
+
 void emit_prologue(HCGen *gen) {
     emit_byte(gen, 0x55);                    /* push rbp */
     emit_byte(gen, 0x48); emit_byte(gen, 0x89);
