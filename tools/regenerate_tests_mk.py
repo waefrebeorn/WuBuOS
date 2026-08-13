@@ -22,7 +22,7 @@ KERNEL = '/home/wubu/wubunos/src/kernel'
 TESTDIR = os.path.join(KERNEL, 'test')
 TESTS_MK = '/home/wubu/wubunos/mk/tests.mk'
 CC = 'gcc'
-CFLAGS_BASE = '-O0 -g -Wall -Wextra -std=c11 -D_GNU_SOURCE -no-pie -I' + KERNEL
+CFLAGS_BASE = '-O0 -g -Wall -Wextra -std=c11 -D_GNU_SOURCE -no-pie -I$(KERNEL)'
 
 with open('/tmp/core_modules.txt') as f:
     core_modules = [line.strip() for line in f if line.strip()]
