@@ -70,7 +70,7 @@ test_spawn:
 	$(RT)/wubu_spawn_test
 
 # CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan, decompressors)
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -626,6 +626,12 @@ test_colonel: src/runtime/wubu_colonel.c src/runtime/wubu_colonel.h
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect
 	./src/runtime/tests/test_hwdetect
+
+# Tailslayer DRAM-refresh hedge (kernel-level): replicated allocation with
+# 256-byte channel-stride addressing + hedged read + trefi probe.
+test_dram_hedge: src/kernel/wubu_dram_hedge.c src/kernel/wubu_dram_hedge.h
+	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c src/kernel/tests/test_dram_hedge.c -o build/test_dram_hedge -lm
+	./build/test_dram_hedge
 
 test_dosgui_wm: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_window_chrome.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
