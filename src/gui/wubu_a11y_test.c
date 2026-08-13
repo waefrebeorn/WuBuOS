@@ -32,16 +32,16 @@
  * B 6.449mm). Purple resize crescents at the WINDOW's bottom corners.
  * Mirrors the geometry in wubu_a11y.c. */
 static void a_center(int wx, int wy, int *cx, int *cy) {
-    *cx = wx + (int)(TEST_W * 0.363f);  *cy = wy + (int)(TEST_H * 0.401f);
+    *cx = wx + 5 + 60;  *cy = wy + 24 + 56;   /* A = anchor + (60,56) */
 }
 static void b_center(int wx, int wy, int *cx, int *cy) {
-    *cx = wx + (int)(TEST_W * 0.579f);  *cy = wy + (int)(TEST_H * 0.402f);
+    *cx = wx + 5 + 106; *cy = wy + 24 + 56;   /* B = anchor + (106,56) */
 }
 static void y_center(int wx, int wy, int *cx, int *cy) {
-    *cx = wx + (int)(TEST_W * 0.289f);  *cy = wy + (int)(TEST_H * 0.216f);
+    *cx = wx + 5 + 16;  *cy = wy + 24 + 16;   /* Y = anchor + (16,16) */
 }
-static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + 22; *cy = wy + h - 26; }
-static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + w - 22; *cy = wy + h - 26; }
+static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + 23; *cy = wy + h - 23; }
+static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + w - 23; *cy = wy + h - 23; }
 
 int main(void) {
     dosgui_wm_init(800, 600);
@@ -125,6 +125,25 @@ int main(void) {
     wubu_a11y_mouse(w, bcx + 15, bcy + 15, 1, 0);  /* < 30px = partial */
     wubu_a11y_mouse(w, bcx + 15, bcy + 15, 1, 2);
     assert(w->alive);   /* stim is feedback, NOT a close */
+
+    /* --- Keyboard navigation (P0 a11y) ---------------------------- */
+    DosGuiWindow *kw = dosgui_wm_create(600, 100, TEST_W, TEST_H, "KeyNav");
+    dosgui_wm_set_focus(kw);
+    /* Arrow keys cycle focus; Enter/Space activate. Start at none. */
+    assert(wubu_a11y_key(kw, 0xE04D, 0));       /* Right -> focus A (GRAB) */
+    assert(wubu_a11y_key(kw, 0xE048, 0));       /* Up   -> focus B (CLOSE) */
+    assert(wubu_a11y_key(kw, 0xE04B, 0));       /* Left -> focus Y (ROTATE) */
+    assert(wubu_a11y_key(kw, 0xE050, 0));       /* Down -> focus purple */
+    /* Enter on focused purple = no-op (resize needs a drag); window stays. */
+    assert(kw->alive);
+    /* Tab/other keys are NOT consumed (fall through to WM). */
+    assert(!wubu_a11y_key(kw, 0x0F, 0));        /* Tab */
+    /* Restore + Enter activates rotate (minimize) on the focused control. */
+    dosgui_wm_restore(kw);
+    for (int i = 0; i < 3; i++) wubu_a11y_key(kw, 0xE04D, 0); /* -> Y again */
+    assert(wubu_a11y_key(kw, 0x1C, 0));         /* Enter activates Y */
+    assert(dosgui_wm_is_minimized(kw));          /* Y click = minimize */
+    dosgui_wm_destroy(kw);
 
     printf("[ok] wubu_a11y: all cluster controls verified\n");
     dosgui_wm_shutdown();

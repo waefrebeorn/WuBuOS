@@ -65,6 +65,12 @@ WuBuA11yControl wubu_a11y_hit(DosGuiWindow *win, int x, int y);
  * kind: 0=move, 1=down, 2=up   (same convention as dosgui_wm_handle_mouse) */
 bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 
+/* Keyboard navigation for the cluster (P0 a11y — keyboard-only reach).
+ * key/mods use the WM's key encoding. Returns true if the key was consumed.
+ *   Arrow keys cycle focus (Y->A->B->purple); Enter/Space activates the
+ *   focused control. A visible focus ring highlights the focused orb. */
+bool wubu_a11y_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+
 /* Direct actions (also used by tests). */
 void wubu_a11y_rotate_window(DosGuiWindow *win);   /* 90°: swap w/h keep center */
 void wubu_a11y_minimize_window(DosGuiWindow *win);

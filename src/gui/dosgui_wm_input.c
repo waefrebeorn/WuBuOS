@@ -49,6 +49,14 @@ static int hit_test_edge(DosGuiWindow *w, int x, int y) {
 }
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
+    /* P0 a11y: when the cluster is enabled and a window is focused, give
+     * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
+     * activate). Otherwise arrow keys fall through to normal WM nav. */
+    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
+        DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
+        if (fw->alive && wubu_a11y_key(fw, key, mods)) return;
+    }
+
     /* Alt+Tab: cycle through windows */
     bool alt_held = (mods & 0x08) != 0;
     if (alt_held && key == 0x09 && g_dwm.nz > 1) {

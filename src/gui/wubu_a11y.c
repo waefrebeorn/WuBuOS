@@ -65,6 +65,11 @@ static bool g_a11y_enabled = false;
  * action — g_stim_frames counts down while the red orb pulses/buzzes. */
 static int g_stim_frames = 0;
 
+/* Keyboard focus state (defined fully at the bottom with the nav logic,
+ * forward-declared here so the draw pass can paint the focus ring). */
+static int g_focus = WUBU_A11Y_NONE;
+static void draw_focus_ring(int cx, int cy, int r, int fb_w, int fb_h);
+
 /* Drag state for the active gesture. */
 typedef struct {
     WuBuA11yControl ctrl;
@@ -113,21 +118,22 @@ static void cluster_anchor(DosGuiWindow *w, int *ax, int *ay) {
 
 static void orb_y_center(DosGuiWindow *w, int *cx, int *cy) {
     int ax, ay; cluster_anchor(w, &ax, &ay);
-    /* yellow bean at the very corner; its crescent band faces the corner */
+    /* yellow bean at the very corner */
     *cx = ax + 16;
     *cy = ay + 16;
 }
 static void orb_a_center(DosGuiWindow *w, int *cx, int *cy) {
     int ax, ay; cluster_anchor(w, &ax, &ay);
-    /* green A: below yellow, biggest orb */
-    *cx = ax + 30;
-    *cy = ay + 42;
+    /* green A: below-right of yellow, biggest orb. Spacing keeps the
+     * centers > A_R+Y_R apart so the huge grab orb never swallows Y. */
+    *cx = ax + 60;
+    *cy = ay + 56;
 }
 static void orb_b_center(DosGuiWindow *w, int *cx, int *cy) {
     int ax, ay; cluster_anchor(w, &ax, &ay);
-    /* red B: to the right of A, same row, smallest */
-    *cx = ax + 64;
-    *cy = ay + 42;
+    /* red B: right of A, same row. dist(A,B) > A_R+B_R. */
+    *cx = ax + 106;
+    *cy = ay + 56;
 }
 static void orb_p_bl(DosGuiWindow *w, int *cx, int *cy) {
     int bw = border_width();
@@ -346,6 +352,8 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
                   0.707f, 0.707f);
     /* handle slot along the band's belly (upper-left arc) */
     vbe_fill_rect_rounded(yx - 10, yy - 7, 10, 4, 2, A11Y_YELLOW_DARK);
+    if (g_focus == WUBU_A11Y_ROTATE)
+        draw_focus_ring(yx, yy, A11Y_ORB_Y_R, fb_w, fb_h);
 
     /* GREEN A (top-right): BIGGEST circle (reference r-ratio 2:1 vs red).
      * Click = MAXIMIZE, drag = move. Dark drag-arrows glyph. */
@@ -353,6 +361,8 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     draw_orb_shadow(ax, ay, A11Y_ORB_A_R, A11Y_PANEL_DARK, 100);
     draw_orb(ax, ay, A11Y_ORB_A_R, A11Y_GREEN, A11Y_GREEN_DARK);
     draw_grab_glyph(ax, ay, A11Y_ORB_A_R, A11Y_GREEN_DARK);
+    if (g_focus == WUBU_A11Y_GRAB)
+        draw_focus_ring(ax, ay, A11Y_ORB_A_R, fb_w, fb_h);
 
     /* RED B (bottom-right): smallest circle. Click = end session, FULL drag
      * = purge+close, PARTIAL drag = STIM. */
@@ -365,6 +375,8 @@ void wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     draw_orb_shadow(bx, by, A11Y_ORB_B_R, A11Y_PANEL_DARK, 100);
     draw_orb(bx, by, A11Y_ORB_B_R, A11Y_RED, A11Y_RED_DARK);
     draw_close_glyph(bx, by, A11Y_ORB_B_R, A11Y_RED_DARK);
+    if (g_focus == WUBU_A11Y_CLOSE)
+        draw_focus_ring(bx, by, A11Y_ORB_B_R, fb_w, fb_h);
 
     /* PURPLE Y: round-tip crescents at the WINDOW's bottom-left AND
      * bottom-right corners. Windows-style edge detection: invisible until
@@ -513,4 +525,49 @@ bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     }
 
     return false;
+}
+
+/* -- Keyboard navigation (P0 a11y — keyboard-only reach) -------------- */
+
+#define A11Y_FOCUS_RING 0xFFF5B642  /* WCAG-visible warm-yellow ring */
+
+bool wubu_a11y_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)mods;
+    if (!win || !win->alive || !g_a11y_enabled) return false;
+
+    static const WuBuA11yControl cycle[] = {
+        WUBU_A11Y_GRAB, WUBU_A11Y_CLOSE, WUBU_A11Y_ROTATE, WUBU_A11Y_RESIZE
+    };
+    const int ncycle = 4;
+    int idx = -1;   /* -1 = no current focus -> first arrow goes to cycle[0] */
+    for (int i = 0; i < ncycle; i++)
+        if (g_focus == cycle[i]) { idx = i; break; }
+
+    if (key == 0xE048 || key == 0xE050 || key == 0xE04B || key == 0xE04D) {
+        g_focus = cycle[(idx + 1 + ncycle) % ncycle];   /* arrow: cycle focus */
+        return true;
+    }
+    if (key == 0x1C || key == 0x39) {           /* Enter / Space */
+        switch (g_focus) {
+        case WUBU_A11Y_GRAB:   dosgui_wm_maximize(win);    break;
+        case WUBU_A11Y_CLOSE:  wubu_a11y_close_window(win); break;
+        case WUBU_A11Y_ROTATE: wubu_a11y_minimize_window(win); break;
+        default:               break;
+        }
+        return true;
+    }
+    return false;
+}
+
+static void draw_focus_ring(int cx, int cy, int r, int fb_w, int fb_h) {
+    int rr = r + 3;
+    for (int dy = -rr; dy <= rr; dy++)
+        for (int dx = -rr; dx <= rr; dx++) {
+            int d2 = dx * dx + dy * dy;
+            if (d2 > r * r && d2 <= rr * rr) {
+                int sx = cx + dx, sy = cy + dy;
+                if (sx >= 0 && sy >= 0 && sx < fb_w && sy < fb_h)
+                    vbe_set_pixel(sx, sy, A11Y_FOCUS_RING);
+            }
+        }
 }
