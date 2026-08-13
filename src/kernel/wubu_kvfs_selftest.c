@@ -19,6 +19,12 @@ static int failures = 0;
 
 int main(void)
 {
+    /* Initialize the libc bump heap so calloc/malloc (used by kvfs_create)
+     * return real memory instead of NULL.  mem_init() needs the kernel
+     * allocator (g_heap), which isn't set up in hosted test context. */
+    extern int libm_heap_init(void);
+    libm_heap_init();
+
     /* 1 float/block, 8192 blocks = 32 KB namespace (tiny for testing) */
     wubu_kvfs_t *fs = wubu_kvfs_create(1, 8192);
     CHECK(fs != NULL, "create namespace");

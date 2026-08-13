@@ -17,10 +17,20 @@ void *memcpy(void *dest, const void *src, size_t n);
 void *memset(void *s, int c, size_t n);
 
 /* Memory allocation - simple bump allocator */
-
-/* Memory allocation - simple bump allocator */
 static uint8_t *heap_ptr = NULL;
 static uint8_t *heap_end = NULL;
+
+/* Initialize the libc bump allocator over a static backing buffer.
+ * Kernel boot (kernel_main) calls mem_init() which uses the kernel
+ * allocator; hosted/tests call this to give malloc/calloc a working
+ * heap even before g_heap exists. */
+static uint8_t libc_heap_storage[8 * 1024 * 1024];
+int libm_heap_init(void) {
+    if (heap_ptr) return 0;               /* already initialized */
+    heap_ptr = libc_heap_storage;
+    heap_end = libc_heap_storage + sizeof(libc_heap_storage);
+    return 0;
+}
 
 void *malloc(size_t size) {
     /* The kernel heap is the ONE allocator of record. The legacy libm
