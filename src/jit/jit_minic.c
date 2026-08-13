@@ -33,11 +33,13 @@
 #include "jit.h"
 #include "jit_internal.h"
 #include "wubu_x86.h"
+#include "x86_regalloc.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdarg.h>
 
 /* -- Tokenizer ---------------------------------------------------- */
 
@@ -118,6 +120,10 @@ struct MinicCompiler {
     int           in_func;
     int           error;
     char          error_msg[256];
+    /* Linear-scan register allocator state */
+    XRARegAlloc    ra;
+    int            next_vreg;
+    bool           use_xra;  /* true: use x86_regalloc instead of fixed rax+push/pop */
 };
 
 static void mc_error(MinicCompiler *mc, const char *msg) {
@@ -129,6 +135,33 @@ static void mc_error(MinicCompiler *mc, const char *msg) {
 /* -- Emit helper macros using Wx86Enc --------------------------- */
 
 #define MC_EMIT(mc, call) do { if (!(mc)->error) { call; } } while(0)
+
+/* -- Register-allocator helpers ----------------------------------- */
+
+/* Materialize the current RAX result into a fresh virtual register, emitting
+ * a store if the allocator must spill. Returns the assigned hardware reg, or
+ * WREG_NONE if spilled (caller must reload before use). */
+static int mc_vreg_of_rax(MinicCompiler *mc) {
+    int v = mc->next_vreg++;
+    if (mc->use_xra) {
+        Wx86Reg hw = xra_alloc(&mc->ra, v);
+        if (hw != WREG_NONE) {
+            /* Move rax result into allocated reg and register it */
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, hw, WREG_RAX));
+        } else {
+            /* No reg free — spill slot will be used on reload */
+            xra_assign_spill_slot(&mc->ra, v);
+        }
+    }
+    return v;
+}
+
+/* Reload a virtual register (possibly spilled) into a physical register,
+ * materializing the result into RAX for the non-xra path compatibility. */
+static Wx86Reg mc_load_vreg(MinicCompiler *mc, int vreg) {
+    if (!mc->use_xra) return WREG_RAX;  /* rax holds the value */
+    return xra_get_reg(&mc->ra, vreg);
+}
 
 /* -- Expression Compiler (result in RAX) ------------------------ */
 
@@ -231,18 +264,41 @@ static void compile_multiplicative(MinicCompiler *mc) {
         MinicTokType op = minic_cur(&mc->lex)->type;
         minic_advance(&mc->lex);
 
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_primary(mc);
-
-        if (op == TOK_STAR) {
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
-            MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        if (mc->use_xra) {
+            /* Save LHS into a vreg (the allocator may spill it if the
+             * scratch pool is exhausted by the RHS). */
+            int lhs = mc_vreg_of_rax(mc);
+            compile_primary(mc);
+            /* RHS now in rax; LHS in vreg (may be spilled). */
+            Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
+            if (lhs_hw == WREG_NONE)
+                lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            if (op == TOK_STAR) {
+                /* Result = LHS * RHS. RHS is in rax, LHS in lhs_hw. */
+                MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs *= rhs */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));   /* result -> rax */
+            } else {
+                /* Result = LHS / RHS. Move LHS to rax, RHS to rcx, idiv. */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));  /* rcx = RHS (divisor) */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));    /* rax = LHS (dividend) */
+                MC_EMIT(mc, wx86_cqo(&mc->enc));                              /* sign-extend rax -> rdx:rax */
+                MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));               /* rax = LHS / RHS */
+            }
+            xra_free_reg(&mc->ra, lhs_hw);
         } else {
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
-            MC_EMIT(mc, wx86_cqo(&mc->enc));
-            MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+            compile_primary(mc);
+
+            if (op == TOK_STAR) {
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+                MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+            } else {
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+                MC_EMIT(mc, wx86_cqo(&mc->enc));
+                MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
+            }
         }
     }
 }
@@ -255,16 +311,31 @@ static void compile_additive(MinicCompiler *mc) {
         MinicTokType op = minic_cur(&mc->lex)->type;
         minic_advance(&mc->lex);
 
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_multiplicative(mc);
+        if (mc->use_xra) {
+            /* Save LHS into a vreg; compile RHS into rax. Then combine. */
+            int lhs = mc_vreg_of_rax(mc);
+            compile_multiplicative(mc);
+            Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
+            if (lhs_hw == WREG_NONE)
+                lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            if (op == TOK_PLUS)
+                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs += rhs (rax) */
+            else
+                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs -= rhs (rax) */
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));      /* result back in rax */
+            xra_free_reg(&mc->ra, lhs_hw);
+        } else {
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+            compile_multiplicative(mc);
 
-        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
 
-        if (op == TOK_PLUS)
-            MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
-        else
-            MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+            if (op == TOK_PLUS)
+                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+            else
+                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        }
     }
 }
 
@@ -527,6 +598,18 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
     /* Adjust stack_offset to account for args on stack */
     mc->scope.stack_offset = -(8 + args_size);
 
+    /* Initialize the linear-scan register allocator for this function.
+     * When enabled, expression temporaries (LHS of binops) are allocated
+     * to physical registers / spill slots instead of the fixed rax+push/pop
+     * dance, exercising the x86_regalloc pass. Args remain stack-backed for
+     * [rbp-relative] access. */
+    mc->next_vreg = mc->n_args;  /* vregs start after arg indices */
+    mc->use_xra = (getenv("WUBU_JIT_XRA") != NULL);
+    if (mc->use_xra) {
+        xra_init(&mc->ra, mc->n_args);
+        xra_emit_load_args(&mc->ra, &mc->enc);
+    }
+
     mc->in_func = 1;
 
     /* Compile the body first into a temporary encoder to count locals.
@@ -572,11 +655,18 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
 
     mc->in_func = 0;
 
-    /* Epilogue (default return 0) */
-    MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
-    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
-    MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
-    MC_EMIT(mc, wx86_ret(&mc->enc));
+    /* Epilogue */
+    if (mc->use_xra) {
+        /* The default-return-0 must still land in rax before the allocator
+         * epilogue restores callee-saved regs and returns. */
+        MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+        xra_emit_return(&mc->ra, &mc->enc);
+    } else {
+        MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
+        MC_EMIT(mc, wx86_ret(&mc->enc));
+    }
 
     return 0;
 }

@@ -80,4 +80,14 @@ void xra_emit_load_args(XRARegAlloc *ra, Wx86Enc *e);
 /* Store return value (rax) and restore callee-saved */
 void xra_emit_return(XRARegAlloc *ra, Wx86Enc *e);
 
+/* Spill a vreg known to be in a physical register to its spill slot.
+ * Emits the store; caller must have allocated the slot (next_spill). */
+void xra_spill_store(XRARegAlloc *ra, int vreg, Wx86Enc *e);
+
+/* Reload a previously-spilled vreg into a physical register (allocates one). */
+Wx86Reg xra_spill_load(XRARegAlloc *ra, int vreg, Wx86Enc *e);
+
+/* Get the stack slot for a spilled vreg, allocating one if needed. */
+int xra_assign_spill_slot(XRARegAlloc *ra, int vreg);
+
 #endif /* X86_REGALLOC_H */

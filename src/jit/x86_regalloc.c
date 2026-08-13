@@ -92,7 +92,8 @@ Wx86Reg xra_alloc(XRARegAlloc *ra, int vreg) {
         }
     }
 
-    /* All out — mark as spilled */
+    /* All out — spill this vreg to the stack and return WREG_NONE.
+     * The caller must check for WREG_NONE and later reload via xra_spill_load. */
     ra->next_spill++;
     return WREG_NONE;
 }
@@ -190,6 +191,33 @@ void xra_emit_load_args(XRARegAlloc *ra, Wx86Enc *e) {
         ra->regs[argreg].state = XRA_ALLOCED;
         ra->regs[argreg].vreg = i;  /* vreg = arg index */
     }
+}
+
+/* Get the stack slot for a spilled vreg, allocating one if needed. */
+int xra_assign_spill_slot(XRARegAlloc *ra, int vreg) {
+    for (int i = 0; i < XRA_MAX_VREGS; i++) {
+        if (ra->regs[i].vreg == vreg && ra->regs[i].state == XRA_SPILLED)
+            return ra->regs[i].spill_slot;
+    }
+    int slot = ra->next_spill++;
+    return slot;
+}
+
+Wx86Reg xra_spill_load(XRARegAlloc *ra, int vreg, Wx86Enc *e) {
+    int slot = xra_assign_spill_slot(ra, vreg);
+    Wx86Reg hw = xra_alloc(ra, vreg);
+    if (hw == WREG_NONE) return WREG_NONE;
+    int offset = -(8 * (slot + 1));
+    wx86_mov_reg_mem(e, hw, WREG_RBP, offset);
+    return hw;
+}
+
+void xra_spill_store(XRARegAlloc *ra, int vreg, Wx86Enc *e) {
+    Wx86Reg hw = xra_get_reg(ra, vreg);
+    if (hw == WREG_NONE) return;
+    int slot = xra_assign_spill_slot(ra, vreg);
+    int offset = -(8 * (slot + 1));
+    wx86_mov_mem_reg(e, WREG_RBP, offset, hw);
 }
 
 void xra_emit_return(XRARegAlloc *ra, Wx86Enc *e) {
