@@ -436,13 +436,39 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             break;
         }
 
-        /* Cast: (type)expr - for now just evaluate expr (no-op at codegen level for I64) */
-        case HC_AST_CAST:
+        /* Cast: (type)expr — convert between F64 and integer when the
+         * target type differs from the operand's natural type. Without
+         * this, (int)42.9 emitted the raw F64 bit-pattern (garbage I64).
+         * We decide purely from the cast-target type + operand AST kind
+         * since intermed. float arith isn't tracked as a distinct lane. */
+        case HC_AST_CAST: {
+            bool to_int = node->type && node->type->kind != HC_TYPE_F64;
+            bool from_f64 = node->child &&
+                (node->child->kind == HC_AST_FLOAT_LIT ||
+                 (node->child->type && node->child->type->kind == HC_TYPE_F64));
             gen_expr(gen, node->child);
+            if (to_int && from_f64) emit_cvt_f64_to_i64(gen);
+            else if (!to_int && !from_f64) emit_cvt_i64_to_f64(gen);
+            /* to_int && from_int, or to_f64 && from_f64: no-op */
             break;
+        }
 
         /* Array index: expr[index] */
         case HC_AST_INDEX: {
+            /* Determine element scale: char/byte arrays index by 1, wider
+             * types by their size. Default to 1 (byte) so `"hi"[0]` works;
+             * int/pointer arrays use the type size. */
+            int scale = 1;
+            const HCType *bt = node->left->type;
+            if (bt) {
+                if (bt->kind == HC_TYPE_PTR && bt->base) {
+                    int esz = hc_type_size(bt->base);
+                    scale = (esz > 1) ? esz : 1;
+                } else if (bt->kind == HC_TYPE_ARRAY && bt->base) {
+                    int esz = hc_type_size(bt->base);
+                    scale = (esz > 1) ? esz : 1;
+                }
+            }
             /* Evaluate base expression (array pointer) */
             gen_expr(gen, node->left);
             /* rax = base pointer */
@@ -450,12 +476,33 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* Evaluate index expression */
             gen_expr(gen, node->right);
             /* rax = index, rdi = base */
-            /* Scale index by 8 (I64 size): shl rax, 3 */
-            emit_byte(gen, 0x48); emit_byte(gen, 0xC1); emit_byte(gen, 0xE0); emit_byte(gen, 0x03);
+            if (scale == 8) {
+                /* Scale index by 8 (I64 size): shl rax, 3 */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xC1); emit_byte(gen, 0xE0); emit_byte(gen, 0x03);
+            } else if (scale == 4) {
+                emit_byte(gen, 0x48); emit_byte(gen, 0xC1); emit_byte(gen, 0xE0); emit_byte(gen, 0x02);
+            } else if (scale == 2) {
+                emit_byte(gen, 0x48); emit_byte(gen, 0xC1); emit_byte(gen, 0xE0); emit_byte(gen, 0x01);
+            }
             /* Add to base: add rdi, rax */
             emit_byte(gen, 0x48); emit_byte(gen, 0x01); emit_byte(gen, 0xC7);
-            /* Load from address: mov rax, [rdi] */
-            emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x07);
+            /* Load from address with the element width (char arrays load a
+             * byte, int arrays load 8). Previously always loaded 8 bytes,
+             * so `"hi"[0]` returned 0x6968 (both chars packed) instead of
+             * 'h'=104. */
+            if (scale == 1) {
+                /* movzx rax, byte ptr [rdi]: 48 0F B6 07 */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB6); emit_byte(gen, 0x07);
+            } else if (scale == 2) {
+                /* movzx rax, word ptr [rdi]: 48 0F B7 07 */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB7); emit_byte(gen, 0x07);
+            } else if (scale == 4) {
+                /* mov rax, dword ptr [rdi]: 8B 07 */
+                emit_byte(gen, 0x8B); emit_byte(gen, 0x07);
+            } else {
+                /* mov rax, qword ptr [rdi]: 48 8B 07 */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x07);
+            }
             break;
         }
 

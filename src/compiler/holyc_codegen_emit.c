@@ -82,6 +82,40 @@ void emit_mov_rdi_imm64(HCGen *gen, int64_t val) {
     emit_qword(gen, (uint64_t)val);
 }
 
+/* emit_cvt_f64_to_i64: rax currently holds an F64 bit-pattern; convert
+ * it (with truncation toward zero) to a signed I64 in rax.
+ *   push rax               50
+ *   movsd xmm0, [rsp]      F2 0F 10 04 24
+ *   add rsp, 8             48 83 C4 08
+ *   cvttsd2si rax, xmm0    F2 48 0F 2C C0
+ * (NOT movq xmm0,rax — that instruction decodes to a no-op that leaves
+ * xmm0 zeroed in the JIT; the stack round-trip is verified reliable.) */
+void emit_cvt_f64_to_i64(HCGen *gen) {
+    emit_byte(gen, 0x50);                                    /* push rax */
+    emit_byte(gen, 0xF2); emit_byte(gen, 0x0F); emit_byte(gen, 0x10);
+    emit_byte(gen, 0x04); emit_byte(gen, 0x24);              /* movsd xmm0,[rsp] */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x83); emit_byte(gen, 0xC4);
+    emit_byte(gen, 0x08);                                    /* add rsp, 8 */
+    emit_byte(gen, 0xF2); emit_byte(gen, 0x48); emit_byte(gen, 0x0F);
+    emit_byte(gen, 0x2C); emit_byte(gen, 0xC0);              /* cvttsd2si rax, xmm0 */
+}
+
+/* emit_cvt_i64_to_f64: rax holds a signed I64; convert to F64 bit-pattern
+ * in rax.
+ *   push rax               50
+ *   cvtsi2sd xmm0,[rsp]    F2 48 0F 2A 04 24
+ *   add rsp, 8             48 83 C4 08
+ *   movq rax, xmm0         66 48 0F 7E C0   */
+void emit_cvt_i64_to_f64(HCGen *gen) {
+    emit_byte(gen, 0x50);                                    /* push rax */
+    emit_byte(gen, 0xF2); emit_byte(gen, 0x48); emit_byte(gen, 0x0F);
+    emit_byte(gen, 0x2A); emit_byte(gen, 0x04); emit_byte(gen, 0x24); /* cvtsi2sd xmm0,[rsp] */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x83); emit_byte(gen, 0xC4);
+    emit_byte(gen, 0x08);                                    /* add rsp, 8 */
+    emit_byte(gen, 0x66); emit_byte(gen, 0x48); emit_byte(gen, 0x0F);
+    emit_byte(gen, 0x7E); emit_byte(gen, 0xC0);              /* movq rax, xmm0 */
+}
+
 void emit_add_rax_rdi(HCGen *gen) {
     emit_byte(gen, 0x48); emit_byte(gen, 0x01); emit_byte(gen, 0xF8);
 }

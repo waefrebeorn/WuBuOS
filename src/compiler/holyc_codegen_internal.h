@@ -46,6 +46,8 @@ void emit_global_load_rax(HCGen *gen, size_t global_offset);
 /* Emits a RIP-relative mov [rip+disp32], rax store of a data-section global. */
 void emit_global_store_rax(HCGen *gen, size_t global_offset);
 void emit_mov_rdi_imm64(HCGen *gen, int64_t val);
+void emit_cvt_f64_to_i64(HCGen *gen);
+void emit_cvt_i64_to_f64(HCGen *gen);
 void emit_add_rax_rdi(HCGen *gen);
 void emit_sub_rax_rdi(HCGen *gen);
 void emit_mul_rax_rdi(HCGen *gen);

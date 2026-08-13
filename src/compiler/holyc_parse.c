@@ -168,13 +168,21 @@ static HCASTNode *parse_primary(HCParser *p) {
         }
         case HC_TOK_STRING: {
             HCASTNode *n = hc_ast_new(HC_AST_STRING_LIT);
-            strncpy(n->str_val, p->lex->tok.text, HC_MAX_STRING_LEN - 1);
+            /* use str_val (the decoded string incl. escape sequences),
+             * NOT text (which is the raw source span and can be empty
+             * after a previous token's trailing-quote advance). */
+            strncpy(n->str_val, p->lex->tok.str_val, HC_MAX_STRING_LEN - 1);
             advance(p);
             return n;
         }
         case HC_TOK_CHAR: {
             HCASTNode *n = hc_ast_new(HC_AST_CHAR_LIT);
-            n->int_val = p->lex->tok.int_val;
+            /* the lexer puts the decoded char in str_val[0]; int_val
+             * is only set for HC_TOK_INT (the scanner path doesn't
+             * touch int_val for chars). Codegen reads str_val[0], so
+             * populate both for safety. */
+            n->str_val[0] = p->lex->tok.str_val[0];
+            n->int_val = (int64_t)(uint8_t)p->lex->tok.str_val[0];
             advance(p);
             return n;
         }

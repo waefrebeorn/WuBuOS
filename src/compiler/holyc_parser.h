@@ -13,6 +13,7 @@ HCASTNode *hc_parse_expr(HCParser *p);
 HCASTNode *hc_parse_stmt(HCParser *p);
 HCASTNode *hc_parse_decl(HCParser *p);
 HCASTNode *hc_parse_compilation_unit(HCParser *p);
+size_t hc_type_size(const HCType *t);
 HCASTNode *hc_parse_block(HCParser *p);
 HCTokenType hc_parse_peek(HCParser *p);
 
