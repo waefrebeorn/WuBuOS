@@ -202,6 +202,7 @@ int wubu_anticheat_db_reset(const AntiCheatInfo *db, int count)
  * ================================================================== */
 
 const AntiCheatInfo *wubu_anticheat_info(AntiCheatType type) {
+    if (type == AC_NONE) return NULL;        /* sentinel: "no anti-cheat" -> NULL */
     ac_registry_seed();
     for (int i = 0; i < g_ac_registry_n; i++)
         if (g_ac_registry[i].type == type)
