@@ -1,6 +1,6 @@
-# sizeof + switch + goto + multi-dim arrays + nested pointer access
+# sizeof + switch + goto + multi-dim arrays + nested pointer access + sret
 
-**Status: SHIPPED + GREEN** (2026-08-13). Closes five kernel-critical C11
+**Status: SHIPPED + GREEN** (2026-08-13). Closes six kernel-critical C11
 gaps the compiler needed to compile the kernel + desktop.
 
 ## sizeof
@@ -116,17 +116,57 @@ all of them. Two root causes fixed:
   the caller's binop loop still applies `*4` to `(2+3)*4`. Paren arithmetic
   (battery `paren`, `prec paren`) re-verified — this fix preserves it.
 
+## Struct-by-value return (≤8 bytes)
+
+`struct S f(){...; return s;}` followed by `struct S r; r=f(); r.a;` now
+goes through an explicit rep movsb sret path. Callee RETURN:
+
+1. Reserve a 16-byte-aligned slot in `.data` (sized to the struct).
+2. `lea rsi, [rbp - off]` (src = the local struct).
+3. `mov rdi, slot_addr; mov rcx, ret_sz; rep movsb` (memcpy in).
+4. `mov rax, slot_addr` (return value = pointer to struct copy).
+5. Emit epilogue.
+
+Caller ASSIGN for a struct-typed LHS with RHS being a FUNC_CALL:
+1. Caller's `gen_expr(FUNC_CALL)` returns rax = &slot.
+2. `push rax; lea rax, [rbp - off]` (or RIP-relative lea for globals) for
+   the LHS address; `pop rsi`; `xchg rax, rdi` → rax=&slot (preserved as
+   result), rdi=&lhs, rsi=&slot; `mov rcx, lhs_sz; rep movsb` → &lhs ← &slot.
+
+Result: byte-exact memcpy of the returned struct into the LHS. Verified
+on `{int a;int b;}` (8B) and `{int a;}` (4B) structs; larger structs
+fall through to the legacy 8-byte path (see Honest remainder).
+
 ## Honest remainder
 
 - No `case`/`default` duplicate detection.
 - No jump-table optimization — linear compare chain, O(n) dispatch.
 - `sizeof` of a VLA unsupported (arrays are compile-time sized).
-- **Struct-by-value RETURN is unsupported** (SysV ABI sret: struct returned
-  via a hidden pointer param). Passing a struct by value works; returning
-  one gives garbage. Requires ABI machinery for a hidden sret arg + the
-  caller passing a buffer. Documented, not yet implemented.
+- **Struct-by-value RETURN >8 bytes** — partial support. ≤8-byte struct
+  returns now go through a proper rep movsb sret path (callee copies
+  into a 16-byte-aligned .data slot, returns rax=&slot; caller ASSIGN
+  does rep movsb from &slot to &lhs). For >8-byte structs the legacy
+  8-byte store is used silently — bytes past offset 8 are lost. Calls
+  into functions with >8B struct returns crash because arg passing
+  still only delivers the first 8 bytes (callee reads a corrupt copy).
+  Full SysV sret ABI (hidden first-arg pointer + callee write-through)
+  is the proper fix; not yet implemented.
+- **Struct-by-value ARG passing >8 bytes** — same root cause as the >8B
+  return remainder above; the caller only stores 8 bytes into rdi.
+- **`f().a` where f returns a struct** — MEMBER on the call result still
+  treats rax as the scalar value, not as a pointer to the returned
+  struct. Workaround: assign to a struct variable first (`r=f(); r.a;`).
+
+## Battery additions (selfhost_battery.c)
+
+7 `sizeof` + 6 `switch` + 3 `goto` + 7 `multi-dim array` + 7 `nested
+pointer/deref` + 4 `sret return (≤8B)` probes → battery **78 → 112
+probes, 112/112 PASS, 0 WRONG, 0 CRASH**. (The nested-struct sizeof
+probe exposed a wrong *expectation* on my part — gcc confirms 8,
+compiler was right — fixed, not a compiler bug.)
 
 ## Gates (all fresh-verified)
 
-- battery 108/108 PASS (was 78) — no regression
+- battery 112/112 PASS (was 78) — no regression
 - test_holyc 84/84, test_holyc_agi 11/11
+- test_hedge PASS, test_dram_hedge 294/294

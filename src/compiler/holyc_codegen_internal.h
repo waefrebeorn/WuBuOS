@@ -22,6 +22,8 @@
 
 /* -- Code Emission Helpers ---------------------------------------- */
 
+void emit_rep_movsb(HCGen *gen);
+int resolve_var(HCGen *gen, const char *name, int *off, int *is_global);
 void emit_byte(HCGen *gen, uint8_t b);
 void emit_data_byte(HCGen *gen, uint8_t b);
 void emit_word(HCGen *gen, uint16_t w);

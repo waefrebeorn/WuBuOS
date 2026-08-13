@@ -151,6 +151,15 @@ static const Probe PROBES[] = {
     {"nested arrow", "struct P{int a;}; struct Q{struct P* p;}; struct P p; p.a=42; struct Q q; q.p=&p; q.p->a;", 42},
     {"plain deref", "int x=42; int* p=&x; *p;", 42},
     {"deref assign", "int x=0; int* p=&x; *p=7; x;", 7},
+    /* ---- struct-by-value return (sret via rep movsb, <=8B) ----
+     * The <=8B case uses an explicit rep movsb path: callee RETURN
+     * copies the local struct into a .data slot, returns rax=&slot;
+     * caller ASSIGN does rep movsb from &slot to &lhs. Larger returns
+     * need full sret ABI arg passing (not yet wired). */
+    {"ret struct a", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} struct S r; r=f(); r.a;", 42},
+    {"ret struct b", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} struct S r; r=f(); r.b;", 7},
+    {"ret single field", "struct S{int a;}; struct S f(){struct S s; s.a=5; return s;} struct S r; r=f(); r.a;", 5},
+    {"ret struct sum", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} struct S r; r=f(); r.a+r.b;", 49},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))

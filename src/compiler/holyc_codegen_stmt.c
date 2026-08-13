@@ -58,13 +58,49 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
              * They register the function name and C name for the function call handler. */
             break;
 
-        case HC_AST_RETURN:
-            if (node->child)
+        case HC_AST_RETURN: {
+            HCType *ret_t = node->child ? expr_static_type(gen, node->child) : NULL;
+            int ret_sz = (ret_t && ret_t->kind == HC_TYPE_STRUCT) ? (int)hc_type_size(ret_t) : 0;
+            /* Full rep-movsb path only for <=8-byte struct returns. Larger
+             * structs need full sret ABI (caller passes a buffer pointer;
+             * callee writes through it). Without that, we fall through to
+             * the legacy gen_expr which puts the first 8 bytes of the
+             * struct in rax — sufficient only for <=8-byte struct returns.
+             * The matching ASSIGN path also gates on <=8 for symmetry. */
+            bool can_sret = ret_sz > 0 && ret_sz <= 8 && node->child &&
+                            node->child->kind == HC_AST_IDENT &&
+                            gen->symbols.n_locals > 0;
+            if (can_sret) {
+                /* Reserve a 16-byte-aligned slot in .data for the returned
+                 * struct copy. The caller treats rax as the pointer to it
+                 * (a tiny memory-return ABI). */
+                int pad = (16 - (gen->data_size % 16)) % 16;
+                for (int p_ = 0; p_ < pad; p_++) emit_data_byte(gen, 0);
+                int slot_off = (int)gen->data_size;
+                for (int p_ = 0; p_ < ret_sz; p_++) emit_data_byte(gen, 0);
+                int off = 0, is_global = 0;
+                resolve_var(gen, node->child->ident, &off, &is_global);
+                /* lea rsi, [rbp - off] (src = local) */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0xB5);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                /* mov rdi, slot_addr (dst) */
+                emit_mov_rax_imm64(gen, (int64_t)(size_t)(gen->data + slot_off));
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC7);
+                /* mov rcx, ret_sz */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xC7); emit_byte(gen, 0xC1);
+                emit_dword(gen, (uint32_t)ret_sz);
+                /* rep movsb */
+                emit_rep_movsb(gen);
+                /* rax = &slot (return value) */
+                emit_mov_rax_imm64(gen, (int64_t)(size_t)(gen->data + slot_off));
+            } else if (node->child) {
                 gen_expr(gen, node->child);
-            else
+            } else {
                 emit_mov_rax_imm64(gen, 0);
+            }
             emit_epilogue(gen);
             break;
+        }
 
         case HC_AST_BLOCK:
             for (int i = 0; i < node->n_stmts; i++)

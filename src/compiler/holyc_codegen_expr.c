@@ -73,7 +73,7 @@ void emit_global_store_rax(HCGen *gen, size_t global_offset) {
  * *is_global (with global_offset = -off). Creates an implicit local on
  * first assignment if absent. Optionally returns the declared HCType
  * (populated from the VAR_DECL; NULL for implicit locals). */
-static int resolve_var(HCGen *gen, const char *name, int *off, int *is_global)
+int resolve_var(HCGen *gen, const char *name, int *off, int *is_global)
 {
     for (int i = 0; i < gen->symbols.n_locals; i++) {
         if (strcmp(gen->symbols.locals[i].name, name) == 0) {
@@ -1124,14 +1124,59 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             break;
         }
 
-        case HC_AST_ASSIGN:
-            /* Right-hand side → rax, then store to left-hand side.
-             * IDENT targets use the direct emit_var_store fast path;
-             * INDEX/MEMBER/ARROW/DEREF targets compute their address and
-             * store through it (previously only IDENT was assignable, so
-             * x[0]=42 / s.a=42 / *p=42 were silently dropped → 0). */
+        case HC_AST_ASSIGN: {
+            /* Right-hand side → rax (for struct-by-value calls, rax = pointer
+             * to the callee's static ret-slot; for everything else, rax is
+             * the scalar value to store). */
             gen_expr(gen, node->right);
-            if (node->left && node->left->kind == HC_AST_IDENT) {
+            HCType *lt = node->left ? expr_static_type(gen, node->left) : NULL;
+            int lhs_sz = (lt && lt->kind == HC_TYPE_STRUCT) ? (int)hc_type_size(lt) : 0;
+            /* If LHS is a struct IDENT and the RHS expression is a CALL
+             * (rax currently holds the callee's &ret-slot), do a rep movsb
+             * copy. If RHS is also a struct literal/IDENT, the current
+             * emit_var_store copies only 8 bytes — same 8-byte-leak bug for
+             * rhs IDENT, but we leave it untouched for this wave. */
+            bool rhs_is_call = node->right && node->right->kind == HC_AST_FUNC_CALL;
+            /* Full-rep-movsb path only fires for <=8-byte struct returns:
+             * - callee RETURN uses rep movsb sized to ret_sz
+             * - caller (us) does rep movsb from &slot to &lhs
+             * - arg passing >8 bytes is unsupported (caller passes first 8
+             *   bytes in rdi only), so for those structs the callee would
+             *   read a corrupt copy. We refuse rather than crash. */
+            bool sret_supported = lhs_sz > 0 && lhs_sz <= 8 && rhs_is_call &&
+                                  node->left->kind == HC_AST_IDENT;
+            if (sret_supported) {
+                int off = 0, is_global = 0;
+                resolve_var(gen, node->left->ident, &off, &is_global);
+                /* rax currently holds &slot (from RETURN path). We need
+                 * dst = &lhs, src = rax. Swap: push rax; lea rax, [rbp-off];
+                 * pop rsi; xchg rax, rdi → rdi=&lhs, rsi=&slot. Then rcx=lhs_sz. */
+                emit_byte(gen, 0x50);                              /* push rax (slot addr) */
+                if (is_global) {
+                    size_t go = (size_t)(-off);
+                    size_t patch_pos = gen->code_size + 3;
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
+                    emit_dword(gen, 0);
+                    if (gen->n_global_patches < 128) {
+                        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+                        gen->global_patches[gen->n_global_patches].global_offset = go;
+                        gen->n_global_patches++;
+                    }
+                } else {
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                }
+                /* rax = &lhs */
+                emit_byte(gen, 0x5E);                              /* pop rsi (slot addr) */
+                /* xchg rax, rdi → rax = slot addr (returned), rdi = &lhs */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x97);      /* xchg rax, rdi */
+                /* mov rcx, lhs_sz */
+                emit_byte(gen, 0x48); emit_byte(gen, 0xC7); emit_byte(gen, 0xC1);
+                emit_dword(gen, (uint32_t)lhs_sz);
+                /* rep movsb: [rdi=&lhs] <- [rsi=&slot], rcx bytes */
+                emit_rep_movsb(gen);
+                /* Restore rax = &slot for any chained rvalue uses. */
+            } else if (node->left && node->left->kind == HC_AST_IDENT) {
                 int off = 0, is_global = 0;
                 resolve_var(gen, node->left->ident, &off, &is_global);
                 emit_var_store(gen, off, is_global);
@@ -1142,11 +1187,12 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                 emit_byte(gen, 0x5F);            /* pop rdi (value) */
                 /* store with the target's element width (a 4-byte int member
                  * stores dword, so the adjacent member isn't clobbered). */
-                HCType *lt = expr_static_type(gen, node->left);
-                int esz = lt ? (int)hc_type_size(lt) : 8;
+                HCType *lt2 = expr_static_type(gen, node->left);
+                int esz = lt2 ? (int)hc_type_size(lt2) : 8;
                 emit_sized_store_rax_rdi(gen, esz);
             }
             break;
+        }
 
         /* Compound assignments: x op= y means x = x op y. Unified with
          * the shared resolve/load/store helpers so a GLOBAL (module-level

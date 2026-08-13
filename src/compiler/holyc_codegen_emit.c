@@ -333,6 +333,15 @@ size_t emit_jmp_placeholder(HCGen *gen) {
     return patch_pos;
 }
 
+/* Emit `rep movsb` with RCX bytes from [RSI] to [RDI]. Caller must set
+ * rsi=src, rdi=dst, rcx=count BEFORE calling this. Used for struct-by-value
+ * return memcpy (the RETURN path sets up these regs from the operand). */
+void emit_rep_movsb(HCGen *gen) {
+    emit_byte(gen, 0xF3);   /* REP */
+    emit_byte(gen, 0x48);   /* REX.W */
+    emit_byte(gen, 0xA4);   /* MOVSB */
+}
+
 /* switch dispatch helpers */
 void emit_push_rax(HCGen *gen)     { emit_byte(gen, 0x50); }
 void emit_pop_rax(HCGen *gen)      { emit_byte(gen, 0x58); }
