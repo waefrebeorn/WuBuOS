@@ -69,8 +69,10 @@ on different channels.
 
 ## Future / honest remainder
 
-The real race-to-completion across separate cores (Tailslayer spins
-workers on cores 11/12/14) is not exercised in the host test — reads
-complete in-call. The kernel metal build needs the page allocator to
-guarantee physical channel placement (the virtual 256-B stride is a strong
-heuristic, not a hardware guarantee). Both are documented, not claimed.
+The race-to-completion across separate cores (Tailslayer spins workers on
+cores 11/12/14) is now implemented (`wdh_reader_*`): N threads pinned to
+dedicated cores race the replicas and the reader completes when every
+current-generation replica has loaded. The kernel metal build needs the
+page allocator to guarantee physical channel placement (the virtual 256-B
+stride is a strong heuristic, not a hardware guarantee). Both are
+documented, not claimed.
