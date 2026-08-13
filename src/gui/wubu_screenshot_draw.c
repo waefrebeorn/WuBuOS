@@ -6,6 +6,11 @@
  */
 
 #include "wubu_screenshot_internal.h"
+#include <stdlib.h>   /* abs() */
+#include <math.h>
+#ifdef WUBU_NO_LIBM
+#  include "../kernel/wubu_math.h"
+#endif
 
 void draw_line(uint32_t *buf, int w, int h, int x1, int y1, int x2, int y2, uint32_t color, int thickness) {
     int dx = abs(x2 - x1), sx = x1 < x2 ? 1 : -1;

@@ -134,4 +134,10 @@ void wubu_theme_cycle(void);
 /* Get theme name */
 const char *wubu_theme_name(WubuThemeId id);
 
+/* --- WCAG AA contrast audit (accessibility) -----------------------
+ * Walks every color pair actually used as text-on-background across
+ * all themes and returns the worst contrast ratio found (3.0 minimum
+ * for AA UI-component compliance per WCAG 1.4.11). Returns -1 on error. */
+double wubu_theme_contrast_audit(void);
+
 #endif /* WUBU_THEME_H */

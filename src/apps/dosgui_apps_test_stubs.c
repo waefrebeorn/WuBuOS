@@ -129,13 +129,19 @@ int wubu_session_launch_game(void *state, const char *title,
 int hc_eval(const char *src) { (void)src; return -1; }
 
 /* -- Kernel log ------------------------------------------------------ */
+#include "../gui/dosgui_wm.h"   /* DosGuiWindow */
+/* Stub for screenshot shift+printscr path that the focused-test never hits. */
+DosGuiWindow *dosgui_wm_get_focused(void) { return NULL; }
 #include <stdarg.h>
 int klog_printf(const char *fmt, ...) {
     (void)fmt; return 0;
 }
 
 /* -- zlib (compress2 / inflate / inflateInit_ / inflateEnd) ---------- */
-/* The canvas PNG/ICO codec uses zlib; provide no-ops that report failure. */
+/* The canvas PNG/ICO codec uses zlib; provide no-ops that report failure.
+ * (Override by linking real -lz: these guards are skipped when
+ *  WUBU_USE_REAL_ZLIB is defined, which the screenshot test sets.) */
+#ifndef WUBU_USE_REAL_ZLIB
 int compress2(unsigned char *dst, unsigned long *dst_len,
               const unsigned char *src, unsigned long src_len, int level) {
     (void)dst; (void)dst_len; (void)src; (void)src_len; (void)level;
@@ -149,3 +155,4 @@ int inflateEnd(void *strm) { (void)strm; return -1; }
 int inflateInit_(void *strm, const char *version, int stream_size) {
     (void)strm; (void)version; (void)stream_size; return -1;
 }
+#endif

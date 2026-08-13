@@ -153,6 +153,14 @@ int main(void) {
     }
 
     printf("[ok] wubu_a11y: all cluster controls verified\n");
+
+    /* --- Full-GUI WCAG audit (all themes, all rendered text/bg pairs) */
+    {
+        double worst = wubu_theme_contrast_audit();
+        printf("  [theme] WCAG min contrast across all themes = %.2f:1\n", worst);
+        assert(worst >= 3.0);   /* AA UI-component minimum (WCAG 1.4.11) */
+    }
+
     dosgui_wm_shutdown();
     return 0;
 }
