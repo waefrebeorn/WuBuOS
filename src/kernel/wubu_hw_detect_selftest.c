@@ -29,6 +29,11 @@ static int failures = 0;
 
 int main(void)
 {
+    /* Hosted test: initialize the libc bump heap so malloc/calloc work
+     * (the kernel allocator g_heap isn't set up outside boot). */
+    extern int libm_heap_init(void);
+    libm_heap_init();
+
     printf("=== wubu_hw_detect_selftest (magic OS self-detection) ===\n");
 
     /* 1. init KV-FS */
