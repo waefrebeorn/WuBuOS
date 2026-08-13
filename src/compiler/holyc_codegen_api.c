@@ -4,6 +4,7 @@
  */
 
 #include "holyc_codegen_internal.h"
+#include "wubu_preproc.h"
 
 /* ====================================================================
  * PUBLIC API
@@ -73,10 +74,15 @@ void *hc_compile(const char *source, size_t *out_size) {
 }
 
 int64_t hc_eval(const char *source) {
-    HCLexer lex;
-    hc_lex_init(&lex, source);
+    /* Preprocess #define macros and strip directives before lexing —
+     * real kernel source is full of them and the lexer has no '#' support. */
+    char *pp = wubu_preprocess(source);
+    const char *effective = pp ? pp : source;
 
-    if (lex.has_error) return 0;
+    HCLexer lex;
+    hc_lex_init(&lex, effective);
+
+    if (lex.has_error) { free(pp); return 0; }
 
     HCParser parse;
     hc_parse_init(&parse, &lex);
@@ -90,7 +96,7 @@ int64_t hc_eval(const char *source) {
         parse.has_error = false;
         parse.n_errors = 0;
         /* Re-lex from start */
-        hc_lex_init(&lex, source);
+        hc_lex_init(&lex, effective);
         hc_parse_init(&parse, &lex);
         
         /* Check if source starts with a control keyword */
@@ -114,14 +120,14 @@ int64_t hc_eval(const char *source) {
         
         if (has_semicolon && !starts_with_keyword) {
             /* Create a temporary buffer with braces */
-            size_t len = strlen(source);
+            size_t len = strlen(effective);
             /* "{ %s }" = 2 + len + 2 + 1 NUL = len+5. The old len+3
              * overflowed the heap for any multi-statement eval, silently
              * corrupting malloc metadata → intermittent crashes in later
              * allocations (the ASan-discovered root of several mystery
              * segfaults in the self-hosting battery). */
             char *wrapped = malloc(len + 5);
-            sprintf(wrapped, "{ %s }", source);
+            sprintf(wrapped, "{ %s }", effective);
             hc_lex_init(&lex, wrapped);
             hc_parse_init(&parse, &lex);
             /* hc_lex_init already primes the first token (which is `{`) */
@@ -134,6 +140,7 @@ int64_t hc_eval(const char *source) {
 
     if (parse.has_error || !ast) {
         hc_ast_free(ast);
+        free(pp);
         return 0;
     }
 
@@ -174,6 +181,7 @@ int64_t hc_eval(const char *source) {
     if (gen.code_size == 0 || gen.has_error) {
         free(gen.code);
         free(gen.data);
+        free(pp);
         return 0;
     }
 
@@ -209,6 +217,7 @@ int64_t hc_eval(const char *source) {
     jit_free_exec(exec, gen.code_size + gen.data_size);
     free(gen.code);
     free(gen.data);
+    free(pp);
 
     return result;
 }
