@@ -308,6 +308,13 @@ struct HCParser {
     bool has_error;
     char errors[HC_MAX_ERRORS][256];
     int n_errors;
+    /* named-type registry: struct/union/enum tags defined with a body are
+     * stored by name so a later `struct S x;` reference reuses the SAME
+     * member layout (previously it built a fresh empty struct with no
+     * members, so s.a resolved no offset and reads returned 0). */
+    HCType *named_types[64];
+    char named_type_names[64][HC_MAX_IDENT_LEN];
+    int n_named_types;
 };
 
 /* -- Code Generator struct (full definition needed by codegen.c) ------------- */

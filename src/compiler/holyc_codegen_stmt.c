@@ -242,59 +242,77 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
             bool is_module_level = !gen->in_function;
            
             if (is_module_level) {
-                /* Top-level variable: store in data section as global */
-                if (node->init) {
-                    gen_expr(gen, node->init);
-                    /* Reserve space in data section */
-                    size_t global_offset = gen->data_size;
-                    /* Align to 8 bytes */
-                    while (gen->data_size % 8 != 0) {
-                        emit_data_byte(gen, 0);
+                /* Top-level variable: store in data section as global. Always
+                 * allocate (even without an init) and size by the declared
+                 * type, so `struct S s;` (no init) still reserves memory and
+                 * records a symbol — previously the no-init case was skipped
+                 * entirely, so later `s.a` created an implicit stack local and
+                 * pointed at garbage (crash). */
+                {
+                    int size = 8;
+                    if (node->type) {
+                        size_t tsz = hc_type_size(node->type);
+                        if (tsz > 0) size = (int)tsz;
                     }
-                    /* Reserve 8 bytes for global */
-                    emit_data_qword(gen, 0);
-                    
-                    /* Record in symbol table (negative offset = global in data section) */
+                    size_t global_offset = gen->data_size;
+                    while (gen->data_size % 8 != 0) emit_data_byte(gen, 0);
+                    /* reserve `size` bytes (round up to 8) for the global */
+                    int qwords = (size + 7) / 8;
+                    for (int q = 0; q < qwords; q++) emit_data_qword(gen, 0);
+
+                    /* Record in symbol table (negative offset = global) */
                     if (gen->symbols.n_locals < HC_MAX_LOCALS) {
                         strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
                                 node->ident, HC_MAX_IDENT_LEN - 1);
                         gen->symbols.locals[gen->symbols.n_locals].stack_offset = -(int)global_offset;
+                        gen->symbols.locals[gen->symbols.n_locals].type = node->type;
                         gen->symbols.n_locals++;
                     }
-                   
-                    /* Emit: mov [rip + disp32], rax with placeholder disp32
-                     * The actual disp32 will be patched in wubu_holyd_eval after final code_size is known */
-                    size_t patch_pos = gen->code_size;
-                    emit_byte(gen, 0x48); /* REX.W */
-                    emit_byte(gen, 0x89); /* mov r/m64, rax */
-                    emit_byte(gen, 0x05); /* [rip + disp32] */
-                    emit_dword(gen, 0);   /* placeholder disp32 */
-                   
-                    /* Store patch info for runtime fixup */
-                    if (gen->n_global_patches < 32) {
-                        gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos + 3; /* Position of disp32 */
-                        gen->global_patches[gen->n_global_patches].global_offset = global_offset;
-                        gen->n_global_patches++;
+
+                    if (node->init) {
+                        gen_expr(gen, node->init);
+                        /* mov [rip + disp32], rax (patched after code_size known) */
+                        size_t patch_pos = gen->code_size;
+                        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x05);
+                        emit_dword(gen, 0);
+                        if (gen->n_global_patches < 32) {
+                            gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos + 3;
+                            gen->global_patches[gen->n_global_patches].global_offset = global_offset;
+                            gen->n_global_patches++;
+                        }
                     }
                 }
             } else {
                 /* Local variable inside function: store on stack */
-                if (node->init) {
-                    gen_expr(gen, node->init);
-                    /* Store rax to stack: mov [rbp - offset], rax */
+                {
+                    /* Always allocate the slot (even without an init) so an
+                     * uninitialized struct/array still has memory to point at.
+                     * Sized by the declared type: an int x[3] array needs
+                     * 24 bytes, a struct needs sizeof(struct). Previously
+                     * every var got one 8-byte slot, so struct S s; s.a=42
+                     * pointed at garbage and crashed. */
+                    int size = 8;
+                    if (node->type) {
+                        size_t tsz = hc_type_size(node->type);
+                        if (tsz > 0) size = (int)tsz;
+                    }
                     int offset = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += 8;
+                    gen->symbols.stack_size += size;
                     if (gen->symbols.n_locals < HC_MAX_LOCALS) {
                         strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
                                 node->ident, HC_MAX_IDENT_LEN - 1);
                         gen->symbols.locals[gen->symbols.n_locals].stack_offset = offset;
+                        gen->symbols.locals[gen->symbols.n_locals].type = node->type;
                         gen->symbols.n_locals++;
                     }
-                    /* mov [rbp - offset], rax: 48 89 85 disp32 */
-                    emit_byte(gen, 0x48); /* REX.W */
-                    emit_byte(gen, 0x89); /* mov */
-                    emit_byte(gen, 0x85); /* [rbp+disp32] */
-                    emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                    if (node->init) {
+                        gen_expr(gen, node->init);
+                        /* mov [rbp - offset], rax: 48 89 85 disp32 */
+                        emit_byte(gen, 0x48); /* REX.W */
+                        emit_byte(gen, 0x89); /* mov */
+                        emit_byte(gen, 0x85); /* [rbp+disp32] */
+                        emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
+                    }
                 }
             }
             break;

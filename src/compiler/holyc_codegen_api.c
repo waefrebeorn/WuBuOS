@@ -115,7 +115,12 @@ int64_t hc_eval(const char *source) {
         if (has_semicolon && !starts_with_keyword) {
             /* Create a temporary buffer with braces */
             size_t len = strlen(source);
-            char *wrapped = malloc(len + 3);
+            /* "{ %s }" = 2 + len + 2 + 1 NUL = len+5. The old len+3
+             * overflowed the heap for any multi-statement eval, silently
+             * corrupting malloc metadata → intermittent crashes in later
+             * allocations (the ASan-discovered root of several mystery
+             * segfaults in the self-hosting battery). */
+            char *wrapped = malloc(len + 5);
             sprintf(wrapped, "{ %s }", source);
             hc_lex_init(&lex, wrapped);
             hc_parse_init(&parse, &lex);

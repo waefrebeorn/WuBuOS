@@ -69,7 +69,8 @@ void emit_global_store_rax(HCGen *gen, size_t global_offset) {
 
 /* resolve a named variable: returns 1 if found, sets off (stack) or
  * *is_global (with global_offset = -off). Creates an implicit local on
- * first assignment if absent. */
+ * first assignment if absent. Optionally returns the declared HCType
+ * (populated from the VAR_DECL; NULL for implicit locals). */
 static int resolve_var(HCGen *gen, const char *name, int *off, int *is_global)
 {
     for (int i = 0; i < gen->symbols.n_locals; i++) {
@@ -87,9 +88,21 @@ static int resolve_var(HCGen *gen, const char *name, int *off, int *is_global)
         strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
                 name, HC_MAX_IDENT_LEN - 1);
         gen->symbols.locals[gen->symbols.n_locals].stack_offset = *off;
+        gen->symbols.locals[gen->symbols.n_locals].type = NULL;
         gen->symbols.n_locals++;
     }
     return 1;
+}
+
+/* resolve a variable's declared HCType (or NULL if implicit/untyped).
+ * Used to decide array/struct base decay in lvalue/read codegen. */
+static HCType *resolve_var_type(HCGen *gen, const char *name)
+{
+    for (int i = 0; i < gen->symbols.n_locals; i++) {
+        if (strcmp(gen->symbols.locals[i].name, name) == 0)
+            return gen->symbols.locals[i].type;
+    }
+    return NULL;
 }
 
 /* load `rax = var` — RIP-relative for globals, [rbp-off] for locals */
@@ -112,6 +125,143 @@ static void emit_var_store(HCGen *gen, int off, int is_global)
         emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
         emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
     }
+}
+
+/* emit_lvalue_addr: compute the ADDRESS of an lvalue (in rax). Supports
+ * IDENT (lea stack-local / RIP-relative global), INDEX (base + idx*scale),
+ * MEMBER (.field, struct value), ARROW (->field, struct pointer), and
+ * DEREF (*ptr). Used by ASSIGN/compound-assign to store through a
+ * non-trivial target — previously only IDENT targets were assignable, so
+ * `x[0]=42`, `s.a=42`, `*p=42` were silently dropped (returned 0). */
+static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node);
+static void emit_base_addr(HCGen *gen, const HCASTNode *node);
+
+static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node)
+{
+    switch (node->kind) {
+        case HC_AST_IDENT: {
+            int off = 0, is_global = 0;
+            resolve_var(gen, node->ident, &off, &is_global);
+            if (is_global) {
+                size_t go = (size_t)(-off);
+                size_t patch_pos = gen->code_size + 3;
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
+                emit_dword(gen, 0);
+                if (gen->n_global_patches < 32) {
+                    gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+                    gen->global_patches[gen->n_global_patches].global_offset = go;
+                    gen->n_global_patches++;
+                }
+            } else {
+                /* lea rax, [rbp - off] */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
+            return 1;
+        }
+        case HC_AST_INDEX: {
+            /* address = base + idx * scale; base is the array's ADDRESS
+             * (a struct/array ident must decay to &x, not its value). */
+            int scale = 1;
+            HCType *bt = node->left->type;
+            if (!bt && node->left->kind == HC_AST_IDENT)
+                bt = resolve_var_type(gen, node->left->ident);
+            if (bt) {
+                if (bt->kind == HC_TYPE_PTR && bt->base)
+                    scale = (hc_type_size(bt->base) > 1) ? (int)hc_type_size(bt->base) : 1;
+                else if (bt->kind == HC_TYPE_ARRAY && bt->base)
+                    scale = (hc_type_size(bt->base) > 1) ? (int)hc_type_size(bt->base) : 1;
+            }
+            emit_base_addr(gen, node->left); /* rax = &base (or ptr value) */
+            emit_mov_rdi_rax(gen);           /* rdi = base address */
+            gen_expr(gen, node->right);      /* rax = idx */
+            if (scale == 8) emit_byte(gen, 0x48), emit_byte(gen, 0xC1), emit_byte(gen, 0xE0), emit_byte(gen, 0x03);
+            else if (scale == 4) emit_byte(gen, 0x48), emit_byte(gen, 0xC1), emit_byte(gen, 0xE0), emit_byte(gen, 0x02);
+            else if (scale == 2) emit_byte(gen, 0x48), emit_byte(gen, 0xC1), emit_byte(gen, 0xE0), emit_byte(gen, 0x01);
+            /* rax = base + idx*scale: add rax, rdi */
+            emit_byte(gen, 0x48); emit_byte(gen, 0x01); emit_byte(gen, 0xF8);
+            return 1;
+        }
+        case HC_AST_DEREF: {
+            gen_expr(gen, node->child);      /* rax = pointer (the address) */
+            return 1;
+        }
+        case HC_AST_MEMBER:
+        case HC_AST_ARROW: {
+            /* evaluate base: for a struct-VALUE ident (s.a) we need &s,
+             * for a struct-POINTER (p->a) we need the pointer's value. */
+            emit_base_addr(gen, node->left);
+            int off = 0;
+            HCType *btype = node->left->type;
+            if (!btype && node->left->kind == HC_AST_IDENT)
+                btype = resolve_var_type(gen, node->left->ident);
+            const HCType *st = (node->kind == HC_AST_ARROW && btype &&
+                                btype->kind == HC_TYPE_PTR && btype->base)
+                                    ? btype->base : btype;
+            if (st && st->kind == HC_TYPE_STRUCT) {
+                for (int i = 0; i < st->n_members; i++) {
+                    if (strcmp(st->members[i].name, node->ident) == 0) { off = (int)st->members[i].offset; break; }
+                }
+            }
+            if (off != 0) {
+                /* add rax, imm32 */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x05);
+                emit_dword(gen, (uint32_t)off);
+            }
+            return 1;
+        }
+        default:
+            return 0;
+    }
+}
+
+/* emit_base_addr: emit the ADDRESS of a base expression into rax.
+ * For a struct/array IDENT this is its location (&s, &x); for a pointer
+ * IDENT it's the pointer's value (which IS the address). Generic
+ * expressions are evaluated normally. Used by INDEX/MEMBER/ARROW so the
+ * base decays to an address instead of loading the struct's value. */
+static void emit_base_addr(HCGen *gen, const HCASTNode *node)
+{
+    if (!node) { emit_mov_rax_imm64(gen, 0); return; }
+    if (node->kind == HC_AST_IDENT) {
+        /* resolve the declared type from the symbol table — the parser
+         * doesn't attach a type to IDENT nodes, so fall back to the
+         * symbol's recorded VAR_DECL type. */
+        HCType *t = node->type;
+        if (!t) t = resolve_var_type(gen, node->ident);
+        bool is_container = (t && (t->kind == HC_TYPE_STRUCT ||
+                                   t->kind == HC_TYPE_ARRAY ||
+                                   t->kind == HC_TYPE_UNION));
+        if (is_container) {
+            /* &ident via lea */
+            int off = 0, is_global = 0;
+            resolve_var(gen, node->ident, &off, &is_global);
+            if (is_global) {
+                size_t go = (size_t)(-off);
+                size_t patch_pos = gen->code_size + 3;
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
+                emit_dword(gen, 0);
+                if (gen->n_global_patches < 32) {
+                    gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+                    gen->global_patches[gen->n_global_patches].global_offset = go;
+                    gen->n_global_patches++;
+                }
+            } else {
+                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
+                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+            }
+            return;
+        }
+        gen_expr(gen, node);
+        return;
+    }
+    /* Nested container lvalue: q.p (member), a[i] (index), *p (deref).
+     * These need their ADDRESS, not their loaded value — otherwise
+     * `q.p.x = 42` computes the address of q.p by LOADING q.p's value
+     * (garbage) instead of its location. Recurse via emit_lvalue_addr. */
+    if (emit_lvalue_addr(gen, node))
+        return;
+    gen_expr(gen, node);
 }
 
 /* ====================================================================
@@ -459,7 +609,9 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
              * types by their size. Default to 1 (byte) so `"hi"[0]` works;
              * int/pointer arrays use the type size. */
             int scale = 1;
-            const HCType *bt = node->left->type;
+            HCType *bt = node->left->type;
+            if (!bt && node->left->kind == HC_AST_IDENT)
+                bt = resolve_var_type(gen, node->left->ident);
             if (bt) {
                 if (bt->kind == HC_TYPE_PTR && bt->base) {
                     int esz = hc_type_size(bt->base);
@@ -469,9 +621,10 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     scale = (esz > 1) ? esz : 1;
                 }
             }
-            /* Evaluate base expression (array pointer) */
-            gen_expr(gen, node->left);
-            /* rax = base pointer */
+            /* Evaluate base: for an array ident this is its ADDRESS (&x),
+             * for a pointer ident it's the pointer value. */
+            emit_base_addr(gen, node->left);
+            /* rax = base address */
             emit_mov_rdi_rax(gen);  /* save base in rdi */
             /* Evaluate index expression */
             gen_expr(gen, node->right);
@@ -732,12 +885,23 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
         }
 
         case HC_AST_ASSIGN:
-            /* Right-hand side → rax, then store to left-hand side */
+            /* Right-hand side → rax, then store to left-hand side.
+             * IDENT targets use the direct emit_var_store fast path;
+             * INDEX/MEMBER/ARROW/DEREF targets compute their address and
+             * store through it (previously only IDENT was assignable, so
+             * x[0]=42 / s.a=42 / *p=42 were silently dropped → 0). */
             gen_expr(gen, node->right);
             if (node->left && node->left->kind == HC_AST_IDENT) {
                 int off = 0, is_global = 0;
                 resolve_var(gen, node->left->ident, &off, &is_global);
                 emit_var_store(gen, off, is_global);
+            } else if (node->left) {
+                /* save value across address computation */
+                emit_byte(gen, 0x50);            /* push rax (value) */
+                emit_lvalue_addr(gen, node->left);  /* rax = address */
+                emit_byte(gen, 0x5F);            /* pop rdi (value) */
+                /* mov [rax], rdi : 48 89 38 */
+                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x38);
             }
             break;
 
@@ -897,16 +1061,21 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
 
         /* Member access: expr.member */
         case HC_AST_MEMBER: {
-            /* Evaluate base expression (struct pointer or value) */
-            gen_expr(gen, node->left);
+            /* Evaluate base: struct-VALUE ident decays to &s (address);
+             * other bases eval normally. */
+            emit_base_addr(gen, node->left);
             /* rax now contains base address */
-            /* Find member offset */
-            if (node->left->type && node->left->type->kind == HC_TYPE_STRUCT) {
-                HCType *st = node->left->type;
+            /* Find member offset — resolve the base's struct type from the
+             * symbol table (the parser doesn't attach types to IDENTs). */
+            HCType *btype = node->left->type;
+            if (!btype && node->left->kind == HC_AST_IDENT)
+                btype = resolve_var_type(gen, node->left->ident);
+            if (btype && btype->kind == HC_TYPE_STRUCT) {
+                HCType *st = btype;
                 bool found = false;
                 for (int i = 0; i < st->n_members; i++) {
                     if (strcmp(st->members[i].name, node->ident) == 0) {
-                        int off = st->members[i].offset;
+                        int off = (int)st->members[i].offset;
                         /* mov rax, [rax + off]: 48 8B 80 disp32 */
                         emit_byte(gen, 0x48); /* REX.W */
                         emit_byte(gen, 0x8B); /* mov */
@@ -925,16 +1094,21 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
 
         /* Arrow access: expr->member (ptr to struct) */
         case HC_AST_ARROW: {
-            /* Evaluate base expression (pointer to struct) */
-            gen_expr(gen, node->left);
+            /* Evaluate base: a struct-pointer ident loads its value (which
+             * IS the address); a struct-VALUE ident would decay to &s. */
+            emit_base_addr(gen, node->left);
             /* rax now contains base address (already a pointer) */
-            if (node->left->type && node->left->type->kind == HC_TYPE_PTR &&
-                node->left->type->base && node->left->type->base->kind == HC_TYPE_STRUCT) {
-                HCType *st = node->left->type->base;
+            HCType *btype = node->left->type;
+            if (!btype && node->left->kind == HC_AST_IDENT)
+                btype = resolve_var_type(gen, node->left->ident);
+            HCType *st = NULL;
+            if (btype && btype->kind == HC_TYPE_PTR && btype->base && btype->base->kind == HC_TYPE_STRUCT)
+                st = btype->base;
+            if (st) {
                 bool found = false;
                 for (int i = 0; i < st->n_members; i++) {
                     if (strcmp(st->members[i].name, node->ident) == 0) {
-                        int off = st->members[i].offset;
+                        int off = (int)st->members[i].offset;
                         /* mov rax, [rax + off]: 48 8B 80 disp32 */
                         emit_byte(gen, 0x48); /* REX.W */
                         emit_byte(gen, 0x8B); /* mov */

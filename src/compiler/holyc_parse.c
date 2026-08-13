@@ -101,7 +101,9 @@ static HCType *parse_type(HCParser *p) {
         case HC_KW_STRUCT: {
             /* Struct type: struct Name { ... } or struct Name */
             advance(p); /* struct */
+            char tag[HC_MAX_IDENT_LEN] = {0};
             if (peek(p) == HC_TOK_IDENT) {
+                strncpy(tag, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
                 strncpy(t->name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
                 advance(p);
             }
@@ -117,6 +119,18 @@ static HCType *parse_type(HCParser *p) {
                     if (t->n_members < HC_MAX_PARAMS) {
                         strncpy(t->members[t->n_members].name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
                         advance(p); /* consume member name */
+                        /* member may itself be an array: name[N] */
+                        if (peek(p) == HC_TOK_LBRACKET) {
+                            advance(p);
+                            int asz = 0;
+                            if (peek(p) == HC_TOK_INT) { asz = (int)p->lex->tok.int_val; advance(p); }
+                            expect(p, HC_TOK_RBRACKET);
+                            HCType *ma = (HCType *)calloc(1, sizeof(HCType));
+                            ma->kind = HC_TYPE_ARRAY;
+                            ma->base = member_type;
+                            ma->array_size = asz;
+                            member_type = ma;
+                        }
                         t->members[t->n_members].type = member_type;
                         t->members[t->n_members].offset = t->size;
                         t->size += hc_type_size(member_type);
@@ -131,8 +145,38 @@ static HCType *parse_type(HCParser *p) {
                     expect(p, HC_TOK_SEMI);
                 }
                 expect(p, HC_TOK_RBRACE);
+                t->kind = HC_TYPE_STRUCT;
+                /* register the tag so later `struct S x;` reuses this layout */
+                if (tag[0] != '\0') {
+                    for (int i = 0; i < p->n_named_types; i++) {
+                        if (strcmp(p->named_type_names[i], tag) == 0) {
+                            p->named_types[i] = t;  /* redefinition wins */
+                            return t;
+                        }
+                    }
+                    if (p->n_named_types < 64) {
+                        strncpy(p->named_type_names[p->n_named_types], tag, HC_MAX_IDENT_LEN - 1);
+                        p->named_types[p->n_named_types] = t;
+                        p->n_named_types++;
+                    }
+                }
+                return t;
             }
             t->kind = HC_TYPE_STRUCT;
+            /* Forward/reference: `struct S x;` where S was defined earlier.
+             * Reuse the registered layout instead of a fresh empty struct. */
+            if (tag[0] != '\0') {
+                for (int i = 0; i < p->n_named_types; i++) {
+                    if (strcmp(p->named_type_names[i], tag) == 0) {
+                        HCType *reg = p->named_types[i];
+                        /* shallow-copy the layout into the fresh node */
+                        *t = *reg;
+                        t->name[0] = '\0';
+                        strncpy(t->name, tag, HC_MAX_IDENT_LEN - 1);
+                        return t;
+                    }
+                }
+            }
             break;
         }
         default: break; /* Keep default I64 */
@@ -757,9 +801,28 @@ HCASTNode *hc_parse_decl(HCParser *p) {
         return func;
     }
 
-    /* Variable declaration: type name [= expr] ; */
+    /* Variable declaration: type name [= expr] ;  (also type name[N] for
+     * arrays — previously `[N]` was left unparsed, so int x[3] degraded to
+     * a scalar and array indexing read garbage) */
     HCASTNode *var = hc_ast_new(HC_AST_VAR_DECL);
     strncpy(var->ident, name, HC_MAX_IDENT_LEN - 1);
+
+    /* Array declarator: name[N] or name[] */
+    if (peek(p) == HC_TOK_LBRACKET) {
+        advance(p); /* [ */
+        int arr_size = 0;
+        if (peek(p) != HC_TOK_RBRACKET) {
+            HCTokenType st = peek(p);
+            if (st == HC_TOK_INT) { arr_size = (int)p->lex->tok.int_val; advance(p); }
+        }
+        expect(p, HC_TOK_RBRACKET);
+        HCType *arr = (HCType *)calloc(1, sizeof(HCType));
+        arr->kind = HC_TYPE_ARRAY;
+        arr->base = type;
+        arr->array_size = arr_size;
+        arr->size = (arr_size > 0) ? hc_type_size(type) * arr_size : hc_type_size(type);
+        type = arr;
+    }
     var->type = type;
 
     if (match(p, HC_TOK_ASSIGN)) {
