@@ -136,6 +136,36 @@ static void emit_var_store(HCGen *gen, int off, int is_global)
 static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node);
 static void emit_base_addr(HCGen *gen, const HCASTNode *node);
 
+/* element size for pointer arithmetic: given a pointer/array-typed operand,
+ * return sizeof(elem) (1 if not a pointer/array or unknown). */
+static int pointer_elem_scale(HCGen *gen, const HCASTNode *node)
+{
+    if (!node) return 1;
+    HCType *t = node->type;
+    if (!t && node->kind == HC_AST_IDENT)
+        t = resolve_var_type(gen, node->ident);
+    if (t) {
+        if (t->kind == HC_TYPE_PTR && t->base) {
+            size_t sz = hc_type_size(t->base);
+            return (sz > 1) ? (int)sz : 1;
+        }
+        if (t->kind == HC_TYPE_ARRAY && t->base) {
+            size_t sz = hc_type_size(t->base);
+            return (sz > 1) ? (int)sz : 1;
+        }
+    }
+    return 1;
+}
+
+/* scale rdi by `mul` (multiply in place): used to scale a pointer
+ * index before adding/subtracting. */
+static void scale_rdi(HCGen *gen, int mul)
+{
+    /* imul rdi, rdi, imm8: 48 6B FF imm8  (works for 2/4/8) */
+    emit_byte(gen, 0x48); emit_byte(gen, 0x6B); emit_byte(gen, 0xFF);
+    emit_byte(gen, (uint8_t)mul);
+}
+
 static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node)
 {
     switch (node->kind) {
@@ -322,6 +352,34 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                 for (int i = 0; i < gen->symbols.n_locals; i++) {
                     if (strcmp(gen->symbols.locals[i].name, node->ident) == 0) {
                         int off = gen->symbols.locals[i].stack_offset;
+                        /* Array-to-pointer decay: an ARRAY variable used in
+                         * most expressions yields its ADDRESS (&x[0]), not
+                         * its value. This is what makes `x+1` (pointer arith)
+                         * and `x` (passed as pointer) work. The `&x` in
+                         * emit_lvalue_addr uses lea; here we load address
+                         * the same way. */
+                        HCType *sym_type = gen->symbols.locals[i].type;
+                        bool is_array = (sym_type && sym_type->kind == HC_TYPE_ARRAY);
+                        if (is_array) {
+                            if (off <= 0) {
+                                /* global: lea rax, [rip + disp32] */
+                                size_t go = (size_t)(-off);
+                                size_t patch_pos = gen->code_size + 3;
+                                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x05);
+                                emit_dword(gen, 0);
+                                if (gen->n_global_patches < 32) {
+                                    gen->global_patches[gen->n_global_patches].code_patch_pos = patch_pos;
+                                    gen->global_patches[gen->n_global_patches].global_offset = go;
+                                    gen->n_global_patches++;
+                                }
+                            } else {
+                                /* lea rax, [rbp - off] */
+                                emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0x85);
+                                emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                            }
+                            found = true;
+                            break;
+                        }
                         if (off <= 0) {
                             /* Global variable in data section: offset is negative or zero */
                             /* mov rax, [rip + offset] */
@@ -675,7 +733,14 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
             emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
-            emit_xchg_rax_rdi(gen);
+            emit_xchg_rax_rdi(gen);            /* rax=left, rdi=right */
+            /* Pointer arithmetic: if left is a pointer/array, right is an
+             * index scaled by the element size — so `x+1` = &x[1], not
+             * &x[0]+1. (Scales rdi before the add; rax is the address.) */
+            {
+                int escale = pointer_elem_scale(gen, node->left);
+                if (escale > 1) scale_rdi(gen, escale);
+            }
             emit_add_rax_rdi(gen);
             break;
 
@@ -684,7 +749,11 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             emit_byte(gen, 0x50);              /* push rax (left) */
             gen_expr(gen, node->right);
             emit_byte(gen, 0x5F);              /* pop rdi (left restored) */
-            emit_xchg_rax_rdi(gen);
+            emit_xchg_rax_rdi(gen);            /* rax=left, rdi=right */
+            {
+                int escale = pointer_elem_scale(gen, node->left);
+                if (escale > 1) scale_rdi(gen, escale);
+            }
             emit_sub_rax_rdi(gen);
             break;
 
