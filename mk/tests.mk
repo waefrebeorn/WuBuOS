@@ -771,14 +771,14 @@ test_gaad:
 	$(KERNEL)/wubu_gaad_test
 test_hive:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/wubu_hive.c $(KERNEL)/test_hive.c \
+		$(KERNEL)/wubu_hive.c $(KERNEL)/test/test_hive.c \
 		-o $(KERNEL)/test_hive
 	$(KERNEL)/test_hive
 
 # /theme namespace + unified HID layer (Kevin-Bacon pass 3 modules)
 test_theme_hid:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_theme_hid.c \
+		$(KERNEL)/test/test_theme_hid.c \
 		-o $(KERNEL)/test_theme_hid
 	$(KERNEL)/test_theme_hid
 
@@ -795,35 +795,35 @@ check:
 # DA-3 independent verifier (self-improve promotion gate)
 test_verifier:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_verifier.c \
+		$(KERNEL)/test/test_verifier.c \
 		-o $(KERNEL)/test_verifier
 	$(KERNEL)/test_verifier
 
 # spinlock + ISR-safe FIFO
 test_sync:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) -pthread \
-		$(KERNEL)/test_sync.c \
+		$(KERNEL)/test/test_sync.c \
 		-o $(KERNEL)/test_sync
 	$(KERNEL)/test_sync
 
 # the FS-B FAT family (chains, BPB, recovery -- 100 gaps)
 test_fat2:
 	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
-		$(KERNEL)/test_fat2.c $(KERNEL)/wubu_fat2.c \
+		$(KERNEL)/test/test_fat2.c $(KERNEL)/wubu_fat2.c \
 		-o $(KERNEL)/test_fat2 -lm
 	$(KERNEL)/test_fat2
 
 # the HX human psychology + timing loops (the user model)
 test_psych:
 	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
-		$(KERNEL)/test_psych.c $(KERNEL)/wubu_psych.c \
+		$(KERNEL)/test/test_psych.c $(KERNEL)/wubu_psych.c \
 		-o $(KERNEL)/test_psych -lm
 	$(KERNEL)/test_psych
 
 # the HX-D Bonzi Buddy GUI study (the companion)
 test_bonzi_study:
 	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
-		$(KERNEL)/test_bonzi_study.c $(KERNEL)/wubu_bonzi_study.c \
+		$(KERNEL)/test/test_bonzi_study.c $(KERNEL)/wubu_bonzi_study.c \
 		$(KERNEL)/wubu_psych.c \
 		-o $(KERNEL)/test_bonzi_study -lm
 	$(KERNEL)/test_bonzi_study
@@ -831,7 +831,7 @@ test_bonzi_study:
 # the HX-C learning/education frontier (the recursive loop, human side)
 test_tutor:
 	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
-		$(KERNEL)/test_tutor.c $(KERNEL)/wubu_tutor.c \
+		$(KERNEL)/test/test_tutor.c $(KERNEL)/wubu_tutor.c \
 		-o $(KERNEL)/test_tutor -lm
 	$(KERNEL)/test_tutor
 
@@ -847,35 +847,35 @@ test_tandem:
 # the FS-A block layer (device table + policy selectors, 100 gaps)
 test_blk:
 	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
-		$(KERNEL)/test_blk.c $(KERNEL)/wubu_blk.c \
+		$(KERNEL)/test/test_blk.c $(KERNEL)/wubu_blk.c \
 		-o $(KERNEL)/test_blk -lm
 	$(KERNEL)/test_blk
 
 # the 5+1 recovery substrate (rollback ring + Jesus state)
 test_recovery:
 	$(CC) -O2 -Wall -Wextra -std=c11 -ffreestanding -I$(KERNEL) \
-		$(KERNEL)/test_recovery.c $(KERNEL)/wubu_recovery.c \
+		$(KERNEL)/test/test_recovery.c $(KERNEL)/wubu_recovery.c \
 		-o $(KERNEL)/test_recovery -lm
 	$(KERNEL)/test_recovery
 
 # virtual memory (bitmap allocator + demand registry; map/fill are metal)
 test_vmm:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_vmm.c \
+		$(KERNEL)/test/test_vmm.c \
 		-o $(KERNEL)/test_vmm
 	$(KERNEL)/test_vmm
 
 # sha256 (FIPS 180-4 vectors + streaming equivalence)
 test_sha256:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_sha256.c $(KERNEL)/wubu_sha256.c \
+		$(KERNEL)/test/test_sha256.c $(KERNEL)/wubu_sha256.c \
 		-o $(KERNEL)/test_sha256
 	$(KERNEL)/test_sha256
 
 # RTC (BCD + 12h/24h conversions; the CMOS reads are metal-only)
 test_rtc:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_rtc.c $(KERNEL)/wubu_rtc.c \
+		$(KERNEL)/test/test_rtc.c $(KERNEL)/wubu_rtc.c \
 		-o $(KERNEL)/test_rtc
 	$(KERNEL)/test_rtc
 
@@ -890,14 +890,14 @@ test_kvfs_route:
 # VFAT LFN codec (gap A16): encode/decode + chain roundtrips
 test_lfn:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_lfn.c $(KERNEL)/wubu_lfn.c \
+		$(KERNEL)/test/test_lfn.c $(KERNEL)/wubu_lfn.c \
 		-o $(KERNEL)/test_lfn
 	$(KERNEL)/test_lfn
 
 # ACPI discovery (gap A18): RSDP -> RSDT/XSDT -> FADT (synthetic tables)
 test_acpi:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_acpi.c \
+		$(KERNEL)/test/test_acpi.c \
 		-o $(KERNEL)/test_acpi
 	$(KERNEL)/test_acpi
 
@@ -1015,28 +1015,28 @@ test_ns_world:
 # 8254 watchdog helpers (gap E7): count conversion + mode word
 test_wdt:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_wdt.c \
+		$(KERNEL)/test/test_wdt.c \
 		-o $(KERNEL)/test_wdt
 	$(KERNEL)/test_wdt
 
 # HPET helpers (gap A19): tick->ns conversion + register layout
 test_hpet:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_hpet.c \
+		$(KERNEL)/test/test_hpet.c \
 		-o $(KERNEL)/test_hpet
 	$(KERNEL)/test_hpet
 
 # SMBIOS/DMI walk (gap I3): synthetic tables
 test_smbios:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_smbios.c \
+		$(KERNEL)/test/test_smbios.c \
 		-o $(KERNEL)/test_smbios
 	$(KERNEL)/test_smbios
 
 # vDSO page (gap H6): header + counter refresh
 test_vdso:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_vdso.c \
+		$(KERNEL)/test/test_vdso.c \
 		-o $(KERNEL)/test_vdso
 	$(KERNEL)/test_vdso
 
@@ -1045,35 +1045,35 @@ test_vdso:
 # convention vs the fat32 0-on-success contract)
 test_ahcifat:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_ahcifat.c \
+		$(KERNEL)/test/test_ahcifat.c \
 		-o $(KERNEL)/test_ahcifat
 	$(KERNEL)/test_ahcifat
 
 # swap (gap B3): slot map + eviction contract
 test_swap:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_swap.c \
+		$(KERNEL)/test/test_swap.c \
 		-o $(KERNEL)/test_swap
 	$(KERNEL)/test_swap
 
 # address spaces (gap B7): clone + bind + destroy lifecycle
 test_as:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_as.c \
+		$(KERNEL)/test/test_as.c \
 		-o $(KERNEL)/test_as
 	$(KERNEL)/test_as
 
 # IOMMU/VT-d discovery (gap E5): DMAR walk + DRHD parse
 test_iommu:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_iommu.c \
+		$(KERNEL)/test/test_iommu.c \
 		-o $(KERNEL)/test_iommu
 	$(KERNEL)/test_iommu
 
 # xHCI controller driver (gap E1): caps + start + slot alloc
 test_xhci:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
-		$(KERNEL)/test_xhci.c \
+		$(KERNEL)/test/test_xhci.c \
 		-o $(KERNEL)/test_xhci
 	$(KERNEL)/test_xhci
 
@@ -1082,7 +1082,7 @@ test_agi_kernel:
 		-I$(KERNEL) \
 		$(KERNEL)/wubu_agi_kernel.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/wubu_attest.c $(KERNEL)/wubu_bonzi.c \
-		$(KERNEL)/test_agi_kernel.c $(KERNEL)/test_agi_kernel_stub.c \
+		$(KERNEL)/test/test_agi_kernel.c $(KERNEL)/test/test_agi_kernel_stub.c \
 		$(KERNEL)/wubu_sha256.c \
 		-o $(KERNEL)/test_agi_kernel
 	$(KERNEL)/test_agi_kernel
