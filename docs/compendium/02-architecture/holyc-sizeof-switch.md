@@ -193,6 +193,48 @@ then `emit_sized_load_rax_off(off, msz)` loads `[rax + off]` = the member.
 Verified on `f().a`, `f().b`, `f().a+f().b`, `f(g().a)` (nested call with
 member as arg), `f().a*f().b`. Battery 112 → 117 probes.
 
+## Runtime correctness: globals-in-functions, ptr arithmetic, libc, void, &member (2026-08-13, battery 130→147)
+
+Battery **130 → 147 probes, 147/147 PASS, 0 WRONG, 0 CRASH**. Six real
+bug clusters closed — the compiler's runtime behavior, not just C11
+construct coverage:
+
+1. **Function bodies could NOT see module-level globals.** The FUNC_DECL
+   prologue `memset(&gen->symbols, 0, ...)` wiped the whole symbol table,
+   so `int g=7; int f(){return g;}` read a stack slot (implicit local)
+   instead of the data section → returned 0. Fix: preserve globals
+   (stack_offset <= 0) across the reset, keep params/locals per-body.
+2. **Function-body global RIP fixups were never applied.** Each function
+   is copied to its OWN exec buffer; the main patch loop only fixed the
+   main code buffer. Global loads/stores inside a function referenced the
+   wrong address. Fix: `HCFunction` records its `global_patches[]`; after
+   the main exec+data base is allocated, `hc_eval` patches each function's
+   exec copy (`disp32 = data_base + go - (func_ptr + patch_pos + 4)`).
+   Also ROLL BACK `gen->n_global_patches` after each body so a function's
+   patches (positions relative to its own buffer) never leak into the main
+   loop.
+3. **Pointer `++`/`--` didn't scale by element size.** `p++` added 1 byte,
+   not `sizeof(int)`. Worse, the first fix used 32-bit `add eax,imm8`
+   (`83 C0 04`) which ZEROED the pointer's upper 32 bits → crash. Fix:
+   `emit_incdec_rax` uses `48 83 C0 imm8` / `48 83 E8 imm8` (64-bit add/sub
+   by element size) for pointers; scalar keeps `inc rax`/`dec rax`.
+4. **Compound-assign `x op= a[i]` clobbered the left operand.** The path
+   saved `left` in `rdi`, but `gen_expr(a[i])` uses `rdi` internally for
+   the INDEX base → left destroyed → garbage (the `s+=a[i]` loop returned
+   a stale address). Fix: push `left` on the stack, pop after the RHS
+   evaluates.
+5. **`&s.b` (address of a member / array element) returned garbage.** The
+   `&` codegen only handled IDENT children; non-IDENT lvalues emitted 0.
+   Fix: route to `emit_lvalue_addr` for `s.b`/`a[i]`/`*p`/`p->x`.
+6. **`*p` for `int* p` loaded 8 bytes** (packed qword) not 4. Fix: DEREF
+   sizes the load by the pointee type (dword for int*, movzx for char*).
+7. **libc string/memory externs were missing.** `strlen`/`strcmp`/`strcpy`/
+   `memcpy`/`memset`/`memcmp` hit the unresolved trap → crash. Fix: real
+   host wrappers registered in `hc_register_holyc_runtime`.
+8. **void functions left rax undefined.** `void f(){} f()` returned a stale
+   address. Fix: emit `xor eax,eax` before epilogue for void-returning
+   functions.
+
 ## Honest remainder
 
 - No `case`/`default` duplicate detection.
@@ -210,13 +252,13 @@ member as arg), `f().a*f().b`. Battery 112 → 117 probes.
 
 7 `sizeof` + 6 `switch` + 3 `goto` + 7 `multi-dim array` + 7 `nested
 pointer/deref` + 4 `sret return (≤8B)` + 5 `call member f().a` + 13
-`full SysV sret (>8B return + arg)` probes → battery **78 → 130 probes,
-130/130 PASS, 0 WRONG, 0 CRASH**. (The nested-struct sizeof probe exposed
-a wrong *expectation* on my part — gcc confirms 8, compiler was right —
-fixed, not a compiler bug.)
+`full SysV sret (>8B return + arg)` + 17 `runtime correctness` probes →
+battery **78 → 147 probes, 147/147 PASS, 0 WRONG, 0 CRASH**. (The
+nested-struct sizeof probe exposed a wrong *expectation* on my part — gcc
+confirms 8, compiler was right — fixed, not a compiler bug.)
 
 ## Gates (all fresh-verified)
 
-- battery 130/130 PASS (was 78) — no regression
+- battery 147/147 PASS (was 78) — no regression
 - test_holyc 84/84, test_holyc_agi 11/11
 - test_hedge PASS, test_dram_hedge 294/294

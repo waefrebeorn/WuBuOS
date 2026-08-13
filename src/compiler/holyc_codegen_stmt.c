@@ -389,14 +389,30 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         size_t saved_code_cap = gen->code_cap;
                         HCSymTab saved_symbols = gen->symbols;
                         int saved_n_functions = gen->n_functions;
+                        int saved_n_global_patches = gen->n_global_patches;
                         HCFunction saved_functions[HC_MAX_FUNCTIONS];
                         memcpy(saved_functions, gen->functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
-           
+          
                         gen->code = NULL;
                         gen->code_size = 0;
                         gen->code_cap = 0;
-                        /* Reset symbols but keep functions */
-                        memset(&gen->symbols, 0, sizeof(HCSymTab));
+                        /* Reset symbols BUT keep module-level globals (the
+                         * entries with stack_offset <= 0, i.e. negative =
+                         * data-section). Previously the whole table was
+                         * memset, so a function body could NOT see globals
+                         * declared earlier — `int g=7; int f(){return g;}`
+                         * read a stack slot (implicit local) instead of the
+                         * data section → returned 0. Keep the globals so the
+                         * function can reference them (their RIP-relative
+                         * loads get fixed up against the shared data base). */
+                        {
+                            HCSymTab keep = gen->symbols;
+                            memset(&gen->symbols, 0, sizeof(HCSymTab));
+                            for (int i = 0; i < keep.n_locals; i++)
+                                if (keep.locals[i].stack_offset <= 0 &&
+                                    gen->symbols.n_locals < HC_MAX_LOCALS)
+                                    gen->symbols.locals[gen->symbols.n_locals++] = keep.locals[i];
+                        }
                         /* Record this function's own name so recursive calls
                          * can emit a rel32 placeholder patched after copy. */
                         strncpy(gen->current_function, node->ident, HC_MAX_IDENT_LEN - 1);
@@ -492,13 +508,18 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
             if (node->body)
             gen_stmt(gen, node->body);
             gen->in_function = false;
+            /* A void-returning function leaves rax undefined; zero it so
+             * `void f(){} f();` yields 0 (not a stale register/garbage
+             * address). Matches gcc's zeroing of a void function's result. */
+            if (node->type && node->type->kind == HC_TYPE_VOID)
+                emit_byte(gen, 0x31); emit_byte(gen, 0xC0);   /* xor eax, eax */
             emit_epilogue(gen);
 
             /* Allocate executable memory for this function */
             if (gen->code_size > 0 && gen->n_functions < HC_MAX_FUNCTIONS) {
-                void *exec = jit_alloc_exec(gen->code_size);
-                if (exec) {
-                    memcpy(exec, gen->code, gen->code_size);
+            void *exec = jit_alloc_exec(gen->code_size);
+            if (exec) {
+            memcpy(exec, gen->code, gen->code_size);
                     /* Patch self-recursive calls: each placeholder was a
                      * `call rel32` inside this body. After copy, the call's
                      * target is exec+0 (the function's own start). disp32 is
@@ -521,12 +542,34 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                     gen->symbols = saved_symbols;
                     gen->n_functions = saved_n_functions;
                     memcpy(gen->functions, saved_functions, sizeof(HCFunction) * HC_MAX_FUNCTIONS);
-                   
+                  
                     strncpy(gen->functions[gen->n_functions].name,
                             node->ident, HC_MAX_IDENT_LEN - 1);
                     gen->functions[gen->n_functions].func_ptr = exec;
                     gen->functions[gen->n_functions].n_params = node->n_params;
                     gen->functions[gen->n_functions].ret_type = node->type;
+                    /* Capture this function's global RIP fixups AFTER the
+                     * restore (the memcpy above reset the array). The body
+                     * was compiled into a fresh code buffer starting at 0, so
+                     * patches recorded since this function began have
+                     * code_patch_pos relative to the function's own code. */
+                    {
+                        int fn_gp = 0;
+                        for (int gp = saved_n_global_patches;
+                             gp < gen->n_global_patches && fn_gp < 128; gp++) {
+                            gen->functions[gen->n_functions].global_patches[fn_gp].code_patch_pos =
+                                gen->global_patches[gp].code_patch_pos;
+                            gen->functions[gen->n_functions].global_patches[fn_gp].global_offset =
+                                gen->global_patches[gp].global_offset;
+                            fn_gp++;
+                        }
+                        gen->functions[gen->n_functions].n_global_patches = fn_gp;
+                    }
+                    /* Roll back gen->n_global_patches to BEFORE this body so
+                     * the function's patches (whose positions are relative to
+                     * the function's OWN buffer) never leak into the main-code
+                     * patch loop. */
+                    gen->n_global_patches = saved_n_global_patches;
                     gen->n_functions++;
                 } else {
                     /* Restore on failure */
@@ -535,6 +578,7 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                     gen->code_size = saved_code_size;
                     gen->code_cap = saved_code_cap;
                     gen->symbols = saved_symbols;
+                    gen->n_global_patches = saved_n_global_patches;
                 }
             }
             break;

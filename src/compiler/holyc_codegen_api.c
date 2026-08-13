@@ -203,6 +203,29 @@ int64_t hc_eval(const char *source) {
         *(int32_t *)((uint8_t *)exec + patch_pos) = disp32;
     }
 
+    /* Patch each FUNCTION's exec copy for the same globals. Each function
+     * was copied to its OWN exec buffer inside FUNC_DECL codegen, so its
+     * RIP-relative global loads/stores were never fixed to the data section
+     * (the main loop above only covers the main code buffer). The data base
+     * is now known: data_base = (uint8_t*)exec + gen.code_size. For a
+     * function, disp32 = data_base + global_offset - (func_ptr + patch_pos
+     * + 4) — the RIP after a 7-byte load/store/lea is func_ptr + patch_pos
+     * + 4 (patch_pos is the disp32 start). */
+    {
+        uint8_t *data_base = (uint8_t *)exec + gen.code_size;
+        for (int f = 0; f < gen.n_functions; f++) {
+            for (int gp = 0; gp < gen.functions[f].n_global_patches; gp++) {
+                size_t patch_pos = gen.functions[f].global_patches[gp].code_patch_pos;
+                size_t global_offset = gen.functions[f].global_patches[gp].global_offset;
+                uint8_t *func_exec = (uint8_t *)gen.functions[f].func_ptr;
+                if (!func_exec) continue;
+                int32_t disp32 = (int32_t)((data_base + global_offset) -
+                                           (func_exec + patch_pos + 4));
+                *(int32_t *)(func_exec + patch_pos) = disp32;
+            }
+        }
+    }
+
     /* Make memory executable. The data section holds global variables that
      * are written at runtime (e.g. `x = 5` stores into it, and the REPL copies
      * it back), so when a data section exists the page must remain writable.

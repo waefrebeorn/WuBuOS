@@ -292,6 +292,15 @@ struct HCFunction {
     void *func_ptr;
     int n_params;
     HCType *ret_type;   /* declared return type (struct → sret-capable) */
+    /* Global RIP-relative fixups emitted INSIDE this function's body. Each
+     * function is copied to its OWN exec buffer (separate from the main
+     * code+data buffer), so a `mov [rip+disp32], rax` / `mov rax,[rip+disp32]`
+     * that references a module-level global must be patched against the
+     * FINAL data-section address — which is only known after the main exec
+     * is allocated. Record (patch_pos within this body, global_offset) so
+     * hc_eval can fix the exec copy up. */
+    struct { size_t code_patch_pos; size_t global_offset; } global_patches[128];
+    int n_global_patches;
 };
 
 /* -- Lexer struct (full definition needed by lexer.c) ------------------------ */

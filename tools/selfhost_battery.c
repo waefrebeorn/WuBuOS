@@ -184,6 +184,24 @@ static const Probe PROBES[] = {
     {"2 struct args", "struct S{int a;int b;int c;}; int f(struct S x, struct S y){return x.a+x.b+y.c;} struct S s; s.a=10; s.b=20; s.c=30; f(s,s);", 60},
     {"16B pass arg", "struct S{long long a;long long b;}; long long f(struct S x){return x.a+x.b;} struct S s; s.a=9; s.b=8; f(s);", 17},
     {"arg+ret nested", "struct S{int a;int b;int c;}; int f(struct S x){return x.a+x.b+x.c;} struct S g(){struct S s; s.a=10; s.b=20; s.c=30; return s;} f(g());", 60},
+    /* ---- globals in functions + pointer arithmetic + libc + void + &member ---- */
+    {"global read in func", "int g=7; int f(){return g;} f();", 7},
+    {"global write in func", "int g=7; int f(){g=9; return g;} f(); g;", 9},
+    {"global accum func", "int acc=0; int add(int n){acc+=n; return acc;} add(5); add(3); acc;", 8},
+    {"void ret", "void f(){} f();", 0},
+    {"ptr arith p[2]", "int a[3]; a[0]=1; a[2]=9; int* p=a; p[2];", 9},
+    {"ptr++", "int a[3]; a[0]=5; a[1]=7; int* p=a; p++; *p;", 7},
+    {"ptr--", "int a[3]; a[0]=5; a[1]=7; int* p=a; p++; p--; *p;", 5},
+    {"loop a[i] sum", "int a[3]; a[0]=1;a[1]=2;a[2]=3; int s=0; for(int i=0;i<3;i++){ s+=a[i]; } s;", 6},
+    {"strlen", "strlen(\"hello\");", 5},
+    {"strcmp eq", "strcmp(\"abc\",\"abc\");", 0},
+    {"strcmp diff", "strcmp(\"abc\",\"abd\");", -1},
+    {"char array", "char s[4]; s[0]='h'; s[1]='i'; s[2]=0; s[0];", 104},
+    {"memcpy", "char d[8]; memcpy(d,\"hi\",2); d[0];", 104},
+    {"addr member", "struct S{int a;int b;}; struct S s; s.a=10; s.b=20; int* p=&s.b; *p;", 20},
+    {"addr array elem", "int a[3]; a[1]=7; int* p=&a[1]; *p;", 7},
+    {"deref int*", "struct S{int a;int b;}; struct S s; s.a=10; s.b=20; int* p=&s.a; *p;", 10},
+    {"deref chain", "int x=5; int* p=&x; int** pp=&p; **pp;", 5},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))
