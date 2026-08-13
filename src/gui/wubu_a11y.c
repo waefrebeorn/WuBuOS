@@ -87,58 +87,47 @@ bool wubu_a11y_is_enabled(void) { return g_a11y_enabled; }
 /* -- Panel geometry ------------------------------------------------ */
 
 /* -- Cluster geometry ------------------------------------------------
- * Anchored to the window's CONTENT RECT (below the title bar, inside the
- * border), not floating at arbitrary ratios. The content rect is what
- * apps actually draw into; placing buttons at floating mid-window
- * coordinates creates "random" placement that ignores chrome.
+ * The GameCube cluster is a COMPACT group anchored to the window's TOP-LEFT
+ * CORNER — NOT spread proportionally across the content. The user's own
+ * directive: "the buttons are not where they are supposed to be... they are
+ * just floating middle of window." Anchoring to a corner is Fitts's law:
+ * the corner is an "infinite edge" the cursor cannot overshoot, and it is
+ * the lowest-demand, most-reachable target for elderly/children.
  *
- * Rules (synthesized from Apple HIG, MS WinUI, Wikipedia Window_decoration,
- * Fitts's law, WCAG 2.5.5 / 2.5.8 — see docs/a11y-window-placement-research.md):
- *
- *   R1  Anchor = (win.x + border_w + 8, win.y + title_bar_height + 8)
- *                — content area top-left + 8px breathing room.
- *   R2  Cluster floats in the content area, NEVER over the title bar.
- *   R3  Buttons scale with the content rect (proportional to it).
- *   R4  Yellow X minimize:  ANCHOR + (0.18 cw, 0.16 ch) — up-left of green.
- *   R5  Green A  maximize:  ANCHOR + (0.50 cw, 0.32 ch) — LEFT of red, same row.
- *   R6  Red B    close:     ANCHOR + (0.66 cw, 0.32 ch) — RIGHT of green.
- *   R7  Purple resize: window bottom-left AND bottom-right corners
- *                       (asymmetric edge-detection — Fitts: corners are
- *                       "infinite" edges so the cursor can't overshoot).
+ * Layout (reference: the GameCube face buttons, and the user's design bible):
+ *   - YELLOW bean  : TOP-LEFT corner of the window itself (the rounded
+ *                    corner affordance). Small crescent.
+ *   - GREEN A orb  : just below/right of yellow — BIGGEST (most used).
+ *   - RED B orb    : to the right of A, same row — smallest.
+ *   - PURPLE beans : BOTH BOTTOM CORNERS (resize, edge-revealed). Already
+ *                    corner-anchored correctly.
+ * The whole cluster is ~90px tall and hugs the top-left content corner so it
+ * NEVER floats mid-window regardless of window size.
  */
 static void cluster_anchor(DosGuiWindow *w, int *ax, int *ay) {
     int bw  = border_width();
     int tbh = title_bar_height();
-    *ax = w->x + bw + 8;
-    *ay = w->y + tbh + 8;
+    *ax = w->x + bw + 4;        /* content top-left corner */
+    *ay = w->y + tbh + 4;
 }
 
 static void orb_y_center(DosGuiWindow *w, int *cx, int *cy) {
     int ax, ay; cluster_anchor(w, &ax, &ay);
-    int bw  = border_width();
-    int tbh = title_bar_height();
-    int cw  = w->w - 2 * bw - 16;            /* content width  */
-    int ch  = w->h - tbh - bw - 16;          /* content height */
-    *cx = ax + (int)(cw * 0.18f);
-    *cy = ay + (int)(ch * 0.16f);
+    /* yellow bean at the very corner; its crescent band faces the corner */
+    *cx = ax + 16;
+    *cy = ay + 16;
 }
 static void orb_a_center(DosGuiWindow *w, int *cx, int *cy) {
     int ax, ay; cluster_anchor(w, &ax, &ay);
-    int bw  = border_width();
-    int tbh = title_bar_height();
-    int cw  = w->w - 2 * bw - 16;
-    int ch  = w->h - tbh - bw - 16;
-    *cx = ax + (int)(cw * 0.50f);
-    *cy = ay + (int)(ch * 0.32f);
+    /* green A: below yellow, biggest orb */
+    *cx = ax + 30;
+    *cy = ay + 42;
 }
 static void orb_b_center(DosGuiWindow *w, int *cx, int *cy) {
     int ax, ay; cluster_anchor(w, &ax, &ay);
-    int bw  = border_width();
-    int tbh = title_bar_height();
-    int cw  = w->w - 2 * bw - 16;
-    int ch  = w->h - tbh - bw - 16;
-    *cx = ax + (int)(cw * 0.66f);
-    *cy = ay + (int)(ch * 0.32f);
+    /* red B: to the right of A, same row, smallest */
+    *cx = ax + 64;
+    *cy = ay + 42;
 }
 static void orb_p_bl(DosGuiWindow *w, int *cx, int *cy) {
     int bw = border_width();

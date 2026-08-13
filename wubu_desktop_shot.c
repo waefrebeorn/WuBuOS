@@ -60,20 +60,28 @@ static void render_frame(const char *label) {
  * of red B (0.579w, 0.402h) SAME row; yellow crescent (0.289w, 0.216h)
  * up-left. Radii 2.6:1 (real GC hardware: A 16.747mm, B 6.449mm). Purple
  * resize crescents at the window's bottom corners. */
+/* Cluster click positions — must match wubu_a11y.c CORNER-ANCHORED
+ * geometry (GameCube cluster at top-left corner, purple beans at bottom
+ * corners). For the Win98 theme: border_width=1, title_bar_height=20.
+ *   anchor = (wx + 1 + 4, wy + 20 + 4) = (wx+5, wy+24)
+ *   Y = anchor + (16,16) = (wx+21, wy+40)
+ *   A = anchor + (30,42) = (wx+35, wy+66)
+ *   B = anchor + (64,42) = (wx+69, wy+66)
+ *   purple BL = (wx+23, wy+h-23); BR = (wx+w-23, wy+h-23) */
 static void y_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + (int)(w * 0.289f);  *cy = wy + (int)(h * 0.216f);
+    (void)w; (void)h; *cx = wx + 21; *cy = wy + 40;
 }
 static void a_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + (int)(w * 0.363f);  *cy = wy + (int)(h * 0.401f);
+    (void)w; (void)h; *cx = wx + 35; *cy = wy + 66;
 }
 static void b_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + (int)(w * 0.579f);  *cy = wy + (int)(h * 0.402f);
+    (void)w; (void)h; *cx = wx + 69; *cy = wy + 66;
 }
 static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + 22;  *cy = wy + h - 26;   /* purple Y: window bottom-left */
+    (void)w; *cx = wx + 23; *cy = wy + h - 23;
 }
 static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + w - 22;  *cy = wy + h - 26; /* purple Y: window bottom-right */
+    *cx = wx + w - 23; *cy = wy + h - 23;
 }
 
 static void tick(void) {
