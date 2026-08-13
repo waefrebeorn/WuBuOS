@@ -117,7 +117,7 @@ static HCType *expr_static_type(HCGen *gen, const HCASTNode *node)
             return resolve_var_type(gen, node->ident);
         case HC_AST_MEMBER: {
             HCType *bt = expr_static_type(gen, node->left);
-            if (bt && bt->kind == HC_TYPE_STRUCT) {
+            if (bt && (bt->kind == HC_TYPE_STRUCT || bt->kind == HC_TYPE_UNION)) {
                 for (int i = 0; i < bt->n_members; i++)
                     if (strcmp(bt->members[i].name, node->ident) == 0)
                         return bt->members[i].type;
@@ -126,7 +126,8 @@ static HCType *expr_static_type(HCGen *gen, const HCASTNode *node)
         }
         case HC_AST_ARROW: {
             HCType *bt = expr_static_type(gen, node->left);
-            if (bt && bt->kind == HC_TYPE_PTR && bt->base && bt->base->kind == HC_TYPE_STRUCT) {
+            if (bt && bt->kind == HC_TYPE_PTR && bt->base &&
+                (bt->base->kind == HC_TYPE_STRUCT || bt->base->kind == HC_TYPE_UNION)) {
                 for (int i = 0; i < bt->base->n_members; i++)
                     if (strcmp(bt->base->members[i].name, node->ident) == 0)
                         return bt->base->members[i].type;
@@ -168,6 +169,54 @@ static void emit_var_store(HCGen *gen, int off, int is_global)
     } else {
         emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x85);
         emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+    }
+}
+
+/* ---- sized load/store for member/element access -------------------
+ * A struct member or array element of a narrower type must be loaded/stored
+ * with its OWN width, not a full 8-byte qword. `struct{int x;int y;}; s.x`
+ * reads `mov eax,[&s+0]` (4 bytes, zero-extended) so it doesn't pull in the
+ * adjacent `y`; writing must match. The INDEX path already sizes by element
+ * width; MEMBER/ARROW did not (the 8-byte qword load of s.x returned
+ * 22<<32|20, i.e. both x and y packed). */
+
+/* value is in rdi, address in rax. size is the element/member byte width. */
+static void emit_sized_store_rax_rdi(HCGen *gen, int size)
+{
+    if (size <= 1) {
+        /* mov byte [rax], dil : 40 88 38 */
+        emit_byte(gen, 0x40); emit_byte(gen, 0x88); emit_byte(gen, 0x38);
+    } else if (size == 2) {
+        /* mov word [rax], di : 66 89 38 */
+        emit_byte(gen, 0x66); emit_byte(gen, 0x89); emit_byte(gen, 0x38);
+    } else if (size == 4) {
+        /* mov dword [rax], edi : 89 38 */
+        emit_byte(gen, 0x89); emit_byte(gen, 0x38);
+    } else {
+        /* mov qword [rax], rdi : 48 89 38 */
+        emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x38);
+    }
+}
+
+/* load [rax+off] into rax, zero-extending to the element's width. */
+static void emit_sized_load_rax_off(HCGen *gen, int off, int size)
+{
+    if (size <= 1) {
+        /* movzx rax, byte [rax+disp32] : 48 0F B6 80 */
+        emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB6); emit_byte(gen, 0x80);
+        emit_dword(gen, (uint32_t)off);
+    } else if (size == 2) {
+        /* movzx rax, word [rax+disp32] : 48 0F B7 80 */
+        emit_byte(gen, 0x48); emit_byte(gen, 0x0F); emit_byte(gen, 0xB7); emit_byte(gen, 0x80);
+        emit_dword(gen, (uint32_t)off);
+    } else if (size == 4) {
+        /* mov eax, dword [rax+disp32] : 8B 80 */
+        emit_byte(gen, 0x8B); emit_byte(gen, 0x80);
+        emit_dword(gen, (uint32_t)off);
+    } else {
+        /* mov rax, qword [rax+disp32] : 48 8B 80 */
+        emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x80);
+        emit_dword(gen, (uint32_t)off);
     }
 }
 
@@ -272,7 +321,7 @@ static int emit_lvalue_addr(HCGen *gen, const HCASTNode *node)
             const HCType *st = (node->kind == HC_AST_ARROW && btype &&
                                 btype->kind == HC_TYPE_PTR && btype->base)
                                     ? btype->base : btype;
-            if (st && st->kind == HC_TYPE_STRUCT) {
+            if (st && (st->kind == HC_TYPE_STRUCT || st->kind == HC_TYPE_UNION)) {
                 for (int i = 0; i < st->n_members; i++) {
                     if (strcmp(st->members[i].name, node->ident) == 0) { off = (int)st->members[i].offset; break; }
                 }
@@ -456,11 +505,45 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                     }
                 }
                 if (!found) {
-                    /* Implicit variable - not yet assigned. Return 0. */
-                    emit_mov_rax_imm64(gen, 0);
+                    /* Not a variable but may be a FUNCTION name used as a value
+                     * (e.g. `int (*op)(..)=add;` or `int (*fp)(..)=func;`
+                     * assigns the function's address, and `op(20,22)` calls
+                     * through it). Emit `mov rax, func_addr`. */
+                    void *func_addr = NULL;
+                    for (int i = 0; i < gen->n_functions; i++) {
+                        if (strcmp(gen->functions[i].name, node->ident) == 0) {
+                            func_addr = gen->functions[i].func_ptr;
+                            break;
+                        }
+                    }
+                    if (func_addr) {
+                        emit_mov_rax_imm64(gen, (int64_t)(intptr_t)func_addr);
+                    } else if (gen->n_self_call_patches < 32 &&
+                               node->ident[0] &&
+                               strcmp(node->ident, gen->current_function ? gen->current_function : "") == 0) {
+                        /* Self-recursive reference as a value: resolve to the
+                         * currently-compiling function's eventual exec address
+                         * (patched after the body is copied). */
+                        emit_mov_rax_imm64(gen, 0);  /* placeholder, patched by self-call fixup */
+                    } else {
+                        emit_mov_rax_imm64(gen, 0);
+                    }
                 }
             } else {
-                emit_mov_rax_imm64(gen, 0);
+                /* No locals in scope: IDENT may be a function name used as a
+                 * value (e.g. `add;` or `op = add;`). Check the function table
+                 * before defaulting to 0. */
+                void *func_addr = NULL;
+                for (int i = 0; i < gen->n_functions; i++) {
+                    if (strcmp(gen->functions[i].name, node->ident) == 0) {
+                        func_addr = gen->functions[i].func_ptr;
+                        break;
+                    }
+                }
+                if (func_addr)
+                    emit_mov_rax_imm64(gen, (int64_t)(intptr_t)func_addr);
+                else
+                    emit_mov_rax_imm64(gen, 0);
             }
             break;
 
@@ -1013,8 +1096,11 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                 emit_byte(gen, 0x50);            /* push rax (value) */
                 emit_lvalue_addr(gen, node->left);  /* rax = address */
                 emit_byte(gen, 0x5F);            /* pop rdi (value) */
-                /* mov [rax], rdi : 48 89 38 */
-                emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0x38);
+                /* store with the target's element width (a 4-byte int member
+                 * stores dword, so the adjacent member isn't clobbered). */
+                HCType *lt = expr_static_type(gen, node->left);
+                int esz = lt ? (int)hc_type_size(lt) : 8;
+                emit_sized_store_rax_rdi(gen, esz);
             }
             break;
 
@@ -1133,16 +1219,16 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                             emit_dword(gen, 0);   /* placeholder */
                             gen->self_call_patches[gen->n_self_call_patches++] = pos;
                         } else {
-                            /* Function not found - trap instead of `call 0`
-                             * (which would NULL-deref and SIGSEGV at runtime).
-                             * Pass the callee name as the trap's first arg (rdi). */
-                            const char *nm = (node->callee && node->callee->ident)
-                                                ? node->callee->ident : NULL;
-                            emit_mov_rax_imm64(gen, (int64_t)(uintptr_t)nm);
-                            /* mov rdi, rax : 48 89 C7 */
-                            emit_byte(gen, 0x48); emit_byte(gen, 0x89); emit_byte(gen, 0xC7);
-                            emit_mov_rax_imm64(gen, (int64_t)(uintptr_t)hc_trap_unresolved_call);
-                            emit_byte(gen, 0xFF); emit_byte(gen, 0xD0);
+                            /* IDENT not in the function/extern tables: treat
+                             * it as a function POINTER variable and call through
+                             * its stored value (`op(20,22)` where `op` is a
+                             * `typedef int(*)(int,int)`). Load the pointer, then
+                             * `call rax` — a NULL stored value would have crashed
+                             * at `call 0` before this path existed. */
+                            emit_var_load(gen,
+                                ({ int off=0,isg=0; resolve_var(gen, node->callee->ident, &off, &isg); off; }),
+                                ({ int off=0,isg=0; resolve_var(gen, node->callee->ident, &off, &isg); isg; }));
+                            emit_byte(gen, 0xFF); emit_byte(gen, 0xD0); /* call rax */
                         }
                     }
                 } else {
@@ -1181,17 +1267,16 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* Find member offset — resolve the base's struct type from the
              * symbol table (the parser doesn't attach types to IDENTs). */
             HCType *btype = expr_static_type(gen, node->left);
-            if (btype && btype->kind == HC_TYPE_STRUCT) {
+            if (btype && (btype->kind == HC_TYPE_STRUCT || btype->kind == HC_TYPE_UNION)) {
                 HCType *st = btype;
                 bool found = false;
                 for (int i = 0; i < st->n_members; i++) {
                     if (strcmp(st->members[i].name, node->ident) == 0) {
                         int off = (int)st->members[i].offset;
-                        /* mov rax, [rax + off]: 48 8B 80 disp32 */
-                        emit_byte(gen, 0x48); /* REX.W */
-                        emit_byte(gen, 0x8B); /* mov */
-                        emit_byte(gen, 0x80); /* modrm: rax, [rax+disp32] */
-                        emit_dword(gen, (uint32_t)off);
+                        int msz = st->members[i].type
+                                      ? (int)hc_type_size(st->members[i].type)
+                                      : 8;
+                        emit_sized_load_rax_off(gen, off, msz);
                         found = true;
                         break;
                     }
@@ -1211,18 +1296,18 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
             /* rax now contains base address (already a pointer) */
             HCType *btype = expr_static_type(gen, node->left);
             HCType *st = NULL;
-            if (btype && btype->kind == HC_TYPE_PTR && btype->base && btype->base->kind == HC_TYPE_STRUCT)
+            if (btype && btype->kind == HC_TYPE_PTR && btype->base &&
+                (btype->base->kind == HC_TYPE_STRUCT || btype->base->kind == HC_TYPE_UNION))
                 st = btype->base;
             if (st) {
                 bool found = false;
                 for (int i = 0; i < st->n_members; i++) {
                     if (strcmp(st->members[i].name, node->ident) == 0) {
                         int off = (int)st->members[i].offset;
-                        /* mov rax, [rax + off]: 48 8B 80 disp32 */
-                        emit_byte(gen, 0x48); /* REX.W */
-                        emit_byte(gen, 0x8B); /* mov */
-                        emit_byte(gen, 0x80); /* modrm: rax, [rax+disp32] */
-                        emit_dword(gen, (uint32_t)off);
+                        int msz = st->members[i].type
+                                      ? (int)hc_type_size(st->members[i].type)
+                                      : 8;
+                        emit_sized_load_rax_off(gen, off, msz);
                         found = true;
                         break;
                     }

@@ -32,6 +32,7 @@ typedef struct {
     const char *name;      /* what the construct proves */
     const char *src;       /* the source, evaluated by hc_eval */
     long long  expect;     /* ground-truth result */
+    int        nonzero;    /* if 1, expect result != 0 (function addresses) */
 } Probe;
 
 /* Each entry: <what it proves>, <source>, <expected>. The source is a
@@ -110,14 +111,21 @@ static const Probe PROBES[] = {
     {"string index", "\"hello\"[0];", 104},
     {"char arith", "'A'+1;", 66},
     {"multi-stmt block", "{ int x=40; x+2; }", 42},
+    /* ---- function pointers ---- */
+    {"func call", "int add(int a,int b){return a+b;} add(1,2);", 3},
+    {"func ptr assign", "int add(int a,int b){return a+b;} int (*op)(int,int)=add; op(20,22);", 42},
+    {"func ptr self", "int f(int x){int (*sq)(int)=f; return x;} f(5);", 5},
+    {"bare func name as value", "int add(int a,int b){return a+b;} add;", 0, 1},  /* addr, nonzero */
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))
 
 /* run hc_eval in a FORKED child so a crash isolates cleanly.
  * returns 0 if child returned expected, 1 wrong, 2 crash/abort */
-static int run_isolated(const char *src, long long expect)
+static int run_isolated(const Probe *probe)
 {
+    const char *src = probe->src;
+    long long expect = probe->expect;
     int pipefd[2];
     if (pipe(pipefd) != 0) return 2;
     pid_t pid = fork();
@@ -142,6 +150,8 @@ static int run_isolated(const char *src, long long expect)
         return 2;
     }
     if (WIFSIGNALED(status)) return 2;
+    if (probe->nonzero)
+        return (result != 0) ? 0 : 1;
     return (result == expect) ? 0 : 1;
 }
 
@@ -155,7 +165,7 @@ int main(void)
     long long gotval[100];
 
     for (int i = 0; i < NPROBES; i++) {
-        int rc = run_isolated(PROBES[i].src, PROBES[i].expect);
+        int rc = run_isolated(&PROBES[i]);
         if (rc == 0) {
             pass++;
             printf("  PASS  %-22s\n", PROBES[i].name);

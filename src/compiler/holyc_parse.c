@@ -87,6 +87,26 @@ static HCType *parse_type(HCParser *p) {
     t->kind = HC_TYPE_I64; /* HolyC default */
 
     switch (peek(p)) {
+        case HC_TOK_IDENT: {
+            /* A typedef'd name is a type: `typedef int MyInt; MyInt x;`.
+             * Look it up in the parser's typedef registry. */
+            const char *id = p->lex->tok.text;
+            int found_typedef = -1;
+            for (int i = 0; i < p->n_typedefs; i++) {
+                if (strcmp(p->typedef_names[i], id) == 0) { found_typedef = i; break; }
+            }
+            if (found_typedef >= 0) {
+                HCType *rt = p->typedef_types[found_typedef];
+                advance(p);
+                /* do NOT return rt early — fall through so the pointer-star
+                 * loop below wraps it (`typedef struct{int x;}S; S* p` must
+                 * produce a PTR type, not skip the `*`). */
+                free(t);              /* discard the default I64 placeholder */
+                t = rt;
+                break;
+            }
+            break;
+        }
         case HC_KW_U0:   t->kind = HC_TYPE_VOID; advance(p); break;
         case HC_KW_I8:   t->kind = HC_TYPE_I8;   advance(p); break;
         case HC_KW_I16:  t->kind = HC_TYPE_I16;  advance(p); break;
@@ -98,9 +118,10 @@ static HCType *parse_type(HCParser *p) {
         case HC_KW_U64:  t->kind = HC_TYPE_U64;  advance(p); break;
         case HC_KW_F64:  t->kind = HC_TYPE_F64;  advance(p); break;
         case HC_KW_BOOL:  t->kind = HC_TYPE_BOOL; advance(p); break;
-        case HC_KW_STRUCT: {
-            /* Struct type: struct Name { ... } or struct Name */
-            advance(p); /* struct */
+        case HC_KW_ENUM: {
+            /* enum [Name] { A, B=2, C } — parse enumerators, register each
+             * as a constant (GREEN=1) so later idents resolve. */
+            advance(p); /* enum */
             char tag[HC_MAX_IDENT_LEN] = {0};
             if (peek(p) == HC_TOK_IDENT) {
                 strncpy(tag, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
@@ -108,8 +129,68 @@ static HCType *parse_type(HCParser *p) {
                 advance(p);
             }
             if (peek(p) == HC_TOK_LBRACE) {
-                /* Struct definition with members */
                 advance(p); /* { */
+                int64_t val = 0;
+                while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
+                    if (peek(p) == HC_TOK_IDENT) {
+                        char cname[HC_MAX_IDENT_LEN];
+                        strncpy(cname, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+                        advance(p);
+                        if (match(p, HC_TOK_ASSIGN)) {
+                            if (peek(p) == HC_TOK_INT) { val = p->lex->tok.int_val; advance(p); }
+                        }
+                        /* register enumerator constant */
+                        if (p->n_enum_consts < 64) {
+                            strncpy(p->enum_const_names[p->n_enum_consts], cname, HC_MAX_IDENT_LEN - 1);
+                            p->enum_const_vals[p->n_enum_consts] = val;
+                            p->n_enum_consts++;
+                        }
+                        val++;
+                    }
+                    if (peek(p) == HC_TOK_COMMA) advance(p);
+                    else break;
+                }
+                expect(p, HC_TOK_RBRACE);
+                t->kind = HC_TYPE_ENUM;
+                t->size = 4;
+                /* register the tag */
+                if (tag[0] != '\0') {
+                    for (int i = 0; i < p->n_named_types; i++)
+                        if (strcmp(p->named_type_names[i], tag) == 0) { p->named_types[i] = t; goto struct_done; }
+                    if (p->n_named_types < 64) {
+                        strncpy(p->named_type_names[p->n_named_types], tag, HC_MAX_IDENT_LEN - 1);
+                        p->named_types[p->n_named_types] = t;
+                        p->n_named_types++;
+                    }
+                }
+                goto struct_done;
+            }
+            t->kind = HC_TYPE_ENUM;
+            t->size = 4;
+            /* enum Color; reference */
+            if (tag[0] != '\0') {
+                for (int i = 0; i < p->n_named_types; i++)
+                    if (strcmp(p->named_type_names[i], tag) == 0) { *t = *(p->named_types[i]); goto struct_done; }
+            }
+            break;
+        }
+        case HC_KW_STRUCT:
+        case HC_KW_UNION: {
+            /* Struct/union type: (struct|union) Name { ... } or Name.
+             * Same member grammar; a union overlaps all members at offset 0. */
+            HCTypeKind comp_kind = (peek(p) == HC_KW_STRUCT) ? HC_TYPE_STRUCT : HC_TYPE_UNION;
+            advance(p); /* struct | union */
+            char tag[HC_MAX_IDENT_LEN] = {0};
+            if (peek(p) == HC_TOK_IDENT) {
+                strncpy(tag, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+                strncpy(t->name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+                advance(p);
+            }
+            if (peek(p) == HC_TOK_LBRACE) {
+                /* Definition with members */
+                advance(p); /* { */
+                int64_t max_size = 0;
+                int max_align = 1;
                 while (peek(p) != HC_TOK_RBRACE && peek(p) != HC_TOK_EOF) {
                     HCType *member_type = parse_type(p);
                     if (peek(p) != HC_TOK_IDENT) {
@@ -131,21 +212,31 @@ static HCType *parse_type(HCParser *p) {
                             ma->array_size = asz;
                             member_type = ma;
                         }
-                        t->members[t->n_members].type = member_type;
-                        t->members[t->n_members].offset = t->size;
-                        t->size += hc_type_size(member_type);
-                        /* Align to member alignment */
-                        int align = hc_type_size(member_type);
-                        if (align > t->align) t->align = align;
-                        if ((t->size % align) != 0) {
-                            t->size += align - (t->size % align);
+                        size_t msz = hc_type_size(member_type);
+                        if (comp_kind == HC_TYPE_UNION) {
+                            /* union: every member starts at offset 0; size = max */
+                            t->members[t->n_members].offset = 0;
+                            if ((int64_t)msz > max_size) max_size = (int64_t)msz;
+                            if ((int64_t)msz > max_align) max_align = (int)msz;
+                        } else {
+                            t->members[t->n_members].offset = t->size;
+                            t->size += msz;
+                            int align = (int)msz;
+                            if (align > t->align) t->align = align;
+                            if ((t->size % align) != 0)
+                                t->size += align - (t->size % align);
                         }
+                        t->members[t->n_members].type = member_type;
                         t->n_members++;
                     }
                     expect(p, HC_TOK_SEMI);
                 }
                 expect(p, HC_TOK_RBRACE);
-                t->kind = HC_TYPE_STRUCT;
+                t->kind = comp_kind;
+                if (comp_kind == HC_TYPE_UNION) {
+                    t->size = max_size;
+                    t->align = max_align;
+                }
                 /* register the tag so later `struct S x;` reuses this layout */
                 if (tag[0] != '\0') {
                     for (int i = 0; i < p->n_named_types; i++) {
@@ -162,7 +253,7 @@ static HCType *parse_type(HCParser *p) {
                 }
                 goto struct_done;
             }
-            t->kind = HC_TYPE_STRUCT;
+            t->kind = comp_kind;
             /* Forward/reference: `struct S x;` where S was defined earlier.
              * Reuse the registered layout instead of a fresh empty struct. */
             if (tag[0] != '\0') {
@@ -198,6 +289,17 @@ struct_done:
 /* -- Parse Primary ------------------------------------------------ */
 
 static HCASTNode *parse_primary(HCParser *p) {
+    /* An enum constant ident is an int literal: `GREEN` → 1. */
+    if (peek(p) == HC_TOK_IDENT) {
+        for (int i = 0; i < p->n_enum_consts; i++) {
+            if (strcmp(p->enum_const_names[i], p->lex->tok.text) == 0) {
+                HCASTNode *n = hc_ast_new(HC_AST_INT_LIT);
+                n->int_val = p->enum_const_vals[i];
+                advance(p);
+                return n;
+            }
+        }
+    }
     switch (peek(p)) {
         case HC_TOK_INT: {
             HCASTNode *n = hc_ast_new(HC_AST_INT_LIT);
@@ -431,8 +533,22 @@ static HCASTNode *parse_cast(HCParser *p) {
         if (tok == HC_KW_I8 || tok == HC_KW_I16 || tok == HC_KW_I32 ||
             tok == HC_KW_I64 || tok == HC_KW_U8 || tok == HC_KW_U16 ||
             tok == HC_KW_U32 || tok == HC_KW_U64 || tok == HC_KW_F64 ||
-            tok == HC_KW_BOOL || tok == HC_TOK_IDENT) {
+            tok == HC_KW_BOOL || tok == HC_KW_STRUCT || tok == HC_KW_UNION ||
+            tok == HC_KW_ENUM || tok == HC_KW_TYPEDEF) {
             is_type = true;
+        }
+        /* An IDENT after `(` is only a cast if it's a typedef name or an enum
+         * tag — otherwise it's a parenthesized expression like `(x)` or
+         * `(x+1)`, NOT a cast `(Type)x`. Previously any leading IDENT was
+         * treated as a type, so `(x)` was mis-tokenized as a cast and the
+         * inner `x` was lost, causing "expected RPAREN, got IDENT". */
+        if (tok == HC_TOK_IDENT) {
+            const char *id = p->lex->tok.text;
+            for (int i = 0; i < p->n_typedefs; i++)
+                if (strcmp(p->typedef_names[i], id) == 0) { is_type = true; break; }
+            if (!is_type)
+                for (int i = 0; i < p->n_named_types; i++)
+                    if (strcmp(p->named_type_names[i], id) == 0) { is_type = true; break; }
         }
         
         if (is_type) {
@@ -666,6 +782,20 @@ static HCASTNode *parse_stmt(HCParser *p) {
         return hc_parse_decl(p);
     }
 
+    /* A typedef'd name IS a type — `Point p;` is a decl. */
+    if (peek(p) == HC_TOK_IDENT) {
+        for (int i = 0; i < p->n_typedefs; i++) {
+            if (strcmp(p->typedef_names[i], p->lex->tok.text) == 0)
+                return hc_parse_decl(p);
+        }
+        /* Also treat enum-constant idents as constants (PARSE as const decl
+         * so the codegen records them as module-level globals). */
+        for (int i = 0; i < p->n_enum_consts; i++) {
+            if (strcmp(p->enum_const_names[i], p->lex->tok.text) == 0)
+                return hc_parse_decl(p);
+        }
+    }
+
     /* Expression statement */
     HCASTNode *expr = parse_expr(p);
     expect(p, HC_TOK_SEMI);
@@ -677,6 +807,33 @@ static HCASTNode *parse_stmt(HCParser *p) {
 /* -- Parse Declaration -------------------------------------------- */
 
 HCASTNode *hc_parse_decl(HCParser *p) {
+    /* Handle `typedef`: `typedef <type> <name>;` — parse the type, take the
+     * name, register it in the typedef registry so later declarations use it
+     * as a type. Returns a no-op decl node. */
+    if (match(p, HC_KW_TYPEDEF)) {
+        HCType *base = parse_type(p);
+        if (peek(p) != HC_TOK_IDENT) {
+            parse_error(p, "expected typedef name");
+            return NULL;
+        }
+        if (p->n_typedefs < 64) {
+            strncpy(p->typedef_names[p->n_typedefs], p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+            p->typedef_types[p->n_typedefs] = base;
+            p->n_typedefs++;
+        }
+        advance(p); /* consume the typedef name */
+        expect(p, HC_TOK_SEMI);
+        HCASTNode *n = hc_ast_new(HC_AST_STRUCT_DECL); /* no-op */
+        n->type = base;
+        return n;
+    }
+
+    /* Handle `static` storage class: strip it and parse the rest as a normal
+     * declaration (static only matters for linking, which this JIT doesn't). */
+    if (match(p, HC_KW_STATIC)) {
+        return hc_parse_decl(p);
+    }
+
     /* Handle extern "C" func_name(params) -> ret_type; */
     if (match(p, HC_KW_EXTERN)) {
         /* Expect "C" string literal */
@@ -751,23 +908,146 @@ HCASTNode *hc_parse_decl(HCParser *p) {
     /* Check if this is a struct/union/enum type definition without a variable name */
     if (type->kind == HC_TYPE_STRUCT || type->kind == HC_TYPE_UNION || type->kind == HC_TYPE_ENUM) {
         if (peek(p) == HC_TOK_SEMI) {
-            /* Type definition like "struct Point { ... };" - just consume semicolon */
+            /* Type definition like "struct Point { ... };"
+             * For an ENUM, also emit the enumerator constants as module-level
+             * globals so `int c = GREEN;` resolves GREEN to 1. */
             advance(p);
-            /* Create a no-op AST node for the type definition */
-            HCASTNode *n = hc_ast_new(HC_AST_STRUCT_DECL);
+            HCASTNode *n = hc_ast_new(type->kind == HC_TYPE_ENUM ? HC_AST_BLOCK : HC_AST_STRUCT_DECL);
             n->type = type;
+            if (type->kind == HC_TYPE_ENUM && p->n_enum_consts > 0) {
+                /* build a BLOCK: enum decl + one const VAR_DECL per enumerator */
+                int nconsts = p->n_enum_consts;
+                p->n_enum_consts = 0;  /* consume: they're now in the AST */
+                for (int c = 0; c < nconsts; c++) {
+                    HCASTNode *vd = hc_ast_new(HC_AST_VAR_DECL);
+                    strncpy(vd->ident, p->enum_const_names[c], HC_MAX_IDENT_LEN - 1);
+                    HCASTNode *init = hc_ast_new(HC_AST_INT_LIT);
+                    init->int_val = p->enum_const_vals[c];
+                    vd->init = init;
+                    vd->type = type;
+                    hc_ast_add_stmt(n, vd);
+                }
+                HCASTNode *ed = hc_ast_new(HC_AST_STRUCT_DECL);
+                ed->type = type;
+                hc_ast_add_stmt(n, ed);
+            }
             return n;
         }
     }
 
-    if (peek(p) != HC_TOK_IDENT) {
+    if (peek(p) != HC_TOK_IDENT && peek(p) != HC_TOK_STAR && peek(p) != HC_TOK_LPAREN) {
         parse_error(p, "expected identifier");
         return NULL;
     }
 
+    int is_func_ptr = 0;
+    /* Declarator parsing — three forms we support:
+     *   int *p           → is_ptr=1, plain pointer var
+     *   int (*p)(a,b)    → is_func_ptr=1, pointer-to-function var
+     *   int name(a,b)    → FUNC_DECL (handled below by peek==LPAREN check)
+     *   int name         → plain var
+     * Parenthesized `(name)` for plain function decls is uncommon and
+     * treated as identical to the non-paren form. */
+    int is_ptr = 0;
     char name[HC_MAX_IDENT_LEN];
-    strncpy(name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
-    advance(p);
+
+    if (peek(p) == HC_TOK_STAR) {
+        /* `int *p` — simple pointer */
+        is_ptr = 1;
+        advance(p); /* * */
+        if (peek(p) != HC_TOK_IDENT) {
+            parse_error(p, "expected ident after '*'");
+            return NULL;
+        }
+        strncpy(name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+        name[HC_MAX_IDENT_LEN - 1] = '\0';
+        advance(p); /* name */
+    } else if (peek(p) == HC_TOK_LPAREN) {
+        /* Could be `(*name)(params)` (function pointer) or `(name)` (fn decl).
+         * Lookahead: the token after '(' tells us which. */
+        int saved_pos = p->lex->pos;
+        advance(p); /* ( */
+        if (peek(p) == HC_TOK_STAR) {
+            /* `(*name)` — function pointer declarator */
+            advance(p); /* * */
+            if (peek(p) != HC_TOK_IDENT) {
+                parse_error(p, "expected ident after '(*'");
+                return NULL;
+            }
+            strncpy(name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+            name[HC_MAX_IDENT_LEN - 1] = '\0';
+            advance(p); /* name */
+            expect(p, HC_TOK_RPAREN);
+            if (peek(p) == HC_TOK_LPAREN) {
+                is_func_ptr = 1;
+            } else {
+                /* `(*p)` with no params — treat as plain pointer */
+                is_ptr = 1;
+            }
+        } else {
+            /* `(name)` — backtrack, treat as plain name (func decl or var) */
+            p->lex->pos = saved_pos;
+            p->lex->line = 0;
+            hc_lex_next(p->lex);
+            if (peek(p) != HC_TOK_IDENT) {
+                parse_error(p, "expected identifier");
+                return NULL;
+            }
+            strncpy(name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+            name[HC_MAX_IDENT_LEN - 1] = '\0';
+            advance(p); /* name */
+        }
+    } else {
+        /* Plain: `int name` or `int name(params)` */
+        if (peek(p) != HC_TOK_IDENT) {
+            parse_error(p, "expected identifier");
+            return NULL;
+        }
+        strncpy(name, p->lex->tok.text, HC_MAX_IDENT_LEN - 1);
+        name[HC_MAX_IDENT_LEN - 1] = '\0';
+        advance(p); /* name */
+    }
+
+    /* Function pointer variable: `int (*op)(params) [= init] ;`
+     * Build a pointer-to-function type; the RHS `add` will later emit the
+     * function's address via the function-table lookup in gen_expr. */
+    if (is_func_ptr) {
+        HCType *fn = (HCType *)calloc(1, sizeof(HCType));
+        fn->kind = HC_TYPE_FUNC;
+        fn->param_types = (HCType **)calloc(HC_MAX_PARAMS, sizeof(HCType *));
+        /* parse params list */
+        advance(p); /* ( */
+        int pi = 0;
+        if (peek(p) != HC_TOK_RPAREN) {
+            fn->param_types[pi] = parse_type(p);
+            if (peek(p) == HC_TOK_IDENT) advance(p);
+            pi++;
+            while (match(p, HC_TOK_COMMA) && pi < HC_MAX_PARAMS) {
+                fn->param_types[pi] = parse_type(p);
+                if (peek(p) == HC_TOK_IDENT) advance(p);
+                pi++;
+            }
+        }
+        fn->n_params = pi;
+        expect(p, HC_TOK_RPAREN);
+        HCType *pt = (HCType *)calloc(1, sizeof(HCType));
+        pt->kind = HC_TYPE_PTR; pt->base = fn; pt->size = 8;
+        type = pt;
+        HCASTNode *var = hc_ast_new(HC_AST_VAR_DECL);
+        strncpy(var->ident, name, HC_MAX_IDENT_LEN - 1);
+        var->type = type;
+        if (match(p, HC_TOK_ASSIGN))
+            var->init = parse_expr(p);
+        expect(p, HC_TOK_SEMI);
+        return var;
+    }
+
+    /* Simple pointer variable: `int *p = expr ;` — wrap base type in PTR. */
+    if (is_ptr) {
+        HCType *pt = (HCType *)calloc(1, sizeof(HCType));
+        pt->kind = HC_TYPE_PTR; pt->base = type; pt->size = 8;
+        type = pt;
+    }
 
     /* Function declaration: type name(params) { body } */
     if (peek(p) == HC_TOK_LPAREN) {
