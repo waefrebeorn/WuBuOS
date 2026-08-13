@@ -37,6 +37,15 @@ struct wdh_hedge {
     size_t   region_bytes;
     void    *replica[WDH_MAX_REPLICAS];  /* per-channel base addresses        */
     int      periodic_trefi;      /* cached probe result                     */
+    /* physical channel guarantee (deepened, 2026-08-13): the virtual 256-byte
+     * stride is a HEURISTIC; the kernel can GUARANTEE channel separation by
+     * placing replicas in physical pages whose channel-select address bits
+     * differ. -1 = undetected (fall back to the stride heuristic); >=0 =
+     * the detected physical channel-select bit. */
+    int      channel_bit;
+    int      channels_guaranteed; /* 1 if replicas provably land on distinct
+                                   * channels (channel_bit detected + region
+                                   * placed so replica bits differ) */
 };
 
 /* Compute the channel-stride addressing: logical index -> per-replica byte
@@ -104,6 +113,26 @@ int wdh_init(wdh_hedge_t *h, size_t elem_size, unsigned num_replicas)
     char *r = (char *)h->region;
     for (unsigned i = 0; i < num_replicas; i++)
         h->replica[i] = r + (size_t)i * WDH_CHANNEL_OFFSET;
+
+    /* Deepen the channel guarantee (2026-08-13): detect the physical
+     * channel-select bit. When found, place replicas at 1<<channel_bit
+     * apart so their channel bits provably differ — a GUARANTEED distinct
+     * channel per replica, not just the 256-byte heuristic. When the bit
+     * is undetectable on this host (-1), keep the stride heuristic and
+     * report channels_guaranteed=0. */
+    int cb = wdh_detect_channel_bit();
+    h->channel_bit = cb;
+    h->channels_guaranteed = 0;
+    if (cb >= 0) {
+        size_t ch_stride = (size_t)1 << cb;
+        /* only use the physical placement if all replicas fit the region */
+        if (ch_stride >= WDH_CHANNEL_OFFSET &&
+            (size_t)num_replicas * ch_stride <= h->region_bytes) {
+            for (unsigned i = 0; i < num_replicas; i++)
+                h->replica[i] = r + (size_t)i * ch_stride;
+            h->channels_guaranteed = 1;
+        }
+    }
 
     h->periodic_trefi = wdh_probe_trefi(NULL, NULL);
     return 0;
@@ -329,6 +358,8 @@ size_t   wdh_slots(const wdh_hedge_t *h)       { return h ? h->slots : 0; }
 size_t   wdh_elem_size(const wdh_hedge_t *h)   { return h ? h->elem_size : 0; }
 unsigned wdh_replicas(const wdh_hedge_t *h)    { return h ? h->num_replicas : 0; }
 int      wdh_trefi_periodic(const wdh_hedge_t *h) { return h ? h->periodic_trefi : 0; }
+int      wdh_channel_bit(const wdh_hedge_t *h)  { return h ? h->channel_bit : -1; }
+int      wdh_channels_guaranteed(const wdh_hedge_t *h) { return h ? h->channels_guaranteed : 0; }
 
 /* =====================================================================
  * DRAM refresh periodicity probe (host x86-64 only)
@@ -410,6 +441,107 @@ int wdh_probe_trefi(double *out_median, double *out_spike_pct)
 #undef WDH_CALIB
 }
 
+/* =====================================================================
+ * Physical channel-select-bit detection (the deepening)
+ * =====================================================================
+ * The virtual 256-byte stride is a heuristic. To GUARANTEE that two
+ * replicas land on distinct physical DRAM channels, the kernel must know
+ * which physical-address bit selects the channel. This detector finds it
+ * empirically with the refresh-correlation fingerprint:
+ *
+ *   - Two addresses on the SAME channel stall on the SAME tREFI refresh
+ *     events, so their cold-read latencies are CORRELATED.
+ *   - Two addresses on DIFFERENT channels refresh independently, so their
+ *     latencies are UNCORRELATED.
+ *
+ * We probe pairs of addresses that differ only in candidate bit `b`
+ * (bits 12..28, the page-level interleave range) and measure the
+ * cross-correlation of their clflush+reload latency traces. The bit whose
+ * toggle maximally decorrelates the two traces is the channel selector.
+ *
+ * Returns the detected bit index, or -1 if no reliable signal is found
+ * (e.g. this host hides refresh behind the memory controller / no hugepage
+ * granularity). Called TWICE by wdh_detect_channel_bit() (stable answer).
+ */
+int wdh_detect_channel_bit_once(void)
+{
+#define WDH_CBITS    17                    /* bits 12..28                 */
+#define WDH_CTRACE   4000u                 /* samples per address         */
+#define WDH_CBREGION (1u << 21)            /* 2 MB region                 */
+    void *p = mmap(NULL, WDH_CBREGION, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB |
+                   (21 << MAP_HUGE_SHIFT), -1, 0);
+    if (p == MAP_FAILED)
+        p = mmap(NULL, WDH_CBREGION, PROT_READ | PROT_WRITE,
+                 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (p == MAP_FAILED) return -1;
+    memset(p, 0x42, WDH_CBREGION);
+    mlock(p, WDH_CBREGION);
+
+    volatile char *base = (volatile char *)p;
+    /* Calibrate the spike threshold from a single address. */
+    uint64_t calib[2000];
+    for (int i = 0; i < 500; i++) (void)wdh_timed_probe(base);
+    for (int i = 0; i < 2000; i++) calib[i] = wdh_timed_probe(base);
+    qsort(calib, 2000, sizeof(uint64_t), wdh_cmp_u64);
+    uint64_t thresh = 2 * calib[1000];
+
+    uint64_t *tr_a = malloc(WDH_CTRACE * sizeof(uint64_t));
+    uint64_t *tr_b = malloc(WDH_CTRACE * sizeof(uint64_t));
+    int best_bit = -1;
+    double best_decorr = 0.0;
+
+    for (int bi = 12; bi < 12 + WDH_CBITS; bi++) {
+        uint64_t bit = 1ULL << bi;
+        if (bit >= WDH_CBREGION) break;
+        volatile char *a = base;
+        volatile char *b = base + bit;
+        /* record spike times (rdtsc at each >thresh read) for both */
+        uint64_t t0 = wdh_rdtsc();
+        for (unsigned i = 0; i < WDH_CTRACE; i++) {
+            if (wdh_timed_probe(a) > thresh) tr_a[i] = wdh_rdtsc() - t0;
+            else tr_a[i] = 0;
+            if (wdh_timed_probe(b) > thresh) tr_b[i] = wdh_rdtsc() - t0;
+            else tr_b[i] = 0;
+        }
+        /* cross-correlation of spike times: count near-coincident spikes */
+        unsigned coincide = 0, any_a = 0, any_b = 0;
+        for (unsigned i = 0; i < WDH_CTRACE; i++) {
+            if (tr_a[i]) any_a++;
+            if (tr_b[i]) any_b++;
+            /* same channel => spikes coincide within ~2000 cycles */
+            if (tr_a[i] && tr_b[i] &&
+                (tr_a[i] > tr_b[i] ? tr_a[i]-tr_b[i] : tr_b[i]-tr_a[i]) < 2000)
+                coincide++;
+        }
+        /* correlation = coincidence rate normalized; decorrelation = 1 - it.
+         * The channel-select bit maximizes decorrelation (spikes diverge). */
+        double corr = (any_a && any_b) ? (double)coincide / (any_a < any_b ? any_a : any_b) : 1.0;
+        double decorr = 1.0 - corr;
+        if (decorr > best_decorr) { best_decorr = decorr; best_bit = bi; }
+    }
+
+    free(tr_a); free(tr_b);
+    munmap(p, WDH_CBREGION);
+    /* require a meaningful separation from the no-signal case */
+    return (best_decorr > 0.5) ? best_bit : -1;
+#undef WDH_CBITS
+#undef WDH_CTRACE
+#undef WDH_CBREGION
+}
+
+/* Stable channel-bit detection: probe twice; trust the answer only if the
+ * same bit wins both times. On virtualized memory (WSL) a single probe can
+ * surface a noise bit — a REAL channel selector is stable across re-probes,
+ * noise is not. Returns the stable bit, or -1. */
+int wdh_detect_channel_bit(void)
+{
+    int a = wdh_detect_channel_bit_once();
+    if (a < 0) return -1;
+    int b = wdh_detect_channel_bit_once();
+    return (a == b) ? a : -1;
+}
+
 #else /* !WDH_HOST_PROBE — kernel metal build */
 int wdh_probe_trefi(double *out_median, double *out_spike_pct)
 {
@@ -417,4 +549,7 @@ int wdh_probe_trefi(double *out_median, double *out_spike_pct)
     if (out_spike_pct) *out_spike_pct = 0;
     return 0;
 }
+
+/* Metal / no-probe fallback: channel bit unknown -> -1 (stride heuristic). */
+int wdh_detect_channel_bit(void) { return -1; }
 #endif

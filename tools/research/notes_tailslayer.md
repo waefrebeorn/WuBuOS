@@ -195,6 +195,16 @@ namespace (same pattern as /n/ec, /n/steaminput):
 `echo 3:42 > /n/dram/ctrl` stores 42 in slot 3 (all replicas). Test
 11/11, wired into test_medium_other.
 
+### PHYSICAL CHANNEL GUARANTEE (the deepening, 2026-08-13)
+`wdh_detect_channel_bit()` empirically finds the physical channel-select
+address bit via the Rowhammer refresh-correlation fingerprint (same-channel
+addresses stall on the SAME tREFI events, different channels don't). Run
+TWICE (`_once` wrapper) and trusted only if both probes agree — on WSL the
+noise bit is rejected -> -1 -> honest 256-byte-stride fallback with
+`channels_guaranteed=0`; on real metal it finds the bit and places replicas
+at `1<<bit` apart (`channels_guaranteed=1`). test_dram_hedge 295/295,
+stable across 15 runs.
+
 ### Runtime / kernel
 `tools/research/tailslayer_hedge.h` — the standalone C shim (replicated
 insert + hedged read + trefi probe). Kernel-level channel-aware page

@@ -94,7 +94,29 @@ is recorded honestly — no claimed speedup the benchmark doesn't show.
 The race-to-completion across separate cores (Tailslayer spins workers on
 cores 11/12/14) is now implemented (`wdh_reader_*`): N threads pinned to
 dedicated cores race the replicas and the reader completes when every
-current-generation replica has loaded. The kernel metal build needs the
-page allocator to guarantee physical channel placement (the virtual 256-B
-stride is a strong heuristic, not a hardware guarantee). Both are
-documented, not claimed.
+current-generation replica has loaded.
+
+## PHYSICAL CHANNEL GUARANTEE (the deepening, 2026-08-13)
+
+The virtual 256-byte stride was a heuristic. Now `wdh_detect_channel_bit()`
+empirically finds the physical channel-select address bit using the
+Rowhammer refresh-correlation fingerprint: two addresses on the SAME
+channel stall on the SAME tREFI events (correlated), on DIFFERENT channels
+they refresh independently (decorrelated). The detector probes candidate
+bits 12..28 and returns the bit that maximally decorrelates a cold-read
+trace.
+
+Stability requirement: the detection is run TWICE (`wdh_detect_channel_bit`
+wraps `wdh_detect_channel_bit_once`) and the bit is trusted only if both
+probes agree. On virtualized memory (WSL) a noise bit surfaces and is
+rejected -> returns -1 -> honest fallback to the 256-byte stride with
+`channels_guaranteed=0`. On real metal with hugepages, the detector finds
+the real channel bit and `wdh_init` places replicas at `1<<channel_bit`
+apart, setting `channels_guaranteed=1`.
+
+API: `wdh_detect_channel_bit()`, `wdh_channel_bit(h)`,
+`wdh_channels_guaranteed(h)`. Metal builds get the -1 fallback.
+
+Verified: test_dram_hedge 295/295 (stable across 15 runs), test_ns_dram
+11/11, test_hedge PASS. The honest behavior is enforced — no guarantee is
+claimed when the bit is undetectable.

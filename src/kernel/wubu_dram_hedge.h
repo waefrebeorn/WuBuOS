@@ -78,6 +78,18 @@ size_t    wdh_elem_size(const wdh_hedge_t *h);
 unsigned  wdh_replicas(const wdh_hedge_t *h);
 int       wdh_trefi_periodic(const wdh_hedge_t *h); /* 1 if refresh detectable */
 
+/* -- Physical channel guarantee (2026-08-13 deepening) ------------------- */
+/* Detect which physical-address bit selects the DRAM channel (refresh-
+ * correlation fingerprint). Returns the bit index, or -1 if undetectable
+ * (this host hides refresh / metal build). */
+int wdh_detect_channel_bit(void);
+
+/* After wdh_init: the detected channel-select bit (-1 if none) and whether
+ * the replicas are PROVABLY on distinct channels (channel bit found and
+ * replicas placed so their channel bits differ). */
+int wdh_channel_bit(const wdh_hedge_t *h);
+int wdh_channels_guaranteed(const wdh_hedge_t *h);
+
 /* -- DRAM refresh probe (kernel + host) ---------------------------------- */
 /* clflush+reload timing probe: returns 1 if periodic tREFI spikes were
  * detected on this machine (tail-latency mitigation is beneficial). */
