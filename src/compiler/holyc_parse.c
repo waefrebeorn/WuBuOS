@@ -111,7 +111,12 @@ static HCType *parse_type(HCParser *p) {
         case HC_KW_I8:   t->kind = HC_TYPE_I8;   advance(p); break;
         case HC_KW_I16:  t->kind = HC_TYPE_I16;  advance(p); break;
         case HC_KW_I32:  t->kind = HC_TYPE_I32;  advance(p); break;
-        case HC_KW_I64:  t->kind = HC_TYPE_I64;  advance(p); break;
+        case HC_KW_I64:  t->kind = HC_TYPE_I64;  advance(p);
+                         /* `long long` = two I64 tokens (both 64-bit on
+                          * x86-64). Consume the optional second `long` so
+                          * `long long x;` / `sizeof(long long)` parse. */
+                         if (peek(p) == HC_KW_I64) advance(p);
+                         break;
         case HC_KW_U8:   t->kind = HC_TYPE_U8;   advance(p); break;
         case HC_KW_U16:  t->kind = HC_TYPE_U16;  advance(p); break;
         case HC_KW_U32:  t->kind = HC_TYPE_U32;  advance(p); break;

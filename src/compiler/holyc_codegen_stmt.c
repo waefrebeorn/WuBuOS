@@ -61,13 +61,11 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
         case HC_AST_RETURN: {
             HCType *ret_t = node->child ? expr_static_type(gen, node->child) : NULL;
             int ret_sz = (ret_t && ret_t->kind == HC_TYPE_STRUCT) ? (int)hc_type_size(ret_t) : 0;
-            /* Full rep-movsb path only for <=8-byte struct returns. Larger
-             * structs need full sret ABI (caller passes a buffer pointer;
-             * callee writes through it). Without that, we fall through to
-             * the legacy gen_expr which puts the first 8 bytes of the
-             * struct in rax — sufficient only for <=8-byte struct returns.
-             * The matching ASSIGN path also gates on <=8 for symmetry. */
-            bool can_sret = ret_sz > 0 && ret_sz <= 8 && node->child &&
+            /* Struct-by-value return: memcpy the local struct into a
+             * 16-byte-aligned .data slot, return rax=&slot. The caller does
+             * the matching rep movsb on ASSIGN. Works for ANY struct size
+             * now that local struct slots are sized correctly. */
+            bool can_sret = ret_sz > 0 && node->child &&
                             node->child->kind == HC_AST_IDENT &&
                             gen->symbols.n_locals > 0;
             if (can_sret) {
@@ -342,8 +340,17 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         size_t tsz = hc_type_size(node->type);
                         if (tsz > 0) size = (int)tsz;
                     }
-                    int offset = gen->symbols.stack_size + 8;
-                    gen->symbols.stack_size += size;
+                    /* A struct/array local must reserve its FULL size, not
+                     * 8 bytes, or a member beyond offset 8 (`s.c`) writes
+                     * past the slot into the saved rbp at [rbp+0] → corrupts
+                     * the frame → crash on leave/ret. Round the reservation
+                     * up to 8 so the +8 base pad stays consistent. The
+                     * offset must ALSO grow by the slot size — a 12-byte
+                     * struct at offset 8 occupies [rbp-8..rbp+3], stomping
+                     * the saved rbp at [rbp+0]. */
+                    int slot = (size < 8) ? 8 : ((size + 7) & ~7);
+                    int offset = gen->symbols.stack_size + slot;
+                    gen->symbols.stack_size += slot;
                     if (gen->symbols.n_locals < HC_MAX_LOCALS) {
                         strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
                                 node->ident, HC_MAX_IDENT_LEN - 1);
@@ -400,12 +407,23 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
            
                         /* Add function parameters to symbol table before compiling body */
             for (int i = 0; i < node->n_params; i++) {
-                int offset = gen->symbols.stack_size + 8;
-                gen->symbols.stack_size += 8;
+                /* A struct param reserves its FULL size (rounded to 8), so
+                 * a member beyond offset 8 has a slot to land in; scalars
+                 * keep the 8-byte slot. */
+                size_t psz = 8;
+                if (node->param_types && node->param_types[i]) {
+                    size_t ts = hc_type_size(node->param_types[i]);
+                    if (ts > 8) psz = (ts + 7) & ~(size_t)7;
+                }
+                int offset = gen->symbols.stack_size + (int)psz;
+                gen->symbols.stack_size += (int)psz;
                 if (gen->symbols.n_locals < HC_MAX_LOCALS) {
                     strncpy(gen->symbols.locals[gen->symbols.n_locals].name,
                             node->param_names[i], HC_MAX_IDENT_LEN - 1);
                     gen->symbols.locals[gen->symbols.n_locals].stack_offset = offset;
+                    gen->symbols.locals[gen->symbols.n_locals].type =
+                        (node->param_types && node->param_types[i])
+                            ? node->param_types[i] : NULL;
                     gen->symbols.n_locals++;
                 }
                 /* Store parameter from register to stack slot */
@@ -440,6 +458,32 @@ int gen_stmt(HCGen *gen, const HCASTNode *node) {
                         emit_byte(gen, 0x4C); emit_byte(gen, 0x89); emit_byte(gen, 0x8D);
                         emit_dword(gen, (uint32_t)(-(int32_t)offset & 0xFFFFFFFF));
                         break;
+                }
+            }
+            /* SECOND PASS — struct-by-value params >8B arrive as POINTERS
+             * (the call site emits the struct's address). After ALL register
+             * stores are done (first pass), dereference-copy each into its
+             * stack slot so the body sees a by-value copy. Doing this inside
+             * the first loop would clobber the later param registers (rsi/rdx/…)
+             * that haven't been stored yet. For each struct param:
+             *   lea rdi,[rbp-off]; mov rsi,[rdi]; mov rcx,psz; rep movsb
+             * → [&slot] <- [incoming addr] (the address was stored at &slot). */
+            for (int i = 0; i < node->n_params; i++) {
+                if (!(node->param_types && node->param_types[i])) continue;
+                HCType *pt = node->param_types[i];
+                if (pt && pt->kind == HC_TYPE_STRUCT && hc_type_size(pt) > 8) {
+                    int off = gen->symbols.locals[i].stack_offset;
+                    size_t psz = (hc_type_size(pt) + 7) & ~(size_t)7;
+                    /* lea rdi, [rbp - off] */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8D); emit_byte(gen, 0xBD);
+                    emit_dword(gen, (uint32_t)(-(int32_t)off & 0xFFFFFFFF));
+                    /* rsi = [rdi]  (incoming address) */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0x8B); emit_byte(gen, 0x37);
+                    /* mov rcx, psz */
+                    emit_byte(gen, 0x48); emit_byte(gen, 0xC7); emit_byte(gen, 0xC1);
+                    emit_dword(gen, (uint32_t)psz);
+                    /* rep movsb */
+                    emit_rep_movsb(gen);
                 }
             }
            

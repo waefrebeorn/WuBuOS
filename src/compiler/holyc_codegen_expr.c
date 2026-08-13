@@ -1151,13 +1151,11 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
              * emit_var_store copies only 8 bytes — same 8-byte-leak bug for
              * rhs IDENT, but we leave it untouched for this wave. */
             bool rhs_is_call = node->right && node->right->kind == HC_AST_FUNC_CALL;
-            /* Full-rep-movsb path only fires for <=8-byte struct returns:
-             * - callee RETURN uses rep movsb sized to ret_sz
-             * - caller (us) does rep movsb from &slot to &lhs
-             * - arg passing >8 bytes is unsupported (caller passes first 8
-             *   bytes in rdi only), so for those structs the callee would
-             *   read a corrupt copy. We refuse rather than crash. */
-            bool sret_supported = lhs_sz > 0 && lhs_sz <= 8 && rhs_is_call &&
+            /* rep movsb from the callee's &slot to &lhs for struct-return
+             * calls of ANY size. (The legacy 8-byte-only arg passing is a
+             * SEPARATE limitation — it only affects calling a >8B-returning
+             * function, not the return+assign path here.) */
+            bool sret_supported = lhs_sz > 0 && rhs_is_call &&
                                   node->left->kind == HC_AST_IDENT;
             if (sret_supported) {
                 int off = 0, is_global = 0;
@@ -1269,7 +1267,16 @@ int gen_expr(HCGen *gen, const HCASTNode *node) {
                 }
                 /* Evaluate register args right-to-left to avoid clobbering */
                 for (int i = (n_args < 6 ? n_args - 1 : 5); i >= 0; i--) {
-                    gen_expr(gen, node->args[i]);
+                    /* Struct-by-value arg >8B: the callee expects a POINTER
+                     * (its param prologue deref-copies). Emit the address,
+                     * not the packed value. */
+                    HCType *arg_t = expr_static_type(gen, node->args[i]);
+                    if (arg_t && arg_t->kind == HC_TYPE_STRUCT &&
+                        hc_type_size(arg_t) > 8) {
+                        emit_base_addr(gen, node->args[i]);
+                    } else {
+                        gen_expr(gen, node->args[i]);
+                    }
                     switch (i) {
                         case 0: emit_mov_rdi_rax(gen); break;  /* arg0 → rdi */
                         case 1: /* mov rsi, rax: 48 89 C6 */

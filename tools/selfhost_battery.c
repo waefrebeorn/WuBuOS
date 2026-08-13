@@ -168,6 +168,22 @@ static const Probe PROBES[] = {
     {"call member sum", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} f().a+f().b;", 49},
     {"call member arg", "int f(int x){return x+1;} struct S{int a;}; struct S g(){struct S s; s.a=42; return s;} f(g().a);", 43},
     {"call member mul", "struct S{int a;int b;}; struct S f(){struct S s; s.a=42; s.b=7; return s;} f().a*f().b;", 294},
+    /* ---- full SysV sret: >8B struct return + arg passing ----
+     * Local struct slots sized to the struct; param slots sized + deref
+     * copy; struct args >8B passed by address; long long (two tokens). */
+    {"12B local c", "struct S{int a;int b;int c;}; int g(){struct S s; s.a=10; s.b=20; s.c=30; return s.c;} g();", 30},
+    {"12B ret r.c", "struct S{int a;int b;int c;}; struct S f(){struct S s; s.a=10; s.b=20; s.c=30; return s;} struct S r; r=f(); r.c;", 30},
+    {"12B ret sum", "struct S{int a;int b;int c;}; struct S f(){struct S s; s.a=10; s.b=20; s.c=30; return s;} struct S r; r=f(); r.a+r.b+r.c;", 60},
+    {"12B call f().c", "struct S{int a;int b;int c;}; struct S f(){struct S s; s.a=10; s.b=20; s.c=30; return s;} f().c;", 30},
+    {"longlong sizeof", "sizeof(long long);", 8},
+    {"longlong struct sz", "struct S{long long a; long long b;}; sizeof(struct S);", 16},
+    {"16B ret r.b", "struct S{long long a; long long b;}; struct S f(){struct S s; s.a=9; s.b=8; return s;} struct S r; r=f(); r.b;", 8},
+    {"12B pass arg", "struct S{int a;int b;int c;}; int f(struct S x){return x.a+x.b+x.c;} struct S s; s.a=10; s.b=20; s.c=30; f(s);", 60},
+    {"struct+int arg", "struct S{int a;int b;int c;}; int f(struct S x, int n){return x.a+x.b+x.c+n;} struct S s; s.a=10; s.b=20; s.c=30; f(s,-8);", 52},
+    {"int+struct arg", "struct S{int a;int b;int c;}; int f(int n, struct S x){return n+x.a+x.b+x.c;} struct S s; s.a=10; s.b=20; s.c=30; f(-8,s);", 52},
+    {"2 struct args", "struct S{int a;int b;int c;}; int f(struct S x, struct S y){return x.a+x.b+y.c;} struct S s; s.a=10; s.b=20; s.c=30; f(s,s);", 60},
+    {"16B pass arg", "struct S{long long a;long long b;}; long long f(struct S x){return x.a+x.b;} struct S s; s.a=9; s.b=8; f(s);", 17},
+    {"arg+ret nested", "struct S{int a;int b;int c;}; int f(struct S x){return x.a+x.b+x.c;} struct S g(){struct S s; s.a=10; s.b=20; s.c=30; return s;} f(g());", 60},
 };
 
 #define NPROBES ((int)(sizeof(PROBES)/sizeof(PROBES[0])))

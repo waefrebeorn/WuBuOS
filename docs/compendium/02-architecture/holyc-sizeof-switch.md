@@ -1,6 +1,6 @@
-# sizeof + switch + goto + multi-dim arrays + nested pointer access + sret + f().a
+# sizeof + switch + goto + multi-dim arrays + nested ptr + sret + f().a + full sret
 
-**Status: SHIPPED + GREEN** (2026-08-13). Closes seven kernel-critical C11
+**Status: SHIPPED + GREEN** (2026-08-13). Closes eight kernel-critical C11
 gaps the compiler needed to compile the kernel + desktop.
 
 ## sizeof
@@ -134,8 +134,45 @@ Caller ASSIGN for a struct-typed LHS with RHS being a FUNC_CALL:
    result), rdi=&lhs, rsi=&slot; `mov rcx, lhs_sz; rep movsb` → &lhs ← &slot.
 
 Result: byte-exact memcpy of the returned struct into the LHS. Verified
-on `{int a;int b;}` (8B) and `{int a;}` (4B) structs; larger structs
-fall through to the legacy 8-byte path (see Honest remainder).
+on `{int a;int b;}` (8B) and `{int a;}` (4B) structs. (Prior to this
+wave the >8B case fell through to the legacy 8-byte path — now fully
+handled, see the next section.)
+
+## FULL SysV sret: >8B struct return + arg passing (2026-08-13, battery 117→130)
+
+This wave closed the >8B struct-by-value gap ENTIRELY (return AND arg
+passing). Battery **117 → 130 probes, 130/130 PASS, 0 WRONG, 0 CRASH**.
+Four real fixes:
+
+1. **Local struct slots sized to the struct.** A `struct S{int a;int b;
+   int c;}` local (12B) previously got an 8-byte slot, so writing `s.c`
+   at offset 8 stomped the saved rbp at [rbp+0] → corrupted frame →
+   crash on leave/ret. Fix: reserve `(size+7)&~7` and grow the offset by
+   the slot size (`offset = stack_size + slot`, not `+8`). Verified
+   `12B local c` = 30.
+
+2. **`long long` (two `long` tokens).** `long long x;` lexes as two
+   `HC_KW_I64` tokens; parse_type consumed one and the second broke the
+   type. Fix: after consuming `long`, optionally consume a second `long`
+   (both 64-bit on x86-64). `sizeof(long long)` = 8 now (was 0).
+
+3. **Full-size return path.** Removed the `ret_sz <= 8` gate on RETURN and
+   ASSIGN — the rep movsb path now handles ANY struct size (the gate
+   existed only because the local slot overflow made >8B look unsupported).
+   With slots sized correctly, `struct S{int a;int b;int c;} f(){...return
+   s;} struct S r; r=f(); r.c;` = 30.
+
+4. **Struct-by-value ARG passing >8B by address.** The call site emits
+   the struct's ADDRESS for >8B struct args (not the packed value); the
+   callee's param prologue, in a SECOND pass AFTER all registers are
+   stored (so it doesn't clobber the later param registers), deref-copies
+   the struct into its (now full-sized) slot. Param slots are also sized
+   to the struct. This makes `f(s)`, `f(s,-8)`, `f(-8,s)`, `f(s,s)`, and
+   `f(g())` (nested struct-return as arg) all correct.
+
+Verified: 12B return (`r.c`, `r.a+r.b+r.c`, `f().c`), 16B return (`r.b`),
+12B/16B arg passing, struct+int and int+struct mixes, 2 struct args,
+nested `f(g())`. `long long` structs `sizeof`=16.
 
 ## Member access on a struct-return call: f().a
 
@@ -161,28 +198,25 @@ member as arg), `f().a*f().b`. Battery 112 → 117 probes.
 - No `case`/`default` duplicate detection.
 - No jump-table optimization — linear compare chain, O(n) dispatch.
 - `sizeof` of a VLA unsupported (arrays are compile-time sized).
-- **Struct-by-value RETURN >8 bytes** — partial support. ≤8-byte struct
-  returns now go through a proper rep movsb sret path (callee copies
-  into a 16-byte-aligned .data slot, returns rax=&slot; caller ASSIGN
-  does rep movsb from &slot to &lhs). For >8-byte structs the legacy
-  8-byte store is used silently — bytes past offset 8 are lost. Calls
-  into functions with >8B struct returns crash because arg passing
-  still only delivers the first 8 bytes (callee reads a corrupt copy).
-  Full SysV sret ABI (hidden first-arg pointer + callee write-through)
-  is the proper fix; not yet implemented.
-- **Struct-by-value ARG passing >8 bytes** — same root cause as the >8B
-  return remainder above; the caller only stores 8 bytes into rdi.
+- **Struct-by-value >8B is now FULLY supported** (return AND arg passing)
+  as of 2026-08-13 — see the "FULL SysV sret" section above. Structs are
+  passed/returned by address + deref-copy (our uniform ABI), which is
+  functionally equivalent to SysV sret for self-hosted code. The one
+  caveat: this ABI is internally consistent within our compiler; it does
+  NOT match gcc's exact register convention for interop with separately
+  compiled C (irrelevant for a self-hosting kernel compiler).
 
 ## Battery additions (selfhost_battery.c)
 
 7 `sizeof` + 6 `switch` + 3 `goto` + 7 `multi-dim array` + 7 `nested
-pointer/deref` + 4 `sret return (≤8B)` + 5 `call member f().a` probes →
-battery **78 → 117 probes, 117/117 PASS, 0 WRONG, 0 CRASH**. (The
-nested-struct sizeof probe exposed a wrong *expectation* on my part —
-gcc confirms 8, compiler was right — fixed, not a compiler bug.)
+pointer/deref` + 4 `sret return (≤8B)` + 5 `call member f().a` + 13
+`full SysV sret (>8B return + arg)` probes → battery **78 → 130 probes,
+130/130 PASS, 0 WRONG, 0 CRASH**. (The nested-struct sizeof probe exposed
+a wrong *expectation* on my part — gcc confirms 8, compiler was right —
+fixed, not a compiler bug.)
 
 ## Gates (all fresh-verified)
 
-- battery 117/117 PASS (was 78) — no regression
+- battery 130/130 PASS (was 78) — no regression
 - test_holyc 84/84, test_holyc_agi 11/11
 - test_hedge PASS, test_dram_hedge 294/294
