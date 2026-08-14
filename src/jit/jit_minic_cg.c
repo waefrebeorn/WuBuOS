@@ -412,39 +412,61 @@ static int cg_const_eval(CGCompiler *cc, int64_t *out) {
     return cg_const_eval_compare(cc, out);
 }
 
+static int is_power_of_2(int64_t v) {
+    return v > 0 && (v & (v - 1)) == 0;
+}
+
+static int ilog2(int64_t v) {
+    int shift = 0;
+    while (v > 1) { v >>= 1; shift++; }
+    return shift;
+}
+
 /* -- Expression compiler ------------------------------------------ */
 
-static void cg_compile_primary(CGCompiler *cc, CGReg dst) {
+static int cg_compile_primary(CGCompiler *cc, CGReg dst, int64_t *out_const) {
+    if (out_const) *out_const = 0;
     if (cg_consume(cc, TOK_LPAREN)) {
         cg_compile_expr(cc, dst);
         cg_consume(cc, TOK_RPAREN);
-        return;
+        return 0;  /* not a simple constant */
     }
     if (cg_cur(cc, TOK_NUMBER)) {
+        if (out_const) *out_const = cc->cur_tok.ival;
         cg_mov_imm(cc->cg, dst, cc->cur_tok.ival);
         cg_consume(cc, TOK_NUMBER);
-        return;
+        return 1;  /* constant */
     }
     if (cg_cur(cc, TOK_HEX)) {
+        if (out_const) *out_const = cc->cur_tok.ival;
         cg_mov_imm(cc->cg, dst, cc->cur_tok.ival);
         cg_consume(cc, TOK_HEX);
-        return;
+        return 1;  /* constant */
     }
     if (cg_cur(cc, TOK_MINUS)) {
         cg_consume(cc, TOK_MINUS);
-        cg_compile_primary(cc, dst);
-        /* Negate: dst = 0 - dst */
-        cg_mov_imm(cc->cg, CG_REG_9, 0);
-        cg_sub_reg(cc->cg, dst, CG_REG_9, dst);
-        return;
+        int64_t v;
+        if (cg_compile_primary(cc, dst, &v)) {
+            /* Negate: dst = 0 - dst */
+            cg_mov_imm(cc->cg, CG_REG_9, 0);
+            cg_sub_reg(cc->cg, dst, CG_REG_9, dst);
+            if (out_const) *out_const = -v;
+            return 1;
+        }
+        cg_mov_imm(cc->cg, dst, 0);
+        return 0;
     }
     if (cg_cur(cc, TOK_TILDE)) {
         cg_consume(cc, TOK_TILDE);
-        cg_compile_primary(cc, dst);
-        /* NOT: dst = dst XOR -1 */
-        cg_mov_imm(cc->cg, CG_REG_9, -1);
-        cg_eor_reg(cc->cg, dst, dst, CG_REG_9);
-        return;
+        int64_t v;
+        if (cg_compile_primary(cc, dst, &v)) {
+            cg_mov_imm(cc->cg, CG_REG_9, -1);
+            cg_eor_reg(cc->cg, dst, dst, CG_REG_9);
+            if (out_const) *out_const = ~v;
+            return 1;
+        }
+        cg_mov_imm(cc->cg, dst, 0);
+        return 0;
     }
     if (cg_cur(cc, TOK_IDENT)) {
         const char *name = cc->cur_tok.text;
@@ -468,33 +490,59 @@ static void cg_compile_primary(CGCompiler *cc, CGReg dst) {
         } else if (r != dst) {
             cg_mov_reg(cc->cg, dst, r);
         }
-        return;
+        return 0;
     }
     /* Unknown token */
     cg_mov_imm(cc->cg, dst, 0);
+    return 0;
 }
 
 static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
-    cg_compile_primary(cc, dst);
+    cg_compile_primary(cc, dst, NULL);
     for (;;) {
         if (cg_consume(cc, TOK_STAR)) {
+            int64_t rhs_const;
             CGReg rhs = CG_REG_8;
-            cg_compile_primary(cc, rhs);
-            /* Ensure dst and rhs are different for mul */
-            if (dst == rhs) {
-                cg_mov_reg(cc->cg, CG_REG_8, dst);
-                cg_mul_reg(cc->cg, dst, CG_REG_8, rhs);
+            int is_const = cg_compile_primary(cc, rhs, &rhs_const);
+            /* Strength reduction: x * (2^n) -> x << n */
+            if (is_const && is_power_of_2(rhs_const)) {
+                cg_lsl_imm(cc->cg, dst, dst, (uint8_t)ilog2(rhs_const));
+            } else if (is_const && rhs_const == 0) {
+                cg_mov_imm(cc->cg, dst, 0);
+            } else if (is_const && rhs_const == 1) {
+                /* x * 1 = x, nothing to do */
             } else {
-                cg_mul_reg(cc->cg, dst, dst, rhs);
+                /* Ensure dst and rhs are different for mul */
+                if (dst == rhs) {
+                    cg_mov_reg(cc->cg, CG_REG_8, dst);
+                    cg_mul_reg(cc->cg, dst, CG_REG_8, rhs);
+                } else {
+                    cg_mul_reg(cc->cg, dst, dst, rhs);
+                }
             }
         } else if (cg_consume(cc, TOK_SLASH)) {
+            int64_t rhs_const;
             CGReg rhs = CG_REG_8;
-            cg_compile_primary(cc, rhs);
-            cg_div_reg(cc->cg, dst, dst, rhs);
+            int is_const = cg_compile_primary(cc, rhs, &rhs_const);
+            /* Strength reduction: x / (2^n) -> x >> n */
+            if (is_const && is_power_of_2(rhs_const)) {
+                cg_asr_imm(cc->cg, dst, dst, (uint8_t)ilog2(rhs_const));
+            } else if (is_const && rhs_const == 1) {
+                /* x / 1 = x, nothing to do */
+            } else {
+                cg_div_reg(cc->cg, dst, dst, rhs);
+            }
         } else if (cg_consume(cc, TOK_PERCENT)) {
+            int64_t rhs_const;
             CGReg rhs = CG_REG_8;
-            cg_compile_primary(cc, rhs);
-            cg_mod_reg(cc->cg, dst, dst, rhs);
+            int is_const = cg_compile_primary(cc, rhs, &rhs_const);
+            /* Strength reduction: x % (2^n) -> x & (2^n - 1) */
+            if (is_const && is_power_of_2(rhs_const)) {
+                cg_mov_imm(cc->cg, CG_REG_9, rhs_const - 1);
+                cg_and_reg(cc->cg, dst, dst, CG_REG_9);
+            } else {
+                cg_mod_reg(cc->cg, dst, dst, rhs);
+            }
         } else {
             break;
         }
