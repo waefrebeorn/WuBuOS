@@ -2,7 +2,7 @@
 
 # JIT source files (always linked together — self-hosted encoder/disasm/regalloc/minic)
 # -ldl is needed for dlopen/dlsym in the MIR backend
-JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_disasm.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_minic_cg.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_branch_profile.c -ldl
+JIT_SRCS = $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(JIT)/wubu_disasm.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_minic_cg.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_branch_profile.c -ldl
 
 WUBU_DOS_EMU_OBJS = $(RT)/wubu_dos_emu.o $(RT)/wubu_dos_emu_mem.o $(RT)/wubu_dos_emu_regs.o $(RT)/wubu_dos_emu_alu.o $(RT)/wubu_dos_emu_int.o $(RT)/wubu_dos_emu_decode.o
 
