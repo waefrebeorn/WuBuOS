@@ -924,12 +924,7 @@ static void compile_if_stmt(MinicCompiler *mc) {
 static void compile_while_stmt(MinicCompiler *mc) {
     minic_advance(&mc->lex);
 
-    /* #15 branch alignment: align the loop head to a 16-byte boundary with
-     * single-byte NOPs so the loop-top target is 16-byte aligned. x86 loop
-     * bodies re-fetch the target each iteration; 16B alignment of the back-edge
-     * target avoids a 2-cycle front-end penalty on modern cores. Only pad when
-     * within the encoder's spare capacity (padding is harmless: NOPs are
-     * skipped by the pipeline). */
+    /* #15 branch alignment: align the loop head to a 16-byte boundary. */
     size_t pad = (16 - (mc->enc.pos & 15)) & 15;
     for (size_t i = 0; i < pad; i++) wx86_emit_byte(&mc->enc, 0x90);
     size_t loop_top = mc->enc.pos;
@@ -959,11 +954,23 @@ static void compile_while_stmt(MinicCompiler *mc) {
     }
     MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, branch_cc));
     size_t exit_patch = wx86_jcc_rel32_pos(&mc->enc);
-    /* Subsystem C: profile the loop-condition fallthrough (1 increment / jcc) */
+    /* Subsystem C: profile the loop-condition fallthrough */
     mc_emit_profile_inc(mc, 1 /* not-taken */);
 
+    /* ===== TWO-PASS LOOP: capture body, analyze, then optimize ===== */
     minic_expect(&mc->lex, TOK_LBRACE);
-    /* Subsystem B: capture the loop body for analysis. */
+
+    /* Pass 1: Compile body into a temporary encoder so we can analyze it
+     * before committing to the final code layout. This enables:
+     *   - #13 LICM: hoist invariant loads into registers before the loop
+     *   - #12 strength reduction: replace iv*K with constant add
+     *   - #14 layout: reorder blocks based on profile counters */
+    Wx86Enc body_enc;
+    wx86_enc_init_dynamic(&body_enc, 4096);
+    Wx86Enc saved_enc = mc->enc;   /* save a COPY of the main encoder */
+    mc->enc = body_enc;            /* switch to temp buffer */
+
+    /* Capture the loop body for analysis AND compile to temp buffer. */
     mc->capture_loop = true;
     minic_loop_body_init(&mc->loop_body);
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
@@ -971,7 +978,7 @@ static void compile_while_stmt(MinicCompiler *mc) {
     mc->capture_loop = false;
     minic_expect(&mc->lex, TOK_RBRACE);
 
-    /* Subsystem B: run the loop analysis engine on the captured body. */
+    /* Analyze the captured body. */
     if (mc->loop_body.n_stmts > 0) {
         int64_t trip; char iv[64]; int64_t stride;
         int n_ivs = minic_loop_analyze(&mc->loop_body, 0, '<', 0,
@@ -985,6 +992,29 @@ static void compile_while_stmt(MinicCompiler *mc) {
         }
         mc->loop_n_invariants = minic_loop_invariant_count(&mc->loop_body);
     }
+
+    /* #13 LICM: hoist loop-invariant comparison operand into a register.
+     * If the loop condition is `var < invariant` (or `invariant < var`) and
+     * the invariant variable is NOT written in the body, load it into r11
+     * before the loop and compare against r11 instead of the stack slot.
+     * This saves one memory load per iteration. */
+    /* Detect: the condition compiled a cmp rax,rcx where rcx was loaded from
+     * a stack slot for a variable not written in the body. We patch the
+     * cmp to use r11 and emit `mov r11, [rbp-slot]` before the loop top. */
+    /* For this wave: the analysis result (loop_n_invariants) is stored. The
+     * actual register hoisting requires tracking which stack slot the cmp
+     * used, which we add in the next pass. The two-pass infrastructure is
+     * now in place for this. */
+
+    /* Restore main encoder and emit the analyzed body. */
+    body_enc = mc->enc;
+    mc->enc = saved_enc;
+
+    /* Emit the body code from the temporary buffer. */
+    for (size_t i = 0; i < body_enc.pos; i++) {
+        wx86_emit_byte(&mc->enc, body_enc.buf[i]);
+    }
+    wx86_enc_free(&body_enc);
 
     /* Jump back to condition */
     MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));
@@ -1258,38 +1288,13 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
         xra_emit_load_args(&mc->ra, &mc->enc);
     }
 
-    mc->in_func = 1;
-
-    /* Compile the body first into a temporary encoder to count locals.
-     * (Actually, locals are declared as they appear, so the stack slots
-     * are allocated during compilation. But we need to pre-allocate stack
-     * space for the maximum depth of push operations in expressions.)
-     * 
-     * Simple approach: after compiling the body, we know the max stack_offset.
-     * But we need to SUB RSP before the body. So we use a conservative
-     * estimate: count the body's declarations, then emit RSP adjustment.
-     * 
-     * For now: we know locals go from stack_offset downward.
-     * We need RSP to be at or below the lowest local.
-     * After pushing args, RSP = RBP - args_size.
-     * Locals start at RBP - (args_size + 8), going down.
-     * We need to SUB RSP, (total_locals * 8) to make room.
-     *
-     * Actually, we can solve this differently: instead of mov [rbp+X], rax
-     * for locals, we could use RSP-relative addressing. But that requires
-     * tracking RSP changes, which is hard with push/pop.
-     *
-     * Easiest fix: move RSP down by a generous amount to avoid push
-     * overwriting locals. We track the max stack depth used by push. */
-
-    /* We'll use a two-pass approach:
-     * 1. Reset encoder, compile function body to count locals
-     * 2. Discard, re-compile with proper stack allocation
-     * 
-     * But that's complex. Instead, let's pre-allocate 256 bytes of stack
-     * which is more than enough for most functions, and adjust later. */
-    MC_EMIT(mc, wx86_sub_reg_imm32(&mc->enc, WREG_RSP, 256));
-    /* After sub rsp, 256: rsp = rbp - 8*n - 256 */
+    /* Emit stack frame allocation with a placeholder immediate. We patch it
+     * after compiling the body once we know the actual stack needed.
+     * For now, emit sub rsp, 0 (will be patched). Encoding: 83 EC imm8 or
+     * 81 EC imm32. We use imm32 form (5 bytes: 48 81 EC imm32) with
+     * placeholder 0, and patch the 4 bytes after compilation. */
+    size_t frame_patch_pos = mc->enc.pos + 3;  /* offset of the imm32 */
+    MC_EMIT(mc, wx86_sub_reg_imm32(&mc->enc, WREG_RSP, 0));  /* placeholder */
 
     mc->in_func = 1;
 
@@ -1302,6 +1307,18 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
     minic_expect(&mc->lex, TOK_RBRACE);
 
     mc->in_func = 0;
+
+    /* Patch the stack frame size: we need abs(stack_offset) bytes for locals,
+     * plus 256 bytes of scratch space for push/pop expression evaluation.
+     * Round up to 16-byte alignment. */
+    int frame_size = (-mc->scope.stack_offset) + 256;
+    frame_size = (frame_size + 15) & ~15;  /* align to 16 bytes */
+    if (frame_size < 256) frame_size = 256;  /* minimum frame */
+    /* Patch the 4-byte immediate at frame_patch_pos */
+    mc->enc.buf[frame_patch_pos + 0] = (uint8_t)(frame_size & 0xFF);
+    mc->enc.buf[frame_patch_pos + 1] = (uint8_t)((frame_size >> 8) & 0xFF);
+    mc->enc.buf[frame_patch_pos + 2] = (uint8_t)((frame_size >> 16) & 0xFF);
+    mc->enc.buf[frame_patch_pos + 3] = (uint8_t)((frame_size >> 24) & 0xFF);
 
     /* Epilogue */
     if (mc->use_xra) {
