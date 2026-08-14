@@ -106,8 +106,27 @@ void minic_lex_init(MinicLexer *l, const char *src) {
 }
 
 MinicToken *minic_cur(MinicLexer *l) { return &l->cur; }
+MinicToken *minic_peek(MinicLexer *l) { return &l->peek; }
 
 void minic_advance(MinicLexer *l) { minic_lex_next(l); }
+
+/* 2-token lookahead without consuming: saves lexer state, peeks ahead, restores.
+ * Returns the token 2 positions past the current one. */
+MinicToken minic_peek2(MinicLexer *l) {
+    /* Save full mutable state */
+    MinicToken save_cur = l->cur, save_peek = l->peek;
+    int save_pos = l->pos;
+    /* Advance twice */
+    minic_lex_next(l);
+    MinicToken result = l->cur;
+    minic_lex_next(l);
+    result = l->cur;  /* 2 ahead of original cur */
+    /* Restore */
+    l->cur = save_cur;
+    l->peek = save_peek;
+    l->pos = save_pos;
+    return result;
+}
 
 int minic_expect(MinicLexer *l, MinicTokType t) {
     if (minic_cur(l)->type == t) { minic_advance(l); return 0; }

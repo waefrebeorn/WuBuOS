@@ -34,8 +34,8 @@ typedef struct {
 } MinicToken;
 
 typedef struct {
-    const char   *src;
-    int           pos;
+    const char    *src;
+    int            pos;
     MinicToken    cur;
     MinicToken    peek;
 } MinicLexer;
@@ -44,6 +44,8 @@ typedef struct {
 void   minic_lex_next(MinicLexer *l);
 void   minic_lex_init(MinicLexer *l, const char *src);
 MinicToken *minic_cur(MinicLexer *l);
+MinicToken *minic_peek(MinicLexer *l);     /* 1-token lookahead */
+MinicToken  minic_peek2(MinicLexer *l);    /* 2-token lookahead (no consume) */
 void   minic_advance(MinicLexer *l);
 int    minic_expect(MinicLexer *l, MinicTokType t);
 int    minic_is_type(MinicTokType t);

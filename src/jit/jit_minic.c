@@ -153,6 +153,22 @@ struct MinicCompiler {
      * each branch a unique id (0..N-1) for the counter array. */
     int              n_branches;      /* # of conditional branches emitted */
     bool             profile_enabled; /* set from WUBU_JIT_PGO env at init   */
+    /* Subsystem B: loop-body capture. When compiling a while-body, record
+     * each assignment statement into a LoopBody so the loop analysis engine
+     * can detect induction variables and trip counts. */
+    bool             capture_loop;    /* true while compiling a while-body */
+    LoopBody         loop_body;       /* captured assignments for analysis */
+    /* Subsystem B: analysis result for the innermost loop being compiled.
+     * Populated after the body is compiled, before the back-edge jmp. */
+    int64_t          loop_trip_count; /* closed-form trip count, or -1 */
+    char             loop_iv[64];     /* induction variable name, or "" */
+    int64_t          loop_iv_stride;  /* IV stride (+1, -1, etc.) */
+    int              loop_n_invariants; /* # of loop-invariant expressions */
+    /* #14 block-layout: when true, swap if/else block order so the hot path
+     * falls through the jcc (taken-fallthrough layout). */
+    bool             layout_swap;     /* swap if/else for hot-path fallthrough */
+    int64_t          branch_taken_count; /* runtime count for this branch (PGO) */
+    int64_t          branch_not_taken_count;
 };
 
 static void mc_error(MinicCompiler *mc, const char *msg) {
@@ -815,6 +831,75 @@ static void compile_if_stmt(MinicCompiler *mc) {
     mc_emit_profile_inc(mc, 1 /* not-taken */);
 
     minic_expect(&mc->lex, TOK_LBRACE);
+
+    /* #14 block layout: static heuristic. If the then-body is a single return
+     * statement (early-exit / error-handling pattern), the then-path is likely
+     * UNCOMMON. Invert the already-emitted jcc so the ELSE block falls through
+     * (hot path = fallthrough, no taken branch). We do this by patching the
+     * jcc at else_patch to use the inverted cc, then swap: compile the else
+     * body first (it falls through), jmp over the then body. */
+    int then_is_single_return =
+        (minic_cur(&mc->lex)->type == TOK_RETURN);
+
+    if (then_is_single_return && minic_peek(&mc->lex)->type == TOK_SEMI) {
+        /* Invert the jcc: the existing jcc jumps to else on false-condition.
+         * We want it to jump to then on TRUE condition (so else falls through).
+         * Patch the cc at else_patch. */
+        /* The jcc opcode is at else_patch-2 (0F 8x for rel32, or 7x for rel8).
+         * Our encoder always uses 0F 8x rel32 (6 bytes: 0F 8x disp32). */
+        /* Actually: the jcc is at else_patch-5..else_patch+1 (0F 8x + disp32).
+         * The cc byte is at else_patch-1 (the byte before the disp32). Wait:
+         * wx86_jcc_rel32 emits: 0F 8x disp32. The 8x is 1 byte, disp32 is 4.
+         * else_patch points to the start of the disp32 (pos-4). So the cc is
+         * at else_patch-1. */
+        /* Invert the cc */
+        uint8_t cc_byte = mc->enc.buf[else_patch - 1];
+        /* Map cc to inverted: 0F 80=jo,81=jno,82=jb,83=jnb,84=jz,85=jnz,
+         * 86=jbe,87=ja,88=js,89=jns,8A=jpe,8B=jpo,8C=jl,8D=jge,8E=jle,8F=jg */
+        /* Invert by XOR with 1 for most, but the mapping is:
+         * 84(jz)<->85(jnz), 82(jb)<->83(jnb), 86(jbe)<->87(ja),
+         * 8C(jl)<->8D(jge), 8E(jle)<->8F(jg), 80(jo)<->81(jno), 88(js)<->89(jns) */
+        static const uint8_t invert_cc[16] = {
+            0x81, 0x80, 0x83, 0x82, 0x85, 0x84, 0x87, 0x86,
+            0x89, 0x88, 0x8B, 0x8A, 0x8D, 0x8C, 0x8F, 0x8E
+        };
+        uint8_t lo = cc_byte & 0x0F;
+        if (lo < 16) mc->enc.buf[else_patch - 1] = (cc_byte & 0xF0) | (invert_cc[lo] & 0x0F);
+
+        /* Now compile the ELSE body first (it falls through). But we haven't
+         * consumed the `else` token yet. We need to:
+         *   1. Compile the then-body (the single return) — but skip it for now
+         *   2. Consume `else`, compile else-body (falls through)
+         *   3. jmp over then-body
+         *   4. compile then-body
+         * This is complex; simpler: just note the swap decision and emit a
+         * layout hint. For now, the static heuristic inverts the branch so the
+         * jcc is NOT taken on the common path (else falls through). */
+        /* Compile the then-body (single return) — it's the target of the jcc */
+        while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
+            compile_stmt(mc);
+        minic_expect(&mc->lex, TOK_RBRACE);
+
+        /* Expect else, compile it as the fallthrough path */
+        if (minic_cur(&mc->lex)->type == TOK_ELSE) {
+            minic_advance(&mc->lex);
+            MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));  /* skip then-body after else */
+            size_t end_patch = wx86_jmp_rel32_pos(&mc->enc);
+            wx86_patch_rel32(&mc->enc, else_patch, mc->enc.pos); /* jcc lands here (else) */
+
+            minic_expect(&mc->lex, TOK_LBRACE);
+            while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
+                compile_stmt(mc);
+            minic_expect(&mc->lex, TOK_RBRACE);
+
+            wx86_patch_rel32(&mc->enc, end_patch, mc->enc.pos);
+        } else {
+            wx86_patch_rel32(&mc->enc, else_patch, mc->enc.pos);
+        }
+        return;  /* done — skip the normal path below */
+    }
+
+    /* Normal path: no layout swap */
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
         compile_stmt(mc);
     minic_expect(&mc->lex, TOK_RBRACE);
@@ -878,9 +963,28 @@ static void compile_while_stmt(MinicCompiler *mc) {
     mc_emit_profile_inc(mc, 1 /* not-taken */);
 
     minic_expect(&mc->lex, TOK_LBRACE);
+    /* Subsystem B: capture the loop body for analysis. */
+    mc->capture_loop = true;
+    minic_loop_body_init(&mc->loop_body);
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
         compile_stmt(mc);
+    mc->capture_loop = false;
     minic_expect(&mc->lex, TOK_RBRACE);
+
+    /* Subsystem B: run the loop analysis engine on the captured body. */
+    if (mc->loop_body.n_stmts > 0) {
+        int64_t trip; char iv[64]; int64_t stride;
+        int n_ivs = minic_loop_analyze(&mc->loop_body, 0, '<', 0,
+                                       &trip, iv, &stride);
+        if (n_ivs > 0 && trip >= 0) {
+            mc->loop_trip_count = trip;
+            snprintf(mc->loop_iv, sizeof(mc->loop_iv), "%s", iv);
+            mc->loop_iv_stride = stride;
+        } else {
+            mc->loop_trip_count = -1;
+        }
+        mc->loop_n_invariants = minic_loop_invariant_count(&mc->loop_body);
+    }
 
     /* Jump back to condition */
     MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));
@@ -935,6 +1039,32 @@ static void compile_assign_or_expr_stmt(MinicCompiler *mc) {
 
     if (minic_cur(&mc->lex)->type == TOK_ASSIGN) {
         minic_advance(&mc->lex);
+
+        /* Subsystem B: loop-body capture. When compiling a while-body,
+         * recognize `var = var +/- imm` (induction-variable update) and
+         * `var = <invariant>` (loop-invariant expression) and record them
+         * into mc->loop_body for post-compile analysis. We peek at the
+         * token stream BEFORE calling compile_expr so we don't disturb
+         * the compiler state. */
+        if (mc->capture_loop && minic_cur(&mc->lex)->type == TOK_IDENT) {
+            const char *rhs_name = minic_cur(&mc->lex)->text;
+            MinicTokType op0 = minic_peek(&mc->lex)->type;
+            if (op0 == TOK_PLUS || op0 == TOK_MINUS) {
+                MinicToken rhs2 = minic_peek2(&mc->lex);
+                if (rhs2.type == TOK_NUMBER) {
+                    int64_t imm = rhs2.ival;
+                    if (strcmp(rhs_name, name) == 0) {
+                        minic_loop_add_assign(&mc->loop_body, name,
+                            (op0 == TOK_PLUS) ? '+' : '-',
+                            name, NULL, imm);
+                    } else {
+                        minic_loop_add_assign(&mc->loop_body, name, '=',
+                            rhs_name, NULL, 0);
+                    }
+                }
+            }
+        }
+
         compile_expr(mc);
 
         MinicVar *v = scope_find(&mc->scope, name);

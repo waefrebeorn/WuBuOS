@@ -82,7 +82,7 @@ test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_jit_type test_jit_loop test_jit_branch_profile test_jit_subsystem_integration test_jit_pgo_byte test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
+test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_jit_type test_jit_loop test_jit_branch_profile test_jit_subsystem_integration test_jit_pgo_byte test_jit_loop_consume test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
@@ -133,6 +133,12 @@ test_jit_subsystem_integration:
 test_jit_pgo_byte:
 	WUBU_JIT_PGO=1 $(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_pgo_byte_test.c -o $(JIT)/jit_pgo_byte_test -ldl
 	WUBU_JIT_PGO=1 $(JIT)/jit_pgo_byte_test
+
+# Subsystem B consumer + #14 layout swap: verify loop-body capture feeds the
+# analysis engine, and that single-return then-bodies trigger layout swap.
+test_jit_loop_consume:
+	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_loop_consume_test.c -o $(JIT)/jit_loop_consume_test -ldl
+	$(JIT)/jit_loop_consume_test
 
 test_jit_regalloc:
 	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_regalloc_test.c -o $(JIT)/jit_regalloc_test -ldl
