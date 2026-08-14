@@ -56,6 +56,7 @@ typedef struct {
     char    name[64];
     int     slot;      /* Stack offset from RBP (negative), or arg reg index (0-5) */
     int     is_arg;    /* 1 if function argument (in register), 0 if local stack */
+    int     mty;       /* Subsystem A: type index (I64=0, U8=1, struct=..., -1=unknown) */
 } MinicVar;
 
 typedef struct {
@@ -110,6 +111,7 @@ typedef struct MinicCompiler MinicCompiler;
 static void compile_expr(MinicCompiler *mc);
 static void compile_stmt(MinicCompiler *mc);
 static int mc_try_builtin(MinicCompiler *mc, const char *name, Wx86Reg aregs[6]);
+static void compile_struct_decl(MinicCompiler *mc);
 
 /* -- Compiler State ---------------------------------------------- */
 
@@ -137,6 +139,9 @@ struct MinicCompiler {
     Wx86CC         last_compare_cc;   /* cc of the comparison result */
     bool           last_compare_const0; /* RHS was constant 0 (used test) */
     size_t         cmp_after_pos;     /* encoder pos right after the cmp/test */
+    /* Subsystem A: type system (structs/arrays/pointers) with #19 reorder */
+    MinicTypeRegistry types;
+    int              cur_expr_type;   /* type index of the current expression */
 };
 
 static void mc_error(MinicCompiler *mc, const char *msg) {
@@ -303,6 +308,51 @@ static void compile_primary(MinicCompiler *mc) {
         } else {
             MC_EMIT(mc, wx86_mov_reg_mem(&mc->enc, WREG_RAX, WREG_RBP, v->slot));
         }
+        /* Subsystem A: `p->member` — p is a pointer to a struct (v->mty holds
+         * the struct type index). Load [p + offsetof(member)] using the
+         * reordered offset from the type registry. */
+        if (v->mty > 0 && minic_cur(&mc->lex)->type == TOK_ARROW) {
+            minic_advance(&mc->lex);  /* skip -> */
+            if (minic_cur(&mc->lex)->type == TOK_IDENT) {
+                int off = minic_type_member_offset(&mc->types, v->mty, minic_cur(&mc->lex)->text);
+                int msz = minic_type_member_size(&mc->types, v->mty, minic_cur(&mc->lex)->text);
+                if (off >= 0) {
+                    if (msz == 1)
+                        MC_EMIT(mc, wx86_movzx_byte_reg_mem(&mc->enc, WREG_RAX, WREG_RAX, off));
+                    else
+                        MC_EMIT(mc, wx86_mov_reg_mem(&mc->enc, WREG_RAX, WREG_RAX, off));
+                } else {
+                    mc_error(mc, "unknown struct member");
+                    MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+                }
+                minic_advance(&mc->lex);
+            }
+        }
+        return;
+    }
+
+    if (tok->type == TOK_SIZEOF) {
+        minic_advance(&mc->lex);
+        minic_expect(&mc->lex, TOK_LPAREN);
+        int64_t sz = 0;
+        if (minic_cur(&mc->lex)->type == TOK_STRUCT) {
+            minic_advance(&mc->lex);
+            if (minic_cur(&mc->lex)->type == TOK_IDENT) {
+                MinicType *t = minic_type_find(&mc->types, minic_cur(&mc->lex)->text);
+                if (t) sz = t->size;  /* reordered size */
+                minic_advance(&mc->lex);
+            }
+        } else if (minic_cur(&mc->lex)->type == TOK_LONG ||
+                   minic_cur(&mc->lex)->type == TOK_INT ||
+                   minic_cur(&mc->lex)->type == TOK_I64) {
+            sz = 8; minic_advance(&mc->lex);
+        } else if (minic_cur(&mc->lex)->type == TOK_U8) {
+            sz = 1; minic_advance(&mc->lex);
+        }
+        minic_expect(&mc->lex, TOK_RPAREN);
+        MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, sz));
+        mc->rax_is_const = true;
+        mc->rax_const_val = sz;
         return;
     }
 
@@ -874,6 +924,56 @@ static void compile_stmt(MinicCompiler *mc) {
     else compile_assign_or_expr_stmt(mc);
 }
 
+/* -- Subsystem A: struct declaration ----------------------------- */
+
+/* Parse `struct Name { type member; ... };` and register it with #19 field
+ * reordering. Member types are primitives (I64=long, U8) for this wave; a
+ * later wave can nest structs/arrays. The declaration emits no code. */
+static void compile_struct_decl(MinicCompiler *mc) {
+    minic_advance(&mc->lex);  /* skip 'struct' */
+    if (minic_cur(&mc->lex)->type != TOK_IDENT) {
+        mc_error(mc, "expected struct name");
+        return;
+    }
+    char name[64];
+    snprintf(name, sizeof(name), "%s", minic_cur(&mc->lex)->text);
+    minic_advance(&mc->lex);
+
+    int t = minic_type_new(&mc->types);
+    if (t < 0) { mc_error(mc, "too many types"); return; }
+    MinicType *st = &mc->types.types[t];
+    st->kind = MTY_STRUCT;
+    snprintf(st->name, sizeof(st->name), "%s", name);
+
+    minic_expect(&mc->lex, TOK_LBRACE);
+    while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF) {
+        /* member type: 'long' or 'char' -> I64 / U8 */
+        int mty;
+        if (minic_cur(&mc->lex)->type == TOK_LONG ||
+            minic_cur(&mc->lex)->type == TOK_INT ||
+            minic_cur(&mc->lex)->type == TOK_I64) mty = 0;
+        else if (minic_cur(&mc->lex)->type == TOK_U8) mty = 1;
+        else { minic_advance(&mc->lex); continue; }
+        minic_advance(&mc->lex);
+
+        if (minic_cur(&mc->lex)->type != TOK_IDENT) {
+            mc_error(mc, "expected member name");
+            return;
+        }
+        if (st->n_members < MINIC_MAX_MEMBERS) {
+            MinicMember *m = &st->members[st->n_members++];
+            snprintf(m->name, sizeof(m->name), "%s", minic_cur(&mc->lex)->text);
+            m->mty = mty;
+        }
+        minic_advance(&mc->lex);
+        minic_expect(&mc->lex, TOK_SEMI);
+    }
+    minic_expect(&mc->lex, TOK_RBRACE);
+    minic_expect(&mc->lex, TOK_SEMI);
+
+    minic_type_layout(&mc->types, st);   /* #19 field reordering */
+}
+
 /* -- Function Compiler ------------------------------------------- */
 
 static int compile_func(MinicCompiler *mc, const char *target_fn) {
@@ -899,10 +999,24 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
 
     while (minic_cur(&mc->lex)->type != TOK_RPAREN && minic_cur(&mc->lex)->type != TOK_EOF) {
         if (mc->n_args > 0) minic_expect(&mc->lex, TOK_COMMA);
-        if (!minic_is_type(minic_cur(&mc->lex)->type)) break;
-        minic_advance(&mc->lex);  /* skip type */
+        int arg_mty = 0;   /* default I64 */
+        if (minic_cur(&mc->lex)->type == TOK_STRUCT) {
+            /* struct Name *p — pointer arg; type = struct (for -> access) */
+            minic_advance(&mc->lex);
+            if (minic_cur(&mc->lex)->type == TOK_IDENT) {
+                MinicType *t = minic_type_find(&mc->types, minic_cur(&mc->lex)->text);
+                if (t) arg_mty = minic_type_index(&mc->types, t);
+                minic_advance(&mc->lex);
+            }
+            minic_expect(&mc->lex, TOK_STAR);
+        } else if (!minic_is_type(minic_cur(&mc->lex)->type)) {
+            break;
+        } else {
+            minic_advance(&mc->lex);  /* skip primitive type */
+        }
         if (minic_cur(&mc->lex)->type == TOK_IDENT) {
-            scope_add_arg(&mc->scope, minic_cur(&mc->lex)->text, mc->n_args);
+            MinicVar *v = scope_add_arg(&mc->scope, minic_cur(&mc->lex)->text, mc->n_args);
+            if (v) v->mty = arg_mty;
             minic_advance(&mc->lex);
         }
         mc->n_args++;
@@ -1047,7 +1161,8 @@ JITResult jit_minic_compile(JITContext *ctx,
      * Wrap it: "long fn(long a, long b) { return (expr); }" */
     MinicLexer probe;
     minic_lex_init(&probe, source);
-    int is_expr = !minic_is_type(minic_cur(&probe)->type);
+    int is_expr = !minic_is_type(minic_cur(&probe)->type) &&
+                  minic_cur(&probe)->type != TOK_STRUCT;  /* struct decl, not expr */
 
     char *wrapped = NULL;
     const char *compile_src = source;
@@ -1096,6 +1211,7 @@ JITResult jit_minic_compile(JITContext *ctx,
     memset(&mc, 0, sizeof(mc));
     minic_lex_init(&mc.lex, compile_src);
     wx86_enc_init_dynamic(&mc.enc, 4096);
+    minic_type_registry_init(&mc.types);   /* Subsystem A: type system */
 
     const char *target = (fn_name && fn_name[0]) ? fn_name : NULL;
 
@@ -1127,6 +1243,13 @@ JITResult jit_minic_compile(JITContext *ctx,
 
     /* Compile: walk all function declarations, only emit for target */
     while (minic_cur(&mc.lex)->type != TOK_EOF && !mc.error) {
+        /* Subsystem A: a top-level `struct Name { ... };` registers a type
+         * (with #19 field reordering) in the registry and is skipped for
+         * codegen. */
+        if (minic_cur(&mc.lex)->type == TOK_STRUCT) {
+            compile_struct_decl(&mc);
+            continue;
+        }
         if (!minic_is_type(minic_cur(&mc.lex)->type)) {
             minic_advance(&mc.lex);
             continue;

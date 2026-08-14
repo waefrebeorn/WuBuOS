@@ -96,6 +96,10 @@ int wx86_mov_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
 /* MOV reg, [base + disp] (load from memory) */
 int wx86_mov_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp);
 
+/* MOVZX r64, byte [base+disp] — REX.W + 0F B6 /r. Loads one byte and
+ * zero-extends to 64 bits (for U8 struct members). dst is reg field, base rm. */
+int wx86_movzx_byte_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp);
+
 /* MOV [base + disp], reg (store to memory) */
 int wx86_mov_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src);
 

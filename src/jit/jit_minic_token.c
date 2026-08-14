@@ -48,6 +48,8 @@ void minic_lex_next(MinicLexer *l) {
         else if (strcmp(l->peek.text, "if") == 0)     l->peek.type = TOK_IF;
         else if (strcmp(l->peek.text, "else") == 0)   l->peek.type = TOK_ELSE;
         else if (strcmp(l->peek.text, "while") == 0)  l->peek.type = TOK_WHILE;
+        else if (strcmp(l->peek.text, "struct") == 0) l->peek.type = TOK_STRUCT;
+        else if (strcmp(l->peek.text, "sizeof") == 0) l->peek.type = TOK_SIZEOF;
         else l->peek.type = TOK_IDENT;
         return;
     }
@@ -56,6 +58,20 @@ void minic_lex_next(MinicLexer *l) {
     if (c == '!' && l->src[l->pos+1] == '=') { l->peek.type = TOK_NEQ; l->pos += 2; return; }
     if (c == '<' && l->src[l->pos+1] == '=') { l->peek.type = TOK_LEQ; l->pos += 2; return; }
     if (c == '>' && l->src[l->pos+1] == '=') { l->peek.type = TOK_GEQ; l->pos += 2; return; }
+    if (c == '-' && l->src[l->pos+1] == '>') { l->peek.type = TOK_ARROW; l->pos += 2; return; }
+    if (c == '&' && l->src[l->pos+1] == '&') { l->peek.type = TOK_EOF; l->pos += 2; return; }
+    if (c == '"') {
+        int start = l->pos;
+        l->pos++;
+        while (l->src[l->pos] && l->src[l->pos] != '"') {
+            l->peek.text[l->pos - start - 1] = l->src[l->pos];
+            l->pos++;
+        }
+        if (l->src[l->pos] == '"') l->pos++;
+        l->peek.text[l->pos - start - 1] = '\0';
+        l->peek.type = TOK_STRING;
+        return;
+    }
 
     l->pos++;
     switch (c) {
@@ -71,6 +87,10 @@ void minic_lex_next(MinicLexer *l) {
         case ')': l->peek.type = TOK_RPAREN;  l->peek.text[0] = ')'; break;
         case '{': l->peek.type = TOK_LBRACE;  l->peek.text[0] = '{'; break;
         case '}': l->peek.type = TOK_RBRACE;  l->peek.text[0] = '}'; break;
+        case '[': l->peek.type = TOK_LBRACKET;l->peek.text[0] = '['; break;
+        case ']': l->peek.type = TOK_RBRACKET;l->peek.text[0] = ']'; break;
+        case '.': l->peek.type = TOK_DOT;     l->peek.text[0] = '.'; break;
+        case '&': l->peek.type = TOK_AMP;     l->peek.text[0] = '&'; break;
         case ';': l->peek.type = TOK_SEMI;    l->peek.text[0] = ';'; break;
         case ',': l->peek.type = TOK_COMMA;   l->peek.text[0] = ','; break;
         default:  l->peek.type = TOK_EOF; break;

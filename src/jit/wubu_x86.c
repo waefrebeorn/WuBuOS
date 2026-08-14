@@ -201,6 +201,32 @@ int wx86_mov_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp) {
     return (int)(e->pos - start);
 }
 
+int wx86_movzx_byte_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp) {
+    /* MOVZX r64, byte[base+disp] = REX.W + 0F B6 + modrm [+ sib] [+ disp].
+     * Same addressing as mov_reg_mem but opcode 0F B6 (zero-extend byte). */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(dst, base, true);
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x0F);
+    wx86_emit_byte(e, 0xB6);
+    if (disp == 0 && reg_lo(base) != 5) {
+        wx86_emit_modrm(e, 0, dst, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+    } else if (disp >= -128 && disp <= 127) {
+        wx86_emit_modrm(e, 1, dst, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+        wx86_emit_byte(e, (uint8_t)(disp & 0xFF));
+    } else {
+        wx86_emit_modrm(e, 2, dst, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+        wx86_emit_dword(e, (uint32_t)disp);
+    }
+    return (int)(e->pos - start);
+}
+
 int wx86_mov_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src) {
     /* REX.W + 89 + ModRM (src is reg field) */
     size_t start = e->pos;
