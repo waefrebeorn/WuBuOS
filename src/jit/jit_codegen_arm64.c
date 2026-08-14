@@ -266,6 +266,8 @@ static void arm64_epilogue(CGEncoder *e, int stack_slots) {
 }
 
 /* -- VTable ------------------------------------------------------- */
+static void arm64_cmp_reg_cc(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc);
+
 static const CodeGenVTable arm64_vtable = {
     .name = "arm64",
     .buffer = arm64_buffer,
@@ -292,6 +294,7 @@ static const CodeGenVTable arm64_vtable = {
     .store = arm64_store,
     .cmp_imm = arm64_cmp_imm,
     .cmp_reg = arm64_cmp_reg,
+    .cmp_reg_cc = arm64_cmp_reg_cc,
     .cset = arm64_cset,
     .b_uncond = arm64_b_uncond,
     .b_cond = arm64_b_cond,
@@ -324,4 +327,10 @@ CodeGen *cg_create_arm64(void) {
     cg->backend = 1;
     warm64_enc_init_dynamic(&enc->enc, 4096);
     return cg;
+}
+
+
+static void arm64_cmp_reg_cc(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc) {
+    arm64_cmp_reg(e, rn, rm);
+    arm64_cset(e, rn, cc);
 }

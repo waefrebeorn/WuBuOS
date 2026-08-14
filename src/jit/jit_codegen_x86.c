@@ -335,6 +335,8 @@ static void x86_epilogue(CGEncoder *e, int stack_slots) {
 }
 
 /* -- VTable ------------------------------------------------------- */
+static void x86_cmp_reg_cc(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc);
+
 static const CodeGenVTable x86_vtable = {
     .name = "x86-64",
     .buffer = x86_buffer,
@@ -361,6 +363,7 @@ static const CodeGenVTable x86_vtable = {
     .store = x86_store,
     .cmp_imm = x86_cmp_imm,
     .cmp_reg = x86_cmp_reg,
+    .cmp_reg_cc = x86_cmp_reg_cc,
     .cset = x86_cset,
     .b_uncond = x86_b_uncond,
     .b_cond = x86_b_cond,
@@ -403,4 +406,10 @@ void cg_destroy(CodeGen *cg) {
     }
     free(cg->enc);
     free(cg);
+}
+
+
+static void x86_cmp_reg_cc(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc) {
+    x86_cmp_reg(e, rn, rm);
+    x86_cset(e, rn, cc);
 }

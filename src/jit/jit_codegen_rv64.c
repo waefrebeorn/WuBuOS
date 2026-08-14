@@ -177,6 +177,8 @@ static void rv64_epilogue(CGEncoder *e, int stack_slots) {
     rv64_ret(&rv64_enc(e)->enc);
 }
 
+static void rv64_cmp_reg_cc(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc);
+
 static const CodeGenVTable rv64_vtable = {
     .name = "rv64",
     .buffer = rv64_buffer,
@@ -203,6 +205,7 @@ static const CodeGenVTable rv64_vtable = {
     .store = rv64_store,
     .cmp_imm = rv64_cmp_imm,
     .cmp_reg = rv64_cmp_reg,
+    .cmp_reg_cc = rv64_cmp_reg_cc,
     .cset = rv64_cset,
     .b_uncond = rv64_b_uncond,
     .b_cond = rv64_b_cond,
@@ -234,4 +237,10 @@ CodeGen *cg_create_rv64(void) {
     cg->backend = 2;
     rv64_enc_init_dynamic(&enc->enc, 4096);
     return cg;
+}
+
+
+static void rv64_cmp_reg_cc(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc) {
+    rv64_cmp_reg(e, rn, rm);
+    rv64_cset(e, rn, cc);
 }

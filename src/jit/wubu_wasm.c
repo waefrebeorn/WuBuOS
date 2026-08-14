@@ -72,12 +72,17 @@ void wasm_i64_or(WasmEnc *e) { wasm_emit(e, 0x84); }
 void wasm_i64_xor(WasmEnc *e) { wasm_emit(e, 0x85); }
 void wasm_i64_shl(WasmEnc *e) { wasm_emit(e, 0x86); }
 void wasm_i64_shr_s(WasmEnc *e) { wasm_emit(e, 0x87); }
-void wasm_i64_eq(WasmEnc *e) { wasm_emit(e, 0x50); }
-void wasm_i64_ne(WasmEnc *e) { wasm_emit(e, 0x51); }
-void wasm_i64_lt_s(WasmEnc *e) { wasm_emit(e, 0x52); }
-void wasm_i64_gt_s(WasmEnc *e) { wasm_emit(e, 0x53); }
-void wasm_i64_le_s(WasmEnc *e) { wasm_emit(e, 0x54); }
-void wasm_i64_ge_s(WasmEnc *e) { wasm_emit(e, 0x55); }
+void wasm_i64_eqz(WasmEnc *e) { wasm_emit(e, 0x50); }
+void wasm_i64_eq(WasmEnc *e) { wasm_emit(e, 0x51); }
+void wasm_i64_ne(WasmEnc *e) { wasm_emit(e, 0x52); }
+void wasm_i64_lt_s(WasmEnc *e) { wasm_emit(e, 0x53); }
+void wasm_i64_lt_u(WasmEnc *e) { wasm_emit(e, 0x54); }
+void wasm_i64_gt_s(WasmEnc *e) { wasm_emit(e, 0x55); }
+void wasm_i64_gt_u(WasmEnc *e) { wasm_emit(e, 0x56); }
+void wasm_i64_le_s(WasmEnc *e) { wasm_emit(e, 0x57); }
+void wasm_i64_le_u(WasmEnc *e) { wasm_emit(e, 0x58); }
+void wasm_i64_ge_s(WasmEnc *e) { wasm_emit(e, 0x59); }
+void wasm_i64_ge_u(WasmEnc *e) { wasm_emit(e, 0x5a); }
 void wasm_local_get(WasmEnc *e, uint32_t idx) { wasm_emit(e, 0x20); wasm_write_leb_u32(e, idx); }
 void wasm_local_set(WasmEnc *e, uint32_t idx) { wasm_emit(e, 0x21); wasm_write_leb_u32(e, idx); }
 void wasm_i64_extend_i32_s(WasmEnc *e) { wasm_emit(e, 0xac); }

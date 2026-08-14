@@ -202,7 +202,7 @@ static CGReg cg_add_var(CGCompiler *cc, const char *name, int is_arg) {
         cc->n_args++;
     } else {
         /* Assign register: args first, then locals */
-        r = (CGReg)(cc->n_args + cc->stack_slots + 3);  /* +3 to avoid R0-R2 (result/scratch) */
+        r = (CGReg)(7 + cc->stack_slots);  /* +3 to avoid R0-R2 (result/scratch) */
         if (r >= 16) r = (CGReg)(15);  /* clamp */
         cc->stack_slots++;
     }
@@ -514,7 +514,7 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
     for (;;) {
         if (cg_consume(cc, TOK_STAR)) {
             int64_t rhs_const;
-            CGReg rhs = CG_REG_8;
+            CGReg rhs = CG_REG_15;
             int is_const = cg_compile_primary(cc, rhs, &rhs_const);
             /* Strength reduction: x * (2^n) -> x << n */
             if (is_const && is_power_of_2(rhs_const)) {
@@ -528,15 +528,15 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
             } else {
                 /* Ensure dst and rhs are different for mul */
                 if (dst == rhs) {
-                    cg_mov_reg(cc->cg, CG_REG_8, dst);
-                    cg_mul_reg(cc->cg, dst, CG_REG_8, rhs);
+                    cg_mov_reg(cc->cg, CG_REG_14, dst);
+                    cg_mul_reg(cc->cg, dst, CG_REG_14, rhs);
                 } else {
                     cg_mul_reg(cc->cg, dst, dst, rhs);
                 }
             }
         } else if (cg_consume(cc, TOK_SLASH)) {
             int64_t rhs_const;
-            CGReg rhs = CG_REG_8;
+            CGReg rhs = CG_REG_15;
             int is_const = cg_compile_primary(cc, rhs, &rhs_const);
             /* Strength reduction: x / (2^n) -> x >> n */
             if (is_const && is_power_of_2(rhs_const)) {
@@ -549,7 +549,7 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
             }
         } else if (cg_consume(cc, TOK_PERCENT)) {
             int64_t rhs_const;
-            CGReg rhs = CG_REG_8;
+            CGReg rhs = CG_REG_15;
             int is_const = cg_compile_primary(cc, rhs, &rhs_const);
             /* Strength reduction: x % (2^n) -> x & (2^n - 1) */
             if (is_const && is_power_of_2(rhs_const)) {
@@ -569,11 +569,11 @@ static void cg_compile_additive(CGCompiler *cc, CGReg dst) {
     cg_compile_multiplicative(cc, dst);
     for (;;) {
         if (cg_consume(cc, TOK_PLUS)) {
-            CGReg rhs = CG_REG_7;
+            CGReg rhs = CG_REG_15;
             cg_compile_multiplicative(cc, rhs);
             cg_add_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_MINUS)) {
-            CGReg rhs = CG_REG_7;
+            CGReg rhs = CG_REG_15;
             cg_compile_multiplicative(cc, rhs);
             cg_sub_reg(cc->cg, dst, dst, rhs);
         } else {
@@ -586,15 +586,15 @@ static void cg_compile_bitwise(CGCompiler *cc, CGReg dst) {
     cg_compile_additive(cc, dst);
     for (;;) {
         if (cg_consume(cc, TOK_AMP)) {
-            CGReg rhs = CG_REG_7;
+            CGReg rhs = CG_REG_15;
             cg_compile_additive(cc, rhs);
             cg_and_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_PIPE)) {
-            CGReg rhs = CG_REG_7;
+            CGReg rhs = CG_REG_15;
             cg_compile_additive(cc, rhs);
             cg_orr_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_CARET)) {
-            CGReg rhs = CG_REG_7;
+            CGReg rhs = CG_REG_15;
             cg_compile_additive(cc, rhs);
             cg_eor_reg(cc->cg, dst, dst, rhs);
         } else {
@@ -636,25 +636,9 @@ static void cg_compile_compare(CGCompiler *cc, CGReg dst) {
     else if (cg_consume(cc, TOK_GT)) cc_type = CG_CC_GT;
     else return;
 
-    CGReg rhs = CG_REG_7;
+    CGReg rhs = CG_REG_15;  /* Use high register to avoid conflict with locals */
     cg_compile_shift(cc, rhs);
-    if (cc->cg->backend == 3) {
-        /* WASM: emit comparison. Stack machine: LHS pushed first, RHS on top.
-         * WASM gt_s computes first_popped > second_popped = RHS > LHS.
-         * We want LHS op RHS, so we swap: use lt for gt, gt for lt, etc. */
-        switch (cc_type) {
-            case CG_CC_EQ: wasm_i64_eq(WASM_ENC(cc->cg)); break;   /* eq is symmetric */
-            case CG_CC_NE: wasm_i64_ne(WASM_ENC(cc->cg)); break;   /* ne is symmetric */
-            case CG_CC_LT: wasm_i64_gt_s(WASM_ENC(cc->cg)); break;  /* LHS < RHS = RHS > LHS */
-            case CG_CC_GT: wasm_i64_lt_s(WASM_ENC(cc->cg)); break;  /* LHS > RHS = RHS < LHS */
-            case CG_CC_LE: wasm_i64_ge_s(WASM_ENC(cc->cg)); break;  /* LHS <= RHS = RHS >= LHS */
-            case CG_CC_GE: wasm_i64_le_s(WASM_ENC(cc->cg)); break;  /* LHS >= RHS = RHS <= LHS */
-            default:       wasm_i64_eq(WASM_ENC(cc->cg)); break;
-        }
-    } else {
-        cg_cmp_reg(cc->cg, dst, rhs);
-        cg_cset(cc->cg, dst, cc_type);
-    }
+    cg_cmp_reg_cc(cc->cg, dst, rhs, cc_type);
 }
 
 static void cg_compile_expr(CGCompiler *cc, CGReg dst) {
@@ -663,6 +647,7 @@ static void cg_compile_expr(CGCompiler *cc, CGReg dst) {
     int64_t const_val;
     if (cg_const_eval(cc, &const_val)) {
         cg_mov_imm(cc->cg, dst, const_val);
+
         return;
     }
     cg_compile_compare(cc, dst);
@@ -714,22 +699,21 @@ static void cg_compile_if_stmt(CGCompiler *cc) {
 
     if (cc->cg->backend == 3) {
         /* WASM: structured control flow */
-        /* if(cond) { then_body } else { else_body }
-         * The condition is evaluated by cg_compile_expr before this point.
-         * Stack: [i32] (condition result)
-         * We emit: if void (then_body) else (else_body) end
-         * NOTE: return inside if/else blocks is NOT supported for WASM.
-         * The user should use: if(cond) { x = a; } else { x = b; } return x;
-         */
-        cc->cg->vt->do_if(cc->cg->enc);             /* if void (consumes i32) */
+        /* Load condition from local and convert to i32 for WASM if */
+        /* Load condition result from CG_REG_0's local (n_params + 10) */
+        WasmEncoder *we = (WasmEncoder *)((cc->cg)->enc);
+        uint32_t cond_local = we->n_params + 10;
+        wasm_local_get(&we->body, cond_local);  /* load i64 */
+        wasm_emit(WASM_ENC(cc->cg), 0xa7);             /* i32.wrap_i64 */
+        cc->cg->vt->do_if(cc->cg->enc);                /* if void (consumes i32) */
         if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
         else cg_compile_stmt(cc);
         if (cg_consume(cc, TOK_ELSE)) {
-            cc->cg->vt->do_else(cc->cg->enc);       /* else */
+            cc->cg->vt->do_else(cc->cg->enc);          /* else */
             if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
             else cg_compile_stmt(cc);
         }
-        cc->cg->vt->do_end(cc->cg->enc);            /* end */
+        cc->cg->vt->do_end(cc->cg->enc);               /* end */
     } else {
         /* Register machines: branch-based */
         cg_cmp_imm(cc->cg, CG_REG_0, 0);
@@ -872,6 +856,7 @@ int jit_minic_compile_expr(CodeGen *cg, const char *src) {
  */
 const uint8_t *jit_minic_get_code(CodeGen *cg, size_t *size) {
     if (!cg || !size) return NULL;
-    *size = cg_pos(cg);
-    return cg_buffer(cg);
+    const uint8_t *buf = cg_buffer(cg);  /* finalize for WASM */
+    *size = cg_pos(cg);  /* get final size */
+    return buf;
 }
