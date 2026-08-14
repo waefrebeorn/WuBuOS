@@ -40,6 +40,10 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stdint.h>
+
+#include "jit_branch_profile.h"
+#include "jit_minic_loop.h"
 
 /* -- Tokenizer ---------------------------------------------------- */
 
@@ -142,6 +146,13 @@ struct MinicCompiler {
     /* Subsystem A: type system (structs/arrays/pointers) with #19 reorder */
     MinicTypeRegistry types;
     int              cur_expr_type;   /* type index of the current expression */
+    /* Subsystem C: runtime branch feedback (#14/#23/#24). When WUBU_JIT_PGO=1,
+     * the compiler emits a counter increment before each conditional jcc so
+     * the runtime can record taken/not-taken for #14 layout decisions. The
+     * counters are bump-only int64s the runtime owns; this layer just assigns
+     * each branch a unique id (0..N-1) for the counter array. */
+    int              n_branches;      /* # of conditional branches emitted */
+    bool             profile_enabled; /* set from WUBU_JIT_PGO env at init   */
 };
 
 static void mc_error(MinicCompiler *mc, const char *msg) {
@@ -153,6 +164,32 @@ static void mc_error(MinicCompiler *mc, const char *msg) {
 /* -- Emit helper macros using Wx86Enc --------------------------- */
 
 #define MC_EMIT(mc, call) do { if (!(mc)->error) { call; } } while(0)
+
+/* -- Subsystem C: profile instrumentation ----------------------- */
+
+/* Emit a runtime counter increment. We can't use RIP-relative addressing
+ * because the counter (a global in .data) may be >2GB from the JIT code
+ * (mmap'd in a different region). Instead: `movabs r11, addr; addq $1, [r11]`.
+ * r11 is caller-saved in SysV ABI and safe to clobber in JIT leaf code.
+ * Encoding: 49 bb [8-byte addr]  49 83 03 01  (14 bytes total). */
+static int mc_emit_profile_inc(MinicCompiler *mc, int kind /* 0=taken, 1=not_taken */) {
+    if (!mc->profile_enabled) return -1;
+    if (mc->n_branches >= JBP_MAX_BRANCHES) return -1;
+    int id = mc->n_branches++;
+    int64_t *target = (kind == 0) ? jbp_counter_taken(id) : jbp_counter_not_taken(id);
+    /* movabs r11, imm64  =  REX.WB + B8+3 + imm64  =  49 bb [8 bytes] */
+    int64_t addr = (int64_t)(uintptr_t)target;
+    wx86_emit_byte(&mc->enc, 0x49);
+    wx86_emit_byte(&mc->enc, 0xbb);
+    for (int i = 0; i < 8; i++)
+        wx86_emit_byte(&mc->enc, (uint8_t)((addr >> (i*8)) & 0xFF));
+    /* addq $1, [r11]  =  REX.WB + 83 03 01  =  49 83 03 01 */
+    wx86_emit_byte(&mc->enc, 0x49);
+    wx86_emit_byte(&mc->enc, 0x83);
+    wx86_emit_byte(&mc->enc, 0x03);  /* ModRM mod=00 reg=000 rm=011 (r11) */
+    wx86_emit_byte(&mc->enc, 0x01);  /* imm8 = 1 */
+    return id;
+}
 
 /* -- Register-allocator helpers ----------------------------------- */
 
@@ -772,6 +809,10 @@ static void compile_if_stmt(MinicCompiler *mc) {
     }
     MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, branch_cc));
     size_t else_patch = wx86_jcc_rel32_pos(&mc->enc);
+    /* Subsystem C: increment the not-taken counter at the fallthrough (the
+     * instruction right after the jcc). Branch id is unique per jcc site; if
+     * profiling is off this is a no-op and n_branches is untouched. */
+    mc_emit_profile_inc(mc, 1 /* not-taken */);
 
     minic_expect(&mc->lex, TOK_LBRACE);
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
@@ -833,6 +874,8 @@ static void compile_while_stmt(MinicCompiler *mc) {
     }
     MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, branch_cc));
     size_t exit_patch = wx86_jcc_rel32_pos(&mc->enc);
+    /* Subsystem C: profile the loop-condition fallthrough (1 increment / jcc) */
+    mc_emit_profile_inc(mc, 1 /* not-taken */);
 
     minic_expect(&mc->lex, TOK_LBRACE);
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
@@ -1212,6 +1255,11 @@ JITResult jit_minic_compile(JITContext *ctx,
     minic_lex_init(&mc.lex, compile_src);
     wx86_enc_init_dynamic(&mc.enc, 4096);
     minic_type_registry_init(&mc.types);   /* Subsystem A: type system */
+    /* Subsystem C: opt-in branch profile. WUBU_JIT_PGO=1 enables counter
+     * increment emission before each jcc; default off so production builds
+     * get zero overhead and a stable counter array is owned by the runtime. */
+    mc.profile_enabled = getenv("WUBU_JIT_PGO") && getenv("WUBU_JIT_PGO")[0] == '1';
+    if (mc.profile_enabled) jbp_init(JBP_MAX_BRANCHES);
 
     const char *target = (fn_name && fn_name[0]) ? fn_name : NULL;
 
