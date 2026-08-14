@@ -153,6 +153,9 @@ struct MinicCompiler {
      * each branch a unique id (0..N-1) for the counter array. */
     int              n_branches;      /* # of conditional branches emitted */
     bool             profile_enabled; /* set from WUBU_JIT_PGO env at init   */
+    /* Fast-path prologue: when true, skip frame setup (no locals, <=6 args).
+     * Args stay in registers, return emits plain ret. */
+    bool             need_frame;      /* 1 = full frame, 0 = fast path      */
     /* Subsystem B: loop-body capture. When compiling a while-body, record
      * each assignment statement into a LoopBody so the loop analysis engine
      * can detect induction variables and trip counts. */
@@ -1070,9 +1073,14 @@ static void compile_return_stmt(MinicCompiler *mc) {
         compile_expr(mc);
     minic_expect(&mc->lex, TOK_SEMI);
 
-    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
-    MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
-    MC_EMIT(mc, wx86_ret(&mc->enc));
+    /* Fast path: no frame to restore, just ret */
+    if (!mc->need_frame && !mc->use_xra) {
+        MC_EMIT(mc, wx86_ret(&mc->enc));
+    } else {
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
+        MC_EMIT(mc, wx86_ret(&mc->enc));
+    }
 }
 
 static void compile_decl_stmt(MinicCompiler *mc) {
@@ -1283,9 +1291,9 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
      * skip the frame entirely. Args stay in their parameter registers
      * (RDI,RSI,RDX,RCX,R8,R9). This eliminates push rbp/mov rbp,rsp/pop rbp
      * and all arg pushes — saving 5-8 instructions per call. */
-    int need_frame = (mc->n_args > 6);  /* more args than registers */
+    mc->need_frame = (mc->n_args > 6);  /* more args than registers */
 
-    if (!need_frame) {
+    if (!mc->need_frame) {
         /* Scan the function body for local declarations. If any exist,
          * we need the frame. We do this by saving lexer position, scanning
          * for type keywords followed by identifiers, then restoring. */
@@ -1299,7 +1307,7 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
                 /* Check if this is a declaration (type followed by ident) */
                 minic_advance(&mc->lex);
                 if (minic_cur(&mc->lex)->type == TOK_IDENT) {
-                    need_frame = 1;
+                    mc->need_frame = 1;
                     break;
                 }
             }
@@ -1308,7 +1316,7 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
         mc->lex = save;  /* restore lexer to function start */
     }
 
-    if (!need_frame) {
+    if (!mc->need_frame) {
         /* Fast path: no frame. Args in registers, no stack setup. */
         mc->scope.stack_offset = 0;  /* No locals on stack */
         /* Still need to track that args are in registers */
@@ -1377,7 +1385,7 @@ fast_prologue_done:
      * 81 EC imm32. We use imm32 form (5 bytes: 48 81 EC imm32) with
      * placeholder 0, and patch the 4 bytes after compilation. */
     size_t frame_patch_pos = mc->enc.pos + 3;  /* offset of the imm32 */
-    if (need_frame) {
+    if (mc->need_frame) {
         MC_EMIT(mc, wx86_sub_reg_imm32(&mc->enc, WREG_RSP, 0));  /* placeholder */
     }
 
@@ -1394,7 +1402,7 @@ fast_prologue_done:
     mc->in_func = 0;
 
     /* Patch the stack frame size (slow path only) */
-    if (need_frame) {
+    if (mc->need_frame) {
         int frame_size = (-mc->scope.stack_offset);
         /* Only add scratch space for push/pop expression evaluation
          * (non-XRA path). XRA uses registers, no scratch needed. */
@@ -1408,7 +1416,7 @@ fast_prologue_done:
     }
 
     /* Epilogue — FAST PATH: no frame to restore, just ret */
-    if (!need_frame && !mc->use_xra) {
+    if (!mc->need_frame && !mc->use_xra) {
         MC_EMIT(mc, wx86_ret(&mc->enc));
         return 0;
     }
