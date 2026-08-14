@@ -11,12 +11,12 @@
  *      - Otherwise, spill the interval whose last_use is furthest in the
  *        future (the "farthest" heuristic). If the current interval has a
  *        later end than the victim, spill the current one instead.
- *   4. Pre-assign v0 -> reg 0 (return), v1..n_args -> reg 0..n_args-1.
+ *   4. Pre-assign v0 -> physical reg 0 (return), v1..n_args -> reg 1..n_args.
  *
  * Key properties:
  *   - MIR is SSA: each vr is defined exactly once, so intervals are simple.
  *   - v0 is the return register (always physical reg 0).
- *   - Argument vrs (v1..n_args) are pre-assigned to physical regs 0..n_args-1.
+ *   - Argument vrs (v1..n_args) are pre-assigned to physical regs 1..n_args.
  *   - If n_phys_regs is too small, some vrs spill (reg=-1, stack=offset).
  *
  * C11, self-contained.
@@ -24,7 +24,6 @@
 
 #include "wubu_mir_regalloc.h"
 #include <stdlib.h>
-#include <string.h>
 
 /* ------------------------------------------------------------------ */
 /* Helpers: classify MIR opcodes                                      */
@@ -108,7 +107,8 @@ wubu_reg_assign_t *wubu_mir_alloc_regs(const wubu_mir_prog_t *p,
         if (ns >= 1 && in->a > max_vr) max_vr = in->a;
         if (ns >= 2 && in->b > max_vr) max_vr = in->b;
     }
-    if (max_vr < 1) max_vr = 1;  /* v0 is always present */
+    /* Always include v0 in the result array (return register) */
+    if (max_vr < 1) max_vr = 0;
 
     size_t n_vr = (size_t)max_vr + 1;
 
@@ -183,12 +183,15 @@ wubu_reg_assign_t *wubu_mir_alloc_regs(const wubu_mir_prog_t *p,
     /* v0 -> physical reg 0 (return register) */
     assign[0].reg = 0;
 
-    /* v1..n_args -> physical regs 0..n_args-1 (capped at 6 arg regs) */
+    /* v1..n_args -> physical regs 1..n_args (capped at 6 arg regs).
+     * Physical reg 0 is reserved for v0 (return), so args start at reg 1.
+     * If n_phys_regs <= n_args, extra args spill. */
     uint32_t n_args = p->n_args;
     if (n_args > 6) n_args = 6;
     for (uint32_t a = 1; a <= n_args && a < n_vr; a++) {
-        if ((int)(a - 1) < n_phys_regs) {
-            assign[a].reg = (int32_t)(a - 1);
+        int32_t phys = (int32_t)a;  /* v1 -> reg 1, v2 -> reg 2, ... */
+        if (phys < n_phys_regs) {
+            assign[a].reg = phys;
         }
     }
 
@@ -215,14 +218,14 @@ wubu_reg_assign_t *wubu_mir_alloc_regs(const wubu_mir_prog_t *p,
         reg_vr[r] = -1;
 
     /* Seed the active set with pre-assigned vrs.
-     * v0 -> reg 0; args -> regs 0..n_args-1.
+     * v0 -> reg 0; args v1..n_args -> regs 1..n_args.
      * Their registers are occupied until their live ranges expire. */
     if (n_phys_regs > 0 && first_def[0] >= 0) {
         reg_vr[0] = 0;
         active[active_count++] = 0;
     }
     for (uint32_t a = 1; a <= n_args && a < n_vr; a++) {
-        int32_t phys = (int32_t)(a - 1);
+        int32_t phys = (int32_t)a;
         if (phys >= 0 && phys < n_phys_regs) {
             reg_vr[phys] = (int32_t)a;
             active[active_count++] = a;

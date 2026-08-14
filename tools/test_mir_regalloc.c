@@ -87,13 +87,6 @@ static void vrset_add(vr_set_t *s, uint32_t vr)
     s->vrs[s->n++] = vr;
 }
 
-static int vrset_contains(vr_set_t *s, uint32_t vr)
-{
-    for (size_t i = 0; i < s->n; i++)
-        if (s->vrs[i] == vr) return 1;
-    return 0;
-}
-
 /* ------------------------------------------------------------------ */
 /* Compute first_def and last_use for all vrs in the program          */
 /* ------------------------------------------------------------------ */
@@ -142,7 +135,8 @@ static uint32_t find_max_vr(const wubu_mir_prog_t *p)
         if (ns >= 1 && in->a > max_vr) max_vr = in->a;
         if (ns >= 2 && in->b > max_vr) max_vr = in->b;
     }
-    if (max_vr < 1) max_vr = 1;
+    /* Always include v0 in the result array (return register) */
+    if (max_vr < 1) max_vr = 0;
     return max_vr;
 }
 
@@ -254,10 +248,10 @@ static void test_basic_allocation(void)
     assert(a != NULL);
     assert(count == 6);  /* v0..v5 */
 
-    /* Pre-assigned: v0 -> reg 0, v1 -> reg 0, v2 -> reg 1 */
+    /* Pre-assigned: v0 -> reg 0 (return), v1 -> reg 1, v2 -> reg 2 */
     assert(a[0].reg == 0);   /* v0 = return = reg 0 */
-    assert(a[v1].reg == 0);  /* v1 = arg 0 */
-    assert(a[v2].reg == 1);  /* v2 = arg 1 */
+    assert(a[v1].reg == 1);  /* v1 = arg 0 -> reg 1 */
+    assert(a[v2].reg == 2);  /* v2 = arg 1 -> reg 2 */
 
     /* v3, v4, v5 should have valid regs (6 regs, no spill expected) */
     assert(a[v3].reg >= 0);
@@ -339,10 +333,10 @@ static void test_args_preassigned(void)
     wubu_reg_assign_t *a = wubu_mir_alloc_regs(&p, 8, &count);
     assert(a != NULL);
 
-    /* All 6 args should be pre-assigned to regs 0..5 */
+    /* All 6 args should be pre-assigned to regs 1..6 */
     for (int i = 0; i < 6; i++) {
         printf("  v%u -> reg %d\n", args[i], a[args[i]].reg);
-        assert(a[args[i]].reg == i);
+        assert(a[args[i]].reg == i + 1);  /* v1 -> reg 1, v2 -> reg 2, etc. */
     }
 
     assert(verify_no_conflicts(&p, a, count, 8));
@@ -414,10 +408,10 @@ static void test_with_args_and_branches(void)
     wubu_reg_assign_t *as = wubu_mir_alloc_regs(&p, 6, &count);
     assert(as != NULL);
 
-    /* v1, v2, v3 pre-assigned */
-    assert(as[a].reg == 0);
-    assert(as[b].reg == 1);
-    assert(as[c].reg == 2);
+    /* v1, v2, v3 pre-assigned to regs 1, 2, 3 */
+    assert(as[a].reg == 1);
+    assert(as[b].reg == 2);
+    assert(as[c].reg == 3);
 
     printf("  Program with branches + args:\n");
     wubu_mir_dump(&p);
@@ -463,14 +457,14 @@ static void test_no_spill_abundant(void)
     wubu_mir_prog_t p;
     wubu_mir_init(&p);
 
-    /* 20 sequentially independent computations — all die right after use */
-    wubu_vr_t v[20];
-    for (int i = 0; i < 20; i++) {
+    /* 10 const vrs all live simultaneously (defined first, then used),
+     * but with 16 phys regs that's plenty. No spills expected. */
+    wubu_vr_t v[10];
+    for (int i = 0; i < 10; i++) {
         v[i] = wubu_mir_const(&p, i);
     }
-    /* Use them one at a time so live set is always small */
     wubu_vr_t acc = wubu_mir_binop(&p, MIR_ADD, v[0], v[1]);
-    for (int i = 2; i < 20; i++) {
+    for (int i = 2; i < 10; i++) {
         acc = wubu_mir_binop(&p, MIR_ADD, acc, v[i]);
     }
     wubu_mir_ret(&p, acc);

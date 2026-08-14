@@ -265,6 +265,11 @@ test_mir_opt: $(JIT_OBJS)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_ptx.c tools/test_mir_opt.c -o $(COMP)/test_mir_opt
 	$(COMP)/test_mir_opt
 
+# MIR register allocator test
+test_mir_regalloc: $(JIT_OBJS)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_regalloc.c tools/test_mir_regalloc.c -o $(COMP)/test_mir_regalloc
+	$(COMP)/test_mir_regalloc
+
 # Cleveland Browns album end-to-end: optimizer + all 6 ISA drivers
 test_album: $(JIT_OBJS)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_ptx.c tools/cleveland_browns_album_test.c -o $(COMP)/cleveland_browns_album_test
