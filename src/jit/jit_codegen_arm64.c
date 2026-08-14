@@ -100,6 +100,14 @@ static void arm64_div_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
     warm64_sdiv_reg(&arm64_enc(e)->enc, cg_to_arm64(rd), cg_to_arm64(rn), cg_to_arm64(rm));
 }
 
+static void arm64_mod_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
+    /* rd = rn - (rn/rm)*rm */
+    /* Use X10 as scratch (caller-saved) */
+    warm64_sdiv_reg(&arm64_enc(e)->enc, WREG_X10, cg_to_arm64(rn), cg_to_arm64(rm));
+    warm64_mul_reg(&arm64_enc(e)->enc, WREG_X10, WREG_X10, cg_to_arm64(rm));
+    warm64_sub_reg(&arm64_enc(e)->enc, cg_to_arm64(rd), cg_to_arm64(rn), WREG_X10, 1);
+}
+
 static void arm64_and_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
     warm64_and_reg(&arm64_enc(e)->enc, cg_to_arm64(rd), cg_to_arm64(rn), cg_to_arm64(rm), 1);
 }
@@ -262,6 +270,7 @@ static const CodeGenVTable arm64_vtable = {
     .sub_reg = arm64_sub_reg,
     .mul_reg = arm64_mul_reg,
     .div_reg = arm64_div_reg,
+    .mod_reg = arm64_mod_reg,
     .and_reg = arm64_and_reg,
     .orr_reg = arm64_orr_reg,
     .eor_reg = arm64_eor_reg,

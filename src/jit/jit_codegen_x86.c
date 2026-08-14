@@ -10,18 +10,23 @@
 
 /* -- Register mapping: CGReg → Wx86Reg ---------------------------- */
 static Wx86Reg cg_to_x86(CGReg r) {
-    /* Neutral regs 0-15 map to RDI,RSI,RDX,RCX,R8-R15,RBP,RSP */
+    /* Neutral regs map to x86 registers.
+     * CG_REG_0 = return value = RAX
+     * CG_REG_1..6 = args = RDI,RSI,RDX,RCX,R8,R9
+     * CG_REG_7..15 = scratch = R10-R15, RBX, RBP */
     static const Wx86Reg map[] = {
-        WREG_RDI, WREG_RSI, WREG_RDX, WREG_RCX,
-        WREG_R8,  WREG_R9,  WREG_R10, WREG_R11,
-        WREG_R12, WREG_R13, WREG_R14, WREG_R15,
-        WREG_RAX, WREG_RBX, WREG_RBP, WREG_RSP,
-        WREG_RSP, WREG_RBP, WREG_R11, WREG_RAX,  /* SP,FP,LR,XZR aliases */
+        WREG_RAX,                                /* 0: return */
+        WREG_RDI, WREG_RSI, WREG_RDX, WREG_RCX,  /* 1-4: args */
+        WREG_R8,  WREG_R9,                        /* 5-6: args */
+        WREG_R10, WREG_R11, WREG_R12, WREG_R13,  /* 7-10: scratch */
+        WREG_R14, WREG_R15,                       /* 11-12: scratch */
+        WREG_RBX, WREG_RBP, WREG_RSP,             /* 13-15: special */
+        WREG_RSP, WREG_RBP, WREG_R10, WREG_RAX,  /* aliases: SP,FP,LR,XZR */
     };
     if (r < 16) return map[r];
     if (r == CG_REG_SP) return WREG_RSP;
     if (r == CG_REG_FP) return WREG_RBP;
-    if (r == CG_REG_XZR) return WREG_RAX;  /* not used for x86 */
+    if (r == CG_REG_XZR) return WREG_RAX;
     return WREG_RAX;
 }
 
@@ -163,9 +168,22 @@ static void x86_mul_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
 }
 
 static void x86_div_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
-    /* cqo; idiv rm — result in RAX */
+    /* cqo; idiv rm — quotient in RAX, remainder in RDX */
+    (void)rd; (void)rn;
     wx86_cqo(&x86_enc(e)->enc);
     wx86_idiv_reg(&x86_enc(e)->enc, cg_to_x86(rm));
+}
+
+static void x86_mod_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
+    /* cqo; idiv rm — remainder in RDX, move to rd */
+    (void)rn;
+    wx86_cqo(&x86_enc(e)->enc);
+    wx86_idiv_reg(&x86_enc(e)->enc, cg_to_x86(rm));
+    /* Remainder is in RDX. Move to rd if different. */
+    /* RDX maps to CG_REG_3 in our neutral register model */
+    if (rd != CG_REG_3) {
+        wx86_mov_reg_reg(&x86_enc(e)->enc, cg_to_x86(rd), WREG_RDX);
+    }
 }
 
 static void x86_and_reg(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm) {
@@ -321,6 +339,7 @@ static const CodeGenVTable x86_vtable = {
     .sub_reg = x86_sub_reg,
     .mul_reg = x86_mul_reg,
     .div_reg = x86_div_reg,
+    .mod_reg = x86_mod_reg,
     .and_reg = x86_and_reg,
     .orr_reg = x86_orr_reg,
     .eor_reg = x86_eor_reg,

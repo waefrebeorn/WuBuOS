@@ -67,6 +67,7 @@ typedef struct {
     void (*sub_reg)(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm);
     void (*mul_reg)(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm);
     void (*div_reg)(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm);  /* signed */
+    void (*mod_reg)(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm);  /* signed modulo */
 
     /* Bitwise */
     void (*and_reg)(CGEncoder *e, CGReg rd, CGReg rn, CGReg rm);
@@ -143,6 +144,9 @@ static inline void cg_mul_reg(CodeGen *cg, CGReg rd, CGReg rn, CGReg rm) {
 }
 static inline void cg_div_reg(CodeGen *cg, CGReg rd, CGReg rn, CGReg rm) {
     cg->vt->div_reg(cg->enc, rd, rn, rm);
+}
+static inline void cg_mod_reg(CodeGen *cg, CGReg rd, CGReg rn, CGReg rm) {
+    cg->vt->mod_reg(cg->enc, rd, rn, rm);
 }
 static inline void cg_and_reg(CodeGen *cg, CGReg rd, CGReg rn, CGReg rm) {
     cg->vt->and_reg(cg->enc, rd, rn, rm);

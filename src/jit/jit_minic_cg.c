@@ -238,16 +238,16 @@ static void cg_compile_primary(CGCompiler *cc, CGReg dst) {
         cg_consume(cc, TOK_MINUS);
         cg_compile_primary(cc, dst);
         /* Negate: dst = 0 - dst */
-        cg_mov_imm(cc->cg, CG_REG_15, 0);
-        cg_sub_reg(cc->cg, dst, CG_REG_15, dst);
+        cg_mov_imm(cc->cg, CG_REG_9, 0);
+        cg_sub_reg(cc->cg, dst, CG_REG_9, dst);
         return;
     }
     if (cg_cur(cc, TOK_TILDE)) {
         cg_consume(cc, TOK_TILDE);
         cg_compile_primary(cc, dst);
         /* NOT: dst = dst XOR -1 */
-        cg_mov_imm(cc->cg, CG_REG_15, -1);
-        cg_eor_reg(cc->cg, dst, dst, CG_REG_15);
+        cg_mov_imm(cc->cg, CG_REG_9, -1);
+        cg_eor_reg(cc->cg, dst, dst, CG_REG_9);
         return;
     }
     if (cg_cur(cc, TOK_IDENT)) {
@@ -255,8 +255,20 @@ static void cg_compile_primary(CGCompiler *cc, CGReg dst) {
         cg_consume(cc, TOK_IDENT);
         CGReg r = cg_find_var(cc, name);
         if ((int)r < 0) {
-            /* Unknown var — treat as 0 */
-            cg_mov_imm(cc->cg, dst, 0);
+            /* Auto-detect function arguments (single letters a-f) */
+            int len = strlen(name);
+            if (len == 1 && name[0] >= 'a' && name[0] < 'g') {
+                int idx = name[0] - 'a';
+                if (idx < CG_MAX_ARGS) {
+                    r = cg_add_var(cc, name, 1);
+                }
+            }
+            if ((int)r < 0) {
+                /* Unknown var — treat as 0 */
+                cg_mov_imm(cc->cg, dst, 0);
+            } else if (r != dst) {
+                cg_mov_reg(cc->cg, dst, r);
+            }
         } else if (r != dst) {
             cg_mov_reg(cc->cg, dst, r);
         }
@@ -270,26 +282,23 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
     cg_compile_primary(cc, dst);
     for (;;) {
         if (cg_consume(cc, TOK_STAR)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_8;
             cg_compile_primary(cc, rhs);
             /* Ensure dst and rhs are different for mul */
             if (dst == rhs) {
-                cg_mov_reg(cc->cg, CG_REG_11, dst);
-                cg_mul_reg(cc->cg, dst, CG_REG_11, rhs);
+                cg_mov_reg(cc->cg, CG_REG_8, dst);
+                cg_mul_reg(cc->cg, dst, CG_REG_8, rhs);
             } else {
                 cg_mul_reg(cc->cg, dst, dst, rhs);
             }
         } else if (cg_consume(cc, TOK_SLASH)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_8;
             cg_compile_primary(cc, rhs);
             cg_div_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_PERCENT)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_8;
             cg_compile_primary(cc, rhs);
-            /* a % b = a - (a/b)*b */
-            cg_div_reg(cc->cg, CG_REG_11, dst, rhs);
-            cg_mul_reg(cc->cg, CG_REG_11, CG_REG_11, rhs);
-            cg_sub_reg(cc->cg, dst, dst, CG_REG_11);
+            cg_mod_reg(cc->cg, dst, dst, rhs);
         } else {
             break;
         }
@@ -300,11 +309,11 @@ static void cg_compile_additive(CGCompiler *cc, CGReg dst) {
     cg_compile_multiplicative(cc, dst);
     for (;;) {
         if (cg_consume(cc, TOK_PLUS)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_7;
             cg_compile_multiplicative(cc, rhs);
             cg_add_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_MINUS)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_7;
             cg_compile_multiplicative(cc, rhs);
             cg_sub_reg(cc->cg, dst, dst, rhs);
         } else {
@@ -317,15 +326,15 @@ static void cg_compile_bitwise(CGCompiler *cc, CGReg dst) {
     cg_compile_additive(cc, dst);
     for (;;) {
         if (cg_consume(cc, TOK_AMP)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_7;
             cg_compile_additive(cc, rhs);
             cg_and_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_PIPE)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_7;
             cg_compile_additive(cc, rhs);
             cg_orr_reg(cc->cg, dst, dst, rhs);
         } else if (cg_consume(cc, TOK_CARET)) {
-            CGReg rhs = CG_REG_10;
+            CGReg rhs = CG_REG_7;
             cg_compile_additive(cc, rhs);
             cg_eor_reg(cc->cg, dst, dst, rhs);
         } else {
@@ -367,7 +376,7 @@ static void cg_compile_compare(CGCompiler *cc, CGReg dst) {
     else if (cg_consume(cc, TOK_GT)) cc_type = CG_CC_GT;
     else return;
 
-    CGReg rhs = CG_REG_10;
+    CGReg rhs = CG_REG_7;
     cg_compile_shift(cc, rhs);
     cg_cmp_reg(cc->cg, dst, rhs);
     cg_cset(cc->cg, dst, cc_type);
@@ -381,7 +390,11 @@ static void cg_compile_expr(CGCompiler *cc, CGReg dst) {
 
 static void cg_compile_return_stmt(CGCompiler *cc) {
     cg_consume(cc, TOK_RETURN);
-    cg_compile_expr(cc, CG_REG_0);  /* result in R0 */
+    cg_compile_expr(cc, CG_REG_0);
+    /* Result is in R0 (which maps to RDI on x86, X0 on ARM64).
+     * For x86-64, we need to move to RAX (return register).
+     * For ARM64, X0 is already the return register.
+     * The backend handles this: CG_REG_0 is the return register. */
 }
 
 static void cg_compile_decl_stmt(CGCompiler *cc) {
@@ -404,7 +417,7 @@ static void cg_compile_assign_stmt(CGCompiler *cc) {
     cg_consume(cc, TOK_IDENT);
     cg_consume(cc, TOK_ASSIGN);
     CGReg r = cg_find_var(cc, name);
-    if ((int)r < 0) r = CG_REG_15;  /* unknown var */
+    if ((int)r < 0) r = CG_REG_9;  /* unknown var */
     cg_compile_expr(cc, r);
 }
 
@@ -445,10 +458,9 @@ static void cg_compile_while_stmt(CGCompiler *cc) {
 
     cg_compile_block(cc);
     /* Jump back to loop top */
-    /* For x86: we need to patch the backward jump. For now, emit unconditional
-     * jump with placeholder offset (will need fixup). */
-    /* Simplified: use a large backward offset placeholder */
-    cg_b_uncond(cc->cg, (int32_t)(loop_top - cg_pos(cc->cg) - 4));
+    cg_b_uncond(cc->cg, 0);  /* emit placeholder */
+    size_t back_patch = cg_branch_pos(cc->cg);
+    cg_patch_branch(cc->cg, back_patch, loop_top);  /* patch to jump to loop_top */
     cg_patch_branch(cc->cg, exit_patch, cg_pos(cc->cg));
 }
 
@@ -487,11 +499,11 @@ static void cg_compile_stmt(CGCompiler *cc) {
             /* Expression statement */
             cc->lex.pos = save_pos;
             cc->cur_tok = save_tok;
-            cg_compile_expr(cc, CG_REG_15);
+            cg_compile_expr(cc, CG_REG_9);
         }
         cg_consume(cc, TOK_SEMI);
     } else {
-        cg_compile_expr(cc, CG_REG_15);
+        cg_compile_expr(cc, CG_REG_9);
         cg_consume(cc, TOK_SEMI);
     }
 }
@@ -509,8 +521,8 @@ int jit_minic_compile_cg(CodeGen *cg, const char *src) {
     cc.cg = cg;
     cg_lex_init(&cc.lex, src);
 
-    /* Setup argument registers */
-    for (int i = 0; i < 6; i++) cc.arg_regs[i] = (CGReg)i;
+    /* Setup argument registers: a→RDI(1), b→RSI(2), c→RDX(3), etc. */
+    for (int i = 0; i < 6; i++) cc.arg_regs[i] = (CGReg)(i + 1);
 
     /* Get first token */
     cg_next_token(&cc.lex, &cc.cur_tok);
