@@ -387,18 +387,17 @@ static void compile_while_stmt(MinicCompiler *mc) {
     mc_emit_profile_inc(mc, 1 /* not-taken */);
 
     /* TWO-PASS LOOP: disabled — incompatible with XRA. Compile directly. */
-    #if 0
-    /* ===== TWO-PASS LOOP: capture body, analyze, then optimize ===== */
+    /* SINGLE-PASS with optional unrolling: compile body to temp buffer,
+     * analyze, then either unroll (small trip count) or loop. */
     minic_expect(&mc->lex, TOK_LBRACE);
 
-    /* Pass 1: Compile body into a temporary encoder */
+    /* Compile body to temp buffer for analysis + possible unrolling */
     Wx86Enc body_enc;
     wx86_enc_init_dynamic(&body_enc, 4096);
-    Wx86Enc saved_enc = mc->enc;   /* save a COPY of the main encoder */
-    XRARegAlloc saved_ra = mc->ra;  /* save XRA state for two-pass while */
-    mc->enc = body_enc;            /* switch to temp buffer */
+    Wx86Enc saved_enc = mc->enc;
+    mc->enc = body_enc;
 
-    /* Capture the loop body for analysis AND compile to temp buffer. */
+    /* Capture the loop body for analysis */
     mc->capture_loop = true;
     minic_loop_body_init(&mc->loop_body);
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
@@ -406,63 +405,42 @@ static void compile_while_stmt(MinicCompiler *mc) {
     mc->capture_loop = false;
     minic_expect(&mc->lex, TOK_RBRACE);
 
-    /* Analyze the captured body. */
+    /* Analyze the captured body */
+    int64_t trip_count = -1;
+    char iv_name[64] = "";
+    int64_t iv_stride = 0;
     if (mc->loop_body.n_stmts > 0) {
-        int64_t trip; char iv[64]; int64_t stride;
         int n_ivs = minic_loop_analyze(&mc->loop_body, 0, '<', 0,
-                                       &trip, iv, &stride);
-        if (n_ivs > 0 && trip >= 0) {
-            mc->loop_trip_count = trip;
-            snprintf(mc->loop_iv, sizeof(mc->loop_iv), "%s", iv);
-            mc->loop_iv_stride = stride;
-        } else {
-            mc->loop_trip_count = -1;
-        }
-        mc->loop_n_invariants = minic_loop_invariant_count(&mc->loop_body);
+                                       &trip_count, iv_name, &iv_stride);
+        if (n_ivs <= 0 || trip_count < 0) trip_count = -1;
     }
 
-    /* #13 LICM: hoist loop-invariant comparison operand into a register.
-     * If the loop condition is `var < invariant` (or `invariant < var`) and
-     * the invariant variable is NOT written in the body, load it into r11
-     * before the loop and compare against r11 instead of the stack slot.
-     * This saves one memory load per iteration. */
-    /* Detect: the condition compiled a cmp rax,rcx where rcx was loaded from
-     * a stack slot for a variable not written in the body. We patch the
-     * cmp to use r11 and emit `mov r11, [rbp-slot]` before the loop top. */
-    /* For this wave: the analysis result (loop_n_invariants) is stored. The
-     * actual register hoisting requires tracking which stack slot the cmp
-     * used, which we add in the next pass. The two-pass infrastructure is
-     * now in place for this. */
-
-    /* Restore main encoder and emit the analyzed body. */
+    /* Restore main encoder */
     body_enc = mc->enc;
     mc->enc = saved_enc;
-    mc->ra = saved_ra;  /* restore XRA state after two-pass while */
 
-    /* Emit the body code from the temporary buffer. */
-    for (size_t i = 0; i < body_enc.pos; i++) {
-        wx86_emit_byte(&mc->enc, body_enc.buf[i]);
+    /* Unroll if trip count is small (≤ 8) and positive */
+    int unroll = (trip_count > 0 && trip_count <= 8);
+    if (unroll) {
+        /* Emit body N times */
+        for (int64_t i = 0; i < trip_count; i++) {
+            for (size_t j = 0; j < body_enc.pos; j++) {
+                wx86_emit_byte(&mc->enc, body_enc.buf[j]);
+            }
+        }
+        /* Patch the exit condition to fall through (loop is gone) */
+        wx86_patch_rel32(&mc->enc, exit_patch, mc->enc.pos);
+    } else {
+        /* Emit body once + loop back */
+        for (size_t i = 0; i < body_enc.pos; i++) {
+            wx86_emit_byte(&mc->enc, body_enc.buf[i]);
+        }
+        /* Jump back to condition */
+        MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));
+        wx86_patch_rel32(&mc->enc, wx86_jmp_rel32_pos(&mc->enc), loop_top);
+        wx86_patch_rel32(&mc->enc, exit_patch, mc->enc.pos);
     }
     wx86_enc_free(&body_enc);
-
-    /* Jump back to condition */
-    MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));
-    wx86_patch_rel32(&mc->enc, wx86_jmp_rel32_pos(&mc->enc), loop_top);
-
-    wx86_patch_rel32(&mc->enc, exit_patch, mc->enc.pos);
-    #else
-    /* SINGLE-PASS: compile body directly to main encoder */
-    minic_expect(&mc->lex, TOK_LBRACE);
-    while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
-        compile_stmt(mc);
-    minic_expect(&mc->lex, TOK_RBRACE);
-
-    /* Jump back to condition */
-    MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));
-    wx86_patch_rel32(&mc->enc, wx86_jmp_rel32_pos(&mc->enc), loop_top);
-
-    wx86_patch_rel32(&mc->enc, exit_patch, mc->enc.pos);
-    #endif
 }
 
 static void compile_return_stmt(MinicCompiler *mc) {
