@@ -81,9 +81,16 @@ void wasm_i64_ge_s(WasmEnc *e) { wasm_emit(e, 0x55); }
 void wasm_local_get(WasmEnc *e, uint32_t idx) { wasm_emit(e, 0x20); wasm_write_leb_u32(e, idx); }
 void wasm_local_set(WasmEnc *e, uint32_t idx) { wasm_emit(e, 0x21); wasm_write_leb_u32(e, idx); }
 void wasm_i64_extend_i32_s(WasmEnc *e) { wasm_emit(e, 0xac); }
+void wasm_drop(WasmEnc *e) { wasm_emit(e, 0x1a); }
+void wasm_block(WasmEnc *e) { wasm_emit(e, 0x02); wasm_emit(e, 0x40); }  /* block void */
+void wasm_block_i64(WasmEnc *e) { wasm_emit(e, 0x02); wasm_emit(e, 0x7e); }  /* block (result i64) */
+void wasm_loop(WasmEnc *e) { wasm_emit(e, 0x03); wasm_emit(e, 0x40); }   /* loop void */
+void wasm_if(WasmEnc *e) { wasm_emit(e, 0x04); wasm_emit(e, 0x40); }     /* if void */
+void wasm_else(WasmEnc *e) { wasm_emit(e, 0x05); }
 void wasm_end(WasmEnc *e) { wasm_emit(e, 0x0b); }
 void wasm_return(WasmEnc *e) { wasm_emit(e, 0x0f); }
-void wasm_drop(WasmEnc *e) { wasm_emit(e, 0x1a); }
+void wasm_br(WasmEnc *e, uint32_t label) { wasm_emit(e, 0x0c); wasm_write_leb_u32(e, label); }
+void wasm_br_if(WasmEnc *e, uint32_t label) { wasm_emit(e, 0x0d); wasm_write_leb_u32(e, label); }
 
 size_t wasm_branch_pos(const WasmEnc *e) { return e->pos; }
 void wasm_patch_branch(WasmEnc *e, size_t pos, size_t target) {

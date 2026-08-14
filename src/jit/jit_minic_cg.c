@@ -16,11 +16,23 @@
  */
 #include "jit_codegen.h"
 #include "jit.h"
+#include "wubu_wasm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdint.h>
+
+/* WASM control flow helpers using direct byte emission */
+#define WASM_ENC(cg) (&((WasmEncoder *)((cg)->enc))->body)
+#define WASM_IF_I64(cg) wasm_if_i64(WASM_ENC(cg))
+static void wasm_push_i32zero(CodeGen *cg) {
+    cg->vt->emit_byte(cg->enc, 0x41);  /* i32.const */
+    cg->vt->emit_byte(cg->enc, 0x00);  /* 0 */
+}
+static void wasm_i32_eq(CodeGen *cg) {
+    cg->vt->emit_byte(cg->enc, 0x46);  /* i32.eq */
+}
 
 /* -- Tokenizer ---------------------------------------------------- */
 typedef enum {
@@ -626,8 +638,23 @@ static void cg_compile_compare(CGCompiler *cc, CGReg dst) {
 
     CGReg rhs = CG_REG_7;
     cg_compile_shift(cc, rhs);
-    cg_cmp_reg(cc->cg, dst, rhs);
-    cg_cset(cc->cg, dst, cc_type);
+    if (cc->cg->backend == 3) {
+        /* WASM: emit comparison. Stack machine: LHS pushed first, RHS on top.
+         * WASM gt_s computes first_popped > second_popped = RHS > LHS.
+         * We want LHS op RHS, so we swap: use lt for gt, gt for lt, etc. */
+        switch (cc_type) {
+            case CG_CC_EQ: wasm_i64_eq(WASM_ENC(cc->cg)); break;   /* eq is symmetric */
+            case CG_CC_NE: wasm_i64_ne(WASM_ENC(cc->cg)); break;   /* ne is symmetric */
+            case CG_CC_LT: wasm_i64_gt_s(WASM_ENC(cc->cg)); break;  /* LHS < RHS = RHS > LHS */
+            case CG_CC_GT: wasm_i64_lt_s(WASM_ENC(cc->cg)); break;  /* LHS > RHS = RHS < LHS */
+            case CG_CC_LE: wasm_i64_ge_s(WASM_ENC(cc->cg)); break;  /* LHS <= RHS = RHS >= LHS */
+            case CG_CC_GE: wasm_i64_le_s(WASM_ENC(cc->cg)); break;  /* LHS >= RHS = RHS <= LHS */
+            default:       wasm_i64_eq(WASM_ENC(cc->cg)); break;
+        }
+    } else {
+        cg_cmp_reg(cc->cg, dst, rhs);
+        cg_cset(cc->cg, dst, cc_type);
+    }
 }
 
 static void cg_compile_expr(CGCompiler *cc, CGReg dst) {
@@ -646,10 +673,11 @@ static void cg_compile_expr(CGCompiler *cc, CGReg dst) {
 static void cg_compile_return_stmt(CGCompiler *cc) {
     cg_consume(cc, TOK_RETURN);
     cg_compile_expr(cc, CG_REG_0);
-    /* Result is in R0 (which maps to RDI on x86, X0 on ARM64).
-     * For x86-64, we need to move to RAX (return register).
-     * For ARM64, X0 is already the return register.
-     * The backend handles this: CG_REG_0 is the return register. */
+    /* For WASM, emit return instruction */
+    if (cc->cg->backend == 3) {
+        cc->cg->vt->ret(cc->cg->enc);
+    }
+    /* For register machines, the epilogue handles moving R0 to return reg */
 }
 
 static void cg_compile_decl_stmt(CGCompiler *cc) {
@@ -684,56 +712,77 @@ static void cg_compile_if_stmt(CGCompiler *cc) {
     cg_compile_expr(cc, CG_REG_0);
     cg_consume(cc, TOK_RPAREN);
 
-    /* Compare R0 with 0 */
-    cg_cmp_imm(cc->cg, CG_REG_0, 0);
-    cg_b_cond(cc->cg, 0, CG_CC_EQ);  /* jump to else if R0 == 0 */
-    size_t else_patch = cg_branch_pos(cc->cg);
-
-    /* Support both braced and unbraced then-block */
-    if (cg_cur(cc, TOK_LBRACE)) {
-        cg_compile_block(cc);
-    } else {
-        cg_compile_stmt(cc);
-    }
-
-    if (cg_consume(cc, TOK_ELSE)) {
-        cg_b_uncond(cc->cg, 0);  /* jump over else */
-        size_t end_patch = cg_branch_pos(cc->cg);
-        cg_patch_branch(cc->cg, else_patch, cg_pos(cc->cg));
-        /* Support both braced and unbraced else-block */
-        if (cg_cur(cc, TOK_LBRACE)) {
-            cg_compile_block(cc);
-        } else {
-            cg_compile_stmt(cc);
+    if (cc->cg->backend == 3) {
+        /* WASM: structured control flow */
+        /* if(cond) { then_body } else { else_body }
+         * The condition is evaluated by cg_compile_expr before this point.
+         * Stack: [i32] (condition result)
+         * We emit: if void (then_body) else (else_body) end
+         * NOTE: return inside if/else blocks is NOT supported for WASM.
+         * The user should use: if(cond) { x = a; } else { x = b; } return x;
+         */
+        cc->cg->vt->do_if(cc->cg->enc);             /* if void (consumes i32) */
+        if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
+        else cg_compile_stmt(cc);
+        if (cg_consume(cc, TOK_ELSE)) {
+            cc->cg->vt->do_else(cc->cg->enc);       /* else */
+            if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
+            else cg_compile_stmt(cc);
         }
-        cg_patch_branch(cc->cg, end_patch, cg_pos(cc->cg));
+        cc->cg->vt->do_end(cc->cg->enc);            /* end */
     } else {
-        cg_patch_branch(cc->cg, else_patch, cg_pos(cc->cg));
+        /* Register machines: branch-based */
+        cg_cmp_imm(cc->cg, CG_REG_0, 0);
+        cg_b_cond(cc->cg, 0, CG_CC_EQ);
+        size_t else_patch = cg_branch_pos(cc->cg);
+        if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
+        else cg_compile_stmt(cc);
+        if (cg_consume(cc, TOK_ELSE)) {
+            cg_b_uncond(cc->cg, 0);
+            size_t end_patch = cg_branch_pos(cc->cg);
+            cg_patch_branch(cc->cg, else_patch, cg_pos(cc->cg));
+            if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
+            else cg_compile_stmt(cc);
+            cg_patch_branch(cc->cg, end_patch, cg_pos(cc->cg));
+        } else {
+            cg_patch_branch(cc->cg, else_patch, cg_pos(cc->cg));
+        }
     }
 }
 
 static void cg_compile_while_stmt(CGCompiler *cc) {
     cg_consume(cc, TOK_WHILE);
     cg_consume(cc, TOK_LPAREN);
-    size_t loop_top = cg_pos(cc->cg);
-    cg_compile_expr(cc, CG_REG_0);
-    cg_consume(cc, TOK_RPAREN);
 
-    cg_cmp_imm(cc->cg, CG_REG_0, 0);
-    cg_b_cond(cc->cg, 0, CG_CC_EQ);  /* exit if R0 == 0 */
-    size_t exit_patch = cg_branch_pos(cc->cg);
-
-    /* Support both braced and unbraced while body */
-    if (cg_cur(cc, TOK_LBRACE)) {
-        cg_compile_block(cc);
+    if (cc->cg->backend == 3) {
+        /* WASM: structured control flow */
+        cg_loop(cc->cg);                         /* outer loop block */
+        cg_block(cc->cg);                        /* inner block for break */
+        size_t cond_top = cg_pos(cc->cg);
+        cg_compile_expr(cc, CG_REG_0);
+        cg_consume(cc, TOK_RPAREN);
+        cg_cmp_imm(cc->cg, CG_REG_0, 0);         /* compare with 0 */
+        cg_br_if(cc->cg, 1);                     /* break outer loop if false */
+        if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
+        else cg_compile_stmt(cc);
+        cg_br(cc->cg, 0);                        /* continue inner loop */
+        cg_end(cc->cg);                          /* end block */
+        cg_end(cc->cg);                          /* end loop */
     } else {
-        cg_compile_stmt(cc);
+        /* Register machines: branch-based */
+        size_t loop_top = cg_pos(cc->cg);
+        cg_compile_expr(cc, CG_REG_0);
+        cg_consume(cc, TOK_RPAREN);
+        cg_cmp_imm(cc->cg, CG_REG_0, 0);
+        cg_b_cond(cc->cg, 0, CG_CC_EQ);
+        size_t exit_patch = cg_branch_pos(cc->cg);
+        if (cg_cur(cc, TOK_LBRACE)) cg_compile_block(cc);
+        else cg_compile_stmt(cc);
+        cg_b_uncond(cc->cg, 0);
+        size_t back_patch = cg_branch_pos(cc->cg);
+        cg_patch_branch(cc->cg, back_patch, loop_top);
+        cg_patch_branch(cc->cg, exit_patch, cg_pos(cc->cg));
     }
-    /* Jump back to loop top */
-    cg_b_uncond(cc->cg, 0);  /* emit placeholder */
-    size_t back_patch = cg_branch_pos(cc->cg);
-    cg_patch_branch(cc->cg, back_patch, loop_top);  /* patch to jump to loop_top */
-    cg_patch_branch(cc->cg, exit_patch, cg_pos(cc->cg));
 }
 
 static void cg_compile_block(CGCompiler *cc) {

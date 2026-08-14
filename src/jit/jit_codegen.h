@@ -90,6 +90,7 @@ typedef struct {
     /* Comparison */
     void (*cmp_imm)(CGEncoder *e, CGReg rn, uint32_t imm);
     void (*cmp_reg)(CGEncoder *e, CGReg rn, CGReg rm);
+    void (*cmp_reg_cc)(CGEncoder *e, CGReg rn, CGReg rm, CGCC cc);
     void (*cset)(CGEncoder *e, CGReg rd, CGCC cc);
 
     /* Branch */
@@ -101,6 +102,16 @@ typedef struct {
     /* Branch fixups */
     size_t (*branch_pos)(CGEncoder *e);
     void   (*patch_branch)(CGEncoder *e, size_t pos, size_t target);
+
+    /* Structured control flow (for WASM) */
+    void (*do_block)(CGEncoder *e);
+    void (*do_block_i64)(CGEncoder *e);
+    void (*do_loop)(CGEncoder *e);
+    void (*do_if)(CGEncoder *e);
+    void (*do_else)(CGEncoder *e);
+    void (*do_end)(CGEncoder *e);
+    void (*br)(CGEncoder *e, uint32_t label);
+    void (*br_if)(CGEncoder *e, uint32_t label);
 
     /* Stack */
     void (*push)(CGEncoder *e, CGReg rt);
@@ -119,7 +130,7 @@ struct CodeGen {
     /* Backend-neutral state */
     int n_args;
     int stack_depth;
-    int backend;  /* 0 = x86-64, 1 = arm64 */
+    int backend;  /* 0 = x86-64, 1 = arm64, 2 = rv64, 3 = wasm */
 };
 
 /* -- Factory functions -------------------------------------------- */
@@ -185,6 +196,9 @@ static inline void cg_cmp_imm(CodeGen *cg, CGReg rn, uint32_t imm) {
 static inline void cg_cmp_reg(CodeGen *cg, CGReg rn, CGReg rm) {
     cg->vt->cmp_reg(cg->enc, rn, rm);
 }
+static inline void cg_cmp_reg_cc(CodeGen *cg, CGReg rn, CGReg rm, CGCC cc) {
+    cg->vt->cmp_reg_cc(cg->enc, rn, rm, cc);
+}
 static inline void cg_cset(CodeGen *cg, CGReg rd, CGCC cc) {
     cg->vt->cset(cg->enc, rd, cc);
 }
@@ -215,6 +229,14 @@ static inline void cg_pop(CodeGen *cg, CGReg rt) {
 static inline void cg_drop(CodeGen *cg) {
     cg->vt->drop(cg->enc);
 }
+static inline void cg_block(CodeGen *cg) { cg->vt->do_block(cg->enc); }
+static inline void cg_block_i64(CodeGen *cg) { cg->vt->do_block_i64(cg->enc); }
+static inline void cg_loop(CodeGen *cg) { cg->vt->do_loop(cg->enc); }
+static inline void cg_if(CodeGen *cg) { cg->vt->do_if(cg->enc); }
+static inline void cg_else(CodeGen *cg) { cg->vt->do_else(cg->enc); }
+static inline void cg_end(CodeGen *cg) { cg->vt->do_end(cg->enc); }
+static inline void cg_br(CodeGen *cg, uint32_t l) { cg->vt->br(cg->enc, l); }
+static inline void cg_br_if(CodeGen *cg, uint32_t l) { cg->vt->br_if(cg->enc, l); }
 static inline size_t cg_pos(CodeGen *cg) {
     return cg->vt->pos(cg->enc);
 }

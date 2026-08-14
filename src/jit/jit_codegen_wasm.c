@@ -10,14 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-    WasmEnc   body;       /* function body instructions */
-    WasmEnc   module;     /* complete module output */
-    uint32_t  n_params;
-    uint32_t  n_locals;
-    int       finalized;
-} WasmEncoder;
-
 static WasmEncoder *wasm_enc(CGEncoder *e) { return (WasmEncoder *)e; }
 
 static uint32_t cg_to_wasm_local(CGReg r, uint32_t n_params) {
@@ -30,12 +22,14 @@ static uint32_t cg_to_wasm_local(CGReg r, uint32_t n_params) {
 }
 
 static void wasm_mov_imm(CGEncoder *e, CGReg rd, int64_t imm) {
+    /* Stack machine: just push the immediate */
     (void)rd;
     wasm_i64_const(&wasm_enc(e)->body, imm);
 }
 
 static void wasm_mov_reg(CGEncoder *e, CGReg rd, CGReg rn) {
     (void)rd;
+    /* Stack machine: load from local */
     uint32_t local = cg_to_wasm_local(rn, wasm_enc(e)->n_params);
     wasm_local_get(&wasm_enc(e)->body, local);
 }
@@ -99,33 +93,50 @@ static void wasm_asr_imm(CGEncoder *e, CGReg rd, CGReg rn, uint8_t s) {
 }
 
 static void wasm_cmp_imm(CGEncoder *e, CGReg rn, uint32_t imm) {
-    uint32_t local = cg_to_wasm_local(rn, wasm_enc(e)->n_params);
-    wasm_local_get(&wasm_enc(e)->body, local);
-    wasm_i64_const(&wasm_enc(e)->body, (int64_t)imm);
-    wasm_i64_eq(&wasm_enc(e)->body);
+    (void)rn; (void)imm;
+    /* Value on stack is i32 (from comparison), push i32 0, compare with i32.eq */
+    /* For WASM, we just need to check if the i32 is 0 (false) */
+    /* Push 0 as i32 and use i32.eq */
+    wasm_emit(&wasm_enc(e)->body, 0x41);  /* i32.const */
+    wasm_emit(&wasm_enc(e)->body, 0x00);  /* 0 */
+    wasm_emit(&wasm_enc(e)->body, 0x46);  /* i32.eq */
 }
 
 static void wasm_cmp_reg(CGEncoder *e, CGReg rn, CGReg rm) {
-    uint32_t local_n = cg_to_wasm_local(rn, wasm_enc(e)->n_params);
-    uint32_t local_m = cg_to_wasm_local(rm, wasm_enc(e)->n_params);
-    wasm_local_get(&wasm_enc(e)->body, local_n);
-    wasm_local_get(&wasm_enc(e)->body, local_m);
+    (void)rn; (void)rm;
+    /* Values are already on the stack — emit comparison based on last cc */
+    /* Default to eq; the minic compiler stores cc_type before calling */
     wasm_i64_eq(&wasm_enc(e)->body);
 }
 
 static void wasm_cset(CGEncoder *e, CGReg rd, CGCC cc) {
     (void)rd; (void)cc;
-    /* Comparison result is i32 on stack — extend to i64 */
-    wasm_i64_extend_i32_s(&wasm_enc(e)->body);
+    /* Comparison result is already i32 on stack — nothing to do */
 }
 
-static void wasm_b_uncond(CGEncoder *e, int32_t off) { (void)e; (void)off; }
-static void wasm_b_cond(CGEncoder *e, int32_t offset, CGCC cc) { (void)e; (void)offset; (void)cc; }
+static void wasm_b_uncond(CGEncoder *e, int32_t off) {
+    (void)off;
+    /* br to the innermost loop (label 0 = continue loop) */
+    wasm_br(&wasm_enc(e)->body, 0);
+}
+static void wasm_b_cond(CGEncoder *e, int32_t offset, CGCC cc) {
+    (void)offset; (void)cc;
+    /* br_if to the innermost block (label 0 = exit if-block) */
+    wasm_br_if(&wasm_enc(e)->body, 0);
+}
 static void wasm_b_reg(CGEncoder *e, CGReg rn) { (void)e; (void)rn; }
 static void wasm_ret(CGEncoder *e) { wasm_return(&wasm_enc(e)->body); }
 static size_t wasm_get_bp(CGEncoder *e) { return wasm_branch_pos(&wasm_enc(e)->body); }
 static void wasm_do_patch(CGEncoder *e, size_t pos, size_t target) { wasm_patch_branch(&wasm_enc(e)->body, pos, target); }
 static void wasm_do_drop(CGEncoder *e) { wasm_drop(&wasm_enc(e)->body); }
+static void wasm_do_block(CGEncoder *e) { wasm_enc(e)->label_depth++; wasm_block(&wasm_enc(e)->body); }
+static void wasm_do_block_i64(CGEncoder *e) { wasm_enc(e)->label_depth++; wasm_block_i64(&wasm_enc(e)->body); }
+static void wasm_do_loop(CGEncoder *e) { wasm_enc(e)->label_depth++; wasm_loop(&wasm_enc(e)->body); }
+static void wasm_do_if(CGEncoder *e) { wasm_enc(e)->label_depth++; wasm_if(&wasm_enc(e)->body); }
+static void wasm_do_else(CGEncoder *e) { wasm_else(&wasm_enc(e)->body); }
+static void wasm_do_end(CGEncoder *e) { wasm_enc(e)->label_depth--; wasm_end(&wasm_enc(e)->body); }
+static void wasm_do_br(CGEncoder *e, uint32_t label) { wasm_br(&wasm_enc(e)->body, label); }
+static void wasm_do_br_if(CGEncoder *e, uint32_t label) { wasm_br_if(&wasm_enc(e)->body, label); }
 static void wasm_push(CGEncoder *e, CGReg rt) { (void)e; (void)rt; }
 static void wasm_pop(CGEncoder *e, CGReg rt) { (void)e; (void)rt; }
 
@@ -211,6 +222,14 @@ static const CodeGenVTable wasm_vtable = {
     .push = wasm_push,
     .pop = wasm_pop,
     .drop = wasm_do_drop,
+    .do_block = wasm_do_block,
+    .do_block_i64 = wasm_do_block_i64,
+    .do_loop = wasm_do_loop,
+    .do_if = wasm_do_if,
+    .do_else = wasm_do_else,
+    .do_end = wasm_do_end,
+    .br = wasm_do_br,
+    .br_if = wasm_do_br_if,
     .prologue = wasm_prologue,
     .epilogue = wasm_epilogue,
 };
@@ -323,5 +342,6 @@ CodeGen *cg_create_wasm(void) {
     wasm_enc_init_dynamic(&enc->module, 4096);
     enc->n_params = 6;
     enc->n_locals = 10;
+    enc->label_depth = 0;
     return cg;
 }

@@ -220,6 +220,14 @@ static void arm64_patch_branch(CGEncoder *e, size_t pos, size_t target) {
 }
 
 static void arm64_noop(CGEncoder *e) { (void)e; }
+static void arm64_do_block(CGEncoder *e) { (void)e; }
+static void arm64_do_block_i64(CGEncoder *e) { (void)e; }
+static void arm64_do_loop(CGEncoder *e) { (void)e; }
+static void arm64_do_if(CGEncoder *e) { (void)e; }
+static void arm64_do_else(CGEncoder *e) { (void)e; }
+static void arm64_do_end(CGEncoder *e) { (void)e; }
+static void arm64_br(CGEncoder *e, uint32_t l) { (void)e; (void)l; }
+static void arm64_br_if(CGEncoder *e, uint32_t l) { (void)e; (void)l; }
 static void arm64_push(CGEncoder *e, CGReg rt) {
     warm64_push(&arm64_enc(e)->enc, cg_to_arm64(rt));
 }
@@ -294,6 +302,14 @@ static const CodeGenVTable arm64_vtable = {
     .push = arm64_push,
     .pop = arm64_pop,
     .drop = arm64_noop,
+    .do_block = arm64_do_block,
+    .do_block_i64 = arm64_do_block_i64,
+    .do_loop = arm64_do_loop,
+    .do_if = arm64_do_if,
+    .do_else = arm64_do_else,
+    .do_end = arm64_do_end,
+    .br = arm64_br,
+    .br_if = arm64_br_if,
     .prologue = arm64_prologue,
     .epilogue = arm64_epilogue,
 };

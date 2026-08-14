@@ -145,6 +145,14 @@ static void rv64_do_patch_branch(CGEncoder *e, size_t pos, size_t target) {
     rv64_patch_branch(&rv64_enc(e)->enc, pos, target);
 }
 static void rv64_noop(CGEncoder *e) { (void)e; }
+static void rv64_do_block(CGEncoder *e) { (void)e; }
+static void rv64_do_block_i64(CGEncoder *e) { (void)e; }
+static void rv64_do_loop(CGEncoder *e) { (void)e; }
+static void rv64_do_if(CGEncoder *e) { (void)e; }
+static void rv64_do_else(CGEncoder *e) { (void)e; }
+static void rv64_do_end(CGEncoder *e) { (void)e; }
+static void rv64_br(CGEncoder *e, uint32_t l) { (void)e; (void)l; }
+static void rv64_br_if(CGEncoder *e, uint32_t l) { (void)e; (void)l; }
 static void rv64_push(CGEncoder *e, CGReg rt) {
     rv64_addi(&rv64_enc(e)->enc, RV_SP, RV_SP, -8);
     rv64_sd(&rv64_enc(e)->enc, cg_to_rv64(rt), RV_SP, 0);
@@ -205,6 +213,14 @@ static const CodeGenVTable rv64_vtable = {
     .push = rv64_push,
     .pop = rv64_pop,
     .drop = rv64_noop,
+    .do_block = rv64_do_block,
+    .do_block_i64 = rv64_do_block_i64,
+    .do_loop = rv64_do_loop,
+    .do_if = rv64_do_if,
+    .do_else = rv64_do_else,
+    .do_end = rv64_do_end,
+    .br = rv64_br,
+    .br_if = rv64_br_if,
     .prologue = rv64_prologue,
     .epilogue = rv64_epilogue,
 };

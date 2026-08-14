@@ -291,6 +291,14 @@ static void x86_patch_branch(CGEncoder *e, size_t pos, size_t target) {
 }
 
 static void x86_noop(CGEncoder *e) { (void)e; }
+static void x86_do_block(CGEncoder *e) { (void)e; }
+static void x86_do_block_i64(CGEncoder *e) { (void)e; }
+static void x86_do_loop(CGEncoder *e) { (void)e; }
+static void x86_do_if(CGEncoder *e) { (void)e; }
+static void x86_do_else(CGEncoder *e) { (void)e; }
+static void x86_do_end(CGEncoder *e) { (void)e; }
+static void x86_br(CGEncoder *e, uint32_t l) { (void)e; (void)l; }
+static void x86_br_if(CGEncoder *e, uint32_t l) { (void)e; (void)l; }
 static void x86_push(CGEncoder *e, CGReg rt) {
     wx86_push_reg(&x86_enc(e)->enc, cg_to_x86(rt));
 }
@@ -363,6 +371,14 @@ static const CodeGenVTable x86_vtable = {
     .push = x86_push,
     .pop = x86_pop,
     .drop = x86_noop,
+    .do_block = x86_do_block,
+    .do_block_i64 = x86_do_block_i64,
+    .do_loop = x86_do_loop,
+    .do_if = x86_do_if,
+    .do_else = x86_do_else,
+    .do_end = x86_do_end,
+    .br = x86_br,
+    .br_if = x86_br_if,
     .prologue = x86_prologue,
     .epilogue = x86_epilogue,
 };

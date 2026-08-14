@@ -18,6 +18,15 @@ typedef struct {
     int      owns_buf;
 } WasmEnc;
 
+typedef struct {
+    WasmEnc   body;       /* function body instructions */
+    WasmEnc   module;     /* complete module output */
+    uint32_t  n_params;
+    uint32_t  n_locals;
+    int       finalized;
+    int       label_depth;
+} WasmEncoder;
+
 void wasm_enc_init(WasmEnc *e, uint8_t *buf, size_t cap);
 void wasm_enc_init_dynamic(WasmEnc *e, size_t initial_cap);
 void wasm_enc_free(WasmEnc *e);
@@ -48,9 +57,16 @@ void wasm_i64_ge_s(WasmEnc *e);
 void wasm_local_get(WasmEnc *e, uint32_t idx);
 void wasm_local_set(WasmEnc *e, uint32_t idx);
 void wasm_i64_extend_i32_s(WasmEnc *e);
-void wasm_end(WasmEnc *e);
-void wasm_return(WasmEnc *e);
 void wasm_drop(WasmEnc *e);
+void wasm_block(WasmEnc *e);      /* 0x02 */
+void wasm_block_i64(WasmEnc *e);  /* 0x02 with i64 result */
+void wasm_loop(WasmEnc *e);       /* 0x03 */
+void wasm_if(WasmEnc *e);         /* 0x04 */
+void wasm_else(WasmEnc *e);       /* 0x05 */
+void wasm_end(WasmEnc *e);        /* 0x0b end */
+void wasm_return(WasmEnc *e);     /* 0x0f return */
+void wasm_br(WasmEnc *e, uint32_t label);     /* 0x0c */
+void wasm_br_if(WasmEnc *e, uint32_t label);  /* 0x0d */
 
 /* -- Branch fixups ------------------------------------------------ */
 size_t wasm_branch_pos(const WasmEnc *e);
