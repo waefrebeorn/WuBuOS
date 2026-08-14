@@ -15,8 +15,10 @@
  *     test rax,rax; jne) — fusion only engages for real comparisons.
  */
 #include "jit.h"
+#include "wubu_x86.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 
 static int pass, fail;
 #define CHECK(cond, msg) do { \
@@ -91,6 +93,34 @@ int main(void) {
     CHECK(r == 0 && !has_setcc((unsigned char*)fn.code, fn.code_size), "fused while has NO setcc");
 
     jit_free(ctx);
+
+    /* --- #10 / #22 / #1 encoder bytes (movnti, adc/sbb/clc/stc, mem-add) --- */
+    {
+        uint8_t buf[64]; Wx86Enc e; wx86_enc_init(&e, buf, sizeof(buf));
+        /* movnti [rbp-8], rax = 48 0f c3 45 f8 (non-temporal store, #22) */
+        e.pos = 0; wx86_movnti_mem_reg(&e, WREG_RBP, -8, WREG_RAX);
+        CHECK(e.pos == 5 && memcmp(buf, (unsigned char[]){0x48,0x0f,0xc3,0x45,0xf8},5)==0,
+              "movnti [rbp-8],rax encoding");
+        /* adc rax,rcx = 48 11 c8 ; sbb r10,r11 = 4d 19 da (#1 carry chain) */
+        e.pos = 0; wx86_adc_reg_reg(&e, WREG_RAX, WREG_RCX);
+        CHECK(e.pos == 3 && memcmp(buf, (unsigned char[]){0x48,0x11,0xc8},3)==0,
+              "adc rax,rcx encoding");
+        e.pos = 0; wx86_sbb_reg_reg(&e, WREG_R10, WREG_R11);
+        CHECK(e.pos == 3 && memcmp(buf, (unsigned char[]){0x4d,0x19,0xda},3)==0,
+              "sbb r10,r11 encoding");
+        /* clc=f8, stc=f9 (carry flag control for the multiword prologue) */
+        e.pos = 0; wx86_clc(&e); CHECK(e.pos==1 && buf[0]==0xf8, "clc encoding");
+        e.pos = 0; wx86_stc(&e); CHECK(e.pos==1 && buf[0]==0xf9, "stc encoding");
+        /* add rax,[rbp-24] = 48 03 45 e8 (#10 memory-operand fusion) */
+        e.pos = 0; wx86_add_rax_mem(&e, WREG_RBP, -24);
+        CHECK(e.pos == 4 && memcmp(buf, (unsigned char[]){0x48,0x03,0x45,0xe8},4)==0,
+              "add rax,[rbp-24] encoding");
+        /* add rax,[r10] (disp0, r10) = 49 03 02 */
+        e.pos = 0; wx86_add_rax_mem(&e, WREG_R10, 0);
+        CHECK(e.pos == 3 && memcmp(buf, (unsigned char[]){0x49,0x03,0x02},3)==0,
+              "add rax,[r10] encoding");
+    }
+
     printf("=== jit_branch_test: %d passed, %d failed ===\n", pass, fail);
     return fail == 0 ? 0 : 1;
 }

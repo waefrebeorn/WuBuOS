@@ -102,6 +102,11 @@ int wx86_mov_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src);
 /* ADD reg, reg (REX.W + 01 + ModRM) */
 int wx86_add_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
 
+/* ADD rax, [rbp+disp] — REX.W + 03 /r, memory operand folded into the ALU op
+ * (rax is reg field, [rbp+disp] is rm). For memory-operand fusion (#10):
+ * replaces a spill-reload (mov rax,[slot]; add rax,rX) with one instruction. */
+int wx86_add_rax_mem(Wx86Enc *e, Wx86Reg base, int32_t disp);
+
 /* ADD reg, imm32 (REX.W + 81 + /0 + imm32) */
 int wx86_add_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
 
@@ -135,6 +140,19 @@ int wx86_xor_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
 
 /* CMP reg, reg (REX.W + 39 + ModRM) */
 int wx86_cmp_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b);
+
+/* MOVNTI m64, r64 — 0F C3 /r (non-temporal store, bypasses cache).
+ * Streaming write for memory that is never re-read soon. dst is rm field. */
+int wx86_movnti_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src);
+
+/* ADC reg, reg — 48 11 /r (add with carry). dst += src + CF. */
+int wx86_adc_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
+/* SBB reg, reg — 48 19 /r (sub with borrow). dst -= src - CF. */
+int wx86_sbb_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
+/* CLC — F8 (clear carry flag). */
+int wx86_clc(Wx86Enc *e);
+/* STC — F9 (set carry flag). */
+int wx86_stc(Wx86Enc *e);
 
 /* TEST reg, reg (REX.W + 85 + ModRM) — AND without storing (sets ZF).
  * 1 byte shorter than cmp reg,0 for x==0 / x!=0 tests. */

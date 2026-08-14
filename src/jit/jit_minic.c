@@ -592,8 +592,23 @@ static void compile_additive(MinicCompiler *mc) {
             int lhs = mc_vreg_of_rax(mc);
             compile_multiplicative(mc);
             Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
-            if (lhs_hw == WREG_NONE)
+            if (lhs_hw == WREG_NONE) {
+                /* #10 memory-operand fusion: if the LHS is spilled and the op
+                 * is ADD (commutative), fold the stack slot into the ALU op
+                 * (add rax,[rbp-slot]) instead of reloading into a register.
+                 * Saves a mov and the register. SUB is non-commutative so it
+                 * keeps the reload path. */
+                if (op == TOK_PLUS) {
+                    int slot = xra_assign_spill_slot(&mc->ra, lhs);
+                    int offset = -(8 * (slot + 1));
+                    MC_EMIT(mc, wx86_add_rax_mem(&mc->enc, WREG_RBP, offset));
+                    mc->rax_is_const = false;
+                    xra_free_reg(&mc->ra, lhs_hw);
+                    xra_set_next_use(&mc->ra, lhs, -1);
+                    continue;  /* result already in rax */
+                }
                 lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            }
             if (op == TOK_PLUS)
                 MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs += rhs (rax) */
             else

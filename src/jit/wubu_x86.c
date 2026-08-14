@@ -226,6 +226,32 @@ int wx86_mov_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src) {
     return (int)(e->pos - start);
 }
 
+int wx86_movnti_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src) {
+    /* MOVNTI m64, r64 = REX.W + 0F C3 /r. src is reg field, base is rm.
+     * Same modrm/sib encoding as mov_mem_reg but with opcode 0F C3. */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(src, base, true);
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x0F);
+    wx86_emit_byte(e, 0xC3);
+    if (disp == 0 && reg_lo(base) != 5) {
+        wx86_emit_modrm(e, 0, src, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+    } else if (disp >= -128 && disp <= 127) {
+        wx86_emit_modrm(e, 1, src, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+        wx86_emit_byte(e, (uint8_t)(disp & 0xFF));
+    } else {
+        wx86_emit_modrm(e, 2, src, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+        wx86_emit_dword(e, (uint32_t)disp);
+    }
+    return (int)(e->pos - start);
+}
+
 /* -- ALU reg, reg operations -------------------------------------- */
 
 int wx86_add_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
@@ -233,6 +259,47 @@ int wx86_add_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
     emit_rex_modrm_reg_reg(e, 0x01, dst, src, true);
     return (int)(e->pos - start);
 }
+
+int wx86_add_rax_mem(Wx86Enc *e, Wx86Reg base, int32_t disp) {
+    /* ADD rax, [base+disp] = REX.W + 03 + modrm (reg=000=rax). */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(WREG_RAX, base, true);
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x03);
+    if (disp == 0 && reg_lo(base) != 5) {
+        wx86_emit_modrm(e, 0, WREG_RAX, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+    } else if (disp >= -128 && disp <= 127) {
+        wx86_emit_modrm(e, 1, WREG_RAX, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+        wx86_emit_byte(e, (uint8_t)(disp & 0xFF));
+    } else {
+        wx86_emit_modrm(e, 2, WREG_RAX, base);
+        if (reg_lo(base) == 4 || reg_lo(base) == 12)
+            wx86_emit_sib(e, 1, WREG_RSP, base);
+        wx86_emit_dword(e, (uint32_t)disp);
+    }
+    return (int)(e->pos - start);
+}
+
+int wx86_adc_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
+    /* ADC r64, r/m64 = REX.W + 11 /r. dst += src + CF. */
+    size_t start = e->pos;
+    emit_rex_modrm_reg_reg(e, 0x11, dst, src, true);
+    return (int)(e->pos - start);
+}
+
+int wx86_sbb_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
+    /* SBB r64, r/m64 = REX.W + 19 /r. dst -= src - CF. */
+    size_t start = e->pos;
+    emit_rex_modrm_reg_reg(e, 0x19, dst, src, true);
+    return (int)(e->pos - start);
+}
+
+int wx86_clc(Wx86Enc *e) { wx86_emit_byte(e, 0xF8); return 1; }
+int wx86_stc(Wx86Enc *e) { wx86_emit_byte(e, 0xF9); return 1; }
 
 int wx86_add_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
     size_t start = e->pos;
