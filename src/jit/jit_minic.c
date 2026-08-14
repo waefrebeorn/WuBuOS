@@ -152,14 +152,18 @@ static int mc_vreg_of_rax(MinicCompiler *mc) {
          * rematerialize as an immediate instead of a memory reload. */
         if (mc->rax_is_const)
             xra_mark_const(&mc->ra, v, mc->rax_const_val);
-        Wx86Reg hw = xra_alloc(&mc->ra, v);
+        /* Newly-materialized value is used at the next binop (now-ish). */
+        xra_set_next_use(&mc->ra, v, xra_advance_pos(&mc->ra));
+        /* Allocate, evicting the farthest-next-use active vreg if the pool
+         * is exhausted (Poletto SpillAtInterval) rather than spilling the
+         * incoming value. */
+        Wx86Reg hw = xra_alloc_evict(&mc->ra, v, &mc->enc);
         if (hw != WREG_NONE) {
             /* Move rax result into allocated reg and register it */
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, hw, WREG_RAX));
         } else {
-            /* No reg free — the value is still in RAX. Spill it to the
-             * stack slot (unless it is a known constant, which is cheaper
-             * to rematerialize on reload than to store now). */
+            /* Nothing evictable — spill the incoming value to its stack slot
+             * (unless it is a known constant, which remats on reload). */
             int slot = xra_assign_spill_slot(&mc->ra, v);
             if (!xra_is_const(&mc->ra, v)) {
                 int offset = -(8 * (slot + 1));
@@ -341,6 +345,7 @@ static void compile_multiplicative(MinicCompiler *mc) {
             }
             mc->rax_is_const = false;  /* result of a runtime binop */
             xra_free_reg(&mc->ra, lhs_hw);
+            xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
         } else {
             MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_primary(mc);
@@ -381,6 +386,7 @@ static void compile_additive(MinicCompiler *mc) {
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));      /* result back in rax */
             mc->rax_is_const = false;  /* result of a runtime binop */
             xra_free_reg(&mc->ra, lhs_hw);
+            xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
         } else {
             MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_multiplicative(mc);

@@ -46,6 +46,15 @@ typedef struct {
      * can be re-emitted as an immediate instead of a memory reload. */
     bool       vreg_const[XRA_MAX_VREGS];   /* vreg holds a known constant */
     int64_t    vreg_const_val[XRA_MAX_VREGS]; /* its value */
+    /* Farthest-next-use eviction: each vreg's next-use position. When the
+     * pool is exhausted we evict the ACTIVE vreg whose next use is FARTHEST
+     * (Poletto SpillAtInterval) instead of spilling the incoming one. A vreg
+     * with next_use == -1 is "already used" (its value is dead; evict freely). */
+    int        vreg_next_use[XRA_MAX_VREGS];
+    int        next_pos;  /* monotonic position counter for next_use */
+    /* Persistent vreg -> spill-slot mapping (survives the vreg being evicted
+     * from its register, so a later xra_spill_load finds the SAME slot). */
+    int        vreg_spill_slot[XRA_MAX_VREGS];
 } XRARegAlloc;
 
 /* Initialize the register allocator */
@@ -100,5 +109,23 @@ void xra_mark_const(XRARegAlloc *ra, int vreg, int64_t val);
 
 /* True if the vreg holds a known constant. */
 bool xra_is_const(const XRARegAlloc *ra, int vreg);
+
+/* Record the next-use position of a vreg (for farthest-next-use eviction).
+ * next_use < 0 marks the vreg's value as dead (free to evict). */
+void xra_set_next_use(XRARegAlloc *ra, int vreg, int next_use);
+
+/* Bump the allocator's position counter, returning the new position. */
+int xra_advance_pos(XRARegAlloc *ra);
+
+/* Evict the ACTIVE vreg with the farthest next use: spill it to its stack
+ * slot (emitting the store) and free its register so the caller can allocate
+ * the incoming vreg into that register. Returns the freed register. */
+Wx86Reg xra_evict_farthest(XRARegAlloc *ra, Wx86Enc *e);
+
+/* Allocate a register for vreg, evicting the farthest-next-use active vreg
+ * when the pool is exhausted. Returns WREG_NONE only if nothing is evictable
+ * (caller must then spill the incoming vreg). Requires an encoder for the
+ * evicted vreg's spill store. */
+Wx86Reg xra_alloc_evict(XRARegAlloc *ra, int vreg, Wx86Enc *e);
 
 #endif /* X86_REGALLOC_H */

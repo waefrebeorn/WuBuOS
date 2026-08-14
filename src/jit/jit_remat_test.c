@@ -90,6 +90,45 @@ int main(void) {
         CHECK(xra_is_const(&ra, 5) && xra_is_const(&ra, 0), "independent per-vreg flags");
     }
 
+    /* --- Case 4: farthest-next-use eviction (Poletto SpillAtInterval) --- */
+    {
+        XRARegAlloc ra;
+        xra_init(&ra, 0);
+        Wx86Enc e;
+
+        /* Allocate enough live vregs to fill the pool. Keep them all with a
+         * DISTANT next_use so the eviction must kick one out to make room. */
+        int n_live = 0;
+        for (int v = 0; v < 14; v++) {
+            xra_set_next_use(&ra, v, 10 + v);      /* all far-future */
+            Wx86Reg hw = xra_alloc(&ra, v);
+            if (hw == WREG_NONE) break;
+            n_live++;
+        }
+        CHECK(n_live >= 10, "pool fills with >=10 live vregs");
+
+        /* Now allocate a NEW vreg (in-range index, far-future next use) with
+         * an encoder present: the pool is full, so xra_alloc_evict must evict
+         * a far-next-use active vreg (not the incoming one) to make room. */
+        wx86_enc_init_dynamic(&e, 128);
+        Wx86Reg hw = xra_alloc_evict(&ra, 20, &e);
+        CHECK(hw != WREG_NONE, "eviction frees a register for the incoming vreg");
+        CHECK(ra.regs[hw].vreg == 20, "incoming vreg gets the evicted register");
+        /* The eviction must have emitted a spill store for the evicted vreg
+         * (a memory store, opcode 89 mov r/m64,r64 — NOT for a constant). */
+        CHECK(e.pos >= 3, "eviction emits the evicted vreg's spill store");
+        CHECK(e.buf[1] == 0x89, "spill store opcode 89 (mov r/m64, r64)");
+
+        /* The evicted vreg's slot persists: reload from the SAME slot. */
+        wx86_enc_init_dynamic(&e, 64);
+        Wx86Reg reload_hw = xra_spill_load(&ra, 20, &e);
+        (void)reload_hw;
+        CHECK(ra.vreg_spill_slot[20] >= 0, "incoming vreg has a persistent slot");
+        CHECK(ra.vreg_spill_slot[20] < 16, "slot index in range");
+
+        wx86_enc_free(&e);
+    }
+
     printf("\n=== jit_remat_test: %d passed, %d failed ===\n", pass, fail);
     return fail ? 1 : 0;
 }

@@ -47,6 +47,13 @@ void xra_init(XRARegAlloc *ra, int n_args) {
     ra->next_spill = 0;
     ra->n_callee_saved = 0;
     ra->frame_size = 0;
+    ra->next_pos = 0;
+    for (int v = 0; v < XRA_MAX_VREGS; v++) {
+        ra->vreg_next_use[v] = -1;  /* fresh vregs: value dead until set */
+        ra->vreg_const[v] = false;
+        ra->vreg_const_val[v] = 0;
+        ra->vreg_spill_slot[v] = -1;  /* no spill slot yet */
+    }
 
     /* Pre-assign argument registers */
     Wx86ABI abi = wx86_sysv_abi();
@@ -92,10 +99,64 @@ Wx86Reg xra_alloc(XRARegAlloc *ra, int vreg) {
         }
     }
 
-    /* All out — spill this vreg to the stack and return WREG_NONE.
-     * The caller must check for WREG_NONE and later reload via xra_spill_load. */
+    /* All out — the pool is exhausted. Return WREG_NONE; the caller invokes
+     * xra_alloc_evict (which has an encoder) to evict the farthest-next-use
+     * active vreg and retry. Spilling the incoming vreg is the fallback. */
     ra->next_spill++;
     return WREG_NONE;
+}
+
+void xra_set_next_use(XRARegAlloc *ra, int vreg, int next_use) {
+    if (vreg >= 0 && vreg < XRA_MAX_VREGS) ra->vreg_next_use[vreg] = next_use;
+}
+
+int xra_advance_pos(XRARegAlloc *ra) {
+    return ++ra->next_pos;
+}
+
+Wx86Reg xra_alloc_evict(XRARegAlloc *ra, int vreg, Wx86Enc *e) {
+    Wx86Reg hw = xra_alloc(ra, vreg);
+    if (hw != WREG_NONE) return hw;
+    /* Pool exhausted — evict the farthest-next-use active vreg, emitting its
+     * spill store now (it is being kicked out of its register), then retry. */
+    Wx86Reg freed = xra_evict_farthest(ra, e);
+    if (freed == WREG_NONE) return WREG_NONE;
+    hw = xra_alloc(ra, vreg);
+    return hw;
+}
+
+Wx86Reg xra_evict_farthest(XRARegAlloc *ra, Wx86Enc *e) {
+    Wx86Reg victim = WREG_NONE;
+    int victim_vreg = -1;
+    int farthest = -1;  /* higher next_use = used later = better to evict */
+
+    for (int i = 0; i < 16; i++) {
+        if (ra->regs[i].state != XRA_ALLOCED) continue;
+        int v = ra->regs[i].vreg;
+        if (v < 0 || v >= XRA_MAX_VREGS) continue;
+        int nu = ra->vreg_next_use[v];
+        /* Dead vregs (nu == -1) are the ideal victims: evict first. */
+        int key = (nu < 0) ? INT32_MAX : nu;
+        if (victim_vreg == -1 || key > farthest) {
+            farthest = key;
+            victim = (Wx86Reg)i;
+            victim_vreg = v;
+        }
+    }
+    if (victim_vreg == -1) return WREG_NONE;
+
+    /* Spill the victim to its stack slot (unless it remats as a constant). */
+    if (e) {
+        if (!xra_is_const(ra, victim_vreg)) {
+            int slot = xra_assign_spill_slot(ra, victim_vreg);
+            int offset = -(8 * (slot + 1));
+            wx86_mov_mem_reg(e, WREG_RBP, offset, victim);
+        }
+    }
+    /* Free its register for the caller's incoming vreg. */
+    ra->regs[victim].state = XRA_FREE;
+    ra->regs[victim].vreg = -1;
+    return victim;
 }
 
 void xra_free_reg(XRARegAlloc *ra, Wx86Reg hw) {
@@ -193,14 +254,15 @@ void xra_emit_load_args(XRARegAlloc *ra, Wx86Enc *e) {
     }
 }
 
-/* Get the stack slot for a spilled vreg, allocating one if needed. */
+/* Get the stack slot for a spilled vreg, allocating one if needed.
+ * The vreg -> slot mapping persists in vreg_spill_slot[], so a vreg evicted
+ * from its register later reloads from the SAME slot it was stored into. */
 int xra_assign_spill_slot(XRARegAlloc *ra, int vreg) {
-    for (int i = 0; i < XRA_MAX_VREGS; i++) {
-        if (ra->regs[i].vreg == vreg && ra->regs[i].state == XRA_SPILLED)
-            return ra->regs[i].spill_slot;
-    }
-    int slot = ra->next_spill++;
-    return slot;
+    if (vreg < 0 || vreg >= XRA_MAX_VREGS) return -1;
+    if (ra->vreg_spill_slot[vreg] >= 0)
+        return ra->vreg_spill_slot[vreg];
+    ra->vreg_spill_slot[vreg] = ra->next_spill++;
+    return ra->vreg_spill_slot[vreg];
 }
 
 void xra_mark_const(XRARegAlloc *ra, int vreg, int64_t val) {
@@ -216,7 +278,7 @@ bool xra_is_const(const XRARegAlloc *ra, int vreg) {
 }
 
 Wx86Reg xra_spill_load(XRARegAlloc *ra, int vreg, Wx86Enc *e) {
-    Wx86Reg hw = xra_alloc(ra, vreg);
+    Wx86Reg hw = xra_alloc_evict(ra, vreg, e);
     if (hw == WREG_NONE) return WREG_NONE;
     /* Rematerialize a known constant as an immediate — no memory traffic. */
     if (xra_is_const(ra, vreg)) {
