@@ -98,13 +98,32 @@ static void rv64_cmp_reg(CGEncoder *e, CGReg rn, CGReg rm) {
     rv64_sub(&rv64_enc(e)->enc, RV_T6, cg_to_rv64(rn), cg_to_rv64(rm));
 }
 static void rv64_cset(CGEncoder *e, CGReg rd, CGCC cc) {
-    /* RISC-V: use sltiu rd, tmp, 1 to set if tmp != 0 */
-    rv64_xori(&rv64_enc(e)->enc, RV_T6, RV_T6, 0);  /* ensure flags */
+    /* RISC-V comparison: T6 holds the comparison result from cmp_imm/cmp_reg.
+     * We need to set rd = 1 if the condition is true, 0 otherwise.
+     * Use sltiu/slt/sltu on T6 to produce 0/1. */
     switch (cc) {
-        case CG_CC_EQ: rv64_xori(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_T6, 0); break;
-        case CG_CC_NE: rv64_addi(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_X0, 1); break;
-        case CG_CC_LT: rv64_addi(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_X0, 0); break;
-        default: rv64_addi(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_X0, 1); break;
+        case CG_CC_NE:
+            /* rd = (T6 != 0) ? 1 : 0 → sltiu rd, T6, 1 */
+            rv64_sltiu(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_T6, 1);
+            break;
+        case CG_CC_EQ:
+            /* rd = (T6 == 0) ? 1 : 0 → sltiu rd, T6, 1 then xor 1 */
+            rv64_sltiu(&rv64_enc(e)->enc, RV_T6, RV_T6, 1);  /* T6 = (T6 == 0) */
+            rv64_addi(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_T6, 0);
+            break;
+        case CG_CC_LT:
+            /* rd = (T6 < 0) ? 1 : 0 → slli rd, T6, 63; srai rd, rd, 63 (arithmetic shift) */
+            /* Simpler: slt rd, T6, x0 (signed less than 0) */
+            rv64_slt(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_T6, RV_X0);
+            break;
+        case CG_CC_GE:
+            /* rd = (T6 >= 0) ? 1 : 0 → slt rd, T6, x0; xori rd, rd, 1 */
+            rv64_slt(&rv64_enc(e)->enc, RV_T6, RV_T6, RV_X0);
+            rv64_xori(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_T6, 1);
+            break;
+        default:
+            rv64_addi(&rv64_enc(e)->enc, cg_to_rv64(rd), RV_X0, 0);
+            break;
     }
 }
 static void rv64_b_uncond(CGEncoder *e, int32_t off) {
@@ -135,12 +154,17 @@ static void rv64_pop(CGEncoder *e, CGReg rt) {
 }
 static void rv64_prologue(CGEncoder *e, int n_args, int stack_slots) {
     (void)n_args;
-    rv64_addi(&rv64_enc(e)->enc, RV_SP, RV_SP, -((stack_slots + 1) * 8));
-    rv64_sd(&rv64_enc(e)->enc, RV_RA, RV_SP, stack_slots * 8);
+    /* Leaf function: don't save RA (return address from JAL) */
+    if (stack_slots > 0) {
+        int alloc = ((stack_slots * 8) + 15) & ~15;
+        rv64_addi(&rv64_enc(e)->enc, RV_SP, RV_SP, -(alloc));
+    }
 }
 static void rv64_epilogue(CGEncoder *e, int stack_slots) {
-    rv64_ld(&rv64_enc(e)->enc, RV_RA, RV_SP, stack_slots * 8);
-    rv64_addi(&rv64_enc(e)->enc, RV_SP, RV_SP, (stack_slots + 1) * 8);
+    if (stack_slots > 0) {
+        int alloc = ((stack_slots * 8) + 15) & ~15;
+        rv64_addi(&rv64_enc(e)->enc, RV_SP, RV_SP, alloc);
+    }
     rv64_ret(&rv64_enc(e)->enc);
 }
 

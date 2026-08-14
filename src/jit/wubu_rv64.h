@@ -58,12 +58,16 @@ void rv64_xor(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2);
 void rv64_sll(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2);
 void rv64_srl(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2);
 void rv64_sra(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2);
+void rv64_slt(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2);
+void rv64_sltu(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2);
 
 /* -- Data processing (I-type) -------------------------------------- */
 void rv64_addi(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm12);
 void rv64_ori(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm12);
 void rv64_xori(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm12);
 void rv64_andi(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm12);
+void rv64_slti(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm12);
+void rv64_sltiu(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm12);
 void rv64_slli(RV64Enc *e, RV64Reg rd, RV64Reg rs1, uint8_t shamt);
 void rv64_srli(RV64Enc *e, RV64Reg rd, RV64Reg rs1, uint8_t shamt);
 void rv64_srai(RV64Enc *e, RV64Reg rd, RV64Reg rs1, uint8_t shamt);

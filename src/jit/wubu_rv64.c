@@ -124,10 +124,10 @@ void rv64_mul(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
     rv64_emit(e, rv_r_type(RV_F7_MUL, rs2, rs1, RV_F3_ADD, rd, RV_OP_OP));
 }
 void rv64_div(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
-    rv64_emit(e, rv_r_type(RV_F7_DIV, rs2, rs1, RV_F3_XOR, rd, RV_OP_OP));
+    rv64_emit(e, rv_r_type(RV_F7_DIV, rs2, rs1, 0x4, rd, RV_OP_OP));  /* funct3=DIV=100 */
 }
 void rv64_rem(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
-    rv64_emit(e, rv_r_type(RV_F7_REM, rs2, rs1, RV_F3_XOR, rd, RV_OP_OP));
+    rv64_emit(e, rv_r_type(RV_F7_REM, rs2, rs1, 0x6, rd, RV_OP_OP));  /* funct3=REM=110 */
 }
 void rv64_and(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
     rv64_emit(e, rv_r_type(RV_F7_ADD, rs2, rs1, RV_F3_AND, rd, RV_OP_OP));
@@ -147,6 +147,12 @@ void rv64_srl(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
 void rv64_sra(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
     rv64_emit(e, rv_r_type(RV_F7_SUB, rs2, rs1, RV_F3_SRL, rd, RV_OP_OP));
 }
+void rv64_slt(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
+    rv64_emit(e, rv_r_type(RV_F7_ADD, rs2, rs1, 0x2, rd, RV_OP_OP));  /* funct3=SLT=010 */
+}
+void rv64_sltu(RV64Enc *e, RV64Reg rd, RV64Reg rs1, RV64Reg rs2) {
+    rv64_emit(e, rv_r_type(RV_F7_ADD, rs2, rs1, 0x3, rd, RV_OP_OP));  /* funct3=SLTU=011 */
+}
 
 /* -- I-type instructions ------------------------------------------- */
 void rv64_addi(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm) {
@@ -160,6 +166,12 @@ void rv64_xori(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm) {
 }
 void rv64_andi(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm) {
     rv64_emit(e, rv_i_type(imm, rs1, RV_F3_AND, rd, RV_OP_OP_IMM));
+}
+void rv64_slti(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm) {
+    rv64_emit(e, rv_i_type(imm, rs1, 0x2, rd, RV_OP_OP_IMM));  /* funct3=SLTI=010 */
+}
+void rv64_sltiu(RV64Enc *e, RV64Reg rd, RV64Reg rs1, int16_t imm) {
+    rv64_emit(e, rv_i_type(imm, rs1, 0x3, rd, RV_OP_OP_IMM));  /* funct3=SLTIU=011 */
 }
 void rv64_slli(RV64Enc *e, RV64Reg rd, RV64Reg rs1, uint8_t shamt) {
     rv64_emit(e, rv_i_type(shamt & 0x3F, rs1, RV_F3_SLL, rd, RV_OP_OP_IMM));

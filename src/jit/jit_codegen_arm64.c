@@ -228,31 +228,31 @@ static void arm64_pop(CGEncoder *e, CGReg rt) {
 }
 
 static void arm64_prologue(CGEncoder *e, int n_args, int stack_slots) {
-    /* ARM64 prologue: save FP+LR, set up frame, allocate stack */
-    /* STP X29, X30, [SP, #-16]!  (push FP, LR) */
-    warm64_stp_pre(&arm64_enc(e)->enc, WREG_X29, WREG_X30, WREG_SP, -16);
+    /* ARM64 prologue: save FP only (leaf function — LR preserved by caller) */
+    (void)n_args;
+    /* STP X29, XZR, [SP, #-16]!  (push FP + pad for alignment, keep LR intact) */
+    warm64_stp_pre(&arm64_enc(e)->enc, WREG_X29, WREG_XZR, WREG_SP, -16);
     /* MOV X29, SP */
     warm64_mov_reg(&arm64_enc(e)->enc, WREG_X29, WREG_SP);
     /* SUB SP, SP, #stack_slots*8 (aligned to 16) */
     if (stack_slots > 0) {
-        int alloc = ((stack_slots * 8) + 15) & ~15;  /* align to 16 */
+        int alloc = ((stack_slots * 8) + 15) & ~15;
         if (alloc <= 0xFFF) {
             warm64_sub_imm(&arm64_enc(e)->enc, WREG_SP, WREG_SP, (uint16_t)alloc, 1);
         } else {
-            /* Large allocation: load immediate */
-            /* For now, assume small stacks */
             warm64_sub_imm(&arm64_enc(e)->enc, WREG_SP, WREG_SP, (uint16_t)(alloc & 0xFFF), 1);
         }
     }
 }
 
 static void arm64_epilogue(CGEncoder *e, int stack_slots) {
-    /* ARM64 epilogue: restore SP, restore FP+LR, ret */
+    /* ARM64 epilogue: restore SP from FP, pop FP, ret */
+    (void)stack_slots;
     /* MOV SP, X29 */
     warm64_mov_reg(&arm64_enc(e)->enc, WREG_SP, WREG_X29);
-    /* LDP X29, X30, [SP], #16 (pop FP, LR) */
-    warm64_ldp_post(&arm64_enc(e)->enc, WREG_X29, WREG_X30, WREG_SP, 16);
-    /* RET X30 */
+    /* LDP X29, XZR, [SP], #16 (pop FP + pad, keep LR intact) */
+    warm64_ldp_post(&arm64_enc(e)->enc, WREG_X29, WREG_XZR, WREG_SP, 16);
+    /* RET X30 — return to address in LR (set by BL) */
     warm64_ret(&arm64_enc(e)->enc, WREG_LR);
 }
 
