@@ -136,6 +136,18 @@ int wx86_sub_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
 /* AND reg, imm32 (REX.W + 81 + /4 + imm32) — mask a register. */
 int wx86_and_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
 
+/* AND reg, reg (REX.W + 21 + ModRM) */
+int wx86_and_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
+
+/* OR reg, reg (REX.W + 09 + ModRM) */
+int wx86_or_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
+
+/* OR reg, imm32 (REX.W + 81 /1 + imm32) */
+int wx86_or_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
+
+/* NOT reg (REX.W + F7 /2 + ModRM mod=11) */
+int wx86_not_reg(Wx86Enc *e, Wx86Reg dst);
+
 /* LEA reg, [base + base*2^scale] = base*(1+2^scale) in one cycle (no flags).
  * REX.W + 8D /r, mod=00 rm=100 (SIB): scale=scale, index=base, base=base. */
 int wx86_lea_scaled_index(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, uint8_t scale);

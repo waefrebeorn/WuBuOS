@@ -366,6 +366,37 @@ int wx86_and_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
     return (int)(e->pos - start);
 }
 
+int wx86_and_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
+    size_t start = e->pos;
+    emit_rex_modrm_reg_reg(e, 0x21, dst, src, true);
+    return (int)(e->pos - start);
+}
+
+int wx86_or_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
+    size_t start = e->pos;
+    emit_rex_modrm_reg_reg(e, 0x09, dst, src, true);
+    return (int)(e->pos - start);
+}
+
+int wx86_or_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(WREG_RBX, dst, true);
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x81);
+    wx86_emit_byte(e, (uint8_t)(0xC0 | (1 << 3) | reg_lo(dst)));  /* mod=11, /1, rm=dst */
+    wx86_emit_dword(e, (uint32_t)imm);
+    return (int)(e->pos - start);
+}
+
+int wx86_not_reg(Wx86Enc *e, Wx86Reg dst) {
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(WREG_RBX, dst, true);
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0xF7);
+    wx86_emit_byte(e, (uint8_t)(0xC0 | (2 << 3) | reg_lo(dst)));  /* mod=11, /2, rm=dst */
+    return (int)(e->pos - start);
+}
+
 int wx86_lea_scaled_index(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, uint8_t scale) {
     /* lea r64, [base + base*2^scale]: REX.W(+R if dst hi, +B if base hi) + 8D,
      * modrm(mod=00, reg=dst, rm=100=RSP->SIB), SIB(scale, index=base, base=base). */

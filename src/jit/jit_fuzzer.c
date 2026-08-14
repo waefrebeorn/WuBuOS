@@ -247,6 +247,32 @@ int main(void) {
     v = run1(ctx, "long f(long x){ return x%3; }", 9);
     CHECK(v==0, "9%3 == 0");
 
+    printf("\n=== BITWISE OPERATIONS ===\n");
+
+    v = run2(ctx, "long f(long a, long b){ return a&b; }", 5, 3);
+    CHECK(v==1, "5&3 == 1");
+
+    v = run2(ctx, "long f(long a, long b){ return a|b; }", 5, 3);
+    CHECK(v==7, "5|3 == 7");
+
+    v = run2(ctx, "long f(long a, long b){ return a^b; }", 5, 3);
+    CHECK(v==6, "5^3 == 6");
+
+    v = run1(ctx, "long f(long x){ return ~x; }", 0);
+    CHECK(v==-1, "~0 == -1");
+
+    v = run1(ctx, "long f(long x){ return x<<2; }", 3);
+    CHECK(v==12, "3<<2 == 12");
+
+    v = run1(ctx, "long f(long x){ return x>>1; }", 8);
+    CHECK(v==4, "8>>1 == 4");
+
+    v = run1(ctx, "long f(long x){ return x&7; }", 15);
+    CHECK(v==7, "15&7 == 7");
+
+    v = run1(ctx, "long f(long x){ return (x+3)&~3; }", 5);
+    CHECK(v==8, "(5+3)&~3 == 8 (align up)");
+
     printf("\n=== SUMMARY ===\n");
     printf("=== jit_fuzzer: %d/%d passed, %d failed ===\n", pass, total, fail);
     jit_free(ctx);

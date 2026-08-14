@@ -114,6 +114,8 @@ static Wx86Reg arg_reg(int idx) {
 typedef struct MinicCompiler MinicCompiler;
 static void compile_expr(MinicCompiler *mc);
 static void compile_stmt(MinicCompiler *mc);
+static void compile_additive(MinicCompiler *mc);
+static void compile_bitwise_or(MinicCompiler *mc);
 static int mc_try_builtin(MinicCompiler *mc, const char *name, Wx86Reg aregs[6]);
 static void compile_struct_decl(MinicCompiler *mc);
 
@@ -436,6 +438,14 @@ static void compile_primary(MinicCompiler *mc) {
         if (mc->rax_is_const) mc->rax_const_val = -mc->rax_const_val;
         return;
     }
+    if (tok->type == TOK_TILDE) {
+        /* Bitwise NOT: ~x */
+        minic_advance(&mc->lex);
+        compile_primary(mc);
+        MC_EMIT(mc, wx86_not_reg(&mc->enc, WREG_RAX));
+        if (mc->rax_is_const) mc->rax_const_val = ~mc->rax_const_val;
+        return;
+    }
     if (tok->type == TOK_NOT) {
         minic_advance(&mc->lex);
         compile_primary(mc);
@@ -448,9 +458,11 @@ static void compile_primary(MinicCompiler *mc) {
         wx86_emit_byte(&mc->enc, 0xC0);
         return;
     }
+    /* Unknown token: report error and advance to prevent infinite loop */
+    mc_error(mc, "unexpected token in expression");
+    MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX));
+    minic_advance(&mc->lex);
 }
-
-/* -- Machine-level arithmetic helpers ----------------------------- */
 
 /* Branchless abs: rax = |rax|.  mov rdx,rax; sar rdx,63 (mask=sign);
  * xor rax,rdx; sub rax,rdx  → (x ^ (x>>63)) - (x>>63). No branch, no cmov. */
@@ -726,6 +738,77 @@ static void compile_multiplicative(MinicCompiler *mc) {
     }
 }
 
+static void compile_shift(MinicCompiler *mc) {
+    compile_additive(mc);
+    while (minic_cur(&mc->lex)->type == TOK_SHL || minic_cur(&mc->lex)->type == TOK_SHR) {
+        MinicTokType op = minic_cur(&mc->lex)->type;
+        minic_advance(&mc->lex);
+        /* Shift: LHS in rax, RHS must be in rcx (x86 shift encoding) */
+        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+        compile_multiplicative(mc);
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX)); /* rcx = shift amount */
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));               /* rax = value */
+        if (op == TOK_SHL)
+            MC_EMIT(mc, wx86_shl_reg_imm8(&mc->enc, WREG_RAX, 0)); /* placeholder — uses cl */
+        else
+            MC_EMIT(mc, wx86_shr_reg_imm8(&mc->enc, WREG_RAX, 0)); /* placeholder — uses cl */
+        /* Fix: x86 shift-by-cl needs the opcode with /4 or /5, not imm8 */
+        /* Actually shl rax,cl = 48 D3 E0, shr rax,cl = 48 D3 E8 */
+        /* The imm8 version is shl rax,imm = 48 C1 E0 imm — wrong */
+        /* Re-emit correctly: overwrite the last 4 bytes */
+        mc->enc.pos -= 4; /* undo the shl_reg_imm8 */
+        if (op == TOK_SHL) {
+            wx86_emit_byte(&mc->enc, 0x48); /* REX.W */
+            wx86_emit_byte(&mc->enc, 0xD3); /* /4 = shl r/m64, cl */
+            wx86_emit_byte(&mc->enc, 0xE0); /* modrm(3,4,0) = rax */
+        } else {
+            wx86_emit_byte(&mc->enc, 0x48); /* REX.W */
+            wx86_emit_byte(&mc->enc, 0xD3); /* /5 = shr r/m64, cl */
+            wx86_emit_byte(&mc->enc, 0xE8); /* modrm(3,5,0) = rax */
+        }
+        mc->rax_is_const = false;
+    }
+}
+
+static void compile_bitwise_and(MinicCompiler *mc) {
+    compile_shift(mc);
+    while (minic_cur(&mc->lex)->type == TOK_AMP) {
+        minic_advance(&mc->lex);
+        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+        compile_shift(mc);
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+        MC_EMIT(mc, wx86_and_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        mc->rax_is_const = false;
+    }
+}
+
+static void compile_bitwise_xor(MinicCompiler *mc) {
+    compile_bitwise_and(mc);
+    while (minic_cur(&mc->lex)->type == TOK_CARET) {
+        minic_advance(&mc->lex);
+        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+        compile_bitwise_and(mc);
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+        MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        mc->rax_is_const = false;
+    }
+}
+
+static void compile_bitwise_or(MinicCompiler *mc) {
+    compile_bitwise_xor(mc);
+    while (minic_cur(&mc->lex)->type == TOK_PIPE) {
+        minic_advance(&mc->lex);
+        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+        compile_bitwise_xor(mc);
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+        MC_EMIT(mc, wx86_or_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        mc->rax_is_const = false;
+    }
+}
+
 static void compile_additive(MinicCompiler *mc) {
     compile_multiplicative(mc);
 
@@ -795,7 +878,7 @@ static void compile_additive(MinicCompiler *mc) {
 }
 
 static void compile_compare(MinicCompiler *mc) {
-    compile_additive(mc);
+    compile_bitwise_or(mc);
 
     MinicTokType op = minic_cur(&mc->lex)->type;
     if (op == TOK_EQ || op == TOK_NEQ || op == TOK_LT ||
@@ -803,7 +886,7 @@ static void compile_compare(MinicCompiler *mc) {
         minic_advance(&mc->lex);
 
         MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_additive(mc);
+        compile_bitwise_or(mc);
 
         MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
         MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
@@ -1309,28 +1392,30 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
     mc->need_frame = (mc->n_args > 6);  /* more args than registers */
 
     if (!mc->need_frame) {
-        /* Scan the function body for local declarations. If any exist,
-         * we need the frame. We do this by saving lexer position, scanning
-         * for type keywords followed by identifiers, then restoring. */
+        /* Scan the function body for local declarations. */
         MinicLexer save = mc->lex;
-        minic_expect(&mc->lex, TOK_LBRACE);
-        int depth = 1;
-        while (depth > 0 && minic_cur(&mc->lex)->type != TOK_EOF) {
-            if (minic_cur(&mc->lex)->type == TOK_LBRACE) depth++;
-            if (minic_cur(&mc->lex)->type == TOK_RBRACE) depth--;
-            if (depth == 1 && minic_is_type(minic_cur(&mc->lex)->type)) {
-                /* Check if this is a declaration (type followed by ident) */
-                minic_advance(&mc->lex);
-                if (minic_cur(&mc->lex)->type == TOK_IDENT) {
-                    mc->need_frame = 1;
-                    break;
+        if (minic_cur(&mc->lex)->type == TOK_LBRACE) {
+            minic_advance(&mc->lex); /* skip { */
+            int depth = 1;
+            int steps = 0;
+            while (depth > 0 && minic_cur(&mc->lex)->type != TOK_EOF && steps < 10000) {
+                steps++;
+                if (minic_cur(&mc->lex)->type == TOK_LBRACE) depth++;
+                if (minic_cur(&mc->lex)->type == TOK_RBRACE) depth--;
+                if (depth == 1 && minic_is_type(minic_cur(&mc->lex)->type)) {
+                    minic_advance(&mc->lex);
+                    if (minic_cur(&mc->lex)->type == TOK_IDENT) {
+                        mc->need_frame = 1;
+                        break;
+                    }
                 }
+                minic_advance(&mc->lex);
             }
-            minic_advance(&mc->lex);
+        } else {
+            mc->need_frame = 1; /* can't scan, use frame to be safe */
         }
-        mc->lex = save;  /* restore lexer to function start */
+        mc->lex = save;
     }
-
     if (!mc->need_frame) {
         /* Fast path: no frame. Args in registers, no stack setup. */
         mc->scope.stack_offset = 0;  /* No locals on stack */
