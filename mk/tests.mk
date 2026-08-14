@@ -82,7 +82,7 @@ test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_high_bear: test_jit test_jit_regalloc test_jit_remat test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
+test_high_bear: test_jit test_jit_regalloc test_jit_remat test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
@@ -106,6 +106,11 @@ test_jit_regalloc:
 test_jit_remat:
 	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_remat_test.c -o $(JIT)/jit_remat_test -ldl
 	$(JIT)/jit_remat_test
+
+# Souper-style peephole superoptimizer: enumerate shortest instruction sequences
+# for known idioms (x*3=lea, x*8=8 adds, sign-bit, idempotence). Discovery gate.
+test_peephole_superopt:
+	bash tools/peephole_superopt_battery.sh
 test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/test/legacy/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
