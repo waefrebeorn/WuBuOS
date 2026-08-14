@@ -25,6 +25,17 @@ typedef enum {
     TOK_LBRACKET, TOK_RBRACKET,
     TOK_DOT, TOK_ARROW, TOK_AMP,
     TOK_SEMI, TOK_COMMA,
+    /* Bitwise and shift operators */
+    TOK_PERCENT, TOK_AMPERSAND, TOK_PIPE, TOK_CARET, TOK_TILDE,
+    TOK_SHL, TOK_SHR,
+    /* Compound assignment */
+    TOK_PLUS_ASSIGN, TOK_MINUS_ASSIGN, TOK_STAR_ASSIGN, TOK_SLASH_ASSIGN,
+    TOK_PERCENT_ASSIGN, TOK_AND_ASSIGN, TOK_OR_ASSIGN, TOK_XOR_ASSIGN,
+    TOK_SHL_ASSIGN, TOK_SHR_ASSIGN,
+    /* Increment/decrement */
+    TOK_PLUS_PLUS, TOK_MINUS_MINUS,
+    /* Ternary */
+    TOK_QUESTION, TOK_COLON,
 } MinicTokType;
 
 typedef struct {

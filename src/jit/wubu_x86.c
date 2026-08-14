@@ -423,6 +423,16 @@ int wx86_xor_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
     return (int)(e->pos - start);
 }
 
+/* Zero register: xor r32, r32 (2 bytes, zeroes full 64-bit reg). */
+int wx86_zero_reg(Wx86Enc *e, Wx86Reg r) {
+    size_t start = e->pos;
+    /* 31 /r with mod=11, no REX.W (32-bit op zeroes upper 32 bits too) */
+    if (reg_hi(r)) wx86_emit_byte(e, 0x48 | 0x04); /* REX.B */
+    wx86_emit_byte(e, 0x31);
+    wx86_emit_modrm(e, 3, reg_lo(r), reg_lo(r));
+    return (int)(e->pos - start);
+}
+
 int wx86_cmp_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b) {
     size_t start = e->pos;
     emit_rex_modrm_reg_reg(e, 0x39, a, b, true);
@@ -654,4 +664,33 @@ static const char *cc_names[] = {
 const char *wx86_cc_name(Wx86CC cc) {
     if (cc >= 0 && cc <= 15 && cc_names[cc]) return cc_names[cc];
     return "?";
+}
+
+/* Multi-byte NOP — aligns code. Uses recommended AMD64 multi-byte NOP encodings.
+ * Much faster than N single-byte NOPs (1 decode slot vs N). */
+int wx86_multi_nop(Wx86Enc *e, int bytes) {
+    if (bytes <= 0) return 0;
+    static const uint8_t n2[]  = { 0x66, 0x90 };
+    static const uint8_t n3[]  = { 0x0F, 0x1F, 0x00 };
+    static const uint8_t n4[]  = { 0x0F, 0x1F, 0x40, 0x00 };
+    static const uint8_t n5[]  = { 0x0F, 0x1F, 0x44, 0x00, 0x00 };
+    static const uint8_t n6[]  = { 0x66, 0x0F, 0x1F, 0x44, 0x00, 0x00 };
+    static const uint8_t n7[]  = { 0x0F, 0x1F, 0x80, 0x00, 0x00, 0x00, 0x00 };
+    static const uint8_t n8[]  = { 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    static const uint8_t n9[]  = { 0x66, 0x0F, 0x1F, 0x84, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    while (bytes > 0) {
+        const uint8_t *seq; int len;
+        if (bytes >= 9) { seq = n9; len = 9; }
+        else if (bytes == 8) { seq = n8; len = 8; }
+        else if (bytes == 7) { seq = n7; len = 7; }
+        else if (bytes == 6) { seq = n6; len = 6; }
+        else if (bytes == 5) { seq = n5; len = 5; }
+        else if (bytes == 4) { seq = n4; len = 4; }
+        else if (bytes == 3) { seq = n3; len = 3; }
+        else if (bytes == 2) { seq = n2; len = 2; }
+        else { wx86_emit_byte(e, 0x90); len = 1; }
+        for (int i = 0; i < len; i++) wx86_emit_byte(e, seq[i]);
+        bytes -= len;
+    }
+    return 0;
 }

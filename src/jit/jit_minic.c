@@ -357,7 +357,7 @@ static void compile_primary(MinicCompiler *mc) {
             minic_expect(&mc->lex, TOK_RPAREN);
 
             /* Placeholder call: mov rax, 0; call rax */
-            MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+            MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX));
             MC_EMIT(mc, wx86_call_reg(&mc->enc, WREG_RAX));
             return;
         }
@@ -366,7 +366,7 @@ static void compile_primary(MinicCompiler *mc) {
         MinicVar *v = scope_find(&mc->scope, name);
         if (!v) {
             mc_error(mc, "undefined variable");
-            MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+            MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX));
             return;
         }
         if (v->is_arg) {
@@ -389,7 +389,7 @@ static void compile_primary(MinicCompiler *mc) {
                         MC_EMIT(mc, wx86_mov_reg_mem(&mc->enc, WREG_RAX, WREG_RAX, off));
                 } else {
                     mc_error(mc, "unknown struct member");
-                    MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+                    MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX));
                 }
                 minic_advance(&mc->lex);
             }
@@ -641,7 +641,8 @@ static void compile_multiplicative(MinicCompiler *mc) {
     compile_primary(mc);
 
     while (minic_cur(&mc->lex)->type == TOK_STAR ||
-           minic_cur(&mc->lex)->type == TOK_SLASH) {
+           minic_cur(&mc->lex)->type == TOK_SLASH ||
+           minic_cur(&mc->lex)->type == TOK_PERCENT) {
         MinicTokType op = minic_cur(&mc->lex)->type;
         minic_advance(&mc->lex);
 
@@ -664,6 +665,13 @@ static void compile_multiplicative(MinicCompiler *mc) {
                     MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs *= rhs */
                     MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));   /* result -> rax */
                 }
+            } else if (op == TOK_PERCENT) {
+                /* x % y: same as div but result is in rdx */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));  /* rcx = RHS */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));    /* rax = LHS */
+                MC_EMIT(mc, wx86_cqo(&mc->enc));
+                MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_RDX));  /* remainder */
             } else {
                 if (mc->rax_is_const && mc->rax_const_val != 0) {
                     /* LHS / constant: magic-multiply or shift (no idiv). */
@@ -688,7 +696,7 @@ static void compile_multiplicative(MinicCompiler *mc) {
             /* Constant folding for the non-XRA path */
             if (mc->rax_is_const && op == TOK_STAR) {
                 int64_t c = mc->rax_const_val;
-                if (c == 0) { wx86_emit_byte(&mc->enc, 0x58); MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0)); goto mul_done_noxra; }
+                if (c == 0) { wx86_emit_byte(&mc->enc, 0x58); MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX)); goto mul_done_noxra; }
                 if (c == 1) { wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; } /* pop rax = LHS */
             }
             if (mc->rax_is_const && op == TOK_SLASH && mc->rax_const_val == 1) {
@@ -699,6 +707,13 @@ static void compile_multiplicative(MinicCompiler *mc) {
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
                 MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
                 MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+            } else if (op == TOK_PERCENT) {
+                /* x % y: same as div but result is in rdx */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+                MC_EMIT(mc, wx86_cqo(&mc->enc));
+                MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_RDX)); /* remainder */
             } else {
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
                 MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
@@ -970,7 +985,7 @@ static void compile_while_stmt(MinicCompiler *mc) {
 
     /* #15 branch alignment: align the loop head to a 16-byte boundary. */
     size_t pad = (16 - (mc->enc.pos & 15)) & 15;
-    for (size_t i = 0; i < pad; i++) wx86_emit_byte(&mc->enc, 0x90);
+    wx86_multi_nop(&mc->enc, pad);
     size_t loop_top = mc->enc.pos;
 
     minic_expect(&mc->lex, TOK_LPAREN);
@@ -1425,10 +1440,10 @@ fast_prologue_done:
     if (mc->use_xra) {
         /* The default-return-0 must still land in rax before the allocator
          * epilogue restores callee-saved regs and returns. */
-        MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+        MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX));
         xra_emit_return(&mc->ra, &mc->enc);
     } else {
-        MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0));
+        MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX));
         MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
         MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
         MC_EMIT(mc, wx86_ret(&mc->enc));

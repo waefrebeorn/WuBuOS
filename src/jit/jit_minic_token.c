@@ -60,6 +60,26 @@ void minic_lex_next(MinicLexer *l) {
     if (c == '>' && l->src[l->pos+1] == '=') { l->peek.type = TOK_GEQ; l->pos += 2; return; }
     if (c == '-' && l->src[l->pos+1] == '>') { l->peek.type = TOK_ARROW; l->pos += 2; return; }
     if (c == '&' && l->src[l->pos+1] == '&') { l->peek.type = TOK_EOF; l->pos += 2; return; }
+    if (c == '|' && l->src[l->pos+1] == '|') { l->peek.type = TOK_EOF; l->pos += 2; return; }
+    if (c == '+' && l->src[l->pos+1] == '+') { l->peek.type = TOK_PLUS_PLUS; l->pos += 2; return; }
+    if (c == '-' && l->src[l->pos+1] == '-') { l->peek.type = TOK_MINUS_MINUS; l->pos += 2; return; }
+    if (c == '<' && l->src[l->pos+1] == '<') {
+        if (l->src[l->pos+2] == '=') { l->peek.type = TOK_SHL_ASSIGN; l->pos += 3; return; }
+        l->peek.type = TOK_SHL; l->pos += 2; return;
+    }
+    if (c == '>' && l->src[l->pos+1] == '>') {
+        if (l->src[l->pos+2] == '=') { l->peek.type = TOK_SHR_ASSIGN; l->pos += 3; return; }
+        l->peek.type = TOK_SHR; l->pos += 2; return;
+    }
+    if (c == '+' && l->src[l->pos+1] == '=') { l->peek.type = TOK_PLUS_ASSIGN; l->pos += 2; return; }
+    if (c == '-' && l->src[l->pos+1] == '=') { l->peek.type = TOK_MINUS_ASSIGN; l->pos += 2; return; }
+    if (c == '*' && l->src[l->pos+1] == '=') { l->peek.type = TOK_STAR_ASSIGN; l->pos += 2; return; }
+    if (c == '/' && l->src[l->pos+1] == '=') { l->peek.type = TOK_SLASH_ASSIGN; l->pos += 2; return; }
+    if (c == '%' && l->src[l->pos+1] == '=') { l->peek.type = TOK_PERCENT_ASSIGN; l->pos += 2; return; }
+    if (c == '&' && l->src[l->pos+1] == '=') { l->peek.type = TOK_AND_ASSIGN; l->pos += 2; return; }
+    if (c == '|' && l->src[l->pos+1] == '=') { l->peek.type = TOK_OR_ASSIGN; l->pos += 2; return; }
+    if (c == '^' && l->src[l->pos+1] == '=') { l->peek.type = TOK_XOR_ASSIGN; l->pos += 2; return; }
+    if (c == '?' ) { l->peek.type = TOK_QUESTION; l->pos += 1; return; }
     if (c == '"') {
         int start = l->pos;
         l->pos++;
@@ -91,6 +111,12 @@ void minic_lex_next(MinicLexer *l) {
         case ']': l->peek.type = TOK_RBRACKET;l->peek.text[0] = ']'; break;
         case '.': l->peek.type = TOK_DOT;     l->peek.text[0] = '.'; break;
         case '&': l->peek.type = TOK_AMP;     l->peek.text[0] = '&'; break;
+        case '%': l->peek.type = TOK_PERCENT; l->peek.text[0] = '%'; break;
+        case '|': l->peek.type = TOK_PIPE;    l->peek.text[0] = '|'; break;
+        case '^': l->peek.type = TOK_CARET;   l->peek.text[0] = '^'; break;
+        case '~': l->peek.type = TOK_TILDE;   l->peek.text[0] = '~'; break;
+        case '?': l->peek.type = TOK_QUESTION;l->peek.text[0] = '?'; break;
+        case ':': l->peek.type = TOK_COLON;   l->peek.text[0] = ':'; break;
         case ';': l->peek.type = TOK_SEMI;    l->peek.text[0] = ';'; break;
         case ',': l->peek.type = TOK_COMMA;   l->peek.text[0] = ','; break;
         default:  l->peek.type = TOK_EOF; break;

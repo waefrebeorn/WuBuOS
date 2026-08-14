@@ -100,6 +100,19 @@ int wx86_mov_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp);
  * zero-extends to 64 bits (for U8 struct members). dst is reg field, base rm. */
 int wx86_movzx_byte_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp);
 
+/* XOR reg, reg — zeroes a register. 2 bytes (31 C0 for eax, 48 31 C0 for rax).
+ * Preferred over mov reg,0: shorter, dependency-breaking, recognized by renamer. */
+int wx86_xor_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
+
+/* Zero a register using xor eax,eax (2 bytes) — zeroes full 64-bit reg.
+ * Shortest zeroing idiom, dependency-breaking, recognized by renamer. */
+int wx86_zero_reg(Wx86Enc *e, Wx86Reg r);
+
+/* Multi-byte NOP — aligns code. Uses the recommended AMD64 multi-byte NOP
+ * encodings: 2B=66 90, 3B=0F 1F 00, 4B=0F 1F 40 00, 5B=0F 1F 44 00 00, etc.
+ * Much faster than N single-byte NOPs (1 decode slot vs N). */
+int wx86_multi_nop(Wx86Enc *e, int bytes);
+
 /* MOV [base + disp], reg (store to memory) */
 int wx86_mov_mem_reg(Wx86Enc *e, Wx86Reg base, int32_t disp, Wx86Reg src);
 

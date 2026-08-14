@@ -236,6 +236,17 @@ int main(void) {
     v = run1(ctx, "long f(long x){ return x+0-0; }", 77);
     CHECK(v==77, "x+0-0 == x");
 
+    printf("\n=== MODULO ===\n");
+
+    v = run1(ctx, "long f(long x){ return x%3; }", 7);
+    CHECK(v==1, "7%3 == 1");
+
+    v = run1(ctx, "long f(long x){ return x%8; }", 15);
+    CHECK(v==7, "15%8 == 7");
+
+    v = run1(ctx, "long f(long x){ return x%3; }", 9);
+    CHECK(v==0, "9%3 == 0");
+
     printf("\n=== SUMMARY ===\n");
     printf("=== jit_fuzzer: %d/%d passed, %d failed ===\n", pass, total, fail);
     jit_free(ctx);
