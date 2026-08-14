@@ -84,7 +84,7 @@ int main(void) {
     TEST53("a>>b");
     TEST53("a&b|3");
     TEST53("(a&b)|3");
-    /* TEST53("a&(b|3)"); -- TODO: bitwise precedence with parens */
+    TEST53("a&(b|3)");
     TEST53("~a&b");
     TEST53("(~a)&b");
 
@@ -97,7 +97,7 @@ int main(void) {
     TEST53("a*b-100/b");
     TEST53("(a+b)*(a-b)");
     TEST53("a<<1|b>>1");
-    /* TEST53("(a&~b)|(~a&b)"); -- TODO: bitwise precedence with ~ */
+    TEST53("(a&~b)|(~a&b)");
     TEST53("a+b+3+2");
     TEST53("((a+b)*3-1)/2");
     TEST53("a+(b+(3+2))");

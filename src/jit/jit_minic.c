@@ -790,11 +790,11 @@ static void compile_bitwise_and(MinicCompiler *mc) {
             xra_free_reg(&mc->ra, lhs_hw);
             xra_set_next_use(&mc->ra, lhs, -1);
         } else {
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_shift(mc);
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-            MC_EMIT(mc, wx86_and_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+            MC_EMIT(mc, wx86_and_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
         }
         mc->rax_is_const = false;
     }
@@ -814,11 +814,11 @@ static void compile_bitwise_xor(MinicCompiler *mc) {
             xra_free_reg(&mc->ra, lhs_hw);
             xra_set_next_use(&mc->ra, lhs, -1);
         } else {
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R11, WREG_RAX));
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_bitwise_and(mc);
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-            MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, WREG_R11, WREG_RCX));
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+            MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
         }
         mc->rax_is_const = false;
     }
@@ -838,11 +838,11 @@ static void compile_bitwise_or(MinicCompiler *mc) {
             xra_free_reg(&mc->ra, lhs_hw);
             xra_set_next_use(&mc->ra, lhs, -1);
         } else {
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_bitwise_xor(mc);
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-            MC_EMIT(mc, wx86_or_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+            MC_EMIT(mc, wx86_or_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
         }
         mc->rax_is_const = false;
     }
@@ -1431,23 +1431,24 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
         mc->lex = save;
     }
     if (!mc->need_frame) {
-        /* Fast path: minimal frame. Push rbp, set up frame pointer. */
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RBP));
-        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RBP, WREG_RSP));
-        /* Push args to stack so they survive expression evaluation */
-        mc->scope.stack_offset = -8;  /* Account for pushed rbp */
-        for (int i = mc->n_args - 1; i >= 0; i--) {
-            MC_EMIT(mc, wx86_push_reg(&mc->enc, arg_reg(i)));
-            mc->scope.stack_offset -= 8;
-        }
-        for (int i = 0; i < mc->n_args && i < 6; i++) {
-            MinicVar *v = scope_find(&mc->scope, mc->scope.vars[i].name);
-            if (v) {
-                v->is_arg = 0;  /* Now on stack */
-                v->slot = mc->scope.stack_offset + 8 * i;
+        /* Fast path: no args, no locals. Minimal prologue. */
+        if (mc->n_args > 0) {
+            /* Has args: push rbp + args to stack for safe expression eval */
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RBP));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RBP, WREG_RSP));
+            mc->scope.stack_offset = -8;
+            for (int i = mc->n_args - 1; i >= 0; i--) {
+                MC_EMIT(mc, wx86_push_reg(&mc->enc, arg_reg(i)));
+                mc->scope.stack_offset -= 8;
+            }
+            for (int i = 0; i < mc->n_args && i < 6; i++) {
+                MinicVar *v = scope_find(&mc->scope, mc->scope.vars[i].name);
+                if (v) {
+                    v->is_arg = 0;
+                    v->slot = mc->scope.stack_offset + 8 * i;
+                }
             }
         }
-        /* need_frame = 0 means epilogue is just 'pop rbp; ret' */
         goto fast_prologue_done;
     }
 
