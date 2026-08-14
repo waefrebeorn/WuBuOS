@@ -92,6 +92,22 @@ int main(void) {
                     JIT_LANG_C, "f", &fn);
     CHECK(r == 0 && !has_setcc((unsigned char*)fn.code, fn.code_size), "fused while has NO setcc");
 
+    /* #15 branch alignment: the loop back-edge target is 16-byte aligned, and
+     * the f(5)=15 result is preserved. */
+    if (r == 0) {
+        unsigned char *p = (unsigned char*)fn.code;
+        int aligned = 0;
+        for (size_t i = 0; i + 4 < fn.code_size; i++) {
+            if (p[i] == 0xE9) {
+                int32_t d = p[i+1]|(p[i+2]<<8)|(p[i+3]<<16)|((int32_t)p[i+4]<<24);
+                size_t tgt = i + 5 + (size_t)d;
+                if (tgt < fn.code_size && (tgt & 15) == 0) aligned = 1;
+            }
+        }
+        CHECK(aligned, "while loop back-edge target is 16-byte aligned");
+        CHECK(jit_call1(&fn, 5) == 15, "aligned while still computes f(5)=15");
+    }
+
     jit_free(ctx);
 
     /* --- #10 / #22 / #1 encoder bytes (movnti, adc/sbb/clc/stc, mem-add) --- */

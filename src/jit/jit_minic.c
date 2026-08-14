@@ -747,6 +747,15 @@ static void compile_if_stmt(MinicCompiler *mc) {
 
 static void compile_while_stmt(MinicCompiler *mc) {
     minic_advance(&mc->lex);
+
+    /* #15 branch alignment: align the loop head to a 16-byte boundary with
+     * single-byte NOPs so the loop-top target is 16-byte aligned. x86 loop
+     * bodies re-fetch the target each iteration; 16B alignment of the back-edge
+     * target avoids a 2-cycle front-end penalty on modern cores. Only pad when
+     * within the encoder's spare capacity (padding is harmless: NOPs are
+     * skipped by the pipeline). */
+    size_t pad = (16 - (mc->enc.pos & 15)) & 15;
+    for (size_t i = 0; i < pad; i++) wx86_emit_byte(&mc->enc, 0x90);
     size_t loop_top = mc->enc.pos;
 
     minic_expect(&mc->lex, TOK_LPAREN);
