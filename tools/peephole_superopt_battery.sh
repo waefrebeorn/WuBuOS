@@ -20,6 +20,18 @@ check() {
     fail=$((fail+1)); echo "FAIL: $desc"
   fi
 }
+# Generalized (Hydra, #7): the found program must survive the 100k-random-seed
+# verification, proving it is a general identity, not a seed-specific accident.
+check_general() {
+  local desc="$1"; shift
+  local out
+  out=$(timeout 30 "$BIN" "$@" 2>&1)
+  if echo "$out" | grep -q "GENERAL (accepted)"; then
+    pass=$((pass+1)); echo "PASS: $desc generalizes -> $(echo "$out" | head -1)"
+  else
+    fail=$((fail+1)); echo "FAIL: $desc did not generalize"
+  fi
+}
 
 # x*3 == x+x+x (lea r,[r+r*2] analog)
 check "x*3 (lea strength reduction)" "x*3" "MUL,ADD,SHL" 4 0 1 2 3 7 100 -7
@@ -38,6 +50,12 @@ check "x|x idempotent" "x|x" "OR,AND,XOR" 2 0 1 -1 2 100
 check "x^x^x == x" "x" "XOR" 3 0 1 -1 2 100
 # x&-1 == x (mask)
 check "x&-1" "x&-1" "AND,OR,NEG,NOT" 3 0 1 -1 2 100
+
+# #7 Hydra: found programs must survive the 100k random-seed generalization
+# check (proves they are general identities, not seed-specific accidents).
+check_general "x*3 generalizes" "x*3" "ADD" 4 0 1 2 3 100 -7
+check_general "x*5 generalizes" "x*5" "ADD" 5 0 1 2 3 100 -7
+check_general "x^0==x generalizes" "x" "XOR" 3 0 1 -1 2 100
 
 echo ""
 echo "=== peephole_superopt_battery: $pass passed, $fail failed ==="

@@ -63,6 +63,7 @@ static const Op OPS[] = {
 static int g_len;          /* program length */
 static int g_ops[MAX_LEN]; /* program (op indices) */
 static int g_allowed[N_OPS];  /* 1 if this op may be used */
+static const char *g_ref_expr;  /* the reference expression string */
 static int64_t g_seeds[MAX_SEEDS];
 static int g_nseeds;
 static int64_t g_ref[MAX_SEEDS];   /* reference result per seed */
@@ -158,6 +159,7 @@ int main(int argc, char **argv) {
         return 2;
     }
     const char *ref = argv[1];
+    g_ref_expr = ref;
     parse_ops(argv[2]);
     int max_len = atoi(argv[3]);
     if (max_len < 1 || max_len > MAX_LEN) max_len = MAX_LEN;
@@ -180,6 +182,24 @@ int main(int argc, char **argv) {
                 printf("  x=%ld -> ref=%ld prog=%ld %s\n",
                     (long)g_seeds[s], (long)g_ref[s], (long)eval(g_seeds[s]),
                     eval(g_seeds[s])==g_ref[s] ? "OK":"MISMATCH");
+            /* #7 Hydra generalization: the candidate matched the training seeds,
+             * but is it a GENERAL identity or a seed-specific accident? Verify
+             * against a large battery of pseudo-random seeds (a deterministic
+             * LCG, so this is reproducible). A general peephole must hold on
+             * every one of them; if not, the pattern is overfit and we reject. */
+            unsigned long long s0 = 0x9E3779B97F4A7C15ULL;
+            int gpass = 0, gfail = 0;
+            for (int i = 0; i < 100000; i++) {
+                s0 = s0 * 6364136223846793005ULL + 1442695040888963407ULL;
+                int64_t x = (int64_t)(s0 >> 1);
+                int64_t r = eval(x);
+                g_x = x; const char *rp = g_ref_expr; int64_t want = ref_expr(&rp);
+                if (r == want) gpass++; else { gfail++; if (gfail <= 3)
+                    printf("  GENERALIZATION FAIL at x=%ld: prog=%ld ref=%ld\n",(long)x,(long)r,(long)want); }
+            }
+            printf("  generalization: %d pass / %d fail over 100000 random seeds -> %s\n",
+                gpass, gfail, gfail==0 ? "GENERAL (accepted)" : "SEED-SPECIFIC (rejected)");
+            if (gfail > 0) { printf("  REJECTING overfit candidate; continue search.\n"); break; }
             return 0;
         }
     }
