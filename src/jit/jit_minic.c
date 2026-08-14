@@ -286,6 +286,16 @@ static void mc_peephole_elim_mov_roundtrip(Wx86Enc *e) {
                 break;
             }
         }
+        /* Peephole: mov rax, rax = 48 89 c0 (3 bytes) — NOP */
+        if (!removed && i + 3 <= e->pos &&
+            e->buf[i]==0x48 && e->buf[i+1]==0x89 && e->buf[i+2]==0xc0) {
+            i += 3; removed = 1;
+        }
+        /* Peephole: push rax; pop rax = 50 58 (2 bytes) — NOP */
+        if (!removed && i + 2 <= e->pos &&
+            e->buf[i]==0x50 && e->buf[i+1]==0x58) {
+            i += 2; removed = 1;
+        }
         if (removed) continue;
         e->buf[w++] = e->buf[i++];
     }
