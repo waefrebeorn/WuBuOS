@@ -179,6 +179,41 @@ static Wx86Reg mc_load_vreg(MinicCompiler *mc, int vreg) {
     return xra_get_reg(&mc->ra, vreg);
 }
 
+/* -- Peephole optimizer ------------------------------------------- */
+
+/* Remove redundant `mov rax,rX` immediately followed by `mov rX,rax` (same X).
+ * These two instructions together are the identity — the allocator emits the
+ * pair when it writes a binop result to rax, then immediately re-saves rax
+ * into the freshly-reallocated same register as the next LHS vreg.
+ *
+ * Verified encodings (r10/r11 are the allocator's first-priority scratch regs):
+ *   mov rax, r10 = 4c 89 d0        mov r10, rax = 49 89 c2
+ *   mov rax, r11 = 4c 89 d8        mov r11, rax = 49 89 c3
+ * Match the exact 6-byte identity pairs.
+ */
+static void mc_peephole_elim_mov_roundtrip(Wx86Enc *e) {
+    if (!e || e->pos < 6) return;
+    static const uint8_t PAI[][6] = {
+        { 0x4c,0x89,0xd0, 0x49,0x89,0xc2 },  /* rax<->r10, r10<->rax */
+        { 0x4c,0x89,0xd8, 0x49,0x89,0xc3 },  /* rax<->r11, r11<->rax */
+    };
+    size_t w = 0;
+    for (size_t i = 0; i < e->pos; ) {
+        int removed = 0;
+        for (size_t p = 0; p < 2; p++) {
+            if (i + 6 <= e->pos && memcmp(e->buf + i, PAI[p], 6) == 0) {
+                i += 6;  /* skip the identity pair entirely */
+                removed = 1;
+                break;
+            }
+        }
+        if (removed) continue;
+        e->buf[w++] = e->buf[i++];
+    }
+    e->pos = w;
+}
+
+
 /* -- Expression Compiler (result in RAX) ------------------------ */
 
 /* SETcc doesn't exist in wubu_x86.h yet — we'll emit it manually */
@@ -817,6 +852,8 @@ JITResult jit_minic_compile(JITContext *ctx,
     }
 
     /* Copy encoder buffer into executable memory */
+    if (mc.use_xra)
+        mc_peephole_elim_mov_roundtrip(&mc.enc);  /* drop no-op mov rax,rX;mov rX,rax pairs */
     void *exec = jit_alloc_exec(mc.enc.pos);
     if (!exec) {
         wx86_enc_free(&mc.enc);

@@ -14,6 +14,13 @@
  */
 #include "jit.h"
 #include <stdio.h>
+#include <stdlib.h>
+
+/* Force the linear-scan allocator path (x86_regalloc) so these assertions
+ * exercise the allocator + remat + peephole, not the fallback push/pop dance. */
+__attribute__((constructor)) static void _force_xra(void) {
+    setenv("WUBU_JIT_XRA", "1", 1);
+}
 
 static int failures = 0;
 static int passed = 0;
@@ -58,6 +65,25 @@ int main(void) {
     r = jit_compile(ctx, "((1+2)*(3+4))+(5*6)", JIT_LANG_C, "const_nested", &fn_const);
     CHECK(r == JIT_OK, "compile deeply constant-nested");
     if (r == JIT_OK) CHECK(jit_call0(&fn_const) == 51, "((1+2)*(3+4))+(5*6)==51");
+
+    /* 6. Peephole: a chained left-assoc expression must NOT contain the
+     *    redundant no-op `mov rax,rX ; mov rX,rax` identity pairs (6 bytes
+     *    each: 4c 89 d0 49 89 c2 for r10, 4c 89 d8 49 89 c3 for r11). */
+    JITFunc fn_chain;
+    r = jit_compile(ctx, "a-b-c-d", JIT_LANG_C, "chain", &fn_chain);
+    CHECK(r == JIT_OK, "compile 'a-b-c-d'");
+    if (r == JIT_OK) {
+        CHECK((int64_t)(intptr_t)jit_callv(&fn_chain, 20, 4, 2, 1) == 13, "20-4-2-1==13");
+        const unsigned char *code = (const unsigned char *)fn_chain.code;
+        int has_r10 = 0, has_r11 = 0;
+        for (size_t i = 0; i + 6 <= fn_chain.code_size; i++) {
+            if (code[i]==0x4c && code[i+1]==0x89 && code[i+2]==0xd0 &&
+                code[i+3]==0x49 && code[i+4]==0x89 && code[i+5]==0xc2) has_r10 = 1;
+            if (code[i]==0x4c && code[i+1]==0x89 && code[i+2]==0xd8 &&
+                code[i+3]==0x49 && code[i+4]==0x89 && code[i+5]==0xc3) has_r11 = 1;
+        }
+        CHECK(!has_r10 && !has_r11, "no redundant mov rax,rX;mov rX,rax no-op pairs");
+    }
 
     printf("\n=== jit_regalloc_test: %d passed, %d failed ===\n", passed, failures);
     jit_free(ctx);
