@@ -117,6 +117,12 @@ test_jit_remat:
 # for known idioms (x*3=lea, x*8=8 adds, sign-bit, idempotence). Discovery gate.
 test_peephole_superopt:
 	bash tools/peephole_superopt_battery.sh
+
+# #25 JIT performance differential harness: compiles the same battery with and
+# without the machine-code optimizations, asserts results agree, and reports
+# code-size deltas (size-targeted opts must shrink; div is a latency win).
+test_jit_perf_diff:
+	bash tools/jit_perf_diff.sh
 test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/test/legacy/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
