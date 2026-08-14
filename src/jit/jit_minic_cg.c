@@ -664,7 +664,9 @@ static void cg_compile_decl_stmt(CGCompiler *cc) {
 
 static void cg_compile_assign_stmt(CGCompiler *cc) {
     if (!cg_cur(cc, TOK_IDENT)) return;
-    const char *name = cc->cur_tok.text;
+    char name[32];
+    strncpy(name, cc->cur_tok.text, 31);
+    name[31] = '\0';
     cg_consume(cc, TOK_IDENT);
     cg_consume(cc, TOK_ASSIGN);
     CGReg r = cg_find_var(cc, name);
@@ -683,13 +685,23 @@ static void cg_compile_if_stmt(CGCompiler *cc) {
     cg_b_cond(cc->cg, 0, CG_CC_EQ);  /* jump to else if R0 == 0 */
     size_t else_patch = cg_branch_pos(cc->cg);
 
-    cg_compile_block(cc);  /* then block */
+    /* Support both braced and unbraced then-block */
+    if (cg_cur(cc, TOK_LBRACE)) {
+        cg_compile_block(cc);
+    } else {
+        cg_compile_stmt(cc);
+    }
 
     if (cg_consume(cc, TOK_ELSE)) {
         cg_b_uncond(cc->cg, 0);  /* jump over else */
         size_t end_patch = cg_branch_pos(cc->cg);
         cg_patch_branch(cc->cg, else_patch, cg_pos(cc->cg));
-        cg_compile_block(cc);
+        /* Support both braced and unbraced else-block */
+        if (cg_cur(cc, TOK_LBRACE)) {
+            cg_compile_block(cc);
+        } else {
+            cg_compile_stmt(cc);
+        }
         cg_patch_branch(cc->cg, end_patch, cg_pos(cc->cg));
     } else {
         cg_patch_branch(cc->cg, else_patch, cg_pos(cc->cg));
@@ -707,7 +719,12 @@ static void cg_compile_while_stmt(CGCompiler *cc) {
     cg_b_cond(cc->cg, 0, CG_CC_EQ);  /* exit if R0 == 0 */
     size_t exit_patch = cg_branch_pos(cc->cg);
 
-    cg_compile_block(cc);
+    /* Support both braced and unbraced while body */
+    if (cg_cur(cc, TOK_LBRACE)) {
+        cg_compile_block(cc);
+    } else {
+        cg_compile_stmt(cc);
+    }
     /* Jump back to loop top */
     cg_b_uncond(cc->cg, 0);  /* emit placeholder */
     size_t back_patch = cg_branch_pos(cc->cg);
@@ -736,20 +753,18 @@ static void cg_compile_stmt(CGCompiler *cc) {
         cg_consume(cc, TOK_SEMI);
     } else if (cg_cur(cc, TOK_IDENT)) {
         /* Could be assignment or expression */
-        const char *name = cc->cur_tok.text;
-        /* Peek ahead for '=' */
-        int save_pos = cc->lex.pos;
+        /* Peek ahead for '=' by saving full state */
         CGToken save_tok = cc->cur_tok;
+        CGLexer save_lex = cc->lex;
         cg_consume(cc, TOK_IDENT);
-        if (cg_cur(cc, TOK_ASSIGN)) {
-            /* Restore and re-parse as assignment */
-            cc->lex.pos = save_pos;
-            cc->cur_tok = save_tok;
+        int is_assign = cg_cur(cc, TOK_ASSIGN);
+        /* Restore full state */
+        cc->cur_tok = save_tok;
+        cc->lex = save_lex;
+        if (is_assign) {
             cg_compile_assign_stmt(cc);
         } else {
             /* Expression statement */
-            cc->lex.pos = save_pos;
-            cc->cur_tok = save_tok;
             cg_compile_expr(cc, CG_REG_9);
         }
         cg_consume(cc, TOK_SEMI);

@@ -363,10 +363,20 @@ size_t warm64_branch_pos(WArm64Enc *e) {
 void warm64_patch_branch(WArm64Enc *e, size_t branch_pos, size_t target) {
     if (branch_pos + 4 > e->pos) return;
     intptr_t offset = (intptr_t)target - (intptr_t)branch_pos;
-    /* For B (unconditional): imm26 = offset / 4 */
-    int32_t imm26 = (int32_t)(offset / 4);
     uint32_t *p = (uint32_t *)(e->buf + branch_pos);
-    *p = (*p & ~0x3FFFFFF) | (imm26 & 0x3FFFFFF);
+    uint32_t ins = *p;
+
+    /* Check if this is B.cond (0x54......) or B (100101......) */
+    if ((ins >> 24) == 0x54) {
+        /* B.cond: imm19 at bits [23:5], encoded as offset/4 */
+        int32_t imm19 = (int32_t)(offset / 4);
+        *p = (ins & 0xFF00001F) | ((imm19 & 0x7FFFF) << 5);
+    } else if ((ins >> 26) == 0x05) {
+        /* B (unconditional): imm26 at bits [25:0], encoded as offset/4 */
+        int32_t imm26 = (int32_t)(offset / 4);
+        *p = (ins & ~0x3FFFFFF) | (imm26 & 0x3FFFFFF);
+    }
+    /* else: unknown instruction, don't patch */
 }
 
 /* -- Stack frame -------------------------------------------------- */
