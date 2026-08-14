@@ -57,6 +57,10 @@ static size_t arm64_pos(const CGEncoder *e) {
     return arm64_enc((CGEncoder *)e)->enc.pos;
 }
 
+static const uint8_t *arm64_buffer(const CGEncoder *e) {
+    return arm64_enc((CGEncoder *)e)->enc.buf;
+}
+
 static void arm64_add_imm(CGEncoder *e, CGReg rd, CGReg rn, uint32_t imm) {
     /* ARM64 ADD (immediate) supports imm12 (0-4095) */
     if (imm <= 0xFFF) {
@@ -247,6 +251,7 @@ static void arm64_epilogue(CGEncoder *e, int stack_slots) {
 /* -- VTable ------------------------------------------------------- */
 static const CodeGenVTable arm64_vtable = {
     .name = "arm64",
+    .buffer = arm64_buffer,
     .emit_byte = arm64_emit_byte,
     .emit_word32 = arm64_emit_word32,
     .emit_word64 = arm64_emit_word64,

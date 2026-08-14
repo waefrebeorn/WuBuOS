@@ -82,7 +82,7 @@ test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_jit_type test_jit_loop test_jit_branch_profile test_jit_subsystem_integration test_jit_pgo_byte test_jit_loop_consume test_jit_deep_opt test_jit_fuzzer test_jit_supremacy test_jit_torture test_arm64_enc test_jit_regression test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
+test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_jit_type test_jit_loop test_jit_branch_profile test_jit_subsystem_integration test_jit_pgo_byte test_jit_loop_consume test_jit_deep_opt test_jit_fuzzer test_jit_supremacy test_jit_torture test_arm64_enc test_minic_cg test_jit_regression test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
@@ -157,6 +157,11 @@ test_jit_profile:
 	$(JIT)/jit_cycle_profiler
 
 # ARM64 encoder test
+test_minic_cg:
+	$(CC) -O0 -g -I$(JIT) $(JIT)/test_minic_cg.c $(JIT)/jit_minic_cg.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c -o $(JIT)/test_minic_cg
+	$(JIT)/test_minic_cg
+
+# ARM64 encoder test (byte-level)
 test_arm64_enc:
 	$(CC) -O0 -g -I$(JIT) $(JIT)/test_arm64_enc.c $(JIT)/wubu_arm64.c -o $(JIT)/test_arm64_enc
 	$(JIT)/test_arm64_enc

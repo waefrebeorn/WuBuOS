@@ -76,6 +76,10 @@ static size_t x86_pos(const CGEncoder *e) {
     return x86_enc((CGEncoder *)e)->enc.pos;
 }
 
+static const uint8_t *x86_buffer(const CGEncoder *e) {
+    return x86_enc((CGEncoder *)e)->enc.buf;
+}
+
 static void x86_add_imm(CGEncoder *e, CGReg rd, CGReg rn, uint32_t imm) {
     /* Use LEA for add-immediate: LEA rd, [rn + imm] */
     if (rd == rn) {
@@ -306,6 +310,7 @@ static void x86_epilogue(CGEncoder *e, int stack_slots) {
 /* -- VTable ------------------------------------------------------- */
 static const CodeGenVTable x86_vtable = {
     .name = "x86-64",
+    .buffer = x86_buffer,
     .emit_byte = x86_emit_byte,
     .emit_word32 = x86_emit_word32,
     .emit_word64 = x86_emit_word64,

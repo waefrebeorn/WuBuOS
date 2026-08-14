@@ -51,11 +51,14 @@ typedef struct {
     /* Backend identity */
     const char *name;  /* "x86-64" or "arm64" */
 
-    /* Buffer management */
+    /* Buffer access */
+    const uint8_t *(*buffer)(const CGEncoder *e);
+    size_t (*pos)(const CGEncoder *e);
+
+    /* Emit helpers (optional, for advanced use) */
     void  (*emit_byte)(CGEncoder *e, uint8_t b);
     void  (*emit_word32)(CGEncoder *e, uint32_t w);
     void  (*emit_word64)(CGEncoder *e, uint64_t q);
-    size_t (*pos)(const CGEncoder *e);
 
     /* Data processing */
     void (*add_imm)(CGEncoder *e, CGReg rd, CGReg rn, uint32_t imm);
@@ -206,6 +209,9 @@ static inline void cg_pop(CodeGen *cg, CGReg rt) {
 }
 static inline size_t cg_pos(CodeGen *cg) {
     return cg->vt->pos(cg->enc);
+}
+static inline const uint8_t *cg_buffer(CodeGen *cg) {
+    return cg->vt->buffer(cg->enc);
 }
 
 #ifdef __cplusplus
