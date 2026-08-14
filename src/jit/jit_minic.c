@@ -1269,7 +1269,47 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
         return 0;
     }
 
-    /* Prologue */
+    /* Prologue — FAST PATH: if no locals needed and args fit in registers,
+     * skip the frame entirely. Args stay in their parameter registers
+     * (RDI,RSI,RDX,RCX,R8,R9). This eliminates push rbp/mov rbp,rsp/pop rbp
+     * and all arg pushes — saving 5-8 instructions per call. */
+    int need_frame = (mc->n_args > 6);  /* more args than registers */
+
+    if (!need_frame) {
+        /* Scan the function body for local declarations. If any exist,
+         * we need the frame. We do this by saving lexer position, scanning
+         * for type keywords followed by identifiers, then restoring. */
+        MinicLexer save = mc->lex;
+        minic_expect(&mc->lex, TOK_LBRACE);
+        int depth = 1;
+        while (depth > 0 && minic_cur(&mc->lex)->type != TOK_EOF) {
+            if (minic_cur(&mc->lex)->type == TOK_LBRACE) depth++;
+            if (minic_cur(&mc->lex)->type == TOK_RBRACE) depth--;
+            if (depth == 1 && minic_is_type(minic_cur(&mc->lex)->type)) {
+                /* Check if this is a declaration (type followed by ident) */
+                minic_advance(&mc->lex);
+                if (minic_cur(&mc->lex)->type == TOK_IDENT) {
+                    need_frame = 1;
+                    break;
+                }
+            }
+            minic_advance(&mc->lex);
+        }
+        mc->lex = save;  /* restore lexer to function start */
+    }
+
+    if (!need_frame) {
+        /* Fast path: no frame. Args in registers, no stack setup. */
+        mc->scope.stack_offset = 0;  /* No locals on stack */
+        /* Still need to track that args are in registers */
+        for (int i = 0; i < mc->n_args && i < 6; i++) {
+            MinicVar *v = scope_find(&mc->scope, mc->scope.vars[i].name);
+            if (v) { v->is_arg = 1; v->slot = i; }  /* slot = arg register index */
+        }
+        goto fast_prologue_done;
+    }
+
+    /* SLOW PATH: full frame setup (original code) */
     MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RBP));
     MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RBP, WREG_RSP));
 
@@ -1307,6 +1347,8 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
     /* Adjust stack_offset to account for args on stack */
     mc->scope.stack_offset = -(8 + args_size);
 
+fast_prologue_done:
+
     /* Initialize the linear-scan register allocator for this function.
      * When enabled, expression temporaries (LHS of binops) are allocated
      * to physical registers / spill slots instead of the fixed rax+push/pop
@@ -1325,7 +1367,9 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
      * 81 EC imm32. We use imm32 form (5 bytes: 48 81 EC imm32) with
      * placeholder 0, and patch the 4 bytes after compilation. */
     size_t frame_patch_pos = mc->enc.pos + 3;  /* offset of the imm32 */
-    MC_EMIT(mc, wx86_sub_reg_imm32(&mc->enc, WREG_RSP, 0));  /* placeholder */
+    if (need_frame) {
+        MC_EMIT(mc, wx86_sub_reg_imm32(&mc->enc, WREG_RSP, 0));  /* placeholder */
+    }
 
     mc->in_func = 1;
 
@@ -1339,19 +1383,24 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
 
     mc->in_func = 0;
 
-    /* Patch the stack frame size: we need abs(stack_offset) bytes for locals,
-     * plus 256 bytes of scratch space for push/pop expression evaluation.
-     * Round up to 16-byte alignment. */
-    int frame_size = (-mc->scope.stack_offset) + 256;
-    frame_size = (frame_size + 15) & ~15;  /* align to 16 bytes */
-    if (frame_size < 256) frame_size = 256;  /* minimum frame */
-    /* Patch the 4-byte immediate at frame_patch_pos */
-    mc->enc.buf[frame_patch_pos + 0] = (uint8_t)(frame_size & 0xFF);
-    mc->enc.buf[frame_patch_pos + 1] = (uint8_t)((frame_size >> 8) & 0xFF);
-    mc->enc.buf[frame_patch_pos + 2] = (uint8_t)((frame_size >> 16) & 0xFF);
-    mc->enc.buf[frame_patch_pos + 3] = (uint8_t)((frame_size >> 24) & 0xFF);
+    /* Patch the stack frame size (slow path only) */
+    if (need_frame) {
+        int frame_size = (-mc->scope.stack_offset) + 256;
+        frame_size = (frame_size + 15) & ~15;
+        if (frame_size < 256) frame_size = 256;
+        mc->enc.buf[frame_patch_pos + 0] = (uint8_t)(frame_size & 0xFF);
+        mc->enc.buf[frame_patch_pos + 1] = (uint8_t)((frame_size >> 8) & 0xFF);
+        mc->enc.buf[frame_patch_pos + 2] = (uint8_t)((frame_size >> 16) & 0xFF);
+        mc->enc.buf[frame_patch_pos + 3] = (uint8_t)((frame_size >> 24) & 0xFF);
+    }
 
-    /* Epilogue */
+    /* Epilogue — FAST PATH: no frame to restore, just ret */
+    if (!need_frame && !mc->use_xra) {
+        MC_EMIT(mc, wx86_ret(&mc->enc));
+        return 0;
+    }
+
+    /* SLOW PATH: full epilogue */
     if (mc->use_xra) {
         /* The default-return-0 must still land in rax before the allocator
          * epilogue restores callee-saved regs and returns. */
