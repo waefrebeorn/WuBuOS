@@ -290,6 +290,7 @@ static void x86_patch_branch(CGEncoder *e, size_t pos, size_t target) {
     wx86_patch_rel32(&x86_enc(e)->enc, pos, target);
 }
 
+static void x86_noop(CGEncoder *e) { (void)e; }
 static void x86_push(CGEncoder *e, CGReg rt) {
     wx86_push_reg(&x86_enc(e)->enc, cg_to_x86(rt));
 }
@@ -361,6 +362,7 @@ static const CodeGenVTable x86_vtable = {
     .patch_branch = x86_patch_branch,
     .push = x86_push,
     .pop = x86_pop,
+    .drop = x86_noop,
     .prologue = x86_prologue,
     .epilogue = x86_epilogue,
 };

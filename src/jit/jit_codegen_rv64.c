@@ -144,6 +144,7 @@ static size_t rv64_get_branch_pos(CGEncoder *e) { return rv64_branch_pos(&rv64_e
 static void rv64_do_patch_branch(CGEncoder *e, size_t pos, size_t target) {
     rv64_patch_branch(&rv64_enc(e)->enc, pos, target);
 }
+static void rv64_noop(CGEncoder *e) { (void)e; }
 static void rv64_push(CGEncoder *e, CGReg rt) {
     rv64_addi(&rv64_enc(e)->enc, RV_SP, RV_SP, -8);
     rv64_sd(&rv64_enc(e)->enc, cg_to_rv64(rt), RV_SP, 0);
@@ -203,6 +204,7 @@ static const CodeGenVTable rv64_vtable = {
     .patch_branch = rv64_do_patch_branch,
     .push = rv64_push,
     .pop = rv64_pop,
+    .drop = rv64_noop,
     .prologue = rv64_prologue,
     .epilogue = rv64_epilogue,
 };

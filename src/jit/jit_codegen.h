@@ -105,6 +105,7 @@ typedef struct {
     /* Stack */
     void (*push)(CGEncoder *e, CGReg rt);
     void (*pop)(CGEncoder *e, CGReg rt);
+    void (*drop)(CGEncoder *e);
 
     /* Frame setup / teardown */
     void (*prologue)(CGEncoder *e, int n_args, int stack_slots);
@@ -210,6 +211,9 @@ static inline void cg_push(CodeGen *cg, CGReg rt) {
 }
 static inline void cg_pop(CodeGen *cg, CGReg rt) {
     cg->vt->pop(cg->enc, rt);
+}
+static inline void cg_drop(CodeGen *cg) {
+    cg->vt->drop(cg->enc);
 }
 static inline size_t cg_pos(CodeGen *cg) {
     return cg->vt->pos(cg->enc);

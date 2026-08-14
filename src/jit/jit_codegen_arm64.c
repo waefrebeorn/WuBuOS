@@ -219,6 +219,7 @@ static void arm64_patch_branch(CGEncoder *e, size_t pos, size_t target) {
     warm64_patch_branch(&arm64_enc(e)->enc, pos, target);
 }
 
+static void arm64_noop(CGEncoder *e) { (void)e; }
 static void arm64_push(CGEncoder *e, CGReg rt) {
     warm64_push(&arm64_enc(e)->enc, cg_to_arm64(rt));
 }
@@ -292,6 +293,7 @@ static const CodeGenVTable arm64_vtable = {
     .patch_branch = arm64_patch_branch,
     .push = arm64_push,
     .pop = arm64_pop,
+    .drop = arm64_noop,
     .prologue = arm64_prologue,
     .epilogue = arm64_epilogue,
 };

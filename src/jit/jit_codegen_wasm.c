@@ -21,7 +21,11 @@ typedef struct {
 static WasmEncoder *wasm_enc(CGEncoder *e) { return (WasmEncoder *)e; }
 
 static uint32_t cg_to_wasm_local(CGReg r, uint32_t n_params) {
-    if (r < 7) return (uint32_t)r;
+    /* Minic maps args to CG_REG_1..6, locals to CG_REG_7+, return to CG_REG_0.
+     * WASM params are locals 0..n-1.
+     * Map: CG_REG_1..6 → WASM local 0..5 (params) */
+    if (r >= 1 && r <= 6) return (uint32_t)(r - 1);
+    if (r == 0) return 0;  /* return register */
     return n_params + (uint32_t)(r - 7);
 }
 
@@ -121,6 +125,7 @@ static void wasm_b_reg(CGEncoder *e, CGReg rn) { (void)e; (void)rn; }
 static void wasm_ret(CGEncoder *e) { wasm_return(&wasm_enc(e)->body); }
 static size_t wasm_get_bp(CGEncoder *e) { return wasm_branch_pos(&wasm_enc(e)->body); }
 static void wasm_do_patch(CGEncoder *e, size_t pos, size_t target) { wasm_patch_branch(&wasm_enc(e)->body, pos, target); }
+static void wasm_do_drop(CGEncoder *e) { wasm_drop(&wasm_enc(e)->body); }
 static void wasm_push(CGEncoder *e, CGReg rt) { (void)e; (void)rt; }
 static void wasm_pop(CGEncoder *e, CGReg rt) { (void)e; (void)rt; }
 
@@ -205,6 +210,7 @@ static const CodeGenVTable wasm_vtable = {
     .patch_branch = wasm_do_patch,
     .push = wasm_push,
     .pop = wasm_pop,
+    .drop = wasm_do_drop,
     .prologue = wasm_prologue,
     .epilogue = wasm_epilogue,
 };
@@ -218,15 +224,15 @@ static const uint8_t *wasm_build_module(WasmEncoder *enc, size_t *out_size) {
     wasm_emit(m, 0x00); wasm_emit(m, 0x61); wasm_emit(m, 0x73); wasm_emit(m, 0x6d);
     wasm_emit(m, 0x01); wasm_emit(m, 0x00); wasm_emit(m, 0x00); wasm_emit(m, 0x00);
 
-    /* Type section (0x01): 1 function type () -> i64 */
+    /* Type section (0x01): 1 function type (i64,i64,i64,i64,i64,i64) -> i64 */
     wasm_emit(m, 0x01);
     {
-        uint8_t body[6];
-        size_t len = 0;
-        WasmEnc be = {body, 0, 6, 0};
+        uint8_t body[32];
+        WasmEnc be = {body, 0, 32, 0};
         wasm_write_leb_u32(&be, 1);  /* 1 type */
         wasm_emit(&be, 0x60);         /* func */
-        wasm_write_leb_u32(&be, 0);   /* 0 params */
+        wasm_write_leb_u32(&be, enc->n_params);  /* n params */
+        for (uint32_t i = 0; i < enc->n_params; i++) wasm_emit(&be, 0x7e);  /* i64 */
         wasm_write_leb_u32(&be, 1);   /* 1 result */
         wasm_emit(&be, 0x7e);         /* i64 */
         wasm_write_leb_u32(m, (uint32_t)be.pos);

@@ -506,11 +506,13 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
             int is_const = cg_compile_primary(cc, rhs, &rhs_const);
             /* Strength reduction: x * (2^n) -> x << n */
             if (is_const && is_power_of_2(rhs_const)) {
+                cg_drop(cc->cg);  /* drop the constant pushed by primary */
                 cg_lsl_imm(cc->cg, dst, dst, (uint8_t)ilog2(rhs_const));
             } else if (is_const && rhs_const == 0) {
+                cg_drop(cc->cg);
                 cg_mov_imm(cc->cg, dst, 0);
             } else if (is_const && rhs_const == 1) {
-                /* x * 1 = x, nothing to do */
+                cg_drop(cc->cg);  /* x * 1 = x */
             } else {
                 /* Ensure dst and rhs are different for mul */
                 if (dst == rhs) {
@@ -526,9 +528,10 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
             int is_const = cg_compile_primary(cc, rhs, &rhs_const);
             /* Strength reduction: x / (2^n) -> x >> n */
             if (is_const && is_power_of_2(rhs_const)) {
+                cg_drop(cc->cg);
                 cg_asr_imm(cc->cg, dst, dst, (uint8_t)ilog2(rhs_const));
             } else if (is_const && rhs_const == 1) {
-                /* x / 1 = x, nothing to do */
+                cg_drop(cc->cg);  /* x / 1 = x */
             } else {
                 cg_div_reg(cc->cg, dst, dst, rhs);
             }
@@ -538,6 +541,7 @@ static void cg_compile_multiplicative(CGCompiler *cc, CGReg dst) {
             int is_const = cg_compile_primary(cc, rhs, &rhs_const);
             /* Strength reduction: x % (2^n) -> x & (2^n - 1) */
             if (is_const && is_power_of_2(rhs_const)) {
+                cg_drop(cc->cg);
                 cg_mov_imm(cc->cg, CG_REG_9, rhs_const - 1);
                 cg_and_reg(cc->cg, dst, dst, CG_REG_9);
             } else {
