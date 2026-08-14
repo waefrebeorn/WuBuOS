@@ -212,9 +212,205 @@ static int cg_consume(CGCompiler *cc, CGTokType t) {
 }
 
 /* Forward declarations */
-static void cg_compile_expr(CGCompiler *cc, CGReg dst);
+static void cg_compile_expr(CGCompiler *cg, CGReg dst);
 static void cg_compile_stmt(CGCompiler *cc);
 static void cg_compile_block(CGCompiler *cc);
+
+/* -- Constant folding --------------------------------------------- */
+/* Attempt to evaluate a compile-time constant expression.
+ * Returns 1 and stores result in *out on success, 0 on failure.
+ * On failure, lexer state is restored. */
+
+static int cg_const_eval(CGCompiler *cc, int64_t *out);
+
+static int cg_const_eval_primary(CGCompiler *cc, int64_t *out) {
+    /* Save lexer state */
+    CGToken saved_tok = cc->cur_tok;
+    CGLexer saved_lex = cc->lex;
+
+    if (cg_consume(cc, TOK_LPAREN)) {
+        if (cg_const_eval(cc, out) && cg_consume(cc, TOK_RPAREN)) return 1;
+        /* Restore and fail */
+        cc->cur_tok = saved_tok;
+        cc->lex = saved_lex;
+        return 0;
+    }
+    if (cg_cur(cc, TOK_NUMBER)) {
+        *out = cc->cur_tok.ival;
+        cg_consume(cc, TOK_NUMBER);
+        return 1;
+    }
+    if (cg_cur(cc, TOK_HEX)) {
+        *out = cc->cur_tok.ival;
+        cg_consume(cc, TOK_HEX);
+        return 1;
+    }
+    if (cg_cur(cc, TOK_MINUS)) {
+        cg_consume(cc, TOK_MINUS);
+        int64_t v;
+        if (cg_const_eval_primary(cc, &v)) {
+            *out = -v;
+            return 1;
+        }
+        cc->cur_tok = saved_tok;
+        cc->lex = saved_lex;
+        return 0;
+    }
+    if (cg_cur(cc, TOK_TILDE)) {
+        cg_consume(cc, TOK_TILDE);
+        int64_t v;
+        if (cg_const_eval_primary(cc, &v)) {
+            *out = ~v;
+            return 1;
+        }
+        cc->cur_tok = saved_tok;
+        cc->lex = saved_lex;
+        return 0;
+    }
+    /* Not a constant */
+    cc->cur_tok = saved_tok;
+    cc->lex = saved_lex;
+    return 0;
+}
+
+static int cg_const_eval_multiplicative(CGCompiler *cc, int64_t *out) {
+    CGToken saved_start_tok = cc->cur_tok;
+    CGLexer saved_start_lex = cc->lex;
+    int64_t lhs;
+    if (!cg_const_eval_primary(cc, &lhs)) { cc->cur_tok = saved_start_tok; cc->lex = saved_start_lex; return 0; }
+    for (;;) {
+        CGToken saved_tok = cc->cur_tok;
+        CGLexer saved_lex = cc->lex;
+        if (cg_consume(cc, TOK_STAR)) {
+            int64_t rhs;
+            if (!cg_const_eval_primary(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs * rhs;
+        } else if (cg_consume(cc, TOK_SLASH)) {
+            int64_t rhs;
+            if (!cg_const_eval_primary(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            if (rhs == 0) { *out = 0; return 1; }
+            lhs = lhs / rhs;
+        } else if (cg_consume(cc, TOK_PERCENT)) {
+            int64_t rhs;
+            if (!cg_const_eval_primary(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            if (rhs == 0) { *out = 0; return 1; }
+            lhs = lhs % rhs;
+        } else break;
+    }
+    *out = lhs;
+    return 1;
+}
+
+static int cg_const_eval_additive(CGCompiler *cc, int64_t *out) {
+    CGToken saved_start_tok = cc->cur_tok;
+    CGLexer saved_start_lex = cc->lex;
+    int64_t lhs;
+    if (!cg_const_eval_multiplicative(cc, &lhs)) { cc->cur_tok = saved_start_tok; cc->lex = saved_start_lex; return 0; }
+    for (;;) {
+        CGToken saved_tok = cc->cur_tok;
+        CGLexer saved_lex = cc->lex;
+        if (cg_consume(cc, TOK_PLUS)) {
+            int64_t rhs;
+            if (!cg_const_eval_multiplicative(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs + rhs;
+        } else if (cg_consume(cc, TOK_MINUS)) {
+            int64_t rhs;
+            if (!cg_const_eval_multiplicative(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs - rhs;
+        } else break;
+    }
+    *out = lhs;
+    return 1;
+}
+
+static int cg_const_eval_shift(CGCompiler *cc, int64_t *out) {
+    CGToken saved_start_tok = cc->cur_tok;
+    CGLexer saved_start_lex = cc->lex;
+    int64_t lhs;
+    if (!cg_const_eval_additive(cc, &lhs)) { cc->cur_tok = saved_start_tok; cc->lex = saved_start_lex; return 0; }
+    for (;;) {
+        CGToken saved_tok = cc->cur_tok;
+        CGLexer saved_lex = cc->lex;
+        if (cg_consume(cc, TOK_SHL)) {
+            int64_t rhs;
+            if (!cg_const_eval_additive(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs << (rhs & 63);
+        } else if (cg_consume(cc, TOK_SHR)) {
+            int64_t rhs;
+            if (!cg_const_eval_additive(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs >> (rhs & 63);
+        } else break;
+    }
+    *out = lhs;
+    return 1;
+}
+
+static int cg_const_eval_bitwise(CGCompiler *cc, int64_t *out) {
+    CGToken saved_start_tok = cc->cur_tok;
+    CGLexer saved_start_lex = cc->lex;
+    int64_t lhs;
+    if (!cg_const_eval_shift(cc, &lhs)) { cc->cur_tok = saved_start_tok; cc->lex = saved_start_lex; return 0; }
+    for (;;) {
+        CGToken saved_tok = cc->cur_tok;
+        CGLexer saved_lex = cc->lex;
+        if (cg_consume(cc, TOK_AMP)) {
+            int64_t rhs;
+            if (!cg_const_eval_shift(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs & rhs;
+        } else if (cg_consume(cc, TOK_CARET)) {
+            int64_t rhs;
+            if (!cg_const_eval_shift(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs ^ rhs;
+        } else if (cg_consume(cc, TOK_PIPE)) {
+            int64_t rhs;
+            if (!cg_const_eval_shift(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+            lhs = lhs | rhs;
+        } else break;
+    }
+    *out = lhs;
+    return 1;
+}
+
+static int cg_const_eval_compare(CGCompiler *cc, int64_t *out) {
+    CGToken saved_start_tok = cc->cur_tok;
+    CGLexer saved_start_lex = cc->lex;
+    int64_t lhs;
+    if (!cg_const_eval_bitwise(cc, &lhs)) { cc->cur_tok = saved_start_tok; cc->lex = saved_start_lex; return 0; }
+    CGToken saved_tok = cc->cur_tok;
+    CGLexer saved_lex = cc->lex;
+    if (cg_consume(cc, TOK_EQ)) {
+        int64_t rhs;
+        if (!cg_const_eval_bitwise(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+        *out = (lhs == rhs) ? 1 : 0;
+    } else if (cg_consume(cc, TOK_NE)) {
+        int64_t rhs;
+        if (!cg_const_eval_bitwise(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+        *out = (lhs != rhs) ? 1 : 0;
+    } else if (cg_consume(cc, TOK_LT)) {
+        int64_t rhs;
+        if (!cg_const_eval_bitwise(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+        *out = (lhs < rhs) ? 1 : 0;
+    } else if (cg_consume(cc, TOK_GT)) {
+        int64_t rhs;
+        if (!cg_const_eval_bitwise(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+        *out = (lhs > rhs) ? 1 : 0;
+    } else if (cg_consume(cc, TOK_LE)) {
+        int64_t rhs;
+        if (!cg_const_eval_bitwise(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+        *out = (lhs <= rhs) ? 1 : 0;
+    } else if (cg_consume(cc, TOK_GE)) {
+        int64_t rhs;
+        if (!cg_const_eval_bitwise(cc, &rhs)) { cc->cur_tok = saved_tok; cc->lex = saved_lex; return 0; }
+        *out = (lhs >= rhs) ? 1 : 0;
+    } else {
+        *out = lhs;
+    }
+    return 1;
+}
+
+static int cg_const_eval(CGCompiler *cc, int64_t *out) {
+    return cg_const_eval_compare(cc, out);
+}
 
 /* -- Expression compiler ------------------------------------------ */
 
@@ -383,6 +579,13 @@ static void cg_compile_compare(CGCompiler *cc, CGReg dst) {
 }
 
 static void cg_compile_expr(CGCompiler *cc, CGReg dst) {
+    /* Constant folding: if the entire expression is compile-time constant,
+     * evaluate it now and emit just a load-immediate. */
+    int64_t const_val;
+    if (cg_const_eval(cc, &const_val)) {
+        cg_mov_imm(cc->cg, dst, const_val);
+        return;
+    }
     cg_compile_compare(cc, dst);
 }
 
