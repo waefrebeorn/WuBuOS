@@ -151,6 +151,11 @@ test_jit_fuzzer:
 	$(JIT)/jit_fuzzer
 	WUBU_JIT_XRA=1 $(JIT)/jit_fuzzer
 
+# Cycle profiler: measure generated code quality (development aid)
+test_jit_profile:
+	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_cycle_profiler.c -o $(JIT)/jit_cycle_profiler -ldl
+	$(JIT)/jit_cycle_profiler
+
 test_jit_regalloc:
 	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_regalloc_test.c -o $(JIT)/jit_regalloc_test -ldl
 	$(JIT)/jit_regalloc_test

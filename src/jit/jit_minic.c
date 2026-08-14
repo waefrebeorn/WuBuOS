@@ -1385,9 +1385,12 @@ fast_prologue_done:
 
     /* Patch the stack frame size (slow path only) */
     if (need_frame) {
-        int frame_size = (-mc->scope.stack_offset) + 256;
+        int frame_size = (-mc->scope.stack_offset);
+        /* Only add scratch space for push/pop expression evaluation
+         * (non-XRA path). XRA uses registers, no scratch needed. */
+        if (!mc->use_xra) frame_size += 256;
         frame_size = (frame_size + 15) & ~15;
-        if (frame_size < 256) frame_size = 256;
+        if (frame_size < 16) frame_size = 16;  /* minimum aligned frame */
         mc->enc.buf[frame_patch_pos + 0] = (uint8_t)(frame_size & 0xFF);
         mc->enc.buf[frame_patch_pos + 1] = (uint8_t)((frame_size >> 8) & 0xFF);
         mc->enc.buf[frame_patch_pos + 2] = (uint8_t)((frame_size >> 16) & 0xFF);
