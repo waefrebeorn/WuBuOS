@@ -1,8 +1,5 @@
 /*
- * test_minic_cg.c — Test multi-target minic compilation.
- *
- * Verifies that the same C expression compiles correctly
- * on both x86-64 and ARM64 backends via the abstract codegen interface.
+ * test_minic_cg.c — Test multi-target minic compilation (full grammar).
  */
 #include "jit_codegen.h"
 #include "jit.h"
@@ -11,138 +8,157 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/* Declare the cg-based compiler */
-int jit_minic_compile_expr(CodeGen *cg, const char *src);
+int jit_minic_compile_cg(CodeGen *cg, const char *src);
 const uint8_t *jit_minic_get_code(CodeGen *cg, size_t *size);
 
 static int pass, fail, total;
-
 static void check(int cond, const char *msg) {
     total++;
-    if (cond) { pass++; }
+    if (cond) pass++;
     else { fail++; printf("  FAIL: %s\n", msg); }
 }
 
-/* Disassemble and verify the code contains expected patterns */
-static int code_contains(const uint8_t *code, size_t sz, const uint8_t *pattern, size_t pat_sz) {
-    if (pat_sz > sz) return 0;
-    for (size_t i = 0; i <= sz - pat_sz; i++) {
-        if (memcmp(code + i, pattern, pat_sz) == 0) return 1;
-    }
-    return 0;
-}
-
 int main(void) {
-    printf("=== MULTI-TARGET MINIC TEST ===\n\n");
+    printf("=== MULTI-TARGET FULL MINIC TEST ===\n\n");
 
-    /* Test 1: Simple constant on x86-64 */
+    /* Test 1: Simple constant */
     {
         CodeGen *cg = cg_create_x86();
-        jit_minic_compile_expr(cg, "42");
-        size_t sz;
-        const uint8_t *code = jit_minic_get_code(cg, &sz);
-        check(sz > 0, "x86: compile constant 42");
-        /* Should contain mov rax, 42 */
-        check(1, "x86: constant compiled");
+        jit_minic_compile_cg(cg, "return 42;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: return 42");
         cg_destroy(cg);
     }
 
-    /* Test 2: Simple constant on ARM64 */
+    /* Test 2: Constant on ARM64 */
     {
         CodeGen *cg = cg_create_arm64();
-        jit_minic_compile_expr(cg, "42");
-        size_t sz;
-        const uint8_t *code = jit_minic_get_code(cg, &sz);
-        check(sz > 0, "arm64: compile constant 42");
+        jit_minic_compile_cg(cg, "return 42;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "arm64: return 42");
         cg_destroy(cg);
     }
 
-    /* Test 3: Addition on x86-64 */
+    /* Test 3: Expression a + b */
     {
         CodeGen *cg = cg_create_x86();
-        jit_minic_compile_expr(cg, "a + b");
-        size_t sz;
-        const uint8_t *code = jit_minic_get_code(cg, &sz);
-        check(sz > 0, "x86: compile a + b");
+        jit_minic_compile_cg(cg, "return a + b;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: return a + b");
         cg_destroy(cg);
     }
 
-    /* Test 4: Addition on ARM64 */
+    /* Test 4: Expression on ARM64 */
     {
         CodeGen *cg = cg_create_arm64();
-        jit_minic_compile_expr(cg, "a + b");
-        size_t sz;
-        const uint8_t *code = jit_minic_get_code(cg, &sz);
-        check(sz > 0, "arm64: compile a + b");
+        jit_minic_compile_cg(cg, "return a + b;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "arm64: return a + b");
         cg_destroy(cg);
     }
 
-    /* Test 5: Complex expression on both backends */
+    /* Test 5: Complex expression */
     {
         CodeGen *cg_x86 = cg_create_x86();
         CodeGen *cg_arm = cg_create_arm64();
-        
-        jit_minic_compile_expr(cg_x86, "1 + 2 * 3");
-        jit_minic_compile_expr(cg_arm, "1 + 2 * 3");
-        
-        size_t sz_x86, sz_arm;
-        jit_minic_get_code(cg_x86, &sz_x86);
-        jit_minic_get_code(cg_arm, &sz_arm);
-        
-        check(sz_x86 > 0, "x86: compile 1 + 2 * 3");
-        check(sz_arm > 0, "arm64: compile 1 + 2 * 3");
-        
+        jit_minic_compile_cg(cg_x86, "return 1 + 2 * 3;");
+        jit_minic_compile_cg(cg_arm, "return 1 + 2 * 3;");
+        size_t sz1, sz2;
+        jit_minic_get_code(cg_x86, &sz1);
+        jit_minic_get_code(cg_arm, &sz2);
+        check(sz1 > 0, "x86: return 1 + 2 * 3");
+        check(sz2 > 0, "arm64: return 1 + 2 * 3");
         cg_destroy(cg_x86);
         cg_destroy(cg_arm);
     }
 
-    /* Test 6: Bitwise operations */
+    /* Test 6: Variable declaration */
     {
         CodeGen *cg = cg_create_x86();
-        jit_minic_compile_expr(cg, "a & b | c");
-        size_t sz;
-        jit_minic_get_code(cg, &sz);
-        check(sz > 0, "x86: compile a & b | c");
+        jit_minic_compile_cg(cg, "long x = 42; return x;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: long x = 42; return x");
         cg_destroy(cg);
     }
 
-    /* Test 7: Comparison */
+    /* Test 7: If statement */
     {
         CodeGen *cg = cg_create_x86();
-        jit_minic_compile_expr(cg, "a < b");
-        size_t sz;
-        jit_minic_get_code(cg, &sz);
-        check(sz > 0, "x86: compile a < b");
+        jit_minic_compile_cg(cg, "if(a > b) { return a; } else { return b; }");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: if/else");
         cg_destroy(cg);
     }
 
-    /* Test 8: Parenthesized expression */
+    /* Test 8: If on ARM64 */
     {
         CodeGen *cg = cg_create_arm64();
-        jit_minic_compile_expr(cg, "(a + b) * c");
-        size_t sz;
-        jit_minic_get_code(cg, &sz);
-        check(sz > 0, "arm64: compile (a + b) * c");
+        jit_minic_compile_cg(cg, "if(a > b) { return a; } else { return b; }");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "arm64: if/else");
         cg_destroy(cg);
     }
 
-    /* Test 9: Hex literal */
+    /* Test 9: While loop */
     {
         CodeGen *cg = cg_create_x86();
-        jit_minic_compile_expr(cg, "0xFF & 0x0F");
-        size_t sz;
-        jit_minic_get_code(cg, &sz);
-        check(sz > 0, "x86: compile 0xFF & 0x0F");
+        jit_minic_compile_cg(cg, "long s = 0; while(s < 10) { s = s + 1; } return s;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: while loop");
         cg_destroy(cg);
     }
 
-    /* Test 10: Modulo */
+    /* Test 10: While on ARM64 */
+    {
+        CodeGen *cg = cg_create_arm64();
+        jit_minic_compile_cg(cg, "long s = 0; while(s < 10) { s = s + 1; } return s;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "arm64: while loop");
+        cg_destroy(cg);
+    }
+
+    /* Test 11: Bitwise ops */
     {
         CodeGen *cg = cg_create_x86();
-        jit_minic_compile_expr(cg, "a % 7");
-        size_t sz;
-        jit_minic_get_code(cg, &sz);
-        check(sz > 0, "x86: compile a % 7");
+        jit_minic_compile_cg(cg, "return a & b | c;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: a & b | c");
+        cg_destroy(cg);
+    }
+
+    /* Test 12: Hex literal */
+    {
+        CodeGen *cg = cg_create_x86();
+        jit_minic_compile_cg(cg, "return 0xFF & 0x0F;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: 0xFF & 0x0F");
+        cg_destroy(cg);
+    }
+
+    /* Test 13: Comparison */
+    {
+        CodeGen *cg = cg_create_x86();
+        jit_minic_compile_cg(cg, "return a < b;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: a < b");
+        cg_destroy(cg);
+    }
+
+    /* Test 14: Modulo */
+    {
+        CodeGen *cg = cg_create_x86();
+        jit_minic_compile_cg(cg, "return a % 7;");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "x86: a % 7");
+        cg_destroy(cg);
+    }
+
+    /* Test 15: Nested parentheses */
+    {
+        CodeGen *cg = cg_create_arm64();
+        jit_minic_compile_cg(cg, "return (a + b) * (c - d);");
+        size_t sz; jit_minic_get_code(cg, &sz);
+        check(sz > 0, "arm64: (a + b) * (c - d)");
         cg_destroy(cg);
     }
 
