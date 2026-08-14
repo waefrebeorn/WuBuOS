@@ -22,13 +22,25 @@ void minic_lex_next(MinicLexer *l) {
 
     if (isdigit((unsigned char)c)) {
         int start = l->pos;
-        while (isdigit((unsigned char)l->src[l->pos])) {
-            l->peek.text[l->pos - start] = l->src[l->pos];
-            l->pos++;
+        int base = 10;
+        int ti = 0; /* text buffer index */
+        /* Check for hex prefix */
+        if (c == '0' && (l->src[l->pos+1] == 'x' || l->src[l->pos+1] == 'X')) {
+            base = 16;
+            l->pos += 2; /* skip 0x */
+            while (isxdigit((unsigned char)l->src[l->pos])) {
+                l->peek.text[ti++] = l->src[l->pos];
+                l->pos++;
+            }
+        } else {
+            while (isdigit((unsigned char)l->src[l->pos])) {
+                l->peek.text[ti++] = l->src[l->pos];
+                l->pos++;
+            }
         }
-        l->peek.text[l->pos - start] = '\0';
+        l->peek.text[ti] = '\0';
         l->peek.type = TOK_NUMBER;
-        l->peek.ival = strtoll(l->peek.text, NULL, 10);
+        l->peek.ival = strtoll(l->peek.text, NULL, base);
         return;
     }
 

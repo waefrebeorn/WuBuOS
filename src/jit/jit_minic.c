@@ -198,17 +198,22 @@ static int mc_emit_profile_inc(MinicCompiler *mc, int kind /* 0=taken, 1=not_tak
     if (mc->n_branches >= JBP_MAX_BRANCHES) return -1;
     int id = mc->n_branches++;
     int64_t *target = (kind == 0) ? jbp_counter_taken(id) : jbp_counter_not_taken(id);
-    /* movabs r11, imm64  =  REX.WB + B8+3 + imm64  =  49 bb [8 bytes] */
+    /* Save r11 (may be in use by XRA), then use it for the counter increment.
+     * push r11 = 41 53, pop r11 = 41 5b */
+    wx86_emit_byte(&mc->enc, 0x41); wx86_emit_byte(&mc->enc, 0x53); /* push r11 */
+    /* movabs r11, imm64 = 49 bb [8 bytes] */
     int64_t addr = (int64_t)(uintptr_t)target;
     wx86_emit_byte(&mc->enc, 0x49);
     wx86_emit_byte(&mc->enc, 0xbb);
     for (int i = 0; i < 8; i++)
         wx86_emit_byte(&mc->enc, (uint8_t)((addr >> (i*8)) & 0xFF));
-    /* addq $1, [r11]  =  REX.WB + 83 03 01  =  49 83 03 01 */
+    /* addq $1, [r11] = 49 83 03 01 */
     wx86_emit_byte(&mc->enc, 0x49);
     wx86_emit_byte(&mc->enc, 0x83);
-    wx86_emit_byte(&mc->enc, 0x03);  /* ModRM mod=00 reg=000 rm=011 (r11) */
-    wx86_emit_byte(&mc->enc, 0x01);  /* imm8 = 1 */
+    wx86_emit_byte(&mc->enc, 0x03);
+    wx86_emit_byte(&mc->enc, 0x01);
+    /* Restore r11 */
+    wx86_emit_byte(&mc->enc, 0x41); wx86_emit_byte(&mc->enc, 0x5b); /* pop r11 */
     return id;
 }
 
@@ -700,29 +705,29 @@ static void compile_multiplicative(MinicCompiler *mc) {
             xra_free_reg(&mc->ra, lhs_hw);
             xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
         } else {
-            /* Non-XRA path: compile RHS, then check for constant folding
-             * opportunities before falling back to generic imul/idiv. */
-            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+            /* Non-XRA path: save LHS to r11 (caller-saved scratch reg).
+             * Using a register instead of push/pop avoids stack corruption
+             * when the RHS contains nested expressions that also push/pop. */
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R11, WREG_RAX));
             compile_primary(mc);
 
             /* Constant folding for the non-XRA path */
             if (mc->rax_is_const && op == TOK_STAR) {
                 int64_t c = mc->rax_const_val;
-                if (c == 0) { wx86_emit_byte(&mc->enc, 0x58); MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX)); goto mul_done_noxra; }
-                if (c == 1) { wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; } /* pop rax = LHS */
+                if (c == 0) { MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX)); goto mul_done_noxra; }
+                if (c == 1) { MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11)); goto mul_done_noxra; }
             }
             if (mc->rax_is_const && op == TOK_SLASH && mc->rax_const_val == 1) {
-                wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; /* pop rax = LHS */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11)); goto mul_done_noxra;
             }
 
             if (op == TOK_STAR) {
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11));
                 MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
             } else if (op == TOK_PERCENT) {
-                /* x % y: same as div but result is in rdx */
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11));
                 MC_EMIT(mc, wx86_cqo(&mc->enc));
                 MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_RDX)); /* remainder */
@@ -744,10 +749,10 @@ static void compile_shift(MinicCompiler *mc) {
         MinicTokType op = minic_cur(&mc->lex)->type;
         minic_advance(&mc->lex);
         /* Shift: LHS in rax, RHS must be in rcx (x86 shift encoding) */
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_multiplicative(mc);
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R11, WREG_RAX));
+        compile_additive(mc);  /* RHS can be additive: a << b+c */
         MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX)); /* rcx = shift amount */
-        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));               /* rax = value */
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11)); /* rax = value (r11 safe: mult/additive done) */
         if (op == TOK_SHL)
             MC_EMIT(mc, wx86_shl_reg_imm8(&mc->enc, WREG_RAX, 0)); /* placeholder — uses cl */
         else
@@ -763,8 +768,8 @@ static void compile_shift(MinicCompiler *mc) {
             wx86_emit_byte(&mc->enc, 0xE0); /* modrm(3,4,0) = rax */
         } else {
             wx86_emit_byte(&mc->enc, 0x48); /* REX.W */
-            wx86_emit_byte(&mc->enc, 0xD3); /* /5 = shr r/m64, cl */
-            wx86_emit_byte(&mc->enc, 0xE8); /* modrm(3,5,0) = rax */
+            wx86_emit_byte(&mc->enc, 0xD3); /* /7 = sar r/m64, cl (arithmetic for signed) */
+            wx86_emit_byte(&mc->enc, 0xF8); /* modrm(3,7,0) = rax */
         }
         mc->rax_is_const = false;
     }
@@ -774,11 +779,22 @@ static void compile_bitwise_and(MinicCompiler *mc) {
     compile_shift(mc);
     while (minic_cur(&mc->lex)->type == TOK_AMP) {
         minic_advance(&mc->lex);
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_shift(mc);
-        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
-        MC_EMIT(mc, wx86_and_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        if (mc->use_xra) {
+            int lhs = mc_vreg_of_rax(mc);
+            compile_shift(mc);
+            Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
+            if (lhs_hw == WREG_NONE) lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            MC_EMIT(mc, wx86_and_reg_reg(&mc->enc, lhs_hw, WREG_RAX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));
+            xra_free_reg(&mc->ra, lhs_hw);
+            xra_set_next_use(&mc->ra, lhs, -1);
+        } else {
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            compile_shift(mc);
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+            MC_EMIT(mc, wx86_and_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
+        }
         mc->rax_is_const = false;
     }
 }
@@ -787,11 +803,22 @@ static void compile_bitwise_xor(MinicCompiler *mc) {
     compile_bitwise_and(mc);
     while (minic_cur(&mc->lex)->type == TOK_CARET) {
         minic_advance(&mc->lex);
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_bitwise_and(mc);
-        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
-        MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        if (mc->use_xra) {
+            int lhs = mc_vreg_of_rax(mc);
+            compile_bitwise_and(mc);
+            Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
+            if (lhs_hw == WREG_NONE) lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, lhs_hw, WREG_RAX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));
+            xra_free_reg(&mc->ra, lhs_hw);
+            xra_set_next_use(&mc->ra, lhs, -1);
+        } else {
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R11, WREG_RAX));
+            compile_bitwise_and(mc);
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+            MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, WREG_R11, WREG_RCX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11));
+        }
         mc->rax_is_const = false;
     }
 }
@@ -800,11 +827,22 @@ static void compile_bitwise_or(MinicCompiler *mc) {
     compile_bitwise_xor(mc);
     while (minic_cur(&mc->lex)->type == TOK_PIPE) {
         minic_advance(&mc->lex);
-        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
-        compile_bitwise_xor(mc);
-        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
-        MC_EMIT(mc, wx86_or_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        if (mc->use_xra) {
+            int lhs = mc_vreg_of_rax(mc);
+            compile_bitwise_xor(mc);
+            Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
+            if (lhs_hw == WREG_NONE) lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            MC_EMIT(mc, wx86_or_reg_reg(&mc->enc, lhs_hw, WREG_RAX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));
+            xra_free_reg(&mc->ra, lhs_hw);
+            xra_set_next_use(&mc->ra, lhs, -1);
+        } else {
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            compile_bitwise_xor(mc);
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+            MC_EMIT(mc, wx86_or_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
+        }
         mc->rax_is_const = false;
     }
 }
@@ -856,23 +894,22 @@ static void compile_additive(MinicCompiler *mc) {
             xra_free_reg(&mc->ra, lhs_hw);
             xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
         } else {
-            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
             compile_multiplicative(mc);
 
             /* Non-XRA constant folding: x+0 = x, x-0 = x */
             if (mc->rax_is_const && mc->rax_const_val == 0) {
-                wx86_emit_byte(&mc->enc, 0x58); /* pop rax = LHS, discard 0 */
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
                 mc->rax_is_const = false;
                 continue;
             }
 
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
-
             if (op == TOK_PLUS)
-                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
             else
-                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
         }
     }
 }
@@ -974,72 +1011,17 @@ static void compile_if_stmt(MinicCompiler *mc) {
 
     minic_expect(&mc->lex, TOK_LBRACE);
 
-    /* #14 block layout: static heuristic. If the then-body is a single return
-     * statement (early-exit / error-handling pattern), the then-path is likely
-     * UNCOMMON. Invert the already-emitted jcc so the ELSE block falls through
-     * (hot path = fallthrough, no taken branch). We do this by patching the
-     * jcc at else_patch to use the inverted cc, then swap: compile the else
-     * body first (it falls through), jmp over the then body. */
+    /* #14 block layout: disabled — the swap logic conflicts with else-if
+     * chains and nested expressions. TODO: implement with token replay. */
+    #if 0
     int then_is_single_return =
         (minic_cur(&mc->lex)->type == TOK_RETURN);
 
     if (then_is_single_return && minic_peek(&mc->lex)->type == TOK_SEMI) {
-        /* Invert the jcc: the existing jcc jumps to else on false-condition.
-         * We want it to jump to then on TRUE condition (so else falls through).
-         * Patch the cc at else_patch. */
-        /* The jcc opcode is at else_patch-2 (0F 8x for rel32, or 7x for rel8).
-         * Our encoder always uses 0F 8x rel32 (6 bytes: 0F 8x disp32). */
-        /* Actually: the jcc is at else_patch-5..else_patch+1 (0F 8x + disp32).
-         * The cc byte is at else_patch-1 (the byte before the disp32). Wait:
-         * wx86_jcc_rel32 emits: 0F 8x disp32. The 8x is 1 byte, disp32 is 4.
-         * else_patch points to the start of the disp32 (pos-4). So the cc is
-         * at else_patch-1. */
-        /* Invert the cc */
-        uint8_t cc_byte = mc->enc.buf[else_patch - 1];
-        /* Map cc to inverted: 0F 80=jo,81=jno,82=jb,83=jnb,84=jz,85=jnz,
-         * 86=jbe,87=ja,88=js,89=jns,8A=jpe,8B=jpo,8C=jl,8D=jge,8E=jle,8F=jg */
-        /* Invert by XOR with 1 for most, but the mapping is:
-         * 84(jz)<->85(jnz), 82(jb)<->83(jnb), 86(jbe)<->87(ja),
-         * 8C(jl)<->8D(jge), 8E(jle)<->8F(jg), 80(jo)<->81(jno), 88(js)<->89(jns) */
-        static const uint8_t invert_cc[16] = {
-            0x81, 0x80, 0x83, 0x82, 0x85, 0x84, 0x87, 0x86,
-            0x89, 0x88, 0x8B, 0x8A, 0x8D, 0x8C, 0x8F, 0x8E
-        };
-        uint8_t lo = cc_byte & 0x0F;
-        if (lo < 16) mc->enc.buf[else_patch - 1] = (cc_byte & 0xF0) | (invert_cc[lo] & 0x0F);
-
-        /* Now compile the ELSE body first (it falls through). But we haven't
-         * consumed the `else` token yet. We need to:
-         *   1. Compile the then-body (the single return) — but skip it for now
-         *   2. Consume `else`, compile else-body (falls through)
-         *   3. jmp over then-body
-         *   4. compile then-body
-         * This is complex; simpler: just note the swap decision and emit a
-         * layout hint. For now, the static heuristic inverts the branch so the
-         * jcc is NOT taken on the common path (else falls through). */
-        /* Compile the then-body (single return) — it's the target of the jcc */
-        while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
-            compile_stmt(mc);
-        minic_expect(&mc->lex, TOK_RBRACE);
-
-        /* Expect else, compile it as the fallthrough path */
-        if (minic_cur(&mc->lex)->type == TOK_ELSE) {
-            minic_advance(&mc->lex);
-            MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));  /* skip then-body after else */
-            size_t end_patch = wx86_jmp_rel32_pos(&mc->enc);
-            wx86_patch_rel32(&mc->enc, else_patch, mc->enc.pos); /* jcc lands here (else) */
-
-            minic_expect(&mc->lex, TOK_LBRACE);
-            while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
-                compile_stmt(mc);
-            minic_expect(&mc->lex, TOK_RBRACE);
-
-            wx86_patch_rel32(&mc->enc, end_patch, mc->enc.pos);
-        } else {
-            wx86_patch_rel32(&mc->enc, else_patch, mc->enc.pos);
-        }
-        return;  /* done — skip the normal path below */
+        /* ... old #14 code ... */
+        return;
     }
+    #endif
 
     /* Normal path: no layout swap */
     while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
@@ -1052,11 +1034,15 @@ static void compile_if_stmt(MinicCompiler *mc) {
         size_t end_patch = wx86_jmp_rel32_pos(&mc->enc);
         wx86_patch_rel32(&mc->enc, else_patch, mc->enc.pos);
 
-        minic_expect(&mc->lex, TOK_LBRACE);
-        while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
-            compile_stmt(mc);
-        minic_expect(&mc->lex, TOK_RBRACE);
-
+        /* Handle "else if" recursively */
+        if (minic_cur(&mc->lex)->type == TOK_IF) {
+            compile_if_stmt(mc);
+        } else {
+            minic_expect(&mc->lex, TOK_LBRACE);
+            while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
+                compile_stmt(mc);
+            minic_expect(&mc->lex, TOK_RBRACE);
+        }
         wx86_patch_rel32(&mc->enc, end_patch, mc->enc.pos);
     } else {
         wx86_patch_rel32(&mc->enc, else_patch, mc->enc.pos);
@@ -1172,9 +1158,16 @@ static void compile_return_stmt(MinicCompiler *mc) {
     minic_expect(&mc->lex, TOK_SEMI);
 
     /* Fast path: no frame to restore, just ret */
-    if (!mc->need_frame && !mc->use_xra) {
+    if (!mc->need_frame) {
+        MC_EMIT(mc, wx86_ret(&mc->enc));
+    } else if (!mc->use_xra) {
+        /* Non-XRA: restore frame pointer */
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
+        MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
         MC_EMIT(mc, wx86_ret(&mc->enc));
     } else {
+        /* XRA mode with frame: restore callee-saved regs + frame */
+        xra_emit_return(&mc->ra, &mc->enc);
         MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RSP, WREG_RBP));
         MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
         MC_EMIT(mc, wx86_ret(&mc->enc));
@@ -1473,7 +1466,7 @@ fast_prologue_done:
      * dance, exercising the x86_regalloc pass. Args remain stack-backed for
      * [rbp-relative] access. */
     mc->next_vreg = mc->n_args;  /* vregs start after arg indices */
-    mc->use_xra = (getenv("WUBU_JIT_XRA") != NULL);
+    mc->use_xra = 1; /* XRA is default: correct register allocation for nested expressions */
     if (mc->use_xra) {
         xra_init(&mc->ra, mc->n_args);
         xra_emit_load_args(&mc->ra, &mc->enc);
