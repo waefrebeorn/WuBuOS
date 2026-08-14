@@ -103,3 +103,4 @@ build/
 src/compiler/holyc
 src/compiler/hedge_verify
 src/compiler/selfhost_battery
+tools/peephole_superopt
