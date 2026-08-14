@@ -39,23 +39,25 @@ typedef enum {
     WREG_W0  = 32,   /* 32-bit aliases start at 32 */
 } WArm64Reg;
 
+
+
 /* Condition codes for conditional branches */
 typedef enum {
-    WCC_EQ = 0,  /* Equal */
-    WCC_NE,      /* Not equal */
-    WCC_CS,      /* Carry set (HS) */
-    WCC_CC,      /* Carry clear (LO) */
-    WCC_MI,      /* Minus/negative */
-    WCC_PL,      /* Plus/positive */
-    WCC_VS,      /* Overflow */
-    WCC_VC,      /* No overflow */
-    WCC_HI,      /* Unsigned higher */
-    WCC_LS,      /* Unsigned lower or same */
-    WCC_GE,      /* Signed >= */
-    WCC_LT,      /* Signed < */
-    WCC_GT,      /* Signed > */
-    WCC_LE,      /* Signed <= */
-    WCC_AL,      /* Always */
+    W64CC_EQ = 0,  /* Equal */
+    W64CC_NE,      /* Not equal */
+    W64CC_CS,      /* Carry set (HS) */
+    W64CC_CC,      /* Carry clear (LO) */
+    W64CC_MI,      /* Minus/negative */
+    W64CC_PL,      /* Plus/positive */
+    W64CC_VS,      /* Overflow */
+    W64CC_VC,      /* No overflow */
+    W64CC_HI,      /* Unsigned higher */
+    W64CC_LS,      /* Unsigned lower or same */
+    W64CC_GE,      /* Signed >= */
+    W64CC_LT,      /* Signed < */
+    W64CC_GT,      /* Signed > */
+    W64CC_LE,      /* Signed <= */
+    W64CC_AL,      /* Always */
 } WArm64CC;
 
 /* Encoder buffer */
