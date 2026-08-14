@@ -7,8 +7,9 @@
 
 #include "wubu_x86.h"
 
-#include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 /* -- Encoder Buffer ----------------------------------------------- */
 
@@ -178,9 +179,7 @@ int wx86_mov_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
 int wx86_mov_reg_mem(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, int32_t disp) {
     /* REX.W + 8B + ModRM [+ SIB] [+ disp] */
     size_t start = e->pos;
-    uint8_t rex = wx86_rex(dst, base, true);
-    wx86_emit_byte(e, rex);
-    wx86_emit_byte(e, 0x8B);
+    uint8_t rex = wx86_rex(dst, base, true);    wx86_emit_byte(e, rex);    wx86_emit_byte(e, 0x8B);
 
     /* Determine mod from displacement */
     if (disp == 0 && reg_lo(base) != 5) {  /* RBP/R13 always needs mod=01 */

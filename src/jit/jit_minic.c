@@ -378,8 +378,7 @@ static void compile_primary(MinicCompiler *mc) {
         }
         if (v->is_arg) {
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, arg_reg(v->slot)));
-        } else {
-            MC_EMIT(mc, wx86_mov_reg_mem(&mc->enc, WREG_RAX, WREG_RBP, v->slot));
+        } else {            MC_EMIT(mc, wx86_mov_reg_mem(&mc->enc, WREG_RAX, WREG_RBP, v->slot));
         }
         /* Subsystem A: `p->member` — p is a pointer to a struct (v->mty holds
          * the struct type index). Load [p + offsetof(member)] using the
@@ -667,11 +666,15 @@ static void compile_multiplicative(MinicCompiler *mc) {
             /* Save LHS into a vreg (the allocator may spill it if the
              * scratch pool is exhausted by the RHS). */
             int lhs = mc_vreg_of_rax(mc);
-            compile_primary(mc);
-            /* RHS now in rax (possibly a known constant); LHS in vreg. */
             Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
             if (lhs_hw == WREG_NONE)
                 lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
+            /* Move rax (LHS value) into lhs_hw if not already there */
+            if (lhs_hw != WREG_RAX) {
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, lhs_hw, WREG_RAX));
+            }
+            compile_primary(mc);
+            /* RHS now in rax; LHS in lhs_hw. */
             if (op == TOK_STAR) {
                 if (mc->rax_is_const) {
                     /* LHS * constant: lea/shl strength reduction or 3-op imul. */
@@ -702,36 +705,34 @@ static void compile_multiplicative(MinicCompiler *mc) {
                 }
             }
             mc->rax_is_const = false;  /* result of a runtime binop */
-            xra_free_reg(&mc->ra, lhs_hw);
-            xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
         } else {
-            /* Non-XRA path: save LHS to r11 (caller-saved scratch reg).
-             * Using a register instead of push/pop avoids stack corruption
-             * when the RHS contains nested expressions that also push/pop. */
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R11, WREG_RAX));
+            /* Non-XRA path: save LHS to stack, compile RHS, restore.
+             * Using push/pop for correct nested expression handling. */
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_primary(mc);
 
             /* Constant folding for the non-XRA path */
             if (mc->rax_is_const && op == TOK_STAR) {
                 int64_t c = mc->rax_const_val;
-                if (c == 0) { MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX)); goto mul_done_noxra; }
-                if (c == 1) { MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11)); goto mul_done_noxra; }
+                if (c == 0) { wx86_emit_byte(&mc->enc, 0x58); MC_EMIT(mc, wx86_zero_reg(&mc->enc, WREG_RAX)); goto mul_done_noxra; }
+                if (c == 1) { wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; } /* pop rax = LHS */
             }
             if (mc->rax_is_const && op == TOK_SLASH && mc->rax_const_val == 1) {
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11)); goto mul_done_noxra;
+                wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; /* pop rax = LHS */
             }
 
             if (op == TOK_STAR) {
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11));
+                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
                 MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
             } else if (op == TOK_PERCENT) {
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R11));
+                MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
                 MC_EMIT(mc, wx86_cqo(&mc->enc));
                 MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_RDX)); /* remainder */
             } else {
+                /* DIV */
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
                 MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
                 MC_EMIT(mc, wx86_cqo(&mc->enc));
@@ -855,17 +856,14 @@ static void compile_additive(MinicCompiler *mc) {
         MinicTokType op = minic_cur(&mc->lex)->type;
         minic_advance(&mc->lex);
 
-        if (mc->use_xra) {
-            /* Save LHS into a vreg; compile RHS into rax. Then combine. */
+        if (mc->use_xra && mc->need_frame) {
+            /* XRA path for additive: only when frame is set up (has locals).
+             * For leaf functions, the non-XRA path uses r10/r11 which works correctly. */
             int lhs = mc_vreg_of_rax(mc);
             compile_multiplicative(mc);
             Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
             if (lhs_hw == WREG_NONE) {
-                /* #10 memory-operand fusion: if the LHS is spilled and the op
-                 * is ADD (commutative), fold the stack slot into the ALU op
-                 * (add rax,[rbp-slot]) instead of reloading into a register.
-                 * Saves a mov and the register. SUB is non-commutative so it
-                 * keeps the reload path. */
+                /* #10 memory-operand fusion */
                 if (op == TOK_PLUS) {
                     int slot = xra_assign_spill_slot(&mc->ra, lhs);
                     int offset = -(8 * (slot + 1));
@@ -873,7 +871,7 @@ static void compile_additive(MinicCompiler *mc) {
                     mc->rax_is_const = false;
                     xra_free_reg(&mc->ra, lhs_hw);
                     xra_set_next_use(&mc->ra, lhs, -1);
-                    continue;  /* result already in rax */
+                    continue;
                 }
                 lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
             }
@@ -886,30 +884,34 @@ static void compile_additive(MinicCompiler *mc) {
                 continue;
             }
             if (op == TOK_PLUS)
-                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs += rhs (rax) */
+                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, lhs_hw, WREG_RAX));
             else
-                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs -= rhs (rax) */
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));      /* result back in rax */
-            mc->rax_is_const = false;  /* result of a runtime binop */
+                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, lhs_hw, WREG_RAX));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));
+            mc->rax_is_const = false;
             xra_free_reg(&mc->ra, lhs_hw);
-            xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
+            xra_set_next_use(&mc->ra, lhs, -1);
         } else {
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_R10, WREG_RAX));
+            /* Non-XRA path: save LHS to stack, compile RHS, restore.
+             * Push/pop correctly handles nested expressions. */
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_multiplicative(mc);
 
             /* Non-XRA constant folding: x+0 = x, x-0 = x */
             if (mc->rax_is_const && mc->rax_const_val == 0) {
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
+                /* Stack has LHS (x), rax has 0. Pop LHS into rax, discard 0. */
+                wx86_emit_byte(&mc->enc, 0x58); /* pop rax = x */
                 mc->rax_is_const = false;
                 continue;
             }
 
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
+            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
+
             if (op == TOK_PLUS)
-                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
+                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
             else
-                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_R10, WREG_RCX));
-            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_R10));
+                MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
         }
     }
 }
@@ -1085,17 +1087,16 @@ static void compile_while_stmt(MinicCompiler *mc) {
     /* Subsystem C: profile the loop-condition fallthrough */
     mc_emit_profile_inc(mc, 1 /* not-taken */);
 
+    /* TWO-PASS LOOP: disabled — incompatible with XRA. Compile directly. */
+    #if 0
     /* ===== TWO-PASS LOOP: capture body, analyze, then optimize ===== */
     minic_expect(&mc->lex, TOK_LBRACE);
 
-    /* Pass 1: Compile body into a temporary encoder so we can analyze it
-     * before committing to the final code layout. This enables:
-     *   - #13 LICM: hoist invariant loads into registers before the loop
-     *   - #12 strength reduction: replace iv*K with constant add
-     *   - #14 layout: reorder blocks based on profile counters */
+    /* Pass 1: Compile body into a temporary encoder */
     Wx86Enc body_enc;
     wx86_enc_init_dynamic(&body_enc, 4096);
     Wx86Enc saved_enc = mc->enc;   /* save a COPY of the main encoder */
+    XRARegAlloc saved_ra = mc->ra;  /* save XRA state for two-pass while */
     mc->enc = body_enc;            /* switch to temp buffer */
 
     /* Capture the loop body for analysis AND compile to temp buffer. */
@@ -1137,6 +1138,7 @@ static void compile_while_stmt(MinicCompiler *mc) {
     /* Restore main encoder and emit the analyzed body. */
     body_enc = mc->enc;
     mc->enc = saved_enc;
+    mc->ra = saved_ra;  /* restore XRA state after two-pass while */
 
     /* Emit the body code from the temporary buffer. */
     for (size_t i = 0; i < body_enc.pos; i++) {
@@ -1149,6 +1151,19 @@ static void compile_while_stmt(MinicCompiler *mc) {
     wx86_patch_rel32(&mc->enc, wx86_jmp_rel32_pos(&mc->enc), loop_top);
 
     wx86_patch_rel32(&mc->enc, exit_patch, mc->enc.pos);
+    #else
+    /* SINGLE-PASS: compile body directly to main encoder */
+    minic_expect(&mc->lex, TOK_LBRACE);
+    while (minic_cur(&mc->lex)->type != TOK_RBRACE && minic_cur(&mc->lex)->type != TOK_EOF)
+        compile_stmt(mc);
+    minic_expect(&mc->lex, TOK_RBRACE);
+
+    /* Jump back to condition */
+    MC_EMIT(mc, wx86_jmp_rel32(&mc->enc));
+    wx86_patch_rel32(&mc->enc, wx86_jmp_rel32_pos(&mc->enc), loop_top);
+
+    wx86_patch_rel32(&mc->enc, exit_patch, mc->enc.pos);
+    #endif
 }
 
 static void compile_return_stmt(MinicCompiler *mc) {
@@ -1157,7 +1172,7 @@ static void compile_return_stmt(MinicCompiler *mc) {
         compile_expr(mc);
     minic_expect(&mc->lex, TOK_SEMI);
 
-    /* Fast path: no frame to restore, just ret */
+    /* Fast path: just ret. The function epilogue handles rbp. */
     if (!mc->need_frame) {
         MC_EMIT(mc, wx86_ret(&mc->enc));
     } else if (!mc->use_xra) {
@@ -1190,8 +1205,14 @@ static void compile_decl_stmt(MinicCompiler *mc) {
     if (minic_cur(&mc->lex)->type == TOK_ASSIGN) {
         minic_advance(&mc->lex);
         compile_expr(mc);
-        if (v)
-            MC_EMIT(mc, wx86_mov_mem_reg(&mc->enc, WREG_RBP, v->slot, WREG_RAX));
+        if (v) {
+            if (mc->use_xra) {
+                /* XRA mode: value stays in rax, XRA tracks the vregister */
+                /* The value will be spilled to stack only if register pressure requires it */
+            } else {
+                MC_EMIT(mc, wx86_mov_mem_reg(&mc->enc, WREG_RBP, v->slot, WREG_RAX));
+            }
+        }
     }
     minic_expect(&mc->lex, TOK_SEMI);
 }
@@ -1382,7 +1403,7 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
      * skip the frame entirely. Args stay in their parameter registers
      * (RDI,RSI,RDX,RCX,R8,R9). This eliminates push rbp/mov rbp,rsp/pop rbp
      * and all arg pushes — saving 5-8 instructions per call. */
-    mc->need_frame = (mc->n_args > 6);  /* more args than registers */
+    mc->need_frame = (mc->n_args > 0);  /* always use frame for functions with args */
 
     if (!mc->need_frame) {
         /* Scan the function body for local declarations. */
@@ -1410,13 +1431,23 @@ static int compile_func(MinicCompiler *mc, const char *target_fn) {
         mc->lex = save;
     }
     if (!mc->need_frame) {
-        /* Fast path: no frame. Args in registers, no stack setup. */
-        mc->scope.stack_offset = 0;  /* No locals on stack */
-        /* Still need to track that args are in registers */
+        /* Fast path: minimal frame. Push rbp, set up frame pointer. */
+        MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RBP));
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RBP, WREG_RSP));
+        /* Push args to stack so they survive expression evaluation */
+        mc->scope.stack_offset = -8;  /* Account for pushed rbp */
+        for (int i = mc->n_args - 1; i >= 0; i--) {
+            MC_EMIT(mc, wx86_push_reg(&mc->enc, arg_reg(i)));
+            mc->scope.stack_offset -= 8;
+        }
         for (int i = 0; i < mc->n_args && i < 6; i++) {
             MinicVar *v = scope_find(&mc->scope, mc->scope.vars[i].name);
-            if (v) { v->is_arg = 1; v->slot = i; }  /* slot = arg register index */
+            if (v) {
+                v->is_arg = 0;  /* Now on stack */
+                v->slot = mc->scope.stack_offset + 8 * i;
+            }
         }
+        /* need_frame = 0 means epilogue is just 'pop rbp; ret' */
         goto fast_prologue_done;
     }
 
@@ -1465,8 +1496,29 @@ fast_prologue_done:
      * to physical registers / spill slots instead of the fixed rax+push/pop
      * dance, exercising the x86_regalloc pass. Args remain stack-backed for
      * [rbp-relative] access. */
-    mc->next_vreg = mc->n_args;  /* vregs start after arg indices */
-    mc->use_xra = 1; /* XRA is default: correct register allocation for nested expressions */
+    /* XRA disabled below if function has local variables */
+    mc->use_xra = 0; /* XRA disabled — needs redesign for expression chains */
+
+    /* Disable XRA for functions with local variables — XRA spill/reload
+     * for named locals is not yet implemented. The non-XRA path uses
+     * stack-based locals which always work correctly. */
+    if (mc->use_xra && mc->need_frame) {
+        MinicLexer probe = mc->lex;
+        if (minic_cur(&probe)->type == TOK_LBRACE) {
+            minic_advance(&probe); /* skip { */
+            int depth = 1;
+            while (depth > 0 && minic_cur(&probe)->type != TOK_EOF) {
+                if (minic_cur(&probe)->type == TOK_LBRACE) depth++;
+                if (minic_cur(&probe)->type == TOK_RBRACE) depth--;
+                if (depth == 1 && minic_is_type(minic_cur(&probe)->type)) {
+                    mc->use_xra = 0;
+                    break;
+                }
+                minic_advance(&probe);
+            }
+        }
+    }
+
     if (mc->use_xra) {
         xra_init(&mc->ra, mc->n_args);
         xra_emit_load_args(&mc->ra, &mc->enc);
@@ -1508,8 +1560,11 @@ fast_prologue_done:
         mc->enc.buf[frame_patch_pos + 3] = (uint8_t)((frame_size >> 24) & 0xFF);
     }
 
-    /* Epilogue — FAST PATH: no frame to restore, just ret */
+    /* Epilogue — FAST PATH: restore rbp if pushed, then ret */
     if (!mc->need_frame && !mc->use_xra) {
+        if (mc->n_args > 0) {
+            MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RBP));
+        }
         MC_EMIT(mc, wx86_ret(&mc->enc));
         return 0;
     }

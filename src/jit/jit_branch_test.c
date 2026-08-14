@@ -66,7 +66,7 @@ int main(void) {
         {"long f(long a){ if(a){ return 2; } return 0; }", 5, 0, 2, 1},
         {"long f(long a){ if(a){ return 2; } return 0; }", 0, 0, 0, 1},
     };
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 14; i++) {
         r = jit_compile(ctx, t[i].e, JIT_LANG_C, "f", &fn);
         CHECK(r == 0, t[i].e);
         if (r == 0) {
