@@ -374,7 +374,7 @@ static int riscv_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
                 /* lui rd, imm[31:12]; addi rd, rd, imm[11:0] */
                 uint32_t uimm = (uint32_t)in->imm;
                 int32_t simm = (int32_t)in->imm;
-                uint32_t hi = (uimm >> 12) + ((simm < 0 && (uimm & 0x800)) ? 1 : 0);
+                uint32_t hi = (uimm >> 12) + ((uimm & 0x800) ? 1 : 0);
                 int32_t lo = (int32_t)(simm & 0xFFF);
                 lui(&e, REG_T0, (uint32_t)hi);
                 addi(&e, REG_T0, REG_T0, lo);
