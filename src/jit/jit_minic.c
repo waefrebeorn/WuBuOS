@@ -129,6 +129,14 @@ struct MinicCompiler {
      * Lets the allocator rematerialize instead of spilling to memory. */
     bool           rax_is_const;
     int64_t        rax_const_val;
+    /* Compare-flag fusion (#2/#4): set when the last compiled expression was
+     * a comparison (cmp reg,reg; setcc). The flags from the cmp are still live
+     * until the next flag-writing instruction, so if/while can branch on the
+     * compare's own cc instead of re-deriving via setcc+test. */
+    bool           last_was_compare;
+    Wx86CC         last_compare_cc;   /* cc of the comparison result */
+    bool           last_compare_const0; /* RHS was constant 0 (used test) */
+    size_t         cmp_after_pos;     /* encoder pos right after the cmp/test */
 };
 
 static void mc_error(MinicCompiler *mc, const char *msg) {
@@ -198,6 +206,14 @@ static Wx86Reg mc_load_vreg(MinicCompiler *mc, int vreg) {
  */
 static void mc_peephole_elim_mov_roundtrip(Wx86Enc *e) {
     if (!e || e->pos < 6) return;
+    /* SAFETY: this pass shifts bytes, which would corrupt already-patched
+     * rel32 branch displacements. If the buffer contains ANY near/far branch
+     * (0F 8x jcc rel32, E9 jmp rel32, or 0F 80-8F), skip elimination entirely
+     * — a correctness-preserving straight-line-only optimization. */
+    for (size_t i = 0; i + 1 < e->pos; i++) {
+        if (e->buf[i] == 0xE9) return;                       /* jmp rel32 */
+        if (e->buf[i] == 0x0F && (e->buf[i+1] & 0xF0) == 0x80) return; /* jcc rel32 */
+    }
     static const uint8_t PAI[][6] = {
         { 0x4c,0x89,0xd0, 0x49,0x89,0xc2 },  /* rax<->r10, r10<->rax */
         { 0x4c,0x89,0xd8, 0x49,0x89,0xc3 },  /* rax<->r11, r11<->rax */
@@ -633,6 +649,14 @@ static void compile_compare(MinicCompiler *mc) {
             case TOK_GEQ: cc = WCC_GE; break;
             default: cc = WCC_E; break;
         }
+        /* Record the compare for flag-fusion: the cmp/test just emitted sets
+         * the flags; a following if/while can branch on cc directly. */
+        mc->last_was_compare = true;
+        mc->last_compare_cc = cc;
+        mc->last_compare_const0 = (mc->rax_is_const && mc->rax_const_val == 0);
+        /* Record the position AFTER the cmp/test (before setcc) so a following
+         * if/while can truncate back to here and emit a fused jcc on these flags. */
+        mc->cmp_after_pos = mc->enc.pos;
         MC_EMIT(mc, wx86_setcc_r8(&mc->enc, cc, WREG_RAX));
         /* movzx rax, al */
         wx86_emit_byte(&mc->enc, 0x0F);
@@ -642,6 +666,7 @@ static void compile_compare(MinicCompiler *mc) {
 }
 
 static void compile_expr(MinicCompiler *mc) {
+    mc->last_was_compare = false;  /* reset; compile_compare re-sets if compare */
     compile_compare(mc);
 }
 
@@ -653,8 +678,34 @@ static void compile_if_stmt(MinicCompiler *mc) {
     compile_expr(mc);
     minic_expect(&mc->lex, TOK_RPAREN);
 
-    MC_EMIT(mc, wx86_test_reg_reg(&mc->enc, WREG_RAX, WREG_RAX));
-    MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, WCC_E));
+    /* #4 cmp/jcc macro-fusion: if the condition was a comparison, its flags are
+     * still live (setcc/movzx don't clobber them). Truncate the setcc/movzx
+     * and branch on the compare's own flags with the inverted cc — dropping a
+     * setcc + movzx + test (the compare's flag is already exactly what we need).
+     * If the condition was NOT a comparison, keep the 0/1 test. */
+    Wx86CC branch_cc = WCC_E;  /* jcc on 0/1 result: jump when rax==0 */
+    bool fuse = mc->last_was_compare;
+    if (fuse) {
+        /* if(false-condition) skip the then-body. last_compare_cc is the cc of
+         * the result (rax=1 when cc true). Jump past the body when cc is FALSE,
+         * i.e. jump on the INVERTED compare cc. */
+        switch (mc->last_compare_cc) {
+            case WCC_E:  branch_cc = WCC_NE; break;
+            case WCC_NE: branch_cc = WCC_E;  break;
+            case WCC_L:  branch_cc = WCC_GE; break;
+            case WCC_G:  branch_cc = WCC_LE; break;
+            case WCC_LE: branch_cc = WCC_G;  break;
+            case WCC_GE: branch_cc = WCC_L;  break;
+            default: fuse = false; break;
+        }
+    }
+    if (fuse) {
+        /* Revert the setcc+movzx just emitted by compile_compare. */
+        mc->enc.pos = mc->cmp_after_pos;
+    } else {
+        MC_EMIT(mc, wx86_test_reg_reg(&mc->enc, WREG_RAX, WREG_RAX));
+    }
+    MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, branch_cc));
     size_t else_patch = wx86_jcc_rel32_pos(&mc->enc);
 
     minic_expect(&mc->lex, TOK_LBRACE);
@@ -687,8 +738,26 @@ static void compile_while_stmt(MinicCompiler *mc) {
     compile_expr(mc);
     minic_expect(&mc->lex, TOK_RPAREN);
 
-    MC_EMIT(mc, wx86_test_reg_reg(&mc->enc, WREG_RAX, WREG_RAX));
-    MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, WCC_E));
+    /* #4 cmp/jcc fusion for the loop condition (same as if). */
+    Wx86CC branch_cc = WCC_E;
+    bool fuse = mc->last_was_compare;
+    if (fuse) {
+        switch (mc->last_compare_cc) {
+            case WCC_E:  branch_cc = WCC_NE; break;
+            case WCC_NE: branch_cc = WCC_E;  break;
+            case WCC_L:  branch_cc = WCC_GE; break;
+            case WCC_G:  branch_cc = WCC_LE; break;
+            case WCC_LE: branch_cc = WCC_G;  break;
+            case WCC_GE: branch_cc = WCC_L;  break;
+            default: fuse = false; break;
+        }
+    }
+    if (fuse) {
+        mc->enc.pos = mc->cmp_after_pos;
+    } else {
+        MC_EMIT(mc, wx86_test_reg_reg(&mc->enc, WREG_RAX, WREG_RAX));
+    }
+    MC_EMIT(mc, wx86_jcc_rel32(&mc->enc, branch_cc));
     size_t exit_patch = wx86_jcc_rel32_pos(&mc->enc);
 
     minic_expect(&mc->lex, TOK_LBRACE);

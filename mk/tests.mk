@@ -82,7 +82,7 @@ test_high_gui: gui runtime test_synth test_wubu_sound test_dosgui_cp_sound test_
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_high_bear: test_jit test_jit_regalloc test_jit_remat test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
+test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
@@ -96,6 +96,12 @@ test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui 
 test_jit:
 	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_test.c -o $(JIT)/jit_test -ldl
 	$(JIT)/jit_test
+
+# #4 cmp/jcc macro-fusion + #2 flag-dependency: if/while conditions that are
+# comparisons branch directly on the compare's flags (no setcc/movzx/test).
+test_jit_branch:
+	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_branch_test.c -o $(JIT)/jit_branch_test -ldl
+	$(JIT)/jit_branch_test
 
 test_jit_regalloc:
 	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_regalloc_test.c -o $(JIT)/jit_regalloc_test -ldl
