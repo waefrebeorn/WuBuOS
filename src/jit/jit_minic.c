@@ -124,6 +124,10 @@ struct MinicCompiler {
     XRARegAlloc    ra;
     int            next_vreg;
     bool           use_xra;  /* true: use x86_regalloc instead of fixed rax+push/pop */
+    /* Constant tracking: true when the current RAX holds a known constant.
+     * Lets the allocator rematerialize instead of spilling to memory. */
+    bool           rax_is_const;
+    int64_t        rax_const_val;
 };
 
 static void mc_error(MinicCompiler *mc, const char *msg) {
@@ -144,15 +148,27 @@ static void mc_error(MinicCompiler *mc, const char *msg) {
 static int mc_vreg_of_rax(MinicCompiler *mc) {
     int v = mc->next_vreg++;
     if (mc->use_xra) {
+        /* If RAX holds a known constant, record it so a spill can
+         * rematerialize as an immediate instead of a memory reload. */
+        if (mc->rax_is_const)
+            xra_mark_const(&mc->ra, v, mc->rax_const_val);
         Wx86Reg hw = xra_alloc(&mc->ra, v);
         if (hw != WREG_NONE) {
             /* Move rax result into allocated reg and register it */
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, hw, WREG_RAX));
         } else {
-            /* No reg free — spill slot will be used on reload */
-            xra_assign_spill_slot(&mc->ra, v);
+            /* No reg free — the value is still in RAX. Spill it to the
+             * stack slot (unless it is a known constant, which is cheaper
+             * to rematerialize on reload than to store now). */
+            int slot = xra_assign_spill_slot(&mc->ra, v);
+            if (!xra_is_const(&mc->ra, v)) {
+                int offset = -(8 * (slot + 1));
+                MC_EMIT(mc, wx86_mov_mem_reg(&mc->enc, WREG_RBP, offset, WREG_RAX));
+            }
         }
     }
+    /* After materializing, the value is no longer a live "rax constant". */
+    mc->rax_is_const = false;
     return v;
 }
 
@@ -179,6 +195,8 @@ static void compile_primary(MinicCompiler *mc) {
 
     if (tok->type == TOK_NUMBER) {
         MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, tok->ival));
+        mc->rax_is_const = true;
+        mc->rax_const_val = tok->ival;
         minic_advance(&mc->lex);
         return;
     }
@@ -186,6 +204,7 @@ static void compile_primary(MinicCompiler *mc) {
     if (tok->type == TOK_IDENT) {
         char name[64];
         snprintf(name, sizeof(name), "%s", tok->text);
+        mc->rax_is_const = false;  /* args are not compile-time constants */
 
         minic_advance(&mc->lex);
         if (minic_cur(&mc->lex)->type == TOK_LPAREN) {
@@ -240,6 +259,7 @@ static void compile_primary(MinicCompiler *mc) {
         minic_advance(&mc->lex);
         compile_primary(mc);
         MC_EMIT(mc, wx86_neg_reg(&mc->enc, WREG_RAX));
+        if (mc->rax_is_const) mc->rax_const_val = -mc->rax_const_val;
         return;
     }
     if (tok->type == TOK_NOT) {
@@ -284,6 +304,7 @@ static void compile_multiplicative(MinicCompiler *mc) {
                 MC_EMIT(mc, wx86_cqo(&mc->enc));                              /* sign-extend rax -> rdx:rax */
                 MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));               /* rax = LHS / RHS */
             }
+            mc->rax_is_const = false;  /* result of a runtime binop */
             xra_free_reg(&mc->ra, lhs_hw);
         } else {
             MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
@@ -323,6 +344,7 @@ static void compile_additive(MinicCompiler *mc) {
             else
                 MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs -= rhs (rax) */
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));      /* result back in rax */
+            mc->rax_is_const = false;  /* result of a runtime binop */
             xra_free_reg(&mc->ra, lhs_hw);
         } else {
             MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));

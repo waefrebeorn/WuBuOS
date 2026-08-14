@@ -203,10 +203,27 @@ int xra_assign_spill_slot(XRARegAlloc *ra, int vreg) {
     return slot;
 }
 
+void xra_mark_const(XRARegAlloc *ra, int vreg, int64_t val) {
+    if (vreg >= 0 && vreg < XRA_MAX_VREGS) {
+        ra->vreg_const[vreg] = true;
+        ra->vreg_const_val[vreg] = val;
+    }
+}
+
+bool xra_is_const(const XRARegAlloc *ra, int vreg) {
+    if (vreg >= 0 && vreg < XRA_MAX_VREGS) return ra->vreg_const[vreg];
+    return false;
+}
+
 Wx86Reg xra_spill_load(XRARegAlloc *ra, int vreg, Wx86Enc *e) {
-    int slot = xra_assign_spill_slot(ra, vreg);
     Wx86Reg hw = xra_alloc(ra, vreg);
     if (hw == WREG_NONE) return WREG_NONE;
+    /* Rematerialize a known constant as an immediate — no memory traffic. */
+    if (xra_is_const(ra, vreg)) {
+        wx86_mov_reg_imm64(e, hw, ra->vreg_const_val[vreg]);
+        return hw;
+    }
+    int slot = xra_assign_spill_slot(ra, vreg);
     int offset = -(8 * (slot + 1));
     wx86_mov_reg_mem(e, hw, WREG_RBP, offset);
     return hw;

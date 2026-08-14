@@ -42,6 +42,10 @@ typedef struct {
     int        frame_size;  /* Total stack frame size in bytes */
     int        n_args;      /* Number of function arguments */
     Wx86Reg    arg_vregs[6]; /* Which hw reg holds each arg */
+    /* Rematerialization table: a spilled vreg that holds a known constant
+     * can be re-emitted as an immediate instead of a memory reload. */
+    bool       vreg_const[XRA_MAX_VREGS];   /* vreg holds a known constant */
+    int64_t    vreg_const_val[XRA_MAX_VREGS]; /* its value */
 } XRARegAlloc;
 
 /* Initialize the register allocator */
@@ -89,5 +93,12 @@ Wx86Reg xra_spill_load(XRARegAlloc *ra, int vreg, Wx86Enc *e);
 
 /* Get the stack slot for a spilled vreg, allocating one if needed. */
 int xra_assign_spill_slot(XRARegAlloc *ra, int vreg);
+
+/* Record that a vreg holds a known constant, so a later spill can
+ * rematerialize it as an immediate instead of a memory reload. */
+void xra_mark_const(XRARegAlloc *ra, int vreg, int64_t val);
+
+/* True if the vreg holds a known constant. */
+bool xra_is_const(const XRARegAlloc *ra, int vreg);
 
 #endif /* X86_REGALLOC_H */
