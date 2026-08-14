@@ -601,6 +601,8 @@ static void mc_emit_div_const(MinicCompiler *mc, Wx86Reg src, int64_t d) {
  * (1 cyc, no flags) when possible; returns 1 if handled, 0 to fall back.
  *   *2,*4,*8 -> shl; *3,*5,*9,*15 -> lea [base + base*scale]. */
 static int mc_emit_mul_const(MinicCompiler *mc, Wx86Reg dst, Wx86Reg src, int64_t c) {
+    if (c == 0) { MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, dst, 0)); return 1; }
+    if (c == 1) { MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, dst, src)); return 1; }
     if (c == 2 || c == 4 || c == 8 || c == 16 || c == 32 || c == 64 || c == 128 || c == 256) {
         int k = 0; int64_t t = c; while (t > 1) { t >>= 1; k++; }
         MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, dst, src));
@@ -665,8 +667,20 @@ static void compile_multiplicative(MinicCompiler *mc) {
             xra_free_reg(&mc->ra, lhs_hw);
             xra_set_next_use(&mc->ra, lhs, -1);  /* LHS consumed; value dead */
         } else {
+            /* Non-XRA path: compile RHS, then check for constant folding
+             * opportunities before falling back to generic imul/idiv. */
             MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_primary(mc);
+
+            /* Constant folding for the non-XRA path */
+            if (mc->rax_is_const && op == TOK_STAR) {
+                int64_t c = mc->rax_const_val;
+                if (c == 0) { wx86_emit_byte(&mc->enc, 0x58); MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, WREG_RAX, 0)); goto mul_done_noxra; }
+                if (c == 1) { wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; } /* pop rax = LHS */
+            }
+            if (mc->rax_is_const && op == TOK_SLASH && mc->rax_const_val == 1) {
+                wx86_emit_byte(&mc->enc, 0x58); goto mul_done_noxra; /* pop rax = LHS */
+            }
 
             if (op == TOK_STAR) {
                 MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
@@ -678,6 +692,8 @@ static void compile_multiplicative(MinicCompiler *mc) {
                 MC_EMIT(mc, wx86_cqo(&mc->enc));
                 MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
             }
+            mul_done_noxra:
+            mc->rax_is_const = false;
         }
     }
 }
@@ -712,6 +728,14 @@ static void compile_additive(MinicCompiler *mc) {
                 }
                 lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
             }
+            /* XRA constant folding: x+0 = x, x-0 = x */
+            if (mc->rax_is_const && mc->rax_const_val == 0) {
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));
+                xra_free_reg(&mc->ra, lhs_hw);
+                xra_set_next_use(&mc->ra, lhs, -1);
+                mc->rax_is_const = false;
+                continue;
+            }
             if (op == TOK_PLUS)
                 MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs += rhs (rax) */
             else
@@ -723,6 +747,13 @@ static void compile_additive(MinicCompiler *mc) {
         } else {
             MC_EMIT(mc, wx86_push_reg(&mc->enc, WREG_RAX));
             compile_multiplicative(mc);
+
+            /* Non-XRA constant folding: x+0 = x, x-0 = x */
+            if (mc->rax_is_const && mc->rax_const_val == 0) {
+                wx86_emit_byte(&mc->enc, 0x58); /* pop rax = LHS, discard 0 */
+                mc->rax_is_const = false;
+                continue;
+            }
 
             MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
             MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
