@@ -63,6 +63,7 @@ typedef struct wubu_isa_driver {
 
 /* the built-in drivers (the driver space, populated) */
 extern const wubu_isa_driver_t wubu_isa_x86_64;
+extern const wubu_isa_driver_t wubu_isa_arm64;  /* AArch64 (2011, 230B chips) */
 extern const wubu_isa_driver_t wubu_isa_m68k;   /* the 68,000 (1979) */
 extern const wubu_isa_driver_t wubu_isa_i8086;  /* the x86 root (1978) */
 extern const wubu_isa_driver_t wubu_isa_riscv;  /* RV64I (2010) */
