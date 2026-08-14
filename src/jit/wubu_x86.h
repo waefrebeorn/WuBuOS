@@ -226,6 +226,8 @@ int wx86_ret(Wx86Enc *e);
 /* JMP rel32 (E9 + rel32) — returns position for backpatching */
 int wx86_jmp_rel32(Wx86Enc *e);
 #define wx86_jmp_rel32_pos(e) ((e)->pos - 4) /* patch position */
+int wx86_jmp_reg(Wx86Enc *e, Wx86Reg reg); /* indirect jump */
+void wx86_setcc_r8(Wx86Enc *e, Wx86CC cc, Wx86Reg dst); /* SETcc byte */
 
 /* Jcc rel32 (0F 8x + rel32) — returns position for backpatching */
 int wx86_jcc_rel32(Wx86Enc *e, Wx86CC cc);

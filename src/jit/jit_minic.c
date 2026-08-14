@@ -258,14 +258,7 @@ static void mc_peephole_elim_mov_roundtrip(Wx86Enc *e) {
 
 /* -- Expression Compiler (result in RAX) ------------------------ */
 
-/* SETcc doesn't exist in wubu_x86.h yet — we'll emit it manually */
-void wx86_setcc_r8(Wx86Enc *e, Wx86CC cc, Wx86Reg dst) {
-    (void)dst; /* We only support setting AL (RAX low byte) for now */
-    /* 0F 90+cc /0 with ModRM=0xC0 (mod=3, reg=0, rm=0 = RAX) */
-    wx86_emit_byte(e, 0x0F);
-    wx86_emit_byte(e, 0x90 + (uint8_t)cc);
-    wx86_emit_byte(e, 0xC0);  /* modrm(3, 0, 0) */
-}
+/* wx86_setcc_r8 moved to wubu_x86.c */
 
 
 /* -- Statement Compiler ------------------------------------------ */
