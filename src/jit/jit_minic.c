@@ -109,6 +109,7 @@ static Wx86Reg arg_reg(int idx) {
 typedef struct MinicCompiler MinicCompiler;
 static void compile_expr(MinicCompiler *mc);
 static void compile_stmt(MinicCompiler *mc);
+static int mc_try_builtin(MinicCompiler *mc, const char *name, Wx86Reg aregs[6]);
 
 /* -- Compiler State ---------------------------------------------- */
 
@@ -251,6 +252,8 @@ static void compile_primary(MinicCompiler *mc) {
             minic_advance(&mc->lex);
 
             Wx86Reg aregs[] = { WREG_RDI, WREG_RSI, WREG_RDX, WREG_RCX, WREG_R8, WREG_R9 };
+            /* Builtin branchless intrinsics: abs/fabs/min/max. */
+            if (mc_try_builtin(mc, name, aregs)) return;
             int nargs = 0;
 
             if (minic_cur(&mc->lex)->type != TOK_RPAREN) {
@@ -315,6 +318,191 @@ static void compile_primary(MinicCompiler *mc) {
     }
 }
 
+/* -- Machine-level arithmetic helpers ----------------------------- */
+
+/* Branchless abs: rax = |rax|.  mov rdx,rax; sar rdx,63 (mask=sign);
+ * xor rax,rdx; sub rax,rdx  → (x ^ (x>>63)) - (x>>63). No branch, no cmov. */
+static void mc_emit_abs_branchless(MinicCompiler *mc) {
+    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RDX, WREG_RAX));
+    MC_EMIT(mc, wx86_sar_reg_imm8(&mc->enc, WREG_RDX, 63));
+    MC_EMIT(mc, wx86_xor_reg_reg(&mc->enc, WREG_RAX, WREG_RDX));
+    MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, WREG_RDX));
+}
+
+/* Branchless min/max via cmov: result already in rax, other operand in src.
+ * For min(a,b): cmp a,b; cmovg rax,src  (rax = min). For max: cmovl. */
+static void mc_emit_minmax_cmov(MinicCompiler *mc, Wx86Reg src, bool is_max) {
+    MC_EMIT(mc, wx86_cmp_reg_reg(&mc->enc, WREG_RAX, src));
+    MC_EMIT(mc, wx86_cmovcc_reg_reg(&mc->enc, is_max ? WCC_L : WCC_G, WREG_RAX, src));
+}
+
+/* Try to recognize a builtin function call: abs, min, max, fabs.
+ * Compiles them BRANCHLESSLY (no call, no branch). Returns 1 if handled.
+ * On entry the '(' has been consumed; on return the ')' is consumed. */
+static int mc_try_builtin(MinicCompiler *mc, const char *name, Wx86Reg aregs[6]) {
+    /* abs(x) / fabs(x) */
+    if (strcmp(name, "abs") == 0 || strcmp(name, "fabs") == 0) {
+        if (minic_cur(&mc->lex)->type != TOK_RPAREN) {
+            compile_expr(mc);
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, aregs[0], WREG_RAX));
+        }
+        minic_expect(&mc->lex, TOK_RPAREN);
+        /* compute abs on aregs[0] and move result to rax */
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, aregs[0]));
+        mc_emit_abs_branchless(mc);
+        return 1;
+    }
+    /* min(a,b) / max(a,b): two operands, branchless cmov select. */
+    if (strcmp(name, "min") == 0 || strcmp(name, "max") == 0) {
+        bool is_max = (strcmp(name, "max") == 0);
+        if (minic_cur(&mc->lex)->type != TOK_RPAREN) {
+            compile_expr(mc);
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, aregs[0], WREG_RAX));  /* a */
+            if (minic_cur(&mc->lex)->type == TOK_COMMA) {
+                minic_advance(&mc->lex);
+                compile_expr(mc);
+                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, aregs[1], WREG_RAX));  /* b */
+            }
+        }
+        minic_expect(&mc->lex, TOK_RPAREN);
+        /* rax = aregs[0] (a); aregs[1] holds b. */
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, aregs[0]));
+        mc_emit_minmax_cmov(mc, aregs[1], is_max);
+        return 1;
+    }
+    return 0;
+}
+
+/* Granlund-Montgomery magic multiplier for SIGNED 64-bit division by a
+ * constant d (|d| not a power of two, d != ±1, d != INT64_MIN).
+ * Fills *magic (unsigned) and *shift; returns 0 on success, -1 if unsupported.
+ * The division x/d is then: q = (int64_t)(((uint64_t)x*m)>>(64+shift)) with a
+ * sign-correction added by the caller. (Hacker's Delight "magic" algorithm.) */
+static int mc_magic_sdiv(int64_t d, uint64_t *magic, int *shift) {
+    if (d == 0 || d == 1 || d == -1) return -1;
+    if (d == INT64_MIN) return -1;
+    uint64_t ad = (uint64_t)(d < 0 ? -d : d);
+    if ((ad & (ad - 1)) == 0) return -1;   /* power of two handled elsewhere */
+
+    uint64_t two63 = UINT64_C(1) << 63;
+    uint64_t anc = two63 - 1 - (two63 - 1) % ad;
+    /* Hacker's Delight "magic" loop: keep doubling until q1 >= delta. */
+    uint64_t q1 = two63 / anc, r1 = two63 % anc;
+    uint64_t q2 = two63 / ad,  r2 = two63 % ad;
+    int p = 63;
+    do {
+        p++;
+        q1 *= 2; r1 *= 2;
+        if (r1 >= anc) { q1++; r1 -= anc; }
+        q2 *= 2; r2 *= 2;
+        if (r2 >= ad)  { q2++; r2 -= ad; }
+        uint64_t delta = ad - 1 - r2;
+        if (!(q1 < delta || (q1 == delta && r1 == 0))) break;
+    } while (1);
+    uint64_t m = q2 + 1;
+    int s = p - 64;
+    if (m == 0) return -1;
+    *magic = m; *shift = s;
+    return 0;
+}
+
+/* Emit x/d for SIGNED x in src, constant divisor d (d != 0), result to RAX.
+ * Uses magic-multiply for general d, arithmetic shift for |d| power of two,
+ * and negate for d<0. Scratch registers are allocated through the allocator
+ * so they never collide with a live vreg (incl. from enclosing expressions). */
+static void mc_emit_div_const(MinicCompiler *mc, Wx86Reg src, int64_t d) {
+    if (d == 1) {  /* x/1 = x */
+        if (src != WREG_RAX) MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, src));
+        return;
+    }
+    if (d == -1) {  /* x/-1 = -x */
+        if (src != WREG_RAX) MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, src));
+        MC_EMIT(mc, wx86_neg_reg(&mc->enc, WREG_RAX));
+        return;
+    }
+    uint64_t ad = (uint64_t)(d < 0 ? -d : d);
+
+    /* Allocate two scratch vregs for the sign mask / magic holder. */
+    int st1 = mc->next_vreg++;
+    int st2 = mc->next_vreg++;
+    Wx86Reg r1 = xra_alloc_evict(&mc->ra, st1, &mc->enc);   /* sign mask */
+    Wx86Reg r2 = xra_alloc_evict(&mc->ra, st2, &mc->enc);   /* magic / temp */
+    /* If the allocator spilled one, fall back to the plain idiv path. */
+    if (r1 == WREG_NONE || r2 == WREG_NONE) {
+        if (r1 != WREG_NONE) xra_free_reg(&mc->ra, r1);
+        if (r2 != WREG_NONE) xra_free_reg(&mc->ra, r2);
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, src));
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, src));
+        MC_EMIT(mc, wx86_cqo(&mc->enc));
+        MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
+        return;
+    }
+
+    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, src));      /* rax = x */
+    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, r1, src));            /* r1 = x (sign later) */
+
+    if ((ad & (ad - 1)) == 0) {
+        /* |d| = 2^k: q = (x + (x>>63 & (d-1))) >> k (round toward zero) */
+        int k = 0; uint64_t t = ad; while (t > 1) { t >>= 1; k++; }
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, r2, src));
+        MC_EMIT(mc, wx86_sar_reg_imm8(&mc->enc, r2, 63));        /* sign mask */
+        MC_EMIT(mc, wx86_and_reg_imm32(&mc->enc, r2, (int32_t)(ad - 1)));
+        MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RAX, r2));
+        MC_EMIT(mc, wx86_sar_reg_imm8(&mc->enc, WREG_RAX, (uint8_t)k));
+    } else {
+        uint64_t m; int s;
+        if (mc_magic_sdiv(d, &m, &s) == 0) {
+            int64_t M = (int64_t)m;
+            /* gcc-verified: rax=x; r2=magic; imul r2 [rdx=hi];
+             * if(M<0) hi+=x; hi>>=s; q=hi; q -= sign(x). */
+            MC_EMIT(mc, wx86_mov_reg_imm64(&mc->enc, r2, m));    /* r2 = magic */
+            MC_EMIT(mc, wx86_imul_rax_rm(&mc->enc, r2));         /* rdx:rax = x*m, hi->rdx */
+            if (M < 0) {
+                /* compensate negative magic: rdx += x (x still in r1) */
+                MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RDX, r1));
+            }
+            if (s > 0) MC_EMIT(mc, wx86_sar_reg_imm8(&mc->enc, WREG_RDX, (uint8_t)s));
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, WREG_RDX)); /* q = hi>>s */
+            /* q -= sign(x): r1 already holds x; r1 = x>>63 */
+            MC_EMIT(mc, wx86_sar_reg_imm8(&mc->enc, r1, 63));
+            MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, r1));
+        } else {
+            /* fallback: real idiv (e.g. INT64_MIN divisor) */
+            MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, src));
+            MC_EMIT(mc, wx86_cqo(&mc->enc));
+            MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));
+        }
+    }
+    if (d < 0) MC_EMIT(mc, wx86_neg_reg(&mc->enc, WREG_RAX));  /* x / -d */
+    xra_free_reg(&mc->ra, r1);
+    xra_free_reg(&mc->ra, r2);
+}
+
+/* lea strength reduction: emit dst = src * const for small const via lea
+ * (1 cyc, no flags) when possible; returns 1 if handled, 0 to fall back.
+ *   *2,*4,*8 -> shl; *3,*5,*9,*15 -> lea [base + base*scale]. */
+static int mc_emit_mul_const(MinicCompiler *mc, Wx86Reg dst, Wx86Reg src, int64_t c) {
+    if (c == 2 || c == 4 || c == 8 || c == 16 || c == 32 || c == 64 || c == 128 || c == 256) {
+        int k = 0; int64_t t = c; while (t > 1) { t >>= 1; k++; }
+        MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, dst, src));
+        MC_EMIT(mc, wx86_shl_reg_imm8(&mc->enc, dst, (uint8_t)k));
+        return 1;
+    }
+    /* lea dst, [src + src*scale] gives src*(scale+1) for scale 1,2,4,8
+     * (SIB scale field is 2 bits: 1,2,4,8 only). So c-1 must be 1,2,4,8. */
+    static const int64_t lea_ok[] = { 3, 5, 9 };  /* 1+2, 1+4, 1+8 */
+    for (int i = 0; i < 3; i++) {
+        if (c == lea_ok[i]) {
+            int scale = c - 1;  /* 2,4,8,16 → scale index 1,2,3,4 (2^s) */
+            int s = 0; int64_t t = scale; while (t > 1) { t >>= 1; s++; }
+            wx86_lea_scaled_index(&mc->enc, dst, src, s);
+            return 1;
+        }
+    }
+    return 0;  /* fall back to imul */
+}
+
+
 static void compile_multiplicative(MinicCompiler *mc) {
     compile_primary(mc);
 
@@ -328,20 +516,31 @@ static void compile_multiplicative(MinicCompiler *mc) {
              * scratch pool is exhausted by the RHS). */
             int lhs = mc_vreg_of_rax(mc);
             compile_primary(mc);
-            /* RHS now in rax; LHS in vreg (may be spilled). */
+            /* RHS now in rax (possibly a known constant); LHS in vreg. */
             Wx86Reg lhs_hw = xra_get_reg(&mc->ra, lhs);
             if (lhs_hw == WREG_NONE)
                 lhs_hw = xra_spill_load(&mc->ra, lhs, &mc->enc);
             if (op == TOK_STAR) {
-                /* Result = LHS * RHS. RHS is in rax, LHS in lhs_hw. */
-                MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs *= rhs */
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));   /* result -> rax */
+                if (mc->rax_is_const) {
+                    /* LHS * constant: lea/shl strength reduction or 3-op imul. */
+                    int64_t c = mc->rax_const_val;
+                    if (!mc_emit_mul_const(mc, WREG_RAX, lhs_hw, c))
+                        MC_EMIT(mc, wx86_imul_reg_reg_imm32(&mc->enc, WREG_RAX, lhs_hw, (int32_t)c));
+                } else {
+                    MC_EMIT(mc, wx86_imul_reg_reg(&mc->enc, lhs_hw, WREG_RAX));  /* lhs *= rhs */
+                    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));   /* result -> rax */
+                }
             } else {
-                /* Result = LHS / RHS. Move LHS to rax, RHS to rcx, idiv. */
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));  /* rcx = RHS (divisor) */
-                MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));    /* rax = LHS (dividend) */
-                MC_EMIT(mc, wx86_cqo(&mc->enc));                              /* sign-extend rax -> rdx:rax */
-                MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));               /* rax = LHS / RHS */
+                if (mc->rax_is_const && mc->rax_const_val != 0) {
+                    /* LHS / constant: magic-multiply or shift (no idiv). */
+                    mc_emit_div_const(mc, lhs_hw, mc->rax_const_val);
+                } else {
+                    /* Result = LHS / RHS. Move LHS to rax, RHS to rcx, idiv. */
+                    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));  /* rcx = RHS (divisor) */
+                    MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RAX, lhs_hw));    /* rax = LHS (dividend) */
+                    MC_EMIT(mc, wx86_cqo(&mc->enc));                              /* sign-extend rax -> rdx:rax */
+                    MC_EMIT(mc, wx86_idiv_reg(&mc->enc, WREG_RCX));               /* rax = LHS / RHS */
+                }
             }
             mc->rax_is_const = false;  /* result of a runtime binop */
             xra_free_reg(&mc->ra, lhs_hw);
@@ -416,7 +615,13 @@ static void compile_compare(MinicCompiler *mc) {
         MC_EMIT(mc, wx86_mov_reg_reg(&mc->enc, WREG_RCX, WREG_RAX));
         MC_EMIT(mc, wx86_pop_reg(&mc->enc, WREG_RAX));
 
-        MC_EMIT(mc, wx86_cmp_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        if (mc->rax_is_const && mc->rax_const_val == 0 &&
+            (op == TOK_EQ || op == TOK_NEQ)) {
+            /* test rax,rax is 1 byte shorter than cmp rax,0 and sets ZF. */
+            MC_EMIT(mc, wx86_test_reg_reg(&mc->enc, WREG_RAX, WREG_RAX));
+        } else {
+            MC_EMIT(mc, wx86_cmp_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+        }
 
         Wx86CC cc;
         switch (op) {

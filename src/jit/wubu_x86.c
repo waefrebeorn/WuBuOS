@@ -262,6 +262,34 @@ int wx86_sub_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
     return (int)(e->pos - start);
 }
 
+int wx86_and_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
+    /* 0x81 /4 = AND r/m64, imm32 (opcode extension 4). */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(WREG_RBX, dst, true);  /* REX.W */
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x81);
+    wx86_emit_byte(e, (uint8_t)(0xC0 | (4 << 3) | reg_lo(dst)));  /* mod=11, /4, rm=dst */
+    wx86_emit_dword(e, (uint32_t)imm);
+    return (int)(e->pos - start);
+}
+
+int wx86_lea_scaled_index(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, uint8_t scale) {
+    /* lea r64, [base + base*2^scale]: REX.W(+R if dst hi, +B if base hi) + 8D,
+     * modrm(mod=00, reg=dst, rm=100=RSP->SIB), SIB(scale, index=base, base=base). */
+    size_t start = e->pos;
+    uint8_t rex = 0x48
+        | (reg_hi(dst)  ? 0x04 : 0)   /* REX.R for dst (reg field) */
+        | (reg_hi(base) ? 0x02 : 0)   /* REX.X for base (SIB index) */
+        | (reg_hi(base) ? 0x01 : 0);  /* REX.B for base (SIB base) */
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x8D);
+    /* mod=00, reg=dst (reg field), rm=100 (forces SIB). */
+    wx86_emit_byte(e, (uint8_t)((reg_lo(dst) << 3) | 0x04));
+    /* SIB: scale=scale (bits 7-6), index=base (bits 5-3), base=base (bits 2-0). */
+    wx86_emit_byte(e, (uint8_t)((scale << 6) | (reg_lo(base) << 3) | reg_lo(base)));
+    return (int)(e->pos - start);
+}
+
 int wx86_imul_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
     /* REX.W + 0F AF + ModRM (dst=reg field, src=rm field) */
     size_t start = e->pos;
@@ -270,6 +298,29 @@ int wx86_imul_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src) {
     wx86_emit_byte(e, 0x0F);
     wx86_emit_byte(e, 0xAF);
     wx86_emit_modrm(e, 3, dst, src);
+    return (int)(e->pos - start);
+}
+
+int wx86_imul_reg_reg_imm32(Wx86Enc *e, Wx86Reg dst, Wx86Reg src, int32_t imm) {
+    /* IMUL r64, r/m64, imm32 = REX.W + 69 /r + imm32.
+     * dst is the reg field (mod=11), src is rm field. */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(dst, src, true);
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x69);
+    wx86_emit_modrm(e, 3, dst, src);
+    wx86_emit_dword(e, (uint32_t)imm);
+    return (int)(e->pos - start);
+}
+
+int wx86_imul_rax_rm(Wx86Enc *e, Wx86Reg rm) {
+    /* IMUL r/m64 (one-operand): REX.W + F7 /5, modrm mod=11 rm=rm.
+     * Computes rdx:rax = rax * rm (full 128-bit signed product). */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(WREG_RAX, rm, true);  /* REX.W + REX.B if rm hi */
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0xF7);
+    wx86_emit_byte(e, (uint8_t)(0xC0 | (5 << 3) | reg_lo(rm)));  /* /5 = IMUL */
     return (int)(e->pos - start);
 }
 
@@ -285,6 +336,24 @@ int wx86_cmp_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b) {
     return (int)(e->pos - start);
 }
 
+int wx86_test_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b) {
+    /* TEST r64, r/m64: REX.W + 85 /r. a is reg field, b is rm field. */
+    size_t start = e->pos;
+    emit_rex_modrm_reg_reg(e, 0x85, a, b, true);
+    return (int)(e->pos - start);
+}
+
+int wx86_cmovcc_reg_reg(Wx86Enc *e, Wx86CC cc, Wx86Reg dst, Wx86Reg src) {
+    /* CMOVcc r64, r/m64: REX.W + 0F 40+cc /r. DST is the reg field, SRC rm. */
+    size_t start = e->pos;
+    uint8_t rex = wx86_rex(dst, src, true);  /* reg_field=dst, rm_field=src */
+    wx86_emit_byte(e, rex);
+    wx86_emit_byte(e, 0x0F);
+    wx86_emit_byte(e, (uint8_t)(0x40 + (uint8_t)cc));
+    wx86_emit_modrm(e, 3, dst, src);
+    return (int)(e->pos - start);
+}
+
 int wx86_cmp_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
     size_t start = e->pos;
     uint8_t rex = wx86_rex(WREG_RDI, dst, true);  /* /7 = cmp, reg_lo=7=rdi */
@@ -292,12 +361,6 @@ int wx86_cmp_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm) {
     wx86_emit_byte(e, 0x81);
     wx86_emit_modrm(e, 3, WREG_RDI, dst);  /* /7 = cmp */
     wx86_emit_dword(e, (uint32_t)imm);
-    return (int)(e->pos - start);
-}
-
-int wx86_test_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b) {
-    size_t start = e->pos;
-    emit_rex_modrm_reg_reg(e, 0x85, a, b, true);
     return (int)(e->pos - start);
 }
 

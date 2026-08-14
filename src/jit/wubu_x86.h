@@ -111,14 +111,38 @@ int wx86_sub_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
 /* SUB reg, imm32 (REX.W + 81 + /5 + imm32) */
 int wx86_sub_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
 
+/* AND reg, imm32 (REX.W + 81 + /4 + imm32) — mask a register. */
+int wx86_and_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
+
+/* LEA reg, [base + base*2^scale] = base*(1+2^scale) in one cycle (no flags).
+ * REX.W + 8D /r, mod=00 rm=100 (SIB): scale=scale, index=base, base=base. */
+int wx86_lea_scaled_index(Wx86Enc *e, Wx86Reg dst, Wx86Reg base, uint8_t scale);
+
 /* IMUL reg, reg (REX.W + 0F AF + ModRM — 4 bytes) */
 int wx86_imul_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
+
+/* IMUL reg, reg, imm32 — 0x69 /r id (6 bytes REX.W + 69 + modrm + imm32).
+ * Multiplies src*imm32 into dst (3-operand, non-destructive). */
+int wx86_imul_reg_reg_imm32(Wx86Enc *e, Wx86Reg dst, Wx86Reg src, int32_t imm);
+
+/* IMUL r/m64 — one-operand 48 F7 /5: rdx:rax = rax * r/m64 (full 128-bit).
+ * High 64 bits of the signed product land in rdx. Used by div-by-constant
+ * magic (Granlund-Montgomery). */
+int wx86_imul_rax_rm(Wx86Enc *e, Wx86Reg rm);
 
 /* XOR reg, reg (REX.W + 31 + ModRM) — also used for reg=0 (zero register) */
 int wx86_xor_reg_reg(Wx86Enc *e, Wx86Reg dst, Wx86Reg src);
 
 /* CMP reg, reg (REX.W + 39 + ModRM) */
 int wx86_cmp_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b);
+
+/* TEST reg, reg (REX.W + 85 + ModRM) — AND without storing (sets ZF).
+ * 1 byte shorter than cmp reg,0 for x==0 / x!=0 tests. */
+int wx86_test_reg_reg(Wx86Enc *e, Wx86Reg a, Wx86Reg b);
+
+/* CMOVcc r64, r/m64 — 0F 40+cc /r (REX.W + 0F + 40+cc + modrm).
+ * dst = (cc) ? src : dst. dst is rm field, src is reg field. */
+int wx86_cmovcc_reg_reg(Wx86Enc *e, Wx86CC cc, Wx86Reg dst, Wx86Reg src);
 
 /* CMP reg, imm32 (REX.W + 81 + /7 + imm32) */
 int wx86_cmp_reg_imm32(Wx86Enc *e, Wx86Reg dst, int32_t imm);
