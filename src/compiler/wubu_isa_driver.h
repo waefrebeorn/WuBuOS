@@ -64,11 +64,13 @@ typedef struct wubu_isa_driver {
 /* the built-in drivers (the driver space, populated) */
 extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_arm64;  /* AArch64 (2011, 230B chips) */
+extern const wubu_isa_driver_t wubu_isa_mips;   /* MIPS (1981, Berkeley RISC) */
 extern const wubu_isa_driver_t wubu_isa_m68k;   /* the 68,000 (1979) */
 extern const wubu_isa_driver_t wubu_isa_i8086;  /* the x86 root (1978) */
 extern const wubu_isa_driver_t wubu_isa_riscv;  /* RV64I (2010) */
 extern const wubu_isa_driver_t wubu_isa_6502;   /* MOS (1975) */
 extern const wubu_isa_driver_t wubu_isa_z80;    /* Zilog (1976) */
+extern const wubu_isa_driver_t wubu_isa_ptx;    /* NVIDIA GPU PTX (2024) */
 /* every driver is backed by a REAL interpreter (wubu_*_interp.c) —
  * the frontend emits ONE MIR, six backends consume it, all agree.
  * Proven by `make test_drivers` (33 expressions x 6 drivers). */

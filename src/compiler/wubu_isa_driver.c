@@ -13,11 +13,13 @@
 /* the built-in drivers, one per ISA (all extern in the header) */
 extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_arm64;
+extern const wubu_isa_driver_t wubu_isa_mips;
 extern const wubu_isa_driver_t wubu_isa_m68k;
 extern const wubu_isa_driver_t wubu_isa_i8086;
 extern const wubu_isa_driver_t wubu_isa_riscv;
 extern const wubu_isa_driver_t wubu_isa_6502;
 extern const wubu_isa_driver_t wubu_isa_z80;
+extern const wubu_isa_driver_t wubu_isa_ptx;  /* NVIDIA GPU (PTX/SM89) */
 
 const wubu_isa_driver_t *wubu_isa_find(const char *name)
 {
@@ -27,6 +29,9 @@ const wubu_isa_driver_t *wubu_isa_find(const char *name)
     if (!strcmp(name, "arm64") || !strcmp(name, "aarch64") ||
         !strcmp(name, "armv8") || !strcmp(name, "arm"))
         return &wubu_isa_arm64;
+    if (!strcmp(name, "mips") || !strcmp(name, "mipsel") ||
+        !strcmp(name, "mipseb") || !strcmp(name, "mips32"))
+        return &wubu_isa_mips;
     if (!strcmp(name, "m68k") || !strcmp(name, "68000") ||
         !strcmp(name, "motorola-68000") || !strcmp(name, "68k"))
         return &wubu_isa_m68k;
@@ -42,5 +47,8 @@ const wubu_isa_driver_t *wubu_isa_find(const char *name)
     if (!strcmp(name, "z80") || !strcmp(name, "zilog-z80") ||
         !strcmp(name, "z180") || !strcmp(name, "8080-compat"))
         return &wubu_isa_z80;
+    if (!strcmp(name, "ptx") || !strcmp(name, "nvidia") ||
+        !strcmp(name, "gpu") || !strcmp(name, "cuda"))
+        return &wubu_isa_ptx;
     return NULL;
 }
