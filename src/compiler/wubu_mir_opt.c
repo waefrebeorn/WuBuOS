@@ -396,6 +396,53 @@ static void combine_pass(wubu_mir_prog_t *p)
     }
 }
 
+/* ---- Pass 7: Common Subexpression Elimination (CSE) ----
+ * For each binary operation, check if an identical operation was
+ * already computed earlier. If so, replace with MOV dst = earlier_dst.
+ * This eliminates redundant computation across all backends.
+ *
+ * Example:  ADD(v3, v1, v2)  ...  ADD(v4, v1, v2)
+ *       →  ADD(v3, v1, v2)  ...  MOV(v4, v3)
+ *
+ * Only works within the same basic block (no labels between).
+ */
+static void cse_pass(wubu_mir_prog_t *p)
+{
+    for (size_t i = 0; i < p->n; i++) {
+        wubu_mir_instr_t *in = &p->ins[i];
+        if (in->op == MIR_LABEL) continue;
+        if (in->op != MIR_ADD && in->op != MIR_SUB && in->op != MIR_MUL &&
+            in->op != MIR_DIV && in->op != MIR_MOD && in->op != MIR_AND &&
+            in->op != MIR_OR && in->op != MIR_XOR && in->op != MIR_SHL &&
+            in->op != MIR_SHR) continue;
+        if (in->a == in->b) continue; /* handled by combine_pass */
+
+        /* Look backwards for identical operation */
+        for (size_t j = i; j > 0; j--) {
+            size_t k = j - 1;
+            const wubu_mir_instr_t *prev = &p->ins[k];
+            if (prev->op == MIR_LABEL) break; /* stop at block boundary */
+            if (prev->op != in->op) continue;
+            if (prev->a == in->a && prev->b == in->b) {
+                /* Found identical computation — replace with MOV */
+                in->op = MIR_MOV;
+                in->a = prev->dst;
+                in->b = 0;
+                break;
+            }
+            /* Also check commutative ops with swapped operands */
+            if ((in->op == MIR_ADD || in->op == MIR_MUL ||
+                 in->op == MIR_AND || in->op == MIR_OR || in->op == MIR_XOR) &&
+                prev->a == in->b && prev->b == in->a) {
+                in->op = MIR_MOV;
+                in->a = prev->dst;
+                in->b = 0;
+                break;
+            }
+        }
+    }
+}
+
 /* ---- Main optimizer entry point ---- */
 void wubu_mir_optimize(wubu_mir_prog_t *p, mir_opt_flags_t flags)
 {
@@ -405,4 +452,5 @@ void wubu_mir_optimize(wubu_mir_prog_t *p, mir_opt_flags_t flags)
     if (flags & MIR_OPT_LICM)    licm_pass(p);
     if (flags & MIR_OPT_UNROLL)  unroll_pass(p);
     if (flags & MIR_OPT_COMBINE) combine_pass(p);
+    if (flags & MIR_OPT_CSE)     cse_pass(p);
 }

@@ -237,6 +237,44 @@ static void test_strength(void)
     wubu_mir_free(&prog);
 }
 
+/* Test 7: Common subexpression elimination */
+static void test_cse(void)
+{
+    printf("-- Test: common subexpression elimination --\n");
+    /* Build: v1=7, v2=6, v3=v1+v2, v4=v1+v2 (redundant), v5=v3+v4 */
+    wubu_mir_prog_t prog;
+    wubu_mir_init(&prog);
+    wubu_vr_t v1 = wubu_mir_const(&prog, 7);
+    wubu_vr_t v2 = wubu_mir_const(&prog, 6);
+    wubu_vr_t v3 = wubu_mir_binop(&prog, MIR_ADD, v1, v2); /* 13 */
+    wubu_vr_t v4 = wubu_mir_binop(&prog, MIR_ADD, v1, v2); /* redundant */
+    wubu_vr_t v5 = wubu_mir_binop(&prog, MIR_ADD, v3, v4); /* 26 */
+    wubu_mir_ret(&prog, v5);
+
+    /* Before optimization: 3 ADD instructions */
+    size_t adds_before = 0;
+    for (size_t i = 0; i < prog.n; i++) if (prog.ins[i].op == MIR_ADD) adds_before++;
+
+    wubu_mir_optimize(&prog, MIR_OPT_CSE);
+
+    /* After optimization: redundant ADD replaced with MOV */
+    size_t adds_after = 0;
+    for (size_t i = 0; i < prog.n; i++) if (prog.ins[i].op == MIR_ADD) adds_after++;
+
+    CHECK(adds_after < adds_before, "CSE eliminates redundant ADD");
+    printf("  ADD count: %zu -> %zu\n", adds_before, adds_after);
+
+    /* Verify correctness: result should still be 26 */
+    const wubu_isa_driver_t *d = wubu_isa_find("x86-64");
+    uint8_t *code = NULL; size_t csize = 0;
+    if (d->compile(&prog, &code, &csize) == 0) {
+        int64_t result = d->run(code, csize, 0);
+        CHECK(result == 26, "CSE preserves correctness (26)");
+        free(code);
+    }
+    wubu_mir_free(&prog);
+}
+
 int main(void)
 {
     printf("=== MIR OPTIMIZER TEST ===\n\n");
@@ -251,6 +289,8 @@ int main(void)
     test_opt_correctness();
     printf("\n");
     test_strength();
+    printf("\n");
+    test_cse();
     printf("\n");
 
     printf("=== %s: %d/%d passed ===\n",

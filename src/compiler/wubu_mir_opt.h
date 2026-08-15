@@ -25,7 +25,8 @@ typedef enum {
     MIR_OPT_DCE     = 4,   /* dead code elimination */
     MIR_OPT_LICM    = 8,   /* loop-invariant code motion */
     MIR_OPT_UNROLL  = 16,  /* loop unrolling */
-    MIR_OPT_COMBINE = 32,  /* instruction combining (merge chains) */
+    MIR_OPT_COMBINE = 32,  /* instruction combining (algebraic identities) */
+    MIR_OPT_CSE     = 64,  /* common subexpression elimination */
 } mir_opt_flags_t;
 
 /* Run all requested optimization passes on program p.
