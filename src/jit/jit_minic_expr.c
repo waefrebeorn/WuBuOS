@@ -613,6 +613,7 @@ void compile_additive(MinicCompiler *mc) {
                 MC_EMIT(mc, wx86_add_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
             else
                 MC_EMIT(mc, wx86_sub_reg_reg(&mc->enc, WREG_RAX, WREG_RCX));
+            mc->rax_is_const = false;  /* result of a runtime binop is not const */
         }
     }
 }
