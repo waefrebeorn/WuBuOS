@@ -1,70 +1,160 @@
 # Testing
 
-Fast, incremental tests for the WuBuOS kernel.  Tests are **hosted** — they
-link against the kernel sources but compile with `-D_GNU_SOURCE` and run as
-user-space binaries, so you can iterate fast without booting hardware.
+Hosted test suite for WuBuOS. All tests compile as user-space binaries with
+WuBu compliance flags and run on the host — no hardware boot required.
+
+## Build flags
+
+Every test target uses the WuBu compliance toolchain:
+
+```
+-D_POSIX_C_SOURCE=200809L    # POSIX 2008 baseline (no _GNU_SOURCE)
+-DWUBU_HOSTED                 # hosted runtime personality
+-include wubu_gnu_compat.h    # portable shim (replaces _GNU_SOURCE deps)
+```
+
+These three flags let kernel sources compile cleanly on any C11 host without
+pulling in GNU extensions. Recent work eliminated all `_GNU_SOURCE` dependency
+from the repo — `wubu_gnu_compat.h` now supplies the handful of POSIX-level
+shims needed.
 
 ## Layout
 
 ```
-src/kernel/              ← kernel sources only (.c, .h, .S, .ld)
-  test/                  ← all selftest + standalone test sources
-    wubu_<mod>_selftest.c ← per-module selftests (229 files)
-    test_*.c              ← legacy standalone tests (28 files)
-  wubu_test_stubs.c      ← test-only stubs for excluded symbols
-build/                   ← all build artifacts (gitignored)
-  testobj/               ← cached core-module .o (built once)
-  testbin/               ← test binaries (test_hw_<mod>)
-  obj/                   ← object files
-  dep/                   ← dependency files
+mk/tests.mk            ← 414 test targets, organized into tiers
+src/kernel/test/       ← per-module selftests (wubu_<mod>_selftest.c)
+src/kernel/wubu_test_stubs.c  ← test-only stubs for excluded symbols
+build/testobj/         ← cached kernel .o (built once, reused per test)
 ```
 
-## Quick start
+## Running tests
 
 ```bash
-# One specific test (cached objects reused — fast after first build):
+# One specific test:
+make test_jit
+make test_fat32
 make test_hw_audio
 
-# A family:
+# A tier (groups of related tests):
+make test_critical_runtime    # 8 targets  (runtime core)
+make test_critical_kernel     # 9 targets  (kernel/metal)
+make test_high_bridge         # 3 targets  (syscall bridge)
+make test_high_gui            # 18 targets (hosted GUI)
+make test_high_bear           # 26 targets (Bear RL/JIT/compiler)
+make test_medium_other        # 37 targets (apps/audio/tools/other)
+
+# Hardware driver family (216 test_hw_* targets):
 make test_all
 
-# Run everything and get a tally:
-bash tools/run_hw_tests.sh
+# Full suite — all tiers sequentially:
+make test
+```
+
+## Tier breakdown
+
+`mk/tests.mk` defines 414 test targets organized into tiers:
+
+### test_critical_runtime (8 targets)
+Runtime core: containers, network, OCI, snapshots, VSL, HolyD, HolyC AGI, Proton, spawn.
+
+```
+test_network  test_snapshot  test_vsl  test_holyd  test_holyc_agi
+test_proton   test_proton2   test_spawn
+```
+Prerequisite: `runtime`
+
+### test_critical_kernel (9 targets)
+Kernel/metal: filesystems, storage, display, decompressors.
+
+```
+test_fat32  test_txfs  test_ahci  test_drm_direct
+test_zlib   test_zip   test_lzx   test_cab  test_dram_hedge
+```
+
+### test_high_bridge (3 targets)
+Syscall bridge and DOS flip layer.
+
+```
+test_bridge  test_bridge_flip  test_syscall
+```
+Prerequisite: `runtime`
+
+### test_high_gui (18 targets)
+Hosted GUI: window manager, desktop, startmenu, explorer, terminal,
+clipboard, compositor, shell, wallpaper, control panel, calculator.
+
+```
+test_synth  test_wubu_sound  test_dosgui_cp_sound  test_hwdetect
+test_colonel  test_dosgui_wm  test_dosgui_ui  test_dosgui_dos_window
+test_dosgui_startmenu  test_dosgui_explorer  test_dosgui_term
+test_clipboard  test_screenshot  test_compositor  test_shell
+test_wallpaper  test_control  test_calc
+```
+Prerequisites: `gui`, `runtime`
+
+### test_high_bear (26 targets)
+Bear RL / JIT / compiler: codegen, register allocation, loop analysis,
+branch profiling, PGO, ARM64 encoder, minic, memory, tasking, HolyC, PTX.
+
+```
+test_jit  test_jit_regalloc  test_jit_remat  test_jit_branch
+test_jit_type  test_jit_loop  test_jit_branch_profile
+test_jit_subsystem_integration  test_jit_pgo_byte  test_jit_loop_consume
+test_jit_deep_opt  test_jit_fuzzer  test_jit_supremacy  test_jit_torture
+test_arm64_enc  test_minic_cg  test_jit_regression  test_peephole_superopt
+test_memory  test_tasking  test_input  test_holyc  test_hedge
+test_holyc_ptx  test_battery
+```
+
+### test_medium_other (37 targets)
+Apps, audio, tools, WorldSim, namespace, deployment, math, package manager.
+
+```
+test_worldsim  test_audio  test_apps  test_apps2  test_wubu
+test_host_exec  test_gaad  test_iso  test_weights  test_gc
+test_txfs  test_dbuf  test_styx  test_styxfs  test_anticheat
+test_bottles  test_ns_bridge  test_ns_snap  test_ns_pkg  test_ns_kernel
+test_ns_9p  test_ns_dram  test_deploy  test_math  test_pkgmgr
+test_gamelib  test_mime  test_trash  test_cap  test_txn
+test_cmd  test_dos_emu_smoke  test_manifest  test_bytropix_verifier
+```
+Prerequisites: `runtime`, `gui`
+
+### test_hw_* (216 targets)
+Per-hardware-driver selftests. Each `test_hw_<driver>` compiles the
+selftest + driver source + `wubu_test_stubs.c` against cached kernel objects.
+
+Examples: `test_hw_audio`, `test_hw_nvidia_turing`, `test_hw_wifi7`,
+`test_hw_xhci`, `test_hw_bt`, `test_hw_bcache`, `test_hw_nvme_gen5`,
+`test_hw_usb4`, `test_hw_vulkan14`.
+
+### Additional targets
+
+```
+test_vsl_cpm         # VSL CP/M syscall personality
+test_vsl_macclassic  # VSL Mac Classic syscall personality
+test_all             # All 216 test_hw_* targets
+test                 # Full suite: all tiers + VSL personalities
 ```
 
 ## How it works
 
-1. **Cached core objects** — `mk/tests.mk` precompiles all ~283 verified
-   kernel modules into `build/testobj/*.o` once (pattern rule:
-   `$(CACHE)/%.o`).  Only sources that changed get recompiled.
+1. **Cached kernel objects** — `mk/tests.mk` precompiles verified kernel
+   modules into `build/testobj/*.o` once. Only changed sources recompile.
 
-2. **Per-test link** — each `test_hw_<mod>` target compiles just three fresh
-   files — the selftest, the module under test, and `wubu_test_stubs.c` —
-   then links them against the cached objects.  The module's own `.o` is
-   excluded from the cache to avoid a double-definition.
+2. **Per-test link** — each `test_hw_<mod>` target compiles the selftest,
+   the module under test, and `wubu_test_stubs.c`, then links against the
+   cached objects. The module's own `.o` is excluded from the cache to avoid
+   double-definition.
 
-3. **Two speed classes** (decided by `regenerate_tests_mk.py`):
-   - **Type A** (77 modules) — links only the 5-file minimal runtime
-     (`libc, libc_string, memory, klog, wubu_pci`).  Builds in ~0.2 s.
-   - **Type B** (138 modules) — links the full 283-object core chain.
-     First build ~8 s; incremental ~0.4 s.
-
-## Managing test targets
-
-`tools/regenerate_tests_mk.py` scans `src/kernel/test/` for new selftests and
-rewrites `mk/tests.mk`.  Always run it after adding a new module:
-
-```bash
-python3 tools/regenerate_tests_mk.py
-```
-
-The script is idempotent — it preserves the `mk/tests.mk` preamble and
-regenerates only the test targets + cached-object infrastructure.
+3. **Tier grouping** — phony targets (`test_critical_runtime`, etc.) depend
+   on their member tests, so `make test_critical_runtime` runs exactly that
+   tier. The top-level `test` target runs all tiers sequentially.
 
 ## Stub routing
 
 `src/kernel/wubu_test_stubs.c` provides test-only symbols (e.g.
 `wubu_rtc_driver_for`, `wubu_hid_driver_for`) that route a vendor/chip string
-to its driver name.  These are **stubs** for test determinism — the real
-routing happens in the kernel's hw_detect layer.  If a test does a routing
+to its driver name. These are **stubs** for test determinism — the real
+routing happens in the kernel's hw_detect layer. If a test does a routing
 CHECK you must extend the corresponding stub to mirror the real logic.

@@ -35,7 +35,7 @@ make all                 # full build (kernel jit compiler runtime tools gui
 make hosted              # hosted binary (runs on Linux)
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-make test                # all 124 test targets
+make test                # all 414 test targets
 make test_agi_metal      # the measured-boot/AGI gate (the root of trust)
 build_iso.sh             # bootable ISO (kernel + limine)
 qemu-test.sh             # boot it under QEMU
@@ -66,28 +66,51 @@ src/
   kernel/    memory, tasking, VBE, FAT32, AHCI, interrupt, PS/2, recovery, AGI organs
   firmware/  WuBuFW: UEFI from scratch, TPM, secureboot, the chainloader (wubufw.fd)
   compiler/  HolyC lexer, parser, codegen, PTX backend
+  jit/       WuBuNOS JIT: x86-64, ARM64, RISC-V 64, WASM backends, regalloc, minic
   audio/     DAW, Furnace (30+ chips), TinySoundFont, AI plugins
   hosted/    DRM/KMS, Vulkan, X11, WSL2, macOS AVF
   runtime/   Styx/9P, VSL, containers, Arch, network, DOS emulator, syscall manifest
   gui/       Win98 WM, desktop, startmenu, explorer, terminal
   bear/      RL training, Vulkan/CUDA, n-pole physics
+  brain/     wubuwizard integration (encoders, optimizers, attention, diffusion)
   apps/      Editor, canvas, codec, freedoom, calc, control
   bridge/    DOS flip, syscall bridge
   shell/     Unified GUI shell
   worldsim/  GAAD, terrain, entity, physics
+  framework/ WuBuFX application framework
+  tools/     iso9660, screenshot, weight-check, test harnesses
+tools/
+  bench/              benchmarks
+  dev/                developer utilities
+  isa-test/           ISA-level test suites
+  kvctools/           KV cache tools
+  peephole_superopt/  peephole superoptimizer
+  probe/              hardware probes
+  research/           research scripts
+  wubu_game_probe/    game probe tooling
+docs/
+  adr/                architecture decision records
+  compendium/         institutional ledger (01-reference regenerates via `make docs`)
+  reference/          reference documentation
+  research/           research outputs (7hop-drivers: 203 Kevin-Bacon docs)
+  summaries/          module summaries
+  wiki/               wiki pages
+  x86/                x86 architecture notes
+vault/                archives (accomplishments, phases, planning)
 ```
 
-## Status (verified 2026-08-04)
+## Status (verified 2026-08-15)
 
 | Metric | Value |
 |---|---|
-| C source files | 665 (`git ls-files 'src/**/*.c'`) |
-| C header files | 306 (`git ls-files 'src/**/*.h'`) |
-| Total C LOC | 187,689 (`find src -name '*.c' -o -name '*.h' | xargs wc -l`) |
-| Test targets | 124 (`make test` — critical/high/medium tiers) |
+| C source files | 2,463 |
+| C header files | 1,006 |
+| Total C LOC | 472,955 |
+| Test targets | 414 (`make test` — critical/high/medium tiers) |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 |
-| E1 ReactOS NT | 88/297 syscalls transliterated (209 remain) |
+| WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V 64, WASM, PTX, …) |
+| WuBu compliance | `_GNU_SOURCE` eliminated — replaced with `WUBU_HOSTED` + `wubu_gnu_compat.h` |
 
 **Honest — not "all done"**: the remaining VSL syscalls, the bare-metal
 context-switch no-ops, and the stub-phrase spots are tracked openly in
