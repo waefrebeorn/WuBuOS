@@ -163,7 +163,7 @@ test_minic_cg:
 
 # JIT regression test — bulletproof regression suite
 test_jit_regression:
-	$(CC) -O0 -g -I$(JIT) $(JIT)/jit_regression_test.c $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(JIT)/wubu_wasm.c $(JIT)/wubu_disasm.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/jit_minic_cg.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_branch_profile.c -o $(JIT)/test_jit_regression -ldl
+	$(CC) -O0 -g -I$(JIT) -I$(RT) $(JIT)/jit_regression_test.c $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(JIT)/wubu_wasm.c $(JIT)/wubu_disasm.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/jit_minic_cg.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_branch_profile.c $(RT)/wubu_spawn.c -o $(JIT)/test_jit_regression -ldl
 	$(JIT)/test_jit_regression
 
 # ARM64 encoder test (byte-level)
