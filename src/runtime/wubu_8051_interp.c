@@ -40,12 +40,26 @@ typedef struct {
 static uint8_t i8051_read_ram(i8051_t *cpu, uint8_t addr)
 {
     if (addr < I8051_RAM_SIZE) return cpu->ram[addr];
+    /* SFR accesses */
+    if (addr == 0xF0) return cpu->b;  /* B register */
+    if (addr == 0xD0) return cpu->psw; /* PSW */
+    if (addr == 0x81) return cpu->sp;  /* SP */
+    if (addr == 0x82) return cpu->dph; /* DPH */
+    if (addr == 0x83) return cpu->dpl; /* DPL */
+    if (addr == 0xE0) return cpu->a;   /* ACC */
     return 0;
 }
 
 static void i8051_write_ram(i8051_t *cpu, uint8_t addr, uint8_t v)
 {
-    if (addr < I8051_RAM_SIZE) cpu->ram[addr] = v;
+    if (addr < I8051_RAM_SIZE) { cpu->ram[addr] = v; return; }
+    /* SFR accesses */
+    if (addr == 0xF0) { cpu->b = v; return; }  /* B register */
+    if (addr == 0xD0) { cpu->psw = v; return; } /* PSW */
+    if (addr == 0x81) { cpu->sp = v; return; }  /* SP */
+    if (addr == 0x82) { cpu->dph = v; return; } /* DPH */
+    if (addr == 0x83) { cpu->dpl = v; return; } /* DPL */
+    if (addr == 0xE0) { cpu->a = v; return; }   /* ACC */
 }
 
 /* compute parity of a byte (even parity: 1 if odd number of 1-bits) */
@@ -123,14 +137,14 @@ int64_t wubu_8051_interp_exec(const uint8_t *code, size_t size, int64_t arg) {
         /* ---- MOV A,direct (0xE5) ---- */
         case 0xE5: {
             uint8_t addr = code[cpu.pc++];
-            cpu.a = (addr < I8051_RAM_SIZE) ? cpu.ram[addr] : 0;
+            cpu.a = i8051_read_ram(&cpu, addr);
             break;
         }
 
         /* ---- MOV direct,A (0xF5) ---- */
         case 0xF5: {
             uint8_t addr = code[cpu.pc++];
-            if (addr < I8051_RAM_SIZE) cpu.ram[addr] = cpu.a;
+            i8051_write_ram(&cpu, addr, cpu.a);
             break;
         }
 
