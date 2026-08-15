@@ -57,8 +57,14 @@ static void e32(mips_emitter_t *e, uint32_t w) {
 #define MIPS_OP_JAL    0x03
 #define MIPS_OP_JR     0x08  /* SPECIAL */
 
-/* rs, rt, rd, sa, funct */
-#define R_TYPE(rs,rd,sa,funct) ((MIPS_OP_SPECIAL<<26) | ((rs)<<21) | ((rd)<<16) | ((sa)<<11) | (funct))
+/* rs, rt, rd, shamt, funct */
+#define R_TYPE(rs,rt,rd,shamt,funct) ((MIPS_OP_SPECIAL<<26) | ((rs)<<21) | ((rt)<<16) | ((rd)<<11) | ((shamt)<<6) | (funct))
+/* MIPS load/store (I-type) */
+#define MIPS_LW(rs,rt,imm)  ((0x23<<26) | ((rs)<<21) | ((rt)<<16) | ((uint16_t)(imm)))
+#define MIPS_SW(rs,rt,imm)  ((0x2B<<26) | ((rs)<<21) | ((rt)<<16) | ((uint16_t)(imm)))
+/* MIPS mult / mflo (R-type) */
+#define MIPS_MULT(rs,rt)    ((0<<26) | ((rs)<<21) | ((rt)<<16) | 0x18)
+#define MIPS_MFLO(rd)       ((0<<26) | (0<<21) | (0<<16) | ((rd)<<11) | 0x12)
 #define I_TYPE(op,rs,rt,imm)   (((op)<<26) | ((rs)<<21) | ((rt)<<16) | ((uint16_t)(imm)))
 
 /* MIPS ALU ops (SPECIAL, funct field) */
@@ -84,28 +90,28 @@ static void e32(mips_emitter_t *e, uint32_t w) {
 #define MIPS_REG_RA  31  /* $ra = return address */
 
 static uint32_t mips_add(uint32_t rs, uint32_t rt, uint32_t rd) {
-    return R_TYPE(rs, rd, 0, MF_ADD);
+    return R_TYPE(rs, rt, rd, 0, MF_ADD);
 }
 static uint32_t mips_sub(uint32_t rs, uint32_t rt, uint32_t rd) {
-    return R_TYPE(rs, rd, 0, MF_SUB);
+    return R_TYPE(rs, rt, rd, 0, MF_SUB);
 }
 static uint32_t mips_and(uint32_t rs, uint32_t rt, uint32_t rd) {
-    return R_TYPE(rs, rd, 0, MF_AND);
+    return R_TYPE(rs, rt, rd, 0, MF_AND);
 }
 static uint32_t mips_or(uint32_t rs, uint32_t rt, uint32_t rd) {
-    return R_TYPE(rs, rd, 0, MF_OR);
+    return R_TYPE(rs, rt, rd, 0, MF_OR);
 }
 static uint32_t mips_xor(uint32_t rs, uint32_t rt, uint32_t rd) {
-    return R_TYPE(rs, rd, 0, MF_XOR);
+    return R_TYPE(rs, rt, rd, 0, MF_XOR);
 }
 static uint32_t mips_slt(uint32_t rs, uint32_t rt, uint32_t rd) {
-    return R_TYPE(rs, rd, 0, MF_SLT);
+    return R_TYPE(rs, rt, rd, 0, MF_SLT);
 }
 static uint32_t mips_sll(uint32_t rt, uint32_t rd, uint32_t sa) {
-    return R_TYPE(0, rd, sa, MF_SLL);
+    return R_TYPE(0, rt, rd, sa, MF_SLL);
 }
 static uint32_t mips_srl(uint32_t rt, uint32_t rd, uint32_t sa) {
-    return R_TYPE(0, rd, sa, MF_SRL);
+    return R_TYPE(0, rt, rd, sa, MF_SRL);
 }
 static uint32_t mips_addui(uint32_t rs, uint32_t rt, int16_t imm) {
     return I_TYPE(MIPS_OP_ADDIU, rs, rt, (uint16_t)imm);
@@ -123,7 +129,7 @@ static uint32_t mips_j(uint32_t target) {
     return (MIPS_OP_J << 26) | ((target >> 2) & 0x03FFFFFF);
 }
 static uint32_t mips_jr(uint32_t rs) {
-    return R_TYPE(rs, 0, 0, MIPS_OP_JR);
+    return R_TYPE(rs, 0, 0, 0, 0x08);
 }
 
 static int32_t slot_off(wubu_vr_t vr) {
@@ -184,7 +190,7 @@ static int mips_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_siz
     /* addiu $sp, $sp, -frame */
     e32(&e, mips_addui(29, 29, (int16_t)(-e.frame)));  /* $sp = $sp - frame */
     /* sw $ra, frame-4($sp) */
-    e32(&e, 0xAC3DE000 | ((e.frame-4) & 0xFFFF));  /* simplified */
+    e32(&e, MIPS_SW(29, 31, (uint16_t)(e.frame - 4)));
 
     for (size_t i = 0; i < p->n; i++) {
         const wubu_mir_instr_t *in = &p->ins[i];
@@ -197,68 +203,68 @@ static int mips_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_siz
             e32(&e, mips_lui(MIPS_REG_T0, (uint16_t)(imm >> 16)));
             e32(&e, mips_ori(MIPS_REG_T0, MIPS_REG_T0, (uint16_t)(imm & 0xFFFF)));
             /* sw $t0, slot_off(dst)($sp) */
-            e32(&e, 0xFD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         }
         case MIR_MOV: {
             /* lw $t0, slot(a)($sp); sw $t0, slot(dst)($sp) */
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         }
         case MIR_ADD:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             e32(&e, mips_add(MIPS_REG_T0, MIPS_REG_T1, MIPS_REG_T0));
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_SUB:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             e32(&e, mips_sub(MIPS_REG_T0, MIPS_REG_T1, MIPS_REG_T0));
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_MUL: {
             /* MIPS mul: mult $t0,$t1; mflo $t0 */
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
-            e32(&e, 0x01090018);  /* mult $t0,$t1 */
-            e32(&e, 0x00008012);  /* mflo $t0 */
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
+            e32(&e, MIPS_MULT(MIPS_REG_T0, MIPS_REG_T1));
+            e32(&e, MIPS_MFLO(MIPS_REG_T0));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         }
         case MIR_AND:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             e32(&e, mips_and(MIPS_REG_T0, MIPS_REG_T1, MIPS_REG_T0));
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_OR:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             e32(&e, mips_or(MIPS_REG_T0, MIPS_REG_T1, MIPS_REG_T0));
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_XOR:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             e32(&e, mips_xor(MIPS_REG_T0, MIPS_REG_T1, MIPS_REG_T0));
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_NEG:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
             e32(&e, mips_sub(0, MIPS_REG_T0, MIPS_REG_T0));  /* subu $t0,$zero,$t0 */
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_SHL:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             e32(&e, mips_sll(MIPS_REG_T1, MIPS_REG_T0, 0));  /* simplified: sllv */
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         case MIR_EQ: case MIR_NE: case MIR_LT: case MIR_LE: case MIR_GT: case MIR_GE: {
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
-            e32(&e, 0x8D200000 | (MIPS_REG_T1 << 21) | ((uint16_t)slot_off(in->b) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
+            e32(&e, MIPS_LW(29, MIPS_REG_T1, (uint16_t)slot_off(in->b)));
             uint32_t set1 = internal_label(&e);
             uint32_t done = internal_label(&e);
             switch (in->op) {
@@ -279,7 +285,7 @@ static int mips_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_siz
             note_label(&e, set1, e.n / 4);
             e32(&e, mips_ori(MIPS_REG_T0, 0, 1));
             note_label(&e, done, e.n / 4);
-            e32(&e, 0xAD000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->dst) & 0xFFFF));
+            e32(&e, MIPS_SW(29, MIPS_REG_T0, (uint16_t)slot_off(in->dst)));
             break;
         }
         case MIR_JMP:
@@ -287,15 +293,16 @@ static int mips_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_siz
             patch_push(&patches, &np, &cp, e.n - 4, in->label);
             break;
         case MIR_JZ:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
             e32(&e, mips_beq(MIPS_REG_T0, 0, 0));  /* beq $t0,$zero -> label */
             patch_push(&patches, &np, &cp, e.n - 4, in->label);
             break;
         case MIR_RET:
-            e32(&e, 0x8D000000 | (MIPS_REG_T0 << 21) | ((uint16_t)slot_off(in->a) & 0xFFFF));
+            e32(&e, MIPS_LW(29, MIPS_REG_T0, (uint16_t)slot_off(in->a)));
             /* move $v0, $t0 */
-            e32(&e, R_TYPE(MIPS_REG_T0, MIPS_REG_V0, 0, MF_ADD));  /* addu $v0,$t0,$zero */
+            e32(&e, R_TYPE(MIPS_REG_T0, 0, MIPS_REG_V0, 0, MF_ADD));  /* addu $v0,$t0,$zero */
             /* lw $ra, frame-4($sp) */
+            e32(&e, MIPS_LW(29, 31, (uint16_t)(e.frame - 4)));
             /* addiu $sp, $sp, frame */
             e32(&e, mips_addui(29, 29, (int16_t)e.frame));
             e32(&e, mips_jr(MIPS_REG_RA));
