@@ -47,6 +47,7 @@ shrinking to fit any hardware.
 The operating system. ZealOS kernel (memory, tasking, VBE, FAT32, AHCI, interrupt),
 Win98/XP GUI shell, Styx/9P namespace, 20+ hardware drivers, VSL multi-OS syscall
 dispatch, container runtime, measured-boot UEFI firmware. 414 test targets.
+Native JIT engine (`src/jit/`) with 4 backends: x86-64, ARM64, RISC-V, WASM.
 
 **Key insight:** WuBuOS boots WuBuOS. Third-party software runs ON the AGI kernel
 via exec backends (PE/Mach-O/ELF), wine/proton compat layers, and arch/debian
@@ -106,8 +107,8 @@ WuBu is an **amoeba** — a single living system that grows and shrinks to fit:
      │   BOOT CORE     │  │  BODY SPHERES   │  │ MEMORY ORBITS  │
      │                 │  │                 │  │                │
      │ wubuos kernel   │  │ Hyperbolic      │  │ KV cache       │
-     │ WuBuNOS compiler│  │ spheres:        │  │ Encoder space  │
-     │ HolyC JIT       │  │ · Inference     │  │ Training data  │
+     │ Native JIT      │  │ spheres:        │  │ Encoder space  │
+     │ WuBuNOS compiler│  │ · Inference     │  │ Training data  │
      │                 │  │ · Training      │  │ User files     │
      │                 │  │ · Encoding      │  │ Research docs  │
      │                 │  │ · RL            │  │ Theory papers  │
@@ -132,7 +133,7 @@ a single sphere. On a server, it grows to fill all available resources.
 | C files | 2,463 | 1,167 | 33 | 3,663 |
 | H files | 1,006 | 420 | 16 | 1,442 |
 | CUDA kernels | 0 | 37 | 0 | 37 |
-| Total LOC | 472,955 | 218,100 | 14,115 | 705,170 |
+| Total LOC | 472,955 | 218,985 | 14,115 | 705,055 |
 | Test targets | 414 | ~150 | 1 | 565+ |
 | Research docs | 60 | 93 | 0 | 153 |
 | Theory papers | 0 | 50 | 0 | 50 |

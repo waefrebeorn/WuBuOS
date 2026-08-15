@@ -60,9 +60,10 @@
 ## PART 2 — PARITY EPICS (marathons)
 
 ### EPIC E1 — ReactOS NT Emulation (297 syscalls)
-- **Status:** 148+ transliterated (batch 1-11 + blitz), ~149 remain.
-- VSL NT dispatch via `g_nt_dispatch[]` table in `vsl_nt_*.c` modules.
-- Each remaining syscall = "rewrite from scratch in C" work item.
+- **Status:** 20+ NT syscall module files (`vsl_nt_*.c`), 29 dispatch registrations,
+  ~610 handler functions (many are stubs). Honest count of fully-implemented
+  syscalls is difficult — the dispatch table has 29 entries, the bridge header
+  defines many more ordinal slots. This is a marathon, not a sprint.
 
 ### EPIC E2 — SteamOS Parity (~30 subsystems)
 | Subsystem | Status |

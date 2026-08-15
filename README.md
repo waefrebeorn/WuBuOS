@@ -26,7 +26,7 @@ WuBuOS is the operating system layer. It provides:
 - **Win98/XP shell** — window manager, desktop, startmenu, explorer, terminal (DOS-box windows)
 - **Styx/9P namespace** — a real filesystem namespace backed by `.wubu` containers (9P2000)
 - **Hardware drivers** — 20+ GPU, NVMe, network, HDA, battery, SD, USB, thermal (Steam Deck + laptop IDs)
-- **VSL (Virtual Syscall Layer)** — multi-OS dispatch: Linux, Windows NT (ReactOS), macOS
+- **VSL (Virtual Syscall Layer)** — multi-OS dispatch: Linux (148 syscalls), Windows NT (29 dispatch entries), macOS (84 BSD + 13 Mach)
 - **Container runtime** — Arch Linux containers via bwrap, Proton/Wine for Windows games
 - **Measured boot** — WuBuFW UEFI firmware (no EDK2), TPM PCR4 attestation, chainloader
 - **DOS compatibility** — in-process 8086 interpreter + INT 21h/10h/16h (22/22 tests)
@@ -75,8 +75,8 @@ Full spine: [docs/BOOT_CHAIN.md](docs/BOOT_CHAIN.md).
 src/
   kernel/    memory, tasking, VBE, FAT32, AHCI, interrupt, PS/2, recovery, AGI organs
   firmware/  WuBuFW: UEFI from scratch, TPM, secureboot, the chainloader (wubufw.fd)
-  compiler/  HolyC lexer, parser, codegen, PTX backend
-  jit/       WuBuNOS JIT: x86-64, ARM64, RISC-V 64, WASM backends, regalloc, minic
+  compiler/  WuBuNOS (submodule): HolyC lexer, parser, codegen, 11 ISA backends
+  jit/       Native JIT: x86-64, ARM64, RISC-V, WASM backends, regalloc, minic
   audio/     DAW, Furnace (30+ chips), TinySoundFont, AI plugins
   hosted/    DRM/KMS, Vulkan, X11, WSL2, macOS AVF
   runtime/   Styx/9P, VSL, containers, Arch, network, DOS emulator, syscall manifest
@@ -119,7 +119,8 @@ vault/                archives (accomplishments, phases, planning)
 | Test targets | 414 (`make test` — critical/high/medium tiers) |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 |
-| WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V 64, WASM, PTX, …) |
+| WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V, MIPS, 68k, AVR, 8051, 8086, Z80, 6502, PTX) |
+| Native JIT backends | 4 targets (x86-64, ARM64, RISC-V, WASM) in src/jit/ |
 | WuBu compliance | `_GNU_SOURCE` eliminated — replaced with `WUBU_HOSTED` + `wubu_gnu_compat.h` |
 
 **Honest — not "all done"**: the remaining VSL syscalls, the bare-metal

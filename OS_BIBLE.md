@@ -157,8 +157,12 @@ The compiler (`src/compiler/`) is WuBuOS's from-scratch C11 toolchain. Brand nam
 | AVR | Interpreter | ✅ |
 | PTX (NVIDIA) | Native JIT | ✅ |
 
-### Optimizer (7 passes)
-- Constant folding, strength reduction, DCE, LICM, loop unroll, combine, CSE
+### Optimizer (5 MIR passes)
+1. **FOLD** — constant folding (compile-time eval of binops on constants)
+2. **STRENGTH** — strength reduction (mul/div → shift, *1/+0/-0/*0 elim)
+3. **DCE** — dead code elimination (remove unused result vrs)
+4. **LICM** — loop-invariant code motion (hoist pure computations)
+5. **UNROLL** — loop unrolling (small constant trip counts)
 - Linear-scan SSA register allocator
 - x86 peephole post-codegen pass
 
@@ -226,9 +230,9 @@ Multi-OS syscall dispatch from a single entry point:
 
 | Personality | Syscalls | Status |
 |-------------|----------|--------|
-| Linux x86-64 ABI | ~50+ handlers | ✅ |
-| Windows NT (ReactOS) | 148/297 transliterated | partial |
-| macOS XNU | 52 BSD + 13 Mach + IPC | partial |
+| Linux x86-64 ABI | 148 handlers in vsl_syscall_table | ✅ |
+| Windows NT (ReactOS) | 20+ module files, 29 dispatch registrations, ~610 handler functions (many stubs) | partial |
+| macOS XNU | 84 BSD + 13 Mach + IPC | partial |
 
 ---
 
