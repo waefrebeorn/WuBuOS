@@ -350,15 +350,50 @@ static void unroll_pass(wubu_mir_prog_t *p)
     (void)p;
 }
 
-/* ---- Pass 6: Instruction Combining (placeholder) ----
- * Future: merge chains of binary operations, algebraic identities.
- * For now, this is a no-op — the fold pass handles constant folding
- * and the strength pass handles algebraic simplifications.
+/* ---- Pass 6: Instruction Combining ----
+ * Algebraic identities for SSA-form MIR:
+ *   x - x = 0,  x ^ x = 0   (self-sub/xor → zero)
+ *   x & x = x,  x | x = x   (self-and/or → identity)
+ *   x + x = x * 2           (self-add → double, strength handles)
+ * These are safe: when both operands are the same vr, the result
+ * depends only on that vr's value, so we can replace the instruction.
  */
 static void combine_pass(wubu_mir_prog_t *p)
 {
-    (void)p;
-    /* TODO: implement instruction combining for SSA-form MIR */
+    for (size_t i = 0; i < p->n; i++) {
+        wubu_mir_instr_t *in = &p->ins[i];
+        if (in->op == MIR_LABEL) continue;
+        if (in->a != in->b) continue; /* only when both operands are same vr */
+
+        switch (in->op) {
+        case MIR_SUB:
+        case MIR_XOR:
+            /* x - x = 0, x ^ x = 0 */
+            in->op = MIR_CONST;
+            in->imm = 0;
+            in->a = 0;
+            in->b = 0;
+            break;
+        case MIR_AND:
+        case MIR_OR:
+            /* x & x = x, x | x = x → MOV dst = a */
+            in->op = MIR_MOV;
+            in->a = in->a;
+            in->b = 0;
+            break;
+        case MIR_ADD:
+            /* x + x = x * 2 — would need new CONST, skip for now */
+            break;
+        case MIR_MUL:
+            /* x * x = x^2 — no simple reduction */
+            break;
+        case MIR_DIV:
+            /* x / x = 1 (if x != 0) — unsafe for x=0, skip */
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 /* ---- Main optimizer entry point ---- */
