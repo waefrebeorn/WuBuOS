@@ -140,14 +140,9 @@ static int arm64_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
         } \
     } while(0)
 
-    #define NEXT_IS_RET(vr) (i + 1 < p->n && p->ins[i+1].op == MIR_RET && p->ins[i+1].a == (wubu_vr_t)(vr))
-
-    int result_in_x0 = 0;  /* set when last op skipped store to keep result in X0 */
-
     for (size_t i = 0; i < p->n; i++) {
         const wubu_mir_instr_t *in = &p->ins[i];
-        if (in->op == MIR_LABEL) { note_label(&e, in->label, e.enc.pos); result_in_x0 = 0; continue; }
-        if (in->op != MIR_RET) result_in_x0 = 0;
+        if (in->op == MIR_LABEL) { note_label(&e, in->label, e.enc.pos); continue; }
 
         switch (in->op) {
         case MIR_CONST: {
@@ -165,62 +160,53 @@ static int arm64_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
                 warm64_movz_imm(&e.enc, WREG_X0, hw2, 2, 1);
                 warm64_movz_imm(&e.enc, WREG_X0, hw3, 3, 1);
             }
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0=0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         }
         case MIR_MOV:
             LOAD_VR(in->a, WREG_X0);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0=0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_ADD:
             LOAD_VR(in->a, WREG_X9);
             LOAD_VR(in->b, WREG_X10);
             warm64_add_reg(&e.enc, WREG_X0, WREG_X9, WREG_X10, 1);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0 = 0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_SUB:
             LOAD_VR(in->a, WREG_X9);
             LOAD_VR(in->b, WREG_X10);
             warm64_sub_reg(&e.enc, WREG_X0, WREG_X9, WREG_X10, 1);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0 = 0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_MUL:
             LOAD_VR(in->a, WREG_X9);
             LOAD_VR(in->b, WREG_X10);
             warm64_mul_reg(&e.enc, WREG_X0, WREG_X9, WREG_X10);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0 = 0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_AND:
             LOAD_VR(in->a, WREG_X9);
             LOAD_VR(in->b, WREG_X10);
             warm64_and_reg(&e.enc, WREG_X0, WREG_X9, WREG_X10, 1);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0 = 0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_OR:
             LOAD_VR(in->a, WREG_X9);
             LOAD_VR(in->b, WREG_X10);
             warm64_orr_reg(&e.enc, WREG_X0, WREG_X9, WREG_X10, 1);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0 = 0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_XOR:
             LOAD_VR(in->a, WREG_X9);
             LOAD_VR(in->b, WREG_X10);
             warm64_eor_reg(&e.enc, WREG_X0, WREG_X9, WREG_X10, 1);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0 = 0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_NEG:
             LOAD_VR(in->a, WREG_X9);
             warm64_sub_reg(&e.enc, WREG_X0, WREG_XZR, WREG_X9, 1);
-            if (NEXT_IS_RET(in->dst)) { result_in_x0 = 1; }
-            else { STORE_VR(WREG_X0, in->dst); result_in_x0=0; }
+            STORE_VR(WREG_X0, in->dst);
             break;
         case MIR_DIV:
             LOAD_VR(in->a, WREG_X9);
@@ -295,11 +281,7 @@ static int arm64_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_si
             break;
         }
         case MIR_RET:
-            /* If result already in X0 (lookahead skip), don't reload */
-            if (!result_in_x0) {
-                LOAD_VR(in->a, WREG_X0);
-            }
-            result_in_x0 = 0;
+            LOAD_VR(in->a, WREG_X0);
             warm64_mov_reg(&e.enc, WREG_SP, WREG_X29);
             warm64_ldp_post(&e.enc, WREG_X29, WREG_X30, WREG_SP, 2);
             warm64_ret(&e.enc, WREG_X30);
