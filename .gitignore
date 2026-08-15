@@ -7,6 +7,13 @@
 *.bin
 *.iso
 *.img
+*.elf
+*.fd
+*.raw
+*.log
+*.ppm
+*.png
+*.mp4
 
 # Test binaries
 src/*/test_*
@@ -19,6 +26,9 @@ src/**/*_test
 src/*/jit_stub
 src/*/vbe_sketch
 src/*/sketch.*
+tools/*/test_*
+tools/*/*_test
+tools/peephole_superopt/peephole_superopt
 
 # Generated data
 data/

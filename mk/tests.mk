@@ -194,7 +194,7 @@ test_jit_remat:
 # Souper-style peephole superoptimizer: enumerate shortest instruction sequences
 # for known idioms (x*3=lea, x*8=8 adds, sign-bit, idempotence). Discovery gate.
 test_peephole_superopt:
-	bash tools/peephole_superopt_battery.sh
+	bash tools/peephole_superopt/peephole_superopt_battery.sh
 
 # #25 JIT performance differential harness: compiles the same battery with and
 # without the machine-code optimizations, asserts results agree, and reports
@@ -241,7 +241,7 @@ test_holyc: $(JIT_OBJS)
 # source of truth for compiler completeness. Battery count grows as we
 # close gaps (currently 91 probes: arithmetic through sizeof + switch).
 test_battery: $(JIT_OBJS)
-	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyc_runtime.c tools/selfhost_battery.c -o $(COMP)/selfhost_battery -ldl
+	$(CC) -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/holyc_codegen.c $(COMP)/holyc_codegen_emit.c $(COMP)/holyc_codegen_expr.c $(COMP)/holyc_codegen_stmt.c $(COMP)/holyc_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyc_runtime.c tools/isa-test/selfhost_battery.c -o $(COMP)/selfhost_battery -ldl
 	$(COMP)/selfhost_battery
 
 # Tailslayer DRAM-refresh hedge gate: proves the software-prefetch
@@ -258,7 +258,7 @@ test_hedge: $(JIT_OBJS)
 # divergence is a FINDING. Every m68k encoding is oracle-verified against
 # GNU binutils via tools/verify_isa.sh.
 test_drivers: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(RT)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(RT)/wubu_avr_interp.c $(COMP)/wubu_isa_ptx.c tools/mir_driver_test.c -o $(COMP)/mir_driver_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/holyc_lexer.c $(COMP)/holyc_parse.c $(COMP)/holyc_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(RT)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(RT)/wubu_avr_interp.c $(COMP)/wubu_isa_ptx.c tools/isa-test/mir_driver_test.c -o $(COMP)/mir_driver_test
 	$(COMP)/mir_driver_test
 
 test_isa_driver: $(JIT_OBJS)
@@ -267,17 +267,17 @@ test_isa_driver: $(JIT_OBJS)
 
 # MIR optimizer test: constant folding, strength reduction, DCE
 test_mir_opt: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(RT)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(RT)/wubu_avr_interp.c $(COMP)/wubu_isa_ptx.c tools/test_mir_opt.c -o $(COMP)/test_mir_opt
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(RT)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(RT)/wubu_avr_interp.c $(COMP)/wubu_isa_ptx.c tools/isa-test/test_mir_opt.c -o $(COMP)/test_mir_opt
 	$(COMP)/test_mir_opt
 
 # MIR register allocator test
 test_mir_regalloc: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_regalloc.c tools/test_mir_regalloc.c -o $(COMP)/test_mir_regalloc
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_regalloc.c tools/isa-test/test_mir_regalloc.c -o $(COMP)/test_mir_regalloc
 	$(COMP)/test_mir_regalloc
 
 # Cleveland Browns album end-to-end: optimizer + all 6 ISA drivers
 test_album: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(RT)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(RT)/wubu_avr_interp.c $(COMP)/wubu_isa_ptx.c tools/cleveland_browns_album_test.c -o $(COMP)/cleveland_browns_album_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(RT)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(RT)/wubu_avr_interp.c $(COMP)/wubu_isa_ptx.c tools/isa-test/cleveland_browns_album_test.c -o $(COMP)/cleveland_browns_album_test
 	$(COMP)/cleveland_browns_album_test
 
 holyc: $(JIT_OBJS)
@@ -304,7 +304,7 @@ test_dos_emu_smoke: $(RT)/wubu_dos_emu.o
 # DA-3: verifier + self-improvement loop integration test
 test_bytropix_verifier:
 	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_bytropix_verifier \
-		tools/test_bytropix_verifier.c \
+		tools/isa-test/test_bytropix_verifier.c \
 		$(RT)/wubu_selfimprove.c \
 		$(RT)/wubu_verifier_bytropix.c \
 		$(RT)/wubu_trace.c -lm -lpthread
@@ -315,7 +315,7 @@ test_bytropix_verifier:
 # independent verifier proxy (no bytropix GPU binary required).
 recursive_learn:
 	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/recursive_learn \
-		tools/recursive_learn.c \
+		tools/research/recursive_learn.c \
 		$(RT)/wubu_selfimprove.c \
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/recursive_learn
@@ -326,7 +326,7 @@ recursive_learn:
 # timeout + return-code guarded. Persists frontier to optimizer_state.json.
 recursive_optimize:
 	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/recursive_optimize \
-		tools/recursive_optimize.c \
+		tools/research/recursive_optimize.c \
 		$(RT)/wubu_selfimprove.c \
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/recursive_optimize
@@ -337,7 +337,7 @@ recursive_optimize:
 # safety loop: enumerate -> fuzz -> verify -> fill.
 gap_audit:
 	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/gap_audit \
-		tools/gap_audit.c \
+		tools/isa-test/gap_audit.c \
 		$(RT)/styx_serve.c $(RT)/styx_fid.c $(RT)/styx_names.c \
 		$(RT)/styx_enc.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/gap_audit
@@ -758,8 +758,8 @@ test_dram_hedge: src/kernel/wubu_dram_hedge.c src/kernel/wubu_dram_hedge.h
 	./build/test_dram_hedge
 
 # DRAM-refresh hedge benchmark: cold unhedged reads vs hedged reader pool.
-bench_dram_hedge: src/kernel/wubu_dram_hedge.c tools/bench_dram_hedge.c
-	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c tools/bench_dram_hedge.c -o build/bench_dram_hedge -lm -lpthread
+bench_dram_hedge: src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c
+	$(CC) -O2 -Isrc/kernel src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c -o build/bench_dram_hedge -lm -lpthread
 	./build/bench_dram_hedge
 
 test_dosgui_wm: $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/dosgui_window_chrome.o
