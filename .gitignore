@@ -11,6 +11,9 @@
 # Test binaries
 src/*/test_*
 !src/runtime/test_archd_n1.c
+!src/gui/test_synth.c
+!src/gui/test_wubu_sound.c
+!src/gui/test_dosgui_cp_sound.c
 src/*/*_test
 src/**/*_test
 src/*/jit_stub

@@ -101,7 +101,7 @@ int main(void) {
 
     /* B.cond EQ, #0 = 0x54000000 */
     warm64_enc_init(&enc, buf, sizeof(buf));
-    warm64_b_cond(&enc, 0, WCC_EQ);
+    warm64_b_cond(&enc, 0, W64CC_EQ);
     CHECK(buf[0]==0x00 && buf[1]==0x00 && buf[2]==0x00 && buf[3]==0x54,
           "b.eq .: correct encoding");
 
