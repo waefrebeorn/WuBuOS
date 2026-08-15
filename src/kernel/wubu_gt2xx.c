@@ -21,7 +21,7 @@ static int g_gt2xx_nouveau = 0;
 
 void wubu_gt2xx_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gt2xx_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_gt2xx_nouveau = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_gt2xx_probe(void)
 
 int wubu_gt2xx_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gt2xx_present;
 #else
     return 0;

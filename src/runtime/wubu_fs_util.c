@@ -15,7 +15,8 @@
  * FTW_F/D/DNR/NS) — this is a legitimate GNU-API use, kept localized
  * (the GNU-free doctrine allows it where the kernel/libc API demands
  * it, like CPU affinity). */
-#define _GNU_SOURCE
+#define WUBU_HOSTED
+#include "wubu_gnu_compat.h"
 #include "wubu_fs_util.h"
 
 #include <stdio.h>
@@ -23,6 +24,7 @@
 #include <string.h>
 #include <errno.h>
 #include <ftw.h>
+#include "wubu_ftw.h"
 #include <sys/stat.h>
 #include <sys/types.h>
 

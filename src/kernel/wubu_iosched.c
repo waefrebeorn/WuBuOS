@@ -41,7 +41,7 @@ void wubu_iosched_probe(void)
     g_sched = 0; g_mq = 0; g_deadline = 0; g_kyber = 0; g_bfq = 0; g_none = 0;
     g_iosched_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/block", R_OK) == 0) {
         g_sched = 1; g_mq = 1;
         strcpy(g_iosched_drv, "mq");

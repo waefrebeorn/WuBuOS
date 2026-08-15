@@ -37,7 +37,7 @@ void wubu_pcmplugin_probe(void)
     g_plug = 0; g_rate = 0; g_vol = 0; g_copy = 0; g_plugtype = 0;
     g_pcm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_pcm", R_OK) == 0) {
         g_plug = 1; g_rate = 1; g_vol = 1; g_copy = 1; g_plugtype = 1;

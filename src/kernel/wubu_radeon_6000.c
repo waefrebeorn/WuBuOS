@@ -20,7 +20,7 @@ static int g_radeon_6000_legacy = 0;
 
 void wubu_radeon_6000_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_radeon_6000_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_radeon_6000_legacy = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_radeon_6000_probe(void)
 
 int wubu_radeon_6000_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_radeon_6000_present;
 #else
     return 0;

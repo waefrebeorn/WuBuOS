@@ -44,7 +44,7 @@ void wubu_cmb_probe(void)
     g_cmb = 0; g_nvme = 0; g_qmem = 0; g_pmicm = 0; g_squeue = 0;
     g_cmb_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* NVMe device present? */
     if (access("/sys/class/nvme", R_OK) == 0) {
         g_nvme = 1;

@@ -42,7 +42,7 @@ void wubu_virt_probe(void)
     g_pv_driver[0] = '\0';
     g_hv_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Hypervisor bit + vendor via CPUID. WuBuOS has a cpuid wrapper, but
      * for the hosted selftest read the hypervisor from /sys/hypervisor or
      * dmesg-visible hints, falling back to CPUID via __builtin_cpu. */

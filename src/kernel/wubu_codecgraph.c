@@ -42,7 +42,7 @@ void wubu_codecgraph_probe(void)
     g_codec = 0; g_graph = 0; g_amp = 0; g_widgets = 0; g_dapm = 0;
     g_cg_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* codec present (snd_hda_intel)? */
     if (access("/sys/module/snd_hda_intel", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {

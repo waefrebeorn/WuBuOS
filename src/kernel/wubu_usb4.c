@@ -43,7 +43,7 @@ void wubu_usb4_probe(void)
     g_tb = 0; g_usb4 = 0; g_bolt = 0; g_secure = 0; g_domains = 0;
     g_tb_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Thunderbolt bus present? */
     if (access("/sys/bus/thunderbolt/devices", R_OK) == 0 ||
         access("/sys/bus/thunderbolt", R_OK) == 0) {

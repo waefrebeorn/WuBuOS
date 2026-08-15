@@ -37,7 +37,7 @@ void wubu_encode_probe(void)
     g_enc = 0; g_h264 = 0; g_h265 = 0; g_vp9 = 0; g_av1 = 0;
     g_enc_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_enc = 1; g_h264 = 1; g_h265 = 1;
         strcpy(g_enc_drv, "amd-vcn");

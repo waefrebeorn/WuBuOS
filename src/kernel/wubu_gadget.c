@@ -46,7 +46,7 @@ void wubu_gadget_probe(void)
     g_udc = 0; g_configfs = 0; g_gadget = 0; g_nvme = 0; g_smart = 0;
     g_gadget_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* USB device controller (UDC)? */
     if (access("/sys/class/udc", R_OK) == 0 &&
         access("/sys/module/dwc3", R_OK) == 0) {

@@ -44,7 +44,7 @@ void wubu_touch_probe(void)
     g_touch = 0; g_elan = 0; g_synaptics = 0; g_multitouch = 0; g_wacom = 0;
     g_touch_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Elan trackpad/touchscreen present? */
     if (access("/sys/bus/i2c/drivers/elan_i2c", R_OK) == 0) {
         g_elan = 1; g_touch = 1;

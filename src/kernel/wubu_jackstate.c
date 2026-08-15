@@ -36,7 +36,7 @@ void wubu_jackstate_probe(void)
     g_js = 0; g_plug = 0; g_unplug = 0; g_debounce = 0; g_stable = 0;
     g_js_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/switch", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {
         g_js = 1; g_plug = 1; g_unplug = 1; g_debounce = 1; g_stable = 1;

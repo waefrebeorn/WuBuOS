@@ -21,7 +21,7 @@ static int g_bta2dp_codec = 0;
 void wubu_bta2dp_probe(void)
 {
     /* Detect BT A2DP adapter + codec. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_bta2dp_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_bta2dp_codec = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_bta2dp_probe(void)
 
 int wubu_bta2dp_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_bta2dp_present;
 #else
     return 0;

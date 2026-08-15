@@ -45,7 +45,7 @@ void wubu_ptp_probe(void)
     g_ptp = 0; g_tsn = 0; g_haptic = 0; g_phc_clocks = 0;
     g_ptp_drv[0] = '\0'; g_haptic_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PTP hardware clocks (/dev/ptpN)? */
     for (int i = 0; i < 8; i++) {
         char p[64];

@@ -36,7 +36,7 @@ void wubu_spdifstatus_probe(void)
     g_sp = 0; g_lock = 0; g_valid = 0; g_aes = 0; g_rate = 0;
     g_sp_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_pcm", R_OK) == 0) {
         g_sp = 1; g_lock = 1; g_valid = 1; g_aes = 1; g_rate = 1;

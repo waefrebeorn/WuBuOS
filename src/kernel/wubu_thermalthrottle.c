@@ -37,7 +37,7 @@ void wubu_thermalthrottle_probe(void)
     g_throttle = 0; g_zone = 0; g_cooling = 0; g_trip = 0; g_governor = 0;
     g_throttle_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/thermal/thermal_zone0", R_OK) == 0 ||
         access("/sys/class/thermal", R_OK) == 0) {
         g_throttle = 1; g_zone = 1; g_cooling = 1; g_trip = 1; g_governor = 1;

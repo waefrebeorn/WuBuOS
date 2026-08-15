@@ -36,7 +36,7 @@ void wubu_dappath_probe(void)
     g_path = 0; g_pb = 0; g_cap = 0; g_mux = 0; g_mix = 0;
     g_path_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_soc", R_OK) == 0) {
         g_path = 1; g_pb = 1; g_cap = 1; g_mux = 1; g_mix = 1;

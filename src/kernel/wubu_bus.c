@@ -58,7 +58,7 @@ void wubu_bus_probe(void)
     g_i2c = 0; g_spi = 0; g_i2c_controllers = 0; g_spi_controllers = 0;
     g_i2c_drv[0] = '\0'; g_spi_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* I2C controllers (i2c-N buses) present? */
     if (access("/sys/bus/i2c/devices", R_OK) == 0) {
         g_i2c = 1;

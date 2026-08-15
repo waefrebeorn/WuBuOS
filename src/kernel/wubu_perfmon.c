@@ -37,7 +37,7 @@ void wubu_perfmon_probe(void)
     g_pm = 0; g_event = 0; g_cycles = 0; g_cache = 0; g_occupancy = 0;
     g_pm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_pm = 1; g_event = 1; g_cycles = 1; g_cache = 1; g_occupancy = 1;
         strcpy(g_pm_drv, "gpuprofapi");

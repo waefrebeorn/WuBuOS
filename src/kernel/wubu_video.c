@@ -48,7 +48,7 @@ void wubu_video_probe(void)
     g_av1 = 0; g_hevc = 0; g_vp9 = 0;
     g_video_drv[0] = '\0'; g_video_engine[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* VA-API drivers present? */
     if (access("/usr/lib/x86_64-linux-gnu/dri/iHD_drv_video.so", R_OK) == 0 ||
         access("/usr/lib/x86_64-linux-gnu/dri/i965_drv_video.so", R_OK) == 0 ||

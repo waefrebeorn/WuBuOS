@@ -41,7 +41,7 @@ void wubu_aec_probe(void)
     g_aec = 0; g_ns = 0; g_webrtc = 0; g_pw = 0; g_pa = 0;
     g_aec_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PipeWire? */
     if (access("/usr/share/pipewire", R_OK) == 0 ||
         access("/usr/lib/pipewire", R_OK) == 0) {

@@ -26,7 +26,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <linux/limits.h>
-/* FTW_MOUNT, FTW_DEPTH, FTW_PHYS require _GNU_SOURCE on some systems */
+/* FTW_MOUNT, FTW_DEPTH, FTW_PHYS require WUBU_HOSTED on some systems */
 #ifndef FTW_MOUNT
 #define FTW_MOUNT 0x0100
 #endif

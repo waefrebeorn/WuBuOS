@@ -20,7 +20,7 @@ static int g_rendernode_ready = 0;
 
 void wubu_rendernode_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_rendernode_present = (access("/sys/class/drm/renderD128", R_OK) == 0) ? 1 : 0;
     g_rendernode_ready = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_rendernode_probe(void)
 
 int wubu_rendernode_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_rendernode_present;
 #else
     return 0;

@@ -38,7 +38,7 @@ void wubu_spdiftx_probe(void)
     g_tx = 0; g_iec = 0; g_ac3 = 0; g_dts = 0; g_optical = 0;
     g_tx_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_pcm", R_OK) == 0) {
         g_tx = 1; g_iec = 1; g_optical = 1;

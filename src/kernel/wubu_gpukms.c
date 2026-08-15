@@ -20,7 +20,7 @@ static int g_gpukms_active = 0;
 
 void wubu_gpukms_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpukms_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_gpukms_active = (access("/sys/class/drm/card0/status", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_gpukms_probe(void)
 
 int wubu_gpukms_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpukms_present;
 #else
     return 0;

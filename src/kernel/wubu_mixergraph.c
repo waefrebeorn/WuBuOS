@@ -36,7 +36,7 @@ void wubu_mixergraph_probe(void)
     g_mix = 0; g_pb = 0; g_cap = 0; g_mon = 0; g_groups = 0;
     g_mix_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/class/sound/controlC0", R_OK) == 0) {
         g_mix = 1; g_pb = 1; g_cap = 1; g_mon = 1; g_groups = 1;

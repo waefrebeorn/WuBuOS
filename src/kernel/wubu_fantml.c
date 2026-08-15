@@ -23,7 +23,7 @@ static int g_fan_pwm = 0;
 void wubu_fantml_probe(void)
 {
     /* Detect GPU fan/thermal via hwmon presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpu_temp = (access("/sys/class/hwmon/hwmon0/temp1_input", R_OK) == 0) ? 1 : 0;
     g_fan_rpm = (access("/sys/class/hwmon/hwmon0/fan1_input", R_OK) == 0) ? 1 : 0;
     g_fan_pwm = (access("/sys/class/hwmon/hwmon0/pwm1", R_OK) == 0) ? 1 : 0;
@@ -34,7 +34,7 @@ void wubu_fantml_probe(void)
 
 int wubu_fantml_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpu_temp || g_fan_rpm || g_fan_pwm;
 #else
     return 0;

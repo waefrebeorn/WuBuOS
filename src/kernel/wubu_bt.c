@@ -47,7 +47,7 @@ void wubu_bt_probe(void)
     g_bt = 0; g_bt_usb = 0; g_bt_pci = 0; g_bt_uart = 0; g_le_audio = 0;
     g_bt_drv[0] = '\0'; g_bt_vendor[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* BlueZ hci dev present? */
     if (access("/sys/class/bluetooth/hci0", R_OK) == 0) {
         g_bt = 1;

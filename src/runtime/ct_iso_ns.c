@@ -1,7 +1,8 @@
 /*
  * ct_iso_ns.c  --  WuBuOS container namespace unshare helper (Cell 420 split).
  */
-#define _GNU_SOURCE  /* unshare() is Linux-specific, hidden under -std=c11 without this */
+#define WUBU_HOSTED  /* unshare() is Linux-specific, hidden under -std=c11 without this */
+#include "wubu_gnu_compat.h"
 #include "ct_iso_ns.h"
 #include <sched.h>
 

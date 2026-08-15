@@ -39,7 +39,7 @@ void wubu_compress_probe(void)
     g_compress = 0; g_btrfs = 0; g_zfs = 0; g_zstd = 0; g_lz4 = 0;
     g_compress_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/fs/btrfs", R_OK) == 0 ||
         access("/sys/module/btrfs", R_OK) == 0) {
         g_compress = 1; g_btrfs = 1; g_zstd = 1; g_lz4 = 1;

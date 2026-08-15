@@ -21,7 +21,7 @@ static int g_volta_driver = 0;
 
 void wubu_nvidia_volta_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_volta_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_volta_driver = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_nvidia_volta_probe(void)
 
 int wubu_nvidia_volta_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_volta_present;
 #else
     return 0;

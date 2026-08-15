@@ -40,7 +40,7 @@ void wubu_ddcci_probe(void)
     g_ddc = 0; g_i2c = 0; g_cec = 0; g_edid = 0; g_ctrl = 0;
     g_ddcci_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/i2c-adapter", R_OK) == 0 ||
         access("/dev/i2c-0", R_OK) == 0) {
         g_ddc = 1; g_i2c = 1; g_ctrl = 1;

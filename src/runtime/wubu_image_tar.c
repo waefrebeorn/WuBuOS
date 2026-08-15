@@ -5,14 +5,16 @@
 /* feature-gated symbols (FTW_DEPTH / CLONE_NEW* / st_atime /
  * DT_DIR) hidden by the build's -D_POSIX_C_SOURCE=200809L — a
  * legitimate GNU-surface use, kept localized. */
-#define _GNU_SOURCE
+#define WUBU_HOSTED
 
+#include "wubu_gnu_compat.h"
 #include "wubu_image.h"
 #include "wubu_image_internal.h"
 #include <time.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <ftw.h>
+#include "wubu_ftw.h"
 #include <sys/wait.h>
 
 /* Forward declarations (static helpers called before their definition) */

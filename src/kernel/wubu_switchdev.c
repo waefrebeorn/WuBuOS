@@ -43,7 +43,7 @@ void wubu_switchdev_probe(void)
     g_switch = 0; g_dsa = 0; g_switchdev = 0;
     g_switch_drv[0] = '\0'; g_switch_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DSA switch drivers present? */
     if (access("/sys/bus/mdio_bus/drivers/mv88e6xxx", R_OK) == 0 ||
         access("/sys/bus/mdio_bus/drivers/ksz9477", R_OK) == 0 ||

@@ -38,7 +38,7 @@ void wubu_overclock_probe(void)
     g_oc = 0; g_od = 0; g_sysfs = 0; g_core = 0; g_mem = 0;
     g_oc_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_oc = 1; g_od = 1; g_sysfs = 1; g_core = 1; g_mem = 1;
         strcpy(g_oc_drv, "amdgpu-od");

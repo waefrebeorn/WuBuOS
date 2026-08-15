@@ -20,7 +20,7 @@ static int g_btclassic_classic = 0;
 
 void wubu_btclassic_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_btclassic_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_btclassic_classic = (access("/proc/net/bt", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_btclassic_probe(void)
 
 int wubu_btclassic_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_btclassic_present;
 #else
     return 0;

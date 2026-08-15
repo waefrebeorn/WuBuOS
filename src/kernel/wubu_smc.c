@@ -37,7 +37,7 @@ void wubu_smc_probe(void)
     g_smc = 0; g_smu = 0; g_vcn = 0; g_uvd = 0; g_fw = 0;
     g_smc_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_smc = 1; g_smu = 1; g_vcn = 1; g_uvd = 1; g_fw = 1;
         strcpy(g_smc_drv, "smu-fw");

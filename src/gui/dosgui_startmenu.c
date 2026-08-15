@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <dirent.h>
+#include "wubu_ftw.h"
 #include <sys/stat.h>
 
 /* -- Inline Layout Helpers ------------------------------------------ */

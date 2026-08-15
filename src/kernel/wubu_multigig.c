@@ -42,7 +42,7 @@ void wubu_multigig_probe(void)
     g_multigig = 0; g_2g5 = 0; g_5g = 0; g_10g = 0;
     g_mg_drv[0] = '\0'; g_mg_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Realtek 2.5G (r8125) present? */
     if (access("/sys/bus/pci/drivers/r8125", R_OK) == 0) {
         g_multigig = 1; g_2g5 = 1;

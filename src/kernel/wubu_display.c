@@ -101,7 +101,7 @@ void wubu_display_probe(void)
     /* WSL2: host owns display. */
     if (wubu_hw_is_wsl()) return;
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Bare metal: scan PCI class 0x03 (display). */
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);

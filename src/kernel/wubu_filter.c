@@ -91,7 +91,7 @@ void wubu_filter_probe(void)
     g_filter = 0; g_biquad = 0; g_eq = 0; g_pw = 0; g_alsa = 0;
     g_filter_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/snd_soc_core", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {
         g_filter = 1; g_biquad = 1; g_eq = 1; g_alsa = 1;

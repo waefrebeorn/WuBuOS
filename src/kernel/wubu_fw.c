@@ -41,7 +41,7 @@ void wubu_fw_probe(void)
     g_fw = 0; g_lib = 0; g_raid = 0; g_hba = 0; g_update = 0;
     g_fw_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* firmware_class? */
     if (access("/sys/module/firmware_class", R_OK) == 0) {
         g_fw = 1;

@@ -42,7 +42,7 @@ void wubu_hidadv_probe(void)
     g_hid = 0; g_generic = 0; g_multitouch = 0; g_ff = 0; g_vendor = 0;
     g_hid_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* HID bus present? */
     if (access("/sys/bus/hid", R_OK) == 0) {
         g_hid = 1;

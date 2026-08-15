@@ -41,7 +41,7 @@ void wubu_loudness_probe(void)
     g_loud = 0; g_replaygain = 0; g_r128 = 0; g_lufs = 0; g_pw = 0;
     g_loud_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PipeWire (loudness effect)? */
     if (access("/usr/share/pipewire", R_OK) == 0 ||
         access("/usr/lib/pipewire", R_OK) == 0 ||

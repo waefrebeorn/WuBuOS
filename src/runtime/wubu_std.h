@@ -11,11 +11,12 @@
  *   - M_PI / M_PI_2 (a constant — just define it, no feature macro)
  *   - wubu_strdup (4 lines, no GNU dependency)
  *   - wubu_fmaxf etc. if ever needed
+ *   - CPU_ZERO/CPU_SET/CPU_ISSET/CPU_COUNT (via wubu_gnu_compat.h)
+ *   - CLONE_NEW* namespace flags (via wubu_gnu_compat.h)
+ *   - FTW_DEPTH/FTW_PHYS/FTW_DP (via wubu_gnu_compat.h)
+ *   - DT_DIR/DT_REG (via wubu_gnu_compat.h)
  *
- * Include THIS instead of reaching for _GNU_SOURCE. The only places
- * that still legitimately need _GNU_SOURCE are Linux-kernel-API calls
- * (CPU_ZERO/CPU_SET affinity) — those are scheduling features, not
- * license hooks, and they stay localized.
+ * Include THIS instead of reaching for _GNU_SOURCE.
  */
 #ifndef WUBU_STD_H
 #define WUBU_STD_H
@@ -23,6 +24,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* WuBu-native replacements for _GNU_SOURCE symbols */
+#include "wubu_gnu_compat.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846264338327950288

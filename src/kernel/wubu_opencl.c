@@ -20,7 +20,7 @@ static int g_opencl_amd = 0;
 
 void wubu_opencl_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_opencl_present = (access("/usr/lib/libOpenCL.so", R_OK) == 0) ? 1 : 0;
     g_opencl_amd = (access("/usr/lib/libOpenCL.so", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_opencl_probe(void)
 
 int wubu_opencl_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_opencl_present;
 #else
     return 0;

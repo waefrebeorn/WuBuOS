@@ -38,7 +38,7 @@ void wubu_blkqos_probe(void)
     g_qos = 0; g_throttle = 0; g_weight = 0; g_cg = 0; g_limit = 0;
     g_qos_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/fs/cgroup/io.stat", R_OK) == 0 ||
         access("/sys/fs/cgroup/io.max", R_OK) == 0) {
         g_qos = 1; g_throttle = 1; g_weight = 1; g_cg = 1; g_limit = 1;

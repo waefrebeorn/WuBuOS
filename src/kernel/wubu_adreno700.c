@@ -20,7 +20,7 @@ static int g_adreno700_freedreno = 0;
 
 void wubu_adreno700_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_adreno700_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_adreno700_freedreno = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_adreno700_probe(void)
 
 int wubu_adreno700_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_adreno700_present;
 #else
     return 0;

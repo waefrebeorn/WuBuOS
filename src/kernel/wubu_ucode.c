@@ -39,7 +39,7 @@ void wubu_ucode_probe(void)
     g_intel = 0; g_amd = 0; g_early = 0; g_late = 0; g_loaded = 0;
     g_ucode_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* CPU vendor? */
     if (access("/sys/devices/system/cpu/vulnerabilities", R_OK) == 0) {
         FILE *f = fopen("/proc/cpuinfo", "r");

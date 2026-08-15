@@ -38,7 +38,7 @@ void wubu_samplerate_probe(void)
     g_sr = 0; g_pcm = 0; g_float = 0; g_24bit = 0; g_hi = 0;
     g_sr_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/snd_pcm", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {
         g_sr = 1; g_pcm = 1;

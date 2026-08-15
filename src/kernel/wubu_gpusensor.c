@@ -41,7 +41,7 @@ void wubu_gpusensor_probe(void)
     g_hwmon = 0; g_temp = 0; g_fan = 0; g_power = 0; g_curve = 0;
     g_gpusens_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* amdgpu? */
     if (access("/sys/class/hwmon", R_OK) == 0) {
         g_hwmon = 1;

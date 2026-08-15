@@ -37,7 +37,7 @@ void wubu_memmgr_probe(void)
     g_mm = 0; g_gem = 0; g_ttm = 0; g_vram = 0; g_gtt = 0;
     g_mm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_mm = 1; g_ttm = 1; g_vram = 1; g_gtt = 1;
         strcpy(g_mm_drv, "amdgpu-ttm");

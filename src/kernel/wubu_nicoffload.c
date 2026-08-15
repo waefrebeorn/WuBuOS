@@ -49,7 +49,7 @@ void wubu_nicoffload_probe(void)
     g_nic = 0; g_queues = 0;
     g_offload_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Detect NICs (net devices) with offload support. */
     struct dirent **e;
     int n = scandir("/sys/class/net", &e, NULL, alphasort);

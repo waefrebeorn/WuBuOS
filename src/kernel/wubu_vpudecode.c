@@ -21,7 +21,7 @@ static int g_vpudecode_codec = 0;
 void wubu_vpudecode_probe(void)
 {
     /* Detect GPU video decode presence + codec. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vpudecode_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_vpudecode_codec = (access("/sys/class/drm/card0/device/drm", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_vpudecode_probe(void)
 
 int wubu_vpudecode_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vpudecode_present;
 #else
     return 0;

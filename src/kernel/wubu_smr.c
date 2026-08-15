@@ -40,7 +40,7 @@ void wubu_smr_probe(void)
     g_smr = 0; g_zone = 0; g_zns = 0; g_wp = 0; g_zonefs = 0;
     g_smr_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/zonefs", R_OK) == 0 ||
         access("/sys/block", R_OK) == 0) {
         g_zonefs = 1; g_zone = 1; g_wp = 1;

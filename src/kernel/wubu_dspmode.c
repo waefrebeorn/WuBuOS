@@ -41,7 +41,7 @@ void wubu_dspmode_probe(void)
     g_sof = 0; g_dsp_pm = 0; g_voice_wake = 0; g_suspend_ok = 0;
     g_dsp_drv[0] = '\0'; strcpy(g_dsp_mode, "active");
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* SOF DSP present? */
     if (access("/sys/bus/pci/drivers/snd_sof_pci", R_OK) == 0 ||
         access("/lib/firmware/intel/sof", R_OK) == 0) {

@@ -20,7 +20,7 @@ static int g_nvmehotplug_events = 0;
 
 void wubu_nvmehotplug_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_nvmehotplug_present = (access("/sys/class/nvme/nvme0", R_OK) == 0) ? 1 : 0;
     g_nvmehotplug_events = (access("/proc/partitions", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_nvmehotplug_probe(void)
 
 int wubu_nvmehotplug_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_nvmehotplug_present;
 #else
     return 0;

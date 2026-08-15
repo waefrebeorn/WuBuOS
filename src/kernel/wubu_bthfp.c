@@ -21,7 +21,7 @@ static int g_bthfp_a2dp = 0;
 void wubu_bthfp_probe(void)
 {
     /* Detect BT HFP adapter presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_bthfp_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_bthfp_a2dp = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_bthfp_probe(void)
 
 int wubu_bthfp_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_bthfp_present;
 #else
     return 0;

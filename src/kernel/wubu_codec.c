@@ -55,7 +55,7 @@ void wubu_codec_probe(void)
     g_codec = 0; g_hda_codec = 0; g_asoc_codec = 0; g_sof_dsp = 0;
     g_codec_drv[0] = '\0'; g_codec_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* HD-Audio codec driver loaded? */
     if (access("/sys/bus/hdaudio/drivers/snd_hda_codec_realtek", R_OK) == 0 ||
         access("/sys/bus/hdaudio/devices", R_OK) == 0) {

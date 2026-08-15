@@ -20,7 +20,7 @@ static int g_vc4_v3d = 0;
 
 void wubu_vc4_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vc4_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_vc4_v3d = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_vc4_probe(void)
 
 int wubu_vc4_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vc4_present;
 #else
     return 0;

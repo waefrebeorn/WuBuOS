@@ -32,7 +32,7 @@ void wubu_jack_probe(void)
     g_jack = 0; g_headphone = 0; g_mic = 0; g_spdif = 0; g_impedance = 0;
     g_jack_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_hda_intel", R_OK) == 0) {
         g_jack = 1; g_headphone = 1; g_mic = 1; g_impedance = 1;

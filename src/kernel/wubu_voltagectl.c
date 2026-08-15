@@ -20,7 +20,7 @@ static int g_vddgfx_present = 0;
 void wubu_voltagectl_probe(void)
 {
     /* Detect GPU voltage via hwmon presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vddc_present = (access("/sys/class/hwmon/hwmon0/in0_input", R_OK) == 0) ? 1 : 0;
     g_vddgfx_present = (access("/sys/class/hwmon/hwmon0/in1_input", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_voltagectl_probe(void)
 
 int wubu_voltagectl_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vddc_present || g_vddgfx_present;
 #else
     return 0;

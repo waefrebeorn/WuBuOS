@@ -36,7 +36,7 @@ void wubu_porttiming_probe(void)
     g_mode = 0; g_cvt = 0; g_rb = 0; g_link = 0; g_preferred = 0;
     g_pt_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DRM mode? */
     if (access("/sys/class/drm", R_OK) == 0) {
         g_mode = 1;

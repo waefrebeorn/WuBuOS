@@ -20,7 +20,7 @@ static int g_intelgpu_gen = 0;
 
 void wubu_intelgpu_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_intelgpu_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_intelgpu_gen = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_intelgpu_probe(void)
 
 int wubu_intelgpu_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_intelgpu_present;
 #else
     return 0;

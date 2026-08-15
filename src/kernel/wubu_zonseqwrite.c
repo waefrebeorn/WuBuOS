@@ -20,7 +20,7 @@ static int g_zonseqwrite_queued = 0;
 
 void wubu_zonseqwrite_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_zonseqwrite_present = (access("/sys/block/nvme0n1/queue/zoned", R_OK) == 0) ? 1 : 0;
     g_zonseqwrite_queued = (access("/sys/block/nvme0n1/queue/zoned_capacity", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_zonseqwrite_probe(void)
 
 int wubu_zonseqwrite_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_zonseqwrite_present;
 #else
     return 0;

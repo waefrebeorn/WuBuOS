@@ -40,7 +40,7 @@ void wubu_dax_probe(void)
     g_dax = 0; g_pmem = 0; g_fs = 0; g_inode = 0; g_dev = 0;
     g_dax_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/dev/pmem0", R_OK) == 0 ||
         access("/sys/block", R_OK) == 0) {
         g_pmem = 1; g_dax = 1;

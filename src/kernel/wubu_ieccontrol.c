@@ -36,7 +36,7 @@ void wubu_ieccontrol_probe(void)
     g_iec = 0; g_aes = 0; g_enc = 0; g_clock = 0; g_rate = 0;
     g_iec_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_pcm", R_OK) == 0) {
         g_iec = 1; g_aes = 1; g_enc = 1; g_clock = 1; g_rate = 1;

@@ -45,7 +45,7 @@ void wubu_clock_probe(void)
     g_rtc = 0; g_thermal = 0; g_thermal_zones = 0; g_cooling = 0;
     g_rtc_drv[0] = '\0'; g_thermal_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* RTC present? */
     if (access("/dev/rtc0", R_OK) == 0 || access("/sys/class/rtc/rtc0", R_OK) == 0) {
         g_rtc = 1;

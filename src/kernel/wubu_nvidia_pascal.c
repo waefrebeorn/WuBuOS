@@ -21,7 +21,7 @@ static int g_pascal_driver = 0;
 
 void wubu_nvidia_pascal_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_pascal_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_pascal_driver = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_nvidia_pascal_probe(void)
 
 int wubu_nvidia_pascal_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_pascal_present;
 #else
     return 0;

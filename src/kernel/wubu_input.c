@@ -81,7 +81,7 @@ void wubu_input_probe(void)
     /* WSL2: host owns input devices. Nothing to detect. */
     if (wubu_hw_is_wsl()) return;
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Hosted build: scan /sys/bus/usb/devices for the known controller
      * vendor/device IDs. Each USB device path contains idVendor and
      * idDevice files. */

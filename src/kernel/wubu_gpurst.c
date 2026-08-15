@@ -40,7 +40,7 @@ void wubu_gpurst_probe(void)
     g_rst = 0; g_ring = 0; g_hb = 0; g_timeout = 0; g_recover = 0;
     g_rst_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_rst = 1; g_ring = 1; g_hb = 1; g_timeout = 1; g_recover = 1;
         strcpy(g_rst_drv, "amdgpu-reset");

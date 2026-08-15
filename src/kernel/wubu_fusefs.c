@@ -36,7 +36,7 @@ void wubu_fusefs_probe(void)
     g_fuse = 0; g_dev = 0; g_mount = 0; g_ctl = 0; g_conn = 0;
     g_fuse_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/dev/fuse", R_OK) == 0 ||
         access("/proc/mounts", R_OK) == 0) {
         FILE *f = fopen("/proc/mounts", "r");

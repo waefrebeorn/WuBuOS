@@ -20,7 +20,7 @@ static int g_zonecap_zoned = 0;
 
 void wubu_zonecap_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_zonecap_present = (access("/sys/block/nvme0n1/queue/zoned", R_OK) == 0) ? 1 : 0;
     g_zonecap_zoned = (access("/sys/block/nvme0n1/queue/zoned_capacity", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_zonecap_probe(void)
 
 int wubu_zonecap_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_zonecap_present;
 #else
     return 0;

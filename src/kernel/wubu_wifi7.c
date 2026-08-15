@@ -64,7 +64,7 @@ void wubu_wifi7_probe(void)
     g_wifi7_vendor = 0;
     g_wifi7_drv[0] = '\0'; g_wifi7_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Bare metal: scan PCI for Wi-Fi 7 devices. */
     if (wubu_hw_is_wsl()) return;
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];

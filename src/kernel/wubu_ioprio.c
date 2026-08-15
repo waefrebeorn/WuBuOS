@@ -37,7 +37,7 @@ void wubu_ioprio_probe(void)
     g_iop = 0; g_rt = 0; g_be = 0; g_idle = 0; g_sched = 0;
     g_iop_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/block", R_OK) == 0 ||
         access("/usr/bin/ionice", R_OK) == 0 ||
         access("/usr/sbin/ionice", R_OK) == 0) {

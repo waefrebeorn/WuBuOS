@@ -21,7 +21,7 @@ static int g_cuda_cuda = 0;
 
 void wubu_cuda_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_cuda_present = (access("/usr/lib/libcuda.so", R_OK) == 0) ? 1 : 0;
     g_cuda_cuda = (access("/usr/lib/libcuda.so", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_cuda_probe(void)
 
 int wubu_cuda_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_cuda_present;
 #else
     return 0;

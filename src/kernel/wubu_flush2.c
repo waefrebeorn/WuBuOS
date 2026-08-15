@@ -36,7 +36,7 @@ void wubu_flush2_probe(void)
     g_fl = 0; g_barrier = 0; g_fsync = 0; g_cache = 0; g_flushcmd = 0;
     g_fl_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/block", R_OK) == 0 ||
         access("/proc/mounts", R_OK) == 0) {
         g_fl = 1; g_barrier = 1; g_fsync = 1; g_cache = 1; g_flushcmd = 1;

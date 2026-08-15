@@ -38,7 +38,7 @@ void wubu_pcipme_probe(void)
     g_pme = 0; g_pmcsr = 0; g_acpi = 0; g_wake = 0; g_pmeint = 0;
     g_pme_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     DIR *d = opendir("/sys/bus/pci/devices");
     if (d) {
         struct dirent *e;

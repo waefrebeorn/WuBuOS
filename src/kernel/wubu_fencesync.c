@@ -37,7 +37,7 @@ void wubu_fencesync_probe(void)
     g_fence = 0; g_timeline = 0; g_wait = 0; g_timeout = 0; g_signal = 0;
     g_fence_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_fence = 1; g_timeline = 1; g_wait = 1; g_timeout = 1; g_signal = 1;
         strcpy(g_fence_drv, "amdgpufence");

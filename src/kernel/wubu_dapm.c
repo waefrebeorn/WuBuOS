@@ -20,7 +20,7 @@ static int g_dapm_paths = 0;
 void wubu_dapm_probe(void)
 {
     /* Detect DAPM via sysfs presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_dapm_widgets = (access("/sys/class/sound/controlC0", R_OK) == 0) ? 1 : 0;
     g_dapm_paths = (access("/sys/module/snd_hda_core/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_dapm_probe(void)
 
 int wubu_dapm_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_dapm_widgets || g_dapm_paths;
 #else
     return 0;

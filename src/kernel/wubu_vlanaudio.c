@@ -48,7 +48,7 @@ void wubu_vlanaudio_probe(void)
     g_vlan = 0; g_vlan_offload = 0; g_pipewire = 0; g_alsa_dsp = 0; g_sof = 0;
     g_audio_dsp_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* VLAN present (8021q interfaces or /proc/net/vlan)? */
     if (access("/proc/net/vlan", R_OK) == 0 ||
         access("/sys/class/net", R_OK) == 0) {

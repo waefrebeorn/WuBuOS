@@ -25,7 +25,7 @@
  * The ICD chain always appends lvp_icd.json (llvmpipe) as the last fallback
  * so the Vulkan loader always enumerates at least one device. */
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
 
 /* Check if a file exists at the given path */
 /* Check if a file exists at the given path. Non-static: also used by
@@ -94,7 +94,7 @@ int wubu_hw_has_nvidia_icd(void) { return wubu_hw_gpu_path()[0] && strstr(wubu_h
  * Fallback: returns NULL (caller should use llvmpipe/lvp_icd.json). */
 const char *wubu_hw_vulkan_icd(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     static char icd_path[256] = "";
     if (icd_path[0]) return icd_path;  /* cached */
 
@@ -169,7 +169,7 @@ const char *wubu_hw_vulkan_icd(void)
  * Preferred ICD first, llvmpipe (lvp_icd.json) always last as fallback. */
 char *wubu_hw_vulkan_icd_chain(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     char chain[512] = "";
     const char *primary = wubu_hw_vulkan_icd();
     if (primary) {

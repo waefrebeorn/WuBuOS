@@ -36,7 +36,7 @@ void wubu_mem_probe(void)
     g_edac = 0; g_ecc = 0; g_spd = 0; g_ce_count = 0; g_ue_count = 0;
     g_edac_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* EDAC present? */
     if (access("/sys/devices/system/edac", R_OK) == 0) {
         g_edac = 1;

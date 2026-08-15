@@ -9,7 +9,7 @@
 #include "wubu_pci.h"
 #include <stdint.h>
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
 /* Hosted Linux leg: the AGI runs on real hardware under Linux (Steam Deck,
  * laptop).  Real port I/O (outl/inl) is privileged and cannot be used in a
  * userspace process, so we enumerate the PCI bus through the Linux sysfs
@@ -17,9 +17,8 @@
  * wubu_hw_detect() discovers the real GPU for the driver self-install
  * arm.  Includes the hosted libc (stdio/dirent) -- this branch never
  * links the kernel libc.
- * The test-stub build defines _GNU_SOURCE only to silence the kernel
- * libc FILE conflict; it overrides config I/O, so skip the hosted headers
- * there. */
+ * The test-stub build defines WUBU_PCI_TEST_STUBS to override config I/O;
+ * skip the hosted headers there. */
 #ifndef WUBU_PCI_TEST_STUBS
 #include <stdio.h>
 #include <dirent.h>
@@ -57,7 +56,7 @@ extern void *memset(void *s, int c, size_t n);   /* kernel libc */
 #if defined(WUBU_PCI_TEST_STUBS)
 uint32_t wubu_pci_read_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off);
 void     wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off, uint32_t val);
-#elif !defined(_GNU_SOURCE)
+#elif !defined(WUBU_HOSTED)
 static inline void outl_(uint16_t port, uint32_t val) {
     __asm__ __volatile__("outl %0, %1" : : "a"(val), "Nd"(port));
 }
@@ -85,7 +84,7 @@ static inline void wubu_pci_write_config(uint8_t bus, uint8_t dev, uint8_t fn, u
 /* read32/write32/bar_of/metal-scan are only meaningful with real config
  * I/O (metal or test stubs); the hosted sysfs scan implements wubu_pci_scan
  * directly below. */
-#if !defined(_GNU_SOURCE) || defined(WUBU_PCI_TEST_STUBS)
+#if !defined(WUBU_HOSTED) || defined(WUBU_PCI_TEST_STUBS)
 /* --- metal / test-stub backend: real config I/O + bus scan --- */
 uint32_t wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
 {
@@ -146,7 +145,7 @@ int wubu_pci_find_class(wubu_pci_dev_t *devs, int n,
     return -1;
 }
 
-#elif defined(_GNU_SOURCE) && !defined(WUBU_PCI_TEST_STUBS)
+#elif defined(WUBU_HOSTED) && !defined(WUBU_PCI_TEST_STUBS)
 /* --- Linux-hosted backend: enumerate /sys/bus/pci, no port I/O --- */
 /* Parse "0x1002" or "0x1002\n" -> 0x1002 */
 static uint32_t hexval(const char *s)
@@ -233,5 +232,22 @@ int wubu_pci_find_class(wubu_pci_dev_t *devs, int n,
         if (devs[i].class_code == class_code && devs[i].subclass == subclass)
             return i;
     return -1;
+}
+
+/* Stub read32/write32 for hosted tests that need the symbol but run
+ * purely on the sysfs-scan path (no real config I/O). Drivers like
+ * wubu_xhci call this to read BARs; on hosted we already captured
+ * bar0/bar1 during scan, so we return 0 here — the test never
+ * reaches hardware. */
+uint32_t wubu_pci_read32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off)
+{
+    (void)bus; (void)dev; (void)fn; (void)off;
+    return 0;
+}
+
+void wubu_pci_write32(uint8_t bus, uint8_t dev, uint8_t fn, uint8_t off,
+                      uint32_t val)
+{
+    (void)bus; (void)dev; (void)fn; (void)off; (void)val;
 }
 #endif

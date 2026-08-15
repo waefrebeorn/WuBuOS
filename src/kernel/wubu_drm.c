@@ -39,7 +39,7 @@ void wubu_drm_probe(void)
     g_drm = 0; g_kms = 0; g_gem = 0; g_prime = 0; g_msi = 0;
     g_drm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/dev/dri/card0", R_OK) == 0 ||
         access("/sys/class/drm", R_OK) == 0) {
         g_drm = 1; g_kms = 1; g_gem = 1; g_prime = 1;

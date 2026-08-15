@@ -6,8 +6,9 @@
 /* feature-gated symbols (FTW_DEPTH / CLONE_NEW* / st_atime /
  * DT_DIR) hidden by the build's -D_POSIX_C_SOURCE=200809L — a
  * legitimate GNU-surface use, kept localized. */
-#define _GNU_SOURCE
+#define WUBU_HOSTED
 
+#include "wubu_gnu_compat.h"
 #include "styxfs.h"
 #include "styxfs_internal.h"
 #include <stdlib.h>
@@ -15,6 +16,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <dirent.h>
+#include "wubu_ftw.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

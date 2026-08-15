@@ -41,7 +41,7 @@ void wubu_ptp_sync_probe(void)
     g_phc = 0; g_ptp4l = 0; g_phc2sys = 0; g_hw_ts = 0; g_sync = 0;
     g_ptp_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PTP hardware clock present? */
     if (access("/dev/ptp", R_OK) == 0) {
         DIR *d = opendir("/dev/ptp");

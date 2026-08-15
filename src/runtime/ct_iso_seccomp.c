@@ -7,8 +7,9 @@
 /* feature-gated symbols (FTW_DEPTH / CLONE_NEW* / st_atime /
  * DT_DIR) hidden by the build's -D_POSIX_C_SOURCE=200809L — a
  * legitimate GNU-surface use, kept localized. */
-#define _GNU_SOURCE
+#define WUBU_HOSTED
 
+#include "wubu_gnu_compat.h"
 #include "ct_iso_seccomp.h"
 #include "ct_iso_ns.h"          /* wubu_ns_unshare, WUBU_NS_FLAGS */
 

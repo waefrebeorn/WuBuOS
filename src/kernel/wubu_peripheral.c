@@ -52,7 +52,7 @@ void wubu_peripheral_probe(void)
     g_serial = 0; g_parallel = 0; g_gpio = 0; g_hwmon = 0; g_smbus = 0;
     g_serial_drv[0] = '\0'; g_hwmon_chip[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Serial via /sys/class/tty. */
     g_serial = (access("/sys/class/tty/ttyS0", R_OK) == 0);
 

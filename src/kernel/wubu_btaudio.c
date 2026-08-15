@@ -21,7 +21,7 @@ static int g_btaudio_a2dp = 0;
 void wubu_btaudio_probe(void)
 {
     /* Detect BT audio adapter + A2DP. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_btaudio_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_btaudio_a2dp = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_btaudio_probe(void)
 
 int wubu_btaudio_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_btaudio_present;
 #else
     return 0;

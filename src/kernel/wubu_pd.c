@@ -46,7 +46,7 @@ void wubu_pd_probe(void)
     g_typec = 0; g_pd = 0; g_tcpm = 0; g_rfs = 0; g_arfs = 0;
     g_pd_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Type-C port manager present? */
     if (access("/sys/class/typec", R_OK) == 0 ||
         access("/sys/module/typec", R_OK) == 0) {

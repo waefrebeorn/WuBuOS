@@ -39,7 +39,7 @@ void wubu_pmicaudio_probe(void)
     g_pmic = 0; g_audio_dac = 0; g_audio_amp = 0; g_regulator = 0;
     g_dac_drv[0] = '\0'; g_amp_drv[0] = '\0'; g_pmic_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Regulator subsystem (PMIC rails) present? */
     if (access("/sys/class/regulator", R_OK) == 0) {
         g_regulator = 1; g_pmic = 1;

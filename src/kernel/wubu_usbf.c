@@ -91,7 +91,7 @@ void wubu_usbf_probe(void)
     /* WSL2: host owns USB (usbipd may attach, but default no PCI). */
     if (wubu_hw_is_wsl()) return;
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Bare metal: scan PCI for USB host controllers. */
     wubu_pci_dev_t devs[WUBU_PCI_MAX_DEVS];
     int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);

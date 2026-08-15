@@ -37,7 +37,7 @@ void wubu_raid5_probe(void)
     g_raid5 = 0; g_stripe = 0; g_layout = 0; g_parity = 0; g_disks = 0;
     g_raid5_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/mdstat", R_OK) == 0 ||
         access("/sys/block/md0/md", R_OK) == 0 ||
         access("/sys/block", R_OK) == 0) {

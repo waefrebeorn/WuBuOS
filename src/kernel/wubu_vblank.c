@@ -37,7 +37,7 @@ void wubu_vblank_probe(void)
     g_vbl = 0; g_counter = 0; g_event = 0; g_time = 0; g_flip = 0;
     g_vbl_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/dev/dri/card0", R_OK) == 0 ||
         access("/sys/class/drm", R_OK) == 0) {
         g_vbl = 1; g_counter = 1; g_event = 1; g_time = 1; g_flip = 1;

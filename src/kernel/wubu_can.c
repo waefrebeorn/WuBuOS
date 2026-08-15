@@ -47,7 +47,7 @@ void wubu_can_probe(void)
     g_can_present = 0; g_can_usb = 0; g_can_spi = 0; g_can_pci = 0;
     g_can_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* SocketCAN netdevs present? */
     if (access("/sys/class/net/can0", R_OK) == 0 ||
         access("/sys/class/net/vcan0", R_OK) == 0) {

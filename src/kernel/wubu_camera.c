@@ -48,7 +48,7 @@ void wubu_camera_probe(void)
     g_video_nodes = 0; g_media_devices = 0;
     g_camera_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Count /dev/videoN nodes. */
     char path[64];
     for (int i = 0; i < 16; i++) {

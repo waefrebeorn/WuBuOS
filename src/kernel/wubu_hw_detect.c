@@ -22,7 +22,7 @@
  *   /kv/world/hw_platform  -> "bare_metal" | "wsl2" | "kvm" | "vmware" | "qemu"
  *   /kv/world/hw_gpu       -> the GPU device path (/dev/nvidia0 or /dev/dgx)
  *
- * C11. Hosted sections (fopen/access) guarded by _GNU_SOURCE; the bare-metal
+ * C11. Hosted sections (fopen/access) guarded by WUBU_HOSTED; the bare-metal
  * kernel uses the CPUID + PCI path only.
  */
 #include "wubu_hw_detect.h"
@@ -184,7 +184,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -210,7 +210,7 @@ void wubu_hw_detect(void)
     g_gpu_vendor = 0;
     g_gpu_device = 0;
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* 1. /proc/sys/kernel/osrelease — the WSL2 magic string */
     FILE *f = fopen("/proc/sys/kernel/osrelease", "r");
     if (f) {
@@ -697,7 +697,7 @@ int wubu_hw_has_prime(void)
 }
 
 /* ---- W3: boot summary (the console's `hw` command output) ---- */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
 /* wubu_file_exists is defined in wubu_gpu_icd.c (shared helper). */
 #endif
 
@@ -705,10 +705,10 @@ int wubu_hw_summary(char *out, size_t cap)
 {
     if (!out || cap == 0) return -1;
     int dxg = 0;
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     dxg = (access("/dev/dxg", R_OK) == 0);
 #endif
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     int n = snprintf(out, cap,
         "hw[platform=%s gpu=%s dxg=%d wsl=%d vendor=%04x/%04x vulkan=%s dzn=%d nvidia_icd=%d radv=%d anv=%d amdgpu=%s prime=%d xe=%d amdvlk=%d audio=%s snd=%s hdmi=%d bt=%d nvme=%d sata=%d rst=%d wifi=%d eth=%d eth2g5=%d input=%d mouse=%dHz gpu_driver=%s chip=%s usb=%s cpu=%d cores=%d hyper=%s]",
         g_platform,

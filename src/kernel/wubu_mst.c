@@ -48,7 +48,7 @@ void wubu_mst_probe(void)
     g_mst = 0; g_mst_top = 0; g_dsc = 0; g_src = 0; g_resample = 0;
     g_mst_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DP MST core (drm_kms_helper)? */
     if (access("/sys/module/drm_kms_helper", R_OK) == 0 ||
         access("/sys/module/drm", R_OK) == 0) {

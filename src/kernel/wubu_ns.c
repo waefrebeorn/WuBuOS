@@ -43,7 +43,7 @@ void wubu_ns_probe(void)
     g_nvme = 0; g_ns = 0; g_multipath = 0; g_ana = 0; g_cli = 0;
     g_ns_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* NVMe present? */
     if (access("/sys/class/nvme", R_OK) == 0) {
         g_nvme = 1;

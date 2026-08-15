@@ -48,7 +48,7 @@ void wubu_gamepad_probe(void)
     g_gamepad = 0; g_wheel = 0; g_arcade = 0; g_dsc = 0;
     g_pad_drv[0] = '\0'; g_dsc_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Xbox controller (xpad) present? */
     if (access("/sys/bus/usb/drivers/xpad", R_OK) == 0) {
         g_gamepad = 1;

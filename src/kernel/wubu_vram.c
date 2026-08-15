@@ -43,7 +43,7 @@ void wubu_vram_probe(void)
     g_vram = 0; g_fb = 0; g_stolen = 0; g_ttm = 0; g_drm_mm = 0;
     g_vram_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DRM card present? */
     if (access("/sys/class/drm", R_OK) == 0) {
         g_vram = 1; g_drm_mm = 1;

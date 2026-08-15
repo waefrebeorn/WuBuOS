@@ -10,7 +10,7 @@
  * Writes: CSV spike data to stdout, diagnostics to stderr.
  *         VERDICT line tells you if DRAM-refresh tail latency is present.
  */
-#define _GNU_SOURCE
+#define WUBU_HOSTED
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

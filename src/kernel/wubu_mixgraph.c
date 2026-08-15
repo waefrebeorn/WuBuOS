@@ -41,7 +41,7 @@ void wubu_mixgraph_probe(void)
     g_pipewire = 0; g_pulse = 0; g_jack = 0; g_alsa = 0; g_wireplumber = 0;
     g_graph_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PipeWire running? */
     if (access("/run/user", R_OK) == 0 && access("/usr/bin/pipewire", R_OK) == 0) {
         g_pipewire = 1;

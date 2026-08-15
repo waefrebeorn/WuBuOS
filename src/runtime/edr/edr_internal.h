@@ -15,7 +15,7 @@
 #ifndef WUBU_EDR_INTERNAL_H
 #define WUBU_EDR_INTERNAL_H
 
-#define _GNU_SOURCE
+#define WUBU_HOSTED
 
 #include "wubu_edr.h"
 #include "wubu_uuid.h"

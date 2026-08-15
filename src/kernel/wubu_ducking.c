@@ -40,7 +40,7 @@ void wubu_ducking_probe(void)
     g_ducking = 0; g_comp = 0; g_limiter = 0; g_gate = 0; g_sidechain = 0;
     g_ducking_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/snd_soc_core", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {
         g_ducking = 1; g_comp = 1; g_limiter = 1; g_sidechain = 1;

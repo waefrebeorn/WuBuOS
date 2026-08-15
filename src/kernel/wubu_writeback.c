@@ -37,7 +37,7 @@ void wubu_writeback_probe(void)
     g_wb = 0; g_dirty = 0; g_sync = 0; g_interval = 0; g_thread = 0;
     g_wb_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/meminfo", R_OK) == 0 ||
         access("/proc/sys/vm/dirty_ratio", R_OK) == 0) {
         g_wb = 1; g_dirty = 1; g_sync = 1; g_interval = 1; g_thread = 1;

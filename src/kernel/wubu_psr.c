@@ -35,7 +35,7 @@ void wubu_psr_probe(void)
     g_psr = 0; g_sriov = 0; g_vf = 0; g_num_vfs = 0;
     g_psr_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PSR: i915/amdgpu eDP panel self-refresh. */
     if (access("/sys/bus/pci/drivers/i915", R_OK) == 0) {
         g_psr = 1;

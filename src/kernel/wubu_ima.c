@@ -42,7 +42,7 @@ void wubu_ima_probe(void)
     g_ima = 0; g_evm = 0; g_measure = 0; g_appraise = 0; g_pcr = 0;
     g_ima_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* IMA? */
     if (access("/sys/kernel/security/ima", R_OK) == 0) {
         g_ima = 1;

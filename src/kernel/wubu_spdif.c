@@ -43,7 +43,7 @@ void wubu_spdif_probe(void)
     g_spdif = 0; g_hdmi = 0; g_iec61937 = 0; g_passthru = 0; g_i2s = 0;
     g_spdif_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* SPDIF present (snd_soc_spdif)? */
     if (access("/sys/module/snd_soc_spdif", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {

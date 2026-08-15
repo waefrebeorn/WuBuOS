@@ -20,7 +20,7 @@ static int g_kepler_legacy = 0;
 
 void wubu_nvidia_kepler_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_kepler_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_kepler_legacy = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_nvidia_kepler_probe(void)
 
 int wubu_nvidia_kepler_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_kepler_present;
 #else
     return 0;

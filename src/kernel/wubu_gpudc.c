@@ -20,7 +20,7 @@ static int g_gpudc_outputs = 0;
 
 void wubu_gpudc_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpudc_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_gpudc_outputs = (access("/sys/class/drm/card0/status", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_gpudc_probe(void)
 
 int wubu_gpudc_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpudc_present;
 #else
     return 0;

@@ -20,7 +20,7 @@ static int g_icelake_i915 = 0;
 
 void wubu_intel_icelake_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_icelake_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_icelake_i915 = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_intel_icelake_probe(void)
 
 int wubu_intel_icelake_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_icelake_present;
 #else
     return 0;

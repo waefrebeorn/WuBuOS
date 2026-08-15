@@ -36,7 +36,7 @@ void wubu_audiofw_probe(void)
     g_afw = 0; g_codec = 0; g_dsp = 0; g_loader = 0; g_bios = 0;
     g_afw_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/lib/firmware", R_OK) == 0 ||
         access("/proc/asound", R_OK) == 0) {
         g_afw = 1; g_codec = 1; g_dsp = 1; g_loader = 1;

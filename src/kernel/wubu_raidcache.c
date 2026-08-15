@@ -40,7 +40,7 @@ void wubu_raidcache_probe(void)
     g_cache = 0; g_dm_cache = 0; g_bcache = 0; g_zram = 0; g_raid_journal = 0;
     g_cache_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* dm-cache present? */
     if (access("/sys/module/dm_cache", R_OK) == 0 ||
         access("/sys/module/dm_cache_writeback", R_OK) == 0) {

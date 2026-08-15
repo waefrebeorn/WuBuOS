@@ -38,7 +38,7 @@ void wubu_fc_probe(void)
     g_fc = 0; g_pause = 0; g_pfc = 0; g_autoneg = 0; g_ethtool = 0;
     g_fc_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* NIC present? */
     if (access("/sys/class/net", R_OK) == 0) {
         g_fc = 1;

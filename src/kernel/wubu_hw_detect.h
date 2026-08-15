@@ -12,7 +12,7 @@
 
 #include <stddef.h>   /* size_t */
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
 /* File-existence probe (defined in wubu_gpu_icd.c, used by wubu_hw_summary). */
 int wubu_file_exists(const char *path);
 #endif

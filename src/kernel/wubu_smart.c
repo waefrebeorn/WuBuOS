@@ -38,7 +38,7 @@ void wubu_smart_probe(void)
     g_smart = 0; g_ata = 0; g_nvme = 0; g_health = 0; g_temp = 0;
     g_smart_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/ata_device", R_OK) == 0 ||
         access("/dev/sda", R_OK) == 0) {
         g_smart = 1; g_ata = 1; g_health = 1; g_temp = 1;

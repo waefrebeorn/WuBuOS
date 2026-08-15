@@ -22,7 +22,7 @@ static int g_vk_full = 0;
 
 void wubu_vulkan14_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vk_present = (access("/dev/dri/card0", R_OK) == 0) ? 1 : 0;
     g_vk_full = (access("/dev/dri/card0", R_OK) == 0) ? 1 : 0;
 #else
@@ -32,7 +32,7 @@ void wubu_vulkan14_probe(void)
 
 int wubu_vulkan14_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vk_present;
 #else
     return 0;

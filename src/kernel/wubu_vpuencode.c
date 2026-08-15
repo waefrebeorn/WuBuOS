@@ -20,7 +20,7 @@ static int g_vpuencode_encoder = 0;
 
 void wubu_vpuencode_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vpuencode_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_vpuencode_encoder = (access("/sys/class/drm/card0/device/drm", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_vpuencode_probe(void)
 
 int wubu_vpuencode_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vpuencode_present;
 #else
     return 0;

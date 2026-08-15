@@ -42,7 +42,7 @@ void wubu_tpm_probe(void)
     g_tpm = 0; g_tpm2 = 0; g_tss = 0; g_crb = 0; g_measured_boot = 0;
     g_tpm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* TPM device present? */
     if (access("/dev/tpm0", R_OK) == 0 || access("/sys/class/tpm", R_OK) == 0) {
         g_tpm = 1;

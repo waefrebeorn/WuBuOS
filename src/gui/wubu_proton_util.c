@@ -7,6 +7,7 @@
  */
 
 #define _XOPEN_SOURCE 700
+#include "wubu_gnu_compat.h"
 #include "wubu_proton_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <ftw.h>
+#include "wubu_ftw.h"
 
 #include "wubu_fs_util.h"
 

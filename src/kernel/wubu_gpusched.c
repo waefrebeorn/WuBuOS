@@ -42,7 +42,7 @@ void wubu_gpusched_probe(void)
     g_sched = 0; g_guc = 0; g_prio = 0; g_preempt = 0; g_fair = 0;
     g_gpusched_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* i915? */
     if (access("/sys/module/i915", R_OK) == 0) {
         g_sched = 1; g_guc = 1; g_prio = 1; g_preempt = 1;

@@ -49,7 +49,7 @@ void wubu_fingerprint_probe(void)
     g_authenc = 0; g_fpc = 0;
     g_fp_drv[0] = '\0'; g_fp_vendor[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* libfprint drivers present? (biometric USB/HID devices) */
     if (access("/sys/bus/usb/drivers/goodixmoc", R_OK) == 0 ||
         access("/sys/bus/hid/drivers/goodixmoc-hid", R_OK) == 0) {

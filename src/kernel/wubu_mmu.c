@@ -38,7 +38,7 @@ void wubu_mmu_probe(void)
     g_mmu = 0; g_pt = 0; g_fault = 0; g_vma = 0; g_ctx = 0;
     g_mmu_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_mmu = 1; g_pt = 1; g_fault = 1; g_vma = 1; g_ctx = 1;
         strcpy(g_mmu_drv, "amdgpu-mmu");

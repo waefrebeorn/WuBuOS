@@ -20,7 +20,7 @@ static int g_nvme_gen4_speed = 0;
 
 void wubu_nvme_gen4_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_nvme_gen4_present = (access("/sys/class/nvme/nvme0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_nvme_gen4_speed = (access("/sys/block/nvme0n1/queue/max_hw_sectors_kb", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_nvme_gen4_probe(void)
 
 int wubu_nvme_gen4_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_nvme_gen4_present;
 #else
     return 0;

@@ -32,7 +32,7 @@ void wubu_panel_probe(void)
     g_panel = 0; g_lvds = 0; g_edp = 0; g_hdmi = 0; g_dp = 0; g_vga = 0;
     g_panel_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/drm", R_OK) == 0) {
         g_panel = 1; g_hdmi = 1; g_dp = 1;
         strcpy(g_panel_drv, "drm-panel");

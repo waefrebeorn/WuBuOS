@@ -38,7 +38,7 @@ void wubu_storagesched_probe(void)
     g_ss = 0; g_mq = 0; g_bfq = 0; g_deadline = 0; g_none = 0;
     g_ss_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/block", R_OK) == 0) {
         g_ss = 1; g_mq = 1; g_deadline = 1;
         strcpy(g_ss_drv, "blk-sched");

@@ -39,7 +39,7 @@ void wubu_dmcrypt_probe(void)
     g_crypt = 0; g_luks = 0; g_aes = 0; g_xts = 0; g_dm = 0;
     g_crypt_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/dm_crypt", R_OK) == 0 ||
         access("/dev/mapper", R_OK) == 0) {
         g_crypt = 1; g_dm = 1; g_aes = 1; g_xts = 1;

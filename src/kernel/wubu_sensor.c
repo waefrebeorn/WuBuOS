@@ -51,7 +51,7 @@ void wubu_sensor_probe(void)
 {
     g_sensor_mask = 0;
     g_sensor_count = 0;
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Scan the IIO device name nodes for known sensor families. */
     char path[256];
     char name[128];

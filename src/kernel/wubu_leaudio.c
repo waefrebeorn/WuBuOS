@@ -20,7 +20,7 @@ static int g_leaudio_lc3 = 0;
 
 void wubu_leaudio_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_leaudio_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_leaudio_lc3 = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_leaudio_probe(void)
 
 int wubu_leaudio_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_leaudio_present;
 #else
     return 0;

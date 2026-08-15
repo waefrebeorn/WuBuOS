@@ -20,7 +20,7 @@ static int g_xe3_xe = 0;
 
 void wubu_xe3_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_xe3_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_xe3_xe = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_xe3_probe(void)
 
 int wubu_xe3_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_xe3_present;
 #else
     return 0;

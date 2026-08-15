@@ -21,7 +21,7 @@ static int g_intel_gma_legacy = 0;
 
 void wubu_intel_gma_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_intel_gma_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_intel_gma_legacy = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_intel_gma_probe(void)
 
 int wubu_intel_gma_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_intel_gma_present;
 #else
     return 0;

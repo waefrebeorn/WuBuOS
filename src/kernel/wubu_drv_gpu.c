@@ -142,7 +142,7 @@ const char *wubu_gpu_connector_name(int c)
     }
 }
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
 /* ---- WSL2 passthrough (the magic OS detects its own runtime) ----
  *
  * On WSL2, /dev/dxg is the paravirtualized GPU. There's no PCI device,

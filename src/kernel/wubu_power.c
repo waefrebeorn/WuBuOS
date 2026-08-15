@@ -55,7 +55,7 @@ void wubu_power_probe(void)
     g_battery = 0; g_thermal = 0; g_fan = 0; g_ncores = 0;
     g_cpufreq_drv[0] = '\0'; g_governor[0] = '\0'; g_cstate[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Detect CPU vendor via /proc/cpuinfo. */
     FILE *f = fopen("/proc/cpuinfo", "r");
     char line[256];

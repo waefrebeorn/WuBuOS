@@ -22,7 +22,7 @@ static int g_pcmring_period = 0;
 void wubu_pcmring_probe(void)
 {
     /* Detect PCM ring via procfs presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_pcmring_bufsize = (access("/proc/asound/card0/pcm0p/sub0/hw_params", R_OK) == 0) ? 1 : 0;
     g_pcmring_period = (access("/proc/asound/card0/pcm0p/sub0/sw_params", R_OK) == 0) ? 1 : 0;
 #else
@@ -33,7 +33,7 @@ void wubu_pcmring_probe(void)
 
 int wubu_pcmring_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return access("/proc/asound/card0", R_OK) == 0;
 #else
     return 0;

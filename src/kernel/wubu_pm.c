@@ -42,7 +42,7 @@ void wubu_pm_probe(void)
     g_s0ix = 0; g_s3 = 0; g_s4 = 0; g_runtime_pm = 0; g_cpuidle = 0;
     g_pm_drv[0] = '\0'; g_idle_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* /sys/power/state lists supported sleep states (s2idle/s3/s4). */
     FILE *f = fopen("/sys/power/state", "r");
     if (f) {

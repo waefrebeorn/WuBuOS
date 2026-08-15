@@ -21,7 +21,7 @@ static int g_nvmepower_apst = 0;
 void wubu_nvmepower_probe(void)
 {
     /* Detect NVMe power + APST availability. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_nvmepower_present = (access("/sys/class/nvme/nvme0/power", R_OK) == 0) ? 1 : 0;
     g_nvmepower_apst = (access("/sys/class/nvme/nvme0/apst", W_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_nvmepower_probe(void)
 
 int wubu_nvmepower_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_nvmepower_present;
 #else
     return 0;

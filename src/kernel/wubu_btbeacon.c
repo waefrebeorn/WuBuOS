@@ -20,7 +20,7 @@ static int g_btbeacon_advertising = 0;
 
 void wubu_btbeacon_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_btbeacon_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_btbeacon_advertising = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_btbeacon_probe(void)
 
 int wubu_btbeacon_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_btbeacon_present;
 #else
     return 0;

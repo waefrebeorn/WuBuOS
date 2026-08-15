@@ -36,7 +36,7 @@ void wubu_nfsmount_probe(void)
     g_nfs = 0; g_mount = 0; g_vers = 0; g_rsize = 0; g_wsize = 0;
     g_nfs_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/mounts", R_OK) == 0) {
         FILE *f = fopen("/proc/mounts", "r");
         if (f) {

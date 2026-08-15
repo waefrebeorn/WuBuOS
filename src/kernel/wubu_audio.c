@@ -132,7 +132,7 @@ static const wubu_audio_dev_t *audio_route_lookup(int vendor, int device)
  * Bluetooth audio device is connected via BlueZ. */
 int wubu_audio_has_bt_a2dp(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* On hosted builds: check /sys/class/bluetooth for audio profiles. */
     /* Real detection would scan the bluetooth sysfs for a2dp profiles. */
     /* For now: check if /sys/class/bluetooth is accessible. */

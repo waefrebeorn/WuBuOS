@@ -11,7 +11,7 @@ CFLAGS = -std=c11 -Wall -Wextra -Wpedantic -O2 -fPIC \
          -I/home/wubu/wubuos/vsl/gpu \
          -I/usr/include/drm \
          -I/usr/include/libdrm \
-         -D_GNU_SOURCE
+         -DWUBU_HOSTED
 LDFLAGS = -shared -ldl -lvulkan -ldrm
 
 # For bare metal ZealOS cross-compile:

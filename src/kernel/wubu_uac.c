@@ -38,7 +38,7 @@ void wubu_uac_probe(void)
     g_uac = 0; g_uac1 = 0; g_uac2 = 0; g_iso = 0; g_alt = 0;
     g_uac_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     DIR *d = opendir("/sys/bus/usb/devices");
     if (d) {
         struct dirent *e;

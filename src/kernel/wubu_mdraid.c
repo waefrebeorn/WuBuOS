@@ -21,7 +21,7 @@ static int g_mdraid_healthy = 0;
 void wubu_mdraid_probe(void)
 {
     /* Detect MD RAID via /proc/mdstat presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_mdraid_arrays = (access("/proc/mdstat", R_OK) == 0) ? 1 : 0;
     g_mdraid_healthy = (access("/sys/block/md0", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_mdraid_probe(void)
 
 int wubu_mdraid_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_mdraid_arrays;
 #else
     return 0;

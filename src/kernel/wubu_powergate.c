@@ -38,7 +38,7 @@ void wubu_powergate_probe(void)
     g_pg = 0; g_runtime = 0; g_shader = 0; g_texture = 0; g_l2 = 0;
     g_pg_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_pg = 1; g_runtime = 1; g_shader = 1; g_texture = 1; g_l2 = 1;
         strcpy(g_pg_drv, "amdgpu-pg");

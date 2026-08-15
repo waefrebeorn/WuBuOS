@@ -6,10 +6,11 @@
  * hooks (the channel-stride guarantee).
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE   /* sched_setaffinity / CPU_ZERO (host reader pool) */
+#ifndef WUBU_HOSTED
+#define WUBU_HOSTED   /* sched_setaffinity / CPU_ZERO (host reader pool) */
 #endif
 
+#include "wubu_gnu_compat.h"
 #include "wubu_dram_hedge.h"
 
 #include <stdlib.h>

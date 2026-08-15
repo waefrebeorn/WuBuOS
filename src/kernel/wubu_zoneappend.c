@@ -21,7 +21,7 @@ static int g_zoneappend_zoned = 0;
 void wubu_zoneappend_probe(void)
 {
     /* Detect ZNS zone device presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_zoneappend_present = (access("/sys/block/nvme0n1/queue/zoned", R_OK) == 0) ? 1 : 0;
     g_zoneappend_zoned = (access("/proc/mdstat", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_zoneappend_probe(void)
 
 int wubu_zoneappend_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_zoneappend_present;
 #else
     return 0;

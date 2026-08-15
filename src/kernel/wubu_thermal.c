@@ -41,7 +41,7 @@ void wubu_thermal_probe(void)
     g_hwmon = 0; g_fan = 0; g_zone = 0; g_trip = 0; g_fancontrol = 0;
     g_thermal_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* hwmon present? */
     if (access("/sys/class/hwmon", R_OK) == 0) {
         g_hwmon = 1;

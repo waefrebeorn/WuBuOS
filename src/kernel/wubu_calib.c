@@ -41,7 +41,7 @@ void wubu_calib_probe(void)
     g_drm_color = 0; g_ddc = 0; g_gamma = 0; g_colord = 0; g_icc = 0;
     g_calib_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DRM color management (gamma LUT)? */
     if (access("/sys/kernel/debug/dri", R_OK) == 0 ||
         access("/sys/module/drm_kms_helper", R_OK) == 0) {

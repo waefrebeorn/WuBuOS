@@ -21,7 +21,7 @@ static int g_gpucsched_preempt = 0;
 void wubu_gpucsched_probe(void)
 {
     /* Detect GPU compute queue + preemption capability. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpucsched_queues = (access("/sys/class/drm/card0/device", R_OK) == 0) ? 1 : 0;
     g_gpucsched_preempt = (access("/dev/dri/renderD128", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_gpucsched_probe(void)
 
 int wubu_gpucsched_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpucsched_queues;
 #else
     return 0;

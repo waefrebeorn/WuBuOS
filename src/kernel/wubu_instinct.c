@@ -22,7 +22,7 @@ static int g_instinct_amdgpu = 0;
 
 void wubu_instinct_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_instinct_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_instinct_amdgpu = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -32,7 +32,7 @@ void wubu_instinct_probe(void)
 
 int wubu_instinct_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_instinct_present;
 #else
     return 0;

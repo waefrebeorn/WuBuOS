@@ -49,7 +49,7 @@ void wubu_hdr_probe(void)
     g_hdr10 = 0; g_hdr10p = 0; g_dv = 0; g_hdr_sink = 0; g_jack = 0;
     g_hdr_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DRM HDR metadata support? */
     if (access("/sys/module/drm", R_OK) == 0 ||
         access("/sys/kernel/debug/dri", R_OK) == 0) {

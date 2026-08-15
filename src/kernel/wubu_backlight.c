@@ -44,7 +44,7 @@ void wubu_backlight_probe(void)
     g_backlight = 0; g_acpi = 0; g_native = 0; g_wol = 0; g_wol_magic = 0;
     g_bl_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Backlight devices present? */
     if (access("/sys/class/backlight", R_OK) == 0) {
         struct dirent **e;

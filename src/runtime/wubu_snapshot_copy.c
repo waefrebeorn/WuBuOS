@@ -3,6 +3,7 @@
  * ftw + sendfile only. C11, minimal includes.
  */
 #define _POSIX_C_SOURCE 200809L
+#include "wubu_gnu_compat.h"
 #include "wubu_snapshot.h"
 #include "wubu_snapshot_internal.h"
 
@@ -17,6 +18,7 @@
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 #include <dirent.h>
+#include "wubu_ftw.h"
 #include <linux/limits.h>
 
 /* Copy context (was local to wubu_snapshot.c) */

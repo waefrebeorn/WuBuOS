@@ -21,7 +21,7 @@ static int g_gpufw_matched = 0;
 void wubu_gpufw_probe(void)
 {
     /* Detect GPU firmware presence + driver match. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpufw_present = (access("/sys/class/drm/card0/device/rom", R_OK) == 0) ? 1 : 0;
     g_gpufw_matched = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_gpufw_probe(void)
 
 int wubu_gpufw_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpufw_present;
 #else
     return 0;

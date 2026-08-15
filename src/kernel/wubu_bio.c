@@ -36,7 +36,7 @@ void wubu_bio_probe(void)
     g_bio = 0; g_vec = 0; g_bdi = 0; g_read = 0; g_write = 0;
     g_bio_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/block", R_OK) == 0 ||
         access("/proc/buddyinfo", R_OK) == 0) {
         g_bio = 1; g_vec = 1; g_bdi = 1; g_read = 1; g_write = 1;

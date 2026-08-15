@@ -21,7 +21,7 @@ static int g_gpufwupd_version = 0;
 void wubu_gpufwupd_probe(void)
 {
     /* Detect GPU firmware ROM presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpufwupd_present = (access("/sys/class/drm/card0/device/rom", R_OK) == 0) ? 1 : 0;
     g_gpufwupd_version = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_gpufwupd_probe(void)
 
 int wubu_gpufwupd_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpufwupd_present;
 #else
     return 0;

@@ -20,7 +20,7 @@ static int g_pcmlink_playback = 0;
 void wubu_pcmlink_probe(void)
 {
     /* Detect PCM link presence via procfs. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_pcmlink_capture = (access("/proc/asound/card0/pcm0c/sub0", R_OK) == 0) ? 1 : 0;
     g_pcmlink_playback = (access("/proc/asound/card0/pcm0p/sub0", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_pcmlink_probe(void)
 
 int wubu_pcmlink_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_pcmlink_capture || g_pcmlink_playback;
 #else
     return 0;

@@ -42,7 +42,7 @@ void wubu_eq_probe(void)
     g_alsa_eq = 0; g_sw_eq = 0; g_dsp = 0; g_biquad = 0; g_loudness = 0;
     g_eq_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* ALSA hardware EQ (codec control)? */
     if (access("/proc/asound", R_OK) == 0 &&
         (access("/usr/bin/alsamixer", R_OK) == 0 ||

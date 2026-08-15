@@ -34,7 +34,7 @@ void wubu_backlightpwm_probe(void)
     g_bl = 0; g_pwm = 0; g_sysfs = 0; g_acpi = 0; g_intel = 0;
     g_bl_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* /sys/class/backlight present? */
     if (access("/sys/class/backlight", R_OK) == 0) {
         g_bl = 1; g_sysfs = 1;

@@ -59,7 +59,7 @@ void wubu_raid_probe(void)
     g_raid = 0; g_sas = 0; g_md = 0;
     g_raid_drv[0] = '\0'; g_raid_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Software RAID (md) present? */
     if (access("/dev/md0", R_OK) == 0 || access("/proc/mdstat", R_OK) == 0) {
         g_md = 1;

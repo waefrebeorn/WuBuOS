@@ -36,7 +36,7 @@ void wubu_compressor_probe(void)
     g_comp = 0; g_thresh = 0; g_ratio = 0; g_attack = 0; g_release = 0;
     g_comp_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_soc", R_OK) == 0) {
         g_comp = 1; g_thresh = 1; g_ratio = 1; g_attack = 1; g_release = 1;

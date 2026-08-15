@@ -36,7 +36,7 @@ void wubu_decode_probe(void)
     g_dec = 0; g_h264 = 0; g_h265 = 0; g_av1 = 0; g_vp9 = 0;
     g_dec_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/module/amdgpu", R_OK) == 0) {
         g_dec = 1; g_h264 = 1; g_h265 = 1; g_av1 = 1;
         strcpy(g_dec_drv, "amd-uvd");

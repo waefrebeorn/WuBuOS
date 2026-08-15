@@ -36,7 +36,7 @@ void wubu_fbcon_probe(void)
     g_fb = 0; g_drm = 0; g_rotate = 0; g_virtual = 0; g_mode = 0;
     g_fb_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/graphics/fb0", R_OK) == 0 ||
         access("/sys/class/graphics", R_OK) == 0) {
         g_fb = 1; g_rotate = 1; g_virtual = 1; g_mode = 1;

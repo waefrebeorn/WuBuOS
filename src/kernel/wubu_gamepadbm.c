@@ -20,7 +20,7 @@ static int g_gamepadbm_buttons = 0;
 
 void wubu_gamepadbm_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gamepadbm_present = (access("/sys/class/input/js0", R_OK) == 0) ? 1 : 0;
     g_gamepadbm_buttons = (access("/sys/class/input/js0/device", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_gamepadbm_probe(void)
 
 int wubu_gamepadbm_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gamepadbm_present;
 #else
     return 0;

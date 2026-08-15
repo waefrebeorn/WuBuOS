@@ -34,7 +34,7 @@ void wubu_uas_probe(void)
     g_uas = 0; g_bot = 0; g_uasp = 0; g_queue = 0; g_part = 0;
     g_uas_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/scsi_host", R_OK) == 0 ||
         access("/proc/partitions", R_OK) == 0) {
         g_uas = 1; g_uasp = 1; g_queue = 1; g_part = 1;

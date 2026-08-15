@@ -41,7 +41,7 @@ void wubu_securekey_probe(void)
     g_fido = 0; g_ccid = 0; g_tpm = 0;
     g_sec_drv[0] = '\0'; g_sec_type[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* FIDO2/U2F key (HID driver loaded)? */
     if (access("/sys/bus/hid/drivers/hid-u2f", R_OK) == 0 ||
         access("/sys/bus/hid/drivers/hid-fido2", R_OK) == 0) {

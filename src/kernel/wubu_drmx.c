@@ -39,7 +39,7 @@ void wubu_drmx_probe(void)
     g_writeback = 0; g_overlay = 0; g_hdr = 0; g_color_mgmt = 0; g_vkms = 0;
     g_drmx_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DRM present at all? */
     if (access("/dev/dri/card0", R_OK) == 0 ||
         access("/sys/class/drm", R_OK) == 0) {

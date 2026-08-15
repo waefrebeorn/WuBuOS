@@ -20,7 +20,7 @@ static int g_gpumem_gb = 0;
 
 void wubu_gpumem_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpumem_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_gpumem_gb = (access("/sys/class/drm/card0/device/mem_info_vram_total", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_gpumem_probe(void)
 
 int wubu_gpumem_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpumem_present;
 #else
     return 0;
@@ -48,7 +48,7 @@ int wubu_gpumem_tier(int bandwidth_gb_per_s)
 
 int wubu_gpumem_is_gb(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpumem_gb;
 #else
     return 0;

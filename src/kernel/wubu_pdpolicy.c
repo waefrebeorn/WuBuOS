@@ -41,7 +41,7 @@ void wubu_pdpolicy_probe(void)
     g_pd = 0; g_contract = 0; g_pdo = 0; g_pps = 0; g_dual = 0;
     g_pd_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* typec port present? */
     if (access("/sys/class/typec", R_OK) == 0) {
         g_pd = 1; g_contract = 1; g_pdo = 1;

@@ -39,7 +39,7 @@ void wubu_computectx_probe(void)
     g_ctx = 0; g_kfd = 0; g_queue = 0; g_opencl = 0; g_cuda = 0;
     g_ctx_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/kfd", R_OK) == 0 ||
         access("/dev/kfd", R_OK) == 0) {
         g_ctx = 1; g_kfd = 1; g_queue = 1;

@@ -44,7 +44,7 @@ void wubu_sata_probe(void)
     g_pmp = 0; g_smart = 0;
     g_sata_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* AHCI/SATA host present? */
     if (access("/sys/bus/pci/drivers/ahci", R_OK) == 0 ||
         access("/sys/bus/ata", R_OK) == 0) {

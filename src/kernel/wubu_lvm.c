@@ -22,7 +22,7 @@ static int g_lvm_lv_count = 0;
 void wubu_lvm_probe(void)
 {
     /* Detect LVM via /sys/block/dm-* presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     DIR *d = opendir("/sys/block");
     if (d) {
         struct dirent *e;
@@ -41,7 +41,7 @@ void wubu_lvm_probe(void)
 
 int wubu_lvm_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_lvm_lv_count > 0;
 #else
     return 0;

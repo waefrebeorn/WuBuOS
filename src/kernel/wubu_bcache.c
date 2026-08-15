@@ -23,7 +23,7 @@ static int g_bcache_mode = 0;
 void wubu_bcache_probe(void)
 {
     /* Detect bcache via sysfs presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_bcache_hits = (access("/sys/block/bcache0/bcache/cache_hit_ratio", R_OK) == 0) ? 1 : 0;
     g_bcache_mode = (access("/sys/block/bcache0/bcache/cache_mode", R_OK) == 0) ? 1 : 0;
 #else
@@ -34,7 +34,7 @@ void wubu_bcache_probe(void)
 
 int wubu_bcache_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return access("/sys/fs/bcache", R_OK) == 0;
 #else
     return 0;

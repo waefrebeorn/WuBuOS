@@ -20,7 +20,7 @@ static int g_bap_streaming = 0;
 
 void wubu_bap_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_bap_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_bap_streaming = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_bap_probe(void)
 
 int wubu_bap_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_bap_present;
 #else
     return 0;

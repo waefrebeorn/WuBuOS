@@ -54,7 +54,7 @@ void wubu_accel_probe(void)
     g_accel = 0; g_npu = 0; g_dsp = 0; g_npu_vendor = 0;
     g_accel_drv[0] = '\0'; g_npu_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Linux accel subsystem present (accel driver loaded)? */
     if (access("/sys/class/accel", R_OK) == 0 ||
         access("/dev/accel/accel0", R_OK) == 0) {

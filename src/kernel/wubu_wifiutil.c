@@ -38,7 +38,7 @@ void wubu_wifiutil_probe(void)
     g_util = 0; g_cca = 0; g_airtime = 0; g_survey = 0; g_chan = 0;
     g_wifiutil_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/ieee80211", R_OK) == 0 ||
         access("/sys/module/mac80211", R_OK) == 0) {
         g_util = 1; g_cca = 1; g_airtime = 1; g_survey = 1; g_chan = 1;

@@ -21,7 +21,7 @@ static int g_dsptrace_errors = 0;
 void wubu_dsptrace_probe(void)
 {
     /* Detect DSP trace availability. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_dsptrace_avail = (access("/sys/kernel/debug", R_OK) == 0) ? 1 : 0;
     g_dsptrace_errors = (access("/sys/module/snd_sof/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_dsptrace_probe(void)
 
 int wubu_dsptrace_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_dsptrace_avail;
 #else
     return 0;

@@ -41,7 +41,7 @@ void wubu_colormgmt_probe(void)
     g_ctm = 0; g_gamma = 0; g_degamma = 0; g_csc = 0; g_3dlut = 0;
     g_cm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* DRM color mgmt? */
     if (access("/sys/class/drm", R_OK) == 0) {
         DIR *d = opendir("/sys/class/drm");

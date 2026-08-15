@@ -21,7 +21,7 @@ static int g_gpushader_model = 0;
 void wubu_gpushader_probe(void)
 {
     /* Detect GPU shader model presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_gpushader_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_gpushader_model = (access("/sys/class/drm/card0/device/hardware_rev", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_gpushader_probe(void)
 
 int wubu_gpushader_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_gpushader_present;
 #else
     return 0;

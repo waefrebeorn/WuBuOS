@@ -42,7 +42,7 @@ void wubu_wifi_reg_probe(void)
     g_regdb = 0; g_crda = 0; g_dfs = 0; g_radar = 0; g_country = 0;
     g_reg_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* regulatory database present? */
     if (access("/usr/lib/crda/regulatory.bin", R_OK) == 0 ||
         access("/lib/crda/regulatory.bin", R_OK) == 0 ||

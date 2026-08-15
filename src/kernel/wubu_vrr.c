@@ -22,7 +22,7 @@ static int g_vrr_freesync = 0;
 
 void wubu_vrr_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vrr_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_vrr_freesync = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -32,7 +32,7 @@ void wubu_vrr_probe(void)
 
 int wubu_vrr_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vrr_present;
 #else
     return 0;

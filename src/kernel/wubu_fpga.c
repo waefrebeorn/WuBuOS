@@ -42,7 +42,7 @@ void wubu_fpga_probe(void)
     g_fpga = 0; g_fpga_mgr = 0; g_fpga_region = 0; g_fpga_bridge = 0;
     g_fpga_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* FPGA manager present? */
     if (access("/sys/class/fpga_manager", R_OK) == 0 ||
         access("/dev/fpga0", R_OK) == 0 ||

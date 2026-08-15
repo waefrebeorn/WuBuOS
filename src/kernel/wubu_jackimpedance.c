@@ -37,7 +37,7 @@ void wubu_jackimpedance_probe(void)
     g_ji = 0; g_headphone = 0; g_mic = 0; g_line = 0; g_threshold = 0;
     g_ji_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_hda_intel", R_OK) == 0) {
         g_ji = 1; g_headphone = 1; g_mic = 1; g_line = 1; g_threshold = 1;

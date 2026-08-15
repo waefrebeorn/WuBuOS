@@ -20,7 +20,7 @@ static int g_auracast_broadcast = 0;
 
 void wubu_auracast_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_auracast_present = (access("/sys/class/bluetooth/hci0", R_OK) == 0) ? 1 : 0;
     g_auracast_broadcast = (access("/sys/module/btintel/parameters", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_auracast_probe(void)
 
 int wubu_auracast_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_auracast_present;
 #else
     return 0;

@@ -46,7 +46,7 @@ void wubu_phy_probe(void)
     g_phy = 0; g_mdio = 0; g_link = 0;
     g_phy_drv[0] = '\0'; g_phy_name[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* PHY devices present (phylib)? */
     if (access("/sys/bus/mdio_bus/devices", R_OK) == 0) {
         g_mdio = 1;

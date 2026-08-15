@@ -34,7 +34,7 @@ void wubu_gpuband_probe(void)
     g_band = 0; g_fair = 0; g_prio = 0; g_entity = 0; g_stats = 0;
     g_band_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/sys/class/drm", R_OK) == 0) {
         g_band = 1; g_fair = 1; g_prio = 1; g_entity = 1; g_stats = 1;
         strcpy(g_band_drv, "drm-sched");

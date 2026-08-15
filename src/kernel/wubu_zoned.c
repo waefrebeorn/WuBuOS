@@ -41,7 +41,7 @@ void wubu_zoned_probe(void)
     g_zoned = 0; g_smr = 0; g_zns = 0; g_zonefs = 0; g_zones = 0;
     g_zoned_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* Zoned block devices: check queue/zoned on sdX/nvme */
     struct dirent **e;
     int n = scandir("/sys/block", &e, NULL, alphasort);

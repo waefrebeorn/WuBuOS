@@ -35,7 +35,7 @@ void wubu_devmapper_probe(void)
     g_dm = 0; g_linear = 0; g_stripe = 0; g_mirror = 0; g_snapshot = 0;
     g_dm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/dev/mapper/control", R_OK) == 0 ||
         access("/sys/block/dm-0/dm", R_OK) == 0 ||
         access("/sys/block/dm-0", R_OK) == 0) {

@@ -20,7 +20,7 @@ static int g_mali_g720_panthor = 0;
 
 void wubu_mali_g720_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_mali_g720_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_mali_g720_panthor = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -30,7 +30,7 @@ void wubu_mali_g720_probe(void)
 
 int wubu_mali_g720_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_mali_g720_present;
 #else
     return 0;

@@ -43,7 +43,7 @@ void wubu_flush_probe(void)
     g_flush = 0; g_barrier = 0; g_wbcache = 0; g_fsync = 0; g_nvme_flush = 0;
     g_flush_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* storage present? (block device) */
     if (access("/sys/block", R_OK) == 0) {
         g_flush = 1;

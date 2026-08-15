@@ -46,7 +46,7 @@ void wubu_rdma_probe(void)
     g_rdma = 0; g_ib = 0; g_roce = 0; g_iwarp = 0; g_soft_roce = 0;
     g_ports = 0; g_rdma_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* InfiniBand/RDMA class present? */
     if (access("/sys/class/infiniband", R_OK) == 0 ||
         access("/dev/infiniband", R_OK) == 0) {

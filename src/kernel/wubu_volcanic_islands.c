@@ -21,7 +21,7 @@ static int g_vi_amdgpu = 0;
 
 void wubu_volcanic_islands_probe(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_vi_present = (access("/sys/class/drm/card0/device/uevent", R_OK) == 0) ? 1 : 0;
     g_vi_amdgpu = (access("/sys/class/drm/card0/device/vendor", R_OK) == 0) ? 1 : 0;
 #else
@@ -31,7 +31,7 @@ void wubu_volcanic_islands_probe(void)
 
 int wubu_volcanic_islands_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_vi_present;
 #else
     return 0;

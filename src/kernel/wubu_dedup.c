@@ -43,7 +43,7 @@ void wubu_dedup_probe(void)
     g_dedup = 0; g_dm = 0; g_btrfs = 0; g_xfs = 0; g_zfs = 0;
     g_dedup_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* dm-dedup? */
     if (access("/sys/module/dm_mod", R_OK) == 0) {
         g_dm = 1;

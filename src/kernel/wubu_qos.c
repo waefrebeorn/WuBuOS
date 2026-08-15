@@ -41,7 +41,7 @@ void wubu_qos_probe(void)
     g_tc = 0; g_offload = 0; g_flower = 0; g_shaping = 0; g_ecn = 0;
     g_qos_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* tc available (iproute2)? */
     if (access("/sbin/tc", R_OK) == 0 || access("/usr/sbin/tc", R_OK) == 0) {
         g_tc = 1;

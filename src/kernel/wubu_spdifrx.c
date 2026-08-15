@@ -36,7 +36,7 @@ void wubu_spdifrx_probe(void)
     g_rx = 0; g_rate = 0; g_lock = 0; g_format = 0; g_pcm = 0;
     g_rx_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_pcm", R_OK) == 0) {
         g_rx = 1; g_rate = 1; g_lock = 1; g_format = 1; g_pcm = 1;

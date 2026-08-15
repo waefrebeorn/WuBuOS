@@ -37,7 +37,7 @@ void wubu_dapmwidget_probe(void)
     g_dapm = 0; g_widget = 0; g_power = 0; g_path = 0; g_stream = 0;
     g_dapm_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_soc_core", R_OK) == 0) {
         g_dapm = 1; g_widget = 1; g_power = 1; g_path = 1; g_stream = 1;

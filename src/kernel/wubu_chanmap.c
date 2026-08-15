@@ -36,7 +36,7 @@ void wubu_chanmap_probe(void)
     g_map = 0; g_stereo = 0; g_51 = 0; g_71 = 0; g_chmap = 0;
     g_chanmap_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     if (access("/proc/asound", R_OK) == 0 ||
         access("/sys/module/snd_pcm", R_OK) == 0) {
         g_map = 1; g_stereo = 1; g_chmap = 1;

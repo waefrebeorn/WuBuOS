@@ -24,7 +24,7 @@ static int g_perf_present = 0;
 void wubu_perf_probe(void)
 {
     /* Detect GPU perf via sysfs presence. */
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     g_perf_present = (access("/sys/class/drm/card0/device/gt_boost_freq_mhz", R_OK) == 0);
 #else
     g_perf_present = 0;
@@ -33,7 +33,7 @@ void wubu_perf_probe(void)
 
 int wubu_perf_present(void)
 {
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     return g_perf_present;
 #else
     return 0;

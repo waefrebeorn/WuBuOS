@@ -48,7 +48,7 @@ void wubu_trim_probe(void)
     g_trim = 0; g_fstrim = 0; g_discard = 0; g_altmode = 0; g_tb = 0;
     g_trim_drv[0] = '\0';
 
-#ifdef _GNU_SOURCE
+#ifdef WUBU_HOSTED
     /* TRIM support (SSD discard granularity)? */
     if (access("/usr/sbin/fstrim", R_OK) == 0 ||
         access("/usr/bin/fstrim", R_OK) == 0) {
