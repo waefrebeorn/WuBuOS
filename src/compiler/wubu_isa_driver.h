@@ -66,6 +66,7 @@ extern const wubu_isa_driver_t wubu_isa_x86_64;
 extern const wubu_isa_driver_t wubu_isa_arm64;  /* AArch64 (2011, 230B chips) */
 extern const wubu_isa_driver_t wubu_isa_mips;   /* MIPS (1981, Berkeley RISC lineage) */
 extern const wubu_isa_driver_t wubu_isa_8051;   /* Intel 8051 (1978, the $0.10 chip) */
+extern const wubu_isa_driver_t wubu_isa_avr;    /* Atmel AVR (Arduino Uno) */
 extern const wubu_isa_driver_t wubu_isa_m68k;   /* the 68,000 (1979) */
 extern const wubu_isa_driver_t wubu_isa_i8086;  /* the x86 root (1978) */
 extern const wubu_isa_driver_t wubu_isa_riscv;  /* RV64I (2010) */
