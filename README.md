@@ -1,10 +1,11 @@
 # WuBuOS — the BODY of the WuBu AGI
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · HolyC
-JIT — one hosted binary that runs on Linux, and a measured-boot chain that runs
-on metal.** WuBuOS merges five lineage studies into one OS-scale C11 codebase.
-The Brain (`wubuwizard`) learns; the Body protects, hosts, and acts — the Live
-Colonel (ring-0 REPL) is where the Body runs the Brain's model.
+**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · WuBuNOS
+compiler — one hosted binary that runs on Linux, and a measured-boot chain that
+runs on metal.** WuBuOS merges five lineage studies into one OS-scale C11
+codebase. The Brain (`wubuwizard`) learns; the Body protects, hosts, and acts;
+**WuBuNOS** is the compiler that targets every ISA — the HolyC JIT with 11
+backends, the from-scratch C11 toolchain that compiles ON the kernel.
 
 - **Code lives on GitHub** — [`waefrebeorn/WuBuOS`](https://github.com/waefrebeorn/WuBuOS)
 - **Models + datasets live on HuggingFace** — the [`WaefreBeorn` org](https://huggingface.co/WaefreBeorn)
