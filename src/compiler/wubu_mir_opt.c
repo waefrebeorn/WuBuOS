@@ -350,6 +350,17 @@ static void unroll_pass(wubu_mir_prog_t *p)
     (void)p;
 }
 
+/* ---- Pass 6: Instruction Combining (placeholder) ----
+ * Future: merge chains of binary operations, algebraic identities.
+ * For now, this is a no-op — the fold pass handles constant folding
+ * and the strength pass handles algebraic simplifications.
+ */
+static void combine_pass(wubu_mir_prog_t *p)
+{
+    (void)p;
+    /* TODO: implement instruction combining for SSA-form MIR */
+}
+
 /* ---- Main optimizer entry point ---- */
 void wubu_mir_optimize(wubu_mir_prog_t *p, mir_opt_flags_t flags)
 {
@@ -358,4 +369,5 @@ void wubu_mir_optimize(wubu_mir_prog_t *p, mir_opt_flags_t flags)
     if (flags & MIR_OPT_DCE)     dce_pass(p);
     if (flags & MIR_OPT_LICM)    licm_pass(p);
     if (flags & MIR_OPT_UNROLL)  unroll_pass(p);
+    if (flags & MIR_OPT_COMBINE) combine_pass(p);
 }
