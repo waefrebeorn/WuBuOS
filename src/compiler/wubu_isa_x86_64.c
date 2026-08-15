@@ -166,10 +166,15 @@ static int x86_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
     /* Helper: get x86 encoding for vr (returns -1 if spilled) */
     #define VR_ENC(vr) ((vr) < (wubu_vr_t)assign_count && assign[(vr)].reg >= 0 ? reg_x86[assign[(vr)].reg] : -1)
     #define VR_SPILL(vr) ((vr) < (wubu_vr_t)assign_count && assign[(vr)].reg < 0 ? spill_offset(-assign[(vr)].reg - 1) : 0)
+    /* Lookahead: is the next instruction a RET that reads this vr? */
+    #define NEXT_IS_RET(vr) (i + 1 < p->n && p->ins[i+1].op == MIR_RET && p->ins[i+1].a == (wubu_vr_t)(vr))
+
+    int result_in_rax = 0;  /* set when last op skipped store to keep result in rax */
 
     for (size_t i = 0; i < p->n; i++) {
         const wubu_mir_instr_t *in = &p->ins[i];
-        if (in->op == MIR_LABEL) { note_label(&e, in->label, e.n); continue; }
+        if (in->op == MIR_LABEL) { note_label(&e, in->label, e.n); result_in_rax = 0; continue; }
+        if (in->op != MIR_RET) result_in_rax = 0;  /* reset unless RET handles it */
 
         switch (in->op) {
         case MIR_CONST: {
@@ -255,12 +260,19 @@ static int x86_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
             case MIR_XOR: rex(&e,1,0,0,0); e8(&e, 0x31); e8(&e, 0xF8); break;
             default: break;
             }
-            /* Store result */
+            /* Store result — skip if next instr is RET consuming this dst */
             int sd = VR_ENC(in->dst);
             if (sd >= 0) {
-                if (sd != 0) emit_mov_reg(&e, sd, 0);  /* mov dst_reg, rax */
+                if (sd != 0 && !NEXT_IS_RET(in->dst)) {
+                    emit_mov_reg(&e, sd, 0);
+                } else if (NEXT_IS_RET(in->dst)) {
+                    result_in_rax = 1;  /* result stays in rax for RET */
+                } else {
+                    result_in_rax = 0;
+                }
             } else {
-                emit_store_rbp(&e, VR_SPILL(in->dst), 0);  /* mov [rbp+off], rax */
+                emit_store_rbp(&e, VR_SPILL(in->dst), 0);
+                result_in_rax = 0;
             }
             break;
         }
@@ -352,9 +364,13 @@ static int x86_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
             break;
         }
         case MIR_RET: {
-            int sa = VR_ENC(in->a);
-            if (sa >= 0) emit_mov_reg(&e, 0, sa);  /* mov rax, a_reg */
-            else emit_load_rbp(&e, 0, VR_SPILL(in->a));
+            /* If result is already in rax (lookahead skip), don't reload */
+            if (!result_in_rax) {
+                int sa = VR_ENC(in->a);
+                if (sa >= 0) emit_mov_reg(&e, 0, sa);
+                else emit_load_rbp(&e, 0, VR_SPILL(in->a));
+            }
+            result_in_rax = 0;
             e8(&e, 0xC9);  /* leave */
             e8(&e, 0xC3);  /* ret */
             break;
