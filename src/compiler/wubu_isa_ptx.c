@@ -36,6 +36,7 @@ typedef struct {
     char *text;
     size_t n, cap;
     uint32_t n_vregs;     /* highest virtual register used + 1 */
+    uint32_t n_pred;      /* next predicate number to allocate */
 } ptx_emitter_t;
 
 static void ptx_emit(ptx_emitter_t *e, const char *fmt, ...)
@@ -163,7 +164,7 @@ static void emit_kernel_body(ptx_emitter_t *e, const wubu_mir_prog_t *p)
                      (int)rd, (int)ptx_vr(e, ins->a));
             break;
 
-        /* Comparisons: setp.eq/ne/lt/le/gt/ge — produces a predicate */
+        /* Comparisons: setp.eq/ne/lt/le/gt/ge — produces a 0/1 in a register */
         case MIR_EQ:
         case MIR_NE:
         case MIR_LT:
@@ -171,6 +172,7 @@ static void emit_kernel_body(ptx_emitter_t *e, const wubu_mir_prog_t *p)
         case MIR_GT:
         case MIR_GE: {
             rd = ptx_vr(e, ins->dst);
+            uint32_t pred = e->n_pred++;
             const char *cmp;
             switch (ins->op) {
                 case MIR_EQ: cmp = "eq"; break;
@@ -181,11 +183,11 @@ static void emit_kernel_body(ptx_emitter_t *e, const wubu_mir_prog_t *p)
                 case MIR_GE: cmp = "ge"; break;
                 default: cmp = "eq"; break;
             }
-            /* PTX setp produces a predicate; we convert to int via sel */
-            ptx_emit(e, "    setp.%s.s64 p%d, %%r%d, %%r%d;\n",
-                     cmp, (int)rd, (int)ptx_vr(e, ins->a), (int)ptx_vr(e, ins->b));
-            ptx_emit(e, "    selp.b64 %%r%d, 1, 0, p%d;\n",
-                     (int)rd, (int)rd);
+            /* PTX setp produces a predicate; we convert to int via selp */
+            ptx_emit(e, "    setp.%s.s64 p%u, %%r%d, %%r%d;\n",
+                     cmp, pred, (int)ptx_vr(e, ins->a), (int)ptx_vr(e, ins->b));
+            ptx_emit(e, "    selp.b64 %%r%d, 1, 0, p%u;\n",
+                     (int)rd, pred);
             break;
         }
 
@@ -199,8 +201,8 @@ static void emit_kernel_body(ptx_emitter_t *e, const wubu_mir_prog_t *p)
             break;
 
         case MIR_JZ: {
-            /* if (vr == 0) jump — use a predicate */
-            uint32_t predicate = e->n_vregs++;  /* borrow a reg id for predicate naming */
+            /* if (vr == 0) jump — use a predicate from the predicate pool */
+            uint32_t predicate = e->n_pred++;
             ptx_emit(e, "    setp.eq.s64 p%u, %%r%d, 0;\n",
                      predicate, (int)ptx_vr(e, ins->a));
             ptx_emit(e, "    @p%u bra L_%u;\n", predicate, ins->label);
@@ -208,9 +210,9 @@ static void emit_kernel_body(ptx_emitter_t *e, const wubu_mir_prog_t *p)
         }
 
         case MIR_RET: {
-            /* Store vr 0 to the result parameter and return */
+            /* Store the RET source vr to the result parameter */
             ptx_emit(e, "    ld.param.b64 %%rd_result, [result];\n");
-            ptx_emit(e, "    st.global.s64 [%%rd_result], %%r0;\n");
+            ptx_emit(e, "    st.global.s64 [%%rd_result], %%r%d;\n", (int)ptx_vr(e, ins->a));
             ptx_emit(e, "    ret;\n");
             break;
         }
@@ -225,11 +227,13 @@ static void emit_kernel_body(ptx_emitter_t *e, const wubu_mir_prog_t *p)
 
 /* ---- Write the full PTX file from a MIR program ---- */
 
-/* First pass: count how many virtual registers and predicates we need */
+/* First pass: count how many virtual registers and predicates we need.
+ * Each comparison (EQ/NE/LT/LE/GT/GE) needs one predicate for setp+selp.
+ * Each JZ needs one predicate for its conditional branch test. */
 static void count_regs(const wubu_mir_prog_t *p, uint32_t *out_vregs, uint32_t *out_preds)
 {
     uint32_t max_vr = 0;
-    uint32_t max_pred = 0;
+    uint32_t n_preds = 0;
 
     for (size_t i = 0; i < p->n; i++) {
         const wubu_mir_instr_t *ins = &p->ins[i];
@@ -245,16 +249,12 @@ static void count_regs(const wubu_mir_prog_t *p, uint32_t *out_vregs, uint32_t *
             local_max = ins->dst + 1;
             break;
         case MIR_EQ: case MIR_NE: case MIR_LT: case MIR_LE: case MIR_GT: case MIR_GE:
-            /* dst is reused as predicate number */
             local_max = ins->dst + 1;
-            if (ins->dst + 1 > max_pred) max_pred = ins->dst + 1;
+            n_preds++;  /* one predicate for setp */
             break;
         case MIR_JZ:
-            /* borrows n_vregs as predicate id */
             local_max = ins->a + 1;
-            if (local_max > max_vr) max_vr = local_max;
-            /* the predicate will be e->n_vregs at emit time, so we
-             * conservatively add 1 to max_vr for the predicate reg */
+            n_preds++;  /* one predicate for the zero-test */
             break;
         default:
             break;
@@ -262,9 +262,8 @@ static void count_regs(const wubu_mir_prog_t *p, uint32_t *out_vregs, uint32_t *
         if (local_max > max_vr) max_vr = local_max;
     }
 
-    /* JZ may borrow n_vregs as predicate, so ensure headroom */
-    *out_vregs = max_vr + 2;  /* +1 for 0-based, +1 for JZ predicate headroom */
-    *out_preds = max_pred + 4; /* generous predicate pool */
+    *out_vregs = max_vr + 1;  /* +1 for 0-based indexing safety */
+    *out_preds = n_preds + 2; /* small safety margin */
 }
 
 static char *emit_ptx(const wubu_mir_prog_t *p)
@@ -296,7 +295,6 @@ static char *emit_ptx(const wubu_mir_prog_t *p)
     ptx_emit(&e, "    ld.param.b64 %%r0, [arg];\n\n");
 
     /* Emit the kernel body */
-    e.n_vregs = n_vregs;  /* pre-seed so JZ predicate allocation starts above */
     emit_kernel_body(&e, p);
 
     ptx_emit(&e, "}\n");
