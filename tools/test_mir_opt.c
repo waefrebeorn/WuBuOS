@@ -1,3 +1,4 @@
+#include <stdlib.h>
 /*
  * test_mir_opt.c -- MIR optimizer pass tests.
  *

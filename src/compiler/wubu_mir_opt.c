@@ -303,50 +303,16 @@ static void fold_dce_pass(wubu_mir_prog_t *p)
 /* ---- Pass 4: Loop-Invariant Code Motion ---- */
 static void licm_pass(wubu_mir_prog_t *p)
 {
-    /*
-     * Detect simple loop patterns:
-     *   LABEL loop_top
-     *   ... body ...
-     *   JZ exit
-     *   ... more body ...
-     *   JMP loop_top
-     *   LABEL exit
-     *
-     * Hoist pure computations (CONST, or ops on only CONST operands)
-     * that appear before the JZ and don't depend on loop-modified vrs.
-     *
-     * This is a simplified version: it identifies loop boundaries
-     * and hoists pure constant computations.
-     */
-    /* Find loop top labels (targets of backward JMPs) */
-    for (size_t i = 0; i < p->n; i++) {
-        if (p->ins[i].op != MIR_JMP) continue;
-        uint32_t target = p->ins[i].label;
-        /* Find the label position */
-        for (size_t j = 0; j < p->n; j++) {
-            if (p->ins[j].op == MIR_LABEL && p->ins[j].label == target && j < i) {
-                /* This is a backward jump -> loop from j to i */
-                /* Hoist pure const computations from j+1..i-1 to before j */
-                /* (simplified: just note the loop for now) */
-                break;
-            }
-        }
-    }
+    /* SSA-form MIR makes LICM complex (no phi nodes for loop-variant detection).
+     * Placeholder: requires SSA reconstruction for proper analysis. */
+    (void)p;
 }
 
 /* ---- Pass 5: Loop Unrolling ---- */
 static void unroll_pass(wubu_mir_prog_t *p)
 {
-    /*
-     * For loops with small constant trip counts detected via
-     * the pattern: CONST n; LABEL loop; ... body ...; SUB 1; JNZ loop
-     * Unroll the body up to 8 times.
-     *
-     * This is a placeholder: full unrolling requires loop analysis.
-     * The loop analysis is in jit_minic_loop.h but that's tied to
-     * the minic compiler. Here we do simple pattern matching.
-     */
-    /* Not yet implemented — requires loop boundary analysis */
+    /* SSA-form MIR makes loop unrolling complex (no phi nodes).
+     * Placeholder: requires loop analysis with SSA reconstruction. */
     (void)p;
 }
 
