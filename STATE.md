@@ -2,12 +2,16 @@
 
 ```
 ╔════════════════════════════════════════════════════════════════════════╗
-║     🌱  W U B U O S                                                       ║
-║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers    ║
-║     2463 C files · 1006 H files · 472,955 LOC · 414 test targets        ║
-║     Repo: /home/wubu/wubuos  (branch: wubu-integration)                  ║
+║     🌱  W U B U O S  —  THE BODY                                     ║
+║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers ║
+║     2463 C files · 1006 H files · 472,955 LOC · 414 test targets     ║
+║     Repo: /home/wubu/wubuos  (branch: wubu-integration)               ║
+║     Part of: WuBu AGI (Body + Brain + Compiler = 705,170 LOC)        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
 ```
+
+> WuBuOS is one of three repos. See [VISION.md](VISION.md) for the unified architecture.
+> Sister repos: **wubuwizard** (Brain, 218K LOC) · **wubunos** (Compiler, 14K LOC)
 
 ## Repo facts (verified 2026-08-15)
 - **2463 `.c` / 1006 `.h` / 472,955 LOC** (tracked `src/`).

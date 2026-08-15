@@ -2,7 +2,17 @@
 
 **Version:** 2.0 (2026-08-15)
 **Status:** Living Document
+**Role:** THE BODY of the WuBu AGI
 **Scale:** 2463 C files · 1006 H files · 472,955 LOC · 414 test targets
+
+> This is one of three repositories that form the complete WuBu AGI system.
+> See [VISION.md](VISION.md) for the unified architecture document.
+>
+> | Repo | Role | LOC |
+> |------|------|-----|
+> | **wubuos** (this repo) | THE BODY | 472,955 |
+> | **wubuwizard** | THE BRAIN | 218,100 |
+> | **wubunos** | THE COMPILER | 14,115 |
 
 ---
 

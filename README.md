@@ -124,8 +124,7 @@ vault/                archives (accomplishments, phases, planning)
 
 **Honest — not "all done"**: the remaining VSL syscalls, the bare-metal
 context-switch no-ops, and the stub-phrase spots are tracked openly in
-`BATTLESHIP_GAPS.md`, the `REACTOS_NT_SYSCALL_STUDY.md` audit, and the
-compendium ledger.
+`BATTLESHIP.md` and the compendium ledger.
 
 ## Docs
 
