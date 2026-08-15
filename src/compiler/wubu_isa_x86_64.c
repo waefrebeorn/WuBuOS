@@ -28,6 +28,9 @@
 #include <string.h>
 #include <sys/mman.h>
 
+/* Peephole optimizer — declared in x86_peephole.c */
+extern size_t x86_peephole_optimize(uint8_t *code, size_t n);
+
 /* ---- the emitter ---- */
 
 typedef struct {
@@ -144,7 +147,7 @@ static int x86_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
 
     x86_emitter_t e;
     memset(&e, 0, sizeof(e));
-    e.frame = n_spilled * 8 + 16;
+    e.frame = n_spilled * 8;
     e.n_labels = p->n_labels;
     e.label_offsets = calloc(e.n_labels, sizeof(size_t));
     for (size_t i = 0; i < e.n_labels; i++) e.label_offsets[i] = (size_t)-1;
@@ -173,13 +176,26 @@ static int x86_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
             int64_t imm = in->imm;
             int dst_enc = VR_ENC(in->dst);
             if (dst_enc >= 0) {
-                /* mov reg, imm64 */
-                if (dst_enc >= 8) rex(&e,1,0,0,reg_needs_rex(dst_enc)); else rex(&e,1,0,0,0);
-                e8(&e, (uint8_t)(0xB8 + (dst_enc & 7)));
-                e64(&e, (uint64_t)imm);
+                /* mov reg, imm — use 32-bit encoding when possible */
+                if (imm >= -2147483648LL && imm <= 2147483647LL) {
+                    uint32_t imm32 = (uint32_t)((int32_t)imm);
+                    if (dst_enc >= 8) { e8(&e, 0x41); e8(&e, (uint8_t)(0xB8 + (dst_enc & 7))); }
+                    else { e8(&e, (uint8_t)(0xB8 + dst_enc)); }
+                    e32(&e, imm32);
+                } else {
+                    /* Full 64-bit immediate */
+                    if (dst_enc >= 8) rex(&e,1,0,0,reg_needs_rex(dst_enc)); else rex(&e,1,0,0,0);
+                    e8(&e, (uint8_t)(0xB8 + (dst_enc & 7)));
+                    e64(&e, (uint64_t)imm);
+                }
             } else {
                 /* spilled: mov rax, imm; mov [rbp+off], rax */
-                rex(&e,1,0,0,0); e8(&e, 0xB8); e64(&e, (uint64_t)imm);
+                if (imm >= -2147483648LL && imm <= 2147483647LL) {
+                    uint32_t imm32 = (uint32_t)((int32_t)imm);
+                    e8(&e, 0xB8); e32(&e, imm32);
+                } else {
+                    rex(&e,1,0,0,0); e8(&e, 0xB8); e64(&e, (uint64_t)imm);
+                }
                 emit_store_rbp(&e, VR_SPILL(in->dst), 0);
             }
             break;
@@ -363,6 +379,9 @@ static int x86_compile(const wubu_mir_prog_t *p, uint8_t **out, size_t *out_size
     free(patches);
     free(e.label_offsets);
     wubu_mir_free_alloc(assign);
+
+    /* Peephole: disabled — integrated into emitter instead */
+    (void)x86_peephole_optimize;
 
     *out = e.code;
     *out_size = e.n;
