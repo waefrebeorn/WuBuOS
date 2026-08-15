@@ -69,6 +69,7 @@ typedef struct {
     wubu_mir_instr_t *ins;       /* dynamic array */
     size_t n, cap;
     uint32_t n_labels;           /* next label id */
+    uint32_t n_args;             /* number of function arguments (v1..n_args) */
 } wubu_mir_prog_t;
 
 /* O1: init a program (zeroed = empty) */
@@ -88,6 +89,9 @@ void wubu_mir_jmp(wubu_mir_prog_t *p, uint32_t label);
 void wubu_mir_jz(wubu_mir_prog_t *p, wubu_vr_t cond, uint32_t label);
 void wubu_mir_place_label(wubu_mir_prog_t *p, uint32_t label);
 void wubu_mir_ret(wubu_mir_prog_t *p, wubu_vr_t v);
+
+/* Set the number of function arguments (v1..n_args get pre-assigned to arg regs) */
+void wubu_mir_set_n_args(wubu_mir_prog_t *p, uint32_t n_args);
 
 /* O3: dump the program (the hourglass neck, visible) */
 void wubu_mir_dump(const wubu_mir_prog_t *p);

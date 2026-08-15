@@ -179,17 +179,15 @@ wubu_reg_assign_t *wubu_mir_alloc_regs(const wubu_mir_prog_t *p,
         assign[v].stack = 0;
     }
 
-    /* ---- Step 4: pre-assign return and argument registers ---- */
-    /* v0 -> physical reg 0 (return register) */
-    assign[0].reg = 0;
-
-    /* v1..n_args -> physical regs 1..n_args (capped at 6 arg regs).
-     * Physical reg 0 is reserved for v0 (return), so args start at reg 1.
-     * If n_phys_regs <= n_args, extra args spill. */
+    /* ---- Step 4: pre-assign argument registers ---- */
+    /* v1..n_args -> physical regs 0..n_args-1 (capped at 6 arg regs).
+     * Note: v0 is NOT pre-assigned — it's the implicit return register
+     * that the RET instruction reads from. The allocator will assign it
+     * normally if it's used in the program. */
     uint32_t n_args = p->n_args;
     if (n_args > 6) n_args = 6;
     for (uint32_t a = 1; a <= n_args && a < n_vr; a++) {
-        int32_t phys = (int32_t)a;  /* v1 -> reg 1, v2 -> reg 2, ... */
+        int32_t phys = (int32_t)(a - 1);  /* v1 -> reg 0, v2 -> reg 1, ... */
         if (phys < n_phys_regs) {
             assign[a].reg = phys;
         }
@@ -217,15 +215,11 @@ wubu_reg_assign_t *wubu_mir_alloc_regs(const wubu_mir_prog_t *p,
     for (int r = 0; r < n_phys_regs; r++)
         reg_vr[r] = -1;
 
-    /* Seed the active set with pre-assigned vrs.
-     * v0 -> reg 0; args v1..n_args -> regs 1..n_args.
+    /* Seed the active set with pre-assigned arg vrs.
+     * Args -> regs 0..n_args-1.
      * Their registers are occupied until their live ranges expire. */
-    if (n_phys_regs > 0 && first_def[0] >= 0) {
-        reg_vr[0] = 0;
-        active[active_count++] = 0;
-    }
     for (uint32_t a = 1; a <= n_args && a < n_vr; a++) {
-        int32_t phys = (int32_t)a;
+        int32_t phys = (int32_t)(a - 1);  /* v1 -> reg 0, v2 -> reg 1, ... */
         if (phys >= 0 && phys < n_phys_regs) {
             reg_vr[phys] = (int32_t)a;
             active[active_count++] = a;
@@ -236,8 +230,7 @@ wubu_reg_assign_t *wubu_mir_alloc_regs(const wubu_mir_prog_t *p,
         uint32_t vr  = intervals[i].vr;
         int32_t  pos = intervals[i].start;
 
-        /* Skip pre-assigned vrs (v0 and args already placed above) */
-        if (vr == 0) continue;
+        /* Skip pre-assigned vrs (args already placed above) */
         if (vr >= 1 && vr <= n_args) continue;
 
         /* Expire active intervals whose last_use < pos */

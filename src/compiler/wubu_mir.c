@@ -120,6 +120,11 @@ void wubu_mir_ret(wubu_mir_prog_t *p, wubu_vr_t v)
     i->a = v;
 }
 
+void wubu_mir_set_n_args(wubu_mir_prog_t *p, uint32_t n_args)
+{
+    if (p) p->n_args = n_args;
+}
+
 static const char *op_name(wubu_mir_op_t op)
 {
     switch (op) {
