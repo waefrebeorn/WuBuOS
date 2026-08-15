@@ -9,10 +9,11 @@
  *   4. verify() finds the missing libs (and none when covered)
  */
 #include "wubu_steamrt.h"
+#include "wubu_test.h"
 #include <stdio.h>
 #include <string.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 static const char *env_get(wubu_steamrt_env_t *env, int n, const char *key)
 {

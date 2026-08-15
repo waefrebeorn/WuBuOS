@@ -9,6 +9,7 @@
  *   4. ctrl round-trips (echo "idx:value" -> put -> read back)
  */
 #include "wubu_ns_bridge_internal.h"
+#include "wubu_test.h"
 #include "wubu_ns_dram.h"
 #include "wubu_dram_hedge.h"
 #include <stdio.h>
@@ -17,7 +18,7 @@
 #include <sys/stat.h>
 
 #define NSROOT "/tmp/ns_dram_test"
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 static int checks = 0, fails = 0;
 #define CHECK(cond, msg) do { checks++; \

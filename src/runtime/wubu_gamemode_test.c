@@ -11,6 +11,7 @@
  *   4. the active flag toggles correctly
  */
 #include "wubu_gamemode.h"
+#include "wubu_test.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -54,7 +55,7 @@ static char *gov_path(int i)
     return buf;
 }
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 int main(void)
 {

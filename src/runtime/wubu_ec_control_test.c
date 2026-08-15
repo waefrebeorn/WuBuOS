@@ -9,10 +9,11 @@
  *   4. the temp register is read
  */
 #include "wubu_ec_control.h"
+#include "wubu_test.h"
 #include <stdio.h>
 #include <string.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 /* the fake EC register file */
 static uint8_t g_regs[16];

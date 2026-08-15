@@ -8,10 +8,11 @@
  *   4. the name parse round-trips
  */
 #include "wubu_session.h"
+#include "wubu_test.h"
 #include <stdio.h>
 #include <string.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 int main(void)
 {

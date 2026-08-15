@@ -8,13 +8,14 @@
  *   3. the ledger line has the game + the format + a duration
  */
 #include "wubu_game_session.h"
+#include "wubu_test.h"
 #include "wubu_world.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 /* the world stub — wubu_world.c pulls the whole driver registry; the
  * game-session test needs the snapshot's SHAPE (the real wubu_world

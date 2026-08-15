@@ -9,6 +9,7 @@
  *   4. wubu_ns_ec_refresh() updates fan + temp
  */
 #include "wubu_ns_bridge.h"
+#include "wubu_test.h"
 #include "wubu_ns_bridge_internal.h"
 #include "wubu_ns_ec.h"
 #include "wubu_ec_control.h"
@@ -17,7 +18,7 @@
 #include <sys/stat.h>
 
 #define NSROOT "/tmp/ns_ec_test"
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 /* the fake EC register file */
 static uint8_t g_regs[16];

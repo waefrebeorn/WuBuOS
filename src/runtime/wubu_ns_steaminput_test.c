@@ -8,6 +8,7 @@
  *   3. a short/corrupt report is refused
  */
 #include "wubu_ns_bridge_internal.h"
+#include "wubu_test.h"
 #include "wubu_ns_steaminput.h"
 #include "wubu_steaminput.h"
 #include "input.h"
@@ -15,7 +16,7 @@
 #include <string.h>
 
 #define NSROOT "/tmp/ns_si_test"
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 static int read_file(const char *p, char *out, size_t cap)
 {

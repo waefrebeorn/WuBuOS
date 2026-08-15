@@ -8,12 +8,13 @@
  *   4. the config save/load round-trips
  */
 #include "wubu_steaminput.h"
+#include "wubu_test.h"
 #include "input.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 int main(void)
 {

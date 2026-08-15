@@ -10,6 +10,7 @@
  * C11. Minimal link set: wubu_exec.c + wubu_host_exec.c + wubu_ct_native.
  */
 #include "wubu_exec.h"
+#include "wubu_test.h"
 #include "wubu_container.h"
 #include "wubu_dos_proc.h"
 #include "wubu_ct_isolate.h"
@@ -24,7 +25,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); failures++; goto next; } while(0)
+/* FAIL: use wubu_test.h */
 
 static int failures = 0;
 static const char *ERA = "/home/wubu/wubunos/demos/era";

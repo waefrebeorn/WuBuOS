@@ -8,10 +8,11 @@
  *   4. garbage -> UNKNOWN (never misrouted)
  */
 #include "wubu_game_launch.h"
+#include "wubu_test.h"
 #include <stdio.h>
 #include <string.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 int main(void)
 {

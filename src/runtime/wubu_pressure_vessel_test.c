@@ -10,11 +10,12 @@
  *   5. the teardown is clean (no crash)
  */
 #include "wubu_pressure_vessel.h"
+#include "wubu_test.h"
 #include "wubu_host_exec.h"
 #include <stdio.h>
 #include <string.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 int main(void)
 {

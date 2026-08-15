@@ -9,13 +9,14 @@
  *   5. start/stop bounds the game-session ledger
  */
 #include "wubu_agi_play.h"
+#include "wubu_test.h"
 #include "wubu_game_session.h"
 #include "../kernel/input.h"
 #include "../kernel/wubu_kvfs.h"
 #include <stdio.h>
 #include <string.h>
 
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 /* the input stubs — the real input.c links the kernel queue; the
  * test records the pushes */

@@ -7,13 +7,14 @@
  *   3. a bad session name is refused
  */
 #include "wubu_ns_bridge_internal.h"
+#include "wubu_test.h"
 #include "wubu_ns_session.h"
 #include "wubu_session.h"
 #include <stdio.h>
 #include <string.h>
 
 #define NSROOT "/tmp/ns_session_test"
-#define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
+/* FAIL: use wubu_test.h */
 
 static int read_file(const char *p, char *out, size_t cap)
 {
