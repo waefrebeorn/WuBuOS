@@ -80,17 +80,18 @@ static void test_total_duration(void)
     /* Optimize: constant folding should reduce this to CONST 2876 */
     wubu_mir_optimize(&prog, MIR_OPT_FOLD | MIR_OPT_DCE);
 
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
     const int64_t expected_64bit = 2876;
     const int64_t expected_8bit = 2876 % 256; /* 60 */
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result = 0;
         if (run_with_driver(d, &prog, &result) == 0) {
-            int64_t expected = (i == 3 || i == 5) ? expected_8bit : expected_64bit;
+            int64_t expected = (i == 1 || i == 4 || i == 6) ? expected_8bit : expected_64bit;
+            /* i==1=8051, i==4=6502, i==6=z80 are 8-bit drivers — expect truncated result */
             /* RISC-V (i==4) has a known LUI large-immediate bug — skip */
-            if (i == 4 && result != expected) {
+            if (i == 5 && result != expected) {
                 printf("  %s: %lld (expected %lld) [KNOWN: RISC-V LUI >12bit]\n", names[i], (long long)result, (long long)expected);
             } else {
                 CHECK(result == expected, names[i]);
@@ -119,8 +120,8 @@ static void test_avg_rating(void)
 
     wubu_mir_optimize(&prog, MIR_OPT_FOLD | MIR_OPT_DCE);
 
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
-    for (int i = 0; i < 6; i++) {
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result = 0;
@@ -163,15 +164,16 @@ static void test_max_duration(void)
 
     wubu_mir_optimize(&prog, MIR_OPT_FOLD | MIR_OPT_DCE);
 
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
     const int64_t expected_64bit = 272;
     const int64_t expected_8bit = 272 % 256; /* 16 */
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result_val = 0;
         if (run_with_driver(d, &prog, &result_val) == 0) {
-            int64_t expected = (i == 3 || i == 5) ? expected_8bit : expected_64bit;
+            int64_t expected = (i == 1 || i == 4 || i == 6) ? expected_8bit : expected_64bit;
+            /* i==1=8051, i==4=6502, i==6=z80 are 8-bit drivers — expect truncated result */
             CHECK(result_val == expected, names[i]);
             printf("  %s: %lld (expected %lld)\n", names[i], (long long)result_val, (long long)expected);
         }
@@ -206,8 +208,8 @@ static void test_high_rated_count(void)
 
     wubu_mir_optimize(&prog, MIR_OPT_FOLD | MIR_OPT_DCE);
 
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
-    for (int i = 0; i < 6; i++) {
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result = 0;
@@ -235,17 +237,18 @@ static void test_total_plays(void)
 
     wubu_mir_optimize(&prog, MIR_OPT_FOLD | MIR_OPT_DCE);
 
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
     const int64_t expected_64bit = 14890;
     const int64_t expected_8bit = 14890 % 256; /* 170 */
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result = 0;
         if (run_with_driver(d, &prog, &result) == 0) {
-            int64_t expected = (i == 3 || i == 5) ? expected_8bit : expected_64bit;
+            int64_t expected = (i == 1 || i == 4 || i == 6) ? expected_8bit : expected_64bit;
+            /* i==1=8051, i==4=6502, i==6=z80 are 8-bit drivers — expect truncated result */
             /* RISC-V (i==4) has a known LUI large-immediate bug — skip */
-            if (i == 4 && result != expected) {
+            if (i == 5 && result != expected) {
                 printf("  %s: %lld (expected %lld) [KNOWN: RISC-V LUI >12bit]\n", names[i], (long long)result, (long long)expected);
             } else {
                 CHECK(result == expected, names[i]);
@@ -278,17 +281,18 @@ static void test_high_rated_duration(void)
 
     wubu_mir_optimize(&prog, MIR_OPT_FOLD | MIR_OPT_DCE);
 
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
     const int64_t expected_64bit = 1663;
     const int64_t expected_8bit = 1663 % 256; /* 127 */
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result = 0;
         if (run_with_driver(d, &prog, &result) == 0) {
-            int64_t expected = (i == 3 || i == 5) ? expected_8bit : expected_64bit;
+            int64_t expected = (i == 1 || i == 4 || i == 6) ? expected_8bit : expected_64bit;
+            /* i==1=8051, i==4=6502, i==6=z80 are 8-bit drivers — expect truncated result */
             /* RISC-V (i==4) has a known LUI large-immediate bug — skip */
-            if (i == 4 && result != expected) {
+            if (i == 5 && result != expected) {
                 printf("  %s: %lld (expected %lld) [KNOWN: RISC-V LUI >12bit]\n", names[i], (long long)result, (long long)expected);
             } else {
                 CHECK(result == expected, names[i]);
@@ -339,17 +343,18 @@ static void test_optimizer_fold(void)
     CHECK(after <= after, "optimization preserves correctness");
 
     /* Verify on all drivers */
-    const char *names[] = {"x86-64", "8086", "m68k", "6502", "riscv", "z80"};
+    const char *names[] = {"x86-64", "8051", "8086", "m68k", "6502", "riscv", "z80"};
     const int64_t expected_64bit = 300;
     const int64_t expected_8bit = 300 % 256; /* 44 */
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 7; i++) {
         const wubu_isa_driver_t *d = wubu_isa_find(names[i]);
         if (!d) continue;
         int64_t result = 0;
         if (run_with_driver(d, &prog, &result) == 0) {
-            int64_t expected = (i == 3 || i == 5) ? expected_8bit : expected_64bit;
+            int64_t expected = (i == 1 || i == 4 || i == 6) ? expected_8bit : expected_64bit;
+            /* i==1=8051, i==4=6502, i==6=z80 are 8-bit drivers — expect truncated result */
             /* RISC-V (i==4) has a known LUI large-immediate bug — skip */
-            if (i == 4 && result != expected) {
+            if (i == 5 && result != expected) {
                 printf("  %s: %lld (expected %lld) [KNOWN: RISC-V LUI >12bit]\n", names[i], (long long)result, (long long)expected);
             } else {
                 CHECK(result == expected, names[i]);
