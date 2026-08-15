@@ -383,7 +383,7 @@ void warm64_patch_branch(WArm64Enc *e, size_t branch_pos, size_t target) {
 /* STP (pre-index): 1010100100|imm7|Rt2|Rn|Rt1 */
 void warm64_stp_pre(WArm64Enc *e, WArm64Reg rt1, WArm64Reg rt2, WArm64Reg rn, int32_t imm7) {
     uint32_t ins = 0xA9800000;  /* STP 64-bit, pre-index */
-    ins |= ((imm7 / 8) & 0x7F) << 15;
+    ins |= (imm7 & 0x7F) << 15;
     ins |= (rt2 & 0x1F) << 10;
     ins |= (rn & 0x1F) << 5;
     ins |= (rt1 & 0x1F);
@@ -393,7 +393,7 @@ void warm64_stp_pre(WArm64Enc *e, WArm64Reg rt1, WArm64Reg rt2, WArm64Reg rn, in
 /* LDP (post-index): 1010100011|imm7|Rt2|Rn|Rt1 */
 void warm64_ldp_post(WArm64Enc *e, WArm64Reg rt1, WArm64Reg rt2, WArm64Reg rn, int32_t imm7) {
     uint32_t ins = 0xA8C00000;  /* LDP 64-bit, post-index */
-    ins |= ((imm7 / 8) & 0x7F) << 15;
+    ins |= (imm7 & 0x7F) << 15;
     ins |= (rt2 & 0x1F) << 10;
     ins |= (rn & 0x1F) << 5;
     ins |= (rt1 & 0x1F);
