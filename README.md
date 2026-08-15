@@ -1,31 +1,41 @@
 # WuBuOS — the BODY of the WuBu AGI
 
-**ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers · WuBuNOS
-compiler — one hosted binary that runs on Linux, and a measured-boot chain that
-runs on metal.** WuBuOS merges five lineage studies into one OS-scale C11
-codebase. The Brain (`wubuwizard`) learns; the Body protects, hosts, and acts;
-**WuBuNOS** is the compiler that targets every ISA — the HolyC JIT with 11
-backends, the from-scratch C11 toolchain that compiles ON the kernel.
+**ZealOS kernel · Win98 shell · Styx/9P namespace · 20+ hardware drivers ·
+Arch containers · WuBuNOS compiler — one hosted binary that runs on Linux,
+and a measured-boot chain that runs on metal.**
+
+WuBuOS is the **Body** of the WuBu AGI — the operating system that protects,
+hosts, and acts. It is one of three repositories that form the complete system:
+
+| Repo | Role | LOC |
+|------|------|-----|
+| **wubuos** (this repo) | THE BODY — kernel, GUI, drivers, runtime | 472,955 |
+| **wubuwizard** | THE BRAIN — inference engine, training, KV cache | 218,100 |
+| **wubunos** | THE COMPILER — HolyC JIT, 11 ISA backends | 14,115 |
+| **TOTAL** | **Three repos, one AGI** | **705,170** |
 
 - **Code lives on GitHub** — [`waefrebeorn/WuBuOS`](https://github.com/waefrebeorn/WuBuOS)
 - **Models + datasets live on HuggingFace** — the [`WaefreBeorn` org](https://huggingface.co/WaefreBeorn)
-  (the WuBu-35M seed the Body hosts on metal).
+- **Unified vision** — [VISION.md](VISION.md) explains the three-repo architecture
 
 ## What WuBuOS is
 
-- **ZealOS** — the hosted kernel (memory, tasking, VBE, FAT32, AHCI, interrupt, PS/2)
-- **Win98/XP shell** — WM, desktop, startmenu, explorer, terminal (DOS-box windows)
-- **Styx/9P** — a real filesystem namespace backed by `.wubu` containers (9P2000)
-- **Arch containers** — fork+exec into an Arch Linux rootfs (bwrap isolation)
-- **HolyC JIT** — self-hosted x86-64 encoder, disassembler, register allocator, minic compiler
+WuBuOS is the operating system layer. It provides:
 
-Plus three engines that make it OS-scale:
+- **ZealOS kernel** — memory, tasking, VBE framebuffer, FAT32/TXFS/AHCI, interrupt controller, PS/2
+- **Win98/XP shell** — window manager, desktop, startmenu, explorer, terminal (DOS-box windows)
+- **Styx/9P namespace** — a real filesystem namespace backed by `.wubu` containers (9P2000)
+- **Hardware drivers** — 20+ GPU, NVMe, network, HDA, battery, SD, USB, thermal (Steam Deck + laptop IDs)
+- **VSL (Virtual Syscall Layer)** — multi-OS dispatch: Linux, Windows NT (ReactOS), macOS
+- **Container runtime** — Arch Linux containers via bwrap, Proton/Wine for Windows games
+- **Measured boot** — WuBuFW UEFI firmware (no EDK2), TPM PCR4 attestation, chainloader
+- **DOS compatibility** — in-process 8086 interpreter + INT 21h/10h/16h (22/22 tests)
 
-- **16-bit DOS compatibility** — a real 8086 interpreter + INT 21h/10h/16h DOS
-  layer that runs `.COM`/`.EXE` in-process (`src/runtime/wubu_dos_emu*`, 22/22 tests)
-- **VSL (Virtual Syscall Layer)** — the bridge: NT → Linux → Styx/9P → ZealOS →
-  HolyC JIT, dispatched through a single machine-readable manifest
-- **Bear RL** — PPO training with Vulkan compute pipelines (`src/bear/`)
+The Brain (wubuwizard) and Compiler (wubunos) link into WuBuOS as submodules:
+- `src/brain/` → wubuwizard
+- `src/compiler/` → wubunos
+
+Together they form a complete AGI system: the Body hosts, the Brain thinks, the Compiler builds.
 
 ## Quick start
 
@@ -119,14 +129,14 @@ compendium ledger.
 
 ## Docs
 
+- [VISION.md](VISION.md) — the unified three-repo architecture (must-read)
 - [docs/BOOT_CHAIN.md](docs/BOOT_CHAIN.md) — the measured-boot spine
 - [docs/BUILDING.md](docs/BUILDING.md) — build, test, ship (ISO/USB/QEMU)
 - [docs/MODULES.md](docs/MODULES.md) — full annotated module table (auto-generated)
 - [OS_BIBLE.md](OS_BIBLE.md) — the design bible (vision, architecture, principles)
 - [STATE.md](STATE.md) — current state, verified on date
-- [AGI_OS.md](AGI_OS.md) — the AGI-OS architecture
-- [BATTLESHIP.md](BATTLESHIP.md) + [BATTLESHIP_GAPS.md](BATTLESHIP_GAPS.md) — the gap board
-- [docs/compendium/](docs/compendium/) — the institutional ledger (01-reference regenerates via `make docs`)
+- [BATTLESHIP.md](BATTLESHIP.md) — the gap board (v23)
+- [docs/compendium/](docs/compendium/) — the institutional ledger
 
 ## License
 
