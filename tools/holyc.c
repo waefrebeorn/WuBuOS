@@ -45,6 +45,12 @@
 
 int bf_run(const char *src);   /* from brainfuck.c */
 
+/* Forward declarations for emit functions */
+static int compile_main(const char *src_file, HCGen *out_gen, HCFunction *out_main);
+static int run_emit_elf(const char *src_file, const char *out_file);
+static int run_emit_pe(const char *src_file, const char *out_file);
+static int run_emit_bin(const char *src_file, const char *out_file);
+
 #define WUBU_COMPILER_VER "holyc-0.1.0"
 #define WUBU_SNAPSHOT_DATE "2026-08-04"
 
@@ -320,10 +326,58 @@ static int run_target(const char *isa, const char *path)
 
 /* -emit-elf <source> <output>: compile HolyC source to an ELF64 executable. */
 static int run_emit_elf(const char *src_file, const char *out_file) {
+    HCGen gen;
+    HCFunction mainfunc;
+    if (compile_main(src_file, &gen, &mainfunc) != 0) return 1;
+
+    if (!mainfunc.func_ptr || mainfunc.code_size == 0) {
+        fprintf(stderr, "holyc: main() has no code\n");
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    /* Copy function body and patch globals */
+    size_t func_size = mainfunc.code_size;
+    uint8_t *func_code = (uint8_t *)malloc(func_size);
+    if (!func_code) {
+        fprintf(stderr, "holyc: malloc failed\n");
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+    memcpy(func_code, mainfunc.func_ptr, func_size);
+
+    /* Patch RIP-relative globals */
+    for (int i = 0; i < mainfunc.n_global_patches; i++) {
+        size_t pp = mainfunc.global_patches[i].code_patch_pos;
+        size_t go = mainfunc.global_patches[i].global_offset;
+        if (pp + 4 <= func_size) {
+            int32_t disp32 = (int32_t)(func_size + go - pp - 4);
+            memcpy(func_code + pp, &disp32, 4);
+        }
+    }
+
+    size_t patch_offsets[1] = {0}, patch_globals[1] = {0};
+    if (hc_write_elf(out_file, func_code, func_size,
+                    gen.data, gen.data_size,
+                    patch_offsets, patch_globals, 0) != 0) {
+        fprintf(stderr, "holyc: failed to write %s\n", out_file);
+        free(func_code); free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    printf("holyc: %s (%zu bytes code, %zu bytes data)\n",
+           out_file, func_size, gen.data_size);
+    free(func_code);
+    free(gen.code);
+    free(gen.data);
+    return 0;
+}
+
+/* Shared: compile HolyC source and extract main() function body */
+static int compile_main(const char *src_file, HCGen *out_gen, HCFunction *out_main) {
     char *src = read_file(src_file);
     if (!src) { fprintf(stderr, "holyc: cannot read %s\n", src_file); return 1; }
 
-    /* Compile (JIT path populates gen.functions with code pointers) */
     HCLexer lex;
     hc_lex_init(&lex, src);
     if (lex.has_error) { fprintf(stderr, "holyc: %s\n", lex.error); free(src); return 1; }
@@ -362,7 +416,7 @@ static int run_emit_elf(const char *src_file, const char *out_file) {
         return 1;
     }
 
-    /* Find main() in the compiled functions */
+    /* Find main() */
     int main_idx = -1;
     for (int f = 0; f < gen.n_functions; f++) {
         if (strcmp(gen.functions[f].name, "main") == 0) {
@@ -370,46 +424,51 @@ static int run_emit_elf(const char *src_file, const char *out_file) {
             break;
         }
     }
-
     if (main_idx < 0) {
         fprintf(stderr, "holyc: no main() function found\n");
         free(gen.code); free(gen.data);
         return 1;
     }
 
-    HCFunction *mainfunc = &gen.functions[main_idx];
-    if (!mainfunc->func_ptr || mainfunc->code_size == 0) {
+    *out_gen = gen;
+    *out_main = gen.functions[main_idx];
+    return 0;
+}
+
+/* -emit-pe: compile to PE32+ executable */
+static int run_emit_pe(const char *src_file, const char *out_file) {
+    HCGen gen;
+    HCFunction mainfunc;
+    if (compile_main(src_file, &gen, &mainfunc) != 0) return 1;
+
+    if (!mainfunc.func_ptr || mainfunc.code_size == 0) {
         fprintf(stderr, "holyc: main() has no code\n");
         free(gen.code); free(gen.data);
         return 1;
     }
 
     /* Copy function body and patch globals */
-    size_t func_size = mainfunc->code_size;
+    size_t func_size = mainfunc.code_size;
     uint8_t *func_code = (uint8_t *)malloc(func_size);
     if (!func_code) {
         fprintf(stderr, "holyc: malloc failed\n");
         free(gen.code); free(gen.data);
         return 1;
     }
-    memcpy(func_code, mainfunc->func_ptr, func_size);
+    memcpy(func_code, mainfunc.func_ptr, func_size);
 
-    /* Patch RIP-relative globals in the function body */
-    for (int i = 0; i < mainfunc->n_global_patches; i++) {
-        size_t patch_pos = mainfunc->global_patches[i].code_patch_pos;
-        size_t global_offset = mainfunc->global_patches[i].global_offset;
-        if (patch_pos + 4 <= func_size) {
-            /* disp32 = data_base + global_offset - (func_code + patch_pos + 4) */
-            /* For ELF, data follows code in memory. data_base = func_code + func_size */
-            int32_t disp32 = (int32_t)(func_size + global_offset - patch_pos - 4);
-            memcpy(func_code + patch_pos, &disp32, 4);
+    /* Patch RIP-relative globals */
+    for (int i = 0; i < mainfunc.n_global_patches; i++) {
+        size_t pp = mainfunc.global_patches[i].code_patch_pos;
+        size_t go = mainfunc.global_patches[i].global_offset;
+        if (pp + 4 <= func_size) {
+            int32_t disp32 = (int32_t)(func_size + go - pp - 4);
+            memcpy(func_code + pp, &disp32, 4);
         }
     }
 
-    /* Write ELF: trampoline + main body + data */
     size_t patch_offsets[1] = {0}, patch_globals[1] = {0};
-    /* No global patches for the trampoline itself */
-    if (hc_write_elf(out_file, func_code, func_size,
+    if (hc_write_pe(out_file, func_code, func_size,
                     gen.data, gen.data_size,
                     patch_offsets, patch_globals, 0) != 0) {
         fprintf(stderr, "holyc: failed to write %s\n", out_file);
@@ -417,8 +476,52 @@ static int run_emit_elf(const char *src_file, const char *out_file) {
         return 1;
     }
 
-    printf("holyc: %s (%zu bytes code, %zu bytes data)\n",
-           out_file, func_size, gen.data_size);
+    printf("holyc: %s (%zu bytes code)\n", out_file, func_size);
+    free(func_code);
+    free(gen.code);
+    free(gen.data);
+    return 0;
+}
+
+/* -emit-bin: compile to raw binary */
+static int run_emit_bin(const char *src_file, const char *out_file) {
+    HCGen gen;
+    HCFunction mainfunc;
+    if (compile_main(src_file, &gen, &mainfunc) != 0) return 1;
+
+    if (!mainfunc.func_ptr || mainfunc.code_size == 0) {
+        fprintf(stderr, "holyc: main() has no code\n");
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    /* Copy function body and patch globals */
+    size_t func_size = mainfunc.code_size;
+    uint8_t *func_code = (uint8_t *)malloc(func_size);
+    if (!func_code) {
+        fprintf(stderr, "holyc: malloc failed\n");
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+    memcpy(func_code, mainfunc.func_ptr, func_size);
+
+    /* Patch globals */
+    for (int i = 0; i < mainfunc.n_global_patches; i++) {
+        size_t pp = mainfunc.global_patches[i].code_patch_pos;
+        size_t go = mainfunc.global_patches[i].global_offset;
+        if (pp + 4 <= func_size) {
+            int32_t disp32 = (int32_t)(func_size + go - pp - 4);
+            memcpy(func_code + pp, &disp32, 4);
+        }
+    }
+
+    if (hc_write_bin(out_file, func_code, func_size, 0) != 0) {
+        fprintf(stderr, "holyc: failed to write %s\n", out_file);
+        free(func_code); free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    printf("holyc: %s (%zu bytes raw)\n", out_file, func_size);
     free(func_code);
     free(gen.code);
     free(gen.data);
@@ -479,6 +582,14 @@ int main(int argc, char **argv)
     if (!strcmp(argv[1], "-emit-elf")) {
         if (argc < 4) { usage(); return 2; }
         return run_emit_elf(argv[2], argv[3]);
+    }
+    if (!strcmp(argv[1], "-emit-pe")) {
+        if (argc < 4) { usage(); return 2; }
+        return run_emit_pe(argv[2], argv[3]);
+    }
+    if (!strcmp(argv[1], "-emit-bin")) {
+        if (argc < 4) { usage(); return 2; }
+        return run_emit_bin(argv[2], argv[3]);
     }
     if (argv[1][0] == '-') { usage(); return 2; }
 
