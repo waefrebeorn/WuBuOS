@@ -323,7 +323,7 @@ static int run_emit_elf(const char *src_file, const char *out_file) {
     char *src = read_file(src_file);
     if (!src) { fprintf(stderr, "holyc: cannot read %s\n", src_file); return 1; }
 
-    /* Compile to flat code + data (same as hc_eval but without JIT) */
+    /* Compile (JIT path populates gen.functions with code pointers) */
     HCLexer lex;
     hc_lex_init(&lex, src);
     if (lex.has_error) { fprintf(stderr, "holyc: %s\n", lex.error); free(src); return 1; }
@@ -338,11 +338,8 @@ static int run_emit_elf(const char *src_file, const char *out_file) {
 
     HCGen gen;
     hc_gen_init(&gen);
-
-    /* Emit prologue */
     emit_prologue(&gen);
 
-    /* Emit top-level statements */
     if (ast->kind == HC_AST_BLOCK) {
         for (int i = 0; i < ast->n_stmts; i++) {
             HCASTNode *stmt = ast->stmts[i];
@@ -359,28 +356,70 @@ static int run_emit_elf(const char *src_file, const char *out_file) {
     hc_ast_free(ast);
     free(src);
 
-    if (gen.code_size == 0 || gen.has_error) {
+    if (gen.has_error) {
         fprintf(stderr, "holyc: codegen failed: %s\n", gen.error);
         free(gen.code); free(gen.data);
         return 1;
     }
 
-    /* Write ELF with global patching */
-    size_t patch_offsets[128], patch_globals[128];
-    size_t n_patches = gen.n_global_patches < 128 ? gen.n_global_patches : 128;
-    for (size_t i = 0; i < n_patches; i++) {
-        patch_offsets[i] = gen.global_patches[i].code_patch_pos;
-        patch_globals[i] = gen.global_patches[i].global_offset;
+    /* Find main() in the compiled functions */
+    int main_idx = -1;
+    for (int f = 0; f < gen.n_functions; f++) {
+        if (strcmp(gen.functions[f].name, "main") == 0) {
+            main_idx = f;
+            break;
+        }
     }
-    if (hc_write_elf(out_file, gen.code, gen.code_size,
-                    gen.data, gen.data_size,
-                    patch_offsets, patch_globals, n_patches) != 0) {
-        fprintf(stderr, "holyc: failed to write %s\n", out_file);
+
+    if (main_idx < 0) {
+        fprintf(stderr, "holyc: no main() function found\n");
         free(gen.code); free(gen.data);
         return 1;
     }
 
-    printf("holyc: %s (%zu bytes code, %zu bytes data)\n", out_file, gen.code_size, gen.data_size);
+    HCFunction *mainfunc = &gen.functions[main_idx];
+    if (!mainfunc->func_ptr || mainfunc->code_size == 0) {
+        fprintf(stderr, "holyc: main() has no code\n");
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    /* Copy function body and patch globals */
+    size_t func_size = mainfunc->code_size;
+    uint8_t *func_code = (uint8_t *)malloc(func_size);
+    if (!func_code) {
+        fprintf(stderr, "holyc: malloc failed\n");
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+    memcpy(func_code, mainfunc->func_ptr, func_size);
+
+    /* Patch RIP-relative globals in the function body */
+    for (int i = 0; i < mainfunc->n_global_patches; i++) {
+        size_t patch_pos = mainfunc->global_patches[i].code_patch_pos;
+        size_t global_offset = mainfunc->global_patches[i].global_offset;
+        if (patch_pos + 4 <= func_size) {
+            /* disp32 = data_base + global_offset - (func_code + patch_pos + 4) */
+            /* For ELF, data follows code in memory. data_base = func_code + func_size */
+            int32_t disp32 = (int32_t)(func_size + global_offset - patch_pos - 4);
+            memcpy(func_code + patch_pos, &disp32, 4);
+        }
+    }
+
+    /* Write ELF: trampoline + main body + data */
+    size_t patch_offsets[1] = {0}, patch_globals[1] = {0};
+    /* No global patches for the trampoline itself */
+    if (hc_write_elf(out_file, func_code, func_size,
+                    gen.data, gen.data_size,
+                    patch_offsets, patch_globals, 0) != 0) {
+        fprintf(stderr, "holyc: failed to write %s\n", out_file);
+        free(func_code); free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    printf("holyc: %s (%zu bytes code, %zu bytes data)\n",
+           out_file, func_size, gen.data_size);
+    free(func_code);
     free(gen.code);
     free(gen.data);
     return 0;
