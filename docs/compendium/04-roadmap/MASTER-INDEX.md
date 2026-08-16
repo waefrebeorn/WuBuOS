@@ -147,7 +147,7 @@ masterpiece-architecture references (in the skill library).
   Waves 1-5 ALL DONE: `src/runtime/wubu_runtime.c` (registry),
   `wubu_runtime_personalities.c` (posix/image/wasi syscall dispatch),
   persistence (`wubu_runtime_save/load`, the snapshot survives process
-  exit), the CLI broker (`tools/holyc.c`: -space / -personality /
+  exit), the CLI broker (`src/compiler/holyc.c`: -space / -personality /
   -i_make_shit_code -space / -spaces). Tools: `make test_runtime`
   (19 oracles, 0 failures), `tools/wuburuntime_demo.sh` (one-command
   end-to-end), `tools/compiler_diff_battery.sh` (the 33-expression

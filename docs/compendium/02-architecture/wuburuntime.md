@@ -126,7 +126,7 @@ languages a **space to live in**.
   (compiler_ver / language_ver / created) recorded at creation.
 
 ### Wave 2 (DONE 2026-08-04): the compilation-space broker
-- `tools/holyc.c` gains the broker flags:
+- `src/compiler/holyc.c` gains the broker flags:
   - `holyc -space <name> <file>` — compile INTO a named space; the
     snapshot is recorded + printed (compiler_ver + language_ver + date).
   - `holyc -space <name> -personality <kind> <file>` — attach a
