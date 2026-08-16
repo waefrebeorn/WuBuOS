@@ -81,17 +81,17 @@ void jit_free(JITContext *ctx) {
  * mmap(RX) → execute. We track fd/size per mapping in a small global table. */
 
 #ifdef WUBU_HOSTED
+/* Single-mapping model: alloc RWX anonymous page, mprotect to RX at lock time.
+ * The prior memfd_create approach produced two MAP_SHARED aliases on
+ * consecutive 4KB pages whose RX/RW perms disagreed, so JIT_CALL could jump
+ * into a zero-filled RW page and SIGSEGV. Single anonymous mapping avoids
+ * the dual-alias page-mismatch entirely. */
 #define JIT_MAX_MAPPINGS 256
-static struct { void *ptr; int fd; size_t size; } g_jit_map[JIT_MAX_MAPPINGS];
-
-static void jit_map_add(void *ptr, int fd, size_t size) {
+static struct { void *ptr; size_t size; } g_jit_map[JIT_MAX_MAPPINGS];
+static void jit_map_add(void *ptr, size_t size) {
     for (int i = 0; i < JIT_MAX_MAPPINGS; i++) {
-        if (!g_jit_map[i].ptr) { g_jit_map[i].ptr = ptr; g_jit_map[i].fd = fd; g_jit_map[i].size = size; return; }
+        if (!g_jit_map[i].ptr) { g_jit_map[i].ptr = ptr; g_jit_map[i].size = size; return; }
     }
-}
-static int jit_map_fd(void *ptr) {
-    for (int i = 0; i < JIT_MAX_MAPPINGS; i++) { if (g_jit_map[i].ptr == ptr) return g_jit_map[i].fd; }
-    return -1;
 }
 static size_t jit_map_size(void *ptr) {
     for (int i = 0; i < JIT_MAX_MAPPINGS; i++) { if (g_jit_map[i].ptr == ptr) return g_jit_map[i].size; }
@@ -109,12 +109,12 @@ void *jit_alloc_exec(size_t size) {
 #ifdef WUBU_HOSTED
     init_page_size();
     size_t alloc_size = align_to_page(size);
-    int fd = (int)syscall(SYS_memfd_create, "wubu_jit", 0);
-    if (fd < 0) return NULL;
-    if (ftruncate(fd, (off_t)alloc_size) < 0) { close(fd); return NULL; }
-    void *rw = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (rw == MAP_FAILED) { close(fd); return NULL; }
-    jit_map_add(rw, fd, alloc_size);
+    /* Single anonymous RWX mapping; mprotect to RX at lock time. Avoids the
+     * memfd MAP_SHARED dual-alias page-mismatch that segfaulted on host. */
+    void *rw = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE | PROT_EXEC,
+                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (rw == MAP_FAILED) return NULL;
+    jit_map_add(rw, alloc_size);
     return rw;
 #else
     (void)size;
@@ -126,16 +126,15 @@ void *jit_alloc_exec(size_t size) {
 void *jit_lock_exec(void *ptr, size_t size) {
 #ifdef WUBU_HOSTED
     if (!ptr) return NULL;
-    int fd = jit_map_fd(ptr);
     size_t alloc_size = jit_map_size(ptr);
-    if (fd < 0) return NULL;
-    munmap(ptr, alloc_size);
-    jit_map_rm(ptr);
-    void *rx = mmap(NULL, alloc_size, PROT_READ | PROT_EXEC, MAP_SHARED, fd, 0);
-    if (rx == MAP_FAILED) { close(fd); return NULL; }
-    jit_map_add(rx, fd, alloc_size);
+    if (alloc_size == 0) return NULL;
+    /* Flip the single anonymous mapping to RX in place (address unchanged),
+     * so JIT_CALL always jumps to the page holding the emitted code. */
+    if (mprotect(ptr, alloc_size, PROT_READ | PROT_EXEC) != 0) {
+        fprintf(stderr, "wubu_jit: mprotect(RX) failed, keeping RWX\n");
+    }
     (void)size;
-    return rx;
+    return ptr;
 #else
     (void)ptr; (void)size;
     return ptr;
@@ -149,9 +148,8 @@ void jit_unlock_exec(void *ptr, size_t size) {
 void jit_free_exec(void *ptr, size_t size) {
     if (!ptr) return;
 #ifdef WUBU_HOSTED
-    int fd = jit_map_fd(ptr);
     size_t alloc_size = jit_map_size(ptr);
-    if (fd >= 0) { munmap(ptr, alloc_size); close(fd); jit_map_rm(ptr); }
+    if (alloc_size > 0) { munmap(ptr, alloc_size); jit_map_rm(ptr); }
 #else
     (void)size;
     free(ptr);
@@ -187,7 +185,7 @@ void jit_free_exec(void *ptr, size_t size) {
 /*
  * Very simple single-expression compiler for the mmap backend.
  * Supports: a+b, a*b, a-b, -a, a, const
- * 
+ *
  * For real compilation, use the MIR backend.
  * This exists as the zero-dependency fallback.
  */
@@ -196,13 +194,13 @@ static JITResult mmap_compile_simple(JITContext *ctx,
                                       const char *fn_name,
                                       JITFunc *out_func) {
     (void)fn_name;
-    
+
     unsigned char code[256];
     int pos = 0;
-    
+
     /* Trim whitespace */
     while (*source == ' ' || *source == '\t') source++;
-    
+
     /* Pattern: "a+b" */
     if (strcmp(source, "a+b") == 0) {
         pos += enc_mov_eax_edi(code + pos);   /* eax = a */
@@ -246,24 +244,24 @@ static JITResult mmap_compile_simple(JITContext *ctx,
         pos += enc_mov_eax_imm32(code + pos, (int32_t)val);
         pos += enc_ret(code + pos);
     }
-    
+
     /* Allocate executable memory and copy code */
     size_t alloc_size = align_to_page(pos);
     void *exec_mem = jit_alloc_exec(alloc_size);
     if (!exec_mem) return JIT_ERR_ALLOC;
-    
+
     memcpy(exec_mem, code, pos);
-    
+
     out_func->code = exec_mem;
     out_func->code_size = pos;
     out_func->backend = JIT_BACKEND_MMAP;
     out_func->name = strdup(source);
-    out_func->n_args = (strchr(source, 'b') != NULL) ? 2 : 
+    out_func->n_args = (strchr(source, 'b') != NULL) ? 2 :
                        (strchr(source, 'a') != NULL) ? 1 : 0;
-    
+
     ctx->stats.total_alloc += alloc_size;
     ctx->stats.total_compiled++;
-    
+
     return JIT_OK;
 }
 
@@ -287,9 +285,9 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
                                        JITLang lang,
                                        const char *fn_name,
                                        JITFunc *out_func) {
-    
+
     if (!source || !fn_name) return JIT_ERR_COMPILE;
-    
+
     /* Self-hosted path: use minic for C source (expressions and mini-C functions) */
     if (lang == JIT_LANG_C || lang == JIT_LANG_EXPR) {
         JITResult rc = jit_minic_compile(ctx, source, lang, fn_name, out_func);
@@ -476,17 +474,17 @@ static JITResult jit_asmjit_compile_impl(JITContext *ctx,
                                           JITFunc *out_func) {
     (void)lang;
     if (!source) return JIT_ERR_COMPILE;
-    
+
     Wx86Enc enc;
     wx86_enc_init_dynamic(&enc, 4096);
-    
+
     JITLabelTable ltab;
     ltab_init(&ltab);
-    
+
     /* Parse assembly line by line */
     const char *p = source;
     char line[256];
-    
+
     while (*p) {
         /* Read one line */
         int i = 0;
@@ -494,16 +492,16 @@ static JITResult jit_asmjit_compile_impl(JITContext *ctx,
             line[i++] = *p++;
         line[i] = '\0';
         if (*p == '\n') p++;
-        
+
         /* Trim trailing whitespace/newline */
         char *end = line + strlen(line) - 1;
         while (end > line && (*end == ' ' || *end == '\t' || *end == '\r'))
             *end-- = '\0';
-        
+
         /* Skip empty lines and comments */
         const char *lp = skip_ws(line);
         if (*lp == '\0' || *lp == '#') continue;
-        
+
         /* Check for label definition (ends with ':') */
         size_t llen = strlen(lp);
         if (llen > 1 && lp[llen - 1] == ':') {
@@ -515,14 +513,14 @@ static JITResult jit_asmjit_compile_impl(JITContext *ctx,
             ltab_define(&ltab, label_name, enc.pos);
             continue;
         }
-        
+
         /* Parse mnemonic */
         char mnemonic[16] = {0};
         char op1[64] = {0};
         char op2[64] = {0};
         int nargs = sscanf(lp, "%15s %63[^,] , %63s", mnemonic, op1, op2);
         if (nargs < 1) continue;
-        
+
         /* Decode and emit */
         if (strcmp(mnemonic, "ret") == 0) {
             wx86_ret(&enc);
@@ -632,10 +630,10 @@ static JITResult jit_asmjit_compile_impl(JITContext *ctx,
             }
         }
     }
-    
+
     /* Resolve all label references */
     ltab_resolve(&ltab, &enc);
-    
+
     /* Allocate executable memory and copy code */
     size_t alloc_size = align_to_page(enc.pos);
     void *exec_mem = jit_alloc_exec(alloc_size ? alloc_size : (size_t)g_page_size);
@@ -643,19 +641,19 @@ static JITResult jit_asmjit_compile_impl(JITContext *ctx,
         wx86_enc_free(&enc);
         return JIT_ERR_ALLOC;
     }
-    
+
     memcpy(exec_mem, enc.buf, enc.pos);
     wx86_enc_free(&enc);
-    
+
     out_func->code = exec_mem;
     out_func->code_size = enc.pos;
     out_func->backend = JIT_BACKEND_ASMJIT;
     out_func->name = strdup(fn_name ? fn_name : "asm");
     out_func->n_args = 2;  /* default */
-    
+
     ctx->stats.total_alloc += alloc_size;
     ctx->stats.total_compiled++;
-    
+
     return JIT_OK;
 }
 
@@ -668,20 +666,20 @@ JITResult jit_compile(JITContext *ctx,
                        JITFunc *out_func) {
     if (!ctx || !source || !out_func)
         return JIT_ERR_COMPILE;
-    
+
     memset(out_func, 0, sizeof(JITFunc));
-    
+
     switch (ctx->backend) {
         case JIT_BACKEND_MMAP:
             return jit_mir_compile_impl(ctx, source, lang, fn_name, out_func);
-            
+
         case JIT_BACKEND_MIR:
             return jit_mir_compile_impl(ctx, source, lang, fn_name, out_func);
-            
+
         case JIT_BACKEND_ASMJIT:
             return jit_asmjit_compile_impl(ctx, source, lang, fn_name, out_func);
     }
-    
+
     return JIT_ERR_BACKEND;
 }
 
@@ -692,19 +690,19 @@ JITResult jit_compile_file(JITContext *ctx,
                             JITFunc *out_func) {
     FILE *f = fopen(path, "r");
     if (!f) return JIT_ERR_COMPILE;
-    
+
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    
+
     char *source = malloc(size + 1);
     if (!source) { fclose(f); return JIT_ERR_ALLOC; }
-    
+
     size_t nread = fread(source, 1, size, f);
     (void)nread;
     source[size] = '\0';
     fclose(f);
-    
+
     JITResult r = jit_compile(ctx, source, lang, fn_name, out_func);
     free(source);
     return r;
