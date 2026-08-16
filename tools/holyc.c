@@ -318,6 +318,74 @@ static int run_target(const char *isa, const char *path)
     return 0;
 }
 
+/* -emit-elf <source> <output>: compile HolyC source to an ELF64 executable. */
+static int run_emit_elf(const char *src_file, const char *out_file) {
+    char *src = read_file(src_file);
+    if (!src) { fprintf(stderr, "holyc: cannot read %s\n", src_file); return 1; }
+
+    /* Compile to flat code + data (same as hc_eval but without JIT) */
+    HCLexer lex;
+    hc_lex_init(&lex, src);
+    if (lex.has_error) { fprintf(stderr, "holyc: %s\n", lex.error); free(src); return 1; }
+
+    HCParser parse;
+    hc_parse_init(&parse, &lex);
+    HCASTNode *ast = hc_parse_compilation_unit(&parse);
+    if (parse.has_error || !ast) {
+        fprintf(stderr, "holyc: parse error\n");
+        hc_ast_free(ast); free(src); return 1;
+    }
+
+    HCGen gen;
+    hc_gen_init(&gen);
+
+    /* Emit prologue */
+    emit_prologue(&gen);
+
+    /* Emit top-level statements */
+    if (ast->kind == HC_AST_BLOCK) {
+        for (int i = 0; i < ast->n_stmts; i++) {
+            HCASTNode *stmt = ast->stmts[i];
+            if (stmt->kind == HC_AST_IF || stmt->kind == HC_AST_WHILE ||
+                stmt->kind == HC_AST_FOR || stmt->kind == HC_AST_DO_WHILE ||
+                stmt->kind == HC_AST_VAR_DECL || stmt->kind == HC_AST_FUNC_DECL) {
+                gen_stmt(&gen, stmt);
+            } else {
+                gen_expr(&gen, stmt);
+            }
+        }
+    }
+    emit_epilogue(&gen);
+    hc_ast_free(ast);
+    free(src);
+
+    if (gen.code_size == 0 || gen.has_error) {
+        fprintf(stderr, "holyc: codegen failed: %s\n", gen.error);
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    /* Write ELF with global patching */
+    size_t patch_offsets[128], patch_globals[128];
+    size_t n_patches = gen.n_global_patches < 128 ? gen.n_global_patches : 128;
+    for (size_t i = 0; i < n_patches; i++) {
+        patch_offsets[i] = gen.global_patches[i].code_patch_pos;
+        patch_globals[i] = gen.global_patches[i].global_offset;
+    }
+    if (hc_write_elf(out_file, gen.code, gen.code_size,
+                    gen.data, gen.data_size,
+                    patch_offsets, patch_globals, n_patches) != 0) {
+        fprintf(stderr, "holyc: failed to write %s\n", out_file);
+        free(gen.code); free(gen.data);
+        return 1;
+    }
+
+    printf("holyc: %s (%zu bytes code, %zu bytes data)\n", out_file, gen.code_size, gen.data_size);
+    free(gen.code);
+    free(gen.data);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     if (argc < 2) { usage(); return 2; }
@@ -368,6 +436,10 @@ int main(int argc, char **argv)
         if (argc < 3) { usage(); return 2; }
         printf("  [brainfuck] the meme. compiled for real (x86-64 JIT).\n");
         return bf_run(argv[2]);
+    }
+    if (!strcmp(argv[1], "-emit-elf")) {
+        if (argc < 4) { usage(); return 2; }
+        return run_emit_elf(argv[2], argv[3]);
     }
     if (argv[1][0] == '-') { usage(); return 2; }
 
