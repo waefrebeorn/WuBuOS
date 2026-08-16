@@ -1,9 +1,10 @@
 [submodule "src/runtime/container/wubucontainer"]
 	path = src/runtime/container/wubucontainer
 	url = https://github.com/waefrebeorn/WuBuContainer
-[submodule "src/compiler"]
-	path = src/compiler
-	url = https://github.com/waefrebeorn/WuBuNOS.git
 [submodule "src/brain"]
 	path = src/brain
 	url = https://github.com/waefrebeorn/wubuwizard.git
+
+[submodule "src/compiler"]
+	path = src/compiler
+	url = https://github.com/waefrebeorn/WuBuNOS.git

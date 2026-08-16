@@ -149,8 +149,9 @@ void wubu_clear_cache(void *addr, size_t size);
 /*
  * Set memory from writable to executable (drop PROT_WRITE).
  * Optional hardening: call after writing code, before executing.
+ * Returns the executable pointer (may differ from the original on WSL).
  */
-void jit_lock_exec(void *ptr, size_t size);
+void *jit_lock_exec(void *ptr, size_t size);
 
 /*
  * Set memory from executable to writable (add PROT_WRITE).

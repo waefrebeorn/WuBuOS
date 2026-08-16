@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "wubu_test_gauntlet.h"
+#include "wubu_isa_driver.h"
 
 /* HolyC compiler API */
 extern int64_t hc_eval(const char *source);
@@ -29,7 +30,24 @@ static int run_test_x86_64(const char *source, int64_t expected, test_result_t *
 
 /* For non-native targets, use the ISA driver directly */
 static int run_test_isa_driver(const char *source, const char *target, int64_t expected, test_result_t *result, int64_t *actual) {
-    /* TODO: Wire ISA driver compilation + interpreter execution */
+    /* Non-native ISAs use the interpreter: HolyC is parsed and evaluated
+     * on x86-64 first (for the expected value), then the same source is
+     * compiled to each ISA driver's machine code and interpreted.
+     * Currently only x86-64 has a real backend; other drivers are wired
+     * but pending MIR bridge integration. */
+    const wubu_isa_driver_t *driver = wubu_isa_find(target);
+    if (!driver) {
+        *result = TEST_SKIP;
+        *actual = 0;
+        return 0;
+    }
+    /* For drivers without a compile+run path yet, skip */
+    if (!driver->compile || !driver->run) {
+        *result = TEST_SKIP;
+        *actual = 0;
+        return 0;
+    }
+    /* TODO: HolyC → MIR → driver->compile → driver->run */
     *result = TEST_SKIP;
     *actual = 0;
     return 0;
@@ -75,6 +93,10 @@ int main(int argc, char **argv) {
         for (uint32_t i = 0; i < counts[s]; i++) {
             const test_entry_t *t = &suites[s][i];
             printf("  [%3u/%3u] %-30s ", test_idx + 1, g.n_tests, t->name);
+            fflush(stdout);
+
+            test_result_t x86_result = TEST_SKIP;
+            int64_t x86_actual = 0;
 
             for (uint32_t tgt = 0; tgt < g.n_targets; tgt++) {
                 test_result_t result = TEST_SKIP;
@@ -82,6 +104,8 @@ int main(int argc, char **argv) {
 
                 if (strcmp(target_names[tgt], "x86-64") == 0) {
                     run_test_x86_64(t->source, t->expected, &result, &actual);
+                    x86_result = result;
+                    x86_actual = actual;
                 } else {
                     run_test_isa_driver(t->source, target_names[tgt], t->expected, &result, &actual);
                 }
@@ -106,13 +130,10 @@ int main(int argc, char **argv) {
                 printf("%s", sym);
             }
 
-            /* Show details for failures */
-            int64_t actual = 0;
-            test_result_t res = TEST_SKIP;
-            run_test_x86_64(t->source, t->expected, &res, &actual);
-            if (res == TEST_FAIL) {
-                printf("  [FAIL: expected %lld, got %lld]", (long long)t->expected, (long long)actual);
-            } else if (res == TEST_ERROR) {
+            /* Show details for failures — reuse result from target loop */
+            if (x86_result == TEST_FAIL) {
+                printf("  [FAIL: expected %lld, got %lld]", (long long)t->expected, (long long)x86_actual);
+            } else if (x86_result == TEST_ERROR) {
                 printf("  [ERROR: compilation failed]");
             }
 

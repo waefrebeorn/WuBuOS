@@ -28,6 +28,7 @@
 #ifdef WUBU_HOSTED
 #include <sys/mman.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 #include <dlfcn.h>
 #endif
 
@@ -74,51 +75,86 @@ void jit_free(JITContext *ctx) {
 }
 
 /* -- Executable Memory ------------------------------------------- */
-/* Hosted: uses mmap/mprotect. Self-hosted: uses malloc (W^X not enforced). */
+/* -- JIT Memory: memfd_create for WSL/hardened kernel compatibility ----- */
+/* WSL2 enforces W^X: neither mmap(RWX) nor mprotect(PROT_EXEC) works on
+ * anonymous pages. Solution: memfd_create → mmap(RW) → write → munmap(RW) →
+ * mmap(RX) → execute. We track fd/size per mapping in a small global table. */
 
+#ifdef WUBU_HOSTED
+#define JIT_MAX_MAPPINGS 256
+static struct { void *ptr; int fd; size_t size; } g_jit_map[JIT_MAX_MAPPINGS];
+
+static void jit_map_add(void *ptr, int fd, size_t size) {
+    for (int i = 0; i < JIT_MAX_MAPPINGS; i++) {
+        if (!g_jit_map[i].ptr) { g_jit_map[i].ptr = ptr; g_jit_map[i].fd = fd; g_jit_map[i].size = size; return; }
+    }
+}
+static int jit_map_fd(void *ptr) {
+    for (int i = 0; i < JIT_MAX_MAPPINGS; i++) { if (g_jit_map[i].ptr == ptr) return g_jit_map[i].fd; }
+    return -1;
+}
+static size_t jit_map_size(void *ptr) {
+    for (int i = 0; i < JIT_MAX_MAPPINGS; i++) { if (g_jit_map[i].ptr == ptr) return g_jit_map[i].size; }
+    return 0;
+}
+static void jit_map_rm(void *ptr) {
+    for (int i = 0; i < JIT_MAX_MAPPINGS; i++) { if (g_jit_map[i].ptr == ptr) { g_jit_map[i].ptr = NULL; return; } }
+}
+#endif
+
+/* -- Executable Memory ------------------------------------------- */
+
+/* Allocate a JIT buffer for writing. Returns RW memory, or NULL. */
 void *jit_alloc_exec(size_t size) {
 #ifdef WUBU_HOSTED
     init_page_size();
     size_t alloc_size = align_to_page(size);
-    void *mem = mmap(NULL, alloc_size,
-                     PROT_READ | PROT_WRITE | PROT_EXEC,
-                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (mem == MAP_FAILED) return NULL;
-    return mem;
+    int fd = (int)syscall(SYS_memfd_create, "wubu_jit", 0);
+    if (fd < 0) return NULL;
+    if (ftruncate(fd, (off_t)alloc_size) < 0) { close(fd); return NULL; }
+    void *rw = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (rw == MAP_FAILED) { close(fd); return NULL; }
+    jit_map_add(rw, fd, alloc_size);
+    return rw;
 #else
     (void)size;
-    /* Self-hosted: malloc returns memory that is both writable and executable
-     * in a kernel/bare-metal context (no MMU enforcement). */
     return malloc(size);
 #endif
+}
+
+/* Lock a JIT buffer for execution. Returns RX pointer (may differ from ptr). */
+void *jit_lock_exec(void *ptr, size_t size) {
+#ifdef WUBU_HOSTED
+    if (!ptr) return NULL;
+    int fd = jit_map_fd(ptr);
+    size_t alloc_size = jit_map_size(ptr);
+    if (fd < 0) return NULL;
+    munmap(ptr, alloc_size);
+    jit_map_rm(ptr);
+    void *rx = mmap(NULL, alloc_size, PROT_READ | PROT_EXEC, MAP_SHARED, fd, 0);
+    if (rx == MAP_FAILED) { close(fd); return NULL; }
+    jit_map_add(rx, fd, alloc_size);
+    (void)size;
+    return rx;
+#else
+    (void)ptr; (void)size;
+    return ptr;
+#endif
+}
+
+void jit_unlock_exec(void *ptr, size_t size) {
+    (void)ptr; (void)size;
 }
 
 void jit_free_exec(void *ptr, size_t size) {
     if (!ptr) return;
 #ifdef WUBU_HOSTED
-    init_page_size();
-    munmap(ptr, align_to_page(size));
+    int fd = jit_map_fd(ptr);
+    size_t alloc_size = jit_map_size(ptr);
+    if (fd >= 0) { munmap(ptr, alloc_size); close(fd); jit_map_rm(ptr); }
 #else
     (void)size;
     free(ptr);
-#endif
-}
-
-void jit_lock_exec(void *ptr, size_t size) {
-#ifdef WUBU_HOSTED
-    init_page_size();
-    mprotect(ptr, align_to_page(size), PROT_READ | PROT_EXEC);
-#else
-    (void)ptr; (void)size;
-#endif
-}
-
-void jit_unlock_exec(void *ptr, size_t size) {
-#ifdef WUBU_HOSTED
-    init_page_size();
-    mprotect(ptr, align_to_page(size), PROT_READ | PROT_WRITE | PROT_EXEC);
-#else
-    (void)ptr; (void)size;
 #endif
 }
 

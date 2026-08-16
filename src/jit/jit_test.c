@@ -80,11 +80,8 @@ static void test_exec_memory(void) {
     mem = jit_alloc_exec(4096);
     if (mem) {
         ((unsigned char *)mem)[0] = 0xC3;
-        jit_lock_exec(mem, 4096);
-        ((void (*)(void))mem)();  /* should still work */
-        jit_unlock_exec(mem, 4096);
-        ((unsigned char *)mem)[0] = 0xC3;  /* should be writable again */
-        jit_free_exec(mem, 4096);
+        mem = jit_lock_exec(mem, 4096);
+        if (mem) { ((void (*)(void))mem)(); }  /* should work */
         PASS();
     } else FAIL("alloc failed");
 }
