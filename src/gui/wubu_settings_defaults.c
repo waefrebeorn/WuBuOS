@@ -56,7 +56,7 @@ bool          g_settings_dirty = false;
 void settings_default_theme(ThemeSettings *t) {
     t->theme_id = THEME_WIN98_CLASSIC;
     t->wallpaper_path[0] = '\0';
-    t->wallpaper_mode = 1;
+    t->wallpaper_mode = 2; /* STRETCH — full desktop coverage */
     t->use_custom_colors = false;
     memset(t->custom_colors, 0, sizeof(t->custom_colors));
 }
