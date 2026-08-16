@@ -140,6 +140,13 @@ void *jit_alloc_exec(size_t size);
 void jit_free_exec(void *ptr, size_t size);
 
 /*
+ * Clear instruction cache for JIT'd code (portable, no __builtin).
+ * x86-64: hardware maintains coherency, compiler barrier only.
+ * ARM64: best-effort; hosted builds rely on kernel mmap(PROT_EXEC).
+ */
+void wubu_clear_cache(void *addr, size_t size);
+
+/*
  * Set memory from writable to executable (drop PROT_WRITE).
  * Optional hardening: call after writing code, before executing.
  */

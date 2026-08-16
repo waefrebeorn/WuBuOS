@@ -24,18 +24,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <limits.h>
+#ifdef WUBU_HOSTED
 #include <sys/mman.h>
 #include <unistd.h>
 #include <dlfcn.h>
-#include <limits.h>
+#endif
 
 /* -- Internal: Page size ------------------------------------------ */
 
 static long g_page_size = 0;
 
 static void init_page_size(void) {
-    if (g_page_size == 0)
+    if (g_page_size == 0) {
+#ifdef WUBU_HOSTED
         g_page_size = sysconf(_SC_PAGESIZE);
+#else
+        g_page_size = 4096; /* default for self-hosted */
+#endif
+    }
 }
 
 static size_t align_to_page(size_t size) {
@@ -67,8 +74,10 @@ void jit_free(JITContext *ctx) {
 }
 
 /* -- Executable Memory ------------------------------------------- */
+/* Hosted: uses mmap/mprotect. Self-hosted: uses malloc (W^X not enforced). */
 
 void *jit_alloc_exec(size_t size) {
+#ifdef WUBU_HOSTED
     init_page_size();
     size_t alloc_size = align_to_page(size);
     void *mem = mmap(NULL, alloc_size,
@@ -76,23 +85,41 @@ void *jit_alloc_exec(size_t size) {
                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (mem == MAP_FAILED) return NULL;
     return mem;
+#else
+    (void)size;
+    /* Self-hosted: malloc returns memory that is both writable and executable
+     * in a kernel/bare-metal context (no MMU enforcement). */
+    return malloc(size);
+#endif
 }
 
 void jit_free_exec(void *ptr, size_t size) {
-    if (ptr) {
-        init_page_size();
-        munmap(ptr, align_to_page(size));
-    }
+    if (!ptr) return;
+#ifdef WUBU_HOSTED
+    init_page_size();
+    munmap(ptr, align_to_page(size));
+#else
+    (void)size;
+    free(ptr);
+#endif
 }
 
 void jit_lock_exec(void *ptr, size_t size) {
+#ifdef WUBU_HOSTED
     init_page_size();
     mprotect(ptr, align_to_page(size), PROT_READ | PROT_EXEC);
+#else
+    (void)ptr; (void)size;
+#endif
 }
 
 void jit_unlock_exec(void *ptr, size_t size) {
+#ifdef WUBU_HOSTED
     init_page_size();
     mprotect(ptr, align_to_page(size), PROT_READ | PROT_WRITE | PROT_EXEC);
+#else
+    (void)ptr; (void)size;
+#endif
 }
 
 /* -- x86-64 Encoding Helpers ------------------------------------- */
@@ -231,27 +258,26 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
     if (lang == JIT_LANG_C || lang == JIT_LANG_EXPR) {
         JITResult rc = jit_minic_compile(ctx, source, lang, fn_name, out_func);
         if (rc == JIT_OK) return rc;
-        /* minic couldn't handle it — fall through to gcc+dlopen */
+        /* minic couldn't handle it — fall through */
     }
-    
+
     /* Assembly text → can't compile as C; route to asmjit backend */
     if (lang == JIT_LANG_ASM) {
         return jit_asmjit_compile_impl(ctx, source, lang, fn_name, out_func);
     }
-    
-    /* Generate unique temp filenames using PID + counter */
+
+#ifdef WUBU_HOSTED
+    /* Hosted: fall back to gcc + dlopen for complex C/HolyC that minic can't handle */
     static int mir_seq = 0;
     char tmp_c[256], tmp_so[256];
     snprintf(tmp_c, sizeof(tmp_c), "/tmp/wubu_jit_%d_%d.c", (int)getpid(), mir_seq);
     snprintf(tmp_so, sizeof(tmp_so), "/tmp/wubu_jit_%d_%d.so", (int)getpid(), mir_seq);
     mir_seq++;
-    
-    /* Write C source */
+
     FILE *f = fopen(tmp_c, "w");
     if (!f) return JIT_ERR_ALLOC;
-    
+
     if (lang == JIT_LANG_HOLYC) {
-        /* Wrap HolyC as C-compatible source */
         fprintf(f, "/* WuBuOS HolyC wrapper */\n");
         fprintf(f, "typedef long I64;\ntypedef unsigned char U8;\n");
         fprintf(f, "typedef unsigned long U64;\n");
@@ -260,13 +286,7 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
         fprintf(f, "long %s(long a, long b) {\n", fn_name);
         fprintf(f, "  %s\n", source);
         fprintf(f, "}\n");
-    } else if (lang == JIT_LANG_ASM) {
-        /* Assembly text → can't compile as C; route to asmjit backend */
-        fclose(f);
-        unlink(tmp_c);
-        return jit_asmjit_compile_impl(ctx, source, lang, fn_name, out_func);
     } else {
-        /* Standard C: wrap the source in a function if it looks like an expression */
         fprintf(f, "#include <stdint.h>\n");
         fprintf(f, "__attribute__((visibility(\"default\")))\n");
         fprintf(f, "long %s(long a, long b) {\n", fn_name);
@@ -274,47 +294,38 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
         fprintf(f, "}\n");
     }
     fclose(f);
-    
-    /* Compile via gcc -shared -fPIC -O2 (shell-free) */
+
     char *argv[] = {
         "gcc", "-O2", "-shared", "-fPIC", "-o", (char *)tmp_so,
         (char *)tmp_c, (char *)NULL
     };
     int gcc_rc = wubu_run_program("gcc", argv, true);
     unlink(tmp_c);
-    
+
     if (gcc_rc != 0) return JIT_ERR_COMPILE;
-    
-    /* dlopen the .so — RTLD_LOCAL prevents symbol collisions between compiles */
+
     void *handle = dlopen(tmp_so, RTLD_NOW | RTLD_LOCAL);
-    if (!handle) {
-        unlink(tmp_so);
-        return JIT_ERR_LINK;
-    }
-    
-    /* dlsym the function */
+    if (!handle) { unlink(tmp_so); return JIT_ERR_LINK; }
+
     void *sym = dlsym(handle, fn_name);
-    if (!sym) {
-        dlclose(handle);
-        unlink(tmp_so);
-        return JIT_ERR_LINK;
-    }
-    
-    /* We can't free the .so while the symbol is in use, so we keep
-     * a reference. The code pointer is the function entry itself. */
+    if (!sym) { dlclose(handle); unlink(tmp_so); return JIT_ERR_LINK; }
+
     out_func->code = sym;
-    out_func->code_size = 0;  /* unknown size for dynamically loaded code */
+    out_func->code_size = 0;
+#else
+    /* Self-hosted: no gcc/dlopen. minic already tried — fail. */
+    (void)ctx; (void)source; (void)lang; (void)fn_name; (void)out_func;
+    return JIT_ERR_COMPILE;
+#endif
     out_func->backend = JIT_BACKEND_MIR;
     out_func->name = strdup(fn_name);
     out_func->n_args = 2;  /* default: (a, b) */
-    
-    /* Store the dl handle in a way we can clean up later.
-     * For now: the .so stays loaded. jit_func_free will dlclose it. */
-    /* We repurpose code_size field: 0 means "externally managed, don't munmap" */
-    
+
+#ifdef WUBU_HOSTED
     /* Clean up .so file (it's loaded in memory now) */
     unlink(tmp_so);
-    
+#endif
+
     ctx->stats.total_compiled++;
     return JIT_OK;
 }
