@@ -10,8 +10,9 @@
 #include <stdint.h>
 #include "wubu_test_gauntlet.h"
 #include "wubu_isa_driver.h"
+#include "holyc_mir_eval.h"
 
-/* HolyC compiler API */
+/* HolyC compiler API (native x86-64 JIT) */
 extern int64_t hc_eval(const char *source);
 
 /* Target names */
@@ -28,28 +29,23 @@ static int run_test_x86_64(const char *source, int64_t expected, test_result_t *
     return 0;
 }
 
-/* For non-native targets, use the ISA driver directly */
+/* For non-native targets, use MIR + ISA driver */
 static int run_test_isa_driver(const char *source, const char *target, int64_t expected, test_result_t *result, int64_t *actual) {
-    /* Non-native ISAs use the interpreter: HolyC is parsed and evaluated
-     * on x86-64 first (for the expected value), then the same source is
-     * compiled to each ISA driver's machine code and interpreted.
-     * Currently only x86-64 has a real backend; other drivers are wired
-     * but pending MIR bridge integration. */
     const wubu_isa_driver_t *driver = wubu_isa_find(target);
     if (!driver) {
         *result = TEST_SKIP;
         *actual = 0;
         return 0;
     }
-    /* For drivers without a compile+run path yet, skip */
     if (!driver->compile || !driver->run) {
         *result = TEST_SKIP;
         *actual = 0;
         return 0;
     }
-    /* TODO: HolyC → MIR → driver->compile → driver->run */
-    *result = TEST_SKIP;
-    *actual = 0;
+    /* HolyC → MIR → driver → run */
+    int64_t res = hc_eval_mir(source, driver);
+    *actual = res;
+    *result = (res == expected) ? TEST_PASS : TEST_FAIL;
     return 0;
 }
 
