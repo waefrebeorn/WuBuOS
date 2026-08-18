@@ -4,6 +4,7 @@
  *
  * C11, self-contained.
  */
+#include "wibu_mips_interp.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,16 +47,15 @@ static inline uint32_t read32(mips_cpu_t *cpu, uint32_t addr) {
          | ((uint32_t)cpu->mem[addr+3] << 24);
 }
 
-int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
-    size_t code_bytes = size < MIPS_MEM/2 ? size : MIPS_MEM/2;
+int64_t wibu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
     mips_cpu_t cpu;
     memset(&cpu, 0, sizeof(cpu));
     cpu.r[4] = (int32_t)arg;
-    /* Place stack after the code, aligned to 16 bytes */
-    cpu.r[29] = (MIPS_MEM/2) & ~15;
-    /* Copy code to beginning of mem */
-    memcpy(cpu.mem, code, code_bytes);
+    cpu.r[29] = MIPS_MEM - 16;
     cpu.pc = 0;
+
+    size_t code_bytes = size < MIPS_MEM/2 ? size : MIPS_MEM/2;
+    memcpy(cpu.mem, code, code_bytes);
 
     for (int iter = 0; iter < 1000000; iter++) {
         uint32_t inst = fetch32(&cpu, code, size);
@@ -83,8 +83,6 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
                 cpu.r[rd] = cpu.r[rs] ^ cpu.r[rt]; break;
             case 0x2A: /* slt — signed */
                 cpu.r[rd] = ((int32_t)cpu.r[rs] < (int32_t)cpu.r[rt]) ? 1 : 0; break;
-            case 0x2B: /* sltu — unsigned */
-                cpu.r[rd] = ((uint32_t)cpu.r[rs] < (uint32_t)cpu.r[rt]) ? 1 : 0; break;
             case 0x00: /* sll — shift left logical (immediate) */
                 cpu.r[rd] = (uint32_t)cpu.r[rt] << sa; break;
             case 0x02: /* srl — shift right logical (immediate) */
