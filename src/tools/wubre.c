@@ -859,6 +859,7 @@ typedef struct BTNode {
     int g;            /* BT_BREF group, BT_CAP group */
     int min, max;     /* BT_REP {min,max} (max=-1 unbounded) */
     int a, b;         /* child indices (BT_SEQ/BT_ALT/BT_STAR/.../BT_CAP) */
+    int next;         /* continuation node (what follows this one in a sequence) */
 } BTNode;
 
 typedef struct {
@@ -875,6 +876,7 @@ static int bt_parse_alt(BTProg *pr, const char **pp);
 
 static int bt_add(BTProg *p, BTNode nd){
     if (p->n>=p->cap){ p->cap = p->cap? p->cap*2 : 64; p->nodes=realloc(p->nodes,p->cap*sizeof*p->nodes); }
+    nd.next = -1;   /* no continuation by default (0 is a valid node index) */
     p->nodes[p->n]=nd; return p->n++;
 }
 static int bt_lit(BTProg *p,int c){ return bt_add(p,(BTNode){.op=BT_LIT,.c=(p->icase?cfold(c):c)}); }
@@ -925,27 +927,20 @@ static int bt_parse_atom(BTProg *pr, const char **pp){
             if (*p=='\\' && p[1]==')') p+=2;   /* consume \) group-close */
             else if (*p==')') p++;            /* or a bare ) */
             *pp=p; int cap=bt_add(pr,(BTNode){.op=BT_CAP,.g=g,.a=child}); return cap; }
-        /* \| is alternation (terminator for concat), \{ is interval-start
-         * (handled by the quantifier pass), \) is group-close. All return -1
-         * so the caller stops treating this as an atom. Everything else is an
-         * escaped literal. */
         if (n=='|' || n=='{' || n==')'){ *pp=p; return -1; }
         int ec=(unsigned char)n; p+=2; *pp=p; return bt_lit(pr,ec);
     }
-    if (c==')' || (c=='\\' && p[1]==')')) return -1; /* group close: terminator */
+    if (c==')' || (c=='\\' && p[1]==')')) return -1;
     if (c=='^'){ p++; *pp=p; return bt_add(pr,(BTNode){.op=BT_BOL}); }
     if (c=='$'){ p++; *pp=p; return bt_add(pr,(BTNode){.op=BT_EOL}); }
     if (c=='.'){ p++; *pp=p; return bt_add(pr,(BTNode){.op=BT_DOT}); }
     if (c=='['){ int cls=bt_parse_class(pr,&p); *pp=p; return cls; }
-    /* plain literal (incl. BRE specials + ? ( ) | { } which are literal) */
     p++; *pp=p; return bt_lit(pr,(unsigned char)c);
 }
 static int bt_parse_quant(BTProg *pr, const char **pp, int atom){
     if (atom<0) return atom;
     const char *p=*pp;
-    /* '*' is the bare quantifier */
     if (*p=='*'){ p++; *pp=p; return bt_add(pr,(BTNode){.op=BT_STAR,.a=atom,.min=0,.max=-1}); }
-    /* '\{m,n\}' interval (BRE interval syntax) */
     if (*p=='\\' && p[1]=='{'){
         const char *q=p+2; int mn=0,mx=-1,have_comma=0;
         while(*q>='0'&&*q<='9'){ mn=mn*10+(*q-'0'); q++; }
@@ -958,22 +953,23 @@ static int bt_parse_quant(BTProg *pr, const char **pp, int atom){
     *pp=p; return atom;
 }
 static int bt_parse_concat(BTProg *pr, const char **pp){
-    int first=-1, last=-1;
+    int head=-1, prev=-1;
     for(;;){
         if (!**pp || **pp==')' || (**pp=='\\' && (*pp)[1]=='|')) break;
         int atom=bt_parse_quant(pr,pp,bt_parse_atom(pr,pp));
-        if (atom<0) break;  /* terminator hit */
-        if (first<0) first=atom;
-        else { int s=bt_add(pr,(BTNode){.op=BT_SEQ,.a=last,.b=atom}); last=s; }
-        if (first>=0 && last<0) last=atom;
+        if (atom<0) break;
+        if (head<0){ head=atom; prev=atom; }
+        else { pr->nodes[prev].next = atom; prev=atom; }
     }
-    if (first<0) return bt_add(pr,(BTNode){.op=BT_SEQ}); /* empty */
-    return (last<0)? first : last;
+    if (head<0) return -1;
+    return head;
 }
 static int bt_parse_alt(BTProg *pr, const char **pp){
     int left=bt_parse_concat(pr,pp);
     if (**pp=='\\' && (*pp)[1]=='|'){ (*pp)+=2; int right=bt_parse_alt(pr,pp);
-        return bt_add(pr,(BTNode){.op=BT_ALT,.a=left,.b=right}); }
+        int alt=bt_add(pr,(BTNode){.op=BT_ALT,.a=left,.b=right});
+        return alt;
+    }
     return left;
 }
 
@@ -986,27 +982,28 @@ static int bt_match(BTProg *pr, int ni, int pos){
     BTNode *nd=&pr->nodes[ni];
     const unsigned char *buf=pr->buf; size_t n=pr->blen;
     int icase=pr->icase, dotnl=pr->dotnl;
+    int r=-1;
     switch(nd->op){
         case BT_LIT: {
             if (pos>=n) return -1;
             int got=buf[pos], want=nd->c;
             if (icase){ if(cfold(got)!=cfold(want)) return -1; } else if(got!=want) return -1;
-            return pos+1;   /* SEQ wrapper continues */
+            r = pos+1; break;
         }
         case BT_DOT: {
             if (pos>=n) return -1;
             if (!dotnl && buf[pos]=='\n') return -1;
-            return pos+1;
+            r = pos+1; break;
         }
         case BT_CLS: {
             if (pos>=n) return -1;
             int ch=buf[pos]; int in=((nd->bits[ch>>3]>>(ch&7))&1);
             if (nd->neg) in=!in;
             if (!in) return -1;
-            return pos+1;
+            r = pos+1; break;
         }
-        case BT_BOL:  return (pos==0)      ? pos        : -1;
-        case BT_EOL:  return (pos==(int)n) ? pos        : -1;
+        case BT_BOL:  r = (pos==0)      ? pos        : -1; break;
+        case BT_EOL:  r = (pos==(int)n) ? pos        : -1; break;
         case BT_BREF: {
             if (nd->g>=pr->ngroups) return -1;
             int s=pr->group[2*nd->g], e=pr->group[2*nd->g+1];
@@ -1017,23 +1014,27 @@ static int bt_match(BTProg *pr, int ni, int pos){
                 int a=buf[s+i], b=buf[pos+i];
                 if (icase){ if(cfold(a)!=cfold(b)) return -1; } else if(a!=b) return -1;
             }
-            return pos+len;
-        }
-        case BT_SEQ: {
-            int p2=bt_match(pr, nd->a, pos);
-            if (p2<0) return -1;
-            return bt_match(pr, nd->b, p2);
+            r = pos+len; break;
         }
         case BT_ALT: {
-            int r=bt_match(pr, nd->a, pos);
-            if (r>=0) return r;
-            return bt_match(pr, nd->b, pos);
+            int ra=bt_match(pr, nd->a, pos);
+            if (ra>=0){ r=ra; break; }
+            r = bt_match(pr, nd->b, pos); break;
+        }
+        case BT_CAP: {
+            int save_s=pr->group[2*nd->g], save_e=pr->group[2*nd->g+1];
+            pr->group[2*nd->g]=pos;
+            int rr=bt_match(pr, nd->a, pos);
+            if (rr>=0) pr->group[2*nd->g+1]=rr;
+            else { pr->group[2*nd->g]=save_s; pr->group[2*nd->g+1]=save_e; }
+            r = rr; break;
         }
         case BT_STAR: case BT_PLUS: case BT_QUEST: case BT_REP: {
             int min = (nd->op==BT_PLUS)  ? 1 : (nd->op==BT_QUEST ? 0 : nd->min);
             int max = (nd->op==BT_QUEST) ? 1 : (nd->max<0 ? 1000000 : nd->max);
-            /* greedy: try max repetitions down to min. After the repetition we
-             * return the new position; the enclosing SEQ node continues. */
+            /* Greedy: try max repetitions down to min. After matching the
+             * quantified node k times, thread the continuation (nd->next); if
+             * the follower fails, back off one repetition and retry. */
             for (int k=max; k>=min; k--){
                 int pp=pos, ok=1;
                 for(int j=0;j<k;j++){
@@ -1043,20 +1044,17 @@ static int bt_match(BTProg *pr, int ni, int pos){
                     pp=nx;
                 }
                 if (!ok) continue;
-                return pp;
+                if (nd->next<0) return pp;
+                int cont=bt_match(pr, nd->next, pp);
+                if (cont>=0) return cont;
             }
             return -1;
         }
-        case BT_CAP: {
-            int save_s=pr->group[2*nd->g], save_e=pr->group[2*nd->g+1];
-            pr->group[2*nd->g]=pos;
-            int r=bt_match(pr, nd->a, pos);
-            if (r>=0) pr->group[2*nd->g+1]=r;
-            else { pr->group[2*nd->g]=save_s; pr->group[2*nd->g+1]=save_e; }
-            return r;
-        }
         default: return -1;
     }
+    if (r<0) return -1;
+    if (nd->next>=0) return bt_match(pr, nd->next, r);  /* thread continuation */
+    return r;
 }
 
 WURegex *wubre_compile_bre(const char *pat, int flags, char *err, size_t errsz){
