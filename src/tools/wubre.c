@@ -71,6 +71,7 @@ typedef struct {
     Dangle *out;
     const char *src;     /* source span of this atom (for {n,m} expansion) */
     const char *src_end;
+    int empty;           /* 1 = this frag matches empty string only (no content) */
 } Frag;
 
 #define FRAG_NULL ((Frag){.start=-1,.out=NULL,.src=NULL,.src_end=NULL})
@@ -120,7 +121,7 @@ static Frag empty_frag(Ctx *c){
     Dangle *d0=dangle_one(c,si,0);   /* sp->out  */
     Dangle *d1=dangle_one(c,si,1);   /* sp->out1 */
     d0->next=d1;                     /* chain both so patch_to links both */
-    return (Frag){ .start=si, .out=d0, .src=NULL, .src_end=NULL };
+    return (Frag){ .start=si, .out=d0, .src=NULL, .src_end=NULL, .empty=1 };
 }
 
 static int cfold(int c){ return (c>='A'&&c<='Z') ? c-'A'+'a' : c; }
@@ -248,15 +249,12 @@ static const char *validate_regex(const char *p, int bre, int icase){
             }
             case '*': case '+': case '?':
                 if (!bre){
-                    if (!last_atom && !last_quant){
-                        /* GNU grep: a quantifier with no preceding atom (and not
-                         * following another quantifier) is a literal. */
-                        p++; last_atom=1; last_quant=0; continue;
-                    }
-                    if (!last_atom) return "BADRPT";
-                    p++; last_atom=0; last_quant=1; continue;
+                    /* GNU grep: a quantifier with no preceding repeatable atom
+                     * matches the empty string (e.g. `*` at start, `^*`, or `**`
+                     * after another quantifier). Never an error. */
+                    p++; last_atom=1; last_quant=1; continue;
                 } else {
-                    /* BRE: * + ? are literals unless escaped (handled in '\' case) */
+                    /* BRE: * + ? are literals unless escaped (handled in '\\' case) */
                     p++; last_atom=1; last_quant=0; continue;
                 }
             case '{':
@@ -365,6 +363,10 @@ static Frag parse_atom(P *ps){
     const char *s0 = ps->p;
     if (ps->p>=ps->end){ return empty_frag(ps->cx); }
     char ch=*ps->p;
+    /* A quantifier with no preceding atom: GNU grep treats it as a no-op that
+     * matches the empty string (e.g. `*` at pattern start, or `**` after `a`).
+     * Return an empty frag and let parse_quant compose any trailing quantifiers. */
+    if (ch=='*' || ch=='+' || ch=='?'){ ps->p++; return empty_frag(ps->cx); }
     if (ch=='('){
         ps->p++;
         Frag f=parse_alt(ps);
@@ -418,6 +420,9 @@ static Frag parse_quant(P *ps){
         else if (q=='?') kind=3;
         if (kind){
             ps->p++;
+            /* quantifier on an empty frag: a no-op (empty* = empty). Consume it
+             * without building an NFA loop, which would be a phantom self-loop. */
+            if (f.empty){ continue; }
             WURegex *re=ps->cx->re;
             if (kind==1 || kind==3){ /* f*  and f? : SPLIT(out=f.start, out1=EXIT) */
                 State *sp=add_state(re,SPLIT);
