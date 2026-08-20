@@ -537,40 +537,51 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
         if (has_bref) return wubre_compile_bre(pat, flags, err, errsz);
     }
     /* BRE mode (no backref): translate to ERE. In BRE, ( ) | + ? { } are
-     * literal unless backslashed; \( \) \| \+ \? become the ERE metachars. */
+     * literal unless backslashed; \\( \\) \\| \\+ \\? become the ERE metachars. */
     char *trans = NULL;
     const char *use = pat;
     if (flags & WUBRE_BRE){
         size_t L = strlen(pat);
         trans = malloc(L*2+1);
         char *o = trans;
+        int prev_atom = 0;   /* true after a complete atom (so a following '*' is a quantifier) */
         for (size_t i=0;i<L;i++){
             char c = pat[i];
             if (c=='\\' && i+1<L){
                 char n = pat[i+1];
-                /* \( ) | + ? { }  ->  metachar ; other \X stays literal \X */
+                /* \\( ) | + ? { }  ->  metachar ; other \\X stays literal \\X */
                 if (n=='('||n==')'||n=='|'||n=='+'||n=='?'||n=='{'||n=='}'){
-                    *o++ = n; i++; continue;
+                    *o++ = n; i++; prev_atom = (n==')'); continue;
                 }
-                *o++ = '\\'; *o++ = n; i++; continue;
+                *o++ = '\\'; *o++ = n; i++; prev_atom = 1; continue;
             }
             /* bare BRE metachars are literal -> escape for ERE parser */
             if (c=='('||c==')'||c=='|'||c=='+'||c=='?'||c=='{'||c=='}'){
-                *o++ = '\\'; *o++ = c; continue;
+                *o++ = '\\'; *o++ = c; prev_atom = (c==')'); continue;
             }
-            /* ^ is an anchor only at start of pattern or right after \( ;
-             * $ only at end or right before \) ; elsewhere they are literal. */
+            /* Bare '*' is a quantifier only if it follows a real atom. After
+             * an opening group '(' (or ^ | * or start) it is a literal '*'
+             * (GNU grep: 'a\(*\)b' matches literal "a*b"). A literal '*' we
+             * emit counts as an atom for the NEXT '*'. */
+            if (c=='*'){
+                if (!prev_atom){ *o++='\\'; *o++='*'; }
+                else *o++='*';
+                prev_atom = 1;   /* a literal '*' is itself an atom */
+                continue;
+            }
+            /* ^ is an anchor only at start of pattern or right after \\( ;
+             * $ only at end or right before \\) ; elsewhere they are literal. */
             if (c=='^'){
                 int at_anchor = (i==0) || (i>=2 && pat[i-1]=='\\' && pat[i-2]=='(');
                 if (!at_anchor){ *o++ = '\\'; }
-                *o++ = '^'; continue;
+                *o++ = '^'; prev_atom = 0; continue;
             }
             if (c=='$'){
                 int at_anchor = (i+1==L) || (i+2<L && pat[i+1]=='\\' && pat[i+2]==')');
                 if (!at_anchor){ *o++ = '\\'; }
-                *o++ = '$'; continue;
+                *o++ = '$'; prev_atom = 0; continue;
             }
-            *o++ = c;
+            *o++ = c; prev_atom = 1;
         }
         *o = 0;
         use = trans;
@@ -940,7 +951,16 @@ static int bt_parse_atom(BTProg *pr, const char **pp){
 static int bt_parse_quant(BTProg *pr, const char **pp, int atom){
     if (atom<0) return atom;
     const char *p=*pp;
-    if (*p=='*'){ p++; *pp=p; return bt_add(pr,(BTNode){.op=BT_STAR,.a=atom,.min=0,.max=-1}); }
+    if (*p=='*'){
+        /* A bare '*' with no preceding atom is a LITERAL '*' (GNU grep:
+         * 'a(*)' matches literal "a*b"). bt_parse_atom already emits a
+         * literal '*' in that case; here we must concatenate a second
+         * literal '*' rather than quantize the first one. */
+        if (atom>=0 && pr->nodes[atom].op==BT_LIT && pr->nodes[atom].c=='*'){
+            int lit=bt_lit(pr,'*'); p++; *pp=p; return lit;
+        }
+        p++; *pp=p; return bt_add(pr,(BTNode){.op=BT_STAR,.a=atom,.min=0,.max=-1});
+    }
     if (*p=='\\' && p[1]=='{'){
         const char *q=p+2; int mn=0,mx=-1,have_comma=0;
         while(*q>='0'&&*q<='9'){ mn=mn*10+(*q-'0'); q++; }
@@ -956,10 +976,11 @@ static int bt_parse_concat(BTProg *pr, const char **pp){
     int head=-1, prev=-1;
     for(;;){
         if (!**pp || **pp==')' || (**pp=='\\' && (*pp)[1]=='|')) break;
-        int atom=bt_parse_quant(pr,pp,bt_parse_atom(pr,pp));
+        int atom=bt_parse_atom(pr,pp);      /* parse one atom */
         if (atom<0) break;
-        if (head<0){ head=atom; prev=atom; }
-        else { pr->nodes[prev].next = atom; prev=atom; }
+        int q=bt_parse_quant(pr,pp,atom);   /* apply a postfix quantifier (if any) */
+        if (head<0){ head=q; prev=q; }
+        else { pr->nodes[prev].next = q; prev=q; }
     }
     if (head<0) return -1;
     return head;
@@ -1007,7 +1028,7 @@ static int bt_match(BTProg *pr, int ni, int pos){
         case BT_BREF: {
             if (nd->g>=pr->ngroups) return -1;
             int s=pr->group[2*nd->g], e=pr->group[2*nd->g+1];
-            if (s<0||e<s) return -1;
+            if (s<0||e<=s) return -1;   /* group must have captured >=1 char */
             int len=e-s;
             if (pos+len>n) return -1;
             for(int i=0;i<len;i++){
@@ -1025,22 +1046,32 @@ static int bt_match(BTProg *pr, int ni, int pos){
             int save_s=pr->group[2*nd->g], save_e=pr->group[2*nd->g+1];
             pr->group[2*nd->g]=pos;
             int rr=bt_match(pr, nd->a, pos);
-            if (rr>=0) pr->group[2*nd->g+1]=rr;
-            else { pr->group[2*nd->g]=save_s; pr->group[2*nd->g+1]=save_e; }
-            r = rr; break;
+            if (rr>=0 && rr>pos){           /* a group must consume at least one char */
+                pr->group[2*nd->g+1]=rr;
+                r = rr; break;
+            }
+            pr->group[2*nd->g]=save_s; pr->group[2*nd->g+1]=save_e;
+            r = -1; break;
         }
         case BT_STAR: case BT_PLUS: case BT_QUEST: case BT_REP: {
             int min = (nd->op==BT_PLUS)  ? 1 : (nd->op==BT_QUEST ? 0 : nd->min);
             int max = (nd->op==BT_QUEST) ? 1 : (nd->max<0 ? 1000000 : nd->max);
+            /* Bound the number of repetitions to the remaining buffer: a
+             * repetition consumes >=1 char, so it can match at most n-pos
+             * times. This keeps nested greedy stars from blowing the step
+             * budget before the working (often zero-rep) path is tried. */
+            int room = (int)n - pos + 1;
+            if (max > room) max = room;
             /* Greedy: try max repetitions down to min. After matching the
              * quantified node k times, thread the continuation (nd->next); if
-             * the follower fails, back off one repetition and retry. */
+             * the follower fails, back off one repetition and retry. A rep must
+             * consume at least one char (a zero-width rep is a failed match). */
             for (int k=max; k>=min; k--){
                 int pp=pos, ok=1;
+                if (getenv("WUBTRACE")) fprintf(stderr,"    STAR k=%d pos=%d\n", k, pos);
                 for(int j=0;j<k;j++){
                     int nx=bt_match(pr, nd->a, pp);
-                    if (nx<0){ ok=0; break; }
-                    if (nx==pp){ ok=0; break; } /* zero-width child: no progress */
+                    if (nx<0 || nx==pp){ ok=0; break; }
                     pp=nx;
                 }
                 if (!ok) continue;
