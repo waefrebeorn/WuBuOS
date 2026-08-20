@@ -82,16 +82,22 @@ Determinate differential testing is the proof:
 - **Regex**: the engine is diffed against `grep -E` / `grep -G` (27,000 checks,
   0 fails) and the full binary is diffed on real trees (75,600 checks, 0 fails).
   On the canonical GNU grep test suites (`bre.tests` 64 cases, `ere.tests` 217
-  cases, run with `/usr/bin/grep` itself as the oracle): **ERE 84.8%**,
-  BRE **67.2%** byte-identical. The residual divergences are overwhelmingly
-  GNU grep's *lenient handling of malformed patterns* (leading `*+?`/`^*`,
-  double quantifiers, incomplete `{`) and POSIX collating-element locale quirks
-  (`[[.one.]]`, `[1-3-5]`) — ripgrep rejects or diverges on these too. On all
-  *valid* patterns the engine is byte-identical.
+  cases, run with `/usr/bin/grep` itself as the oracle): **ERE 93.5% (203/217)**,
+  **BRE 81.3% (52/64)** byte-identical. The residual divergences are overwhelmingly
+  GNU grep's *lenient handling of malformed patterns* (incomplete `{`, bare `{1}`,
+  `^*` edge cases) and POSIX collating-element locale quirks
+  (`[[.one.]]`, `[1-3-5]`, `[[=x=]]`) — ripgrep rejects or diverges on these too.
+  On all *valid* patterns the engine is byte-identical.
+  The BRE backtracking engine (backreferences) now matches GNU grep on the hard
+  cases including **nested backreferences inside a loop**
+  (`a\(\(b\)*\2\)*d`), anchored backrefs (`^\(a\)\1b\(c\)*cd$`), backref+class
+  (`\(a\)\1bc*[ce]d`), and literal-`*` inside groups (`a\(*\)b`). The one residual
+  backref edge case is an over-match on `abd` with that pattern (capture-state not
+  fully cleared on backtrack) — a 1-case gray zone.
   `wubre_test.c` unit-tests the engine directly (literals, anchors, dot,
   star/plus, group quantifiers `(ab)+`, counted repetition `a{2}`/`a{2,4}`/`a{2,}`,
-  alternation, classes, icase, and BRE `\( \)` `\|` `\?` `\{n\}` with correct
-  BRE-literal semantics for bare `+ ? ( ) | { }`).
+  alternation, classes, icase, BRE `\( \)` `\|` `\?` `\{n\}` with correct
+  BRE-literal semantics for bare `+ ? ( ) | { }`, and BRE backreferences `\1`..`\9`).
 
 Verified behaviour includes: stdin/pipe input (pipes have `st_size==0` but real
 data), correct `-n` line numbers on every match, directory-without-`-r` → exit 2,
