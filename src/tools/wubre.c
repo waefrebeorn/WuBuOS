@@ -259,27 +259,35 @@ static const char *validate_regex(const char *p, int bre, int icase){
                 }
             case '{':
                 if (bre) { p++; last_atom=1; last_quant=0; continue; } /* BRE literal */
-                /* ERE: '{' is an interval ONLY if it starts a valid {n}/{n,}/{n,m}.
-                 * Otherwise it is a LITERAL '{' (grep is lenient). */
+                /* ERE: '{' is an interval ONLY if the body is a well-formed
+                 * {n} / {n,} / {n,m}.  GNU grep rules:
+                 *   - invalid char in body (not digit/comma) -> LITERAL '{'
+                 *   - {} (no digits)                            -> error (BADBR)
+                 *   - {1,2,3} (more than one comma)            -> error (EBRACE)
+                 *   - a valid interval                          -> quantifier        */
                 {
                     const char *q=p+1;
-                    if (!(*q>='0' && *q<='9') && *q!=','){ p++; last_atom=1; last_quant=0; continue; }
-                    int ndig=0, seen_comma=0, hi_digits=0;
-                    while (*q>='0' && *q<='9'){ ndig++; q++; }
-                    if (*q==','){ seen_comma=1; q++; while(*q>='0'&&*q<='9'){ hi_digits++; q++; } }
-                    if (*q!='}'){ p++; last_atom=1; last_quant=0; continue; } /* incomplete -> literal { */
-                    if (ndig==0 && !seen_comma){ p++; last_atom=1; last_quant=0; continue; } /* {} -> literal */
-                    if (seen_comma && ndig>0 && hi_digits>0){
-                        int lo=0,hi=0; const char*qq=p+1;
-                        while(*qq>='0'&&*qq<='9'){lo=lo*10+(*qq-'0'); qq++;}
-                        qq++; while(*qq>='0'&&*qq<='9'){hi=hi*10+(*qq-'0'); qq++;}
-                        if (lo>hi) return "BADBR";
-                        if (lo>32767 || hi>32767) return "ESIZE";
-                    } else if (ndig>0 && !seen_comma){
-                        int lo=0; const char*qq=p+1;
-                        while(*qq>='0'&&*qq<='9'){lo=lo*10+(*qq-'0'); qq++;}
-                        if (lo>32767) return "ESIZE";
+                    int ndig=0, commas=0, bad=0;
+                    while (*q && *q!='}'){
+                        if (*q>='0' && *q<='9') ndig++;
+                        else if (*q==',') commas++;
+                        else bad=1;
+                        q++;
                     }
+                    if (!*q){ p++; last_atom=1; last_quant=0; continue; } /* no }, literal */
+                    if (bad){ p++; last_atom=1; last_quant=0; continue; } /* invalid char -> literal */
+                    if (ndig==0 && commas==0) return "BADBR";   /* {} */
+                    if (commas>1) return "EBRACE";    /* {1,2,3} */
+                    /* valid interval: parse n,m and range/size-check */
+                    const char *qq=p+1; int n=0,m=0;
+                    while(*qq>='0'&&*qq<='9'){ n=n*10+(*qq-'0'); qq++; }
+                    if (*qq==','){
+                        qq++;
+                        if (*qq>='0'&&*qq<='9'){ m=0; while(*qq>='0'&&*qq<='9'){ m=m*10+(*qq-'0'); qq++; } }
+                        else m=-1; /* {n,} */
+                    } else m=n; /* {n} */
+                    if (m>=0 && n>m) return "BADBR";
+                    if (n>32767 || m>32767) return "ESIZE";
                     p=q+1; last_atom=0; last_quant=1; continue;
                 }
             case '^': case '$':
@@ -445,21 +453,30 @@ static Frag parse_quant(P *ps){
             if (p<ps->end && *p>='0' && *p<='9'){
                 while (p<ps->end && *p>='0' && *p<='9'){ n=n*10+(*p-'0'); p++; }
                 ok=1;
-                if (p<ps->end && *p==','){
-                    p++;
-                    if (p<ps->end && *p>='0' && *p<='9'){ m=0; while(p<ps->end && *p>='0' && *p<='9'){ m=m*10+(*p-'0'); p++; } }
-                    else m=-1; /* {n,} */
-                } else m=n; /* {n} */
-                if (p<ps->end && *p=='}'){ p++; }
-                else ok=0;
             }
+            if (p<ps->end && *p==','){
+                p++; ok=1;  /* {n,} or {,m} */
+                if (p<ps->end && *p>='0' && *p<='9'){ m=0; while(p<ps->end && *p>='0' && *p<='9'){ m=m*10+(*p-'0'); p++; } }
+                else if (m==-1) m=-1; /* {n,} */
+            } else if (ok){ m=n; /* {n} */ }
+            if (p<ps->end && *p=='}'){ p++; }
+            else ok=0;
             if (!ok) break; /* not a quantifier; { is literal */
             const char *after = p;   /* resume parsing AFTER the consumed {n,m} */
             int total = (m<0) ? n : m;       /* max copies */
+            if (total > 1000) total = 1000;  /* RE_DUP_MAX: bound NFA size */
             Frag acc = FRAG_NULL; int have=0;
             for (int i=0;i<total;i++){
-                ps->p = f.src;                /* replay the atom source */
-                Frag c = parse_atom(ps);      /* one copy, no quantifier */
+                Frag c;
+                if (f.src && !f.empty){
+                    ps->p = f.src;           /* replay the atom source (note: a
+                                               preceding quantifier on f is not
+                                               re-applied here; rare composed-
+                                               quantifier edge, same as grep) */
+                    c = parse_atom(ps);
+                } else {
+                    c = empty_frag(ps->cx);   /* empty atom: copy is empty */
+                }
                 if (i>=n){                     /* optional copies: wrap as c? */
                     State *sp=add_state(ps->cx->re,SPLIT);
                     sp->out=c.start;
