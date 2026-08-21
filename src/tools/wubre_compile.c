@@ -713,12 +713,21 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
          * strpbrk==NULL means use contains NO metacharacter at all. */
         re->lit_only = (!re->win_only && !re->bt_n && !(flags & WUBRE_ICASE)
                         && strpbrk(use, ".^$*+?()[]{}|\\") == NULL) ? 1 : 0;
-        re->lit = (const unsigned char *)use;
+        /* re->lit must OWN a copy: for BRE, 'use' aliases the malloc'd 'trans'
+         * buffer which is freed below, so pointing into it would dangle. Use an
+         * explicit malloc+memcpy (C11) rather than strdup (POSIX, needs feature
+         * macros and otherwise triggers an implicit-declaration UB). */
+        { size_t L = strlen(use);
+          unsigned char *cp = malloc(L ? L : 1);
+          if (cp) { if (L) memcpy(cp, use, L); re->lit = cp; } }
         re->lit_n = (int)strlen(use);
     }
     while (cx.all){ Dangle *n=cx.all->regnext; free(cx.all); cx.all=n; }
+    /* Build the literal-set prefilter from the ERE-translated pattern BEFORE
+     * freeing 'trans': for BRE, 'use' aliases 'trans', so it must still be
+     * valid while wubre_litpref_build parses it. */
+    wubre_litpref_build(re, use, flags);
     free(trans);
-    wubre_litpref_build(re, pat, flags);
     /* Eager DFA build (shared read-only across the parallel scan). Skipped for
      * BRE: BRE dispatches to wubre_search_bre before the DFA path, so a DFA
      * would be built and never used. */

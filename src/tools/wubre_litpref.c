@@ -164,10 +164,8 @@ static LitPref parse_seq(const char **pp, const char *end, int depth){
 }
 
 void wubre_litpref_build(WURegex *re, const char *pat, int flags){
-    /* BRE uses its own backtracking engine and its own escape syntax
-     * (\| is alternation, not a literal pipe); skip the ERE-flavored
-     * literal extraction for BRE to avoid mis-gated rejections. */
-    if (flags & WUBRE_BRE){ ((WURegex*)re)->litpref = NULL; return; }
+    /* 'pat' is the ERE-translated pattern (for BRE, the caller passes the
+     * translated form), so the literal extraction is sound for both flavors. */
     LitPref *lp = (LitPref*)calloc(1, sizeof(LitPref));
     const char *p = pat, *end = pat + strlen(pat);
     *lp = parse_seq(&p, end, 0);

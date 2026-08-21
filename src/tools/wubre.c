@@ -17,6 +17,7 @@ void wubre_free(WURegex *re){
     free((void*)re->prefilter);   /* owned copy, may be NULL */
     free((void*)re->pref2a);
     free((void*)re->pref2b);
+    free((void*)re->lit);         /* owned strdup (was aliased to trans for BRE) */
     if (re->bt) free(re->bt);
     if (re->litpref) wubre_litpref_free(re->litpref);
     if (re->dfa_cache) wubre_dfa_free(re->dfa_cache);
