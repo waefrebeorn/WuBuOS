@@ -232,13 +232,25 @@ static const char *validate_regex(const char *p, int bre, int icase){
                     }
                     if (p[0]=='[' && (p[1]=='.'||p[1]=='=')){
                         /* collating element [[.x.]] or equivalence class [[=x=]]:
-                         * GNU grep supports these as the single char x. Skip to ]]
-                         * (the parser's parse_class maps them to the literal char). */
-                        while(*p && *p!=']') p++; if(*p) p++;
-                        continue;
+                         * GNU grep accepts a SINGLE-char element, errors on a
+                         * multi-char / unknown one. The element is the single
+                         * char at p[2] provided the construct closes ".]]"/"=]]". */
+                        const char *q=p+2;
+                        while (*q && *q!=']') q++;
+                        if (*q && q[1]==']'){
+                            /* single char element: exactly one char between [[. and .]] */
+                            if (q - (p+2) == 2 && q[-1]==(p[1]=='.'?'.':'=')){
+                                p = q+1; continue;   /* [[.c.]] single char: valid (leave ] for close) */
+                            }
+                            return "ERR_COLLATE";    /* multi-char/unknown: error */
+                        }
+                        while(*p && *p!=']') p++; if(*p) p++; continue;
                     }
                     /* reversed range check a-z */
                     if (*p!='\\' && p[1]=='-' && p[2] && p[2]!=']'){
+                        /* a second '-' within the same bracket is an error
+                         * (ambiguous range), e.g. [1-3-5] / [a-z-A-Z]. */
+                        if (p[2]=='-') return "ERANGE";
                         int lo=(unsigned char)*p, hi=(unsigned char)p[2];
                         if (lo>hi) return "ERANGE";
                     }
@@ -317,15 +329,26 @@ static Frag parse_class(P *ps){
     /* POSIX class / collating / equivalence inside a class: [:name:], [[.x.]], [[=x=]] */
     while (ps->p<ps->end && *ps->p!=']'){
         /* collating element [[.x.]] or equivalence class [[=x=]] -> single char x */
-        if (ps->p+3<ps->end && ps->p[0]=='[' && (ps->p[1]=='.' || ps->p[1]=='=') && ps->p[2]!=']'){
+        if (ps->p+2<ps->end && ps->p[0]=='[' && (ps->p[1]=='.' || ps->p[1]=='=') && ps->p[2]!=']'){
             char close = (ps->p[1]=='.') ? '.' : '=';
-            const char *q = ps->p+2;
+            const char *q = ps->p+2;   /* element char */
             /* find closing ]] or =] */
             while (q<ps->end && *q!=']') q++;
             if (q<ps->end && q+1<ps->end && q[1]==']'){
-                int x = (unsigned char)ps->p[2];  /* the collating element's char (ASCII) */
-                bits[x>>3]|=(1u<<(x&7));
-                ps->p = q+2; prev=-1; continue;
+                /* single-collating-element [[.x.]] / [[=x=]] -> the one char x.
+                 * GNU grep: a single-char collating element is valid; a
+                 * multi-char or unterminated one is a hard error. The closing
+                 * of the construct is ".]]" / "=]]", so the element is the char
+                 * at ps->p[2] provided q[-1] is the matching close. */
+                /* single char element: exactly one char between [[. and .]] */
+                if (q - (ps->p+2) == 2 && q[-1]==close){
+                    int x=(unsigned char)ps->p[2];
+                    bits[x>>3]|=(1u<<(x&7));
+                    ps->p=q+1; prev=-1; continue;   /* leave class-close ] for standard consume */
+                }
+                /* multi-char / unknown collating element -> error */
+                if (ps->errsz) snprintf(ps->err, ps->errsz, "ERR_COLLATE");
+                return (Frag){0};
             }
         }
         /* POSIX class [:name:] */
@@ -381,6 +404,20 @@ static Frag parse_atom(P *ps){
         if (ps->p<ps->end && *ps->p==')') ps->p++;
         f.src=s0; f.src_end=ps->p;
         return f;
+    }
+    if (ch=='{'){
+        /* A '{' that opens a valid interval ({n}/{n,}/{n,m}) is owned by
+         * parse_quant (an interval with no preceding atom is an empty match,
+         * GNU grep). An invalid '{' (e.g. '{abc') is a literal '{'. */
+        const char *q=ps->p+1; int ndig=0,commas=0,bad=0,closed=0;
+        while(*q && *q!='}'){ if(*q>='0'&&*q<='9')ndig++; else if(*q==',')commas++; else bad=1; q++; }
+        if (*q=='}') closed=1;
+        if (closed && !bad && ndig>0 && commas<=1){
+            return empty_frag(ps->cx);   /* valid interval: empty atom for parse_quant */
+        }
+        /* literal '{' */
+        ps->p++; State *s=add_state(ps->cx->re,CHR); s->cl=0; s->c='{';
+        Frag f={.start=(int)(s-ps->cx->re->st),.out=dangle_one(ps->cx,(int)(s-ps->cx->re->st),0)}; f.src=s0; f.src_end=ps->p; return f;
     }
     if (ch=='['){
         /* GNU extensions: [[:<:]] and [[:>:]] are zero-width word-boundary
@@ -445,6 +482,8 @@ static Frag parse_quant(P *ps){
                 f.start=f.start;                 /* require >=1 f */
                 f.out=dangle_one(ps->cx,(int)(sp-re->st),0); /* EXIT = sp->out */
             }
+            f.src_end = ps->p;   /* include the quantifier char in the span so
+                                    a following {n,m} sees the trailing *+? */
             continue;
         }
         /* ERE counted repetition {n} {n,} {n,m} ; in BRE braces are literal */
@@ -465,30 +504,37 @@ static Frag parse_quant(P *ps){
             const char *after = p;   /* resume parsing AFTER the consumed {n,m} */
             int total = (m<0) ? n : m;       /* max copies */
             if (total > 1000) total = 1000;  /* RE_DUP_MAX: bound NFA size */
+            /* GNU grep: an interval after a *quantifier* (a* / a+ / a?) is a
+             * NO-OP (a*{1} == a*, a+{2} == a+); after a plain atom it repeats
+             * the atom. Detect a trailing quantifier in f's source span. */
+            int has_quant = (f.src && f.src_end > f.src && (f.src_end[-1]=='*'||f.src_end[-1]=='+'||f.src_end[-1]=='?'));
             Frag acc = FRAG_NULL; int have=0;
-            for (int i=0;i<total;i++){
-                Frag c;
-                if (f.src && !f.empty){
-                    ps->p = f.src;           /* replay the atom source (note: a
-                                               preceding quantifier on f is not
-                                               re-applied here; rare composed-
-                                               quantifier edge, same as grep) */
-                    c = parse_atom(ps);
-                } else {
-                    c = empty_frag(ps->cx);   /* empty atom: copy is empty */
+            if (has_quant){
+                /* no-op: the preceding quantifier stands; just validate bounds */
+                acc = f; have=1;
+            } else {
+                for (int i=0;i<total;i++){
+                    Frag c;
+                    if (f.src && !f.empty){
+                        ps->p = f.src;           /* replay the atom source */
+                        c = parse_atom(ps);
+                    } else {
+                        c = empty_frag(ps->cx);   /* empty atom: copy is empty */
+                    }
+                    if (i>=n){                     /* optional copies: wrap as c? */
+                        State *sp=add_state(ps->cx->re,SPLIT);
+                        sp->out=c.start;
+                        patch_to(ps->cx, c.out, (int)(sp-ps->cx->re->st));
+                        c.start=(int)(sp-ps->cx->re->st); c.out=dangle_one(ps->cx,(int)(sp-ps->cx->re->st),1);
+                    }
+                    if (!have){ acc=c; have=1; } else { patch_to(ps->cx, acc.out, c.start); acc.out=c.out; }
                 }
-                if (i>=n){                     /* optional copies: wrap as c? */
-                    State *sp=add_state(ps->cx->re,SPLIT);
-                    sp->out=c.start;
-                    patch_to(ps->cx, c.out, (int)(sp-ps->cx->re->st));
-                    c.start=(int)(sp-ps->cx->re->st); c.out=dangle_one(ps->cx,(int)(sp-ps->cx->re->st),1);
-                }
-                if (!have){ acc=c; have=1; } else { patch_to(ps->cx, acc.out, c.start); acc.out=c.out; }
             }
             ps->p = after;                    /* resume after the quantifier */
             if (!have){ acc = empty_frag(ps->cx); }
             f=acc;
-            break;   /* do NOT re-enter the quantifier loop on the same '{' */
+            continue;   /* resume quantifier loop; ps->p is now past '}', so
+                          the next char (e.g. '*') is a real following quantifier */
         }
         break;
     }
@@ -526,6 +572,7 @@ static Frag parse_alt(P *ps){
 }
 
 WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
+    if (err && errsz) err[0]=0;   /* start with no error; ERR_COLLATE etc. set it */
     /* BRE + backreference (\1..\9) cannot be expressed as a Thompson NFA, so
      * compile via the dedicated backtracking engine. This is the one regex
      * feature GNU grep's BRE shares with PCRE that ripgrep's engine LACKS. */
@@ -545,13 +592,16 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
         trans = malloc(L*2+1);
         char *o = trans;
         int prev_atom = 0;   /* true after a complete atom (so a following '*' is a quantifier) */
+        int bdepth = 0;      /* BRE group balance: unmatched \) is an error (GNU grep rc=2) */
         for (size_t i=0;i<L;i++){
             char c = pat[i];
             if (c=='\\' && i+1<L){
                 char n = pat[i+1];
-                /* \\( ) | + ? { }  ->  metachar ; other \\X stays literal \\X */
+                /* \( ) | + ? { }  ->  metachar ; other \X stays literal \X */
                 if (n=='('||n==')'||n=='|'||n=='+'||n=='?'||n=='{'||n=='}'){
-                    *o++ = n; i++; prev_atom = (n==')'); continue;
+                    *o++ = n; i++; prev_atom = (n==')');
+                    if (n=='(') bdepth++; else if (n==')'){ if (bdepth==0){ free(trans); return NULL; } bdepth--; }
+                    continue;
                 }
                 *o++ = '\\'; *o++ = n; i++; prev_atom = 1; continue;
             }
@@ -572,7 +622,7 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
             /* ^ is an anchor only at start of pattern or right after \\( ;
              * $ only at end or right before \\) ; elsewhere they are literal. */
             if (c=='^'){
-                int at_anchor = (i==0) || (i>=2 && pat[i-1]=='\\' && pat[i-2]=='(');
+                int at_anchor = (i==0) || (i>=2 && pat[i-1]=='(' && pat[i-2]=='\\');
                 if (!at_anchor){ *o++ = '\\'; }
                 *o++ = '^'; prev_atom = 0; continue;
             }
@@ -585,6 +635,7 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
         }
         *o = 0;
         use = trans;
+        if (bdepth>0){ free(trans); return NULL; }   /* unmatched \( -> error */
         /* The pattern is now ERE text; the BRE-ness has been encoded into the
          * transformed string, so clear WUBRE_BRE so parse_quant treats {}
          * as an ERE interval quantifier (not a literal). ICASE stays. */
@@ -675,6 +726,7 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
     P ps; ps.p=use; ps.end=use+strlen(use); ps.cx=&cx; ps.err=err; ps.errsz=errsz;
     if (ps.p>=ps.end){ State *m=add_state(re,MATCH); re->start=(int)(m-re->st); free(trans); return re; }
     Frag f=parse_alt(&ps);
+    if (err && err[0]){ free(trans); return NULL; }  /* parser raised a hard error (e.g. ERR_COLLATE) */
     State *m=add_state(re,MATCH);
     patch_to(&cx, f.out, (int)(m-re->st));
     int start=f.start;
