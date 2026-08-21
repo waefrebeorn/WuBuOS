@@ -337,6 +337,13 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
      * pass. A precomputed line-index makes each matching-line emit O(1). Used
      * for the common case (no -v); -v keeps the per-line fallback below. */
     if (g_opt_regex && !g_opt_invert) {
+        /* Prefilter gate FIRST: if no required literal is present, there is
+         * no match anywhere, so skip the (mandatory, O(bytes)) line-index
+         * build. This mirrors ripgrep's behavior of never touching the line
+         * index when the literal prefilter rejects. */
+        if (wubre_litpref_gate(g_re, base, size) == 0) {
+            return;   /* gate rejects -> definitively no match */
+        }
         rcb_t rc = { base, end, line_base, out, res, fname, NULL, 0 };
         /* build line-start index (one forward memchr walk, same order as NFA) */
         size_t cap=1024; rc.lo=malloc(cap*sizeof(size_t));
