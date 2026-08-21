@@ -153,6 +153,10 @@ bool wubre_search(const WURegex *re_, const unsigned char *buf, size_t n){
 bool wubre_search_buf(const WURegex *re_, const unsigned char *buf, size_t n,
                       void (*on_match)(long line, void *ctx), void *ctx){
     WURegex *re=(WURegex*)(uintptr_t)re_;
+    /* Literal-SET prefilter gate (wubre_litpref.c): if no required literal set
+     * from the pattern is present in the buffer, no match is possible -- skip
+     * the expensive NFA/DFA. Permissive: never drops a real match. */
+    if (re->litpref && !wubre_litpref_gate(re, buf, n)) return false;
     if (re->bt_n>0){
         long ln=0; const unsigned char *p=buf; long last=-1; bool any=false;
         while (p<buf+n){

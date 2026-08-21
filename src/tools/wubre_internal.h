@@ -100,9 +100,21 @@ struct WURegex {
      int lit_only;
      const unsigned char *lit;
      int lit_n;
+     /* Literal-SET prefilter (whole-buffer gate). Extracted from the
+      * PATTERN STRING at compile time (wubre_litpref.c). wubre_search_buf
+      * scans for these before running the NFA/DFA. OR: any literal present
+      * -> pass. AND: all present -> pass. Permissive: only REQUIRED,
+      * non-optional literal runs are recorded, so a matching line always
+      * contains them -- the gate can NEVER drop a real match. */
+     char lit_buf[8][32];
+     const unsigned char *lit_set[8];
+     int lit_set_n[8];
+     int nlit;
+     int lit_or;
      /* Cached subset-construction DFA (wubre_dfa.c), built once per pattern and
       * reused across searches. dfa_cache is an opaque Dfa*; dfa_failed marks a
       * pattern the DFA can't represent (caller falls back to the Pike VM). */
+     void *litpref;
      void *dfa_cache;
      int dfa_failed;
      };
@@ -145,11 +157,19 @@ bool wubre_search(const WURegex *re, const unsigned char *buf, size_t n);
 bool wubre_search_buf(const WURegex *re, const unsigned char *buf, size_t n,
                       void (*on_match)(long line, void *ctx), void *ctx);
 
+/* ---- literal-set prefilter extraction (wubre_litpref.c) ---- */
+void wubre_litpref_build(WURegex *re, const char *pat, int flags);
+int  wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n);
+void wubre_litpref_free(void *p);
+
 /* ---- DFA (subset construction, wubre_dfa.c) ---- */
 int wubre_search_buf_dfa(const WURegex *re, const unsigned char *buf, size_t n,
                          void (*on_match)(long line, void *ctx), void *ctx);
 void wubre_dfa_free(void *d);   /* frees a cached Dfa* (opaque) */
 int  wubre_dfa_nstates(const WURegex *re);
+
+/* ---- literal-set prefilter extraction (wubre_litpref.c) ----
+void wubre_extract_literals(WURegex *re, const char *pat, int flags);
 
 /* ---- shared class helpers (defined in wubre_compile.c, used by BRE too) ---- */
 int  is_known_posix_class(const char *name);

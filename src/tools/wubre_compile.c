@@ -704,5 +704,6 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
     }
     while (cx.all){ Dangle *n=cx.all->regnext; free(cx.all); cx.all=n; }
     free(trans);
+    wubre_litpref_build(re, pat, flags);
     return re;
 }
