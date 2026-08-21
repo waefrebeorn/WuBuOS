@@ -159,8 +159,13 @@ bool wubre_search_buf(const WURegex *re, const unsigned char *buf, size_t n,
 
 /* ---- literal-set prefilter extraction (wubre_litpref.c) ---- */
 void wubre_litpref_build(WURegex *re, const char *pat, int flags);
-int  wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n);
+int wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n_unused);
 void wubre_litpref_free(void *p);
+/* Single-pass SIMD multi-literal presence check (wubre_simd.c). Returns 1 if
+ * any literal is present, 0 if soundly absent, -1 if unsupported by SIMD. */
+int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
+                                 const unsigned char *const *lits,
+                                 const int *lens, int nlits, int maxlen);
 
 /* ---- DFA (subset construction, wubre_dfa.c) ---- */
 void *wubre_dfa_compile(const WURegex *re);  /* builds + caches; NULL if out of scope */

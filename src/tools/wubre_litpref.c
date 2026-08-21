@@ -189,9 +189,35 @@ void wubre_litpref_build(WURegex *re, const char *pat, int flags){
 int wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n){
     LitPref *lp = (LitPref*)re->litpref;
     if (!lp || lp->n == 0) return 1;       /* no gate -> always pass */
-    /* Case-insensitive scan: the stored literals are already folded to
-     * lowercase (see wubre_litpref_build), so fold each haystack byte too. */
     int icase = (re->flags & WUBRE_ICASE) != 0;
+    if (!icase){
+        /* Single-pass SIMD presence check: gather every literal across all
+         * alternatives into one array and prove, in ONE sweep, whether ANY of
+         * them is present. If none is, the gate can soundly reject (no match
+         * is possible) -- collapsing the previous N serial full-buffer memmem
+         * scans into a single O(bytes) pass. For the common case (0 matches),
+         * this is the whole cost of the gate. */
+        int maxlen = 0, total = 0;
+        for (int i=0;i<lp->n;i++) for (int j=0;j<lp->alts[i].n;j++){
+            if (lp->alts[i].lits[j].len > maxlen) maxlen = lp->alts[i].lits[j].len;
+            total++;
+        }
+        if (total > 0 && total <= 16 && maxlen <= 16){
+            const unsigned char *lits[16]; int lens[16]; int idx=0;
+            for (int i=0;i<lp->n;i++) for (int j=0;j<lp->alts[i].n;j++){
+                lits[idx] = lp->alts[i].lits[j].s;
+                lens[idx] = lp->alts[i].lits[j].len;
+                idx++;
+            }
+            int r = wub_simd_any_literal_present(buf, n, lits, lens, total, maxlen);
+            if (r == 1) return 1;            /* some literal present -> pass */
+            if (r == 0) return 0;            /* soundly absent -> reject */
+            /* r == -1 (unsupported) -> fall through to exact check */
+        }
+    }
+    /* Exact (scalar or ICASE-folded) check: a required literal set is present
+     * iff for SOME alternative all its literals are present (OR across alts,
+     * AND within an alt). Never drops a real match. */
     for (int i=0;i<lp->n;i++){             /* OR across alternatives */
         LPAlt *a = &lp->alts[i];
         int all = 1;

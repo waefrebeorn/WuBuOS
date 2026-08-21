@@ -268,3 +268,58 @@ int wub_simd_has_window(const unsigned char *buf, size_t n,
     }
     return 0;
 }
+
+/* ---- 5. single-pass multi-literal PRESENCE gate (the prefilter reject) ----
+ * One AVX2 sweep over the whole buffer proves whether ANY of the required
+ * literals is present. This collapses the gate's N serial full-buffer memmem
+ * scans (one per literal in an OR-alternation like foo|bar) into a SINGLE
+ * 28MB pass: O(bytes) at memory bandwidth instead of O(N x bytes). Sound: a
+ * per-literal block overlap (advance by 32-maxlen+1) guarantees every length-L
+ * substring is fully contained in some 32B load, so a non-match is definitive.
+ * Returns 1 if any literal is present, 0 if none is (sound reject), -1 if the
+ * literal set is unsupported (caller falls back to the exact per-literal path).
+ * Case-sensitive only (ICASE handled by the caller's scalar fold path). ---- */
+#define WUB_SIMD_MAXLIT 16
+#define WUB_SIMD_MAXLEN 16
+__attribute__((target("avx2,popcnt,bmi,bmi2")))
+int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
+                                 const unsigned char *const *lits,
+                                 const int *lens, int nlits, int maxlen){
+    if (nlits<=0 || nlits>WUB_SIMD_MAXLIT) return -1;
+    if (maxlen<=0 || maxlen>WUB_SIMD_MAXLEN) return -1;
+    if ((int)n < maxlen) return 0;                 /* cannot fit -> absent */
+    size_t step  = 32 - (size_t)maxlen + 1;
+    size_t lim   = n - (size_t)maxlen + 1;         /* last valid start pos */
+    size_t off = 0;
+    while (off + 32 <= n){
+        __m256i blk = _mm256_loadu_si256((const __m256i*)(buf + off));
+        for (int k=0; k<nlits; k++){
+            __m256i vf = _mm256_set1_epi8((char)lits[k][0]);
+            unsigned m = (unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(blk, vf));
+            while (m){
+                int bit = __builtin_ctz(m);
+                size_t pos = off + (size_t)bit;
+                if (pos + (size_t)lens[k] <= n){
+                    int ok = 1;
+                    for (int t=1; t<lens[k]; t++)
+                        if (buf[pos+t] != lits[k][t]){ ok = 0; break; }
+                    if (ok) return 1;               /* present -> gate passes */
+                }
+                m &= m - 1;
+            }
+        }
+        if (off > lim) break;
+        off += step;
+    }
+    /* scalar tail / small buffers */
+    for (size_t j=off; j + (size_t)maxlen <= n; j++){
+        for (int k=0; k<nlits; k++){
+            if (buf[j] == lits[k][0]){
+                int ok = 1;
+                for (int t=1; t<lens[k]; t++) if (buf[j+t] != lits[k][t]){ ok = 0; break; }
+                if (ok) return 1;
+            }
+        }
+    }
+    return 0;   /* soundly absent -> gate rejects, no match possible */
+}
