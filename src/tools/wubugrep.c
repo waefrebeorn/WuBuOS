@@ -233,6 +233,40 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
     size_t line_no = line_base;
     res->matched = 0; res->match_count = 0;
 
+    /* Fast path for literal (-F) search: jump straight to each needle
+     * occurrence with memmem and compute the surrounding line boundaries,
+     * instead of walking every byte / splitting on '\n' per line. This is
+     * O(matches) rather than O(bytes), a large win on huge, sparse files
+     * where the pattern is rare. Skipped when -v/-w/-x/word-mode need the
+     * full line semantics the per-line loop provides. */
+    if (!g_opt_regex && !g_opt_invert && !g_opt_word && !g_opt_line_mode && g_plen > 0){
+        const unsigned char *p = base;
+        size_t remain = size;
+        const unsigned char *last_line = NULL;   /* start of last counted line */
+        const unsigned char *prev_end = base;    /* end of previously scanned line */
+        while (remain > 0){
+            const unsigned char *hit = memmem(p, remain, g_pat, g_plen);
+            if (!hit) break;
+            const unsigned char *ls = memrchr((const char*)base, '\n', (size_t)(hit - base));
+            const unsigned char *line = ls ? ls + 1 : base;
+            const unsigned char *ne = memchr(hit + g_plen, '\n', (size_t)(end - (hit + g_plen)));
+            const unsigned char *line_end = ne ? ne : end;
+            if (line != last_line){
+                /* advance line_no across any lines we skipped */
+                const unsigned char *c = prev_end;
+                while (c < line){ const unsigned char *nx = memchr(c, '\n', (size_t)(line - c)); if(!nx) break; line_no++; c = nx + 1; }
+                last_line = line; prev_end = line_end;
+                res->matched = 1; res->match_count++; g_found_any = 1;
+                if (g_opt_quiet) return;
+                if (!g_opt_count){ emit_line(out, fname, line_no, line, (size_t)(line_end - line)); }
+                if (g_opt_count) prev_end = line_end; /* stop scanning rest of this line */
+            }
+            p = (line_end < end) ? line_end + 1 : end;
+            remain = (size_t)(end - p);
+        }
+        return;
+    }
+
     /* GNU grep default: a NUL byte means a binary file. Report it once and
      * treat the file as matched (rc 0) without dumping contents. */
     if (!g_opt_text && buffer_is_binary(base, size)) {

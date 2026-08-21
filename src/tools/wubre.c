@@ -599,6 +599,25 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
                 char n = pat[i+1];
                 /* \( ) | + ? { }  ->  metachar ; other \X stays literal \X */
                 if (n=='('||n==')'||n=='|'||n=='+'||n=='?'||n=='{'||n=='}'){
+                    if (n=='{'){
+                        /* BRE interval: \{n\} or \{n,m\}. GNU BRE: a complete
+                         * valid interval translates to the ERE {n}/{n,m}; an
+                         * invalid or incomplete \{... is a HARD ERROR (rc2). */
+                        /* \{,\} (no digits at all) is a literal \{,\} in GNU grep. */
+                        if (pat[i+2]==',' && pat[i+3]=='\\' && pat[i+4]=='}'){
+                            *o++='\\'; *o++='\\'; *o++='{'; *o++=','; *o++='\\'; *o++='\\'; *o++='}';
+                            i += 4; prev_atom=1; continue;
+                        }
+                        const char *q = pat + i + 2;   /* skip \{ */
+                        int nd=0,commas=0,bad=0; const char *r=q;
+                        while (*r && *r!='\\'){ if(*r>='0'&&*r<='9')nd++; else if(*r==',')commas++; else bad=1; r++; }
+                        if (*r=='\\' && r[1]=='}' && !bad && commas<=1 && (nd>0 || commas>0)){
+                            *o++='{'; while(q<r){ *o++=*q; q++; } *o++='}';
+                            i = (int)((r+2) - pat);   /* consume \{ ... \} */
+                            prev_atom = 1; continue;   /* interval consumes preceding atom */
+                        }
+                        free(trans); return NULL;   /* invalid BRE interval -> error */
+                    }
                     *o++ = n; i++; prev_atom = (n==')');
                     if (n=='(') bdepth++; else if (n==')'){ if (bdepth==0){ free(trans); return NULL; } bdepth--; }
                     continue;
@@ -635,7 +654,7 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
         }
         *o = 0;
         use = trans;
-        if (bdepth>0){ free(trans); return NULL; }   /* unmatched \( -> error */
+        if (bdepth>0 || trans==NULL){ free(trans); return NULL; }   /* unmatched \( or invalid BRE interval -> error */
         /* The pattern is now ERE text; the BRE-ness has been encoded into the
          * transformed string, so clear WUBRE_BRE so parse_quant treats {}
          * as an ERE interval quantifier (not a literal). ICASE stays. */
