@@ -1,0 +1,218 @@
+/*
+ * wubre_simd.c - Our own SIMD literal search (no vectorscan dependency).
+ * ---------------------------------------------------------------------------
+ * Two accelerators, both in-house C11 + AVX2 intrinsics:
+ *   1. wub_memmem_avx2  - 32B/cycle first-byte scan for a required literal.
+ *   2. wub_simd_find2   - "Teddy"-style two-literal windowing for X.*Y:
+ *                         SIMD-scans for the FIRST literal, then verifies the
+ *                         SECOND literal within a bounded forward window, so the
+ *                         NFA only runs inside confirmed literal-bounded regions
+ *                         (the Hyperscan "literal acceleration" model).
+ * The functions are target('avx2') so the TU compiles on any x86-64; a scalar
+ * fallback is provided for non-AVX2 paths.
+ * License: WaefreBeorn Umbrella License v3.0
+ * ---------------------------------------------------------------------------
+ */
+#include "wubre_internal.h"
+#include <immintrin.h>
+
+/* ---- 1. required-literal memmem (32 bytes/cycle) ---- */
+__attribute__((target("avx2")))
+static const unsigned char *wub_memmem_avx2(const unsigned char *hay, size_t hn,
+                                           const unsigned char *needle, size_t nn){
+    if (nn==0) return hay;
+    if (nn>hn) return NULL;
+    if (nn==1) return (const unsigned char*)memchr(hay, needle[0], hn);
+    unsigned char fch = needle[0];
+    __m256i vf = _mm256_set1_epi8((char)fch);
+    size_t i=0;
+    size_t lim = hn - nn;
+    while (i + 32 <= lim + nn){
+        __m256i blk = _mm256_loadu_si256((const __m256i*)(hay+i));
+        __m256i cmp = _mm256_cmpeq_epi8(blk, vf);
+        unsigned mask = (unsigned)_mm256_movemask_epi8(cmp);
+        while (mask){
+            int bit = __builtin_ctz(mask);
+            const unsigned char *c = hay + i + bit;
+            size_t off=(size_t)(c-hay);
+            if (off+nn<=hn){
+                size_t k=1; for(;k<nn;k++) if(c[k]!=needle[k]) break;
+                if (k==nn) return c;
+            }
+            mask &= mask-1;
+        }
+        i += 32;
+        if (i > lim) break;
+    }
+    for (size_t j=0; j+nn<=hn; j++){
+        if (hay[j]==fch){
+            size_t k=1; for(;k<nn;k++) if(hay[j+k]!=needle[k]) break;
+            if (k==nn) return hay+j;
+        }
+    }
+    return NULL;
+}
+
+const unsigned char *wub_memmem(const unsigned char *hay, size_t hn,
+                                const unsigned char *needle, size_t nn){
+#if defined(__x86_64__) || defined(__i386__)
+    if (nn>=2 && nn<=16) return wub_memmem_avx2(hay,hn,needle,nn);
+#endif
+    if (nn==0) return hay;
+    if (nn>hn) return NULL;
+    unsigned char fch = needle[0];
+    const unsigned char *p = hay;
+    size_t rem = hn;
+    while (rem >= nn) {
+        const unsigned char *c = memchr(p, fch, rem);
+        if (!c) return NULL;
+        size_t off = (size_t)(c - hay);
+        if (off + nn > hn) return NULL;
+        size_t i=1; for (; i<nn; i++) if (c[i]!=needle[i]) break;
+        if (i==nn) return c;
+        p = c + 1; rem = hn - (size_t)(p - hay);
+    }
+    return NULL;
+}
+
+/* ---- 2. "Teddy"-style two-literal windowing for X.*Y patterns ----
+ * The caller (wubre_search) has already extracted two mandatory literals
+ * (litA, litB, both length>=2) from a pattern such as  foo.*bar.  We SIMD-scan
+ * for litA; for each hit we check litB occurs within a bounded forward window
+ * (window bytes). If so, the NFA is invoked only on [hitA .. hitB+lenB). This
+ * collapses a pathological O(n) ".*" scan into a literal-gated O(matches) pass.
+ * Returns 1 if a literal-bounded window exists anywhere, 0 otherwise. ---- */
+/* ---- 3. SIMD window-line scanner for exact  LIT .* LIT  patterns ----
+ * Replaces the NFA entirely for patterns of the form  A.*B  (two literal runs
+ * with nothing else). A line matches iff litA (la) occurs before litB (lb)
+ * within the SAME line ('.' never crosses '\n', matching GNU grep). We SIMD-
+ * scan for every litA occurrence, verify litB in the remainder of that line,
+ * and report the 0-based line index of each match via on_match. This is the
+ * Hyperscan/vectorscan "literal acceleration" model realized in pure C11+AVX2:
+ * an O(occurrences-of-la) SIMD pass instead of an O(bytes) scalar NFA. ---- */
+__attribute__((target("avx2")))
+void wub_simd_scan_windows(const unsigned char *buf, size_t n,
+                           const unsigned char *la, size_t la_n,
+                           const unsigned char *lb, size_t lb_n,
+                           void (*on_match)(long line, void *ctx), void *ctx){
+    if (la_n==0 || lb_n==0 || n < la_n) return;
+    __m256i va = _mm256_set1_epi8((char)la[0]);
+    long cur_line = 0;
+    long last_line = -1;
+    size_t scan_pos = 0;        /* next newline count advances from here */
+    size_t i = 0;
+    size_t lim = n - la_n;      /* la may start up to here */
+    while (i + 32 <= n){
+        __m256i blk = _mm256_loadu_si256((const __m256i*)(buf + i));
+        __m256i cmp = _mm256_cmpeq_epi8(blk, va);
+        unsigned mask = (unsigned)_mm256_movemask_epi8(cmp);
+        while (mask){
+            int bit = __builtin_ctz(mask);
+            size_t off = i + (size_t)bit;
+            if (off + la_n > n) { mask &= mask - 1; continue; }
+            const unsigned char *ca = buf + off;
+            /* verify full litA */
+            size_t k = 1; for (; k < la_n; k++) if (ca[k] != la[k]) break;
+            if (k == la_n){
+                /* advance newline counter from scan_pos up to this hit (O(n) total) */
+                const unsigned char *p = buf + scan_pos;
+                while (p < ca){ const unsigned char *nl = memchr(p, '\n', (size_t)(ca - p)); if(!nl) break; cur_line++; p = nl + 1; }
+                scan_pos = off;
+                /* litB must appear in the remainder of THIS line */
+                size_t rem = n - (off + la_n);
+                const unsigned char *eol = (const unsigned char*)memchr((const char*)(ca + la_n), '\n', rem);
+                const unsigned char *le = eol ? eol : buf + n;
+                const unsigned char *baseB = ca + la_n;
+                for (size_t j = 0; j + lb_n <= (size_t)(le - baseB); j++){
+                    if (baseB[j] == lb[0]){
+                        size_t m = 1; for (; m < lb_n; m++) if (baseB[j+m] != lb[m]) break;
+                        if (m == lb_n){ if (cur_line != last_line){ last_line = cur_line; on_match(cur_line, ctx); } break; }
+                    }
+                }
+            }
+            mask &= mask - 1;
+        }
+        if (i > lim) break;
+        i += 32;
+    }
+    /* Scalar tail: buffers < 32 bytes, or the final partial block. Mirrors the
+     * AVX2 path so small inputs (single short line) still match. */
+    for (; i + la_n <= n; i++){
+        if (buf[i] == la[0]){
+            size_t k = 1; for (; k < la_n; k++) if (buf[i+k] != la[k]) break;
+            if (k == la_n){
+                const unsigned char *ca = buf + i;
+                const unsigned char *p = buf + scan_pos;
+                while (p < ca){ const unsigned char *nl = memchr(p, '\n', (size_t)(ca - p)); if(!nl) break; cur_line++; p = nl + 1; }
+                scan_pos = i;
+                size_t rem = n - (i + la_n);
+                const unsigned char *eol = (const unsigned char*)memchr((const char*)(ca + la_n), '\n', rem);
+                const unsigned char *le = eol ? eol : buf + n;
+                const unsigned char *baseB = ca + la_n;
+                for (size_t j = 0; j + lb_n <= (size_t)(le - baseB); j++){
+                    if (baseB[j] == lb[0]){
+                        size_t m = 1; for (; m < lb_n; m++) if (baseB[j+m] != lb[m]) break;
+                        if (m == lb_n){ if (cur_line != last_line){ last_line = cur_line; on_match(cur_line, ctx); } break; }
+                    }
+                }
+            }
+        }
+    }
+}
+
+__attribute__((target("avx2")))
+int wub_simd_has_window(const unsigned char *buf, size_t n,
+                        const unsigned char *la, size_t la_n,
+                        const unsigned char *lb, size_t lb_n,
+                        size_t window){
+    if (la_n==0 || lb_n==0 || n < la_n + lb_n) return 0;
+    __m256i va = _mm256_set1_epi8((char)la[0]);
+    size_t i=0;
+    /* AVX2 scan over full 32-byte blocks. */
+    while (i + 32 <= n){
+        __m256i blk = _mm256_loadu_si256((const __m256i*)(buf+i));
+        __m256i cmp = _mm256_cmpeq_epi8(blk, va);
+        unsigned mask = (unsigned)_mm256_movemask_epi8(cmp);
+        while (mask){
+            int bit = __builtin_ctz(mask);
+            const unsigned char *ca = buf + i + bit;
+            size_t off=(size_t)(ca-buf);
+            if (off+la_n<=n){
+                size_t k=1; for(;k<la_n;k++) if(ca[k]!=la[k]) break;
+                if (k==la_n){
+                    /* litA confirmed; look for litB in [ca+la_n, ca+la_n+window) */
+                    const unsigned char *base = ca + la_n;
+                    size_t bw = (ca + la_n + window < buf + n) ? window
+                                : (size_t)((buf+n) - base);
+                    for (size_t j=0; j+lb_n<=bw; j++){
+                        if (base[j]==lb[0]){
+                            size_t m=1; for(;m<lb_n;m++) if(base[j+m]!=lb[m]) break;
+                            if (m==lb_n) return 1;
+                        }
+                    }
+                }
+            }
+            mask &= mask-1;
+        }
+        i += 32;
+    }
+    /* Scalar tail: buffers < 32 bytes, or the final partial block. Without
+     * this, small inputs never enter the AVX2 loop and a valid LIT.*LIT match
+     * (e.g. unit-test "a.*c" on "axxxc") would be wrongly rejected. */
+    for (; i + la_n <= n; i++){
+        if (buf[i] == la[0]){
+            size_t k=1; for(;k<la_n;k++) if(buf[i+k]!=la[k]) break;
+            if (k==la_n){
+                const unsigned char *base = buf + i + la_n;
+                size_t bw = (i + la_n + window < n) ? window : (n - (i + la_n));
+                for (size_t j=0; j+lb_n<=bw; j++){
+                    if (base[j]==lb[0]){
+                        size_t m=1; for(;m<lb_n;m++) if(base[j+m]!=lb[m]) break;
+                        if (m==lb_n) return 1;
+                    }
+                }
+            }
+        }
+    }
+    return 0;
+}

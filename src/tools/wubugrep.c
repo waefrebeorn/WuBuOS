@@ -55,8 +55,6 @@ static char **g_exclude = NULL; static size_t g_exclude_n = 0;
 #define COL_LNO   "\033[32m"   /* green line number */
 #define COL_MATCH "\033[01;31m" /* bold red match */
 
-static int g_is_tty = 0;
-
 /* ------------------------------------------------------------------ */
 /* Our own SIMD byte matcher                                            */
 /* ------------------------------------------------------------------ */
@@ -184,10 +182,33 @@ static void obuf_flush(obuf_t *o) {
     }
     o->len = 0;
 }
+/* Grow a memory-only buffer (fd<0) so scan workers never touch fd=1
+ * concurrently. The owning thread drains buffers in chunk order after join. */
+static void obuf_grow(obuf_t *o, size_t need) {
+    size_t want = o->cap;
+    while (want < o->len + need) want *= 2;
+    char *nb = (char *)realloc(o->buf, want);
+    if (!nb) return; /* drop remaining matches on alloc failure */
+    o->buf = nb; o->cap = want;
+}
 static void obuf_put(obuf_t *o, const char *s, size_t n) {
-    if (o->len + n > o->cap) obuf_flush(o);
-    if (n >= o->cap) { ssize_t w = write(o->fd, s, n); (void)w; return; }
-    memcpy(o->buf + o->len, s, n); o->len += n;
+    if (o->fd >= 0 && (o->len + n > o->cap)) obuf_flush(o);
+    if (o->fd >= 0 && n >= o->cap) { ssize_t w = write(o->fd, s, n); (void)w; return; }
+    if (o->len + n > o->cap) obuf_grow(o, n);
+    size_t room = o->cap - o->len;
+    size_t c = n < room ? n : room;
+    memcpy(o->buf + o->len, s, c); o->len += c;
+}
+/* Drain a memory-only buffer (fd<0) to a real fd, in order. */
+static void obuf_flush_to(obuf_t *o, int fd) {
+    if (!o->len) return;
+    size_t off = 0;
+    while (off < o->len) {
+        ssize_t w = write(fd, o->buf + off, o->len - off);
+        if (w <= 0) break;
+        off += (size_t)w;
+    }
+    o->len = 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,6 +245,34 @@ static void emit_line(obuf_t *out, const char *fname, size_t line_no,
     }
     obuf_put(out, (const char *)line, llen);
     obuf_put(out, "\n", 1);
+}
+
+/* Callback for the whole-buffer regex fast path (see scan_range). Receives the
+ * 0-based line index of a distinct matching line; maps it to the line's byte
+ * span via the precomputed line-index and emits it with the same -n/-c/-q/-l
+ * semantics as the per-line loop. */
+typedef struct {
+    const unsigned char *base, *end;
+    size_t line_base;
+    obuf_t *out;
+    range_res_t *res;
+    const char *fname;
+    size_t *lo;
+    size_t nlines;
+} rcb_t;
+
+static void on_regex_match(long line, void *ctx) {
+    rcb_t *c = (rcb_t *)ctx;
+    if ((size_t)line >= c->nlines) return;
+    const unsigned char *ls = c->base + c->lo[line];
+    const unsigned char *le = ((size_t)line + 1 < c->nlines)
+        ? c->base + c->lo[line + 1] - 1   /* drop the trailing '\n' */
+        : c->end;
+    c->res->matched = 1;
+    c->res->match_count++;
+    if (g_opt_quiet) { g_found_any = 1; return; }
+    if (g_opt_files_no) { g_found_any = 1; return; }
+    if (!g_opt_count) emit_line(c->out, c->fname, c->line_base + (size_t)line + 1, ls, (size_t)(le - ls));
 }
 
 static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
@@ -281,6 +330,31 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
         return;
     }
 
+    /* Whole-buffer regex fast path (the SOTA lever): instead of running the
+     * Pike VM once PER LINE (millions of resets over a big file), run it ONCE
+     * over the entire [base,end) range with ^/$ evaluated against '\n'
+     * positions -- identical per-line semantics to GNU grep, but a single NFA
+     * pass. A precomputed line-index makes each matching-line emit O(1). Used
+     * for the common case (no -v); -v keeps the per-line fallback below. */
+    if (g_opt_regex && !g_opt_invert) {
+        rcb_t rc = { base, end, line_base, out, res, fname, NULL, 0 };
+        /* build line-start index (one forward memchr walk, same order as NFA) */
+        size_t cap=1024; rc.lo=malloc(cap*sizeof(size_t));
+        const unsigned char *p=base;
+        while (p<=end){
+            if (rc.nlines>=cap){ cap*=2; rc.lo=realloc(rc.lo,cap*sizeof(size_t)); }
+            rc.lo[rc.nlines++]=(size_t)(p-base);
+            const unsigned char *nl=memchr(p,'\n',(size_t)(end-p));
+            if (!nl) break;
+            p=nl+1;
+        }
+        wubre_search_buf(g_re, base, size, on_regex_match, &rc);
+        free(rc.lo);
+        if (g_opt_quiet && res->matched) return;
+        if (g_opt_files_no && res->matched) return;
+        return;
+    }
+
     while (line < end) {
         line_no++;
         const unsigned char *nl = memchr(line, '\n', (size_t)(end - line));
@@ -330,7 +404,7 @@ typedef struct {
 
 static void *chunk_worker(void *arg) {
     chunk_job_t *j = (chunk_job_t *)arg;
-    obuf_init(&j->out, 1);
+    obuf_init(&j->out, -1);   /* memory-only: no concurrent fd=1 writes from threads */
     scan_range(j->data + j->start, j->end - j->start, &j->out, j->line_base, &j->res, j->fname);
     return NULL;
 }
@@ -379,7 +453,7 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
     } else {
         for (int i = 0; i < nth; i++) {
             jobs[i].data = data; jobs[i].start = starts[i]; jobs[i].end = starts[i + 1];
-            jobs[i].line_base = nlbefore ? nlbefore[i] + 1 : 0;
+            jobs[i].line_base = nlbefore ? nlbefore[i] : 0;
             jobs[i].fname = fname;
             pthread_create(&th[i], NULL, chunk_worker, &jobs[i]);
         }
@@ -417,7 +491,7 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
     } else if (g_opt_quiet) {
         if (any) g_found_any = 1;
     } else {
-        for (int i = 0; i < nth; i++) { obuf_flush(&jobs[i].out); free(jobs[i].out.buf); }
+        for (int i = 0; i < nth; i++) { if (jobs[i].out.fd < 0) { obuf_flush_to(&jobs[i].out, 1); } else { obuf_flush(&jobs[i].out); } free(jobs[i].out.buf); }
         if (any) g_found_any = 1;
     }
     if (g_opt_count || g_opt_files_no || g_opt_quiet) {
@@ -503,15 +577,6 @@ static void process_path(const char *path, const char *dispname, obuf_t *out) {
 /* ------------------------------------------------------------------ */
 /* Recursive directory walk (sorted DFS)                                */
 /* ------------------------------------------------------------------ */
-typedef struct { char **items; size_t count, cap, head; pthread_mutex_t lock; } dqueue_t;
-static dqueue_t g_dq;
-static void dq_init(dqueue_t *q) { q->items = NULL; q->count = 0; q->cap = 0; q->head = 0; pthread_mutex_init(&q->lock, NULL); }
-static void dq_push(dqueue_t *q, char *s) {
-    if (q->count + 1 > q->cap) { size_t nc = q->cap ? q->cap * 2 : 64; q->items = realloc(q->items, nc * sizeof(char *)); q->cap = nc; }
-    q->items[q->count++] = s;
-}
-static char *dq_pop(dqueue_t *q) { if (q->head >= q->count) return NULL; return q->items[q->head++]; }
-
 static const char *const DEFAULT_IGNORE[] = {".git","node_modules",".hg",".svn","target","build",".cache",NULL};
 static char **g_gitignore = NULL; static size_t g_gi_count = 0;
 static int name_ignored(const char *name) {
@@ -772,5 +837,6 @@ int main(int argc, char **argv) {
         for (int k = 0; k < npaths; k++) process_path(paths[k], paths[k], &out);
         obuf_flush(&out); free(out.buf);
     }
+    free(paths);
     return g_found_any ? 0 : 1;
 }

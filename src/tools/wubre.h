@@ -34,6 +34,14 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz);
  * $ = pos n). Does NOT require NUL termination. */
 bool wubre_search(const WURegex *re, const unsigned char *buf, size_t n);
 
+/* Whole-buffer unanchored match: runs the Pike VM ONCE over buf[0..n) with
+ * ^/$ evaluated against '\n' positions (identical per-line semantics to
+ * wubre_search) and invokes on_match(line_index, ctx) for each distinct
+ * matching line. Returns true if any line matched. This single-pass path is
+ * the high-throughput lever for large corpora. */
+bool wubre_search_buf(const WURegex *re, const unsigned char *buf, size_t n,
+                      void (*on_match)(long line, void *ctx), void *ctx);
+
 void wubre_free(WURegex *re);
 
 #endif /* WUBRE_H */
