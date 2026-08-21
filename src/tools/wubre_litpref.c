@@ -66,11 +66,17 @@ static void dnf_and(LitPref *cur, const LitPref *sub){
 }
 
 static int lp_count(const char *p, const char *end){
+    /* Returns the MINIMUM count (0 if the repeat is optional, e.g. {0,},
+     * {0,1}, {0,3}). The prefilter gate must only require literals that are
+     * GUARANTEED to appear; a min-0 repeat makes its literal optional. */
     if (p >= end || *p != '{') return 1;
-    const char *q = p+1; int m = 0, seen = 0;
-    while (q < end && *q >= '0' && *q <= '9'){ m = m*10 + (*q-'0'); q++; seen = 1; }
+    const char *q = p+1; int n = 0, seen = 0;
+    while (q < end && *q >= '0' && *q <= '9'){ n = n*10 + (*q-'0'); q++; seen = 1; }
     if (!seen) return 1;
-    return m < 1 ? 1 : (m > LP_LMAX ? LP_LMAX : m);
+    if (q < end && *q == ','){  /* {n,m} or {n,} -- min is n */
+        return n;                /* n may be 0 -> optional literal */
+    }
+    return n < 1 ? 1 : n;        /* {m}: min == max == m, require if m>=1 */
 }
 
 /* Parse a sequence of atoms from *pp..end (group nesting = depth). Returns the
@@ -134,14 +140,16 @@ static LitPref parse_seq(const char **pp, const char *end, int depth){
             runn = 0; p++; continue;
         }
         if (c == '{'){
-            int m = lp_count(p, end);
-            if (m >= 1 && runn){
+            int minc = lp_count(p, end);   /* min repeat: 0 => literal optional */
+            if (minc >= 1 && runn){
+                int m = minc;              /* require min copies of the run */
                 if (m >= 2){
                     unsigned char mult[LP_LMAX]; int ml=0;
                     for (int k=0;k<m && ml<LP_LMAX;k++){ memcpy(mult+ml,run,runn); ml+=runn; }
                     dnf_and_lit(&cur, mult, ml);
                 } else dnf_and_lit(&cur, run, runn);
             }
+            /* minc == 0: literal is optional -> do NOT require it (sound gate). */
             runn = 0;
             while (p < end && *p != '}') p++;
             if (p < end) p++;

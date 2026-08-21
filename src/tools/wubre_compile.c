@@ -305,12 +305,26 @@ static Frag parse_quant(P *ps){
                     if (f.src && !f.empty){ ps->p = f.src; c = parse_atom(ps); }
                     else { c = empty_frag(ps->cx); }
                     if (i>=n){
+                        /* Optional copy i (the {n,m} "up to m" part). A SPLIT
+                         * either TAKES the copy (out -> body) or SKIPS it
+                         * (out1). After taking the body, OR skipping it, we
+                         * continue to the next decision point, so BOTH the body
+                         * out and the skip branch must chain FORWARD to the same
+                         * next-start/join. We link the skip dangling to the body
+                         * out so patch_to(acc.out, next) patches both at once. */
                         State *sp=add_state(ps->cx->re,SPLIT);
-                        sp->out=c.start;
-                        patch_to(ps->cx, c.out, (int)(sp-ps->cx->re->st));
-                        c.start=(int)(sp-ps->cx->re->st); c.out=dangle_one(ps->cx,(int)(sp-ps->cx->re->st),1);
+                        int sp_i=(int)(sp-ps->cx->re->st);
+                        sp->out=c.start;                 /* take -> copy body */
+                        Dangle *skip_d=dangle_one(ps->cx, sp_i, 1); /* out1 = skip */
+                        skip_d->next = c.out;            /* skip + body-out chain fwd */
+                        c.start=sp_i;
+                        c.out=skip_d;                    /* patched fwd to next/join */
+                        if (!have){ acc=c; have=1; }
+                        else { patch_to(ps->cx, acc.out, c.start); acc.out=c.out; }
+                    } else {
+                        if (!have){ acc=c; have=1; }
+                        else { patch_to(ps->cx, acc.out, c.start); acc.out=c.out; }
                     }
-                    if (!have){ acc=c; have=1; } else { patch_to(ps->cx, acc.out, c.start); acc.out=c.out; }
                 }
             }
             ps->p = after;

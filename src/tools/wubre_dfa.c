@@ -143,7 +143,7 @@ void *wubre_dfa_compile(const WURegex *re){
     d->start_set = dfa_closure(re, (1ULL << re->start));
     /* Empty (zero-width) matches need special output handling; let the Pike VM
      * own them so we never regress grep's zero-width line reporting. */
-    if (dfa_has_match(re, d->start_set)) { free(d->keys); free(d->vals); free(d->trans); free(d->match); free(d); return NULL; }
+    if (dfa_has_match(re, d->start_set)) { wubre_dfa_free(d); return NULL; }
 
     int added = 0;
     d->start = dfa_intern(d, d->start_set, &added);
