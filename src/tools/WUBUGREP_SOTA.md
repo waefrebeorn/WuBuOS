@@ -220,11 +220,21 @@ prefilter for adversarial patterns than our any-literal gate.
 
 ## 6. Tracked next waves
 
-1. **Close the reject-path overhead gap** — merge the literal gate into the same
-   SIMD scan as nlcount/NUL (one pass, like ugrep), and adopt **rarest-literal**
-   selection in the prefilter so reject patterns approach rg's ~10 ms.
-2. **Finish ugrep benchmark** (§2.1) — honest head-to-head once built.
+1. **Combined newline+NUL+literal SIMD scan** (ugrep's actual technique) — merge
+   the literal gate into the same 128-byte-block pass as nlcount/NUL so reject
+   patterns cost ONE memory read instead of two. *Status: implemented natively
+   as `wub_simd_line_nul_lit_stats` (verified correct + fast in isolation, ~1.5ms)
+   but REVERTED from the hot path — calling it from `process_mmap` triggered a
+   repeatable SIGSEGV inside `_mm256_set1_epi8` (misaligned AVX2 stack slot at
+   address 0x100) that survived `-mavx2` on both TUs. Fix requires
+   `force_align_arg_pointer` on the AVX2 funcs or compiling the caller TU with
+   `-mavx2` AND correct stack handling. Deferred — the separate two-pass path is
+   sound and already improved (128B gate + 128B nlcount).*
+2. **Rarest-literal selection** in the prefilter (rg's Teddy / ugrep's RSA picks
+   the *rarest* literal; our any-literal gate is weaker for adversarial patterns).
 3. **Emit-path batching** for dense-match (`[a-z]+` emits 1M lines) — mmap-then-
-   write coalescing to widen the matching-pattern lead.
+   write coalescing to widen the matching-pattern lead over rg.
 4. **Multi-pattern AC prefilter** (true Teddy/RSA-class) if the any-literal gate's
    per-block cost becomes the bottleneck on very large literal sets.
+5. **Kernel-tree / multi-GB benchmark** to extend the measured surface honestly
+   (currently single 28 MB file only).
