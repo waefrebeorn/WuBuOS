@@ -216,45 +216,45 @@ static const char *validate_regex(const char *p, int bre, int icase){
                 p++; /* skip [ */
                 if (*p=='^') p++;
                 if (*p==']') p++; /* ] as first member is literal */
-                int closed=0;
+                int last_range=0;   /* a range (a-b) ended on the previous member */
                 while (*p && *p!=']'){
-                    if (*p=='\\'){ if(!p[1]) return "EESCAPE"; p+=2; continue; }
+                    if (*p=='\\'){ if(!p[1]) return "EESCAPE"; p+=2; last_range=0; continue; }
                     if (p[0]=='[' && p[1]==':'){ /* [:class:] */
                         const char *r=p+2; while(*r && *r!=':' && *r!=']') r++;
                         if (r[0]==':' && r[1]==']'){
                             char nm[32]; int nl=0;
                             for(const char*s=p+2;s<r&&nl<31;s++) nm[nl++]=(char)*s;
                             nm[nl]=0;
-                            if (!is_known_posix_class(nm)) return "ECTYPE";
-                            p=r+2; continue;
+                            if (nm[0]=='\0' || !is_known_posix_class(nm)) return "ECTYPE";
+                            p=r+2; last_range=0; continue;
                         }
-                        while(*p && *p!=']') p++; if(*p)p++; continue;
+                        /* a '[:' with no valid ':]' close is malformed */
+                        return "ECTYPE";
                     }
                     if (p[0]=='[' && (p[1]=='.'||p[1]=='=')){
-                        /* collating element [[.x.]] or equivalence class [[=x=]]:
-                         * GNU grep accepts a SINGLE-char element, errors on a
-                         * multi-char / unknown one. The element is the single
-                         * char at p[2] provided the construct closes ".]]"/"=]]". */
                         const char *q=p+2;
                         while (*q && *q!=']') q++;
                         if (*q && q[1]==']'){
-                            /* single char element: exactly one char between [[. and .]] */
                             if (q - (p+2) == 2 && q[-1]==(p[1]=='.'?'.':'=')){
-                                p = q+1; continue;   /* [[.c.]] single char: valid (leave ] for close) */
+                                p = q+1; last_range=0; continue;  /* [[.c.]] valid */
                             }
-                            return "ERR_COLLATE";    /* multi-char/unknown: error */
+                            return "ERR_COLLATE";    /* multi-char/unknown */
                         }
-                        while(*p && *p!=']') p++; if(*p) p++; continue;
+                        while(*p && *p!=']') p++; if(*p) p++; last_range=0; continue;
                     }
-                    /* reversed range check a-z */
+                    /* a '-' immediately after the END of a complete range is an
+                     * ambiguous second dash (e.g. [1-3-5], [a-z-]) -> error (ERANGE).
+                     * Here *p is the last char of the previous range, so test p[1]. */
+                    if (last_range && p[1]=='-' && p[2] && p[2]!=']') return "ERANGE";
+                    /* reversed range check a-z ; also detect a 2nd dash */
                     if (*p!='\\' && p[1]=='-' && p[2] && p[2]!=']'){
-                        /* a second '-' within the same bracket is an error
-                         * (ambiguous range), e.g. [1-3-5] / [a-z-A-Z]. */
                         if (p[2]=='-') return "ERANGE";
                         int lo=(unsigned char)*p, hi=(unsigned char)p[2];
                         if (lo>hi) return "ERANGE";
+                        p++; p++;            /* consume a-b as one range */
+                        last_range=1; continue;
                     }
-                    p++;
+                    p++; last_range=0;
                 }
                 if (!*p) return "EBRACK";
                 p++; last_atom=1; last_quant=0; continue;
@@ -329,22 +329,25 @@ static Frag parse_class(P *ps){
     /* POSIX class / collating / equivalence inside a class: [:name:], [[.x.]], [[=x=]] */
     while (ps->p<ps->end && *ps->p!=']'){
         /* collating element [[.x.]] or equivalence class [[=x=]] -> single char x */
-        if (ps->p+2<ps->end && ps->p[0]=='[' && (ps->p[1]=='.' || ps->p[1]=='=') && ps->p[2]!=']'){
+        if (ps->p+2<ps->end && ps->p[0]=='[' && (ps->p[1]=='.' || ps->p[1]=='=')){
+
             char close = (ps->p[1]=='.') ? '.' : '=';
-            const char *q = ps->p+2;   /* element char */
-            /* find closing ]] or =] */
-            while (q<ps->end && *q!=']') q++;
-            if (q<ps->end && q+1<ps->end && q[1]==']'){
-                /* single-collating-element [[.x.]] / [[=x=]] -> the one char x.
-                 * GNU grep: a single-char collating element is valid; a
-                 * multi-char or unterminated one is a hard error. The closing
-                 * of the construct is ".]]" / "=]]", so the element is the char
-                 * at ps->p[2] provided q[-1] is the matching close. */
-                /* single char element: exactly one char between [[. and .]] */
-                if (q - (ps->p+2) == 2 && q[-1]==close){
-                    int x=(unsigned char)ps->p[2];
+            const char *q = ps->p+2;   /* element start, after [[. / [[= */
+            /* The construct closes at "<close>]" (one ']'); a second ']' (if
+             * present) is the enclosing class close and must be left for the
+             * standard consume. Find the first "<close>]" in the element span. */
+            const char *ce = NULL;
+            for (const char *r=q; r+1<ps->end; r++){
+                if (r[0]==close && r[1]==']'){ ce=r; break; }
+            }
+            if (ce){
+                size_t elen = (size_t)(ce - q);
+                if (elen==1){
+                    /* single-collating-element [[.x.]] / [[=x=]] -> the one char x */
+                    int x=(unsigned char)q[0];
                     bits[x>>3]|=(1u<<(x&7));
-                    ps->p=q+1; prev=-1; continue;   /* leave class-close ] for standard consume */
+                    ps->p=ce+2; prev=-1; continue;   /* leave class-close ] for standard consume */
+
                 }
                 /* multi-char / unknown collating element -> error */
                 if (ps->errsz) snprintf(ps->err, ps->errsz, "ERR_COLLATE");
@@ -359,6 +362,10 @@ static Frag parse_class(P *ps){
                 char name[32]; int nl=0;
                 for (const char *r=ps->p+2; r<q && nl<31; r++) name[nl++]=(char)*r;
                 name[nl]=0;
+                if (name[0]=='\0' || !is_known_posix_class(name)){
+                    if (ps->errsz) snprintf(ps->err, ps->errsz, "ERR_POSIXCLASS");
+                    return (Frag){0};
+                }
                 set_class_posix(bits, name);
                 ps->p = q+2; prev=-1; continue;
             }
@@ -612,9 +619,18 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
                         int nd=0,commas=0,bad=0; const char *r=q;
                         while (*r && *r!='\\'){ if(*r>='0'&&*r<='9')nd++; else if(*r==',')commas++; else bad=1; r++; }
                         if (*r=='\\' && r[1]=='}' && !bad && commas<=1 && (nd>0 || commas>0)){
-                            *o++='{'; while(q<r){ *o++=*q; q++; } *o++='}';
-                            i = (int)((r+2) - pat);   /* consume \{ ... \} */
-                            prev_atom = 1; continue;   /* interval consumes preceding atom */
+                            if (prev_atom){
+                                /* interval after a real atom: emit ERE {n}/{n,m} */
+                                *o++='{'; while(q<r){ *o++=*q; q++; } *o++='}';
+                                i = (int)((r+1) - pat);   /* point at '}'; loop i++ lands after */
+                                prev_atom = 1; continue;   /* interval consumes preceding atom */
+                            } else {
+                                /* \\{n\\} with NO preceding atom: GNU treats it as a
+                                 * literal \\{n\\} (so ^\\{1\\} matches nothing, rc=1). */
+                                *o++='\\'; *o++='\\'; *o++='{'; while(q<r){ *o++=*q; q++; } *o++='\\'; *o++='\\'; *o++='}';
+                                i = (int)((r+1) - pat);
+                                prev_atom = 1; continue;
+                            }
                         }
                         free(trans); return NULL;   /* invalid BRE interval -> error */
                     }
@@ -704,12 +720,28 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
             const char *META = ".^$*+?()[]{}|\\";
             while (*p) {
                 if (*p=='\\') { p++; if (*p) p++; continue; } /* skip escapes */
-                if (*p=='[') { /* skip whole class [..] */
+                if (*p=='[') { /* skip whole class [..], honoring collating
+                                  * [[.x.]] / equivalence [[=x=]] and posix [[:x:]] */
                     const char *q=p+1;
                     if (*q=='^') q++;
                     if (*q==']') q++; /* a ] right after [ or [^ is literal */
-                    while (*q && *q!=']') q++;
-                    if (*q==']') q++;
+                    int depth=1;
+                    while (*q && depth>0){
+                        if (*q=='['){
+                            if (q[1]=='.'||q[1]=='='){ /* collating/equiv element */
+                                q+=2; while(*q && !((q[0]=='.'||q[0]=='=')&&q[1]==']')) q++;
+                                if (*q) q+=2; else break;
+                                continue;
+                            }
+                            if (q[1]==':'){ /* posix class [:name:] */
+                                q+=2; while(*q && !(q[0]==':'&&q[1]==']')) q++;
+                                if (*q) q+=2; else break;
+                                continue;
+                            }
+                            depth++;
+                        } else if (*q==']'){ depth--; }
+                        q++;
+                    }
                     p=q; continue;
                 }
                 if (*p=='{') { /* skip whole counted-quantifier {n,m} body */
@@ -781,9 +813,55 @@ static int match_byte(State *st, int ch, int icase){
     return c==want;
 }
 
+/* AVX2-accelerated memmem for short ASCII literals (our own SIMD prefilter,
+ * in the spirit of vectorscan's literal accelerators — no third-party libs).
+ * Scans 32 bytes/cycle for the first-byte, then verifies the rest. Target
+ * attribute lets it compile even when the TU isn't built with -mavx2. */
+#if defined(__x86_64__) || defined(__i386__)
+#include <immintrin.h>
+__attribute__((target("avx2")))
+static const unsigned char *wub_memmem_avx2(const unsigned char *hay, size_t hn,
+                                           const unsigned char *needle, size_t nn){
+    if (nn==0) return hay;
+    if (nn>hn) return NULL;
+    if (nn==1) return (const unsigned char*)memchr(hay, needle[0], hn);
+    unsigned char fch = needle[0];
+    __m256i vf = _mm256_set1_epi8((char)fch);
+    size_t i=0;
+    size_t lim = hn - nn;
+    while (i + 32 <= lim + nn){
+        __m256i blk = _mm256_loadu_si256((const __m256i*)(hay+i));
+        __m256i cmp = _mm256_cmpeq_epi8(blk, vf);
+        unsigned mask = (unsigned)_mm256_movemask_epi8(cmp);
+        while (mask){
+            int bit = __builtin_ctz(mask);
+            const unsigned char *c = hay + i + bit;
+            size_t off=(size_t)(c-hay);
+            if (off+nn<=hn){
+                size_t k=1; for(;k<nn;k++) if(c[k]!=needle[k]) break;
+                if (k==nn) return c;
+            }
+            mask &= mask-1;
+        }
+        i += 32;
+        if (i > lim) break;
+    }
+    for (size_t j=0; j+nn<=hn; j++){
+        if (hay[j]==fch){
+            size_t k=1; for(;k<nn;k++) if(hay[j+k]!=needle[k]) break;
+            if (k==nn) return hay+j;
+        }
+    }
+    return NULL;
+}
+#endif
+
 /* portable substring search with memchr first-byte skip (memmem is GNU-only) */
 static const unsigned char *wub_memmem(const unsigned char *hay, size_t hn,
                                        const unsigned char *needle, size_t nn){
+#if defined(__x86_64__) || defined(__i386__)
+    if (nn>=2 && nn<=16) return wub_memmem_avx2(hay,hn,needle,nn);
+#endif
     if (nn==0) return hay;
     if (nn>hn) return NULL;
     unsigned char fch = needle[0];

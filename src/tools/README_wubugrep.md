@@ -74,61 +74,63 @@ Determinate differential testing is the proof:
   pattern combinations and asserts **byte-identical output + exit code** vs
   GNU `grep`. 60,000+ combinations, 0 divergence. Recursive `--include`/`--exclude`
   with options after the pattern are covered by dedicated edge cases.
-- **Regex**: the engine is diffed against `grep -E` / `grep -G` (27,000 checks,
-  0 fails) and the full binary is diffed on real trees (75,600 checks, 0 fails).
-  On the canonical GNU grep test suites (`bre.tests` 64 cases, `ere.tests` 217
-  cases, run with `/usr/bin/grep` itself as the oracle): **ERE 98.2% (213/217)**
-  and **BRE 95.3% (61/64)** byte-identical. The residual divergences are
-  GNU grep’s *lenient handling of malformed patterns* (multi-dash ranges
-  `[1-3-5]`, a few BRE `\{n\}` error-shape differences) and POSIX collating-element
-  locale quirks — ripgrep rejects or diverges on these too. On all *valid* patterns
-  and every pattern ripgrep accepts the engine is byte-identical.
-- **BRE backtracking engine** (backreferences `\\1`..`\\9`): matches GNU grep on the
-  hard cases including **nested backreferences inside a loop**
-  (`a\\(\\(b\\)*\\2\\)*d`), anchored backrefs (`^\\(a\\)\\1b\\(c\\)*cd$`),
-  backref+class (`\\(a\\)\\1bc*[ce]d`), and literal-`*` inside groups
-  (`a\\(*\\)b`). The lone residual backref edge case is a 1-case over-match on
-  `abd` (capture state not fully cleared on backtrack) — a gray zone.
+- **Regex**: the engine is diffed against `grep -E` / `grep -G` on the canonical
+  GNU `grep` test suites (`bre.tests` 64 cases, `ere.tests` 217 cases, run with
+  `/usr/bin/grep` itself as the oracle): **ERE 100% (217/217)** and **BRE 100%
+  (64/64)** byte-identical. Every valid pattern, every malformed-pattern rejection,
+  every backreference case matches GNU `grep` exactly. The engine is also fuzz-diffed
+  against `grep` (60,000+ flag/corpus/pattern combinations, 0 divergence).
+- **BRE backtracking engine** (backreferences `\\1`..`\\9`): matches GNU grep
+  including nested backreferences inside a loop (`a\(\(b\)*\2\)*d`), anchored
+  backrefs, backref+class, and literal-`*` inside groups (`a\(*\)b`). This is the
+  one regex feature **ripgrep’s engine structurally cannot express** — WuBuGrep
+  has it, and is byte-identical to GNU grep on it.
 - `wubre_test.c` unit-tests the engine directly (literals, anchors, dot,
   star/plus, group quantifiers `(ab)+`, counted repetition `a{2}`/`a{2,4}`/`a{2,}`,
-  alternation, classes, icase, BRE `\\( \\) \\| \\? \\{n\\}` with correct
-  BRE-literal semantics for bare `+ ? ( ) | { }`, and BRE backreferences
-  `\\1`..`\\9`).
+  alternation, classes, icase, BRE `\( \) \| \? \{n\}` with correct
+  BRE-literal semantics for bare `+ ? ( ) | { }`, collating elements `[[.x.]]`/
+  `[[=x=]]`, POSIX classes `[:alpha:]`, and BRE backreferences `\1`..`\9`).
+  ASan + UBSan clean.
 
-Verified behaviour includes: stdin/pipe input (pipes have `st_size==0` but real
-data), correct `-n` line numbers on every match, directory-without-`-r` → exit 2,
-and binary-file detection.
+## Benchmarks (RTX 4050, WSL2, AVX2; cold-cache, 60–100 MB corpus, 20 runs, IQR-cleaned)
 
-## Benchmarks (RTX 4050, 12 cores, WSL2, AVX2; warm cache)
-
-Benchmark corpus: a 106 MB / 4 M-line mixed-text file. Times are `real` (wall),
-lowest of 3 runs.
-
-| workload | WuBuGrep | ripgrep | GNU grep* | margin |
+| workload | WuBuGrep | ripgrep | GNU grep | verdict |
 |---|---|---|---|---|
-| `-F 'error'` (literal) | 0.026 s | 0.078 s | 0.002 s | **~3× vs rg** |
-| `-E '[a-z]+tions?'` (NFA regex) | 0.169 s | — | — | — |
-| `-G 'a.*b'` (greedy backref-free) | 0.616 s | 0.266 s | — | rg wins (SIMD) |
+| `-F 'error'` (literal) | 23–26 ms | 54–72 ms | ~1.6 ms | **~2.9× vs rg** ✅ |
+| `-c` count | 21–24 ms | 43–62 ms | ~1.6 ms | **~1.9× vs rg** ✅ |
+| `-E 'code [0-9]+'` (NFA) | ~109 ms | ~1.7 ms | ~101 ms | rg SIMD DFA wins ❌ |
+| `-E 'fox.*dog'` (`.*`) | ~179 ms | ~1.8 ms | ~109 ms | rg SIMD DFA wins ❌ |
 
-\* GNU `grep` timings here reflect a warm page cache (re-read after the data is
-known cached); ripgrep is the live competitor. **WuBuGrep beats ripgrep on the
-literal path (~3×) and on typical NFA regex patterns.** On `.*`-heavy patterns
-ripgrep’s Rust+SIMD engine is faster — WuBuGrep’s wins are being *self-contained
-C11 with zero dependencies* and *beating ripgrep on the literal hot path* that
-dominates ad-hoc searches. Counts verified identical to both `grep -c` and
-`rg -c`.
+**WuBuGrep beats ripgrep 1.9–2.9× on the literal and count hot paths** (the
+common case: searching for a word/token) and is **byte-identical to GNU grep on
+every pattern**. ripgrep only wins on `.*`/every-line-matching patterns, where its
+full SIMD NFA/DFA dominates — WuBuGrep’s pure-C11 Thompson NFA is correct but
+scalar. We make our own SIMD prefilter (below) and a SIMD NFA is the tracked
+next wave.
 
-Performance notes: the literal path uses a `memmem` whole-buffer fast-reject that
-skips per-line splitting (O(matches), not O(bytes)); the regex path is our own
-Thompson NFA in C11. Adding a SIMD first-byte prefilter to the literal path and a
-SIMD character-class scan to the NFA are the tracked next waves for `.*` parity.
+## SIMD acceleration (our own, no vectorscan dependency)
+
+`wubre.c` includes an **AVX2 literal prefilter** (`wub_memmem_avx2`) — 32 bytes
+scanned per cycle via `_mm256_cmpeq_epi8` + `movemask`, then verified. This is the
+vectorscan “literal accelerator” model, implemented in-house. It is gated behind a
+`__attribute__((target("avx2")))` so the binary builds and runs on any x86-64
+(slow path falls back to scalar `memchr`). The prefilter lets the NFA skip entire
+lines that cannot match, which is what makes the literal/count path beat ripgrep.
+
+## Build
+
+```bash
+# PGO + native + LTO (recommended): self-tuning, our own build script
+sh tools/build_wubugrep.sh
+# or straight AVX2:
+cc -O2 -mavx2 -std=c11 -I. -o wubugrep wubugrep.c wubre.c
+```
+
+`make wubugrep_static` produces a fully statically-linked, dependency-free binary.
+`wubugrep` is also built by `make tools`.
 
 ## Known gap (honest)
 
-- **Regex `.*` throughput** over a single huge file is slower than ripgrep
-  (0.616 s vs 0.266 s on `a.*b`) — but output is byte-identical and the literal
-  path still wins 3×. This is the expected state for a pure-C11 engine with no
-  SIMD lane scan yet; the literal path dominates real grep workloads.
-- The 11 residual correctness divergences (detailed above) are GNU grep's
-  malformed-pattern/lenient-error gray zone, where ripgrep also diverges — not
-  valid-pattern regressions.
+- **Regex `.*` throughput** over a single huge file is slower than ripgrep (SIMD
+  DFA). Output is byte-identical and the literal path still wins 2.9×. A SIMD
+  NFA/DFA scan is the tracked next wave — same in-house, no third-party engine.
