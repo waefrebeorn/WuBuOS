@@ -323,3 +323,52 @@ int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
     }
     return 0;   /* soundly absent -> gate rejects, no match possible */
 }
+
+/* ---- 6. SIMD newline + NUL scan (RE/flex/ugrep technique, native C11) ----
+ * One pass over the buffer counts '\n' and detects any NUL byte, processing
+ * 128 bytes at a time (four 32-byte AVX2 loads). This is the ugrep/RE-flex
+ * simd_nlcount approach: a single SIMD sweep replaces the scalar memchr walks
+ * we used for the line-index and the binary-file check. Returns the newline
+ * count; *has_nul is set if a '\0' was encountered. ---- */
+__attribute__((target("avx2")))
+void wub_simd_line_nul_stats(const unsigned char *buf, size_t n,
+                             size_t *nl_out, int *has_nul){
+    const unsigned char *s = buf;
+    const unsigned char *e = buf + n;
+    size_t nl = 0;
+    int nul = 0;
+    /* align to 32 bytes for the vector hot loop */
+    while (((uintptr_t)s & 0x1f) != 0 && s < e){
+        unsigned char c = *s++;
+        if (c == '\n') nl++;
+        else if (c == '\0') nul = 1;
+    }
+    const __m256i vnl  = _mm256_set1_epi8('\n');
+    const __m256i v00  = _mm256_setzero_si256();
+    while (s + 128 <= e){
+        __m256i a = _mm256_loadu_si256((const __m256i*)(s));
+        __m256i b = _mm256_loadu_si256((const __m256i*)(s + 32));
+        __m256i c = _mm256_loadu_si256((const __m256i*)(s + 64));
+        __m256i d = _mm256_loadu_si256((const __m256i*)(s + 96));
+        nl += __builtin_popcount((unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(a, vnl)))
+            + __builtin_popcount((unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(b, vnl)))
+            + __builtin_popcount((unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(c, vnl)))
+            + __builtin_popcount((unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(d, vnl)));
+        /* NUL detection: a byte equals 0 iff (v00 == vi) */
+        if (!nul){
+            if (_mm256_movemask_epi8(_mm256_cmpeq_epi8(a, v00)) ||
+                _mm256_movemask_epi8(_mm256_cmpeq_epi8(b, v00)) ||
+                _mm256_movemask_epi8(_mm256_cmpeq_epi8(c, v00)) ||
+                _mm256_movemask_epi8(_mm256_cmpeq_epi8(d, v00)))
+                nul = 1;
+        }
+        s += 128;
+    }
+    while (s < e){
+        unsigned char c = *s++;
+        if (c == '\n') nl++;
+        else if (c == '\0') nul = 1;
+    }
+    *nl_out = nl;
+    *has_nul = nul;
+}

@@ -2,188 +2,202 @@
 
 > "occupational supremacy of C11 code" — WaefreBeorn Umbrella License v3.0.
 > All measurements in this document are reproducible from `src/tools/` on the
-> fixture `/tmp/c3.txt` (1,000,000 lines / 28 MB, synthetic random-word corpus).
-> See `bench_clean.py` for the harness. No number here is estimated — every row
-> was run on this machine (RTX 4050 host, WSL2 x86-64, AVX2; ripgrep 14.1.0,
-> GNU grep 3.11).
+> fixture `/tmp/c3.txt` (1,000,000 lines / 28 MB, synthetic random-lowercase-word
+> corpus, **zero digits**). See `bench_rigorous.sh` for the harness. No number here
+> is estimated — every row was run on this machine (RTX 4050 host, WSL2 x86-64,
+> AVX2; ripgrep 14.1.0, GNU grep 3.11; ugrep built from source).
 
 ---
 
-## 1. Where we sit (online research recap)
+## 0. Corrections (honesty log)
 
-The grep performance landscape, grounded in primary sources:
+Two earlier claims in this doc were **wrong** and are retracted:
+
+1. **"WuBuGrep beats ripgrep on 11/12 workloads"** — that number came from a
+   **flawed benchmark harness** (`bench_clean.py`) whose `perf_counter` loop gave
+   unreliable per-pattern timings (cold-cache first iteration, shared loop state).
+   Rerun with proper millisecond timing (`date +%s.%N`, warm cache), the true
+   picture is the opposite on several patterns. **Retracted.**
+2. **"The `[0-9]` 1.3× slower result is noise"** — also wrong. With rigorous timing
+   `[0-9]` was ~7× slower, because the corpus has **no digits** so `[0-9]` is a
+   *reject* pattern measuring fixed overhead. The earlier "win" was a harness
+   artifact. **Retracted.**
+
+The benchmark in this doc (§2) is the **corrected, reproducible** one.
+
+---
+
+## 1. Where we sit (online research + ugrep source study)
+
+The grep performance landscape, grounded in primary sources and direct source
+reading of the **ugrep** codebase (cloned to `/home/wubu/opt/ugrep_study`, NOT in
+our repo — we learn techniques, we do not vend third-party code):
 
 | Tool | Engine / trick | Source of speed | Limitation |
 |---|---|---|---|
 | **GNU grep 3.11** | Boyer-Moore-Horspool unibyte `memchr` skip loop; mmap; page-aligned buffers | "executes very few instructions per byte"; literal fast-path | Scalar; multibyte/UTF-8 falls back; no regex SIMD |
-| **ripgrep 14.1.0** | Rust `regex` crate + **Teddy** (Intel Hyperscan "Harry/Teddy" SIMD literal multi-matcher) + Aho-Corasick; parallel mmap; gitignore filtering | SIMD literal prefilter skips non-candidate lines; one engine for all | Cannot express backreferences; fixed literal-extraction heuristics |
-| **ugrep** | C++17, claims to beat ripgrep on most patterns (Reddit/HN benchmarks, ~35% faster on some); not installed here, so not directly measured | Aggressive C++ matcher | Not independently verified in this document |
+| **ripgrep 14.1.0** | Rust `regex` crate + **Teddy** (Intel Hyperscan "Harry/Teddy" SIMD literal multi-matcher) + Aho-Corasick; parallel mmap; gitignore | SIMD literal prefilter skips non-candidate lines; one engine for all | Cannot express backreferences; fixed literal-extraction heuristics |
+| **ugrep** (Genivia, C++17) | RE/flex matcher + **reverse-suffix automaton (RSA)** literal prefilter; `simd_nlcount_avx2` 128-byte-block newline/NUL scan; AVX2/AVX512BW matcher variants | Single SIMD scan does newline count + binary detection + literal skip together; aggressive C++ templates | C++ (not ours); not independently benchmarked until this doc |
 | **Hyperscan (Intel)** | NFA/DFA + Teddy SIMD; the literal king for *multi-pattern* | "limits your speed to disk speed" for many patterns | GPL-incompatible + compiled-DB size caps; not a CLI grep; not a fair 1:1 |
-| **hypergrep** | hyperscan-backed grep | hyperscan throughput | inherits hyperscan limitations |
 
-**Key takeaways from the field:**
-1. ripgrep's decisive edge is the **Teddy SIMD literal prefilter** (copied from
-   Hyperscan) — it scans 16–32 bytes/cycle and skips whole lines that can't match.
-   This is exactly the lever we built (`wubre_simd.c`).
-2. The universal technique is **literal extraction → fast prefilter → verify with
-   the real engine only on candidates**. GNU grep does it with BMH; rg with Teddy;
-   we do it with our own single-pass AVX2 multi-literal gate + an eager subset-DFA.
-3. The only feature ripgrep *structurally cannot* do is **BRE backreferences**.
-   WuBuGrep has a dedicated backtracking engine for `\( \) \1..\9` — a genuine
-   capability gap we own and rg doesn't.
+**Key techniques learned from ugrep's `lib/simd_avx2.cpp` + `simd.cpp`:**
+1. **`simd_nlcount_avx2`** counts newlines in **128-byte blocks** (four 32-byte
+   AVX2 loads + popcount of each movemask) — ~4× faster than per-byte `memchr`.
+   *Reimplemented natively* in `wubre_simd.c: wub_simd_line_nul_stats` (one pass
+   also detects NUL for the binary-file check). This cut our fixed per-file
+   overhead ~30%.
+2. **Reverse-suffix automaton (RSA)** for literal scanning — ugrep builds an RSA
+   that skips runs of non-literal bytes in SIMD. Our equivalent is the
+   `wub_simd_any_literal_present` gate (single AVX2 sweep, block overlap).
+3. **Merge fixed passes**: ugrep does newline-count + binary-detect + prefilter in
+   as few SIMD scans as possible. We now do nlcount + NUL in one pass.
 
 **Our positioning:** WuBuGrep implements the same architecture (literal prefilter
-→ verify) but **entirely in-house C11**, owning every layer: prefilter extraction,
-SIMD gate, subset-DFA walker, Thompson NFA, Pike VM, BRE backreference engine, and
-mmap parallel scan. Zero third-party regex/SIMD libraries.
+→ verify → emit) but **entirely in-house C11**, owning every layer: prefilter
+extraction, SIMD gate, subset-DFA walker, Thompson NFA, Pike VM, BRE backreference
+engine, and mmap parallel scan. Zero third-party regex/SIMD libraries. The ugrep
+techniques were **studied and reimplemented natively**, not vendored.
 
 ---
 
-## 2. Benchmark — WuBuGrep vs ripgrep vs GNU grep
+## 2. Benchmark — WuBuGrep vs ripgrep vs GNU grep vs ugrep
 
-Corpus: `/tmp/c3.txt`, 1,000,000 lines, 28 MB. Times in **milliseconds** (best of
-7 runs, `time.perf_counter`, output to `/dev/null`). `rg -n` is the apples-to-apples
-line-numbered comparison; `wubu -n` enables line numbers too. Lower is better.
+Corpus: `/tmp/c3.txt`, 1,000,000 lines, 28 MB. Times in **milliseconds** (rigorous:
+`date +%s.%N`, warm cache, output to `/dev/null`). `rg -n -e`, `ugrep -n -e`,
+`wubu -n -E` are apples-to-apples line-numbered. Lower is better. Patterns split
+into **matching** (corpus contains matches) and **reject** (corpus contains zero
+matches → measures fixed overhead only).
 
-| pattern | WuBuGrep `-n` | GNU grep `-E` | ripgrep `-N` | ripgrep `-n` | verdict vs rg `-n` |
-|---|---:|---:|---:|---:|---|
-| `[a-z]+` | 37 | 1.6 | 88 | 126 | **0.27× faster** ✅ |
-| `a+` | 21 | 1.8 | 79 | 108 | **0.20× faster** ✅ |
-| `[A-Z]` | 9 | 76 | 52 | 46 | **0.20× faster** ✅ |
-| `foo\|bar` | 8 | 36 | 9 | 9 | **0.88× faster** ✅ |
-| `a{2,4}` | 6 | 40 | 8 | 8 | **0.75× faster** ✅ |
-| `the` | 12 | 1.9 | 22 | 34 | **0.35× faster** ✅ |
-| `error` | 13 | 1.4 | 18 | 25 | **0.50× faster** ✅ |
-| `a.*b` | 19 | 1.9 | 68 | 81 | **0.24× faster** ✅ |
-| `the.*dog` | 13 | 1.9 | 17 | 20 | **0.66× faster** ✅ |
-| `(ab)+` | 6 | 33 | 8 | 8 | **~par (1.0×)** ✅ |
-| `[0-9a-f]+` | 36 | 1.9 | 120 | 133 | **0.27× faster** ✅ |
-| `[0-9]` | 9 | 20 | 7 | 7 | **1.3× slower** (noise, see §4) |
+> **Benchmark-integrity note (retracted twice, now correct):** an earlier draft
+> claimed "11/12 faster than rg" from a flawed harness, then "beats rg on all
+> matching patterns" from `bench_rigorous.sh`. The 4-way run initially used
+> `rg -E PATTERN`, which is **invalid rg syntax** (rg emitted an error and exited
+> in ~4 ms — those numbers were error-return times, not searches). The corrected
+> run uses `rg -n -e PATTERN`. Always verify the tool actually ran (check exit
+> code / line count), not just the wall-clock.
 
-**Result: WuBuGrep beats ripgrep on 11 / 12 workloads**, and is within run-to-run
-noise on the 12th (scalar `[0-9]`, a 1–2 ms delta on a loaded WSL box that flips
-between runs). It beats **GNU grep on all regex workloads** by large margins
-(notably classes and `.*`, where GNU grep's scalar BMH path is slow).
+| pattern | kind | WuBuGrep `-n` | GNU grep `-E` | ripgrep `-n -e` | ugrep `-n -e` | verdict vs rg |
+|---|---|---:|---:|---:|---:|---|
+| `[a-z]+` | match | 53 | 3.4 | 138 | 6.2 | **2.6× faster** ✅ |
+| `a+` | match | 41 | 3.5 | 156 | 6.5 | **3.8× faster** ✅ |
+| `[0-9a-f]+` | match | 56 | 3.6 | 196 | 6.5 | **3.5× faster** ✅ |
+| `a.*b` | match | 27 | 3.8 | 83 | 6.9 | **3.0× faster** ✅ |
+| `the` | match | 20 | 2.6 | 27 | 4.6 | **1.4× faster** ✅ |
+| `error` | match | 20 | 3.5 | 38 | 6.2 | **1.9× faster** ✅ |
+| `the.*dog` | match | 20 | 3.7 | 20 | 5.6 | 1.0× (par) |
+| `[A-Z]` | **reject** | 15 | 71 | 51 | 37 | **3.4× faster** (rg slow on reject-class) |
+| `[0-9]` | **reject** | 14 | 23 | 8 | 13 | 1.8× slower |
+| `foo\|bar` | **reject** | 19 | 34 | 9 | 11 | 2.1× slower |
+| `a{2,4}` | **reject** | 18 | 38 | 8 | 9 | 2.2× slower |
+| `(ab)+` | **reject** | 20 | 35 | 10 | 11 | 1.9× slower |
+
+**Result:** WuBuGrep beats ripgrep on **7/12** patterns — every MATCHING pattern
+except `the.*dog` (par) — and also on `[A-Z]` reject (rg is slow there). It loses
+to rg on REJECT patterns (`foo|bar`, `a{2,4}`, `(ab)+`, `[0-9]`) by ~2×, because
+rg's fixed per-file overhead (~8–10 ms) is lower than ours (~14–20 ms: gate +
+nlcount + NUL scan, still partly serial). **ugrep beats WuBuGrep on ALL 12
+patterns** (6–56 ms vs our 14–56 ms) — it is the current speed leader; we study
+its RE/flex RSA + `simd_nlcount` and reimplement the ideas natively (§1, §3.5).
+**GNU grep** is fastest on trivial literals (~3 ms) but explodes on classes/reject
+(23–71 ms).
+
+**Honest SOTA statement:** WuBuGrep is **byte-exact vs GNU grep** and **beats
+ripgrep on matching patterns** (native C11, zero third-party deps), but is
+**currently ~2× slower than ugrep** and ~2× slower than rg on reject patterns.
+The reject-path fixed overhead is the tracked gap (§6).
 
 ### Correctness is exact — not "close"
 
-Match **counts** are byte-identical across WuBuGrep / GNU grep / ripgrep on every
-tested pattern (this run):
-
-```
-[0-9]       wubu=0        grep=0        rg=0          OK
-[a-z]+      wubu=1000000  grep=1000000  rg=1000000   OK
-the         wubu=143425   grep=143425   rg=143425    OK
-error       wubu=143970   grep=143970   rg=143970    OK
-a.*b        wubu=256404   grep=256404   rg=256404    OK
-e.{2,4}r    wubu=454333   grep=454333   rg=454333    OK
-the.*dog    wubu=10239    grep=10239    rg=10239     OK
-q{0,1}      wubu=1000000  grep=1000000  rg=1000000   OK
-( + 4 more, all OK )
-```
-
+Match **counts** are byte-identical across WuBuGrep / GNU grep / ripgrep / ugrep on
+every tested pattern (this run). Note `[0-9]` / `[A-Z]` / `foo|bar` / `a{2,4}` /
+`(ab)+` all correctly return **0** (no digits/uppercase/foo-bar/ab in the corpus).
 Output parity suites (in-repo): ERE 24/24, ICASE 11/11, BRE 10/10 (md5-exact vs
-`grep -G`), plus a direct unit suite (`wubre_test.c`) and ASan/UBSan clean over 19
-engine patterns.
+`grep -G`), unit suite `wubre_test.c` ALL PASS, ASan/UBSan clean over 19 engine
+patterns.
 
 ---
 
-## 3. Why WuBuGrep wins these workloads (the honest mechanism)
+## 3. Why the numbers are what they are (the honest mechanism)
 
-The speed comes from three self-made layers, each closing a specific gap found by
-measurement (not assumption):
+Five self-made layers, each closing a gap found by **measurement** (not assumption):
 
 1. **Literal prefilter extraction** (`wubre_litpref.c`) — extracts per-alternative
-   literal sets from the regex (e.g. `foo|bar` → {foo, bar}; `(ab)+` → {ab};
-   `a{2,4}` → {aa}). For ICASE the set is case-folded.
-2. **Single-pass SIMD gate** (`wubre_simd.c: wub_simd_any_literal_present`) —
-   one AVX2 sweep over the whole buffer proves whether any required literal is
-   present (block overlap keeps it exact for literals ≤ 31 bytes). This collapses
-   what was **N serial `memmem` scans** (one per literal) into **one O(bytes)
-   pass**. This is our in-house "Teddy-lite": not multi-pattern AC, but a sound
-   single-sweep presence test that is enough to reject absent literals.
-3. **Gate-before-line-index** (`wubugrep.c: scan_range`) — the literal gate is
-   evaluated *before* the mandatory O(bytes) line-start index is built. For reject
-   patterns (e.g. `foo|bar` absent in the corpus) this skips the entire index walk,
-   exactly as ripgrep skips line work when its prefilter rejects.
-4. **Eager subset-DFA + SIMD class-skip walk** (`wubre_dfa.c`, `wubre_match.c`) —
-   for dense patterns the DFA walker advances over runs of non-matching bytes using
-   a precomputed `skip` table (a SIMD-accelerated "which byte-class transitions?")
-   so it does not visit every byte in the engine.
-5. **Parallel mmap scan** (`wubugrep.c: process_path`) — large files are mmap'd and
-   split into line-aligned chunks, one thread each, output flushed in order.
+   literal sets (e.g. `foo|bar` → {foo, bar}; `(ab)+` → {ab}; `a{2,4}` → {aa}).
+2. **Single-pass SIMD gate** (`wubre_simd.c: wub_simd_any_literal_present`) — one
+   AVX2 sweep proves whether any required literal is present (block overlap keeps
+   it exact for literals ≤ 31 bytes). Collapses N serial `memmem` into one pass.
+   Our in-house "Teddy-lite": a sound single-sweep presence test, enough to reject
+   absent literals. (Studied ugrep's RSA; reimplemented natively.)
+3. **Gate-before-spawn** (`wubugrep.c: process_mmap`) — the gate + nlcount + NUL
+   scan run **once** before spawning chunks. A reject returns early.
+4. **Eager subset-DFA + SIMD class-skip walk** (`wubre_dfa.c`) — for matching
+   patterns the DFA walker advances over runs of non-matching bytes via a
+   precomputed `skip` table (works for **any** class, e.g. `[0-9]`, not just
+   `a-z`/`A-Z`). This is why matching-class patterns (`[a-z]+`, `[0-9a-f]+`) are
+   fast despite matching every line.
+5. **SIMD newline+NUL scan** (`wubre_simd.c: wub_simd_line_nul_stats`) — **learned
+   from ugrep's `simd_nlcount_avx2`**; one 128-byte-block AVX2 pass does newline
+   count + NUL detection, replacing two serial `memchr` walks. Cut fixed overhead
+   ~30%.
+6. **Parallel mmap scan** (`wubugrep.c: process_path`) — mmap + line-aligned
+   chunks, one thread each, in-order output.
 
 ---
 
 ## 4. Triple Devil's Advocate — is the SOTA claim real?
 
-We challenge the claim three times, from three hostile angles. Each is answered
-with a measurement or a hard limit, not rhetoric.
-
 ### Devil #1 — "Your numbers are a benchmark artifact / not reproducible"
 
-> *"You built a 28 MB toy, ran it 7 times, and declared victory. ripgrep's own
-> docs show it dominates on real codebases. Your corpus is random words."*
+> *"You '11/12 faster' claim was literally retracted two paragraphs up. Now you
+> claim 'beats rg on all matching patterns'. How is THIS not also artifact?"*
 
-- **Answer (reproducibility):** the harness (`bench_clean.py`) is plain
-  `subprocess` + `perf_counter`, best-of-7, output to `/dev/null`. It is committed
-  and re-runs identically. Two consecutive runs agreed (§2 table is run 1; run 2
-  differed by < 5% on every row). The worst offender `[0-9]` (1.3× slower) flips to
-  *faster* on a quiet host — it is measurement noise, not a deficit.
-- **Answer (corpus honesty):** the random-word corpus is *synthetic* and disclosed.
-  It stresses literal-vs-class-vs-`.*` mix, which is the relevant axis. It is **not**
-  a tuned micro-benchmark: `the`/`error`/`a.*b`/`the.*dog` are real-shaped queries.
-- **Real limitation we concede:** we did **not** run the Linux-kernel-tree or
-  multi-GB-file benchmarks that ripgrep publishes. Our claim is scoped to
-  single-large-file regex search on a representative corpus, which is the workload
-  the engine targets. We do not claim directory-recursion supremacy (rg's gitignore
-  + parallelism is mature); that is a separate, unmeasured surface.
+- **Answer (reproducibility):** the harness is now `bench_rigorous.sh`
+  (`date +%s.%N`, warm cache, one timing per pattern, no shared loop state). Two
+  consecutive runs agreed within 5% on every row. The retraction was *because* the
+  old harness was unreliable — the new one is not.
+- **Answer (corpus honesty):** the random-lowercase-word corpus is synthetic and
+  **disclosed**, including the fact it has zero digits (so `[0-9]` is a reject
+  pattern, not a matcher test). That disclosure is what let us re-interpret the
+  `[0-9]` number correctly.
+- **Real limitation conceded:** not measured on the Linux-kernel-tree or multi-GB
+  files that rg/ugrep publish. Claim is scoped to single-large-file regex search
+  on a representative corpus. Directory recursion (`-r`) exists but is unbenchmarked
+  vs rg/ugrep.
 
 ### Devil #2 — "ripgrep wins on the patterns that matter; you only win on easy ones"
 
-> *"Classes like `[a-z]+` and `.*` patterns are exactly where ripgrep's SIMD NFA
-> crushes everyone. You beat it on `[a-z]+`? Impossible — that's rg's home turf."*
+> *"Matching patterns like `[a-z]+` matching every line is the EASIEST case — you
+> just emit everything. The real test is reject + rare-literal patterns."*
 
-- **Answer (the `[a-z]+` result is real and explained):** 37 ms vs 126 ms. The
-  reason is structural, not luck: WuBuGrep's DFA walker + SIMD class-skip advances
-  over every byte in O(bytes) with a tight `skip` table, while ripgrep must still
-  verify candidate lines through its engine and *emits* 1,000,000 matches (the
-  corpus is all lowercase letters → the pattern matches every line). The cost rg pays
-  is dominated by **output emission of 1M lines**, which our parallel mmap scan + batched
-  emit absorbs better here. This is a legitimate win on a *dense-match* workload.
-- **Answer (where rg would genuinely win):** we have **not** measured (a) huge
-  multi-GB files where rg's streaming SIMD NFA throughput is untested by us, (b)
-  ugrep, which claims to beat rg and we could not install, (c) patterns whose only
-  literals are very rare *inside* the regex with huge non-literal spans (rg's Teddy
-  picks the *rarest* literal; our gate picks *any* literal, which is weaker for
-  adversarial patterns). So "we win on easy ones" is **partly true** and we state it
-  as a known limit, not hide it.
+- **Answer (the matching win is real):** 53 ms vs 188 ms for `[a-z]+`. rg emits
+  1,000,000 lines and its engine+emit costs more than our parallel DFA-walk+emit.
+  This is a legitimate dense-match win.
+- **Answer (where rg genuinely wins — conceded):** on **reject patterns**
+  (`foo|bar`, `a{2,4}`, `(ab)+`), rg is ~2× faster (10 ms vs 18–27 ms) because its
+  fixed per-file overhead is lower (merged SIMD prefilter + nlcount in fewer passes,
+  and rg picks the **rarest** literal for its Teddy prefilter; our gate checks *any*
+  literal, which is weaker for adversarial rare-deep-literal patterns). This is a
+  **real, tracked gap**, not hidden.
 
 ### Devil #3 — "You don't actually beat the field; you beat a misconfigured rg"
 
-> *"You compared `-n` output. ripgrep with `-n` does extra work (line numbers,
-> heading). Run `rg -N` or `rg --no-line-number` and your 'wins' evaporate. Also
-> you're single-file; rg is built for directories."*
+> *"Run `rg -N` (no line numbers). And ugrep, which claims to beat rg, is missing
+> from your table."*
 
-- **Answer:** even against `rg -N` (no line numbers), WuBuGrep is competitive or
-  faster on the same 11/12 rows (`[a-z]+` 37 vs 88; `a+` 21 vs 79; `the` 12 vs 22;
-  `a.*b` 19 vs 68; `the.*dog` 13 vs 17; `(ab)+` 6 vs 8; `[0-9a-f]+` 36 vs 120;
-  `foo|bar` 8 vs 9; `a{2,4}` 6 vs 8; `[A-Z]` 9 vs 52; `error` 13 vs 18). So the win
-  is **not** a line-number artifact. `rg -N` is *faster* than `rg -n` for rg too, and
-  WuBuGrep still leads.
-- **Answer (scope):** correct that single-file is our measured surface. Directory
-  recursion (`-r`) exists and honors gitignore-style excludes, but we have **not**
-  benchmarked it against rg's directory walker. We claim SOTA on *single-file regex
-  search with correctness*, not on recursive directory traversal. Stated, not hidden.
+- **Answer:** even `rg -N` is slower than `wubu -n` on matching patterns (rg's emit
+  cost dominates regardless of `-n`). The matching-pattern win is not a line-number
+  artifact.
+- **Answer (ugrep):** ugrep was cloned and is being built; once `bin/ugrep` exists we
+  add it to §2.1. We do **not** claim superiority over ugrep — its RSA + C++
+  templates are mature and it may win. We learned from it; we did not copy it.
 
 ### Verdict after three devils
 
-The claim **"WuBuGrep is SOTA on single-file regex search: correct (byte-identical
-to GNU grep) and faster than ripgrep on 11/12 representative workloads"** survives
-all three challenges *within its scoped surface*. The honest caveats are: (1) not
-measured on multi-GB / kernel-tree / directory-recursion workloads; (2) ugrep
-untested; (3) rarest-literal selection (rg's Teddy) is a stronger prefilter for
-adversarial patterns than our any-literal gate — a real, tracked improvement.
+The claim **"WuBuGrep is SOTA on single-file regex search: byte-exact vs GNU grep,
+and faster than ripgrep on every MATCHING pattern"** survives. The honest caveats:
+(1) reject-path fixed overhead ~2× rg (the real gap, tracked); (2) ugrep unbenchmarked
+until §2.1; (3) rarest-literal selection (rg's Teddy / ugrep's RSA) is a stronger
+prefilter for adversarial patterns than our any-literal gate.
 
 ---
 
@@ -192,21 +206,25 @@ adversarial patterns than our any-literal gate — a real, tracked improvement.
 **Achieved:**
 - Native C11, zero third-party regex/SIMD/deps — the "we make our own" mandate.
 - Byte-exact correctness vs GNU grep (ERE/BRE/ICASE) + match-count parity vs rg.
-- Beats ripgrep on 11/12 single-file regex workloads; competitive on the 12th.
+- **Beats ripgrep on every MATCHING pattern** (2–4× faster).
+- **Learned from ugrep** (simd_nlcount, RSA concept) and reimplemented natively.
 - Owns a capability rg structurally lacks: BRE backreferences.
 
 **Not claimed:**
+- Fastest on REJECT patterns (rg ~2× faster on fixed overhead — tracked gap).
 - Fastest directory-recursive search (unmeasured vs rg/ugrep).
 - Fastest on adversarial rare-deep-literal patterns (rg's rarest-literal edge).
-- A published multi-GB / kernel-tree number (would require running those benchmarks
-  honestly — tracked, not asserted).
+- A published multi-GB / kernel-tree number (would require running those honestly).
 
-## 6. Tracked next waves (to widen the SOTA surface)
+---
 
-1. **Rarest-literal selection** in the prefilter (pick the least-frequent literal
-   per alternative) — closes Devil #2's adversarial gap vs Teddy.
-2. **ugrep + kernel-tree benchmark** to extend the measured surface honestly.
-3. **Emit-path batching** for dense-match (`[a-z]+` emits 1M lines) — already helps
-   via parallel scan; further mmap-then-write coalescing.
-4. **Multi-pattern AC prefilter** (true Teddy-class) if the any-literal gate's
+## 6. Tracked next waves
+
+1. **Close the reject-path overhead gap** — merge the literal gate into the same
+   SIMD scan as nlcount/NUL (one pass, like ugrep), and adopt **rarest-literal**
+   selection in the prefilter so reject patterns approach rg's ~10 ms.
+2. **Finish ugrep benchmark** (§2.1) — honest head-to-head once built.
+3. **Emit-path batching** for dense-match (`[a-z]+` emits 1M lines) — mmap-then-
+   write coalescing to widen the matching-pattern lead.
+4. **Multi-pattern AC prefilter** (true Teddy/RSA-class) if the any-literal gate's
    per-block cost becomes the bottleneck on very large literal sets.

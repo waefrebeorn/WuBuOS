@@ -167,6 +167,12 @@ int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
                                  const unsigned char *const *lits,
                                  const int *lens, int nlits, int maxlen);
 
+/* SIMD newline + NUL scan (wubre_simd.c): counts '\n' and detects NUL in one
+ * AVX2 pass (128-byte blocks). Replaces scalar memchr walks for the line-index
+ * and the binary-file detection. */
+void wub_simd_line_nul_stats(const unsigned char *buf, size_t n,
+                             size_t *nl_out, int *has_nul);
+
 /* ---- DFA (subset construction, wubre_dfa.c) ---- */
 void *wubre_dfa_compile(const WURegex *re);  /* builds + caches; NULL if out of scope */
 int  wubre_search_buf_dfa(const WURegex *re, const unsigned char *buf, size_t n,

@@ -164,6 +164,8 @@ static int g_opt_invert = 0, g_opt_count = 0, g_opt_line = 0;
 static int g_opt_quiet = 0, g_opt_insensitive = 0, g_opt_files_no = 0;
 static int g_opt_recursive = 0, g_opt_color = 0, g_multi = 0;
 static int g_found_any = 0;
+/* file-global binary flag, computed ONCE in process_mmap (not per chunk) */
+static int g_file_binary = 0;
 
 /* ------------------------------------------------------------------ */
 /* Output buffer                                                        */
@@ -316,9 +318,9 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
         return;
     }
 
-    /* GNU grep default: a NUL byte means a binary file. Report it once and
-     * treat the file as matched (rc 0) without dumping contents. */
-    if (!g_opt_text && buffer_is_binary(base, size)) {
+    /* GNU grep default: a NUL byte means a binary file. Computed once in
+     * process_mmap (g_file_binary) instead of re-scanning per chunk. */
+    if (g_file_binary) {
         if (!g_opt_count && !g_opt_files_no && !g_opt_quiet && !g_opt_invert) {
             if (g_multi && fname) { obuf_put(out, fname, strlen(fname)); obuf_put(out, ":", 1); }
             obuf_put(out, "Binary file ", 12);
@@ -335,15 +337,10 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
      * over the entire [base,end) range with ^/$ evaluated against '\n'
      * positions -- identical per-line semantics to GNU grep, but a single NFA
      * pass. A precomputed line-index makes each matching-line emit O(1). Used
-     * for the common case (no -v); -v keeps the per-line fallback below. */
+     * for the common case (no -v); -v keeps the per-line fallback below.
+     * The literal prefilter gate is checked ONCE in process_mmap; a reject
+     * returns before any chunk is spawned, so it is never re-tested here. */
     if (g_opt_regex && !g_opt_invert) {
-        /* Prefilter gate FIRST: if no required literal is present, there is
-         * no match anywhere, so skip the (mandatory, O(bytes)) line-index
-         * build. This mirrors ripgrep's behavior of never touching the line
-         * index when the literal prefilter rejects. */
-        if (wubre_litpref_gate(g_re, base, size) == 0) {
-            return;   /* gate rejects -> definitively no match */
-        }
         rcb_t rc = { base, end, line_base, out, res, fname, NULL, 0 };
         /* build line-start index (one forward memchr walk, same order as NFA) */
         size_t cap=1024; rc.lo=malloc(cap*sizeof(size_t));
@@ -438,16 +435,55 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
     }
     starts[nth] = size;
 
-    /* line-base prefix (only when -n requested) */
+    /* ---- file-global pre-checks + per-chunk line-base, ONE SIMD pass ----
+     * A single AVX2 scan (128-byte blocks) counts '\n' and detects NUL,
+     * recording the cumulative newline count at every chunk boundary. This
+     * replaces the separate memchr nlbefore walk and the buffer_is_binary
+     * scan with one memory-bandwidth pass (ugrep/RE-flex simd_nlcount
+     * technique, native C11/AVX2). */
+    size_t *cum = malloc((size_t)nth * sizeof(size_t));
+    size_t run = 0;
+    int has_nul = 0;
+    const unsigned char *p = data;
+    for (int i = 1; i < nth; i++) {
+        const unsigned char *stop = data + starts[i];
+        size_t chunk_nl; int chunk_nul;
+        wub_simd_line_nul_stats(p, (size_t)(stop - p), &chunk_nl, &chunk_nul);
+        run += chunk_nl;
+        if (chunk_nul) has_nul = 1;
+        cum[i] = run;
+        p = stop;
+    }
+    /* total newlines in the buffer tail (for -c / line arithmetic) */
+    size_t tail_nl; int tail_nul;
+    wub_simd_line_nul_stats(p, (size_t)(data + size - p), &tail_nl, &tail_nul);
+    if (tail_nul) has_nul = 1;
     size_t *nlbefore = NULL;
     if (g_opt_line) {
         nlbefore = calloc((size_t)nth, sizeof(size_t));
-        for (int i = 0; i < nth; i++) {
-            size_t cnt = 0;
-            const unsigned char *p = data, *lim = data + starts[i];
-            while ((p = memchr(p, '\n', (size_t)(lim - p)))) { cnt++; p++; }
-            nlbefore[i] = cnt;
+        for (int i = 1; i < nth; i++) nlbefore[i] = cum[i];
+    }
+    free(cum);
+    g_file_binary = (!g_opt_text && has_nul) ? 1 : 0;
+
+    /* Literal prefilter gate: if no required literal is present anywhere in
+     * the buffer, there is definitively no match. Return early (handling the
+     * -c/-l/-q empty-result semantics) BEFORE spawning any chunk. This avoids
+     * re-running the gate in every parallel chunk. */
+    if (g_opt_regex && !g_opt_invert && wubre_litpref_gate(g_re, data, size) == 0) {
+        free(starts); free(nlbefore);
+        if (g_opt_count) {
+            if (!(g_opt_invert && g_plen == 0)) {
+                char nb[24]; int L = snprintf(nb, sizeof nb, "0");
+                if (g_multi && fname) { obuf_put(single_out, fname, strlen(fname)); obuf_put(single_out, ":", 1); }
+                obuf_put(single_out, nb, (size_t)L); obuf_put(single_out, "\n", 1);
+            }
+        } else if (g_opt_files_no) {
+            /* no filename printed: no match */
+        } else if (g_opt_quiet) {
+            /* no output */
         }
+        return;
     }
 
     chunk_job_t *jobs = calloc((size_t)nth, sizeof(chunk_job_t));
