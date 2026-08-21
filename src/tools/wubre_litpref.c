@@ -244,3 +244,15 @@ int wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n){
 }
 
 void wubre_litpref_free(void *p){ if (p) free(p); }
+
+/* If the prefilter is a single literal run (exactly one alternative containing
+ * exactly one literal), return a pointer to it and set *len. Otherwise return
+ * NULL. Used by the fast path that merges newline-count + NUL + literal
+ * presence into one SIMD scan. Sound: returns non-NULL only for the trivial
+ * single-literal case; anything else falls back to the general gate. */
+const unsigned char *wubre_litpref_single_literal(const WURegex *re, int *len){
+    LitPref *lp = (LitPref*)re->litpref;
+    if (!lp || lp->n != 1 || lp->alts[0].n != 1) return NULL;
+    *len = lp->alts[0].lits[0].len;
+    return lp->alts[0].lits[0].s;
+}

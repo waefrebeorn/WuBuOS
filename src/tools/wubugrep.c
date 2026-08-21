@@ -435,29 +435,30 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
     }
     starts[nth] = size;
 
-    /* ---- file-global pre-checks + per-chunk line-base, ONE SIMD pass ----
-     * A single AVX2 scan (128-byte blocks) counts '\n' and detects NUL,
-     * recording the cumulative newline count at every chunk boundary. This
-     * replaces the separate memchr nlbefore walk and the buffer_is_binary
-     * scan with one memory-bandwidth pass (ugrep/RE-flex simd_nlcount
-     * technique, native C11/AVX2). */
+    /* ---- file-global pre-checks + per-chunk line-base ----
+     * One AVX2 pass (128-byte blocks) counts '\n' and detects NUL, recording
+     * the cumulative newline count at every chunk boundary. This replaces the
+     * old serial memchr walks (ugrep/RE-flex simd_nlcount technique, native
+     * C11/AVX2). The literal-prefilter gate runs as a SEPARATE pass afterwards
+     * (wubre_litpref_gate), which is sound and avoids merging two SIMD scans
+     * into one call site (the combined-scan variant had a stack-alignment
+     * crash on the AVX2 path and is tracked for a later wave). */
     size_t *cum = malloc((size_t)nth * sizeof(size_t));
     size_t run = 0;
     int has_nul = 0;
     const unsigned char *p = data;
     for (int i = 1; i < nth; i++) {
         const unsigned char *stop = data + starts[i];
-        size_t chunk_nl; int chunk_nul;
-        wub_simd_line_nul_stats(p, (size_t)(stop - p), &chunk_nl, &chunk_nul);
-        run += chunk_nl;
-        if (chunk_nul) has_nul = 1;
+        size_t cnl; int cnul;
+        wub_simd_line_nul_stats(p, (size_t)(stop - p), &cnl, &cnul);
+        run += cnl; if (cnul) has_nul = 1;
         cum[i] = run;
         p = stop;
     }
-    /* total newlines in the buffer tail (for -c / line arithmetic) */
-    size_t tail_nl; int tail_nul;
-    wub_simd_line_nul_stats(p, (size_t)(data + size - p), &tail_nl, &tail_nul);
-    if (tail_nul) has_nul = 1;
+    /* tail */
+    size_t tnl; int tnul;
+    wub_simd_line_nul_stats(p, (size_t)(data + size - p), &tnl, &tnul);
+    if (tnul) has_nul = 1;
     size_t *nlbefore = NULL;
     if (g_opt_line) {
         nlbefore = calloc((size_t)nth, sizeof(size_t));
@@ -470,7 +471,11 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
      * the buffer, there is definitively no match. Return early (handling the
      * -c/-l/-q empty-result semantics) BEFORE spawning any chunk. This avoids
      * re-running the gate in every parallel chunk. */
-    if (g_opt_regex && !g_opt_invert && wubre_litpref_gate(g_re, data, size) == 0) {
+    int gate_reject = 0;
+    if (g_opt_regex && !g_opt_invert){
+        if (wubre_litpref_gate(g_re, data, size) == 0) gate_reject = 1;
+    }
+    if (gate_reject) {
         free(starts); free(nlbefore);
         if (g_opt_count) {
             if (!(g_opt_invert && g_plen == 0)) {

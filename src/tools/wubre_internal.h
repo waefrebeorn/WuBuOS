@@ -161,6 +161,10 @@ bool wubre_search_buf(const WURegex *re, const unsigned char *buf, size_t n,
 void wubre_litpref_build(WURegex *re, const char *pat, int flags);
 int wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n_unused);
 void wubre_litpref_free(void *p);
+/* Returns the single literal run if the prefilter is exactly one alternative
+ * with one literal (NULL otherwise). Used to merge the literal gate into the
+ * newline+NUL SIMD scan. */
+const unsigned char *wubre_litpref_single_literal(const WURegex *re, int *len);
 /* Single-pass SIMD multi-literal presence check (wubre_simd.c). Returns 1 if
  * any literal is present, 0 if soundly absent, -1 if unsupported by SIMD. */
 int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
@@ -172,6 +176,14 @@ int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
  * and the binary-file detection. */
 void wub_simd_line_nul_stats(const unsigned char *buf, size_t n,
                              size_t *nl_out, int *has_nul);
+
+/* Combined newline + NUL + SINGLE-literal presence in ONE 128-byte-block AVX2
+ * pass (ugrep/RE-flex technique). For the common single-literal pattern this
+ * collapses the line-index pre-pass and the literal-prefilter gate into one
+ * memory read. `lit_present` is set iff the `lit`/`litlen` needle occurs. */
+void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
+                                 const unsigned char *lit, int litlen,
+                                 size_t *nl_out, int *has_nul, int *lit_present);
 
 /* ---- DFA (subset construction, wubre_dfa.c) ---- */
 void *wubre_dfa_compile(const WURegex *re);  /* builds + caches; NULL if out of scope */
