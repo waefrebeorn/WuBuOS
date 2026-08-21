@@ -100,7 +100,12 @@ struct WURegex {
      int lit_only;
      const unsigned char *lit;
      int lit_n;
-};
+     /* Cached subset-construction DFA (wubre_dfa.c), built once per pattern and
+      * reused across searches. dfa_cache is an opaque Dfa*; dfa_failed marks a
+      * pattern the DFA can't represent (caller falls back to the Pike VM). */
+     void *dfa_cache;
+     int dfa_failed;
+     };
 
 /* ---- dangling-pointer patch list (NFA construction) ---- */
 typedef struct Dangle { int s; int field; struct Dangle *next;
@@ -140,13 +145,25 @@ bool wubre_search(const WURegex *re, const unsigned char *buf, size_t n);
 bool wubre_search_buf(const WURegex *re, const unsigned char *buf, size_t n,
                       void (*on_match)(long line, void *ctx), void *ctx);
 
+/* ---- DFA (subset construction, wubre_dfa.c) ---- */
+int wubre_search_buf_dfa(const WURegex *re, const unsigned char *buf, size_t n,
+                         void (*on_match)(long line, void *ctx), void *ctx);
+void wubre_dfa_free(void *d);   /* frees a cached Dfa* (opaque) */
+int  wubre_dfa_nstates(const WURegex *re);
+
 /* ---- shared class helpers (defined in wubre_compile.c, used by BRE too) ---- */
 int  is_known_posix_class(const char *name);
 void set_class_posix(unsigned char *bits, const char *name);
 
-/* ---- SIMD literal search (wubre_simd.c) ---- */
+/* ---- SIMD literal/window search (wubre_simd.c) ---- */
 const unsigned char *wub_memmem(const unsigned char *hay, size_t hn,
                                 const unsigned char *needle, size_t nn);
+/* Single-pass literal matcher (AVX2): one sweep finds every needle occurrence
+ * and reports the 0-based line index of each distinct matching line via
+ * on_match (grep -n semantics). O(matches+lines), not O(hits x n). */
+void wub_simd_scan_literal(const unsigned char *hay, size_t hn,
+                           const unsigned char *needle, size_t nn,
+                           void (*on_match)(long line, void *ctx), void *ctx);
 int wub_simd_has_window(const unsigned char *buf, size_t n,
                         const unsigned char *la, size_t la_n,
                         const unsigned char *lb, size_t lb_n,

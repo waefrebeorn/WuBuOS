@@ -17,7 +17,7 @@
 #include <immintrin.h>
 
 /* ---- 1. required-literal memmem (32 bytes/cycle) ---- */
-__attribute__((target("avx2")))
+__attribute__((target("avx2,popcnt,bmi,bmi2")))
 static const unsigned char *wub_memmem_avx2(const unsigned char *hay, size_t hn,
                                            const unsigned char *needle, size_t nn){
     if (nn==0) return hay;
@@ -58,6 +58,7 @@ const unsigned char *wub_memmem(const unsigned char *hay, size_t hn,
 #if defined(__x86_64__) || defined(__i386__)
     if (nn>=2 && nn<=16) return wub_memmem_avx2(hay,hn,needle,nn);
 #endif
+    /* scalar fallback for nn>16 or non-AVX2 platforms */
     if (nn==0) return hay;
     if (nn>hn) return NULL;
     unsigned char fch = needle[0];
@@ -73,6 +74,57 @@ const unsigned char *wub_memmem(const unsigned char *hay, size_t hn,
         p = c + 1; rem = hn - (size_t)(p - hay);
     }
     return NULL;
+}
+/* ---- 4. single-pass literal scanner (the ripgrep/Teddy model) ----
+ * One AVX2 sweep over the whole buffer finds every occurrence of `needle` and
+ * reports the 0-based line index of each DISTINCT matching line via on_match
+ * (grep -n semantics). Newlines are counted in the SAME block scan with a
+ * second SIMD compare (no per-match memchr), so the whole pass is O(bytes) at
+ * memory bandwidth -- not O(hits x n). */
+__attribute__((target("avx2,popcnt,bmi,bmi2")))
+void wub_simd_scan_literal(const unsigned char *hay, size_t hn,
+                           const unsigned char *needle, size_t nn,
+                           void (*on_match)(long line, void *ctx), void *ctx){
+    if (nn==0 || nn>hn) return;
+    unsigned char fch = needle[0];
+    __m256i vf = _mm256_set1_epi8((char)fch);
+    __m256i vnl = _mm256_set1_epi8((char)'\n');
+    long cur = 0;          /* newlines seen so far (== line index of next byte) */
+    long last = -1;
+    size_t i = 0;
+    size_t lim = hn - nn;  /* needle may start up to here */
+    while (i + 32 <= lim + nn){
+        __m256i blk = _mm256_loadu_si256((const __m256i*)(hay + i));
+        unsigned m  = (unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(blk, vf));
+        unsigned nl = (unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(blk, vnl));
+        /* For each needle first-byte candidate in this block */
+        while (m){
+            int bit = __builtin_ctz(m);
+            size_t off = i + (size_t)bit;
+            /* newlines strictly before this match within the block */
+            unsigned nl_before = nl & ((1u << bit) - 1u);
+            long line = cur + (long)__builtin_popcount(nl_before);
+            if (off + nn > hn){ m &= m - 1; continue; }
+            const unsigned char *c = hay + off;
+            size_t k = 1; for (; k < nn; k++) if (c[k] != needle[k]) break;
+            if (k == nn && line != last){ last = line; if (on_match) on_match(line, ctx); }
+            m &= m - 1;
+        }
+        /* advance line counter by newlines in the whole block */
+        cur += (long)__builtin_popcount(nl);
+        i += 32;
+    }
+    /* scalar tail */
+    for (size_t j = i; j + nn <= hn; j++){
+        if (hay[j] == fch){
+            size_t k = 1; for (; k < nn; k++) if (hay[j+k] != needle[k]) break;
+            if (k == nn){
+                long line = cur;
+                for (size_t t = i; t < j; t++) if (hay[t] == '\n') line++;
+                if (line != last){ last = line; if (on_match) on_match(line, ctx); }
+            }
+        }
+    }
 }
 
 /* ---- 2. "Teddy"-style two-literal windowing for X.*Y patterns ----
@@ -90,7 +142,7 @@ const unsigned char *wub_memmem(const unsigned char *hay, size_t hn,
  * and report the 0-based line index of each match via on_match. This is the
  * Hyperscan/vectorscan "literal acceleration" model realized in pure C11+AVX2:
  * an O(occurrences-of-la) SIMD pass instead of an O(bytes) scalar NFA. ---- */
-__attribute__((target("avx2")))
+__attribute__((target("avx2,popcnt,bmi,bmi2")))
 void wub_simd_scan_windows(const unsigned char *buf, size_t n,
                            const unsigned char *la, size_t la_n,
                            const unsigned char *lb, size_t lb_n,
@@ -160,7 +212,7 @@ void wub_simd_scan_windows(const unsigned char *buf, size_t n,
     }
 }
 
-__attribute__((target("avx2")))
+__attribute__((target("avx2,popcnt,bmi,bmi2")))
 int wub_simd_has_window(const unsigned char *buf, size_t n,
                         const unsigned char *la, size_t la_n,
                         const unsigned char *lb, size_t lb_n,

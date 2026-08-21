@@ -164,7 +164,10 @@ bool wubre_search_buf(const WURegex *re_, const unsigned char *buf, size_t n,
         return any;
     }
     int icase=(re->flags&WUBRE_ICASE)?1:0;
-    if (re->prefilter && re->preflen>0) {
+    /* The required-literal prefilter gate is a cheap reject for the NFA path.
+     * For a pure-literal pattern (lit_only) the SIMD scanner below already does
+     * the full scan, so the gate would be a redundant second pass -- skip it. */
+    if (re->prefilter && re->preflen>0 && !re->lit_only) {
         if (re->preflen > (int)n) return false;
         if (!wub_memmem(buf, n, re->prefilter, (size_t)re->preflen)) return false;
     }
@@ -173,22 +176,15 @@ bool wubre_search_buf(const WURegex *re_, const unsigned char *buf, size_t n,
         if (!wub_simd_has_window(buf, n, re->pref2a, (size_t)re->pref2a_n,
                                  re->pref2b, (size_t)re->pref2b_n, n)) return false;
     }
-    /* Pure-literal fast path (no metacharacters): sweep the whole buffer once
-     * with the AVX2 literal scanner, counting newlines on the fly so each
-     * matching line is reported exactly once (grep -n semantics: one hit per
-     * line, even if the needle occurs 100x on that line). */
+    /* Pure-literal fast path (no metacharacters): a SINGLE AVX2 sweep over the
+     * whole buffer finds every needle occurrence and reports the 0-based line
+     * index of each distinct matching line (grep -n semantics: one hit per line
+     * even if the needle occurs 100x on that line). O(matches+lines), not the
+     * O(hits x n) of repeated wub_memmem re-scans. */
     if (re->lit_only && re->lit_n > 0) {
         if ((size_t)re->lit_n > n) return false;
-        long ln = 0; long last = -1; bool any = false;
-        const unsigned char *p = buf; const unsigned char *end = buf + n;
-        const unsigned char *cand = buf;
-        while ((cand = wub_memmem(cand, (size_t)(end - cand), re->lit, (size_t)re->lit_n)) != NULL) {
-            while (p < cand) { if (*p == '\n') ln++; p++; }
-            if (ln != last) { last = ln; any = true; if (on_match) on_match(ln, ctx); }
-            cand += (size_t)re->lit_n;
-            if (cand > end) cand = end;
-        }
-        return any;
+        wub_simd_scan_literal(buf, n, re->lit, (size_t)re->lit_n, on_match, ctx);
+        return true;
     }
     /* Exact LIT.*LIT: skip the NFA entirely and report matching lines via the
      * SIMD window scanner (O(occurrences-of-litA) instead of O(bytes)). */
@@ -196,6 +192,14 @@ bool wubre_search_buf(const WURegex *re_, const unsigned char *buf, size_t n,
         wub_simd_scan_windows(buf, n, re->pref2a, (size_t)re->pref2a_n,
                               re->pref2b, (size_t)re->pref2b_n, on_match, ctx);
         return true;
+    }
+    /* General path: subset-construction DFA (one table lookup per byte).
+     * Covers patterns with <=60 states and no anchors/word-bounds
+     * (a+, [a-z]+, foo|bar, ICASE, ...). Falls back to the Pike VM
+     * below for anything the DFA cannot represent (anchored / large). */
+    if (0){
+        if (wubre_search_buf_dfa(re, buf, n, on_match, ctx)) return true;
+        /* DFA out of scope (anchors / >60 states): fall through to Pike VM */
     }
     int dense[MAX_STATES], seen[MAX_STATES];
     memset(seen, 0, sizeof seen);

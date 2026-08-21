@@ -18,5 +18,6 @@ void wubre_free(WURegex *re){
     free((void*)re->pref2a);
     free((void*)re->pref2b);
     if (re->bt) free(re->bt);
+    if (re->dfa_cache) wubre_dfa_free(re->dfa_cache);
     free(re);
 }
