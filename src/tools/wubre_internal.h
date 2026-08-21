@@ -163,7 +163,8 @@ int  wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n);
 void wubre_litpref_free(void *p);
 
 /* ---- DFA (subset construction, wubre_dfa.c) ---- */
-int wubre_search_buf_dfa(const WURegex *re, const unsigned char *buf, size_t n,
+void *wubre_dfa_compile(const WURegex *re);  /* builds + caches; NULL if out of scope */
+int  wubre_search_buf_dfa(const WURegex *re, const unsigned char *buf, size_t n,
                          void (*on_match)(long line, void *ctx), void *ctx);
 void wubre_dfa_free(void *d);   /* frees a cached Dfa* (opaque) */
 int  wubre_dfa_nstates(const WURegex *re);

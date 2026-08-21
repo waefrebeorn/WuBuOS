@@ -838,5 +838,6 @@ int main(int argc, char **argv) {
         obuf_flush(&out); free(out.buf);
     }
     free(paths);
+    if (g_re) wubre_free(g_re);
     return g_found_any ? 0 : 1;
 }

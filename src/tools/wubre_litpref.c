@@ -163,6 +163,17 @@ void wubre_litpref_build(WURegex *re, const char *pat, int flags){
     LitPref *lp = (LitPref*)calloc(1, sizeof(LitPref));
     const char *p = pat, *end = pat + strlen(pat);
     *lp = parse_seq(&p, end, 0);
+    /* ICASE: fold every stored literal run to lowercase so the gate's scan is
+     * case-insensitive (cfold('E')==cfold('e')); the gate folds haystack bytes
+     * the same way. Without this, an uppercase literal like ERROR would be
+     * rejected against a lowercase corpus (error) before the DFA runs. */
+    if (flags & WUBRE_ICASE){
+        for (int i=0;i<lp->n;i++)
+            for (int j=0;j<lp->alts[i].n;j++){
+                LPLit *L = &lp->alts[i].lits[j];
+                for (int k=0;k<L->len;k++) L->s[k] = (unsigned char)cfold(L->s[k]);
+            }
+    }
     int any = 0;
     for (int i=0;i<lp->n;i++) if (lp->alts[i].n > 0){ any = 1; break; }
     if (!any){ free(lp); ((WURegex*)re)->litpref = NULL; return; }
@@ -172,13 +183,28 @@ void wubre_litpref_build(WURegex *re, const char *pat, int flags){
 int wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n){
     LitPref *lp = (LitPref*)re->litpref;
     if (!lp || lp->n == 0) return 1;       /* no gate -> always pass */
+    /* Case-insensitive scan: the stored literals are already folded to
+     * lowercase (see wubre_litpref_build), so fold each haystack byte too. */
+    int icase = (re->flags & WUBRE_ICASE) != 0;
     for (int i=0;i<lp->n;i++){             /* OR across alternatives */
         LPAlt *a = &lp->alts[i];
         int all = 1;
         for (int j=0;j<a->n;j++){          /* AND within an alternative */
-            if (wub_memmem(buf, n, a->lits[j].s, (size_t)a->lits[j].len) == NULL){
-                all = 0; break;
+            const unsigned char *needle = a->lits[j].s;
+            int nlen = a->lits[j].len;
+            int found = 0;
+            if (!icase){
+                found = (wub_memmem(buf, n, needle, (size_t)nlen) != NULL);
+            } else {
+                if (nlen == 0) found = 1;
+                else for (size_t off=0; off + (size_t)nlen <= n; off++){
+                    int ok = 1;
+                    for (int k=0;k<nlen;k++)
+                        if (cfold(buf[off+k]) != needle[k]){ ok = 0; break; }
+                    if (ok){ found = 1; break; }
+                }
             }
+            if (!found){ all = 0; break; }
         }
         if (all) return 1;
     }

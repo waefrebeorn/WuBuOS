@@ -151,7 +151,7 @@ bool wubre_search(const WURegex *re_, const unsigned char *buf, size_t n){
  * millions -- the lever that brings .* throughput within range of ripgrep's
  * whole-file SIMD DFA while keeping grep's exact per-line match semantics. */
 bool wubre_search_buf(const WURegex *re_, const unsigned char *buf, size_t n,
-                      void (*on_match)(long line, void *ctx), void *ctx){
+                       void (*on_match)(long line, void *ctx), void *ctx){
     WURegex *re=(WURegex*)(uintptr_t)re_;
     /* Literal-SET prefilter gate (wubre_litpref.c): if no required literal set
      * from the pattern is present in the buffer, no match is possible -- skip
@@ -201,10 +201,8 @@ bool wubre_search_buf(const WURegex *re_, const unsigned char *buf, size_t n,
      * Covers patterns with <=60 states and no anchors/word-bounds
      * (a+, [a-z]+, foo|bar, ICASE, ...). Falls back to the Pike VM
      * below for anything the DFA cannot represent (anchored / large). */
-    if (0){
-        if (wubre_search_buf_dfa(re, buf, n, on_match, ctx)) return true;
-        /* DFA out of scope (anchors / >60 states): fall through to Pike VM */
-    }
+    if (wubre_search_buf_dfa(re, buf, n, on_match, ctx)) return true;
+    /* DFA out of scope (anchors / >60 states / zero-width): fall through to Pike VM */
     int dense[MAX_STATES], seen[MAX_STATES];
     memset(seen, 0, sizeof seen);
     int gen=1;

@@ -705,5 +705,9 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
     while (cx.all){ Dangle *n=cx.all->regnext; free(cx.all); cx.all=n; }
     free(trans);
     wubre_litpref_build(re, pat, flags);
+    /* Eager DFA build (shared read-only across the parallel scan). Skipped for
+     * BRE: BRE dispatches to wubre_search_bre before the DFA path, so a DFA
+     * would be built and never used. */
+    re->dfa_cache = (flags & WUBRE_BRE) ? NULL : wubre_dfa_compile(re);
     return re;
 }
