@@ -401,11 +401,14 @@ void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
     size_t nl = 0;
     int nul = 0, litfound = 0;
     if (litlen <= 0 || (int)n < litlen) litfound = 0;
+    /* scalar prelude up to a 32-byte boundary; pos resumes where it stops
+     * (restarting at 0 would double-count these bytes inside block 0). */
     while (((uintptr_t)s & 0x1f) != 0 && s < e){
         unsigned char c = *s++;
         if (c == '\n') nl++;
         else if (c == '\0') nul = 1;
     }
+    size_t prelude = (size_t)(s - buf);
     const __m256i vnl = _mm256_set1_epi8('\n');
     const __m256i v00 = _mm256_setzero_si256();
     __m256i vlit = v00;
@@ -414,7 +417,7 @@ void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
      * would count shared newlines multiple times). The literal scan uses each
      * block's cmpeq for candidates and verifies with a litlen-byte lookahead
      * that may extend up to litlen-1 bytes PAST the block (still < n). */
-    size_t pos = 0, covered = 0;
+    size_t pos = prelude, covered = 0;
     while (pos + 128 <= n){
         for (int q=0; q<4; q++){
             const unsigned char *p = buf + pos + (size_t)q*32;

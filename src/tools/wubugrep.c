@@ -260,12 +260,39 @@ typedef struct {
     obuf_t *out;
     range_res_t *res;
     const char *fname;
+    /* LAZY line index: allocated/built on FIRST on_match callback only.
+     * Reject patterns (no match) never pay the O(bytes) memchr walk —
+     * this was the residual fixed overhead vs rg's ~8ms reject path. */
     size_t *lo;
-    size_t nlines;
+    size_t nlines, cap;
 } rcb_t;
+
+/* Build the full line-start index once (one forward memchr walk, same
+ * order as the NFA/DFA line numbering). */
+static void rcb_build_index(rcb_t *c) {
+    c->cap = 1024;
+    c->lo = malloc(c->cap * sizeof(size_t));
+    if (!c->lo){ c->nlines = 0; return; }
+    const unsigned char *p = c->base;
+    const unsigned char *end = c->end;
+    while (p <= end){
+        if (c->nlines >= c->cap){
+            c->cap *= 2;
+            size_t *nb = realloc(c->lo, c->cap * sizeof(size_t));
+            if (!nb){ free(c->lo); c->lo = NULL; c->nlines = 0; return; }
+            c->lo = nb;
+        }
+        c->lo[c->nlines++] = (size_t)(p - c->base);
+        const unsigned char *nl = memchr(p, '\n', (size_t)(end - p));
+        if (!nl) break;
+        p = nl + 1;
+    }
+}
 
 static void on_regex_match(long line, void *ctx) {
     rcb_t *c = (rcb_t *)ctx;
+    /* lazy: build the index at the first real match */
+    if (!c->lo) rcb_build_index(c);
     if ((size_t)line >= c->nlines) return;
     const unsigned char *ls = c->base + c->lo[line];
     const unsigned char *le = ((size_t)line + 1 < c->nlines)
@@ -304,13 +331,15 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
             const unsigned char *ne = memchr(hit + g_plen, '\n', (size_t)(end - (hit + g_plen)));
             const unsigned char *line_end = ne ? ne : end;
             if (line != last_line){
-                /* advance line_no across any lines we skipped */
+                /* advance line_no across any lines we skipped; then +1 because
+                 * line_no counts newlines BEFORE this line (completed lines),
+                 * and grep numbers lines from 1. */
                 const unsigned char *c = prev_end;
                 while (c < line){ const unsigned char *nx = memchr(c, '\n', (size_t)(line - c)); if(!nx) break; line_no++; c = nx + 1; }
                 last_line = line; prev_end = line_end;
                 res->matched = 1; res->match_count++; g_found_any = 1;
                 if (g_opt_quiet) return;
-                if (!g_opt_count){ emit_line(out, fname, line_no, line, (size_t)(line_end - line)); }
+                if (!g_opt_count){ emit_line(out, fname, line_no + 1, line, (size_t)(line_end - line)); }
                 if (g_opt_count) prev_end = line_end; /* stop scanning rest of this line */
             }
             p = (line_end < end) ? line_end + 1 : end;
@@ -342,17 +371,9 @@ static void scan_range(const unsigned char *base, size_t size, obuf_t *out,
      * The literal prefilter gate is checked ONCE in process_mmap; a reject
      * returns before any chunk is spawned, so it is never re-tested here. */
     if (g_opt_regex && !g_opt_invert) {
-        rcb_t rc = { base, end, line_base, out, res, fname, NULL, 0 };
-        /* build line-start index (one forward memchr walk, same order as NFA) */
-        size_t cap=1024; rc.lo=malloc(cap*sizeof(size_t));
-        const unsigned char *p=base;
-        while (p<=end){
-            if (rc.nlines>=cap){ cap*=2; rc.lo=realloc(rc.lo,cap*sizeof(size_t)); }
-            rc.lo[rc.nlines++]=(size_t)(p-base);
-            const unsigned char *nl=memchr(p,'\n',(size_t)(end-p));
-            if (!nl) break;
-            p=nl+1;
-        }
+        rcb_t rc = { base, end, line_base, out, res, fname, NULL, 0, 0 };
+        /* Line index is built LAZILY inside on_regex_match on the first
+         * actual match — reject patterns skip the O(bytes) walk entirely. */
         wubre_search_buf(g_re, base, size, on_regex_match, &rc);
         free(rc.lo);
         if (g_opt_quiet && res->matched) return;
