@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include "wubre.h"
+#include "wubre_internal.h"
 
 /* argv0 multi-tool dispatch (Nathan's "bundle tools in one binary" rule):
  * if the executable name contains "cat" we behave as WuBuCat (byte-exact
@@ -437,27 +438,48 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
 
     /* ---- file-global pre-checks + per-chunk line-base ----
      * One AVX2 pass (128-byte blocks) counts '\n' and detects NUL, recording
-     * the cumulative newline count at every chunk boundary. This replaces the
-     * old serial memchr walks (ugrep/RE-flex simd_nlcount technique, native
-     * C11/AVX2). The literal-prefilter gate runs as a SEPARATE pass afterwards
-     * (wubre_litpref_gate), which is sound and avoids merging two SIMD scans
-     * into one call site (the combined-scan variant had a stack-alignment
-     * crash on the AVX2 path and is tracked for a later wave). */
+     * the cumulative newline count at every chunk boundary. For single-literal
+     * patterns the literal-prefilter presence test is FUSED into the same
+     * sweep (wub_simd_line_nul_lit_stats — ugrep's one-pass-does-everything
+     * technique), replacing the separate wubre_litpref_gate pass; the
+     * stack-alignment crash is fixed via force_align_arg_pointer and the
+     * nl/nul counts use non-overlapping 128B blocks (overlap double-counts
+     * newlines). */
     size_t *cum = malloc((size_t)nth * sizeof(size_t));
     size_t run = 0;
     int has_nul = 0;
     const unsigned char *p = data;
+    /* fused single-literal gate setup (non-ICASE only; NULL otherwise) */
+    const unsigned char *flit = NULL; int flitlen = 0; int flit_present = 0;
+    int gate_reject = 0;
+    if (g_opt_regex && !g_opt_invert){
+        flit = wubre_litpref_single_literal(g_re, &flitlen);
+    }
     for (int i = 1; i < nth; i++) {
         const unsigned char *stop = data + starts[i];
         size_t cnl; int cnul;
-        wub_simd_line_nul_stats(p, (size_t)(stop - p), &cnl, &cnul);
+        if (flit){
+            int lp;
+            wub_simd_line_nul_lit_stats(p, (size_t)(stop - p), flit, flitlen,
+                                        &cnl, &cnul, &lp);
+            if (lp) flit_present = 1;
+        } else {
+            wub_simd_line_nul_stats(p, (size_t)(stop - p), &cnl, &cnul);
+        }
         run += cnl; if (cnul) has_nul = 1;
         cum[i] = run;
         p = stop;
     }
     /* tail */
     size_t tnl; int tnul;
-    wub_simd_line_nul_stats(p, (size_t)(data + size - p), &tnl, &tnul);
+    if (flit){
+        int lp;
+        wub_simd_line_nul_lit_stats(p, (size_t)(data + size - p), flit, flitlen,
+                                    &tnl, &tnul, &lp);
+        if (lp) flit_present = 1;
+    } else {
+        wub_simd_line_nul_stats(p, (size_t)(data + size - p), &tnl, &tnul);
+    }
     if (tnul) has_nul = 1;
     size_t *nlbefore = NULL;
     if (g_opt_line) {
@@ -468,12 +490,14 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
     g_file_binary = (!g_opt_text && has_nul) ? 1 : 0;
 
     /* Literal prefilter gate: if no required literal is present anywhere in
-     * the buffer, there is definitively no match. Return early (handling the
-     * -c/-l/-q empty-result semantics) BEFORE spawning any chunk. This avoids
-     * re-running the gate in every parallel chunk. */
-    int gate_reject = 0;
+     * the buffer, there is definitively no match. For the fused single-literal
+     * case the answer is already in flit_present; otherwise run the general
+     * gate. Early return (handling -c/-l/-q empty-result semantics) BEFORE
+     * spawning any chunk avoids re-running the gate in every parallel chunk. */
     if (g_opt_regex && !g_opt_invert){
-        if (wubre_litpref_gate(g_re, data, size) == 0) gate_reject = 1;
+        if (flit){
+            if (!flit_present) gate_reject = 1;
+        } else if (wubre_litpref_gate(g_re, data, size) == 0) gate_reject = 1;
     }
     if (gate_reject) {
         free(starts); free(nlbefore);

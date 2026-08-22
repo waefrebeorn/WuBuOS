@@ -341,7 +341,7 @@ int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
  * simd_nlcount approach: a single SIMD sweep replaces the scalar memchr walks
  * we used for the line-index and the binary-file check. Returns the newline
  * count; *has_nul is set if a '\0' was encountered. ---- */
-__attribute__((target("avx2")))
+__attribute__((target("avx2"), force_align_arg_pointer))
 void wub_simd_line_nul_stats(const unsigned char *buf, size_t n,
                              size_t *nl_out, int *has_nul){
     const unsigned char *s = buf;
@@ -392,7 +392,7 @@ void wub_simd_line_nul_stats(const unsigned char *buf, size_t n,
  * line-index pre-pass cost the same as one memory read. `lit_present` is set
  * iff the `lit`/`litlen` needle occurs anywhere (sound: a 32B block fully
  * contains every length-L window thanks to the stride overlap). ---- */
-__attribute__((target("avx2")))
+__attribute__((target("avx2"), force_align_arg_pointer))
 void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
                                  const unsigned char *lit, int litlen,
                                  size_t *nl_out, int *has_nul, int *lit_present){
@@ -410,7 +410,10 @@ void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
     const __m256i v00 = _mm256_setzero_si256();
     __m256i vlit = v00;
     if (litlen > 0) vlit = _mm256_set1_epi8((char)lit[0]);
-    size_t step = (litlen > 0 && litlen <= 16) ? (128 - (size_t)litlen + 1) : 128;
+    /* NON-overlapping 128B blocks for the nl/nul counts (overlapping strides
+     * would count shared newlines multiple times). The literal scan uses each
+     * block's cmpeq for candidates and verifies with a litlen-byte lookahead
+     * that may extend up to litlen-1 bytes PAST the block (still < n). */
     size_t pos = 0, covered = 0;
     while (pos + 128 <= n){
         for (int q=0; q<4; q++){
@@ -432,9 +435,9 @@ void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
                 }
             }
         }
-        covered = pos + 128;
-        pos += step;
+        pos += 128;
     }
+    covered = pos;
     while (buf + covered < e){
         unsigned char c = buf[covered++];
         if (c == '\n') nl++;

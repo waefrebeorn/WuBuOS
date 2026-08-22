@@ -253,6 +253,7 @@ void wubre_litpref_free(void *p){ if (p) free(p); }
 const unsigned char *wubre_litpref_single_literal(const WURegex *re, int *len){
     LitPref *lp = (LitPref*)re->litpref;
     if (!lp || lp->n != 1 || lp->alts[0].n != 1) return NULL;
+    if (re->flags & WUBRE_ICASE) return NULL;  /* folded literals: exact path */
     *len = lp->alts[0].lits[0].len;
     return lp->alts[0].lits[0].s;
 }
