@@ -402,11 +402,21 @@ void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
     int nul = 0, litfound = 0;
     if (litlen <= 0 || (int)n < litlen) litfound = 0;
     /* scalar prelude up to a 32-byte boundary; pos resumes where it stops
-     * (restarting at 0 would double-count these bytes inside block 0). */
+     * (restarting at 0 would double-count these bytes inside block 0).
+     * The prelude ALSO checks literal presence — it is scanned for nl/nul,
+     * so skipping it for the literal would miss occurrences that fall in
+     * the first (prelude) bytes and cause a FALSE gate reject. */
     while (((uintptr_t)s & 0x1f) != 0 && s < e){
         unsigned char c = *s++;
         if (c == '\n') nl++;
         else if (c == '\0') nul = 1;
+        if (litlen > 0 && !litfound && c == lit[0]
+            && (size_t)(s - buf) + (size_t)litlen - 1 <= n){
+            int ok = 1;
+            for (int t=1; t<litlen; t++)
+                if (s[t-1] != lit[t]){ ok = 0; break; }
+            if (ok) litfound = 1;
+        }
     }
     size_t prelude = (size_t)(s - buf);
     const __m256i vnl = _mm256_set1_epi8('\n');
@@ -441,10 +451,15 @@ void wub_simd_line_nul_lit_stats(const unsigned char *buf, size_t n,
         pos += 128;
     }
     covered = pos;
-    while (buf + covered < e){
-        unsigned char c = buf[covered++];
-        if (c == '\n') nl++;
-        else if (c == '\0') nul = 1;
+    /* nl/nul tail walk: use its OWN cursor — reusing 'covered' here would
+     * advance it to n and silently empty the literal tail scan below. */
+    {
+        size_t t = pos;
+        while (buf + t < e){
+            unsigned char c = buf[t++];
+            if (c == '\n') nl++;
+            else if (c == '\0') nul = 1;
+        }
     }
     /* scalar tail for the literal (the [covered,n) region not yet scanned) */
     if (litlen > 0 && !litfound){

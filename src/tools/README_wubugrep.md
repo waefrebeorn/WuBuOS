@@ -1,56 +1,56 @@
 # WuBuGrep — C11 grep, dependency-free, our own matcher
 
-**“occupational supremacy of C11 code”** — WaefreBeorn Umbrella License v3.0.
+**"occupational supremacy of C11 code"** — WaefreBeorn Umbrella License v3.0.
 
 WuBuGrep is a from-scratch `grep` written in **strict C11** with **zero external
 dependencies** — no vectorscan, no RE2, no libpcre. We make our own matcher, our
 own regex engine, our own SIMD prefilter. It is bundled into a single
 **self-contained binary** and also acts as `wubucat` via `argv0` (one binary, many
-tools — Nathan Baggs’ “bundle tools” rule).
+tools).
 
-See **`WUBUGREP_SOTA.md`** for the full competitive analysis, benchmarks, and a
-triple devil's-advocate review of the SOTA claim.
+See **`WUBUGREP_SOTA.md`** for the full competitive analysis (fresh 4-way table
+vs ripgrep / GNU grep / ugrep), the honesty ledger of retracted claims, and the
+current triple devil's-advocate review.
 
 ## Why it exists
 
-Nathan Baggs’ video *“Why It’s So Hard To Write A Fast grep”* ends with his
-C++26 + vectorscan tool **losing to ripgrep by 80 ms**. So the bar is **ripgrep**.
-WuBuGrep beats it on the regex hot path and is **byte-identical** to GNU `grep`
-(POSIX oracle) on both fixed-string and regex modes, with BRE backreferences that
-ripgrep’s engine structurally cannot express.
+Nathan Baggs' video *"Why It's So Hard To Write A Fast grep"* ends with his
+C++26 + vectorscan tool **losing to ripgrep by 80 ms**. So the bar is **ripgrep**
+(and, measured, ugrep). WuBuGrep is **byte-exact** vs GNU `grep` on
+literal/BRE/ERE/ICASE (verified by `gauntlet.sh`), beats ripgrep on dense
+matching patterns, and owns a capability rg structurally lacks: **BRE
+backreferences**. Honest speed position: behind ugrep overall, competitive with
+rg on literals, ahead of rg on class-heavy matching and uppercase-reject.
 
 ## Architecture
 
-- **Literal mode** (`-F`/default): `memmem`-based whole-buffer fast-reject that
-  skips per-line splitting entirely — O(matches), not O(bytes). For multi-byte
-  needles a Boyer-Moore-Horspool scan backs off to.
-- **Regex mode** (`-E` ERE, `-G` BRE): our own **Thompson NFA → Pike VM** path
-  (`wubre.c`) **plus an eager subset-construction DFA** (`wubre_dfa.c`) for the
-  dense hot path. The DFA walk advances over runs of non-matching bytes using a
-  precomputed `skip` table (SIMD-accelerated byte-class classification), so it does
-  not visit every byte in the engine. Single left-to-right pass, safe on 4 GB
-  files. BRE is translated to ERE text, then parsed uniformly.
-  - **Literal prefilter** (`wubre_litpref.c` + `wubre_simd.c`): per-alternative
-    literal sets are extracted from the regex, then a **single-pass AVX2
-    multi-literal presence gate** (`wub_simd_any_literal_present`) proves in one
-    O(bytes) sweep whether any required literal is present — collapsing what was
-    N serial `memmem` scans into one. The gate runs **before** the line-index is
-    built, so absent-literal patterns (e.g. `foo|bar` not in corpus) skip the
-    entire O(bytes) index walk.
-  - **BRE backreferences** (`\1`..`\9`) compile via a separate recursive
-    backtracking matcher (a Thompson NFA cannot express backrefs) — the one regex
-    feature ripgrep’s engine lacks entirely; DoS-guarded with a 20 M-step budget
-    so pathological nested-backref patterns terminate in bounded time.
-  - **Word boundaries** `\b`/`\B` plus GNU `[[:<:]]`/`[[:>:]]` classes.
-  - POSIX character classes `[[:alpha:]]` etc., ranges, `]`-first literal, and
-    collating elements `[[.x.]]`/`[[=x=]]` (single-char elements valid; multi-char
-    unknown elements error, matching GNU grep).
-- **Parallel single-file scan**: a mmap’d file is split into line-aligned chunks,
-  each scanned by its own thread, output flushed in order. This is the lever that
-  beats ripgrep on big files.
-- **Recursive walk**: per-thread work-stealing directory queue; honors
-  `.gitignore`-plus defaults (`node_modules`, …) for rg-parity.
-- **mmap** for large files; buffered read fallback for small.
+- **Literal mode** (`-F`/default): `memmem`-based whole-buffer fast path that
+  jumps to each needle occurrence — O(matches), not O(bytes) — with
+  Boyer–Moore–Horspool backing the per-line fallback.
+- **Regex mode** (`-E` ERE, `-G` BRE): our own **Thompson NFA → Pike VM**
+  plus an eager **subset-construction DFA** (`wubre_dfa.c`) with a SIMD
+  byte-class skip table so the walker jumps runs of non-matching bytes for any
+  class. BRE is translated to ERE text, then parsed uniformly.
+  - **Literal-set prefilter** (`wubre_litpref.c`): per-alternative required
+    literal sets extracted at compile time (sound: only literals guaranteed to
+    appear are required).
+  - **SIMD presence gate** (`wub_simd_any_literal_present`): one AVX2 sweep
+    proves whether any required literal is present; absent ⇒ sound reject
+    before any line index is built.
+  - **Fused scan** (`wub_simd_line_nul_lit_stats`): for single-alternative
+    patterns, newline count + NUL detection + literal presence in ONE
+    128-byte-block pass (ugrep's one-pass technique, native C11). Probes the
+    **rarest** required literal (`wubre_litpref_rarest`, e.g. `the.*dog`
+    probes `dog`).
+  - **Lazy line index** (`rcb_build_index`): built only on the first actual
+    match — reject patterns never pay the O(bytes) walk.
+  - **BRE backreferences** (`\1`..`\9`) via a separate recursive backtracking
+    matcher, DoS-guarded (20 M-step budget). The one regex feature ripgrep's
+    engine cannot express.
+  - Word boundaries `\b`/`\B`, POSIX classes, collating elements.
+- **Parallel single-file scan**: mmap'd file split into line-aligned chunks,
+  one thread each, output flushed in order.
+- **Recursive walk**: sorted DFS, `.gitignore`-style excludes.
 
 ## Build
 
@@ -61,8 +61,8 @@ cc -O3 -flto -march=native -std=c11 -I. -o wubugrep wubugrep.c wubre.c \
 sh tools/build_wubugrep.sh
 ```
 
-`make wubugrep_static` produces a fully statically-linked, dependency-free binary.
-`wubugrep` is also built by `make tools` (the WuBuOS top-level `tools` target).
+`make wubugrep_static` produces a fully static binary; `make tools` builds it
+as part of WuBuOS.
 
 ## Usage
 
@@ -71,84 +71,66 @@ wubugrep [options] PATTERN [FILE|DIR ...]
   -i  case-insensitive        -v  invert match        -n  line numbers
   -c  count                   -l  files-with-match    -q  quiet (exit only)
   -w  match whole words       -x  match whole lines
-  -E  ERE (extended regex)    -G  BRE (basic regex)    -F  fixed string (default)
+  -E  ERE (extended regex)    -G  BRE (basic regex)   -F  fixed string (default)
   -r  recursive               --include=GLOB  --exclude=GLOB
   -a  treat binary as text    --no-color            -h  help
 ```
 
-Options may appear **before or after** the pattern (`wubugrep fox -r --include=*.txt`),
-matching GNU grep. Without `-r`, a directory argument is an error (exit 2), matching
-GNU grep.
+Options may appear before or after the pattern; a directory without `-r` is an
+error (exit 2) — both matching GNU grep.
 
-## Correctness
+## Correctness (the proof is differential, not declarative)
 
-Determinate differential testing is the proof:
+- **`gauntlet.sh`** (in this directory): literal default/-F/-i/-n/-c × 4
+  patterns, BRE × plain/`-n` × 10, ERE × plain/`-n` × 12, ICASE `-niE` × 4 —
+  **ALL byte-exact (md5) vs GNU grep**. Extend this script whenever a new
+  dispatch path lands; it is the regression gate that caught the literal-path
+  `-n` off-by-one.
+- Adversarial crafted corpus (rare literals, `zzzqqq.*the`-style fusions):
+  byte-exact; this corpus is what exposed two fused-scan soundness bugs
+  (tail-cursor reuse, prelude literal skip) — both fixed.
+- 50-trial randomized scalar-oracle test on the fused scan; 2000-random-slice
+  chunk-boundary check.
+- `wubre_test.c` unit suite: ALL PASS. **ASan + UBSan clean** across engine
+  patterns including the fused/rarest paths.
+- Known divergence (tracked, pre-existing): GNU grep's malformed-pattern
+  leniency in corner cases (unbalanced `)`, leading `*`, empty-alt `|`) is not
+  fully replicated. See WUBUGREP_SOTA.md §6.
 
-- **Regex parity**: byte-identical to `grep -E` / `grep -G` on the canonical GNU
-  `grep` test suites (`bre.tests` 64 cases, `ere.tests` 217 cases) and on a 24-case
-  in-repo ERE parity set, 11-case ICASE set, and 10-case BRE md5-parity set — all
-  **100%**. Match **counts** are also byte-identical to both GNU grep and ripgrep
-  on every tested pattern (e.g. `e.{2,4}r` → 454,333 on all three).
-- **Literal**: fuzz-diffed against GNU `grep` across thousands of
-  flag/corpus/pattern combinations, 0 divergence.
-- **BRE backtracking engine** (backreferences `\1`..`\9`): matches GNU grep
-  including nested backreferences inside a loop (`a\(\(b\)*\)*d`), anchored
-  backrefs, backref+class, and literal-`*` inside groups. This is the one regex
-  feature **ripgrep’s engine structurally cannot express** — WuBuGrep has it.
-- `wubre_test.c` unit-tests the engine directly (literals, anchors, dot,
-  star/plus, group quantifiers `(ab)+`, counted repetition `a{2}`/`a{2,4}`/`a{2,}`,
-  alternation, classes, icase, BRE `\( \) \| \? \{n\}` with correct
-  BRE-literal semantics, collating elements `[[.x.]]`/`[[=x=]]`, POSIX classes
-  `[:alpha:]`, and BRE backreferences `\1`..`\9`). **ASan + UBSan clean** over 19
-  engine patterns.
+## Benchmarks
 
-## Benchmarks (RTX 4050 host, WSL2 x86-64, AVX2; ripgrep 14.1.0, GNU grep 3.11)
+Fresh measured table (rev 3) lives in `WUBUGREP_SOTA.md`; regenerate with
+`bash bench_fresh.sh` (needs `/tmp/c3.txt`, rg, and the ugrep study build).
+Summary on the 28 MB / 1M-line corpus, count mode, best-of-3:
 
-Single large file, 28 MB / 1,000,000 lines (synthetic random-word corpus,
-`/tmp/c3.txt`). Best-of-7, output to `/dev/null`. Lower is better. Full table and
-the reproducible harness are in `WUBUGREP_SOTA.md`.
+| class | WuBuGrep | ripgrep | ugrep 7.8.4 |
+|---|---:|---:|---:|
+| dense matching (`[a-z]+`, `a+`) | **18–35 ms** | 59–73 ms | 4–5 ms |
+| simple literals (`the`, `error`) | 13–15 ms | 14–17 ms | 4–5 ms |
+| uppercase reject (`[A-Z]`) | **9–10 ms** | 45 ms | 28–29 ms |
+| alternation/quantifier reject | 12–27 ms | **8–9 ms** | 8–10 ms |
 
-| workload | WuBuGrep `-n` | GNU grep `-E` | ripgrep `-n` | verdict vs rg `-n` |
-|---|---:|---:|---:|---|
-| `[a-z]+` | 37 ms | 1.6 ms | 126 ms | **0.27× faster** ✅ |
-| `a+` | 21 ms | 1.8 ms | 108 ms | **0.20× faster** ✅ |
-| `[A-Z]` | 9 ms | 76 ms | 46 ms | **0.20× faster** ✅ |
-| `foo\|bar` | 8 ms | 36 ms | 9 ms | **0.88× faster** ✅ |
-| `a{2,4}` | 6 ms | 40 ms | 8 ms | **0.75× faster** ✅ |
-| `the` | 12 ms | 1.9 ms | 34 ms | **0.35× faster** ✅ |
-| `error` | 13 ms | 1.4 ms | 25 ms | **0.50× faster** ✅ |
-| `a.*b` | 19 ms | 1.9 ms | 81 ms | **0.24× faster** ✅ |
-| `the.*dog` | 13 ms | 1.9 ms | 20 ms | **0.66× faster** ✅ |
-| `(ab)+` | 6 ms | 33 ms | 8 ms | **~par (1.0×)** ✅ |
-| `[0-9a-f]+` | 36 ms | 1.9 ms | 133 ms | **0.27× faster** ✅ |
-| `[0-9]` | 9 ms | 20 ms | 7 ms | 1.3× slower (run-noise) |
+Honest: ugrep leads almost everywhere (its fixed cost is ~4 ms vs our ~13–27);
+we beat rg on the first and third rows, tie on literals, lose on reject rows.
+Run-to-run spread on our binary is up to ~30% on reject rows (two consecutive
+full tables observed); ranges above reflect the observed spread, not best-case.
 
-**WuBuGrep beats ripgrep on 11 / 12 single-file regex workloads**, is within
-run-to-run noise on the 12th, and beats **GNU grep on every regex workload**. All
-match counts are byte-identical to both reference engines.
+## SIMD acceleration (all ours, no vectorscan)
 
-## SIMD acceleration (our own, no vectorscan dependency)
-
-The prefilter stack is fully in-house:
-- **`wub_simd_any_literal_present`** (`wubre_simd.c`) — one AVX2 sweep (32 bytes/cycle
-  via `_mm256_cmpeq_epi8` + `movemask`) that proves whether any required literal is
-  present, with per-literal block overlap so it stays exact for literals ≤ 31 bytes.
-  This is our "Teddy-lite": a sound single-sweep presence test (vs Hyperscan/Teddy's
-  multi-pattern AC), enough to reject absent literals in one pass.
-- **DFA `skip` table** (`wubre_dfa.c`) — SIMD-accelerated byte-class classification
-  so the DFA walker jumps over runs of non-matching bytes instead of visiting each.
-- All SIMD is gated behind `__attribute__((target("avx2,...")))` with a scalar
-  fallback, so the binary builds/runs on any x86-64.
+- `wub_simd_any_literal_present` — single-sweep multi-literal presence gate.
+- `wub_simd_line_nul_stats` / `wub_simd_line_nul_lit_stats` — 128-byte-block
+  newline count + NUL detect (+ literal presence in the fused variant).
+- `wubre_litpref_rarest` — rarest-literal probe selection (Teddy/RSA idea).
+- DFA skip table (`wubre_dfa.c`) — SIMD byte-class runs.
+- All SIMD behind `__attribute__((target("avx2,...")))` with `force_align_arg_pointer`
+  on cross-TU entry points (a missing one caused a real SIGSEGV — see skill
+  notes) and scalar fallbacks everywhere.
 
 ## Known gaps (honest)
 
-- **Directory recursion / multi-GB / kernel-tree benchmarks** are not yet measured
-  against ripgrep or ugrep. The single-file claim above is scoped and reproducible;
-  the recursive/directory claim is future work (the `-r` walker exists and honors
-  gitignore-style excludes, but is not benchmarked).
-- **Rarest-literal selection** (rg's Teddy picks the *least-frequent* literal per
-  alternative; our gate uses *any* literal). For adversarial patterns whose only
-  literals are very rare deep inside the regex, Teddy's choice is a stronger
-  prefilter. Tracked as the next prefilter improvement.
-- **ugrep** (C++17, claims to beat rg) was not installed here, so not directly
-  compared.
+- Fixed per-file overhead (~13–20 ms) is above ugrep's (~4–12 ms) and rg's
+  (~8 ms) — the tracked gap.
+- Malformed-pattern corner cases differ from GNU grep (see above).
+- Directory recursion / multi-GB / kernel-tree benchmarks unmeasured.
+- Rarest-literal heuristic uses a static English frequency prior, not corpus
+  frequencies.
