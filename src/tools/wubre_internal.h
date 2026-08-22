@@ -165,6 +165,12 @@ void wubre_litpref_free(void *p);
  * with one literal (NULL otherwise). Used to merge the literal gate into the
  * newline+NUL SIMD scan. */
 const unsigned char *wubre_litpref_single_literal(const WURegex *re, int *len);
+/* Rarest-literal selector (ugrep Teddy/RSA technique): pick the required
+ * literal with the heuristically rarest first byte. mode 0 = single-alt
+ * prefilters only (sound as a fused-scan needle: absence of ANY literal of
+ * the sole alt rejects); mode 1 = any prefilter, probe-literal choice for a
+ * fused nl/nul scan that still runs the full gate. NULL if unsupported. */
+const unsigned char *wubre_litpref_rarest(const WURegex *re, int *len, int mode);
 /* Single-pass SIMD multi-literal presence check (wubre_simd.c). Returns 1 if
  * any literal is present, 0 if soundly absent, -1 if unsupported by SIMD. */
 int wub_simd_any_literal_present(const unsigned char *buf, size_t n,

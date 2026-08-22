@@ -470,11 +470,20 @@ static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_
     size_t run = 0;
     int has_nul = 0;
     const unsigned char *p = data;
-    /* fused single-literal gate setup (non-ICASE only; NULL otherwise) */
+    /* fused gate setup: RAREST-literal selection (ugrep Teddy/RSA technique).
+     * mode 0 = single-alt prefilters only, so absence of ANY literal of the
+     * alt rejects — but the fused scan probes just ONE literal, so we may
+     * only reject when the PROBED literal is absent AND it alone is
+     * sufficient. That holds iff the alt has exactly one literal (then
+     * probed == required) or the probe IS one of several AND-requireds...
+     * absence of one required literal DOES imply no match for that alt, and
+     * with a single alternative there are no others. So mode 0 + any probe
+     * literal from the sole alt is SOUND: if the probe (a required literal)
+     * is absent, the alt cannot match -> no match at all. */
     const unsigned char *flit = NULL; int flitlen = 0; int flit_present = 0;
     int gate_reject = 0;
     if (g_opt_regex && !g_opt_invert){
-        flit = wubre_litpref_single_literal(g_re, &flitlen);
+        flit = wubre_litpref_rarest(g_re, &flitlen, 0);
     }
     for (int i = 1; i < nth; i++) {
         const unsigned char *stop = data + starts[i];

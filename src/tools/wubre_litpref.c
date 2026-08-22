@@ -250,10 +250,72 @@ void wubre_litpref_free(void *p){ if (p) free(p); }
  * NULL. Used by the fast path that merges newline-count + NUL + literal
  * presence into one SIMD scan. Sound: returns non-NULL only for the trivial
  * single-literal case; anything else falls back to the general gate. */
+/* If the prefilter is a single literal run (exactly one alternative containing
+ * exactly one literal), return a pointer to it and set *len. Otherwise return
+ * NULL. Used by the fast path that merges newline-count + NUL + literal
+ * presence into one SIMD scan. Sound: returns non-NULL only for the trivial
+ * single-literal case; anything else falls back to the general gate.
+ *
+ * RAREST-LITERAL selection (ugrep Teddy/RSA technique): among the candidate
+ * literals we prefer the one whose FIRST BYTE is rarest in the haystack —
+ * a rare first byte minimizes candidate verification work. We approximate
+ * "rarest" without touching the buffer using a static English-letter
+ * frequency table (etaoin-shrdlu); for equal frequencies longer literals
+ * win (more verification per candidate = fewer false candidates). This is
+ * pure heuristic ordering — ANY choice stays sound because presence of the
+ * chosen literal is implied by presence of ALL literals (AND within an alt). */
+static const float LP_FREQ[256] = {
+    ['a']=8.2f,['b']=1.5f,['c']=2.8f,['d']=4.3f,['e']=12.7f,['f']=2.2f,
+    ['g']=2.0f,['h']=6.1f,['i']=7.0f,['j']=0.15f,['k']=0.77f,['l']=4.0f,
+    ['m']=2.4f,['n']=6.7f,['o']=7.5f,['p']=1.9f,['q']=0.095f,['r']=6.0f,
+    ['s']=6.3f,['t']=9.1f,['u']=2.8f,['v']=0.98f,['w']=2.4f,['x']=0.15f,
+    ['y']=2.0f,['z']=0.074f,
+};
+
 const unsigned char *wubre_litpref_single_literal(const WURegex *re, int *len){
     LitPref *lp = (LitPref*)re->litpref;
     if (!lp || lp->n != 1 || lp->alts[0].n != 1) return NULL;
     if (re->flags & WUBRE_ICASE) return NULL;  /* folded literals: exact path */
     *len = lp->alts[0].lits[0].len;
     return lp->alts[0].lits[0].s;
+}
+
+/* RAREST-literal selector: pick the literal whose FIRST byte is (heuristically)
+ * rarest, tie-broken by longer length. Scans ALL alternatives' literals; the
+ * chosen needle is a REQUIRED literal of SOME alternative — sound as a fused
+ * scan needle because the fused gate only rejects when this one literal is
+ * absent AND no other alternative could match... CAREFUL: with multiple
+ * alternatives, absence of ONE alternative's literal does not imply absence
+ * of a match. So this returns non-NULL ONLY when every alternative shares
+ * the same required first literal set is too strong; instead we restrict to
+ * patterns where all alternatives' literals are drawn from a single alt
+ * (i.e. single-alt) OR the caller uses it only for presence-OR gating.
+ * For safety we expose two modes:
+ *   mode 0 (fused): only valid for single-alternative prefilters — returns
+ *          the rarest literal of that alt (all its literals are required,
+ *          so absence of any one rejects).
+ *   mode 1 (gate): any prefilter — returns the globally rarest literal;
+ *          its PRESENCE proves nothing, but ABSENCE of ALL literals rejects,
+ *          which the general SIMD gate already does. Mode 1 exists for the
+ *          fused nl/nul+lit scan to at least pick the cheapest probe literal
+ *          when the caller still runs the full gate afterwards. */
+const unsigned char *wubre_litpref_rarest(const WURegex *re, int *len, int mode){
+    LitPref *lp = (LitPref*)re->litpref;
+    if (!lp || lp->n == 0) return NULL;
+    if (re->flags & WUBRE_ICASE) return NULL;
+    if (mode == 0 && lp->n != 1) return NULL;
+    const LPLit *best = NULL;
+    float bestscore = -1.0f;
+    for (int i=0;i<lp->n;i++){
+        for (int j=0;j<lp->alts[i].n;j++){
+            const LPLit *L = &lp->alts[i].lits[j];
+            if (L->len <= 0) continue;
+            /* score = rarity of first byte + small bonus per extra byte */
+            float score = 100.0f - LP_FREQ[L->s[0]] + 0.5f*(float)L->len;
+            if (score > bestscore){ bestscore = score; best = L; }
+        }
+    }
+    if (!best || best->len <= 0) return NULL;
+    *len = best->len;
+    return best->s;
 }
