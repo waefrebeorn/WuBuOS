@@ -140,6 +140,7 @@ typedef struct {
     const char *p, *end;
     Ctx *cx;
     char *err; size_t errsz;
+    int gdepth;          /* open '(' group depth; unmatched ')' is a literal */
 } P;
 
 /* ---- case fold ---- */

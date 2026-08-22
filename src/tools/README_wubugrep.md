@@ -130,7 +130,8 @@ full tables observed); ranges above reflect the observed spread, not best-case.
 
 - Fixed per-file overhead (~13–20 ms) is above ugrep's (~4–12 ms) and rg's
   (~8 ms) — the tracked gap.
-- Malformed-pattern corner cases differ from GNU grep (see above).
+- ~~Malformed-pattern corner cases differ from GNU grep~~ **FIXED**: 100% on
+  `ere.tests` (217/217) and `bre.tests` (64/64) plus the adversarial sweep.
 - Directory recursion / multi-GB / kernel-tree benchmarks unmeasured.
 - Rarest-literal heuristic uses a static English frequency prior, not corpus
   frequencies.

@@ -121,8 +121,29 @@ static LitPref parse_seq(const char **pp, const char *end, int depth){
         if (c == '['){
             if (runn) dnf_and_lit(&cur, run, runn);
             runn = 0;
-            while (p < end && *p != ']') p++;
-            if (p < end) p++;
+            /* Bracket-expression skip, GNU-correct:
+             * - a ']' immediately after '[' or '[^' is a literal ']' (content)
+             * - an inner [:...:], [[.x.]] or [[=x=]] token may contain ']';
+             *   scan to its closer first, then to the class's real ']' */
+            const char *q = p+1;
+            if (*q=='^') q++;
+            if (q < end && *q==']') q++;   /* ']' first in class = literal ] */
+            p = q;
+            while (p < end){
+                if (p[0]=='[' && p[1]==':' ){
+                    const char *r=p+2; while (r+1<end && !(r[0]==':'&&r[1]==']')) r++;
+                    if (r+1<end){ p=r+2; continue; }
+                    break; /* malformed: fall through to plain scan */
+                }
+                if (p[0]=='[' && (p[1]=='.'||p[1]=='=')){
+                    char cl = p[1];
+                    const char *r=p+2; while (r+1<end && !(r[0]==cl&&r[1]==']')) r++;
+                    if (r+1<end){ p=r+2; continue; }
+                    break;
+                }
+                if (*p==']'){ p++; break; }
+                p++;
+            }
             continue;
         }
         if (c == '^' || c == '$' || c == '.'){
@@ -133,6 +154,19 @@ static LitPref parse_seq(const char **pp, const char *end, int depth){
             /* optional: only the LAST char of the run is optional -> keep the
              * required prefix (all but the last char). */
             if (runn > 1) dnf_and_lit(&cur, run, runn-1);
+            if (runn == 0){
+                /* GNU grep: a quantifier with no preceding atom is an EMPTY
+                 * ATOM repeated — i.e. it can match the empty string. An
+                 * alternative containing only such atoms matches EVERY line,
+                 * so NO literal is required anywhere in this pattern: the
+                 * gate must become permissive (empty alternatives = pass).
+                 * Represent that by resetting cur to a single empty alt,
+                 * which dnf-ORs "matches empty" into every alternative and
+                 * makes wubre_litpref_gate always return 1 (lp->alts[i].n==0
+                 * for all => 'any' stays false in _build => litpref=NULL). */
+                cur.n = 0;
+                LPAlt e2; e2.n = 0; cur.alts[cur.n++] = e2;
+            }
             runn = 0; p++; continue;
         }
         if (c == '+'){
@@ -190,6 +224,11 @@ int wubre_litpref_gate(const WURegex *re, const unsigned char *buf, size_t n){
     LitPref *lp = (LitPref*)re->litpref;
     if (!lp || lp->n == 0) return 1;       /* no gate -> always pass */
     int icase = (re->flags & WUBRE_ICASE) != 0;
+    /* An alternative with ZERO required literals (e.g. from an empty-side
+     * quantifier like "qfm|*": the '*' alt can match empty) matches every
+     * buffer unconditionally — the gate must ALWAYS pass. */
+    for (int i=0;i<lp->n;i++)
+        if (lp->alts[i].n == 0) return 1;
     if (!icase){
         /* Single-pass SIMD presence check: gather every literal across all
          * alternatives into one array and prove, in ONE sweep, whether ANY of

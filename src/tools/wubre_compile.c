@@ -193,6 +193,14 @@ static Frag parse_class(P *ps){
         }
     }
     if (ps->p<ps->end && *ps->p==']') ps->p++;
+    /* GNU grep semantics: bracket expressions never match '\n' (grep works
+     * line-by-line, so a negated class can never span a line). Our
+     * whole-buffer engine CAN see '\n', so exclude it from negated classes
+     * explicitly or patterns like a[^]b]c match across lines. */
+    if (neg){
+        int x=(unsigned char)'\n';
+        bits[x>>3]|=(1u<<(x&7));
+    }
     State *s = add_state(ps->cx->re, CHR);
     s->cl=2; s->bits=bits; s->neg=neg?1:0;
     Frag f = { .start=(int)(s-ps->cx->re->st),
@@ -208,7 +216,9 @@ static Frag parse_atom(P *ps){ /* identical to current engine */
     if (ch=='*' || ch=='+' || ch=='?'){ ps->p++; return empty_frag(ps->cx); }
     if (ch=='('){
         ps->p++;
+        ps->gdepth++;
         Frag f=parse_alt(ps);
+        ps->gdepth--;
         if (ps->p<ps->end && *ps->p==')') ps->p++;
         f.src=s0; f.src_end=ps->p;
         return f;
@@ -341,7 +351,19 @@ static Frag parse_concat(P *ps){
     Frag f = FRAG_NULL; int have=0;
     while (ps->p<ps->end){
         char ch=*ps->p;
-        if (ch=='|'||ch==')') break;
+        if (ch=='|') break;
+        if (ch==')'){
+            /* GNU grep: an unmatched ')' is a LITERAL ')'. Only stop when it
+             * closes a group opened by parse_atom's '(' branch. */
+            if (ps->gdepth > 0) break;
+            ps->p++;
+            State *s=add_state(ps->cx->re,CHR); s->cl=0; s->c=')';
+            Frag a={.start=(int)(s-ps->cx->re->st),.out=dangle_one(ps->cx,(int)(s-ps->cx->re->st),0)};
+            a.src=ps->p-1; a.src_end=ps->p;
+            if (!have){ f=a; have=1; }
+            else { patch_to(ps->cx, f.out, a.start); f.out=a.out; }
+            continue;
+        }
         Frag a=parse_quant(ps);
         if (!have){ f=a; have=1; }
         else { patch_to(ps->cx, f.out, a.start); f.out=a.out; }
@@ -683,7 +705,7 @@ WURegex *wubre_compile(const char *pat, int flags, char *err, size_t errsz){
                     }
     }
     Ctx cx; cx.re=re; cx.all=NULL;
-    P ps; ps.p=use; ps.end=use+strlen(use); ps.cx=&cx; ps.err=err; ps.errsz=errsz;
+    P ps; ps.p=use; ps.end=use+strlen(use); ps.cx=&cx; ps.err=err; ps.errsz=errsz; ps.gdepth=0;
     if (ps.p>=ps.end){ State *m=add_state(re,MATCH); re->start=(int)(m-re->st); free(trans); return re; }
     Frag f=parse_alt(&ps);
     if (err && err[0]){ free(trans); return NULL; }

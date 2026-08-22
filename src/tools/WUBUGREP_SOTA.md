@@ -101,13 +101,26 @@ tables swung up to ~30% on reject rows — see Devil #2).
 
 ### Correctness — exact, not close
 
+- **Canonical GNU grep test suites: ERE `ere.tests` 217/217 (100.0%) and BRE
+  `bre.tests` 64/64 (100.0%) byte-identical** (`external_tests/run_grep_tests.py`).
 - Full parity gauntlet (`gauntlet.sh`): literal default/-F/-i/-n/-c × 4 patterns,
   BRE × plain/`-n` × 10 patterns, ERE × plain/`-n` × 12 patterns, ICASE `-niE`
   × 4 — **ALL byte-exact (md5) vs GNU grep**.
-- Adversarial crafted corpus (rare literals + fusions like `zzzqqq.*the`,
-  `the|zzzqqq`, `[t-z]he`): all byte-exact.
+- Adversarial suite (`fuzz_adversarial.sh`, 100 cases over 4 corpora):
+  malformed patterns (unbalanced `)`, leading `*`, empty-alt `|`),
+  rare-literal fusions, POSIX classes — **0 divergences**.
 - Unit suite `wubre_test.c`: ALL PASS. ASan+UBSan clean across engine patterns
-  including the new fused/rarest paths.
+  including the fused/rarest paths.
+
+**Correctness bugs fixed to reach 100% (all found by the rev-3 audit):**
+1. Unmatched `)` is a literal in GNU grep; our parser stopped at it.
+2. A quantifier with no preceding atom (`qfm|*`) makes that alternative match
+   empty — every line matches and NO literal is required; our gate still
+   required the left alternative's literals → false rejects.
+3. Negated bracket expressions must never match `\n` (grep is line-oriented);
+   our whole-buffer engine let `a[^]b]c` span lines → false positives.
+4. The litpref class-skip mishandled `]`-first classes and `[[:alpha:]]`-style
+   inner tokens, producing wrong required literals (`]c`) → gate false rejects.
 
 ---
 
@@ -182,14 +195,13 @@ what the audit FOUND.
 - **True, and stated plainly:** ugrep beats us on 11–12 of 12 patterns; rg beats
   us on 3–4 reject patterns. We do not hold the speed crown in any category
   except `[A-Z]`-style uppercase-reject (where rg and ugrep both stumble).
-- What IS defensible: byte-exact GNU-grep parity INCLUDING malformed-pattern
-  leniency on the main paths, BRE backreferences (rg lacks them), zero deps,
-  and a fully owned stack. That is an engineering result, not a speed crown.
-- Pre-existing divergence found during this audit (NOT fixed yet, tracked):
-  unbalanced `)` and leading `*`/`|` malformed-pattern leniency differs from
-  GNU grep in corner cases (e.g. `qfm|*` — grep treats trailing `*` as literal,
-  matching every line; we error/return none; empty left-alt `|x` should match
-  everything). Present at HEAD before this wave; documented as gap §6.6.
+- What IS defensible: **100% byte-exact parity with GNU grep on the canonical
+  ERE (217/217) and BRE (64/64) test suites plus the adversarial malformed-
+  pattern sweep**, BRE backreferences (rg lacks them), zero deps, and a fully
+  owned stack. That is an engineering result, not a speed crown.
+- Malformed-pattern divergence (found during this audit): **FIXED** —
+  unbalanced `)`, leading `*`/`|` empty-alternatives, and negated-class
+  newline semantics now match GNU grep exactly (see §Correctness).
 
 ### Verdict
 
@@ -239,7 +251,6 @@ overall, zero dependencies."* The earlier broad "SOTA" framing is retired.
    per-file setup path; consider skipping the chunk-split when size < 1 MB.
 2. Corpus-measured rarity: replace the static frequency prior with a cheap
    first-pass byte histogram (one SIMD popcount pass) when the file is reused.
-3. Malformed-pattern leniency: unbalanced `)` / leading `*` / empty-alt `|`
-   divergence vs GNU grep (pre-existing; see Devil #3).
+3. ~~Malformed-pattern leniency~~ **CLOSED** — 100% on canonical suites.
 4. Emit-path batching for dense-match `-n` output.
 5. Kernel-tree / multi-GB benchmark to extend the measured surface honestly.
