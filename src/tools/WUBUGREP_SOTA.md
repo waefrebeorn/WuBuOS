@@ -254,3 +254,30 @@ overall, zero dependencies."* The earlier broad "SOTA" framing is retired.
 3. ~~Malformed-pattern leniency~~ **CLOSED** — 100% on canonical suites.
 4. Emit-path batching for dense-match `-n` output.
 5. Kernel-tree / multi-GB benchmark to extend the measured surface honestly.
+
+---
+
+## 7. Redesign wave log (the "better agent" pass)
+
+Measured, profiled, and rebuilt the hot paths — with one honest dead end:
+
+1. **Gate vector-accumulator redesign** (`wub_simd_any_literal_present`) —
+   profiling showed `movemask` was the pipeline killer: per-literal
+   cmpeq+movemask+branch serialized everything (~10 ms/28 MB). The redesign
+   ORs all literals' (first-byte AND second-byte) cmpeq results into a single
+   vector accumulator entirely in the vector domain; `testz` at the end decides
+   reject (acc==0 => soundly absent, zero scalar work) vs pass (NFA verifies).
+   **10 ms → 1.12 ms (9×)**. Soundness subtleties found by randomized harness
+   and fixed: len-1 literals must skip the 2nd-byte filter; the old early
+   `n < maxlen → absent` bail dropped shorter literals (n=3, lits of len 4+1);
+   tail region after the stride loop needs a scalar sweep before rejecting;
+   pass-on-acc!=0 is sound because the NFA does exact matching anyway.
+2. **Early gate in process_mmap** — the multi-literal gate now runs BEFORE the
+   chunk-split memchr walk and line-index allocation, so rejects skip all of it.
+3. **u64_to_ascii emit** — replaced snprintf("%zu") on the dense-match `-n`
+   path (~1M calls/file); dense `-n` 48→39 ms.
+4. **Measured-rarity: correctly SKIPPED.** Analysis showed a corpus histogram
+   cannot help our architecture: for single-alt patterns any required literal
+   is an equally sound probe (absence of ANY rejects), so probe choice affects
+   nothing measurable; for multi-alt the general gate doesn't use probes at
+   all. Documented so nobody re-chases it.

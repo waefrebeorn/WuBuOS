@@ -229,6 +229,17 @@ static int buffer_is_binary(const unsigned char *base, size_t size) {
     return memchr(base, 0, size) != NULL;
 }
 
+/* Hand-rolled u64 -> ASCII: snprintf is ~60-80 cycles for "%zu"; this is
+ * ~10 and it's on the dense-match emit path (1M+ calls per file). Returns
+ * the number of bytes written into dst (dst needs >= 20 bytes). */
+static int u64_to_ascii(char *dst, size_t v) {
+    char tmp[20];
+    int n = 0;
+    do { tmp[n++] = (char)('0' + (v % 10)); v /= 10; } while (v);
+    for (int i = 0; i < n; i++) dst[i] = tmp[n-1-i];
+    return n;
+}
+
 /* Emit one matched line with optional color. line points at line start,
  * llen is the line length (excluding any trailing newline). */
 static void emit_line(obuf_t *out, const char *fname, size_t line_no,
@@ -240,7 +251,7 @@ static void emit_line(obuf_t *out, const char *fname, size_t line_no,
         obuf_put(out, ":", 1);
     }
     if (g_opt_line) {
-        char nb[24]; int L = snprintf(nb, sizeof nb, "%zu", line_no);
+        char nb[24]; int L = u64_to_ascii(nb, line_no);
         if (g_opt_color) obuf_put(out, COL_LNO, sizeof(COL_LNO)-1);
         obuf_put(out, nb, (size_t)L);
         if (g_opt_color) obuf_put(out, COL_RESET, sizeof(COL_RESET)-1);
@@ -441,10 +452,27 @@ static int nproc(void) {
 }
 
 static void process_mmap(const unsigned char *data, size_t size, obuf_t *single_out, const char *fname) {
+    /* REDESIGN R1: run the literal gate BEFORE any other work. The old order
+     * built starts[] (a full memchr walk over the file) and the cum/nlbefore
+     * arrays before discovering the gate could reject everything. Now a
+     * multi-literal reject costs only the ~1.1ms vector sweep + emit of the
+     * zero result — no chunk split, no line-index walk, no thread spawn.
+     * The per-chunk fused scan below still runs for the non-reject paths. */
     int nth = nproc();
     if (nth > 16) nth = 16;
-    /* only parallelize if file is large enough to amortize thread spawn */
     if ((size_t)nth * (1 << 20) > size) nth = 1;
+
+    /* early gate: multi-literal / non-fusable patterns reject here */
+    if (g_opt_regex && !g_opt_invert && !wubre_litpref_rarest(g_re, &(int){0}, 0)){
+        if (wubre_litpref_gate(g_re, data, size) == 0){
+            if (g_opt_count && !(g_opt_invert && g_plen == 0)) {
+                char nb[24]; int L = snprintf(nb, sizeof nb, "0");
+                if (g_multi && single_out && fname) { obuf_put(single_out, fname, strlen(fname)); obuf_put(single_out, ":", 1); }
+                obuf_put(single_out, nb, (size_t)L); obuf_put(single_out, "\n", 1);
+            }
+            return;
+        }
+    }
 
     size_t *starts = malloc((size_t)(nth + 1) * sizeof(size_t));
     starts[0] = 0;

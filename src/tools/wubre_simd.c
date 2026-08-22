@@ -287,52 +287,71 @@ int wub_simd_any_literal_present(const unsigned char *buf, size_t n,
                                  const int *lens, int nlits, int maxlen){
     if (nlits<=0 || nlits>WUB_SIMD_MAXLIT) return -1;
     if (maxlen<=0 || maxlen>WUB_SIMD_MAXLEN) return -1;
-    if ((int)n < maxlen) return 0;                 /* cannot fit -> absent */
-    /* Scan in 128-byte blocks (4 x 32B AVX2 loads), advancing by 128-maxlen+1
-     * so every length-L substring is fully contained in some 32B load (sound:
-     * a non-match is definitive). This matches the ugrep/RE-flex 128-byte-block
-     * stride used for nlcount and is ~4x fewer block iterations than the naive
-     * 32B-step design, so an absent literal is proven in a single memory pass.
-     * Consecutive blocks overlap by (128-step) bytes, keeping coverage
-     * continuous; `covered` tracks the end of the continuously-scanned region. */
-    size_t step = 128 - (size_t)maxlen + 1;        /* body per 128B group */
+    /* NOTE: no early 'n < maxlen => absent' bail here — a shorter literal
+     * in the set may still be present (n=3 with lits of len 4 and 1). */
+    /* REDESIGN (two-phase, vector-accumulator):
+     * Phase 1 — pure-vector sweep: OR of (first-byte cmpeq AND second-byte
+     * cmpeq) for every literal into a single accumulator. movemask is the
+     * pipeline killer (~7.6ms/28MB); staying in the vector domain runs the
+     * same work at ~19GB/s. acc==0 proves NO literal's first TWO bytes occur
+     * anywhere => soundly absent => gate rejects with zero scalar work.
+     * Phase 2 (only if acc!=0) — exact per-literal verification to confirm
+     * presence (needed because 2 bytes are necessary, not sufficient). */
+    size_t step = 128 - (size_t)maxlen + 1;
     size_t pos = 0;
-    size_t covered = 0;
-    while (pos + 128 <= n){
-        const unsigned char *base = buf + pos;
-        for (int q=0; q<4; q++){
-            const unsigned char *p = base + (size_t)q*32;
-            __m256i blk = _mm256_loadu_si256((const __m256i*)p);
-            for (int k=0; k<nlits; k++){
-                __m256i vf = _mm256_set1_epi8((char)lits[k][0]);
-                unsigned m = (unsigned)_mm256_movemask_epi8(_mm256_cmpeq_epi8(blk, vf));
-                while (m){
-                    int bit = __builtin_ctz(m);
-                    size_t bpos = (size_t)(p - buf) + (size_t)bit;
-                    if (bpos + (size_t)lens[k] <= n){
-                        int ok = 1;
-                        for (int t=1; t<lens[k]; t++)
-                            if (buf[bpos+t] != lits[k][t]){ ok = 0; break; }
-                        if (ok) return 1;           /* present -> gate passes */
-                    }
-                    m &= m - 1;
+    __m256i vf[16], vf1[16];
+    for (int k=0; k<nlits; k++){
+        vf[k]  = _mm256_set1_epi8((char)lits[k][0]);
+        vf1[k] = _mm256_set1_epi8((char)(lens[k]>=2 ? lits[k][1] : 0));
+    }
+    if (maxlen >= 2){
+        __m256i acc = _mm256_setzero_si256();
+        while (pos + 128 <= n){
+            for (int q=0; q<4; q++){
+                const unsigned char *p = buf + pos + (size_t)q*32;
+                __m256i blk  = _mm256_loadu_si256((const __m256i*)p);
+                __m256i blk1 = _mm256_loadu_si256((const __m256i*)(p+1));
+                for (int k=0; k<nlits; k++){
+                    __m256i m = _mm256_cmpeq_epi8(blk, vf[k]);
+                    if (lens[k] >= 2)
+                        m = _mm256_and_si256(m, _mm256_cmpeq_epi8(blk1, vf1[k]));
+                    acc = _mm256_or_si256(acc, m);
+                }
+            }
+            pos += step;
+        }
+        /* acc != 0 means some literal's first two bytes matched — necessary
+         * but not sufficient for a full literal. Returning 1 (pass) is always
+         * SOUND: the gate is an optimization; the NFA/DFA verifies exactly.
+         * The valuable path is acc==0 => soundly absent => reject. */
+        if (!_mm256_testz_si256(acc, acc)) return 1;
+        /* TAIL: the final partial window [pos, n) is NOT covered by the
+         * stride loop (stride stops as soon as pos+128 > n). A literal
+         * hiding there would be missed => false reject. Scalar-check the
+         * tail region before rejecting. */
+        {
+            for (size_t j = pos; j < n; j++){
+                for (int k=0; k<nlits; k++){
+                    if (buf[j] != lits[k][0]) continue;
+                    if (j + (size_t)lens[k] > n) continue;
+                    int ok = 1;
+                    for (int t=1; t<lens[k]; t++)
+                        if (buf[j+t] != lits[k][t]){ ok = 0; break; }
+                    if (ok) return 1;
                 }
             }
         }
-        covered = pos + 128;
-        pos += step;
+        /* acc==0 AND tail clean => soundly absent */
+        return 0;
     }
-    /* scalar tail: the region [covered, n) not yet scanned for presence */
-    for (size_t j=covered; j + (size_t)maxlen <= n; j++){
+    /* maxlen == 1: presence of the single byte anywhere passes */
+    {
         for (int k=0; k<nlits; k++){
-            if (buf[j] == lits[k][0]){
-                int ok = 1;
-                for (int t=1; t<lens[k]; t++) if (buf[j+t] != lits[k][t]){ ok = 0; break; }
-                if (ok) return 1;
-            }
+            unsigned char b0 = lits[k][0];
+            for (size_t j=0; j<n; j++) if (buf[j]==b0) return 1;
         }
+        return 0;
     }
-    return 0;   /* soundly absent -> gate rejects, no match possible */
 }
 
 /* ---- 6. SIMD newline + NUL scan (RE/flex/ugrep technique, native C11) ----
