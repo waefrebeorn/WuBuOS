@@ -5,6 +5,7 @@
  * C11, self-contained.
  */
 #include <stdint.h>
+#include "wubu_tgemm.h"
 #include "wubu_softfloat.h"
 #include <stdlib.h>
 #include <string.h>
@@ -185,6 +186,32 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
             case 8:  r = (wubu_sf_f32_cmp(fa,fb) <0)?0xFFFFFFFFu:0; break;
             case 9:  r = (wubu_sf_f32_cmp(fa,fb)<=0)?0xFFFFFFFFu:0; break;
             case 11: r = fa; cpu.fret_valid = 1; cpu.r[2] = (int32_t)r; break;
+            case 12: { /* TGEMM: dst/sa/sb = absolute A/B/C cells;
+                        * stream M,N,K then M*K + K*N LE int64 cells. */
+                {
+                    int mm = code[cpu.pc++], nn = code[cpu.pc++], kk = code[cpu.pc++];
+                    for (int c = 0; c < mm*nn + nn*kk; c++) {
+                        uint64_t v = 0;
+                        for (int b = 0; b < 8; b++)
+                            v |= (uint64_t)code[cpu.pc++] << (8*b);
+                        uint32_t cell = (c < mm*nn ? dst : sa)
+                                      + (c < mm*nn ? c : c - mm*nn);
+                        for (int b = 0; b < 8; b++)
+                            cpu.mem[cell*8 + b] = (uint8_t)(v >> (8*b));
+                    }
+                    wubu_tgemm_mem8(cpu.mem, dst, sa, sb, mm, nn, kk);
+                }
+                break;
+            }
+            case 13: { /* TGET: dst = sp-relative frame slot, sa = abs cell. */
+                size_t off = (size_t)sa * 8;
+                uint32_t slot_addr = (uint32_t)((int32_t)basev + dst);
+                for (int b = 0; b < 8; b++)
+                    cpu.mem[slot_addr + b] = cpu.mem[off + b];
+                r = (uint32_t)(cpu.mem[off] | (cpu.mem[off+1]<<8)
+                             | (cpu.mem[off+2]<<16) | ((uint32_t)cpu.mem[off+3]<<24));
+                break;
+            }
             default: break;
             }
             write32(&cpu, basev + dst, r);

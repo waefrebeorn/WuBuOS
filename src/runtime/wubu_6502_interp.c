@@ -23,6 +23,7 @@
 #include <string.h>
 
 #include "wubu_softfloat.h"
+#include "wubu_tgemm.h"
 
 #define CPU6502_MEM 65536  /* 64K address space */
 
@@ -308,6 +309,38 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
                     case 8:  r = (wubu_sf_f32_cmp(fa, fb)  < 0) ? 0xFFFFFFFFu : 0; break;
                     case 9:  r = (wubu_sf_f32_cmp(fa, fb) <= 0) ? 0xFFFFFFFFu : 0; break;
                     case 11: r = fa; cpu.fret = fa; cpu.fret_valid = 1; break; /* FRET */
+                    case 12: { /* TGEMM: descriptor continues after prologue.
+                                * dst=A_lo, sa=A_hi, sb=B_lo already consumed.
+                                * Read: B_hi, C:2, M, N, K, then payloads. */
+                        uint16_t gb = (uint16_t)((uint16_t)sb | ((uint16_t)code[cpu.pc] << 8));
+                        uint16_t gc = (uint16_t)(code[cpu.pc+1] | (code[cpu.pc+2] << 8));
+                        int m = code[cpu.pc+3], n = code[cpu.pc+4], k = code[cpu.pc+5];
+                        cpu.pc += 6;
+                        /* stage A (m*k cells) and B (k*n cells), LE int64 */
+                        for (int c = 0; c < m*k + k*n; c++)
+                            for (int b = 0; b < 8; b++)
+                                cpu.mem[((c < m*k ? (uint16_t)dst : gb - m*k) + c) * 8 + b]
+                                    = code[cpu.pc++];
+                        wubu_tgemm_mem8(cpu.mem,
+                                        (uint16_t)((uint16_t)dst | ((uint16_t)sa << 8)),
+                                        gb, gc, m, n, k);
+                        r = 0;
+                        break;
+                    }
+                    case 13: { /* TGET: prologue consumed dst=zdst, sa=c_lo, sb=c_hi */
+                        uint16_t cell = (uint16_t)((uint16_t)sa | ((uint16_t)sb << 8));
+                        size_t off = (size_t)cell * 8;
+                        uint32_t lo = (uint32_t)cpu.mem[off]
+                                    | ((uint32_t)cpu.mem[off+1] << 8)
+                                    | ((uint32_t)cpu.mem[off+2] << 16)
+                                    | ((uint32_t)cpu.mem[off+3] << 24);
+                        cpu.mem[dst+0] = (uint8_t)(lo & 0xFF);
+                        cpu.mem[dst+1] = (uint8_t)((lo >> 8) & 0xFF);
+                        cpu.mem[dst+2] = (uint8_t)((lo >> 16) & 0xFF);
+                        cpu.mem[dst+3] = (uint8_t)((lo >> 24) & 0xFF);
+                        r = lo;
+                        break;
+                    }
                 default: r = 0; break;
                 }
                 /* write 4-byte result to dst ZP slot (little-endian)

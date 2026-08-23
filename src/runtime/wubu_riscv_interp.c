@@ -10,6 +10,7 @@
  * C11, self-contained.
  */
 #include <stdint.h>
+#include "wubu_tgemm.h"
 #include "wubu_softfloat.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -291,6 +292,33 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
             case 8:  r = (wubu_sf_f32_cmp(fa, fb)  < 0) ? 0xFFFFFFFFu : 0; break;
             case 9:  r = (wubu_sf_f32_cmp(fa, fb) <= 0) ? 0xFFFFFFFFu : 0; break;
             case 11: r = fa; cpu.fret = fa; cpu.fret_valid = 1; break;
+            case 12: { /* TGEMM: dst=Acell sa=Bcell sb=Ccell (abs cells);
+                        * stream M,N,K then M*K + K*N LE int64 cells. */
+                if (cpu.pc + 3 > size) break;
+                {
+                    int mm = code[cpu.pc++], nn = code[cpu.pc++], kk = code[cpu.pc++];
+                    for (int c = 0; c < mm*nn + nn*kk; c++) {
+                        uint64_t v = 0;
+                        for (int b = 0; b < 8; b++)
+                            v |= (uint64_t)code[cpu.pc++] << (8*b);
+                        uint32_t cell = (c < mm*nn ? dst_off : sa_off)
+                                      + (c < mm*nn ? c : c - mm*nn);
+                        for (int b = 0; b < 8; b++)
+                            cpu.mem[cell*8 + b] = (uint8_t)(v >> (8*b));
+                    }
+                    wubu_tgemm_mem8(cpu.mem, dst_off, sa_off, sb_off, mm, nn, kk);
+                }
+                break;
+            }
+            case 13: { /* TGET: dst_off=frame slot, sa_off=abs cell.
+                        * Write the full 8-byte cell into the frame slot. */
+                size_t off = (size_t)sa_off * 8;
+                uint8_t *slot = &cpu.mem[cpu.x[8] + dst_off];
+                for (int b = 0; b < 8; b++) slot[b] = cpu.mem[off + b];
+                r = (uint32_t)(cpu.mem[off] | (cpu.mem[off+1]<<8)
+                             | (cpu.mem[off+2]<<16) | ((uint32_t)cpu.mem[off+3]<<24));
+                break;
+            }
             default: break;
             }
             dst_p[0] = (uint8_t)(r & 0xFF);
