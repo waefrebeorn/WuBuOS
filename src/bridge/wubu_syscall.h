@@ -12,7 +12,7 @@
  * HolyC calls these as normal functions:
  *   I64 x = VBEFillRect(100, 100, 200, 200, 0xFF0000);
  *
- * The bridge registers them in HCGen.functions table with func_ptr
+ * The bridge registers them in HDGen.functions table with func_ptr
  * pointing to a syscall trampoline that does `syscall` instruction.
  */
 
@@ -113,8 +113,8 @@ int64_t sys_sleep(int64_t ms, int64_t _unused, int64_t _unused2, int64_t _unused
 int wubu_syscall_register_all(void);
 
 /* Setup HolyC compiler external function table */
-/* Call this from HCCompiler initialization to expose syscalls to HolyC */
-int wubu_holyc_register_syscalls(void *hc_compiler);
+/* Call this from HDCompiler initialization to expose syscalls to HolyC */
+int wubu_holyc_register_syscalls(void *hd_compiler);
 
 /* Syscall trampoline - assembly stub that does `syscall` instruction */
 /* Returns address of syscall entry point for given syscall number */

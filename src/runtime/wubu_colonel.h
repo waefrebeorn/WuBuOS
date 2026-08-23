@@ -3,7 +3,7 @@
  * C11. The HolyC Colonel (the TempleOS/ZealOS lineage) is the OS core:
  * EVERY command -- app launches, OS actions, cross-OS payloads, AGI
  * evals -- dispatches through the Colonel. This module routes a
- * command string to the HolyC engine (hc_eval) and returns a typed
+ * command string to the HolyC engine (hd_eval) and returns a typed
  * result. The unit tests drive it WITHOUT the GUI (the pure core).
  */
 #ifndef WUBU_COLONEL_H

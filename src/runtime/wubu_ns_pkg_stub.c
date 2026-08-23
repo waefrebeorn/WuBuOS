@@ -11,7 +11,7 @@
  * wubu_ns_kernel.c / wubu_ns_pkg.c / wubu_pkg.c and are linked by the
  * kernel/runtime builds (test_ns_*, test_pkgmgr, the real shell).
  *
- * Matches the wubu_hc_eval_stub.c pattern ("runtime without the full
+ * Matches the wubu_hd_eval_stub.c pattern ("runtime without the full
  * subsystem": return the contract value, no-op).
  */
 #include <stdint.h>

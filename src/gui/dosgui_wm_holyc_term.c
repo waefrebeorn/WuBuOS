@@ -17,7 +17,7 @@
 #include "dosgui_wm_internal.h"
 #include "dosgui_wm_holyc_term.h"
 
-#include "holyc_codegen.h"   /* public compiler API: hc_eval */
+#include "holyd_codegen.h"   /* public compiler API: hd_eval */
 
 #include <stdlib.h>
 #include <string.h>
@@ -27,7 +27,7 @@
 
 static int holyc_eval_default(const char *src, char *out, size_t out_size) {
     if (!src || !out || out_size == 0) return -1;
-    int64_t r = hc_eval(src);
+    int64_t r = hd_eval(src);
     snprintf(out, out_size, "%lld", (long long)r);
     return 0;
 }

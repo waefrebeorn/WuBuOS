@@ -76,8 +76,8 @@ WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size) {
 WubuDosProc *wubu_dos_proc_launch(const char *dos_path, int fmt) { (void)dos_path;(void)fmt; return NULL; }
 void wubu_dos_proc_destroy(WubuDosProc *p) { (void)p; }
 WubuDosProcState wubu_dos_proc_state(const WubuDosProc *p) { (void)p; return 0; }
-/* hc_eval is the HolyC JIT — stub it */
-int hc_eval(const char *src) { (void)src; return 0; }
+/* hd_eval is the HolyC JIT — stub it */
+int hd_eval(const char *src) { (void)src; return 0; }
 /* arch/os names needed by OCI (real impl in wubu_image.h, not linked here) */
 const char *wubu_arch_name(int arch) { (void)arch; return "x86_64"; }
 const char *wubu_os_name(int os) { (void)os; return "linux"; }

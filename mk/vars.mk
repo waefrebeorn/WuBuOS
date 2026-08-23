@@ -22,3 +22,9 @@ AUDIO   = src/audio
 SHELL_DIR  = src/shell
 BEAR    = src/bear
 FW       = src/firmware
+
+# HolyD frontend sources (canonical list; wubunos renamed holyc_* -> holyd_*)
+HOLYD_SRC = $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c \
+            $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c \
+            $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c \
+            $(COMP)/holyd_runtime.c

@@ -286,9 +286,9 @@
 #define CJITCall2           jit_call2
 #define CJITAllocExec       jit_alloc_exec
 #define CJITFreeExec        jit_free_exec
-#define HCGenInit           hc_gen_init
-#define HCLexInit           hc_lex_init
-#define HCParseInit         hc_parse_init
+#define HCGenInit           hd_gen_init
+#define HCLexInit           hd_lex_init
+#define HCParseInit         hd_parse_init
 
 /* ===================================================================
  * HOLYC COMPILER EXTENSIONS (Phase 1: +50 functions)
@@ -296,26 +296,26 @@
  * ZealOS HolyC compiler functions → WuBuOS
  * =================================================================== */
 
-#define HCCompile           hc_compile
-#define HCEval              hc_eval
-#define HCCompileFunc       hc_compile_func
-#define HCLexNext           hc_lex_next
-#define HCLexPeek           hc_lex_peek
-#define HCLexExpect         hc_lex_expect
-#define HCParseCompUnit     hc_parse_compilation_unit
-#define HCParseExpr         hc_parse_expr
-#define HCParseStmt         hc_parse_stmt
-#define HCParseDecl         hc_parse_decl
-#define HCAstNew            hc_ast_new
-#define HCAstFree           hc_ast_free
-#define HCAstAddStmt        hc_ast_add_stmt
-#define HCAstAddArg         hc_ast_add_arg
-#define HCAstPrint          hc_ast_print
+#define HCCompile           hd_compile
+#define HCEval              hd_eval
+#define HCCompileFunc       hd_compile_func
+#define HCLexNext           hd_lex_next
+#define HCLexPeek           hd_lex_peek
+#define HCLexExpect         hd_lex_expect
+#define HCParseCompUnit     hd_parse_compilation_unit
+#define HCParseExpr         hd_parse_expr
+#define HCParseStmt         hd_parse_stmt
+#define HCParseDecl         hd_parse_decl
+#define HCAstNew            hd_ast_new
+#define HCAstFree           hd_ast_free
+#define HCAstAddStmt        hd_ast_add_stmt
+#define HCAstAddArg         hd_ast_add_arg
+#define HCAstPrint          hd_ast_print
 #define HCTypeSize          hc_type_size
-#define HCGenInit           hc_gen_init
-#define HCGenNode           hc_gen_node
-#define HCGenFunction       hc_gen_function
-#define HCGenCode           hc_gen_code
+#define HCGenInit           hd_gen_init
+#define HCGenNode           hd_gen_node
+#define HCGenFunction       hd_gen_function
+#define HCGenCode           hd_gen_code
 
 /* ===================================================================
  * AHCI / SATA SUBSYSTEM (Phase 1)

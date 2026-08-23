@@ -18,7 +18,7 @@ int wubu_holyd_repl_start(WubuHoly *d, const char *session) {
     if (!s) return -1;
     if (s->compiler) return 0; /* Already started */
 
-    HCCompiler *compiler = holyd_get_compiler(s, d);
+    HDCompiler *compiler = holyd_get_compiler(s, d);
     if (!compiler) return -1;
 
     s->state = SESSION_STATE_ACTIVE;
@@ -37,7 +37,7 @@ int wubu_holyd_repl_eval(WubuHoly *d, const char *session,
         return -1;
     }
 
-    HCCompiler *compiler = holyd_get_compiler(s, d);
+    HDCompiler *compiler = holyd_get_compiler(s, d);
     if (!compiler) { snprintf(output, out_size, "Compiler initialization failed"); return -1; }
 
     s->state = SESSION_STATE_RUNNING;
@@ -47,12 +47,12 @@ int wubu_holyd_repl_eval(WubuHoly *d, const char *session,
     holyd_log(d, 2, "REPL eval in session '%s': %.60s...", session, code);
 
     /* Use the persistent compiler state */
-    HCLexer *lex = &compiler->lex;
-    HCParser *parse = &compiler->parse;
-    HCGen *gen = &compiler->gen;
+    HDLexer *lex = &compiler->lex;
+    HDParser *parse = &compiler->parse;
+    HDGen *gen = &compiler->gen;
 
     /* Re-lex with the new code, keeping the existing compiler state */
-    hc_lex_init(lex, code);
+    hd_lex_init(lex, code);
 
     if (lex->has_error) {
         snprintf(output, out_size, "Lexer error: %s", lex->error);
@@ -60,20 +60,20 @@ int wubu_holyd_repl_eval(WubuHoly *d, const char *session,
         return 0;
     }
 
-    HCParser *p = parse;
+    HDParser *p = parse;
     p->lex = lex;
     p->has_error = false;
     p->n_errors = 0;
 
     /* Parse with persistent symbol table */
-    HCASTNode *ast = hc_parse_expr(p);
+    HDASTNode *ast = hd_parse_expr(p);
 
-    if (p->has_error || (hc_parse_peek(p) != HC_TOK_EOF && hc_parse_peek(p) != HC_TOK_SEMI)) {
-        hc_ast_free(ast);
+    if (p->has_error || (hd_parse_peek(p) != HD_TOK_EOF && hd_parse_peek(p) != HD_TOK_SEMI)) {
+        hd_ast_free(ast);
         p->has_error = false;
         p->n_errors = 0;
-        hc_lex_init(lex, code);
-        hc_parse_init(p, lex);
+        hd_lex_init(lex, code);
+        hd_parse_init(p, lex);
 
         const char *p_src = code;
         while (*p_src && (*p_src == ' ' || *p_src == '\t' || *p_src == '\n' || *p_src == '\r')) p_src++;
@@ -96,41 +96,41 @@ int wubu_holyd_repl_eval(WubuHoly *d, const char *session,
             size_t len = strlen(code);
             char *wrapped = malloc(len + 3);
             sprintf(wrapped, "{ %s }", code);
-            hc_lex_init(lex, wrapped);
-            hc_parse_init(parse, lex);
-            HCASTNode *ast = hc_parse_block(parse);
+            hd_lex_init(lex, wrapped);
+            hd_parse_init(parse, lex);
+            HDASTNode *ast = hd_parse_block(parse);
             free(wrapped);
         } else {
-            hc_ast_free(ast);
-            ast = hc_parse_stmt(p);
+            hd_ast_free(ast);
+            ast = hd_parse_stmt(p);
         }
     }
 
     if (parse->has_error || !ast) {
-        hc_ast_free(ast);
+        hd_ast_free(ast);
         snprintf(output, out_size, "Parse error");
         s->state = SESSION_STATE_ACTIVE;
         return 0;
     }
 
-    /* Use the persistent HCGen with accumulated symbols/functions */
-    hc_gen_init(gen);  /* Reset code buffer but keep symbols/functions */
+    /* Use the persistent HDGen with accumulated symbols/functions */
+    hd_gen_init(gen);  /* Reset code buffer but keep symbols/functions */
 
     emit_prologue(&compiler->gen);
 
-    if (ast->kind == HC_AST_BLOCK) {
+    if (ast->kind == HD_AST_BLOCK) {
         gen_stmt(&compiler->gen, ast);
-    } else if (ast->kind == HC_AST_EXPR_STMT || ast->kind == HC_AST_RETURN ||
-        ast->kind == HC_AST_IF || ast->kind == HC_AST_WHILE ||
-        ast->kind == HC_AST_FOR || ast->kind == HC_AST_DO_WHILE ||
-        ast->kind == HC_AST_VAR_DECL || ast->kind == HC_AST_FUNC_DECL) {
+    } else if (ast->kind == HD_AST_EXPR_STMT || ast->kind == HD_AST_RETURN ||
+        ast->kind == HD_AST_IF || ast->kind == HD_AST_WHILE ||
+        ast->kind == HD_AST_FOR || ast->kind == HD_AST_DO_WHILE ||
+        ast->kind == HD_AST_VAR_DECL || ast->kind == HD_AST_FUNC_DECL) {
         gen_stmt(&compiler->gen, ast);
     } else {
         gen_expr(&compiler->gen, ast);
     }
     emit_epilogue(&compiler->gen);
 
-    hc_ast_free(ast);
+    hd_ast_free(ast);
 
     if (compiler->gen.code_size == 0 || compiler->gen.has_error) {
         free(compiler->gen.code);

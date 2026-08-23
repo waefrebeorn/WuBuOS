@@ -5,7 +5,7 @@
 #include "wubu_container.h"
 #include "wubu_exec.h"
 #include "wubu_exec_internal.h"
-#include "../compiler/holyc.h"
+#include "../compiler/holyd.h"
 
 #include <stdio.h>
 #include <stdlib.h>

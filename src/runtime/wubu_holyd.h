@@ -26,7 +26,7 @@
  *
  * Session model:
  *   Each HolyC DOS session has:
- *     - A persistent HCCompiler (survives across evals)
+ *     - A persistent HDCompiler (survives across evals)
  *     - A VBE framebuffer (320x200 to 1920x1080)
  *     - An input queue (keyboard + mouse)
  *     - A 9P mount point (/wubu/holyc/<session>)
@@ -104,8 +104,8 @@ typedef struct {
     WubuHolyWindow windows[WUBU_HOLYD_MAX_WINDOWS];
     int focused_window;         /* Window ID, -1 if none */
 
-    /* Compiler state (opaque pointer to HCCompiler) */
-    void *compiler;             /* HCCompiler* — actual type from holyc.h */
+    /* Compiler state (opaque pointer to HDCompiler) */
+    void *compiler;             /* HDCompiler* — actual type from holyd.h */
     bool compiler_initialized;
 
     /* Execution state */

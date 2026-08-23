@@ -7,7 +7,7 @@
 #include "wubu_exec.h"
 #include "wubu_exec_internal.h"
 #include "wubu_host_exec.h"
-#include "../compiler/holyc.h"
+#include "../compiler/holyd.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -322,7 +322,7 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
 int64_t wubu_exec_holyc(const char *source, size_t source_size) {
     if (!source) return -1;
     /* Use our HolyC compiler to JIT compile and execute */
-    return hc_eval(source);
+    return hd_eval(source);
 }
 
 int64_t wubu_exec_c(const char *source, size_t source_size) {
