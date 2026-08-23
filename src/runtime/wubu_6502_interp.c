@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "wubu_softfloat.h"
+
 #define CPU6502_MEM 65536  /* 64K address space */
 
 /* P register bits */
@@ -39,6 +41,9 @@ typedef struct {
     uint16_t pc;
     uint8_t mem[CPU6502_MEM];  /* data memory */
     int halted;
+    /* soft-float return scratch: set by hostcall fn=11 (FRET) */
+    uint32_t fret;
+    int fret_valid;
 } cpu6502_t;
 
 #define FLAG_N (cpu.p & P_N)
@@ -275,7 +280,44 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
         case 0x60: /* RTS */            cpu.s = (uint8_t)(cpu.s + 1); lo = read8(&cpu, 0x0100 + cpu.s);
                                       cpu.s = (uint8_t)(cpu.s + 1); hi = read8(&cpu, 0x0100 + cpu.s);
                                       cpu.pc = (uint16_t)((hi << 8) | lo) + 1; break;
-        case 0x00: /* BRK */            cpu.halted = 1; break;
+        case 0x02: /* WUBU_HOSTCALL - soft-float escape hatch */
+            {
+                uint8_t fn = code[cpu.pc++];
+                uint8_t dst = code[cpu.pc++];
+                uint8_t sa  = code[cpu.pc++];
+                uint8_t sb  = code[cpu.pc++];
+                uint32_t fa, fb;
+                /* read two 4-byte little-endian f32 operands from ZP
+                 * memory (NOT the const code[] buffer). */
+                fa  = (uint32_t)cpu.mem[sa+0];
+                fa |= ((uint32_t)cpu.mem[sa+1]) << 8;
+                fa |= ((uint32_t)cpu.mem[sa+2]) << 16;
+                fa |= ((uint32_t)cpu.mem[sa+3]) << 24;
+                fb  = (uint32_t)cpu.mem[sb+0];
+                fb |= ((uint32_t)cpu.mem[sb+1]) << 8;
+                fb |= ((uint32_t)cpu.mem[sb+2]) << 16;
+                fb |= ((uint32_t)cpu.mem[sb+3]) << 24;
+                uint32_t r;
+                switch (fn) {
+                    case 0:  r = wubu_sf_f32_add(fa, fb); break;
+                    case 1:  r = wubu_sf_f32_sub(fa, fb); break;
+                    case 2:  r = wubu_sf_f32_mul(fa, fb); break;
+                    case 3:  r = wubu_sf_f32_div(fa, fb); break;
+                    case 10: r = fa ^ 0x80000000u; break;   /* FNEG */
+                    case 6:  r = (wubu_sf_f32_cmp(fa, fb) == 0) ? 0xFFFFFFFFu : 0; break;
+                    case 8:  r = (wubu_sf_f32_cmp(fa, fb)  < 0) ? 0xFFFFFFFFu : 0; break;
+                    case 9:  r = (wubu_sf_f32_cmp(fa, fb) <= 0) ? 0xFFFFFFFFu : 0; break;
+                    case 11: r = fa; cpu.fret = fa; cpu.fret_valid = 1; break; /* FRET */
+                default: r = 0; break;
+                }
+                /* write 4-byte result to dst ZP slot (little-endian)
+                 * into the writable 64K memory image (code is const). */
+                cpu.mem[dst+0] = (uint8_t)(r & 0xFF);
+                cpu.mem[dst+1] = (uint8_t)((r >> 8) & 0xFF);
+                cpu.mem[dst+2] = (uint8_t)((r >> 16) & 0xFF);
+                cpu.mem[dst+3] = (uint8_t)((r >> 24) & 0xFF);
+                break;
+            }
         case 0x40: /* RTI */            cpu.s = (uint8_t)(cpu.s + 1); cpu.p = (read8(&cpu, 0x0100 + cpu.s) & ~P_B) | P_U;
                                       cpu.s = (uint8_t)(cpu.s + 1); lo = read8(&cpu, 0x0100 + cpu.s);
                                       cpu.s = (uint8_t)(cpu.s + 1); hi = read8(&cpu, 0x0100 + cpu.s);
@@ -297,7 +339,9 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
             break;
         }
     }
-    /* sign-extend the 8-bit accumulator so the battery's negative
-     * expectations (-1 for ~0, etc.) agree with the other drivers */
+    /* If a float-return hostcall (fn=11) ran, return its 32-bit f32 bits.
+     * Otherwise sign-extend the 8-bit accumulator so the battery's negative
+     * expectations (-1 for ~0, etc.) agree with the other drivers. */
+    if (cpu.fret_valid) return (int64_t)(int32_t)cpu.fret;
     return (int64_t)(int8_t)cpu.a;
 }
