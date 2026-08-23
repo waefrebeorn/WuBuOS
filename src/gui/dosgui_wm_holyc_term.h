@@ -7,7 +7,7 @@
  * AGI/EDR layer or into the compiler internals directly -- no god headers.
  *
  * Default evaluator: a direct, in-process JIT compile+run via the public
- * HolyC compiler API (hc_eval). At the composition root the hosted binary
+ * HolyC compiler API (hd_eval). At the composition root the hosted binary
  * injects the richer wubu_holyc_agi path (holyd daemon + EDR disclosure),
  * but the terminal module itself stays decoupled from both.
  */

@@ -1,10 +1,10 @@
 /*
  * repl.c  --  My Seed HolyC JIT REPL (runs inside GUI window)
- * Uses the HolyC compiler (hc_eval) for evaluation
+ * Uses the HolyC compiler (hd_eval) for evaluation
  * Updated to use DosGui WM API (Cell 400)
  */
 #include "repl.h"
-#include "holyc.h"
+#include "holyd.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/gui_dbuf.h"
 #include "../gui/dosgui_window_chrome.h"
@@ -90,7 +90,7 @@ static void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
             }
 
             /* Evaluate via HolyC compiler */
-            int64_t result = hc_eval(g_repl.input);
+            int64_t result = hd_eval(g_repl.input);
 
             /* Store result as output line */
             if (g_repl.line_count < REPL_MAX_LINES) {
