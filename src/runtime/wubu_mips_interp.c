@@ -5,6 +5,7 @@
  * C11, self-contained.
  */
 #include <stdint.h>
+#include "wubu_softfloat.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -15,6 +16,7 @@ typedef struct {
     uint32_t pc;
     uint32_t hi, lo;
     uint8_t mem[MIPS_MEM];
+    int fret_valid;
 } mips_cpu_t;
 
 static inline uint32_t fetch32(mips_cpu_t *cpu, const uint8_t *code, size_t size) {
@@ -158,6 +160,36 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
         case 0x2B: /* sw */
             write32(&cpu, (uint32_t)cpu.r[rs] + sext16(imm), (uint32_t)cpu.r[rt]);
             break;
+        case 0x3F: { /* WUBU_HOSTCALL: fn, dst, sa, sb as 4 inline words.
+                     * Offsets are byte offsets from $gp-style base: we use
+                     * the slot absolute addresses the driver stores (they
+                     * are indices into cpu.mem via a reserved base reg). */
+            uint32_t fn  = fetch32(&cpu, code, size);
+            uint32_t dst = fetch32(&cpu, code, size);
+            uint32_t sa  = fetch32(&cpu, code, size);
+            uint32_t sb  = fetch32(&cpu, code, size);
+            /* slots addressed off r[28] ($gp) which the prologue sets to
+             * MIPS_MEM/2 — see driver; fall back to direct index if 0 */
+            uint32_t basev = cpu.r[29];  /* $sp: slots are sp-relative */
+            uint32_t fa = read32(&cpu, basev + sa);
+            uint32_t fb = read32(&cpu, basev + sb);
+            uint32_t r = 0;
+            switch (fn) {
+            case 0:  r = wubu_sf_f32_add(fa, fb); break;
+            case 1:  r = wubu_sf_f32_sub(fa, fb); break;
+            case 2:  r = wubu_sf_f32_mul(fa, fb); break;
+            case 3:  r = wubu_sf_f32_div(fa, fb); break;
+            case 10: r = fa ^ 0x80000000u; break;
+            case 6:  r = (wubu_sf_f32_cmp(fa,fb)==0)?0xFFFFFFFFu:0; break;
+            case 7:  r = (wubu_sf_f32_cmp(fa,fb)!=0)?0xFFFFFFFFu:0; break;
+            case 8:  r = (wubu_sf_f32_cmp(fa,fb) <0)?0xFFFFFFFFu:0; break;
+            case 9:  r = (wubu_sf_f32_cmp(fa,fb)<=0)?0xFFFFFFFFu:0; break;
+            case 11: r = fa; cpu.fret_valid = 1; cpu.r[2] = (int32_t)r; break;
+            default: break;
+            }
+            write32(&cpu, basev + dst, r);
+            break;
+        }
         default:
             goto done;
         }
