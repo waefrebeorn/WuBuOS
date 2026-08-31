@@ -1,7 +1,7 @@
 /*
  * wubu_gc.h  --  Userspace Mark-and-Sweep GC API
  *
- * Opt-in garbage collector for HolyC REPL, editor, container apps.
+ * Opt-in garbage collector for HolyD REPL, editor, container apps.
  * Kernel uses manual memory.c  --  this is purely userspace.
  *
  * Usage:

@@ -4,7 +4,7 @@
  * The user's directive (2026-08-04): we keep having to add
  * `_GNU_SOURCE` to get M_PI / strdup / CPU macros — a GNU feature-test
  * macro that imports a dependency surface (and its license framing)
- * we don't want. The endgame is our own compiler (wubuos HolyC) where
+ * we don't want. The endgame is our own compiler (wubuos HolyD) where
  * WE define the feature surface. Until then, this header provides the
  * tiny set of helpers WITHOUT _GNU_SOURCE:
  *

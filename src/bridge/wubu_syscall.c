@@ -1,8 +1,8 @@
 /*
- * wubu_syscall.c  --  WuBuOS HolyC Syscall Bridge Implementation
+ * wubu_syscall.c  --  WuBuOS HolyD Syscall Bridge Implementation
  *
  * Registers 25 TempleOS/ZealOS-compatible syscalls in kernel.
- * Provides trampolines for HolyC compiler to call into kernel.
+ * Provides trampolines for HolyD compiler to call into kernel.
  */
 
 #include "wubu_syscall.h"
@@ -431,17 +431,17 @@ int wubu_syscall_register_all(void) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
- * HolyC Compiler External Function Registration
+ * HolyD Compiler External Function Registration
  * ══════════════════════════════════════════════════════════════════ */
 
-int wubu_holyc_register_syscalls(void *hd_compiler) {
+int wubu_holyd_register_syscalls(void *hd_compiler) {
     /* The HDCompiler struct has a gen member with functions table */
     /* We need to add entries to gen->functions[] with func_ptr pointing
        to syscall trampolines. For now, we register the C handlers directly
-       and HolyC can call them as external functions. */
+       and HolyD can call them as external functions. */
 
     /* This would be called during compiler init to register syscalls
-       as callable functions. The actual call from HolyC goes through
+       as callable functions. The actual call from HolyD goes through
        a syscall instruction trampoline. */
 
     (void)hd_compiler;
@@ -500,7 +500,7 @@ void *wubu_syscall_trampoline(uint32_t num) {
     return NULL;
 }
 
-/* Map syscall name to number for HolyC external function registration */
+/* Map syscall name to number for HolyD external function registration */
 const char *wubu_syscall_name(uint32_t num) {
     static const char *names[SYS_MAX_DEFINED] = {
         "VBEFillRect", "VBEFillCircle", "VBEDrawText", "VBEDrawChar",

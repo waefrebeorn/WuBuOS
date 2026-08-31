@@ -141,8 +141,8 @@ void dosgui_launch_app(const char *name) {
         archd_tray_click();
         return;
     }
-    if (strcmp(name, "HolyC Sessions") == 0) {
-        fprintf(stderr, "DEBUG: Launching HolyC Sessions\n");
+    if (strcmp(name, "HolyD Sessions") == 0) {
+        fprintf(stderr, "DEBUG: Launching HolyD Sessions\n");
         holyd_tray_click();
         return;
     }
@@ -153,7 +153,7 @@ void dosgui_launch_app(const char *name) {
     }
     /* Fallback: era apps (one-per-era registry). These launch through their
      * VSL syscall personality's REAL exec backend (DOS->8086 shim, Win->Wine,
-     * Linux->VSL ELF, HolyC->JIT). Gaps (CP/M, Classic Mac) report clearly. */
+     * Linux->VSL ELF, HolyD->JIT). Gaps (CP/M, Classic Mac) report clearly. */
     if (dosgui_era_apps_launch_by_name(name) == 0) {
         fprintf(stderr, "DEBUG: launched era app '%s' via VSL personality\n", name);
         return;

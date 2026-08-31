@@ -78,7 +78,7 @@ DosGuiWindow* dosgui_launch_my_computer(void) {
 }
 
 DosGuiWindow* dosgui_launch_temple_repl(void) {
-    dosgui_wm_spawn_holyc_term(80, 60, 640, 480);
+    dosgui_wm_spawn_holyd_term(80, 60, 640, 480);
     return NULL;
 }
 
@@ -214,8 +214,8 @@ DosGuiWindow* dosgui_launch_dos_box_default(void) {
     return dosgui_launch_dos_box(NULL);
 }
 
-DosGuiWindow* dosgui_launch_holyc_term(void) {
-    dosgui_wm_spawn_holyc_term(80, 60, 640, 480);
+DosGuiWindow* dosgui_launch_holyd_term(void) {
+    dosgui_wm_spawn_holyd_term(80, 60, 640, 480);
     return NULL;
 }
 
@@ -227,7 +227,7 @@ DosGuiWindow* dosgui_launch_edr_dashboard(void) {
 
 const DosGuiAppDef g_app_defs[] = {
     { "My Computer",  "My Computer",   DESK_ICON_MY_COMPUTER, 0x0080FF00, dosgui_launch_my_computer },
-    { "Temple REPL",  "HolyC REPL",    DESK_ICON_TEMPLE_REPL, 0x00800080, dosgui_launch_temple_repl },
+    { "Temple REPL",  "HolyD REPL",    DESK_ICON_TEMPLE_REPL, 0x00800080, dosgui_launch_temple_repl },
     { "Notepad",      "Notepad",       DESK_ICON_NOTEPAD,     0x00AAAA00, dosgui_launch_notepad },
     { "Paint",        "WuBu Canvas",   DESK_ICON_PAINT,       0x000080FF, dosgui_launch_canvas },
     { "Calculator",   "Calculator",    DESK_ICON_CALCULATOR,  0x00FF8000, dosgui_launch_calculator },
@@ -236,7 +236,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Settings",     "Control Panel", DESK_ICON_SETTINGS,    0x00808080, dosgui_launch_settings },
     { "Editor",       "Editor",        DESK_ICON_COUNT + 0,   0x008080FF, dosgui_launch_editor },
     { "WuBu Canvas",  "WuBu Canvas",   DESK_ICON_COUNT + 1,   0x000080FF, dosgui_launch_canvas },
-    { "HolyC Term",   "HolyC Terminal",DESK_ICON_COUNT + 3,   0x00800080, dosgui_launch_holyc_term },
+    { "HolyD Term",   "HolyD Terminal",DESK_ICON_COUNT + 3,   0x00800080, dosgui_launch_holyd_term },
     { "DOS Box",      "DOS Box",        DESK_ICON_COUNT + 4,   0x0000C000, dosgui_launch_dos_box_default },
     { "EDR Activity", "EDR Activity",  DESK_ICON_COUNT + 5,   0x00C00000, dosgui_launch_edr_dashboard },
     { "Bonzi Buddy",  "Bonzi Buddy",   DESK_ICON_COUNT + 6,   0x00A030A0, bonzi_launch },

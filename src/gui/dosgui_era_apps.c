@@ -11,7 +11,7 @@
  *   1993 Windows NT / Win32  -> 0xFF  (ReactOS NT path, wubu_exec_win_pe->Wine)
  *   2001 macOS XNU           -> 0xE0  (Mach-O via darling, wubu_exec_macho)
  *   2007 Linux native        -> 0x00  (VSL Linux table, wubu_exec_linux_elf)
- *   2020 HolyC / TempleOS    -> 0xF0  (HolyC JIT, hd_eval)
+ *   2020 HolyD / TempleOS    -> 0xF0  (HolyD JIT, hd_eval)
  *
  * Each entry's `executable` is a REAL artifact in demos/era/ (extracted by
  * demos/era/build_era.sh from the kernel-owned CAB/ZIP/DMG decoders).
@@ -45,7 +45,7 @@
 #define ERA_PERSONA_NT       0xFF   /* ReactOS NT / Win32 PE */
 #define ERA_PERSONA_XNU      0xE0   /* macOS XNU (Mach-O via darling) */
 #define ERA_PERSONA_DOS      0xD0   /* in-process 8086 shim (separate emu) */
-#define ERA_PERSONA_HOLYC    0xF0   /* HolyC / TempleOS JIT */
+#define ERA_PERSONA_HOLYC    0xF0   /* HolyD / TempleOS JIT */
 
 /* Resolve the demos/era path relative to the repo, so the binary works
  * regardless of CWD. Falls back to the bare name if REPO_ROOT is unset. */
@@ -85,8 +85,8 @@ static const struct {
      *         Quake 3 (OpenArena): ELF/x86_64. */
     { "Linux :: Quake 3",    "demos/era/quake3/quake3_linux.x86_64", "Era: Linux 2007",
       ERA_PERSONA_NATIVE, true },
-    /* 2020 -- HolyC / TempleOS (JIT eval via hd_eval). */
-    { "HolyC :: Era Demo",   "demos/era/holyc_era_demo.hc", "Era: HolyC 2020",
+    /* 2020 -- HolyD / TempleOS (JIT eval via hd_eval). */
+    { "HolyD :: Era Demo",   "demos/era/holyc_era_demo.hc", "Era: HolyD 2020",
       ERA_PERSONA_HOLYC, true },
 };
 
@@ -144,7 +144,7 @@ const char *dosgui_era_personality_label(uint32_t p) {
         case ERA_PERSONA_NT:       return "Windows NT / Win32 (ReactOS)";
         case ERA_PERSONA_XNU:      return "macOS XNU";
         case ERA_PERSONA_DOS:      return "MS-DOS (8086 shim)";
-        case ERA_PERSONA_HOLYC:    return "HolyC / TempleOS";
+        case ERA_PERSONA_HOLYC:    return "HolyD / TempleOS";
         default:                   return "unknown";
     }
 }
@@ -221,11 +221,11 @@ int dosgui_era_apps_launch(int idx) {
         free(data);
         return (rc >= 0) ? 0 : -1;
     }
-    case ERA_PERSONA_HOLYC: {  /* HolyC source -> JIT */
+    case ERA_PERSONA_HOLYC: {  /* HolyD source -> JIT */
         size_t sz = 0;
         uint8_t *data = era_read_file(full, &sz);
         if (!data) { fprintf(stderr, "[era] cannot read %s\n", full); return -1; }
-        int64_t rc = wubu_exec_holyc((const char *)data, sz);
+        int64_t rc = wubu_exec_holyd((const char *)data, sz);
         free(data);
         return (rc >= 0) ? 0 : -1;
     }

@@ -3,11 +3,11 @@
  *
  * Cell 400-402: Bridges wubu_archd and wubu_holyd events into the DosGui
  * desktop. Shows daemon status in the system tray, container list in a
- * desktop window, and HolyC session windows from the start menu.
+ * desktop window, and HolyD session windows from the start menu.
  *
  * Architecture:
  *   wubu_archd (Unix socket) → daemon panel → system tray icon + container list window
- *   wubu_holyd (Unix socket) → daemon panel → HolyC terminal windows
+ *   wubu_holyd (Unix socket) → daemon panel → HolyD terminal windows
  *
  * The panel connects to both daemons via their JSON protocol, subscribes
  * to events, and renders status into the desktop's existing notification
@@ -72,7 +72,7 @@ typedef struct {
     char          container_names[16][64];
     char          container_states[16][16];
 
-    /* HolyC session window */
+    /* HolyD session window */
     DosGuiWindow *holyd_win;
     int           holyd_session_count;
     char          holyd_sessions[8][64];
@@ -328,17 +328,17 @@ static void container_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb
     vbe_draw_text(win->x + 8, win->y + win->h - 16, status_line, conn_color, 1);
 }
 
-/* -- HolyC Session Window ----------------------------------------- */
+/* -- HolyD Session Window ----------------------------------------- */
 
 static void holyd_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w;
     const WubuThemeColors *tc = wubu_theme_colors();
 
-    vbe_fill_rect(win->x, win->y, win->w, win->h, 0x000000); /* HolyC black */
+    vbe_fill_rect(win->x, win->y, win->w, win->h, 0x000000); /* HolyD black */
 
     /* Title bar */
     vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, 0x0000AA);
-    vbe_draw_text(win->x + 8, win->y + 4, "HolyC DOS Sessions", 0xFFFFFF, 1);
+    vbe_draw_text(win->x + 8, win->y + 4, "HolyD DOS Sessions", 0xFFFFFF, 1);
 
     /* Session list */
     int row_h = 18;
@@ -348,13 +348,13 @@ static void holyd_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) 
         int row_y = list_y + i * row_h;
         if (row_y + row_h > win->y + win->h) break;
 
-        /* HolyC-style green text on black */
+        /* HolyD-style green text on black */
         vbe_draw_text(win->x + 8, row_y, "> ", 0x00FF00, 1);
         vbe_draw_text(win->x + 24, row_y, g_panel.holyd_sessions[i], 0x00FF00, 1);
     }
 
     if (g_panel.holyd_session_count == 0) {
-        vbe_draw_text(win->x + 8, list_y, "No HolyC sessions", 0x008800, 1);
+        vbe_draw_text(win->x + 8, list_y, "No HolyD sessions", 0x008800, 1);
     }
 
     /* Connection status */
@@ -385,12 +385,12 @@ void archd_tray_click(void) {
 }
 
 void holyd_tray_click(void) {
-    /* Toggle HolyC session window */
+    /* Toggle HolyD session window */
     if (g_panel.holyd_win) {
         dosgui_wm_destroy(g_panel.holyd_win);
         g_panel.holyd_win = NULL;
     } else {
-        g_panel.holyd_win = dosgui_wm_create(120, 100, 400, 250, "HolyC Sessions");
+        g_panel.holyd_win = dosgui_wm_create(120, 100, 400, 250, "HolyD Sessions");
         if (g_panel.holyd_win) {
             g_panel.holyd_win->on_draw = holyd_win_draw;
         }

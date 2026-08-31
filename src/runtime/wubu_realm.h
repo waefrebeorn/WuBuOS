@@ -32,7 +32,7 @@ typedef enum {
 typedef enum {
     REALM_BACKEND_MICROVM = 0,  /* libkrun/Firecracker class (hardware boundary) */
     REALM_BACKEND_GVISOR,       /* user-space kernel boundary */
-    REALM_BACKEND_INPROC,       /* native / co-resident (e.g. HolyC, host bin) */
+    REALM_BACKEND_INPROC,       /* native / co-resident (e.g. HolyD, host bin) */
     REALM_BACKEND_COUNT
 } wubu_realm_backend_t;
 

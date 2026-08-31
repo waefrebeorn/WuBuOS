@@ -12,7 +12,7 @@
  *   dosgui_wm_input.c   -- key + mouse dispatch / hit-testing
  *   dosgui_wm_layout.c  -- themed window chrome + wallpaper
  *   dosgui_wm_render.c  -- full-frame composition (desktop + windows + taskbar)
- *   dosgui_wm_icons.c / _systray.c / _ctxmenu.c / _holyc_term.c / _desktop.c /
+ *   dosgui_wm_icons.c / _systray.c / _ctxmenu.c / _holyd_term.c / _desktop.c /
  *     _taskbar.c -- further sub-systems
  *
  * Features summary: draggable themed windows, z-order + focus, taskbar with
@@ -61,7 +61,7 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     load_default_wallpaper();
     /* Desktop companion (Bonzi Buddy): the friendly AGI gateway.
      * Positioned in the lower-left corner, above windows. Click opens the
-     * HolyC/AGI terminal. Idle animation (bob + blink) driven by the WM
+     * HolyD/AGI terminal. Idle animation (bob + blink) driven by the WM
      * frame tick in dosgui_wm_frame(). */
     wubu_bonzi_init(8, screen_h - 64);
     return 0;

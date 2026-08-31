@@ -125,7 +125,7 @@ int wubu_session_launch_game(void *state, const char *title,
     return -1;
 }
 
-/* -- HolyC eval ------------------------------------------------------ */
+/* -- HolyD eval ------------------------------------------------------ */
 int hd_eval(const char *src) { (void)src; return -1; }
 
 /* -- Kernel log ------------------------------------------------------ */

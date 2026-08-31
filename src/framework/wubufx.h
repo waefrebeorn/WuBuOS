@@ -4,12 +4,12 @@
  * Steve-Jobs-lens design rules (see docs/WUBU_FRAMEWORK_100POINT_PLAN.md):
  *   - One artifact, one target. No JVM, no container image, no arch matrix.
  *   - Namespace-first: an app IS a Styx9 namespace; composition = mount.
- *   - Execution is LIVE HolyC (wubu_holyc_eval) or a native binary node.
+ *   - Execution is LIVE HolyD (wubu_holyd_eval) or a native binary node.
  *   - Every first-party action is disclosed to EDR by construction.
  *   - No configuration tax, no annotation magic, no hidden control flow.
  *
  * This header is the ONLY public face. All structs are opaque; the Styx9
- * node layout and HolyC session bookkeeping live in wubufx_internal.h.
+ * node layout and HolyD session bookkeeping live in wubufx_internal.h.
  *
  * C11, minimal includes, self-contained (depends only on the AGI + EDR
  * public headers and the Styx9 mount entry points). No god header.
@@ -36,7 +36,7 @@ typedef enum {
     WUBUFX_ERR_NOMOUNT   = 2,   /* namespace not mounted */
     WUBUFX_ERR_NOENT     = 3,   /* node missing */
     WUBUFX_ERR_CAP       = 4,   /* capability denied (EDR) */
-    WUBUFX_ERR_EVAL      = 5,   /* HolyC compile/run failed */
+    WUBUFX_ERR_EVAL      = 5,   /* HolyD compile/run failed */
     WUBUFX_ERR_SIGN      = 6,   /* signature/attestation failed */
     WUBUFX_ERR_LIMIT     = 7,   /* resource cap exceeded */
     WUBUFX_ERR_INTERNAL  = 8
@@ -75,13 +75,13 @@ WubuFxNode *wubufx_open(WubuFxApp *app, const char *path);
 void        wubufx_node_close(WubuFxNode *node);
 
 /* -- Execution --------------------------------------------------------
- * wubufx_eval:    compile+run HolyC LIVE in the app's own namespace session
+ * wubufx_eval:    compile+run HolyD LIVE in the app's own namespace session
  *                 (isolated symbol table; apps can't clobber each other).
  * wubufx_agent_eval: same, but disclosed to EDR as an AGI action. The AGI
  *                 CANNOT bypass this path (point 44/52). */
-WubuFxErr wubufx_eval(WubuFxApp *app, const char *holyc_src,
+WubuFxErr wubufx_eval(WubuFxApp *app, const char *holyd_src,
                       char *out, size_t out_size);
-WubuFxErr wubufx_agent_eval(WubuFxApp *app, const char *holyc_src,
+WubuFxErr wubufx_agent_eval(WubuFxApp *app, const char *holyd_src,
                             char *out, size_t out_size);
 
 /* -- State (explicit, no @State magic) --------------------------------

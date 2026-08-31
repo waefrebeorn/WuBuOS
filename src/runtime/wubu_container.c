@@ -72,13 +72,13 @@ WUBU_PAYLOAD_TYPE wubu_detect_payload_type(const void *data, size_t size) {
         return WUBU_PAYLOAD_SHELL_SCRIPT;
     }
 
-    /* HolyC: look for common HolyC keywords */
+    /* HolyD: look for common HolyD keywords */
     if (size >= 3) {
         if (memcmp(p, "U0 ", 3) == 0 || memcmp(p, "I64", 3) == 0 ||
             memcmp(p, "U8 ", 3) == 0  || memcmp(p, "I0 ", 3) == 0 ||
             memcmp(p, "F64", 3) == 0 || memcmp(p, "Bool", 4) == 0)
             return WUBU_PAYLOAD_HOLYC_SRC;
-        /* Also detect by common HolyC patterns */
+        /* Also detect by common HolyD patterns */
         if (size >= 6 && memcmp(p, "return", 6) == 0)
             return WUBU_PAYLOAD_HOLYC_SRC;
     }

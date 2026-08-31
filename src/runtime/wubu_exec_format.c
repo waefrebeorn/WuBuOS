@@ -11,7 +11,7 @@
 const char *wubu_payload_name(WUBU_PAYLOAD_TYPE type) {
     switch (type) {
         case WUBU_PAYLOAD_NATIVE_EXEC:   return "WuBuOS Native Executable";
-        case WUBU_PAYLOAD_HOLYC_SRC:     return "HolyC Source";
+        case WUBU_PAYLOAD_HOLYC_SRC:     return "HolyD Source";
         case WUBU_PAYLOAD_C_SRC:         return "C Source";
         case WUBU_PAYLOAD_LINUX_ELF:     return "Linux ELF (VSL)";
         case WUBU_PAYLOAD_WIN_PE:        return "Windows PE (Proton)";

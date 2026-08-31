@@ -2,7 +2,7 @@
  * dosgui_daemon_panel.h  --  WuBuOS Desktop Daemon Integration Panel
  *
  * Cell 400-402: Bridges wubu_archd and wubu_holyd events into the DosGui
- * desktop. System tray icons, container list window, HolyC session window.
+ * desktop. System tray icons, container list window, HolyD session window.
  */
 
 #ifndef WUBU_DOSGUI_DAEMON_PANEL_H

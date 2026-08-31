@@ -1,9 +1,9 @@
 /*
  * wubu_colonel.h -- the everything-through-the-Colonel dispatcher.
- * C11. The HolyC Colonel (the TempleOS/ZealOS lineage) is the OS core:
+ * C11. The HolyD Colonel (the TempleOS/ZealOS lineage) is the OS core:
  * EVERY command -- app launches, OS actions, cross-OS payloads, AGI
  * evals -- dispatches through the Colonel. This module routes a
- * command string to the HolyC engine (hd_eval) and returns a typed
+ * command string to the HolyD engine (hd_eval) and returns a typed
  * result. The unit tests drive it WITHOUT the GUI (the pure core).
  */
 #ifndef WUBU_COLONEL_H
@@ -16,14 +16,14 @@ enum {
     WUBU_COLONEL_OK = 0,       /* eval returned; result valid */
     WUBU_COLONEL_EMPTY,        /* empty command (no-op) */
     WUBU_COLONEL_UNKNOWN,      /* unknown command class */
-    WUBU_COLONEL_EVAL_ERR,     /* the HolyC eval failed */
+    WUBU_COLONEL_EVAL_ERR,     /* the HolyD eval failed */
     WUBU_COLONEL_BAD           /* bad args */
 };
 
 /* The command classes (what the Colonel routes). */
 enum {
     WUBU_COL_CMD_APP = 1,      /* launch an app: run <name> */
-    WUBU_COL_CMD_EVAL,         /* evaluate HolyC: eval <source> */
+    WUBU_COL_CMD_EVAL,         /* evaluate HolyD: eval <source> */
     WUBU_COL_CMD_OS,           /* an OS action: os <verb> */
     WUBU_COL_CMD_SYS,          /* a syscall-ish action: sys <verb> */
     WUBU_COL_CMD_AGI,          /* an AGI action: agi <verb> */
@@ -41,7 +41,7 @@ typedef struct {
 /* Parse a command string into its class + args (no eval). */
 int wubu_colonel_parse(const char *line, wubu_colonel_t *c);
 
-/* Dispatch: parse + evaluate through the HolyC engine.
+/* Dispatch: parse + evaluate through the HolyD engine.
  * Returns the result enum. */
 int wubu_colonel_dispatch(const char *line, wubu_colonel_t *c,
                           int64_t (*eval_fn)(const char *));

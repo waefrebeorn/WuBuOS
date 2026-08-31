@@ -1,7 +1,7 @@
 /*
  * wubu_manifest.c -- WuBuOS unified manifest API (load/resolve/gate/emit).
  * Adopted from GrahaOS etc/gcp.json: single source of truth for VSL dispatch,
- * Styx9P ops, and HolyC FFI. The VSL dispatcher resolves a syscall number
+ * Styx9P ops, and HolyD FFI. The VSL dispatcher resolves a syscall number
  * through this module and enforces the required capability BEFORE invoking the
  * handler (capability-only authority, replacing the old uid/permission gate).
  */
@@ -134,14 +134,14 @@ static int emit_styx_ops(const wubu_manifest_t *m, const char *dir) {
 
 static int emit_holyc_ffi(const wubu_manifest_t *m, const char *dir) {
     char path[512];
-    snprintf(path, sizeof(path), "%s/wubu_holyc_ffi.h", dir);
+    snprintf(path, sizeof(path), "%s/wubu_holyd_ffi.h", dir);
     FILE *f = fopen(path, "w");
     if (!f) return -1;
-    fprintf(f, "/* wubu_holyc_ffi.h -- GENERATED from wubu_manifest.json. Do not edit. */\n");
+    fprintf(f, "/* wubu_holyd_ffi.h -- GENERATED from wubu_manifest.json. Do not edit. */\n");
     fprintf(f, "#ifndef WUBU_HOLYC_FFI_H\n#define WUBU_HOLYC_FFI_H\n");
     for (int i = 0; i < m->count; i++)
         fprintf(f, "int64 %s(int64 num, int64 rdi, int64 rsi, int64 rdx, int64 r10, int64 r8, int64 r9); /* %s */\n",
-                m->entries[i].holyc, m->entries[i].handler);
+                m->entries[i].holyd, m->entries[i].handler);
     fprintf(f, "#endif\n");
     fclose(f);
     return 0;

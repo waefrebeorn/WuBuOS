@@ -1,11 +1,11 @@
 /*
  * wubufx.c -- WuBuFX: WuBuOS Application Framework (implementation)
  *
- * Self-contained. Composition root wires the LIVE HolyC daemon (wubu_holyd)
+ * Self-contained. Composition root wires the LIVE HolyD daemon (wubu_holyd)
  * and the EDR engine (wubu_edr.*) into a namespace-first app model.
  *
  * Isolation (the .NET "DLL hell" antidote): each mounted app gets its OWN
- * HolyC session inside the holyd daemon, keyed by the app's content hash.
+ * HolyD session inside the holyd daemon, keyed by the app's content hash.
  * Globals defined in one app's session cannot collide with another's -- the
  * TempleOS REPL persistence is per-namespace, not global.
  *
@@ -21,7 +21,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "../runtime/wubu_holyd.h"   /* LIVE HolyC daemon + per-session eval */
+#include "../runtime/wubu_holyd.h"   /* LIVE HolyD daemon + per-session eval */
 #include "../runtime/wubu_edr.h"     /* EDR disclosure surface */
 
 /* -- Internal (opaque) types ---------------------------------------- */
@@ -37,7 +37,7 @@ struct WubuFxApp {
     char       id[256];
     uint32_t   id_hash;       /* content address (no DLL-lottery, point 2) */
     WubuFxCap  caps;          /* least-privilege, point 47/81 */
-    char       session[64];   /* per-app HolyC session name (isolation) */
+    char       session[64];   /* per-app HolyD session name (isolation) */
     WubuFxNode nodes[32];
     int        node_count;
     bool       mounted;
@@ -61,7 +61,7 @@ const char *wubufx_strerr(WubuFxErr e) {
         case WUBUFX_ERR_NOMOUNT:  return "namespace not mounted";
         case WUBUFX_ERR_NOENT:    return "node not found";
         case WUBUFX_ERR_CAP:      return "capability denied (EDR)";
-        case WUBUFX_ERR_EVAL:     return "HolyC eval failed";
+        case WUBUFX_ERR_EVAL:     return "HolyD eval failed";
         case WUBUFX_ERR_SIGN:     return "signature/attestation failed";
         case WUBUFX_ERR_LIMIT:    return "resource limit exceeded";
         case WUBUFX_ERR_INTERNAL: return "internal error";
@@ -77,7 +77,7 @@ WubuFxErr wubufx_init(void) {
     WubuHoly *d = (WubuHoly *)calloc(1, sizeof(WubuHoly));
     if (!d) return WUBUFX_ERR_INTERNAL;
 
-    WubuHolyConfig cfg;
+    WubuHolyDonfig cfg;
     memset(&cfg, 0, sizeof(cfg));
     strncpy(cfg.sessions_path, "/tmp/wubu/fx", sizeof(cfg.sessions_path) - 1);
     strncpy(cfg.socket_path,   "/tmp/wubu/fx.sock", sizeof(cfg.socket_path) - 1);
@@ -116,7 +116,7 @@ WubuFxErr wubufx_mount(const char *id, WubuFxCap caps, WubuFxApp **out_app) {
     app->caps    = caps & WUBUFX_CAP_ALL;
     app->mounted = true;
 
-    /* Per-app HolyC session: globals are isolated to THIS namespace. */
+    /* Per-app HolyD session: globals are isolated to THIS namespace. */
     snprintf(app->session, sizeof(app->session), "fx_%08x", h);
     wubu_holyd_session_create(g_fx_holyd, app->session, 800, 600);
 
@@ -161,7 +161,7 @@ WubuFxNode *wubufx_open(WubuFxApp *app, const char *path) {
 
 void wubufx_node_close(WubuFxNode *node) { (void)node; }
 
-/* -- Execution (LIVE HolyC, namespace-isolated) --------------------- */
+/* -- Execution (LIVE HolyD, namespace-isolated) --------------------- */
 
 WubuFxErr wubufx_eval(WubuFxApp *app, const char *src, char *out, size_t n) {
     if (!app || !app->mounted || !src || !out || n == 0) return WUBUFX_ERR_PARAM;

@@ -12,7 +12,7 @@
  *   - Shell scripts (#!) → VSL
  *   - Python scripts → VSL python3
  *   - WASM → wasm runtime
- *   - HolyC source → JIT compile + execute
+ *   - HolyD source → JIT compile + execute
  *   - C source → compile + execute
  *
  * This is WuBuOS's answer to Linux's binfmt_misc  --  but universal.
@@ -107,12 +107,12 @@ char *wubu_wine_setup_prefix(const char *prefix_override);
 int wubu_wine_configure_env(WubuCt *ct, const char *wine_prefix);
 
 /*
- * Execute a HolyC source file  --  JIT compile and run.
+ * Execute a HolyD source file  --  JIT compile and run.
  */
-int64_t wubu_exec_holyc(const char *source, size_t source_size);
+int64_t wubu_exec_holyd(const char *source, size_t source_size);
 
 /*
- * Execute a C source file  --  compile via HolyC compiler and run.
+ * Execute a C source file  --  compile via HolyD compiler and run.
  */
 int64_t wubu_exec_c(const char *source, size_t source_size);
 

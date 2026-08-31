@@ -34,6 +34,8 @@ struct WubuDosEmu {
     uint16_t ax, bx, cx, dx;
     uint16_t si, di, bp, sp;
     uint16_t ip;
+    uint16_t call_stack[32];
+    int      call_sp;
     uint16_t flags;
     uint64_t steps;
     WubuDosEmuState state;

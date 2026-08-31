@@ -492,17 +492,17 @@ void term_handle_key_container(TermState *term, uint32_t key, uint32_t mods) {
     }
 }
 
-/* HolyC REPL key handling - stub for now */
-void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods) {
+/* HolyD REPL key handling - stub for now */
+void term_handle_key_holyd(TermState *term, uint32_t key, uint32_t mods) {
     (void)mods;
     if (term->active_tab < 0) return;
     TermTab *tab = &term->tabs[term->active_tab];
     if (tab->type != TERM_SESSION_HOLYC) return;
-    TermPtySession *pty = &tab->session.holyc.pty;
+    TermPtySession *pty = &tab->session.holyd.pty;
 
     char buf[8];
     int len = 0;
-    /* Same key->byte mapping as the shell PTY (E4: HolyC REPL is PTY-backed). */
+    /* Same key->byte mapping as the shell PTY (E4: HolyD REPL is PTY-backed). */
     if (key >= 32 && key < 127) {
         buf[len++] = (char)key;
     } else {

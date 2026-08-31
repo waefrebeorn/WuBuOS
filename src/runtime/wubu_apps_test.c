@@ -230,7 +230,7 @@ static void test_comp_preinstalled(void) {
     comp_register("tcc", "/wubu/bin/tcc");
     comp_register("gcc", "/vsl/usr/bin/gcc");
     CHECK(comp_count() >= 4, "at least 4 compilers");
-    CHECK(comp_find("holyc") >= 0, "HolyC present");
+    CHECK(comp_find("holyc") >= 0, "HolyD present");
     CHECK(comp_find("mir") >= 0, "MIR present");
     CHECK(comp_find("tcc") >= 0, "TCC present");
     CHECK(comp_find("gcc") >= 0, "GCC (via VSL) present");

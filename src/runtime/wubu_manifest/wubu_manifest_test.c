@@ -74,8 +74,8 @@ int main(void) {
           "wubu_vsl_dispatch.h generated");
     CHECK(fopen("/tmp/wubu_gen_test/wubu_styx_ops.h","r") != NULL,
           "wubu_styx_ops.h generated");
-    CHECK(fopen("/tmp/wubu_gen_test/wubu_holyc_ffi.h","r") != NULL,
-          "wubu_holyc_ffi.h generated");
+    CHECK(fopen("/tmp/wubu_gen_test/wubu_holyd_ffi.h","r") != NULL,
+          "wubu_holyd_ffi.h generated");
 
     /* Run the Python generator (build-time entry point) to confirm it
      * produces the same three headers for the same manifest. */

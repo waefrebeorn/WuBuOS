@@ -33,8 +33,8 @@ void term_handle_key_pty(TermState *term, uint32_t key, uint32_t mods);
 void term_pty_put_char(TermPtySession *pty, char c, uint8_t attr);
 void term_pty_cursor_move(TermPtySession *pty, int x, int y);
 
-/* HolyC REPL key handling */
-void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods);
+/* HolyD REPL key handling */
+void term_handle_key_holyd(TermState *term, uint32_t key, uint32_t mods);
 
 /* -- Container PTY (shares PTY infrastructure) -------------------- */
 

@@ -319,9 +319,9 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
     return exit_code;
 }
 
-int64_t wubu_exec_holyc(const char *source, size_t source_size) {
+int64_t wubu_exec_holyd(const char *source, size_t source_size) {
     if (!source) return -1;
-    /* Use our HolyC compiler to JIT compile and execute */
+    /* Use our HolyD compiler to JIT compile and execute */
     return hd_eval(source);
 }
 
@@ -452,7 +452,7 @@ int64_t wubu_exec(const void *data, size_t size, const char *filename) {
         case WUBU_PAYLOAD_WIN_PE:
             return wubu_exec_win_pe(data, size);
         case WUBU_PAYLOAD_HOLYC_SRC:
-            return wubu_exec_holyc((const char *)data, size);
+            return wubu_exec_holyd((const char *)data, size);
         case WUBU_PAYLOAD_C_SRC:
             return wubu_exec_c((const char *)data, size);
         case WUBU_PAYLOAD_SHELL_SCRIPT:
@@ -467,4 +467,3 @@ int64_t wubu_exec(const void *data, size_t size, const char *filename) {
             return -1;
     }
 }
-

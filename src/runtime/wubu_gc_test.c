@@ -1,7 +1,7 @@
 /*
  * wubu_gc_test.c  --  Userspace GC Test Suite
  *
- * Tests mark-and-sweep for HolyC REPL / container applets.
+ * Tests mark-and-sweep for HolyD REPL / container applets.
  */
 
 #include "wubu_gc.h"
@@ -179,7 +179,7 @@ static void test_shutdown(void) {
 int main(void) {
     printf("\n+==================================================+\n");
     printf("|  WuBuOS Userspace GC Test Suite                |\n");
-    printf("|  Opt-in mark/sweep for HolyC REPL / applets    |\n");
+    printf("|  Opt-in mark/sweep for HolyD REPL / applets    |\n");
     printf("+==================================================+\n\n");
 
     test_basic_alloc();

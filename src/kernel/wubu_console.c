@@ -68,7 +68,7 @@ int wubu_console_exec(const char *line)
     if (strcmp(argv[0], "attest") == 0)          return cmd_attest(argc, argv);
     if (strcmp(argv[0], "date") == 0)            return cmd_date(argc, argv);
     if (strcmp(argv[0], "agi") == 0)             return cmd_agi(argc, argv);
-    if (strcmp(argv[0], "holyc") == 0)           return cmd_holyc(argc, argv);
+    if (strcmp(argv[0], "holyc") == 0)           return cmd_holyd(argc, argv);
     if (strcmp(argv[0], "live") == 0)            return cmd_live(argc, argv);
     if (strcmp(argv[0], "recovery") == 0)        return cmd_recovery(argc, argv);
     if (strcmp(argv[0], "cls") == 0)             return cmd_cls();

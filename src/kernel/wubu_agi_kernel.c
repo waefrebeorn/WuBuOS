@@ -238,7 +238,7 @@ void wubu_agi_kernel_run(wubu_agi_kernel_t *k)
             klog_printf("WuBuOS AGI: Bonzi Buddy task spawned\n");
     }
     /* Spawn the live console task: COM1 REPL -- the TempleOS-style live
-     * development surface of the OS (commands + HolyC in ring 0). */
+     * development surface of the OS (commands + HolyD in ring 0). */
     if (task_create("console", wubu_console_task, k, 64 * 1024, PRIO_NORMAL)) {
         if (klog_printf)
             klog_printf("WuBuOS AGI: live console task spawned\n");

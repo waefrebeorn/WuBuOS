@@ -1,10 +1,10 @@
 /*
- * dosgui_term.c  --  WuBuOS Terminal (PTY + HolyC REPL + Tabbed)
+ * dosgui_term.c  --  WuBuOS Terminal (PTY + HolyD REPL + Tabbed)
  *
  * Phase 6: Full-featured terminal with:
  *   - PTY backend for shell sessions (bash, zsh, etc.)
  *   - Tabbed sessions (multiple shells in one window)
- *   - HolyC REPL pane integration
+ *   - HolyD REPL pane integration
  *   - GPU-accelerated render via VBE double-buffer
  *   - Scrollback buffer with search
  *   - Copy/paste, selection, URL detection
@@ -72,7 +72,7 @@ TermState g_term = {0};
 static void term_render_tab_bar(TermState *term, uint32_t *fb, int fb_w, int fb_h);
 static void term_render_content(TermState *term, uint32_t *fb, int fb_w, int fb_h);
 void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, int w, int h);
-static void term_render_holyc_session(TermHolycSession *holyc, uint32_t *fb, int x, int y, int w, int h);
+static void term_render_holyc_session(TermHolydSession *holyc, uint32_t *fb, int x, int y, int w, int h);
 void term_render_container_session(TermContainerSession *container, uint32_t *fb, int x, int y, int w, int h);
 void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w);
 static void term_handle_mouse_tab_bar(TermState *term, int x, int y, int btn, int kind);
@@ -166,7 +166,7 @@ int dosgui_term_spawn_shell(const char *shell, const char *cwd) {
 }
 
 int dosgui_term_spawn_holyc(void) {
-    return dosgui_term_new_tab(TERM_SESSION_HOLYC, "HolyC REPL", NULL);
+    return dosgui_term_new_tab(TERM_SESSION_HOLYC, "HolyD REPL", NULL);
 }
 
 int dosgui_term_spawn_container(const char *container_name) {
@@ -266,7 +266,7 @@ void dosgui_term_handle_key(uint32_t key, uint32_t mods) {
         if (tab->type == TERM_SESSION_SHELL) {
             term_handle_key_pty(&g_term, key, mods);
         } else if (tab->type == TERM_SESSION_HOLYC) {
-            term_handle_key_holyc(&g_term, key, mods);
+            term_handle_key_holyd(&g_term, key, mods);
         } else if (tab->type == TERM_SESSION_CONTAINER) {
             term_handle_key_container(&g_term, key, mods);
         }
@@ -336,7 +336,7 @@ void dosgui_term_pty_write(const char *data, int len) {
             write(pty->ptm_fd, data, len);
         }
     } else if (tab->type == TERM_SESSION_HOLYC) {
-        TermPtySession *pty = &tab->session.holyc.pty;
+        TermPtySession *pty = &tab->session.holyd.pty;
         if (pty->ptm_fd >= 0) {
             write(pty->ptm_fd, data, len);
         }
@@ -354,7 +354,7 @@ void dosgui_term_pty_read(void) {
     if (tab->type == TERM_SESSION_SHELL) {
         term_process_pty_output(&tab->session.pty);
     } else if (tab->type == TERM_SESSION_HOLYC) {
-        term_process_pty_output(&tab->session.holyc.pty);
+        term_process_pty_output(&tab->session.holyd.pty);
     }
 }
 
@@ -499,4 +499,3 @@ static void term_handle_mouse_content(TermState *term, int x, int y, int btn, in
         }
     }
 }
-

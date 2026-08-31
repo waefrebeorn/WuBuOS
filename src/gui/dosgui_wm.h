@@ -342,8 +342,8 @@ int dosgui_chrome_hit_test_button(DosGuiWindow *win, int mx, int my);
 /* Handle title bar button click (close/maximize/minimize) */
 void dosgui_chrome_handle_button_click(DosGuiWindow *win, int button);
 
-/* -- HolyC Terminal ---------------------------------------------- */
+/* -- HolyD Terminal ---------------------------------------------- */
 
-DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);
+DosGuiWindow *dosgui_wm_spawn_holyd_term(int x, int y, int w, int h);
 
 #endif /* WUBU_DOSGUI_WM_H */

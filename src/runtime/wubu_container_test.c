@@ -30,7 +30,7 @@ int main(void) {
         hdr.payload_type = WUBU_PAYLOAD_HOLYC_SRC;
         hdr.arch = WUBU_ARCH_X86_64;
         hdr.flags = WUBU_FLAG_JIT_COMPILE;
-        hdr.handler_id = 2; /* HolyC JIT */
+        hdr.handler_id = 2; /* HolyD JIT */
         hdr.os_persona = WUBU_OS_NATIVE;
         hdr.entry_offset = 0;
 
@@ -109,10 +109,10 @@ int main(void) {
         T(wubu_detect_payload_type(py, sizeof(py)) == WUBU_PAYLOAD_PYTHON,
           "detect python script");
 
-        /* HolyC */
+        /* HolyD */
         uint8_t hc[] = "U0 main() { return 0; }";
         T(wubu_detect_payload_type(hc, sizeof(hc)) == WUBU_PAYLOAD_HOLYC_SRC,
-          "detect HolyC source");
+          "detect HolyD source");
 
         /* C source */
         uint8_t c[] = "#include <stdio.h>\nint main() { return 0; }";
@@ -179,7 +179,7 @@ int main(void) {
         wubu_container_create(&hdr, "test", 4, wubu_buf, sizeof(wubu_buf), &wubu_size);
 
         t = wubu_detect_format(wubu_buf, wubu_size, &is_wubu);
-        T(t == WUBU_PAYLOAD_HOLYC_SRC && is_wubu, "detect .wubu HolyC container");
+        T(t == WUBU_PAYLOAD_HOLYC_SRC && is_wubu, "detect .wubu HolyD container");
     }
 
     /* -- Payload Type Names -- */
@@ -191,7 +191,7 @@ int main(void) {
           "name: linux elf");
         T(strcmp(wubu_payload_name(WUBU_PAYLOAD_WIN_PE), "Windows PE (Proton)") == 0,
           "name: win pe");
-        T(strcmp(wubu_payload_name(WUBU_PAYLOAD_HOLYC_SRC), "HolyC Source") == 0,
+        T(strcmp(wubu_payload_name(WUBU_PAYLOAD_HOLYC_SRC), "HolyD Source") == 0,
           "name: holyc");
     }
 
@@ -205,10 +205,10 @@ int main(void) {
         T(!wubu_vsl_active(), "VSL not active after shutdown");
     }
 
-    /* -- End-to-End: HolyC in .wubu -- */
-    printf("\n[E2E: HolyC in .wubu]\n");
+    /* -- End-to-End: HolyD in .wubu -- */
+    printf("\n[E2E: HolyD in .wubu]\n");
     {
-        /* Create a .wubu container with HolyC source */
+        /* Create a .wubu container with HolyD source */
         const char *hc_src = "return 2 + 3;";
         WUBU_HEADER hdr;
         memset(&hdr, 0, sizeof(hdr));
@@ -229,21 +229,21 @@ int main(void) {
         size_t payload_size;
         wubu_container_parse(buf, out_size, &parsed, &payload, &payload_size);
 
-        T(parsed.payload_type == WUBU_PAYLOAD_HOLYC_SRC, "parsed HolyC container");
+        T(parsed.payload_type == WUBU_PAYLOAD_HOLYC_SRC, "parsed HolyD container");
 
-        /* Execute the HolyC payload */
-        int64_t result = wubu_exec_holyc((const char *)payload, payload_size);
-        T(result == 5, "HolyC 2+3 = 5 via .wubu");
+        /* Execute the HolyD payload */
+        int64_t result = wubu_exec_holyd((const char *)payload, payload_size);
+        T(result == 5, "HolyD 2+3 = 5 via .wubu");
     }
 
     /* -- End-to-End: Universal Exec -- */
     printf("\n[E2E: Universal Exec]\n");
     {
-        /* HolyC source file */
+        /* HolyD source file */
         int64_t r = wubu_exec("return 7 * 6;", 13, "test.hc");
-        T(r == 42, "universal exec HolyC: 7*6 = 42");
+        T(r == 42, "universal exec HolyD: 7*6 = 42");
 
-        /* .wubu container with HolyC */
+        /* .wubu container with HolyD */
         const char *hc = "return 100 / 4;";
         WUBU_HEADER hdr;
         memset(&hdr, 0, sizeof(hdr));
@@ -262,13 +262,13 @@ int main(void) {
     /* -- handler_id Dispatch -- */
     printf("\n[handler_id Dispatch]\n");
     {
-        /* Test handler_id=2 (HolyC JIT) for a .wubu container */
+        /* Test handler_id=2 (HolyD JIT) for a .wubu container */
         const char *hc = "return 11 + 22;";
         WUBU_HEADER hdr;
         memset(&hdr, 0, sizeof(hdr));
         hdr.payload_type = WUBU_PAYLOAD_HOLYC_SRC;
         hdr.arch = WUBU_ARCH_X86_64;
-        hdr.handler_id = 2;  /* HolyC JIT handler */
+        hdr.handler_id = 2;  /* HolyD JIT handler */
         hdr.os_persona = WUBU_OS_NATIVE;
 
         uint8_t buf[512];
@@ -276,7 +276,7 @@ int main(void) {
         wubu_container_create(&hdr, hc, strlen(hc), buf, sizeof(buf), &out_size);
 
         int64_t r = wubu_exec(buf, out_size, "handler_id_test.wubu");
-        T(r == 33, "handler_id=2 HolyC: 11+22 = 33");
+        T(r == 33, "handler_id=2 HolyD: 11+22 = 33");
 
         /* Test handler_id=10 (VSL) for Linux ELF payload (stub) */
         hdr.handler_id = 10;
@@ -307,9 +307,9 @@ int main(void) {
     /* -- Raw Format Exec (non-.wubu) -- */
     printf("\n[Raw Format Exec]\n");
     {
-        /* Raw HolyC source */
+        /* Raw HolyD source */
         int64_t r = wubu_exec("return 5 * 5;", 13, "raw.hc");
-        T(r == 25, "raw HolyC: 5*5 = 25");
+        T(r == 25, "raw HolyD: 5*5 = 25");
 
         /* Raw shell script (with proper shebang) */
         r = wubu_exec("#!/bin/sh\necho hello", 18, "raw.sh");

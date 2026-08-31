@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_exec.c  --  WuBuOS HolyC DOS Daemon: Exec
+ * wubu_holyd_exec.c  --  WuBuOS HolyD DOS Daemon: Exec
  */
 
 #include "wubu_holyd_internal.h"

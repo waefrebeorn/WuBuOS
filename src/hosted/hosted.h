@@ -29,7 +29,7 @@
 typedef enum {
     HMODE_NONE     = 0,
     HMODE_GUI      = 1,     /* Win98 desktop GUI */
-    HMODE_TEMPLE   = 2,     /* HolyC REPL full-screen */
+    HMODE_TEMPLE   = 2,     /* HolyD REPL full-screen */
     HMODE_CONSOLE  = 4,     /* Text console (no GUI) */
     HMODE_HEADLESS = 8,     /* No window (Styx-only server) */
     HMODE_GAME     = 16,    /* Dedicated game session (gamescope-style):

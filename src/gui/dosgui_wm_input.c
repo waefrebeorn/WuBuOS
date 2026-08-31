@@ -81,9 +81,9 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
-    /* Win+H: spawn HolyC terminal */
+    /* Win+H: spawn HolyD terminal */
     if ((mods & 0x08) && (key == 0x48 || key == 'h' || key == 'H')) {
-        dosgui_wm_spawn_holyc_term(100, 100, 700, 500);
+        dosgui_wm_spawn_holyd_term(100, 100, 700, 500);
         return;
     }
 

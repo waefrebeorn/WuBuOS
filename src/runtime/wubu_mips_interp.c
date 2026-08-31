@@ -5,6 +5,7 @@
  * C11, self-contained.
  */
 #include <stdint.h>
+#include <stdio.h>
 #include "wubu_tgemm.h"
 #include "wubu_softfloat.h"
 #include <stdlib.h>
@@ -18,6 +19,8 @@ typedef struct {
     uint32_t hi, lo;
     uint8_t mem[MIPS_MEM];
     int fret_valid;
+    uint32_t call_stack[32];
+    int call_sp;
 } mips_cpu_t;
 
 static inline uint32_t fetch32(mips_cpu_t *cpu, const uint8_t *code, size_t size) {
@@ -181,7 +184,20 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
             case 2:  r = wubu_sf_f32_mul(fa, fb); break;
             case 3:  r = wubu_sf_f32_div(fa, fb); break;
             case 10: r = fa ^ 0x80000000u; break;
-            case 6:  r = (wubu_sf_f32_cmp(fa,fb)==0)?0xFFFFFFFFu:0; break;
+                                case 4:  r = (uint32_t)wubu_sf_i64_to_f32(fa); break;       /* ITOF */
+                    case 5:  r = wubu_sf_f32_to_i64((uint32_t)fa); break;             /* FTOI */
+                    case 14: r = (uint32_t)wubu_sf_f64_add((uint64_t)fa, (uint64_t)fb); break;  /* DADD */
+                    case 15: r = (uint32_t)wubu_sf_f64_sub((uint64_t)fa, (uint64_t)fb); break;  /* DSUB */
+                    case 16: r = (uint32_t)wubu_sf_f64_mul((uint64_t)fa, (uint64_t)fb); break;  /* DMUL */
+                    case 17: r = (uint32_t)wubu_sf_f64_div((uint64_t)fa, (uint64_t)fb); break;  /* DDIV */
+                    case 18: r = (uint32_t)wubu_sf_f64_neg((uint64_t)fa); break;               /* DNEG */
+                    case 19: r = wubu_sf_i64_to_f64(fa); break;                                /* DITOF */
+                    case 20: r = wubu_sf_f64_to_i64((uint64_t)fa); break;                     /* DTOI */
+                    case 21: r = wubu_sf_f64_to_f32((uint64_t)fa); break;                     /* F64_TO_F32 */
+                    case 22: r = wubu_sf_f32_to_f64((uint32_t)fa); break;                     /* F32_TO_F64 */
+                    case 23: r = wubu_sf_bf16_to_f32((uint16_t)fa); break;                     /* BF16_TO_F32 */
+                    case 24: r = wubu_sf_f32_to_bf16((uint32_t)fa); break;                     /* F32_TO_BF16 */
+                    case 6:  r = (wubu_sf_f32_cmp(fa,fb)==0)?0xFFFFFFFFu:0; break;
             case 7:  r = (wubu_sf_f32_cmp(fa,fb)!=0)?0xFFFFFFFFu:0; break;
             case 8:  r = (wubu_sf_f32_cmp(fa,fb) <0)?0xFFFFFFFFu:0; break;
             case 9:  r = (wubu_sf_f32_cmp(fa,fb)<=0)?0xFFFFFFFFu:0; break;
@@ -212,9 +228,47 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
                              | (cpu.mem[off+2]<<16) | ((uint32_t)cpu.mem[off+3]<<24));
                 break;
             }
+            case 25: { /* MEM_LOAD: dst = mem64[cell] low byte */
+                uint32_t cell = read32(&cpu, basev + sa);
+                r = (basev + cell < MIPS_MEM) ? cpu.mem[basev + cell] : 0;
+                break;
+            }
+            case 27: { /* CALL: abs24 BE target after prologue */
+                fprintf(stderr, "[CALL] pc=%u sp=%u\n", cpu.pc, cpu.call_sp);
+                if (cpu.call_sp < 32) {
+                    uint32_t target = ((uint32_t)code[cpu.pc] << 16) |
+                                      ((uint32_t)code[cpu.pc+1] << 8) |
+                                      (uint32_t)code[cpu.pc+2];
+                    cpu.pc += 3;
+                    cpu.call_stack[cpu.call_sp++] = cpu.pc;
+                    cpu.pc = target;
+                }
+                continue;
+            }
+            case 28: { /* FUNC_RET: result at [basev + sa]; pop or halt */
+                uint32_t v32 = read32(&cpu, basev + sa);
+                uint8_t v = cpu.mem[basev + sa];
+                fprintf(stderr, "[FRET] sa=%u byte=%u word=%u\n", sa, v, v32);
+                cpu.mem[basev + 0] = v;   /* vr0 slot: slot_off(0) = 0*4 = 0 */
+                if (cpu.call_sp > 0) {
+                    cpu.pc = cpu.call_stack[--cpu.call_sp];
+                } else {
+                    cpu.r[2] = v;
+                    goto done;
+                }
+                break;
+            }
+            case 26: { /* MEM_STORE: mem64[cell] low byte = value */
+                uint32_t val = read32(&cpu, basev + sa);
+                uint32_t cell = read32(&cpu, basev + sb);
+                if (basev + cell < MIPS_MEM) cpu.mem[basev + cell] = (uint8_t)(val & 0xFF);
+                r = 0;
+                break;
+            }
             default: break;
             }
-            write32(&cpu, basev + dst, r);
+            if (dst != 0 || fn == 25)
+                write32(&cpu, basev + dst, r);
             break;
         }
         default:

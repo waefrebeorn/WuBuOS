@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_test.c  --  Test suite for wubu_holyd (TempleOS HolyC DOS Daemon)
+ * wubu_holyd_test.c  --  Test suite for wubu_holyd (TempleOS HolyD DOS Daemon)
  *
  * Tests daemon init, session lifecycle, window management, input routing,
  * 9P namespace, auto-save, and event publishing.
@@ -29,7 +29,7 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 
 static void test_config_defaults(void) {
     TEST("holyd config defaults");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test-holyd.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test-holyd.log", sizeof(config.log_path) - 1);
@@ -100,7 +100,7 @@ static void test_cmd_strings(void) {
 
 static void test_session_create(void) {
     TEST("session create");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions2", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test2.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test2.log", sizeof(config.log_path) - 1);
@@ -138,7 +138,7 @@ static void test_session_create(void) {
 
 static void test_session_destroy(void) {
     TEST("session destroy");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions3", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test3.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test3.log", sizeof(config.log_path) - 1);
@@ -158,7 +158,7 @@ static void test_session_destroy(void) {
 
 static void test_session_duplicate(void) {
     TEST("duplicate session name rejected");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions4", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test4.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test4.log", sizeof(config.log_path) - 1);
@@ -179,7 +179,7 @@ static void test_session_duplicate(void) {
 
 static void test_window_create(void) {
     TEST("window create");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions5", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test5.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test5.log", sizeof(config.log_path) - 1);
@@ -210,7 +210,7 @@ static void test_window_create(void) {
 
 static void test_input_key(void) {
     TEST("input key routing");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions6", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test6.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test6.log", sizeof(config.log_path) - 1);
@@ -232,7 +232,7 @@ static void test_input_key(void) {
 
 static void test_session_save(void) {
     TEST("session save");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions7", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test7.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test7.log", sizeof(config.log_path) - 1);
@@ -260,7 +260,7 @@ static void test_session_save(void) {
 
 static void test_mount(void) {
     TEST("session mount");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions8", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test8.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test8.log", sizeof(config.log_path) - 1);
@@ -288,7 +288,7 @@ static void test_mount(void) {
 
 static void test_event_publish(void) {
     TEST("event publish creates event file");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-sessions9", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test9.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test9.log", sizeof(config.log_path) - 1);
@@ -307,11 +307,11 @@ static void test_event_publish(void) {
     rmdir("/tmp/wubu-test-sessions9");
 }
 
-/* -- HolyC JIT Eval Tests ----------------------------------------- */
+/* -- HolyD JIT Eval Tests ----------------------------------------- */
 
 static void test_holyd_eval(void) {
     TEST("holyd eval: simple integer literal");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-eval1", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test-eval1.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test-eval1.log", sizeof(config.log_path) - 1);
@@ -352,11 +352,11 @@ static void test_holyd_eval(void) {
     wubu_holyd_shutdown(&d);
 }
 
-/* -- HolyC JIT Persistent State Tests ----------------------------- */
+/* -- HolyD JIT Persistent State Tests ----------------------------- */
 
 static void test_holyd_persistent_state(void) {
     TEST("holyd eval: persistent variable across evals");
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, "/tmp/wubu-test-persist1", sizeof(config.sessions_path) - 1);
     strncpy(config.socket_path, "/tmp/wubu-test-persist1.sock", sizeof(config.socket_path) - 1);
     strncpy(config.log_path, "/tmp/wubu-test-persist1.log", sizeof(config.log_path) - 1);
@@ -397,7 +397,7 @@ static void test_holyd_persistent_state(void) {
 
 int main(void) {
     printf("\n==================================================\n");
-    printf("  WuBuOS TempleOS HolyC DOS Daemon Test Suite\n");
+    printf("  WuBuOS TempleOS HolyD DOS Daemon Test Suite\n");
     printf("==================================================\n\n");
 
     test_config_defaults();
@@ -412,11 +412,11 @@ int main(void) {
     test_mount();
     test_event_publish();
 
-    /* -- HolyC JIT Eval Tests ------------------------------------- */
+    /* -- HolyD JIT Eval Tests ------------------------------------- */
 
     test_holyd_eval();
 
-    /* -- HolyC JIT Persistent State Tests ------------------------ */
+    /* -- HolyD JIT Persistent State Tests ------------------------ */
 
     test_holyd_persistent_state();
 

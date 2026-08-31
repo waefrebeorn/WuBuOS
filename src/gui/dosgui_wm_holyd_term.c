@@ -1,21 +1,21 @@
 /*
- * dosgui_wm_holyc_term.c  --  HolyC Terminal subsystem for dosgui_wm
+ * dosgui_wm_holyd_term.c  --  HolyD Terminal subsystem for dosgui_wm
  *
- * Provides a REPL terminal window for HolyC script evaluation.
+ * Provides a REPL terminal window for HolyD script evaluation.
  * Extracted from dosgui_wm.c for modularity.
  *
- * NOTE: g_holyc_terms[] is defined as a static global in dosgui_wm.c.
+ * NOTE: g_holyd_terms[] is defined as a static global in dosgui_wm.c.
  * This module provides the helper functions that operate on it.
  *
- * Evaluation is dependency-injected (see dosgui_wm_holyc_term.h). The default
- * evaluator is a direct, self-contained JIT compile+run via the public HolyC
- * compiler API. The hosted binary injects the richer wubu_holyc_agi path
+ * Evaluation is dependency-injected (see dosgui_wm_holyd_term.h). The default
+ * evaluator is a direct, self-contained JIT compile+run via the public HolyD
+ * compiler API. The hosted binary injects the richer wubu_holyd_agi path
  * (holyd daemon + EDR disclosure) at the composition root, so this module
  * stays decoupled from the runtime AGI/EDR layer.
  */
 
 #include "dosgui_wm_internal.h"
-#include "dosgui_wm_holyc_term.h"
+#include "dosgui_wm_holyd_term.h"
 
 #include "holyd_codegen.h"   /* public compiler API: hd_eval */
 
@@ -25,22 +25,22 @@
 
 /* -- Injected evaluator (DI) -------------------------------------- */
 
-static int holyc_eval_default(const char *src, char *out, size_t out_size) {
+static int holyd_eval_default(const char *src, char *out, size_t out_size) {
     if (!src || !out || out_size == 0) return -1;
     int64_t r = hd_eval(src);
     snprintf(out, out_size, "%lld", (long long)r);
     return 0;
 }
 
-static holyc_term_eval_fn g_eval = holyc_eval_default;
+static holyd_term_eval_fn g_eval = holyd_eval_default;
 
-void holyc_term_set_eval(holyc_term_eval_fn fn) {
-    g_eval = fn ? fn : holyc_eval_default;
+void holyd_term_set_eval(holyd_term_eval_fn fn) {
+    g_eval = fn ? fn : holyd_eval_default;
 }
 
-/* -- HolyC Terminal Implementation (matching original code) ------- */
+/* -- HolyD Terminal Implementation (matching original code) ------- */
 
-void holyc_term_init_compiler(HolycTerm *term) {
+void holyd_term_init_compiler(HolycTerm *term) {
     if (!term || term->initialized) return;
     term->buffer[0][0] = '\0';
     term->input[0] = '\0';
@@ -48,7 +48,7 @@ void holyc_term_init_compiler(HolycTerm *term) {
     term->initialized = true;
 }
 
-void holyc_term_add_line(HolycTerm *term, const char *line) {
+void holyd_term_add_line(HolycTerm *term, const char *line) {
     if (!term || !line) return;
     /* Scroll buffer up */
     for (int i = 31; i > 0; i--)
@@ -56,7 +56,7 @@ void holyc_term_add_line(HolycTerm *term, const char *line) {
     snprintf(term->buffer[0], sizeof(term->buffer[0]), "%s", line);
 }
 
-void holyc_term_add_history(HolycTerm *term, const char *cmd) {
+void holyd_term_add_history(HolycTerm *term, const char *cmd) {
     if (!term || !cmd) return;
     if (term->hist_count < 16)
         snprintf(term->history[term->hist_count++], sizeof(term->history[0]), "%s", cmd);
@@ -68,25 +68,25 @@ void holyc_term_add_history(HolycTerm *term, const char *cmd) {
     term->hist_pos = term->hist_count;
 }
 
-void holyc_term_eval(HolycTerm *term, const char *cmd) {
+void holyd_term_eval(HolycTerm *term, const char *cmd) {
     if (!term || !cmd) return;
 
     if (strcmp(cmd, "exit") == 0) {
-        holyc_term_add_line(term, "Goodbye.");
+        holyd_term_add_line(term, "Goodbye.");
         return;
     }
     if (strcmp(cmd, "clear") == 0) {
         memset(term->buffer, 0, sizeof(term->buffer));
         term->input[0] = '\0';
         term->cursor_pos = 0;
-        holyc_term_add_line(term, "WuBuOS HolyC Terminal v0.1");
+        holyd_term_add_line(term, "WuBuOS HolyD Terminal v0.1");
         return;
     }
     if (strcmp(cmd, "help") == 0) {
-        holyc_term_add_line(term, "HolyC Terminal -- live ring-0 compiler.");
-        holyc_term_add_line(term, "  Type HolyC expressions/statements; they compile + run now.");
-        holyc_term_add_line(term, "  e.g. 1+2+3   { I64 x=5; x*x; }   I64 sq(I64 n){return n*n;} sq(9);");
-        holyc_term_add_line(term, "  State (vars/functions) persists across lines. exit/clear/help builtins.");
+        holyd_term_add_line(term, "HolyD Terminal -- live ring-0 compiler.");
+        holyd_term_add_line(term, "  Type HolyD expressions/statements; they compile + run now.");
+        holyd_term_add_line(term, "  e.g. 1+2+3   { I64 x=5; x*x; }   I64 sq(I64 n){return n*n;} sq(9);");
+        holyd_term_add_line(term, "  State (vars/functions) persists across lines. exit/clear/help builtins.");
         return;
     }
 
@@ -98,10 +98,10 @@ void holyc_term_eval(HolycTerm *term, const char *cmd) {
         snprintf(line, sizeof(line), "» %s", result);
     else
         snprintf(line, sizeof(line), "⚠ %s", result);
-    holyc_term_add_line(term, line);
+    holyd_term_add_line(term, line);
 }
 
-void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void holyd_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
     (void)fb_w;
     (void)fb_h;
@@ -129,14 +129,14 @@ void holyc_term_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     vbe_draw_text(cx + 4, cy + lines * line_h - line_h, input_line, 0xFF00FF00, 1);
 }
 
-void holyc_term_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+void holyd_term_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)mods;
     HolycTerm *term = (HolycTerm*)win->user_data;
     if (!term) return;
 
     if (key == '\n' || key == '\r') {
-        holyc_term_add_history(term, term->input);
-        holyc_term_eval(term, term->input);
+        holyd_term_add_history(term, term->input);
+        holyd_term_eval(term, term->input);
         memset(term->input, 0, sizeof(term->input));
         term->cursor_pos = 0;
         return;
@@ -162,8 +162,8 @@ void holyc_term_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
 
 /* -- Public API (called from dosgui_wm.c) -------------------------- */
 
-DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
-    DosGuiWindow *win = dosgui_wm_create(x, y, w, h, "HolyC Terminal");
+DosGuiWindow *dosgui_wm_spawn_holyd_term(int x, int y, int w, int h) {
+    DosGuiWindow *win = dosgui_wm_create(x, y, w, h, "HolyD Terminal");
     if (!win) return NULL;
 
     /* Find index */
@@ -174,13 +174,13 @@ DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
     if (idx < 0) return NULL;
 
     /* Set up callbacks */
-    win->on_draw = holyc_term_draw;
-    win->on_key = holyc_term_on_key;
+    win->on_draw = holyd_term_draw;
+    win->on_key = holyd_term_on_key;
     win->user_data = calloc(1, sizeof(HolycTerm));
     if (win->user_data) {
         HolycTerm *term = (HolycTerm*)win->user_data;
         term->initialized = true;
-        holyc_term_add_line(term, "WuBuOS HolyC Terminal v0.1");
+        holyd_term_add_line(term, "WuBuOS HolyD Terminal v0.1");
     }
 
     return win;

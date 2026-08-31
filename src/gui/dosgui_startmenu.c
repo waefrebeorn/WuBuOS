@@ -530,7 +530,7 @@ void dosgui_startmenu_build_programs_db(void) {
     
     /* WuBuOS */
     e = &g_program_db.entries[g_program_db.count++];
-    strcpy(e->name, "HolyC Terminal"); strcpy(e->executable, "HolyC Terminal");
+    strcpy(e->name, "HolyD Terminal"); strcpy(e->executable, "HolyD Terminal");
     strcpy(e->category, "WuBuOS"); e->is_builtin = true;
     
     e = &g_program_db.entries[g_program_db.count++];

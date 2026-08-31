@@ -142,7 +142,7 @@ int  wubu_holyd_publish_event(WubuHoly *d, const char *event_type,
                                const char *session, const char *data);
 
 /* -- Daemon lifecycle (wubu_holyd_lifecycle.c) ------------------- */
-int  wubu_holyd_init(WubuHoly *d, const WubuHolyConfig *config);
+int  wubu_holyd_init(WubuHoly *d, const WubuHolyDonfig *config);
 int  wubu_holyd_start(WubuHoly *d);
 void wubu_holyd_event_loop(WubuHoly *d);
 void wubu_holyd_daemon_stop(WubuHoly *d);
@@ -151,7 +151,7 @@ void wubu_holyd_shutdown(WubuHoly *d);
 /* -- String tables (stay in wubu_holyd.c facade -- pure utility) */
 const char *wubu_holyd_session_state_str(WubuHolySessionState state);
 const char *wubu_holyd_window_type_str(WubuHolyWindowType type);
-const char *wubu_holyd_cmd_str(WubuHolyCmd cmd);
+const char *wubu_holyd_cmd_str(WubuHolyDmd cmd);
 const char *wubu_holyd_version(void);
 
 #endif /* WUBU_HOLYD_INTERNAL_H */

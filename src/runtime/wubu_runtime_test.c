@@ -47,14 +47,14 @@ int main(void)
     {
         printf("[oracle 3] the snapshot (nothing left in the dust)\n");
         uint64_t jvm = wubu_runtime_create(rt, "java-jvm-21", "java",
-                                           "holyc-0.1.0", "java-21",
+                                           "holyd-0.1.0", "java-21",
                                            "wubu-abi-v1", "/n/java/");
         CHECK(jvm != 0, "create java-jvm-21 space");
         wubu_rt_space_t *sp = wubu_runtime_find(rt, jvm);
         CHECK(sp != NULL, "find by id");
         if (sp) {
-            CHECK(!strcmp(sp->compiler_ver, "holyc-0.1.0"),
-                  "compiler_ver recorded (holyc-0.1.0)");
+            CHECK(!strcmp(sp->compiler_ver, "holyd-0.1.0"),
+                  "compiler_ver recorded (holyd-0.1.0)");
             CHECK(!strcmp(sp->language_ver, "java-21"),
                   "language_ver recorded (java-21)");
             CHECK(strlen(sp->created) == 10 && sp->created[4] == '-',
@@ -69,7 +69,7 @@ int main(void)
     {
         printf("[oracle 2+5] two runtimes coexist, own namespaces\n");
         uint64_t clr = wubu_runtime_create(rt, "dotnet-clr-9", "csharp",
-                                           "holyc-0.1.0", "clr-9",
+                                           "holyd-0.1.0", "clr-9",
                                            "wubu-abi-v1", "/n/dotnet/");
         CHECK(clr != 0, "create dotnet-clr-9 space");
         wubu_rt_space_t *a = wubu_runtime_find_name(rt, "java-jvm-21");
@@ -114,16 +114,16 @@ int main(void)
     {
         printf("[oracle 4] registry caps and recycles the oldest\n");
         uint64_t v8 = wubu_runtime_create(rt, "js-v8", "javascript",
-                                          "holyc-0.1.0", "v8",
+                                          "holyd-0.1.0", "v8",
                                           "wubu-abi-v1", "/n/js/");
         uint64_t wasm = wubu_runtime_create(rt, "wasm-instance-1", "wasm",
-                                            "holyc-0.1.0", "wasi-p2",
+                                            "holyd-0.1.0", "wasi-p2",
                                             "wubu-abi-v1", "/n/wasm/");
         CHECK(v8 && wasm, "created two more (registry now at cap 4)");
         CHECK(wubu_runtime_count(rt) == 4, "count capped at 4");
         /* one more: the oldest (java-jvm-21, seq 1) is recycled */
         uint64_t rust = wubu_runtime_create(rt, "rust-tokio", "rust",
-                                            "holyc-0.1.0", "rust-2024",
+                                            "holyd-0.1.0", "rust-2024",
                                             "wubu-abi-v1", "/n/rust/");
         CHECK(rust != 0, "created the 5th (recycles the oldest)");
         CHECK(wubu_runtime_count(rt) == 4, "count stays at 4 (ring)");
@@ -148,7 +148,7 @@ int main(void)
     {
         printf("[wave 3] personalities (the gap filler)\n");
         uint64_t jvm = wubu_runtime_create(rt, "java-jvm-21", "java",
-                                           "holyc-0.1.0", "java-21",
+                                           "holyd-0.1.0", "java-21",
                                            "wubu-abi-v1", "/n/java/");
         CHECK(jvm != 0, "re-create java-jvm-21 (after ring recycle)");
 
@@ -183,7 +183,7 @@ int main(void)
 
         /* WASI sandbox: open outside /n/ refused */
         uint64_t wasm = wubu_runtime_create(rt, "wasm-instance-2", "wasm",
-                                            "holyc-0.1.0", "wasi-p2",
+                                            "holyd-0.1.0", "wasi-p2",
                                             "wubu-abi-v1", "/n/wasm2/");
         CHECK(wasm != 0, "create wasm space");
         CHECK(wubu_runtime_set_personality(rt, wasm, "wasi") == 0,
@@ -205,7 +205,7 @@ int main(void)
 
         /* no personality attached yet -> dispatch refused */
         uint64_t cold = wubu_runtime_create(rt, "cold-space", "c++",
-                                            "holyc-0.1.0", "abi-v1",
+                                            "holyd-0.1.0", "abi-v1",
                                             "wubu-abi-v1", "/n/cxx/");
         CHECK(wubu_runtime_call(rt, cold, WUBU_RT_SYS_READ, 0, 0, 0) == -1,
               "dispatch refused on a personality-less (cold) space");

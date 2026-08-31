@@ -1,7 +1,7 @@
 /*
  * wubu_gc.c  --  Simple Mark-and-Sweep GC for WuBuOS Userspace Applets
  *
- * Opt-in garbage collector for HolyC REPL, editor, container apps.
+ * Opt-in garbage collector for HolyD REPL, editor, container apps.
  * Kernel stays manual (memory.c)  --  this is purely userspace.
  *
  * Design (from "Baby's First Garbage Collector"  --  mark/sweep):

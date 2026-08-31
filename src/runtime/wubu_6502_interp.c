@@ -45,6 +45,9 @@ typedef struct {
     /* soft-float return scratch: set by hostcall fn=11 (FRET) */
     uint32_t fret;
     int fret_valid;
+    /* MIR_CALL stack: saved PCs for hostcall fn=27/28 (CALL/FUNC_RET) */
+    uint16_t call_stack[32];
+    int call_sp;
 } cpu6502_t;
 
 #define FLAG_N (cpu.p & P_N)
@@ -305,6 +308,19 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
                     case 2:  r = wubu_sf_f32_mul(fa, fb); break;
                     case 3:  r = wubu_sf_f32_div(fa, fb); break;
                     case 10: r = fa ^ 0x80000000u; break;   /* FNEG */
+                                        case 4:  r = (uint32_t)wubu_sf_i64_to_f32(fa); break;       /* ITOF */
+                    case 5:  r = wubu_sf_f32_to_i64((uint32_t)fa); break;             /* FTOI */
+                    case 14: r = (uint32_t)wubu_sf_f64_add((uint64_t)fa, (uint64_t)fb); break;  /* DADD */
+                    case 15: r = (uint32_t)wubu_sf_f64_sub((uint64_t)fa, (uint64_t)fb); break;  /* DSUB */
+                    case 16: r = (uint32_t)wubu_sf_f64_mul((uint64_t)fa, (uint64_t)fb); break;  /* DMUL */
+                    case 17: r = (uint32_t)wubu_sf_f64_div((uint64_t)fa, (uint64_t)fb); break;  /* DDIV */
+                    case 18: r = (uint32_t)wubu_sf_f64_neg((uint64_t)fa); break;               /* DNEG */
+                    case 19: r = wubu_sf_i64_to_f64(fa); break;                                /* DITOF */
+                    case 20: r = wubu_sf_f64_to_i64((uint64_t)fa); break;                     /* DTOI */
+                    case 21: r = wubu_sf_f64_to_f32((uint64_t)fa); break;                     /* F64_TO_F32 */
+                    case 22: r = wubu_sf_f32_to_f64((uint32_t)fa); break;                     /* F32_TO_F64 */
+                    case 23: r = wubu_sf_bf16_to_f32((uint16_t)fa); break;                     /* BF16_TO_F32 */
+                    case 24: r = wubu_sf_f32_to_bf16((uint32_t)fa); break;                     /* F32_TO_BF16 */
                     case 6:  r = (wubu_sf_f32_cmp(fa, fb) == 0) ? 0xFFFFFFFFu : 0; break;
                     case 8:  r = (wubu_sf_f32_cmp(fa, fb)  < 0) ? 0xFFFFFFFFu : 0; break;
                     case 9:  r = (wubu_sf_f32_cmp(fa, fb) <= 0) ? 0xFFFFFFFFu : 0; break;
@@ -341,14 +357,60 @@ int64_t wubu_6502_run(const uint8_t *code, size_t size, int64_t arg)
                         r = lo;
                         break;
                     }
+                    case 25: { /* MEM_LOAD: dst = mem64[cell] low byte.
+                                * sa = ZP slot holding the cell index byte
+                                * (addresses are const vrs; cell <= 255 on 6502).
+                                * The 6502 ALU is 8-bit: values are bytes, and the
+                                * standard 4-byte write-back stores the result. */
+                        uint16_t cell = cpu.mem[sa];
+                        r = cpu.mem[(size_t)cell * 8u];   /* low byte of int64 cell */
+                        break;
+                    }
+                    case 26: { /* MEM_STORE: mem64[cell] low byte = value.
+                                * sa = ZP slot holding the value byte,
+                                * sb = ZP slot holding the cell index byte. */
+                        uint16_t cell = cpu.mem[sb];
+                        cpu.mem[(size_t)cell * 8u] = cpu.mem[sa];
+                        r = 0;
+                        break;
+                    }
+                    case 27: { /* CALL: operand is the 16-bit absolute target.
+                                * Push the return PC (already past this hostcall),
+                                * then jump. Args are already in shared slots —
+                                * the vr file is flat memory on this target. */
+                        if (cpu.call_sp < 32) {
+                            uint16_t target = (uint16_t)(code[cpu.pc] | (code[cpu.pc+1] << 8));
+                            cpu.pc += 2;
+                            cpu.call_stack[cpu.call_sp++] = cpu.pc;
+                            cpu.pc = target;
+                        }
+                        r = 0;
+                        break;
+                    }
+                    case 28: { /* FUNC_RET: return value byte in slot sa.
+                                * Pop the call stack; empty stack = program end. */
+                        uint8_t v = cpu.mem[sa];
+                        cpu.mem[1] = v;   /* vr0's ZP slot = MIR return register */
+                        if (cpu.call_sp > 0) {
+                            cpu.pc = cpu.call_stack[--cpu.call_sp];
+                        } else {
+                            cpu.a = v;          /* top-level return value */
+                            cpu.halted = 1;
+                        }
+                        r = 0;
+                        break;
+                    }
                 default: r = 0; break;
                 }
                 /* write 4-byte result to dst ZP slot (little-endian)
-                 * into the writable 64K memory image (code is const). */
-                cpu.mem[dst+0] = (uint8_t)(r & 0xFF);
-                cpu.mem[dst+1] = (uint8_t)((r >> 8) & 0xFF);
-                cpu.mem[dst+2] = (uint8_t)((r >> 16) & 0xFF);
-                cpu.mem[dst+3] = (uint8_t)((r >> 24) & 0xFF);
+                 * into the writable 64K memory image (code is const).
+                 * dst==0 means "no destination" (MEM_STORE passes 0) — skip. */
+                if (dst != 0) {
+                    cpu.mem[dst+0] = (uint8_t)(r & 0xFF);
+                    cpu.mem[dst+1] = (uint8_t)((r >> 8) & 0xFF);
+                    cpu.mem[dst+2] = (uint8_t)((r >> 16) & 0xFF);
+                    cpu.mem[dst+3] = (uint8_t)((r >> 24) & 0xFF);
+                }
                 break;
             }
         case 0x40: /* RTI */            cpu.s = (uint8_t)(cpu.s + 1); cpu.p = (read8(&cpu, 0x0100 + cpu.s) & ~P_B) | P_U;

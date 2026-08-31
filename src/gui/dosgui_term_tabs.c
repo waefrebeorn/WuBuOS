@@ -32,7 +32,7 @@ int dosgui_term_new_tab(TermSessionType type, const char *label, const char *she
     } else {
         switch (type) {
             case TERM_SESSION_SHELL: snprintf(tab->label, sizeof(tab->label), "Shell %d", idx + 1); break;
-            case TERM_SESSION_HOLYC: snprintf(tab->label, sizeof(tab->label), "HolyC %d", idx + 1); break;
+            case TERM_SESSION_HOLYC: snprintf(tab->label, sizeof(tab->label), "HolyD %d", idx + 1); break;
             case TERM_SESSION_CONTAINER: snprintf(tab->label, sizeof(tab->label), "Container %d", idx + 1); break;
         }
     }
@@ -45,11 +45,11 @@ int dosgui_term_new_tab(TermSessionType type, const char *label, const char *she
             }
             break;
         case TERM_SESSION_HOLYC:
-            /* E4: embed the wubu_holyd HolyC REPL as a real PTY-backed
+            /* E4: embed the wubu_holyd HolyD REPL as a real PTY-backed
              * process so the Desktop terminal hosts a live interactive REPL. */
             {
                 static const char *holy_argv[] = { "--repl", NULL };
-                if (term_pty_spawn("wubu_holyd", getenv("HOME"), &tab->session.holyc.pty, holy_argv) < 0) {
+                if (term_pty_spawn("wubu_holyd", getenv("HOME"), &tab->session.holyd.pty, holy_argv) < 0) {
                     return -1;
                 }
             }

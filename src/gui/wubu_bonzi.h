@@ -2,7 +2,7 @@
  * wubu_bonzi.h -- WuBuOS WuBu Buddy desktop mascot (AGI gateway).
  *
  * A WuBu-style purple companion that sits on the desktop as the friendly face of
- * the AGI. Clicking the buddy opens the HolyC/AGI terminal (the "Live
+ * the AGI. Clicking the buddy opens the HolyD/AGI terminal (the "Live
  * Colonel" ring-0 REPL where the Brain is hosted in the Body). It bobs
  * gently (idle animation), blinks, and shows a speech bubble greeting.
  *
@@ -46,7 +46,7 @@ void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h);
  * buddy or its speech bubble). */
 bool wubu_bonzi_mouse(int x, int y, int btn, int kind);
 
-/* The buddy's click action: launch the AGI HolyC terminal near the buddy. */
+/* The buddy's click action: launch the AGI HolyD terminal near the buddy. */
 void wubu_bonzi_open_agi(void);
 
 /* Balloon Help (System 7 lesson): retarget the speech-bubble text.

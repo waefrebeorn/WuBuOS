@@ -39,7 +39,7 @@ int  dosgui_taskbar_height(void) { return 28; }
 int  dosgui_wm_screen_h(void)     { return 768; }
 int  dosgui_wm_screen_w(void)     { return 1024; }
 void dosgui_wm_set_focus(DosGuiWindow *w) { (void)w; }
-DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
+DosGuiWindow *dosgui_wm_spawn_holyd_term(int x, int y, int w, int h) {
     (void)x; (void)y; (void)w; (void)h; return NULL;
 }
 void vbe_draw_text(int x, int y, const char *s, uint32_t c, int scale) {

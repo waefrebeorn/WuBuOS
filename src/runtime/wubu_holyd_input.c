@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_input.c  --  WuBuOS HolyC DOS Daemon: Input
+ * wubu_holyd_input.c  --  WuBuOS HolyD DOS Daemon: Input
  */
 
 #include "wubu_holyd_internal.h"

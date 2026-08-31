@@ -158,7 +158,7 @@ char *itoa(int value, char *str, int base) {
 }
 
 /* strtoul/strtol -- needed by the console (theme values), the future
- * HolyC runtime, and the VSL tables. Handles 0x/0X hex, 0 octal,
+ * HolyD runtime, and the VSL tables. Handles 0x/0X hex, 0 octal,
  * decimal; skips leading whitespace. Minimal, freestanding. */
 unsigned long strtoul(const char *nptr, char **endptr, int base) {
     const char *s = nptr;

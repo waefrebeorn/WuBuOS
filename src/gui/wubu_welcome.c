@@ -78,7 +78,7 @@ static void welcome_on_draw(DosGuiWindow *win, uint32_t *fb, int cw, int ch) {
 
     vbe_draw_text(x0 + 10, y, "Your TempleOS/ZealOS desktop, re-imagined.", text_col);
     y += 18;
-    vbe_draw_text(x0 + 10, y, "Hosted binary | Win98 shell | HolyC JIT | 9P namespace", text_col);
+    vbe_draw_text(x0 + 10, y, "Hosted binary | Win98 shell | HolyD JIT | 9P namespace", text_col);
     y += 24;
 
     /* Divider */

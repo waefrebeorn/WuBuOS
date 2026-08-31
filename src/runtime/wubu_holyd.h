@@ -1,31 +1,31 @@
 /*
- * wubu_holyd.h  --  WuBuOS TempleOS HolyC DOS Daemon
+ * wubu_holyd.h  --  WuBuOS TempleOS HolyD DOS Daemon
  *
- * The HolyC DOS daemon manages the TempleOS-style DOS environment
- * within WuBuOS. It is the "shell" of the HolyC DOS layer — managing
- * REPL sessions, HolyC compilation, VBE display, and input routing.
+ * The HolyD DOS daemon manages the TempleOS-style DOS environment
+ * within WuBuOS. It is the "shell" of the HolyD DOS layer — managing
+ * REPL sessions, HolyD compilation, VBE display, and input routing.
  *
  * Architecture (learned from TempleOS + Ubuntu desktop):
- *   - Like TempleOS: HolyC JIT compiler, VBE framebuffer, direct hardware
+ *   - Like TempleOS: HolyD JIT compiler, VBE framebuffer, direct hardware
  *   - Like Ubuntu gnome-shell: window management, input routing, session management
  *   - Like Ubuntu systemd-logind: session tracking, multi-seat support
- *   - Like SteamOS gamescope: display compositor for HolyC windows
+ *   - Like SteamOS gamescope: display compositor for HolyD windows
  *
  * Daemon responsibilities:
- *   1. Session management: create, destroy, switch HolyC DOS sessions
- *   2. HolyC compilation: JIT compile HolyC code, manage compiler state
+ *   1. Session management: create, destroy, switch HolyD DOS sessions
+ *   2. HolyD compilation: JIT compile HolyD code, manage compiler state
  *   3. VBE display: framebuffer management, window composition, text rendering
- *   4. Input routing: keyboard/mouse → focused HolyC window
- *   5. 9P namespace: expose HolyC filesystem to WuBuOS desktop
- *   6. Auto-save: periodic snapshot of HolyC session state
+ *   4. Input routing: keyboard/mouse → focused HolyD window
+ *   5. 9P namespace: expose HolyD filesystem to WuBuOS desktop
+ *   6. Auto-save: periodic snapshot of HolyD session state
  *   7. Integration: publish events to WuBuOS desktop (window create/destroy/focus)
  *
  * Communication: Unix domain socket + JSON protocol
- *   Client: wubu_holyctl (CLI tool) or WuBuOS desktop (GUI)
+ *   Client: wubu_holydtl (CLI tool) or WuBuOS desktop (GUI)
  *   Server: wubu_holyd (this daemon)
  *
  * Session model:
- *   Each HolyC DOS session has:
+ *   Each HolyD DOS session has:
  *     - A persistent HDCompiler (survives across evals)
  *     - A VBE framebuffer (320x200 to 1920x1080)
  *     - An input queue (keyboard + mouse)
@@ -49,7 +49,7 @@
 #define WUBU_HOLYD_MAX_WINDOWS  32
 #define WUBU_HOLYD_MAX_SESSION_NAME 64
 #define WUBU_HOLYD_MAX_PATH     512
-#define WUBU_HOLYD_MAX_CODE     65536   /* Max HolyC source per eval */
+#define WUBU_HOLYD_MAX_CODE     65536   /* Max HolyD source per eval */
 #define WUBU_HOLYD_MAX_OUTPUT   8192    /* Max output buffer */
 #define WUBU_HOLYD_MAX_RESPONSE 16384
 #define WUBU_HOLYD_VERSION      "0.1.0"
@@ -70,8 +70,8 @@ typedef enum {
 /* -- Window Types (TempleOS-style) -------------------------------- */
 
 typedef enum {
-    HOLY_WINDOW_TERM = 0,       /* HolyC terminal (REPL) */
-    HOLY_WINDOW_EDITOR,         /* HolyC code editor */
+    HOLY_WINDOW_TERM = 0,       /* HolyD terminal (REPL) */
+    HOLY_WINDOW_EDITOR,         /* HolyD code editor */
     HOLY_WINDOW_GRAPH,          /* VBE graph/plot window */
     HOLY_WINDOW_FILE,           /* File browser */
     HOLY_WINDOW_DEBUG,          /* Debugger window */
@@ -145,12 +145,12 @@ typedef struct {
     bool daemonize;
     bool auto_mount_9p;         /* Auto-mount 9P namespace */
     bool debug_mode;            /* Enable debugger */
-} WubuHolyConfig;
+} WubuHolyDonfig;
 
 /* -- Daemon State ------------------------------------------------- */
 
 typedef struct {
-    WubuHolyConfig config;
+    WubuHolyDonfig config;
     WubuHolySession sessions[WUBU_HOLYD_MAX_SESSIONS];
     int session_count;
     bool running;
@@ -175,8 +175,8 @@ typedef enum {
     HOLYD_CMD_SESSION_RESTORE,
 
     /* Code execution */
-    HOLYD_CMD_EVAL,             /* Evaluate HolyC expression */
-    HOLYD_CMD_COMPILE,          /* Compile HolyC to binary */
+    HOLYD_CMD_EVAL,             /* Evaluate HolyD expression */
+    HOLYD_CMD_COMPILE,          /* Compile HolyD to binary */
     HOLYD_CMD_RUN,              /* Run compiled code */
     HOLYD_CMD_STOP,             /* Stop running code */
 
@@ -217,13 +217,13 @@ typedef enum {
     HOLYD_CMD_SHUTDOWN,
     HOLYD_CMD_RELOAD,
     HOLYD_CMD_VERSION,
-} WubuHolyCmd;
+} WubuHolyDmd;
 
 typedef struct {
-    WubuHolyCmd cmd;
+    WubuHolyDmd cmd;
     char session_name[WUBU_HOLYD_MAX_SESSION_NAME];
     int window_id;
-    char data[4096];            /* JSON payload or HolyC source */
+    char data[4096];            /* JSON payload or HolyD source */
 } WubuHolyRequest;
 
 typedef struct {
@@ -235,7 +235,7 @@ typedef struct {
 
 /* -- Daemon Lifecycle --------------------------------------------- */
 
-int  wubu_holyd_init(WubuHoly *d, const WubuHolyConfig *config);
+int  wubu_holyd_init(WubuHoly *d, const WubuHolyDonfig *config);
 int  wubu_holyd_start(WubuHoly *d);
 void wubu_holyd_event_loop(WubuHoly *d);  /* Main event loop */
 void wubu_holyd_daemon_stop(WubuHoly *d);
@@ -328,7 +328,7 @@ int  wubu_holyd_publish_event(WubuHoly *d, const char *event_type,
 
 const char *wubu_holyd_session_state_str(WubuHolySessionState state);
 const char *wubu_holyd_window_type_str(WubuHolyWindowType type);
-const char *wubu_holyd_cmd_str(WubuHolyCmd cmd);
+const char *wubu_holyd_cmd_str(WubuHolyDmd cmd);
 const char *wubu_holyd_version(void);
 
 #endif /* WUBU_HOLYD_H */

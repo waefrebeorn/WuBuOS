@@ -4,7 +4,7 @@
  * Verifies the namespace-first contract end to end:
  *   - mount resolves a content-addressed app namespace
  *   - node open/create works
- *   - wubufx_eval runs LIVE HolyC and returns the result
+ *   - wubufx_eval runs LIVE HolyD and returns the result
  *   - wubufx_agent_eval is disclosed to EDR (agent event count rises)
  *   - capability denial is enforced (no EXEC/AGI -> WUBUFX_ERR_CAP)
  *   - EDR attribution records the namespace id
@@ -53,16 +53,16 @@ int main(void) {
     CHECK(wubufx_state_get(win, buf, sizeof(buf)) == WUBUFX_OK, "state_get");
     CHECK(strcmp(buf, "open") == 0, "state round-trips");
 
-    /* 5) LIVE HolyC eval inside the namespace. */
+    /* 5) LIVE HolyD eval inside the namespace. */
     char out[128] = {0};
-    CHECK(wubufx_eval(app, "1+2+3", out, sizeof(out)) == WUBUFX_OK, "wubufx_eval HolyC");
+    CHECK(wubufx_eval(app, "1+2+3", out, sizeof(out)) == WUBUFX_OK, "wubufx_eval HolyD");
     CHECK(strcmp(out, "6") == 0, "eval result is 6 (LIVE compile+run)");
 
     /* 6) AGI eval is disclosed to EDR. */
     uint64_t before = edr_agent_events_logged();
     char aout[128] = {0};
     CHECK(wubufx_agent_eval(app, "I64 sq(I64 n){return n*n;} sq(9)", aout, sizeof(aout))
-          == WUBUFX_OK, "wubufx_agent_eval HolyC");
+          == WUBUFX_OK, "wubufx_agent_eval HolyD");
     CHECK(edr_agent_events_logged() > before, "agent eval logged to EDR (disclosure)");
 
     /* 7) Capability enforcement: an app WITHOUT exec cap cannot eval. */

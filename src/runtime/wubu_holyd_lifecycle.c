@@ -1,12 +1,12 @@
 /*
- * wubu_holyd_lifecycle.c  --  WuBuOS HolyC DOS Daemon: Lifecycle
+ * wubu_holyd_lifecycle.c  --  WuBuOS HolyD DOS Daemon: Lifecycle
  */
 
 #include "wubu_holyd_internal.h"
 
 /* -- Daemon Lifecycle --------------------------------------------- */
 
-int wubu_holyd_init(WubuHoly *d, const WubuHolyConfig *config) {
+int wubu_holyd_init(WubuHoly *d, const WubuHolyDonfig *config) {
     if (!d || !config) return -1;
     memset(d, 0, sizeof(*d));
     d->config = *config;
@@ -143,7 +143,7 @@ void wubu_holyd_event_loop(WubuHoly *d) {
                                                    resp.output, sizeof(resp.output));
                 } else if (strcmp(cmd_str, "window_create") == 0) {
                     int type = 0, x = 10, y = 10, w = 400, h = 300;
-                    char title[128] = "HolyC Window";
+                    char title[128] = "HolyD Window";
                     sscanf(data, "%d,%d,%d,%d,%d,%127[^\n]", &type, &x, &y, &w, &h, title);
                     int wid = 0;
                     resp.status = wubu_holyd_window_create(d, sess, (WubuHolyWindowType)type,
@@ -243,7 +243,7 @@ void wubu_holyd_shutdown(WubuHoly *d) {
 
 #ifndef WUBD_TEST_MAIN
 int main(int argc, char *argv[]) {
-    WubuHolyConfig config = {0};
+    WubuHolyDonfig config = {0};
     strncpy(config.sessions_path, WUBU_HOLYD_SESSIONS_PATH, WUBU_HOLYD_MAX_PATH - 1);
     strncpy(config.socket_path, WUBU_HOLYD_SOCKET_PATH, WUBU_HOLYD_MAX_PATH - 1);
     strncpy(config.log_path, WUBU_HOLYD_LOG_PATH, WUBU_HOLYD_MAX_PATH - 1);
@@ -264,9 +264,9 @@ int main(int argc, char *argv[]) {
         else if (strcmp(argv[i], "--sessions") == 0 && i + 1 < argc) {
             strncpy(config.sessions_path, argv[++i], WUBU_HOLYD_MAX_PATH - 1);
         } else if (strcmp(argv[i], "--help") == 0) {
-            printf("wubu_holyd -- WuBuOS TempleOS HolyC DOS Daemon\n");
+            printf("wubu_holyd -- WuBuOS TempleOS HolyD DOS Daemon\n");
             printf("  --no-daemon     Run in foreground\n");
-            printf("  --repl          Run an interactive TTY HolyC REPL on stdin/stdout\n");
+            printf("  --repl          Run an interactive TTY HolyD REPL on stdin/stdout\n");
             printf("  --debug         Verbose logging + debug mode\n");
             printf("  --sessions PATH Sessions directory (default: %s)\n", WUBU_HOLYD_SESSIONS_PATH);
             return 0;
@@ -281,8 +281,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Interactive TTY HolyC REPL: read lines from stdin, evaluate via the
-     * real HolyC compiler (wubu_holyd_repl_eval), print results to stdout.
+    /* Interactive TTY HolyD REPL: read lines from stdin, evaluate via the
+     * real HolyD compiler (wubu_holyd_repl_eval), print results to stdout.
      * This is the REPL that the Desktop terminal embeds (E4). */
     if (repl_mode) {
         if (wubu_holyd_session_create(&daemon, "repl", 80, 24) != 0) {

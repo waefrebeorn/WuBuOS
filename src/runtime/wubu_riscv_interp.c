@@ -22,6 +22,8 @@ typedef struct {
     int64_t x[32];      /* x0-x31 */
     uint32_t fret;      /* soft-float return bits (hostcall fn=11) */
     int      fret_valid;
+    uint32_t call_stack[32];
+    int      call_sp;
     uint64_t pc;
     uint8_t n, z, v, c; /* condition codes */
     uint8_t mem[RV_MEM];
@@ -69,6 +71,7 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
     cpu.x[2] = RV_MEM;  /* sp at top of memory */
 
     while (cpu.pc + 4 <= size) {
+        cpu.x[0] = 0;   /* hardwired zero */
         uint32_t inst = fetch32(&cpu, code, size);
         uint8_t opcode = inst & 0x7F;
         uint8_t rd = (inst >> 7) & 0x1F;
@@ -227,7 +230,7 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
                              (((inst >> 20) & 1) << 11) |
                              (((inst >> 21) & 0x3FF) << 1);
             if (offset & 0x100000) offset -= 0x200000;   /* sign */
-            cpu.x[rd] = cpu.pc;  /* return address */
+            if (rd != 0) cpu.x[rd] = cpu.pc;  /* return address (x0 hardwired zero) */
             cpu.pc = (uint64_t)((int64_t)cpu.pc + offset - 4);
             continue;
         }
@@ -268,14 +271,14 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
         if (opcode == 0x0B) { /* CUSTOM-0: WUBU_HOSTCALL soft-float escape */
             /* four data words follow in the code stream:
              * fn, dst_off, sa_off, sb_off (frame-relative byte offsets) */
-            if (cpu.pc + 16 > size) break;
+            if (cpu.pc + 20 > size) break;   /* fn..sb (16) + optional CALL target (4) */
             uint32_t fn      = fetch32(&cpu, code, size);
             uint32_t dst_off = fetch32(&cpu, code, size);
             uint32_t sa_off  = fetch32(&cpu, code, size);
             uint32_t sb_off  = fetch32(&cpu, code, size);
-            const uint8_t *fa_p = &cpu.mem[cpu.x[8] + sa_off];
-            const uint8_t *fb_p = &cpu.mem[cpu.x[8] + sb_off];
-            uint8_t *dst_p      = &cpu.mem[cpu.x[8] + dst_off];
+            const uint8_t *fa_p = &cpu.mem[(uint64_t)((int64_t)cpu.x[8] + (int32_t)sa_off)];
+            const uint8_t *fb_p = &cpu.mem[(uint64_t)((int64_t)cpu.x[8] + (int32_t)sb_off)];
+            uint8_t *dst_p      = &cpu.mem[(uint64_t)((int64_t)cpu.x[8] + (int32_t)dst_off)];
             uint32_t fa = (uint32_t)fa_p[0] | ((uint32_t)fa_p[1] << 8) |
                           ((uint32_t)fa_p[2] << 16) | ((uint32_t)fa_p[3] << 24);
             uint32_t fb = (uint32_t)fb_p[0] | ((uint32_t)fb_p[1] << 8) |
@@ -287,7 +290,20 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
             case 2:  r = wubu_sf_f32_mul(fa, fb); break;
             case 3:  r = wubu_sf_f32_div(fa, fb); break;
             case 10: r = fa ^ 0x80000000u; break;
-            case 6:  r = (wubu_sf_f32_cmp(fa, fb) == 0) ? 0xFFFFFFFFu : 0; break;
+                                case 4:  r = (uint32_t)wubu_sf_i64_to_f32(fa); break;       /* ITOF */
+                    case 5:  r = wubu_sf_f32_to_i64((uint32_t)fa); break;             /* FTOI */
+                    case 14: r = (uint32_t)wubu_sf_f64_add((uint64_t)fa, (uint64_t)fb); break;  /* DADD */
+                    case 15: r = (uint32_t)wubu_sf_f64_sub((uint64_t)fa, (uint64_t)fb); break;  /* DSUB */
+                    case 16: r = (uint32_t)wubu_sf_f64_mul((uint64_t)fa, (uint64_t)fb); break;  /* DMUL */
+                    case 17: r = (uint32_t)wubu_sf_f64_div((uint64_t)fa, (uint64_t)fb); break;  /* DDIV */
+                    case 18: r = (uint32_t)wubu_sf_f64_neg((uint64_t)fa); break;               /* DNEG */
+                    case 19: r = wubu_sf_i64_to_f64(fa); break;                                /* DITOF */
+                    case 20: r = wubu_sf_f64_to_i64((uint64_t)fa); break;                     /* DTOI */
+                    case 21: r = wubu_sf_f64_to_f32((uint64_t)fa); break;                     /* F64_TO_F32 */
+                    case 22: r = wubu_sf_f32_to_f64((uint32_t)fa); break;                     /* F32_TO_F64 */
+                    case 23: r = wubu_sf_bf16_to_f32((uint16_t)fa); break;                     /* BF16_TO_F32 */
+                    case 24: r = wubu_sf_f32_to_bf16((uint32_t)fa); break;                     /* F32_TO_BF16 */
+                    case 6:  r = (wubu_sf_f32_cmp(fa, fb) == 0) ? 0xFFFFFFFFu : 0; break;
             case 7:  r = (wubu_sf_f32_cmp(fa, fb) != 0) ? 0xFFFFFFFFu : 0; break;
             case 8:  r = (wubu_sf_f32_cmp(fa, fb)  < 0) ? 0xFFFFFFFFu : 0; break;
             case 9:  r = (wubu_sf_f32_cmp(fa, fb) <= 0) ? 0xFFFFFFFFu : 0; break;
@@ -319,12 +335,57 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
                              | (cpu.mem[off+2]<<16) | ((uint32_t)cpu.mem[off+3]<<24));
                 break;
             }
+            case 25: { /* MEM_LOAD: dst = mem64[cell] low byte.
+                        * sa_off points at the 4-byte cell-index slot. */
+                uint32_t cell = (uint32_t)fa_p[0] | ((uint32_t)fa_p[1] << 8)
+                              | ((uint32_t)fa_p[2] << 16) | ((uint32_t)fa_p[3] << 24);
+                r = cpu.mem[(size_t)cell * 8u];
+                break;
+            }
+            case 27: { /* CALL: abs32 BE target after prologue */
+                if (cpu.call_sp < 32) {
+                    uint32_t target = (uint32_t)code[cpu.pc] |
+                                      ((uint32_t)code[cpu.pc+1] << 8) |
+                                      ((uint32_t)code[cpu.pc+2] << 16) |
+                                      ((uint32_t)code[cpu.pc+3] << 24);   /* LE */
+                    cpu.pc += 4;
+                    cpu.call_stack[cpu.call_sp++] = cpu.pc;
+                    cpu.pc = target;
+                }
+                continue;
+            }
+            case 28: { /* FUNC_RET: result byte at mem[x8 + (int32)sa_off] */
+                uint8_t v = cpu.mem[(uint64_t)((int64_t)cpu.x[8] + (int32_t)sa_off)];
+                /* park in BOTH a0 and vr0's frame slot — main's RET re-loads a0
+                 * from its own slot before returning. */
+                cpu.x[10] = v;
+                cpu.mem[cpu.x[8] + 8u] = v;   /* slot_off(0) = (0+1)*8 */
+
+                if (cpu.call_sp > 0) {
+                    cpu.pc = cpu.call_stack[--cpu.call_sp];
+                } else {
+                    cpu.pc = size;   /* halt */
+                }
+                continue;
+            }
+            case 26: { /* MEM_STORE: mem64[cell] low byte = value.
+                        * sa_off = value slot, sb_off = cell-index slot. */
+                uint32_t val = (uint32_t)fa_p[0] | ((uint32_t)fa_p[1] << 8)
+                             | ((uint32_t)fa_p[2] << 16) | ((uint32_t)fa_p[3] << 24);
+                uint32_t cell = (uint32_t)fb_p[0] | ((uint32_t)fb_p[1] << 8)
+                              | ((uint32_t)fb_p[2] << 16) | ((uint32_t)fb_p[3] << 24);
+                cpu.mem[(size_t)cell * 8u] = (uint8_t)(val & 0xFF);
+                r = 0;
+                break;
+            }
             default: break;
             }
-            dst_p[0] = (uint8_t)(r & 0xFF);
-            dst_p[1] = (uint8_t)((r >> 8) & 0xFF);
-            dst_p[2] = (uint8_t)((r >> 16) & 0xFF);
-            dst_p[3] = (uint8_t)((r >> 24) & 0xFF);
+            if (dst_off != 0 || fn == 25) {
+                dst_p[0] = (uint8_t)(r & 0xFF);
+                dst_p[1] = (uint8_t)((r >> 8) & 0xFF);
+                dst_p[2] = (uint8_t)((r >> 16) & 0xFF);
+                dst_p[3] = (uint8_t)((r >> 24) & 0xFF);
+            }
             continue;
         }
 

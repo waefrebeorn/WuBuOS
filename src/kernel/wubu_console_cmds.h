@@ -18,6 +18,6 @@ int cmd_dump(int argc, char **argv);
 int cmd_attest(int argc, char **argv);
 int cmd_date(int argc, char **argv);
 int cmd_agi(int argc, char **argv);
-int cmd_holyc(int argc, char **argv);
+int cmd_holyd(int argc, char **argv);
 
 #endif /* WUBU_CONSOLE_CMDS_H */

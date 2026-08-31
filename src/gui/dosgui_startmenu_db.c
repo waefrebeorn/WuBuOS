@@ -128,7 +128,7 @@ void dosgui_startmenu_build_submenus(void) {
         SmSubmenu *sub = &g_wubuos;
         const char *label = "", *app_name = "";
         switch (i) {
-            case 0: label = "HolyC Terminal"; app_name = "HolyC Terminal"; break;
+            case 0: label = "HolyD Terminal"; app_name = "HolyD Terminal"; break;
             case 1: label = "Temple REPL"; app_name = "Temple REPL"; break;
             case 2: label = "Package Manager"; app_name = "Package Manager"; break;
             case 3: label = "Container Manager"; app_name = "Container Manager"; break;

@@ -125,7 +125,7 @@ void dosgui_term_render_content(uint32_t *fb, int fb_w, int fb_h) {
             term_render_pty_session(&tab->session.pty, fb, x, y, w, h);
             break;
         case TERM_SESSION_HOLYC:
-            term_render_pty_session(&tab->session.holyc.pty, fb, x, y, w, h);
+            term_render_pty_session(&tab->session.holyd.pty, fb, x, y, w, h);
             break;
         case TERM_SESSION_CONTAINER:
             term_render_container_session(&tab->session.container, fb, x, y, w, h);
@@ -189,4 +189,3 @@ void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, in
     }
     pty->cursor_blink++;
 }
-

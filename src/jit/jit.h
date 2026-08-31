@@ -30,7 +30,7 @@ typedef enum {
 
 typedef enum {
     JIT_LANG_C      = 0,  /* Standard C source                   */
-    JIT_LANG_HOLYC  = 1,  /* HolyC/ZealC source                  */
+    JIT_LANG_HOLYC  = 1,  /* HolyD/ZealC source                  */
     JIT_LANG_ASM    = 2,  /* x86-64 assembly text                */
     JIT_LANG_EXPR   = 3   /* Simple expression (a+b, a*b, etc.) */
 } JITLang;
@@ -73,7 +73,7 @@ void jit_free(JITContext *ctx);
  * Compile source code string to a native function.
  *
  * @param ctx      JIT context
- * @param source   Source code string (C, HolyC, or ASM)
+ * @param source   Source code string (C, HolyD, or ASM)
  * @param lang     Source language
  * @param fn_name  Name of the function to extract/compile
  * @param out_func [out] Compiled function handle

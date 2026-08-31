@@ -45,7 +45,7 @@ int cmd_help(void)
                 "  attest               measured-boot chain + runtime PCR\n"
                 "  date                 RTC wall clock\n"
                 "  agi status|freeze|unfreeze|promote|trace\n"
-                "  holyc <src>          compile+run HolyC (metal port)\n"
+                "  holyc <src>          compile+run HolyD (metal port)\n"
                 "  live <expr>          Live Colonel: eval + - * / % r0..r7\n"
                 "  recovery             checkpoint|rollback <0..4>|jesus|status\n"
                 "  cls                  scroll the serial\n"
@@ -556,10 +556,10 @@ int cmd_agi(int argc, char **argv)
     return cmd_help();
 }
 
-int cmd_holyc(int argc, char **argv)
+int cmd_holyd(int argc, char **argv)
 {
     (void)argc; (void)argv;
-    klog_printf("holyc: the hosted compiler port runs in the GUI HolyC term -- "
+    klog_printf("holyc: the hosted compiler port runs in the GUI HolyD term -- "
                 "metal-side live coding is the 'live' command (Live Colonel)\n");
     return 0;
 }

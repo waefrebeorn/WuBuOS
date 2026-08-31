@@ -50,7 +50,7 @@ const char *wubu_ct_runtime_name(CtRuntime runtime) {
         case CT_STEAMOS: return "SteamOS";
         case CT_NATIVE:  return "native";
         case CT_PROTON:  return "Proton";
-        case CT_HOLYC:   return "HolyC";
+        case CT_HOLYC:   return "HolyD";
         case CT_MACHO:   return "Mach-O";
         default:          return "unknown";
     }

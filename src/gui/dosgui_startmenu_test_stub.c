@@ -33,11 +33,11 @@ void dosgui_platform_shutdown(void) { }
 #include "dosgui_wm.h"  /* for DosGuiWindow type */
 /* wubu_bonzi.h already declares set_enabled/is_enabled; the full
  * implementation is in wubu_bonzi.c (linked in). But the AGI gateway
- * (wubu_bonzi_open_agi) calls dosgui_wm_spawn_holyc_term + set_focus,
+ * (wubu_bonzi_open_agi) calls dosgui_wm_spawn_holyd_term + set_focus,
  * which are not linked here.  Provide a no-op so the symbol resolves. */
 void dosgui_wm_set_focus(DosGuiWindow *w) { (void)w; }
-/* dosgui_wm_spawn_holyc_term: no-op for menu test (Bonzi won't be clicked). */
-DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h) {
+/* dosgui_wm_spawn_holyd_term: no-op for menu test (Bonzi won't be clicked). */
+DosGuiWindow *dosgui_wm_spawn_holyd_term(int x, int y, int w, int h) {
     (void)x; (void)y; (void)w; (void)h; return NULL;
 }
 
@@ -117,7 +117,7 @@ int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
 int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
     (void)elf_data; (void)elf_size; return -1;
 }
-int64_t wubu_exec_holyc(const char *source, size_t source_size) {
+int64_t wubu_exec_holyd(const char *source, size_t source_size) {
     (void)source; (void)source_size; return -1;
 }
 /* mach-o backend + container isolation (referenced by era-apps; the test

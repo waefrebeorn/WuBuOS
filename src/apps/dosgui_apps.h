@@ -63,7 +63,7 @@ DosGuiWindow* dosgui_launch_file_manager(void);
 DosGuiWindow* dosgui_launch_settings(void);
 DosGuiWindow* dosgui_launch_editor(void);
 DosGuiWindow* dosgui_launch_canvas(void);
-DosGuiWindow* dosgui_launch_holyc_term(void);
+DosGuiWindow* dosgui_launch_holyd_term(void);
 /* Launch a real 16-bit .COM/.EXE (path may be NULL → built-in demo .COM). */
 DosGuiWindow* dosgui_launch_dos_box(const char *path);
 

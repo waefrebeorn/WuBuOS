@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_session.c  --  WuBuOS HolyC DOS Daemon: Session
+ * wubu_holyd_session.c  --  WuBuOS HolyD DOS Daemon: Session
  */
 
 #include "wubu_holyd_internal.h"
@@ -32,7 +32,7 @@ int wubu_holyd_session_create(WubuHoly *d, const char *name,
     /* Create default terminal window */
     WubuHolyWindow *w = &s->windows[0];
     w->id = d->session_count * WUBU_HOLYD_MAX_WINDOWS + 0;
-    strncpy(w->title, "HolyC Terminal", sizeof(w->title) - 1);
+    strncpy(w->title, "HolyD Terminal", sizeof(w->title) - 1);
     w->type = HOLY_WINDOW_TERM;
     w->x = 10; w->y = 10;
     w->w = width > 0 ? width : d->config.default_width;

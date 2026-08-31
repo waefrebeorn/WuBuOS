@@ -1,7 +1,7 @@
 /* wubu_manifest.h -- public API for the unified WuBuOS syscall manifest.
  *
  * Adopted from GrahaOS etc/gcp.json: a SINGLE machine-readable source of
- * truth for the VSL dispatch table, the Styx9P op enum, and the HolyC FFI
+ * truth for the VSL dispatch table, the Styx9P op enum, and the HolyD FFI
  * stubs. The manifest is loaded once at boot; the VSL dispatcher resolves a
  * syscall number through it and enforces the required capability BEFORE
  * calling the handler (capability-only authority, replacing the old
@@ -51,7 +51,7 @@ bool wubu_manifest_resolve_gated(const wubu_manifest_t *m, uint64_t num,
 /* Emit generated C headers from the manifest (the GrahaOS gcp2wit.py step):
  *   - wubu_vsl_dispatch.h : VSL_SYS_* numbers + cap-gated dispatch decls
  *   - wubu_styx_ops.h     : Styx9P op enum
- *   - wubu_holyc_ffi.h    : HolyC FFI forward declarations
+ *   - wubu_holyd_ffi.h    : HolyD FFI forward declarations
  * Returns 0 on success, -1 on write error. */
 int wubu_manifest_emit(const wubu_manifest_t *m, const char *out_dir);
 

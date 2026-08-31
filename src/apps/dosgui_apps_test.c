@@ -200,7 +200,7 @@ static void test_notepad_lang_detect(void) {
     CHECK(notepad_detect_lang("test.c") == NP_LANG_C, ".c -> C");
     CHECK(notepad_detect_lang("test.cpp") == NP_LANG_CPP, ".cpp -> C++");
     CHECK(notepad_detect_lang("test.py") == NP_LANG_PYTHON, ".py -> Python");
-    CHECK(notepad_detect_lang("test.HC") == NP_LANG_HOLYC, ".HC -> HolyC");
+    CHECK(notepad_detect_lang("test.HC") == NP_LANG_HOLYC, ".HC -> HolyD");
     CHECK(notepad_detect_lang("test.sh") == NP_LANG_SHELL, ".sh -> Shell");
     CHECK(notepad_detect_lang("Makefile") == NP_LANG_MAKEFILE, "Makefile");
     CHECK(notepad_detect_lang("test.json") == NP_LANG_JSON, ".json -> JSON");

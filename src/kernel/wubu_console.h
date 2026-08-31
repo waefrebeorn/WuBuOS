@@ -2,7 +2,7 @@
  * wubu_console.h -- live ring-0 console REPL (TempleOS-style).
  *
  * The metal kernel boots to a live interactive shell on COM1: type a
- * command (or HolyC once the compiler is ported), the kernel executes it
+ * command (or HolyD once the compiler is ported), the kernel executes it
  * in ring 0, output returns on the same line.  This is the live
  * development environment the OS is built around -- the AGI (Colonel)
  * drives the same wubu_console_exec() entry the serial task uses.

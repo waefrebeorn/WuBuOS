@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_9p.c  --  WuBuOS HolyC DOS Daemon: 9P
+ * wubu_holyd_9p.c  --  WuBuOS HolyD DOS Daemon: 9P
  */
 
 #include "wubu_holyd_internal.h"

@@ -1,7 +1,7 @@
 /*
  * bear_cudnn.c  --  cuBLAS/cuDNN Wrapper Implementations
  * 
- * HolyC-callable cuBLAS/cuDNN operations
+ * HolyD-callable cuBLAS/cuDNN operations
  * Compiled with: nvcc -c bear_cudnn.c -o bear_cudnn.o -lcublas -lcudnn
  * 
  * If CUDA/cuDNN not available, provides stub implementations.

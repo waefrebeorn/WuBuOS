@@ -1,5 +1,5 @@
 /*
- * repl.h  --  HolyC REPL Terminal
+ * repl.h  --  HolyD REPL Terminal
  * Opaque struct, C11, minimal includes, self-contained
  */
 

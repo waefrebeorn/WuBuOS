@@ -276,7 +276,7 @@ static JITResult jit_asmjit_compile_impl(JITContext *ctx,
 
 /*
  * Strategy: use self-hosted minic compiler (jit_minic_compile) for C source.
- * Falls back to `gcc -O2 -shared -fPIC` + dlopen for HolyC or complex C
+ * Falls back to `gcc -O2 -shared -fPIC` + dlopen for HolyD or complex C
  * that minic can't handle yet.
  */
 
@@ -301,7 +301,7 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
     }
 
 #ifdef WUBU_HOSTED
-    /* Hosted: fall back to gcc + dlopen for complex C/HolyC that minic can't handle */
+    /* Hosted: fall back to gcc + dlopen for complex C/HolyD that minic can't handle */
     static int mir_seq = 0;
     char tmp_c[256], tmp_so[256];
     snprintf(tmp_c, sizeof(tmp_c), "/tmp/wubu_jit_%d_%d.c", (int)getpid(), mir_seq);
@@ -312,7 +312,7 @@ static JITResult jit_mir_compile_impl(JITContext *ctx,
     if (!f) return JIT_ERR_ALLOC;
 
     if (lang == JIT_LANG_HOLYC) {
-        fprintf(f, "/* WuBuOS HolyC wrapper */\n");
+        fprintf(f, "/* WuBuOS HolyD wrapper */\n");
         fprintf(f, "typedef long I64;\ntypedef unsigned char U8;\n");
         fprintf(f, "typedef unsigned long U64;\n");
         fprintf(f, "#include <stdint.h>\n");

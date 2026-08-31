@@ -1,6 +1,6 @@
 /*
- * repl.c  --  My Seed HolyC JIT REPL (runs inside GUI window)
- * Uses the HolyC compiler (hd_eval) for evaluation
+ * repl.c  --  My Seed HolyD JIT REPL (runs inside GUI window)
+ * Uses the HolyD compiler (hd_eval) for evaluation
  * Updated to use DosGui WM API (Cell 400)
  */
 #include "repl.h"
@@ -80,7 +80,7 @@ static void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 static void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)win; (void)mods;
     if (key == '\n' || key == '\r') {
-        /* Execute the input line via HolyC compiler */
+        /* Execute the input line via HolyD compiler */
         if (g_repl.input[0]) {
             /* Store input as output line */
             if (g_repl.line_count < REPL_MAX_LINES) {
@@ -89,7 +89,7 @@ static void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
                 g_repl.line_count++;
             }
 
-            /* Evaluate via HolyC compiler */
+            /* Evaluate via HolyD compiler */
             int64_t result = hd_eval(g_repl.input);
 
             /* Store result as output line */
@@ -120,10 +120,10 @@ void repl_start(int fb_w, int fb_h) {
         gui_dbuf_init(g_repl.db, 640, 480);
     }
 
-    DosGuiWindow *win = dosgui_wm_create(100, 100, 400, 400, "HolyC REPL");
+    DosGuiWindow *win = dosgui_wm_create(100, 100, 400, 400, "HolyD REPL");
     if (win) {
         win->on_draw  = repl_draw;
         win->on_key   = repl_handle_key;
-        snprintf(win->title, sizeof(win->title), "HolyC REPL");
+        snprintf(win->title, sizeof(win->title), "HolyD REPL");
     }
 }

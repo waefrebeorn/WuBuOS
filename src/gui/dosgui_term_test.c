@@ -2,7 +2,7 @@
  * dosgui_term_test.c  --  WuBuOS Terminal Test Suite
  *
  * Tests PTY backend, ANSI parser, scrollback, copy/paste, tab management,
- * HolyC REPL, keyboard shortcuts, and resize handling.
+ * HolyD REPL, keyboard shortcuts, and resize handling.
  */
 
 #include "dosgui_term.h"
@@ -74,30 +74,30 @@ void test_term_render(void) {
     PASS();
 }
 
-/* E4: the HolyC terminal tab embeds the wubu_holyd REPL as a real PTY-backed
+/* E4: the HolyD terminal tab embeds the wubu_holyd REPL as a real PTY-backed
  * process. We assert the terminal layer spawns the REPL PTY and routes input
  * to it (real work, not a stub). */
 void test_holyc_embed(void) {
-    printf("\n=== Test: HolyC REPL embedded (E4) ===\n");
+    printf("\n=== Test: HolyD REPL embedded (E4) ===\n");
     dosgui_term_init();
 
     int idx = dosgui_term_new_tab(TERM_SESSION_HOLYC, NULL, NULL);
-    CHECK(idx >= 0, "HolyC tab created");
+    CHECK(idx >= 0, "HolyD tab created");
     TermTab *tab = dosgui_term_get_tab(idx);
-    CHECK(tab != NULL, "HolyC tab fetched");
+    CHECK(tab != NULL, "HolyD tab fetched");
     CHECK(tab->type == TERM_SESSION_HOLYC, "tab type is HOLYC");
 
     /* The REPL is spawned as a PTY-backed process: a master fd must exist. */
-    CHECK(tab->session.holyc.pty.ptm_fd >= 0, "REPL PTY master created (wubu_holyd --repl spawned)");
+    CHECK(tab->session.holyd.pty.ptm_fd >= 0, "REPL PTY master created (wubu_holyd --repl spawned)");
 
     /* Make it active and route a keystroke; bytes must reach the PTY. */
     TermState *st = dosgui_term_state();
     st->active_tab = idx;
-    int before = tab->session.holyc.pty.ptm_fd;
+    int before = tab->session.holyd.pty.ptm_fd;
     dosgui_term_handle_key('1', 0);
     /* If the REPL process read it, the PTY is still alive (fd unchanged).
      * We just assert the write path didn't crash and the pty is valid. */
-    CHECK(tab->session.holyc.pty.ptm_fd == before, "REPL PTY fd stable after key route");
+    CHECK(tab->session.holyd.pty.ptm_fd == before, "REPL PTY fd stable after key route");
 
     dosgui_term_shutdown();
     PASS();

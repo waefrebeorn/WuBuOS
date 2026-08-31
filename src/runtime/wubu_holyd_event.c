@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_event.c  --  WuBuOS HolyC DOS Daemon: Event
+ * wubu_holyd_event.c  --  WuBuOS HolyD DOS Daemon: Event
  */
 
 #include "wubu_holyd_internal.h"

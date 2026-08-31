@@ -5,7 +5,7 @@
  *
  * Features from Notepad++:
  *   - Tabbed multi-file editing
- *   - Syntax highlighting (C, HolyC, Python, Shell, Makefile, Config)
+ *   - Syntax highlighting (C, HolyD, Python, Shell, Makefile, Config)
  *   - Find & Replace (with regex support)
  *   - Line numbers + gutter
  *   - Code folding ({  }  block collapse)
@@ -22,7 +22,7 @@
  *   - Session save/restore
  *
  * WuBuOS additions:
- *   - HolyC syntax mode (ZealOS types: U0, I64, F64, Bool, U8...)
+ *   - HolyD syntax mode (ZealOS types: U0, I64, F64, Bool, U8...)
  *   - .wubu manifest mode (TOML-like)
  *   - Container-aware: open files from mounted container roots
  *   - GAAD-aware: split view uses golden ratio division
@@ -48,7 +48,7 @@
 typedef enum {
     SYNTAX_NONE     = 0,
     SYNTAX_C        = 1,
-    SYNTAX_HOLYC    = 2,    /* ZealOS HolyC */
+    SYNTAX_HOLYC    = 2,    /* ZealOS HolyD */
     SYNTAX_PYTHON   = 3,
     SYNTAX_SHELL    = 4,
     SYNTAX_MAKEFILE = 5,
@@ -72,7 +72,7 @@ typedef enum {
     TOK_OPERATOR   = 9,    /* Operators */
     TOK_BRACKET    = 10,   /* {}, [], () */
     TOK_FUNC       = 11,   /* Function names */
-    TOK_LABEL      = 12,   /* HolyC labels / goto targets */
+    TOK_LABEL      = 12,   /* HolyD labels / goto targets */
     TOK_WHITESPACE = 13,
 } WubuTokenKind;
 

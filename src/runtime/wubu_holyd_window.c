@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_window.c  --  WuBuOS HolyC DOS Daemon: Window
+ * wubu_holyd_window.c  --  WuBuOS HolyD DOS Daemon: Window
  */
 
 #include "wubu_holyd_internal.h"

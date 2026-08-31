@@ -45,10 +45,10 @@ typedef enum {
     /* Native WuBuOS executable  --  JIT-compiled or AOT native */
     WUBU_PAYLOAD_NATIVE_EXEC   = 0x01,
 
-    /* HolyC source  --  JIT compile and execute */
+    /* HolyD source  --  JIT compile and execute */
     WUBU_PAYLOAD_HOLYC_SRC    = 0x02,
 
-    /* C source  --  compile via HolyC compiler and execute */
+    /* C source  --  compile via HolyD compiler and execute */
     WUBU_PAYLOAD_C_SRC        = 0x03,
 
     /* Linux ELF binary  --  run via Virtualization Layer (VSL) */
@@ -121,7 +121,7 @@ typedef struct __attribute__((packed)) {
     /* Handler ID  --  which interpreter/runtime to use
      * 0    = default for payload_type
      * 1    = WuBuOS native
-     * 2    = HolyC JIT
+     * 2    = HolyD JIT
      * 10   = VSL (Linux)
      * 11   = Proton (Windows)
      * 20   = Python 3

@@ -98,7 +98,7 @@ uint64_t wubu_runtime_create(wubu_runtime_t *rt,
     /* THE SNAPSHOT: compiler + language versions + the date, recorded
      * at creation — nothing is left in the dust. */
     snprintf(s->space.compiler_ver, sizeof(s->space.compiler_ver),
-             "%s", compiler_ver ? compiler_ver : "holyc-0.1.0");
+             "%s", compiler_ver ? compiler_ver : "holyd-0.1.0");
     snprintf(s->space.language_ver, sizeof(s->space.language_ver),
              "%s", language_ver ? language_ver : "unknown");
     snprintf(s->space.abi_snapshot, sizeof(s->space.abi_snapshot),

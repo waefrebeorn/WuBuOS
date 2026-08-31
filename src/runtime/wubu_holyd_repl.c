@@ -1,5 +1,5 @@
 /*
- * wubu_holyd_repl.c -- WuBuOS HolyC DOS Daemon: REPL + macro storage
+ * wubu_holyd_repl.c -- WuBuOS HolyD DOS Daemon: REPL + macro storage
  *
  * Self-contained REPL concern split out of wubu_holyd_exec.c. Owns the
  * read-eval-print loop (repl_start/repl_eval/repl_stop) and the per-session

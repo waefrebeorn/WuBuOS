@@ -5,7 +5,7 @@
  * SteamOS's Big Picture Mode is the fullscreen gamepad-first shell:
  * a grid of games, the d-pad moves the selection, A launches, B goes
  * back. WuBuOS's BPM is the SAME shell over the era-apps registry
- * (CP/M 1974 → HolyC 2020 — the "everything runs on the Colonel"
+ * (CP/M 1974 → HolyD 2020 — the "everything runs on the Colonel"
  * grid):
  *
  *   - the fullscreen grid (4 columns) of the era apps

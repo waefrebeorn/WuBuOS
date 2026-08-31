@@ -22,7 +22,7 @@
 #define ERA_PERSONA_NT       0xFF   /* ReactOS NT / Win32 PE (NT path) */
 #define ERA_PERSONA_XNU      0xE0   /* macOS XNU (Mach-O via darling) */
 #define ERA_PERSONA_DOS      0xD0   /* in-process 8086 shim (separate emu) */
-#define ERA_PERSONA_HOLYC    0xF0   /* HolyC / TempleOS JIT */
+#define ERA_PERSONA_HOLYC    0xF0   /* HolyD / TempleOS JIT */
 
 /* Register every era app into the shared start-menu program DB, tagging the
  * VSL personality so the shell can group/filter by era. Call once during
@@ -30,7 +30,7 @@
 void dosgui_era_apps_register(void);
 
 /* Launch era app `idx` through its VSL personality's real exec backend
- * (DOS->8086 shim, Win->Wine, Linux->VSL ELF, HolyC->JIT). Gaps (CP/M,
+ * (DOS->8086 shim, Win->Wine, Linux->VSL ELF, HolyD->JIT). Gaps (CP/M,
  * Classic Mac) return -1 with a clear message. Returns 0 on a clean launch
  * attempt, -1 on setup error / unsupported gap. */
 int dosgui_era_apps_launch(int idx);

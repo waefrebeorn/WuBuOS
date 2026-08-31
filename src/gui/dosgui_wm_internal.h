@@ -1,7 +1,7 @@
 /*
  * dosgui_wm_internal.h  --  Internal shared state for dosgui_wm module
  *
- * Exposes g_dwm and internal functions to sub-modules (HolyC terminal,
+ * Exposes g_dwm and internal functions to sub-modules (HolyD terminal,
  * context menus, etc.) while keeping them private from the public API.
  *
  * NOTE: DosGuiIcon, DosGuiContextMenu, and all public types/constants
@@ -27,7 +27,7 @@
 #include <time.h>
 #include <ctype.h>
 
-/* -- HolyC Terminal Instance (private to sub-module) --------------- */
+/* -- HolyD Terminal Instance (private to sub-module) --------------- */
 typedef struct {
     char  buffer[32][256];    /* Rollback buffer of output lines */
     char  input[256];         /* Current input buffer */
@@ -148,7 +148,7 @@ void dosgui_wm_draw_icon_selection(int ox, int oy);
 void snap_window_to_gaad(DosGuiWindow *w);
 int  dosgui_icon_hit_test(int mx, int my);
 int  dosgui_icon_select_in_rect(int x0, int y0, int x1, int y1);
-DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);
+DosGuiWindow *dosgui_wm_spawn_holyd_term(int x, int y, int w, int h);
 int  spawn_window(int x, int y, int w, int h, const char *title);
 
 /* -- Desktop view options (Stream 3) -- */

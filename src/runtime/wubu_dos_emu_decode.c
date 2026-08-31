@@ -262,6 +262,52 @@ int decode_main(WubuDosEmu *e, uint8_t op) {
             }
             return 0; }
 
+        case 0xF1: { /* WUBU_HOSTCALL escape (undefined on 8086).
+                      * fn, dst, sa, sb: 16-bit BP-relative displacements.
+                      * Slots are the compiler's [bp-(vr+1)*2] cells, little-endian. */
+            int fn_  = fetch8(e);
+            int16_t ddst = (int16_t)fetch16(e);
+            int16_t dsa  = (int16_t)fetch16(e);
+            int16_t dsb  = (int16_t)fetch16(e);
+            uint16_t bp = e->bp;
+#define RD16(off) ((uint16_t)e->mem[phys(e, e->ss, (uint16_t)(bp + (uint16_t)(off)))] | \
+                   ((uint16_t)e->mem[phys(e, e->ss, (uint16_t)(uint16_t)(bp + (uint16_t)(off)) + 1)] << 8))
+            if (fn_ == 27) {          /* CALL: abs16 BE target follows */
+                uint16_t target = ((uint16_t)fetch8(e) << 8) | fetch8(e);
+                if (e->call_sp < 32) {
+                    e->call_stack[e->call_sp++] = e->ip;
+                    e->ip = target;
+                }
+                return 0;
+            } else if (fn_ == 28) {   /* FUNC_RET: result byte at [bp+dsa] */
+                uint8_t v = (uint8_t)(RD16(dsa) & 0xFF);
+                /* vr0's slot: slot_disp(0) = -2 → [bp-2] (LE word) */
+                e->mem[(uint16_t)(e->bp - 2)] = v;
+                e->mem[(uint16_t)(e->bp - 1)] = 0;
+                if (e->call_sp > 0) {
+                    e->ip = e->call_stack[--e->call_sp];
+                } else {
+                    e->ax = v;   /* top-level return */
+                    e->state = WUBU_DOS_TERMINATED;
+                }
+                return 0;
+            } else if (fn_ == 25) {          /* MEM_LOAD: cell index at [bp+dsa] */
+                uint32_t cell = RD16(dsa);
+                uint32_t addr = (uint32_t)(cell * 8u);
+                uint8_t v = (addr < 65536) ? e->mem[addr] : 0;
+                e->ax = v;        /* result byte in AX (AL) */
+                return 0;
+            } else if (fn_ == 26) {   /* MEM_STORE: value [bp+dsa], cell [bp+dsb] */
+                uint8_t val = (uint8_t)(RD16(dsa) & 0xFF);
+                uint32_t cell = RD16(dsb);
+                uint32_t addr = (uint32_t)(cell * 8u);
+                if (addr < 65536) e->mem[addr] = val;
+                return 0;
+            }
+#undef RD16
+            e->state = WUBU_DOS_ERROR;
+            return -1;
+        }
         default:
             e->state = WUBU_DOS_ERROR;
             return -1;

@@ -1,10 +1,10 @@
 /*
- * dosgui_term.h  --  WuBuOS Terminal (PTY + HolyC REPL + Tabbed)
+ * dosgui_term.h  --  WuBuOS Terminal (PTY + HolyD REPL + Tabbed)
  *
  * Phase 6: Full-featured terminal with:
  *   - PTY backend for shell sessions (bash, zsh, etc.)
  *   - Tabbed sessions (multiple shells in one window)
- *   - HolyC REPL pane integration
+ *   - HolyD REPL pane integration
  *   - GPU-accelerated render via VBE double-buffer
  *   - Scrollback buffer with search
  *   - Copy/paste, selection, URL detection
@@ -34,7 +34,7 @@
 
 typedef enum {
     TERM_SESSION_SHELL     = 0,  /* PTY shell (bash, zsh, etc.) */
-    TERM_SESSION_HOLYC     = 1,  /* HolyC REPL */
+    TERM_SESSION_HOLYC     = 1,  /* HolyD REPL */
     TERM_SESSION_CONTAINER = 2,  /* Container shell */
 } TermSessionType;
 
@@ -78,14 +78,14 @@ typedef struct {
     int             sel_end_x, sel_end_y;
 } TermPtySession;
 
-/* -- HolyC Session State ------------------------------------------ */
+/* -- HolyD Session State ------------------------------------------ */
 
-/* The HolyC terminal tab embeds the wubu_holyd REPL as a real PTY-backed
+/* The HolyD terminal tab embeds the wubu_holyd REPL as a real PTY-backed
  * process (`wubu_holyd --repl`), so the Desktop terminal hosts a live
- * interactive HolyC REPL (E4). */
+ * interactive HolyD REPL (E4). */
 typedef struct {
     TermPtySession  pty;            /* PTY running `wubu_holyd --repl` */
-} TermHolycSession;
+} TermHolydSession;
 
 /* -- Container Session State -------------------------------------- */
 
@@ -123,7 +123,7 @@ typedef struct {
 
     union {
         TermPtySession     pty;
-        TermHolycSession   holyc;
+        TermHolydSession   holyd;
         TermContainerSession container;
     } session;
 } TermTab;
@@ -194,7 +194,7 @@ TermTab *dosgui_term_get_tab(int idx);
 
 /* Session control */
 int  dosgui_term_spawn_shell(const char *shell, const char *cwd);
-int  dosgui_term_spawn_holyc(void);
+int  dosgui_term_spawn_holyd(void);
 int  dosgui_term_spawn_container(const char *container_name);
 
 /* Input handling */
@@ -218,7 +218,7 @@ void dosgui_term_copy_selection(void);
 void dosgui_term_paste(void);
 const char *dosgui_term_get_cwd(void);
 
-/* HolyC REPL tab is PTY-backed (wubu_holyd --repl); routing handled via
+/* HolyD REPL tab is PTY-backed (wubu_holyd --repl); routing handled via
  * dosgui_term_pty_write / dosgui_term_pty_read like the shell tab. */
 /* State accessor */
 TermState *dosgui_term_state(void);

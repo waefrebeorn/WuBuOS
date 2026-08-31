@@ -1,9 +1,9 @@
 /*
- * bear_cudnn.h  --  cuBLAS/cuDNN Wrappers for HolyC FFI
+ * bear_cudnn.h  --  cuBLAS/cuDNN Wrappers for HolyD FFI
  * 
- * HolyC-callable cuBLAS/cuDNN operations via extern "C"
+ * HolyD-callable cuBLAS/cuDNN operations via extern "C"
  * 
- * HolyC usage:
+ * HolyD usage:
  *   extern "C" void hc_builtin_cublas_sgemm(
  *       cublasHandle_t handle, cublasOperation_t transa, cublasOperation_t transb,
  *       int m, int n, int k,

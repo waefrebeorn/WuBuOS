@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-/* Test-only provider for the HolyC-eval symbol wubu_exec.c references. */
+/* Test-only provider for the HolyD-eval symbol wubu_exec.c references. */
 int64_t hd_eval(const char *source) { (void)source; return -1; }
 
 static int g_run = 0, g_pass = 0;

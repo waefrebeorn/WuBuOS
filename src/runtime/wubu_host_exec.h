@@ -43,7 +43,7 @@ typedef enum {
     CT_STEAMOS   = 1,     /* Steam Runtime + Proton */
     CT_NATIVE    = 2,     /* Direct host exec */
     CT_PROTON    = 3,     /* Wine/Proton for Windows apps */
-    CT_HOLYC     = 4,     /* HolyC JIT session */
+    CT_HOLYC     = 4,     /* HolyD JIT session */
     CT_MACHO     = 5,     /* Darwin/Mach-O app via Darling (VSL-served) */
 } CtRuntime;
 

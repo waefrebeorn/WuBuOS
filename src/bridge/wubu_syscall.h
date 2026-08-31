@@ -1,15 +1,15 @@
 /*
- * wubu_syscall.h  --  WuBuOS HolyC Syscall Bridge
+ * wubu_syscall.h  --  WuBuOS HolyD Syscall Bridge
  *
- * 25 TempleOS/ZealOS-compatible syscalls exposed to HolyC.
- * Bridges HolyC compiler function table → kernel syscall table.
+ * 25 TempleOS/ZealOS-compatible syscalls exposed to HolyD.
+ * Bridges HolyD compiler function table → kernel syscall table.
  *
  * Syscall Convention (System V AMD64 ABI):
  *   RAX = syscall number
  *   RDI, RSI, RDX, RCX, R8, R9 = args 1-6
  *   Returns I64 in RAX
  *
- * HolyC calls these as normal functions:
+ * HolyD calls these as normal functions:
  *   I64 x = VBEFillRect(100, 100, 200, 200, 0xFF0000);
  *
  * The bridge registers them in HDGen.functions table with func_ptr
@@ -112,15 +112,15 @@ int64_t sys_sleep(int64_t ms, int64_t _unused, int64_t _unused2, int64_t _unused
 /* Register all 25 syscalls in kernel syscall table */
 int wubu_syscall_register_all(void);
 
-/* Setup HolyC compiler external function table */
-/* Call this from HDCompiler initialization to expose syscalls to HolyC */
-int wubu_holyc_register_syscalls(void *hd_compiler);
+/* Setup HolyD compiler external function table */
+/* Call this from HDCompiler initialization to expose syscalls to HolyD */
+int wubu_holyd_register_syscalls(void *hd_compiler);
 
 /* Syscall trampoline - assembly stub that does `syscall` instruction */
 /* Returns address of syscall entry point for given syscall number */
 void *wubu_syscall_trampoline(uint32_t num);
 
-/* Map syscall name to number for HolyC external function registration */
+/* Map syscall name to number for HolyD external function registration */
 const char *wubu_syscall_name(uint32_t num);
 
 #endif /* WUBU_SYSCALL_H */

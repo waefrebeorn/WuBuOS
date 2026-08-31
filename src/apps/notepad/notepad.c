@@ -80,7 +80,7 @@ NPLang notepad_detect_lang(const char *filename) {
     if (strcmp(ext, ".c") == 0 || strcmp(ext, ".h") == 0) return 1;
     if (strcmp(ext, ".cpp") == 0 || strcmp(ext, ".hpp") == 0) return 2;
     if (strcmp(ext, ".py") == 0) return 3;
-    if (strcmp(ext, ".HC") == 0 || strcmp(ext, ".holyc") == 0) return 4;
+    if (strcmp(ext, ".HC") == 0 || strcmp(ext, ".holyd") == 0) return 4;
     if (strcmp(ext, ".sh") == 0 || strcmp(ext, ".bash") == 0) return 5;
     if (strcmp(ext, ".json") == 0) return 7;
     if (strcmp(ext, ".xml") == 0 || strcmp(ext, ".html") == 0) return 8;

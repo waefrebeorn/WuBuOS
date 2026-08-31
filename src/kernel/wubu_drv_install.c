@@ -492,7 +492,7 @@ int wubu_drv_elf_load(const void *obj, size_t obj_len)
 /* ------------------------------------------------------------------ */
 /* DI8: build -- compile a driver source to an ET_REL .o in memory.     */
 /* Hosted leg shells to the host C compiler. Metal leg would route to   */
-/* the in-kernel HolyC backend (documented, future).                    */
+/* the in-kernel HolyD backend (documented, future).                    */
 /* ------------------------------------------------------------------ */
 void *wubu_drv_build(const wubu_drv_manifest_t *m, size_t *obj_len)
 {

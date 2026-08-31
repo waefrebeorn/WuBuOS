@@ -46,7 +46,7 @@ typedef enum {
     WUBU_PKG_PAYLOAD_NATIVE   = 0,  /* Native ELF executable */
     WUBU_PKG_PAYLOAD_LINUX    = 1,  /* Linux ELF (with deps) */
     WUBU_PKG_PAYLOAD_WIN32    = 2,  /* Windows PE (Proton) */
-    WUBU_PKG_PAYLOAD_HOLYC    = 3,  /* HolyC source */
+    WUBU_PKG_PAYLOAD_HOLYC    = 3,  /* HolyD source */
     WUBU_PKG_PAYLOAD_WASM     = 4,  /* WebAssembly module */
     WUBU_PKG_PAYLOAD_SCRIPT   = 5,  /* Shell/Python/JS script */
     WUBU_PKG_PAYLOAD_DATA     = 6,  /* Data-only (themes, fonts, etc) */

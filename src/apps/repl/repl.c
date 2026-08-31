@@ -1,5 +1,5 @@
 /*
- * repl.c  --  HolyC REPL Terminal - minimal stub
+ * repl.c  --  HolyD REPL Terminal - minimal stub
  */
 
 #include "repl.h"
@@ -32,7 +32,7 @@ void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, REPLState *r
 }
 
 DosGuiWindow* repl_launch(void) {
-    return dosgui_wm_create(80, 60, 400, 400, "HolyC REPL");
+    return dosgui_wm_create(80, 60, 400, 400, "HolyD REPL");
 }
 
 void repl_add_line(REPLState *repl, const char *line) {

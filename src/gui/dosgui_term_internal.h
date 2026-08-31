@@ -108,7 +108,7 @@ void term_update_container_size(TermContainerSession *container, int cols, int r
 /* Container I/O and input handling */
 void term_process_container_output(TermContainerSession *container);
 void term_handle_key_container(TermState *term, uint32_t key, uint32_t mods);
-void term_handle_key_holyc(TermState *term, uint32_t key, uint32_t mods);
+void term_handle_key_holyd(TermState *term, uint32_t key, uint32_t mods);
 
 /* Render helpers (shared with dosgui_term.c) */
 void term_render_pty_session(TermPtySession *pty, uint32_t *fb, int x, int y, int w, int h);

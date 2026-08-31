@@ -1,13 +1,13 @@
 /*
- * test_holyc_agi.c -- Live ring-0 compiler AGI layer test.
+ * test_holyd_agi.c -- Live ring-0 compiler AGI layer test.
  *
- * Proves the TempleOS "God compiler" is now CONNECTED: a human at the HolyC
- * Terminal and the AGI both author HolyC source that compiles + runs LIVE via
+ * Proves the TempleOS "God compiler" is now CONNECTED: a human at the HolyD
+ * Terminal and the AGI both author HolyD source that compiles + runs LIVE via
  * the same path, with the AGI's compile+run disclosed to EDR. No sandbox, no
  * separate build step -- source in, native x86-64 out, executed in place.
  */
 
-#include "wubu_holyc_agi.h"
+#include "wubu_holyd_agi.h"
 #include "wubu_edr.h"
 #include "wubu_holyd.h"
 #include "wubu_gdpr_age.h"
@@ -20,14 +20,14 @@ static int g_run = 0, g_pass = 0;
 
 static int eval_int(const char *src) {
     char out[1024];
-    int ret = wubu_holyc_eval(src, out, sizeof(out));
+    int ret = wubu_holyd_eval(src, out, sizeof(out));
     if (ret != 0) { printf("    [eval '%s' -> err: %s]\n", src, out); return -9999; }
     return (int)strtoll(out, NULL, 10);
 }
 
 int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
-    printf("=== WuBuOS Live HolyC Compiler AGI Layer Test ===\n\n");
+    printf("=== WuBuOS Live HolyD Compiler AGI Layer Test ===\n\n");
 
     /* The agent compile+run path is GDPR Art 8 gated: EDR records an
      * agent action ONLY with age consent (fail-closed otherwise). Establish
@@ -52,14 +52,14 @@ int main(void) {
     /* -- 3. Errors are reported, not silently swallowed -- */
     printf("\n[Error reporting]\n");
     char out[1024];
-    int r = wubu_holyc_eval("this is not holyc @@@", out, sizeof(out));
+    int r = wubu_holyd_eval("this is not holyc @@@", out, sizeof(out));
     T(r != 0 && out[0] != '\0', "garbage source reports an error (no silent stub)");
 
     /* -- 4. The AGI path compiles+logs to EDR (transparency edict) -- */
     printf("\n[AGI compile+run disclosed to EDR]\n");
     uint64_t before = edr_agent_events_logged();
     char aout[1024];
-    int ar = wubu_holyc_agent_eval("2*21", aout, sizeof(aout));
+    int ar = wubu_holyd_agent_eval("2*21", aout, sizeof(aout));
     T(ar == 0 && eval_int("2*21") == 42, "agent eval 2*21 computes 42");
     uint64_t after = edr_agent_events_logged();
     T(after > before, "agent compile+run logged an EDR_AGENT_ACTION event");
@@ -69,7 +69,7 @@ int main(void) {
     int found_src = 0;
     for (int i = 0; i < n; i++)
         if (strstr(ev[i].detail, "holyc: 2*21")) { found_src = 1; break; }
-    T(found_src, "EDR event detail discloses the exact HolyC source compiled");
+    T(found_src, "EDR event detail discloses the exact HolyD source compiled");
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;

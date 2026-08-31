@@ -1,7 +1,7 @@
 /*
- * wubu_holyd.c  --  WuBuOS TempleOS HolyC DOS Daemon (Facade)
+ * wubu_holyd.c  --  WuBuOS TempleOS HolyD DOS Daemon (Facade)
  *
- * Manages HolyC DOS sessions: REPL, compilation, VBE display,
+ * Manages HolyD DOS sessions: REPL, compilation, VBE display,
  * input routing, 9P namespace, auto-save, and desktop integration.
  *
  * Submodules:
@@ -53,7 +53,7 @@ const char *wubu_holyd_window_type_str(WubuHolyWindowType type) {
     }
 }
 
-const char *wubu_holyd_cmd_str(WubuHolyCmd cmd) {
+const char *wubu_holyd_cmd_str(WubuHolyDmd cmd) {
     switch (cmd) {
         case HOLYD_CMD_SESSION_CREATE:  return "session_create";
         case HOLYD_CMD_SESSION_DESTROY: return "session_destroy";

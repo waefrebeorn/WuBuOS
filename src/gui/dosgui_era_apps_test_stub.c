@@ -27,7 +27,7 @@ static const struct {
     { "Win32 :: Era Demo", "Era: Win32 1993",  1 },
     { "macOS :: Era Demo", "Era: macOS XNU",   0 },
     { "Linux :: Era Demo", "Era: Linux 2007",  1 },
-    { "HolyC :: Era Demo", "Era: HolyC 2020",  1 },
+    { "HolyD :: Era Demo", "Era: HolyD 2020",  1 },
 };
 #define STUB_COUNT (int)(sizeof(g_stub_apps) / sizeof(g_stub_apps[0]))
 

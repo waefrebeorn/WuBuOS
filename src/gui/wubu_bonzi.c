@@ -20,7 +20,7 @@
  *   5. Exaggeration          -- 3px bob (not 1px) for visibility
  *   6. Follow-through        -- 20ms post-blink relaxation
  *
- * Clicking the buddy (or its bubble) opens the AGI HolyC terminal near it --
+ * Clicking the buddy (or its bubble) opens the AGI HolyD terminal near it --
  * the GUI is the gateway to the AGI.
  *
  * C11, opaque API (wubu_bonzi.h), no god headers. Self-contained drawing.
@@ -38,7 +38,7 @@
 #  endif
 #endif
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_holyc_term.h"
+#include "../gui/dosgui_wm_holyd_term.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -375,7 +375,7 @@ void wubu_bonzi_set_bubble(const char *l1, const char *l2) {
 /* -- AGI gateway ------------------------------------------------------ */
 
 void wubu_bonzi_open_agi(void) {
-    DosGuiWindow *w = dosgui_wm_spawn_holyc_term(280, 180, 520, 380);
+    DosGuiWindow *w = dosgui_wm_spawn_holyd_term(280, 180, 520, 380);
     if (w) dosgui_wm_set_focus(w);
 }
 

@@ -293,7 +293,7 @@
 /* ===================================================================
  * HOLYC COMPILER EXTENSIONS (Phase 1: +50 functions)
  *
- * ZealOS HolyC compiler functions → WuBuOS
+ * ZealOS HolyD compiler functions → WuBuOS
  * =================================================================== */
 
 #define HCCompile           hd_compile
@@ -395,7 +395,7 @@
 #define CtSteamOS           wubu_ct_steamos
 #define CtNative            wubu_ct_native
 #define CtProton            wubu_ct_proton
-#define CtHolyC             wubu_ct_holyc
+#define CtHolyD             wubu_ct_holyd
 
 /* ===================================================================
  * VBE / DRAWING EXTENSIONS (Phase 1)

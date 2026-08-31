@@ -23,7 +23,7 @@ $(KERNEL)/libc.o: $(KERNEL)/libc.c
 
 # Runtime objects
 $(RT)/%.o: $(RT)/%.c
-	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -I$(COMP) -MMD -MP -c $< -o $@
 
 # JIT objects
 $(JIT)/%.o: $(JIT)/%.c
@@ -114,3 +114,7 @@ $(HOSTED)/xdg-shell-private.o: $(HOSTED)/xdg-shell-private.c
 
 $(HOSTED)/primary-selection-private.o: $(HOSTED)/primary-selection-private.c
 	$(CC) $(CFLAGS) -I$(HOSTED) -x c -MMD -MP -c $< -o $@
+
+# AVX512 GEMM kernel needs ISA extension flags
+$(COMP)/wubu_tgemm_avx512.o: $(COMP)/wubu_tgemm_avx512.c
+	$(CC) $(CFLAGS) -I$(COMP) -mavx512dq -mavx512f -mavx512vl -mavx512bf16 -MMD -MP -c $< -o $@

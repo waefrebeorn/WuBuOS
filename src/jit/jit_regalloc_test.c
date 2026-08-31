@@ -7,7 +7,7 @@
  * nested expressions like (1+2)*(3+4) or (1+2)*(3+4)+(5+6) stress the
  * register survival path: the RHS evaluation clobbers rax, so the saved LHS
  * must be preserved. These probe EXACTLY that -- the same bug class the
- * wubuos-holyc-compiler skill documents as "the rdi-CLOBBER BINOP FAMILY".
+ * wubuos-holyd-compiler skill documents as "the rdi-CLOBBER BINOP FAMILY".
  *
  * If the push/pop or rax-funnel is broken, the LHS is destroyed and the
  * result is wrong. This is the allocator-correctness gate for the JIT tier.

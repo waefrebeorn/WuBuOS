@@ -23,8 +23,8 @@ int64_t wubu_exec_container(const WUBU_HEADER *hdr,
             case 1:   /* WuBuOS native */
                 return wubu_exec_native(payload, payload_size,
                                        hdr->entry_offset, hdr->arch);
-            case 2:   /* HolyC JIT */
-                return wubu_exec_holyc((const char *)payload, payload_size);
+            case 2:   /* HolyD JIT */
+                return wubu_exec_holyd((const char *)payload, payload_size);
             case 10:  /* VSL (Linux) */
                 return wubu_exec_linux_elf(payload, payload_size);
             case 11:  /* Proton (Windows) */
@@ -56,7 +56,7 @@ int64_t wubu_exec_container(const WUBU_HEADER *hdr,
                                    hdr->entry_offset, hdr->arch);
 
         case WUBU_PAYLOAD_HOLYC_SRC:
-            return wubu_exec_holyc((const char *)payload, payload_size);
+            return wubu_exec_holyd((const char *)payload, payload_size);
 
         case WUBU_PAYLOAD_C_SRC:
             return wubu_exec_c((const char *)payload, payload_size);

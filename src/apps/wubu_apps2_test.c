@@ -73,7 +73,7 @@ static void test_ed_delete(void) {
 static void test_ed_syntax_detect(void) {
     TEST("editor syntax detection");
     CHECK(wubu_ed_detect_syntax("test.c") == SYNTAX_C, ".c → C");
-    CHECK(wubu_ed_detect_syntax("test.HC") == SYNTAX_HOLYC, ".HC → HolyC");
+    CHECK(wubu_ed_detect_syntax("test.HC") == SYNTAX_HOLYC, ".HC → HolyD");
     CHECK(wubu_ed_detect_syntax("test.py") == SYNTAX_PYTHON, ".py → Python");
     CHECK(wubu_ed_detect_syntax("test.sh") == SYNTAX_SHELL, ".sh → Shell");
     CHECK(wubu_ed_detect_syntax("Makefile") == SYNTAX_MAKEFILE, "Makefile");
