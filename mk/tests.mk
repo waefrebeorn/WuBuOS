@@ -208,7 +208,7 @@ test_peephole_superopt:
 # without the machine-code optimizations, asserts results agree, and reports
 # code-size deltas (size-targeted opts must shrink; div is a latency win).
 test_jit_perf_diff:
-	bash tools/jit_perf_diff.sh
+	bash tools/bench/jit_perf_diff.sh
 test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/test/legacy/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
@@ -1634,8 +1634,8 @@ test_ns_session:
 		-o $(RT)/wubu_ns_session_test
 	$(RT)/wubu_ns_session_test
 
-
-	t$(CC) -O0 -no-pie \
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(COMP) -c $(RT)/wubu_ns_9p_test.c -o /tmp/wubu_ns_9p_test.o
+	$(CC) -O0 -no-pie \
 		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
 		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
 		$(RT)/wubu_fs_util.o \
@@ -1643,6 +1643,7 @@ test_ns_session:
 		$(RT)/styxfs_server.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
 		$(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/wubu_container.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o \
 		$(RT)/wubu_spawn.c \
+		$(KERNEL)/wubu_kvfs.c \
 		/tmp/wubu_ns_9p_test.o \
 		-ljson-c -o $(RT)/wubu_ns_9p_test
 	$(RT)/wubu_ns_9p_test
