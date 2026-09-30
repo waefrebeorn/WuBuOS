@@ -157,6 +157,22 @@ wubu_cap_object_t *wubu_cap_handle_resolve(wubu_cap_handle_table_t *t,
                                           uint64_t required_rights);
 /* Close a handle: bumps local gen so stale tokens fail. */
 int      wubu_cap_handle_close(wubu_cap_handle_table_t *t, wubu_cap_token_t tok);
+/* Resolve/inspect by raw handle-table slot (NT-handle interop). Reconstructs
+ * the slot's token from its stored local generation and delegates to
+ * wubu_cap_handle_resolve. Returns NULL on invalid/revoked/missing rights. */
+wubu_cap_object_t *wubu_cap_handle_resolve_by_slot(wubu_cap_handle_table_t *t,
+                                                   int32_t caller_pid,
+                                                   uint32_t slot,
+                                                   uint64_t required_rights);
+/* Revoke the object backing a handle-table slot. Bumps the object generation,
+ * so every handle (in any process) that points at it fails resolve afterwards
+ * (cascading authority loss). Returns WUBU_CAP_OK, WUBU_CAP_EREVOKED,
+ * WUBU_CAP_EPERM (immortal object) or WUBU_CAP_EINVAL (bad slot). */
+int wubu_cap_handle_revoke_by_slot(wubu_cap_handle_table_t *t, uint32_t slot);
+/* Close the handle in a raw table slot (bump local gen => stale tokens fail).
+ * Returns WUBU_CAP_OK or WUBU_CAP_EINVAL. Mirrors wubu_cap_handle_close but
+ * addresses the slot directly (NT handles are uint32 slot indices). */
+int wubu_cap_handle_close_slot(wubu_cap_handle_table_t *t, uint32_t slot);
 /* Scan the table for any live cap of `kind` covering `required_rights`.
  * Returns WUBU_CAP_OK on match, WUBU_CAP_EPERM otherwise. Used for
  * capability-kind gates (e.g. CAP_KIND_SYSTEM) where the table is authority. */

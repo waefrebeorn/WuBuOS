@@ -2,6 +2,17 @@
 #include "wubu_fs_util.h"
 #include <utime.h>
 
+/* Axis 1: standard registry key authority bound into wubu_cap.
+     * KEY_QUERY_VALUE|KEY_SET_VALUE|KEY_CREATE_SUB_KEY|DELETE|READ_CONTROL
+     * |SYNCHRONIZE = 0x000F0033 */
+#define WUBU_NT_KEY_DEFAULT_ACCESS 0x000F0033u
+/* Authority gate for a key mutation: KEY_SET_VALUE (0x2) |
+ * DELETE (0x10000). */
+/* Authority gate for a key read: KEY_QUERY_VALUE (0x1) |
+ * READ_CONTROL (0x20000). */
+
+
+
 /* mkdir -p semantics: create every component of `path`, tolerating EEXIST.
  * Returns 0 on success, -1 on error. */
 static int mkdir_p(const char *path) {
@@ -61,6 +72,10 @@ int64_t vsl_nt_create_key(uint64_t a_path, uint64_t b_sec, uint64_t c_opts,
             break;
         }
     }
+    /* Axis 1: a created key is full authority over its subkey space,
+     * recorded as a revocable capability on this handle. */
+    vsl_nt_cap_bind(g_nt_ctx, h, NT_OBJECT_TYPE_KEY,
+                   WUBU_NT_KEY_DEFAULT_ACCESS);
     *(uint32_t *)e_key_out = h;
     return NT_STATUS_SUCCESS;
 }
@@ -90,6 +105,10 @@ int64_t vsl_nt_open_key(uint64_t a_path, uint64_t b, uint64_t c_root,
             break;
         }
     }
+    /* Axis 1: opened keys are bound to the same authority set, so
+     * NtSetValueKey/NtDeleteValueKey gate on the capability. */
+    vsl_nt_cap_bind(g_nt_ctx, h, NT_OBJECT_TYPE_KEY,
+                   WUBU_NT_KEY_DEFAULT_ACCESS);
     *(uint32_t *)e_key_out = h;
     return NT_STATUS_SUCCESS;
 }
@@ -103,6 +122,13 @@ int64_t vsl_nt_set_value_key(uint64_t a_key, uint64_t b_valname,
         return NT_STATUS_INVALID_HANDLE;
     const char *dirname = (const char *)(uintptr_t)d;
     if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_WRITE_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     const char *valname = (const char *)b_valname;
     char path[768];
     snprintf(path, sizeof(path), "%s/%s", dirname, valname);
@@ -126,6 +152,13 @@ int64_t vsl_nt_query_value_key(uint64_t a_key, uint64_t b_valname,
         return NT_STATUS_INVALID_HANDLE;
     const char *dirname = (const char *)(uintptr_t)d;
     if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_READ_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     const char *valname = (const char *)b_valname;
     char path[768];
     snprintf(path, sizeof(path), "%s/%s", dirname, valname);
@@ -155,6 +188,13 @@ int64_t vsl_nt_enumerate_key(uint64_t a_key, uint64_t b_index,
     const char *dirname = (const char *)(uintptr_t)d;
     DIR *dir = opendir(dirname);
     if (!dir) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_READ_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     struct dirent *de;
     uint32_t idx = (uint32_t)b_index;
     uint32_t cur = 0;
@@ -184,6 +224,13 @@ int64_t vsl_nt_enumerate_value_key(uint64_t a_key, uint64_t b_index,
     const char *dirname = (const char *)(uintptr_t)d;
     DIR *dir = opendir(dirname);
     if (!dir) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_READ_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     struct dirent *de;
     uint32_t idx = (uint32_t)b_index;
     uint32_t cur = 0;
@@ -211,10 +258,20 @@ int64_t vsl_nt_delete_key(uint64_t a_key, uint64_t b, uint64_t c,
         return NT_STATUS_INVALID_HANDLE;
     const char *dirname = (const char *)(uintptr_t)d0;
     if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_WRITE_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     /* Remove the key directory (recursive rmdir of values + subkeys).
      * Use the canonical filesystem helper instead of system("rm -rf ...")
      * -- no shell, no injection vector from NT key paths. */
     int rc = wubu_fs_rm_rf(dirname);
+    /* Axis 1: dropping the key drops its capability too, so no stale token
+     * survives the object. */
+    vsl_nt_cap_unbind(g_nt_ctx, (uint32_t)a_key);
     vsl_nt_free_handle(g_nt_ctx, (uint32_t)a_key);
     return rc == 0 ? NT_STATUS_SUCCESS : NT_STATUS_UNSUCCESSFUL;
 }
@@ -426,6 +483,13 @@ int64_t vsl_nt_delete_value_key(uint64_t a_key, uint64_t b_valname,
         return NT_STATUS_INVALID_HANDLE;
     const char *dirname = (const char *)(uintptr_t)d0;
     if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_WRITE_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     const char *valname = (const char *)b_valname;
     char path[768];
     snprintf(path, sizeof(path), "%s/%s", dirname, valname);
@@ -477,6 +541,13 @@ int64_t vsl_nt_query_key(uint64_t a_key, uint64_t b_class, uint64_t c_info,
         return NT_STATUS_INVALID_HANDLE;
     const char *dirname = (const char *)(uintptr_t)d0;
     if (!dirname) return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: authority gate. A revoked or rights-restricted key
+     * handle fails here even though the record still exists. */
+    {
+        uint32_t st = vsl_nt_cap_authorize(g_nt_ctx, (uint32_t)a_key,
+                                           WUBU_NT_KEY_READ_GUARD);
+        if (st != NT_STATUS_SUCCESS) return st;
+    }
     /* Recover the key's NT name from the handle data stored by NtCreateKey/
      * NtOpenKey. vsl_nt_key_dir returns the backing dir; the leaf basename is
      * the key name (after the registry root translation). */

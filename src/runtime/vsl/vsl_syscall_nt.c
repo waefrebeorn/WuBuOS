@@ -118,6 +118,11 @@ int vsl_nt_bridge_init(vsl_nt_bridge_ctx_t *ctx) {
     for (int i = 0; i < 4096; i++) ctx->handle_table[i].valid = false;
     g_nt_ctx = ctx;
     nt_dispatch_init();
+    /* AGI authority substrate: initialize the cap core (idempotent) and bind a
+     * per-ctx capability handle table that backs NT handles. Every NT handle
+     * opened via vsl_nt_cap_* resolves its authority through wubu_cap. */
+    wubu_cap_init();
+    ctx->cap_ht = wubu_cap_handle_table_create();
     /* Registry root: /tmp/wubu_nt_reg_<pid>. Real files back the NT registry. */
     snprintf(g_nt_reg_root, sizeof(g_nt_reg_root), "/tmp/wubu_nt_reg_%d", (int)getpid());
     mkdir(g_nt_reg_root, 0755);
@@ -183,6 +188,12 @@ void vsl_nt_bridge_shutdown(vsl_nt_bridge_ctx_t *ctx) {
         }
     }
     for (int i = 0; i < 4096; i++) ctx->handle_table[i].valid = false;
+
+    /* Tear down the AGI authority substrate for this context. */
+    if (ctx->cap_ht) {
+        wubu_cap_handle_table_free(ctx->cap_ht);
+        ctx->cap_ht = NULL;
+    }
 }
 
 uint32_t vsl_nt_allocate_handle(vsl_nt_bridge_ctx_t *ctx, int vsl_fd,

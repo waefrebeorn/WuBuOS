@@ -410,7 +410,11 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o \
 	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
-	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o
+	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o \
+	$(RT)/vsl/vsl_nt_cap.o \
+	$(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_handle.o \
+	$(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o \
+	$(RT)/wubu_cap/wubu_cap_system.o
 
 # Behavioral regression test for the NT 6.1/W11 extension personalities.
 # Uses the engine objects but its own main() (excludes the canonical nt test .o).
@@ -427,12 +431,16 @@ VSL_NT_EXT_OBJS = \
 	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o \
 	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
-	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o
+	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o \
+	$(RT)/vsl/vsl_nt_cap.o \
+	$(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_handle.o \
+	$(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o \
+	$(RT)/wubu_cap/wubu_cap_system.o
 
 test_vsl_nt_ext: $(VSL_NT_EXT_OBJS)
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
 		$(VSL_NT_EXT_OBJS) \
-		-o $(RT)/wubu_vsl_nt_ext_test -ldl -lvulkan -lcuda
+		-o $(RT)/wubu_vsl_nt_ext_test -ldl -lvulkan -lcuda -lpthread
 	$(RT)/wubu_vsl_nt_ext_test
 # rules so a one-file edit recompiles only that file (seconds, not minutes).
 VSL_OBJS = \
@@ -453,7 +461,7 @@ test_vsl: $(VSL_OBJS)
 test_vsl_nt: $(VSL_NT_OBJS)
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
 		$(VSL_NT_OBJS) \
-		-o $(RT)/wubu_vsl_nt_test -ldl -lvulkan -lcuda
+		-o $(RT)/wubu_vsl_nt_test -ldl -lvulkan -lcuda -lpthread
 	$(RT)/wubu_vsl_nt_test
 
 # macOS layer tests

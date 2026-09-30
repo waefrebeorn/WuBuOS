@@ -121,6 +121,9 @@ int64_t vsl_nt_close(uint64_t a_handle, uint64_t b,
     int fd;
     if (vsl_nt_handle_to_vsl_fd(g_nt_ctx, (uint32_t)a_handle, &fd) != 0)
         return NT_STATUS_INVALID_HANDLE;
+    /* Axis 1: drop this handle's capability authority first, so a closed
+     * handle can never be resurrected by a stale token. */
+    vsl_nt_cap_unbind(g_nt_ctx, (uint32_t)a_handle);
     vsl_nt_free_handle(g_nt_ctx, (uint32_t)a_handle);
     if (fd >= 0) close(fd);
     return NT_STATUS_SUCCESS;

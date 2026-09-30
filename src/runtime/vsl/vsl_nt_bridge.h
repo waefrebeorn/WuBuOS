@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "wubu_vsl.h"
+#include "wubu_cap/wubu_cap.h"
 
 /* ========================================================================
  * NT Status Codes (subset - maps to VSL errno)
@@ -437,6 +438,18 @@ typedef struct {
         uint64_t data;        /* opaque payload: pid_t for PROC/THREAD, mmap base for SECTION/VMEM */
         nt_object_type_t type;
         bool valid;
+        /* --- wubu_cap authority binding (Axis 1) ---
+         * The legacy table above stays the record store, but the object's
+         * authority now lives in a capability: cap_slot is this handle's slot
+         * in ctx->cap_ht and cap_token is the backing object's token. Every
+         * reading/mutating syscall runs vsl_nt_cap_authorize() against these,
+         * so authority can be revoked or rights-restricted in one step even
+         * though the record itself still exists. cap_backed==false means the
+         * handle predates the cap substrate (or cap alloc failed), so the
+         * legacy path applies. */
+        uint32_t cap_slot;
+        wubu_cap_token_t cap_token;
+        bool cap_backed;
     } handle_table[4096];
     
     /* Memory management */
@@ -463,7 +476,13 @@ typedef struct {
     
     /* WNF (Windows Notification Facility) */
     uint32_t wnf_notify_event;
-    
+
+    /* AGI authority substrate: NT handles are backed by wubu_cap. cap_ht owns
+     * the per-ctx (per-agent) capability handle table; NT handle values are cap
+     * slot indices, so every handle operation is a revocable, auditable,
+     * audience-gated capability resolve. See vsl_nt_cap.h. */
+    wubu_cap_handle_table_t *cap_ht;
+
 } vsl_nt_bridge_ctx_t;
 
 /* ========================================================================

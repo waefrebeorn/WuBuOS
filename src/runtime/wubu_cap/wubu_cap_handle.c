@@ -171,3 +171,65 @@ int wubu_cap_handle_resolve_kind(wubu_cap_handle_table_t *t, int32_t pid,
     pthread_mutex_unlock(&t->lock);
     return WUBU_CAP_EPERM;
 }
+
+/* ---- NT-handle interop: resolve + revoke by raw table slot ---- */
+/* Resolve a handle-table slot to its object. The NT bridge addresses handles
+ * as small integers (slot indices); this re-packs the slot's local generation
+ * into a token and delegates to the canonical handle_resolve, which performs
+ * the audience + rights + revoke-generation check against the registry. */
+wubu_cap_object_t *wubu_cap_handle_resolve_by_slot(wubu_cap_handle_table_t *t,
+                                                   int32_t caller_pid,
+                                                   uint32_t slot,
+                                                   uint64_t required_rights) {
+    if (!t || slot < 1 || slot >= t->capacity) return NULL;
+    pthread_mutex_lock(&t->lock);
+    wubu_cap_hentry_t *e = &t->entries[slot];
+    if (e->object_idx == WUBU_CAP_IDX_NONE) {
+        pthread_mutex_unlock(&t->lock);
+        return NULL;
+    }
+    uint32_t local_gen = e->local_gen;
+    uint8_t flags = e->token_flags;
+    pthread_mutex_unlock(&t->lock);
+    wubu_cap_token_t tok = wubu_cap_token_pack(local_gen, slot, flags);
+    return wubu_cap_handle_resolve(t, caller_pid, tok, required_rights);
+}
+
+/* Revoke the object backing a handle-table slot, cascading to every handle
+ * (in any process) that references it. This is the single operation that makes
+ * an AGI agent's authority revocable in one step across the whole NT surface:
+ * bump the object generation and resolve() fails for all stale holders. */
+int wubu_cap_handle_revoke_by_slot(wubu_cap_handle_table_t *t, uint32_t slot) {
+    if (!t || slot < 1 || slot >= t->capacity) return WUBU_CAP_EINVAL;
+    pthread_mutex_lock(&t->lock);
+    wubu_cap_hentry_t *e = &t->entries[slot];
+    if (e->object_idx == WUBU_CAP_IDX_NONE) {
+        pthread_mutex_unlock(&t->lock);
+        return WUBU_CAP_EINVAL;
+    }
+    uint32_t object_idx = e->object_idx;
+    uint8_t flags = e->token_flags;
+    pthread_mutex_unlock(&t->lock);
+    wubu_cap_object_t *obj = g_wubu_cap_ptrs[object_idx];
+    if (!obj || obj->deleted) return WUBU_CAP_EREVOKED;
+    /* Pack a token that resolves to the underlying object (idx=registry slot,
+     * current generation) and let wubu_cap_revoke do the actual bump. */
+    wubu_cap_token_t otok = wubu_cap_token_pack(obj->generation, object_idx, flags);
+    int rc = wubu_cap_revoke(otok);
+    if (rc < 0) return rc;          /* EREVOKED / EPERM / EINVAL */
+    return WUBU_CAP_OK;             /* success: revoke() returns count>0 */
+}
+
+/* Close a raw table slot by reconstructing its token (local gen + slot). */
+int wubu_cap_handle_close_slot(wubu_cap_handle_table_t *t, uint32_t slot) {
+    if (!t || slot < 1 || slot >= t->capacity) return WUBU_CAP_EINVAL;
+    pthread_mutex_lock(&t->lock);
+    wubu_cap_hentry_t *e = &t->entries[slot];
+    uint8_t flags = e->token_flags;
+    uint32_t local_gen = e->local_gen;
+    bool live = (e->object_idx != WUBU_CAP_IDX_NONE);
+    pthread_mutex_unlock(&t->lock);
+    if (!live) return WUBU_CAP_EINVAL;
+    wubu_cap_token_t tok = wubu_cap_token_pack(local_gen, slot, flags);
+    return wubu_cap_handle_close(t, tok);
+}

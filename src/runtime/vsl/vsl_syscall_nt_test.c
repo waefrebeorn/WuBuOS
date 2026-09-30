@@ -29,6 +29,7 @@
 #include <time.h>
 
 #include "vsl_nt_bridge.h"
+#include "vsl_nt_cap.h"
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { \
@@ -1533,6 +1534,181 @@ int main(void) {
         args[0] = (uint64_t)tok3; args[1] = (uint64_t)(uintptr_t)ps;
         r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
         CHECK(r == NT_STATUS_ACCESS_DENIED, "Anonymized token loses all privileges");
+    }
+
+    /* 31. AGI authority substrate: unified NT Object Manager backed by wubu_cap.
+     * Proves the slice the NT-kernel-level work needs: cap-backed NT handles gate
+     * every access (a reader cannot write), a foreign pid is denied outright
+     * (audience isolation), and revoking one handle cascades to its aliases --
+     * the "agent lost authority" primitive the NT architecture article says AI
+     * agents require. NT handles are cap slots (0 != null); the uint32 ABI is
+     * unchanged while the underlying authority is the wubu_cap core. */
+    {
+        uint32_t ro = 0; wubu_cap_token_t ro_tok = WUBU_CAP_TOKEN_NULL;
+        CHECK(vsl_nt_cap_acquire(&ctx, NT_OBJECT_TYPE_KEY,
+                                 0x80000000u /* GENERIC_READ */,
+                                 -1, 0, 0, &ro, &ro_tok) == 0 && ro != 0,
+              "cap-backed acquire mints a read-only NT handle + cap token");
+        CHECK(vsl_nt_cap_resolve_handle(&ctx, ro, 0x80000000u),
+              "read handle resolves its granted GENERIC_READ");
+        CHECK(!vsl_nt_cap_resolve_handle(&ctx, ro, 0x40000000u),
+              "read handle DENIES ungranted GENERIC_WRITE (rights gate)");
+        CHECK(vsl_nt_cap_release(&ctx, ro) == 0, "release read handle closes the slot");
+
+        /* Full authority handle (GENERIC_ALL => DELETE) for the revoke test. */
+        uint32_t key = 0; wubu_cap_token_t tok = WUBU_CAP_TOKEN_NULL;
+        CHECK(vsl_nt_cap_acquire(&ctx, NT_OBJECT_TYPE_KEY,
+                                 0x10000000u /* GENERIC_ALL */,
+                                 -1, 0, 0, &key, &tok) == 0 && key != 0
+              && !wubu_cap_token_is_null(tok),
+              "grant GENERIC_ALL (DELETE) handle + object token");
+
+        /* Audience isolation: a foreign pid sees nothing. */
+        CHECK(wubu_cap_handle_resolve_by_slot(ctx.cap_ht,
+                                              ctx.current_pid + 99999,
+                                              key, WUBU_RIGHTS_ALL) == NULL,
+              "foreign audience pid denied access to the handle");
+
+        /* Alias the SAME object into a second handle slot (NtDuplicateObject),
+         * so we can observe revocation cascading across aliases. */
+        uint32_t key2 = 0; wubu_cap_token_t tok2 = WUBU_CAP_TOKEN_NULL;
+        CHECK(vsl_nt_cap_make_handle(&ctx, tok, &key2) == 0 && key2 != key,
+              "make_handle aliases the object into a distinct slot");
+        CHECK(vsl_nt_cap_resolve_handle(&ctx, key2, 0x10000000u),
+              "alias resolves before revoke");
+
+        /* Revoke through the first handle: every alias must collapse. */
+        CHECK(vsl_nt_cap_revoke_handle(&ctx, key) == 0,
+              "revoke_handle authorized by DELETE right and succeeds");
+        CHECK(!vsl_nt_cap_resolve_handle(&ctx, key,  0x10000000u),
+              "revoking handle no longer resolves");
+        CHECK(!vsl_nt_cap_resolve_handle(&ctx, key2, 0x10000000u),
+              "aliased handle cascades (same object revoked)");
+
+        CHECK(vsl_nt_cap_release(&ctx, key)  == 0, "release revoked handle slot");
+        CHECK(vsl_nt_cap_release(&ctx, key2) == 0, "release aliased handle slot");
+    }
+
+    /* 34. Axis 1: real NT syscalls are cap-governed.
+     * The previous block proved the cap layer works in isolation. This block
+     * proves the actual syscall surface honors it: a key opened through
+     * NtCreateKey carries a capability, the registry gates run that
+     * capability's rights, revoking the object denies the real syscall while
+     * the handle record still exists, and NtDuplicateObject aliases the same
+     * revocable object so a revoke collapses both. */
+    {
+        uint32_t k = 0;
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)"\\Registry\\Machine\\Software\\WuBuCapGate";
+        args[4] = (uint64_t)(uintptr_t)&k;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 44, args, 5); /* NtCreateKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtCreateKey (cap gate) creates key");
+        CHECK(k != 0, "NtCreateKey (cap gate) returns handle");
+
+        /* Find the record index so we can inspect the cap binding directly. */
+        int ki = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == k) {
+                ki = i; break;
+            }
+        }
+        CHECK(ki >= 0, "cap gate: key record located in the NT handle table");
+        CHECK(ki >= 0 && ctx.handle_table[ki].cap_backed,
+              "NtCreateKey bound a wubu_cap object to the NT handle");
+        CHECK(ki >= 0 && ctx.handle_table[ki].cap_slot != 0,
+              "cap gate: handle carries a real capability slot");
+
+        /* The gate authorizes the bound authority set, not a blanket pass. */
+        CHECK(vsl_nt_cap_authorize(&ctx, k, WUBU_NT_KEY_READ_GUARD) == NT_STATUS_SUCCESS,
+              "cap gate: bound key authorized for KEY_QUERY_VALUE|READ_CONTROL");
+        CHECK(vsl_nt_cap_authorize(&ctx, k, WUBU_NT_KEY_WRITE_GUARD) == NT_STATUS_SUCCESS,
+              "cap gate: bound key authorized for KEY_SET_VALUE|DELETE");
+        CHECK(vsl_nt_cap_authorize(&ctx, 0xDEAD,
+                                     WUBU_NT_KEY_READ_GUARD) == NT_STATUS_INVALID_HANDLE,
+              "cap gate: unknown handle is INVALID_HANDLE, not allowed");
+
+        /* Real syscall honors the capability: write works while authorized. */
+        const char *val = "authorized";
+        uint32_t vlen = (uint32_t)strlen(val);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)k;
+        args[1] = (uint64_t)(uintptr_t)"Gate";
+        args[2] = 3;
+        args[3] = (uint64_t)(uintptr_t)val;
+        args[4] = (uint64_t)vlen;
+        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        CHECK(r == NT_STATUS_SUCCESS, "NtSetValueKey passes while authorized");
+
+        /* Duplicate the handle: it must alias the SAME cap object. */
+        uint32_t dup = 0;
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)k;
+        args[3] = (uint64_t)(uintptr_t)&dup;
+        r = vsl_nt_syscall_dispatch(&ctx, 72, args, 4); /* NtDuplicateObject */
+        CHECK(r == NT_STATUS_SUCCESS && dup != 0,
+              "NtDuplicateObject (cap gate) returns a handle");
+        int di = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == dup) {
+                di = i; break;
+            }
+        }
+        CHECK(di >= 0 && ctx.handle_table[di].cap_backed,
+              "NtDuplicateObject alias is itself cap-backed");
+        CHECK(ki >= 0 && di >= 0 &&
+              ctx.handle_table[ki].cap_token.raw == ctx.handle_table[di].cap_token.raw,
+              "NtDuplicateObject aliases the SAME cap object (one object, two handles)");
+
+        /* Revoke the object's authority through the source handle. */
+        CHECK(vsl_nt_cap_revoke_nt(&ctx, k) == 0,
+              "cap gate: revoke of the NT handle's object succeeds");
+        CHECK(ki >= 0 && ctx.handle_table[ki].valid,
+              "revoked handle record still exists (authority is the cap, not the record)");
+
+        /* The real syscall now denies -- this is the whole point. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)k;
+        args[1] = (uint64_t)(uintptr_t)"Gate2";
+        args[2] = 3;
+        args[3] = (uint64_t)(uintptr_t)val;
+        args[4] = (uint64_t)vlen;
+        r = vsl_nt_syscall_dispatch(&ctx, 257, args, 5); /* NtSetValueKey */
+        CHECK(r == NT_STATUS_ACCESS_DENIED,
+              "NtSetValueKey DENIED after the key's capability was revoked");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)k;
+        args[1] = (uint64_t)(uintptr_t)"Gate";
+        args[3] = (uint64_t)(uintptr_t)val;
+        args[4] = (uint64_t)vlen;
+        r = vsl_nt_syscall_dispatch(&ctx, 186, args, 5); /* NtQueryValueKey */
+        CHECK(r == NT_STATUS_ACCESS_DENIED,
+              "NtQueryValueKey DENIED after revoke (read gate also honors the cap)");
+
+        /* Revocation cascades across the alias: the duplicate is dead too. */
+        CHECK(di >= 0 && vsl_nt_cap_authorize(&ctx, dup, WUBU_NT_KEY_READ_GUARD)
+                  == NT_STATUS_ACCESS_DENIED,
+              "revocation cascades to the NtDuplicateObject alias");
+
+        /* Cleanup: NtClose on both handles unbinds their cap slots. */
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)k;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose (cap gate) closes the revoked key handle");
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)dup;
+        r = vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+        CHECK(r == NT_STATUS_SUCCESS, "NtClose (cap gate) closes the alias handle");
+
+        /* Both records are gone, and the backing tree was removed. */
+        int still = 0;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid &&
+                (ctx.handle_table[i].nt_handle == k ||
+                 ctx.handle_table[i].nt_handle == dup))
+                still = 1;
+        }
+        CHECK(!still, "cap gate: both handle records cleared by NtClose");
     }
 
     vsl_nt_bridge_shutdown(&ctx);

@@ -123,6 +123,10 @@ int64_t vsl_nt_duplicate_object(uint64_t a_srcproc, uint64_t b_srchandle,
     if (!found) return NT_STATUS_INVALID_HANDLE;
     uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, fd, data, type);
     if (h == 0) return NT_STATUS_UNSUCCESSFUL;
+    /* Axis 1: the duplicate ALIASES the source handle's capability object, so
+     * one revoke collapses both -- genuine NtDuplicateObject semantics where
+     * the duplicated handle refers to the same underlying object. */
+    vsl_nt_cap_alias(g_nt_ctx, (uint32_t)b_srchandle, h);
     *(uint32_t *)d_newhandle = h;
     return NT_STATUS_SUCCESS;
 }

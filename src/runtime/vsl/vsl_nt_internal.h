@@ -34,6 +34,7 @@
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <limits.h>
+#include "vsl_nt_cap.h"
 
 /* Matches the NT-bridge function-pointer type defined in vsl_syscall_table.c. */
 typedef int64_t (*vsl_syscall_fn_t)(uint64_t, uint64_t, uint64_t,
