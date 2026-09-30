@@ -26,28 +26,16 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <linux/limits.h>
-/* FTW_MOUNT, FTW_DEPTH, FTW_PHYS require WUBU_HOSTED on some systems */
-#ifndef FTW_MOUNT
-#define FTW_MOUNT 0x0100
-#endif
-#ifndef FTW_DEPTH
-#define FTW_DEPTH 0x0001
-#endif
-#ifndef FTW_PHYS
-#define FTW_PHYS 0x0002
-#endif
-#ifndef FTW_NS
-#define FTW_NS 0x0004
-#endif
-#ifndef FTW_SL
-#define FTW_SL 0x0010
-#endif
-#ifndef FTW_SLN
-#define FTW_SLN 0x0010
-#endif
-#ifndef FTW_DP
-#define FTW_DP 0x0004
-#endif
+/* FTW_* visit and control flags: wubu_ftw.h is the single source of truth.
+ *
+ * These used to be defined locally with a different value set, which
+ * collided with wubu_ftw.h's pinned layout: FTW_DP aliased FTW_NS (both
+ * 0x0004) and FTW_SLN aliased FTW_SL (both 0x0010). Any TU that included
+ * this header before wubu_ftw.h won the #ifndef race, so wubu_ftw.h's
+ * static asserts fired and wubu_snapshot_copy.c failed to build. Worse, a
+ * collision here is silent at runtime -- wubu_fs_unlink_cb branches on
+ * typeflag == FTW_DP to pick rmdir() over unlink(). */
+#include "wubu_ftw.h"
 
 /* -- Time/ID helpers ----------------------------------------------- */
 
