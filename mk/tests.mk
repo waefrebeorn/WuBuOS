@@ -28,7 +28,7 @@ test_oci:
 		$(RT)/oci/oci_runtime_spec.c $(RT)/oci/oci_hooks.c $(RT)/oci/oci_cleanup.c \
 		$(RT)/oci/oci_media_types.c $(RT)/oci/oci_descriptor.c \
 		$(RT)/wubu_image.c $(RT)/wubu_image_cache.c $(RT)/wubu_image_parse.c $(RT)/wubu_image_manifest.c $(RT)/wubu_image_ops.c $(RT)/wubu_image_tar.c $(RT)/wubu_spawn.c $(RT)/wubu_container.c $(RT)/wubu_oci_test.c \
-		-o $(RT)/wubu_oci_test -lm
+	 $(RT)/wubu_image_names.c	-o $(RT)/wubu_oci_test -lm
 	$(RT)/wubu_oci_test
 
 test_holyd: $(RT)/wubu_holyd_repl.o $(COMP)/wubu_tgemm_avx512.o
