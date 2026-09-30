@@ -1657,11 +1657,8 @@ test_cab_extract:
 		$(KERNEL)/cab_extract.c $(KERNEL)/wubu_cab.c $(KERNEL)/wubu_lzx.c \
 		$(KERNEL)/wubu_inflate.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
 		-o $(KERNEL)/cab_extract -lz
-test_zip_extract:
-	$(CC) -O2 -std=c11 -I$(KERNEL) \
-		$(KERNEL)/zip_extract.c $(KERNEL)/wubu_zip.c \
-		$(KERNEL)/wubu_inflate.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
-		-o $(KERNEL)/zip_extract -lz
+test_zip_extract: test_zip
+	@echo "test_zip_extract is the same kernel-ZIP-reader test as test_zip (see mk/tests.mk)"
 
 
 # ---- fast incremental kernel-test build (cached objects) ----

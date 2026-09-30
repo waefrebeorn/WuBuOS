@@ -31,6 +31,9 @@
  * C11, self-contained.
  */
 #include "wubu_session.h"
+/* struct HOSTED_STATE / hosted_mode_t: the game launch switches the desktop
+ * into GAME mode and fullscreen, so the layout is needed here. */
+#include "../hosted/hosted.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -143,7 +146,18 @@ int wubu_session_from_name(const char *name)
 int wubu_session_launch_game(void *hosted, const uint8_t *game,
                              size_t size, const char *name)
 {
-    (void)hosted;
+    /* Enter the game session first. The mode switch is what bypasses the
+     * shell chrome -- that IS the session split -- so it must not depend on
+     * whether the payload or the shortcut name happens to be usable. Doing
+     * it after validation meant a rejected launch left the desktop showing,
+     * which is the opposite of what "Play" was asked to do. The `hosted`
+     * argument used to be (void)hosted'd away entirely. */
+    if (hosted) {
+        struct HOSTED_STATE *st = (struct HOSTED_STATE *)hosted;
+        st->mode       = HMODE_GAME;
+        st->fullscreen = true;
+    }
+
     if (!game || size == 0 || !name) return -1;
 
     /* write the game to a temp file (the shortcut's target) */

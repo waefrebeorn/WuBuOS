@@ -11,6 +11,10 @@
 #include "wubu_proton.h"
 #include "wubu_ct_isolate.h"
 #include "wubu_session.h"
+/* hosted_state_t / HMODE_GUI: the test drives the session split directly, so
+ * it needs the hosted state struct the Play action uses. This recipe has no
+ * -I$(HOSTED), so reach it the same way dosgui_wm_internal.h does. */
+#include "../hosted/hosted.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

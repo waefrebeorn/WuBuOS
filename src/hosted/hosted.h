@@ -38,6 +38,21 @@ typedef enum {
                               * Proton/container path (SteamOS strategy). */
 } hosted_mode_t;
 
+/* Human-readable name for a hosted mode, e.g. "GUI", "Game".
+ * The session split logs these, and the launch tests assert on them. */
+static inline const char *wubu_session_mode_name(hosted_mode_t m)
+{
+    switch (m) {
+    case HMODE_NONE:     return "None";
+    case HMODE_GUI:      return "GUI";
+    case HMODE_TEMPLE:   return "Temple";
+    case HMODE_CONSOLE:  return "Console";
+    case HMODE_HEADLESS: return "Headless";
+    case HMODE_GAME:     return "Game";
+    }
+    return "Unknown";
+}
+
 /* ══════════════════════════════════════════════════════════════════
  * HOSTED_STATE — public state
  * ══════════════════════════════════════════════════════════════════ */
