@@ -106,6 +106,12 @@ void *memcpy(void *dest, const void *src, size_t n) {
     return dest;
 }
 
+/* GCC's loop-distribute-pattern pass rewrites this byte loop into a call to
+ * memset() -- which is THIS function. The result links memset to itself and
+ * recurses until the stack dies, which is how test_kvfs crashed on its very
+ * first calloc(). Any hosted build that links libc.c hits this.
+ * no-tree-loop-distribute-patterns keeps the loop as written. */
+__attribute__((optimize("no-tree-loop-distribute-patterns")))
 void *memset(void *s, int c, size_t n) {
     uint8_t *p = (uint8_t *)s;
     while (n--) *p++ = (uint8_t)c;
