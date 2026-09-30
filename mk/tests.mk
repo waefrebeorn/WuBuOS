@@ -70,7 +70,7 @@ test_spawn:
 	$(RT)/wubu_spawn_test
 
 # CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan, decompressors)
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_kvfs
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -1171,9 +1171,18 @@ test_drv:
 		$(KERNEL)/test/legacy/wubu_drv_test.c \
 		-o $(KERNEL)/wubu_drv_test
 		$(KERNEL)/wubu_drv_test
-	test_kvfs:
-	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+
+# -DWUBU_HOSTED so libc.c compiles its hosted stdio/allocator split instead of
+# the kernel klog path; without it printf output vanished and the hosted bump
+# arena was never initialised. libc.c's hosted malloc/calloc delegate to
+# mem_alloc/mem_free (libc.c:63,81), so memory.c is required here; klog.c
+# supplies klog_write, which libc.c's remaining kernel-side paths call.
+test_kvfs:
+	$(CC) -O2 -Wall -Wextra -std=c11 -DWUBU_HOSTED -I$(KERNEL) \
 		$(KERNEL)/wubu_kvfs.c \
+		$(KERNEL)/libc.c \
+		$(KERNEL)/klog.c \
+		$(KERNEL)/memory.c \
 		$(KERNEL)/test/wubu_kvfs_selftest.c \
 		-o $(KERNEL)/wubu_kvfs_selftest
 	$(KERNEL)/wubu_kvfs_selftest
