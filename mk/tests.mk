@@ -356,7 +356,8 @@ gap_audit:
 
 # root so it can load src/runtime/wubu_manifest/wubu_manifest.json by path.
 test_manifest:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Isrc/runtime/wubu_manifest \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-Isrc/runtime -Isrc/runtime/wubu_manifest \
 		src/runtime/wubu_manifest/wubu_manifest.c \
 		src/runtime/wubu_manifest/wubu_manifest_json.c \
 		src/runtime/wubu_manifest/wubu_manifest_test.c -o $(RT)/wubu_manifest_test

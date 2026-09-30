@@ -141,7 +141,7 @@ static int emit_holyc_ffi(const wubu_manifest_t *m, const char *dir) {
     fprintf(f, "#ifndef WUBU_HOLYC_FFI_H\n#define WUBU_HOLYC_FFI_H\n");
     for (int i = 0; i < m->count; i++)
         fprintf(f, "int64 %s(int64 num, int64 rdi, int64 rsi, int64 rdx, int64 r10, int64 r8, int64 r9); /* %s */\n",
-                m->entries[i].holyd, m->entries[i].handler);
+                m->entries[i].holyc, m->entries[i].handler);
     fprintf(f, "#endif\n");
     fclose(f);
     return 0;
