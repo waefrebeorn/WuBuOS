@@ -747,7 +747,8 @@ test_game_launch: $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test.c $(RT)/w
 
 test_dosgui_bpm_games: $(GUI)/dosgui_bpm_games.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c $(GUI)/dosgui_bpm_games.h $(RT)/wubu_game_launch.h
 	$(CC) $(CFLAGS) -I$(GUI) -I$(RT) $(GUI)/test_dosgui_bpm_games.c $(GUI)/dosgui_bpm_games.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(GUI)/test_dosgui_bpm_games
-	./$(GUI)/test_dosgui_bpm_games
+	-rm -rf /tmp/wubu_bpm_games_test && mkdir -p /tmp/wubu_bpm_games_test
+	WUBU_GAMES_DIR=/tmp/wubu_bpm_games_test ./$(GUI)/test_dosgui_bpm_games
 
 test_game_session: $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c
 	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) $(RT)/wubu_game_session_test.c $(RT)/wubu_game_session.c $(RT)/wubu_game_launch.c $(RT)/wubu_game_launch_test_stub.c -o $(RT)/wubu_game_session_test
@@ -771,7 +772,9 @@ test_exec_games: $(RT)/wubu_exec.c $(RT)/wubu_host_exec.c $(RT)/wubu_exec_games_
 	DISPLAY=:99 Xvfb :99 -screen 0 1024x768x24 &
 	./$(RT)/wubu_exec_games_test
 
-test_pe_personality: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_pe_personality.c $(KERNEL)/wubu_pe_personality.h $(KERNEL)/test/legacy/wubu_pe_personality_test.c $(KERNEL)/libc_string.c
+test_pe_personality: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_pe_personality.c $(KERNEL)/wubu_pe_personality.h $(KERNEL)/test/legacy/wubu_pe_personality_test.c $(KERNEL)/libc_string.c vendor/games/openarena-0.8.8.zip
+	@mkdir -p vendor/games/openarena_extract
+	@python3 -c "import zipfile,os; z=zipfile.ZipFile('vendor/games/openarena-0.8.8.zip'); d='vendor/games/openarena_extract'; [z.extract(n,d) for n in z.namelist() if n.endswith('.exe')]"
 	$(CC) -O1 -std=c11 -Wall -I$(KERNEL) $(KERNEL)/test/legacy/wubu_pe_personality_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe_personality.c $(KERNEL)/libc_string.c -o $(KERNEL)/wubu_pe_personality_test
 	$(KERNEL)/./wubu_pe_personality_test
 

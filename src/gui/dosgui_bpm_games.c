@@ -24,7 +24,17 @@
 #include <sys/types.h>
 
 #define GAMES_MAX  32
-#define GAMES_DIR  "/home/wubu/.wubu/games"
+/* Where the real games live. Tests point WUBU_GAMES_DIR at a scratch
+ * directory: this path is the user's actual game library, and a scan test
+ * that writes fixtures there both corrupts real data and counts whatever
+ * else is installed (which is why "scan = 6, want 3" on any machine that
+ * has real games). */
+#define GAMES_DIR_DEFAULT "/home/wubu/.wubu/games"
+static const char *games_dir(void)
+{
+    const char *e = getenv("WUBU_GAMES_DIR");
+    return (e && *e) ? e : GAMES_DIR_DEFAULT;
+}
 
 typedef struct {
     char  path[512];
@@ -70,15 +80,16 @@ int dosgui_bpm_games_scan(void)
 {
     memset(&g_games, 0, sizeof(g_games));
     mkdir("/home/wubu/.wubu", 0755);
-    mkdir(GAMES_DIR, 0755);
-    DIR *d = opendir(GAMES_DIR);
+    const char *gdir = games_dir();
+    mkdir(gdir, 0755);
+    DIR *d = opendir(gdir);
     if (!d) return 0;
     struct dirent *e;
     while ((e = readdir(d)) != NULL && g_games.count < GAMES_MAX) {
         if (e->d_name[0] == '.') continue;
         /* probe the magic to classify + accept only the hostable */
         char path[512];
-        snprintf(path, sizeof(path), "%s/%s", GAMES_DIR, e->d_name);
+        snprintf(path, sizeof(path), "%s/%s", gdir, e->d_name);
         FILE *f = fopen(path, "rb");
         if (!f) continue;
         unsigned char magic[4];
