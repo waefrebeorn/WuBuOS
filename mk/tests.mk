@@ -411,7 +411,7 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
 	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o \
-	$(RT)/vsl/vsl_nt_cap.o \
+	$(RT)/vsl/vsl_nt_cap.o $(RT)/wubu_nt_sd.o \
 	$(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_handle.o \
 	$(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o \
 	$(RT)/wubu_cap/wubu_cap_system.o
@@ -432,7 +432,7 @@ VSL_NT_EXT_OBJS = \
 	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
 	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o \
-	$(RT)/vsl/vsl_nt_cap.o \
+	$(RT)/vsl/vsl_nt_cap.o $(RT)/wubu_nt_sd.o \
 	$(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_handle.o \
 	$(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o \
 	$(RT)/wubu_cap/wubu_cap_system.o

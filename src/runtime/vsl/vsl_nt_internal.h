@@ -157,6 +157,9 @@ extern uint32_t g_nt_token_next;
 
 /* Helper: does token `t` hold privilege LUID (low) as ENABLED? */
 bool vsl_nt_token_has_priv(const nt_token_entry_t *t, uint32_t luid_low);
+/* Resolve a live token by its NT handle; NULL if not a token handle.
+ * Exported for the SRM facade in vsl_nt_cap.c. */
+nt_token_entry_t *vsl_nt_token_from_handle(uint32_t h);
 /* Helper: add/remove a privilege from a token (NtAdjustPrivilegesToken). */
 int  vsl_nt_token_set_priv(nt_token_entry_t *t, uint32_t luid_low, uint32_t attr);
 /* Thread params (batches 4/6) */

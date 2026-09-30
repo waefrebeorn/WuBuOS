@@ -23,6 +23,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "vsl_nt_bridge.h"   /* vsl_nt_bridge_ctx_t, nt_object_type_t */
+#include "wubu_nt_sd.h"      /* wubu_nt_sidset_t (SRM facade) */
 #include "wubu_cap/wubu_cap.h"
 #include "vsl_nt_bridge.h"
 
@@ -91,6 +93,32 @@ bool vsl_nt_cap_handle_is_valid(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
  * rights derived from them are meaningful rather than blanket. */
 uint32_t vsl_nt_default_access_for_type(nt_object_type_t type);
 
+/* ---- The security reference monitor facade (Axis 2) ------------------
+ *
+ * The single place an NT open is authorised. It fuses three independent
+ * sources of truth into one NTSTATUS, the way NtAccessCheck does:
+ *
+ *   1. The token   -- which SIDs/groups and which integrity level the caller
+ *                     holds.
+ *   2. The object  -- its security descriptor, whose DACL and mandatory label
+ *                     decide whether the access is permitted at all.
+ *   3. The cap     -- what authority the caller's live handle actually
+ *                     carries. The DACL can permit an access the handle was
+ *                     never granted, and the cap can hold an authority whose
+ *                     object has since been revoked; both must pass.
+ *
+ * Granting is an intersection, never a union: the result is the most
+ * permissive mask permitted by ALL THREE. That is the property that makes the
+ * answer meaningful rather than advisory. */
+int64_t vsl_nt_cap_se_check(vsl_nt_bridge_ctx_t *ctx, uint32_t token_handle,
+                            const void *security_descriptor,
+                            nt_object_type_t type, uint32_t desired_access,
+                            uint32_t *granted_out);
+
+/* Build the SID set the SD evaluator needs from a live NT token. */
+bool vsl_nt_cap_token_sidset(vsl_nt_bridge_ctx_t *ctx,
+                             uint32_t token_handle, wubu_nt_sidset_t *out);
+
 /* ---- Binding the legacy NT handle table onto the cap substrate (Axis 1) ----
  * The bridge's 4096-slot table remains the record store (NT handle values are
  * 0x1000+index), so each record carries the cap slot/token that holds the
@@ -108,6 +136,14 @@ int  vsl_nt_cap_bind(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
  * cap was revoked or lacks the rights, NT_STATUS_INVALID_HANDLE for unknown
  * handles. Unbound (legacy) handles return NT_STATUS_SUCCESS so existing
  * behavior is preserved until every path is migrated. */
+/* The cap object's own rights ceiling -- what this handle was minted with,
+ * possibly reduced by NtDuplicateObject. The SRM intersects the DACL grant
+ * with this, so a permissive DACL can never enlarge a handle's authority. */
+uint32_t vsl_nt_cap_granted_mask(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle);
+
+/* True if the handle carries a live (unrevoked) cap binding. */
+bool vsl_nt_cap_handle_is_bound(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle);
+
 uint32_t vsl_nt_cap_authorize(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
                               uint32_t desired_access);
 

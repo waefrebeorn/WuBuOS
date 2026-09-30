@@ -8,6 +8,7 @@
  */
 #include "vsl_nt_cap.h"
 #include "vsl_nt_bridge.h"
+#include "vsl_nt_internal.h"   /* nt_token_entry_t, token resolver */
 #include "wubu_cap/wubu_cap.h"
 
 #include <stdlib.h>
@@ -143,24 +144,74 @@ int vsl_nt_cap_acquire(vsl_nt_bridge_ctx_t *ctx, nt_object_type_t nt_type,
     return 0;
 }
 
+/* Forward: resolve an NT handle (0x1000 + idx) to its backing cap-table slot.
+ * Defined after index_of below; declared here so resolve_handle/revoke/release
+ * (which precede it) can call it. */
+static bool vsl_nt_cap_slot_of(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
+                               uint32_t *slot);
+/* Forward: legacy record index for an NT handle; defined below. */
+static int vsl_nt_cap_index_of(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle);
+
+/* Accept EITHER handle convention and yield the backing cap slot.
+ *
+ * Two minters exist and both feed these entry points:
+ *   - vsl_nt_allocate_handle() -> legacy record handle 0x1000+idx, bound to a
+ *     cap slot by vsl_nt_cap_bind(). This is what real syscalls carry.
+ *   - vsl_nt_cap_acquire() / vsl_nt_cap_make_handle() -> a bare cap slot, used
+ *     directly by the SRM/SD facade where no NT record is involved.
+ *
+ * The legacy table is consulted first: it is exact, and its values (>= 0x1000)
+ * cannot collide with cap slots. Only if that misses do we treat the value as
+ * a raw cap handle. */
+static bool vsl_nt_cap_slot_of_any(vsl_nt_bridge_ctx_t *ctx, uint32_t handle,
+                                   uint32_t *slot) {
+    if (!ctx || !ctx->cap_ht) return false;
+    if (vsl_nt_cap_slot_of(ctx, handle, slot)) return true;
+    if (wubu_cap_handle_slot_live(ctx->cap_ht, handle)) {
+        if (slot) *slot = handle;
+        return true;
+    }
+    return false;
+}
+
 bool vsl_nt_cap_resolve_handle(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
                                uint32_t desired_access) {
-    if (!ctx || !ctx->cap_ht || nt_handle == 0) return false;
+    uint32_t slot = 0;
+    if (!vsl_nt_cap_slot_of_any(ctx, nt_handle, &slot)) return false;
     uint64_t req = vsl_nt_desired_access_to_cap(desired_access);
     if (req == 0) req = WUBU_RIGHT_INSPECT; /* null-mask probes still need resolve */
-    return wubu_cap_handle_resolve_by_slot(ctx->cap_ht, ctx->current_pid,
-                                           nt_handle, req) != NULL;
+    if (!wubu_cap_handle_resolve_by_slot(ctx->cap_ht, ctx->current_pid,
+                                         slot, req))
+        return false;
+
+    /* Second gate: the per-handle ceiling. NtDuplicateObject aliases the SAME
+     * object but narrows what the new handle carries, so object rights alone
+     * are not the answer -- a reduced duplicate must not report authority its
+     * source had. This is NT's rule that GrantedAccess is a property of the
+     * HANDLE, not of the object it points at. Raw cap-slot handles minted by
+     * vsl_nt_cap_acquire() have no record, so their grant IS the object grant. */
+    int idx = vsl_nt_cap_index_of(ctx, nt_handle);
+    if (idx >= 0 && ctx->handle_table[idx].cap_backed) {
+        uint32_t want = wubu_nt_expand_generic(ctx->handle_table[idx].type,
+                                              desired_access);
+        if (want != 0 &&
+            (ctx->handle_table[idx].cap_rights & want) != want)
+            return false;
+    }
+    return true;
 }
 
 int vsl_nt_cap_revoke_handle(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
-    if (!ctx || !ctx->cap_ht || nt_handle == 0) return NT_STATUS_INVALID_HANDLE;
+    uint32_t slot = 0;
+    if (!vsl_nt_cap_slot_of_any(ctx, nt_handle, &slot))
+        return NT_STATUS_INVALID_HANDLE;
     /* Authority gate: only a holder with DELETE rights may revoke. */
     uint64_t del = vsl_nt_desired_access_to_cap(0x00010000u); /* DELETE */
     if (!del) del = WUBU_RIGHT_DELETE;
     if (!wubu_cap_handle_resolve_by_slot(ctx->cap_ht, ctx->current_pid,
-                                         nt_handle, del))
+                                         slot, del))
         return NT_STATUS_ACCESS_DENIED;
-    int rc = wubu_cap_handle_revoke_by_slot(ctx->cap_ht, nt_handle);
+    int rc = wubu_cap_handle_revoke_by_slot(ctx->cap_ht, slot);
     switch (rc) {
     case WUBU_CAP_OK:       return 0;
     case WUBU_CAP_EREVOKED: return NT_STATUS_ACCESS_DENIED;
@@ -169,8 +220,10 @@ int vsl_nt_cap_revoke_handle(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
 }
 
 int vsl_nt_cap_release(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
-    if (!ctx || !ctx->cap_ht || nt_handle == 0) return NT_STATUS_INVALID_HANDLE;
-    int rc = wubu_cap_handle_close_slot(ctx->cap_ht, nt_handle);
+    uint32_t slot = 0;
+    if (!vsl_nt_cap_slot_of_any(ctx, nt_handle, &slot))
+        return NT_STATUS_INVALID_HANDLE;
+    int rc = wubu_cap_handle_close_slot(ctx->cap_ht, slot);
     return (rc == WUBU_CAP_OK) ? 0 : NT_STATUS_INVALID_HANDLE;
 }
 
@@ -208,6 +261,18 @@ static int vsl_nt_cap_index_of(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
     return -1;
 }
 
+/* An NT handle value (0x1000 + table index) is NOT a cap-table slot index.
+ * Resolve it to the backing cap-table slot stored on its handle-table record.
+ * Returns false (and leaves *slot untouched) if the handle is unknown or not
+ * cap-backed. */
+static bool vsl_nt_cap_slot_of(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
+                               uint32_t *slot) {
+    int idx = vsl_nt_cap_index_of(ctx, nt_handle);
+    if (idx < 0 || !ctx->handle_table[idx].cap_backed) return false;
+    if (slot) *slot = ctx->handle_table[idx].cap_slot;
+    return true;
+}
+
 int vsl_nt_cap_bind(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
                     nt_object_type_t type, uint32_t desired_access) {
     if (!ctx || !ctx->cap_ht || nt_handle == 0) return -1;
@@ -232,6 +297,11 @@ int vsl_nt_cap_bind(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
     ctx->handle_table[idx].cap_slot  = slot;
     ctx->handle_table[idx].cap_token = tok;
     ctx->handle_table[idx].cap_backed = true;
+    /* Granted access, in concrete terms. wubu_nt_expand_generic is the same
+     * mapping the SRM applies to a DesiredAccess request, so the recorded
+     * ceiling and the requested mask are expressed in the same bits. */
+    ctx->handle_table[idx].cap_rights =
+        wubu_nt_expand_generic(type, desired_access);
     return 0;
 }
 
@@ -242,10 +312,26 @@ uint32_t vsl_nt_cap_authorize(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
     if (idx < 0) return NT_STATUS_INVALID_HANDLE;
     if (!ctx->handle_table[idx].cap_backed) return NT_STATUS_SUCCESS;
 
+    /* Two independent gates, both must pass:
+     *
+     *  (a) Object liveness + audience + rights: the cap object this handle
+     *      points at must be live and cover the requested cap rights. A
+     *      revoked object fails here.
+     *  (b) Handle ceiling: the handle's own GrantedAccess (cap_rights) must
+     *      cover the request. This is what makes a NtDuplicateObject rights
+     *      reduction stick -- the duplicate shares the object, so (a) would
+     *      alone let it keep the source's full authority. cap_rights is the
+     *      ceiling NT keeps per handle. */
     uint64_t req = vsl_nt_desired_access_to_cap(desired_access);
-    if (req == 0) req = WUBU_RIGHT_INSPECT; /* inspect-only probe */
+    if (req == 0) req = WUBU_RIGHT_INSPECT;
     if (!wubu_cap_handle_resolve_by_slot(ctx->cap_ht, ctx->current_pid,
                                          ctx->handle_table[idx].cap_slot, req))
+        return NT_STATUS_ACCESS_DENIED;
+
+    uint32_t want_nt = wubu_nt_expand_generic(ctx->handle_table[idx].type,
+                                              desired_access);
+    if (want_nt == 0) return NT_STATUS_SUCCESS;
+    if ((ctx->handle_table[idx].cap_rights & want_nt) != want_nt)
         return NT_STATUS_ACCESS_DENIED;
     return NT_STATUS_SUCCESS;
 }
@@ -282,6 +368,25 @@ int vsl_nt_cap_alias(vsl_nt_bridge_ctx_t *ctx, uint32_t src_handle,
     ctx->handle_table[di].cap_slot   = new_slot;
     ctx->handle_table[di].cap_token  = ctx->handle_table[si].cap_token;
     ctx->handle_table[di].cap_backed = true;
+    /* Inherit the source's granted access. The handler narrows this when the
+     * caller passed a DesiredAccessMask, so the duplicate can never hold MORE
+     * than the source did -- the reduction NtDuplicateObject exists to make. */
+    ctx->handle_table[di].cap_rights = ctx->handle_table[si].cap_rights;
+    return 0;
+}
+
+int vsl_nt_cap_alias_reduced(vsl_nt_bridge_ctx_t *ctx, uint32_t src_handle,
+                             uint32_t dst_handle, uint32_t desired_access) {
+    if (vsl_nt_cap_alias(ctx, src_handle, dst_handle) != 0) return -1;
+    int di = vsl_nt_cap_index_of(ctx, dst_handle);
+    if (di < 0) return -1;
+    if (desired_access) {
+        /* Intersect, never widen: a request for more than the source holds
+         * is clamped down to the source, exactly as NT clamps. */
+        uint32_t want = wubu_nt_expand_generic(
+            ctx->handle_table[di].type, desired_access);
+        ctx->handle_table[di].cap_rights &= want;
+    }
     return 0;
 }
 
@@ -351,4 +456,144 @@ uint32_t vsl_nt_default_access_for_type(nt_object_type_t type) {
     default:
         return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE;
     }
+}
+
+/* ------------------------------------------------------------------ */
+/* Security reference monitor facade                                   */
+/* ------------------------------------------------------------------ */
+
+/* Validate that `token_handle` names a live record -- the SRM treats ANY
+ * cap-backed handle as a "subject" handle, because the caller's identity is
+ * derived from the token (if it is one) or from the process holding the
+ * handle (vsl_nt_cap_token_sidset falls back to the caller pid). Requiring a
+ * TOKEN made the facade reject file/event/process handles, which is not what
+ * SeAccessCheck semantics demand. */
+static bool se_handle_is_valid(vsl_nt_bridge_ctx_t *ctx, uint32_t token_handle) {
+    if (!ctx || token_handle == 0) return false;
+    for (int i = 0; i < 4096; i++) {
+        if (ctx->handle_table[i].valid &&
+            ctx->handle_table[i].nt_handle == token_handle)
+            return true;
+    }
+    return false;
+}
+
+bool vsl_nt_cap_token_sidset(vsl_nt_bridge_ctx_t *ctx, uint32_t token_handle,
+                             wubu_nt_sidset_t *out) {
+    if (!out || !ctx) return false;
+    wubu_nt_sidset_reset(out);
+
+    /* The caller's identity is whoever holds this authority. A real NT token
+     * carries an authentication LUID we use as the owner SID; for any other
+     * cap-backed handle the bridge's current pid plays the same role (the
+     * sidset is the "subject" the SRM evaluates, and every handle in this
+     * process is held by that subject). */
+    nt_token_entry_t *t = vsl_nt_token_from_handle(token_handle);
+    if (t) {
+        out->owner_sid = (uint32_t)(t->luid_low & 0xFFFFFFFFu);
+        out->mic = 0x2000u;                       /* MEDIUM_MANDATORY_LEVEL */
+        if (t->imp_level <= 0) out->mic = 0x3000u;
+        else if (t->imp_level >= 3) out->mic = 0x1000u;
+        for (uint32_t i = 0; i < t->group_count; i++)
+            if (t->group[i].attr & NT_PRIV_ATTR_ENABLED)
+                wubu_nt_sidset_add(out, t->group[i].sid);
+    } else {
+        out->owner_sid = (uint32_t)ctx->current_pid;
+        out->mic = 0x2000u;
+    }
+
+    /* The owner SID must be non-zero: a subject with no identity is never
+     * granted by a real DACL, and a deny-everything default must fail closed. */
+    if (out->owner_sid == 0) out->owner_sid = (uint32_t)g_vsl.current_pid;
+    out->owner_sid |= 1u;   /* guarantee a distinct, non-zero principal */
+    return true;
+}
+
+int64_t vsl_nt_cap_se_check(vsl_nt_bridge_ctx_t *ctx, uint32_t token_handle,
+                            const void *security_descriptor,
+                            nt_object_type_t type, uint32_t desired_access,
+                            uint32_t *granted_out) {
+    if (granted_out) *granted_out = 0;
+    if (!ctx) return NT_STATUS_ACCESS_DENIED;
+
+    /* 1. Validate the caller handle. A bad handle is INVALID_HANDLE, not
+     *    ACCESS_DENIED. */
+    if (!se_handle_is_valid(ctx, token_handle))
+        return NT_STATUS_INVALID_HANDLE;
+
+    /* 2. The DACL decides whether the access is permitted. */
+    wubu_nt_sidset_t subj;
+    if (!vsl_nt_cap_token_sidset(ctx, token_handle, &subj))
+        return NT_STATUS_ACCESS_DENIED;
+
+    wubu_nt_sd_view_t sd;
+    memset(&sd, 0, sizeof(sd));
+    sd.dacl_present = false;      /* absent DACL => full access (NT semantics) */
+    sd.no_write_up  = true;       /* the MIC is enforced by default */
+    sd.label_mic    = 0x2000u;    /* MEDIUM_MANDATORY_LEVEL */
+    if (security_descriptor) {
+        if (!wubu_nt_sd_read(security_descriptor, &sd))
+            return NT_STATUS_INVALID_PARAMETER;
+    }
+
+    wubu_nt_access_result_t r = wubu_nt_access_check(&sd, &subj, type,
+                                                     desired_access);
+    if (r.status != WUBU_NT_STATUS_SUCCESS)
+        return NT_STATUS_ACCESS_DENIED;
+
+    /* 3. The cap can only ever REDUCE the grant. A handle's authority was
+     *    fixed when it was minted (or reduced by NtDuplicateObject); the DACL
+     *    permitting more does not enlarge it. */
+    uint32_t granted = r.granted;
+    if (vsl_nt_cap_handle_is_bound(ctx, token_handle)) {
+        /* The handle is cap-backed: the DACL grant can only ever be REDUCED.
+         * A permissive DACL never enlarges what the handle was granted, and a
+         * revoked object (cap_rights == 0) refuses outright. */
+        uint32_t cap_mask = vsl_nt_cap_granted_mask(ctx, token_handle);
+        granted &= cap_mask;
+        if ((granted & desired_access) != desired_access)
+            return WUBU_NT_STATUS_ACCESS_DENIED;
+    }
+
+    if (granted_out) *granted_out = granted;
+    return NT_STATUS_SUCCESS;
+}
+
+uint32_t vsl_nt_cap_granted_mask(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
+    /* Uncapable: a caller with no cap binding gets the full NT mask, so the
+     * DACL alone decides -- the pre-Axis-1 behaviour. */
+    if (!vsl_nt_cap_handle_is_bound(ctx, nt_handle))
+        return 0xFFFFFFFFu;
+    const vsl_nt_bridge_ctx_t *c = ctx;
+    for (int i = 0; i < 4096; i++) {
+        if (!c->handle_table[i].valid ||
+            c->handle_table[i].nt_handle != nt_handle) continue;
+        /* Liveness: resolve with required_rights == 0. A revoked object fails
+         * to resolve, so its handles report no authority at all.
+         *
+         * Probe through the cap SLOT, not handle_table[i].cap_token. The two
+         * are minted together but only the slot is revalidated on every
+         * rebind (vsl_nt_cap_bind / alias / duplicate), and cap_token is left
+         * pointing at whatever object idx held when the record was created.
+         * A later cap_create() reuses that idx for a different object, so the
+         * token's (idx, gen) pair goes stale and liveness would report a live
+         * handle as dead -- silently zeroing its granted access. */
+        if (!wubu_cap_handle_resolve_by_slot(ctx->cap_ht, ctx->current_pid,
+                                             c->handle_table[i].cap_slot, 0))
+            return 0u;
+        /* The granted rights live on the NT handle (cap_rights), not on the
+         * opaque cap object: that is where generic expansion and any
+         * NtDuplicateObject reduction were applied. */
+        return c->handle_table[i].cap_rights;
+    }
+    return 0u;
+}
+
+bool vsl_nt_cap_handle_is_bound(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
+    if (!ctx) return false;
+    for (int i = 0; i < 4096; i++) {
+        if (ctx->handle_table[i].valid && ctx->handle_table[i].nt_handle == nt_handle)
+            return ctx->handle_table[i].cap_backed;
+    }
+    return false;
 }

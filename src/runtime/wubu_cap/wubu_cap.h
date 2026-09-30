@@ -173,6 +173,11 @@ int wubu_cap_handle_revoke_by_slot(wubu_cap_handle_table_t *t, uint32_t slot);
  * Returns WUBU_CAP_OK or WUBU_CAP_EINVAL. Mirrors wubu_cap_handle_close but
  * addresses the slot directly (NT handles are uint32 slot indices). */
 int wubu_cap_handle_close_slot(wubu_cap_handle_table_t *t, uint32_t slot);
+/* True if `slot` is an occupied handle slot, i.e. a live cap handle value as
+ * minted by wubu_cap_handle_insert. Lets a caller that accepts raw cap-slot
+ * handles tell them apart from an unallocated slot without resolving rights
+ * (a revoked object still occupies its slot until it is closed). */
+bool wubu_cap_handle_slot_live(wubu_cap_handle_table_t *t, uint32_t slot);
 /* Scan the table for any live cap of `kind` covering `required_rights`.
  * Returns WUBU_CAP_OK on match, WUBU_CAP_EPERM otherwise. Used for
  * capability-kind gates (e.g. CAP_KIND_SYSTEM) where the table is authority. */

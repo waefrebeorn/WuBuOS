@@ -87,6 +87,14 @@ static int grow(wubu_cap_handle_table_t *t) {
     return WUBU_CAP_OK;
 }
 
+bool wubu_cap_handle_slot_live(wubu_cap_handle_table_t *t, uint32_t slot) {
+    if (!t || slot < 1 || slot >= t->capacity) return false;
+    pthread_mutex_lock(&t->lock);
+    bool live = (t->entries[slot].object_idx != WUBU_CAP_IDX_NONE);
+    pthread_mutex_unlock(&t->lock);
+    return live;
+}
+
 wubu_cap_token_t wubu_cap_handle_insert(wubu_cap_handle_table_t *t,
                                        uint32_t object_idx, uint8_t token_flags) {
     wubu_cap_token_t null = WUBU_CAP_TOKEN_NULL;

@@ -103,12 +103,17 @@ int64_t vsl_nt_wait_for_single_object(uint64_t a_handle, uint64_t b_alert,
 
 /* NtDuplicateObject (72): clone a handle slot into a new handle.
  * a = source process (ignored; same bridge ctx), b = source handle,
- * c = target process (ignored), d = new handle* (OUT). */
+ * c = target process (ignored), d = new handle* (OUT),
+ * e = DesiredAccess for the duplicate (0 = inherit the source's grant).
+ * Real NT takes this in the DUPLICATE_OPTIONS/OBJECT_ATTRIBUTES structure;
+ * the bridge's flattened 6-word frame has no dedicated slot for it, so `e`
+ * carries it. Existing callers pass 0, which means "no reduction". */
 int64_t vsl_nt_duplicate_object(uint64_t a_srcproc, uint64_t b_srchandle,
                                  uint64_t c_tgtproc, uint64_t d_newhandle,
                                  uint64_t e, uint64_t f) {
-    (void)a_srcproc; (void)c_tgtproc; (void)e; (void)f;
+    (void)a_srcproc; (void)c_tgtproc; (void)f;
     if (!d_newhandle) return NT_STATUS_INVALID_PARAMETER;
+    uint32_t want_access = (uint32_t)e;   /* 0 => inherit, no reduction */
     int fd; uint64_t data = 0; nt_object_type_t type = NT_OBJECT_TYPE_UNKNOWN;
     int found = 0;
     for (int i = 0; i < 4096; i++) {
@@ -126,7 +131,9 @@ int64_t vsl_nt_duplicate_object(uint64_t a_srcproc, uint64_t b_srchandle,
     /* Axis 1: the duplicate ALIASES the source handle's capability object, so
      * one revoke collapses both -- genuine NtDuplicateObject semantics where
      * the duplicated handle refers to the same underlying object. */
-    vsl_nt_cap_alias(g_nt_ctx, (uint32_t)b_srchandle, h);
+    /* DesiredAccess narrows the duplicate's authority, so a caller cannot
+     * hand a receiving process a MORE powerful handle than it was given. */
+    vsl_nt_cap_alias_reduced(g_nt_ctx, (uint32_t)b_srchandle, h, want_access);
     *(uint32_t *)d_newhandle = h;
     return NT_STATUS_SUCCESS;
 }

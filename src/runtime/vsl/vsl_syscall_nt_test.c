@@ -1676,11 +1676,16 @@ int main(void) {
         CHECK(r == NT_STATUS_ACCESS_DENIED,
               "NtSetValueKey DENIED after the key's capability was revoked");
 
+        /* Query into a WRITABLE buffer: the handler freads into args[3], and
+         * `val` is a read-only string literal, so reusing it here would fault
+         * in .rodata rather than exercising the gate. */
+        char gate_qbuf[32];
+        memset(gate_qbuf, 0, sizeof(gate_qbuf));
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)k;
         args[1] = (uint64_t)(uintptr_t)"Gate";
-        args[3] = (uint64_t)(uintptr_t)val;
-        args[4] = (uint64_t)vlen;
+        args[3] = (uint64_t)(uintptr_t)gate_qbuf;
+        args[4] = (uint64_t)sizeof(gate_qbuf);
         r = vsl_nt_syscall_dispatch(&ctx, 186, args, 5); /* NtQueryValueKey */
         CHECK(r == NT_STATUS_ACCESS_DENIED,
               "NtQueryValueKey DENIED after revoke (read gate also honors the cap)");
@@ -1864,6 +1869,205 @@ int main(void) {
         memset(args, 0, sizeof(args));
         args[0] = (uint64_t)e2;
         vsl_nt_syscall_dispatch(&ctx, 28, args, 1);   /* NtClose */
+    }
+
+
+    /* 37. Axis 2: the SRM facade. The answer is an INTERSECTION: any one of
+     * the token, the object descriptor and the cap refusing must refuse the
+     * access, and a permissive DACL never enlarges what a handle was granted.
+     * All the rights cases here use an EVENT handle (NT_OBJECT_TYPE_EVENT) so
+     * the requested rights are the event's own mask, not a mismatched one.
+     *
+     * NOTE: the cap resolve/revoke/release APIs translate an NT handle
+     * (0x1000 + table index) to its backing cap-table slot via the handle
+     * record; they never hand the raw NT handle value to the cap slot layer. */
+    {
+        /* A permissive DACL: one allow ACE granting everything to SID 0xC0FFEE.
+         * The token is NOT 0xC0FFEE, so the DACL half must refuse. */
+        uint8_t sdbuf[256];
+        memset(sdbuf, 0, sizeof(sdbuf));
+        const uint32_t ACE_SID = 0xC0FFEEu;
+        sdbuf[0] = 1; sdbuf[1] = 0;
+        uint16_t ctl = WUBU_SE_DACL_PRESENT | WUBU_SE_SELF_RELATIVE;
+        sdbuf[2] = (uint8_t)(ctl & 0xFF); sdbuf[3] = (uint8_t)(ctl >> 8);
+        uint32_t dacl_at = 20;
+        sdbuf[8]  = (uint8_t)(dacl_at & 0xFF);
+        sdbuf[9]  = (uint8_t)((dacl_at >> 8) & 0xFF);
+        sdbuf[10] = (uint8_t)((dacl_at >> 16) & 0xFF);
+        sdbuf[11] = (uint8_t)((dacl_at >> 24) & 0xFF);
+        uint8_t *acl = sdbuf + dacl_at;
+        acl[0] = 2; acl[1] = 0;
+        uint16_t aclsize = (uint16_t)(8 + 12);
+        acl[2] = (uint8_t)(aclsize & 0xFF); acl[3] = (uint8_t)(aclsize >> 8);
+        acl[4] = 1; acl[5] = 0; acl[6] = 0; acl[7] = 0;
+        uint8_t *ace = acl + 8;
+        ace[0] = 0x00; ace[1] = 0; ace[2] = 12; ace[3] = 0;
+        ace[4]  = (uint8_t)(ACE_SID & 0xFF);
+        ace[5]  = (uint8_t)((ACE_SID >> 8) & 0xFF);
+        ace[6]  = (uint8_t)((ACE_SID >> 16) & 0xFF);
+        ace[7]  = (uint8_t)((ACE_SID >> 24) & 0xFF);
+        uint32_t all = 0x001F0003u;   /* EVENT_ALL_ACCESS */
+        ace[8]  = (uint8_t)(all & 0xFF);
+        ace[9]  = (uint8_t)((all >> 8) & 0xFF);
+        ace[10] = (uint8_t)((all >> 16) & 0xFF);
+        ace[11] = (uint8_t)((all >> 24) & 0xFF);
+
+        /* Mint an event handle as the "subject" the SRM evaluates. */
+        memset(args, 0, sizeof(args));
+        int64_t hv = vsl_nt_syscall_dispatch(&ctx, 38, args, 1); /* NtCreateEvent */
+        uint32_t eh = (uint32_t)hv;
+        CHECK(hv != 0 && eh != 0, "event handle available as the SRM subject");
+
+        if (eh) {
+            /* Resolve the SID set the facade would assert for this subject. */
+            wubu_nt_sidset_t ss;
+            CHECK(vsl_nt_cap_token_sidset(&ctx, eh, &ss),
+                  "facade derives a SID set from the subject");
+            CHECK(ss.owner_sid != 0, "subject SID is non-zero");
+            CHECK(ss.owner_sid != ACE_SID,
+                  "the DACL is wired against a different SID than the subject");
+
+            /* 1. Permissive DACL that does NOT name the subject => DENY. */
+            uint32_t g = 0xDEADBEEF;
+            int64_t r = vsl_nt_cap_se_check(&ctx, eh, sdbuf, NT_OBJECT_TYPE_EVENT,
+                                            0x001F0003u, &g);
+            CHECK(r == NT_STATUS_ACCESS_DENIED,
+                  "SRM denies when the DACL does not grant the subject's SID");
+            CHECK(g == 0, "no grant reported on denial");
+
+            /* 2. NULL descriptor => no DACL => the DACL half permits. With no
+             * cap-bound issues, the grant is the event's rights mask. */
+            uint32_t g2 = 0;
+            int64_t r2 = vsl_nt_cap_se_check(&ctx, eh, NULL, NT_OBJECT_TYPE_EVENT,
+                                             0x00100000u, &g2);
+            CHECK(r2 == NT_STATUS_SUCCESS,
+                  "with no DACL the token/cap half permits (SYNCHRONIZE)");
+            CHECK(g2 == 0x00100000u,
+                  "granted access is exactly the requested SYNCHRONIZE bit");
+
+            /* 3. The grant is an intersection: ask for MORE than the cap holds.
+             * The event's cap_rights are EVENT_ALL_ACCESS (0x001F0003) which
+             * lacks GENERIC_EXECUTE-style bits (0x20000000) -- so a request
+             * for them must be refused even with a permissive DACL. */
+            uint32_t g3 = 0;
+            int64_t r3 = vsl_nt_cap_se_check(&ctx, eh, NULL, NT_OBJECT_TYPE_EVENT,
+                                             0x20000000u, &g3);
+            CHECK(r3 == NT_STATUS_ACCESS_DENIED,
+                  "the cap ceiling refuses a right the DACL would allow");
+            CHECK(g3 == 0, "no grant past the cap ceiling");
+
+            /* 4. Malformed descriptor => INVALID_PARAMETER (fail closed). */
+            uint8_t junk[32];
+            memset(junk, 0xAB, sizeof(junk));
+            uint32_t g4 = 0;
+            int64_t r4 = vsl_nt_cap_se_check(&ctx, eh, junk, NT_OBJECT_TYPE_EVENT,
+                                             0x00100000u, &g4);
+            CHECK(r4 == NT_STATUS_INVALID_PARAMETER,
+                  "a malformed security descriptor is rejected (fail closed)");
+
+            /* 5. close eh, mint eh2 (still cap-backed via the chokepoint), and
+             * revoke it: a revoked cap must refuse even with no DACL, because
+             * the cap half is independent of the DACL. */
+            memset(args, 0, sizeof(args)); args[0] = (uint64_t)eh;
+            vsl_nt_syscall_dispatch(&ctx, 28, args, 1);  /* NtClose */
+            memset(args, 0, sizeof(args));
+            int64_t eh2 = vsl_nt_syscall_dispatch(&ctx, 38, args, 1);
+            uint32_t eh2h = (uint32_t)eh2;
+            CHECK(eh2 != 0, "fresh event for the revoke path");
+
+            /* 6. Revoking the cap must refuse even with no DACL. */
+            CHECK(eh2h != 0 && vsl_nt_cap_revoke_nt(&ctx, eh2h) == 0,
+                  "event object revoked");
+            uint32_t g6 = 0;
+            int64_t r6 = vsl_nt_cap_se_check(&ctx, eh2h, NULL, NT_OBJECT_TYPE_EVENT,
+                                             0x00100000u, &g6);
+            CHECK(r6 == NT_STATUS_ACCESS_DENIED,
+                  "a revoked cap refuses even with no DACL present");
+            CHECK(g6 == 0, "revoked cap reports no grant");
+
+            if (eh2h) { memset(args, 0, sizeof(args)); args[0] = (uint64_t)eh2h;
+                        vsl_nt_syscall_dispatch(&ctx, 28, args, 1); }
+        }
+    }
+
+    /* 38. Axis 2: NtDuplicateObject rights reduction. The duplicate cannot be
+     * handed MORE authority than the source held, and revoking the source
+     * must collapse the duplicate too. All rights assertions here use the
+     * event's own mask so the translate directions are consistent. */
+    {
+        memset(args, 0, sizeof(args));
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 38, args, 1); /* NtCreateEvent */
+        uint32_t src = (uint32_t)h;
+        CHECK(h != 0, "event minted for the reduction test");
+        int si = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == src) {
+                si = i; break;
+            }
+        }
+        CHECK(si >= 0 && ctx.handle_table[si].cap_backed, "source is cap-backed");
+        uint32_t src_grant = (si >= 0) ? ctx.handle_table[si].cap_rights : 0;
+        CHECK(si >= 0 && src_grant == 0x001F0003u,
+              "event granted access is EVENT_ALL_ACCESS (0x001F0003)");
+
+        /* The source authorises its own MODIFY bit. */
+        CHECK(vsl_nt_cap_handle_is_valid(&ctx, src, 0x00000002u),
+              "source holds EVENT_MODIFY_STATE");
+
+        /* Duplicate asking only for SYNCHRONIZE (0x00100000): clamped down. */
+        uint32_t dup = 0;
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)src;
+        args[3] = (uint64_t)(uintptr_t)&dup;
+        args[4] = 0x00100000u;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 72, args, 5); /* NtDuplicateObject */
+        CHECK(r == NT_STATUS_SUCCESS && dup != 0, "reduced duplicate succeeds");
+        int di = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == dup) {
+                di = i; break;
+            }
+        }
+        uint32_t dup_grant = (di >= 0) ? ctx.handle_table[di].cap_rights : 0xFFFFFFFFu;
+        CHECK(di >= 0 && dup_grant == 0x00100000u,
+              "duplicate's granted access is reduced to SYNCHRONIZE only");
+        CHECK(di >= 0 && dup_grant < src_grant,
+              "the duplicate holds strictly less authority than the source");
+        CHECK(di >= 0 && !vsl_nt_cap_handle_is_valid(&ctx, dup, 0x00000002u),
+              "the REDUCED duplicate is denied EVENT_MODIFY_STATE");
+        CHECK(vsl_nt_cap_handle_is_valid(&ctx, dup, 0x00100000u),
+              "the reduced duplicate still holds SYNCHRONIZE");
+
+        /* Asking for MORE than the source holds clamps, not widens. */
+        uint32_t dup2 = 0;
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)src;
+        args[3] = (uint64_t)(uintptr_t)&dup2;
+        args[4] = 0xFFFFFFFFu;
+        r = vsl_nt_syscall_dispatch(&ctx, 72, args, 5);
+        int di2 = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == dup2) {
+                di2 = i; break;
+            }
+        }
+        uint32_t dup2_grant = (di2 >= 0) ? ctx.handle_table[di2].cap_rights : 0;
+        CHECK(di2 >= 0 && dup2_grant == src_grant,
+              "an over-broad duplicate request is clamped to the source's grant");
+
+        /* Revocation of the source collapses the duplicate (same object). */
+        vsl_nt_cap_revoke_nt(&ctx, src);
+        CHECK(vsl_nt_cap_authorize(&ctx, src, 0x00000002u) == NT_STATUS_ACCESS_DENIED,
+              "revoking the source denies the source handle");
+        CHECK(vsl_nt_cap_authorize(&ctx, dup, 0x00000002u) == NT_STATUS_ACCESS_DENIED,
+              "revocation cascades to the duplicate alias");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)src;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);
+        if (dup)  { memset(args, 0, sizeof(args)); args[0] = (uint64_t)dup;
+                    vsl_nt_syscall_dispatch(&ctx, 28, args, 1); }
+        if (dup2) { memset(args, 0, sizeof(args)); args[0] = (uint64_t)dup2;
+                    vsl_nt_syscall_dispatch(&ctx, 28, args, 1); }
     }
 
     vsl_nt_bridge_shutdown(&ctx);

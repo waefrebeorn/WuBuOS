@@ -450,6 +450,13 @@ typedef struct {
         uint32_t cap_slot;
         wubu_cap_token_t cap_token;
         bool cap_backed;
+        /* Granted access, in NT terms: the concrete rights this handle was
+         * actually granted after generic expansion and any
+         * NtDuplicateObject rights reduction. The DACL may permit more; this
+         * is the ceiling, and the SRM intersects the two. Kept here rather
+         * than read back through wubu_cap because wubu_cap_object_t is
+         * deliberately opaque -- the rights belong to the NT handle. */
+        uint32_t cap_rights;
     } handle_table[4096];
     
     /* Memory management */

@@ -120,7 +120,7 @@ static uint32_t vsl_nt_token_alloc(nt_token_entry_t **out) {
     return 0;
 }
 
-static nt_token_entry_t *vsl_nt_token_from_handle(uint32_t h) {
+nt_token_entry_t *vsl_nt_token_from_handle(uint32_t h) {
     uint64_t d = 0;
     if (vsl_nt_handle_to_data(g_nt_ctx, h, &d) != 0) return NULL;
     return (nt_token_entry_t *)(uintptr_t)d;
