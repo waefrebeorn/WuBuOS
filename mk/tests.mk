@@ -280,8 +280,26 @@ test_mir_opt: $(JIT_OBJS)
 
 # T_GEMM correctness test: 576 tile/shape combinations across M,N,K
 # Uses the generic MIR interpreter (wubu_mir_interp) for portable correctness.
+# Source-group variables. These were referenced by test_tgemm (and others)
+# but never defined anywhere, so make expanded them to nothing and the
+# target silently linked no MIR or ISA sources at all -- the failure
+# surfaced as undefined references to wubu_mir_alloc/wubu_isa_find.
+# Derived from test_isa_driver, which does link the full set.
+MIR := \
+	$(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/wubu_mir_ssa.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_interp.c
+ISA := \
+	$(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(COMP)/wubu_isa_6502.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_spirv.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/jit/wubu_isa_wasm.c $(JIT)/jit_codegen_wasm.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/wubu_wasm.c
+INTERP := \
+	$(RT)/wubu_mips_interp.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c
+OS_INTERP := \
+	$(RT)/wubu_dos_emu.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c
+
+# Softfloat/tensor support: not ISA backends, but the tensor paths call
+# wubu_sf_* and the host dispatch needs wubu_tensor_dispatch/tgemm_avx512.
+SUPPORT := $(COMP)/wubu_softfloat.c $(COMP)/wubu_host_tensor.c $(COMP)/wubu_tgemm.c $(COMP)/wubu_tgemm_avx512.o
+
 test_tgemm: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(MIR) $(ISA) $(INTERP) $(OS_INTERP) $(COMP)/tools/test_tgemm.c -lm -ldl -o $(COMP)/test_tgemm
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(MIR) $(ISA) $(INTERP) $(OS_INTERP) $(COMP)/tools/test_tgemm.c $(SUPPORT) -lm -ldl -fopenmp -o $(COMP)/test_tgemm
 	$(COMP)/test_tgemm 24 24 2
 
 # MIR register allocator test
