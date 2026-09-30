@@ -1131,7 +1131,7 @@ test_acpi:
 		-o $(KERNEL)/test_acpi
 	$(KERNEL)/test_acpi
 
-test_secmon: $(RT)/wubu_secmon.c $(KERNEL)/wubu_secmon.h $(KERNEL)/wubu_kvfs.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c
+test_secmon: $(RT)/wubu_secmon.c $(RT)/wubu_secmon.h $(KERNEL)/wubu_kvfs.c $(KERNEL)/libc_string.c $(KERNEL)/memory.c
 	$(CC) -O0 -g -Wall -Wextra -std=c11 -I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_secmon_selftest.c \
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c \

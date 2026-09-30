@@ -139,7 +139,7 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * compile+run path a human uses, but with EDR disclosure of every
      * agent-authored eval (the transparency edict). The terminal module
      * itself stays decoupled -- it only sees the injected function pointer. */
-    holyd_term_set_eval(wubu_holyd_eval);
+    holyd_term_set_eval(wubu_holyd_agent_eval);
     wubu_holyd_set_pointer_handler(dosgui_wm_handle_mouse);
     dosgui_desktop_init();
     fprintf(stderr, "DEBUG: dosgui_desktop_init done\n");
