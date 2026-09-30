@@ -3863,3 +3863,11 @@ test_hw_zonseqwrite: $(KERNEL)/test/wubu_zonseqwrite_selftest.c $(KERNEL)/wubu_z
 		-lm -lm \
 		-o $(TEST_BIN)/test_hw_zonseqwrite
 	$(TEST_BIN)/test_hw_zonseqwrite
+
+test_nt_sd: $(RT)/wubu_nt_sd.c $(RT)/wubu_nt_sd_test.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-Wall -Wextra -Wno-unused-parameter \
+		-I$(RT) -I$(RT)/vsl -I$(RT)/wubu_cap \
+		$(RT)/wubu_nt_sd.c $(RT)/wubu_nt_sd_test.c \
+		-o $(RT)/wubu_nt_sd_test
+	$(RT)/wubu_nt_sd_test
