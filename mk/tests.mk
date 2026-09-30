@@ -233,7 +233,7 @@ test_fat32: $(KERNEL)/fat32.o
 	$(KERNEL)/fat32_test
 
 test_holyc: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(COMP)/holyd_test.c -o $(COMP)/holyc_test -ldl
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(COMP)/holyd_test.c -o $(COMP)/holyc_test -ldl -lm -fopenmp -lpthread
 	$(COMP)/holyc_test
 
 # the SELF-HOSTING GAP ENUMERATOR: runs every C11 construct the kernel +
@@ -241,7 +241,7 @@ test_holyc: $(JIT_OBJS)
 # source of truth for compiler completeness. Battery count grows as we
 # close gaps (currently 91 probes: arithmetic through sizeof + switch).
 test_battery: $(JIT_OBJS)
-	$(CC) -DWUBU_HOSTED -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(COMP)/isa-test/selfhost_battery.c -o $(COMP)/selfhost_battery -ldl
+	$(CC) -DWUBU_HOSTED -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(COMP)/isa-test/selfhost_battery.c -o $(COMP)/selfhost_battery -ldl -lm -fopenmp -lpthread
 	$(COMP)/selfhost_battery
 
 # Tailslayer DRAM-refresh hedge gate: proves the software-prefetch
@@ -250,7 +250,7 @@ test_battery: $(JIT_OBJS)
 # and never before a pure-constant. wubu_hedge_prefetch_count is the
 # diagnostic counter in holyc_codegen_emit.c.
 test_hedge: $(JIT_OBJS)
-	$(CC) -DWUBU_HOSTED -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) tools/probe/hedge_verify.c -o $(COMP)/hedge_verify -ldl
+	$(CC) -DWUBU_HOSTED -O0 -g -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) tools/probe/hedge_verify.c -o $(COMP)/hedge_verify -ldl -lm -fopenmp -lpthread
 	$(COMP)/hedge_verify
 
 # the driver space battery: one MIR, N backends (x86-64 JIT + m68k interp).
@@ -292,7 +292,7 @@ test_album: $(JIT_OBJS)
 	$(COMP)/cleveland_browns_album_test
 
 holyc: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) -I$(KERNEL) -DHOLYC_BF_EMBEDDED $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(COMP)/brainfuck.c $(KERNEL)/wubu_hive.c $(RT)/wubu_runtime.c $(RT)/wubu_runtime_personalities.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/holyd_elf.c $(COMP)/holyd_pe.c $(COMP)/holyd_bin.c $(COMP)/holyd.c -o $(COMP)/holyc -ldl
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) -I$(KERNEL) -DHOLYC_BF_EMBEDDED $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(COMP)/brainfuck.c $(KERNEL)/wubu_hive.c $(RT)/wubu_runtime.c $(RT)/wubu_runtime_personalities.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/holyd_elf.c $(COMP)/holyd_pe.c $(COMP)/holyd_bin.c $(COMP)/holyd.c -o $(COMP)/holyc -ldl -lm -fopenmp -lpthread
 
 # wuburuntime Wave 1-3: the compilation-space registry + personalities
 test_runtime: $(KERNEL)/wubu_hive.c
@@ -300,7 +300,7 @@ test_runtime: $(KERNEL)/wubu_hive.c
 	$(RT)/wubu_runtime_test
 
 test_wubu: $(JIT_OBJS) $(RT)/wubu_host_exec.o $(RT)/styxfs_path.o $(RT)/styxfs_util.o $(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/wubu_ct_isolate.o $(RT)/ct_iso_seccomp.o $(RT)/ct_iso_cgroup.o $(RT)/ct_iso_ns.o
-	$(CC) -DWUBU_HOSTED -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o $(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c -o $(RT)/wubu_container_test -ldl
+	$(CC) -DWUBU_HOSTED -O0 -g -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container_test.c $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_dos_proc.o $(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c -o $(RT)/wubu_container_test -ldl -lm -fopenmp -lpthread
 	$(RT)/wubu_container_test
 
 test_dos_emu: $(RT)/wubu_dos_emu.o
@@ -891,7 +891,7 @@ test_compositor:
 
 test_styxfs:
 	$(CC) -DWUBU_HOSTED $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) -o $(RT)/styxfs_test \
-		$(RT)/wubu_ns_pkg_stub.c
+		$(RT)/wubu_ns_pkg_stub.c -lm -fopenmp -lpthread
 	$(RT)/styxfs_test
 
 HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)

@@ -153,3 +153,4 @@ venv*/
 *.deb
 os-studies/reactos-study/reactos/
 os-studies/reactos-study/reactos/
+src/jit/jit_fuzzer
