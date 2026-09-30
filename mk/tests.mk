@@ -316,7 +316,7 @@ test_gauntlet: check_opcode_coverage $(JIT_OBJS) $(COMP)/wubu_tgemm_avx512.o
 
 # Cleveland Browns album end-to-end: optimizer + all 6 ISA drivers
 test_album: $(JIT_OBJS)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/isa-test/cleveland_browns_album_test.c -o $(COMP)/cleveland_browns_album_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/isa-test/cleveland_browns_album_test.c -lm $(COMP)/wubu_mir_ssa.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/jit/wubu_isa_wasm.c $(COMP)/wubu_isa_spirv.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_host_tensor.c $(COMP)/wubu_tgemm_avx512.o -fopenmp -lpthread -ldl -o $(COMP)/cleveland_browns_album_test
 	$(COMP)/cleveland_browns_album_test
 
 holyc: $(JIT_OBJS)
@@ -611,7 +611,7 @@ test_screenshot_clipboard:
 	$(CC) -Isrc/runtime -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(TOOLS) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(APPS) -I$(HOSTED) \
 		$(GUI)/wubu_screenshot.c $(GUI)/wubu_screenshot_draw.c $(GUI)/wubu_screenshot_png.c $(GUI)/wubu_screenshot_clipboard_test.c \
-		-o $(GUI)/wubu_screenshot_clipboard_test -lz -lm
+	 $(KERNEL)/wubu_math.c -lm $(COMP)/wubu_mir_ssa.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/jit/wubu_isa_wasm.c $(COMP)/wubu_isa_spirv.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_host_tensor.c $(COMP)/wubu_tgemm_avx512.o -fopenmp -lpthread -ldl $(COMP)/wubu_softfloat.c	-o $(GUI)/wubu_screenshot_clipboard_test -lz -lm
 	$(GUI)/wubu_screenshot_clipboard_test
 
 test_mime:
@@ -722,7 +722,7 @@ test_dosgui_cp_hardware: $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.
 	./$(GUI)/test_dosgui_cp_hardware
 
 test_dosgui_controlpanel: $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/wubu_sound.c $(GUI)/wubu_theme.c $(GUI)/dosgui_controlpanel.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) $(GUI)/test_dosgui_controlpanel.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_cp_display.c $(GUI)/dosgui_cp_network.c $(GUI)/dosgui_cp_theme.c $(GUI)/wubu_sound.c $(GUI)/wubu_theme.c -o $(GUI)/test_dosgui_controlpanel -lm
+	$(CC) $(CFLAGS) -I$(GUI) -I$(KERNEL) $(GUI)/test_dosgui_controlpanel.c $(GUI)/dosgui_controlpanel.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_cp_display.c $(GUI)/dosgui_cp_network.c $(GUI)/dosgui_cp_theme.c $(GUI)/wubu_sound.c $(GUI)/wubu_theme.c $(KERNEL)/wubu_math.c -lm -fopenmp -lpthread -ldl $(COMP)/wubu_softfloat.c -o $(GUI)/test_dosgui_controlpanel -lm
 	./$(GUI)/test_dosgui_controlpanel
 
 test_dosgui_cp_dnt: $(GUI)/dosgui_cp_display.c $(GUI)/dosgui_cp_network.c $(GUI)/dosgui_cp_theme.c $(GUI)/dosgui_cp_sound.c $(GUI)/dosgui_cp_hardware.c $(GUI)/dosgui_controlpanel.c $(GUI)/wubu_theme.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h $(KERNEL)/wubu_world.h
@@ -977,7 +977,7 @@ test_ramdisk:
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_secmon.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
 		$(RT)/wubu_ramdisk_test.c \
-		-o $(RT)/wubu_ramdisk_test
+	 $(RT)/wubu_spawn.c -fopenmp -lpthread -ldl -lm	-o $(RT)/wubu_ramdisk_test
 	$(RT)/wubu_ramdisk_test
 
 test_gaad:
