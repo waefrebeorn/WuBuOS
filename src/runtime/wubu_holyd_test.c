@@ -251,7 +251,6 @@ static void test_session_save(void) {
     char save_path[512];
     snprintf(save_path, sizeof(save_path), "%s/save-test/session.sav", config.sessions_path);
     CHECK(access(save_path, F_OK) == 0, "save file exists");
-    PASS();
 
     wubu_holyd_shutdown(&d);
 }

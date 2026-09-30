@@ -12,15 +12,19 @@
 #include "wubu_holyd.h"
 #include "wubu_gdpr_age.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static int g_run = 0, g_pass = 0;
 #define T(cond, msg) do { g_run++; if (cond) { g_pass++; printf("  ✅ %s\n", msg); } \
                          else { printf("  ❌ %s\n", msg); } } while (0)
 
+/* wubu_holyd_agi.h owns a lazily-initialized in-process daemon + persistent
+ * "default" session, so its wrapper is already the right entry point. */
 static int eval_int(const char *src) {
     char out[1024];
-    int ret = wubu_holyd_eval(src, out, sizeof(out));
+    int ret = wubu_holyd_default_eval(src, out, sizeof(out));
     if (ret != 0) { printf("    [eval '%s' -> err: %s]\n", src, out); return -9999; }
     return (int)strtoll(out, NULL, 10);
 }
@@ -29,9 +33,17 @@ int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     printf("=== WuBuOS Live HolyD Compiler AGI Layer Test ===\n\n");
 
-    /* The agent compile+run path is GDPR Art 8 gated: EDR records an
-     * agent action ONLY with age consent (fail-closed otherwise). Establish
-     * consent the same way a real user does before the AGI evals. */
+    /* The agent compile+run path is GDPR Art 8 gated: EDR records an agent
+     * action ONLY with age consent (fail-closed otherwise). Establish consent
+     * the same way a real user does before the AGI evals.
+     *
+     * The consent cookie defaults to WUBU_GDPR_STATE_PATH (/wubu/state), which
+     * an unprivileged dev box cannot create -- that is exactly why the library
+     * exposes the $WUBU_GDPR_STATE override. Default the test to that seam so it
+     * passes standalone as well as under make, then mkdir its parent. */
+    mkdir("/tmp/wubu", 0755);
+    if (!getenv("WUBU_GDPR_STATE"))
+        setenv("WUBU_GDPR_STATE", "/tmp/wubu/gdpr_age", 1);
     wubu_gdpr_age_persist(WUBU_AGE_CONSENTED, 18);
 
     edr_analytics_set_enabled(true);
@@ -52,7 +64,7 @@ int main(void) {
     /* -- 3. Errors are reported, not silently swallowed -- */
     printf("\n[Error reporting]\n");
     char out[1024];
-    int r = wubu_holyd_eval("this is not holyc @@@", out, sizeof(out));
+    int r = wubu_holyd_default_eval("this is not holyc @@@", out, sizeof(out));
     T(r != 0 && out[0] != '\0', "garbage source reports an error (no silent stub)");
 
     /* -- 4. The AGI path compiles+logs to EDR (transparency edict) -- */
@@ -68,7 +80,7 @@ int main(void) {
     int n = edr_recent_events(ev, 8, 26, 26);
     int found_src = 0;
     for (int i = 0; i < n; i++)
-        if (strstr(ev[i].detail, "holyc: 2*21")) { found_src = 1; break; }
+        if (strstr(ev[i].detail, "holyd: 2*21")) { found_src = 1; break; }
     T(found_src, "EDR event detail discloses the exact HolyD source compiled");
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);

@@ -27,4 +27,8 @@ FW       = src/firmware
 HOLYD_SRC = $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c \
             $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c \
             $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c \
-            $(COMP)/holyd_runtime.c $(COMP)/holyd_mir_eval.c
+            $(COMP)/holyd_runtime.c $(COMP)/holyd_mir_eval.c \
+            $(COMP)/wubu_mir.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir_opt.c \
+            $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/wubu_tgemm_avx512.o \
+            $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c \
+            $(COMP)/wubu_mir_ssa.c

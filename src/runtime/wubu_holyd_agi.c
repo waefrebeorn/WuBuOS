@@ -53,13 +53,13 @@ static int do_eval(const char *src, char *out, size_t out_size, int log_to_edr) 
          * detail carries the actual source so a human can audit exactly what
          * code the operating system executed on the agent's behalf. */
         char detail[256];
-        snprintf(detail, sizeof(detail), "holyc: %s", src);
+        snprintf(detail, sizeof(detail), "holyd: %s", src);
         edr_log_agent_action(EDR_AGENT_KEY, 0, 0, 0, 0, detail);
     }
     return ret;
 }
 
-int wubu_holyd_eval(const char *src, char *out, size_t out_size) {
+int wubu_holyd_default_eval(const char *src, char *out, size_t out_size) {
     return do_eval(src, out, out_size, 0);
 }
 

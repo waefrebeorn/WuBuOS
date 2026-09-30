@@ -32,9 +32,9 @@ int  wubu_holyd_agi_init(void);
 /* Compile + execute HolyD source LIVE. On success `out` holds the integer
  * result (e.g. "6"); on lex/parse/codegen/JIT error `out` holds the message.
  * Returns 0 on success, non-zero on failure. */
-int  wubu_holyd_eval(const char *src, char *out, size_t out_size);
+int  wubu_holyd_default_eval(const char *src, char *out, size_t out_size);
 
-/* AGI variant: same as wubu_holyd_eval, but records the action to EDR
+/* AGI variant: same as wubu_holyd_default_eval, but records the action to EDR
  * (EDR_EV_AGENT_ACTION, detail "holyc: <src>") so a watching human can see
  * exactly what the operating system compiled and ran on the agent's behalf. */
 int  wubu_holyd_agent_eval(const char *src, char *out, size_t out_size);
