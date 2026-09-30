@@ -564,7 +564,16 @@ const unsigned short int **__ctype_toupper_loc(void) {
 
 /* --- stdio: stderr backed by the serial klog; printf family routes there.
  *     We define a minimal FILE-like `stderr` symbol (address used as a
- *     sentinel) and the _chk printf variants the fortified headers emit. */
+ *     sentinel) and the _chk printf variants the fortified headers emit.
+ *
+ *     SKIPPED IN HOSTED BUILDS. WUBU_HOSTED is defined only for the
+ *     build/testobj/%.o pattern rule, i.e. when this file is compiled into a
+ *     USERSpace test process rather than the kernel. There the klog_write()
+ *     below sends every printf to the kernel console instead of the process's
+ *     real stdout, so the test prints nothing and still exits 0. That made
+ *     214 of 215 test_hw_* binaries pass without reporting a single assertion.
+ *     Hosted builds get glibc's stdio instead, which is what a test needs. */
+#ifndef WUBU_HOSTED
 typedef struct { int __dummy; } kfile_t;
 static kfile_t g_kstderr;
 FILE *stderr = (FILE *)&g_kstderr;
@@ -623,6 +632,7 @@ int __snprintf_chk(char *str, size_t size, int flag, size_t dstlen,
     va_end(ap);
     return n;
 }
+#endif /* !WUBU_HOSTED */
 /* KC04: the bounded format wrappers (vsprintf exists above; the
  * kernel lacked snprintf/vsnprintf — the PE loader hit this). */
 int vsnprintf(char *str, size_t size, const char *fmt, va_list ap)
