@@ -19,6 +19,9 @@ void *memset(void *s, int c, size_t n);
 /* Memory allocation - simple bump allocator */
 static uint8_t *heap_ptr = NULL;
 static uint8_t *heap_end = NULL;
+/* Base of the bump arena. heap_ptr advances as memory is handed out, so free()
+ * needs the original base to recognise a bump pointer. NULL when uninit. */
+static uint8_t *heap_ptr_start = NULL;
 
 /* Initialize the libc bump allocator over a static backing buffer.
  * Kernel boot (kernel_main) calls mem_init() which uses the kernel
@@ -28,9 +31,26 @@ static uint8_t libc_heap_storage[8 * 1024 * 1024];
 int libm_heap_init(void) {
     if (heap_ptr) return 0;               /* already initialized */
     heap_ptr = libc_heap_storage;
+    heap_ptr_start = libc_heap_storage;
     heap_end = libc_heap_storage + sizeof(libc_heap_storage);
     return 0;
 }
+
+/* Hosted builds get the bump heap automatically. Without this the bump was
+ * only brought up by tests that happened to call libm_heap_init() by hand --
+ * two of them did. Every other hosted test ran with malloc() returning NULL,
+ * which silently broke glibc itself: fopen() allocates a FILE buffer, gets
+ * NULL, and returns NULL, so every test that read /proc or /sys was reading
+ * nothing. That is why wubu_power_probe() reported 0 cores on a 12-core host.
+ *
+ * A constructor runs before main, so the heap exists before any test code or
+ * glibc internals can allocate. Guarded on WUBU_HOSTED because the kernel
+ * deliberately wants mem_alloc() to be the allocator of record and never
+ * initializes the bump (see mem_init's MYSEED_METAL comment). */
+#ifdef WUBU_HOSTED
+__attribute__((constructor))
+static void wubu_hosted_heap_ctor(void) { libm_heap_init(); }
+#endif
 
 void *malloc(size_t size) {
     /* The kernel heap is the ONE allocator of record. The legacy libm
@@ -53,6 +73,11 @@ void *malloc(size_t size) {
 
 void free(void *ptr) {
     if (!ptr) return;
+    /* A pointer inside the bump arena was never owned by the kernel heap, so
+     * handing it to mem_free() corrupts the kernel allocator's bookkeeping.
+     * Bump memory is reclaimed only by libm_heap_init() resetting the arena. */
+    if ((uint8_t *)ptr >= heap_ptr_start && (uint8_t *)ptr < heap_end)
+        return;
     extern void mem_free(void *);
     mem_free(ptr);
 }
