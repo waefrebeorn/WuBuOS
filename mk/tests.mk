@@ -282,7 +282,19 @@ test_mir_regalloc: $(JIT_OBJS)
 	$(COMP)/test_mir_regalloc
 
 # WuBuOS Universal Test Gauntlet
-test_gauntlet: $(JIT_OBJS) $(COMP)/wubu_tgemm_avx512.o
+# Opcode-coverage gate. Scoped to the wubunos compiler sources ($(COMP));
+# the script and its baseline live in the compiler repo.
+check_opcode_coverage:
+	@python3 $(COMP)/scripts/check_opcode_coverage.py --baseline $(COMP)/scripts/opcode_coverage_baseline.txt
+
+.PHONY: check_opcode_coverage
+
+# Opcode-coverage gate. An opcode with no `case` in a backend is DROPPED,
+# and the program then returns a plausible wrong answer instead of failing --
+# that is how MIR_MOV, MIR_NEG, the casts, the div/mod/shift group, the f64
+# core and MIR_BREAK/MIR_CONTINUE all went unnoticed. Run this before the
+# gauntlet so a regression fails the build loudly.
+test_gauntlet: check_opcode_coverage $(JIT_OBJS) $(COMP)/wubu_tgemm_avx512.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(COMP)/test_gauntlet -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/holyd_mir_eval.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_isa_spirv.c $(COMP)/jit/wubu_isa_wasm.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_mir_ssa.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/wubu_host_tensor.c $(COMP)/wubu_lang_router.c $(COMP)/test_gauntlet/wubu_test_gauntlet.c $(COMP)/test_gauntlet/suites/*.c $(COMP)/test_gauntlet_runner.c -lm -ldl -fopenmp -lpthread -o $(COMP)/gauntlet_runner
 	$(COMP)/gauntlet_runner
 
