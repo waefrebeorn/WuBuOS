@@ -1711,6 +1711,161 @@ int main(void) {
         CHECK(!still, "cap gate: both handle records cleared by NtClose");
     }
 
+
+    /* 35. Axis 2: every minted handle is cap-backed, and the default grant is
+     * the real NT *_ALL_ACCESS mask for its type -- not a blanket pass. The
+     * previous block proved gating for registry keys; this one proves the
+     * coverage is system-wide by exercising other object families through
+     * their real syscalls. Syscall numbers and arg layouts follow the
+     * existing conventions in this suite (NtCreateEvent=38 returns the handle
+     * directly; NtCreateFile=40 takes an out-handle in arg0 and the path in
+     * arg2). */
+    {
+        /* -- Event family (NtCreateEvent = 38) -- */
+        memset(args, 0, sizeof(args));
+        args[0] = 0;
+        int64_t h = vsl_nt_syscall_dispatch(&ctx, 38, args, 1);
+        uint32_t ev = (uint32_t)h;
+        CHECK(h != 0, "NtCreateEvent mints a handle");
+
+        int ei = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == ev) {
+                ei = i; break;
+            }
+        }
+        CHECK(ei >= 0, "event record located in the NT handle table");
+        CHECK(ei >= 0 && ctx.handle_table[ei].cap_backed,
+              "event handle is cap-backed at allocation (chokepoint wiring)");
+        CHECK(ei >= 0 && ctx.handle_table[ei].type == NT_OBJECT_TYPE_EVENT,
+              "event handle records NT_OBJECT_TYPE_EVENT");
+
+        /* The default grant is the real EVENT_ALL_ACCESS (0x001F0003), and the
+         * gate authorizes it. A request OUTSIDE the grant is refused, proving
+         * the grant is a real mask rather than a blanket pass. */
+        CHECK(ei >= 0 && vsl_nt_cap_authorize(&ctx, ev, 0x001F0003u)
+                  == NT_STATUS_SUCCESS,
+              "event authorized for its real EVENT_ALL_ACCESS (0x001F0003)");
+        /* GENERIC_EXECUTE is not in an event's grant -> must be denied. */
+        CHECK(vsl_nt_cap_authorize(&ctx, ev, 0x20000000u) == NT_STATUS_ACCESS_DENIED,
+              "event denies GENERIC_EXECUTE (outside its grant)");
+
+        /* -- Revocation on a non-registry object: cap authority, live record -- */
+        CHECK(ei >= 0 && vsl_nt_cap_revoke_nt(&ctx, ev) == 0,
+              "event handle object revokes");
+        CHECK(ei >= 0 && ctx.handle_table[ei].valid,
+              "revoked event record still valid (authority is the cap)");
+        CHECK(vsl_nt_cap_authorize(&ctx, ev, 0x001F0003u) == NT_STATUS_ACCESS_DENIED,
+              "revoked event denies its own ALL_ACCESS gate");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)ev;
+        int64_t rc2 = vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+        CHECK(rc2 == NT_STATUS_SUCCESS, "NtClose on revoked event succeeds");
+    }
+
+    /* -- File family (NtCreateFile = 40): cap-backed + revoke-cascades-to-alias -- */
+    {
+        uint32_t fh = 0;
+        char cf_path[] = "/tmp/wubu_nt_capgate_file";
+        unlink(cf_path);
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)&fh;
+        args[2] = (uint64_t)(uintptr_t)cf_path;
+        int64_t r = vsl_nt_syscall_dispatch(&ctx, 40, args, 5);
+        CHECK(r == NT_STATUS_SUCCESS && fh != 0, "NtCreateFile mints a handle");
+
+        int fi = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == fh) {
+                fi = i; break;
+            }
+        }
+        CHECK(fi >= 0 && ctx.handle_table[fi].cap_backed,
+              "file handle is cap-backed at allocation");
+        CHECK(fi >= 0 && ctx.handle_table[fi].type == NT_OBJECT_TYPE_FILE,
+              "file handle records NT_OBJECT_TYPE_FILE");
+
+        /* Duplicate the file handle: same cap object, two NT handles. */
+        uint32_t fdup = 0;
+        memset(args, 0, sizeof(args));
+        args[1] = (uint64_t)fh;
+        args[3] = (uint64_t)(uintptr_t)&fdup;
+        r = vsl_nt_syscall_dispatch(&ctx, 72, args, 4); /* NtDuplicateObject */
+        CHECK(r == NT_STATUS_SUCCESS && fdup != 0,
+              "NtDuplicateObject on the file handle succeeds");
+        int di = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == fdup) {
+                di = i; break;
+            }
+        }
+        CHECK(di >= 0 && di >= 0 &&
+              ctx.handle_table[di].cap_token.raw == ctx.handle_table[fi].cap_token.raw,
+              "file duplicate aliases the SAME cap object");
+
+        /* Revoke via the original; the alias must lose authority too. */
+        CHECK(vsl_nt_cap_revoke_nt(&ctx, fh) == 0, "file handle object revokes");
+        CHECK(fi >= 0 && ctx.handle_table[fi].valid,
+              "revoked file record still valid");
+        CHECK(vsl_nt_cap_authorize(&ctx, fh, 0x001F01FFu) == NT_STATUS_ACCESS_DENIED,
+              "revoked file handle denies its ALL_ACCESS gate");
+        CHECK(di >= 0 && vsl_nt_cap_authorize(&ctx, fdup, 0x001F01FFu)
+                  == NT_STATUS_ACCESS_DENIED,
+              "revocation cascades to the file duplicate (non-registry alias)");
+
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)fh;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);   /* NtClose */
+        memset(args, 0, sizeof(args)); args[0] = (uint64_t)fdup;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);   /* NtClose */
+        unlink(cf_path);
+    }
+
+    /* 36. Axis 2: NtClose releases the capability -- proven by the freed slot
+     * being reissued to the next handle (a leaked cap would not free it). */
+    {
+        memset(args, 0, sizeof(args));
+        args[0] = 0;
+        int64_t h1 = vsl_nt_syscall_dispatch(&ctx, 38, args, 1);
+        uint32_t e1 = (uint32_t)h1;
+        CHECK(h1 != 0, "NtCreateEvent (close test) mints handle");
+        int idx = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == e1) {
+                idx = i; break;
+            }
+        }
+        CHECK(idx >= 0 && ctx.handle_table[idx].cap_backed,
+              "handle cap-backed before close");
+        uint32_t slot_before = (idx >= 0) ? ctx.handle_table[idx].cap_slot : 0;
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)e1;
+        int64_t rc = vsl_nt_syscall_dispatch(&ctx, 28, args, 1); /* NtClose */
+        CHECK(rc == NT_STATUS_SUCCESS, "NtClose succeeds");
+
+        memset(args, 0, sizeof(args));
+        args[0] = 0;
+        int64_t h2 = vsl_nt_syscall_dispatch(&ctx, 38, args, 1);
+        uint32_t e2 = (uint32_t)h2;
+        CHECK(h2 != 0, "post-close create reuses capacity");
+        int idx2 = -1;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx.handle_table[i].valid && ctx.handle_table[i].nt_handle == e2) {
+                idx2 = i; break;
+            }
+        }
+        CHECK(idx2 >= 0 && ctx.handle_table[idx2].cap_backed,
+              "new handle is cap-backed");
+        CHECK(idx2 >= 0 && slot_before != 0 &&
+              ctx.handle_table[idx2].cap_slot == slot_before,
+              "cap slot released on close and reissued (no capability leak)");
+
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)e2;
+        vsl_nt_syscall_dispatch(&ctx, 28, args, 1);   /* NtClose */
+    }
+
     vsl_nt_bridge_shutdown(&ctx);
 
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);

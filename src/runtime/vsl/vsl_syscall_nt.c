@@ -208,6 +208,14 @@ uint32_t vsl_nt_allocate_handle(vsl_nt_bridge_ctx_t *ctx, int vsl_fd,
             ctx->handle_table[i].styx_fid  = styx_fid;
             ctx->handle_table[i].type      = type;
             ctx->handle_table[i].valid     = true;
+            /* Axis 1: every handle minted here carries a capability from the
+             * moment it exists. This is the single chokepoint all NT handle
+             * producers share, so binding here gives the whole syscall surface
+             * revocable authority without touching each call site. A producer
+             * that needs a narrower grant (e.g. the registry key mask) binds
+             * explicitly afterwards; vsl_nt_cap_bind() is a no-op once bound. */
+            vsl_nt_cap_bind(ctx, h, type,
+                            vsl_nt_default_access_for_type(type));
             return h;
         }
     }
@@ -218,6 +226,9 @@ int vsl_nt_free_handle(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
     if (!ctx) return -1;
     for (int i = 0; i < 4096; i++) {
         if (ctx->handle_table[i].valid && ctx->handle_table[i].nt_handle == nt_handle) {
+            /* Axis 1: release the capability before the record so no stale
+             * token can outlive the handle it named. */
+            vsl_nt_cap_unbind(ctx, nt_handle);
             ctx->handle_table[i].valid = false;
             return 0;
         }

@@ -85,6 +85,12 @@ bool vsl_nt_cap_handle_is_valid(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle,
 /* Read gate: KEY_QUERY_VALUE (0x1) | READ_CONTROL (0x20000). */
 #define WUBU_NT_KEY_READ_GUARD  0x00020001u
 
+/* The NT *_ALL_ACCESS mask for an object type: what a freshly created
+ * object grants its creator. Real NT values (STANDARD_RIGHTS_REQUIRED
+ * 0x000F0000 | SYNCHRONIZE 0x00100000 | type-specific bits), so the cap
+ * rights derived from them are meaningful rather than blanket. */
+uint32_t vsl_nt_default_access_for_type(nt_object_type_t type);
+
 /* ---- Binding the legacy NT handle table onto the cap substrate (Axis 1) ----
  * The bridge's 4096-slot table remains the record store (NT handle values are
  * 0x1000+index), so each record carries the cap slot/token that holds the

@@ -294,3 +294,61 @@ int vsl_nt_cap_revoke_nt(vsl_nt_bridge_ctx_t *ctx, uint32_t nt_handle) {
         return -1;
     return 0;
 }
+
+/* Real NT *_ALL_ACCESS masks. STANDARD_RIGHTS_REQUIRED = 0x000F0000
+ * (DELETE|READ_CONTROL|WRITE_DAC|WRITE_OWNER), SYNCHRONIZE = 0x00100000. */
+#define WUBU_STD_RIGHTS_REQUIRED 0x000F0000u
+#define WUBU_SYNCHRONIZE         0x00100000u
+
+uint32_t vsl_nt_default_access_for_type(nt_object_type_t type) {
+    switch (type) {
+    /* Namespace / file-like: full DATA access both ways. */
+    case NT_OBJECT_TYPE_FILE:
+    case NT_OBJECT_TYPE_DIRECTORY:
+    case NT_OBJECT_TYPE_SYMBOLIC_LINK:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x000001FFu;
+    /* Registry. */
+    case NT_OBJECT_TYPE_KEY:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x000003FFu;
+    /* Synchronization primitives. */
+    case NT_OBJECT_TYPE_EVENT:
+    case NT_OBJECT_TYPE_SEMAPHORE:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x00000003u;
+    case NT_OBJECT_TYPE_MUTANT:
+    case NT_OBJECT_TYPE_KEYED_EVENT:
+    case NT_OBJECT_TYPE_EVENT_PAIR:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x00000001u;
+    case NT_OBJECT_TYPE_TIMER:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x0000001Fu;
+    case NT_OBJECT_TYPE_WAITABLE_PORT:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x0000000Fu;
+    case NT_OBJECT_TYPE_IO_COMPLETION:
+        return WUBU_STD_RIGHTS_REQUIRED | 0x00000007u;
+    /* Address space / views. */
+    case NT_OBJECT_TYPE_SECTION:
+    case NT_OBJECT_TYPE_DEBUG_OBJECT:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x0000000Fu;
+    /* Identity and process control carry the heaviest authority. */
+    case NT_OBJECT_TYPE_TOKEN:
+        return WUBU_STD_RIGHTS_REQUIRED | 0x000003FFu;
+    case NT_OBJECT_TYPE_PROCESS:
+        return 0x001F0FFFu;
+    case NT_OBJECT_TYPE_THREAD:
+        return 0x001F03FFu;
+    case NT_OBJECT_TYPE_PORT:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE | 0x0000000Fu;
+    case NT_OBJECT_TYPE_PROFILE:
+        return WUBU_STD_RIGHTS_REQUIRED | 0x00000002u;
+    /* Transaction / TM family: query + control. */
+    case NT_OBJECT_TYPE_JOB:
+    case NT_OBJECT_TYPE_TRANSACTION:
+    case NT_OBJECT_TYPE_TRANSACTION_MANAGER:
+    case NT_OBJECT_TYPE_RESOURCE_MANAGER:
+    case NT_OBJECT_TYPE_ENLISTMENT:
+    case NT_OBJECT_TYPE_TM:
+    case NT_OBJECT_TYPE_WORK_ITEM:
+        return WUBU_STD_RIGHTS_REQUIRED | 0x00000007u;
+    default:
+        return WUBU_STD_RIGHTS_REQUIRED | WUBU_SYNCHRONIZE;
+    }
+}
