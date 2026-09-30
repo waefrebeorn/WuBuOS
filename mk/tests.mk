@@ -90,7 +90,11 @@ test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 tes
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
-test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
+# check_opcode_coverage runs first and is cheap: it needs no GPU and guards
+# every backend, including the ones no test target exercises. test_gauntlet
+# also depends on it, but test_gauntlet is NOT part of this aggregate, so the
+# gate would otherwise never run under a plain `make test`.
+test: check_opcode_coverage test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
