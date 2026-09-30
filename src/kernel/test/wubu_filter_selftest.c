@@ -7,6 +7,12 @@
 #include <string.h>
 #include <math.h>
 
+/* M_PI is an X/Open extension, not ISO C, so the -D_POSIX_C_SOURCE=200809L
+ * that the test recipes use hides it from <math.h>. Spell it out. */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #define CHECK(cond, msg) do { \
     if (!(cond)) { printf("FAIL: %s\n", msg); failures++; } \
     else { printf("  ok: %s\n", msg); passed++; } \
