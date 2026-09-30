@@ -14,7 +14,19 @@
 /* nftw with FTW_DEPTH/FTW_DP is a GNU extension (POSIX nftw has only
  * FTW_F/D/DNR/NS) — this is a legitimate GNU-API use, kept localized
  * (the GNU-free doctrine allows it where the kernel/libc API demands
- * it, like CPU affinity). */
+ * it, like CPU affinity).
+ *
+ * We request the XSI nftw surface explicitly rather than relying on the
+ * ambient _POSIX_C_SOURCE the build passes. Without _XOPEN_SOURCE >= 500
+ * glibc does not declare nftw() or struct FTW, so the call below would be an
+ * implicit declaration (UB, and the FTW_DP callback flag would be
+ * unprototyped). Setting the standard macro here keeps the surface
+ * self-defined, which is the whole point of the WuBu compatibility posture —
+ * we name the API surface we require instead of turning on a vendor blob. */
+#ifndef _XOPEN_SOURCE
+#  define _XOPEN_SOURCE 500   /* nftw + struct FTW + FTW_DEPTH; >=500 keeps
+                             * rmdir/unlink in <unistd.h> */
+#endif
 #define WUBU_HOSTED
 #include "wubu_gnu_compat.h"
 #include "wubu_fs_util.h"
@@ -25,6 +37,7 @@
 #include <errno.h>
 #include <ftw.h>
 #include "wubu_ftw.h"
+#include <unistd.h>   /* rmdir(2), unlink(2) -- required by the callback */
 #include <sys/stat.h>
 #include <sys/types.h>
 

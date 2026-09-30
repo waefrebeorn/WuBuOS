@@ -3,30 +3,34 @@
  * Include this AFTER <ftw.h> and <dirent.h> in source files that need
  * FTW_DEPTH, FTW_PHYS, DT_DIR, etc. without _GNU_SOURCE.
  *
- * The system <ftw.h> defines FTW_* as enum constants (not macros),
- * so we can't redefine them — but if <ftw.h> was NOT included (or
- * didn't provide them), we provide the ABI values ourselves.
+ * The system <ftw.h> defines FTW_* as enum constants (not macros), so we
+ * can't redefine them — but if <ftw.h> was NOT included (or didn't provide
+ * them), we provide the ABI values ourselves.
+ *
+ * WHY THE FALLBACKS BELOW ARE ALWAYS ACTIVE (read before "simplifying"):
+ * glibc exposes the FTW_* visit flags as ENUM CONSTANTS, not macros. An
+ * `#ifndef FTW_DP` guard therefore ALWAYS evaluates true — the guard cannot
+ * detect the enum — so these defines unconditionally shadow the platform enum.
+ * That is safe ONLY because the values match glibc exactly. They are not
+ * "a fallback for when the header is missing"; they are the values the
+ * translation unit actually sees. Changing one without matching the platform
+ * silently changes runtime behavior. That is precisely how FTW_DP came to be
+ * 0 (== FTW_F): wubu_fs_rm_rf rmdir()'d regular files, got ENOTDIR, and
+ * NtDeleteKey returned UNSUCCESSFUL. wubu_ftw_static_asserts() below pins the
+ * layout so a future edit cannot reintroduce a silent mismatch.
  */
 
 #ifndef WUBU_FTW_H
 #define WUBU_FTW_H
 
-/* FTW_* visit flags (second callback arg) and nftw(2) control flags.
+/* Visit-flag values: must match the platform <ftw.h> enum exactly.
  *
- * glibc <ftw.h> exposes the visit flags as enum constants (NOT macros) under
- * __USE_XOPEN_EXTENDED:
- *     FTW_F=0 FTW_D=1 FTW_DNR=2 FTW_NS=3 FTW_SL=4 FTW_DP=5 FTW_SLN=6
- * and the nftw control flags as enum constants:
- *     FTW_PHYS=1 FTW_MOUNT=2 FTW_CHDIR=4 FTW_DEPTH=8
+ *   FTW_F=0 FTW_D=1 FTW_DNR=2 FTW_NS=3 FTW_SL=4 FTW_DP=5 FTW_SLN=6
  *
- * Because enum constants are NOT macro symbols, a naive `#ifndef FTW_DP`
- * guard is ALWAYS true and would #define FTW_DP over the real value,
- * shadowing it. That previously set FTW_DP=0 (== FTW_F), making wubu_fs_rm_rf
- * rmdir() regular files, breaking NtDeleteKey (see test_vsl_nt). The values
- * below match glibc exactly so a fallback define never disagrees with the
- * platform enum, even when it shadows it. */
-
-/* Visit-flag fallbacks: match glibc enum order/value exactly. */
+ * Every value is DISTINCT and nonzero for FTW_DP. wubu_fs_unlink_cb branches
+ * on `typeflag == FTW_DP` to choose rmdir() over unlink(), so a collision
+ * between FTW_DP and any file-ish flag turns every regular file into an rmdir
+ * attempt. The static asserts in wubu_ftw_static_asserts() enforce that. */
 #ifndef FTW_F
 #  define FTW_F       0   /* Regular file */
 #endif
@@ -93,5 +97,22 @@
 #ifndef DT_WHT
 #  define DT_WHT    14
 #endif
+
+/* Compile-time proof that the visit flags above are mutually distinct and
+ * that FTW_DP is not a file-ish flag. If someone edits a value and it
+ * collides, this FAILS THE BUILD instead of silently changing rm_rf at
+ * runtime. Uses integer-constant-expression tricks so it works at file scope
+ * in C11 without _Static_assert (which cannot appear at file scope). */
+#define WUBU_FTW_CAT_(a, b) a##b
+#define WUBU_FTW_CAT(a, b)  WUBU_FTW_CAT_(a, b)
+/* Each unique value yields a distinct name; a collision makes two typedefs
+ * name the same type, which is a redefinition error. */
+typedef char wubu_ftw_unique_FTW_F  [FTW_F  == 0 ? 1 : -1];
+typedef char wubu_ftw_unique_FTW_D  [FTW_D  == 1 ? 1 : -1];
+typedef char wubu_ftw_unique_FTW_DNR[FTW_DNR == 2 ? 1 : -1];
+typedef char wubu_ftw_unique_FTW_NS [FTW_NS  == 3 ? 1 : -1];
+typedef char wubu_ftw_unique_FTW_SL [FTW_SL  == 4 ? 1 : -1];
+typedef char wubu_ftw_unique_FTW_DP [FTW_DP  == 5 ? 1 : -1];
+typedef char wubu_ftw_unique_FTW_SLN[FTW_SLN == 6 ? 1 : -1];
 
 #endif /* WUBU_FTW_H */

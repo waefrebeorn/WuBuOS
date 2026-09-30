@@ -1405,6 +1405,15 @@ test_deploy:
 		$(GUI)/wubu_deploy_test.c \
 		-lm -o $(GUI)/wubu_deploy_test
 
+# Regression for wubu_fs_rm_rf (the FTW_DP enum-shadowing bug that made
+# NtDeleteKey fail) and the wubu_ftw.h constant layout.
+test_fs_util: $(RT)/wubu_fs_util.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) \
+		$(RT)/wubu_fs_util.c $(RT)/wubu_fs_util_test.c \
+		-o $(RT)/wubu_fs_util_test
+	$(RT)/wubu_fs_util_test
+
 test_cap: $(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o \
           $(RT)/wubu_cap/wubu_cap_revoke.o $(RT)/wubu_cap/wubu_cap_handle.o \
           $(RT)/wubu_cap/wubu_cap_system.o \
