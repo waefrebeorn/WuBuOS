@@ -207,6 +207,17 @@ test_peephole_superopt:
 # #25 JIT performance differential harness: compiles the same battery with and
 # without the machine-code optimizations, asserts results agree, and reports
 # code-size deltas (size-targeted opts must shrink; div is a latency win).
+# The Vulkan backend (wubu_isa_vulkan.c) shells out to /tmp/vk_run. That binary
+# used to have NO committed source, so the whole Vulkan path depended on a
+# file in /tmp that a clone or a `git clean` would destroy -- and popen()
+# failure returns 0, which looks exactly like "the shader computed 0".
+# Build it into the repo instead.
+vk_run:
+	$(CC) -O2 -std=c11 -Wall -Wextra -o /tmp/vk_run tools/vk_run.c -lvulkan
+
+.PHONY: vk_run
+
+
 test_jit_perf_diff:
 	bash tools/bench/jit_perf_diff.sh
 test_memory: $(KERNEL)/memory.o
