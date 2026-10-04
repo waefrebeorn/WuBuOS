@@ -93,7 +93,7 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
             case 0x1: res = (int64_t)((uint64_t)a << (b & 0x3F)); break; /* SLL */
             case 0x2: res = (a < b) ? 1 : 0; break; /* SLT */
             case 0x3: res = ((uint64_t)a < (uint64_t)b) ? 1 : 0; break; /* SLTU */
-            case 0x4: /* XOR / DIV / DIVU */
+            case 0x4: /* XOR / DIV */
                 if (funct7 == 0x00) res = a ^ b;            /* XOR */
                 else if (funct7 == 0x01) {
                     if (b == 0) { res = -1; cpu.x[11] = a; } /* DIV by 0 */
@@ -103,17 +103,24 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
                                               * reads the remainder from
                                               * a1 after a DIV */
                     }
-                } else if (funct7 == 0x05) {                 /* DIVU */
-                    if ((uint64_t)b == 0) { res = -1; cpu.x[11] = a; }
+                } else if (funct7 == 0x01) {                 /* DIV */
+                    if (b == 0) { res = -1; cpu.x[11] = a; }
                     else {
-                        res = (int64_t)((uint64_t)a / (uint64_t)b);
-                        cpu.x[11] = (int64_t)((uint64_t)a % (uint64_t)b);
+                        res = a / b;
+                        cpu.x[11] = a % b;
                     }
                 } else res = a ^ b;
                 break;
-            case 0x5: /* SRL/SRA */
-                if (funct7 == 0x00) res = (int64_t)((uint64_t)a >> (b & 0x3F)); /* SRL */
-                else res = a >> (b & 0x3F); /* SRA */
+            case 0x5: /* SRL/SRA, and DIVU (funct7=0x01, funct3=0x5) */
+                if (funct7 == 0x00)      res = (int64_t)((uint64_t)a >> (b & 0x3F)); /* SRL */
+                else if (funct7 == 0x20) res = a >> (b & 0x3F);                       /* SRA */
+                else if (funct7 == 0x01) {                                            /* DIVU */
+                    if ((uint64_t)b == 0) { res = (int64_t)~0ull; cpu.x[11] = a; }
+                    else {
+                        res  = (int64_t)((uint64_t)a / (uint64_t)b);
+                        cpu.x[11] = (int64_t)((uint64_t)a % (uint64_t)b);
+                    }
+                } else res = a >> (b & 0x3F);
                 break;
             case 0x6: /* OR / REM / REMU (REM leaves the remainder in
                       * x11 like the emitter's MIR_MOD expects) */
@@ -133,7 +140,12 @@ int64_t wubu_riscv_run(const uint8_t *code, size_t size, int64_t arg)
                     }
                 } else res = a | b;
                 break;
-            case 0x7: res = a & b; break; /* AND */
+            case 0x7: /* AND, and REMU (funct7=0x01) */
+                if (funct7 == 0x01) {
+                    if ((uint64_t)b == 0) res = a;
+                    else res = (int64_t)((uint64_t)a % (uint64_t)b);
+                } else res = a & b;
+                break;
             default: break;
             }
             cpu.x[rd] = res;
