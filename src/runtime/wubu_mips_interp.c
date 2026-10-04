@@ -91,10 +91,11 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
                 cpu.r[rd] = ((int32_t)cpu.r[rs] < (int32_t)cpu.r[rt]) ? 1 : 0; break;
             case 0x2B: /* sltu — unsigned */
                 cpu.r[rd] = ((uint32_t)cpu.r[rs] < (uint32_t)cpu.r[rt]) ? 1 : 0; break;
-            case 0x00: /* sll — shift left logical (immediate) */
-                cpu.r[rd] = (uint32_t)cpu.r[rt] << sa; break;
-            case 0x02: /* srl — shift right logical (immediate) */
-                cpu.r[rd] = (uint32_t)cpu.r[rt] >> sa; break;
+            case 0x00: /* SLL: immediate when sa==0, variable (sllv) when sa!=0 */
+                cpu.r[rd] = (uint32_t)cpu.r[rt] << (sa ? (cpu.r[rs] & 0x1F) : sa); break;
+            case 0x02: /* SRL: immediate when sa==0, variable (srlv) when sa!=0.
+                         * Always LOGICAL. */
+                cpu.r[rd] = (uint32_t)cpu.r[rt] >> (sa ? (cpu.r[rs] & 0x1F) : sa); break;
             case 0x08: /* jr */
                 cpu.pc = (uint32_t)cpu.r[rs]; continue;
             case 0x18: /* mult */
@@ -105,12 +106,13 @@ int64_t wubu_mips_run(const uint8_t *code, size_t size, int64_t arg) {
                 cpu.r[rd] = cpu.lo; break;
             case 0x10: /* mfhi */
                 cpu.r[rd] = cpu.hi; break;
-            /* sllv — variable shift left (funct 0x04) */
-            case 0x04:
+            case 0x04: /* sllv — variable shift left */
                 cpu.r[rd] = (uint32_t)cpu.r[rt] << (cpu.r[rs] & 0x1F); break;
-            /* srlv — variable shift right (funct 0x06) */
-            case 0x06:
-                cpu.r[rd] = (uint32_t)cpu.r[rt] >> (cpu.r[rs] & 0x1F); break;
+            /* SRL (funct 0x02) is handled above, where it dispatches between
+             * the immediate and variable forms. The old comment here claimed
+             * 0x06 was srlv; 0x02 is srlv and 0x06 is SRAV. */
+            case 0x06: /* srav — variable shift right ARITHMETIC */
+                cpu.r[rd] = (uint32_t)((int32_t)cpu.r[rt] >> (cpu.r[rs] & 0x1F)); break;
             /* div — quotient in lo, remainder in hi (funct 0x1A) */
             case 0x1A:
                 if (cpu.r[rt] != 0) {
