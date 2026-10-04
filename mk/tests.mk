@@ -98,7 +98,7 @@ test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 tes
 # unnoticed and the 6502 lost MIR_SUB entirely; the same happened to
 # test_gauntlet earlier. Any target that nothing invokes is a target
 # nobody maintains.
-test: check_opcode_coverage check_test_wiring test_drivers test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
+test: check_opcode_coverage check_test_wiring test_drivers test_backend_diff test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
@@ -279,6 +279,88 @@ test_hedge: $(JIT_OBJS)
 test_drivers: $(JIT_OBJS)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_isa_spirv.c $(COMP)/jit/wubu_isa_wasm.c $(COMP)/wubu_host_tensor.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/isa-test/mir_driver_test.c -o $(COMP)/mir_driver_test -lm -ldl -fopenmp -lpthread
 	$(COMP)/mir_driver_test
+
+# Differential oracle: every registered backend must agree with
+# wubu_mir_interp. Every silent-wrong-answer bug so far was invisible to a
+# self-consistent test and obvious to a differential one:
+#   - wubu_sf_f64_mul returned 0 for essentially every input (2ae4b05)
+#   - the Vulkan runner computed 892 and printed 0
+#   - PTX shared /tmp scratch files across concurrent processes
+#   - T_GEMM decoded its N field with the wrong mask in the interpreter only
+#
+# A backend that cannot execute honestly (amdgpu without a ROCm runtime)
+# returns -1 and is SKIPPED, never counted as a pass.
+test_backend_diff: $(JIT_OBJS)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c \
+		$(JIT)/jit_encode.c \
+		$(JIT)/wubu_x86.c \
+		$(JIT)/wubu_disasm.c \
+		$(JIT)/jit_minic.c \
+		$(JIT)/jit_minic_expr.c \
+		$(JIT)/jit_minic_token.c \
+		$(JIT)/jit_minic_type.c \
+		$(JIT)/jit_minic_loop.c \
+		$(JIT)/jit_minic_cg.c \
+		$(JIT)/jit_branch_profile.c \
+		$(JIT)/x86_regalloc.c \
+		$(JIT)/jit_codegen_x86.c \
+		$(JIT)/jit_codegen_arm64.c \
+		$(JIT)/jit_codegen_rv64.c \
+		$(JIT)/jit_codegen_wasm.c \
+		$(JIT)/wubu_wasm.c \
+		$(JIT)/wubu_rv64.c \
+		$(RT)/wubu_spawn.c \
+		$(COMP)/holyd_lexer.c \
+		$(COMP)/holyd_parse.c \
+		$(COMP)/holyd_parse_ast.c \
+		$(COMP)/wubu_mir.c \
+		$(COMP)/wubu_mir_opt.c \
+		$(COMP)/wubu_mir_lower.c \
+		$(COMP)/wubu_mir_regalloc.c \
+		$(COMP)/x86_peephole.c \
+		$(COMP)/wubu_isa_driver.c \
+		$(COMP)/wubu_isa_x86_64.c \
+		$(JIT)/wubu_arm64.c \
+		$(COMP)/wubu_isa_arm64.c \
+		$(COMP)/wubu_isa_mips.c \
+		$(RT)/wubu_mips_interp.c \
+		$(COMP)/wubu_isa_m68k.c \
+		$(COMP)/wubu_m68k_interp.c \
+		$(COMP)/wubu_isa_8086.c \
+		$(COMP)/wubu_isa_riscv.c \
+		$(RT)/wubu_dos_emu.c \
+		$(COMP)/wubu_isa_6502.c \
+		$(RT)/wubu_6502_interp.c \
+		$(RT)/wubu_riscv_interp.c \
+		$(RT)/wubu_dos_emu_mem.c \
+		$(RT)/wubu_dos_emu_regs.c \
+		$(RT)/wubu_dos_emu_alu.c \
+		$(RT)/wubu_dos_emu_int.c \
+		$(RT)/wubu_dos_emu_decode.c \
+		$(COMP)/wubu_isa_z80.c \
+		$(COMP)/wubu_z80_interp.c \
+		$(COMP)/wubu_isa_8051.c \
+		$(COMP)/wubu_8051_interp.c \
+		$(COMP)/wubu_isa_avr.c \
+		$(COMP)/wubu_avr_interp.c \
+		$(COMP)/wubu_isa_pic.c \
+		$(COMP)/wubu_pic_interp.c \
+		$(COMP)/wubu_mir_ssa.c \
+		$(COMP)/wubu_mir_fuse.c \
+		$(COMP)/wubu_mir_gvn.c \
+		$(COMP)/wubu_mir_sccp.c \
+		$(COMP)/wubu_isa_spirv.c \
+		$(COMP)/wubu_isa_vulkan.c \
+		$(COMP)/wubu_isa_amdgpu.c \
+		$(COMP)/wubu_isa_ptx.c \
+		$(COMP)/jit/wubu_isa_wasm.c \
+		$(COMP)/wubu_mir_interp.c \
+		$(COMP)/wubu_softfloat.c \
+		$(COMP)/wubu_tgemm.c \
+		$(COMP)/wubu_tgemm_avx512.o \
+		$(COMP)/wubu_host_tensor.c \
+		$(COMP)/tools/test_backend_diff.c -o $(COMP)/test_backend_diff -lm -ldl -fopenmp -lpthread
+	$(COMP)/test_backend_diff
 
 test_isa_driver: $(JIT_OBJS)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(COMP) -I$(JIT) -I$(RT) $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_disasm.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_minic_cg.c $(JIT)/jit_branch_profile.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_wasm.c $(JIT)/wubu_rv64.c $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/wubu_mir.c $(COMP)/wubu_mir_opt.c $(COMP)/wubu_mir_lower.c $(COMP)/wubu_mir_regalloc.c $(COMP)/x86_peephole.c $(COMP)/wubu_isa_driver.c $(COMP)/wubu_isa_x86_64.c $(JIT)/wubu_arm64.c $(COMP)/wubu_isa_arm64.c $(COMP)/wubu_isa_mips.c $(RT)/wubu_mips_interp.c $(COMP)/wubu_isa_m68k.c $(COMP)/wubu_m68k_interp.c $(COMP)/wubu_isa_8086.c $(COMP)/wubu_isa_riscv.c $(RT)/wubu_dos_emu.c $(COMP)/wubu_isa_6502.c $(RT)/wubu_6502_interp.c $(RT)/wubu_riscv_interp.c $(RT)/wubu_dos_emu_mem.c $(RT)/wubu_dos_emu_regs.c $(RT)/wubu_dos_emu_alu.c $(RT)/wubu_dos_emu_int.c $(RT)/wubu_dos_emu_decode.c $(COMP)/wubu_isa_z80.c $(COMP)/wubu_z80_interp.c $(COMP)/wubu_isa_8051.c $(COMP)/wubu_8051_interp.c $(COMP)/wubu_isa_avr.c $(COMP)/wubu_avr_interp.c $(COMP)/wubu_isa_pic.c $(COMP)/wubu_pic_interp.c $(COMP)/wubu_mir_ssa.c $(COMP)/wubu_mir_fuse.c $(COMP)/wubu_mir_gvn.c $(COMP)/wubu_mir_sccp.c $(COMP)/wubu_isa_spirv.c $(COMP)/wubu_isa_vulkan.c $(COMP)/wubu_isa_amdgpu.c $(COMP)/wubu_isa_ptx.c $(COMP)/jit/wubu_isa_wasm.c $(COMP)/wubu_mir_interp.c $(COMP)/wubu_softfloat.c $(COMP)/wubu_tgemm.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/wubu_host_tensor.c $(COMP)/test_isa_driver.c -o $(COMP)/test_isa_driver -lm -ldl -fopenmp -lpthread
