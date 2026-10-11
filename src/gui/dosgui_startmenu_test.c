@@ -3,6 +3,7 @@
  */
 
 #include "dosgui_startmenu.h"
+#include "dosgui_wm.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
@@ -107,6 +108,53 @@ static void test_programs_cascade_items(void) {
     PASS();
 }
 
+/* Diagnostic: clicking the Programs main item opens its flyout. */
+static void test_programs_click_opens_flyout(void) {
+    TEST("clicking Programs opens the flyout (submenu_open)");
+    dosgui_startmenu_init();
+    vbe_init(1024, 768);
+    dosgui_startmenu_open();
+    int task_h = dosgui_taskbar_height();
+    int mh = 24;
+    int menu_y = dosgui_wm_screen_h() - task_h - (g_main_count * mh + 4);
+    int prog_x = 56 + 30;
+    int prog_y = menu_y + 2 + mh / 2;
+    dosgui_startmenu_handle_click(prog_x, prog_y);
+    CHECK(g_submenu_open == 0, "Programs click sets submenu_open=0");
+    dosgui_startmenu_close();
+    vbe_shutdown();
+    PASS();
+}
+
+/* XP parity end-to-end: opening Programs then clicking a category
+ * renders the nested cascade submenu to the right of the main menu. */
+static void test_cascade_renders_nested_submenu(void) {
+    TEST("cascade: Programs -> category renders nested submenu");
+    dosgui_startmenu_init();
+    vbe_init(1024, 768);
+    dosgui_startmenu_open();
+
+    int task_h = dosgui_taskbar_height();
+    int mh = 24;
+    int menu_y = dosgui_wm_screen_h() - task_h - (g_main_count * mh + 4);
+
+    /* Click Programs (main item 0) -> opens its flyout (submenu_open=0). */
+    dosgui_startmenu_handle_click(56 + 30, menu_y + 2 + mh / 2);
+    dosgui_startmenu_render(NULL, 1024, 768);
+    CHECK(g_submenu_open == 0, "Programs click opens the flyout (submenu_open=0)");
+
+    /* Click the first category row (Accessories, SM_ITEM_SUBMENU,
+     * submenu_id=1) in the Programs flyout -> opens the nested cascade
+     * (submenu_open becomes 1). Flyout at sx=4+200=204. */
+    dosgui_startmenu_handle_click(204 + 40, menu_y + 2 + mh / 2);
+    dosgui_startmenu_render(NULL, 1024, 768);
+    CHECK(g_submenu_open == 1, "category click opens the nested cascade (submenu_open=1)");
+
+    dosgui_startmenu_close();
+    vbe_shutdown();
+    PASS();
+}
+
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     dosgui_startmenu_init();
@@ -127,6 +175,8 @@ int main(void) {
     test_init();
     test_sm_registry();
     test_programs_cascade_items();
+    test_programs_click_opens_flyout();
+    test_cascade_renders_nested_submenu();
     test_open_close();
     test_render_no_crash();
     test_xp_sidebar_gradient_and_orb();
