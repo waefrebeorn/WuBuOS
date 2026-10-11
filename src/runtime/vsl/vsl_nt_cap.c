@@ -488,7 +488,24 @@ bool vsl_nt_cap_token_sidset(vsl_nt_bridge_ctx_t *ctx, uint32_t token_handle,
      * cap-backed handle the bridge's current pid plays the same role (the
      * sidset is the "subject" the SRM evaluates, and every handle in this
      * process is held by that subject). */
-    nt_token_entry_t *t = vsl_nt_token_from_handle(token_handle);
+    /* Only a real TOKEN handle names an identity. handle_table[].data holds
+     * kind-specific payload (eventfd for events, styx fid for files, a
+     * registry offset for keys), so casting a non-TOKEN handle's data to
+     * nt_token_entry_t* dereferences garbage. Validate the record type
+     * first; any other handle resolves to the calling process below. */
+    nt_token_entry_t *t = NULL;
+    {
+        bool is_token = false;
+        for (int i = 0; i < 4096; i++) {
+            if (ctx->handle_table[i].valid &&
+                ctx->handle_table[i].nt_handle == token_handle) {
+                is_token = (ctx->handle_table[i].type == NT_OBJECT_TYPE_TOKEN);
+                break;
+            }
+        }
+        if (is_token)
+            t = vsl_nt_token_from_handle(token_handle);
+    }
     if (t) {
         out->owner_sid = (uint32_t)(t->luid_low & 0xFFFFFFFFu);
         out->mic = 0x2000u;                       /* MEDIUM_MANDATORY_LEVEL */

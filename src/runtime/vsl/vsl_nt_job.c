@@ -15,7 +15,15 @@ int64_t vsl_nt_alert_resume_thread(uint64_t a_uaddr, uint64_t b_thread,
         if (r < 0) return NT_STATUS_UNSUCCESSFUL;
     }
     if (thread > 0) {
-        /* NT AlertResume additionally resumes a suspended thread via SIGCONT. */
+        /* NT AlertResume additionally resumes a suspended thread via SIGCONT.
+         * Guard: never signal the calling process (or its own process group) --
+         * Linux' default SIGCONT disposition is Stop, so a caller resuming
+         * itself suspends forever (observed: the VSL NT suite hung at the
+         * NtAlertResumeThread self-resume test). A thread may only resume
+         * threads it does not own the identity of. */
+        if (thread == (uint64_t)getpid() ||
+            thread == (uint64_t)getpgrp())
+            return NT_STATUS_SUCCESS;
         if (kill(thread, SIGCONT) < 0 && errno != ESRCH)
             return NT_STATUS_INVALID_PARAMETER;
     }

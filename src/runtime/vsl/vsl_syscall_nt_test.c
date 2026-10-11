@@ -35,6 +35,7 @@ static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { \
     if (cond) { g_pass++; printf("  ✅ %s\n", msg); } \
     else { g_fail++; printf("  ❌ %s\n", msg); } \
+    fflush(stdout); \
 } while (0)
 
 /* Thread-start routine for the NtCreateThread test: flips a shared flag so the
