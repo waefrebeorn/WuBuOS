@@ -345,6 +345,12 @@ void dosgui_chrome_handle_button_click(DosGuiWindow *win, int button) {
  * pressed=true -> sunken; pressed=false -> raised. */
 void dosgui_chrome_draw_button(int x, int y, int w, int h,
                                const char *label, bool pressed) {
+    if (theme()->Luna_start_button) {
+        /* XP parity: flat rounded Luna button via the shared primitive.
+         * pressed -> state 2 (sunken + content shift). */
+        dosgui_draw_button(x, y, w, h, label, pressed ? 2 : 0, false);
+        return;
+    }
     const WubuThemeColors *c = tc();
     uint32_t face = pressed ? c->btn_pressed : c->btn_face;
     vbe_3d_raised_colors(x, y, w, h, c->border_light, face,
