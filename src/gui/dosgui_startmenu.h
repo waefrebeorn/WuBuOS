@@ -43,6 +43,20 @@ typedef struct {
     uint32_t icon_color;   /* XP parity: 16x16 icon glyph color; 0 = none */
 } MainMenuItem;
 
+/* XP parity: general submenu registry for nested cascades. A fixed
+ * array of submenus; each SmMenuItem with type SM_ITEM_SUBMENU opens
+ * the registered submenu at its submenu_id. Registered once at init.
+ * parent_id = -1 for top-level submenus (the ones the main menu opens);
+ * >=0 marks a submenu nested inside another (draws a cascade arrow and
+ * is reached by hovering the parent item). MAX keeps it static (no
+ * malloc in the shell). */
+#define SM_MAX_SUBMENUS 16
+extern SmSubmenu g_sm_registry[SM_MAX_SUBMENUS];
+extern int       g_sm_registry_count;
+extern int       g_sm_parent[SM_MAX_SUBMENUS];
+void dosgui_sm_register(int id, SmSubmenu *sub, int parent_id);
+SmSubmenu *dosgui_sm_get(int id);
+
 /* Global state externs */
 extern SmSubmenu g_programs;
 extern SmSubmenu g_accessories;

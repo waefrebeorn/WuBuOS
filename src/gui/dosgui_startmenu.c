@@ -26,6 +26,7 @@
 #include <dirent.h>
 #include "wubu_ftw.h"
 #include <sys/stat.h>
+#include <stdlib.h>   /* getenv */
 
 /* -- Inline Layout Helpers ------------------------------------------ */
 
@@ -147,6 +148,24 @@ const char *dosgui_startmenu_user_name(void) {
         s_init = true;
     }
     return s_user;
+}
+
+/* -- XP nested-cascade submenu registry -------------------------- */
+
+SmSubmenu g_sm_registry[SM_MAX_SUBMENUS];
+int       g_sm_registry_count = 0;
+int       g_sm_parent[SM_MAX_SUBMENUS];
+
+void dosgui_sm_register(int id, SmSubmenu *sub, int parent_id) {
+    if (id < 0 || id >= SM_MAX_SUBMENUS || !sub) return;
+    g_sm_registry[id] = *sub;          /* struct copy into the registry */
+    g_sm_parent[id] = parent_id;
+    if (id + 1 > g_sm_registry_count) g_sm_registry_count = id + 1;
+}
+
+SmSubmenu *dosgui_sm_get(int id) {
+    if (id < 0 || id >= g_sm_registry_count) return NULL;
+    return &g_sm_registry[id];
 }
 
 /* -- Rendering --------------------------------------------------- */
@@ -311,6 +330,15 @@ static void draw_submenu(int x, int y, SmSubmenu *sub) {
                 label_x = x + 6 + 20;
             }
             vbe_draw_text(label_x, iy + (mh - 8) / 2, item->label, fg, 1);
+
+            /* XP cascade: an item that opens a nested submenu gets the
+             * right-pointing triangle affordance at its right edge. */
+            if (item->type == SM_ITEM_SUBMENU) {
+                int ax = x + sw - 14;
+                int ay = iy + mh / 2;
+                for (int t = 0; t < 5; t++)
+                    vbe_vline(ax + t, ay - 2 + t, ay + 2 - t, fg);
+            }
         }
     }
 }
@@ -424,15 +452,10 @@ void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
         }
     }
 
-    /* Submenu if open */
+    /* Submenu if open (registry-driven; a nested cascade is drawn the
+     * same way at its own cascade position). */
     if (g_submenu_open >= 0) {
-        SmSubmenu *sub = NULL;
-        switch (g_submenu_open) {
-            case 0: sub = &g_programs; break;
-            case 1: sub = &g_accessories; break;
-            case 2: sub = &g_wubuos; break;
-            case 3: sub = &g_system; break;
-        }
+        SmSubmenu *sub = dosgui_sm_get(g_submenu_open);
         if (sub) {
             int sx = MENU_X + mw;
             int sy = menu_y + 2 + g_submenu_open * mh;
@@ -460,13 +483,7 @@ void dosgui_startmenu_handle_click(int x, int y) {
         y < menu_y || y >= menu_y + g_main_count * mh + 4) {
         /* Check if click in submenu */
         if (g_submenu_open >= 0) {
-            SmSubmenu *sub = NULL;
-            switch (g_submenu_open) {
-                case 0: sub = &g_programs; break;
-                case 1: sub = &g_accessories; break;
-                case 2: sub = &g_wubuos; break;
-                case 3: sub = &g_system; break;
-            }
+            SmSubmenu *sub = dosgui_sm_get(g_submenu_open);
             if (sub) {
                 int sx = MENU_X + mw;
                 int sy = menu_y + 2 + g_submenu_open * mh;
@@ -479,6 +496,12 @@ void dosgui_startmenu_handle_click(int x, int y) {
                         if (item->type == SM_ITEM_APP) {
                             dosgui_launch_app(item->app_name);
                             dosgui_startmenu_close();
+                        } else if (item->type == SM_ITEM_SUBMENU) {
+                            /* XP cascade: click a category item to open its
+                             * nested submenu (toggle if already open). */
+                            g_submenu_open = (g_submenu_open == item->submenu_id)
+                                             ? -1 : item->submenu_id;
+                            g_sub_hovered = -1;
                         }
                     }
                     return;
@@ -556,13 +579,7 @@ void dosgui_startmenu_track_hover(int x, int y) {
 
     /* Submenu hover */
     if (g_submenu_open >= 0) {
-        SmSubmenu *sub = NULL;
-        switch (g_submenu_open) {
-            case 0: sub = &g_programs; break;
-            case 1: sub = &g_accessories; break;
-            case 2: sub = &g_wubuos; break;
-            case 3: sub = &g_system; break;
-        }
+        SmSubmenu *sub = dosgui_sm_get(g_submenu_open);
         if (sub) {
             int sx = MENU_X + mw;
             int sy = menu_y + 2 + g_submenu_open * mh;
@@ -942,6 +959,13 @@ void dosgui_startmenu_init_enhanced(void) {
      * syscall personality so the shell can prove every OS personality is
      * reachable as a first-class process. (CP/M 0xC0, Mac 0xB0, etc.) */
     dosgui_era_apps_register();
+    /* XP nested-cascade registry: register the top-level flyouts so the
+     * registry-driven render/input paths resolve them. Ids follow the
+     * existing convention; all parent=-1 (opened by the main menu). */
+    dosgui_sm_register(0, &g_programs,    -1);
+    dosgui_sm_register(1, &g_accessories, -1);
+    dosgui_sm_register(2, &g_wubuos,      -1);
+    dosgui_sm_register(3, &g_system,      -1);
 }
 
 void dosgui_startmenu_shutdown(void) {

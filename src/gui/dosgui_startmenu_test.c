@@ -72,6 +72,19 @@ static void test_xp_sidebar_gradient_and_orb(void) {
     PASS();
 }
 
+/* XP parity: the nested-cascade registry resolves a registered id to
+ * its submenu and rejects out-of-range ids with NULL. */
+static void test_sm_registry(void) {
+    TEST("startmenu cascade registry resolves ids");
+    dosgui_startmenu_init();
+    /* Programs (id 0) is registered by init. */
+    SmSubmenu *p = dosgui_sm_get(0);
+    CHECK(p != NULL, "registry resolves id 0 (Programs)");
+    CHECK(dosgui_sm_get(-1) == NULL, "registry rejects id -1");
+    CHECK(dosgui_sm_get(SM_MAX_SUBMENUS) == NULL, "registry rejects out-of-range id");
+    PASS();
+}
+
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     dosgui_startmenu_init();
@@ -90,6 +103,7 @@ int main(void) {
     printf("+========================================================+\n\n");
 
     test_init();
+    test_sm_registry();
     test_open_close();
     test_render_no_crash();
     test_xp_sidebar_gradient_and_orb();
