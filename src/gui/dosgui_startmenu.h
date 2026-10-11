@@ -66,6 +66,7 @@ void dosgui_startmenu_shutdown(void);
 int  dosgui_startmenu_is_open(void);
 void dosgui_startmenu_toggle(void);
 void dosgui_startmenu_open(void);
+const char *dosgui_startmenu_user_name(void);
 void dosgui_startmenu_close(void);
 
 /* -- Rendering --------------------------------------------------- */

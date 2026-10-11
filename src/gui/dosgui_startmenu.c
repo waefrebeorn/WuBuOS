@@ -133,6 +133,22 @@ void dosgui_startmenu_toggle(void) { g_open = !g_open; }
 void dosgui_startmenu_open(void)   { g_open = 1; }
 void dosgui_startmenu_close(void)  { g_open = 0; g_submenu_open = -1; }
 
+/* Username for the XP-style banner in the right pane: $USER from
+ * the environment, falling back to "User". Cached after first read. */
+const char *dosgui_startmenu_user_name(void) {
+    static char s_user[64];
+    static bool s_init = false;
+    if (!s_init) {
+        const char *u = getenv("USER");
+        if (!u || !u[0]) u = getenv("LOGNAME");
+        if (!u || !u[0]) u = "User";
+        strncpy(s_user, u, sizeof(s_user) - 1);
+        s_user[sizeof(s_user) - 1] = '\0';
+        s_init = true;
+    }
+    return s_user;
+}
+
 /* -- Rendering --------------------------------------------------- */
 
 #define MENU_X 4
@@ -307,13 +323,40 @@ void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
                               tc()->border_dark, tc()->border_darkest);
     }
 
-    /* Main menu items */
+    /* Main menu items.
+     * XP parity: the right (white) pane carries a username banner
+     * at its TOP (username in bold, a small circular user picture
+     * top-right, a thin divider below) before the program list. */
     int content_x = MENU_X + sw + 4;
     int content_w = mw - sw - 8;
+    int list_top = menu_y + 2;
+
+    if (t->Luna_start_button) {
+        /* Username banner (XP: bold name, circular avatar, divider). */
+        int uh = 22;
+        /* Circular user picture: two-tone (head + shoulders) in a
+         * 14px circle at the pane's right edge. */
+        int cx = content_x + content_w - 20;
+        int cy = menu_y + 5;
+        vbe_fill_rect_rounded(cx, cy, 14, 14, 7, 0x8AA4C8);
+        vbe_fill_rect(cx + 4, cy + 2, 6, 5, 0xFFFFFF);       /* head */
+        vbe_fill_rect_rounded(cx + 2, cy + 7, 10, 6, 3, 0xFFFFFF); /* shoulders */
+        vbe_rect_rounded(cx, cy, 14, 14, 7, 0x5A7BA8);
+
+        const char *user = dosgui_startmenu_user_name();
+        if (user && user[0]) {
+            vbe_draw_text(content_x + 4, cy + 3, user, 0x000080, 1);
+        }
+        vbe_hline(content_x + 2, content_x + content_w - 2,
+                  menu_y + uh, tc()->border_light);
+        vbe_hline(content_x + 2, content_x + content_w - 2,
+                  menu_y + uh + 1, 0xD0D0D0);
+        list_top = menu_y + uh + 4;
+    }
 
     for (int i = 0; i < g_main_count; i++) {
         MainMenuItem *mi = &g_main_items[i];
-        int iy = menu_y + 2 + i * mh;
+        int iy = list_top + i * mh;
 
         if (mi->type == 2) {
             /* Separator */
