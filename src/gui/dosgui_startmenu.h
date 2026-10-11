@@ -25,6 +25,7 @@ typedef struct {
     char      label[48];
     char      app_name[48];   /* For SM_ITEM_APP: app to launch */
     int       submenu_id;     /* For SM_ITEM_SUBMENU: index into submenus */
+    uint32_t  icon_color;     /* XP parity: small icon glyph color; 0 = none */
 } SmMenuItem;
 
 typedef struct {
@@ -39,6 +40,7 @@ typedef struct {
     int  type; /* 0=app, 1=submenu, 2=separator, 3=shutdown */
     int  submenu_id;
     char app_name[48];
+    uint32_t icon_color;   /* XP parity: 16x16 icon glyph color; 0 = none */
 } MainMenuItem;
 
 /* Global state externs */

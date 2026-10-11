@@ -153,28 +153,51 @@ const char *dosgui_startmenu_user_name(void) {
 
 #define MENU_X 4
 
+/* Draw the XP-style 16x16 icon glyph for a menu item: a rounded
+ * colored square with a 1px darker border. Returns the x offset the
+ * label should start at. */
+static int draw_menu_icon(int x, int y, int mh, uint32_t color) {
+    if (color == 0) return 0;
+    int iy = y + (mh - 16) / 2;
+    vbe_fill_rect_rounded(x, iy, 16, 16, 2, color);
+    vbe_rect_rounded(x, iy, 16, 16, 2, 0x404040);
+    return 20;  /* icon width + padding */
+}
+
 static void draw_menu_item(int x, int y, int w, const char *label,
                             int hovered, int has_submenu, int type) {
     int mh = menu_item_h();
     uint32_t bg, fg;
     
-    if (hovered) {
+    bool luna_hover = hovered && th()->Luna_start_button;
+
+    if (luna_hover) {
+        /* XP parity: Luna main-pane items hover LIGHT blue flat with
+         * a 1px Luna-blue edge, not the saturated select_bg. */
+        bg = 0xB4D0F5;
+        fg = 0x000000;
+    } else if (hovered) {
         bg = th()->Luna_start_button ? tc()->select_bg : 0x000080;
         fg = th()->Luna_start_button ? tc()->select_text : 0xFFFFFF;
     } else {
         bg = th()->Luna_start_button ? tc()->startmenu_bg : 0xC0C0C0;
         fg = th()->Luna_start_button ? tc()->startmenu_text : 0x000000;
     }
-    
+
     if (type == 3) { /* Shutdown */
         bg = th()->Luna_start_button ? tc()->border_darkest : 0x800000;
         fg = th()->Luna_start_button ? 0xFF8080 : 0xFFFFFF;
     }
-    
+
     if (th()->rounded_buttons) {
         vbe_fill_rect_rounded(x, y, w, mh, 2, bg);
-        if (hovered) vbe_3d_raised_rounded_colors(x, y, w, mh, 2,
-            tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
+        if (luna_hover) {
+            vbe_rect_rounded(x, y, w, mh, 2, 0x316AC5);
+        } else if (hovered) {
+            vbe_3d_raised_rounded_colors(x, y, w, mh, 2,
+                tc()->border_light, tc()->border_face,
+                tc()->border_dark, tc()->border_darkest);
+        }
     } else {
         vbe_fill_rect(x, y, w, mh, bg);
         if (hovered) vbe_3d_raised_colors(x, y, w, mh,
@@ -254,20 +277,40 @@ static void draw_submenu(int x, int y, SmSubmenu *sub) {
             }
         } else {
             bool hovered = (g_submenu_open >= 0 && g_sub_hovered == i && g_hover_submenu == g_submenu_open);
-            uint32_t bg = hovered ? tc()->select_bg : tc()->startmenu_bg;
-            uint32_t fg = hovered ? tc()->select_text : tc()->startmenu_text;
-            
+            uint32_t bg, fg;
+            if (th()->Luna_start_button && hovered) {
+                /* XP parity: Luna flyout hover is a LIGHT blue tint
+                 * with a 1px darker blue edge — flat, not 3D-raised.
+                 * The saturated select_bg reads as Win95 selection. */
+                bg = 0xB4D0F5;
+                fg = 0x000000;
+            } else {
+                bg = hovered ? tc()->select_bg : tc()->startmenu_bg;
+                fg = hovered ? tc()->select_text : tc()->startmenu_text;
+            }
+
             if (rad > 0) {
                 vbe_fill_rect_rounded(x + 2, iy, sw - 4, mh, 2, bg);
-                if (hovered) vbe_3d_raised_rounded_colors(x + 2, iy, sw - 4, mh, 2,
-                    tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
+                if (hovered && th()->Luna_start_button) {
+                    vbe_rect_rounded(x + 2, iy, sw - 4, mh, 2, 0x316AC5);
+                } else if (hovered) {
+                    vbe_3d_raised_rounded_colors(x + 2, iy, sw - 4, mh, 2,
+                        tc()->border_light, tc()->border_face,
+                        tc()->border_dark, tc()->border_darkest);
+                }
             } else {
                 vbe_fill_rect(x + 2, iy, sw - 4, mh, bg);
                 if (hovered) vbe_3d_raised_colors(x + 2, iy, sw - 4, mh,
                                                    tc()->border_light, tc()->border_face,
                                                    tc()->border_dark, tc()->border_darkest);
             }
-            vbe_draw_text(x + 8, iy + (mh - 8) / 2, item->label, fg, 1);
+            /* XP parity: 16x16 icon glyph to the left of the label. */
+            int label_x = x + 8;
+            if (item->icon_color != 0) {
+                draw_menu_icon(x + 6, iy, mh, item->icon_color);
+                label_x = x + 6 + 20;
+            }
+            vbe_draw_text(label_x, iy + (mh - 8) / 2, item->label, fg, 1);
         }
     }
 }
@@ -369,7 +412,15 @@ void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
         } else {
             bool hovered = (i == g_hovered);
             bool has_submenu = (mi->type == 1);
-            draw_menu_item(content_x, iy, content_w, mi->label, hovered, has_submenu, mi->type);
+            /* XP parity: draw the 16x16 icon glyph, then the item
+             * with the label shifted past it. */
+            int icon_off = 0;
+            if (mi->icon_color != 0) {
+                icon_off = draw_menu_icon(content_x + 4, iy, mh, mi->icon_color);
+            }
+            draw_menu_item(content_x + icon_off, iy,
+                           content_w - icon_off, mi->label,
+                           hovered, has_submenu, mi->type);
         }
     }
 
