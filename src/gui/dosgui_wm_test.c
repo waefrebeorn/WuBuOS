@@ -174,6 +174,43 @@ static void test_luna_scrollbar_thumb(void) {
     PASS();
 }
 
+/* XP parity: the Win98 <-> XP theme toggle round-trips cleanly. The
+ * Luna feature flag must follow the theme, and every XP surface must
+ * re-render after a switch with no crash and no stale Win98 state. */
+static void test_theme_toggle_roundtrip(void) {
+    TEST("Win98 <-> XP theme toggle round-trips all surfaces");
+    dosgui_wm_init(1024, 768);
+    vbe_init(1024, 768);
+
+    /* Start Win98: Luna flag off. */
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    CHECK(!theme()->Luna_start_button, "Win98: Luna flag off");
+
+    /* Switch to XP Luna: flag on. Render must not crash. */
+    wubu_theme_set(THEME_XP_LUNA_BLUE);
+    CHECK(theme()->Luna_start_button, "XP Luna: Luna flag on");
+    dosgui_wm_render(NULL, 1024, 768);
+
+    /* Cycle through every theme and back — each switch re-renders the
+     * full desktop + taskbar + chrome with the new palette. */
+    for (int i = 0; i < THEME_COUNT; i++) {
+        wubu_theme_cycle();
+        dosgui_wm_render(NULL, 1024, 768);
+    }
+    /* After THEME_COUNT cycles we're back to the starting theme (XP Luna
+     * was set, then cycled COUNT times -> XP Luna again). */
+    CHECK(wubu_theme_current() == THEME_XP_LUNA_BLUE,
+          "full cycle returns to the starting theme");
+
+    /* Round-trip back to Win98: Luna flag off again, no stale XP state. */
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    CHECK(!theme()->Luna_start_button, "round-trip to Win98: Luna flag off");
+    dosgui_wm_render(NULL, 1024, 768);
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_luna_default_button(void) {
     TEST("XP Luna default button is blue-dominant");
     wubu_theme_set(THEME_XP_LUNA_BLUE);
@@ -934,6 +971,7 @@ int main(void) {
     test_find_by_id();
     test_mouse_click_no_crash();
     test_luna_scrollbar_thumb();
+    test_theme_toggle_roundtrip();
     test_luna_default_button();
     test_icon_single_vs_double_click();
     test_mouse_drag_window();
