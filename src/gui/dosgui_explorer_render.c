@@ -124,10 +124,8 @@ void ex_render_toolbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
     int btn_x = x + 10;
 
     for (int i = 0; i < 5; i++) {
-        vbe_fill_rect(btn_x, y + 4, btn_w, ex_toolbar_h() - 8, tc()->btn_face);
-        vbe_3d_raised_colors(btn_x, y + 4, btn_w, ex_toolbar_h() - 8,
-                            tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(btn_x + (btn_w - vbe_text_width(btns[i], 1)) / 2, y + 4 + (ex_toolbar_h() - 8 - 8) / 2, btns[i], tc()->btn_text, 1);
+        int bh = ex_toolbar_h() - 8;
+        dosgui_draw_button(btn_x, y + 4, btn_w, bh, btns[i], 0, false);
         btn_x += btn_w + 6;
     }
 

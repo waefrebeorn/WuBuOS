@@ -136,6 +136,8 @@ uint64_t dosgui_wm_ticks_ms(void);  /* frame-clock: render_frame_count * 16 */
 uint64_t dosgui_wm_ticks_ms(void);  /* frame-clock: render_frame_count * 16 */
 void dosgui_draw_vscrollbar(int x, int y, int w, int h,
                             int scroll, int visible, int total);
+void dosgui_draw_button(int x, int y, int w, int h, const char *label,
+                        int state, bool is_default);
 int  title_bar_height(void);
 int  taskbar_height_dynamic(void);
 int  border_width(void);

@@ -6,6 +6,7 @@
  */
 
 #include "dosgui_term_internal.h"
+#include "dosgui_wm_internal.h"
 #include <string.h>
 
 void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w) {
@@ -101,10 +102,7 @@ void dosgui_term_render_tab_bar(uint32_t *fb, int fb_w, int fb_h) {
     /* New tab button (+) */
     int nx = term->x + tab_x + term->tab_count * tab_w;
     if (nx + 30 < term->x + term->w) {
-        vbe_fill_rect(nx, y + 4, 24, h - 8, tc()->btn_face);
-        vbe_3d_raised_colors(nx, y + 4, 24, h - 8,
-                            tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
-        vbe_draw_text(nx + 8, y + (h - 8) / 2, "+", tc()->btn_text, 1);
+        dosgui_draw_button(nx, y + 4, 24, h - 8, "+", 0, false);
     }
 }
 

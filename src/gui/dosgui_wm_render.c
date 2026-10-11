@@ -45,6 +45,60 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
     }
 }
 
+/* XP Luna push-button. (x,y,w,h) is the button rect; label is centered.
+ * state: 0=normal, 1=hover, 2=pressed. is_default draws the blue
+ * primary-action button (white text) used for OK/Apply on XP dialogs.
+ * Luna buttons are flat + rounded with a soft gradient face and a 1px
+ * outline — no 3D bevel. Win98 Classic keeps the raised silver button.
+ * Returns nothing. */
+void dosgui_draw_button(int x, int y, int w, int h, const char *label,
+                        int state, bool is_default) {
+    bool luna = theme()->Luna_start_button;
+    int rad = theme()->rounded_buttons ? 3 : 0;
+
+    if (luna) {
+        uint32_t top, bot, edge, text;
+        if (is_default) {
+            top  = (state == 2) ? 0x2A5490 : (state == 1 ? 0x4A80C8 : 0x3A6EA5);
+            bot  = (state == 2) ? 0x24486E : (state == 1 ? 0x3A6EA5 : 0x2E5A8A);
+            edge = 0x1E3C5C;
+            text = 0xFFFFFF;
+        } else {
+            top  = (state == 2) ? 0xD8D4CC : (state == 1 ? 0xFFFFFF : 0xF4F2EC);
+            bot  = (state == 2) ? 0xC0BCB4 : (state == 1 ? 0xE8E4DC : 0xE0DCD4);
+            edge = 0x9C9890;
+            text = 0x000000;
+        }
+        int oy = (state == 2) ? 1 : 0;  /* pressed shifts content down 1px */
+        vbe_fill_rect_rounded(x, y + oy, w, h, rad, bot);
+        vbe_vgradient(x + 1, y + 1 + oy, w - 2, h - 2, top, bot);
+        vbe_rect_rounded(x, y + oy, w, h, rad, edge);
+    } else {
+        uint32_t face = (state == 2) ? tc()->btn_face : tc()->btn_face;
+        vbe_fill_rect(x, y, w, h, face);
+        if (state == 2)
+            vbe_3d_sunken_colors(x, y, w, h,
+                                 tc()->border_light, tc()->border_face,
+                                 tc()->border_dark, tc()->border_darkest);
+        else
+            vbe_3d_raised_colors(x, y, w, h,
+                                 tc()->border_light, tc()->border_face,
+                                 tc()->border_dark, tc()->border_darkest);
+    }
+
+    /* Centered label. */
+    if (label && label[0]) {
+        int tw = vbe_text_width(label, 1);
+        int tx = x + (w - tw) / 2;
+        int ty = y + (h - 8) / 2 + ((state == 2) ? 1 : 0);
+        uint32_t text = 0x000000;
+        if (luna && is_default) text = 0xFFFFFF;
+        else if (luna) text = 0x000000;
+        else text = tc()->btn_text;
+        vbe_draw_text(tx, ty, label, text, 1);
+    }
+}
+
 /* -- Full-screen render (the single entry point) ------------------- */
 
 /* Frame-based millisecond clock (~60 Hz: 16ms per frame). Monotonic —

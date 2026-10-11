@@ -174,6 +174,23 @@ static void test_luna_scrollbar_thumb(void) {
     PASS();
 }
 
+static void test_luna_default_button(void) {
+    TEST("XP Luna default button is blue-dominant");
+    wubu_theme_set(THEME_XP_LUNA_BLUE);
+    vbe_init(256, 256);
+
+    dosgui_draw_button(20, 20, 80, 24, "OK", 0, true);
+    /* Sample the face left of the centered "OK" label (label sits around
+     * x=60; x=28 is clear of it). Default face is Luna blue-dominant. */
+    uint32_t px = vbe_get_pixel(28, 32);
+    CHECK((px & 0xFF) > 0x60, "default button face is blue");
+    CHECK(((px >> 16) & 0xFF) < (px & 0xFF), "blue > red (blue-dominant)");
+
+    wubu_theme_set(THEME_WIN98_CLASSIC);  /* restore for later tests */
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_icon_single_vs_double_click(void) {
     TEST("XP icon: single-click selects, double-click launches");
     dosgui_wm_init(1024, 768);
@@ -917,6 +934,7 @@ int main(void) {
     test_find_by_id();
     test_mouse_click_no_crash();
     test_luna_scrollbar_thumb();
+    test_luna_default_button();
     test_icon_single_vs_double_click();
     test_mouse_drag_window();
     test_taskbar_height();
