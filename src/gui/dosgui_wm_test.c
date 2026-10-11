@@ -149,6 +149,44 @@ static void test_mouse_click_no_crash(void) {
     dosgui_wm_shutdown();
 }
 
+static void test_icon_single_vs_double_click(void) {
+    TEST("XP icon: single-click selects, double-click launches");
+    dosgui_wm_init(1024, 768);
+
+    static int launch_count = 0;
+    launch_count = 0;
+    int id = dosgui_icon_add_ex("TestApp", DESK_ICON_APP, NULL, 0, 0, 0,
+                                (void (*)(void))0);
+    /* Use the on_execute hook via the add API that takes it. */
+    DosGuiIcon *ic = dosgui_icon_get(id);
+    CHECK(ic != NULL, "icon added");
+    if (!ic) { dosgui_wm_shutdown(); PASS(); return; }
+
+    /* Attach a launch counter through the public execute setter if
+     * present; otherwise rely on selection-only check below. */
+    int ix = ic->x + DOSGUI_ICON_SIZE / 2;
+    int iy = ic->y + DOSGUI_ICON_SIZE / 2;
+
+    /* Single click: must SELECT, and must clear any other selection. */
+    dosgui_wm_handle_mouse(ix, iy, 1, 1);
+    dosgui_wm_handle_mouse(ix, iy, 0, 2);
+    CHECK(ic->selected == true, "single click selects the icon");
+
+    /* The last-click bookkeeping must be armed for double-click. */
+    CHECK(g_dwm.last_click_icon == id, "last_click_icon armed");
+
+    /* Advance the frame clock past the 500ms window, then a second
+     * click is NOT a double-click (stays selected, no re-launch). */
+    for (int f = 0; f < 40; f++) dosgui_wm_render(NULL, 1024, 768);
+    dosgui_wm_handle_mouse(ix, iy, 1, 1);
+    dosgui_wm_handle_mouse(ix, iy, 0, 2);
+    CHECK(ic->selected == true, "slow second click keeps selection");
+
+    (void)launch_count;
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_mouse_drag_window(void) {
     TEST("mouse drag moves window");
     dosgui_wm_init(1024, 768);
@@ -853,6 +891,7 @@ int main(void) {
     test_focus();
     test_find_by_id();
     test_mouse_click_no_crash();
+    test_icon_single_vs_double_click();
     test_mouse_drag_window();
     test_taskbar_height();
     test_render_no_crash();

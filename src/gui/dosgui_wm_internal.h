@@ -66,6 +66,9 @@ typedef struct {
 
     /* Icon drag state */
     int             drag_icon_id;
+    int             last_click_icon;  /* XP double-click detection */
+    uint64_t        last_click_ms;    /* frame-clock ms of last click */
+    uint64_t        render_frame_count; /* frame-clock: ms = count * 16 */
     int             drag_icon_ox, drag_icon_oy;
 
     /* Rubber-band drag-select lasso (Classic Mac OS / Win98 lesson):
@@ -129,6 +132,8 @@ void dosgui_clock_menu_rect(int fb_w, int fb_h, int *x, int *y, int *w, int *h);
 void dosgui_clock_menu_render(uint32_t *fb, int fb_w, int fb_h);
 /* Last-rendered clock well (clickable button) rect; zeros until first render. */
 void dosgui_clock_well(int *x, int *y, int *w, int *h);
+uint64_t dosgui_wm_ticks_ms(void);  /* frame-clock: render_frame_count * 16 */
+uint64_t dosgui_wm_ticks_ms(void);  /* frame-clock: render_frame_count * 16 */
 int  title_bar_height(void);
 int  taskbar_height_dynamic(void);
 int  border_width(void);

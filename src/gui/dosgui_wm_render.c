@@ -47,8 +47,16 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 
 /* -- Full-screen render (the single entry point) ------------------- */
 
+/* Frame-based millisecond clock (~60 Hz: 16ms per frame). Monotonic —
+ * all double-click detection needs. Returns total elapsed ms. */
+uint64_t dosgui_wm_ticks_ms(void) {
+    extern DosGuiWM g_dwm;
+    return g_dwm.render_frame_count * 16u;
+}
+
 void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Advance the desktop companion animation clock (~60 Hz). */
+    g_dwm.render_frame_count++;
     wubu_bonzi_tick(16);
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */

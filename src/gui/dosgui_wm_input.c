@@ -350,10 +350,26 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
                     dosgui_icon_show_context_menu(icon_idx, x, y);
                     return;
                 }
-                if (g_dwm.icons[icon_idx].on_click) {
-                    g_dwm.icons[icon_idx].on_click();
-                } else if (g_dwm.icons[icon_idx].on_execute) {
-                    g_dwm.icons[icon_idx].on_execute();
+                /* XP parity: single-click SELECTS (highlight), double-click
+                 * LAUNCHES. Distinguish by the ~500ms double-click window
+                 * on the same icon. Selection is exclusive (clicking one
+                 * icon clears the others), matching XP. */
+                uint64_t now = dosgui_wm_ticks_ms();
+                bool is_double = (g_dwm.last_click_icon == icon_idx &&
+                                  now - g_dwm.last_click_ms < 500);
+                for (int k = 0; k < g_dwm.icon_count; k++)
+                    g_dwm.icons[k].selected = (k == icon_idx);
+                if (is_double) {
+                    if (g_dwm.icons[icon_idx].on_click) {
+                        g_dwm.icons[icon_idx].on_click();
+                    } else if (g_dwm.icons[icon_idx].on_execute) {
+                        g_dwm.icons[icon_idx].on_execute();
+                    }
+                    g_dwm.last_click_icon = -1;
+                    g_dwm.last_click_ms = 0;
+                } else {
+                    g_dwm.last_click_icon = icon_idx;
+                    g_dwm.last_click_ms = now;
                 }
                 g_dwm.drag_icon_id = icon_idx;
                 g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;
