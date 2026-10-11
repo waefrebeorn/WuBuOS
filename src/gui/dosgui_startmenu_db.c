@@ -203,4 +203,30 @@ void dosgui_startmenu_build_submenus(void) {
         }
         next_accessories:;
     }
+
+    /* XP parity: Programs is a cascade of categories, not a flat app
+     * list. Prepend category items that open the nested Accessories /
+     * WuBuOS / System submenus (registered at ids 1/2/3 in
+     * dosgui_startmenu.c). Any MIME apps already bucketed into
+     * g_programs directly are preserved as leading app entries. */
+    {
+        SmSubmenu *prog = &g_programs;
+        SmMenuItem cat[3] = {
+            { .type = SM_ITEM_SUBMENU, .submenu_id = 1, .icon_color = 0xE8C84A }, /* Accessories */
+            { .type = SM_ITEM_SUBMENU, .submenu_id = 2, .icon_color = 0x3A6EA5 }, /* WuBuOS */
+            { .type = SM_ITEM_SUBMENU, .submenu_id = 3, .icon_color = 0x8A8A8A }, /* System */
+        };
+        strncpy(cat[0].label, "Accessories", 47);
+        strncpy(cat[1].label, "WuBuOS", 47);
+        strncpy(cat[2].label, "System", 47);
+
+        int keep = prog->item_count;
+        if (keep > 9) keep = 9;  /* leave room for the 3 category rows */
+        /* Shift existing app entries down by 3 to make room on top. */
+        for (int k = keep - 1; k >= 0; k--)
+            prog->items[k + 3] = prog->items[k];
+        for (int k = 0; k < 3; k++)
+            prog->items[k] = cat[k];
+        prog->item_count = keep + 3;
+    }
 }

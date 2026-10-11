@@ -85,6 +85,28 @@ static void test_sm_registry(void) {
     PASS();
 }
 
+/* XP parity: Programs is a cascade — it holds SM_ITEM_SUBMENU category
+ * items whose submenu_id resolves to a registered nested submenu. */
+static void test_programs_cascade_items(void) {
+    TEST("Programs flyout holds nested category cascades");
+    dosgui_startmenu_init();
+    SmSubmenu *prog = dosgui_sm_get(0);
+    CHECK(prog != NULL, "Programs registered");
+    if (!prog) { PASS(); return; }
+
+    int submenu_items = 0, resolvable = 0;
+    for (int i = 0; i < prog->item_count; i++) {
+        SmMenuItem *it = &prog->items[i];
+        if (it->type == SM_ITEM_SUBMENU) {
+            submenu_items++;
+            if (dosgui_sm_get(it->submenu_id) != NULL) resolvable++;
+        }
+    }
+    CHECK(submenu_items >= 3, "Programs has >=3 category cascade items");
+    CHECK(resolvable == submenu_items, "every category cascade resolves to a submenu");
+    PASS();
+}
+
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     dosgui_startmenu_init();
@@ -104,6 +126,7 @@ int main(void) {
 
     test_init();
     test_sm_registry();
+    test_programs_cascade_items();
     test_open_close();
     test_render_no_crash();
     test_xp_sidebar_gradient_and_orb();
