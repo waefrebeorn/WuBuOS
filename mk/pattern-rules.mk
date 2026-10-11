@@ -13,6 +13,13 @@ KERNEL_CFLAGS = -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM
 $(KERNEL)/%.o: $(KERNEL)/%.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
+# memory.o hosted variant: hosted capture/test binaries run in
+# userspace — the MYSEED_METAL identity-mapped physical heap
+# (0x400000) is not a valid address there, so compile with
+# -DWUBU_HOSTED which selects the malloc() backing store.
+$(KERNEL)/memory.o: $(KERNEL)/memory.c
+	$(CC) $(CFLAGS) -DWUBU_HOSTED -DWUBU_NO_LIBM -I$(KERNEL) -MMD -MP -c $< -o $@
+
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@

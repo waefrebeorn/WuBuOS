@@ -168,20 +168,26 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
     uint32_t title_text_color = active ? tc()->win_title_text : tc()->win_title_text_ina;
 
     if (theme()->gradient_title) {
-        /* Gradient title bar (XP Luna / WuBu) */
-        uint32_t start = active ? theme()->title_gradient.color_start
-                                : theme()->title_gradient_ina.color_start;
-        uint32_t end   = active ? theme()->title_gradient.color_end
-                                : theme()->title_gradient_ina.color_end;
+        /* Gradient title bar (XP Luna / WuBu).
+         * XP parity: Luna's title bar is a VERTICAL gradient — the
+         * darker saturated blue sits at the BOTTOM edge and the
+         * lighter sky-blue at the TOP (this is what makes XP windows
+         * look "lit from above"). The theme stores start=darker
+         * (bottom) and end=lighter (top), so the vertical gradient
+         * must run end(top) -> start(bottom). A subtle glass
+         * highlight (white at 25% over the top half) sits on top. */
+        uint32_t darker = active ? theme()->title_gradient.color_start
+                                 : theme()->title_gradient_ina.color_start;
+        uint32_t lighter = active ? theme()->title_gradient.color_end
+                                  : theme()->title_gradient_ina.color_end;
 
-        vbe_hgradient(win->x + bw, win->y + bw,
-                      win->w - 2 * bw, tbh, start, end);
+        vbe_vgradient(win->x + bw, win->y + bw,
+                      win->w - 2 * bw, tbh, lighter, darker);
 
         /* Restore rounded top corners */
         if (rad > 0) {
             vbe_fill_rect_rounded(win->x, win->y, win->w, win->h, rad, tc()->win_face);
-            vbe_hgradient(win->x, win->y, win->w, tbh - rad,
-                          start, end);
+            vbe_vgradient(win->x, win->y, win->w, tbh - rad, lighter, darker);
             vbe_rect_rounded(win->x, win->y, win->w, win->h, rad, tc()->border_dark);
         }
     } else {
@@ -204,8 +210,16 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
     int text_x = win->x + bw + 20;  /* after icon + padding */
     int text_y = win->y + bw + (tbh - 8) / 2;
     if (win->title[0]) {
-        vbe_draw_text(text_x, text_y, win->title,
-                      active ? tc()->win_title_text : tc()->win_title_text_ina, 1);
+        uint32_t text_col = active ? tc()->win_title_text : tc()->win_title_text_ina;
+        if (theme()->gradient_title) {
+            /* XP parity: Luna title text is white with a 1px dark
+             * drop shadow offset down-right — over the gradient it
+             * stays legible and reads as "raised". The shadow color
+             * is a darkened version of the gradient's dark end. */
+            uint32_t shadow = active ? 0x002850 : 0x606060;
+            vbe_draw_text(text_x + 1, text_y + 1, win->title, shadow, 1);
+        }
+        vbe_draw_text(text_x, text_y, win->title, text_col, 1);
     }
 
     /* Title bar border bottom (separator) */
@@ -220,25 +234,56 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
     int start_x = win->x + win->w - bw - btn_size - 2;
     int btn_y = win->y + bw + (tbh - 14) / 2;
 
-    /* Close button (rightmost): bold X */
+    /* Close button (rightmost): bold X.
+     * XP parity: in every post-98 theme the close button is the iconic
+     * RED rounded rect with a WHITE bold X — the most recognizable
+     * single element of Windows XP. Only Win98 Classic keeps the
+     * silver 3D button with a black glyph. */
     int close_x = start_x;
     int close_y = btn_y;
     {
-        chrome_fill(close_x, close_y, 14, 14, tc()->btn_face);
-        chrome_draw_3d_raised(close_x, close_y, 14, 14, 2);
-        for (int i = 3; i < 11; i++) {
-            vbe_set_pixel(close_x + i,     close_y + i,     0x000000);
-            vbe_set_pixel(close_x + i + 1, close_y + i,     0x000000);
-            vbe_set_pixel(close_x + i,     close_y + 14 - i, 0x000000);
-            vbe_set_pixel(close_x + i + 1, close_y + 14 - i, 0x000000);
+        if (th->Luna_start_button) {
+            /* XP red close button: rounded, red face, lighter top edge,
+             * white bold X. Slightly wider than the other buttons
+             * (18px vs 14px) exactly like XP's chrome. */
+            int cw = 18;
+            int ch = 14;
+            uint32_t face = active ? 0xE0431E : 0xC03A1A;
+            vbe_fill_rect_rounded(close_x - 4, close_y, cw, ch, 2, face);
+            vbe_hline(close_x - 4, close_x - 4 + cw - 1, close_y, 0xF0855E);
+            vbe_rect_rounded(close_x - 4, close_y, cw, ch, 2, 0x8C2A10);
+            for (int i = 4; i < 11; i++) {
+                vbe_set_pixel(close_x - 4 + i,     close_y + i - 1, 0xFFFFFF);
+                vbe_set_pixel(close_x - 4 + i + 1, close_y + i - 1, 0xFFFFFF);
+                vbe_set_pixel(close_x - 4 + i,     close_y + ch - i, 0xFFFFFF);
+                vbe_set_pixel(close_x - 4 + i + 1, close_y + ch - i, 0xFFFFFF);
+            }
+        } else {
+            chrome_fill(close_x, close_y, 14, 14, tc()->btn_face);
+            chrome_draw_3d_raised(close_x, close_y, 14, 14, 2);
+            for (int i = 3; i < 11; i++) {
+                vbe_set_pixel(close_x + i,     close_y + i,     0x000000);
+                vbe_set_pixel(close_x + i + 1, close_y + i,     0x000000);
+                vbe_set_pixel(close_x + i,     close_y + 14 - i, 0x000000);
+                vbe_set_pixel(close_x + i + 1, close_y + 14 - i, 0x000000);
+            }
         }
     }
 
-    /* Maximize button: square outline */
+    /* Maximize button: square outline.
+     * XP parity: Luna's min/max buttons are FLAT translucent
+     * rects over the gradient title bar (not silver 3D chips),
+     * with a soft rounded edge and black bold glyphs. Win98
+     * Classic keeps the silver 3D raised buttons. */
     int max_x = close_x - 14 - 2;
     {
-        chrome_fill(max_x, btn_y, 14, 14, tc()->btn_face);
-        chrome_draw_3d_raised(max_x, btn_y, 14, 14, 2);
+        if (th->Luna_start_button) {
+            vbe_fill_rect_rounded(max_x - 1, btn_y, 14, 14, 2, 0xE8F0FA);
+            vbe_rect_rounded(max_x - 1, btn_y, 14, 14, 2, 0x7A9CC6);
+        } else {
+            chrome_fill(max_x, btn_y, 14, 14, tc()->btn_face);
+            chrome_draw_3d_raised(max_x, btn_y, 14, 14, 2);
+        }
         for (int i = 3; i < 11; i++) {
             vbe_set_pixel(max_x + i,     btn_y + 3,     0x000000);
             vbe_set_pixel(max_x + i,     btn_y + 10,    0x000000);
@@ -250,8 +295,13 @@ ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
     /* Minimize button: horizontal bar at the bottom */
     int min_x = max_x - 14 - 2;
     {
-        chrome_fill(min_x, btn_y, 14, 14, tc()->btn_face);
-        chrome_draw_3d_raised(min_x, btn_y, 14, 14, 2);
+        if (th->Luna_start_button) {
+            vbe_fill_rect_rounded(min_x - 1, btn_y, 14, 14, 2, 0xE8F0FA);
+            vbe_rect_rounded(min_x - 1, btn_y, 14, 14, 2, 0x7A9CC6);
+        } else {
+            chrome_fill(min_x, btn_y, 14, 14, tc()->btn_face);
+            chrome_draw_3d_raised(min_x, btn_y, 14, 14, 2);
+        }
         for (int i = 3; i < 11; i++)
             vbe_set_pixel(min_x + i, btn_y + 10, 0x000000);
     }

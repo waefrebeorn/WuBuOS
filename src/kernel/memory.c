@@ -97,7 +97,7 @@ static void *alloc_pages(size_t n_pages) {
 /* -- Init / Shutdown ---------------------------------------------- */
 
 int mem_init(size_t total_bytes) {
-#ifdef MYSEED_METAL
+#if defined(MYSEED_METAL) && !defined(WUBU_HOSTED)
     /* Freestanding kernel path: do NOT call libc malloc() -- the bare-metal
      * bump allocator (libc.c) is only initialized on explicit libm_heap_init()
      * which kernel_main never calls, so malloc() returns NULL/garbage and the
@@ -110,7 +110,13 @@ int mem_init(size_t total_bytes) {
      * page tables (~0x123000), and of the multiboot info (placed ~1.9GB). */
     #define KERNEL_HEAP_PHYS 0x400000UL
     g_heap_base = (uint8_t *)KERNEL_HEAP_PHYS;
+#elif !defined(WUBU_HOSTED)
+    g_heap_base = malloc(total_bytes);
+    if (!g_heap_base) return -1;
 #else
+    /* Hosted userspace (screenshot/capture/test binaries): malloc is
+     * the right backing store — there is no identity-mapped physical
+     * heap in a hosted process. */
     g_heap_base = malloc(total_bytes);
     if (!g_heap_base) return -1;
 #endif

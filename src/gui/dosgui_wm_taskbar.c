@@ -33,13 +33,22 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     int start_w = theme()->Luna_start_button ? 54 : 60;
     
     if (theme()->Luna_start_button) {
-        vbe_fill_rect_rounded(4, by, start_w + 20, 24, 4, tc()->start_btn_face);
-        vbe_3d_raised_rounded_colors(4, by, start_w + 20, 24, 4,
+        /* XP Luna Start orb: green rounded pill with a soft vertical
+         * gradient (lighter at top), 3D edge, the 4-pane flag emblem,
+         * and bold white "start" text. XP's orb is wider than tall
+         * with ~11px of flag + text. */
+        int ow = start_w + 24;
+        int oh = 24;
+        uint32_t top = 0x6FA84A;   /* lighter green top */
+        uint32_t bot = tc()->start_btn_face;  /* theme green (0x3A7C2C) */
+        vbe_fill_rect_rounded(4, by, ow, oh, 9, bot);
+        vbe_vgradient(4 + 2, by + 2, ow - 4, oh - 6, top, bot);
+        vbe_3d_raised_rounded_colors(4, by, ow, oh, 9,
                                      tc()->border_light, tc()->border_face,
                                      tc()->border_dark, tc()->border_darkest);
-        /* Win95-style 4-pane flag emblem (the Start button must have an icon). */
-        draw_start_flag(10, by + 5);
-        vbe_draw_text(28, by + 8, "Start", tc()->start_btn_text, 1);
+        /* XP draws the flag slightly left of center with a 2px gap. */
+        draw_start_flag(11, by + 5);
+        vbe_draw_text(30, by + 8, "start", tc()->start_btn_text, 1);
     } else {
         /* Win98 Classic Start button: full-height-ish 3D raised silver
          * button, 4-pane flag emblem + text, with a 2px inner margin. */
@@ -90,7 +99,22 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             truncated[strlen(truncated) - 1] = '\0';
         }
 
-        if (focused && !minimized) {
+        if (theme()->Luna_start_button) {
+            /* XP Luna taskbar buttons: FLAT, not 3D. The active window
+             * gets a pale blue-tinted face with a 1px darker border and
+             * dark text; inactive windows are near-white flat; minimized
+             * windows look identical to inactive (XP does not sunken
+             * them — it just doesn't highlight). */
+            if (focused && !minimized) {
+                vbe_fill_rect(bx, bby, bw, bh, 0xD6E4F7);      /* pale blue */
+                vbe_rect(bx, bby, bw, bh, 0x316AC5);           /* Luna blue edge */
+                vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, 0x000000, 1);
+            } else {
+                vbe_fill_rect(bx, bby, bw, bh, 0xF1EFE8);      /* XP taskbar beige-white */
+                vbe_rect(bx, bby, bw, bh, 0xB8B4A8);           /* soft edge */
+                vbe_draw_text(bx + 8, bby + (bh - 8) / 2, truncated, 0x000000, 1);
+            }
+        } else if (focused && !minimized) {
             vbe_fill_rect(bx, bby, bw, bh, tc()->select_bg);
             vbe_3d_sunken_colors(bx, bby, bw, bh,
                                   tc()->border_light, tc()->border_face,
