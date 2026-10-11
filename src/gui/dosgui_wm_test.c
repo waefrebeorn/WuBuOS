@@ -149,6 +149,31 @@ static void test_mouse_click_no_crash(void) {
     dosgui_wm_shutdown();
 }
 
+static void test_luna_scrollbar_thumb(void) {
+    TEST("XP Luna scrollbar draws blue-gradient thumb");
+    wubu_theme_set(THEME_XP_LUNA_BLUE);
+    vbe_init(256, 256);
+
+    /* Track at x=200,w=14,h=200; 50 of 100 rows visible, scrolled to
+     * row 25 -> thumb sits mid-track. */
+    dosgui_draw_vscrollbar(200, 10, 14, 200, 25, 50, 100);
+
+    /* Thumb top should be a Luna-blue pixel (the 0x3A6EA5 family),
+     * distinct from the beige track 0xF1EFE8. Sample the thumb's
+     * vertical center. */
+    int thumb_cy = 10 + 14 + ((200 - 28) - (200 - 28) * 50 / 100) * 25 / (100 - 50)
+                   + (200 - 28) * 50 / 100 / 2;
+    uint32_t px = vbe_get_pixel(200 + 7, thumb_cy);
+    CHECK(px != 0xF1EFE8, "thumb pixel is not the beige track");
+    /* The thumb fill 0x3A6EA5 or its gradient 0x8FB8E8 — both have a
+     * strong blue channel and weaker red. */
+    CHECK((px & 0xFF) > 0x60, "thumb pixel is blue-dominant");
+
+    wubu_theme_set(THEME_WIN98_CLASSIC);  /* restore for later tests */
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_icon_single_vs_double_click(void) {
     TEST("XP icon: single-click selects, double-click launches");
     dosgui_wm_init(1024, 768);
@@ -891,6 +916,7 @@ int main(void) {
     test_focus();
     test_find_by_id();
     test_mouse_click_no_crash();
+    test_luna_scrollbar_thumb();
     test_icon_single_vs_double_click();
     test_mouse_drag_window();
     test_taskbar_height();

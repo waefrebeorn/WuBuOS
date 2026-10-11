@@ -11,6 +11,7 @@
 
 #include "dosgui_explorer_internal.h"
 #include "dosgui_wm.h"
+#include "dosgui_wm_internal.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
 #include <string.h>
@@ -143,6 +144,13 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
     vbe_fill_rect(x, y, w, h, tc()->win_face);
 
     if (ex->view_mode == EX_VIEW_DETAILS) {
+        /* Reserve a scrollbar gutter when entries overflow. */
+        int sb_w = 0;
+        int row_h0 = ex_row_h();
+        int vis0 = (h - ex_title_h()) / row_h0;
+        if (ex->entry_count > vis0) sb_w = 14;
+        int list_w = w - sb_w;
+
         /* Column headers */
         int col_x = x;
         for (int i = 0; i < ex->column_count; i++) {
@@ -168,6 +176,8 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
             for (int c = 0; c < ex->column_count; c++) {
                 if (!ex->columns[c].visible) continue;
                 int col_w = ex->columns[c].width;
+                if (col_x2 + col_w > x + list_w) col_w = (x + list_w) - col_x2;
+                if (col_w <= 0) break;
 
                 if (entry->is_selected || i == ex->focus_idx) {
                     vbe_fill_rect(col_x2, row_y, col_w, row_h, tc()->select_bg);
@@ -192,6 +202,14 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
                 col_x2 += col_w;
             }
             row_y += row_h;
+        }
+
+        /* XP Luna scrollbar on the right gutter. */
+        if (sb_w > 0) {
+            int scroll = ex->list_scroll_y;
+            if (scroll < 0) scroll = 0;
+            dosgui_draw_vscrollbar(x + w - sb_w, y, sb_w, h,
+                                   scroll, max_rows, ex->entry_count);
         }
     } else if (ex->view_mode == EX_VIEW_ICONS) {
         /* Large icons grid */

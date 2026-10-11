@@ -54,6 +54,86 @@ uint64_t dosgui_wm_ticks_ms(void) {
     return g_dwm.render_frame_count * 16u;
 }
 
+/* XP Luna vertical scrollbar. (x,y,w,h) is the full track rect.
+ * scroll = first visible row, visible = rows shown, total = total rows.
+ * Under Luna the thumb is a rounded blue-gradient pill with a lighter
+ * top edge and up/down arrow buttons; Win98 keeps the classic raised
+ * silver track + 3D thumb. */
+void dosgui_draw_vscrollbar(int x, int y, int w, int h,
+                            int scroll, int visible, int total) {
+    bool luna = theme()->Luna_start_button;
+    int btn = w;  /* square arrow buttons */
+
+    /* Track */
+    if (luna) {
+        vbe_fill_rect(x, y, w, h, 0xF1EFE8);
+        vbe_vline(x, y, y + h - 1, 0xB8B4A8);
+        vbe_vline(x + w - 1, y, y + h - 1, 0xFFFFFF);
+    } else {
+        vbe_fill_rect(x, y, w, h, tc()->btn_face);
+        vbe_3d_sunken_colors(x, y, w, h,
+                             tc()->border_light, tc()->border_face,
+                             tc()->border_dark, tc()->border_darkest);
+    }
+
+    /* Up arrow button */
+    if (luna) {
+        vbe_fill_rect(x + 1, y + 1, w - 2, btn - 2, 0xE8F0FA);
+        vbe_rect(x + 1, y + 1, w - 2, btn - 2, 0x7A9CC6);
+    } else {
+        vbe_fill_rect(x + 1, y + 1, w - 2, btn - 2, tc()->btn_face);
+        vbe_3d_raised_colors(x + 1, y + 1, w - 2, btn - 2,
+                             tc()->border_light, tc()->border_face,
+                             tc()->border_dark, tc()->border_darkest);
+    }
+    {   /* up triangle */
+        int cx = x + w / 2, by = y + btn / 2;
+        for (int i = 0; i < 4; i++)
+            vbe_hline(cx - i, cx + i, by - 2 + i, 0x000000);
+    }
+
+    /* Down arrow button */
+    int dy = y + h - btn;
+    if (luna) {
+        vbe_fill_rect(x + 1, dy + 1, w - 2, btn - 2, 0xE8F0FA);
+        vbe_rect(x + 1, dy + 1, w - 2, btn - 2, 0x7A9CC6);
+    } else {
+        vbe_fill_rect(x + 1, dy + 1, w - 2, btn - 2, tc()->btn_face);
+        vbe_3d_raised_colors(x + 1, dy + 1, w - 2, btn - 2,
+                             tc()->border_light, tc()->border_face,
+                             tc()->border_dark, tc()->border_darkest);
+    }
+    {   /* down triangle */
+        int cx = x + w / 2, by = dy + btn / 2;
+        for (int i = 0; i < 4; i++)
+            vbe_hline(cx - i, cx + i, by + 2 - i, 0x000000);
+    }
+
+    /* Thumb */
+    int track_top = y + btn;
+    int track_h = h - 2 * btn;
+    if (track_h <= 0) return;
+    int thumb_h = track_h * visible / (total > 0 ? total : 1);
+    if (thumb_h < 8) thumb_h = 8;
+    if (thumb_h > track_h) thumb_h = track_h;
+    int thumb_y = track_top;
+    if (total > visible)
+        thumb_y = track_top + (track_h - thumb_h) * scroll / (total - visible);
+
+    if (luna) {
+        /* XP blue-gradient thumb: lighter top -> darker bottom. */
+        vbe_fill_rect_rounded(x + 1, thumb_y, w - 2, thumb_h, 3, 0x3A6EA5);
+        vbe_vgradient(x + 2, thumb_y + 2, w - 4, thumb_h - 4,
+                      0x8FB8E8, 0x3A6EA5);
+        vbe_rect_rounded(x + 1, thumb_y, w - 2, thumb_h, 3, 0x24486E);
+    } else {
+        vbe_fill_rect(x + 1, thumb_y, w - 2, thumb_h, tc()->btn_face);
+        vbe_3d_raised_colors(x + 1, thumb_y, w - 2, thumb_h,
+                             tc()->border_light, tc()->border_face,
+                             tc()->border_dark, tc()->border_darkest);
+    }
+}
+
 void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Advance the desktop companion animation clock (~60 Hz). */
     g_dwm.render_frame_count++;
