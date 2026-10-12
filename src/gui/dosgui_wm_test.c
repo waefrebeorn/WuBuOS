@@ -1094,6 +1094,52 @@ static char *clip_win_on_clip(DosGuiWindow *w, int op, const char *text) {
     return strdup("hello clipboard");
 }
 
+/* UX #508: coordinate-space translation. When the WM dispatches a mouse
+ * event to a window's client area, it must pass WINDOW-RELATIVE coords
+ * (absolute - window origin), not raw screen coords. A bug here (passing
+ * absolute coords) makes every app's hit-test off by the window position. */
+static int g_mouse_rx = -1, g_mouse_ry = -1, g_mouse_calls = 0;
+static void coord_win_on_mouse(DosGuiWindow *w, int x, int y, int btn, int kind) {
+    (void)w; (void)btn; (void)kind;
+    g_mouse_rx = x; g_mouse_ry = y; g_mouse_calls++;
+}
+
+static void test_coord_translation(void) {
+    TEST("coordinate-space: app receives window-relative coords");
+    dosgui_wm_init(1024, 768);
+    /* Window at a non-origin position so absolute != relative. */
+    int wx = 200, wy = 150, ww = 300, wh = 200;
+    DosGuiWindow *w = dosgui_wm_create(wx, wy, ww, wh, "CoordWin");
+    CHECK(w != NULL, "window created");
+    w->on_mouse = coord_win_on_mouse;
+
+    /* Click at an absolute point inside the client area (below the title
+     * bar, inside the body). Absolute = (wx+40, wy+60). */
+    int tbh = title_bar_height();
+    int bw = border_width();
+    int ax = wx + bw + 20;
+    int ay = wy + tbh + 20;
+    g_mouse_rx = -1; g_mouse_ry = -1; g_mouse_calls = 0;
+    dosgui_wm_handle_mouse(ax, ay, 1, 1);
+
+    CHECK(g_mouse_calls >= 1, "on_mouse callback fired for the click");
+    /* The callback must receive window-RELATIVE coords, i.e. the click
+     * offset within the window body -- NOT the absolute screen point. */
+    int expect_rx = ax - wx;
+    int expect_ry = ay - wy;
+    CHECK(g_mouse_rx == expect_rx,
+          "x coord translated to window-relative (not absolute screen)");
+    CHECK(g_mouse_ry == expect_ry,
+          "y coord translated to window-relative (not absolute screen)");
+    /* And confirm it is NOT the raw absolute coordinate (the bug this
+     * guards against). */
+    CHECK(g_mouse_rx != ax, "x is not the absolute screen x");
+    CHECK(g_mouse_ry != ay, "y is not the absolute screen y");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_clipboard_routing(void) {
     TEST("Ctrl+C/X/V route the shared clipboard to the focused app");
     dosgui_wm_init(1024, 768);
@@ -1159,6 +1205,7 @@ int main(void) {
     test_context_menu_open_and_fire();
     test_drop_target();
     test_clipboard_routing();
+    test_coord_translation();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
