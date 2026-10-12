@@ -12,6 +12,10 @@
  *
  * C11, opaque struct, minimal includes.
  */
+/* usleep() is deprecated in POSIX.1-2008 and hidden under -std=c11;
+ * _DEFAULT_SOURCE exposes it for the 1ms secmon poll. Must precede every
+ * system header include so glibc's <features.h> picks it up. */
+#define _DEFAULT_SOURCE 1
 #include "wubu_secmon.h"
 #include "../kernel/wubu_kvfs.h"
 
@@ -22,6 +26,10 @@
 #ifndef SIGTRAP
 #define SIGTRAP 5
 #endif
+/* usleep() is deprecated in POSIX.1-2008 and hidden under -std=c11;
+ * _DEFAULT_SOURCE exposes it for the 1ms secmon poll. */
+#define _DEFAULT_SOURCE 1
+#include <unistd.h>
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <sys/wait.h>

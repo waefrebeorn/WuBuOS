@@ -8,7 +8,9 @@
  * GPU passthrough: /dev/dri, /dev/nvidia → container.
  * 9P namespace: per-container Styx socket mount.
  */
-#define WUBU_HOSTED  /* chroot() is XSI/POSIX, hidden under -std=c11 without this */
+#ifndef WUBU_HOSTED
+#define WUBU_HOSTED  /* no-op when already set via -DWUBU_HOSTED */
+#endif
 #include "wubu_host_exec.h"
 #include "wubu_secmon.h"
 #include "wubu_std.h"
