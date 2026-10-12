@@ -18,7 +18,6 @@ test_cab_extract
 test_compat
 test_container_registry
 test_density
-test_dos_emu
 test_dos_proc
 test_dosgui_apps
 test_dosgui_bpm
