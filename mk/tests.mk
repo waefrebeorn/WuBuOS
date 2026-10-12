@@ -1760,6 +1760,15 @@ test_ns_hive:
 		-o $(RT)/wubu_ns_hive_test -lm -lpthread
 	$(RT)/wubu_ns_hive_test
 
+# the companion ambient-context module (Track B1: context is the prompt)
+test_bonzi_context:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(GUI)/wubu_bonzi_context_test.c -o /tmp/wubu_bonzi_context_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(GUI)/wubu_bonzi_context.c \
+		/tmp/wubu_bonzi_context_test.o \
+		-o $(GUI)/wubu_bonzi_context_test -lm -lpthread
+	$(GUI)/wubu_bonzi_context_test
+
 # the companion PERSISTENT memory (agentic-mem index <-> /n/bonzi/mem, AD01-gated)
 test_bonzi_mem:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(RT)/wubu_bonzi_mem_test.c -o /tmp/wubu_bonzi_mem_test.o

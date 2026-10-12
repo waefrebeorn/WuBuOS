@@ -20,6 +20,7 @@
 #include "dosgui_wm_internal.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
+#include "wubu_bonzi_context.h"
 #include "../kernel/vbe.h"
 
 /* The /n/bonzi namespace mirror is an OPTIONAL meta-layer add-on: the GUI
@@ -32,6 +33,8 @@ __attribute__((weak)) void wubu_ns_bonzi_set_size(int w,int h){(void)w;(void)h;}
 __attribute__((weak)) void wubu_ns_bonzi_set_agi(int o){(void)o;}
 __attribute__((weak)) void wubu_ns_bonzi_set_bubble(const char*t){(void)t;}
 __attribute__((weak)) int  wubu_ns_bonzi_sync(void){return -1;}
+__attribute__((weak)) void wubu_bonzi_context_set_focus(const char*t,int x,int y,int w,int h){(void)t;(void)x;(void)y;(void)w;(void)h;}
+__attribute__((weak)) void wubu_bonzi_context_set_window_count(int n){(void)n;}
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -210,6 +213,15 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     wubu_ns_bonzi_set_pos(wubu_bonzi_x(), wubu_bonzi_y());
     wubu_ns_bonzi_set_size(wubu_bonzi_w(), wubu_bonzi_h());
     wubu_ns_bonzi_sync();
+    /* Ambient context (Track B1): feed the live focused window so the
+     * companion sees what the user is attending to ("context is the
+     * prompt"). Weak-linked like the ns sync. */
+    {
+        DosGuiWindow *fw = dosgui_wm_get_focused();
+        wubu_bonzi_context_set_window_count(dosgui_wm_window_count());
+        if (fw)
+            wubu_bonzi_context_set_focus(fw->title, fw->x, fw->y, fw->w, fw->h);
+    }
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */
     dosgui_wm_typer_tick(16);
