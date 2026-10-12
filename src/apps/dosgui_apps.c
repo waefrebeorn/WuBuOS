@@ -25,6 +25,7 @@
 #include "../apps/todo.h"
 #include "../apps/music.h"
 #include "../apps/control/control.h"
+#include "../apps/minesweeper.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -240,6 +241,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Notes",        "Notes",          DESK_ICON_COUNT + 10,  0x00A0A000, notes_launch },
     { "Todo",         "Todo",           DESK_ICON_COUNT + 11,  0x0000A0A0, todo_launch },
     { "Music",        "Music",          DESK_ICON_COUNT + 12,  0x00A050C0, music_launch },
+    { "Minesweeper",  "Minesweeper",    DESK_ICON_COUNT + 13,  0x00C0C0C0, dosgui_launch_minesweeper },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 
