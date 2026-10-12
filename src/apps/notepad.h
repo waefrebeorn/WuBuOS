@@ -33,6 +33,7 @@ typedef enum {
 NotepadState* notepad_state_get(void);
 DosGuiWindow* dosgui_notepad_launch(void);
 void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void dosgui_notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 
 /* Tab management */
 void np_new_tab(void);

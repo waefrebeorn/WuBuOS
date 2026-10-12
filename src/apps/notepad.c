@@ -200,6 +200,63 @@ void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     }
 }
 
+/* Selection anchor (XP parity: click-drag selects text). -1 = no selection. */
+static int g_np_sel_anchor_line = -1;
+static int g_np_sel_anchor_col  = -1;
+static bool g_np_selecting = false;
+
+void dosgui_notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    if (!win) return;
+    /* WM delivers window-relative coords; content is drawn in absolute
+     * space via the chrome content rect. Translate up front. */
+    x += win->x;
+    y += win->y;
+
+    /* Content rect (same chrome the draw uses: win origin + border +
+     * title bar). */
+    int bw = border_width();
+    int tbh = title_bar_height();
+    int cx = win->x + bw;
+    int cy = win->y + bw + tbh;
+    int cw = win->w - 2 * bw;
+    int ch = win->h - tbh - bw;
+    int line_h = 16;
+    int text_x = cx + 4;
+    int text_y = cy + 2;
+    int max_lines = (ch - 16) / line_h;
+    if (max_lines < 1) max_lines = 1;
+
+    /* Ignore clicks outside the editing surface / on the status bar. */
+    if (x < cx || x >= cx + cw || y < text_y || y >= cy + ch - 14)
+        return;
+
+    /* Map to line/col. */
+    int row = (y - text_y) / line_h;
+    if (row < 0) row = 0;
+    if (row > max_lines - 1) row = max_lines - 1;
+    int line = g_notepad.scroll_y + row;
+    if (line >= g_notepad.line_count) line = g_notepad.line_count - 1;
+    if (line < 0) line = 0;
+    int col = (x - text_x) / 8 + g_notepad.top_x;
+    int linelen = (int)strlen(g_notepad.lines[line]);
+    if (col < 0) col = 0;
+    if (col > linelen) col = linelen;
+
+    if (kind == 1 && btn == 1) {           /* left press: position + anchor */
+        g_notepad.cursor_line = line;
+        g_notepad.cursor_col = col;
+        g_np_sel_anchor_line = line;
+        g_np_sel_anchor_col = col;
+        g_np_selecting = true;
+    } else if (kind == 0 && g_np_selecting) { /* drag: move caret, keep anchor */
+        g_notepad.cursor_line = line;
+        g_notepad.cursor_col = col;
+    } else if (kind == 2) {                 /* release: end selection */
+        g_np_selecting = false;
+    }
+    (void)g_np_sel_anchor_line; (void)g_np_sel_anchor_col;
+}
+
 void notepad_open(const char *filename) {
     np_reset();
     if (filename) strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename)-1);
@@ -208,5 +265,6 @@ void notepad_open(const char *filename) {
     if (win) {
         win->on_draw = dosgui_notepad_draw;
         win->on_key  = dosgui_notepad_key;
+        win->on_mouse = dosgui_notepad_mouse;
     }
 }

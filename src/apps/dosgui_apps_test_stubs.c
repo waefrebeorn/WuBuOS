@@ -42,6 +42,9 @@ void dosgui_notepad_draw(void *win, uint32_t *fb, int fb_w, int fb_h) {
 void dosgui_notepad_key(void *win, uint32_t key, uint32_t mods) {
     (void)win; (void)key; (void)mods;
 }
+void dosgui_notepad_mouse(void *win, int x, int y, int btn, int kind) {
+    (void)win; (void)x; (void)y; (void)btn; (void)kind;
+}
 
 /* -- Start menu toggle (WM UI hook) ---------------------------------- */
 void dosgui_startmenu_toggle(void) { }

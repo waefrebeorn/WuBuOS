@@ -42,6 +42,7 @@ static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int 
  * so the registry can wire them. */
 void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void dosgui_notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void repl_handle_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 
@@ -85,7 +86,8 @@ DosGuiWindow* dosgui_launch_temple_repl(void) {
 
 DosGuiWindow* dosgui_launch_notepad(void) {
     DosGuiWindow *win = dosgui_wm_create(100, 80, 500, 400, "Untitled - Notepad");
-    if (win) { win->on_draw = dosgui_notepad_draw; win->on_key = dosgui_notepad_key; }
+    if (win) { win->on_draw = dosgui_notepad_draw; win->on_key = dosgui_notepad_key;
+               win->on_mouse = dosgui_notepad_mouse; }
     return win;
 }
 

@@ -56,6 +56,7 @@ DosGuiWindow* tandem_launch(void) { return NULL; }
 void app_explorer_init(void) {}
 void dosgui_notepad_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
 void dosgui_notepad_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
+void dosgui_notepad_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w;(void)x;(void)y;(void)b;(void)k; }
 void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
 void dosgui_startmenu_toggle(void) {}
 int dosgui_startmenu_is_open(void) { return 0; }
