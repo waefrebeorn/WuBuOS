@@ -525,6 +525,16 @@ test_ns_brain:
 		-o $(RT)/wubu_ns_brain_test -lm -lpthread
 	cd $(CURDIR) && $(RT)/wubu_ns_brain_test
 
+# the /n path resolver (shell + tools read the live namespace tree)
+test_ns_resolve:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(RT)/wubu_ns_resolve_test.c -o /tmp/wubu_ns_resolve_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_resolve.c \
+		/tmp/wubu_ns_resolve_test.o \
+		-o $(RT)/wubu_ns_resolve_test -lm -lpthread
+	cd $(CURDIR) && $(RT)/wubu_ns_resolve_test
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
