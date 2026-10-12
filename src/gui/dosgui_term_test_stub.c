@@ -78,3 +78,14 @@ int styx_mkdir(const char *path, int mode) { return 0; }
 int styx_unlink(const char *path) { return 0; }
 int styx_rmdir(const char *path) { return 0; }
 int styx_rename(const char *oldpath, const char *newpath) { return 0; }
+
+/* Button/scrollbar draw stubs (real ones in dosgui_wm_render.c, which the
+ * fullscreen term test does not link). */
+void dosgui_draw_button(int x, int y, int w, int h, const char *label,
+                        int state, int is_default) {
+    (void)x;(void)y;(void)w;(void)h;(void)label;(void)state;(void)is_default;
+}
+void dosgui_draw_vscrollbar(int x, int y, int w, int h,
+                            int scroll, int visible, int total) {
+    (void)x;(void)y;(void)w;(void)h;(void)scroll;(void)visible;(void)total;
+}

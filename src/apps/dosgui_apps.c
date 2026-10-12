@@ -34,10 +34,11 @@
 
 /* Terminal (cmd.c) adapter callbacks — forward-declared so
  * dosgui_launch_terminal can bind them. */
-static void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
-static void dosgui_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
-static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
-static void dosgui_terminal_scroll(DosGuiWindow *win, int delta);
+void app_terminal_init(void);
+void app_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void app_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void app_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+void app_terminal_scroll(DosGuiWindow *win, int delta);
 
 /* Notepad / REPL bind their own callbacks internally; expose them
  * so the registry can wire them. */
@@ -103,41 +104,24 @@ DosGuiWindow* dosgui_launch_calculator(void) {
 }
 
 DosGuiWindow* dosgui_launch_terminal(void) {
+    /* REAL terminal engine: the pty-backed VT/ANSI terminal in
+     * src/gui/dosgui_term*.c (tabs, scrollback, selection, copy/paste),
+     * bound to a window by src/apps/app_terminal.c. Replaces the
+     * simplified cmd.c stub that could not render command output. */
+    app_terminal_init();
     DosGuiWindow *win = dosgui_wm_create(300, 160, 800, 600, "Terminal");
     if (!win) return NULL;
 
-    /* Real terminal engine: a pty-backed shell rendered in-window. */
-    WubuCmd *cmd = wubu_cmd_create(80, 24);
-    if (cmd) wubu_cmd_spawn_shell(cmd, NULL);   /* NULL -> $SHELL / /bin/sh */
-    win->user_data = cmd;
-    win->on_draw  = dosgui_terminal_draw;
-    win->on_key   = dosgui_terminal_key;
-    win->on_mouse = dosgui_terminal_mouse;
-    win->on_scroll = dosgui_terminal_scroll;
+    /* Open a shell session sized to the window's chrome content rect. */
+    int bw = border_width();
+    int tbh = title_bar_height();
+    dosgui_term_show(300 + bw, 160 + bw + tbh, 800 - 2 * bw, 600 - tbh - bw);
+
+    win->on_draw   = app_terminal_draw;
+    win->on_key    = app_terminal_key;
+    win->on_mouse  = app_terminal_mouse;
+    win->on_scroll = app_terminal_scroll;
     return win;
-}
-
-/* -- Terminal (cmd.c) adapters: bridge DosGuiWindow callbacks to WubuCmd -- */
-
-static void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    WubuCmd *cmd = (WubuCmd *)win->user_data;
-    if (cmd) wubu_cmd_draw(cmd, (void *)win, fb, fb_w, fb_h);
-}
-
-static void dosgui_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
-    (void)mods;
-    WubuCmd *cmd = (WubuCmd *)win->user_data;
-    if (cmd) wubu_cmd_key(cmd, (int)key);
-}
-
-static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
-    (void)win; (void)x; (void)y; (void)btn; (void)kind;
-    /* Terminal has no mouse-driven UI yet; pty input is keyboard-only. */
-}
-
-static void dosgui_terminal_scroll(DosGuiWindow *win, int delta) {
-    WubuCmd *cmd = (WubuCmd *)win->user_data;
-    if (cmd) wubu_cmd_scroll(cmd, delta);
 }
 
 DosGuiWindow* dosgui_launch_file_manager(void) {

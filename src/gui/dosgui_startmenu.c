@@ -865,6 +865,10 @@ void dosgui_startmenu_handle_key(int key, uint32_t mods) {
             g_search_mode = false;
         }
     }
+    else if (g_search.active && key >= 32 && key < 127) {
+        /* Printable char while searching: append to the query + refilter. */
+        dosgui_startmenu_handle_search_input(key, mods);
+    }
     /* Arrow key navigation for main menu */
     else if (g_open && !g_search.active) {
         if (key == 0xE048) { /* Up arrow */
@@ -932,6 +936,10 @@ void dosgui_startmenu_handle_key(int key, uint32_t mods) {
             }
         }
     }
+}
+
+bool dosgui_startmenu_search_active(void) {
+    return g_search.active;
 }
 
 void dosgui_startmenu_handle_search_input(int key, uint32_t mods) {

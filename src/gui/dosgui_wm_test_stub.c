@@ -77,6 +77,8 @@ void dosgui_startmenu_open(void)   { tsm_open = 1; }
 void dosgui_startmenu_close(void)  { tsm_open = 0; }
 int  dosgui_startmenu_is_open(void) { return tsm_open; }
 
+void dosgui_startmenu_handle_key(int key, uint32_t mods) { (void)key; (void)mods; }
+
 void dosgui_startmenu_handle_click(int x, int y) {
     if (!tsm_open) return;
     int task_h = dosgui_taskbar_height();

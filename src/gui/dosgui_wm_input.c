@@ -49,6 +49,14 @@ static int hit_test_edge(DosGuiWindow *w, int x, int y) {
 }
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
+    /* Start menu owns the keyboard when open (search box, Esc/Tab/Enter,
+     * arrow nav). Otherwise typing with the menu open leaks to the focused
+     * window and the search box is unreachable. Mirrors the mouse path. */
+    if (dosgui_startmenu_is_open()) {
+        dosgui_startmenu_handle_key(key, mods);
+        return;
+    }
+
     /* P0 a11y: when the cluster is enabled and a window is focused, give
      * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
      * activate). Otherwise arrow keys fall through to normal WM nav. */

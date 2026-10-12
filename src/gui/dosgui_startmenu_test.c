@@ -155,6 +155,40 @@ static void test_cascade_renders_nested_submenu(void) {
     PASS();
 }
 
+/* XP parity: the Start-menu search box captures typed keys and updates
+ * filtered results (the WM now routes keys here when the menu is open,
+ * and handle_key appends printable chars to the query). */
+static void test_search_key_input(void) {
+    TEST("start-menu search captures typed keys + updates results");
+    dosgui_startmenu_init();
+    dosgui_startmenu_open();
+
+    CHECK(!dosgui_startmenu_search_active(), "search inactive before Tab");
+    /* Tab enters search mode. */
+    dosgui_startmenu_handle_key('\t', 0);
+    CHECK(dosgui_startmenu_search_active(), "Tab activates search mode");
+
+    /* Type characters; handle_key must append them to the query + refilter
+     * (no crash, results stay queryable). */
+    dosgui_startmenu_handle_key('c', 0);
+    dosgui_startmenu_handle_key('a', 0);
+    dosgui_startmenu_handle_key('l', 0);
+    SmProgramEntry **res = NULL; int n = 0;
+    dosgui_startmenu_search_get_results(&res, &n);
+    CHECK(n >= 0, "results queryable after typing");
+
+    /* Backspace removes a char (still active). */
+    dosgui_startmenu_handle_key(8, 0);
+    CHECK(dosgui_startmenu_search_active(), "search still active after backspace");
+
+    /* Esc clears search. */
+    dosgui_startmenu_handle_key(27, 0);
+    CHECK(!dosgui_startmenu_search_active(), "Esc clears search mode");
+
+    dosgui_startmenu_close();
+    PASS();
+}
+
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     dosgui_startmenu_init();
@@ -176,6 +210,7 @@ int main(void) {
     test_sm_registry();
     test_programs_cascade_items();
     test_programs_click_opens_flyout();
+    test_search_key_input();
     test_cascade_renders_nested_submenu();
     test_open_close();
     test_render_no_crash();

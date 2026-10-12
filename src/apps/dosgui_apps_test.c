@@ -33,9 +33,14 @@ void dosgui_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)win; (void)fb; (void)fb_w; (void)fb_h;
 }
 
-void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    (void)win; (void)fb; (void)fb_w; (void)fb_h;
-}
+/* Real terminal engine (src/apps/app_terminal.c) not linked into this
+ * test; stub its adapter entry points. */
+void app_terminal_init(void) {}
+void dosgui_term_show(int x, int y, int w, int h) { (void)x;(void)y;(void)w;(void)h; }
+void app_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) { (void)win;(void)fb;(void)fb_w;(void)fb_h; }
+void app_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods) { (void)win;(void)key;(void)mods; }
+void app_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) { (void)win;(void)x;(void)y;(void)btn;(void)kind; }
+void app_terminal_scroll(DosGuiWindow *win, int delta) { (void)win;(void)delta; }
 
 /* Stubs for container functions */
 int wubu_ct_start_bwrap(void* ct) { (void)ct; return 0; }

@@ -144,6 +144,7 @@ void dosgui_startmenu_search_init(void);
 void dosgui_startmenu_search_update(const char *query);
 void dosgui_startmenu_search_clear(void);
 int  dosgui_startmenu_search_get_results(SmProgramEntry ***out_results, int *out_count);
+bool dosgui_startmenu_search_active(void);
 
 void dosgui_startmenu_recent_add(const char *app_name);
 int  dosgui_startmenu_recent_get(SmProgramEntry **out_entries, int max);
