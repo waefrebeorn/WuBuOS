@@ -33,3 +33,8 @@ int wubu_wine_setup_prefix(const char *p) { (void)p; return -1; }
 int wubu_wine_configure_env(const void *e) { (void)e; return -1; }
 void *wubu_secmon_create(void) { return 0; }
 int wubu_secmon_attach(void *m, const void *p) { (void)m; (void)p; return 0; }
+/* wubu_ct_wait routes through these when a secmon is attached; the GUI tests
+ * never attach one (secmon_create returns 0), so ct->secmon is NULL and these
+ * are never called — but the linker needs the symbols. */
+int wubu_secmon_wait(void *m) { (void)m; return 0; }
+int wubu_secmon_exit_code(const void *m) { (void)m; return -1; }
