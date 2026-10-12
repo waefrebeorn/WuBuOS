@@ -495,6 +495,16 @@ test_syscall_shim:
 		$(RT)/wubu_abi_path.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_syscall_shim
 
+# the INTEROP LIBRARIAN (Track D2): systems find each other + call across
+# ABI boundaries, with a translation table that grows as it goes.
+test_librarian:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_librarian \
+		$(RT)/wubu_librarian_test.c \
+		$(RT)/wubu_librarian.c \
+		$(RT)/wubu_syscall_shim.c \
+		$(RT)/wubu_abi_path.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_librarian
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
