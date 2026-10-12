@@ -487,6 +487,14 @@ test_abi_path:
 		$(RT)/wubu_abi_path.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_abi_path
 
+# foreign-ABI syscall translation (Track D1 shim: syscalls -> WuBu ops)
+test_syscall_shim:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_syscall_shim \
+		$(RT)/wubu_syscall_shim_test.c \
+		$(RT)/wubu_syscall_shim.c \
+		$(RT)/wubu_abi_path.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_syscall_shim
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
