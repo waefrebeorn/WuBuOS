@@ -23,7 +23,7 @@ void wubu_ns_brain_set_train(float loss, float loss_ema, float lr,
                              float muon_lr, float adam_lr,
                              uint32_t step, uint32_t epoch);
 
-/* Flush the mirror into /n/models/* and /n/train/*. Returns 0 on success,
+/* Flush the mirror into the /n/models and /n/train trees. Returns 0 on success,
  * -1 if the namespace root isn't set. */
 int wubu_ns_brain_sync(void);
 

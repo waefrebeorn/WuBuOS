@@ -68,7 +68,7 @@ void wubu_ns_brain_set_train(float loss, float loss_ema, float lr,
     g_b.step = step; g_b.epoch = epoch;
 }
 
-/* Flush the mirror into /n/models/* and /n/train/*. Returns 0 on success,
+/* Flush the mirror into the /n/models and /n/train trees. Returns 0 on success,
  * -1 if the namespace root isn't set. */
 int wubu_ns_brain_sync(void)
 {
@@ -100,7 +100,7 @@ int wubu_ns_brain_sync(void)
         if (ns_write(sub, buf) != 0) return -1;
     }
 
-    /* /n/train/* */
+    /* /n/train entries */
     snprintf(sub, sizeof(sub), "train/loss");
     snprintf(buf, sizeof(buf), "loss %.4f, ema %.4f\n", g_b.loss, g_b.loss_ema);
     if (ns_write(sub, buf) != 0) return -1;

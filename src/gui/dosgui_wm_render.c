@@ -23,6 +23,9 @@
 #include "wubu_bonzi_observe.h"
 #include "../kernel/vbe.h"
 
+/* Defined in dosgui_wm_layout.c. */
+void draw_desktop_bg(int fb_w, int fb_h);
+
 /* The companion meta-layer observer is an OPTIONAL add-on: the GUI must
  * render whether or not the namespace/context modules are linked. One weak
  * no-op; the real wubu_bonzi_observe.o overrides it at link time. */
@@ -63,17 +66,15 @@ void dosgui_draw_button(int x, int y, int w, int h, const char *label,
     int rad = theme()->rounded_buttons ? 3 : 0;
 
     if (luna) {
-        uint32_t top, bot, edge, text;
+        uint32_t top, bot, edge;
         if (is_default) {
             top  = (state == 2) ? 0x2A5490 : (state == 1 ? 0x4A80C8 : 0x3A6EA5);
             bot  = (state == 2) ? 0x24486E : (state == 1 ? 0x3A6EA5 : 0x2E5A8A);
             edge = 0x1E3C5C;
-            text = 0xFFFFFF;
         } else {
             top  = (state == 2) ? 0xD8D4CC : (state == 1 ? 0xFFFFFF : 0xF4F2EC);
             bot  = (state == 2) ? 0xC0BCB4 : (state == 1 ? 0xE8E4DC : 0xE0DCD4);
             edge = 0x9C9890;
-            text = 0x000000;
         }
         int oy = (state == 2) ? 1 : 0;  /* pressed shifts content down 1px */
         vbe_fill_rect_rounded(x, y + oy, w, h, rad, bot);
@@ -199,7 +200,7 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     g_dwm.render_frame_count++;
     wubu_bonzi_tick(16);
     /* Meta-layer: mirror the live companion state into /n/bonzi so the shell
-     * (and any agent) can read what the AGI face IS -- `cat /n/bonzi/*`.
+     * (and any agent) can read what the AGI face IS -- `cat /n/bonzi` files.
      * sync() is a safe no-op (-1) when the namespace root isn't set. */
     wubu_bonzi_observe();   /* push live companion + WM state to the meta-layer */
     /* Advance any active human-typing session (keystrokes land with
@@ -241,7 +242,7 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
                     truncated[len] = '\0';
                 }
                 if (len > 0) {
-                    strncpy(truncated + len, "...", 3);
+                    memcpy(truncated + len, "...", 3);
                     truncated[len + 3] = '\0';
                 } else {
                     strcpy(truncated, "...");
