@@ -54,4 +54,9 @@ void wubu_bonzi_open_agi(void);
  * Pass NULL for either line to leave it unchanged. */
 void wubu_bonzi_set_bubble(const char *line1, const char *line2);
 
+/* Activity feedback (the orb reflects what the agent is doing). */
+#include "wubu_bonzi_activity.h"
+void wubu_bonzi_set_activity(wubu_bonzi_activity_t act);
+wubu_bonzi_activity_t wubu_bonzi_get_activity(void);
+
 #endif /* WUBU_BONZI_H */
