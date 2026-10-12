@@ -37,4 +37,10 @@ int wubu_bonzi_mem_save(const wubu_agentic_mem_t *m, const char *path,
 int wubu_bonzi_mem_load(wubu_agentic_mem_t *m, const char *path,
                         const char *caller_subtree);
 
+/* Track B3: recall the companion's memory and format a summon greeting into
+ * buf (calls wubu_bonzi_greet_format). Loads the persisted index at the
+ * default /n/bonzi/mem path (AD01-gated to the companion subtree). Returns 0
+ * on success (greeting written), -1 if no memory / load failed. */
+int wubu_bonzi_mem_recall(char *buf, int cap);
+
 #endif /* WUBU_BONZI_MEM_H */

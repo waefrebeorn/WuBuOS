@@ -27,6 +27,7 @@
  */
 
 #include "wubu_bonzi.h"
+#include "wubu_bonzi_greet.h"
 #include "../kernel/vbe.h"
 #ifdef WUBU_NO_LIBM
 #  include "../kernel/wubu_math.h"  /* provides M_PI, fabsf, cosf, etc. */
@@ -374,7 +375,18 @@ void wubu_bonzi_set_bubble(const char *l1, const char *l2) {
 
 /* -- AGI gateway ------------------------------------------------------ */
 
+/* The companion's persistent memory (Track A4/B3). Weak so bonzi links even
+ * without the mem store; the real wubu_bonzi_mem.o overrides at link time. */
+__attribute__((weak)) int wubu_bonzi_mem_recall(char *greeting, int cap);
+__attribute__((weak)) int wubu_bonzi_mem_recall(char *greeting, int cap) {
+    (void)greeting; (void)cap; return -1;
+}
+
 void wubu_bonzi_open_agi(void) {
+    /* Track B3: on summon, recall who we are and greet personally. */
+    char greet[256];
+    if (wubu_bonzi_mem_recall(greet, sizeof greet) == 0 && greet[0])
+        wubu_bonzi_set_bubble(greet, "How can I help?");
     DosGuiWindow *w = dosgui_wm_spawn_holyd_term(280, 180, 520, 380);
     if (w) dosgui_wm_set_focus(w);
 }

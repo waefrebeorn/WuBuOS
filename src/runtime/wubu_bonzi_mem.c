@@ -24,6 +24,7 @@
 
 #include "wubu_bonzi_mem.h"
 #include "wubu_agentic_os.h"   /* AD01: wubu_9p_cap_allowed */
+#include "../gui/wubu_bonzi_greet.h"  /* Track B3: greeting */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -119,4 +120,42 @@ int wubu_bonzi_mem_load(wubu_agentic_mem_t *m, const char *path,
     fclose(f);
     if (ok) m->n = (int)n;
     return ok ? 0 : -1;
+}
+
+
+/* Track B3: recall the companion's memory and format a summon greeting.
+ * Loads the persisted index at the default path (AD01-gated to the companion
+ * subtree), then hands the count + recent actions to the greeting formatter. */
+int wubu_bonzi_mem_recall(char *buf, int cap)
+{
+    if (!buf || cap <= 0) return -1;
+    const char *path = "/n/bonzi/mem";
+    /* Allocate a modest index to load into. */
+    enum { DIM = 8, MAX = 256 };
+    wubu_agentic_mem_t m;
+    m.dim = DIM; m.max = MAX; m.n = 0;
+    m.embeddings = calloc((size_t)DIM * MAX, sizeof(float));
+    m.actions    = calloc((size_t)MAX, sizeof(char *));
+    for (int i = 0; i < MAX; i++) m.actions[i] = calloc(64, 1);
+    m.timestamps = calloc((size_t)MAX, sizeof(uint64_t));
+    m.rewards    = calloc((size_t)MAX, sizeof(double));
+    if (!m.embeddings || !m.actions || !m.timestamps || !m.rewards) {
+        for (int i = 0; i < MAX; i++) free(m.actions ? m.actions[i] : NULL);
+        free(m.actions); free(m.embeddings); free(m.timestamps); free(m.rewards);
+        return -1;
+    }
+    int rc = wubu_bonzi_mem_load(&m, path, "/n/bonzi");
+    if (rc != 0 || m.n <= 0) {
+        for (int i = 0; i < MAX; i++) free(m.actions[i]);
+        free(m.actions); free(m.embeddings); free(m.timestamps); free(m.rewards);
+        return -1;
+    }
+    /* The two most-recent actions (highest stored index = most recent). */
+    const char *recent[2] = { NULL, NULL };
+    recent[0] = m.actions[m.n - 1];
+    if (m.n > 1) recent[1] = m.actions[m.n - 2];
+    wubu_bonzi_greet_format(buf, cap, m.n, recent, 2);
+    for (int i = 0; i < MAX; i++) free(m.actions[i]);
+    free(m.actions); free(m.embeddings); free(m.timestamps); free(m.rewards);
+    return 0;
 }
