@@ -281,6 +281,50 @@ static void test_mouse_drag_window(void) {
     dosgui_wm_shutdown();
 }
 
+static void test_titlebar_button_clicks(void) {
+    TEST("title-bar close/min/max buttons drive state via mouse");
+    dosgui_wm_init(1024, 768);
+    int tbh = title_bar_height();
+    int bw = border_width();
+    int btn = 14;
+    int wy = 100 + (tbh - btn) / 2;   /* button row Y */
+
+    /* -- Minimize -- */
+    {
+        DosGuiWindow *w = dosgui_wm_create(100, 100, 200, 150, "MinTest");
+        int min_x = 100 + 200 - bw - btn - 2 - (btn + 2) - (btn + 2);  /* leftmost */
+        dosgui_wm_handle_mouse(min_x + btn/2, wy + btn/2, 1, 1);
+        CHECK(dosgui_wm_is_minimized(w), "clicking minimize minimizes the window");
+        dosgui_wm_destroy(w);
+    }
+    /* -- Maximize (then restore) -- */
+    {
+        DosGuiWindow *w = dosgui_wm_create(100, 100, 200, 150, "MaxTest");
+        int max_x = 100 + 200 - bw - btn - 2 - (btn + 2);  /* middle */
+        dosgui_wm_handle_mouse(max_x + btn/2, wy + btn/2, 1, 1);
+        CHECK(dosgui_wm_is_maximized(w), "clicking maximize maximizes the window");
+        /* Click again to restore — recompute the button position from the
+         * now-maximized window geometry (it fills the screen). */
+        int max_x2 = w->x + w->w - bw - btn - 2 - (btn + 2);
+        int wy2 = w->y + (title_bar_height() - btn) / 2;
+        dosgui_wm_handle_mouse(max_x2 + btn/2, wy2 + btn/2, 1, 1);
+        CHECK(!dosgui_wm_is_maximized(w), "clicking maximize again restores");
+        dosgui_wm_destroy(w);
+    }
+    /* -- Close -- */
+    {
+        int before = dosgui_wm_window_count();
+        DosGuiWindow *w = dosgui_wm_create(100, 100, 200, 150, "CloseTest");
+        CHECK(dosgui_wm_window_count() == before + 1, "window created");
+        int close_x = 100 + 200 - bw - btn - 2;  /* rightmost */
+        dosgui_wm_handle_mouse(close_x + btn/2, wy + btn/2, 1, 1);
+        CHECK(dosgui_wm_window_count() == before, "clicking close destroys the window");
+        (void)w;
+    }
+    PASS();
+    dosgui_wm_shutdown();
+}
+
 /* -- Taskbar Tests --------------------------------------------- */
 
 static void test_taskbar_height(void) {
@@ -975,6 +1019,7 @@ int main(void) {
     test_luna_default_button();
     test_icon_single_vs_double_click();
     test_mouse_drag_window();
+    test_titlebar_button_clicks();
     test_taskbar_height();
     test_render_no_crash();
     test_render_draws_glyphs_and_selection();

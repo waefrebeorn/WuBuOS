@@ -440,6 +440,13 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
         }
 
         if (y < w->y + tbh) {
+            /* Title-bar button hit-test (close/min/max) takes priority over
+             * drag — otherwise the drawn buttons are dead. */
+            int btn = dosgui_chrome_hit_test_button(w, x, y);
+            if (btn != 0 && kind == 1) {
+                dosgui_chrome_handle_button_click(w, btn);
+                return;
+            }
             g_dwm.drag_id = i;
             g_dwm.drag_ox = x - w->x;
             g_dwm.drag_oy = y - w->y;
