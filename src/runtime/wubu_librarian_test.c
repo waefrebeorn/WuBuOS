@@ -26,7 +26,7 @@ int main(void)
                                   "/n/foreign/win/c/apps", "edit text") == 0,
           "register Windows notepad");
     CHECK(wubu_librarian_register("filesvc", WUBU_ABI_UNIX,
-                                  "/n/foreign/unix/srv", "store files") == 0,
+                                  "/n/foreign/unix", "store files") == 0,
           "register Unix filesvc");
     CHECK(wubu_librarian_count() == 2, "two participants registered");
 
@@ -47,7 +47,7 @@ int main(void)
     CHECK(rc == 0, "cross-ABI file call routed");
     CHECK(op == WUBU_SHU_FILE, "served as a FILE op");
     CHECK(strcmp(root, "/n/foreign/unix/srv/data.db") == 0,
-          "path translated onto the target's namespace");
+          "path resolved against the target's namespace root");
 
     /* 3. the crossing is recorded -- the dictionary grew */
     CHECK(wubu_librarian_xlate_count() == before + 1,

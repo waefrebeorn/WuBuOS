@@ -120,9 +120,12 @@ int wubu_librarian_route(const char *from_name, const char *to_name,
     const wubu_lib_entry_t *src = wubu_librarian_find(from_name);
     wubu_abi_t from_abi = src ? src->abi : WUBU_ABI_UNIX;
 
-    char tpath[512];
-    wubu_shu_op_t op = wubu_syscall_shim_translate(tgt->abi, sc, path_arg,
-                                                   tpath, sizeof tpath);
+    /* Classify the op (file/net/graphics/refuse). For a FILE op the path is
+     * served from the TARGET's registered namespace root -- the target is a
+     * WuBu-native 9P participant, so its root + the cleaned path arg is the
+     * real location. (The generic foreign translation is for a path the
+     * target's OWN filesystem expects; here we resolve against its root.) */
+    wubu_shu_op_t op = wubu_syscall_shim_classify(sc);
     if (op == WUBU_SHU_REFUSE) return -1;
 
     /* learn the crossing so next time it's a direct lookup */
@@ -130,10 +133,15 @@ int wubu_librarian_route(const char *from_name, const char *to_name,
                                 wubu_syscall_shim_op_name(op));
 
     if (target_root && root_cap) {
-        if (op == WUBU_SHU_FILE)
-            snprintf(target_root, root_cap, "%s", tpath);
-        else
+        if (op == WUBU_SHU_FILE && path_arg && path_arg[0]) {
+            /* join target root + path arg, skipping a leading slash on the
+             * arg so we don't double up (root already ends at its mount). */
+            const char *pa = path_arg;
+            while (*pa == '/' || *pa == '\\') pa++;
+            snprintf(target_root, root_cap, "%s/%s", tgt->ns_root, pa);
+        } else {
             snprintf(target_root, root_cap, "%s", tgt->ns_root);
+        }
     }
     if (served_op) *served_op = op;
     return 0;

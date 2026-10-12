@@ -505,6 +505,16 @@ test_librarian:
 		$(RT)/wubu_abi_path.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_librarian
 
+# the librarian's LIVE interop entry point (Track D2, wired end-to-end)
+test_librarian_serve:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_librarian_serve \
+		$(RT)/wubu_librarian_serve_test.c \
+		$(RT)/wubu_librarian_serve.c \
+		$(RT)/wubu_librarian.c \
+		$(RT)/wubu_syscall_shim.c \
+		$(RT)/wubu_abi_path.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_librarian_serve
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
