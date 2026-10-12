@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
