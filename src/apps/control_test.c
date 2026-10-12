@@ -46,6 +46,24 @@ int main(void) {
     control_draw(w, fb, 1024, 80, c);
     T(1, "control_draw renders into framebuffer without crash");
 
+    /* -- Category-tile click switches the active tab (mouse parity) -- */
+    printf("\n[Control Panel — category click switches tab]\n");
+    T(w->on_mouse != NULL, "control window has on_mouse bound");
+    if (w->on_mouse) {
+        ControlState *wc = (ControlState*)w->user_data;  /* the window's own state */
+        int before = control_get_tab(wc);
+        /* Click the 3rd category tile (row 1, col 0 -> idx 2 -> tab 2).
+         * Grid: gx0 = win->x + border + 150 + 14, gy0 = win->y + border +
+         * title + 60; cell 170x70. Feed window-relative coords. */
+        int bw = border_width(), tbh = title_bar_height();
+        int rel_x = bw + 150 + 14 + 0 * 170 + 10;   /* col 0, inside tile */
+        int rel_y = bw + tbh + 60 + 1 * 70 + 10;    /* row 1, inside tile */
+        w->on_mouse(w, rel_x, rel_y, 1, 1);
+        int after = control_get_tab(wc);
+        T(after == 2, "clicking category tile 2 switches to tab 2");
+        T(after != before || before == 2, "active tab changed from click");
+    }
+
     /* -- Stream 4: apply wallpaper change (persist + live reload) -- */
     printf("\n[Desktop Tab Apply — Stream 4]\n");
     control_desktop_apply("/tmp/wubu_ctrl_test/wp.bmp", 2);

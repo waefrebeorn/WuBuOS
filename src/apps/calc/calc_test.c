@@ -6,6 +6,10 @@
  */
 
 #include "calc.h"
+#include "calc_internal.h"
+#include "../gui/dosgui_wm.h"
+#include "../gui/dosgui_wm_internal.h"
+#include "../kernel/vbe.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -124,6 +128,36 @@ static void test_base_clamp(void) {
     OK();
 }
 
+static void test_mouse_keypad_click(void) {
+    printf("\n[Mouse keypad click]\n");
+    CHECK(vbe_init(280, 380) == 0, "vbe_init for calc window");
+    DosGuiWindow *win = calc_launch();
+    CHECK(win != NULL, "calc_launch returns a window");
+    CHECK(win->on_mouse != NULL, "calc window has on_mouse bound");
+    CalcState *c = (CalcState*)win->user_data;
+    CHECK(c != NULL, "window carries CalcState");
+    double before = calc_get_display(c);
+
+    /* Click the DIG0 button: Std grid row 0 = {MODE,DIG0,DOT,EQ,ADD}.
+     * Grid origin (window-relative): gx = border + 4,
+     * gy = border + title + 18 + disp_h(28) + 6. cell = gw/cols x gh/rows
+     * with cols=5, rows=6. Click center of (row 0, col 1). */
+    int bw = border_width(), tbh = title_bar_height();
+    int cw = win->w - 2 * bw, ch = win->h - tbh - bw;
+    int gw = cw - 8, gh = ch - (18 + 28 + 6) - 4;
+    int cell_w = gw / 5, cell_h = gh / 6;
+    int gx = bw + 4, gy = bw + tbh + 18 + 28 + 6;
+    int rel_x = gx + 1 * cell_w + cell_w / 2;   /* col 1 = DIG0 */
+    int rel_y = gy + 0 * cell_h + cell_h / 2;   /* row 0 */
+    win->on_mouse(win, rel_x, rel_y, 1, 1);
+    double after = calc_get_display(c);
+    CHECK(after != before, "clicking DIG0 changes the display value");
+
+    dosgui_wm_destroy(win);
+    vbe_shutdown();
+    OK();
+}
+
 int main(void) {
     printf("=== WuBuOS Calculator Engine Tests ===\n\n");
     test_add();
@@ -135,6 +169,7 @@ int main(void) {
     test_div_zero_error();
     test_clear();
     test_base_clamp();
+    test_mouse_keypad_click();
     printf("\nResults: %d passed, %d failed\n", pass, fail);
     return fail > 0 ? 1 : 0;
 }
