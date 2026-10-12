@@ -33,6 +33,11 @@ void wubu_selfimprove_set_verifier(wubu_selfimprove_t *s, wubu_verifier_fn fn, v
 int wubu_selfimprove_ingest(wubu_selfimprove_t *s, const wubu_trace_span_t *span,
                             bool failed);
 
+/* DA-2 failure weighting: the search weight of the i-th ingested span.
+ * failed/divergent spans are weighted 3x (3), successful spans 1. Returns
+ * -1 for an out-of-range index. */
+int wubu_selfimprove_weight(wubu_selfimprove_t *s, int i);
+
 /* Run one improvement cycle. For each ingested span it scores via the INDEPENDENT
  * verifier; promoted changes are recorded (gated). Returns #promoted this cycle.
  * If frozen or no verifier, returns 0 and changes nothing. */

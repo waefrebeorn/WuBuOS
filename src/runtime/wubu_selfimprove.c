@@ -51,6 +51,11 @@ int wubu_selfimprove_ingest(wubu_selfimprove_t *s, const wubu_trace_span_t *span
     return 0;
 }
 
+int wubu_selfimprove_weight(wubu_selfimprove_t *s, int i) {
+    if (!s || i < 0 || i >= s->count) return -1;
+    return s->weight[i];
+}
+
 int wubu_selfimprove_cycle(wubu_selfimprove_t *s) {
     if (!s) return 0;
     if (s->frozen) return 0;          /* DA-3: loop stopped cold */

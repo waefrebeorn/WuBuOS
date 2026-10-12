@@ -110,6 +110,20 @@ int main(void)
         wubu_selfimprove_destroy(s);
     }
 
+    /* I5: DA-2 failure weighting  --  failed/divergent spans weighted 3x,
+     * successful spans 1x. This bounds the search cost of failures. */
+    {
+        wubu_selfimprove_t *s = wubu_selfimprove_create();
+        wubu_selfimprove_ingest(s, &span, false);  /* success -> weight 1 */
+        wubu_selfimprove_ingest(s, &span, true);   /* failed  -> weight 3 */
+        wubu_selfimprove_ingest(s, &span, false);  /* success -> weight 1 */
+        CHECK(wubu_selfimprove_weight(s, 0) == 1, "I5: successful span weight 1");
+        CHECK(wubu_selfimprove_weight(s, 1) == 3, "I5: failed span weight 3 (DA-2)");
+        CHECK(wubu_selfimprove_weight(s, 2) == 1, "I5: successful span weight 1");
+        CHECK(wubu_selfimprove_weight(s, 3) == -1, "I5: out-of-range weight -1");
+        wubu_selfimprove_destroy(s);
+    }
+
     printf("=== wubu_selfimprove_invariants_test: %d checks, %d failures ===\n",
            checks, fails);
     return fails ? 1 : 0;
