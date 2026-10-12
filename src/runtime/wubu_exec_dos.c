@@ -11,6 +11,10 @@
  * desktop "compatible window" + Styx /proc/<pid>/dos. C11, minimal includes.
  */
 
+/* strcasecmp() is a glibc/Linux extension hidden under -std=c11; _GNU_SOURCE
+ * exposes it. Must precede all includes. */
+#define _GNU_SOURCE 1
+
 #include "wubu_exec_internal.h"
 #include "wubu_dos_proc.h"
 

@@ -3,6 +3,9 @@
  *
  * One exec to rule them all.
  */
+/* memfd_create() (VSL shared-memory fast path) is a glibc/Linux extension
+ * hidden under -std=c11; _GNU_SOURCE exposes it. Must precede all includes. */
+#define _GNU_SOURCE 1
 
 #include "wubu_exec.h"
 #include "wubu_exec_internal.h"

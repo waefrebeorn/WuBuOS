@@ -11,6 +11,10 @@
 #ifndef WUBU_HOSTED
 #define WUBU_HOSTED  /* no-op when already set via -DWUBU_HOSTED */
 #endif
+/* chroot() is a glibc/Linux extension hidden under -std=c11; _GNU_SOURCE
+ * exposes it. Must precede all includes. */
+#define _GNU_SOURCE 1
+
 #include "wubu_host_exec.h"
 #include "wubu_secmon.h"
 #include "wubu_std.h"

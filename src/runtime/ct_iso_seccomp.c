@@ -11,6 +11,10 @@
 #define WUBU_HOSTED  /* no-op when already set via -DWUBU_HOSTED */
 #endif
 
+/* syscall() is a glibc/Linux extension hidden under -std=c11; _GNU_SOURCE
+ * exposes it. Must precede all includes. */
+#define _GNU_SOURCE 1
+
 #include "wubu_gnu_compat.h"
 #include "ct_iso_seccomp.h"
 #include "ct_iso_ns.h"          /* wubu_ns_unshare, WUBU_NS_FLAGS */
