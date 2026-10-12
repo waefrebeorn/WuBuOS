@@ -43,6 +43,8 @@ struct wubu_secmon {
     uint64_t    seq;            /* per-pid sequence */
     bool        kv_stream;      /* write into KV-FS? */
     bool        attached;
+    int         exit_code;      /* child's exit code (valid once !attached) */
+    bool        exited;         /* child has exited */
     char        kv_base_path[96]; /* /kv/agent/sys_<pid>/ */
 };
 
@@ -131,6 +133,9 @@ int wubu_secmon_poll(wubu_secmon_t *m)
     if (WIFEXITED(status) || WIFSIGNALED(status)) {
         /* child done — capture complete */
         m->attached = false;
+        m->exited = true;
+        m->exit_code = WIFEXITED(status) ? WEXITSTATUS(status)
+                                         : -WTERMSIG(status);
         return -1;
     }
 
@@ -174,6 +179,15 @@ int wubu_secmon_wait(wubu_secmon_t *m)
         if (rc == 0) usleep(1000);  /* nothing pending — wait */
     }
     return (int)(m->n_captured - start);
+}
+
+/* The traced child's exit code, captured by the poll loop once it exits.
+ * Valid only after the child has exited (m->exited). The caller that owns
+ * the container (wubu_ct_wait) reads this because a competing plain
+ * waitpid() would race with the secmon tracer for the same child. */
+int wubu_secmon_exit_code(const wubu_secmon_t *m)
+{
+    return (m && m->exited) ? m->exit_code : -1;
 }
 
 int wubu_secmon_detach(wubu_secmon_t *m)

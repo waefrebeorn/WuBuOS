@@ -87,10 +87,16 @@ int wubu_ct_setup_isolation(void *ct_ptr) {
     snprintf(env_ns, sizeof(env_ns), "WUBU_NS_FLAGS=%d", WUBU_NS_FLAGS);
     wubu_ct_add_env(ct, env_ns);
 
-    /* Set seccomp profile env for child */
+    /* Set seccomp profile env for child. An explicit WUBU_SECCOMP_PROFILE=none
+     * in the environment is an opt-out (trusted/test context) and is respected
+     * rather than overridden by the runtime default. */
+    const char *force_none = getenv("WUBU_SECCOMP_PROFILE");
     SeccompProfile sp = runtime_to_seccomp(ct->runtime);
     const char *sp_str = "basic";
-    if (sp == SECCOMP_PROFILE_GPU) sp_str = "gpu";
+    if (force_none && strcmp(force_none, "none") == 0) {
+        sp = SECCOMP_PROFILE_NONE;
+        sp_str = "none";
+    } else if (sp == SECCOMP_PROFILE_GPU) sp_str = "gpu";
     else if (sp == SECCOMP_PROFILE_WINE) sp_str = "wine";
     else if (sp == SECCOMP_PROFILE_NONE) sp_str = "none";
     char env2[64];

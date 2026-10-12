@@ -56,6 +56,8 @@ int wubu_secmon_poll(wubu_secmon_t *m);
 /* Blocking run: service until the traced child exits.
  * Returns total spans captured. */
 int wubu_secmon_wait(wubu_secmon_t *m);
+/* The traced child's exit code (valid once it has exited). */
+int wubu_secmon_exit_code(const wubu_secmon_t *m);
 
 /* Detach (stop tracing) without killing the child. */
 int wubu_secmon_detach(wubu_secmon_t *m);

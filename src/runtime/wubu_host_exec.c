@@ -410,10 +410,23 @@ int wubu_ct_start(WubuCt *ct) {
 
 int wubu_ct_wait(WubuCt *ct) {
     if (!ct || ct->pid <= 0) return -1;
-    
+
+    /* When the AGI syscall camera (secmon) is ptrace-attached to the child,
+     * a plain waitpid() here would race with the tracer for the same child
+     * and never see the real exit code. Instead, drive the tracer to
+     * completion (it reaps the child through its PTRACE_SYSCALL loop and
+     * records the exit code), then read that. */
+    if (ct->secmon) {
+        wubu_secmon_wait((wubu_secmon_t *)ct->secmon);
+        ct->exit_code = wubu_secmon_exit_code((const wubu_secmon_t *)ct->secmon);
+        ct->state = CT_EXITED;
+        ct->pid = 0;
+        return ct->exit_code;
+    }
+
     int status = 0;
     pid_t ret = waitpid(ct->pid, &status, 0);
-    
+
     if (ret == ct->pid) {
         if (WIFEXITED(status)) {
             ct->exit_code = WEXITSTATUS(status);
@@ -425,7 +438,7 @@ int wubu_ct_wait(WubuCt *ct) {
         ct->state = CT_EXITED;
         ct->pid = 0;
     }
-    
+
     return ct->exit_code;
 }
 

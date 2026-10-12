@@ -74,7 +74,7 @@ test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib t
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
-test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_launch test_exec_elf
+test_high_bridge: runtime test_bridge test_bridge_flip test_syscall test_launch test_exec_elf test_exec_pe
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
@@ -978,6 +978,25 @@ test_exec_elf:
 		-o $(RT)/wubu_exec_elf_test -lm -fopenmp -lpthread
 	$(RT)/wubu_exec_elf_test
 
+
+# RUNTIME #834: PE execution leg. Builds a real PE (mingw-w64) at runtime
+# and runs it through wubu_exec_win_pe -> wubu_ct_steamos -> Wine, asserting
+# the exit code round-trips. Self-contained (no external game binary).
+# Needs mingw-w64 + wine; skips gracefully (exit 2) if absent.
+test_exec_pe:
+	$(CC) $(CFLAGS) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(COMP) \
+		$(RT)/wubu_exec_pe_test.c $(RT)/wubu_exec.c \
+		$(RT)/wubu_exec_format.c $(RT)/wubu_exec_container.c \
+		$(RT)/wubu_exec_dos.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_wasm.c \
+		$(RT)/wubu_host_exec.c $(KERNEL)/wubu_kvfs.c \
+		$(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
+		$(RT)/wubu_container.c $(RT)/wubu_secmon.c $(RT)/wubu_wine_env.c $(RT)/wubu_hw_stub.c \
+		$(KERNEL)/libc_string.c $(KERNEL)/memory.c $(KERNEL)/klog.c \
+		$(KERNEL)/wubu_pe.c $(KERNEL)/wubu_elf.c $(KERNEL)/wubu_macho.c \
+		$(KERNEL)/wubu_pe_personality.c \
+		$(RT)/wubu_librarian.c $(RT)/wubu_librarian_serve.c $(RT)/wubu_abi_path.c $(RT)/wubu_syscall_shim.c \
+		-o $(RT)/wubu_exec_pe_test -lm -fopenmp -lpthread
+	$(RT)/wubu_exec_pe_test
 test_pe_personality: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_pe_personality.c $(KERNEL)/wubu_pe_personality.h $(KERNEL)/test/legacy/wubu_pe_personality_test.c $(KERNEL)/libc_string.c vendor/games/openarena-0.8.8.zip
 	@mkdir -p vendor/games/openarena_extract
 	@python3 -c "import zipfile,os; z=zipfile.ZipFile('vendor/games/openarena-0.8.8.zip'); d='vendor/games/openarena_extract'; [z.extract(n,d) for n in z.namelist() if n.endswith('.exe')]"

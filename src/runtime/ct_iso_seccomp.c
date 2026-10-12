@@ -264,6 +264,7 @@ int wubu_ct_child_isolation(void) {
         if (strcmp(profile, "gpu") == 0) sp = SECCOMP_PROFILE_GPU;
         else if (strcmp(profile, "wine") == 0) sp = SECCOMP_PROFILE_WINE;
         else if (strcmp(profile, "none") == 0) sp = SECCOMP_PROFILE_NONE;
+        else if (strcmp(profile, "observe") == 0) sp = SECCOMP_PROFILE_NONE;
         else {
             /* The Revolver Doctrine: any REGISTERED profile name is
              * loadable — probe the live registry before falling back.
