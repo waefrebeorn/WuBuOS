@@ -296,6 +296,42 @@ static void calc_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     }
 }
 
+/* Mouse input: click a keypad button. Mirrors calc_draw_wm's grid geometry
+ * exactly (display at cy+18, grid below it). */
+static void calc_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    if (!win || kind != 1 || btn != 1) return;   /* left press only */
+    CalcState *c = (CalcState*)win->user_data;
+    if (!c) return;
+    /* WM delivers window-relative coords; content is drawn absolute. */
+    x += win->x;
+    y += win->y;
+    if (c->mode == CALC_GRAPHING) return;         /* graph pane: no keypad */
+
+    /* Content rect (win origin + border + title bar), matching the draw. */
+    int bw = border_width();
+    int tbh = title_bar_height();
+    int cx = win->x + bw, cy = win->y + bw + tbh;
+    int cw = win->w - 2 * bw, ch = win->h - tbh - bw;
+    if (cw < 16 || ch < 16) return;
+
+    int disp_h = 28;
+    int gx = cx + 4, gy = cy + 18 + disp_h + 6;
+    int gw = cw - 8, gh = ch - (18 + disp_h + 6) - 4;
+    int cols = c->btn_cols, rows = c->btn_rows;
+    if (cols < 1 || rows < 1) return;
+    int bw_w = gw / cols, bw_h = gh / rows;
+    if (bw_w < 1 || bw_h < 1) return;
+
+    if (x < gx || x >= gx + gw || y < gy || y >= gy + gh) return;
+    int col = (x - gx) / bw_w;
+    int row = (y - gy) / bw_h;
+    if (col < 0 || col >= cols || row < 0 || row >= rows) return;
+
+    CalcAct a = g_std_act[row][col];
+    if (a == A_NONE) return;
+    calc_do_action(c, a);
+}
+
 DosGuiWindow* calc_launch(void) {
     int x = 80 + (rand() % 300);
     int y = 60 + (rand() % 200);
@@ -305,6 +341,7 @@ DosGuiWindow* calc_launch(void) {
         win->user_data = c;
         win->on_draw = calc_draw_wm;
         win->on_key  = calc_key;
+        win->on_mouse = calc_mouse;
     }
     return win;
 }

@@ -165,6 +165,30 @@ static void control_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     else if (key == '.') control_set_tab(c, (c->active_tab + 1) % 9);
 }
 
+/* Mouse: click a category tile to switch tabs. */
+static void control_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    if (!win || kind != 1 || btn != 1) return;   /* left press only */
+    ControlState *c = (ControlState*)win->user_data;
+    if (!c) return;
+    /* WM delivers window-relative coords; content is drawn absolute. */
+    x += win->x;
+    y += win->y;
+
+    int bw = border_width();
+    int tbh = title_bar_height();
+    int cx = win->x + bw, cy = win->y + bw + tbh;
+    int lw = 150;
+    /* Category grid geometry (matches control_draw_content). */
+    int gx0 = cx + lw + 14, gy0 = cy + 60, cellw = 170, cellh = 70, ncols = 2;
+    if (x < gx0 || y < gy0) return;
+    int col = (x - gx0) / cellw;
+    int row = (y - gy0) / cellh;
+    if (col < 0 || col >= ncols) return;
+    int idx = row * ncols + col;
+    if (idx < 0 || idx >= 8) return;   /* 8 category tiles -> tabs 0..7 */
+    control_set_tab(c, idx);
+}
+
 DosGuiWindow* control_launch(void) {
     DosGuiWindow *win = dosgui_wm_create(80, 60, 520, 440, "Control Panel");
     if (win) {
@@ -172,6 +196,7 @@ DosGuiWindow* control_launch(void) {
         win->user_data = c;
         win->on_draw  = control_draw_wm;
         win->on_key   = control_key;
+        win->on_mouse = control_mouse;
     }
     return win;
 }
