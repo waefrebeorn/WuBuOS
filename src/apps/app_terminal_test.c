@@ -97,6 +97,30 @@ int main(void) {
         T(1, "key input handled");
     }
 
+    /* -- Live PTY output: spawn a real shell, run echo, assert the text
+     *    lands in the screen buffer (the proof the stub could never give) -- */
+    printf("\n[Live PTY output]\n");
+    {
+        int tab = dosgui_term_spawn_shell("/bin/sh", NULL);
+        T(tab >= 0, "spawned a real /bin/sh session");
+        if (tab >= 0) {
+            /* Give the shell a moment to print its prompt, then run echo. */
+            for (int i = 0; i < 50; i++) { dosgui_term_pty_read(); }
+            const char *cmd = "echo WUBUTERMOK\n";
+            dosgui_term_pty_write(cmd, (int)strlen(cmd));
+            /* Drain output until our marker appears (bounded wait). */
+            TermTab *t = &g_term.tabs[g_term.active_tab];
+            int found = 0;
+            for (int iter = 0; iter < 200 && !found; iter++) {
+                dosgui_term_pty_read();
+                for (int r = 0; r < TERM_MAX_ROWS && !found; r++) {
+                    if (strstr(t->session.pty.screen[r], "WUBUTERMOK")) found = 1;
+                }
+            }
+            T(found, "echo output rendered into the screen buffer");
+        }
+    }
+
     printf("\nResults: %d/%d passed\n", g_pass, g_run);
     return g_pass == g_run ? 0 : 1;
 }

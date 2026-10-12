@@ -16,7 +16,6 @@
 #include "../gui/wubu_theme.h"
 #include "../runtime/wubu_dos_proc.h"
 #include "../runtime/wubu_container.h"
-#include "../apps/cmd/cmd.h"
 #include "../apps/calc/calc.h"
 #include "../apps/bonzi/bonzi.h"
 #include "../apps/comfy/comfy.h"

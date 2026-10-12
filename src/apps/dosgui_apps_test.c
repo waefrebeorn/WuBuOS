@@ -88,16 +88,10 @@ void panic_dump_ring(void) {}
 void syscall_handler(void) {}
 void wdt_feed(void) {}
 
-struct wubu_cmd_t *wubu_cmd_create(void) { return NULL; }
-int wubu_cmd_spawn_shell(void *p, int c) { (void)p;(void)c; return 0; }
-void wubu_cmd_draw(void *p, uint32_t *f, int fw, int fh) { (void)p;(void)f;(void)fw;(void)fh; }
-void wubu_cmd_key(void *p, uint32_t k, uint32_t m) { (void)p;(void)k;(void)m; }
 /* Chrome title-bar button stubs (real ones in dosgui_window_chrome.c, not
  * linked into this test which stubs the chrome draw). */
 int  dosgui_chrome_hit_test_button(void *win, int mx, int my) { (void)win;(void)mx;(void)my; return 0; }
 void dosgui_chrome_handle_button_click(void *win, int button) { (void)win;(void)button; }
-void wubu_cmd_scroll(void *p, int delta) { (void)p;(void)delta; }
-int  wubu_cmd_scroll_pos(const void *p) { (void)p; return 0; }
 void *wubu_dos_proc_launch(const char *p, int f) { (void)p;(void)f; return NULL; }
 void *wubu_ct_create(void) { return NULL; }
 int wubu_ct_add_payload(void *c, int f, const char *d, size_t n) { (void)c;(void)f;(void)d;(void)n; return 0; }
