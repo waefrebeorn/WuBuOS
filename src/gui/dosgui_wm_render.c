@@ -21,6 +21,7 @@
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "wubu_bonzi_context.h"
+#include "wubu_bonzi_activity.h"
 #include "../kernel/vbe.h"
 
 /* The /n/bonzi namespace mirror is an OPTIONAL meta-layer add-on: the GUI
@@ -35,6 +36,9 @@ __attribute__((weak)) void wubu_ns_bonzi_set_bubble(const char*t){(void)t;}
 __attribute__((weak)) int  wubu_ns_bonzi_sync(void){return -1;}
 __attribute__((weak)) void wubu_bonzi_context_set_focus(const char*t,int x,int y,int w,int h){(void)t;(void)x;(void)y;(void)w;(void)h;}
 __attribute__((weak)) void wubu_bonzi_context_set_window_count(int n){(void)n;}
+__attribute__((weak)) void wubu_ns_bonzi_set_activity(const char*a){(void)a;}
+__attribute__((weak)) wubu_bonzi_activity_t wubu_bonzi_get_activity(void){return WUBU_ACT_IDLE;}
+__attribute__((weak)) const char *wubu_bonzi_activity_name(wubu_bonzi_activity_t a){return a==WUBU_ACT_THINKING?"thinking":a==WUBU_ACT_WORKING?"working":a==WUBU_ACT_ALERT?"alert":"idle";}
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -212,6 +216,7 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     wubu_ns_bonzi_set_enabled(wubu_bonzi_is_enabled());
     wubu_ns_bonzi_set_pos(wubu_bonzi_x(), wubu_bonzi_y());
     wubu_ns_bonzi_set_size(wubu_bonzi_w(), wubu_bonzi_h());
+    wubu_ns_bonzi_set_activity(wubu_bonzi_activity_name(wubu_bonzi_get_activity()));
     wubu_ns_bonzi_sync();
     /* Ambient context (Track B1): feed the live focused window so the
      * companion sees what the user is attending to ("context is the

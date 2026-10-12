@@ -1778,6 +1778,15 @@ test_bonzi_greet:
 		-o $(GUI)/wubu_bonzi_greet_test -lm -lpthread
 	$(GUI)/wubu_bonzi_greet_test
 
+# the companion activity-feedback module (Track B6: orb reflects agent state)
+test_bonzi_activity:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(GUI)/wubu_bonzi_activity_test.c -o /tmp/wubu_bonzi_activity_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(GUI)/wubu_bonzi_activity.c \
+		/tmp/wubu_bonzi_activity_test.o \
+		-o $(GUI)/wubu_bonzi_activity_test -lm -lpthread
+	$(GUI)/wubu_bonzi_activity_test
+
 # the companion PERSISTENT memory (agentic-mem index <-> /n/bonzi/mem, AD01-gated)
 test_bonzi_mem:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(RT)/wubu_bonzi_mem_test.c -o /tmp/wubu_bonzi_mem_test.o

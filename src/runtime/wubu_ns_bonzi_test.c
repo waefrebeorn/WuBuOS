@@ -80,6 +80,10 @@ int main(void)
           strcmp(buf, "200 400") == 0, "/n/bonzi/pos updated -> 200 400");
     CHECK(read_file(NSROOT "/bonzi/agi", buf, sizeof buf) &&
           strcmp(buf, "1") == 0, "/n/bonzi/agi updated -> 1 (panel open)");
+    wubu_ns_bonzi_set_activity("thinking");
+    CHECK(wubu_ns_bonzi_sync() == 0, "re-sync /n/bonzi (activity)");
+    CHECK(read_file(NSROOT "/bonzi/activity", buf, sizeof buf) &&
+          strcmp(buf, "thinking") == 0, "/n/bonzi/activity == thinking");
     CHECK(read_file(NSROOT "/bonzi/bubble", buf, sizeof buf) &&
           strstr(buf, "see your screen") != NULL, "/n/bonzi/bubble updated");
 

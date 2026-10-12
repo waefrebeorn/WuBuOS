@@ -28,6 +28,7 @@
 
 #include "wubu_bonzi.h"
 #include "wubu_bonzi_greet.h"
+#include "wubu_bonzi_activity.h"
 #include "../kernel/vbe.h"
 #ifdef WUBU_NO_LIBM
 #  include "../kernel/wubu_math.h"  /* provides M_PI, fabsf, cosf, etc. */
@@ -165,6 +166,7 @@ static void draw_eye_open(int cx, int cy, float eye_open) {
 /* -- State ------------------------------------------------------------ */
 
 static bool g_bonzi_enabled = false;
+static wubu_bonzi_activity_t g_bonzi_activity = WUBU_ACT_IDLE;  /* Track B6 */
 static int  g_clock_ms = 0;       /* animation clock (ms) */
 static int  g_bx = 0, g_by = 0;   /* mascot top-left on desktop */
 static bool g_grab = false;       /* mouse press landed on the buddy */
@@ -397,6 +399,9 @@ void wubu_bonzi_set_enabled(bool on) {
     g_bonzi_enabled = on;
     if (!on) g_grab = false;
 }
+/* Track B6: the companion's current activity (drives the orb's expression). */
+void wubu_bonzi_set_activity(wubu_bonzi_activity_t act) { g_bonzi_activity = act; }
+wubu_bonzi_activity_t wubu_bonzi_get_activity(void) { return g_bonzi_activity; }
 bool wubu_bonzi_is_enabled(void)     { return g_bonzi_enabled; }
 
 void wubu_bonzi_tick(int dt_ms) {

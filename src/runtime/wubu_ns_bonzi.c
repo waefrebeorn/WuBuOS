@@ -33,6 +33,7 @@ static struct {
     int  x, y, w, h;
     int  agi_open;
     char bubble[192];
+    char activity[32];
 } g_bonzi;
 
 void wubu_ns_bonzi_set_enabled(int on)          { g_bonzi.enabled = on ? 1 : 0; }
@@ -42,6 +43,10 @@ void wubu_ns_bonzi_set_agi(int open)            { g_bonzi.agi_open = open ? 1 : 
 void wubu_ns_bonzi_set_bubble(const char *text) {
     if (!text) text = "";
     snprintf(g_bonzi.bubble, sizeof(g_bonzi.bubble), "%s\n", text);
+}
+void wubu_ns_bonzi_set_activity(const char *activity) {
+    if (!activity) activity = "idle";
+    snprintf(g_bonzi.activity, sizeof(g_bonzi.activity), "%s", activity);
 }
 
 int wubu_ns_bonzi_enabled(void)  { return g_bonzi.enabled; }
@@ -73,6 +78,10 @@ int wubu_ns_bonzi_sync(void)
 
     snprintf(sub, sizeof(sub), "bonzi/agi");
     snprintf(buf, sizeof(buf), "%d\n", g_bonzi.agi_open);
+    if (ns_write(sub, buf) != 0) return -1;
+
+    snprintf(sub, sizeof(sub), "bonzi/activity");
+    snprintf(buf, sizeof(buf), "%s\n", g_bonzi.activity);
     if (ns_write(sub, buf) != 0) return -1;
 
     return 0;

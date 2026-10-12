@@ -17,6 +17,7 @@ void wubu_ns_bonzi_set_pos(int x, int y);
 void wubu_ns_bonzi_set_size(int w, int h);
 void wubu_ns_bonzi_set_agi(int open);
 void wubu_ns_bonzi_set_bubble(const char *text);
+void wubu_ns_bonzi_set_activity(const char *activity);
 
 /* Read back the mirror (the single source of truth for /n/bonzi). */
 int wubu_ns_bonzi_enabled(void);
