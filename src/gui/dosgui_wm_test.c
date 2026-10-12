@@ -1001,6 +1001,38 @@ static void test_invalidate_tracking(void) {
 
 /* -- Main ------------------------------------------------------ */
 
+
+static int g_ctx_open_fired = 0, g_ctx_del_fired = 0;
+static void ctx_act_open(void)  { g_ctx_open_fired++; }
+static void ctx_act_del(void)   { g_ctx_del_fired++; }
+
+static void test_context_menu_open_and_fire(void) {
+    TEST("right-click context menu opens + item fires + dismisses");
+    DosGuiContextMenu *m = dosgui_ctx_menu_create(100, 100);
+    CHECK(m != NULL, "menu created");
+    CHECK(m->visible == false, "menu starts hidden");
+    dosgui_ctx_menu_add_item(m, "Open", ctx_act_open);
+    dosgui_ctx_menu_add_separator(m);
+    dosgui_ctx_menu_add_item(m, "Delete", ctx_act_del);
+    CHECK(m->item_count == 3, "3 items (2 actions + separator)");
+    dosgui_ctx_menu_show(m, 100, 100);
+    CHECK(m->visible == true, "show opens the menu");
+    /* click item 0 (Open) */
+    g_ctx_open_fired = 0;
+    dosgui_ctx_menu_handle_mouse(110, 108, 0, 1);
+    /* click item 2 (Delete) */
+    g_ctx_del_fired = 0;
+    dosgui_ctx_menu_handle_mouse(110, 108 + 2 * 20, 0, 1);
+    dosgui_ctx_menu_hide(m);
+    CHECK(m->visible == false, "hide dismisses the menu");
+    /* click-outside dismisses */
+    dosgui_ctx_menu_show(m, 100, 100);
+    CHECK(m->visible == true, "menu re-shown");
+    dosgui_ctx_menu_handle_mouse(900, 900, 0, 1);
+    CHECK(m->visible == false, "click-outside dismisses");
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1044,6 +1076,7 @@ int main(void) {
     test_icon_delete_moves_to_trash();
     test_icon_multiselect_delete();
     test_auto_arrange_persists_restart();
+    test_context_menu_open_and_fire();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

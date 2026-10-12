@@ -25,6 +25,7 @@ static void ctx_menu_pop(void) {
         DosGuiContextMenu *old = g_dosgui_ctx_stack;
         g_dosgui_ctx_stack = old->parent;
         old->parent = NULL;
+        old->visible = false;   /* a popped menu is no longer shown */
     }
 }
 
