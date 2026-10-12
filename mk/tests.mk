@@ -1740,6 +1740,18 @@ test_ns_bonzi:
 		-o $(RT)/wubu_ns_bonzi_test -lm -lpthread
 	$(RT)/wubu_ns_bonzi_test
 
+# the companion PERSISTENT memory (agentic-mem index <-> /n/bonzi/mem, AD01-gated)
+test_bonzi_mem:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(RT)/wubu_bonzi_mem_test.c -o /tmp/wubu_bonzi_mem_test.o
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(RT)/wubu_bonzi_mem.c -o /tmp/wubu_bonzi_mem.o
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(BRAIN_SRC)/wubu_agentic_os.c -o /tmp/wubu_bonzi_mem_agentic_os.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(BRAIN_INC) \
+		/tmp/wubu_bonzi_mem.o \
+		/tmp/wubu_bonzi_mem_agentic_os.o \
+		/tmp/wubu_bonzi_mem_test.o \
+		-o $(RT)/wubu_bonzi_mem_test -lm
+	$(RT)/wubu_bonzi_mem_test
+
 test_steamrt:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_steamrt_test.c -o /tmp/wubu_steamrt_test.o
 	$(CC) -O0 -no-pie -I$(RT) \
