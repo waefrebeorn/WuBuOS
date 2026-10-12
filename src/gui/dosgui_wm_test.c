@@ -1033,6 +1033,25 @@ static void test_context_menu_open_and_fire(void) {
     PASS();
 }
 
+
+static void test_drop_target(void) {
+    TEST("drag-and-drop: drop target resolves to topmost window at point");
+    /* two overlapping windows; the later-created one is on top */
+    DosGuiWindow *a = dosgui_wm_create(50, 50, 200, 200, "A");
+    DosGuiWindow *b = dosgui_wm_create(80, 80, 200, 200, "B");
+    CHECK(a && b, "two windows created");
+    /* point inside both -> topmost (B) */
+    DosGuiWindow *hit = dosgui_wm_drop_target(120, 120);
+    CHECK(hit == b, "overlapping point resolves to the topmost window");
+    /* point inside only A -> A */
+    hit = dosgui_wm_drop_target(60, 60);
+    CHECK(hit == a, "point in only A resolves to A");
+    /* point over bare desktop -> NULL */
+    hit = dosgui_wm_drop_target(5000, 5000);
+    CHECK(hit == NULL, "bare-desktop point resolves to NULL");
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1077,6 +1096,7 @@ int main(void) {
     test_icon_multiselect_delete();
     test_auto_arrange_persists_restart();
     test_context_menu_open_and_fire();
+    test_drop_target();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

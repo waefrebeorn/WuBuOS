@@ -57,7 +57,11 @@ typedef struct DosGuiWindow {
     /* Wheel-scroll callback (optional): delta in rows, +down / -up. */
     void         (*on_scroll)(DosGuiWindow *win, int delta);
     /* Resize callback */
-    void         (*on_resize)(DosGuiWindow *win, int w, int h);
+    void (*on_resize)(DosGuiWindow *win, int w, int h);
+    /* Drop callback (UX drag-and-drop): fired when an icon/payload is
+     * dropped on this window's client area. payload = the source icon's
+     * name/label; the app decides what to do (open, import, ...). */
+    void (*on_drop)(DosGuiWindow *win, const char *payload, int px, int py);
     void          *user_data;
     uint32_t      icon_color;   /* Fallback colored box for title bar icon */
 } DosGuiWindow;
@@ -86,6 +90,7 @@ DosGuiWindow *dosgui_wm_create(int x, int y, int w, int h,
 void           dosgui_wm_destroy(DosGuiWindow *win);
 void           dosgui_wm_set_focus(DosGuiWindow *win);
 DosGuiWindow  *dosgui_wm_get_focused(void);
+DosGuiWindow  *dosgui_wm_drop_target(int x, int y);  /* topmost window at point */
 DosGuiWindow  *dosgui_wm_find_by_id(int id);
 int            dosgui_wm_window_count(void);
 

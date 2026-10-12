@@ -121,6 +121,21 @@ int dosgui_wm_window_count(void) {
     return g_dwm.nz;
 }
 
+/* Drop-target resolution (UX: drag-and-drop between windows). Returns the
+ * TOPMOST alive window whose bounds contain (x,y), or NULL if the point is
+ * over the bare desktop. Walks z-order top-down so overlapping windows
+ * resolve to the one on top. */
+DosGuiWindow *dosgui_wm_drop_target(int x, int y) {
+    for (int zi = g_dwm.nz - 1; zi >= 0; zi--) {
+        int i = g_dwm.zorder[zi];
+        DosGuiWindow *w = &g_dwm.windows[i];
+        if (!w->alive) continue;
+        if (x >= w->x && x < w->x + w->w && y >= w->y && y < w->y + w->h)
+            return w;
+    }
+    return NULL;
+}
+
 /* -- Virtual Desktop Migration ------------------------------------- */
 
 void dosgui_wm_move_window_to_desktop(DosGuiWindow *win, int desktop) {

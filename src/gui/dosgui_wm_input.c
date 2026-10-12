@@ -473,6 +473,13 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
         }
         g_dwm.drag_id = -1;
         if (g_dwm.drag_icon_id >= 0) {
+            /* UX drag-and-drop: if the icon was dropped on a window, route
+             * its payload to that window's on_drop (open/import). */
+            DosGuiWindow *dt = dosgui_wm_drop_target(x, y);
+            if (dt && dt->on_drop) {
+                const char *label = g_dwm.icons[g_dwm.drag_icon_id].name;
+                dt->on_drop(dt, label, x, y);
+            }
             snap_icon_to_grid(&g_dwm.icons[g_dwm.drag_icon_id]);
             dosgui_wm_save_icon_layout();   /* persist position (ReactOS-style) */
             g_dwm.drag_icon_id = -1;
