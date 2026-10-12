@@ -8,6 +8,7 @@
 
 #include <stddef.h>
 #include "wubu_syscall_shim.h"   /* wubu_foreign_syscall_t, wubu_shu_op_t */
+#include "wubu_librarian.h"       /* wubu_librarian_register + resolver */
 
 /* Register the default WuBu participants (shell/kv/models/bonzi/experts/
  * hive). Idempotent. Returns 0. */

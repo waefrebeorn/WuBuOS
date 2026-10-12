@@ -7,6 +7,7 @@
 #include "wubu_exec.h"
 #include "wubu_exec_internal.h"
 #include "wubu_host_exec.h"
+#include "wubu_librarian_serve.h"
 #include "../compiler/holyd.h"
 
 #include <stdlib.h>
@@ -416,13 +417,34 @@ int64_t wubu_exec_python(const char *script, size_t script_size) {
 
 /* -- Universal Exec ----------------------------------------------- */
 
+/* Map a detected payload type to the participant's ABI for the librarian. */
+static wubu_abi_t exec_payload_abi(WUBU_PAYLOAD_TYPE t) {
+    switch (t) {
+    case WUBU_PAYLOAD_WIN_PE:    return WUBU_ABI_WIN;
+    case WUBU_PAYLOAD_DOS_COM:
+    case WUBU_PAYLOAD_DOS_EXE:   return WUBU_ABI_DOS;
+    case WUBU_PAYLOAD_MAC_MACHO: return WUBU_ABI_UNIX;
+    case WUBU_PAYLOAD_LINUX_ELF: return WUBU_ABI_UNIX;
+    default:                     return WUBU_ABI_UNIX;
+    }
+}
+
 int64_t wubu_exec(const void *data, size_t size, const char *filename) {
     if (!data || size == 0) return -1;
 
     bool is_wubu = false;
     WUBU_PAYLOAD_TYPE type = wubu_detect_format(data, size, &is_wubu);
 
+    /* Interop (Track D2): make this binary a librarian participant under
+     * its detected ABI, so any resource it needs resolves through the
+     * registry from here on. Best-effort -- never blocks the exec. */
+    wubu_librarian_serve_init();
     if (filename) {
+        char root[256];
+        snprintf(root, sizeof(root), "/n/foreign/%s/app",
+                 wubu_abi_name(exec_payload_abi(type)));
+        wubu_librarian_register(filename, exec_payload_abi(type), root,
+                                "run app");
         printf("[wubu_exec] %s: %s\n", filename, wubu_payload_name(type));
     }
 
