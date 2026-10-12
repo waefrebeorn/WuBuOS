@@ -18,6 +18,7 @@
 
 #include "wubu_ns_bridge.h"
 #include "wubu_ns_bridge_internal.h"
+#include "../kernel/wubu_irqlat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -154,6 +155,15 @@ int wubu_ns_publish_kernel(wubu_ns_gpu_detect_fn detect_fn) {
      * the values are 0 (allocator not yet initialized). */
     snprintf(sub, sizeof(sub), "kernel/mem");
     if (ns_write(sub, wubu_ns_kernel_mem_str(NULL, 0)) != 0) return -1;
+
+    /* /n/kernel/irqlat  --  per-IRQ interrupt latency p99 (KERNEL P0 #6).
+     * `cat /n/kernel/irqlat` reports p99/max/mean per IRQ line. */
+    snprintf(sub, sizeof(sub), "kernel/irqlat");
+    {
+        char lat[2048];
+        wubu_irqlat_format(lat, (int)sizeof(lat));
+        if (ns_write(sub, lat) != 0) return -1;
+    }
 
     /* hw: detect + publish primary GPU */
     char gpu[128];

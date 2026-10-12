@@ -1785,13 +1785,18 @@ test_ns_pkg:
 test_ns_kernel:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernel_test.c -o /tmp/wubu_ns_kernel_test.o
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernel.c -o $(RT)/wubu_ns_kernel.o
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(KERNEL)/wubu_irqlat.c -o $(KERNEL)/wubu_irqlat.o
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_fs.c -o $(RT)/wubu_ns_fs.o
 	$(CC) -O0 -no-pie \
-		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_kernel.o \
+		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_kernel.o $(KERNEL)/wubu_irqlat.o \
 		$(RT)/wubu_spawn.c \
 		/tmp/wubu_ns_kernel_test.o \
 		-o $(RT)/wubu_ns_kernel_test
 	$(RT)/wubu_ns_kernel_test
+
+test_irqlat:
+	$(CC) -Wall -Wextra -std=c11 -O0 -I$(KERNEL) $(KERNEL)/wubu_irqlat_test.c $(KERNEL)/wubu_irqlat.c -o $(KERNEL)/wubu_irqlat_test -lm
+	$(KERNEL)/wubu_irqlat_test
 
 test_ns_ec:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_ec_test.c -o /tmp/wubu_ns_ec_test.o

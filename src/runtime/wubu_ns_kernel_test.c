@@ -7,6 +7,7 @@
 
 #include "wubu_ns_bridge.h"
 #include "wubu_spawn.h"
+#include "../kernel/wubu_irqlat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,10 +50,19 @@ static void test_kernel_namespace(void) {
      * Push a stats snapshot BEFORE publish so the mem file reflects it. */
     wubu_ns_kernel_set_mem(4096, 65536, 8192, 3);
 
+    /* KERNEL P0 #6: per-IRQ interrupt latency p99. Record a couple of
+     * samples so /n/kernel/irqlat is non-empty at publish time. */
+    wubu_irqlat_record(8, 100);
+    wubu_irqlat_record(8, 200);
+    wubu_irqlat_record(9, 50);
+
     int rc = wubu_ns_publish_kernel(mock_gpu_detect);
     CHECK(rc == 0, "publish kernel + hw control plane");
     CHECK(file_exists("kernel/scheduler"), "/n/kernel/scheduler exists");
     CHECK(file_exists("kernel/mem"),       "/n/kernel/mem exists (P0 #5)");
+    CHECK(file_exists("kernel/irqlat"),    "/n/kernel/irqlat exists (P0 #6)");
+    CHECK(file_contains("kernel/irqlat", "irq=8"), "/n/kernel/irqlat reports irq=8");
+    CHECK(file_contains("kernel/irqlat", "p99="),   "/n/kernel/irqlat reports p99");
     CHECK(file_contains("kernel/mem", "arena_used=4096"),
           "/n/kernel/mem shows arena used");
     CHECK(file_contains("kernel/mem", "arena_capacity=65536"),
