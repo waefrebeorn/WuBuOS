@@ -515,6 +515,16 @@ test_librarian_serve:
 		$(RT)/wubu_abi_path.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_librarian_serve
 
+# the Brain's /n/models + /n/train control subtrees (Track A5)
+test_ns_brain:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(RT)/wubu_ns_brain_test.c -o /tmp/wubu_ns_brain_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_brain.c \
+		/tmp/wubu_ns_brain_test.o \
+		-o $(RT)/wubu_ns_brain_test -lm -lpthread
+	cd $(CURDIR) && $(RT)/wubu_ns_brain_test
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
