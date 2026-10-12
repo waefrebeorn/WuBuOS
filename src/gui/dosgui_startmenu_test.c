@@ -189,6 +189,37 @@ static void test_search_key_input(void) {
     PASS();
 }
 
+/* XP parity: hover opens the cascade chain (All Programs -> category).
+ * Previously only click opened a flyout; XP opens on hover. */
+static void test_hover_opens_cascade(void) {
+    TEST("hover opens Programs flyout then nested category cascade");
+    dosgui_startmenu_init();
+    dosgui_startmenu_open();
+
+    int task_h = dosgui_taskbar_height();
+    int mh = 24;
+    int sw = 48;              /* sidebar_w */
+    int menu_y = dosgui_wm_screen_h() - task_h - (g_main_count * mh + 4);
+    int content_x = 4 + sw + 4;
+
+    /* Hover the Programs main item (index 0) -> flyout (submenu 0) opens. */
+    int prog_x = content_x + 30;
+    int prog_y = menu_y + 2 + mh / 2;
+    dosgui_startmenu_track_hover(prog_x, prog_y);
+    CHECK(g_submenu_open == 0, "hovering Programs opens its flyout (submenu 0)");
+
+    /* Hover a category item inside the Programs flyout. The flyout is at
+     * sx = 4 + 200 = 204; first row near sx+6+20. Programs leads with
+     * SM_ITEM_SUBMENU category items (Accessories=1, WuBuOS=2, System=3). */
+    int cat_x = 204 + 40;
+    int cat_y = menu_y + 2 + 0 * mh + mh / 2;
+    dosgui_startmenu_track_hover(cat_x, cat_y);
+    CHECK(g_submenu_open >= 1, "hovering a category opens its nested cascade");
+
+    dosgui_startmenu_close();
+    PASS();
+}
+
 static void test_multiple_toggles(void) {
     TEST("Multiple open/close/toggle cycles");
     dosgui_startmenu_init();
@@ -210,6 +241,7 @@ int main(void) {
     test_sm_registry();
     test_programs_cascade_items();
     test_programs_click_opens_flyout();
+    test_hover_opens_cascade();
     test_search_key_input();
     test_cascade_renders_nested_submenu();
     test_open_close();

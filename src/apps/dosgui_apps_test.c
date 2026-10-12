@@ -64,6 +64,7 @@ void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
 void dosgui_startmenu_toggle(void) {}
 int dosgui_startmenu_is_open(void) { return 0; }
 void dosgui_startmenu_handle_key(int key, uint32_t mods) { (void)key; (void)mods; }
+void dosgui_startmenu_track_hover(int x, int y) { (void)x; (void)y; }
 struct hosted_state_t *dosgui_wm_get_hosted_state(void) { return NULL; }
 DosGuiWindow* edr_dash_launch(void) { return NULL; }
 

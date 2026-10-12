@@ -574,6 +574,11 @@ void dosgui_startmenu_track_hover(int x, int y) {
         int idx = (y - menu_y - 2) / mh;
         if (idx >= 0 && idx < g_main_count && g_main_items[idx].type != 2) {
             g_hovered = idx;
+            /* XP parity: hovering a submenu item opens its flyout. */
+            if (g_main_items[idx].type == 1) {
+                g_submenu_open = g_main_items[idx].submenu_id;
+                g_sub_hovered = -1;
+            }
         }
     }
 
@@ -589,6 +594,12 @@ void dosgui_startmenu_track_hover(int x, int y) {
                 int idx = (y - sy - 2) / mh;
                 if (idx >= 0 && idx < sub->item_count && sub->items[idx].type != SM_ITEM_SEPARATOR) {
                     g_sub_hovered = idx;
+                    /* XP parity: hovering a category item opens its nested
+                     * cascade (All Programs -> category -> app). */
+                    if (sub->items[idx].type == SM_ITEM_SUBMENU) {
+                        g_submenu_open = sub->items[idx].submenu_id;
+                        g_sub_hovered = -1;
+                    }
                 }
             }
         }

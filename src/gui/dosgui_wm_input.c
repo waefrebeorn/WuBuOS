@@ -484,6 +484,10 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             g_dwm.lasso_active = false;
         }
     } else if (kind == 0) {
+        /* Start-menu hover: opens flyouts / nested cascades on hover
+         * (XP parity) when the menu is open. */
+        if (dosgui_startmenu_is_open())
+            dosgui_startmenu_track_hover(x, y);
         /* Live lasso update: stretch the rubber band with the cursor. */
         if (g_dwm.lasso_active) {
             g_dwm.lasso_x1 = x;
