@@ -480,6 +480,13 @@ test_mutation_bridge:
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_mutation_bridge
 
+# foreign-ABI path translation (Track D1: any OS app's paths -> /n/foreign)
+test_abi_path:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_abi_path \
+		$(RT)/wubu_abi_path_test.c \
+		$(RT)/wubu_abi_path.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_abi_path
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
