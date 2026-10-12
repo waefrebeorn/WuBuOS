@@ -8,6 +8,7 @@
 #include "../gui/dosgui_startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_theme.h"
+#include "../gui/wubu_bonzi.h"
 #include "../bridge/bridge.h"
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -57,6 +58,15 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
     case 103: wu_key = 0xE048; break; /* KEY_UP */
     case 106: wu_key = 0xE04D; break; /* KEY_RIGHT */
     case 108: wu_key = 0xE050; break; /* KEY_DOWN */
+    case 53:  /* KEY_SLASH */
+        /* Ctrl+/ = summon the companion over any window (Track B2:
+         * "summonable from anywhere" — the defining desktop-agent trait). */
+        if (g_key_map[29] && pressed) {   /* Ctrl held */
+            wubu_bonzi_open_agi();
+            fprintf(stderr, "Bonzi: summoned (Ctrl+/)\n");
+        }
+        wu_key = 0x35;   /* WuBu scancode for '/' */
+        break;
     case 20:  /* KEY_T */
         if (g_key_map[29] && g_key_map[56]) {
             bridge_toggle_mode();
