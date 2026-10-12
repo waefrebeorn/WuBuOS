@@ -460,6 +460,16 @@ test_bytropix_verifier:
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_bytropix_verifier
 
+# THE NON-NEGOTIABLE INVARIANTS (Track C3): the DA-3 fail-closed gates
+# (no verifier / frozen / unsigned gate => no promote; operator fires only
+# on a verifier-passed span). Locked so they cannot silently regress.
+test_selfimprove_invariants:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_selfimprove_invariants \
+		$(RT)/wubu_selfimprove_invariants_test.c \
+		$(RT)/wubu_selfimprove.c \
+		$(RT)/wubu_trace.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_selfimprove_invariants
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
