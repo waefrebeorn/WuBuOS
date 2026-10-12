@@ -12,6 +12,18 @@
 #include "wubu_world.h"
 
 #include <stdio.h>
+#include <string.h>
+
+/* Latest worldsim state snapshot (WORLDSIM P0 #606). The worldsim runtime
+ * pushes it via wubu_ns_world_set_sim(); decoupled so the ns layer has no
+ * build dependency on the worldsim module. */
+static char g_world_sim[512] = "tick=0 entities=0\n";
+
+void wubu_ns_world_set_sim(const char *state_str) {
+    if (!state_str) return;
+    strncpy(g_world_sim, state_str, sizeof(g_world_sim) - 1);
+    g_world_sim[sizeof(g_world_sim) - 1] = '\0';
+}
 
 int wubu_ns_publish_world(void)
 {
@@ -21,6 +33,9 @@ int wubu_ns_publish_world(void)
     if (ns_write(sub, "no state\n") != 0) return -1;
     snprintf(sub, sizeof(sub), "world/hw");
     if (ns_write(sub, "no hw\n") != 0) return -1;
+    /* /n/world/sim  --  the worldsim state (entity/terrain/physics tick) */
+    snprintf(sub, sizeof(sub), "world/sim");
+    if (ns_write(sub, g_world_sim) != 0) return -1;
     return 0;
 }
 

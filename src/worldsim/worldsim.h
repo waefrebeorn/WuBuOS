@@ -167,6 +167,10 @@ void ws_sim_init(ws_simulation_t *sim, uint32_t seed);
 void ws_sim_step(ws_simulation_t *sim);
 void ws_sim_render(ws_simulation_t *sim);
 
+/* Format the worldsim state (entity/terrain/physics tick) into buf for
+ * /n/world/sim introspection (WORLDSIM P0 #606). Returns buf. */
+char *ws_sim_state_str(const ws_simulation_t *sim, char *buf, int buflen);
+
 /* -- RNG (xorshift64) -- */
 uint64_t ws_rng_next(uint64_t *state);
 float ws_rng_float(uint64_t *state); /* 0.0..1.0 */

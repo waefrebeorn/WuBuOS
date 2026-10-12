@@ -1,5 +1,6 @@
 #include "worldsim.h"
 #include <string.h>
+#include <stdio.h>
 
 void ws_sim_init(ws_simulation_t *sim, uint32_t seed) {
     memset(sim, 0, sizeof(*sim));
@@ -72,4 +73,21 @@ void ws_sim_render(ws_simulation_t *sim) {
     ws_render_entities(&sim->world, &sim->render);
     /* Minimap in top-right corner */
     ws_render_minimap(&sim->terrain, &sim->render, sim->render.fb_w - 134, 4, 128);
+}
+
+/* Format the worldsim state for /n/world/sim (WORLDSIM P0 #606):
+ * entity count, terrain dims, physics tick + gravity, paused flag. */
+char *ws_sim_state_str(const ws_simulation_t *sim, char *buf, int buflen) {
+    if (!sim || !buf || buflen <= 0) return buf;
+    int active = 0;
+    for (int i = 0; i < WS_MAX_ENTITIES; i++)
+        if (sim->world.entities[i].active) active++;
+    snprintf(buf, (size_t)buflen,
+             "tick=%llu entities=%d/%d terrain=%dx%d seed=%u "
+             "gravity=%.2f drag=%.3f restitution=%.2f paused=%d\n",
+             (unsigned long long)sim->tick, active, sim->world.count,
+             sim->terrain.width, sim->terrain.height, sim->terrain.seed,
+             sim->physics.gravity, sim->physics.drag, sim->physics.restitution,
+             sim->paused);
+    return buf;
 }

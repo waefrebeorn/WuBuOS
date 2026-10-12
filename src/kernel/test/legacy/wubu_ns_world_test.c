@@ -80,8 +80,18 @@ int main(void)
 
     if (wubu_ns_publish_world() != 0) FAIL("publish");
 
-    /* 1. the files exist */
     char p[512], buf[2048];
+
+    /* 0. push a worldsim state snapshot, then publish reflects it (#606) */
+    wubu_ns_world_set_sim("tick=42 entities=3/3 terrain=256x256 seed=9 gravity=-9.81\n");
+    if (wubu_ns_publish_world() != 0) FAIL("re-publish with sim");
+    snprintf(p, sizeof(p), "%s/world/sim", NSROOT);
+    if (!read_file(p, buf, sizeof(buf))) FAIL("no /n/world/sim");
+    if (!strstr(buf, "tick=42")) FAIL("/n/world/sim missing tick");
+    if (!strstr(buf, "entities=3")) FAIL("/n/world/sim missing entities");
+    printf("  PASS: /n/world/sim exposes worldsim state (entity/terrain/tick)\n");
+
+    /* 1. the files exist */
     snprintf(p, sizeof(p), "%s/world/state", NSROOT);
     if (!read_file(p, buf, sizeof(buf))) FAIL("no state");
     snprintf(p, sizeof(p), "%s/world/hw", NSROOT);
