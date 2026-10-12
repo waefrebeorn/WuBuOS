@@ -470,6 +470,16 @@ test_selfimprove_invariants:
 		$(RT)/wubu_trace.c -lm -lpthread
 	cd $(CURDIR) && $(RT)/test_selfimprove_invariants
 
+# Brain-archive -> Body-operator bridge, END-TO-END (Track C1): an ACCEPTED
+# fitness cell -> self-mod span -> ingest -> verifier -> operator fires.
+test_mutation_bridge:
+	$(CC) $(CFLAGS) -Iinclude -I$(RT) -o $(RT)/test_mutation_bridge \
+		$(RT)/wubu_mutation_bridge_test.c \
+		$(RT)/wubu_mutation_bridge.c \
+		$(RT)/wubu_selfimprove.c \
+		$(RT)/wubu_trace.c -lm -lpthread
+	cd $(CURDIR) && $(RT)/test_mutation_bridge
+
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
 # independent verifier proxy (no bytropix GPU binary required).
