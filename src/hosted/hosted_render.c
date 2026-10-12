@@ -39,6 +39,14 @@ void hosted_input_dispatch(void) {
     }
     MouseEvent mev;
     while (input_mouse_poll(&mev)) {
+        /* Wheel: a pure scroll event (no buttons, nonzero delta). Normalize
+         * the Wayland axis value to rows (+down / -up) and route it. */
+        if (mev.scroll != 0 && mev.buttons == 0) {
+            int rows = mev.scroll / 10;   /* ~10 fixed-units per notch */
+            if (rows == 0) rows = (mev.scroll > 0) ? 1 : -1;
+            dosgui_wm_scroll(rows);
+            continue;
+        }
         int kind = mev.buttons ? 1 : 2; /* 1=down, 2=up */
         if (mev.buttons & 2) kind = 0;   /* 0=move while dragging */
         dosgui_wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);

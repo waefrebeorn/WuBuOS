@@ -421,6 +421,34 @@ static void test_state_accessors(void) {
 
 /* -- New Feature Tests ------------------------------------------- */
 
+static void test_scroll(void) {
+    printf("\n=== Test: List Scroll ===\n");
+    dosgui_explorer_init();
+    dosgui_explorer_navigate("/");
+    ExExplorerState *ex = dosgui_explorer_state();
+    ex->view_mode = EX_VIEW_DETAILS;
+    ex->list_scroll_y = 0;
+
+    /* Scroll down moves the offset forward (bounded by entry_count). */
+    int before = ex->list_scroll_y;
+    dosgui_explorer_scroll(3);
+    TEST_ASSERT(ex->list_scroll_y >= before, "scroll(+3) does not move backward");
+    if (ex->entry_count > 3)
+        TEST_ASSERT(ex->list_scroll_y == 3, "scroll(+3) advances by 3 rows");
+
+    /* Scroll up clamps at 0 (never negative). */
+    dosgui_explorer_scroll(-1000);
+    TEST_ASSERT(ex->list_scroll_y == 0, "scroll up clamps at 0");
+
+    /* Scroll down clamps at entry_count (never past the end). */
+    dosgui_explorer_scroll(ex->entry_count + 1000);
+    TEST_ASSERT(ex->list_scroll_y <= ex->entry_count,
+                "scroll down never exceeds entry_count");
+    TEST_ASSERT(ex->list_scroll_y >= 0, "list_scroll_y never negative");
+
+    dosgui_explorer_shutdown();
+}
+
 static void test_find(void) {
     printf("\n=== Test: Find (Ctrl+F) ===\n");
 
@@ -521,6 +549,7 @@ int main(void) {
     test_history();
     test_zip();
     test_state_accessors();
+    test_scroll();
     test_find();
     test_shift_select();
     test_image_preview();

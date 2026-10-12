@@ -161,12 +161,21 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
             vbe_vline(col_x - 1, y, y + h, tc()->border_dark);
         }
 
-        /* Entries */
+        /* Entries — the list scrolls: the first visible entry is list_scroll_y,
+ * clamped so the last page is reachable. (Previously this loop started at
+ * 0 and ignored list_scroll_y, so the scrollbar thumb moved but the list
+ * never scrolled.) */
         int row_y = y + ex_title_h();
         int row_h = ex_row_h();
         int max_rows = (h - ex_title_h()) / row_h;
+        int start = ex->list_scroll_y;
+        if (start < 0) start = 0;
+        if (ex->entry_count > max_rows && start > ex->entry_count - max_rows)
+            start = ex->entry_count - max_rows;
+        if (start < 0) start = 0;
+        ex->list_scroll_y = start;  /* write back the clamp */
 
-        for (int i = 0; i < ex->entry_count && i < max_rows; i++) {
+        for (int i = start; i < ex->entry_count && i < start + max_rows; i++) {
             ExEntry *entry = &ex->entries[i];
             if (entry->hidden && !ex->show_hidden) continue;
 

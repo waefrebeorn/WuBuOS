@@ -56,6 +56,7 @@ void app_explorer_init(void);
 void app_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void app_explorer_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 void app_explorer_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void app_explorer_scroll(DosGuiWindow *win, int delta);
 
 /* -- Generic placeholder draw for apps without dedicated UI yet ------- */
 
@@ -137,6 +138,7 @@ DosGuiWindow* dosgui_launch_file_manager(void) {
         win->on_draw = app_explorer_draw;
         win->on_mouse = app_explorer_mouse;
         win->on_key   = app_explorer_key;
+        win->on_scroll = app_explorer_scroll;
     }
     return win;
 }

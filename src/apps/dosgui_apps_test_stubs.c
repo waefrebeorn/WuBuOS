@@ -31,6 +31,9 @@ void app_explorer_mouse(void *win, int x, int y, int btn, int kind) {
 void app_explorer_key(void *win, uint32_t key, uint32_t mods) {
     (void)win; (void)key; (void)mods;
 }
+void app_explorer_scroll(void *win, int delta) {
+    (void)win; (void)delta;
+}
 
 /* -- Notepad drawing/key dispatch (legacy alternate entry) ----------- */
 void dosgui_notepad_draw(void *win, uint32_t *fb, int fb_w, int fb_h) {

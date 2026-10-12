@@ -54,6 +54,8 @@ typedef struct DosGuiWindow {
     /* Content input callbacks (optional) */
     void         (*on_key)(DosGuiWindow *win, uint32_t key, uint32_t mods);
     void         (*on_mouse)(DosGuiWindow *win, int x, int y, int btn, int kind);
+    /* Wheel-scroll callback (optional): delta in rows, +down / -up. */
+    void         (*on_scroll)(DosGuiWindow *win, int delta);
     /* Resize callback */
     void         (*on_resize)(DosGuiWindow *win, int w, int h);
     void          *user_data;
@@ -113,6 +115,7 @@ void dosgui_wm_move_focused_window(int delta);
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods);
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind);
+void dosgui_wm_scroll(int delta);  /* wheel: rows, +down / -up */
 /* Current rendered cursor position (set by the input path; used by the AGI
  * automation layer to press/release buttons at the live cursor). */
 void dosgui_wm_get_mouse(int *x, int *y);

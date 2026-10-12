@@ -243,6 +243,18 @@ void dosgui_explorer_refresh(void) {
     dosgui_explorer_navigate(g_explorer.current_path);
 }
 
+void dosgui_explorer_scroll(int delta_rows) {
+    if (g_explorer.view_mode != EX_VIEW_DETAILS) return;
+    int ns = g_explorer.list_scroll_y + delta_rows;
+    if (ns < 0) ns = 0;
+    /* Upper bound: leave at least the last entry reachable. The renderer
+     * clamps to entry_count - visible_rows, so a generous bound here is
+     * safe and keeps this free of window-geometry coupling. */
+    if (ns > g_explorer.entry_count) ns = g_explorer.entry_count;
+    if (ns < 0) ns = 0;
+    g_explorer.list_scroll_y = ns;
+}
+
 /* -- Tree View ---------------------------------------------------- */
 
 void dosgui_explorer_tree_expand(ExTreeNode *node) {

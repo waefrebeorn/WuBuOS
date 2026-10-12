@@ -527,3 +527,14 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
         }
     }
 }
+
+/* Wheel scroll: deliver to the focused window's on_scroll (rows, +down/-up).
+ * No-op when no window is focused or it has no scroll handler. */
+void dosgui_wm_scroll(int delta) {
+    if (delta == 0) return;
+    if (g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive && w->on_scroll)
+            w->on_scroll(w, delta);
+    }
+}

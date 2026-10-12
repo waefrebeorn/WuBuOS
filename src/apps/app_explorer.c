@@ -82,3 +82,8 @@ void app_explorer_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)win;
     dosgui_explorer_handle_key(key, mods);
 }
+
+void app_explorer_scroll(DosGuiWindow *win, int delta) {
+    (void)win;
+    dosgui_explorer_scroll(delta);
+}

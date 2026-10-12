@@ -66,6 +66,7 @@ DosGuiWindow* edr_dash_launch(void) { return NULL; }
 void app_explorer_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
 void app_explorer_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
 void app_explorer_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w;(void)x;(void)y;(void)b;(void)k; }
+void app_explorer_scroll(DosGuiWindow *w, int delta) { (void)w;(void)delta; }
 void dosgui_chrome_draw_window(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t; }
 void dosgui_chrome_draw_button(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t, int act) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t;(void)act; }
 DosGuiWindow* dosgui_dos_window_spawn(void) { return NULL; }

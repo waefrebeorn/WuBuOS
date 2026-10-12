@@ -287,6 +287,29 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
     int preview_x = list_x + list_w;
 
     if (kind == 0) { /* Mouse move */
+        if (ex->sb_dragging) {
+            /* Map cursor Y -> list_scroll_y (inverse thumb geometry). */
+            int content_y = list_y + ex_title_h();
+            int content_h = list_h - ex_title_h();
+            int row_h = ex_row_h();
+            int vis = content_h / row_h;
+            if (vis < 1) vis = 1;
+            int btn = 14;
+            int track_top = content_y + btn;
+            int track_h = content_h - 2 * btn;
+            int thumb_h = track_h * vis / ex->entry_count;
+            if (thumb_h < 8) thumb_h = 8;
+            if (thumb_h > track_h) thumb_h = track_h;
+            int span = track_h - thumb_h;
+            int total = ex->entry_count - vis;
+            if (span > 0 && total > 0) {
+                int pos = (y - ex->sb_drag_off - track_top);
+                if (pos < 0) pos = 0;
+                if (pos > span) pos = span;
+                ex->list_scroll_y = total * pos / span;
+            }
+            return;
+        }
         if (ex->rubber_band.active) {
             ex->rubber_band.end_x = x;
             ex->rubber_band.end_y = y;
@@ -353,6 +376,44 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
                 int rel_y = y - list_y - 4;
                 int row_h = ex_row_h();
 
+                /* Scrollbar column (rightmost 14px, only when it overflows). */
+                int content_y = list_y + ex_title_h();
+                int content_h = list_h - ex_title_h();
+                int vis = content_h / row_h;
+                if (ex->entry_count > vis) {
+                    int sb_x = list_x + list_w - 14;
+                    if (x >= sb_x && y >= content_y && y < content_y + content_h) {
+                        int btn = 14;                      /* arrow button size */
+                        int track_top = content_y + btn;
+                        int track_h = content_h - 2 * btn;
+                        int thumb_h = track_h * vis / ex->entry_count;
+                        if (thumb_h < 8) thumb_h = 8;
+                        if (thumb_h > track_h) thumb_h = track_h;
+                        int span = (track_h - thumb_h);
+                        int thumb_y = track_top;
+                        if (ex->entry_count > vis && span > 0)
+                            thumb_y = track_top + span * ex->list_scroll_y / (ex->entry_count - vis);
+                        if (y < track_top) {
+                            /* Up arrow: one row up. */
+                            dosgui_explorer_scroll(-1);
+                        } else if (y >= track_top + track_h) {
+                            /* Down arrow: one row down. */
+                            dosgui_explorer_scroll(1);
+                        } else if (y >= thumb_y && y < thumb_y + thumb_h) {
+                            /* Grab the thumb to drag. */
+                            ex->sb_dragging = true;
+                            ex->sb_drag_off = y - thumb_y;
+                        } else if (y < thumb_y) {
+                            /* Track above thumb: page up. */
+                            dosgui_explorer_scroll(-vis);
+                        } else {
+                            /* Track below thumb: page down. */
+                            dosgui_explorer_scroll(vis);
+                        }
+                        return;
+                    }
+                }
+
                 if (ex->view_mode == EX_VIEW_ICONS) {
                     /* Grid layout for icons */
                     int cols = list_w / (EX_ICON_SIZE + 16);
@@ -369,8 +430,9 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
                         }
                     }
                 } else {
-                    /* Details/List/Tiles - single column */
-                    int idx = rel_y / row_h;
+                    /* Details/List/Tiles - single column. The visible row
+                     * maps to entry list_scroll_y + row. */
+                    int idx = ex->list_scroll_y + rel_y / row_h;
                     if (idx >= 0 && idx < ex->entry_count) {
                         ex->focus_idx = idx;
                         ex->anchor_idx = idx;
@@ -413,6 +475,11 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
             }
         }
     } else if (kind == 2) { /* Mouse up */
+        if (ex->sb_dragging) {
+            ex->sb_dragging = false;
+            ex->sb_drag_off = 0;
+            return;
+        }
         if (ex->rubber_band.active) {
             ex->rubber_band.active = false;
             /* Process rubber band selection */

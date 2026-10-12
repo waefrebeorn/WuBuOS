@@ -25,6 +25,34 @@ int dosgui_taskbar_height(void) { return 28; }
 
 void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {}
 
+/* Minimal scrollbar stand-in (the real one lives in dosgui_wm_render.c,
+ * not linked into the explorer test). Draws a track + proportional thumb
+ * so the detail view's scrollbar call resolves. */
+void dosgui_draw_vscrollbar(int x, int y, int w, int h,
+                            int scroll, int visible, int total) {
+    (void)scroll;
+    extern void vbe_fill_rect(int, int, int, int, uint32_t);
+    vbe_fill_rect(x, y, w, h, 0x00C0C0C0);
+    if (total > visible && total > 0) {
+        int th = h * visible / total;
+        if (th < 8) th = 8;
+        int ty = y + (h - th) * scroll / (total - visible);
+        vbe_fill_rect(x, ty, w, th, 0x003A6EA5);
+    }
+}
+
+/* Minimal button stand-in (real one in dosgui_wm_render.c): face + label. */
+void dosgui_draw_button(int x, int y, int w, int h, const char *label,
+                        int state, int is_default) {
+    (void)state; (void)is_default;
+    extern void vbe_fill_rect(int, int, int, int, uint32_t);
+    extern void vbe_draw_text(int, int, const char *, uint32_t, int);
+    vbe_fill_rect(x, y, w, h, 0x00C0C0C0);
+    if (label && label[0])
+        vbe_draw_text(x + (w - (int)strlen(label) * 8) / 2, y + (h - 8) / 2,
+                      label, 0x00000000, 1);
+}
+
 /* -- StyxFS stubs (9P filesystem) ---------------------------------- */
 
 int styxfs_stat(const char *path, struct stat *st) {

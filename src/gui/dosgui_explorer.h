@@ -229,6 +229,8 @@ typedef struct {
 
     /* UI State */
     ExSelectionBand     rubber_band;
+    bool                sb_dragging;    /* scrollbar thumb being dragged */
+    int                 sb_drag_off;    /* grab offset within the thumb */
     bool                show_hidden;
     bool                show_extensions;
     bool                single_click_open;
@@ -287,6 +289,7 @@ void dosgui_explorer_go_up(void);
 void dosgui_explorer_go_back(void);
 void dosgui_explorer_go_forward(void);
 void dosgui_explorer_refresh(void);
+void dosgui_explorer_scroll(int delta_rows);  /* wheel: +down / -up, in rows */
 
 /* Tree view */
 void dosgui_explorer_tree_expand(ExTreeNode *node);
