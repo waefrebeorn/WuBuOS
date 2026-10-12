@@ -708,7 +708,7 @@ test_bridge:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(BRIDGE) -I$(KERNEL) -I$(WS) \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(BRIDGE)/vbe_ws_bridge.c \
 		$(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c \
-		$(BRIDGE)/vbe_ws_bridge_test.c -o $(BRIDGE)/vbe_ws_bridge_test
+		$(BRIDGE)/vbe_ws_bridge_test.c -o $(BRIDGE)/vbe_ws_bridge_test -lm
 	$(BRIDGE)/vbe_ws_bridge_test
 
 test_bridge_flip:

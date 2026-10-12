@@ -54,7 +54,7 @@ void ws_render_entities(const ws_world_t *w, ws_render_ctx_t *ctx) {
     if (!ctx->fb) return;
     
     for (int i = 0; i < WS_MAX_ENTITIES; i++) {
-        ws_entity_t *e = &w->entities[i];
+        const ws_entity_t *e = &w->entities[i];
         if (!e->active) continue;
         if (!(e->component_mask & (1 << WS_COMP_POSITION))) continue;
         if (!(e->component_mask & (1 << WS_COMP_SPRITE))) continue;
