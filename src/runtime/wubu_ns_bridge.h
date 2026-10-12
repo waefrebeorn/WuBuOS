@@ -118,6 +118,13 @@ const char *wubu_ns_sched_get(void);
 int wubu_ns_hw_detect(wubu_ns_gpu_detect_fn detect_fn, char *mode_out, size_t n);
 int wubu_ns_hw_set_mode(const char *gpu, const char *mode);
 
+/* /n/kernel/mem  --  live allocator stats (KERNEL P0 #5).  The caller
+ * (brain runtime) pushes an arena snapshot; the control plane formats it
+ * for `cat /n/kernel/mem` with no build dependency on the brain. */
+void wubu_ns_kernel_set_mem(size_t used, size_t capacity,
+                            size_t highwater, int slabs);
+const char *wubu_ns_kernel_mem_str(char *buf, int buflen);
+
 #ifdef __cplusplus
 }
 #endif

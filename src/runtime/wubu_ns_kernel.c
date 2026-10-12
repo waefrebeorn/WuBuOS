@@ -35,6 +35,30 @@ typedef int (*wubu_ns_gpu_detect_fn)(char *name, int name_len, char *pci, int pc
 /* Active scheduler policy; persisted to /n/kernel/scheduler. */
 static NsSchedPolicy g_sched = NS_SCHED_EEVDF;
 
+/* Live allocator stats (KERNEL P0 #5).  Decoupled from the brain's
+ * wubu_arena type  --  the caller pushes a plain stats snapshot via
+ * wubu_ns_kernel_set_mem() so this control-plane file has no build
+ * dependency on the brain submodule. */
+typedef struct {
+    size_t used;
+    size_t capacity;
+    size_t highwater;
+    int    slabs;
+} ns_mem_stats_t;
+
+static ns_mem_stats_t g_mem = {0};
+
+void wubu_ns_kernel_set_mem(size_t used, size_t capacity,
+                            size_t highwater, int slabs) {
+    g_mem.used = used;
+    g_mem.capacity = capacity;
+    g_mem.highwater = highwater;
+    g_mem.slabs = slabs;
+}
+
+/* Format the /n/kernel/mem payload.  Caller supplies buf (NULL = static). */
+const char *wubu_ns_kernel_mem_str(char *buf, int buflen);
+
 static const char *sched_name(NsSchedPolicy p) {
     switch (p) {
         case NS_SCHED_BORE:  return "bore";
@@ -105,6 +129,15 @@ int wubu_ns_hw_set_mode(const char *gpu, const char *mode) {
     return ns_write(sub, buf);
 }
 
+const char *wubu_ns_kernel_mem_str(char *buf, int buflen) {
+    static char sbuf[256];
+    if (!buf) { buf = sbuf; buflen = (int)sizeof(sbuf); }
+    snprintf(buf, (size_t)buflen,
+             "arena_used=%zu arena_capacity=%zu highwater=%zu slabs=%d\n",
+             g_mem.used, g_mem.capacity, g_mem.highwater, g_mem.slabs);
+    return buf;
+}
+
 int wubu_ns_publish_kernel(wubu_ns_gpu_detect_fn detect_fn) {
     if (!g_ns_root) return -1;
     if (ns_mkdir("kernel") != 0) return -1;
@@ -114,6 +147,13 @@ int wubu_ns_publish_kernel(wubu_ns_gpu_detect_fn detect_fn) {
     char sub[4096];
     snprintf(sub, sizeof(sub), "kernel/scheduler");
     if (ns_write(sub, sched_name(g_sched)) != 0) return -1;
+
+    /* /n/kernel/mem  --  live allocator stats (arena/highwater).  Reading
+     * this file is the criterion for KERNEL P0 #5: `cat /n/kernel/mem`
+     * shows arena used/capacity/highwater live.  When no arena is attached
+     * the values are 0 (allocator not yet initialized). */
+    snprintf(sub, sizeof(sub), "kernel/mem");
+    if (ns_write(sub, wubu_ns_kernel_mem_str(NULL, 0)) != 0) return -1;
 
     /* hw: detect + publish primary GPU */
     char gpu[128];

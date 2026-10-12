@@ -45,9 +45,22 @@ static void test_kernel_namespace(void) {
     printf("\n-- Kernel + HW control plane (rip off kernel-manager / chwd) --\n");
     wubu_ns_bridge_create(g_tmp);
 
+    /* KERNEL P0 #5: allocator exposes /n/kernel/mem (arena/highwater live).
+     * Push a stats snapshot BEFORE publish so the mem file reflects it. */
+    wubu_ns_kernel_set_mem(4096, 65536, 8192, 3);
+
     int rc = wubu_ns_publish_kernel(mock_gpu_detect);
     CHECK(rc == 0, "publish kernel + hw control plane");
     CHECK(file_exists("kernel/scheduler"), "/n/kernel/scheduler exists");
+    CHECK(file_exists("kernel/mem"),       "/n/kernel/mem exists (P0 #5)");
+    CHECK(file_contains("kernel/mem", "arena_used=4096"),
+          "/n/kernel/mem shows arena used");
+    CHECK(file_contains("kernel/mem", "arena_capacity=65536"),
+          "/n/kernel/mem shows arena capacity");
+    CHECK(file_contains("kernel/mem", "highwater=8192"),
+          "/n/kernel/mem shows highwater");
+    CHECK(file_contains("kernel/mem", "slabs=3"),
+          "/n/kernel/mem shows slab count");
     CHECK(file_exists("hw/amd/mode"),       "/n/hw/amd/mode exists (detected GPU)");
     CHECK(file_exists("hw/amd/pci"),         "/n/hw/amd/pci exists");
     CHECK(file_contains("hw/amd/mode", "passthrough"),
