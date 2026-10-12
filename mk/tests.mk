@@ -244,7 +244,7 @@ test_clipboard:
 	$(GUI)/wubu_clipboard_test
 
 test_worldsim: $(KERNEL)/wubu_math.o
-	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) -I$(KERNEL) $(WS)/test_worldsim.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c $(KERNEL)/wubu_math.o -o $(WS)/test_worldsim
+	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) -I$(KERNEL) $(WS)/test_worldsim.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c $(KERNEL)/wubu_math.o -o $(WS)/test_worldsim -lm
 	$(WS)/test_worldsim
 
 test_fat32: $(KERNEL)/fat32.o

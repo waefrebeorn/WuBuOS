@@ -1,10 +1,13 @@
 #include "worldsim.h"
+#include <math.h>
 
 void ws_physics_init(ws_physics_config_t *cfg) {
     cfg->gravity = -9.81f;
     cfg->drag = 0.01f;
     cfg->dt = 1.0f / 60.0f;
+    cfg->restitution = 0.5f;
     cfg->terrain_collide = 1;
+    cfg->body_collide = 1;
 }
 
 void ws_physics_step(ws_world_t *w, const ws_terrain_t *t, const ws_physics_config_t *cfg) {
@@ -50,6 +53,78 @@ void ws_physics_step(ws_world_t *w, const ws_terrain_t *t, const ws_physics_conf
                 if (pos->y < ground) {
                     pos->y = ground;
                     if (vel) vel->dy = 0.0f; /* stop vertical velocity */
+                }
+            }
+        }
+    }
+
+    /* Rigid-body vs rigid-body collision response (sphere approximation).
+     * Each collidable entity is a sphere of radius = mean bbox half-extent.
+     * On overlap: push apart along the contact normal (mass-weighted) and
+     * apply an elastic impulse scaled by restitution. */
+    if (cfg->body_collide) {
+        for (int i = 0; i < WS_MAX_ENTITIES; i++) {
+            ws_entity_t *a = &w->entities[i];
+            if (!a->active) continue;
+            if (!(a->component_mask & ((1 << WS_COMP_POSITION) | (1 << WS_COMP_PHYSICS)))) continue;
+            ws_physics_t *pa = (ws_physics_t *)&a->components[WS_COMP_PHYSICS];
+            if (!pa->collide) continue;
+            ws_position_t *posa = (ws_position_t *)&a->components[WS_COMP_POSITION];
+            ws_velocity_t *vela = (a->component_mask & (1 << WS_COMP_VELOCITY))
+                                  ? (ws_velocity_t *)&a->components[WS_COMP_VELOCITY] : NULL;
+            float ra = (pa->bbox_w + pa->bbox_h + pa->bbox_d) / 3.0f;
+            float ma = pa->mass > 0.0f ? pa->mass : 1.0f;
+
+            for (int j = i + 1; j < WS_MAX_ENTITIES; j++) {
+                ws_entity_t *b = &w->entities[j];
+                if (!b->active) continue;
+                if (!(b->component_mask & ((1 << WS_COMP_POSITION) | (1 << WS_COMP_PHYSICS)))) continue;
+                ws_physics_t *pb = (ws_physics_t *)&b->components[WS_COMP_PHYSICS];
+                if (!pb->collide) continue;
+                ws_position_t *posb = (ws_position_t *)&b->components[WS_COMP_POSITION];
+                ws_velocity_t *velb = (b->component_mask & (1 << WS_COMP_VELOCITY))
+                                      ? (ws_velocity_t *)&b->components[WS_COMP_VELOCITY] : NULL;
+                float rb = (pb->bbox_w + pb->bbox_h + pb->bbox_d) / 3.0f;
+                float mb = pb->mass > 0.0f ? pb->mass : 1.0f;
+
+                float dx = posb->x - posa->x;
+                float dy = posb->y - posa->y;
+                float dz = posb->z - posa->z;
+                float dist2 = dx*dx + dy*dy + dz*dz;
+                float rsum = ra + rb;
+                if (dist2 >= rsum*rsum || dist2 < 1e-12f) continue;
+
+                float dist = sqrtf(dist2);
+                float nx = dx / dist, ny = dy / dist, nz = dz / dist;
+                float overlap = rsum - dist;
+
+                /* Positional correction: push apart proportional to inverse mass */
+                float inva = 1.0f / ma, invb = 1.0f / mb;
+                float invsum = inva + invb;
+                if (invsum < 1e-12f) continue;
+                posa->x -= nx * overlap * (inva / invsum);
+                posa->y -= ny * overlap * (inva / invsum);
+                posa->z -= nz * overlap * (inva / invsum);
+                posb->x += nx * overlap * (invb / invsum);
+                posb->y += ny * overlap * (invb / invsum);
+                posb->z += nz * overlap * (invb / invsum);
+
+                /* Impulse: relative velocity along the normal */
+                if (vela && velb) {
+                    float rvx = velb->dx - vela->dx;
+                    float rvy = velb->dy - vela->dy;
+                    float rvz = velb->dz - vela->dz;
+                    float vn = rvx*nx + rvy*ny + rvz*nz;
+                    if (vn < 0.0f) {  /* approaching */
+                        float e = cfg->restitution;
+                        float jimp = -(1.0f + e) * vn / invsum;
+                        vela->dx -= jimp * nx * inva;
+                        vela->dy -= jimp * ny * inva;
+                        vela->dz -= jimp * nz * inva;
+                        velb->dx += jimp * nx * invb;
+                        velb->dy += jimp * ny * invb;
+                        velb->dz += jimp * nz * invb;
+                    }
                 }
             }
         }

@@ -131,7 +131,9 @@ typedef struct {
     float gravity;    /* default -9.81 */
     float drag;       /* air resistance coefficient */
     float dt;         /* timestep */
+    float restitution;/* bounce coefficient 0..1 for body-body collisions */
     int terrain_collide; /* clamp entities to terrain surface */
+    int body_collide;    /* rigid-body vs rigid-body collision response */
 } ws_physics_config_t;
 
 void ws_physics_init(ws_physics_config_t *cfg);
