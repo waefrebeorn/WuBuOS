@@ -1740,6 +1740,16 @@ test_ns_bonzi:
 		-o $(RT)/wubu_ns_bonzi_test -lm -lpthread
 	$(RT)/wubu_ns_bonzi_test
 
+# the /n/experts slot-bank control subtree (SSD-paged MoE residency)
+test_ns_experts:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(RT)/wubu_ns_experts_test.c -o /tmp/wubu_ns_experts_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_experts.c \
+		/tmp/wubu_ns_experts_test.o \
+		-o $(RT)/wubu_ns_experts_test -lm -lpthread
+	$(RT)/wubu_ns_experts_test
+
 # the companion PERSISTENT memory (agentic-mem index <-> /n/bonzi/mem, AD01-gated)
 test_bonzi_mem:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(RT)/wubu_bonzi_mem_test.c -o /tmp/wubu_bonzi_mem_test.o
