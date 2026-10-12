@@ -53,6 +53,38 @@ int main(void) {
           ".wubu magic -> nested .wubu");
         T(wubu_detect_payload_type(garbage, sizeof(garbage)) != WUBU_PAYLOAD_WIN_PE,
           "garbage -> not PE");
+
+        /* Mach-O magic: 0xFEEDFACE (32-bit BE) / 0xFEEDFACF (64-bit BE). */
+        uint8_t macho32[4] = { 0xCE,0xFA,0xED,0xFE };
+        uint8_t macho64[4] = { 0xCF,0xFA,0xED,0xFE };
+        T(wubu_detect_payload_type(macho32, sizeof(macho32)) == WUBU_PAYLOAD_MAC_MACHO,
+          "Mach-O 32-bit magic -> MAC_MACHO");
+        T(wubu_detect_payload_type(macho64, sizeof(macho64)) == WUBU_PAYLOAD_MAC_MACHO,
+          "Mach-O 64-bit magic -> MAC_MACHO");
+
+        /* WASM magic: 0x00 'a' 's' 'm'. */
+        uint8_t wasm[8] = { 0x00,'a','s','m',0x01,0x00,0x00,0x00 };
+        T(wubu_detect_payload_type(wasm, sizeof(wasm)) == WUBU_PAYLOAD_WASM,
+          "WASM magic -> WASM");
+
+        /* Bare MZ with NO PE signature -> 16-bit DOS EXE (FreeDOS layer). */
+        uint8_t dosmz[0x40];
+        memset(dosmz, 0, sizeof(dosmz));
+        dosmz[0]='M'; dosmz[1]='Z';
+        dosmz[0x3C]=0x40;              /* e_lfanew, but no "PE\0\0" there */
+        T(wubu_detect_payload_type(dosmz, sizeof(dosmz)) == WUBU_PAYLOAD_DOS_EXE,
+          "bare MZ (no PE) -> DOS_EXE");
+
+        /* Shell script: leading "#!". */
+        uint8_t sh[] = "#!/bin/sh\necho hi\n";
+        T(wubu_detect_payload_type(sh, sizeof(sh)-1) == WUBU_PAYLOAD_SHELL_SCRIPT,
+          "#! shebang -> SHELL_SCRIPT");
+
+        /* Python script: "#!" shebang line naming python. (The detector keys
+         * off the interpreter in the shebang, not on bare "import".) */
+        uint8_t py[] = "#!/usr/bin/env python3\nimport os\nprint(1)\n";
+        T(wubu_detect_payload_type(py, sizeof(py)-1) == WUBU_PAYLOAD_PYTHON,
+          "python shebang -> PYTHON");
     }
 
     /* wubu_launch_windows error path: garbage must be rejected (-1), never

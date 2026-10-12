@@ -263,7 +263,6 @@ test_isa_driver
 test_jit_perf_diff
 test_jit_profile
 test_kvfs_route
-test_launch
 test_lfn
 test_libc_string
 test_machines
