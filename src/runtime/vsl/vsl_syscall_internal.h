@@ -6,6 +6,12 @@
 #ifndef VSL_SYSCALL_INTERNAL_H
 #define VSL_SYSCALL_INTERNAL_H
 
+/* Expose BSD/GNU libc extensions used by the macOS/BSD syscall handlers:
+ * madvise(), setgroups(), unlink(), etc. Without this, glibc's default
+ * feature set (_DEFAULT_SOURCE) is not enabled and these become implicit
+ * declarations (which break under -Werror and C23). */
+#define _DEFAULT_SOURCE 1
+
 #include "vsl/vsl_syscall_numbers.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_syscall.h"

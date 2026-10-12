@@ -10,6 +10,7 @@
 #include "../gui/dosgui_wm.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 /* Weak stubs for VBE/WM functions when running unit test without GUI */
 __attribute__((weak)) void vbe_fill_rect(int x, int y, int w, int h, uint32_t color) { (void)x; (void)y; (void)w; (void)h; (void)color; }

@@ -248,7 +248,7 @@ int64_t sys_container_create(int64_t name_ptr, int64_t args_ptr, int64_t env_ptr
     }
 
     /* Build bwrap command */
-    char *bwrap_argv[64];
+    const char *bwrap_argv[64];
     int argc = 0;
     bwrap_argv[argc++] = "bwrap";
     bwrap_argv[argc++] = "--ro-bind";
@@ -319,7 +319,7 @@ int64_t sys_container_exec(int64_t id, int64_t cmd_ptr, int64_t args_ptr, int64_
 
     /* For exec inside running container, we use nsenter or bwrap again
      * For simplicity, we'll run a new bwrap command with the same namespace */
-    char *bwrap_argv[64];
+    const char *bwrap_argv[64];
     int argc = 0;
     bwrap_argv[argc++] = "bwrap";
     bwrap_argv[argc++] = "--ro-bind";
