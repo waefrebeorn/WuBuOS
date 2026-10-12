@@ -650,6 +650,14 @@ void dosgui_startmenu_build_programs_db(void) {
     strcpy(e->name, "Calculator"); strcpy(e->executable, "Calculator");
     strcpy(e->category, "Accessories"); e->is_builtin = true;
     
+    e = &g_program_db.entries[g_program_db.count++];
+    strcpy(e->name, "Minesweeper"); strcpy(e->executable, "Minesweeper");
+    strcpy(e->category, "Accessories"); e->is_builtin = true;
+    
+    e = &g_program_db.entries[g_program_db.count++];
+    strcpy(e->name, "Solitaire"); strcpy(e->executable, "Solitaire");
+    strcpy(e->category, "Accessories"); e->is_builtin = true;
+    
     /* WuBuOS */
     e = &g_program_db.entries[g_program_db.count++];
     strcpy(e->name, "HolyD Terminal"); strcpy(e->executable, "HolyD Terminal");
