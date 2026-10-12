@@ -296,6 +296,19 @@ static void cmd_draw_prompt(void *win, int cx, int cy, int cw, int ch) {
     }
 }
 
+void wubu_cmd_scroll(WubuCmd *cmd, int delta) {
+    (void)cmd;
+    int np = g_cmd.scrollback_pos + delta;
+    if (np < 0) np = 0;
+    if (np > g_cmd.history.count) np = g_cmd.history.count;
+    g_cmd.scrollback_pos = np;
+}
+
+int wubu_cmd_scroll_pos(const WubuCmd *cmd) {
+    (void)cmd;
+    return g_cmd.scrollback_pos;
+}
+
 void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     if (!cmd || !win) return;

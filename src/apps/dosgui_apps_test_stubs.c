@@ -71,6 +71,8 @@ void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
 }
 void wubu_cmd_key(WubuCmd *cmd, int key) { (void)cmd; (void)key; }
 void wubu_cmd_spawn_shell(WubuCmd *cmd, const char *shell) { (void)cmd; (void)shell; }
+void wubu_cmd_scroll(WubuCmd *cmd, int delta) { (void)cmd; (void)delta; }
+int  wubu_cmd_scroll_pos(const WubuCmd *cmd) { (void)cmd; return 0; }
 
 /* -- DOS process launch ---------------------------------------------- */
 void *wubu_dos_proc_launch(const char *path, int transparent) {

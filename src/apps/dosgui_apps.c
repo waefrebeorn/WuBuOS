@@ -37,6 +37,7 @@
 static void dosgui_terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 static void dosgui_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+static void dosgui_terminal_scroll(DosGuiWindow *win, int delta);
 
 /* Notepad / REPL bind their own callbacks internally; expose them
  * so the registry can wire them. */
@@ -112,6 +113,7 @@ DosGuiWindow* dosgui_launch_terminal(void) {
     win->on_draw  = dosgui_terminal_draw;
     win->on_key   = dosgui_terminal_key;
     win->on_mouse = dosgui_terminal_mouse;
+    win->on_scroll = dosgui_terminal_scroll;
     return win;
 }
 
@@ -131,6 +133,11 @@ static void dosgui_terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods) 
 static void dosgui_terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     (void)win; (void)x; (void)y; (void)btn; (void)kind;
     /* Terminal has no mouse-driven UI yet; pty input is keyboard-only. */
+}
+
+static void dosgui_terminal_scroll(DosGuiWindow *win, int delta) {
+    WubuCmd *cmd = (WubuCmd *)win->user_data;
+    if (cmd) wubu_cmd_scroll(cmd, delta);
 }
 
 DosGuiWindow* dosgui_launch_file_manager(void) {

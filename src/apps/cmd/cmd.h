@@ -31,4 +31,8 @@ const char* wubu_cmd_history_next(WubuCmd *cmd);
 /* Draw CMD into a window */
 void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h);
 
+/* Wheel-scroll the scrollback (rows, +down / -up). */
+void wubu_cmd_scroll(WubuCmd *cmd, int delta);
+int  wubu_cmd_scroll_pos(const WubuCmd *cmd);
+
 #endif /* WUBU_CMD_H */
