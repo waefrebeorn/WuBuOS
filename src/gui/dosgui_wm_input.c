@@ -18,6 +18,12 @@
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
+#include "wubu_clipboard.h"
+
+/* The shared clipboard is an optional module for the WM test (which doesn't
+ * link wubu_clipboard.o). Weak no-ops; the shipped build overrides them. */
+__attribute__((weak)) bool wubu_clipboard_copy(const char *t){(void)t;return false;}
+__attribute__((weak)) bool wubu_clipboard_paste(char **out){(void)out;return false;}
 
 #include <string.h>
 #include <stdio.h>
@@ -120,6 +126,25 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     if ((mods & 0x4) && key == 0x14) {
         wubu_theme_cycle();
         fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
+        return;
+    }
+    /* Clipboard hotkeys (UX copy/cut/paste across apps). Ctrl+C=0x2E,
+     * Ctrl+X=0x2D, Ctrl+V=0x2F. Coordinate the shared clipboard with the
+     * focused window's selection via its on_clip callback. */
+    if ((mods & 0x4) && (key == 0x2E || key == 0x2D || key == 0x2F)) {
+        DosGuiWindow *fw = (g_dwm.focused_id >= 0) ? &g_dwm.windows[g_dwm.focused_id] : NULL;
+        if (fw && fw->alive && fw->on_clip) {
+            if (key == 0x2F) {              /* paste: clipboard -> app */
+                char *txt = NULL;
+                if (wubu_clipboard_paste(&txt) && txt) {
+                    fw->on_clip(fw, 2, txt);
+                    free(txt);
+                }
+            } else {                         /* copy/cut: app -> clipboard */
+                char *sel = fw->on_clip(fw, key == 0x2D ? 1 : 0, NULL);
+                if (sel) { wubu_clipboard_copy(sel); free(sel); }
+            }
+        }
         return;
     }
     if (key == 0x3F) {

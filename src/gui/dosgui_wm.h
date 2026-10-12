@@ -62,6 +62,10 @@ typedef struct DosGuiWindow {
      * dropped on this window's client area. payload = the source icon's
      * name/label; the app decides what to do (open, import, ...). */
     void (*on_drop)(DosGuiWindow *win, const char *payload, int px, int py);
+    /* Clipboard callback (UX copy/cut/paste): the WM calls it for
+     * Ctrl+C/X/V. op 0=copy, 1=cut -> return the selection text (caller
+     * frees); op 2=paste -> text is the clipboard content to insert. */
+    char *(*on_clip)(DosGuiWindow *win, int op, const char *text);
     void          *user_data;
     uint32_t      icon_color;   /* Fallback colored box for title bar icon */
 } DosGuiWindow;
