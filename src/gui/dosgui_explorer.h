@@ -231,6 +231,8 @@ typedef struct {
     ExSelectionBand     rubber_band;
     bool                sb_dragging;    /* scrollbar thumb being dragged */
     int                 sb_drag_off;    /* grab offset within the thumb */
+    int                 last_click_idx; /* XP double-click: last entry clicked */
+    uint64_t            last_click_ms;  /* XP double-click: frame-clock ms */
     bool                show_hidden;
     bool                show_extensions;
     bool                single_click_open;

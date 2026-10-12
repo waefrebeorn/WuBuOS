@@ -133,7 +133,6 @@ void dosgui_clock_menu_render(uint32_t *fb, int fb_w, int fb_h);
 /* Last-rendered clock well (clickable button) rect; zeros until first render. */
 void dosgui_clock_well(int *x, int *y, int *w, int *h);
 uint64_t dosgui_wm_ticks_ms(void);  /* frame-clock: render_frame_count * 16 */
-uint64_t dosgui_wm_ticks_ms(void);  /* frame-clock: render_frame_count * 16 */
 void dosgui_draw_vscrollbar(int x, int y, int w, int h,
                             int scroll, int visible, int total);
 void dosgui_draw_button(int x, int y, int w, int h, const char *label,

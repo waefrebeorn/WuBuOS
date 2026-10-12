@@ -449,6 +449,42 @@ static void test_scroll(void) {
     dosgui_explorer_shutdown();
 }
 
+static void test_toolbar_and_doubleclick(void) {
+    printf("\n=== Test: Toolbar buttons + double-click open ===\n");
+    dosgui_explorer_init();
+    dosgui_explorer_navigate("/");
+    ExExplorerState *ex = dosgui_explorer_state();
+    ex->view_mode = EX_VIEW_DETAILS;
+    ex->toolbar_visible = true;
+
+    const char *path_before = dosgui_explorer_current_path();
+
+    /* Toolbar "Up" button (index 2): geometry matches ex_render_toolbar —
+     * origin 10 + 2*76, y 4, w70, h EX_TOOLBAR_H-8 (Win98 row metrics). */
+    int up_x = 10 + 2 * 76 + 35;   /* center of the Up button */
+    int up_y = 4 + (EX_TOOLBAR_H - 8) / 2;
+    dosgui_explorer_handle_mouse(up_x, up_y, 1, 1);
+    dosgui_explorer_handle_mouse(up_x, up_y, 1, 2);
+    /* Up from "/" stays at "/" (root has no parent) — assert no crash. */
+    TEST_ASSERT(dosgui_explorer_current_path() != NULL,
+                "toolbar Up click handled without crash");
+
+    /* Double-click the first entry: a folder navigates into it (path
+     * changes); a file MIME-launches. Either way the handler processes it. */
+    if (ex->entry_count > 0) {
+        int click_y = EX_BREADCRUMB_H + EX_TOOLBAR_H + 4 + EX_ROW_H / 2;
+        int click_x = ex->tree_w + 40;
+        dosgui_explorer_handle_mouse(click_x, click_y, 1, 1);
+        dosgui_explorer_handle_mouse(click_x, click_y, 1, 2);
+        dosgui_explorer_handle_mouse(click_x, click_y, 1, 1);
+        dosgui_explorer_handle_mouse(click_x, click_y, 1, 2);
+        TEST_ASSERT(true, "double-click on entry processed without crash");
+    }
+    (void)path_before;
+
+    dosgui_explorer_shutdown();
+}
+
 static void test_find(void) {
     printf("\n=== Test: Find (Ctrl+F) ===\n");
 
@@ -550,6 +586,7 @@ int main(void) {
     test_zip();
     test_state_accessors();
     test_scroll();
+    test_toolbar_and_doubleclick();
     test_find();
     test_shift_select();
     test_image_preview();

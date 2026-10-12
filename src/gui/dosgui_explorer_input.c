@@ -8,11 +8,20 @@
 
 #include "dosgui_explorer_internal.h"
 #include "dosgui_explorer.h"
+#include "dosgui_wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_mime.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
+
+/* Monotonic milliseconds for double-click detection (XP ~500ms window). */
+static uint64_t ex_now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u;
+}
 
 /* -- Input Handling ----------------------------------------------- */
 
@@ -246,6 +255,15 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
     /* Use shift state tracked from key handler */
     bool shift = g_shift_pressed;
 
+    /* Window-aware origin: when hosted in a WM window (win_id set), the
+     * explorer is drawn at the window's x/y; hit-testing must match. When
+     * driven directly (tests / fullscreen), origin is 0,0. */
+    int origin_x = 0, origin_y = 0;
+    if (ex->win_id > 0) {
+        DosGuiWindow *ew = dosgui_wm_find_by_id(ex->win_id);
+        if (ew) { origin_x = ew->x; origin_y = ew->y; }
+    }
+
     if (ex->context_menu_x >= 0) {
         if (kind == 1 && btn == 1) { /* Left click outside closes context menu */
             ex_hide_context_menu(ex);
@@ -253,10 +271,10 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
         return;
     }
 
-    if (y < ex_breadcrumb_h()) {
+    if (y < origin_y + ex_breadcrumb_h()) {
         /* Click in breadcrumbs area - handle segment clicks */
         if (kind == 1 && btn == 1) {
-            int seg_x = 10;
+            int seg_x = origin_x + 10;
             for (int i = 0; i < ex->breadcrumb_count; i++) {
                 int seg_w = vbe_text_width(ex->breadcrumb_segments[i], 1) + 12;
                 if (x >= seg_x && x < seg_x + seg_w) {
@@ -277,13 +295,20 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
         return;
     }
 
-    int tree_x = 0;
-    int tree_y = ex_breadcrumb_h() + (ex->toolbar_visible ? ex_toolbar_h() : 0);
+    /* Window-aware geometry: match app_explorer_draw's windowed layout.
+     * Extent is the window's w/h when hosted, else the screen. */
+    int screen_w = vbe_state()->width, screen_h = vbe_state()->height;
+    if (ex->win_id > 0) {
+        DosGuiWindow *ew = dosgui_wm_find_by_id(ex->win_id);
+        if (ew) { screen_w = ew->w; screen_h = ew->h; }
+    }
+    int tree_x = origin_x + 2;
+    int tree_y = origin_y + ex_breadcrumb_h() + (ex->toolbar_visible ? ex_toolbar_h() : 0);
     int tree_w = ex->tree_w;
     int list_x = tree_x + tree_w;
     int list_y = tree_y;
-    int list_w = ex->preview_visible ? (vbe_state()->width - tree_w - ex->preview_w) : (vbe_state()->width - tree_w);
-    int list_h = vbe_state()->height - tree_y - ex_statusbar_h();
+    int list_w = screen_w - (list_x - origin_x) - (ex->preview_visible ? ex->preview_w : 0) - 4;
+    int list_h = screen_h - (tree_y - origin_y) - ex_statusbar_h();
     int preview_x = list_x + list_w;
 
     if (kind == 0) { /* Mouse move */
@@ -365,9 +390,28 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
                 return;
             }
 
-            /* Check breadcrumbs */
-            if (y >= ex_breadcrumb_h() && y < ex_breadcrumb_h() + ex_toolbar_h()) {
-                /* Toolbar buttons */
+            /* Check toolbar buttons (window-aware band) */
+            if (ex->toolbar_visible &&
+                y >= origin_y && y < origin_y + ex_toolbar_h()) {
+                /* Buttons laid out as ex_render_toolbar draws them. */
+                const char *btns[] = {"Back", "Forward", "Up", "Refresh", "New Folder"};
+                int btn_x = origin_x + 10;
+                int btn_w = 70, btn_stride = 76;
+                int btn_y = origin_y + 4, btn_h = ex_toolbar_h() - 8;
+                for (int i = 0; i < 5; i++) {
+                    if (x >= btn_x && x < btn_x + btn_w &&
+                        y >= btn_y && y < btn_y + btn_h) {
+                        switch (i) {
+                            case 0: dosgui_explorer_go_back(); break;
+                            case 1: dosgui_explorer_go_forward(); break;
+                            case 2: dosgui_explorer_go_up(); break;
+                            case 3: dosgui_explorer_refresh(); break;
+                            case 4: dosgui_explorer_new_folder(); break;
+                        }
+                        return;
+                    }
+                    btn_x += btn_stride;
+                }
                 return;
             }
 
@@ -439,6 +483,28 @@ void dosgui_explorer_handle_mouse(int x, int y, int btn, int kind) {
                         if (!shift) {
                             dosgui_explorer_clear_selection();
                             dosgui_explorer_toggle_selection(idx);
+                        }
+                        /* XP parity: double-click (same entry, ~500ms) opens
+                         * it — navigate into a folder/drive, MIME-launch a file. */
+                        uint64_t now = ex_now_ms();
+                        bool dbl = (ex->last_click_idx == idx &&
+                                    now - ex->last_click_ms < 500);
+                        if (dbl) {
+                            ExEntry *e = &ex->entries[idx];
+                            if (e->type == EX_ENTRY_DIR || e->type == EX_ENTRY_DRIVE) {
+                                dosgui_explorer_navigate(e->full_path);
+                            } else if (wubu_mime_launch(e->full_path, NULL) == 0) {
+                                snprintf(ex->status_text, sizeof(ex->status_text),
+                                         "Launched: %s", e->name);
+                            } else {
+                                snprintf(ex->status_text, sizeof(ex->status_text),
+                                         "Failed to launch: %s", e->name);
+                            }
+                            ex->last_click_idx = -1;
+                            ex->last_click_ms = 0;
+                        } else {
+                            ex->last_click_idx = idx;
+                            ex->last_click_ms = now;
                         }
                     }
                 }
