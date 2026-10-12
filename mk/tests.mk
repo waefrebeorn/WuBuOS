@@ -1750,6 +1750,16 @@ test_ns_experts:
 		-o $(RT)/wubu_ns_experts_test -lm -lpthread
 	$(RT)/wubu_ns_experts_test
 
+# the /n/hive diagnostic control subtree (the AGI immune system)
+test_ns_hive:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(RT)/wubu_ns_hive_test.c -o /tmp/wubu_ns_hive_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_hive.c \
+		/tmp/wubu_ns_hive_test.o \
+		-o $(RT)/wubu_ns_hive_test -lm -lpthread
+	$(RT)/wubu_ns_hive_test
+
 # the companion PERSISTENT memory (agentic-mem index <-> /n/bonzi/mem, AD01-gated)
 test_bonzi_mem:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(BRAIN_INC) -I$(BRAIN_SRC) -c $(RT)/wubu_bonzi_mem_test.c -o /tmp/wubu_bonzi_mem_test.o
