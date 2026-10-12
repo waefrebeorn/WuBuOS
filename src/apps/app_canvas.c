@@ -258,6 +258,10 @@ void app_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 void app_canvas_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     CvState *s = &g_cv_state;
     if (!s->cv) return;
+    /* WM delivers window-relative coords; this handler works in absolute
+     * screen space (content_x, win->x + ...). Translate up front. */
+    x += win->x;
+    y += win->y;
     int cx, cy;
     screen_to_canvas(s, x, y, &cx, &cy);
     s->last_x = x - s->content_x; s->last_y = y - s->content_y;

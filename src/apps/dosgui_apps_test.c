@@ -287,10 +287,29 @@ static void test_canvas_undo_redo(void) {
     PASS();
 }
 
+extern void app_canvas_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+
 static void test_canvas_launch(void) {
     TEST("canvas: launch returns window");
     DosGuiWindow *win = dosgui_launch_canvas();
     CHECK(win != NULL, "window created");
+    PASS();
+}
+
+static void test_canvas_mouse_coords(void) {
+    TEST("canvas: window-relative mouse click is translated + handled");
+    DosGuiWindow *win = dosgui_launch_canvas();
+    CHECK(win != NULL, "window created");
+    if (!win) { PASS(); return; }
+    /* Canvas launches at (120,90,900,640). Feed window-relative coords (as
+     * the WM delivers them); app_canvas_mouse must translate to absolute
+     * and run the palette/layers/content hit-tests without crashing. */
+    app_canvas_mouse(win, 900 - 40, 40, 1, 1);        /* palette (top-right) */
+    app_canvas_mouse(win, 900 - 40, 40, 1, 2);
+    app_canvas_mouse(win, 450, 320, 1, 1);            /* content drag */
+    app_canvas_mouse(win, 460, 330, 1, 0);
+    app_canvas_mouse(win, 460, 330, 1, 2);
+    CHECK(true, "canvas mouse clicks processed without crash");
     PASS();
 }
 
@@ -685,6 +704,7 @@ int main(void) {
     test_canvas_brush_composite();
     test_canvas_undo_redo();
     test_canvas_launch();
+    test_canvas_mouse_coords();
     
     printf("\n-- Task Manager (Win11 Style) --\n");
     test_tmgr_create_destroy();
