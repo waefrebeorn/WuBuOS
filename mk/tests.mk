@@ -1022,7 +1022,7 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wub
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(GUI)/dosgui_window_chrome.c \
 		$(GUI)/wubu_bonzi_observe.c $(GUI)/wubu_bonzi_activity.c $(GUI)/wubu_bonzi_context.c \
-		$(RT)/wubu_ns_fs.c $(RT)/wubu_ns_bonzi.c $(RT)/wubu_ns_resolve.c \
+		$(RT)/wubu_ns_fs.c $(RT)/wubu_ns_bonzi.c $(RT)/wubu_ns_hive.c $(RT)/wubu_ns_brain.c $(RT)/wubu_ns_resolve.c \
 		$(GUI)/wubu_meta_e2e_test.c -o $(GUI)/wubu_meta_e2e_test -lm
 	$(GUI)/wubu_meta_e2e_test
 
