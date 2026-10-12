@@ -12,14 +12,12 @@
 
 #include "dosgui_apps.h"
 #include "calc/calc.h"
-#include "notepad/notepad.h"
 #include "wubu_canvas.h"
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
 #include "fm/fm.h"
 #include "repl/repl.h"
 #include "control/control.h"
-#include "editor/editor.h"
 #include "notes.h"
 #include "todo.h"
 #include "music.h"
@@ -60,6 +58,7 @@ void dosgui_notepad_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w
 void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
 void dosgui_startmenu_toggle(void) {}
 int dosgui_startmenu_is_open(void) { return 0; }
+void dosgui_startmenu_handle_key(int key, uint32_t mods) { (void)key; (void)mods; }
 struct hosted_state_t *dosgui_wm_get_hosted_state(void) { return NULL; }
 DosGuiWindow* edr_dash_launch(void) { return NULL; }
 
@@ -175,51 +174,6 @@ static void test_calc_base_switch(void) {
 static void test_calc_launch(void) {
     TEST("calc: launch returns window");
     DosGuiWindow *win = calc_launch();
-    CHECK(win != NULL, "window created");
-    PASS();
-}
-
-/* ================================================================
- * Notepad++ Editor Tests (using API)
- * ================================================================ */
-
-static void test_notepad_create_destroy(void) {
-    TEST("notepad: create and destroy");
-    NotepadState *np = notepad_create();
-    CHECK(np != NULL, "notepad created");
-    CHECK(np_tab_count(np) == 0, "tab count 0");
-    notepad_destroy(np);
-    PASS();
-}
-
-static void test_notepad_new_tab(void) {
-    TEST("notepad: new tab creation via API");
-    NotepadState *np = notepad_create();
-    int old_count = np_tab_count(np);
-    notepad_new_tab(np);
-    CHECK(np_tab_count(np) == old_count + 1, "tab count increased");
-    CHECK(np_active_tab(np) == np_tab_count(np) - 1, "new tab active");
-    notepad_destroy(np);
-    PASS();
-}
-
-static void test_notepad_lang_detect(void) {
-    TEST("notepad: language detection via API");
-    CHECK(notepad_detect_lang("test.c") == NP_LANG_C, ".c -> C");
-    CHECK(notepad_detect_lang("test.cpp") == NP_LANG_CPP, ".cpp -> C++");
-    CHECK(notepad_detect_lang("test.py") == NP_LANG_PYTHON, ".py -> Python");
-    CHECK(notepad_detect_lang("test.HC") == NP_LANG_HOLYC, ".HC -> HolyD");
-    CHECK(notepad_detect_lang("test.sh") == NP_LANG_SHELL, ".sh -> Shell");
-    CHECK(notepad_detect_lang("Makefile") == NP_LANG_MAKEFILE, "Makefile");
-    CHECK(notepad_detect_lang("test.json") == NP_LANG_JSON, ".json -> JSON");
-    CHECK(notepad_detect_lang("test.xml") == NP_LANG_XML, ".xml -> XML");
-    CHECK(notepad_detect_lang("test.txt") == NP_LANG_NONE, ".txt -> None");
-    PASS();
-}
-
-static void test_notepad_launch(void) {
-    TEST("notepad: launch returns window");
-    DosGuiWindow *win = notepad_launch();
     CHECK(win != NULL, "window created");
     PASS();
 }
@@ -607,25 +561,6 @@ static void test_control_launch(void) {
 }
 
 /* ================================================================
- * Editor Tests
- * ================================================================ */
-
-static void test_editor_create_destroy(void) {
-    TEST("editor: create and destroy");
-    EditorState *ed = editor_create();
-    CHECK(ed != NULL, "editor created");
-    editor_destroy(ed);
-    PASS();
-}
-
-static void test_editor_launch(void) {
-    TEST("editor: launch returns window");
-    DosGuiWindow *win = editor_launch();
-    CHECK(win != NULL, "window created");
-    PASS();
-}
-
-/* ================================================================
  * Main Test Runner
  * ================================================================ */
 
@@ -700,10 +635,6 @@ int main(void) {
     test_calc_launch();
     
     printf("\n-- Notepad++ Editor --\n");
-    test_notepad_create_destroy();
-    test_notepad_new_tab();
-    test_notepad_lang_detect();
-    test_notepad_launch();
     
     printf("\n-- WuBu Canvas (image editor) --\n");
     test_canvas_create_destroy();
@@ -749,8 +680,6 @@ int main(void) {
     test_control_launch();
     
     printf("\n-- Editor --\n");
-    test_editor_create_destroy();
-    test_editor_launch();
     
     printf("\n-- Registry + the new apps --\n");
     test_registry_complete();

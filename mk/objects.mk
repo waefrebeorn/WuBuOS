@@ -286,8 +286,8 @@ BRIDGE_OBJS = $(BRIDGE)/bridge.o $(BRIDGE)/vbe_ws_bridge.o $(BRIDGE)/wubu_syscal
 
 # ── App Objects ──────────────────────────────────────────────────
 APP_OBJS = $(APPS)/repl.o $(APPS)/notepad.o $(APPS)/wubu_editor.o $(APPS)/wubu_editor_bookmark.o $(APPS)/wubu_editor_macro.o $(APPS)/wubu_editor_undo.o $(APPS)/wubu_editor_selection.o $(APPS)/wubu_editor_find.o $(APPS)/wubu_canvas_layers.o $(APPS)/wubu_canvas_draw.o $(APPS)/wubu_canvas_filter.o $(APPS)/wubu_canvas_transform.o $(APPS)/wubu_canvas_plugin.o $(APPS)/wubu_canvas_undo.o $(APPS)/wubu_canvas_blend.o $(APPS)/wubu_canvas_io.o $(APPS)/wubu_image_codec.o $(APPS)/wubu_canvas_io_ppm.o $(APPS)/wubu_codec.o $(APPS)/dosgui_apps.o $(APPS)/cmd/cmd.o $(APPS)/app_canvas.o $(APPS)/app_explorer.o $(APPS)/notes.o $(APPS)/todo.o $(APPS)/music.o \
-           $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/notepad/notepad.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
-           $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o $(APPS)/editor/editor.o \
+           $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/taskmgr/taskmgr.o $(APPS)/regedit/regedit.o \
+           $(APPS)/fm/fm.o $(APPS)/repl/repl.o $(APPS)/control/control.o \
            $(APPS)/bonzi/bonzi.o $(APPS)/comfy/comfy.o $(APPS)/tandem/tandem.o
 
 # ── WorldSim Objects ─────────────────────────────────────────────
