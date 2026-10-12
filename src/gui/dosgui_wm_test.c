@@ -321,6 +321,36 @@ static void test_titlebar_button_clicks(void) {
         CHECK(dosgui_wm_window_count() == before, "clicking close destroys the window");
         (void)w;
     }
+    /* -- Taskbar Click-Restore (UX #516) -- */
+    /* Regression: clicking a minimized window's taskbar button must restore it
+     * (not toggle minimize or crash). The button hit-test zone must be active
+     * even for minimized windows (otherwise they vanish from taskbar). */
+    {
+        DosGuiWindow *w = dosgui_wm_create(100, 100, 200, 150, "RestoreTest");
+        CHECK(w, "window created for restore test");
+        CHECK(!dosgui_wm_is_minimized(w), "window starts not minimized");
+
+        /* Click title-bar minimize button. */
+        int tbh = title_bar_height();
+        int bw = border_width();
+        int btn = 14;
+        int wy = 100 + (tbh - btn) / 2;
+        int min_x = 100 + 200 - bw - btn - 2 - (btn + 2) - (btn + 2);
+        dosgui_wm_handle_mouse(min_x + btn/2, wy + btn/2, 1, 1);
+        CHECK(dosgui_wm_is_minimized(w), "window minimized after title-bar click");
+
+        /* Compute taskbar button position: same formula as dosgui_wm_input.c */
+        int by = 768 - dosgui_taskbar_height() + (dosgui_taskbar_height() - 22) / 2;
+        int tb_x = theme()->Luna_start_button ? 82 : 72;  /* first button after start */
+        int tw = vbe_text_width("RestoreTest", 1);
+        int bw_btn = tw + 24; if (bw_btn < 120) bw_btn = 120;
+
+        /* Click taskbar button (center of button). */
+        dosgui_wm_handle_mouse(tb_x + bw_btn/2, by + 11, 1, 1);
+        CHECK(!dosgui_wm_is_minimized(w), "taskbar click restores minimized window");
+        /* Focus is restored by dosgui_wm_set_focus() in the restore path */
+        dosgui_wm_destroy(w);
+    }
     PASS();
     dosgui_wm_shutdown();
 }
