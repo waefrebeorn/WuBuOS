@@ -22,6 +22,17 @@
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
 
+/* The /n/bonzi namespace mirror is an OPTIONAL meta-layer add-on: the GUI
+ * must render whether or not the namespace bridge is linked. Declare weak
+ * no-op defaults; the real wubu_ns_bonzi.o overrides them at link time when
+ * the bridge is present. */
+__attribute__((weak)) void wubu_ns_bonzi_set_enabled(int on){(void)on;}
+__attribute__((weak)) void wubu_ns_bonzi_set_pos(int x,int y){(void)x;(void)y;}
+__attribute__((weak)) void wubu_ns_bonzi_set_size(int w,int h){(void)w;(void)h;}
+__attribute__((weak)) void wubu_ns_bonzi_set_agi(int o){(void)o;}
+__attribute__((weak)) void wubu_ns_bonzi_set_bubble(const char*t){(void)t;}
+__attribute__((weak)) int  wubu_ns_bonzi_sync(void){return -1;}
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -192,6 +203,13 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Advance the desktop companion animation clock (~60 Hz). */
     g_dwm.render_frame_count++;
     wubu_bonzi_tick(16);
+    /* Meta-layer: mirror the live companion state into /n/bonzi so the shell
+     * (and any agent) can read what the AGI face IS -- `cat /n/bonzi/*`.
+     * sync() is a safe no-op (-1) when the namespace root isn't set. */
+    wubu_ns_bonzi_set_enabled(wubu_bonzi_is_enabled());
+    wubu_ns_bonzi_set_pos(wubu_bonzi_x(), wubu_bonzi_y());
+    wubu_ns_bonzi_set_size(wubu_bonzi_w(), wubu_bonzi_h());
+    wubu_ns_bonzi_sync();
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */
     dosgui_wm_typer_tick(16);

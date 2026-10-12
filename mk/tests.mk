@@ -1730,6 +1730,16 @@ test_ns_dram:
 		-o $(RT)/wubu_ns_dram_test -lm -lpthread
 	$(RT)/wubu_ns_dram_test
 
+# the /n/bonzi companion control subtree (the AGI face as /n files)
+test_ns_bonzi:
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(RT)/wubu_ns_bonzi_test.c -o /tmp/wubu_ns_bonzi_test.o
+	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
+		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_bonzi.c \
+		/tmp/wubu_ns_bonzi_test.o \
+		-o $(RT)/wubu_ns_bonzi_test -lm -lpthread
+	$(RT)/wubu_ns_bonzi_test
+
 test_steamrt:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_steamrt_test.c -o /tmp/wubu_steamrt_test.o
 	$(CC) -O0 -no-pie -I$(RT) \

@@ -104,6 +104,10 @@ uint64_t wubu_agi_kernel_uptime_ms(void) { return 0; }
 void wubu_bonzi_draw(uint32_t *f, int fw, int fh, int x, int y) { (void)f;(void)fw;(void)fh;(void)x;(void)y; }
 void wubu_bonzi_init(void) {}
 int wubu_bonzi_is_enabled(void) { return 0; }
+int wubu_bonzi_x(void) { return 0; }
+int wubu_bonzi_y(void) { return 0; }
+int wubu_bonzi_w(void) { return 96; }
+int wubu_bonzi_h(void) { return 128; }
 void wubu_bonzi_mouse(int x, int y) { (void)x;(void)y; }
 void dosgui_shutdown(void) {}
 
