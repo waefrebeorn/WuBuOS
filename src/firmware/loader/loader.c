@@ -103,6 +103,10 @@ typedef struct {
 #define EM_X86_64 62
 #define KERNEL_PHYS_BASE   0x100000ULL
 #define KERNEL_HIGH_BASE   0xffffffff80000000ULL
+/* Kernel load ceiling (physical). The kernel links at 0x100000 and its image
+ * (code + large BSS) now exceeds 4 MiB; QEMU provides far more low memory, so
+ * allow up to 16 MiB for the kernel image. */
+#define KERNEL_LOAD_CEILING 0x1000000ULL
 #define KERNEL_ENTRY       0x100020ULL   /* _start after the 32-byte mb1 hdr */
 
 /* ---- 64 -> 32 protected-mode handoff (teardown.S) ------------------- */
@@ -240,7 +244,7 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     for (UINTN i = 0; i < eh->e_phnum; i++) {
         if (ph[i].p_type != PT_LOAD) continue;
         if (ph[i].p_offset + ph[i].p_filesz > elf_size ||
-            ph[i].p_paddr + ph[i].p_memsz > 0x400000) {
+            ph[i].p_paddr + ph[i].p_memsz > KERNEL_LOAD_CEILING) {
             out(u"[wubufw-loader] FAIL: segment bounds\r\n");
             return EFI_LOAD_ERROR;
         }

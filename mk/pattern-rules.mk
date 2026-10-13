@@ -11,7 +11,7 @@
 KERNEL_CFLAGS = -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM
 
 $(KERNEL)/%.o: $(KERNEL)/%.c
-	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -U_FORTIFY_SOURCE -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
 # memory.o hosted variant: hosted capture/test binaries run in
 # userspace — the MYSEED_METAL identity-mapped physical heap
