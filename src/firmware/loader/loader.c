@@ -33,12 +33,17 @@
 static void *l_memcpy(void *d, const void *s, UINTN n)
 {
     uint8_t *dd = (uint8_t *)d; const uint8_t *ss = (const uint8_t *)s;
+    /* word-wise for the bulk, then the tail byte-by-byte */
+    while (n >= 8) { *(uint64_t *)dd = *(const uint64_t *)ss; dd += 8; ss += 8; n -= 8; }
     while (n--) *dd++ = *ss++;
     return d;
 }
 static void l_memset(void *d, int v, UINTN n)
 {
     uint8_t *dd = (uint8_t *)d;
+    uint64_t word = (uint8_t)v;
+    word |= word << 8; word |= word << 16; word |= word << 32;
+    while (n >= 8) { *(uint64_t *)dd = word; dd += 8; n -= 8; }
     while (n--) *dd++ = (uint8_t)v;
 }
 

@@ -13,12 +13,14 @@ KERNEL_CFLAGS = -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM
 $(KERNEL)/%.o: $(KERNEL)/%.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -U_FORTIFY_SOURCE -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
-# memory.o hosted variant: hosted capture/test binaries run in
-# userspace — the MYSEED_METAL identity-mapped physical heap
-# (0x400000) is not a valid address there, so compile with
-# -DWUBU_HOSTED which selects the malloc() backing store.
+# memory.o: uses the standard KERNEL_CFLAGS (MYSEED_METAL physical heap) for
+# the bare-metal kernel. The hosted userspace variant is compiled separately
+# where needed (e.g. test_memory compiles memory.c fresh with its own flags).
+# Forcing -DWUBU_HOSTED here broke the bare-metal kernel: mem_init() took the
+# malloc() path, which returns NULL under -nostdlib, so the kernel panicked
+# with "mem_init failed" right after consuming the firmware attestation.
 $(KERNEL)/memory.o: $(KERNEL)/memory.c
-	$(CC) $(CFLAGS) -DWUBU_HOSTED -DWUBU_NO_LIBM -I$(KERNEL) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -U_FORTIFY_SOURCE -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
 
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S

@@ -19,9 +19,18 @@
 
 #include <stdint.h>
 
-/* Physical range the allocator owns: 16MB .. 1GB (above kernel/heap/vbe). */
+/* Physical range the allocator owns: 16MB .. 128MB (above kernel/heap/vbe).
+ *
+ * The per-page bookkeeping arrays (g_bitmap, g_refs in wubu_vmm.c) are STATIC
+ * .bss, sized from this range. They must fit inside the kernel image, which the
+ * firmware chainloader maps into the small contiguous low-memory window at
+ * 0x100000 (only ~1 MiB is contiguous before an EfiUnusableMemory hole at
+ * 0x200000). A 1 GiB range made g_refs alone 512 KiB and pushed the image past
+ * that window, so the BSS zeroing faulted. 128 MiB keeps the arrays ~56 KiB and
+ * the whole image under 1 MiB; the frame allocator can be extended to the full
+ * RAM at runtime once the dynamic heap is up. */
 #define WUBU_VMM_PHYS_BASE   0x01000000ull
-#define WUBU_VMM_PHYS_END    0x40000000ull
+#define WUBU_VMM_PHYS_END    0x08000000ull
 #define WUBU_VMM_BITMAP_BITS ((WUBU_VMM_PHYS_END - WUBU_VMM_PHYS_BASE) / 4096)
 
 void wubu_vmm_init(void);

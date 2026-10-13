@@ -26,8 +26,17 @@ static uint8_t *heap_ptr_start = NULL;
 /* Initialize the libc bump allocator over a static backing buffer.
  * Kernel boot (kernel_main) calls mem_init() which uses the kernel
  * allocator; hosted/tests call this to give malloc/calloc a working
- * heap even before g_heap exists. */
+ * heap even before g_heap exists.
+ *
+ * The 8 MiB backing buffer is a HOSTED/TEST-only concern: the bare-metal
+ * kernel never initializes the bump (mem_alloc() is the allocator of record),
+ * so a full 8 MiB static buffer in .bss only bloats the loadable image past
+ * what the firmware chainloader can map. Bare-metal gets a minimal stub. */
+#ifdef WUBU_HOSTED
 static uint8_t libc_heap_storage[8 * 1024 * 1024];
+#else
+static uint8_t libc_heap_storage[4096];
+#endif
 int libm_heap_init(void) {
     if (heap_ptr) return 0;               /* already initialized */
     heap_ptr = libc_heap_storage;
