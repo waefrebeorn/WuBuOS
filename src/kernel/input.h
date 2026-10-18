@@ -44,6 +44,12 @@ void    input_mouse_get_pos(int *x, int *y);
 /* Simple ASCII key push (for PS/2 driver) */
 void input_key_push_simple(char c);
 
+/* PS/2 set-2 decoder: feed raw bytes, get KeyEvents. Handles make/break
+ * (0xF0), the E0 extended prefix, and the E1 1D 45 E1 9D C5 Pause sequence.
+ * Unsupported key codes are still emitted (keycode 0) so nothing is dropped. */
+void input_ps2_reset(void);
+void input_ps2_feed(uint8_t byte);
+
 /* Init */
 int  input_init(void);
 void input_shutdown(void);

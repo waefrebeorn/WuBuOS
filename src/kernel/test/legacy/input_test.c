@@ -252,6 +252,35 @@ static void test_mixed_burst(void) {
 
 /* -- Main ---------------------------------------------------------- */
 
+static void test_ps2_decoder(void) {
+    TEST("PS/2 set-2 decoder: make/break, E0 arrow, E1 Pause");
+    KeyEvent ev;
+    input_ps2_reset();
+    while (input_key_poll(&ev)) { }
+
+    input_ps2_feed(0x1C);
+    CHECK(input_key_poll(&ev), "0x1C produced an event");
+    CHECK(ev.kind == KEY_EVENT_DOWN && ev.keycode == 'a' && ev.scancode == 0x1C,
+          "0x1C -> keydown 'a'");
+
+    input_ps2_feed(0xF0);
+    input_ps2_feed(0x1C);
+    CHECK(input_key_poll(&ev), "F0 1C produced an event");
+    CHECK(ev.kind == KEY_EVENT_UP && ev.keycode == 'a', "F0 1C -> keyup 'a'");
+
+    input_ps2_feed(0xE0);
+    input_ps2_feed(0x48);
+    CHECK(input_key_poll(&ev), "E0 48 produced an event");
+    CHECK(ev.scancode == 0xE048 && ev.keycode == 0x26, "E0 48 -> Up arrow");
+
+    static const unsigned char pause_seq[6] = {0xE1, 0x1D, 0x45, 0xE1, 0x9D, 0xC5};
+    for (int i = 0; i < 6; i++) input_ps2_feed(pause_seq[i]);
+    CHECK(input_key_poll(&ev), "Pause produced an event");
+    CHECK(ev.keycode == 0x13 && ev.scancode == 0xE11D45u, "Pause event is VK_PAUSE");
+    CHECK(!input_key_poll(&ev), "Pause produced exactly one event");
+    PASS();
+}
+
 int main(void) {
     printf("\n+==================================================+\n");
     printf("|  WuBuOS Kernel Input Subsystem Test Suite      |\n");
@@ -269,6 +298,7 @@ int main(void) {
     test_mouse_queue_wraparound();
     test_key_and_mouse_independent();
     test_mixed_burst();
+    test_ps2_decoder();
     
     printf("\n===================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
