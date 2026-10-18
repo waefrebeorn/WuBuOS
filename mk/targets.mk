@@ -110,6 +110,9 @@ $(KERNEL)/disk.img: $(KERNEL)/boot.bin $(KERNEL)/kernel.elf
 boot: $(KERNEL)/boot.bin
 	@echo "✅ Bootsector built (./src/kernel/boot.bin, 512 bytes)"
 
+boot-audit:
+	bash tools/boot_audit.sh $(KERNEL)/kernel.elf
+
 qemu: $(KERNEL)/disk.img
 	@echo "▶ Booting WuBuOS kernel in QEMU via bootsector floppy (true bare-metal path)..."
 	qemu-system-x86_64 -fda $(KERNEL)/disk.img -serial stdio \
