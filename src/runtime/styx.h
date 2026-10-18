@@ -145,6 +145,7 @@ typedef struct styx_server {
     styx_fid_t fids[STYX_MAX_FIDS];
     uint16_t next_tag;
     uint32_t msize;            /* Maximum message size negotiated */
+    uint32_t max_msize;        /* Server ceiling for negotiation (0 = STYX_MAX_MSG) */
     char     version[16];      /* Protocol version string */
     int      connected;
     

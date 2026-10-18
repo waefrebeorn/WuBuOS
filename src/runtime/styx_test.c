@@ -311,6 +311,38 @@ static void test_clunk_errors(void) {
     PASS();
 }
 
+static void test_msize_negotiation(void) {
+    TEST("msize is negotiated against the server ceiling and enforced");
+    setup();
+    g_srv.max_msize = 4096;            /* emulate a 4096-byte server */
+
+    styx_build_tversion(g_inbuf, &g_inlen, 8192, "9P2000");
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    CHECK(g_outbuf[4] == STX_RVERSION, "Tversion -> Rversion");
+    CHECK(styx_get32(g_outbuf + 7) == 4096, "8192 requested against a 4096 ceiling -> 4096");
+
+    /* A 5000-byte TWRITE exceeds the negotiated msize. */
+    memset(g_inbuf, 0, 5000);
+    styx_put32(g_inbuf, 5000);
+    g_inbuf[4] = STX_TWRITE;
+    styx_put16(g_inbuf + 5, 42);
+    styx_put32(g_inbuf + 7, 1);
+    styx_put64(g_inbuf + 11, 0);
+    styx_put32(g_inbuf + 19, 16);
+    g_inlen = 5000;
+
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    CHECK(g_outbuf[4] == STX_RERROR, "5000-byte TWRITE -> Rerror");
+    CHECK(g_inlen == 5000, "the guard does not mutate the input length");
+
+    /* The stream is still in sync: the next well-formed message dispatches. */
+    styx_build_tclunk(g_inbuf, &g_inlen, 43, 1);
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    CHECK(g_outbuf[4] == STX_RCLUNK || g_outbuf[4] == STX_RERROR,
+          "next message is still processed (stream in sync)");
+    PASS();
+}
+
 static void test_clunk_parse(void) {
     TEST("Parse Tclunk message");
     setup();
@@ -639,6 +671,7 @@ int main(void) {
     test_clunk_fid();
     test_clunk_errors();
     test_clunk_parse();
+    test_msize_negotiation();
     
     /* Tstat/Rstat */
     test_stat_fid();

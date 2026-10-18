@@ -34,6 +34,7 @@ void styx_init(styx_server_t *srv) {
     memset(srv, 0, sizeof(*srv));
     srv->next_tag = 1;
     srv->msize = STYX_MAX_MSG;
+    srv->max_msize = STYX_MAX_MSG;
     strcpy(srv->version, "9P2000");
     srv->connected = 0;
 }
@@ -168,6 +169,12 @@ int styx_serve(styx_server_t *srv,
         styx_error(tag, "Bad message size", outbuf, outlen);
         return 0;
     }
+    /* Per-connection ceiling: after Tversion the negotiated msize binds, and a
+     * peer that ignores it must be told so rather than served. */
+    if (srv->msize && msg_size > srv->msize) {
+        styx_error(tag, "Message exceeds negotiated msize", outbuf, outlen);
+        return 0;
+    }
 
     switch (msg_type) {
     case STX_TVERSION: {
@@ -185,7 +192,9 @@ int styx_serve(styx_server_t *srv,
             return 0;
         }
 
-        srv->msize = (c_msize < STYX_MAX_MSG) ? c_msize : STYX_MAX_MSG;
+        uint32_t ceiling = srv->max_msize ? srv->max_msize : STYX_MAX_MSG;
+        if (ceiling > STYX_MAX_MSG) ceiling = STYX_MAX_MSG;
+        srv->msize = (c_msize < ceiling) ? c_msize : ceiling;
         strcpy(srv->version, "9P2000");
         srv->connected = 1;
         return build_rversion(outbuf, outlen, 0, srv->msize, "9P2000");
