@@ -173,6 +173,18 @@ char *ws_sim_state_str(const ws_simulation_t *sim, char *buf, int buflen);
 
 /* -- RNG (xorshift64) -- */
 uint64_t ws_rng_next(uint64_t *state);
+
+/* PCG-XSH-RR 32-bit generator (WORLDSIM #564). Integer-only, so the stream is
+ * identical on x86-64 and aarch64. */
+typedef struct {
+    uint64_t state;
+    uint64_t inc;
+} ws_pcg32_t;
+
+void     ws_pcg_seed(ws_pcg32_t *r, uint64_t seed, uint64_t seq);
+uint32_t ws_pcg_next(ws_pcg32_t *r);
+uint32_t ws_pcg_bounded(ws_pcg32_t *r, uint32_t bound);
+float    ws_pcg_float(ws_pcg32_t *r);
 float ws_rng_float(uint64_t *state); /* 0.0..1.0 */
 int ws_rng_int(uint64_t *state, int lo, int hi);
 

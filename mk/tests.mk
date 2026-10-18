@@ -98,7 +98,7 @@ test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 tes
 # unnoticed and the 6502 lost MIR_SUB entirely; the same happened to
 # test_gauntlet earlier. Any target that nothing invokes is a target
 # nobody maintains.
-test: check_opcode_coverage check_test_wiring test_drivers test_backend_diff test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
+test: check_opcode_coverage check_test_wiring test_drivers test_backend_diff test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_wubu_pt
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
@@ -220,6 +220,10 @@ vk_run:
 
 test_jit_perf_diff:
 	bash tools/bench/jit_perf_diff.sh
+test_wubu_pt:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) $(KERNEL)/wubu_pt.c $(KERNEL)/test/test_wubu_pt.c -o $(KERNEL)/test_wubu_pt
+	$(KERNEL)/test_wubu_pt
+
 test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/test/legacy/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
@@ -244,7 +248,7 @@ test_clipboard:
 	$(GUI)/wubu_clipboard_test
 
 test_worldsim: $(KERNEL)/wubu_math.o
-	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) -I$(KERNEL) $(WS)/test_worldsim.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c $(KERNEL)/wubu_math.o -o $(WS)/test_worldsim -lm
+	$(CC) -Wall -Wextra -std=c11 -O0 -g -I$(WS) -I$(KERNEL) $(WS)/test_worldsim.c $(WS)/rng.c $(WS)/terrain.c $(WS)/entity.c $(WS)/physics.c $(WS)/render.c $(WS)/sim.c $(KERNEL)/wubu_math.o -o $(WS)/test_worldsim -lm
 	$(WS)/test_worldsim
 
 test_fat32: $(KERNEL)/fat32.o
