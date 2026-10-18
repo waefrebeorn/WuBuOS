@@ -376,6 +376,12 @@ int styx_serve(styx_server_t *srv,
     case STX_TCLUNK: {
         uint32_t fid = styx_get32(inbuf + 7);
 
+        /* A clunk on an unknown or already-clunked fid is a protocol error,
+         * not a no-op: silently succeeding hides fid leaks and double-clunks. */
+        if (!styx_fid_lookup(srv, fid)) {
+            styx_error(tag, "Bad fid in clunk", outbuf, outlen);
+            return 0;
+        }
         if (srv->clunk) srv->clunk(srv, fid);
         styx_fid_free(srv, fid);
         return build_rclunk(outbuf, outlen, tag);

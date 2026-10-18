@@ -276,6 +276,41 @@ static void test_clunk_fid(void) {
     PASS();
 }
 
+static int fid_in_use_count(void) {
+    int n = 0;
+    for (int i = 0; i < STYX_MAX_FIDS; i++)
+        if (g_srv.fids[i].in_use) n++;
+    return n;
+}
+
+static void test_clunk_errors(void) {
+    TEST("Tclunk on closed/unknown fid -> Rerror, table unchanged");
+    setup();
+    styx_build_tversion(g_inbuf, &g_inlen, 8192, "9P2000");
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    styx_build_tattach(g_inbuf, &g_inlen, 1, 1, 0xFFFFFFFF, "");
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+
+    int before = fid_in_use_count();
+
+    styx_build_tclunk(g_inbuf, &g_inlen, 7, 1);
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    CHECK(g_outbuf[4] == STX_RCLUNK, "first clunk succeeds");
+    int after_first = fid_in_use_count();
+    CHECK(after_first == before - 1, "fid freed by the first clunk");
+
+    styx_build_tclunk(g_inbuf, &g_inlen, 8, 1);
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    CHECK(g_outbuf[4] == STX_RERROR, "second clunk on the same fid -> Rerror");
+    CHECK(fid_in_use_count() == after_first, "table unchanged by a double clunk");
+
+    styx_build_tclunk(g_inbuf, &g_inlen, 9, 99);
+    styx_serve(&g_srv, g_inbuf, g_inlen, g_outbuf, &g_outlen);
+    CHECK(g_outbuf[4] == STX_RERROR, "clunk on a never-attached fid -> Rerror");
+    CHECK(fid_in_use_count() == after_first, "table unchanged by an unknown fid");
+    PASS();
+}
+
 static void test_clunk_parse(void) {
     TEST("Parse Tclunk message");
     setup();
@@ -602,6 +637,7 @@ int main(void) {
     
     /* Tclunk/Rclunk */
     test_clunk_fid();
+    test_clunk_errors();
     test_clunk_parse();
     
     /* Tstat/Rstat */

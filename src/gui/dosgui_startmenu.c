@@ -861,15 +861,16 @@ void dosgui_startmenu_handle_key(int key, uint32_t mods) {
     if (key == 27) {
         if (g_search.active) {
             dosgui_startmenu_search_clear();
+            g_search_mode = false;   /* Esc leaves search mode entirely */
         } else {
             dosgui_startmenu_close();
         }
     }
     else if (key == '\t' && g_open) {
-        g_search_mode = !g_search_mode;
-        if (g_search_mode) {
-            g_search.active = true;
-        }
+        /* Tab enters search; it is not a toggle. A toggle left the mode flag
+         * inverted after Esc/clear, so the next Tab turned search off. */
+        g_search_mode = true;
+        g_search.active = true;
     }
     else if (key == 8 && g_search.active) {
         if (g_search.cursor_pos > 0) {

@@ -7,6 +7,7 @@
 #include "wubu_mime.h"
 #include "wubu_host_exec.h"
 #include <stdbool.h>
+#include <stdio.h>
 
 /* Stub for taskbar height */
 int dosgui_taskbar_height(void) {
@@ -22,7 +23,11 @@ int dosgui_wm_screen_w(void) {
 }
 
 /* Stub for launch app */
-void dosgui_launch_app(const char *name) { }
+char g_last_launch[64] = {0};
+void dosgui_launch_app(const char *name) {
+    if (!name) { g_last_launch[0] = '\0'; return; }
+    snprintf(g_last_launch, sizeof(g_last_launch), "%s", name);
+}
 
 /* Stub for shutdown */
 void dosgui_shutdown(void) { }

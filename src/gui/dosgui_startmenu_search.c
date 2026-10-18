@@ -7,6 +7,7 @@
 
 #include "wubu_theme.h"
 #include "dosgui_startmenu_internal.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -24,28 +25,43 @@ void dosgui_startmenu_search_update(const char *query) {
         return;
     }
     
-    strncpy(g_search.query, query, DOSGUI_SEARCH_MAX_LEN - 1);
-    g_search.query[DOSGUI_SEARCH_MAX_LEN - 1] = '\0';
-    g_search.cursor_pos = strlen(g_search.query);
+    /* Copy through a local first: callers pass g_search.query itself, and
+     * strncpy(dst, dst, n) is UB that -O3 turns into corruption. */
+    char in[DOSGUI_SEARCH_MAX_LEN];
+    size_t in_len = strlen(query);
+    if (in_len >= sizeof(in)) in_len = sizeof(in) - 1;
+    memcpy(in, query, in_len);
+    in[in_len] = '\0';
+    memcpy(g_search.query, in, in_len + 1);
+    g_search.cursor_pos = (int)in_len;
     g_search.active = true;
     g_search.result_count = 0;
     
     if (g_search.query[0] == '\0') return;
     
     char lower_query[DOSGUI_SEARCH_MAX_LEN];
-    for (int i = 0; g_search.query[i] && i < DOSGUI_SEARCH_MAX_LEN - 1; i++) {
-        lower_query[i] = tolower(g_search.query[i]);
-    }
-    lower_query[strlen(lower_query)] = '\0';
+    int qn = 0;
+    for (; g_search.query[qn] && qn < DOSGUI_SEARCH_MAX_LEN - 1; qn++)
+        lower_query[qn] = (char)tolower((unsigned char)g_search.query[qn]);
+    lower_query[qn] = '\0';   /* never strlen() an uninitialized buffer */
     
-    for (int i = 0; i < g_program_db.count && g_search.result_count < DOSGUI_MAX_PROGRAM_ENTRIES; i++) {
-        SmProgramEntry *e = &g_program_db.entries[i];
-        char lower_name[48];
-        for (int j = 0; e->name[j]; j++) lower_name[j] = tolower(e->name[j]);
-        lower_name[strlen(e->name)] = '\0';
-        
-        if (strstr(lower_name, lower_query)) {
-            g_search.results[g_search.result_count++] = e;
+    /* Two passes: prefix matches first, then substring matches. A user who
+     * types "cal" expects Calculator above "Local Calendar", not whichever
+     * the DB happened to store first. */
+    size_t qlen = strlen(lower_query);
+    for (int pass = 0; pass < 2; pass++) {
+        for (int i = 0; i < g_program_db.count && g_search.result_count < DOSGUI_MAX_PROGRAM_ENTRIES; i++) {
+            SmProgramEntry *e = &g_program_db.entries[i];
+            char lower_name[48];
+            size_t nl = strlen(e->name);
+            if (nl >= sizeof(lower_name)) nl = sizeof(lower_name) - 1;
+            for (size_t j = 0; j < nl; j++) lower_name[j] = (char)tolower((unsigned char)e->name[j]);
+            lower_name[nl] = '\0';
+
+            int is_prefix = (qlen > 0 && strncmp(lower_name, lower_query, qlen) == 0);
+            int is_sub = (strstr(lower_name, lower_query) != NULL);
+            if ((pass == 0 && is_prefix) || (pass == 1 && is_sub && !is_prefix))
+                g_search.results[g_search.result_count++] = e;
         }
     }
 }

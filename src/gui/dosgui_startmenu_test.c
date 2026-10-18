@@ -3,10 +3,13 @@
  */
 
 #include "dosgui_startmenu.h"
+#include "dosgui_startmenu_internal.h"
 #include "dosgui_wm.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST %-50s", name); g_total++;
@@ -232,6 +235,75 @@ static void test_multiple_toggles(void) {
     PASS();
 }
 
+extern char g_last_launch[64];
+
+static int name_has_prefix(const char *name, const char *q)
+{
+    for (int i = 0; q[i]; i++) {
+        if (!name[i]) return 0;
+        if (tolower((unsigned char)name[i]) != tolower((unsigned char)q[i])) return 0;
+    }
+    return 1;
+}
+
+/* UX #495: prefix matches rank before substring matches, Enter launches the
+ * top hit, and clear resets the search state. */
+static void test_search_ordering_and_launch(void) {
+    TEST("search: prefix-before-substring, Enter launch, clear resets");
+    dosgui_startmenu_init();
+    dosgui_startmenu_open();
+    /* Seed a DB whose storage order would put a substring match first:
+     * "Local Calendar" is added before "Calculator" / "Camera". */
+    memset(&g_program_db, 0, sizeof(g_program_db));
+    snprintf(g_program_db.entries[0].name, sizeof(g_program_db.entries[0].name), "%s", "Local Calendar");
+    snprintf(g_program_db.entries[1].name, sizeof(g_program_db.entries[1].name), "%s", "Calculator");
+    snprintf(g_program_db.entries[2].name, sizeof(g_program_db.entries[2].name), "%s", "Camera");
+    g_program_db.count = 3;
+
+    /* Type "ca" through the same entry point the key handler uses. */
+    dosgui_startmenu_search_update("ca");
+
+    SmProgramEntry **res = NULL; int n = 0;
+    dosgui_startmenu_search_get_results(&res, &n);
+    CHECK(n == 3, "query 'ca' matches all three seeded programs");
+
+    int seen_sub = 0, order_ok = 1;
+    for (int i = 0; i < n; i++) {
+        int p = name_has_prefix(res[i]->name, "ca");
+        if (!p) seen_sub = 1;
+        else if (seen_sub) order_ok = 0;
+    }
+    CHECK(order_ok, "prefix matches precede substring matches");
+    CHECK(strcmp(res[2]->name, "Local Calendar") == 0, "substring match ranks last");
+
+    int n_before = n;
+    dosgui_startmenu_handle_key(8, 0);              /* backspace: "ca" -> "c" */
+    dosgui_startmenu_search_get_results(&res, &n);
+    CHECK(n >= n_before, "backspace widens (or holds) the result set");
+
+    dosgui_startmenu_search_update("ca");
+    dosgui_startmenu_search_get_results(&res, &n);
+    CHECK(n == 3, "query restored after retyping");
+
+    char top[64];
+    snprintf(top, sizeof(top), "%s", res[0]->name);
+    g_last_launch[0] = '\0';
+    dosgui_startmenu_handle_key(13, 0);             /* Enter */
+    CHECK(strcmp(g_last_launch, top) == 0, "Enter launches the top hit");
+    CHECK(dosgui_startmenu_is_open() == 0, "menu closes after launch");
+
+    /* clear resets state */
+    dosgui_startmenu_open();
+    dosgui_startmenu_handle_key('\t', 0);
+    dosgui_startmenu_handle_key('c', 0);
+    dosgui_startmenu_search_clear();
+    CHECK(!dosgui_startmenu_search_active(), "clear deactivates search");
+    CHECK(g_search.query[0] == '\0' && g_search.result_count == 0,
+          "clear resets query and results");
+    dosgui_startmenu_close();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Start Menu Test Suite (Cell 402)        |\n");
@@ -243,6 +315,7 @@ int main(void) {
     test_programs_click_opens_flyout();
     test_hover_opens_cascade();
     test_search_key_input();
+    test_search_ordering_and_launch();
     test_cascade_renders_nested_submenu();
     test_open_close();
     test_render_no_crash();
