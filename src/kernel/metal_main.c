@@ -377,23 +377,6 @@ void kernel_main(void *boot_info) {
         int rc = dosgui_wm_init(vbe_width(), vbe_height());
         klog_printf("WuBuOS: WM init rc=%d screen=%dx%d\n",
                     rc, vbe_width(), vbe_height());
-        /* Prove the WM actually touched pixels: checksum the surface and count
-         * non-background words. A WM that "initialises" but draws nothing would
-         * show a constant checksum. */
-        {
-            const uint32_t *px = vbe_framebuffer();
-            int n = vbe_width() * vbe_height();
-            uint32_t fnv = 2166136261u;
-            int nonbg = 0;
-            if (px) {
-                for (int i = 0; i < n; i += 7) {
-                    fnv = (fnv ^ px[i]) * 16777619u;
-                    if (px[i] != 0x001E3A5Fu && px[i] != 0x002060C0u) nonbg++;
-                }
-                klog_printf("WuBuOS: WM surface fnv=%x nonbg=%d/%d\n",
-                            (unsigned)fnv, nonbg, n / 7);
-            }
-        }
     }
 __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
 
@@ -562,9 +545,15 @@ __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n mo
      * yet -- see docs/QEMU-GUI-STATUS.md. */
     {
         extern int dosgui_wm_init(int screen_w, int screen_h);
-        int rc = dosgui_wm_init(vbe_width(), vbe_height());
-        klog_printf("WuBuOS: WM init rc=%d screen=%dx%d\n",
-                    rc, vbe_width(), vbe_height());
+        uint32_t *px = vbe_framebuffer();
+        int w = vbe_width(), h = vbe_height(), n = w * h;
+        uint32_t pre = 2166136261u, post = 2166136261u;
+        for (int i = 0; i < n; i += 7) pre = (pre ^ px[i]) * 16777619u;
+        int rc = dosgui_wm_init(w, h);
+        for (int i = 0; i < n; i += 7) post = (post ^ px[i]) * 16777619u;
+        klog_printf("WuBuOS: WM init rc=%d %dx%d pre=%x post=%x %s\n",
+                    rc, w, h, (unsigned)pre, (unsigned)post,
+                    pre != post ? "DREW" : "NO-DRAW");
     }
 
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */

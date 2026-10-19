@@ -14,6 +14,8 @@
 #include <string.h>
 #include "vbe.h"
 #include "../gui/wubu_theme.h"
+#include "../gui/wubu_settings.h"
+#include "../gui/wubu_wallpaper.h"
 
 void load_default_wallpaper(void)
 {
@@ -66,3 +68,15 @@ void wubu_a11y_draw(void *win, uint32_t *fb, int fb_w, int fb_h)
 void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h)
 { (void)fb; (void)fb_w; (void)fb_h; }
 void wubu_bonzi_set_bubble(const char *a, const char *b) { (void)a; (void)b; }
+
+/* Wallpaper needs stdio; the kernel paints a solid desktop instead. */
+int wubu_wallpaper_load(const char *path, WubuWallpaper *out)
+{ (void)path; if (out) memset(out, 0, sizeof(*out)); return 0; }
+const char *wubu_wallpaper_default_path(void) { return ""; }
+
+/* Settings live on disk in the hosted build; the kernel starts from defaults. */
+const WubuSettings *wubu_settings_get(void)
+{
+    static WubuSettings s;
+    return &s;
+}
