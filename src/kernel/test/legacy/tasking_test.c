@@ -332,6 +332,58 @@ static void test_rt_class(void) {
     mem_shutdown();
 }
 
+
+static void lifecycle_entry(void *arg) { (void)arg; }
+
+static void test_lifecycle_scale(void) {
+    printf("\n[Lifecycle at Scale]\n");
+    mem_init(64 * 1024 * 1024);
+    tasking_init();
+
+    int baseline = task_count();
+    printf("    baseline task_count=%d\n", baseline);
+
+    TEST("create 1000 tasks");
+    CTask *made[1000];
+    int n = 0;
+    for (int i = 0; i < 1000; i++) {
+        CTask *t = task_create("bulk", lifecycle_entry, NULL, 4096, PRIO_NORMAL);
+        if (!t) break;
+        made[n++] = t;
+    }
+    printf("    created %d tasks, count=%d\n", n, task_count());
+    if (n == 1000 && task_count() == baseline + 1000) PASS();
+    else FAIL("creation did not reach 1000");
+
+    TEST("clone 50 and exec 100");
+    int clones = 0;
+    CTask *cloned[50];
+    for (int i = 0; i < 50; i++) {
+        CTask *c = task_clone(made[i], "cloned");
+        if (c) cloned[clones++] = c;
+    }
+    for (int i = 0; i < 100; i++)
+        task_execve(made[i], "execed", lifecycle_entry, NULL, 1);
+    printf("    clones=%d count=%d\n", clones, task_count());
+    if (clones == 50 && task_count() == baseline + 1050) PASS();
+    else FAIL("clone count wrong");
+
+    TEST("exit marks tasks for the reaper");
+    for (int i = 0; i < 25; i++) task_terminate(made[i]);
+    int dying = 0;
+    for (int i = 0; i < 25; i++) if (made[i]->state == TASK_DYING) dying++;
+    if (dying == 25) PASS(); else FAIL("exit did not mark DYING");
+
+    TEST("destroy all returns to baseline with no leaks");
+    for (int i = 0; i < n; i++) task_destroy(made[i]);
+    for (int i = 0; i < clones; i++) task_destroy(cloned[i]);
+    printf("    final task_count=%d\n", task_count());
+    if (task_count() == baseline) PASS(); else FAIL("task count did not return to baseline");
+
+    tasking_shutdown();
+    mem_shutdown();
+}
+
 int main(void) {
     printf("+==============================+\n");
     printf("|  My Seed Tasking Test Suite  |\n");
@@ -347,6 +399,7 @@ int main(void) {
     test_sleep_accuracy();
     test_cap_authority();
     test_rt_class();
+    test_lifecycle_scale();
 
     printf("\n==============================\n");
     if (failures == 0)

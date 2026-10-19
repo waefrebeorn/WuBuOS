@@ -127,6 +127,13 @@ void     task_prio_set(struct CTask *t, int prio);
 /* Reaper (gap A5): free + unlink the DYING tasks. TASK context only. */
 void task_reap(void);
 
+/* Lifecycle: clone inherits priority, stack size and authority; execve replaces
+ * the image and narrows authority; exit marks the task for the reaper. */
+CTask *task_clone(const CTask *parent, const char *name);
+int    task_execve(CTask *t, const char *name, void (*entry)(void *), void *arg,
+                   uint64_t image_caps);
+void   task_terminate(CTask *t);
+
 /* Opaque accessors: the running task's name + the current task (for the
  * fault post-mortem, gap C2). */
 struct CTask;

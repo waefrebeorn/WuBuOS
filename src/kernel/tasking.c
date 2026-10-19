@@ -174,6 +174,39 @@ void task_destroy(CTask *task) {
     mem_free(task);
 }
 
+/* -- Lifecycle: clone / exec / exit --------------------------------- */
+
+CTask *task_clone(const CTask *parent, const char *name)
+{
+    if (!parent) return NULL;
+    CTask *child = task_create(name, parent->entry, parent->entry_arg,
+                               parent->stack_size, parent->priority);
+    if (!child) return NULL;
+    task_fork_authority(parent, child);
+    return child;
+}
+
+int task_execve(CTask *t, const char *name, void (*entry)(void *), void *arg,
+                uint64_t image_caps)
+{
+    if (!t || !entry) return -1;
+    if (name) {
+        size_t i = 0;
+        for (; name[i] && i + 1 < sizeof t->name; i++) t->name[i] = name[i];
+        t->name[i] = '\0';
+    }
+    t->entry = entry;
+    t->entry_arg = arg;
+    task_exec_authority(t, image_caps);
+    return 0;
+}
+
+void task_terminate(CTask *t)
+{
+    if (!t) return;
+    t->state = TASK_DYING;
+}
+
 /* -- Scheduler ---------------------------------------------------- */
 
 static int task_stack_ok(const CTask *t)
