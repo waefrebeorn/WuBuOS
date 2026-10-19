@@ -474,15 +474,25 @@ void kernel_main(void *boot_info) {
                 __asm__ __volatile__("inw %%dx, %0" : "=a"(en) : "d"((uint16_t)0x1CF));
                 klog_printf("WuBuOS: kernel set VBE mode, enable=%x\n", (unsigned)en);
             }
-            uint64_t base = fd->fb_addr & ~0xFFFull;
-            uint64_t end  = fd->fb_addr + (uint64_t)fd->fb_pitch * fd->fb_height;
+            /* The minimal multiboot payload (src/firmware/vbe_probe.c) proved
+             * QEMU's std-VGA scanout reads 0xFD000000, while the EFI firmware
+             * reports its LFB at 0xC0000000 and the card accepts the mode there
+             * without the display ever following it. Adopt the address that
+             * actually scans out. */
+            uint64_t scan = fd->fb_addr;
+            if (scan == 0xC0000000ull)
+                scan = 0xFD000000ull;
+            uint64_t base = scan & ~0xFFFull;
+            uint64_t end  = scan + (uint64_t)fd->fb_pitch * fd->fb_height;
             int mapped = 0;
             for (uint64_t a = base; a < end; a += 4096)
                 if (wubu_vmm_map_page(a, a, 3) == 0) mapped++;
-            if (vbe_set_backend(VBE_BACKEND_MALLOC, (uint32_t *)(uintptr_t)fd->fb_addr,
+            if (vbe_set_backend(VBE_BACKEND_MALLOC, (uint32_t *)(uintptr_t)scan,
                                 (int)fd->fb_width, (int)fd->fb_height, NULL) == 0) {
                 vbe_clear(0x002060C0u);
                 vbe_swap();
+                klog_printf("WuBuOS: scanout adopted @0x%x (firmware said 0x%x)\n",
+                            (unsigned long)scan, (unsigned long)fd->fb_addr);
                 klog_printf("WuBuOS: GOP fb mapped (%d pages) + painted %ux%u\n",
                             mapped, (unsigned)fd->fb_width, (unsigned)fd->fb_height);
                 /* Did anything reset the Bochs VBE mode since the firmware set
