@@ -556,6 +556,17 @@ __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n mo
             }
         }
     }
+    /* The window manager is linked into the kernel and starts here. Its render
+     * path needs six more GUI objects (desktop bg, icon glyphs/selection,
+     * taskbar, layout) plus fortify-safe string helpers, so drawing is not wired
+     * yet -- see docs/QEMU-GUI-STATUS.md. */
+    {
+        extern int dosgui_wm_init(int screen_w, int screen_h);
+        int rc = dosgui_wm_init(vbe_width(), vbe_height());
+        klog_printf("WuBuOS: WM init rc=%d screen=%dx%d\n",
+                    rc, vbe_width(), vbe_height());
+    }
+
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
     extern void wubu_serial_init(void);
     wubu_serial_init();
