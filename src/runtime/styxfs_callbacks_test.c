@@ -244,6 +244,35 @@ int main(void)
     if (reads == 3 && names_seen == 12 && uniq == 12) PASS();
     else FAIL("paging did not cover 12 unique entries in 3 reads");
 
+    TEST("attach with aname roots the session at that subtree");
+    styxfs_mount(&srv, "/wubu", (char *)"/home/wubu/.hermes/profiles/mind-palace/cache/scratch", 0);
+    uint32_t hf;
+    int rc_att = styxfs_attach_cb(&srv.base, 20, "/wubu");
+    styx_fid_t *fa2 = styx_fid_lookup(&srv.base, 20);
+    const char *root = (fa2 && fa2->file_state) ? (const char *)fa2->file_state : "";
+    printf("[rc=%d root=%s] ", rc_att, root);
+    if (rc_att == 0 && strcmp(root, "/wubu") == 0) PASS(); else FAIL("aname did not root the session");
+
+    TEST("walk from that root resolves the child path");
+    char wn[1][64]; snprintf(wn[0], 64, "%s", "d12");
+    char *names[1]; names[0] = wn[0];
+    styx_qid_t qs[1];
+    int nq = 0;
+    int rcw = styxfs_walk_cb(&srv.base, 20, 21, (const char **)names, 1, qs, &nq);
+    styx_fid_t *fc = styx_fid_lookup(&srv.base, 21);
+    const char *cp = (fc && fc->file_state) ? (const char *)fc->file_state : "";
+    printf("[rc=%d nq=%d path=%s] ", rcw, nq, cp);
+    if (rcw == 0 && nq == 1 && strcmp(cp, "/wubu/d12") == 0) PASS();
+    else FAIL("walk did not land under the attached root");
+
+    TEST("Tauth on a no-auth server returns ENOTSUP and allocates no fid");
+    errno = 0;
+    styx_qid_t aq;
+    int rca = styxfs_auth_cb(&srv.base, 22, "", "wubu", &aq);
+    printf("[rc=%d errno=%d] ", rca, errno);
+    if (rca == -1 && errno == ENOTSUP && styx_fid_lookup(&srv.base, 22) == NULL) PASS();
+    else FAIL("auth was not rejected cleanly");
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

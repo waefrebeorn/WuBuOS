@@ -118,6 +118,9 @@ int styxfs_serve(styxfs_server_t *srv,
 int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname);
 
 /* Walk: called on Twalk */
+int styxfs_auth_cb(styx_server_t *base, uint32_t fid, const char *aname,
+                   const char *uname, styx_qid_t *qid);
+
 int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
                     const char **wname, int nwname,
                     styx_qid_t *qids, int *nwqid);

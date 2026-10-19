@@ -60,16 +60,35 @@ static void fid_free_path(styx_fid_t *f) {
 /* -- Attach ------------------------------------------------ */
 
 int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname) {
-    (void)aname;
     styxfs_server_t *srv = styxfs_get_server(base);
+    (void)srv;
+
+    /* aname roots the session: attach "/n/kv" and every walk is relative to it. */
+    const char *root = (aname && *aname) ? aname : "/";
+    if (root[0] != '/') { errno = EINVAL; return -1; }
+
     styx_fid_t *f = styx_fid_alloc(base, fid);
     if (!f) return -1;
+
+    size_t n = strlen(root);
+    char *path = malloc(n + 1);
+    if (!path) { styx_fid_free(base, fid); return -1; }
+    memcpy(path, root, n + 1);
+    while (n > 1 && path[n - 1] == '/') path[--n] = '\0';
+
     f->qid.type  = STX_QTDIR;
     f->qid.version = 1;
-    f->qid.path = 1;            /* root */
-    f->file_state = NULL;       /* root has no stored subpath */
-    (void)srv;
+    f->qid.path = 1 + (uint64_t)(unsigned char)path[n ? n - 1 : 0];
+    f->file_state = path;
     return 0;
+}
+
+/* A server with no auth phase must reject Tauth instead of handing out a fid. */
+int styxfs_auth_cb(styx_server_t *base, uint32_t fid, const char *aname,
+                   const char *uname, styx_qid_t *qid) {
+    (void)base; (void)fid; (void)aname; (void)uname; (void)qid;
+    errno = ENOTSUP;
+    return -1;
 }
 
 /* -- Walk -------------------------------------------------- */
