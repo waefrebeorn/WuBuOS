@@ -206,9 +206,45 @@ extern void wubu_shell_run(void *arg);
  * Kernel Main  --  Bare Metal Entry
  * ================================================================= */
 
-/* Bochs/QEMU VBE dispi: index port 0x1CE, data port 0x1CF. */
+/* Bochs/QEMU VBE dispi.
+ *
+ * QEMU Standard VGA spec: the PCI MMIO bar (region 2) maps the dispi registers
+ * FLAT at 0x500-0x515, and the offset of register N is 0x500 + (N << 1). There
+ * is no index/data pair there -- writing an index to 0x500 and data to 0x502
+ * (the mistake made earlier) reads back as zero.
+ *
+ * The spec also says the legacy ports do not apply to the legacy-free
+ * (secondary-vga) variant, so prefer the MMIO window when it exists. */
+static uint32_t g_dispi_mmio;      /* 0 = not probed / absent */
+static int      g_dispi_probed;
+
+static void wubu_dispi_probe(void)
+{
+    if (g_dispi_probed) return;
+    g_dispi_probed = 1;
+
+    uint32_t addr = 0x80000000u | (1u << 11) | 0x18u;   /* 0:1.0, BAR2 */
+    __asm__ __volatile__("outl %0, %%dx" :: "a"(addr), "d"((uint16_t)0xCF8));
+    uint32_t bar;
+    __asm__ __volatile__("inl %%dx, %0" : "=a"(bar) : "d"((uint16_t)0xCFC));
+    if ((bar & 0xFFFu) == 0x500u || (bar & 0xFFFu) == 0u) {
+        uint32_t base = bar & ~0xFFFu;
+        if (base) {
+            /* Map the 4 KB MMIO page; it lives above the identity window. */
+            extern int wubu_vmm_map_page(uint64_t virt, uint64_t phys, uint32_t flags);
+            wubu_vmm_map_page(base, base, 3);
+            g_dispi_mmio = base;
+        }
+    }
+}
+
 static void wubu_dispi_write(uint16_t idx, uint16_t val)
 {
+    wubu_dispi_probe();
+    if (g_dispi_mmio) {
+        *(volatile uint16_t *)(uintptr_t)(g_dispi_mmio + 0x500u + (idx << 1)) = val;
+        return;
+    }
     __asm__ __volatile__("outw %0, %%dx" :: "a"(idx), "d"((uint16_t)0x1CE));
     __asm__ __volatile__("outw %0, %%dx" :: "a"(val), "d"((uint16_t)0x1CF));
 }
@@ -498,7 +534,8 @@ __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n mo
                 uint16_t en;
                 __asm__ __volatile__("outw %0, %%dx" :: "a"((uint16_t)4), "d"((uint16_t)0x1CE));
                 __asm__ __volatile__("inw %%dx, %0" : "=a"(en) : "d"((uint16_t)0x1CF));
-                klog_printf("WuBuOS: kernel set VBE mode, enable=%x\n", (unsigned)en);
+                klog_printf("WuBuOS: kernel set VBE mode, enable=%x dispi=%s\n",
+                            (unsigned)en, g_dispi_mmio ? "mmio" : "ports");
             }
             /* The minimal multiboot payload (src/firmware/vbe_probe.c) proved
              * QEMU's std-VGA scanout reads 0xFD000000, while the EFI firmware
