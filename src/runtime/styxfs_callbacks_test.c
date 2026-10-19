@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 static int g_pass, g_fail;
 #define TEST(n) do { printf("  TEST %-52s", n); } while (0)
@@ -141,6 +142,47 @@ int main(void)
     int rc6 = styxfs_stat_cb(&srv.base, 6, &nd);
     if (rc6 == 0 && (nd.qid.type & STX_QTMOUNT) == 0) PASS();
     else FAIL("plain node advertised as a mount");
+
+    TEST("Tcreate with OEXCL on an existing name returns EEXIST");
+    const char *scratch = "/home/wubu/.hermes/profiles/mind-palace/cache/scratch";
+    char seed[512];
+    snprintf(seed, sizeof seed, "%s/cb_existing", scratch);
+    { int fd = open(seed, O_CREAT | O_TRUNC | O_WRONLY, 0644); if (fd >= 0) close(fd); }
+    styxfs_mount(&srv, "/wubu", (char *)scratch, 0);
+
+    if (arm_fid(&srv, 7) != 0) { FAIL("fid alloc"); return 1; }
+    styx_fid_t *f7 = styx_fid_lookup(&srv.base, 7);
+    if (f7) { free(f7->file_state); f7->file_state = strdup("/wubu"); f7->qid.type = STX_QTDIR; }
+    styx_qid_t q;
+    errno = 0;
+    int rc7 = styxfs_create_cb(&srv.base, 7, "cb_existing", 0644, STX_OEXCL, &q);
+    printf("[rc=%d errno=%d] ", rc7, errno);
+    if (rc7 != 0 && errno == EEXIST) PASS(); else FAIL("OEXCL on existing name did not return EEXIST");
+
+    TEST("Tcreate DMDIR over an existing file returns ENOTDIR");
+    errno = 0;
+    int rc8 = styxfs_create_cb(&srv.base, 7, "cb_existing", STX_DMDIR | 0755u, 0, &q);
+    printf("[rc=%d errno=%d] ", rc8, errno);
+    if (rc8 != 0 && errno == ENOTDIR) PASS(); else FAIL("DMDIR over file did not return ENOTDIR");
+
+    TEST("accepted mode bits round-trip through Tstat");
+    errno = 0;
+    int rc9 = styxfs_create_cb(&srv.base, 7, "cb_newfile", 0600u, 0, &q);
+    styx_dir_t cd;
+    int rcs = styxfs_stat_cb(&srv.base, 7, &cd);
+    printf("[rc=%d mode=0%o] ", rc9, cd.mode & 07777);
+    if (rc9 == 0 && rcs == 0 && (cd.mode & 07777) == 0600) PASS();
+    else FAIL("mode did not round-trip");
+
+    TEST("Tcreate DMDIR makes a directory Tstat reports as one");
+    /* create() moves the fid onto the new node, so re-root it first */
+    if (f7) { free(f7->file_state); f7->file_state = strdup("/wubu"); f7->qid.type = STX_QTDIR; }
+    errno = 0; int rcd = styxfs_create_cb(&srv.base, 7, "cb_dir", STX_DMDIR | 0755u, 0, &q);
+    styx_dir_t dd;
+    int rcds = styxfs_stat_cb(&srv.base, 7, &dd);
+    printf("[rc=%d errno=%d mode=0%o] ", rcd, errno, dd.mode & 07777);
+    if (rcd == 0 && rcds == 0 && (dd.mode & 0040000)) PASS();
+    else FAIL("created directory not reported as a directory");
 
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);

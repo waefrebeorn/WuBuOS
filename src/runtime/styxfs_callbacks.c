@@ -152,6 +152,52 @@ int styxfs_open_cb(styx_server_t *base, uint32_t fid, int mode,
     return 0;
 }
 
+/* -- Create ------------------------------------------------ */
+
+int styxfs_create_cb(styx_server_t *base, uint32_t fid, const char *name,
+                     uint32_t perm, int mode, styx_qid_t *qid) {
+    styxfs_server_t *srv = styxfs_get_server(base);
+    if (srv->readonly) { errno = EACCES; return -1; }
+    if (!name || !*name) { errno = EINVAL; return -1; }
+
+    styx_fid_t *f = styx_fid_lookup(base, fid);
+    if (!f) return -1;
+
+    const char *parent = fid_path(f);
+    char host_parent[STYXFS_MAX_PATH];
+    char host[STYXFS_MAX_PATH];
+    char nspath[STYXFS_MAX_PATH];
+    styxfs_path_to_host(srv, parent, host_parent, sizeof(host_parent));
+    snprintf(host, sizeof(host), "%s/%s", host_parent, name);
+    snprintf(nspath, sizeof(nspath), "%s%s%s", parent,
+             (parent[0] && parent[strlen(parent) - 1] == '/') ? "" : "/", name);
+
+    struct stat st;
+    int exists = (stat(host, &st) == 0);
+    int want_dir = (perm & STX_DMDIR) != 0;
+
+    if (exists) {
+        if ((perm & STX_DMEXCL) || (mode & STX_OEXCL)) { errno = EEXIST; return -1; }
+        if (want_dir && !S_ISDIR(st.st_mode)) { errno = ENOTDIR; return -1; }
+        if (!want_dir && S_ISDIR(st.st_mode)) { errno = EISDIR; return -1; }
+    } else if (want_dir) {
+        if (mkdir(host, 0755) != 0) return -1;
+    } else {
+        unsigned pmode = perm & 0777u;
+        int fd = open(host, O_CREAT | O_WRONLY, pmode ? pmode : 0644u);
+        if (fd < 0) return -1;
+        close(fd);
+    }
+
+    /* The fid now names the created node. */
+    free(f->file_state);
+    f->file_state = strdup(nspath);
+    f->qid.type = want_dir ? STX_QTDIR : 0;
+    f->qid.path = (uint64_t)(unsigned char)nspath[strlen(nspath) - 1] + 1000;
+    *qid = f->qid;
+    return 0;
+}
+
 /* -- Read -------------------------------------------------- */
 
 int styxfs_read_cb(styx_server_t *base, uint32_t fid,
@@ -360,14 +406,18 @@ int styxfs_stat_cb(styx_server_t *base, uint32_t fid, styx_dir_t *dir) {
         }
     }
 
-    if (f->qid.type == STX_QTDIR) {
-        dir->mode = 040755; dir->length = 0;
-    } else {
-        dir->mode = 0100644;
+    {
         char host[STYXFS_MAX_PATH];
         styxfs_path_to_host(srv, fid_path(f), host, sizeof(host));
         struct stat st;
-        if (stat(host, &st) == 0) dir->length = (uint64_t)st.st_size;
+        if (stat(host, &st) == 0) {
+            dir->mode = (uint32_t)((S_ISDIR(st.st_mode) ? 0040000 : 0100000) |
+                                   (st.st_mode & 07777));
+            dir->length = (uint64_t)st.st_size;
+        } else {
+            dir->mode = (f->qid.type == STX_QTDIR) ? 040755 : 0100644;
+            dir->length = 0;
+        }
     }
     dir->atime = (uint32_t)time(NULL);
     dir->mtime = dir->atime;
