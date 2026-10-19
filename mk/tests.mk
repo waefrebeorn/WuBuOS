@@ -685,8 +685,12 @@ test_vsl_nt: $(VSL_NT_OBJS)
 	$(RT)/wubu_vsl_nt_test
 
 test_nt_ob:
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl \
-		$(RT)/vsl/vsl_nt_ob.c $(RT)/vsl/test_nt_ob.c -o $(RT)/vsl/test_nt_ob
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl -I$(RT)/wubu_cap -pthread \
+		$(RT)/vsl/vsl_nt_ob.c $(RT)/vsl/test_nt_ob.c \
+		$(RT)/wubu_cap/wubu_cap_object.c $(RT)/wubu_cap/wubu_cap_token.c \
+		$(RT)/wubu_cap/wubu_cap_audit.c $(RT)/wubu_cap/wubu_cap_revoke.c \
+		$(RT)/wubu_cap/wubu_cap_handle.c $(RT)/wubu_cap/wubu_cap_system.c \
+		-o $(RT)/vsl/test_nt_ob -lpthread
 	$(RT)/vsl/test_nt_ob
 
 # macOS layer tests

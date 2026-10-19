@@ -85,9 +85,9 @@ int vsl_nt_ob_canon(const char *in, char *out, size_t outsz)
         if (len == 1 && seg[0] == '.') {
             /* skip */
         } else if (len == 2 && seg[0] == '.' && seg[1] == '.') {
-            if (n <= 1) return NT_STATUS_OBJECT_PATH_INVALID;
-            n--;                                  /* drop trailing '/' */
-            while (n > 1 && norm[n - 1] != '/') n--;
+            /* A canonical object path never contains "..": accepting it would
+             * let a traversal be silently rebased under /n. */
+            return NT_STATUS_OBJECT_PATH_INVALID;
         } else {
             if (n + len + 2 >= sizeof norm) return NT_STATUS_INVALID_PARAMETER;
             if (n > 1) norm[n++] = '/';
@@ -98,6 +98,16 @@ int vsl_nt_ob_canon(const char *in, char *out, size_t outsz)
     }
     norm[n] = '\0';
     lowercase(norm);
+
+    /* NT object paths are rooted in the object namespace: a bare \Brain\Kv is
+     * the same node as /n/brain/kv. Anything already under /n keeps its spelling. */
+    if (strncmp(norm, "/n/", 3) != 0 && strcmp(norm, "/n") != 0) {
+        char prefixed[256];
+        if (strlen(norm) + 3 >= sizeof prefixed) return NT_STATUS_INVALID_PARAMETER;
+        snprintf(prefixed, sizeof prefixed, "/n%s", norm);
+        memcpy(norm, prefixed, sizeof norm);
+        n = strlen(norm);
+    }
 
     if (strncmp(norm, "/n", 2) != 0)
         return NT_STATUS_OBJECT_PATH_INVALID;
@@ -198,7 +208,31 @@ static uint64_t rights_for_mask(uint32_t mask)
     return r;
 }
 
-int vsl_nt_ob_open(ob_tree_t *t, const char *name, uint32_t access,
+int vsl_nt_ob_bind_cap(ob_tree_t *t, const char *path, uint64_t cap_rights,
+                       int32_t owner_pid, wubu_cap_token_t *out)
+{
+    if (!t || !path) return NT_STATUS_INVALID_PARAMETER;
+    char canon[256];
+    if (vsl_nt_ob_canon(path, canon, sizeof canon) != NT_STATUS_SUCCESS)
+        return NT_STATUS_OBJECT_PATH_INVALID;
+    ob_node_t *n = find_node(t, canon);
+    if (!n) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+
+    int32_t aud[WUBU_CAP_AUDIENCE_MAX];
+    for (int i = 0; i < WUBU_CAP_AUDIENCE_MAX; i++) aud[i] = -1;
+    aud[0] = owner_pid;
+
+    wubu_cap_token_t tok;
+    int r = wubu_cap_create(WUBU_CAP_KIND_STYX_NODE, cap_rights, aud, 0,
+                            (uintptr_t)n, owner_pid, WUBU_CAP_IDX_NONE, &tok);
+    if (r < 0) return NT_STATUS_NO_MEMORY;
+    n->cap = tok;
+    n->has_cap = 1;
+    if (out) *out = tok;
+    return NT_STATUS_SUCCESS;
+}
+
+int vsl_nt_ob_open(ob_tree_t *t, const char *name, uint32_t access, int32_t pid,
                    uint32_t *handle, uint64_t *rights)
 {
     if (!t || !name || !handle) return NT_STATUS_INVALID_PARAMETER;
@@ -218,6 +252,18 @@ int vsl_nt_ob_open(ob_tree_t *t, const char *name, uint32_t access,
 
     uint64_t need = rights_for_mask(access);
     if ((n->rights & need) != need) return NT_STATUS_ACCESS_DENIED;
+
+    /* When the node is cap-backed, the capability is the authority, not the
+     * node's copied rights field: resolve enforces audience + rights + revoke. */
+    if (n->has_cap) {
+        uint64_t cap_need = 0;
+        if (need & OB_RIGHT_READ)  cap_need |= WUBU_RIGHT_READ;
+        if (need & OB_RIGHT_WRITE) cap_need |= WUBU_RIGHT_WRITE;
+        if (!wubu_cap_resolve(pid, n->cap, cap_need)) return NT_STATUS_ACCESS_DENIED;
+
+        wubu_cap_inspect_t insp;
+        if (wubu_cap_inspect(n->cap, pid, &insp) == 0 && rights) *rights = insp.rights;
+    }
 
     int mode;
     uint32_t unmapped;
@@ -292,4 +338,10 @@ int vsl_nt_ob_query_dir(ob_tree_t *t, const char *dir, int *cursor,
     }
     *more = 0;
     return NT_STATUS_NO_MORE_ENTRIES;
+}
+
+int ObOpenByKeyName(ob_tree_t *t, const char *name, uint32_t access, int32_t pid,
+                    uint32_t *handle, uint64_t *rights)
+{
+    return vsl_nt_ob_open(t, name, access, pid, handle, rights);
 }

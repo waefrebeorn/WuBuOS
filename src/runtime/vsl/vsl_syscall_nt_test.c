@@ -1578,6 +1578,17 @@ int main(void) {
         CHECK(vsl_nt_cap_resolve_handle(&ctx, key2, 0x10000000u),
               "alias resolves before revoke");
 
+        /* The goal claims four aliases (five handles in total), so build all
+         * of them rather than closing on a single alias. */
+        uint32_t alias[3] = {0, 0, 0};
+        for (int i = 0; i < 3; i++) {
+            CHECK(vsl_nt_cap_make_handle(&ctx, tok, &alias[i]) == 0 &&
+                  alias[i] != key && alias[i] != key2,
+                  "extra alias occupies a distinct slot");
+            CHECK(vsl_nt_cap_resolve_handle(&ctx, alias[i], 0x10000000u),
+                  "extra alias resolves before revoke");
+        }
+
         /* Revoke through the first handle: every alias must collapse. */
         CHECK(vsl_nt_cap_revoke_handle(&ctx, key) == 0,
               "revoke_handle authorized by DELETE right and succeeds");
@@ -1585,9 +1596,15 @@ int main(void) {
               "revoking handle no longer resolves");
         CHECK(!vsl_nt_cap_resolve_handle(&ctx, key2, 0x10000000u),
               "aliased handle cascades (same object revoked)");
+        for (int i = 0; i < 3; i++)
+            CHECK(!vsl_nt_cap_resolve_handle(&ctx, alias[i], 0x10000000u),
+                  "every extra alias cascades as well");
 
         CHECK(vsl_nt_cap_release(&ctx, key)  == 0, "release revoked handle slot");
         CHECK(vsl_nt_cap_release(&ctx, key2) == 0, "release aliased handle slot");
+        for (int i = 0; i < 3; i++)
+            CHECK(vsl_nt_cap_release(&ctx, alias[i]) == 0,
+                  "release extra alias slot");
     }
 
     /* 34. Axis 1: real NT syscalls are cap-governed.
