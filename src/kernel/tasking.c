@@ -31,6 +31,7 @@ static CTask   *g_current   = NULL;
 static CTask   *g_head      = NULL;  /* Doubly-linked circular list */
 static int      g_next_id   = 1;
 static uint64_t g_tick      = 0;
+static uint64_t g_min_vruntime = 0;   /* EEVDF runqueue clock */
 static uint64_t g_next_wake = ~0ull;   /* D2: earliest pending wake   */
 static int      g_initialized = 0;
 static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
@@ -92,7 +93,14 @@ uint64_t task_tick_count(void) { return g_tick; }
 
 /* Gap D3: priority accessors for the sync module's inheritance. */
 int task_prio_get(const CTask *t) { return t ? (int)t->priority : 0; }
-void task_prio_set(CTask *t, int prio) { if (t) t->priority = (TaskPriority)prio; }
+void task_prio_set(CTask *t, int prio)
+{
+    if (!t) return;
+    t->priority = (TaskPriority)prio;
+    t->weight   = 128u << prio;
+    t->slice    = 4u * 1024u / t->weight;
+    t->deadline = t->vruntime + t->slice;
+}
 
 /* -- Task Lifecycle ----------------------------------------------- */
 
@@ -116,6 +124,11 @@ CTask *task_create(const char *name, void (*entry)(void *arg), void *arg,
     t->task_signature = TASK_SIGNATURE_VAL;
     t->state    = TASK_READY;
     t->priority = prio;
+    /* EEVDF init: idle tasks are cheap, everything else joins at the clock. */
+    t->weight  = 128u << (int)prio;   /* priority is a weight in EEVDF */
+    t->slice   = 4u * 1024u / t->weight;
+    t->vruntime = g_min_vruntime;
+    t->deadline = t->vruntime + t->slice;
     t->task_id  = g_next_id++;
     strncpy(t->name, name ? name : "anon", sizeof(t->name) - 1);
     t->stack_size = stack_sz;
@@ -167,38 +180,64 @@ static int task_stack_ok(const CTask *t)
     return *(volatile uint64_t *)t->stack_base == 0xCAFEBABECAFEBABEULL;
 }
 
+/* EEVDF accounting for one tick on `t`. Exposed so tests exercise the same
+ * code the timer path uses instead of re-deriving it. */
+void task_account_tick(CTask *t)
+{
+    if (!t) return;
+    uint32_t w = t->weight ? t->weight : 1024u;
+    t->vruntime += 1024u / w;
+    if (t->vruntime > g_min_vruntime) g_min_vruntime = t->vruntime;
+    t->deadline = t->vruntime + t->slice;
+}
+
 CTask *task_schedule_next(void) {
     if (!g_head) return NULL;
 
-    /* Round-robin with priority: scan from current for highest prio ready task */
+    /* EEVDF: among eligible ready tasks pick the earliest virtual deadline.
+     * A task is eligible when its vruntime has not run ahead of the runqueue's
+     * minimum; a task that has run past its share waits for the clock. */
     CTask *best = NULL;
+    CTask *idle_best = NULL;
     CTask *t = g_current ? g_current->next : g_head;
     CTask *start = t;
 
     do {
-        if (t->state == TASK_READY || t->state == TASK_RUNNING) {
-            if (!best || t->priority > best->priority)
-                best = t;
-        }
-        /* Check sleeping tasks */
-        if (t->state == TASK_SLEEPING && g_tick >= t->wake_tick) {
+        if (t->state == TASK_SLEEPING && g_tick >= t->wake_tick)
             t->state = TASK_READY;
-            if (!best || t->priority > best->priority)
+
+        if (t->state == TASK_READY || t->state == TASK_RUNNING) {
+            int eligible = (t->vruntime <= g_min_vruntime);
+            if (!eligible) { t = t->next; continue; }
+
+            /* Idle is a fallback, never a competitor: it runs only when no
+             * real task is eligible, otherwise it steals share from work. */
+            if (t->priority == PRIO_IDLE) {
+                if (!idle_best || t->vruntime < idle_best->vruntime) idle_best = t;
+                t = t->next;
+                continue;
+            }
+            if (!best || t->deadline < best->deadline ||
+                (t->deadline == best->deadline &&
+                 (t->vruntime < best->vruntime ||
+                  (t->vruntime == best->vruntime && t->total_ticks < best->total_ticks))))
                 best = t;
         }
         t = t->next;
     } while (t != start);
 
+    if (!best && idle_best) best = idle_best;
+
     if (!best) {
-        /* Only idle or blocked tasks  --  find idle */
+        /* Nothing eligible: take the task furthest behind. */
         t = g_head;
         do {
-            if (t->state == TASK_READY && t->priority == PRIO_IDLE)
-                return t;
+            if ((t->state == TASK_READY || t->state == TASK_RUNNING) &&
+                (!best || t->vruntime < best->vruntime))
+                best = t;
             t = t->next;
         } while (t != g_head);
     }
-
     return best;
 }
 
@@ -239,6 +278,8 @@ void task_timer_tick(void) {
     if (!g_initialized || !g_current) return;
 
     g_current->total_ticks++;
+
+    task_account_tick(g_current);
 
     /* Watchdog (gap A4): a task that never yields past the limit is
      * stuck -- name it + dump the panic ring. (The limit is generous:

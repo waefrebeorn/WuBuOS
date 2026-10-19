@@ -177,6 +177,44 @@ static void test_task_ids(void) {
     mem_shutdown();
 }
 
+
+static void test_eevdf_fairness(void) {
+    printf("\n[EEVDF Fairness]\n");
+    mem_init(4 * 1024 * 1024);
+    tasking_init();
+
+    TEST("create two equal-weight tasks");
+    CTask *a = task_create("ea", NULL, NULL, 0, PRIO_NORMAL);
+    CTask *b = task_create("eb", NULL, NULL, 0, PRIO_NORMAL);
+    if (a && b) PASS(); else FAIL("create failed");
+
+    TEST("equal-weight tasks split CPU 50/50 within 2%");
+    const int TICKS = 10000;
+    int ran_a = 0, ran_b = 0;
+    uint64_t worst_spread = 0;
+    for (int i = 0; i < TICKS; i++) {
+        CTask *n = task_schedule_next();
+        if (!n) break;
+        task_account_tick(n);
+        n->total_ticks++;
+        if (n == a) ran_a++; else if (n == b) ran_b++;
+        uint64_t d = a->vruntime > b->vruntime ? a->vruntime - b->vruntime
+                                               : b->vruntime - a->vruntime;
+        if (d > worst_spread) worst_spread = d;
+    }
+    double share = (double)ran_a / (double)(ran_a + ran_b);
+    printf("    picks a=%d b=%d share=%.4f worst vruntime spread=%llu (slice %u)\n",
+           ran_a, ran_b, share, (unsigned long long)worst_spread, a->slice);
+    if (share > 0.48 && share < 0.52) PASS(); else FAIL("split outside 2%");
+    TEST("lag never exceeds one slice");
+    if (worst_spread <= (uint64_t)a->slice) PASS(); else FAIL("lag bound exceeded");
+
+    task_destroy(a);
+    task_destroy(b);
+    tasking_shutdown();
+    mem_shutdown();
+}
+
 int main(void) {
     printf("+==============================+\n");
     printf("|  My Seed Tasking Test Suite  |\n");
@@ -187,6 +225,8 @@ int main(void) {
     test_priority();
     test_sleep_wake();
     test_task_ids();
+
+    test_eevdf_fairness();
 
     printf("\n==============================\n");
     if (failures == 0)

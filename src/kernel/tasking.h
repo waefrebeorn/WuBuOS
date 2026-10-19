@@ -79,6 +79,10 @@ struct CTask {
     /* Timing */
     uint64_t       wake_tick;        /* Tick to wake (if sleeping)    */
     uint64_t       total_ticks;      /* Total CPU ticks consumed      */
+    uint64_t       vruntime;         /* EEVDF: virtual runtime         */
+    uint64_t       deadline;         /* EEVDF: virtual deadline        */
+    uint32_t       weight;           /* EEVDF: scheduling weight       */
+    uint32_t       slice;            /* EEVDF: slice in ticks          */
     uint64_t       stall_ticks;      /* Watchdog (gap A4): ticks since
                                       * the last task_yield -- a task
                                       * past the limit is stuck.       */
@@ -166,6 +170,9 @@ void tasking_shutdown(void);
  * Returns the task that should run next.
  /* Schedule next task  --  round-robin with priority */
  CTask *task_schedule_next(void);
+
+/* EEVDF accounting for one tick (the timer path calls this). */
+void task_account_tick(CTask *t);
 
  /* Timer tick handler  --  called from interrupt context (IRQ0/PIT).
   * Increments global tick, wakes sleeping tasks, triggers preemption. */
