@@ -187,6 +187,21 @@ int main(void)
     }
     CHECK(n2 == qpages && identical, "restart scan enumerates the identical set in the same order");
 
+    /* --- 428: Tstat reports the symlink and both views agree --- */
+    CHECK(ob_tree_symlink(&t, "/n/link", "/n/brain/kv/slot0") == 0, "second symlink created");
+    styx_dir_t sd;
+    CHECK(vsl_nt_ob_stat(&t, "/n/link", &sd) == NT_STATUS_SUCCESS, "stat of a symlink succeeds");
+    CHECK((sd.mode & STX_DMSYMLINK) != 0, "Tstat reports DMSYMLINK for the node");
+    CHECK((sd.mode & STX_DMDIR) == 0, "a symlink is not reported as a directory");
+    char ltarget[256], rtarget[256];
+    CHECK(vsl_nt_ob_readlink(&t, "/n/link", ltarget, sizeof ltarget) == NT_STATUS_SUCCESS,
+          "readlink returns the target");
+    CHECK(vsl_nt_ob_resolve(&t, "/n/link", rtarget, sizeof rtarget) == NT_STATUS_SUCCESS &&
+          strcmp(ltarget, rtarget) == 0, "the 9P view and the NT resolve view agree");
+    styx_dir_t fd;
+    CHECK(vsl_nt_ob_stat(&t, "/n/brain/kv/slot0", &fd) == NT_STATUS_SUCCESS &&
+          (fd.mode & STX_DMSYMLINK) == 0, "a plain file is not a symlink");
+
     printf("\n=== test_nt_ob: %d checks, %d failures ===\n", checks, fails);
     return fails ? 1 : 0;
 }

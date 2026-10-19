@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "wubu_cap/wubu_cap.h"
+#include "../styx.h"
 
 #define NT_STATUS_SUCCESS               0x00000000u
 #define NT_STATUS_INVALID_PARAMETER     0xC000000Du
@@ -70,6 +71,14 @@ int vsl_nt_ob_open(ob_tree_t *t, const char *name, uint32_t access, int32_t pid,
  * are then checked by wubu_cap_resolve, and an ungranted caller is denied. */
 int vsl_nt_ob_bind_cap(ob_tree_t *t, const char *path, uint64_t cap_rights,
                        int32_t owner_pid, wubu_cap_token_t *out);
+
+/* Server-side stat for a namespace node: fills a 9P Dir. A reparse symlink is
+ * reported with STX_DMSYMLINK and its target is what vsl_nt_ob_readlink returns,
+ * so the NT view and the 9P view cannot disagree. */
+int vsl_nt_ob_stat(ob_tree_t *t, const char *name, styx_dir_t *dir);
+
+/* Contents of a symlink node (the string a 9P read of it would return). */
+int vsl_nt_ob_readlink(ob_tree_t *t, const char *name, char *buf, size_t bufsz);
 
 /* NtCreateDirectoryObject: create a cap-backed STYX_NODE directory under /n. */
 int NtCreateDirectoryObject(ob_tree_t *t, const char *name, int32_t pid,

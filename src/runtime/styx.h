@@ -91,6 +91,7 @@
 #define STX_DMMOUNT   0x10000000
 #define STX_DMAUTH    0x08000000
 #define STX_DMTMP     0x04000000
+#define STX_DMSYMLINK 0x02000000   /* Plan 9: mode says the file is a symlink */
 
 /* -- Data Structures ---------------------------------------------- */
 

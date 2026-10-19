@@ -381,3 +381,58 @@ int NtQueryDirectoryFile(ob_tree_t *t, const char *dir, int *cursor, int restart
 {
     return NtQueryDirectoryObject(t, dir, cursor, restart, name, namesz, more);
 }
+
+int vsl_nt_ob_readlink(ob_tree_t *t, const char *name, char *buf, size_t bufsz)
+{
+    if (!t || !name || !buf) return NT_STATUS_INVALID_PARAMETER;
+
+    char canon[256];
+    if (vsl_nt_ob_canon(name, canon, sizeof canon) != NT_STATUS_SUCCESS)
+        return NT_STATUS_OBJECT_PATH_INVALID;
+
+    ob_node_t *n = find_node(t, canon);
+    if (!n) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+    if (n->type != OB_TYPE_SYMLINK) return NT_STATUS_INVALID_PARAMETER;
+    if (strlen(n->target) + 1 > bufsz) return NT_STATUS_BUFFER_TOO_SMALL;
+
+    snprintf(buf, bufsz, "%s", n->target);
+    return NT_STATUS_SUCCESS;
+}
+
+int vsl_nt_ob_stat(ob_tree_t *t, const char *name, styx_dir_t *dir)
+{
+    if (!t || !name || !dir) return NT_STATUS_INVALID_PARAMETER;
+
+    char canon[256];
+    if (vsl_nt_ob_canon(name, canon, sizeof canon) != NT_STATUS_SUCCESS)
+        return NT_STATUS_OBJECT_PATH_INVALID;
+
+    ob_node_t *orig = find_node(t, canon);
+    if (!orig) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+
+    /* The link node itself is what stat reports (DMSYMLINK); following it is
+     * what open does, and the two must not be conflated. */
+    ob_node_t *n = orig;
+    for (int hops = 0; n && n->type == OB_TYPE_SYMLINK; hops++) {
+        if (hops > 8) return NT_STATUS_OBJECT_PATH_INVALID;
+        n = find_node(t, n->target);
+    }
+    if (!n) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
+
+    memset(dir, 0, sizeof *dir);
+    dir->qid.path = (uint64_t)(n - t->nodes) + 1u;
+    dir->qid.version = 0;
+    dir->qid.type = (n->is_dir ? STX_QTDIR : 0);
+
+    if (orig->type == OB_TYPE_SYMLINK) dir->mode = STX_DMSYMLINK | 0777u;
+    else if (n->is_dir)                dir->mode = STX_DMDIR | 0755u;
+    else                              dir->mode = 0644u;
+
+    const char *leaf = strrchr(canon, '/');
+    snprintf(dir->name, sizeof dir->name, "%s", leaf ? leaf + 1 : canon);
+    snprintf(dir->uid, sizeof dir->uid, "sys");
+    snprintf(dir->gid, sizeof dir->gid, "sys");
+    snprintf(dir->muid, sizeof dir->muid, "sys");
+    dir->size = 0;
+    return NT_STATUS_SUCCESS;
+}
