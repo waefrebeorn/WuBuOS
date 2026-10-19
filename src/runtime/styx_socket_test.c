@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 static int pass, fail;
@@ -52,6 +54,43 @@ int main(void)
     rc = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
     printf("[rc=%d type=0x%02x] ", rc, rep[4]);
     if (rc == 0 && rep[4] == STX_RATTACH) OK(); else NO("attach failed");
+
+    T("mount + walk + open + read serves a file over the socket");
+    {
+        const char *dir = "/home/wubu/.hermes/profiles/mind-palace/cache/scratch/nkern";
+        mkdir(dir, 0755);
+        char fp[512];
+        snprintf(fp, sizeof fp, "%s/scheduler", dir);
+        const char *content = "sched: 3 runnable, 0 blocked\n";
+        FILE *f = fopen(fp, "wb");
+        if (f) { fwrite(content, 1, strlen(content), f); fclose(f); }
+
+        styxfs_mount(&srv, "/n/kernel", (char *)dir, 0);
+
+        styx_build_tattach(req, &len, 2, 10, 0xFFFFFFFFu, "/n/kernel");
+        int r1 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int t1 = (r1 == 0 && rep[4] == STX_RATTACH);
+
+        const char *wn[1] = {"scheduler"};
+        styx_build_twalk(req, &len, 3, 10, 11, wn, 1);
+        int r2 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int t2 = (r2 == 0 && rep[4] == STX_RWALK);
+
+        styx_build_topen(req, &len, 4, 11, 0);
+        int r3 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int t3 = (r3 == 0 && rep[4] == STX_ROPEN);
+
+        styx_build_tread(req, &len, 5, 11, 0, 64);
+        int r4 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int got = 0;
+        if (r4 == 0 && rep[4] == STX_RREAD && rlen > 15) {
+            uint32_t n = (uint32_t)rep[7] | ((uint32_t)rep[8] << 8) |
+                         ((uint32_t)rep[9] << 16) | ((uint32_t)rep[10] << 24);
+            if (n == strlen(content) && memcmp(rep + 11, content, n) == 0) got = 1;
+        }
+        printf("[attach=%d walk=%d open=%d read=%d] ", t1, t2, t3, got);
+        if (t1 && t2 && t3 && got) OK(); else NO("mount/read sequence failed");
+    }
 
     T("a bad size prefix is refused");
     uint8_t bad[4] = {0, 0, 0, 2};
