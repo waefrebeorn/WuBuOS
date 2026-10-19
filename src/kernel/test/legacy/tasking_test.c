@@ -291,6 +291,47 @@ static void test_cap_authority(void) {
     mem_shutdown();
 }
 
+
+static void test_rt_class(void) {
+    printf("\n[Real-Time Class]\n");
+    mem_init(2 * 1024 * 1024);
+    tasking_init();
+
+    CTask *rt = task_create("rt", NULL, NULL, 0, PRIO_REALTIME);
+    CTask *cf = task_create("cf", NULL, NULL, 0, PRIO_NORMAL);
+    CTask *rt2 = task_create("rt2", NULL, NULL, 0, PRIO_REALTIME);
+    if (!rt || !cf || !rt2) { FAIL("create failed"); return; }
+
+    TEST("RT task is picked over a CFS task");
+    int rt_picks = 0;
+    for (int i = 0; i < 100; i++) {
+        CTask *n = task_schedule_next();
+        if (n && n->priority == PRIO_REALTIME) rt_picks++;
+        if (n) task_account_tick(n);
+    }
+    printf("    %d/100 picks went to the RT class\n", rt_picks);
+    if (rt_picks == 100) PASS(); else FAIL("CFS task was picked while RT was ready");
+
+    TEST("two equal RT tasks round-robin");
+    /* reset accounting so both RT tasks start level */
+    rt->vruntime = rt2->vruntime = 0;
+    rt->total_ticks = rt2->total_ticks = 0;
+    int a = 0, b = 0;
+    for (int i = 0; i < 1000; i++) {
+        CTask *n = task_schedule_next();
+        if (!n) break;
+        if (n == rt) a++; else if (n == rt2) b++;
+        task_account_tick(n);
+        n->total_ticks++;
+    }
+    printf("    rt=%d rt2=%d\n", a, b);
+    if (a == 500 && b == 500) PASS(); else FAIL("RT round-robin is not even");
+
+    task_destroy(rt); task_destroy(cf); task_destroy(rt2);
+    tasking_shutdown();
+    mem_shutdown();
+}
+
 int main(void) {
     printf("+==============================+\n");
     printf("|  My Seed Tasking Test Suite  |\n");
@@ -305,6 +346,7 @@ int main(void) {
     test_eevdf_fairness();
     test_sleep_accuracy();
     test_cap_authority();
+    test_rt_class();
 
     printf("\n==============================\n");
     if (failures == 0)

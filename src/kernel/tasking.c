@@ -200,6 +200,7 @@ CTask *task_schedule_next(void) {
      * A task is eligible when its vruntime has not run ahead of the runqueue's
      * minimum; a task that has run past its share waits for the clock. */
     CTask *best = NULL;
+    CTask *rt_best = NULL;
     CTask *idle_best = NULL;
     CTask *t = g_current ? g_current->next : g_head;
     CTask *start = t;
@@ -211,6 +212,17 @@ CTask *task_schedule_next(void) {
         if (t->state == TASK_READY || t->state == TASK_RUNNING) {
             int eligible = (t->vruntime <= g_min_vruntime);
             if (!eligible) { t = t->next; continue; }
+
+            /* Real-time class: strict priority over every non-RT task. Among
+             * equal RT tasks the pick is round-robin (smallest vruntime). */
+            if (t->priority == PRIO_REALTIME) {
+                if (!rt_best || t->vruntime < rt_best->vruntime ||
+                    (t->vruntime == rt_best->vruntime &&
+                     t->total_ticks < rt_best->total_ticks))
+                    rt_best = t;
+                t = t->next;
+                continue;
+            }
 
             /* Idle is a fallback, never a competitor: it runs only when no
              * real task is eligible, otherwise it steals share from work. */
@@ -227,6 +239,9 @@ CTask *task_schedule_next(void) {
         }
         t = t->next;
     } while (t != start);
+
+    /* RT preempts CFS within the tick that made it ready. */
+    if (rt_best) return rt_best;
 
     if (!best && idle_best) best = idle_best;
 
