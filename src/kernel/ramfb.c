@@ -17,6 +17,11 @@
 #include "interrupt_io.h"
 #include "klog.h"
 
+static inline void outl_p(uint16_t port, uint32_t val)
+{
+    __asm__ __volatile__("outl %0, %1" :: "a"(val), "Nd"(port));
+}
+
 #define FWCFG_SEL   0x510
 #define FWCFG_DATA  0x511
 
@@ -122,6 +127,48 @@ static uint16_t fwcfg_find(const char *name)
     return 0;
 }
 
+/* --- fw_cfg DMA path ----------------------------------------------------
+ * Some QEMU builds only accept a write to a writable fw_cfg item through the
+ * DMA interface (port 0x514), not through the legacy data port. Control bits:
+ *   ERROR 0x01, READ 0x02, SKIP 0x04, SELECT 0x08, WRITE 0x10.
+ * Control is (selector << 16) | SELECT | WRITE.
+ */
+typedef struct __attribute__((packed)) {
+    uint32_t control;
+    uint32_t length;
+    uint64_t address;
+} fwcfg_dma_t;
+
+static fwcfg_dma_t g_dma __attribute__((aligned(8)));
+static ramfb_cfg_t g_cfg __attribute__((aligned(8)));
+
+static int fwcfg_dma_write(uint16_t sel, const void *buf, uint32_t len)
+{
+    g_dma.control = 0;
+    g_dma.length  = (uint32_t)(((uint32_t)len & 0xFF) << 24 |
+                               ((uint32_t)len & 0xFF00) << 8 |
+                               ((uint32_t)len & 0xFF0000) >> 8 |
+                               ((uint32_t)len & 0xFF000000) >> 24);
+    g_dma.address = __builtin_bswap64((uint64_t)(uintptr_t)buf);
+    g_dma.control = __builtin_bswap32(((uint32_t)sel << 16) | 0x08u | 0x10u);
+
+    uint64_t phys = (uint64_t)(uintptr_t)&g_dma;
+    outl_p(0x514, (uint32_t)phys);
+    outl_p(0x518, (uint32_t)(phys >> 32));
+
+    for (int i = 0; i < 1000000; i++) {
+        uint32_t ctl = __builtin_bswap32(g_dma.control);
+        if (ctl & 0x01u) {                  /* error */
+            klog_printf("WuBuOS: fw_cfg DMA error\n");
+            return 0;
+        }
+        if ((ctl & 0x18u) == 0)             /* write+select bits cleared */
+            return 1;
+    }
+    klog_printf("WuBuOS: fw_cfg DMA timeout\n");
+    return 0;
+}
+
 /* Set up ramfb scanning out g_ramfb_buf. Returns 1 on success. */
 int wubu_ramfb_init(uint32_t width, uint32_t height)
 {
@@ -134,25 +181,27 @@ int wubu_ramfb_init(uint32_t width, uint32_t height)
         return 0;
     }
 
-    ramfb_cfg_t cfg;
-    cfg.addr   = (uint64_t)(uintptr_t)g_ramfb_buf;
-    cfg.fourcc = FOURCC_XR24;
-    cfg.flags  = 0;
-    cfg.width  = width;
-    cfg.height = height;
-    cfg.stride = width * 4;
+    g_cfg.addr   = __builtin_bswap64((uint64_t)(uintptr_t)g_ramfb_buf);
+    g_cfg.fourcc = __builtin_bswap32(FOURCC_XR24);
+    g_cfg.flags  = 0;
+    g_cfg.width  = __builtin_bswap32(width);
+    g_cfg.height = __builtin_bswap32(height);
+    g_cfg.stride = __builtin_bswap32(width * 4);
 
-    fwcfg_select(sel);
-    wr_be64(cfg.addr);
-    wr_be32(cfg.fourcc);
-    wr_be32(cfg.flags);
-    wr_be32(cfg.width);
-    wr_be32(cfg.height);
-    wr_be32(cfg.stride);
-
-    klog_printf("WuBuOS: ramfb configured %ux%u at 0x%x (stride %u)\n",
-                (unsigned)width, (unsigned)height,
-                (unsigned)(uintptr_t)g_ramfb_buf, (unsigned)cfg.stride);
+    int ok = fwcfg_dma_write(sel, &g_cfg, sizeof(g_cfg));
+    if (ok) {
+        klog_printf("WuBuOS: ramfb configured via DMA %ux%u at 0x%x\n",
+                    (unsigned)width, (unsigned)height,
+                    (unsigned)(uintptr_t)g_ramfb_buf);
+    } else {
+        /* Legacy port write as a fallback. */
+        fwcfg_select(sel);
+        for (int i = 0; i < (int)sizeof(g_cfg); i++)
+            fwcfg_write8(((const uint8_t *)&g_cfg)[i]);
+        klog_printf("WuBuOS: ramfb configured via ports %ux%u at 0x%x\n",
+                    (unsigned)width, (unsigned)height,
+                    (unsigned)(uintptr_t)g_ramfb_buf);
+    }
     return 1;
 }
 

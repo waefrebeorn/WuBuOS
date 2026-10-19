@@ -63,7 +63,14 @@ big-endian). The kernel prefers ramfb and falls back to the GOP path.
   `tools/qemu_vnc_shot.py` with the shell actually exited (`printf 'exit\n'`
   into `-serial stdio`) or the measurement is meaningless.
 
-## Status
+## Status (measured)
+
+fw_cfg **DMA write was implemented and does not work in this environment**: the
+kernel logs `ramfb configured via ports` and `fw_cfg DMA timeout` is not printed
+because the fallback runs, but the VNC surface stays 640x480. So either this
+QEMU build does not expose DMA at 0x514 for the guest, or ramfb on x86 here is
+not a display device at all -- `-vga none -device ramfb` produces no usable
+console.
 
 ramfb is implemented and logs `ramfb configured 1024x768 at 0x5000000` and
 `ramfb backend active, painted 1024x768` under `-vga none -device ramfb`.
