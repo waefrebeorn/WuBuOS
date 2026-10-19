@@ -83,6 +83,17 @@ int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname) {
     return 0;
 }
 
+int styxfs_lock_cb(styx_server_t *base, uint32_t fid, int32_t owner,
+                   uint64_t start, uint64_t length, int type) {
+    styxfs_server_t *srv = styxfs_get_server(base);
+    styx_fid_t *f = styx_fid_lookup(base, fid);
+    if (!f) return -1;
+    uint64_t qid = (uint64_t)(uintptr_t)f->file_state ? f->qid.path : f->qid.path;
+    if (type == STYX_LOCK_UNLCK)
+        return styx_unlock(&srv->locks, qid, owner, start, length);
+    return styx_lock(&srv->locks, qid, owner, start, length, type);
+}
+
 /* A server with no auth phase must reject Tauth instead of handing out a fid. */
 int styxfs_auth_cb(styx_server_t *base, uint32_t fid, const char *aname,
                    const char *uname, styx_qid_t *qid) {

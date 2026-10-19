@@ -273,6 +273,26 @@ int main(void)
     if (rca == -1 && errno == ENOTSUP && styx_fid_lookup(&srv.base, 22) == NULL) PASS();
     else FAIL("auth was not rejected cleanly");
 
+    TEST("Tlock: two clients, second overlapping write lock conflicts");
+    uint32_t h1, h2;
+    styxfs_attach_cb(&srv.base, 30, "/wubu");
+    styxfs_attach_cb(&srv.base, 31, "/wubu");
+    styx_fid_t *g1 = styx_fid_lookup(&srv.base, 30);
+    styx_fid_t *g2 = styx_fid_lookup(&srv.base, 31);
+    if (g1) g1->qid.path = 777;
+    if (g2) g2->qid.path = 777;
+    (void)h1; (void)h2;
+    int l1 = styxfs_lock_cb(&srv.base, 30, 100, 0, 100, STYX_LOCK_WRLCK);
+    int l2 = styxfs_lock_cb(&srv.base, 31, 200, 50, 100, STYX_LOCK_WRLCK);
+    int l3 = styxfs_lock_cb(&srv.base, 31, 200, 500, 10, STYX_LOCK_WRLCK);
+    printf("[first=%d overlap=%d disjoint=%d] ", l1, l2, l3);
+    if (l1 == 0 && l2 == -1 && l3 == 0) PASS(); else FAIL("lock conflict rules wrong");
+
+    TEST("Tunlock releases so the other client can take the range");
+    int u1 = styxfs_lock_cb(&srv.base, 30, 100, 0, 100, STYX_LOCK_UNLCK);
+    int l4 = styxfs_lock_cb(&srv.base, 31, 200, 0, 100, STYX_LOCK_WRLCK);
+    if (u1 == 0 && l4 == 0) PASS(); else FAIL("unlock did not free the range");
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

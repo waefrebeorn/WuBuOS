@@ -20,6 +20,7 @@
 #define WUBU_STYXFS_H
 
 #include "styx.h"
+#include "styx_locks.h"
 #include "wubu_container.h"
 #include <stdint.h>
 #include <stddef.h>
@@ -81,6 +82,7 @@ typedef struct styxfs_file {
 typedef struct styxfs_server {
     styx_server_t  base;              /* Embedded Styx protocol server */
     styxfs_mount_t *mounts;           /* Mount list */
+    styx_locktab_t  locks;             /* 9P byte-range locks */
     styxfs_file_t  open_files[STYXFS_MAX_OPEN_FILES];
     uint64_t       next_qid_path;     /* Monotonically increasing QID path */
     int            readonly;          /* Global read-only flag */
@@ -118,6 +120,10 @@ int styxfs_serve(styxfs_server_t *srv,
 int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname);
 
 /* Walk: called on Twalk */
+/* Tlock/Tunlock over the shared byte-range table keyed by qid. */
+int styxfs_lock_cb(styx_server_t *base, uint32_t fid, int32_t owner,
+                   uint64_t start, uint64_t length, int type);
+
 int styxfs_auth_cb(styx_server_t *base, uint32_t fid, const char *aname,
                    const char *uname, styx_qid_t *qid);
 

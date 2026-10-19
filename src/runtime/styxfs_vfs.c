@@ -122,6 +122,7 @@ void styxfs_init(styxfs_server_t *srv) {
     memset(srv, 0, sizeof(*srv));
     srv->readonly = 0;
     srv->next_qid_path = 1;
+    styx_locks_init(&srv->locks);
 
     /* Wire the filesystem callbacks. Without these, styx_serve() falls back
      * to its NULL-callback defaults (walk/read/write unsupported), so /n is
