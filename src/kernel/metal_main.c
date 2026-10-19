@@ -433,6 +433,19 @@ void kernel_main(void *boot_info) {
                 vbe_swap();
                 klog_printf("WuBuOS: GOP fb mapped (%d pages) + painted %ux%u\n",
                             mapped, (unsigned)fd->fb_width, (unsigned)fd->fb_height);
+                /* Did anything reset the Bochs VBE mode since the firmware set
+                 * it? Read the dispi registers straight from the card. */
+                {
+                    uint16_t xr, yr, en;
+                    __asm__ __volatile__("outw %0, %%dx" :: "a"((uint16_t)4), "d"((uint16_t)0x1CE));
+                    __asm__ __volatile__("inw %%dx, %0" : "=a"(xr) : "d"((uint16_t)0x1CF));
+                    __asm__ __volatile__("outw %0, %%dx" :: "a"((uint16_t)6), "d"((uint16_t)0x1CE));
+                    __asm__ __volatile__("inw %%dx, %0" : "=a"(yr) : "d"((uint16_t)0x1CF));
+                    __asm__ __volatile__("outw %0, %%dx" :: "a"((uint16_t)0), "d"((uint16_t)0x1CE));
+                    __asm__ __volatile__("inw %%dx, %0" : "=a"(en) : "d"((uint16_t)0x1CF));
+                    klog_printf("WuBuOS: dispi after init: xres=%u yres=%u id=%x\n",
+                                (unsigned)xr, (unsigned)yr, (unsigned)en);
+                }
             } else {
                 klog_printf("WuBuOS: GOP fb map=%d but attach FAILED\n", mapped);
             }

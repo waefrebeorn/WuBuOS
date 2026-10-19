@@ -127,6 +127,15 @@ int fw_gop_init(fw_pci_dev *d) {
     vbe_write(VBE_INDEX_VIRT_H, H);
     vbe_write(VBE_INDEX_ENABLE, VBE_ENABLED | VBE_LFB_ENABLED);
 
+    /* Read back the mode we just set: if this fails, the display never
+     * switched and every later write goes to a surface nobody scans out. */
+    fw_printf("[gop] readback xres=%u yres=%u bpp=%u enable=%u\n",
+              vbe_read(VBE_INDEX_XRES), vbe_read(VBE_INDEX_YRES),
+              vbe_read(VBE_INDEX_BPP), vbe_read(VBE_INDEX_ENABLE));
+    fw_printf("[gop] bars: 0=%llx/0x%llx 1=%llx/0x%llx 2=%llx/0x%llx\n",
+              (unsigned long long)d->bar[0].addr, (unsigned long long)d->bar[0].size,
+              (unsigned long long)d->bar[1].addr, (unsigned long long)d->bar[1].size,
+              (unsigned long long)d->bar[2].addr, (unsigned long long)d->bar[2].size);
     if (vbe_read(VBE_INDEX_XRES) != W) return -1;
 
     g_fb = (uint32_t *)(uintptr_t)fb;
