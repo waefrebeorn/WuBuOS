@@ -434,6 +434,19 @@ void kernel_main(void *boot_info) {
              * back to 640x480 text. The kernel is past EFI now, so it sets the
              * mode itself before drawing. */
             {
+                /* Unlock the VGA sequencer (0x3C4/5 idx 1, clear bit 5) and
+                 * the CRTC protection (0x3D4/5 idx 0x11, clear bit 7) before
+                 * touching dispi: some implementations only move the scanout
+                 * when these are unlocked. */
+                {
+                    uint8_t t;
+                    __asm__ __volatile__("outb %0, %%dx" :: "a"((uint8_t)0x01), "d"((uint16_t)0x3C4));
+                    __asm__ __volatile__("inb %%dx, %0" : "=a"(t) : "d"((uint16_t)0x3C5));
+                    __asm__ __volatile__("outb %0, %%dx" :: "a"((uint8_t)(t & ~0x20)), "d"((uint16_t)0x3C5));
+                    __asm__ __volatile__("outb %0, %%dx" :: "a"((uint8_t)0x11), "d"((uint16_t)0x3D4));
+                    __asm__ __volatile__("inb %%dx, %0" : "=a"(t) : "d"((uint16_t)0x3D5));
+                    __asm__ __volatile__("outb %0, %%dx" :: "a"((uint8_t)(t & ~0x80)), "d"((uint16_t)0x3D5));
+                }
                 wubu_dispi_write(4, 0x00);          /* disable */
                 wubu_dispi_write(1, 1024);
                 wubu_dispi_write(2, 768);
