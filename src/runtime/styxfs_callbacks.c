@@ -301,11 +301,17 @@ int styxfs_write_cb(styx_server_t *base, uint32_t fid,
 
     char host[STYXFS_MAX_PATH];
     styxfs_path_to_host(srv, fid_path(f), host, sizeof(host));
-    /* A control-plane write must replace the file's content (echo > file),
-     * not append -- O_TRUNC. */
-    int fd = open(host, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    /* One Rwrite can acknowledge at most STYX_MAX_DATA bytes; the client must
+     * send the rest. A QTAPPEND node ignores the client offset entirely. */
+    uint32_t n = count > STYX_MAX_DATA ? STYX_MAX_DATA : count;
+    int append = (f->qid.type & STX_QTAPPEND) != 0;
+
+    /* A control-plane write replaces the file's content (echo > file), except
+     * on an append-only node where replacing would defeat the point. */
+    int flags = O_WRONLY | O_CREAT | (append ? O_APPEND : O_TRUNC);
+    int fd = open(host, flags, 0644);
     if (fd < 0) return -1;
-    ssize_t done = (count > 0) ? pwrite(fd, data, count, (off_t)offset) : 0;
+    ssize_t done = (n > 0) ? pwrite(fd, data, n, append ? 0 : (off_t)offset) : 0;
     close(fd);
     if (done < 0) return -1;
     *nwritten = (uint32_t)done;

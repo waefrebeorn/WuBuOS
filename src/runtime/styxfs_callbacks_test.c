@@ -89,6 +89,36 @@ int main(void)
         memcmp(back, payload, sizeof payload) == 0) PASS();
     else FAIL("write/read round trip mismatch");
 
+    TEST("Twrite of 9000 bytes is capped at STYX_MAX_DATA");
+    if (arm_fid(&srv, 3) != 0) { FAIL("fid alloc"); return 1; }
+    uint8_t *big = malloc(9000);
+    if (!big) { FAIL("alloc"); return 1; }
+    memset(big, 'A', 9000);
+    uint32_t nb = 0;
+    int rcb = styxfs_write_cb(&srv.base, 3, 0, 9000, big, &nb);
+    struct stat st;
+    int sz = (stat(g_path, &st) == 0) ? (int)st.st_size : -1;
+    printf("[nwritten=%u size=%d] ", nb, sz);
+    if (rcb == 0 && nb == STYX_MAX_DATA && sz == STYX_MAX_DATA) PASS();
+    else FAIL("write cap not enforced");
+    free(big);
+
+    TEST("QTAPPEND node ignores the client offset");
+    if (arm_fid(&srv, 4) != 0) { FAIL("fid alloc"); return 1; }
+    styx_fid_t *fa = styx_fid_lookup(&srv.base, 4);
+    if (fa) fa->qid.type = STX_QTAPPEND;
+    uint32_t na = 0;
+    uint8_t x = 'X';
+    styxfs_write_cb(&srv.base, 4, 0, 1, &x, &na);
+    styxfs_write_cb(&srv.base, 4, 0, 1, &x, &na);
+    int sz2 = (stat(g_path, &st) == 0) ? (int)st.st_size : -1;
+    int tail[2] = {0, 0};
+    int fd2 = open(g_path, O_RDONLY);
+    if (fd2 >= 0 && sz2 >= 2) { pread(fd2, &tail[0], 1, sz2 - 2); pread(fd2, &tail[1], 1, sz2 - 1); close(fd2); }
+    printf("[size=%d tail=%c%c] ", sz2, tail[0], tail[1]);
+    if (sz2 == STYX_MAX_DATA + 2 && tail[0] == 'X' && tail[1] == 'X') PASS();
+    else FAIL("append did not append");
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
