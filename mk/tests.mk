@@ -228,6 +228,10 @@ test_memory: $(KERNEL)/memory.o
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/memory.c $(KERNEL)/test/legacy/memory_test.c -o $(KERNEL)/memory_test
 	$(KERNEL)/memory_test
 
+test_timer_wheel:
+	$(CC) -O2 -g -std=c11 -I$(KERNEL) $(KERNEL)/timer_wheel.c $(KERNEL)/test_timer_wheel.c -o $(KERNEL)/test_timer_wheel
+	$(KERNEL)/test_timer_wheel
+
 test_eevdf:
 	$(CC) -O2 -g -std=c11 -I$(KERNEL) $(KERNEL)/sched_eevdf.c $(KERNEL)/test_eevdf.c -o $(KERNEL)/test_eevdf
 	$(KERNEL)/test_eevdf
