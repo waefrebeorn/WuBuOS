@@ -8,6 +8,7 @@
  */
 
 #include "tasking.h"
+#include "timer_wheel.h"
 #include "memory.h"
 #include "interrupt.h"
 #include "libc.h"
@@ -32,6 +33,7 @@ static CTask   *g_head      = NULL;  /* Doubly-linked circular list */
 static int      g_next_id   = 1;
 static uint64_t g_tick      = 0;
 static uint64_t g_min_vruntime = 0;   /* EEVDF runqueue clock */
+static tw_t     g_sleep_wheel;        /* hierarchical sleep timers */
 static uint64_t g_next_wake = ~0ull;   /* D2: earliest pending wake   */
 static int      g_initialized = 0;
 static int      g_preemptive = 0;   /* 1 = timer-driven preemption enabled */
@@ -296,20 +298,19 @@ void task_timer_tick(void) {
         for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
     }
 
-    /* Wake sleeping tasks whose time has come. Gap D2: the wakeup
-     * scan tracks the EARLIEST pending wake so a tick with nothing to
-     * wake (the common case) skips the O(n) walk entirely. */
-    if (g_tick >= g_next_wake) {
-        g_next_wake = ~0ull;
-        CTask *t = g_head;
-        if (t) {
+    /* Wake sleeping tasks whose time has come: one wheel advance per tick,
+     * independent of how many tasks are asleep. */
+    {
+        uint64_t due[16];
+        int n = tw_advance(&g_sleep_wheel, due, 16);
+        for (int i = 0; i < n; i++) {
+            int id = (int)due[i];
+            CTask *t = g_head;
+            if (!t) break;
             do {
-                if (t->state == TASK_SLEEPING) {
-                    if (g_tick >= t->wake_tick) {
-                        t->state = TASK_READY;
-                    } else if (t->wake_tick < g_next_wake) {
-                        g_next_wake = t->wake_tick;
-                    }
+                if (t->task_id == id && t->state == TASK_SLEEPING) {
+                    t->state = TASK_READY;
+                    break;
                 }
                 t = t->next;
             } while (t != g_head);
@@ -464,8 +465,9 @@ void task_sleep(uint64_t ticks) {
     if (g_current) {
         g_current->state = TASK_SLEEPING;
         g_current->wake_tick = g_tick + ticks;
-        if (g_current->wake_tick < g_next_wake)  /* D2 */
-            g_next_wake = g_current->wake_tick;
+        /* The wheel handles the whole 1..2^32 range; the old g_next_wake scan
+         * could not, and walked every task on every tick. */
+        tw_add(&g_sleep_wheel, (uint64_t)(unsigned)g_current->task_id, g_current->wake_tick);
         task_yield();
     }
 }
@@ -473,6 +475,7 @@ void task_sleep(uint64_t ticks) {
 /* -- Init / Shutdown ---------------------------------------------- */
 
 int tasking_init(void) {
+    tw_init(&g_sleep_wheel);
     if (g_initialized) return 0;
 
     /* Create idle task */
