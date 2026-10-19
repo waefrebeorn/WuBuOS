@@ -1183,6 +1183,10 @@ test_styxfs:
 		$(RT)/wubu_ns_pkg_stub.c -lm -fopenmp -lpthread
 	$(RT)/styxfs_callbacks_test
 
+test_styx_socket:
+	$(CC) -O2 -g -std=c11 -D_GNU_SOURCE -I$(RT) $(RT)/styx_socket.c $(RT)/styx_socket_test.c $(RT)/styx_serve.c $(RT)/styx_enc.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styx_locks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/wubu_container.c -o $(RT)/styx_socket_test
+	$(RT)/styx_socket_test
+
 test_styx_tags:
 	$(CC) -O2 -g -std=c11 -I$(RT) $(RT)/styx_tags.c $(RT)/styx_tags_test.c -o $(RT)/styx_tags_test
 	$(RT)/styx_tags_test
