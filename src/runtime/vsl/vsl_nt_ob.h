@@ -71,6 +71,18 @@ int vsl_nt_ob_open(ob_tree_t *t, const char *name, uint32_t access, int32_t pid,
 int vsl_nt_ob_bind_cap(ob_tree_t *t, const char *path, uint64_t cap_rights,
                        int32_t owner_pid, wubu_cap_token_t *out);
 
+/* NtCreateDirectoryObject: create a cap-backed STYX_NODE directory under /n. */
+int NtCreateDirectoryObject(ob_tree_t *t, const char *name, int32_t pid,
+                            uint32_t *handle, wubu_cap_token_t *cap);
+
+/* NtQueryDirectoryObject: list one entry at a time; restart resets the cursor. */
+int NtQueryDirectoryObject(ob_tree_t *t, const char *dir, int *cursor, int restart,
+                           char *name, size_t namesz, int *more);
+
+/* NtQueryDirectoryFile: the same paging contract, returning NO_MORE_ENTRIES. */
+int NtQueryDirectoryFile(ob_tree_t *t, const char *dir, int *cursor, int restart,
+                         char *name, size_t namesz, int *more);
+
 /* NT-named entry point: the Object Manager's open-by-name over the /n tree. */
 int ObOpenByKeyName(ob_tree_t *t, const char *name, uint32_t access, int32_t pid,
                     uint32_t *handle, uint64_t *rights);

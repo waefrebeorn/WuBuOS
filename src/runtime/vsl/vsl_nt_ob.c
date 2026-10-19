@@ -345,3 +345,39 @@ int ObOpenByKeyName(ob_tree_t *t, const char *name, uint32_t access, int32_t pid
 {
     return vsl_nt_ob_open(t, name, access, pid, handle, rights);
 }
+
+int NtCreateDirectoryObject(ob_tree_t *t, const char *name, int32_t pid,
+                            uint32_t *handle, wubu_cap_token_t *cap)
+{
+    int rc = vsl_nt_ob_mkdir(t, name);
+    if (rc != NT_STATUS_SUCCESS) return rc;
+
+    char canon[256];
+    if (vsl_nt_ob_canon(name, canon, sizeof canon) != NT_STATUS_SUCCESS)
+        return NT_STATUS_OBJECT_PATH_INVALID;
+
+    wubu_cap_token_t tok;
+    rc = vsl_nt_ob_bind_cap(t, canon, WUBU_RIGHT_READ | WUBU_RIGHT_WRITE, pid, &tok);
+    if (rc != NT_STATUS_SUCCESS) return rc;
+
+    if (handle) {
+        /* The handle is the capability's slot, which is what an NT handle is. */
+        *handle = wubu_cap_token_idx(tok) + 1u;
+    }
+    if (cap) *cap = tok;
+    return NT_STATUS_SUCCESS;
+}
+
+int NtQueryDirectoryObject(ob_tree_t *t, const char *dir, int *cursor, int restart,
+                           char *name, size_t namesz, int *more)
+{
+    if (!cursor) return NT_STATUS_INVALID_PARAMETER;
+    if (restart) *cursor = 0;
+    return vsl_nt_ob_query_dir(t, dir, cursor, name, namesz, more);
+}
+
+int NtQueryDirectoryFile(ob_tree_t *t, const char *dir, int *cursor, int restart,
+                         char *name, size_t namesz, int *more)
+{
+    return NtQueryDirectoryObject(t, dir, cursor, restart, name, namesz, more);
+}

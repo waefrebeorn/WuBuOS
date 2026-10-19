@@ -129,6 +129,64 @@ int main(void)
     CHECK(vsl_nt_ob_open(&t, "/n/brain/kv/slot0", 0x80000000u, 100, &ch, &cr)
           == NT_STATUS_ACCESS_DENIED, "a revoked capability denies even its audience");
 
+    /* --- 425: directory object creation + enumeration --- */
+    uint32_t dh = 0; wubu_cap_token_t dcap;
+    CHECK(NtCreateDirectoryObject(&t, "\\Brain\\Kv\\dir425", 100, &dh, &dcap) == NT_STATUS_SUCCESS,
+          "NtCreateDirectoryObject creates the directory");
+    CHECK(dh > 0 && !wubu_cap_token_is_null(dcap), "directory is cap-backed");
+    char back[256];
+    CHECK(vsl_nt_ob_canon("\\Brain\\Kv\\dir425", back, sizeof back) == NT_STATUS_SUCCESS &&
+          strcmp(back, "/n/brain/kv/dir425") == 0, "directory is visible as /n/brain/kv/dir425");
+    CHECK(NtCreateDirectoryObject(&t, "/n/brain/kv/dir425", 100, &dh, &dcap)
+          == NT_STATUS_OBJECT_NAME_COLLISION, "duplicate directory collides");
+
+    char a[128], b2[128], c2[128];
+    int cc = 0, mm = 1;
+    CHECK(NtQueryDirectoryObject(&t, "/n/brain/kv", &cc, 1, a, sizeof a, &mm) == NT_STATUS_SUCCESS,
+          "NtQueryDirectoryObject returns the first entry");
+    int cc2 = 0, mm2 = 1;
+    CHECK(NtQueryDirectoryObject(&t, "/n/brain/kv", &cc2, 0, b2, sizeof b2, &mm2) == NT_STATUS_SUCCESS,
+          "second entry follows");
+    /* the same set as the 9P-style readdir */
+    int rc3 = 0, qc = 0, mm3 = 1, found_hot = 0, count = 0;
+    while (1) {
+        rc3 = vsl_nt_ob_query_dir(&t, "/n/brain/kv", &qc, c2, sizeof c2, &mm3);
+        if (rc3 != NT_STATUS_SUCCESS) break;
+        count++;
+        if (strcmp(c2, "dir425") == 0) found_hot = 1;
+    }
+    printf("  readdir sees %d entries under /n/brain/kv\n", count);
+    CHECK(count == 4 && found_hot, "NtCreateDirectoryObject entry appears in readdir too");
+
+    /* --- 427: paged query with restart-scan identity --- */
+    for (int i = 0; i < 3; i++) {
+        char pth[64];
+        snprintf(pth, sizeof pth, "/n/models/m%d.bin", i);
+        ob_tree_add(&t, pth, 0, OB_RIGHT_READ);
+    }
+    int qcur = 0, qmore = 1, qpages = 0;
+    char qnm[64], first_set[8][64]; int nfirst = 0;
+    while (1) {
+        int r = NtQueryDirectoryFile(&t, "/n/models", &qcur, 0, qnm, sizeof qnm, &qmore);
+        if (r != NT_STATUS_SUCCESS) { rc = r; break; }
+        snprintf(first_set[nfirst], sizeof first_set[0], "%s", qnm); nfirst++;
+        qpages++;
+    }
+    printf("  NtQueryDirectoryFile paged %d entries\n", qpages);
+    CHECK((uint32_t)rc == NT_STATUS_NO_MORE_ENTRIES, "enumeration ends with NO_MORE_ENTRIES");
+    CHECK(qpages == 4, "all four /n/models entries returned exactly once");
+
+    qcur = 99; qmore = 1;
+    int n2 = 0, identical = 1;
+    while (1) {
+        int r = NtQueryDirectoryFile(&t, "/n/models", &qcur, n2 == 0 ? 1 : 0,
+                                     qnm, sizeof qnm, &qmore);
+        if (r != NT_STATUS_SUCCESS) break;
+        if (n2 < nfirst && strcmp(qnm, first_set[n2]) != 0) identical = 0;
+        n2++;
+    }
+    CHECK(n2 == qpages && identical, "restart scan enumerates the identical set in the same order");
+
     printf("\n=== test_nt_ob: %d checks, %d failures ===\n", checks, fails);
     return fails ? 1 : 0;
 }
