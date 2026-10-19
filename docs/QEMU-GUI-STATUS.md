@@ -212,3 +212,23 @@ renderer links first.
 
 Current state is green: kernel links and boots, `WM init rc=0 screen=1024x768`,
 render not called.
+
+
+## Closure progress, second pass
+
+With `dosgui_wm_render/layout/icon_glyphs/clock/window_chrome/taskbar/icons/
+wubu_notify/systray` added and stubs for `wubu_a11y_is_enabled`,
+`wubu_bonzi_is_enabled`, `wubu_a11y_draw`, `wubu_bonzi_draw`,
+`wubu_bonzi_set_bubble`, the unresolved set shrank to:
+
+```
+hit_test                     (still unlocated)
+wubu_settings_get            (settings module; pulls JSON)
+wubu_wallpaper_default_path  (wallpaper, stdio-based -> stub)
+wubu_wallpaper_load          (wallpaper, stdio-based -> stub)
+```
+
+So the closure is ~4 symbols from done, not 11. The remaining hosted-only piece
+is the wallpaper loader, which should be stubbed exactly like
+`load_default_wallpaper`; `wubu_settings_get` needs the settings/JSON pair or a
+stub returning defaults; `hit_test` needs its defining object located.

@@ -54,3 +54,15 @@ char *__strncpy_chk(char *dest, const char *src, size_t n, size_t destlen)
     (void)destlen;
     return strncpy(dest, src, n);
 }
+
+/* Optional GUI layers that need hosted services. Reporting "disabled" keeps the
+ * renderer honest: no accessibility overlay, no Bonzi mascot, until their
+ * modules are ported. */
+int wubu_a11y_is_enabled(void) { return 0; }
+int wubu_bonzi_is_enabled(void) { return 0; }
+
+void wubu_a11y_draw(void *win, uint32_t *fb, int fb_w, int fb_h)
+{ (void)win; (void)fb; (void)fb_w; (void)fb_h; }
+void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h)
+{ (void)fb; (void)fb_w; (void)fb_h; }
+void wubu_bonzi_set_bubble(const char *a, const char *b) { (void)a; (void)b; }
