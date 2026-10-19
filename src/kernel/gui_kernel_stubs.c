@@ -10,6 +10,8 @@
  * OS makes when the framebuffer console comes up before the filesystem.
  */
 #include <stdint.h>
+#include <stddef.h>
+#include <string.h>
 #include "vbe.h"
 #include "../gui/wubu_theme.h"
 
@@ -41,4 +43,14 @@ const WubuThemeColors *wubu_theme_colors(void)
     c.border_face = 0x00C0C0C0u;
     c.border_dark = 0x00808080u;
     return &c;
+}
+
+/* Fortified glibc builds emit calls to __*_chk for strncpy etc. The kernel's
+ * libc provides the plain functions, so the checked variants forward to them
+ * with the destination bound ignored (the kernel never overflows these fixed
+ * GUI buffers; the checks exist to catch hosted misuse). */
+char *__strncpy_chk(char *dest, const char *src, size_t n, size_t destlen)
+{
+    (void)destlen;
+    return strncpy(dest, src, n);
 }

@@ -181,3 +181,34 @@ That means "self-sufficient GUI" needs two independent pieces of work:
 Doing (2) without (1) is verifiable only in memory (window count and pixel
 statistics logged by the kernel), which is still worth doing: it proves the WM
 runs bare-metal before the screen works.
+
+
+## Kernel GUI dependency closure (measured, 2026-10-19)
+
+Adding `dosgui_wm_render.o` to `KERNEL_OBJS` fails the link with this exact set
+(unresolved symbols, in discovery order):
+
+```
+draw_desktop_bg                     -> dosgui_wm_layout.c
+dosgui_wm_draw_icon_glyph           -> dosgui_wm_icon_glyphs.c
+dosgui_wm_draw_icon_selection       -> dosgui_wm_icon_glyphs.c
+taskbar_height_dynamic              -> dosgui_wm_clock.c
+__strncpy_chk                       -> fortified string builtin (stubbed in
+                                       gui_kernel_stubs.c)
+dosgui_chrome_draw_window           -> dosgui_window_chrome.c
+wubu_a11y_is_enabled                -> a11y module
+wubu_bonzi_is_enabled               -> wubu_bonzi (GUI variant)
+dosgui_taskbar_render               -> dosgui_wm_taskbar.c
+dosgui_notif_center_render          -> wubu_notify.c
+dosgui_icon_hit_test                -> dosgui_wm_icons.c
+```
+
+Linking was reverted after `dosgui_chrome_draw_window` and friends appeared:
+each added object pulls more, and a partial set produces a dead render path.
+The correct approach is to build a **GUI dependency closure in one pass**
+(generate the object list from the symbol graph rather than by hand), or to
+stub the optional features (a11y, bonzi, notifications) so a desktop + windows
+renderer links first.
+
+Current state is green: kernel links and boots, `WM init rc=0 screen=1024x768`,
+render not called.
