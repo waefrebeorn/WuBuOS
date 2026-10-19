@@ -447,6 +447,21 @@ void kernel_main(void *boot_info) {
                     __asm__ __volatile__("inb %%dx, %0" : "=a"(t) : "d"((uint16_t)0x3D5));
                     __asm__ __volatile__("outb %0, %%dx" :: "a"((uint8_t)(t & ~0x80)), "d"((uint16_t)0x3D5));
                 }
+                /* The EFI firmware can leave the VGA's PCI I/O and memory
+                 * decode off once it owns the GOP, in which case dispi writes
+                 * are accepted by the config space but never reach the card's
+                 * scanout. Re-enable decode before programming the mode. */
+                {
+                    uint32_t addr = 0x80000000u | (0u << 16) | (1u << 11) | (0u << 8) | 0x04u;
+                    uint32_t cmd;
+                    __asm__ __volatile__("outl %0, %%dx" :: "a"(addr), "d"((uint16_t)0xCF8));
+                    __asm__ __volatile__("inl %%dx, %0" : "=a"(cmd) : "d"((uint16_t)0xCFC));
+                    cmd |= 0x3u;                /* I/O space + memory space */
+                    __asm__ __volatile__("outl %0, %%dx" :: "a"(addr), "d"((uint16_t)0xCF8));
+                    __asm__ __volatile__("outl %0, %%dx" :: "a"(cmd), "d"((uint16_t)0xCFC));
+                    klog_printf("WuBuOS: VGA PCI command=%x (io+mem decode on)\n",
+                                (unsigned)cmd);
+                }
                 wubu_dispi_write(4, 0x00);          /* disable */
                 wubu_dispi_write(1, 1024);
                 wubu_dispi_write(2, 768);

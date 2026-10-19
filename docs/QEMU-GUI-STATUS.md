@@ -62,6 +62,34 @@ Also note: the VGA sequencer unlock (0x3C4/5 idx 1, clear 0x20) and CRTC
 protection clear (0x3D4/5 idx 0x11, clear 0x80) were added before the dispi
 sequence and changed nothing.
 
+## Decisive result: QEMU *can* switch — and where it scans out
+
+`src/firmware/vbe_probe.c` is a 3 KB multiboot payload that does nothing but the
+dispi sequence and paints the LFB. Run it directly, with no firmware, no loader,
+no kernel:
+
+```
+gcc -m32 -ffreestanding -nostdlib -fno-pic -no-pie -Wl,-T,build/probe.ld \
+    -o build/vbe_probe.elf vbe_probe.c
+qemu-system-x86_64 -machine q35 -kernel build/vbe_probe.elf -display vnc=127.0.0.1:9
+tools/qemu_vnc_shot.py 127.0.0.1 5909 /tmp/probe.ppm
+```
+
+Result: **1024x768, one colour (0x20C060)**. So QEMU switches modes fine on q35.
+
+Two facts fall out:
+
+1. The payload painted **0xFD000000** and it appeared on screen. That is the
+   scanout LFB.
+2. The EFI firmware reports its LFB at **0xC0000000** (BAR0, 16 MB) and
+   readback confirms the 1024x768x32 mode was accepted there — yet the display
+   stays 640x480.
+
+So the firmware is programming a linear framebuffer at an address the scanout
+does not read. The remaining work is not in the kernel: it is to make the
+firmware publish (or the kernel adopt) the address QEMU actually scans out, or to
+relocate the VGA BAR to 0xC0000000 so the two agree.
+
 ## Ranked next experiments
 
 1. **Minimal reference payload.** One freestanding binary that does nothing but
