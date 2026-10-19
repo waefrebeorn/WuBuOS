@@ -80,3 +80,18 @@ const WubuSettings *wubu_settings_get(void)
     static WubuSettings s;
     return &s;
 }
+
+/* Wallpaper geometry: with no image, scale-to-fill is the whole screen. */
+void wubu_wallpaper_rect(WubuWallpaperMode mode, int img_w, int img_h, int fb_w, int fb_h,
+                         int taskbar_h, int *ox, int *oy, int *ow, int *oh)
+{
+    (void)mode; (void)img_w; (void)img_h; (void)taskbar_h;
+    if (ox) *ox = 0;
+    if (oy) *oy = 0;
+    if (ow) *ow = fb_w;
+    if (oh) *oh = fb_h;
+}
+
+/* The clock object is not linked in (it needs localtime); the taskbar keeps a
+ * fixed height like Win98's default. */
+int taskbar_height_dynamic(void) { return 28; }
