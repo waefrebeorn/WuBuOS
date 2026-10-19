@@ -426,9 +426,26 @@ void kernel_main(void *boot_info) {
      * the kernel may draw there. Do it now that the VMM owns page tables. */
     {
         extern const void *wubu_handoff_ptr(void);
+        extern int wubu_ramfb_init(uint32_t width, uint32_t height);
+        extern uint32_t *wubu_ramfb_buffer(void);
+
+        /* Display discovery order matters. ramfb is machine-independent: QEMU
+         * scans out ordinary RAM we name, with no card mode programming at all,
+         * so it does not care whether the VGA option ROM ran. Try it first and
+         * only fall back to the GOP/VBE path. */
+        int have_ramfb = 0;
+        if (wubu_ramfb_init(1024, 768)) {
+            if (vbe_set_backend(VBE_BACKEND_MALLOC, wubu_ramfb_buffer(),
+                                1024, 768, NULL) == 0) {
+                vbe_clear(0x002060C0u);
+                vbe_swap();
+                have_ramfb = 1;
+                klog_printf("WuBuOS: ramfb backend active, painted 1024x768\n");
+            }
+        }
         const wubu_loader_handoff_t *fd =
             (const wubu_loader_handoff_t *)wubu_handoff_ptr();
-        if (fd && fd->version >= 2 && fd->fb_addr) {
+        if (!have_ramfb && fd && fd->version >= 2 && fd->fb_addr) {
             /* The firmware's VBE mode does not survive the handoff: EFI tears
              * the graphics console down on ExitBootServices and the card drops
              * back to 640x480 text. The kernel is past EFI now, so it sets the

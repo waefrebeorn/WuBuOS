@@ -12,7 +12,7 @@ WUBU_DOS_EMU_OBJS = $(RT)/wubu_dos_emu.o $(RT)/wubu_dos_emu_mem.o $(RT)/wubu_dos
 #   interrupt.o              — core IDT setup + dispatch
 #   interrupt_exceptions.o   — exception handlers (double fault, NMI, page fault, GPF)
 #   interrupt_syscall.o      — syscall registration + management table
-KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/timer_wheel.o $(KERNEL)/vbe.o \
+KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/timer_wheel.o $(KERNEL)/vbe.o $(KERNEL)/ramfb.o \
               $(KERNEL)/input.o $(KERNEL)/interrupt.o $(KERNEL)/interrupt_pic.o \
               $(KERNEL)/interrupt_apic.o $(KERNEL)/interrupt_pit.o \
               $(KERNEL)/interrupt_syscall.o $(KERNEL)/interrupt_timer.o \
