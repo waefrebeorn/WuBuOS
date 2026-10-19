@@ -350,6 +350,16 @@ int styxfs_stat_cb(styx_server_t *base, uint32_t fid, styx_dir_t *dir) {
     dir->type = 0; dir->dev = 0;
     dir->qid = f->qid;
 
+    /* A mount point is a boundary: advertise QTMOUNT with a qid that differs
+     * from the underlying node, so a client can detect it without walking. */
+    for (styxfs_mount_t *m = srv->mounts; m; m = m->next) {
+        if (strcmp(m->path, fid_path(f)) == 0) {
+            dir->qid.type |= STX_QTMOUNT;
+            dir->qid.path  = 0x8000000000000000ull | (uint64_t)(unsigned char)m->path[1];
+            break;
+        }
+    }
+
     if (f->qid.type == STX_QTDIR) {
         dir->mode = 040755; dir->length = 0;
     } else {

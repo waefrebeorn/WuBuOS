@@ -119,6 +119,29 @@ int main(void)
     if (sz2 == STYX_MAX_DATA + 2 && tail[0] == 'X' && tail[1] == 'X') PASS();
     else FAIL("append did not append");
 
+    TEST("Tstat on a mount point advertises QTMOUNT");
+    styxfs_mount(&srv, "/n/kv", "/var/kv", 0);
+    if (arm_fid(&srv, 5) != 0) { FAIL("fid alloc"); return 1; }
+    styx_fid_t *fm = styx_fid_lookup(&srv.base, 5);
+    if (fm) {
+        free(fm->file_state);
+        fm->file_state = strdup("/n/kv");
+        fm->qid.type = STX_QTDIR;
+        fm->qid.path = 7;
+    }
+    styx_dir_t sd;
+    int rc5 = styxfs_stat_cb(&srv.base, 5, &sd);
+    printf("[type=0x%02x path=0x%llx] ", sd.qid.type, (unsigned long long)sd.qid.path);
+    if (rc5 == 0 && (sd.qid.type & STX_QTMOUNT) && sd.qid.path != 7) PASS();
+    else FAIL("mount point not advertised");
+
+    TEST("Tstat on a non-mount path has no QTMOUNT");
+    if (arm_fid(&srv, 6) != 0) { FAIL("fid alloc"); return 1; }
+    styx_dir_t nd;
+    int rc6 = styxfs_stat_cb(&srv.base, 6, &nd);
+    if (rc6 == 0 && (nd.qid.type & STX_QTMOUNT) == 0) PASS();
+    else FAIL("plain node advertised as a mount");
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
