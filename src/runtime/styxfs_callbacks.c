@@ -152,6 +152,36 @@ int styxfs_open_cb(styx_server_t *base, uint32_t fid, int mode,
     return 0;
 }
 
+/* -- Dir record encoding ----------------------------------- */
+
+uint32_t styxfs_dir_encode(uint8_t *out, size_t cap, const char *name,
+                           int is_dir, uint64_t qidpath) {
+    if (!out || !name) return 0;
+    size_t nl = strlen(name);
+    if (nl > 255) return 0;
+
+    uint32_t need = (uint32_t)(41 + 2 + nl + 3 * (2 + 4));
+    if (need > cap) return 0;
+
+    uint32_t now = (uint32_t)time(NULL);
+    styx_put16(out + 0, (uint16_t)(need - 2));   /* size, excluding itself */
+    styx_put16(out + 2, 0);                      /* type */
+    styx_put32(out + 4, 0);                      /* dev  */
+    out[8] = (uint8_t)(is_dir ? STX_QTDIR : STX_QTFILE);
+    styx_put32(out + 9, 1);                      /* qid.version */
+    styx_put64(out + 13, qidpath);               /* qid.path    */
+    styx_put32(out + 21, (uint32_t)(is_dir ? 040755 : 0100644));
+    styx_put32(out + 25, now);                   /* atime */
+    styx_put32(out + 29, now);                   /* mtime */
+    styx_put64(out + 33, 0);                     /* length */
+    uint32_t o = 41;
+    o += styx_putstr(out + o, name);
+    o += styx_putstr(out + o, "wubu");
+    o += styx_putstr(out + o, "wubu");
+    o += styx_putstr(out + o, "wubu");
+    return o;
+}
+
 /* -- Create ------------------------------------------------ */
 
 int styxfs_create_cb(styx_server_t *base, uint32_t fid, const char *name,
@@ -213,109 +243,58 @@ int styxfs_read_cb(styx_server_t *base, uint32_t fid,
     /* Directory: list immediate children (mount points + host entries). */
     if (f->qid.type == STX_QTDIR) {
         uint32_t buf_off = 0;
-        uint64_t dir_offset = offset;
-        int entry_count = 0;
 
-        /* Mount points that are direct children of `path`. */
-        for (styxfs_mount_t *m = srv->mounts; m; m = m->next) {
-            size_t plen = strlen(path);
+        /* One ordered entry list: mount children, then host entries, deduped. */
+        char names[256][64];
+        int  isdir[256];
+        int  n = 0;
+
+        size_t plen = strlen(path);
+        for (styxfs_mount_t *m = srv->mounts; m && n < 256; m = m->next) {
             if (strncmp(m->path, path, plen) != 0) continue;
-            if (path[0] == '/' && m->path[0] == '/' && plen == 1) {
-                /* Root: every mount is a direct child. */
-            } else if (m->path[plen] != '/') {
-                continue;
-            }
-            const char *rest = m->path + plen + (plen == 1 ? 0 : 0);
-            /* child name = first component after path */
+            if (!(plen == 1 && path[0] == '/') && m->path[plen] != '/') continue;
             const char *name = m->path + (plen == 1 ? 1 : plen + 1);
             const char *slash = strchr(name, '/');
-            size_t name_len = slash ? (size_t)(slash - name) : strlen(name);
-            if (name_len == 0) continue;
-
-            /* skip entries before offset (simple paging) */
-            if ((uint64_t)entry_count < dir_offset) { entry_count++; continue; }
-
-            uint32_t need = (uint32_t)(2 + 4 + 8 + 4 + 4 + 4 + 8 + 2 + name_len);
-            if (buf_off + need > count) break;
-
-            styx_dir_t dir;
-            memset(&dir, 0, sizeof(dir));
-            dir.type = 0; dir.dev = 0;
-            dir.qid.type = STX_QTDIR; dir.qid.version = 1;
-            dir.qid.path = (uint64_t)(entry_count + 100);
-            dir.mode = 040755;
-            dir.atime = (uint32_t)time(NULL);
-            dir.mtime = dir.atime;
-            dir.length = 0;
-            memcpy(dir.name, name, name_len); dir.name[name_len] = '\0';
-            strcpy(dir.uid, "wubu"); strcpy(dir.gid, "wubu"); strcpy(dir.muid, "wubu");
-
-            uint32_t dir_size_pos = buf_off;
-            buf_off += 2;
-            uint32_t dir_start = buf_off;
-            styx_put16(data + buf_off, dir.type); buf_off += 2;
-            styx_put32(data + buf_off, dir.dev); buf_off += 4;
-            data[buf_off++] = dir.qid.type;
-            styx_put32(data + buf_off, dir.qid.version); buf_off += 4;
-            styx_put64(data + buf_off, dir.qid.path); buf_off += 8;
-            styx_put32(data + buf_off, dir.mode); buf_off += 4;
-            styx_put32(data + buf_off, dir.atime); buf_off += 4;
-            styx_put32(data + buf_off, dir.mtime); buf_off += 4;
-            styx_put64(data + buf_off, dir.length); buf_off += 8;
-            buf_off += styx_putstr(data + buf_off, dir.name);
-            buf_off += styx_putstr(data + buf_off, dir.uid);
-            buf_off += styx_putstr(data + buf_off, dir.gid);
-            buf_off += styx_putstr(data + buf_off, dir.muid);
-            uint32_t dir_total = buf_off - dir_start;
-            styx_put16(data + dir_size_pos, (uint16_t)dir_total);
-            entry_count++;
+            size_t nl = slash ? (size_t)(slash - name) : strlen(name);
+            if (!nl || nl >= 64) continue;
+            memcpy(names[n], name, nl);
+            names[n][nl] = '\0';
+            isdir[n] = 1;
+            n++;
         }
 
-        /* Host directory entries (if `path` maps to a real host dir). */
         char host[STYXFS_MAX_PATH];
         styxfs_path_to_host(srv, path, host, sizeof(host));
         DIR *d = opendir(host);
         if (d) {
             struct dirent *de;
-            while ((de = readdir(d)) != NULL) {
+            while ((de = readdir(d)) != NULL && n < 256) {
                 if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0)
                     continue;
-                if ((uint64_t)entry_count < dir_offset) { entry_count++; continue; }
-                uint32_t need = (uint32_t)(2 + 4 + 8 + 4 + 4 + 4 + 8 + 2 + strlen(de->d_name));
-                if (buf_off + need > count) break;
-                styx_dir_t dir;
-                memset(&dir, 0, sizeof(dir));
-                dir.type = 0; dir.dev = 0;
-                dir.qid.type = (de->d_type == DT_DIR) ? STX_QTDIR : STX_QTFILE;
-                dir.qid.version = 1;
-                dir.qid.path = (uint64_t)(entry_count + 100);
-                dir.mode = (de->d_type == DT_DIR) ? 040755 : 0100644;
-                dir.atime = (uint32_t)time(NULL);
-                dir.mtime = dir.atime;
-                dir.length = 0;
-                strncpy(dir.name, de->d_name, sizeof(dir.name) - 1);
-                strcpy(dir.uid, "wubu"); strcpy(dir.gid, "wubu"); strcpy(dir.muid, "wubu");
-                uint32_t dir_size_pos = buf_off;
-                buf_off += 2;
-                uint32_t dir_start = buf_off;
-                styx_put16(data + buf_off, dir.type); buf_off += 2;
-                styx_put32(data + buf_off, dir.dev); buf_off += 4;
-                data[buf_off++] = dir.qid.type;
-                styx_put32(data + buf_off, dir.qid.version); buf_off += 4;
-                styx_put64(data + buf_off, dir.qid.path); buf_off += 8;
-                styx_put32(data + buf_off, dir.mode); buf_off += 4;
-                styx_put32(data + buf_off, dir.atime); buf_off += 4;
-                styx_put32(data + buf_off, dir.mtime); buf_off += 4;
-                styx_put64(data + buf_off, dir.length); buf_off += 8;
-                buf_off += styx_putstr(data + buf_off, dir.name);
-                buf_off += styx_putstr(data + buf_off, dir.uid);
-                buf_off += styx_putstr(data + buf_off, dir.gid);
-                buf_off += styx_putstr(data + buf_off, dir.muid);
-                uint32_t dir_total = buf_off - dir_start;
-                styx_put16(data + dir_size_pos, (uint16_t)dir_total);
-                entry_count++;
+                int dup = 0;
+                for (int i = 0; i < n; i++)
+                    if (strcmp(names[i], de->d_name) == 0) { dup = 1; break; }
+                if (dup) continue;
+                snprintf(names[n], sizeof names[n], "%s", de->d_name);
+                isdir[n] = (de->d_type == DT_DIR);
+                n++;
             }
             closedir(d);
+        }
+
+        /* Page by BYTE offset, as 9P defines it. The encoder returns each
+         * record's exact length, so nread always lands on a record boundary. */
+        uint64_t rec_start = 0;
+        for (int i = 0; i < n; i++) {
+            uint8_t rec[512];
+            uint32_t rl = styxfs_dir_encode(rec, sizeof rec, names[i], isdir[i],
+                                            (uint64_t)(i + 100));
+            if (!rl) break;
+            if (rec_start + rl <= offset) { rec_start += rl; continue; }
+            if (buf_off + rl > count) break;
+            memcpy(data + buf_off, rec, rl);
+            buf_off += rl;
+            rec_start += rl;
         }
 
         *nread = buf_off;

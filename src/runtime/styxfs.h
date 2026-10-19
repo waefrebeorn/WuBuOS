@@ -126,6 +126,12 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
 int styxfs_open_cb(styx_server_t *base, uint32_t fid, int mode,
                     styx_qid_t *qid);
 
+/* Encode one 9P Dir record. Returns bytes written (0 on overflow). The record
+ * starts with its own size field, so a client advancing by the returned count
+ * lands on the next record. */
+uint32_t styxfs_dir_encode(uint8_t *out, size_t cap, const char *name,
+                           int is_dir, uint64_t qidpath);
+
 /* Create: called on Tcreate */
 int styxfs_create_cb(styx_server_t *base, uint32_t fid, const char *name,
                       uint32_t perm, int mode, styx_qid_t *qid);

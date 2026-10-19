@@ -184,6 +184,66 @@ int main(void)
     if (rcd == 0 && rcds == 0 && (dd.mode & 0040000)) PASS();
     else FAIL("created directory not reported as a directory");
 
+    TEST("one Dir record is 64 bytes for a 3-char name, size field 62");
+    uint8_t rec[128];
+    uint32_t rl = styxfs_dir_encode(rec, sizeof rec, "e00", 0, 100);
+    uint16_t szf = (uint16_t)(rec[0] | (rec[1] << 8));
+    printf("[len=%u size=%u] ", rl, szf);
+    if (rl == 64 && szf == 62 && rl == (uint32_t)szf + 2) PASS();
+    else FAIL("record length or size field wrong");
+
+    TEST("record name field parses at offset 41");
+    uint16_t nl = (uint16_t)(rec[41] | (rec[42] << 8));
+    printf("[namelen=%u name=%.3s] ", nl, rec + 43);
+    if (nl == 3 && memcmp(rec + 43, "e00", 3) == 0) PASS();
+    else FAIL("name not where the layout says");
+
+    TEST("12 entries page in 3 reads of 4 records by byte offset");
+    const char *sc2 = "/home/wubu/.hermes/profiles/mind-palace/cache/scratch";
+    char d12[512];
+    snprintf(d12, sizeof d12, "%s/d12", sc2);
+    mkdir(d12, 0755);
+    for (int i = 0; i < 12; i++) {
+        char fp[600];
+        snprintf(fp, sizeof fp, "%s/e%02d", d12, i);
+        int fd = open(fp, O_CREAT | O_TRUNC | O_WRONLY, 0644);
+        if (fd >= 0) close(fd);
+    }
+    if (arm_fid(&srv, 8) != 0) { FAIL("fid alloc"); return 1; }
+    styx_fid_t *f8 = styx_fid_lookup(&srv.base, 8);
+    if (f8) { free(f8->file_state); f8->file_state = strdup("/wubu/d12"); f8->qid.type = STX_QTDIR; }
+
+    uint8_t pg[512];
+    uint64_t boff = 0;
+    int reads = 0, names_seen = 0, uniq = 0;
+    char seen[32][64];
+    while (reads < 8) {
+        uint32_t nr = 0;
+        int r = styxfs_read_cb(&srv.base, 8, boff, 256, pg, &nr);
+        if (r != 0 || nr == 0) break;
+        reads++;
+        boff += nr;
+        uint32_t o = 0;
+        while (o + 43 <= nr) {
+            uint16_t recsz = (uint16_t)(pg[o] | (pg[o + 1] << 8));
+            uint32_t rt = 2u + recsz;
+            if (rt < 43 || o + rt > nr) break;
+            uint16_t nl = (uint16_t)(pg[o + 41] | (pg[o + 42] << 8));
+            if (43u + nl <= rt) {
+                char nm[64];
+                memcpy(nm, pg + o + 43, nl); nm[nl] = 0;
+                int dup = 0;
+                for (int k = 0; k < uniq; k++) if (!strcmp(seen[k], nm)) dup = 1;
+                if (!dup && uniq < 32) snprintf(seen[uniq++], 64, "%s", nm);
+                names_seen++;
+            }
+            o += rt;
+        }
+    }
+    printf("[reads=%d names=%d uniq=%d] ", reads, names_seen, uniq);
+    if (reads == 3 && names_seen == 12 && uniq == 12) PASS();
+    else FAIL("paging did not cover 12 unique entries in 3 reads");
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
