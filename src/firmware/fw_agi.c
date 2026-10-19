@@ -126,6 +126,22 @@ int fw_agi_attest_and_boot(const char *path) {
     }
     if (img) fw_free_pages(img, (uint32_t)((sz + 4095) / 4096));
 
+    /* Publish the GOP framebuffer for the loader at a fixed low address
+     * (0x90050). The chainloader is freestanding and cannot link the EFI GOP
+     * code, so this block is the handoff between them. */
+    {
+        uint32_t *fbm = NULL, fw_w = 0, fw_h = 0, fw_p = 0;
+        if (fw_gop_fb(&fbm, &fw_w, &fw_h, &fw_p) == 0 && fbm) {
+            volatile uint64_t *loc = (volatile uint64_t *)(uintptr_t)0x90050;
+            loc[0] = (uint64_t)(uintptr_t)fbm;
+            loc[1] = ((uint64_t)fw_w << 32) | (uint64_t)fw_h;
+            *(volatile uint32_t *)(uintptr_t)0x90060 = fw_p;
+            *(volatile uint32_t *)(uintptr_t)0x90064 = 0xFBFBFBFBu;
+            fw_printf("[agi] GOP fb 0x%llx %ux%u pitch %u published\n",
+                      (unsigned long long)(uintptr_t)fbm, fw_w, fw_h, fw_p);
+        }
+    }
+
     /* Hand control. fw_boot_image -> fw_bs_start_image, never returns on success. */
     fw_boot_image(h);
     return 0;

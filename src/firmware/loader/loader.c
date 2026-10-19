@@ -277,10 +277,22 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     wubu_loader_handoff_t *hd = (wubu_loader_handoff_t *)(uintptr_t)WUBU_HANDOFF_ADDR;
     l_memset(hd, 0, sizeof(*hd));
     hd->magic       = WUBU_LOADER_HANDOFF_MAGIC;
-    hd->version     = 1;
+    hd->version     = 2;
     hd->kernel_size = (uint32_t)elf_size;
     l_memcpy(hd->kernel_sha256, kdigest, 32);
     hd->attest_addr = att ? WUBU_ATTEST_ADDR : 0;
+    {
+        /* The firmware publishes the GOP framebuffer at 0x90050; the
+         * chainloader cannot link the EFI GOP code itself. */
+        if (*(volatile uint32_t *)(uintptr_t)0x90064 == 0xFBFBFBFBu) {
+            uint64_t addr = *(volatile uint64_t *)(uintptr_t)0x90050;
+            uint64_t wh   = *(volatile uint64_t *)(uintptr_t)0x90058;
+            hd->fb_addr   = addr;
+            hd->fb_width  = (uint32_t)(wh >> 32);
+            hd->fb_height = (uint32_t)(wh & 0xFFFFFFFFu);
+            hd->fb_pitch  = *(volatile uint32_t *)(uintptr_t)0x90060;
+        }
+    }
     if (att) {
         fw_agi_attest_t *dst = (fw_agi_attest_t *)(uintptr_t)WUBU_ATTEST_ADDR;
         l_memcpy(dst, att, sizeof(*dst));

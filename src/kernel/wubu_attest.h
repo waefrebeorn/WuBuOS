@@ -52,7 +52,11 @@ typedef struct {
     uint32_t version;          /* 1 */
     uint32_t kernel_size;      /* bytes of the loaded kernel image (ELF) */
     uint8_t  kernel_sha256[WUBU_AGI_PCR_SZ]; /* SHA-256 of the kernel ELF */
-    uint64_t attest_addr;      /* physical addr of wubu_attest_t, or 0 */
+    uint64_t attest_addr;
+    uint64_t fb_addr;          /* v2: firmware GOP framebuffer, or 0 */
+    uint32_t fb_width;
+    uint32_t fb_height;
+    uint32_t fb_pitch;      /* physical addr of wubu_attest_t, or 0 */
 } wubu_loader_handoff_t;
 
 /* Fixed low-physical handoff addresses (documented in kernel.ld too). */

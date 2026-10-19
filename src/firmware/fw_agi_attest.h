@@ -45,7 +45,13 @@ typedef struct {
     uint32_t kernel_size;      /* bytes of the loaded kernel image (ELF) */
     uint8_t  kernel_sha256[WUBU_AGI_PCR_SZ]; /* SHA-256 of the kernel ELF */
     uint64_t attest_addr;      /* physical addr of fw_agi_attest_t, or 0 */
-} wubu_loader_handoff_t;       /* sizeof == 56 */
+    /* v2: the linear framebuffer the firmware programmed, so the kernel draws
+     * where a human can see it instead of into a private heap surface. */
+    uint64_t fb_addr;          /* physical address, or 0 */
+    uint32_t fb_width;
+    uint32_t fb_height;
+    uint32_t fb_pitch;         /* bytes per scan line */
+} wubu_loader_handoff_t;       /* sizeof == 80 */
 
 /* Fixed low-physical handoff addresses (identity-mapped for the kernel). */
 #define WUBU_HANDOFF_PTR_ADDR  0x90040ULL

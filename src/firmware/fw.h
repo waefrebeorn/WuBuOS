@@ -159,3 +159,6 @@ void fw_shell_run(void);
 int fw_boot_run(void);
 
 #endif /* WUBUFW_FW_H */
+
+/* GOP linear framebuffer accessor (fw_gop.c). */
+int fw_gop_fb(uint32_t **fb, uint32_t *w, uint32_t *h, uint32_t *pitch);

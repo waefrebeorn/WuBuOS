@@ -159,3 +159,14 @@ int fw_gop_init(fw_pci_dev *d) {
     if (h) fw_efi_install(h, &gEfiGraphicsOutputProtocolGuid, &g_gop);
     return 0;
 }
+
+/* Accessor: the linear framebuffer the firmware programmed, if any. */
+int fw_gop_fb(uint32_t **fb, uint32_t *w, uint32_t *h, uint32_t *pitch)
+{
+    if (!g_have_gop || !g_fb) return -1;
+    if (fb)    *fb = g_fb;
+    if (w)     *w = g_gop_info.HorizontalResolution;
+    if (h)     *h = g_gop_info.VerticalResolution;
+    if (pitch) *pitch = g_gop_info.PixelsPerScanLine * 4u;
+    return 0;
+}

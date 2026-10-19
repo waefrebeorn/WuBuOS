@@ -14,7 +14,16 @@
  * instead of silently misreading the table. */
 _Static_assert(sizeof(wubu_attest_t) == 288,
                "wubu_attest_t layout drift vs fw_agi_attest_t");
-_Static_assert(sizeof(wubu_loader_handoff_t) == 56,
+/* The loader stores the handoff's physical address at WUBU_HANDOFF_PTR_ADDR;
+ * identity mapping means the physical address is directly readable. */
+const void *wubu_handoff_ptr(void)
+{
+    uint64_t addr = *(volatile uint64_t *)(uintptr_t)WUBU_HANDOFF_PTR_ADDR;
+    if (!addr) return (const void *)0;
+    return (const void *)(uintptr_t)addr;
+}
+
+_Static_assert(sizeof(wubu_loader_handoff_t) == 80,
                "wubu_loader_handoff_t layout drift vs WuBuFW loader");
 
 static wubu_attest_t g_att;

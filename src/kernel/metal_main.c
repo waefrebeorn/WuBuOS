@@ -340,10 +340,39 @@ void kernel_main(void *boot_info) {
         /* Map framebuffer - already identity-mapped by Limine */
         /* VBE init will use this directly */
     }
+    /* Under our own firmware there is no Limine: the GOP framebuffer handed
+     * over at 0x91000 is the only surface a human can actually see. Attach it
+     * as the VBE backend so kernel drawing lands on screen. */
+    extern const void *wubu_handoff_ptr(void);
+    {
+        const wubu_loader_handoff_t *hd =
+            (const wubu_loader_handoff_t *)wubu_handoff_ptr();
+        if (hd) klog_printf("WuBuOS: handoff v%u fb=0x%llx %ux%u\n",
+                            hd->version, (unsigned long long)hd->fb_addr,
+                            hd->fb_width, hd->fb_height);
+        if (!g_limine_ok && hd && hd->version >= 2 && hd->fb_addr) {
+            fb_width  = (int)hd->fb_width;
+            fb_height = (int)hd->fb_height;
+        }
+    }
+
     if (vbe_init(fb_width, fb_height) != 0) {
         klog_printf("WuBuOS: VBE init failed (non-fatal under emulator)\n");
     } else {
         klog_printf("WuBuOS: VBE initialized (%ux%u)\n", fb_width, fb_height);
+        {
+            const wubu_loader_handoff_t *hd2 =
+                (const wubu_loader_handoff_t *)wubu_handoff_ptr();
+            if (!g_limine_ok && hd2 && hd2->version >= 2 && hd2->fb_addr) {
+                if (vbe_set_backend(VBE_BACKEND_MALLOC, (uint32_t *)(uintptr_t)hd2->fb_addr,
+                                    (int)hd2->fb_width, (int)hd2->fb_height, NULL) == 0)
+                    klog_printf("WuBuOS: GOP framebuffer attached @0x%llx (%ux%u pitch %u)\n",
+                                (unsigned long long)hd2->fb_addr,
+                                hd2->fb_width, hd2->fb_height, hd2->fb_pitch);
+                else
+                    klog_printf("WuBuOS: GOP framebuffer attach FAILED\n");
+            }
+        }
     }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
 
