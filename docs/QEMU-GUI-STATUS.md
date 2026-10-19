@@ -152,3 +152,32 @@ a card that never leaves text mode.
 before the scanout question is settled would produce a window manager drawing
 into memory nobody displays — the exact failure mode this document exists to
 prevent.
+
+
+## The other blocker, found by inspection (2026-10-19)
+
+Even with a working display there is no GUI in the kernel to draw. `mk/objects.mk`
+defines `GUI_OBJS` (~120 objects: `dosgui_wm`, wm render/input, start menu,
+explorer, terminal, control panel, wallpaper, Bonzi) but **`KERNEL_OBJS` contains
+zero GUI objects**:
+
+```
+sed -n '15,22p' mk/objects.mk | tr ' ' '\n' | grep -c 'gui/'   -> 0
+```
+
+So the kernel binary links no window manager at all; `dosgui_wm_init` is reachable
+only from the hosted build and tests. The GUI is a hosted subsystem that was never
+linked bare-metal.
+
+That means "self-sufficient GUI" needs two independent pieces of work:
+
+1. **display** (blocked: firmware VGA handoff never reaches scanout; the
+   multiboot payload proves the kernel-side drawing is fine), and
+2. **a kernel GUI link target** — a `GUI_KERNEL_OBJS` subset with the hosted-only
+   dependencies (`wubu_ui_hosted`, `wubu_wayland_stub`, proton/dxvk, pkgmgr)
+   either stubbed or excluded, plus a `dosgui_wm_init(1024,768)` call after the
+   framebuffer is attached.
+
+Doing (2) without (1) is verifiable only in memory (window count and pixel
+statistics logged by the kernel), which is still worth doing: it proves the WM
+runs bare-metal before the screen works.
