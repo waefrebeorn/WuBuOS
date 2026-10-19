@@ -251,6 +251,46 @@ static void test_sleep_accuracy(void) {
     mem_shutdown();
 }
 
+
+static void test_cap_authority(void) {
+    printf("\n[Capability Ceiling]\n");
+    mem_init(2 * 1024 * 1024);
+    tasking_init();
+
+    enum { R = 1, W = 2, X = 4, D = 8 };
+
+    CTask *parent = task_create("par", NULL, NULL, 0, PRIO_NORMAL);
+    CTask *child  = task_create("chi", NULL, NULL, 0, PRIO_NORMAL);
+    if (!parent || !child) { FAIL("create failed"); return; }
+
+    TEST("parent holds READ|WRITE under a READ|WRITE|DERIVE ceiling");
+    task_set_authority(parent, R | W, R | W | D);
+    if (parent->caps == (R | W) && parent->ceiling == (R | W | D)) PASS();
+    else FAIL("authority not set");
+
+    TEST("holding more than the ceiling is clipped at set time");
+    task_set_authority(child, R | W | X, R | W);
+    if (child->caps == (R | W)) PASS(); else FAIL("ceiling not enforced on set");
+
+    TEST("fork inherits the parent's rights within its ceiling");
+    task_fork_authority(parent, child);
+    if (child->caps == (R | W) && child->ceiling == (R | W | D)) PASS();
+    else FAIL("fork inheritance wrong");
+
+    TEST("exec gets only what the image asks for");
+    task_exec_authority(child, R);
+    if (child->caps == R) PASS(); else FAIL("exec kept rights it did not ask for");
+
+    TEST("exec cannot exceed the ceiling");
+    task_exec_authority(child, R | W | X);
+    if (child->caps == (R | W)) PASS(); else FAIL("exec exceeded ceiling");
+
+    task_destroy(parent);
+    task_destroy(child);
+    tasking_shutdown();
+    mem_shutdown();
+}
+
 int main(void) {
     printf("+==============================+\n");
     printf("|  My Seed Tasking Test Suite  |\n");
@@ -264,6 +304,7 @@ int main(void) {
 
     test_eevdf_fairness();
     test_sleep_accuracy();
+    test_cap_authority();
 
     printf("\n==============================\n");
     if (failures == 0)

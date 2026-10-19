@@ -83,6 +83,12 @@ struct CTask {
     uint64_t       deadline;         /* EEVDF: virtual deadline        */
     uint32_t       weight;           /* EEVDF: scheduling weight       */
     uint32_t       slice;            /* EEVDF: slice in ticks          */
+
+    /* Capability authority: `caps` is what this task holds, `ceiling` is the
+     * most it may ever hold. A fork inherits the intersection; an exec may only
+     * narrow to what the image asks for. */
+    uint64_t       caps;
+    uint64_t       ceiling;
     uint64_t       stall_ticks;      /* Watchdog (gap A4): ticks since
                                       * the last task_yield -- a task
                                       * past the limit is stuck.       */
@@ -176,6 +182,11 @@ void task_account_tick(CTask *t);
 
 /* Sleep arming and expiry, split out so tests drive the same code the timer
  * path uses (task_sleep = arm + yield; the tick = wake). */
+/* Capability authority across fork/exec (see wubu_cap rights bits). */
+void task_set_authority(CTask *t, uint64_t caps, uint64_t ceiling);
+int  task_fork_authority(const CTask *parent, CTask *child);
+int  task_exec_authority(CTask *t, uint64_t image_caps);
+
 void task_arm_sleep(CTask *t, uint64_t ticks);
 void task_wake_expired(void);
 

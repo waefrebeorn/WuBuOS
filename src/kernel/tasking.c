@@ -451,6 +451,32 @@ void task_arm_sleep(CTask *t, uint64_t ticks) {
     tw_add(&g_sleep_wheel, (uint64_t)(unsigned)t->task_id, t->wake_tick);
 }
 
+/* -- Capability authority ------------------------------------------------ */
+
+void task_set_authority(CTask *t, uint64_t caps, uint64_t ceiling)
+{
+    if (!t) return;
+    t->ceiling = ceiling;
+    t->caps = caps & ceiling;      /* holding more than the ceiling is not a state */
+}
+
+int task_fork_authority(const CTask *parent, CTask *child)
+{
+    if (!parent || !child) return -1;
+    /* The child can never exceed the parent, and never exceeds its own ceiling. */
+    child->ceiling = parent->ceiling;
+    child->caps    = parent->caps & parent->ceiling;
+    return 0;
+}
+
+int task_exec_authority(CTask *t, uint64_t image_caps)
+{
+    if (!t) return -1;
+    /* Exec replaces the image: only what the image asks for, still bounded. */
+    t->caps = image_caps & t->ceiling;
+    return 0;
+}
+
 void task_test_advance_clock(void) { g_tick++; }
 
 void task_wake_expired(void) {
