@@ -291,6 +291,9 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
             hd->fb_width  = (uint32_t)(wh >> 32);
             hd->fb_height = (uint32_t)(wh & 0xFFFFFFFFu);
             hd->fb_pitch  = *(volatile uint32_t *)(uintptr_t)0x90060;
+            out(u"[wubufw-loader] fb handoff: addr="); outhex((uint32_t)addr);
+            out(u" w="); outhex(hd->fb_width); out(u" h="); outhex(hd->fb_height);
+            out(u"\r\n");
         }
     }
     if (att) {

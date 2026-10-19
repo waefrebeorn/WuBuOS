@@ -347,10 +347,11 @@ void kernel_main(void *boot_info) {
     {
         const wubu_loader_handoff_t *hd =
             (const wubu_loader_handoff_t *)wubu_handoff_ptr();
-        if (hd) klog_printf("WuBuOS: handoff v%u fb=0x%llx %ux%u\n",
-                            hd->version, (unsigned long long)hd->fb_addr,
-                            hd->fb_width, hd->fb_height);
-        if (!g_limine_ok && hd && hd->version >= 2 && hd->fb_addr) {
+        if (hd) klog_printf("WuBuOS: handoff v%u fb=0x%x w=%u h=%u pitch=%u\n",
+                            (unsigned)hd->version, (unsigned long)hd->fb_addr,
+                            (unsigned)hd->fb_width, (unsigned)hd->fb_height,
+                            (unsigned)hd->fb_pitch);
+        if (hd && hd->version >= 2 && hd->fb_addr) {
             fb_width  = (int)hd->fb_width;
             fb_height = (int)hd->fb_height;
         }
@@ -360,19 +361,6 @@ void kernel_main(void *boot_info) {
         klog_printf("WuBuOS: VBE init failed (non-fatal under emulator)\n");
     } else {
         klog_printf("WuBuOS: VBE initialized (%ux%u)\n", fb_width, fb_height);
-        {
-            const wubu_loader_handoff_t *hd2 =
-                (const wubu_loader_handoff_t *)wubu_handoff_ptr();
-            if (!g_limine_ok && hd2 && hd2->version >= 2 && hd2->fb_addr) {
-                if (vbe_set_backend(VBE_BACKEND_MALLOC, (uint32_t *)(uintptr_t)hd2->fb_addr,
-                                    (int)hd2->fb_width, (int)hd2->fb_height, NULL) == 0)
-                    klog_printf("WuBuOS: GOP framebuffer attached @0x%llx (%ux%u pitch %u)\n",
-                                (unsigned long long)hd2->fb_addr,
-                                hd2->fb_width, hd2->fb_height, hd2->fb_pitch);
-                else
-                    klog_printf("WuBuOS: GOP framebuffer attach FAILED\n");
-            }
-        }
     }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
 
@@ -425,6 +413,31 @@ void kernel_main(void *boot_info) {
     wubu_theme_init();
     wubu_hid_init();
     wubu_vmm_init();
+
+    /* The firmware's GOP framebuffer lives at a physical address outside the
+     * low-1GB identity window (QEMU: 0xC0000000), so it must be mapped before
+     * the kernel may draw there. Do it now that the VMM owns page tables. */
+    {
+        extern const void *wubu_handoff_ptr(void);
+        const wubu_loader_handoff_t *fd =
+            (const wubu_loader_handoff_t *)wubu_handoff_ptr();
+        if (fd && fd->version >= 2 && fd->fb_addr) {
+            uint64_t base = fd->fb_addr & ~0xFFFull;
+            uint64_t end  = fd->fb_addr + (uint64_t)fd->fb_pitch * fd->fb_height;
+            int mapped = 0;
+            for (uint64_t a = base; a < end; a += 4096)
+                if (wubu_vmm_map_page(a, a, 3) == 0) mapped++;
+            if (vbe_set_backend(VBE_BACKEND_MALLOC, (uint32_t *)(uintptr_t)fd->fb_addr,
+                                (int)fd->fb_width, (int)fd->fb_height, NULL) == 0) {
+                vbe_clear(0x002060C0u);
+                vbe_swap();
+                klog_printf("WuBuOS: GOP fb mapped (%d pages) + painted %ux%u\n",
+                            mapped, (unsigned)fd->fb_width, (unsigned)fd->fb_height);
+            } else {
+                klog_printf("WuBuOS: GOP fb map=%d but attach FAILED\n", mapped);
+            }
+        }
+    }
     /* interrupt-driven serial RX (gap E2): UART IRQ -> wubu_sync FIFO */
     extern void wubu_serial_init(void);
     wubu_serial_init();
