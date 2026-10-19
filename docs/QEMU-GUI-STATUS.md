@@ -90,6 +90,35 @@ does not read. The remaining work is not in the kernel: it is to make the
 firmware publish (or the kernel adopt) the address QEMU actually scans out, or to
 relocate the VGA BAR to 0xC0000000 so the two agree.
 
+## Working hypothesis (2026-10-19, after the probe)
+
+SeaBIOS **executes the VGA option ROM** before handing control to a payload; our
+UEFI firmware never does. A card whose option ROM has not run will accept dispi
+register writes and echo them back, but its sequencer/CRTC/DAC state is still the
+POST default, so no graphics scanout is produced.
+
+That single difference explains every observation so far:
+
+| observation | explanation under this hypothesis |
+|---|---|
+| probe on any machine works | SeaBIOS ran the option ROM |
+| firmware readback says 1024x768 | dispi registers are just registers |
+| painting 0xC0000000 or 0xFD000000 from the OS shows nothing | card never entered graphics scanout |
+| EFI text shell displays fine | text mode needs no option ROM |
+
+## Two ways forward (a design decision, not a bug fix)
+
+1. **Execute the VGA option ROM in WuBuFW.** Locate the ROM BAR on 0:1.0, map it,
+   and run its init entry (needs a real-mode/V86 shim in 64-bit EFI, or a
+   minimal reimplementation of the mode-set sequence). Large, but it makes the
+   firmware a proper graphics owner.
+2. **Boot the kernel multiboot-style** with SeaBIOS running the option ROM, and
+   keep WuBuFW as an alternate platform. Fastest path to a visible GUI, at the
+   cost of the "our own firmware" chain.
+
+Until one is chosen, GUI work stays blocked: the window manager would draw into
+a card that never leaves text mode.
+
 ## Ranked next experiments
 
 1. **Minimal reference payload.** One freestanding binary that does nothing but
