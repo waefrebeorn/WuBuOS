@@ -174,6 +174,11 @@ void tasking_shutdown(void);
 /* EEVDF accounting for one tick (the timer path calls this). */
 void task_account_tick(CTask *t);
 
+/* Sleep arming and expiry, split out so tests drive the same code the timer
+ * path uses (task_sleep = arm + yield; the tick = wake). */
+void task_arm_sleep(CTask *t, uint64_t ticks);
+void task_wake_expired(void);
+
  /* Timer tick handler  --  called from interrupt context (IRQ0/PIT).
   * Increments global tick, wakes sleeping tasks, triggers preemption. */
  void task_timer_tick(void);

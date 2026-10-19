@@ -215,6 +215,42 @@ static void test_eevdf_fairness(void) {
     mem_shutdown();
 }
 
+
+static void test_sleep_accuracy(void) {
+    printf("\n[Sleep Accuracy]\n");
+    mem_init(2 * 1024 * 1024);
+    tasking_init();
+
+    TEST("sleep wakes within 1 tick across a 2^32 span");
+    const uint64_t targets[] = {5, 64, 4096, 1000000ull, 4294967296ull};
+    const int n = (int)(sizeof targets / sizeof targets[0]);
+    int bad = 0;
+    for (int i = 0; i < n; i++) {
+        CTask *t = task_create("slp", NULL, NULL, 0, PRIO_NORMAL);
+        if (!t) { bad++; continue; }
+        uint64_t base = task_tick_count();
+        task_arm_sleep(t, targets[i]);
+        uint64_t want = base + targets[i];
+        uint64_t guard = 0;
+        while (t->state == TASK_SLEEPING && guard < targets[i] + 8) {
+            task_wake_expired();
+            guard++;
+            /* emulate the tick's clock advance */
+            extern void task_test_advance_clock(void);
+            task_test_advance_clock();
+        }
+        long long err = (long long)task_tick_count() - (long long)want;
+        if (err < 0) err = -err;
+        printf("    sleep %llu -> err %lld after %llu iterations\n", (unsigned long long)targets[i], err, (unsigned long long)guard);
+        if (err > 1) bad++;
+        task_destroy(t);
+    }
+    if (bad == 0) PASS(); else FAIL("wake outside 1 tick");
+
+    tasking_shutdown();
+    mem_shutdown();
+}
+
 int main(void) {
     printf("+==============================+\n");
     printf("|  My Seed Tasking Test Suite  |\n");
@@ -227,6 +263,7 @@ int main(void) {
     test_task_ids();
 
     test_eevdf_fairness();
+    test_sleep_accuracy();
 
     printf("\n==============================\n");
     if (failures == 0)

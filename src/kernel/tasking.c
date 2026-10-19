@@ -298,24 +298,7 @@ void task_timer_tick(void) {
         for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
     }
 
-    /* Wake sleeping tasks whose time has come: one wheel advance per tick,
-     * independent of how many tasks are asleep. */
-    {
-        uint64_t due[16];
-        int n = tw_advance(&g_sleep_wheel, due, 16);
-        for (int i = 0; i < n; i++) {
-            int id = (int)due[i];
-            CTask *t = g_head;
-            if (!t) break;
-            do {
-                if (t->task_id == id && t->state == TASK_SLEEPING) {
-                    t->state = TASK_READY;
-                    break;
-                }
-                t = t->next;
-            } while (t != g_head);
-        }
-    }
+    task_wake_expired();
 
     /* Preemptive scheduling: if enabled, yield current task */
     if (g_preemptive) {
@@ -461,13 +444,35 @@ void task_unblock(CTask *task) {
         task->state = TASK_READY;
 }
 
+void task_arm_sleep(CTask *t, uint64_t ticks) {
+    if (!t) return;
+    t->state = TASK_SLEEPING;
+    t->wake_tick = g_tick + ticks;
+    tw_add(&g_sleep_wheel, (uint64_t)(unsigned)t->task_id, t->wake_tick);
+}
+
+void task_test_advance_clock(void) { g_tick++; }
+
+void task_wake_expired(void) {
+    uint64_t due[16];
+    int n = tw_advance(&g_sleep_wheel, due, 16);
+    for (int i = 0; i < n; i++) {
+        int id = (int)due[i];
+        CTask *t = g_head;
+        if (!t) break;
+        do {
+            if (t->task_id == id && t->state == TASK_SLEEPING) {
+                t->state = TASK_READY;
+                break;
+            }
+            t = t->next;
+        } while (t != g_head);
+    }
+}
+
 void task_sleep(uint64_t ticks) {
     if (g_current) {
-        g_current->state = TASK_SLEEPING;
-        g_current->wake_tick = g_tick + ticks;
-        /* The wheel handles the whole 1..2^32 range; the old g_next_wake scan
-         * could not, and walked every task on every tick. */
-        tw_add(&g_sleep_wheel, (uint64_t)(unsigned)g_current->task_id, g_current->wake_tick);
+        task_arm_sleep(g_current, ticks);
         task_yield();
     }
 }
