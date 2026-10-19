@@ -206,6 +206,13 @@ extern void wubu_shell_run(void *arg);
  * Kernel Main  --  Bare Metal Entry
  * ================================================================= */
 
+/* Bochs/QEMU VBE dispi: index port 0x1CE, data port 0x1CF. */
+static void wubu_dispi_write(uint16_t idx, uint16_t val)
+{
+    __asm__ __volatile__("outw %0, %%dx" :: "a"(idx), "d"((uint16_t)0x1CE));
+    __asm__ __volatile__("outw %0, %%dx" :: "a"(val), "d"((uint16_t)0x1CF));
+}
+
 void kernel_main(void *boot_info) {
     (void)boot_info;  /* Parsed from registers in crt0.S */
     /* Gap J6: the image-alignment boot check FIRST (before anything
@@ -422,6 +429,23 @@ void kernel_main(void *boot_info) {
         const wubu_loader_handoff_t *fd =
             (const wubu_loader_handoff_t *)wubu_handoff_ptr();
         if (fd && fd->version >= 2 && fd->fb_addr) {
+            /* The firmware's VBE mode does not survive the handoff: EFI tears
+             * the graphics console down on ExitBootServices and the card drops
+             * back to 640x480 text. The kernel is past EFI now, so it sets the
+             * mode itself before drawing. */
+            {
+                wubu_dispi_write(4, 0x00);          /* disable */
+                wubu_dispi_write(1, 1024);
+                wubu_dispi_write(2, 768);
+                wubu_dispi_write(3, 32);
+                wubu_dispi_write(6, 1024);
+                wubu_dispi_write(7, 768);
+                wubu_dispi_write(4, 0x41);          /* enable + LFB */
+                uint16_t en;
+                __asm__ __volatile__("outw %0, %%dx" :: "a"((uint16_t)4), "d"((uint16_t)0x1CE));
+                __asm__ __volatile__("inw %%dx, %0" : "=a"(en) : "d"((uint16_t)0x1CF));
+                klog_printf("WuBuOS: kernel set VBE mode, enable=%x\n", (unsigned)en);
+            }
             uint64_t base = fd->fb_addr & ~0xFFFull;
             uint64_t end  = fd->fb_addr + (uint64_t)fd->fb_pitch * fd->fb_height;
             int mapped = 0;

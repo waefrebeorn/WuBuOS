@@ -31,11 +31,27 @@ static EFI_GRAPHICS_OUTPUT_MODE_INFORMATION g_gop_info;
 static uint32_t *g_fb;
 static int g_have_gop;
 
+/* Two dispi windows exist: the legacy I/O ports (0x1CE/0x1CF) and a MMIO
+ * window inside the VGA's BAR2 at +0x500 (index) / +0x502 (data). QEMU accepts
+ * writes on both and echoes them back on both, so "readback == written" does
+ * not tell you which one the display actually follows. Try MMIO first: on
+ * q35/std-VGA it is the window that drives the scanout. */
+static volatile uint8_t *g_dispi_mmio;
+
 static void vbe_write(uint16_t idx, uint16_t val) {
+    if (g_dispi_mmio) {
+        *(volatile uint16_t *)(g_dispi_mmio + 0x500) = idx;
+        *(volatile uint16_t *)(g_dispi_mmio + 0x502) = val;
+        return;
+    }
     outw(VBE_DISPI_INDEX, idx);
     outw(VBE_DISPI_DATA, val);
 }
 static uint16_t vbe_read(uint16_t idx) {
+    if (g_dispi_mmio) {
+        *(volatile uint16_t *)(g_dispi_mmio + 0x500) = idx;
+        return *(volatile uint16_t *)(g_dispi_mmio + 0x502);
+    }
     outw(VBE_DISPI_INDEX, idx);
     return inw(VBE_DISPI_DATA);
 }
@@ -109,6 +125,14 @@ EFI_GRAPHICS_OUTPUT_PROTOCOL *fw_gop_get(void) { return g_have_gop ? &g_gop : NU
 int fw_gop_init(fw_pci_dev *d) {
     if (!d) return -1;
 
+    /* BAR2 (non-prefetchable MMIO, >= 0x600) carries the dispi window. */
+    for (int i = 0; i < 6; i++)
+        if (!d->bar[i].is_io && d->bar[i].addr && d->bar[i].size >= 0x600 &&
+            d->bar[i].size <= 0x10000) {
+            g_dispi_mmio = (volatile uint8_t *)(uintptr_t)d->bar[i].addr;
+            break;
+        }
+
     uint64_t fb = 0;
     for (int i = 0; i < 6; i++)
         if (!d->bar[i].is_io && d->bar[i].size >= 0x100000) { fb = d->bar[i].addr; break; }
@@ -116,6 +140,14 @@ int fw_gop_init(fw_pci_dev *d) {
 
     /* Bochs VBE: present only when the ID register reads back a 0xB0Cx id. */
     uint16_t id = vbe_read(VBE_INDEX_ID);
+    /* If the MMIO window does not answer with a Bochs id, this card only has
+     * the legacy port window -- fall back rather than driving inert registers. */
+    if (g_dispi_mmio && (id & 0xFFF0) != 0xB0C0) {
+        fw_printf("[gop] MMIO dispi id=%x invalid, using ports\n", id);
+        g_dispi_mmio = 0;
+        id = vbe_read(VBE_INDEX_ID);
+    }
+    fw_printf("[gop] dispi via %s, id=%x\n", g_dispi_mmio ? "MMIO" : "ports", id);
     if ((id & 0xFFF0) != 0xB0C0) return -1;
 
     const uint16_t W = 1024, H = 768, BPP = 32;
