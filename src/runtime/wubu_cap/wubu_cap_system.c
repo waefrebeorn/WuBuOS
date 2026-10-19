@@ -43,7 +43,7 @@ int wubu_cap_system_install_to_pid(wubu_cap_handle_table_t *t, int32_t pid,
     if (!root || root->deleted) return WUBU_CAP_EREVOKED;
     /* rights must be a subset of the bootcap's rights */
     if ((rights_subset & ~root->rights) != 0) return WUBU_CAP_EPERM;
-    int32_t aud[] = { pid };
+    int32_t aud[WUBU_CAP_AUDIENCE_MAX] = { pid, -1, -1, -1, -1, -1, -1, -1 };
     wubu_cap_token_t sub;
     int r = wubu_cap_derive(
         wubu_cap_token_pack(root->generation, g_bootcap_idx, 0),

@@ -534,6 +534,51 @@ static void test_render_null_safe(void) {
 
 /* -- Main -- */
 
+/* -- Collision layers (WORLDSIM #567) -- */
+
+static void test_collision_layers(void) {
+    ws_collision_t b[4] = {
+        { .layer = 1u << 0, .collides = 1u << 1 },  /* A: group 1, hits group 2 */
+        { .layer = 1u << 1, .collides = 1u << 0 },  /* B: group 2, hits group 1 */
+        { .layer = 1u << 2, .collides = 0 },        /* C: group 3, hits nothing */
+        { .layer = 1u << 1, .collides = 0 },        /* D: group 2, hits nothing */
+    };
+
+    TEST("collision: 16-layer filter returns only mutual pairs");
+    int a[8], c[8];
+    int n = ws_query_layer_pairs(b, 4, a, c, 8);
+    CHECK(n == 1 && a[0] == 0 && c[0] == 1, "only A-B is mutually allowed");
+
+    TEST("collision: mask-0 body collides with nothing");
+    int hits_c = 0;
+    for (int i = 0; i < n; i++) if (a[i] == 2 || c[i] == 2) hits_c++;
+    CHECK(hits_c == 0, "group-3 body with collides=0 never pairs");
+
+    TEST("collision: filter change applies on the next query");
+    b[3].collides = (1u << 0) | (1u << 1);          /* D now accepts 1 and 2 */
+    n = ws_query_layer_pairs(b, 4, a, c, 8);
+    int has_ad = 0;
+    for (int i = 0; i < n; i++)
+        if (a[i] == 0 && c[i] == 3) has_ad = 1;
+    CHECK(n == 2 && has_ad, "A-D appears immediately after the mask change");
+
+    TEST("collision: layer-15 bit is a normal category");
+    ws_collision_t hi[2] = {
+        { .layer = 1u << 15, .collides = 1u << 14 },
+        { .layer = 1u << 14, .collides = 1u << 15 },
+    };
+    CHECK(ws_query_layer_pairs(hi, 2, a, c, 8) == 1, "bits 15/14 pair correctly");
+
+    TEST("collision: query respects max_pairs and NULL");
+    ws_collision_t all[3] = {
+        { .layer = 1, .collides = 0xFFFF }, { .layer = 2, .collides = 0xFFFF },
+        { .layer = 4, .collides = 0xFFFF },
+    };
+    CHECK(ws_query_layer_pairs(all, 3, a, c, 1) == 1, "caps at max_pairs");
+    CHECK(ws_query_layer_pairs(NULL, 3, a, c, 8) == 0, "NULL bodies -> 0");
+    CHECK(ws_collision_allows(NULL, &all[0]) == 0, "NULL side -> no collision");
+}
+
 int main(void) {
     printf("\n=== WorldSim Test Suite ===\n\n");
     
@@ -565,6 +610,7 @@ int main(void) {
     test_physics_terrain_collide();
     test_physics_body_collide();
     test_physics_energy_conserved();
+    test_collision_layers();
     
     printf("\n[Simulation]\n");
     test_sim_init();

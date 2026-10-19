@@ -12,6 +12,7 @@
  * rights-bitmap checks, and derive/revoke semantics are preserved exactly.
  */
 #include "wubu_cap_internal.h"
+#include "wubu_cap_audit.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -113,16 +114,32 @@ wubu_cap_object_t *wubu_cap_resolve(int32_t calling_pid, wubu_cap_token_t tok,
 
     wubu_cap_object_t *obj = g_wubu_cap_ptrs[idx];
     if (!obj) return NULL;
-    if (obj->deleted) return NULL;
-    if (obj->generation != wubu_cap_token_gen(tok)) return NULL;
+    if (obj->deleted) {
+        wubu_cap_audit_record(calling_pid, obj->kind, required_rights,
+                              WUBU_CAP_CHECK_REVOKED);
+        return NULL;
+    }
+    if (obj->generation != wubu_cap_token_gen(tok)) {
+        wubu_cap_audit_record(calling_pid, obj->kind, required_rights,
+                              WUBU_CAP_CHECK_REVOKED);
+        return NULL;
+    }
 
     if (!(obj->flags & WUBU_CAP_FLAG_PUBLIC)) {
         bool in_audience = false;
         for (uint8_t i = 0; i < obj->audience_count && i < WUBU_CAP_AUDIENCE_MAX; i++)
             if (obj->audience_set[i] == calling_pid) { in_audience = true; break; }
-        if (!in_audience) return NULL;
+        if (!in_audience) {
+            wubu_cap_audit_record(calling_pid, obj->kind, required_rights,
+                                  WUBU_CAP_CHECK_AUDIENCE);
+            return NULL;
+        }
     }
-    if ((obj->rights & required_rights) != required_rights) return NULL;
+    if ((obj->rights & required_rights) != required_rights) {
+        wubu_cap_audit_record(calling_pid, obj->kind, required_rights,
+                              WUBU_CAP_CHECK_RIGHTS);
+        return NULL;
+    }
     return obj;
 }
 

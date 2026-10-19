@@ -29,6 +29,23 @@ typedef struct {
     uint32_t seed;
 } ws_terrain_t;
 
+/* -- Collision layers (WORLDSIM #567) -- */
+#define WS_COLLISION_LAYERS 16
+
+typedef struct {
+    uint16_t layer;     /* this body's category: one bit of 16 */
+    uint16_t collides;  /* layers this body accepts; 0 = collides with nothing */
+} ws_collision_t;
+
+/* 1 when both sides accept each other: (a.collides & b.layer) && (b.collides & a.layer). */
+int ws_collision_allows(const ws_collision_t *a, const ws_collision_t *b);
+
+/* Filtered pair query. Writes indices of allowed pairs into out_a/out_b and
+ * returns the count (never more than max_pairs). Reads the masks at call time,
+ * so a filter change takes effect on the very next query. */
+int ws_query_layer_pairs(const ws_collision_t *bodies, int n,
+                         int *out_a, int *out_b, int max_pairs);
+
 void ws_terrain_generate(ws_terrain_t *t, uint32_t seed);
 void ws_terrain_erode(ws_terrain_t *t, int iterations);
 uint8_t ws_terrain_height(const ws_terrain_t *t, int x, int y);

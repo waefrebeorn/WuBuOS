@@ -1701,6 +1701,7 @@ test_cap: $(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o \
           $(RT)/wubu_cap/wubu_cap_test.c
 	$(CC) -O2 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(RT) -I$(RT)/wubu_cap -pthread \
 		$(RT)/wubu_cap/wubu_cap_object.c $(RT)/wubu_cap/wubu_cap_token.c \
+		$(RT)/wubu_cap/wubu_cap_audit.c \
 		$(RT)/wubu_cap/wubu_cap_revoke.c $(RT)/wubu_cap/wubu_cap_handle.c \
 		$(RT)/wubu_cap/wubu_cap_system.c \
 		$(RT)/wubu_cap/wubu_cap_test.c -o $(RT)/wubu_cap_test -lpthread

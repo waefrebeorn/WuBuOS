@@ -87,6 +87,9 @@
 /* ---- Registry limits ---- */
 #define WUBU_CAP_OBJECT_CAPACITY  65536u
 #define WUBU_CAP_AUDIENCE_MAX     8
+/* CONTRACT: every audience array passed to wubu_cap_create()/wubu_cap_derive()
+ * must hold WUBU_CAP_AUDIENCE_MAX entries terminated by WUBU_PID_NONE (-1).
+ * The functions have no length argument, so a shorter array is an overread. */
 #define WUBU_CAP_IDX_NULL         0u
 #define WUBU_CAP_IDX_NONE         0xFFFFFFFFu
 

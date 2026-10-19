@@ -8,6 +8,7 @@
  */
 #include "wubu_cap.h"
 #include "wubu_cap_internal.h"
+#include "wubu_cap_audit.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -21,7 +22,7 @@ int main(void) {
     wubu_cap_init();
 
     /* --- Create a file cap owned by pid 100 (also authorizing pid 200) --- */
-    int32_t owner[2] = {100, 200};
+    int32_t owner[WUBU_CAP_AUDIENCE_MAX] = {100, 200, -1, -1, -1, -1, -1, -1};
     wubu_cap_token_t root;
     int r = wubu_cap_create(WUBU_CAP_KIND_FILE,
                             WUBU_RIGHT_READ | WUBU_RIGHT_WRITE | WUBU_RIGHT_DERIVE,
@@ -39,7 +40,7 @@ int main(void) {
           "foreign pid denied (audience check)");
 
     /* --- Derive a read-only sub-token for pid 200 (in parent's audience) --- */
-    int32_t aud[1] = {200};
+    int32_t aud[WUBU_CAP_AUDIENCE_MAX] = {200, -1, -1, -1, -1, -1, -1, -1};
     wubu_cap_token_t sub;
     r = wubu_cap_derive(root, 100, WUBU_RIGHT_READ, aud, 0, &sub);
     CHECK(r > 0, "derive read-only sub-token ok");
@@ -145,6 +146,43 @@ int main(void) {
     CHECK(wubu_cap_system_resolve(st, 200, WUBU_RIGHT_INSPECT) == WUBU_CAP_EPERM,
           "post-bootcap-revoke: pid 200 SYSTEM denied (cascade)");
     wubu_cap_handle_table_free(st);
+
+    /* --- SECURITY #910: every failed resolve leaves a record ---------- */
+    wubu_cap_audit_reset();
+    wubu_cap_token_t audtok;
+    int32_t audset[WUBU_CAP_AUDIENCE_MAX] = {100, -1, -1, -1, -1, -1, -1, -1};
+    CHECK(wubu_cap_create(WUBU_CAP_KIND_FILE, WUBU_RIGHT_READ, audset, 0, 0, 100,
+                          WUBU_CAP_IDX_NONE, &audtok) > 0,
+          "audit: create an audience-restricted cap");
+
+    int den_aud = 0, den_rights = 0;
+    for (int i = 0; i < 50; i++)
+        if (wubu_cap_resolve(999, audtok, WUBU_RIGHT_READ) == NULL) den_aud++;
+    for (int i = 0; i < 50; i++)
+        if (wubu_cap_resolve(100, audtok, WUBU_RIGHT_WRITE) == NULL) den_rights++;
+
+    CHECK(den_aud == 50 && den_rights == 50,
+          "audit: 50 audience + 50 rights denials all refused");
+    CHECK(wubu_cap_audit_count() == 100,
+          "audit: ring holds exactly 100 denial records");
+
+    const wubu_cap_audit_rec_t *r0 = wubu_cap_audit_at(0);
+    CHECK(r0 && r0->pid == 999 && r0->kind == WUBU_CAP_KIND_FILE &&
+          r0->requested == WUBU_RIGHT_READ && r0->check == WUBU_CAP_CHECK_AUDIENCE,
+          "audit: record carries pid, kind, requested rights, failing check");
+
+    const wubu_cap_audit_rec_t *r50 = wubu_cap_audit_at(50);
+    CHECK(r50 && r50->pid == 100 &&
+          r50->requested == WUBU_RIGHT_WRITE && r50->check == WUBU_CAP_CHECK_RIGHTS,
+          "audit: rights denial recorded with its own check code");
+
+    CHECK(wubu_cap_audit_total() == 100, "audit: total counter matches");
+
+    for (int i = 0; i < 300; i++)
+        wubu_cap_audit_record(7, WUBU_CAP_KIND_FILE, 0, WUBU_CAP_CHECK_RIGHTS);
+    CHECK(wubu_cap_audit_count() == WUBU_CAP_AUDIT_CAPACITY &&
+          wubu_cap_audit_total() == 400,
+          "audit: ring wraps at capacity, total keeps counting");
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_pass + g_fail);
     return g_fail > 0 ? 1 : 0;

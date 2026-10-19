@@ -130,3 +130,29 @@ void ws_physics_step(ws_world_t *w, const ws_terrain_t *t, const ws_physics_conf
         }
     }
 }
+
+/* -- Collision layers (WORLDSIM #567) ---------------------------------- */
+
+int ws_collision_allows(const ws_collision_t *a, const ws_collision_t *b)
+{
+    if (!a || !b) return 0;
+    return (a->collides & b->layer) && (b->collides & a->layer);
+}
+
+int ws_query_layer_pairs(const ws_collision_t *bodies, int n,
+                         int *out_a, int *out_b, int max_pairs)
+{
+    if (!bodies || n <= 0 || !out_a || !out_b || max_pairs <= 0) return 0;
+
+    int k = 0;
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (!ws_collision_allows(&bodies[i], &bodies[j])) continue;
+            if (k >= max_pairs) return k;
+            out_a[k] = i;
+            out_b[k] = j;
+            k++;
+        }
+    }
+    return k;
+}
