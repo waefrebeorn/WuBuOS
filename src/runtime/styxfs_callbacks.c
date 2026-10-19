@@ -381,6 +381,26 @@ int styxfs_clunk_cb(styx_server_t *base, uint32_t fid) {
     return 0;   /* base styx_serve frees the fid slot itself */
 }
 
+int styxfs_rename_cb(styx_server_t *base, uint32_t oldfid, const char *oldname,
+                     uint32_t newfid, const char *newname) {
+    styxfs_server_t *srv = styxfs_get_server(base);
+    if (srv->readonly) { errno = EACCES; return -1; }
+    if (!oldname || !newname) { errno = EINVAL; return -1; }
+
+    styx_fid_t *of = styx_fid_lookup(base, oldfid);
+    styx_fid_t *nf = styx_fid_lookup(base, newfid);
+    if (!of || !nf) return -1;
+
+    char oh[STYXFS_MAX_PATH], nh[STYXFS_MAX_PATH], op[STYXFS_MAX_PATH], np[STYXFS_MAX_PATH];
+    styxfs_path_to_host(srv, fid_path(of), oh, sizeof(oh));
+    styxfs_path_to_host(srv, fid_path(nf), nh, sizeof(nh));
+    snprintf(op, sizeof(op), "%s/%s", oh, oldname);
+    snprintf(np, sizeof(np), "%s/%s", nh, newname);
+
+    if (rename(op, np) != 0) return -1;
+    return 0;
+}
+
 int styxfs_remove_cb(styx_server_t *base, uint32_t fid) {
     styxfs_server_t *srv = styxfs_get_server(base);
     styx_fid_t *f = styx_fid_lookup(base, fid);

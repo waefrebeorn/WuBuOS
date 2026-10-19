@@ -293,6 +293,29 @@ int main(void)
     int l4 = styxfs_lock_cb(&srv.base, 31, 200, 0, 100, STYX_LOCK_WRLCK);
     if (u1 == 0 && l4 == 0) PASS(); else FAIL("unlock did not free the range");
 
+    TEST("Trenameat moves a file and Tremove unlinks it");
+    const char *sc3 = "/home/wubu/.hermes/profiles/mind-palace/cache/scratch";
+    char r1[512], r2[512];
+    snprintf(r1, sizeof r1, "%s/rn_old", sc3);
+    snprintf(r2, sizeof r2, "%s/rn_new", sc3);
+    unlink(r2);
+    { int fd = open(r1, O_CREAT | O_TRUNC | O_WRONLY, 0644); if (fd >= 0) close(fd); }
+    styxfs_attach_cb(&srv.base, 40, "/wubu");
+    styxfs_attach_cb(&srv.base, 41, "/wubu");
+    int rc_rn = styxfs_rename_cb(&srv.base, 40, "rn_old", 41, "rn_new");
+    int moved = (access(r2, F_OK) == 0 && access(r1, F_OK) != 0);
+    printf("[rc=%d moved=%d] ", rc_rn, moved);
+    if (rc_rn == 0 && moved) PASS(); else FAIL("rename did not move the file");
+
+    TEST("Tremove unlinks the renamed file");
+    char nsp[64];
+    snprintf(nsp, sizeof nsp, "/wubu/rn_new");
+    styx_fid_t *fr = styx_fid_lookup(&srv.base, 41);
+    if (fr) { free(fr->file_state); fr->file_state = strdup(nsp); }
+    int rc_rm = styxfs_remove_cb(&srv.base, 41);
+    printf("[rc=%d gone=%d] ", rc_rm, access(r2, F_OK) != 0);
+    if (rc_rm == 0 && access(r2, F_OK) != 0) PASS(); else FAIL("remove did not unlink");
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

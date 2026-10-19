@@ -161,6 +161,10 @@ int styxfs_clunk_cb(styx_server_t *base, uint32_t fid);
 /* Remove: called on Tremove */
 int styxfs_remove_cb(styx_server_t *base, uint32_t fid);
 
+/* 9P2000.L Trenameat: rename oldname under oldfid to newname under newfid. */
+int styxfs_rename_cb(styx_server_t *base, uint32_t oldfid, const char *oldname,
+                     uint32_t newfid, const char *newname);
+
 /* Stat: called on Tstat */
 int styxfs_stat_cb(styx_server_t *base, uint32_t fid,
                     styx_dir_t *dir);
