@@ -97,6 +97,23 @@ int wubu_apic_enable(void)
     lapic_write(LAPIC_TIMER_DIV, 0x3);                /* divide by 16 */
     lapic_write(LAPIC_TIMER_INIT_CNT, 625000);        /* ~100 Hz @ 1 GHz bus */
 
+    /* Loud-failure doctrine: prove the LAPIC MMIO window actually lands.
+     * A clobbered 0xFEE00000 mapping would swallow every EOI write
+     * SILENTLY (no #PF -- the write just hits RAM) and the tick chain
+     * would die with no diagnostic. Read back what we just wrote; a
+     * mismatch means the window is dead and boot must refuse loudly. */
+    {
+        uint32_t lvt = lapic_read(LAPIC_LVT_TIMER);
+        if (lvt != (32u | (0x1u << 17))) {
+            if (klog_printf)
+                klog_printf("WuBuOS PANIC: LAPIC MMIO window dead "
+                            "(LVT readback=%x, want %x) -- tick chain "
+                            "cannot run\n",
+                            (unsigned)lvt, (unsigned)(32u | (0x1u << 17)));
+            return -1;
+        }
+    }
+
     if (klog_printf) {
         uint32_t svr = lapic_read(LAPIC_SVR);
         klog_printf("WuBuOS: APIC enabled, LAPIC timer @ ~100 Hz (svr=%x)\n",

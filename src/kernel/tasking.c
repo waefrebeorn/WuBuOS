@@ -50,9 +50,34 @@ static void task_trampoline(void);
  * (50s at 100 Hz) is declared stuck. */
 #define WATCHDOG_STALL_LIMIT 5000ull
 
+/* -- Scheduler critical sections -------------------------------------
+ * The timer IRQ preempts (task_timer_tick may task_switch_asm away), so
+ * every scheduler mutation -- task-ring surgery, the state/g_current
+ * bookkeeping around a switch, the reaper's unlink -- must be atomic
+ * against the IRQ. An unguarded task_insert was the boot race: a tick
+ * landing mid-insert made task_schedule_next walk a half-linked ring and
+ * switch into a half-primed task -- sometimes a clean boot, sometimes
+ * every task silently dead while interrupt context (the AGI cycle) kept
+ * running. Same discipline as task_yield's cli, but save/restore so a
+ * section entered with IF=0 (IRQ path, cli'd caller) is not force-sti'd. */
+#if WUBU_BAREMETAL
+static inline uint64_t task_irq_save(void) {
+    uint64_t f;
+    __asm__ volatile("pushfq; popq %0; cli" : "=r"(f) :: "memory");
+    return f;
+}
+static inline void task_irq_restore(uint64_t f) {
+    if (f & 0x200ull) __asm__ volatile("sti" ::: "memory");
+}
+#else
+static inline uint64_t task_irq_save(void)  { return 0; }
+static inline void task_irq_restore(uint64_t f) { (void)f; }
+#endif
+
 /* -- Helpers ------------------------------------------------------ */
 
 static void task_insert(CTask *t) {
+    uint64_t f = task_irq_save();
     if (!g_head) {
         g_head = t;
         t->next = t;
@@ -63,9 +88,11 @@ static void task_insert(CTask *t) {
         g_head->prev->next = t;
         g_head->prev = t;
     }
+    task_irq_restore(f);
 }
 
 static void task_remove(CTask *t) {
+    uint64_t f = task_irq_save();
     if (t->next == t) {
         g_head = NULL;
     } else {
@@ -75,6 +102,7 @@ static void task_remove(CTask *t) {
     }
     t->next = NULL;
     t->prev = NULL;
+    task_irq_restore(f);
 }
 
 /* -- Accessors ---------------------------------------------------- */
@@ -348,51 +376,25 @@ void task_timer_tick(void) {
 
     task_wake_expired();
 
-    /* Preemptive scheduling: if enabled, yield current task */
-    if (g_preemptive) {
-        CTask *next = task_schedule_next();
-        if (next && next != g_current) {
-            /* Stack canary tripwire: a clobbered base = a stack grew
-             * past its allocation. The trip is the corruption's smoking
-             * gun; the panic ring (last 4KB of klog) is dumped via the
-             * serial -- the corruptor's last messages are the evidence. */
-            if (!task_stack_ok(g_current) || !task_stack_ok(next)) {
-                extern int klog_printf(const char *, ...);
-                klog_printf("STACK CANARY TRIPPED: cur=%s next=%s\n",
-                            g_current ? g_current->name : "?",
-                            next ? next->name : "?");
-                for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
-            }
-            /* Switch context  --  save old, restore new */
-            g_current->state = TASK_READY;
-            next->state = TASK_RUNNING;
-            CTask *old = g_current;
-            g_current = next;
-
-#if WUBU_BAREMETAL
-            /* Real metal: assembly context switch */
-            task_switch_asm(&old->context, &next->context);
-#else
-            /* Hosted: use setjmp/longjmp via task_yield logic */
-            TaskJmp *old_jmp = (TaskJmp *)old->user_data;
-            TaskJmp *new_jmp = (TaskJmp *)next->user_data;
-
-            if (setjmp(old_jmp->jb) == 0) {
-                old_jmp->primed = 1;
-                if (new_jmp->primed) {
-                    longjmp(new_jmp->jb, 1);
-                } else {
-                    new_jmp->primed = 1;
-                    if (next->entry) next->entry(next->entry_arg);
-                    task_destroy(next);
-                }
-            }
-#endif
-        }
-    }
+    /* Preemption is DEFERRED to task edges (the proven structure). The
+     * timer IRQ never context-switches. An in-IRQ task_switch_asm
+     * abandons the interrupt frame mid-flight, and a first-run switch
+     * lands in the trampoline INSIDE the abandoned handler -- where the
+     * trampoline's sti (correct for yield-entry) re-arms nested
+     * interrupt delivery while a frame is still open: runaway nesting
+     * until the ISR depth guard trips (measured: tick froze at 4 with
+     * overruns=2; with no sti every first-run task froze IF at 0
+     * instead -- the design is unfixable in both directions). So the
+     * tick only does bookkeeping + wake. Rotation happens at the task
+     * edges -- every task reaches a yield (console REPL, supervisor
+     * loop, task_sleep, the idle hlt+wake), and task_yield performs the
+     * canary check + the switch with interrupts off. A spinner that
+     * never yields is caught by the stall watchdog above. */
 }
 
-/* Enable/disable preemptive scheduling */
+/* Enable/disable preemptive scheduling. With the in-IRQ switch retired
+ * this gates the tick's bookkeeping-rotation hint; the switch itself is
+ * cooperative (task_yield), as in xv6's yield-on-edge. */
 void task_preempt_enable(void)  { g_preemptive = 1; }
 void task_preempt_disable(void) { g_preemptive = 0; }
 int  task_preempt_enabled(void) { return g_preemptive; }
@@ -401,10 +403,15 @@ int  task_preempt_enabled(void) { return g_preemptive; }
 
 void task_idle(void *arg) {
     (void)arg;
-    /* Gap D1: the idle task HALTs instead of busy-yielding. This task's
-     * primed rflags has IF set (0x200), so the PIT's vector-32 interrupt
-     * wakes each hlt; there is no sti to shadow. */
-    for (;;) __asm__ __volatile__("hlt");
+    /* Gap D1: the idle task HALTs instead of busy-polling; the trampoline's
+     * sti makes IF=1 real, so each hlt sleeps until an interrupt. After
+     * the wake it YIELDS so a task woken by that very tick actually gets
+     * scheduled -- with the in-IRQ preempt switch retired, an idle that
+     * never yielded would starve every sleeping task. */
+    for (;;) {
+        __asm__ __volatile__("hlt");
+        task_yield();
+    }
 }
 
 /* -- Yield / Block / Unblock / Sleep ------------------------------ */
@@ -417,6 +424,18 @@ void task_idle(void *arg) {
 static void task_trampoline(void)
 {
     CTask *self = g_current;
+    /* The assembly switch lands here with IF=0 (its trailing cli exists to
+     * make the restore tail atomic). The primed context rflags.IF=1 states
+     * the intent: a RUNNING task takes interrupts -- preemption, the
+     * task_sleep wake, and the idle task's hlt all depend on it. The old
+     * code accidentally relied on task_yield's RAW sti to re-enable IF
+     * after the first resume, which papered over this; with a faithful
+     * save/restore there, THIS is the one documented re-entry point that
+     * must sti (tasking_switch.S: "a trampoline entry re-enables IF").
+     * Without it every first-run task freezes the interrupt chain: the
+     * LAPIC keeps counting with IRR 32 pending while the CPU spins with
+     * IF=0 (QEMU ground truth: RFL=0x02, ISR none, IRR 32). */
+    __asm__ volatile("sti" ::: "memory");
     if (self && self->entry) {
         uint64_t sp;
         __asm__ volatile("movq %%rsp, %0" : "=r"(sp));
@@ -436,19 +455,44 @@ void task_yield(void) {
     g_current->stall_ticks = 0;
 
     CTask *old = g_current;
+    uint64_t f = task_irq_save();
     CTask *next = task_schedule_next();
-    if (!next || next == old) return;
+    if (!next || next == old) {
+        task_irq_restore(f);
+        return;
+    }
+
+    /* Stack canary tripwire (moved from the retired in-IRQ preempt
+     * switch): checked at every switch; the panic ring holds the
+     * corruptor's last messages. */
+    if (!task_stack_ok(old) || !task_stack_ok(next)) {
+        extern int klog_printf(const char *, ...);
+        klog_printf("STACK CANARY TRIPPED: cur=%s next=%s\n",
+                    old->name[0] ? old->name : "?",
+                    next->name[0] ? next->name : "?");
+        for (;;) { __asm__ __volatile__("cli"); __asm__ __volatile__("hlt"); }
+    }
 
     old->state = TASK_READY;
     next->state = TASK_RUNNING;
     g_current = next;
     /* The switch must be atomic: a PIT IRQ landing between the RSP restore
      * and the jmp would push the iret frame on the wrong stack and re-enter
-     * the scheduler mid-switch (corruption). The ISR path is already safe
-     * (hardware clears IF on interrupt entry; the iret restores it). */
-    __asm__ volatile("cli");
+     * the scheduler mid-switch (corruption). The pick + bookkeeping +
+     * switch section runs with interrupts off. */
     task_switch_asm(&old->context, &next->context);
-    __asm__ volatile("sti");
+    /* A resumed TASK always runs with interrupts enabled. Kernel tasks are
+     * interrupt-driven (preemption, task_sleep wakes, hlt); with the in-IRQ
+     * context switch retired, no yield ever executes in interrupt context,
+     * so this sti is always in task context. A faithful restore of the
+     * yield-time IF instead PROPAGATES a leaked cli: some driver path clears
+     * IF without restoring, the yielding task's saved flags capture IF=0,
+     * and every task in the rotation inherits deaf-ness forever (measured:
+     * the yield/switch loop spins at full speed with RFL=0x02, tick frozen,
+     * IRR 32 pending undelivered). Force IF=1 on every resume -- the
+     * self-healing invariant -- and let the guards keep their own short
+     * critical sections faithful. */
+    __asm__ volatile("sti" ::: "memory");
     /* Resumed here when the scheduler returns to this task. */
 }
 #else

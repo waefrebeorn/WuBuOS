@@ -221,9 +221,18 @@ void interrupt_unregister(uint8_t irq) {
 
 void interrupt_eoi(uint8_t irq) {
 #ifdef MYSEED_METAL
+    int ioapic_routed = g_ioapic_base && (irq - 32) < g_ioapic_irq_count;
     pic_eoi(irq);
-    /* Also send EOI to I/O APIC if we're using it */
-    if (g_ioapic_base && (irq - 32) < g_ioapic_irq_count) {
+    /* In APIC mode every interrupt the CPU takes was delivered BY the
+     * LAPIC (LINT0 is masked, so the legacy PIC can no longer deliver;
+     * the I/O APIC routing path is unused) -- including the LAPIC TIMER
+     * itself on vector 32, which is NOT I/O-APIC-routed. Without the
+     * LAPIC EOI write the In-Service bit stays set and the LAPIC blocks
+     * that priority class forever: the timer chain died after ONE tick
+     * (uptime froze at ~10ms, task_sleep never woke, the bonzi heartbeat
+     * never fired). lapic_eoi() self-guards when the LAPIC is off, so
+     * early PIC-only ticks are unaffected. */
+    if (ioapic_routed || g_lapic_base) {
         lapic_eoi();
     }
 #else
@@ -289,6 +298,16 @@ void interrupt_set_gate(uint8_t vector, uint64_t handler, uint16_t selector,
 
 void pit_handler(uint8_t irq, void *ctx) {
     (void)irq; (void)ctx;
+    /* STRUCTURAL RULE: EOI FIRST. This handler PREEMPTS: task_timer_tick
+     * may task_switch_asm away, abandoning this frame mid-flight -- and
+     * an abandoned handler that never EOIs leaves the LAPIC vector stuck
+     * IN-SERVICE forever (QEMU ground truth: ISR 32 set, IRR 32 pending,
+     * PPR 0x20 -- the LAPIC then blocks that whole priority class and the
+     * tick chain dies silently: uptime froze, task_sleep never woke, the
+     * watchdog starved, the bonzi heartbeat never fired). The IDT gate is
+     * an interrupt gate, so the handler body runs with IF=0 -- EOI-first
+     * cannot re-enter before iretq. */
+    interrupt_eoi(32);  /* IRQ0 remapped to vector 32 (LAPIC-timer owned) */
     task_timer_tick();
     /* Gap E7: feed the 8254 watchdog every tick (2s window). */
     extern void wdt_feed(uint32_t);
@@ -305,9 +324,10 @@ void pit_handler(uint8_t irq, void *ctx) {
     wubu_agi_kernel_tick(wubu_agi_kernel_global());
     /* Gap E3: drain the serial TX ring whenever the timer fires (the
      * THR is almost always free at 100 Hz, so the ring flushes fast). */
+    /* Remove the trailing EOI: the handler now EOIs FIRST (see
+     * pit_handler) so an abandoned frame can never poison the LAPIC. */
     extern void klog_tx_poll(void);
     klog_tx_poll();
-    interrupt_eoi(32);  /* IRQ0 remapped to vector 32 */
 }
 
 /* ------------------------------------------------------------------

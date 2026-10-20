@@ -66,7 +66,7 @@ int wubu_attest_ingest_handoff(const void *handoff)
     if (!handoff) return -1;
     const wubu_loader_handoff_t *h = (const wubu_loader_handoff_t *)handoff;
     if (h->magic   != WUBU_LOADER_HANDOFF_MAGIC) return -1;
-    if (h->version != 1)                          return -1;
+    if (h->version < 1 || h->version > 2)        return -1;
     memcpy(g_kernel_sha, h->kernel_sha256, sizeof(g_kernel_sha));
     g_kernel_size = h->kernel_size;
     if (h->attest_addr == 0) return -1;   /* no firmware root of trust */

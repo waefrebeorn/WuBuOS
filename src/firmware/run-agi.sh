@@ -59,7 +59,7 @@ build/mkpe -cert build/test_cert.der build/loader.bin build/SIGNED.EFI 3FFF000 "
 echo "=== 5/5 boot ==="
 set +e
 python3 -c "
-import subprocess,time,sys
+import subprocess, time, sys, os, select
 p=subprocess.Popen(['qemu-system-x86_64',
     '-machine','q35','-bios','wubufw.fd',
     '-drive','file=build/agi-esp.img,format=raw,if=none,id=esp',
@@ -70,9 +70,27 @@ time.sleep(1.5)
 for c in b'exit\n':
     p.stdin.write(bytes([c])); p.stdin.flush()
     time.sleep(0.05)
-time.sleep(6)
+# Stream the serial log CONTINUOUSLY: nobody draining the pipe would block
+# the guest's UART writes once the 64KB pipe fills, silently stalling the
+# boot. And WAIT FOR THE PROOF instead of racing a blind sleep: the kernel
+# init + the first 1000ms of supervisor uptime must land inside the window,
+# and boot time varies with machine load -- so poll until the bonzi
+# heartbeat line appears, bounded by a deadline.
+deadline = time.time() + 25
+buf = b''
+while time.time() < deadline:
+    r, _, _ = select.select([p.stdout], [], [], 0.5)
+    if r:
+        chunk = os.read(p.stdout.fileno(), 65536)
+        if not chunk:
+            break
+        buf += chunk
+        sys.stdout.buffer.write(chunk)
+        sys.stdout.flush()
+    if b'bonzi: heartbeat' in buf:
+        break
+time.sleep(0.5)   # let the heartbeat line finish flushing through tee
 p.terminate()
-sys.stdout.buffer.write(p.stdout.read())
 " 2>&1 | tee build/agi-boot.log
 set -e
 
