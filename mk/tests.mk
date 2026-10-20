@@ -4252,3 +4252,10 @@ test_nt_sd: $(RT)/wubu_nt_sd.c $(RT)/wubu_nt_sd_test.c
 		$(RT)/wubu_nt_sd.c $(RT)/wubu_nt_sd_test.c \
 		-o $(RT)/wubu_nt_sd_test
 	$(RT)/wubu_nt_sd_test
+
+# -- Luna caption gradient (ported design from XPlasma-Plus' xp-caption-animation)
+test_caption:
+	@mkdir -p $(KERNEL)
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) \
+		$(GUI)/wubu_caption.c $(GUI)/wubu_caption_test.c -o $(KERNEL)/test_caption
+	$(KERNEL)/test_caption

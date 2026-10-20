@@ -221,12 +221,19 @@ int fw_sb_selftest_pe(void) {
     int ur = read_path_any("\\EFI\\BOOT\\BOOTX64.EFI", &ud, &usz);
 
     uint8_t h[32];
-    if (sr == 0 && fw_sb_verify(sd, (uint32_t)ssz, h) == 0)
-        fw_puts("[sb] signed payload verifies under enforcement: PASS\n");
-    else { fw_puts("[sb] signed payload verify: FAIL\n"); pass = 0; }
-    if (ur == 0 && fw_sb_verify(ud, (uint32_t)usz, h) != 0)
-        fw_puts("[sb] unsigned payload rejected under enforcement: PASS\n");
-    else { fw_puts("[sb] unsigned-payload rejection: FAIL\n"); pass = 0; }
+    /* Absent fixtures are absent, not broken: reporting FAIL here made a
+     * medium without test images look like a policy bypass. Only a payload
+     * that exists and behaves wrongly is a failure. */
+    if (sr != 0 || ur != 0) {
+        fw_puts("[sb] payload self-test: SKIP (no SIGNED.EFI/BOOTX64.EFI on medium)\n");
+    } else {
+        if (fw_sb_verify(sd, (uint32_t)ssz, h) == 0)
+            fw_puts("[sb] signed payload verifies under enforcement: PASS\n");
+        else { fw_puts("[sb] signed payload verify: FAIL\n"); pass = 0; }
+        if (fw_sb_verify(ud, (uint32_t)usz, h) != 0)
+            fw_puts("[sb] unsigned payload rejected under enforcement: PASS\n");
+        else { fw_puts("[sb] unsigned-payload rejection: FAIL\n"); pass = 0; }
+    }
 
     g_setup_mode = was_setup; g_enforce = was_enforce; g_db_n = 0; g_dbx_n = 0;
     if (sd) fw_free_pages(sd, (uint32_t)((ssz + 4095) / 4096));
