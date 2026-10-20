@@ -23,6 +23,9 @@ static uint32_t g_inlen, g_outlen;
 static uint32_t g_created_perm, g_created_mode;
 static char g_created_name[64];
 static int g_create_calls, g_wstat_calls, g_flush_calls;
+static uint32_t g_read_count_seen;
+static char g_read_buf[256];
+static uint64_t g_read_off_seen;
 static styx_dir_t g_wstat_seen;
 
 static void setup(void)
@@ -87,6 +90,33 @@ static int cb_stat(styx_server_t *s, uint32_t fid, styx_dir_t *dir)
     snprintf(dir->uid, sizeof(dir->uid), "wubu");
     snprintf(dir->gid, sizeof(dir->gid), "wubu");
     snprintf(dir->muid, sizeof(dir->muid), "wubu");
+    return 0;
+}
+
+static uint32_t g_write_count_seen;
+static uint64_t g_write_off_seen;
+static char g_write_data[64];
+
+static int cb_write(styx_server_t *s, uint32_t fid, uint64_t offset,
+                    uint32_t count, const uint8_t *data, uint32_t *nwritten)
+{
+    (void)s; (void)fid;
+    g_write_off_seen = offset;
+    g_write_count_seen = count;
+    if (count > sizeof(g_write_data)) count = sizeof(g_write_data);
+    memcpy(g_write_data, data, count);
+    *nwritten = count;
+    return 0;
+}
+
+static int cb_read(styx_server_t *s, uint32_t fid, uint64_t offset,
+                   uint32_t count, uint8_t *data, uint32_t *nread)
+{
+    (void)s; (void)fid;
+    g_read_off_seen = offset;
+    g_read_count_seen = count;      /* what the DISPATCH passed us, post-cap */
+    memset(data, 'A', count > 8 ? 8 : count);
+    *nread = count > 8 ? 8 : count;
     return 0;
 }
 
@@ -294,6 +324,60 @@ static void test_wstat_rstat_roundtrip(void)
     CHECK(strcmp(back.uid, "wubu") == 0);
 }
 
+static void test_read_iounit_and_offsets(void)
+{
+    /* KERNEL #483: the dispatch must cap Tread count to the negotiated
+     * msize minus the 11-byte Rread header (iounit cap), and advance the
+     * fid offset by the number of bytes actually returned. */
+    setup(); connect(); attach(8, 40);
+    g_srv.read = cb_read;
+
+    /* renegotiate a SMALL msize: Tversion msize=128 */
+    styx_build_tversion(g_in, &g_inlen, 128, "9P2000");
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RVERSION && styx_get32(g_out + 7) == 128);
+    attach(8, 41);
+
+    /* ask for 1000 bytes; the callback must see the cap (128-11=117) */
+    styx_build_tread(g_in, &g_inlen, 42, 8, 500, 1000);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RREAD);
+    CHECK(g_read_count_seen == 117);              /* msize-11, not 1000 */
+    CHECK(g_read_off_seen == 500);                /* offset passed through */
+    uint32_t rcount = styx_get32(g_out + 7);
+    CHECK(rcount == 8);                           /* 8 'A's returned */
+    CHECK(g_out[11] == 'A');
+    /* the fid offset advanced by the bytes actually returned */
+    styx_fid_t *f = styx_fid_lookup(&g_srv, 8);
+    CHECK(f && f->offset == 508);
+    /* the reply frame itself fits the negotiated msize */
+    CHECK(g_outlen == 11 + 8 && g_outlen <= 128);
+
+    /* Twrite: offset passes through, the payload lands intact, the fid
+     * offset advances by the count written (KERNEL #483) */
+    g_srv.write = cb_write;
+    styx_build_twrite(g_in, &g_inlen, 44, 8, 100, 4, (const uint8_t *)"wubu");
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RWRITE);
+    CHECK(styx_get32(g_out + 7) == 4);            /* count echoed */
+    CHECK(g_write_off_seen == 100 && g_write_count_seen == 4);
+    CHECK(memcmp(g_write_data, "wubu", 4) == 0);
+    f = styx_fid_lookup(&g_srv, 8);
+    CHECK(f && f->offset == 104);                 /* 100 + 4 written */
+
+    /* a write whose payload overruns the frame is refused, not truncated */
+    styx_build_twrite(g_in, &g_inlen, 45, 8, 0, 200,
+                      (const uint8_t *)"short");
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RERROR);                /* 23+200 > actual frame */
+
+        /* a fid with no read callback reports EOF, not an error */
+    g_srv.read = NULL;
+    styx_build_tread(g_in, &g_inlen, 43, 8, 0, 10);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RREAD && styx_get32(g_out + 7) == 0);
+}
+
 static void test_create_without_cb(void)
 {
     setup(); connect(); attach(6, 30);
@@ -311,6 +395,7 @@ int main(void)
     test_create_lifecycle();
     test_wstat_rstat_roundtrip();
     test_create_without_cb();
+    test_read_iounit_and_offsets();
     if (fails == 0) printf("ALL PASSED\n");
     else printf("%d FAILURES\n", fails);
     return fails ? 1 : 0;

@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styx_serve test_styx_enc test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_wubu_ns_pid test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styx_serve test_styx_enc test_styx_locks test_styx_names test_styx_parse test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_wubu_ns_pid test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1229,6 +1229,25 @@ test_styx_enc:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styx_enc \
 		$(RT)/test_styx_enc.c $(RT)/styx_enc.c $(RT)/styx_names.c
 	cd $(CURDIR) && $(RT)/test_styx_enc
+
+# per-fid byte-range locks: readers share, writers conflict, exact-range
+# unlock only, table exhaustion refused (GOALS-1000 #719)
+test_styx_locks:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styx_locks \
+		$(RT)/test_styx_locks.c $(RT)/styx_locks.c
+	cd $(CURDIR) && $(RT)/test_styx_locks
+
+# the 9P2000 message-name table + the live registry (GOALS-1000 #721)
+test_styx_names:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styx_names \
+		$(RT)/test_styx_names.c $(RT)/styx_names.c
+	cd $(CURDIR) && $(RT)/test_styx_names
+
+# the client-side T/R message decoders (GOALS-1000 #722/#726)
+test_styx_parse:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styx_parse \
+		$(RT)/test_styx_parse.c $(RT)/styx_parse.c $(RT)/styx_enc.c $(RT)/styx_names.c
+	cd $(CURDIR) && $(RT)/test_styx_parse
 
 test_styx:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_tags.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styx_test.c -o $(RT)/styx_test

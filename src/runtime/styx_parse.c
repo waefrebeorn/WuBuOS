@@ -14,7 +14,10 @@
 
 int styx_parse_version(const uint8_t *buf, uint32_t len,
                        uint32_t *msize, char *version) {
-    (void)len;
+    /* Rversion: msize[4] version[s] -- guards first: a NULL buf or an
+     * out-param, or a buffer too short for the fixed fields, is -1. */
+    if (!buf || !msize || !version) return -1;
+    if (len < 13) return -1;
     if (buf[4] != STX_RVERSION) return -1;
     *msize = styx_get32(buf + 7);
     const uint8_t *p = styx_getstr(buf + 11, version, STYX_MAX_FNAME,
@@ -25,7 +28,10 @@ int styx_parse_version(const uint8_t *buf, uint32_t len,
 
 int styx_parse_attach(const uint8_t *buf, uint32_t len,
                       uint32_t *fid, uint32_t *afid, char *aname) {
-    (void)len; (void)fid; (void)afid; (void)aname;
+    /* Tattach (house layout): fid[4] afid[4] aname[s] -- same guards.
+     * 17 = 7 header + 4 fid + 4 afid + a 2-byte empty-string. */
+    if (!buf || !fid || !afid || !aname) return -1;
+    if (len < 17) return -1;
     if (buf[4] != STX_TATTACH) return -1;
     *fid = styx_get32(buf + 7);
     *afid = styx_get32(buf + 11);

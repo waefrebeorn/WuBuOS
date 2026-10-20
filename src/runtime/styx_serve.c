@@ -442,7 +442,14 @@ int styx_serve(styx_server_t *srv,
             return 0;
         }
 
-        if (count > STYX_MAX_DATA) count = STYX_MAX_DATA;
+        /* 9P2000 iounit cap (0intro:171-180, read(5)): the Rread data must
+         * fit in the negotiated msize minus the 11-byte Rread header -- a
+         * client that negotiated 128 bytes must never receive a 1000-byte
+         * reply, whatever it asked for. */
+        uint32_t cap = (srv->msize && srv->msize > 11) ? srv->msize - 11
+                                                       : STYX_MAX_DATA;
+        if (cap > STYX_MAX_DATA) cap = STYX_MAX_DATA;
+        if (count > cap) count = cap;
 
         if (!srv->read) {
             /* Default: return nothing (EOF) */
