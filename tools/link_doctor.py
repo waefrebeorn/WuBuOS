@@ -42,7 +42,7 @@ def find_definition(sym):
     for p in pats:
         r = subprocess.run(["grep", "-rEl", "-E", p, "--include=*.c", "src"],
                            cwd=ROOT, capture_output=True, text=True)
-        files = [f for f in r.stdout.split() if f]
+        files = [f for f in r.stdout.split() if f and "/test" not in f and "_test.c" not in f]
         if files:
             return files[0]
     return None
