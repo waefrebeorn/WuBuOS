@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styx_serve test_styx_enc test_styx_locks test_styx_names test_styx_parse test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_wubu_ns_pid test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styx_serve test_styx_enc test_styx_locks test_styx_names test_styx_parse test_styxfs_path test_styxfs_posix test_styxfs_server test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_wubu_ns_pid test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1248,6 +1248,24 @@ test_styx_parse:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styx_parse \
 		$(RT)/test_styx_parse.c $(RT)/styx_parse.c $(RT)/styx_enc.c $(RT)/styx_names.c
 	cd $(CURDIR) && $(RT)/test_styx_parse
+
+# the namespace path utilities (GOALS-1000 #732)
+test_styxfs_path:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styxfs_path \
+		$(RT)/test_styxfs_path.c $(RT)/styxfs_path.c
+	cd $(CURDIR) && $(RT)/test_styxfs_path
+
+# the POSIX-like file layer over the in-memory fid table (GOALS-1000 #733)
+test_styxfs_posix:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/test_styxfs_posix \
+		$(RT)/test_styxfs_posix.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_path.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styx_locks.c $(RT)/wubu_fs_util.c $(RT)/wubu_container.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o $(RT)/wubu_cap/wubu_cap_system.o $(RT)/wubu_cap/wubu_cap_audit.o $(RT)/wubu_cap/wubu_cap_handle.o
+	cd $(CURDIR) && $(RT)/test_styxfs_posix
+
+# the host-backed 9P server through the wire (GOALS-1000 #734)
+test_styxfs_server:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -I$(KERNEL) -o $(RT)/test_styxfs_server \
+		$(RT)/test_styxfs_server.c $(RT)/styxfs_server.c $(RT)/styxfs_posix.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_path.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styx_locks.c $(RT)/wubu_fs_util.c $(RT)/wubu_container.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_kvfs.c $(RT)/wubu_cap/wubu_cap_object.o $(RT)/wubu_cap/wubu_cap_token.o $(RT)/wubu_cap/wubu_cap_revoke.o $(RT)/wubu_cap/wubu_cap_system.o $(RT)/wubu_cap/wubu_cap_audit.o $(RT)/wubu_cap/wubu_cap_handle.o
+	cd $(CURDIR) && $(RT)/test_styxfs_server
 
 test_styx:
 	$(CC) -O0 -g -std=c11 -I$(RT) $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_tags.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styx_test.c -o $(RT)/styx_test

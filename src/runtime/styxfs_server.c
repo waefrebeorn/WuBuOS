@@ -41,6 +41,12 @@ typedef struct {
     char root[STYXFS_MAX_PATH];
     styxfs_host_file_t open_files[STYXFS_MAX_OPEN_FILES];
     uint64_t next_qid_path;
+    /* fid -> open-file slot map. The OLD code stored the slot index in the
+     * fid's file_state -- destroying the fid's PATH on every Topen, which
+     * broke Tstat, re-Topen and Twalk on any opened fid (and forced the
+     * clunk to guess pointers with a `> 256` heuristic). The path now
+     * stays the path; the slot lives here, keyed by fid number. */
+    int fid_slot[STYX_MAX_FIDS];
 } styxfs_host_server_t;
 
 /* QID path generator */
@@ -106,8 +112,9 @@ static void styxfs_free_file(styxfs_host_server_t *fs, int idx) {
 }
 
 /* Convert fid to open file index (stored in file_state) */
-static int styxfs_fid_get_index(styx_fid_t *fid) {
-    return (int)(uintptr_t)fid->file_state;
+static int styxfs_fid_get_index(styxfs_host_server_t *fs, styx_fid_t *fid) {
+    if (!fs || !fid) return -1;
+    return fs->fid_slot[fid->fid % STYX_MAX_FIDS];
 }
 
 /* -- Styx Server Callbacks ---------------------------------------- */
@@ -235,7 +242,8 @@ static int styxfs_open(styx_server_t *srv, uint32_t fid, int mode, styx_qid_t *q
     f->open_fid = f->fid;
     f->open_mode = mode;
     f->offset = 0;
-    f->file_state = (void *)(uintptr_t)idx;
+    fs->fid_slot[fid % STYX_MAX_FIDS] = idx;   /* slot in the map;
+                                                    file_state KEEPS the path */
     
     struct stat st;
     if (fstat(fd, &st) == 0) {
@@ -259,7 +267,7 @@ static int styxfs_read(styx_server_t *srv, uint32_t fid, uint64_t offset,
     styx_fid_t *f = styx_fid_lookup(srv, fid);
     if (!f) return -1;
     
-    int idx = styxfs_fid_get_index(f);
+    int idx = styxfs_fid_get_index(fs, f);
     if (idx < 0) return -1;
     
     styxfs_host_file_t *of = styxfs_get_file(fs, idx);
@@ -292,7 +300,7 @@ static int styxfs_write(styx_server_t *srv, uint32_t fid, uint64_t offset,
     styx_fid_t *f = styx_fid_lookup(srv, fid);
     if (!f) return -1;
     
-    int idx = styxfs_fid_get_index(f);
+    int idx = styxfs_fid_get_index(fs, f);
     if (idx < 0) return -1;
     
     styxfs_host_file_t *of = styxfs_get_file(fs, idx);
@@ -324,9 +332,10 @@ static int styxfs_clunk(styx_server_t *srv, uint32_t fid) {
     styx_fid_t *f = styx_fid_lookup(srv, fid);
     if (!f) return 0;
     
-    int idx = styxfs_fid_get_index(f);
+    int idx = styxfs_fid_get_index(fs, f);
     if (idx >= 0) {
         styxfs_free_file(fs, idx);
+        fs->fid_slot[fid % STYX_MAX_FIDS] = -1;
     }
     
     /* Free stored path */
@@ -444,11 +453,14 @@ styx_server_t *styxfs_server_create(const char *root_path) {
         return NULL;
     }
     
-    /* Initialize open files */
+    /* Initialize open files + the fid->slot map (calloc zeroes are NOT
+     * a valid "no slot" sentinel: 0 is a legal slot index) */
     for (int i = 0; i < STYXFS_MAX_OPEN_FILES; i++) {
         fs->open_files[i].fd = -1;
         fs->open_files[i].in_use = 0;
     }
+    for (int i = 0; i < STYX_MAX_FIDS; i++)
+        fs->fid_slot[i] = -1;
     
     realpath(root_path, fs->root);
     fs->next_qid_path = 2;  /* Start after root (1) */
