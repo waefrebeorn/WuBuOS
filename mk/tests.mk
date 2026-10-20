@@ -541,7 +541,7 @@ test_ns_brain:
 test_ns_resolve:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(GUI) -c $(RT)/wubu_ns_resolve_test.c -o /tmp/wubu_ns_resolve_test.o
 	$(CC) -O0 -no-pie -I$(RT) -I$(GUI) \
-		$(RT)/wubu_ns_fs.o \
+		$(RT)/wubu_ns_fs.o $(RT)/styx_locks.c \
 		$(RT)/wubu_ns_resolve.c \
 		/tmp/wubu_ns_resolve_test.o \
 		-o $(RT)/wubu_ns_resolve_test -lm -lpthread
@@ -1151,7 +1151,7 @@ test_era_apps: $(RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OB
 	$(CC) -DWUBU_HOSTED $(CFLAGS) -DWUBU_EDR_AGENT -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(GUI)/dosgui_era_apps_test.c $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o \
 		$(RT_OBJS) $(COMP_OBJS) $(JIT_OBJS) \
-$(RT)/wubu_wine_env.c $(KERNEL)/wubu_math.c 		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
+		$(RT)/wubu_wine_env.c $(KERNEL)/wubu_math.c $(KERNEL)/wubu_hw_detect.c $(KERNEL)/wubu_drv_gpu.c $(RT)/seccomp_registry.c   $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
 		$(RT)/wubu_ct_isolate_cgroup.o \
 		$(KERNEL)/wubu_kvfs.o \
@@ -2002,28 +2002,7 @@ test_session:
 	$(RT)/wubu_session_test
 
 test_ns_session:
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_session_test.c -o /tmp/wubu_ns_session_test.o
-	$(CC) -O0 -no-pie -I$(RT) \
-		$(RT)/styx_locks.c $(RT)/wubu_ns_fs.o \
-		$(RT)/wubu_ns_session.c $(RT)/wubu_session.c \
-		/tmp/wubu_ns_session_test.o \
-		-o $(RT)/wubu_ns_session_test
-	$(RT)/wubu_ns_session_test
-
-	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(COMP) -c $(RT)/wubu_ns_9p_test.c -o /tmp/wubu_ns_9p_test.o
-	$(CC) -O0 -no-pie \
-		$(RT)/wubu_ns_fs.o $(RT)/wubu_ns_snap.o \
-		$(RT)/wubu_snapshot.o $(RT)/wubu_snapshot_fs.o $(RT)/wubu_snapshot_copy.o \
-		$(RT)/wubu_fs_util.o \
-		$(RT)/styx_names.o $(RT)/styx_enc.o $(RT)/styx_serve.o $(RT)/styx_parse.o $(RT)/styx_fid.o \
-		$(RT)/styxfs_server.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
-		$(RT)/styxfs_path.o $(RT)/styxfs_host.o $(RT)/styxfs_util.o $(RT)/styxfs_vfs.o $(RT)/wubu_container.o $(RT)/container/wubucontainer.o $(RT)/container/wubucontainer_registry.o \
-		$(RT)/wubu_spawn.c \
-		$(KERNEL)/wubu_kvfs.c \
-		/tmp/wubu_ns_9p_test.o \
-		-ljson-c -o $(RT)/wubu_ns_9p_test
-	$(RT)/wubu_ns_9p_test
-
+	sh tools/test_ns_session.sh
 # Era game installer tools: kernel-owned decoders as host linkers.
 test_cab_extract:
 	$(CC) -O2 -std=c11 -I$(KERNEL) \
