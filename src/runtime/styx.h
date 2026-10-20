@@ -11,8 +11,14 @@
  *   - Device access (VBE framebuffer, input, audio as files)
  *   - Package management (Flatpak-style repos as filesystems)
  * 
- * Reference: inferno-os/Inferno/Include/styx.h
- * License: MIT (WuBuOS additions), GPL (derived from Inferno/Plan 9)
+ * Reference: inferno-os/Inferno/Include/styx.h (MIT), 9fans/plan9port
+ * include/fcall.h (MIT), Plan 9 4th ed (MIT, Plan 9 Foundation).
+ * The message set and wire layouts are 9P2000 protocol facts; the concrete
+ * C encodings derive from MIT-licensed reference trees.
+ * License: MIT (WuBuOS additions; derived structure from MIT sources) --
+ * the header previously claimed "GPL (derived from Inferno/Plan 9)", which
+ * is factually wrong: all three reference trees are MIT (see their LICENSE
+ * files; Inferno's NOTICE carries the Lucent/Vita Nuova attribution).
  */
 #ifndef WUBU_STYX_H
 #define WUBU_STYX_H
@@ -69,9 +75,15 @@
 #define STX_OWRITE  1  /* Open for writing */
 #define STX_ORDWR   2  /* Open for reading and writing */
 #define STX_OEXEC   3  /* Open for execution */
-#define STX_OTRUNC  16 /* Truncate on open */
-#define STX_ORCLOSE 32 /* Remove on close */
-#define STX_OEXCL   64 /* Exclusive use */
+#define STX_OTRUNC  16 /* Truncate on open (0x10) */
+/* The mode-bit values are 9P2000 protocol facts (Plan 9 4e
+ * sys/include/libc.h OREAD/ORCLOSE family; 9P2000 open(5)):
+ * OTRUNC 0x10, OCEXEC 0x20, ORCLOSE 0x40, OEXCL 0x1000 (create-only).
+ * The previous defines mislabeled 0x20 as ORCLOSE and 0x40 as OEXCL --
+ * values swapped against the spec. */
+#define STX_OCEXEC  32 /* Close on exec (0x20) */
+#define STX_ORCLOSE 64 /* Remove the file on clunk (0x40) */
+#define STX_OEXCL   4096 /* Exclusive create (0x1000, create-only) */
 
 /* -- QID Types (file type bits) ----------------------------------- */
 
@@ -169,7 +181,22 @@ typedef struct styx_server {
                   styx_dir_t *dir);
     int  (*wstat)(struct styx_server *srv, uint32_t fid,
                   const styx_dir_t *dir);
-    
+
+    /* 9P2000 conformance slots (mirroring lib9p's Srv, 9p.h:188-197).
+     * auth: answer Tauth with an aqid (or fail -> Rerror); a server that
+     *   does not require auth leaves this NULL and Tauth is refused with
+     *   "authentication not required" (auth(5)).
+     * create: create a file under the fid's directory and RE-ROOT the fid
+     *   onto the new file (open(5)); NULL -> "Create not supported".
+     * flush: notification that the client abandoned oldtag; the server
+     *   must not reply to oldtag. The wire arm always answers Rflush. */
+    int  (*auth)  (struct styx_server *srv, uint32_t afid,
+                   const char *uname, const char *aname,
+                   styx_qid_t *aqid);
+    int  (*create)(struct styx_server *srv, uint32_t fid, const char *name,
+                   uint32_t perm, int mode, styx_qid_t *qid);
+    void (*flush) (struct styx_server *srv, uint16_t oldtag);
+
     /* Server-specific data */
     void *user_data;
 } styx_server_t;
@@ -216,7 +243,23 @@ void styx_build_twrite(uint8_t *buf, uint32_t *len,
 void styx_build_tclunk(uint8_t *buf, uint32_t *len,
                         uint16_t tag, uint32_t fid);
 void styx_build_tstat(uint8_t *buf, uint32_t *len,
+                      uint16_t tag, uint32_t fid);
+
+/* 9P2000 conformance client builders (0intro wire layouts): the old
+ * set shipped 8 of 13 -- these five close the client-side surface. */
+void styx_build_tauth(uint8_t *buf, uint32_t *len,
+                      uint16_t tag, uint32_t afid,
+                      const char *uname, const char *aname);
+void styx_build_tflush(uint8_t *buf, uint32_t *len,
+                       uint16_t tag, uint16_t oldtag);
+void styx_build_tcreate(uint8_t *buf, uint32_t *len,
+                        uint16_t tag, uint32_t fid, const char *name,
+                        uint32_t perm, uint8_t mode);
+void styx_build_tremove(uint8_t *buf, uint32_t *len,
                        uint16_t tag, uint32_t fid);
+void styx_build_twstat(uint8_t *buf, uint32_t *len,
+                       uint16_t tag, uint32_t fid,
+                       const styx_dir_t *dir);
 
 /* -- Response Parsing Helpers ------------------------------------- */
 

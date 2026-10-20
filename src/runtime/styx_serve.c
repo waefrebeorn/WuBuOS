@@ -128,6 +128,47 @@ static int build_rremove(uint8_t *buf, uint32_t *len, uint16_t tag) {
     return 0;
 }
 
+/* Rauth: aqid[13] (0intro:159-170). */
+static int build_rauth(uint8_t *buf, uint32_t *len,
+                       uint16_t tag, const styx_qid_t *aqid) {
+    uint32_t pos = 7;
+    buf[pos] = aqid->type; pos++;
+    styx_put32(buf + pos, aqid->version); pos += 4;
+    styx_put64(buf + pos, aqid->path); pos += 8;
+    styx_write_header(buf, pos, STX_RAUTH, tag);
+    *len = pos;
+    return 0;
+}
+
+/* Rcreate: qid[13] iounit[4] -- same body shape as Ropen (open(5):31-40). */
+static int build_rcreate(uint8_t *buf, uint32_t *len,
+                         uint16_t tag, const styx_qid_t *qid,
+                         uint32_t iounit) {
+    uint32_t pos = 7;
+    buf[pos] = qid->type; pos++;
+    styx_put32(buf + pos, qid->version); pos += 4;
+    styx_put64(buf + pos, qid->path); pos += 8;
+    styx_put32(buf + pos, iounit); pos += 4;
+    styx_write_header(buf, pos, STX_RCREATE, tag);
+    *len = pos;
+    return 0;
+}
+
+/* Rflush: empty body (0intro:476-492 -- always Rflush, never Rerror). */
+static int build_rflush(uint8_t *buf, uint32_t *len, uint16_t tag) {
+    styx_write_header(buf, 7, STX_RFLUSH, tag);
+    *len = 7;
+    return 0;
+}
+
+/* Rwstat: empty body (0intro:296-306). The old code answered Twstat
+ * with Rclunk -- wire-level non-conformance a real client rejects. */
+static int build_rwstat(uint8_t *buf, uint32_t *len, uint16_t tag) {
+    styx_write_header(buf, 7, STX_RWSTAT, tag);
+    *len = 7;
+    return 0;
+}
+
 static int build_rstat(uint8_t *buf, uint32_t *len,
                        uint16_t tag, const styx_dir_t *dir) {
     uint32_t pos = 7;
@@ -178,7 +219,11 @@ int styx_serve(styx_server_t *srv,
 
     switch (msg_type) {
     case STX_TVERSION: {
-        /* Negotiate protocol version */
+        /* Negotiate protocol version. msize semantics (0intro:138-148):
+         * the reply carries min(client msize, server ceiling), a client
+         * below the floor cannot even carry an Rversion and is refused,
+         * and the reply ECHOES the request's tag (clients send NOTAG;
+         * the server must answer with the same tag, not a hardcoded 0). */
         uint32_t c_msize = styx_get32(inbuf + 7);
         STYX_NEED(11 + 2);
         char c_version[16] = {0};
@@ -188,22 +233,89 @@ int styx_serve(styx_server_t *srv,
         /* Accept if 9P2000 or 9P2000.u */
         if (strncmp(c_version, "9P2000", 6) != 0 &&
             strcmp(c_version, "9P2000.u") != 0) {
-            styx_error(0, "Unknown protocol version", outbuf, outlen);
+            styx_error(tag, "Unknown protocol version", outbuf, outlen);
             return 0;
         }
 
+        /* Floor: below this an Rversion/Rerror reply cannot even fit
+         * in the negotiated size; the peer is told so. */
+        #define STYX_MSIZE_FLOOR 64
+        if (c_msize < STYX_MSIZE_FLOOR) {
+            styx_error(tag, "msize too small", outbuf, outlen);
+            return 0;
+        }
         uint32_t ceiling = srv->max_msize ? srv->max_msize : STYX_MAX_MSG;
         if (ceiling > STYX_MAX_MSG) ceiling = STYX_MAX_MSG;
         srv->msize = (c_msize < ceiling) ? c_msize : ceiling;
         strcpy(srv->version, "9P2000");
         srv->connected = 1;
-        return build_rversion(outbuf, outlen, 0, srv->msize, "9P2000");
+        return build_rversion(outbuf, outlen, tag, srv->msize, "9P2000");
     }
 
     case STX_TAUTH: {
-        /* For single-user ring-0, auth is a no-op */
-        styx_qid_t qid = {STX_QTFILE, 0, 0};
-        return build_rattach(outbuf, outlen, tag, &qid);
+        /* 9P2000 conformance (auth(5), 0intro:159-170): Tauth answers
+         * with Rauth(aqid) or Rerror -- never Rattach. A server that
+         * does not require authentication REFUSES: the client then
+         * attaches with afid = NOFID. The old code replied Rattach,
+         * which a real client (v9fs/lib9p/9pfuse) rejects. */
+        STYX_NEED(11 + 4);
+        uint32_t afid = styx_get32(inbuf + 7);
+        char uname[STYX_MAX_FNAME] = {0};
+        char aname[STYX_MAX_FNAME] = {0};
+        const uint8_t *p = styx_getstr(inbuf + 11, uname, sizeof(uname),
+                                       (int)msg_size - 11);
+        styx_getstr(p, aname, sizeof(aname),
+                    (int)msg_size - (int)(p - inbuf));
+        (void)afid;
+        if (srv->auth) {
+            styx_qid_t aqid;
+            if (srv->auth(srv, afid, uname, aname, &aqid) != 0) {
+                styx_error(tag, "Authentication failed", outbuf, outlen);
+                return 0;
+            }
+            return build_rauth(outbuf, outlen, tag, &aqid);
+        }
+        styx_error(tag, "authentication not required", outbuf, outlen);
+        return 0;
+    }
+
+    case STX_TFLUSH: {
+        /* 9P2000 conformance (0intro:476-492): the server must not reply
+         * to oldtag and must answer Rflush immediately -- never Rerror,
+         * even for an unknown/already-answered tag. */
+        STYX_NEED(9);
+        uint16_t oldtag = styx_get16(inbuf + 7);
+        if (srv->flush) srv->flush(srv, oldtag);
+        return build_rflush(outbuf, outlen, tag);
+    }
+
+    case STX_TCREATE: {
+        /* 9P2000 conformance (open(5):18-30, 0intro:224-229):
+         * fid[4] name[s] perm[4] mode[1]; success re-roots the fid on the
+         * new file and answers Rcreate(qid, iounit). The old dispatch had
+         * no Tcreate arm at all (the callback existed but was unreachable
+         * on the wire). */
+        STYX_NEED(13);
+        uint32_t fid = styx_get32(inbuf + 7);
+        char name[STYX_MAX_FNAME] = {0};
+        const uint8_t *p = styx_getstr(inbuf + 11, name, sizeof(name),
+                                       (int)msg_size - 11);
+        if ((size_t)(p - inbuf) + 5 > (size_t)msg_size) {
+            styx_error(tag, "Bad Tcreate", outbuf, outlen);
+            return 0;
+        }
+        uint32_t perm = styx_get32(p); p += 4;
+        uint8_t  mode = *p;
+        if (!srv->create) {
+            styx_error(tag, "Create not supported", outbuf, outlen);
+            return 0;
+        }
+        styx_qid_t qid;
+        if (srv->create(srv, fid, name, perm, mode, &qid) != 0) {
+            styx_error(tag, "Create failed", outbuf, outlen);
+            return 0;
+        }
+        return build_rcreate(outbuf, outlen, tag, &qid, 0 /* iounit */);
     }
 
     case STX_TATTACH: {
@@ -468,8 +580,9 @@ int styx_serve(styx_server_t *srv,
             styx_error(tag, "Wstat failed", outbuf, outlen);
             return 0;
         }
-        /* Rclunk is sent after wstat in 9P2000 */
-        return build_rclunk(outbuf, outlen, tag);
+        /* 9P2000 conformance (0intro:296-306): Twstat answers Rwstat.
+         * The old code returned Rclunk here. */
+        return build_rwstat(outbuf, outlen, tag);
     }
 
     default:
