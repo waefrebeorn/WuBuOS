@@ -800,7 +800,7 @@ test_gc:
 test_screenshot:
 	$(CC) -Isrc/runtime -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(TOOLS) -I$(KERNEL) -I$(GUI) \
-				$(TOOLS)/screenshot.c $(KERNEL)/vbe.c $(GUI)/wubu_wm.c $(GUI)/wubu_wm_desktop.c $(GUI)/wubu_wm_input.c $(GUI)/wubu_wm_render.c $(GUI)/wubu_theme.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/klog.c \
+				$(TOOLS)/screenshot.c $(KERNEL)/vbe.c $(GUI)/wubu_wm.c $(GUI)/wubu_wm_desktop.c $(GUI)/wubu_wm_input.c $(GUI)/wubu_wm_render.c $(GUI)/wubu_theme.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/klog.c $(KERNEL)/interrupt_pic.c $(KERNEL)/wubu_wdt.c \
 		$(TOOLS)/screenshot_test.c \
 		-o $(TOOLS)/screenshot_test
 	$(TOOLS)/screenshot_test
@@ -1151,7 +1151,7 @@ test_era_apps: $(RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OB
 	$(CC) -DWUBU_HOSTED $(CFLAGS) -DWUBU_EDR_AGENT -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(GUI)/dosgui_era_apps_test.c $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o \
 		$(RT_OBJS) $(COMP_OBJS) $(JIT_OBJS) \
-		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
+$(RT)/wubu_wine_env.c $(KERNEL)/wubu_math.c 		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
 		$(RT)/wubu_ct_isolate_cgroup.o \
 		$(KERNEL)/wubu_kvfs.o \
@@ -1179,7 +1179,7 @@ test_compositor:
 	$(GUI)/wubu_compositor_test
 
 test_styxfs:
-	$(CC) -DWUBU_HOSTED $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_tags.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styx_locks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_librarian.c $(RT)/wubu_librarian_serve.c $(RT)/wubu_abi_path.c $(RT)/wubu_syscall_shim.c -o $(RT)/styxfs_test \
+	$(CC) -DWUBU_HOSTED $(CFLAGS) -O0 -g -std=c11 -I$(RT) -I$(COMP) -I$(JIT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(HOLYD_SRC) $(RT)/wubu_container.c $(RT)/wubu_exec.c $(RT)/wubu_wine_env.c $(RT)/wubu_gpu_backend.c $(KERNEL)/wubu_hw_detect.c $(KERNEL)/wubu_math.c $(RT)/wubu_exec_wasm.c $(RT)/wubu_exec_macho.c $(RT)/wubu_exec_dos.c $(RT)/wubu_exec_container.c $(RT)/wubu_exec_format.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_tags.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styx_locks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/styxfs_test.c $(RT)/wubu_dos_proc.o $(WUBU_DOS_EMU_OBJS) $(RT)/wubu_librarian.c $(RT)/wubu_librarian_serve.c $(RT)/wubu_abi_path.c $(RT)/wubu_syscall_shim.c -o $(RT)/styxfs_test \
 		$(RT)/wubu_ns_pkg_stub.c -lm -fopenmp -lpthread
 	$(RT)/styxfs_callbacks_test
 
@@ -1207,7 +1207,7 @@ HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)
 # (styx/exec/container/oci_http_client/...) and would cause `multiple definition`.
 test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_HOSTED_TEST -DWUBD_TEST_MAIN -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
-		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/styx_locks.c $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
+		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_util.c $(RT)/styx_serve.c $(RT)/styxfs_posix.o $(RT)/styx_locks.c $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -lpthread -ljson-c -lvulkan -o $(HOSTED)/hosted_test
 	$(HOSTED)/hosted_test
@@ -1260,7 +1260,7 @@ test_ramdisk:
 test_gaad:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(KERNEL) \
-		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/klog.c $(KERNEL)/test/legacy/wubu_gaad_test.c \
+		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/klog.c $(KERNEL)/interrupt_pic.c $(KERNEL)/wubu_wdt.c $(KERNEL)/test/legacy/wubu_gaad_test.c \
 		-o $(KERNEL)/wubu_gaad_test
 	$(KERNEL)/wubu_gaad_test
 test_hive:
@@ -1699,7 +1699,7 @@ test_metal:
 	$(CC) -Isrc/runtime -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -DMYSEED_METAL -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_USE_DRM\
 		-I$(HOSTED) -I$(KERNEL) -I$(RT) -I$(GUI) -I$(BRIDGE) -I$(SHELL_DIR) -I$(COMP) -I$(JIT) -I/usr/include/libdrm \
 		$(HOSTED)/wubu_metal.c $(HOSTED)/wubu_metal_evdev.c $(HOSTED)/wubu_metal_x11.c $(HOSTED)/wubu_metal_vulkan.c $(HOSTED)/wubu_metal_drm.c $(HOSTED)/wubu_metal_audio.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/klog.c \
-		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/interrupt_apic.c $(KERNEL)/interrupt_pit.c $(KERNEL)/interrupt_syscall.c $(KERNEL)/interrupt_timer.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
+		$(KERNEL)/memory.c $(KERNEL)/vbe.c $(KERNEL)/input.c $(KERNEL)/interrupt.c $(KERNEL)/interrupt_pic.c $(KERNEL)/wubu_wdt.c $(KERNEL)/interrupt_apic.c $(KERNEL)/interrupt_pit.c $(KERNEL)/interrupt_syscall.c $(KERNEL)/interrupt_timer.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(HOSTED)/wubu_metal_test.c \
 		-o $(HOSTED)/wubu_metal_test -lm -ldrm -ldl
 	$(HOSTED)/wubu_metal_test
