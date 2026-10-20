@@ -114,6 +114,11 @@ int  wubu_theme_init(void);
 void wubu_theme_shutdown(void);
 
 /* Get/set current theme */
+/* Adopt a palette parsed from a theme file (wubu_theme_file.h) as the custom
+ * theme and switch to it. This is what makes "edit one file, everything
+ * follows" true at runtime instead of requiring a rebuild. */
+void wubu_theme_set_custom(const WubuThemeColors *colors);
+
 WubuThemeId wubu_theme_current(void);
 void wubu_theme_set(WubuThemeId id);
 

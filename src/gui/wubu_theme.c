@@ -13,7 +13,7 @@
 
 /* -- Predefined Theme Data ---------------------------------------- */
 
-static const WubuTheme g_themes[THEME_COUNT] = {
+static WubuTheme g_themes[THEME_COUNT] = {
 
 /* -- Win98 Classic ----------------------------------------------- */
 [THEME_WIN98_CLASSIC] = {
@@ -264,6 +264,12 @@ int wubu_theme_init(void) {
 
 void wubu_theme_shutdown(void) {
     /* Nothing dynamic to clean up */
+}
+
+void wubu_theme_set_custom(const WubuThemeColors *colors) {
+    if (!colors) return;
+    g_themes[THEME_WUBU_CUSTOM].colors = *colors;
+    wubu_theme_set(THEME_WUBU_CUSTOM);
 }
 
 WubuThemeId wubu_theme_current(void) {

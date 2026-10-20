@@ -4259,3 +4259,10 @@ test_caption:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) \
 		$(GUI)/wubu_caption.c $(GUI)/wubu_caption_test.c -o $(KERNEL)/test_caption
 	$(KERNEL)/test_caption
+
+# -- Omarchy-style single-source theme file (see docs/GUI-OMARCHY.md)
+test_theme_file:
+	@mkdir -p $(KERNEL)
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) \
+		$(GUI)/wubu_theme_file.c $(GUI)/wubu_theme_file_test.c -o $(KERNEL)/test_theme_file
+	$(KERNEL)/test_theme_file

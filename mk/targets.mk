@@ -126,3 +126,9 @@ boot-gate: $(KERNEL)/kernel.elf
 # Onboarding: runs the commands QUICKSTART.md documents.
 onboard-check:
 	sh tools/onboard_check.sh
+
+# Omarchy-style "no decisions": one command builds, verifies and boots.
+setup:
+	$(MAKE) --no-print-directory
+	$(MAKE) --no-print-directory onboard-check
+	@echo "WuBuOS is built, tested and boots. See QUICKSTART.md for what else works."
