@@ -114,7 +114,15 @@ boot-audit:
 	bash tools/boot_audit.sh $(KERNEL)/kernel.elf
 
 qemu: $(KERNEL)/disk.img
-	@echo "▶ Booting WuBuOS kernel in QEMU via bootsector floppy (true bare-metal path)..."
-	qemu-system-x86_64 -fda $(KERNEL)/disk.img -serial stdio \
-		-display none -m 128 -no-reboot \
+	@echo "▶ Booting via bootsector floppy (bounded: qemu cannot hang the terminal)"
+	timeout 30 qemu-system-x86_64 -drive file=$(KERNEL)/disk.img,format=raw,if=floppy \
+		-serial stdio -display none -m 128 -no-reboot \
 		-device isa-debug-exit,iobase=0xf4 || true
+
+# The only boot claim that can fail: requires the long-mode banner on serial.
+boot-gate: $(KERNEL)/kernel.elf
+	sh tools/boot_gate.sh $(KERNEL)/kernel.elf 25
+
+# Onboarding: runs the commands QUICKSTART.md documents.
+onboard-check:
+	sh tools/onboard_check.sh
