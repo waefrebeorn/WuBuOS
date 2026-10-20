@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -546,6 +546,23 @@ test_ns_resolve:
 		/tmp/wubu_ns_resolve_test.o \
 		-o $(RT)/wubu_ns_resolve_test -lm -lpthread
 	cd $(CURDIR) && $(RT)/wubu_ns_resolve_test
+
+# the /n namespace spine: per-process root view, shared mount table, audit
+# log (GOALS-1000 NAMESPACE #581-#583, #585, #586, #594, #597, #599-#602)
+test_wubu_ns_root:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/wubu_ns_root_test \
+		$(RT)/wubu_ns_root.c $(RT)/wubu_ns_root_test.c
+	cd $(CURDIR) && $(RT)/wubu_ns_root_test
+
+test_wubu_ns_mount:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/wubu_ns_mount_test \
+		$(RT)/wubu_ns_mount.c $(RT)/wubu_ns_mount_test.c
+	cd $(CURDIR) && $(RT)/wubu_ns_mount_test
+
+test_wubu_ns_audit:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/wubu_ns_audit_test \
+		$(RT)/wubu_ns_audit.c $(RT)/wubu_ns_audit_test.c
+	cd $(CURDIR) && $(RT)/wubu_ns_audit_test
 
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
