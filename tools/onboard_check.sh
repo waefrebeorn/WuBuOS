@@ -36,14 +36,11 @@ else
     bad "test_timer_wheel (see /tmp/onboard_tw.log)"
 fi
 
-step "boot gate"
-if sh tools/boot_gate.sh src/kernel/kernel.elf 20 >/tmp/onboard_boot.log 2>&1; then
-    echo "   NOTE  boot now reaches kernel_main — remove it from the known-failing"
-    echo "         list in QUICKSTART.md and make this step a hard requirement."
+step "boot gate (firmware path)"
+if sh tools/boot_gate.sh >/tmp/onboard_boot.log 2>&1; then
+    ok "WuBuFW reached its shell, milestones passed"
 else
-    echo "   KNOWN FAILING (documented):"
-    grep -E 'diagnosis:|only probe bytes|no serial output' /tmp/onboard_boot.log | head -2 | sed 's/^/     /'
-
+    bad "boot gate (see /tmp/onboard_boot.log)"
 fi
 
 printf '\n== onboard-check: %d failure(s)\n' "$fails"

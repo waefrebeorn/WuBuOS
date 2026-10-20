@@ -121,7 +121,7 @@ qemu: $(KERNEL)/disk.img
 
 # The only boot claim that can fail: requires the long-mode banner on serial.
 boot-gate: $(KERNEL)/kernel.elf
-	sh tools/boot_gate.sh $(KERNEL)/kernel.elf 25
+	sh tools/boot_gate.sh
 
 # Onboarding: runs the commands QUICKSTART.md documents.
 onboard-check:

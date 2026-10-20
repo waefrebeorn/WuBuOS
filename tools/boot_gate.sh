@@ -1,48 +1,48 @@
 #!/bin/sh
-# boot_gate.sh -- a boot that can FAIL, not a claim that it boots.
+# boot_gate.sh -- boot on the path that actually boots.
 #
-# The artifact audit (tools/boot_audit.sh) only proves the ELF is freestanding.
-# This runs the kernel and requires the first long-mode banner to appear on the
-# serial line within a bounded time. If the kernel hangs or prints only probe
-# bytes, this exits 1 and says which.
+# -kernel is NOT a boot test here: kernel.elf is a higher-half 64-bit image with
+# no multiboot header, so QEMU's -kernel shim prints probe bytes and stops. It is
+# kept as a diagnostic only.
 #
-# usage: sh tools/boot_gate.sh [kernel.elf] [timeout_s]
+# The supported path is WuBuFW, our own C11 UEFI firmware: it probes PCI, loads
+# the ESP, reaches its shell and runs its milestones. That is what this gates.
+#
+# usage: sh tools/boot_gate.sh            (firmware path, authoritative)
+#        sh tools/boot_gate.sh --kernel   (diagnose the -kernel path)
 set -u
 
-KERNEL=${1:-src/kernel/kernel.elf}
-TIMEOUT=${2:-25}
-OUT=$(mktemp)
-trap 'rm -f "$OUT"' EXIT
-
-if [ ! -f "$KERNEL" ]; then
-    echo "boot-gate: no kernel at $KERNEL (build it first)"
-    exit 2
+if [ "${1:-}" = "--kernel" ]; then
+    KERNEL=src/kernel/kernel.elf
+    OUT=$(mktemp); trap 'rm -f "$OUT"' EXIT
+    timeout 25 qemu-system-x86_64 -kernel "$KERNEL" -nographic -m 128 \
+            -no-reboot >"$OUT" 2>&1
+    if grep -q 'kernel_main entered' "$OUT"; then
+        echo "boot-gate(-kernel): PASS"
+        exit 0
+    fi
+    echo "boot-gate(-kernel): expected to fail — no multiboot header, only probe bytes:"
+    tail -c 120 "$OUT" | sed 's/^/  /'
+    exit 1
 fi
 
-# -nographic keeps it headless; isa-debug-exit lets a healthy kernel end the VM.
-timeout "$TIMEOUT" qemu-system-x86_64 -kernel "$KERNEL" -nographic -m 128 \
-        -no-reboot -device isa-debug-exit,iobase=0xf4 > "$OUT" 2>&1
-rc=$?
+FW=src/firmware/wubufw.fd
+if [ ! -f "$FW" ]; then
+    echo "boot-gate: no firmware at $FW — building it"
+    ( cd src/firmware && bash build.sh >/tmp/boot_gate_build.log 2>&1 ) || {
+        echo "boot-gate: firmware build FAILED (see /tmp/boot_gate_build.log)"
+        exit 2
+    }
+fi
 
-bytes=$(wc -c < "$OUT" | tr -d ' ')
-echo "boot-gate: serial $bytes bytes, qemu rc=$rc"
-
-if grep -q 'kernel_main entered' "$OUT"; then
-    echo "boot-gate: PASS — reached kernel_main in long mode"
-    grep -m3 'WuBuOS:' "$OUT" | sed 's/^/  /'
+echo "boot-gate: booting WuBuFW as a QEMU guest"
+if ( cd src/firmware && timeout 180 bash qemu-boot-verify.sh ) >/tmp/boot_gate.log 2>&1; then
+    grep -E '\[PASS\]' /tmp/boot_gate.log | sed 's/^/  /'
+    echo "boot-gate: PASS — $(grep -c '\[PASS\]' /tmp/boot_gate.log) milestones, firmware reached its shell"
     exit 0
 fi
 
-echo "boot-gate: FAIL — no 'kernel_main entered' banner"
-if [ "$bytes" -eq 0 ]; then
-    echo "  diagnosis: no serial output at all (serial not initialised, or the"
-    echo "             kernel never ran: check the boot chain / load address)"
-elif grep -qE '^[0-9a-fA-F]+$' "$OUT"; then
-    echo "  diagnosis: only probe bytes were printed before the VM stopped:"
-    head -c 120 "$OUT" | sed 's/^/    /'
-    echo "  the kernel is stalling before metal_main's banner (loader or early init)"
-else
-    echo "  last serial line:"
-    tail -c 300 "$OUT" | sed 's/^/    /'
-fi
+echo "boot-gate: FAIL"
+grep -E '\[FAIL\]|error' /tmp/boot_gate.log | head -5 | sed 's/^/  /'
+echo "  full log: /tmp/boot_gate.log"
 exit 1

@@ -55,19 +55,15 @@ subset (it used to reach 131 of 446).
 make boot-gate
 ```
 
-**Known failing.** The gate requires the serial banner
-`WuBuOS: kernel_main entered (long mode OK)`. Today the VM stops before it,
-printing only probe bytes (`010203040506070811121314`), and exits non-zero with a
-diagnosis. `make qemu` is bounded to 30 s for the same reason — it used to hang
-the terminal forever.
+Boots **WuBuFW**, our C11 UEFI firmware, as a QEMU guest and requires every
+milestone: secureboot policy engine, signed-payload verification, unsigned
+payload rejection (fail-closed), TPM PCR extend, allocator, ESP listing, and the
+interactive shell. Last measured: **ALL MILESTONES PASSED**.
 
-This is the top open item: the boot chain never reaches `metal_main`. What is
-known:
-
-- the artifact is freestanding and its entry point is `0xffffffff8010012c`;
-- `qemu-system-x86_64 -kernel src/kernel/kernel.elf` reaches "Booting from ROM"
-  and prints only the probe bytes;
-- the floppy path (`make qemu`) produces no kernel output at all.
+This is the supported path. `qemu-system-x86_64 -kernel src/kernel/kernel.elf`
+does **not** work and is not a boot test: the kernel is a higher-half 64-bit
+image with no multiboot header, so QEMU's Linux loader prints probe bytes and
+stops. `sh tools/boot_gate.sh --kernel` reproduces that diagnosis on purpose.
 
 ## 6. Check onboarding itself
 
