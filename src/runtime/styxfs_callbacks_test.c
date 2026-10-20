@@ -316,6 +316,46 @@ int main(void)
     printf("[rc=%d gone=%d] ", rc_rm, access(r2, F_OK) != 0);
     if (rc_rm == 0 && access(r2, F_OK) != 0) PASS(); else FAIL("remove did not unlink");
 
+    /* -- NAMESPACE #589: the Topen rights policy -- */
+    TEST("cap rights policy: open mode -> capability rights");
+    {
+        uint64_t r1 = styxfs_cap_rights_for_mode(STX_OREAD);
+        uint64_t r2 = styxfs_cap_rights_for_mode(STX_OWRITE);
+        uint64_t r3 = styxfs_cap_rights_for_mode(STX_ORDWR);
+        uint64_t r4 = styxfs_cap_rights_for_mode(STX_OEXEC);
+        uint64_t r5 = styxfs_cap_rights_for_mode(STX_OREAD | STX_OTRUNC);
+        printf("[R=%llx W=%llx RW=%llx X=%llx R|T=%llx] ",
+               (unsigned long long)r1, (unsigned long long)r2,
+               (unsigned long long)r3, (unsigned long long)r4,
+               (unsigned long long)r5);
+        if (r1 == WUBU_RIGHT_READ && r2 == WUBU_RIGHT_WRITE &&
+            r3 == (WUBU_RIGHT_READ | WUBU_RIGHT_WRITE) &&
+            r4 == WUBU_RIGHT_EXEC &&
+            r5 == (WUBU_RIGHT_READ | WUBU_RIGHT_WRITE)) PASS();
+        else FAIL("rights policy wrong");
+    }
+
+    /* -- SECURITY #794: revocation takes the fid's access away -- */
+    TEST("revoked capability denies the next open (EACCES)");
+    {
+        styxfs_server_t cap_srv;
+        styxfs_init(&cap_srv);
+        errno = 0;
+        int ra = styxfs_attach_cb(&cap_srv.base, 60, "/");
+        styx_qid_t q;
+        errno = 0;
+        int ro1 = styxfs_open_cb(&cap_srv.base, 60, STX_OREAD, &q);
+        int denied = 0;
+        if (styxfs_cap_revoke_fid(&cap_srv, 60) == 0) {
+            errno = 0;
+            int ro2 = styxfs_open_cb(&cap_srv.base, 60, STX_OREAD, &q);
+            denied = (ro2 != 0 && errno == EACCES);
+        }
+        printf("[attach=%d open1=%d denied=%d] ", ra, ro1, denied);
+        if (ra == 0 && ro1 == 0 && denied) PASS();
+        else FAIL("revocation did not deny the open");
+    }
+
     unlink(g_path);
     printf("\n=== styxfs callbacks: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

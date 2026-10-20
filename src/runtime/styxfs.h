@@ -20,6 +20,7 @@
 #define WUBU_STYXFS_H
 
 #include "styx.h"
+#include "wubu_cap/wubu_cap.h"
 #include "styx_locks.h"
 #include "wubu_container.h"
 #include <stdint.h>
@@ -86,7 +87,23 @@ typedef struct styxfs_server {
     styxfs_file_t  open_files[STYXFS_MAX_OPEN_FILES];
     uint64_t       next_qid_path;     /* Monotonically increasing QID path */
     int            readonly;          /* Global read-only flag */
+    /* Capability-backed 9P access (NAMESPACE #589, SECURITY #793/#794):
+     * attach GRANTS a STYX_NODE capability per fid; open RESOLVES the
+     * requested mode's rights against it BEFORE the node is touched;
+     * clunk/revocation takes the fid's access away. cap_enforce stays 0
+     * for direct-callback harnesses that never attach. */
+    wubu_cap_token_t fid_caps[STYX_MAX_FIDS];  /* by fid number mod table */
+    int32_t        cap_session_pid;   /* the 9P session's cap audience */
+    int            cap_enforce;       /* 1 once the first attach grants */
 } styxfs_server_t;
+
+/* The Topen rights policy: a 9P open mode as a capability rights request */
+uint64_t styxfs_cap_rights_for_mode(int mode);
+/* The dispatch clone hook: carry a fid's capability across Twalk clones */
+void styxfs_cap_clone_cb(styx_server_t *srv, uint32_t fid, uint32_t newfid);
+
+/* Revoke (and clear) a fid's capability -- the revocation test hook */
+int styxfs_cap_revoke_fid(styxfs_server_t *srv, uint32_t fid);
 
 /* -- API Functions ------------------------------------------------- */
 

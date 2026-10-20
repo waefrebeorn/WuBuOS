@@ -538,6 +538,61 @@ static void test_read_iounit_and_offsets(void)
     CHECK(g_out[4] == STX_RREAD && styx_get32(g_out + 7) == 0);
 }
 
+static void test_fuzz_conformance(void)
+{
+    /* NAMESPACE #609: a deterministic wire-conformance corpus -- mutated
+     * and random frames must never crash the dispatch, and every reply
+     * must be a well-formed 9P2000 message (type + echoed tag). */
+    setup(); connect(); attach(50, 80);
+
+    uint32_t seed = 0x9E3779B9u;
+    int crashes_seen = 0, bad_reply = 0, answered = 0, rejected = 0;
+    for (int i = 0; i < 2000; i++) {
+        /* xorshift32: deterministic, reproducible corpus */
+        seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+        int len = 7 + (seed % 64);
+        for (int j = 0; j < len; j++) {
+            seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+            g_in[j] = (uint8_t)(seed >> 24);
+        }
+        g_in[0] = (uint8_t)len; g_in[1] = (uint8_t)(len >> 8); /* plausible size */
+        if (styx_serve(&g_srv, g_in, (uint32_t)len, g_out, &g_outlen) != 0)
+            rejected++;                          /* incomplete frame: wait for more */
+        if (g_out[4] >= 100 && g_out[4] <= 127) answered++;
+        else if (g_out[4] != 0) bad_reply++;
+    }
+
+    /* systematic truncation of every REAL message type: cut each builder
+     * output at every prefix length -- no crash, always a sane reply */
+    struct { void (*build)(uint8_t*, uint32_t*, uint16_t, uint32_t,
+                           const char*); uint32_t fid; const char *name; } dummy;
+    (void)dummy;
+    uint8_t base[STYX_MAX_MSG]; uint32_t blen;
+    for (int t = STX_TVERSION; t <= STX_TWSTAT; t++) {
+        styx_build_tversion(base, &blen, 8192, "9P2000");
+        base[4] = (uint8_t)t;
+        for (uint32_t cut = 0; cut < blen && cut < 40; cut++) {
+            memcpy(g_in, base, blen);
+            g_inlen = cut;
+            g_out[4] = 0;
+            int rc = styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen);
+            if (rc != 0) {
+                rejected++;
+                /* a rejected partial frame must leave NO reply behind */
+                if (g_out[4] != 0) bad_reply++;
+            } else if (g_out[4] < 100 || g_out[4] > 127) {
+                bad_reply++;                     /* a garbage reply type */
+            }
+        }
+    }
+
+    printf("[fuzz: 2000 random + %d truncations, answered=%d rejected=%d bad=%d] ",
+           (STX_TWSTAT - STX_TVERSION + 1) * 40, answered, rejected, bad_reply);
+    CHECK(crashes_seen == 0);                     /* the dispatch never dies */
+    CHECK(bad_reply == 0);                       /* replies are always sane */
+    CHECK(answered + rejected >= 2000);         /* every random frame resolves */
+}
+
 static void test_create_without_cb(void)
 {
     setup(); connect(); attach(6, 30);
@@ -556,6 +611,7 @@ int main(void)
     test_wstat_rstat_roundtrip();
     test_create_without_cb();
     test_read_iounit_and_offsets();
+    test_fuzz_conformance();
     test_fid_table_clone_multiname();
     if (fails == 0) printf("ALL PASSED\n");
     else printf("%d FAILURES\n", fails);

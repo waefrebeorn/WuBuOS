@@ -142,6 +142,38 @@ int main(void)
         else NO("large-file paging failed");
     }
 
+    T("a revoked fid capability is denied on the wire (EACCES)");
+    {
+        /* SECURITY #793/#794: attach mints the fid's capability; opening
+         * works while it is live and is refused with 'permission denied'
+         * after styxfs_cap_revoke_fid -- enforcement proven end to end. */
+        styx_build_tattach(req, &len, 10, 30, 0xFFFFFFFFu, "/n/big");
+        int ca = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        const char *wn3[1] = {"bigfile"};
+        styx_build_twalk(req, &len, 11, 30, 31, wn3, 1);
+        int cw = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        styx_build_topen(req, &len, 12, 31, 0);
+        int co1 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int open1_ok = (co1 == 0 && rep[4] == STX_ROPEN);
+
+        int revoked = (styxfs_cap_revoke_fid(&srv, 31) == 0);
+        styx_build_topen(req, &len, 13, 31, 0);
+        int co2 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int denied = 0;
+        const char *etxt = "";
+        if (co2 == 0 && rep[4] == STX_RERROR) {
+            uint16_t esz = (uint16_t)(rep[7] | (rep[8] << 8));
+            char buf[64] = {0};
+            if (esz < sizeof(buf)) { memcpy(buf, rep + 9, esz); buf[esz] = 0; }
+            etxt = buf;
+            denied = (strcmp(buf, "permission denied") == 0);
+        }
+        printf("[attach=%d walk=%d open1=%d revoked=%d denied=%d ename='%s'] ",
+               ca == 0, cw == 0, open1_ok, revoked, denied, etxt);
+        if (ca == 0 && cw == 0 && open1_ok && revoked && denied) OK();
+        else NO("capability enforcement failed on the wire");
+    }
+
     T("a bad size prefix is refused");
     uint8_t bad[4] = {0, 0, 0, 2};
     if (write(sv[0], bad, 4) == 4 && styx_serve_one(sv[1], &srv.base) < 0) OK();

@@ -162,6 +162,11 @@ typedef struct styx_server {
     char     version[16];      /* Protocol version string */
     int      connected;
     
+    /* Clone hook: called by the Twalk clone path (nwname=0) AFTER the
+     * new fid is copied, so the fs layer can carry per-fid state (the
+     * 9P capability) across the clone. */
+    void (*clone)(struct styx_server *srv, uint32_t fid, uint32_t newfid);
+
     /* Callbacks  --  file system operations */
     int  (*attach)(struct styx_server *srv, uint32_t fid, const char *aname);
     int  (*walk) (struct styx_server *srv, uint32_t fid,

@@ -59,6 +59,85 @@ static void fid_free_path(styx_fid_t *f) {
 
 /* -- Attach ------------------------------------------------ */
 
+/* -- Capability-backed 9P access -----------------------------------
+ * NAMESPACE #589 / SECURITY #793/#794: attach grants, open checks
+ * BEFORE opening, clunk revokes. The rights vocabulary is the Topen
+ * policy below; wubu_cap_resolve enforces rights AND audience. */
+uint64_t styxfs_cap_rights_for_mode(int mode)
+{
+    uint64_t r = 0;
+    switch (mode & 3) {
+    case STX_OREAD:  r = WUBU_RIGHT_READ;  break;
+    case STX_OWRITE: r = WUBU_RIGHT_WRITE; break;
+    case STX_ORDWR:  r = WUBU_RIGHT_READ | WUBU_RIGHT_WRITE; break;
+    case STX_OEXEC:  r = WUBU_RIGHT_EXEC;  break;
+    }
+    if (mode & STX_OTRUNC) r |= WUBU_RIGHT_WRITE;   /* truncating IS writing */
+    return r;
+}
+
+/* Grant a fid its STYX_NODE capability (called from attach) */
+static void styxfs_cap_grant(styxfs_server_t *fs, uint32_t fid)
+{
+    wubu_cap_init();                          /* idempotent */
+    if (fs->cap_session_pid == 0) fs->cap_session_pid = 9001;
+    int32_t aud[WUBU_CAP_AUDIENCE_MAX];
+    for (int i = 0; i < WUBU_CAP_AUDIENCE_MAX; i++)
+        aud[i] = (i == 0) ? fs->cap_session_pid : WUBU_PID_NONE;
+    wubu_cap_token_t tok;
+    if (wubu_cap_create(WUBU_CAP_KIND_STYX_NODE,
+                        WUBU_RIGHT_READ | WUBU_RIGHT_WRITE | WUBU_RIGHT_EXEC,
+                        aud, 0, (uintptr_t)fid, fs->cap_session_pid,
+                        WUBU_CAP_IDX_NONE, &tok) > 0) {
+        fs->fid_caps[fid % STYX_MAX_FIDS] = tok;
+        fs->cap_enforce = 1;
+    }
+}
+
+/* Check a fid's capability for an open mode BEFORE the node is opened */
+static int styxfs_cap_check_open(styxfs_server_t *fs, uint32_t fid, int mode)
+{
+    if (!fs || !fs->cap_enforce) return 0;     /* direct-cb harnesses */
+    wubu_cap_token_t tok = fs->fid_caps[fid % STYX_MAX_FIDS];
+    if (wubu_cap_token_is_null(tok)) { errno = EACCES; return -1; }
+    if (wubu_cap_resolve(fs->cap_session_pid, tok,
+                         styxfs_cap_rights_for_mode(mode)) == NULL) {
+        errno = EACCES;                        /* revoked or insufficient rights */
+        return -1;
+    }
+    return 0;
+}
+
+int styxfs_cap_revoke_fid(styxfs_server_t *fs, uint32_t fid)
+{
+    if (!fs) return -1;
+    wubu_cap_token_t tok = fs->fid_caps[fid % STYX_MAX_FIDS];
+    if (wubu_cap_token_is_null(tok)) return -1;
+    wubu_cap_revoke(tok);
+    fs->fid_caps[fid % STYX_MAX_FIDS].raw = 0;
+    return 0;
+}
+
+/* The dispatch clone hook: carry the capability across the clone */
+void styxfs_cap_clone_cb(styx_server_t *base, uint32_t fid,
+                                uint32_t newfid)
+{
+    styxfs_server_t *fs = styxfs_get_server(base);
+    if (!fs->cap_enforce) return;
+    wubu_cap_token_t pt = fs->fid_caps[fid % STYX_MAX_FIDS];
+    if (wubu_cap_token_is_null(pt)) { styxfs_cap_grant(fs, newfid); return; }
+    int32_t aud[WUBU_CAP_AUDIENCE_MAX];
+    for (int i = 0; i < WUBU_CAP_AUDIENCE_MAX; i++)
+        aud[i] = (i == 0) ? fs->cap_session_pid : WUBU_PID_NONE;
+    wubu_cap_token_t child;
+    if (wubu_cap_derive(pt, fs->cap_session_pid,
+                        WUBU_RIGHT_READ | WUBU_RIGHT_WRITE | WUBU_RIGHT_EXEC,
+                        aud, 0, &child) > 0)
+        fs->fid_caps[newfid % STYX_MAX_FIDS] = child;
+    else
+        styxfs_cap_grant(fs, newfid);
+}
+
 int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname) {
     styxfs_server_t *srv = styxfs_get_server(base);
     (void)srv;
@@ -80,6 +159,10 @@ int styxfs_attach_cb(styx_server_t *base, uint32_t fid, const char *aname) {
     f->qid.version = 1;
     f->qid.path = 1 + (uint64_t)(unsigned char)path[n ? n - 1 : 0];
     f->file_state = path;
+
+    /* SECURITY #793: the attach AUTHENTICATES the session by minting its
+     * fid capability -- every later open resolves against it. */
+    styxfs_cap_grant(srv, fid);
     return 0;
 }
 
@@ -162,6 +245,30 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
         if (!nf) return -1;
         nf->qid      = qids[nqid - 1];
         nf->file_state = wubu_strdup(cur);
+
+        /* SECURITY #794: the walked fid DERIVES its capability from the
+         * parent's -- access flows down the walk, never sideways. Done
+         * here, BEFORE the success return, so the armed fid always
+         * carries its token. */
+        {
+            styxfs_server_t *fs = styxfs_get_server(base);
+            if (fs->cap_enforce) {
+                wubu_cap_token_t pt = fs->fid_caps[fid % STYX_MAX_FIDS];
+                int32_t aud[WUBU_CAP_AUDIENCE_MAX];
+                for (int i = 0; i < WUBU_CAP_AUDIENCE_MAX; i++)
+                    aud[i] = (i == 0) ? fs->cap_session_pid : WUBU_PID_NONE;
+                wubu_cap_token_t child;
+                if (!wubu_cap_token_is_null(pt) &&
+                    wubu_cap_derive(pt, fs->cap_session_pid,
+                                    WUBU_RIGHT_READ | WUBU_RIGHT_WRITE |
+                                    WUBU_RIGHT_EXEC,
+                                    aud, 0, &child) > 0) {
+                    fs->fid_caps[newfid % STYX_MAX_FIDS] = child;
+                } else {
+                    styxfs_cap_grant(fs, newfid);   /* parentless: mint fresh */
+                }
+            }
+        }
     }
 
     *nwqid = nqid;
@@ -173,6 +280,12 @@ int styxfs_walk_cb(styx_server_t *base, uint32_t fid, uint32_t newfid,
 int styxfs_open_cb(styx_server_t *base, uint32_t fid, int mode,
                     styx_qid_t *qid) {
     styxfs_server_t *srv = styxfs_get_server(base);
+
+    /* NAMESPACE #589 / SECURITY #794: the capability check comes BEFORE
+     * the node is opened -- a fid without the requested rights (or with
+     * a revoked token) never touches the host filesystem. */
+    if (styxfs_cap_check_open(srv, fid, mode) != 0) return -1;
+
     (void)srv;
     styx_fid_t *f = styx_fid_lookup(base, fid);
     if (!f) return -1;
@@ -376,6 +489,16 @@ int styxfs_write_cb(styx_server_t *base, uint32_t fid,
 /* -- Clunk / Remove ---------------------------------------- */
 
 int styxfs_clunk_cb(styx_server_t *base, uint32_t fid) {
+    /* the clunk takes the fid's access with it (revocation on close) */
+    {
+        styxfs_server_t *srv = styxfs_get_server(base);
+        wubu_cap_token_t tok = srv->fid_caps[fid % STYX_MAX_FIDS];
+        if (!wubu_cap_token_is_null(tok)) {
+            wubu_cap_revoke(tok);
+            srv->fid_caps[fid % STYX_MAX_FIDS].raw = 0;
+        }
+    }
+
     styx_fid_t *f = styx_fid_lookup(base, fid);
     fid_free_path(f);
     return 0;   /* base styx_serve frees the fid slot itself */

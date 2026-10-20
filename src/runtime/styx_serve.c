@@ -382,6 +382,7 @@ int styx_serve(styx_server_t *srv,
             }
             *nf = *f;
             nf->fid = newfid;
+            if (srv->clone) srv->clone(srv, fid, newfid);
             return build_rwalk(outbuf, outlen, tag, &f->qid, 1);
         }
 
@@ -433,7 +434,11 @@ int styx_serve(styx_server_t *srv,
 
         styx_qid_t qid;
         if (srv->open(srv, fid, mode, &qid) != 0) {
-            styx_error(tag, "Open failed", outbuf, outlen);
+            {
+                int e = errno;   /* the callback set the REASON; name it */
+                styx_error(tag, e ? styx_errno_ename(e) : "Open failed",
+                           outbuf, outlen);
+            }
             return 0;
         }
         f->open_mode = mode;

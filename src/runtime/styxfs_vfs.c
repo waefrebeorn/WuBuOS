@@ -134,6 +134,7 @@ void styxfs_init(styxfs_server_t *srv) {
     base->read   = styxfs_read_cb;
     base->write  = styxfs_write_cb;
     base->clunk  = styxfs_clunk_cb;
+    base->clone  = styxfs_cap_clone_cb;
     base->remove = styxfs_remove_cb;
     base->stat   = styxfs_stat_cb;
     base->wstat  = styxfs_wstat_cb;
