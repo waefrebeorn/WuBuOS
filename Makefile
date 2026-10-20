@@ -17,4 +17,5 @@ include mk/objects.mk
 include mk/targets.mk
 include mk/pattern-rules.mk
 include mk/tests.mk
+include mk/tests_all.mk
 include mk/clean.mk
