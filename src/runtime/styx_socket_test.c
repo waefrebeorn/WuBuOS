@@ -92,6 +92,56 @@ int main(void)
         if (t1 && t2 && t3 && got) OK(); else NO("mount/read sequence failed");
     }
 
+    T("a file larger than msize pages across multiple Rreads (iounit)");
+    {
+        /* FS #446: a 20 KiB file over an 8192-byte msize cannot arrive in
+         * one Rread -- the server must cap each reply at msize-11 and the
+         * client pages until an EOF count=0. */
+        const char *dir = "/home/wubu/.hermes/profiles/mind-palace/cache/scratch/nkern";
+        static char big[20481];
+        for (int i = 0; i < 20480; i++) big[i] = (char)('a' + (i % 26));
+        big[20480] = 0;
+        char fp[512];
+        snprintf(fp, sizeof fp, "%s/bigfile", dir);
+        FILE *bf = fopen(fp, "wb");
+        if (bf) { fwrite(big, 1, 20480, bf); fclose(bf); }
+
+        styxfs_mount(&srv, "/n/big", (char *)dir, 0);
+        styx_build_tattach(req, &len, 6, 20, 0xFFFFFFFFu, "/n/big");
+        int a1 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int ta = (a1 == 0 && rep[4] == STX_RATTACH);
+
+        const char *wn2[1] = {"bigfile"};
+        styx_build_twalk(req, &len, 7, 20, 21, wn2, 1);
+        int w1 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int tw = (w1 == 0 && rep[4] == STX_RWALK);
+
+        styx_build_topen(req, &len, 8, 21, 0);
+        int o1 = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+        int to = (o1 == 0 && rep[4] == STX_ROPEN);
+
+        uint64_t off = 0; uint32_t total = 0; int rounds = 0, eof = 0, cap_ok = 1;
+        uint32_t msize = 8192, per_cap = 0;
+        /* the negotiated msize lives in the server struct */
+        msize = srv.base.msize;
+        per_cap = msize - 11;
+        while (rounds < 16) {
+            styx_build_tread(req, &len, 9, 21, off, 8192);
+            int rr = rq(sv[0], sv[1], &srv.base, req, len, rep, &rlen);
+            if (rr != 0 || rep[4] != STX_RREAD) break;
+            uint32_t n = (uint32_t)rep[7] | ((uint32_t)rep[8] << 8) |
+                         ((uint32_t)rep[9] << 16) | ((uint32_t)rep[10] << 24);
+            if (n > per_cap) cap_ok = 0;          /* iounit violated */
+            if (n == 0) { eof = 1; break; }
+            if (memcmp(rep + 11, big + off, n) != 0) cap_ok = 0;
+            total += n; off += n; rounds++;
+        }
+        printf("[attach=%d walk=%d open=%d rounds=%d total=%u cap=%d eof=%d] ",
+               ta, tw, to, rounds, total, cap_ok, eof);
+        if (ta && tw && to && rounds == 3 && total == 20480 && cap_ok && eof) OK();
+        else NO("large-file paging failed");
+    }
+
     T("a bad size prefix is refused");
     uint8_t bad[4] = {0, 0, 0, 2};
     if (write(sv[0], bad, 4) == 4 && styx_serve_one(sv[1], &srv.base) < 0) OK();
