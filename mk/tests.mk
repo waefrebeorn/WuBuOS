@@ -1272,7 +1272,7 @@ test_styx_flush:
 	$(RT)/styx_flush_test
 
 test_styx_socket:
-	$(CC) -O2 -g -std=c11 -D_GNU_SOURCE -I$(RT) $(RT)/styx_socket.c $(RT)/styx_socket_test.c $(RT)/styx_serve.c $(RT)/styx_enc.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styx_locks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/wubu_container.c -o $(RT)/styx_socket_test
+	$(CC) -O2 -g -std=c11 -D_GNU_SOURCE -I$(RT) $(RT)/styx_socket.c $(RT)/styx_socket_test.c $(RT)/styx_serve.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styx_locks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c $(RT)/wubu_container.c -o $(RT)/styx_socket_test
 	$(RT)/styx_socket_test
 
 test_styx_tags:
@@ -1291,7 +1291,7 @@ HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)
 # (styx/exec/container/oci_http_client/...) and would cause `multiple definition`.
 test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o $(GUI)/dosgui_wm_clock.o $(GUI)/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/styxfs_vfs.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o $(RT)/wubu_fs_util.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_HOSTED_TEST -DWUBD_TEST_MAIN -I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(BRIDGE) -I$(GUI) -I$(COMP) -I$(JIT) -I$(APPS) \
-		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_util.c $(RT)/styx_serve.c $(RT)/styxfs_posix.o $(RT)/styx_locks.c $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
+		$(HOSTED_TEST_OBJS) $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_util.c $(RT)/styx_serve.c $(RT)/styx_names.c $(RT)/styxfs_posix.o $(RT)/styx_locks.c $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 		$(HOSTED)/hosted_test.c $(HOSTED)/hosted.c \
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -lpthread -ljson-c -lvulkan -o $(HOSTED)/hosted_test
 	$(HOSTED)/hosted_test

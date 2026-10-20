@@ -8,6 +8,7 @@
 
 #include "styx.h"
 #include <string.h>
+#include <errno.h>
 
 /* -- Message name table ------------------------------------------- */
 
@@ -52,6 +53,41 @@ int styx_msg_name_register(uint8_t type, const char *name)
     styx_msg_registry_seed();
     g_styx_msg_registry[type] = name;
     return 0;
+}
+
+/* -- errno -> Rerror ename (the namespace failure vocabulary) --------
+ * NAMESPACE #590: every namespace failure a callback reports via errno
+ * maps to stable 9P2000 ename text, so a client can show (and match on)
+ * the REASON, not just the failure. Unmapped errnos get a fixed generic
+ * string -- never NULL, never strerror()'s locale-dependent text. */
+const char *styx_errno_ename(int err)
+{
+    switch (err) {
+    case 0:           return "no error";
+    case EPERM:
+    case EACCES:      return "permission denied";
+    case ENOENT:      return "no such file or directory";
+    case EEXIST:      return "file already exists";
+    case ENOTDIR:     return "not a directory";
+    case EISDIR:      return "is a directory";
+    case EROFS:       return "read-only filesystem";
+    case ENOSPC:      return "no space left on device";
+    case ENAMETOOLONG:return "file name too long";
+    case ELOOP:       return "too many symbolic links";
+    case EXDEV:       return "cross-device link";
+    case ENOTEMPTY:   return "directory not empty";
+    case EBUSY:       return "resource busy";
+    case EINTR:       return "interrupted";
+    case EAGAIN:      return "resource temporarily unavailable";
+    case EBADF:       return "bad file descriptor";
+    case EMFILE:      return "too many open files in process";
+    case ENFILE:      return "too many open files in system";
+    case EINVAL:      return "invalid argument";
+    case EIO:         return "input/output error";
+    case EOPNOTSUPP:  return "operation not supported";   /* ENOTSUP == EOPNOTSUPP on Linux */
+    case EOVERFLOW:   return "value too large";
+    default:          return "unknown error";
+    }
 }
 
 const char *styx_msg_name(uint8_t type) {

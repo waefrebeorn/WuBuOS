@@ -9,8 +9,18 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 static int fails;
+
+/* NETWORK #636: the fid leak guard -- how many slots are live */
+static int fids_in_use(styx_server_t *s)
+{
+    int n = 0;
+    for (int i = 0; i < STYX_MAX_FIDS; i++)
+        if (s->fids[i].in_use) n++;
+    return n;
+}
 #define CHECK(cond) do { \
     if (!(cond)) { fails++; printf("FAIL: %s (line %d)\n", #cond, __LINE__); } \
 } while (0)
@@ -23,6 +33,9 @@ static uint32_t g_inlen, g_outlen;
 static uint32_t g_created_perm, g_created_mode;
 static char g_created_name[64];
 static int g_create_calls, g_wstat_calls, g_flush_calls;
+static char g_walk_names[4][STYX_MAX_FNAME];
+static int g_walk_ncalls, g_walk_nnames_last;
+
 static uint32_t g_read_count_seen;
 static char g_read_buf[256];
 static uint64_t g_read_off_seen;
@@ -57,7 +70,7 @@ static int cb_create(styx_server_t *s, uint32_t fid, const char *name,
                      uint32_t perm, int mode, styx_qid_t *qid)
 {
     (void)s;
-    if (strcmp(name, "denied") == 0) return -1;
+    if (strcmp(name, "denied") == 0) { errno = EEXIST; return -1; }
     g_create_calls++;
     snprintf(g_created_name, sizeof(g_created_name), "%s", name);
     g_created_perm = perm;
@@ -106,6 +119,34 @@ static int cb_write(styx_server_t *s, uint32_t fid, uint64_t offset,
     if (count > sizeof(g_write_data)) count = sizeof(g_write_data);
     memcpy(g_write_data, data, count);
     *nwritten = count;
+    return 0;
+}
+
+static uint32_t g_removed_fid;
+static int g_remove_calls;
+
+static void cb_remove(styx_server_t *s, uint32_t fid)
+{
+    (void)s;
+    g_remove_calls++;
+    g_removed_fid = fid;
+}
+
+static int cb_walk(styx_server_t *s, uint32_t fid, uint32_t newfid,
+                    const char **wname, int nwname,
+                    styx_qid_t *qids, int *nwqid)
+{
+    (void)s; (void)fid; (void)newfid;
+    g_walk_ncalls++;
+    g_walk_nnames_last = nwname;
+    for (int i = 0; i < nwname && i < 4; i++)
+        snprintf(g_walk_names[i], STYX_MAX_FNAME, "%s", wname[i]);
+    for (int i = 0; i < nwname && i < 16; i++) {
+        qids[i].type = STX_QTDIR;
+        qids[i].version = 1;
+        qids[i].path = 100 + i;
+    }
+    *nwqid = nwname;
     return 0;
 }
 
@@ -253,6 +294,15 @@ static void test_create_lifecycle(void)
     CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
     CHECK(g_out[4] == STX_RERROR);
     CHECK(g_create_calls == 1);                    /* unchanged */
+
+    /* NAMESPACE #590: the Rerror carries the REASON (the callback's
+     * errno mapped through the ename table), not a generic 'failed' */
+    {
+        uint16_t esz = styx_get16(g_out + 7);
+        char etxt[64] = {0};
+        if (esz < sizeof(etxt)) memcpy(etxt, g_out + 9, esz);
+        CHECK(strcmp(etxt, "file already exists") == 0);
+    }
 }
 
 static void test_wstat_rstat_roundtrip(void)
@@ -322,6 +372,116 @@ static void test_wstat_rstat_roundtrip(void)
     CHECK(back.length == 4242);
     CHECK(strcmp(back.name, "probe.txt") == 0);
     CHECK(strcmp(back.uid, "wubu") == 0);
+}
+
+static void test_fid_table_clone_multiname(void)
+{
+    /* NAMESPACE #593: the fid table API, the wire clone, and multi-name
+     * walks. KERNEL #569's Tremove leg rides along at the end. */
+    setup(); connect(); attach(30, 60);
+
+    /* the fid table API directly: alloc -> lookup -> free -> gone */
+    styx_fid_t *fa = styx_fid_alloc(&g_srv, 90);
+    CHECK(fa && fa->fid == 90);
+    CHECK(styx_fid_lookup(&g_srv, 90) == fa);
+    styx_fid_free(&g_srv, 90);
+    CHECK(styx_fid_lookup(&g_srv, 90) == NULL);
+
+    /* exhaustion: fill every remaining slot, then alloc must fail */
+    for (uint32_t i = 100; i < 100 + STYX_MAX_FIDS; i++) {
+        if (styx_fid_lookup(&g_srv, i)) continue;
+        if (!styx_fid_alloc(&g_srv, i)) {
+            CHECK(i - 100 >= 1);              /* at least one was taken */
+            goto table_full;
+        }
+    }
+    CHECK(!styx_fid_alloc(&g_srv, 9999));     /* table exhausted */
+table_full:
+    /* free them again */
+    for (uint32_t i = 100; i < 100 + STYX_MAX_FIDS + 8; i++)
+        styx_fid_free(&g_srv, i);
+
+    /* clone via the wire: walk 30 -> 31 with no names */
+    g_walk_ncalls = 0;
+    styx_fid_t *f30 = styx_fid_lookup(&g_srv, 30);
+    CHECK(f30 != NULL);
+    styx_build_twalk(g_in, &g_inlen, 61, 30, 31, NULL, 0);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RWALK);
+    CHECK(styx_get16(g_out + 7) == 1);        /* nwqid 1 for a clone */
+    styx_fid_t *f31 = styx_fid_lookup(&g_srv, 31);
+    CHECK(f31 && f31->qid.path == f30->qid.path);  /* clone carries the qid */
+    CHECK(f30 != NULL && styx_fid_lookup(&g_srv, 30) != NULL); /* source lives */
+    CHECK(g_walk_ncalls == 0);                /* clone never calls the walk cb */
+
+    /* cloning onto an IN-USE fid is refused (walk(5)), not duplicated */
+    styx_build_twalk(g_in, &g_inlen, 62, 30, 31, NULL, 0);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RERROR);            /* fid in use */
+
+    /* a walk to a BAD source fid is refused */
+    styx_build_twalk(g_in, &g_inlen, 63, 7777, 32, NULL, 0);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RERROR);
+
+    /* multi-name walk: three components reach the callback in order and
+     * the reply carries one qid per component */
+    const char *wn[3] = { "n", "sub", "leaf" };
+    g_srv.walk = cb_walk;
+    g_walk_ncalls = 0;
+    styx_build_twalk(g_in, &g_inlen, 64, 30, 33, wn, 3);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RWALK);
+    CHECK(styx_get16(g_out + 7) == 3);        /* nwqid = 3 */
+    CHECK(g_walk_ncalls == 1 && g_walk_nnames_last == 3);
+    CHECK(strcmp(g_walk_names[0], "n") == 0);
+    CHECK(strcmp(g_walk_names[1], "sub") == 0);
+    CHECK(strcmp(g_walk_names[2], "leaf") == 0);
+    /* qid[0] right after nwqid */
+    CHECK(g_out[9] == STX_QTDIR && styx_get64(g_out + 14) == 100);
+
+    /* KERNEL #569's Tremove leg: a remove implies clunk (0intro:262-271
+     * -- even if the remove fails the fid is gone), and the callback
+     * fires before the fid is freed. */
+    attach(34, 66);
+    g_removed_fid = 0; g_remove_calls = 0;
+    g_srv.remove = cb_remove;
+
+    styx_build_tremove(g_in, &g_inlen, 67, 34);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RREMOVE);
+    CHECK(styx_get16(g_out + 5) == 67);
+    CHECK(g_remove_calls == 1 && g_removed_fid == 34);
+    CHECK(styx_fid_lookup(&g_srv, 34) == NULL);   /* clunked by the remove */
+
+    /* no remove callback: the house default clunks the fid too (a bare
+     * fid-table server's remove IS the clunk; matches the read arm's
+     * no-backend EOF default) */
+    attach(35, 68);
+    g_srv.remove = NULL;
+    styx_build_tremove(g_in, &g_inlen, 69, 35);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RREMOVE);
+    CHECK(styx_fid_lookup(&g_srv, 35) == NULL);
+
+    /* remove of a BAD fid still answers (the clunk is idempotent) */
+    styx_build_tremove(g_in, &g_inlen, 70, 7777);
+    CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+    CHECK(g_out[4] == STX_RREMOVE);
+
+    /* NETWORK #636 -- the fid leak guard: after a full session
+     * (attach/clone/walk/create/clunk/remove), clunking every live fid
+     * returns the table to EMPTY. */
+    int guard_live = fids_in_use(&g_srv);
+    CHECK(guard_live > 0);                       /* there IS something to leak */
+    for (int i = 0; i < STYX_MAX_FIDS; i++) {
+        if (g_srv.fids[i].in_use) {
+            styx_build_tclunk(g_in, &g_inlen, 71, g_srv.fids[i].fid);
+            CHECK(styx_serve(&g_srv, g_in, g_inlen, g_out, &g_outlen) == 0);
+            CHECK(g_out[4] == STX_RCLUNK);
+        }
+    }
+    CHECK(fids_in_use(&g_srv) == 0);             /* no leaks */
 }
 
 static void test_read_iounit_and_offsets(void)
@@ -396,6 +556,7 @@ int main(void)
     test_wstat_rstat_roundtrip();
     test_create_without_cb();
     test_read_iounit_and_offsets();
+    test_fid_table_clone_multiname();
     if (fails == 0) printf("ALL PASSED\n");
     else printf("%d FAILURES\n", fails);
     return fails ? 1 : 0;

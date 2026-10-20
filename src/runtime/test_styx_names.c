@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 static int fails;
 #define CHECK(cond) do { \
@@ -58,6 +59,20 @@ int main(void)
     CHECK(styx_msg_name_register(50, NULL) == -1);
     CHECK(styx_msg_name_register(255, "Tcustom255") == 0);
     CHECK(strcmp(styx_msg_name(255), "Tcustom255") == 0);
+
+    /* NAMESPACE #590: every namespace failure errno maps to stable ename */
+    CHECK(strcmp(styx_errno_ename(EEXIST), "file already exists") == 0);
+    CHECK(strcmp(styx_errno_ename(EACCES), "permission denied") == 0);
+    CHECK(strcmp(styx_errno_ename(EPERM), "permission denied") == 0);
+    CHECK(strcmp(styx_errno_ename(ENOENT), "no such file or directory") == 0);
+    CHECK(strcmp(styx_errno_ename(ENOTDIR), "not a directory") == 0);
+    CHECK(strcmp(styx_errno_ename(EISDIR), "is a directory") == 0);
+    CHECK(strcmp(styx_errno_ename(EROFS), "read-only filesystem") == 0);
+    CHECK(strcmp(styx_errno_ename(EINVAL), "invalid argument") == 0);
+    CHECK(strcmp(styx_errno_ename(ENOTSUP), "operation not supported") == 0);
+    CHECK(strcmp(styx_errno_ename(0), "no error") == 0);
+    CHECK(strcmp(styx_errno_ename(0xBEEF), "unknown error") == 0);
+    CHECK(styx_errno_ename(EACCES) != NULL);
 
     if (fails == 0) printf("ALL PASSED\n");
     else printf("%d FAILURES\n", fails);

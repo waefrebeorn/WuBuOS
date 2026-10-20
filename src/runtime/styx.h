@@ -351,6 +351,9 @@ static inline const uint8_t *styx_getstr(const uint8_t *buf,
 /* Get message name for debugging */
 const char *styx_msg_name(uint8_t type);
 
+/* errno -> stable 9P2000 Rerror ename text (namespace failure vocabulary) */
+const char *styx_errno_ename(int err);
+
 /* Register a name for a message type at runtime (the Revolver Doctrine:
  * the 9P2000 standard names seed the registry; extension dialects can
  * name their types without a recompile). Returns 0 on success. */

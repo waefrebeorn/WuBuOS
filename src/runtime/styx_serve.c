@@ -12,6 +12,7 @@
 #include "styx.h"
 #include "styx_internal.h"
 #include <string.h>
+#include <errno.h>
 
 /* Crash-hardening: every message handler must confirm the declared msg_size
  * covers the fields it reads before touching inbuf. A short/malformed frame
@@ -312,7 +313,11 @@ int styx_serve(styx_server_t *srv,
         }
         styx_qid_t qid;
         if (srv->create(srv, fid, name, perm, mode, &qid) != 0) {
-            styx_error(tag, "Create failed", outbuf, outlen);
+            {
+            int e = errno;   /* the callback set the REASON; name it */
+            styx_error(tag, e ? styx_errno_ename(e) : "Create failed",
+                       outbuf, outlen);
+        }
             return 0;
         }
         return build_rcreate(outbuf, outlen, tag, &qid, 0 /* iounit */);
@@ -363,7 +368,13 @@ int styx_serve(styx_server_t *srv,
         }
 
         if (nwname == 0) {
-            /* Clone fid */
+            /* Clone fid. walk(5): a walk to an already-in-use newfid is a
+             * protocol error, not a silent second entry -- the old code
+             * alloc'd blindly and two slots could carry the same fid. */
+            if (styx_fid_lookup(srv, newfid)) {
+                styx_error(tag, "fid in use", outbuf, outlen);
+                return 0;
+            }
             styx_fid_t *nf = styx_fid_alloc(srv, newfid);
             if (!nf) {
                 styx_error(tag, "Out of fids", outbuf, outlen);
@@ -459,7 +470,11 @@ int styx_serve(styx_server_t *srv,
         uint8_t rdata[STYX_MAX_DATA];
         uint32_t nread = 0;
         if (srv->read(srv, fid, offset, count, rdata, &nread) != 0) {
-            styx_error(tag, "Read failed", outbuf, outlen);
+            {
+            int e = errno;   /* the callback set the REASON; name it */
+            styx_error(tag, e ? styx_errno_ename(e) : "Read failed",
+                       outbuf, outlen);
+        }
             return 0;
         }
         f->offset = offset + nread;
@@ -494,7 +509,11 @@ int styx_serve(styx_server_t *srv,
         const uint8_t *wdata = inbuf + 23;
         uint32_t nwritten = 0;
         if (srv->write(srv, fid, offset, count, wdata, &nwritten) != 0) {
-            styx_error(tag, "Write failed", outbuf, outlen);
+            {
+            int e = errno;   /* the callback set the REASON; name it */
+            styx_error(tag, e ? styx_errno_ename(e) : "Write failed",
+                       outbuf, outlen);
+        }
             return 0;
         }
         f->offset = offset + nwritten;
@@ -584,7 +603,11 @@ int styx_serve(styx_server_t *srv,
         (void)p;
 
         if (srv->wstat(srv, fid, &dir) != 0) {
-            styx_error(tag, "Wstat failed", outbuf, outlen);
+            {
+            int e = errno;   /* the callback set the REASON; name it */
+            styx_error(tag, e ? styx_errno_ename(e) : "Wstat failed",
+                       outbuf, outlen);
+        }
             return 0;
         }
         /* 9P2000 conformance (0intro:296-306): Twstat answers Rwstat.
