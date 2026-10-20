@@ -8,6 +8,7 @@
  * low-physical addresses (identity-mapped by crt0's 0..1GB PD).
  */
 #include "wubu_attest.h"
+#include "wubu_sha256.h"   /* the runtime PCR chain is FIPS SHA-256 */
 #include <string.h>
 
 /* Pin the wire layout so a firmware/loader change breaks the kernel build

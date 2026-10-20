@@ -42,7 +42,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/timer_wheel.o $(K
               $(KERNEL)/wubu_verifier.o $(KERNEL)/wubu_tss.o \
               $(KERNEL)/wubu_sync.o $(KERNEL)/wubu_vmm.o \
               $(KERNEL)/wubu_memmap.o $(KERNEL)/wubu_serial.o \
-              $(KERNEL)/wubu_audit.o $(KERNEL)/wubu_sha256.o $(KERNEL)/wubu_rtc.o \
+              $(KERNEL)/wubu_audit.o $(KERNEL)/wubu_measured_agent.o $(KERNEL)/wubu_dualcontrol.o $(KERNEL)/wubu_dma.o $(KERNEL)/wubu_sha256.o $(KERNEL)/wubu_rtc.o \
               $(KERNEL)/wubu_acpi.o $(KERNEL)/wubu_wdt.o \
               $(KERNEL)/wubu_hpet.o $(KERNEL)/wubu_crash.o \
               $(KERNEL)/wubu_smbios.o $(KERNEL)/wubu_vdso.o $(KERNEL)/wubu_swap.o \

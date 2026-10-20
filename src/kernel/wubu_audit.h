@@ -28,7 +28,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define WUBU_AUDIT_CAP     512
+/* Ring capacity: the kernel image has a 1 MiB load budget (kernel.ld
+ * ASSERTs it), so the static ring is sized to what that budget affords
+ * -- 128 records x 216 bytes ~ 28 KB. The most recent records are what
+ * an operator audits first; older history belongs in the persisted
+ * namespace audit log (wubu_ns_audit.c). */
+#define WUBU_AUDIT_CAP     128
 #define WUBU_AUDIT_MSG_SZ  128
 #define WUBU_AUDIT_HASH_SZ 32   /* SHA-256 */
 

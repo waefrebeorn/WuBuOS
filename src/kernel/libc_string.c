@@ -19,6 +19,19 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* KC16: memcmp — the kernel link is -nostdlib, so byte comparison needs
+ * its own definition (nothing else in the freestanding libc provided
+ * one; the audit chain's tamper detection was the first kernel user). */
+int memcmp(const void *a, const void *b, size_t n)
+{
+    const unsigned char *x = (const unsigned char *)a;
+    const unsigned char *y = (const unsigned char *)b;
+    for (size_t i = 0; i < n; i++) {
+        if (x[i] != y[i]) return (int)x[i] - (int)y[i];
+    }
+    return 0;
+}
+
 /* KC02: strchr — the first occurrence of c in s (or NULL). */
 char *strchr(const char *s, int c)
 {

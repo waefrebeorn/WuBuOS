@@ -94,6 +94,17 @@ SECTIONS
     _kernel_phys_base    = ABSOLUTE(_kernel_start) - _physical_offset;
     _kernel_phys_end     = ABSOLUTE(_kernel_end)   - _physical_offset;
 
+    /* The 1 MiB load budget, enforced at BUILD time. WuBuFW's firmware
+     * owns 0x200000..0x500000 (crt0 page tables + early structures), so
+     * a kernel image whose BSS end crosses 0x200000 gets its tail ZEROED
+     * by the chainloader's BSS memset -- the boot died silently after
+     * "[wubufw-loader] ELF64 ok" with no diagnostic. The assert makes
+     * that class fail the link instead. Right-size static state (audit
+     * rings, DMA pools) or move the firmware reservations -- never
+     * silently overflow the boundary. */
+    ASSERT(_kernel_phys_end <= 0x200000,
+           "kernel image exceeds the 1MB load budget: firmware owns 0x200000+")
+
     /* Early-boot scratch variables. Defined as ABSOLUTE low-physical addresses
      * (<4GB) so the 32-bit boot stub (crt0.S) can reference them with plain
      * 32-bit loads, while the identity map also makes them reachable from
