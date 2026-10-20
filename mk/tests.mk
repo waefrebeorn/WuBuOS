@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
+test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_nt_ob test_cap test_txn test_dos_emu_smoke test_manifest test_bytropix_verifier test_irqlat test_selfimprove_invariants test_ns_brain test_ns_hive test_ns_resolve test_wubu_ns_root test_wubu_ns_mount test_wubu_ns_audit test_wubu_ns_pid test_syscall_shim test_meta_e2e test_mutation_bridge test_ns_bonzi test_ns_experts test_abi_path test_app_terminal test_bonzi_activity test_bonzi_context test_bonzi_greet test_bonzi_mem test_librarian test_librarian_serve
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -98,7 +98,7 @@ test_medium_other: runtime gui test_worldsim test_audio test_apps test_apps2 tes
 # unnoticed and the 6502 lost MIR_SUB entirely; the same happened to
 # test_gauntlet earlier. Any target that nothing invokes is a target
 # nobody maintains.
-test: check_opcode_coverage check_test_wiring test_drivers test_backend_diff test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_wubu_pt
+test: check_opcode_coverage check_test_wiring test_drivers test_backend_diff test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_wubu_pt test_wubu_audit
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
@@ -563,6 +563,20 @@ test_wubu_ns_audit:
 	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/wubu_ns_audit_test \
 		$(RT)/wubu_ns_audit.c $(RT)/wubu_ns_audit_test.c
 	cd $(CURDIR) && $(RT)/wubu_ns_audit_test
+
+# hash-chained kernel audit log with tamper detection (SECURITY #775);
+# hosted build of two freestanding kernel modules (audit + sha256)
+test_wubu_audit:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
+		$(KERNEL)/wubu_audit.c $(KERNEL)/wubu_sha256.c \
+		$(KERNEL)/test/test_wubu_audit.c -o $(KERNEL)/test/test_wubu_audit
+	$(KERNEL)/test/test_wubu_audit
+
+# per-task namespace subtree at /n/pid/{tid} (NAMESPACE #598)
+test_wubu_ns_pid:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(RT) -o $(RT)/wubu_ns_pid_test \
+		$(RT)/wubu_ns_pid.c $(RT)/wubu_ns_root.c $(RT)/wubu_ns_pid_test.c
+	cd $(CURDIR) && $(RT)/wubu_ns_pid_test
 
 # Recursive-learning driver: DA-3 loop against decode-speed + 512K-OOM
 # objectives. Runs on this CPU-only host using the wubuwizard tests as the
