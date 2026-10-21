@@ -968,6 +968,10 @@ test_gamelib: $(RT)/wubu_proton_dxvk.o
 test_txfs:
 	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/txfs.c $(KERNEL)/test/legacy/txfs_test.c -o $(KERNEL)/txfs_test
 	$(KERNEL)/txfs_test
+test_wubu_socket:
+	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/wubu_socket.c $(KERNEL)/test/wubu_socket_selftest.c -o $(KERNEL)/wubu_socket_test
+	$(KERNEL)/wubu_socket_test
+
 
 test_dbuf:
 	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/gui_dbuf.c $(GUI)/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test

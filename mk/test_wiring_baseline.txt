@@ -310,3 +310,4 @@ test_world
 test_wubu_wm
 test_xhci
 test_zip_extract
+test_wubu_socket
