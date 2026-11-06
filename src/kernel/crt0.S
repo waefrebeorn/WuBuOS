@@ -431,6 +431,21 @@ _start:
     movw $0x3F8, %dx
     MARKER '1','2'
 
+    /* Zero the kernel's own .bss here.  The WuBuFW chainloader no longer
+     * zeroes it: the kernel's BSS window (0x168080+) is where WuBuFW's
+     * ACTIVE page tables live while the loader runs on them, so the loader
+     * zeroing that region triple-faulted the boot.  We now own the page
+     * tables (CR3 loaded above), so zero _bss_start.._bss_end ourselves --
+     * this is idempotent under every loader (qemu -kernel / limine /
+     * multiboot already zero it) and self-sufficient under WuBuFW. */
+    pushq %rsi
+    movabsq $_bss_start, %rdi
+    movabsq $_bss_end, %rcx
+    subq %rdi, %rcx                  /* byte count */
+    xorl %eax, %eax
+    rep  stosb
+    popq %rsi
+
     /* Early boot stack: physical 0x70000 (identity-mapped by PD_ident[0],
      * which covers 0..2MB).  We switch to the higher-half _stack_top before
      * calling kernel_main. */

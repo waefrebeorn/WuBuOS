@@ -126,7 +126,7 @@ int wubu_session_launch_game(void *state, const char *title,
 }
 
 /* -- HolyC eval ------------------------------------------------------ */
-int hc_eval(const char *src) { (void)src; return -1; }
+int hd_eval(const char *src) { (void)src; return -1; }
 
 /* -- Kernel log ------------------------------------------------------ */
 #include "../gui/dosgui_wm.h"   /* DosGuiWindow */

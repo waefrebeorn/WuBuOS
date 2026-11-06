@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": 1,
+      "url": "https://man.archlinux.org/man/cinnamon-session.1.en",
+      "title": "cinnamon-session(1) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 2,
+      "url": "https://wiki.archlinux.org/title/Cinnamon",
+      "title": "ArchWiki: Cinnamon",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 3,
+      "url": "https://wiki.archlinux.org/title/Systemd/User",
+      "title": "ArchWiki: systemd/User",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 4,
+      "url": "https://manpages.debian.org/unstable/systemd/user@.service.5.en.html",
+      "title": "user@.service(5) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 5,
+      "url": "https://specifications.freedesktop.org/autostart/latest",
+      "title": "XDG Desktop Application Autostart Specification",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 6,
+      "url": "https://dbus.freedesktop.org/doc/dbus-specification.html",
+      "title": "D-Bus Specification",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 7,
+      "url": "https://dbus.freedesktop.org/doc/dbus-daemon.1.xml",
+      "title": "dbus-daemon(1) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 8,
+      "url": "https://www.freedesktop.org/software/systemd/man/260/init.html",
+      "title": "systemd init man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 9,
+      "url": "https://man.archlinux.org/man/systemd-logind.8.en",
+      "title": "systemd-logind(8) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 10,
+      "url": "https://manpages.ubuntu.com/manpages/bionic/man8/polkit.8.html",
+      "title": "polkit(8) authorization framework man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 11,
+      "url": "https://manpages.debian.org/testing/dbus-daemon/dbus-daemon.1.en.html",
+      "title": "dbus-daemon(1) Debian man page (service activation)",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 12,
+      "url": "https://man.archlinux.org/man/systemd.socket.5",
+      "title": "systemd.socket(5) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 13,
+      "url": "https://www.freedesktop.org/software/systemd/man/250/systemd.socket.html",
+      "title": "systemd.socket(5) freedesktop man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 14,
+      "url": "https://wiki.archlinux.org/title/NetworkManager",
+      "title": "ArchWiki: NetworkManager",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 15,
+      "url": "https://www.networkmanager.dev/docs/api/1.46.2/NetworkManager.html",
+      "title": "NetworkManager daemon reference",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 16,
+      "url": "https://manpages.ubuntu.com/manpages/focal/man8/udisks.8.html",
+      "title": "udisks(8) - Disk Manager man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 17,
+      "url": "https://www.freedesktop.org/wiki/Software/udisks",
+      "title": "udisks freedesktop wiki",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 18,
+      "url": "https://manpages.opensuse.org/Tumbleweed/systemd-resolved/systemd-resolved.8.en.html",
+      "title": "systemd-resolved(8) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 19,
+      "url": "https://manpages.ubuntu.com/manpages/lunar/man8/systemd-timesyncd.service.8.html",
+      "title": "systemd-timesyncd(8) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 20,
+      "url": "https://manpages.debian.org/testing/systemd-timesyncd/timesyncd.conf.5.en.html",
+      "title": "timesyncd.conf(5) man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 21,
+      "url": "https://deepwiki.com/avahi/avahi/1-avahi-overview",
+      "title": "DeepWiki: Avahi overview (mDNS/DNS-SD)",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 22,
+      "url": "https://www.man7.org/linux//man-pages/man8/cupsd.8.html",
+      "title": "cupsd(8) - CUPS scheduler man page",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 23,
+      "url": "https://manpages.opensuse.org/Tumbleweed/systemd/systemd-timesyncd.service.8.en.html",
+      "title": "",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 24,
+      "url": "https://www.linuxfromscratch.org/blfs/view/12.2/general/accountsservice.html",
+      "title": "LFS: AccountsService (accounts-daemon)",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 25,
+      "url": "https://www.freedesktop.org/wiki/Software/ModemManager",
+      "title": "ModemManager freedesktop wiki",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 26,
+      "url": "https://github.com/linuxmint/mintupdate",
+      "title": "linuxmint/mintupdate GitHub repo",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 27,
+      "url": "https://deepwiki.com/linuxmint/mintupdate",
+      "title": "DeepWiki: linuxmint/mintupdate",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 28,
+      "url": "https://github.com/linuxmint/xapp",
+      "title": "linuxmint/xapp GitHub repo",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 29,
+      "url": "https://wiki.archlinux.org/title/Nemo",
+      "title": "ArchWiki: Nemo",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 30,
+      "url": "https://linuxmint-developer-guide.readthedocs.io/en/latest/cinnamon.html",
+      "title": "Linux Mint Dev Guide: Cinnamon processes",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 31,
+      "url": "https://github.com/linuxmint/mintreport",
+      "title": "linuxmint/mintreport GitHub repo",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 32,
+      "url": "https://linuxmint-developer-guide.readthedocs.io/en/latest/mint-tools.html",
+      "title": "Linux Mint Dev Guide: mintreport",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 33,
+      "url": "https://wiki.archlinux.org/title/XDG_Desktop_Portal",
+      "title": "ArchWiki: XDG Desktop Portal",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 34,
+      "url": "https://flatpak.github.io/xdg-desktop-portal",
+      "title": "xdg-desktop-portal docs",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 35,
+      "url": "https://wiki.archlinux.org/title/PipeWire",
+      "title": "ArchWiki: PipeWire",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 36,
+      "url": "https://wiki.archlinux.org/title/WirePlumber",
+      "title": "ArchWiki: WirePlumber",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 37,
+      "url": "https://manpages.debian.org/unstable/bluez/bluetoothd.8.en.html",
+      "title": "bluetoothd(8) - BlueZ man page",
+      "accessed": "2026-11-06"
+    }
+  ]
+}

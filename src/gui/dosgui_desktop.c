@@ -15,6 +15,8 @@
 #include "dosgui_startmenu.h"
 #include "dosgui_service_mgr.h"
 #include "wubu_notify.h"
+#include "wubu_session_mgr.h"
+#include "wubu_deskenv.h"
 #include "../apps/dosgui_apps.h"
 #include "dosgui_era_apps.h"
 #include "../kernel/vbe.h"
@@ -27,6 +29,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <sys/stat.h>
 
 /* -- Theme Helpers ------------------------------------------------ */
 
@@ -89,6 +92,47 @@ int dosgui_desktop_init(void) {
     wubu_notify_init();
     if (dosgui_service_mgr_init() == 0) {
         dosgui_service_mgr_boot();
+    }
+
+    /* P3 /n/background: bring up the rich session-manager runtime and mount
+     * its control surface. The desktop owns the /n root (a real directory
+     * under ~/.wubu); boot the session manager (bus + logind + auth wired as
+     * the power gate), publish the /n/background tree, and register WHO owns
+     * the desktop + the tray slots so the owning process is visible through
+     * /n regardless of who paints it. Guarded so a missing/raw home dir never
+     * fails the desktop boot. */
+    {
+        const char *home = getenv("HOME");
+        static char nsroot[512];
+        if (home) {
+            snprintf(nsroot, sizeof(nsroot), "%s/.wubu", home);
+            mkdir(nsroot, 0755);
+            snprintf(nsroot, sizeof(nsroot), "%s/.wubu/n", home);
+            mkdir(nsroot, 0755);
+        } else {
+            snprintf(nsroot, sizeof(nsroot), "/tmp/wubu_n");
+            mkdir(nsroot, 0755);
+        }
+        extern int wubu_ns_bridge_create(const char *);
+        if (wubu_ns_bridge_create(nsroot) == 0) {
+            /* the autostart dir the session manager scans (XDG system dir) */
+            char *const autodirs[2] = {
+                (char*)"/etc/xdg/autostart", (char*)"$HOME"};
+            (void)autodirs[1];
+            wubu_session_mgr_t *mgr = wubu_session_mgr_boot(autodirs, 1, NULL, NULL);
+            if (mgr) {
+                wubu_session_mgr_register_desktop(mgr, "dosgui-desktop");
+                wubu_session_mgr_register_tray(mgr, "battery", "dosgui-tray");
+                wubu_session_mgr_register_tray(mgr, "network", "dosgui-tray");
+                wubu_session_mgr_register_tray(mgr, "heat", "dosgui-tray");
+                wubu_session_daemon_publish(wubu_session_mgr_daemon(mgr));
+                wubu_ns_publish_deskenv(wubu_session_mgr_deskenv(mgr));
+                /* keep alive for the session: stash in a file-scope holder */
+                static wubu_session_mgr_t *gbg = NULL;
+                gbg = mgr;
+                (void)gbg;
+            }
+        }
     }
 
     return 0;

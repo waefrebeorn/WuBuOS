@@ -7,7 +7,7 @@ static int failures = 0;
 #define CHECK(c, m) do { if (!(c)) { printf("  FAIL: %s\n", m); failures++; } } while (0)
 
 /* the test eval: a REAL HolyC-style arithmetic evaluator substitute --
- * the actual hc_eval is linked by the hosted binary; here the routing
+ * the actual hd_eval is linked by the hosted binary; here the routing
  * + the parse are verified with a deterministic fake. */
 static int64_t fake_eval(const char *src)
 {

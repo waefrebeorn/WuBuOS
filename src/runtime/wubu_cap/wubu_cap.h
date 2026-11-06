@@ -37,6 +37,10 @@
 #define WUBU_CAP_KIND_CONSOLE       10
 #define WUBU_CAP_KIND_CONTAINER     11   /* WuBuOS: a sandbox/container handle */
 #define WUBU_CAP_KIND_STYX_NODE     12   /* WuBuOS: a 9P namespace node */
+#define WUBU_CAP_KIND_WINDOW        13   /* win32k-lite: a window-manager object
+                                            (subtype in kind_data: station/desktop/class/window) */
+#define WUBU_CAP_KIND_GDI           14   /* win32k-lite: GDI surface object
+                                            (DC/brush/pen/bitmap; ordered lock + refcount) */
 
 /* ---- Rights bitmap (subset of the underlying object's rights) ---- */
 #define WUBU_RIGHT_READ     0x0000000000000001ULL

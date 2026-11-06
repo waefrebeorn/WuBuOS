@@ -7,19 +7,19 @@
  *   - array element (INDEX)                -> emit_prefetch_rdi
  *   - pointer dereference (DEREF)          -> emit_prefetch_rax
  * wubu_hedge_prefetch_count counts every prefetchnta emitted. Running each
- * load-bearing construct via hc_eval must bump it. A pure-constant construct
+ * load-bearing construct via hd_eval must bump it. A pure-constant construct
  * must NOT.
  */
 #include <stdio.h>
-#include "holyc.h"
-#include "holyc_codegen.h"
+#include "holyd.h"
+#include "holyd_codegen.h"
 
 extern unsigned long wubu_hedge_prefetch_count;
 
 /* returns prefetches emitted by running src */
 static unsigned long run_evals(const char *const *srcs, int n) {
     unsigned long a = wubu_hedge_prefetch_count;
-    for (int i = 0; i < n; i++) hc_eval(srcs[i]);
+    for (int i = 0; i < n; i++) hd_eval(srcs[i]);
     return wubu_hedge_prefetch_count - a;
 }
 

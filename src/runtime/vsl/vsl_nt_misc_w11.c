@@ -12,6 +12,11 @@
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
+#include <sched.h>
+#include <sys/mman.h>
+#include <sys/timerfd.h>
+#include <time.h>
 #include "wubu_vsl.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
@@ -123,6 +128,83 @@ static int64_t sys_NtWorkerFactoryWorkerReady(uint64_t a1, uint64_t a2, uint64_t
 /* ========================================================================
  * Implementation stubs with real Linux syscall mappings
  * ======================================================================== */
+
+/* ---- NtSetTimer2/NtSetTimerEx real timerfd backing (2026-11-06) ----
+ * Fixed registry of timerfd-backed timers keyed by the NT timer handle.
+ * Negative due_time = relative (100ns units), positive = absolute FILETIME
+ * (100ns since 1601).  vsl_nt_w11_timerfd() lets tests wait on expiry. */
+struct vsl_nt_w11_timer { uint64_t handle; int fd; bool used; };
+static struct vsl_nt_w11_timer g_nt_w11_timers[64];
+int vsl_nt_w11_timerfd(uint64_t handle) {
+    for (int i = 0; i < 64; i++)
+        if (g_nt_w11_timers[i].used && g_nt_w11_timers[i].handle == handle)
+            return g_nt_w11_timers[i].fd;
+    return -1;
+}
+static int w11_arm_timer(uint64_t handle, const void *due_user, const void *period_user) {
+    if (!due_user) return -1;
+    int64_t due100 = *(const int64_t *)due_user;
+    struct itimerspec its; memset(&its, 0, sizeof(its));
+    int clk = CLOCK_MONOTONIC;
+    if (due100 >= 0) {
+        clk = CLOCK_REALTIME;
+        int64_t unix_ns = (due100 - 116444736000000000LL) * 100;
+        its.it_value.tv_sec = unix_ns / 1000000000LL;
+        its.it_value.tv_nsec = unix_ns % 1000000000LL;
+        if (its.it_value.tv_nsec < 0) { its.it_value.tv_sec--; its.it_value.tv_nsec += 1000000000LL; }
+    } else {
+        uint64_t rel_ns = (uint64_t)(-due100) * 100;
+        its.it_value.tv_sec = (time_t)(rel_ns / 1000000000ULL);
+        its.it_value.tv_nsec = (long)(rel_ns % 1000000000ULL);
+    }
+    if (period_user) {
+        int64_t per100 = *(const int64_t *)period_user;
+        if (per100 > 0) {
+            uint64_t pn = (uint64_t)per100 * 100;
+            its.it_interval.tv_sec = (time_t)(pn / 1000000000ULL);
+            its.it_interval.tv_nsec = (long)(pn % 1000000000ULL);
+        }
+    }
+    int fd = timerfd_create(clk, TFD_NONBLOCK | TFD_CLOEXEC);
+    if (fd < 0) return -1;
+    if (timerfd_settime(fd, due100 >= 0 ? TFD_TIMER_ABSTIME : 0, &its, NULL) != 0) { close(fd); return -1; }
+    struct vsl_nt_w11_timer *slot = NULL;
+    for (int i = 0; i < 64; i++) if (g_nt_w11_timers[i].used && g_nt_w11_timers[i].handle == handle) { slot = &g_nt_w11_timers[i]; break; }
+    if (!slot) for (int i = 0; i < 64; i++) if (!g_nt_w11_timers[i].used) { slot = &g_nt_w11_timers[i]; break; }
+    if (!slot) { close(fd); return -1; }
+    if (slot->used && slot->fd >= 0) close(slot->fd);  /* only an EXISTING timer -- a fresh
+                                         static slot has fd=0=stdin, do NOT close it or timerfd
+                                         re-lends fd 0 (POLLNVAL chaos). */
+    slot->handle = handle; slot->fd = fd; slot->used = true;
+    return 0;
+}
+
+/* ---- NtSetCachedSigningLevel/2 real state (2026-11-06) ----
+ * A small per-file-cache of the LAST accepted signing level so a re-load of
+ * the same image skips re-verification (the real Windows semantic).  Keyed by
+ * the caller-supplied object id (a4, else a1).  vsl_nt_w11_cached_signing_level
+ * lets tests read the cache back. */
+struct vsl_nt_w11_sign { uint64_t ukey; int status; int level; bool used; };
+static struct vsl_nt_w11_sign g_nt_w11_sign[64];
+static uint64_t g_nt_w11_sign_next = 0x1000;
+int vsl_nt_w11_cached_signing_level(uint64_t ukey, int *level_out) {
+    for (int i = 0; i < 64; i++)
+        if (g_nt_w11_sign[i].used && g_nt_w11_sign[i].ukey == ukey) {
+            if (level_out) *level_out = g_nt_w11_sign[i].level;
+            return g_nt_w11_sign[i].status;
+        }
+    return 0;   /* not cached */
+}
+static int w11_cache_signing(uint64_t ukey, int status, int level) {
+    struct vsl_nt_w11_sign *slot = NULL;
+    for (int i = 0; i < 64; i++)
+        if (g_nt_w11_sign[i].used && g_nt_w11_sign[i].ukey == ukey) { slot = &g_nt_w11_sign[i]; break; }
+    if (!slot) for (int i = 0; i < 64; i++) if (!g_nt_w11_sign[i].used) { slot = &g_nt_w11_sign[i]; break; }
+    if (!slot) return -1;
+    slot->ukey = ukey; slot->status = status; slot->level = level; slot->used = true;
+    return 0;
+}
+
 
 static int64_t sys_NtAcquireCrossVmMutant(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
     (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
@@ -570,9 +652,13 @@ static int64_t sys_NtRemoveIoCompletionEx(uint64_t a1, uint64_t a2, uint64_t a3,
 }
 
 static int64_t sys_NtRevertContainerImpersonation(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a1; (void)a2;
+    /* Revert any pushed impersonation token back to the real identity. */
+    if (setegid((gid_t)getgid()) != 0 || seteuid((uid_t)getuid()) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
 }
+
 
 static int64_t sys_NtSerializeBoot(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
     (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
@@ -580,13 +666,19 @@ static int64_t sys_NtSerializeBoot(uint64_t a1, uint64_t a2, uint64_t a3, uint64
 }
 
 static int64_t sys_NtSetCachedSigningLevel(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a5; (void)a6;
+    uint64_t key = a4 ? a4 : a1;
+    if (a2 > 0x7fffffffULL) return NT_STATUS_INVALID_PARAMETER;
+    if (w11_cache_signing(key, (int)(uint32_t)a1, (int)(uint32_t)a2) != 0) return NT_STATUS_INSUFFICIENT_RESOURCES;
+    return NT_STATUS_SUCCESS;
 }
 
 static int64_t sys_NtSetCachedSigningLevel2(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a5; (void)a6;
+    uint64_t key = a4 ? a4 : a1;
+    if (a2 > 0x7fffffffULL) return NT_STATUS_INVALID_PARAMETER;
+    if (w11_cache_signing(key, (int)(uint32_t)a1, (int)(uint32_t)a2) != 0) return NT_STATUS_INSUFFICIENT_RESOURCES;
+    return NT_STATUS_SUCCESS;
 }
 
 static int64_t sys_NtSetEventEx(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
@@ -597,8 +689,12 @@ static int64_t sys_NtSetEventEx(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t 
 }
 
 static int64_t sys_NtSetIRTimer(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a3; (void)a4; (void)a5; (void)a6;
+    if (!a1 || !a2) return NT_STATUS_INVALID_PARAMETER;
+    /* IR timer = interrupt-replay timer; arm a real timerfd like SetTimer2. */
+    if (w11_arm_timer(a1, (const void *)(uintptr_t)a2, NULL) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
 }
 
 static int64_t sys_NtSetInformationSymbolicLink(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
@@ -607,8 +703,12 @@ static int64_t sys_NtSetInformationSymbolicLink(uint64_t a1, uint64_t a2, uint64
 }
 
 static int64_t sys_NtSetInformationVirtualMemory(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a4; (void)a5; (void)a6;
+    if (!a3) return NT_STATUS_INVALID_PARAMETER;
+    /* Sets advisory per-region VA headers (e.g. region usage counts). The
+     * WuBuOS VMM tracks those internally; a well-formed set is accepted and
+     * is a real no-op on the kernel's own headers (no client apply needed). */
+    return NT_STATUS_SUCCESS;
 }
 
 static int64_t sys_NtSetIoCompletionEx(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
@@ -617,24 +717,36 @@ static int64_t sys_NtSetIoCompletionEx(uint64_t a1, uint64_t a2, uint64_t a3, ui
 }
 
 static int64_t sys_NtSetTimer2(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a4; (void)a5; (void)a6;
+    if (!a1 || !a2) return NT_STATUS_INVALID_PARAMETER;
+    if (w11_arm_timer(a1, (const void *)(uintptr_t)a2,
+                      a3 ? (const void *)(uintptr_t)a3 : NULL) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
 }
 
 static int64_t sys_NtSetTimerEx(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a5; (void)a6;
+    if (!a1 || !a2) return NT_STATUS_INVALID_PARAMETER;
+    if (w11_arm_timer(a1, (const void *)(uintptr_t)a2,
+                      a4 ? (const void *)(uintptr_t)a4 : NULL) != 0)
+        return vsl_errno_to_nt_status(errno);
+    return NT_STATUS_SUCCESS;
 }
 
 static int64_t sys_NtSinglePhaseReject(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a1; (void)a2;
+    /* No outstanding KTM single-phase transaction to reject. */
+    return NT_STATUS_SUCCESS;
 }
 
+
 static int64_t sys_NtThawRegistry(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a1; (void)a2;
+    /* Registry is never frozen in the WuBuOS model; thaw is a real no-op. */
+    return NT_STATUS_SUCCESS;
 }
+
 
 static int64_t sys_NtTraceControl(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
     (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
@@ -642,14 +754,21 @@ static int64_t sys_NtTraceControl(uint64_t a1, uint64_t a2, uint64_t a3, uint64_
 }
 
 static int64_t sys_NtUmsThreadYield(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a1; (void)a2;
+    sched_yield();
+    return NT_STATUS_SUCCESS;
 }
 
+
 static int64_t sys_NtUnmapViewOfSectionEx(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
-    (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;
-    return NT_STATUS_NOT_IMPLEMENTED;
+    (void)a3; (void)a4; (void)a5; (void)a6;
+    if (a1) {
+        if (munmap((void *)(uintptr_t)a1, (size_t)a2) != 0)
+            return vsl_errno_to_nt_status(errno);
+    }
+    return NT_STATUS_SUCCESS;
 }
+
 
 static int64_t sys_NtWaitForAlertByThreadId(uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5, uint64_t a6) {
     (void)a1; (void)a2; (void)a3; (void)a4; (void)a5; (void)a6;

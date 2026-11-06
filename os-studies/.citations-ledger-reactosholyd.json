@@ -1,0 +1,345 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": 1,
+      "url": "https://github.com/reactos/reactos/blob/master/dll/ntdll/ldr/ldrinit.c",
+      "title": "ReactOS ntdll ldrinit.c (LdrpInit, LdrpInitializeProcess, LdrpInitializeThread, LdrpInit, LdrpInitializeTls)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "Status = NtQueryVirtualMemory(NtCurrentProcess(), Teb->NtTib.StackLimit, MemoryBasicInformation, &MemoryBasicInfo, sizeof(MEMORY_BASIC_INFORMATION), NULL);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Peb->LoaderLock = &LdrpLoaderLock;",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "NtHeader = RtlImageNtHeader(Peb->ImageBaseAddress);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Peb->ProcessHeap = RtlCreateHeap(HeapFlags,",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Peb->Ldr = &PebLdr;\n    InitializeListHead(&PebLdr.InLoadOrderModuleList);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "LdrpImageEntry->EntryPoint = LdrpFetchAddressOfEntryPoint(LdrpImageEntry->DllBase);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "if (Peb->ImageBaseAddress != (PVOID)NtHeader->OptionalHeader.ImageBase)",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = LdrpInitializeTls();",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = LdrpRunInitializeRoutines(Context);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "LoaderStatus = LdrpInitializeProcess(Context,\n                                                 SystemArgument1);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "LdrpCallInitRoutine(EntryPoint,\n                                                LdrEntry->DllBase,\n                                                DLL_PROCESS_ATTACH,\n                                                Context);",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "url": "https://github.com/reactos/reactos/blob/master/dll/ntdll/ldr/ldrpe.c",
+      "title": "ReactOS ntdll ldrpe.c (LdrpMapAndViewSection, PE section mapping, LdrpMapCleanupData)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "LdrpSnapIAT(IN PLDR_DATA_TABLE_ENTRY ExportLdrEntry,",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "ExportDirectory = RtlImageDirectoryEntryToData(ExportLdrEntry->DllBase,\n                                                   TRUE,\n                                                   IMAGE_DIRECTORY_ENTRY_EXPORT,",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Iat = RtlImageDirectoryEntryToData(ImportLdrEntry->DllBase,\n                                       TRUE,\n                                       IMAGE_DIRECTORY_ENTRY_IAT,",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "url": "https://github.com/reactos/reactos/blob/master/dll/ntdll/ldr/ldrapi.c",
+      "title": "ReactOS ntdll ldrapi.c (LdrLoadDll, LdrpLoadImportModule, LdrpMapDll)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "LdrLockLoaderLock(LDR_LOCK_LOADER_LOCK_FLAG_RAISE_ON_ERRORS, NULL, &Cookie);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = LdrpLoadDll(RedirectedDll,\n                             SearchPath,\n                             DllCharacteristics,\n                             DllName,\n                             BaseAddress,\n                             TRUE);",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "url": "https://github.com/reactos/reactos/blob/master/dll/ntdll/ldr/ldrutils.c",
+      "title": "ReactOS ntdll ldrutils.c (LdrpRelocateImage, LdrpFixupIAT, LdrpLoadDelayedImport, TLS/entrypoint, module list ops)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "TlsDirectory = RtlImageDirectoryEntryToData(LdrEntry->DllBase,\n                                                TRUE,\n                                                IMAGE_DIRECTORY_ENTRY_TLS,",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Array = (PIMAGE_TLS_CALLBACK *)TlsDirectory->AddressOfCallBacks;",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "LdrpCallInitRoutine((PDLL_INIT_ROUTINE)Callback, LdrEntry->DllBase, Reason, NULL);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "LdrpFetchAddressOfEntryPoint(IN PVOID ImageBase)",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "EntryPoint = NtHeaders->OptionalHeader.AddressOfEntryPoint;\n        if (EntryPoint) EntryPoint += (ULONG_PTR)ImageBase;",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = LdrpMapDll(DllPath,",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "if (Status == STATUS_IMAGE_NOT_AT_BASE)",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = LdrRelocateImageWithBias(ViewBase, 0LL, NULL, STATUS_SUCCESS,",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "url": "https://github.com/reactos/reactos/blob/master/sdk/lib/rtl/heap.c",
+      "title": "ReactOS RTL heap.c (RtlCreateHeap, RtlAllocateHeap, ProcessHeap)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "RtlAllocateHeap(IN PVOID HeapPtr,\n                IN ULONG Flags,\n                IN SIZE_T Size)",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "RtlDestroyHeap(HANDLE HeapPtr) /* [in] Handle of heap */",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "url": "https://github.com/reactos/reactos/blob/master/ntoskrnl/ps/psmgr.c",
+      "title": "ReactOS ntoskrnl psmgr.c / ps.c (NtCreateUserProcess, PspCreateUserProcess)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "UNICODE_STRING PsNtDllPathName =\n    RTL_CONSTANT_STRING(L\"\\\\SystemRoot\\\\System32\\\\ntdll.dll\");",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "return RtlpFindExportedRoutineByName(PspSystemDllBase, Name, EntryPoint, NULL, STATUS_PROCEDURE_NOT_FOUND);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = MmMapViewOfSection(PspSystemDllSection, Process, (PVOID*)&ImageBase, 0, 0, &Offset, &ViewSize, ViewShare, 0, PAGE_READWRITE);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "ZwCreateSection(&SectionHandle, SECTION_ALL_ACCESS, NULL, NULL, PAGE_EXECUTE, SEC_IMAGE, FileHandle);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "SharedUserData->SystemCall = (PsNtosImageBase >> (PAGE_SHIFT + 1));",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "url": "https://github.com/reactos/reactos/blob/master/ntoskrnl/ps/process.c",
+      "title": "ReactOS ntoskrnl process.c (PspCreateProcess, process/PEB setup)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "RtlZeroMemory(&InitialPeb, sizeof(INITIAL_PEB));\n        InitialPeb.Mutant = (HANDLE)-1;",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = MmCreatePeb(Process, &InitialPeb, &Process->Peb);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "if (SectionObject) PspMapSystemDll(Process, NULL, FALSE);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Status = MmInitializeProcessAddressSpace(Process, NULL, SectionObject, &Flags,",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "url": "https://github.com/reactos/reactos/blob/master/ntoskrnl/ps/thread.c",
+      "title": "ReactOS ntoskrnl thread.c (PspCreateThread, PspStartThread)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "Status = MmCreateTeb(Process, &Thread->Cid, InitialTeb, &TebBase);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "PspUserThreadStartup,\n                                  NULL,\n                                  Thread->StartAddress,",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "KiInitializeUserApc(KeGetExceptionFrame(&Thread->Tcb), KeGetTrapFrame(&Thread->Tcb), PspSystemDllEntryPoint, NULL, PspSystemDllBase, NULL);",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "url": "https://github.com/reactos/reactos/blob/master/ntoskrnl/mm/ARM3/sysldr.c",
+      "title": "ReactOS ntoskrnl/mm ARM3 sysldr.c (MmCreateImageSection, MmMapViewOfSection image loader)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "Status = MmMapViewOfSection(Section,\n                               Process,",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "url": "https://www.coresecurity.com/core-labs/articles/creating-processes-using-system-calls",
+      "title": "Core Security: Creating Processes Using System Calls (NtCreateUserProcess, CSRSS, RtlCreateProcessParameters)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "The API ntdll!CsrClientCallServer is responsible for sending a message to the CSRSS process, notifying it of the existence of the new process.",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "The notification occurs after the process has been created (in suspended mode) and before it is resumed.",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Because the syscall NtCreateUserProcess does most of the work required to create a new process within the kernel, it also creates the first thread.",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "you need to adjust all the pointers that exist within that structure so that they make sense in the context of the new process",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "you need to adjust all the pointers that exist within that structure",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "adjust all the pointers that exist within that structure",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "first need to open a connection",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "The reason for that is that if we want our newly created processes to function normally, we first need to notify the Windows Subsystem about it. If we do not do so, the application will segfault because it fails when calling the Win32 API.",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "url": "https://github.com/Faran-17/Windows-Internals/blob/main/Processes%20and%20Jobs/Processes/Creation%20Of%20Process.md",
+      "title": "Faran-17 Windows-Internals: NtCreateUserProcess signature & create-process flow",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "NtCreateUserProcess(&hProcess, &hThread, PROCESS_ALL_ACCESS, THREAD_ALL_ACCESS, NULL, NULL, NULL, NULL, ProcessParameters, &CreateInfo, AttributeList);",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "url": "https://learn.microsoft.com/en-us/windows/win32/debug/pe-format",
+      "title": "Microsoft Learn: PE Format — sections, base relocation, IAT, TLS directory",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "In an image file, this is the address of an item after it is loaded into memory, with the base address of the image file subtracted from it.",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "such as .tls or .reloc , which have special purposes",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "because the loader might not load the image at its preferred location",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "the Windows loader limits the number of sections to 96",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "url": "https://reactos.org/wiki/Loader",
+      "title": "ReactOS Wiki: Loader",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 14,
+      "url": "https://reactos.org/wiki/Environment",
+      "title": "ReactOS Wiki: Environment",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 15,
+      "url": "https://github.com/reactos/reactos/blob/master/sdk/lib/rtl/image.c",
+      "title": "ReactOS RTL image.c (LdrRelocateImageWithBias, LdrProcessRelocationBlockLongLong)",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "return LdrRelocateImageWithBias(BaseAddress, 0, LoaderName, Success, Conflict, Invalid);",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "RelocationDDir = &NtHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "Delta = (ULONG_PTR)BaseAddress - SWAPD(NtHeaders->OptionalHeader.ImageBase) + AdditionalBias;",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "if (SWAPW(NtHeaders->FileHeader.Characteristics) & IMAGE_FILE_RELOCS_STRIPPED)",
+          "added": "2026-11-06"
+        }
+      ]
+    }
+  ]
+}

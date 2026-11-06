@@ -418,4 +418,8 @@ void vsl_nt_ioring_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_partition_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_ktm_register(vsl_syscall_fn_t *tbl, int size);
 
+/* P2: publish real NT handlers into the kernel symbol registry by Nt* name.
+ * Returns the number of symbols published. See vsl_syscall_nt.c. */
+int vsl_nt_export_modsym(void);
+
 #endif /* WUBU_VSL_NT_INTERNAL_H */

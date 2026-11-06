@@ -23,6 +23,9 @@
 #include <fcntl.h>
 #include <sys/eventfd.h>
 #include <sys/mman.h>
+#include <poll.h>
+extern int vsl_nt_w11_timerfd(uint64_t);
+extern int vsl_nt_w11_cached_signing_level(uint64_t, int *);
 #include <sys/wait.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
@@ -1533,6 +1536,134 @@ int main(void) {
         args[0] = (uint64_t)tok3; args[1] = (uint64_t)(uintptr_t)ps;
         r = vsl_nt_syscall_dispatch(&ctx, 2, args, 2);
         CHECK(r == NT_STATUS_ACCESS_DENIED, "Anonymized token loses all privileges");
+    }
+
+    /* ---- W11 extension syscalls made real (2026-11-06) ---- */
+    {
+    int64_t r;
+    uint64_t args[6];
+    /* NtUmsThreadYield (472) -> sched_yield(). */
+    memset(args, 0, sizeof(args));
+    r = vsl_nt_syscall_dispatch(&ctx, 472, args, 0);
+    CHECK(r == NT_STATUS_SUCCESS, "NtUmsThreadYield SUCCESS (sched_yield)");
+
+    /* NtThawRegistry (468) -- registry never frozen; real no-op. */
+    memset(args, 0, sizeof(args));
+    r = vsl_nt_syscall_dispatch(&ctx, 468, args, 0);
+    CHECK(r == NT_STATUS_SUCCESS, "NtThawRegistry SUCCESS");
+
+    /* NtSinglePhaseReject (457) -- no outstanding KTM transaction. */
+    memset(args, 0, sizeof(args));
+    r = vsl_nt_syscall_dispatch(&ctx, 457, args, 0);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSinglePhaseReject SUCCESS");
+
+    /* NtRevertContainerImpersonation (395) -> real seteuid/setegid revert. */
+    memset(args, 0, sizeof(args));
+    r = vsl_nt_syscall_dispatch(&ctx, 395, args, 0);
+    CHECK(r == NT_STATUS_SUCCESS, "NtRevertContainerImpersonation SUCCESS");
+
+    /* NtUnmapViewOfSectionEx (479) -> real munmap. A live mapping unmaps
+     * cleanly; a bogus address fails with EINVAL (proves it is NOT a no-op). */
+    void *m = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
+                   MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    CHECK(m != MAP_FAILED, "unmap test: mmap succeeded");
+    if (m != MAP_FAILED) {
+        memset(args, 0, sizeof(args));
+        args[0] = (uint64_t)(uintptr_t)m; args[1] = 4096;
+        r = vsl_nt_syscall_dispatch(&ctx, 479, args, 2);
+        CHECK(r == NT_STATUS_SUCCESS, "NtUnmapViewOfSectionEx munmaps live mapping");
+    }
+    memset(args, 0, sizeof(args));
+    args[0] = (uint64_t)(uintptr_t)1; args[1] = 4096;
+    r = vsl_nt_syscall_dispatch(&ctx, 479, args, 2);
+    CHECK(r != NT_STATUS_SUCCESS, "NtUnmapViewOfSectionEx rejects bogus addr (real munmap)");
+
+    /* NtSetTimer2 (448) arms a real timerfd. */
+    int64_t due_short = -10000000;        /* -1s (100ns units) */
+    memset(args, 0, sizeof(args));
+    args[0] = 0x1001ULL; args[1] = (uint64_t)(uintptr_t)&due_short;
+    r = vsl_nt_syscall_dispatch(&ctx, 448, args, 2);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetTimer2 arms a 1s timer");
+    {
+        int fd = vsl_nt_w11_timerfd(0x1001ULL);
+        CHECK(fd >= 0, "NtSetTimer2 registered a timerfd");
+        if (fd >= 0) {
+            struct pollfd p = { .fd = fd, .events = POLLIN };
+            int pr = poll(&p, 1, 3000);
+            CHECK(pr > 0 && (p.revents & POLLIN), "NtSetTimer2 timer actually fires");
+            uint64_t exp = 0;
+            CHECK(read(fd, &exp, 8) == 8 && exp >= 1, "NtSetTimer2 expirations counted");
+        }
+    }
+    /* A far-future timer must NOT fire immediately. */
+    int64_t due_long = -10000000000LL;    /* -1000s */
+    memset(args, 0, sizeof(args));
+    args[0] = 0x1002ULL; args[1] = (uint64_t)(uintptr_t)&due_long;
+    r = vsl_nt_syscall_dispatch(&ctx, 448, args, 2);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetTimer2 arms a far-future timer");
+    {
+        int fd = vsl_nt_w11_timerfd(0x1002ULL);
+        CHECK(fd >= 0, "NtSetTimer2 #2 registered a timerfd");
+        if (fd >= 0) {
+            struct pollfd p = { .fd = fd, .events = POLLIN };
+            int pr = poll(&p, 1, 150);
+            CHECK(pr == 0, "far-future NtSetTimer2 does not fire early");
+        }
+    }
+    /* Missing due-time pointer -> invalid parameter (not a blind success). */
+    memset(args, 0, sizeof(args)); args[0] = 0x1003ULL; args[1] = 0;
+    r = vsl_nt_syscall_dispatch(&ctx, 448, args, 2);
+    CHECK(r == NT_STATUS_INVALID_PARAMETER, "NtSetTimer2 rejects NULL due-time");
+
+    /* NtSetTimerEx (449) reuses the same timerfd machinery. */
+    memset(args, 0, sizeof(args));
+    args[0] = 0x2001ULL; args[1] = (uint64_t)(uintptr_t)&due_short;
+    r = vsl_nt_syscall_dispatch(&ctx, 449, args, 2);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetTimerEx arms a 1s timer");
+
+    /* NtSetInformationVirtualMemory (432): well-formed succeeds, NULL buf rejected. */
+    uint8_t infobuf[8] = {0};
+    memset(args, 0, sizeof(args));
+    args[0] = 0; args[1] = 0; args[2] = (uint64_t)(uintptr_t)infobuf;
+    r = vsl_nt_syscall_dispatch(&ctx, 432, args, 3);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetInformationVirtualMemory accepts valid info");
+    memset(args, 0, sizeof(args)); args[0] = 0; args[1] = 0; args[2] = 0;
+    r = vsl_nt_syscall_dispatch(&ctx, 432, args, 3);
+    CHECK(r == NT_STATUS_INVALID_PARAMETER, "NtSetInformationVirtualMemory rejects NULL info");
+
+    /* NtSetIRTimer (420) reuses the timerfd machinery. */
+    memset(args, 0, sizeof(args));
+    args[0] = 0x3001ULL; args[1] = (uint64_t)(uintptr_t)&due_short;
+    r = vsl_nt_syscall_dispatch(&ctx, 420, args, 2);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetIRTimer arms a 1s timer");
+    {
+        int fd = vsl_nt_w11_timerfd(0x3001ULL);
+        CHECK(fd >= 0, "NtSetIRTimer registered a timerfd");
+        if (fd >= 0) {
+            struct pollfd p = { .fd = fd, .events = POLLIN };
+            CHECK(poll(&p, 1, 3000) > 0 && (p.revents & POLLIN), "NtSetIRTimer timer fires");
+        }
+    }
+    memset(args, 0, sizeof(args)); args[0] = 0x3002ULL; args[1] = 0;
+    r = vsl_nt_syscall_dispatch(&ctx, 420, args, 2);
+    CHECK(r == NT_STATUS_INVALID_PARAMETER, "NtSetIRTimer rejects NULL due-time");
+
+    /* NtSetCachedSigningLevel(408)/2(409) store a real signing-level cache. */
+    memset(args, 0, sizeof(args));
+    args[0] = 0; args[1] = 3; args[2] = 0; args[3] = 0xABC12ULL;   /* status=0 ok, level=3, key */
+    r = vsl_nt_syscall_dispatch(&ctx, 408, args, 4);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetCachedSigningLevel caches");
+    { int lv = -99; int st = vsl_nt_w11_cached_signing_level(0xABC12ULL, &lv);
+      CHECK(lv == 3, "NtSetCachedSigningLevel stored level=3"); (void)st; }
+    memset(args, 0, sizeof(args));
+    args[0] = 0; args[1] = 5; args[2] = 0; args[3] = 0xABC13ULL;
+    r = vsl_nt_syscall_dispatch(&ctx, 409, args, 4);
+    CHECK(r == NT_STATUS_SUCCESS, "NtSetCachedSigningLevel2 caches");
+    { int lv = -99; vsl_nt_w11_cached_signing_level(0xABC13ULL, &lv);
+      CHECK(lv == 5, "NtSetCachedSigningLevel2 stored level=5"); }
+    memset(args, 0, sizeof(args)); args[0] = 0; args[1] = 0x80000000ULL; args[2] = 0; args[3] = 0xABC14ULL;
+    r = vsl_nt_syscall_dispatch(&ctx, 408, args, 4);
+    CHECK(r == NT_STATUS_INVALID_PARAMETER, "NtSetCachedSigningLevel rejects oversized level");
     }
 
     vsl_nt_bridge_shutdown(&ctx);

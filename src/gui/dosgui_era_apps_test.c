@@ -9,7 +9,7 @@
  *   - DOS  (0xD0) : wubu_dos_proc_launch() returns a live process (8086 shim)
  *   - Win  (0xFF) : wubu_exec_win_pe -> Wine writes WUBU_ERA_WIN.OK
  *   - Lin  (0x00) : wubu_exec_linux_elf -> bwrap writes WUBU_ERA_LINUX.OK
- *   - HolC (0xF0) : wubu_exec_holyc -> hc_eval runs (returns 0)
+ *   - HolC (0xF0) : wubu_exec_holyc -> hd_eval runs (returns 0)
  *   - CPM  (0xC0) / Mac (0xB0) : launcher returns -1 (no CPU emulator)
  */
 
@@ -90,9 +90,9 @@ int main(void) {
     CHECK(file_exists("WUBU_ERA_LINUX.OK"),
           "Linux era app wrote WUBU_ERA_LINUX.OK through VSL fileio");
 
-    /* --- HolyC (JIT) : launcher dispatches to hc_eval --- */
+    /* --- HolyC (JIT) : launcher dispatches to hd_eval --- */
     int rc_hc = dosgui_era_apps_launch(idx[6]);
-    CHECK(rc_hc == 0, "HolyC era app launches via hc_eval JIT (rc==0)");
+    CHECK(rc_hc == 0, "HolyC era app launches via hd_eval JIT (rc==0)");
 
     /* --- CP/M (gap) : no 8080 emulator -> honest -1 --- */
     int rc_cpm = dosgui_era_apps_launch(idx[0]);

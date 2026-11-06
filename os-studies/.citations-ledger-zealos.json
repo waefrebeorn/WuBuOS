@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": 1,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS",
+      "title": "ZealOS README",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 2,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS/blob/master/src/Compiler/CMain.ZC",
+      "title": "[2] Compiler core CMain.ZC: ExePutS/ExeFile/Comp/CompBuf/CompJoin, hash tables",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 3,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS/blob/master/src/Kernel/KTask.ZC",
+      "title": "[3] KTask.ZC: ExeCmdLine JIT loop, Call(machine_code), UserTaskCont REPL",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 4,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS/blob/master/src/Kernel/KLoad.ZC",
+      "title": "[4] KLoad.ZC: Load() .ZXE module loader, abs-reloc, hash register",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 5,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS/blob/master/src/StartOS.ZC",
+      "title": "[5] StartOS.ZC: boot self-host includes, Spawn WinMgrTask, server mode",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 6,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS/blob/master/src/Kernel/KernelA.HH",
+      "title": "[6] KernelA.HH: CCF_* flags, CZXE, Call decl, I64i/F64i, code/data heap",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 7,
+      "url": "https://github.com/Zeal-Operating-System/ZealOS/blob/master/src/Misc/Bible.TXT",
+      "title": "[7] Misc/Bible.TXT + repo file tree (src/Apps,Compiler,Kernel,System)",
+      "accessed": "2026-11-06"
+    }
+  ]
+}

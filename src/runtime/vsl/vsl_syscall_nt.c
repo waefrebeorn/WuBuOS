@@ -28,6 +28,9 @@
 #include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <linux/futex.h>
+
+#include "wubu_modsym.h"
+#include "vsl_nt_export_names.inc"
 #include <sys/syscall.h>
 #include <limits.h>
 #include <sys/stat.h>
@@ -346,4 +349,36 @@ int64_t vsl_nt_syscall_dispatch(vsl_nt_bridge_ctx_t *ctx,
      * a negative errno into the equivalent NT status. */
     if (ret < 0) return vsl_errno_to_nt_status((int)(-ret));
     return ret;
+}
+
+/* ----------------------------------------------------------------------
+ * Symbol export (P2): publish the NT personality's real handlers into the
+ * kernel symbol registry by their Nt* name, under the "NTOSKRNL.EXE" DLL.
+ * vsl_syscall_list.h dense rank = ReactOS ordinal; nt_export_names[i] is
+ * the Nt<Name> for ordinal i+1. Each ordinal whose dispatch slot holds a
+ * REAL handler (not vsl_sys_nosys / the W11 default) is registered so a
+ * subsequently-loaded PE module can import it (wubu_pe_snap_iat -> resolve).
+ * Returns how many symbols were published.
+ *
+ * NOTE: this is the NT personality's export SURFACE, NOT the full ntdll —
+ * ordinals that resolve to vsl_sys_nosys (genuinely-unimplemented syscalls)
+ * are intentionally skipped (no point exporting a stuck stub). Re-call after
+ * any nt_dispatch_init change (or after more handlers are de-stubbed) to
+ * refresh the registry. Idempotent (register overwrites in place).
+ */
+int vsl_nt_export_modsym(void) {
+    static int inited = 0;
+    if (!inited) { nt_dispatch_init(); inited = 1; }
+
+    int n = (int)(sizeof(nt_export_names) / sizeof(nt_export_names[0]));
+    int wrote = 0;
+    for (int i = 0; i < n; i++) {
+        vsl_syscall_fn_t fn = g_nt_dispatch[i];          /* ordinal i+1 */
+        if (fn == NULL || fn == vsl_sys_nosys) continue; /* skip dead slots */
+        /* sys_Nt* W11 default stubs are NOT real exports either. */
+        if (wubu_modsym_register("NTOSKRNL.EXE", nt_export_names[i],
+                                 (uintptr_t)(void *)fn) == 0)
+            wrote++;
+    }
+    return wrote;
 }

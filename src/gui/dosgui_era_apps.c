@@ -11,7 +11,7 @@
  *   1993 Windows NT / Win32  -> 0xFF  (ReactOS NT path, wubu_exec_win_pe->Wine)
  *   2001 macOS XNU           -> 0xE0  (Mach-O via darling, wubu_exec_macho)
  *   2007 Linux native        -> 0x00  (VSL Linux table, wubu_exec_linux_elf)
- *   2020 HolyC / TempleOS    -> 0xF0  (HolyC JIT, hc_eval)
+ *   2020 HolyC / TempleOS    -> 0xF0  (HolyC JIT, hd_eval)
  *
  * Each entry's `executable` is a REAL artifact in demos/era/ (extracted by
  * demos/era/build_era.sh from the kernel-owned CAB/ZIP/DMG decoders).
@@ -85,7 +85,7 @@ static const struct {
      *         Quake 3 (OpenArena): ELF/x86_64. */
     { "Linux :: Quake 3",    "demos/era/quake3/quake3_linux.x86_64", "Era: Linux 2007",
       ERA_PERSONA_NATIVE, true },
-    /* 2020 -- HolyC / TempleOS (JIT eval via hc_eval). */
+    /* 2020 -- HolyC / TempleOS (JIT eval via hd_eval). */
     { "HolyC :: Era Demo",   "demos/era/holyc_era_demo.hc", "Era: HolyC 2020",
       ERA_PERSONA_HOLYC, true },
 };

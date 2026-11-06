@@ -69,7 +69,7 @@ void app_explorer_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w;(
 void dosgui_chrome_draw_window(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t; }
 void dosgui_chrome_draw_button(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t, int act) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t;(void)act; }
 DosGuiWindow* dosgui_dos_window_spawn(void) { return NULL; }
-int64_t hc_eval(const char *s) { (void)s; return 0; }
+int64_t hd_eval(const char *s) { (void)s; return 0; }
 void handle_double_fault(void) {}
 void handle_gpf(void) {}
 void handle_page_fault(void) {}

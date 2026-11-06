@@ -1,0 +1,269 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": 1,
+      "url": "https://learn.microsoft.com/en-us/windows/win32/dwm/dwm-overview",
+      "title": "DWM overview - Microsoft Learn Win32",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 2,
+      "url": "https://learn.microsoft.com/en-us/windows/win32/learnwin32/the-desktop-window-manager",
+      "title": "The Desktop Window Manager - Learn Win32",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 3,
+      "url": "https://en.wikipedia.org/wiki/Desktop_Window_Manager",
+      "title": "Desktop Window Manager - Wikipedia",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 4,
+      "url": "https://www.microsoft.com/en-us/windows/learning-center/organize-desktop-snap-layouts",
+      "title": "Organize desktop with Snap layouts - Microsoft",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 5,
+      "url": "https://www.microsoft.com/en-us/windows/learning-center/organize-screen-with-snap-layouts",
+      "title": "How to use Snap layouts - Microsoft",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 6,
+      "url": "https://www.microsoft.com/en-us/windows/learning-center/stay-organized-using-multiple-desktops-windows-11",
+      "title": "Multiple desktops / Task View - Microsoft",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 7,
+      "url": "https://learn.microsoft.com/en-us/answers/questions/2153315/how-do-i-enable-windows-11s-virtual-desktop-featur",
+      "title": "Virtual Desktop feature - Microsoft Q&A",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 8,
+      "url": "https://support.microsoft.com/help/17203",
+      "title": "Customize the Taskbar in Windows - MS Support",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 9,
+      "url": "https://learn.microsoft.com/en-us/windows/apps/desktop/modernize/ui/apply-snap-layout-menu",
+      "title": "Support snap layouts for desktop apps - Learn",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 10,
+      "url": "https://support.microsoft.com/en-us/windows/experience/snap-your-windows",
+      "title": "Snap Your Windows - MS Support",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 11,
+      "url": "https://man.archlinux.org/man/archinstall.1.en",
+      "title": "archinstall(1) man page — library + preconfigured guided installer, bootloader/uki/removable JSON options",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "archinstall is a library which can be used to install Arch Linux. The library comes packaged with different pre-configured installers",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "bootloader selects which bootloader to install",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "url": "https://github.com/archlinux/archinstall",
+      "title": "archinstall GitHub repo — mission statement, guided installer default, script library",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "Archinstall primarily functions as a flexible library for managing services, packages, and other elements within an Arch Linux system.",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "url": "https://wiki.archlinux.org/title/Unified_kernel_image",
+      "title": "ArchWiki Unified kernel image — UKI = systemd-stub + kernel + initramfs + cmdline in one UEFI PE",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "There are several ways to generate a UKI image and install it to the proper place",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "url": "https://reactos.org/architecture",
+      "title": "ReactOS Architecture — NT kernel & managers (official)",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 15,
+      "url": "https://vectree.io/c/reactos",
+      "title": "VEctree: ReactOS Visual Explainer (Win32 subsystem/CSRSS/win32k)",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 16,
+      "url": "https://reactos.org/wiki/Win32k.sys",
+      "title": "ReactOS Wiki: Win32k.sys",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 17,
+      "url": "https://reactos.org/wiki/Csrss.exe",
+      "title": "ReactOS Wiki: csrss.exe",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 18,
+      "url": "https://reactos.org/wiki/Win32k_design_guideline",
+      "title": "ReactOS Wiki: Win32k design guideline",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 19,
+      "url": "https://doxygen.reactos.org/d2/dc3/win32ss_2user_2ntuser_2desktop_8c_source.html",
+      "title": "ReactOS source: win32ss/user/ntuser/desktop.c",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 20,
+      "url": "https://doxygen.reactos.org/dd/d79/include_2ntuser_8h_source.html",
+      "title": "ReactOS source: win32ss/include/ntuser.h",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 21,
+      "url": "https://doxygen.reactos.org/d4/d32/ntuser_2hook_8c_source.html",
+      "title": "ReactOS source: win32ss/user/ntuser/hook.c",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 22,
+      "url": "https://wiki.archlinux.org/title/Kernel-install",
+      "title": "ArchWiki kernel-install — plugin system, /etc/kernel/install.conf layout=bls|uki",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "kernel-install itself doesn't generate the initramfs, but utilizes plugins from programs like mkinitcpio or dracut instead.",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "The main configuration file is /etc/kernel/install.conf. Use it to configure the layout you want to use, i.e. bls for traditional split kernel and initramfs images, or uki for Unified kernel images.",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "url": "https://wiki.archlinux.org/title/Mkinitcpio",
+      "title": "ArchWiki Mkinitcpio — presets, MODULES/HOOKS/BINARIES/FILES, hook ordering + runtime functions",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "Hooks are small scripts describing what will be added to the initramfs image. Some hooks are accompanied by a so-called runtime hook providing startup functionality",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "url": "https://wiki.archlinux.org/title/Pacman",
+      "title": "ArchWiki Pacman — 5-step transaction plan, hooks, SigLevel, C + bsdtar",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "When successful, the workflow of a transaction follows five high-level steps plus pre/post transaction hooks:",
+          "added": "2026-11-06"
+        },
+        {
+          "text": "The default configuration, SigLevel = Required DatabaseOptional, enables signature verification for all the packages",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "url": "https://wiki.archlinux.org/title/Pacman/Package_signing",
+      "title": "ArchWiki pacman/Package signing — OpenPGP web of trust, pacman-key --init/--populate, archlinux-keyring",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "The archlinux-keyring package, which is a dependency of base, contains the latest keys.",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "url": "https://wiki.archlinux.org/title/Systemd-boot",
+      "title": "ArchWiki systemd-boot — UEFI boot manager, bootctl install, auto-sources esp/EFI/Linux UKIs",
+      "accessed": "2026-11-06",
+      "quotes": [
+        {
+          "text": "This will copy the systemd-boot UEFI boot manager to the ESP, create a UEFI boot entry for it and set it as the first in the UEFI boot order.",
+          "added": "2026-11-06"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "url": "https://en.wikipedia.org/wiki/Cinnamon_(desktop_environment)",
+      "title": "Wikipedia: Cinnamon (desktop environment)",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 28,
+      "url": "https://github.com/linuxmint/cinnamon",
+      "title": "github.com/linuxmint/cinnamon readme",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 29,
+      "url": "https://github.com/linuxmint/muffin",
+      "title": "github.com/linuxmint/muffin — libmuffin WM, Mutter fork",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 30,
+      "url": "https://deepwiki.com/linuxmint/cinnamon",
+      "title": "DeepWiki Overview: linuxmint/cinnamon",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 31,
+      "url": "https://deepwiki.com/linuxmint/cinnamon/1.1-architecture-overview",
+      "title": "DeepWiki: Architecture Overview",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 32,
+      "url": "https://deepwiki.com/linuxmint/cinnamon/2.3-panel-system",
+      "title": "DeepWiki: Panel System",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 33,
+      "url": "https://deepwiki.com/linuxmint/cinnamon/2.4-theming-system",
+      "title": "DeepWiki: Theming System",
+      "accessed": "2026-11-06"
+    },
+    {
+      "id": 34,
+      "url": "https://deepwiki.com/linuxmint/cinnamon/4-extension-system",
+      "title": "DeepWiki: Extension System",
+      "accessed": "2026-11-06"
+    }
+  ]
+}

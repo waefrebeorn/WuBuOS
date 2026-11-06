@@ -23,7 +23,15 @@ static uint8_t *heap_end = NULL;
 /* Initialize the libc bump allocator over a static backing buffer.
  * Kernel boot (kernel_main) calls mem_init() which uses the kernel
  * allocator; hosted/tests call this to give malloc/calloc a working
- * heap even before g_heap exists. */
+ * heap even before g_heap exists.  The 8 MB backing store is a
+ * hosted/tests-only convenience -- the bare-metal kernel NEVER calls
+ * libm_heap_init() (its malloc delegates straight to mem_alloc), so
+ * emitting this giant static array into the metal .bss inflated the
+ * kernel's load image to ~10.7 MB, overflowed the WuBuFW chainloader's
+ * load window, and triple-faulted the boot (the loader's BSS memset
+ * wiped the firmware's page tables).  Exclusion under MYSEED_METAL is
+ * what keeps boot.bin + kernel.elf + WuBuFW loadable. */
+#ifndef MYSEED_METAL
 static uint8_t libc_heap_storage[8 * 1024 * 1024];
 int libm_heap_init(void) {
     if (heap_ptr) return 0;               /* already initialized */
@@ -31,6 +39,11 @@ int libm_heap_init(void) {
     heap_end = libc_heap_storage + sizeof(libc_heap_storage);
     return 0;
 }
+#else
+/* Metal kernel: no static bump heap. malloc() falls back to
+ * `if (!heap_ptr) return NULL` and the kernel allocator is used. */
+int libm_heap_init(void) { (void)heap_ptr; (void)heap_end; return 0; }
+#endif
 
 void *malloc(size_t size) {
     /* The kernel heap is the ONE allocator of record. The legacy libm

@@ -234,29 +234,30 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
         return EFI_LOAD_ERROR;
     }
 
-    /* Load segments at their physical LMAs. */
+    /* Validate all PT_LOAD segments now (read-only) -- but DEFER the actual
+     * copy+BSS-zero until AFTER ExitBootServices.  The kernel's load window
+     * (0x100000+) currently holds WuBuFW's LIVE page tables/heap; writing the
+     * kernel over it while the firmware is still running (pre-EBS) wipes that
+     * state and triple-faults the boot.  Once boot services are gone the RAM
+     * is OS-owned and safe to clobber. */
     const Elf64_Phdr *ph = (const Elf64_Phdr *)((uint8_t *)kbuf + eh->e_phoff);
-    UINTN loaded = 0;
+    UINTN n_pload = 0;
     for (UINTN i = 0; i < eh->e_phnum; i++) {
         if (ph[i].p_type != PT_LOAD) continue;
+        n_pload++;
         if (ph[i].p_offset + ph[i].p_filesz > elf_size ||
-            ph[i].p_paddr + ph[i].p_memsz > 0x400000) {
+            ph[i].p_paddr + ph[i].p_memsz > 0x02000000) {
             out(u"[wubufw-loader] FAIL: segment bounds\r\n");
             return EFI_LOAD_ERROR;
         }
-        l_memcpy((void *)(uintptr_t)ph[i].p_paddr,
-                 (uint8_t *)kbuf + ph[i].p_offset, ph[i].p_filesz);
-        if (ph[i].p_memsz > ph[i].p_filesz)
-            l_memset((void *)(uintptr_t)(ph[i].p_paddr + ph[i].p_filesz),
-                     0, ph[i].p_memsz - ph[i].p_filesz);   /* BSS */
-        loaded++;
+        out(u"[loader] seg ok: paddr="); outhex(ph[i].p_paddr);
+        out(u" filesz="); outhex(ph[i].p_filesz);
+        out(u" memsz="); outhex(ph[i].p_memsz); out(u"\r\n");
     }
-    if (loaded == 0) {
+    if (n_pload == 0) {
         out(u"[wubufw-loader] FAIL: no PT_LOAD\r\n");
         return EFI_LOAD_ERROR;
     }
-    out(u"[wubufw-loader] loaded "); outdec(loaded);
-    out(u" PT_LOAD at 0x100000 (BSS zeroed)\r\n");
 
     /* 4. Measure the kernel: SHA-256 of the ELF as loaded. */
     uint8_t kdigest[32];
@@ -331,6 +332,21 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *st)
     out(u"[wubufw-loader] boot services exited (");
     outhex(r); out(u") -- handing control to kernel @ ");
     outhex(entry_phys); out(u"\r\n");
+
+    /* Now that boot services are gone, copy the validated PT_LOAD file
+     * contents to their physical LMAs.  We do NOT zero .bss here: the
+     * kernel's BSS window (0x168080+) is where WuBuFW's ACTIVE page tables
+     * live while this loader is still running on them, so zeroing it here
+     * corrupts our own execution.  crt0.S zeroes the kernel's .bss itself
+     * right after it installs its own page tables (self-sufficient under
+     * any loader). */
+    for (UINTN i = 0; i < eh->e_phnum; i++) {
+        if (ph[i].p_type != PT_LOAD) continue;
+        l_memcpy((void *)(uintptr_t)ph[i].p_paddr,
+                 (uint8_t *)kbuf + ph[i].p_offset, ph[i].p_filesz);
+    }
+    out(u"[wubufw-loader] copied "); outdec(n_pload);
+    out(u" PT_LOAD (.bss zeroed by kernel crt0, post-EBS)\r\n");
 
     wubufw_handoff(entry_phys);   /* never returns */
 

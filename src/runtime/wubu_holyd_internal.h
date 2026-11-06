@@ -7,7 +7,7 @@
 #define WUBU_HOLYD_INTERNAL_H
 
 #include "wubu_holyd.h"
-#include "../compiler/holyc.h"
+#include "../compiler/holyd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +73,7 @@ int  holyd_socket_create(WubuHoly *d);
 void holyd_socket_destroy(WubuHoly *d, int fd);
 
 /* Get compiler for session (creates if needed, defined in facade) */
-HCCompiler *holyd_get_compiler(WubuHolySession *s, WubuHoly *d);
+HDCompiler *holyd_get_compiler(WubuHolySession *s, WubuHoly *d);
 
 /* -- Session operations (wubu_holyd_session.c) ------------------- */
 int  wubu_holyd_session_create(WubuHoly *d, const char *name,

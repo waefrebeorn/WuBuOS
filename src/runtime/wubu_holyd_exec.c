@@ -27,12 +27,12 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
     /* Get or create persistent compiler for this session. The REPL state we
      * must preserve across evals is the accumulated function table + symbol
      * table (so a function declared in one eval is callable in the next).
-     * Those live in HCGen and are preserved by hc_gen_init(). Everything
+     * Those live in HDGen and are preserved by hd_gen_init(). Everything
      * else -- the lexer, parser, and the per-call code/data buffers -- is
      * re-initialized fresh each call so a failed parse cannot leave the
      * persistent compiler in a corrupt state (which previously caused a
      * use-after-free + SIGSEGV on the following eval). */
-    HCCompiler *compiler = holyd_get_compiler(s, d);
+    HDCompiler *compiler = holyd_get_compiler(s, d);
     if (!compiler) {
         snprintf(output, out_size, "Compiler initialization failed");
         s->state = SESSION_STATE_ACTIVE;
@@ -43,23 +43,23 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
      * same entry point the compiler's own tests use) so a single eval can
      * contain function/var declarations followed by a trailing expression,
      * e.g. "I64 sq(I64 n){ return n*n; } sq(9)". The function/symbol tables
-     * in HCGen are preserved across evals by hc_gen_init() below, which is
+     * in HDGen are preserved across evals by hd_gen_init() below, which is
      * what gives the REPL its persistent state. */
-    hc_lex_init(&compiler->lex, code);
+    hd_lex_init(&compiler->lex, code);
     if (compiler->lex.has_error) {
         snprintf(output, out_size, "Lexer error: %s", compiler->lex.error);
         s->state = SESSION_STATE_ACTIVE;
         return 0;
     }
-    hc_parse_init(&compiler->parse, &compiler->lex);
+    hd_parse_init(&compiler->parse, &compiler->lex);
 
-    HCParser *p = &compiler->parse;
+    HDParser *p = &compiler->parse;
     p->lex = &compiler->lex;
     p->has_error = false;
     /* Parse the eval source as a single *block* of statements. Wrapping the
      * source in braces gives REPL semantics: a declaration (function/var)
      * registers persistently in the compiler's function/symbol tables across
-     * evals (preserved by hc_gen_init()), and a trailing bare expression
+     * evals (preserved by hd_gen_init()), and a trailing bare expression
      * becomes the eval's return value (it is the last statement, so its
      * result sits in RAX when the generated function returns). This single
      * parse path handles bare exprs ("1+2+3"), decl+expr
@@ -83,13 +83,13 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
         return -1;
     }
     snprintf(wrapped, wcap, need_semi ? "{ %s; }" : "{ %s }", code);
-    hc_lex_init(&compiler->lex, wrapped);
-    hc_parse_init(p, &compiler->lex);
-    HCASTNode *ast = hc_parse_block(p);
+    hd_lex_init(&compiler->lex, wrapped);
+    hd_parse_init(p, &compiler->lex);
+    HDASTNode *ast = hd_parse_block(p);
     free(wrapped);
 
     if (p->has_error || !ast) {
-        hc_ast_free(ast);
+        hd_ast_free(ast);
         snprintf(output, out_size, "Parse error: %s",
                  p->n_errors ? p->errors[0] : "invalid syntax");
         s->state = SESSION_STATE_ACTIVE;
@@ -97,20 +97,20 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
     }
 
     if (p->has_error || !ast) {
-        hc_ast_free(ast);
+        hd_ast_free(ast);
         snprintf(output, out_size, "Parse error");
         s->state = SESSION_STATE_ACTIVE;
         return 0;
     }
 
     /* Fresh codegen buffer, but keep accumulated functions/symbols. */
-    hc_gen_init(&compiler->gen);
+    hd_gen_init(&compiler->gen);
 
     emit_prologue(&compiler->gen);
     gen_stmt(&compiler->gen, ast);   /* BLOCK/decl/expr: decls register, expr returns */
     emit_epilogue(&compiler->gen);
 
-    hc_ast_free(ast);
+    hd_ast_free(ast);
 
     if (compiler->gen.code_size == 0 || compiler->gen.has_error) {
         free(compiler->gen.code);
@@ -163,7 +163,7 @@ int wubu_holyd_eval(WubuHoly *d, const char *session,
     /* Free the executable memory and the per-call code buffer, but PRESERVE
      * the data section. The data section holds global variables (e.g. a
      * module-level `I64 acc = 10;`) whose values must survive across evals to
-     * give the REPL its persistent state. hc_gen_init() already saves/restores
+     * give the REPL its persistent state. hd_gen_init() already saves/restores
      * gen.data across the fresh init below, so the allocation must stay valid.
      * Only the freshly-generated code buffer (and its now-unmapped exec copy)
      * is discarded; the data buffer is reused by the next eval. */
@@ -184,7 +184,7 @@ int wubu_holyd_compile(WubuHoly *d, const char *session,
                          const char *code, void **out_binary, size_t *out_size) {
     WubuHolySession *s = holyd_find_session(d, session);
     if (!s) return -1;
-    *out_binary = hc_compile(code, out_size);
+    *out_binary = hd_compile(code, out_size);
     return (*out_binary) ? 0 : -1;
 }
 
@@ -210,18 +210,18 @@ int wubu_holyd_stop(WubuHoly *d, const char *session) {
 
 /* -- Helper: get compiler from session (implementation) ----------- */
 
-HCCompiler *holyd_get_compiler(WubuHolySession *s, WubuHoly *d) {
+HDCompiler *holyd_get_compiler(WubuHolySession *s, WubuHoly *d) {
     if (!s->compiler) {
-        s->compiler = calloc(1, sizeof(HCCompiler));
+        s->compiler = calloc(1, sizeof(HDCompiler));
         if (!s->compiler) return NULL;
         /* Initialize the compiler components */
-        hc_lex_init(&((HCCompiler *)s->compiler)->lex, "");
-        hc_parse_init(&((HCCompiler *)s->compiler)->parse, &((HCCompiler *)s->compiler)->lex);
-        hc_gen_init(&((HCCompiler *)s->compiler)->gen);
+        hd_lex_init(&((HDCompiler *)s->compiler)->lex, "");
+        hd_parse_init(&((HDCompiler *)s->compiler)->parse, &((HDCompiler *)s->compiler)->lex);
+        hd_gen_init(&((HDCompiler *)s->compiler)->gen);
         s->compiler_initialized = true;
         holyd_log(d, 2, "Compiler initialized for session");
     }
-    return (HCCompiler *)s->compiler;
+    return (HDCompiler *)s->compiler;
 }
 
 /* EOF */

@@ -153,3 +153,8 @@ venv*/
 *.deb
 os-studies/reactos-study/reactos/
 os-studies/reactos-study/reactos/
+# build/test binaries (not source)
+src/jit/jit_fuzzer
+src/runtime/tests/test_colonel
+src/runtime/tests/test_hwdetect
+src/runtime/wubu_dos_emu_smoke

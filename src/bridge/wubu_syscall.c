@@ -435,7 +435,7 @@ int wubu_syscall_register_all(void) {
  * ══════════════════════════════════════════════════════════════════ */
 
 int wubu_holyc_register_syscalls(void *hc_compiler) {
-    /* The HCCompiler struct has a gen member with functions table */
+    /* The HDCompiler struct has a gen member with functions table */
     /* We need to add entries to gen->functions[] with func_ptr pointing
        to syscall trampolines. For now, we register the C handlers directly
        and HolyC can call them as external functions. */
