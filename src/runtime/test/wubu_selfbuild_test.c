@@ -169,8 +169,8 @@ int main(void) {
     char *src = read_text(hd_file);
     CHECK(src != NULL, "read holyd source file from the repo");
     if (!src) return 1;
-    CHECK(strstr(src, "return sum();") != NULL,
-          "source is holyd's own language (cross-function-call program)");
+    CHECK(strstr(src, "char buf[9]") != NULL,
+          "source is holyd's own language (data-array program)");
 
     /* compile it (emitter) -> /n/apps/hello.bin */
     CHECK(emit_holyd_file(src, "/tmp/ns_selfbuild/apps/hello.bin") == 0,
@@ -181,14 +181,14 @@ int main(void) {
     wubu_zx_ops ops = { host_map, host_unmap };
     wubu_zxreg_entry_t *slot = NULL;
     int rc = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00400000u, NULL, &slot);
-    CHECK(rc == 55, "registry-loaded module ran f()->sum(1..10) = 55");
+    CHECK(rc == 72, "registry-loaded module read buf[0] = 'H' = 72 from relocated .data");
     CHECK(slot && slot->valid, "registry holds the loaded module");
     CHECK(wubu_zxreg_count() == 1, "registry count == 1 (one module)");
 
     /* stage 2: position independence -- the SELF-BUILT PE runs at a second base */
     wubu_zxreg_entry_t *slot2 = NULL;
     int rc2 = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00420000u, NULL, &slot2);
-    CHECK(rc2 == 55, "same self-built module runs at base 0x00420000 (relocation-invariant)");
+    CHECK(rc2 == 72, "same self-built module runs at base 0x00420000 (relocation-invariant)");
     CHECK(slot2 && slot2->valid && slot2 != slot, "second base got its own registry slot");
     CHECK(wubu_zxreg_count() == 2, "cross-base load is NOT deduped (registry count 2)");
 
