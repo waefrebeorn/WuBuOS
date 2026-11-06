@@ -1,10 +1,9 @@
 /* wubu_selfbuild.hd -- a holyd-language program: THE stage-0 self-build seed.
  *
  * The compiler reads THIS file as its own language, emits a PE, drops it into
- * /n, and the module registry loads+runs it. Entry returns g+1 = 42.
- * Keeping it to proven holyd constructs: top-level global + one zero-arg
- * function returning a global+const (the cross-function/global path through
- * the emitter). This is the smallest real program the pipeline round-trips.
+ * /n, and the module registry loads+runs it. This version actually COMPUTES:
+ * f() loops i=1..10 accumulating g -> entry returns 55. It exercises the for
+ * loop body + a global store through the emitter, not just a constant+return.
  */
-int g = 41;
-int f() { return g + 1; }
+int g = 0;
+int f() { for (int i = 1; i <= 10; i++) g += i; return g; }
