@@ -812,6 +812,15 @@ test_wubu_zxreg: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(K
 	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/wubu_zxreg_test.c $(KERNEL)/wubu_zxreg.c $(KERNEL)/wubu_sha256.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_zxreg_test -ldl
 	$(KERNEL)/./wubu_zxreg_test
 
+# test_wubu_applaunch -- P3<->module bridge: a session APP is STARTED by loading
+# its PE from /n through the module registry, not exec. session_boot scans the
+# autostart dir, claims the bus name, and the launcher runs /n/apps/prog.bin via
+# wubu_zxreg_load -> module ran, registry holds one ref.
+test_wubu_applaunch: $(RT)/wubu_applaunch.c $(RT)/wubu_applaunch.h $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zxreg.c $(KERNEL)/wubu_sha256.c $(KERNEL)/wubu_modsym.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c $(RT)/test/wubu_applaunch_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -D_GNU_SOURCE -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(RT)/test/wubu_applaunch_test.c $(RT)/wubu_applaunch.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zxreg.c $(KERNEL)/wubu_sha256.c $(KERNEL)/wubu_modsym.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c -o $(KERNEL)/wubu_applaunch_test -ldl
+	$(KERNEL)/./wubu_applaunch_test
+
+
 # test_pe_import -- rung 6: holyd EMITS an import-carrying PE. The emitter
 # (hd_write_pe_imported) lays out .idata (descriptor+ILT+INT+IAT+name rows+dll)
 # and rewrites a call qword[rip+disp] to reach its IAT slot; wubu_zx_run snaps
