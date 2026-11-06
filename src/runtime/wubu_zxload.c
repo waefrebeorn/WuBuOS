@@ -48,6 +48,26 @@ static int build_path(const char *path, char *out, size_t cap)
 }
 
 #ifdef WUBU_HOSTED
+/* Read the whole file at `/n`<path> (or <path>) into a new buffer (*out, caller
+ * frees); returns byte count or <0. Reuses build_path resolution. */
+int wubu_zxload_read(const char *path, uint8_t **_out, size_t *_sz)
+{
+    char full[512];
+    if (build_path(path, full, sizeof(full)) != 0) return -1;
+    FILE *f = fopen(full, "rb");
+    if (!f) return -1;
+    if (fseek(f, 0, SEEK_END) != 0) { fclose(f); return -1; }
+    long n = ftell(f);
+    if (n <= 0) { fclose(f); return -1; }
+    fseek(f, 0, SEEK_SET);
+    uint8_t *buf = (uint8_t *)malloc((size_t)n);
+    if (!buf) { fclose(f); return -1; }
+    if (fread(buf, 1, (size_t)n, f) != (size_t)n) { free(buf); fclose(f); return -1; }
+    fclose(f);
+    *_out = buf; *_sz = (size_t)n;
+    return (int)n;
+}
+
 int wubu_zxload_run(const wubu_zx_ops *ops, const char *path, uintptr_t base,
                     wubu_pe_resolve_fn resolve, int *out_err)
 {

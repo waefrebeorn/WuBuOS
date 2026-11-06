@@ -804,7 +804,13 @@ test_wubu_zxload: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(
 	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(RT)/test/wubu_zxload_test.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_zxload_test -ldl
 	$(KERNEL)/./wubu_zxload_test
 
-	$(KERNEL)/./wubu_zxload_test
+# test_wubu_zxreg -- module registry (ZXE-style): load-by-name dedups identical
+# modules (SHA-256), refcounts, and unloads on zero. Loads the same /n module
+# twice -> one mapping/two refs -> count 1; unloads back down to 0. Uses the
+# import-carrying emitter + wubu_zx_run + wubu_zxload + wubu_sha256.
+test_wubu_zxreg: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zx.h $(KERNEL)/wubu_zxreg.c $(KERNEL)/wubu_zxreg.h $(KERNEL)/wubu_modsym.c $(KERNEL)/wubu_modsym.h $(KERNEL)/wubu_sha256.c $(KERNEL)/wubu_sha256.h $(RT)/wubu_zxload.c $(RT)/wubu_zxload.h $(RT)/wubu_ns_fs.c $(KERNEL)/test/wubu_zxreg_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/wubu_zxreg_test.c $(KERNEL)/wubu_zxreg.c $(KERNEL)/wubu_sha256.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_zxreg_test -ldl
+	$(KERNEL)/./wubu_zxreg_test
 
 # test_pe_import -- rung 6: holyd EMITS an import-carrying PE. The emitter
 # (hd_write_pe_imported) lays out .idata (descriptor+ILT+INT+IAT+name rows+dll)

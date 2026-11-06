@@ -24,6 +24,10 @@ extern "C" {
 int wubu_zxload_run(const wubu_zx_ops *ops, const char *path, uintptr_t base,
                     wubu_pe_resolve_fn resolve, int *out_err);
 
+/* Read the whole file at `/n`<path> (or <path>) into a new buffer (*out, caller
+ * frees); returns byte count or <0. */
+int wubu_zxload_read(const char *path, uint8_t **_out, size_t *_sz);
+
 #ifdef __cplusplus
 }
 #endif
