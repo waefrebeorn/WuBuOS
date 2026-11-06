@@ -1,10 +1,10 @@
 /* wubu_selfbuild.hd -- a holyd-language program: THE stage-0 self-build seed.
  *
  * The compiler reads THIS file as its own language, emits a PE, drops it into
- * /n, and the module registry loads+runs it. This version has TWO functions
- * and a CROSS-FUNCTION CALL: f() returns sum(), and sum() computes the loop
- * sum(1..10)=55. Entry f()->sum() must come back 55.
+ * /n, and the module registry loads+runs it. This version exercises DATA: a
+ * global char array with a brace initializer ("HELLO") becomes a .data section
+ * the emitter emits and the loader must relocate + index into. f() reads buf[0]
+ * back -> entry returns 'H' = 72.
  */
-int g = 0;
-int sum() { int s = 0; for (int i = 1; i <= 10; i++) s += i; return s; }
-int f() { return sum(); }
+char buf[9] = { 72, 69, 76, 76, 79, 0, 0, 0, 0 };
+int f() { return (int)buf[0]; }
