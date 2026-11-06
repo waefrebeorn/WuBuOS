@@ -762,6 +762,48 @@ test_holyd_pe: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/test/wubu_pe_ho
 	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(KERNEL)/test/wubu_pe_holyd_test.c $(KERNEL)/wubu_pe.c -o $(KERNEL)/wubu_pe_holyd_test -ldl
 	$(KERNEL)/./wubu_pe_holyd_test
 
+# test_pe_globals -- self-hosting rung 2: a holyd module that WRITES a global
+# (int g = 40;) is emitted as a PE carrying .text + .data (holyd_pe.c), then
+# run through the kernel loader at TWO bases. The store's RIP-relative disp32
+# is fixed against the .data section's real RVA, and the loader maps that
+# section, so mapped .data[0] must become 40 at BOTH bases -- proving the
+# code<->data distance is base-invariant with no .reloc directory. Serves the
+# P1 forcing function: holyd output with real data can self-host.
+test_pe_globals: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/test/wubu_pe_globals_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/wubu_pe_globals_test.c $(KERNEL)/wubu_pe.c -o $(KERNEL)/wubu_pe_globals_test -ldl
+	$(KERNEL)/./wubu_pe_globals_test
+
+# test_pe_program -- self-hosting rung 3: a holyd PROGRAM (module init that
+# WRITES a global + a trailing FUNC_DECL it CALLS) is emitted as ONE image by
+# hd_write_pe_program: module code + function body laid out contiguously, the
+# cross-function call made image-relative, both global disp32s fixed against
+# .data RVA. Run at TWO bases; entry must return 42 both times -- proving a
+# real two-part program (init + helper function, call crossing module->func)
+# is position-independent with no .reloc. This is the closest holyd has to a
+# "main + helper" binary and closes the P1 self-hosting loop.
+test_pe_program: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/test/wubu_pe_program_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/wubu_pe_program_test.c $(KERNEL)/wubu_pe.c -o $(KERNEL)/wubu_pe_program_test -ldl
+	$(KERNEL)/./wubu_pe_program_test
+
+# test_wubu_zx -- the module-RUNNER primitive (wubu_zx_run): ONE reusable call
+# does parse->map->copy->relocate->snap-IAT(via wubu_modsym registry)->call
+# entry. Proves it runs BOTH an import-through-registry image (entry calls via
+# IAT to a registry symbol -> 7) and a holyd-emitted PROGRAM (module init +
+# image-relative cross-function call + .data -> 42). This is the loader core a
+# .ZXE / /n namespace loader and the boot shell call.
+test_wubu_zx: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zx.h $(KERNEL)/wubu_modsym.c $(KERNEL)/wubu_modsym.h $(KERNEL)/test/wubu_zx_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/wubu_zx_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_zx_test -ldl
+	$(KERNEL)/./wubu_zx_test
+
+# test_wubu_zxload -- rung 5: RUN A MODULE BY NAME FROM THE /n NAMESPACE.
+# wubu_zxload_run reads a PE at a /n path off g_ns_root and hands it to the
+# module-runner primitive (wubu_zx_run). Drops both image kinds into a real ns
+# root and loads them BY NAME: "answer.exe" (import-through-registry -> 7) and
+# "prog.bin" (holyd program, init + image-relative cross-call + .data -> 42).
+test_wubu_zxload: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zx.h $(KERNEL)/wubu_modsym.c $(KERNEL)/wubu_modsym.h $(RT)/wubu_zxload.c $(RT)/wubu_zxload.h $(RT)/wubu_ns_fs.c $(RT)/test/wubu_zxload_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(RT)/test/wubu_zxload_test.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_zxload_test -ldl
+	$(KERNEL)/./wubu_zxload_test
+
 # test_pe_modsym -- P2 Piece A: loader import resolution goes through the
 # runtime-extensible symbol registry (wubu_modsym), not a hardcoded callback.
 # A PE importing NTOSKRNL.EXE!ANSWER is loaded; wubu_pe_snap_iat resolves via
