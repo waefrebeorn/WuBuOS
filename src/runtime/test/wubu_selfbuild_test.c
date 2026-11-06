@@ -185,6 +185,19 @@ int main(void) {
     CHECK(slot && slot->valid, "registry holds the loaded module");
     CHECK(wubu_zxreg_count() == 1, "registry count == 1 (one module)");
 
+    /* stage 2: position independence -- the SELF-BUILT PE runs at a second base */
+    wubu_zxreg_entry_t *slot2 = NULL;
+    int rc2 = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00420000u, NULL, &slot2);
+    CHECK(rc2 == 55, "same self-built module runs at base 0x00420000 (relocation-invariant)");
+    CHECK(slot2 && slot2->valid && slot2 != slot, "second base got its own registry slot");
+    CHECK(wubu_zxreg_count() == 2, "cross-base load is NOT deduped (registry count 2)");
+
+    /* stage 3: ephemeral-app lifecycle -- unload releases each reference */
+    wubu_zxreg_unload(slot2);
+    CHECK(wubu_zxreg_count() == 1, "unload @0x00420000 released one (count 1)");
+    wubu_zxreg_unload(slot);
+    CHECK(wubu_zxreg_count() == 0, "unload @0x00400000 released the last (count 0)");
+
     wubu_zxreg_clear();
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
