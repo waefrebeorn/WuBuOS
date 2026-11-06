@@ -169,8 +169,8 @@ int main(void) {
     char *src = read_text(hd_file);
     CHECK(src != NULL, "read holyd source file from the repo");
     if (!src) return 1;
-    CHECK(strstr(src, "for (int i = 1; i <= 10; i++)") != NULL,
-          "source is holyd's own language (loop-based program)");
+    CHECK(strstr(src, "return sum();") != NULL,
+          "source is holyd's own language (cross-function-call program)");
 
     /* compile it (emitter) -> /n/apps/hello.bin */
     CHECK(emit_holyd_file(src, "/tmp/ns_selfbuild/apps/hello.bin") == 0,
@@ -181,7 +181,7 @@ int main(void) {
     wubu_zx_ops ops = { host_map, host_unmap };
     wubu_zxreg_entry_t *slot = NULL;
     int rc = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00400000u, NULL, &slot);
-    CHECK(rc == 55, "registry-loaded module computed sum(1..10) = 55");
+    CHECK(rc == 55, "registry-loaded module ran f()->sum(1..10) = 55");
     CHECK(slot && slot->valid, "registry holds the loaded module");
     CHECK(wubu_zxreg_count() == 1, "registry count == 1 (one module)");
 

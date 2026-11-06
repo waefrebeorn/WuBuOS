@@ -1,9 +1,10 @@
 /* wubu_selfbuild.hd -- a holyd-language program: THE stage-0 self-build seed.
  *
  * The compiler reads THIS file as its own language, emits a PE, drops it into
- * /n, and the module registry loads+runs it. This version actually COMPUTES:
- * f() loops i=1..10 accumulating g -> entry returns 55. It exercises the for
- * loop body + a global store through the emitter, not just a constant+return.
+ * /n, and the module registry loads+runs it. This version has TWO functions
+ * and a CROSS-FUNCTION CALL: f() returns sum(), and sum() computes the loop
+ * sum(1..10)=55. Entry f()->sum() must come back 55.
  */
 int g = 0;
-int f() { for (int i = 1; i <= 10; i++) g += i; return g; }
+int sum() { int s = 0; for (int i = 1; i <= 10; i++) s += i; return s; }
+int f() { return sum(); }
