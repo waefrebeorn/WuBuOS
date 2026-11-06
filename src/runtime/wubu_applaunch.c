@@ -28,11 +28,11 @@ int wubu_applaunch_as_session_launcher(wubu_session_boot_t *boot,
     if (!cfg || !cfg->ops) return -1;
     if (!argv || !argv[0] || !argv[0][0]) return -1;
 
-    /* the app binary is argv[0] resolved into /n; strip any leading path */
+    /* the app binary is the exec path (e.g. "apps/prog.bin" or "/n/apps/prog.bin");
+     * wubu_zxload's build_path already resolves /n/... AND keeps subdirs, so pass
+     * it through verbatim — stripping to the final component would break any
+     * subdirectory path (apps/prog.bin -> /n/prog.bin, a miss). */
     const char *name = argv[0];
-    const char *p = name;
-    /* skip to the final path component (so "foo/bar.bin" -> bar.bin) */
-    while (*p) { if (*p == '/') name = p + 1; p++; }
 
     wubu_zxreg_entry_t *slot = NULL;
     int rc = wubu_zxreg_load(cfg->ops, name, cfg->base, cfg->resolve, &slot);

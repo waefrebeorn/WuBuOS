@@ -12,6 +12,7 @@
  * Links the P3 session-boot + xdg-autostart + bus with the module subsystem.
  */
 #include "wubu_session_boot.h"
+#include "wubu_applaunch.h"
 #include "wubu_xdg_autostart.h"
 #include "wubu_zxreg.h"
 #include "wubu_zx.h"
