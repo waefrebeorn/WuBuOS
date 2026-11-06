@@ -804,6 +804,18 @@ test_wubu_zxload: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(
 	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(RT)/test/wubu_zxload_test.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_zxload_test -ldl
 	$(KERNEL)/./wubu_zxload_test
 
+	$(KERNEL)/./wubu_zxload_test
+
+# test_pe_import -- rung 6: holyd EMITS an import-carrying PE. The emitter
+# (hd_write_pe_imported) lays out .idata (descriptor+ILT+INT+IAT+name rows+dll)
+# and rewrites a call qword[rip+disp] to reach its IAT slot; wubu_zx_run snaps
+# that IAT via the registry and runs the entry, which calls through it -> the
+# registered host function's result. Prove a compiler-produced PE carries and
+# resolves its own imports.
+test_pe_import: $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_pe.h $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zx.h $(KERNEL)/wubu_modsym.c $(KERNEL)/wubu_modsym.h $(KERNEL)/test/wubu_pe_import_test.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(COMP) -I$(JIT) -I$(KERNEL) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/wubu_pe_import_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/wubu_pe_import_test -ldl
+	$(KERNEL)/./wubu_pe_import_test
+
 # test_pe_modsym -- P2 Piece A: loader import resolution goes through the
 # runtime-extensible symbol registry (wubu_modsym), not a hardcoded callback.
 # A PE importing NTOSKRNL.EXE!ANSWER is loaded; wubu_pe_snap_iat resolves via
