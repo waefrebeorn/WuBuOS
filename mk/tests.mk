@@ -837,8 +837,17 @@ test_wubu_selfbuild: $(RT)/selfbuild/hello.hd $(RT)/selfbuild/fib.hd $(RT)/test/
 # broken push slip through — one command, one verdict).
 .PHONY: test-module
 test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
-             test_wubu_zxload test_wubu_zxreg test_wubu_applaunch test_wubu_selfbuild
+             test_wubu_zxload test_wubu_zxreg test_wubu_applaunch test_wubu_selfbuild \
+             test_wubu_zx9p
 	@echo "== [test-module] all module/PE/self-build targets GREEN =="
+
+# test_wubu_zx9p -- the loader consumes a module over REAL Styx/9P (the kernel-leg
+# TRANSPORT of the /n read). A module PE is published under a host dir mounted as
+# 9P "/"; a 9P client WALK+OPEN+READs it, and wubu_zx_run runs the fetched bytes
+# (import resolves via registry -> 7, at two bases). No stdio/compiler link.
+test_wubu_zx9p: $(KERNEL)/test/wubu_zx9p_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c
+		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) $(KERNEL)/test/wubu_zx9p_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_spawn.c -o $(KERNEL)/wubu_zx9p_test
+	$(KERNEL)/./wubu_zx9p_test
 
 
 # test_pe_import -- rung 6: holyd EMITS an import-carrying PE. The emitter
