@@ -829,6 +829,17 @@ test_wubu_selfbuild: $(RT)/selfbuild/hello.hd $(RT)/test/wubu_selfbuild_test.c $
 	$(CC) -O0 -g -DWUBU_HOSTED -D_GNU_SOURCE -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(RT)/test/wubu_selfbuild_test.c $(RT)/wubu_applaunch.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_zxreg.c $(KERNEL)/wubu_sha256.c $(KERNEL)/wubu_modsym.c $(RT)/wubu_zxload.c $(RT)/wubu_ns_fs.c -o $(KERNEL)/wubu_selfbuild_test -ldl
 	$(KERNEL)/./wubu_selfbuild_test
 
+# test-module -- THE one-command green gate for the whole module/PE/self-build
+# stack. The aggregate that runs inside wubuwos CI: PE loader contract + holyd
+# emitter + /n module registry + session->/n app-launch + self-build. Every
+# member must pass or the gate is RED. Use this INSTEAD of hand-looping the
+# eight targets (that hand-loop is exactly the workflow pathology that let a
+# broken push slip through — one command, one verdict).
+.PHONY: test-module
+test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
+             test_wubu_zxload test_wubu_zxreg test_wubu_applaunch test_wubu_selfbuild
+	@echo "== [test-module] all module/PE/self-build targets GREEN =="
+
 
 # test_pe_import -- rung 6: holyd EMITS an import-carrying PE. The emitter
 # (hd_write_pe_imported) lays out .idata (descriptor+ILT+INT+IAT+name rows+dll)
