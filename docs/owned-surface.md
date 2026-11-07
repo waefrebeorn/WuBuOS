@@ -23,7 +23,7 @@ The loader/PE → emitter → registry → namespace → 9P → self-host contin
 | test_w9pc          | KERNEL-CLEAN 9P client: freestanding compile + drives real server |
 | test_wubu_tokenizer| SELF-HOSTED compiler stage (tokenizer) runs through the loader |
 
-These feed the honest number: 10 of these prove a self-hosted/myan-capable
+These feed the honest number: they prove a self-hosted, /n-and-9P-capable
 continuum end to end; the gate failing ANY = the OS-app-launch story is RED.
 
 ## The WIDER VERIFIED PE/styx surface (named targets, same file tree)
