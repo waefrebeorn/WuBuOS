@@ -5,7 +5,7 @@ Snapshot: `make test-module` is the authoritative "owned & tested" gate. Generat
 in a named test target that passes; everything else is UNTESTED surface (the DA#2
 junk-drawer debt), regardless of how much code "exists."
 
-## THE CORE GATE — `make test-module` (11 targets, must always be GREEN)
+## THE CORE GATE — `make test-module` (18 targets, must always be GREEN)
 
 The loader/PE → emitter → registry → namespace → 9P → self-host continuum:
 
@@ -28,15 +28,15 @@ continuum end to end; the gate failing ANY = the OS-app-launch story is RED.
 
 ## The WIDER VERIFIED PE/styx surface (named targets, same file tree)
 
-`test_pe_reloc/exec/iat/full/load/personality`, `test_wubu_zx`, `test_styx`,
-`test_styxfs`, `test_ns_9p` also pass individually but are NOT members of the
+`test_pe_personality`, `test_styx` also pass individually but are NOT members of the
 aggregate gate — they can rot without `make test-module` noticing. Consider promoting
-the PE-contract + 9P-server ones into the gate if they must stay honored.
+them in if they must stay honored; the PE-contract (reloc/exec/iat/full), wubu_zx,
+styxfs, and ns_9p ARE now all in the gate.
 
 ## The REPO'S TOTAL TESTABLE SURFACE
 
 - **445** `test_*` targets exist in `mk/tests.mk`. (Most are runnable driver
-  selftests; 11 are the module gate above.)
+  selftests; 18 are the module gate above.)
 - **~450** `wubu_*.c` files live in `src/kernel/` — a large fraction have NO test
   target (NO_OWNED), i.e. unclassified vendor/LKDDM orphans.
 

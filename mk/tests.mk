@@ -837,9 +837,11 @@ test_wubu_selfbuild: $(RT)/selfbuild/hello.hd $(RT)/selfbuild/str.hd $(RT)/selfb
 # broken push slip through — one command, one verdict).
 .PHONY: test-module
 test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
-             test_wubu_zxload test_wubu_zxreg test_wubu_applaunch test_wubu_selfbuild \
-             test_wubu_zx9p test_w9pc test_wubu_tokenizer
-	@echo "== [test-module] all module/PE/self-build targets GREEN =="
+             test_pe_reloc test_pe_exec test_pe_iat test_pe_full \
+             test_wubu_zx test_wubu_zxload test_wubu_zxreg test_wubu_applaunch \
+             test_wubu_selfbuild test_wubu_zx9p test_w9pc test_wubu_tokenizer \
+             test_ns_9p test_styxfs
+	@echo "== [test-module] all module/PE/self-build/9P targets GREEN =="
 
 # test_wubu_zx9p -- the loader consumes a module over REAL Styx/9P (the kernel-leg
 # TRANSPORT of the /n read). A module PE is published under a host dir mounted as
