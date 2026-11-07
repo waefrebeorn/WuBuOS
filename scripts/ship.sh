@@ -34,14 +34,14 @@ git add -A ':(exclude)src/runtime/container/wubucontainer'
 git add -u ':(exclude)src/runtime/container/wubucontainer'
 git status --short
 
-# E3 (cross-repo rule): a holyd/compiler change must ship wubunos too. This is a
-# reminder check -- after staging, if any staged path is the compiler (wubunos
-# via the src/compiler symlink), nudge the operator to ship wubunos as well.
-if git diff --cached --name-only | grep -qE '^src/compiler/'; then
-    echo "=== ship: E3 CROSS-REPO -- staged changes touch the compiler (src/compiler"
-    echo "=== -> /home/wubu/wubunos). Ship wubunos too (branch wubu-integration):"
-    echo "===   cd /home/wubu/wubunos && git add ... && git push origin wubu-integration"
-fi
+# E3 cross-repo rule: a holyd/compiler change ships wabunos AND its consuming
+# wuboOS gates. NOTE: this CANNOT be auto-detected from a wuboOS staged-path
+# check -- `git add src/compiler/...` is refused ("beyond a symbolic link"),
+# so wuboOS never stages compiler content (the compiler is its own repo,
+# wabunos, reached via the src/compiler symlink). The rule is enforced by the
+# two-repo workflow: compiler edits commit to wabunos/wubu-integration, and the
+# wuboOS gates that consume it (test_wubu_tokenizer / test_wubu_selfbuild /
+# test-module) must be kept green in the same review.
 
 if [[ "${SHIP_DRY:-0}" == "1" ]]; then
     echo "=== ship: SHIP_DRY -- commit/push skipped (dry run), staged above ==="

@@ -171,10 +171,15 @@ authoritative.
   only.]
 - E3: cross-repo rule enforced in the script: a holyd change ships wubunos AND
   the wubuos gate that proves it, in one review.
-  -- [PARTIAL: ship.sh now emits a CROSS-REPO reminder when staged changes touch
-  src/compiler (the wubunos symlink) to also ship wubunos/wubu-integration.
-  Full one-review auto-enforce of two repos is a review/human matter, not a shell
-  script; the reminder keeps it visible.]
+  -- [PARTIAL, TOPOLOGY-CORRECTED 2026-11-07: a cross-repo staged-path check is
+  IMPOSSIBLE in wubuos -- `git add src/compiler/...` is refused ("beyond a
+  symbolic link"), so wubuos never stages compiler content (the compiler is its
+  own repo, wabunos, reached via the src/compiler symlink). An earlier draft
+  "hard gate" + reminder in ship.sh was tested and found dead (can never fire),
+  then removed. The rule is enforced by the two-repo workflow: compiler edits
+  commit to wabunos/wubu-integration, and the wubuos consuming gates
+  (test_wubu_tokenizer/test_wubu_selfbuild/test-module) are kept green in the
+  same review. ship.sh documents this (src/compiler staging is impossible).]
 **Acceptance:** `scripts/ship.sh test-module` is the only "ship" path; a red gate
 aborts before commit.
 
