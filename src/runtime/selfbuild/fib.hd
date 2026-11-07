@@ -1,0 +1,9 @@
+/* wubu_selfbuild_recursion.hd -- a non-trivial holyd-language program.
+ *
+ * Proves the self-build harness hosts a REAL program, not a constant: a
+ * PARAMETRIZED, RECURSIVE function (fib) plus a zero-arg entry. f() computes
+ * fib(10) = 55. Exercises argument passing + recursion + the emitter's
+ * function registration through the /n loader.
+ */
+int fib(int n) { if (n <= 1) return n; return fib(n - 1) + fib(n - 2); }
+int f() { return fib(10); }

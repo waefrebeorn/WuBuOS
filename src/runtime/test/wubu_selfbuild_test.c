@@ -183,20 +183,41 @@ int main(void) {
     int rc = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00400000u, NULL, &slot);
     CHECK(rc == 72, "registry-loaded module read buf[0] = 'H' = 72 from relocated .data");
     CHECK(slot && slot->valid, "registry holds the loaded module");
-    CHECK(wubu_zxreg_count() == 1, "registry count == 1 (one module)");
 
-    /* stage 2: position independence -- the SELF-BUILT PE runs at a second base */
+    /* stage 2: the RECURSION program -- params + recursion through the loader */
+    char *fsrc = read_text("src/runtime/selfbuild/fib.hd");
+    wubu_zxreg_entry_t *fslot = NULL;
+    CHECK(fsrc != NULL, "read the recursion holyd source");
+    if (fsrc) {
+        CHECK(strstr(fsrc, "int fib(int n)") != NULL,
+              "fib.hd is a parametrized recursive program");
+        CHECK(emit_holyd_file(fsrc, "/tmp/ns_selfbuild/apps/fib.bin") == 0,
+              "compiled fib.hd into a /n module PE");
+        free(fsrc);
+        int frc = wubu_zxreg_load(&ops, "apps/fib.bin", 0x00430000u, NULL, &fslot);
+        CHECK(frc == 55, "registry-loaded RECURSIVE module computed fib(10) = 55");
+        CHECK(wubu_zxreg_count() == 2, "two self-built modules registered");
+    }
+
+    /* stage 3: position independence -- the SELF-BUILT PE runs at a second base */
     wubu_zxreg_entry_t *slot2 = NULL;
     int rc2 = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00420000u, NULL, &slot2);
     CHECK(rc2 == 72, "same self-built module runs at base 0x00420000 (relocation-invariant)");
     CHECK(slot2 && slot2->valid && slot2 != slot, "second base got its own registry slot");
-    CHECK(wubu_zxreg_count() == 2, "cross-base load is NOT deduped (registry count 2)");
+    CHECK(wubu_zxreg_count() == 3,
+          "three slots coexist: hello@0x400, fib@0x430000, hello@0x420000 (NOT deduped)");
 
-    /* stage 3: ephemeral-app lifecycle -- unload releases each reference */
-    wubu_zxreg_unload(slot2);
-    CHECK(wubu_zxreg_count() == 1, "unload @0x00420000 released one (count 1)");
-    wubu_zxreg_unload(slot);
-    CHECK(wubu_zxreg_count() == 0, "unload @0x00400000 released the last (count 0)");
+    /* stage 4: ephemeral-app lifecycle -- unload each reference. Unload
+     * LAST-registered first: wubu_zxreg_unload COMPACTS the table when a slot
+     * hits 0, moving later entries left and invalidating pointers to them. So
+     * always free the highest-index (last-loaded) slot first, so compaction
+     * never shifts an entry a still-held pointer refers to. */
+    wubu_zxreg_unload(slot2);                 /* hello@0x00420000 (last) */
+    CHECK(wubu_zxreg_count() == 2, "unload hello@0x00420000 (count 2)");
+    wubu_zxreg_unload(fslot);                 /* fib@0x00430000 */
+    CHECK(wubu_zxreg_count() == 1, "unload fib@0x00430000 (count 1)");
+    wubu_zxreg_unload(slot);                  /* hello@0x00400000 (first) */
+    CHECK(wubu_zxreg_count() == 0, "unload hello@0x00400000 (count 0)");
 
     wubu_zxreg_clear();
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
