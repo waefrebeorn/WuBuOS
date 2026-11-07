@@ -838,7 +838,7 @@ test_wubu_selfbuild: $(RT)/selfbuild/hello.hd $(RT)/selfbuild/fib.hd $(RT)/test/
 .PHONY: test-module
 test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
              test_wubu_zxload test_wubu_zxreg test_wubu_applaunch test_wubu_selfbuild \
-             test_wubu_zx9p
+             test_wubu_zx9p test_w9pc
 	@echo "== [test-module] all module/PE/self-build targets GREEN =="
 
 # test_wubu_zx9p -- the loader consumes a module over REAL Styx/9P (the kernel-leg
@@ -846,8 +846,20 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
 # 9P "/"; a 9P client WALK+OPEN+READs it, and wubu_zx_run runs the fetched bytes
 # (import resolves via registry -> 7, at two bases). No stdio/compiler link.
 test_wubu_zx9p: $(KERNEL)/test/wubu_zx9p_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c
-		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) $(KERNEL)/test/wubu_zx9p_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_spawn.c -o $(KERNEL)/wubu_zx9p_test
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) $(KERNEL)/test/wubu_zx9p_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_spawn.c -o $(KERNEL)/wubu_zx9p_test
 	$(KERNEL)/./wubu_zx9p_test
+
+# test_w9pc -- the KERNEL-CLEAN 9P client (wubu_9pc) drives a real Styx/9P server
+# and feeds the loader (GAP A2 proof). TWO gates in one target:
+#   (1) wubu_9pc.c compiles under the FREESTANDING kernel flags (no libc
+#       guarantee) -- the on-kernel compile proof;
+#   (2) the hosted link then uses that same client to fetch a module over real
+#       9P and run it (the server rejecting a malformed frame is the proof the
+#       codec is correct).
+test_w9pc: $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_9pc.h $(KERNEL)/test/w9pc_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c
+	$(CC) -ffreestanding -nostdlib -fno-pie -fno-pic -mcmodel=kernel -std=c11 -I$(KERNEL) -c $(KERNEL)/wubu_9pc.c -o /tmp/w9pc_kernel.o && echo "[w9pc] kernel-clean compile PASS"
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -I$(KERNEL) $(KERNEL)/test/w9pc_test.c $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(RT)/wubu_spawn.c -o $(KERNEL)/w9pc_test
+	$(KERNEL)/./w9pc_test
 
 
 # test_pe_import -- rung 6: holyd EMITS an import-carrying PE. The emitter
