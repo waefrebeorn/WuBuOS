@@ -840,8 +840,8 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
              test_pe_reloc test_pe_exec test_pe_iat test_pe_full \
              test_wubu_zx test_wubu_zxload test_wubu_zxreg test_wubu_applaunch \
              test_wubu_selfbuild test_wubu_zx9p test_w9pc test_wubu_tokenizer \
-             test_ns_9p test_styxfs test_owned_surface
-	@echo "== [test-module] all module/PE/self-build/9P/owned-surface targets GREEN =="
+             test_ns_9p test_styxfs test_owned_surface test_wubu_onboarding
+	@echo "== [test-module] all module/PE/self-build/9P/owned-surface/onboarding targets GREEN =="
 
 # GAP-C2 enforcement: a module without a test recipe is NOT owned. Re-derives
 # the manifest from the Makefile recipes and FAILS if an OWNED module lost its
@@ -947,6 +947,14 @@ test_xdg_autostart: $(RT)/wubu_xdg_autostart.c $(RT)/wubu_xdg_autostart.h $(RT)/
 test_session_boot: $(RT)/wubu_session_boot.c $(RT)/wubu_session_boot.h $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/wubu_session_boot_test.c
 	$(CC) -O0 -g -std=c11 -Wall -I$(RT) $(RT)/wubu_session_boot_test.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c -o $(RT)/wubu_session_boot_test
 	$(RT)/./wubu_session_boot_test
+
+# GAP F: hosted END-TO-END first-boot onboarding stream. wubu_onboarding
+# decides first-boot(GREETER) vs configured(DESKTOP) from a persisted sentinel;
+# the test drives boot#1 greeter -> complete -> boot#2 desktop through the real
+# session-boot launcher, and asserts the config signature round-trips.
+test_wubu_onboarding: $(RT)/wubu_onboarding.c $(RT)/wubu_onboarding.h $(RT)/wubu_session_boot.c $(RT)/wubu_session_boot.h $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/test/wubu_onboarding_test.c
+	$(CC) -O0 -g -std=c11 -Wall -I$(RT) $(RT)/test/wubu_onboarding_test.c $(RT)/wubu_onboarding.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c -o $(RT)/wubu_onboarding_test
+	$(RT)/./wubu_onboarding_test
 
 # test_ns_background -- P3: the /n/background control subtree. Publishes the
 # session-boot's live state (session, bus names, bus conn count, autostart
@@ -1777,12 +1785,12 @@ test_ns_9p:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -Wno-format-truncation -DWUBD_TEST_MAIN \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_ns_9p_test.c $(RT)/wubu_ns_fs.c $(RT)/wubu_ns_bridge.c \
-		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.o $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_svc_super.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c \
+		$(RT)/wubu_archd_daemon.c $(RT)/wubu_archd_loop.c $(RT)/wubu_archd_svc.c $(RT)/wubu_archd_svc_super.c $(RT)/wubu_archd_util.c $(RT)/wubu_archd_fs.c \
 		$(RT)/wubu_arch.c $(RT)/wubu_ramdisk.c $(RT)/wubu_ramdisk_format.c $(RT)/wubu_fs_util.c \
 		$(RT)/wubu_container.c $(RT)/container/wubucontainer_registry.c \
-		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.o $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
+		$(RT)/wubu_bottle_lifecycle.c $(RT)/wubu_bottle_serialize.c $(RT)/wubu_bottle_io.c $(RT)/wubu_bottle_flatpak.c $(RT)/wubu_bottle_ops.c \
 		$(RT)/wubu_bottles_json.c $(RT)/wubu_bottles_fs.c \
-		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.c $(RT)/styxfs_util.c \
 		$(RT)/wubu_spawn.c $(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_copy.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_ns_snap.c $(RT)/wubu_gpu_backend.c $(KERNEL)/memory.c \
 		$(RT)/wubu_hw_stub.c \
 		-o $(RT)/wubu_ns_9p_test

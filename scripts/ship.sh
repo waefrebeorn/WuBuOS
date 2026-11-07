@@ -21,8 +21,14 @@ if [[ -z "$MSG" ]]; then
     exit 2
 fi
 
-echo "=== ship: gate=[${TARGET}] -> clean -> build -> run ==="
-make clean >/dev/null 2>&1 || true          # E2: CLEANS first
+echo "=== ship: gate=[${TARGET}] -> build the shared runtime objects, then the gate ==="
+# NOTE: no `make clean` here -- many test-module recipes link SHARED prebuilt .o
+# (WUBU_DOS_EMU_OBJS, vsl/vsl_*.o, shell, gui) that only `make runtime` /
+# `make all` materialize; the gate is INCREMENTAL, so a full clean would leave
+# those .o absent and every such target would fail to link. We build the shared
+# runtime objects, then run the gate (make rebuilds the target's own .c from
+# its .d dependency tracking).
+make runtime >/dev/null 2>&1 || true          # materialize the shared runtime .o
 make "$TARGET" || {
     echo "ship.sh: GATE RED -- '$TARGET' failed; NOT committing, NOT pushing." >&2
     exit 1

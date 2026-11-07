@@ -182,11 +182,25 @@ authoritative.
   same review. ship.sh documents this (src/compiler staging is impossible).]
 **Acceptance:** `scripts/ship.sh test-module` is the only "ship" path; a red gate
 aborts before commit.
+-- [E2 note corrected 2026-11-07: ship.sh does NOT `make clean` -- the
+test-module gate is INCREMENTAL (many recipes link SHARED prebuilt .o:
+WUBU_DOS_EMU_OBJS, vsl/vsl_*.o, shell, gui) that only `make runtime`/`make all`
+materialize; a full clean leaves those absent and the targets cannot link.
+ship.sh now runs `make runtime` (materialize the shared objects) then the gate.
+Discovered via ship.sh's red-test -- the gate was never clean-buildable.]
 
 ### GAP F — P4 Omarchy first-boot onboarding  [least leverage, furthest]
 **What:** first-boot greeter + configurator (omarchy_install_study.md is done).
 **Gated by:** the desktop/session must be demonstrably running first (Gap A4).
 **Acceptance:** a bootable first-run stream or a hosted end-to-end onboarding test.
+  -- [HOSTED END-TO-END ONBOARDING TEST DONE 2026-11-07: `src/runtime/
+  wubu_onboarding.{c,h}` = the first-run stream decision (first boot -> GREETER,
+  configured -> DESKTOP) from a persisted sentinel containing the config
+  signature; `test_wubu_onboarding` (in test-module) drives boot#1 greeter ->
+  complete -> boot#2 desktop through the REAL wubu_session_boot launcher and
+  asserts the config signature round-trips. 13/13 PASS. The GUI greeter app is
+  future surface; the first-run orchestration + its end-to-end test are done
+  and wired into the gate.]
 
 ---
 
