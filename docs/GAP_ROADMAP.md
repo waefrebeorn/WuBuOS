@@ -97,11 +97,17 @@ apps -> start each) onto that launcher for multiple apps.
   multi-digit integer parsing folds "321" -> 321. A real compiler sub-stage
   (lexing) already executes as a holyd program.]
 - B4: resolve the two-backend split (declare one the loader's codegen; don't let
-  them diverge further). Proof: a cross-backend consistency test. -- [OPEN: next
-  step. The old holyd_codegen_* runs on the loader path; the modern
-  holyd_mir_eval.c does not.]
-**Gated by:** B4 (cross-backend consistency) is the remaining open rung; B1-B3'
-depth are all demonstrated on the loader path.
+  them diverge further). Proof: a cross-backend consistency test.
+  -- [DONE 2026-11-07: wubunos `make test_backend_consistency` diff-tests the OLD
+  holyd_codegen_* emitter->loader path against the MODERN holyd_mir_eval on the
+  SAME four construct-heavy programs (pointer-walk checksum, struct members,
+  multi-digit parse, lexer), wired into the aggregate gate. Result: 4/4 AGREE --
+  the two backends do NOT diverge on string/pointer/struct/lexer programs
+  (checksum 323, struct 42, multi-digit 321, tokenizer 4), so the split is
+  proven consistent, not merely feared.]
+**Gated by:** B4 done; GAP B (B1-B4) is closed on the loader path. The
+remaining self-hosting depth is structural C-level (nested/arrays-of struct,
+struct-by-value args/returns, unions) -- future work, not a named gap.
 **Acceptance:** B3 returns a real parse/lex result for non-trivial input.
 
 ### GAP C — The kernel tree boundary (DA#2 debt)
