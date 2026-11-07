@@ -115,6 +115,13 @@ struct-by-value args/returns, unions) -- future work, not a named gap.
 - C1: classify each `wubu_*.c`: OWNED-and-tested (in test-module or a named
   target) vs VENDORED-and-unproven. Add a `docs/owned-surface.md` manifest
   derived from the Makefile targets, not prose.
+  -- [DONE 2026-11-07: `scripts/owned_surface.py` --write derives the manifest
+  straight from mk/tests.mk test-target recipes; a product `.c` is OWNED iff its
+  basename is compiled by at least one test recipe. Result: 2001 product
+  modules, 679 OWNED (33%), 1322 VENDORED/unproven. Self-check asserts every
+  OWNED basename really appears in a recipe (0 violations). This is the honest,
+  reproducible inventory of the DA#2 "junk drawer" debt: ~2/3 of product sources
+  are not wired into any make test target.]
 - C2: move the vendored raft under `src/kernel/vendor/` and give every OWNED
   module a test-module member (enforce: a module without a test = NOT owned).
 - C3: kill the stale `holyc` names (`wubd_holyc_*`) and explain/remove
