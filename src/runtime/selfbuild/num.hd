@@ -1,0 +1,14 @@
+/* wubu_selfbuild_num.hd -- self-hosted MULTI-DIGIT integer parsing (B3 depth).
+ *
+ * Parse the digit string "321" into the integer 321 via multiply-accumulate
+ * (v = v*10 + d). This is what separates expr-eval's single-digit toy from a
+ * real lexer: multi-digit integer literals fold into a value through the loader.
+ */
+int f() {
+    char *s = "321";
+    int v = 0;
+    for (int i = 0; s[i] != 0; i++) {
+        v = v * 10 + (int)(s[i] - '0');
+    }
+    return v;
+}

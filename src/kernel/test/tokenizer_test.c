@@ -132,6 +132,27 @@ int main(void){
         free(pbuf);
     }
 
+    /* stage 4: MULTI-DIGIT integer parsing -- v=v*10+d, the real-lexer behavior
+     * that expr-eval's single-digit toy lacks. */
+    char *nsrc = read_text("src/runtime/selfbuild/num.hd");
+    CHECK(nsrc != NULL, "compiler read its own num.hd source");
+    if (nsrc) {
+        CHECK(strstr(nsrc, "* 10") != NULL, "num.hd is a multi-digit integer parser");
+        CHECK(emit_one(nsrc, "/tmp/num.bin") == 0, "emitted the num PE");
+        free(nsrc);
+        FILE *nf=fopen("/tmp/num.bin","rb"); CHECK(nf!=NULL,"opened emitted num");
+        long nn=-1; if(nf){fseek(nf,0,SEEK_END);nn=ftell(nf);fseek(nf,0,SEEK_SET);}
+        uint8_t *nbuf=nn>0?(uint8_t*)malloc((size_t)nn):NULL;
+        if(nbuf&&nf) fread(nbuf,1,(size_t)nn,nf); if(nf)fclose(nf);
+        CHECK(nbuf!=NULL,"read emitted num");
+        int ne=-99, nr=-1; if(nbuf) nr=wubu_zx_run(&ops,nbuf,(size_t)nn,0x00400000u,NULL,&ne);
+        fprintf(stderr, "> num parser entry r=%d (want 321) err=%d\n", nr, ne);
+        CHECK(ne==0 && nr==321,"SELF-HOSTED MULTI-DIGIT PARSER folded '321' -> 321 through the loader");
+        int ne2=-99, nr2=-1; if(nbuf) nr2=wubu_zx_run(&ops,nbuf,(size_t)nn,0x00420000u,NULL,&ne2);
+        CHECK(ne2==0 && nr2==321,"num parser at shifted base 0x00420000 -> 321 (relocation)");
+        free(nbuf);
+    }
+
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

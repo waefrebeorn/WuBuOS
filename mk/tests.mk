@@ -877,7 +877,7 @@ test_w9pc: $(KERNEL)/wubu_9pc.c $(KERNEL)/wubu_9pc.h $(KERNEL)/test/w9pc_test.c 
 # and wubu_zx_run runs it -> 4 tokens in "int x = 42". This is the
 # holyd-compiles-holyd seed (a lexer executing as a holyd program, not a host
 # harness). Link: compiler + loader only (no session/applaunch/zxreg).
-test_wubu_tokenizer: $(RT)/selfbuild/tokenizer.hd $(RT)/selfbuild/expr.hd $(RT)/selfbuild/param.hd $(KERNEL)/test/tokenizer_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
+test_wubu_tokenizer: $(RT)/selfbuild/tokenizer.hd $(RT)/selfbuild/expr.hd $(RT)/selfbuild/param.hd $(RT)/selfbuild/num.hd $(KERNEL)/test/tokenizer_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c $(COMP)/holyd_codegen.h $(COMP)/holyd_pe.c
 	$(CC) -O0 -g -DWUBU_HOSTED -D_GNU_SOURCE -I$(COMP) -I$(JIT) -I$(KERNEL) -I$(RT) $(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_pe.c $(KERNEL)/test/tokenizer_test.c $(KERNEL)/wubu_pe.c $(KERNEL)/wubu_zx.c $(KERNEL)/wubu_modsym.c -o $(KERNEL)/tokenizer_test -ldl
 	$(KERNEL)/./tokenizer_test
 
