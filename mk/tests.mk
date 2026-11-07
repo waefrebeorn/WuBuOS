@@ -843,6 +843,15 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
              test_ns_9p test_styxfs
 	@echo "== [test-module] all module/PE/self-build/9P targets GREEN =="
 
+# test-cover -- operationalize the OWNED/UNOWNED classification (GAP C1) as a
+# command: a first-pass sieve of which src/kernel + src/runtime .c files are
+# textually referenced by a makefile. Use this to audit the junk-drawer/untested
+# surface; read the caveat in the script (wildcard-built files like the
+# bare-metal kernel land here too -- verify with `make -n` before acting).
+.PHONY: test-cover
+test-cover:
+	python3 scripts/unowned_surface.py
+
 # test_wubu_zx9p -- the loader consumes a module over REAL Styx/9P (the kernel-leg
 # TRANSPORT of the /n read). A module PE is published under a host dir mounted as
 # 9P "/"; a 9P client WALK+OPEN+READs it, and wubu_zx_run runs the fetched bytes
