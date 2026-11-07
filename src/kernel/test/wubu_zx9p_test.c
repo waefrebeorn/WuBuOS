@@ -138,6 +138,26 @@ int main(void) {
     if (mod) ra2 = wubu_zx_run(&ops, mod, nmod, 0x00420000u, NULL, &err2);
     CHECK(err2==0 && ra2==7, "same 9P-fetched bytes at shifted base 0x00420000 -> 7 (relocation)");
 
+    /* chunky reassembly: a >8KB file needs MULTIPLE Tread (each caps at
+     * STYX_MAX_DATA), so the offset+loop path an on-kernel client relies on
+     * must reassemble byte-exact across the chunk boundary. */
+    size_t big = 3 * STYX_MAX_DATA + 123;   /* crosses 3 chunk boundaries */
+    uint8_t *pat = (uint8_t*)malloc(big); if (pat) {
+        for (size_t i=0;i<big;i++) pat[i] = (uint8_t)(i % 251);
+        char bp[600]; snprintf(bp,sizeof(bp),"%s/apps/big.dat",root);
+        FILE *bf=fopen(bp,"wb"); size_t bw=0; if(bf){bw=fwrite(pat,1,big,bf);fclose(bf);}
+        CHECK(bw==big,"published a >8KB file under /n/apps/big.dat");
+        uint8_t *got=NULL; size_t ngot=0;
+        CHECK(read_file_over_9p("big.dat",&got,&ngot)==0,"9P fetched the large file (multi-read)");
+        if (got) {
+            CHECK(ngot==big && memcmp(got,pat,big)==0,
+                  ">8KB file reassembled byte-exact across 9P chunk boundaries");
+            fprintf(stderr, "> 9P chunky read reassembled %zu bytes (3+ Tread calls)\n", ngot);
+            free(got);
+        }
+        free(pat);
+    }
+
     free(mod);
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
