@@ -147,6 +147,13 @@ collision and the `mod_` rename-forward family. Enforce forward-only:
 - D1: new loader/PE code uses `mod_run/mod_reg/mod_load`; never new `zx`.
 - D2: do NOT mass-rename (regex rename already corrupted 9 files); rename at
   edit-time.
+  -- [DONE 2026-11-07 (verified against the working tree): docs/naming.md stays
+  authoritative (bytes unchanged, states the mod_ rename-forward + no-mass-rename
+  rule); NO new `wubu_zx*` koan prefix was introduced by the GAP A/B/C work --
+  the only added modules are owned_surface.py / checksum.hd / struct.hd, and
+  wubu_zxreg_load_bytes extends the EXISTING wubu_zxreg module (renaming it to
+  mod_reg now would itself be the mass-rename D2 forbids). No mass-rename was
+  done this session.]
 **Acceptance:** no new `wubu_zx*`-style koan prefixes; naming map stays
 authoritative.
 
