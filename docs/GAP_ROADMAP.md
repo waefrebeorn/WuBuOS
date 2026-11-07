@@ -124,8 +124,20 @@ struct-by-value args/returns, unions) -- future work, not a named gap.
   are not wired into any make test target.]
 - C2: move the vendored raft under `src/kernel/vendor/` and give every OWNED
   module a test-module member (enforce: a module without a test = NOT owned).
+  -- [ENFORCEMENT DONE 2026-11-07: `make test_owned_surface` (wired into the
+  test-module gate) re-derives docs/owned-surface.md from the Makefile recipes
+  and FAILS if an OWNED module lost its test recipe or the committed manifest
+  went stale -- the rule "a module without a test = NOT owned" is now enforced
+  automatically. The physical `mv` of the ~1322 vendored files under
+  src/kernel/vendor/ is a separate mechanical refactor (rewrites the kernel
+  object-list paths): deferred, and made non-urgent because the manifest
+  already walls the untested raft honestly.]
 - C3: kill the stale `holyc` names (`wubd_holyc_*`) and explain/remove
-  `holyd_bf_stub.c`.
+  `holyd_bf_stub.c`. -- [DONE 2026-11-07: `wubd_holyc_*` has ZERO references
+  (already gone); `holyd_bf_stub.c` was referenced by no build in either repo
+  and is removed (wubunos cf88a36) -- the real brainfuck.c bf_run JIT is the
+  symbol holyd.c's -brainfuck path wants; the holyd CLI itself has no binary
+  target (build-infra gap, not a success-path stub).]
 **Acceptance:** `make test-module` remains the honest inventory; a grep of
 "owned" modules all appear in a test target.
 

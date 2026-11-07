@@ -104,6 +104,22 @@ def main():
     missing = sorted(b for b in rows if b[1] == "OWNED" and b[0] not in owned_set)
     print(f"self-check: OWNED basenames NOT in a test recipe = {len(missing)} "
           f"(must be 0)")
+    if "--check" in sys.argv:
+        out = os.path.join(ROOT, "docs", "owned-surface.md")
+        current = open(out, encoding="utf-8").read() if os.path.exists(out) else ""
+        stale = (current.rstrip() + "\n") != txt
+        print("C2 enforcement:")
+        print(f"  stale-manifest    = {stale}  (must be False; re-run "
+              f"scripts/owned_surface.py --write)")
+        print(f"  owned-no-recipe   = {len(missing)}  (must be 0)")
+        if missing: print("  violations: " + ", ".join(missing))
+        if missing or stale:
+            print(">>> OWNED-SURFACE GATE FAILED (a module is claimed owned but has "
+                  "no test recipe, and/or the manifest is stale) <<<")
+            return 1
+        print(">>> OWNED-SURFACE GATE PASS: every OWNED module has a test recipe; "
+              "manifest current <<<")
+        return 0
     if "--write" in sys.argv:
         out = os.path.join(ROOT, "docs", "owned-surface.md")
         os.makedirs(os.path.dirname(out), exist_ok=True)

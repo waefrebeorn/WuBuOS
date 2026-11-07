@@ -840,8 +840,15 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
              test_pe_reloc test_pe_exec test_pe_iat test_pe_full \
              test_wubu_zx test_wubu_zxload test_wubu_zxreg test_wubu_applaunch \
              test_wubu_selfbuild test_wubu_zx9p test_w9pc test_wubu_tokenizer \
-             test_ns_9p test_styxfs
-	@echo "== [test-module] all module/PE/self-build/9P targets GREEN =="
+             test_ns_9p test_styxfs test_owned_surface
+	@echo "== [test-module] all module/PE/self-build/9P/owned-surface targets GREEN =="
+
+# GAP-C2 enforcement: a module without a test recipe is NOT owned. Re-derives
+# the manifest from the Makefile recipes and FAILS if an OWNED module lost its
+# recipe or the committed manifest went stale.
+.PHONY: test_owned_surface
+test_owned_surface:
+	python3 scripts/owned_surface.py --check
 
 # test-cover -- operationalize the OWNED/UNOWNED classification (GAP C1) as a
 # command: a first-pass sieve of which src/kernel + src/runtime .c files are
