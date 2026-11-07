@@ -1,0 +1,8 @@
+/* wubu_selfbuild_sumbuf.hd -- self-hosted COMPUTED-INDEX data access.
+ *
+ * Reads a GLOBAL int array by a variable index (buf[i]) inside a loop through
+ * the emitter -> loader: sum(1..10) = 55. Proves the loaded .data can be
+ * indexed by a computed offset, not just static buf[0].
+ */
+int buf[10] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+int f() { int s = 0; for (int i = 0; i < 10; i++) s += buf[i]; return s; }

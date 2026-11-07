@@ -199,24 +199,42 @@ int main(void) {
         CHECK(wubu_zxreg_count() == 2, "two self-built modules registered");
     }
 
-    /* stage 3: position independence -- the SELF-BUILT PE runs at a second base */
+    /* stage 3: COMPUTED-INDEX data access -- a global array read by a variable
+     * index in a loop (sum(1..10)=55), proving the loaded .data is indexable. */
+    wubu_zxreg_entry_t *sslot = NULL;
+    char *ssrc = read_text("src/runtime/selfbuild/sumbuf.hd");
+    CHECK(ssrc != NULL, "read the computed-index holyd source");
+    if (ssrc) {
+        CHECK(strstr(ssrc, "buf[i]") != NULL,
+              "sumbuf.hd indexes a global array by a computed offset");
+        CHECK(emit_holyd_file(ssrc, "/tmp/ns_selfbuild/apps/sumbuf.bin") == 0,
+              "compiled sumbuf.hd into a /n module PE");
+        free(ssrc);
+        int src = wubu_zxreg_load(&ops, "apps/sumbuf.bin", 0x00440000u, NULL, &sslot);
+        CHECK(src == 55, "registry-loaded module summed buf[i] (computed index) = 55");
+        CHECK(wubu_zxreg_count() == 3, "three self-built modules registered");
+    }
+
+    /* stage 4: position independence -- the SELF-BUILT PE runs at a second base */
     wubu_zxreg_entry_t *slot2 = NULL;
     int rc2 = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00420000u, NULL, &slot2);
     CHECK(rc2 == 72, "same self-built module runs at base 0x00420000 (relocation-invariant)");
     CHECK(slot2 && slot2->valid && slot2 != slot, "second base got its own registry slot");
-    CHECK(wubu_zxreg_count() == 3,
-          "three slots coexist: hello@0x400, fib@0x430000, hello@0x420000 (NOT deduped)");
+    CHECK(wubu_zxreg_count() == 4,
+          "four slots coexist: hello@0x400, fib@0x430000, sumbuf@0x440000, hello@0x420000");
 
-    /* stage 4: ephemeral-app lifecycle -- unload each reference. Unload
+    /* stage 5: ephemeral-app lifecycle -- unload each reference. Unload
      * LAST-registered first: wubu_zxreg_unload COMPACTS the table when a slot
      * hits 0, moving later entries left and invalidating pointers to them. So
      * always free the highest-index (last-loaded) slot first, so compaction
      * never shifts an entry a still-held pointer refers to. */
-    wubu_zxreg_unload(slot2);                 /* hello@0x00420000 (last) */
-    CHECK(wubu_zxreg_count() == 2, "unload hello@0x00420000 (count 2)");
-    wubu_zxreg_unload(fslot);                 /* fib@0x00430000 */
+    wubu_zxreg_unload(slot2);                 /* hello@0x00420000 (idx3, last) */
+    CHECK(wubu_zxreg_count() == 3, "unload hello@0x00420000 (count 3)");
+    wubu_zxreg_unload(sslot);                 /* sumbuf@0x00440000 (idx2) */
+    CHECK(wubu_zxreg_count() == 2, "unload sumbuf@0x00440000 (count 2)");
+    wubu_zxreg_unload(fslot);                 /* fib@0x00430000 (idx1) */
     CHECK(wubu_zxreg_count() == 1, "unload fib@0x00430000 (count 1)");
-    wubu_zxreg_unload(slot);                  /* hello@0x00400000 (first) */
+    wubu_zxreg_unload(slot);                  /* hello@0x00400000 (idx0, first) */
     CHECK(wubu_zxreg_count() == 0, "unload hello@0x00400000 (count 0)");
 
     wubu_zxreg_clear();
