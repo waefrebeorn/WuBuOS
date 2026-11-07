@@ -159,12 +159,22 @@ authoritative.
 
 ### GAP E — Workflow/CI that prevents the failure modes  [already started]
 **What:** the aggregate gate + rules exist. Extend for durability:
-- E1 (done): `make test-module` = one-command 91/91 gate (in test-module).
+- E1 (done): `make test-module` = one-command gates (in test-module).
 - E2: a pre-push self-check script `scripts/ship.sh <target>` that CLEANS →
   builds → runs the target → only then `git add/commit/push` (kills the two
   red-push failures outright).
+  -- [DONE 2026-11-07: `scripts/ship.sh <target> '<msg>'` CLEANS -> builds ->
+  runs the gate; a RED gate ABORTS (exit 1) before any commit/push; green path
+  stages (excluding the unrelated wubucontainer submodule drift) + commits +
+  pushes + prints the local/remote peer-check. SHIP_DRY=1 tests staging without
+  pushing. Verified: red target aborts without pushing; green target (dry) stages
+  only.]
 - E3: cross-repo rule enforced in the script: a holyd change ships wubunos AND
   the wubuos gate that proves it, in one review.
+  -- [PARTIAL: ship.sh now emits a CROSS-REPO reminder when staged changes touch
+  src/compiler (the wubunos symlink) to also ship wubunos/wubu-integration.
+  Full one-review auto-enforce of two repos is a review/human matter, not a shell
+  script; the reminder keeps it visible.]
 **Acceptance:** `scripts/ship.sh test-module` is the only "ship" path; a red gate
 aborts before commit.
 
