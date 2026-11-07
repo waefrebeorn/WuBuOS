@@ -45,12 +45,21 @@ checks; its real value ("apps start at boot from /n") is unwon until on-kernel.
   tversion/tattach/twalk/topen/tread/tclunk encode+decode over an abstract byte
   transport). Proof: compiles under `-ffreestanding -nostdlib -mcmodel=kernel`
   AND drives the in-process server in the hosted test (same codec both legs).
+  -- [DONE: `src/kernel/wubu_9pc.{c,h}` + `test_w9pc`; linked into the bare-metal
+  kernel.]
 - A3: a booted-image verification harness: QEMU/`run-agi.sh` + serial, kernel
   fetches `/n/apps/<mod>` over 9P from a host-exported server and runs it.
   Proof: real `RESULT: PASS` printed from the kernel, module result observed.
+  -- [DONE 2026-11-07: `src/kernel/wubu_n9.{c,h}` (COM2 framed-9P client +
+  kernel vmm-mapped loader run) + `src/firmware/run-agi9p.sh` + host
+  `tools/agi-9p-server.c` (styxfs over a COM2 unix socket) + `tools/mkmod.c`
+  (self-contained PE returning 55). Verified live: kernel prints
+  `A3: RESULT: PASS -- 9P fetched /apps/agi-demo.bin (480 B) and ran ->
+  entry=55` in the WuBuFW QEMU boot log; server served the full
+  version/attach/walk/open/read/clunk session.]
 - A4: P3-on-kernel — session boot on the booted kernel launches the fetched app.
-**Gated by:** A3 needs emulation + serial observation (not possible on this
-hosted container); A2 is a clean next step.
+**Gated by:** A4 needs the fetched module wired into the boot session (P3) — the
+next step up from the A3 proof (which runs the module and reports its result).
 **Acceptance:** kernel prints the fetched module's computed result (e.g. 7 / 72 /
 55) from a 9P-attached /n, in a QEMU boot log.
 

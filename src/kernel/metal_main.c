@@ -443,6 +443,12 @@ void kernel_main(void *boot_info) {
     klog_printf("WuBuOS: AGI kernel booted (regions=%d)\n",
                 wubu_agi_kernel_region_count(agi));
 
+    /* A3 (docs/GAP_ROADMAP.md): the booted-image 9P proof -- the kernel
+     * fetches /n/apps/agi-demo.bin over COM2 from the host 9P server and runs
+     * it through the loader, printing RESULT: PASS. COM1 log only. */
+    extern int wubu_n9_boot(void);
+    wubu_n9_boot();
+
     /* Gap F10: pick up any crash record left by a previous boot (the
      * disk is up now -- the AHCI init would have hung the early boot). */
     extern int wubu_crash_pickup(void);
