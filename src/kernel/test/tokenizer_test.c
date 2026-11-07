@@ -91,6 +91,26 @@ int main(void){
     CHECK(e2==0 && r2==4,"tokenizer at shifted base 0x00420000 -> 4 (relocation)");
     free(buf);
 
+    /* stage 2: PARSER + EVAL -- self-hosted expression evaluator. */
+    char *esrc = read_text("src/runtime/selfbuild/expr.hd");
+    CHECK(esrc != NULL, "compiler read its own expr.hd source");
+    if (esrc) {
+        CHECK(strstr(esrc, "*") != NULL, "expr.hd is a self-hosted expression evaluator");
+        CHECK(emit_one(esrc, "/tmp/expr.bin") == 0, "emitted the expr-eval PE");
+        free(esrc);
+        FILE *ef=fopen("/tmp/expr.bin","rb"); CHECK(ef!=NULL,"opened emitted expr");
+        long en=-1; if(ef){fseek(ef,0,SEEK_END);en=ftell(ef);fseek(ef,0,SEEK_SET);}
+        uint8_t *ebuf=en>0?(uint8_t*)malloc((size_t)en):NULL;
+        if(ebuf&&ef) fread(ebuf,1,(size_t)en,ef); if(ef)fclose(ef);
+        CHECK(ebuf!=NULL,"read emitted expr");
+        int ee=-99, er=-1; if(ebuf) er=wubu_zx_run(&ops,ebuf,(size_t)en,0x00400000u,NULL,&ee);
+        fprintf(stderr, "> expr-eval entry r=%d (want 14) err=%d\n", er, ee);
+        CHECK(ee==0 && er==14,"SELF-HOSTED EXPRESSION EVALUATOR parsed+eval'd '3*4+2' = 14 through the loader");
+        int ee2=-99, er2=-1; if(ebuf) er2=wubu_zx_run(&ops,ebuf,(size_t)en,0x00420000u,NULL,&ee2);
+        CHECK(ee2==0 && er2==14,"expr-eval at shifted base 0x00420000 -> 14 (relocation)");
+        free(ebuf);
+    }
+
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

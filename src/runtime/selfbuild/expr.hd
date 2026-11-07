@@ -1,0 +1,17 @@
+/* wubu_selfbuild_expr.hd -- second self-hosted compiler STAGE: parsing + eval.
+ *
+ * Parse+eval "3*4+2" left-to-right (digit, '*', '+') => 14, through the loader.
+ * Exercises char arithmetic (c-'0'), '*' multiply, nested if/else-if, multi-var
+ * state -- the parser side of holyd-compiles-holyd (B3), beyond the tokenizer.
+ */
+int f() {
+    char *s = "3*4+2";
+    int val = 0; int op = 1;
+    for (int i = 0; s[i] != 0; i++) {
+        char c = s[i];
+        if (c == '*') { op = 2; }
+        else if (c == '+') { op = 1; }
+        else { int d = (int)(s[i] - '0'); if (op == 2) { val = val * d; } else { val = val + d; } }
+    }
+    return val;
+}
