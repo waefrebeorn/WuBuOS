@@ -24,6 +24,7 @@
  */
 #include "wubu_n9.h"
 #include "wubu_9pc.h"
+#include "wubu_modsym.h"
 #include "wubu_vmm.h"
 #include "wubu_zx.h"
 #include "klog.h"
@@ -148,10 +149,22 @@ static void *n9_map(uintptr_t base, size_t span)
 
 /* ---- the A3 sequence ---- */
 
+/* Kernel export the fetched module calls back into. Returns 6; the demo
+ * module returns (6 + 49) = 55, so a broken on-kernel IAT snap / call path
+ * can't fake the observed result. */
+static int n9_magic(void) { return 6; }
+
 int wubu_n9_boot(void)
 {
     n9_com2_init();
     klog_printf("A3: 9P proof starting (COM2 transport)\n");
+
+    /* Export n9_magic to the module's import (NTOSKRNL.EXE!U9_MAGIC). */
+    if (wubu_modsym_register("NTOSKRNL.EXE", "U9_MAGIC",
+                             (uintptr_t)&n9_magic) != 0) {
+        klog_printf("A3: FAIL modsym register\n");
+        return -1;
+    }
 
     /* fetch /apps/agi-demo.bin over 9P via the kernel-clean client */
     uint8_t inb_[2048];

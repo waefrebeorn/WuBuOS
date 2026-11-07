@@ -64,7 +64,9 @@ $CC -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L \
     "$ROOT/src/runtime/styxfs_util.c" "$ROOT/src/runtime/wubu_container.c" \
     "$ROOT/src/runtime/wubu_spawn.c" -o build/agi-9p-server
 mkdir -p "$RUN/n9root/apps"
-./build/mkmod "$RUN/n9root/apps/agi-demo.bin" 55
+# IMPORT demo module: entry = (U9_MAGIC() + 49); the kernel exports U9_MAGIC
+# returning 6, so a live on-kernel IAT snap + call must yield 55.
+./build/mkmod "$RUN/n9root/apps/agi-demo.bin" 49 NTOSKRNL.EXE U9_MAGIC
 echo "demo module: $(stat -c%s "$RUN/n9root/apps/agi-demo.bin") bytes"
 rm -f "$RUN/agi9p.sock"
 # agi-9p-server is the LISTENER; qemu connects to it as the COM2 client.
