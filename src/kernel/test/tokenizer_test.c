@@ -111,6 +111,27 @@ int main(void){
         free(ebuf);
     }
 
+    /* stage 3: PARAMETER passing -- a 2-arg self-hosted helper; locks the param
+     * ABI across emit->relocate->run explicitly (fib.hd only covers 1-arg). */
+    char *psrc = read_text("src/runtime/selfbuild/param.hd");
+    CHECK(psrc != NULL, "compiler read its own param.hd source");
+    if (psrc) {
+        CHECK(strstr(psrc, "int a, int b") != NULL, "param.hd is a 2-arg helper");
+        CHECK(emit_one(psrc, "/tmp/param.bin") == 0, "emitted the param PE");
+        free(psrc);
+        FILE *pf=fopen("/tmp/param.bin","rb"); CHECK(pf!=NULL,"opened emitted param");
+        long pn=-1; if(pf){fseek(pf,0,SEEK_END);pn=ftell(pf);fseek(pf,0,SEEK_SET);}
+        uint8_t *pbuf=pn>0?(uint8_t*)malloc((size_t)pn):NULL;
+        if(pbuf&&pf) fread(pbuf,1,(size_t)pn,pf); if(pf)fclose(pf);
+        CHECK(pbuf!=NULL,"read emitted param");
+        int pe=-99, pr=-1; if(pbuf) pr=wubu_zx_run(&ops,pbuf,(size_t)pn,0x00400000u,NULL,&pe);
+        fprintf(stderr, "> param helper entry r=%d (want 9) err=%d\n", pr, pe);
+        CHECK(pe==0 && pr==9,"SELF-HOSTED 2-ARG HELPER add(2,7) = 9 through the loader");
+        int pe2=-99, pr2=-1; if(pbuf) pr2=wubu_zx_run(&ops,pbuf,(size_t)pn,0x00420000u,NULL,&pe2);
+        CHECK(pe2==0 && pr2==9,"param helper at shifted base 0x00420000 -> 9 (relocation)");
+        free(pbuf);
+    }
+
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

@@ -1,0 +1,8 @@
+/* wubu_selfbuild_param.hd -- self-hosted PARAMETER-passing helper (B3 depth).
+ *
+ * A two-arg helper `add(a,b)` returns a+b=9 when called from f, through the
+ * loader. Fib.hd already exercises 1-arg recursion; this locks the 2-arg arg-
+ * passing/ABI across emit -> relocate -> map -> run explicitly.
+ */
+int add(int a, int b) { return a + b; }
+int f() { return add(2, 7); }
