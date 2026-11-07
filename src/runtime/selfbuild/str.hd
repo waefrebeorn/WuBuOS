@@ -1,0 +1,5 @@
+/* wubu_selfbuild_str.hd -- self-hosted STRING LITERAL through the emitter -> loader.
+ * char* s = "HELLO"; return (int)s[0] = 72. Proves string literals survive
+ * emit->map->run (the emitter must lay the literal into .data and patch the
+ * pointer RIP-rel; an absolute-host-pointer emit reads garbage here). */
+int f() { char *s = "HELLO"; return (int)s[0]; }

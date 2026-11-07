@@ -184,7 +184,21 @@ int main(void) {
     CHECK(rc == 72, "registry-loaded module read buf[0] = 'H' = 72 from relocated .data");
     CHECK(slot && slot->valid, "registry holds the loaded module");
 
-    /* stage 2: the RECURSION program -- params + recursion through the loader */
+    /* stage 2: STRING LITERAL -- char* s="HELLO" survives emit->map->run. */
+    wubu_zxreg_entry_t *strl = NULL;
+    char *ssrc0 = read_text("src/runtime/selfbuild/str.hd");
+    CHECK(ssrc0 != NULL, "read the string-literal holyd source");
+    if (ssrc0) {
+        CHECK(strstr(ssrc0, "\"HELLO\"") != NULL, "str.hd uses a string literal");
+        CHECK(emit_holyd_file(ssrc0, "/tmp/ns_selfbuild/apps/str.bin") == 0,
+              "compiled str.hd into a /n module PE");
+        free(ssrc0);
+        int strc = wubu_zxreg_load(&ops, "apps/str.bin", 0x00450000u, NULL, &strl);
+        CHECK(strc == 72, "registry-loaded module read string-literal s[0] = 'H' = 72");
+        CHECK(wubu_zxreg_count() == 2, "two self-built modules registered");
+    }
+
+    /* stage 3: the RECURSION program -- params + recursion through the loader */
     char *fsrc = read_text("src/runtime/selfbuild/fib.hd");
     wubu_zxreg_entry_t *fslot = NULL;
     CHECK(fsrc != NULL, "read the recursion holyd source");
@@ -196,10 +210,10 @@ int main(void) {
         free(fsrc);
         int frc = wubu_zxreg_load(&ops, "apps/fib.bin", 0x00430000u, NULL, &fslot);
         CHECK(frc == 55, "registry-loaded RECURSIVE module computed fib(10) = 55");
-        CHECK(wubu_zxreg_count() == 2, "two self-built modules registered");
+        CHECK(wubu_zxreg_count() == 3, "three self-built modules registered");
     }
 
-    /* stage 3: COMPUTED-INDEX data access -- a global array read by a variable
+    /* stage 4: COMPUTED-INDEX data access -- a global array read by a variable
      * index in a loop (sum(1..10)=55), proving the loaded .data is indexable. */
     wubu_zxreg_entry_t *sslot = NULL;
     char *ssrc = read_text("src/runtime/selfbuild/sumbuf.hd");
@@ -212,28 +226,30 @@ int main(void) {
         free(ssrc);
         int src = wubu_zxreg_load(&ops, "apps/sumbuf.bin", 0x00440000u, NULL, &sslot);
         CHECK(src == 55, "registry-loaded module summed buf[i] (computed index) = 55");
-        CHECK(wubu_zxreg_count() == 3, "three self-built modules registered");
+        CHECK(wubu_zxreg_count() == 4, "four self-built modules registered");
     }
 
-    /* stage 4: position independence -- the SELF-BUILT PE runs at a second base */
+    /* stage 5: position independence -- the SELF-BUILT PE runs at a second base */
     wubu_zxreg_entry_t *slot2 = NULL;
     int rc2 = wubu_zxreg_load(&ops, "apps/hello.bin", 0x00420000u, NULL, &slot2);
     CHECK(rc2 == 72, "same self-built module runs at base 0x00420000 (relocation-invariant)");
     CHECK(slot2 && slot2->valid && slot2 != slot, "second base got its own registry slot");
-    CHECK(wubu_zxreg_count() == 4,
-          "four slots coexist: hello@0x400, fib@0x430000, sumbuf@0x440000, hello@0x420000");
+    CHECK(wubu_zxreg_count() == 5,
+          "five slots coexist: hello@0x400, str@0x450000, fib@0x430000, sumbuf@0x440000, hello@0x420000");
 
-    /* stage 5: ephemeral-app lifecycle -- unload each reference. Unload
+    /* stage 6: ephemeral-app lifecycle -- unload each reference. Unload
      * LAST-registered first: wubu_zxreg_unload COMPACTS the table when a slot
      * hits 0, moving later entries left and invalidating pointers to them. So
      * always free the highest-index (last-loaded) slot first, so compaction
      * never shifts an entry a still-held pointer refers to. */
-    wubu_zxreg_unload(slot2);                 /* hello@0x00420000 (idx3, last) */
-    CHECK(wubu_zxreg_count() == 3, "unload hello@0x00420000 (count 3)");
-    wubu_zxreg_unload(sslot);                 /* sumbuf@0x00440000 (idx2) */
-    CHECK(wubu_zxreg_count() == 2, "unload sumbuf@0x00440000 (count 2)");
-    wubu_zxreg_unload(fslot);                 /* fib@0x00430000 (idx1) */
-    CHECK(wubu_zxreg_count() == 1, "unload fib@0x00430000 (count 1)");
+    wubu_zxreg_unload(slot2);                 /* hello@0x00420000 (idx4, last) */
+    CHECK(wubu_zxreg_count() == 4, "unload hello@0x00420000 (count 4)");
+    wubu_zxreg_unload(sslot);                 /* sumbuf@0x00440000 (idx3) */
+    CHECK(wubu_zxreg_count() == 3, "unload sumbuf@0x00440000 (count 3)");
+    wubu_zxreg_unload(fslot);                 /* fib@0x00430000 (idx2) */
+    CHECK(wubu_zxreg_count() == 2, "unload fib@0x00430000 (count 2)");
+    wubu_zxreg_unload(strl);                  /* str@0x00450000 (idx1) */
+    CHECK(wubu_zxreg_count() == 1, "unload str@0x00450000 (count 1)");
     wubu_zxreg_unload(slot);                  /* hello@0x00400000 (idx0, first) */
     CHECK(wubu_zxreg_count() == 0, "unload hello@0x00400000 (count 0)");
 
