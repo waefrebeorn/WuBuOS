@@ -116,6 +116,16 @@ int strncmp(const char *s1, const char *s2, size_t n) {
     return n ? *(unsigned char *)s1 - *(unsigned char *)s2 : 0;
 }
 
+int memcmp(const void *s1, const void *s2, size_t n) {
+    const uint8_t *a = (const uint8_t *)s1;
+    const uint8_t *b = (const uint8_t *)s2;
+    while (n--) {
+        if (*a != *b) return (int)*a - (int)*b;
+        a++; b++;
+    }
+    return 0;
+}
+
 char *strcpy(char *dest, const char *src) {
     char *d = dest;
     while ((*d++ = *src++));
@@ -519,6 +529,10 @@ void *__memset_chk(void *s, int c, size_t n, size_t dstlen) {
 char *__strcpy_chk(char *dest, const char *src, size_t dstlen) {
     (void)dstlen;
     return strcpy(dest, src);
+}
+char *__strncpy_chk(char *dest, const char *src, size_t n, size_t dstlen) {
+    (void)dstlen;
+    return strncpy(dest, src, n);
 }
 size_t __strlcpy_chk(char *dst, const char *src, size_t sz, size_t dstsz) {
     (void)dstsz;

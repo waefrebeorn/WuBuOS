@@ -45,6 +45,16 @@ typedef struct {
 int wubu_zxreg_load(const wubu_zx_ops *ops, const char *path, uintptr_t base,
                     wubu_pe_resolve_fn resolve, wubu_zxreg_entry_t **out);
 
+/* KERNEL-CLEAN load: register + run an already-fetched module image. This is
+ * the entry the BOOTED kernel uses (the disk-path read above is stdio/hosted
+ * only). Takes the module bytes directly -- no filesystem, so a 9P fetch can
+ * feed it. Same SHA-256 dedup + refcount + cached-last-result semantics as
+ * the path form; `path` is stored verbatim (may be NULL -> empty). The caller
+ * owns `bytes` for the whole call (not freed). */
+int wubu_zxreg_load_bytes(const wubu_zx_ops *ops, const uint8_t *bytes, size_t n,
+                          const char *path, uintptr_t base,
+                          wubu_pe_resolve_fn resolve, wubu_zxreg_entry_t **out);
+
 /* Drop a reference; frees the slot when the count reaches zero. */
 void wubu_zxreg_unload(wubu_zxreg_entry_t *e);
 

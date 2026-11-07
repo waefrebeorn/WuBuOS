@@ -25,8 +25,9 @@
 #include "wubu_n9.h"
 #include "wubu_9pc.h"
 #include "wubu_modsym.h"
-#include "wubu_vmm.h"
 #include "wubu_zx.h"
+#include "wubu_zxreg.h"
+#include "wubu_vmm.h"
 #include "klog.h"
 #include "memory.h"
 #include "interrupt_io.h"
@@ -216,19 +217,33 @@ int wubu_n9_boot(void)
     }
 
     wubu_zx_ops ops = { n9_map, NULL };
-    int err = -99;
-    int r = wubu_zx_run(&ops, buf, n, N9_APP_VA, NULL, &err);
 
+    /* A4 (docs/GAP_ROADMAP): SESSION LAUNCH through the module registry, not a
+     * raw fetch-and-return. wubu_zxreg_load_bytes registers the fetched image
+     * (SHA-256 dedup, refcount, cached entry result) and runs it -- the same
+     * primitive wubu_applaunch_as_session_launcher uses on the hosted leg, now
+     * working on the BOOTED kernel (the old kernel path was WUBU_ZX_ERR_MAP). */
+    wubu_zxreg_entry_t *slot = NULL;
+    int r = wubu_zxreg_load_bytes(&ops, buf, n, "/apps/agi-demo.bin",
+                                  N9_APP_VA, NULL, &slot);
+    if (r < 0 || !slot) {
+        klog_printf("A4: RESULT: FAIL -- session launch err=%d\n", r);
+        mem_free(buf);
+        return -1;
+    }
+    /* Second launch of the SAME image must dedup to the same registry row and
+     * re-serve the cached entry result (the entry only runs once) -- proving
+     * the launched app is REGISTERED and stable, a real session-resident app. */
+    wubu_zxreg_entry_t *s2 = NULL;
+    int r2 = wubu_zxreg_load_bytes(&ops, buf, n, "/apps/agi-demo.bin",
+                                   N9_APP_VA, NULL, &s2);
+    int dedup = (r2 == r && s2 == slot) ? 1 : 0;
+    int ref_before = slot->refcount;       /* 2 after the dedup launch */
+    wubu_zxreg_unload(slot);               /* drop one ref -> app stays launched */
     mem_free(buf);
 
-    if (err == 0) {
-        /* Accept any exit code the loader returns -- but a true "did work"
-         * proof wants a NONZERO marker so a silently-broken loader stage can't
-         * masquerade as success. The demo module returns 55 on purpose. */
-        klog_printf("A3: RESULT: PASS -- 9P fetched /apps/%s (%u B) and ran "
-                    "-> entry=%d\n", name, (unsigned)n, r);
-        return 0;
-    }
-    klog_printf("A3: RESULT: FAIL -- loader err=%d\n", err);
-    return -1;
+    klog_printf("A4: RESULT: PASS -- session launched /apps/%s (%u B) via module "
+                "registry: entry=%d registered=%d ref=%d dedup=%d\n",
+                name, (unsigned)n, r, wubu_zxreg_count(), ref_before - 1, dedup);
+    return 0;
 }

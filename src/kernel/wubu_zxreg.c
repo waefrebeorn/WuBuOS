@@ -1,16 +1,19 @@
 /*
  * wubu_zxreg.c  --  module registry (ZXE-style loader bookkeeping).
  *
- * Wraps wubu_zx_run + /n path resolution with load/dedup/refcount/unload.
- * Loading reads + hashes the PE bytes (SHA-256 via wubu_sha256); a repeat of
- * the same bytes reuses the existing slot (refcount++) instead of re-mapping.
- * This gives the "/n module loader" real module semantics — two apps importing
- * a shared module share one mapping, and the entry runs once (the result is
- * cached and re-served on dedup).
+ * Wraps wubu_zx_run with load/dedup/refcount/unload. Loading hashes the PE
+ * bytes (SHA-256 via wubu_sha256); a repeat of the same bytes+base reuses the
+ * existing slot (refcount++) instead of re-mapping. This gives the "/n module
+ * loader" real module semantics -- two apps importing a shared module share
+ * one mapping, and the entry runs once (the result is cached and re-served on
+ * dedup).
  *
- * Kernel-clean, fixed table, no allocator. The host read path is reused from
- * wubu_zxload (path resolution + stdio); the non-host build keeps the registry
- * but refuses loads (the kernel path walks /n via 9P, not stdio).
+ * Kernel-clean, fixed table, no allocator. Two load entries:
+ *   - wubu_zxreg_load(path) reads the /n path (hosted/stdio via wubu_zxload) --
+ *     the HOSTED path; the kernel build of it refuses (no stdio on metal).
+ *   - wubu_zxreg_load_bytes(ops, bytes, n, ...) registers + runs an
+ *     ALREADY-FETCHED image -- the KERNEL path. A 9P fetch (wubu_n9) feeds it.
+ *     Both share the same dedup/registry core.
  */
 
 #include "wubu_zxreg.h"
@@ -38,48 +41,63 @@ wubu_zxreg_entry_t *wubu_zxreg_entry(int idx)
     return &g_reg[idx];
 }
 
+int wubu_zxreg_load_bytes(const wubu_zx_ops *ops, const uint8_t *bytes, size_t n,
+                          const char *path, uintptr_t base,
+                          wubu_pe_resolve_fn resolve, wubu_zxreg_entry_t **out)
+{
+    if (!ops || !ops->map || !bytes || n == 0) {
+        if (out) *out = NULL;
+        return WUBU_ZX_ERR_PARAM;
+    }
+
+    unsigned char sha[WUBU_SHA256_SZ];
+    wubu_sha256(bytes, n, sha);
+
+    /* exact-match dedup: same bytes at same base -> reuse slot, bump refcount,
+     * serve the CACHED entry result (the entry only ever runs once). */
+    for (int i = 0; i < g_count; i++) {
+        if (!g_reg[i].valid) continue;
+        if (g_reg[i].base == base && memcmp(g_reg[i].sha, sha, WUBU_SHA256_SZ) == 0) {
+            g_reg[i].refcount++;
+            if (out) *out = &g_reg[i];
+            return g_reg[i].last_result;
+        }
+    }
+
+    if (g_count >= WUBU_ZXREG_MAX) { if (out) *out = NULL; return WUBU_ZX_ERR_MAP; }
+
+    wubu_zxreg_entry_t *e = &g_reg[g_count];
+    e->valid = 1; e->refcount = 1; e->base = base;
+    memcpy(e->sha, sha, WUBU_SHA256_SZ);
+    if (path) {
+        strncpy(e->path, path, sizeof(e->path) - 1);
+        e->path[sizeof(e->path) - 1] = 0;
+    } else {
+        e->path[0] = 0;
+    }
+
+    int err = -99;
+    int rc = wubu_zx_run(ops, bytes, n, base, resolve, &err);
+    if (err != 0) { e->valid = 0; if (out) *out = NULL; return err; }
+
+    e->last_result = rc;
+    g_count++;
+    if (out) *out = e;
+    return rc;
+}
+
 int wubu_zxreg_load(const wubu_zx_ops *ops, const char *path, uintptr_t base,
                     wubu_pe_resolve_fn resolve, wubu_zxreg_entry_t **out)
 {
 #ifdef WUBU_HOSTED
     uint8_t *bytes = NULL; size_t n = 0;
     if (wubu_zxload_read(path, &bytes, &n) < 0 || !bytes) return WUBU_ZX_ERR_PARSE;
-
-    unsigned char sha[WUBU_SHA256_SZ];
-    wubu_sha256(bytes, n, sha);
-
-    /* exact-match dedup: same bytes at same base -> reuse slot, bump refcount */
-    for (int i = 0; i < g_count; i++) {
-        if (!g_reg[i].valid) continue;
-        if (g_reg[i].base == base && memcmp(g_reg[i].sha, sha, WUBU_SHA256_SZ) == 0) {
-            g_reg[i].refcount++;
-            if (out) *out = &g_reg[i];
-            int r = g_reg[i].last_result;
-            free(bytes);
-            return r;
-        }
-    }
-
-    if (g_count >= WUBU_ZXREG_MAX) { free(bytes); return WUBU_ZX_ERR_MAP; }
-
-    wubu_zxreg_entry_t *e = &g_reg[g_count];
-    e->valid = 1; e->refcount = 1; e->base = base;
-    memcpy(e->sha, sha, WUBU_SHA256_SZ);
-    strncpy(e->path, path, sizeof(e->path) - 1);
-    e->path[sizeof(e->path) - 1] = 0;
-
-    int err = -99;
-    int rc = wubu_zx_run(ops, bytes, n, base, resolve, &err);
+    int rc = wubu_zxreg_load_bytes(ops, bytes, n, path, base, resolve, out);
     free(bytes);
-    if (err != 0) { e->valid = 0; return err; }
-
-    e->last_result = rc;
-    g_count++;
-    if (out) *out = e;
     return rc;
 #else
-    /* kernel path: /n walk is not stdio; the caller supplies a 9P-backed
-     * loader. Registry bookkeeping (dedup/count) still works for seeds. */
+    /* Metal: the /n walk is a 9P fetch (wubu_n9), not stdio. The disk-path
+     * form refuses here; the kernel loads via wubu_zxreg_load_bytes. */
     (void)ops; (void)path; (void)base; (void)resolve; (void)out;
     return WUBU_ZX_ERR_MAP;
 #endif

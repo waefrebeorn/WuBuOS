@@ -100,18 +100,19 @@ set -e
 
 echo
 PASS=1
-grep -q "A3: RESULT: PASS" build/agi9p-boot.log || { echo "MISSING: A3 RESULT PASS"; PASS=0; }
-grep -q "A3: 9P proof starting"    build/agi9p-boot.log || { echo "MISSING: A3 start"; PASS=0; }
+grep -q "A4: RESULT: PASS" build/agi9p-boot.log || { echo "MISSING: A4 session-launch PASS"; PASS=0; }
+grep -q "A3: 9P proof starting"    build/agi9p-boot.log || { echo "MISSING: A3 transport start"; PASS=0; }
 grep -q "entry=55"                 build/agi9p-boot.log || { echo "MISSING: module result 55"; PASS=0; }
 grep -q "AGI kernel booted"        build/agi9p-boot.log || { echo "MISSING: AGI kernel booted"; PASS=0; }
+grep -q "registered=1 ref=1 dedup=1" build/agi9p-boot.log || { echo "MISSING: registry persistence (reg=1 ref=1 dedup=1)"; PASS=0; }
 if grep -q "PANIC\|TRIPLE\|TRIPLE FAULT" build/agi9p-boot.log; then echo "ERROR MARKERS"; PASS=0; fi
 kill $SRV 2>/dev/null
 echo "-- server log --"; cat "$RUN/server.log"
 
 if [ "$PASS" -eq 1 ]; then
-    echo "RESULT: PASS -- booted kernel fetched /n/apps/agi-demo.bin over 9P (COM2) and ran it -> 55"
+    echo "RESULT: PASS -- booted kernel SESSION-LAUNCHED /n/apps/agi-demo.bin via the module registry -> entry=55"
 else
     echo "RESULT: FAIL"
-    grep -a -E "A3:|AGI|PANIC" build/agi9p-boot.log | tail -20
+    grep -a -E "A3:|A4:|AGI|PANIC" build/agi9p-boot.log | tail -20
     exit 1
 fi

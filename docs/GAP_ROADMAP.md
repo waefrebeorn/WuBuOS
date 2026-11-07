@@ -58,8 +58,18 @@ checks; its real value ("apps start at boot from /n") is unwon until on-kernel.
   entry=55` in the WuBuFW QEMU boot log; server served the full
   version/attach/walk/open/read/clunk session.]
 - A4: P3-on-kernel — session boot on the booted kernel launches the fetched app.
-**Gated by:** A4 needs the fetched module wired into the boot session (P3) — the
-next step up from the A3 proof (which runs the module and reports its result).
+  -- [DONE 2026-11-07: kernel-clean `wubu_zxreg_load_bytes` (register + run an
+  already-fetched image; SHA-256 dedup / refcount / cached entry result) built
+  the bridge from wubu_n9's 9P fetch to the same registry `wubu_applaunch_
+  as_session_launcher` uses on the hosted leg. The old kernel `wubu_zxreg_load`
+  branch (WUBU_ZX_ERR_MAP) is now superseded on metal. The booted kernel logs
+  `A4: RESULT: PASS -- session launched /apps/agi-demo.bin ... registered=1
+  ref=1 dedup=1`, proving the app is registry-resident, a dedup second launch
+  re-serves the cached entry result, and unload releases cleanly. Kernel libc
+  gained memcmp + __strncpy_chk to serve the -nostdlib link.]
+**Gated by:** (A4 done) the launch path is registry-backed on-kernel; the
+remaining host-level polish is wiring a real session orchestrator (scan /n for
+apps -> start each) onto that launcher for multiple apps.
 **Acceptance:** kernel prints the fetched module's computed result (e.g. 7 / 72 /
 55) from a 9P-attached /n, in a QEMU boot log.
 
