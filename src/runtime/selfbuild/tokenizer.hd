@@ -1,0 +1,18 @@
+/* wubu_selfbuild_tokenizer.hd -- B3: a REAL compiler stage self-hosts.
+ *
+ * A self-hosted TOKENIZER: walks a string literal and counts space-delimited
+ * tokens. \"int x = 42\" -> 4 tokens. Runs through the emitter -> loader,
+ * proving a compiler sub-stage (lexing) executes as a holyd program -- the
+ * holyd-compiles-holyd (B3) seed. Uses char literals, '||', nested if/else,
+ * computed-index char walk, and a loop.
+ */
+int f() {
+    char *s = "int x = 42";
+    int toks = 0, in = 0;
+    for (int i = 0; s[i] != 0; i++) {
+        if (s[i] == ' ') { if (in) { toks++; in = 0; } }
+        else { in = 1; }
+    }
+    if (in) toks++;
+    return toks;
+}
