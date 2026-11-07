@@ -153,6 +153,52 @@ int main(void){
         free(nbuf);
     }
 
+    /* stage 5 (B2): SELF-HOSTED POINTER-WALK -- a char* derefs and increments
+     * through the .data string literal, folding it into a checksum. The
+     * multi-digit/tokenizer stages index with s[i]; this proves explicit
+     * pointer arithmetic + deref work end-to-end through emit->run. */
+    char *csum = read_text("src/runtime/selfbuild/checksum.hd");
+    CHECK(csum != NULL, "compiler read its own checksum.hd source");
+    if (csum) {
+        CHECK(strstr(csum, "*p") != NULL && strstr(csum, "= 87 + 85") == NULL,
+              "checksum.hd is a pointer-walk (deref+incr), not a literal sum");
+        CHECK(emit_one(csum, "/tmp/checksum.bin") == 0, "emitted the checksum PE");
+        free(csum);
+        FILE *cf=fopen("/tmp/checksum.bin","rb"); CHECK(cf!=NULL,"opened emitted checksum");
+        long cn=-1; if(cf){fseek(cf,0,SEEK_END);cn=ftell(cf);fseek(cf,0,SEEK_SET);}
+        uint8_t *cbuf=cn>0?(uint8_t*)malloc((size_t)cn):NULL;
+        if(cbuf&&cf) fread(cbuf,1,(size_t)cn,cf); if(cf)fclose(cf);
+        CHECK(cbuf!=NULL,"read emitted checksum");
+        int ce=-99, cr=-1; if(cbuf) cr=wubu_zx_run(&ops,cbuf,(size_t)cn,0x00400000u,NULL,&ce);
+        fprintf(stderr, "> checksum pointer-walk entry r=%d (want 323) err=%d\n", cr, ce);
+        CHECK(ce==0 && cr==323,"SELF-HOSTED pointer-walk summed 'WUBU' -> 323 through the loader");
+        int ce2=-99, cr2=-1; if(cbuf) cr2=wubu_zx_run(&ops,cbuf,(size_t)cn,0x00420000u,NULL,&ce2);
+        CHECK(ce2==0 && cr2==323,"checksum pointer-walk at shifted base 0x00420000 -> 323 (relocation)");
+        free(cbuf);
+    }
+
+    /* stage 6 (B2, struct half): SELF-HOSTED STRUCT -- member store/load with
+     * the member's own 4-byte width (a qword store would smear p.y into p.x's
+     * slot and the sum would be wrong), through emit->relocate->run. */
+    char *csrc = read_text("src/runtime/selfbuild/struct.hd");
+    CHECK(csrc != NULL, "compiler read its own struct.hd source");
+    if (csrc) {
+        CHECK(strstr(csrc, "struct P") != NULL, "struct.hd declares a struct");
+        CHECK(emit_one(csrc, "/tmp/struct.bin") == 0, "emitted the struct PE");
+        free(csrc);
+        FILE *sf=fopen("/tmp/struct.bin","rb"); CHECK(sf!=NULL,"opened emitted struct");
+        long sn=-1; if(sf){fseek(sf,0,SEEK_END);sn=ftell(sf);fseek(sf,0,SEEK_SET);}
+        uint8_t *sbuf=sn>0?(uint8_t*)malloc((size_t)sn):NULL;
+        if(sbuf&&sf) fread(sbuf,1,(size_t)sn,sf); if(sf)fclose(sf);
+        CHECK(sbuf!=NULL,"read emitted struct");
+        int se=-99, sr=-1; if(sbuf) sr=wubu_zx_run(&ops,sbuf,(size_t)sn,0x00400000u,NULL,&se);
+        fprintf(stderr, "> struct member entry r=%d (want 42) err=%d\n", sr, se);
+        CHECK(se==0 && sr==42,"SELF-HOSTED struct {x=30,y=12} summed -> 42 through the loader");
+        int se2=-99, sr2=-1; if(sbuf) sr2=wubu_zx_run(&ops,sbuf,(size_t)sn,0x00420000u,NULL,&se2);
+        CHECK(se2==0 && sr2==42,"struct member at shifted base 0x00420000 -> 42 (relocation)");
+        free(sbuf);
+    }
+
     printf("\n=== Results: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

@@ -77,18 +77,31 @@ apps -> start each) onto that launcher for multiple apps.
 **What:** prove the loader runs programs using the language's real features:
 - B1 (done): globals, loops, arrays (init), params, recursion — fib(10)=55,
   data-array buf[0]=72.
-- B2: strings/pointers/structs through the emitter→loader (the MIR backend
-  already handles nested brace-init/byte arrays — fold it onto the loader path
-  OR extend `holyd_codegen_*` to match). Proof: a self-hosted program that walks
-  a pointer into a string and returns a checksum.
+- B2: strings/pointers/structs through the emitter→loader. 
+  -- [DONE 2026-11-07: two new self-host stages in the loader-run harness
+  (`test_wubu_tokenizer`, now 42 checks). `checksum.hd` walks the .data string
+  literal "WUBU" through a real char* (deref + increment) and returns a
+  running checksum -> 323; `struct.hd` stores/loads two struct members with
+  the member's own 4-byte width and sums -> 42. Both run through the OLD
+  holyd_codegen_* emitter -> hd_write_pe_program -> wubu_zx_run at two
+  relocation bases (0x400000/0x420000). CORRECTION: the "structs/unions/strings
+  missing in holyd_codegen_*" claim was stale -- the old backend already
+  carries them; the earlier stages (str.hd, computed-index walks) plus these
+  two prove it.] 
 - B3: THE forcing function — **holyd compiles holyd**: build a compiler stage
   (lexer or expression parser) as a holyd-program, emit it, run it over the
   loader, and have it lex a real source string. Proof: entry returns the token
   count / symbol table size of a real snippet.
+  -- [depth DONE 2026-11-06/07: `tokenizer.hd` is a self-hosted LEXER stage that
+  lexes "int x = 42" -> 4 tokens through the loader (test_wubu_tokenizer);
+  multi-digit integer parsing folds "321" -> 321. A real compiler sub-stage
+  (lexing) already executes as a holyd program.]
 - B4: resolve the two-backend split (declare one the loader's codegen; don't let
-  them diverge further). Proof: a cross-backend consistency test.
-**Gated by:** B2/B3 risk (each could be a honey-trap like the array-init — which
-*is* fixed). B3 is the honest self-hosting bar.
+  them diverge further). Proof: a cross-backend consistency test. -- [OPEN: next
+  step. The old holyd_codegen_* runs on the loader path; the modern
+  holyd_mir_eval.c does not.]
+**Gated by:** B4 (cross-backend consistency) is the remaining open rung; B1-B3'
+depth are all demonstrated on the loader path.
 **Acceptance:** B3 returns a real parse/lex result for non-trivial input.
 
 ### GAP C — The kernel tree boundary (DA#2 debt)

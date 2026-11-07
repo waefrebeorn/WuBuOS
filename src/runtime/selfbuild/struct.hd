@@ -1,0 +1,15 @@
+/* wubu_selfbuild_struct.hd -- B2: self-hosted STRUCT member read/write.
+ *
+ * Declares a struct, writes two members, reads them back, sums. Proves the
+ * old emitter -> loader path carries aggregates (member store + load with the
+ * member's own width, not an 8-byte qword smearing adjacent fields), not just
+ * the scalar/string/pointer constructs the earlier stages cover.
+ */
+struct P { int x; int y; };
+
+int f() {
+    struct P p;
+    p.x = 30;
+    p.y = 12;
+    return p.x + p.y;
+}

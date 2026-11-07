@@ -1,0 +1,20 @@
+/* wubu_selfbuild_checksum.hd -- B2: self-hosted POINTER-WALK into a string
+ * returns a checksum.
+ *
+ * Walks the literal "WUBU" through a real char* pointer (deref + increment,
+ * not just computed array index), folding each byte into a running sum:
+ *   87+85+66+85 = 323. Proves a pointer into a .data string literal survives
+ * the emitter -> relocate -> loader run (an absolute-host-pointer emit would
+ * read garbage here) and that data-section pointers + deref + pointer-add
+ * are full citizens of the self-hosted compiler, at two relocation bases.
+ */
+int f() {
+    char *s = "WUBU";
+    char *p = s;
+    int c = 0;
+    while (*p != 0) {
+        c = c + (int) *p;
+        p = p + 1;
+    }
+    return c;
+}
