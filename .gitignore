@@ -98,6 +98,7 @@ optimizer_state.json
 /__pycache__/
 /.hermes/
 wubu_desktop_shot
+/wubu_greeter_shot
 
 # kernel decompressor selftest binaries
 src/kernel/wubu_*_selftest
