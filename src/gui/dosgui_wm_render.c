@@ -183,6 +183,8 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Win+Tab desktop overview sits above everything except the cursor. */
     dosgui_wm_overview_render(fb, fb_w, fb_h);
 
+    /* Win+A quick settings, then the system OSD (volume / brightness). */
+    dosgui_quick_settings_render(fb, fb_w, fb_h);
     /* System OSD (volume / brightness) and its fade. */
     wubu_osd_tick();
     wubu_osd_render(fb, fb_w, fb_h);

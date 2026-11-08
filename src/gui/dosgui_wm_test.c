@@ -1065,6 +1065,34 @@ static void test_osd_levels_and_hotkey(void) {
     PASS();
 }
 
+
+static void test_quick_settings_panel(void) {
+    TEST("Win+A opens quick settings; clicking the volume row steps it up");
+    dosgui_wm_init(1024, 768);
+    CHECK(!dosgui_quick_settings_is_open(), "panel starts closed");
+
+    dosgui_wm_handle_key(0x1E, MOD_WIN);      /* Win+A */
+    CHECK(dosgui_quick_settings_is_open(), "Win+A opened the panel");
+
+    int x, y, w, h;
+    dosgui_quick_settings_rect(1024, 768, &x, &y, &w, &h);
+    CHECK(x >= 0 && y >= 0 && w > 0 && h > 0, "the panel has a real rect");
+
+    /* Rows are 30px with a 12px pad; volume is row 3. */
+    wubu_osd_set_volume(0.50f);
+    int vy = y + 12 + 3 * 30 + 8;
+    dosgui_quick_settings_handle_click(x + 4, vy, 1024, 768);
+    CHECK(wubu_osd_volume() > 0.50f, "clicking the volume row raised it");
+    CHECK(wubu_osd_is_visible(), "the panel's change showed the OSD");
+
+    /* Clicking outside dismisses. */
+    dosgui_quick_settings_handle_click(2, 2, 1024, 768);
+    CHECK(!dosgui_quick_settings_is_open(), "an outside click closes the panel");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1095,6 +1123,7 @@ int main(void) {
     test_show_desktop_hotkey();
     test_add_desktop_and_overview();
     test_osd_levels_and_hotkey();
+    test_quick_settings_panel();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();

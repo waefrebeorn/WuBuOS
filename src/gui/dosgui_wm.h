@@ -115,6 +115,13 @@ void dosgui_wm_overview_toggle(void);
 bool dosgui_wm_overview_is_open(void);
 void dosgui_wm_overview_render(uint32_t *fb, int fb_w, int fb_h);
 bool dosgui_wm_overview_handle_click(int mx, int my, int fb_w, int fb_h);
+
+/* Win+A quick settings panel. */
+void dosgui_quick_settings_toggle(void);
+bool dosgui_quick_settings_is_open(void);
+void dosgui_quick_settings_render(uint32_t *fb, int fb_w, int fb_h);
+bool dosgui_quick_settings_handle_click(int mx, int my, int fb_w, int fb_h);
+void dosgui_quick_settings_rect(int fb_w, int fb_h, int *x, int *y, int *w, int *h);
 /* Tile geometry for the overview grid (shared by the renderer and hit-test). */
 void dosgui_wm_overview_tile_rect(int fb_w, int fb_h, int desktop,
                                   int *x, int *y, int *w, int *h);

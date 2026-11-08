@@ -86,6 +86,12 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    /* Win+A: quick settings panel (Windows 11 parity). */
+    if ((mods & MOD_WIN) && (key == 0x1E || key == 'a' || key == 'A')) {
+        dosgui_quick_settings_toggle();
+        return;
+    }
+
     /* Win+Tab: desktop overview grid. */
     if ((mods & MOD_WIN) && key == 0x09) {
         dosgui_wm_overview_toggle();
@@ -207,6 +213,12 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
+
+    /* While the quick settings panel is open it owns the pointer. */
+    if (dosgui_quick_settings_is_open() && kind == 1) {
+        dosgui_quick_settings_handle_click(x, y, g_dwm.screen_w, g_dwm.screen_h);
+        return;
+    }
 
     /* While the overview is open it owns the pointer: a press either picks a
      * desktop tile or dismisses the grid. */
