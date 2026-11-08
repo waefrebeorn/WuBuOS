@@ -375,6 +375,53 @@ static void test_systray_lifecycle(void) {
     PASS();
 }
 
+static void test_window_state_transitions(void) {
+    TEST("window state: resize/move clamps + maximize/minimize/restore");
+    int sw = 1024, sh = 768;
+    int tb = dosgui_taskbar_height();
+    dosgui_wm_init(sw, sh);
+
+    DosGuiWindow *w = dosgui_wm_create(10, 10, 200, 100, "State");
+    CHECK(w != NULL, "window created");
+
+    /* resize honors the request and clamps to screen minus taskbar. */
+    dosgui_wm_resize(w, 300, 200);
+    CHECK(w->w == 300 && w->h == 200, "resize sets geometry");
+    dosgui_wm_resize(w, 99999, 99999);
+    CHECK(w->w == sw, "resize clamps width to screen");
+    CHECK(w->h == sh - tb, "resize clamps height to above-taskbar");
+
+    /* move clamps negative offsets to 0 and stays on-screen. */
+    dosgui_wm_move(w, -50, -20);
+    CHECK(w->x == 0 && w->y == 0, "move clamps negatives to 0");
+    dosgui_wm_move(w, 5000, 8000);
+    CHECK(w->x == sw - w->w, "move keeps window on-screen (x)");
+    CHECK(w->y == sh - tb - w->h, "move keeps window above taskbar (y)");
+
+    /* maximize: full-screen above taskbar, remembers restore rect. */
+    dosgui_wm_resize(w, 400, 300);   /* small rect first so move isn't clamped */
+    dosgui_wm_move(w, 40, 40);
+    dosgui_wm_maximize(w);
+    CHECK(dosgui_wm_is_maximized(w), "window is maximized");
+    CHECK(w->x == 0 && w->y == 0, "maximize moves to origin");
+    CHECK(w->w == sw && w->h == sh - tb, "maximize fills above taskbar");
+
+    /* restore returns to the remembered rect and clears maximized. */
+    dosgui_wm_restore(w);
+    CHECK(!dosgui_wm_is_maximized(w), "restore clears maximized");
+    CHECK(w->x == 40 && w->y == 40, "restore restores x/y");
+    CHECK(w->w == 400 && w->h == 300, "restore restores w/h");
+
+    /* minimize/restore toggles the flag; render skips minimized windows. */
+    dosgui_wm_minimize(w);
+    CHECK(dosgui_wm_is_minimized(w), "window is minimized");
+    dosgui_wm_restore(w);
+    CHECK(!dosgui_wm_is_minimized(w), "restore clears minimized");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_icon_hit_test(void) {
     TEST("icon hit test finds correct icon");
     dosgui_wm_init(1024, 768);
@@ -888,6 +935,7 @@ int main(void) {
     test_render_window_clipped_above_taskbar();
     test_add_icon();
     test_systray_lifecycle();
+    test_window_state_transitions();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();
