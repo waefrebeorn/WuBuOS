@@ -53,9 +53,17 @@ void wubu_settings_reset_all(void) {
     g_settings_dirty = true;
 }
 
+/* The VBE layer is not linked into every settings consumer (some GUI targets
+ * link settings without the kernel framebuffer), so this is a weak reference
+ * -- the same pattern wubu_theme.c uses for wubu_theme_node_get. */
+extern __attribute__((weak)) void vbe_set_text_scale(int);
+
 void wubu_settings_apply_live(void) {
     wubu_theme_set(g_settings.theme.theme_id);
-    /* Font scale, high contrast, etc. would apply to running UI here */
+    wubu_theme_set_high_contrast(g_settings.a11y.high_contrast);
+    int ts = (int)(g_settings.a11y.font_scale + 0.5);
+    if (ts < 1) ts = 1;
+    if (vbe_set_text_scale) vbe_set_text_scale(ts);
 }
 
 /* -- Specific Helpers --------------------------------------------- */

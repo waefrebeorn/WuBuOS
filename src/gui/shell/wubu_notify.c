@@ -371,7 +371,13 @@ static void notify_start_animation(uint32_t id, int dir) {
 
 static void notify_update_animation(void) {
     if (!g_notify.animating) return;
-    
+
+    /* Reduce-motion (a11y): settle to the final position in one step instead
+     * of sliding -- the completion branch below then fires this same frame. */
+    if (wubu_settings_reduce_motion()) {
+        g_notify.slide_offset = (g_notify.anim_dir > 0) ? 0 : -NOTIFICATION_WIDTH;
+    }
+
     int speed = 40;  /* pixels per frame */
     
     if (g_notify.anim_dir > 0) {

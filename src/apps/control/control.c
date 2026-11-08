@@ -136,7 +136,9 @@ void control_set_theme(int theme_id) {
     if (!s) return;
     s->theme.theme_id = theme_id;
     wubu_settings_save();
-    wubu_theme_set((WubuThemeId)theme_id);
+    /* apply_live, not bare wubu_theme_set: the a11y overrides (high contrast,
+     * font scale) must survive a theme switch. */
+    wubu_settings_apply_live();
 }
 
 void control_set_auto_arrange(bool on) {

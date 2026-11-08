@@ -78,7 +78,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc
+test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -1621,6 +1621,14 @@ test_drm_direct:
 		$(HOSTED)/wubu_display_test.c \
 		-o $(HOSTED)/wubu_drm_direct_test
 	$(HOSTED)/wubu_drm_direct_test
+
+test_settings:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -I$(GUI) -I$(KERNEL) -I$(RT) -I$(GUI)/shell \
+		$(GUI)/wubu_settings_test.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c \
+		$(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_theme.c \
+		$(GUI)/shell/wubu_notify.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
+		-o $(GUI)/wubu_settings_test -lm
+	$(GUI)/wubu_settings_test
 
 test_apps2:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \

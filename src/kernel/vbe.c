@@ -319,35 +319,49 @@ const uint8_t vbe_font_8x8[64][8] = {
 
 #define GLYPH_ADVANCE 6
 
+/* Global UI text scale -- see vbe.h. 1 = native 8x8 glyphs. */
+static int g_text_scale = 1;
+
+void vbe_set_text_scale(int scale) {
+    g_text_scale = (scale >= 1) ? scale : 1;
+}
+
+int vbe_text_scale(void) {
+    return g_text_scale;
+}
+
 void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale) {
     if (ch >= 'a' && ch <= 'z') ch -= 32;
     if (ch < 32 || ch > 95) ch = 32;
     const uint8_t *glyph = vbe_font_8x8[ch - 32];
+    int s = scale * g_text_scale;
+    if (s < 1) s = 1;
     for (int row = 0; row < 8; row++) {
         uint8_t bits = glyph[row];
         for (int col = 0; col < 8; col++) {
             if (bits & (0x80 >> col)) {
-                if (scale == 1)
+                if (s == 1)
                     vbe_set_pixel(x + col, y + row, color);
                 else
-                    vbe_fill_rect(x + col * scale, y + row * scale,
-                                  scale, scale, color);
+                    vbe_fill_rect(x + col * s, y + row * s,
+                                  s, s, color);
             }
         }
     }
 }
 
 void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale) {
+    int adv = GLYPH_ADVANCE * scale * g_text_scale;
     for (; *s; s++) {
         vbe_draw_char(x, y, *s, color, scale);
-        x += GLYPH_ADVANCE * scale;
+        x += adv;
     }
 }
 
 int vbe_text_width(const char *s, int scale) {
     int n = 0;
     while (s[n]) n++;
-    return n * GLYPH_ADVANCE * scale;
+    return n * GLYPH_ADVANCE * scale * g_text_scale;
 }
 
 /* ================================================================

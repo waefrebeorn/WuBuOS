@@ -134,6 +134,15 @@ void wubu_theme_cycle(void);
 /* Get theme name */
 const char *wubu_theme_name(WubuThemeId id);
 
+/* --- High-contrast override (accessibility) -----------------------
+ * Forces a WCAG-AA palette (black surfaces, white text, yellow focus)
+ * over the live colors regardless of the selected theme. Toggling it off
+ * restores exactly what was live before it was enabled, and switching the
+ * base theme while it is on keeps the override. Driven by
+ * a11y.high_contrast via wubu_settings_apply_live(). */
+void wubu_theme_set_high_contrast(bool on);
+bool wubu_theme_high_contrast(void);
+
 /* --- WCAG AA contrast audit (accessibility) -----------------------
  * Walks every color pair actually used as text-on-background across
  * all themes and returns the worst contrast ratio found (3.0 minimum

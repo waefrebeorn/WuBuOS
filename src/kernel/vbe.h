@@ -137,14 +137,23 @@ void vbe_clear(uint32_t color);
 
 extern const uint8_t vbe_font_8x8[64][8];
 
-/* Draw a single 8x8 font glyph (5px wide, 7px tall). scale=1 native. */
+/* Draw a single 8x8 font glyph (5px wide, 7px tall). scale=1 native.
+ * The effective size is scale * vbe_text_scale(). */
 void vbe_draw_char(int x, int y, char ch, uint32_t color, int scale);
 
-/* Draw a string of glyphs. Advance = 6 * scale per character. */
+/* Draw a string of glyphs. Advance = 6 * scale * text_scale per character. */
 void vbe_draw_text(int x, int y, const char *s, uint32_t color, int scale);
 
-/* Measure string width in pixels (count * 6 * scale). */
+/* Measure string width in pixels (count * 6 * scale * text_scale). */
 int  vbe_text_width(const char *s, int scale);
+
+/* -- Global UI text scale (accessibility font scaling) -------------
+ * Multiplies EVERY glyph drawn through this layer, so one call rescales
+ * the whole UI coherently -- including vbe_text_width, which keeps layout
+ * maths in sync with what is actually rendered. Set from the settings
+ * daemon (a11y.font_scale) via wubu_settings_apply_live(). 1 = normal. */
+void vbe_set_text_scale(int scale);
+int  vbe_text_scale(void);
 
 /* -- Fable Windowing Agent: Extended Primitives ------------------ */
 

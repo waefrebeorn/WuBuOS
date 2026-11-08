@@ -252,12 +252,54 @@ static WubuThemeId g_current = THEME_WIN98_CLASSIC;
  * /theme namespace — one write surface (the AGI/console), one render read. */
 static WubuThemeColors g_live;
 
+/* High-contrast override state: the pre-override palette is saved so
+ * toggling off restores it exactly (including any kernel /theme writes). */
+static bool              g_high_contrast = false;
+static WubuThemeColors   g_hc_saved;
+
 static void live_seed_from_current(void) {
     g_live = g_themes[g_current].colors;
 }
 
+/* WCAG-AA high-contrast palette: black surfaces, white text (>=12:1),
+ * yellow focus/selection (15:1 on black). Applied over g_live. */
+static void live_apply_high_contrast(void) {
+    g_live.desktop_bg        = RGB(0x00, 0x00, 0x00);
+    g_live.win_face          = RGB(0x00, 0x00, 0x00);
+    g_live.win_title_active  = RGB(0x00, 0x00, 0x00);
+    g_live.win_title_inactive= RGB(0x00, 0x00, 0x00);
+    g_live.win_title_text    = RGB(0xFF, 0xFF, 0xFF);
+    g_live.win_title_text_ina= RGB(0xFF, 0xFF, 0xFF);
+    g_live.border_light      = RGB(0xFF, 0xFF, 0xFF);
+    g_live.border_face       = RGB(0x00, 0x00, 0x00);
+    g_live.border_dark       = RGB(0xFF, 0xFF, 0xFF);
+    g_live.border_darkest    = RGB(0xFF, 0xFF, 0xFF);
+    g_live.btn_face          = RGB(0x00, 0x00, 0x00);
+    g_live.btn_hover         = RGB(0xFF, 0xFF, 0x00);
+    g_live.btn_pressed       = RGB(0xFF, 0xFF, 0x00);
+    g_live.btn_text          = RGB(0xFF, 0xFF, 0xFF);
+    g_live.taskbar_bg        = RGB(0x00, 0x00, 0x00);
+    g_live.taskbar_border    = RGB(0xFF, 0xFF, 0xFF);
+    g_live.start_btn_face    = RGB(0x00, 0x00, 0x00);
+    g_live.start_btn_text    = RGB(0xFF, 0xFF, 0xFF);
+    g_live.startmenu_bg      = RGB(0x00, 0x00, 0x00);
+    g_live.startmenu_sidebar = RGB(0x00, 0x00, 0x00);
+    g_live.startmenu_sidebar_grad_end = RGB(0x00, 0x00, 0x00);
+    g_live.startmenu_hover   = RGB(0xFF, 0xFF, 0x00);
+    g_live.startmenu_text    = RGB(0xFF, 0xFF, 0xFF);
+    g_live.select_bg         = RGB(0xFF, 0xFF, 0x00);
+    g_live.select_text       = RGB(0x00, 0x00, 0x00);
+    g_live.scroll_track      = RGB(0x00, 0x00, 0x00);
+    g_live.scroll_thumb      = RGB(0xFF, 0xFF, 0xFF);
+    g_live.icon_text         = RGB(0xFF, 0xFF, 0xFF);
+    g_live.icon_text_shadow  = RGB(0x00, 0x00, 0x00);
+    g_live.icon_bg           = RGB(0x00, 0x00, 0x00);
+    g_live.icon_border       = RGB(0xFF, 0xFF, 0xFF);
+}
+
 int wubu_theme_init(void) {
     g_current = THEME_WIN98_CLASSIC;
+    g_high_contrast = false;
     live_seed_from_current();
     return 0;
 }
@@ -274,7 +316,24 @@ void wubu_theme_set(WubuThemeId id) {
     if (id >= 0 && id < THEME_COUNT) {
         g_current = id;
         live_seed_from_current();
+        if (g_high_contrast) live_apply_high_contrast();
     }
+}
+
+void wubu_theme_set_high_contrast(bool on) {
+    if (on == g_high_contrast) return;
+    if (on) {
+        g_hc_saved = g_live;                 /* keep theme + kernel writes */
+        g_high_contrast = true;
+        live_apply_high_contrast();
+    } else {
+        g_high_contrast = false;
+        g_live = g_hc_saved;
+    }
+}
+
+bool wubu_theme_high_contrast(void) {
+    return g_high_contrast;
 }
 
 /* Overlay every kernel /theme node onto the live colors (the AGI write
