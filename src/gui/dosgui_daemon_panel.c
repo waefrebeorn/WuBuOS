@@ -24,36 +24,13 @@
 #include "../kernel/vbe.h"
 #include "../runtime/wubu_archd.h"
 #include "../runtime/wubu_holyd.h"
+#include "../runtime/wubu_daemon_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/epoll.h>
-#include <fcntl.h>
-#include <time.h>
 
 /* -- Panel State -------------------------------------------------- */
-
-typedef enum {
-    DAEMON_DISCONNECTED = 0,
-    DAEMON_CONNECTING,
-    DAEMON_CONNECTED,
-    DAEMON_ERROR
-} DaemonConnState;
-
-typedef struct {
-    DaemonConnState state;
-    int             fd;         /* Unix socket fd */
-    char            socket_path[256];
-    char            recv_buf[4096];
-    int             recv_len;
-    int             event_count;
-    time_t          last_heartbeat;
-} DaemonConn;
 
 typedef struct {
     /* Daemon connections */
@@ -86,107 +63,6 @@ typedef struct {
 
 static DaemonPanel g_panel = {0};
 
-/* -- Unix Socket Helpers ------------------------------------------ */
-
-static int daemon_connect(DaemonConn *conn, const char *path) {
-    if (!conn || !path) return -1;
-
-    conn->fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0);
-    if (conn->fd < 0) {
-        conn->state = DAEMON_ERROR;
-        return -1;
-    }
-
-    struct sockaddr_un addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
-
-    int rc = connect(conn->fd, (struct sockaddr *)&addr, sizeof(addr));
-    if (rc < 0 && errno != EINPROGRESS) {
-        close(conn->fd);
-        conn->fd = -1;
-        conn->state = DAEMON_ERROR;
-        return -1;
-    }
-
-    strncpy(conn->socket_path, path, sizeof(conn->socket_path) - 1);
-    conn->state = DAEMON_CONNECTED;
-    conn->recv_len = 0;
-    conn->event_count = 0;
-    conn->last_heartbeat = time(NULL);
-    return 0;
-}
-
-static void daemon_disconnect(DaemonConn *conn) {
-    if (conn->fd >= 0) {
-        close(conn->fd);
-        conn->fd = -1;
-    }
-    conn->state = DAEMON_DISCONNECTED;
-    conn->recv_len = 0;
-}
-
-static int daemon_send(DaemonConn *conn, const char *json) {
-    if (conn->fd < 0) return -1;
-    size_t len = strlen(json);
-    ssize_t sent = write(conn->fd, json, len);
-    return (sent == (ssize_t)len) ? 0 : -1;
-}
-
-static int daemon_recv_line(DaemonConn *conn, char *line, int max_len) {
-    if (conn->fd < 0) return -1;
-
-    /* Try to read more data */
-    if (conn->recv_len < (int)sizeof(conn->recv_buf) - 1) {
-        ssize_t n = read(conn->fd,
-                         conn->recv_buf + conn->recv_len,
-                         sizeof(conn->recv_buf) - conn->recv_len - 1);
-        if (n > 0) {
-            conn->recv_len += (int)n;
-            conn->recv_buf[conn->recv_len] = '\0';
-        }
-    }
-
-    /* Extract a line */
-    char *nl = memchr(conn->recv_buf, '\n', conn->recv_len);
-    if (!nl) return 0; /* No complete line yet */
-
-    int line_len = (int)(nl - conn->recv_buf);
-    if (line_len >= max_len) line_len = max_len - 1;
-    memcpy(line, conn->recv_buf, line_len);
-    line[line_len] = '\0';
-
-    /* Shift remaining buffer */
-    int remaining = conn->recv_len - line_len - 1;
-    if (remaining > 0) {
-        memmove(conn->recv_buf, nl + 1, remaining);
-    }
-    conn->recv_len = remaining;
-    conn->recv_buf[remaining] = '\0';
-
-    return line_len;
-}
-
-/* -- JSON Helpers ------------------------------------------------- */
-
-static const char *json_get_string(const char *json, const char *key, char *val, int val_size) {
-    char pattern[64];
-    snprintf(pattern, sizeof(pattern), "\"%s\"", key);
-    const char *p = strstr(json, pattern);
-    if (!p) { val[0] = '\0'; return NULL; }
-    p += strlen(pattern);
-    while (*p == ' ' || *p == ':') p++;
-    if (*p != '"') { val[0] = '\0'; return NULL; }
-    p++;
-    int i = 0;
-    while (*p && *p != '"' && i < val_size - 1) {
-        val[i++] = *p++;
-    }
-    val[i] = '\0';
-    return val;
-}
-
 /* -- Event Processing --------------------------------------------- */
 
 static void panel_process_archd_event(DaemonPanel *panel, const char *line) {
@@ -194,9 +70,9 @@ static void panel_process_archd_event(DaemonPanel *panel, const char *line) {
     char root_name[64] = {0};
     char root_state[32] = {0};
 
-    json_get_string(line, "event", event_type, sizeof(event_type));
-    json_get_string(line, "root_name", root_name, sizeof(root_name));
-    json_get_string(line, "state", root_state, sizeof(root_state));
+    wubu_json_get_string(line, "event", event_type, sizeof(event_type));
+    wubu_json_get_string(line, "root_name", root_name, sizeof(root_name));
+    wubu_json_get_string(line, "state", root_state, sizeof(root_state));
 
     panel->archd.event_count++;
 
@@ -237,9 +113,9 @@ static void panel_process_holyd_event(DaemonPanel *panel, const char *line) {
     char session_name[64] = {0};
     char session_state[32] = {0};
 
-    json_get_string(line, "event", event_type, sizeof(event_type));
-    json_get_string(line, "session", session_name, sizeof(session_name));
-    json_get_string(line, "state", session_state, sizeof(session_state));
+    wubu_json_get_string(line, "event", event_type, sizeof(event_type));
+    wubu_json_get_string(line, "session", session_name, sizeof(session_name));
+    wubu_json_get_string(line, "state", session_state, sizeof(session_state));
 
     panel->holyd.event_count++;
 
@@ -411,23 +287,23 @@ int dosgui_daemon_panel_init(void) {
                                                  holyd_tray_click, NULL);
 
     /* Try to connect to daemons (non-blocking) */
-    daemon_connect(&g_panel.archd, WUBU_ARCHD_SOCKET_PATH);
-    daemon_connect(&g_panel.holyd, WUBU_HOLYD_SOCKET_PATH);
+    wubu_daemon_connect(&g_panel.archd, WUBU_ARCHD_SOCKET_PATH);
+    wubu_daemon_connect(&g_panel.holyd, WUBU_HOLYD_SOCKET_PATH);
 
     /* Send subscribe commands */
     if (g_panel.archd.state == DAEMON_CONNECTED) {
-        daemon_send(&g_panel.archd, "{\"cmd\":\"subscribe\",\"events\":[\"root-create\",\"root-state\",\"root-delete\"]}\n");
+        wubu_daemon_send(&g_panel.archd, "{\"cmd\":\"subscribe\",\"events\":[\"root-create\",\"root-state\",\"root-delete\"]}\n");
     }
     if (g_panel.holyd.state == DAEMON_CONNECTED) {
-        daemon_send(&g_panel.holyd, "{\"cmd\":\"subscribe\",\"events\":[\"session-create\",\"session-state\",\"session-destroy\"]}\n");
+        wubu_daemon_send(&g_panel.holyd, "{\"cmd\":\"subscribe\",\"events\":[\"session-create\",\"session-state\",\"session-destroy\"]}\n");
     }
 
     return 0;
 }
 
 void dosgui_daemon_panel_shutdown(void) {
-    daemon_disconnect(&g_panel.archd);
-    daemon_disconnect(&g_panel.holyd);
+    wubu_daemon_disconnect(&g_panel.archd);
+    wubu_daemon_disconnect(&g_panel.holyd);
 
     if (g_panel.archd_tray_id >= 0) {
         dosgui_systray_remove("archd");
@@ -456,7 +332,7 @@ void dosgui_daemon_panel_tick(void) {
         char line[1024];
         int retries = 16;
         while (retries-- > 0) {
-            int len = daemon_recv_line(&g_panel.archd, line, sizeof(line));
+            int len = wubu_daemon_recv_line(&g_panel.archd, line, sizeof(line));
             if (len <= 0) break;
             if (len > 2) { /* skip empty lines */
                 panel_process_archd_event(&g_panel, line);
@@ -469,7 +345,7 @@ void dosgui_daemon_panel_tick(void) {
         char line[1024];
         int retries = 16;
         while (retries-- > 0) {
-            int len = daemon_recv_line(&g_panel.holyd, line, sizeof(line));
+            int len = wubu_daemon_recv_line(&g_panel.holyd, line, sizeof(line));
             if (len <= 0) break;
             if (len > 2) {
                 panel_process_holyd_event(&g_panel, line);
@@ -480,15 +356,15 @@ void dosgui_daemon_panel_tick(void) {
     /* Reconnect disconnected daemons every 300 ticks (~5 seconds at 60fps) */
     if (g_panel.tick_count % 300 == 0) {
         if (g_panel.archd.state == DAEMON_DISCONNECTED || g_panel.archd.state == DAEMON_ERROR) {
-            daemon_connect(&g_panel.archd, WUBU_ARCHD_SOCKET_PATH);
+            wubu_daemon_connect(&g_panel.archd, WUBU_ARCHD_SOCKET_PATH);
             if (g_panel.archd.state == DAEMON_CONNECTED) {
-                daemon_send(&g_panel.archd, "{\"cmd\":\"subscribe\",\"events\":[\"root-create\",\"root-state\",\"root-delete\"]}\n");
+                wubu_daemon_send(&g_panel.archd, "{\"cmd\":\"subscribe\",\"events\":[\"root-create\",\"root-state\",\"root-delete\"]}\n");
             }
         }
         if (g_panel.holyd.state == DAEMON_DISCONNECTED || g_panel.holyd.state == DAEMON_ERROR) {
-            daemon_connect(&g_panel.holyd, WUBU_HOLYD_SOCKET_PATH);
+            wubu_daemon_connect(&g_panel.holyd, WUBU_HOLYD_SOCKET_PATH);
             if (g_panel.holyd.state == DAEMON_CONNECTED) {
-                daemon_send(&g_panel.holyd, "{\"cmd\":\"subscribe\",\"events\":[\"session-create\",\"session-state\",\"session-destroy\"]}\n");
+                wubu_daemon_send(&g_panel.holyd, "{\"cmd\":\"subscribe\",\"events\":[\"session-create\",\"session-state\",\"session-destroy\"]}\n");
             }
         }
     }

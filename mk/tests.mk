@@ -4163,3 +4163,11 @@ test_ns_win32:
 		$(RT)/wubu_cap/wubu_cap_system.o \
 		/tmp/wubu_ns_win32_test.o -o $(RT)/wubu_ns_win32_test -lpthread
 	$(RT)/wubu_ns_win32_test
+
+# -- wubu_daemon_client behavior gate --
+# Recipe-rule: new target, separate run-line at EOF (splice only).
+test_wubu_daemon_client:
+	$(CC) -O0 -g -std=c11 -I$(RT) -I$(GUI) $(RT)/wubu_daemon_client.c $(RT)/wubu_daemon_client_test.c -o $(RT)/wubu_daemon_client_test -pthread
+	$(RT)/wubu_daemon_client_test
+
+.PHONY: test_wubu_daemon_client
