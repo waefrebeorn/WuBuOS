@@ -161,13 +161,26 @@ void music_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
     if (key == 0x19) music_prev();       /* P */
 }
 
+/* Click selects the track under the pointer and starts playing it -- the
+ * behaviour a music list should have (rows at y = 20 + i*16). */
+void music_mouse(DosGuiWindow *win, int x, int y, int btn, int kind)
+{
+    (void)win; (void)x; (void)btn; (void)kind;
+    if (y < 20) return;
+    int idx = (y - 20) / 16;
+    if (idx < 0 || idx >= g_music.count) return;
+    g_music.selected = idx;
+    music_play();
+}
+
 DosGuiWindow *music_launch(void)
 {
     music_scan();
     DosGuiWindow *win = dosgui_wm_create(140, 60, 480, 400, "Music");
     if (win) {
-        win->on_draw = music_draw;
-        win->on_key = music_key;
+        win->on_draw  = music_draw;
+        win->on_key   = music_key;
+        win->on_mouse = music_mouse;
     }
     return win;
 }

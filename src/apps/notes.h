@@ -41,6 +41,7 @@ int  notes_test_note_exists(const char *title);
 /* the window bindings */
 void notes_draw(struct DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void notes_key(struct DosGuiWindow *win, uint32_t key, uint32_t mods);
+void notes_mouse(struct DosGuiWindow *win, int x, int y, int btn, int kind);
 struct DosGuiWindow *notes_launch(void);
 
 #endif

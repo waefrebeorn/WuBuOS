@@ -765,9 +765,15 @@ static void test_notes_real(void) {
     TEST("notes: create/delete + the real-file persistence");
     notes_test_reset();
     if (notes_create("Audit note") != 0) { FAIL("create"); return; }
-    if (notes_count() != 1) { FAIL("count"); return; }
+    if (notes_create("Second note") != 0) { FAIL("create2"); return; }
+    if (notes_count() != 2) { FAIL("count"); return; }
+    /* click-to-select: row 1 renders at y = 20 + 16 */
+    notes_mouse(NULL, 12, 20 + 16, 1, 1);
+    if (notes_selected() != 1) { FAIL("mouse select"); return; }
     notes_select(0);
     if (notes_delete_selected() != 0) { FAIL("delete"); return; }
+    notes_select(0);
+    if (notes_delete_selected() != 0) { FAIL("delete2"); return; }
     if (notes_count() != 0) { FAIL("count after delete"); return; }
     PASS();
 }
@@ -780,6 +786,11 @@ static void test_todo_real(void) {
     if (todo_pending() != 2) { FAIL("pending"); return; }
     todo_toggle_selected();
     if (todo_pending() != 1) { FAIL("pending after toggle"); return; }
+    /* click-to-select: row 1 renders at y = 20 + 16 */
+    todo_mouse(NULL, 12, 20 + 16, 1, 1);
+    if (todo_selected() != 1) { FAIL("mouse select"); return; }
+    todo_mouse(NULL, 12, 4, 1, 1);            /* above the list: ignored */
+    if (todo_selected() != 1) { FAIL("mouse above list"); return; }
     todo_delete_selected();
     todo_delete_selected();
     if (todo_count() != 0) { FAIL("count after deletes"); return; }
@@ -795,6 +806,10 @@ static void test_music_real(void) {
         music_select(0);
         music_play();
         if (!music_test_started()) { FAIL("engine"); return; }
+        /* click-to-select-and-play: row 1 renders at y = 20 + 16 */
+        music_mouse(NULL, 12, 20 + 16, 1, 1);
+        if (music_selected() != 1 % n) { FAIL("mouse select"); return; }
+        if (!music_test_started()) { FAIL("mouse play"); return; }
         music_next();
         if (music_selected() != 1 % n) { FAIL("next"); return; }
         music_stop();

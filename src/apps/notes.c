@@ -190,13 +190,24 @@ void notes_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
     if (key == 0x53 && (mods & 0x04)) notes_save_selected();
 }
 
+/* Click selects the note under the pointer (rows at y = 20 + i*16). */
+void notes_mouse(DosGuiWindow *win, int x, int y, int btn, int kind)
+{
+    (void)win; (void)x; (void)btn; (void)kind;
+    if (y < 20) return;
+    int idx = (y - 20) / 16;
+    if (idx < 0 || idx >= g_notes.count) return;
+    g_notes.selected = idx;
+}
+
 DosGuiWindow *notes_launch(void)
 {
     notes_load();
     DosGuiWindow *win = dosgui_wm_create(120, 60, 480, 380, "Notes");
     if (win) {
-        win->on_draw = notes_draw;
-        win->on_key = notes_key;
+        win->on_draw  = notes_draw;
+        win->on_key   = notes_key;
+        win->on_mouse = notes_mouse;
     }
     return win;
 }

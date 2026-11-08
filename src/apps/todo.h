@@ -38,6 +38,7 @@ void todo_test_reset(void);
 /* the window bindings */
 void todo_draw(struct DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void todo_key(struct DosGuiWindow *win, uint32_t key, uint32_t mods);
+void todo_mouse(struct DosGuiWindow *win, int x, int y, int btn, int kind);
 struct DosGuiWindow *todo_launch(void);
 
 #endif

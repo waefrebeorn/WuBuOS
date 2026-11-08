@@ -176,13 +176,25 @@ void todo_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
         todo_toggle_selected();
 }
 
+/* Click selects the item under the pointer.  The list geometry is the one
+ * todo_draw renders with: rows at y = 20 + i*16, so the index falls out of y. */
+void todo_mouse(DosGuiWindow *win, int x, int y, int btn, int kind)
+{
+    (void)win; (void)x; (void)btn; (void)kind;
+    if (y < 20) return;
+    int idx = (y - 20) / 16;
+    if (idx < 0 || idx >= g_todo.count) return;
+    g_todo.selected = idx;
+}
+
 DosGuiWindow *todo_launch(void)
 {
     todo_load();
     DosGuiWindow *win = dosgui_wm_create(140, 60, 480, 400, "Todo");
     if (win) {
-        win->on_draw = todo_draw;
-        win->on_key = todo_key;
+        win->on_draw  = todo_draw;
+        win->on_key   = todo_key;
+        win->on_mouse = todo_mouse;
     }
     return win;
 }
