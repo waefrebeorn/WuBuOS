@@ -350,6 +350,31 @@ static void test_add_icon(void) {
     PASS();
 }
 
+static void test_systray_lifecycle(void) {
+    TEST("sysTray: real add/color/update_color/remove round-trip");
+    dosgui_wm_init(1024, 768);
+
+    /* Add an icon through the REAL implementation (dosgui_wm_systray.c). */
+    int id = dosgui_systray_add("archd", 0x00AA00, NULL, NULL);
+    CHECK(id == 0, "first systray icon id == 0");
+    CHECK(dosgui_systray_color("archd") == 0x00AA00, "color matches add");
+
+    /* Update its color in place. */
+    CHECK(dosgui_systray_update_color("archd", 0x0000AA) == 0, "update succeeds");
+    CHECK(dosgui_systray_color("archd") == 0x0000AA, "color reflects update");
+
+    /* Unknown name: color returns 0, update errors. */
+    CHECK(dosgui_systray_color("ghost") == 0, "unknown icon color == 0");
+    CHECK(dosgui_systray_update_color("ghost", 0x0000AA) == -1, "update unknown errors");
+
+    /* Remove it. */
+    dosgui_systray_remove("archd");
+    CHECK(dosgui_systray_color("archd") == 0, "removed icon no longer queryable");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 static void test_icon_hit_test(void) {
     TEST("icon hit test finds correct icon");
     dosgui_wm_init(1024, 768);
@@ -862,6 +887,7 @@ int main(void) {
     test_vbe_clip_confines_pixels();
     test_render_window_clipped_above_taskbar();
     test_add_icon();
+    test_systray_lifecycle();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();
