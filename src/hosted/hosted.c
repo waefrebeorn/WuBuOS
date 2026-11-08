@@ -44,7 +44,8 @@
 #include "../bridge/bridge.h"
 #include "../apps/repl.h"
 #include "../gui/wubu_screenshot.h"
-#include "../gui/wubu_welcome.h"
+#include "../gui/shell/wubu_shell_greeter.h"
+#include "../runtime/wubu_onboarding.h"
 #include "../gui/wubu_clipboard.h"
 #include "../gui/shell/wubu_notify.h"
 #include "../gui/wubu_session.h"
@@ -54,6 +55,7 @@
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
@@ -146,8 +148,25 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     dosgui_startmenu_init();
     fprintf(stderr, "DEBUG: dosgui_startmenu_init done\n");
 
-    /* First-run welcome dialog (shown once, creates marker file) */
-    wubu_welcome_init();
+    /* GAP F: the first-boot greeter -- the visible configurator the
+     * onboarding decision layer has always targeted but never drawn.  Shown
+     * only when no onboarding sentinel exists; completing it persists the
+     * sentinel so the next boot goes straight to the desktop.  Supersedes the
+     * old passive wubu_welcome dialog (no input handler, own marker file). */
+    {
+        const char *home = getenv("HOME");
+        char obpath[512];
+        if (home) {
+            snprintf(obpath, sizeof(obpath), "%s/.config/wubu", home);
+            mkdir(obpath, 0755);   /* best-effort; complete() writes inside */
+            snprintf(obpath, sizeof(obpath), "%s/.config/wubu/onboarding", home);
+        } else {
+            snprintf(obpath, sizeof(obpath), "/tmp/wubu-onboarding");
+        }
+        wubu_onboarding_load(obpath);
+        if (wubu_onboarding_target() == WUBU_ONBOARD_GREETER)
+            wubu_shell_greeter_run();
+    }
 
     /* Launch initial windows */
     fprintf(stderr, "DEBUG: About to launch initial windows\n");
