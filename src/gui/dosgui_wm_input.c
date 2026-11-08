@@ -14,6 +14,7 @@
  */
 
 #include "dosgui_wm_internal.h"
+#include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
@@ -58,7 +59,7 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     }
 
     /* Alt+Tab: cycle through windows */
-    bool alt_held = (mods & 0x08) != 0;
+    bool alt_held = (mods & MOD_ALT) != 0;
     if (alt_held && key == 0x09 && g_dwm.nz > 1) {
         /* Find current focused index in zorder */
         int cur_idx = 0;
@@ -82,7 +83,7 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     }
 
     /* Win+H: spawn HolyC terminal */
-    if ((mods & 0x08) && (key == 0x48 || key == 'h' || key == 'H')) {
+    if ((mods & MOD_ALT) && (key == 0x48 || key == 'h' || key == 'H')) {
         dosgui_wm_spawn_holyc_term(100, 100, 700, 500);
         return;
     }
@@ -109,7 +110,7 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         }
         return;
     }
-    if ((mods & 0x4) && key == 0x14) {
+    if ((mods & MOD_CTRL) && key == 0x14) {
         wubu_theme_cycle();
         fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
         return;
@@ -119,7 +120,7 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
         return;
     }
-    if ((mods & 0x4) && (mods & 0x8)) {
+    if ((mods & MOD_CTRL) && (mods & MOD_SHIFT)) {
         if (key == 0xE04B) {
             g_dwm.current_desktop = (g_dwm.current_desktop - 1 + g_dwm.desktop_count) % g_dwm.desktop_count;
         } else if (key == 0xE04D) {
@@ -137,8 +138,20 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
+    /* Win+Arrow: Snap Layouts (keyboard).  Left/Right = half screen,
+     * Up = maximize, Down = right half. */
+    if ((mods & MOD_WIN) && g_dwm.focused_id >= 0) {
+        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
+        if (w->alive) {
+            if (key == 0xE04B) { snap_window_to_zone(w, 0); return; }
+            if (key == 0xE04D) { snap_window_to_zone(w, 1); return; }
+            if (key == 0xE048) { dosgui_wm_maximize(w); return; }
+            if (key == 0xE050) { snap_window_to_zone(w, 1); return; }
+        }
+    }
+
     /* Win+Shift+Left/Right: Move focused window to adjacent desktop */
-    if ((mods & 0x09) == 0x09) {  /* Win + Shift */
+    if ((mods & (MOD_WIN | MOD_SHIFT)) == (MOD_WIN | MOD_SHIFT)) {  /* Win + Shift */
         if (key == 0xE04B) {  /* Left arrow */
             dosgui_wm_move_focused_window(-1);
             return;

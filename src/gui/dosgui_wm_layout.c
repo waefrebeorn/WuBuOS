@@ -239,6 +239,30 @@ void snap_window_to_gaad(DosGuiWindow *w) {
     }
 }
 
+/* Snap Layouts (keyboard, Win+Arrow): place a window in a named zone.
+ * 0=left half, 1=right half, 2=top-left quarter, 3=top-right quarter,
+ * 4=bottom-left quarter, 5=bottom-right quarter. */
+void snap_window_to_zone(DosGuiWindow *w, int zone) {
+    if (!w) return;
+
+    int task_h = taskbar_height_dynamic();
+    int sw = g_dwm.screen_w;
+    int sh = g_dwm.screen_h - task_h;
+    int hw = sw / 2;
+    int hh = sh / 2;
+
+    switch (zone) {
+        case 0:  w->x = 0;  w->y = 0;  w->w = hw; w->h = sh; break;
+        case 1:  w->x = hw; w->y = 0;  w->w = hw; w->h = sh; break;
+        case 2:  w->x = 0;  w->y = 0;  w->w = hw; w->h = hh; break;
+        case 3:  w->x = hw; w->y = 0;  w->w = hw; w->h = hh; break;
+        case 4:  w->x = 0;  w->y = hh; w->w = hw; w->h = hh; break;
+        case 5:  w->x = hw; w->y = hh; w->w = hw; w->h = hh; break;
+        default: return;
+    }
+    w->flags &= ~DOSGUI_WIN_MAXIMIZED;
+}
+
 /* ================================================================
  * RENDERING — Themed Window Chrome
  * ================================================================ */

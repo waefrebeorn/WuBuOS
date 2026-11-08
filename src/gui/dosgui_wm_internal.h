@@ -146,6 +146,7 @@ void dosgui_wm_draw_icon_glyph(DeskIconType type, int ox, int oy,
                                uint32_t c2, uint32_t c3);
 void dosgui_wm_draw_icon_selection(int ox, int oy);
 void snap_window_to_gaad(DosGuiWindow *w);
+void snap_window_to_zone(DosGuiWindow *w, int zone);
 int  dosgui_icon_hit_test(int mx, int my);
 int  dosgui_icon_select_in_rect(int x0, int y0, int x1, int y1);
 DosGuiWindow *dosgui_wm_spawn_holyc_term(int x, int y, int w, int h);

@@ -10,6 +10,7 @@
 #include "wubu_trash.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
+#include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -912,6 +913,74 @@ static void test_invalidate_tracking(void) {
 
 /* -- Main ------------------------------------------------------ */
 
+
+/* -- Snap Layouts (keyboard) ------------------------------------ */
+
+static void test_snap_zones(void) {
+    TEST("snap_window_to_zone places a window in the named zone");
+    dosgui_wm_init(1024, 768);
+    DosGuiWindow *w = dosgui_wm_create(10, 20, 200, 150, "Snap");
+    CHECK(w != NULL, "window created");
+    if (!w) { dosgui_wm_shutdown(); return; }
+
+    int sh = 768 - taskbar_height_dynamic();
+
+    snap_window_to_zone(w, 0);
+    CHECK(w->x == 0 && w->w == 512 && w->h == sh, "zone 0 = left half");
+
+    snap_window_to_zone(w, 1);
+    CHECK(w->x == 512 && w->w == 512 && w->h == sh, "zone 1 = right half");
+
+    snap_window_to_zone(w, 2);
+    CHECK(w->x == 0 && w->y == 0 && w->w == 512 && w->h == sh / 2,
+          "zone 2 = top-left quarter");
+
+    snap_window_to_zone(w, 5);
+    CHECK(w->x == 512 && w->y == sh / 2, "zone 5 = bottom-right quarter");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
+static void test_win_arrow_hotkey(void) {
+    TEST("Win+Arrow snaps the focused window (Snap Layouts hotkey)");
+    dosgui_wm_init(1024, 768);
+    DosGuiWindow *w = dosgui_wm_create(10, 20, 200, 150, "Hotkey");
+    CHECK(w != NULL, "window created");
+    if (!w) { dosgui_wm_shutdown(); return; }
+    dosgui_wm_set_focus(w);
+
+    dosgui_wm_handle_key(0xE04B, MOD_WIN);
+    CHECK(w->x == 0 && w->w == 512, "Win+Left snapped to the left half");
+
+    dosgui_wm_handle_key(0xE04D, MOD_WIN);
+    CHECK(w->x == 512, "Win+Right snapped to the right half");
+
+    dosgui_wm_handle_key(0xE048, MOD_WIN);
+    CHECK((w->flags & DOSGUI_WIN_MAXIMIZED) != 0, "Win+Up maximized");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
+static void test_modifier_bits_match_input_h(void) {
+    TEST("the WM drives shortcuts with input.h modifier bits (Alt+Tab reachable)");
+    CHECK(MOD_SHIFT == 0x01 && MOD_CTRL == 0x02 && MOD_ALT == 0x04 && MOD_WIN == 0x08,
+          "input.h modifier bits are what the WM must use");
+
+    dosgui_wm_init(1024, 768);
+    DosGuiWindow *a = dosgui_wm_create(10, 20, 200, 150, "A");
+    DosGuiWindow *b = dosgui_wm_create(400, 20, 200, 150, "B");
+    CHECK(a && b, "two windows");
+    if (a && b) {
+        dosgui_wm_set_focus(a);
+        dosgui_wm_handle_key(0x09, MOD_ALT);       /* Alt+Tab */
+        CHECK(dosgui_wm_get_focused() == b, "Alt+Tab moved focus to the other window");
+    }
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -936,6 +1005,9 @@ int main(void) {
     test_add_icon();
     test_systray_lifecycle();
     test_window_state_transitions();
+    test_snap_zones();
+    test_win_arrow_hotkey();
+    test_modifier_bits_match_input_h();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();
