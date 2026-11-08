@@ -200,13 +200,55 @@ void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     }
 }
 
+/* Click-to-position: the same geometry notepad_draw_content renders with
+ * (content rect, 16px line height, 4px left padding, 8px cell advance), so
+ * the caret lands where the user actually clicked. */
+void dosgui_notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+    if (btn != 1 || kind != 1) return;   /* left press only */
+    if (!win) return;
+
+    ChromeContentRect r = dosgui_chrome_draw_window(win, NULL, 0, 0);
+    int line = (y - r.y - 2) / 16 + g_notepad.scroll_y;
+    int col  = (x - r.x - 4) / 8 + g_notepad.top_x;
+
+    if (line < 0) line = 0;
+    if (line >= g_notepad.line_count) line = g_notepad.line_count - 1;
+    if (col < 0) col = 0;
+
+    int len = g_notepad.lines[line] ? (int)strlen(g_notepad.lines[line]) : 0;
+    if (col > len) col = len;
+
+    g_notepad.cursor_line = line;
+    g_notepad.cursor_col  = col;
+}
+
+/* -- Inspection accessors ------------------------------------------ */
+
+void notepad_reset(void) { np_reset(); }
+
+int notepad_line_count(void) { return g_notepad.line_count; }
+
+const char *notepad_line_text(int index) {
+    if (index < 0 || index >= g_notepad.line_count) return NULL;
+    return g_notepad.lines[index];
+}
+
+int notepad_cursor_line(void) { return g_notepad.cursor_line; }
+int notepad_cursor_col(void)  { return g_notepad.cursor_col; }
+bool notepad_modified(void)   { return g_notepad.modified; }
+
+DosGuiWindow *dosgui_notepad_launch(void) {
+    return notepad_open(NULL);
+}
+
 void notepad_open(const char *filename) {
     np_reset();
     if (filename) strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename)-1);
     DosGuiWindow *win = dosgui_wm_create(100, 80, 500, 400,
                                          filename ? filename : "Untitled - Notepad");
     if (win) {
-        win->on_draw = dosgui_notepad_draw;
-        win->on_key  = dosgui_notepad_key;
+        win->on_draw  = dosgui_notepad_draw;
+        win->on_key   = dosgui_notepad_key;
+        win->on_mouse = dosgui_notepad_mouse;
     }
 }

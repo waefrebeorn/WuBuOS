@@ -12,7 +12,7 @@
 
 #include "dosgui_apps.h"
 #include "calc/calc.h"
-#include "notepad/notepad.h"
+#include "notepad.h"
 #include "wubu_canvas.h"
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
@@ -59,8 +59,6 @@ DosGuiWindow* bonzi_launch(void) { return NULL; }
 DosGuiWindow* comfy_launch(void) { return NULL; }
 DosGuiWindow* tandem_launch(void) { return NULL; }
 void app_explorer_init(void) {}
-void dosgui_notepad_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
-void dosgui_notepad_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
 void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
 void dosgui_startmenu_toggle(void) {}
 int dosgui_startmenu_is_open(void) { return 0; }
@@ -210,37 +208,51 @@ static void test_calc_launch(void) {
  * Notepad++ Editor Tests (using API)
  * ================================================================ */
 
-static void test_notepad_create_destroy(void) {
-    TEST("notepad: create and destroy");
-    NotepadState *np = notepad_create();
-    CHECK(np != NULL, "notepad created");
-    CHECK(np_tab_count(np) == 0, "tab count 0");
-    notepad_destroy(np);
+static void test_notepad_typing(void) {
+    TEST("notepad: typing reaches the buffer");
+    notepad_reset();
+
+    dosgui_notepad_key(NULL, 'H', 0);
+    dosgui_notepad_key(NULL, 'i', 0);
+    CHECK(notepad_line_count() == 1, "still one line");
+    CHECK(strcmp(notepad_line_text(0), "Hi") == 0, "line reads \"Hi\"");
+    CHECK(notepad_cursor_col() == 2, "caret sits after the two characters");
+    CHECK(notepad_modified(), "buffer is marked modified");
+
+    dosgui_notepad_key(NULL, '\r', 0);
+    CHECK(notepad_line_count() == 2, "Enter split the buffer");
+    CHECK(strcmp(notepad_line_text(0), "Hi") == 0, "first line kept");
+    CHECK(strcmp(notepad_line_text(1), "") == 0, "second line is empty");
+
+    dosgui_notepad_key(NULL, 8, 0);          /* Backspace at column 0 joins */
+    CHECK(notepad_line_count() == 1, "backspace joined the lines");
+    CHECK(strcmp(notepad_line_text(0), "Hi") == 0, "joined line reads \"Hi\"");
     PASS();
 }
 
-static void test_notepad_new_tab(void) {
-    TEST("notepad: new tab creation via API");
-    NotepadState *np = notepad_create();
-    int old_count = np_tab_count(np);
-    notepad_new_tab(np);
-    CHECK(np_tab_count(np) == old_count + 1, "tab count increased");
-    CHECK(np_active_tab(np) == np_tab_count(np) - 1, "new tab active");
-    notepad_destroy(np);
-    PASS();
-}
+static void test_notepad_mouse_positions_caret(void) {
+    TEST("notepad: click moves the caret");
+    vbe_init(1024, 768);
+    dosgui_wm_init(1024, 768);
+    notepad_reset();
 
-static void test_notepad_lang_detect(void) {
-    TEST("notepad: language detection via API");
-    CHECK(notepad_detect_lang("test.c") == NP_LANG_C, ".c -> C");
-    CHECK(notepad_detect_lang("test.cpp") == NP_LANG_CPP, ".cpp -> C++");
-    CHECK(notepad_detect_lang("test.py") == NP_LANG_PYTHON, ".py -> Python");
-    CHECK(notepad_detect_lang("test.HC") == NP_LANG_HOLYC, ".HC -> HolyC");
-    CHECK(notepad_detect_lang("test.sh") == NP_LANG_SHELL, ".sh -> Shell");
-    CHECK(notepad_detect_lang("Makefile") == NP_LANG_MAKEFILE, "Makefile");
-    CHECK(notepad_detect_lang("test.json") == NP_LANG_JSON, ".json -> JSON");
-    CHECK(notepad_detect_lang("test.xml") == NP_LANG_XML, ".xml -> XML");
-    CHECK(notepad_detect_lang("test.txt") == NP_LANG_NONE, ".txt -> None");
+    DosGuiWindow *win = dosgui_notepad_launch();
+    CHECK(win != NULL, "window created");
+    if (!win) return;
+
+    dosgui_notepad_key(win, 'A', 0);
+    dosgui_notepad_key(win, 'B', 0);
+    dosgui_notepad_key(win, 'C', 0);
+
+    /* The stub chrome reports content rect 0,0,100,100; clicking at x=80
+     * lands past the 3-character line, so the caret clamps to the end. */
+    dosgui_notepad_mouse(win, 80, 40, 1, 1);
+    CHECK(notepad_cursor_line() == 0, "caret stayed on line 1");
+    CHECK(notepad_cursor_col() == 3, "caret clamped to the end of \"ABC\"");
+
+    /* A click in the middle of the line lands mid-word. */
+    dosgui_notepad_mouse(win, 20, 2, 1, 1);
+    CHECK(notepad_cursor_col() == 2, "caret follows the click x-position");
     PASS();
 }
 
@@ -249,7 +261,7 @@ static void test_notepad_launch(void) {
     vbe_init(1024, 768);
     dosgui_wm_init(1024, 768);
     int before = dosgui_wm_window_count();
-    DosGuiWindow *win = notepad_launch();
+    DosGuiWindow *win = dosgui_notepad_launch();
     CHECK(win != NULL, "window created");
     CHECK(dosgui_wm_window_count() == before + 1, "window registered in WM");
 
@@ -802,9 +814,8 @@ int main(void) {
     test_calc_launch();
     
     printf("\n-- Notepad++ Editor --\n");
-    test_notepad_create_destroy();
-    test_notepad_new_tab();
-    test_notepad_lang_detect();
+    test_notepad_typing();
+    test_notepad_mouse_positions_caret();
     test_notepad_launch();
     
     printf("\n-- WuBu Canvas (image editor) --\n");

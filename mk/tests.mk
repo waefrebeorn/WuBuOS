@@ -603,7 +603,7 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
           $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
           $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
           $(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
-          $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad/notepad.o
+          $(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM \
 	-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	-c $(HOSTED)/hosted.c -o /tmp/hosted_test.o
@@ -611,13 +611,13 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	wubu_gui_shot.c /tmp/hosted_test.o src/kernel/vbe.c \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
-	$(RT)/wubu_onboarding.o $(GUI)/shell/wubu_shell_greeter.o \
+	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
 	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 	$(GUI)/wubu_ui_hosted.o \
 	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
 	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
 	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
-	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad/notepad.o \
+	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad.o \
 	-o wubu_gui_shot -no-pie -Wl,--allow-multiple-definition -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lm
 	./wubu_gui_shot
 
@@ -1774,7 +1774,7 @@ test_dosgui_apps: $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) \
 		$(APPS)/dosgui_apps.c $(APPS)/app_canvas.c \
-		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
+		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c \
 		$(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/repl.c \

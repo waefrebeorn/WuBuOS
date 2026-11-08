@@ -33,6 +33,16 @@ typedef enum {
 NotepadState* notepad_state_get(void);
 DosGuiWindow* dosgui_notepad_launch(void);
 void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void dosgui_notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+
+/* Inspection accessors for the live buffer (the state is module-static).
+ * Lets a test drive dosgui_notepad_key/mouse and assert what they did. */
+void        notepad_reset(void);
+int         notepad_line_count(void);
+const char *notepad_line_text(int index);
+int         notepad_cursor_line(void);
+int         notepad_cursor_col(void);
+bool        notepad_modified(void);
 
 /* Tab management */
 void np_new_tab(void);
