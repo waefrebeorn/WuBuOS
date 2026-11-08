@@ -1,5 +1,5 @@
 /*
- * wubu_holyc_agi.h -- Live ring-0 compiler AGI layer (TempleOS "God compiler")
+ * wubu_holyd_agi.h -- Live ring-0 compiler AGI layer (TempleOS "God compiler")
  *
  * WuBuOS already has a working HolyC -> x86-64 JIT compiler (src/compiler) and
  * a persistent-repl daemon (wubu_holyd). What was missing was the CONNECTIVE
@@ -27,7 +27,7 @@
 
 /* Lazily initialize the in-process holyd daemon + default session.
  * Idempotent; safe to call before the first eval. Returns 0 on success. */
-int  wubu_holyc_agi_init(void);
+int  wubu_holyd_agi_init(void);
 
 /* Compile + execute HolyC source LIVE. On success `out` holds the integer
  * result (e.g. "6"); on lex/parse/codegen/JIT error `out` holds the message.
@@ -40,6 +40,6 @@ int  wubu_holyc_eval(const char *src, char *out, size_t out_size);
 int  wubu_holyc_agent_eval(const char *src, char *out, size_t out_size);
 
 /* Tear down the daemon (used at shutdown). */
-void wubu_holyc_agi_shutdown(void);
+void wubu_holyd_agi_shutdown(void);
 
 #endif /* WUBU_HOLYC_AGI_H */

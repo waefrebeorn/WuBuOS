@@ -9,7 +9,7 @@
  *
  * Evaluation is dependency-injected (see ./dosgui_wm_holyc_term.h). The default
  * evaluator is a direct, self-contained JIT compile+run via the public HolyC
- * compiler API. The hosted binary injects the richer wubu_holyc_agi path
+ * compiler API. The hosted binary injects the richer wubu_holyd_agi path
  * (holyd daemon + EDR disclosure) at the composition root, so this module
  * stays decoupled from the runtime AGI/EDR layer.
  */

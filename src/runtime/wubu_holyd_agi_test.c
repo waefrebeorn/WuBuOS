@@ -1,5 +1,5 @@
 /*
- * test_holyc_agi.c -- Live ring-0 compiler AGI layer test.
+ * test_holyd_agi.c -- Live ring-0 compiler AGI layer test.
  *
  * Proves the TempleOS "God compiler" is now CONNECTED: a human at the HolyC
  * Terminal and the AGI both author HolyC source that compiles + runs LIVE via
@@ -7,7 +7,7 @@
  * separate build step -- source in, native x86-64 out, executed in place.
  */
 
-#include "wubu_holyc_agi.h"
+#include "wubu_holyd_agi.h"
 #include "wubu_edr.h"
 #include "wubu_holyd.h"
 #include "wubu_gdpr_age.h"

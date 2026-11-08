@@ -38,7 +38,7 @@
 #include "../gui/shell/dosgui_startmenu.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/shell/dosgui_wm_holyc_term.h"
-#include "../runtime/wubu_holyc_agi.h"
+#include "../runtime/wubu_holyd_agi.h"
 #include "../gui/shell/dosgui_desktop.h"
 #include "../runtime/styx.h"
 #include "../bridge/bridge.h"
