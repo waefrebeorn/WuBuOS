@@ -25,6 +25,10 @@
 #include "music.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+/* WM functions this gate exercises are REAL (dosgui_wm.c is linked). We
+   forward-declare only them rather than pulling dosgui_wm.h, whose stronger
+   declarations would collide with the 7-arg chrome stub used by the other
+   app TUs in this link. */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -66,8 +70,25 @@ DosGuiWindow* edr_dash_launch(void) { return NULL; }
 void app_explorer_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
 void app_explorer_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
 void app_explorer_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w;(void)x;(void)y;(void)b;(void)k; }
-void dosgui_chrome_draw_window(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t; }
 void dosgui_chrome_draw_button(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t, int act) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t;(void)act; }
+
+/* The app TUs compile against the real 4-arg chrome prototype (which returns
+   ChromeContentRect); this link provides an in-mem chrome so it simply
+   returns the full window as content. (The real chrome is not linked here.) */
+typedef struct { int x, y, w, h; } ChromeContentRect;
+ChromeContentRect dosgui_chrome_draw_window(void *win, uint32_t *f, int fw, int fh);
+ChromeContentRect dosgui_chrome_draw_window(void *win, uint32_t *f, int fw, int fh) {
+    (void)win;(void)f;(void)fw;(void)fh;
+    ChromeContentRect r = {0, 0, 100, 100};
+    return r;
+}
+/* Real WM API used by the launch gate (declared locally to avoid the header
+   / chrome-stub collision above). */
+int  dosgui_wm_init(int screen_w, int screen_h);
+void dosgui_wm_shutdown(void);
+int  dosgui_wm_window_count(void);
+void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h);
+void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h);
 DosGuiWindow* dosgui_dos_window_spawn(void) { return NULL; }
 int64_t hd_eval(const char *s) { (void)s; return 0; }
 void handle_double_fault(void) {}
@@ -210,9 +231,27 @@ static void test_notepad_lang_detect(void) {
 }
 
 static void test_notepad_launch(void) {
-    TEST("notepad: launch returns window");
+    TEST("notepad: launch registers + renders a real window");
+    vbe_init(1024, 768);
+    dosgui_wm_init(1024, 768);
+    int before = dosgui_wm_window_count();
     DosGuiWindow *win = notepad_launch();
     CHECK(win != NULL, "window created");
+    CHECK(dosgui_wm_window_count() == before + 1, "window registered in WM");
+
+    /* The WM draw chain writes through VBE (vbe_* helpers into VBE's own
+       buffer), so we render then confirm the frame contains drawn pixels —
+       proof the launch produced a real, visible window (the "user clicked,
+       something opened" moment). Mirrors dosgui_wm_test's VBE-based sampling
+       but avoids touching the opaque DosGuiWindow internals. */
+    dosgui_wm_render(NULL, 1024, 768);
+    int painted = 0;
+    for (int i = 0; i < 1024 && !painted; i++)
+        for (int j = 0; j < 768; j++)
+            if (vbe_get_pixel(i, j) != 0) { painted = 1; break; }
+    CHECK(painted, "launched window rendered visible pixels");
+    dosgui_wm_shutdown();
+    vbe_shutdown();
     PASS();
 }
 

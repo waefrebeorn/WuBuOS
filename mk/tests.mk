@@ -1738,7 +1738,7 @@ test_pkgmgr:
 	$(GUI)/wubu_pkgmgr_test
 
 test_dosgui_apps: $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) \
 		$(APPS)/dosgui_apps.c $(APPS)/app_canvas.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
