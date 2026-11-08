@@ -177,9 +177,11 @@ int main(void) {
     r = vsl_syscall(VSL_SYS_IO_URING_ENTER, -1, 0, 0, 0, 0, 0);
     T(r == -9 || r == -EBADF, "io_uring_enter() returns EBADF with invalid fd");
 
-    /* Test io_uring_register - should return EBADF with invalid fd */
+    /* Test io_uring_register - invalid fd/opcode: EBADF, or EINVAL on kernels
+     * that validate the opcode before the fd (this kernel returns -EINVAL). */
     r = vsl_syscall(VSL_SYS_IO_URING_REGISTER, -1, 0, 0, 0, 0, 0);
-    T(r == -9 || r == -EBADF, "io_uring_register() returns EBADF with invalid fd");
+    T(r == -9 || r == -EBADF || r == -22 || r == -EINVAL,
+      "io_uring_register() returns EBADF/EINVAL with invalid fd");
 
     /* -- New Namespace & Security Syscalls -- */
     printf("\n[Namespace & Security Syscalls]\n");
@@ -194,10 +196,12 @@ int main(void) {
     T(r == -22 || r == -EINVAL || r == -ENOSYS || r == -EFAULT,
       "bpf() returns EINVAL/ENOSYS/EFAULT with NULL params");
 
-    /* Test perf_event_open - returns EFAULT with NULL attr */
+    /* Test perf_event_open - NULL attr: EFAULT/ENOSYS/EINVAL, or EACCES when
+     * perf_event_paranoid restricts it (this kernel returns -EACCES). */
     r = vsl_syscall(VSL_SYS_PERF_EVENT_OPEN, 0, 0, 0, 0, 0, 0);
-    T(r == -14 || r == -EFAULT || r == -ENOSYS || r == -EINVAL,
-      "perf_event_open() returns EFAULT/ENOSYS/EINVAL with NULL params");
+    T(r == -14 || r == -EFAULT || r == -ENOSYS || r == -EINVAL ||
+      r == -13 || r == -EACCES,
+      "perf_event_open() returns EFAULT/ENOSYS/EINVAL/EACCES with NULL params");
 
     /* Test fanotify_init - returns EPERM (need CAP_SYS_ADMIN) or ENOSYS */
     r = vsl_syscall(VSL_SYS_FANOTIFY_INIT, 0, 0, 0, 0, 0, 0);
