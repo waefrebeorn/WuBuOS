@@ -20,6 +20,7 @@
 #include "dosgui_wm_internal.h"
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
+#include "shell/wubu_lock_screen.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
@@ -183,6 +184,9 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
 
     /* Win+Tab desktop overview sits above everything except the cursor. */
     dosgui_wm_overview_render(fb, fb_w, fb_h);
+
+    /* The lock screen is the topmost layer: nothing else is visible. */
+    wubu_lock_screen_render(fb, fb_w, fb_h);
 
     /* Idle screen saver sits above everything except the cursor. */
     wubu_screensaver_tick(33);            /* ~30 fps frame budget */

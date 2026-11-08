@@ -12,6 +12,8 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
+#include "shell/wubu_screensaver.h"
+#include "shell/wubu_lock_screen.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -1119,6 +1121,36 @@ static void test_screensaver(void) {
     PASS();
 }
 
+
+static void test_lock_screen(void) {
+    TEST("Win+L locks the session; Enter unlocks; input is swallowed while locked");
+    dosgui_wm_init(1024, 768);
+    CHECK(!wubu_lock_screen_is_locked(), "starts unlocked");
+
+    dosgui_wm_handle_key(0x26, MOD_WIN);              /* Win+L */
+    CHECK(wubu_lock_screen_is_locked(), "Win+L locked the session");
+
+    /* A normal key must not reach any window or unlock. */
+    dosgui_wm_handle_key('X', 0);
+    CHECK(wubu_lock_screen_is_locked(), "a normal key neither unlocks nor reaches an app");
+
+    /* The pointer is swallowed too. */
+    dosgui_wm_handle_mouse(512, 384, 1, 1);
+    CHECK(wubu_lock_screen_is_locked(), "a click while locked does not unlock");
+
+    dosgui_wm_handle_key('\r', 0);                   /* Enter */
+    CHECK(!wubu_lock_screen_is_locked(), "Enter unlocked the session");
+
+    /* Win+L again locks, and Win+L unlocks. */
+    dosgui_wm_handle_key(0x26, MOD_WIN);
+    CHECK(wubu_lock_screen_is_locked(), "Win+L locked again");
+    dosgui_wm_handle_key(0x26, MOD_WIN);
+    CHECK(!wubu_lock_screen_is_locked(), "Win+L toggled back to unlocked");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1151,6 +1183,7 @@ int main(void) {
     test_osd_levels_and_hotkey();
     test_quick_settings_panel();
     test_screensaver();
+    test_lock_screen();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();

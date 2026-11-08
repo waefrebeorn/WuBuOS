@@ -17,6 +17,7 @@
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
+#include "shell/wubu_lock_screen.h"
 #include "shell/dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
@@ -53,6 +54,17 @@ static int hit_test_edge(DosGuiWindow *w, int x, int y) {
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     wubu_screensaver_activity();
+
+    /* Win+L: lock / unlock. */
+    if ((mods & MOD_WIN) && (key == 0x26 || key == 'l' || key == 'L')) {
+        if (wubu_lock_screen_is_locked()) wubu_lock_screen_unlock();
+        else                                wubu_lock_screen_lock();
+        return;
+    }
+
+    /* While locked the lock screen consumes EVERY key -- no app sees input. */
+    if (wubu_lock_screen_handle_key(key, mods)) return;
+
     /* P0 a11y: when the cluster is enabled and a window is focused, give
      * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
      * activate). Otherwise arrow keys fall through to normal WM nav. */
@@ -216,6 +228,9 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     wubu_screensaver_activity();
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
+
+    /* While locked the pointer is swallowed too. */
+    if (wubu_lock_screen_is_locked()) return;
 
     /* While the quick settings panel is open it owns the pointer. */
     if (dosgui_quick_settings_is_open() && kind == 1) {
