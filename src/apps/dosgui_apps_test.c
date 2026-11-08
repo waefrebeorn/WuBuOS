@@ -20,6 +20,7 @@
 #include "repl/repl.h"
 #include "control/control.h"
 #include "editor/editor.h"
+#include "wubu_editor.h"
 #include "notes.h"
 #include "todo.h"
 #include "music.h"
@@ -81,6 +82,12 @@ ChromeContentRect dosgui_chrome_draw_window(void *win, uint32_t *f, int fw, int 
     (void)win;(void)f;(void)fw;(void)fh;
     ChromeContentRect r = {0, 0, 100, 100};
     return r;
+}
+/* The real chrome is not linked here; the editor adapter calls this to draw
+   its tab bar, so the in-mem chrome provides it too. */
+void dosgui_chrome_draw_tabs(int x, int y, int w, int h,
+                             const char **labels, int count, int active_tab) {
+    (void)x;(void)y;(void)w;(void)h;(void)labels;(void)count;(void)active_tab;
 }
 /* Real WM API used by the launch gate (declared locally to avoid the header
    / chrome-stub collision above). */
@@ -637,6 +644,54 @@ static void test_editor_launch(void) {
     PASS();
 }
 
+/* The adapter is only worth wiring if keystrokes actually reach the engine.
+ * Before the rewrite, editor_launch() bound NO callbacks, so this test could
+ * not have existed -- the window was blank and inert. */
+static void test_editor_typing(void) {
+    TEST("editor: typing reaches the engine");
+    DosGuiWindow *win = editor_launch();
+    CHECK(win != NULL, "window created");
+    if (!win) return;
+
+    editor_key(win, 'H', 0);
+    editor_key(win, 'i', 0);
+    editor_key(win, '\r', 0);
+    editor_key(win, '!', 0);
+
+    WubuEditor *e = (WubuEditor *)editor_engine_of_window(win);
+    CHECK(e != NULL, "engine handle is bound to the window");
+    if (!e) return;
+    CHECK(e->n_tabs == 1, "one tab is open");
+    CHECK(e->tabs[0].n_lines == 2, "Enter split the buffer into two lines");
+    CHECK(e->tabs[0].lines[0].len == 2, "line 1 holds two characters");
+    CHECK(strcmp(e->tabs[0].lines[0].text, "Hi") == 0, "line 1 reads \"Hi\"");
+    CHECK(strcmp(e->tabs[0].lines[1].text, "!") == 0, "line 2 reads \"!\"");
+    CHECK(e->tabs[0].modified, "buffer is marked modified");
+    PASS();
+}
+
+static void test_editor_mouse_positions_caret(void) {
+    TEST("editor: mouse click moves the caret");
+    DosGuiWindow *win = editor_launch();
+    CHECK(win != NULL, "window created");
+    if (!win) return;
+
+    editor_key(win, 'A', 0);
+    editor_key(win, 'B', 0);
+    editor_key(win, 'C', 0);
+
+    /* Click inside the content area (the stub chrome reports 0,0,100,100). */
+    editor_mouse(win, 80, 40, 1, 1);
+
+    WubuEditor *e = (WubuEditor *)editor_engine_of_window(win);
+    CHECK(e != NULL, "engine handle is bound");
+    if (!e) return;
+    CHECK(e->tabs[0].cursor_line == 0, "caret stayed on line 1");
+    CHECK(e->tabs[0].cursor_col >= 0 && e->tabs[0].cursor_col <= 3,
+          "caret column is within the line");
+    PASS();
+}
+
 /* ================================================================
  * Main Test Runner
  * ================================================================ */
@@ -762,6 +817,8 @@ int main(void) {
     printf("\n-- Editor --\n");
     test_editor_create_destroy();
     test_editor_launch();
+    test_editor_typing();
+    test_editor_mouse_positions_caret();
     
     printf("\n-- Registry + the new apps --\n");
     test_registry_complete();

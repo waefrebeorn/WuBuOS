@@ -26,6 +26,7 @@
 #include "../apps/todo.h"
 #include "../apps/music.h"
 #include "../apps/control/control.h"
+#include "../apps/editor/editor.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -147,8 +148,11 @@ DosGuiWindow* dosgui_launch_settings(void) {
 }
 
 DosGuiWindow* dosgui_launch_editor(void) {
-    /* Editor reuses the real Notepad engine (genuine text editing). */
-    return dosgui_launch_notepad();
+    /* The real WubuEditor engine (apps/editor/editor.c -> wubu_editor.h).
+     * This used to call dosgui_launch_notepad(), so the 468-LOC editor plus
+     * its find/selection/undo/macro/bookmark modules were unreachable from
+     * the desktop. */
+    return editor_launch();
 }
 
 DosGuiWindow* dosgui_launch_canvas(void) {
