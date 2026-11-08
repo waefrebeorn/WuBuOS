@@ -6,7 +6,7 @@
  * Uses the VBE framebuffer for direct pixel access.
  */
 #include "wubu_wm_internal.h"
-#include "../kernel/vbe.h"
+#include "../../kernel/vbe.h"
 #include <string.h>
 #include <stdio.h>
 

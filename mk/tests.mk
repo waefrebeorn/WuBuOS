@@ -548,7 +548,7 @@ test_gc:
 test_screenshot:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(TOOLS) -I$(KERNEL) -I$(GUI) \
-				$(TOOLS)/screenshot.c $(KERNEL)/vbe.c $(GUI)/wubu_wm.c $(GUI)/wubu_wm_desktop.c $(GUI)/wubu_wm_input.c $(GUI)/wubu_wm_render.c $(GUI)/wubu_theme.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
+				$(TOOLS)/screenshot.c $(KERNEL)/vbe.c $(GUI)/wm/wubu_wm.c $(GUI)/wm/wubu_wm_desktop.c $(GUI)/wm/wubu_wm_input.c $(GUI)/wm/wubu_wm_render.c $(GUI)/wubu_theme.c $(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c \
 		$(TOOLS)/screenshot_test.c \
 		-o $(TOOLS)/screenshot_test
 	$(TOOLS)/screenshot_test
@@ -667,7 +667,7 @@ test_txfs:
 	$(KERNEL)/txfs_test
 
 test_dbuf:
-	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/gui_dbuf.c $(GUI)/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
+	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/compositor/gui_dbuf.c $(GUI)/compositor/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
 	$(GUI)/gui_dbuf_test
 
 test_dosgui_cp_sound: $(GUI)/dosgui_cp_sound.c $(GUI)/wubu_sound.c $(GUI)/dosgui_controlpanel.h $(GUI)/wubu_sound.h
@@ -1168,8 +1168,8 @@ test_compositor:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I/home/wubu/wlroots/include \
 		-I/usr/include/libdrm -I/usr/include/pixman-1 -DWLR_USE_UNSTABLE \
-		$(GUI)/wubu_compositor.c $(GUI)/xdg-shell-server-protocol.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
-		$(GUI)/wubu_compositor_test.c \
+		$(GUI)/compositor/wubu_compositor.c $(GUI)/xdg-shell-server-protocol.c $(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c \
+		$(GUI)/compositor/wubu_compositor_test.c \
 		-o $(GUI)/wubu_compositor_test -lwayland-server -lm
 	$(GUI)/wubu_compositor_test
 
@@ -1572,11 +1572,11 @@ test_agi_kernel:
 test_wubu_wm:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(KERNEL) -I$(RT) \
-		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(GUI)/wubu_theme.c $(GUI)/wubu_wm.c $(GUI)/wubu_wm_desktop.c $(GUI)/wubu_wm_input.c $(GUI)/wubu_wm_render.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c $(GUI)/wubu_theme.c $(GUI)/wm/wubu_wm.c $(GUI)/wm/wubu_wm_desktop.c $(GUI)/wm/wubu_wm_input.c $(GUI)/wm/wubu_wm_render.c \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/wubu_math.c $(KERNEL)/vbe.c \
 		$(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c \
 		$(RT)/wubu_ns_pkg_stub.c \
-		$(GUI)/wubu_wm_test.c \
+		$(GUI)/wm/wubu_wm_test.c \
 		-lm -o $(GUI)/wubu_wm_test
 	$(GUI)/wubu_wm_test
 

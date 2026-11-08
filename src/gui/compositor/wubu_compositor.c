@@ -6,8 +6,8 @@
  */
 
 #include "wubu_compositor.h"
-#include "../runtime/styx.h"   /* full styx_server_t + styx_fid_lookup */
-#include "../runtime/wubu_std.h"
+#include "../../runtime/styx.h"   /* full styx_server_t + styx_fid_lookup */
+#include "../../runtime/wubu_std.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -15,7 +15,7 @@
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
 #include <wayland-server.h>
-#include "xdg-shell-server-protocol.h"
+#include "../xdg-shell-server-protocol.h"
 #include <vulkan/vulkan.h>
 
 /* ================================================================

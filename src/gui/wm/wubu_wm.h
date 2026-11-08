@@ -16,8 +16,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "wubu_theme.h"
-#include "../kernel/wubu_gaad.h"
+#include "../wubu_theme.h"
+#include "../../kernel/wubu_gaad.h"
 
 /* -- Constants ---------------------------------------------------- */
 

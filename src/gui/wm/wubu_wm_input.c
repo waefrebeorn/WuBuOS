@@ -6,7 +6,7 @@
  * window dragging and resize operations.
  */
 #include "wubu_wm_internal.h"
-#include "../kernel/vbe.h"
+#include "../../kernel/vbe.h"
 #include <string.h>
 
 void wubu_wm_handle_key(uint32_t key, uint32_t mods) {

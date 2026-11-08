@@ -3,7 +3,7 @@
  */
 
 #include "wubu_compositor.h"
-#include "../runtime/styx.h"   /* styx_server_t + styx_init + styx_fid_alloc */
+#include "../../runtime/styx.h"   /* styx_server_t + styx_init + styx_fid_alloc */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

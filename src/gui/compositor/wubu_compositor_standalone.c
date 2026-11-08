@@ -17,7 +17,7 @@
 #include <wayland-egl.h>
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
-#include "xdg-shell-client-protocol.h"
+#include "../xdg-shell-client-protocol.h"
 
 /* ================================================================
  * Standalone Compositor State

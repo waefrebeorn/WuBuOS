@@ -6,7 +6,7 @@
 #include "repl.h"
 #include "holyd.h"
 #include "../gui/dosgui_wm.h"
-#include "../gui/gui_dbuf.h"
+#include "../gui/compositor/gui_dbuf.h"
 #include "../gui/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>

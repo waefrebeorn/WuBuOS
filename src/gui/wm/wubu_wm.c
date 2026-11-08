@@ -5,8 +5,8 @@
  * Sub-modules: wubu_wm_desktop.c, wubu_wm_input.c, wubu_wm_render.c
  */
 #include "wubu_wm_internal.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
+#include "../../kernel/vbe.h"
+#include "../wubu_theme.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

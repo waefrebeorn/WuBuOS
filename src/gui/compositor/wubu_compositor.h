@@ -11,7 +11,7 @@
 #include <stdbool.h>
 #include <wayland-server-core.h>
 #include <vulkan/vulkan.h>
-#include "../runtime/styx.h"
+#include "../../runtime/styx.h"
 
 /* Forward declarations — wlroots headers carry unstable/internal deps that
  * vary across wlroots versions; the compositor implementation uses only the
