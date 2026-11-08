@@ -1002,6 +1002,30 @@ static void test_show_desktop_hotkey(void) {
     PASS();
 }
 
+
+static void test_add_desktop_and_overview(void) {
+    TEST("Win+Ctrl+D creates a desktop; Win+Tab opens the overview grid");
+    dosgui_wm_init(1024, 768);
+    CHECK(dosgui_wm_get_current_desktop() == 0, "starts on desktop 0");
+
+    dosgui_wm_handle_key(0x20, MOD_WIN | MOD_CTRL);   /* Win+Ctrl+D */
+    dosgui_wm_set_current_desktop(1);
+    CHECK(dosgui_wm_get_current_desktop() == 1, "the new desktop is selectable");
+
+    dosgui_wm_handle_key(0x09, MOD_WIN);              /* Win+Tab */
+    CHECK(dosgui_wm_overview_is_open(), "overview opened");
+
+    int x, y, w, h;
+    dosgui_wm_overview_tile_rect(1024, 768, 0, &x, &y, &w, &h);
+    CHECK(dosgui_wm_overview_handle_click(x + w / 2, y + h / 2, 1024, 768),
+          "a tile click is consumed");
+    CHECK(!dosgui_wm_overview_is_open(), "overview closed after picking a tile");
+    CHECK(dosgui_wm_get_current_desktop() == 0, "switched to the clicked desktop");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1030,6 +1054,7 @@ int main(void) {
     test_win_arrow_hotkey();
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();
+    test_add_desktop_and_overview();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();

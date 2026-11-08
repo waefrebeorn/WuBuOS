@@ -140,6 +140,11 @@ int dosgui_wm_get_current_desktop(void) {
     return g_dwm.current_desktop;
 }
 
+void dosgui_wm_add_desktop(void) {
+    if (g_dwm.desktop_count >= DOSGUI_MAX_DESKTOPS) return;
+    g_dwm.desktop_count++;
+}
+
 void dosgui_wm_set_current_desktop(int desktop) {
     if (desktop < 0 || desktop >= g_dwm.desktop_count) return;
     g_dwm.current_desktop = desktop;

@@ -179,6 +179,9 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
     if (g_dwm.clock_menu_open)
         dosgui_clock_menu_render(fb, fb_w, fb_h);
 
+    /* Win+Tab desktop overview sits above everything except the cursor. */
+    dosgui_wm_overview_render(fb, fb_w, fb_h);
+
     /* Human-lag cursor: the drawn cursor eases toward the input target
      * (fast exponential approach — ~7 frames to converge, so motion reads
      * as a quick human swipe, not an instant teleport).  Input LOGIC still

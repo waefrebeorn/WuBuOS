@@ -24,6 +24,7 @@
 #include <time.h>
 
 #define DOSGUI_MAX_WINDOWS    32
+#define DOSGUI_MAX_DESKTOPS    9
 #define DOSGUI_TITLE_H        20
 #define DOSGUI_TASK_H         28
 #define DOSGUI_BORDER          2
@@ -108,6 +109,15 @@ bool           dosgui_wm_is_modal(DosGuiWindow *win);
 void dosgui_wm_move_window_to_desktop(DosGuiWindow *win, int desktop);
 int  dosgui_wm_get_current_desktop(void);
 void dosgui_wm_set_current_desktop(int desktop);
+void dosgui_wm_add_desktop(void);   /* Win+Ctrl+D: create a desktop */
+/* Win+Tab desktop overview grid. */
+void dosgui_wm_overview_toggle(void);
+bool dosgui_wm_overview_is_open(void);
+void dosgui_wm_overview_render(uint32_t *fb, int fb_w, int fb_h);
+bool dosgui_wm_overview_handle_click(int mx, int my, int fb_w, int fb_h);
+/* Tile geometry for the overview grid (shared by the renderer and hit-test). */
+void dosgui_wm_overview_tile_rect(int fb_w, int fb_h, int desktop,
+                                  int *x, int *y, int *w, int *h);
 void dosgui_wm_move_focused_window(int delta);
 
 /* -- Input ------------------------------------------------------- */

@@ -87,6 +87,7 @@ typedef struct {
     /* Virtual desktops */
     int             current_desktop;
     int             desktop_count;
+    bool            overview_open;   /* Win+Tab: desktop overview grid */
 
     /* System Tray */
     DosGuiSysTrayIcon systray_icons[DOSGUI_MAX_SYSTRAY_ICONS];

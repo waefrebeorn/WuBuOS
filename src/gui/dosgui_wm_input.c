@@ -58,6 +58,18 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         if (fw->alive && wubu_a11y_key(fw, key, mods)) return;
     }
 
+    /* Win+Ctrl+D: create a virtual desktop (Windows 11 parity). */
+    if ((mods & MOD_WIN) && (mods & MOD_CTRL) && (key == 0x20 || key == 'd' || key == 'D')) {
+        dosgui_wm_add_desktop();
+        return;
+    }
+
+    /* Win+Tab: desktop overview grid. */
+    if ((mods & MOD_WIN) && key == 0x09) {
+        dosgui_wm_overview_toggle();
+        return;
+    }
+
     /* Alt+Tab: cycle through windows */
     bool alt_held = (mods & MOD_ALT) != 0;
     if (alt_held && key == 0x09 && g_dwm.nz > 1) {
@@ -138,8 +150,10 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
-    /* Win+D: show the desktop (minimize all, or restore when all are down). */
-    if ((mods & MOD_WIN) && (key == 0x20 || key == 'd' || key == 'D')) {
+    /* Win+D: show the desktop (minimize all, or restore when all are down).
+     * Ctrl must be absent, or Win+Ctrl+D (create desktop) would be swallowed. */
+    if ((mods & MOD_WIN) && !(mods & MOD_CTRL) &&
+        (key == 0x20 || key == 'd' || key == 'D')) {
         dosgui_wm_show_desktop();
         return;
     }
@@ -171,6 +185,13 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
+
+    /* While the overview is open it owns the pointer: a press either picks a
+     * desktop tile or dismisses the grid. */
+    if (dosgui_wm_overview_is_open() && kind == 1) {
+        dosgui_wm_overview_handle_click(x, y, g_dwm.screen_w, g_dwm.screen_h);
+        return;
+    }
 
     int task_h = taskbar_height_dynamic();
     int tbh = title_bar_height();

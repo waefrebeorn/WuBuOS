@@ -57,6 +57,7 @@ int dosgui_wm_init(int screen_w, int screen_h) {
     g_dwm.notif_count = 0;
     g_dwm.next_notif_id = 1;
     g_dwm.notif_center_open = false;
+    g_dwm.overview_open = false;
     g_dwm.last_clock_update = 0;
     load_default_wallpaper();
     /* Desktop companion (Bonzi Buddy): the friendly AGI gateway.
