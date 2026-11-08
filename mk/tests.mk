@@ -1607,10 +1607,10 @@ test_wubu_wm:
 
 # PTX Backend test
 test_holyc_ptx:
-	$(CC) -O0 -g -I$(COMP) -I$(JIT) \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DHAS_CUDA -I$(COMP) -I$(JIT) \
 		$(COMP)/holyd_ptx.c \
 		$(COMP)/test_holyc_ptx.c \
-		-o $(COMP)/test_holyc_ptx
+		-o $(COMP)/test_holyc_ptx -lcuda
 	$(COMP)/test_holyc_ptx
 
 # Cell 388/389: Direct DRM/KMS (no libdrm) + custom GBM test
