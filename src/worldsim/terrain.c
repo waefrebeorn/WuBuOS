@@ -24,9 +24,13 @@ int ws_rng_int(uint64_t *state, int lo, int hi) {
     return lo + (int)(ws_rng_float(state) * (hi - lo));
 }
 
-static float noise2d(uint64_t *rng, int x, int y, int freq) {
-    /* Hash-based value noise  --  good enough for terrain */
-    uint64_t h = (uint64_t)x * 374761393ULL + (uint64_t)y * 668265263ULL + (uint64_t)freq * 1274126177ULL;
+static float noise2d(uint64_t *rng, int x, int y, int freq, uint32_t seed) {
+    /* Hash-based value noise -- good enough for terrain.
+     * The seed MUST be mixed in: previously the hash used only x/y/freq, so
+     * every seed produced an identical heightmap and `ws_terrain_generate`'s
+     * seed parameter was dead (caught by test_worldsim). */
+    uint64_t h = (uint64_t)x * 374761393ULL + (uint64_t)y * 668265263ULL +
+                 (uint64_t)freq * 1274126177ULL + (uint64_t)seed * 2246822519ULL;
     h ^= h >> 13; h *= 1274126177ULL; h ^= h >> 16;
     *rng = h;
     return ws_rng_float(rng);
@@ -36,16 +40,16 @@ static float lerp(float a, float b, float t) {
     return a + (b - a) * t;
 }
 
-static float smooth_noise2d(uint64_t *rng, float x, float y, int freq) {
+static float smooth_noise2d(uint64_t *rng, float x, float y, int freq, uint32_t seed) {
     int ix = (int)x, iy = (int)y;
     float fx = x - ix, fy = y - iy;
     /* Smoothstep */
     fx = fx * fx * (3.0f - 2.0f * fx);
     fy = fy * fy * (3.0f - 2.0f * fy);
-    float v00 = noise2d(rng, ix, iy, freq);
-    float v10 = noise2d(rng, ix+1, iy, freq);
-    float v01 = noise2d(rng, ix, iy+1, freq);
-    float v11 = noise2d(rng, ix+1, iy+1, freq);
+    float v00 = noise2d(rng, ix, iy, freq, seed);
+    float v10 = noise2d(rng, ix+1, iy, freq, seed);
+    float v01 = noise2d(rng, ix, iy+1, freq, seed);
+    float v11 = noise2d(rng, ix+1, iy+1, freq, seed);
     return lerp(lerp(v00, v10, fx), lerp(v01, v11, fx), fy);
 }
 
@@ -64,7 +68,7 @@ void ws_terrain_generate(ws_terrain_t *t, uint32_t seed) {
             float max_amp = 0.0f;
             
             for (int oct = 0; oct < 6; oct++) {
-                val += smooth_noise2d(&local_rng, x * freq / 64.0f, y * freq / 64.0f, (int)freq) * amp;
+                val += smooth_noise2d(&local_rng, x * freq / 64.0f, y * freq / 64.0f, (int)freq, seed) * amp;
                 max_amp += amp;
                 amp *= 0.5f;
                 freq *= 2.0f;
