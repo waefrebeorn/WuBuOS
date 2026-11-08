@@ -239,6 +239,54 @@ static const WubuTheme g_themes[THEME_COUNT] = {
     .gradient_title     = true,
     .Luna_start_button  = true,
 },
+
+/* Modern dark mode.  Neutral charcoal surfaces, white text (>=12:1 on the
+ * surface colours), and a single cyan accent borrowed from the Win11 dark
+ * palette.  Flat (no gradient) title bars read better on dark surfaces than
+ * the XP/Zune gradients. */
+[THEME_DARK] = {
+    .id = THEME_DARK,
+    .name = "Dark",
+    .colors = {
+        .desktop_bg        = RGB(0x20,0x20,0x20),
+        .win_face          = RGB(0x2B,0x2B,0x2B),
+        .win_title_active  = RGB(0x38,0x38,0x38),
+        .win_title_inactive= RGB(0x2B,0x2B,0x2B),
+        .win_title_text    = RGB(0xFF,0xFF,0xFF),
+        .win_title_text_ina= RGB(0xC0,0xC0,0xC0),   /* 7.4:1 on 0x2B */
+        .border_light      = RGB(0x4A,0x4A,0x4A),
+        .border_face       = RGB(0x2B,0x2B,0x2B),
+        .border_dark       = RGB(0x1A,0x1A,0x1A),
+        .border_darkest    = RGB(0x00,0x00,0x00),
+        .btn_face          = RGB(0x33,0x33,0x33),
+        .btn_hover         = RGB(0x4C,0xC2,0xFF),   /* accent */
+        .btn_pressed       = RGB(0x26,0x6B,0x8F),
+        .btn_text          = RGB(0xFF,0xFF,0xFF),
+        .taskbar_bg        = RGB(0x1F,0x1F,0x1F),
+        .taskbar_border    = RGB(0x4C,0xC2,0xFF),
+        .start_btn_face    = RGB(0x33,0x33,0x33),
+        .start_btn_text    = RGB(0xFF,0xFF,0xFF),
+        .startmenu_bg      = RGB(0x24,0x24,0x24),
+        .startmenu_sidebar = RGB(0x2B,0x2B,0x2B),
+        .startmenu_sidebar_grad_end = RGB(0x2B,0x2B,0x2B),
+        .startmenu_hover   = RGB(0x4C,0xC2,0xFF),
+        .startmenu_text    = RGB(0xFF,0xFF,0xFF),
+        .select_bg         = RGB(0x4C,0xC2,0xFF),
+        .select_text       = RGB(0x00,0x00,0x00),
+        .win_shadow        = 0x000000,
+        .scroll_track      = RGB(0x1A,0x1A,0x1A),
+        .scroll_thumb      = RGB(0x4A,0x4A,0x4A),
+        .icon_text         = RGB(0xFF,0xFF,0xFF),
+        .icon_text_shadow  = RGB(0x00,0x00,0x00),
+        .icon_bg           = RGB(0x2B,0x2B,0x2B),
+        .icon_border       = RGB(0x4C,0xC2,0xFF),
+    },
+    .title_gradient     = {RGB(0x38,0x38,0x38), RGB(0x2B,0x2B,0x2B), false},
+    .title_gradient_ina = {RGB(0x2B,0x2B,0x2B), RGB(0x2B,0x2B,0x2B), false},
+    .rounded_buttons    = true,
+    .gradient_title     = false,
+    .Luna_start_button  = false,
+},
 };
 
 /* -- Theme Engine State ------------------------------------------- */

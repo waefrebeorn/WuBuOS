@@ -126,6 +126,31 @@ static void test_reduce_motion(void) {
     wubu_notify_shutdown();
 }
 
+/* -- Dark mode --------------------------------------------------- */
+
+static void test_dark_theme(void) {
+    printf("\n[dark mode]\n");
+    CHECK(strcmp(wubu_theme_name(THEME_DARK), "Dark") == 0,
+          "the Dark theme is registered");
+
+    wubu_theme_set(THEME_DARK);
+    CHECK(wubu_theme_colors()->desktop_bg == 0x202020,
+          "dark desktop background");
+    CHECK(wubu_theme_colors()->win_title_text == 0xFFFFFF,
+          "white title text on the dark surface");
+    CHECK(wubu_theme_colors()->taskbar_bg == 0x1F1F1F,
+          "dark taskbar");
+
+    /* It must also be reachable through the settings daemon, which is the
+     * path the Control Panel uses. */
+    WubuSettings *s = wubu_settings_mut();
+    s->theme.theme_id = THEME_DARK;
+    wubu_settings_apply_live();
+    CHECK(wubu_theme_current() == THEME_DARK, "settings theme_id applies live");
+    CHECK(wubu_theme_colors()->desktop_bg == 0x202020,
+          "the dark palette is what renders");
+}
+
 int main(void) {
     printf("=== wubu_settings_test ===\n");
     wubu_theme_init();
@@ -134,6 +159,7 @@ int main(void) {
     test_font_scale();
     test_high_contrast();
     test_reduce_motion();
+    test_dark_theme();
 
     printf("\n=== wubu_settings: %d passed, %d failed ===\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

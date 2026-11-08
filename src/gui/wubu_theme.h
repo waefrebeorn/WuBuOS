@@ -27,7 +27,8 @@ typedef enum {
     THEME_XP_MEDIA_ORANGE = 2,
     THEME_WUBU_CUSTOM     = 3,
     THEME_ZUNE            = 4,
-    THEME_COUNT           = 5,
+    THEME_DARK            = 5,    /* modern dark mode (Win11-dark class) */
+    THEME_COUNT           = 6,
 } WubuThemeId;
 
 /* -- Theme Color Set ---------------------------------------------- */
