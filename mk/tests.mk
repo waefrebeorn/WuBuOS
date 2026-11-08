@@ -594,7 +594,7 @@ test_trash:
 gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_gaad.c src/kernel/wubu_math.c \
           $(TOOLS)/screenshot.c $(APPS)/notepad.c \
           $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o \
-          $(HOSTED_OBJS) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
+          $(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
           $(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o \
           $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
           $(GUI)/wubu_ui_hosted.o \
@@ -610,7 +610,8 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -DWUBU_HOSTED_TEST -DWUBU_SCREENSHOT_WITH_WM \
 	-I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
 	wubu_gui_shot.c /tmp/hosted_test.o src/kernel/vbe.c \
-	$(HOSTED_OBJS) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
+	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
+	$(RT)/wubu_onboarding.o $(GUI)/shell/wubu_shell_greeter.o \
 	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 	$(GUI)/wubu_ui_hosted.o \
 	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
@@ -1202,7 +1203,7 @@ test_styxfs:
 		$(RT)/wubu_ns_pkg_stub.c
 	$(RT)/styxfs_test
 
-HOSTED_TEST_OBJS = $(HOSTED_OBJS:$(HOSTED)/hosted.o=)
+HOSTED_TEST_OBJS = $(HOSTED_OBJS_LIST:$(HOSTED)/hosted.o=)
 # Mirrors the `hosted` link model (HOSTED_TEST_OBJS + the SAME RT fragments the
 # hosted recipe pulls) so every symbol is defined exactly once. We do NOT link
 # full $(RT_OBJS) — it duplicates dozens of objects already in HOSTED_TEST_OBJS

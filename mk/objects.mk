@@ -274,6 +274,10 @@ METAL_OBJS = $(HOSTED)/wubu_metal.o $(HOSTED)/wubu_metal_evdev.o $(HOSTED)/wubu_
 
 # ── Hosted Objects ───────────────────────────────────────────────
 HOSTED_OBJS_LIST = $(HOSTED)/wubu_gbm.o $(HOSTED)/wubu_vulkan_loader.o $(HOSTED)/wubu_vulkan_swapchain.o $(HOSTED)/wubu_vulkan_cmd.o $(HOSTED)/wubu_vulkan_compute.o $(HOSTED)/wubu_vulkan_util.o $(HOSTED)/wubu_metal_audio.o
+# EDR agent sources linked by gui_shot (the brain build defines its own
+# copy of this list; kept in sync here so the wubuos recipe resolves).
+EDR_SRC = $(RT)/wubu_edr.c $(RT)/edr/edr_core.c $(RT)/edr/edr_proc_pin.c $(RT)/edr/edr_fanotify.c
+
 
 # ── JIT Objects ──────────────────────────────────────────────────
 JIT_OBJS = $(JIT)/jit.o $(JIT)/jit_encode.o $(JIT)/wubu_x86.o $(JIT)/wubu_arm64.o $(JIT)/wubu_disasm.o $(JIT)/x86_regalloc.o $(JIT)/jit_codegen_x86.o $(JIT)/jit_codegen_arm64.o $(JIT)/jit_minic.o $(JIT)/jit_minic_expr.o $(JIT)/jit_minic_token.o
