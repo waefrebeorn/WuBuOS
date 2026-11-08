@@ -84,7 +84,13 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
                 int len = strlen(icon->name);
                 strncpy(truncated, icon->name, len);
                 truncated[len] = '\0';
-                while (len > 0 && vbe_text_width(truncated, 1) > max_label_w) {
+                /* Reserve room for the ellipsis BEFORE truncating: appending
+                 * "..." after the cut pushed the label back past max_label_w
+                 * (4 chars + "..." = 56px in a 36px slot), so adjacent
+                 * selection plates overlapped and read as one merged string
+                 * ("COMPUT.DOCUME.RECYCL..."). */
+                int dots_w = vbe_text_width("...", 1);
+                while (len > 0 && vbe_text_width(truncated, 1) > max_label_w - dots_w) {
                     len--;
                     truncated[len] = '\0';
                 }

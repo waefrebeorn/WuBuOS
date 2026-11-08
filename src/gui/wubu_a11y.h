@@ -59,6 +59,19 @@ void  wubu_a11y_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 /* Hit-test in screen coordinates; returns the control under (x,y). */
 WuBuA11yControl wubu_a11y_hit(DosGuiWindow *win, int x, int y);
 
+/* Real on-screen centers of the cluster controls, in screen coordinates.
+ * Capture/verification harnesses MUST query these instead of hardcoding a
+ * copy of the layout: a duplicated constant drifted from orb_a_center/
+ * orb_b_center, so the harness's "red B" click landed on the green A orb
+ * (r=31) and maximized the window instead of closing it.  Pass NULL for
+ * any center you don't need. */
+void wubu_a11y_orb_centers(DosGuiWindow *w,
+                           int *gx, int *gy,  /* green A — grab / move  */
+                           int *bx, int *by,  /* red B   — close         */
+                           int *yx, int *yy,  /* yellow  — rotate        */
+                           int *pl_x, int *pl_y,  /* purple bottom-left  */
+                           int *pr_x, int *pr_y); /* purple bottom-right */
+
 /* Mouse event routing for the cluster.
  * Returns true if the event was consumed by the cluster (the WM must NOT
  * continue normal drag/resize/title-bar handling for that event).

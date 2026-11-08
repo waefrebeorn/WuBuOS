@@ -193,6 +193,19 @@ static void orb_p_br(DosGuiWindow *w, int *cx, int *cy) {
     *cy = w->y + w->h - bw - 22;
 }
 
+void wubu_a11y_orb_centers(DosGuiWindow *w,
+                           int *gx, int *gy,
+                           int *bx, int *by,
+                           int *yx, int *yy,
+                           int *pl_x, int *pl_y,
+                           int *pr_x, int *pr_y) {
+    if (gx && gy) orb_a_center(w, gx, gy);
+    if (bx && by) orb_b_center(w, bx, by);
+    if (yx && yy) orb_y_center(w, yx, yy);
+    if (pl_x && pl_y) orb_p_bl(w, pl_x, pl_y);
+    if (pr_x && pr_y) orb_p_br(w, pr_x, pr_y);
+}
+
 /* -- Hit testing --------------------------------------------------- */
 
 WuBuA11yControl wubu_a11y_hit(DosGuiWindow *win, int x, int y) {

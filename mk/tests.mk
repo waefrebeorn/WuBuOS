@@ -1148,7 +1148,14 @@ EDR_RT_OBJS = $(filter-out $(RT)/wubu_game_session.o $(RT)/wubu_agi_play.o \
 # Links RT_OBJS + the OCI/image leaf objects the runtime graph needs, plus
 # the era_apps + theme objects and system libs. g_program_db is provided
 # locally (the launcher-under-test does not touch it).
-test_era_apps: $(EDR_RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OBJS) $(JIT_OBJS) $(RT)/wubu_hw_sensors_stub.o $(RT)/wubu_wine_env.o $(RT)/wubu_hw_stub.o $(KERNEL)/wubu_math.o $(COMP)/holyd_semantic.o
+test_era_apps: $(EDR_RT_OBJS) $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o $(COMP_OBJS) $(JIT_OBJS) $(RT)/wubu_hw_sensors_stub.o $(RT)/wubu_wine_env.o $(RT)/wubu_hw_stub.o $(KERNEL)/wubu_math.o $(COMP)/holyd_semantic.o \
+		$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o \
+		$(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
+		$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o \
+		$(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o \
+		$(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
+		$(RT)/wubu_ct_isolate_cgroup.o $(KERNEL)/wubu_kvfs.o $(KERNEL)/input.o \
+		$(COMP)/jit/wubu_isa_wasm.o $(COMP)/wubu_tgemm_avx512.o
 	$(CC) $(CFLAGS) -DWUBU_EDR_AGENT -DWUBU_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(HOSTED) -I$(RT) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) \
 		$(GUI)/dosgui_era_apps_test.c $(GUI)/dosgui_era_apps.o $(GUI)/wubu_theme.o \
 		$(EDR_RT_OBJS) $(COMP_OBJS) $(JIT_SRCS) \

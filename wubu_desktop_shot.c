@@ -60,28 +60,25 @@ static void render_frame(const char *label) {
  * of red B (0.579w, 0.402h) SAME row; yellow crescent (0.289w, 0.216h)
  * up-left. Radii 2.6:1 (real GC hardware: A 16.747mm, B 6.449mm). Purple
  * resize crescents at the window's bottom corners. */
-/* Cluster click positions — must match wubu_a11y.c CORNER-ANCHORED
- * geometry (GameCube cluster at top-left corner, purple beans at bottom
- * corners). For the Win98 theme: border_width=1, title_bar_height=20.
- *   anchor = (wx + 1 + 4, wy + 20 + 4) = (wx+5, wy+24)
- *   Y = anchor + (16,16) = (wx+21, wy+40)
- *   A = anchor + (30,42) = (wx+35, wy+66)
- *   B = anchor + (64,42) = (wx+69, wy+66)
- *   purple BL = (wx+23, wy+h-23); BR = (wx+w-23, wy+h-23) */
-static void y_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    (void)w; (void)h; *cx = wx + 21; *cy = wy + 40;
+/* Cluster click positions — queried from the REAL product geometry via
+ * wubu_a11y_orb_centers() (wubu_a11y.c).  A hardcoded copy of these constants
+ * drifted: the duplicated "red B" offset landed on the green A orb (r=31), so
+ * the frame-7 close click maximized the window instead, leaving it maximized
+ * over the desktop and breaking the later lasso test.  Never re-hardcode. */
+static void y_center(DosGuiWindow *w, int *cx, int *cy) {
+    wubu_a11y_orb_centers(w, NULL,NULL, NULL,NULL, cx,cy, NULL,NULL, NULL,NULL);
 }
-static void a_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    (void)w; (void)h; *cx = wx + 35; *cy = wy + 66;
+static void a_center(DosGuiWindow *w, int *cx, int *cy) {
+    wubu_a11y_orb_centers(w, cx,cy, NULL,NULL, NULL,NULL, NULL,NULL, NULL,NULL);
 }
-static void b_center(int wx, int wy, int w, int h, int *cx, int *cy) {
-    (void)w; (void)h; *cx = wx + 69; *cy = wy + 66;
+static void b_center(DosGuiWindow *w, int *cx, int *cy) {
+    wubu_a11y_orb_centers(w, NULL,NULL, cx,cy, NULL,NULL, NULL,NULL, NULL,NULL);
 }
-static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) {
-    (void)w; *cx = wx + 23; *cy = wy + h - 23;
+static void p_bl(DosGuiWindow *w, int *cx, int *cy) {
+    wubu_a11y_orb_centers(w, NULL,NULL, NULL,NULL, NULL,NULL, cx,cy, NULL,NULL);
 }
-static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) {
-    *cx = wx + w - 23; *cy = wy + h - 23;
+static void p_br(DosGuiWindow *w, int *cx, int *cy) {
+    wubu_a11y_orb_centers(w, NULL,NULL, NULL,NULL, NULL,NULL, NULL,NULL, cx,cy);
 }
 
 static void tick(void) {
@@ -151,7 +148,7 @@ int main(void) {
      * bottom edge (Windows edge-detection — invisible until hovered). */
     {
         int pxx, pyy;
-        p_bl(win->x, win->y, win->w, win->h, &pxx, &pyy);
+        p_bl(win, &pxx, &pyy);
         dosgui_wm_handle_mouse(pxx, pyy, 1, 0);   /* hover near purple BL */
         tick();
         render_frame("01b_purple_reveal");
@@ -160,7 +157,7 @@ int main(void) {
     /* Frame 2: green A drag -> move. */
     {
         int ax, ay;
-        a_center(win->x, win->y, win->w, win->h, &ax, &ay);
+        a_center(win, &ax, &ay);
         dosgui_wm_handle_mouse(ax, ay, 1, 1);
         tick();
         dosgui_wm_handle_mouse(ax + 50, ay + 30, 1, 0);
@@ -172,7 +169,7 @@ int main(void) {
     /* Frame 3: yellow Y click -> minimize. */
     {
         int ycx, ycy;
-        y_center(win->x, win->y, win->w, win->h, &ycx, &ycy);
+        y_center(win, &ycx, &ycy);
         dosgui_wm_handle_mouse(ycx, ycy, 1, 1);
         tick();
         dosgui_wm_handle_mouse(ycx, ycy, 1, 2);
@@ -196,7 +193,7 @@ int main(void) {
     /* Frame 5: yellow Y DRAG -> rotate 90. */
     {
         int ycx, ycy;
-        y_center(win->x, win->y, win->w, win->h, &ycx, &ycy);
+        y_center(win, &ycx, &ycy);
         dosgui_wm_handle_mouse(ycx, ycy, 1, 1);       /* press on pill */
         tick();
         dosgui_wm_handle_mouse(ycx + 20, ycy, 1, 0);  /* drag 20px right */
@@ -208,7 +205,7 @@ int main(void) {
     /* Frame 6: purple Y crescent drag (bottom-left) -> resize. */
     {
         int kx, ky;
-        p_bl(win->x, win->y, win->w, win->h, &kx, &ky);
+        p_bl(win, &kx, &ky);
         dosgui_wm_handle_mouse(kx, ky, 1, 1);
         tick();
         dosgui_wm_handle_mouse(kx + 60, ky + 40, 1, 0);
@@ -220,7 +217,7 @@ int main(void) {
     /* Frame 7: red B click -> close. */
     {
         int bcx, bcy;
-        b_center(win->x, win->y, win->w, win->h, &bcx, &bcy);
+        b_center(win, &bcx, &bcy);
         dosgui_wm_handle_mouse(bcx, bcy, 1, 1);
         tick();
         dosgui_wm_handle_mouse(bcx, bcy, 1, 2);
@@ -237,7 +234,7 @@ int main(void) {
         render_frame("08_purge_target_window");
 
         int bcx, bcy;
-        b_center(win2->x, win2->y, win2->w, win2->h, &bcx, &bcy);
+        b_center(win2, &bcx, &bcy);
         dosgui_wm_handle_mouse(bcx, bcy, 1, 1);
         tick();
         dosgui_wm_handle_mouse(bcx + 30, bcy + 30, 1, 0);
@@ -252,7 +249,7 @@ int main(void) {
             dosgui_wm_set_focus(win3);
             tick();
             int bx3, by3;
-            b_center(win3->x, win3->y, win3->w, win3->h, &bx3, &by3);
+            b_center(win3, &bx3, &by3);
             dosgui_wm_handle_mouse(bx3, by3, 1, 1);
             tick();
             dosgui_wm_handle_mouse(bx3 + 15, by3 + 15, 1, 0); /* partial */

@@ -182,16 +182,6 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             dosgui_clock_menu_close();
     }
 
-    /* Accessibility cluster: give it first crack at the event when enabled
-     * and a window is focused. Returning true consumes the event so the
-     * normal taskbar/chromeo logic below cannot interfere. */
-    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
-        DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
-        if (fw->alive && !(fw->flags & DOSGUI_WIN_MINIMIZED) &&
-            wubu_a11y_mouse(fw, x, y, btn, kind))
-            return;
-    }
-
     /* Taskbar / Start button: must be checked BEFORE the Bonzi Buddy hit-test,
      * because the buddy sits in the lower-left corner and its bounding box
      * overlaps the taskbar region.  A click on the Start button or taskbar
@@ -293,6 +283,19 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
         }
 
         return;
+    }
+
+    /* Accessibility cluster: give it first crack at the event when enabled
+     * and a window is focused.  Checked AFTER the taskbar block above: a
+     * maximized window's orbs sit at the bottom corners and would otherwise
+     * swallow taskbar clicks (the rotate orb overlapped the clock well at
+     * 999,754 and the clock popup could never open).  The taskbar is always
+     * the topmost strip, so it keeps priority. */
+    if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
+        DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
+        if (fw->alive && !(fw->flags & DOSGUI_WIN_MINIMIZED) &&
+            wubu_a11y_mouse(fw, x, y, btn, kind))
+            return;
     }
 
     /* Desktop mascot (WuBu Buddy): chrome-less element above windows.
