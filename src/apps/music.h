@@ -40,6 +40,7 @@ int  music_test_started(void);
 /* the window bindings */
 void music_draw(struct DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void music_key(struct DosGuiWindow *win, uint32_t key, uint32_t mods);
+void music_apply_system_volume(float v);
 void music_mouse(struct DosGuiWindow *win, int x, int y, int btn, int kind);
 struct DosGuiWindow *music_launch(void);
 

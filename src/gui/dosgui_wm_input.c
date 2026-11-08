@@ -15,6 +15,7 @@
 
 #include "dosgui_wm_internal.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
+#include "shell/wubu_osd.h"
 #include "shell/dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
@@ -56,6 +57,27 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
     if (wubu_a11y_is_enabled() && g_dwm.focused_id >= 0) {
         DosGuiWindow *fw = &g_dwm.windows[g_dwm.focused_id];
         if (fw->alive && wubu_a11y_key(fw, key, mods)) return;
+    }
+
+    /* Ctrl+Alt+Up/Down: system volume.  Ctrl+Alt+Left/Right: brightness.
+     * Both drive the OSD, so the change is visible. */
+    if ((mods & MOD_CTRL) && (mods & MOD_ALT)) {
+        if (key == 0xE048 || key == 0xE050 || key == 0xE04B || key == 0xE04D) {
+            float dv = (key == 0xE048) ?  0.05f : (key == 0xE050) ? -0.05f : 0.0f;
+            float db = (key == 0xE04D) ?  0.05f : (key == 0xE04B) ? -0.05f : 0.0f;
+            if (dv != 0.0f) {
+                wubu_osd_set_volume(wubu_osd_volume() + dv);
+                /* music.c is not linked into every WM target (the WM tests are
+                 * headless), so reach it weakly -- the same pattern the theme
+                 * engine uses for its kernel node getter. */
+                extern __attribute__((weak)) void music_apply_system_volume(float v);
+                if (music_apply_system_volume)
+                    music_apply_system_volume(wubu_osd_volume());
+            }
+            if (db != 0.0f) wubu_osd_set_brightness(wubu_osd_brightness() + db);
+            wubu_osd_notify();
+            return;
+        }
     }
 
     /* Win+Ctrl+D: create a virtual desktop (Windows 11 parity). */

@@ -95,6 +95,13 @@ void music_play(void)
 }
 
 /* MU5: stop. */
+/* Apply the system volume (OSD / Quick Settings) to the engine.  Safe to
+ * call before the engine is started -- wubu_sound_set_volume just stores it. */
+void music_apply_system_volume(float v)
+{
+    wubu_sound_set_volume(&g_engine, v);
+}
+
 void music_stop(void)
 {
     g_music.playing = -1;

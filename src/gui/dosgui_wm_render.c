@@ -18,6 +18,7 @@
 
 #include "dosgui_wm.h"
 #include "dosgui_wm_internal.h"
+#include "shell/wubu_osd.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
@@ -181,6 +182,10 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
 
     /* Win+Tab desktop overview sits above everything except the cursor. */
     dosgui_wm_overview_render(fb, fb_w, fb_h);
+
+    /* System OSD (volume / brightness) and its fade. */
+    wubu_osd_tick();
+    wubu_osd_render(fb, fb_w, fb_h);
 
     /* Human-lag cursor: the drawn cursor eases toward the input target
      * (fast exponential approach — ~7 frames to converge, so motion reads

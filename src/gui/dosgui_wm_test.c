@@ -11,6 +11,7 @@
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
+#include "shell/wubu_osd.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -1026,6 +1027,44 @@ static void test_add_desktop_and_overview(void) {
     PASS();
 }
 
+
+static void test_osd_levels_and_hotkey(void) {
+    TEST("volume/brightness clamp, the OSD shows, Ctrl+Alt+Up changes volume");
+    wubu_osd_set_volume(1.5f);
+    CHECK(wubu_osd_volume() == 1.0f, "volume clamps at 1.0");
+    wubu_osd_set_volume(-0.5f);
+    CHECK(wubu_osd_volume() == 0.0f, "volume clamps at 0.0");
+    wubu_osd_set_volume(0.5f);
+    CHECK(wubu_osd_volume() == 0.5f, "volume stores 0.5");
+
+    wubu_osd_set_muted(true);
+    CHECK(wubu_osd_muted(), "mute flag is stored");
+    wubu_osd_set_volume(0.7f);
+    CHECK(!wubu_osd_muted(), "raising the volume clears mute");
+
+    wubu_osd_set_brightness(0.05f);
+    CHECK(wubu_osd_brightness() == 0.2f, "brightness clamps at 0.2");
+    wubu_osd_set_brightness(0.6f);
+    CHECK(wubu_osd_brightness() == 0.6f, "brightness stores 0.6");
+
+    wubu_osd_notify();
+    CHECK(wubu_osd_is_visible(), "the OSD is visible after a change");
+    for (int i = 0; i < 100; i++) wubu_osd_tick();
+    CHECK(!wubu_osd_is_visible(), "the OSD fades out");
+
+    /* The hotkey path drives the same state. */
+    dosgui_wm_init(1024, 768);
+    wubu_osd_set_volume(0.50f);
+    dosgui_wm_handle_key(0xE048, MOD_CTRL | MOD_ALT);   /* Ctrl+Alt+Up */
+    CHECK(wubu_osd_volume() > 0.50f, "Ctrl+Alt+Up raised the volume");
+    CHECK(wubu_osd_is_visible(), "the hotkey showed the OSD");
+    dosgui_wm_handle_key(0xE050, MOD_CTRL | MOD_ALT);   /* Ctrl+Alt+Down */
+    dosgui_wm_handle_key(0xE050, MOD_CTRL | MOD_ALT);
+    CHECK(wubu_osd_volume() < 0.60f, "Ctrl+Alt+Down lowered the volume");
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1055,6 +1094,7 @@ int main(void) {
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();
     test_add_desktop_and_overview();
+    test_osd_levels_and_hotkey();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();
