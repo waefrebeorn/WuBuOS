@@ -17,7 +17,7 @@
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
 #include "fm/fm.h"
-#include "repl/repl.h"
+#include "repl.h"
 #include "control/control.h"
 #include "editor/editor.h"
 #include "wubu_editor.h"
@@ -97,7 +97,14 @@ int  dosgui_wm_window_count(void);
 void dosgui_wm_render_desktop(uint32_t *fb, int fb_w, int fb_h);
 void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h);
 DosGuiWindow* dosgui_dos_window_spawn(void) { return NULL; }
-int64_t hd_eval(const char *s) { (void)s; return 0; }
+/* hd_eval is the HolyC compiler's entry point; this target does not link the
+   compiler (test_holyc owns that, 84 checks).  The stub records what it was
+   handed so the REPL test can prove the buffer reached the evaluator. */
+static char g_last_eval[256];
+int64_t hd_eval(const char *s) {
+    snprintf(g_last_eval, sizeof(g_last_eval), "%s", s ? s : "");
+    return 0;
+}
 void handle_double_fault(void) {}
 void handle_gpf(void) {}
 void handle_page_fault(void) {}
@@ -574,26 +581,54 @@ static void test_fm_launch(void) {
  * REPL Tests
  * ================================================================ */
 
-static void test_repl_create_destroy(void) {
-    TEST("repl: create and destroy");
-    REPLState *repl = repl_create();
-    CHECK(repl != NULL, "repl created");
-    repl_destroy(repl);
+/* The desktop REPL is src/apps/repl.c (wired through hosted.c).  The old
+ * tests here drove a second, stub implementation under src/apps/repl/ that
+ * nothing launched; that file is gone.  These now drive the REAL REPL's
+ * input primitives and assert the buffer a keystroke actually reaches. */
+
+static void test_repl_typing(void) {
+    TEST("repl: typing reaches the input buffer");
+    REPLState *r = repl_state();
+    CHECK(r != NULL, "live REPL instance is exposed");
+    if (!r) return;
+
+    repl_input_char(r, '1');
+    repl_input_char(r, '+');
+    repl_input_char(r, '1');
+    CHECK(r->input_pos == 3, "three characters buffered");
+    CHECK(strcmp(r->input, "1+1") == 0, "buffer reads \"1+1\"");
+
+    repl_input_backspace(r);
+    CHECK(r->input_pos == 2, "backspace removes one character");
+    CHECK(strcmp(r->input, "1+") == 0, "buffer reads \"1+\"");
+
+    repl_input_backspace(r);
+    repl_input_backspace(r);
+    repl_input_backspace(r);            /* must not underflow */
+    CHECK(r->input_pos == 0, "backspace at position 0 is a no-op");
     PASS();
 }
 
-static void test_repl_add_line(void) {
-    TEST("repl: add line via API");
-    REPLState *repl = repl_create();
-    repl_add_line(repl, "test line");
-    repl_destroy(repl);
-    PASS();
-}
+static void test_repl_submit_evaluates(void) {
+    TEST("repl: submit echoes the line and evaluates it");
+    REPLState *r = repl_state();
+    if (!r) { CHECK(false, "live REPL instance is exposed"); return; }
 
-static void test_repl_launch(void) {
-    TEST("repl: launch returns window");
-    DosGuiWindow *win = repl_launch();
-    CHECK(win != NULL, "window created");
+    repl_input_char(r, '7');
+    repl_input_char(r, '*');
+    repl_input_char(r, '6');
+    int before = r->line_count;
+
+    repl_submit(r);
+
+    CHECK(r->line_count == before + 2, "the echo and the result are both recorded");
+    CHECK(strcmp(r->lines[before], "$ 7*6") == 0, "echo line reads \"$ 7*6\"");
+    CHECK(strncmp(r->lines[before + 1], "= ", 2) == 0,
+          "result line is formatted as a value");
+    CHECK(strcmp(g_last_eval, "7*6") == 0,
+          "the input buffer was handed to the evaluator verbatim");
+    CHECK(r->input_pos == 0, "input cleared after submit");
+    CHECK(r->input[0] == '\0', "input buffer emptied");
     PASS();
 }
 
@@ -805,9 +840,8 @@ int main(void) {
     test_fm_launch();
     
     printf("\n-- REPL --\n");
-    test_repl_create_destroy();
-    test_repl_add_line();
-    test_repl_launch();
+    test_repl_typing();
+    test_repl_submit_evaluates();
     
     printf("\n-- Control Panel --\n");
     test_control_create_destroy();
