@@ -94,101 +94,101 @@ test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui 
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_test.c -o $(JIT)/jit_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_test.c -o $(JIT)/jit_test -ldl
 	$(JIT)/jit_test
 
 # #4 cmp/jcc macro-fusion + #2 flag-dependency: if/while conditions that are
 # comparisons branch directly on the compare's flags (no setcc/movzx/test).
 test_jit_branch:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_branch_test.c -o $(JIT)/jit_branch_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_branch_test.c -o $(JIT)/jit_branch_test -ldl
 	$(JIT)/jit_branch_test
 
 # Subsystem A (#19): struct field reordering + member access + sizeof. Unit
 # test proves the minimal-packing layout (links the type module standalone).
 test_jit_type:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT)/jit_minic_type.c $(JIT)/jit_type_test.c -o $(JIT)/jit_type_test
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT)/jit_minic_type.c $(JIT)/jit_type_test.c -o $(JIT)/jit_type_test
 	$(JIT)/jit_type_test
 
 # Subsystem B (#12/#13): loop analysis engine — IV detection, closed-form trip
 # count, loop-invariant detection, strength-reduction candidates.
 test_jit_loop:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT)/jit_minic_loop.c $(JIT)/jit_loop_test.c -o $(JIT)/jit_loop_test
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT)/jit_minic_loop.c $(JIT)/jit_loop_test.c -o $(JIT)/jit_loop_test
 	$(JIT)/jit_loop_test
 
 # Subsystem C (#14/#23/#24): runtime branch-feedback — taken/not-taken counters
 # driving the probabilistic block-layout decision.
 test_jit_branch_profile:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT)/jit_branch_profile.c $(JIT)/jit_branch_profile_test.c -o $(JIT)/jit_branch_profile_test
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT)/jit_branch_profile.c $(JIT)/jit_branch_profile_test.c -o $(JIT)/jit_branch_profile_test
 	$(JIT)/jit_branch_profile_test
 
 # Full integration: A (struct/member) + B (loop analysis) + C (profile) together
 # in a single compilation. The DA-1 wiring test that proves subsystems interop.
 test_jit_subsystem_integration:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_subsystem_integration_test.c -o $(JIT)/jit_subsystem_integration_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_subsystem_integration_test.c -o $(JIT)/jit_subsystem_integration_test -ldl
 	$(JIT)/jit_subsystem_integration_test
 
 # Subsystem C byte-level: verify the PGO counter increment is emitted as
 # `movabs r11, addr; addq $1, [r11]` and the counter actually increments at
 # runtime. Requires WUBU_JIT_PGO=1.
 test_jit_pgo_byte:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_pgo_byte_test.c -o $(JIT)/jit_pgo_byte_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_pgo_byte_test.c -o $(JIT)/jit_pgo_byte_test -ldl
 	env WUBU_JIT_PGO=1 $(JIT)/jit_pgo_byte_test
 
 # Subsystem B consumer + #14 layout swap: verify loop-body capture feeds the
 # analysis engine, and that single-return then-bodies trigger layout swap.
 test_jit_loop_consume:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_loop_consume_test.c -o $(JIT)/jit_loop_consume_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_loop_consume_test.c -o $(JIT)/jit_loop_consume_test -ldl
 	$(JIT)/jit_loop_consume_test
 
 # Deep optimization: stack frame sizing, two-pass loop, A+B+C pipeline
 test_jit_deep_opt:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_deep_opt_test.c -o $(JIT)/jit_deep_opt_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_deep_opt_test.c -o $(JIT)/jit_deep_opt_test -ldl
 	$(JIT)/jit_deep_opt_test
 
 # Comprehensive fuzzer: edge cases, constant folding, overflow, stress
 test_jit_fuzzer:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_fuzzer.c -o $(JIT)/jit_fuzzer -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_fuzzer.c -o $(JIT)/jit_fuzzer -ldl
 	$(JIT)/jit_fuzzer
 	WUBU_JIT_XRA=1 $(JIT)/jit_fuzzer
 
 # Cycle profiler: measure generated code quality (development aid)
 test_jit_profile:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_cycle_profiler.c -o $(JIT)/jit_cycle_profiler -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_cycle_profiler.c -o $(JIT)/jit_cycle_profiler -ldl
 	$(JIT)/jit_cycle_profiler
 
 # ARM64 encoder test
 test_minic_cg:
-	$(CC) -O0 -g -I$(JIT) $(JIT)/test_minic_cg.c $(JIT)/jit_minic_cg.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_wasm.c -o $(JIT)/test_minic_cg
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) $(JIT)/test_minic_cg.c $(JIT)/jit_minic_cg.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_wasm.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_wasm.c -o $(JIT)/test_minic_cg
 	$(JIT)/test_minic_cg
 
 # JIT regression test — bulletproof regression suite
 test_jit_regression:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) $(JIT)/jit_regression_test.c $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(JIT)/wubu_wasm.c $(JIT)/wubu_disasm.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/jit_minic_cg.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_branch_profile.c $(RT)/wubu_spawn.c -o $(JIT)/test_jit_regression -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) $(JIT)/jit_regression_test.c $(JIT)/jit.c $(JIT)/jit_encode.c $(JIT)/wubu_x86.c $(JIT)/wubu_arm64.c $(JIT)/wubu_rv64.c $(JIT)/wubu_wasm.c $(JIT)/wubu_disasm.c $(JIT)/x86_regalloc.c $(JIT)/jit_codegen_x86.c $(JIT)/jit_codegen_arm64.c $(JIT)/jit_codegen_rv64.c $(JIT)/jit_codegen_wasm.c $(JIT)/jit_minic_cg.c $(JIT)/jit_minic.c $(JIT)/jit_minic_expr.c $(JIT)/jit_minic_token.c $(JIT)/jit_minic_type.c $(JIT)/jit_minic_loop.c $(JIT)/jit_branch_profile.c $(RT)/wubu_spawn.c -o $(JIT)/test_jit_regression -ldl
 	$(JIT)/test_jit_regression
 
 # ARM64 encoder test (byte-level)
 test_arm64_enc:
-	$(CC) -O0 -g -I$(JIT) $(JIT)/test_arm64_enc.c $(JIT)/wubu_arm64.c -o $(JIT)/test_arm64_enc
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) $(JIT)/test_arm64_enc.c $(JIT)/wubu_arm64.c -o $(JIT)/test_arm64_enc
 	$(JIT)/test_arm64_enc
 
 # Torture test: 137 stress patterns vs GCC -O2
 test_jit_torture:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_torture_test.c -o $(JIT)/jit_torture_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_torture_test.c -o $(JIT)/jit_torture_test -ldl
 	$(JIT)/jit_torture_test
 
 # Supremacy test: compare WuBu JIT output against GCC -O2
 test_jit_supremacy:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_supremacy_test.c -o $(JIT)/jit_supremacy_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_supremacy_test.c -o $(JIT)/jit_supremacy_test -ldl
 	$(JIT)/jit_supremacy_test
 
 test_jit_regalloc:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_regalloc_test.c -o $(JIT)/jit_regalloc_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_regalloc_test.c -o $(JIT)/jit_regalloc_test -ldl
 	$(JIT)/jit_regalloc_test
 
 # Constant rematerialization: a spilled constant vreg reloads as mov r64,imm64
 # (no memory traffic); a spilled non-constant reloads via mov r64,[rbp].
 test_jit_remat:
-	$(CC) -O0 -g -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_remat_test.c -o $(JIT)/jit_remat_test -ldl
+	$(CC) -O0 -g -DWUBU_HOSTED -I$(JIT) -I$(RT) -I$(COMP) -Wno-format-truncation $(JIT_SRCS) $(RT)/wubu_spawn.c $(JIT)/jit_remat_test.c -o $(JIT)/jit_remat_test -ldl
 	$(JIT)/jit_remat_test
 
 # Souper-style peephole superoptimizer: enumerate shortest instruction sequences

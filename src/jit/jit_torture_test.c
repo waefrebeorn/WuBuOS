@@ -13,21 +13,31 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 static int pass, fail, total;
 static int64_t gcc_r, wubu_r;
 
 static int64_t gcc_eval_expr(const char *expr) {
-    FILE *f = fopen("/tmp/gcct.c", "w");
+    /* Per-process paths: `make test` runs many JIT tests in parallel and a
+     * fixed /tmp/gcct.c gets clobbered by the sibling processes. */
+    char cpath[64], bpath[64], cmd[256];
+    snprintf(cpath, sizeof(cpath), "/tmp/gcct_%d.c", (int)getpid());
+    snprintf(bpath, sizeof(bpath), "/tmp/gcct_%d", (int)getpid());
+
+    FILE *f = fopen(cpath, "w");
     if (!f) return INT64_MIN;
     fprintf(f, "#include <stdint.h>\n#include <stdio.h>\nint main(){printf(\"%%ld\\n\",(int64_t)(%s));return 0;}\n", expr);
     fclose(f);
-    if (system("gcc -O2 -o /tmp/gcct /tmp/gcct.c -lm 2>/dev/null") != 0) return INT64_MIN;
-    f = popen("/tmp/gcct", "r");
-    if (!f) return INT64_MIN;
+    snprintf(cmd, sizeof(cmd), "gcc -O2 -o %s %s -lm 2>/dev/null", bpath, cpath);
+    if (system(cmd) != 0) { unlink(cpath); return INT64_MIN; }
+    f = popen(bpath, "r");
+    if (!f) { unlink(cpath); unlink(bpath); return INT64_MIN; }
     int64_t r = INT64_MIN;
     if (fscanf(f, "%ld", &r) != 1) r = INT64_MIN;
     pclose(f);
+    unlink(cpath);
+    unlink(bpath);
     return r;
 }
 

@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #define TEST(name) void test_##name(void)
 #define ASSERT(cond, fmt, ...) \
@@ -236,7 +237,9 @@ TEST(ingestion) {
     if (handle >= 0) {
         uint8_t buf[64];
         int read = wubu_ingest_read(handle, buf, 64);
-        ASSERT(read >= 0, "read returns: %d", read);
+        /* The device is opened O_NONBLOCK, so with no MIDI events pending the
+         * kernel returns EAGAIN.  That is "no data yet", not a failure. */
+        ASSERT(read >= 0 || errno == EAGAIN, "read returns: %d (errno %d)", read, errno);
         wubu_ingest_close(handle);
     }
 
