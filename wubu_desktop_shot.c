@@ -116,6 +116,10 @@ int main(void) {
 
     wubu_theme_set(THEME_WIN98_CLASSIC);
     dosgui_wm_init(SHOT_W, SHOT_H);
+    /* Build the REAL Start menu (main items + MIME submenus + programs DB +
+     * search + tree + era apps).  Without this the menu opens with zero
+     * items and the captured "menu open" frame is a 4px sliver. */
+    dosgui_startmenu_init();
     wubu_a11y_set_enabled(true);
 
     /* Desktop icons (grid 0..2, row 0 -> x=20, y=20 + 60*col). */

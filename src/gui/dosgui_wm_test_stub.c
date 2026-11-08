@@ -72,12 +72,18 @@ static tsm_item_t tsm_items[] = {
 };
 #define TSM_N_ITEMS (int)(sizeof(tsm_items)/sizeof(tsm_items[0]))
 
-void dosgui_startmenu_toggle(void) { tsm_open = !tsm_open; }
-void dosgui_startmenu_open(void)   { tsm_open = 1; }
-void dosgui_startmenu_close(void)  { tsm_open = 0; }
-int  dosgui_startmenu_is_open(void) { return tsm_open; }
+/* Weak: binaries that link the REAL dosgui_startmenu.c (desktop_shot,
+ * a11y_shot, gui_shot, test_dosgui_wm ...) get the genuine menu regardless
+ * of link order.  Targets that link ONLY this stub keep the minimal
+ * implementation.  (Previously these were strong, so a recipe that forgot
+ * the real TU silently measured the stub — the desktop_shot Start button
+ * toggled a dead variable and the captured "menu open" frame was empty.) */
+__attribute__((weak)) void dosgui_startmenu_toggle(void) { tsm_open = !tsm_open; }
+__attribute__((weak)) void dosgui_startmenu_open(void)   { tsm_open = 1; }
+__attribute__((weak)) void dosgui_startmenu_close(void)  { tsm_open = 0; }
+__attribute__((weak)) int  dosgui_startmenu_is_open(void) { return tsm_open; }
 
-void dosgui_startmenu_handle_click(int x, int y) {
+__attribute__((weak)) void dosgui_startmenu_handle_click(int x, int y) {
     if (!tsm_open) return;
     int task_h = dosgui_taskbar_height();
     int mh = TSM_ITEM_H;
@@ -106,9 +112,9 @@ void dosgui_startmenu_handle_click(int x, int y) {
         tsm_open = 0;
 }
 
-void dosgui_startmenu_track_hover(int x, int y) { (void)x; (void)y; }
+__attribute__((weak)) void dosgui_startmenu_track_hover(int x, int y) { (void)x; (void)y; }
 
-void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
+__attribute__((weak)) void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     if (!tsm_open || !fb) return;
     int task_h = dosgui_taskbar_height();
     int mh = TSM_ITEM_H;
@@ -161,12 +167,36 @@ void dosgui_startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 }
 
-/* Stub for launch app */
-void dosgui_launch_app(const char *name) { (void)name; }
+/* Stub for launch app (weak: the real registry in dosgui_apps.c wins when
+ * a target links it, so a menu click actually opens an app). */
+__attribute__((weak)) void dosgui_launch_app(const char *name) { (void)name; }
+
+/* ---- Era-apps exec backends (weak) ---------------------------------------
+ * dosgui_era_apps.c is a pure registry: it only calls these when the user
+ * LAUNCHES an era app.  Render harnesses (desktop_shot) never launch, so a
+ * weak no-op satisfies the link; any target that links the real runtime
+ * (test_era_apps, gui_shot, the desktop) gets the strong definitions. */
+#include "wubu_exec.h"
+#include "wubu_dos_proc.h"
+__attribute__((weak)) WubuDosProc *wubu_dos_proc_launch(const char *dos_path, int fmt) {
+    (void)dos_path; (void)fmt; return NULL;
+}
+__attribute__((weak)) int64_t wubu_exec_win_pe(const void *pe_data, size_t pe_size) {
+    (void)pe_data; (void)pe_size; return -1;
+}
+__attribute__((weak)) int64_t wubu_exec_linux_elf(const void *elf_data, size_t elf_size) {
+    (void)elf_data; (void)elf_size; return -1;
+}
+__attribute__((weak)) int64_t wubu_exec_holyc(const char *source, size_t source_size) {
+    (void)source; (void)source_size; return -1;
+}
+__attribute__((weak)) int64_t wubu_exec_macho(const void *macho, size_t macho_size) {
+    (void)macho; (void)macho_size; return -1;
+}
 
 /* Stub for shutdown */
-void dosgui_shutdown(void) { }
-void dosgui_platform_shutdown(void) { }
+__attribute__((weak)) void dosgui_shutdown(void) { }
+__attribute__((weak)) void dosgui_platform_shutdown(void) { }
 
 /* Hosted-state getter (Play action): no hosted binary in the test harness,
  * so return NULL -- ctx_action_play treats NULL as "no launch". */
