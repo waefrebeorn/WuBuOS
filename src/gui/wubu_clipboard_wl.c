@@ -271,6 +271,17 @@ bool wubu_clipboard_set_data(ClipboardSelection selection,
         zwp_primary_selection_device_v1_set_selection(g_clipboard.primary_device, g_clipboard.current_primary_source, 0);
     }
     
+    /* Record text copies in the history ring (Win+V class). */
+    if (selection == CLIPBOARD_SELECTION_CLIPBOARD) {
+        for (int i = 0; i < count; i++) {
+            if (data[i].mime_type &&
+                strcmp(data[i].mime_type, CLIPBOARD_MIME_TEXT) == 0) {
+                clipboard_history_push((const char *)data[i].data);
+                break;
+            }
+        }
+    }
+
     if (g_clipboard.changed_cb) g_clipboard.changed_cb(selection);
     return true;
 }

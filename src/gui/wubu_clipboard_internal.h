@@ -9,6 +9,9 @@
 
 #define WUBU_CLIPBOARD_MAX_MIME_TYPES 8
 
+/* Clipboard history depth (Windows 11 keeps 25). */
+#define WUBU_CLIPBOARD_HISTORY_MAX 25
+
 #include "wubu_clipboard.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -26,6 +29,12 @@ typedef struct {
     size_t size;
 } ClipboardMimeEntry;
 
+/* One entry of the clipboard history ring (Win+V class). */
+typedef struct {
+    char *text;      /* owned; NULL when the slot is unused */
+    bool  pinned;    /* pinned entries survive wubu_clipboard_history_clear() */
+} ClipboardHistoryEntry;
+
 /* -- Clipboard internal state (shared by wubu_clipboard.c + wubu_clipboard_wl.c) -- */
 typedef struct {
     /* Primary selection (highlight/middle-click) */
@@ -35,6 +44,12 @@ typedef struct {
     /* Clipboard selection (Ctrl+C/V) */
     ClipboardMimeEntry clipboard_mimes[WUBU_CLIPBOARD_MAX_MIME_TYPES];
     int clipboard_mime_count;
+
+    /* Clipboard history: a ring of the most recent copied texts, most recent
+     * first.  Pinned entries survive wubu_clipboard_history_clear(). */
+    ClipboardHistoryEntry history[WUBU_CLIPBOARD_HISTORY_MAX];
+    int history_head;    /* index of the newest entry, -1 when empty */
+    int history_count;
 
     /* Wayland objects */
 #ifndef WUBU_CLIPBOARD_TEST_MODE
@@ -73,5 +88,9 @@ ClipboardMimeEntry *clipboard_get_mime(ClipboardMimeEntry *mimes, int count,
 /* -- Shared internal state (defined in wubu_clipboard.c) ----------- */
 extern ClipboardState g_clipboard;
 bool ex_clipboard_read_pipe(int fd, char **out_text, size_t *out_len, int timeout_ms);
+
+/* -- Clipboard history (shared by both clipboard modes) ----------- */
+/* Called by every wubu_clipboard_set_data() implementation. */
+void clipboard_history_push(const char *text);
 
 #endif /* WUBU_CLIPBOARD_INTERNAL_H */

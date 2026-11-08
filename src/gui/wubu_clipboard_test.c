@@ -5,6 +5,7 @@
 
 #define WUBU_CLIPBOARD_TEST_MODE 1
 #include "wubu_clipboard.h"
+#include "wubu_clipboard_internal.h"   /* WUBU_CLIPBOARD_HISTORY_MAX */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -312,6 +313,97 @@ int main(void) {
     }
     printf("  PASS: Primary multi-MIME round-trip (text + URI list)\n");
     free(uri_data);
+
+    /* Test 18: clipboard history records copies, newest first */
+    printf("\nTest 18: clipboard history records copies...\n");
+    wubu_clipboard_history_clear();
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, "first copy");
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, "second copy");
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, "third copy");
+    if (wubu_clipboard_history_count() != 3) {
+        printf("  FAIL: expected 3 history entries, got %d\n",
+               wubu_clipboard_history_count());
+        return 1;
+    }
+    if (strcmp(wubu_clipboard_history_get(0), "third copy") != 0 ||
+        strcmp(wubu_clipboard_history_get(1), "second copy") != 0 ||
+        strcmp(wubu_clipboard_history_get(2), "first copy") != 0) {
+        printf("  FAIL: history order is not newest-first\n");
+        return 1;
+    }
+    printf("  PASS: history holds 3 entries, newest first\n");
+
+    /* Test 19: an identical copy is not recorded twice */
+    printf("\nTest 19: duplicate copies are collapsed...\n");
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, "third copy");
+    if (wubu_clipboard_history_count() != 3) {
+        printf("  FAIL: duplicate copy added a 4th entry (%d)\n",
+               wubu_clipboard_history_count());
+        return 1;
+    }
+    printf("  PASS: re-copying the newest entry is a no-op\n");
+
+    /* Test 20: primary selection is NOT recorded (Win+V is clipboard-only) */
+    printf("\nTest 20: primary selection is excluded from history...\n");
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_PRIMARY, "highlighted");
+    if (wubu_clipboard_history_count() != 3) {
+        printf("  FAIL: primary selection leaked into history (%d)\n",
+               wubu_clipboard_history_count());
+        return 1;
+    }
+    printf("  PASS: primary selection does not enter the history\n");
+
+    /* Test 21: paste restores an older entry */
+    printf("\nTest 21: history paste restores an entry...\n");
+    if (!wubu_clipboard_history_paste(2)) {
+        printf("  FAIL: history paste returned false\n");
+        return 1;
+    }
+    char *pasted = NULL;
+    size_t plen = 0;
+    if (!wubu_clipboard_get_text(CLIPBOARD_SELECTION_CLIPBOARD, &pasted, &plen) ||
+        strcmp(pasted, "first copy") != 0) {
+        printf("  FAIL: pasted text mismatch\n");
+        free(pasted);
+        return 1;
+    }
+    free(pasted);
+    printf("  PASS: pasting entry 2 yields \"first copy\"\n");
+
+    /* Test 22: pinned entries survive history_clear */
+    printf("\nTest 22: pinned entries survive a clear...\n");
+    wubu_clipboard_history_clear();
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, "pin me");
+    wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, "drop me");
+    /* 0 = "drop me", 1 = "pin me" */
+    wubu_clipboard_history_set_pinned(1, true);
+    wubu_clipboard_history_clear();
+    if (wubu_clipboard_history_count() != 1) {
+        printf("  FAIL: clear left %d entries, expected 1 pinned\n",
+               wubu_clipboard_history_count());
+        return 1;
+    }
+    if (strcmp(wubu_clipboard_history_get(0), "pin me") != 0) {
+        printf("  FAIL: the surviving entry is not the pinned one\n");
+        return 1;
+    }
+    printf("  PASS: only the pinned entry survived the clear\n");
+
+    /* Test 23: a full ring never evicts a pinned entry */
+    printf("\nTest 23: ring overflow never evicts a pin...\n");
+    wubu_clipboard_history_clear();
+    wubu_clipboard_history_set_pinned(0, false);
+    for (int i = 0; i < WUBU_CLIPBOARD_HISTORY_MAX + 5; i++) {
+        char buf[32];
+        snprintf(buf, sizeof(buf), "flood %d", i);
+        wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, buf);
+    }
+    if (wubu_clipboard_history_count() > WUBU_CLIPBOARD_HISTORY_MAX) {
+        printf("  FAIL: history grew past its bound (%d)\n",
+               wubu_clipboard_history_count());
+        return 1;
+    }
+    printf("  PASS: history stayed within %d entries\n", WUBU_CLIPBOARD_HISTORY_MAX);
 
     printf("\n=== All tests passed! ===\n");
     return 0;

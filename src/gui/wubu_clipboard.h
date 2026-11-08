@@ -61,6 +61,18 @@ bool wubu_clipboard_set_data(ClipboardSelection selection,
 /* Clear clipboard */
 void wubu_clipboard_clear(ClipboardSelection selection);
 
+/* -- Clipboard History (Win+V class) -------------------------------
+ * A ring of the most recent copied texts, most recent first.  Pinned
+ * entries survive wubu_clipboard_history_clear().  Entries are recorded
+ * automatically by wubu_clipboard_set_text()/set_data() on the CLIPBOARD
+ * selection. */
+int         wubu_clipboard_history_count(void);
+const char *wubu_clipboard_history_get(int index);   /* 0 = most recent; NULL if out of range */
+bool        wubu_clipboard_history_is_pinned(int index);
+bool        wubu_clipboard_history_set_pinned(int index, bool pinned);
+bool        wubu_clipboard_history_paste(int index); /* copy an entry back into the clipboard */
+void        wubu_clipboard_history_clear(void);      /* drop unpinned entries */
+
 /* Wayland offer handling (call from Wayland data device callbacks) */
 void wubu_clipboard_handle_offer(void *offer);
 void wubu_clipboard_handle_data_source(void *source);

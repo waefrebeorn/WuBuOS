@@ -150,6 +150,11 @@ int wubu_clipboard_init(void *wl_seat) {
 void wubu_clipboard_shutdown(void) {
     clipboard_clear_mimes(g_clipboard.primary_mimes, &g_clipboard.primary_mime_count);
     clipboard_clear_mimes(g_clipboard.clipboard_mimes, &g_clipboard.clipboard_mime_count);
+    for (int i = 0; i < g_clipboard.history_count; i++) {
+        free(g_clipboard.history[i].text);
+        g_clipboard.history[i].text = NULL;
+    }
+    g_clipboard.history_count = 0;
 }
 
 bool wubu_clipboard_has_data(ClipboardSelection selection) {
@@ -239,6 +244,17 @@ bool wubu_clipboard_set_data(ClipboardSelection selection,
         }
     }
     
+    /* Record text copies in the history ring (Win+V class). */
+    if (selection == CLIPBOARD_SELECTION_CLIPBOARD) {
+        for (int i = 0; i < count; i++) {
+            if (data[i].mime_type &&
+                strcmp(data[i].mime_type, CLIPBOARD_MIME_TEXT) == 0) {
+                clipboard_history_push((const char *)data[i].data);
+                break;
+            }
+        }
+    }
+
     if (g_clipboard.changed_cb) g_clipboard.changed_cb(selection);
     return true;
 }
@@ -265,6 +281,74 @@ void wubu_clipboard_handle_primary_source(void *source) { (void)source; }
 void wubu_clipboard_handle_dnd_action(uint32_t action) { (void)action; }
 
 #endif /* WUBU_CLIPBOARD_TEST_MODE */
+
+/* -- Clipboard History (shared by both clipboard modes) ------------ */
+
+/* Record a text copy.  Newest entry lives at index 0; a copy identical to
+ * the newest entry is ignored, and a full ring never evicts a pinned entry. */
+void clipboard_history_push(const char *text) {
+    if (!text || text[0] == '\0') return;
+
+    if (g_clipboard.history_count > 0 &&
+        g_clipboard.history[0].text &&
+        strcmp(g_clipboard.history[0].text, text) == 0) return;
+
+    if (g_clipboard.history_count >= WUBU_CLIPBOARD_HISTORY_MAX) {
+        int last = g_clipboard.history_count - 1;
+        if (g_clipboard.history[last].pinned) return;   /* pins are never evicted */
+        free(g_clipboard.history[last].text);
+        g_clipboard.history[last].text = NULL;
+        g_clipboard.history_count--;
+    }
+
+    for (int i = g_clipboard.history_count; i > 0; i--)
+        g_clipboard.history[i] = g_clipboard.history[i - 1];
+
+    g_clipboard.history[0].text = wubu_strdup_safe(text);
+    g_clipboard.history[0].pinned = false;
+    g_clipboard.history_count++;
+}
+
+int wubu_clipboard_history_count(void) {
+    return g_clipboard.history_count;
+}
+
+const char *wubu_clipboard_history_get(int index) {
+    if (index < 0 || index >= g_clipboard.history_count) return NULL;
+    return g_clipboard.history[index].text;
+}
+
+bool wubu_clipboard_history_is_pinned(int index) {
+    if (index < 0 || index >= g_clipboard.history_count) return false;
+    return g_clipboard.history[index].pinned;
+}
+
+bool wubu_clipboard_history_set_pinned(int index, bool pinned) {
+    if (index < 0 || index >= g_clipboard.history_count) return false;
+    g_clipboard.history[index].pinned = pinned;
+    return true;
+}
+
+bool wubu_clipboard_history_paste(int index) {
+    const char *t = wubu_clipboard_history_get(index);
+    if (!t) return false;
+    return wubu_clipboard_set_text(CLIPBOARD_SELECTION_CLIPBOARD, t);
+}
+
+void wubu_clipboard_history_clear(void) {
+    /* Drop unpinned entries, keeping the pinned ones in order. */
+    int w = 0;
+    for (int i = 0; i < g_clipboard.history_count; i++) {
+        ClipboardHistoryEntry *e = &g_clipboard.history[i];
+        if (e->pinned) {
+            g_clipboard.history[w++] = *e;
+        } else {
+            free(e->text);
+            e->text = NULL;
+        }
+    }
+    g_clipboard.history_count = w;
+}
 
 /* -- Callbacks ---------------------------------------------------- */
 
