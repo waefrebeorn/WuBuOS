@@ -1093,6 +1093,32 @@ static void test_quick_settings_panel(void) {
     PASS();
 }
 
+
+static void test_screensaver(void) {
+    TEST("the screen saver engages after the idle timeout and wakes on input");
+    wubu_screensaver_set_timeout_ms(100);
+    wubu_screensaver_activity();
+    CHECK(!wubu_screensaver_active(), "not active right after activity");
+
+    wubu_screensaver_tick(60);
+    CHECK(!wubu_screensaver_active(), "still not active under the timeout");
+    wubu_screensaver_tick(60);
+    CHECK(wubu_screensaver_active(), "engaged once the timeout elapsed");
+
+    dosgui_wm_init(1024, 768);
+    dosgui_wm_handle_key(0x1E, 0);                     /* any key */
+    CHECK(!wubu_screensaver_active(), "a keypress woke the saver");
+
+    wubu_screensaver_tick(200);
+    CHECK(wubu_screensaver_active(), "re-engages after another idle period");
+
+    dosgui_wm_handle_mouse(10, 10, 1, 1);
+    CHECK(!wubu_screensaver_active(), "a mouse move woke the saver");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1124,6 +1150,7 @@ int main(void) {
     test_add_desktop_and_overview();
     test_osd_levels_and_hotkey();
     test_quick_settings_panel();
+    test_screensaver();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();

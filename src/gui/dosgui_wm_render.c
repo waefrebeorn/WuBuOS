@@ -19,6 +19,7 @@
 #include "dosgui_wm.h"
 #include "dosgui_wm_internal.h"
 #include "shell/wubu_osd.h"
+#include "shell/wubu_screensaver.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
@@ -182,6 +183,10 @@ void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) {
 
     /* Win+Tab desktop overview sits above everything except the cursor. */
     dosgui_wm_overview_render(fb, fb_w, fb_h);
+
+    /* Idle screen saver sits above everything except the cursor. */
+    wubu_screensaver_tick(33);            /* ~30 fps frame budget */
+    wubu_screensaver_render(fb, fb_w, fb_h);
 
     /* Win+A quick settings, then the system OSD (volume / brightness). */
     dosgui_quick_settings_render(fb, fb_w, fb_h);

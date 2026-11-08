@@ -16,6 +16,7 @@
 #include "dosgui_wm_internal.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
+#include "shell/wubu_screensaver.h"
 #include "shell/dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
@@ -51,6 +52,7 @@ static int hit_test_edge(DosGuiWindow *w, int x, int y) {
 }
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
+    wubu_screensaver_activity();
     /* P0 a11y: when the cluster is enabled and a window is focused, give
      * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
      * activate). Otherwise arrow keys fall through to normal WM nav. */
@@ -211,6 +213,7 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
 }
 
 void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
+    wubu_screensaver_activity();
     g_dwm.mouse_x = x;
     g_dwm.mouse_y = y;
 
