@@ -138,6 +138,12 @@ void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {
         }
     }
 
+    /* Win+D: show the desktop (minimize all, or restore when all are down). */
+    if ((mods & MOD_WIN) && (key == 0x20 || key == 'd' || key == 'D')) {
+        dosgui_wm_show_desktop();
+        return;
+    }
+
     /* Win+Arrow: Snap Layouts (keyboard).  Left/Right = half screen,
      * Up = maximize, Down = right half. */
     if ((mods & MOD_WIN) && g_dwm.focused_id >= 0) {

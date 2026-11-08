@@ -981,6 +981,27 @@ static void test_modifier_bits_match_input_h(void) {
     PASS();
 }
 
+
+static void test_show_desktop_hotkey(void) {
+    TEST("Win+D minimizes every window and restores them");
+    dosgui_wm_init(1024, 768);
+    DosGuiWindow *a = dosgui_wm_create(10, 20, 200, 150, "A");
+    DosGuiWindow *b = dosgui_wm_create(400, 20, 200, 150, "B");
+    CHECK(a && b, "two windows");
+    if (!a || !b) { dosgui_wm_shutdown(); return; }
+
+    dosgui_wm_handle_key(0x20, MOD_WIN);       /* Win+D */
+    CHECK((a->flags & DOSGUI_WIN_MINIMIZED) && (b->flags & DOSGUI_WIN_MINIMIZED),
+          "both windows minimized");
+
+    dosgui_wm_handle_key(0x20, MOD_WIN);       /* Win+D again */
+    CHECK(!(a->flags & DOSGUI_WIN_MINIMIZED) && !(b->flags & DOSGUI_WIN_MINIMIZED),
+          "both windows restored");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1008,6 +1029,7 @@ int main(void) {
     test_snap_zones();
     test_win_arrow_hotkey();
     test_modifier_bits_match_input_h();
+    test_show_desktop_hotkey();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();

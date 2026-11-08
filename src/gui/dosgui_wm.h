@@ -92,6 +92,7 @@ void           dosgui_wm_resize(DosGuiWindow *win, int w, int h);
 void           dosgui_wm_move(DosGuiWindow *win, int x, int y);
 void           dosgui_wm_maximize(DosGuiWindow *win);
 void           dosgui_wm_minimize(DosGuiWindow *win);
+void           dosgui_wm_show_desktop(void);   /* Win+D: minimize all / restore */
 void           dosgui_wm_restore(DosGuiWindow *win);
 bool           dosgui_wm_is_maximized(DosGuiWindow *win);
 bool           dosgui_wm_is_minimized(DosGuiWindow *win);

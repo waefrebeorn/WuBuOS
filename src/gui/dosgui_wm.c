@@ -134,6 +134,30 @@ void dosgui_wm_shutdown(void) {
     memset(&g_dwm, 0, sizeof(g_dwm));
 }
 
+/* Win+D: show the desktop.  Minimizes every window; if they are all already
+ * minimized, restores them. */
+void dosgui_wm_show_desktop(void) {
+    int total = 0, minimized = 0;
+    for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
+        if (!g_dwm.windows[i].alive) continue;
+        total++;
+        if (g_dwm.windows[i].flags & DOSGUI_WIN_MINIMIZED) minimized++;
+    }
+    if (total == 0) return;
+
+    if (minimized == total) {
+        for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
+            DosGuiWindow *w = &g_dwm.windows[i];
+            if (w->alive) w->flags &= ~DOSGUI_WIN_MINIMIZED;
+        }
+    } else {
+        for (int i = 0; i < DOSGUI_MAX_WINDOWS; i++) {
+            DosGuiWindow *w = &g_dwm.windows[i];
+            if (w->alive) w->flags |= DOSGUI_WIN_MINIMIZED;
+        }
+    }
+}
+
 /* ================================================================
  * PLATFORM LIFECYCLE HOOKS
  * The hosted binary (src/hosted/hosted.c) provides the real
