@@ -65,7 +65,7 @@ int main(void) {
     /* Find by scanning the registry names instead (robust). */
     const char *names[7] = {
         "CP/M :: STAT", "DOS :: HELLO", "Mac :: About",
-        "Win32 :: Era Demo", "macOS :: Era Demo", "Linux :: Era Demo", "HolyC :: Era Demo"
+        "Win32 :: Halo PC", "macOS :: Halo Mac", "Linux :: Quake 3", "HolyC :: Era Demo"
     };
     int idx[7];
     for (int i = 0; i < 7; i++) idx[i] = -1;
@@ -103,8 +103,8 @@ int main(void) {
     CHECK(rc_mac == -1, "Classic Mac era app reports gap (no 68000 emulator) -> -1");
 
     /* --- launch-by-name fallback path (desktop click handler uses this) --- */
-    CHECK(dosgui_era_apps_launch_by_name("Linux :: Era Demo") == 0,
-          "launch_by_name('Linux :: Era Demo') works");
+    CHECK(dosgui_era_apps_launch_by_name("Linux :: Quake 3") == 0,
+          "launch_by_name('Linux :: Quake 3') works");
 
     printf("\n%s era-apps launcher tests\n", g_fail == 0 ? "ALL PASSED" : "SOME FAILED");
     return g_fail == 0 ? 0 : 1;

@@ -90,7 +90,7 @@ char *wubu_wine_setup_prefix(const char *prefix_override) {
         mkdir(prefix_path, 0755);
     }
 
-    /* Initialize Wine prefix if needed (WINEARCH=win32 for compatibility) */
+    /* Initialize Wine prefix if needed (WINEARCH matches wow64 build) */
     char prefix_env[1024];
     snprintf(prefix_env, sizeof(prefix_env), "WINEPREFIX=%s", prefix_path);
 
@@ -113,8 +113,9 @@ int wubu_wine_configure_env(WubuCt *ct, const char *wine_prefix) {
     snprintf(buf, sizeof(buf), "WINEPREFIX=%s", wine_prefix);
     if (wubu_ct_add_env(ct, buf) != 0) return -1;
 
-    /* Wine architecture (win32 for best game compat) */
-    if (wubu_ct_add_env(ct, "WINEARCH=win32") != 0) return -1;
+    /* Wine architecture. The bundled wow64 wine build has no wine32
+     * prefix support, so win64 matches both the prefix and the PE. */
+    if (wubu_ct_add_env(ct, "WINEARCH=win64") != 0) return -1;
 
     /* Vulkan ICD selection (auto-detected by kernel based on GPU platform).
      * On WSL2: selects dzn_icd.json + GALLIUM_DRIVER=d3d12 for /dev/dxg.

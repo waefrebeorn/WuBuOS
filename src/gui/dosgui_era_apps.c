@@ -76,11 +76,11 @@ static const struct {
      *         embedded CAB by the kernel CAB/LZX decoder. */
     { "Win32 :: Halo PC",    "demos/era/halo_pc/halo.exe", "Era: Win32 1993",
       ERA_PERSONA_NT, true },
-    /* 2001 -- macOS XNU (Mach-O via darling; render leg proven).
-     *         Halo Mac demo: universal Mach-O (PPC+x86) extracted from
-     *         the DMG's PKG payload (cpio+gzip -> kernel DEFLATE). */
+    /* 2001 -- macOS XNU (Mach-O via darling; render leg proven). Hosted
+     * runtime has no darling, so this is a runnable-gap on the host (the
+     * launcher reports -1, matching CP/M and Classic Mac). */
     { "macOS :: Halo Mac",    "demos/era/halo_mac/halo", "Era: macOS XNU 2001",
-      ERA_PERSONA_XNU, true },
+      ERA_PERSONA_XNU, false },
     /* 2007 -- Linux native ELF (runs via wubu_exec_linux_elf).
      *         Quake 3 (OpenArena): ELF/x86_64. */
     { "Linux :: Quake 3",    "demos/era/quake3/quake3_linux.x86_64", "Era: Linux 2007",

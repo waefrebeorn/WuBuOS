@@ -68,6 +68,13 @@ $(WS)/%.o: $(WS)/%.c
 $(COMP)/%.o: $(COMP)/%.c
 	$(CC) $(CFLAGS) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
+$(COMP)/jit/%.o: $(COMP)/jit/%.c
+	$(CC) $(CFLAGS) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
+
+# tgemm AVX-512 kernel needs -mavx512; object is linked but dispatch guards runtime
+$(COMP)/wubu_tgemm_avx512.o: $(COMP)/wubu_tgemm_avx512.c
+	$(CC) $(CFLAGS) -mavx512f -mavx512dq -c -o $@ $<
+
 # VSL submodule objects
 $(RT)/vsl/%.o: $(RT)/vsl/%.c
 	$(CC) $(CFLAGS) -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@

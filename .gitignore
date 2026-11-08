@@ -158,3 +158,6 @@ src/jit/jit_fuzzer
 src/runtime/tests/test_colonel
 src/runtime/tests/test_hwdetect
 src/runtime/wubu_dos_emu_smoke
+
+# era-apps test host-effect markers (generated at test time)
+WUBU_ERA_*.OK
