@@ -15,7 +15,7 @@
 
 #include "dosgui_apps.h"
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_window_chrome.h"
+#include "../gui/shell/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "wubu_canvas.h"

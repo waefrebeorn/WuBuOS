@@ -38,7 +38,7 @@
 #  endif
 #endif
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_holyc_term.h"
+#include "shell/dosgui_wm_holyc_term.h"
 
 #include <string.h>
 #include <stdio.h>

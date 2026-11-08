@@ -16,11 +16,11 @@
  * gradient_title, rounded_buttons, etc.)
  */
 
-#include "dosgui_wm.h"
-#include "dosgui_wm_internal.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
-#include "wubu_tokens.h"   /* unified design tokens (CLI + GUI cohesion) */
+#include "../dosgui_wm.h"
+#include "../dosgui_wm_internal.h"
+#include "../../kernel/vbe.h"
+#include "../../gui/wubu_theme.h"
+#include "../wubu_tokens.h"   /* unified design tokens (CLI + GUI cohesion) */
 #include <string.h>
 
 /* -- Chrome constants ----------------------------------------------- */

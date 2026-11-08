@@ -7,17 +7,17 @@
  * NOTE: g_holyc_terms[] is defined as a static global in dosgui_wm.c.
  * This module provides the helper functions that operate on it.
  *
- * Evaluation is dependency-injected (see dosgui_wm_holyc_term.h). The default
+ * Evaluation is dependency-injected (see ./dosgui_wm_holyc_term.h). The default
  * evaluator is a direct, self-contained JIT compile+run via the public HolyC
  * compiler API. The hosted binary injects the richer wubu_holyc_agi path
  * (holyd daemon + EDR disclosure) at the composition root, so this module
  * stays decoupled from the runtime AGI/EDR layer.
  */
 
-#include "dosgui_wm_internal.h"
-#include "dosgui_wm_holyc_term.h"
+#include "../dosgui_wm_internal.h"
+#include "./dosgui_wm_holyc_term.h"
 
-#include "holyd_codegen.h"   /* public compiler API: hd_eval */
+#include "../../compiler/holyd_codegen.h"   /* public compiler API: hd_eval */
 
 #include <stdlib.h>
 #include <string.h>

@@ -22,7 +22,7 @@
 
 /* -- Includes ------------------------------------------------------ */
 #include "dosgui_wm_internal.h"
-#include "wubu_wallpaper.h"
+#include "shell/wubu_wallpaper.h"
 #include "wubu_bonzi.h"
 
 #include <sys/stat.h>

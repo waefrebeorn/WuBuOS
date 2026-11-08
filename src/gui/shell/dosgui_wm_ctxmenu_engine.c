@@ -5,10 +5,10 @@
  * context-menu stack, lifecycle (create/add/show/hide), mouse dispatch,
  * and themed rendering. Purely mechanical; knows nothing about the desktop
  * or icon actions that call into it. Depends only on the shared WM state
- * (dosgui_wm_internal.h) and the VBE/theme primitives.
+ * (../dosgui_wm_internal.h) and the VBE/theme primitives.
  */
 
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm_internal.h"
 
 /* Global context menu stack */
 DosGuiContextMenu *g_dosgui_ctx_stack = NULL;

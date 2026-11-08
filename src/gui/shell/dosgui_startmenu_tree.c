@@ -1,11 +1,11 @@
 /* dosgui_startmenu_tree.c -- Start menu program-tree (All Programs).
  *
  * Self-contained subsystem extracted from dosgui_startmenu.c. Operates on the
- * shared g_tree_* state (extern in dosgui_startmenu_internal.h). Minimal includes.
+ * shared g_tree_* state (extern in ./dosgui_startmenu_internal.h). Minimal includes.
  */
 
-#include "wubu_theme.h"
-#include "dosgui_startmenu_internal.h"
+#include "../wubu_theme.h"
+#include "./dosgui_startmenu_internal.h"
 #include <stdlib.h>
 #include <string.h>
 

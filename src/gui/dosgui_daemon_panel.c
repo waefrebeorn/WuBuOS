@@ -18,8 +18,8 @@
 
 #include "dosgui_daemon_panel.h"
 #include "dosgui_wm.h"
-#include "dosgui_desktop.h"
-#include "wubu_notify.h"
+#include "shell/dosgui_desktop.h"
+#include "shell/wubu_notify.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include "../runtime/wubu_archd.h"

@@ -17,8 +17,8 @@
  * wubu_world_snapshot; the test injects a fake).
  * C11.
  */
-#include "dosgui_wm.h"
-#include "wubu_world.h"
+#include "../dosgui_wm.h"
+#include "../../kernel/wubu_world.h"
 
 #include <stdio.h>
 #include <string.h>

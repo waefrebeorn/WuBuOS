@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include "wubu_notify.h"
+#include "shell/wubu_notify.h"
 
 #ifndef DOSGUI_SVC_AUTOSTART_CONF
 #define DOSGUI_SVC_AUTOSTART_CONF "/etc/wubu/archd-autostart.conf"

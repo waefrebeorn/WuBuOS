@@ -2,7 +2,7 @@
  * dosgui_startmenu_test.c  --  WuBuOS DosGui Start Menu Test Suite (Cell 402)
  */
 
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>

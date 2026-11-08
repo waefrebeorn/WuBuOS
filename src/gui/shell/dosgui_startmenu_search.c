@@ -2,11 +2,11 @@
  *
  * Self-contained subsystem extracted from dosgui_startmenu.c. Operates on the
  * shared g_search / g_recent / g_program_db state (declared extern in
- * dosgui_startmenu_internal.h). Minimal includes.
+ * ./dosgui_startmenu_internal.h). Minimal includes.
  */
 
-#include "wubu_theme.h"
-#include "dosgui_startmenu_internal.h"
+#include "../wubu_theme.h"
+#include "./dosgui_startmenu_internal.h"
 #include <stdlib.h>
 #include <string.h>
 

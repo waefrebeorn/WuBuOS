@@ -10,21 +10,21 @@
  * XP-style: Luna Start orb, sidebar, hover highlighting, rounded items
  */
 
-#include "dosgui_startmenu_internal.h"
-#include "dosgui_startmenu.h"
-#include "dosgui_era_apps.h"
-#include "dosgui_desktop.h"
-#include "dosgui_wm.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
-#include "../gui/wubu_mime.h"
-#include "../gui/wubu_bonzi.h"
+#include "./dosgui_startmenu_internal.h"
+#include "./dosgui_startmenu.h"
+#include "../dosgui_era_apps.h"
+#include "./dosgui_desktop.h"
+#include "../dosgui_wm.h"
+#include "../../kernel/vbe.h"
+#include "../../gui/wubu_theme.h"
+#include "../../gui/wubu_mime.h"
+#include "../../gui/wubu_bonzi.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <time.h>
 #include <dirent.h>
-#include "wubu_ftw.h"
+#include "../../runtime/wubu_ftw.h"
 #include <sys/stat.h>
 
 /* -- Inline Layout Helpers ------------------------------------------ */

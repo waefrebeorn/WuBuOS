@@ -3,9 +3,9 @@
  * Self-contained module extracted from dosgui_wm.c. Owns the icon grid
  * snapping math, auto-arrange / sort / refresh of desktop icons, and real
  * ~/.desktop shortcut creation. Uses the shared g_dwm state and theme engine
- * via dosgui_wm_internal.h -- no god headers, no reach into wm.c internals.
+ * via ../dosgui_wm_internal.h -- no god headers, no reach into wm.c internals.
  *
- * Public API (declared in dosgui_wm_internal.h):
+ * Public API (declared in ../dosgui_wm_internal.h):
  *   icon_grid_x / icon_grid_y / snap_icon_to_grid / reflow_all_icons_column /
  *   dosgui_wm_set_auto_arrange / dosgui_wm_get_auto_arrange /
  *   dosgui_wm_write_desktop_shortcut / dosgui_wm_sort_icons_by_name /
@@ -13,7 +13,7 @@
  * Private helpers (static, used only here): reflow_icons_column, desktop_dir_path.
  */
 
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm_internal.h"
 #include <stdlib.h>     /* qsort */
 #include <fcntl.h>      /* O_CREAT / O_EXCL / O_WRONLY */
 #include <sys/stat.h>

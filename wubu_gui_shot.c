@@ -20,7 +20,7 @@
 #include "src/kernel/memory.h"
 #include "src/kernel/input.h"
 #include "src/gui/dosgui_wm.h"
-#include "src/gui/dosgui_desktop.h"
+#include "src/gui/shell/dosgui_desktop.h"
 #include "src/gui/wubu_theme.h"
 #include "src/apps/dosgui_apps.h"
 #include "src/tools/screenshot.h"

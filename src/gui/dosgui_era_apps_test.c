@@ -14,7 +14,7 @@
  */
 
 #include "dosgui_era_apps.h"
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -5,11 +5,11 @@
 
 #define _POSIX_C_SOURCE 200809L
 
-#include "wubu_notify.h"
-#include "wubu_settings.h"
-#include "dosgui_wm.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
+#include "./wubu_notify.h"
+#include "../wubu_settings.h"
+#include "../dosgui_wm.h"
+#include "../../kernel/vbe.h"
+#include "../../gui/wubu_theme.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

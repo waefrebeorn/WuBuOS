@@ -6,10 +6,10 @@
  *   2. the clock's OWN popup menu (Win98 parity): clicking the clock well
  *      opens a raised panel showing the full date, HH:MM:SS time, and a
  *      mini month calendar with today highlighted.
- * Depends only on the shared WM state (dosgui_wm_internal.h).
+ * Depends only on the shared WM state (../dosgui_wm_internal.h).
  */
 
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm_internal.h"
 
 #include <time.h>
 #include <stdio.h>

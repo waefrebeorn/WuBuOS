@@ -1,13 +1,13 @@
 /* dosgui_startmenu_internal.h -- Start menu internal header.
  * Shared globals + search/tree sub-module API. Public API + types in
- * dosgui_startmenu.h. Globals are defined once in dosgui_startmenu.c.
+ * ./dosgui_startmenu.h. Globals are defined once in dosgui_startmenu.c.
  */
 
 #ifndef DOSGUI_STARTMENU_INTERNAL_H
 #define DOSGUI_STARTMENU_INTERNAL_H
 
-#include "dosgui_startmenu.h"
-#include "wubu_theme.h"
+#include "./dosgui_startmenu.h"
+#include "../wubu_theme.h"
 
 /* -- Shared state (defined in dosgui_startmenu.c) ------------------ */
 extern int g_open;

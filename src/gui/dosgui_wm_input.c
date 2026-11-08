@@ -14,7 +14,7 @@
  */
 
 #include "dosgui_wm_internal.h"
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"

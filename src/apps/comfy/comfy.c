@@ -16,7 +16,7 @@
 #include "comfy.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_wm_internal.h"
-#include "../gui/dosgui_window_chrome.h"   /* centralized chrome (ADR-001) */
+#include "../../gui/shell/dosgui_window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"

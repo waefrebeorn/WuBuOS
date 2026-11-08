@@ -2,7 +2,7 @@
  * dosgui_startmenu_test_stub.c  --  Stubs for dosgui_startmenu_test without desktop integration
  */
 
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 #include "wubu_theme.h"
 #include "wubu_mime.h"
 #include "wubu_host_exec.h"

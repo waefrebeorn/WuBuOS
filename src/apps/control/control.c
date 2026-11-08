@@ -5,7 +5,7 @@
 #include "control.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/dosgui_wm_internal.h"
-#include "../gui/dosgui_window_chrome.h"
+#include "../../gui/shell/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"

@@ -1,12 +1,12 @@
 /* dosgui_wm_taskbar.c -- Taskbar render + geometry.
  *
  * Self-contained: renders the taskbar (Start button, window buttons, clock,
- * systray) using the shared g_dwm state (extern in dosgui_wm_internal.h) and
+ * systray) using the shared g_dwm state (extern in ../dosgui_wm_internal.h) and
  * the public vbe_* and theme APIs. Clock strings come from dosgui_taskbar_* (declared
  * in dosgui_wm.h). Minimal includes.
  */
 
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm_internal.h"
 #include <time.h>
 
 /* -- Taskbar ----------------------------------------------------- */

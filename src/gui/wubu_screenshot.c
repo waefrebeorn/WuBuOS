@@ -2,7 +2,7 @@
 #include "wubu_screenshot_internal.h"
 #include "dosgui_wm.h"
 #include "wubu_theme.h"
-#include "wubu_notify.h"
+#include "shell/wubu_notify.h"
 #include "../hosted/hosted.h"
 #include <stdio.h>
 #include <stdlib.h>

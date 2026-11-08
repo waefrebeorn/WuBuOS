@@ -1,11 +1,11 @@
 /* dosgui_startmenu_power.c -- Power options subsystem for the Start menu.
  *
  * Self-contained: power action handling (shutdown/restart/logoff/sleep) and
- * the power-options render. Uses g_open (extern in dosgui_startmenu_internal.h)
+ * the power-options render. Uses g_open (extern in ./dosgui_startmenu_internal.h)
  * and the public dosgui_shutdown()/dosgui_startmenu_close() API. Minimal includes.
  */
 
-#include "dosgui_startmenu_internal.h"
+#include "./dosgui_startmenu_internal.h"
 #include <stdio.h>
 
 void dosgui_startmenu_power(PowerAction action) {

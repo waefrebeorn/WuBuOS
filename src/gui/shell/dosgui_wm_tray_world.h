@@ -5,7 +5,7 @@
 #define WUBU_DOSGUI_WM_TRAY_WORLD_H
 
 #include <stdint.h>
-#include "wubu_world.h"
+#include "../../kernel/wubu_world.h"
 
 /* the world snapshot provider (injectable) */
 typedef const wubu_world_t *(*WorldSnapFn)(void);

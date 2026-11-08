@@ -8,7 +8,7 @@
  * No stubs, no system(), no external image libs.
  */
 
-#include "wubu_wallpaper.h"
+#include "./wubu_wallpaper.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

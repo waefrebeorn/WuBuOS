@@ -14,11 +14,11 @@
 
 #include "../kernel/vbe.h"
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_desktop.h"
-#include "../gui/dosgui_startmenu.h"
+#include "../gui/shell/dosgui_desktop.h"
+#include "../gui/shell/dosgui_startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_clipboard.h"
-#include "../gui/wubu_notify.h"
+#include "../gui/shell/wubu_notify.h"
 #include "../gui/wubu_session.h"
 #include "../gui/wubu_settings.h"
 

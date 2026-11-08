@@ -11,8 +11,8 @@
  * colors via tc().  No god-header reach-through.
  */
 
-#include "dosgui_wm.h"
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm.h"
+#include "../dosgui_wm_internal.h"
 
 #include <stdint.h>
 #include <string.h>

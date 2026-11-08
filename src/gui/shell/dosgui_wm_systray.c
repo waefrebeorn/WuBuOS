@@ -4,7 +4,7 @@
  * Extracted from dosgui_wm.c for modularity.
  */
 
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm_internal.h"
 
 /* ================================================================
  * SYSTEM TRAY / NOTIFICATION AREA

@@ -7,7 +7,7 @@
 #include "holyd.h"
 #include "../gui/dosgui_wm.h"
 #include "../gui/compositor/gui_dbuf.h"
-#include "../gui/dosgui_window_chrome.h"
+#include "../gui/shell/dosgui_window_chrome.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
 #include <string.h>

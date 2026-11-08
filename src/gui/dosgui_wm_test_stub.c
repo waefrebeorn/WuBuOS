@@ -14,7 +14,7 @@
  */
 
 #include "dosgui_wm.h"
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 #include "wubu_theme.h"
 #include "wubu_bonzi.h"
 #include "../hosted/hosted.h"

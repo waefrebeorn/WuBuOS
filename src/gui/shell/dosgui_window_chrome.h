@@ -2,14 +2,14 @@
  * dosgui_window_chrome.h  --  Standardized Window Chrome API
  *
  * Centralized window decoration drawing for consistent WuBuOS apps.
- * Note: ChromeButton enum and core chrome functions are declared in dosgui_wm.h
+ * Note: ChromeButton enum and core chrome functions are declared in ../dosgui_wm.h
  * This file only declares the supplementary chrome drawing helpers.
  */
 
 #ifndef WUBU_DOSGUI_WINDOW_CHROME_H
 #define WUBU_DOSGUI_WINDOW_CHROME_H
 
-#include "dosgui_wm.h"
+#include "../dosgui_wm.h"
 
 /* -- Standardized button drawing ------------------------------------ */
 

@@ -11,8 +11,8 @@
  * live in their own self-contained modules (C11 opaque-safe, no god headers).
  */
 
-#include "dosgui_wm_internal.h"
-#include "wubu_trash.h"
+#include "../dosgui_wm_internal.h"
+#include "../wubu_trash.h"
 
 #include <stdio.h>
 #include <string.h>

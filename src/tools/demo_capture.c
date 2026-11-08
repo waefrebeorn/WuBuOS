@@ -4,12 +4,12 @@
  */
 
 #include "src/apps/dosgui_apps.h"
-#include "src/gui/dosgui_startmenu.h"
+#include "../gui/shell/dosgui_startmenu.h"
 #include "src/kernel/vbe.h"
 #include "src/kernel/memory.h"
 #include "src/kernel/input.h"
 #include "src/gui/dosgui_wm.h"
-#include "src/gui/dosgui_desktop.h"
+#include "../gui/shell/dosgui_desktop.h"
 #include "src/gui/wubu_theme.h"
 #include "src/tools/screenshot.h"
 #include <stdlib.h>

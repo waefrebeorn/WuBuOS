@@ -16,8 +16,8 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_desktop.h"
-#include "../gui/dosgui_startmenu.h"
+#include "../gui/shell/dosgui_desktop.h"
+#include "../gui/shell/dosgui_startmenu.h"
 
 #include <stdio.h>
 

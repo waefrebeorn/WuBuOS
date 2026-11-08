@@ -14,8 +14,8 @@
 
 #include "dosgui_apps.h"
 #include "wubu_settings.h"
-#include "wubu_notify.h"
-#include "wubu_wallpaper.h"
+#include "../gui/shell/wubu_notify.h"
+#include "../gui/shell/wubu_wallpaper.h"
 #include "wubu_compat_db.h"
 #include <stdint.h>
 #include <stddef.h>

@@ -7,22 +7,22 @@
  * Full theme engine integration (Win98, XP Luna, XP Media, WuBu).
  */
 
-#include "dosgui_desktop.h"
-#include "dosgui_wm.h"
-#include "dosgui_daemon_panel.h"
-#include "wubu_trash.h"
-#include "wubu_settings.h"
-#include "dosgui_startmenu.h"
-#include "dosgui_service_mgr.h"
-#include "wubu_notify.h"
-#include "wubu_session_mgr.h"
-#include "wubu_deskenv.h"
-#include "../apps/dosgui_apps.h"
-#include "dosgui_era_apps.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
-#include "dosgui_wm.h"
-#include "../hosted/hosted.h"
+#include "./dosgui_desktop.h"
+#include "../dosgui_wm.h"
+#include "../dosgui_daemon_panel.h"
+#include "../wubu_trash.h"
+#include "../wubu_settings.h"
+#include "./dosgui_startmenu.h"
+#include "../dosgui_service_mgr.h"
+#include "./wubu_notify.h"
+#include "../../runtime/wubu_session_mgr.h"
+#include "../../runtime/wubu_deskenv.h"
+#include "../../apps/dosgui_apps.h"
+#include "../dosgui_era_apps.h"
+#include "../../kernel/vbe.h"
+#include "../../gui/wubu_theme.h"
+#include "../dosgui_wm.h"
+#include "../../hosted/hosted.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>

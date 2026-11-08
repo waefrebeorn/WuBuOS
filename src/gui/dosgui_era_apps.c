@@ -23,9 +23,9 @@
  * C11, self-contained; depends only on dosgui_startmenu.h + wubu_exec.h.
  */
 
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 #include "dosgui_era_apps.h"
-#include "dosgui_startmenu_internal.h"   /* declares extern SmProgramDB g_program_db */
+#include "shell/dosgui_startmenu_internal.h"   /* declares extern SmProgramDB g_program_db */
 #include "wubu_exec.h"                    /* wubu_exec_linux_elf / win_pe / holyc */
 #include "wubu_dos_proc.h"               /* wubu_dos_proc_launch */
 #include "wubu_container.h"              /* WUBU_PAYLOAD_DOS_COM */

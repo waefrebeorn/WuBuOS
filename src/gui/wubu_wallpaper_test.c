@@ -6,7 +6,7 @@
  * ReactOS placement rects. Mirrors the project's test style (PASS/FAIL).
  */
 
-#include "wubu_wallpaper.h"
+#include "shell/wubu_wallpaper.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

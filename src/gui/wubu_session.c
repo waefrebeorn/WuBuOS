@@ -7,7 +7,7 @@
 #include "wubu_session.h"
 #include "wubu_settings.h"
 #include "dosgui_wm.h"
-#include "dosgui_startmenu.h"
+#include "shell/dosgui_startmenu.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>

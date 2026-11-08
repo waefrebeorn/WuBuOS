@@ -11,13 +11,13 @@
  * wubu_theme, wubu_mime, and libc.  No GUI render/input code lives here.
  */
 
-#include "dosgui_startmenu_internal.h"
-#include "dosgui_startmenu.h"
-#include "dosgui_desktop.h"
-#include "dosgui_wm.h"
-#include "../kernel/vbe.h"
-#include "../gui/wubu_theme.h"
-#include "../gui/wubu_mime.h"
+#include "./dosgui_startmenu_internal.h"
+#include "./dosgui_startmenu.h"
+#include "./dosgui_desktop.h"
+#include "../dosgui_wm.h"
+#include "../../kernel/vbe.h"
+#include "../../gui/wubu_theme.h"
+#include "../../gui/wubu_mime.h"
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>

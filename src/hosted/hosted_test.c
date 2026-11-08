@@ -17,7 +17,7 @@
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
 #include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_startmenu.h"
+#include "../gui/shell/dosgui_startmenu.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

@@ -2,11 +2,11 @@
  *
  * Self-contained: desktop icon grid management (remove/find/set-position),
  * URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in
- * dosgui_wm_internal.h). dosgui_icon_get is declared in dosgui_wm.h (public).
+ * ../dosgui_wm_internal.h). dosgui_icon_get is declared in dosgui_wm.h (public).
  * Minimal includes.
  */
 
-#include "dosgui_wm_internal.h"
+#include "../dosgui_wm_internal.h"
 
 void dosgui_icon_remove(int grid_x, int grid_y) {
     for (int i = 0; i < g_dwm.icon_count; i++) {

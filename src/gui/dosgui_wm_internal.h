@@ -13,7 +13,7 @@
 #include "dosgui_wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
-#include "../gui/wubu_wallpaper.h"
+#include "shell/wubu_wallpaper.h"
 #include "../gui/wubu_settings.h"
 #include "../runtime/wubu_session.h"   /* session split (GAME mode) */
 #include "../runtime/wubu_compat_db.h" /* per-title ProtonDB profile */
