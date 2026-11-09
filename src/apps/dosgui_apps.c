@@ -26,7 +26,8 @@
 #include "../apps/todo.h"
 #include "../apps/music.h"
 #include "../apps/control/control.h"
-#include "../apps/editor/editor.h"
+#include "editor/editor.h"
+#include "wet_applet.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -158,6 +159,12 @@ DosGuiWindow* dosgui_launch_editor(void) {
      * its find/selection/undo/macro/bookmark modules were unreachable from
      * the desktop. */
     return editor_launch();
+}
+
+DosGuiWindow* dosgui_launch_wet(void) {
+    /* A .wet applet: Lua decides, C lays out.  With no path the launcher opens
+     * the built-in demo, so the menu item works before any script exists. */
+    return dosgui_launch_wet_applet(NULL);
 }
 
 DosGuiWindow* dosgui_launch_canvas(void) {
