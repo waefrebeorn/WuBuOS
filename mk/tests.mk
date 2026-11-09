@@ -4107,9 +4107,10 @@ test_hw_writeback: $(KERNEL)/test/wubu_writeback_selftest.c $(KERNEL)/wubu_write
 		-lm -lm \
 		-o $(TEST_BIN)/test_hw_writeback
 	$(TEST_BIN)/test_hw_writeback
-LUAGUI_LV_SRCS := $(LUAWWW)/wb_lv_arena.c $(LUAWWW)/wb_lv_eval.c \
-		$(LUAWWW)/wb_lv_host.c $(LUAWWW)/wb_lv_lex.c $(LUAWWW)/wb_lv_parse.c \
-		$(LUAWWW)/wb_lv_value.c $(LUAWWW)/wb_lv_stdlib.c $(LUAWWW)/wb_lv_string.c
+LUAGUI_LV_SRCS := $(LUAWWW)/wb_lv_arena.c $(LUAWWW)/wb_lv_coro.c \
+		$(LUAWWW)/wb_lv_eval.c $(LUAWWW)/wb_lv_host.c $(LUAWWW)/wb_lv_lex.c \
+		$(LUAWWW)/wb_lv_parse.c $(LUAWWW)/wb_lv_value.c \
+		$(LUAWWW)/wb_lv_stdlib.c $(LUAWWW)/wb_lv_string.c
 
 WET      := $(GUI)/wet
 WET_SRCS := $(WET)/wet_widget.c $(WET)/wet_layout.c $(WET)/wet_render.c \
@@ -4123,22 +4124,20 @@ test_wet: $(WET)/wet_selftest.c $(WET_SRCS)
 	$(TEST_BIN)/test_wet
 
 test_wet_lua: $(WET)/wet_lua_test.c $(WET)/wet_lua.c $(WET_SRCS) \
-		$(LUACOMPAT) $(LUAGUI_LV_SRCS)
+		$(LUAGUI_LV_SRCS)
 	@mkdir -p $(TEST_BIN)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(WET) -I$(GUI)/lua \
 		-I$(LUAWWW) -I$(KERNEL) \
 		$(WET)/wet_lua_test.c $(WET)/wet_lua.c $(WET_SRCS) \
-		$(LUACOMPAT) $(LUAGUI_LV_SRCS) -lm -o $(TEST_BIN)/test_wet_lua
+		$(LUAGUI_LV_SRCS) -lm -o $(TEST_BIN)/test_wet_lua
 	$(TEST_BIN)/test_wet_lua
-
-LUACOMPAT := $(WET)/wubu_lua_compat.c
 
 test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(WET) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) \
 		-I$(LUAWWW) \
 		$(APPS)/wet_applet_test.c $(APPS)/wet_applet.c \
-		$(WET)/wet_lua.c $(WET_SRCS) $(LUACOMPAT) $(LUAGUI_LV_SRCS) \
+		$(WET)/wet_lua.c $(WET_SRCS) $(LUAGUI_LV_SRCS) \
 		$(GUI)/shell/dosgui_window_chrome.c $(GUI)/compositor/gui_dbuf.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
@@ -4160,10 +4159,10 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 	$(TEST_BIN)/test_wet_applet
 
 test_lua_gui: $(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
-		$(LUACOMPAT) $(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c
+		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c
 	@mkdir -p $(TEST_BIN)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(GUI)/lua -I$(LUAWWW) -I$(KERNEL) \
-		$(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c $(LUACOMPAT) \
+		$(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
 		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c -lm -o $(TEST_BIN)/test_lua_gui
 	$(TEST_BIN)/test_lua_gui
 
