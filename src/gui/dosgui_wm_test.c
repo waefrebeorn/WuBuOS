@@ -14,6 +14,7 @@
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
+#include "../kernel/wubu_gesture.h"
 #include "../gui/wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -1151,6 +1152,51 @@ static void test_lock_screen(void) {
     PASS();
 }
 
+
+static uint32_t g_gesture_t = 0;
+
+/* Feed a three-finger swipe by (dx, dy) through the gesture engine. */
+static void feed_swipe(int dx, int dy) {
+    g_gesture_t += 1000;
+    uint32_t t0 = g_gesture_t;
+    for (int i = 0; i < 3; i++)
+        wubu_gesture_contact(i, 400, 700 + i * 30, true, t0);
+    g_gesture_t += 50;
+    for (int i = 0; i < 3; i++)
+        wubu_gesture_contact(i, 400 + dx, 700 + i * 30 + dy, true, g_gesture_t);
+    g_gesture_t += 50;
+    for (int i = 0; i < 3; i++)
+        wubu_gesture_contact(i, 400 + dx, 700 + i * 30 + dy, false, g_gesture_t);
+}
+
+static void test_gesture_actions(void) {
+    TEST("touchpad gestures drive the same actions as the hotkeys");
+    dosgui_wm_init(1024, 768);
+    wubu_gesture_init();
+    g_gesture_t = 0;
+
+    CHECK(!dosgui_wm_overview_is_open(), "overview starts closed");
+
+    feed_swipe(0, -100);                 /* three-finger swipe up */
+    dosgui_wm_gesture_dispatch();
+    CHECK(dosgui_wm_overview_is_open(), "swipe up opened the overview");
+
+    feed_swipe(0, -100);                 /* again: toggles closed */
+    dosgui_wm_gesture_dispatch();
+    CHECK(!dosgui_wm_overview_is_open(), "a second swipe up closed it");
+
+    feed_swipe(100, 0);                  /* swipe right: next desktop */
+    dosgui_wm_gesture_dispatch();
+    CHECK(dosgui_wm_get_current_desktop() == 1, "swipe right advanced the desktop");
+
+    feed_swipe(-100, 0);                 /* swipe left: previous desktop */
+    dosgui_wm_gesture_dispatch();
+    CHECK(dosgui_wm_get_current_desktop() == 0, "swipe left went back");
+
+    dosgui_wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1184,6 +1230,7 @@ int main(void) {
     test_quick_settings_panel();
     test_screensaver();
     test_lock_screen();
+    test_gesture_actions();
     test_icon_hit_test();
     test_icon_layout_persist_restore();
     test_icon_get_bounds();

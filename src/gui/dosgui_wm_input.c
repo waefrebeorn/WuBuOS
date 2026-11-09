@@ -18,6 +18,7 @@
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
+#include "../kernel/wubu_gesture.h"
 #include "shell/dosgui_startmenu.h"
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
@@ -50,6 +51,47 @@ static int hit_test_edge(DosGuiWindow *w, int x, int y) {
     if (on_top)   edge |= 4;
     if (on_bot)   edge |= 8;
     return edge;
+}
+
+
+/* -- Touchpad gestures --------------------------------------------- */
+/* Multi-touch gestures map onto the same actions as the keyboard shortcuts,
+ * so a laptop user gets the desktop without memorising hotkeys.  The gesture
+ * engine is reached weakly: headless WM targets link no input driver raft. */
+void dosgui_wm_gesture_dispatch(void) {
+    WubuGesture g;
+    while (wubu_gesture_poll(&g)) {
+        switch (g) {
+            case WUBU_GESTURE_SWIPE_UP:
+                dosgui_wm_overview_toggle();
+                break;
+            case WUBU_GESTURE_SWIPE_LEFT:
+                if (dosgui_wm_get_current_desktop() > 0)
+                    dosgui_wm_set_current_desktop(
+                        dosgui_wm_get_current_desktop() - 1);
+                break;
+            case WUBU_GESTURE_SWIPE_RIGHT:
+                if (dosgui_wm_get_current_desktop() + 1 < DOSGUI_MAX_DESKTOPS)
+                    dosgui_wm_add_desktop();
+                dosgui_wm_set_current_desktop(
+                    dosgui_wm_get_current_desktop() + 1);
+                break;
+            case WUBU_GESTURE_PINCH_IN:
+                dosgui_wm_overview_toggle();
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void dosgui_wm_gesture_poll(void) {
+    extern __attribute__((weak)) int wubu_gesture_tick(WubuGesture *out);
+    if (wubu_gesture_tick) {
+        WubuGesture tmp;
+        (void)wubu_gesture_tick(&tmp);   /* feed the device, if one is open */
+    }
+    dosgui_wm_gesture_dispatch();
 }
 
 void dosgui_wm_handle_key(uint32_t key, uint32_t mods) {

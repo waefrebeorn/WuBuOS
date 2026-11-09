@@ -116,6 +116,10 @@ bool dosgui_wm_overview_is_open(void);
 void dosgui_wm_overview_render(uint32_t *fb, int fb_w, int fb_h);
 bool dosgui_wm_overview_handle_click(int mx, int my, int fb_w, int fb_h);
 
+/* Touchpad gesture dispatch (called from the render loop). */
+void dosgui_wm_gesture_poll(void);
+void dosgui_wm_gesture_dispatch(void);
+
 /* Win+A quick settings panel. */
 void dosgui_quick_settings_toggle(void);
 bool dosgui_quick_settings_is_open(void);

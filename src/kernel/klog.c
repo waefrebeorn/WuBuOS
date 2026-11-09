@@ -32,6 +32,18 @@ static inline void ring_putc(char c) {
     g_ring_pos = (g_ring_pos + 1) % KLOG_RING_SZ;
 }
 
+/* Hosted/selftest output hook.
+ *
+ * putc_raw() calls this for every character while no serial console is up.
+ * The kernel's default is a no-op: before klog_init() there is nowhere to
+ * write, and the panic ring has already captured the byte. Selftest builds
+ * override it (see wubu_test_stubs.c) to write stdout, because otherwise
+ * every kernel selftest's printf output -- including its CHECK lines --
+ * disappears: the ring is only ever read by the crash post-mortem.
+ *
+ * Weak so the kernel links without a definition. */
+__attribute__((weak)) void klog_putc_host(char c) { (void)c; }
+
 /* Snapshot the ring (oldest-first) into `out` (bufsz bytes, NUL'd).
  * Returns the number of bytes copied. For the fault post-mortem. */
 int klog_ring_snapshot(char *out, size_t bufsz) {
@@ -110,7 +122,14 @@ static inline int tx_drain(void) {
 static inline int putc_raw(char c) {
     /* ALWAYS captured in the panic ring (gap A7) -- the post-mortem. */
     ring_putc(c);
-    if (!g_klog_ready) return 0;
+    if (!g_klog_ready) {
+        /* No serial console yet. In the real kernel this only happens before
+         * klog_init(), where there is nowhere to put the output. Hosted and
+         * selftest builds override klog_putc_host() so that output reaches
+         * stdout instead of being silently dropped. */
+        klog_putc_host(c);
+        return 0;
+    }
     tx_push(c);
     tx_drain();
     return 0;

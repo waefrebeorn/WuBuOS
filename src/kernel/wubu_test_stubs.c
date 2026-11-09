@@ -2,6 +2,17 @@
 #include <stddef.h>
 #include <string.h>
 
+/* ---- Selftest output ----------------------------------------------- */
+/* Kernel selftests link the kernel's libc, so their printf goes to
+ * klog_write() -> putc_raw(). With no serial console up (g_klog_ready == 0)
+ * that used to mean every CHECK line vanished into the panic ring, leaving
+ * only whatever GCC had turned into puts() visible. Override the weak hook in
+ * klog.c so selftest output reaches stdout. */
+void klog_putc_host(char c) {
+    extern int write(int fd, const void *buf, unsigned long n);
+    write(1, &c, 1);
+}
+
 /* Linker-script symbols (kernel.ld) */
 uint64_t _kernel_start = 0x00100000;
 uint64_t _stack_top = 0x00200000;
