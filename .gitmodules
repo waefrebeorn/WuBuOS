@@ -5,3 +5,12 @@
 	path = src/brain
 	url = https://github.com/waefrebeorn/wubuwizard.git
 
+[submodule "src/apps/wubupad"]
+	path = src/apps/wubupad
+	url = https://github.com/waefrebeorn/WuBuPad.git
+[submodule "src/apps/wubuoffice"]
+	path = src/apps/wubuoffice
+	url = https://github.com/waefrebeorn/WuBuOffice.git
+[submodule "src/lua/www"]
+	path = src/lua/www
+	url = https://github.com/waefrebeorn/WWW.git

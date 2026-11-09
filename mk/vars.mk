@@ -18,6 +18,7 @@ RT      = src/runtime
 FRAMEWORK = src/framework
 TOOLS   = src/tools
 HOSTED  = src/hosted
+LUA     = src/lua
 AUDIO   = src/audio
 SHELL_DIR  = src/shell
 BEAR    = src/bear
