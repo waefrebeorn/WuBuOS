@@ -14,3 +14,6 @@
 [submodule "src/lua/www"]
 	path = src/lua/www
 	url = https://github.com/waefrebeorn/WWW.git
+[submodule "src/gui/wet"]
+	path = src/gui/wet
+	url = https://github.com/waefrebeorn/WET.git

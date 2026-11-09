@@ -78,7 +78,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_lua_gui test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
+test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_lua_gui test_dosgui_ui test_lua_gui test_wet test_wet_lua test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -4111,11 +4111,33 @@ LUAGUI_LV_SRCS := $(LUAWWW)/wb_lv_arena.c $(LUAWWW)/wb_lv_eval.c \
 		$(LUAWWW)/wb_lv_host.c $(LUAWWW)/wb_lv_lex.c $(LUAWWW)/wb_lv_parse.c \
 		$(LUAWWW)/wb_lv_value.c $(LUAWWW)/wb_lv_stdlib.c $(LUAWWW)/wb_lv_string.c
 
+WET      := $(GUI)/wet
+WET_SRCS := $(WET)/wet_widget.c $(WET)/wet_layout.c $(WET)/wet_render.c \
+		$(WET)/wet_backend_vbe.c $(WET)/wet_controls.c $(WET)/wet_app.c \
+		$(WET)/wet_input.c
+
+test_wet: $(WET)/wet_selftest.c $(WET_SRCS)
+	@mkdir -p $(TEST_BIN)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(WET) -I$(KERNEL) \
+		$(WET)/wet_selftest.c $(WET_SRCS) -lm -o $(TEST_BIN)/test_wet
+	$(TEST_BIN)/test_wet
+
+test_wet_lua: $(WET)/wet_lua_test.c $(WET)/wet_lua.c $(WET_SRCS) \
+		$(LUACOMPAT) $(LUAGUI_LV_SRCS)
+	@mkdir -p $(TEST_BIN)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(WET) -I$(GUI)/lua \
+		-I$(LUAWWW) -I$(KERNEL) \
+		$(WET)/wet_lua_test.c $(WET)/wet_lua.c $(WET_SRCS) \
+		$(LUACOMPAT) $(LUAGUI_LV_SRCS) -lm -o $(TEST_BIN)/test_wet_lua
+	$(TEST_BIN)/test_wet_lua
+
+LUACOMPAT := $(WET)/wubu_lua_compat.c
+
 test_lua_gui: $(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
-		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c
+		$(LUACOMPAT) $(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c
 	@mkdir -p $(TEST_BIN)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI) -I$(GUI)/lua -I$(LUAWWW) -I$(KERNEL) \
-		$(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
+		$(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c $(LUACOMPAT) \
 		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c -lm -o $(TEST_BIN)/test_lua_gui
 	$(TEST_BIN)/test_lua_gui
 
