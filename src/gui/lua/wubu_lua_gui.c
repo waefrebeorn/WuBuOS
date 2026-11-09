@@ -23,9 +23,6 @@
 /* The slerm-Lua sources live in the WWW submodule. */
 #define WB_LV_DIR   "../../../lua/www/~WuBu~/src/lv"
 
-/* Defined in wb_lv_host.c but not exported by wb_lv.h. */
-extern void wb_lv_register_builtins(wb_lv *L);
-
 /* Wrap a C function as a Lua value. */
 static wb_lv_value cfn_value(wb_lv_cfn fn, void *ud) {
     wb_lv_value v = wb_lv_nil();
@@ -209,7 +206,9 @@ WubuLuaGui *wubu_lua_gui_new(int fb_w, int fb_h) {
     g->L = wb_lv_new();
     if (!g->L) { free(g); return NULL; }
 
-    wb_lv_register_builtins(g->L);
+    /* Base library comes with wb_lv_new(); add string/table/math so a script
+     * can do real label work. */
+    wb_lv_openlibs(g->L);
 
     /* gui.* -- a table, so scripts call gui.text(...) not a flat name. */
     /* Table keys must be INTERNED: the interpreter hashes by string identity,
