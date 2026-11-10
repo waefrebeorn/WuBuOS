@@ -27,7 +27,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "gui_effect.h"
+#include "../runtime/wubu_effect.h"
 
 #define GUI_DBUF_DIRTY_MAX 32  /* Max dirty rectangles per frame */
 
@@ -52,7 +52,7 @@ typedef struct {
 
     /* Effect stack applied to the back buffer before it is presented.  Owned
      * by the dbuf; created lazily by gui_dbuf_effect(). */
-    GuiEffectStack *effect;
+    WubuEffectStack *effect;
 
     /* Stats */
     uint64_t     frames;
@@ -122,7 +122,7 @@ uint32_t     gui_dbuf_get_pixel(const gui_dbuf_t *db, int x, int y);
 /* -- Effects --------------------------------------------------- */
 
 /* The dbuf's effect stack, created on first use.  NULL only on OOM. */
-GuiEffectStack *gui_dbuf_effect(gui_dbuf_t *db);
+WubuEffectStack *gui_dbuf_effect(gui_dbuf_t *db);
 
 /* Apply the stack to the back buffer NOW.  Called between drawing and
  * presenting -- never inside gui_dbuf_flip, because a pass is not idempotent

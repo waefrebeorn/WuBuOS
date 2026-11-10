@@ -7,6 +7,7 @@
  */
 #include "wubu_session_daemon.h"
 #include "wubu_ns_background.h"
+#include "wubu_ns_effect.h"
 #include <stdlib.h>
 
 struct wubu_session_daemon {
@@ -107,6 +108,9 @@ int wubu_session_daemon_publish(wubu_session_daemon_t *daemon) {
     if (wubu_ns_publish_background(daemon->boot) != 0) return -1;
     if (wubu_ns_publish_login(daemon->login) != 0) return -1;
     if (wubu_ns_publish_auth(daemon->auth) != 0) return -1;
+    /* The desktop effect stack.  Published empty; a program fills it through
+     * /n/effect/set and wm_render applies it on the next frame. */
+    if (wubu_ns_publish_effect() != 0) return -1;
     return 0;
 }
 

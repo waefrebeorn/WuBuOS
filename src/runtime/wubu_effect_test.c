@@ -1,11 +1,11 @@
 /*
- * gui_effect_test.c -- the effect engine's gate.
+ * wubu_effect_test.c -- the effect engine's gate.
  *
  * The passes are the part that must be exactly right: they run per pixel in
  * the draw path, so each test pins a known input to a known output rather than
  * just asserting "something changed".
  */
-#include "gui_effect.h"
+#include "../runtime/wubu_effect.h"
 #include "gui_dbuf.h"
 
 #include <stdio.h>
@@ -24,91 +24,91 @@ static uint32_t rgb(uint32_t r, uint32_t g, uint32_t b) {
 }
 
 static void test_registry(void) {
-    CHECK(gui_effect_kind_count() == GUI_EFFECT_COUNT, "kind count");
-    CHECK(strcmp(gui_effect_name(GUI_EFFECT_TINT), "tint") == 0, "tint name");
-    CHECK(strcmp(gui_effect_name(GUI_EFFECT_VIGNETTE), "vignette") == 0, "vignette name");
-    CHECK(strcmp(gui_effect_name(GUI_EFFECT_GLOW), "glow") == 0, "glow name");
-    CHECK(strcmp(gui_effect_name(GUI_EFFECT_SCANLINE), "scanline") == 0, "scanline name");
-    CHECK(gui_effect_name(GUI_EFFECT_NONE) == NULL, "none has no effect name");
-    CHECK(gui_effect_name((GuiEffectKind)999) == NULL, "out-of-range name is NULL");
-    CHECK(strcmp(gui_effect_name_at(1), "tint") == 0, "name_at 1");
-    CHECK(gui_effect_name_at(0) == NULL, "name_at 0 is NULL");
-    CHECK(gui_effect_kind_at(3) == GUI_EFFECT_GLOW, "kind_at 3");
-    CHECK(gui_effect_kind_at(-1) == GUI_EFFECT_NONE, "kind_at -1 is NONE");
+    CHECK(wubu_effect_kind_count() == WUBU_EFFECT_COUNT, "kind count");
+    CHECK(strcmp(wubu_effect_name(WUBU_EFFECT_TINT), "tint") == 0, "tint name");
+    CHECK(strcmp(wubu_effect_name(WUBU_EFFECT_VIGNETTE), "vignette") == 0, "vignette name");
+    CHECK(strcmp(wubu_effect_name(WUBU_EFFECT_GLOW), "glow") == 0, "glow name");
+    CHECK(strcmp(wubu_effect_name(WUBU_EFFECT_SCANLINE), "scanline") == 0, "scanline name");
+    CHECK(wubu_effect_name(WUBU_EFFECT_NONE) == NULL, "none has no effect name");
+    CHECK(wubu_effect_name((WubuEffectKind)999) == NULL, "out-of-range name is NULL");
+    CHECK(strcmp(wubu_effect_name_at(1), "tint") == 0, "name_at 1");
+    CHECK(wubu_effect_name_at(0) == NULL, "name_at 0 is NULL");
+    CHECK(wubu_effect_kind_at(3) == WUBU_EFFECT_GLOW, "kind_at 3");
+    CHECK(wubu_effect_kind_at(-1) == WUBU_EFFECT_NONE, "kind_at -1 is NONE");
 }
 
 static void test_stack_editing(void) {
-    GuiEffectStack *s = gui_effect_stack_new();
+    WubuEffectStack *s = wubu_effect_stack_new();
     CHECK(s != NULL, "stack allocates");
     if (!s) return;
 
-    CHECK(gui_effect_stack_count(s) == 0, "new stack is empty");
-    CHECK(gui_effect_stack_at(s, 0) == NULL, "empty stack has no element 0");
+    CHECK(wubu_effect_stack_count(s) == 0, "new stack is empty");
+    CHECK(wubu_effect_stack_at(s, 0) == NULL, "empty stack has no element 0");
 
-    CHECK(gui_effect_stack_add(s, GUI_EFFECT_TINT, 0x112233, 40), "add works");
-    CHECK(gui_effect_stack_count(s) == 1, "count after add");
-    const GuiEffect *e = gui_effect_stack_at(s, 0);
+    CHECK(wubu_effect_stack_add(s, WUBU_EFFECT_TINT, 0x112233, 40), "add works");
+    CHECK(wubu_effect_stack_count(s) == 1, "count after add");
+    const WubuEffect *e = wubu_effect_stack_at(s, 0);
     CHECK(e != NULL, "at(0)");
     if (e) {
-        CHECK(e->kind == GUI_EFFECT_TINT, "kind stored");
+        CHECK(e->kind == WUBU_EFFECT_TINT, "kind stored");
         CHECK(e->color == 0x112233, "colour stored");
         CHECK(e->strength == 40, "strength stored");
     }
 
     /* Rejections. */
-    CHECK(!gui_effect_stack_add(s, GUI_EFFECT_NONE, 0, 10), "NONE is rejected");
-    CHECK(!gui_effect_stack_add(s, (GuiEffectKind)999, 0, 10), "bad kind rejected");
-    CHECK(gui_effect_stack_count(s) == 1, "rejected adds do not grow the stack");
+    CHECK(!wubu_effect_stack_add(s, WUBU_EFFECT_NONE, 0, 10), "NONE is rejected");
+    CHECK(!wubu_effect_stack_add(s, (WubuEffectKind)999, 0, 10), "bad kind rejected");
+    CHECK(wubu_effect_stack_count(s) == 1, "rejected adds do not grow the stack");
 
     /* Clamping. */
-    CHECK(gui_effect_stack_add(s, GUI_EFFECT_GLOW, 0xFFFFFF00, 999), "add clamps");
-    e = gui_effect_stack_at(s, 1);
+    CHECK(wubu_effect_stack_add(s, WUBU_EFFECT_GLOW, 0xFFFFFF00, 999), "add clamps");
+    e = wubu_effect_stack_at(s, 1);
     CHECK(e && e->strength == 100, "strength clamped high");
     CHECK(e && e->color == 0xFFFF00, "colour masked to 24 bits");
-    CHECK(gui_effect_stack_add(s, GUI_EFFECT_GLOW, 0, -5), "add clamps low");
-    e = gui_effect_stack_at(s, 2);
+    CHECK(wubu_effect_stack_add(s, WUBU_EFFECT_GLOW, 0, -5), "add clamps low");
+    e = wubu_effect_stack_at(s, 2);
     CHECK(e && e->strength == 0, "strength clamped low");
 
     /* Removal preserves order. */
-    CHECK(gui_effect_stack_add(s, GUI_EFFECT_SCANLINE, 0, 50), "third effect");
-    CHECK(gui_effect_stack_remove(s, 1), "remove middle");
-    CHECK(gui_effect_stack_count(s) == 3, "count after remove");
-    e = gui_effect_stack_at(s, 2);
-    CHECK(e && e->kind == GUI_EFFECT_SCANLINE, "removal preserved order");
-    CHECK(!gui_effect_stack_remove(s, 99), "out-of-range remove rejected");
-    CHECK(!gui_effect_stack_remove(s, -1), "negative remove rejected");
+    CHECK(wubu_effect_stack_add(s, WUBU_EFFECT_SCANLINE, 0, 50), "third effect");
+    CHECK(wubu_effect_stack_remove(s, 1), "remove middle");
+    CHECK(wubu_effect_stack_count(s) == 3, "count after remove");
+    e = wubu_effect_stack_at(s, 2);
+    CHECK(e && e->kind == WUBU_EFFECT_SCANLINE, "removal preserved order");
+    CHECK(!wubu_effect_stack_remove(s, 99), "out-of-range remove rejected");
+    CHECK(!wubu_effect_stack_remove(s, -1), "negative remove rejected");
 
     /* The cap. */
-    gui_effect_stack_clear(s);
-    CHECK(gui_effect_stack_count(s) == 0, "clear empties");
+    wubu_effect_stack_clear(s);
+    CHECK(wubu_effect_stack_count(s) == 0, "clear empties");
     for (int i = 0; i < 8; i++)
-        CHECK(gui_effect_stack_add(s, GUI_EFFECT_TINT, 0, 10), "fill to the cap");
-    CHECK(!gui_effect_stack_add(s, GUI_EFFECT_TINT, 0, 10), "ninth add rejected");
-    CHECK(gui_effect_stack_count(s) == 8, "cap holds at eight");
+        CHECK(wubu_effect_stack_add(s, WUBU_EFFECT_TINT, 0, 10), "fill to the cap");
+    CHECK(!wubu_effect_stack_add(s, WUBU_EFFECT_TINT, 0, 10), "ninth add rejected");
+    CHECK(wubu_effect_stack_count(s) == 8, "cap holds at eight");
 
-    gui_effect_stack_free(s);
+    wubu_effect_stack_free(s);
 }
 
 static void test_passes(void) {
     /* --- tint: a known pixel moves toward the tint by the exact amount. --- */
     {
         uint32_t px[1] = { rgb(128, 128, 128) };
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_stack_add(s, GUI_EFFECT_TINT, rgb(255, 255, 255), 50);
-        gui_effect_apply(s, px, 1, 1);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_stack_add(s, WUBU_EFFECT_TINT, rgb(255, 255, 255), 50);
+        wubu_effect_apply(s, px, 1, 1);
         /* 128 + (255-128)*50/100 = 128 + 63 = 191 */
         CHECK(px[0] == rgb(191, 191, 191), "tint moves 128 toward 255 by half");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 
     /* --- tint at 0 strength is a no-op. --- */
     {
         uint32_t px[1] = { rgb(10, 20, 30) };
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_stack_add(s, GUI_EFFECT_TINT, rgb(255, 0, 0), 0);
-        gui_effect_apply(s, px, 1, 1);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_stack_add(s, WUBU_EFFECT_TINT, rgb(255, 0, 0), 0);
+        wubu_effect_apply(s, px, 1, 1);
         CHECK(px[0] == rgb(10, 20, 30), "zero strength is a no-op");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 
     /* --- vignette: the centre is untouched, the corner darkens. --- */
@@ -116,28 +116,28 @@ static void test_passes(void) {
         enum { W = 8, H = 8 };
         uint32_t px[W * H];
         for (int i = 0; i < W * H; i++) px[i] = rgb(200, 200, 200);
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_stack_add(s, GUI_EFFECT_VIGNETTE, 0, 50);
-        gui_effect_apply(s, px, W, H);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_stack_add(s, WUBU_EFFECT_VIGNETTE, 0, 50);
+        wubu_effect_apply(s, px, W, H);
         CHECK(px[(H / 2) * W + (W / 2)] == rgb(200, 200, 200),
               "vignette leaves the centre alone");
         CHECK(px[0] == rgb(100, 100, 100),
               "vignette halves the corner at 50 percent");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 
     /* --- glow: black stays black, a bright pixel lifts toward the colour. --- */
     {
         uint32_t dark[1]  = { rgb(0, 0, 0) };
         uint32_t bright[1] = { rgb(200, 200, 200) };
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_stack_add(s, GUI_EFFECT_GLOW, rgb(0, 0, 255), 50);
-        gui_effect_apply(s, dark, 1, 1);
-        gui_effect_apply(s, bright, 1, 1);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_stack_add(s, WUBU_EFFECT_GLOW, rgb(0, 0, 255), 50);
+        wubu_effect_apply(s, dark, 1, 1);
+        wubu_effect_apply(s, bright, 1, 1);
         CHECK(dark[0] == rgb(0, 0, 0), "glow leaves black alone");
         /* lum=200, k=50*200/255=39, b = 200 + 255*39/100 = 299 -> 255 */
         CHECK(bright[0] == rgb(200, 200, 255), "glow lifts the blue channel");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 
     /* --- scanline: row 0 survives, row 1 is dimmed. --- */
@@ -145,12 +145,12 @@ static void test_passes(void) {
         enum { W = 4, H = 2 };
         uint32_t px[W * H];
         for (int i = 0; i < W * H; i++) px[i] = rgb(200, 200, 200);
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_stack_add(s, GUI_EFFECT_SCANLINE, 0, 50);
-        gui_effect_apply(s, px, W, H);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_stack_add(s, WUBU_EFFECT_SCANLINE, 0, 50);
+        wubu_effect_apply(s, px, W, H);
         CHECK(px[0] == rgb(200, 200, 200), "scanline keeps row 0");
         CHECK(px[W] == rgb(100, 100, 100), "scanline halves row 1");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 
     /* --- an empty or NULL stack changes nothing. --- */
@@ -158,13 +158,13 @@ static void test_passes(void) {
         uint32_t a[4] = { rgb(1, 2, 3), rgb(4, 5, 6), rgb(7, 8, 9), rgb(10, 11, 12) };
         uint32_t b[4];
         memcpy(b, a, sizeof a);
-        gui_effect_apply(NULL, a, 2, 2);
+        wubu_effect_apply(NULL, a, 2, 2);
         CHECK(memcmp(a, b, sizeof a) == 0, "NULL stack is a no-op");
 
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_apply(s, a, 2, 2);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_apply(s, a, 2, 2);
         CHECK(memcmp(a, b, sizeof a) == 0, "empty stack is a no-op");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 
     /* --- order matters, and both orders are deterministic. --- */
@@ -176,17 +176,17 @@ static void test_passes(void) {
         memcpy(a, base, sizeof a);
         memcpy(b, base, sizeof b);
 
-        GuiEffectStack *s1 = gui_effect_stack_new();
-        gui_effect_stack_add(s1, GUI_EFFECT_TINT, rgb(255, 0, 0), 40);
-        gui_effect_stack_add(s1, GUI_EFFECT_VIGNETTE, 0, 40);
-        gui_effect_apply(s1, a, N, 1);
-        gui_effect_stack_free(s1);
+        WubuEffectStack *s1 = wubu_effect_stack_new();
+        wubu_effect_stack_add(s1, WUBU_EFFECT_TINT, rgb(255, 0, 0), 40);
+        wubu_effect_stack_add(s1, WUBU_EFFECT_VIGNETTE, 0, 40);
+        wubu_effect_apply(s1, a, N, 1);
+        wubu_effect_stack_free(s1);
 
-        GuiEffectStack *s2 = gui_effect_stack_new();
-        gui_effect_stack_add(s2, GUI_EFFECT_VIGNETTE, 0, 40);
-        gui_effect_stack_add(s2, GUI_EFFECT_TINT, rgb(255, 0, 0), 40);
-        gui_effect_apply(s2, b, N, 1);
-        gui_effect_stack_free(s2);
+        WubuEffectStack *s2 = wubu_effect_stack_new();
+        wubu_effect_stack_add(s2, WUBU_EFFECT_VIGNETTE, 0, 40);
+        wubu_effect_stack_add(s2, WUBU_EFFECT_TINT, rgb(255, 0, 0), 40);
+        wubu_effect_apply(s2, b, N, 1);
+        wubu_effect_stack_free(s2);
 
         CHECK(memcmp(a, b, sizeof a) != 0, "order changes the result");
         CHECK(memcmp(a, base, sizeof a) != 0, "the stack changed the pixels");
@@ -195,13 +195,13 @@ static void test_passes(void) {
     /* --- degenerate surfaces are refused, not crashed. --- */
     {
         uint32_t px[1] = { rgb(9, 9, 9) };
-        GuiEffectStack *s = gui_effect_stack_new();
-        gui_effect_stack_add(s, GUI_EFFECT_TINT, 0xFFFFFF, 50);
-        gui_effect_apply(s, px, 0, 0);
-        gui_effect_apply(s, px, 1, 0);
-        gui_effect_apply(s, NULL, 1, 1);
+        WubuEffectStack *s = wubu_effect_stack_new();
+        wubu_effect_stack_add(s, WUBU_EFFECT_TINT, 0xFFFFFF, 50);
+        wubu_effect_apply(s, px, 0, 0);
+        wubu_effect_apply(s, px, 1, 0);
+        wubu_effect_apply(s, NULL, 1, 1);
         CHECK(px[0] == rgb(9, 9, 9), "degenerate surfaces are untouched");
-        gui_effect_stack_free(s);
+        wubu_effect_stack_free(s);
     }
 }
 
@@ -216,13 +216,13 @@ static void test_dbuf_integration(void) {
     CHECK(db.back[0] == before, "no stack leaves the surface alone");
 
     /* Attach a stack, apply, and the surface changes. */
-    GuiEffectStack *s = gui_effect_stack_new();
+    WubuEffectStack *s = wubu_effect_stack_new();
     CHECK(s != NULL, "effect stack allocates");
     if (s) {
-        gui_effect_stack_add(s, GUI_EFFECT_VIGNETTE, 0, 50);
+        wubu_effect_stack_add(s, WUBU_EFFECT_VIGNETTE, 0, 50);
         for (int i = 0; i < 16 * 16; i++) db.back[i] = rgb(200, 200, 200);
         /* The dbuf owns its stack: hand ours over through the accessor. */
-        gui_effect_stack_free(db.effect);
+        wubu_effect_stack_free(db.effect);
         db.effect = s;
         gui_dbuf_effect_apply(&db);
         CHECK(db.back[0] == rgb(100, 100, 100),
@@ -232,8 +232,8 @@ static void test_dbuf_integration(void) {
     }
 
     /* The lazy accessor creates a usable stack. */
-    gui_effect_stack_clear(gui_dbuf_effect(&db));
-    CHECK(gui_effect_stack_count(gui_dbuf_effect(&db)) == 0,
+    wubu_effect_stack_clear(gui_dbuf_effect(&db));
+    CHECK(wubu_effect_stack_count(gui_dbuf_effect(&db)) == 0,
           "gui_dbuf_effect returns the same stack");
 
     gui_dbuf_shutdown(&db);
@@ -242,11 +242,11 @@ static void test_dbuf_integration(void) {
 }
 
 int main(void) {
-    printf("=== gui effect engine ===\n");
+    printf("=== effect engine ===\n");
     test_registry();
     test_stack_editing();
     test_passes();
     test_dbuf_integration();
-    printf("=== gui_effect: %d checks, %d failed ===\n", g_checks, g_fails);
+    printf("=== effect: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
 }

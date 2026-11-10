@@ -4,65 +4,65 @@
  * See gui_effect.h for the model.  Everything here is integer: a pass runs per
  * pixel in the draw path, so there is no libm and no floating point.
  */
-#include "gui_effect.h"
+#include "../runtime/wubu_effect.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #define GUI_EFFECT_MAX 8
 
-struct GuiEffectStack {
-    GuiEffect used[GUI_EFFECT_MAX];
+struct WubuEffectStack {
+    WubuEffect used[GUI_EFFECT_MAX];
     int       n;
 };
 
 /* -------------------------------------------------------------- registry */
 
-static const char *const g_names[GUI_EFFECT_COUNT] = {
+static const char *const g_names[WUBU_EFFECT_COUNT] = {
     "none", "tint", "vignette", "glow", "scanline",
 };
 
-int         gui_effect_kind_count(void) { return GUI_EFFECT_COUNT; }
+int         wubu_effect_kind_count(void) { return WUBU_EFFECT_COUNT; }
 
-const char *gui_effect_name(GuiEffectKind kind) {
-    if (kind <= GUI_EFFECT_NONE || kind >= GUI_EFFECT_COUNT) return NULL;
+const char *wubu_effect_name(WubuEffectKind kind) {
+    if (kind <= WUBU_EFFECT_NONE || kind >= WUBU_EFFECT_COUNT) return NULL;
     return g_names[kind];
 }
 
-const char *gui_effect_name_at(int i) {
-    if (i <= 0 || i >= GUI_EFFECT_COUNT) return NULL;
+const char *wubu_effect_name_at(int i) {
+    if (i <= 0 || i >= WUBU_EFFECT_COUNT) return NULL;
     return g_names[i];
 }
 
-GuiEffectKind gui_effect_kind_at(int i) {
-    if (i < 0 || i >= GUI_EFFECT_COUNT) return GUI_EFFECT_NONE;
-    return (GuiEffectKind)i;
+WubuEffectKind wubu_effect_kind_at(int i) {
+    if (i < 0 || i >= WUBU_EFFECT_COUNT) return WUBU_EFFECT_NONE;
+    return (WubuEffectKind)i;
 }
 
 /* ------------------------------------------------------------- lifecycle */
 
-GuiEffectStack *gui_effect_stack_new(void) {
-    return (GuiEffectStack *)calloc(1, sizeof(GuiEffectStack));
+WubuEffectStack *wubu_effect_stack_new(void) {
+    return (WubuEffectStack *)calloc(1, sizeof(WubuEffectStack));
 }
 
-void gui_effect_stack_free(GuiEffectStack *s) {
+void wubu_effect_stack_free(WubuEffectStack *s) {
     free(s);
 }
 
 /* --------------------------------------------------------------- editing */
 
-int             gui_effect_stack_count(const GuiEffectStack *s) { return s ? s->n : 0; }
+int             wubu_effect_stack_count(const WubuEffectStack *s) { return s ? s->n : 0; }
 
-const GuiEffect *gui_effect_stack_at(const GuiEffectStack *s, int i) {
+const WubuEffect *wubu_effect_stack_at(const WubuEffectStack *s, int i) {
     if (!s || i < 0 || i >= s->n) return NULL;
     return &s->used[i];
 }
 
-bool gui_effect_stack_add(GuiEffectStack *s, GuiEffectKind kind,
+bool wubu_effect_stack_add(WubuEffectStack *s, WubuEffectKind kind,
                           uint32_t color, int strength) {
     if (!s || s->n >= GUI_EFFECT_MAX) return false;
-    if (kind <= GUI_EFFECT_NONE || kind >= GUI_EFFECT_COUNT) return false;
-    GuiEffect *e = &s->used[s->n];
+    if (kind <= WUBU_EFFECT_NONE || kind >= WUBU_EFFECT_COUNT) return false;
+    WubuEffect *e = &s->used[s->n];
     e->kind     = kind;
     e->color    = color & 0xFFFFFFu;
     e->strength = strength < 0 ? 0 : (strength > 100 ? 100 : strength);
@@ -70,7 +70,7 @@ bool gui_effect_stack_add(GuiEffectStack *s, GuiEffectKind kind,
     return true;
 }
 
-bool gui_effect_stack_remove(GuiEffectStack *s, int index) {
+bool wubu_effect_stack_remove(WubuEffectStack *s, int index) {
     if (!s || index < 0 || index >= s->n) return false;
     for (int i = index; i + 1 < s->n; i++)
         s->used[i] = s->used[i + 1];
@@ -78,7 +78,7 @@ bool gui_effect_stack_remove(GuiEffectStack *s, int index) {
     return true;
 }
 
-void gui_effect_stack_clear(GuiEffectStack *s) {
+void wubu_effect_stack_clear(WubuEffectStack *s) {
     if (s) s->n = 0;
 }
 
@@ -165,18 +165,18 @@ static void pass_scanline(uint32_t *px, int w, int h, int strength) {
 
 /* ------------------------------------------------------------ application */
 
-void gui_effect_apply(const GuiEffectStack *s, uint32_t *px, int w, int h) {
+void wubu_effect_apply(const WubuEffectStack *s, uint32_t *px, int w, int h) {
     if (!s || !px || w <= 0 || h <= 0) return;
     int n = w * h;
     for (int i = 0; i < s->n; i++) {
-        const GuiEffect *e = &s->used[i];
+        const WubuEffect *e = &s->used[i];
         switch (e->kind) {
-        case GUI_EFFECT_TINT:     pass_tint(px, n, e->color, e->strength);      break;
-        case GUI_EFFECT_VIGNETTE: pass_vignette(px, w, h, e->strength);         break;
-        case GUI_EFFECT_GLOW:     pass_glow(px, n, e->color, e->strength);      break;
-        case GUI_EFFECT_SCANLINE: pass_scanline(px, w, h, e->strength);         break;
-        case GUI_EFFECT_NONE:
-        case GUI_EFFECT_COUNT:
+        case WUBU_EFFECT_TINT:     pass_tint(px, n, e->color, e->strength);      break;
+        case WUBU_EFFECT_VIGNETTE: pass_vignette(px, w, h, e->strength);         break;
+        case WUBU_EFFECT_GLOW:     pass_glow(px, n, e->color, e->strength);      break;
+        case WUBU_EFFECT_SCANLINE: pass_scanline(px, w, h, e->strength);         break;
+        case WUBU_EFFECT_NONE:
+        case WUBU_EFFECT_COUNT:
         default: break;
         }
     }

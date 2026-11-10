@@ -1,5 +1,5 @@
 /*
- * gui_effect.h -- a CPU effect stack over an RGBA surface.
+ * wubu_effect.h -- a CPU effect stack over an RGBA surface.
  *
  * The compositor draws into an off-screen buffer (gui_dbuf) and flips it.  An
  * effect is a whole-surface pass applied to that buffer before the flip, so
@@ -12,8 +12,8 @@
  * Effects are ordered: they apply in stack order, so "tint then vignette" and
  * "vignette then tint" are different and both are meaningful.
  */
-#ifndef WUBU_GUI_EFFECT_H
-#define WUBU_GUI_EFFECT_H
+#ifndef WUBU_EFFECT_H
+#define WUBU_EFFECT_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -23,51 +23,51 @@ extern "C" {
 #endif
 
 typedef enum {
-    GUI_EFFECT_NONE = 0,
-    GUI_EFFECT_TINT,       /* blend a colour over the surface          */
-    GUI_EFFECT_VIGNETTE,   /* darken toward the edges                  */
-    GUI_EFFECT_GLOW,       /* lift bright pixels additively           */
-    GUI_EFFECT_SCANLINE,   /* CRT rows: dim every other line           */
-    GUI_EFFECT_COUNT
-} GuiEffectKind;
+    WUBU_EFFECT_NONE = 0,
+    WUBU_EFFECT_TINT,       /* blend a colour over the surface          */
+    WUBU_EFFECT_VIGNETTE,   /* darken toward the edges                  */
+    WUBU_EFFECT_GLOW,       /* lift bright pixels additively           */
+    WUBU_EFFECT_SCANLINE,   /* CRT rows: dim every other line           */
+    WUBU_EFFECT_COUNT
+} WubuEffectKind;
 
 typedef struct {
-    GuiEffectKind kind;
+    WubuEffectKind kind;
     uint32_t      color;     /* 0xRRGGBB, used by TINT and GLOW */
     int           strength;  /* 0..100, clamped on add         */
-} GuiEffect;
+} WubuEffect;
 
-typedef struct GuiEffectStack GuiEffectStack;
+typedef struct WubuEffectStack WubuEffectStack;
 
 /* ------------------------------------------------------------- lifecycle */
 
-GuiEffectStack *gui_effect_stack_new(void);
-void            gui_effect_stack_free(GuiEffectStack *s);
+WubuEffectStack *wubu_effect_stack_new(void);
+void            wubu_effect_stack_free(WubuEffectStack *s);
 
 /* --------------------------------------------------------------- editing */
 
-int               gui_effect_stack_count(const GuiEffectStack *s);
-const GuiEffect   *gui_effect_stack_at(const GuiEffectStack *s, int i);
-bool              gui_effect_stack_add(GuiEffectStack *s, GuiEffectKind kind,
+int               wubu_effect_stack_count(const WubuEffectStack *s);
+const WubuEffect   *wubu_effect_stack_at(const WubuEffectStack *s, int i);
+bool              wubu_effect_stack_add(WubuEffectStack *s, WubuEffectKind kind,
                                        uint32_t color, int strength);
-bool              gui_effect_stack_remove(GuiEffectStack *s, int index);
-void              gui_effect_stack_clear(GuiEffectStack *s);
+bool              wubu_effect_stack_remove(WubuEffectStack *s, int index);
+void              wubu_effect_stack_clear(WubuEffectStack *s);
 
 /* -------------------------------------------------------------- registry */
 
-int         gui_effect_kind_count(void);
-const char *gui_effect_name(GuiEffectKind kind);
-const char *gui_effect_name_at(int i);
-GuiEffectKind gui_effect_kind_at(int i);
+int         wubu_effect_kind_count(void);
+const char *wubu_effect_name(WubuEffectKind kind);
+const char *wubu_effect_name_at(int i);
+WubuEffectKind wubu_effect_kind_at(int i);
 
 /* ------------------------------------------------------------ application */
 
 /* Apply the whole stack, in order, to a w*h surface of 0xRRGGBB pixels.
  * A NULL or empty stack is a no-op. */
-void gui_effect_apply(const GuiEffectStack *s, uint32_t *px, int w, int h);
+void wubu_effect_apply(const WubuEffectStack *s, uint32_t *px, int w, int h);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* WUBU_GUI_EFFECT_H */
+#endif /* WUBU_EFFECT_H */

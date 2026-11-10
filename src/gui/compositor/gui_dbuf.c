@@ -104,7 +104,7 @@ void gui_dbuf_shutdown(gui_dbuf_t *db) {
         free(db->back);
         db->back = NULL;
     }
-    gui_effect_stack_free(db->effect);
+    wubu_effect_stack_free(db->effect);
     db->effect = NULL;
 }
 
@@ -268,15 +268,15 @@ uint32_t gui_dbuf_flip(gui_dbuf_t *db) {
 
 /* -- Effects -------------------------------------------------- */
 
-GuiEffectStack *gui_dbuf_effect(gui_dbuf_t *db) {
+WubuEffectStack *gui_dbuf_effect(gui_dbuf_t *db) {
     if (!db) return NULL;
-    if (!db->effect) db->effect = gui_effect_stack_new();
+    if (!db->effect) db->effect = wubu_effect_stack_new();
     return db->effect;
 }
 
 void gui_dbuf_effect_apply(gui_dbuf_t *db) {
     if (!db || !db->back || !db->effect) return;
-    gui_effect_apply(db->effect, db->back, db->width, db->height);
+    wubu_effect_apply(db->effect, db->back, db->width, db->height);
 }
 
 /* -- Query --------------------------------------------------- */

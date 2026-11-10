@@ -24,11 +24,19 @@
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
+#include "../runtime/wubu_effect.h"   /* the pure effect engine (no deps) */
 
 #include <stdint.h>
 #include <stdbool.h>
+
 #include <stdlib.h>
 #include <string.h>
+
+/* The effect stack is owned by the runtime's /n/effect publisher.  Declared
+ * weak so this module keeps its self-contained design and links with or
+ * without the runtime object; in a full build the real symbol resolves and a
+ * program's /n/effect/set becomes visible on the desktop. */
+const WubuEffectStack *wubu_ns_effect_stack(void) __attribute__((weak));
 
 /* -- Single window draw ------------------------------------------- */
 
@@ -212,6 +220,20 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         g_dwm.cursor_y = g_dwm.mouse_y;
     }
     vbe_draw_cursor(g_dwm.cursor_x, g_dwm.cursor_y);
+
+    /* Surface effects, from /n/effect.  A program writes "tint 50 ff0000" to
+     * /n/effect/set and the NEXT frame is tinted: the stack it edits is the
+     * same object applied here.
+     *
+     * The weak symbol must be TESTED before it is called, exactly as
+     * launch_wet_applet does in apps.c: a weak-declared function that has no
+     * definition is relocated to 0, and a direct call to it jumps to NULL --
+     * the test reads the address first, so an unlinked runtime is a clean
+     * no-op rather than a segfault. */
+    if (wubu_ns_effect_stack) {
+        const WubuEffectStack *fx = wubu_ns_effect_stack();
+        if (fx) wubu_effect_apply(fx, fb, fb_w, fb_h);
+    }
 }
 
 /* -- Back-compat wrappers (kept for hosted.c / tests) ---------- */
