@@ -231,6 +231,61 @@ static void test_template_calculator_computes(void) {
     remove(path);
 }
 
+/* A PROGRAM template that drives the OS: the Theme Studio emits a real applet
+ * whose buttons restyle the whole desktop.  Asserts the GLOBAL theme actually
+ * changes, not just that the handler ran. */
+static void test_template_theme_studio_restyles(void) {
+    char *src = vws_template_emit("themes");
+    CHECK(src != NULL, "theme template emits");
+    if (!src) return;
+
+    const char *path = "/tmp/wubu_theme_template.wet";
+    FILE *f = fopen(path, "w");
+    CHECK(f != NULL, "theme script written");
+    if (f) { fputs(src, f); fclose(f); }
+    free(src);
+    if (!f) return;
+
+    /* The theme is GLOBAL state -- start from a known value and restore it. */
+    const char *before = wet_theme_name();
+    CHECK(before != NULL, "a theme is active before the test");
+
+    DosGuiWindow *win = wet_applet_open(path, "Themes", 0, 0, 380, 160);
+    CHECK(win != NULL, "theme applet opened");
+    WetApp *app = win ? wet_applet_app() : NULL;
+
+    if (app) {
+        WetWidget *dark = wet_app_find(app, "TDark");
+        CHECK(dark != NULL, "Dark button found");
+        if (dark) {
+            WetRect r = wet_widget_rect(dark);
+            wet_applet_mouse(win, r.x + r.w / 2, r.y + r.h / 2, 1, 1);
+            wet_applet_mouse(win, r.x + r.w / 2, r.y + r.h / 2, 1, 2);
+        }
+        CHECK(strcmp(wet_theme_name(), "dark") == 0,
+              "clicking Dark really changes the active theme");
+
+        WetWidget *cur = wet_app_find(app, "Current");
+        if (cur) {
+            const char *t = wet_label_text(cur);
+            CHECK(t && strcmp(t, "Theme: dark") == 0,
+                  "the applet reports the theme it just set");
+        }
+
+        /* Restore. */
+        WetWidget *light = wet_app_find(app, "TLight");
+        if (light) {
+            WetRect r = wet_widget_rect(light);
+            wet_applet_mouse(win, r.x + r.w / 2, r.y + r.h / 2, 1, 1);
+            wet_applet_mouse(win, r.x + r.w / 2, r.y + r.h / 2, 1, 2);
+        }
+        CHECK(strcmp(wet_theme_name(), "light") == 0,
+              "clicking Light restores the default theme");
+    }
+
+    remove(path);
+}
+
 int main(void) {
     printf("=== wet applet bridge ===\n");
     test_demo_loads();
@@ -239,6 +294,7 @@ int main(void) {
     test_bad_path_is_reported();
     test_script_effect_processes_surface();
     test_template_calculator_computes();
+    test_template_theme_studio_restyles();
     printf("=== wet_applet: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
 }
