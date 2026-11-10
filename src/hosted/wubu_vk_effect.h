@@ -45,6 +45,31 @@ int wubu_vk_effect_apply(WubuVkEffect *e, uint32_t *px, int w, int h,
                          WubuEffectKind kind, uint32_t color, int strength,
                          const char **err);
 
+/*
+ * Apply a whole stack, in order, on the GPU.  Each pass is one dispatch over
+ * the same buffer; passes are sequential, so ordering is preserved exactly.
+ * Returns 0 on success, -1 with *err set when the GPU could not run it (the
+ * caller should fall back to wubu_effect_apply).
+ */
+int wubu_vk_effect_apply_stack(WubuVkEffect *e, const WubuEffectStack *s,
+                               uint32_t *px, int w, int h, const char **err);
+
+/*
+ * The desktop's effect path: apply a stack on the GPU when this host has
+ * Vulkan, otherwise leave the surface alone and return 0.
+ *
+ * Returns 1 when the stack ran on the GPU, 0 when it did not (no device, no
+ * shader, or a dispatch failure) -- the caller then runs the CPU engine.
+ *
+ * Declared weak in wm_render.c, which must keep linking without Vulkan; the
+ * weak symbol is tested before it is called.
+ */
+int wubu_vk_effect_desktop_apply(const WubuEffectStack *s, uint32_t *px,
+                                 int w, int h);
+
+/* The device the desktop passes run on, or "none" -- for the boot log. */
+const char *wubu_vk_effect_desktop_name(void);
+
 #ifdef __cplusplus
 }
 #endif

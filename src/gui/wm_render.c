@@ -25,6 +25,7 @@
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
 #include "../runtime/wubu_effect.h"   /* the pure effect engine (no deps) */
+#include "../hosted/wubu_vk_effect.h" /* the GPU leg of the same engine */
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -37,6 +38,13 @@
  * without the runtime object; in a full build the real symbol resolves and a
  * program's /n/effect/set becomes visible on the desktop. */
 const WubuEffectStack *wubu_ns_effect_stack(void) __attribute__((weak));
+
+/* The GPU effect pass, when this build has Vulkan.  Weak for the same reason:
+ * a GUI-only test link has no Vulkan and the symbol resolves to 0.  TESTED
+ * before it is called -- a weak function with no definition cannot be called
+ * directly (the call is relocated to 0). */
+int wubu_vk_effect_desktop_apply(const WubuEffectStack *s, uint32_t *px,
+                                 int w, int h) __attribute__((weak));
 
 /* -- Single window draw ------------------------------------------- */
 
@@ -232,7 +240,12 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
      * no-op rather than a segfault. */
     if (wubu_ns_effect_stack) {
         const WubuEffectStack *fx = wubu_ns_effect_stack();
-        if (fx) wubu_effect_apply(fx, fb, fb_w, fb_h);
+        bool ran = false;
+        /* Prefer the GPU; the CPU engine is the documented fallback. */
+        if (wubu_vk_effect_desktop_apply && fx &&
+            wubu_vk_effect_desktop_apply(fx, fb, fb_w, fb_h))
+            ran = true;
+        if (!ran && fx) wubu_effect_apply(fx, fb, fb_w, fb_h);
     }
 }
 

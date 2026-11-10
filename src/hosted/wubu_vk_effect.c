@@ -184,6 +184,50 @@ static int ensure_buffer(WubuVkEffect *e, uint32_t pixels) {
     return 0;
 }
 
+int wubu_vk_effect_apply_stack(WubuVkEffect *e, const WubuEffectStack *s,
+                               uint32_t *px, int w, int h, const char **err) {
+    if (!s || wubu_effect_stack_count(s) == 0) return 0;   /* nothing to do */
+    int n = wubu_effect_stack_count(s);
+    for (int i = 0; i < n; i++) {
+        const WubuEffect *fx = wubu_effect_stack_at(s, i);
+        if (!fx) continue;
+        if (wubu_vk_effect_apply(e, px, w, h, fx->kind, fx->color, fx->strength,
+                                 err) != 0)
+            return -1;
+    }
+    return 0;
+}
+
+/* ---------------------------------------------------- the desktop path */
+
+static WubuVkEffect *g_desktop_ctx;
+static int           g_desktop_tried;
+
+const char *wubu_vk_effect_desktop_name(void) {
+    if (!g_desktop_tried) (void)wubu_vk_effect_desktop_apply(NULL, NULL, 0, 0);
+    return g_desktop_ctx ? wubu_vk_effect_device_name(g_desktop_ctx) : "none";
+}
+
+/*
+ * Apply a stack on the GPU when this host has one.  The context is created
+ * lazily and only once, so a host with no Vulkan pays a failed open and then
+ * uses the CPU engine forever after.
+ */
+int wubu_vk_effect_desktop_apply(const WubuEffectStack *s, uint32_t *px,
+                                 int w, int h) {
+    if (!s || wubu_effect_stack_count(s) == 0) return 0;   /* nothing to do */
+    if (!g_desktop_tried) {
+        g_desktop_tried = 1;
+        const char *path = getenv("WUBU_VK_EFFECT_SPV");
+        g_desktop_ctx = wubu_vk_effect_new(path ? path
+                                                : "src/hosted/wubu_vk_effect.spv");
+    }
+    if (!g_desktop_ctx) return 0;
+    const char *err = NULL;
+    return wubu_vk_effect_apply_stack(g_desktop_ctx, s, px, w, h, &err) == 0
+               ? 1 : 0;
+}
+
 /* ------------------------------------------------------------------ pass */
 
 int wubu_vk_effect_apply(WubuVkEffect *e, uint32_t *px, int w, int h,
