@@ -58,3 +58,39 @@ uint32_t wubu_vk_find_memory_type(WubuVkAllocator *alloc,
     }
     return UINT32_MAX;
 }
+
+/* -- Allocator ----------------------------------------------------- */
+/*
+ * The three allocator entry points wubu_vulkan.h declares.  They were declared
+ * but never defined, which is why nothing could link against the compute
+ * helper -- the missing half of the Vulkan API, now written.
+ */
+
+int wubu_vk_allocator_create(WubuVkAllocator *alloc, WubuVkDevice *dev) {
+    if (!alloc || !dev || !dev->device || !dev->phys_dev) return -1;
+    alloc->device = dev->device;
+    vkGetPhysicalDeviceMemoryProperties(dev->phys_dev->physical_device,
+                                        &alloc->mem_props);
+    return 0;
+}
+
+VkDeviceMemory wubu_vk_alloc(WubuVkAllocator *alloc,
+                             VkMemoryRequirements *req,
+                             VkMemoryPropertyFlags props) {
+    if (!alloc || !req || req->size == 0) return VK_NULL_HANDLE;
+
+    VkMemoryAllocateInfo ai = {0};
+    ai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ai.allocationSize = req->size;
+    ai.memoryTypeIndex = wubu_vk_find_memory_type(alloc, req->memoryTypeBits, props);
+    if (ai.memoryTypeIndex == UINT32_MAX) return VK_NULL_HANDLE;
+
+    VkDeviceMemory mem = VK_NULL_HANDLE;
+    if (vkAllocateMemory(alloc->device, &ai, NULL, &mem) != VK_SUCCESS)
+        return VK_NULL_HANDLE;
+    return mem;
+}
+
+void wubu_vk_free(WubuVkAllocator *alloc, VkDeviceMemory mem) {
+    if (alloc && mem) vkFreeMemory(alloc->device, mem, NULL);
+}

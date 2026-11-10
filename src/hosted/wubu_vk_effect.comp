@@ -1,0 +1,93 @@
+/*
+ * wubu_vk_effect.comp -- the .WET surface effects as a Vulkan compute pass.
+ *
+ * This is the SAME effect engine as src/runtime/wubu_effect.c, expressed in
+ * GLSL so it can run on the GPU.  The integer formulas are copied line for
+ * line -- truncation, clamp and all -- so the GPU result must be byte-identical
+ * to the CPU result, which is exactly what test_vk_effect asserts.
+ *
+ * The pixel format is 0xRRGGBB, matching WetColor and the VBE framebuffer.
+ *
+ * Push constants (28 bytes, matching VkEffectPush in wubu_vk_effect.h):
+ *   count, kind, color, strength, width, height
+ * kind: 1=tint  2=vignette  3=glow  4=scanline   (WUBU_EFFECT_*)
+ */
+#version 450
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) buffer Pixels {
+    uint data[];
+};
+
+layout(push_constant) uniform Params {
+    uint  count;
+    int   kind;
+    uint  color;
+    int   strength;
+    int   width;
+    int   height;
+} p;
+
+uint clamp8(int v) { return uint(v < 0 ? 0 : (v > 255 ? 255 : v)); }
+uint pack8(uint r, uint g, uint b) { return (r << 16u) | (g << 8u) | b; }
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (p.count == 0u || gid >= p.count) return;
+
+    uint px = data[gid];
+    uint r = (px >> 16u) & 0xFFu;
+    uint g = (px >>  8u) & 0xFFu;
+    uint b =  px         & 0xFFu;
+
+    if (p.kind == 1) {
+        /* tint: out = src + (target - src) * strength / 100 */
+        uint tr = (p.color >> 16u) & 0xFFu;
+        uint tg = (p.color >>  8u) & 0xFFu;
+        uint tb =  p.color         & 0xFFu;
+        r = clamp8(int(r) + (int(tr) - int(r)) * p.strength / 100);
+        g = clamp8(int(g) + (int(tg) - int(g)) * p.strength / 100);
+        b = clamp8(int(b) + (int(tb) - int(b)) * p.strength / 100);
+
+    } else if (p.kind == 2) {
+        /* vignette: darken by distance from the centre, centre untouched */
+        int cx = p.width  / 2;
+        int cy = p.height / 2;
+        int dx = int(gid % uint(p.width))  - cx;
+        int dy = int(gid / uint(p.width))  - cy;
+        int d  = dx * dx + dy * dy;
+        int maxd = cx * cx + cy * cy;
+        if (maxd > 0) {
+            int factor = 100 - p.strength * d / maxd;
+            if (factor < 0)  factor = 0;
+            if (factor > 100) factor = 100;
+            if (factor < 100) {
+                r = clamp8(int(r) * factor / 100);
+                g = clamp8(int(g) * factor / 100);
+                b = clamp8(int(b) * factor / 100);
+            }
+        }
+
+    } else if (p.kind == 3) {
+        /* glow: lift bright pixels toward the colour, shadows stay put */
+        uint tr = (p.color >> 16u) & 0xFFu;
+        uint tg = (p.color >>  8u) & 0xFFu;
+        uint tb =  p.color         & 0xFFu;
+        int lum = (int(r) + int(g) + int(b)) / 3;
+        int k = p.strength * lum / 255;
+        r = clamp8(int(r) + int(tr) * k / 100);
+        g = clamp8(int(g) + int(tg) * k / 100);
+        b = clamp8(int(b) + int(tb) * k / 100);
+
+    } else if (p.kind == 4) {
+        /* scanline: dim every other row, row 0 preserved */
+        if ((gid / uint(p.width)) % 2u == 1u) {
+            int factor = 100 - p.strength;
+            r = clamp8(int(r) * factor / 100);
+            g = clamp8(int(g) * factor / 100);
+            b = clamp8(int(b) * factor / 100);
+        }
+    }
+
+    data[gid] = pack8(r, g, b);
+}

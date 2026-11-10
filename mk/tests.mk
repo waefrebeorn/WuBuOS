@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_runtime_apps test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_worldsim test_audio test_runtime_apps test_vk_effect test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -384,6 +384,27 @@ test_runtime_apps:
 		$(RT)/vsl/vsl_shared.c $(RT)/vsl/vsl_elf.c $(RT)/vsl/vsl_gpu_vulkan.c \
 		$(RT)/wubu_proton.c $(RT)/wubu_proton_api.c $(RT)/wubu_proton_dll.c $(RT)/wubu_proton_pe.c $(RT)/wubu_dxvk_conf.c $(RT)/wubu_proton_dxvk.c $(RT)/wubu_apps_test.c -o $(RT)/wubu_apps_test -ldl -lvulkan
 	$(RT)/wubu_apps_test
+
+# -- The GPU effect pass vs the CPU engine -------------------------------
+# The shader is committed (like src/bear/bear_vulkan_shaders); regenerate it
+# from the .comp when a compiler is available.  The test SKIPS cleanly when
+# there is no Vulkan device -- the CPU engine is the documented fallback -- and
+# FAILS if a device is present but the GPU output differs from the CPU's.
+$(HOSTED)/wubu_vk_effect.spv: $(HOSTED)/wubu_vk_effect.comp
+	@if command -v glslangValidator >/dev/null 2>&1; then \
+		glslangValidator -V --target-env vulkan1.3 -o $@ $< && \
+		spirv-val --target-env vulkan1.3 $@; \
+	else \
+		echo "  (glslangValidator absent -- keeping the committed .spv)"; \
+	fi
+
+test_vk_effect: $(HOSTED)/wubu_vk_effect.spv
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -I$(RT) \
+		$(HOSTED)/wubu_vk_effect_test.c $(HOSTED)/wubu_vk_effect.c \
+		$(HOSTED)/wubu_vulkan_loader.c $(HOSTED)/wubu_vulkan_compute.c \
+		$(HOSTED)/wubu_vulkan_cmd.c $(HOSTED)/wubu_vulkan_util.c \
+		$(RT)/wubu_effect.c -o $(HOSTED)/wubu_vk_effect_test -lvulkan -lm
+	$(HOSTED)/wubu_vk_effect_test $(HOSTED)/wubu_vk_effect.spv
 
 # Incremental object list for the VSL NT test: each .o builds via the
 # $(RT)/vsl/%.o / $(RT)/%.o pattern rules ONLY when its .c changed, so
