@@ -24,6 +24,6 @@ maintain copies kept in sync via the token contract.
 ## Consequences
 
 - `wubu_banner.h` now uses `WUBU_TOKEN_GREEN_ANSI` for the green accent
-- `dosgui_window_chrome.c` button text uses `WUBU_COLOR_ACCENT_GREEN`
-- `dosgui_wm_layout.c` border width unified to 2 (matching `WUBU_TOKEN_BORDER_WIDTH`)
+- `window_chrome.c` button text uses `WUBU_COLOR_ACCENT_GREEN`
+- `wm_layout.c` border width unified to 2 (matching `WUBU_TOKEN_BORDER_WIDTH`)
 - Adding a new color requires editing ONE token file, not hunting for hex values

@@ -8,7 +8,7 @@
  * operate the computer" is real, not staged.
  */
 #include "wubu_ui.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
@@ -27,15 +27,15 @@ static void on_key(DosGuiWindow *w, uint32_t key, uint32_t mods) {
 }
 
 static DosGuiWindow *spawn_at(int x, int y, int w, int h, const char *title) {
-    DosGuiWindow *win = dosgui_wm_create(x, y, w, h, title);
-    if (win) { win->on_key = on_key; dosgui_wm_set_focus(win); }
+    DosGuiWindow *win = wm_create(x, y, w, h, title);
+    if (win) { win->on_key = on_key; wm_set_focus(win); }
     return win;
 }
 
 int main(void) {
     printf("=== WuBuOS AGI UI Automation Test Suite ===\n\n");
     vbe_init(1024, 768);
-    dosgui_wm_init(1024, 768);
+    wm_init(1024, 768);
 
     /* -- 1. Move a window by dragging its title bar -- */
     printf("[Move window via synthetic drag]\n");
@@ -84,7 +84,7 @@ int main(void) {
     wubu_ui_replay();
     T(e->x - ex0 == before_replay + moved, "replay reproduces the recorded drag");
 
-    dosgui_wm_shutdown();
+    wm_shutdown();
     vbe_shutdown();
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);
     return (g_pass == g_run) ? 0 : 1;

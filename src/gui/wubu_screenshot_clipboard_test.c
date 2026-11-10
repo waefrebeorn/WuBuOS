@@ -17,7 +17,7 @@ void wubu_theme_colors(int idx, unsigned char *r, unsigned char *g, unsigned cha
 void wubu_notify_simple(const char *msg) { (void)msg; }
 struct wubu_wl_stub { int dummy; };
 struct wubu_wl_stub g_wl;
-void *dosgui_wm_get_focused(void) { return NULL; }
+void *wm_get_focused(void) { return NULL; }
 
 static uint32_t rd_be32(const uint8_t *b) {
     return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) |

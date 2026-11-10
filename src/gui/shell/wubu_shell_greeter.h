@@ -4,7 +4,7 @@
  * The onboarding DECISION layer (src/runtime/wubu_onboarding.c) says whether
  * this boot should show a configurator or go straight to the desktop, but the
  * configurator itself did not exist -- "greeter" was launched and nothing was
- * drawn.  This module is that screen: a real modal dialog on the dosgui_*
+ * drawn.  This module is that screen: a real modal dialog on the *
  * stack (theme engine + VBE + WM input) that lets the user pick a theme and
  * then persists the onboarding sentinel, so the NEXT boot goes to the desktop.
  *

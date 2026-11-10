@@ -3,7 +3,7 @@
  *
  * Inits the genuine compositor (VBE + DosGui WM + desktop), launches REAL app
  * engines through the app registry (not placeholders), renders through the
- * single dosgui_wm_render() entry point, and writes PPM frames. This is the
+ * single wm_render() entry point, and writes PPM frames. This is the
  * honest way to verify the GUI: every pixel comes from the actual WM, theme
  * engine, and wired app draw callbacks.
  *
@@ -19,10 +19,10 @@
 #include "src/kernel/vbe.h"
 #include "src/kernel/memory.h"
 #include "src/kernel/input.h"
-#include "src/gui/dosgui_wm.h"
-#include "src/gui/shell/dosgui_desktop.h"
+#include "src/gui/wm.h"
+#include "src/gui/shell/desktop.h"
 #include "src/gui/wubu_theme.h"
-#include "src/apps/dosgui_apps.h"
+#include "src/apps/apps.h"
 #include "src/tools/screenshot.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,12 +51,12 @@ int main(void) {
 
     /* Phase 1: Win98 Classic desktop - set theme BEFORE init so desktop uses it */
     wubu_theme_set(THEME_WIN98_CLASSIC);
-    dosgui_wm_init(SHOT_W, SHOT_H);
-    dosgui_desktop_init();
+    wm_init(SHOT_W, SHOT_H);
+    desktop_init();
 
     /* Phase 1: clean Win98 Classic desktop with real icons. */
-    dosgui_desktop_tick();
-    dosgui_desktop_render(NULL, SHOT_W, SHOT_H);
+    desktop_tick();
+    desktop_render(NULL, SHOT_W, SHOT_H);
     vbe_swap();
     render_frame("01_desktop_win98");
 
@@ -65,11 +65,11 @@ int main(void) {
     /* is independently visible and the captured frame is honestly verifiable */
     /* (no app hidden behind another). Positions are fixed; the random seed is */
     /* kept only so any app-internal placement stays reproducible. */
-    DosGuiWindow *calc = dosgui_app_launch_by_name("Calculator");   /* (179,81) 280x380 */
-    DosGuiWindow *note = dosgui_app_launch_by_name("Notepad");      /* (100,80) 500x400 */
-    DosGuiWindow *ctrl = dosgui_app_launch_by_name("Control Panel");/* (80,60) 520x440 */
-    DosGuiWindow *expl = dosgui_app_launch_by_name("File Manager"); /* (100,80) 800x600 */
-    DosGuiWindow *canvas = dosgui_app_launch_by_name("WuBu Canvas");/* (120,90) 900x640 */
+    DosGuiWindow *calc = app_launch_by_name("Calculator");   /* (179,81) 280x380 */
+    DosGuiWindow *note = app_launch_by_name("Notepad");      /* (100,80) 500x400 */
+    DosGuiWindow *ctrl = app_launch_by_name("Control Panel");/* (80,60) 520x440 */
+    DosGuiWindow *expl = app_launch_by_name("File Manager"); /* (100,80) 800x600 */
+    DosGuiWindow *canvas = app_launch_by_name("WuBu Canvas");/* (120,90) 900x640 */
     /* Re-tile to avoid overlap: place each in its own quadrant column. */
     if (calc)   { calc->x = 24;   calc->y = 56;   calc->w = 300;   calc->h = 420; }
     if (note)   { note->x = 344;  note->y = 56;   note->w = 360;   note->h = 300; }
@@ -78,7 +78,7 @@ int main(void) {
     if (canvas) { canvas->x = 24;  canvas->y = 492; canvas->w = 300; canvas->h = 220; }
     /* Bring the Calculator to the front so its title renders active (navy) —
      * an honest capture shows a focused app, not a grayed-out background one. */
-    if (calc) dosgui_wm_set_focus(calc);
+    if (calc) wm_set_focus(calc);
     fprintf(stderr, "[layout] calc=(%d,%d,%d,%d) note=(%d,%d,%d,%d) ctrl=(%d,%d,%d,%d) expl=(%d,%d,%d,%d) canvas=(%d,%d,%d,%d)\n",
             calc?calc->x:0, calc?calc->y:0, calc?calc->w:0, calc?calc->h:0,
             note?note->x:0, note?note->y:0, note?note->w:0, note?note->h:0,
@@ -106,29 +106,29 @@ int main(void) {
     /* File Manager: navigate once so it shows a real directory listing. */
     if (expl && expl->on_key) { expl->on_key(expl, '/', 0); expl->on_key(expl, '\r', 0); }
 
-    dosgui_desktop_tick();
-    dosgui_desktop_render(NULL, SHOT_W, SHOT_H);
+    desktop_tick();
+    desktop_render(NULL, SHOT_W, SHOT_H);
     vbe_swap();
     render_frame("02_apps_win98");
 
     /* Phase 3: Control Panel tab cycling (real engine). */
     if (ctrl && ctrl->on_key) { ctrl->on_key(ctrl, '.', 0); ctrl->on_key(ctrl, '.', 0); }
-    dosgui_desktop_tick();
-    dosgui_desktop_render(NULL, SHOT_W, SHOT_H);
+    desktop_tick();
+    desktop_render(NULL, SHOT_W, SHOT_H);
     vbe_swap();
     render_frame("03_controlpanel");
 
     /* Phase 4: XP Luna Blue theme (gradient titles, Luna taskbar). */
     wubu_theme_set(THEME_XP_LUNA_BLUE);
-    dosgui_desktop_tick();
-    dosgui_desktop_render(NULL, SHOT_W, SHOT_H);
+    desktop_tick();
+    desktop_render(NULL, SHOT_W, SHOT_H);
     vbe_swap();
     render_frame("04_apps_xp");
 
     /* Phase 5: WuBu Green theme. */
     wubu_theme_set(THEME_WUBU_CUSTOM);
-    dosgui_desktop_tick();
-    dosgui_desktop_render(NULL, SHOT_W, SHOT_H);
+    desktop_tick();
+    desktop_render(NULL, SHOT_W, SHOT_H);
     vbe_swap();
     render_frame("05_apps_wubu");
 

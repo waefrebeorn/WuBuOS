@@ -6,7 +6,7 @@
 
 #include "screenshot.h"
 #include "../kernel/vbe.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -196,10 +196,10 @@ int wubu_shot_region(const char *path, int x, int y, int w, int h, WubuShotForma
 
 #ifdef WUBU_SCREENSHOT_WITH_WM
 
-extern DosGuiWindow *dosgui_wm_find_by_id(int id);
+extern DosGuiWindow *wm_find_by_id(int id);
 
 int wubu_shot_window(const char *path, int win_id, WubuShotFormat fmt) {
-    DosGuiWindow *win = dosgui_wm_find_by_id(win_id);
+    DosGuiWindow *win = wm_find_by_id(win_id);
     if (!win) return -1;
     return wubu_shot_region(path, win->x, win->y, win->w, win->h, fmt);
 }

@@ -3,7 +3,7 @@
  */
 
 #include "regedit.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
@@ -42,7 +42,7 @@ void regedit_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, RegeditSt
 }
 
 DosGuiWindow* regedit_launch(void) {
-    return dosgui_wm_create(80, 60, 800, 600, "Registry Editor");
+    return wm_create(80, 60, 800, 600, "Registry Editor");
 }
 
 void regedit_init_roots(RegeditState *reg) {

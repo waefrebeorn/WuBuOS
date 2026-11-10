@@ -9,7 +9,7 @@
 #ifndef WET_APPLET_H
 #define WET_APPLET_H
 
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +17,7 @@ extern "C" {
 
 /* Open a .wet applet.  `path` may be NULL, which opens the built-in demo
  * applet -- the shell menu item needs to work without a file argument. */
-DosGuiWindow *dosgui_launch_wet_applet(const char *path);
+DosGuiWindow *launch_wet_applet(const char *path);
 
 /* Load a .wet script into an existing applet window (used by the test). */
 DosGuiWindow *wet_applet_open(const char *path, const char *title,

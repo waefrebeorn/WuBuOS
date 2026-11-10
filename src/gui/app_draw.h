@@ -2,14 +2,14 @@
  * app_draw.h  --  WuBuOS App Draw Functions
  *
  * Provides content render callbacks for DosGui WM windows.
- * Each app type gets a draw function compatible with dosgui_wm's on_draw callback.
+ * Each app type gets a draw function compatible with wm's on_draw callback.
  */
 
 #ifndef WUBU_APP_DRAW_H
 #define WUBU_APP_DRAW_H
 
 #include <stdint.h>
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "../kernel/vbe.h"
 
 /* App content draw functions - signature matches DosGuiWindow.on_draw */

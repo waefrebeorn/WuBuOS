@@ -3,9 +3,9 @@
 #include "wayland_state.h"
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_desktop.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/desktop.h"
+#include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_theme.h"
 #include "../bridge/bridge.h"
@@ -210,7 +210,7 @@ static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
         input_mouse_push(ev);
     }
     /* Track start menu hover */
-    dosgui_startmenu_track_hover(x, y);
+    startmenu_track_hover(x, y);
 
     /* Update region selector if active */
     if (wubu_screenshot_has_active_region_selector()) {

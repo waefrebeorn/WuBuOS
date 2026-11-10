@@ -5,7 +5,7 @@
  * the Getting Started document are that map, so both are gated: the offers have
  * real geometry, they act, and the document renders and scrolls.
  */
-#include "../apps/dosgui_apps.h"
+#include "../apps/apps.h"
 #include "../apps/getting_started.h"
 #include "../gui/shell/wubu_shell_greeter.h"
 
@@ -29,10 +29,10 @@ void panic_dump_ring(void) {}
 void syscall_handler(void) {}
 void klog_printf(const char *f, ...) { (void)f; }
 void klog_tx_poll(void) {}
-void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
-void dosgui_startmenu_toggle(void) {}
-int  dosgui_startmenu_is_open(void) { return 0; }
-void dosgui_shutdown(void) {}
+void startmenu_handle_click(int x, int y) { (void)x;(void)y; }
+void startmenu_toggle(void) {}
+int  startmenu_is_open(void) { return 0; }
+void shutdown(void) {}
 unsigned long long wubu_agi_kernel_global(void) { return 0; }
 unsigned long long wubu_agi_kernel_promoted_total(void) { return 0; }
 unsigned long long wubu_agi_kernel_tick(void) { return 0; }
@@ -62,7 +62,7 @@ int  wubu_session_launch_game(void *h, const uint8_t *g, size_t n, const char *n
 int hd_eval(const char *src, char *out, int out_cap) {
     (void)src; if (out && out_cap > 0) out[0] = '\0'; return 0;
 }
-int  dosgui_wm_get_hosted_state(void *out) { (void)out; return 0; }
+int  wm_get_hosted_state(void *out) { (void)out; return 0; }
 
 static void test_offer_geometry(void) {
     int prev_right = 0;

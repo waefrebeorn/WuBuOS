@@ -31,7 +31,7 @@
 | `test_critical_runtime` | runtime test_oci test_network test_snapshot test_vsl test_holyd test_proton test_proton2 test_spawn |
 | `test_critical_kernel` | test_fat32 test_txfs test_ahci test_drm_direct |
 | `test_high_bridge` | runtime test_bridge test_bridge_flip test_syscall |
-| `test_high_gui` | gui runtime test_dosgui_wm test_dosgui_ui test_dosgui_dos_window test_dosgui_startmenu test_dosgui_e |
+| `test_high_gui` | gui runtime test_wm test_ui test_dos_window test_startmenu test_e |
 | `test_high_bear` | test_jit test_memory test_tasking test_input test_holyc test_holyc_ptx |
 | `test_medium_other` | runtime gui test_worldsim test_audio test_apps test_apps2 test_wubu test_host_exec test_gaad test_is |
 | `test` | test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium |

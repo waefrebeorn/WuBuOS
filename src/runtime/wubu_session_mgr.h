@@ -18,7 +18,7 @@
  *
  * The launcher is injectable so a host can route autostart apps through
  * wubu_exec / a container. The desktop/tray registration lets the GUI painter
- * (dosgui_systray renders; this records WHO OWNS each slot).
+ * (systray renders; this records WHO OWNS each slot).
  *
  * C11, runtime host, single-threaded.
  */

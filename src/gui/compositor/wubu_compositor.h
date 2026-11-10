@@ -134,7 +134,7 @@ const char *wubu_compositor_get_9p_path(WuBuCompositor *comp);
 int wubu_compositor_styx_export(WuBuCompositor *comp, styx_server_t *srv);
 
 /* ================================================================
- * Shell Integration (for dosgui_shell)
+ * Shell Integration (for shell)
  * ================================================================ */
 
 /* Called by shell when it creates a toplevel */

@@ -1,7 +1,7 @@
 /*
  * wubu_shell_greeter_test.c -- GAP F behaviour gate.
  *
- * Proves the first-boot greeter is a REAL screen on the dosgui_* stack, not a
+ * Proves the first-boot greeter is a REAL screen on the * stack, not a
  * label:
  *   1. first boot (no sentinel) targets the GREETER;
  *   2. opening it draws real pixels through the WM/theme/VBE (frame changes);
@@ -16,7 +16,7 @@
 #define _GNU_SOURCE
 #endif
 #include "wubu_shell_greeter.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
 #include "../../runtime/wubu_onboarding.h"
@@ -62,10 +62,10 @@ int main(void) {
     if (vbe_init(SHOT_W, SHOT_H) != 0) { printf("vbe_init failed\n"); return 1; }
     wubu_theme_init();
     wubu_theme_set(THEME_WIN98_CLASSIC);
-    dosgui_wm_init(SHOT_W, SHOT_H);
+    wm_init(SHOT_W, SHOT_H);
 
     /* Baseline frame: desktop only. */
-    dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+    wm_render_desktop(NULL, SHOT_W, SHOT_H);
     uint32_t before[40][40];
     for (int y = 0; y < 40; y++)
         for (int x = 0; x < 40; x++)
@@ -74,7 +74,7 @@ int main(void) {
     /* -- 2. open the greeter: it must draw real pixels -- */
     wubu_shell_greeter_run();
     CHECK(wubu_shell_greeter_is_open(), "greeter dialog is open");
-    dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+    wm_render_desktop(NULL, SHOT_W, SHOT_H);
     int delta = 0;
     for (int y = 0; y < 40; y++)
         for (int x = 0; x < 40; x++)

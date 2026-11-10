@@ -7,7 +7,7 @@
 
 #include "./wubu_notify.h"
 #include "../wubu_settings.h"
-#include "../dosgui_wm.h"
+#include "../wm.h"
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include <string.h>
@@ -240,8 +240,8 @@ void wubu_notify_tick(void) {
 /* -- Input Handling ----------------------------------------------- */
 
 bool wubu_notify_handle_click(int x, int y) {
-    int fb_w = dosgui_wm_screen_w();
-    int fb_h = dosgui_wm_screen_h();
+    int fb_w = wm_screen_w();
+    int fb_h = wm_screen_h();
     
     for (int i = 0; i < g_notify.count; i++) {
         int nx = notification_x(fb_w);
@@ -410,7 +410,7 @@ static int notification_x(int fb_w) {
 }
 
 static int notification_y(int fb_h, int index) {
-    int task_h = dosgui_taskbar_height();
+    int task_h = taskbar_height();
     int start_y = fb_h - task_h - NOTIFICATION_MARGIN - NOTIFICATION_HEIGHT;
     return start_y - index * (NOTIFICATION_HEIGHT + NOTIFICATION_SPACING);
 }

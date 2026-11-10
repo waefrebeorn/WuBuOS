@@ -14,10 +14,10 @@
 | **Kernel** | Linux | Linux | ZealOS (Ring-0) | Linux | ZealOS kernel ✅ | ZealOS + Linux |
 | **Init/System** | systemd | systemd + A/B | None (Ring-0) | systemd | Missing | systemd-like |
 | **Package Manager** | Flatpak + apt | Steam Runtime + pacman | None | pacman + AUR | Stub (wubu_pkgmgr) | pacman + OCI |
-| **Window Manager** | Mutter (Wayland) | gamescope (Wayland) | VGA/VESA direct | KDE/GNOME/WM | Win98 WM (dosgui_wm) | gamescope + Win98 |
+| **Window Manager** | Mutter (Wayland) | gamescope (Wayland) | VGA/VESA direct | KDE/GNOME/WM | Win98 WM (wm) | gamescope + Win98 |
 | **Compositor** | Mutter | gamescope | None | KWin/Mutter | hosted.c (Wayland client) | gamescope |
-| **Shell/UI** | GNOME Shell | Steam Client (CEF) | HolyC REPL | KDE/GNOME | Win98 Shell (dosgui_*) | Steam Client + Win98 |
-| **File Manager** | Nautilus | Steam Library | RedSea (DB) | Dolphin/Nautilus | dosgui_explorer ✅ | Nautilus parity |
+| **Shell/UI** | GNOME Shell | Steam Client (CEF) | HolyC REPL | KDE/GNOME | Win98 Shell (*) | Steam Client + Win98 |
+| **File Manager** | Nautilus | Steam Library | RedSea (DB) | Dolphin/Nautilus | explorer ✅ | Nautilus parity |
 | **Audio** | PipeWire | PipeWire | PC Speaker | PipeWire | Missing | PipeWire |
 | **Network** | NetworkManager | Steam Networking | None | NetworkManager | Netlink (partial) | NetworkManager |
 | **Graphics** | Mesa + Vulkan | Mesa + Vulkan + FSR | VGA/VESA | Mesa + Vulkan | DRM/KMS + Vulkan | gamescope + FSR |
@@ -88,11 +88,11 @@
 | Integer scaling | ❌ | ✅ | ❌ | ❌ | **Missing** | `hosted/wubu_gamescope.c` |
 | Nested Wayland (for games) | ❌ | ✅ | ❌ | ❌ | **Missing** | `hosted/wubu_gamescope.c` |
 | Input grab/focus management | ✅ | ✅ | ✅ (raw) | Partial | 60% missing | `hosted/hosted.c` |
-| Dynamic workspaces | ✅ | ❌ | ❌ | Static 4 | **Missing** | `gui/dosgui_wm.c` |
-| Window snapping/tiling | ✅ | ❌ | ❌ | Basic move/resize | **Missing** | `gui/dosgui_wm.c` |
-| Overview (Activities) | ✅ | ❌ | ❌ | Start Menu only | **Missing** | `gui/dosgui_wm.c` |
-| Window animations | ✅ | ❌ | ❌ | None | **Missing** | `gui/dosgui_wm.c` |
-| Touch gestures | ✅ | ❌ | ❌ | N/A | **Missing** | `gui/dosgui_wm.c` |
+| Dynamic workspaces | ✅ | ❌ | ❌ | Static 4 | **Missing** | `gui/wm.c` |
+| Window snapping/tiling | ✅ | ❌ | ❌ | Basic move/resize | **Missing** | `gui/wm.c` |
+| Overview (Activities) | ✅ | ❌ | ❌ | Start Menu only | **Missing** | `gui/wm.c` |
+| Window animations | ✅ | ❌ | ❌ | None | **Missing** | `gui/wm.c` |
+| Touch gestures | ✅ | ❌ | ❌ | N/A | **Missing** | `gui/wm.c` |
 | HiDPI fractional scaling | ✅ | ✅ | ❌ | Not implemented | **Missing** | `hosted/wubu_metal.c` |
 | Multi-monitor VRR/HDR | ✅ | ✅ | ❌ | Missing | **Missing** | `hosted/wubu_metal.c` |
 | VGA/VESA direct | ❌ | ❌ | ✅ | DRM/KMS | Different paradigm | `kernel/wubu_vga.c` |
@@ -107,15 +107,15 @@
 
 | Feature | GNOME Shell | Steam Client | TempleOS | WuBuOS (Win98) | Gap | WuBuOS File |
 |---------|-------------|--------------|----------|----------------|-----|-------------|
-| App grid/search | ✅ Tracker | ✅ Store/Library | ✅ HolyC REPL | Start Menu ✅ | Parity (different) | `gui/dosgui_startmenu.c` |
-| .desktop parsing | ✅ Full spec | ✅ Steam .desktop | ❌ | Basic ✅ | 60% missing | `gui/dosgui_startmenu.c` |
+| App grid/search | ✅ Tracker | ✅ Store/Library | ✅ HolyC REPL | Start Menu ✅ | Parity (different) | `gui/startmenu.c` |
+| .desktop parsing | ✅ Full spec | ✅ Steam .desktop | ❌ | Basic ✅ | 60% missing | `gui/startmenu.c` |
 | MIME handling | ✅ Shared MIME | ✅ Steam MIME | ❌ | wubu_mime ✅ | Parity | `gui/wubu_mime.c` |
-| App folders | ✅ Drag-drop | ❌ | ❌ | Missing | **Missing** | `gui/dosgui_startmenu.c` |
-| Pin to dash/taskbar | ✅ | ❌ | ❌ | Taskbar ✅ | Parity | `gui/dosgui_wm.c` |
+| App folders | ✅ Drag-drop | ❌ | ❌ | Missing | **Missing** | `gui/startmenu.c` |
+| Pin to dash/taskbar | ✅ | ❌ | ❌ | Taskbar ✅ | Parity | `gui/wm.c` |
 | Notifications center | ✅ | ✅ Overlay | ❌ | Missing | **Missing** | `gui/wubu_notifications.c` |
-| Calendar/World clock | ✅ | ❌ | ❌ | Basic clock | **Missing** | `gui/dosgui_startmenu.c` |
-| System status area | ✅ | ✅ Overlay | ❌ | Basic tray | 70% missing | `gui/dosgui_wm.c` |
-| User menu (power, settings) | ✅ | ✅ | ❌ | Shutdown only | **Missing** | `gui/dosgui_startmenu.c` |
+| Calendar/World clock | ✅ | ❌ | ❌ | Basic clock | **Missing** | `gui/startmenu.c` |
+| System status area | ✅ | ✅ Overlay | ❌ | Basic tray | 70% missing | `gui/wm.c` |
+| User menu (power, settings) | ✅ | ✅ | ❌ | Shutdown only | **Missing** | `gui/startmenu.c` |
 | In-Game Overlay | ❌ | ✅ Shift+Tab | ❌ | Missing | **Missing** | `gui/wubu_overlay.c` |
 | Big Picture / 10-foot UI | ❌ | ✅ Gamepad | ❌ | Mouse/kb only | **Missing** | `gui/wubu_overlay.c` |
 | Remote Play | ❌ | ✅ | ❌ | Missing | **Missing** | `gui/wubu_overlay.c` |
@@ -128,22 +128,22 @@
 ---
 
 ### 5. FILE MANAGEMENT
-**Reference**: Nautilus (GNOME) vs Steam Library (SteamOS) vs RedSea (TempleOS) vs Dolphin (Arch KDE) vs dosgui_explorer (WuBuOS)
+**Reference**: Nautilus (GNOME) vs Steam Library (SteamOS) vs RedSea (TempleOS) vs Dolphin (Arch KDE) vs explorer (WuBuOS)
 
 | Feature | Nautilus | Steam Library | RedSea | WuBuOS Explorer | Gap | WuBuOS File |
 |---------|----------|---------------|--------|-----------------|-----|-------------|
-| Views (list/grid/compact) | ✅ | ✅ Grid | ❌ (DB) | Details/Icons/List ✅ | Parity | `gui/dosgui_explorer.c` |
-| Tabs (Ctrl+T) | ✅ | ❌ | ❌ | Missing | **Missing** | `gui/dosgui_explorer.c` |
+| Views (list/grid/compact) | ✅ | ✅ Grid | ❌ (DB) | Details/Icons/List ✅ | Parity | `gui/explorer.c` |
+| Tabs (Ctrl+T) | ✅ | ❌ | ❌ | Missing | **Missing** | `gui/explorer.c` |
 | Recursive search | ✅ Tracker | ✅ | ❌ | Name only | **Missing** | `apps/wubu_tracker.c` |
 | Content search | ✅ Tracker | ❌ | ❌ | Missing | **Missing** | `apps/wubu_tracker.c` |
-| Bookmarks/Places | ✅ Sidebar | ❌ | ❌ | Favorites ✅ | Parity | `gui/dosgui_explorer.c` |
+| Bookmarks/Places | ✅ Sidebar | ❌ | ❌ | Favorites ✅ | Parity | `gui/explorer.c` |
 | Cloud providers (GVfs) | ✅ SMB/SFTP/Cloud | ❌ | ❌ | Styx 9P only | **Missing** | `runtime/wubu_gvfs.c` |
-| Batch rename | ✅ | ❌ | ❌ | Missing | **Missing** | `gui/dosgui_explorer.c` |
-| Undo/Redo | ✅ | ❌ | ❌ | Missing | **Missing** | `gui/dosgui_explorer.c` |
-| File operations queue | ✅ Progress | ❌ | ❌ | Basic | **Missing** | `gui/dosgui_explorer.c` |
-| Thumbnails | ✅ Images/Video/PDF | ✅ Game art | ❌ | Missing | **Missing** | `gui/dosgui_explorer.c` |
-| Preview pane | ✅ | ✅ | ❌ | Missing | **Missing** | `gui/dosgui_explorer.c` |
-| Drag-drop (internal/external) | ✅ | ❌ | ❌ | Explorer ✅ | Parity | `gui/dosgui_explorer.c` |
+| Batch rename | ✅ | ❌ | ❌ | Missing | **Missing** | `gui/explorer.c` |
+| Undo/Redo | ✅ | ❌ | ❌ | Missing | **Missing** | `gui/explorer.c` |
+| File operations queue | ✅ Progress | ❌ | ❌ | Basic | **Missing** | `gui/explorer.c` |
+| Thumbnails | ✅ Images/Video/PDF | ✅ Game art | ❌ | Missing | **Missing** | `gui/explorer.c` |
+| Preview pane | ✅ | ✅ | ❌ | Missing | **Missing** | `gui/explorer.c` |
+| Drag-drop (internal/external) | ✅ | ❌ | ❌ | Explorer ✅ | Parity | `gui/explorer.c` |
 | MIME launch | ✅ xdg-open | ✅ Steam | ❌ | wubu_mime ✅ | Parity | `gui/wubu_mime.c` |
 | RedSea (DB, no paths) | ❌ | ❌ | ✅ | Styx 9P | Different paradigm | `runtime/styxfs.c` |
 | Contiguous allocation | ❌ | ❌ | ✅ | Not guaranteed | **Missing** | `kernel/redsea.c` |
@@ -365,8 +365,8 @@
 | 2.4 | AT-SPI2 accessibility (Orca, magnifier, OSK) | A11y compliance | `gui/wubu_a11y.c` | 3 |
 | 2.5 | Polkit agent + backend | Privilege escalation | `apps/wubu_polkit.c` | 4 |
 | 2.6 | AppArmor/landlock | Sandboxing | `kernel/wubu_apparmor.c` | 4 |
-| 2.7 | Explorer: tabs, thumbnails, search, queue | Nautilus parity | `gui/dosgui_explorer.c` | 2 |
-| 2.8 | Start Menu: folders, search, notifications | GNOME Shell parity | `gui/dosgui_startmenu.c` | 2 |
+| 2.7 | Explorer: tabs, thumbnails, search, queue | Nautilus parity | `gui/explorer.c` | 2 |
+| 2.8 | Start Menu: folders, search, notifications | GNOME Shell parity | `gui/startmenu.c` | 2 |
 
 ### TIER 3: ARCH DISTRO PARITY
 | Priority | Gap | Required For | WuBuOS File | Sessions |
@@ -401,7 +401,7 @@
 | 5.3 | In-Game Overlay (CEF-based) | Steam Client parity | `gui/wubu_overlay.c` | 6 |
 | 5.4 | Mesa/OpenGL 4.6+ | Desktop apps | `kernel/wubu_drm_direct.c` | 4 |
 | 5.5 | Multi-monitor HiDPI fractional scaling | Modern displays | `hosted/wubu_metal.c` | 3 |
-| 5.6 | Window snapping/tiling/animations | Modern WM | `gui/dosgui_wm.c` | 2 |
+| 5.6 | Window snapping/tiling/animations | Modern WM | `gui/wm.c` | 2 |
 | 5.7 | fwupd (firmware updates) | Hardware support | `deploy/wubu_fwupd.c` | 2 |
 | 5.8 | Power profiles daemon | Laptop battery | `deploy/wubu_power.c` | 2 |
 
@@ -437,8 +437,8 @@
 - **GNOME**: Mutter (dynamic workspaces, overview, animations, a11y)
 - **SteamOS**: gamescope (fullscreen games, VRR/HDR, nested Wayland)
 - **TempleOS**: No WM (HolyC draws directly)
-- **WuBuOS**: Win98 WM (dosgui_wm - taskbar, start menu, static workspaces)
-- **WuBuOS Decision**: **Keep Win98 WM as default desktop shell**. Run **gamescope nested** for Steam games. Add **Mutter-like features** (dynamic workspaces, overview, animations) to Win98 WM optionally. TempleOS apps run in **HolyC REPL window** (dosgui_term).
+- **WuBuOS**: Win98 WM (wm - taskbar, start menu, static workspaces)
+- **WuBuOS Decision**: **Keep Win98 WM as default desktop shell**. Run **gamescope nested** for Steam games. Add **Mutter-like features** (dynamic workspaces, overview, animations) to Win98 WM optionally. TempleOS apps run in **HolyC REPL window** (term).
 
 ### Conflict 5: File System
 - **Arch/GNOME/SteamOS**: ext4/btrfs/xfs + VFS + GVfs (hierarchical paths)

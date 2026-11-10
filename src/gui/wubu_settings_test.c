@@ -21,9 +21,9 @@
  * no window manager and no kernel.  These are the only externals those
  * layers touch; each stub is the contract value a host would provide. */
 
-int  dosgui_taskbar_height(void) { return 28; }
-int  dosgui_wm_screen_w(void)    { return 800; }
-int  dosgui_wm_screen_h(void)    { return 600; }
+int  taskbar_height(void) { return 28; }
+int  wm_screen_w(void)    { return 800; }
+int  wm_screen_h(void)    { return 600; }
 void klog_printf(const char *fmt, ...) { (void)fmt; }
 void *mem_alloc(size_t n) { return malloc(n); }
 void  mem_free(void *p)   { free(p); }

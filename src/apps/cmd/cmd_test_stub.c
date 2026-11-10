@@ -24,13 +24,13 @@ void vbe_3d_sunken_colors(int x, int y, int w, int h,
 }
 int vbe_text_width(const char *s, int scale) { return s ? (int)strlen(s) * 8 * scale : 0; }
 
-/* Chrome draw stub: cmd.c calls dosgui_chrome_draw_window for its frame;
+/* Chrome draw stub: cmd.c calls chrome_draw_window for its frame;
  * the test is headless, so return a content rect inside the window and
  * skip the real (vbe/theme-heavy) chrome path. Mirrors the real signature
- * from dosgui_wm.h. */
+ * from wm.h. */
 typedef struct DosGuiWindow DosGuiWindow;
 typedef struct { int x, y, w, h; } ChromeContentRect;
-ChromeContentRect dosgui_chrome_draw_window(DosGuiWindow *win,
+ChromeContentRect chrome_draw_window(DosGuiWindow *win,
                                             uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     ChromeContentRect empty = {0, 0, 0, 0};

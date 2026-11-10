@@ -3,9 +3,9 @@
  */
 
 #include "taskmgr.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
@@ -140,14 +140,14 @@ void taskmgr_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, TaskManag
     if (!t) return;
 
     /* Draw chrome (frame + title bar + buttons) and get content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
 
     /* Draw task manager content within chrome-provided rect. */
     taskmgr_draw_content(win, &content);
 }
 
 DosGuiWindow* taskmgr_launch(void) {
-    return dosgui_wm_create(80, 60, 800, 600, "Task Manager");
+    return wm_create(80, 60, 800, 600, "Task Manager");
 }
 
 void taskmgr_refresh_processes(TaskManagerState *tm) {
@@ -155,7 +155,7 @@ void taskmgr_refresh_processes(TaskManagerState *tm) {
     TMProcess mock[] = {
         {1, "systemd", 0.5, 1024*1024*50, "Running", "root"},
         {100, "wubu_hosted", 2.3, 1024*1024*200, "Running", "wubu"},
-        {200, "dosgui_wm", 1.1, 1024*1024*80, "Running", "wubu"},
+        {200, "wm", 1.1, 1024*1024*80, "Running", "wubu"},
         {300, "browser", 15.0, 1024*1024*500, "Running", "wubu"},
         {400, "code", 5.5, 1024*1024*300, "Running", "wubu"},
     };

@@ -81,7 +81,7 @@
 
 ## Open Frontier (sprint board top)
 - `system()` ×10: `wubu_image_ops.c`(5), `wubu_netlink.c`, `wubu_demo_record.c`(2), `wubu_codec.c`, `jit.c`.
-- Stub no-ops: `wubu_gamelib_clear_start_menu`, `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `dosgui_term` container session.
+- Stub no-ops: `wubu_gamelib_clear_start_menu`, `vsl_gpu_vulkan` memtype, `wubucontainer` register_handler, `term` container session.
 - NT syscall bridge: ~20/297 transliterated.
 - Parity integration: Arch daemon → Desktop autostart; holyd REPL → Desktop terminal.
 - SteamOS parity (EPIC E2): unscheduled.

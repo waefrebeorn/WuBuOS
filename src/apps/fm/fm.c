@@ -3,8 +3,8 @@
  */
 
 #include "fm.h"
-#include "../gui/dosgui_wm.h"
-#include "../../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
@@ -36,7 +36,7 @@ void fm_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, FileManagerSta
     if (!win || !fm) return;
     /* Centralized chrome draws frame + title bar + buttons; we draw only within
      * the content rect returned by the chrome module. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
     int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
 
     /* Content background (theme-driven). */
@@ -70,7 +70,7 @@ void fm_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, FileManagerSta
 }
 
 DosGuiWindow* fm_launch(void) {
-    return dosgui_wm_create(80, 60, 700, 500, "File Manager");
+    return wm_create(80, 60, 700, 500, "File Manager");
 }
 
 void fm_scan_dir(FileManagerState *fm, const char *path) {

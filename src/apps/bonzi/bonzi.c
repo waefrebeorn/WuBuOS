@@ -12,12 +12,12 @@
  * the action. No placeholder theater. C11, opaque struct, self-contained draw.
  */
 #include "bonzi.h"
-#include "../gui/dosgui_wm.h"
-#include "../../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"
-#include "../apps/dosgui_apps.h"
+#include "../apps/apps.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -78,7 +78,7 @@ static const char *bonzi_handle_real(BonziState *b, const char *raw) {
             return g_reply;
         } else {
             /* fall back to the dosgui registry (handles display titles) */
-            DosGuiWindow *w2 = dosgui_app_launch_by_name(app);
+            DosGuiWindow *w2 = app_launch_by_name(app);
             if (w2) {
                 b->actions++;
                 static char r2[128];
@@ -181,7 +181,7 @@ static void bonzi_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Centralized chrome draws the frame/title bar; we draw content
      * within the content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
     int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
     int body_y = cy + 2;
     int body_h = ch - 2;
@@ -221,7 +221,7 @@ static void bonzi_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
 /* -- Launch -------------------------------------------------------- */
 DosGuiWindow *bonzi_launch(void) {
-    DosGuiWindow *win = dosgui_wm_create(40, 320, 240, 340, "Bonzi Buddy");
+    DosGuiWindow *win = wm_create(40, 320, 240, 340, "Bonzi Buddy");
     if (win) {
         BonziState *b = calloc(1, sizeof(BonziState));
         g_bonzi = b;

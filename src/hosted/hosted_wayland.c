@@ -3,9 +3,9 @@
 #include "wayland_state.h"
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_desktop.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/desktop.h"
+#include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_theme.h"
 #include "../bridge/bridge.h"
@@ -45,7 +45,7 @@ extern hosted_state_t *g_hosted_state;
  * here (facade) since this module is always linked into the hosted binary. */
 wayland_state_t g_wl;
 
-void dosgui_platform_shutdown(void) {
+void platform_shutdown(void) {
     if (g_hosted_state) g_hosted_state->running = false;
 }
 

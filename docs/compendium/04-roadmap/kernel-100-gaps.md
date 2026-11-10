@@ -71,7 +71,7 @@ thing as third party if we can properly make the code"), robustness
 
 - KT01 the a11y test had a missing hosted.h include (fixed; regression
   gate needed) `open`
-- KT02 the test_dosgui_apps target referenced stale .o files (fixed;
+- KT02 the test_apps target referenced stale .o files (fixed;
   the gate must build from .c only) `open`
 - KT03 the kernel lacks a libc unit test (every new libc fn) `open`
 - KT04 the kernel lacks a string-roundtrip fuzz test `open`

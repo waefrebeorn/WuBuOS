@@ -9,7 +9,7 @@
  */
 
 #include "wubu_a11y.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "wubu_theme.h"
 #include "wubu_trash.h"
 #include <assert.h>
@@ -44,13 +44,13 @@ static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + 23
 static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + w - 23; *cy = wy + h - 23; }
 
 int main(void) {
-    dosgui_wm_init(800, 600);
+    wm_init(800, 600);
 
     /* --- Disabled: nothing is hit when the cluster is off ---------- */
     wubu_a11y_set_enabled(false);
-    DosGuiWindow *w = dosgui_wm_create(TEST_WX, TEST_WY, TEST_W, TEST_H, "Test");
+    DosGuiWindow *w = wm_create(TEST_WX, TEST_WY, TEST_W, TEST_H, "Test");
     assert(w && w->id >= 0);
-    dosgui_wm_set_focus(w);
+    wm_set_focus(w);
     int acx, acy; a_center(TEST_WX, TEST_WY, &acx, &acy);
     assert(wubu_a11y_hit(w, acx, acy) == WUBU_A11Y_NONE);
 
@@ -73,10 +73,10 @@ int main(void) {
     /* --- Click Y (no move) -> minimize ----------------------------- */
     wubu_a11y_mouse(w, ycx, ycy, 1, 1);
     wubu_a11y_mouse(w, ycx, ycy, 1, 2);
-    assert(dosgui_wm_is_minimized(w));
+    assert(wm_is_minimized(w));
 
     /* Restore + drag-rotate Y -> w/h swap */
-    dosgui_wm_restore(w);
+    wm_restore(w);
     int w0 = w->w, h0 = w->h;
     wubu_a11y_mouse(w, ycx, ycy, 1, 1);
     wubu_a11y_mouse(w, ycx + 20, ycy + 20, 1, 0);  /* > 6px drag */
@@ -84,22 +84,22 @@ int main(void) {
     assert(w->w == h0 && w->h == w0);  /* swapped */
 
     /* --- Click B (no move) -> close/destroy ----------------------- */
-    w = dosgui_wm_create(200, 200, TEST_W, TEST_H, "CloseTest");
-    dosgui_wm_set_focus(w);
+    w = wm_create(200, 200, TEST_W, TEST_H, "CloseTest");
+    wm_set_focus(w);
     b_center(200, 200, &bcx, &bcy);
     wubu_a11y_mouse(w, bcx, bcy, 1, 1);
     wubu_a11y_mouse(w, bcx, bcy, 1, 2);
     assert(!w->alive);  /* destroyed */
 
     /* --- Click A (no move) -> MAXIMIZE (GC A = the big action) ---- */
-    w = dosgui_wm_create(300, 300, TEST_W, TEST_H, "MoveTest");
-    dosgui_wm_set_focus(w);
+    w = wm_create(300, 300, TEST_W, TEST_H, "MoveTest");
+    wm_set_focus(w);
     a_center(300, 300, &acx, &acy);
     wubu_a11y_mouse(w, acx, acy, 1, 1);
     wubu_a11y_mouse(w, acx, acy, 1, 2);
     assert(w->alive);
-    assert(dosgui_wm_is_maximized(w));   /* A click = maximize */
-    dosgui_wm_restore(w);
+    assert(wm_is_maximized(w));   /* A click = maximize */
+    wm_restore(w);
 
     /* --- Purple resize drag (bottom-left crescent) -> w/h grow ---- */
     p_bl(300, 300, TEST_W, TEST_H, &pblx, &pbly);
@@ -109,8 +109,8 @@ int main(void) {
     assert(w->w > TEST_W && w->h > TEST_H);
 
     /* --- Drag B orb FULL distance -> purge + destroy ------------- */
-    w = dosgui_wm_create(400, 400, TEST_W, TEST_H, "PurgeTest");
-    dosgui_wm_set_focus(w);
+    w = wm_create(400, 400, TEST_W, TEST_H, "PurgeTest");
+    wm_set_focus(w);
     b_center(400, 400, &bcx, &bcy);
     wubu_a11y_mouse(w, bcx, bcy, 1, 1);
     wubu_a11y_mouse(w, bcx + 35, bcy + 35, 1, 0);  /* ≥30px = FULL drag */
@@ -118,8 +118,8 @@ int main(void) {
     assert(!w->alive);  /* destroyed after purge */
 
     /* --- Drag B orb PARTIAL distance -> STIM, window stays alive - */
-    w = dosgui_wm_create(500, 100, TEST_W, TEST_H, "StimTest");
-    dosgui_wm_set_focus(w);
+    w = wm_create(500, 100, TEST_W, TEST_H, "StimTest");
+    wm_set_focus(w);
     b_center(500, 100, &bcx, &bcy);
     wubu_a11y_mouse(w, bcx, bcy, 1, 1);
     wubu_a11y_mouse(w, bcx + 15, bcy + 15, 1, 0);  /* < 30px = partial */
@@ -127,8 +127,8 @@ int main(void) {
     assert(w->alive);   /* stim is feedback, NOT a close */
 
     /* --- Keyboard navigation (P0 a11y) ---------------------------- */
-    DosGuiWindow *kw = dosgui_wm_create(600, 100, TEST_W, TEST_H, "KeyNav");
-    dosgui_wm_set_focus(kw);
+    DosGuiWindow *kw = wm_create(600, 100, TEST_W, TEST_H, "KeyNav");
+    wm_set_focus(kw);
     /* Arrow keys cycle focus; Enter/Space activate. Start at none. */
     assert(wubu_a11y_key(kw, 0xE04D, 0));       /* Right -> focus A (GRAB) */
     assert(wubu_a11y_key(kw, 0xE048, 0));       /* Up   -> focus B (CLOSE) */
@@ -139,11 +139,11 @@ int main(void) {
     /* Tab/other keys are NOT consumed (fall through to WM). */
     assert(!wubu_a11y_key(kw, 0x0F, 0));        /* Tab */
     /* Restore + Enter activates rotate (minimize) on the focused control. */
-    dosgui_wm_restore(kw);
+    wm_restore(kw);
     for (int i = 0; i < 3; i++) wubu_a11y_key(kw, 0xE04D, 0); /* -> Y again */
     assert(wubu_a11y_key(kw, 0x1C, 0));         /* Enter activates Y */
-    assert(dosgui_wm_is_minimized(kw));          /* Y click = minimize */
-    dosgui_wm_destroy(kw);
+    assert(wm_is_minimized(kw));          /* Y click = minimize */
+    wm_destroy(kw);
 
     /* --- WCAG contrast audit (UXA-44): palette must meet AA -------- */
     {
@@ -161,6 +161,6 @@ int main(void) {
         assert(worst >= 3.0);   /* AA UI-component minimum (WCAG 1.4.11) */
     }
 
-    dosgui_wm_shutdown();
+    wm_shutdown();
     return 0;
 }

@@ -173,7 +173,7 @@ int styxfs_load_container(const char *path, WUBU_HEADER *out_hdr, uint8_t **out_
 /* Check if a file is a .wubu container */
 int styxfs_is_wubu_container(const char *path);
 
-/* -- POSIX-like File API (for applications like dosgui_explorer) ------------------------------- */
+/* -- POSIX-like File API (for applications like explorer) ------------------------------- */
 
 /* Global server instance (set by styxfs_init) */
 extern styxfs_server_t *g_styxfs_server;

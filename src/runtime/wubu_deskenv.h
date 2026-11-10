@@ -15,7 +15,7 @@
  *   /n/background/de/desktop        -> the desktop owner (or "none")
  *
  * It is an OWNERSHIP MODEL + control surface, decoupled from the GUI painter
- * (dosgui_systray renders; this records who OWNS each slot — the XApp
+ * (systray renders; this records who OWNS each slot — the XApp
  * contract). The GUI registers its tray/desktop claims here so the owning
  * process is visible through /n regardless of who draws it.
  *

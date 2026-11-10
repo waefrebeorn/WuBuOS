@@ -670,22 +670,22 @@
 - `vbe_ws_bridge_frame(vbe_ws_bridge_t *br)`
 - `vbe_ws_bridge_draw_hud(vbe_ws_bridge_t *br)`
 
-## `src/gui/dosgui_daemon_panel.h`
+## `src/gui/daemon_panel.h`
 
-- `dosgui_daemon_panel_holyd_state(void)`
-- `dosgui_daemon_panel_container_count(void)`
-- `dosgui_daemon_panel_holyd_session_count(void)`
+- `daemon_panel_holyd_state(void)`
+- `daemon_panel_container_count(void)`
+- `daemon_panel_holyd_session_count(void)`
 
-## `src/gui/dosgui_dos_window.h`
+## `src/gui/dos_window.h`
 
-- `dosgui_dos_window_close(DosGuiWindow *win)`
+- `dos_window_close(DosGuiWindow *win)`
 
-## `src/gui/dosgui_era_apps.h`
+## `src/gui/era_apps.h`
 
-- `dosgui_era_apps_register(void)`
-- `dosgui_era_apps_launch(int idx)`
+- `era_apps_register(void)`
+- `era_apps_launch(int idx)`
 
-## `src/gui/dosgui_explorer_internal.h`
+## `src/gui/explorer_internal.h`
 
 - `str_contains_nocase(const char *haystack, const char *needle)`
 - `ex_9p_stat(const char *path, struct stat *st)`
@@ -695,79 +695,79 @@
 - `ex_populate_tree(ExTreeNode *node, const char *path)`
 - `ex_tree_free(ExTreeNode *node)`
 
-## `src/gui/dosgui_service_mgr.h`
+## `src/gui/service_mgr.h`
 
-- `dosgui_service_mgr_init(void)`
-- `dosgui_service_mgr_register_autostart(const char *root, const char *svc)`
-- `dosgui_service_mgr_boot(void)`
+- `service_mgr_init(void)`
+- `service_mgr_register_autostart(const char *root, const char *svc)`
+- `service_mgr_boot(void)`
 
-## `src/gui/dosgui_startmenu.h`
+## `src/gui/startmenu.h`
 
-- `dosgui_startmenu_search_init(void)`
-- `dosgui_startmenu_search_update(const char *query)`
-- `dosgui_startmenu_search_clear(void)`
-- `dosgui_startmenu_search_get_results(SmProgramEntry ***out_results, int *out_count)`
-- `dosgui_startmenu_recent_add(const char *app_name)`
-- `dosgui_startmenu_recent_get(SmProgramEntry **out_entries, int max)`
-- `dosgui_startmenu_tree_build(void)`
-- `dosgui_startmenu_tree_toggle(SmTreeNode *node)`
-- `dosgui_startmenu_tree_render(uint32_t *fb, int fb_w, int fb_h, int x, int y)`
-- `dosgui_startmenu_power(PowerAction action)`
-- `dosgui_startmenu_render_search_bar(uint32_t *fb, int fb_w, int fb_h, int menu_x, int menu_y, int w)`
-- `dosgui_startmenu_render_recent(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int max_items)`
-- `dosgui_startmenu_render_all_programs(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h)`
-- `dosgui_startmenu_render_power_options(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w)`
-- `dosgui_startmenu_handle_key(int key, uint32_t mods)`
-- `dosgui_startmenu_handle_search_input(int key, uint32_t mods)`
-- `dosgui_startmenu_build_programs_db(void)`
-- `dosgui_startmenu_init_enhanced(void)`
+- `startmenu_search_init(void)`
+- `startmenu_search_update(const char *query)`
+- `startmenu_search_clear(void)`
+- `startmenu_search_get_results(SmProgramEntry ***out_results, int *out_count)`
+- `startmenu_recent_add(const char *app_name)`
+- `startmenu_recent_get(SmProgramEntry **out_entries, int max)`
+- `startmenu_tree_build(void)`
+- `startmenu_tree_toggle(SmTreeNode *node)`
+- `startmenu_tree_render(uint32_t *fb, int fb_w, int fb_h, int x, int y)`
+- `startmenu_power(PowerAction action)`
+- `startmenu_render_search_bar(uint32_t *fb, int fb_w, int fb_h, int menu_x, int menu_y, int w)`
+- `startmenu_render_recent(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int max_items)`
+- `startmenu_render_all_programs(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h)`
+- `startmenu_render_power_options(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w)`
+- `startmenu_handle_key(int key, uint32_t mods)`
+- `startmenu_handle_search_input(int key, uint32_t mods)`
+- `startmenu_build_programs_db(void)`
+- `startmenu_init_enhanced(void)`
 
-## `src/gui/dosgui_startmenu_internal.h`
+## `src/gui/startmenu_internal.h`
 
-- `dosgui_startmenu_build_main_menu(void)`
-- `dosgui_startmenu_build_submenus(void)`
+- `startmenu_build_main_menu(void)`
+- `startmenu_build_submenus(void)`
 
-## `src/gui/dosgui_term_internal.h`
+## `src/gui/term_internal.h`
 
 - `term_screen_bind_pty(TermScreen *out, TermPtySession *pty)`
 - `term_ansi_parse(TermScreen *scr, const char *buf, int n)`
 - `term_ansi_drain_fd(int fd, TermScreen *scr)`
 
-## `src/gui/dosgui_term_pty.h`
+## `src/gui/term_pty.h`
 
 - `term_handle_key_container(TermState *term, uint32_t key, uint32_t mods)`
 
-## `src/gui/dosgui_wm.h`
+## `src/gui/wm.h`
 
-- `dosgui_wm_get_mouse(int *x, int *y)`
-- `dosgui_systray_remove(const char *name)`
-- `dosgui_systray_set_notification_count(const char *name, int count)`
-- `dosgui_notif_center_mark_read(uint32_t id)`
-- `dosgui_notif_center_clear(void)`
-- `dosgui_notif_center_render(uint32_t *fb, int fb_w, int fb_h)`
-- `dosgui_notif_center_is_open(void)`
-- `dosgui_notif_center_toggle(void)`
-- `dosgui_wm_restore_icon_layout(void)`
-- `dosgui_wm_reload_wallpaper(void)`
-- `dosgui_wm_is_initialized(void)`
-- `dosgui_wm_wallpaper_mode(void)`
-- `dosgui_wm_wallpaper_w(void)`
-- `dosgui_wm_wallpaper_h(void)`
-- `dosgui_wm_set_auto_arrange(bool on)`
-- `dosgui_wm_get_auto_arrange(void)`
-- `dosgui_wm_set_icons_visible(bool show)`
-- `dosgui_wm_dirty_count(void)`
-- `dosgui_chrome_hit_test_button(DosGuiWindow *win, int mx, int my)`
+- `wm_get_mouse(int *x, int *y)`
+- `systray_remove(const char *name)`
+- `systray_set_notification_count(const char *name, int count)`
+- `notif_center_mark_read(uint32_t id)`
+- `notif_center_clear(void)`
+- `notif_center_render(uint32_t *fb, int fb_w, int fb_h)`
+- `notif_center_is_open(void)`
+- `notif_center_toggle(void)`
+- `wm_restore_icon_layout(void)`
+- `wm_reload_wallpaper(void)`
+- `wm_is_initialized(void)`
+- `wm_wallpaper_mode(void)`
+- `wm_wallpaper_w(void)`
+- `wm_wallpaper_h(void)`
+- `wm_set_auto_arrange(bool on)`
+- `wm_get_auto_arrange(void)`
+- `wm_set_icons_visible(bool show)`
+- `wm_dirty_count(void)`
+- `chrome_hit_test_button(DosGuiWindow *win, int mx, int my)`
 
-## `src/gui/dosgui_wm_holyc_term.h`
+## `src/gui/wm_holyc_term.h`
 
 - `holyc_term_set_eval(holyc_term_eval_fn fn)`
 
-## `src/gui/dosgui_wm_internal.h`
+## `src/gui/wm_internal.h`
 
-- `dosgui_wm_draw_icon_selection(int ox, int oy)`
+- `wm_draw_icon_selection(int ox, int oy)`
 - `snap_window_to_gaad(DosGuiWindow *w)`
-- `dosgui_icon_hit_test(int mx, int my)`
+- `icon_hit_test(int mx, int my)`
 - `spawn_window(int x, int y, int w, int h, const char *title)`
 
 ## `src/gui/gui_dbuf.h`

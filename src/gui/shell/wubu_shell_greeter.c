@@ -1,7 +1,7 @@
 /*
  * wubu_shell_greeter.c -- GAP F: the visible first-boot greeter.
  *
- * A real modal dialog on the dosgui_* stack: theme engine colours, VBE
+ * A real modal dialog on the * stack: theme engine colours, VBE
  * primitives, WM input dispatch.  The user picks a desktop theme and presses
  * Start; the greeter persists the onboarding sentinel through
  * wubu_onboarding_complete(), so the next boot goes straight to the desktop.
@@ -9,18 +9,18 @@
  * C11, minimal includes, public WM/VBE/theme APIs only.
  */
 #include "wubu_shell_greeter.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "wubu_theme.h"
 #include "../../kernel/vbe.h"
 #include "../../runtime/wubu_onboarding.h"
-#include "../../apps/dosgui_apps.h"
+#include "../../apps/apps.h"
 
 /* The offers launch apps that live in the app registry.  Weak, so a test (or a
  * minimal build) that does not link the registry still builds -- the offer is
  * simply inert there. */
-__attribute__((weak)) DosGuiWindow *dosgui_launch_getting_started(void);
-__attribute__((weak)) DosGuiWindow *dosgui_launch_vws_designer(void);
-__attribute__((weak)) DosGuiWindow *dosgui_launch_terminal(void);
+__attribute__((weak)) DosGuiWindow *launch_getting_started(void);
+__attribute__((weak)) DosGuiWindow *launch_vws_designer(void);
+__attribute__((weak)) DosGuiWindow *launch_terminal(void);
 #include <string.h>
 #include <stdio.h>
 
@@ -85,9 +85,9 @@ bool wubu_shell_greeter_is_open(void) { return g_win && g_win->alive; }
 
 void wubu_shell_greeter_offer(int i) {
     switch (i) {
-    case 0: if (dosgui_launch_getting_started) dosgui_launch_getting_started(); break;
-    case 1: if (dosgui_launch_vws_designer)    dosgui_launch_vws_designer();    break;
-    case 2: if (dosgui_launch_terminal)        dosgui_launch_terminal();        break;
+    case 0: if (launch_getting_started) launch_getting_started(); break;
+    case 1: if (launch_vws_designer)    launch_vws_designer();    break;
+    case 2: if (launch_terminal)        launch_terminal();        break;
     default: break;
     }
 }
@@ -182,8 +182,8 @@ static void finish(void) {
     wubu_onboarding_complete(g_sig);
     g_signed = 1;
     if (g_win) {
-        dosgui_wm_set_focus(NULL);
-        dosgui_wm_destroy(g_win);
+        wm_set_focus(NULL);
+        wm_destroy(g_win);
         g_win = NULL;
     }
 }
@@ -208,7 +208,7 @@ void wubu_shell_greeter_key(uint32_t key) {
         finish();
         break;
     case 27: /* escape: close without completing */
-        if (g_win) { dosgui_wm_destroy(g_win); g_win = NULL; }
+        if (g_win) { wm_destroy(g_win); g_win = NULL; }
         break;
     default:
         break;
@@ -272,8 +272,8 @@ static void greeter_on_mouse(DosGuiWindow *w, int x, int y, int btn, int kind) {
 void wubu_shell_greeter_open(void) {
     if (wubu_shell_greeter_is_open()) return;
 
-    int sw = dosgui_wm_screen_w();
-    int sh = dosgui_wm_screen_h();
+    int sw = wm_screen_w();
+    int sh = wm_screen_h();
     if (sw <= 0 || sh <= 0) return;
 
     /* Fresh run: a previous completion must not suppress this one. */
@@ -286,7 +286,7 @@ void wubu_shell_greeter_open(void) {
     if (dx < 0) dx = 0;
     if (dy < 0) dy = 0;
 
-    DosGuiWindow *w = dosgui_wm_create_modal(dx, dy, WUBU_SHELL_GREETER_WIDTH,
+    DosGuiWindow *w = wm_create_modal(dx, dy, WUBU_SHELL_GREETER_WIDTH,
                                              WUBU_SHELL_GREETER_HEIGHT,
                                              "Welcome to WuBuOS", NULL);
     if (!w) return;
@@ -294,11 +294,11 @@ void wubu_shell_greeter_open(void) {
     w->on_key   = greeter_on_key;
     w->on_mouse = greeter_on_mouse;
     g_win = w;
-    dosgui_wm_set_focus(w);
+    wm_set_focus(w);
 }
 
 int wubu_shell_greeter_run(void) {
-    if (dosgui_wm_screen_w() <= 0) return -1;   /* no WM initialised */
+    if (wm_screen_w() <= 0) return -1;   /* no WM initialised */
     wubu_shell_greeter_open();
     return wubu_shell_greeter_is_open() ? 0 : -1;
 }

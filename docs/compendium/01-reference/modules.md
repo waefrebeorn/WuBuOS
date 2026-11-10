@@ -6,32 +6,32 @@
 
 | Tree | Module | Lines | Depends on | Purpose |
 |------|--------|------:|------------|---------|
-| `apps/` | `app_canvas` | 379 | dosgui_apps.h, dosgui_wm.h, stdio.h, stdlib.h, string.h, vbe.h, wubu_canvas.h, w | app_canvas.c  --  WuBu Canvas: in-shell image editor binding Binds the real layered wubu_canvas engi |
-| `apps/` | `app_explorer` | 84 | dosgui_apps.h, dosgui_explorer.h, dosgui_wm.h, stdlib.h, string.h, vbe.h, wubu_t | app_explorer.c  --  WuBuOS File Manager: in-shell Explorer binding Binds the real, Win98/XP-class do |
-| `apps/` | `bonzi` | 233 | bonzi.h, ctype.h, dosgui_apps.h, dosgui_wm.h, dosgui_wm_internal.h, stdio.h, std | bonzi.c -- Bonzi Buddy: desktop AGI agent persona (WuBuOS human interface). Real windowed agent: lau |
-| `apps/` | `calc` | 390 | calc.h, calc_internal.h, dosgui_wm.h, dosgui_wm_internal.h, math.h, stdio.h, std | calc.c  --  Calculator App (Standard / Scientific / Programmer / Graphing) Real windowed engine: lau |
+| `apps/` | `app_canvas` | 379 | apps.h, wm.h, stdio.h, stdlib.h, string.h, vbe.h, wubu_canvas.h, w | app_canvas.c  --  WuBu Canvas: in-shell image editor binding Binds the real layered wubu_canvas engi |
+| `apps/` | `app_explorer` | 84 | apps.h, explorer.h, wm.h, stdlib.h, string.h, vbe.h, wubu_t | app_explorer.c  --  WuBuOS File Manager: in-shell Explorer binding Binds the real, Win98/XP-class do |
+| `apps/` | `bonzi` | 233 | bonzi.h, ctype.h, apps.h, wm.h, wm_internal.h, stdio.h, std | bonzi.c -- Bonzi Buddy: desktop AGI agent persona (WuBuOS human interface). Real windowed agent: lau |
+| `apps/` | `calc` | 390 | calc.h, calc_internal.h, wm.h, wm_internal.h, math.h, stdio.h, std | calc.c  --  Calculator App (Standard / Scientific / Programmer / Graphing) Real windowed engine: lau |
 | `apps/` | `calc_math` | 46 | calc.h, math.h | calc_math.c -- Calculator math evaluation (self-contained). calc_apply_op / calc_apply_func: pure do |
 | `apps/` | `calc_test` | 140 | calc.h, math.h, stdio.h, stdlib.h, string.h | calc_test.c  --  WuBuOS Calculator behavioral tests Exercises the real calculation engine (no GUI re |
-| `apps/` | `calc_test_support` | 53 | calc.h, dosgui_wm.h, stdlib.h, wubu_theme.h | calc_test_support.c -- headless link support for the calculator unit test. The calculator's draw pat |
-| `apps/` | `canvas_standalone` | 105 | dosgui_wm.h, input.h, select.h, stdbool.h, stdio.h, stdlib.h, string.h, unistd.h | canvas_standalone.c -- standalone Linux entry point for the WuBuOS image editor (the real, layered w |
-| `apps/` | `cmd` | 334 | cmd.h, dosgui_wm.h, fcntl.h, ioctl.h, pty.h, signal.h, stdio.h, stdlib.h, string | for kill(), ioctl(), pty.h |
+| `apps/` | `calc_test_support` | 53 | calc.h, wm.h, stdlib.h, wubu_theme.h | calc_test_support.c -- headless link support for the calculator unit test. The calculator's draw pat |
+| `apps/` | `canvas_standalone` | 105 | wm.h, input.h, select.h, stdbool.h, stdio.h, stdlib.h, string.h, unistd.h | canvas_standalone.c -- standalone Linux entry point for the WuBuOS image editor (the real, layered w |
+| `apps/` | `cmd` | 334 | cmd.h, wm.h, fcntl.h, ioctl.h, pty.h, signal.h, stdio.h, stdlib.h, string | for kill(), ioctl(), pty.h |
 | `apps/` | `cmd_test` | 80 | cmd.h, errno.h, stdio.h, stdlib.h, string.h, unistd.h | cmd_test.c -- Real test for the CMD terminal engine (apps/cmd/cmd.c). Proves the engine does real wo |
 | `apps/` | `cmd_test_stub` | 25 | stdint.h, string.h | cmd_test_stub.c -- Minimal stubs for the CMD terminal test. The test only exercises pty spawn/read/h |
-| `apps/` | `comfy` | 385 | bonzi.h, comfy.h, dosgui_wm.h, dosgui_wm_internal.h, math.h, stdio.h, stdlib.h,  | comfy.c -- Comfy: node-graph visual scripting for the AGI operator. Real node-graph engine: nodes ha |
-| `apps/` | `control` | 185 | control.h, dosgui_window_chrome.h, dosgui_wm.h, dosgui_wm_internal.h, stdlib.h,  | control.c  --  Control Panel (9 tabs) - minimal stub |
-| `apps/` | `control_test` | 164 | control.h, dosgui_wm.h, dosgui_wm_internal.h, stdio.h, stdlib.h, string.h, vbe.h | control_test.c  --  WuBuOS Control Panel Test Suite Cell 395: Win98-style settings panel. Verifies t |
-| `apps/` | `dosgui_apps` | 274 | bonzi.h, calc.h, cmd.h, comfy.h, control.h, dosgui_apps.h, dosgui_dos_window.h,  | dosgui_apps.c  --  Single App Registry Implementation ONE data-driven table (g_app_defs[]) is the so |
-| `apps/` | `dosgui_apps_test` | 600 | calc.h, control.h, dosgui_apps.h, editor.h, fm.h, notepad.h, regedit.h, repl.h,  | dosgui_apps_test.c  --  WuBuOS DosGui Apps Test Suite Tests for built-in Win98-style apps: - Task Ma |
-| `apps/` | `dosgui_apps_test_stubs` | 151 | dosgui_apps.h, stdarg.h, stddef.h, stdint.h, wubu_compat_db.h, wubu_notify.h, wu | dosgui_apps_test_stubs.c -- no-op link support for dosgui_apps_test. dosgui_apps.c is the app dispat |
-| `apps/` | `editor` | 22 | dosgui_wm.h, editor.h, stdlib.h, vbe.h, wubu_theme.h | editor.c  --  Simple Editor Wrapper - minimal stub |
-| `apps/` | `edr_dash` | 238 | dosgui_wm.h, dosgui_wm_internal.h, stdio.h, stdlib.h, string.h, vbe.h, wubu_edr. | edr_dash.c -- EDR Activity Dashboard (the disclosure surface) This is the user-facing half of WuBuOS |
-| `apps/` | `fm` | 85 | dosgui_wm.h, fm.h, stdlib.h, string.h, vbe.h, wubu_theme.h | fm.c  --  File Manager (9P/Styx Operations) - minimal stub |
-| `apps/` | `notepad` | 212 | dosgui_window_chrome.h, dosgui_wm.h, dosgui_wm_internal.h, notepad.h, stdlib.h,  | notepad.c  --  My Seed Notepad (Win98-style text editor, real engine) Genuine multi-line text editin |
-| `apps/` | `notepad` | 88 | dosgui_wm.h, notepad.h, stdlib.h, string.h, vbe.h, wubu_theme.h | notepad.c  --  Notepad++ Style Editor (minimal stub) |
-| `apps/` | `regedit` | 136 | dosgui_wm.h, regedit.h, stdlib.h, string.h, vbe.h, wubu_theme.h | regedit.c  --  Windows Registry Editor Clone - minimal stub |
-| `apps/` | `repl` | 125 | dosgui_wm.h, gui_dbuf.h, holyc.h, repl.h, stdio.h, stdlib.h, string.h, vbe.h | repl.c  --  My Seed HolyC JIT REPL (runs inside GUI window) Uses the HolyC compiler (hc_eval) for ev |
-| `apps/` | `repl` | 47 | dosgui_wm.h, repl.h, stdlib.h, string.h, vbe.h, wubu_theme.h | repl.c  --  HolyC REPL Terminal - minimal stub |
-| `apps/` | `taskmgr` | 205 | dosgui_window_chrome.h, dosgui_wm.h, dosgui_wm_internal.h, stdlib.h, taskmgr.h,  | taskmgr.c  --  Task Manager (Windows 11 Style) - minimal stub |
+| `apps/` | `comfy` | 385 | bonzi.h, comfy.h, wm.h, wm_internal.h, math.h, stdio.h, stdlib.h,  | comfy.c -- Comfy: node-graph visual scripting for the AGI operator. Real node-graph engine: nodes ha |
+| `apps/` | `control` | 185 | control.h, window_chrome.h, wm.h, wm_internal.h, stdlib.h,  | control.c  --  Control Panel (9 tabs) - minimal stub |
+| `apps/` | `control_test` | 164 | control.h, wm.h, wm_internal.h, stdio.h, stdlib.h, string.h, vbe.h | control_test.c  --  WuBuOS Control Panel Test Suite Cell 395: Win98-style settings panel. Verifies t |
+| `apps/` | `apps` | 274 | bonzi.h, calc.h, cmd.h, comfy.h, control.h, apps.h, dos_window.h,  | apps.c  --  Single App Registry Implementation ONE data-driven table (g_app_defs[]) is the so |
+| `apps/` | `apps_test` | 600 | calc.h, control.h, apps.h, editor.h, fm.h, notepad.h, regedit.h, repl.h,  | apps_test.c  --  WuBuOS DosGui Apps Test Suite Tests for built-in Win98-style apps: - Task Ma |
+| `apps/` | `apps_test_stubs` | 151 | apps.h, stdarg.h, stddef.h, stdint.h, wubu_compat_db.h, wubu_notify.h, wu | apps_test_stubs.c -- no-op link support for apps_test. apps.c is the app dispat |
+| `apps/` | `editor` | 22 | wm.h, editor.h, stdlib.h, vbe.h, wubu_theme.h | editor.c  --  Simple Editor Wrapper - minimal stub |
+| `apps/` | `edr_dash` | 238 | wm.h, wm_internal.h, stdio.h, stdlib.h, string.h, vbe.h, wubu_edr. | edr_dash.c -- EDR Activity Dashboard (the disclosure surface) This is the user-facing half of WuBuOS |
+| `apps/` | `fm` | 85 | wm.h, fm.h, stdlib.h, string.h, vbe.h, wubu_theme.h | fm.c  --  File Manager (9P/Styx Operations) - minimal stub |
+| `apps/` | `notepad` | 212 | window_chrome.h, wm.h, wm_internal.h, notepad.h, stdlib.h,  | notepad.c  --  My Seed Notepad (Win98-style text editor, real engine) Genuine multi-line text editin |
+| `apps/` | `notepad` | 88 | wm.h, notepad.h, stdlib.h, string.h, vbe.h, wubu_theme.h | notepad.c  --  Notepad++ Style Editor (minimal stub) |
+| `apps/` | `regedit` | 136 | wm.h, regedit.h, stdlib.h, string.h, vbe.h, wubu_theme.h | regedit.c  --  Windows Registry Editor Clone - minimal stub |
+| `apps/` | `repl` | 125 | wm.h, gui_dbuf.h, holyc.h, repl.h, stdio.h, stdlib.h, string.h, vbe.h | repl.c  --  My Seed HolyC JIT REPL (runs inside GUI window) Uses the HolyC compiler (hc_eval) for ev |
+| `apps/` | `repl` | 47 | wm.h, repl.h, stdlib.h, string.h, vbe.h, wubu_theme.h | repl.c  --  HolyC REPL Terminal - minimal stub |
+| `apps/` | `taskmgr` | 205 | window_chrome.h, wm.h, wm_internal.h, stdlib.h, taskmgr.h,  | taskmgr.c  --  Task Manager (Windows 11 Style) - minimal stub |
 | `apps/` | `wubu_apps2_test` | 353 | stdio.h, stdlib.h, string.h, unistd.h, wubu_canvas.h, wubu_codec.h, wubu_editor. | wubu_apps_test.c  --  Tests for Editor, Canvas, and Codec Cell 396/397/398: Notepad++ editor, Photos |
 | `apps/` | `wubu_canvas_blend` | 52 | wubu_canvas.h | wubu_canvas_blend.c -- Canvas blend-compositing subsystem (self-contained). blend_channel + wubu_ble |
 | `apps/` | `wubu_canvas_draw` | 226 | stdio.h, stdlib.h, string.h, wubu_canvas.h, wubu_canvas_internal.h | wubu_canvas_draw.c -- WuBuOS canvas: pixel drawing tools, color pick, and selection. Self-contained: |
@@ -77,8 +77,8 @@
 | `bridge/` | `bridge_test` | 207 | bridge.h, stdio.h, string.h | bridge_test.c  --  WuBuOS Bridge/DOS Flip Test Suite Cell 103: Tests DOS flip bridge wiring (Ctrl+Al |
 | `bridge/` | `vbe_ws_bridge` | 417 | stdio.h, string.h, vbe_ws_bridge.h | vbe_ws_bridge.c  --  VBE ↔ WorldSim Render Bridge Implementation Cell 070: Wires WorldSim software r |
 | `bridge/` | `vbe_ws_bridge_test` | 727 | stdio.h, stdlib.h, string.h, vbe_ws_bridge.h | vbe_ws_bridge_test.c  --  Test Suite for VBE ↔ WorldSim Render Bridge Cell 070: Tests the wiring bet |
-| `bridge/` | `wubu_syscall` | 518 | dosgui_wm.h, errno.h, fcntl.h, interrupt.h, prctl.h, signal.h, stat.h, stdio.h,  | wubu_syscall.c  --  WuBuOS HolyC Syscall Bridge Implementation Registers 25 TempleOS/ZealOS-compatib |
-| `bridge/` | `wubu_syscall_test` | 127 | dosgui_wm.h, stdio.h, string.h, vbe.h, wubu_syscall.h | wubu_syscall_test.c  --  WuBuOS Syscall Bridge Test Suite Tests the 26 TempleOS/ZealOS-compatible sy |
+| `bridge/` | `wubu_syscall` | 518 | wm.h, errno.h, fcntl.h, interrupt.h, prctl.h, signal.h, stat.h, stdio.h,  | wubu_syscall.c  --  WuBuOS HolyC Syscall Bridge Implementation Registers 25 TempleOS/ZealOS-compatib |
+| `bridge/` | `wubu_syscall_test` | 127 | wm.h, stdio.h, string.h, vbe.h, wubu_syscall.h | wubu_syscall_test.c  --  WuBuOS Syscall Bridge Test Suite Tests the 26 TempleOS/ZealOS-compatible sy |
 | `bridge/` | `wubu_syscall_vbe` | 58 | vbe.h, wubu_syscall.h | wubu_syscall_vbe.c -- VBE syscall handlers (self-contained). sys_vbe_*: thin wrappers translating in |
 | `compiler/` | `holyc_codegen` | 21 | holyc_codegen.h, holyc_codegen_internal.h | holyc_codegen.c  --  My Seed HolyC Code Generator (Facade) Modular codegen: emit, expr, stmt, api su |
 | `compiler/` | `holyc_codegen_api` | 340 | holyc_codegen_internal.h | holyc_codegen_api.c  --  HolyC Code Generator: Public API Top-level compile/eval functions and publi |
@@ -130,70 +130,70 @@
 | `firmware/` | `hello` | 243 | efi.h | hello.c  --  WuBuOS test EFI application. Exercises the firmware for real: ConOut, memory map, Alloc |
 | `firmware/` | `mkesp` | 340 | stdint.h, stdio.h, stdlib.h, string.h | mkesp.c  --  WuBuOS FAT32 ESP image builder (C11, self-contained). Creates a GPT-partitioned disk im |
 | `firmware/` | `mkpe` | 191 | stdint.h, stdio.h, stdlib.h, string.h | mkpe.c  --  WuBuOS PE32+ EFI image builder (C11, no toolchain deps). GCC on Linux cannot emit PE32+, |
-| `framework/` | `test_bonzi_comfy` | 101 | bonzi.h, comfy.h, dosgui_wm.h, stdio.h, string.h, wubufx.h | test_bonzi_comfy.c -- Verify the AGI human-interface plumbing. Proves (headless, no display): 1. Bon |
+| `framework/` | `test_bonzi_comfy` | 101 | bonzi.h, comfy.h, wm.h, stdio.h, string.h, wubufx.h | test_bonzi_comfy.c -- Verify the AGI human-interface plumbing. Proves (headless, no display): 1. Bon |
 | `framework/` | `wubufx` | 220 | stdio.h, stdlib.h, string.h, wubu_edr.h, wubu_holyd.h, wubufx.h | wubufx.c -- WuBuFX: WuBuOS Application Framework (implementation) Self-contained. Composition root w |
-| `framework/` | `wubufx_apps` | 177 | bonzi.h, comfy.h, dosgui_apps.h, dosgui_wm.h, stdio.h, stdlib.h, string.h, wubu_ | wubufx_apps.c -- WuBuFX application registry (real engines, no placeholders) Phase C binding: the de |
-| `framework/` | `wubufx_apps_test` | 60 | dosgui_wm.h, stdio.h, string.h, wubufx.h, wubufx_apps.h | wubufx_apps_test.c -- WuBuFX real-app binding regression tests Proves Phase C: every registered app  |
+| `framework/` | `wubufx_apps` | 177 | bonzi.h, comfy.h, apps.h, wm.h, stdio.h, stdlib.h, string.h, wubu_ | wubufx_apps.c -- WuBuFX application registry (real engines, no placeholders) Phase C binding: the de |
+| `framework/` | `wubufx_apps_test` | 60 | wm.h, stdio.h, string.h, wubufx.h, wubufx_apps.h | wubufx_apps_test.c -- WuBuFX real-app binding regression tests Proves Phase C: every registered app  |
 | `framework/` | `wubufx_test` | 99 | stdint.h, stdio.h, string.h, wubu_edr.h, wubufx.h | wubufx_test.c -- WuBuFX framework regression tests Verifies the namespace-first contract end to end: |
-| `gui/` | `dosgui_daemon_panel` | 526 | dosgui_daemon_panel.h, dosgui_desktop.h, dosgui_wm.h, epoll.h, errno.h, fcntl.h, | dosgui_daemon_panel.c  --  WuBuOS Desktop Daemon Integration Panel Cell 400-402: Bridges wubu_archd  |
-| `gui/` | `dosgui_daemon_panel_test` | 124 | dosgui_daemon_panel.h, stdint.h, stdio.h, stdlib.h, string.h | dosgui_daemon_panel_test.c  --  Daemon Panel Unit Test Suite Tests daemon panel logic with stubbed G |
-| `gui/` | `dosgui_desktop` | 213 | dosgui_apps.h, dosgui_daemon_panel.h, dosgui_desktop.h, dosgui_era_apps.h, dosgu | dosgui_desktop.c  --  WuBuOS DosGui Desktop Implementation Cell 401: THEMED Win98/XP desktop with la |
-| `gui/` | `dosgui_dos_window` | 141 | dosgui_wm.h, stdint.h, stdio.h, stdlib.h, string.h, wubu_dos_proc.h | dosgui_dos_window.c -- Render a WuBuOS 16-bit DOS process in a desktop window. The window blits the  |
-| `gui/` | `dosgui_dos_window_test` | 106 | dosgui_dos_window.h, stdint.h, stdio.h, stdlib.h, string.h, wubu_container.h, wu | dosgui_dos_window_test.c -- Real end-to-end test for the DOS Box window. Exercises the genuine engin |
-| `gui/` | `dosgui_dos_window_test_stub` | 24 | dosgui_wm.h, stdlib.h, string.h | dosgui_dos_window_test_stub.c -- Minimal WM window primitive stubs for the DOS Box window test. We a |
-| `gui/` | `dosgui_era_apps` | 230 | dosgui_era_apps.h, dosgui_startmenu.h, dosgui_startmenu_internal.h, stdio.h, std | dosgui_era_apps.c -- One representative application per computing era, each tagged with the VSL sysc |
-| `gui/` | `dosgui_era_apps_test` | 111 | dosgui_era_apps.h, dosgui_startmenu.h, stat.h, stdio.h, stdlib.h, string.h, unis | dosgui_era_apps_test.c -- regression test for the "one app per era" registry + launcher. Asserts tha |
-| `gui/` | `dosgui_explorer` | 524 | ctype.h, dirent.h, dlfcn.h, dosgui_explorer.h, dosgui_explorer_internal.h, dosgu | dosgui_explorer.c  --  WuBuOS File Manager (Win98/XP Explorer Shell) Phase 5: Full-featured file man |
-| `gui/` | `dosgui_explorer_drives` | 63 | dosgui_explorer_internal.h, stdio.h, string.h | dosgui_explorer_drives.c -- Drive / volume enumeration subsystem. Self-contained: enumerates mounted |
-| `gui/` | `dosgui_explorer_format` | 65 | dosgui_explorer.h, stdio.h, string.h, time.h | dosgui_explorer_format.c -- Shared type/format helpers for the explorer. These are PUBLIC API (decla |
-| `gui/` | `dosgui_explorer_fs` | 66 | dirent.h, stat.h, stdint.h, string.h, types.h | dosgui_explorer_fs.c -- 9P/Styx filesystem backend for the WuBuOS Explorer. Self-contained module ex |
-| `gui/` | `dosgui_explorer_fsops` | 135 | dirent.h, dosgui_explorer_internal.h, errno.h, fcntl.h, stat.h, stdio.h, stdlib. | dosgui_explorer_fsops.c -- Explorer file-operation workers. Self-contained module extracted from dos |
-| `gui/` | `dosgui_explorer_info` | 100 | dosgui_explorer.h, dosgui_explorer_internal.h, stat.h, stdio.h, string.h | dosgui_explorer_info.c -- WuBuOS explorer: file metadata extraction. Extracted from dosgui_explorer. |
-| `gui/` | `dosgui_explorer_input` | 436 | ctype.h, dosgui_explorer.h, dosgui_explorer_internal.h, stdio.h, string.h, vbe.h | dosgui_explorer_input.c -- Explorer input handling (keyboard + mouse) Extracted from dosgui_explorer |
-| `gui/` | `dosgui_explorer_ops` | 174 | dosgui_explorer.h, dosgui_explorer_internal.h, errno.h, fcntl.h, stat.h, stdint. | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
-| `gui/` | `dosgui_explorer_preview` | 66 | dosgui_explorer_internal.h, fcntl.h, string.h | dosgui_explorer_preview.c -- File preview subsystem. Self-contained: builds the preview metadata/tex |
-| `gui/` | `dosgui_explorer_render` | 506 | dosgui_explorer_internal.h, dosgui_wm.h, stdint.h, stdio.h, string.h, vbe.h | dosgui_explorer_render.c  --  Win98 Explorer render layer Extracted from dosgui_explorer.c — all dra |
-| `gui/` | `dosgui_explorer_test` | 533 | assert.h, dosgui_explorer.h, stdint.h, stdio.h, stdlib.h, string.h | dosgui_explorer_test.c  --  Test suite for dosgui_explorer |
-| `gui/` | `dosgui_explorer_test_stub` | 106 | dirent.h, dosgui_explorer.h, dosgui_wm.h, stat.h, stdlib.h, string.h, time.h, ty | dosgui_explorer_test_stub.c  --  Stub functions for dosgui_explorer tests Provides minimal implement |
-| `gui/` | `dosgui_explorer_tree` | 218 | dosgui_explorer_internal.h, stdio.h, stdlib.h, string.h | dosgui_explorer_tree.c -- Tree view subsystem + shared entry helpers. Owns directory-tree population |
-| `gui/` | `dosgui_explorer_zip` | 335 | ctype.h, dlfcn.h, dosgui_explorer_internal.h, fcntl.h, stat.h, stdio.h, stdlib.h | dosgui_explorer_zip.c  --  WuBuOS Explorer Zip Archive Module Extracted from dosgui_explorer.c lines |
-| `gui/` | `dosgui_service_mgr` | 156 | ctype.h, dosgui_service_mgr.h, stdio.h, stdlib.h, string.h | dosgui_service_mgr.c -- Desktop-side service/autostart manager (E3). Real wiring of wubu_archd (16/1 |
-| `gui/` | `dosgui_service_mgr_test` | 76 | assert.h, dosgui_service_mgr.h, stdio.h, string.h | dosgui_service_mgr_test.c -- Regression test for E3 integration: wubu_archd wired as the Desktop's a |
-| `gui/` | `dosgui_startmenu` | 843 | ctype.h, dirent.h, dosgui_desktop.h, dosgui_era_apps.h, dosgui_startmenu.h, dosg | dosgui_startmenu.c  --  WuBuOS DosGui Start Menu Implementation Cell 402: THEMED Cascading Start Men |
-| `gui/` | `dosgui_startmenu_db` | 183 | ctype.h, dirent.h, dosgui_desktop.h, dosgui_startmenu.h, dosgui_startmenu_intern | dosgui_startmenu_db.c  --  WuBuOS Start Menu model constructor Extracted from dosgui_startmenu.c (Ce |
-| `gui/` | `dosgui_startmenu_power` | 45 | dosgui_startmenu_internal.h, stdio.h | dosgui_startmenu_power.c -- Power options subsystem for the Start menu. Self-contained: power action |
-| `gui/` | `dosgui_startmenu_search` | 104 | dosgui_startmenu_internal.h, stdlib.h, string.h, wubu_theme.h | dosgui_startmenu_search.c -- Start menu search + recent apps. Self-contained subsystem extracted fro |
-| `gui/` | `dosgui_startmenu_test` | 103 | dosgui_startmenu.h, stdio.h, vbe.h, wubu_theme.h | dosgui_startmenu_test.c  --  WuBuOS DosGui Start Menu Test Suite (Cell 402) |
-| `gui/` | `dosgui_startmenu_test_stub` | 107 | dosgui_startmenu.h, stdbool.h, wubu_dos_proc.h, wubu_exec.h, wubu_mime.h, wubu_t | dosgui_startmenu_test_stub.c  --  Stubs for dosgui_startmenu_test without desktop integration |
-| `gui/` | `dosgui_startmenu_tree` | 105 | dosgui_startmenu_internal.h, stdlib.h, string.h, wubu_theme.h | dosgui_startmenu_tree.c -- Start menu program-tree (All Programs). Self-contained subsystem extracte |
-| `gui/` | `dosgui_term` | 502 | ctype.h, dosgui_term.h, dosgui_term_internal.h, dosgui_term_pty.h, dosgui_wm.h,  | dosgui_term.c  --  WuBuOS Terminal (PTY + HolyC REPL + Tabbed) Phase 6: Full-featured terminal with: |
-| `gui/` | `dosgui_term_ansi` | 445 | dosgui_term_internal.h, errno.h, string.h, unistd.h | dosgui_term_ansi.c  --  WuBuOS Terminal shared VT100/ANSI parser Extracted from dosgui_term.c (2026- |
-| `gui/` | `dosgui_term_pty` | 526 | ctype.h, dosgui_term_internal.h, dosgui_term_pty.h, dosgui_wm.h, errno.h, fcntl. | dosgui_term_pty.c  --  WuBuOS Terminal PTY Backend Implementation Extracted from dosgui_term.c (2026 |
-| `gui/` | `dosgui_term_render` | 192 | dosgui_term_internal.h, string.h | dosgui_term_render.c -- WuBuOS terminal rendering layer. Self-contained module extracted from dosgui |
-| `gui/` | `dosgui_term_tabs` | 156 | dosgui_term_internal.h, stdio.h, stdlib.h, string.h | dosgui_term_tabs.c -- Terminal tab-management subsystem. Self-contained: tab creation/close/switch/m |
-| `gui/` | `dosgui_term_test` | 278 | ctype.h, dosgui_term.h, dosgui_term_internal.h, dosgui_wm.h, fcntl.h, pty.h, sig | dosgui_term_test.c  --  WuBuOS Terminal Test Suite Tests PTY backend, ANSI parser, scrollback, copy/ |
-| `gui/` | `dosgui_term_test_stub` | 80 | dosgui_term.h, dosgui_wm.h, stdio.h, stdlib.h, string.h | dosgui_term_test_stub.c  --  Stubs for dosgui_term_test without full dependencies Provides minimal i |
-| `gui/` | `dosgui_window_chrome` | 359 | dosgui_wm.h, dosgui_wm_internal.h, string.h, vbe.h, wubu_theme.h | dosgui_window_chrome.c  --  Standardized Window Chrome for WuBuOS Centralized drawing of ALL window  |
-| `gui/` | `dosgui_wm` | 90 | dirent.h, dosgui_wm_internal.h, errno.h, stat.h, wubu_wallpaper.h | dosgui_wm.c  --  WuBuOS DosGui Window Manager facade Cell 400: Fable Windowing Agent — THEMED EDITIO |
-| `gui/` | `dosgui_wm_clock` | 24 | dosgui_wm_internal.h, stdio.h, time.h | dosgui_wm_clock.c -- WuBuOS DosGui WM: taskbar clock Self-contained concern split out of dosgui_wm_c |
-| `gui/` | `dosgui_wm_ctxmenu` | 433 | dosgui_wm_internal.h, stdio.h, stdlib.h, string.h, wubu_trash.h | dosgui_wm_ctxmenu.c  --  WuBuOS DosGui WM: context-menu action wiring Facade that binds the generic  |
-| `gui/` | `dosgui_wm_ctxmenu_engine` | 196 | dosgui_wm_internal.h | dosgui_wm_ctxmenu_engine.c -- WuBuOS DosGui WM: context-menu engine Self-contained concern split out |
-| `gui/` | `dosgui_wm_desktop` | 318 | dirent.h, dosgui_wm_internal.h, errno.h, fcntl.h, stat.h, stdlib.h, strings.h | dosgui_wm_desktop.c -- Desktop icons subsystem for the WuBuOS WM. Self-contained module extracted fr |
-| `gui/` | `dosgui_wm_holyc_term` | 187 | dosgui_wm_holyc_term.h, dosgui_wm_internal.h, holyc_codegen.h, stdio.h, stdlib.h | dosgui_wm_holyc_term.c  --  HolyC Terminal subsystem for dosgui_wm Provides a REPL terminal window f |
-| `gui/` | `dosgui_wm_icon_glyphs` | 132 | dosgui_wm.h, dosgui_wm_internal.h, stdint.h, string.h | dosgui_wm_icon_glyphs.c -- Desktop icon glyph rendering (Chicago -> XP). The old desktop drew every  |
-| `gui/` | `dosgui_wm_icons` | 79 | dosgui_wm_internal.h | dosgui_wm_icons.c -- Desktop icon subsystem for the window manager. Self-contained: desktop icon gri |
-| `gui/` | `dosgui_wm_input` | 409 | dosgui_startmenu.h, dosgui_wm.h, dosgui_wm_internal.h, stdio.h, string.h, time.h | dosgui_wm_input.c -- WuBuOS DosGui WM: input dispatch (key + mouse) Self-contained concern split out |
-| `gui/` | `dosgui_wm_layout` | 233 | dosgui_wm.h, dosgui_wm_internal.h, stdint.h, string.h, wubu_theme.h | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
-| `gui/` | `dosgui_wm_render` | 167 | dosgui_wm.h, dosgui_wm_internal.h, stdbool.h, stdint.h, stdlib.h, string.h | dosgui_wm_render.c -- WuBuOS WM rendering (single module) ONE entry point: dosgui_wm_render(fb, w, h |
-| `gui/` | `dosgui_wm_systray` | 207 | dosgui_wm_internal.h | dosgui_wm_systray.c  --  System Tray + Notification Center Extracted from dosgui_wm.c for modularity |
-| `gui/` | `dosgui_wm_taskbar` | 196 | dosgui_wm_internal.h, time.h | dosgui_wm_taskbar.c -- Taskbar render + geometry. Self-contained: renders the taskbar (Start button, |
-| `gui/` | `dosgui_wm_test` | 881 | dirent.h, dosgui_wm.h, dosgui_wm_internal.h, stat.h, stdio.h, stdlib.h, string.h | dosgui_wm_test.c  --  WuBuOS DosGui Window Manager Test Suite Cell 400: Fable Windowing Agent test s |
-| `gui/` | `dosgui_wm_test_stub` | 42 | dosgui_startmenu.h, dosgui_wm.h, hosted.h, stdbool.h, wubu_theme.h | dosgui_wm_test_stub.c  --  Stubs for WM unit tests without full desktop integration. Provides no-op  |
-| `gui/` | `dosgui_wm_window` | 270 | dosgui_wm_internal.h, stdio.h, string.h, wubu_settings.h | dosgui_wm_window.c -- WuBuOS DosGui WM: window lifecycle + icons Self-contained concern split out of |
-| `gui/` | `dosgui_wm_window_state` | 117 | dosgui_wm_internal.h, string.h | dosgui_wm_window_state.c -- WuBuOS DosGui WM: window state + modal dialogs Self-contained concern sp |
+| `gui/` | `daemon_panel` | 526 | daemon_panel.h, desktop.h, wm.h, epoll.h, errno.h, fcntl.h, | daemon_panel.c  --  WuBuOS Desktop Daemon Integration Panel Cell 400-402: Bridges wubu_archd  |
+| `gui/` | `daemon_panel_test` | 124 | daemon_panel.h, stdint.h, stdio.h, stdlib.h, string.h | daemon_panel_test.c  --  Daemon Panel Unit Test Suite Tests daemon panel logic with stubbed G |
+| `gui/` | `desktop` | 213 | apps.h, daemon_panel.h, desktop.h, era_apps.h, dosgu | desktop.c  --  WuBuOS DosGui Desktop Implementation Cell 401: THEMED Win98/XP desktop with la |
+| `gui/` | `dos_window` | 141 | wm.h, stdint.h, stdio.h, stdlib.h, string.h, wubu_dos_proc.h | dos_window.c -- Render a WuBuOS 16-bit DOS process in a desktop window. The window blits the  |
+| `gui/` | `dos_window_test` | 106 | dos_window.h, stdint.h, stdio.h, stdlib.h, string.h, wubu_container.h, wu | dos_window_test.c -- Real end-to-end test for the DOS Box window. Exercises the genuine engin |
+| `gui/` | `dos_window_test_stub` | 24 | wm.h, stdlib.h, string.h | dos_window_test_stub.c -- Minimal WM window primitive stubs for the DOS Box window test. We a |
+| `gui/` | `era_apps` | 230 | era_apps.h, startmenu.h, startmenu_internal.h, stdio.h, std | era_apps.c -- One representative application per computing era, each tagged with the VSL sysc |
+| `gui/` | `era_apps_test` | 111 | era_apps.h, startmenu.h, stat.h, stdio.h, stdlib.h, string.h, unis | era_apps_test.c -- regression test for the "one app per era" registry + launcher. Asserts tha |
+| `gui/` | `explorer` | 524 | ctype.h, dirent.h, dlfcn.h, explorer.h, explorer_internal.h, dosgu | explorer.c  --  WuBuOS File Manager (Win98/XP Explorer Shell) Phase 5: Full-featured file man |
+| `gui/` | `explorer_drives` | 63 | explorer_internal.h, stdio.h, string.h | explorer_drives.c -- Drive / volume enumeration subsystem. Self-contained: enumerates mounted |
+| `gui/` | `explorer_format` | 65 | explorer.h, stdio.h, string.h, time.h | explorer_format.c -- Shared type/format helpers for the explorer. These are PUBLIC API (decla |
+| `gui/` | `explorer_fs` | 66 | dirent.h, stat.h, stdint.h, string.h, types.h | explorer_fs.c -- 9P/Styx filesystem backend for the WuBuOS Explorer. Self-contained module ex |
+| `gui/` | `explorer_fsops` | 135 | dirent.h, explorer_internal.h, errno.h, fcntl.h, stat.h, stdio.h, stdlib. | explorer_fsops.c -- Explorer file-operation workers. Self-contained module extracted from dos |
+| `gui/` | `explorer_info` | 100 | explorer.h, explorer_internal.h, stat.h, stdio.h, string.h | explorer_info.c -- WuBuOS explorer: file metadata extraction. Extracted from explorer. |
+| `gui/` | `explorer_input` | 436 | ctype.h, explorer.h, explorer_internal.h, stdio.h, string.h, vbe.h | explorer_input.c -- Explorer input handling (keyboard + mouse) Extracted from explorer |
+| `gui/` | `explorer_ops` | 174 | explorer.h, explorer_internal.h, errno.h, fcntl.h, stat.h, stdint. | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
+| `gui/` | `explorer_preview` | 66 | explorer_internal.h, fcntl.h, string.h | explorer_preview.c -- File preview subsystem. Self-contained: builds the preview metadata/tex |
+| `gui/` | `explorer_render` | 506 | explorer_internal.h, wm.h, stdint.h, stdio.h, string.h, vbe.h | explorer_render.c  --  Win98 Explorer render layer Extracted from explorer.c — all dra |
+| `gui/` | `explorer_test` | 533 | assert.h, explorer.h, stdint.h, stdio.h, stdlib.h, string.h | explorer_test.c  --  Test suite for explorer |
+| `gui/` | `explorer_test_stub` | 106 | dirent.h, explorer.h, wm.h, stat.h, stdlib.h, string.h, time.h, ty | explorer_test_stub.c  --  Stub functions for explorer tests Provides minimal implement |
+| `gui/` | `explorer_tree` | 218 | explorer_internal.h, stdio.h, stdlib.h, string.h | explorer_tree.c -- Tree view subsystem + shared entry helpers. Owns directory-tree population |
+| `gui/` | `explorer_zip` | 335 | ctype.h, dlfcn.h, explorer_internal.h, fcntl.h, stat.h, stdio.h, stdlib.h | explorer_zip.c  --  WuBuOS Explorer Zip Archive Module Extracted from explorer.c lines |
+| `gui/` | `service_mgr` | 156 | ctype.h, service_mgr.h, stdio.h, stdlib.h, string.h | service_mgr.c -- Desktop-side service/autostart manager (E3). Real wiring of wubu_archd (16/1 |
+| `gui/` | `service_mgr_test` | 76 | assert.h, service_mgr.h, stdio.h, string.h | service_mgr_test.c -- Regression test for E3 integration: wubu_archd wired as the Desktop's a |
+| `gui/` | `startmenu` | 843 | ctype.h, dirent.h, desktop.h, era_apps.h, startmenu.h, dosg | startmenu.c  --  WuBuOS DosGui Start Menu Implementation Cell 402: THEMED Cascading Start Men |
+| `gui/` | `startmenu_db` | 183 | ctype.h, dirent.h, desktop.h, startmenu.h, startmenu_intern | startmenu_db.c  --  WuBuOS Start Menu model constructor Extracted from startmenu.c (Ce |
+| `gui/` | `startmenu_power` | 45 | startmenu_internal.h, stdio.h | startmenu_power.c -- Power options subsystem for the Start menu. Self-contained: power action |
+| `gui/` | `startmenu_search` | 104 | startmenu_internal.h, stdlib.h, string.h, wubu_theme.h | startmenu_search.c -- Start menu search + recent apps. Self-contained subsystem extracted fro |
+| `gui/` | `startmenu_test` | 103 | startmenu.h, stdio.h, vbe.h, wubu_theme.h | startmenu_test.c  --  WuBuOS DosGui Start Menu Test Suite (Cell 402) |
+| `gui/` | `startmenu_test_stub` | 107 | startmenu.h, stdbool.h, wubu_dos_proc.h, wubu_exec.h, wubu_mime.h, wubu_t | startmenu_test_stub.c  --  Stubs for startmenu_test without desktop integration |
+| `gui/` | `startmenu_tree` | 105 | startmenu_internal.h, stdlib.h, string.h, wubu_theme.h | startmenu_tree.c -- Start menu program-tree (All Programs). Self-contained subsystem extracte |
+| `gui/` | `term` | 502 | ctype.h, term.h, term_internal.h, term_pty.h, wm.h,  | term.c  --  WuBuOS Terminal (PTY + HolyC REPL + Tabbed) Phase 6: Full-featured terminal with: |
+| `gui/` | `term_ansi` | 445 | term_internal.h, errno.h, string.h, unistd.h | term_ansi.c  --  WuBuOS Terminal shared VT100/ANSI parser Extracted from term.c (2026- |
+| `gui/` | `term_pty` | 526 | ctype.h, term_internal.h, term_pty.h, wm.h, errno.h, fcntl. | term_pty.c  --  WuBuOS Terminal PTY Backend Implementation Extracted from term.c (2026 |
+| `gui/` | `term_render` | 192 | term_internal.h, string.h | term_render.c -- WuBuOS terminal rendering layer. Self-contained module extracted from dosgui |
+| `gui/` | `term_tabs` | 156 | term_internal.h, stdio.h, stdlib.h, string.h | term_tabs.c -- Terminal tab-management subsystem. Self-contained: tab creation/close/switch/m |
+| `gui/` | `term_test` | 278 | ctype.h, term.h, term_internal.h, wm.h, fcntl.h, pty.h, sig | term_test.c  --  WuBuOS Terminal Test Suite Tests PTY backend, ANSI parser, scrollback, copy/ |
+| `gui/` | `term_test_stub` | 80 | term.h, wm.h, stdio.h, stdlib.h, string.h | term_test_stub.c  --  Stubs for term_test without full dependencies Provides minimal i |
+| `gui/` | `window_chrome` | 359 | wm.h, wm_internal.h, string.h, vbe.h, wubu_theme.h | window_chrome.c  --  Standardized Window Chrome for WuBuOS Centralized drawing of ALL window  |
+| `gui/` | `wm` | 90 | dirent.h, wm_internal.h, errno.h, stat.h, wubu_wallpaper.h | wm.c  --  WuBuOS DosGui Window Manager facade Cell 400: Fable Windowing Agent — THEMED EDITIO |
+| `gui/` | `wm_clock` | 24 | wm_internal.h, stdio.h, time.h | wm_clock.c -- WuBuOS DosGui WM: taskbar clock Self-contained concern split out of wm_c |
+| `gui/` | `wm_ctxmenu` | 433 | wm_internal.h, stdio.h, stdlib.h, string.h, wubu_trash.h | wm_ctxmenu.c  --  WuBuOS DosGui WM: context-menu action wiring Facade that binds the generic  |
+| `gui/` | `wm_ctxmenu_engine` | 196 | wm_internal.h | wm_ctxmenu_engine.c -- WuBuOS DosGui WM: context-menu engine Self-contained concern split out |
+| `gui/` | `wm_desktop` | 318 | dirent.h, wm_internal.h, errno.h, fcntl.h, stat.h, stdlib.h, strings.h | wm_desktop.c -- Desktop icons subsystem for the WuBuOS WM. Self-contained module extracted fr |
+| `gui/` | `wm_holyc_term` | 187 | wm_holyc_term.h, wm_internal.h, holyc_codegen.h, stdio.h, stdlib.h | wm_holyc_term.c  --  HolyC Terminal subsystem for wm Provides a REPL terminal window f |
+| `gui/` | `wm_icon_glyphs` | 132 | wm.h, wm_internal.h, stdint.h, string.h | wm_icon_glyphs.c -- Desktop icon glyph rendering (Chicago -> XP). The old desktop drew every  |
+| `gui/` | `wm_icons` | 79 | wm_internal.h | wm_icons.c -- Desktop icon subsystem for the window manager. Self-contained: desktop icon gri |
+| `gui/` | `wm_input` | 409 | startmenu.h, wm.h, wm_internal.h, stdio.h, string.h, time.h | wm_input.c -- WuBuOS DosGui WM: input dispatch (key + mouse) Self-contained concern split out |
+| `gui/` | `wm_layout` | 233 | wm.h, wm_internal.h, stdint.h, string.h, wubu_theme.h | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
+| `gui/` | `wm_render` | 167 | wm.h, wm_internal.h, stdbool.h, stdint.h, stdlib.h, string.h | wm_render.c -- WuBuOS WM rendering (single module) ONE entry point: wm_render(fb, w, h |
+| `gui/` | `wm_systray` | 207 | wm_internal.h | wm_systray.c  --  System Tray + Notification Center Extracted from wm.c for modularity |
+| `gui/` | `wm_taskbar` | 196 | wm_internal.h, time.h | wm_taskbar.c -- Taskbar render + geometry. Self-contained: renders the taskbar (Start button, |
+| `gui/` | `wm_test` | 881 | dirent.h, wm.h, wm_internal.h, stat.h, stdio.h, stdlib.h, string.h | wm_test.c  --  WuBuOS DosGui Window Manager Test Suite Cell 400: Fable Windowing Agent test s |
+| `gui/` | `wm_test_stub` | 42 | startmenu.h, wm.h, hosted.h, stdbool.h, wubu_theme.h | wm_test_stub.c  --  Stubs for WM unit tests without full desktop integration. Provides no-op  |
+| `gui/` | `wm_window` | 270 | wm_internal.h, stdio.h, string.h, wubu_settings.h | wm_window.c -- WuBuOS DosGui WM: window lifecycle + icons Self-contained concern split out of |
+| `gui/` | `wm_window_state` | 117 | wm_internal.h, string.h | wm_window_state.c -- WuBuOS DosGui WM: window state + modal dialogs Self-contained concern sp |
 | `gui/` | `gui_dbuf` | 277 | gui_dbuf.h, stdlib.h, string.h | gui_dbuf.c  --  WuBuOS Double-Buffered GUI Renderer Implementation Cell 101: Flicker-free rendering  |
 | `gui/` | `gui_dbuf_test` | 343 | gui_dbuf.h, stdio.h, string.h | gui_dbuf_test.c  --  Test Suite for Double-Buffered GUI Renderer Cell 101: Tests double buffering, d |
-| `gui/` | `standalone_hosted_shim` | 34 | dosgui_wm.h, hosted.h | standalone_hosted_shim.c -- standalone app shim for hosted-only symbols. The WuBuOS GUI references t |
+| `gui/` | `standalone_hosted_shim` | 34 | wm.h, hosted.h | standalone_hosted_shim.c -- standalone app shim for hosted-only symbols. The WuBuOS GUI references t |
 | `gui/` | `wubu_clipboard` | 297 | hosted.h, poll.h, primary-selection-client.header, stdio.h, stdlib.h, string.h,  | wubu_clipboard.c  --  WuBuOS Clipboard Manager Implementation Phase 2: Wayland data device + primary |
 | `gui/` | `wubu_clipboard_mime` | 61 | wubu_clipboard_internal.h | wubu_clipboard_mime.c -- Clipboard MIME-entry helpers (self-contained). Pure helpers for the X/prima |
 | `gui/` | `wubu_clipboard_test` | 318 | assert.h, stdio.h, stdlib.h, string.h, wubu_clipboard.h | wubu_clipboard_test.c -- WuBuOS Clipboard Manager Test (logic only) Tests internal clipboard logic w |
@@ -216,7 +216,7 @@
 | `gui/` | `wubu_mime` | 420 | ctype.h, dirent.h, glob.h, stat.h, stdio.h, stdlib.h, string.h, strings.h, unist | Internal State |
 | `gui/` | `wubu_mime_desktop` | 135 | ctype.h, stdio.h, stdlib.h, string.h, wubu_mime_internal.h | wubu_mime_desktop.c -- MIME .desktop file parser. Self-contained module extracted from wubu_mime.c:  |
 | `gui/` | `wubu_mime_test` | 49 | assert.h, stdio.h, string.h, wubu_mime.h | Test built-in MIME types |
-| `gui/` | `wubu_notify` | 416 | dosgui_wm.h, stdio.h, stdlib.h, string.h, time.h, unistd.h, vbe.h, wubu_notify.h | wubu_notify.c  --  WuBuOS Notification Daemon Implementation Phase 2: libnotify-compatible notificat |
+| `gui/` | `wubu_notify` | 416 | wm.h, stdio.h, stdlib.h, string.h, time.h, unistd.h, vbe.h, wubu_notify.h | wubu_notify.c  --  WuBuOS Notification Daemon Implementation Phase 2: libnotify-compatible notificat |
 | `gui/` | `wubu_pkgmgr` | 291 | wubu_pkgmgr_internal.h | wubu_pkgmgr.c  --  WuBuOS Package Manager (Facade) Submodules: wubu_pkgmgr_pkg.c     - package creat |
 | `gui/` | `wubu_pkgmgr_db` | 79 | wubu_pkgmgr_internal.h | wubu_pkgmgr_db.c -- Package manager database subsystem. Self-contained: progress reporting + SQLite  |
 | `gui/` | `wubu_pkgmgr_install` | 379 | glob.h, unistd.h, wait.h, wubu_pkgmgr_internal.h | wubu_pkgmgr_install.c  --  WuBuOS Package Manager: Install / Remove / Upgrade Depends on the facade  |
@@ -233,12 +233,12 @@
 | `gui/` | `wubu_proton_exec` | 248 | errno.h, fcntl.h, stat.h, stdio.h, stdlib.h, string.h, unistd.h, wait.h, wubu_pr | wubu_proton_exec.c -- Proton execution / launch subsystem. Self-contained module extracted from wubu |
 | `gui/` | `wubu_proton_test` | 73 | assert.h, stdio.h, string.h, wubu_proton.h | Test Steam detection |
 | `gui/` | `wubu_proton_util` | 176 | dirent.h, errno.h, ftw.h, glob.h, libgen.h, limits.h, pwd.h, stat.h, stdio.h, st | wubu_proton_util.c -- Proton layer filesystem / parsing utilities. Self-contained module extracted f |
-| `gui/` | `wubu_screenshot` | 454 | dosgui_wm.h, hosted.h, limits.h, math.h, stat.h, stdio.h, stdlib.h, string.h, ti | Internal State |
+| `gui/` | `wubu_screenshot` | 454 | wm.h, hosted.h, limits.h, math.h, stat.h, stdio.h, stdlib.h, string.h, ti | Internal State |
 | `gui/` | `wubu_screenshot_clipboard_test` | 70 | assert.h, stdio.h, stdlib.h, string.h, wubu_screenshot.h | Regression test for wubu_screenshot_to_clipboard (was a no-op returning true with nothing stored). B |
 | `gui/` | `wubu_screenshot_draw` | 122 | wubu_screenshot_internal.h | wubu_screenshot_draw.c -- Screenshot annotation drawing primitives (self-contained). draw_line (Bres |
 | `gui/` | `wubu_screenshot_png` | 239 | stdint.h, stdio.h, stdlib.h, string.h, wubu_screenshot.h, zlib.h | wubu_screenshot_png.c -- Screenshot PNG encoder subsystem. Self-contained module extracted from wubu |
 | `gui/` | `wubu_screenshot_test` | 96 | assert.h, stdio.h, stdlib.h, string.h, wubu_screenshot.h, wubu_theme.h | Parse big-endian uint32 from a PNG buffer offset. |
-| `gui/` | `wubu_session` | 312 | dosgui_startmenu.h, dosgui_wm.h, stat.h, stdio.h, stdlib.h, string.h, time.h, ty | wubu_session.c  --  WuBuOS Session Manager Implementation Phase 2: Session management, auto-start, s |
+| `gui/` | `wubu_session` | 312 | startmenu.h, wm.h, stat.h, stdio.h, stdlib.h, string.h, time.h, ty | wubu_session.c  --  WuBuOS Session Manager Implementation Phase 2: Session management, auto-start, s |
 | `gui/` | `wubu_session_autostart` | 285 | stdio.h, stdlib.h, string.h, types.h, unistd.h, wubu_session_internal.h | wubu_session_autostart.c -- Autostart entries subsystem. Self-contained: owns g_autostart[]/g_autost |
 | `gui/` | `wubu_settings` | 70 | stdio.h, string.h, wubu_settings_internal.h, wubu_theme.h | wubu_settings.c  --  WuBuOS Settings Daemon (facade) Owns the settings lifecycle + public accessor A |
 | `gui/` | `wubu_settings_defaults` | 136 | errno.h, stat.h, stdio.h, stdlib.h, string.h, types.h, unistd.h, wubu_settings_i | wubu_settings_defaults.c -- WuBuOS settings: state + default factories Self-contained concern split  |
@@ -246,28 +246,28 @@
 | `gui/` | `wubu_theme` | 282 | stdbool.h, string.h, wubu_theme.h | wubu_theme.c  --  WuBuOS Theme Engine Implementation Cell 394: Runtime-switchable themes. Win98 Clas |
 | `gui/` | `wubu_trash` | 516 | dirent.h, errno.h, fcntl.h, libgen.h, stat.h, stdio.h, stdlib.h, string.h, time. | Internal State |
 | `gui/` | `wubu_trash_test` | 77 | assert.h, libgen.h, stat.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_trash.h | Create test file |
-| `gui/` | `wubu_ui` | 114 | dosgui_wm.h, string.h, wubu_edr.h, wubu_ui.h | wubu_ui.c -- AGI UI automation layer (see wubu_ui.h). Every action routes through dosgui_wm_handle_m |
-| `gui/` | `wubu_ui_test` | 91 | dosgui_wm.h, stdio.h, string.h, vbe.h, wubu_theme.h, wubu_ui.h | wubu_ui_test.c -- AGI UI automation layer test suite. Proves the central AGI-OS claim: a synthetic d |
+| `gui/` | `wubu_ui` | 114 | wm.h, string.h, wubu_edr.h, wubu_ui.h | wubu_ui.c -- AGI UI automation layer (see wubu_ui.h). Every action routes through wm_handle_m |
+| `gui/` | `wubu_ui_test` | 91 | wm.h, stdio.h, string.h, vbe.h, wubu_theme.h, wubu_ui.h | wubu_ui_test.c -- AGI UI automation layer test suite. Proves the central AGI-OS claim: a synthetic d |
 | `gui/` | `wubu_wallpaper` | 221 | stdio.h, stdlib.h, string.h, strings.h, unistd.h, wubu_wallpaper.h | wubu_wallpaper.c -- WuBuOS Wallpaper Decoder + Placement Real implementation: decodes a BMP (24/32 b |
 | `gui/` | `wubu_wallpaper_test` | 120 | stdio.h, stdlib.h, string.h, wubu_wallpaper.h | wubu_wallpaper_test.c -- Real wallpaper decode + placement verification. No GPU needed: writes a rea |
 | `gui/` | `wubu_wayland_stub` | 19 | wayland_state.h | wubu_wayland_stub.c  --  weak Wayland-state default for standalone binaries. src/gui/wubu_screenshot |
-| `gui/` | `wubu_welcome` | 145 | dosgui_wm.h, errno.h, stat.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_theme. | wubu_welcome.c  --  WuBuOS Welcome Dialog (UX Stream E) First-run dialog: "Welcome to WuBuOS" with q |
+| `gui/` | `wubu_welcome` | 145 | wm.h, errno.h, stat.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_theme. | wubu_welcome.c  --  WuBuOS Welcome Dialog (UX Stream E) First-run dialog: "Welcome to WuBuOS" with q |
 | `gui/` | `wubu_wm` | 213 | stdio.h, stdlib.h, string.h, vbe.h, wubu_theme.h, wubu_wm_internal.h | wubu_wm.c  --  WuBuOS Window Manager (Core) Core WM operations: init, window lifecycle, GAAD snap. S |
 | `gui/` | `wubu_wm_desktop` | 49 | wubu_wm_internal.h | wubu_wm_desktop.c  --  WuBuOS Window Manager Virtual Desktops Virtual desktop (workspace) management |
 | `gui/` | `wubu_wm_input` | 152 | string.h, vbe.h, wubu_wm_internal.h | wubu_wm_input.c  --  WuBuOS Window Manager Input Handling Keyboard and mouse input dispatch for the  |
 | `gui/` | `wubu_wm_render` | 142 | stdio.h, string.h, vbe.h, wubu_wm_internal.h | wubu_wm_render.c  --  WuBuOS Window Manager Rendering Draws the WM desktop: window chrome (title bar |
 | `gui/` | `wubu_wm_test` | 242 | assert.h, stdio.h, string.h, wubu_wm.h | wubu_wm_test.c  --  Tests for WuBuOS Window Manager Cell 394/395: Theme engine + WM with drag/snap/d |
 | `gui/` | `xdg-shell-client-protocol` | 183 | stdint.h, stdlib.h, wayland-util.h | Generated by wayland-scanner 1.22.0 |
-| `hosted/` | `hosted` | 219 | bridge.h, dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, dosgui_wm_holyc_ter | hosted.c — WuBuOS Hosted Mode Launcher (Inferno emu-style) — facade WuBuOS as a clickable Linux bina |
+| `hosted/` | `hosted` | 219 | bridge.h, desktop.h, startmenu.h, wm.h, wm_holyc_ter | hosted.c — WuBuOS Hosted Mode Launcher (Inferno emu-style) — facade WuBuOS as a clickable Linux bina |
 | `hosted/` | `hosted_pe` | 51 | hosted_internal.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_ct_isolate.h, wub | hosted_pe.c -- WuBuOS hosted-mode Windows/PE launch executor Self-contained concern split out of hos |
-| `hosted/` | `hosted_render` | 46 | dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, hosted_internal.h, input.h, s | hosted_render.c -- WuBuOS hosted-mode frame composition + input routing Self-contained concern split |
-| `hosted/` | `hosted_run` | 169 | dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, hosted_internal.h, stdio.h, s | hosted_run.c -- WuBuOS hosted-mode run loop, shutdown, blit + accessors Self-contained concern split |
-| `hosted/` | `hosted_styxfs` | 155 | dosgui_wm.h, hosted.h, hosted_internal.h, input.h, memory.h, stdlib.h, string.h, | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
-| `hosted/` | `hosted_test` | 462 | dosgui_startmenu.h, dosgui_wm.h, hosted.h, stdio.h, stdlib.h, string.h, styx.h,  | hosted_test.c  --  WuBuOS Hosted Mode Behavioral Test Suite Tests: hosted init/shutdown, Styx namesp |
-| `hosted/` | `hosted_wayland` | 89 | bridge.h, dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, fcntl.h, hosted.h,  | Thin orchestration: owns the public hosted_wl_* entry points declared in hosted_internal.h. SHM pool |
-| `hosted/` | `hosted_wayland_input` | 411 | bridge.h, dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, fcntl.h, hosted.h,  |  |
-| `hosted/` | `hosted_wayland_shm` | 105 | bridge.h, dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, fcntl.h, hosted.h,  |  |
-| `hosted/` | `hosted_wayland_surface` | 241 | bridge.h, dosgui_desktop.h, dosgui_startmenu.h, dosgui_wm.h, fcntl.h, hosted.h,  |  |
+| `hosted/` | `hosted_render` | 46 | desktop.h, startmenu.h, wm.h, hosted_internal.h, input.h, s | hosted_render.c -- WuBuOS hosted-mode frame composition + input routing Self-contained concern split |
+| `hosted/` | `hosted_run` | 169 | desktop.h, startmenu.h, wm.h, hosted_internal.h, stdio.h, s | hosted_run.c -- WuBuOS hosted-mode run loop, shutdown, blit + accessors Self-contained concern split |
+| `hosted/` | `hosted_styxfs` | 155 | wm.h, hosted.h, hosted_internal.h, input.h, memory.h, stdlib.h, string.h, | WuBuOS -- extracted module (auto-split, C11, opaque-safe) |
+| `hosted/` | `hosted_test` | 462 | startmenu.h, wm.h, hosted.h, stdio.h, stdlib.h, string.h, styx.h,  | hosted_test.c  --  WuBuOS Hosted Mode Behavioral Test Suite Tests: hosted init/shutdown, Styx namesp |
+| `hosted/` | `hosted_wayland` | 89 | bridge.h, desktop.h, startmenu.h, wm.h, fcntl.h, hosted.h,  | Thin orchestration: owns the public hosted_wl_* entry points declared in hosted_internal.h. SHM pool |
+| `hosted/` | `hosted_wayland_input` | 411 | bridge.h, desktop.h, startmenu.h, wm.h, fcntl.h, hosted.h,  |  |
+| `hosted/` | `hosted_wayland_shm` | 105 | bridge.h, desktop.h, startmenu.h, wm.h, fcntl.h, hosted.h,  |  |
+| `hosted/` | `hosted_wayland_surface` | 241 | bridge.h, desktop.h, startmenu.h, wm.h, fcntl.h, hosted.h,  |  |
 | `hosted/` | `primary-selection-private` | 115 | stdint.h, stdlib.h, wayland-util.h | Generated by wayland-scanner 1.22.0 |
 | `hosted/` | `wubu_display` | 297 | errno.h, fcntl.h, input.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_display.h | wubu_display.c  --  WuBuOS Display Backend (DRM/KMS + X11 dual) Cell 380: Try DRM/KMS first, fall ba |
 | `hosted/` | `wubu_display_test` | 64 | stdio.h, stdlib.h, string.h, wubu_display.h | wubu_drm_direct_test.c  --  Test for direct DRM/KMS implementation (Cells 388/389) |
@@ -496,7 +496,7 @@
 | `runtime/` | `wubu_dos_proc_test` | 105 | stat.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_container.h, wubu_dos_proc.h | wubu_dos_proc_test.c -- Unit test for the in-process 16-bit DOS shim. Builds a real .COM in memory ( |
 | `runtime/` | `wubu_dxvk_conf` | 164 | stdio.h, stdlib.h, string.h, wubu_dxvk_conf.h | wubu_dxvk_conf.c -- Shared DXVK config-file core. Implements the config read/write + line set/replac |
 | `runtime/` | `wubu_edr` | 17 | edr_internal.h | wubu_edr.c  --  WuBuOS EDR Engine Shim All implementation moved to src/runtime/edr/ subdirectory. Th |
-| `runtime/` | `wubu_edr_agent_test` | 105 | assert.h, dosgui_wm.h, stdio.h, string.h, vbe.h, wubu_edr.h, wubu_ui.h | wubu_edr_agent_test.c -- AGI activity -> EDR integration test. This is the proof of the transparency |
+| `runtime/` | `wubu_edr_agent_test` | 105 | assert.h, wm.h, stdio.h, string.h, vbe.h, wubu_edr.h, wubu_ui.h | wubu_edr_agent_test.c -- AGI activity -> EDR integration test. This is the proof of the transparency |
 | `runtime/` | `wubu_edr_test` | 112 | assert.h, stdio.h, stdlib.h, string.h, time.h, unistd.h, wubu_edr.h | wubu_edr_test.c  --  WuBuOS EDR Engine Test Suite |
 | `runtime/` | `wubu_exec` | 447 | fcntl.h, holyc.h, mman.h, stat.h, stdio.h, stdlib.h, string.h, unistd.h, wait.h, | wubu_exec.c  --  WuBuOS Universal Executable Dispatcher Implementation One exec to rule them all. |
 | `runtime/` | `wubu_exec_container` | 93 | stdio.h, stdlib.h, string.h, unistd.h, wubu_exec.h, wubu_vsl.h | wubu_exec_container.c -- WuBuOS exec: container-payload execution. Extracted from wubu_exec.c (separ |
@@ -600,10 +600,10 @@
 | `shell/` | `wubu_shell_exec` | 269 | ctype.h, errno.h, fcntl.h, stdio.h, stdlib.h, string.h, types.h, unistd.h, wait. | wubu_shell_exec.c -- WuBuOS shell pipeline + redirection engine (BATTLESHIP gaps 230 shell_pipe / 23 |
 | `shell/` | `wubu_shell_history` | 58 | string.h, wubu_shell_internal.h | wubu_shell_history.c -- WuBuOS shell command history (BATTLESHIP gap 228) Self-contained ring buffer |
 | `shell/` | `wubu_shell_test` | 150 | stat.h, stdio.h, stdlib.h, string.h, unistd.h, wubu_shell_internal.h | wubu_shell_test.c -- WuBuOS shell test suite Exercises the four previously-form-not-function shell g |
-| `tools/` | `desktop_render_test` | 67 | dosgui_desktop.h, dosgui_wm.h, screenshot.h, stdio.h, stdlib.h, vbe.h, wubu_them | desktop_render_test.c -- Test that desktop rendering produces non-black output |
+| `tools/` | `desktop_render_test` | 67 | desktop.h, wm.h, screenshot.h, stdio.h, stdlib.h, vbe.h, wubu_them | desktop_render_test.c -- Test that desktop rendering produces non-black output |
 | `tools/` | `iso9660` | 436 | iso9660.h, stdio.h, stdlib.h, string.h | iso9660.c  --  WuBuOS ISO 9660 / Bootable ISO Builder Cell 060: Builds bootable ISO 9660 images with |
 | `tools/` | `iso9660_test` | 441 | iso9660.h, stdio.h, stdlib.h, string.h | iso9660_test.c  --  Test Suite for WuBuOS ISO 9660 / Bootable ISO Builder Cell 060: Tests ISO builde |
-| `tools/` | `screenshot` | 405 | dosgui_wm.h, screenshot.h, stb_image_write.h, stdbool.h, stdint.h, stdio.h, stdl | wubu_screenshot.c  --  WuBuOS Screenshot/Snipping Tool Implementation PPM/BMP/PNG capture, GIF anima |
+| `tools/` | `screenshot` | 405 | wm.h, screenshot.h, stb_image_write.h, stdbool.h, stdint.h, stdio.h, stdl | wubu_screenshot.c  --  WuBuOS Screenshot/Snipping Tool Implementation PPM/BMP/PNG capture, GIF anima |
 | `tools/` | `screenshot_test` | 149 | assert.h, screenshot.h, stdio.h, stdlib.h, string.h | wubu_screenshot_test.c  --  Tests for screenshot/snipping tool |
 | `tools/` | `weight_check` | 90 | stdio.h, stdlib.h, string.h, weight_check.h | weight_check.c  --  WuBuOS Vision Weight Verification Implementation Cell 051: Checks Moondream3 saf |
 | `tools/` | `weight_check_test` | 131 | stdio.h, string.h, weight_check.h | weight_check_test.c  --  Test Suite for Vision Weight Verification Cell 051: Tests weight checking,  |

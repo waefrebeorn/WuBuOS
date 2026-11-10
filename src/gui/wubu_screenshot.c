@@ -1,6 +1,6 @@
 #include "wubu_screenshot.h"
 #include "wubu_screenshot_internal.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "wubu_theme.h"
 #include "shell/wubu_notify.h"
 #include "../hosted/hosted.h"
@@ -219,8 +219,8 @@ static wubu_sshot_t *capture_framebuffer(int x, int y, int w, int h) {
  * Window Capture (find focused window)
  * ============================================================ */
 static wubu_sshot_t *capture_focused_window(void) {
-    extern DosGuiWindow *dosgui_wm_get_focused(void);
-    DosGuiWindow *win = dosgui_wm_get_focused();
+    extern DosGuiWindow *wm_get_focused(void);
+    DosGuiWindow *win = wm_get_focused();
     if (!win) return capture_framebuffer(0, 0, 0, 0); /* fallback */
 
     return capture_framebuffer(win->x, win->y, win->w, win->h);

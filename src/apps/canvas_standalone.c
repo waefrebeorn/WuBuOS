@@ -22,7 +22,7 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
 #include "../gui/wm.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "wubu_canvas.h"
 
 #define SCREEN_W 800
@@ -62,8 +62,8 @@ int main(int argc, char **argv) {
     g_fb = vbe_framebuffer();
     if (!g_fb) { fprintf(stderr, "no framebuffer\n"); return 1; }
 
-    if (dosgui_wm_init(SCREEN_W, SCREEN_H) != 0) {
-        fprintf(stderr, "dosgui_wm_init failed\n");
+    if (wm_init(SCREEN_W, SCREEN_H) != 0) {
+        fprintf(stderr, "wm_init failed\n");
         return 1;
     }
 
@@ -92,14 +92,14 @@ int main(int argc, char **argv) {
     while (!g_quit) {
         /* Composite the layered canvas into the framebuffer. */
         wubu_cv_composite(g_cv, g_fb, SCREEN_W, SCREEN_H);
-        dosgui_wm_render(g_fb, SCREEN_W, SCREEN_H);
+        wm_render(g_fb, SCREEN_W, SCREEN_H);
         vbe_swap();
         check_console_quit();
         usleep(frame_us);
     }
 
     wubu_cv_destroy(g_cv);
-    dosgui_wm_shutdown();
+    wm_shutdown();
     vbe_shutdown();
     return 0;
 }

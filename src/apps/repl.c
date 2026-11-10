@@ -5,9 +5,9 @@
  */
 #include "repl.h"
 #include "holyd.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../gui/compositor/gui_dbuf.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include <stdio.h>
 #include <string.h>
@@ -49,7 +49,7 @@ static void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Centralized window chrome: draw frame + title bar, get content rect.
      * ADR-001: apps draw ONLY within the chrome-provided content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
     int x = content.x + 4;
     int y = content.y + 4;
     int line_height = 10;
@@ -138,7 +138,7 @@ void repl_start(int fb_w, int fb_h) {
         if (g_repl.db) gui_dbuf_init((gui_dbuf_t *)g_repl.db, 640, 480);
     }
 
-    DosGuiWindow *win = dosgui_wm_create(100, 100, 400, 400, "HolyC REPL");
+    DosGuiWindow *win = wm_create(100, 100, 400, 400, "HolyC REPL");
     if (win) {
         win->on_draw  = repl_draw;
         win->on_key   = repl_handle_key;

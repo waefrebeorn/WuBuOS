@@ -8,7 +8,7 @@
 #ifndef GETTING_STARTED_H
 #define GETTING_STARTED_H
 
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 
 #ifdef __cplusplus
 extern "C" {

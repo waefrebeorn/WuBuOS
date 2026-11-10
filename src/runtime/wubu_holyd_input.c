@@ -6,7 +6,7 @@
 
 /* -- Injected pointer handler (DI) -------------------------------- */
 /* The daemon stays decoupled from the WM. The composition root (hosted
- * binary) injects dosgui_wm_handle_mouse; daemon-only builds/tests leave the
+ * binary) injects wm_handle_mouse; daemon-only builds/tests leave the
  * default no-op, so this module never forces the entire WM into a daemon link. */
 
 static wubu_holyd_pointer_fn g_pointer_handler = NULL;

@@ -8,7 +8,7 @@
  * reports liveness from /proc -- no systemd, no shell.
  *
  * The Styx /n/services bus (wubu_ns_bridge) reads status from here, so the
- * whole control plane is real (N3). dosgui_service_mgr registers autostart
+ * whole control plane is real (N3). service_mgr registers autostart
  * entries and boots them through this supervisor (N4 surfaces failures).
  *
  * Opaque struct, C11, minimal includes.

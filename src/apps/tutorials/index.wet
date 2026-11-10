@@ -1,0 +1,38 @@
+-- index.wet -- the tutorial browser.
+--
+-- Lists the shipped tutorials.  Each one opens the real tool it teaches, so
+-- the user is never reading about a thing they cannot touch.
+
+local names = {
+  { id = "first_gui",       title = "Your first GUI in Lua",
+    blurb = "Write a .wet applet and run it.  Ten lines, one window." },
+  { id = "design_a_window", title = "Design a window visually",
+    blurb = "The VWS form designer: drag, click, edit, save." },
+  { id = "compile_c",       title = "Compile C with HolyD",
+    blurb = "The in-tree compiler.  No SDK to download." },
+  { id = "pin_an_app",      title = "Pin an app to the taskbar",
+    blurb = "The taskbar pin model, and why it survives a reboot." },
+}
+
+tut_step_count = #names
+
+local rows = {}
+for i = 1, #names do
+  rows[i] = wet.stack { spacing = 2, children = {
+    wet.label { text = names[i].title },
+    wet.label { text = names[i].blurb },
+    wet.button { text = "Start",
+      onclick = function(self) tut.open(names[i].id) end },
+  } }
+end
+
+wet.applet {
+  title = "Tutorials",
+  width = 640, height = 460,
+  content = wet.stack { spacing = 8, children = {
+    wet.label { text = "WuBuOS Tutorials" },
+    wet.label { text = "Learn by doing.  Every tutorial can open the real tool." },
+    wet.separator {},
+    wet.stack { id = "list", spacing = 6, children = rows } },
+  },
+}

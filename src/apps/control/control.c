@@ -3,9 +3,9 @@
  */
 
 #include "control.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"
@@ -92,7 +92,7 @@ static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *con
         int col = i % ncols, row = i / ncols;
         int gx = gx0 + col * cellw;
         int gy = gy0 + row * cellh;
-        dosgui_wm_draw_icon_glyph(cats[i].type, gx, gy,
+        wm_draw_icon_glyph(cats[i].type, gx, gy,
                                   tc()->btn_face, tc()->border_light,
                                   tc()->border_dark, tc()->win_title_active);
         vbe_draw_text(gx + 36, gy + 4, cats[i].name, 0x00000000, 1);
@@ -108,7 +108,7 @@ void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlSt
     /* Draw chrome (frame + title bar + buttons) and get content rect.
      * VBE drawing functions write to back buffer, so we pass the back buffer. */
     VBEState *vbe = vbe_state();
-    ChromeContentRect content = dosgui_chrome_draw_window(win, vbe->back, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, vbe->back, fb_w, fb_h);
 
     /* Draw control panel content within chrome-provided rect. */
     control_draw_content(win, &content, c);
@@ -124,7 +124,7 @@ void control_desktop_apply(const char *wallpaper_path, int mode) {
         strncpy(s->theme.wallpaper_path, wallpaper_path, sizeof(s->theme.wallpaper_path) - 1);
     if (mode >= 0 && mode <= 4) s->theme.wallpaper_mode = mode;
     wubu_settings_save();
-    if (dosgui_wm_is_initialized()) dosgui_wm_reload_wallpaper();
+    if (wm_is_initialized()) wm_reload_wallpaper();
 }
 
 /* Switch the active theme (Win98 Classic / XP Luna Blue / XP Media Orange /
@@ -142,7 +142,7 @@ void control_set_theme(int theme_id) {
 }
 
 void control_set_auto_arrange(bool on) {
-    dosgui_wm_set_auto_arrange(on);   /* persists + re-flows live */
+    wm_set_auto_arrange(on);   /* persists + re-flows live */
 }
 
 void control_set_show_icons(bool show) {
@@ -150,7 +150,7 @@ void control_set_show_icons(bool show) {
     if (!s) return;
     s->theme.show_desktop_icons = show;
     wubu_settings_save();
-    dosgui_wm_set_icons_visible(show);   /* live show/hide via public WM API */
+    wm_set_icons_visible(show);   /* live show/hide via public WM API */
 }
 
 static void control_draw_wm(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
@@ -168,7 +168,7 @@ static void control_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
 }
 
 DosGuiWindow* control_launch(void) {
-    DosGuiWindow *win = dosgui_wm_create(80, 60, 520, 440, "Control Panel");
+    DosGuiWindow *win = wm_create(80, 60, 520, 440, "Control Panel");
     if (win) {
         ControlState *c = control_create();
         win->user_data = c;

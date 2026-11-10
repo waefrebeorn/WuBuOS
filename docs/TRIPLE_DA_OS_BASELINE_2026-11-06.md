@@ -71,12 +71,12 @@ What actually exists (measured):
   backbone, not more syscall numbers.
 
 Current WM, measured from source:
-- Real draw path = `dosgui_wm_render(fb,w,h)`: background, icons, every window (chrome +
+- Real draw path = `wm_render(fb,w,h)`: background, icons, every window (chrome +
   `on_draw`), taskbar, notification + cursor drawn **directly to one framebuffer, every
   frame**. The dirty-region/retained system was **already removed** ("dead dirty-region
   tracking the hosted loop redraws every frame").
 - `wubu_compositor.c` (a Wayland compositor on libwayland-server + xdg-shell + Vulkan) exists
-  but **`wubu_compositor` is referenced nowhere in `dosgui_wm*`/`hosted`** — it is orphaned
+  but **`wubu_compositor` is referenced nowhere in `wm*`/`hosted`** — it is orphaned
   veneer (form≠function).
 - "snap" today = desktop-icon grid snap (`snap_icon_to_grid`), NOT Windows-11 Snap Layouts.
 
@@ -138,7 +138,7 @@ build spec.
   (`main.js`, `LayoutManager`, `PanelSystem`, a JS `WindowManager` interface to Muffin).
 - **Extensibility**: applets (panel widgets), desklets (desktop widgets), extensions.
 - **Stealable → WuBu /n design** (C only, no JS): the *partition* matters — a thin C WM core
-  (`dosgui_wm`) + a **scripted/themeable UI layer on top** (WuBu's C11 equivalent of the
+  (`wm`) + a **scripted/themeable UI layer on top** (WuBu's C11 equivalent of the
   `CinnamonPlugin` bridge), a CSS-ish theming language over `vbe`/surface primitives, and a
   first-class **applet/desklet registry** (WuBu already has `g_app_defs` + a control-panel
   manager — extend that into a real applet/desklet/extensions triple).
@@ -175,9 +175,9 @@ build spec.
 - **Stealable → WuBu**: the **retained-mode composition tree** (each `dosgui` window is an
   offscreen surface; the compositor owns ordering + repaint) — this directly replaces the
   removed dirty-region/full-redraw path; **Snap layouts + Snap groups + virtual-desktop
-  layouts** (virtual-desktop switching already exists in `dosgui_wm_desktop.c` — promote it
+  layouts** (virtual-desktop switching already exists in `wm_desktop.c` — promote it
   to  per-desktop window sets + snap groups) — note: virtual-desktop switching lives in
-  `src/gui/wubu_wm_desktop.c` (switch/next/prev/move); `dosgui_wm_desktop.c` is the desktop-icon
+  `src/gui/wubu_wm_desktop.c` (switch/next/prev/move); `wm_desktop.c` is the desktop-icon
   grid subsystem.
 - **Steal FOURTH** — it is the *target WM*, but it sits ON the win32k backbone (2.3). Order
   matters: backbone before chrome.
@@ -213,7 +213,7 @@ build spec.
   Gate: `make test_vsl_nt` still green + a `/n/win32` walk test.
 - **P1** — initramfs + UKI assembly (`wubu_initramfs.c`, UKI); gate: packed cpio lists +
   assembled UKI verifies under the existing WuBuFW.
-- **P2** — retained-mode composition tree in `dosgui_wm`: per-window offscreen surfaces +
+- **P2** — retained-mode composition tree in `wm`: per-window offscreen surfaces +
   compositor-owned repaint (the DWM/MIL pattern); gate: a render test asserting only the
   changed window's surface re-composites.
 - **P2** — pacman signature keyring + transaction planner (`wubu_keyring.c`, `wubu_pkg_txn.c`);

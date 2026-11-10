@@ -26,7 +26,7 @@
 #include <time.h>
 
 /* WM bridge for window registration */
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 
 /* -- Internal helper declarations -------------------------------- */
 

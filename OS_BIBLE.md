@@ -193,7 +193,7 @@ The compiler (`src/compiler/`) is WuBuOS's from-scratch C11 toolchain. Brand nam
 
 ## 6. GUI Shell
 
-### Window Manager (`src/gui/dosgui_wm.c`)
+### Window Manager (`src/gui/wm.c`)
 - Win98/XP chrome, GAAD snap, virtual desktops
 - Theme engine: Win98 Classic, XP Luna Blue, WuBu Green
 - Taskbar, startmenu, explorer, terminal

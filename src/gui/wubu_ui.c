@@ -1,14 +1,14 @@
 /*
  * wubu_ui.c -- AGI UI automation layer (see wubu_ui.h).
  *
- * Every action routes through dosgui_wm_handle_mouse / dosgui_wm_handle_key,
+ * Every action routes through wm_handle_mouse / wm_handle_key,
  * the identical entry points a real human's input device feeds. This keeps the
  * input model single and honest: there is no "AGI backdoor" -- the AGI drives
  * the desktop the same way a person would, and the rendered cursor (g_dwm.
- * mouse_x/y, updated inside dosgui_wm_handle_mouse) makes that visible.
+ * mouse_x/y, updated inside wm_handle_mouse) makes that visible.
  */
 #include "wubu_ui.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 
 #ifdef WUBU_EDR_AGENT
 #include "wubu_edr.h"
@@ -35,7 +35,7 @@ static void record_event(const WubuUiEvent *e) {
 void wubu_ui_mouse_move(int x, int y) {
     WubuUiEvent e = { .type = WUBU_UI_MOVE, .x = x, .y = y };
     record_event(&e);
-    dosgui_wm_handle_mouse(x, y, 0, 0);
+    wm_handle_mouse(x, y, 0, 0);
 #ifdef WUBU_EDR_AGENT
     edr_log_agent_action(EDR_AGENT_MOUSE_MOVE, x, y, 0, 0, NULL);
 #endif
@@ -44,11 +44,11 @@ void wubu_ui_mouse_move(int x, int y) {
 /* Press/release a button at the cursor's current position. */
 static void mouse_btn(int btn, int kind) {
     int mx = 0, my = 0;
-    dosgui_wm_get_mouse(&mx, &my);
+    wm_get_mouse(&mx, &my);
     WubuUiEvent e = { .type = (kind == 1) ? WUBU_UI_DOWN : WUBU_UI_UP,
                       .x = mx, .y = my, .btn = btn };
     record_event(&e);
-    dosgui_wm_handle_mouse(mx, my, btn, kind);
+    wm_handle_mouse(mx, my, btn, kind);
 #ifdef WUBU_EDR_AGENT
     edr_log_agent_action(kind == 1 ? EDR_AGENT_MOUSE_DOWN : EDR_AGENT_MOUSE_UP,
                          mx, my, btn, 0, NULL);
@@ -82,7 +82,7 @@ void wubu_ui_drag(int x0, int y0, int x1, int y1, int btn) {
 void wubu_ui_key(uint32_t key, uint32_t mods) {
     WubuUiEvent e = { .type = WUBU_UI_KEY, .key = key, .mods = mods };
     record_event(&e);
-    dosgui_wm_handle_key(key, mods);
+    wm_handle_key(key, mods);
 #ifdef WUBU_EDR_AGENT
     edr_log_agent_action(EDR_AGENT_KEY, 0, 0, 0, key, NULL);
 #endif

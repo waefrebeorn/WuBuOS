@@ -23,8 +23,8 @@ pointing at a deleted file and should be updated to the new location.
 | `src/apps/wubu_canvas.c` | `src/apps/app_canvas.c` + `src/apps/wubu_canvas_*.c` (`_blend`, `_draw`, `_filter`, `_io`, `_io_ppm`, `_layers`, `_plugin`, `_transform`, `_undo`), `wubu_canvas.h`, `wubu_canvas_internal.h` |
 | `src/runtime/styx.c` | `src/runtime/styx_*.c` (`styx_enc`, `styx_fid`, `styx_names`, `styx_parse`, `styx_serve`) + `src/runtime/styxfs_*.c` (`styxfs_callbacks`, `styxfs_host`, `styxfs_path`, `styxfs_posix`, `styxfs_server`, `styxfs_util`, `styxfs_vfs`) |
 | `src/gui/wubu_clipboard.c` | `src/gui/wubu_clipboard.c` + `wubu_clipboard_mime.c`, `wubu_clipboard_wl.c`, `wubu_clipboard_internal.h` |
-| `src/gui/dosgui_explorer.c` | `src/gui/dosgui_explorer*.c` (`_drives`, `_format`, `_fs`, `_fsops`, `_info`, `_input`, `_ops`, `_preview`, `_render`, `_tree`, `_zip`) |
-| `src/gui/startmenu.c` | `src/gui/dosgui_startmenu*.c` (`_db`, `_power`, `_search`, `_tree`) + `src/gui/wubu_gamelib_startmenu.c` |
+| `src/gui/explorer.c` | `src/gui/explorer*.c` (`_drives`, `_format`, `_fs`, `_fsops`, `_info`, `_input`, `_ops`, `_preview`, `_render`, `_tree`, `_zip`) |
+| `src/gui/startmenu.c` | `src/gui/startmenu*.c` (`_db`, `_power`, `_search`, `_tree`) + `src/gui/wubu_gamelib_startmenu.c` |
 | `src/runtime/wubu_proton.c` | `src/runtime/wubu_proton*.c` + `wubu_proton2*.c` (`wubu_proton2`, `_device`, `_gamescope`, `_launch`) |
 | `src/runtime/wubu_dxvk.c` | `src/runtime/wubu_proton_dxvk.c` + `src/runtime/wubu_dxvk_conf.c` |
 | `src/runtime/wubu_exec.c` (partial) | `src/runtime/wubu_exec_*.c` (`_format`, `_wasm`, `_macho`, `_dos`, `_container`) |

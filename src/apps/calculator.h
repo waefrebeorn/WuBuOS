@@ -25,8 +25,8 @@ typedef enum {
 
 /* Public API */
 CalcState* calc_state_get(void);
-DosGuiWindow* dosgui_calc_launch(void);
-void dosgui_calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+DosGuiWindow* calc_launch(void);
+void calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 
 /* State accessors for testing */
 double calc_get_display(CalcState *state);

@@ -5,7 +5,7 @@
  * able to WATCH the system operate itself -- the cursor moves, windows open,
  * text is typed -- exactly as if a user were driving it. So this layer is a
  * thin facade over the SAME input path a real human uses
- * (dosgui_wm_handle_mouse / dosgui_wm_handle_key). There is no second,
+ * (wm_handle_mouse / wm_handle_key). There is no second,
  * privileged code path: synthetic input is indistinguishable from human input
  * to the rest of the system. Driving wubu_ui_* makes g_dwm.mouse_x/y move, so
  * the rendered cursor follows and every observer sees the AGI act.

@@ -38,7 +38,7 @@ int  wubu_bonzi_h(void);
  * milliseconds since the last call. */
 void wubu_bonzi_tick(int dt_ms);
 
-/* Draw the mascot over the desktop. Called by dosgui_wm_render AFTER the
+/* Draw the mascot over the desktop. Called by wm_render AFTER the
  * window loop and BEFORE the taskbar, like the a11y cluster. */
 void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h);
 

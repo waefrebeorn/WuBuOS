@@ -4,8 +4,8 @@
 #define VBE_HOSTED
 #define WUBU_NO_LIBM
 #include "../kernel/vbe.h"
-#include "../gui/shell/dosgui_desktop.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/shell/desktop.h"
+#include "../gui/wm.h"
 #include "../gui/wubu_theme.h"
 #include "screenshot.h"
 #include <stdio.h>
@@ -25,12 +25,12 @@ int main() {
     printf("VBE init: %dx%d\n", width, height);
     
     /* Init GUI */
-    dosgui_wm_init(width, height);
-    dosgui_desktop_init();
+    wm_init(width, height);
+    desktop_init();
     
     /* Render desktop */
     printf("Rendering desktop...\n");
-    dosgui_desktop_render(vbe_state()->fb, width, height);
+    desktop_render(vbe_state()->fb, width, height);
     
     /* Swap back buffer to front */
     vbe_swap();
@@ -59,7 +59,7 @@ int main() {
     }
     printf("Screenshot saved to /tmp/desktop_render_test.ppm\n");
     
-    dosgui_wm_shutdown();
+    wm_shutdown();
     vbe_shutdown();
     
     printf("✅ Test passed - desktop rendering works!\n");

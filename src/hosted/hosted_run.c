@@ -13,9 +13,9 @@
 #include "hosted_internal.h"
 
 #include "../kernel/vbe.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_desktop.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/desktop.h"
+#include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_clipboard.h"
 #include "../gui/shell/wubu_notify.h"
@@ -138,9 +138,9 @@ void hosted_shutdown(hosted_state_t *state) {
         }
     }
 
-    dosgui_wm_shutdown();
-    dosgui_desktop_shutdown();
-    dosgui_startmenu_shutdown();
+    wm_shutdown();
+    desktop_shutdown();
+    startmenu_shutdown();
     wubu_screenshot_shutdown();
     wubu_clipboard_shutdown();
     wubu_notify_shutdown();
@@ -172,5 +172,5 @@ int hosted_kernel_ready(void) {
 }
 
 int hosted_wm_has_windows(void) {
-    return dosgui_wm_window_count() > 0 ? 1 : 0;
+    return wm_window_count() > 0 ? 1 : 0;
 }

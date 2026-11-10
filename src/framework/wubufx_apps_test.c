@@ -10,7 +10,7 @@
 
 #include "wubufx.h"
 #include "wubufx_apps.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include <stdio.h>
 #include <string.h>
 

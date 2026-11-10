@@ -15,7 +15,7 @@
 #define WUBU_BONZI_H
 
 #include <stdint.h>
-#include "../gui/dosgui_wm.h"   /* DosGuiWindow */
+#include "../gui/wm.h"   /* DosGuiWindow */
 
 /* Public API: launch the Bonzi desktop agent window. */
 DosGuiWindow *bonzi_launch(void);

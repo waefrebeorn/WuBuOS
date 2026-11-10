@@ -11,9 +11,9 @@
 
 #include "calc.h"
 #include "calc_internal.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../../gui/shell/dosgui_window_chrome.h"   /* centralized chrome (ADR-001) */
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../../gui/shell/window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
@@ -147,7 +147,7 @@ static void calc_layout(CalcState *c) {
 /* Draw a single 3D button. */
 static void calc_draw_button(int x, int y, int w, int h, const char *label,
                              bool pressed) {
-    dosgui_chrome_draw_button(x, y, w, h, label, pressed);
+    chrome_draw_button(x, y, w, h, label, pressed);
 }
 
 static void calc_draw_graph(DosGuiWindow *win, int cx, int cy, int cw, int ch, CalcState *c) {
@@ -213,7 +213,7 @@ void calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, CalcState *c
 
     /* Centralized window chrome: draw title bar + border, get content rect.
      * ADR-001: apps draw ONLY within the chrome-provided content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
     int cx = content.x;
     int cy = content.y;
     int cw = content.w;
@@ -299,7 +299,7 @@ static void calc_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
 DosGuiWindow* calc_launch(void) {
     int x = 80 + (rand() % 300);
     int y = 60 + (rand() % 200);
-    DosGuiWindow *win = dosgui_wm_create(x, y, 280, 380, "Calculator");
+    DosGuiWindow *win = wm_create(x, y, 280, 380, "Calculator");
     if (win) {
         CalcState *c = calc_create();
         win->user_data = c;

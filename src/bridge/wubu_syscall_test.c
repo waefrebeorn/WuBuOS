@@ -7,7 +7,7 @@
 
 #include "wubu_syscall.h"
 #include "../kernel/vbe.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -21,12 +21,12 @@ __attribute__((weak)) void vbe_hline(int x1, int x2, int y, uint32_t color) { (v
 __attribute__((weak)) int vbe_text_width(const char *s, int scale) { (void)s; (void)scale; return 0; }
 __attribute__((weak)) void vbe_swap(void) {}
 __attribute__((weak)) VBEState *vbe_state(void) { return NULL; }
-__attribute__((weak)) DosGuiWindow *dosgui_wm_create(int x, int y, int w, int h, const char *title) { (void)x; (void)y; (void)w; (void)h; (void)title; return NULL; }
-__attribute__((weak)) void dosgui_wm_destroy(DosGuiWindow *win) { (void)win; }
-__attribute__((weak)) void dosgui_wm_set_focus(DosGuiWindow *win) { (void)win; }
-__attribute__((weak)) DosGuiWindow *dosgui_wm_get_focused(void) { return NULL; }
-__attribute__((weak)) DosGuiWindow *dosgui_wm_find_by_id(int id) { (void)id; return NULL; }
-__attribute__((weak)) void dosgui_wm_render(uint32_t *fb, int fb_w, int fb_h) { (void)fb; (void)fb_w; (void)fb_h; }
+__attribute__((weak)) DosGuiWindow *wm_create(int x, int y, int w, int h, const char *title) { (void)x; (void)y; (void)w; (void)h; (void)title; return NULL; }
+__attribute__((weak)) void wm_destroy(DosGuiWindow *win) { (void)win; }
+__attribute__((weak)) void wm_set_focus(DosGuiWindow *win) { (void)win; }
+__attribute__((weak)) DosGuiWindow *wm_get_focused(void) { return NULL; }
+__attribute__((weak)) DosGuiWindow *wm_find_by_id(int id) { (void)id; return NULL; }
+__attribute__((weak)) void wm_render(uint32_t *fb, int fb_w, int fb_h) { (void)fb; (void)fb_w; (void)fb_h; }
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST %-50s", name); g_total++;

@@ -14,9 +14,9 @@
  */
 
 #include "wubu_edr.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
@@ -94,7 +94,7 @@ static void edr_dash_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, v
     (void)fb_w; (void)fb_h;
     if (!win || !s) return;
     /* Centralized window chrome — draw frame, get content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, 0, 0);
+    ChromeContentRect content = chrome_draw_window(win, fb, 0, 0);
     int cx = content.x;
     int cy = content.y;
     int cw = content.w;
@@ -229,7 +229,7 @@ DosGuiWindow *edr_dash_launch(void) {
     EdrDashState *s = edr_dash_state();
     if (!s) return NULL;
     edr_dash_refresh(s);
-    DosGuiWindow *win = dosgui_wm_create(140, 60, 760, 520, "EDR Activity");
+    DosGuiWindow *win = wm_create(140, 60, 760, 520, "EDR Activity");
     if (win) {
         win->on_draw  = edr_dash_draw;
         win->on_mouse = edr_dash_mouse;

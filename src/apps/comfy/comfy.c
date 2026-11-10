@@ -14,9 +14,9 @@
  * harness drives the graph programmatically (comfy_add_node/edge + run).
  */
 #include "comfy.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../../gui/shell/dosgui_window_chrome.h"   /* centralized chrome (ADR-001) */
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../../gui/shell/window_chrome.h"   /* centralized chrome (ADR-001) */
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../framework/wubufx.h"
@@ -277,7 +277,7 @@ static void comfy_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Centralized window chrome: draw title bar + border, get content rect.
      * ADR-001: apps draw ONLY within the chrome-provided content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
     int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
     int body_y = cy + 2;
     int body_h = ch - 2;  /* ch already excludes chrome (ADR-001) */
@@ -374,7 +374,7 @@ static void comfy_mouse(DosGuiWindow *win, int mx, int my, int btn, int kind) {
 
 /* -- Launch -------------------------------------------------------- */
 DosGuiWindow *comfy_launch(void) {
-    DosGuiWindow *win = dosgui_wm_create(300, 60, 420, 420, "Comfy - Node Graph");
+    DosGuiWindow *win = wm_create(300, 60, 420, 420, "Comfy - Node Graph");
     if (win) {
         ComfyState *c = calloc(1, sizeof(ComfyState));
         g_comfy = c;

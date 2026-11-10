@@ -10,7 +10,7 @@
 #ifndef WUBUFX_APPS_H
 #define WUBUFX_APPS_H
 
-#include "../gui/dosgui_wm.h"   /* DosGuiWindow */
+#include "../gui/wm.h"   /* DosGuiWindow */
 
 /* Launch a named app as a WuBuFX namespace; returns the engine's window. */
 DosGuiWindow *wubufx_app_launch(const char *name);

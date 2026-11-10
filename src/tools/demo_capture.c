@@ -3,13 +3,13 @@
  * Renders theme cycling demo to PPM frames, then ffmpeg -> GIF/MP4
  */
 
-#include "src/apps/dosgui_apps.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "src/apps/apps.h"
+#include "../gui/shell/startmenu.h"
 #include "src/kernel/vbe.h"
 #include "src/kernel/memory.h"
 #include "src/kernel/input.h"
-#include "src/gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_desktop.h"
+#include "src/gui/wm.h"
+#include "../gui/shell/desktop.h"
 #include "src/gui/wubu_theme.h"
 #include "src/tools/screenshot.h"
 #include <stdlib.h>
@@ -37,118 +37,118 @@ int main(void) {
     if (!vbe || !vbe->fb) { fprintf(stderr, "VBE init failed\n"); return 1; }
     
     /* Init GUI with theme engine */
-    dosgui_wm_init(DEMO_W, DEMO_H);
-    dosgui_desktop_init();
+    wm_init(DEMO_W, DEMO_H);
+    desktop_init();
     
     int frame = 0;
     char path[256];
     
     /* ===== PHASE 1: Win98 Classic (default) - 10 frames ===== */
     for (int i = 0; i < 10; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }
     
     /* ===== PHASE 2: Launch some windows - 15 frames ===== */
-    DosGuiWindow *win1 = dosgui_wm_create(100, 80, 500, 380, "Calculator");
-    win1->on_draw = dosgui_calc_draw;
-    DosGuiWindow *win2 = dosgui_wm_create(250, 150, 600, 450, "File Manager");
-    win2->on_draw = dosgui_explorer_draw;
-    DosGuiWindow *win3 = dosgui_wm_create(400, 200, 400, 300, "Notepad");
-    win3->on_draw = dosgui_notepad_draw;
+    DosGuiWindow *win1 = wm_create(100, 80, 500, 380, "Calculator");
+    win1->on_draw = calc_draw;
+    DosGuiWindow *win2 = wm_create(250, 150, 600, 450, "File Manager");
+    win2->on_draw = explorer_draw;
+    DosGuiWindow *win3 = wm_create(400, 200, 400, 300, "Notepad");
+    win3->on_draw = notepad_draw;
     
     for (int i = 0; i < 15; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }
     
     /* ===== PHASE 3: Cycle to XP Luna Blue - 20 frames ===== */
     wubu_theme_set(THEME_XP_LUNA_BLUE);
-    dosgui_wm_init(DEMO_W, DEMO_H);  /* Reinit WM for new theme metrics */
-    dosgui_desktop_init();
+    wm_init(DEMO_W, DEMO_H);  /* Reinit WM for new theme metrics */
+    desktop_init();
     
     /* Re-launch windows */
-    win1 = dosgui_wm_create(100, 80, 500, 380, "Calculator");
-    win1->on_draw = dosgui_calc_draw;
-    win2 = dosgui_wm_create(250, 150, 600, 450, "File Manager");
-    win2->on_draw = dosgui_explorer_draw;
-    win3 = dosgui_wm_create(400, 200, 400, 300, "Notepad");
-    win3->on_draw = dosgui_notepad_draw;
+    win1 = wm_create(100, 80, 500, 380, "Calculator");
+    win1->on_draw = calc_draw;
+    win2 = wm_create(250, 150, 600, 450, "File Manager");
+    win2->on_draw = explorer_draw;
+    win3 = wm_create(400, 200, 400, 300, "Notepad");
+    win3->on_draw = notepad_draw;
     
     for (int i = 0; i < 20; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }
     
     /* ===== PHASE 4: Open Start Menu - 15 frames ===== */
-    dosgui_startmenu_open();
+    startmenu_open();
     for (int i = 0; i < 15; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }
-    dosgui_startmenu_close();
+    startmenu_close();
     
     /* ===== PHASE 5: Cycle to XP Media Orange - 15 frames ===== */
     wubu_theme_set(THEME_XP_MEDIA_ORANGE);
-    dosgui_wm_init(DEMO_W, DEMO_H);
-    dosgui_desktop_init();
+    wm_init(DEMO_W, DEMO_H);
+    desktop_init();
     
-    win1 = dosgui_wm_create(100, 80, 500, 380, "Calculator");
-    win1->on_draw = dosgui_calc_draw;
-    win2 = dosgui_wm_create(250, 150, 600, 450, "File Manager");
-    win2->on_draw = dosgui_explorer_draw;
-    win3 = dosgui_wm_create(400, 200, 400, 300, "Notepad");
-    win3->on_draw = dosgui_notepad_draw;
+    win1 = wm_create(100, 80, 500, 380, "Calculator");
+    win1->on_draw = calc_draw;
+    win2 = wm_create(250, 150, 600, 450, "File Manager");
+    win2->on_draw = explorer_draw;
+    win3 = wm_create(400, 200, 400, 300, "Notepad");
+    win3->on_draw = notepad_draw;
     
     for (int i = 0; i < 15; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }
     
     /* ===== PHASE 6: Cycle to WuBu Green - 15 frames ===== */
     wubu_theme_set(THEME_WUBU_CUSTOM);
-    dosgui_wm_init(DEMO_W, DEMO_H);
-    dosgui_desktop_init();
+    wm_init(DEMO_W, DEMO_H);
+    desktop_init();
     
-    win1 = dosgui_wm_create(100, 80, 500, 380, "Calculator");
-    win1->on_draw = dosgui_calc_draw;
-    win2 = dosgui_wm_create(250, 150, 600, 450, "File Manager");
-    win2->on_draw = dosgui_explorer_draw;
-    win3 = dosgui_wm_create(400, 200, 400, 300, "Notepad");
-    win3->on_draw = dosgui_notepad_draw;
+    win1 = wm_create(100, 80, 500, 380, "Calculator");
+    win1->on_draw = calc_draw;
+    win2 = wm_create(250, 150, 600, 450, "File Manager");
+    win2->on_draw = explorer_draw;
+    win3 = wm_create(400, 200, 400, 300, "Notepad");
+    win3->on_draw = notepad_draw;
     
     for (int i = 0; i < 15; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }
     
     /* ===== PHASE 7: Back to Win98 Classic - 10 frames ===== */
     wubu_theme_set(THEME_WIN98_CLASSIC);
-    dosgui_wm_init(DEMO_W, DEMO_H);
-    dosgui_desktop_init();
+    wm_init(DEMO_W, DEMO_H);
+    desktop_init();
     
-    win1 = dosgui_wm_create(100, 80, 500, 380, "Calculator");
-    win1->on_draw = dosgui_calc_draw;
-    win2 = dosgui_wm_create(250, 150, 600, 450, "File Manager");
-    win2->on_draw = dosgui_explorer_draw;
-    win3 = dosgui_wm_create(400, 200, 400, 300, "Notepad");
-    win3->on_draw = dosgui_notepad_draw;
+    win1 = wm_create(100, 80, 500, 380, "Calculator");
+    win1->on_draw = calc_draw;
+    win2 = wm_create(250, 150, 600, 450, "File Manager");
+    win2->on_draw = explorer_draw;
+    win3 = wm_create(400, 200, 400, 300, "Notepad");
+    win3->on_draw = notepad_draw;
     
     for (int i = 0; i < 10; i++) {
-        dosgui_desktop_tick();
-        dosgui_desktop_render(NULL, DEMO_W, DEMO_H);
+        desktop_tick();
+        desktop_render(NULL, DEMO_W, DEMO_H);
         vbe_swap(); snprintf(path, sizeof(path), FRAME_DIR "/frame_%04d.ppm", frame++);
         wubu_shot_fullscreen(path, SHOT_FMT_PPM);
     }

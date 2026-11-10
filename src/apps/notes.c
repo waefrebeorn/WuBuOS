@@ -11,9 +11,9 @@
  */
 
 #include "notes.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
@@ -203,7 +203,7 @@ void notes_mouse(DosGuiWindow *win, int x, int y, int btn, int kind)
 DosGuiWindow *notes_launch(void)
 {
     notes_load();
-    DosGuiWindow *win = dosgui_wm_create(120, 60, 480, 380, "Notes");
+    DosGuiWindow *win = wm_create(120, 60, 480, 380, "Notes");
     if (win) {
         win->on_draw  = notes_draw;
         win->on_key   = notes_key;

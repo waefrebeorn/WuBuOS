@@ -6,7 +6,7 @@
 ## Context
 
 WuBuOS exposes raw struct layouts in headers (`wubu_theme.h`,
-`dosgui_wm_internal.h`), creating massive recompile cascades when a
+`wm_internal.h`), creating massive recompile cascades when a
 field is added. 67% of header changes trigger full kernel recompiles.
 
 ## Decision
@@ -14,9 +14,9 @@ field is added. 67% of header changes trigger full kernel recompiles.
 1. Public headers expose only opaque handles (`DosGuiWindow *`,
    `wubu_theme_t *`) with accessor functions
 2. Struct definitions move to `<module>_internal.h` (same pattern as
-   `dosgui_wm_internal.h`)
-3. `dosgui_window_chrome.h` is the single public header for window
-   chrome — apps include only this, not `dosgui_wm_internal.h`
+   `wm_internal.h`)
+3. `window_chrome.h` is the single public header for window
+   chrome — apps include only this, not `wm_internal.h`
 
 ## Consequences
 
@@ -28,7 +28,7 @@ field is added. 67% of header changes trigger full kernel recompiles.
 
 - `docs/adr/ADR-001-centralized-window-chrome.md`
 - research/066-theme-j-planning-ux.md (Theme J2: opaque struct seams)
-- src/apps/calc/calc.c — uses only `dosgui_window_chrome.h`
-- src/apps/comfy/comfy.c — uses only `dosgui_window_chrome.h`
-- src/apps/cmd/cmd.c — uses only `dosgui_window_chrome.h`
+- src/apps/calc/calc.c — uses only `window_chrome.h`
+- src/apps/comfy/comfy.c — uses only `window_chrome.h`
+- src/apps/cmd/cmd.c — uses only `window_chrome.h`
 - src/apps/bonzi/bonzi.c — partially migrated

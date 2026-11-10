@@ -11,11 +11,11 @@ system and fill the gaps."
 | SDDM login + session select | no boot login; the session manager (wubu_session) exists but the desktop boot doesn't wire it | **GAP (documented)** |
 | System Settings (display/network/sound/personalization/input) | the Control Panel manager: Sound + Hardware were real; **Display/Network/Theme were DECLARED in the header with ZERO implementation** | **FILLED this pass** |
 | the tray (battery/wifi/heat/volume) | the world-state tray (battery/wifi/heat) + clock + daemon icons; volume lives in the Sound applet | mostly ✓ |
-| the notification center | dosgui_notif_center (add/mark_read/clear/is_open) | ✓ |
-| the taskbar (start/window buttons/clock) | dosgui_wm_taskbar + clock menu | ✓ |
-| the start menu (search/recent/power) | dosgui_startmenu (Search, Recently Used, Power Options, All Programs) | ✓ |
-| the file manager | dosgui_explorer (drives/tree/preview) | ✓ |
-| Big Picture Mode | dosgui_bpm (fullscreen gamepad grid over the era apps) | ✓ (previous pass) |
+| the notification center | notif_center (add/mark_read/clear/is_open) | ✓ |
+| the taskbar (start/window buttons/clock) | wm_taskbar + clock menu | ✓ |
+| the start menu (search/recent/power) | startmenu (Search, Recently Used, Power Options, All Programs) | ✓ |
+| the file manager | explorer (drives/tree/preview) | ✓ |
+| Big Picture Mode | bpm (fullscreen gamepad grid over the era apps) | ✓ (previous pass) |
 
 ## DA pass 2 — the gaming/compat layer (vs SteamOS's stack)
 
@@ -51,11 +51,11 @@ Remaining honest gaps (documented, not claimed):
 
 ## The fills this pass (all gated green)
 
-1. **dosgui_cp_display.c** — the Display applet (connector/mode/VRAM
+1. **cp_display.c** — the Display applet (connector/mode/VRAM
    from the world snapshot). `display: MIPI-DSI 1280x800@60 8192MB vram`
-2. **dosgui_cp_network.c** — the Network applet (wifi/eth links from
+2. **cp_network.c** — the Network applet (wifi/eth links from
    the world). `network: wifi UP (present) eth down`
-3. **dosgui_cp_theme.c** — the Theme applet (the real theme engine:
+3. **cp_theme.c** — the Theme applet (the real theme engine:
    current theme + a click cycles). `theme: Win98 Classic`
 4. **wubu_drv.c BAR glue** — the real-hardware MMIO mapping point
    (wubu_drv_dev_bar + the scan carries bar0/bar1)
@@ -65,5 +65,5 @@ Remaining honest gaps (documented, not claimed):
 6. the manager registers ALL FIVE applets (display/network/sound/
    theme/hardware) — the sidebar shows the full System Settings
 
-Gates: test_dosgui_cp_dnt 4/4, test_dosgui_controlpanel 7/7,
+Gates: test_cp_dnt 4/4, test_controlpanel 7/7,
 test_drv 11/11 (incl. the BAR glue), machines + world green.

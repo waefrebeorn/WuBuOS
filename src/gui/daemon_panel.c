@@ -1,0 +1,402 @@
+/*
+ * daemon_panel.c  --  WuBuOS Desktop Daemon Integration Panel
+ *
+ * Cell 400-402: Bridges wubu_archd and wubu_holyd events into the DosGui
+ * desktop. Shows daemon status in the system tray, container list in a
+ * desktop window, and HolyC session windows from the start menu.
+ *
+ * Architecture:
+ *   wubu_archd (Unix socket) → daemon panel → system tray icon + container list window
+ *   wubu_holyd (Unix socket) → daemon panel → HolyC terminal windows
+ *
+ * The panel connects to both daemons via their JSON protocol, subscribes
+ * to events, and renders status into the desktop's existing notification
+ * center and window manager.
+ */
+
+#define _POSIX_C_SOURCE 200809L
+
+#include "daemon_panel.h"
+#include "wm.h"
+#include "shell/desktop.h"
+#include "shell/wubu_notify.h"
+#include "wubu_theme.h"
+#include "../kernel/vbe.h"
+#include "../runtime/wubu_archd.h"
+#include "../runtime/wubu_holyd.h"
+#include "../runtime/wubu_daemon_client.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* -- Panel State -------------------------------------------------- */
+
+typedef struct {
+    /* Daemon connections */
+    DaemonConn  archd;
+    DaemonConn  holyd;
+
+    /* System tray */
+    int         archd_tray_id;      /* systray_add id */
+    int         holyd_tray_id;
+    int         archd_notif_count;
+    int         holyd_notif_count;
+
+    /* Container list window */
+    DosGuiWindow *container_win;
+    int           container_count;
+    char          container_names[16][64];
+    char          container_states[16][16];
+
+    /* HolyC session window */
+    DosGuiWindow *holyd_win;
+    int           holyd_session_count;
+    char          holyd_sessions[8][64];
+
+    /* Epoll for non-blocking daemon reads */
+    int         epoll_fd;
+
+    /* Tick counter */
+    int         tick_count;
+} DaemonPanel;
+
+static DaemonPanel g_panel = {0};
+
+/* -- Event Processing --------------------------------------------- */
+
+static void panel_process_archd_event(DaemonPanel *panel, const char *line) {
+    char event_type[64] = {0};
+    char root_name[64] = {0};
+    char root_state[32] = {0};
+
+    wubu_json_get_string(line, "event", event_type, sizeof(event_type));
+    wubu_json_get_string(line, "root_name", root_name, sizeof(root_name));
+    wubu_json_get_string(line, "state", root_state, sizeof(root_state));
+
+    panel->archd.event_count++;
+
+    /* Update container list */
+    if (strcmp(event_type, "root-create") == 0 || strcmp(event_type, "root-state") == 0) {
+        /* Find or add container */
+        int idx = -1;
+        for (int i = 0; i < panel->container_count; i++) {
+            if (strcmp(panel->container_names[i], root_name) == 0) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0 && panel->container_count < 16) {
+            idx = panel->container_count++;
+            strncpy(panel->container_names[idx], root_name, 63);
+        }
+        if (idx >= 0) {
+            strncpy(panel->container_states[idx], root_state, 15);
+        }
+
+        /* Notify desktop */
+        char notif_summary[128];
+        snprintf(notif_summary, sizeof(notif_summary), "Arch: %s", root_name);
+        char notif_body[256];
+        snprintf(notif_body, sizeof(notif_body), "Container '%s' is now %s", root_name, root_state);
+        notif_center_add("ArchD", notif_summary, notif_body, 1);
+    }
+
+    /* Update tray icon */
+    if (panel->archd_tray_id >= 0) {
+        systray_set_notification_count("archd", panel->archd.event_count);
+    }
+}
+
+static void panel_process_holyd_event(DaemonPanel *panel, const char *line) {
+    char event_type[64] = {0};
+    char session_name[64] = {0};
+    char session_state[32] = {0};
+
+    wubu_json_get_string(line, "event", event_type, sizeof(event_type));
+    wubu_json_get_string(line, "session", session_name, sizeof(session_name));
+    wubu_json_get_string(line, "state", session_state, sizeof(session_state));
+
+    panel->holyd.event_count++;
+
+    /* Update session list */
+    if (strcmp(event_type, "session-create") == 0 || strcmp(event_type, "session-state") == 0) {
+        int idx = -1;
+        for (int i = 0; i < panel->holyd_session_count; i++) {
+            if (strcmp(panel->holyd_sessions[i], session_name) == 0) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx < 0 && panel->holyd_session_count < 8) {
+            idx = panel->holyd_session_count++;
+            strncpy(panel->holyd_sessions[idx], session_name, 63);
+        }
+
+        /* Notify desktop */
+        char notif_summary[128];
+        snprintf(notif_summary, sizeof(notif_summary), "HolyD: %s", session_name);
+        char notif_body[256];
+        snprintf(notif_body, sizeof(notif_body), "Session '%s' is now %s", session_name, session_state);
+        notif_center_add("HolyD", notif_summary, notif_body, 1);
+    }
+
+    /* Update tray icon */
+    if (panel->holyd_tray_id >= 0) {
+        systray_set_notification_count("holyd", panel->holyd.event_count);
+    }
+}
+
+/* -- Container List Window ---------------------------------------- */
+
+static void container_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb_w;
+    const WubuThemeColors *tc = wubu_theme_colors();
+
+    /* Background */
+    vbe_fill_rect(win->x, win->y, win->w, win->h, tc->startmenu_bg);
+
+    /* Title bar */
+    vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, tc->win_title_active);
+    vbe_draw_text(win->x + 8, win->y + 4, "Arch Linux Containers", tc->win_title_text, 1);
+
+    /* Container list */
+    int row_h = 20;
+    int list_y = win->y + DOSGUI_TITLE_H + 4;
+
+    for (int i = 0; i < g_panel.container_count && i < 16; i++) {
+        int row_y = list_y + i * row_h;
+        if (row_y + row_h > win->y + win->h) break;
+
+        uint32_t bg = (i % 2 == 0) ? tc->startmenu_bg : tc->win_face;
+        vbe_fill_rect(win->x + 2, row_y, win->w - 4, row_h - 1, bg);
+
+        /* Status indicator */
+        uint32_t status_color = 0x00AA00; /* green = active */
+        if (strcmp(g_panel.container_states[i], "inactive") == 0) status_color = 0x888888;
+        else if (strcmp(g_panel.container_states[i], "failed") == 0) status_color = 0xCC0000;
+        else if (strcmp(g_panel.container_states[i], "activating") == 0) status_color = 0xCCAA00;
+        vbe_fill_rect(win->x + 6, row_y + 6, 8, 8, status_color);
+
+        /* Name */
+        vbe_draw_text(win->x + 20, row_y + 3, g_panel.container_names[i], tc->startmenu_text, 1);
+
+        /* State */
+        vbe_draw_text(win->x + 200, row_y + 3, g_panel.container_states[i], tc->border_dark, 1);
+    }
+
+    if (g_panel.container_count == 0) {
+        vbe_draw_text(win->x + 8, list_y + 4, "No containers running", tc->border_dark, 1);
+    }
+
+    /* Connection status */
+    const char *conn_str = "disconnected";
+    uint32_t conn_color = 0xCC0000;
+    if (g_panel.archd.state == DAEMON_CONNECTED) {
+        conn_str = "connected";
+        conn_color = 0x00AA00;
+    } else if (g_panel.archd.state == DAEMON_CONNECTING) {
+        conn_str = "connecting...";
+        conn_color = 0xCCAA00;
+    }
+    char status_line[64];
+    snprintf(status_line, sizeof(status_line), "ArchD: %s", conn_str);
+    vbe_draw_text(win->x + 8, win->y + win->h - 16, status_line, conn_color, 1);
+}
+
+/* -- HolyC Session Window ----------------------------------------- */
+
+static void holyd_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb_w;
+    const WubuThemeColors *tc = wubu_theme_colors();
+
+    vbe_fill_rect(win->x, win->y, win->w, win->h, 0x000000); /* HolyC black */
+
+    /* Title bar */
+    vbe_fill_rect(win->x, win->y, win->w, DOSGUI_TITLE_H, 0x0000AA);
+    vbe_draw_text(win->x + 8, win->y + 4, "HolyC DOS Sessions", 0xFFFFFF, 1);
+
+    /* Session list */
+    int row_h = 18;
+    int list_y = win->y + DOSGUI_TITLE_H + 4;
+
+    for (int i = 0; i < g_panel.holyd_session_count && i < 8; i++) {
+        int row_y = list_y + i * row_h;
+        if (row_y + row_h > win->y + win->h) break;
+
+        /* HolyC-style green text on black */
+        vbe_draw_text(win->x + 8, row_y, "> ", 0x00FF00, 1);
+        vbe_draw_text(win->x + 24, row_y, g_panel.holyd_sessions[i], 0x00FF00, 1);
+    }
+
+    if (g_panel.holyd_session_count == 0) {
+        vbe_draw_text(win->x + 8, list_y, "No HolyC sessions", 0x008800, 1);
+    }
+
+    /* Connection status */
+    const char *conn_str = "disconnected";
+    uint32_t conn_color = 0x008800;
+    if (g_panel.holyd.state == DAEMON_CONNECTED) {
+        conn_str = "connected";
+        conn_color = 0x00FF00;
+    }
+    char status_line[64];
+    snprintf(status_line, sizeof(status_line), "HolyD: %s", conn_str);
+    vbe_draw_text(win->x + 8, win->y + win->h - 16, status_line, conn_color, 1);
+}
+
+/* -- System Tray Callbacks ---------------------------------------- */
+
+void archd_tray_click(void) {
+    /* Toggle container list window */
+    if (g_panel.container_win) {
+        wm_destroy(g_panel.container_win);
+        g_panel.container_win = NULL;
+    } else {
+        g_panel.container_win = wm_create(100, 80, 400, 300, "Arch Containers");
+        if (g_panel.container_win) {
+            g_panel.container_win->on_draw = container_win_draw;
+        }
+    }
+}
+
+void holyd_tray_click(void) {
+    /* Toggle HolyC session window */
+    if (g_panel.holyd_win) {
+        wm_destroy(g_panel.holyd_win);
+        g_panel.holyd_win = NULL;
+    } else {
+        g_panel.holyd_win = wm_create(120, 100, 400, 250, "HolyC Sessions");
+        if (g_panel.holyd_win) {
+            g_panel.holyd_win->on_draw = holyd_win_draw;
+        }
+    }
+}
+
+/* -- Public API --------------------------------------------------- */
+
+int daemon_panel_init(void) {
+    memset(&g_panel, 0, sizeof(g_panel));
+    g_panel.archd.fd = -1;
+    g_panel.holyd.fd = -1;
+
+    /* Add system tray icons */
+    g_panel.archd_tray_id = systray_add("archd", 0x00AA00,
+                                                 archd_tray_click, NULL);
+    g_panel.holyd_tray_id = systray_add("holyd", 0x0000AA,
+                                                 holyd_tray_click, NULL);
+
+    /* Try to connect to daemons (non-blocking) */
+    wubu_daemon_connect(&g_panel.archd, WUBU_ARCHD_SOCKET_PATH);
+    wubu_daemon_connect(&g_panel.holyd, WUBU_HOLYD_SOCKET_PATH);
+
+    /* Send subscribe commands */
+    if (g_panel.archd.state == DAEMON_CONNECTED) {
+        wubu_daemon_send(&g_panel.archd, "{\"cmd\":\"subscribe\",\"events\":[\"root-create\",\"root-state\",\"root-delete\"]}\n");
+    }
+    if (g_panel.holyd.state == DAEMON_CONNECTED) {
+        wubu_daemon_send(&g_panel.holyd, "{\"cmd\":\"subscribe\",\"events\":[\"session-create\",\"session-state\",\"session-destroy\"]}\n");
+    }
+
+    return 0;
+}
+
+void daemon_panel_shutdown(void) {
+    wubu_daemon_disconnect(&g_panel.archd);
+    wubu_daemon_disconnect(&g_panel.holyd);
+
+    if (g_panel.archd_tray_id >= 0) {
+        systray_remove("archd");
+        g_panel.archd_tray_id = -1;
+    }
+    if (g_panel.holyd_tray_id >= 0) {
+        systray_remove("holyd");
+        g_panel.holyd_tray_id = -1;
+    }
+
+    if (g_panel.container_win) {
+        wm_destroy(g_panel.container_win);
+        g_panel.container_win = NULL;
+    }
+    if (g_panel.holyd_win) {
+        wm_destroy(g_panel.holyd_win);
+        g_panel.holyd_win = NULL;
+    }
+}
+
+void daemon_panel_tick(void) {
+    g_panel.tick_count++;
+
+    /* Read events from archd */
+    if (g_panel.archd.state == DAEMON_CONNECTED && g_panel.archd.fd >= 0) {
+        char line[1024];
+        int retries = 16;
+        while (retries-- > 0) {
+            int len = wubu_daemon_recv_line(&g_panel.archd, line, sizeof(line));
+            if (len <= 0) break;
+            if (len > 2) { /* skip empty lines */
+                panel_process_archd_event(&g_panel, line);
+            }
+        }
+    }
+
+    /* Read events from holyd */
+    if (g_panel.holyd.state == DAEMON_CONNECTED && g_panel.holyd.fd >= 0) {
+        char line[1024];
+        int retries = 16;
+        while (retries-- > 0) {
+            int len = wubu_daemon_recv_line(&g_panel.holyd, line, sizeof(line));
+            if (len <= 0) break;
+            if (len > 2) {
+                panel_process_holyd_event(&g_panel, line);
+            }
+        }
+    }
+
+    /* Reconnect disconnected daemons every 300 ticks (~5 seconds at 60fps) */
+    if (g_panel.tick_count % 300 == 0) {
+        if (g_panel.archd.state == DAEMON_DISCONNECTED || g_panel.archd.state == DAEMON_ERROR) {
+            wubu_daemon_connect(&g_panel.archd, WUBU_ARCHD_SOCKET_PATH);
+            if (g_panel.archd.state == DAEMON_CONNECTED) {
+                wubu_daemon_send(&g_panel.archd, "{\"cmd\":\"subscribe\",\"events\":[\"root-create\",\"root-state\",\"root-delete\"]}\n");
+            }
+        }
+        if (g_panel.holyd.state == DAEMON_DISCONNECTED || g_panel.holyd.state == DAEMON_ERROR) {
+            wubu_daemon_connect(&g_panel.holyd, WUBU_HOLYD_SOCKET_PATH);
+            if (g_panel.holyd.state == DAEMON_CONNECTED) {
+                wubu_daemon_send(&g_panel.holyd, "{\"cmd\":\"subscribe\",\"events\":[\"session-create\",\"session-state\",\"session-destroy\"]}\n");
+            }
+        }
+    }
+}
+
+int daemon_panel_archd_state(void) {
+    return g_panel.archd.state;
+}
+
+int daemon_panel_holyd_state(void) {
+    return g_panel.holyd.state;
+}
+
+int daemon_panel_container_count(void) {
+    return g_panel.container_count;
+}
+
+const char *daemon_panel_container_name(int idx) {
+    if (idx < 0 || idx >= g_panel.container_count) return NULL;
+    return g_panel.container_names[idx];
+}
+
+const char *daemon_panel_container_state(int idx) {
+    if (idx < 0 || idx >= g_panel.container_count) return NULL;
+    return g_panel.container_states[idx];
+}
+
+int daemon_panel_holyd_session_count(void) {
+    return g_panel.holyd_session_count;
+}
+
+const char *daemon_panel_holyd_session_name(int idx) {
+    if (idx < 0 || idx >= g_panel.holyd_session_count) return NULL;
+    return g_panel.holyd_sessions[idx];
+}

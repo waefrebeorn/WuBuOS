@@ -474,7 +474,7 @@ int wubu_svc_supervisor_logs(wubu_svc_supervisor_t *s, const char *root,
 /* -- Health heartbeat (N8 closure) ------------------------------- */
 /* Register a callback invoked for each managed service that WAS running
  * and died unexpectedly (not an auto-restart service). The desktop
- * uses this to surface a tray/toast alert (see dosgui_service_mgr). */
+ * uses this to surface a tray/toast alert (see service_mgr). */
 typedef void (*wubu_svc_on_fail_fn)(const char *root, const char *svc,
                                      void *ud);
 static wubu_svc_on_fail_fn g_on_fail = NULL;

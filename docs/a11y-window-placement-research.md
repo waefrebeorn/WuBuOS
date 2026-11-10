@@ -100,7 +100,7 @@ thing — user confusion (Hick's law: more options → slower decisions).
 
 **Resolution for WuBuOS:** the user's design IS the custom accessibility
 cluster — it's not replacing system chrome (we don't have a system close
-in the chrome yet on dosgui_wm). When system chrome exists, the cluster
+in the chrome yet on wm). When system chrome exists, the cluster
 serves a different purpose (e.g. accessibility hot-zones, not
 window-management actions) — rebrand the orbs.
 
@@ -130,6 +130,6 @@ window-management actions) — rebrand the orbs.
   cluster, so buttons never overlap the title bar / border.
 
 ## Verified
-- test_a11y, test_dosgui_wm, test_dosgui_startmenu — all green
+- test_a11y, test_wm, test_startmenu — all green
 - Vision-verified: cluster sits in content area, single-bean crescent,
   no "two crescent" artifact, buttons respect chrome

@@ -10,7 +10,7 @@
 
 ## 1. The window object
 
-A window in WuBuOS is a `DosGuiWindow` (`src/gui/dosgui_wm.h:41-61`):
+A window in WuBuOS is a `DosGuiWindow` (`src/gui/wm.h:41-61`):
 
 ```c
 typedef struct DosGuiWindow {
@@ -46,7 +46,7 @@ Every concept real windowing systems have, in 21 fields:
 | Relationship | `parent` (modal) | parent/transient | owner | — |
 
 The window is **not heap-allocated**: it lives in a fixed 32-slot array
-(`g_dwm.windows[DOSGUI_MAX_WINDOWS]`, `dosgui_wm_internal.h:44`), slots are
+(`g_dwm.windows[DOSGUI_MAX_WINDOWS]`, `wm_internal.h:44`), slots are
 recycled via `alive`, and Z-order is a separate index array
 (`g_dwm.zorder[]`, bottom..top). This is the TempleOS/ZealOS heritage — a
 bounded arena, not a linked list. It makes the WM allocation-free and
@@ -55,7 +55,7 @@ rather than "object" mental model.
 
 ## 2. Lifecycle
 
-- **Spawn** (`spawn_window`, `dosgui_wm_window.c:32`): first free slot →
+- **Spawn** (`spawn_window`, `wm_window.c:32`): first free slot →
   `memset` → assign `id` (monotonic), geometry, title, `alive=true`, push
   onto `zorder`, make it focused.
 - **Raise** (`raise_win:23`): move the index to the top of `zorder` (O(n)
@@ -65,9 +65,9 @@ rather than "object" mental model.
   destruction callback** — apps detect death by polling `alive` or via the
   taskbar; there is no `on_close`/WM_DELETE_WINDOW equivalent yet.
 - **Focus** is a single `focused_id`; hitting any window raises it (input
-  routing does this, `dosgui_wm_input.c`).
+  routing does this, `wm_input.c`).
 
-Key structural note: `hit_test` (`dosgui_wm_window.c:67`) walks `zorder`
+Key structural note: `hit_test` (`wm_window.c:67`) walks `zorder`
 top-down and returns the first window containing the point — this single
 function is the backbone of BOTH input routing and (implicitly) painting
 order. There is no occlusion computation; everything above draws over
@@ -75,7 +75,7 @@ everything below.
 
 ## 3. The render pipeline — immediate mode, full redraw
 
-`dosgui_wm_render(fb, w, h)` (`dosgui_wm_render.c:50`) is the **single**
+`wm_render(fb, w, h)` (`wm_render.c:50`) is the **single**
 entry point and redraws the entire screen every frame:
 
 ```
@@ -83,7 +83,7 @@ entry point and redraws the entire screen every frame:
 2. draw desktop background (wallpaper mode)
 3. draw icons (+ selection plates, glyphs)
 4. for each live window in zorder (bottom→top):
-     a. dosgui_chrome_draw_window(...)   → chrome (frame/title/buttons)
+     a. chrome_draw_window(...)   → chrome (frame/title/buttons)
      b. vbe_set_clip(content rect)       → on_draw content, clip-reset
 5. taskbar (+ focused button, Start flag, clock well)
 6. notification center (if open)
@@ -94,7 +94,7 @@ entry point and redraws the entire screen every frame:
 ```
 
 Per-window drawing (`draw_window:32`) is two layers: **chrome** (the
-standardized `dosgui_chrome_draw_window`, `dosgui_window_chrome.c` — frame
+standardized `chrome_draw_window`, `window_chrome.c` — frame
 bevels, navy/theme title bar, drawn black glyph buttons, title text) and
 **content** (`on_draw`, clipped to the content rect so a buggy app can never
 spill outside its frame — the scissor/clip discipline, `vbe_set_clip`).
@@ -124,13 +124,13 @@ Wayland/SHM, tests).
 The code even documents this history: *"the previous design had THREE render
 entry points … plus a dead dirty-region tracking system that nothing
 consumed (the hosted loop redraws every frame). All of that is collapsed
-here … the dirty tracking is gone."* (`dosgui_wm_render.c:8-13`). The
+here … the dirty tracking is gone."* (`wm_render.c:8-13`). The
 immediate-mode collapse was the right call *then*; the case study below is
 how to do damage tracking that is actually consumed, this time.
 
 ## 4. The input pipeline — a priority cascade, then the window
 
-`dosgui_wm_handle_mouse(x, y, btn, kind)` (`dosgui_wm_input.c`) routes one
+`wm_handle_mouse(x, y, btn, kind)` (`wm_input.c`) routes one
 event through a strict order:
 
 ```
@@ -152,7 +152,7 @@ Key design points:
 - **One event, one owner** — the cascade returns after the first hit; the
   taskbar region is checked *before* windows so Start/clocks can't be
   swallowed by a maximized window.
-- **Chrome vs content split**: `dosgui_chrome_hit_test_button` handles
+- **Chrome vs content split**: `chrome_hit_test_button` handles
   close/max/min; `hit_test_edge` (8-way border mask) handles resize before
   the title-bar drag; otherwise the event goes to `on_mouse` — apps never
   see chrome clicks.
@@ -161,15 +161,15 @@ Key design points:
   screen and above the taskbar, maximize restores from `min_*`.
 - **Human-lag layer** (added 2026-08-07): `mouse_x/y` = instant input
   target for logic; `cursor_x/y` = eased render position (×0.30/frame
-  exponential approach); `dosgui_wm_typer_start/tick` delivers keystrokes
+  exponential approach); `wm_typer_start/tick` delivers keystrokes
   with human 28-51ms jitter + 120-220ms reaction delay.
 
-Key dispatch: `dosgui_wm_handle_key` — Alt+Tab cycling, Win hotkeys, theme
+Key dispatch: `wm_handle_key` — Alt+Tab cycling, Win hotkeys, theme
 cycling, virtual-desktop switching, then the focused window's `on_key`.
 
 ## 5. State transitions
 
-`dosgui_wm_window_state.c` is pure geometry logic:
+`wm_window_state.c` is pure geometry logic:
 
 - `resize` clamps to [100, screen_w] × [50, screen_h-taskbar] and fires
   `on_resize` (apps relayout).
@@ -193,14 +193,14 @@ mechanisms, and each has a direct WuBuOS analog:
 - **Win32**: `WM_PAINT` + `GetUpdateRect`; `InvalidateRect` marks damage.
 - **Classic Mac**: the `updateRgn` / `BeginUpdate`/`EndUpdate` pair — the
   Window Manager tells the app exactly which region to repaint.
-- **WuBuOS (proposal)**: `dosgui_wm_invalidate(DosGuiWindow *w)` sets a
-  per-window dirty flag; `dosgui_wm_invalidate_rect(w, x, y, w, h)` records
+- **WuBuOS (proposal)**: `wm_invalidate(DosGuiWindow *w)` sets a
+  per-window dirty flag; `wm_invalidate_rect(w, x, y, w, h)` records
   damage into a small rect list. Apps call these instead of nothing; the WM
   aggregates.
 
 The buddy's bubble, the clock seconds, the lasso, the cursor — these are
 **WM-owned dirty regions** the WM can mark itself (e.g.
-`dosgui_wm_invalidate_rect` for the clock well only when the second
+`wm_invalidate_rect` for the clock well only when the second
 changes).
 
 ### 6.2 Damage aggregation + partial present (the WM says *where*)
@@ -216,7 +216,7 @@ changes).
 
 This is the piece that was removed in the render collapse — the lesson is
 to rebuild it as *consumed* state: the WM marks damage, and the host loop
-(either the headless harness or hosted.c) reads `dosgui_wm_take_damage()`
+(either the headless harness or hosted.c) reads `wm_take_damage()`
 and skips the present entirely when nothing is dirty and nothing is
 animating.
 
@@ -244,7 +244,7 @@ loop becomes:
 for (;;) {
     pump input;
     if (events_pending || wm_has_damage() || buddy_animating || cursor_moving)
-        dosgui_wm_render(...);   // full frame, but cheap: only dirty
+        wm_render(...);   // full frame, but cheap: only dirty
                                   // windows repaint content, rest blit
     present(damage_rects);
 }
@@ -258,9 +258,9 @@ framebuffer work, and for battery-driven targets.
 | Phase | Change | Files | Test |
 |---|---|---|---|
 | **P0** (now) | immediate-mode full redraw, as-is | — | 33/33 wm tests + desktop_shot audit |
-| **P1** | `dosgui_wm_invalidate(w)` / `invalidate_rect`; WM marks its own dirty regions (clock, bubble, lasso, cursor); `dosgui_wm_has_damage()` + `take_damage()` consumed by the harness/hosted loop | dosgui_wm_internal.h, dosgui_wm.c, render.c, hosted_run.c | new test: invalidate → has_damage true → render clears it |
-| **P2** | **Chrome cache**: render chrome to a per-window 16-bit tile once per state change; blit + only draw content live | dosgui_window_chrome.c, wubu_bonzi.c (unrelated) | pixel test: chrome identical via cache |
-| **P3** | **Per-window backing store**: `win->pixels` offscreen buffer; blit-based compositing; hidden windows skip paint; drag = cached blit | dosgui_wm_render.c, dosgui_wm.h | occlusion test: covered window's on_draw NOT called |
+| **P1** | `wm_invalidate(w)` / `invalidate_rect`; WM marks its own dirty regions (clock, bubble, lasso, cursor); `wm_has_damage()` + `take_damage()` consumed by the harness/hosted loop | wm_internal.h, wm.c, render.c, hosted_run.c | new test: invalidate → has_damage true → render clears it |
+| **P2** | **Chrome cache**: render chrome to a per-window 16-bit tile once per state change; blit + only draw content live | window_chrome.c, wubu_bonzi.c (unrelated) | pixel test: chrome identical via cache |
+| **P3** | **Per-window backing store**: `win->pixels` offscreen buffer; blit-based compositing; hidden windows skip paint; drag = cached blit | wm_render.c, wm.h | occlusion test: covered window's on_draw NOT called |
 | **P4** | **Damage rects + partial present**: `wl_surface.damage` on the Wayland/SHM backend, `vbe_present(dirty)` | vbe.c/h, hosted_wayland_shm.c | frame-equality test: damaged region only |
 | **P5** | **Render-on-demand** loop; idle ~0 CPU | hosted.c, desktop_shot.c | idle test: no render without input/anim |
 

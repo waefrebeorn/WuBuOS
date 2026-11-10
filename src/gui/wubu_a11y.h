@@ -19,7 +19,7 @@
  * cluster anchors onto it.
  *
  * Self-contained C11: draws via VBE primitives, drives the WM through
- * its public API (dosgui_wm.h). No god headers.
+ * its public API (wm.h). No god headers.
  */
 
 #ifndef WUBU_A11Y_H
@@ -27,7 +27,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "dosgui_wm.h"
+#include "wm.h"
 
 /* Which control a screen point hits (0 = none). */
 typedef enum {
@@ -75,7 +75,7 @@ void wubu_a11y_orb_centers(DosGuiWindow *w,
 /* Mouse event routing for the cluster.
  * Returns true if the event was consumed by the cluster (the WM must NOT
  * continue normal drag/resize/title-bar handling for that event).
- * kind: 0=move, 1=down, 2=up   (same convention as dosgui_wm_handle_mouse) */
+ * kind: 0=move, 1=down, 2=up   (same convention as wm_handle_mouse) */
 bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 
 /* Keyboard navigation for the cluster (P0 a11y — keyboard-only reach).

@@ -37,8 +37,8 @@
 #    define M_PI 3.14159265358979323846
 #  endif
 #endif
-#include "../gui/dosgui_wm.h"
-#include "shell/dosgui_wm_holyc_term.h"
+#include "../gui/wm.h"
+#include "shell/wm_holyc_term.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -375,8 +375,8 @@ void wubu_bonzi_set_bubble(const char *l1, const char *l2) {
 /* -- AGI gateway ------------------------------------------------------ */
 
 void wubu_bonzi_open_agi(void) {
-    DosGuiWindow *w = dosgui_wm_spawn_holyc_term(280, 180, 520, 380);
-    if (w) dosgui_wm_set_focus(w);
+    DosGuiWindow *w = wm_spawn_holyc_term(280, 180, 520, 380);
+    if (w) wm_set_focus(w);
 }
 
 /* -- Lifecycle -------------------------------------------------------- */

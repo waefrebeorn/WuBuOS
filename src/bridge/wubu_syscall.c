@@ -8,7 +8,7 @@
 #include "wubu_syscall.h"
 #include "../kernel/interrupt.h"
 #include "../kernel/vbe.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../runtime/styx.h"
 #include "../runtime/wubu_host_exec.h"
 #include "../runtime/wubu_exec.h"
@@ -64,15 +64,15 @@ static int g_container_count = 0;
 int64_t sys_wm_create_win(int64_t x, int64_t y, int64_t w, int64_t h, int64_t title_ptr, int64_t _unused) {
     (void)_unused;
     const char *title = (const char *)title_ptr;
-    DosGuiWindow *win = dosgui_wm_create((int)x, (int)y, (int)w, (int)h, title ? title : "");
+    DosGuiWindow *win = wm_create((int)x, (int)y, (int)w, (int)h, title ? title : "");
     return win ? (int64_t)win->id : -1;
 }
 
 int64_t sys_wm_destroy_win(int64_t id, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4, int64_t _unused5) {
     (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4; (void)_unused5;
-    DosGuiWindow *win = dosgui_wm_find_by_id((int)id);
+    DosGuiWindow *win = wm_find_by_id((int)id);
     if (win) {
-        dosgui_wm_destroy(win);
+        wm_destroy(win);
         return 0;
     }
     return -1;
@@ -80,9 +80,9 @@ int64_t sys_wm_destroy_win(int64_t id, int64_t _unused, int64_t _unused2, int64_
 
 int64_t sys_wm_set_focus(int64_t id, int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4, int64_t _unused5) {
     (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4; (void)_unused5;
-    DosGuiWindow *win = dosgui_wm_find_by_id((int)id);
+    DosGuiWindow *win = wm_find_by_id((int)id);
     if (win) {
-        dosgui_wm_set_focus(win);
+        wm_set_focus(win);
         return 0;
     }
     return -1;
@@ -90,7 +90,7 @@ int64_t sys_wm_set_focus(int64_t id, int64_t _unused, int64_t _unused2, int64_t 
 
 int64_t sys_wm_get_focused(int64_t _unused, int64_t _unused2, int64_t _unused3, int64_t _unused4, int64_t _unused5, int64_t _unused6) {
     (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4; (void)_unused5; (void)_unused6;
-    DosGuiWindow *win = dosgui_wm_get_focused();
+    DosGuiWindow *win = wm_get_focused();
     return win ? (int64_t)win->id : -1;
 }
 
@@ -98,7 +98,7 @@ int64_t sys_wm_render(int64_t _unused, int64_t _unused2, int64_t _unused3, int64
     (void)_unused; (void)_unused2; (void)_unused3; (void)_unused4; (void)_unused5; (void)_unused6;
     VBEState *vbe = vbe_state();
     if (vbe && vbe->back) {
-        dosgui_wm_render(vbe->back, vbe->width, vbe->height);
+        wm_render(vbe->back, vbe->width, vbe->height);
     }
     return 0;
 }

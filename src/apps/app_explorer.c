@@ -1,8 +1,8 @@
 /*
  * app_explorer.c  --  WuBuOS File Manager: in-shell Explorer binding
  *
- * Binds the real, Win98/XP-class dosgui_explorer engine
- * (dosgui_explorer.c + ex_render_*) to a DosGuiWindow. The engine already
+ * Binds the real, Win98/XP-class explorer engine
+ * (explorer.c + ex_render_*) to a DosGuiWindow. The engine already
  * implements tree sidebar, breadcrumbs, toolbar, details/icons/list/tiles views,
  * preview pane, status bar, context menus, copy/cut/paste/delete/rename,
  * multi-select, column sort, zip browsing and drive enumeration. This file
@@ -13,9 +13,9 @@
  * vbe_* backbuffer at absolute coordinates (same pattern as notepad/canvas).
  */
 
-#include "dosgui_apps.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_explorer.h"
+#include "apps.h"
+#include "../gui/wm.h"
+#include "../gui/explorer.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
@@ -27,7 +27,7 @@ static int g_explorer_ready = 0;
 
 void app_explorer_init(void) {
     if (g_explorer_ready) return;
-    dosgui_explorer_init();
+    explorer_init();
     g_explorer_ready = 1;
 }
 
@@ -36,7 +36,7 @@ void app_explorer_init(void) {
 void app_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     if (!g_explorer_ready) app_explorer_init();
-    ExExplorerState *ex = dosgui_explorer_state();
+    ExExplorerState *ex = explorer_state();
     if (!ex) return;
 
     int wx = win->x, wy = win->y, ww = win->w, wh = win->h;
@@ -75,10 +75,10 @@ void app_explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
 void app_explorer_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     (void)win;
-    dosgui_explorer_handle_mouse(x, y, btn, kind);
+    explorer_handle_mouse(x, y, btn, kind);
 }
 
 void app_explorer_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)win;
-    dosgui_explorer_handle_key(key, mods);
+    explorer_handle_key(key, mods);
 }

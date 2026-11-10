@@ -6,11 +6,11 @@ the register is closed; the user-facing polish is a different ledger).
 ## Real gaps found THIS session (all verified against the tree)
 
 1. **The Control Panel's sound applet was declared, never built.**
-   `dosgui_cp_create_sound_applet()` + `dosgui_cp_sound_state()` existed in
+   `cp_create_sound_applet()` + `cp_sound_state()` existed in
    the header for ages with NO implementation anywhere (grep proved it). The
    same pattern holds for the DISPLAY / NETWORK / THEME applet factories —
    the Control Panel has a sidebar of names but the applet bodies are
-   missing. FIXED (sound): `dosgui_cp_sound.c` implements the applet against
+   missing. FIXED (sound): `cp_sound.c` implements the applet against
    the new `wubu_sound` synthesis engine (volume bar, mute toggle, 8 Test
    buttons that PLAY the synthesized events). NOT YET FIXED: the other three
    factories.

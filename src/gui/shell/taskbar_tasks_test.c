@@ -5,7 +5,7 @@
  * pin model and its persistence are gated: pin, unpin, running state, and a
  * save/load round trip through a real file.
  */
-#include "dosgui_taskbar_tasks.h"
+#include "taskbar_tasks.h"
 
 #include <stdio.h>
 #include <stdlib.h>

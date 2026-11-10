@@ -5,12 +5,12 @@
  * hosted binary (src/hosted/hosted.o, which carries main() and is therefore
  * not linkable into a standalone app binary like paint/doom):
  *
- *   - dosgui_wm_get_hosted_state()  (Play action in dosgui_wm_ctxmenu.c)
+ *   - wm_get_hosted_state()  (Play action in wm_ctxmenu.c)
  *   - g_primary_selection_manager   (wayland primary-selection in wubu_clipboard.c)
  *
  * The hosted binary provides real implementations. Standalone apps have no
  * hosted runtime, so we supply the same NULL-returning shim that the unit-test
- * harness (dosgui_wm_test_stub.c) already uses. This keeps the from-scratch
+ * harness (wm_test_stub.c) already uses. This keeps the from-scratch
  * GUI apps buildable without dragging hosted.o (and its main()) into the link.
  *
  * This is NOT a stub of real work: the symbols genuinely have no meaning
@@ -19,7 +19,7 @@
  * NULL manager as "primary selection unavailable").
  */
 
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "../hosted/hosted.h"   /* hosted_state_t */
 
 /* Mirrors hosted.c: g_primary_selection_manager is a wayland protocol global
@@ -29,6 +29,6 @@ struct zwp_primary_selection_device_manager_v1 *g_primary_selection_manager = NU
 
 /* Returns NULL when there is no hosted runtime (e.g. a standalone paint/doom
  * binary). Callers must already handle NULL. */
-hosted_state_t *dosgui_wm_get_hosted_state(void) {
+hosted_state_t *wm_get_hosted_state(void) {
     return NULL;
 }

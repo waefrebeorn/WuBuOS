@@ -7,8 +7,8 @@
  */
 
 #include "wubu_lock_screen.h"
-#include "../dosgui_wm.h"
-#include "../dosgui_wm_internal.h"
+#include "../wm.h"
+#include "../wm_internal.h"
 #include "../kernel/vbe.h"
 #include "../wubu_theme.h"
 #include "../kernel/input.h"

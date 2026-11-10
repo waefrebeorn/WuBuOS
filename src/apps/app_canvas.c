@@ -13,9 +13,9 @@
  * identical to notepad.c / repl.c).
  */
 
-#include "dosgui_apps.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "apps.h"
+#include "../gui/wm.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "wubu_canvas.h"
@@ -227,7 +227,7 @@ void app_canvas_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Centralized chrome draws the window frame, title bar, and buttons.
      * We receive the content rect and draw only within it. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
 
     /* Content rect: right of toolbar/palette gutters, above layers/status. */
     int left  = content.x + 6 * (54 + 2) + 6;   /* past toolbar */

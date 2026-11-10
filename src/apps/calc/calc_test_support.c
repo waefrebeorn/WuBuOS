@@ -9,11 +9,11 @@
  * standalone definitions of exactly the symbols the draw path needs.
  *
  * These mirror the trivial test stub pattern (calc_test_stub.c) that already
- * satisfies dosgui_wm_create() for this test. C11, minimal includes.
+ * satisfies wm_create() for this test. C11, minimal includes.
  */
 
 #include "calc.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../gui/wubu_theme.h"
 #include <stdlib.h>
 
@@ -46,7 +46,7 @@ int border_width(void)      { return 2; }
 
 /* -- Window-manager create stub (headless: no real WM needed) ----------- */
 
-DosGuiWindow *dosgui_wm_create(int x, int y, int w, int h,
+DosGuiWindow *wm_create(int x, int y, int w, int h,
                                const char *title) {
     (void)x; (void)y; (void)w; (void)h; (void)title;
     return calloc(1, sizeof(DosGuiWindow));

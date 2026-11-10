@@ -83,7 +83,7 @@ them. It is NOT an implementation plan; it is the visual contract.
   called `panel_rect()` which is **never defined**, so the WM + all capture
   harnesses failed to link (`undefined reference to panel_rect`). That is the
   "never been made right": the design existed, was fully wired into
-  `dosgui_wm_render.c` + `dosgui_wm_input.c`, but was dead code.
+  `wm_render.c` + `wm_input.c`, but was dead code.
 - **FIXED** (`6ac6082`): removed the dead call + unused `px/py`. Now links.
 - **VERIFIED RENDERING** (vision-model + crop of `desktop_shot` frames):
   all four controls render — yellow bean TL, green A, red B-X, ghost purple
@@ -108,18 +108,18 @@ them. It is NOT an implementation plan; it is the visual contract.
 
 Verified by surveying `src/gui/` (150 files) + `src/kernel/`:
 
-1. **TWO window managers.** `dosgui_wm.*` (Win98 shell — THE REAL ONE, used
+1. **TWO window managers.** `wm.*` (Win98 shell — THE REAL ONE, used
    by `hosted.c`) AND `wubu_wm.*`/`wubu_compositor.*` (a parallel abstraction
    also in the object list). Both implement drag/resize/desktops. The
-   hosted boot path only calls `dosgui_wm_init`; `wubu_wm` is effectively a
+   hosted boot path only calls `wm_init`; `wubu_wm` is effectively a
    second, competing implementation.
    **RESOLUTION:** these are NOT two WMs fighting — they are two
-   ARCHITECTURAL TRACKS. `dosgui_wm` is the canonical Win98-shell for the
+   ARCHITECTURAL TRACKS. `wm` is the canonical Win98-shell for the
    hosted/Wayland-surface boot (hosted.c + hosted_wayland_surface.c both call
-   `dosgui_wm_init`). `wubu_wm`/`wubu_compositor_standalone` is a separate,
+   `wm_init`). `wubu_wm`/`wubu_compositor_standalone` is a separate,
    standalone Wayland-compositor implementation with its OWN run loop —
    the native/Wayland-migration future path (a real WuBuOS direction, not
-   dead code). They never init together; `dosgui_wm` is the canonical hosted
+   dead code). They never init together; `wm` is the canonical hosted
    shell and stays that way.
 2. **TWO theme engines.** `src/gui/wubu_theme.*` (THEME_COUNT=5, the applied
    colors used by `tc()`) AND `src/kernel/wubu_theme.*` (KTHEME, a writable
@@ -139,7 +139,7 @@ Verified by surveying `src/gui/` (150 files) + `src/kernel/`:
 4. **Manual mascot doesn't exist yet.** The white WuBu rabbit is only design
    bible art; no sprite/pose renders it.
 
-**Ground-up redesign direction:** pick ONE WM (dosgui_wm), pick ONE theme
+**Ground-up redesign direction:** pick ONE WM (wm), pick ONE theme
 source of truth (the kernel `/theme` node tree writing INTO the GUI colors
 struct, or vice-versa), keep the a11y overlay tier, and add the manual-mascot
 sprite set as a separate documentation companion.

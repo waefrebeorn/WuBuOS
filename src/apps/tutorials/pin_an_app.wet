@@ -1,0 +1,35 @@
+-- pin_an_app.wet -- the taskbar pin model.
+--
+-- Teaches the taskbar by explaining the model, then having the user do it.
+
+tut_step_count = 4
+
+wet.applet {
+  title = "Tutorial: pin an app to the taskbar",
+  width = 640, height = 460,
+  content = wet.stack { spacing = 6, children = {
+    wet.label { text = "Step 1 of 4 -- what a taskbar button really is" },
+    wet.label { text = "In WuBuOS a taskbar button is an APP, not a window." },
+    wet.label { text = "An app with three windows is one button.  A pinned app" },
+    wet.label { text = "stays after you close it." },
+    wet.separator {},
+    wet.label { text = "Step 2 -- pin one" },
+    wet.label { text = "  1. Open any app (try the Editor)." },
+    wet.label { text = "  2. Right-click its taskbar button." },
+    wet.label { text = "  3. Choose Pin to taskbar." },
+    wet.button { text = "Open the Editor",
+                 onclick = function(self) tut.action('editor') end },
+    wet.separator {},
+    wet.label { text = "Step 3 -- where pins are stored" },
+    wet.label { text = "  ~/.config/wubuos/taskbar" },
+    wet.label { text = "The file is plain text, one pin per line:" },
+    wet.label { text = "  pin editor|Editor|wubu-app Editor" },
+    wet.label { text = "You can edit it by hand.  It survives a reboot." },
+    wet.separator {},
+    wet.label { text = "Step 4 -- that is the whole model" },
+    wet.label { text = "Identity, title, launch command, pinned flag, running" },
+    wet.label { text = "window.  Five fields, and the taskbar follows." },
+    wet.button { text = "Open Getting Started",
+                 onclick = function(self) tut.action('getting_started') end },
+  } },
+}

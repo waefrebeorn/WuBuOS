@@ -6,8 +6,8 @@
  */
 
 #include "control/control.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_settings.h"
 #include "../kernel/vbe.h"
@@ -30,7 +30,7 @@ int main(void) {
     printf("=== WuBuOS Control Panel Test Suite ===\n\n");
 
     wubu_settings_init();        /* load/create default settings */
-    dosgui_wm_init(1024, 768);  /* WM running so apply() live-reloads */
+    wm_init(1024, 768);  /* WM running so apply() live-reloads */
 
     /* -- Lifecycle -- */
     printf("[Lifecycle]\n");
@@ -53,7 +53,7 @@ int main(void) {
     T(strcmp(s->theme.wallpaper_path, "/tmp/wubu_ctrl_test/wp.bmp") == 0,
       "wallpaper path persisted to settings");
     T(s->theme.wallpaper_mode == 2, "placement mode persisted (Stretch=2)");
-    T(dosgui_wm_wallpaper_mode() == 2, "live wallpaper reload applied new mode");
+    T(wm_wallpaper_mode() == 2, "live wallpaper reload applied new mode");
 
     /* Apply again with a different mode to confirm update path. */
     control_desktop_apply("/tmp/wubu_ctrl_test/wp2.bmp", 4);
@@ -72,20 +72,20 @@ int main(void) {
     /* -- View -> Auto-arrange toggle persists + re-flows -- */
     printf("\n[Desktop Tab — Auto-arrange]\n");
     control_set_auto_arrange(true);
-    T(dosgui_wm_get_auto_arrange(), "auto-arrange toggled ON");
+    T(wm_get_auto_arrange(), "auto-arrange toggled ON");
     T(s->theme.auto_arrange == true, "auto-arrange persisted to settings");
     control_set_auto_arrange(false);
-    T(!dosgui_wm_get_auto_arrange(), "auto-arrange toggled OFF");
+    T(!wm_get_auto_arrange(), "auto-arrange toggled OFF");
     T(s->theme.auto_arrange == false, "auto-arrange OFF persisted");
 
     /* -- Show/hide desktop icons -- */
     printf("\n[Desktop Tab — Show/Hide Icons]\n");
-    dosgui_wm_refresh_desktop();
-    int before_hide = dosgui_wm_get_icon_count();
+    wm_refresh_desktop();
+    int before_hide = wm_get_icon_count();
     control_set_show_icons(false);
-    T(dosgui_wm_get_icon_count() == 0, "icons hidden (count 0)");
+    T(wm_get_icon_count() == 0, "icons hidden (count 0)");
     control_set_show_icons(true);
-    T(dosgui_wm_get_icon_count() == before_hide, "icons shown again (count restored)");
+    T(wm_get_icon_count() == before_hide, "icons shown again (count restored)");
 
     /* -- Control Panel two-pane (XP category view) render -- */
     printf("\n[Control Panel — XP two-pane render]\n");
@@ -156,7 +156,7 @@ int main(void) {
     /* -- Shutdown -- */
     printf("\n[Shutdown]\n");
     control_destroy(c);
-    dosgui_wm_shutdown();
+    wm_shutdown();
     T(1, "control_destroy + wm shutdown succeed");
 
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);

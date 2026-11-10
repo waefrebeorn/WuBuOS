@@ -21,7 +21,7 @@ The three targets (the 7-hop Kevin-Bacon search verified the sources):
 - The BPM games grid — the scan probes the real magic, accepts ONLY
   the hostable formats (the junk readme.txt was skipped),
   the gamepad A launches the selected game. **Verified by
-  test_dosgui_bpm_games 4/4.**
+  test_bpm_games 4/4.**
 - The REAL Halo PC demo probed: i386 Win32 GUI PE, subsystem 2, 11
   imports — a genuine PE the Win32 personality can classify.
 - The REAL Mac DMG probed: zlib-compressed UDIF — the `koly` trailer

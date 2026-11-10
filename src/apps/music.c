@@ -12,9 +12,9 @@
  */
 
 #include "music.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../gui/shell/window_chrome.h"
 #include "../gui/wubu_sound.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
@@ -183,7 +183,7 @@ void music_mouse(DosGuiWindow *win, int x, int y, int btn, int kind)
 DosGuiWindow *music_launch(void)
 {
     music_scan();
-    DosGuiWindow *win = dosgui_wm_create(140, 60, 480, 400, "Music");
+    DosGuiWindow *win = wm_create(140, 60, 480, 400, "Music");
     if (win) {
         win->on_draw  = music_draw;
         win->on_key   = music_key;

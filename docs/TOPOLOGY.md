@@ -294,67 +294,67 @@
 | `src/src/bridge/wubu_syscall.c` | Provides trampolines for HolyC compiler to call into kernel. |
 | `src/src/bridge/wubu_syscall_test.c` | Tests the C handler functions directly (not via kernel syscall). |
 | `src/src/bridge/wubu_syscall_vbe.c` | Declared in wubu_syscall.h; vbe_* in kernel/vbe.h. Minimal includes. |
-| `src/src/gui/dosgui_cp_sound.c` | C11. Implements the header-declared dosgui_cp_create_sound_applet() |
-| `src/src/gui/dosgui_daemon_panel.c` | desktop. Shows daemon status in the system tray, container list in a |
-| `src/src/gui/dosgui_daemon_panel_test.c` | We provide weak stubs for all GUI functions the panel calls, |
-| `src/src/gui/dosgui_desktop.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
-| `src/src/gui/dosgui_dos_window.c` | window. The window blits the guest's captured VGA framebuffer (RGBA from |
-| `src/src/gui/dosgui_dos_window_test.c` | 1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086), |
-| `src/src/gui/dosgui_dos_window_test_stub.c` | DOS Box window test. We are testing the DOS-window glue, not the WM |
-| `src/src/gui/dosgui_era_apps.c` | each tagged with the VSL syscall personality it exercises so the WuBuOS |
-| `src/src/gui/dosgui_era_apps_test.c` | registry + launcher. Asserts that each RUNNABLE era app actually executes |
-| `src/src/gui/dosgui_explorer.c` | - Tree view sidebar (folder hierarchy, expand/collapse) |
-| `src/src/gui/dosgui_explorer_drives.c` | (ex_9p_opendir/ex_9p_stat, declared in dosgui_explorer_internal.h). |
-| `src/src/gui/dosgui_explorer_format.c` | ONCE here, so every submodule (fs, fsops, zip, render, tree, drives) links |
-| `src/src/gui/dosgui_explorer_fs.c` | 9P/Styx shim (ex_9p_*) that maps POSIX-style file ops onto the Styx 9P |
-| `src/src/gui/dosgui_explorer_fsops.c` | move / delete + ex_handle_file_op dispatcher. Uses the shared g_explorer |
-| `src/src/gui/dosgui_explorer_info.c` | Extracted from dosgui_explorer.c (separable leaf). Self-contained: stat + |
-| `src/src/gui/dosgui_explorer_input.c` | handle_key ~220 lines, handle_mouse ~195 lines).  Input is a distinct |
-| `src/src/gui/dosgui_explorer_ops.c` | void dosgui_explorer_copy(void) { |
-| `src/src/gui/dosgui_explorer_preview.c` | selected entry. Uses g_explorer (extern), ex_get_extension (dosgui_explorer_tree.c), |
-| `src/src/gui/dosgui_explorer_render.c` | - Tree view sidebar render (ex_draw_tree_node, ex_render_tree) |
-| `src/src/gui/dosgui_explorer_test.c` | Builds a minimal but spec-valid uncompressed (STORE) ZIP at `path` |
-| `src/src/gui/dosgui_explorer_test_stub.c` | so the explorer test can compile and run without the full WM/Kernel. |
-| `src/src/gui/dosgui_explorer_tree.c` | (extension, case-insensitive compare, sort, file compare) used across the |
-| `src/src/gui/dosgui_explorer_zip.c` | Self-contained ZIP central directory parsing + libzip dlopen wrapper |
-| `src/src/gui/dosgui_service_mgr.c` | See dosgui_service_mgr.h for the contract. |
-| `src/src/gui/dosgui_service_mgr_test.c` | wubu_archd wired as the Desktop's autostart/service manager. |
-| `src/src/gui/dosgui_startmenu.c` | Win98-style: Start -> Programs -> {Accessories, WuBuOS, System} |
-| `src/src/gui/dosgui_startmenu_db.c` | static main-menu item list and the category submenus (Programs -> |
-| `src/src/gui/dosgui_startmenu_power.c` | the power-options render. Uses g_open (extern in dosgui_startmenu_internal.h) |
-| `src/src/gui/dosgui_startmenu_search.c` | shared g_search / g_recent / g_program_db state (declared extern in |
-| `src/src/gui/dosgui_startmenu_test.c` | static int g_pass = 0, g_fail = 0, g_total = 0; |
-| `src/src/gui/dosgui_startmenu_test_stub.c` | int dosgui_taskbar_height(void) { |
-| `src/src/gui/dosgui_startmenu_tree.c` | shared g_tree_* state (extern in dosgui_startmenu_internal.h). Minimal includes. |
-| `src/src/gui/dosgui_term.c` | - PTY backend for shell sessions (bash, zsh, etc.) |
-| `src/src/gui/dosgui_term_ansi.c` | parsers (term_process_pty_output ~240 lines, term_process_container_output |
-| `src/src/gui/dosgui_term_pty.c` | container PTY, input handling, and I/O operations. |
-| `src/src/gui/dosgui_term_render.c` | content area, and PTY/holyc/container session views. Uses the shared g_term |
-| `src/src/gui/dosgui_term_tabs.c` | default-shell resolver. Uses TermState/TermTab (dosgui_term.h) and g_term via |
-| `src/src/gui/dosgui_term_test.c` | HolyC REPL, keyboard shortcuts, and resize handling. |
-| `src/src/gui/dosgui_term_test_stub.c` | so the terminal test can compile and run without the full WM/Kernel. |
-| `src/src/gui/dosgui_window_chrome.c` | - Window frame/border (3D raised/sunken) |
-| `src/src/gui/dosgui_wm.c` | Ports ZealOS/WuBuDos bare-metal window management into WuBuOS. |
-| `src/src/gui/dosgui_wm_clock.c` | clock update + string formatting. Depends only on the shared WM state |
-| `src/src/gui/dosgui_wm_ctxmenu.c` | to the desktop + icon domains. Owns the default context actions (Open/Play/ |
-| `src/src/gui/dosgui_wm_ctxmenu_engine.c` | context-menu stack, lifecycle (create/add/show/hide), mouse dispatch, |
-| `src/src/gui/dosgui_wm_desktop.c` | snapping math, auto-arrange / sort / refresh of desktop icons, and real |
-| `src/src/gui/dosgui_wm_holyc_term.c` | Extracted from dosgui_wm.c for modularity. |
-| `src/src/gui/dosgui_wm_icon_glyphs.c` | recognizable shape. That is the "mess": a desktop full of identical |
-| `src/src/gui/dosgui_wm_icons.c` | URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in |
-| `src/src/gui/dosgui_wm_input.c` | - dosgui_wm_handle_key(): Alt+Tab cycling, Win-key hotkeys, theme |
-| `src/src/gui/dosgui_wm_layout.c` | int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; } |
-| `src/src/gui/dosgui_wm_render.c` | background, icons, every live window (chrome + on_draw content), the |
-| `src/src/gui/dosgui_wm_systray.c` | SYSTEM TRAY / NOTIFICATION AREA |
-| `src/src/gui/dosgui_wm_taskbar.c` | systray) using the shared g_dwm state (extern in dosgui_wm_internal.h) and |
-| `src/src/gui/dosgui_wm_test.c` | Tests window creation, z-order, drag, focus, taskbar, icons. |
-| `src/src/gui/dosgui_wm_test_stub.c` | the WM and context-menu engine call. These let unit/integration tests link |
-| `src/src/gui/dosgui_wm_window.c` | - Window lifecycle: spawn / close / raise / destroy / focus / lookup |
-| `src/src/gui/dosgui_wm_window_state.c` | state transitions (resize / move / maximize / minimize / restore) and the |
+| `src/src/gui/cp_sound.c` | C11. Implements the header-declared cp_create_sound_applet() |
+| `src/src/gui/daemon_panel.c` | desktop. Shows daemon status in the system tray, container list in a |
+| `src/src/gui/daemon_panel_test.c` | We provide weak stubs for all GUI functions the panel calls, |
+| `src/src/gui/desktop.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
+| `src/src/gui/dos_window.c` | window. The window blits the guest's captured VGA framebuffer (RGBA from |
+| `src/src/gui/dos_window_test.c` | 1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086), |
+| `src/src/gui/dos_window_test_stub.c` | DOS Box window test. We are testing the DOS-window glue, not the WM |
+| `src/src/gui/era_apps.c` | each tagged with the VSL syscall personality it exercises so the WuBuOS |
+| `src/src/gui/era_apps_test.c` | registry + launcher. Asserts that each RUNNABLE era app actually executes |
+| `src/src/gui/explorer.c` | - Tree view sidebar (folder hierarchy, expand/collapse) |
+| `src/src/gui/explorer_drives.c` | (ex_9p_opendir/ex_9p_stat, declared in explorer_internal.h). |
+| `src/src/gui/explorer_format.c` | ONCE here, so every submodule (fs, fsops, zip, render, tree, drives) links |
+| `src/src/gui/explorer_fs.c` | 9P/Styx shim (ex_9p_*) that maps POSIX-style file ops onto the Styx 9P |
+| `src/src/gui/explorer_fsops.c` | move / delete + ex_handle_file_op dispatcher. Uses the shared g_explorer |
+| `src/src/gui/explorer_info.c` | Extracted from explorer.c (separable leaf). Self-contained: stat + |
+| `src/src/gui/explorer_input.c` | handle_key ~220 lines, handle_mouse ~195 lines).  Input is a distinct |
+| `src/src/gui/explorer_ops.c` | void explorer_copy(void) { |
+| `src/src/gui/explorer_preview.c` | selected entry. Uses g_explorer (extern), ex_get_extension (explorer_tree.c), |
+| `src/src/gui/explorer_render.c` | - Tree view sidebar render (ex_draw_tree_node, ex_render_tree) |
+| `src/src/gui/explorer_test.c` | Builds a minimal but spec-valid uncompressed (STORE) ZIP at `path` |
+| `src/src/gui/explorer_test_stub.c` | so the explorer test can compile and run without the full WM/Kernel. |
+| `src/src/gui/explorer_tree.c` | (extension, case-insensitive compare, sort, file compare) used across the |
+| `src/src/gui/explorer_zip.c` | Self-contained ZIP central directory parsing + libzip dlopen wrapper |
+| `src/src/gui/service_mgr.c` | See service_mgr.h for the contract. |
+| `src/src/gui/service_mgr_test.c` | wubu_archd wired as the Desktop's autostart/service manager. |
+| `src/src/gui/startmenu.c` | Win98-style: Start -> Programs -> {Accessories, WuBuOS, System} |
+| `src/src/gui/startmenu_db.c` | static main-menu item list and the category submenus (Programs -> |
+| `src/src/gui/startmenu_power.c` | the power-options render. Uses g_open (extern in startmenu_internal.h) |
+| `src/src/gui/startmenu_search.c` | shared g_search / g_recent / g_program_db state (declared extern in |
+| `src/src/gui/startmenu_test.c` | static int g_pass = 0, g_fail = 0, g_total = 0; |
+| `src/src/gui/startmenu_test_stub.c` | int taskbar_height(void) { |
+| `src/src/gui/startmenu_tree.c` | shared g_tree_* state (extern in startmenu_internal.h). Minimal includes. |
+| `src/src/gui/term.c` | - PTY backend for shell sessions (bash, zsh, etc.) |
+| `src/src/gui/term_ansi.c` | parsers (term_process_pty_output ~240 lines, term_process_container_output |
+| `src/src/gui/term_pty.c` | container PTY, input handling, and I/O operations. |
+| `src/src/gui/term_render.c` | content area, and PTY/holyc/container session views. Uses the shared g_term |
+| `src/src/gui/term_tabs.c` | default-shell resolver. Uses TermState/TermTab (term.h) and g_term via |
+| `src/src/gui/term_test.c` | HolyC REPL, keyboard shortcuts, and resize handling. |
+| `src/src/gui/term_test_stub.c` | so the terminal test can compile and run without the full WM/Kernel. |
+| `src/src/gui/window_chrome.c` | - Window frame/border (3D raised/sunken) |
+| `src/src/gui/wm.c` | Ports ZealOS/WuBuDos bare-metal window management into WuBuOS. |
+| `src/src/gui/wm_clock.c` | clock update + string formatting. Depends only on the shared WM state |
+| `src/src/gui/wm_ctxmenu.c` | to the desktop + icon domains. Owns the default context actions (Open/Play/ |
+| `src/src/gui/wm_ctxmenu_engine.c` | context-menu stack, lifecycle (create/add/show/hide), mouse dispatch, |
+| `src/src/gui/wm_desktop.c` | snapping math, auto-arrange / sort / refresh of desktop icons, and real |
+| `src/src/gui/wm_holyc_term.c` | Extracted from wm.c for modularity. |
+| `src/src/gui/wm_icon_glyphs.c` | recognizable shape. That is the "mess": a desktop full of identical |
+| `src/src/gui/wm_icons.c` | URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in |
+| `src/src/gui/wm_input.c` | - wm_handle_key(): Alt+Tab cycling, Win-key hotkeys, theme |
+| `src/src/gui/wm_layout.c` | int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; } |
+| `src/src/gui/wm_render.c` | background, icons, every live window (chrome + on_draw content), the |
+| `src/src/gui/wm_systray.c` | SYSTEM TRAY / NOTIFICATION AREA |
+| `src/src/gui/wm_taskbar.c` | systray) using the shared g_dwm state (extern in wm_internal.h) and |
+| `src/src/gui/wm_test.c` | Tests window creation, z-order, drag, focus, taskbar, icons. |
+| `src/src/gui/wm_test_stub.c` | the WM and context-menu engine call. These let unit/integration tests link |
+| `src/src/gui/wm_window.c` | - Window lifecycle: spawn / close / raise / destroy / focus / lookup |
+| `src/src/gui/wm_window_state.c` | state transitions (resize / move / maximize / minimize / restore) and the |
 | `src/src/gui/gui_dbuf.c` | Minimal 8x8 font: digits 0-9, A-Z, space, colon, dash, period, slash */ |
 | `src/src/gui/gui_dbuf_test.c` | Win98 borders, dirty rect tracking, and flip. |
 | `src/src/gui/standalone_hosted_shim.c` | hosted binary (src/hosted/hosted.o, which carries main() and is therefore |
-| `src/src/gui/test_dosgui_cp_sound.c` | extern wubu_sound_t g_sound_engine; |
+| `src/src/gui/test_cp_sound.c` | extern wubu_sound_t g_sound_engine; |
 | `src/src/gui/test_synth.c` | printf("=== test_synth (WT-A oscillators, WT-B ladder) ===
 "); |
 | `src/src/gui/test_wubu_sound.c` | printf("=== test_wubu_sound ===
@@ -532,12 +532,12 @@
 | `src/src/hosted/wubu_vulkan_swapchain.c` | from the monolithic wubu_vulkan.c). Self-contained; depends only on the |
 | `src/src/hosted/wubu_vulkan_util.c` | memory-type lookup. Self-contained; depends only on the public wubu_vulkan.h |
 | `src/src/apps/app_canvas.c` | to a DosGuiWindow. Provides a Win98/Photoshop-class UI: toolbar, color |
-| `src/src/apps/app_explorer.c` | (dosgui_explorer.c + ex_render_*) to a DosGuiWindow. The engine already |
+| `src/src/apps/app_explorer.c` | (explorer.c + ex_render_*) to a DosGuiWindow. The engine already |
 | `src/src/apps/canvas_standalone.c` | editor (the real, layered wubu_canvas engine — Photoshop-class, not the |
 | `src/src/apps/control_test.c` | Cell 395: Win98-style settings panel. Verifies the Desktop tab |
-| `src/src/apps/dosgui_apps.c` | and startmenu both consume this table; there is no second hardcoded list. |
-| `src/src/apps/dosgui_apps_test.c` | - Task Manager (Windows 11 style) |
-| `src/src/apps/dosgui_apps_test_stubs.c` | points (explorer, cmd, edr, dos-proc, notify, wallpaper, session, compat, |
+| `src/src/apps/apps.c` | and startmenu both consume this table; there is no second hardcoded list. |
+| `src/src/apps/apps_test.c` | - Task Manager (Windows 11 style) |
+| `src/src/apps/apps_test_stubs.c` | points (explorer, cmd, edr, dos-proc, notify, wallpaper, session, compat, |
 | `src/src/apps/edr_dash.c` | The OS does not sandbox the AGI; it makes everything the OS AND the AGI do |
 | `src/src/apps/notepad.c` | buffer with a cursor, typing, backspace, enter, and arrow navigation, plus a |
 | `src/src/apps/repl.c` | Uses the HolyC compiler (hc_eval) for evaluation |

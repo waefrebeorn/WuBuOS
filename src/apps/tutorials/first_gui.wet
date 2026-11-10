@@ -1,0 +1,68 @@
+-- first_gui.wet -- your first GUI in Lua.
+--
+-- Teaches the .wet applet model by having the user edit a real one.  The
+-- "Try it" button opens the designer so they can see the same tree built
+-- visually.
+
+tut_step_count = 4
+
+local CODE = [[
+wet.applet {
+  title = 'Hello',
+  width = 320, height = 200,
+  content = wet.stack { spacing = 6, children = {
+    wet.label  { text = 'Hello from Lua' },
+    wet.button { text = 'Click me',
+                 onclick = function(self)
+                   wet.messagebox('It works.', 'Hello')
+                 end },
+  } }
+}
+]]
+
+-- A live preview of the applet the tutorial is describing, built from the same
+-- document the user is reading about.
+local preview = nil
+
+local function build_preview()
+  -- Build the preview from the same API the applet itself uses.
+  local lbl = wet.create('label', 'pv_label')
+  lbl.text = 'Hello from Lua'
+  local btn = wet.create('button', 'pv_button')
+  btn.text = 'Click me'
+  btn.onclick = function(self) wet.messagebox('It works.', 'Hello') end
+  local holder = wet.find('preview_holder')
+  if holder then
+    wet.attach(holder, lbl)
+    wet.attach(holder, btn)
+  end
+end
+
+wet.applet {
+  title = "Tutorial: your first GUI",
+  width = 640, height = 460,
+  content = wet.stack { spacing = 6, children = {
+    wet.label { text = "Step 1 of 4 -- the idea" },
+    wet.label { text = "A .wet applet is a Lua script.  It builds a widget tree," },
+    wet.label { text = "and the framework lays it out and draws it." },
+    wet.separator {},
+    wet.label { text = "Step 2 -- read the applet" },
+    wet.label { text = CODE },
+    wet.separator {},
+    wet.label { text = "Step 3 -- see it run" },
+    wet.canvas { id = "preview_holder" },
+    wet.label { text = "That window above IS the applet, live." },
+    wet.separator {},
+    wet.label { text = "Step 4 -- go further" },
+    wet.stack { spacing = 4, children = {
+      wet.button { text = "Open the GUI Designer",
+                   onclick = function(self) tut.action('designer') end },
+      wet.button { text = "Open a Terminal",
+                   onclick = function(self) tut.action('terminal') end },
+      wet.button { text = "Next tutorial",
+                   onclick = function(self) tut.open('design_a_window') end },
+    } },
+  } },
+}
+
+build_preview()

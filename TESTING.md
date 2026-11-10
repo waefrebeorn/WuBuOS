@@ -84,9 +84,9 @@ Hosted GUI: window manager, desktop, startmenu, explorer, terminal,
 clipboard, compositor, shell, wallpaper, control panel, calculator.
 
 ```
-test_synth  test_wubu_sound  test_dosgui_cp_sound  test_hwdetect
-test_colonel  test_dosgui_wm  test_dosgui_ui  test_dosgui_dos_window
-test_dosgui_startmenu  test_dosgui_explorer  test_dosgui_term
+test_synth  test_wubu_sound  test_cp_sound  test_hwdetect
+test_colonel  test_wm  test_ui  test_dos_window
+test_startmenu  test_explorer  test_term
 test_clipboard  test_screenshot  test_compositor  test_shell
 test_wallpaper  test_control  test_calc
 ```

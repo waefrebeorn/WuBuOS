@@ -8,7 +8,7 @@
  * That sharing is the point: the designer and the applet it designs run on the
  * same framework, in the same language, in the same process.
  */
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../gui/wet/wet.h"
 #include "../gui/wet/wet_lua.h"
 #include "../gui/vws/vws_lua.h"
@@ -57,7 +57,7 @@ static char *read_script(void) {
 /* ---- routing (the same seam as wet_applet.c) ---------------------- */
 
 static void designer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    ChromeContentRect c = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect c = chrome_draw_window(win, fb, fb_w, fb_h);
     if (!g_vd.app) return;
     wet_app_set_origin(g_vd.app, c.x, c.y);
     wet_app_resize(g_vd.app, c.w, c.h);
@@ -90,7 +90,7 @@ static void designer_reset(void) {
     g_err[0] = '\0';
 }
 
-DosGuiWindow *dosgui_launch_vws_designer(void) {
+DosGuiWindow *launch_vws_designer(void) {
     designer_reset();
 
     char *src = read_script();
@@ -117,7 +117,7 @@ DosGuiWindow *dosgui_launch_vws_designer(void) {
         return NULL;
     }
 
-    DosGuiWindow *win = dosgui_wm_create(60, 60, 900, 620,
+    DosGuiWindow *win = wm_create(60, 60, 900, 620,
                                          "VWS Designer");
     if (!win) return NULL;
     win->on_draw  = designer_draw;

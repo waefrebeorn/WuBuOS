@@ -3,7 +3,7 @@
  *
  * Reusable Unix-socket + line-JSON transport for in-process daemons
  * (wubu_archd, wubu_holyd, future daemons). Extracted from the
- * once-monolithic dosgui_daemon_panel so any daemon consumer calls
+ * once-monolithic daemon_panel so any daemon consumer calls
  * the same wire layer instead of copying it.
  *
  * A DaemonConn is a value type (owned by the caller); its fields are

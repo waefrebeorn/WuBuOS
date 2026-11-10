@@ -30,7 +30,7 @@
 int mem_init(size_t n) { (void)n; return 0; }
 void *mem_alloc(size_t size) { (void)size; return (void*)1; }
 int input_init(void) { return 0; }
-#include "src/gui/dosgui_wm.h"
+#include "src/gui/wm.h"
 #include "src/gui/wubu_theme.h"
 #include "src/gui/wubu_a11y.h"
 #include "src/tools/screenshot.h"
@@ -91,17 +91,17 @@ int main(void) {
     input_init();
 
     wubu_theme_set(THEME_WIN98_CLASSIC);
-    dosgui_wm_init(SHOT_W, SHOT_H);
+    wm_init(SHOT_W, SHOT_H);
     wubu_a11y_set_enabled(true);
 
     /* Create a real window for the cluster to anchor on. */
-    DosGuiWindow *win = dosgui_wm_create(200, 150, 340, 220, "A11y Demo");
+    DosGuiWindow *win = wm_create(200, 150, 340, 220, "A11y Demo");
     if (!win) {
         printf("window creation failed\n");
         return 1;
     }
-    dosgui_wm_set_focus(win);
-    dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+    wm_set_focus(win);
+    wm_render_desktop(NULL, SHOT_W, SHOT_H);
 
     /* Frame 1: window with the a11y cluster visible (4 colored orbs + corner). */
     vbe_swap();
@@ -111,12 +111,12 @@ int main(void) {
     {
         int ax, ay;
         a_center(win->x, win->y, win->w, win->h, &ax, &ay);
-        dosgui_wm_handle_mouse(ax, ay, 1, 1);           /* press A (down)  */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(ax, ay, 1, 1);           /* press A (down)  */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
-        dosgui_wm_handle_mouse(ax + 50, ay + 30, 1, 0);  /* drag          */
-        dosgui_wm_handle_mouse(ax + 50, ay + 30, 1, 2);  /* release         */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(ax + 50, ay + 30, 1, 0);  /* drag          */
+        wm_handle_mouse(ax + 50, ay + 30, 1, 2);  /* release         */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
         render_frame("02_green_drag_move");
     }
@@ -125,31 +125,31 @@ int main(void) {
     {
         int ycx, ycy;
         y_center(win->x, win->y, win->w, win->h, &ycx, &ycy);
-        dosgui_wm_handle_mouse(ycx, ycy, 1, 1);  /* press   */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(ycx, ycy, 1, 1);  /* press   */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
-        dosgui_wm_handle_mouse(ycx, ycy, 1, 2);  /* release */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(ycx, ycy, 1, 2);  /* release */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
         render_frame("03_yellow_minimize");
     }
 
     /* Restore window for subsequent tests. */
-    dosgui_wm_restore(win);
-    dosgui_wm_set_focus(win);
-    dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+    wm_restore(win);
+    wm_set_focus(win);
+    wm_render_desktop(NULL, SHOT_W, SHOT_H);
     vbe_swap();
 
     /* Frame 4: Purple Y crescent resize drag (bottom-left). */
     {
         int kx, ky;
         p_bl(win->x, win->y, win->w, win->h, &kx, &ky);
-        dosgui_wm_handle_mouse(kx, ky, 1, 1);           /* press purple */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(kx, ky, 1, 1);           /* press purple */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
-        dosgui_wm_handle_mouse(kx + 40, ky + 30, 1, 0);  /* drag SE        */
-        dosgui_wm_handle_mouse(kx + 40, ky + 30, 1, 2);  /* release        */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(kx + 40, ky + 30, 1, 0);  /* drag SE        */
+        wm_handle_mouse(kx + 40, ky + 30, 1, 2);  /* release        */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
         render_frame("04_purple_resize");
     }
@@ -158,11 +158,11 @@ int main(void) {
     {
         int bcx, bcy;
         b_center(win->x, win->y, win->w, win->h, &bcx, &bcy);
-        dosgui_wm_handle_mouse(bcx, bcy, 1, 1);  /* press   */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(bcx, bcy, 1, 1);  /* press   */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
-        dosgui_wm_handle_mouse(bcx, bcy, 1, 2);  /* release -> close */
-        dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+        wm_handle_mouse(bcx, bcy, 1, 2);  /* release -> close */
+        wm_render_desktop(NULL, SHOT_W, SHOT_H);
         vbe_swap();
         render_frame("05_red_close_purge");
     }

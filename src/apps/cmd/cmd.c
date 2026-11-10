@@ -1,8 +1,8 @@
 #include "cmd.h"
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
-#include "../../gui/dosgui_wm.h"
-#include "../../gui/shell/dosgui_window_chrome.h"
+#include "../../gui/wm.h"
+#include "../../gui/shell/window_chrome.h"
 #include "../../runtime/wubu_host_exec.h"
 
 #include <string.h>
@@ -305,7 +305,7 @@ void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
 
     /* Centralized chrome draws the frame/title bar; we draw content
      * within the content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(w, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(w, fb, fb_w, fb_h);
     int cx = content.x, cy = content.y, cw = content.w, ch = content.h;
 
     vbe_fill_rect(cx, cy, cw, ch, 0x00000000);

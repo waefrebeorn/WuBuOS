@@ -15,32 +15,32 @@
 
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_desktop.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/desktop.h"
+#include "../gui/shell/startmenu.h"
 
 #include <stdio.h>
 
 /* Compose one desktop frame into the VBE back buffer. */
 void hosted_render_desktop(hosted_state_t *state) {
     if (!state) return;
-    dosgui_desktop_render(NULL, state->width, state->height);
-    if (dosgui_startmenu_is_open()) {
-        dosgui_startmenu_render(NULL, state->width, state->height);
+    desktop_render(NULL, state->width, state->height);
+    if (startmenu_is_open()) {
+        startmenu_render(NULL, state->width, state->height);
     }
-    dosgui_desktop_tick();
+    desktop_tick();
 }
 
 /* Drain the kernel input queue and route events to the focused window. */
 void hosted_input_dispatch(void) {
     KeyEvent kev;
     while (input_key_poll(&kev)) {
-        dosgui_wm_handle_key(kev.keycode, kev.modifiers);
+        wm_handle_key(kev.keycode, kev.modifiers);
     }
     MouseEvent mev;
     while (input_mouse_poll(&mev)) {
         int kind = mev.buttons ? 1 : 2; /* 1=down, 2=up */
         if (mev.buttons & 2) kind = 0;   /* 0=move while dragging */
-        dosgui_wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);
+        wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);
     }
 }

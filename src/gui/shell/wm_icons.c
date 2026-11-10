@@ -1,0 +1,96 @@
+/* wm_icons.c -- Desktop icon subsystem for the window manager.
+ *
+ * Self-contained: desktop icon grid management (remove/find/set-position),
+ * URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in
+ * ../wm_internal.h). icon_get is declared in wm.h (public).
+ * Minimal includes.
+ */
+
+#include "../wm_internal.h"
+
+void icon_remove(int grid_x, int grid_y) {
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        if (g_dwm.icons[i].alive && g_dwm.icons[i].grid_x == grid_x && g_dwm.icons[i].grid_y == grid_y) {
+            g_dwm.icons[i].alive = false;
+            /* Compact array */
+            for (int j = i; j < g_dwm.icon_count - 1; j++) {
+                g_dwm.icons[j] = g_dwm.icons[j + 1];
+            }
+            g_dwm.icon_count--;
+            return;
+        }
+    }
+}
+
+int icon_find_at(int grid_x, int grid_y) {
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        if (g_dwm.icons[i].alive && g_dwm.icons[i].grid_x == grid_x && g_dwm.icons[i].grid_y == grid_y) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void icon_set_position(int grid_x, int grid_y, int new_gx, int new_gy) {
+    int idx = icon_find_at(grid_x, grid_y);
+    if (idx >= 0) {
+        DosGuiIcon *icon = &g_dwm.icons[idx];
+        /* Check if target position is occupied */
+        if (icon_find_at(new_gx, new_gy) < 0) {
+            icon->grid_x = new_gx;
+            icon->grid_y = new_gy;
+            icon->x = 20 + new_gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+            icon->y = 20 + new_gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+        }
+    }
+}
+
+int shortcut_create_url(const char *name, const char *url, int grid_x, int grid_y) {
+    return icon_add_ex(name, DESK_ICON_URL, url, grid_x, grid_y, 0xFF8000, NULL);
+}
+
+int icon_hit_test(int mx, int my) {
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        DosGuiIcon *ic = &g_dwm.icons[i];
+        if (mx >= ic->x && mx < ic->x + DOSGUI_ICON_SIZE &&
+            my >= ic->y && my < ic->y + DOSGUI_ICON_SIZE)
+            return i;
+    }
+    return -1;
+}
+
+DosGuiIcon *icon_get(int idx) {
+    if (idx < 0 || idx >= g_dwm.icon_count) return NULL;
+    return &g_dwm.icons[idx];
+}
+
+/* Rubber-band lasso select (Classic Mac / Win98 lesson): clear the current
+ * selection, then select every live icon whose 32x32 box intersects the
+ * (possibly inverted) rect.  Returns the number selected. */
+int icon_select_in_rect(int x0, int y0, int x1, int y1) {
+    if (x0 > x1) { int t = x0; x0 = x1; x1 = t; }
+    if (y0 > y1) { int t = y0; y0 = y1; y1 = t; }
+    int n = 0;
+    for (int i = 0; i < g_dwm.icon_count; i++) {
+        DosGuiIcon *ic = &g_dwm.icons[i];
+        if (!ic->alive) continue;
+        ic->selected = (ic->x < x1 && ic->x + DOSGUI_ICON_SIZE > x0 &&
+                        ic->y < y1 && ic->y + DOSGUI_ICON_SIZE > y0);
+        if (ic->selected) n++;
+    }
+    return n;
+}
+
+/* Remove dead (alive==false) icon entries, compacting the array so that
+ * icon_count stays dense. Used after a delete so refresh/sort/hit-test see a
+ * contiguous list. Preserves order of the surviving icons. */
+void wm_compact_icons(void) {
+    int w = 0;
+    for (int r = 0; r < g_dwm.icon_count; r++) {
+        if (g_dwm.icons[r].alive) {
+            if (w != r) g_dwm.icons[w] = g_dwm.icons[r];
+            w++;
+        }
+    }
+    g_dwm.icon_count = w;
+}

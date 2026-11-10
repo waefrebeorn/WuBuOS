@@ -1,0 +1,35 @@
+-- compile_c.wet -- HolyD, the in-tree C compiler.
+--
+-- WuBuOS ships its own compiler.  There is no SDK to download and no toolchain
+-- to install: the tree IS the toolchain.
+
+tut_step_count = 4
+
+wet.applet {
+  title = "Tutorial: compile C with HolyD",
+  width = 640, height = 460,
+  content = wet.stack { spacing = 6, children = {
+    wet.label { text = "Step 1 of 4 -- the toolchain is already here" },
+    wet.label { text = "WuBuOS builds its own tools from its own source.  The" },
+    wet.label { text = "C compiler is HolyD; the shell language is HolyC." },
+    wet.label { text = "Nothing to install, nothing to download." },
+    wet.separator {},
+    wet.label { text = "Step 2 -- write a program" },
+    wet.label { text = "Open the Editor and type:" },
+    wet.label { text = "  #include <wubu.h>" },
+    wet.label { text = "  int main(void) { return 42; }" },
+    wet.separator {},
+    wet.label { text = "Step 3 -- compile and run" },
+    wet.label { text = "  holyd hello.hc" },
+    wet.label { text = "HolyD compiles, links and runs in one step." },
+    wet.button { text = "Open a Terminal",
+                 onclick = function(self) tut.action('terminal') end },
+    wet.separator {},
+    wet.label { text = "Step 4 -- where the compiler lives" },
+    wet.label { text = "  src/compiler/   HolyD and HolyC" },
+    wet.label { text = "  src/gui/wua     the Lua interpreter" },
+    wet.label { text = "  src/gui/wet     the widget framework" },
+    wet.button { text = "Next tutorial",
+                 onclick = function(self) tut.open('pin_an_app') end },
+  } },
+}

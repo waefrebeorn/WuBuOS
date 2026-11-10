@@ -15,8 +15,8 @@
  * is the visual heart of the tandem -- the human-centric loop.
  */
 #include "tandem.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../kernel/wubu_psych.h"
@@ -146,7 +146,7 @@ static void tandem_maybe_propose(TandemState *s)
 
 DosGuiWindow *tandem_launch(void)
 {
-    DosGuiWindow *win = dosgui_wm_create(40, 60, 380, 200, "Tandem -- User+AGI");
+    DosGuiWindow *win = wm_create(40, 60, 380, 200, "Tandem -- User+AGI");
     if (win) {
         TandemState *s = calloc(1, sizeof(*s));
         win->user_data = s;

@@ -35,11 +35,11 @@
 #include "../kernel/tasking.h"
 #include "../kernel/input.h"
 #include "../gui/wm.h"
-#include "../gui/shell/dosgui_startmenu.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_wm_holyc_term.h"
+#include "../gui/shell/startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/wm_holyc_term.h"
 #include "../runtime/wubu_holyd_agi.h"
-#include "../gui/shell/dosgui_desktop.h"
+#include "../gui/shell/desktop.h"
 #include "../runtime/styx.h"
 #include "../bridge/bridge.h"
 #include "../apps/repl.h"
@@ -135,18 +135,18 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     input_init();
 
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
-    dosgui_wm_init(state->width, state->height);
+    wm_init(state->width, state->height);
 
     /* Wire the HolyC Terminal to the live ring-0 AGI compiler: the same
      * compile+run path a human uses, but with EDR disclosure of every
      * agent-authored eval (the transparency edict). The terminal module
      * itself stays decoupled -- it only sees the injected function pointer. */
     holyc_term_set_eval(wubu_holyc_eval);
-    wubu_holyd_set_pointer_handler(dosgui_wm_handle_mouse);
-    dosgui_desktop_init();
-    fprintf(stderr, "DEBUG: dosgui_desktop_init done\n");
-    dosgui_startmenu_init();
-    fprintf(stderr, "DEBUG: dosgui_startmenu_init done\n");
+    wubu_holyd_set_pointer_handler(wm_handle_mouse);
+    desktop_init();
+    fprintf(stderr, "DEBUG: desktop_init done\n");
+    startmenu_init();
+    fprintf(stderr, "DEBUG: startmenu_init done\n");
 
     /* GAP F: the first-boot greeter -- the visible configurator the
      * onboarding decision layer has always targeted but never drawn.  Shown
@@ -170,9 +170,9 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
 
     /* Launch initial windows */
     fprintf(stderr, "DEBUG: About to launch initial windows\n");
-    dosgui_launch_app("My Computer");
+    launch_app("My Computer");
     fprintf(stderr, "DEBUG: Launched My Computer\n");
-    dosgui_launch_app("HolyC REPL");
+    launch_app("HolyC REPL");
     fprintf(stderr, "DEBUG: Launched HolyC REPL\n");
 
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
@@ -208,7 +208,7 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     return 0;
 }
 
-hosted_state_t *dosgui_wm_get_hosted_state(void) {
+hosted_state_t *wm_get_hosted_state(void) {
     return g_hosted_state;
 }
 

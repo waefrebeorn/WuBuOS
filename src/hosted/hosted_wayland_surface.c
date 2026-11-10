@@ -3,9 +3,9 @@
 #include "wayland_state.h"
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_desktop.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/desktop.h"
+#include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/wubu_theme.h"
 #include "../bridge/bridge.h"
@@ -108,7 +108,7 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
         vbe_init(width, height);
         
         /* Update WM and desktop */
-        dosgui_wm_init(width, height);
+        wm_init(width, height);
         
         /* Create new SHM buffers */
         shm_buffer_create(&g_shm_bufs[0], width, height);

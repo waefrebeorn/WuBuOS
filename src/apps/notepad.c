@@ -11,9 +11,9 @@
  */
 
 #include "notepad.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
@@ -107,18 +107,18 @@ static void notepad_draw_content(DosGuiWindow *win, const ChromeContentRect *con
     vbe_draw_text(cx + 4, sby + 3, status, tc()->btn_text, 1);
 }
 
-void dosgui_notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
     if (!win) return;
 
     /* Draw chrome (frame + title bar + buttons) and get content rect. */
-    ChromeContentRect content = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect content = chrome_draw_window(win, fb, fb_w, fb_h);
 
     /* Draw notepad content within chrome-provided rect. */
     notepad_draw_content(win, &content);
 }
 
-void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)win; (void)mods;
     if (key == 0) return;
 
@@ -203,11 +203,11 @@ void dosgui_notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
 /* Click-to-position: the same geometry notepad_draw_content renders with
  * (content rect, 16px line height, 4px left padding, 8px cell advance), so
  * the caret lands where the user actually clicked. */
-void dosgui_notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+void notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     if (btn != 1 || kind != 1) return;   /* left press only */
     if (!win) return;
 
-    ChromeContentRect r = dosgui_chrome_draw_window(win, NULL, 0, 0);
+    ChromeContentRect r = chrome_draw_window(win, NULL, 0, 0);
     int line = (y - r.y - 2) / 16 + g_notepad.scroll_y;
     int col  = (x - r.x - 4) / 8 + g_notepad.top_x;
 
@@ -237,18 +237,18 @@ int notepad_cursor_line(void) { return g_notepad.cursor_line; }
 int notepad_cursor_col(void)  { return g_notepad.cursor_col; }
 bool notepad_modified(void)   { return g_notepad.modified; }
 
-DosGuiWindow *dosgui_notepad_launch(void) {
+DosGuiWindow *notepad_launch(void) {
     return notepad_open(NULL);
 }
 
 void notepad_open(const char *filename) {
     np_reset();
     if (filename) strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename)-1);
-    DosGuiWindow *win = dosgui_wm_create(100, 80, 500, 400,
+    DosGuiWindow *win = wm_create(100, 80, 500, 400,
                                          filename ? filename : "Untitled - Notepad");
     if (win) {
-        win->on_draw  = dosgui_notepad_draw;
-        win->on_key   = dosgui_notepad_key;
-        win->on_mouse = dosgui_notepad_mouse;
+        win->on_draw  = notepad_draw;
+        win->on_key   = notepad_key;
+        win->on_mouse = notepad_mouse;
     }
 }

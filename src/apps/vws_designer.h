@@ -8,13 +8,13 @@
 #ifndef VWS_DESIGNER_H
 #define VWS_DESIGNER_H
 
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-DosGuiWindow *dosgui_launch_vws_designer(void);
+DosGuiWindow *launch_vws_designer(void);
 
 /* The last launch error, or NULL. */
 const char *vws_designer_error(void);

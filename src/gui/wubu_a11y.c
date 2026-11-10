@@ -24,7 +24,7 @@
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include "../gui/wubu_trash.h"
-#include "dosgui_wm_internal.h"   /* title_bar_height() for the panel anchor */
+#include "wm_internal.h"   /* title_bar_height() for the panel anchor */
 
 #include <stdlib.h>
 #include <string.h>
@@ -481,16 +481,16 @@ void wubu_a11y_rotate_window(DosGuiWindow *win) {
     int cx = win->x + win->w / 2;
     int cy = win->y + win->h / 2;
     int nw = win->h, nh = win->w;
-    dosgui_wm_resize(win, nw, nh);
-    dosgui_wm_move(win, cx - nw / 2, cy - nh / 2);
+    wm_resize(win, nw, nh);
+    wm_move(win, cx - nw / 2, cy - nh / 2);
 }
 
 void wubu_a11y_minimize_window(DosGuiWindow *win) {
-    if (win && win->alive) dosgui_wm_minimize(win);
+    if (win && win->alive) wm_minimize(win);
 }
 
 void wubu_a11y_close_window(DosGuiWindow *win) {
-    if (win && win->alive) dosgui_wm_destroy(win);
+    if (win && win->alive) wm_destroy(win);
 }
 
 void wubu_a11y_purge_and_close(DosGuiWindow *win) {
@@ -498,7 +498,7 @@ void wubu_a11y_purge_and_close(DosGuiWindow *win) {
     /* Incognito-style wipe: empty the Recycle Bin (cache/temp files are
      * moved there by trash_move; this is the "browser incognito delete"). */
     wubu_trash_empty();
-    dosgui_wm_destroy(win);
+    wm_destroy(win);
 }
 
 /* -- Mouse routing ------------------------------------------------- */
@@ -518,7 +518,7 @@ bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
         g_drag.orig_h  = win->h;
         g_drag.moved   = false;
         if (c == WUBU_A11Y_GRAB || c == WUBU_A11Y_ROTATE || c == WUBU_A11Y_CLOSE)
-            dosgui_wm_set_focus(win);
+            wm_set_focus(win);
         return true;
     }
 
@@ -531,7 +531,7 @@ bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
         switch (g_drag.ctrl) {
         case WUBU_A11Y_GRAB:
             /* Live window move while dragging the green orb. */
-            dosgui_wm_move(win, x + g_drag.grab_ox, y + g_drag.grab_oy);
+            wm_move(win, x + g_drag.grab_ox, y + g_drag.grab_oy);
             break;
         case WUBU_A11Y_RESIZE:
             if (g_drag.moved) {
@@ -539,7 +539,7 @@ bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
                 int nh = g_drag.orig_h + (y - g_drag.start_y);
                 if (nw < 80)  nw = 80;
                 if (nh < 40)  nh = 40;
-                dosgui_wm_resize(win, nw, nh);
+                wm_resize(win, nw, nh);
             }
             break;
         default:
@@ -555,7 +555,7 @@ bool wubu_a11y_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
 
         switch (c) {
         case WUBU_A11Y_GRAB:
-            if (!g_drag.moved) dosgui_wm_maximize(win);  /* click A = maximize */
+            if (!g_drag.moved) wm_maximize(win);  /* click A = maximize */
             break;  /* drag already moved live */
         case WUBU_A11Y_ROTATE:
             if (g_drag.moved) wubu_a11y_rotate_window(win);
@@ -609,7 +609,7 @@ bool wubu_a11y_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     }
     if (key == 0x1C || key == 0x39) {           /* Enter / Space */
         switch (g_focus) {
-        case WUBU_A11Y_GRAB:   dosgui_wm_maximize(win);    break;
+        case WUBU_A11Y_GRAB:   wm_maximize(win);    break;
         case WUBU_A11Y_CLOSE:  wubu_a11y_close_window(win); break;
         case WUBU_A11Y_ROTATE: wubu_a11y_minimize_window(win); break;
         default:               break;

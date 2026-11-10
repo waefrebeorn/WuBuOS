@@ -14,7 +14,7 @@
 #define WUBU_COMFY_H
 
 #include <stdint.h>
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 
 /* Public API: launch the Comfy node-graph editor window. */
 DosGuiWindow *comfy_launch(void);

@@ -7,13 +7,13 @@
 
 Apps drew their own title bars and borders with `win->x` +
 `title_bar_height()`; the WM also draws chrome via
-`dosgui_chrome_draw_window()`. Two border-width computations disagreed
+`chrome_draw_window()`. Two border-width computations disagreed
 (chrome: 2:1 rounded:plain; legacy helper: 3:2) causing 1px content and
 hit-testing misalignment across every app.
 
 ## Decision
 
-All GUI apps use `dosgui_chrome_draw_window()` for the window frame, title
+All GUI apps use `chrome_draw_window()` for the window frame, title
 bar, and buttons. Apps draw ONLY within the chrome-provided content rect.
 The legacy `border_width()`/`title_bar_height()` helpers must match the
 chrome module's values exactly (they now do). App input handlers validate

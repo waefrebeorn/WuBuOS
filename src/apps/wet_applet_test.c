@@ -22,7 +22,7 @@ __attribute__((weak)) int  vbe_text_width(const char*s,int sc){(void)s;(void)sc;
 
 /* Kernel and shell symbols the WM's interrupt and desktop paths reference.
  * This test never runs an interrupt or paints a wallpaper, so a quiet stub is
- * honest -- the same pattern dosgui_apps_test uses. */
+ * honest -- the same pattern apps_test uses. */
 void wdt_feed(void) {}
 void handle_double_fault(void) {}
 void handle_page_fault(void) {}
@@ -31,20 +31,20 @@ void handle_invalid_opcode(void) {}
 void interrupt_panic_dump(void) {}
 void panic_dump_ring(void) {}
 void syscall_handler(void) {}
-void dosgui_startmenu_handle_click(int x, int y) { (void)x;(void)y; }
-void dosgui_startmenu_toggle(void) {}
-int  dosgui_startmenu_is_open(void) { return 0; }
+void startmenu_handle_click(int x, int y) { (void)x;(void)y; }
+void startmenu_toggle(void) {}
+int  startmenu_is_open(void) { return 0; }
 void wubu_trash_empty(void) {}
 int  wubu_trash_move(const char *p) { (void)p; return 0; }
 void wubu_notify_simple(const char *a, const char *t, const char *m,
                         void *i, int w, int d) { (void)a;(void)t;(void)m;(void)i;(void)w;(void)d; }
 const char *wubu_compat_cache_dir(void) { return "/tmp"; }
 int  wubu_compat_db_get(const char *n) { (void)n; return 0; }
-void dosgui_shutdown(void) {}
+void shutdown(void) {}
 int  wubu_session_launch_game(void *h, const uint8_t *g, size_t n, const char *nm) {
     (void)h;(void)g;(void)n;(void)nm; return -1;
 }
-int  dosgui_wm_get_hosted_state(void *out) { (void)out; return 0; }
+int  wm_get_hosted_state(void *out) { (void)out; return 0; }
 /* The HolyC terminal's REPL evaluator; this test never opens it. */
 int hd_eval(const char *src, char *out, int out_cap) {
     (void)src;

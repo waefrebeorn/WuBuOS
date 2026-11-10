@@ -1,0 +1,148 @@
+/* explorer_internal.h  --  Internal helpers shared by explorer sub-modules */
+
+#ifndef WUBU_DOSGUI_EXPLORER_INTERNAL_H
+#define WUBU_DOSGUI_EXPLORER_INTERNAL_H
+
+#include "explorer.h"
+#include "wubu_theme.h"
+#include <stdint.h>
+#include <string.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <libgen.h>
+
+/* -- Safe String Macros (shared across all explorer files) ---------- */
+
+#ifndef WUBU_STRCPY
+#define WUBU_STRCPY(dst, src, dst_size) \
+    do { \
+        if (dst_size > 0) { \
+            strncpy((dst), (src), (dst_size) - 1); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+#endif
+
+#ifndef WUBU_SNPRINTF
+#define WUBU_SNPRINTF(dst, dst_size, fmt, ...) \
+    do { \
+        if (dst_size > 0) { \
+            snprintf((dst), (dst_size), (fmt), __VA_ARGS__); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+#endif
+
+#ifndef WUBU_STRLCAT
+#define WUBU_STRLCAT(dst, src, dst_size) \
+    do { \
+        size_t _dst_len = strlen(dst); \
+        size_t _src_len = strlen(src); \
+        if (_dst_len + _src_len + 1 <= dst_size) { \
+            memcpy((dst) + _dst_len, (src), _src_len + 1); \
+        } else if (_dst_len < dst_size) { \
+            size_t _avail = (dst_size) - _dst_len - 1; \
+            memcpy((dst) + _dst_len, (src), _avail); \
+            (dst)[(dst_size) - 1] = '\0'; \
+        } \
+    } while (0)
+#endif
+
+/* -- Internal helpers exposed for sub-modules ---------------------- */
+
+/* -- Tree scan + breadcrumb + history + context-menu helpers -------- */
+/* (extracted from explorer.c into explorer_tree.c) */
+void ex_scan_directory(const char *path);
+void ex_tree_scan(ExTreeNode *node);
+void ex_add_to_history(ExExplorerState *ex, const char *path);
+void ex_show_context_menu(ExExplorerState *ex, int mx, int my, int entry_idx);
+void ex_hide_context_menu(ExExplorerState *ex);
+void explorer_update_drive_list(void);
+
+/* Update breadcrumbs (called by zip module after populating entries) */
+void ex_update_breadcrumbs(ExExplorerState *ex);
+
+/* -- Global state (defined in explorer.c) ------------------- */
+extern ExExplorerState g_explorer;
+extern ExExplorerState *g_sort_ctx;
+
+/* -- Shared input/find state (defined in explorer.c, used by
+ *     explorer_input.c) ------------------------------------- */
+extern bool g_shift_pressed;
+extern bool g_ctrl_pressed;
+
+/* -- Find subsystem state + helper (defined in explorer.c,
+ *     used by explorer_input.c) ----------------------------- */
+#define EX_FIND_MAX_LEN 256
+typedef struct {
+    bool    active;
+    char    query[EX_FIND_MAX_LEN];
+    int     query_len;
+    int     last_match;     /* index of last match, -1 = none */
+    bool    case_sensitive;
+} ExFindState;
+extern ExFindState g_find_state;
+int str_contains_nocase(const char *haystack, const char *needle);
+
+/* -- 9P/Styx filesystem backend (implemented in explorer_fs.c) --
+ * Thin shim mapping POSIX-style ops onto the Styx 9P filesystem (styxfs_*). */
+int ex_9p_stat(const char *path, struct stat *st);
+/* file metadata extraction (explorer_info.c) */
+void ex_get_file_info(const char *path, ExEntry *entry);
+int ex_9p_mkdir(const char *path, mode_t mode);
+int ex_9p_unlink(const char *path);
+int ex_9p_rename(const char *oldpath, const char *newpath);
+int ex_9p_open(const char *path, int flags);
+ssize_t ex_9p_read(int fd, void *buf, size_t count);
+ssize_t ex_9p_write(int fd, const void *buf, size_t count);
+int ex_9p_close(int fd);
+int ex_9p_readdir(const char *path, struct dirent ***entries);
+DIR *ex_9p_opendir(const char *path);
+
+/* -- File-operation workers (implemented in explorer_fsops.c) -- */
+void ex_handle_file_op(ExExplorerState *ex);
+
+/* -- Tree subsystem + shared entry helpers (explorer_tree.c) ----
+ * Declared non-static so every submodule links the SAME implementation
+ * (no duplicated copies across fs/fsops/zip/render/drives). */
+const char *ex_get_extension(const char *filename);
+int  ex_strcasecmp(const char *a, const char *b);
+void ex_sort_entries(ExExplorerState *ex);
+int  ex_file_compare(const void *a, const void *b);
+void ex_populate_tree(ExTreeNode *node, const char *path);
+ExTreeNode *ex_tree_find(ExTreeNode *root, const char *path);
+void ex_tree_free(ExTreeNode *node);
+
+/* -- Theme helpers (static inline — zero overhead, no symbol clash) -- */
+static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
+static inline const WubuTheme *th(void) { return wubu_theme_get(); }
+static inline int ex_row_h(void) { return th()->rounded_buttons ? 24 : EX_ROW_H; }
+static inline int ex_tree_indent(void) { return th()->rounded_buttons ? 14 : EX_TREE_INDENT; }
+static inline int ex_title_h(void) { return th()->rounded_buttons ? 24 : 22; }
+static inline int ex_toolbar_h(void) { return EX_TOOLBAR_H; }
+static inline int ex_breadcrumb_h(void) { return EX_BREADCRUMB_H; }
+static inline int ex_statusbar_h(void) { return EX_STATUSBAR_H; }
+static inline int ex_border_w(void) { return th()->rounded_buttons ? 3 : 2; }
+
+/* -- Safe dirname wrapper (shared) --------------------------------- */
+static inline void ex_dirname_safe(const char *path, char *out, size_t out_size) {
+    if (!path || !out || out_size == 0) return;
+    char copy[EX_MAX_PATH];
+    strncpy(copy, path, sizeof(copy) - 1);
+    copy[sizeof(copy) - 1] = '\0';
+    char *d = dirname(copy);
+    WUBU_STRCPY(out, d, out_size);
+}
+
+/* -- Render layer (implemented in explorer_render.c) -------- */
+void ex_render_tree(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+void ex_render_breadcrumbs(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+void ex_render_toolbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+void ex_render_statusbar(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int h);
+void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h);
+
+#endif /* WUBU_DOSGUI_EXPLORER_INTERNAL_H */

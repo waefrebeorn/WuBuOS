@@ -11,7 +11,7 @@
  * Exit 0 on success.
  */
 #include "src/gui/shell/wubu_shell_greeter.h"
-#include "src/gui/dosgui_wm.h"
+#include "src/gui/wm.h"
 #include "src/gui/wubu_theme.h"
 #include "src/kernel/vbe.h"
 #include "src/runtime/wubu_onboarding.h"
@@ -36,8 +36,8 @@ static void frame(const char *label) {
 
 /* Render a frame: WM draws into the VBE back buffer, then swap so the
  * screenshot (which reads the front buffer) sees it -- same as desktop_shot. */
-static void tick(void) {
-    dosgui_wm_render_desktop(NULL, SHOT_W, SHOT_H);
+static void shot_tick(void) {
+    wm_render_desktop(NULL, SHOT_W, SHOT_H);
     vbe_swap();
 }
 
@@ -49,7 +49,7 @@ int main(void) {
     if (vbe_init(SHOT_W, SHOT_H) != 0) { printf("vbe_init failed\n"); return 1; }
     wubu_theme_init();
     wubu_theme_set(THEME_WIN98_CLASSIC);
-    dosgui_wm_init(SHOT_W, SHOT_H);
+    wm_init(SHOT_W, SHOT_H);
 
     /* First boot: no sentinel -> the greeter is the target. */
     const char *sent = "/tmp/wubu_greeter_shot.sentinel";
@@ -58,21 +58,21 @@ int main(void) {
     printf("  onboarding target: %s\n",
            wubu_onboarding_target() == WUBU_ONBOARD_GREETER ? "GREETER" : "DESKTOP");
 
-    tick();
+    shot_tick();
     frame("00_desktop_before");
 
     if (wubu_shell_greeter_run() != 0) { printf("greeter failed to open\n"); return 1; }
-    tick();
+    shot_tick();
     frame("01_greeter_open");
 
     wubu_shell_greeter_key(31);   /* Down */
     wubu_shell_greeter_key(31);   /* Down -> theme 2 */
-    tick();
+    shot_tick();
     frame("02_theme_selected");
     printf("  selected theme: %d\n", wubu_shell_greeter_selected_theme());
 
     wubu_shell_greeter_key('\r'); /* Start */
-    tick();
+    shot_tick();
     frame("03_after_start");
     printf("  signature: %s\n", wubu_shell_greeter_signature());
 

@@ -28,7 +28,7 @@ typedef struct CalcState CalcState;
 CalcState* calc_create(void);
 void calc_destroy(CalcState *calc);
 
-/* Draw callback for dosgui_wm */
+/* Draw callback for wm */
 void calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, CalcState *calc);
 
 /* Launch calculator window */

@@ -8,7 +8,7 @@
 #include "../kernel/memory.h"
 #include "../kernel/input.h"
 #include "../gui/wm.h"
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../runtime/styx.h"
 #include <stdlib.h>
 #include <string.h>

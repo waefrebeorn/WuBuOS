@@ -56,7 +56,7 @@ static WetApplet g_wa;
 /* ---- routing --------------------------------------------------------- */
 
 void wet_applet_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    ChromeContentRect c = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect c = chrome_draw_window(win, fb, fb_w, fb_h);
     if (!g_wa.app) return;
     /* The applet lives in its content rect: position it, then reflow. */
     wet_app_set_origin(g_wa.app, c.x, c.y);
@@ -158,7 +158,7 @@ DosGuiWindow *wet_applet_open(const char *path, const char *title,
         fprintf(stderr, "wet_applet: %s\n", err);
     }
 
-    DosGuiWindow *win = dosgui_wm_create(x, y, w, h,
+    DosGuiWindow *win = wm_create(x, y, w, h,
                                          title ? title : (path ? path : "WET Applet"));
     if (!win) return NULL;
     win->on_draw   = wet_applet_draw;
@@ -169,7 +169,7 @@ DosGuiWindow *wet_applet_open(const char *path, const char *title,
     return win;
 }
 
-DosGuiWindow *dosgui_launch_wet_applet(const char *path) {
+DosGuiWindow *launch_wet_applet(const char *path) {
     return wet_applet_open(path, NULL, 120, 90, 420, 320);
 }
 

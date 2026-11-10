@@ -8,8 +8,8 @@
  */
 
 #include "wubufx.h"
-#include "../gui/dosgui_wm.h"   /* DosGuiWindow full definition */
-#include "../apps/dosgui_apps.h"
+#include "../gui/wm.h"   /* DosGuiWindow full definition */
+#include "../apps/apps.h"
 #include "../apps/bonzi/bonzi.h"
 #include "../apps/comfy/comfy.h"
 #include "../apps/tandem/tandem.h"
@@ -31,35 +31,35 @@ typedef struct {
 static const WubufxAppDef g_wubufx_apps[] = {
     { "notepad",      "Notepad",      "notepad",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE,
-      dosgui_launch_notepad },
+      launch_notepad },
 
     { "calculator",   "Calculator",   "calculator",
       WUBUFX_CAP_READ | WUBUFX_CAP_EXEC,
-      dosgui_launch_calculator },
+      launch_calculator },
 
     { "file_manager", "File Manager", "file_manager",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC,
-      dosgui_launch_file_manager },
+      launch_file_manager },
 
     { "control_panel","Control Panel","control_panel",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE,
-      dosgui_launch_settings },
+      launch_settings },
 
     { "terminal",     "Terminal",     "terminal",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC,
-      dosgui_launch_terminal },
+      launch_terminal },
 
     { "canvas",       "WuBu Canvas",  "canvas",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE,
-      dosgui_launch_canvas },
+      launch_canvas },
 
     { "dos_box",      "DOS Box",      "dos_box",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC,
-      dosgui_launch_dos_box_default },
+      launch_dos_box_default },
 
     { "edr_dashboard","EDR Activity", "edr_dashboard",
       WUBUFX_CAP_READ | WUBUFX_CAP_EDR,
-      dosgui_launch_edr_dashboard },
+      launch_edr_dashboard },
 
     { "bonzi",       "Bonzi Buddy",  "bonzi",
       WUBUFX_CAP_READ | WUBUFX_CAP_WRITE | WUBUFX_CAP_EXEC | WUBUFX_CAP_AGI,
@@ -121,9 +121,9 @@ DosGuiWindow *wubufx_app_launch(const char *name) {
         wubufx_state_set(win_node, "opening");
     }
 
-    /* Launch the REAL engine through the existing dosgui_apps registry.
+    /* Launch the REAL engine through the existing apps registry.
      * The engine creates the DosGuiWindow and wires its own callbacks.
-     * We just return it — the window is already managed by dosgui_wm. */
+     * We just return it — the window is already managed by wm. */
     DosGuiWindow *win = def->engine_launch();
     if (win) {
         /* Stash the WuBuFX app handle in user_data for later reference */

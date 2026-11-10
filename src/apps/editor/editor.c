@@ -2,7 +2,7 @@
  * editor.c  --  GUI adapter over the real WubuEditor engine
  *
  * Before this file was rewritten, "Editor" in the desktop registry launched
- * Notepad (dosgui_launch_editor -> dosgui_launch_notepad) and this adapter
+ * Notepad (launch_editor -> launch_notepad) and this adapter
  * was 22 lines of no-ops: EditorState { int dummy; }, editor_draw voiding
  * every parameter, editor_launch creating a window with NO callbacks bound
  * -- a blank window.  Meanwhile the real 468-LOC engine plus its find,
@@ -18,9 +18,9 @@
 
 #include "editor.h"
 #include "../wubu_editor.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 
@@ -79,7 +79,7 @@ void editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h,
     WubuEditor *e = ed_engine(ed);
     if (!win || !e) return;
 
-    ChromeContentRect r = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect r = chrome_draw_window(win, fb, fb_w, fb_h);
     int cx = r.x, cy = r.y, cw = r.w, ch = r.h;
     if (cw <= ED_GUTTER_W + 8 || ch <= ED_TABBAR_H + ED_STATBAR_H + 4) return;
 
@@ -92,7 +92,7 @@ void editor_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h,
         tab_area_h = ED_TABBAR_H;
         const char *labels[WUBU_ED_MAX_TABS];
         for (int i = 0; i < e->n_tabs; i++) labels[i] = e->tabs[i].title;
-        dosgui_chrome_draw_tabs(cx, cy, cw, tab_area_h, labels, e->n_tabs,
+        chrome_draw_tabs(cx, cy, cw, tab_area_h, labels, e->n_tabs,
                                 e->active_tab);
     }
 
@@ -186,7 +186,7 @@ void editor_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     if (!win || !t) return;
     if (btn != 1 || kind != 1) return;   /* left press only */
 
-    ChromeContentRect r = dosgui_chrome_draw_window(win, NULL, 0, 0);
+    ChromeContentRect r = chrome_draw_window(win, NULL, 0, 0);
     int lx = x - r.x - ED_GUTTER_W - 8;
     int ly = y - r.y - ED_TABBAR_H;
     int col = lx / 8 + (t->scroll_x > 0 ? t->scroll_x : 0);
@@ -265,7 +265,7 @@ DosGuiWindow *editor_launch(void) {
     EditorState *ed = editor_create();
     if (!ed) return NULL;
 
-    DosGuiWindow *win = dosgui_wm_create(90, 70, 640, 480, "Editor");
+    DosGuiWindow *win = wm_create(90, 70, 640, 480, "Editor");
     if (!win) {
         editor_destroy(ed);
         return NULL;

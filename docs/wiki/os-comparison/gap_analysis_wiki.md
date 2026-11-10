@@ -76,25 +76,25 @@
 
 | # | Ref OS Feature | WuBuOS File | Status | REAL_GAPs | Priority | Sessions |
 |---|----------------|-------------|--------|-----------|----------|----------|
-| 2.1 | GNOME Shell overview (Activities: windows + apps + search + workspaces) | `gui/dosgui_wm.c` (extend) | ❌ Missing | ~80 | 2 | 2 |
-| 2.2 | Dynamic workspaces (auto create/destroy) | `gui/dosgui_wm.c` (extend) | ❌ Missing | ~30 | 3 | 2 |
-| 2.3.3 | Window snapping/tiling (edge, quarter, keyboard) | `gui/dosgui_wm.c` (extend) | ❌ Missing | ~50 | 2 | 2 |
-| 2.4 | Window animations (genie, workspace switch, maximize) | `gui/dosgui_wm.c` (extend) | ❌ Missing | ~60 | 3 | 2 |
-| 2.5 | Touchpad gestures (3-finger workspace, 4-finger overview) | `gui/dosgui_wm.c` (extend) | ❌ Missing | ~40 | 4 | 2 |
+| 2.1 | GNOME Shell overview (Activities: windows + apps + search + workspaces) | `gui/wm.c` (extend) | ❌ Missing | ~80 | 2 | 2 |
+| 2.2 | Dynamic workspaces (auto create/destroy) | `gui/wm.c` (extend) | ❌ Missing | ~30 | 3 | 2 |
+| 2.3.3 | Window snapping/tiling (edge, quarter, keyboard) | `gui/wm.c` (extend) | ❌ Missing | ~50 | 2 | 2 |
+| 2.4 | Window animations (genie, workspace switch, maximize) | `gui/wm.c` (extend) | ❌ Missing | ~60 | 3 | 2 |
+| 2.5 | Touchpad gestures (3-finger workspace, 4-finger overview) | `gui/wm.c` (extend) | ❌ Missing | ~40 | 4 | 2 |
 | 2.6 | HiDPI fractional scaling (per-monitor) | `hosted/wubu_metal.c` (extend) | ❌ Missing | ~70 | 2 | 3 |
 | 2.7 | Multi-monitor VRR/HDR/scaling | `hosted/wubu_metal.c` (extend) | ❌ Missing | ~80 | 3 | 3 |
 | 2.8 | Notifications center (dismissible, actions, history) | `gui/wubu_notifications.c` (NEW) | ❌ Missing | ~60 | 2 | 2 |
-| 2.9 | Calendar/World clock (events, timezones) | `gui/dosgui_startmenu.c` (extend) | ❌ Missing | ~40 | 3 | 2 |
-| 2.10 | System status area (network, Bluetooth, power, sound, notifications) | `gui/dosgui_wm.c` (extend) | 🟡 Basic tray only | ~70 | 2 | 2 |
-| 2.11 | App folders in app grid (drag-drop create/rename) | `gui/dosgui_startmenu.c` (extend) | ❌ Missing | ~30 | 3 | 2 |
-| 2.12 | Search in Start Menu (Tracker + app metadata + files) | `gui/dosgui_startmenu.c` (extend) | 🟡 .desktop only | ~50 | 2 | 2 |
-| 2.13 | File Explorer tabs (Ctrl+T, drag reorder) | `gui/dosgui_explorer.c` (extend) | ❌ Missing | ~40 | 2 | 2 |
-| 2.14 | File Explorer recursive/content search | `gui/dosgui_explorer.c` (extend) | 🟡 Name only | ~50 | 2 | 2 |
-| 2.15 | File operation queue (progress, conflict resolution, pause/resume) | `gui/dosgui_explorer.c` (extend) | 🟡 Basic only | ~60 | 2 | 2 |
-| 2.16 | Thumbnails (images, video, audio, PDF) | `gui/dosgui_explorer.c` (extend) | ❌ Missing | ~80 | 3 | 3 |
-| 2.17 | Preview pane (text, images, metadata) | `gui/dosgui_explorer.c` (extend) | ❌ Missing | ~50 | 3 | 2 |
-| 2.18 | Batch rename (pattern/regex/sequential) | `gui/dosgui_explorer.c` (extend) | ❌ Missing | ~30 | 4 | 1 |
-| 2.19 | Undo/Redo in Explorer | `gui/dosgui_explorer.c` (extend) | ❌ Missing | ~40 | 3 | 2 |
+| 2.9 | Calendar/World clock (events, timezones) | `gui/startmenu.c` (extend) | ❌ Missing | ~40 | 3 | 2 |
+| 2.10 | System status area (network, Bluetooth, power, sound, notifications) | `gui/wm.c` (extend) | 🟡 Basic tray only | ~70 | 2 | 2 |
+| 2.11 | App folders in app grid (drag-drop create/rename) | `gui/startmenu.c` (extend) | ❌ Missing | ~30 | 3 | 2 |
+| 2.12 | Search in Start Menu (Tracker + app metadata + files) | `gui/startmenu.c` (extend) | 🟡 .desktop only | ~50 | 2 | 2 |
+| 2.13 | File Explorer tabs (Ctrl+T, drag reorder) | `gui/explorer.c` (extend) | ❌ Missing | ~40 | 2 | 2 |
+| 2.14 | File Explorer recursive/content search | `gui/explorer.c` (extend) | 🟡 Name only | ~50 | 2 | 2 |
+| 2.15 | File operation queue (progress, conflict resolution, pause/resume) | `gui/explorer.c` (extend) | 🟡 Basic only | ~60 | 2 | 2 |
+| 2.16 | Thumbnails (images, video, audio, PDF) | `gui/explorer.c` (extend) | ❌ Missing | ~80 | 3 | 3 |
+| 2.17 | Preview pane (text, images, metadata) | `gui/explorer.c` (extend) | ❌ Missing | ~50 | 3 | 2 |
+| 2.18 | Batch rename (pattern/regex/sequential) | `gui/explorer.c` (extend) | ❌ Missing | ~30 | 4 | 1 |
+| 2.19 | Undo/Redo in Explorer | `gui/explorer.c` (extend) | ❌ Missing | ~40 | 3 | 2 |
 | 2.20 | GVfs backends (SMB, SFTP, WebDAV, cloud, trash, burn) | `runtime/wubu_gvfs.c` (NEW) | ❌ Missing | ~200 | 3 | 4 |
 | 2.21 | Tracker/SPARQL (file content search, metadata) | `apps/wubu_tracker.c` (NEW) | ❌ Missing | ~150 | 3 | 3 |
 | 2.22 | Accessibility (AT-SPI2: Orca, magnifier, OSK, high contrast) | `gui/wubu_a11y.c` (NEW) | ❌ Missing | ~200 | 4 | 3 |
@@ -166,7 +166,7 @@
 | 5.4 | HolyC codegen (JIT backpatching, register allocation) | `compiler/holyc_codegen.c` | ❌ 29 placeholders | ~200 | 1 | 8 |
 | 5.5 | StyxFS 9P callbacks (auth, wstat, fsync, symlink, mknod, mkdir) | `runtime/styxfs.c` | 🟡 8/14 done | ~50 | 2 | 2 |
 | 5.6 | Control panel applets (display, network, sound, user, datetime) | `apps/control.c` | ❌ 20 void casts | ~80 | 3 | 3 |
-| 5.7 | Built-in apps (notepad, calc, paint, cmd, taskmgr, regedit) | `apps/dosgui_apps.c` | ❌ 16 void casts | ~100 | 3 | 4 |
+| 5.7 | Built-in apps (notepad, calc, paint, cmd, taskmgr, regedit) | `apps/apps.c` | ❌ 16 void casts | ~100 | 3 | 4 |
 | 5.8 | Package manager (pacman/apt wrapper, repo sync, deps, hooks) | `gui/wubu_pkgmgr_test.c` | ❌ 14 void casts + 9 system() | ~150 | 2 | 4 |
 | 5.9 | Bear RL env (MuJoCo, Atari, custom env API) | `bear/bear_env.c` | 🟡 CartPEND: 13 void casts | ~60 | 3 | 3 |
 | 5.10 | Terminal emulator (PTY, VT100/ANSI, scrollback, tabs, GPU render) | `apps/terminal.c` | ❌ 13 void casts + 2 not_impl | ~120 | 3 | 4 |
@@ -184,10 +184,10 @@
 ### Session 2026-06-28/29 Closed (128 REAL_GAPs)
 | Gap | File | Void Casts Closed | system() Eliminated |
 |-----|------|-------------------|---------------------|
-| GUI: WM | `gui/dosgui_wm.c` | 22 | 0 |
-| GUI: Terminal | `gui/dosgui_term.c` | 23 | 0 |
-| GUI: Explorer | `gui/dosgui_explorer.c` | 31 | 0 |
-| GUI: Start Menu | `gui/dosgui_startmenu.c` | 24 | 2 |
+| GUI: WM | `gui/wm.c` | 22 | 0 |
+| GUI: Terminal | `gui/term.c` | 23 | 0 |
+| GUI: Explorer | `gui/explorer.c` | 31 | 0 |
+| GUI: Start Menu | `gui/startmenu.c` | 24 | 2 |
 | GUI: Clipboard | `gui/wubu_clipboard.c` + `gui/wubu_clipboard_{mime,wl}.c` (was single `gui/wubu_clipboard.c`) | 43 | 0 |
 | Bear: Vulkan | `bear/bear_vulkan.c` | 7 | 0 |
 | Kernel: Interrupt | `kernel/interrupt.c` | 41 | 0 |
@@ -217,7 +217,7 @@
 | 7 | 5.14 | `runtime/wubu_proton.c` | Integrate DXVK loader |
 | 8 | 1.1 | `hosted/wubu_gamescope.c` | Implement gamescope compositor |
 | 9 | 5.6 | `apps/control.c` | Implement display applet |
-| 10 | 5.7 | `apps/dosgui_apps.c` | Implement notepad |
+| 10 | 5.7 | `apps/apps.c` | Implement notepad |
 
 ---
 

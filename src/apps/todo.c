@@ -13,9 +13,9 @@
  */
 
 #include "todo.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/dosgui_wm_internal.h"
-#include "../gui/shell/dosgui_window_chrome.h"
+#include "../gui/wm.h"
+#include "../gui/wm_internal.h"
+#include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
@@ -190,7 +190,7 @@ void todo_mouse(DosGuiWindow *win, int x, int y, int btn, int kind)
 DosGuiWindow *todo_launch(void)
 {
     todo_load();
-    DosGuiWindow *win = dosgui_wm_create(140, 60, 480, 400, "Todo");
+    DosGuiWindow *win = wm_create(140, 60, 480, 400, "Todo");
     if (win) {
         win->on_draw  = todo_draw;
         win->on_key   = todo_key;

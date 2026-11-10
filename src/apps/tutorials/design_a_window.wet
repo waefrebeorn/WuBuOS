@@ -1,0 +1,35 @@
+-- design_a_window.wet -- the VWS form designer.
+--
+-- Teaches the designer by opening it.  The user reads one step, then clicks
+-- and the REAL designer is on screen.
+
+tut_step_count = 4
+
+wet.applet {
+  title = "Tutorial: design a window",
+  width = 640, height = 460,
+  content = wet.stack { spacing = 6, children = {
+    wet.label { text = "Step 1 of 4 -- what VWS is" },
+    wet.label { text = "VWS is WuBu's Visual Basic: drag a control onto a form," },
+    wet.label { text = "click it, edit its properties, and write the handler." },
+    wet.label { text = "The designer is written in Lua over .WET -- the same" },
+    wet.label { text = "framework it designs for." },
+    wet.separator {},
+    wet.label { text = "Step 2 -- the loop" },
+    wet.label { text = "  1. Click a palette entry (left) to add a control." },
+    wet.label { text = "  2. Click the control on the form to select it." },
+    wet.label { text = "  3. Drag it to move it." },
+    wet.label { text = "  4. Edit its properties (right panel)." },
+    wet.label { text = "  5. Press Save -- it writes a real .vws file." },
+    wet.separator {},
+    wet.label { text = "Step 3 -- try it now" },
+    wet.button { text = "Open the GUI Designer",
+                 onclick = function(self) tut.action('designer') end },
+    wet.separator {},
+    wet.label { text = "Step 4 -- the file format" },
+    wet.label { text = "A .vws file IS a .wet Lua script.  Save one, then open" },
+    wet.label { text = "it in a text editor: what you see is what runs." },
+    wet.button { text = "Next tutorial",
+                 onclick = function(self) tut.open('compile_c') end },
+  } },
+}

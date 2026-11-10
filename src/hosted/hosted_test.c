@@ -16,8 +16,8 @@
 #include "../runtime/styx.h"
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
-#include "../gui/dosgui_wm.h"
-#include "../gui/shell/dosgui_startmenu.h"
+#include "../gui/wm.h"
+#include "../gui/shell/startmenu.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -338,8 +338,8 @@ static void test_wm_has_windows(void) {
     hosted_state_t state;
     char *argv[] = {"wubu", "-h"};
     CHECK(hosted_init(&state, 2, argv) == 0, "hosted_init headless");
-    /* Use dosgui_wm window count */
-    CHECK(dosgui_wm_window_count() > 0, "WM has windows");
+    /* Use wm window count */
+    CHECK(wm_window_count() > 0, "WM has windows");
     hosted_shutdown(&state);
     PASS();
 }
@@ -350,12 +350,12 @@ static void test_vbe_renders_desktop(void) {
     char *argv[] = {"wubu", "-h"};
     CHECK(hosted_init(&state, 2, argv) == 0, "hosted_init");
 
-    /* For a direct test: call dosgui_desktop_render and check VBE back buffer */
+    /* For a direct test: call desktop_render and check VBE back buffer */
     /* Clear VBE back buffer */
     vbe_clear(0x00000000);
 
     /* Draw desktop via new DosGui API */
-    dosgui_desktop_render(NULL, 1024, 768);
+    desktop_render(NULL, 1024, 768);
 
     /* Check that some pixels are non-zero (desktop background at least) */
     VBEState *vs = vbe_state();
@@ -382,7 +382,7 @@ static void test_input_routing(void) {
     CHECK(hosted_init(&state, 2, argv) == 0, "hosted_init");
 
     /* WM should have a focused window - use new DosGui API */
-    DosGuiWindow *focused = dosgui_wm_get_focused();
+    DosGuiWindow *focused = wm_get_focused();
     CHECK(focused != NULL, "focused window exists");
 
     hosted_shutdown(&state);
@@ -418,11 +418,11 @@ static void test_start_menu_entries(void) {
     char *argv[] = {"wubu", "-h"};
     CHECK(hosted_init(&state, 2, argv) == 0, "hosted_init");
 
-    /* dosgui_startmenu_init() populates internal submenus.
+    /* startmenu_init() populates internal submenus.
        We verify by checking the start menu can open (internal state valid). */
-    CHECK(dosgui_startmenu_is_open() == 0, "start menu initially closed");
-    dosgui_startmenu_open();
-    CHECK(dosgui_startmenu_is_open() == 1, "start menu opens");
+    CHECK(startmenu_is_open() == 0, "start menu initially closed");
+    startmenu_open();
+    CHECK(startmenu_is_open() == 1, "start menu opens");
 
     hosted_shutdown(&state);
     PASS();

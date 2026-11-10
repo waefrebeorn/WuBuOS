@@ -1,7 +1,7 @@
 /*
  * wubu_daemon_client.c  --  WuBuOS daemon wire client (shared)
  *
- * Extracted from dosgui_daemon_panel.c so the archd/holyd wire transport
+ * Extracted from daemon_panel.c so the archd/holyd wire transport
  * is one reusable module. Opaque code, minimal includes, C11. See
  * wubu_daemon_client.h for the public contract.
  */

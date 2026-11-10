@@ -7,7 +7,7 @@
 (OS_BIBLE.md, STATE.md, DESKTOP_VISION_PLAN.md, DESKTOP_FIXUP_PLAN.md,
 REACTOS_NT_SYSCALL_STUDY.md, GRAHAOS_AUDIT, reactos-study/, os-studies/) +
 existing code (Styx9 `src/runtime/styx*`, AGI `src/runtime/wubu_holyc_agi.*`,
-EDR `src/runtime/edr/*`, HolyC JIT `src/compiler`, WM `src/gui/dosgui_*`).
+EDR `src/runtime/edr/*`, HolyC JIT `src/compiler`, WM `src/gui/*`).
 
 ---
 
@@ -35,7 +35,7 @@ execution is **live HolyC** (already working: `wubu_holyc_eval`) or a native
 WuBuOS binary. Frameworks, libraries, and apps are all *mounted* namespaces.
 Every app action is **disclosed to EDR** by construction (`wubu_holyc_agent_eval`
 already does this for AGI; WuBuFX extends it to all first-party code). The
-desktop compositor (`dosgui_wm`) is the *shell*, not the framework, and it is
+desktop compositor (`wm`) is the *shell*, not the framework, and it is
 already separated — we keep it that way.
 
 ---
@@ -101,11 +101,11 @@ Grouped by the framework we learned from. Each line: *headache → WuBuFX answer
 
 ### UI frameworks (searches 7, 33, 34, 35, 36)
 27. React/Flutter/Qt abstraction tax → **immediate-mode + retained hybrid:
-   `dosgui_wm` already does retained; WuBuFX adds a thin immediate DSL.**
+   `wm` already does retained; WuBuFX adds a thin immediate DSL.**
 28. SwiftUI hidden-state pitfalls → **state is explicit Styx9 nodes (`/app/win/state`);
    no magic `@State`.**
 29. Flutter Skia/Impeller redraw cost → **damage-rect compositor (already in
-   `dosgui_wm_render`); only changed regions repaint.**
+   `wm_render`); only changed regions repaint.**
 30. ImGui lack of accessibility/theming → **theme engine already exists
    (4 themes, `wubu_theme`); WuBuFX binds it per-namespace.**
 31. Android/iOS fragmentation → **one target: WuBuOS; host ports are the OS's
@@ -119,7 +119,7 @@ Grouped by the framework we learned from. Each line: *headache → WuBuFX answer
 35. Compositor crashes take the session → **WM is a recoverable service
    (`wubu_session`); restart does not lose namespace state.**
 36. Client-side decoration inconsistency → **server-side frame (already in
-   `dosgui_wm`); apps don't draw their own chrome.**
+   `wm`); apps don't draw their own chrome.**
 
 ### Language/abstraction philosophy (searches 10–14, 50)
 37. Too many abstraction layers (search 10) → **max 2 layers: app → namespace.
@@ -204,8 +204,8 @@ artifact. Phases build on prior WuBuOS research (cited where relevant).
 
 ### Phase C — UI / Shell Binding (21–30)
 21. App window is a Styx9 node `/app/<id>/win`; WM opens it (no fake draw).
-22. Immediate-mode DSL layer over `dosgui_wm` (`wubufx_ui_*`). [builds on
-    `dosgui_wm_render` clip fix]
+22. Immediate-mode DSL layer over `wm` (`wubufx_ui_*`). [builds on
+    `wm_render` clip fix]
 23. State is explicit: `/app/<id>/win/state` node, no `@State` magic (point 28).
 24. Theme bound per-namespace via `wubu_theme` (already 4 themes).
 25. Server-side window chrome only (point 36); apps never draw frames.
@@ -252,7 +252,7 @@ artifact. Phases build on prior WuBuOS research (cited where relevant).
 60. Doc: `docs/WUBUFX_EDR.md`.
 
 ### Phase G — Compositor & Desktop Polish (61–70)
-61. Damage-rect only (no full-frame repaint) — already in `dosgui_wm_render`.
+61. Damage-rect only (no full-frame repaint) — already in `wm_render`.
 62. Window clamp above taskbar (FIXED this session).
 63. VBE scissor clip (FIXED this session) — content never bleeds.
 64. Real app engines wired (not demos): Notepad/Terminal/Explorer/Calc use
@@ -291,7 +291,7 @@ artifact. Phases build on prior WuBuOS research (cited where relevant).
 ### Phase J — Ship & Dogfood (91–100)
 91. `wubufx` CLI: `mount`, `run`, `inspect`, `unmount`.
 92. Example app: a real Notepad built on WuBuFX (replaces placeholder).
-93. Example app: Terminal (already `dosgui_wm_holyc_term`).
+93. Example app: Terminal (already `wm_holyc_term`).
 94. Example app: Calculator (real eval, not `42` easter-egg-only).
 95. Control Panel binds to `/sys` namespace (real settings).
 96. My Computer binds to `/` namespace (real fs).
@@ -324,7 +324,7 @@ artifact. Phases build on prior WuBuOS research (cited where relevant).
 - **HolyC JIT + `wubu_holyd` + `wubu_holyc_agi` (11/11)** → execution engine
   (points 11–20, 41–50). This is our "CLR" but live and ring-0.
 - **EDR (`edr/*`, `wubu_edr.*`)** → enforcement + transparency (points 51–60).
-- **`dosgui_wm` (clip/taskbar fixes this session)** → shell binding (points
+- **`wm` (clip/taskbar fixes this session)** → shell binding (points
   21–30, 61–70).
 - **`wubu_pkgmgr`** → packaging (points 31–40).
 - **`wubu_session`** → resource caps + recoverable services (points 18, 35).

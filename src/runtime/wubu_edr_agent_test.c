@@ -12,7 +12,7 @@
  */
 #include "wubu_edr.h"
 #include "wubu_ui.h"
-#include "dosgui_wm.h"
+#include "wm.h"
 #include "../kernel/vbe.h"
 
 #include <stdio.h>
@@ -32,8 +32,8 @@ int main(void) {
 
     edr_start();
     vbe_init(800, 600);
-    dosgui_wm_init(800, 600);
-    DosGuiWindow *w = dosgui_wm_create(40, 40, 200, 150, "AgentTest");
+    wm_init(800, 600);
+    DosGuiWindow *w = wm_create(40, 40, 200, 150, "AgentTest");
     int wx0 = w->x, wy0 = w->y;
 
     uint64_t before = edr_agent_events_logged();
@@ -97,7 +97,7 @@ int main(void) {
     int n2 = edr_recent_events(buf2, 64, 0, 0);
     T(n2 == n, "edr_recent_events is a non-destructive snapshot (count stable)");
 
-    dosgui_wm_shutdown();
+    wm_shutdown();
     vbe_shutdown();
     edr_stop();
     printf("\n=== Results: %d/%d passed ===\n", g_pass, g_run);

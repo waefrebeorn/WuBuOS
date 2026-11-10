@@ -6,8 +6,8 @@
 #include "wubu_session_internal.h"
 #include "wubu_session.h"
 #include "wubu_settings.h"
-#include "dosgui_wm.h"
-#include "shell/dosgui_startmenu.h"
+#include "wm.h"
+#include "shell/startmenu.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
@@ -139,18 +139,18 @@ void wubu_session_process(void) {
     switch (g_session.pending_action) {
         case SESSION_ACTION_LOGOUT:
             /* Signal to hosted.c to exit GUI mode */
-            extern void dosgui_platform_shutdown(void);
-            dosgui_platform_shutdown();
+            extern void platform_shutdown(void);
+            platform_shutdown();
             break;
         case SESSION_ACTION_SHUTDOWN:
             /* Full system shutdown */
-            extern void dosgui_platform_shutdown(void);
-            dosgui_platform_shutdown();
+            extern void platform_shutdown(void);
+            platform_shutdown();
             break;
         case SESSION_ACTION_RESTART:
             /* Reboot - would need system integration */
-            extern void dosgui_platform_shutdown(void);
-            dosgui_platform_shutdown();
+            extern void platform_shutdown(void);
+            platform_shutdown();
             break;
         case SESSION_ACTION_SUSPEND:
             /* Suspend to RAM */

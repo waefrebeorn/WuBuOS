@@ -9,7 +9,7 @@
  * terminal and the VWS designer are both reachable from the startmenu, and a
  * .wet applet is Lua.  Nothing here is aspirational.
  */
-#include "../gui/dosgui_wm.h"
+#include "../gui/wm.h"
 #include "../gui/wet/wet.h"
 #include "../kernel/vbe.h"
 
@@ -72,7 +72,7 @@ static int g_scroll;
 static int g_lines;
 
 static void gs_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    ChromeContentRect c = dosgui_chrome_draw_window(win, fb, fb_w, fb_h);
+    ChromeContentRect c = chrome_draw_window(win, fb, fb_w, fb_h);
     if (!win) return;
 
     /* Clip to the content rect by drawing line by line and skipping what falls
@@ -113,7 +113,7 @@ static void gs_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     switch (key) {
     case 30: if (g_scroll > 0) g_scroll--; break;             /* up   */
     case 31: if (g_scroll < max_scroll) g_scroll++; break;    /* down */
-    case 27: dosgui_wm_destroy(win); break;                   /* esc  */
+    case 27: wm_destroy(win); break;                   /* esc  */
     default: break;
     }
 }
@@ -136,7 +136,7 @@ DosGuiWindow *gs_launch(void) {
     }
     g_scroll = 0;
 
-    DosGuiWindow *win = dosgui_wm_create(90, 70, GS_MAX_W, 460,
+    DosGuiWindow *win = wm_create(90, 70, GS_MAX_W, 460,
                                          "Getting Started - WuBuOS");
     if (!win) return NULL;
     win->on_draw  = gs_draw;
