@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1568,6 +1568,12 @@ test_ns_world:
 # Links wubu_ns_fs.o + the module only (never wubu_ns_bridge.o -- the
 # memory-constrained-linker rule) and re-points g_ns_root directly.
 # The wallpaper-seed palette extractor (shoji-bar-4's dynamic colour).
+# The soft-body solver behind the slime seam and the window-rim islands.
+test_spring:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
+		$(RT)/wubu_spring_test.c $(RT)/wubu_spring.c -o $(RT)/wubu_spring_test -lm
+	$(RT)/wubu_spring_test
+
 test_palette:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
 		$(RT)/wubu_palette_test.c $(RT)/wubu_palette.c -o $(RT)/wubu_palette_test
