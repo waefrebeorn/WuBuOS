@@ -104,6 +104,8 @@ void gui_dbuf_shutdown(gui_dbuf_t *db) {
         free(db->back);
         db->back = NULL;
     }
+    gui_effect_stack_free(db->effect);
+    db->effect = NULL;
 }
 
 /* -- Drawing Primitives -------------------------------------- */
@@ -262,6 +264,19 @@ uint32_t gui_dbuf_flip(gui_dbuf_t *db) {
     db->frames++;
     gui_dbuf_clear_dirty(db);
     return pixels;
+}
+
+/* -- Effects -------------------------------------------------- */
+
+GuiEffectStack *gui_dbuf_effect(gui_dbuf_t *db) {
+    if (!db) return NULL;
+    if (!db->effect) db->effect = gui_effect_stack_new();
+    return db->effect;
+}
+
+void gui_dbuf_effect_apply(gui_dbuf_t *db) {
+    if (!db || !db->back || !db->effect) return;
+    gui_effect_apply(db->effect, db->back, db->width, db->height);
 }
 
 /* -- Query --------------------------------------------------- */

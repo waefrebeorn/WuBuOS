@@ -73,6 +73,11 @@ static void repl_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     /* Draw cursor */
     int cursor_x = x + (2 + g_repl.input_pos) * 8; /* 2 for "$ " */
     gui_dbuf_vline(db, cursor_x, y - line_height, y - 1, 0x00FFFF00);
+
+    /* Surface effects, if a stack was attached to this buffer.  Applied here,
+     * between drawing and presenting -- never inside gui_dbuf_flip, because a
+     * pass is not idempotent and a flip can happen more than once per frame. */
+    gui_dbuf_effect_apply(db);
 }
 
 /* -- Input primitives ---------------------------------------------

@@ -668,8 +668,16 @@ test_txfs:
 	$(KERNEL)/txfs_test
 
 test_dbuf:
-	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/compositor/gui_dbuf.c $(GUI)/compositor/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
+	$(CC) -O0 -g -std=c11 -I$(GUI) $(GUI)/compositor/gui_dbuf.c $(GUI)/compositor/gui_effect.c $(GUI)/compositor/gui_dbuf_test.c -o $(GUI)/gui_dbuf_test
 	$(GUI)/gui_dbuf_test
+
+# The effect engine: the passes are pinned to known input -> known output, and
+# the dbuf integration proves the real surface path.
+test_gui_effect:
+	$(CC) -O0 -g -std=c11 -Wall -Wextra -I$(GUI)/compositor \
+		$(GUI)/compositor/gui_effect.c $(GUI)/compositor/gui_dbuf.c \
+		$(GUI)/compositor/gui_effect_test.c -o $(GUI)/gui_effect_test
+	$(GUI)/gui_effect_test
 
 test_cp_sound: $(GUI)/cp_sound.c $(GUI)/wubu_sound.c $(GUI)/controlpanel.h $(GUI)/wubu_sound.h
 	$(CC) $(CFLAGS) -I$(GUI) $(GUI)/test_cp_sound.c $(GUI)/cp_sound.c $(GUI)/wubu_sound.c -o $(GUI)/test_cp_sound -lm
@@ -1777,6 +1785,7 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 		$(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c \
 		$(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/repl.c \
 		$(GUI)/compositor/gui_dbuf.c \
+		$(GUI)/compositor/gui_effect.c \
 		$(APPS)/wubu_editor.c $(APPS)/wubu_editor_bookmark.c $(APPS)/wubu_editor_macro.c \
 		$(APPS)/wubu_editor_undo.c $(APPS)/wubu_editor_selection.c $(APPS)/wubu_editor_find.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
@@ -4150,6 +4159,7 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 		$(APPS)/wet_applet_test.c $(APPS)/wet_applet.c \
 		$(WET)/wet_lua.c $(WET_SRCS) $(LUAGUI_LV_SRCS) \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
+		$(GUI)/compositor/gui_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
 		$(KERNEL)/tasking_switch.S $(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
@@ -4183,6 +4193,7 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c
 		$(APPS)/first_run_test.c $(APPS)/getting_started.c \
 		$(GUI)/shell/wubu_shell_greeter.c $(RT)/wubu_onboarding.c \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
+		$(GUI)/compositor/gui_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
 		$(KERNEL)/tasking_switch.S $(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
@@ -4216,6 +4227,7 @@ test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
 		$(VWSWUA)/wb_lv_value.c $(VWSWUA)/wb_lv_stdlib.c \
 		$(VWSWUA)/wb_lv_string.c \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
+		$(GUI)/compositor/gui_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
 		$(KERNEL)/tasking_switch.S $(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
@@ -4250,6 +4262,7 @@ test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws
 		$(VWSWUA)/wb_lv_value.c $(VWSWUA)/wb_lv_stdlib.c \
 		$(VWSWUA)/wb_lv_string.c \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
+		$(GUI)/compositor/gui_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
 		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
 		$(KERNEL)/tasking_switch.S $(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
