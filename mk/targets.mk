@@ -133,8 +133,8 @@ holyd-verify:
 	rm -f /tmp/holyd_serial.bin
 	timeout 20 qemu-system-x86_64 -cdrom $(CACHE)/holyd.iso -serial file:/tmp/holyd_serial.bin \
 		-display none -m 128 -no-reboot >/dev/null 2>&1 || true
-	python3 -c 'import sys; s=open("/tmp/holyd_serial.bin","rb").read(); sys.exit(0 if b"Z" in s and b"Y" in s and b"H" in s and b"*" in s else 1)' 2>/dev/null && \
-	  echo "✅ HOLYD-VERIFY: compiler-built image boots via make-style QEMU (Z,Y,H,*)" || \
+	python3 -c 'import sys; s=open("/tmp/holyd_serial.bin","rb").read(); sys.exit(0 if b"Z" in s and b"Y" in s and b"0000002A" in s else 1)' 2>/dev/null && \
+	  echo "✅ HOLYD-VERIFY: compiler-built image boots via make-style QEMU (Z,Y,hex 0000002A=42)" || \
 	  { echo "❌ HOLYD-VERIFY: missing boot trace ($$(wc -c < /tmp/holyd_serial.bin 2>/dev/null) bytes)"; exit 1; }
 	rm -f $(CACHE)/holyd_boot.hc $(CACHE)/holyd_boot.elf $(CACHE)/holyd.iso /tmp/holyd_serial.bin
 	rm -rf $(CACHE)/holyd-iso-stage
