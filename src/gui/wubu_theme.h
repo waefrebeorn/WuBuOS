@@ -121,6 +121,21 @@ void wubu_theme_set(WubuThemeId id);
 /* Get current theme colors (for rendering) */
 const WubuThemeColors *wubu_theme_colors(void);
 
+/*
+ * Dynamic colour: recolour the LIVE palette from a seed colour, keeping the
+ * current theme's geometry (rounded vs square, gradients, shadows).
+ *
+ * The seed is usually the wallpaper's accent (see wubu_palette_extract), so
+ * changing the wallpaper restyles the desktop -- the shoji-bar-4 "dynamic
+ * colour" idea.  Accent-bearing surfaces are derived from the seed; neutral
+ * surfaces (window faces, borders) are left alone so the scheme stays legible
+ * rather than becoming a monochrome wash.
+ *
+ * Text on a derived surface is chosen by luminance, so a light seed still gets
+ * dark text and a dark seed gets light text.
+ */
+void wubu_theme_apply_seed(uint32_t accent);
+
 /* Get full theme struct */
 const WubuTheme *wubu_theme_get(void);
 

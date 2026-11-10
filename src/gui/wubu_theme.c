@@ -5,6 +5,7 @@
  * Win98 Classic, XP Luna Blue, XP Media Center Orange/Black.
  */
 #include "wubu_theme.h"
+#include "../runtime/wubu_palette.h"   /* wubu_palette_shade */
 #include <string.h>
 #include <stdbool.h>
 
@@ -307,6 +308,48 @@ static WubuThemeColors   g_hc_saved;
 
 static void live_seed_from_current(void) {
     g_live = g_themes[g_current].colors;
+}
+
+/* Pick black or white text for a background, by relative luminance. */
+static uint32_t live_text_on(uint32_t bg) {
+    int r = (int)((bg >> 16) & 0xFF);
+    int g = (int)((bg >>  8) & 0xFF);
+    int b = (int)( bg        & 0xFF);
+    double lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255.0;
+    return lum > 0.55 ? 0x000000u : 0xFFFFFFu;
+}
+
+/* Recolour the accent-bearing surfaces from a seed.  See the header. */
+void wubu_theme_apply_seed(uint32_t accent) {
+    accent &= 0xFFFFFFu;
+    uint32_t on_accent = live_text_on(accent);
+
+    g_live.win_title_active    = accent;
+    g_live.win_title_text      = on_accent;
+    g_live.win_title_inactive  = wubu_palette_shade(accent, -30);
+    g_live.win_title_text_ina  = wubu_palette_shade(on_accent, -40);
+
+    g_live.btn_hover           = wubu_palette_shade(accent,  18);
+    g_live.btn_pressed         = wubu_palette_shade(accent, -15);
+
+    g_live.taskbar_bg          = wubu_palette_shade(accent, -38);
+    g_live.taskbar_border      = wubu_palette_shade(accent, -55);
+    g_live.start_btn_face      = accent;
+    g_live.start_btn_text      = on_accent;
+
+    g_live.startmenu_bg            = wubu_palette_shade(accent, -55);
+    g_live.startmenu_sidebar       = accent;
+    g_live.startmenu_sidebar_grad_end = wubu_palette_shade(accent, -25);
+
+    g_live.select_bg           = accent;
+    g_live.select_text         = on_accent;
+    g_live.scroll_thumb        = accent;
+    g_live.icon_bg             = wubu_palette_shade(accent, -45);
+    g_live.icon_border         = accent;
+
+    /* A dark tone of the seed behind everything ties the desktop to the
+     * wallpaper without painting every window. */
+    g_live.desktop_bg          = wubu_palette_shade(accent, -78);
 }
 
 /* WCAG-AA high-contrast palette: black surfaces, white text (>=12:1),
