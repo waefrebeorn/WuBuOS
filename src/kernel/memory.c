@@ -126,7 +126,7 @@ int mem_init(size_t total_bytes) {
     g_heap->hc_signature = HEAP_CTRL_SIGNATURE;
     g_heap->locked_flags = 0;
     g_heap->used_size = 0;
-    g_heap->max_size = total_bytes - MEM_PAG_SIZE;
+    g_heap->max_size = total_bytes - hc_pages * MEM_PAG_SIZE;
     return 0;
 }
 
@@ -208,8 +208,12 @@ found:
     /* Trim block to requested total if not already split.
      * This ensures canaries are written at the correct offsets. */
     if (mu->size > total) {
-        /* Check if we should split */
-        if (mu->size > total + sizeof(CMemUsed) + 16) {
+        /* Split only when the remainder is a useful block.  Trimming a small
+         * excess instead would leave an untracked hole in the heap chain: the
+         * coalesce in mem_free reads ((uint8_t*)mu + mu->size) as the next
+         * block header, so stale bytes in such a hole can be mistaken for a
+         * free block and merged, growing a free block across a live one. */
+        if (mu->size >= total + MEM_MIN_BLOCK) {
             size_t rem_size = mu->size - total;
             CMemUnused *rem = (CMemUnused *)((uint8_t *)mu + total);
             rem->signature = MEM_UNUSED_SIGNATURE;
@@ -219,9 +223,10 @@ found:
             CMemUnused *u = (CMemUnused *)rem;
             u->next = hc->malloc_free_list.next;
             hc->malloc_free_list.next = u;
+            mu->size = total;   /* the allocated part is exactly total */
         }
-        /* Always record the size as the requested total */
-        mu->size = total;
+        /* No split: keep the original size.  Trimming here would leave the
+         * excess as an untracked hole in the heap chain. */
     }
     
     /* Write red zone canaries */
@@ -268,11 +273,16 @@ void mem_free(void *ptr) {
     /* Gap B9: coalesce with the adjacent free block BEFORE linking.
      * The next block starts right after this one; if it is free too,
      * unlink it from wherever it sits and absorb its size. */
-    uint8_t *heap_end = (uint8_t *)hc + sizeof(CHeapCtrl) + hc->max_size;
+    uint8_t *heap_end = g_heap_end;   /* real end of the backing store */
     if ((uint8_t *)mu + mu->size < heap_end) {
         CMemUsed *nxt = (CMemUsed *)((uint8_t *)mu + mu->size);
         if (nxt->signature == MEM_UNUSED_SIGNATURE) {
             CMemUnused *nu = (CMemUnused *)nxt;
+            /* Unlink from the hash bucket (small blocks) AND the free list.
+             * A split remainder is linked on the free list at ANY size, so the
+             * size test alone is not enough to pick the list -- searching only
+             * one leaves the block linked while its bytes are absorbed into mu,
+             * and the next alloc hands the same memory out twice. */
             if (nxt->size < MEM_HEAP_HASH_SIZE) {
                 CMemUnused **head = &hc->heap_hash[nxt->size];
                 CMemUnused *c = *head, *p = NULL;
@@ -281,7 +291,8 @@ void mem_free(void *ptr) {
                     if (p) p->next = c->next;
                     else *head = c->next;
                 }
-            } else {
+            }
+            {
                 CMemUnused *c = hc->malloc_free_list.next, *p = NULL;
                 while (c && c != nu) { p = c; c = c->next; }
                 if (c == nu) {
@@ -325,6 +336,23 @@ void *mem_realloc(void *ptr, size_t new_size) {
 }
 
 /* -- Diagnostics -------------------------------------------------- */
+
+long mem_debug_walk(void) {
+    if (!g_heap) return -1;
+    CHeapCtrl *hc = g_heap;
+    size_t hc_pages = (sizeof(CHeapCtrl) + MEM_PAG_SIZE - 1) / MEM_PAG_SIZE;
+    uint8_t *base = (uint8_t *)g_heap_base + hc_pages * MEM_PAG_SIZE;
+    uint8_t *p = base, *end = g_next_page;
+    while (p < end) {
+        CMemUsed *mu = (CMemUsed *)p;
+        if (mu->size < sizeof(CMemUsed) + 2 * MEM_RED_ZONE_SIZE ||
+            mu->size > (size_t)(end - p)) {
+            return (long)(p - base);
+        }
+        p += mu->size;
+    }
+    return (p == end) ? 0 : -2;
+}
 
 size_t mem_used(void) {
     return g_heap ? g_heap->used_size : 0;
@@ -551,7 +579,7 @@ int mem_validate_coalescing(void) {
 
     int adjacent_free = 0;
     uint8_t *walk = (uint8_t *)hc + sizeof(CHeapCtrl);
-    uint8_t *end  = (uint8_t *)hc + sizeof(CHeapCtrl) + hc->max_size;
+    uint8_t *end  = g_heap_end;
     while (walk && walk < end) {
         CMemUsed *mu = (CMemUsed *)walk;
         if (mu->size == 0 || mu->size > hc->max_size) break;  /* bad header */

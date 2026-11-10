@@ -1272,6 +1272,15 @@ test_hive:
 		-o $(KERNEL)/test_hive
 	$(KERNEL)/test_hive
 
+# Devil's-advocate churn test for the kernel heap (memory.c): hash buckets,
+# free list, coalescing, red-zone canaries, realloc, double-free, and a linear
+# contiguity walk that catches an untracked hole at the op that creates it.
+test_heap_stress:
+	$(CC) -O2 -Wall -Wextra -std=c11 -I$(RT) -Isrc/kernel \
+		$(KERNEL)/memory.c $(KERNEL)/test/test_heap_stress.c \
+		-o $(KERNEL)/test_heap_stress
+	$(KERNEL)/test_heap_stress
+
 # /theme namespace + unified HID layer (Kevin-Bacon pass 3 modules)
 test_theme_hid:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
@@ -1295,7 +1304,7 @@ check:
 	@echo "== WuBuOS check: host tests + metal build + docs =="
 	python3 tools/lint_ledger.py || true
 	$(MAKE) -s runtime tools   # gap K5: the parity gate (hosted legs build)
-	$(MAKE) -s test_hive test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tutor test_tandem test_archd_n1 test_svc_super
+	$(MAKE) -s test_hive test_heap_stress test_agi_kernel test_theme_hid test_verifier test_sync test_vmm test_sha256 test_rtc test_lfn test_acpi test_wdt test_hpet test_smbios test_vdso test_swap test_as test_iommu test_xhci test_ahcifat test_recovery test_blk test_fat2 test_psych test_bonzi_study test_tutor test_tandem test_archd_n1 test_svc_super
 	$(MAKE) -s kernel
 	@echo "== all checks passed =="
 

@@ -31,6 +31,9 @@
 
 /* Red zone canary values (ZealOS-style guard bytes) */
 #define MEM_RED_ZONE_SIZE     16
+/* Smallest remainder worth splitting off; a smaller excess is kept inside the
+ * allocated block so the heap chain never develops an untracked hole. */
+#define MEM_MIN_BLOCK         64
 #define MEM_CANARY_FRONT      0xBADCAFE0
 #define MEM_CANARY_BACK       0xDEADBEE0
 
@@ -154,6 +157,7 @@ void mem_debug_dump(void);
 
 /* Validate all blocks and report any corruption. Returns number of corrupt blocks. */
 int mem_validate_all(void);
+long mem_debug_walk(void);
 
 /* Gap B9: count adjacent free-block pairs (the coalescing invariant). */
 int mem_validate_coalescing(void);
