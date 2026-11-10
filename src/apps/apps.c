@@ -288,6 +288,9 @@ const DosGuiAppDef g_app_defs[] = {
     { "VWS Designer", "VWS Designer",   DESK_ICON_COUNT + 13,  0x00A0A0C0, launch_vws_designer },
     { "Getting Started", "Getting Started", DESK_ICON_COUNT + 14, 0x00A0C0A0, launch_getting_started },
     { "Tutorials", "Tutorials", DESK_ICON_COUNT + 15, 0x00C0A0A0, launch_tutorials },
+    /* A .wet applet is a first-class program kind: every program made from a
+     * VWS template is one of these, so the launcher belongs in the registry. */
+    { "WET Applet", "WET Applet", DESK_ICON_COUNT + 16, 0x0080C0A0, launch_wet },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 

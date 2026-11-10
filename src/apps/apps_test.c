@@ -758,6 +758,10 @@ static void test_registry_complete(void) {
         const DosGuiAppDef *d = app_find_by_name(must[i]);
         if (!d || !d->launch) { FAIL(must[i]); return; }
     }
+    /* A .wet applet is a first-class program kind: every program created from
+     * a VWS template is one, so the registry must be able to launch one. */
+    const DosGuiAppDef *wet = app_find_by_name("WET Applet");
+    if (!wet || !wet->launch) { FAIL("WET Applet"); return; }
     PASS();
 }
 
