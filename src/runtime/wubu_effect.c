@@ -39,6 +39,16 @@ WubuEffectKind wubu_effect_kind_at(int i) {
     return (WubuEffectKind)i;
 }
 
+/* Resolve a pass name ("tint", "vignette", "glow", "scanline") to its kind.
+ * Returns WUBU_EFFECT_NONE when unknown, so a caller can tell "no such pass"
+ * apart from "the none pass". */
+WubuEffectKind wubu_effect_kind_from_name(const char *name) {
+    if (!name) return WUBU_EFFECT_NONE;
+    for (int i = WUBU_EFFECT_NONE + 1; i < WUBU_EFFECT_COUNT; i++)
+        if (g_names[i] && strcmp(g_names[i], name) == 0) return (WubuEffectKind)i;
+    return WUBU_EFFECT_NONE;
+}
+
 /* ------------------------------------------------------------- lifecycle */
 
 WubuEffectStack *wubu_effect_stack_new(void) {

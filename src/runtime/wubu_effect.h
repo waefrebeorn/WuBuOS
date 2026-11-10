@@ -59,6 +59,7 @@ int         wubu_effect_kind_count(void);
 const char *wubu_effect_name(WubuEffectKind kind);
 const char *wubu_effect_name_at(int i);
 WubuEffectKind wubu_effect_kind_at(int i);
+WubuEffectKind wubu_effect_kind_from_name(const char *name);
 
 /* ------------------------------------------------------------ application */
 

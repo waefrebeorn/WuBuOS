@@ -8,8 +8,11 @@
 
 #include "../gui/wet/wet.h"
 #include "../gui/wet/wet_lua.h"
+#include "../gui/shell/window_chrome.h"
+#include "../runtime/wubu_effect.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /* VBE stubs: the framework's backend links against these in a hosted test. */
@@ -125,12 +128,66 @@ static void test_bad_path_is_reported(void) {
     CHECK(wet_applet_error() != NULL, "bad path reported");
 }
 
+/* The script can post-process ITS OWN surface.  The VBE is stubbed in this
+ * harness, so the render itself draws nothing -- which makes the pass the only
+ * thing that can change the content rect. */
+static void test_script_effect_processes_surface(void) {
+    const char *path = "/tmp/wubu_applet_effect.wet";
+    FILE *f = fopen(path, "w");
+    CHECK(f != NULL, "effect script written");
+    if (f) {
+        fputs("wet.applet {\n"
+              "  title = 'FX',\n"
+              "  content = wet.stack {\n"
+              "    children = { wet.label { text = 'fx' } }\n"
+              "  }\n"
+              "}\n"
+              "wet.effect('scanline', 100)\n", f);
+        fclose(f);
+    }
+
+    DosGuiWindow *win = wet_applet_open(path, "FX", 0, 0, 200, 100);
+    CHECK(win != NULL, "fx applet opened");
+    if (!win) return;
+
+    const int W = 200, H = 100;
+    uint32_t *fb = (uint32_t *)calloc((size_t)W * (size_t)H, sizeof(uint32_t));
+    CHECK(fb != NULL, "framebuffer allocated");
+    if (!fb) return;
+
+    ChromeContentRect c = chrome_draw_window(win, fb, W, H);
+    CHECK(c.w > 4 && c.h > 4, "content rect is a real rect");
+    if (c.w <= 4 || c.h <= 4) { free(fb); return; }
+
+    /* A known colour, so the pass has something to act on. */
+    for (int y = 0; y < c.h; y++)
+        for (int x = 0; x < c.w; x++)
+            fb[(size_t)(c.y + y) * W + (c.x + x)] = 0x808080;
+
+    wet_applet_draw(win, fb, W, H);
+
+    uint32_t even = fb[(size_t)c.y * W + c.x];
+    uint32_t odd  = fb[(size_t)(c.y + 1) * W + c.x];
+    CHECK(even == 0x808080, "scanline leaves even rows untouched");
+    CHECK(odd  == 0x000000, "scanline blacks odd rows");
+
+    /* An unknown pass name is refused, not silently ignored. */
+    CHECK(wubu_effect_kind_from_name("nope") == WUBU_EFFECT_NONE,
+          "unknown effect name refused by the engine");
+    CHECK(wubu_effect_kind_from_name("scanline") == WUBU_EFFECT_SCANLINE,
+          "known effect name resolves");
+
+    free(fb);
+    remove(path);
+}
+
 int main(void) {
     printf("=== wet applet bridge ===\n");
     test_demo_loads();
     test_demo_draws();
     test_click_reaches_script();
     test_bad_path_is_reported();
+    test_script_effect_processes_surface();
     printf("=== wet_applet: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
 }

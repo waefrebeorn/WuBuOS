@@ -16,6 +16,8 @@
 
 #include "../gui/wet/wet.h"
 #include "../gui/wet/wet_lua.h"
+#include "../gui/wet/externals/wua/src/wb_lv.h"
+#include "../runtime/wubu_effect.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,9 +51,80 @@ typedef struct {
     WetLua  *lua;
     char    *src;        /* owned copy of the script */
     char     path[256];
+
+    /* The applet's OWN surface.  The VBE backend draws straight into the
+     * window framebuffer and has no other target, so a post-process pass needs
+     * a copy: the content rect is copied out, processed, and blitted back.
+     * Two copies, but it needs no framework change and the surface is exactly
+     * the applet's own -- the script can effect what it drew. */
+    WubuEffectStack *fx;
+    uint32_t        *surface;
+    int              surf_w, surf_h;
 } WetApplet;
 
 static WetApplet g_wa;
+
+/* ---- the script's own effects ---------------------------------------- */
+
+/* The error sink is the framework's __wet_err global.  wb_lv_set_global keeps
+ * the string POINTER, so a stack buffer would dangle -- intern it. */
+static void set_effect_err(wb_lv *L, const char *msg) {
+    wb_lv_set_global(L, "__wet_err",
+                     wb_lv_str(wb_lv_intern(L, msg, strlen(msg))));
+}
+
+/*
+ * wet.effect(name [, strength [, colour]]) -- post-process THIS applet's own
+ * surface.  The script owns its look; the OS owns the effect engine.
+ *
+ * Returns true on success.  An unknown pass name is refused (false) rather
+ * than silently ignored, so a typo in a script is visible.
+ */
+static wb_lv_value wet_effect_fn(wb_lv *L, wb_lv_value *a, int n, void *ud) {
+    (void)ud;
+    if (n < 1) { set_effect_err(L, "wet.effect needs a pass name"); return wb_lv_bool(0); }
+    const char *name = wb_lv_tostring(a[0]);
+    if (!name || !name[0]) { set_effect_err(L, "wet.effect needs a pass name"); return wb_lv_bool(0); }
+
+    WubuEffectKind kind = wubu_effect_kind_from_name(name);
+    if (kind == WUBU_EFFECT_NONE) {
+        char buf[160];
+        snprintf(buf, sizeof buf, "wet.effect: unknown pass '%s' (tint, vignette, glow, scanline)", name);
+        set_effect_err(L, buf);
+        return wb_lv_bool(0);
+    }
+
+    int strength = 50;
+    if (n > 1) { int ok = 0; double d = wb_lv_tonumber(a[1], &ok); if (ok) strength = (int)d; }
+    uint32_t colour = 0;
+    if (n > 2) { int ok = 0; double d = wb_lv_tonumber(a[2], &ok); if (ok) colour = (uint32_t)d; }
+
+    if (!g_wa.fx) g_wa.fx = wubu_effect_stack_new();
+    if (!g_wa.fx) return wb_lv_bool(0);
+    return wubu_effect_stack_add(g_wa.fx, kind, colour, strength) ? wb_lv_bool(1)
+                                                                   : wb_lv_bool(0);
+}
+
+/* Add wet.effect to the framework's `wet` table.  The key must be interned:
+ * the interpreter hashes by string identity. */
+static void register_wet_effect(wb_lv *L) {
+    wb_lv_value wv = wb_lv_get_global(L, "wet");
+    if (wv.t != WB_LV_TABLE || !wv.as.tab) return;
+    wb_lv_value v; v.t = WB_LV_CFUNCTION; v.as.cf.f = wet_effect_fn; v.as.cf.ud = NULL;
+    wb_lv_table_set(L, wv.as.tab, wb_lv_str(wb_lv_intern(L, "effect", 6)), v);
+}
+
+/* (Re)allocate the applet surface for a content rect. */
+static int ensure_surface(WetApplet *wa, int w, int h) {
+    if (w <= 0 || h <= 0) return -1;
+    if (wa->surface && wa->surf_w == w && wa->surf_h == h) return 0;
+    free(wa->surface);
+    wa->surface = (uint32_t *)malloc((size_t)w * (size_t)h * sizeof(uint32_t));
+    if (!wa->surface) { wa->surf_w = wa->surf_h = 0; return -1; }
+    wa->surf_w = w;
+    wa->surf_h = h;
+    return 0;
+}
 
 /* ---- routing --------------------------------------------------------- */
 
@@ -62,6 +135,22 @@ void wet_applet_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     wet_app_set_origin(g_wa.app, c.x, c.y);
     wet_app_resize(g_wa.app, c.w, c.h);
     wet_app_render(g_wa.app);
+
+    /* No effects requested: the applet drew straight into the window. */
+    if (!g_wa.fx || wubu_effect_stack_count(g_wa.fx) == 0) return;
+    if (ensure_surface(&g_wa, c.w, c.h) != 0) return;
+
+    for (int y = 0; y < c.h; y++)
+        memcpy(g_wa.surface + (size_t)y * c.w,
+               fb + (size_t)(c.y + y) * fb_w + c.x,
+               (size_t)c.w * sizeof(uint32_t));
+
+    wubu_effect_apply(g_wa.fx, g_wa.surface, c.w, c.h);
+
+    for (int y = 0; y < c.h; y++)
+        memcpy(fb + (size_t)(c.y + y) * fb_w + c.x,
+               g_wa.surface + (size_t)y * c.w,
+               (size_t)c.w * sizeof(uint32_t));
 }
 
 void wet_applet_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
@@ -110,6 +199,10 @@ static void applet_reset(void) {
     free(g_wa.src);
     g_wa.src = NULL;
     g_wa.path[0] = '\0';
+    if (g_wa.fx) { wubu_effect_stack_free(g_wa.fx); g_wa.fx = NULL; }
+    free(g_wa.surface);
+    g_wa.surface = NULL;
+    g_wa.surf_w = g_wa.surf_h = 0;
 }
 
 /* Build the applet: state, script, tree.  Returns NULL on failure. */
@@ -136,6 +229,7 @@ static int applet_load(const char *path, char *err, size_t err_cap) {
     }
     g_wa.lua = wet_lua_new(g_wa.app, err, err_cap);
     if (!g_wa.lua) return -1;
+    register_wet_effect(wet_lua_state(g_wa.lua));
 
     const char *e = wet_app_load(g_wa.app, g_wa.src,
                                  path ? path : "demo.wet");
