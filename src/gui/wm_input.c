@@ -321,6 +321,10 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
             clock_menu_close();
     }
 
+    /* Screen-edge slime seam: a press on a blob grabs it before anything
+     * else, so it can be dragged along the edge or clicked to store/release. */
+    if (wm_slime_handle_pointer(x, y, btn, kind)) return;
+
     /* Window-rim islands: a press on an island grabs it before any window or
      * taskbar handling, so it can be dragged around the focused window's rim.
      * Inert unless an island is actually under the pointer. */

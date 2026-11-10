@@ -71,6 +71,8 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     wubu_bonzi_tick(16);
     /* Advance the focused window's rim islands (no-op when there are none). */
     wm_rim_tick();
+    /* Advance the screen-edge slime seam (no-op when there are no blobs). */
+    wm_slime_tick();
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */
     wm_typer_tick(16);
@@ -166,8 +168,8 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
         }
     }
 
-    /* Window-rim islands: above the window frame, below the accessibility
-     * cluster and the taskbar. */
+    /* The screen-edge slime seam, then the window-rim islands above it. */
+    wm_slime_render(fb, fb_w, fb_h);
     wm_rim_render(fb, fb_w, fb_h);
 
     /* Accessibility cluster: drawn over the focused window (top of z-order),

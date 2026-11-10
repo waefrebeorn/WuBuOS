@@ -1315,6 +1315,57 @@ static void test_rim_islands(void) {
     PASS();
 }
 
+/* -- Screen-edge slime seam ------------------------------------- */
+
+static void test_slime_seam(void) {
+    TEST("slime seam: add, settle, store, release, drag, clear");
+    wm_init(1024, 768);
+    wm_slime_clear();
+    CHECK(wm_slime_count() == 0, "seam starts empty");
+
+    CHECK(wm_slime_add(0 /* top */, 0.25f, 14.0f, 0x00C05050, "editor") == 0,
+          "blob added");
+    CHECK(wm_slime_count() == 1, "count is one");
+
+    for (int k = 0; k < 200; k++) wm_slime_tick();
+
+    int x, y, r;
+    CHECK(wm_slime_island_pos(0, &x, &y, &r), "blob has a position");
+    CHECK(x > 240 && x < 272, "blob rests a quarter along the top edge");
+    CHECK(y >= 17 && y <= 23, "released blob sits 20px from the edge");
+
+    /* A click stores it: it shrinks and sinks into the seam. */
+    CHECK(wm_slime_handle_pointer(x, y, 1, 1), "press grabs the blob");
+    CHECK(wm_slime_handle_pointer(x, y, 1, 2), "release is a click");
+    for (int k = 0; k < 200; k++) wm_slime_tick();
+
+    int x2, y2, r2;
+    CHECK(wm_slime_island_pos(0, &x2, &y2, &r2), "blob still positioned");
+    CHECK(y2 < 12, "a stored blob sinks deeper into the seam");
+    CHECK(r2 < r, "a stored blob shrinks");
+
+    /* Clicking a stored blob pulls it back out. */
+    CHECK(wm_slime_handle_pointer(x2, y2, 1, 1), "press the stored blob");
+    CHECK(wm_slime_handle_pointer(x2, y2, 1, 2), "release pops it out");
+    for (int k = 0; k < 200; k++) wm_slime_tick();
+    CHECK(wm_slime_island_pos(0, &x2, &y2, &r2), "blob still positioned");
+    CHECK(y2 >= 17, "the blob came back out to its released depth");
+
+    /* Dragging moves it along the edge. */
+    wm_slime_handle_pointer(x2, y2, 1, 1);
+    wm_slime_handle_pointer(700, 20, 1, 0);
+    wm_slime_handle_pointer(700, 20, 1, 2);
+    for (int k = 0; k < 200; k++) wm_slime_tick();
+    int x3, y3, r3;
+    wm_slime_island_pos(0, &x3, &y3, &r3);
+    CHECK(x3 > 600, "blob travelled along the top edge");
+
+    wm_slime_clear();
+    CHECK(wm_slime_count() == 0, "clear empties the seam");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1370,6 +1421,7 @@ int main(void) {
     test_icon_multiselect_delete();
     test_auto_arrange_persists_restart();
     test_rim_islands();
+    test_slime_seam();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

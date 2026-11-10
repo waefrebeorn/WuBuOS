@@ -24,6 +24,7 @@
 #include "wm_internal.h"
 #include "shell/wubu_wallpaper.h"
 #include "shell/wm_rim.h"
+#include "shell/wm_slime.h"
 #include "wubu_bonzi.h"
 
 #include <sys/stat.h>
@@ -71,8 +72,10 @@ int wm_init(int screen_w, int screen_h) {
     /* The rim lives on the focused window, so it needs the screen size before
      * the pins are mirrored onto it. */
     wm_rim_init(screen_w, screen_h);
+    wm_slime_init(screen_w, screen_h);
     wubu_taskbar_init();
     wm_rim_mirror_pins();
+    wm_slime_mirror_pins();
     return 0;
 }
 
@@ -140,6 +143,7 @@ void wm_shutdown(void) {
     extern void wubu_taskbar_shutdown(void);
     wubu_taskbar_shutdown();
     wm_rim_shutdown();
+    wm_slime_shutdown();
 
     if (g_dwm.wallpaper) {
         free(g_dwm.wallpaper);
