@@ -4208,6 +4208,7 @@ test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(VWSWUA) \
 		$(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c \
 		$(VWS)/vws_form.c $(VWS)/vws_emit.c $(VWS)/vws_load.c \
+		$(VWS)/vws_templates.c \
 		$(WET)/wet_lua.c $(WET_SRCS) \
 		$(VWSWUA)/wb_lv_arena.c $(VWSWUA)/wb_lv_coro.c \
 		$(VWSWUA)/wb_lv_eval.c $(VWSWUA)/wb_lv_host.c \
@@ -4241,6 +4242,7 @@ test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws
 		-I$(RT) -I$(COMP) -I$(JIT) -I$(VWSWUA) \
 		$(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws_lua.c \
 		$(VWS)/vws_form.c $(VWS)/vws_emit.c $(VWS)/vws_load.c \
+		$(VWS)/vws_templates.c \
 		$(WET)/wet_lua.c $(WET_SRCS) \
 		$(VWSWUA)/wb_lv_arena.c $(VWSWUA)/wb_lv_coro.c \
 		$(VWSWUA)/wb_lv_eval.c $(VWSWUA)/wb_lv_host.c \
