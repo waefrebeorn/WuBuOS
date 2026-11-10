@@ -14,6 +14,8 @@
 #ifndef WUBU_DOSGUI_APPS_H
 #define WUBU_DOSGUI_APPS_H
 
+#include <stddef.h>
+
 #include <stdint.h>
 
 typedef struct DosGuiWindow DosGuiWindow;
@@ -38,11 +40,27 @@ typedef struct {
     uint32_t    icon_color; /* fallback icon box color */
     /* Launch: create the window + bind callbacks. Returns the window or NULL. */
     DosGuiWindow *(*launch)(void);
+    /* Set for a discovered .wet applet: the script to run.  When non-NULL the
+     * generic launch runs launch_wet_applet(path) instead of `launch`. */
+    const char *path;
 } DosGuiAppDef;
 
 /* The single registry. Index = desktop icon_type for the built-ins. */
 extern const DosGuiAppDef g_app_defs[];
 extern const int          g_app_def_count;
+
+/* -- Discovered .wet applets -------------------------------------------
+ *
+ * A program is a FILE.  Anything ending in .wet found in the applet
+ * directory becomes a desktop program -- created from a VWS template, edited
+ * in the IDE, or written by hand -- with no C change and no rebuild.  This is
+ * the point of the template library: making a program is writing a file. */
+int                app_scan_wet_dir(const char *dir);
+int                app_wet_count(void);
+const DosGuiAppDef *app_wet_at(int i);
+
+/* Resolve the applet directory: $WUBU_APPLET_DIR, else $HOME/.wubu/applets. */
+void app_wet_dir(char *out, size_t cap);
 
 /* Lookup helpers (single point of truth). */
 const DosGuiAppDef *app_find(int icon_type);

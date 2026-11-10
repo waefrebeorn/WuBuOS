@@ -748,6 +748,68 @@ static void test_editor_mouse_positions_caret(void) {
  * The registry completeness + the new apps (Notes/Todo/Music)
  * ================================================================ */
 
+static void test_wet_discovery(void) {
+    TEST("applet discovery: a .wet file on disk is a desktop program");
+    const char *dir = "/tmp/wubu_wet_discovery";
+    char cmd[512];
+    snprintf(cmd, sizeof cmd, "rm -rf %s && mkdir -p %s", dir, dir);
+    if (system(cmd) != 0) { FAIL("mkdir"); return; }
+
+    /* Two applets and one impostor that must NOT be picked up. */
+    char hello_path[512], clock_path[512];
+    snprintf(hello_path, sizeof hello_path, "%s/Hello.wet", dir);
+    snprintf(clock_path, sizeof clock_path, "%s/Clock.wet", dir);
+
+    FILE *f = fopen(hello_path, "w");
+    if (!f) { FAIL("write Hello"); return; }
+    fputs("wet.applet {\n  title = 'Hello',\n  width = 320, height = 200,\n  content = wet.canvas { children = {} }\n}\n", f);
+    fclose(f);
+    f = fopen(clock_path, "w");
+    if (!f) { FAIL("write Clock"); return; }
+    fputs("wet.applet {\n  title = 'Clock',\n  width = 200, height = 200,\n  content = wet.canvas { children = {} }\n}\n", f);
+    fclose(f);
+    char txt_path[512];
+    snprintf(txt_path, sizeof txt_path, "%s/notes.txt", dir);
+    f = fopen(txt_path, "w");
+    if (!f) { FAIL("write txt"); return; }
+    fputs("not an applet\n", f);
+    fclose(f);
+
+    int added = app_scan_wet_dir(dir);
+    if (added != 2) { FAIL("scan added != 2"); return; }
+    if (app_wet_count() != 2) { FAIL("wet count != 2"); return; }
+
+    const DosGuiAppDef *hello = app_find_by_name("Hello");
+    if (!hello) { FAIL("Hello not registered"); return; }
+    if (!hello->path || strcmp(hello->path, hello_path) != 0) {
+        FAIL("path not bound"); return;
+    }
+    /* A discovered applet is launched through its path, not a C launcher. */
+    if (hello->launch != NULL) { FAIL("discovered applet has a C launcher"); return; }
+
+    const DosGuiAppDef *clock = app_find_by_name("Clock");
+    if (!clock) { FAIL("Clock not registered"); return; }
+    if (strcmp(clock->name, "Clock") != 0) { FAIL("name is not the file base"); return; }
+
+    /* Icon ids are unique across the discovered set. */
+    if (hello->icon_type == clock->icon_type) { FAIL("icon id collision"); return; }
+    if (app_find(hello->icon_type) != hello) { FAIL("app_find by icon id"); return; }
+
+    /* Idempotent: a second scan adds nothing. */
+    if (app_scan_wet_dir(dir) != 0) { FAIL("second scan was not idempotent"); return; }
+    if (app_wet_count() != 2) { FAIL("second scan duplicated entries"); return; }
+
+    /* A missing directory is an error, not a crash. */
+    if (app_scan_wet_dir("/tmp/definitely_not_here_wubu") != -1) {
+        FAIL("missing dir not refused"); return;
+    }
+
+    /* Bounds. */
+    if (app_wet_at(-1) != NULL || app_wet_at(99) != NULL) { FAIL("bounds"); return; }
+
+    PASS();
+}
+
 static void test_registry_complete(void) {
     TEST("registry: every name has a real launcher");
     if (g_app_def_count < 16) { FAIL("app def count"); return; }
@@ -886,6 +948,7 @@ int main(void) {
     
     printf("\n-- Registry + the new apps --\n");
     test_registry_complete();
+    test_wet_discovery();
     test_notes_real();
     test_todo_real();
     test_music_real();

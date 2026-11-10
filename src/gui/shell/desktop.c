@@ -64,6 +64,21 @@ int desktop_init(void) {
                            i % 6, i / 6, d->icon_color, NULL);
     }
 
+    /* A program is a file.  Anything .wet in the applet directory becomes a
+     * desktop icon and a startmenu entry -- written by hand, edited in the
+     * IDE, or created from a VWS template -- with no C change and no rebuild. */
+    char apdir[512];
+    app_wet_dir(apdir, sizeof apdir);
+    if (app_scan_wet_dir(apdir) > 0) {
+        for (int i = 0; i < app_wet_count(); i++) {
+            const DosGuiAppDef *d = app_wet_at(i);
+            if (!d) continue;
+            icon_add_ex(d->name, DESK_ICON_APP, NULL,
+                        (g_app_def_count + i) % 6, (g_app_def_count + i) / 6,
+                        d->icon_color, NULL);
+        }
+    }
+
     /* ReactOS explorer/desktop.cpp lesson: the desktop is a LIVE namespace.
      * Enumerate ~/Desktop for .desktop shortcuts so they appear on boot,
      * not only after a manual Refresh. */
