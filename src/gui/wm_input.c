@@ -334,7 +334,12 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
      * because the buddy sits in the lower-left corner and its bounding box
      * overlaps the taskbar region.  A click on the Start button or taskbar
      * buttons must not be swallowed by the mascot. */
-    if (y >= taskbar_top()) {
+    /* Modern (Win11-class) floating bar has its own geometry and hit-test;
+     * the classic bar is skipped entirely for that theme. */
+    bool modern_bar = (wubu_theme_current() == THEME_DARK);
+    if (modern_bar && taskbar_modern_handle(x, y, btn, kind)) return;
+
+    if (!modern_bar && y >= taskbar_top()) {
         int by = taskbar_top() + (task_h - 24) / 2;
         int start_w = theme()->Luna_start_button ? 54 : 60;
         /* Start button hit region must match the DRAWN width

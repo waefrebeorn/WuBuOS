@@ -1377,23 +1377,33 @@ static void test_taskbar_autohide(void) {
     int th = taskbar_height_dynamic();
     int sh = g_dwm.screen_h;
 
+    /* Reveal first, so the layout measured here is the on-screen one. */
+    wm_handle_mouse(512, sh - 4, 1, 1);
+    for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.taskbar_offset == 0, "the bar starts revealed");
+
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    int sx = L.start_x + L.start_w / 2;
+    int sy = L.start_y + L.start_h / 2;
+
     /* Pointer well above the bottom band: the bar slides away. */
     wm_handle_mouse(512, 300, 0, 0);
     for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
     CHECK(g_dwm.taskbar_offset >= th - 4, "the bar hides when the pointer leaves");
 
-    /* A press in the band the bar used to occupy must not reach Start. */
-    wm_handle_mouse(10, sh - th + 12, 1, 1);
+    /* A press where the bar used to be must not reach Start. */
+    wm_handle_mouse(sx, sy, 1, 1);
     CHECK(!startmenu_is_open(), "a click in the hidden band does not open Start");
-    wm_handle_mouse(10, sh - th + 12, 1, 2);
+    wm_handle_mouse(sx, sy, 1, 2);
 
     /* Pointer back at the very bottom: the bar rises. */
-    wm_handle_mouse(10, sh - 4, 1, 1);
+    wm_handle_mouse(sx, sh - 4, 1, 1);
     for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
     CHECK(g_dwm.taskbar_offset == 0, "the bar rises when the pointer returns");
 
     /* Now the same press lands on Start. */
-    wm_handle_mouse(10, sh - th + 12, 1, 1);
+    wm_handle_mouse(sx, sy, 1, 1);
     CHECK(startmenu_is_open(), "Start opens once the bar is revealed");
     wm_handle_mouse(512, 300, 1, 1);   /* a press outside closes the menu */
     wm_handle_mouse(512, 300, 1, 2);
@@ -1404,6 +1414,48 @@ static void test_taskbar_autohide(void) {
     for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
     CHECK(g_dwm.taskbar_offset == 0, "a classic theme keeps the bar pinned");
 
+    wm_shutdown();
+    PASS();
+}
+
+/* -- Modern (Win11-class) floating bar --------------------------- */
+
+static void test_modern_taskbar(void) {
+    TEST("modern bar: floating, centred, and its buttons are hit-testable");
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(200, 150, 300, 200, "Modern");
+    wm_set_focus(w);
+    int th = taskbar_height_dynamic();
+    int sh = g_dwm.screen_h;
+
+    wm_handle_mouse(512, sh - 8, 0, 0);
+    for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
+
+    WmTaskLayout L;
+    taskbar_modern_layout(1024, 768, &L);
+    CHECK(L.bar_x > 0 && L.bar_x + L.bar_w < 1024, "the bar floats, centred");
+    CHECK(L.bar_y < sh - th, "the bar is raised off the bottom edge");
+    CHECK(L.n_slots >= 1, "the window has a task button");
+    CHECK(L.slot[0].x > L.start_x + L.start_w, "the button sits right of Start");
+
+    /* Clicking the focused task's button minimises it; again restores it. */
+    int bx = L.slot[0].x + L.slot[0].w / 2;
+    int by = L.slot[0].y + L.slot[0].h / 2;
+    wm_handle_mouse(bx, by, 1, 1);
+    CHECK(w->flags & DOSGUI_WIN_MINIMIZED, "clicking the focused task minimises it");
+    wm_handle_mouse(bx, by, 1, 2);
+
+    wm_handle_mouse(bx, by, 1, 1);
+    CHECK(!(w->flags & DOSGUI_WIN_MINIMIZED), "clicking a minimised task restores it");
+    wm_handle_mouse(bx, by, 1, 2);
+
+    /* Empty bar space is swallowed by the bar, not passed to the desktop. */
+    wm_handle_mouse(L.bar_x + 2, L.bar_y + L.bar_h / 2, 1, 1);
+    CHECK(!g_dwm.lasso_active, "a click on empty bar space does not start a lasso");
+    wm_handle_mouse(L.bar_x + 2, L.bar_y + L.bar_h / 2, 1, 2);
+
+    wubu_theme_set(THEME_WIN98_CLASSIC);
     wm_shutdown();
     PASS();
 }
@@ -1465,6 +1517,7 @@ int main(void) {
     test_rim_islands();
     test_slime_seam();
     test_taskbar_autohide();
+    test_modern_taskbar();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

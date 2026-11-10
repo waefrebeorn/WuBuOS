@@ -138,10 +138,32 @@ int  taskbar_height_dynamic(void);
 /* The y of the taskbar's TOP edge, including the auto-hide offset.  Every
  * render and hit-test must use this, or the bar and its clicks drift apart. */
 int  taskbar_top(void);
+/* -- Modern (Win11-class) taskbar, shared by render + hit-test ----------
+ * THEME_DARK uses a floating rounded bar instead of the full-width classic
+ * one.  Both the renderer and the pointer path call taskbar_modern_layout(),
+ * so the bar is drawn and clicked in the same place by construction. */
+typedef struct {
+    int x, y, w, h;      /* button rect */
+    int is_pin;          /* 0 = window task, 1 = pinned task */
+    int index;           /* window index, or taskbar pin index */
+} WmTaskSlot;
+
+typedef struct {
+    int bar_x, bar_y, bar_w, bar_h;
+    int start_x, start_y, start_w, start_h;
+    int clock_x, clock_y, clock_w, clock_h;
+    int tray_x, tray_y, tray_w;   /* systray strip, left of the clock */
+    int n_slots;
+    WmTaskSlot slot[48];
+} WmTaskLayout;
+
+void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L);
+bool taskbar_modern_handle(int x, int y, int btn, int kind);
 int  border_width(void);
 int  theme_radius(void);
 void load_default_wallpaper(void);
 void draw_wallpaper(int fb_w, int fb_h);
+void draw_desktop_bg(int fb_w, int fb_h);
 void snap_icon_to_grid(DosGuiIcon *icon);
 int  icon_grid_x(int x);
 int  icon_grid_y(int y);

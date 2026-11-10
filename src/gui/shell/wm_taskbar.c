@@ -8,7 +8,192 @@
 
 #include "../wm_internal.h"
 #include "taskbar_tasks.h"
+#include "startmenu.h"
 #include <time.h>
+
+/* The app registry lives in src/apps; a test or minimal build may not link
+ * it.  Weak, exactly as the taskbar's pinned buttons do it. */
+__attribute__((weak)) void launch_app(const char *name);
+
+/* -- Modern (Win11-class) floating bar ------------------------------ */
+
+static void draw_start_flag(int x, int y);   /* defined below */
+
+#define MODERN_GAP_V   6      /* floating margin below the screen */
+#define MODERN_PAD     8
+#define MODERN_RADIUS  8
+
+/*
+ * THE geometry for the floating bar.  The renderer and the pointer path both
+ * call this, so "drawn here, clicked there" is not reachable.
+ */
+void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
+    memset(L, 0, sizeof *L);
+    int th  = taskbar_height_dynamic();
+    int bh  = th - 8;
+    int gap = 4;
+
+    /* Measure the button row first so it can be centred. */
+    int row_w = 0;
+    for (int j = 0; j < g_dwm.nz && L->n_slots < 48; j++) {
+        int idx = g_dwm.zorder[j];
+        DosGuiWindow *w = &g_dwm.windows[idx];
+        if (!w->alive || w->desktop != g_dwm.current_desktop) continue;
+        int tw = vbe_text_width(w->title, 1) + 16;
+        if (tw < 44) tw = 44;
+        if (tw > 160) tw = 160;
+        L->slot[L->n_slots].w = tw;
+        L->slot[L->n_slots].h = bh;
+        L->slot[L->n_slots].is_pin = 0;
+        L->slot[L->n_slots].index = idx;
+        row_w += tw + gap;
+        L->n_slots++;
+    }
+    for (int i = 0; i < wubu_taskbar_count() && L->n_slots < 48; i++) {
+        const WubuTask *t = wubu_taskbar_get(i);
+        if (!t || !t->pinned || t->win_id >= 0) continue;
+        L->slot[L->n_slots].w = 44;
+        L->slot[L->n_slots].h = bh;
+        L->slot[L->n_slots].is_pin = 1;
+        L->slot[L->n_slots].index = i;
+        row_w += 44 + gap;
+        L->n_slots++;
+    }
+    if (row_w > 0) row_w -= gap;
+
+    int start_w = th - 8;
+    int clock_w = 64;
+    int tray_w  = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + 4);
+
+    int need = MODERN_PAD + start_w + gap + row_w + gap + tray_w + gap +
+               clock_w + MODERN_PAD;
+    int bar_w = need;
+    if (bar_w > fb_w - 2 * MODERN_GAP_V) bar_w = fb_w - 2 * MODERN_GAP_V;
+    int bar_x = (fb_w - bar_w) / 2;
+    int bar_y = taskbar_top() - MODERN_GAP_V;
+
+    L->bar_x = bar_x; L->bar_y = bar_y; L->bar_w = bar_w; L->bar_h = th;
+    L->start_x = bar_x + MODERN_PAD;
+    L->start_y = bar_y + 4;
+    L->start_w = start_w;
+    L->start_h = bh;
+    L->clock_x = bar_x + bar_w - MODERN_PAD - clock_w;
+    L->clock_y = bar_y + 4;
+    L->clock_w = clock_w;
+    L->clock_h = bh;
+    L->tray_x  = L->clock_x - gap - tray_w;
+    L->tray_y  = bar_y + 4;
+    L->tray_w  = tray_w;
+
+    int row_x = L->start_x + start_w + gap;
+    int avail = L->tray_x - gap - row_x;
+    if (row_w < avail) row_x += (avail - row_w) / 2;
+    for (int i = 0; i < L->n_slots; i++) {
+        L->slot[i].x = row_x;
+        L->slot[i].y = bar_y + 4;
+        row_x += L->slot[i].w + gap;
+    }
+}
+
+static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
+    WmTaskLayout L;
+    taskbar_modern_layout(fb_w, fb_h, &L);
+
+    vbe_fill_rect_rounded(L.bar_x, L.bar_y, L.bar_w, L.bar_h, MODERN_RADIUS,
+                          tc()->taskbar_bg);
+    vbe_rect_rounded(L.bar_x, L.bar_y, L.bar_w, L.bar_h, MODERN_RADIUS,
+                     tc()->border_dark);
+
+    /* Start: the 4-pane flag, centred in a rounded tile. */
+    draw_start_flag(L.start_x + L.start_w / 2 - 7,
+                    L.start_y + L.start_h / 2 - 7);
+
+    for (int i = 0; i < L.n_slots; i++) {
+        const WmTaskSlot *s = &L.slot[i];
+        bool focused = false;
+        const char *title;
+        if (s->is_pin) {
+            const WubuTask *t = wubu_taskbar_get(s->index);
+            title = t ? t->title : "";
+        } else {
+            DosGuiWindow *w = &g_dwm.windows[s->index];
+            title = w->title;
+            focused = (s->index == g_dwm.focused_id) &&
+                      !(w->flags & DOSGUI_WIN_MINIMIZED);
+        }
+        vbe_fill_rect_rounded(s->x, s->y, s->w, s->h, 6,
+                              focused ? tc()->select_bg : tc()->btn_face);
+        vbe_3d_raised_rounded_colors(s->x, s->y, s->w, s->h, 6,
+                                     tc()->border_light, tc()->border_face,
+                                     tc()->border_dark, tc()->border_darkest);
+        vbe_draw_text(s->x + 6, s->y + (s->h - 8) / 2, title,
+                      focused ? tc()->select_text : tc()->btn_text, 1);
+    }
+
+    int tx = L.tray_x;
+    for (int i = 0; i < g_dwm.systray_count; i++) {
+        if (!g_dwm.systray_icons[i].visible) continue;
+        vbe_fill_rect_rounded(tx, L.tray_y, DOSGUI_SYSTRAY_SIZE,
+                              DOSGUI_SYSTRAY_SIZE, 4, tc()->btn_face);
+        vbe_fill_rect(tx + 4, L.tray_y + 4, 16, 16,
+                      g_dwm.systray_icons[i].icon_color);
+        tx += DOSGUI_SYSTRAY_SIZE + 4;
+    }
+
+    taskbar_update_clock(time(NULL));
+    char *clk = taskbar_get_clock_str();
+    g_dwm.clock_well_x = L.clock_x;
+    g_dwm.clock_well_y = L.clock_y;
+    g_dwm.clock_well_w = L.clock_w;
+    g_dwm.clock_well_h = L.clock_h;
+    vbe_draw_text(L.clock_x + 4, L.clock_y + (L.clock_h - 8) / 2, clk,
+                  tc()->icon_text, 1);
+}
+
+bool taskbar_modern_handle(int x, int y, int btn, int kind) {
+    (void)btn;
+    if (wubu_theme_current() != THEME_DARK) return false;
+
+    WmTaskLayout L;
+    taskbar_modern_layout(g_dwm.screen_w, g_dwm.screen_h, &L);
+    if (x < L.bar_x || x >= L.bar_x + L.bar_w ||
+        y < L.bar_y || y >= L.bar_y + L.bar_h)
+        return false;
+
+    if (kind != 1) return true;      /* inside the bar: swallow moves too */
+
+    if (x >= L.start_x && x < L.start_x + L.start_w &&
+        y >= L.start_y && y < L.start_y + L.start_h) {
+        startmenu_toggle();
+        return true;
+    }
+    if (x >= L.clock_x && x < L.clock_x + L.clock_w &&
+        y >= L.clock_y && y < L.clock_y + L.clock_h) {
+        clock_menu_toggle();
+        return true;
+    }
+    for (int i = 0; i < L.n_slots; i++) {
+        const WmTaskSlot *s = &L.slot[i];
+        if (x < s->x || x >= s->x + s->w || y < s->y || y >= s->y + s->h)
+            continue;
+        if (s->is_pin) {
+            const WubuTask *t = wubu_taskbar_get(s->index);
+            if (t && launch_app) launch_app(t->exec[0] ? t->exec : t->title);
+        } else {
+            DosGuiWindow *w = &g_dwm.windows[s->index];
+            if (w->flags & DOSGUI_WIN_MINIMIZED) {
+                w->flags &= ~DOSGUI_WIN_MINIMIZED;
+                wm_set_focus(w);
+            } else if (g_dwm.focused_id == s->index) {
+                w->flags |= DOSGUI_WIN_MINIMIZED;
+            } else {
+                wm_set_focus(w);
+            }
+        }
+        return true;
+    }
+    return true;    /* empty bar space still belongs to the bar */
+}
 
 /* -- Taskbar ----------------------------------------------------- */
 
@@ -25,6 +210,10 @@ static void draw_start_flag(int x, int y) {
 }
 
 void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
+    if (wubu_theme_current() == THEME_DARK) {
+        render_modern_taskbar(fb, fb_w, fb_h);
+        return;
+    }
     int th = taskbar_height_dynamic();
     int ty = taskbar_top();
 
