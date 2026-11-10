@@ -70,7 +70,7 @@ time.sleep(1.5)
 for c in b'exit\n':
     p.stdin.write(bytes([c])); p.stdin.flush()
     time.sleep(0.05)
-time.sleep(14)
+time.sleep(20)
 p.terminate()
 sys.stdout.buffer.write(p.stdout.read())
 " 2>&1 | tee build/agi-boot.log
