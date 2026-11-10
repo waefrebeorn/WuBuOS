@@ -115,6 +115,30 @@ boot: $(KERNEL)/boot.bin
 # boots it directly -- same path QEMU's `-kernel` uses, and machine-ready on
 # bare metal, QEMU/KVM, and any OS that runs GRUB.  This is the image to ship
 # for the interboot deployment strat (Linux / Windows / macOS all boot it).
+# ── HolyD-built bootable image (the full-circle capper) ─────────────────
+# Boots an image that HolyD itself compiled (no gcc kernel in the loop) through
+# the SAME GRUB/multiboot + QEMU path as `make iso`.  The emitter lives in the
+# compiler repo (src/compiler symlink -> wubunos); we build it there, emit a
+# bootable kernel from a one-line source, pack it, boot it, and assert the boot
+# trace (entry 'Z', long-mode 'Y', 'H', and the result byte 0x2a='*').
+#   make holyd-verify
+holyd-verify:
+	$(MAKE) -C $(COMP) holyd_emit_elf
+	printf 'int main() { return 42; }' > $(CACHE)/holyd_boot.hc
+	$(COMP)/tools/holyd_emit_elf --boot $(CACHE)/holyd_boot.hc $(CACHE)/holyd_boot.elf
+	rm -rf $(CACHE)/holyd-iso-stage && mkdir -p $(CACHE)/holyd-iso-stage/boot/grub
+	cp $(CACHE)/holyd_boot.elf $(CACHE)/holyd-iso-stage/boot/boot.wubu
+	printf 'set timeout=0\nset default=0\nmenuentry "WuBuOS (HolyD)" { multiboot /boot/boot.wubu\nboot\n}\n' > $(CACHE)/holyd-iso-stage/boot/grub/grub.cfg
+	grub-mkrescue -o $(CACHE)/holyd.iso $(CACHE)/holyd-iso-stage >/dev/null 2>&1
+	rm -f /tmp/holyd_serial.bin
+	timeout 20 qemu-system-x86_64 -cdrom $(CACHE)/holyd.iso -serial file:/tmp/holyd_serial.bin \
+		-display none -m 128 -no-reboot >/dev/null 2>&1 || true
+	python3 -c 'import sys; s=open("/tmp/holyd_serial.bin","rb").read(); sys.exit(0 if b"Z" in s and b"Y" in s and b"H" in s and b"*" in s else 1)' 2>/dev/null && \
+	  echo "✅ HOLYD-VERIFY: compiler-built image boots via make-style QEMU (Z,Y,H,*)" || \
+	  { echo "❌ HOLYD-VERIFY: missing boot trace ($$(wc -c < /tmp/holyd_serial.bin 2>/dev/null) bytes)"; exit 1; }
+	rm -f $(CACHE)/holyd_boot.hc $(CACHE)/holyd_boot.elf $(CACHE)/holyd.iso /tmp/holyd_serial.bin
+	rm -rf $(CACHE)/holyd-iso-stage
+
 iso: $(KERNEL)/kernel.elf
 	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub
 	cp $(KERNEL)/kernel.elf $(CACHE)/iso-stage/boot/wubuos.elf
