@@ -1455,6 +1455,14 @@ static void test_modern_taskbar(void) {
     CHECK(!g_dwm.lasso_active, "a click on empty bar space does not start a lasso");
     wm_handle_mouse(L.bar_x + 2, L.bar_y + L.bar_h / 2, 1, 2);
 
+    /* The band AROUND the floating bar must be the theme background, not the
+     * raw clear colour -- the classic bar paints its own band, the floating
+     * one does not. */
+    vbe_init(1024, 768);
+    wm_render(NULL, 1024, 768);
+    CHECK(vbe_get_pixel(10, sh - 4) == tc()->desktop_bg,
+          "the band around the floating bar is the desktop background");
+
     wubu_theme_set(THEME_WIN98_CLASSIC);
     wm_shutdown();
     PASS();

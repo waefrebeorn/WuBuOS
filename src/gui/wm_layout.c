@@ -88,12 +88,16 @@ void load_default_wallpaper(void) {
 void draw_wallpaper(int fb_w, int fb_h) {
     int task_h = taskbar_height_dynamic();
 
-    /* Always base-fill the desktop rect with the theme background first.
+    /* Always base-fill the WHOLE screen with the theme background first.
      * Wallpaper modes (CENTER/FIT/FILL) leave surrounding margins unpainted,
      * and a centered image smaller than the screen would otherwise expose the
-     * raw vbe_clear() black instead of the theme bg. TILE/STRETCH fully cover
-     * the rect, so this fill is harmless there. */
-    vbe_fill_rect(0, 0, fb_w, fb_h - task_h, tc()->desktop_bg);
+     * raw vbe_clear() black instead of the theme bg.
+     *
+     * The fill must reach the bottom edge, not stop at fb_h - task_h: the
+     * classic bar paints over its own band, but the floating modern bar does
+     * not, and the band around it would otherwise show the raw clear colour
+     * (observed: a full-width black stripe under the dark theme's bar). */
+    vbe_fill_rect(0, 0, fb_w, fb_h, tc()->desktop_bg);
 
     if (!g_dwm.wallpaper) {
         return;
