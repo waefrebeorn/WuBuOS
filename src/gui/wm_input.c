@@ -321,6 +321,11 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
             clock_menu_close();
     }
 
+    /* Window-rim islands: a press on an island grabs it before any window or
+     * taskbar handling, so it can be dragged around the focused window's rim.
+     * Inert unless an island is actually under the pointer. */
+    if (wm_rim_handle_pointer(x, y, btn, kind)) return;
+
     /* Taskbar / Start button: must be checked BEFORE the Bonzi Buddy hit-test,
      * because the buddy sits in the lower-left corner and its bounding box
      * overlaps the taskbar region.  A click on the Start button or taskbar

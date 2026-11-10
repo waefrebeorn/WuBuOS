@@ -23,6 +23,8 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "shell/wm_rim.h"   /* islands on the focused window's rim */
+
 #define DOSGUI_MAX_WINDOWS    32
 #define DOSGUI_MAX_DESKTOPS    9
 #define DOSGUI_TITLE_H        20

@@ -69,6 +69,8 @@ static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
 void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Advance the desktop companion animation clock (~60 Hz). */
     wubu_bonzi_tick(16);
+    /* Advance the focused window's rim islands (no-op when there are none). */
+    wm_rim_tick();
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */
     wm_typer_tick(16);
@@ -163,6 +165,10 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
             vbe_reset_clip();
         }
     }
+
+    /* Window-rim islands: above the window frame, below the accessibility
+     * cluster and the taskbar. */
+    wm_rim_render(fb, fb_w, fb_h);
 
     /* Accessibility cluster: drawn over the focused window (top of z-order),
      * before the taskbar so it never paints under it. Skipped for minimized

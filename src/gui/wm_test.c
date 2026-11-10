@@ -1264,6 +1264,57 @@ static void test_desktop_new_shortcut(void) {
     rm_rf(desk);
     PASS();
 }
+/* -- Window-rim islands ----------------------------------------- */
+
+static void test_rim_islands(void) {
+    TEST("rim islands: add, settle, render, drag, clear");
+    wm_init(1024, 768);
+    wm_rim_clear();
+    CHECK(wm_rim_count() == 0, "rim starts empty");
+
+    CHECK(wm_rim_add(0.0f, 14.0f, 0x0080FF, "editor") == 0, "island added");
+    CHECK(wm_rim_count() == 1, "count is one");
+
+    /* The rim wraps the FOCUSED window's frame. */
+    DosGuiWindow *w = wm_create(200, 150, 400, 250, "Rim");
+    CHECK(w != NULL, "window created");
+    wm_set_focus(w);
+    for (int k = 0; k < 120; k++) wm_rim_tick();
+
+    int x, y, r;
+    CHECK(wm_rim_island_pos(0, &x, &y, &r), "island has a position");
+    CHECK(x >= 198 && x <= 202 && y >= 148 && y <= 152,
+          "island settles on the rim's top-left corner");
+
+    /* Rendering with an island live must draw it, not just not crash. */
+    vbe_init(1024, 768);
+    wm_render(NULL, 1024, 768);
+    int painted = 0;
+    for (int yy = y - 14; yy <= y + 14; yy++)
+        for (int xx = x - 14; xx <= x + 14; xx++)
+            if (vbe_get_pixel(xx, yy) == 0x0080FF) painted++;
+    CHECK(painted > 0, "the island is actually drawn");
+
+    /* Press grabs it, a move drags it, the release drops it. */
+    CHECK(wm_rim_handle_pointer(x, y, 1, 1), "press grabs the island");
+    CHECK(wm_rim_handle_pointer(600, 275, 1, 0), "move drags the island");
+    CHECK(wm_rim_handle_pointer(600, 275, 1, 2), "release drops the island");
+    for (int k = 0; k < 120; k++) wm_rim_tick();
+
+    int x2, y2, r2;
+    CHECK(wm_rim_island_pos(0, &x2, &y2, &r2), "island still positioned");
+    CHECK(x2 > 500 && y2 > 200, "island travelled to the dragged point");
+
+    /* A press-release that does not travel is a click, and is consumed. */
+    CHECK(wm_rim_handle_pointer(x2, y2, 1, 1), "press on the moved island");
+    CHECK(wm_rim_handle_pointer(x2, y2, 1, 2), "release is a click");
+
+    wm_rim_clear();
+    CHECK(wm_rim_count() == 0, "clear empties the rim");
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1318,6 +1369,7 @@ int main(void) {
     test_icon_delete_moves_to_trash();
     test_icon_multiselect_delete();
     test_auto_arrange_persists_restart();
+    test_rim_islands();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
