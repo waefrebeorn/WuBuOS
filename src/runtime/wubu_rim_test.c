@@ -150,7 +150,7 @@ static void test_long_run_stays_finite(void) {
     for (int s = 0; s < 3000; s++) wubu_rim_step(&r, &w);
 
     int ok = 1;
-    for (int i = 0; i < r.n; i++) {
+    for (int i = 0; i < r.field.n; i++) {
         const WubuBlob *b = &r.islands[i].blob;
         if (!isfinite(b->x) || !isfinite(b->y)) ok = 0;
     }
@@ -158,7 +158,7 @@ static void test_long_run_stays_finite(void) {
 
     /* Every island must still be ON the rim (within its radius). */
     int on_rim = 1;
-    for (int i = 0; i < r.n; i++) {
+    for (int i = 0; i < r.field.n; i++) {
         float ex, ey;
         wubu_rim_position(&r, r.islands[i].t, &ex, &ey);
         if (wubu_spring_dist(&r.islands[i].blob, &(WubuBlob){ .x = ex, .y = ey }) > 4.0f)

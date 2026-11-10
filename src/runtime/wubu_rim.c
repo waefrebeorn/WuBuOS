@@ -19,23 +19,21 @@ bool wubu_rim_init(WubuRim *r, int cap, float x, float y, float w, float h) {
     memset(r, 0, sizeof *r);
 
     r->islands = (WubuRimIsland *)calloc((size_t)cap, sizeof *r->islands);
-    r->scratch = (WubuBlob *)calloc((size_t)cap * 2, sizeof *r->scratch);
-    r->links   = (WubuSpringLink *)calloc((size_t)cap, sizeof *r->links);
-    if (!r->islands || !r->scratch || !r->links) {
-        wubu_rim_free(r);
+    if (!r->islands) return false;
+    if (!wubu_spring_field_init(&r->field, cap)) {
+        free(r->islands);
+        r->islands = NULL;
         return false;
     }
-    r->cap = cap;
     wubu_rim_set_rect(r, x, y, w, h);
     return true;
 }
 
 void wubu_rim_free(WubuRim *r) {
     if (!r) return;
-    free(r->islands); r->islands = NULL;
-    free(r->scratch); r->scratch = NULL;
-    free(r->links);   r->links = NULL;
-    r->n = r->cap = 0;
+    free(r->islands);
+    r->islands = NULL;
+    wubu_spring_field_free(&r->field);
 }
 
 void wubu_rim_set_rect(WubuRim *r, float x, float y, float w, float h) {
@@ -118,8 +116,12 @@ float wubu_rim_nearest_t(const WubuRim *r, float px, float py) {
 }
 
 int wubu_rim_add(WubuRim *r, float t, float radius) {
-    if (!r || r->n >= r->cap) return -1;
-    WubuRimIsland *is = &r->islands[r->n];
+    if (!r || r->field.n >= r->field.cap) return -1;
+
+    int i = wubu_spring_field_add(&r->field, 0.45f);
+    if (i < 0) return -1;
+
+    WubuRimIsland *is = &r->islands[i];
     memset(is, 0, sizeof *is);
     is->t = t;
     is->radius = radius;
@@ -132,21 +134,16 @@ int wubu_rim_add(WubuRim *r, float t, float radius) {
     is->blob.radius = radius;
     is->blob.mass = 1.0f;
 
-    r->links[r->n].a = r->n;
-    r->links[r->n].b = r->cap + r->n;   /* its home anchor */
-    r->links[r->n].rest = 0.0f;
-    r->links[r->n].stiffness = 0.45f;
-
-    return r->n++;
+    return i;
 }
 
 void wubu_rim_show(WubuRim *r, int i, bool show) {
-    if (!r || i < 0 || i >= r->n) return;
+    if (!r || i < 0 || i >= r->field.n) return;
     r->islands[i].visible = show;
 }
 
 void wubu_rim_drag(WubuRim *r, int i, float px, float py) {
-    if (!r || i < 0 || i >= r->n) return;
+    if (!r || i < 0 || i >= r->field.n) return;
     WubuRimIsland *is = &r->islands[i];
     is->dragging = true;
     /* The island follows the pointer, and its home t becomes the nearest point
@@ -157,45 +154,31 @@ void wubu_rim_drag(WubuRim *r, int i, float px, float py) {
 }
 
 void wubu_rim_drop(WubuRim *r, int i) {
-    if (!r || i < 0 || i >= r->n) return;
+    if (!r || i < 0 || i >= r->field.n) return;
     r->islands[i].dragging = false;
 }
 
 void wubu_rim_step(WubuRim *r, const WubuSpringWorld *w) {
-    int n = r->n;
+    int n = r->field.n;
     if (!r || n <= 0) return;
 
     for (int i = 0; i < n; i++) {
         WubuRimIsland *is = &r->islands[i];
-        WubuBlob *body   = &r->scratch[i];
-        WubuBlob *anchor = &r->scratch[r->cap + i];
-
-        *body = is->blob;
-        body->pinned = is->dragging || !is->visible;
-
         float hx, hy;
         wubu_rim_position(r, is->t, &hx, &hy);
-        anchor->x = anchor->px = hx;
-        anchor->y = anchor->py = hy;
-        anchor->radius = 0.0f;
-        anchor->mass = 0.0f;
-        anchor->pinned = true;
+        r->field.ax[i] = hx;
+        r->field.ay[i] = hy;
+        /* A dragged OR hidden island is pinned: it is not springing anywhere. */
+        r->field.pinned[i] = is->dragging || !is->visible;
     }
 
-    wubu_spring_step(r->scratch, n + r->cap, r->links, n, w);
-
-    for (int i = 0; i < n; i++) {
-        WubuRimIsland *is = &r->islands[i];
-        is->blob.x  = r->scratch[i].x;
-        is->blob.y  = r->scratch[i].y;
-        is->blob.px = r->scratch[i].px;
-        is->blob.py = r->scratch[i].py;
-    }
+    wubu_spring_field_step(&r->field, w, &r->islands[0].blob, n,
+                           sizeof(WubuRimIsland));
 }
 
 int wubu_rim_hit(const WubuRim *r, float px, float py) {
     if (!r) return -1;
-    for (int i = 0; i < r->n; i++) {
+    for (int i = 0; i < r->field.n; i++) {
         const WubuRimIsland *is = &r->islands[i];
         if (!is->visible) continue;
         float dx = px - is->blob.x;

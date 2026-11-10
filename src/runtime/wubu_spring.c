@@ -9,6 +9,8 @@
 #include "wubu_spring.h"
 
 #include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 WubuSpringWorld wubu_spring_ooze(void) {
     WubuSpringWorld w;
@@ -120,4 +122,73 @@ float wubu_spring_dist(const WubuBlob *a, const WubuBlob *b) {
     float dx = b->x - a->x;
     float dy = b->y - a->y;
     return sqrtf(dx * dx + dy * dy);
+}
+
+/* -- The shared anchored-spring scaffold ------------------------------- */
+
+bool wubu_spring_field_init(WubuSpringField *f, int cap) {
+    if (!f || cap <= 0) return false;
+    memset(f, 0, sizeof *f);
+
+    f->scratch = (WubuBlob *)calloc((size_t)cap * 2, sizeof *f->scratch);
+    f->links   = (WubuSpringLink *)calloc((size_t)cap, sizeof *f->links);
+    f->ax      = (float *)calloc((size_t)cap, sizeof *f->ax);
+    f->ay      = (float *)calloc((size_t)cap, sizeof *f->ay);
+    f->pinned  = (bool *)calloc((size_t)cap, sizeof *f->pinned);
+    if (!f->scratch || !f->links || !f->ax || !f->ay || !f->pinned) {
+        wubu_spring_field_free(f);
+        return false;
+    }
+    f->cap = cap;
+    return true;
+}
+
+void wubu_spring_field_free(WubuSpringField *f) {
+    if (!f) return;
+    free(f->scratch); f->scratch = NULL;
+    free(f->links);   f->links   = NULL;
+    free(f->ax);      f->ax      = NULL;
+    free(f->ay);      f->ay      = NULL;
+    free(f->pinned);  f->pinned  = NULL;
+    f->n = f->cap = 0;
+}
+
+int wubu_spring_field_add(WubuSpringField *f, float stiffness) {
+    if (!f || f->n >= f->cap) return -1;
+    int i = f->n++;
+    f->links[i].a = i;
+    f->links[i].b = f->cap + i;   /* its anchor, placed by the caller */
+    f->links[i].rest = 0.0f;      /* the body wants to BE at its anchor */
+    f->links[i].stiffness = stiffness;
+    return i;
+}
+
+void wubu_spring_field_step(WubuSpringField *f, const WubuSpringWorld *w,
+                            WubuBlob *bodies, int n, size_t stride) {
+    if (!f || !bodies || n <= 0) return;
+    if (n > f->cap) n = f->cap;
+    if (stride < sizeof(WubuBlob)) stride = sizeof(WubuBlob);
+
+    for (int i = 0; i < n; i++) {
+        WubuBlob *src = (WubuBlob *)((unsigned char *)bodies + (size_t)i * stride);
+        WubuBlob *body   = &f->scratch[i];
+        WubuBlob *anchor = &f->scratch[f->cap + i];
+
+        *body = *src;
+        body->pinned = f->pinned[i];
+
+        anchor->x = anchor->px = f->ax[i];
+        anchor->y = anchor->py = f->ay[i];
+        anchor->radius = 0.0f;
+        anchor->mass   = 0.0f;
+        anchor->pinned = true;
+    }
+
+    /* Bodies are [0, n) and anchors [cap, cap+n), so the solver sees n+cap. */
+    wubu_spring_step(f->scratch, n + f->cap, f->links, n, w);
+
+    for (int i = 0; i < n; i++) {
+        WubuBlob *dst = (WubuBlob *)((unsigned char *)bodies + (size_t)i * stride);
+        *dst = f->scratch[i];
+    }
 }

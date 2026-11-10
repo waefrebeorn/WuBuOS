@@ -48,16 +48,13 @@ typedef struct {
 } WubuSlimeBlob;
 
 typedef struct {
-    WubuSlimeBlob *blobs;
-    int            n, cap;
-    float          screen_w, screen_h;
-    float          margin;      /* seam thickness: how far in a blob may sink */
+    WubuSlimeBlob   *blobs;
+    float            screen_w, screen_h;
+    float            margin;      /* seam thickness: how far in a blob may sink */
 
-    /* Scratch for the solver: 2*n bodies (the blobs, then their pinned home
-     * anchors) and n links.  Allocated once in init, so stepping allocates
-     * nothing -- the seam runs at 60Hz for years. */
-    WubuBlob       *scratch;
-    WubuSpringLink *links;
+    /* The anchored-spring scaffold (bodies, anchors, links, pin flags) is
+     * owned by the spring module -- the seam only supplies the homes. */
+    WubuSpringField  field;
 } WubuSlime;
 
 /*

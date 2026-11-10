@@ -187,6 +187,45 @@ static void test_deterministic(void) {
     CHECK(memcmp(a, b, sizeof a) == 0, "identical worlds step identically");
 }
 
+/* The shared anchored-spring scaffold: a free body settles on its anchor, a
+ * pinned body never moves, capacity is enforced, and free clears everything. */
+static void test_field(void) {
+    WubuSpringField f;
+    CHECK(wubu_spring_field_init(&f, 2), "field created");
+    CHECK(f.n == 0 && f.cap == 2, "field starts empty");
+    CHECK(!wubu_spring_field_init(NULL, 4), "NULL field refused");
+    CHECK(!wubu_spring_field_init(&f, 0), "zero capacity refused");
+
+    CHECK(wubu_spring_field_add(&f, 0.5f) == 0, "first body added");
+    CHECK(wubu_spring_field_add(&f, 0.5f) == 1, "second body added");
+    CHECK(wubu_spring_field_add(&f, 0.5f) == -1, "third refused when full");
+
+    WubuBlob bodies[2];
+    memset(bodies, 0, sizeof bodies);
+    bodies[0].x = bodies[0].px = 100.0f;      /* far from its anchor */
+    bodies[0].y = bodies[0].py = 0.0f;
+    bodies[0].mass = 1.0f;
+    bodies[1].x = bodies[1].px = 0.0f;
+    bodies[1].y = bodies[1].py = 0.0f;
+    bodies[1].mass = 1.0f;
+
+    f.ax[0] = 0.0f;  f.ay[0] = 0.0f;  f.pinned[0] = false;
+    f.ax[1] = 50.0f; f.ay[1] = 0.0f;  f.pinned[1] = true;   /* held in place */
+
+    WubuSpringWorld w = wubu_spring_ooze();
+    for (int i = 0; i < 300; i++)
+        wubu_spring_field_step(&f, &w, bodies, 2, sizeof(WubuBlob));
+
+    CHECK(fabsf(bodies[0].x) < 2.0f, "a free body settles on its anchor");
+    CHECK(bodies[1].x == 0.0f && bodies[1].y == 0.0f,
+          "a pinned body never moves");
+    CHECK(isfinite(bodies[0].x) && isfinite(bodies[1].x),
+          "no NaN after 300 steps");
+
+    wubu_spring_field_free(&f);
+    CHECK(f.n == 0 && f.cap == 0 && f.scratch == NULL, "field freed");
+}
+
 int main(void) {
     printf("=== wubu spring (soft-body solver) ===\n");
     test_settles_at_rest_length();
@@ -195,6 +234,7 @@ int main(void) {
     test_constrain_rect();
     test_no_explosion();
     test_deterministic();
+    test_field();
 
     if (g_fails == 0) {
         printf("=== spring: %d checks, 0 failed ===\n", g_checks);

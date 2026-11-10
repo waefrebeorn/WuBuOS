@@ -22,7 +22,7 @@ static void settle(WubuSlime *s, int steps) {
 }
 
 static int finite_all(const WubuSlime *s) {
-    for (int i = 0; i < s->n; i++) {
+    for (int i = 0; i < s->field.n; i++) {
         const WubuBlob *b = &s->blobs[i].blob;
         if (!isfinite(b->x) || !isfinite(b->y) || !isfinite(b->px) || !isfinite(b->py))
             return 0;

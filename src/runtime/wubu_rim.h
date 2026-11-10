@@ -33,13 +33,12 @@ typedef struct {
 } WubuRimIsland;
 
 typedef struct {
-    WubuRimIsland *islands;
-    int            n, cap;
-    float          x, y, w, h;    /* the window rect the rim wraps */
+    WubuRimIsland   *islands;
+    float            x, y, w, h;    /* the window rect the rim wraps */
 
-    /* Scratch for the solver (see wubu_slime). */
-    WubuBlob       *scratch;
-    WubuSpringLink *links;
+    /* The anchored-spring scaffold (bodies, anchors, links, pin flags) is
+     * owned by the spring module -- the rim only supplies the loop. */
+    WubuSpringField  field;
 } WubuRim;
 
 /* A rim around a window rect. */

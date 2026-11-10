@@ -1,10 +1,12 @@
 /*
- * wubu_spring.h -- soft-body spring physics for the slime seam.
+ * wubu_spring.h -- soft-body spring physics: the integrator, and the shared
+ * anchored-spring scaffold built on it.
  *
  * The slime seam is the screen edge behaving like a soft, oozy body: blobs
  * (apps, widgets, islands) pressed into it jiggle, settle, and can be dragged
- * along the rim and pulled back out.  This is the integrator that makes it feel
- * that way.
+ * along the rim and pulled back out.  A window's rim islands are the same
+ * idea on a window frame.  Both are bodies tied by a spring to a pinned
+ * anchor, so both share WubuSpringField below -- the scaffold has ONE owner.
  *
  * Verlet integration (Jakobsen constraints) rather than force/acceleration:
  *   - unconditionally stable for the stiff, damped springs slime needs
@@ -18,6 +20,7 @@
 #define WUBU_SPRING_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -77,6 +80,47 @@ void wubu_spring_constrain_rect(WubuBlob *blobs, int n_blobs,
 
 /* Distance between two blobs (for hit tests). */
 float wubu_spring_dist(const WubuBlob *a, const WubuBlob *b);
+
+/*
+ * A field of bodies, each tied by a zero-rest spring to a pinned anchor.
+ *
+ * This is the shared scaffold behind the slime seam and the window-rim
+ * islands: the caller decides WHERE each anchor is (a home on a rim, a depth
+ * in a seam) and WHETHER the body is pinned (dragged); the field owns the
+ * scratch bodies, the anchor positions, the pin flags, the links and the
+ * solve.  Two copies of that scaffold used to exist, one per module -- there
+ * is one now, and a new soft-body surface should build on it rather than
+ * growing a third.
+ *
+ * `wubu_spring_field_step` copies `bodies[0..n)` in and back out.  The bodies
+ * may live inside the caller's own structs (both the seam and the rim embed
+ * WubuBlob first), so the caller passes the BYTE STRIDE between elements --
+ * `sizeof(WubuSlimeBlob)`, `sizeof(WubuRimIsland)`, or `sizeof(WubuBlob)` for
+ * a contiguous array.  The field never allocates after init, so a surface
+ * steps at 60Hz without touching the heap.
+ */
+typedef struct {
+    WubuBlob       *scratch;  /* [0, cap) bodies, [cap, 2*cap) anchors */
+    WubuSpringLink *links;    /* [0, cap) body -> anchor, rest 0 */
+    float          *ax, *ay;  /* anchor position per body */
+    bool           *pinned;   /* per body: true = held in place */
+    int             cap, n;
+} WubuSpringField;
+
+bool wubu_spring_field_init(WubuSpringField *f, int cap);
+void wubu_spring_field_free(WubuSpringField *f);
+
+/* Add a body tied to its own anchor.  Returns its index, or -1 when full. */
+int  wubu_spring_field_add(WubuSpringField *f, float stiffness);
+
+/*
+ * Advance the field one step.  The caller sets ax/ay/pinned per body first;
+ * the bodies are copied in, the anchors are placed, the solver runs, and the
+ * settled positions are copied back.  `stride` is the byte distance between
+ * consecutive bodies (see the type comment).
+ */
+void wubu_spring_field_step(WubuSpringField *f, const WubuSpringWorld *w,
+                            WubuBlob *bodies, int n, size_t stride);
 
 #ifdef __cplusplus
 }
