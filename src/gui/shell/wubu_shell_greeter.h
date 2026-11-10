@@ -48,6 +48,13 @@ void wubu_shell_greeter_theme_row(int i, int *x, int *y, int *w, int *h);
 /* Window-relative rect of the Start button. */
 void wubu_shell_greeter_button_rect(int *x, int *y, int *w, int *h);
 
+/* Window-relative rect of first-run offer i (0=Getting Started, 1=GUI
+ * Designer, 2=Terminal).  These are the "where do I start" answers a new user
+ * needs on the FIRST boot, when the desktop is otherwise silent. */
+void wubu_shell_greeter_offer_rect(int i, int *x, int *y, int *w, int *h);
+/* Act on first-run offer i. */
+void wubu_shell_greeter_offer(int i);
+
 /* The signature the greeter will persist on Start ("" until one is chosen). */
 const char *wubu_shell_greeter_signature(void);
 

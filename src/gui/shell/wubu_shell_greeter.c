@@ -13,6 +13,14 @@
 #include "wubu_theme.h"
 #include "../../kernel/vbe.h"
 #include "../../runtime/wubu_onboarding.h"
+#include "../../apps/dosgui_apps.h"
+
+/* The offers launch apps that live in the app registry.  Weak, so a test (or a
+ * minimal build) that does not link the registry still builds -- the offer is
+ * simply inert there. */
+__attribute__((weak)) DosGuiWindow *dosgui_launch_getting_started(void);
+__attribute__((weak)) DosGuiWindow *dosgui_launch_vws_designer(void);
+__attribute__((weak)) DosGuiWindow *dosgui_launch_terminal(void);
 #include <string.h>
 #include <stdio.h>
 
@@ -26,6 +34,8 @@
 #define GR_BTN_H      34
 #define GR_BTN_X      (WUBU_SHELL_GREETER_WIDTH - GR_PAD - GR_BTN_W)
 #define GR_BTN_Y      (WUBU_SHELL_GREETER_HEIGHT - GR_PAD - GR_BTN_H)
+#define GR_OFFER_Y    (GR_BTN_Y - 12 - 28)
+#define GR_OFFER_H    28
 
 static DosGuiWindow *g_win;
 static int   g_theme = THEME_WIN98_CLASSIC;
@@ -51,9 +61,36 @@ void wubu_shell_greeter_button_rect(int *x, int *y, int *w, int *h) {
     if (h) *h = GR_BTN_H;
 }
 
+void wubu_shell_greeter_offer_rect(int i, int *x, int *y, int *w, int *h) {
+    if (i < 0 || i >= 3) { if (x) *x = 0; if (y) *y = 0;
+                           if (w) *w = 0; if (h) *h = 0; return; }
+    int gap = 8;
+    int w3 = (WUBU_SHELL_GREETER_WIDTH - GR_PAD * 2 - gap * 2) / 3;
+    if (x) *x = GR_PAD + i * (w3 + gap);
+    if (y) *y = GR_OFFER_Y;
+    if (w) *w = w3;
+    if (h) *h = GR_OFFER_H;
+}
+
 int wubu_shell_greeter_selected_theme(void) { return g_theme; }
 const char *wubu_shell_greeter_signature(void) { return g_sig; }
 bool wubu_shell_greeter_is_open(void) { return g_win && g_win->alive; }
+
+/* -- First-run offers ------------------------------------------------ */
+/*
+ * The desktop is otherwise silent on a first boot: a theme picker and a Start
+ * button.  These three answers are what a new user actually needs -- the path
+ * into writing something, the path into designing a window, and the shell.
+ */
+
+void wubu_shell_greeter_offer(int i) {
+    switch (i) {
+    case 0: if (dosgui_launch_getting_started) dosgui_launch_getting_started(); break;
+    case 1: if (dosgui_launch_vws_designer)    dosgui_launch_vws_designer();    break;
+    case 2: if (dosgui_launch_terminal)        dosgui_launch_terminal();        break;
+    default: break;
+    }
+}
 
 /* -- Rendering ------------------------------------------------------ */
 
@@ -115,6 +152,22 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     vbe_draw_text(x0 + bx + (bw - blw) / 2, y0 + by + (bh - 8) / 2,
                   bl, tc->btn_text, 1);
 
+    /* First-run offers: the "where do I start" answers. */
+    static const char *const offers[3] = {
+        "Getting Started", "GUI Designer", "Terminal"
+    };
+    for (int i = 0; i < 3; i++) {
+        int ox, oy, ow, oh;
+        wubu_shell_greeter_offer_rect(i, &ox, &oy, &ow, &oh);
+        vbe_fill_rect_rounded(x0 + ox, y0 + oy, ow, oh, 3, tc->btn_face);
+        vbe_3d_raised_rounded_colors(x0 + ox, y0 + oy, ow, oh, 3,
+                                     tc->border_light, tc->btn_face,
+                                     tc->border_dark, tc->border_darkest);
+        int tw = vbe_text_width(offers[i], 1);
+        vbe_draw_text(x0 + ox + (ow - tw) / 2, y0 + oy + (oh - 8) / 2,
+                      offers[i], tc->btn_text, 1);
+    }
+
     /* Footer hint */
     vbe_draw_text(x0 + GR_PAD, y0 + WUBU_SHELL_GREETER_HEIGHT - 14,
                   "Up/Down to choose, Enter to start", tc->icon_text_shadow, 1);
@@ -171,6 +224,14 @@ void wubu_shell_greeter_click(int x, int y, int kind) {
         wubu_shell_greeter_theme_row(i, &rx, &ry, &rw, &rh);
         if (x >= rx && x < rx + rw && y >= ry && y < ry + rh) {
             g_theme = i;
+            return;
+        }
+    }
+    for (int i = 0; i < 3; i++) {
+        int ox, oy, ow, oh;
+        wubu_shell_greeter_offer_rect(i, &ox, &oy, &ow, &oh);
+        if (x >= ox && x < ox + ow && y >= oy && y < oy + oh) {
+            wubu_shell_greeter_offer(i);
             return;
         }
     }

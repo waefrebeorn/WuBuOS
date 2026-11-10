@@ -145,6 +145,18 @@ void dosgui_startmenu_build_submenus(void) {
         next_wubuos:;
     }
 
+    /* Help: the first-run path. */
+    for (int j = 0; j < g_system.item_count; j++) {
+        if (strcmp(g_system.items[j].label, "Getting Started") == 0) goto have_gs;
+    }
+    if (g_system.item_count < 12) {
+        g_system.items[g_system.item_count++] = (SmMenuItem){
+            SM_ITEM_APP, "", "", 0};
+        strncpy(g_system.items[g_system.item_count - 1].label, "Getting Started", 47);
+        strncpy(g_system.items[g_system.item_count - 1].app_name, "Getting Started", 47);
+    }
+    have_gs:;
+
     /* Development core apps: the tools that build the OS's own GUI. */
     for (int i = 0; i < 2; i++) {
         SmSubmenu *sub = &g_programs;

@@ -162,6 +162,14 @@ DosGuiWindow* dosgui_launch_editor(void) {
     return editor_launch();
 }
 
+DosGuiWindow* dosgui_launch_getting_started(void);
+
+DosGuiWindow* dosgui_launch_getting_started(void) {
+    /* The first-run path: where to start, in the product rather than in a
+     * wiki.  Reachable from Help and from the greeter's offers row. */
+    return gs_launch();
+}
+
 DosGuiWindow* dosgui_launch_wet(void) {
     /* A .wet applet: Lua decides, C lays out.  With no path the launcher opens
      * the built-in demo, so the menu item works before any script exists. */
@@ -264,6 +272,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Todo",         "Todo",           DESK_ICON_COUNT + 11,  0x0000A0A0, todo_launch },
     { "Music",        "Music",          DESK_ICON_COUNT + 12,  0x00A050C0, music_launch },
     { "VWS Designer", "VWS Designer",   DESK_ICON_COUNT + 13,  0x00A0A0C0, dosgui_launch_vws_designer },
+    { "Getting Started", "Getting Started", DESK_ICON_COUNT + 14, 0x00A0C0A0, dosgui_launch_getting_started },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 
