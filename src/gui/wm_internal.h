@@ -108,6 +108,9 @@ typedef struct {
     int             cursor_x, cursor_y;
     int             ticks;
 
+    /* Auto-hide (modern theme): 0 = fully revealed, task_h = fully hidden. */
+    int             taskbar_offset;
+
     /* Taskbar clock (Win98 parity): recessed well + its own popup menu. */
     bool            clock_menu_open;
     int             clock_well_x, clock_well_y, clock_well_w, clock_well_h;
@@ -132,6 +135,9 @@ void clock_menu_render(uint32_t *fb, int fb_w, int fb_h);
 void clock_well(int *x, int *y, int *w, int *h);
 int  title_bar_height(void);
 int  taskbar_height_dynamic(void);
+/* The y of the taskbar's TOP edge, including the auto-hide offset.  Every
+ * render and hit-test must use this, or the bar and its clicks drift apart. */
+int  taskbar_top(void);
 int  border_width(void);
 int  theme_radius(void);
 void load_default_wallpaper(void);

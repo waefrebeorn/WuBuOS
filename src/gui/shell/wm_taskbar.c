@@ -26,7 +26,7 @@ static void draw_start_flag(int x, int y) {
 
 void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     int th = taskbar_height_dynamic();
-    int ty = fb_h - th;
+    int ty = taskbar_top();
 
     vbe_fill_rect(0, ty, fb_w, th, tc()->taskbar_bg);
     vbe_hline(0, fb_w - 1, ty, tc()->taskbar_border);

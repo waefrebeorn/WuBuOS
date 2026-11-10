@@ -12,6 +12,7 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
+#include "shell/startmenu.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
 #include "../kernel/wubu_gesture.h"
@@ -1366,6 +1367,47 @@ static void test_slime_seam(void) {
     PASS();
 }
 
+/* -- Auto-hide taskbar (modern theme) --------------------------- */
+
+static void test_taskbar_autohide(void) {
+    TEST("taskbar auto-hide: hides, reveals, and clicks follow the bar");
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    wm_create(200, 150, 300, 200, "Bar");
+    int th = taskbar_height_dynamic();
+    int sh = g_dwm.screen_h;
+
+    /* Pointer well above the bottom band: the bar slides away. */
+    wm_handle_mouse(512, 300, 0, 0);
+    for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.taskbar_offset >= th - 4, "the bar hides when the pointer leaves");
+
+    /* A press in the band the bar used to occupy must not reach Start. */
+    wm_handle_mouse(10, sh - th + 12, 1, 1);
+    CHECK(!startmenu_is_open(), "a click in the hidden band does not open Start");
+    wm_handle_mouse(10, sh - th + 12, 1, 2);
+
+    /* Pointer back at the very bottom: the bar rises. */
+    wm_handle_mouse(10, sh - 4, 1, 1);
+    for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.taskbar_offset == 0, "the bar rises when the pointer returns");
+
+    /* Now the same press lands on Start. */
+    wm_handle_mouse(10, sh - th + 12, 1, 1);
+    CHECK(startmenu_is_open(), "Start opens once the bar is revealed");
+    wm_handle_mouse(512, 300, 1, 1);   /* a press outside closes the menu */
+    wm_handle_mouse(512, 300, 1, 2);
+
+    /* A classic theme never auto-hides. */
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    wm_handle_mouse(512, 300, 0, 0);
+    for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.taskbar_offset == 0, "a classic theme keeps the bar pinned");
+
+    wm_shutdown();
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1422,6 +1464,7 @@ int main(void) {
     test_auto_arrange_persists_restart();
     test_rim_islands();
     test_slime_seam();
+    test_taskbar_autohide();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);

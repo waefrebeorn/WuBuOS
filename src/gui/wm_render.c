@@ -73,6 +73,20 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     wm_rim_tick();
     /* Advance the screen-edge slime seam (no-op when there are no blobs). */
     wm_slime_tick();
+
+    /* Auto-hide (modern theme only): the bar slides down when the pointer
+     * leaves the bottom band and rises when it comes back.  Classic themes
+     * keep offset 0, so their taskbar is byte-identical. */
+    if (wubu_theme_current() == THEME_DARK) {
+        int th = taskbar_height_dynamic();
+        int target = (g_dwm.mouse_y >= g_dwm.screen_h - th) ? 0 : th;
+        if (g_dwm.taskbar_offset < target) g_dwm.taskbar_offset += 4;
+        else if (g_dwm.taskbar_offset > target) g_dwm.taskbar_offset -= 4;
+        if (g_dwm.taskbar_offset < 0) g_dwm.taskbar_offset = 0;
+        if (g_dwm.taskbar_offset > th) g_dwm.taskbar_offset = th;
+    } else {
+        g_dwm.taskbar_offset = 0;
+    }
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */
     wm_typer_tick(16);
@@ -162,7 +176,7 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
              * band would paint its title bar / close "X" over the taskbar,
              * producing the "FILE MANAGER CLOSE" text-merge artifact. */
             int task_h = taskbar_height_dynamic();
-            vbe_set_clip(0, 0, fb_w, fb_h - task_h);
+            vbe_set_clip(0, 0, fb_w, taskbar_top());
             draw_window(idx, fb, fb_w, fb_h);
             vbe_reset_clip();
         }

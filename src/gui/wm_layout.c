@@ -10,6 +10,9 @@
 
 int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; }
 int taskbar_height_dynamic(void) { return theme()->Luna_start_button ? 30 : DOSGUI_TASK_H; }
+int taskbar_top(void) {
+    return g_dwm.screen_h - taskbar_height_dynamic() + g_dwm.taskbar_offset;
+}
 /* Must match chrome_border_width() in window_chrome.c (2:1) —
  * a mismatch shifts every app's content rect and WM hit-testing by 1px. */
 int border_width(void) { return theme()->rounded_buttons ? 2 : 1; }

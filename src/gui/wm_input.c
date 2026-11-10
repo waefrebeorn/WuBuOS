@@ -334,8 +334,8 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
      * because the buddy sits in the lower-left corner and its bounding box
      * overlaps the taskbar region.  A click on the Start button or taskbar
      * buttons must not be swallowed by the mascot. */
-    if (y >= g_dwm.screen_h - task_h) {
-        int by = g_dwm.screen_h - task_h + (task_h - 24) / 2;
+    if (y >= taskbar_top()) {
+        int by = taskbar_top() + (task_h - 24) / 2;
         int start_w = theme()->Luna_start_button ? 54 : 60;
         /* Start button hit region must match the DRAWN width
          * (wm_taskbar.c: Win98 draws 60px, Luna draws start_w+20).
@@ -418,7 +418,7 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
             if (g_dwm.systray_icons[i].visible) {
                 int sx = tray_x - DOSGUI_SYSTRAY_SIZE - 4;
-                int sy = g_dwm.screen_h - task_h + (task_h - DOSGUI_SYSTRAY_SIZE) / 2;
+                int sy = taskbar_top() + (task_h - DOSGUI_SYSTRAY_SIZE) / 2;
                 if (x >= sx && x < sx + DOSGUI_SYSTRAY_SIZE && y >= sy && y < sy + DOSGUI_SYSTRAY_SIZE) {
                     if (kind == 1 && g_dwm.systray_icons[i].on_click) {
                         g_dwm.systray_icons[i].on_click();
@@ -468,7 +468,7 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         return;
 
     if (kind == 1) {
-        if (y >= g_dwm.screen_h - task_h) {
+        if (y >= taskbar_top()) {
             return;
         }
 
@@ -494,7 +494,7 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                             w->min_x = w->x; w->min_y = w->y;
                             w->min_w = w->w; w->min_h = w->h;
                             w->x = 0; w->y = 0;
-                            w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - task_h;
+                            w->w = g_dwm.screen_w; w->h = taskbar_top();
                             w->flags |= DOSGUI_WIN_MAXIMIZED;
                         }
                         return;
@@ -562,7 +562,7 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                     w->min_x = w->x; w->min_y = w->y;
                     w->min_w = w->w; w->min_h = w->h;
                     w->x = 0; w->y = 0;
-                    w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - task_h;
+                    w->w = g_dwm.screen_w; w->h = taskbar_top();
                     w->flags |= DOSGUI_WIN_MAXIMIZED;
                 }
                 return;
@@ -654,8 +654,8 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                 if (w->x < -w->w + 60) w->x = -w->w + 60;
                 if (w->x > g_dwm.screen_w - 60) w->x = g_dwm.screen_w - 60;
                 if (w->y < 0) w->y = 0;
-                if (w->y > g_dwm.screen_h - task_h - tbh)
-                    w->y = g_dwm.screen_h - task_h - tbh;
+                if (w->y > taskbar_top() - tbh)
+                    w->y = taskbar_top() - tbh;
             }
         } else {
             /* Mouse move over client area - dispatch to focused window */
@@ -673,7 +673,7 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
             if (icon->x < 0) icon->x = 0;
             if (icon->x > g_dwm.screen_w - DOSGUI_ICON_SIZE) icon->x = g_dwm.screen_w - DOSGUI_ICON_SIZE;
             if (icon->y < 0) icon->y = 0;
-            if (icon->y > g_dwm.screen_h - task_h - DOSGUI_ICON_SIZE) icon->y = g_dwm.screen_h - task_h - DOSGUI_ICON_SIZE;
+            if (icon->y > taskbar_top() - DOSGUI_ICON_SIZE) icon->y = taskbar_top() - DOSGUI_ICON_SIZE;
         }
     }
 }
