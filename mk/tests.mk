@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_worldsim test_audio test_runtime_apps test_vk_effect test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1816,6 +1816,18 @@ test_pkgmgr:
 		$(GUI)/wubu_pkgmgr_test.c \
 		-lm -o $(GUI)/wubu_pkgmgr_test -lsqlite3 -lzstd
 	$(GUI)/wubu_pkgmgr_test
+
+# The registry in a link WITHOUT VWS.  launch_vws_designer is weak, so in any
+# link that does not include vws_designer.c the symbol resolves to 0 -- the
+# registry must hold a GUARDED ADAPTER, not the symbol itself, or clicking
+# "VWS Designer" jumps to address 0.  This is the only gate that exercises the
+# weak case; test_apps links the real designer and cannot see it.
+test_apps_weak:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED \
+		-I$(APPS) -I$(GUI) -I$(KERNEL) -I$(RT) \
+		$(APPS)/apps_weak_test.c $(APPS)/apps.c $(APPS)/apps_wet.c \
+		-o $(APPS)/apps_weak_test
+	$(APPS)/apps_weak_test
 
 test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \

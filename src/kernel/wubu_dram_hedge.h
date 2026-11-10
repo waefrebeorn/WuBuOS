@@ -84,9 +84,13 @@ int       wdh_trefi_periodic(const wdh_hedge_t *h); /* 1 if refresh detectable *
  * (this host hides refresh / metal build). */
 int wdh_detect_channel_bit(void);
 
-/* After wdh_init: the detected channel-select bit (-1 if none) and whether
- * the replicas are PROVABLY on distinct channels (channel bit found and
- * replicas placed so their channel bits differ). */
+/* After wdh_init: the bit the replicas are ACTUALLY separated by (-1 when
+ * they use the 256-byte heuristic stride), and whether they are PROVABLY on
+ * distinct channels.  The two agree: channel_bit >= 0 exactly when
+ * channels_guaranteed is 1, so 1<<wdh_channel_bit() is always the real
+ * replica stride (or the stride is WDH_CHANNEL_OFFSET when the bit is -1).
+ * A detected-but-unused bit is reported as -1 rather than lying about the
+ * placement. */
 int wdh_channel_bit(const wdh_hedge_t *h);
 int wdh_channels_guaranteed(const wdh_hedge_t *h);
 

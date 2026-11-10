@@ -824,6 +824,17 @@ static void test_registry_complete(void) {
      * a VWS template is one, so the registry must be able to launch one. */
     const DosGuiAppDef *wet = app_find_by_name("WET Applet");
     if (!wet || !wet->launch) { FAIL("WET Applet"); return; }
+
+    /* Every entry, not just the named ones.  A WEAK launcher that no link
+     * defines is relocated to 0, and a registry table holding that address
+     * crashes the moment the user clicks it -- so a NULL launch pointer is a
+     * defect anywhere in the table, not only in the entries anyone remembered
+     * to list.  (This is how the unguarded launch_vws_designer entry was
+     * found.) */
+    for (int i = 0; i < g_app_def_count; i++) {
+        if (!g_app_defs[i].name || !g_app_defs[i].name[0]) { FAIL("unnamed entry"); return; }
+        if (!g_app_defs[i].launch) { FAIL(g_app_defs[i].name); return; }
+    }
     PASS();
 }
 

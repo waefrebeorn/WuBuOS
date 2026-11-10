@@ -191,6 +191,13 @@ DosGuiWindow* launch_getting_started(void) {
     return gs_launch ? gs_launch() : NULL;
 }
 
+/* launch_vws_designer is weak (VWS is optional at link time).  Taking its
+ * address for the registry is fine, but CALLING it when undefined jumps to 0 --
+ * so the registry gets this adapter, exactly like launch_wet() below. */
+DosGuiWindow* launch_vws_designer_entry(void) {
+    return launch_vws_designer ? launch_vws_designer() : NULL;
+}
+
 DosGuiWindow* launch_wet(void) {
     /* A .wet applet: Lua decides, C lays out.  With no path the launcher opens
      * the built-in demo, so the menu item works before any script exists. */
@@ -292,7 +299,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Notes",        "Notes",          DESK_ICON_COUNT + 10,  0x00A0A000, notes_launch },
     { "Todo",         "Todo",           DESK_ICON_COUNT + 11,  0x0000A0A0, todo_launch },
     { "Music",        "Music",          DESK_ICON_COUNT + 12,  0x00A050C0, music_launch },
-    { "VWS Designer", "VWS Designer",   DESK_ICON_COUNT + 13,  0x00A0A0C0, launch_vws_designer },
+    { "VWS Designer", "VWS Designer",   DESK_ICON_COUNT + 13,  0x00A0A0C0, launch_vws_designer_entry },
     { "Getting Started", "Getting Started", DESK_ICON_COUNT + 14, 0x00A0C0A0, launch_getting_started },
     { "Tutorials", "Tutorials", DESK_ICON_COUNT + 15, 0x00C0A0A0, launch_tutorials },
     /* A .wet applet is a first-class program kind: every program made from a

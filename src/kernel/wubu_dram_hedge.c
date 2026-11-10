@@ -122,7 +122,7 @@ int wdh_init(wdh_hedge_t *h, size_t elem_size, unsigned num_replicas)
      * is undetectable on this host (-1), keep the stride heuristic and
      * report channels_guaranteed=0. */
     int cb = wdh_detect_channel_bit();
-    h->channel_bit = cb;
+    h->channel_bit = -1;              /* the bit the REPLICAS are separated by */
     h->channels_guaranteed = 0;
     if (cb >= 0) {
         size_t ch_stride = (size_t)1 << cb;
@@ -131,6 +131,11 @@ int wdh_init(wdh_hedge_t *h, size_t elem_size, unsigned num_replicas)
             (size_t)num_replicas * ch_stride <= h->region_bytes) {
             for (unsigned i = 0; i < num_replicas; i++)
                 h->replica[i] = r + (size_t)i * ch_stride;
+            /* Report the bit ONLY once it describes the real placement.
+             * A detected-but-unused bit would make wdh_channel_bit() lie
+             * about the replica stride: a consumer computing 1<<bit would
+             * get a separation the replicas do not have. */
+            h->channel_bit = cb;
             h->channels_guaranteed = 1;
         }
     }

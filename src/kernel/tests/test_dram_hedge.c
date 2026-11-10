@@ -173,6 +173,12 @@ static void test_channel_guarantee(void) {
          * guarantee (replicas at 1<<bit apart) or honestly doesn't. Both
          * must round-trip. Do NOT assert the test's separate probe equals
          * wdh_init's (they run at different times on noisy WSL memory). */
+        /* The bit and the guarantee must AGREE.  A bit that was detected but
+         * NOT used for placement must read -1: otherwise 1<<channel_bit
+         * describes a replica separation that does not exist, which is the
+         * lie this check used to catch. */
+        CHECK((wdh_channel_bit(h) >= 0) == (wdh_channels_guaranteed(h) != 0),
+              "channel_bit is set exactly when the guarantee holds");
         if (wdh_channels_guaranteed(h)) {
             int gb = wdh_channel_bit(h);
             char *r0 = (char *)wdh_replica_base(h, 0);
