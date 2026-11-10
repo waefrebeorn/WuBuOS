@@ -137,6 +137,22 @@ static void test_reader_pool(void) {
     }
     CHECK(ok, "reader pool round-trips match across race");
     wdh_reader_destroy(r);
+
+    /* churn: create/read/destroy the pool repeatedly -- exercises the spawn
+     * and teardown (worker-drop) paths without leaking or losing hedge data. */
+    unsigned char z[8] = {1,2,3,4,5,6,7,8};
+    wdh_put(h, 0, z);
+    int churn_ok = 1;
+    for (int i = 0; i < 8; i++) {
+        r = wdh_reader_create(h, cores, 2);
+        if (!r) { churn_ok = 0; break; }
+        memset(out, 0, sizeof out);
+        if (wdh_reader_read(r, 0, out) != 0 || memcmp(z, out, 8) != 0) {
+            churn_ok = 0; wdh_reader_destroy(r); break;
+        }
+        wdh_reader_destroy(r);
+    }
+    CHECK(churn_ok, "reader pool churn: 8 create/read/destroy cycles");
     wdh_destroy(h);
 }
 

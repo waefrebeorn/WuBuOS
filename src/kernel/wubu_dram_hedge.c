@@ -255,7 +255,7 @@ wdh_reader_t *wdh_reader_create(wdh_hedge_t *h, const int *cores, unsigned n_cor
     for (unsigned i = 0; i < n_cores; i++) {
         struct { wdh_reader_t *r; unsigned k; } *w =
             (void *)malloc(sizeof(*w));
-        if (!w) { wdh_reader_destroy(r); return NULL; }
+        if (!w) { r->n_workers = i; wdh_reader_destroy(r); return NULL; }
         w->r = r; w->k = i;
         if (pthread_create(&r->threads[i], NULL, wdh_worker, w) != 0) {
             free(w);
