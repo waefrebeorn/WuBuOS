@@ -78,7 +78,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_cp_sound test_hwdetect test_colonel test_wm test_lua_gui test_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_taskbar_tasks test_dos_window test_startmenu test_explorer test_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
+test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_cp_sound test_hwdetect test_colonel test_wm test_lua_gui test_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_tutorial test_taskbar_tasks test_dos_window test_startmenu test_explorer test_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -4192,6 +4192,39 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c
 		$(GUI)/shell/wm_holyc_term.c \
 		-o $(TEST_BIN)/test_first_run -lm -lz
 	$(TEST_BIN)/test_first_run
+
+test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
+		-I$(APPS) -I$(WET) -I$(VWS) -I$(VWS)/externals/wet -I$(KERNEL) -I$(GUI) \
+		-I$(RT) -I$(COMP) -I$(JIT) -I$(VWSWUA) \
+		$(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c \
+		$(VWS)/vws_form.c $(VWS)/vws_emit.c $(VWS)/vws_load.c \
+		$(WET)/wet_lua.c $(WET_SRCS) \
+		$(VWSWUA)/wb_lv_arena.c $(VWSWUA)/wb_lv_coro.c \
+		$(VWSWUA)/wb_lv_eval.c $(VWSWUA)/wb_lv_host.c \
+		$(VWSWUA)/wb_lv_lex.c $(VWSWUA)/wb_lv_parse.c \
+		$(VWSWUA)/wb_lv_value.c $(VWSWUA)/wb_lv_stdlib.c \
+		$(VWSWUA)/wb_lv_string.c \
+		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
+		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
+		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
+		$(KERNEL)/tasking_switch.S $(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
+		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c \
+		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_theme.c \
+		$(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_input.c \
+		$(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c \
+		$(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c \
+		$(GUI)/wm_layout.c $(GUI)/wm_render.c \
+		$(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c \
+		$(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c \
+		$(GUI)/shell/quick_settings.c $(GUI)/shell/wubu_screensaver.c \
+		$(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o \
+		$(GUI)/shell/wm_desktop.c $(GUI)/shell/wm_icons.c \
+		$(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c \
+		$(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/wm_holyc_term.c \
+		$(RT)/wubu_onboarding.c \
+		-o $(TEST_BIN)/test_tutorial -lm -lz
+	$(TEST_BIN)/test_tutorial
 
 test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws_lua.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \

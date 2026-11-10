@@ -17,11 +17,20 @@
 
 #include "../gui/wet/wet.h"
 #include "../gui/wet/wet_lua.h"
+#include "../gui/wet/externals/wua/src/wb_lv.h"
 #include "../apps/apps.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Cross-module launchers.  Weak, so a test or minimal build that does not link
+ * the app registry still links; the "Try it" button is simply inert there. */
+__attribute__((weak)) DosGuiWindow *launch_terminal(void);
+__attribute__((weak)) DosGuiWindow *launch_vws_designer(void);
+__attribute__((weak)) DosGuiWindow *launch_editor(void);
+__attribute__((weak)) DosGuiWindow *launch_getting_started(void);
+__attribute__((weak)) void startmenu_toggle(void);
 
 /* The shipped tutorials.  A tutorial is a .wet file in this directory. */
 static const char *const TUTORIALS[] = {
