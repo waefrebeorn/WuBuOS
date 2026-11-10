@@ -110,8 +110,20 @@ $(KERNEL)/disk.img: $(KERNEL)/boot.bin $(KERNEL)/kernel.elf
 boot: $(KERNEL)/boot.bin
 	@echo "✅ Bootsector built (./src/kernel/boot.bin, 512 bytes)"
 
-qemu: $(KERNEL)/disk.img
-	@echo "▶ Booting WuBuOS kernel in QEMU via bootsector floppy (true bare-metal path)..."
-	qemu-system-x86_64 -fda $(KERNEL)/disk.img -serial stdio \
+# ── GRUB multiboot bootable image (the deployable interboot artifact) ──────
+# kernel.elf carries a real multiboot header (0x1BADB002) in crt0.S, so GRUB
+# boots it directly -- same path QEMU's `-kernel` uses, and machine-ready on
+# bare metal, QEMU/KVM, and any OS that runs GRUB.  This is the image to ship
+# for the interboot deployment strat (Linux / Windows / macOS all boot it).
+iso: $(KERNEL)/kernel.elf
+	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub
+	cp $(KERNEL)/kernel.elf $(CACHE)/iso-stage/boot/wubuos.elf
+	printf 'set timeout=2\nset default=0\nmenuentry "WuBuOS" {\n    multiboot /boot/wubuos.elf\n    boot\n}\n' > $(CACHE)/iso-stage/boot/grub/grub.cfg
+	grub-mkrescue -o $(KERNEL)/wubuos.iso $(CACHE)/iso-stage
+	@echo "✅ Machine-ready bootable image: ./src/kernel/wubuos.iso"
+
+qemu: iso
+	@echo "▶ Booting WuBuOS kernel in QEMU from the GRUB multiboot image..."
+	qemu-system-x86_64 -cdrom $(KERNEL)/wubuos.iso -serial stdio \
 		-display none -m 128 -no-reboot \
 		-device isa-debug-exit,iobase=0xf4 || true
