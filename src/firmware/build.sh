@@ -18,7 +18,7 @@ SRCS="fw_lib.c fw_mem.c fw_time.c fw_ata.c fw_media.c fw_pe.c fw_guid.c
       fw_con.c fw_handle.c fw_bs_mem.c fw_bs_proto.c fw_rt.c fw_fsproto.c
       fw_pci.c fw_acpi.c fw_sha256.c fw_tpm.c fw_tpmlog.c fw_drivers.c
       fw_ahci.c fw_nvme.c fw_xhci.c fw_gop.c fw_e1000.c fw_block.c fw_fwcfg.c fw_acpiload.c fw_pcires.c
-      fw_secureboot.c fw_shell.c fw_agi.c
+      fw_secureboot.c fw_shell.c fw_agi.c fw_rsa.c
       fw_table.c fw_main.c"
 
 mkdir -p build

@@ -14,6 +14,7 @@
 #include "fw_block.h"
 #include "fw_agi.h"
 #include "fw_secureboot.h"
+#include "fw_rsa.h"
 
 extern EFI_SYSTEM_TABLE *g_systab;
 EFI_STATUS fw_image_create(void *buf, uint64_t size, EFI_HANDLE device, EFI_HANDLE *out);
@@ -182,6 +183,8 @@ void fw_main(void) {
 
     fw_tpm_init();                 /* TPM startup + self-test (software fallback) */
     fw_tpm_selftest_self();
+    fw_puts(fw_rsa_selftest() == 0 ? "[rsa] RSA-2048 PKCS#1 v1.5 selftest: PASS\n"
+                                   : "[rsa] RSA-2048 PKCS#1 v1.5 selftest: FAIL\n");
     fw_sb_selftest();
     fw_sb_selftest_esl();
     fw_sb_selftest_pe();

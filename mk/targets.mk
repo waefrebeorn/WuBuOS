@@ -38,6 +38,12 @@ test_agi_metal:
 test_secureboot:
 	$(FW)/sb-gate.sh
 
+# Real RSA-2048 signature enforcement: openssl-generated key, the chainloader
+# signed with a WRSB trailer, the firmware's RSA db enrollment + verify hook.
+# Signed loader boots; a tampered loader is refused.
+test_rsa:
+	$(FW)/rsa-gate.sh
+
 # ── Metal / Audio / Hosted ────────────────────────────────────────────────
 metal: $(METAL_OBJS)
 	@echo "✅ Metal layer built"

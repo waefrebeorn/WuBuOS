@@ -24,6 +24,10 @@ int  fw_sb_create_platform_key(void);
 int  fw_sb_var_present(const char *name);
 void fw_sb_status(void);
 
+/* RSA-2048 enrollment (real asymmetric verification). */
+int  fw_sb_enroll_rsa(const uint8_t *key, uint32_t len);
+int  fw_sb_rsa_enrolled(void);
+
 /* Returns 0 if the image may execute (and fills `hash` with the
  * Authenticode PE hash for PCR7 measurement), -1 to refuse. */
 int  fw_sb_verify(const uint8_t *image, uint32_t size, uint8_t *hash);

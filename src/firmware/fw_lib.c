@@ -203,10 +203,11 @@ void fw_printf(const char *fmt, ...) {
         case 'X': {
             static const char hexd[] = "0123456789ABCDEF";
             uint64_t v = lng ? va_arg(ap, uint64_t) : (uint64_t)va_arg(ap, unsigned);
-            char hb[20]; int hi = (int)sizeof(hb);
+            char hb[24]; int hi = (int)sizeof(hb) - 1;
             if (!v) hb[--hi] = '0';
             while (v) { hb[--hi] = hexd[v & 0xF]; v >>= 4; }
-            int n = (int)sizeof(hb) - hi;
+            int n = (int)sizeof(hb) - 1 - hi;
+            hb[hi + n] = 0;                 /* NUL-terminate (hb is 24, n <= 16) */
             while (n++ < width) fw_putc(zero ? '0' : ' ');
             fw_puts(&hb[hi]); break;
         }

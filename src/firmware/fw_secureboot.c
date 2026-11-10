@@ -24,6 +24,7 @@
 #include "fw.h"
 #include "fw_sha256.h"
 #include "fw_secureboot.h"
+#include "fw_rsa.h"
 #include <string.h>
 
 /* Variable names under EFI_SIGNATURE_LIST / SecBoot namespace. */
@@ -33,6 +34,7 @@
 static const EFI_GUID EFI_GLOBAL_VARIABLE     = { 0x8BE4DF61, 0x93CA, 0x11D2, {0xAA,0x0D,0x00,0xE0,0x98,0x03,0x2B,0x8C} };
 static const EFI_GUID EFI_IMAGE_SECURITY_DB   = { 0xD719B2CB, 0x3D3A, 0x4596, {0xA3,0xBC,0xDA,0xD0,0x0E,0x67,0x65,0x6F} };
 static const EFI_GUID EFI_CERT_X509           = { 0xA5C059A1, 0x94E4, 0x4AA7, {0x87,0xB5,0xAB,0x15,0x5C,0x2B,0xF0,0x72} };
+static const EFI_GUID EFI_CERT_RSA2048        = { 0xA7717414, 0xC616, 0x4977, {0x94,0x20,0x84,0x47,0x12,0xA7,0x35,0xBF} };
 
 /* Variable attributes (UEFI spec). */
 #define EV_NVRAM        0x00000001
@@ -58,6 +60,10 @@ typedef struct {
 static sb_entry g_db[SB_MAX];
 static sb_entry g_dbx[SB_MAX];
 static int g_db_n, g_dbx_n;
+
+/* Enrolled RSA-2048 public key (the real asymmetric check). */
+static uint32_t g_rsa_n[64], g_rsa_e[64];
+static int g_rsa_enrolled;
 
 /* Extract a SHA-256 over the DER cert bytes found after the SEQUENCE tag.
  * We do not fully parse X.509; we hash the whole TBS-ish block from the
@@ -172,8 +178,16 @@ int fw_sb_enroll_esl(const char *which, const uint8_t *esl, uint32_t len) {
         fw_puts("[sb] enroll: malformed signature list -> reject\n");
         return -1;
     }
-    /* db/dbx update the hash policy the verifier actually consults. */
-    if (which[0] == 'd' && which[1] == 'b' && which[2] == 0) {
+    /* RSA-2048 public key enrollment (EFI_CERT_RSA2048 signature type).
+     * The RSA key IS the policy -- it is not also a hash-db entry. */
+    if (fw_memcmp(esl, &EFI_CERT_RSA2048, 16) == 0) {
+        if (fw_sb_enroll_rsa(cert, clen) != 0) {
+            fw_puts("[sb] enroll: malformed RSA key -> reject\n");
+            return -1;
+        }
+        fw_puts("[sb] RSA-2048 public key enrolled\n");
+    } else if (which[0] == 'd' && which[1] == 'b' && which[2] == 0) {
+        /* db/dbx update the hash policy the verifier actually consults. */
         if (fw_sb_enroll_db(cert, clen) != 0) return -1;
     } else if (which[0] == 'd' && which[1] == 'b' && which[2] == 'x') {
         if (fw_sb_enroll_dbx(cert, clen) != 0) return -1;
@@ -186,7 +200,7 @@ int fw_sb_enroll_esl(const char *which, const uint8_t *esl, uint32_t len) {
         /* PK enrollment is the setup-mode -> user-mode transition. */
         g_setup_mode = 0;
         g_secure_boot = 1;
-        g_enforce = (g_db_n > 0);
+        g_enforce = (g_db_n > 0 || g_rsa_enrolled);
         uint8_t sb = 1, sm = 0;
         sb_var_set("SecureBoot", &EFI_GLOBAL_VARIABLE, attr, &sb, 1);
         sb_var_set("SetupMode",  &EFI_GLOBAL_VARIABLE, attr, &sm, 1);
@@ -235,6 +249,7 @@ void fw_sb_status(void) {
     fw_printf("  PK variable:  %s   db variable: %s\n",
               fw_sb_var_present("PK") ? "present" : "absent",
               fw_sb_var_present("db") ? "present" : "absent");
+    fw_printf("  rsa key:      %s\n", fw_sb_rsa_enrolled() ? "enrolled" : "absent");
 }
 
 /* Authenticode PE hash: header up to Checksum, skip 4, then to the cert
@@ -299,13 +314,32 @@ int fw_sb_enroll_dbx(const uint8_t *der_cert, uint32_t len) {
     return 0;
 }
 
+/* Enroll an RSA-2048 public key: 256-byte big-endian n || 4-byte big-endian e.
+ * This is the real asymmetric check -- only the private key holder can sign. */
+int fw_sb_enroll_rsa(const uint8_t *key, uint32_t len) {
+    if (!key || len < 260) return -1;
+    for (int i = 0; i < 64; i++) {
+        const uint8_t *p = key + (63 - i) * 4;
+        g_rsa_n[i] = ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
+                     ((uint32_t)p[2] << 8)  | (uint32_t)p[3];
+    }
+    const uint8_t *pe = key + 256;
+    memset(g_rsa_e, 0, sizeof g_rsa_e);
+    g_rsa_e[0] = ((uint32_t)pe[0] << 24) | ((uint32_t)pe[1] << 16) |
+                 ((uint32_t)pe[2] << 8)  | (uint32_t)pe[3];
+    g_rsa_enrolled = 1;
+    return 0;
+}
+
+int fw_sb_rsa_enrolled(void) { return g_rsa_enrolled; }
+
 /* Install a platform key: flips from setup mode into user mode and turns
  * enforcement on.  Now writes a real PK variable (setup->user transition). */
 void fw_sb_set_pk(void) {
     fw_sb_create_platform_key();
     g_setup_mode = 0;
     g_secure_boot = 1;
-    g_enforce = (g_db_n > 0);
+    g_enforce = (g_db_n > 0 || g_rsa_enrolled);
 }
 
 int fw_sb_secureboot_enabled(void) { return g_secure_boot; }
@@ -476,6 +510,25 @@ int fw_sb_verify(const uint8_t *image, uint32_t size, uint8_t *hash) {
     pe_authentihash(image, size, hash);
 
     if (!g_enforce) return 0;     /* setup mode / no PK: allow */
+
+    /* RSA-2048: real asymmetric verification.  The image carries a trailer
+     * "WRSB" + 256-byte signature over SHA-256(image without the trailer);
+     * only the private-key holder can produce a verifying signature. */
+    if (g_rsa_enrolled) {
+        if (size < 260 || fw_memcmp(image + size - 260, "WRSB", 4) != 0) {
+            fw_puts("[sb] RSA: no signature trailer -> reject\n");
+            return -1;
+        }
+        uint8_t h[32];
+        sha256(image, (size_t)size - 260, h);
+        int rsa_rc = fw_rsa2048_verify_pkcs1(g_rsa_n, g_rsa_e, h, image + size - 256);
+        fw_printf("[sb] RSA dbg: rc=%d m63=%x m0=%x\n", rsa_rc, g_fw_rsa_last_m[63], g_fw_rsa_last_m[0]);
+        if (rsa_rc != 0) {
+            fw_puts("[sb] RSA: signature verify failed -> reject\n");
+            return -1;
+        }
+        return 0;
+    }
 
     const uint8_t *cert;
     uint32_t clen;
