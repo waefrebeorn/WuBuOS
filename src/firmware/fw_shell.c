@@ -13,6 +13,7 @@
 #include "fw_block.h"
 #include "fw.h"
 #include "fw_tpm.h"
+#include "fw_secureboot.h"
 
 /* SNP accessor defined in fw_e1000.c (no dedicated header). */
 EFI_SIMPLE_NETWORK_PROTOCOL *fw_e1000_get_snp(void);
@@ -175,7 +176,7 @@ void fw_shell_run(void) {
         if (!n) continue;
         if (fw_strcmp(a[0], "help") == 0 || fw_strcmp(a[0], "?") == 0) {
             fw_puts("  ls  cat <f>  pci  drivers  map  devices  mem  tpm  net\n"
-                    "  mm <addr> [<n>]  boot <path>  ver  exit  help\n");
+                    "  mm <addr> [<n>]  boot <path>  ver  sbstatus  sbpk  sbenroll  exit  help\n");
         } else if (fw_strcmp(a[0], "ls") == 0) {
             cmd_ls();
         } else if (fw_strcmp(a[0], "cat") == 0) {
@@ -200,6 +201,19 @@ void fw_shell_run(void) {
             else fw_puts("usage: boot <path>\n");
         } else if (fw_strcmp(a[0], "ver") == 0) {
             fw_puts("  WuBuFW UEFI 2.10 (C11), WuBuOS\n");
+        } else if (fw_strcmp(a[0], "sbstatus") == 0) {
+            fw_sb_status();
+        } else if (fw_strcmp(a[0], "sbpk") == 0) {
+            fw_puts("  creating + enrolling platform key...\n");
+            if (fw_sb_create_platform_key() == 0) fw_puts("  PK enrolled\n");
+            else fw_puts("  PK enrollment FAILED\n");
+        } else if (fw_strcmp(a[0], "sbenroll") == 0) {
+            if (n > 2) {
+                if (fw_sb_enroll_file(a[1], a[2]) == 0) fw_printf("  %s enrolled\n", a[1]);
+                else fw_printf("  %s enrollment FAILED\n", a[1]);
+            } else {
+                fw_puts("usage: sbenroll <PK|KEK|db|dbx> <file.esl>\n");
+            }
         } else if (fw_strcmp(a[0], "exit") == 0) {
             fw_puts("  exiting shell\n");
             return;

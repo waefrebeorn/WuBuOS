@@ -33,6 +33,11 @@ test_uefi:
 test_agi_metal:
 	$(FW)/run-agi.sh
 
+# Secure Boot enrollment + enforcement: mksb (sbctl equivalent) host round-trip
+# plus the firmware's ESL enrollment selftest and signed/unsigned PE gate.
+test_secureboot:
+	$(FW)/sb-gate.sh
+
 # ── Metal / Audio / Hosted ────────────────────────────────────────────────
 metal: $(METAL_OBJS)
 	@echo "✅ Metal layer built"

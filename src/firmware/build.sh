@@ -72,3 +72,7 @@ print(f"wrote {sys.argv[1]} ({size} bytes)")
 PY
 
 echo "OK: $OUT"
+
+# Host tool: Secure Boot key/enrollment signer (sbctl equivalent).
+$CC -std=c11 -Wall -Wextra -O2 tools/mksb.c -o build/mksb
+echo "OK: build/mksb"

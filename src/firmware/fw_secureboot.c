@@ -29,6 +29,21 @@
 /* Variable names under EFI_SIGNATURE_LIST / SecBoot namespace. */
 #define SB_GUID { 0x8BE4DF61, 0x93CA, 0x11D2, {0xAA,0x0D,0x00,0xE0,0x98,0x03,0x2B,0x8C} }
 
+/* Standard UEFI Secure Boot GUIDs (omarchy/sbctl model). */
+static const EFI_GUID EFI_GLOBAL_VARIABLE     = { 0x8BE4DF61, 0x93CA, 0x11D2, {0xAA,0x0D,0x00,0xE0,0x98,0x03,0x2B,0x8C} };
+static const EFI_GUID EFI_IMAGE_SECURITY_DB   = { 0xD719B2CB, 0x3D3A, 0x4596, {0xA3,0xBC,0xDA,0xD0,0x0E,0x67,0x65,0x6F} };
+static const EFI_GUID EFI_CERT_X509           = { 0xA5C059A1, 0x94E4, 0x4AA7, {0x87,0xB5,0xAB,0x15,0x5C,0x2B,0xF0,0x72} };
+
+/* Variable attributes (UEFI spec). */
+#define EV_NVRAM        0x00000001
+#define EV_BOOT_SERVICE 0x00000002
+#define EV_RUNTIME      0x00000004
+#define EV_TIME_BASED   0x20000000
+
+/* Runtime variable service (implemented in fw_rt.c). */
+extern EFI_STATUS EFIAPI fw_rt_set_variable(CHAR16 *, EFI_GUID *, UINT32, UINTN, VOID *);
+extern EFI_STATUS EFIAPI fw_rt_get_variable(CHAR16 *, EFI_GUID *, UINT32 *, UINTN *, VOID *);
+
 static int g_setup_mode = 1;     /* 1 = setup (no auth), 0 = user mode */
 static int g_secure_boot = 0;    /* published via EFI variable SecureBoot */
 static int g_enforce = 0;        /* 1 once a PK is enrolled */
@@ -64,6 +79,162 @@ static int cert_sha256(const uint8_t *der, uint32_t len, uint8_t *out) {
     if (off + slen > len) return -1;
     sha256(der, off + slen, out);  /* hash only the SEQUENCE content, not padding */
     return 0;
+}
+
+/* ---- EFI_SIGNATURE_LIST helpers (the omarchy/sbctl enrollment format) ----
+ *
+ * A signature database entry on the wire is an EFI_SIGNATURE_LIST:
+ *   [0]  EFI_GUID SignatureType            (16)
+ *   [16] UINT32  SignatureListSize         (4)
+ *   [20] UINT32  SignatureHeaderSize       (4)
+ *   [24] UINT32  SignatureSize             (4)   = 16 (owner GUID) + payload
+ *   [28] UINT8   SignatureHeader[SignatureHeaderSize]
+ *   [..] EFI_SIGNATURE_DATA { EFI_GUID SignatureOwner; UINT8 data[]; }
+ * The payload for an X.509 db entry is the DER certificate.  Our verifier
+ * compares SHA-256(DER) against the enrolled db (see cert_sha256), so the ESL
+ * is the real on-wire container and the hash is the policy decision. */
+
+static uint32_t esl_build(uint8_t *out, const EFI_GUID *type, const EFI_GUID *owner,
+                          const uint8_t *data, uint32_t dlen) {
+    if (!out || !type || !owner || !data) return 0;
+    fw_memcpy(out, type, 16);
+    uint32_t sig_size = 16 + dlen;
+    uint32_t list_size = 28 + sig_size;
+    out[16] = (uint8_t)(list_size & 0xFF); out[17] = (uint8_t)((list_size >> 8) & 0xFF);
+    out[18] = (uint8_t)((list_size >> 16) & 0xFF); out[19] = (uint8_t)((list_size >> 24) & 0xFF);
+    out[20] = out[21] = out[22] = out[23] = 0;               /* SignatureHeaderSize */
+    out[24] = (uint8_t)(sig_size & 0xFF); out[25] = (uint8_t)((sig_size >> 8) & 0xFF);
+    out[26] = (uint8_t)((sig_size >> 16) & 0xFF); out[27] = (uint8_t)((sig_size >> 24) & 0xFF);
+    fw_memcpy(out + 28, owner, 16);
+    fw_memcpy(out + 44, data, dlen);
+    return list_size;
+}
+
+static int esl_extract_first_cert(const uint8_t *esl, uint32_t len,
+                                  const uint8_t **cert, uint32_t *clen) {
+    if (!esl || len < 28) return -1;
+    uint32_t list_size = (uint32_t)esl[16] | ((uint32_t)esl[17] << 8) |
+                         ((uint32_t)esl[18] << 16) | ((uint32_t)esl[19] << 24);
+    uint32_t hdr_size  = (uint32_t)esl[20] | ((uint32_t)esl[21] << 8) |
+                         ((uint32_t)esl[22] << 16) | ((uint32_t)esl[23] << 24);
+    uint32_t sig_size  = (uint32_t)esl[24] | ((uint32_t)esl[25] << 8) |
+                         ((uint32_t)esl[26] << 16) | ((uint32_t)esl[27] << 24);
+    if (list_size > len || sig_size < 16) return -1;
+    uint32_t off = 28 + hdr_size;
+    if (off + sig_size > list_size) return -1;
+    *cert = esl + off + 16;         /* skip the SignatureOwner GUID */
+    *clen = sig_size - 16;
+    return 0;
+}
+
+/* Store/retrieve a Secure Boot variable through the runtime variable service,
+ * so the enrolled databases are visible to the OS and payload via
+ * GetVariable (real firmware behaviour; the store is volatile on QEMU). */
+static int sb_var_set(const char *name, const EFI_GUID *guid, uint32_t attr,
+                      const void *data, uint32_t size) {
+    CHAR16 n16[16];
+    int i = 0;
+    while (name[i] && i < 15) { n16[i] = (CHAR16)(uint8_t)name[i]; i++; }
+    n16[i] = 0;
+    return fw_rt_set_variable(n16, (EFI_GUID *)guid, attr, size, (VOID *)data) == 0 ? 0 : -1;
+}
+
+static int sb_var_get(const char *name, const EFI_GUID *guid, uint8_t *out, uint32_t cap) {
+    CHAR16 n16[16];
+    int i = 0;
+    while (name[i] && i < 15) { n16[i] = (CHAR16)(uint8_t)name[i]; i++; }
+    n16[i] = 0;
+    UINT32 attr = 0; UINTN sz = cap;
+    if (fw_rt_get_variable(n16, (EFI_GUID *)guid, &attr, &sz, out) != 0) return -1;
+    return (int)sz;
+}
+
+int fw_sb_var_present(const char *name) {
+    uint8_t tmp[256];
+    return sb_var_get(name, &EFI_GLOBAL_VARIABLE, tmp, sizeof tmp) >= 0 ? 1 : 0;
+}
+
+/* Enroll a signature database from an EFI_SIGNATURE_LIST (db/dbx) or a
+ * platform/key-exchange key (PK/KEK).  `which` is one of those four names.
+ * For db/dbx the first embedded cert is also added to the in-memory policy
+ * hash set that fw_sb_verify consults. */
+int fw_sb_enroll_esl(const char *which, const uint8_t *esl, uint32_t len) {
+    if (!which || !esl || len < 28) return -1;
+    const EFI_GUID *guid = &EFI_GLOBAL_VARIABLE;
+    uint32_t attr = EV_NVRAM | EV_BOOT_SERVICE | EV_RUNTIME;
+    if (which[0] == 'd' && (which[1] == 'b')) {         /* db / dbx */
+        guid = &EFI_IMAGE_SECURITY_DB;
+    } else if (which[0] == 'P') {                        /* PK */
+        attr |= EV_TIME_BASED;
+    }
+    const uint8_t *cert; uint32_t clen;
+    if (esl_extract_first_cert(esl, len, &cert, &clen) != 0) {
+        fw_puts("[sb] enroll: malformed signature list -> reject\n");
+        return -1;
+    }
+    /* db/dbx update the hash policy the verifier actually consults. */
+    if (which[0] == 'd' && which[1] == 'b' && which[2] == 0) {
+        if (fw_sb_enroll_db(cert, clen) != 0) return -1;
+    } else if (which[0] == 'd' && which[1] == 'b' && which[2] == 'x') {
+        if (fw_sb_enroll_dbx(cert, clen) != 0) return -1;
+    }
+    if (sb_var_set(which, guid, attr, esl, len) != 0) {
+        fw_puts("[sb] enroll: variable store rejected the list\n");
+        return -1;
+    }
+    if (which[0] == 'P' && which[1] == 'K') {
+        /* PK enrollment is the setup-mode -> user-mode transition. */
+        g_setup_mode = 0;
+        g_secure_boot = 1;
+        g_enforce = (g_db_n > 0);
+        uint8_t sb = 1, sm = 0;
+        sb_var_set("SecureBoot", &EFI_GLOBAL_VARIABLE, attr, &sb, 1);
+        sb_var_set("SetupMode",  &EFI_GLOBAL_VARIABLE, attr, &sm, 1);
+        fw_puts("[sb] PK enrolled: setup mode -> user mode, SecureBoot on\n");
+    } else {
+        fw_printf("[sb] %s enrolled\n", which);
+    }
+    return 0;
+}
+
+/* Create and enroll a platform key in-firmware (the sbctl "create-keys" +
+ * "enroll-keys" equivalent, self-contained: a deterministic synthetic X.509
+ * leaf, matching the verifier's SHA-256(cert) policy model). */
+int fw_sb_create_platform_key(void) {
+    /* Synthetic self-signed DER SEQUENCE (the same shape mkpe -cert embeds). */
+    uint8_t cert[32];
+    cert[0] = 0x30; cert[1] = 0x1E; fw_memset(cert + 2, 0x5A, 30);
+    EFI_GUID owner = EFI_GLOBAL_VARIABLE;
+    uint8_t esl[128];
+    uint32_t n = esl_build(esl, &EFI_CERT_X509, &owner, cert, sizeof cert);
+    if (n == 0) return -1;
+    return fw_sb_enroll_esl("PK", esl, n);
+}
+
+static int read_path_any(const char *path, uint8_t **out, uint64_t *sz);
+
+/* Enroll an ESL from a file on any attached volume:
+ *   fw_sb_enroll_file("db", "\\EFI\\BOOT\\DB.ESL")  */
+int fw_sb_enroll_file(const char *which, const char *path) {
+    uint8_t *d = NULL; uint64_t s = 0;
+    if (read_path_any(path, &d, &s) != 0) {
+        fw_printf("[sb] enroll: cannot read %s\n", path);
+        return -1;
+    }
+    int rc = fw_sb_enroll_esl(which, d, (uint32_t)s);
+    fw_free_pages(d, (uint32_t)((s + 4095) / 4096));
+    return rc;
+}
+
+/* Report the Secure Boot policy state (sbctl "status" equivalent). */
+void fw_sb_status(void) {
+    fw_printf("  setup mode:   %s\n", g_setup_mode ? "SETUP (no authentication)" : "USER");
+    fw_printf("  secure boot:  %s\n", g_secure_boot ? "on" : "off");
+    fw_printf("  enforcement:  %s\n", g_enforce ? "armed" : "not armed");
+    fw_printf("  db entries:   %d   dbx entries: %d\n", g_db_n, g_dbx_n);
+    fw_printf("  PK variable:  %s   db variable: %s\n",
+              fw_sb_var_present("PK") ? "present" : "absent",
+              fw_sb_var_present("db") ? "present" : "absent");
 }
 
 /* Authenticode PE hash: header up to Checksum, skip 4, then to the cert
@@ -129,11 +300,12 @@ int fw_sb_enroll_dbx(const uint8_t *der_cert, uint32_t len) {
 }
 
 /* Install a platform key: flips from setup mode into user mode and turns
- * enforcement on. */
+ * enforcement on.  Now writes a real PK variable (setup->user transition). */
 void fw_sb_set_pk(void) {
+    fw_sb_create_platform_key();
     g_setup_mode = 0;
-    g_enforce = 1;
     g_secure_boot = 1;
+    g_enforce = (g_db_n > 0);
 }
 
 int fw_sb_secureboot_enabled(void) { return g_secure_boot; }
@@ -168,6 +340,64 @@ int fw_sb_selftest(void) {
     if (memcmp(h1, h2, 32) != 0) pass = 0;
     fw_puts(pass ? "[sb] secureboot policy engine selftest: PASS\n"
                  : "[sb] secureboot policy engine selftest: FAIL\n");
+    return pass ? 0 : -1;
+}
+
+/* ESL enrollment round-trip + setup/user-mode transition (omarchy/sbctl
+ * model): build a db ESL, enroll it, confirm it lands in the variable store
+ * and the hash policy; then enroll a PK and confirm setup mode flips to user
+ * mode with enforcement armed only when a db exists. */
+int fw_sb_selftest_esl(void) {
+    int was_setup = g_setup_mode, was_enforce = g_enforce, was_sb = g_secure_boot;
+    int was_dbn = g_db_n, was_dbxn = g_dbx_n;
+    g_db_n = g_dbx_n = 0; g_setup_mode = 1; g_enforce = 0; g_secure_boot = 0;
+
+    int pass = 1;
+    uint8_t cert[32];
+    cert[0] = 0x30; cert[1] = 0x1E; fw_memset(cert + 2, 0xC5, 30);
+    EFI_GUID owner = EFI_GLOBAL_VARIABLE;
+    uint8_t esl[128];
+    uint32_t n = esl_build(esl, &EFI_CERT_X509, &owner, cert, sizeof cert);
+    if (n == 0) { pass = 0; goto done; }
+
+    /* extract must agree with what we put in */
+    const uint8_t *back; uint32_t blen;
+    if (esl_extract_first_cert(esl, n, &back, &blen) != 0 ||
+        blen != sizeof cert || fw_memcmp(back, cert, sizeof cert) != 0) {
+        fw_puts("[sb] esl selftest: build/extract mismatch -> FAIL\n"); pass = 0; goto done;
+    }
+    /* enroll db: policy hash set grows, variable is readable */
+    if (fw_sb_enroll_esl("db", esl, n) != 0) { pass = 0; goto done; }
+    if (g_db_n != 1) { fw_puts("[sb] esl selftest: db policy not updated -> FAIL\n"); pass = 0; goto done; }
+    uint8_t stored[128]; int got = sb_var_get("db", &EFI_IMAGE_SECURITY_DB, stored, sizeof stored);
+    if (got < 0 || (uint32_t)got != n || fw_memcmp(stored, esl, n) != 0) {
+        fw_puts("[sb] esl selftest: db variable not stored -> FAIL\n"); pass = 0; goto done;
+    }
+    /* PK: setup -> user, SecureBoot variable set, enforcement armed (db present) */
+    if (fw_sb_enroll_esl("PK", esl, n) != 0) { pass = 0; goto done; }
+    if (g_setup_mode != 0 || g_secure_boot != 1 || g_enforce != 1) {
+        fw_puts("[sb] esl selftest: PK did not flip to user mode -> FAIL\n"); pass = 0; goto done;
+    }
+    uint8_t sb = 0, sm = 1;
+    if (sb_var_get("SecureBoot", &EFI_GLOBAL_VARIABLE, &sb, 1) < 0 || sb != 1 ||
+        sb_var_get("SetupMode",  &EFI_GLOBAL_VARIABLE, &sm, 1) < 0 || sm != 0) {
+        fw_puts("[sb] esl selftest: SecureBoot/SetupMode vars wrong -> FAIL\n"); pass = 0; goto done;
+    }
+    /* enforcement must reject an unsigned image now.  Use a full-size zeroed
+     * buffer: pe_authentihash reads to base+0xA0 and computes size-0xA0, so a
+     * short buffer would read out of bounds (the policy-engine selftest's
+     * warning applies here too). */
+    uint8_t fake[512]; fw_memset(fake, 0, sizeof fake);
+    uint8_t h[32];
+    if (fw_sb_verify(fake, sizeof fake, h) == 0) {
+        fw_puts("[sb] esl selftest: unsigned accepted under enforcement -> FAIL\n"); pass = 0; goto done;
+    }
+
+done:
+    g_setup_mode = was_setup; g_enforce = was_enforce; g_secure_boot = was_sb;
+    g_db_n = was_dbn; g_dbx_n = was_dbxn;
+    fw_puts(pass ? "[sb] esl enrollment selftest: PASS\n"
+                 : "[sb] esl enrollment selftest: FAIL\n");
     return pass ? 0 : -1;
 }
 

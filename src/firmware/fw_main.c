@@ -183,6 +183,7 @@ void fw_main(void) {
     fw_tpm_init();                 /* TPM startup + self-test (software fallback) */
     fw_tpm_selftest_self();
     fw_sb_selftest();
+    fw_sb_selftest_esl();
     fw_sb_selftest_pe();
     fw_tpm_log_dump();
 
