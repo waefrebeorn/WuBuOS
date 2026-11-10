@@ -60,9 +60,27 @@ undeclared debt, not progress.
 `.o` / `.d` are already gitignored (`*.o`, `*.d` in .gitignore) and untracked
 (verified 0 tracked). They pollute disk, not the repo. Do not `git add` them.
 
-## Stale names to kill (small, safe renames)
+## Resolved (kept for the record)
 
-- `wubd_holyc_agi_test`, `wubd_holyd_test` in src/runtime — a leftover "holyc"
-  name violates the ONLY-HOLYD rule. Rename to `wubd_holyd_*`.
-- `holyd_bf_stub.c` — unexplained; either drop the "+ stub" framing or document
-  what it actually is.
+- `wubd_holyc_agi_test` -> `wubd_holyd_agi_test` (src/runtime).  The leftover
+  "holyc" name violated the ONLY-HOLYD rule.  DONE -- `wubd_holyc_*` now has
+  zero references anywhere.
+- `holyd_bf_stub.c` -- an unexplained "+ stub" framing, referenced by no build
+  in either repo.  Removed (wubunos cf88a36).
+
+## Odd first tokens, audited 2026-11-10
+
+Every short first token was checked against "does it name its layer?".  All are
+meaningful domain names, not noise:
+
+| token | what it is | where |
+|---|---|---|
+| `lfm2` | the LFM2 language-model architecture | `src/brain/include` |
+| `crnn` | convolutional-recurrent net, the photo tool's recogniser | `src/apps/wubuoffice/tools` |
+| `oci`  | Open Container Initiative runtime descriptors | `src/runtime/oci` |
+| `fw`   | firmware | `src/firmware` |
+| `train` | the model-training tools | `src/apps/wubuoffice/tools` |
+| `run`  | runner / test scripts | `src/brain/tools`, `src/tools` |
+
+None need renaming.  The rule is that a first token names the CONCERN the file
+implements; a bare `wubu_` would say nothing, and these all say something.
