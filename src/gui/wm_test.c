@@ -1197,6 +1197,73 @@ static void test_gesture_actions(void) {
     PASS();
 }
 
+
+
+static void test_desktop_new_shortcut(void) {
+    TEST("New Shortcut writes a real .desktop and surfaces a live icon");
+    char desk[512];
+    snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
+    setenv("XDG_DESKTOP_DIR", desk, 1);
+    rm_rf(desk);
+    mkdir(desk, 0755);
+
+    wubu_settings_init();
+    wm_init(1024, 768);
+    wm_refresh_desktop();
+    int before = wm_get_icon_count();
+
+    /* The named mechanism: craft a shortcut for an app. */
+    int rc = wm_write_desktop_shortcut("Calc", "wubu-app calculator");
+    CHECK(rc == 0, "wm_write_desktop_shortcut returns 0");
+
+    /* It must be a real .desktop on disk with the Exec line we asked for. */
+    char fname[600];
+    snprintf(fname, sizeof(fname), "%s/Calc.desktop", desk);
+    struct stat st;
+    CHECK(stat(fname, &st) == 0 && S_ISREG(st.st_mode), "shortcut .desktop file exists");
+    char fdata[200];
+    FILE *f = fopen(fname, "r");
+    CHECK(f != NULL, "shortcut .desktop opens for read");
+    int has_exec = 0, has_name = 0;
+    if (f) {
+        while (fgets(fdata, sizeof(fdata), f)) {
+            if (strncmp(fdata, "Exec=wubu-app calculator", 24) == 0) has_exec = 1;
+            if (strncmp(fdata, "Name=Calc", 9) == 0) has_name = 1;
+        }
+        fclose(f);
+    }
+    CHECK(has_exec, ".desktop carries Exec=wubu-app calculator");
+    CHECK(has_name, ".desktop carries Name=Calc");
+
+    /* No-exec name defaults to 'wubu-app <name>'. */
+    rc = wm_write_desktop_shortcut("Notes", NULL);
+    CHECK(rc == 0, "default-exec shortcut returns 0");
+    char nf[600];
+    snprintf(nf, sizeof(nf), "%s/Notes.desktop", desk);
+    f = fopen(nf, "r");
+    int has_def_exec = 0;
+    if (f) {
+        while (fgets(fdata, sizeof(fdata), f))
+            if (strncmp(fdata, "Exec=wubu-app Notes", 19) == 0) has_def_exec = 1;
+        fclose(f);
+    }
+    CHECK(has_def_exec, "default Exec=wubu-app Notes");
+
+    wm_refresh_desktop();
+    int found = 0;
+    for (int i = 0; i < wm_get_icon_count(); i++) {
+        DosGuiIcon *ic = icon_get(i);
+        if (!ic || !ic->alive) continue;
+        if (strcasecmp(ic->name, "Calc") == 0) found = 1;
+    }
+    CHECK(found, "shortcut surfaced as a live desktop icon");
+    CHECK(wm_get_icon_count() >= before + 1, "icon count grew");
+    CHECK(wm_write_desktop_shortcut("", NULL) == -1, "empty name rejected");
+
+    wm_shutdown();
+    rm_rf(desk);
+    PASS();
+}
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Window Manager Test Suite (Cell 400)   |\n");
@@ -1238,8 +1305,12 @@ int main(void) {
     test_fable_text_width();
     test_fable_primitives_exist();
     test_invalidate_tracking();
+
+
+
     test_desktop_live_namespace_init();
     test_desktop_new_folder();
+    test_desktop_new_shortcut();
     test_desktop_new_text_doc();
     test_desktop_sort_by_size();
     test_desktop_many_icons_retained();
