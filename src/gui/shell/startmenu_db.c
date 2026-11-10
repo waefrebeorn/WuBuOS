@@ -18,12 +18,21 @@
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../../gui/wubu_mime.h"
+#include "../../apps/apps.h"      /* DosGuiAppDef + the discovered .wet applets */
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
+
+/* The applet registry lives in src/apps/apps.c, which drags in the whole app
+ * set (wm, vbe, containers, cmd, calc, ...).  The start menu links WITHOUT it,
+ * so these accessors are weak and TESTED: a link without apps.c simply sees
+ * zero applets and the menu is built from the MIME database alone.  Same
+ * pattern as launch_wet_applet / wubu_ns_effect_stack. */
+extern int                app_wet_count(void) __attribute__((weak));
+extern const DosGuiAppDef *app_wet_at(int i) __attribute__((weak));
 
 /* -- Main menu construction -------------------------------------- */
 
@@ -120,6 +129,23 @@ void startmenu_build_submenus(void) {
                 SM_ITEM_APP, "", "", 0};
             strncpy(target->items[target->item_count - 1].label, de->name, 47);
             strncpy(target->items[target->item_count - 1].app_name, de->name, 47);
+        }
+    }
+
+    /* Discovered .wet applets are programs too.  The MIME database only knows
+     * .desktop files, so without this pass an applet dropped into the applet
+     * directory would show on the desktop but NOT in the start menu -- two
+     * program sources.  launch_app() resolves the name through the registry,
+     * where app_scan_wet_dir() already registered it. */
+    if (app_wet_count && app_wet_at) {
+        for (int i = 0; i < app_wet_count() && g_programs.item_count < 12; i++) {
+            const DosGuiAppDef *a = app_wet_at(i);
+            if (!a || a->name[0] == '\0') continue;
+            g_programs.items[g_programs.item_count++] = (SmMenuItem){
+                SM_ITEM_APP, "", "", 0};
+            SmMenuItem *it = &g_programs.items[g_programs.item_count - 1];
+            strncpy(it->label, a->name, 47);
+            strncpy(it->app_name, a->name, 47);
         }
     }
 

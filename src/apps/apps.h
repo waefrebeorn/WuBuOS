@@ -64,6 +64,9 @@ void app_wet_dir(char *out, size_t cap);
 
 /* Lookup helpers (single point of truth). */
 const DosGuiAppDef *app_find(int icon_type);
+const DosGuiAppDef *app_find_wet(int icon_type);        /* owned by apps_wet.c */
+const DosGuiAppDef *app_find_wet_by_name(const char *name);
+DosGuiWindow       *app_launch_wet_path(const char *path);
 const DosGuiAppDef *app_find_by_name(const char *name);
 
 /* Generic launch by icon type or name (used by desktop + startmenu). */

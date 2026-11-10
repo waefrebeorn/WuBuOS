@@ -3,9 +3,15 @@
  */
 
 #include "shell/startmenu.h"
+#include "shell/startmenu_internal.h"
 #include "wubu_theme.h"
 #include "../kernel/vbe.h"
+#include "../apps/apps.h"
 #include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST %-50s", name); g_total++;
@@ -84,6 +90,58 @@ static void test_multiple_toggles(void) {
     PASS();
 }
 
+/* -- Discovered .wet applets reach the start menu ------------------ */
+
+static void write_file(const char *path, const char *content) {
+    FILE *f = fopen(path, "w");
+    if (!f) return;
+    fputs(content, f);
+    fclose(f);
+}
+
+static void test_wet_applets_in_programs(void) {
+    TEST("Discovered .wet applets appear in the Programs submenu");
+
+    const char *dir = "/tmp/wubu_startmenu_applets";
+    mkdir(dir, 0755);
+    char p1[256], p2[256], p3[256];
+    snprintf(p1, sizeof p1, "%s/notes.wet", dir);
+    snprintf(p2, sizeof p2, "%s/paint.wet", dir);
+    snprintf(p3, sizeof p3, "%s/readme.txt", dir);
+    write_file(p1, "form notes {}\n");
+    write_file(p2, "form paint {}\n");
+    write_file(p3, "not an applet\n");
+
+    CHECK(app_scan_wet_dir(dir) == 2, "exactly the two .wet files register");
+    CHECK(app_wet_count() == 2, "the registry holds two applets");
+
+    /* Rebuild the menu the way the real shell does. */
+    startmenu_build_submenus();
+
+    int found_notes = 0, found_paint = 0, found_readme = 0;
+    for (int i = 0; i < g_programs.item_count; i++) {
+        if (strcmp(g_programs.items[i].label, "notes") == 0) found_notes = 1;
+        if (strcmp(g_programs.items[i].label, "paint") == 0)  found_paint = 1;
+        if (strcmp(g_programs.items[i].label, "readme.txt") == 0) found_readme = 1;
+    }
+    CHECK(found_notes, "notes appears in Programs");
+    CHECK(found_paint,  "paint appears in Programs");
+    CHECK(!found_readme, "the .txt impostor does not");
+
+    /* The launch path must resolve by the same name the menu shows. */
+    const DosGuiAppDef *a = app_find_wet_by_name("notes");
+    CHECK(a != NULL, "app_find_wet_by_name resolves the menu label");
+    CHECK(a && a->path && strstr(a->path, "notes.wet") != NULL,
+          "the entry carries the file path");
+
+    /* A second scan must not duplicate. */
+    CHECK(app_scan_wet_dir(dir) == 0, "a second scan adds nothing");
+    CHECK(app_wet_count() == 2, "still two after the rescan");
+
+    remove(p1); remove(p2); remove(p3); rmdir(dir);
+    PASS();
+}
+
 int main(void) {
     printf("+========================================================+\n");
     printf("|  WuBuOS DosGui Start Menu Test Suite (Cell 402)        |\n");
@@ -94,6 +152,7 @@ int main(void) {
     test_render_no_crash();
     test_xp_sidebar_gradient_and_orb();
     test_multiple_toggles();
+    test_wet_applets_in_programs();
 
     printf("\n========================================================\n");
     printf("  Results: %d/%d passed, %d failed\n", g_pass, g_total, g_fail);
