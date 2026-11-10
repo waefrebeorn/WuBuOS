@@ -78,7 +78,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_lua_gui test_dosgui_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
+test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_lua_gui test_dosgui_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -4112,6 +4112,8 @@ LUAGUI_LV_SRCS := $(LUAWWW)/wb_lv_arena.c $(LUAWWW)/wb_lv_coro.c \
 		$(LUAWWW)/wb_lv_parse.c $(LUAWWW)/wb_lv_value.c \
 		$(LUAWWW)/wb_lv_stdlib.c $(LUAWWW)/wb_lv_string.c
 
+VWS      := $(GUI)/vws
+VWSWUA   := $(VWS)/externals/wet/externals/wua/src
 WET      := $(GUI)/wet
 WET_SRCS := $(WET)/wet_widget.c $(WET)/wet_layout.c $(WET)/wet_render.c \
 		$(WET)/wet_backend_vbe.c $(WET)/wet_controls.c $(WET)/wet_app.c \
@@ -4157,6 +4159,38 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 		$(GUI)/shell/dosgui_wm_holyc_term.c \
 		-o $(TEST_BIN)/test_wet_applet -lm -lz
 	$(TEST_BIN)/test_wet_applet
+
+test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws_lua.c
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
+		-I$(APPS) -I$(WET) -I$(VWS) -I$(VWS)/externals/wet -I$(KERNEL) -I$(GUI) \
+		-I$(RT) -I$(COMP) -I$(JIT) -I$(VWSWUA) \
+		$(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws_lua.c \
+		$(VWS)/vws_form.c $(VWS)/vws_emit.c $(VWS)/vws_load.c \
+		$(WET)/wet_lua.c $(WET_SRCS) \
+		$(VWSWUA)/wb_lv_arena.c $(VWSWUA)/wb_lv_coro.c \
+		$(VWSWUA)/wb_lv_eval.c $(VWSWUA)/wb_lv_host.c \
+		$(VWSWUA)/wb_lv_lex.c $(VWSWUA)/wb_lv_parse.c \
+		$(VWSWUA)/wb_lv_value.c $(VWSWUA)/wb_lv_stdlib.c \
+		$(VWSWUA)/wb_lv_string.c \
+		$(GUI)/shell/dosgui_window_chrome.c $(GUI)/compositor/gui_dbuf.c \
+		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
+		$(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c \
+		$(KERNEL)/tasking_switch.S $(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
+		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c \
+		$(GUI)/wubu_settings_defaults.c $(GUI)/wubu_theme.c \
+		$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c \
+		$(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c \
+		$(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c \
+		$(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c \
+		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c \
+		$(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c \
+		$(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c \
+		$(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c \
+		$(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c \
+		$(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c \
+		$(GUI)/shell/dosgui_wm_holyc_term.c \
+		-o $(TEST_BIN)/test_vws_designer -lm -lz
+	$(TEST_BIN)/test_vws_designer
 
 test_lua_gui: $(GUI)/lua/wubu_lua_gui.c $(GUI)/lua/wubu_lua_gui_test.c \
 		$(LUAGUI_LV_SRCS) $(KERNEL)/vbe.c

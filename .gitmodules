@@ -17,3 +17,6 @@
 [submodule "src/gui/wet"]
 	path = src/gui/wet
 	url = https://github.com/waefrebeorn/WET.git
+[submodule "src/gui/vws"]
+	path = src/gui/vws
+	url = https://github.com/waefrebeorn/VWS.git

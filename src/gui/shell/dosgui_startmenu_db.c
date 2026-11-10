@@ -145,6 +145,22 @@ void dosgui_startmenu_build_submenus(void) {
         next_wubuos:;
     }
 
+    /* Development core apps: the tools that build the OS's own GUI. */
+    for (int i = 0; i < 2; i++) {
+        SmSubmenu *sub = &g_programs;
+        const char *label = (i == 0) ? "VWS Designer" : "W-CODE";
+        for (int j = 0; j < sub->item_count; j++) {
+            if (strcmp(sub->items[j].label, label) == 0) goto next_dev;
+        }
+        if (sub->item_count < 12) {
+            sub->items[sub->item_count++] = (SmMenuItem){
+                SM_ITEM_APP, "", "", 0};
+            strncpy(sub->items[sub->item_count - 1].label, label, 47);
+            strncpy(sub->items[sub->item_count - 1].app_name, label, 47);
+        }
+        next_dev:;
+    }
+
     /* System */
     for (int i = 0; i < 2; i++) {
         SmSubmenu *sub = &g_system;
