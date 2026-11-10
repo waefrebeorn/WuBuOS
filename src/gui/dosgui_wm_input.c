@@ -20,6 +20,11 @@
 #include "shell/wubu_lock_screen.h"
 #include "../kernel/wubu_gesture.h"
 #include "shell/dosgui_startmenu.h"
+#include "shell/dosgui_taskbar_tasks.h"
+
+/* The app registry lives in src/apps; a test or minimal build may not link it.
+ * Weak, so a pinned button is inert there rather than a link error. */
+__attribute__((weak)) void dosgui_launch_app(const char *name);
 #include "dosgui_wm.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
@@ -368,6 +373,21 @@ void dosgui_wm_handle_mouse(int x, int y, int btn, int kind) {
             }
             bx += bw + 3;   /* MUST match render gap (taskbar.c) */
             if (bx > g_dwm.screen_w - 160) break;
+        }
+
+        /* Pinned tasks with no running window: clicking launches the app.
+         * Geometry MUST match dosgui_wm_taskbar.c exactly. */
+        for (int i = 0; i < wubu_taskbar_count(); i++) {
+            const WubuTask *t = wubu_taskbar_get(i);
+            if (!t || !t->pinned || t->win_id >= 0) continue;
+            if (bx + 120 > g_dwm.screen_w - 160) break;
+            if (x >= bx && x < bx + 120 && y >= by && y < by + 22) {
+                if (kind != 1) return;
+                if (dosgui_launch_app)
+                    dosgui_launch_app(t->exec[0] ? t->exec : t->title);
+                return;
+            }
+            bx += 123;
         }
 
         int desk_x = g_dwm.screen_w - 150;

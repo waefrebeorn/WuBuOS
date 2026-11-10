@@ -7,6 +7,7 @@
  */
 
 #include "../dosgui_wm_internal.h"
+#include "dosgui_taskbar_tasks.h"
 #include <time.h>
 
 /* -- Taskbar ----------------------------------------------------- */
@@ -112,6 +113,26 @@ void dosgui_taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
         }
         bx += bw + 3;   /* 3px gap between buttons */
         if (bx > g_dwm.screen_w - right_reserve) break;
+    }
+
+    /* Pinned tasks with no running window.  A pin is the user saying "keep
+     * this here", so it stays after the app closes -- the behaviour every
+     * mainstream taskbar has and WuBuOS did not. */
+    for (int i = 0; i < wubu_taskbar_count(); i++) {
+        const WubuTask *t = wubu_taskbar_get(i);
+        if (!t || !t->pinned || t->win_id >= 0) continue;
+        if (bx + 120 > g_dwm.screen_w - right_reserve) break;
+
+        int bh = 22;
+        int bby = ty + (th - bh) / 2;
+        vbe_fill_rect(bx, bby, 120, bh, tc()->btn_face);
+        vbe_3d_raised_colors(bx, bby, 120, bh,
+                             tc()->border_light, tc()->btn_face,
+                             tc()->border_dark, tc()->border_darkest);
+        vbe_draw_text(bx + 8, bby + (bh - 8) / 2, t->title, tc()->btn_text, 1);
+        /* A pin marker: a small raised square at the button's right edge. */
+        vbe_fill_rect(bx + 120 - 12, bby + 6, 6, 6, tc()->select_bg);
+        bx += 123;
     }
 
     /* System tray icons (drawn from right to left, before clock) */

@@ -78,7 +78,7 @@ test_high_bridge: runtime test_bridge test_bridge_flip test_syscall
 	@echo "✅ High Tier (Bridge) complete"
 
 # HIGH TIER: Hosted / GUI (WM, desktop, startmenu, explorer, terminal, clipboard, compositor, shell)
-test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_lua_gui test_dosgui_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
+test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_dosgui_cp_sound test_hwdetect test_colonel test_dosgui_wm test_lua_gui test_dosgui_ui test_lua_gui test_wet test_wet_lua test_wet_applet test_vws_designer test_first_run test_taskbar_tasks test_dosgui_dos_window test_dosgui_startmenu test_dosgui_explorer test_dosgui_term test_clipboard test_screenshot test_compositor test_shell test_wallpaper test_control test_calc test_settings
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
@@ -627,7 +627,7 @@ gui_shot: wubu_gui_shot.c $(HOSTED)/hosted.c src/kernel/vbe.c src/kernel/wubu_ga
 # screenshot sources. Writes 5 PPM frames to /tmp/wubu_a11y_shots.
 a11y_shot: wubu_a11y_shot.c
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM -I/usr/include/libdrm -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(RT) -I$(APPS) -I$(APPS)/calc -I$(TOOLS) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c \
 		$(GUI)/wubu_a11y.c $(GUI)/wubu_bonzi.c wubu_a11y_shot.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
 		$(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -644,7 +644,7 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/she
 # /tmp/wubu_desktop_shots.
 desktop_shot: wubu_desktop_shot.c
 	$(CC) $(CFLAGS) -O0 -g -DVBE_HOSTED -I/usr/include/libdrm -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(RT) -I$(APPS) -I$(APPS)/calc -I$(TOOLS) \
-	$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c $(GUI)/shell/dosgui_startmenu.c $(GUI)/shell/dosgui_startmenu_db.c $(GUI)/shell/dosgui_startmenu_search.c $(GUI)/shell/dosgui_startmenu_tree.c $(GUI)/shell/dosgui_startmenu_power.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/dosgui_era_apps.c \
+	$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c $(GUI)/shell/dosgui_startmenu.c $(GUI)/shell/dosgui_startmenu_db.c $(GUI)/shell/dosgui_startmenu_search.c $(GUI)/shell/dosgui_startmenu_tree.c $(GUI)/shell/dosgui_startmenu_power.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/dosgui_era_apps.c \
 				$(GUI)/wubu_a11y.c $(GUI)/wubu_bonzi.c wubu_desktop_shot.c $(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
 		$(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
@@ -1068,7 +1068,7 @@ bench_dram_hedge: src/kernel/wubu_dram_hedge.c tools/bench/bench_dram_hedge.c
 
 test_dosgui_wm: $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/shell/dosgui_window_chrome.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
@@ -1079,7 +1079,7 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wub
 
 test_dosgui_ui: $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/shell/dosgui_window_chrome.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_ui.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_ui.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
@@ -1089,7 +1089,7 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wub
 	$(GUI)/wubu_ui_test
 test_a11y:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/wubu_a11y_test.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/wubu_a11y_test.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
@@ -1124,7 +1124,7 @@ test_cmd:
 
 test_calc:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(HOSTED) -I$(RT) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_holyc_term.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_holyc_term.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
@@ -1631,7 +1631,7 @@ $(APPS)/wubu_editor.c $(APPS)/wubu_editor_bookmark.c $(APPS)/wubu_editor_macro.c
 
 test_control: $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_engine.o $(GUI)/dosgui_wm_window_state.o $(GUI)/shell/dosgui_window_chrome.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/control -I$(HOSTED) -I$(RT) \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_holyc_term.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_holyc_term.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
@@ -1773,7 +1773,7 @@ test_dosgui_apps: $(GUI)/shell/dosgui_wm_clock.o $(GUI)/shell/dosgui_wm_ctxmenu_
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c $(KERNEL)/interrupt.c $(KERNEL)/isr_stubs.S $(KERNEL)/tasking.c $(KERNEL)/tasking_switch.S \
 		$(KERNEL)/wubu_gaad.c $(KERNEL)/input.c \
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c \
-	$(GUI)/wubu_theme.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_holyc_term.c \
+	$(GUI)/wubu_theme.c $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_holyc_term.c \
 		$(APPS)/dosgui_apps_test.c \
 		-o $(APPS)/dosgui_apps_test -lm -lz
 	$(APPS)/dosgui_apps_test
@@ -4150,7 +4150,7 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 		$(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c \
 		$(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c \
 		$(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c \
-		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c \
+		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c \
 		$(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c \
 		$(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c \
 		$(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c \
@@ -4159,6 +4159,13 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 		$(GUI)/shell/dosgui_wm_holyc_term.c \
 		-o $(TEST_BIN)/test_wet_applet -lm -lz
 	$(TEST_BIN)/test_wet_applet
+
+test_taskbar_tasks: $(GUI)/shell/taskbar_tasks_test.c $(GUI)/shell/dosgui_taskbar_tasks.c
+	@mkdir -p $(TEST_BIN)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(GUI)/shell \
+		$(GUI)/shell/taskbar_tasks_test.c $(GUI)/shell/dosgui_taskbar_tasks.c \
+		-o $(TEST_BIN)/test_taskbar_tasks
+	$(TEST_BIN)/test_taskbar_tasks
 
 test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
@@ -4176,7 +4183,7 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c
 		$(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c \
 		$(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c \
 		$(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c \
-		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c \
+		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c \
 		$(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c \
 		$(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c \
 		$(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c \
@@ -4208,7 +4215,7 @@ test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws
 		$(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c \
 		$(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c \
 		$(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c \
-		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c \
+		$(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c \
 		$(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c \
 		$(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c \
 		$(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_desktop.c \
@@ -4332,7 +4339,7 @@ test_wubu_daemon_client:
 test_greeter: $(GUI)/shell/wubu_shell_greeter.o $(GUI)/shell/wubu_shell_greeter_test.o
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) \
 $(GUI)/shell/wubu_shell_greeter.c $(GUI)/shell/wubu_shell_greeter_test.c \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(RT)/wubu_onboarding.c $(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
@@ -4344,7 +4351,7 @@ $(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wub
 greeter_shot: wubu_greeter_shot.c
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -I$(GUI) -I$(KERNEL) -I$(COMP) -I$(JIT) -I$(HOSTED) -I$(TOOLS) \
 $(GUI)/shell/wubu_shell_greeter.c wubu_greeter_shot.c $(TOOLS)/screenshot.c \
-$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c \
+$(GUI)/dosgui_wm.c $(GUI)/dosgui_wm_window.c $(GUI)/dosgui_wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/dosgui_wm_clock.c $(GUI)/shell/dosgui_wm_ctxmenu_engine.c $(GUI)/dosgui_wm_window_state.c $(GUI)/dosgui_wm_layout.c $(GUI)/dosgui_wm_render.c $(GUI)/shell/dosgui_wm_taskbar.c $(GUI)/shell/dosgui_taskbar_tasks.c $(GUI)/shell/dosgui_wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/dosgui_quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/dosgui_wm_icons.c $(GUI)/shell/dosgui_wm_icon_glyphs.c $(GUI)/shell/dosgui_wm_holyc_term.c $(GUI)/shell/dosgui_wm_systray.c $(GUI)/shell/dosgui_wm_ctxmenu.c $(GUI)/shell/dosgui_wm_desktop.c $(GUI)/shell/dosgui_window_chrome.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_theme.c $(GUI)/wubu_bonzi.c $(GUI)/dosgui_wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(GUI)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(RT)/wubu_onboarding.c $(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \

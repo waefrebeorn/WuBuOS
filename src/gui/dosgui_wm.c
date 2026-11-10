@@ -65,6 +65,9 @@ int dosgui_wm_init(int screen_w, int screen_h) {
      * HolyC/AGI terminal. Idle animation (bob + blink) driven by the WM
      * frame tick in dosgui_wm_frame(). */
     wubu_bonzi_init(8, screen_h - 64);
+    /* Restore the user's taskbar pins from the previous session. */
+    extern void wubu_taskbar_init(void);
+    wubu_taskbar_init();
     return 0;
 }
 
@@ -128,6 +131,10 @@ void dosgui_wm_cursor_pos(int *x, int *y) {
 }
 
 void dosgui_wm_shutdown(void) {
+    /* Persist the user's pins before the WM state goes away. */
+    extern void wubu_taskbar_shutdown(void);
+    wubu_taskbar_shutdown();
+
     if (g_dwm.wallpaper) {
         free(g_dwm.wallpaper);
         g_dwm.wallpaper = NULL;
