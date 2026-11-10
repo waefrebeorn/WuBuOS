@@ -4197,7 +4197,7 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(WET) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(COMP) -I$(JIT) \
 		-I$(LUAWWW) \
-		$(APPS)/wet_applet_test.c $(APPS)/wet_applet.c \
+		$(APPS)/wet_applet_test.c $(APPS)/wet_applet.c $(GUI)/vws/vws_templates.c \
 		$(WET)/wet_lua.c $(WET_SRCS) $(LUAGUI_LV_SRCS) \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
 		$(RT)/wubu_effect.c \

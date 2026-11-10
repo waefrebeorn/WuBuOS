@@ -10,6 +10,7 @@
 #include "../gui/wet/wet_lua.h"
 #include "../gui/shell/window_chrome.h"
 #include "../runtime/wubu_effect.h"
+#include "vws/vws_templates.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,6 +182,55 @@ static void test_script_effect_processes_surface(void) {
     remove(path);
 }
 
+/* A program TEMPLATE must produce a WORKING program.  Emit the VWS calculator,
+ * load it as a real applet, click 2 3 + 4 =, and read the display back.  This
+ * is the template loop's last mile: create -> run, with the computation proven
+ * rather than assumed. */
+static void click_key(DosGuiWindow *win, WetApp *app, const char *id) {
+    WetWidget *b = wet_app_find(app, id);
+    CHECK(b != NULL, "button found");
+    if (!b) return;
+    WetRect r = wet_widget_rect(b);
+    wet_applet_mouse(win, r.x + r.w / 2, r.y + r.h / 2, 1, 1);
+    wet_applet_mouse(win, r.x + r.w / 2, r.y + r.h / 2, 1, 2);
+}
+
+static void test_template_calculator_computes(void) {
+    char *src = vws_template_emit("calculator");
+    CHECK(src != NULL, "calculator template emits");
+    if (!src) return;
+
+    const char *path = "/tmp/wubu_calc_template.wet";
+    FILE *f = fopen(path, "w");
+    CHECK(f != NULL, "emitted script written");
+    if (f) { fputs(src, f); fclose(f); }
+    free(src);
+    if (!f) return;
+
+    DosGuiWindow *win = wet_applet_open(path, "Calc", 0, 0, 400, 340);
+    CHECK(win != NULL, "calculator applet opened");
+    WetApp *app = win ? wet_applet_app() : NULL;
+    CHECK(app != NULL, "calculator app reachable");
+
+    if (app) {
+        click_key(win, app, "Key2");
+        click_key(win, app, "Key3");
+        click_key(win, app, "KeyAdd");
+        click_key(win, app, "Key4");
+        click_key(win, app, "KeyEq");
+
+        WetWidget *d = wet_app_find(app, "Display");
+        CHECK(d != NULL, "display found");
+        if (d) {
+            const char *t = wet_label_text(d);
+            CHECK(t && strcmp(t, "27") == 0, "2 3 + 4 = evaluates to 27");
+            if (t) printf("    display reads '%s'\n", t);
+        }
+    }
+
+    remove(path);
+}
+
 int main(void) {
     printf("=== wet applet bridge ===\n");
     test_demo_loads();
@@ -188,6 +238,7 @@ int main(void) {
     test_click_reaches_script();
     test_bad_path_is_reported();
     test_script_effect_processes_surface();
+    test_template_calculator_computes();
     printf("=== wet_applet: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
 }
