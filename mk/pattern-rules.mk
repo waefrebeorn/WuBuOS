@@ -77,7 +77,7 @@ $(COMP)/wubu_tgemm_avx512.o: $(COMP)/wubu_tgemm_avx512.c
 
 # VSL submodule objects
 $(RT)/vsl/%.o: $(RT)/vsl/%.c
-	$(CC) $(CFLAGS) -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
+	$(CC) $(CFLAGS) -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # OCI submodule objects
 $(RT)/oci/%.o: $(RT)/oci/%.c

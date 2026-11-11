@@ -81,32 +81,145 @@ extern int64_t vsl_sys_nosys(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, u
 #define NT_TBL_SIZE 512
 static vsl_syscall_fn_t g_nt_dispatch[NT_TBL_SIZE];
 
+/* -- collision tracking ---------------------------------------------------
+ *
+ * Every module writes raw slots into the shared table, so a module that claims
+ * a slot another module already owns SILENTLY WINS.  Registration order was the
+ * only thing deciding, and nothing recorded it -- the failure mode is a
+ * syscall that works only because its module happened to be registered later.
+ *
+ * Each module's registration is therefore wrapped: the slots it claims are
+ * compared with the slots already claimed, and a disagreement is RECORDED with
+ * both module names.  The table still behaves exactly as before (last writer
+ * wins), but the collision is now visible and countable.
+ */
+static nt_collision_t g_nt_collisions[256];
+static uint32_t       g_nt_collision_count;
+static const char    *g_nt_owner[NT_TBL_SIZE];
+static bool           g_nt_claimed[NT_TBL_SIZE];
+static bool           g_nt_stub[NT_TBL_SIZE];      /* claimed by a STUB */
+static uint32_t       g_nt_stub_replaces;
+
+static void nt_record_collision(int slot, const char *was, const char *now)
+{
+    if (g_nt_collision_count >= 256) return;
+    g_nt_collisions[g_nt_collision_count].slot = slot;
+    g_nt_collisions[g_nt_collision_count].was  = was;
+    g_nt_collisions[g_nt_collision_count].now  = now;
+    g_nt_collision_count++;
+}
+
+/* Register one module.
+ *
+ * `stub` distinguishes the two ways a slot can be taken:
+ *
+ *   STUB    a placeholder, registered early so that a real handler can
+ *           replace it.  misc_w11 does exactly this.
+ *   REAL    a genuine handler.
+ *
+ * A REAL claim over a STUB is an UPGRADE and is expected.  A REAL claim over
+ * another REAL handler is a COLLISION -- two modules disagree about who owns
+ * the syscall, and registration order silently decides.  That is the case worth
+ * reporting. */
+static void nt_register_module_ex(const char *name,
+                                  void (*fn)(vsl_syscall_fn_t *, int),
+                                  bool stub)
+{
+    vsl_syscall_fn_t before[NT_TBL_SIZE];
+    bool was_claimed[NT_TBL_SIZE];
+    bool was_stub[NT_TBL_SIZE];
+    for (int i = 0; i < NT_TBL_SIZE; i++) {
+        before[i] = g_nt_dispatch[i];
+        was_claimed[i] = g_nt_claimed[i];
+        was_stub[i] = g_nt_stub[i];
+    }
+
+    fn(g_nt_dispatch, NT_TBL_SIZE);
+
+    for (int i = 0; i < NT_TBL_SIZE; i++) {
+        if (g_nt_dispatch[i] == vsl_sys_nosys) continue;   /* still empty */
+        /* A module that never WROTE this slot is not taking it.  Comparing the
+         * handler VALUE is the whole point: without the comparison, every module
+         * registered after another looked like a collision. */
+        if (before[i] == g_nt_dispatch[i]) continue;
+        if (was_claimed[i] && g_nt_owner[i] && strcmp(g_nt_owner[i], name) != 0) {
+            if (stub || !was_stub[i]) {
+                /* a real handler replaced another REAL handler */
+                nt_record_collision(i + 1, g_nt_owner[i], name);
+            } else {
+                /* a stub replaced another stub: harmless, but counted */
+                g_nt_stub_replaces++;
+            }
+        }
+        g_nt_claimed[i] = true;
+        g_nt_owner[i] = name;
+        g_nt_stub[i] = stub;
+    }
+}
+
+static void nt_register_module(const char *name,
+                               void (*fn)(vsl_syscall_fn_t *, int))
+{
+    nt_register_module_ex(name, fn, false);
+}
+
+/* How many slots are claimed by a real handler (not the nosys default). */
+uint32_t vsl_nt_coverage(void)
+{
+    uint32_t n = 0;
+    for (int i = 0; i < NT_TBL_SIZE; i++)
+        if (g_nt_dispatch[i] != vsl_sys_nosys) n++;
+    return n;
+}
+
+uint32_t vsl_nt_collision_count(void) { return g_nt_collision_count; }
+
+uint32_t vsl_nt_stub_replace_count(void) { return g_nt_stub_replaces; }
+
+const nt_collision_t *vsl_nt_collision_at(uint32_t i)
+{
+    if (i >= g_nt_collision_count) return NULL;
+    return &g_nt_collisions[i];
+}
+
+void vsl_nt_registration_reset(void)
+{
+    g_nt_collision_count = 0;
+    g_nt_stub_replaces = 0;
+    for (int i = 0; i < NT_TBL_SIZE; i++) {
+        g_nt_owner[i] = NULL;
+        g_nt_claimed[i] = false;
+        g_nt_stub[i] = false;
+        g_nt_dispatch[i] = vsl_sys_nosys;
+    }
+}
+
 static void nt_dispatch_init(void) {
-    for (int i = 0; i < NT_TBL_SIZE; i++) g_nt_dispatch[i] = vsl_sys_nosys;
+    vsl_nt_registration_reset();
     /* W11-only sys_ stubs run FIRST so every real vsl_nt_* handler that
      * follows overwrites any colliding slot; misc_w11 keeps only the 17
      * genuinely-empty slots it uniquely occupies. */
-    vsl_nt_misc_w11_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_atoms_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_job_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_io_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_vmem_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_process_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_thread_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_section_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_timer_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_sync_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_registry_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_token_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_misc_register(g_nt_dispatch, NT_TBL_SIZE);
+    nt_register_module_ex("misc_w11", vsl_nt_misc_w11_register, true);
+    nt_register_module("atoms", vsl_nt_atoms_register);
+    nt_register_module("job", vsl_nt_job_register);
+    nt_register_module("io", vsl_nt_io_register);
+    nt_register_module("vmem", vsl_nt_vmem_register);
+    nt_register_module("process", vsl_nt_process_register);
+    nt_register_module("thread", vsl_nt_thread_register);
+    nt_register_module("section", vsl_nt_section_register);
+    nt_register_module("timer", vsl_nt_timer_register);
+    nt_register_module("sync", vsl_nt_sync_register);
+    nt_register_module("registry", vsl_nt_registry_register);
+    nt_register_module("token", vsl_nt_token_register);
+    nt_register_module("misc", vsl_nt_misc_register);
     /* Windows 11 / extended personalities (ALPC, WNF, Enclave, IoRing, Partition, KTM, WorkerFactory) */
-    vsl_nt_alpc_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_wnf_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_worker_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_enclave_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_ioring_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_partition_register(g_nt_dispatch, NT_TBL_SIZE);
-    vsl_nt_ktm_register(g_nt_dispatch, NT_TBL_SIZE);
+    nt_register_module("alpc", vsl_nt_alpc_register);
+    nt_register_module("wnf", vsl_nt_wnf_register);
+    nt_register_module("worker", vsl_nt_worker_register);
+    nt_register_module("enclave", vsl_nt_enclave_register);
+    nt_register_module("ioring", vsl_nt_ioring_register);
+    nt_register_module("partition", vsl_nt_partition_register);
+    nt_register_module("ktm", vsl_nt_ktm_register);
 }
 
 /* ----------------------------------------------------------------------

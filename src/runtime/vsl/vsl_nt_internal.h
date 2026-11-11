@@ -408,6 +408,25 @@ void vsl_nt_timer_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_sync_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size);
+/* -- dispatch registration and collision reporting ----------------------
+ *
+ * Modules write raw slots into a shared 512-entry table, so a module claiming a
+ * slot another module owns SILENTLY WINS.  The wrappers record every such
+ * takeover with both module names; the table still behaves as before (last
+ * writer wins) but the collision is now visible and countable.
+ */
+typedef struct {
+    int         slot;    /* 1-based syscall number */
+    const char *was;     /* the module that owned it */
+    const char *now;     /* the module that overwrote it */
+} nt_collision_t;
+
+uint32_t vsl_nt_coverage(void);
+uint32_t vsl_nt_collision_count(void);
+uint32_t vsl_nt_stub_replace_count(void);   /* a real handler replaced a stub */
+const nt_collision_t *vsl_nt_collision_at(uint32_t i);
+void vsl_nt_registration_reset(void);
+
 void vsl_nt_misc_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_misc_w11_register(vsl_syscall_fn_t *tbl, int size);
 void vsl_nt_alpc_register(vsl_syscall_fn_t *tbl, int size);
