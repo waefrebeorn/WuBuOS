@@ -32,7 +32,7 @@ into `src/`:
 | **VWS** | `src/gui/vws/` | the Visual WuBu System — "WuBu's Visual Basic": form designer + code-behind over .WET |
 | **WuBuPad** | `src/apps/wubupad/` | the clean-room C11 code editor (Notepad++ parity) |
 | **WuBuOffice** | `src/apps/wubuoffice/` | the from-scratch OOXML/OpenDocument office suite |
-| **WuBuContainer** | `src/runtime/container/wubucontainer/` | the container submodule. **FLAG:** its GitHub README currently shows an unrelated file-converter project — the repo's landing page drifted from what the submodule is. |
+| ~~**WuBuContainer**~~ | *(removed)* | the container is in-tree at `src/runtime/container/*.c`; the GitHub repo is an unrelated web converter and the broken submodule was dropped. |
 
 ## Layer 2 — extracted subsystems (standalone so other things can reuse)
 

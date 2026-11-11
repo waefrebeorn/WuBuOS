@@ -54,8 +54,8 @@ make qemu                # boot the image under QEMU (serial stdio)
 make spells              # list the spell book (reusable modules)
 ```
 
-Details: [docs/BUILDING.md](docs/BUILDING.md). The submodule
-`src/runtime/container/wubucontainer` needs `git submodule update --init`.
+Details: [docs/BUILDING.md](docs/BUILDING.md). The remaining submodules
+need `git submodule update --init`—see `git submodule` in the tree.
 
 ## The measured boot chain (why this is an AGI body, not a toy OS)
 
