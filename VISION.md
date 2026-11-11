@@ -18,8 +18,8 @@ It is not a Linux distribution. It is not a research paper. It is a **working sy
 │  │   wubuwizard     │  │    wubuos        │  │    wubunos       │      │
 │  │   THE BRAIN      │  │    THE BODY      │  │    THE COMPILER  │      │
 │  │                  │  │                  │  │                  │      │
-│  │ 1167 C · 420 H   │  │ 2463 C · 1006 H  │  │ 33 C · 16 H      │      │
-│  │ 37 CUDA           │  │ 472,955 LOC      │  │ 14,115 LOC       │      │
+│  │ 1167 C · 420 H   │  │ 5,067 C/H       │  │ 33 C · 16 H      │      │
+│  │ 37 CUDA           │  │ 750,001 LOC      │  │ 14,115 LOC       │      │
 │  │ 218,100 LOC      │  │                  │  │                  │      │
 │  │                  │  │ Kernel · GUI     │  │ HolyC JIT        │      │
 │  │ Inference · KV   │  │ Styx/9P · Contain│  │ 11 ISA backends  │      │
@@ -46,7 +46,7 @@ shrinking to fit any hardware.
 ### wubuos — THE BODY
 The operating system. ZealOS kernel (memory, tasking, VBE, FAT32, AHCI, interrupt),
 Win98/XP GUI shell, Styx/9P namespace, 20+ hardware drivers, VSL multi-OS syscall
-dispatch, container runtime, measured-boot UEFI firmware. 414 test targets.
+dispatch, container runtime, measured-boot UEFI firmware. 512 test targets.
 Native JIT engine (`src/jit/`) with 4 backends: x86-64, ARM64, RISC-V, WASM.
 
 **Key insight:** WuBuOS boots WuBuOS. Third-party software runs ON the AGI kernel
@@ -130,11 +130,11 @@ a single sphere. On a server, it grows to fill all available resources.
 
 | Metric | wubuos | wubuwizard | wubunos | TOTAL |
 |--------|--------|------------|---------|-------|
-| C files | 2,463 | 1,167 | 33 | 3,663 |
-| H files | 1,006 | 420 | 16 | 1,442 |
+| C files | 5,067 | 1,167 | 33 | 3,663 |
+| H files | 1513 | 420 | 16 | 1,442 |
 | CUDA kernels | 0 | 37 | 0 | 37 |
-| Total LOC | 472,955 | 218,985 | 14,115 | 705,055 |
-| Test targets | 414 | ~150 | 1 | 565+ |
+| Total LOC | 750,001 | 218,985 | 14,115 | 705,055 |
+| Test targets | 512 | ~150 | 1 | 565+ |
 | Research docs | 60 | 93 | 0 | 153 |
 | Theory papers | 0 | 50 | 0 | 50 |
 | ISA backends | — | — | 11 | 11 |

@@ -3,14 +3,14 @@
 **Version:** 2.0 (2026-08-15)
 **Status:** Living Document
 **Role:** THE BODY of the WuBu AGI
-**Scale:** 2463 C files · 1006 H files · 472,955 LOC · 414 test targets
+**Scale:** 5,067 C/H files · 750,001 LOC · 512 test targets
 
 > This is one of three repositories that form the complete WuBu AGI system.
 > See [VISION.md](VISION.md) for the unified architecture document.
 >
 > | Repo | Role | LOC |
 > |------|------|-----|
-> | **wubuos** (this repo) | THE BODY | 472,955 |
+> | **wubuos** (this repo) | THE BODY | 750,001 |
 > | **wubuwizard** | THE BRAIN | 218,100 |
 > | **wubunos** | THE COMPILER | 14,115 |
 
@@ -51,7 +51,7 @@ WuBuOS is the **BODY of the WuBu AGI** — a GUI shell + container runtime wrapp
 | **WuBu Compliance** | Own the feature surface — no `_GNU_SOURCE`, no glibc feature macros |
 | **C11 Portability** | Maximum portability, no C++ dependencies, `-std=c11` |
 | **Theme Engine** | Switchable themes (Ctrl+T): Win98, XP Luna, WuBu Green |
-| **Honesty Over Inflation** | Real, verified LOC (472,955), not inflated; no fake features |
+| **Honesty Over Inflation** | Real, verified LOC (750,001), not inflated; no fake features |
 
 ### Non-Goals
 - Not a Linux distribution (we're a shell on top)
@@ -265,7 +265,7 @@ The user's directive: **WuBu compliance means WE define the feature surface.**
 ```bash
 make all                 # full build (kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs)
 make hosted              # hosted binary (runs on Linux)
-make test                # all 414 test targets
+make test                # all 512 test targets
 make test_high_bear      # 26 core JIT + subsystem tests
 make test_critical_kernel # kernel module tests (memory, tasking, FAT32, TXFS, AHCI)
 make test_critical_runtime # runtime tests (VSL, Styx, containers, network)
@@ -283,7 +283,7 @@ make test_high_bridge    # bridge tests (VBE, syscall)
 
 ## 13. Testing Strategy
 
-- **414 test targets** in `mk/tests.mk`
+- **512 test targets** in `mk/tests.mk`
 - Tiered organization: critical_kernel, critical_runtime, high_bear, high_gui, high_bridge, medium_other, hw_*
 - Each test compiles and runs in isolation
 - WuBu compliance: no `_GNU_SOURCE` in any test recipe

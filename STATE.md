@@ -4,7 +4,7 @@
 ╔════════════════════════════════════════════════════════════════════════╗
 ║     🌱  W U B U O S  —  THE BODY                                     ║
 ║     ZealOS kernel · Win98 shell · Styx/9P namespace · Arch containers ║
-║     2463 C files · 1006 H files · 472,955 LOC · 414 test targets     ║
+║     5,067 C/H files · 750,001 LOC · 512 test targets     ║
 ║     Repo: /home/wubu/wubuos  (branch: wubu-integration)               ║
 ║     Part of: WuBu AGI (Body + Brain + Compiler = 705,170 LOC)        ║
 ╚══════════════════════════════════════════════════════════════════════════╝
@@ -14,8 +14,8 @@
 > Sister repos: **wubuwizard** (Brain, 218K LOC) · **wubunos** (Compiler, 14K LOC)
 
 ## Repo facts (verified 2026-08-15)
-- **2463 `.c` / 1006 `.h` / 472,955 LOC** (tracked `src/`).
-- **414 `make test_*` targets** in `mk/tests.mk`.
+- **5,067 C/H files / 750,001 LOC** (tracked `src/`).
+- **512 `make test_*` targets** in `mk/tests.mk`.
 - `make runtime` builds clean under `-O2`.
 - WuBuOS = ZealOS kernel + Win98/XP shell + Styx/9P namespace + Arch containers + WuBuNOS compiler.
 - WuBuNOS compiler + wubuwizard brain extracted as submodules.

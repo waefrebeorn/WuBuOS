@@ -3,7 +3,7 @@
 ```
 ╔════════════════════════════════════════════════════════════════════════╗
 ║  W U B U O S   B A T T L E S H I P   (v23, 2026-08-15)               ║
-║  2463 C files · 1006 H files · 472,955 LOC · 414 test targets       ║
+║  5,067 C/H files · 750,001 LOC · 512 test targets       ║
 ╚════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -14,8 +14,8 @@
 ---
 
 ## Repo facts (verified 2026-08-15)
-- **2463 `.c` / 1006 `.h` / 472,955 LOC** (tracked `src/`).
-- **414 `make test_*` targets** across all tiers.
+- **5,067 C/H files / 750,001 LOC** (tracked `src/`).
+- **512 `make test_*` targets** across all tiers.
 - `make all` / `make hosted` exit 0.
 - WuBu compliance: **`_GNU_SOURCE` eliminated** — replaced with `WUBU_HOSTED` guard macro and `wubu_gnu_compat.h` / `wubu_ftw.h` native definitions.
 
@@ -144,10 +144,10 @@ vault/       Accomplishments, planning docs, archives
 ## REPRODUCIBLE NUMBERS (run these yourself)
 ```bash
 cd /home/wubu/wubuos
-find src/ -name '*.c' | wc -l          # 2463
-find src/ -name '*.h' | wc -l          # 1006
-find src/ -name '*.c' -o -name '*.h' | xargs wc -l | tail -1  # 472,955
-grep -c '^test_' mk/tests.mk           # 414
+find src/ -name '*.c' | wc -l          # 3357
+find src/ -name '*.h' | wc -l          # 1468
+find src/ -name '*.c' -o -name '*.h' | xargs wc -l | tail -1  # 750,001
+grep -c '^test_' mk/tests.mk           # 512
 grep -rl "_GNU_SOURCE" src/ --include="*.c" --include="*.h" | wc -l  # 0
 make test_high_bear 2>&1 | grep RESULT  # RESULT: PASS
 ```
