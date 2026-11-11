@@ -268,10 +268,13 @@ static bool map_blend_factor(uint32_t v, VkBlendFactor *out)
     case 9:  *out = VK_BLEND_FACTOR_DST_COLOR;           return true;
     case 10: *out = VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR; return true;
     case 11: *out = VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;  return true;
-    case 13: *out = VK_BLEND_FACTOR_SRC1_COLOR;          return true;
-    case 14: *out = VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;return true;
-    case 15: *out = VK_BLEND_FACTOR_SRC1_ALPHA;          return true;
-    case 16: *out = VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;return true;
+    /* 12 = BLEND_FACTOR and 13 = INV_BLEND_FACTOR: both mean 'use the blend
+     * factor constant', which needs a separate API call.  They are REJECTED --
+     * mapping them would silently drop the constant. */
+    case 14: *out = VK_BLEND_FACTOR_SRC1_COLOR;          return true;
+    case 15: *out = VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;return true;
+    case 16: *out = VK_BLEND_FACTOR_SRC1_ALPHA;          return true;
+    case 17: *out = VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;return true;
     default: return false;
     }
 }

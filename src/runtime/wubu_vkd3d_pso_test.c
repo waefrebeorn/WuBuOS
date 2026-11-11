@@ -239,6 +239,26 @@ int main(void)
         base_desc(&m); m.blend_src_color = 12;   /* D3D12's BLEND_FACTOR */
         CHECK(!wubu_vkd3d_pso_vk(&m, &vk),
               "D3D12's BLEND_FACTOR is invalid without a separate API");
+        base_desc(&m); m.blend_src_color = 13;   /* D3D12's INV_BLEND_FACTOR */
+        CHECK(!wubu_vkd3d_pso_vk(&m, &vk),
+              "D3D12's INV_BLEND_FACTOR is invalid without a separate API");
+
+        /* the dual-source-blend family starts at 14, not 13 -- an off-by-one
+         * here silently binds the wrong blend factor. */
+        base_desc(&m); m.blend_src_color = 14;
+        CHECK(wubu_vkd3d_pso_vk(&m, &vk) && vk.src_color == VK_BLEND_FACTOR_SRC1_COLOR,
+              "D3D12 14 (SRC1_COLOR) maps to SRC1_COLOR");
+        base_desc(&m); m.blend_src_color = 15;
+        CHECK(wubu_vkd3d_pso_vk(&m, &vk) &&
+              vk.src_color == VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR,
+              "D3D12 15 (INV_SRC1_COLOR) maps correctly");
+        base_desc(&m); m.blend_src_color = 16;
+        CHECK(wubu_vkd3d_pso_vk(&m, &vk) && vk.src_color == VK_BLEND_FACTOR_SRC1_ALPHA,
+              "D3D12 16 (SRC1_ALPHA) maps correctly");
+        base_desc(&m); m.blend_src_color = 17;
+        CHECK(wubu_vkd3d_pso_vk(&m, &vk) &&
+              vk.src_color == VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA,
+              "D3D12 17 (INV_SRC1_ALPHA) maps correctly");
         base_desc(&m); m.primitive_topology = 99;
         CHECK(!wubu_vkd3d_pso_vk(&m, &vk), "an unknown topology is rejected");
 
