@@ -115,9 +115,16 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    factors are 1-based with a hole at 12; blend MIN/MAX swap positions).
    The load-bearing assertion is the MUTATION SWEEP: all 37 fields changed in
    turn, every one must change the key.
-   *Remaining slices:* the swapchain/present path -- the first slice that needs
-   a real `VkDevice` (every slice so far opens no device, which is exactly why
-   their correctness is provable without a GPU).
+   *Slice 7* (`wubu_vkd3d_swapchain.{h,c}`): the present path -- swap effect ->
+   present mode, sync interval -> present mode, and SetMaximumFrameLatency ->
+   minImageCount.  Vulkan cannot express a SyncInterval above 1 (it has FIFO and
+   IMMEDIATE, nothing between), so the translation reports `needs_app_throttle`
+   rather than pretending FIFO is "every Nth frame".  There is deliberately NO
+   "frame latency exceeds the buffer count" check: Vulkan may return MORE
+   images than requested, so the requirement is met by RAISING the image count,
+   not by rejecting a legal D3D12 config.
+   *Still open:* a real `VkDevice` (the slices above open none -- which is why
+   their correctness is provable without a GPU) and the first live present.
    *Slices 5 and 6* (`wubu_vkd3d_device.{h,c}`, `wubu_vkd3d_fence.{h,c}`):
    the feature-level device (created AT a level, never downgraded; validates a
    PSO desc against the caps that level implies, returning the first violated
