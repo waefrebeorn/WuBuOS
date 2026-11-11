@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -1082,6 +1082,10 @@ test_wubu_sound: $(GUI)/wubu_sound.c $(GUI)/wubu_sound.h
 test_colonel: src/runtime/wubu_colonel.c src/runtime/wubu_colonel.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_colonel.c src/runtime/wubu_colonel.c -o src/runtime/tests/test_colonel
 	./src/runtime/tests/test_colonel
+
+test_kernel_xchg: src/runtime/wubu_kernel_xchg.c src/runtime/wubu_kernel_xchg.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_kernel_xchg.c src/runtime/wubu_kernel_xchg.c -o src/runtime/tests/test_kernel_xchg
+	./src/runtime/tests/test_kernel_xchg
 
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect

@@ -4,6 +4,7 @@
 #include "wubu_colonel.h"
 #include <string.h>
 #include <ctype.h>
+#include <stdio.h>   /* snprintf */
 
 static const char *const g_apps[] = {
     "calc", "notepad", "paint", "explorer", "terminal",
