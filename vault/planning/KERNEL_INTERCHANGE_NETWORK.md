@@ -103,8 +103,19 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    Vulkan mapping is honest about a distinction Vulkan does not have:
    DIRECT -> PRIMARY, BUNDLE -> SECONDARY, COMPUTE/COPY -> PRIMARY on the
    compute/transfer QUEUE FAMILY (Vulkan has no such buffer level).
-   *Remaining slices:* pipeline state objects, the feature-level device, and
-   the swapchain/present path.
+   *Slice 4 done* (`runtime/wubu_vkd3d_pso.{h,c}`, `test_vkd3d_pso`): pipeline
+   state objects -- the whole-desc FNV-1a key over a canonical serialisation
+   (plain uint32_t fields, because bitfield padding would make two identical
+   descs hash differently), a hash match treated as only a CANDIDATE and
+   confirmed with a full memcmp so a collision is a miss rather than a wrong
+   pipeline, a cache that rejects when full instead of evicting, and a Vulkan
+   mapping honest about the two APIs disagreeing (D3D12 comparison funcs are
+   1-based and Vulkan's are 0-based -- the first version passed the value
+   through, turning LESS_EQUAL into GREATER, and the test caught it; blend
+   factors are 1-based with a hole at 12; blend MIN/MAX swap positions).
+   The load-bearing assertion is the MUTATION SWEEP: all 37 fields changed in
+   turn, every one must change the key.
+   *Remaining slices:* the feature-level device, and the swapchain/present path.
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
 5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
