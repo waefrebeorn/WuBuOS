@@ -91,13 +91,32 @@ const char *wubu_vkd3d_state_name(uint32_t d3d12_state);
 
 /* -- barriers ------------------------------------------------------- */
 
+/* D3D12 has THREE barrier types, and they are NOT interchangeable:
+ *
+ *   TRANSITION  a state change: layout + access masks both change.
+ *   UAV         an EXECUTION + MEMORY dependency only.  The resource keeps its
+ *               layout; the guarantee is that all UAV accesses (read or write)
+ *               complete before any future UAV access begins.  Emitting a
+ *               layout change here would be WRONG and would cost a full
+ *               render-target resolve on some drivers.
+ *   ALIASING    a resource is about to be reused at an address another resource
+ *               occupied.  No layout change; the access masks come from the
+ *               resource's previous and next uses.
+ */
+typedef enum {
+    VKD3D_BARRIER_TRANSITION = 0,
+    VKD3D_BARRIER_UAV,
+    VKD3D_BARRIER_ALIASING
+} wubu_vkd3d_barrier_type_t;
+
 /* A D3D12-style barrier, keyed by a caller-assigned resource id so this
  * module stays pointer-free (and therefore testable). */
 typedef struct {
-    uint32_t resource_id;
-    uint32_t before;
-    uint32_t after;
-    bool     is_buffer;
+    uint32_t                  resource_id;
+    uint32_t                  before;
+    uint32_t                  after;
+    bool                      is_buffer;
+    wubu_vkd3d_barrier_type_t type;
 } wubu_vkd3d_barrier_t;
 
 /* Translate a barrier list into Vulkan barriers.
@@ -105,8 +124,12 @@ typedef struct {
  * VK_NULL_HANDLE: the caller binds the real resource, exactly as a
  * D3D12-on-Vulkan layer must (the barrier is built before the resource handle
  * is looked up, and patched in afterwards).
+ * A UAV barrier is not a resource barrier at all -- it is a GLOBAL memory
+ * barrier, because it orders every UAV access against every other one -- so it
+ * is emitted into the VkMemoryBarrier array.
  * Returns the number of barriers written, or -1 on an unmappable state. */
 int wubu_vkd3d_barriers(const wubu_vkd3d_barrier_t *bars, uint32_t n,
+                        VkMemoryBarrier *mb, uint32_t *n_mb,
                         VkBufferMemoryBarrier *bmb, uint32_t *n_bmb,
                         VkImageMemoryBarrier *imb, uint32_t *n_imb);
 

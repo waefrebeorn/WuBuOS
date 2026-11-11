@@ -194,47 +194,71 @@ bool wubu_vkd3d_state_map(uint32_t d3d12_state, wubu_vkd3d_state_t *out)
 /* -- barriers ------------------------------------------------------- */
 
 int wubu_vkd3d_barriers(const wubu_vkd3d_barrier_t *bars, uint32_t n,
+                        VkMemoryBarrier *mb, uint32_t *n_mb,
                         VkBufferMemoryBarrier *bmb, uint32_t *n_bmb,
                         VkImageMemoryBarrier *imb, uint32_t *n_imb)
 {
+    if (n_mb) *n_mb = 0;
     if (n_bmb) *n_bmb = 0;
     if (n_imb) *n_imb = 0;
     if (!bars && n > 0) return -1;
 
     int written = 0;
     for (uint32_t i = 0; i < n; i++) {
-        wubu_vkd3d_state_t before, after;
-        if (!wubu_vkd3d_state_map(bars[i].before, &before)) return -1;
-        if (!wubu_vkd3d_state_map(bars[i].after, &after)) return -1;
+        const wubu_vkd3d_barrier_t *b = &bars[i];
 
-        /* A no-op transition still needs the stage masks applied (the resource
-         * may have been written by a stage the current mask does not cover), so
-         * only a genuine from==to is skipped -- and even then the barriers are
-         * emitted, because Vulkan requires the availability/visibility split. */
-        if (bars[i].is_buffer) {
+        /* A UAV barrier is NOT a resource barrier: it orders every UAV access
+         * against every other one, so it is a GLOBAL memory barrier -- and it
+         * must NOT touch the layout, because a layout change here would cost a
+         * render-target resolve on some drivers for no benefit. */
+        if (b->type == VKD3D_BARRIER_UAV) {
+            if (!mb || !n_mb || *n_mb >= 4096) return -1;
+            VkMemoryBarrier *m = &mb[(*n_mb)++];
+            memset(m, 0, sizeof(*m));
+            m->sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            m->srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            m->dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            written++;
+            continue;
+        }
+
+        wubu_vkd3d_state_t before, after;
+        if (!wubu_vkd3d_state_map(b->before, &before)) return -1;
+        if (!wubu_vkd3d_state_map(b->after, &after)) return -1;
+
+        /* ALIASING keeps the layout: the resource is reused at an address
+         * another resource occupied, so only the access masks matter. */
+        VkImageLayout keep = before.image_layout_valid ? before.image_layout
+                                                      : VK_IMAGE_LAYOUT_UNDEFINED;
+
+        if (b->is_buffer) {
             if (!bmb || !n_bmb || *n_bmb >= 4096) return -1;
-            VkBufferMemoryBarrier *b = &bmb[(*n_bmb)++];
-            memset(b, 0, sizeof(*b));
-            b->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-            b->srcAccessMask = before.access;
-            b->dstAccessMask = after.access;
-            b->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            b->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            b->buffer = VK_NULL_HANDLE;      /* the caller binds the resource */
+            VkBufferMemoryBarrier *o = &bmb[(*n_bmb)++];
+            memset(o, 0, sizeof(*o));
+            o->sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            o->srcAccessMask = before.access;
+            o->dstAccessMask = after.access;
+            o->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            o->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            o->buffer = VK_NULL_HANDLE;      /* the caller binds the resource */
         } else {
             if (!imb || !n_imb || *n_imb >= 4096) return -1;
-            VkImageMemoryBarrier *b = &imb[(*n_imb)++];
-            memset(b, 0, sizeof(*b));
-            b->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            b->srcAccessMask = before.access;
-            b->dstAccessMask = after.access;
-            b->oldLayout = before.image_layout_valid ? before.image_layout
-                                                     : VK_IMAGE_LAYOUT_UNDEFINED;
-            b->newLayout = after.image_layout_valid ? after.image_layout
-                                                    : VK_IMAGE_LAYOUT_UNDEFINED;
-            b->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            b->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            b->image = VK_NULL_HANDLE;       /* the caller binds the resource */
+            VkImageMemoryBarrier *o = &imb[(*n_imb)++];
+            memset(o, 0, sizeof(*o));
+            o->sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            o->srcAccessMask = before.access;
+            o->dstAccessMask = after.access;
+            o->oldLayout = (b->type == VKD3D_BARRIER_ALIASING)
+                               ? keep
+                               : (before.image_layout_valid ? before.image_layout
+                                                            : VK_IMAGE_LAYOUT_UNDEFINED);
+            o->newLayout = (b->type == VKD3D_BARRIER_ALIASING)
+                               ? keep
+                               : (after.image_layout_valid ? after.image_layout
+                                                           : VK_IMAGE_LAYOUT_UNDEFINED);
+            o->srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            o->dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            o->image = VK_NULL_HANDLE;       /* the caller binds the resource */
         }
         written++;
     }

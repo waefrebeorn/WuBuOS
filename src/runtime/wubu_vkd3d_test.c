@@ -98,12 +98,15 @@ int main(void)
     /* -- barriers -- */
     {
         wubu_vkd3d_barrier_t bars[2] = {
-            { 1, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, false },
-            { 2, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE, false },
+            { 1, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE, false,
+              VKD3D_BARRIER_TRANSITION },
+            { 2, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_SOURCE, false,
+              VKD3D_BARRIER_TRANSITION },
         };
         VkImageMemoryBarrier imb[4]; uint32_t n_imb = 0;
         VkBufferMemoryBarrier bmb[4]; uint32_t n_bmb = 0;
-        int w = wubu_vkd3d_barriers(bars, 2, bmb, &n_bmb, imb, &n_imb);
+        VkMemoryBarrier mb[4]; uint32_t n_mb = 0;
+        int w = wubu_vkd3d_barriers(bars, 2, mb, &n_mb, bmb, &n_bmb, imb, &n_imb);
         CHECK(w == 2, "both barriers were emitted");
         CHECK(n_imb == 2 && n_bmb == 0, "image barriers went to the image array");
         CHECK(imb[0].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
@@ -117,10 +120,11 @@ int main(void)
         /* a buffer barrier lands in the buffer array */
         wubu_vkd3d_barrier_t bb[1] = {
             { 3, D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-                 D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, true }
+                 D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, true,
+                 VKD3D_BARRIER_TRANSITION }
         };
-        n_imb = 0; n_bmb = 0;
-        w = wubu_vkd3d_barriers(bb, 1, bmb, &n_bmb, imb, &n_imb);
+        n_imb = 0; n_bmb = 0; n_mb = 0;
+        w = wubu_vkd3d_barriers(bb, 1, mb, &n_mb, bmb, &n_bmb, imb, &n_imb);
         CHECK(w == 1 && n_bmb == 1 && n_imb == 0, "a buffer barrier goes to the buffer array");
         CHECK(bmb[0].dstAccessMask == VK_ACCESS_INDIRECT_COMMAND_READ_BIT,
               "the buffer barrier carries the indirect-read access");
@@ -128,12 +132,43 @@ int main(void)
         /* an unmappable barrier fails the whole batch, not just the bad one */
         wubu_vkd3d_barrier_t bad[2] = {
             { 4, D3D12_RESOURCE_STATE_COPY_SOURCE,
-                 D3D12_RESOURCE_STATE_COPY_DEST, false },
-            { 5, 0x80000000u, D3D12_RESOURCE_STATE_COPY_DEST, false },
+                 D3D12_RESOURCE_STATE_COPY_DEST, false, VKD3D_BARRIER_TRANSITION },
+            { 5, 0x80000000u, D3D12_RESOURCE_STATE_COPY_DEST, false, VKD3D_BARRIER_TRANSITION },
         };
-        n_imb = 0; n_bmb = 0;
-        CHECK(wubu_vkd3d_barriers(bad, 2, bmb, &n_bmb, imb, &n_imb) == -1,
+        n_imb = 0; n_bmb = 0; n_mb = 0;
+        CHECK(wubu_vkd3d_barriers(bad, 2, mb, &n_mb, bmb, &n_bmb, imb, &n_imb) == -1,
               "an unmappable barrier is an error");
+
+        /* -- a UAV barrier is a GLOBAL memory barrier, and never a layout
+         * change: emitting a layout change here would cost a resolve on some
+         * drivers for no benefit. */
+        {
+            wubu_vkd3d_barrier_t uav[1] = {
+                { 9, 0, 0, false, VKD3D_BARRIER_UAV }
+            };
+            n_imb = 0; n_bmb = 0; n_mb = 0;
+            CHECK(wubu_vkd3d_barriers(uav, 1, mb, &n_mb, bmb, &n_bmb, imb, &n_imb) == 1,
+                  "a UAV barrier is emitted");
+            CHECK(n_mb == 1 && n_imb == 0 && n_bmb == 0,
+                  "a UAV barrier is a global memory barrier, not a resource one");
+            CHECK(mb[0].srcAccessMask == (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT),
+                  "a UAV barrier orders both UAV reads and writes");
+        }
+
+        /* -- an aliasing barrier keeps the layout -- */
+        {
+            wubu_vkd3d_barrier_t ali[1] = {
+                { 10, D3D12_RESOURCE_STATE_COPY_SOURCE,
+                       D3D12_RESOURCE_STATE_COPY_DEST, false, VKD3D_BARRIER_ALIASING }
+            };
+            n_imb = 0; n_bmb = 0; n_mb = 0;
+            CHECK(wubu_vkd3d_barriers(ali, 1, mb, &n_mb, bmb, &n_bmb, imb, &n_imb) == 1,
+                  "an aliasing barrier is emitted");
+            CHECK(imb[0].oldLayout == imb[0].newLayout,
+                  "an aliasing barrier does NOT change the layout");
+            CHECK(imb[0].oldLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                  "the layout kept is the resource's current one");
+        }
     }
 
     /* -- the tracker -- */
