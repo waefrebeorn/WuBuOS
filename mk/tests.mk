@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1106,65 +1106,71 @@ test_kernel_xchg: src/runtime/wubu_kernel_xchg.c src/runtime/wubu_kernel_xchg.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_kernel_xchg.c src/runtime/wubu_kernel_xchg.c -o src/runtime/tests/test_kernel_xchg
 	./src/runtime/tests/test_kernel_xchg
 
-test_vkd3d: src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_test.c src/runtime/wubu_vkd3d.c -o src/runtime/wubu_vkd3d_test
-	./src/runtime/wubu_vkd3d_test
+test_vkd3d: src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_test
 
-test_vkd3d_heap: src/runtime/wubu_vkd3d_heap.c src/runtime/wubu_vkd3d_heap.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_heap_test.c src/runtime/wubu_vkd3d_heap.c -o src/runtime/wubu_vkd3d_heap_test
-	./src/runtime/wubu_vkd3d_heap_test
+# The spell book: WuBu's DLL analogue.  Spells are reusable modules organized
+# into books (broad needs) and genres (categories), cast fail-closed.
+test_spellbook: src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c src/runtime/wubu_spell.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c -o src/runtime/wubu_spellbook_test
+	./src/runtime/wubu_spellbook_test
 
-test_vkd3d_cmd: src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_cmd.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_cmd_test.c src/runtime/wubu_vkd3d_cmd.c -o src/runtime/wubu_vkd3d_cmd_test
-	./src/runtime/wubu_vkd3d_cmd_test
+test_vkd3d_heap: src/spells/graphics/render/vkd3d/wubu_vkd3d_heap.c src/spells/graphics/render/vkd3d/wubu_vkd3d_heap.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_heap_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_heap.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_heap_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_heap_test
 
-test_vkd3d_pso: src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_pso.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_pso_test.c src/runtime/wubu_vkd3d_pso.c -o src/runtime/wubu_vkd3d_pso_test
-	./src/runtime/wubu_vkd3d_pso_test
+test_vkd3d_cmd: src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd_test
 
-test_vkd3d_device: src/runtime/wubu_vkd3d_device.c src/runtime/wubu_vkd3d_device.h src/runtime/wubu_vkd3d_pso.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_device_test.c src/runtime/wubu_vkd3d_device.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c -o src/runtime/wubu_vkd3d_device_test
-	./src/runtime/wubu_vkd3d_device_test
+test_vkd3d_pso: src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_pso_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_pso_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_pso_test
 
-test_vkd3d_fence: src/runtime/wubu_vkd3d_fence.c src/runtime/wubu_vkd3d_fence.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_fence_test.c src/runtime/wubu_vkd3d_fence.c -o src/runtime/wubu_vkd3d_fence_test
-	./src/runtime/wubu_vkd3d_fence_test
+test_vkd3d_device: src/spells/graphics/render/vkd3d/wubu_vkd3d_device.c src/spells/graphics/render/vkd3d/wubu_vkd3d_device.h src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_device_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_device.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_device_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_device_test
 
-test_vkd3d_swapchain: src/runtime/wubu_vkd3d_swapchain.c src/runtime/wubu_vkd3d_swapchain.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_swapchain_test.c src/runtime/wubu_vkd3d_swapchain.c -o src/runtime/wubu_vkd3d_swapchain_test
-	./src/runtime/wubu_vkd3d_swapchain_test
+test_vkd3d_fence: src/spells/graphics/render/vkd3d/wubu_vkd3d_fence.c src/spells/graphics/render/vkd3d/wubu_vkd3d_fence.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_fence_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_fence.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_fence_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_fence_test
 
-test_vkd3d_physdev: src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_physdev.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_physdev_test.c src/runtime/wubu_vkd3d_physdev.c -o src/runtime/wubu_vkd3d_physdev_test -lvulkan
-	./src/runtime/wubu_vkd3d_physdev_test
+test_vkd3d_swapchain: src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain.c src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain_test
 
-test_vkd3d_vkdev: src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_vkdev.h src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_physdev.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_vkdev_test.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_physdev.c -o src/runtime/wubu_vkd3d_vkdev_test -lvulkan
-	./src/runtime/wubu_vkd3d_vkdev_test
+test_vkd3d_physdev: src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev_test
 
-test_vkd3d_renderpass: src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_renderpass.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_renderpass_test.c src/runtime/wubu_vkd3d_renderpass.c -o src/runtime/wubu_vkd3d_renderpass_test -lvulkan
-	./src/runtime/wubu_vkd3d_renderpass_test
+test_vkd3d_vkdev: src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.h src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev_test
 
-test_vkd3d_framebuffer: src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_framebuffer.h src/runtime/wubu_vkd3d_renderpass.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_framebuffer_test.c src/runtime/wubu_vkd3d_framebuffer.c -o src/runtime/wubu_vkd3d_framebuffer_test -lvulkan
-	./src/runtime/wubu_vkd3d_framebuffer_test
+test_vkd3d_renderpass: src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass_test
 
-test_vkd3d_memory: src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_memory.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_memory_test.c src/runtime/wubu_vkd3d_memory.c -o src/runtime/wubu_vkd3d_memory_test -lvulkan
-	./src/runtime/wubu_vkd3d_memory_test
+test_vkd3d_framebuffer: src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.h src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer_test
 
-test_vkd3d_descset: src/runtime/wubu_vkd3d_descset.c src/runtime/wubu_vkd3d_descset.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_descset_test.c src/runtime/wubu_vkd3d_descset.c -o src/runtime/wubu_vkd3d_descset_test -lvulkan
-	./src/runtime/wubu_vkd3d_descset_test
+test_vkd3d_memory: src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_memory_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_memory_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_memory_test
 
-test_vkd3d_msaa: src/runtime/wubu_vkd3d_msaa.c src/runtime/wubu_vkd3d_msaa.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_msaa_test.c src/runtime/wubu_vkd3d_msaa.c -o src/runtime/wubu_vkd3d_msaa_test -lvulkan
-	./src/runtime/wubu_vkd3d_msaa_test
+test_vkd3d_descset: src/spells/graphics/render/vkd3d/wubu_vkd3d_descset.c src/spells/graphics/render/vkd3d/wubu_vkd3d_descset.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_descset_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_descset.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_descset_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_descset_test
 
-test_vkd3d_precache: src/runtime/wubu_vkd3d_precache.c src/runtime/wubu_vkd3d_precache.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_precache_test.c src/runtime/wubu_vkd3d_precache.c -o src/runtime/wubu_vkd3d_precache_test
-	./src/runtime/wubu_vkd3d_precache_test
+test_vkd3d_msaa: src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa.c src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa_test
+
+test_vkd3d_precache: src/spells/graphics/render/vkd3d/wubu_vkd3d_precache.c src/spells/graphics/render/vkd3d/wubu_vkd3d_precache.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_precache_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_precache.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_precache_test
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_precache_test
 
 test_wubu_sdr: src/runtime/wubu_sdr.c src/runtime/wubu_sdr.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_sdr_test.c src/runtime/wubu_sdr.c -o src/runtime/wubu_sdr_test
@@ -1236,13 +1242,13 @@ test_wubu_vga: src/runtime/wubu_vga.c src/runtime/wubu_vga.h
 
 # GPU-requiring: NOT part of the default gate (the gate must stay
 # runnable on a box with no Vulkan loader).
-test_vkd3d_live: src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_physdev.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c -o src/runtime/wubu_vkd3d_live_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_test
+test_vkd3d_live: src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.h
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_test
 
-test_vkd3d_live_render: src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_render_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c -o src/runtime/wubu_vkd3d_live_render_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_render_test
+test_vkd3d_live_render: src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_render_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_render_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_render_test
 
 # Real shaders -> SPIR-V (validated with spirv-val in the build).
 build/vkd3d_shaders:
@@ -1258,8 +1264,8 @@ build/vkd3d_shaders/triangle.frag.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_tria
 
 # A REAL draw call.  GPU-requiring: separate target, not in the gate.
 test_vkd3d_live_pipeline: build/vkd3d_shaders/triangle.vert.spv build/vkd3d_shaders/triangle.frag.spv
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_pipeline_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_cmd.c -o src/runtime/wubu_vkd3d_live_pipeline_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_pipeline_test
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_pipeline_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_pipeline_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_pipeline_test
 
 build/vkd3d_shaders/binding.vert.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_binding.vert build/vkd3d_shaders
 	glslangValidator -V $< -o $@
@@ -1271,8 +1277,8 @@ build/vkd3d_shaders/binding.frag.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_bindi
 
 # D3D12-style binding: a root constant AND a real CBV, verified by readback.
 test_vkd3d_live_binding: build/vkd3d_shaders/binding.vert.spv build/vkd3d_shaders/binding.frag.spv
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_binding_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_descset.c -o src/runtime/wubu_vkd3d_live_binding_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_binding_test
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_binding_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c src/spells/graphics/render/vkd3d/wubu_vkd3d_descset.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_binding_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_binding_test
 
 build/vkd3d_shaders/texture.vert.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_texture.vert build/vkd3d_shaders
 	glslangValidator -V $< -o $@
@@ -1284,8 +1290,8 @@ build/vkd3d_shaders/texture.frag.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_textu
 
 # A REAL texture: upload -> SRV + sampler -> sample -> readback.
 test_vkd3d_live_texture: build/vkd3d_shaders/texture.vert.spv build/vkd3d_shaders/texture.frag.spv
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_texture_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_descset.c -o src/runtime/wubu_vkd3d_live_texture_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_texture_test
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_texture_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c src/spells/graphics/render/vkd3d/wubu_vkd3d_descset.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_texture_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_texture_test
 
 build/vkd3d_shaders/uav.comp.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_uav.comp build/vkd3d_shaders
 	glslangValidator -V $< -o $@
@@ -1293,18 +1299,18 @@ build/vkd3d_shaders/uav.comp.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_uav.comp 
 
 # A REAL UAV / storage buffer and a compute dispatch, read back and checked.
 test_vkd3d_live_uav: build/vkd3d_shaders/uav.comp.spv
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_uav_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_descset.c -o src/runtime/wubu_vkd3d_live_uav_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_uav_test
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_uav_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c src/spells/graphics/render/vkd3d/wubu_vkd3d_descset.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_uav_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_uav_test
 
 # A REAL 4x MSAA target + explicit resolve, verified by readback.
 test_vkd3d_live_msaa: build/vkd3d_shaders/triangle.vert.spv build/vkd3d_shaders/triangle.frag.spv
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_msaa_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_msaa.c -o src/runtime/wubu_vkd3d_live_msaa_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_msaa_test
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_msaa_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_msaa_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_msaa_test
 
 # The last VKD3D gap: a REAL swapchain, acquire, render, present (headless).
 test_vkd3d_live_present: build/vkd3d_shaders/triangle.vert.spv build/vkd3d_shaders/triangle.frag.spv
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_present_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_swapchain.c src/runtime/wubu_vkd3d_msaa.c -o src/runtime/wubu_vkd3d_live_present_test -lvulkan
-	./src/runtime/wubu_vkd3d_live_present_test
+	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_live_present_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/render/vkd3d/wubu_vkd3d_physdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_vkdev.c src/spells/graphics/render/vkd3d/wubu_vkd3d_memory.c src/spells/graphics/render/vkd3d/wubu_vkd3d_renderpass.c src/spells/graphics/render/vkd3d/wubu_vkd3d_framebuffer.c src/spells/graphics/render/vkd3d/wubu_vkd3d_pso.c src/spells/graphics/render/vkd3d/wubu_vkd3d_cmd.c src/spells/graphics/render/vkd3d/wubu_vkd3d_swapchain.c src/spells/graphics/render/vkd3d/wubu_vkd3d_msaa.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_live_present_test -lvulkan
+	./src/spells/graphics/render/vkd3d/wubu_vkd3d_live_present_test
 
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect

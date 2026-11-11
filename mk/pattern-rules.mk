@@ -25,6 +25,11 @@ $(KERNEL)/libc.o: $(KERNEL)/libc.c
 $(RT)/%.o: $(RT)/%.c
 	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/vsl -I$(RT)/oci -I$(BRIDGE) -I$(KERNEL) -MMD -MP -c $< -o $@
 
+# Spell objects.  A spell is self-contained, so it needs no -I beyond its
+# own directory: quoted includes search the source's directory first.
+$(SPELLS)/%.o: $(SPELLS)/%.c
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
 # JIT objects
 $(JIT)/%.o: $(JIT)/%.c
 	$(CC) $(CFLAGS) -I$(JIT) -MMD -MP -c $< -o $@
