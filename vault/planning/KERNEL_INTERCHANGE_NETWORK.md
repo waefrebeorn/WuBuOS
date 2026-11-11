@@ -81,7 +81,14 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    `vsl_syscall_dispatch()` is gone, each personality owns a disjoint number
    range, and the router decides. Verified by `test_vsl_kernel_adapt`
    (in `test_high_bridge`) plus the existing VSL suites.
-3. **VKD3D** (NT/SteamOS slot) — D3D12→Vulkan.  The largest single gaming gap.
+3. ◧ **VKD3D** (NT/SteamOS slot) — D3D12→Vulkan.  The largest single gaming gap.
+   *Slice 1 done* (`runtime/wubu_vkd3d.{h,c}`, `test_vkd3d` in `test_medium_other`):
+   the resource-state translation core — the full single-bit state table with
+   real Vulkan equivalents, composite states mapping to the OR of their parts,
+   unknown bits rejected rather than guessed, the barrier translator, and the
+   per-resource state tracker.  *Remaining slices:* descriptor heaps, command
+   lists/queues, pipeline state objects, the feature-level device, and the
+   swapchain/present path.
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
 5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
