@@ -117,7 +117,7 @@ vault/                archives (accomplishments, phases, planning)
 | C/H files in `src/` | 5,067 |
 | Total C LOC in `src/` | 750,001 |
 | Test targets | 512 (`make test`) |
-| Spells (reusable modules) | 1 — `vkd3d`, the D3D12→Vulkan layer |
+| Spells (reusable modules) | **2** — vkd3d (D3D12→Vulkan), swarm (p2p aggregation) |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 |
 | WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V, MIPS, 68k, AVR, 8051, 8086, Z80, 6502, PTX) |

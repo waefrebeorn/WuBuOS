@@ -1,0 +1,14 @@
+# the peer-to-peer aggregation layer for the distributed AGI
+spell swarm
+version 0.1.0
+book networking
+genre aggregation
+origin first-party
+provides p2p-aggregation
+provides peer-registry
+provides contribution-ledger
+requires sdr-transport
+requires libc
+source wubu_swarm.c
+source wubu_swarm.h
+test wubu_swarm_test.c

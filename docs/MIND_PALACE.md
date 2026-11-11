@@ -155,8 +155,9 @@ src/spells/<book>/<genre>/<spell>/<spell>.spell   <- the manifest
                                     <sources>     <- the code
 ```
 
-**Inside:** 53 files, 9,950 LOC — one spell so far: **vkd3d**, the from-scratch
-D3D12→Vulkan translation layer.
+**Inside:** 56 files, 10,287 LOC — two spells: **vkd3d** (the from-scratch
+D3D12→Vulkan translation layer) and **swarm** (the peer-to-peer aggregation
+ledger, filed under `networking/aggregation`).
 
 **Enter here:** `src/spells/README.md` (the doctrine), `wubu_spell.h` (the ABI),
 `wubu_spellbook.c` (the registry).
@@ -176,7 +177,7 @@ wrong fails the build.
 | C/H files in `src/` | **5,067** |
 | Lines of C | **750,001** |
 | Test targets | **512** |
-| Spells | **1** (vkd3d) |
+| Spells | **2** — vkd3d, swarm |
 | Gate | `make test` — 0 errors, 0 segfaults |
 
 ---
