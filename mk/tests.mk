@@ -1133,7 +1133,7 @@ test_vkd3d_vkdev: src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_vkdev.h 
 # GPU-requiring: NOT part of the default gate (the gate must stay
 # runnable on a box with no Vulkan loader).
 test_vkd3d_live: src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_physdev.h
-	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_test.c src/runtime/wubu_vkd3d_physdev.c -o src/runtime/wubu_vkd3d_live_test -lvulkan
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c -o src/runtime/wubu_vkd3d_live_test -lvulkan
 	./src/runtime/wubu_vkd3d_live_test
 
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h

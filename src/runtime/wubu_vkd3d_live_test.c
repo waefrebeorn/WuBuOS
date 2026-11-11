@@ -11,6 +11,7 @@
  * portable.  On this box it should find the RTX 5050.
  */
 #include "wubu_vkd3d_physdev.h"
+#include "wubu_vkd3d_vkdev.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -90,6 +91,45 @@ int main(void)
 
     CHECK(capable > 0, "at least one device is D3D12-class");
     printf("  %d device(s), %d D3D12-class\n", n, capable);
+
+    /* -- create a REAL logical device on the best candidate -- */
+    int chosen = -1;
+    for (int i = 0; i < n; i++) {
+        if (wubu_vkd3d_physdev_check(&devs[i], &req) != NULL) continue;
+        if (devs[i].properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+            chosen = i; break;                 /* prefer the discrete GPU */
+        }
+        if (chosen < 0) chosen = i;
+    }
+
+    if (chosen >= 0) {
+        wubu_vkd3d_vkdev_desc_t dd;
+        memset(&dd, 0, sizeof(dd));
+        uint32_t graphics_family = 0;
+        for (uint32_t q = 0; q < devs[chosen].queue_family_count; q++) {
+            if (devs[chosen].queue_families[q].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                graphics_family = q; break;
+            }
+        }
+        dd.queue_request_count = 1;
+        dd.queues[0].family_index = graphics_family;
+        dd.queues[0].queue_count = 1;
+        dd.queues[0].priority = 1.0f;
+        /* no extensions and no features: the most conservative request there
+         * is, so a failure here means the device genuinely cannot be opened */
+
+        VkDevice dev = VK_NULL_HANDLE;
+        bool ok = wubu_vkd3d_vkdev_create(&devs[chosen], &dd, &dev);
+        CHECK(ok && dev != VK_NULL_HANDLE,
+              "a real VkDevice is created on the chosen physical device");
+        if (ok) {
+            printf("  VkDevice created on %s (graphics family %u)\n",
+                   devs[chosen].properties.deviceName, graphics_family);
+            vkDestroyDevice(dev, NULL);
+        }
+    } else {
+        printf("  no D3D12-class device to open\n");
+    }
 
     vkDestroyInstance(inst, NULL);
 
