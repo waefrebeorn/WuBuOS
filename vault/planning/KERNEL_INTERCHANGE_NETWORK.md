@@ -208,7 +208,15 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    NOT CACHED rather than empty, and object-path/bus-name validation),
    `wubu_atspi_tree` (the walk: a cycle detected, depth and node count capped, a
    NULL root valid, the callback able to abort).
-10. **NT ALPC/WNF/Enclave** — only after the `nt-parity-wip` collision fix lands.
+10. ~**NT ALPC/WNF/Enclave**~ — **COLLISION QUESTION RESOLVED.**  The
+    `nt-parity-wip` branch no longer exists (locally or remotely), so the map's
+    "60 colliding slots" claim was stale and the live tree had never been
+    checked.  Registration is now wrapped (`vsl_nt_collision_count`,
+    `vsl_nt_collision_at`, `vsl_nt_stub_replace_count`): a REAL handler replacing
+    another REAL handler is a recorded collision, and a real handler replacing a
+    STUB is a counted upgrade.  Measured: 412 slots covered, 81 stub upgrades,
+    ZERO real collisions.  ALPC/WNF/Enclave handlers are registered in the live
+    tree; what was missing was the proof and the regression tripwire.
 
 ## 4. Honest status
 
