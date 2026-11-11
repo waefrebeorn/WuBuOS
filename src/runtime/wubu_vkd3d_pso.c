@@ -319,7 +319,15 @@ bool wubu_vkd3d_pso_vk(const wubu_vkd3d_pso_desc_t *d, wubu_vkd3d_pso_vk_t *out)
     out->front_face = d->front_counter_clockwise
                           ? VK_FRONT_FACE_COUNTER_CLOCKWISE
                           : VK_FRONT_FACE_CLOCKWISE;
-    if (!map_compare(d->depth_func, &out->depth_func)) return false;
+    /* A D3D12 comparison function is 1-BASED, so 0 is not a valid enum value.
+     * An app that disables depth testing has no reason to set one -- and the
+     * field is ignored when the test is off -- so requiring it here would
+     * reject a perfectly legal PSO. */
+    if (d->depth_enable) {
+        if (!map_compare(d->depth_func, &out->depth_func)) return false;
+    } else {
+        out->depth_func = VK_COMPARE_OP_ALWAYS;   /* unused while disabled */
+    }
     if (!map_blend_factor(d->blend_src_color, &out->src_color)) return false;
     if (!map_blend_factor(d->blend_dst_color, &out->dst_color)) return false;
     if (!map_blend_factor(d->blend_src_alpha, &out->src_alpha)) return false;
