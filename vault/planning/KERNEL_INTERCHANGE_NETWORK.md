@@ -160,16 +160,53 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    changing either and re-reading the pixel), and `test_vkd3d_live_texture`
    (upload -> SRV + sampler -> sample; the centre pixel is the LINEAR AVERAGE
    of four texels, so filtering is proven too).
-   *Still open:* a UAV/storage path (the last descriptor type), the swapchain
-   and present leg (needs a surface), and MSAA above 1x.
-4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
-   launch stutters on first shader compile.
-5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
-6. **GVfs + Tracker** (GNOME slot) — the file-manager and search backends.
-7. **makepkg / AUR / mkinitcpio** (Arch slot) — source builds + the boot-time
-   hook chain.
-8. **DolDoc / RedSea / raw VGA** (HolyC slot) — the TempleOS surface.
-9. **AT-SPI2** (GNOME slot) — the a11y wire protocol.
+   *Still open:* only the swapchain/present leg (it needs a surface, and this
+   box is headless).  Slices 14 and 15 added MSAA (SAMPLE_DESC -> rasterization
+   samples + sample shading, an explicit RESOLVE, and the rule that a pipeline's
+   sample count must EQUAL the attachment's) and the shader pre-cache (a
+   device-bound, versioned, ATOMICALLY-saved disk cache, so a second launch does
+   not recompile).  A live 4x MSAA target with a resolve is verified by readback
+   in `test_vubu_vkd3d_live_msaa`, and a UAV/storage-buffer compute dispatch in
+   `test_vkd3d_live_uav`.
+4. ~**Shader pre-cache / fossilize**~ (SteamOS slot) — **CORE DONE**
+   (`wubu_vkd3d_precache`): a cache bound to vendor+device+driver and a VERSION,
+   discarded WHOLE when a file is truncated or corrupt, bounded, refreshing
+   rather than duplicating, and saved ATOMICALLY (temp + rename).  Without it
+   every Proton launch stutters on first shader compile.
+5. ~**Steam Networking**~ (SteamOS slot) — **CORE DONE**, four layers:
+   `wubu_sdr` (routing tickets: one connection, expiring, capped window,
+   half-open, tamper-evident, and a route table where a virtual address may be
+   claimed once), `wubu_sdr_relay` (fail-closed, first failure decides, a
+   not-ready route refused because forwarding would black-hole the packet),
+   `wubu_sdr_session` (a port is NEVER reassigned until its session is REAPED,
+   so one peer cannot receive another's traffic; free-list recycling).
+6. ~**GVfs + Tracker**~ (GNOME slot) — **CORE DONE**, three slices:
+   `wubu_gvfs` (the async op state machine: terminal states, a cancel of a
+   finished handle refused, only CLOSING finishes), `wubu_gvfs_path`
+   (normalization, traversal REJECTED not clamped, the base is a DIRECTORY, the
+   reference is joined BEFORE it is normalized), `wubu_gvfs_mount` (LONGEST
+   PREFIX WINS or the deeper mount's files go to the shallower filesystem, and
+   a mount root must already be canonical).
+7. ~**makepkg / AUR / mkinitcpio**~ (Arch slot) — **CORE DONE**, four slices:
+   `wubu_pkg` extended (numeric version compare, constraints, post-order
+   resolution with cycle/missing detection, and pkg_remove now refuses to break
+   an installed dependent), `wubu_pkgbuild` (a parser that PARSES and never
+   executes -- a `$(...)` is a literal), `wubu_aur` (URL encoding, request
+   splitting rather than truncation, and resultcount checked against the body),
+   `wubu_hook` (fixed stage order, non-executable skipped, optional continues,
+   required aborts with nothing after it running).
+8. ~**DolDoc / RedSea / raw VGA**~ (HolyC slot) — **DolDoc CORE DONE**
+   (`wubu_doldoc`): magic and version checked, every length field bounds-checked
+   against the bytes present, an unknown node type refused rather than skipped,
+   a link without a target refused, depth capped, and the node array bounded.
+   *Still open:* RedSea (the filesystem) and raw VGA.
+9. ~**AT-SPI2**~ (GNOME slot) — **CORE DONE**, three slices: `wubu_dbus` (the
+   wire format: per-type alignment, a string's length EXCLUDING the NUL, a
+   signature's BYTE length, and an ARRAY's count IN BYTES not elements),
+   `wubu_atspi` (the CANONICAL role names a screen reader announces, -1 meaning
+   NOT CACHED rather than empty, and object-path/bus-name validation),
+   `wubu_atspi_tree` (the walk: a cycle detected, depth and node count capped, a
+   NULL root valid, the callback able to abort).
 10. **NT ALPC/WNF/Enclave** — only after the `nt-parity-wip` collision fix lands.
 
 ## 4. Honest status
