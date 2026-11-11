@@ -52,7 +52,7 @@ A UEFI firmware written from scratch in C11: PCI, ACPI, AHCI, NVMe, XHCI, GOP,
 TPM 2.0, SHA-256, RSA, Secure Boot. It measures the kernel into PCR4 and
 attests it before the kernel runs.
 
-**Inside:** 58 files, 9,665 LOC.
+**Inside:** 54 files, 9,665 LOC.
 
 **Enter here:** `src/firmware/fw_main.c` (the entry), `fw_tpm.c`,
 `fw_secureboot.c`, `fw_agi.c` (the attestation handoff).
@@ -71,7 +71,7 @@ cannot be guests.
 ZealOS-derived: ring-0, VBE framebuffer, FAT32, TXFS, AHCI, NVMe, PS/2, interrupt
 controller, and the recovery/rollback machinery.
 
-**Inside:** 58 files, 79,714 LOC — the second-largest tree after `brain`.
+**Inside:** 911 files, 79,714 LOC — the second-largest tree after `brain`.
 
 **Enter here:** `src/kernel/metal_main.c` (the entry), `memory.c`, `fat32.c`.
 
@@ -86,7 +86,7 @@ layer, containers, networking, and every compatibility subsystem.
 
 This is where most of the recent work lives.
 
-**Inside:** 58 files, 90,047 LOC.
+**Inside:** 534 files, 90,047 LOC.
 
 | subsystem | where | what it is |
 |---|---|---|
@@ -108,7 +108,7 @@ This is where most of the recent work lives.
 **For:** the Win98/XP shell — window manager, desktop, start menu, explorer,
 terminal.
 
-**Inside:** 58 files, 68,722 LOC.
+**Inside:** 285 files, 68,722 LOC.
 
 **Enter here:** `src/gui/wm.c` (the window manager), `src/gui/shell/desktop.c`
 (the desktop), `src/gui/shell/startmenu.c`, `src/gui/shell/taskbar_tasks.c`.
@@ -124,7 +124,7 @@ overlays — `wm_rim`, `wm_slime`, the taskbar.
 
 **For:** the programs that ship with the shell.
 
-**Inside:** 58 files, 104,435 LOC — editor, canvas, codec, calculator, control
+**Inside:** 943 files, 104,435 LOC — editor, canvas, codec, calculator, control
 panel, DOS window, games.
 
 **Enter here:** `src/apps/`.
