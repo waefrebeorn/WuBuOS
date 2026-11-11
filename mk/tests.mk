@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_docs test_wubu_swarm test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_docs test_wubu_swarm test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1115,6 +1115,10 @@ test_vkd3d: src/spells/graphics/render/vkd3d/wubu_vkd3d.c src/spells/graphics/re
 test_spellbook: src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c src/runtime/wubu_spell.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c -o src/runtime/wubu_spellbook_test
 	./src/runtime/wubu_spellbook_test
+# The universal container -- the WuBuContainer slerm: any source, one interface.
+test_wubu_container_universal: src/runtime/container/wubu_container_universal_test.c src/runtime/container/wubu_container_universal.c src/runtime/container/wubu_container_universal.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/container/wubu_container_universal_test.c src/runtime/container/wubu_container_universal.c -o src/runtime/wubu_container_universal_test
+	./src/runtime/wubu_container_universal_test
 
 # The peer-to-peer aggregation layer -- the second spell (networking/aggregation).
 test_wubu_swarm: src/spells/networking/aggregation/swarm/wubu_swarm_test.c src/spells/networking/aggregation/swarm/wubu_swarm.c src/spells/networking/aggregation/swarm/wubu_swarm.h src/spells/networking/aggregation/swarm/swarm.spell
