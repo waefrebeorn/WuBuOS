@@ -95,8 +95,16 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    sized for the union of four descriptor types), and RTV/DSV are framebuffer
    ATTACHMENTS rather than descriptors, so their pools need no sizes.
    GPU-visible heaps carry UPDATE_AFTER_BIND on both the pool and the binding.
-   *Remaining slices:* command lists/queues, pipeline state objects, the
-   feature-level device, and the swapchain/present path.
+   *Slice 3 done* (`runtime/wubu_vkd3d_cmd.{h,c}`, `test_vkd3d_cmd`): command
+   allocators and lists -- the four-state machine with every illegal
+   transition refused (recording cannot execute, closed cannot re-close,
+   executing cannot reset, allocator cannot reset while any list is in
+   flight, allocator-reset lists are INVALID and must be re-created).  The
+   Vulkan mapping is honest about a distinction Vulkan does not have:
+   DIRECT -> PRIMARY, BUNDLE -> SECONDARY, COMPUTE/COPY -> PRIMARY on the
+   compute/transfer QUEUE FAMILY (Vulkan has no such buffer level).
+   *Remaining slices:* pipeline state objects, the feature-level device, and
+   the swapchain/present path.
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
 5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
