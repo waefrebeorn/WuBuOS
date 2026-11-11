@@ -45,13 +45,13 @@ Together they form a complete AGI system: the Body hosts, the Brain thinks, the 
 ```bash
 make all                 # full build (kernel jit compiler runtime tools gui
                          #   bridge apps worldsim metal audio shell bear)
-make hosted              # hosted binary (runs on Linux)
-./src/hosted/wubu --screenshot /tmp/screenshot.ppm
+make shell               # the runnable shell: ./src/shell/wubu_shell
+make iso                 # the bootable image: ./src/kernel/wubuos.iso
 
 make test                # all 512 test targets
 make test_agi_metal      # the measured-boot/AGI gate (the root of trust)
-build_iso.sh             # bootable ISO (kernel + limine)
-qemu-test.sh             # boot it under QEMU
+make qemu                # boot the image under QEMU (serial stdio)
+make spells              # list the spell book (reusable modules)
 ```
 
 Details: [docs/BUILDING.md](docs/BUILDING.md). The submodule

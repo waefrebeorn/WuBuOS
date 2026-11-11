@@ -37,7 +37,9 @@ static const char *const DOCS[] = {
     "docs/SAGA.md",
     "docs/MODULES.md",
     "docs/ECOSYSTEM.md",
+    "docs/BUILDING.md",
     "README.md",
+    "TESTING.md",
     "src/spells/README.md",
 };
 

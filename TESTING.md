@@ -1,160 +1,83 @@
-# Testing
+# Testing WuBuOS
 
-Hosted test suite for WuBuOS. All tests compile as user-space binaries with
-WuBu compliance flags and run on the host — no hardware boot required.
+The gate is `make test`: **512 targets**, run sequentially, all must pass with
+0 errors and 0 segfaults. Every test compiles as a user-space binary with the
+WuBu compliance flags and runs on the host — no hardware boot needed to develop.
 
-## Build flags
-
-Every test target uses the WuBu compliance toolchain:
-
-```
--D_POSIX_C_SOURCE=200809L    # POSIX 2008 baseline (no _GNU_SOURCE)
--DWUBU_HOSTED                 # hosted runtime personality
--include wubu_gnu_compat.h    # portable shim (replaces _GNU_SOURCE deps)
-```
-
-These three flags let kernel sources compile cleanly on any C11 host without
-pulling in GNU extensions. Recent work eliminated all `_GNU_SOURCE` dependency
-from the repo — `wubu_gnu_compat.h` now supplies the handful of POSIX-level
-shims needed.
-
-## Layout
+Green looks like this at the end:
 
 ```
-mk/tests.mk            ← 414 test targets, organized into tiers
-src/kernel/test/       ← per-module selftests (wubu_<mod>_selftest.c)
-src/kernel/wubu_test_stubs.c  ← test-only stubs for excluded symbols
-build/testobj/         ← cached kernel .o (built once, reused per test)
+✅ All tests passed (all tiers)
 ```
 
-## Running tests
+---
+
+## Run one test
 
 ```bash
-# One specific test:
-make test_jit
-make test_fat32
-make test_hw_audio
-
-# A tier (groups of related tests):
-make test_critical_runtime    # 8 targets  (runtime core)
-make test_critical_kernel     # 9 targets  (kernel/metal)
-make test_high_bridge         # 3 targets  (syscall bridge)
-make test_high_gui            # 18 targets (hosted GUI)
-make test_high_bear           # 26 targets (Bear RL/JIT/compiler)
-make test_medium_other        # 37 targets (apps/audio/tools/other)
-
-# Hardware driver family (216 test_hw_* targets):
-make test_all
-
-# Full suite — all tiers sequentially:
-make test
+make test_wm              # the window manager
+make test_spellbook       # the spell book (reusable modules)
+make test_vkd3d_heap      # one VKD3D slice
+make test_fat32           # a kernel filesystem
 ```
 
-## Tier breakdown
+`test_<name>` compiles from scratch each time — a test is only a real gate if
+it actually rebuilds. If `make` says "nothing to be done", the recipe is likely
+missing its sources (see below).
 
-`mk/tests.mk` defines 414 test targets organized into tiers:
+## Run a tier
 
-### test_critical_runtime (8 targets)
-Runtime core: containers, network, OCI, snapshots, VSL, HolyD, HolyC AGI, Proton, spawn.
+Tiers are phony targets over groups of related tests. **Real member counts**
+(2026-11-11):
 
-```
-test_network  test_snapshot  test_vsl  test_holyd  test_holyc_agi
-test_proton   test_proton2   test_spawn
-```
-Prerequisite: `runtime`
+| tier | members | what it covers |
+|---|---|---|
+| `test_critical_runtime` | 11 | containers, network, OCI, snapshots, VSL, HolyD, Proton, spawn |
+| `test_critical_kernel` | 9 | filesystems, storage, display, decompressors, memory, tasking |
+| `test_high_bridge` | 5 | syscall bridge, DOS flip |
+| `test_high_gui` | 31 | WM, desktop, startmenu, explorer, terminal, shell, control |
+| `test_high_bear` | 25 | Bear RL / JIT / compiler |
+| `test_medium_other` | 81 | apps, spells, docs, VKD3D, SDR, package stack, D-Bus, AT-SPI2, … |
+| `test_all` | 218 | the per-hardware-driver `test_hw_*` family |
 
-### test_critical_kernel (9 targets)
-Kernel/metal: filesystems, storage, display, decompressors.
-
-```
-test_fat32  test_txfs  test_ahci  test_drm_direct
-test_zlib   test_zip   test_lzx   test_cab  test_dram_hedge
-```
-
-### test_high_bridge (3 targets)
-Syscall bridge and DOS flip layer.
-
-```
-test_bridge  test_bridge_flip  test_syscall
-```
-Prerequisite: `runtime`
-
-### test_high_gui (18 targets)
-Hosted GUI: window manager, desktop, startmenu, explorer, terminal,
-clipboard, compositor, shell, wallpaper, control panel, calculator.
-
-```
-test_synth  test_wubu_sound  test_cp_sound  test_hwdetect
-test_colonel  test_wm  test_ui  test_dos_window
-test_startmenu  test_explorer  test_term
-test_clipboard  test_screenshot  test_compositor  test_shell
-test_wallpaper  test_control  test_calc
-```
-Prerequisites: `gui`, `runtime`
-
-### test_high_bear (26 targets)
-Bear RL / JIT / compiler: codegen, register allocation, loop analysis,
-branch profiling, PGO, ARM64 encoder, minic, memory, tasking, HolyC, PTX.
-
-```
-test_jit  test_jit_regalloc  test_jit_remat  test_jit_branch
-test_jit_type  test_jit_loop  test_jit_branch_profile
-test_jit_subsystem_integration  test_jit_pgo_byte  test_jit_loop_consume
-test_jit_deep_opt  test_jit_fuzzer  test_jit_supremacy  test_jit_torture
-test_arm64_enc  test_minic_cg  test_jit_regression  test_peephole_superopt
-test_memory  test_tasking  test_input  test_holyc  test_hedge
-test_holyc_ptx  test_battery
-```
-
-### test_medium_other (37 targets)
-Apps, audio, tools, WorldSim, namespace, deployment, math, package manager.
-
-```
-test_worldsim  test_audio  test_apps  test_apps2  test_wubu
-test_host_exec  test_gaad  test_iso  test_weights  test_gc
-test_txfs  test_dbuf  test_styx  test_styxfs  test_anticheat
-test_bottles  test_ns_bridge  test_ns_snap  test_ns_pkg  test_ns_kernel
-test_ns_9p  test_ns_dram  test_deploy  test_math  test_pkgmgr
-test_gamelib  test_mime  test_trash  test_cap  test_txn
-test_cmd  test_dos_emu_smoke  test_manifest  test_bytropix_verifier
-```
-Prerequisites: `runtime`, `gui`
-
-### test_hw_* (216 targets)
-Per-hardware-driver selftests. Each `test_hw_<driver>` compiles the
-selftest + driver source + `wubu_test_stubs.c` against cached kernel objects.
-
-Examples: `test_hw_audio`, `test_hw_nvidia_turing`, `test_hw_wifi7`,
-`test_hw_xhci`, `test_hw_bt`, `test_hw_bcache`, `test_hw_nvme_gen5`,
-`test_hw_usb4`, `test_hw_vulkan14`.
-
-### Additional targets
-
-```
-test_vsl_cpm         # VSL CP/M syscall personality
-test_vsl_macclassic  # VSL Mac Classic syscall personality
-test_all             # All 216 test_hw_* targets
-test                 # Full suite: all tiers + VSL personalities
+```bash
+make test_medium_other    # the medium tier (the one with the spell + doc gates)
+make test_all             # the hardware-driver family
+make test                 # every tier, sequentially — the full gate
 ```
 
 ## How it works
 
 1. **Cached kernel objects** — `mk/tests.mk` precompiles verified kernel
-   modules into `build/testobj/*.o` once. Only changed sources recompile.
+   modules into `build/testobj/*.o` once; only changed sources recompile.
+2. **Per-test link** — each test compiles its own `.c` against the cache and
+   links the module under test. The stub file `src/kernel/wubu_test_stubs.c`
+   supplies test-only symbols so a driver test is deterministic.
+3. **Tier grouping** — `test_critical_*`, `test_high_*`, `test_medium_other`
+   each depend on their member tests; `make test` runs them all.
 
-2. **Per-test link** — each `test_hw_<mod>` target compiles the selftest,
-   the module under test, and `wubu_test_stubs.c`, then links against the
-   cached objects. The module's own `.o` is excluded from the cache to avoid
-   double-definition.
+## The gates that guard the tree
 
-3. **Tier grouping** — phony targets (`test_critical_runtime`, etc.) depend
-   on their member tests, so `make test_critical_runtime` runs exactly that
-   tier. The top-level `test` target runs all tiers sequentially.
+Three targets are load-bearing and worth understanding:
 
-## Stub routing
+| test | what it proves |
+|---|---|
+| `test_spellbook` | the spell book scans clean; a mis-filed spell or a manifest that disagrees with its directory is a **build failure** |
+| `test_docs` | every file path the front-door docs name still exists; a doc shorter than 200 bytes is a stub, not a doc |
+| `test_vsl_nt_collision` | the NT dispatch table has zero real collisions (only intended stub→real upgrades) |
 
-`src/kernel/wubu_test_stubs.c` provides test-only symbols (e.g.
-`wubu_rtc_driver_for`, `wubu_hid_driver_for`) that route a vendor/chip string
-to its driver name. These are **stubs** for test determinism — the real
-routing happens in the kernel's hw_detect layer. If a test does a routing
-CHECK you must extend the corresponding stub to mirror the real logic.
+## How to ADD a test (read this before touching `mk/tests.mk`)
+
+A test recipe has a **prerequisite line** and a **run line**. The golden rule:
+
+> Anchor on the target's **LAST, run line** (`./binary`), never on the
+> `target: prereqs` line. Inserting after the prerequisite line silently steals
+> the previous target's recipe and makes the new target run several suites.
+
+A test target must list its sources in its prerequisites. A test whose
+prereqs omit the sources it compiles never rebuilds — `make` keeps the stale
+binary and a green run proves nothing. This happened twice on this tree and
+masked real breakage for months.
+
+New runtime work also belongs to the **spell book**: `src/spells/` with a
+`<name>.spell` manifest, and `test_spellbook` will start checking it.
