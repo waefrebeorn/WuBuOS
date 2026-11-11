@@ -5,6 +5,7 @@
  * that behaviour, not about the implementation's internals.
  */
 #include "wubu_swarm.h"
+#include "wubu_swarm_wire.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -87,6 +88,48 @@ int main(void)
         CHECK(strcmp(e.kind, "use") == 0, "event 2 is a 'use'");
     }
     CHECK(wubu_swarm_event_at(s, 99, &e) != 0, "beyond the ledger is an error");
+
+    /* -- the wire: a contribution rides the relay as an opaque frame -- */
+    uint8_t frame[WUBU_SWARM_WIRE_LEN];
+    char    wpeer[WUBU_SWARM_WIRE_PEER + 1], wkind[WUBU_SWARM_WIRE_KIND + 1];
+    CHECK(wubu_swarm_wire_encode("deadbeefdeadbeef", "play", frame) == 0,
+          "a contribution encodes to a 44-byte frame");
+    CHECK(wubu_swarm_wire_decode(frame, wpeer, wkind) == 0,
+          "the frame decodes readably");
+    if (wubu_swarm_wire_decode(frame, wpeer, wkind) == 0) {
+        CHECK(strcmp(wpeer, "deadbeefdeadbeef") == 0,
+              "the peer survives the wire");
+        CHECK(strcmp(wkind, "play") == 0, "the kind survives the wire");
+    }
+    CHECK(wubu_swarm_wire_encode("", "play", frame) != 0,
+          "no empty peer on the wire");
+    CHECK(wubu_swarm_wire_encode("deadbeefdeadbeef", "", frame) != 0,
+          "no empty kind on the wire");
+    CHECK(wubu_swarm_wire_encode("zzzzzzzzzzzzzzzz", "play", frame) != 0,
+          "a non-hex peer is rejected before it rides");
+
+    uint8_t bad[WUBU_SWARM_WIRE_LEN];
+    memset(bad, 0, sizeof(bad)); memcpy(bad, "XXXX", 4);
+    memset(bad + 4, '0', 16);
+    CHECK(wubu_swarm_wire_decode(bad, wpeer, wkind) != 0,
+          "a wrong magic is refused");
+    memset(bad, ' ', sizeof(bad)); memcpy(bad, "WMSW", 4);
+    memset(bad + 4, '0', 16);
+    CHECK(wubu_swarm_wire_decode(bad, wpeer, wkind) != 0,
+          "an empty kind is refused");
+
+    /* FULL PATH: encode -> (the relay carries the opaque frame) -> decode ->
+     * the ledger -> aggregate.  This is 'tracked over SDR' with the transport
+     * held back; the bytes are what any relay would move. */
+    wubu_swarm_t *w = wubu_swarm_create();
+    char fpeer[17], fkind[25];
+    CHECK(wubu_swarm_wire_encode("aabbccddeeff0011", "play", frame) == 0 &&
+          wubu_swarm_wire_decode(frame, fpeer, fkind) == 0,
+          "a relay-carried frame decodes");
+    CHECK(wubu_swarm_track(w, fpeer, fkind) == 0,
+          "the decoded contribution lands in the ledger");
+    CHECK(wubu_swarm_count_kind(w, "play") == 1, "and aggregates over SDR");
+    wubu_swarm_destroy(w);
 
     wubu_swarm_destroy(s);
 

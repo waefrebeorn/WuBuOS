@@ -11,4 +11,6 @@ requires sdr-transport
 requires libc
 source wubu_swarm.c
 source wubu_swarm.h
+source wubu_swarm_wire.c
+source wubu_swarm_wire.h
 test wubu_swarm_test.c

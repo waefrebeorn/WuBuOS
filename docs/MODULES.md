@@ -22,7 +22,7 @@ that comment is the only description that cannot drift from the code.
 | `src/apps/` | 943 | 104,435 | the programs that ship with the shell. |
 | `src/hosted/` | 40 | 7,271 | the binary that runs on Linux today. Entry: `src/hosted/hosted.c`. |
 | `src/jit/` | 53 | 13,109 | native JIT: x86-64, ARM64, RISC-V, WASM; the JIT expression compiler. |
-| `src/spells/` | 56 | 10,287 | the spell book — reusable third-party modules. Entry: `src/runtime/wubu_spellbook.c`. |
+| `src/spells/` | 58 | 10,430 | the spell book — reusable third-party modules. Entry: `src/runtime/wubu_spellbook.c`. |
 | `src/bear/` | 57 | 14,581 | RL training, Vulkan/CUDA. |
 | `src/bridge/` | 10 | 2,423 | DOS flip, syscall bridge. |
 | `src/audio/` | 10 | 2,890 | DAW, Furnace chips, AI plugins. |

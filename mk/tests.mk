@@ -1118,7 +1118,7 @@ test_spellbook: src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c s
 
 # The peer-to-peer aggregation layer -- the second spell (networking/aggregation).
 test_wubu_swarm: src/spells/networking/aggregation/swarm/wubu_swarm_test.c src/spells/networking/aggregation/swarm/wubu_swarm.c src/spells/networking/aggregation/swarm/wubu_swarm.h src/spells/networking/aggregation/swarm/swarm.spell
-	$(CC) $(CFLAGS) -Isrc/spells/networking/aggregation/swarm src/spells/networking/aggregation/swarm/wubu_swarm_test.c src/spells/networking/aggregation/swarm/wubu_swarm.c -o src/runtime/wubu_swarm_test
+	$(CC) $(CFLAGS) -Isrc/spells/networking/aggregation/swarm src/spells/networking/aggregation/swarm/wubu_swarm_test.c src/spells/networking/aggregation/swarm/wubu_swarm.c src/spells/networking/aggregation/swarm/wubu_swarm_wire.c -o src/runtime/wubu_swarm_test
 	./src/runtime/wubu_swarm_test
 
 # The docs must not lie: every path the front-door docs name must exist.
