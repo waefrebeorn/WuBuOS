@@ -35,6 +35,7 @@ static int checks;
 static const char *const DOCS[] = {
     "docs/MIND_PALACE.md",
     "docs/SAGA.md",
+    "docs/MODULES.md",
     "README.md",
     "src/spells/README.md",
 };

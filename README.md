@@ -133,7 +133,7 @@ context-switch no-ops, and the stub-phrase spots are tracked openly in
 - [VISION.md](VISION.md) — the unified three-repo architecture (must-read)
 - [docs/BOOT_CHAIN.md](docs/BOOT_CHAIN.md) — the measured-boot spine
 - [docs/BUILDING.md](docs/BUILDING.md) — build, test, ship (ISO/USB/QEMU)
-- [docs/MODULES.md](docs/MODULES.md) — full annotated module table (auto-generated)
+- [docs/MODULES.md](docs/MODULES.md) — the module map (layers, guests, subsystems)
 - [docs/MIND_PALACE.md](docs/MIND_PALACE.md) — the verified walk through the OS (start here)
 - [docs/SAGA.md](docs/SAGA.md) — the project's story, told from its commit log
 - [OS_BIBLE.md](OS_BIBLE.md) — the design bible (vision, architecture, principles)
