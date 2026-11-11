@@ -123,8 +123,6 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    "frame latency exceeds the buffer count" check: Vulkan may return MORE
    images than requested, so the requirement is met by RAISING the image count,
    not by rejecting a legal D3D12 config.
-   *Still open:* a real `VkDevice` (the slices above open none -- which is why
-   their correctness is provable without a GPU) and the first live present.
    *Slices 5 and 6* (`wubu_vkd3d_device.{h,c}`, `wubu_vkd3d_fence.{h,c}`):
    the feature-level device (created AT a level, never downgraded; validates a
    PSO desc against the caps that level implies, returning the first violated
@@ -133,6 +131,37 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    Vulkan TIMELINE semaphores (strictly-increasing values, because a
    non-increasing signal collapses two submissions into one and lets the CPU
    reuse memory the GPU is still reading).
+   *Slices 8-13* -- the device boundary and everything after it:
+   `wubu_vkd3d_physdev` (physical device selection: API version + required queue
+   families + extensions + every required feature bit SET, answering with a
+   REASON so an app can fall back; present capability checked per queue family,
+   since a transfer-only family cannot present), `wubu_vkd3d_vkdev` (the
+   logical device; a family may not be requested twice, and every request is
+   validated before `vkCreateDevice` because the driver's answer names no
+   field), `wubu_vkd3d_renderpass` (D3D12's NO_ACCESS must become DONT_CARE on
+   BOTH sides -- LOAD reads stale contents, STORE keeps them, and D3D12's
+   contract is that they are undefined afterwards), `wubu_vkd3d_framebuffer`
+   (aspect flags come from the FORMAT, not the caller's claim, and Vulkan
+   requires every attachment to share the framebuffer's extent and sample count
+   -- D3D12 never checks either), `wubu_vkd3d_memory` (DEFAULT/UPLOAD/READBACK
+   heaps -> memory types; the type must satisfy the heap, the app's extra
+   requirements AND the resource's memoryTypeBits; READBACK prefers
+   HOST_CACHED via a two-pass selection), and `wubu_vkd3d_descset` (root
+   signature -> pipeline layout: a D3D12 register is 32 BITS so root constant
+   N is byte N*4, and the push constant range is ONE contiguous block covering
+   the highest register used).
+   *LIVE on hardware (separate GPU-requiring targets, deliberately NOT in the
+   gate):* `test_vkd3d_live` (enumerate -> pick the discrete GPU -> create a
+   real VkDevice), `test_vkd3d_live_render` (real images, a real VkRenderPass
+   and VkFramebuffer, a submitted clear), `test_vkd3d_live_pipeline` (real
+   SPIR-V, a pipeline built FROM the PSO slice's mapped state, a draw, and a
+   READBACK proving the triangle landed at the computed coordinates),
+   `test_vkd3d_live_binding` (a root constant AND a real CBV, both proven by
+   changing either and re-reading the pixel), and `test_vkd3d_live_texture`
+   (upload -> SRV + sampler -> sample; the centre pixel is the LINEAR AVERAGE
+   of four texels, so filtering is proven too).
+   *Still open:* a UAV/storage path (the last descriptor type), the swapchain
+   and present leg (needs a surface), and MSAA above 1x.
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
 5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
