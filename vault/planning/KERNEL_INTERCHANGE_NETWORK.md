@@ -160,8 +160,15 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    changing either and re-reading the pixel), and `test_vkd3d_live_texture`
    (upload -> SRV + sampler -> sample; the centre pixel is the LINEAR AVERAGE
    of four texels, so filtering is proven too).
-   *Still open:* only the swapchain/present leg (it needs a surface, and this
-   box is headless).  Slices 14 and 15 added MSAA (SAMPLE_DESC -> rasterization
+   *The present leg is CLOSED* (`wubu_vkd3d_swapchain` + the live present
+   target): a real VkSwapchainKHR is created on a headless surface, an image is
+   acquired, a triangle is rendered into it, and the frame is PRESENTED.  Two
+   findings came out of it: the NVIDIA ICD on this box SEGFAULTS in
+   vkGetPhysicalDeviceSurfaceSupportKHR for a headless surface (the Intel iGPU
+   answers present=1, so a present path must pick a present-capable device --
+   a different filter from the render tests), and VK_KHR_swapchain must be
+   enabled on the DEVICE, without which the loader returns VK_SUCCESS from a
+   NULL function pointer.  Slices 14 and 15 added MSAA (SAMPLE_DESC -> rasterization
    samples + sample shading, an explicit RESOLVE, and the rule that a pipeline's
    sample count must EQUAL the attachment's) and the shader pre-cache (a
    device-bound, versioned, ATOMICALLY-saved disk cache, so a second launch does
