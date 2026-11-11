@@ -15,6 +15,7 @@ BRIDGE  = src/bridge
 APPS    = src/apps
 WS      = src/worldsim
 RT      = src/runtime
+SPELLS  = src/spells
 FRAMEWORK = src/framework
 TOOLS   = src/tools
 HOSTED  = src/hosted

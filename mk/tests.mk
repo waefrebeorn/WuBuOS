@@ -1116,6 +1116,15 @@ test_spellbook: src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c s
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_spellbook_test.c src/runtime/wubu_spellbook.c -o src/runtime/wubu_spellbook_test
 	./src/runtime/wubu_spellbook_test
 
+# The spell-book command line: list, show, cast, check.
+wubu_spell: src/runtime/wubu_spell_cli.c src/runtime/wubu_spellbook.c src/runtime/wubu_spell.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_spell_cli.c src/runtime/wubu_spellbook.c -o src/runtime/wubu_spell
+.PHONY: spells spellcheck
+spells: wubu_spell
+	./src/runtime/wubu_spell list
+spellcheck: wubu_spell
+	./src/runtime/wubu_spell check
+
 test_vkd3d_heap: src/spells/graphics/render/vkd3d/wubu_vkd3d_heap.c src/spells/graphics/render/vkd3d/wubu_vkd3d_heap.h
 	$(CC) $(CFLAGS) -Isrc/spells/graphics/render/vkd3d -Isrc/runtime src/spells/graphics/render/vkd3d/wubu_vkd3d_heap_test.c src/spells/graphics/render/vkd3d/wubu_vkd3d_heap.c -o src/spells/graphics/render/vkd3d/wubu_vkd3d_heap_test
 	./src/spells/graphics/render/vkd3d/wubu_vkd3d_heap_test
