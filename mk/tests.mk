@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1121,6 +1121,10 @@ test_vkd3d_fence: src/runtime/wubu_vkd3d_fence.c src/runtime/wubu_vkd3d_fence.h
 test_vkd3d_swapchain: src/runtime/wubu_vkd3d_swapchain.c src/runtime/wubu_vkd3d_swapchain.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_swapchain_test.c src/runtime/wubu_vkd3d_swapchain.c -o src/runtime/wubu_vkd3d_swapchain_test
 	./src/runtime/wubu_vkd3d_swapchain_test
+
+test_vkd3d_physdev: src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_physdev.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_physdev_test.c src/runtime/wubu_vkd3d_physdev.c -o src/runtime/wubu_vkd3d_physdev_test -lvulkan
+	./src/runtime/wubu_vkd3d_physdev_test
 
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect
