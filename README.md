@@ -9,10 +9,10 @@ hosts, and acts. It is one of three repositories that form the complete system:
 
 | Repo | Role | LOC |
 |------|------|-----|
-| **wubuos** (this repo) | THE BODY — kernel, GUI, drivers, runtime | 472,955 |
-| **wubuwizard** | THE BRAIN — inference engine, training, KV cache | 218,100 |
-| **wubunos** | THE COMPILER — HolyC JIT, 11 ISA backends | 14,115 |
-| **TOTAL** | **Three repos, one AGI** | **705,170** |
+| **wubuos** (this repo) | THE BODY — kernel, firmware, GUI, runtime | **750,001** (C/H in `src/`, verified 2026-11-11) |
+| **wubuwizard** | THE BRAIN — inference engine, training, KV cache | ~218k |
+| **wubunos** | THE COMPILER — HolyC JIT, ISA backends | ~71k (measured via `src/compiler`) |
+| **TOTAL** | **Three repos, one AGI** | **~1,040k** |
 
 - **Code lives on GitHub** — [`waefrebeorn/WuBuOS`](https://github.com/waefrebeorn/WuBuOS)
 - **Models + datasets live on HuggingFace** — the [`WaefreBeorn` org](https://huggingface.co/WaefreBeorn)
@@ -45,7 +45,7 @@ make all                 # full build (kernel jit compiler runtime tools gui
 make hosted              # hosted binary (runs on Linux)
 ./src/hosted/wubu --screenshot /tmp/screenshot.ppm
 
-make test                # all 414 test targets
+make test                # all 512 test targets
 make test_agi_metal      # the measured-boot/AGI gate (the root of trust)
 build_iso.sh             # bootable ISO (kernel + limine)
 qemu-test.sh             # boot it under QEMU
@@ -80,6 +80,7 @@ src/
   audio/     DAW, Furnace (30+ chips), TinySoundFont, AI plugins
   hosted/    DRM/KMS, Vulkan, X11, WSL2, macOS AVF
   runtime/   Styx/9P, VSL, containers, Arch, network, DOS emulator, syscall manifest
+  spells/    third-party reusable modules (the spell book)
   gui/       Win98 WM, desktop, startmenu, explorer, terminal
   bear/      RL training, Vulkan/CUDA, n-pole physics
   brain/     wubuwizard integration (encoders, optimizers, attention, diffusion)
@@ -109,14 +110,14 @@ docs/
 vault/                archives (accomplishments, phases, planning)
 ```
 
-## Status (verified 2026-08-15)
+## Status (verified 2026-11-11)
 
 | Metric | Value |
 |---|---|
-| C source files | 2,463 |
-| C header files | 1,006 |
-| Total C LOC | 472,955 |
-| Test targets | 414 (`make test` — critical/high/medium tiers) |
+| C/H files in `src/` | 5,067 |
+| Total C LOC in `src/` | 750,001 |
+| Test targets | 512 (`make test`) |
+| Spells (reusable modules) | 1 — `vkd3d`, the D3D12→Vulkan layer |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 |
 | WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V, MIPS, 68k, AVR, 8051, 8086, Z80, 6502, PTX) |
@@ -133,6 +134,7 @@ context-switch no-ops, and the stub-phrase spots are tracked openly in
 - [docs/BOOT_CHAIN.md](docs/BOOT_CHAIN.md) — the measured-boot spine
 - [docs/BUILDING.md](docs/BUILDING.md) — build, test, ship (ISO/USB/QEMU)
 - [docs/MODULES.md](docs/MODULES.md) — full annotated module table (auto-generated)
+- [docs/MIND_PALACE.md](docs/MIND_PALACE.md) — the verified walk through the OS (start here)
 - [OS_BIBLE.md](OS_BIBLE.md) — the design bible (vision, architecture, principles)
 - [STATE.md](STATE.md) — current state, verified on date
 - [BATTLESHIP.md](BATTLESHIP.md) — the gap board (v23)
