@@ -180,13 +180,14 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    not-ready route refused because forwarding would black-hole the packet),
    `wubu_sdr_session` (a port is NEVER reassigned until its session is REAPED,
    so one peer cannot receive another's traffic; free-list recycling).
-6. ~**GVfs + Tracker**~ (GNOME slot) — **CORE DONE**, three slices:
+6. ~**GVfs + Tracker**~ (GNOME slot) — **GVfs DONE**, three slices:
    `wubu_gvfs` (the async op state machine: terminal states, a cancel of a
    finished handle refused, only CLOSING finishes), `wubu_gvfs_path`
    (normalization, traversal REJECTED not clamped, the base is a DIRECTORY, the
    reference is joined BEFORE it is normalized), `wubu_gvfs_mount` (LONGEST
    PREFIX WINS or the deeper mount's files go to the shallower filesystem, and
    a mount root must already be canonical).
+   *Still open:* Tracker (the full-text search indexer).
 7. ~**makepkg / AUR / mkinitcpio**~ (Arch slot) — **CORE DONE**, four slices:
    `wubu_pkg` extended (numeric version compare, constraints, post-order
    resolution with cycle/missing detection, and pkg_remove now refuses to break
