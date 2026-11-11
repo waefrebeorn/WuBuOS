@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_vkd3d test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1091,6 +1091,10 @@ test_colonel: src/runtime/wubu_colonel.c src/runtime/wubu_colonel.h
 	./src/runtime/tests/test_colonel
 
 test_kernel_xchg: src/runtime/wubu_kernel_xchg.c src/runtime/wubu_kernel_xchg.h
+test_vkd3d: src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d.h
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_test.c src/runtime/wubu_vkd3d.c -o src/runtime/wubu_vkd3d_test
+	./src/runtime/wubu_vkd3d_test
+
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_kernel_xchg.c src/runtime/wubu_kernel_xchg.c -o src/runtime/tests/test_kernel_xchg
 	./src/runtime/tests/test_kernel_xchg
 
