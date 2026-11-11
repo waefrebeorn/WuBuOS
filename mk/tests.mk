@@ -1186,6 +1186,19 @@ test_vkd3d_live_binding: build/vkd3d_shaders/binding.vert.spv build/vkd3d_shader
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_binding_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_descset.c -o src/runtime/wubu_vkd3d_live_binding_test -lvulkan
 	./src/runtime/wubu_vkd3d_live_binding_test
 
+build/vkd3d_shaders/texture.vert.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_texture.vert build/vkd3d_shaders
+	glslangValidator -V $< -o $@
+	spirv-val $@
+
+build/vkd3d_shaders/texture.frag.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_texture.frag build/vkd3d_shaders
+	glslangValidator -V $< -o $@
+	spirv-val $@
+
+# A REAL texture: upload -> SRV + sampler -> sample -> readback.
+test_vkd3d_live_texture: build/vkd3d_shaders/texture.vert.spv build/vkd3d_shaders/texture.frag.spv
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_texture_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_descset.c -o src/runtime/wubu_vkd3d_live_texture_test -lvulkan
+	./src/runtime/wubu_vkd3d_live_texture_test
+
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect
 	./src/runtime/tests/test_hwdetect
