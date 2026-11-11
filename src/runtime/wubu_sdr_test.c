@@ -108,6 +108,16 @@ int main(void)
     CHECK(!wubu_sdr_ticket_is_valid(&t, 2000),
           "NOT valid AT the expiry instant (the window is half-open)");
     CHECK(!wubu_sdr_ticket_is_valid(&t, 2001), "not valid after it expires");
+
+    /* A ZERO-WIDTH window is a decision, not an accident: it is structurally
+     * legal but immediately expired.  Without this assertion the behaviour
+     * would be whatever unsigned arithmetic happens to do. */
+    ticket(&t);
+    t.expires_at = t.issued_at;
+    CHECK(wubu_sdr_ticket_validate(&t) == NULL,
+          "a zero-width window is structurally legal");
+    CHECK(!wubu_sdr_ticket_is_valid(&t, t.issued_at),
+          "and it is IMMEDIATELY expired at its own issue instant");
     CHECK(!wubu_sdr_ticket_is_valid(NULL, 1500), "a null ticket is never valid");
 
     /* -- the route table -- */
