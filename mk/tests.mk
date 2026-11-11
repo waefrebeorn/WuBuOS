@@ -1152,6 +1152,23 @@ test_vkd3d_live_render: src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_render_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c -o src/runtime/wubu_vkd3d_live_render_test -lvulkan
 	./src/runtime/wubu_vkd3d_live_render_test
 
+# Real shaders -> SPIR-V (validated with spirv-val in the build).
+build/vkd3d_shaders:
+	mkdir -p build/vkd3d_shaders
+
+build/vkd3d_shaders/triangle.vert.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_triangle.vert build/vkd3d_shaders
+	glslangValidator -V $< -o $@
+	spirv-val $@
+
+build/vkd3d_shaders/triangle.frag.spv: src/runtime/vkd3d_shaders/wubu_vkd3d_triangle.frag build/vkd3d_shaders
+	glslangValidator -V $< -o $@
+	spirv-val $@
+
+# A REAL draw call.  GPU-requiring: separate target, not in the gate.
+test_vkd3d_live_pipeline: build/vkd3d_shaders/triangle.vert.spv build/vkd3d_shaders/triangle.frag.spv
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_pipeline_test.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_cmd.c -o src/runtime/wubu_vkd3d_live_pipeline_test -lvulkan
+	./src/runtime/wubu_vkd3d_live_pipeline_test
+
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect
 	./src/runtime/tests/test_hwdetect
