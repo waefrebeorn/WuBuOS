@@ -17,6 +17,7 @@
 #include "./wubu_notify.h"
 #include "../../runtime/wubu_session_mgr.h"
 #include "../../runtime/wubu_deskenv.h"
+#include "../../runtime/wubu_ns_kernels.h"
 #include "../../apps/apps.h"
 #include "../era_apps.h"
 #include "../../kernel/vbe.h"
@@ -133,6 +134,8 @@ int desktop_init(void) {
             /* the autostart dir the session manager scans (XDG system dir) */
             char *const autodirs[2] = {
                 (char*)"/etc/xdg/autostart", (char*)"$HOME"};
+            /* the kernel interchange, published for the operator + the AGI */
+            wubu_ns_publish_kernels();
             (void)autodirs[1];
             wubu_session_mgr_t *mgr = wubu_session_mgr_boot(autodirs, 1, NULL, NULL);
             if (mgr) {
