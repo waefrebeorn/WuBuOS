@@ -6,6 +6,8 @@
  */
 #include "wubu_gvfs_path.h"
 
+#include <stdio.h>
+
 #include <string.h>
 
 bool wubu_gvfs_path_is_absolute(const char *path)
