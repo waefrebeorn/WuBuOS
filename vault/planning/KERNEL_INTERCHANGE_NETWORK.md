@@ -86,9 +86,17 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    the resource-state translation core — the full single-bit state table with
    real Vulkan equivalents, composite states mapping to the OR of their parts,
    unknown bits rejected rather than guessed, the barrier translator, and the
-   per-resource state tracker.  *Remaining slices:* descriptor heaps, command
-   lists/queues, pipeline state objects, the feature-level device, and the
-   swapchain/present path.
+   per-resource state tracker.  *Slice 2 done* (`runtime/wubu_vkd3d_heap.{h,c}`,
+   `test_vkd3d_heap`): the descriptor heaps -- configurable descriptor size,
+   handle arithmetic, bounds-checked writes, and a copy path that forbids
+   cross-type and mismatched-stride copies, uses memmove for overlaps, and
+   leaves the destination unchanged on rejection.  The Vulkan mapping is
+   honest about what does not map: CBV_SRV_UAV is a MIXED heap (its pool is
+   sized for the union of four descriptor types), and RTV/DSV are framebuffer
+   ATTACHMENTS rather than descriptors, so their pools need no sizes.
+   GPU-visible heaps carry UPDATE_AFTER_BIND on both the pool and the binding.
+   *Remaining slices:* command lists/queues, pipeline state objects, the
+   feature-level device, and the swapchain/present path.
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
 5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
