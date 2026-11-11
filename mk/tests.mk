@@ -704,7 +704,7 @@ test_dbuf:
 # The effect engine: the passes are pinned to known input -> known output, and
 # the dbuf integration proves the real surface path.
 test_effect: $(RT)/wubu_effect.h
-	$(CC) -O0 -g -std=c11 -Wall -Wextra -I$(RT) -I$(GUI) -I$(RT)/compositor \
+	$(CC) -O0 -g -std=c11 -Wall -Wextra -I$(RT) -I$(GUI) -I$(GUI)/compositor \
 		$(RT)/wubu_effect.c $(GUI)/compositor/gui_dbuf.c \
 		$(RT)/wubu_effect_test.c -o $(RT)/wubu_effect_test
 	$(RT)/wubu_effect_test
