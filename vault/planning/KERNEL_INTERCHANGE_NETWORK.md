@@ -71,14 +71,16 @@ copied from the README.
 Each item names the **interchange slot** that will own it — that is the point of
 the network: a graft lands as a registered kernel, not as a hard-coded branch.
 
-1. **`/n/kernels` surface** — publish `wubu_kernel_xchg_dump()` through the Styx
-   bridge so an operator can see and drive the network from the namespace.
-   *Prerequisite for everything below being observable.*
-2. **Wire the VSL personalities into the interchange** — the Linux, NT, macOS,
-   CP/M and classic-Mac dispatchers already exist; today `vsl_syscall_dispatch()`
-   routes by hardcoded class bits (`0xC0`/`0xB0`/high-byte/bare).  Register each
-   as a `wubu_kernel_ops_t` so the router, not the class bits, decides.  This is
-   the "works for Linux, Windows and macOS" half, and it is mostly adapters.
+1. ✅ **`/n/kernels` surface** — `runtime/wubu_ns_kernels.{h,c}`, published from
+   the desktop boot. `list` / `active` / `history` are re-rendered from the live
+   state on every refresh, and `wubu_ns_kernels_select()` is the operator's
+   control path (a swap, so fail-closed on the contract). Verified by
+   `test_ns_kernels` (14 assertions, in `test_medium_other`).
+2. ✅ **Wire the VSL personalities into the interchange** — done in
+   `runtime/vsl/vsl_kernel_adapt.c`; the class-bit if-chain in
+   `vsl_syscall_dispatch()` is gone, each personality owns a disjoint number
+   range, and the router decides. Verified by `test_vsl_kernel_adapt`
+   (in `test_high_bridge`) plus the existing VSL suites.
 3. **VKD3D** (NT/SteamOS slot) — D3D12→Vulkan.  The largest single gaming gap.
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
