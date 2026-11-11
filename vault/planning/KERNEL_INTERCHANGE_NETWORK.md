@@ -115,7 +115,17 @@ the network: a graft lands as a registered kernel, not as a hard-coded branch.
    factors are 1-based with a hole at 12; blend MIN/MAX swap positions).
    The load-bearing assertion is the MUTATION SWEEP: all 37 fields changed in
    turn, every one must change the key.
-   *Remaining slices:* the feature-level device, and the swapchain/present path.
+   *Remaining slices:* the swapchain/present path -- the first slice that needs
+   a real `VkDevice` (every slice so far opens no device, which is exactly why
+   their correctness is provable without a GPU).
+   *Slices 5 and 6* (`wubu_vkd3d_device.{h,c}`, `wubu_vkd3d_fence.{h,c}`):
+   the feature-level device (created AT a level, never downgraded; validates a
+   PSO desc against the caps that level implies, returning the first violated
+   rule; caps are INHERITANCE, and a fall-through switch lost 11.1's
+   tessellation and geometry shaders on the first attempt) and fences as
+   Vulkan TIMELINE semaphores (strictly-increasing values, because a
+   non-increasing signal collapses two submissions into one and lets the CPU
+   reuse memory the GPU is still reading).
 4. **Shader pre-cache / fossilize** (SteamOS slot) — without it every Proton
    launch stutters on first shader compile.
 5. **Steam Networking** (SteamOS slot) — P2P/relay/SDR.
