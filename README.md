@@ -13,6 +13,9 @@ hosts, and acts. It is one of three repositories that form the complete system:
 | **wubuwizard** | THE BRAIN — inference engine, training, KV cache | ~218k |
 | **wubunos** | THE COMPILER — HolyC JIT, ISA backends | ~71k (measured via `src/compiler`) |
 | **TOTAL** | **Three repos, one AGI** | **~1,040k** |
+These three are **Layer 0**. The Body also hosts the Brain and Compiler as
+submodules, mounts the app/space repos, and belongs to the wider ~WuBu~ space —
+the full cohesion is in [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md).
 
 - **Code lives on GitHub** — [`waefrebeorn/WuBuOS`](https://github.com/waefrebeorn/WuBuOS)
 - **Models + datasets live on HuggingFace** — the [`WaefreBeorn` org](https://huggingface.co/WaefreBeorn)
@@ -135,6 +138,7 @@ context-switch no-ops, and the stub-phrase spots are tracked openly in
 - [docs/BUILDING.md](docs/BUILDING.md) — build, test, ship (ISO/USB/QEMU)
 - [docs/MODULES.md](docs/MODULES.md) — the module map (layers, guests, subsystems)
 - [docs/MIND_PALACE.md](docs/MIND_PALACE.md) — the verified walk through the OS (start here)
+- [docs/ECOSYSTEM.md](docs/ECOSYSTEM.md) — the ~WuBu~ ecosystem: how every repo coheres
 - [docs/SAGA.md](docs/SAGA.md) — the project's story, told from its commit log
 - [OS_BIBLE.md](OS_BIBLE.md) — the design bible (vision, architecture, principles)
 - [STATE.md](STATE.md) — current state, verified on date
