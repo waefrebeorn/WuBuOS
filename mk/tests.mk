@@ -1301,6 +1301,11 @@ test_vkd3d_live_msaa: build/vkd3d_shaders/triangle.vert.spv build/vkd3d_shaders/
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_msaa_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_msaa.c -o src/runtime/wubu_vkd3d_live_msaa_test -lvulkan
 	./src/runtime/wubu_vkd3d_live_msaa_test
 
+# The last VKD3D gap: a REAL swapchain, acquire, render, present (headless).
+test_vkd3d_live_present: build/vkd3d_shaders/triangle.vert.spv build/vkd3d_shaders/triangle.frag.spv
+	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_vkd3d_live_present_test.c src/runtime/wubu_vkd3d.c src/runtime/wubu_vkd3d_physdev.c src/runtime/wubu_vkd3d_vkdev.c src/runtime/wubu_vkd3d_memory.c src/runtime/wubu_vkd3d_renderpass.c src/runtime/wubu_vkd3d_framebuffer.c src/runtime/wubu_vkd3d_pso.c src/runtime/wubu_vkd3d_cmd.c src/runtime/wubu_vkd3d_swapchain.c src/runtime/wubu_vkd3d_msaa.c -o src/runtime/wubu_vkd3d_live_present_test -lvulkan
+	./src/runtime/wubu_vkd3d_live_present_test
+
 test_hwdetect: src/runtime/wubu_hwdetect.c src/runtime/wubu_hwdetect.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/tests/test_hwdetect.c src/runtime/wubu_hwdetect.c -o src/runtime/tests/test_hwdetect
 	./src/runtime/tests/test_hwdetect
