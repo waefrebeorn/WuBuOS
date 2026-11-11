@@ -193,23 +193,12 @@ int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
 }
 
 int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs) {
-    /* Route by high-order class bits to the right OS personality. */
-    uint32_t class_bits = (uint32_t)(num >> 24);
-    if (class_bits == 0xC0) {
-        /* CP/M BDOS personality (oldest "toast" OS). Lower 8 bits = BDOS fn,
-         * next byte = the guest DE-register param passed via regs[0]. */
-        uint64_t fn = (num >> 8) & 0xFF;   /* BDOS function number */
-        return vsl_cpm_syscall_dispatch(fn, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
-    }
-    if (class_bits == 0xB0) {
-        /* Classic Mac OS (68K A-line trap) personality. Low 12 bits = trap num. */
-        uint64_t trap = num & 0xFFF;
-        return vsl_macclassic_syscall_dispatch(trap, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
-    }
-    if (num & 0xFF000000) {
-        return vsl_mac_syscall_dispatch(num, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
-    }
-    return vsl_syscall(num, regs[0], regs[1], regs[2], regs[3], regs[4], regs[5]);
+    /* The ROUTER decides, not the class bits.  Each registered kernel owns a
+     * disjoint number range in its try_dispatch() -- see vsl_kernel_adapt.c for
+     * the exact split (cpm 0xC0, macclassic 0xB0, macos any other high byte,
+     * nt/linux the bare range with the SELECTED kernel authoritative).  A new
+     * personality is now a register() call, not an edit to this if-chain. */
+    return vsl_kernel_interchange_dispatch(num, regs, NULL);
 }
 
 /* -- Helper Functions ---------------------------------------------- */

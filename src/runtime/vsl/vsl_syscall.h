@@ -23,6 +23,12 @@ int64_t vsl_syscall(uint64_t num, uint64_t rdi, uint64_t rsi,
  * This is the main syscall handler called from VSL interrupt context. */
 int64_t vsl_syscall_dispatch(uint64_t num, uint64_t *regs);
 
+/* Register the real VSL personalities as kernels in the interchange and
+ * dispatch through the router.  See vsl_kernel_adapt.c. */
+int  vsl_kernel_interchange_init(void);
+int64_t vsl_kernel_interchange_dispatch(uint64_t num, uint64_t *regs,
+                                        const char **handled_by);
+
 /* Get syscall statistics */
 void vsl_get_syscall_stats(uint64_t *out_count, uint64_t *out_errors);
 
