@@ -7,6 +7,7 @@
  *
  * GPU-requiring: a separate target, not part of the gate.
  */
+#include "wubu_vkd3d.h"             /* the D3D12 state enum + state_map */
 #include "wubu_vkd3d_physdev.h"
 #include "wubu_vkd3d_vkdev.h"
 #include "wubu_vkd3d_memory.h"
@@ -26,6 +27,7 @@ static int failures;
 #define CHECK(c, m) do { if (!(c)) { printf("  FAIL: %s\n", m); failures++; } } while (0)
 
 static VkPhysicalDeviceMemoryProperties g_memprops;
+static wubu_vkd3d_memory_types_t g_types;
 static VkInstance       g_inst;
 static VkPhysicalDevice g_phys;
 static VkDevice         g_dev;
@@ -78,15 +80,8 @@ static bool make_attachment(VkFormat format, bool depth,
     ar.heap_type = VKD3D_HEAP_DEFAULT;
     ar.type_bits = reqs.memoryTypeBits;
 
-    wubu_vkd3d_memory_types_t types;
-    memset(&types, 0, sizeof(types));
-    vkGetPhysicalDeviceMemoryProperties(g_phys, &g_memprops);
-    types.count = g_memprops.memoryTypeCount;
-    for (uint32_t i = 0; i < types.count && i < VKD3D_MAX_MEMORY_TYPES; i++)
-        types.types[i] = g_memprops.memoryTypes[i];
-
     const char *why = NULL;
-    int idx = wubu_vkd3d_memory_type_index(&types, &ar, &why);
+    int idx = wubu_vkd3d_memory_type_index(&g_types, &ar, &why);
     if (idx < 0) { printf("  no memory type: %s\n", why ? why : "?"); return false; }
 
     VkMemoryAllocateInfo mai;
@@ -155,6 +150,12 @@ int main(void)
     dd.queues[0].priority = 1.0f;
     CHECK(wubu_vkd3d_vkdev_create(&devs[chosen], &dd, &g_dev), "logical device created");
     vkGetDeviceQueue(g_dev, g_gfx_family, 0, &g_queue);
+
+    memset(&g_types, 0, sizeof(g_types));
+    vkGetPhysicalDeviceMemoryProperties(g_phys, &g_memprops);
+    g_types.count = g_memprops.memoryTypeCount;
+    for (uint32_t i = 0; i < g_types.count && i < VKD3D_MAX_MEMORY_TYPES; i++)
+        g_types.types[i] = g_memprops.memoryTypes[i];
 
     /* -- images -- */
     VkImage color_img = VK_NULL_HANDLE, depth_img = VK_NULL_HANDLE;
@@ -231,6 +232,42 @@ int main(void)
     VkFramebuffer framebuffer = VK_NULL_HANDLE;
     CHECK(vkCreateFramebuffer(g_dev, &fbci, NULL, &framebuffer) == VK_SUCCESS,
           "framebuffer created");
+
+    /* -- a READBACK buffer: the first live use of slice 12's READBACK heap -- */
+    VkBuffer rb_buf = VK_NULL_HANDLE;
+    VkDeviceMemory rb_mem = VK_NULL_HANDLE;
+    {
+        VkBufferCreateInfo bci;
+        memset(&bci, 0, sizeof(bci));
+        bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bci.size = (VkDeviceSize)W * H * 4;
+        bci.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        CHECK(vkCreateBuffer(g_dev, &bci, NULL, &rb_buf) == VK_SUCCESS,
+              "readback buffer created");
+
+        VkMemoryRequirements breqs;
+        vkGetBufferMemoryRequirements(g_dev, rb_buf, &breqs);
+        wubu_vkd3d_alloc_request_t bar;
+        memset(&bar, 0, sizeof(bar));
+        bar.size = breqs.size;
+        bar.heap_type = VKD3D_HEAP_READBACK;
+        bar.type_bits = breqs.memoryTypeBits;
+        const char *rwhy = NULL;
+        int ridx = wubu_vkd3d_memory_type_index(&g_types, &bar, &rwhy);
+        CHECK(ridx >= 0, "a readback memory type exists");
+        VkMemoryAllocateInfo rb_mai;
+        memset(&rb_mai, 0, sizeof(rb_mai));
+        rb_mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        rb_mai.allocationSize = breqs.size;
+        rb_mai.memoryTypeIndex = (uint32_t)ridx;
+        CHECK(vkAllocateMemory(g_dev, &rb_mai, NULL, &rb_mem) == VK_SUCCESS,
+              "readback memory allocated");
+        CHECK(vkBindBufferMemory(g_dev, rb_buf, rb_mem, 0) == VK_SUCCESS,
+              "readback memory bound");
+        printf("  readback buffer: %llu bytes, memory type %d (host-visible)\n",
+               (unsigned long long)breqs.size, ridx);
+    }
 
     /* -- load the REAL SPIR-V -- */
     uint32_t *vw = NULL, *fw = NULL;
@@ -424,6 +461,51 @@ int main(void)
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
         vkCmdDraw(cb, 3, 1, 0, 0);          /* THE DRAW CALL */
         vkCmdEndRenderPass(cb);
+
+        /* -- transition the colour image to a copy source, using slice 1 -- */
+        {
+            wubu_vkd3d_state_t sb, sa;
+            wubu_vkd3d_state_map(D3D12_RESOURCE_STATE_RENDER_TARGET, &sb);
+            wubu_vkd3d_state_map(D3D12_RESOURCE_STATE_COPY_SOURCE, &sa);
+            VkImageMemoryBarrier b1;
+            memset(&b1, 0, sizeof(b1));
+            b1.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+            b1.srcAccessMask = sb.access;
+            b1.dstAccessMask = sa.access;
+            b1.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            b1.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            b1.image = color_img;
+            b1.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            b1.subresourceRange.levelCount = 1;
+            b1.subresourceRange.layerCount = 1;
+            vkCmdPipelineBarrier(cb,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0, 0, NULL, 0, NULL, 1, &b1);
+
+            VkBufferImageCopy bic;
+            memset(&bic, 0, sizeof(bic));
+            bic.bufferRowLength = W;
+            bic.bufferImageHeight = H;
+            bic.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            bic.imageSubresource.layerCount = 1;
+            bic.imageExtent.width = W;
+            bic.imageExtent.height = H;
+            bic.imageExtent.depth = 1;
+            vkCmdCopyImageToBuffer(cb, color_img,
+                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                   rb_buf, 1, &bic);
+
+            /* make the GPU's writes visible to the host before we read */
+            VkMemoryBarrier mb;
+            memset(&mb, 0, sizeof(mb));
+            mb.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+            mb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            mb.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+            vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                 VK_PIPELINE_STAGE_HOST_BIT,
+                                 0, 1, &mb, 0, NULL, 0, NULL);
+        }
         CHECK(vkEndCommandBuffer(cb) == VK_SUCCESS, "command buffer recorded");
 
         VkSubmitInfo si;
@@ -437,10 +519,41 @@ int main(void)
               "the GPU COMPLETES the draw without error");
         printf("  DRAW EXECUTED: 3 vertices, 1 instance, real pipeline\n");
 
+        /* -- READ THE PIXELS BACK and prove the triangle is where it should be -- */
+        void *pixels = NULL;
+        CHECK(vkMapMemory(g_dev, rb_mem, 0, (VkDeviceSize)W * H * 4, 0, &pixels)
+              == VK_SUCCESS, "the readback buffer is mapped");
+        const unsigned char *px = (const unsigned char *)pixels;
+
+        /* NDC -> framebuffer: x=(nx+1)/2*W, y=(1-ny)/2*H (Vulkan's y points down).
+         * Triangle centroid is NDC (0, -0.1167); the apex is NDC (0, 0.55). */
+        int ix = W / 2, iy = (int)((1.0 - (-0.1167)) / 2.0 * H);
+        int ox = (int)((1.0 + (-0.90)) / 2.0 * W);
+        int oy = (int)((1.0 - 0.90) / 2.0 * H);
+        printf("  inside pixel (%d,%d): %u %u %u\n", ix, iy,
+               px[(iy*W+ix)*4+0], px[(iy*W+ix)*4+1], px[(iy*W+ix)*4+2]);
+        printf("  outside pixel (%d,%d): %u %u %u\n", ox, oy,
+               px[(oy*W+ox)*4+0], px[(oy*W+ox)*4+1], px[(oy*W+ox)*4+2]);
+
+        /* triangle colour (0.25,0.65,1.0) -> (64,166,255); clear (0.05,0.05,0.10) */
+        #define CLOSE(a,b) ((a) >= (b)-10 && (a) <= (b)+10)
+        CHECK(CLOSE(px[(iy*W+ix)*4+0], 64) &&
+              CLOSE(px[(iy*W+ix)*4+1], 166) &&
+              CLOSE(px[(iy*W+ix)*4+2], 255),
+              "the pixel INSIDE the triangle has the triangle's colour");
+        CHECK(CLOSE(px[(oy*W+ox)*4+0], 13) &&
+              CLOSE(px[(oy*W+ox)*4+1], 13) &&
+              CLOSE(px[(oy*W+ox)*4+2], 26),
+              "the pixel OUTSIDE the triangle still has the clear colour");
+        #undef CLOSE
+
+        vkUnmapMemory(g_dev, rb_mem);
         vkDestroyCommandPool(g_dev, pool, NULL);
     }
 
     /* -- teardown -- */
+    vkDestroyBuffer(g_dev, rb_buf, NULL);
+    vkFreeMemory(g_dev, rb_mem, NULL);
     vkDestroyPipeline(g_dev, pipeline, NULL);
     vkDestroyShaderModule(g_dev, vs, NULL);
     vkDestroyShaderModule(g_dev, fs, NULL);
