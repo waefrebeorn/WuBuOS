@@ -81,7 +81,18 @@ void wl_shm_term(void) {
 }
 
 /* Blit the VBE back-buffer into the current SHM buffer + commit.
- * Declared in hosted_internal.h and called by the hosted.c render loop. */
+ * Declared in hosted_internal.h and called by the hosted.c render loop.
+ *
+ * The renderer draws; this module PRESENTS. Whether to present is this
+ * module's decision and no one else's: it remembers the content it last
+ * handed to the compositor and skips the attach/commit when the buffer is
+ * unchanged. Repainting an identical surface makes the compositor update
+ * the whole window every frame, which on a laptop panel reads as flashing.
+ * The render path is never told about this and never needs to be. */
+static uint32_t *g_presented;          /* the last content we presented */
+static size_t     g_presented_len;
+static int        g_presented_valid;
+
 void hosted_wl_frame_render(void) {
     if (!g_wl.surface || !g_wl.compositor) return;
     /* Wait for the compositor's initial configure: attaching a buffer on an
@@ -104,6 +115,23 @@ void hosted_wl_frame_render(void) {
 
     if (wubu_screenshot_has_active_region_selector()) {
         wubu_screenshot_render_region_selector(buf->pixels, buf->width, buf->height);
+    }
+
+    size_t len = (size_t)buf->width * buf->height * 4;
+    if (g_presented_valid && g_presented_len == len &&
+        memcmp(buf->pixels, g_presented, len) == 0) {
+        /* Nothing changed since the last presentation: do not repaint. */
+        g_cur_buf = 1 - g_cur_buf;
+        return;
+    }
+    if (!g_presented || g_presented_len != len) {
+        free(g_presented);
+        g_presented = (uint32_t *)malloc(len);
+        g_presented_len = g_presented ? len : 0;
+    }
+    if (g_presented) {
+        memcpy(g_presented, buf->pixels, len);
+        g_presented_valid = 1;
     }
 
     wl_surface_attach(g_wl.surface, buf->wl_buf, 0, 0);
