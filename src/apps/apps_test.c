@@ -67,21 +67,22 @@ DosGuiWindow* edr_dash_launch(void) { return NULL; }
 void app_explorer_draw(DosGuiWindow *w, uint32_t *f, int fw, int fh) { (void)w;(void)f;(void)fw;(void)fh; }
 void app_explorer_key(DosGuiWindow *w, uint32_t k, uint32_t m) { (void)w;(void)k;(void)m; }
 void app_explorer_mouse(DosGuiWindow *w, int x, int y, int b, int k) { (void)w;(void)x;(void)y;(void)b;(void)k; }
-void chrome_draw_button(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t, int act) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t;(void)act; }
+__attribute__((weak)) void chrome_draw_button(uint32_t *f, int fw, int fh, int x, int y, int w, int h, const char *t, int act) { (void)f;(void)fw;(void)fh;(void)x;(void)y;(void)w;(void)h;(void)t;(void)act; }
 
 /* The app TUs compile against the real 4-arg chrome prototype (which returns
    ChromeContentRect); this link provides an in-mem chrome so it simply
    returns the full window as content. (The real chrome is not linked here.) */
 typedef struct { int x, y, w, h; } ChromeContentRect;
-ChromeContentRect chrome_draw_window(void *win, uint32_t *f, int fw, int fh);
+__attribute__((weak)) ChromeContentRect chrome_draw_window(void *win, uint32_t *f, int fw, int fh);
 ChromeContentRect chrome_draw_window(void *win, uint32_t *f, int fw, int fh) {
     (void)win;(void)f;(void)fw;(void)fh;
     ChromeContentRect r = {0, 0, 100, 100};
     return r;
 }
 /* The real chrome is not linked here; the editor adapter calls this to draw
-   its tab bar, so the in-mem chrome provides it too. */
-void chrome_draw_tabs(int x, int y, int w, int h,
+   its tab bar, so the in-mem chrome provides it too.  Weak: a link that DOES
+   include window_chrome.c (test_apps) gets the real one. */
+__attribute__((weak)) void chrome_draw_tabs(int x, int y, int w, int h,
                              const char **labels, int count, int active_tab) {
     (void)x;(void)y;(void)w;(void)h;(void)labels;(void)count;(void)active_tab;
 }
@@ -238,14 +239,17 @@ static void test_notepad_mouse_positions_caret(void) {
     notepad_key(win, 'B', 0);
     notepad_key(win, 'C', 0);
 
-    /* The stub chrome reports content rect 0,0,100,100; clicking at x=80
-     * lands past the 3-character line, so the caret clamps to the end. */
-    notepad_mouse(win, 80, 40, 1, 1);
+    /* Click well past the 3-character line, INSIDE the real content rect.
+       (The old expectation assumed the stub chrome's 0,0,100,100 rect; with
+       the real window at 100,80 a click at x=80 lands outside it and the
+       caret goes to 0,0 -- which is correct behaviour, not a regression.) */
+    ChromeContentRect cr = chrome_draw_window(win, NULL, 0, 0);
+    notepad_mouse(win, cr.x + 200, cr.y + 10, 1, 1);
     CHECK(notepad_cursor_line() == 0, "caret stayed on line 1");
     CHECK(notepad_cursor_col() == 3, "caret clamped to the end of \"ABC\"");
 
     /* A click in the middle of the line lands mid-word. */
-    notepad_mouse(win, 20, 2, 1, 1);
+    notepad_mouse(win, cr.x + 20, cr.y + 10, 1, 1);
     CHECK(notepad_cursor_col() == 2, "caret follows the click x-position");
     PASS();
 }

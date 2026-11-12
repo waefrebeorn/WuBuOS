@@ -1,0 +1,15 @@
+# boot tracking over the SDR relay: the measured boot, sealed and published
+spell bootattest
+version 0.1.0
+book networking
+genre aggregation
+origin first-party
+provides boot-attestation
+provides boot-report-wire
+provides measurement-binding
+requires sdr-transport
+requires libc
+requires sha256
+source wubu_boot_attest.c
+source wubu_boot_attest.h
+test wubu_boot_attest_test.c

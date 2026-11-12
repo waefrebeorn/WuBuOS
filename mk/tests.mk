@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_docs test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan
+test_medium_other: runtime gui test_docs test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_boot_attest test_wubu_boot_attest_relay test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier test_evdev test_audio_backend test_glottis test_glott_network test_glott_voice test_glott_decimator test_glott_speak test_glott_geom test_glott_artic test_kvfs test_vulkan
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1125,8 +1125,16 @@ test_wubu_swarm: src/spells/networking/aggregation/swarm/wubu_swarm_test.c src/s
 	$(CC) $(CFLAGS) -Isrc/spells/networking/aggregation/swarm src/spells/networking/aggregation/swarm/wubu_swarm_test.c src/spells/networking/aggregation/swarm/wubu_swarm.c src/spells/networking/aggregation/swarm/wubu_swarm_wire.c -o src/runtime/wubu_swarm_test
 	./src/runtime/wubu_swarm_test
 
+test_wubu_boot_attest: src/spells/networking/aggregation/bootattest/wubu_boot_attest_test.c src/spells/networking/aggregation/bootattest/wubu_boot_attest.c src/spells/networking/aggregation/bootattest/wubu_boot_attest.h src/spells/networking/aggregation/bootattest/bootattest.spell $(KERNEL)/wubu_sha256.c $(KERNEL)/wubu_sha256.h
+	$(CC) $(CFLAGS) -Isrc/spells/networking/aggregation/bootattest -I$(KERNEL) src/spells/networking/aggregation/bootattest/wubu_boot_attest_test.c src/spells/networking/aggregation/bootattest/wubu_boot_attest.c $(KERNEL)/wubu_sha256.c -o src/runtime/wubu_boot_attest_test
+	./src/runtime/wubu_boot_attest_test
+
+test_wubu_boot_attest_relay: src/runtime/wubu_boot_attest_relay_test.c src/runtime/wubu_boot_attest_relay.c src/runtime/wubu_boot_attest_relay.h src/runtime/wubu_sdr.c src/runtime/wubu_sdr_relay.c src/spells/networking/aggregation/bootattest/wubu_boot_attest.c $(KERNEL)/wubu_sha256.c
+	$(CC) $(CFLAGS) -Isrc/runtime -Isrc/spells/networking/aggregation/bootattest -I$(KERNEL) src/runtime/wubu_boot_attest_relay_test.c src/runtime/wubu_boot_attest_relay.c src/runtime/wubu_sdr.c src/runtime/wubu_sdr_relay.c src/spells/networking/aggregation/bootattest/wubu_boot_attest.c $(KERNEL)/wubu_sha256.c -o src/runtime/wubu_boot_attest_relay_test
+	./src/runtime/wubu_boot_attest_relay_test
+
 # The docs must not lie: every path the front-door docs name must exist.
-test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
+test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/BOOT_ATTEST.md src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_docs_test.c -o src/runtime/wubu_docs_test
 	./src/runtime/wubu_docs_test
 
@@ -2252,7 +2260,7 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 		$(GUI)/wubu_sound.c $(RT)/wubu_spawn.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c \
 	$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wm.c $(GUI)/wubu_mascot.c $(GUI)/wm_window.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell/wm_clock.c $(GUI)/shell/wm_ctxmenu_engine.c $(GUI)/wm_window_state.c $(GUI)/wm_layout.c $(GUI)/wm_render.c $(GUI)/shell/wm_rim.c $(GUI)/shell/wm_slime.c $(RT)/wubu_rim.c $(RT)/wubu_slime.c $(RT)/wubu_spring.c $(GUI)/shell/wm_taskbar.c $(GUI)/shell/taskbar_tasks.c $(GUI)/shell/wm_overview.c $(GUI)/shell/wubu_osd.c $(GUI)/shell/quick_settings.c $(GUI)/shell/wubu_screensaver.c $(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o $(GUI)/shell/wm_desktop.c $(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/wm_holyc_term.c \
 		$(APPS)/apps_test.c \
-		-o $(APPS)/apps_test -lm -lz
+		-o $(APPS)/apps_test -lm -lz $(GUI)/shell/window_chrome.c
 	$(APPS)/apps_test
 
 test_anticheat:

@@ -100,8 +100,8 @@ static void control_draw_content(DosGuiWindow *win, const ChromeContentRect *con
 }
 
 void control_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, ControlState *ctrl) {
-    (void)fb_w; (void)fb_h;
-    if (!win || !fb) return;
+    (void)fb;
+    if (!win) return;
     ControlState *c = ctrl ? ctrl : (ControlState*)win->user_data;
     if (!c) return;
 
