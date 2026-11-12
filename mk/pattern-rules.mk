@@ -93,6 +93,9 @@ $(RT)/container/%.o: $(RT)/container/%..c
 	$(CC) $(CFLAGS) -I$(RT) -I$(RT)/container -I$(COMP) -I$(JIT) -MMD -MP -c $< -o $@
 
 # Tools objects
+$(WUBUGREP_SRC)/%.o: $(WUBUGREP_SRC)/%.c
+	$(CC) $(CFLAGS) -I$(WUBUGREP_SRC) -MMD -MP -c $< -o $@
+
 $(TOOLS)/%.o: $(TOOLS)/%.c
 	$(CC) $(CFLAGS) -I$(TOOLS) -MMD -MP -c $< -o $@
 

@@ -17,3 +17,6 @@
 [submodule "src/gui/vws"]
 	path = src/gui/vws
 	url = https://github.com/waefrebeorn/VWS.git
+[submodule "src/tools/wubugrep"]
+	path = src/tools/wubugrep
+	url = https://github.com/waefrebeorn/wubugrep.git

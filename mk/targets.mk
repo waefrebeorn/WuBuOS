@@ -169,16 +169,20 @@ runtime: $(RT_OBJS)
 # The regex engine is split into modules (wubre.c owns object lifetime,
 # wubre_compile the parser, wubre_dfa the NFA, wubre_bre the backtracker,
 # wubre_match/wubre_litpref/wubre_simd the matchers). Link them all.
-WUBUGREP_OBJS = $(TOOLS)/wubugrep.o $(TOOLS)/wubre.o $(TOOLS)/wubre_compile.o \
-		$(TOOLS)/wubre_dfa.o $(TOOLS)/wubre_bre.o $(TOOLS)/wubre_match.o \
-		$(TOOLS)/wubre_litpref.o $(TOOLS)/wubre_simd.o
+# The regex engine is a submodule (Waefrebeorn/wubugrep) -- ONE owner, no
+# second copy. The old flat vendored .c files are gone.
+WUBUGREP_SRC = $(TOOLS)/wubugrep
+WUBUGREP_OBJS = $(WUBUGREP_SRC)/wubugrep.o $(WUBUGREP_SRC)/wubre.o \
+		$(WUBUGREP_SRC)/wubre_compile.o $(WUBUGREP_SRC)/wubre_dfa.o \
+		$(WUBUGREP_SRC)/wubre_bre.o $(WUBUGREP_SRC)/wubre_match.o \
+		$(WUBUGREP_SRC)/wubre_litpref.o $(WUBUGREP_SRC)/wubre_simd.o
 
 wubugrep: $(WUBUGREP_OBJS)
-	$(CC) $(CFLAGS) $(WUBUGREP_OBJS) -o $(TOOLS)/wubugrep
+	$(CC) $(CFLAGS) $(WUBUGREP_OBJS) -o build/wubugrep
 
 # Fully static build, as documented in src/tools/README_wubugrep.md.
 wubugrep_static: $(WUBUGREP_OBJS)
-	$(CC) $(CFLAGS) -static $(WUBUGREP_OBJS) -o $(TOOLS)/wubugrep.static
+	$(CC) $(CFLAGS) -static $(WUBUGREP_OBJS) -o build/wubugrep.static
 
 tools: $(TOOLS_OBJS)
 	@echo "✅ WuBuOS tools built"
