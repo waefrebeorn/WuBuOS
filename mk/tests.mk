@@ -722,7 +722,7 @@ test_effect: $(RT)/wubu_effect.h
 	$(RT)/wubu_effect_test
 
 test_cp_sound: $(GUI)/cp_sound.c $(GUI)/wubu_sound.c $(GUI)/controlpanel.h $(GUI)/wubu_sound.h
-	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_cp_sound.c $(GUI)/cp_sound.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_backend.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm
+	$(CC) $(CFLAGS) -I$(GUI) -I$(AUDIO) -I$(RT) $(GUI)/test_cp_sound.c $(GUI)/cp_sound.c $(GUI)/wubu_sound.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c -o $(GUI)/test_cp_sound -lm -lpulse-simple -lpulse -lasound
 	./$(GUI)/test_cp_sound
 
 test_cp_hardware: $(GUI)/cp_hardware.c $(GUI)/controlpanel.c $(GUI)/cp_sound.c $(GUI)/wubu_sound.c $(GUI)/controlpanel.h
@@ -2077,7 +2077,7 @@ test_glottis:
 test_audio_backend:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(AUDIO) -I$(KERNEL) -I$(RT) -I$(AUDIO)/bigmac \
-		$(AUDIO)/wubu_audio_backend.c $(AUDIO)/bigmac/bigmac_out.c \
+		$(AUDIO)/wubu_audio_backend.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c \
 		$(AUDIO)/wubu_audio_engine.c $(AUDIO)/wubu_audio_chips.c \
 		$(AUDIO)/wubu_audio_furnace.c $(AUDIO)/wubu_audio_sf2.c \
 		$(AUDIO)/wubu_audio_daw.c $(AUDIO)/wubu_audio.c $(KERNEL)/wubu_math.c \
