@@ -31,6 +31,9 @@ enum {
     WUBU_BUDDY_STATE_OVERHEAT,     /* fire extinguisher, the box is on fire */
     WUBU_BUDDY_STATE_BUSY,         /* 99+ notifications, running   */
     WUBU_BUDDY_STATE_RELAXED,      /* asleep on the rubber duck   */
+    WUBU_BUDDY_STATE_SURF,         /* surfing the web             */
+    WUBU_BUDDY_STATE_RACE,         /* driving flat out            */
+    WUBU_BUDDY_STATE_READ,         /* reading, learning           */
     WUBU_BUDDY_STATE_COUNT
 };
 
