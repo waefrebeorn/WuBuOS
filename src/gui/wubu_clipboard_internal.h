@@ -12,6 +12,7 @@
 /* Clipboard history depth (Windows 11 keeps 25). */
 #define WUBU_CLIPBOARD_HISTORY_MAX 25
 
+#include "../egojar.h"
 #include "wubu_clipboard.h"
 #include <stdbool.h>
 #include <stdlib.h>

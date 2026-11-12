@@ -14,6 +14,7 @@
 #ifndef WUBU_SNAPSHOT_H
 #define WUBU_SNAPSHOT_H
 
+#include "../egojar.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
