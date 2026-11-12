@@ -5,7 +5,7 @@
  * checks the area waveform is physically bounded, that voicing gates on
  * with pressure and off without it, and that the pulse shape is correct.
  */
-#include "../egojar.h"
+#include "../../egojar.h"
 
 #include "wubuglott_glottis.h"
 #include "wubuglott_math.h"
