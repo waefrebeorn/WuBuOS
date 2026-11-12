@@ -1,6 +1,8 @@
 /*
- * wubu_gamemode.c -- the GAME MODE / PERF GOVERNOR engine (SteamOS
- * EPIC E2 gap: "Game mode / perf governor not implemented").
+ * wubu_gamemode.c -- the GAME MODE / PERF GOVERNOR engine.
+ *
+ * Closes the SteamOS EPIC E2 gap "Game mode / perf governor not
+ * implemented": this file IS the implementation.
  *
  * Feral's gamemode (which SteamOS integrates) does three things when
  * a game starts and UNDOES all of them when it exits:

@@ -1,6 +1,8 @@
 /*
- * wubu_pressure_vessel.c -- the PRESSURE-VESSEL preset (SteamOS
- * EPIC E2 gap: "Pressure Vessel (runtime container) not implemented").
+ * wubu_pressure_vessel.c -- the PRESSURE-VESSEL preset.
+ *
+ * Closes the SteamOS EPIC E2 gap "Pressure Vessel (runtime container)
+ * not implemented": this file IS the implementation.
  *
  * Pressure Vessel is how SteamOS runs a game inside a runtime-locked
  * container: the game sees ONLY the Steam Linux Runtime library stack

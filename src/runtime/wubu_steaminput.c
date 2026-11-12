@@ -1,6 +1,8 @@
 /*
- * wubu_steaminput.c -- the STEAM INPUT layer (SteamOS EPIC E2 gap:
- * "Steam Input (controller config) not implemented").
+ * wubu_steaminput.c -- the STEAM INPUT layer.
+ *
+ * Closes the SteamOS EPIC E2 gap "Steam Input (controller config) not
+ * implemented": this file IS the implementation.
  *
  * Steam Input does two things:
  *   1. maps a gamepad (buttons/axes/sticks) to VIRTUAL input — the
