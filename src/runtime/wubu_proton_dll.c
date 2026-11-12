@@ -4,6 +4,7 @@
  * proton_dll_t / proton_dll_type_t (wubu_proton.h). Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_proton.h"
 #include <string.h>
 #include <strings.h>   /* strcasecmp */

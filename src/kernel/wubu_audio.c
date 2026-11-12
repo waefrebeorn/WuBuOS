@@ -24,6 +24,7 @@
  *
  * C11, kernel-modeled after wubu_hw_detect.c / wubu_drv_gpu.c.
  */
+#include "../egojar.h"
 #include "wubu_audio.h"
 #include "wubu_pci.h"
 #include "wubu_drv.h"

@@ -5,12 +5,12 @@
  * wubu_screenshot API types; other screenshot helpers are public. Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_screenshot.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <zlib.h>
 
 static void write_chunk(FILE *f, const char *type, const void *data, int len) {
     unsigned char len_bytes[4];

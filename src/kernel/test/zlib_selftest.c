@@ -12,6 +12,7 @@
  * (libz is used ONLY as an independent check on the output bytes; the
  *  kernel code links against nothing but its own sources.)
  */
+#include "../../egojar.h"
 #include "wubu_zlib.h"
 #include <stdio.h>
 #include <stdlib.h>

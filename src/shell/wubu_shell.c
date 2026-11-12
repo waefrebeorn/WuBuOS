@@ -9,6 +9,7 @@
  *   wubu_shell_exec.c      -- pipeline + redirection exec (gaps 230/231)
  */
 
+#include "../egojar.h"
 #include "wubu_shell_internal.h"
 
 #include <stdio.h>

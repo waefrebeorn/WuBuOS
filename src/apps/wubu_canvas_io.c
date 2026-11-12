@@ -8,11 +8,11 @@
  * wubu_cv_layer_get) -- no access to canvas internals.
  */
 
+#include "../egojar.h"
 #include "wubu_canvas.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <zlib.h>
 #include "wubu_image_codec_internal.h"
 
 /* -- File I/O (Native PNG/GIF/BMP/PPM) -------------------------- */

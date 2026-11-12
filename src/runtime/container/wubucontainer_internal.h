@@ -16,6 +16,7 @@
 #ifndef WUBU_CONTAINER_INTERNAL_H
 #define WUBU_CONTAINER_INTERNAL_H
 
+#include "../../egojar.h"
 #include "wubucontainer.h"
 #include <stdbool.h>
 #include <sys/types.h>   /* pid_t for the engine child process */
