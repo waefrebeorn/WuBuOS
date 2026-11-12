@@ -17,6 +17,7 @@
 #include "shell/wubu_lock_screen.h"
 #include "../kernel/wubu_gesture.h"
 #include "../gui/wubu_settings.h"
+#include "wubu_bonzi.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -186,6 +187,61 @@ static void test_render_no_crash(void) {
     uint32_t *fb = (uint32_t *)calloc(1024 * 768, 4);
     wm_render_desktop(fb, 1024, 768);
     free(fb);
+    PASS();
+    wm_shutdown();
+}
+
+
+/* The buddy's moods must be VISIBLE: each state bakes a different pose, so
+ * the pixels under the buddy have to change when the state changes. A state
+ * enum that maps to the same sprite (or to nothing) would pass a code review
+ * and be invisible on the desktop. */
+static unsigned long long buddy_region_hash(void) {
+    /* Everything on the desktop is drawn through vbe_*, so the pixels live in
+     * the VBE back buffer -- read them there, not from wm_render's fb (which
+     * may be NULL). */
+    wm_render(NULL, 1024, 768);
+    unsigned long long h = 1469598103934665603ull;
+    /* The buddy sits at (20,600) and is 96x96. */
+    for (int y = 600; y < 696; y++)
+        for (int x = 20; x < 116; x++) {
+            h ^= vbe_get_pixel(x, y);
+            h *= 1099511628211ull;
+        }
+    return h;
+}
+
+static void test_buddy_states_render_differently(void) {
+    TEST("buddy states render different poses");
+    vbe_init(1024, 768);
+    wm_init(1024, 768);
+    wubu_bonzi_init(20, 600);
+
+    static const int states[] = {
+        WUBU_BUDDY_STATE_DEFAULT, WUBU_BUDDY_STATE_WORK,
+        WUBU_BUDDY_STATE_ERROR,   WUBU_BUDDY_STATE_SUCCESS,
+        WUBU_BUDDY_STATE_IDLE,    WUBU_BUDDY_STATE_OVERHEAT,
+        WUBU_BUDDY_STATE_BUSY,    WUBU_BUDDY_STATE_RELAXED,
+        WUBU_BUDDY_STATE_SURF,    WUBU_BUDDY_STATE_RACE,
+        WUBU_BUDDY_STATE_READ,
+    };
+    unsigned long long seen[sizeof(states)/sizeof(states[0])];
+    int n = (int)(sizeof(states)/sizeof(states[0]));
+    for (int i = 0; i < n; i++) {
+        wubu_bonzi_set_state(states[i]);
+        wubu_bonzi_tick(16);
+        seen[i] = buddy_region_hash();
+        CHECK(seen[i] != 0, "state renders");
+    }
+    /* Every pose must differ from the default AND from every other pose. */
+    for (int i = 1; i < n; i++) {
+        CHECK(seen[i] != seen[0], "state differs from default");
+        for (int j = 1; j < n; j++)
+            if (i != j) CHECK(seen[i] != seen[j], "two states share a pose");
+    }
+    /* Out of range falls back to default rather than drawing garbage. */
+    wubu_bonzi_set_state(WUBU_BUDDY_STATE_COUNT + 99);
+    CHECK(wubu_bonzi_state() == WUBU_BUDDY_STATE_DEFAULT, "out-of-range falls back");
     PASS();
     wm_shutdown();
 }
@@ -1487,6 +1543,7 @@ int main(void) {
     test_mouse_drag_window();
     test_taskbar_height();
     test_render_no_crash();
+    test_buddy_states_render_differently();
     test_render_draws_glyphs_and_selection();
     test_render_window_drop_shadow();
     test_render_win98_title_bar_is_theme_navy();
