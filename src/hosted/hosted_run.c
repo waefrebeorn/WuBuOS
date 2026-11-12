@@ -11,6 +11,8 @@
  */
 
 #include "hosted_internal.h"
+#include "../kernel/wubu_drv_thermal.h"
+#include "../gui/wubu_bonzi.h"
 
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
@@ -53,6 +55,12 @@ int hosted_run(hosted_state_t *state) {
          * session is stopped -- it is not a status code. */
         if (frame_count % 20 == 0) {
             if (wubu_agi_play_tick() >= 0) wubu_agi_play_learn();
+            /* The buddy reports the thermal state for real: past 85C on the
+             * CPU or the GPU the box is on fire and he reaches for the
+             * extinguisher. Below that, activity drives the pose. */
+            int hot = wubu_thermal_temp(WUBU_THERMAL_CPU);
+            int ghot = wubu_thermal_temp(WUBU_THERMAL_GPU);
+            if (hot >= 85 || ghot >= 85) wubu_bonzi_mood(WUBU_BUDDY_STATE_OVERHEAT);
         }
         frame_count++;
 

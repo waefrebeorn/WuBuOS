@@ -30,6 +30,7 @@
 #include "wubu_mascot.h"
 #include "wubu_buddy_sprite.h"
 #include "wubu_buddy_states.h"
+#include "wubu_buddy_states2.h"
 #include "../kernel/vbe.h"
 #ifdef WUBU_NO_LIBM
 #  include "../kernel/wubu_math.h"  /* provides M_PI, fabsf, cosf, etc. */
@@ -183,6 +184,9 @@ static const unsigned char *buddy_state_rgba(void) {
     case WUBU_BUDDY_STATE_ERROR:   return BUDDY_STATE_ERROR;
     case WUBU_BUDDY_STATE_SUCCESS: return BUDDY_STATE_SUCCESS;
     case WUBU_BUDDY_STATE_IDLE:    return BUDDY_STATE_IDLE;
+    case WUBU_BUDDY_STATE_OVERHEAT: return BUDDY_STATE_OVERHEAT;
+    case WUBU_BUDDY_STATE_BUSY:    return BUDDY_STATE_BUSY;
+    case WUBU_BUDDY_STATE_RELAXED: return BUDDY_STATE_RELAXED;
     default:                       return wubu_buddy_rgba;
     }
 }
