@@ -12,6 +12,7 @@
 
 #include "hosted_internal.h"
 #include "../kernel/wubu_drv_thermal.h"
+#include "../kernel/wubu_evdev.h"
 #include "../gui/wubu_bonzi.h"
 #include "hosted_agent_channel.h"
 
@@ -48,6 +49,11 @@ int hosted_run(hosted_state_t *state) {
         hosted_wl_dispatch();
 
         hosted_input_dispatch();
+
+        /* Gamepads: drain evdev every frame and route it through Steam
+         * Input's mapping table into the kernel input queue. Every frame,
+         * not throttled -- input latency is visible. */
+        wubu_evdev_poll();
 
         /* The AGI play loop, throttled to about twice a second (the policy
          * is tick-driven): perceive -> decide -> act -> learn. Each learn

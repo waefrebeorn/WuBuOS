@@ -117,6 +117,7 @@ HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/
                $(GUI)/cp_sound.c $(GUI)/wubu_a11y.c $(GUI)/wubu_sound.c \
                $(RT)/edr/edr_poller.c $(RT)/wubu_gdpr_age.c $(RT)/wubu_wine_env.c $(RT)/wubu_compat_db.c \
                $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_gamemode.c \
+               $(RT)/wubu_steaminput.c $(KERNEL)/wubu_evdev.c \
                $(KERNEL)/memory.c $(KERNEL)/wubu_bonzi_study.c $(KERNEL)/wubu_psych.c $(KERNEL)/wubu_sha256.c \
                $(FRAMEWORK)/wubufx_apps.c $(FRAMEWORK)/wubufx.c \
                src/gui/vws/externals/wet/wet_app.c src/gui/vws/externals/wet/wet_backend_vbe.c \
@@ -166,9 +167,6 @@ compiler: $(COMP_OBJS)
 runtime: $(RT_OBJS)
 	@echo "✅ WuBuOS runtime built"
 
-# The regex engine is split into modules (wubre.c owns object lifetime,
-# wubre_compile the parser, wubre_dfa the NFA, wubre_bre the backtracker,
-# wubre_match/wubre_litpref/wubre_simd the matchers). Link them all.
 # The regex engine is a submodule (Waefrebeorn/wubugrep) -- ONE owner, no
 # second copy. The old flat vendored .c files are gone.
 WUBUGREP_SRC = $(TOOLS)/wubugrep

@@ -85,6 +85,8 @@
 #include <sys/mount.h>
 #include <linux/mount.h>
 #include <linux/fanotify.h>
+#include <linux/input.h>
+#include <linux/input-event-codes.h>
 #include <math.h>
 
 #endif /* WUBU_EGOJAR_H */

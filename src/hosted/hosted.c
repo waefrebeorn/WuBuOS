@@ -36,6 +36,8 @@
 #include "../kernel/memory.h"
 #include "../kernel/tasking.h"
 #include "../kernel/input.h"
+#include "../kernel/wubu_evdev.h"
+#include "../runtime/wubu_steaminput.h"
 #include "../gui/wm.h"
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_settings.h"
@@ -135,6 +137,11 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     mem_init(8 * 1024 * 1024);
     vbe_init(state->width, state->height);
     input_init();
+    /* Steam Input owns the controller->key/mouse map; the evdev pipeline
+       feeds it. Both are best-effort: no pad, no permission, a device that
+       unplugs -- all quiet no-ops. */
+    wubu_si_init();
+    wubu_evdev_init();
 
     /* Load the saved settings and apply the theme BEFORE the WM's first
      * render. Nothing else calls wubu_settings_init() -- the theme's live
