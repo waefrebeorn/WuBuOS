@@ -61,10 +61,11 @@ hosted_objs: $(HOSTED_OBJS_LIST)
 PREFIX ?= $(HOME)/.local
 ICON_SRC ?= docs/logo/wubuos-desktop.png
 
-install: hosted
+install: hosted wubu_inject
 	@install -d $(PREFIX)/bin $(PREFIX)/share/applications $(PREFIX)/share/pixmaps
 	@install -m 755 $(HOSTED)/wubu $(PREFIX)/bin/wubuos
 	@install -m 755 $(HOSTED)/wubu-weston.sh $(PREFIX)/bin/wubuos-window
+	@install -m 755 $(HOSTED)/wubu_inject $(PREFIX)/bin/wubu-inject
 	@sed -e 's|@PREFIX@|$(PREFIX)|g' mk/wubuos.desktop.in > $(PREFIX)/share/applications/wubuos.desktop
 	@if [ -f $(ICON_SRC) ]; then install -m 644 $(ICON_SRC) $(PREFIX)/share/pixmaps/wubuos.png; fi
 	@echo "✅ WuBuOS desktop installed to $(PREFIX)"
@@ -75,6 +76,12 @@ install: hosted
 	@echo "   run it  : wubuos     (a Wayland compositor is needed for the GUI;"
 	@echo "                        $(PREFIX)/bin/wubuos --screenshot shot.ppm renders a frame headless)"
 
+# Inject input into the workspace window (XTEST; the compositor delivers it
+# to the focused Wayland surface). Built as part of `hosted`.
+wubu_inject: $(HOSTED)/wubu_inject.c
+	$(CC) -O2 -std=c11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L $(HOSTED)/wubu_inject.c -o $(HOSTED)/wubu_inject -lX11 -ldl
+	@echo "✅ Input injector built: ./src/hosted/wubu_inject"
+
 # Run the hosted desktop in a scaled weston window on the host display.
 # Usage: make window [SIZE=1280x720]
 SIZE ?= 1280x720
@@ -83,7 +90,7 @@ window: hosted
 	@$(HOSTED)/wubu-weston.sh $(SIZE)
 
 uninstall:
-	@rm -f $(PREFIX)/bin/wubuos $(PREFIX)/bin/wubuos-window $(PREFIX)/share/applications/wubuos.desktop $(PREFIX)/share/pixmaps/wubuos.png
+	@rm -f $(PREFIX)/bin/wubuos $(PREFIX)/bin/wubuos-window $(PREFIX)/bin/wubu-inject $(PREFIX)/share/applications/wubuos.desktop $(PREFIX)/share/pixmaps/wubuos.png
 	@echo "✅ WuBuOS desktop removed from $(PREFIX)"
 
 # ── The ~WuBu~ space engine (the WWW submodule) ─────────────────────────────
