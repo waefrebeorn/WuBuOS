@@ -133,6 +133,8 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
     if (be)
         vbe_set_backend(VBE_BACKEND_WAYLAND, g_shm_bufs[0].pixels,
                         width, height, be);
+    /* Fresh buffers: start rendering into buffer 0. */
+    g_shm_render_idx = 0;
 
     /* The WM and desktop are sized to the screen; resize in place so the
      * open windows and desktop icons survive. */

@@ -74,6 +74,7 @@ extern hosted_state_t *g_hosted_state;
  * declared here so the siblings can see them without leaking into the public
  * hosted.h. Each is prefixed with the owning module for clarity. */
 extern shm_buffer_t    g_shm_bufs[SHM_BUFFERS];   /* owned by hosted_wayland_shm.c */
+extern int             g_shm_render_idx;          /* the buffer being rendered */
 extern int             g_cur_buf;                   /* owned by hosted_wayland_shm.c */
 void shm_buffer_create(shm_buffer_t *buf, int w, int h);   /* shm module */
 void shm_buffer_destroy(shm_buffer_t *buf);                 /* shm module */

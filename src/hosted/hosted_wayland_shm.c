@@ -95,13 +95,20 @@ static uint32_t *g_presented;          /* the last content we presented */
 static size_t     g_presented_len;
 static int        g_presented_valid;
 
+/* Double buffering: the client renders into g_shm_bufs[g_shm_render_idx]
+ * while the compositor holds the buffer it committed last.  The renderer
+ * fills the desktop background first, so a compositor that reads the buffer
+ * being rendered sees a dark band across the top -- the two buffers make
+ * that impossible. */
+int g_shm_render_idx;
+
 void hosted_wl_frame_render(void) {
     if (!g_wl.surface || !g_wl.compositor) return;
     /* Wait for the compositor's initial configure: attaching a buffer on an
      * unconfigured xdg_surface is a protocol error and the compositor drops
      * the client. */
     if (!g_wl.configured) return;
-    shm_buffer_t *buf = &g_shm_bufs[0];
+    shm_buffer_t *buf = &g_shm_bufs[g_shm_render_idx];
     if (!buf->pixels) return;
 
     /* With the VBE backend wired to SHM, vbe->fb already points at the
@@ -141,4 +148,7 @@ void hosted_wl_frame_render(void) {
     else
         wl_surface_damage(g_wl.surface, 0, 0, (int)buf->width, (int)buf->height);
     wl_surface_commit(g_wl.surface);
+    /* Hand the compositor a buffer it can hold while we render the next
+     * frame into the other one. */
+    g_shm_render_idx ^= 1;
 }

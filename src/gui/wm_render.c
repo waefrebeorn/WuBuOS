@@ -23,6 +23,7 @@
 #include "shell/wubu_lock_screen.h"
 #include "shell/win11_shell.h"
 #include "shell/run_dialog.h"
+#include "shell/power_menu.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
@@ -227,8 +228,9 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Touchpad gestures are polled here so they advance once per frame. */
     wm_gesture_poll();
 
-    /* Win+R run dialog: modal, above the shell layers. */
+    /* Win+R run dialog, then the Win+X power menu (both modal overlays). */
     run_dialog_render(fb, fb_w, fb_h);
+    power_menu_render(fb, fb_w, fb_h);
 
     /* The lock screen is the topmost layer: nothing else is visible. */
     wubu_lock_screen_render(fb, fb_w, fb_h);

@@ -87,6 +87,12 @@ int hosted_run(hosted_state_t *state) {
 
         if (state->framebuffer) {
             if (state->mode == HMODE_GUI) {
+                /* Render into the SHM buffer the compositor is NOT holding:
+                 * it reads the one committed last, so a mid-render read can
+                 * never show a half-drawn frame. */
+                shm_buffer_t *rb = &g_shm_bufs[g_shm_render_idx];
+                if (rb->pixels)
+                    vbe_set_render_target(rb->pixels, rb->width, rb->height);
                 hosted_render_desktop(state);
                 vbe_swap();
                 /* The GUI presents straight out of the VBE/Shm buffer; the

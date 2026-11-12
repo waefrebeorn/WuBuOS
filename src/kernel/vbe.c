@@ -127,6 +127,28 @@ int vbe_set_backend(vbe_backend_type_t type,
     return 0;
 }
 
+/* Retarget the render surface WITHOUT freeing the previous one.
+ *
+ * The hosted compositor reads the client's SHM buffer on its own schedule
+ * (commit, expose, frame callback).  A single shared buffer means the
+ * compositor can catch the client mid-render, and because the renderer fills
+ * the desktop background row-by-row from the top, that reads as a dark bar
+ * across the top of the screen that comes and goes.  The client therefore
+ * renders into one SHM buffer while the compositor holds the other; this
+ * retargets the render surface each frame.  Unlike vbe_set_backend it never
+ * frees -- the buffers belong to the SHM pool. */
+void vbe_set_render_target(uint32_t *fb, int w, int h)
+{
+    VBEState *v = vbe_state();
+    if (!fb) return;
+    v->fb   = fb;
+    v->back = fb;   /* render directly into the host surface */
+    v->width  = w;
+    v->height = h;
+    v->bpp    = 32;
+    v->fb_size = (size_t)w * h * 4;
+}
+
 int vbe_probe_native_mode(int *out_w, int *out_h) {
     /* Try framebuffer ioctl (linux/fb.h) for the real display resolution.
      * This works on bare-metal Linux with fbdev, and as a fallback on

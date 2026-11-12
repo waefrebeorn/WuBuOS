@@ -45,6 +45,7 @@ void vbe_shutdown(void);
 
 /* Access the allocated framebuffer (XRGB8888) and its dimensions. */
 uint32_t *vbe_framebuffer(void);
+void vbe_set_render_target(uint32_t *fb, int w, int h);
 int       vbe_width(void);
 int       vbe_height(void);
 /* Shutdown */

@@ -271,3 +271,23 @@ __attribute__((weak))
 void wubu_bonzi_set_bubble(const char *l1, const char *l2) {
     (void)l1; (void)l2;
 }
+
+/* Weak: the WM routes Win+X to the power-user menu.  Targets that link the
+ * real power_menu.c get the strong definitions. */
+__attribute__((weak)) void power_menu_open(void) { }
+__attribute__((weak)) void power_menu_close(void) { }
+__attribute__((weak)) bool power_menu_is_open(void) { return false; }
+__attribute__((weak)) bool power_menu_handle_click(int x, int y) {
+    (void)x; (void)y; return false;
+}
+__attribute__((weak)) void power_menu_handle_key(uint32_t key, uint32_t mods) {
+    (void)key; (void)mods;
+}
+__attribute__((weak)) void power_menu_rect(int fb_w, int fb_h,
+                                           int *x, int *y, int *w, int *h) {
+    (void)fb_w; (void)fb_h;
+    if (x) *x = 0; if (y) *y = 0; if (w) *w = 0; if (h) *h = 0;
+}
+__attribute__((weak)) void power_menu_render(uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
+}

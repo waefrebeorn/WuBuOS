@@ -21,6 +21,7 @@
 #include "shell/win11_shell.h"
 #include "shell/window_chrome.h"
 #include "shell/run_dialog.h"
+#include "shell/power_menu.h"
 #include "../kernel/wubu_gesture.h"
 #include "shell/startmenu.h"
 #include "shell/taskbar_tasks.h"
@@ -135,6 +136,16 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
     }
     if (run_dialog_is_open()) {
         run_dialog_handle_key(key, mods);
+        return;
+    }
+
+    /* Win+X: power-user menu (Windows 11 parity). */
+    if ((mods & MOD_WIN) && (key == 0x2D || key == 'x' || key == 'X')) {
+        power_menu_open();
+        return;
+    }
+    if (power_menu_is_open()) {
+        power_menu_handle_key(key, mods);
         return;
     }
 
@@ -292,6 +303,12 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
      * swallowed (there is no text cursor to place yet). */
     if (kind == 1 && run_dialog_is_open()) {
         run_dialog_handle_click(x, y);
+        return;
+    }
+
+    /* The power-user menu is modal too. */
+    if (kind == 1 && power_menu_is_open()) {
+        power_menu_handle_click(x, y);
         return;
     }
 
