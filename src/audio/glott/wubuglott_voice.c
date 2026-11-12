@@ -293,6 +293,7 @@ wg_voice *wg_voice_new(double sample_rate, wg_body body)
      * before it is audio. Without this the limiter pins the output at full
      * scale and the "voice" is a square wave. */
     v->output_gain = 5.5e-7;
+    wg_decimator_init(&v->dec, v->oversample);
 
     return v;
 }
@@ -301,6 +302,7 @@ void wg_voice_free(wg_voice *v)
 {
     if (!v) return;
     wg_network_free(v->net);
+    wg_decimator_free(&v->dec);
     free(v->ph_areas); free(v->or_areas);
     free(v->ph_min); free(v->or_min);
     free(v);
@@ -365,8 +367,11 @@ void wg_voice_render(wg_voice *v, float *out, int n)
     int supra = wg_tube_first(v->pharynx);
 
     for (int i = 0; i < n; i++) {
-        double acc = 0.0;
-        for (int m = 0; m < v->oversample; m++) {
+        /* Render sub-samples until the decimator hands back an output
+         * sample. The decimator owns the oversampling ratio. */
+        double val = 0.0;
+        int ready = 0;
+        while (!ready) {
             if (v->ctrl_counter <= 0)
                 control(v);
             v->ctrl_counter--;
@@ -383,11 +388,11 @@ void wg_voice_render(wg_voice *v, float *out, int n)
             wg_network_set_port_area(v->net, v->glottis_port, a);
 
             double y = wg_network_step(v->net);
-            acc += y;
+            if (wg_decimator_push(&v->dec, y)) {
+                val = v->dec.value * v->output_gain;
+                ready = 1;
+            }
         }
-
-        /* decimate (box average) */
-        double val = acc / (double)v->oversample * v->output_gain;
 
         /* DC blocker */
         double hp = val - v->dc_x + v->dc_coef * v->dc_y;

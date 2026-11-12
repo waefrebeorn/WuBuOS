@@ -15,6 +15,7 @@
 
 #include "wubuglott_network.h"
 #include "wubuglott_glottis.h"
+#include "wubuglott_decimator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -96,9 +97,8 @@ typedef struct {
     /* pitch glide */
     double f0_current;
 
-    /* decimator (simple box average for now) */
-    double dec_acc;
-    int    dec_n, dec_phase;
+    /* Kaiser-windowed sinc decimator (airway/decimator.rs) */
+    wg_decimator dec;
 
     /* DC blocker */
     double dc_x, dc_y, dc_coef;
