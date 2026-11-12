@@ -20,11 +20,11 @@
  *   - hw_params (rate, channels, format)
  *   - interleaved PCM
  */
+#include "../egojar.h"
 #include "wubu_samplerate.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_sr = 0;          /* sample rate present */
 static int  g_pcm = 0;         /* PCM */

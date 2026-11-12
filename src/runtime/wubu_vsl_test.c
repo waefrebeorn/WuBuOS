@@ -4,6 +4,7 @@
  * Tests the "Proton within Proton"  --  Linux ABI compatibility layer.
  */
 
+#include "../egojar.h"
 #include "wubu_vsl.h"
 #include "vsl/vsl_syscall_numbers.h"
 
@@ -11,8 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/resource.h>
 
 static int g_run = 0, g_pass = 0;
 

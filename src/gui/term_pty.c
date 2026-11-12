@@ -7,6 +7,7 @@
  * ~567 lines of PTY-specific code moved out of the monolithic file.
  */
 
+#include "../egojar.h"
 #include "term_pty.h"
 #include "term_internal.h"  /* for term_ansi_parse / term_screen_bind_* */
 #include "wm.h"
@@ -17,12 +18,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <errno.h>
 #include <ctype.h>
 #include <time.h>

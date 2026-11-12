@@ -3,11 +3,11 @@
  * wine command, drives the container (wubu_ct_set_cmd/start/wait), tracks
  * per-app run state. C11, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_proton2.h"
 
 #include <string.h>
 #include <stdio.h>
-#include <signal.h>
 
 int wubu_proton_launch(WubuProtonManager *mgr, int app_idx) {
     if (!mgr || !mgr->container_running) return -1;

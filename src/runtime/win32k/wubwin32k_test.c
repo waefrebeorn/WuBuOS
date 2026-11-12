@@ -11,12 +11,12 @@
  * Self-contained; links wubu_win32k.c + the wubu_cap objects. Opt-in target
  * (make test_win32k), mirroring test_cap's hosted pattern.
  */
+#include "../../egojar.h"
 #include "wubu_cap.h"
 #include "wubu_win32k.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <pthread.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(c, m) do { if (c) { g_pass++; printf("  [PASS] %s\n", m); } \

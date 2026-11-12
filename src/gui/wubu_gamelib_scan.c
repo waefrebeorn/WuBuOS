@@ -5,6 +5,7 @@
  * wubu_gamelib_state() for the shared library store. Minimal includes.
  */
 
+#include "../egojar.h"
 #include <glob.h>
 #include "wubu_proton.h"
 #include <time.h>
@@ -13,8 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 void generate_game_id(GameSource source, const char *source_id, char *out_id, size_t size) {
     const char *prefix;

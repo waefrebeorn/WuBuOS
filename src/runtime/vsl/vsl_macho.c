@@ -5,14 +5,13 @@
  * address space. Supports 64-bit Mach-O executables, FAT universal
  * binaries, and provides segment/section iteration.
  */
+#include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_macho.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
 #include <errno.h>
 
 /* Global state */

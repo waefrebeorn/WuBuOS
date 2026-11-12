@@ -5,9 +5,9 @@
  * and the public ex_9p_* backend. Minimal includes.
  */
 
+#include "../egojar.h"
 #include "explorer_internal.h"
 #include <string.h>
-#include <fcntl.h>
 
 void explorer_update_preview(int idx) {
     if (idx < 0 || idx >= g_explorer.entry_count) {

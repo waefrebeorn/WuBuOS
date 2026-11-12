@@ -13,12 +13,12 @@
  * comment, so a hand-edited file stays readable -- this is a config file a user
  * is expected to be able to look at.
  */
+#include "../../egojar.h"
 #include "taskbar_tasks.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 static WubuTask g_tasks[WUBU_TASKBAR_MAX];
 static int      g_count;

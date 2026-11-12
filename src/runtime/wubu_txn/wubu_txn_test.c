@@ -7,15 +7,13 @@
  *   - abort() rolls the dir back to its pre-txn state (real revert)
  *   - commit() keeps the state and drains the buffer
  */
+#include "../../egojar.h"
 #include "wubu_txn.h"
 #include "wubu_spawn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(c, m) do { if (c) { g_pass++; printf("  [PASS] %s\n", m); } \

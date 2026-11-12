@@ -27,11 +27,12 @@
  *   - PipeWire SRC: resample quality
  *   - ALSA dmix/SRC: rate conversion
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_mst.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

@@ -14,21 +14,16 @@
  *  - a still-stubbed syscall returns NT_STATUS_NOT_IMPLEMENTED
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/eventfd.h>
-#include <sys/mman.h>
-#include <poll.h>
 extern int vsl_nt_w11_timerfd(uint64_t);
 extern int vsl_nt_w11_cached_signing_level(uint64_t, int *);
-#include <sys/wait.h>
 #include <linux/futex.h>
-#include <sys/syscall.h>
 #include <time.h>
 
 #include "vsl_nt_bridge.h"

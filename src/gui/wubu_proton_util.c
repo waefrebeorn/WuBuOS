@@ -7,14 +7,13 @@
  */
 
 #define _XOPEN_SOURCE 700
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "wubu_proton_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <time.h>
 #include <errno.h>
 #include <glob.h>

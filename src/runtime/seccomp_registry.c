@@ -6,14 +6,13 @@
  * built-in profiles are declared extern (defined in ct_iso_seccomp.c);
  * tests link just this file.
  */
+#include "../egojar.h"
 #include "ct_iso_seccomp.h"
 #include <stdio.h>
 #include <string.h>
 #include <linux/seccomp.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
-#include <sys/prctl.h>
-#include <sys/syscall.h>
 
 /* The built-in allowlists (defined in ct_iso_seccomp.c). */
 extern const int g_seccomp_basic_allowlist[];

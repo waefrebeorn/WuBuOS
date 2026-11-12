@@ -25,11 +25,11 @@
  *   - v4l2 m2m: media codec for embedded (hantro, cedrus, rkvdec, venus)
  *   - AV1: the modern royalty-free codec (Intel Arc, AMD RDNA2+)
  */
+#include "../egojar.h"
 #include "wubu_video.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_vaapi = 0;

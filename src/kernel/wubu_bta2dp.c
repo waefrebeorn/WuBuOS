@@ -9,11 +9,11 @@
  *   - /sys/class/bluetooth/hci0: BT adapter presence
  *   - /sys/module/btintel/parameters: Intel BT module params
  */
+#include "../egojar.h"
 #include "wubu_bta2dp.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_bta2dp_present = 0;
 static int g_bta2dp_codec = 0;

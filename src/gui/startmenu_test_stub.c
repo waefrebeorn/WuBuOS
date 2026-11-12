@@ -25,7 +25,7 @@ int wm_screen_w(void) {
 void launch_app(const char *name) { }
 
 /* Stub for shutdown */
-void shutdown(void) { }
+void wubu_shutdown() { }
 void platform_shutdown(void) { }
 
 /* -- Bonzi stub (startmenu test doesn't need the full mascot) -- */

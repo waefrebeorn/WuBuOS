@@ -31,12 +31,13 @@
  *   - SPI: spi-orion, spi-bcm2835, spi-imx, spi-tegra
  *   - i2c-core, spi-core subsystems
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_bus.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- PCI class: serial bus ---- */
 #define PCI_CLASS_SERIAL   0x0C

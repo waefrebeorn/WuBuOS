@@ -22,11 +22,11 @@
  *   - TPM: tpm_tis, tpm_crb (ACPI CRB), /dev/tpm0; TPM 2.0
  *   - TOTP: hardware OTP tokens (YubiKey OTP, FIDO)
  */
+#include "../egojar.h"
 #include "wubu_securekey.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_fido = 0;         /* FIDO2/U2F key */

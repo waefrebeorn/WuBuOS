@@ -27,6 +27,8 @@
  * Render: SHM buffers -> wl_surface attach/commit.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "hosted.h"
 #include "hosted_internal.h"
 
@@ -59,15 +61,10 @@
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <poll.h>
 #include <math.h>
 
 #include "xdg-shell-client.header"

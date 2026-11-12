@@ -8,14 +8,13 @@
  * Source study: ReactOS + Windows 11 syscall tables + Linux kernel UAPI
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
 #include <sched.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
 #include <time.h>
 #include "wubu_vsl.h"
 #include "vsl_nt_bridge.h"

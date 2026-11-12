@@ -16,11 +16,11 @@
  * Research (7-hop on the uas frontier):
  *   -UAS USB Attached SCSI
  */
+#include "../egojar.h"
 #include "wubu_uas.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_uas = 0;       /* UAS present */
 static int  g_bot = 0;       /* BOT present */

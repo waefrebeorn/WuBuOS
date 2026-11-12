@@ -7,13 +7,12 @@
  * conflict, casting must resolve dependencies in order and must fail closed
  * when a need is unmet.
  */
+#include "../egojar.h"
 #include "wubu_spell.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 static int failures;
 static int checks;

@@ -9,11 +9,12 @@
  *   - /sys/class/drm/card0/device/rom: GPU VBIOS ROM
  *   - /sys/class/drm/card0/device/uevent: driver version
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_gpufw.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_gpufw_present = 0;
 static int g_gpufw_matched = 0;

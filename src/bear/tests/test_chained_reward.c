@@ -1,5 +1,6 @@
 /* Debug training: print rewards from chained_env_step */
 #define _POSIX_C_SOURCE 200809L
+#include "../../egojar.h"
 #include "src/bear/bear_arena.h"
 #include "src/bear/bear_nn.h"
 #include "src/bear/bear_ppo.h"
@@ -8,7 +9,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdint.h>
-#include <unistd.h>
 
 #define MAX_POLES 10
 #define MAX_ENVS 16

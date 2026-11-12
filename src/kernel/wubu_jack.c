@@ -14,11 +14,11 @@
  * Research (7-hop on the jack frontier):
  *   -Audio jack plug detection ALSA
  */
+#include "../egojar.h"
 #include "wubu_jack.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_jack = 0;       /* jack present */
 static int  g_headphone = 0;  /* headphone detected */

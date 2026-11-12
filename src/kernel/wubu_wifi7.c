@@ -24,12 +24,12 @@
  *   - Realtek RTL8922/RTL8852C: rtw89
  *   - ath12k missing in some kernels (Ubuntu 24.04) = the gap
  */
+#include "../egojar.h"
 #include "wubu_wifi7.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- PCI class: network (Wi-Fi) ---- */
 #define PCI_CLASS_NETWORK 0x02

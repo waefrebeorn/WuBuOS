@@ -26,11 +26,11 @@
  *   - udc: device controllers (dwc3, cdns3)
  *   - nvme smart-log: percentage used, media wear, TBW
  */
+#include "../egojar.h"
 #include "wubu_gadget.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_udc = 0;         /* USB device controller */

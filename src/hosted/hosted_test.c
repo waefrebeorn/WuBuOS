@@ -12,6 +12,8 @@
  *
  * All tests run in headless mode (no X11 window needed).
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "hosted.h"
 #include "../runtime/styx.h"
 #include "../kernel/vbe.h"
@@ -21,7 +23,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 /* -- Test Framework ------------------------------------------------ */
 

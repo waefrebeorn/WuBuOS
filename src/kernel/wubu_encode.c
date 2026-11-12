@@ -19,11 +19,11 @@
  *   -GPU video encode VCN H.264
  *   - NVENC, Quick Sync Video
  */
+#include "../egojar.h"
 #include "wubu_encode.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_enc = 0;         /* encode present */
 static int  g_h264 = 0;        /* H.264/AVC */

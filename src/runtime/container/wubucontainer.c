@@ -10,17 +10,14 @@
  * reasoning, synthesis, and cross-modal operations.
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
+#include <sys/socket.h>
 #include "wubucontainer.h"
 #include "wubucontainer_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <arpa/inet.h>      /* htonl / ntohl for JSON-RPC length framing */
 #include <errno.h>
 #include <json-c/json.h>  /* Using json-c for C-side JSON handling */
@@ -149,7 +146,7 @@ static int wubu_ctr_spawn_engine(WubuContainerEngine *engine) {
         }
     }
 
-    /* Engine did not come up: tear down the fds/child so shutdown() is a no-op
+    /* Engine did not come up: tear down the fds/child so wubu_shutdown() is a no-op
      * for the IPC side, and let init proceed in registry-only mode. */
     if (engine->child_pid > 0) {
         kill(engine->child_pid, SIGTERM);

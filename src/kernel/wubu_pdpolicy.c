@@ -22,11 +22,11 @@
  *   - TPS6598x, FUSB302 controllers
  *   - typec port_type, PD revision 3.0
  */
+#include "../egojar.h"
 #include "wubu_pdpolicy.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 static int  g_pd = 0;          /* PD present */

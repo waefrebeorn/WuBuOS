@@ -17,6 +17,8 @@
 
 #define WUBU_HOSTED
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "wubu_edr.h"
 #include "wubu_uuid.h"
 #include "wubu_gdpr_age.h"
@@ -26,13 +28,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <pthread.h>
-#include <sys/fanotify.h>
-#include <sys/inotify.h>
-#include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/audit.h>
 #include <linux/limits.h>

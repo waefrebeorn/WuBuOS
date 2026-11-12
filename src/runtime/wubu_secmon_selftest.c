@@ -9,6 +9,7 @@
  * C11, user-space compatible (links libc for I/O, only needs the KV-FS
  * + secmon kernel modules + minimal libc_string/memory).
  */
+#include "../egojar.h"
 #include "wubu_secmon.h"
 #include "wubu_kvfs.h"
 
@@ -17,9 +18,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdarg.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 
 static int failures = 0;
 #define CHECK(cond, msg) \

@@ -27,10 +27,11 @@
 #ifndef WUBU_SECMON_H
 #define WUBU_SECMON_H
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/types.h>
 
 typedef struct wubu_secmon wubu_secmon_t;
 

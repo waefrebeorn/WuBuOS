@@ -25,13 +25,12 @@
  *
  * C11, self-contained.
  */
+#include "../egojar.h"
 #include "wubu_hwdetect.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 
 #define GM_PATH_MAX 128
 

@@ -16,14 +16,13 @@
  * libc); the build + manifest + report paths use the hosted libc where
  * appropriate (gated WUBU_DI_HOSTED).
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_drv_install.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
 
 /* ------------------------------------------------------------------ */
 /* ELF64 constants (kept local so the loader has no <elf.h> dep).      */

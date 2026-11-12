@@ -21,11 +21,11 @@
  *   - audio-graph-card
  *   - ASoC widget / path
  */
+#include "../egojar.h"
 #include "wubu_dspgraph.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_graph = 0;       /* DSP graph present */
 static int  g_dapm = 0;        /* dapm */

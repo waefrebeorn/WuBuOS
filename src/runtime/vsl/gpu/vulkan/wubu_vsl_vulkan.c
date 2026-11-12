@@ -7,15 +7,12 @@
  *   3. Hosted Linux: Standard ICD loader (nouveau, radv, anv)
  */
 
+#include "../../../../egojar.h"
 #include "wubu_vsl_vulkan.h"
 #include <vulkan/vulkan.h>
-#include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <dirent.h>
 
 // ============================================================================

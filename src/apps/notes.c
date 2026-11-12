@@ -10,6 +10,8 @@
  * C11, minimal includes, uses the public DosGui window API only.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "notes.h"
 #include "../gui/wm.h"
 #include "../gui/wm_internal.h"
@@ -19,10 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include <unistd.h>
 
 #define NOTES_MAX     64
 #define NOTES_DIR     "/home/wubu/.wubu/notes"

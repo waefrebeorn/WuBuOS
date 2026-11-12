@@ -9,11 +9,11 @@
  *   - /sys/class/nvme/nvme0: NVMe device presence
  *   - /proc/partitions: partition hotplug events
  */
+#include "../egojar.h"
 #include "wubu_nvmehotplug.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_nvmehotplug_present = 0;
 static int g_nvmehotplug_events = 0;

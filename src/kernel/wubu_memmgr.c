@@ -19,11 +19,11 @@
  *   - DRM GEM/TTM
  *   - VRAM allocation
  */
+#include "../egojar.h"
 #include "wubu_memmgr.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_mm = 0;          /* memory manager present */
 static int  g_gem = 0;         /* GEM */

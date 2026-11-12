@@ -23,11 +23,11 @@
  *   - ACPI video extensions, DRM backlight, pwm-backlight
  *   - ethtool WoL: magic packet (g), wake flags
  */
+#include "../egojar.h"
 #include "wubu_backlight.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

@@ -7,13 +7,13 @@
  *      state at the session end)
  *   3. the ledger line has the game + the format + a duration
  */
+#include "../egojar.h"
 #include "wubu_game_session.h"
 #include "wubu_test.h"
 #include "wubu_world.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 /* FAIL: use wubu_test.h */
 

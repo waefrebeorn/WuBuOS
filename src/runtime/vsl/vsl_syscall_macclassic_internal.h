@@ -20,16 +20,13 @@
 #ifndef VSL_SYSCALL_MACCLASSIC_INTERNAL_H
 #define VSL_SYSCALL_MACCLASSIC_INTERNAL_H
 
+#include "../../egojar.h"
 #include "vsl/vsl_syscall_internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <time.h>
 #include <malloc.h>  /* malloc_usable_size (glibc) */
 

@@ -21,6 +21,9 @@
  */
 
 /* -- Includes ------------------------------------------------------ */
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wm_internal.h"
 #include "shell/wubu_wallpaper.h"
 #include "shell/wm_rim.h"
@@ -29,7 +32,6 @@
 #include "wubu_mascot.h"
 
 
-#include <sys/stat.h>
 #include <errno.h>
 #include <dirent.h>
 
@@ -192,7 +194,7 @@ void platform_shutdown(void) {
 }
 
 __attribute__((weak))
-void shutdown(void) {
+void wubu_shutdown() {
     /* No-op for standalone app binaries. */
 }
 

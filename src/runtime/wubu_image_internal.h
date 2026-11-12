@@ -10,14 +10,13 @@
 #ifndef WUBU_IMAGE_INTERNAL_H
 #define WUBU_IMAGE_INTERNAL_H
 
+#include "../egojar.h"
 #include "wubu_image.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <errno.h>
 
 /* -- Safe String Helpers (shared across modules) ------------------- */

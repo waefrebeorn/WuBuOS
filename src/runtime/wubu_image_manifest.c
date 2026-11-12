@@ -8,10 +8,8 @@
  * for types and wubu_image_internal.h for sha256_digest wrapper.
  */
 
+#include "../egojar.h"
 #include "wubu_image_internal.h"
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 /* ================================================================ */
 /* ID Computation                                                    */

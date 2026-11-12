@@ -2,6 +2,7 @@
  * WuBuOS -- extracted module (auto-split, C11, opaque-safe)
  */
 
+#include "../egojar.h"
 #include "interrupt.h"
 #include "interrupt_apic.h"
 #include "tasking.h"
@@ -9,7 +10,6 @@
 #include "interrupt_io.h"
 #include <stdint.h>
 #include <string.h>
-#include <signal.h>
 
 int apic_init(void) {
 #ifdef MYSEED_METAL

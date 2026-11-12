@@ -18,11 +18,12 @@
  *     cs4398 (Cirrus), via I2S/ASoC
  *   - Audio amp: tas5805m, tpa3116 (TI I2C amps), max98357a, tda7498
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_pmicaudio.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_pmic = 0;

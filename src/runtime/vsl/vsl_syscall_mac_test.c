@@ -6,15 +6,15 @@
  * non-NULL handlers and that the class-based encoding
  * correctly routes Mach traps vs BSD syscalls.
  */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
+#include <sys/socket.h>
 #include "vsl/vsl_syscall_numbers_mac.h"
 #include "vsl/vsl_mach_ipc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 /* Forward declaration of the dispatch function */
 extern int64_t vsl_mac_syscall_dispatch(uint64_t syscall_raw, uint64_t a, uint64_t b,

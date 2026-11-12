@@ -10,11 +10,12 @@
  *   - /sys/class/drm/card0/device/uevent: driver binding
  *   - /sys/class/drm/card0/device/vendor: PCI vendor (0x1002)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_volcanic_islands.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vi_present = 0;
 static int g_vi_amdgpu = 0;

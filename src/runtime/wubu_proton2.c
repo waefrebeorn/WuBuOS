@@ -27,16 +27,13 @@
  *     → GPU renders through Vulkan/DXVK
  *     → Display flows back through X11
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_proton2.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <signal.h>
 #include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <linux/input.h>
 #include <linux/uinput.h>
 #include <errno.h>

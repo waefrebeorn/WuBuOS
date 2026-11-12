@@ -2,13 +2,13 @@
  * Extracted from wubu_exec.c (separable leaf). Self-contained: validates WASM
  * magic, shells out to a WASM runtime via wubu_vsl_run. C11, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_exec.h"
 #include "wubu_vsl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 int64_t wubu_exec_wasm(const void *wasm_data, size_t wasm_size) {
     if (!wasm_data || wasm_size < 8) return -1;

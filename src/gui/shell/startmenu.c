@@ -10,6 +10,9 @@
  * XP-style: Luna Start orb, sidebar, hover highlighting, rounded items
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
+#include <sys/socket.h>
 #include "./startmenu_internal.h"
 #include "./startmenu.h"
 #include "../era_apps.h"
@@ -25,7 +28,6 @@
 #include <time.h>
 #include <dirent.h>
 #include "../../runtime/wubu_ftw.h"
-#include <sys/stat.h>
 
 /* -- Inline Layout Helpers ------------------------------------------ */
 
@@ -419,7 +421,7 @@ void startmenu_handle_click(int x, int y) {
         g_submenu_open = (g_submenu_open == mi->submenu_id) ? -1 : mi->submenu_id;
     } else if (mi->type == 3) {
         /* Shutdown */
-        shutdown();
+        wubu_shutdown();
         startmenu_close();
     } else {
         /* Launch app */
@@ -797,7 +799,7 @@ void startmenu_handle_key(int key, uint32_t mods) {
                 }
                 else if (submenu_id >= 0 && submenu_id == 2 && g_sub_hovered < g_system.item_count) {
                     if (g_sub_hovered == g_system.item_count - 1) { /* Shutdown */
-                        shutdown();
+                        wubu_shutdown();
                     } else {
                         launch_app(g_system.items[g_sub_hovered].app_name);
                     }
@@ -811,7 +813,7 @@ void startmenu_handle_key(int key, uint32_t mods) {
                     startmenu_close();
                 }
                 else if (type == 3) { /* Shutdown */
-                    shutdown();
+                    wubu_shutdown();
                     startmenu_close();
                 }
                 else if (type == 1) { /* Submenu */
@@ -851,7 +853,7 @@ void startmenu_init_enhanced(void) {
 }
 
 void startmenu_shutdown(void) {
-    shutdown();
+    wubu_shutdown();
 }
 
 void startmenu_recent_add(const char *app_name);

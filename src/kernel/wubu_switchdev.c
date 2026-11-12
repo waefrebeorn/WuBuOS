@@ -24,11 +24,12 @@
  *   - Router SoC switches: mt7530, qca8k
  *   - mlxsw: Mellanox Spectrum ASIC (100G data center)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_switchdev.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_switch = 0;

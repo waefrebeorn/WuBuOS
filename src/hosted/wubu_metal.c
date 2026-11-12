@@ -6,6 +6,7 @@
  * Build: make all (add to Makefile)
  */
 
+#include "../egojar.h"
 #include "wubu_metal.h"
 #include "wubu_metal_audio.h"
 #include "wubu_metal_drm.h"
@@ -13,14 +14,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <linux/input.h>
-#include <dlfcn.h>
 
 /* Kernel subsystems for bare-metal */
 #include "../kernel/interrupt.h"

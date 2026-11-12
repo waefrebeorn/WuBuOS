@@ -20,11 +20,11 @@
  *   - /dev/ptp*: PHC devices; ethtool -T: timestamping caps
  *   - NICs: igc/ixgbe/e1000e/mlx5 PTP
  */
+#include "../egojar.h"
 #include "wubu_ptp_sync.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

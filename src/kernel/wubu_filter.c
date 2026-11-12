@@ -19,11 +19,11 @@
  *   - ALSA DSP filter, PipeWire biquad
  *   - sincos folding for real-time DSP
  */
+#include "../egojar.h"
 #include "wubu_filter.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #define M_PI_2 1.57079632679489661923

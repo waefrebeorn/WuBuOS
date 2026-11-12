@@ -6,6 +6,7 @@
  * on abort). The state machine, scope oracle, and buffered-message ring are
  * faithful to GrahaOS; the backing store is host-portable and does real work.
  */
+#include "../../egojar.h"
 #include "wubu_txn_internal.h"
 #include "wubu_spawn.h"
 
@@ -13,7 +14,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <pthread.h>
 
 uint64_t g_wubu_txn_next_id = 1;
 

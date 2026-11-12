@@ -6,15 +6,14 @@
  * afterwards connections are accept()able and passable to the started
  * service. C11, runtime host, poll-based.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wubu_svc_socket.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/poll.h>
 
 struct wubu_svc_socket {
     char name[64];

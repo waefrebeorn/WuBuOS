@@ -30,14 +30,12 @@
  *
  * C11, self-contained.
  */
+#include "../egojar.h"
 #include "wubu_session.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 typedef struct {
     int  current;         /* WUBU_SESSION_* */

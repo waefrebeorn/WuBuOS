@@ -4,6 +4,7 @@
  * Uses official BearRL PPO API with Q-controller LR scheduling
  */
 #define _POSIX_C_SOURCE 200809L
+#include "../../egojar.h"
 #include "src/bear/bear_arena.h"
 #include "src/bear/bear_nn.h"
 #include "src/bear/bear_ppo.h"
@@ -18,7 +19,6 @@
 #include <math.h>
 #include <string.h>
 #include <alloca.h>
-#include <sys/stat.h>
 
 #define MAX_STEPS 750
 #define ROLLOUT_LEN 1024

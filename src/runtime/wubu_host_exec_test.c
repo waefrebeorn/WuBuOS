@@ -4,13 +4,13 @@
  * Tests: fork+exec container creation, start, wait, kill.
  * All tests exercise REAL host process creation.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_host_exec.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <signal.h>
 
 /* -- Test Framework ------------------------------------------------ */
 

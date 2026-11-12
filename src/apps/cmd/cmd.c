@@ -1,3 +1,4 @@
+#include "../../egojar.h"
 #include "cmd.h"
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
@@ -8,13 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/wait.h>
-#include <sys/ioctl.h>
-#include <termios.h>
 #include <pty.h>
-#include <signal.h>
 
 #define CMD_MAX_HISTORY 1000
 #define CMD_MAX_LINE 4096

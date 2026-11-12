@@ -18,11 +18,12 @@
  *   -Dynamic Audio Power Management DAPM
  *   - DAPM path routing
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_dappath.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_path = 0;        /* DAPM path present */
 static int  g_pb = 0;          /* playback path */

@@ -8,13 +8,12 @@
  * no god headers.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_archd_internal.h"
 #include "wubu_archd_svc.h"
 
 #include <string.h>
-#include <unistd.h>
-#include <sys/epoll.h>
-#include <sys/socket.h>
 
 void wubu_archd_event_loop(WubuArchd *d) {
     if (!d || !d->running) return;

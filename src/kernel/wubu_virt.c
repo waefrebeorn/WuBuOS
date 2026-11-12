@@ -13,10 +13,10 @@
  * Detection: CPUID hypervisor bit (0x40000000 leaf) + vendor string.
  * WuBuOS owns the detection and routes to the matching PV driver set.
  */
+#include "../egojar.h"
 #include "wubu_virt.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
 
 /* ---- Hypervisor vendor IDs (CPUID 0x40000000) ---- */

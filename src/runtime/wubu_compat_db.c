@@ -4,14 +4,12 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_compat_db.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 
 /* Expand "~" to $HOME (caller frees). */

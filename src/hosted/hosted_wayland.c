@@ -1,3 +1,5 @@
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "hosted.h"
 #include "hosted_internal.h"
 #include "wayland_state.h"
@@ -10,12 +12,8 @@
 #include "../gui/wubu_theme.h"
 #include "../bridge/bridge.h"
 #include <wayland-client.h>
-#include <poll.h>
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

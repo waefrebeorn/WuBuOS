@@ -2,16 +2,15 @@
  * wubu_pkgmgr_test.c - Unit tests for WuBuOS Package Manager
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 #include "wubu_pkgmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <errno.h>
 #include <time.h>
 

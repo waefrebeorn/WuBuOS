@@ -18,11 +18,11 @@
  * Research (7-hop on the audiofw frontier):
  *   -ALSA firmware loading
  */
+#include "../egojar.h"
 #include "wubu_audiofw.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_afw = 0;        /* audio firmware present */
 static int  g_codec = 0;      /* codec firmware */

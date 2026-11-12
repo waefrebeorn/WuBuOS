@@ -4,6 +4,8 @@
  * no-anonymous-standing rule, the card round-trip, a deterministic SHA-256
  * seal, and the /n/agent subtree.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_agent.h"
 #include "wubu_ns_bridge_internal.h"
 #include "../kernel/wubu_sha256.h"
@@ -11,8 +13,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 #define NSROOT "/tmp/wubu_agent_ns"
 

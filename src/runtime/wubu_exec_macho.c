@@ -7,14 +7,13 @@
  *   register the Mach-O process creator. If unregistered, falls
  *   back to Darling.
  */
+#include "../egojar.h"
 #include "wubu_exec.h"
 #include "wubu_vsl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <stdbool.h>
 
 /* Mach-O loader callback — registered by VSL init */

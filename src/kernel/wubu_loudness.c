@@ -21,11 +21,11 @@
  *   - PipeWire loudness effect
  *   - ALSA dmix volume normalization
  */
+#include "../egojar.h"
 #include "wubu_loudness.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_loud = 0;        /* loudness */

@@ -1,9 +1,8 @@
+#include "../egojar.h"
 #include "wubu_trash.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <libgen.h>
 #include <stdlib.h>
 

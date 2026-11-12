@@ -2,11 +2,10 @@
  * wubu_hwdetect.c -- WuBuOS hardware-acceleration detection. C11.
  * CPUID via inline asm (freestanding-safe); GPU probing via stat().
  */
+#include "../egojar.h"
 #include "wubu_hwdetect.h"
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static void cpuid(uint32_t leaf, uint32_t sub,
                   uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d)

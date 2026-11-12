@@ -4,13 +4,9 @@
  * C11, opaque structs, minimal includes -- shares vsl_nt_internal.h surface.
  * Ordinals from reactos-study/reactos/ntoskrnl/sysfuncs.lst (line = 1-based).
  */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "vsl_nt_internal.h"
-#include <sys/utsname.h>
-#include <sys/sysinfo.h>
-#include <sys/times.h>
-#include <sys/resource.h>
-#include <signal.h>
-#include <sys/ptrace.h>
 
 extern int wubu_fs_rm_rf(const char *path);
 
@@ -821,7 +817,6 @@ int64_t vsl_nt_wait_for_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t
     return NT_STATUS_SUCCESS;
 }
 
-#include <poll.h>
 
 /* Register all misc handlers into the global dispatch table. */
 void vsl_nt_misc_register(vsl_syscall_fn_t *tbl, int size) {

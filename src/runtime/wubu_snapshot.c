@@ -26,6 +26,7 @@
   */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_snapshot.h"
 #include "wubu_snapshot_internal.h"
 #include "wubu_snapshot_fs.h"
@@ -34,11 +35,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <ftw.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <linux/limits.h>
 

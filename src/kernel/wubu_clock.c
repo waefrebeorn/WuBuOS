@@ -25,11 +25,12 @@
  *   - ds1307, pcf8523, rtc-cmos, ds3231 (precision RTC)
  *   - thermal: /sys/class/thermal, int340x, coretemp, rockchip_thermal
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_clock.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_rtc = 0;

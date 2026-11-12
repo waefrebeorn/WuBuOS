@@ -13,11 +13,12 @@
  * Research (7-hop on the panel frontier):
  *   -DRM panel connector detection
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_panel.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_panel = 0;
 static int  g_lvds = 0;

@@ -2,13 +2,12 @@
  * wubu_deploy_test.c - Unit tests for WuBuOS Multi-Target Deployment
  */
 
+#include "../egojar.h"
 #include "wubu_deploy.h"
 #include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 #define TEST_ASSERT(cond, msg) \
     do { \

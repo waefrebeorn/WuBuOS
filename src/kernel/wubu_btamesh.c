@@ -9,11 +9,11 @@
  *   - /sys/class/bluetooth/hci0: BT adapter presence
  *   - /sys/module/btintel/parameters: Intel BT params
  */
+#include "../egojar.h"
 #include "wubu_btamesh.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_btamesh_present = 0;
 static int g_btamesh_relay = 0;

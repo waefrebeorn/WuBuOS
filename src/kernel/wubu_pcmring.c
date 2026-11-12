@@ -10,11 +10,11 @@
  *   - /proc/asound card pcm sub/sw_params: buffer/period size
  *   - /sys/module/snd_hda_core/parameters: HDA config
  */
+#include "../egojar.h"
 #include "wubu_pcmring.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_pcmring_bufsize = 0;
 static int g_pcmring_period = 0;

@@ -9,11 +9,12 @@
  *   - /sys/class/drm/card0/device/uevent: driver binding
  *   - /sys/class/drm/card0/device/vendor: PCI vendor (0x5143)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_adreno700.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_adreno700_present = 0;
 static int g_adreno700_freedreno = 0;

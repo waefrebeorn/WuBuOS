@@ -18,11 +18,11 @@
  * Research (7-hop on the compressor frontier):
  *   -ALSA compressor limiter DSP
  */
+#include "../egojar.h"
 #include "wubu_compressor.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_comp = 0;        /* compressor present */
 static int  g_thresh = 0;      /* threshold */

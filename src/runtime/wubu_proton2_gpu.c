@@ -4,13 +4,12 @@
  * open /dev/dri. Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_proton2.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 int wubu_gpu_detect(char *name, int name_len, char *pci, int pci_len) {
     /* Scan /sys/class/drm for GPU devices */

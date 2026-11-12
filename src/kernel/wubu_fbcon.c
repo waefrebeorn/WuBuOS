@@ -18,11 +18,11 @@
  *   -FB fbcon rotation
  *   - DRM framebuffer console
  */
+#include "../egojar.h"
 #include "wubu_fbcon.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_fb = 0;          /* fbcon present */
 static int  g_drm = 0;         /* DRM fbcon */

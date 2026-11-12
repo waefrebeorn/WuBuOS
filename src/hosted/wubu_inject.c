@@ -18,11 +18,10 @@
  *
  * C11, minimal includes, self-contained.
  */
+#include "../egojar.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-#include <dlfcn.h>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 #include <time.h>

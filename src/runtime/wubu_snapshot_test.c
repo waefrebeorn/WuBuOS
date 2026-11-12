@@ -6,13 +6,13 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_snapshot.h"
 #include "wubu_snapshot_fs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
 #include <errno.h>
 
 static int g_run = 0, g_pass = 0;

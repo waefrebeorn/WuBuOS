@@ -10,16 +10,13 @@
  * C11, opaque structs, no god headers.
  */
 
+#include "../../egojar.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/inotify.h>
 
 /* ------------------------------------------------------------------- */
 /* WNF state table                                                     */

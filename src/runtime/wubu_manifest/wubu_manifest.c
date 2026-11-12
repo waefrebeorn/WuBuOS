@@ -5,13 +5,12 @@
  * through this module and enforces the required capability BEFORE invoking the
  * handler (capability-only authority, replacing the old uid/permission gate).
  */
+#include "../../egojar.h"
 #include "wubu_manifest_internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 /* Best-effort: create the output directory if missing (idempotent). */
 static void ensure_dir(const char *dir) {

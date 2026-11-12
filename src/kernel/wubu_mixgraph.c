@@ -21,11 +21,12 @@
  *   - ALSA dmix: software mixing fallback
  *   - graph routing: node/link/port topology (pw-dump, pactl)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_mixgraph.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_pipewire = 0;

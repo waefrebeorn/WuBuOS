@@ -9,9 +9,9 @@
  * The ICD chain always appends lvp_icd.json (llvmpipe) as the fallback
  * so the loader always enumerates at least one device.
  */
+#include "../egojar.h"
 #include "wubu_hw_detect.h"
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 /* ---- W4/W5/W6/W7: Vulkan ICD selection ----

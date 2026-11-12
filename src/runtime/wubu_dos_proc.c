@@ -14,6 +14,7 @@
  *
  * Self-contained runtime module. Minimal includes. C11.
  */
+#include "../egojar.h"
 #include "wubu_dos_proc.h"
 #include "wubu_dos_emu.h"
 #include "wubu_container.h"   /* WUBU_PAYLOAD_DOS_* (payload type enum) */
@@ -22,10 +23,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <time.h>
 #include <errno.h>
-#include <sys/stat.h>
 
 /* ------------------------------------------------------------------ */
 /* Opaque state                                                       */

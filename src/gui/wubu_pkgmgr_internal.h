@@ -5,17 +5,14 @@
 #ifndef WUBU_PKGMGR_INTERNAL_H
 #define WUBU_PKGMGR_INTERNAL_H
 
+#include "../egojar.h"
 #include "wubu_pkgmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include <fcntl.h>
 #include <time.h>
 #include <zstd.h>
 #include <sqlite3.h>

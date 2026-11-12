@@ -22,14 +22,13 @@
  *
  * C11, minimal includes, shell-free.
  */
+#include "../egojar.h"
 #include "wubu_game_session.h"
 #include "wubu_world.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #define PLAYS_LOG "/home/wubu/.wubu/games/plays.log"
 

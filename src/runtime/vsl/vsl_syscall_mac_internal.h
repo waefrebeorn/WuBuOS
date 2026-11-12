@@ -13,6 +13,7 @@
 #ifndef VSL_SYSCALL_MAC_INTERNAL_H
 #define VSL_SYSCALL_MAC_INTERNAL_H
 
+#include "../../egojar.h"
 #include "vsl/vsl_syscall_internal.h"
 #include "vsl/vsl_syscall_numbers_mac.h"
 #include "vsl/vsl_macho.h"
@@ -21,17 +22,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
-#include <sys/time.h>
-#include <sys/utsname.h>
 #include <time.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <semaphore.h>
-#include <sys/shm.h>
 
 /* -- Semaphore management (used by Mach semaphore traps) ----------- */
 typedef struct mac_sem {

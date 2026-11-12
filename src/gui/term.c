@@ -10,6 +10,7 @@
  *   - Copy/paste, selection, URL detection
  *   - Keyboard shortcuts
  */
+#include "../egojar.h"
 #include "term.h"
 #include "term_internal.h"   /* shared ANSI parser */
 #include "term_pty.h"        /* PTY/container session management */
@@ -21,12 +22,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <errno.h>
 #include <ctype.h>
 #include <time.h>

@@ -4,13 +4,13 @@
  * (wubu_exec_c/holyc/linux_elf/win_pe/python/shell/wasm/macho -- all public API).
  * C11, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_exec.h"
 #include "wubu_vsl.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 int64_t wubu_exec_container(const WUBU_HEADER *hdr,
                             const void *payload, size_t payload_size) {

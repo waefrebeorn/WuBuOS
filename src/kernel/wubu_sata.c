@@ -22,11 +22,11 @@
  *   - sata_pmp: port multiplier support (CONFIG_SATA_PMP)
  *   - hotplug: libata async scan, /sys/bus/ata/devices/ataN
  */
+#include "../egojar.h"
 #include "wubu_sata.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_sata = 0;

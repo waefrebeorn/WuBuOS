@@ -37,7 +37,7 @@
 #if !defined(_DEFAULT_SOURCE)
 #  define _DEFAULT_SOURCE 1
 #endif
-#if !defined(_GNU_SOURCE) && defined(WUBU_EGOJAR_GNU)
+#if !defined(_GNU_SOURCE)
 #  define _GNU_SOURCE 1
 #endif
 
@@ -51,11 +51,27 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/resource.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/syscall.h>
 #include <sys/prctl.h>
 #include <sys/select.h>
+#include <sys/epoll.h>
+#include <sys/eventfd.h>
+#include <sys/utsname.h>
+#include <sys/sysinfo.h>
+#include <sys/reboot.h>
+#include <sys/vfs.h>
+#include <sys/xattr.h>
+#include <sys/sendfile.h>
+#include <sys/file.h>
+#include <sys/sysmacros.h>
+#include <sys/statfs.h>
+#include <sys/fsuid.h>
+#include <sys/uio.h>
+#include <sys/ptrace.h>
+#include <sys/user.h>
+#include <sys/wait.h>
+#include <sys/inotify.h>
 #include <signal.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -63,11 +79,12 @@
 #include <poll.h>
 #include <errno.h>
 #include <termios.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <getopt.h>
 #include <strings.h>
 #include <zlib.h>
+#include <sys/mount.h>
+#include <linux/mount.h>
+#include <linux/fanotify.h>
 #include <math.h>
 
 #endif /* WUBU_EGOJAR_H */

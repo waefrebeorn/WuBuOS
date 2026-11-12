@@ -9,11 +9,11 @@
  *   - /sys/class/input/js0: gamepad presence
  *   - /sys/class/input/js0/device: gamepad device
  */
+#include "../egojar.h"
 #include "wubu_gamepadbm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_gamepadbm_present = 0;
 static int g_gamepadbm_buttons = 0;

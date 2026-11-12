@@ -16,6 +16,7 @@
  * Target:   run at BOTH 0x00400000 and 0x00420000, entry must return 42 --
  *           the module wrote g=40, then f() read it back and added 2, and the
  *           WHOLE data+call chain is position-independent (no .reloc). */
+#include "../../egojar.h"
 #include "wubu_pe.h"
 #include "holyd.h"
 #include "holyd_codegen.h"
@@ -25,8 +26,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

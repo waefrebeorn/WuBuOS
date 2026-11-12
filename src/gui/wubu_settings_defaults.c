@@ -7,15 +7,13 @@
  * (wubu_settings_internal.h). No JSON read/write, no lifecycle.
  */
 
+#include "../egojar.h"
 #include "wubu_settings_internal.h"
 #include "wubu_theme.h"
 
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 
 /* -- Config Path -------------------------------------------------- */

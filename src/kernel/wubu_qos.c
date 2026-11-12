@@ -21,11 +21,11 @@
  *   - hw_tc: ethtool -k hw-tc-offload
  *   - clsact: the modern ingress/egress filter hook
  */
+#include "../egojar.h"
 #include "wubu_qos.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_tc = 0;           /* tc available */

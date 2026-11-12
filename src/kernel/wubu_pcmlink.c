@@ -8,11 +8,11 @@
  * Impl routing:
  *   - /proc/asound card pcm sub/hw_params: PCM link params
  */
+#include "../egojar.h"
 #include "wubu_pcmlink.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_pcmlink_capture = 0;
 static int g_pcmlink_playback = 0;

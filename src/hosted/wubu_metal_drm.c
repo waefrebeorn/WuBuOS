@@ -13,15 +13,13 @@
  * WUBU_USE_DRM -- no god header, no header leakage.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_metal_drm.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 
 /* The facade owns the display state; this backend only writes into it. */
 extern WubuDisplay g_display;

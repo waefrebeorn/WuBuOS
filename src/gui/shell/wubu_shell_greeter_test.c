@@ -15,6 +15,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include "../../egojar.h"
 #include "wubu_shell_greeter.h"
 #include "wm.h"
 #include "wubu_theme.h"
@@ -23,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { \

@@ -18,11 +18,12 @@
  * Research (7-hop on the mixergraph frontier):
  *   -ALSA mixer control routing
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_mixergraph.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_mix = 0;         /* mixer present */
 static int  g_pb = 0;          /* playback path */

@@ -7,13 +7,13 @@
  *   - a refused default causes poll to re-prime instead of dead-firing
  *   - the /n-visible inspection (name/path/activated/connections) is sane
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wubu_svc_socket.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <errno.h>
 
 #ifndef _GNU_SOURCE

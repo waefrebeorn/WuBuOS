@@ -18,12 +18,12 @@
  * C11, self-contained.
  */
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_runtime.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 /* ---- the native primitives (all personalities share these) ---- */
 

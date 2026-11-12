@@ -11,16 +11,15 @@
  * C11, no nested functions.  Real Linux I/O (Unix sockets), not stubs.
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
+#include <sys/socket.h>
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <fcntl.h>
 
 /* ------------------------------------------------------------------- */
 /* ALPC port table                                                     */

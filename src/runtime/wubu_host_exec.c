@@ -9,6 +9,9 @@
  * 9P namespace: per-container Styx socket mount.
  */
 #define WUBU_HOSTED  /* chroot() is XSI/POSIX, hidden under -std=c11 without this */
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wubu_host_exec.h"
 #include "wubu_secmon.h"
 #include "wubu_std.h"
@@ -16,18 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/stat.h>
-#include <signal.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/mount.h>
-#include <sys/resource.h>
-#include <sys/prctl.h>
 #include "styxfs.h"
 #include "wubu_ct_isolate.h"
 

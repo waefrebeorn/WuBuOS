@@ -10,14 +10,13 @@
  * C11, no nested functions.
  */
 
+#include "../../egojar.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/mman.h>
 #include <linux/memfd.h>
 
 #define NT_ENCLAVE_MAX  16

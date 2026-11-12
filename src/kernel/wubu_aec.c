@@ -21,11 +21,11 @@
  *   - PulseAudio module-echo-cancel
  *   - algorithms: speexDSP, RNNoise
  */
+#include "../egojar.h"
 #include "wubu_aec.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_aec = 0;         /* AEC engine */

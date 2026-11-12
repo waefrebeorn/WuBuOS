@@ -26,11 +26,12 @@
  *   - bmp280/bme280: Bosch pressure + temp + humidity
  *   - bmc150, ak8963 (mag), apds9960 (ALS/prox/gesture)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_sensor.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- IIO device classes (matched by sysfs presence) ---- */
 #define SENSOR_ACCEL   (1<<0)

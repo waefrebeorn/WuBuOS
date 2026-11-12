@@ -10,12 +10,10 @@
  * run_argv() it cannot, because the child execs the binary directly
  * with the string as a single argv element.
  */
+#include "../egojar.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
 
 /* forward decl — same signature as wubu_archd_util.c / wubu_arch.h */
 extern int run_argv(const char *file, char *const argv[]);

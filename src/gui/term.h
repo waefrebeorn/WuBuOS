@@ -14,6 +14,8 @@
 #ifndef WUBU_DOSGUI_TERM_H
 #define WUBU_DOSGUI_TERM_H
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -28,7 +30,6 @@
 #define TERM_SEARCH_BUF         128
 
 /* Include for pid_t */
-#include <sys/types.h>
 
 /* -- Tab/Session Types -------------------------------------------- */
 

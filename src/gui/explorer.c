@@ -15,6 +15,7 @@
  *   - Drive/Volume list (from Styx/9P namespace)
  */
 
+#include "../egojar.h"
 #include "explorer.h"
 #include "explorer_internal.h"
 #include "wm.h"
@@ -26,17 +27,11 @@
 #include <ctype.h>
 #include <time.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <errno.h>
 #include <libgen.h>
 #include <pwd.h>
 #include <grp.h>
-#include <fcntl.h>
 #include <limits.h>
-#include <sys/wait.h>
-#include <dlfcn.h>
 #include <stdint.h>
 #include <zlib.h>
 #include <stdlib.h>

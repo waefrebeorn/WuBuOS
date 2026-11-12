@@ -6,6 +6,7 @@
  * C dispatcher routes to registered handlers or preemptive scheduler.
  */
 
+#include "../egojar.h"
 #include "interrupt.h"
 #include "interrupt_apic.h"
 #include "interrupt_pic.h"
@@ -15,7 +16,6 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <signal.h>
 
 /* Forward declare InterruptFrame for the dispatcher */
 struct InterruptFrame;

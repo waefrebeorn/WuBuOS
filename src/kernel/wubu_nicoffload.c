@@ -26,11 +26,11 @@
  *   - scaling.rst: RSS, RPS, RFS, XPS (kernel networking)
  *   - ixgbe/i40e/igc: Intel NICs with TSO/GRO/RSS
  */
+#include "../egojar.h"
 #include "wubu_nicoffload.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

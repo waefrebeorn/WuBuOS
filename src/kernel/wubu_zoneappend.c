@@ -9,11 +9,11 @@
  *   - /sys/block/nvme0n1/queue/zoned: zone control type
  *   - /proc/mdstat: zone device presence
  */
+#include "../egojar.h"
 #include "wubu_zoneappend.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_zoneappend_present = 0;
 static int g_zoneappend_zoned = 0;

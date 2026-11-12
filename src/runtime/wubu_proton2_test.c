@@ -3,12 +3,10 @@
  *
  * Cell 399: Proton runs as real Arch container with Wine + DXVK.
  */
+#include "../egojar.h"
 #include "wubu_proton2.h"
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 static int pass = 0, fail = 0;
 #define TEST(name) printf("  TEST Cell399: %-55s", name)

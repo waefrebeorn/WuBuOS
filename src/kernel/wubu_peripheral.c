@@ -19,11 +19,11 @@
  * WuBuOS owns this: probe the peripheral bus, route to the right driver,
  * and expose the hwmon + GPIO topology to the Brain.
  */
+#include "../egojar.h"
 #include "wubu_peripheral.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
 
 /* ---- PCI classes for peripheral controllers ---- */

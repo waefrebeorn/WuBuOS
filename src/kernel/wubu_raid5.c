@@ -19,11 +19,11 @@
  *   -software RAID5 stripe cache
  *   - RAID layout
  */
+#include "../egojar.h"
 #include "wubu_raid5.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_raid5 = 0;       /* RAID5 present */
 static int  g_stripe = 0;      /* stripe cache */

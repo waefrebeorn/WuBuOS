@@ -7,11 +7,10 @@
  * using its own private SQLite callbacks.
  */
 
+#include "../egojar.h"
 #include "wubu_pkgmgr_internal.h"
 
 #include <glob.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 /* -- Private SQLite callbacks (file-local, no symbol clash) ------- */
 

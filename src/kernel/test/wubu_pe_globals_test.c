@@ -19,6 +19,7 @@
  * hd_write_pe (carries .text + .data, disp32 fixed against data RVA) ->
  * wubu_pe_parse/sections/map/relocate/call_entry at 0x00400000 and 0x00420000
  * -> then read mapped .data[0..7] and assert it holds 40 in BOTH mappings. */
+#include "../../egojar.h"
 #include "wubu_pe.h"
 #include "holyd.h"
 #include "holyd_codegen.h"
@@ -28,8 +29,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

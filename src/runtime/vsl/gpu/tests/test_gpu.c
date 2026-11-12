@@ -2,10 +2,10 @@
  * VSL GPU Test - Validates DRM/KMS backend on WSL
  */
 
+#include "../../../../egojar.h"
 #include "wubu_vsl_gpu.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 int main() {
     printf("=== VSL GPU Test ===\n\n");

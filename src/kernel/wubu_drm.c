@@ -21,11 +21,12 @@
  * Research (7-hop on the drm frontier):
  *   -Direct Rendering Manager DRM
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_drm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_drm = 0;         /* DRM present */
 static int  g_kms = 0;         /* KMS */

@@ -10,6 +10,7 @@
 #define WUBU_HOSTED   /* sched_setaffinity / CPU_ZERO (host reader pool) */
 #endif
 
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "wubu_dram_hedge.h"
 
@@ -18,8 +19,6 @@
 #include <stdio.h>
 
 #if defined(__linux__)
-#include <sys/mman.h>
-#include <unistd.h>
 #endif
 
 /* DRAM refresh probe (clflush+reload) is guarded: the kernel metal build
@@ -186,7 +185,6 @@ wdh_hedge_t *wdh_create(size_t elem_size, unsigned num_replicas)
  */
 #if defined(__linux__) && !defined(WUBU_DRAM_HEDGE_NOTHREADS)
 #define WDH_READER_THREADS 1
-#include <pthread.h>
 #include <sched.h>
 #endif
 

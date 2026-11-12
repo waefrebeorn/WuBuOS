@@ -9,17 +9,14 @@
  * Uses shared wubu_ct_wait/kill/state from wubu_host_exec.c
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_host_exec.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 
 /* -- Internal: Build bwrap command line ------------------------------ */

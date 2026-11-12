@@ -7,16 +7,13 @@
  * interpreted). This is the behavioral lock that replaces every former
  * system("cmd") call in the tree.
  */
+#include "../egojar.h"
 #include "wubu_spawn.h"
 #include "wubu_netlink.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 
 static int failures = 0;
 #define CHECK(cond, msg) do { \

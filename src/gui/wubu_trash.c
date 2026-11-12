@@ -1,3 +1,4 @@
+#include "../egojar.h"
 #include "wubu_trash.h"
 #include "wubu_theme.h"
 #include "wubu_settings.h"
@@ -6,10 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <dirent.h>
-#include <fcntl.h>
 #include <libgen.h>
 #include <errno.h>
 

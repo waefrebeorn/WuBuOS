@@ -9,11 +9,12 @@
  *   - /usr/lib/libOpenCL.so: ICD loader presence
  *   - clinfo binary: platform detection
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_opencl.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_opencl_present = 0;
 static int g_opencl_amd = 0;

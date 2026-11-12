@@ -4,11 +4,11 @@
  * wubu_cap_resolve(pid, tok, rights) gate, so a revoked handle denies access
  * while the object record survives. Self-contained C11, no god headers.
  */
+#include "../../egojar.h"
 #include "wubu_win32k.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <pthread.h>
 
 /* Per-object rights (subtype-specific). */
 #define WK_R_STATION (WUBU_RIGHT_READ | WUBU_RIGHT_WRITE)

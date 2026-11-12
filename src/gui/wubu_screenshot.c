@@ -1,3 +1,4 @@
+#include "../egojar.h"
 #include "wubu_screenshot.h"
 #include "wubu_screenshot_internal.h"
 #include "wm.h"
@@ -8,8 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <linux/limits.h>
 #include <math.h>
 #include <zlib.h>

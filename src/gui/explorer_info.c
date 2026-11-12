@@ -4,12 +4,12 @@
  * (ex_9p_stat, ex_get_extension, explorer_type_color).
  * C11, minimal includes.
  */
+#include "../egojar.h"
 #include "explorer.h"
 #include "explorer_internal.h"
 
 #include <string.h>
 #include <stdio.h>
-#include <sys/stat.h>
 
 void ex_get_file_info(const char *path, ExEntry *entry) {
     struct stat st;

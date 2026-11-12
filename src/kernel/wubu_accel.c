@@ -22,12 +22,12 @@
  *   - amd/xdna-driver: AMD Ryzen AI NPU (XDNA, XDNA2, Strix Point)
  *   - NVDLA (NVIDIA open accelerator), Qualcomm Hexagon SDK
  */
+#include "../egojar.h"
 #include "wubu_accel.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- PCI classes: accelerators ---- */
 #define PCI_CLASS_COMPUTE  0x12   /* Processing accelerators */

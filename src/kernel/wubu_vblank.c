@@ -19,11 +19,12 @@
  * Research (7-hop on the vblank frontier):
  *   -drm_vblank.c VBLANK interrupt
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_vblank.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_vbl = 0;         /* VBLANK present */
 static int  g_counter = 0;     /* vblank counter */

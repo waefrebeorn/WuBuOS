@@ -19,11 +19,11 @@
  *   - ALSA SoC DAPM widget
  *   - widget power state
  */
+#include "../egojar.h"
 #include "wubu_dapmwidget.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_dapm = 0;        /* DAPM present */
 static int  g_widget = 0;      /* widget */

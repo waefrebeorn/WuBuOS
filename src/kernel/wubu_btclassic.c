@@ -9,11 +9,12 @@
  *   - /sys/class/bluetooth/hci0: BT adapter presence
  *   - /proc/net/bt: BT connection state
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_btclassic.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_btclassic_present = 0;
 static int g_btclassic_classic = 0;

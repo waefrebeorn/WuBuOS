@@ -21,11 +21,11 @@
  *  - DAX filesystem mapping
  *   - ext4/xfs dax
  */
+#include "../egojar.h"
 #include "wubu_dax.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 static int  g_dax = 0;         /* DAX present */

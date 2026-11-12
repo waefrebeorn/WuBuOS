@@ -11,6 +11,8 @@
  * C11, minimal includes, uses the public DosGui window API only.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "music.h"
 #include "../gui/wm.h"
 #include "../gui/wm_internal.h"
@@ -21,10 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
-#include <unistd.h>
 
 #define MUSIC_MAX   128
 #define MUSIC_DIR   "/home/wubu/.wubu/music"

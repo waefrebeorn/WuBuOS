@@ -7,14 +7,14 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_holyd.h"
 #include "../jit/jit.h"
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 

@@ -9,11 +9,11 @@
  *   - /proc/mounts dm-* entries: mounted LVM volumes
  *   - /sys/block dm-x/dm/uuid: DM UUID (LVM_ prefix)
  */
+#include "../egojar.h"
 #include "wubu_lvm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 static int g_lvm_vg_count = 0;

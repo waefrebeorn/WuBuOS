@@ -9,6 +9,7 @@
  * legitimate GNU-surface use, kept localized. */
 #define WUBU_HOSTED
 
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "ct_iso_seccomp.h"
 #include "ct_iso_ns.h"          /* wubu_ns_unshare, WUBU_NS_FLAGS */
@@ -16,13 +17,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 #include <linux/seccomp.h>
 #include <linux/filter.h>
 #include <linux/audit.h>
-#include <sys/prctl.h>
-#include <sys/syscall.h>
 
 /* ===================================================================
  * SECCOMP BPF FILTER INFRASTRUCTURE

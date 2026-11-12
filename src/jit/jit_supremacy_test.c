@@ -6,12 +6,12 @@
  *
  * This is the ultimate correctness test: any divergence = bug.
  */
+#include "../egojar.h"
 #include "jit.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 static int pass, fail, total;
 #define CHECK(c,m) do{total++;if(c){pass++;}else{fail++;printf("  FAIL: %s (gcc=%ld wubu=%ld)\n",m,(long)gcc_r,(long)wubu_r);}}while(0)

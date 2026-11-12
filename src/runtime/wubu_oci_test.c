@@ -2,13 +2,13 @@
  * wubu_oci_test.c  --  Tests for OCI runtime
  */
 
+#include "../egojar.h"
 #include "wubu_oci.h"
 #include "wubu_image.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 static int pass = 0, fail = 0;
 #define TEST(name) printf("  TEST OCI: %-55s", name)

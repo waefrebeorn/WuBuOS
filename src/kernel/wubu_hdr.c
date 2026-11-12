@@ -29,11 +29,12 @@
  *   - ASoC jack: snd_soc_jack detection
  *   - HDA jack: hda jack (headphone/mic)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_hdr.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_hdr10 = 0;       /* HDR10 (static metadata) */

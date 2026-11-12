@@ -20,11 +20,11 @@
  *   - BFQ
  *   - mq-deadline
  */
+#include "../egojar.h"
 #include "wubu_storagesched.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_ss = 0;          /* storage scheduler present */
 static int  g_mq = 0;          /* multi-queue */

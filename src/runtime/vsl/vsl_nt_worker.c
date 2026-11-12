@@ -8,6 +8,7 @@
  * 7 syscalls (Windows 11 24H2 ordinals 1-486).
  */
 
+#include "../../egojar.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include "vsl_nt_ordinal_translate.h"
@@ -15,8 +16,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
-#include <pthread.h>
 #include <stdatomic.h>
 
 #define NT_WORKER_MAX  16

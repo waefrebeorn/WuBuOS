@@ -13,12 +13,11 @@
  * Services are real host binaries (/bin/sleep, /bin/true) with
  * exec_path passed explicitly — no Arch root needed for the test.
  */
+#include "../egojar.h"
 #include "wubu_archd_svc.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <sys/wait.h>
 
 #define ROOT "testroot"
 

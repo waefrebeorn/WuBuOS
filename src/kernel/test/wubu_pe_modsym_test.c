@@ -10,13 +10,13 @@
  * so the mechanism here is exactly what a loaded holyd PE uses.
  *
  * Kernel-clean: links wubu_pe.c + wubu_modsym.c only. */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "wubu_pe.h"
 #include "wubu_modsym.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

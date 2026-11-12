@@ -13,17 +13,14 @@
  * Packages use pacman inside the chroot.
  * This is exactly what makepkg and arch-chroot do.
  */
+#include "../egojar.h"
 #include "wubu_arch.h"
 #include "wubu_spawn.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <errno.h>
-#include <fcntl.h>
 
 /* -- Helper: mkdir -p --------------------------------------------- */
 

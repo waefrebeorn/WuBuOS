@@ -8,13 +8,13 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_system.h"
 #include "wubu_snapshot.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 
 /* The system root is tracked as a single pseudo-container in the manager. */

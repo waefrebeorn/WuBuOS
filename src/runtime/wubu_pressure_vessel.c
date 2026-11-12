@@ -20,14 +20,14 @@
  *
  * C11, self-contained.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_host_exec.h"
 
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <signal.h>
 
 /* the runtime base + the game lib layer */
 typedef struct {

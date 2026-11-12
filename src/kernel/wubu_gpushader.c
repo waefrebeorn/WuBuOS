@@ -9,11 +9,11 @@
  *   - /sys/class/drm/card0/device/uevent: driver version
  *   - /sys/class/drm/card0/device/hardware_rev: GPU revision
  */
+#include "../egojar.h"
 #include "wubu_gpushader.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_gpushader_present = 0;
 static int g_gpushader_model = 0;

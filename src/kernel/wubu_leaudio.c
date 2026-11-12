@@ -9,11 +9,11 @@
  *   - /sys/class/bluetooth/hci0: BT adapter presence
  *   - /sys/module/btintel/parameters: Intel BT params
  */
+#include "../egojar.h"
 #include "wubu_leaudio.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_leaudio_present = 0;
 static int g_leaudio_lc3 = 0;

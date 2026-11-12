@@ -12,6 +12,7 @@
  * the same loop (read file -> compile -> emit -> /n -> register -> run) carries
  * it. Links the compiler (holyd_pe/emitter) with the /n loader + module registry.
  */
+#include "../../egojar.h"
 #include "wubu_session_boot.h"
 #include "wubu_applaunch.h"
 #include "wubu_xdg_autostart.h"
@@ -27,9 +28,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

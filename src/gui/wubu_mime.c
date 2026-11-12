@@ -1,3 +1,4 @@
+#include "../egojar.h"
 #include "wubu_mime_internal.h"
 #include "wubu_mime.h"
 #include "wubu_settings.h"
@@ -5,11 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <ctype.h>
 #include <glob.h>
-#include <strings.h>
 
 /* ============================================================
  * Internal State

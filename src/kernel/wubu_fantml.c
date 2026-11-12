@@ -10,11 +10,11 @@
  *   - /sys/class/hwmon hwmon fan_input: fan RPM
  *   - /sys/class/hwmon hwmon pwm: fan PWM control
  */
+#include "../egojar.h"
 #include "wubu_fantml.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_gpu_temp = 0;
 static int g_fan_rpm = 0;

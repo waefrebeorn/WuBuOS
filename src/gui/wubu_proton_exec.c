@@ -6,14 +6,12 @@
  * Minimal includes.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_proton_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 #include <errno.h>
 
 static int run_wine_command(const char *prefix_id, const char *const argv[], bool wait) {

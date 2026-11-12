@@ -4,12 +4,12 @@
  * lists, reads and writes through the same five ops, and an unknown kind is
  * refused (an error, never a fallback).  That is the slerm of the ethos.
  */
+#include "../../egojar.h"
 #include "wubu_container_universal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 static int failures, checks;
 #define CHECK(c, m) do { checks++; if (!(c)) { printf("  FAIL: %s\n", m); failures++; } } while (0)

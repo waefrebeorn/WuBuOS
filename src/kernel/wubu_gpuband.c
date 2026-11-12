@@ -16,11 +16,11 @@
  *   - amdgpu_sched HILE/NORMAL/LOW
  *   - i915 request priority
  */
+#include "../egojar.h"
 #include "wubu_gpuband.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_band = 0;        /* priority bands */
 static int  g_fair = 0;        /* fair scheduling */

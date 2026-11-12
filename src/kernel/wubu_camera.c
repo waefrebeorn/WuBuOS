@@ -26,11 +26,11 @@
  *   - imx219/ov5640: MIPI-CSI sensor drivers
  *   - vimc/vivid: virtual media controllers (testing)
  */
+#include "../egojar.h"
 #include "wubu_camera.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_v4l2 = 0;

@@ -22,11 +22,11 @@
  *   - NVMe FLUSH (0x00), SATA FLUSH CACHE EXT
  *   - dm-flush, dm-integrity
  */
+#include "../egojar.h"
 #include "wubu_flush.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

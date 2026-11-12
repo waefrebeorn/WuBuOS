@@ -19,11 +19,12 @@
  *   - HDR10: PQ transfer, SDR luminance, master display metadata
  *   - DRM planes: drm_plane, OVERLAY/CURSOR planes, zpos
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_drmx.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_writeback = 0;

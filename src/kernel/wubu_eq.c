@@ -22,11 +22,11 @@
  *   - PipeWire/EasyEffects: software parametric EQ
  *   - SOF DSP: firmware coefficient programming
  */
+#include "../egojar.h"
 #include "wubu_eq.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_alsa_eq = 0;     /* ALSA hardware EQ */

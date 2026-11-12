@@ -19,11 +19,11 @@
  *   -Linux writeback dirty pages
  *   - kernel flush cache
  */
+#include "../egojar.h"
 #include "wubu_writeback.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_wb = 0;          /* writeback present */
 static int  g_dirty = 0;       /* dirty pages */

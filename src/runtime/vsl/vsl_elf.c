@@ -2,6 +2,7 @@
  * vsl_elf.c  --  VSL ELF Loading Implementation
  */
 
+#include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_elf.h"
 
@@ -9,7 +10,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <sys/mman.h>
 
 /* Global state */
 extern VSL_STATE g_vsl;

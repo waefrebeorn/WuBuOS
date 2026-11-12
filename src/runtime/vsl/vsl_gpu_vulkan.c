@@ -7,6 +7,7 @@
  * Supports sync fd export/import for explicit sync.
  */
 
+#include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_gpu_vulkan.h"
 #include "vsl/vsl_driver.h"
@@ -17,9 +18,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <stdbool.h>
 
 /* ================================================================

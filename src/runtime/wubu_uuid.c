@@ -12,13 +12,12 @@
  *   Robustness: falls back to /dev/urandom + counter if clock fails.
  */
 
+#include "../egojar.h"
 #include "wubu_uuid.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 /* Thread-local monotonic counter (84 bits: 12-bit rand_a + 62-bit rand_b) */
 static uint32_t g_uuid_counter_low = 0;

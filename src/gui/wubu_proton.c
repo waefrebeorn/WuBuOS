@@ -1,12 +1,11 @@
 #define _XOPEN_SOURCE 500
+#include "../egojar.h"
 #include "wubu_proton.h"
 #include "wubu_settings.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <time.h>
 #include <errno.h>
 #include <glob.h>

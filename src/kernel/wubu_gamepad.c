@@ -28,11 +28,11 @@
  *   - g29_ff, hid-tmff: racing wheels + force feedback
  *   - DSC: drm_dsc, i915 DSC, amdgpu DSC (eDP/DP 1.4)
  */
+#include "../egojar.h"
 #include "wubu_gamepad.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_gamepad = 0;

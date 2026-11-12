@@ -6,13 +6,10 @@
  * Replaces libgbm for SteamOS/Steam Deck compatibility.
  */
 
+#include "../egojar.h"
 #include "wubu_gbm.h"
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/ioctl.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <errno.h>

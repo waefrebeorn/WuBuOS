@@ -19,11 +19,11 @@
  *   - UAC1/UAC2/UAC3
  *   - USB audio endpoint
  */
+#include "../egojar.h"
 #include "wubu_uac.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 static int  g_uac = 0;         /* UAC present */

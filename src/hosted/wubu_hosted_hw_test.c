@@ -7,6 +7,8 @@
  * hardcoded expectation; this cannot). It also drives wubu_world.c end to
  * end -- the AGI's world snapshot must agree with the same probes.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "../kernel/wubu_drv_nvme.h"
 #include "../kernel/wubu_drv_net.h"
 #include "../kernel/wubu_drv_gpu.h"
@@ -20,7 +22,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <dirent.h>
-#include <unistd.h>
 
 static int failures;
 static int checks;

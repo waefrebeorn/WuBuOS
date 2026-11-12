@@ -8,20 +8,18 @@
  * 4 syscalls (Windows 11 24H2 ordinals 179-460).
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/mman.h>
 
 /* Use Linux io_uring if available, fall back to eventfd if not */
 #ifdef __linux__
 #include <linux/io_uring.h>
-#include <sys/syscall.h>
 /* Direct syscall wrappers for io_uring */
 static int io_uring_setup(unsigned entries, struct io_uring_params *p) {
     return syscall(__NR_io_uring_setup, entries, p);

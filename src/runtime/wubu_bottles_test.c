@@ -4,12 +4,11 @@
  * Cell 480: Bottles and Lutris compatibility via .wubu containers.
  */
 
+#include "../egojar.h"
 #include "wubu_bottles.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 static int pass = 0, fail = 0;
 #define TEST(name) printf("  TEST Cell480: %-55s", name)

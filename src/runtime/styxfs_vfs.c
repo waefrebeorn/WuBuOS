@@ -3,6 +3,7 @@
  * Extracted from the monolithic styxfs.c. Self-contained: depends only on
  * styxfs.h / styxfs_server.h / styxfs_internal.h. C11, no god headers.
  */
+#include "../egojar.h"
 #include "styxfs.h"
 #include "styxfs_internal.h"
 #include <stdlib.h>
@@ -10,10 +11,6 @@
 #include <stdio.h>
 #include <time.h>
 #include <dirent.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <string.h>
 
 /* -- Internal Helpers ------------------------------------------ */

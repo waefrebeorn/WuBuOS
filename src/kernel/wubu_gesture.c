@@ -6,16 +6,14 @@
  * filesystem, and it degrades to "no touchpad" rather than failing.
  */
 
+#include "../egojar.h"
 #include "wubu_gesture.h"
 
 #include <math.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/ioctl.h>
 
 #include <linux/input.h>
 

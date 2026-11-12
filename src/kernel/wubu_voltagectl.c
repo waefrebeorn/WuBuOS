@@ -8,11 +8,11 @@
  * Impl routing:
  *   - /sys/class/hwmon hwmon in*_input: voltage rail
  */
+#include "../egojar.h"
 #include "wubu_voltagectl.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vddc_present = 0;
 static int g_vddgfx_present = 0;

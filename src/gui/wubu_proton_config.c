@@ -5,11 +5,11 @@
  * Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_proton_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 int wubu_proton_save_config(void) {
     char config_path[PROTON_PATH_MAX];

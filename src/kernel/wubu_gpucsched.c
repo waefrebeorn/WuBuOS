@@ -9,11 +9,11 @@
  *   - /sys/class/drm card0/device (compute engine presence)
  *   - /dev/dri renderD128: compute render node
  */
+#include "../egojar.h"
 #include "wubu_gpucsched.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_gpucsched_queues = 0;
 static int g_gpucsched_preempt = 0;

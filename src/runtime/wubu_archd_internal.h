@@ -7,15 +7,13 @@
 #ifndef WUBU_ARCHD_INTERNAL_H
 #define WUBU_ARCHD_INTERNAL_H
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_archd.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 
 /* -- Process / fs helpers (wubu_archd_util.c) --------------------- */
 int  run_cmd(const char *cmd);

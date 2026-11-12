@@ -1,11 +1,11 @@
 #ifndef WUBU_TRASH_H
 #define WUBU_TRASH_H
 
+#include "../egojar.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <time.h>
-#include <sys/types.h>
 
 /* -- Trash Constants ------------------------------------------------ */
 

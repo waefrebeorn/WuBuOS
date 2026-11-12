@@ -3,16 +3,13 @@
  * The cgroup create/set/attach ops live in wubu_ct_isolate_cgroup.c.
  */
 
+#include "../egojar.h"
 #include "ct_iso_cgroup.h"
 #include "wubu_ct_isolate.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <errno.h>
 
 int wubu_cgroup_write(const char *path, const char *value) {

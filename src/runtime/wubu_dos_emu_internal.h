@@ -4,6 +4,7 @@
  * No function bodies here (keeps modules independent + link-clean). */
 #ifndef WUBU_DOS_EMU_INTERNAL_H
 #define WUBU_DOS_EMU_INTERNAL_H
+#include "../egojar.h"
 #include "wubu_dos_emu.h"
 #include "wubu_dos_font.h"
 #include <stdint.h>
@@ -12,10 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
 #include <time.h>
 
 #define F_CF 0x0001

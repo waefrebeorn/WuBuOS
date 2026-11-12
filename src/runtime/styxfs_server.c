@@ -11,6 +11,7 @@
  *   - VSL process namespace as 9P files
  */
 
+#include "../egojar.h"
 #include "styx.h"
 #include "../kernel/wubu_kvfs.h"
 
@@ -18,10 +19,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
 #include <libgen.h>

@@ -5,12 +5,11 @@
  * types + file/command util helpers via wubu_deploy_internal.h. Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_deploy_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 bool wubu_deploy_generate_limine_conf(const char* output_path, const char* kernel_cmdline) {
     char content[4096];

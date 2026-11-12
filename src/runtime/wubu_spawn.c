@@ -4,11 +4,9 @@
  * See wubu_spawn.h. Dependency-free: only POSIX fork/exec/wait + open,
  * so any target can link this without pulling in container/compiler code.
  */
+#include "../egojar.h"
 #include "wubu_spawn.h"
 
-#include <unistd.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <errno.h>
 

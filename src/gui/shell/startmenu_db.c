@@ -11,6 +11,7 @@
  * wubu_theme, wubu_mime, and libc.  No GUI render/input code lives here.
  */
 
+#include "../../egojar.h"
 #include "./startmenu_internal.h"
 #include "./startmenu.h"
 #include "./desktop.h"
@@ -24,7 +25,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <dirent.h>
-#include <sys/stat.h>
 
 /* The applet registry lives in src/apps/apps.c, which drags in the whole app
  * set (wm, vbe, containers, cmd, calc, ...).  The start menu links WITHOUT it,

@@ -19,11 +19,11 @@
  *   - DMA fence synchronization
  *   - GPU fence wait timeout
  */
+#include "../egojar.h"
 #include "wubu_fencesync.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_fence = 0;       /* fence present */
 static int  g_timeline = 0;    /* timeline */

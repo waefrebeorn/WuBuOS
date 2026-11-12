@@ -13,6 +13,7 @@
  *  4. assert KV-FS got the platform + gpu state
  *  5. cross-check with the GPU backend init
  */
+#include "../../egojar.h"
 #include "wubu_hw_detect.h"
 #include "wubu_drv_gpu.h"
 #include "../kernel/wubu_kvfs.h"
@@ -20,7 +21,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 static int failures = 0;
 #define CHECK(cond, msg) \

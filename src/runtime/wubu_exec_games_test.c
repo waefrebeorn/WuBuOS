@@ -9,6 +9,7 @@
  *
  * C11. Minimal link set: wubu_exec.c + wubu_host_exec.c + wubu_ct_native.
  */
+#include "../egojar.h"
 #include "wubu_exec.h"
 #include "wubu_test.h"
 #include "wubu_container.h"
@@ -22,8 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 /* FAIL: use wubu_test.h */
 

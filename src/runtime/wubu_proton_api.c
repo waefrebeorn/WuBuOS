@@ -6,10 +6,11 @@
  * diagnostics, and DXVK config stay in wubu_proton.c.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_proton.h"
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <stdio.h>
 
 /* -- Built-in API Translation Table -------------------------- */

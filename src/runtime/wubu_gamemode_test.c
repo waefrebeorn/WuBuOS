@@ -10,12 +10,12 @@
  *   3. deactivate RESTORES 'ondemand' + boost 0 (never guesses)
  *   4. the active flag toggles correctly
  */
+#include "../egojar.h"
 #include "wubu_gamemode.h"
 #include "wubu_test.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
 #define ROOT "/tmp/gmtest"
 

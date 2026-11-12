@@ -26,11 +26,11 @@
  *   - RFS/aRFS: receive flow steering (networking scaling.rst)
  *   - ethtool -N: NIC flow rules
  */
+#include "../egojar.h"
 #include "wubu_pd.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_typec = 0;

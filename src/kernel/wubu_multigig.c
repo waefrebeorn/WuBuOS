@@ -22,11 +22,11 @@
  *   - x550: Intel 2.5G integrated
  *   - 802.3bz: 2.5G/5GBase-T (NBASE-T) standard
  */
+#include "../egojar.h"
 #include "wubu_multigig.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_multigig = 0;

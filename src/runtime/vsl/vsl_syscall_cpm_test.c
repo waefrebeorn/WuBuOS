@@ -7,14 +7,13 @@
  * search-first. No stubs.
  */
 
+#include "../../egojar.h"
 #include "vsl/vsl_syscall_cpm_internal.h"
 #include "vsl/vsl_syscall_internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int g_fail = 0;
 #define CHECK(cond, msg) do { \

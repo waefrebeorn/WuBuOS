@@ -6,14 +6,12 @@
  * OnlyShowIn, NotShowIn, X-GNOME-Autostart-enabled) and build a launch argv.
  * C11, read-only + malloc-free on the file path (fixed buffers).
  */
+#include "../egojar.h"
 #include "wubu_xdg_autostart.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <limits.h>

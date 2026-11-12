@@ -5,6 +5,7 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include "../../egojar.h"
 #include "./wubu_notify.h"
 #include "../wubu_settings.h"
 #include "../wm.h"
@@ -14,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 /* -- Constants ---------------------------------------------------- */
 

@@ -20,11 +20,11 @@
  *   - i915 power well
  *   - runtime PM suspend
  */
+#include "../egojar.h"
 #include "wubu_powergate.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_pg = 0;          /* power gate present */
 static int  g_runtime = 0;     /* runtime PM */

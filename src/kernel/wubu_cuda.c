@@ -10,11 +10,12 @@
  *   - /usr/lib/libcuda.so: CUDA driver library
  *   - /proc/driver/nvidia/gpus: GPU enumeration
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_cuda.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_cuda_present = 0;
 static int g_cuda_cuda = 0;

@@ -15,12 +15,12 @@
  *   - SR-IOV: sriov_numvfs sysfs node; ixgbe/i40e/ice PF
  *   - VF: virtio or VF drivers (ixgbevf, i40evf, ice_vf)
  */
+#include "../egojar.h"
 #include "wubu_psr.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_psr = 0;

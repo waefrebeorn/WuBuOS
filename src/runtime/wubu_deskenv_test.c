@@ -3,11 +3,11 @@
  * owner per named slot, late claim refused) + desktop ownership (nemo-desktop:
  * one owner), and the /n/background/de publish surface.
  */
+#include "../egojar.h"
 #include "wubu_deskenv.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

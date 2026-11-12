@@ -8,16 +8,14 @@
  * validates/maps PE binaries, resolves DLLs.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_proton.h"
 #include "wubu_dxvk_conf.h"
 #include "wubu_proton_dxvk.h"
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <errno.h>
 
 /* Win32->VSL API translation table + register/translate/load APIs moved to

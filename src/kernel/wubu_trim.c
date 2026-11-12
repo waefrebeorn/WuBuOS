@@ -28,11 +28,12 @@
  *   - DisplayPort alt mode over USB-C
  *   - Thunderbolt via USB-C (TB3/4)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_trim.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_trim = 0;        /* TRIM supported */

@@ -18,11 +18,11 @@
  *   - 802.1Qbb PFC (priority-based)
  *   - autonegotiation of pause
  */
+#include "../egojar.h"
 #include "wubu_fc.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_fc = 0;          /* flow control */

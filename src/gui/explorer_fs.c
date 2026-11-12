@@ -6,8 +6,7 @@
  * styxfs API via extern decls. Minimal includes, no god headers.
  */
 
-#include <sys/stat.h>
-#include <sys/types.h>
+#include "../egojar.h"
 #include <dirent.h>
 #include <string.h>
 #include <stdint.h>

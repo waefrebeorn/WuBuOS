@@ -22,11 +22,11 @@
  *   - PipeWire compressor/sidechain
  *   - dB gain, threshold, ratio, attack, release
  */
+#include "../egojar.h"
 #include "wubu_ducking.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_ducking = 0;     /* ducking present */
 static int  g_comp = 0;        /* compressor */

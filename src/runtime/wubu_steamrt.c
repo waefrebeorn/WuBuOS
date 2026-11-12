@@ -22,12 +22,12 @@
  *
  * C11, self-contained.
  */
+#include "../egojar.h"
 #include "wubu_steamrt.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- the canonical sniper lib manifest (mined from the real repo) ----
  * The GAMING-CRITICAL subset (the full 378-lib list is in

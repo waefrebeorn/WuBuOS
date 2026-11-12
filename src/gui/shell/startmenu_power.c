@@ -2,7 +2,7 @@
  *
  * Self-contained: power action handling (shutdown/restart/logoff/sleep) and
  * the power-options render. Uses g_open (extern in ./startmenu_internal.h)
- * and the public shutdown()/startmenu_close() API. Minimal includes.
+ * and the public wubu_shutdown()/startmenu_close() API. Minimal includes.
  */
 
 #include "./startmenu_internal.h"
@@ -11,10 +11,10 @@
 void startmenu_power(PowerAction action) {
     switch (action) {
         case PWR_SHUTDOWN:
-            shutdown();
+            wubu_shutdown();
             break;
         case PWR_RESTART:
-            shutdown();
+            wubu_shutdown();
             break;
         case PWR_LOGOFF:
             break;

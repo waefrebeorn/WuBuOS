@@ -5,16 +5,13 @@
  * Self-contained ZIP central directory parsing + libzip dlopen wrapper
  */
 
+#include "../egojar.h"
 #include "explorer_internal.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <ctype.h>
 #include <time.h>
 

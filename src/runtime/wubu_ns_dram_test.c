@@ -8,6 +8,7 @@
  *   3. reading /n/dram/status reflects the put
  *   4. ctrl round-trips (echo "idx:value" -> put -> read back)
  */
+#include "../egojar.h"
 #include "wubu_ns_bridge_internal.h"
 #include "wubu_test.h"
 #include "wubu_ns_dram.h"
@@ -15,7 +16,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #define NSROOT "/tmp/ns_dram_test"
 /* FAIL: use wubu_test.h */

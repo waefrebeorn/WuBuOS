@@ -19,11 +19,11 @@
  *   -ALSA jack impedance
  *   - Realtek ALC headphone detection
  */
+#include "../egojar.h"
 #include "wubu_jackimpedance.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_ji = 0;          /* jack impedance present */
 static int  g_headphone = 0;   /* headphone */

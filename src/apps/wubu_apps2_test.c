@@ -3,13 +3,13 @@
  *
  * Cell 396/397/398: Notepad++ editor, Photoship canvas, FFmpeg codec.
  */
+#include "../egojar.h"
 #include "wubu_editor.h"
 #include "wubu_canvas.h"
 #include "wubu_codec.h"
 #include "wubu_spawn.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 static int pass = 0, fail = 0;

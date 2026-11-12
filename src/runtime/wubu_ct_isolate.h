@@ -5,9 +5,9 @@
 #ifndef WUBU_CT_ISOLATE_H
 #define WUBU_CT_ISOLATE_H
 
+#include "../egojar.h"
 #include <stdint.h>
 #include <stddef.h>
-#include <sys/types.h>
 
 /* -- cgroupfs layout (shared by wubu_ct_isolate.c + wubu_ct_isolate_cgroup.c) -- */
 #define WUBU_CGROUP_BASE "/sys/fs/cgroup/wubu"

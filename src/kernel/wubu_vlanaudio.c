@@ -27,11 +27,11 @@
  *   - PipeWire: pw-cli, the modern audio graph + filters
  *   - SOF DSP: audio DSP offload, equalizer/beamforming
  */
+#include "../egojar.h"
 #include "wubu_vlanaudio.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

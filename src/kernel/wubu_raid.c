@@ -28,12 +28,12 @@
  *   - aacraid: Adaptec/PMC/Microsemi
  *   - md: software RAID (mdadm), raid0/1/4/5/6/10
  */
+#include "../egojar.h"
 #include "wubu_raid.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- PCI classes: RAID/HBA ---- */
 #define PCI_CLASS_STORAGE   0x01

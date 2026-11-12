@@ -9,11 +9,11 @@
  *   - /sys/class/nvme/nvme0/device/uevent: driver version
  *   - /sys/block/nvme0n1/queue/max_hw_sectors_kb: max I/O
  */
+#include "../egojar.h"
 #include "wubu_nvme_gen5.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_nvme_gen5_present = 0;
 static int g_nvme_gen5_speed = 0;

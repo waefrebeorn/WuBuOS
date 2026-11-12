@@ -1,8 +1,8 @@
 /* test_sync.c -- host tests for wubu_sync (spinlock + ISR-safe FIFO). */
+#include "../../egojar.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <pthread.h>
 
 #include "wubu_sync.h"
 #include "wubu_sync.c"

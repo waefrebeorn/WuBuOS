@@ -12,13 +12,12 @@
  * Build/run: make test_shell
  */
 
+#include "../egojar.h"
 #include "wubu_shell_internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 /* ---- tiny test harness ---- */
 

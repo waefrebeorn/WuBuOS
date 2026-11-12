@@ -3,6 +3,7 @@
  * ftw + sendfile only. C11, minimal includes.
  */
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "wubu_snapshot.h"
 #include "wubu_snapshot_internal.h"
@@ -11,12 +12,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <ftw.h>
-#include <sys/stat.h>
-#include <sys/sendfile.h>
 #include <dirent.h>
 #include "wubu_ftw.h"
 #include <linux/limits.h>

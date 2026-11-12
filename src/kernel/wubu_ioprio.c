@@ -19,11 +19,11 @@
  *   - ionice
  *   - blkio cgroup
  */
+#include "../egojar.h"
 #include "wubu_ioprio.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_iop = 0;         /* ioprio present */
 static int  g_rt = 0;          /* RT class */

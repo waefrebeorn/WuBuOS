@@ -13,12 +13,13 @@
  *
  * C11.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_drv.h"
 #include "wubu_drv_gpu.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 typedef struct {
     volatile uint8_t *mmio;

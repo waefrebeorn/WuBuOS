@@ -5,6 +5,8 @@
  * Provides trampolines for HolyC compiler to call into kernel.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_syscall.h"
 #include "../kernel/interrupt.h"
 #include "../kernel/vbe.h"
@@ -16,13 +18,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <sys/prctl.h>
 
 /* -- File fd tracking for sys_file_* handlers -- */
 static int g_file_fd_map[256] = {0};

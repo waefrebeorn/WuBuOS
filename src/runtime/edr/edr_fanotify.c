@@ -15,9 +15,8 @@
  * inotify ~ registry callback, FAN_ATTRIB ~ SetBasicInfo timestomp detection.
  */
 
+#include "../../egojar.h"
 #include "edr_internal.h"
-#include <sys/fanotify.h>
-#include <sys/inotify.h>
 
 /* ================================================================
  * fanotify — file operations

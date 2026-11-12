@@ -8,6 +8,7 @@
  *   3. wubu_ns_ec_set_mode(1) switches manual + refreshes /n/ec/mode
  *   4. wubu_ns_ec_refresh() updates fan + temp
  */
+#include "../egojar.h"
 #include "wubu_ns_bridge.h"
 #include "wubu_test.h"
 #include "wubu_ns_bridge_internal.h"
@@ -15,7 +16,6 @@
 #include "wubu_ec_control.h"
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #define NSROOT "/tmp/ns_ec_test"
 /* FAIL: use wubu_test.h */

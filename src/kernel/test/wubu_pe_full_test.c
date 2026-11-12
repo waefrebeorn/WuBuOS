@@ -4,12 +4,12 @@
  * base-relocate (no-op at preferred base) -> snap IAT -> TLS (none) -> call
  * entry. The entry returns the imported function's result, so a non-7 result
  * means the dependency did NOT actually connect. */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "wubu_pe.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

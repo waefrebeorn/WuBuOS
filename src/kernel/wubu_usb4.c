@@ -21,12 +21,12 @@
  *   - /sys/bus/thunderbolt: domains, routers, ports, NVM
  *   - USB4: thunderbolt driver now handles USB4 (retimer, CLx)
  */
+#include "../egojar.h"
 #include "wubu_usb4.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

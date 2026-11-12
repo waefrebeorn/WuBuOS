@@ -8,12 +8,12 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_daemon_client.h"
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/socket.h>
 
 static int g_fail = 0;
 #define CHECK(cond, msg) do { \

@@ -18,11 +18,11 @@
  *   - ALSA channel map
  *   - 5.1/7.1 surround
  */
+#include "../egojar.h"
 #include "wubu_chanmap.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_map = 0;         /* channel map present */
 static int  g_stereo = 0;      /* stereo */

@@ -22,10 +22,10 @@
 #ifndef WUBU_ARCH_H
 #define WUBU_ARCH_H
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 
 /* -- Arch Root Configuration -------------------------------------- */
 

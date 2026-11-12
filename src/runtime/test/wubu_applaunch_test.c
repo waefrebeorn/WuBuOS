@@ -11,6 +11,7 @@
  *
  * Links the P3 session-boot + xdg-autostart + bus with the module subsystem.
  */
+#include "../../egojar.h"
 #include "wubu_session_boot.h"
 #include "wubu_applaunch.h"
 #include "wubu_xdg_autostart.h"
@@ -26,9 +27,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/stat.h>
 #include <errno.h>
 
 static int g_pass = 0, g_fail = 0;

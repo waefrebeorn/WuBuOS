@@ -21,11 +21,11 @@
  *   - runtime PM: sysfs device power/control (auto/on), autosuspend
  *   - cpuidle: intel_idle, acpi_idle (C-states)
  */
+#include "../egojar.h"
 #include "wubu_pm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_s0ix = 0;      /* s2idle/S0ix */

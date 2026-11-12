@@ -8,8 +8,8 @@
 #ifndef WUBU_DOSGUI_TERM_PTY_H
 #define WUBU_DOSGUI_TERM_PTY_H
 
+#include "../egojar.h"
 #include "term.h"
-#include <sys/types.h>
 
 /* -- PTY Session Lifecycle ---------------------------------------- */
 

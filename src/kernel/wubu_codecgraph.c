@@ -22,11 +22,11 @@
  *   - verbs: SET_PIN_WIDGET, SET_AMP_GAIN
  *   - dynamic power management (DAPM) widgets
  */
+#include "../egojar.h"
 #include "wubu_codecgraph.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_codec = 0;       /* codec present */

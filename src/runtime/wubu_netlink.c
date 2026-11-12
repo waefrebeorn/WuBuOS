@@ -8,6 +8,9 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wubu_netlink.h"
 #include "wubu_spawn.h"
 
@@ -15,19 +18,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/if.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
-#include <arpa/inet.h>
-#include <net/if.h>
-#include <sys/ioctl.h>
 
 /* -- Netlink socket state ------------------------------------------- */
 

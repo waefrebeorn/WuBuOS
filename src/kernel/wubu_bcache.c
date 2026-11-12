@@ -11,11 +11,11 @@
  *   - /sys/block/bcache cached_devs: cached devices
  *   - /sys/block/bcache cache_hit_ratio: hit ratio
  */
+#include "../egojar.h"
 #include "wubu_bcache.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_bcache_hits = 0;
 static int g_bcache_mode = 0;

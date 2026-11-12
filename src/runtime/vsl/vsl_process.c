@@ -1,6 +1,7 @@
 /*
  * vsl_process.c  --  VSL Process Management Implementation
  */
+#include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_process.h"
 #include "vsl/vsl_elf.h"
@@ -10,11 +11,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/mman.h>
-#include <signal.h>
 
 /* Global state (defined in vsl.c) */
 extern VSL_STATE g_vsl;

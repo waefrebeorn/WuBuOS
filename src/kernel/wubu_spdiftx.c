@@ -20,11 +20,11 @@
  *   - ALSA IEC control
  *   - SPDIF encoding PCM/AC3/DTS
  */
+#include "../egojar.h"
 #include "wubu_spdiftx.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_tx = 0;          /* SPDIF TX present */
 static int  g_iec = 0;         /* IEC 60958 */

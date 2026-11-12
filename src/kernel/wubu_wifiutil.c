@@ -20,11 +20,11 @@
  *   - NL80211 survey info
  *   - mac80211 station airtime
  */
+#include "../egojar.h"
 #include "wubu_wifiutil.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_util = 0;        /* utilization present */
 static int  g_cca = 0;         /* CCA busy */

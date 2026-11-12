@@ -43,7 +43,7 @@ void desktop_launch(int icon_id);
 void launch_app(const char *name);
 
 /* System shutdown (triggers hosted exit) */
-void shutdown(void);
+void wubu_shutdown();
 
 /* -- Tick (called each frame) ------------------------------------ */
 

@@ -18,11 +18,11 @@
  *   -IEC 60958 AES bits
  *   - ALSA IEC control
  */
+#include "../egojar.h"
 #include "wubu_ieccontrol.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_iec = 0;         /* IEC present */
 static int  g_aes = 0;         /* AES bits */

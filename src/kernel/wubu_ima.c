@@ -22,11 +22,11 @@
  *   - IMA policy + keys
  *   - measured boot TPM PCR extends
  */
+#include "../egojar.h"
 #include "wubu_ima.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_ima = 0;         /* IMA present */

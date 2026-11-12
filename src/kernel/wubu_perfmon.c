@@ -19,11 +19,11 @@
  *   - Intel DRM perf
  *   - NVML perf metrics
  */
+#include "../egojar.h"
 #include "wubu_perfmon.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_pm = 0;          /* perfmon present */
 static int  g_event = 0;       /* perf event */

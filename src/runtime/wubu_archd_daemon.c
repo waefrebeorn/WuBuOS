@@ -10,6 +10,9 @@
  * legitimate GNU-surface use, kept localized. */
 #define WUBU_HOSTED
 
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wubu_gnu_compat.h"
 #include "wubu_archd.h"
 #include "wubu_arch.h"
@@ -18,18 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/epoll.h>
-#include <sys/wait.h>
 
 /*
  * wubu_archd.c  --  WuBuOS Arch Linux Daemon Implementation
@@ -55,16 +49,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/epoll.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
 #include <libgen.h>

@@ -21,11 +21,11 @@
  *   - ZNS zoned namespace
  *   - zone write pointer, zonefs
  */
+#include "../egojar.h"
 #include "wubu_smr.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 static int  g_smr = 0;         /* SMR present */

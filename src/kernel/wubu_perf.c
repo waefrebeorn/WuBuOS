@@ -10,11 +10,11 @@
  *   - /sys/class/drm card device/turbo_boost_enable: turbo flag
  *   - /sys/class/drm card device/mem_info_vram_mem_*: VRAM usage
  */
+#include "../egojar.h"
 #include "wubu_perf.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_perf_freq_mhz = 0;
 static int g_perf_turbo = 0;

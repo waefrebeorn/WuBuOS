@@ -19,11 +19,11 @@
  * Research (7-hop on the nfsclient frontier):
  *   -NFS client vers rpc.idmapd
  */
+#include "../egojar.h"
 #include "wubu_nfsclient.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_nfs = 0;         /* NFS client present */
 static int  g_idmapd = 0;      /* rpc.idmapd */

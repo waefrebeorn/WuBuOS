@@ -2,11 +2,10 @@
  * wubu_pkgmgr_txn.c  --  WuBuOS Package Manager: Txn
  */
 
+#include "../egojar.h"
 #include "wubu_pkgmgr_internal.h"
 
 #include <glob.h>
-#include <unistd.h>
-#include <sys/wait.h>
 
 bool wubu_pkgmgr_txn_begin(wubu_pkg_transaction_t* txn, bool dry_run) {
     memset(txn, 0, sizeof(*txn));

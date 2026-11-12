@@ -11,6 +11,7 @@
  *   - Configuration API
  *   - FreeDoom init/config/destroy
  */
+#include "../egojar.h"
 #include "wubu_arch.h"
 #include "wubu_spawn.h"
 
@@ -18,8 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int pass = 0, fail = 0;
 

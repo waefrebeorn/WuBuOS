@@ -5,12 +5,13 @@
  * pin model and its persistence are gated: pin, unpin, running state, and a
  * save/load round trip through a real file.
  */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "taskbar_tasks.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_checks, g_fails;
 #define CHECK(cond, msg) do { \

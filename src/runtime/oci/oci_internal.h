@@ -8,6 +8,7 @@
 #ifndef WUBU_OCI_INTERNAL_H
 #define WUBU_OCI_INTERNAL_H
 
+#include "../../egojar.h"
 #include "wubu_oci.h"
 #include "wubu_image.h"
 #include "wubu_container.h"
@@ -17,18 +18,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <errno.h>
 #include <ctype.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <sys/sendfile.h>
 
 /* -- mbedTLS TLS Support (optional) --------------------------------- */
 #ifdef MBEDTLS_SSL_H

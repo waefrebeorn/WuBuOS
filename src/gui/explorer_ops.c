@@ -2,6 +2,7 @@
  * WuBuOS -- extracted module (auto-split, C11, opaque-safe)
  */
 
+#include "../egojar.h"
 #include "explorer.h"
 #include "explorer_internal.h"
 #include "wubu_theme.h"
@@ -9,10 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 void explorer_copy(void) {
     if (g_explorer.selection_count == 0) return;

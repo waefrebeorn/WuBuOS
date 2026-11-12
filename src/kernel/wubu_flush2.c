@@ -18,11 +18,11 @@
  * Research (7-hop on the flush2 frontier):
  *   -Linux storage flush barrier fsync
  */
+#include "../egojar.h"
 #include "wubu_flush2.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_fl = 0;          /* flush present */
 static int  g_barrier = 0;     /* write barrier */

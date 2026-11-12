@@ -22,11 +22,11 @@
  *   - i915 reset_device
  *   - ring hang, heartbeat, job timeout
  */
+#include "../egojar.h"
 #include "wubu_gpurst.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_rst = 0;         /* GPU reset present */
 static int  g_ring = 0;        /* ring test */

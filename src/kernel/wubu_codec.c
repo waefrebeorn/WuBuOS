@@ -25,12 +25,12 @@
  *     max98357a (maxim amp), tas2770 (TI amp)
  *   - SOF (Sound Open Firmware): snd_sof, DSP firmware, Intel HDA
  */
+#include "../egojar.h"
 #include "wubu_codec.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- PCI class: audio device ---- */
 #define PCI_CLASS_AUDIO  0x04

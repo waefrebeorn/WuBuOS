@@ -8,13 +8,12 @@
  * No stubs, no system(), no external image libs.
  */
 
+#include "../../egojar.h"
 #include "./wubu_wallpaper.h"
 #include "../wubu_image_ffmpeg.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-#include <unistd.h>
 
 /* -- Bundled default wallpaper path -------------------------------- */
 

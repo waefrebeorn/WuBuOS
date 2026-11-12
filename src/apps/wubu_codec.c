@@ -6,18 +6,14 @@
  * Direct mode: pipe to/from ffmpeg subprocess.
  * Always works on Arch (ffmpeg in community repo).
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_codec.h"
 #include "../runtime/wubu_spawn.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
 #include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
 
 /* -- FFmpeg Availability ------------------------------------------ */
 

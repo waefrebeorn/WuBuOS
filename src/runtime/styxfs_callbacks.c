@@ -21,6 +21,7 @@
  * -D_POSIX_C_SOURCE=200809L (glibc gates them behind _DEFAULT_SOURCE) —
  * a legitimate feature-surface use, kept localized. */
 #define WUBU_HOSTED
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "styxfs.h"
 #include "styxfs_internal.h"
@@ -31,10 +32,6 @@
 #include <time.h>
 #include <dirent.h>
 #include "wubu_ftw.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 
 /* -- Helpers ------------------------------------------------ */

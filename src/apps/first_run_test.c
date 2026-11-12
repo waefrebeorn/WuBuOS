@@ -33,7 +33,7 @@ void klog_tx_poll(void) {}
 void startmenu_handle_click(int x, int y) { (void)x;(void)y; }
 void startmenu_toggle(void) {}
 int  startmenu_is_open(void) { return 0; }
-void shutdown(void) {}
+void wubu_shutdown() {}
 unsigned long long wubu_agi_kernel_global(void) { return 0; }
 unsigned long long wubu_agi_kernel_promoted_total(void) { return 0; }
 unsigned long long wubu_agi_kernel_tick(void) { return 0; }

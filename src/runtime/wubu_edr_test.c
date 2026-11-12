@@ -1,10 +1,10 @@
 /* wubu_edr_test.c  --  WuBuOS EDR Engine Test Suite */
 
+#include "../egojar.h"
 #include "wubu_edr.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <assert.h>
 #include <time.h>
 

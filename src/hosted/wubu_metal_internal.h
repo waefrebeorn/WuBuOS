@@ -7,6 +7,7 @@
 #ifndef WUBU_METAL_INTERNAL_H
 #define WUBU_METAL_INTERNAL_H
 
+#include "../egojar.h"
 #include "wubu_metal.h"
 #include "../kernel/wubu_math.h"
 #include "../audio/wubu_audio.h"
@@ -14,16 +15,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <linux/input.h>
 #include <linux/fb.h>
-#include <sys/ioctl.h>
-#include <dlfcn.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <math.h>

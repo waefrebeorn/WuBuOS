@@ -8,11 +8,11 @@
  * Impl routing:
  *   - /sys/module/snd_hda_core/parameters: DAPM params
  */
+#include "../egojar.h"
 #include "wubu_dapm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_dapm_widgets = 0;
 static int g_dapm_paths = 0;

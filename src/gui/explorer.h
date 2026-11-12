@@ -18,6 +18,7 @@
 #ifndef WUBU_DOSGUI_EXPLORER_H
 #define WUBU_DOSGUI_EXPLORER_H
 
+#include "../egojar.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
@@ -44,7 +45,6 @@
 #define EX_STATUSBAR_H        22
 
 /* Include for pid_t */
-#include <sys/types.h>
 
 /* -- View Modes --------------------------------------------------- */
 

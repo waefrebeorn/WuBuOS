@@ -25,6 +25,8 @@
  * C11. Hosted sections (fopen/access) guarded by WUBU_HOSTED; the bare-metal
  * kernel uses the CPUID + PCI path only.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_hw_detect.h"
 #include "wubu_pci.h"
 #include "wubu_audio.h"
@@ -186,7 +188,6 @@
 
 #ifdef WUBU_HOSTED
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #endif
 

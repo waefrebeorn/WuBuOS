@@ -5,15 +5,13 @@
  * x86-64 executes directly; ARM64/RISC-V via qemu-user-static on
  * minimal ELF wrappers we build with build_elf.py.
  */
+#include "../egojar.h"
 #include "jit_codegen.h"
 #include "jit.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 int jit_minic_compile_cg(CodeGen *cg, const char *src);
 const uint8_t *jit_minic_get_code(CodeGen *cg, size_t *size);

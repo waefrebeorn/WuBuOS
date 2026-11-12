@@ -15,14 +15,13 @@
  * Proton translation subsystem. Wine is NOT a fork-and-forget; it is a
  * kernel-managed container with syscall capture.
  */
+#include "../egojar.h"
 #include "wubu_host_exec.h"
 #include "wubu_exec.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 /* Forward-declare hw detection from the kernel (wubu_hw_detect.h).
  * The kernel owns GPU detection -- the runtime layer consumes it. */

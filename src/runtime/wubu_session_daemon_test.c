@@ -9,15 +9,14 @@
  *   - publish the /n/background state and verify bus + session + auth files
  *   - power op is ALLOWED (auth grants) / DENIED (auth denies / no rule)
  */
+#include "../egojar.h"
 #include "wubu_session_daemon.h"
 #include "wubu_logind.h"
 #include "wubu_auth.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

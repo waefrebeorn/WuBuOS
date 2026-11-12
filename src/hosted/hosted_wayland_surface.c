@@ -1,3 +1,5 @@
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "hosted.h"
 #include "hosted_internal.h"
 #include "wayland_state.h"
@@ -12,9 +14,6 @@
 #include <wayland-client.h>
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

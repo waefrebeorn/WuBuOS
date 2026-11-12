@@ -2,6 +2,7 @@
  * vsl_driver.c  --  VSL Driver Management Implementation
  */
 
+#include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_driver.h"
 
@@ -9,12 +10,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
-#include <dlfcn.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
 
 #ifdef HAVE_VULKAN
 #include <vulkan/vulkan.h>

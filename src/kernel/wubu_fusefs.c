@@ -18,11 +18,12 @@
  * Research (7-hop on the fusefs frontier):
  *   -FUSE filesystem userspace block implementation
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_fusefs.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_fuse = 0;       /* FUSE present */
 static int  g_dev = 0;        /* /dev/fuse */

@@ -2,16 +2,13 @@
  * Extracted from wubu_proton2.c (separable leaf). Self-contained: scans /dev + /sys
  * for input/USB/MIDI devices. No ProtonManager coupling. C11, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_proton2.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <dirent.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <linux/input.h>
 #include <linux/uinput.h>
 #include <errno.h>

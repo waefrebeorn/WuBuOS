@@ -9,10 +9,10 @@
  *   The /theme write-through observer is invoked on each theme node write,
  *   feeding the metabolism (user interactions = live training).
  */
+#include "../../egojar.h"
 #include "wubu_density_plan.h"
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 
 static int failures = 0;
 static int passed = 0;

@@ -19,11 +19,11 @@
  *   - headset jack detection
  *   - TRRS pinout
  */
+#include "../egojar.h"
 #include "wubu_jackdetect.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_jack = 0;        /* jack detect present */
 static int  g_headset = 0;     /* headset */

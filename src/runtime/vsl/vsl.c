@@ -4,6 +4,7 @@
  * All syscall implementations are in vsl_syscall.c
  */
 
+#include "../../egojar.h"
 #include "wubu_vsl.h"
 #include "wubu_container.h"
 #include "vsl/vsl_internal.h"
@@ -14,30 +15,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <fcntl.h>
-#include <signal.h>
 #include <time.h>
-#include <sys/ioctl.h>
-#include <sys/resource.h>
-#include <sys/syscall.h>
-#include <sys/uio.h>
-#include <sys/epoll.h>
-#include <poll.h>
-#include <sys/select.h>
 #include <stddef.h>
-#include <sys/inotify.h>
-#include <sys/mman.h>
-#include <sys/timerfd.h>
-#include <sys/eventfd.h>
-#include <sys/signalfd.h>
-#include <dlfcn.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 
@@ -45,7 +24,6 @@
 #include <linux/landlock.h>
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
-#include <sys/fanotify.h>
 #include <sched.h>
 
 /* -- Global State ------------------------------------------------ */

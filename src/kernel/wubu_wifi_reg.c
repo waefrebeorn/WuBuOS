@@ -21,11 +21,11 @@
  *   - cfg80211 regulatory: set_regdom, DFS regions
  *   - DFS: radar detection, passive scan, CAC (channel availability check)
  */
+#include "../egojar.h"
 #include "wubu_wifi_reg.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

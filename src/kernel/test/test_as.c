@@ -2,10 +2,10 @@
  * The PML4 clone + CR3 switch normally touch real page tables; on the
  * host we map a fake boot PML4 at the module's PML4_BASE so the clone
  * path is exercised for real. */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include <stdio.h>
 #include <stdint.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 #include "wubu_as.h"
 #include "wubu_as.c"

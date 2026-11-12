@@ -3,13 +3,12 @@
 #ifndef WUBU_DOSGUI_EXPLORER_INTERNAL_H
 #define WUBU_DOSGUI_EXPLORER_INTERNAL_H
 
+#include "../egojar.h"
 #include "explorer.h"
 #include "wubu_theme.h"
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
 #include <libgen.h>
 

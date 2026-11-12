@@ -11,11 +11,12 @@
  *   - /sys/module/amdgpu/parameters: FreeSync config
  *   - /sys/module/nvidia/parameters: G-Sync config
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_vrr.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vrr_present = 0;
 static int g_vrr_freesync = 0;

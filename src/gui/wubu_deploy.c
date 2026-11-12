@@ -5,15 +5,12 @@
  * Uses system tools: mkinitcpio, tar, docker/buildah, xcodebuild
  */
 
+#include "../egojar.h"
 #include "wubu_deploy.h"
 #include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <dirent.h>
 #include <time.h>

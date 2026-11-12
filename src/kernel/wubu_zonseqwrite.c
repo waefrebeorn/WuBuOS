@@ -9,11 +9,11 @@
  *   - /sys/block/nvme0n1/queue/zoned: zone control type
  *   - /sys/block/nvme0n1/queue/zoned_capacity: zone capacity
  */
+#include "../egojar.h"
 #include "wubu_zonseqwrite.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_zonseqwrite_present = 0;
 static int g_zonseqwrite_queued = 0;

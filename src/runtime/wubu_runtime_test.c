@@ -14,10 +14,10 @@
  *   7. heap accounting: touch_heap respects the cap (refuses over)
  *   8. destroy: a space is removed, count drops
  */
+#include "../egojar.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
 #include "wubu_runtime.h"
 
 static int failures = 0;

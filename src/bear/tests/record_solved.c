@@ -3,6 +3,7 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../../egojar.h"
 #include "src/bear/bear_arena.h"
 #include "src/bear/bear_env.h"
 #include "src/bear/bear_nn.h"
@@ -17,8 +18,6 @@
 #include <math.h>
 #include <string.h>
 #include <alloca.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #define MAX_STEPS 500
 #define VIDEO_FPS 30

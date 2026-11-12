@@ -10,16 +10,15 @@
  * - OCI image ref conversion
  */
 
+#include "../egojar.h"
 #include "wubu_image.h"
 #include "wubu_spawn.h"
 #include "wubu_image_internal.h"
 #include "wubu_container.h"
 #include "wubu_oci.h"
 #include <time.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <ftw.h>
-#include <sys/wait.h>
 
 /* wubu_crc32 is declared in wubu_container.h, defined in wubu_container.c */
 #define wubu_crc32_internal  wubu_crc32

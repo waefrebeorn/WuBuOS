@@ -5,11 +5,11 @@
  * the public wubu_vulkan.h API. C11, no god headers.
  */
 
+#include "../egojar.h"
 #include "wubu_vulkan.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <dlfcn.h>
 
 /* -- Vulkan Loader ------------------------------------------------- */
 

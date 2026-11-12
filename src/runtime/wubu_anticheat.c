@@ -20,15 +20,12 @@
  *   - Prevent VM detection via CPUID/hypervisor bits
  */
 
+#include "../egojar.h"
 #include "wubu_anticheat.h"
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
 
 /* syscall numbers for module control (portability fallbacks) */
 #ifndef SYS_finit_module

@@ -44,7 +44,7 @@ void wubu_notify_simple(const char *a, const char *t, const char *m,
                         void *i, int w, int d) { (void)a;(void)t;(void)m;(void)i;(void)w;(void)d; }
 const char *wubu_compat_cache_dir(void) { return "/tmp"; }
 int  wubu_compat_db_get(const char *n) { (void)n; return 0; }
-void shutdown(void) {}
+void wubu_shutdown() {}
 int  wubu_session_launch_game(void *h, const uint8_t *g, size_t n, const char *nm) {
     (void)h;(void)g;(void)n;(void)nm; return -1;
 }

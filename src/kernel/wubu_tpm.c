@@ -22,11 +22,11 @@
  *   - tpm2-tools: tpm2_quote, tpm2_seal, tpm2_getcap, tpm2_pcrread
  *   - measured boot: PCR measurement chain, secure boot
  */
+#include "../egojar.h"
 #include "wubu_tpm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_tpm = 0;          /* TPM present */

@@ -23,11 +23,11 @@
  *   - ZFS / OpenZFS dedup
  *   - userspace: duperemove, bees
  */
+#include "../egojar.h"
 #include "wubu_dedup.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_dedup = 0;       /* dedup present */

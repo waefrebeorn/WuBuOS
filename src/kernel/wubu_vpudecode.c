@@ -9,11 +9,11 @@
  *   - /sys/class/drm/card0/device/uevent: driver version
  *   - /sys/class/drm/card0/device/power_dpm_force_performance_level: power
  */
+#include "../egojar.h"
 #include "wubu_vpudecode.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vpudecode_present = 0;
 static int g_vpudecode_codec = 0;

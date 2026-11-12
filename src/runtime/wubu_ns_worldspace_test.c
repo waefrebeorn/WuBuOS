@@ -3,14 +3,13 @@
  * body's space-facing state, and that it says so honestly when no portal is
  * configured and no agent is enroled.
  */
+#include "../egojar.h"
 #include "wubu_ns_bridge_internal.h"
 #include "../kernel/wubu_world.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 #define NSROOT  "/tmp/wubu_ws_ns"
 #define TESTHOME "/tmp/wubu_ws_home"

@@ -8,15 +8,13 @@
  * 8 syscalls (Windows 11 24H2 ordinals 168-421).
  */
 
+#include "../../egojar.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 
 #define NT_PART_MAX  16
 

@@ -6,22 +6,15 @@
 #ifndef WUBU_HOLYD_INTERNAL_H
 #define WUBU_HOLYD_INTERNAL_H
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_holyd.h"
 #include "../compiler/holyd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/epoll.h>
-#include <sys/wait.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
 

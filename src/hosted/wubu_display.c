@@ -14,13 +14,13 @@
  * WuBuOS GUI renders to VBE back buffer. This module displays it.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_display.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <errno.h>
 
 /* -- Backend Detection -------------------------------------------- */

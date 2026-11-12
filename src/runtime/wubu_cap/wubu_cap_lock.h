@@ -11,6 +11,7 @@
 
 #if defined(WUBU_CAP_KERNEL)
 /* Bare-metal: wire to the real kernel spinlock here. */
+#include "../../egojar.h"
 #include "kernel/sync/spinlock.h"
 #define wubu_cap_lock_t            spinlock_t
 #define WUBU_CAP_LOCK_INIT()       SPINLOCK_INITIALIZER("wubu_cap")
@@ -18,7 +19,6 @@
 #define wubu_cap_lock_release_impl SPINLOCK_RELEASE
 #else
 /* Hosted: pthread mutex shim. */
-#include <pthread.h>
 typedef pthread_mutex_t wubu_cap_lock_t;
 #define WUBU_CAP_LOCK_INIT()       PTHREAD_MUTEX_INITIALIZER
 static inline void wubu_cap_lock_acquire_impl(wubu_cap_lock_t *l) { pthread_mutex_lock(l); }

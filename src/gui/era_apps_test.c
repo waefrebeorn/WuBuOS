@@ -13,14 +13,13 @@
  *   - CPM  (0xC0) / Mac (0xB0) : launcher returns -1 (no CPU emulator)
  */
 
+#include "../egojar.h"
 #include "era_apps.h"
 #include "shell/startmenu.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 /* era_apps_register() writes into g_program_db (defined in
  * startmenu.c). This test exercises the LAUNCHER (which does not

@@ -11,11 +11,11 @@
  * No stubs for the engine itself.
  */
 
+#include "../../egojar.h"
 #include "cmd.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 static int g_fail = 0;

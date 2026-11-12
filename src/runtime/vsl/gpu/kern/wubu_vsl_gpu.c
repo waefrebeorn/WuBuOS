@@ -4,15 +4,13 @@
 // Maps VSL GPU API to Linux DRM ioctls for WSL/hosted development.
 // On bare metal ZealOS, this would be replaced with VSL syscalls.
 
+#include "../../../../egojar.h"
+#include "../../../../egojar_net.h"
 #include "wubu_vsl_gpu.h"
-#include <fcntl.h>
-#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
 #include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm/drm.h>

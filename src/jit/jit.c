@@ -14,6 +14,7 @@
  * MIR/c2m → gcc -shared + dlopen (host compiler, not external lib).
  */
 
+#include "../egojar.h"
 #include "jit.h"
 #include "jit_internal.h"
 #include "wubu_x86.h"
@@ -26,10 +27,6 @@
 #include <stdarg.h>
 #include <limits.h>
 #ifdef WUBU_HOSTED
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/syscall.h>
-#include <dlfcn.h>
 #endif
 
 /* -- Internal: Page size ------------------------------------------ */

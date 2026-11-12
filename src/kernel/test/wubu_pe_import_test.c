@@ -15,6 +15,7 @@
  * import: NTOSKRNL.EXE!ANSWER (registered => host_answer() = 7)
  * expect: entry -> 7, at the preferred base (no .reloc needed: the IAT is patched
  *         in-place by snap_iat, and the code reference to it is via RIP). */
+#include "../../egojar.h"
 #include "wubu_zx.h"
 #include "wubu_modsym.h"
 #include "holyd.h"
@@ -23,8 +24,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

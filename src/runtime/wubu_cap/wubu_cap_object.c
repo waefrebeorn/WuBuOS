@@ -11,12 +11,12 @@
  * The object layout, token packing, generation-counted revoke, audience set,
  * rights-bitmap checks, and derive/revoke semantics are preserved exactly.
  */
+#include "../../egojar.h"
 #include "wubu_cap_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <pthread.h>
 
 /* ---- Globals ---- */
 wubu_cap_object_t *g_wubu_cap_ptrs[WUBU_CAP_OBJECT_CAPACITY];

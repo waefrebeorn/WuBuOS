@@ -9,16 +9,13 @@
  * and wubu_oci.h for OCI manifest conversion.
  */
 
+#include "../egojar.h"
 #include "wubu_image_internal.h"
 #include "wubu_image_manifest.h"
 #include "wubu_oci.h"
 #include "wubu_spawn.h"
 
 #include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

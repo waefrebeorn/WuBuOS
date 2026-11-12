@@ -20,11 +20,11 @@
  *   - thermal zone: trip points + mode (cooling)
  *   - pwm-fan driver
  */
+#include "../egojar.h"
 #include "wubu_thermal.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

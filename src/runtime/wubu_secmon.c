@@ -12,20 +12,16 @@
  *
  * C11, opaque struct, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_secmon.h"
 #include "../kernel/wubu_kvfs.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <signal.h>
 #ifndef SIGTRAP
 #define SIGTRAP 5
 #endif
-#include <sys/ptrace.h>
-#include <sys/user.h>
-#include <sys/wait.h>
-#include <sys/types.h>
 
 struct wubu_secmon {
     pid_t       pid;            /* traced child (0 = none) */

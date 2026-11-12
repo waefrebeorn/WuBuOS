@@ -103,8 +103,8 @@ __attribute__((weak)) void startmenu_handle_click(int x, int y) {
         tsm_open = 0;
     } else if (tsm_items[idx].type == 3) {
         /* Shutdown */
-        extern void shutdown(void);
-        shutdown();
+        extern void wubu_shutdown();
+        wubu_shutdown();
         tsm_open = 0;
     }
     /* Other item types: close menu (apps are stubbed). */
@@ -195,7 +195,7 @@ __attribute__((weak)) int64_t wubu_exec_macho(const void *macho, size_t macho_si
 }
 
 /* Stub for shutdown */
-__attribute__((weak)) void shutdown(void) { }
+__attribute__((weak)) void wubu_shutdown() { }
 __attribute__((weak)) void platform_shutdown(void) { }
 
 /* Hosted-state getter (Play action): no hosted binary in the test harness,

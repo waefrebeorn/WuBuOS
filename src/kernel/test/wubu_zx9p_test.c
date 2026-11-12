@@ -11,6 +11,7 @@
  * Reuses build_pe_a (wubu_zx_test.c) for a minimal import-resolving PE and the
  * cli_* 9P client (wubu_ns_9p_test.c). No compiler link needed.
  */
+#include "../../egojar.h"
 #include "wubu_zx.h"
 #include "wubu_pe.h"
 #include "wubu_modsym.h"
@@ -20,9 +21,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

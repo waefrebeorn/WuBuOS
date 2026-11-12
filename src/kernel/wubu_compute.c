@@ -22,11 +22,11 @@
  *   - ZLUDA: NVIDIA CUDA translated to Vulkan
  *   - pocl: portable OpenCL (CPU + accelerator)
  */
+#include "../egojar.h"
 #include "wubu_compute.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_opencl = 0;

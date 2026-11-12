@@ -11,6 +11,7 @@
  * entry in one call. The ops.map supplies exec memory (mmap on host, kernel
  * fixed allocator in-tree).
  */
+#include "../../egojar.h"
 #include "wubu_zx.h"
 #include "wubu_modsym.h"
 #include "holyd.h"
@@ -21,8 +22,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

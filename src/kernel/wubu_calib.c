@@ -21,11 +21,11 @@
  *   - gamma: xgamma/icc, colord color profiles
  *   - backlight: sysfs brightness curve
  */
+#include "../egojar.h"
 #include "wubu_calib.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_drm_color = 0;   /* DRM color management */

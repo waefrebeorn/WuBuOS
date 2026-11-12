@@ -11,6 +11,8 @@
  * + wubuos wubu_pe.c (loader) + wubu_modsym.c. Kernel loader + holyd must
  * agree on PE32+ layout (magic 0x20B, u64 ImageBase @ opt+32, data dirs at
  * opt+112). See wubu_pe.c parse for the PE32/PE32+ field-location branch. */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "wubu_pe.h"
 #include "holyd.h"
 #include "holyd_codegen.h"
@@ -18,7 +20,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

@@ -9,16 +9,15 @@
  * "needs human" (passed=false, score=0) so the promotion gate stays CLOSED
  * rather than guessing. This is fail-closed, matching the DA-3 design.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_verifier_bytropix.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <spawn.h>
-#include <signal.h>
 
 /* NOTE: the struct layout lives in wubu_verifier_bytropix.h (wubu_bytropix_verifier_t).
  * We do NOT redefine it here -- redefining it with a different body is UB and

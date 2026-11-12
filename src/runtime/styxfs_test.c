@@ -5,12 +5,11 @@
  * detection, path normalization, and readonly mode.
  */
 
+#include "../egojar.h"
 #include "styxfs.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
 #define TEST(name) printf("  TEST %-50s", name); g_total++;

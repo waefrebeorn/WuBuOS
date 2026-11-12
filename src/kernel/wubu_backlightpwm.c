@@ -14,11 +14,11 @@
  * WuBuOS owns this: detect backlight type + PWM + brightness range, route
  * to the right driver, and expose the topology.
  */
+#include "../egojar.h"
 #include "wubu_backlightpwm.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_bl = 0;          /* backlight present */

@@ -3,14 +3,14 @@
  * Phase 2: Wayland data device + primary selection
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_clipboard.h"
 #include "wubu_clipboard_internal.h"
 #include "../hosted/hosted.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <poll.h>
 
 #ifndef WUBU_CLIPBOARD_TEST_MODE
 #include <wayland-client.h>

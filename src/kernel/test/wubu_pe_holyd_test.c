@@ -10,14 +10,13 @@
  * This is P1's forcing function: if holyd output can be carried inside a PE
  * and executed by wubu_pe_*, then a real holyd module can self-host against
  * the VSL/NT export table once the symbol registry resolvers are wired up. */
+#include "../../egojar.h"
 #include "wubu_pe.h"
 #include "holyd.h"
 #include "holyd_codegen.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

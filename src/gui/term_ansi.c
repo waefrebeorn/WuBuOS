@@ -20,10 +20,11 @@
 #define TERM_RENDER_CHAR_W 6
 #define TERM_RENDER_CHAR_H 10
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "term_internal.h"
 
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 
 /* ================================================================ */

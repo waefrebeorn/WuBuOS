@@ -18,11 +18,11 @@
  *   -Linux block layer bio
  *   - bio_vec, BDI
  */
+#include "../egojar.h"
 #include "wubu_bio.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_bio = 0;         /* bio present */
 static int  g_vec = 0;         /* bio_vec */

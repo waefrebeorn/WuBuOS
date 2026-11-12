@@ -5,13 +5,12 @@
  * This is the hosted version that runs on an existing Wayland compositor.
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "wubu_compositor.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <fcntl.h>
 #include <wayland-client.h>
 #include <wayland-server.h>
 #include <wayland-egl.h>

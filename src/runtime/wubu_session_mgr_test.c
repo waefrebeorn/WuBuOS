@@ -4,12 +4,11 @@
  * XDG autostart via a fake launcher, de-surface registration, and the FULL
  * /n/background publish. Verifies the control plane is observable end to end.
  */
+#include "../egojar.h"
 #include "wubu_session_mgr.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

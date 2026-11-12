@@ -1,10 +1,10 @@
 /* test_xhci.c -- host tests for the xHCI controller driver (gap E1).
  * The PCI scan + the BAR0 read are metal-only; the capability parsing
  * and the start sequence are tested against a synthetic MMIO image. */
+#include "../../egojar.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/mman.h>
 
 #include "wubu_xhci.h"
 #include "wubu_xhci.c"

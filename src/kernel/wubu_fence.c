@@ -20,11 +20,11 @@
  *   - amdgpu fence driver
  *   - i915 fence timeout
  */
+#include "../egojar.h"
 #include "wubu_fence.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_fence = 0;       /* fence present */
 static int  g_timeout = 0;     /* fence timeout */

@@ -11,6 +11,8 @@
  *
  * C11.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "bpm.h"
 #include "wubu_game_launch.h"
 #include "../gui/wm.h"
@@ -20,8 +22,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #define GAMES_MAX  32
 #define GAMES_DIR  "/home/wubu/.wubu/games"

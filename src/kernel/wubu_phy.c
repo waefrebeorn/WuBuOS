@@ -26,11 +26,11 @@
  *   - genphy: generic fallback for unknown PHYs
  *   - MDIO: mdio-bitbang, mdio-mux, fsl_pq_mdio
  */
+#include "../egojar.h"
 #include "wubu_phy.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

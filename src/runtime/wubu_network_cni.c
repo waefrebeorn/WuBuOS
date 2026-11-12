@@ -3,6 +3,7 @@
  * shared resolvers find_network (wubu_network_internal.h) + net_cmd (wubu_netlink.h).
  * C11, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_network.h"
 #include "wubu_network_internal.h"
 #include "wubu_netlink.h"
@@ -10,8 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/wait.h>
 
 int wubu_cni_plugin_load(WubuNetworkManager *mgr, const char *plugin_path, const char *config_json) {
     if (!mgr || !plugin_path) return -1;

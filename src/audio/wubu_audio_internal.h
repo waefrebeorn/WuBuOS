@@ -7,6 +7,7 @@
 #ifndef WUBU_AUDIO_INTERNAL_H
 #define WUBU_AUDIO_INTERNAL_H
 
+#include "../egojar.h"
 #include "wubu_audio.h"
 #include "wubu_audio_types.h"
 #include "../kernel/wubu_math.h"
@@ -14,12 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <pthread.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <linux/input.h>
 #include <dirent.h>
 #include <stdint.h>

@@ -9,6 +9,7 @@
  * C11.
  */
 
+#include "../egojar.h"
 #include "interrupt.h"
 #include "interrupt_apic.h"
 #include "tasking.h"
@@ -16,7 +17,6 @@
 #include "interrupt_io.h"
 #include <stdint.h>
 #include <string.h>
-#include <signal.h>
 
 /* ------------------------------------------------------------------
  * SYSCALL Dispatcher (C-level)

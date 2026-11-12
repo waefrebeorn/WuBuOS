@@ -2,11 +2,11 @@
  * Extracted from wubu_ramdisk.c (separable leaf). Self-contained: stat +
  * extension matching -> ImgFormat. C11, minimal includes.
  */
+#include "../egojar.h"
 #include "wubu_ramdisk.h"
 #include "wubu_ramdisk_internal.h"
 
 #include <string.h>
-#include <sys/stat.h>
 
 ImgFormat detect_format(const char *path) {
     if (!path) return IMG_UNKNOWN;

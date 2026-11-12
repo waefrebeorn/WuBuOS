@@ -4,15 +4,14 @@
  * OS's container world registers an adapter and is immediately usable through
  * the same interface as every other kind.  That is the universal promise.
  */
+#include "../../egojar.h"
+#include "../../egojar_net.h"
 #include "wubu_container_universal.h"
 
 #include <dirent.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 struct wubu_container_universal {
     char    kind[WCU_KIND_LEN];

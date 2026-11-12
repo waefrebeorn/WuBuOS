@@ -20,11 +20,11 @@
  *   - NVMe smart log
  *   - smartmontools smartctl
  */
+#include "../egojar.h"
 #include "wubu_smart.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_smart = 0;       /* SMART present */
 static int  g_ata = 0;         /* ATA SMART */

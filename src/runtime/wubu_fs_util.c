@@ -16,6 +16,7 @@
  * (the GNU-free doctrine allows it where the kernel/libc API demands
  * it, like CPU affinity). */
 #define WUBU_HOSTED
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "wubu_fs_util.h"
 
@@ -25,8 +26,6 @@
 #include <errno.h>
 #include <ftw.h>
 #include "wubu_ftw.h"
-#include <sys/stat.h>
-#include <sys/types.h>
 
 static int wubu_fs_unlink_cb(const char *fpath, const struct stat *sb,
                              int typeflag, struct FTW *ftwbuf) {

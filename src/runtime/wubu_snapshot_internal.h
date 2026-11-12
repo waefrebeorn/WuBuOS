@@ -10,6 +10,7 @@
 #ifndef WUBU_SNAPSHOT_INTERNAL_H
 #define WUBU_SNAPSHOT_INTERNAL_H
 
+#include "../egojar.h"
 #include "wubu_snapshot.h"
 #include "wubu_snapshot_fs.h"
 
@@ -21,9 +22,6 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ftw.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <dirent.h>
 #include <linux/limits.h>
 /* FTW_MOUNT, FTW_DEPTH, FTW_PHYS require WUBU_HOSTED on some systems */

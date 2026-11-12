@@ -12,13 +12,12 @@
  * Pure host test: no external emulator or FreeDOS image required.
  */
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_dos_proc.h"
 #include "wubu_container.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 /* Test-only provider for the HolyC-eval symbol wubu_exec.c references. */
 int64_t hd_eval(const char *source) { (void)source; return -1; }

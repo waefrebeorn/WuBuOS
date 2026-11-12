@@ -2,6 +2,7 @@
  * server and feeds the loader. Proves the freestanding client's message codec
  * is correct (the server rejects a malformed frame) AND that the codec path an
  * on-kernel 9P client will use loads a module end-to-end. */
+#include "../../egojar.h"
 #include "wubu_9pc.h"
 #include "wubu_zx.h"
 #include "wubu_pe.h"
@@ -12,9 +13,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

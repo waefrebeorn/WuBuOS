@@ -13,10 +13,10 @@
  * Private helpers (static, used only here): reflow_icons_column, desktop_dir_path.
  */
 
+#include "../../egojar.h"
 #include "../wm_internal.h"
 #include <stdlib.h>     /* qsort */
 #include <fcntl.h>      /* O_CREAT / O_EXCL / O_WRONLY */
-#include <sys/stat.h>
 #include <errno.h>
 #include <dirent.h>
 #include <strings.h>   /* strcasecmp / strncasecmp */

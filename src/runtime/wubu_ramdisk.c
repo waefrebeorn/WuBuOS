@@ -11,6 +11,7 @@
  * The chroot root is just a directory  --  RAM or disk doesn't matter
  * to the fork+chroot+exec machinery.
  */
+#include "../egojar.h"
 #include "wubu_ramdisk.h"
 #include "wubu_spawn.h"
 #include "wubu_ramdisk_internal.h"
@@ -19,10 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
-#include <sys/wait.h>
 #include <errno.h>
 
 /* -- Helper: mkdir -p --------------------------------------------- */

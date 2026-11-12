@@ -9,11 +9,11 @@
  *   - /sys/class/drm/card0/device/uevent: driver version
  *   - /sys/class/drm/renderD128: render node presence
  */
+#include "../egojar.h"
 #include "wubu_rendernode.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_rendernode_present = 0;
 static int g_rendernode_ready = 0;

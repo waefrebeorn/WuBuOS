@@ -19,11 +19,11 @@
  *   -Linux thermal management
  *   - thermal zone cooling device
  */
+#include "../egojar.h"
 #include "wubu_thermalthrottle.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_throttle = 0;    /* thermal throttle present */
 static int  g_zone = 0;        /* thermal zone */

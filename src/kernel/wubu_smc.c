@@ -19,11 +19,11 @@
  *   -AMD SMC/SMU firmware
  *   - GPU firmware loading
  */
+#include "../egojar.h"
 #include "wubu_smc.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_smc = 0;         /* SMC present */
 static int  g_smu = 0;         /* SMU firmware */

@@ -25,11 +25,11 @@
  *   - battery: power_supply class, /sys/class/power_supply/BAT0
  *   - thermal: thermal_zoneN + cooling_deviceN (fan/PWM/processor)
  */
+#include "../egojar.h"
 #include "wubu_power.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
 
 /* ---- CPU vendor IDs (CPUID vendor strings) ---- */

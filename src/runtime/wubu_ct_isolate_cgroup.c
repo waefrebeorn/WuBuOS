@@ -5,16 +5,13 @@
  * layout and standard POSIX I/O. Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_ct_isolate.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <stdint.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 static int cgroup_write_file(const char *cgroup_path, const char *file, const char *value) {
     char path[WUBU_CGROUP_MAX_PATH];

@@ -21,11 +21,11 @@
  *   - OpenCL context
  *   - CUDA context
  */
+#include "../egojar.h"
 #include "wubu_computectx.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_ctx = 0;         /* compute context present */
 static int  g_kfd = 0;         /* KFD */

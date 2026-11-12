@@ -14,22 +14,17 @@
 
 #ifdef __linux__
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_snapshot.h"
 #include "wubu_snapshot_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <errno.h>
-#include <sys/statfs.h>
-#include <sys/stat.h>
-#include <sys/mount.h>
-#include <sys/ioctl.h>
 #include <linux/fs.h>
 #include <libgen.h>  /* basename, dirname */
-#include <sys/wait.h>
 #include <linux/btrfs.h>  /* BTRFS_IOC_SNAP_CREATE_V2, BTRFS_PATH_NAME_MAX */
 
 /* BTRFS_SUPER_MAGIC is defined in <linux/magic.h> but may not be available */

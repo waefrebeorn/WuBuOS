@@ -2,6 +2,7 @@
  * vsl_file.c  --  VSL File Operations Implementation
  */
 
+#include "../../egojar.h"
 #include "vsl/vsl_internal.h"
 #include "vsl/vsl_file.h"
 
@@ -9,9 +10,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
 
 /* Global state */
 extern VSL_STATE g_vsl;

@@ -4,10 +4,10 @@
  * Minimal includes.
  */
 
+#include "../egojar.h"
 #include "styxfs_internal.h"
 #include <stdio.h>
 #include <dirent.h>
-#include <unistd.h>
 #include <time.h>
 
 styxfs_mount_t *styxfs_find_mount(styxfs_server_t *srv, const char *path, char *rel_path) {

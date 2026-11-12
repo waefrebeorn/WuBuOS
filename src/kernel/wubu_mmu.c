@@ -20,11 +20,11 @@
  *   -AMDGPU MMU page table
  *   - GPU page table translation
  */
+#include "../egojar.h"
 #include "wubu_mmu.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_mmu = 0;         /* MMU present */
 static int  g_pt = 0;          /* page table */

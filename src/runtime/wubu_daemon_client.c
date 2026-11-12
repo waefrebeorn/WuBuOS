@@ -8,15 +8,15 @@
 
 #define _POSIX_C_SOURCE 200809L
 
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "wubu_daemon_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 
 /* -- Unix socket helpers ------------------------------------------ */
 

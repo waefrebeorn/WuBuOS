@@ -10,15 +10,13 @@
  * C11, minimal includes. Shared symbols declared in wubu_ns_bridge_internal.h.
  */
 
+#include "../egojar.h"
 #include "wubu_ns_bridge_internal.h"
 #include "wubu_archd.h"   /* WubuArchServiceState for wubu_ns_state_str */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 /* The namespace root captured by wubu_ns_bridge_create(). Singleton per
  * process (one /n tree). Tests create a temp root. */

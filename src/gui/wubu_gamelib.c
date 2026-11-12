@@ -1,3 +1,4 @@
+#include "../egojar.h"
 #include "wubu_gamelib_internal.h"
 #include "wubu_gamelib.h"
 #include "wubu_proton.h"
@@ -7,15 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <time.h>
 #include <errno.h>
 #include <glob.h>
 #include <libgen.h>
 #include <limits.h>
 #include <ctype.h>
-#include <strings.h>
 
 /* ============================================================
  * Internal State

@@ -5,13 +5,12 @@
  * so the explorer test can compile and run without the full WM/Kernel.
  */
 
+#include "../egojar.h"
 #include "explorer.h"
 #include "wm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
 
 /* S_IFDIR may not be defined without _POSIX_C_SOURCE */

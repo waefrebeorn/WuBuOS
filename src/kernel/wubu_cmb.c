@@ -23,11 +23,11 @@
  *   - /sys/class/nvme nvme device cmb
  *   - submission/completion queues
  */
+#include "../egojar.h"
 #include "wubu_cmb.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

@@ -16,6 +16,8 @@
  *
  * C11, self-contained, no libm.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "../kernel/wubu_drv.h"
 #include "../kernel/wubu_drv_nvme.h"
 #include "../kernel/wubu_drv_net.h"
@@ -28,7 +30,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
-#include <unistd.h>
 
 /* ---- small /sys + /proc readers ------------------------------------ */
 

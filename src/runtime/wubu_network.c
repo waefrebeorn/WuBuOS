@@ -21,6 +21,8 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_network.h"
 #include "wubu_network_internal.h"
 #include "wubu_netlink.h"
@@ -29,11 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
-#include <sys/wait.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <arpa/inet.h>
 #include <net/if.h>
 
 /* -- Internal Helpers ----------------------------------------------- */

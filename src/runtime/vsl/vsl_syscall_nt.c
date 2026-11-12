@@ -14,32 +14,21 @@
  * C11, no nested functions.
  */
 
+#include "../../egojar.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_syscall_internal.h"
 #include "vsl_nt_internal.h"
 #include <stdlib.h>
 #include <string.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <sys/eventfd.h>
-#include <sys/mman.h>
 #include <linux/futex.h>
 
 #include "wubu_modsym.h"
 #include "vsl_nt_export_names.inc"
-#include <sys/syscall.h>
 #include <limits.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <time.h>
-#include <pthread.h>
 #include <semaphore.h>
-#include <sys/uio.h>
 
 /* Matches the NT-bridge function-pointer type defined in vsl_syscall_table.c. */
 typedef int64_t (*vsl_syscall_fn_t)(uint64_t, uint64_t, uint64_t,

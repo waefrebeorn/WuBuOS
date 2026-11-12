@@ -9,11 +9,12 @@
  *   - /sys/class/drm/card0/device/uevent: driver binding
  *   - /sys/class/drm/card0/device/vendor: PCI vendor
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_mali_g77.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_mali_g77_present = 0;
 static int g_mali_g77_panfrost = 0;

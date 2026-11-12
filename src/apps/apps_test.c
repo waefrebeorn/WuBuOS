@@ -10,6 +10,9 @@
  * - File Manager (9P/Styx operations)
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
+#include <sys/socket.h>
 #include "apps.h"
 #include "calc/calc.h"
 #include "notepad.h"
@@ -33,7 +36,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 /* Also stub out the external functions in the app registry */
 void explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
@@ -123,7 +125,7 @@ void wubu_bonzi_draw(uint32_t *f, int fw, int fh, int x, int y) { (void)f;(void)
 void wubu_bonzi_init(void) {}
 int wubu_bonzi_is_enabled(void) { return 0; }
 void wubu_bonzi_mouse(int x, int y) { (void)x;(void)y; }
-void shutdown(void) {}
+void wubu_shutdown() {}
 
 void wubu_bonzi_set_bubble(const char *b) { (void)b; }
 void wubu_bonzi_tick(uint64_t ms) { (void)ms; }

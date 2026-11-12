@@ -7,8 +7,9 @@
  * fns declared non-static in wubu_metal_internal.h.
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_metal_audio.h"
-#include <dlfcn.h>
 #include <stdio.h>
 
 /* ------------------------------------------------------------------

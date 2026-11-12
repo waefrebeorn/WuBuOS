@@ -15,6 +15,7 @@
  *
  * C11, minimal includes, self-contained.
  */
+#include "../../egojar.h"
 #include "taskmgr.h"
 #include "../gui/wm.h"
 #include "../apps/cmd/cmd.h"
@@ -23,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 /* Where wubulens lives. Exposed so a test can prove a real binary was found. */
 const char *taskmgr_wubulens_path(void)

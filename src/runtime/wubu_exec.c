@@ -4,6 +4,7 @@
  * One exec to rule them all.
  */
 
+#include "../egojar.h"
 #include "wubu_exec.h"
 #include "wubu_exec_internal.h"
 #include "wubu_host_exec.h"
@@ -12,11 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <fcntl.h>
 
 /* -- Format Names ------------------------------------------------- */
 

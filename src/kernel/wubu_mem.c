@@ -16,11 +16,11 @@
  *   - SPD: eeprom via SMBus (ee1004/at24), /sys/bus/i2c or dmidecode
  *   - ECC status: /sys/devices/system/edac/mc/mc0/ce_count, ue_count
  */
+#include "../egojar.h"
 #include "wubu_mem.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_edac = 0;

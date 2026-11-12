@@ -11,6 +11,7 @@
  */
 
 
+#include "../egojar.h"
 #include "wubu_ns_bridge.h"
 #include "wubu_archd.h"   /* real wubu_archd_svc_* */
 #include "wubu_bottles_internal.h"
@@ -18,10 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 /* -- Real (production) service ops --------------------------------- */
 

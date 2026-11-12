@@ -6,6 +6,7 @@
  * wubu_ns_win32_sync(), then read back the /n/win32/* files from disk and
  * assert the view. Standalone (opt-in), mirroring test_ns_kernel's recipe.
  */
+#include "../../egojar.h"
 #include "wubu_ns_bridge.h"
 #include "wubu_ns_bridge_internal.h"
 #include "wubu_ns_win32.h"
@@ -13,8 +14,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(c, m) do { if (c) { g_pass++; printf("  [PASS] %s\n", m); } \

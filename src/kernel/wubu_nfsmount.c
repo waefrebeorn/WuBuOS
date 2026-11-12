@@ -18,11 +18,11 @@
  * Research (7-hop on the nfsmount frontier):
  *   -NFS common mount options
  */
+#include "../egojar.h"
 #include "wubu_nfsmount.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_nfs = 0;         /* NFS present */
 static int  g_mount = 0;       /* mount */

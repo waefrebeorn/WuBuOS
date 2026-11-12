@@ -3,6 +3,7 @@
  * Renders theme cycling demo to PPM frames, then ffmpeg -> GIF/MP4
  */
 
+#include "../egojar.h"
 #include "src/apps/apps.h"
 #include "../gui/shell/startmenu.h"
 #include "src/kernel/vbe.h"
@@ -15,7 +16,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 #define DEMO_W 800
 #define DEMO_H 600

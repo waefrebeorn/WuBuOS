@@ -3,8 +3,8 @@
  * mmap, munmap, brk, mprotect, msync, mremap, etc.
  */
 
+#include "../../egojar.h"
 #include "vsl_syscall_internal.h"
-#include <sys/shm.h>
 
 /* ====================================================================
  * MEMORY MANAGEMENT SYSCALLS

@@ -4,14 +4,11 @@
  * CACHE_DIR. Uses WUBU_MAX_PATH (wubu_image.h). Minimal includes.
  */
 
+#include "../egojar.h"
 #include "wubu_image.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 
 #ifndef CACHE_DIR
 #define CACHE_DIR "/var/cache/wubu/layers"

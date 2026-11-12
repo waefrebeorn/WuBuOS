@@ -7,14 +7,14 @@
  * Memory-constrained rule: the test links wubu_ns_fs.c (the FS core) and
  * points g_ns_root at a temp dir DIRECTLY (no heavy wubu_ns_bridge.o).
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_ns_background.h"
 #include "wubu_session_boot.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

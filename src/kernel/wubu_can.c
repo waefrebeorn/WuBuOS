@@ -27,12 +27,13 @@
  *   - can327: ELM327 OBD-II serial adapter (car diagnostics)
  *   - sja1000: legacy parallel/PCI CAN
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_can.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_can_present = 0;

@@ -18,11 +18,11 @@
  * Research (7-hop on the spdifrx frontier):
  *   -S/PDIF receiver SPDIF RX
  */
+#include "../egojar.h"
 #include "wubu_spdifrx.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_rx = 0;          /* SPDIF RX present */
 static int  g_rate = 0;        /* rate detected */

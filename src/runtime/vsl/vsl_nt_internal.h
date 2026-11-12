@@ -8,6 +8,7 @@
  * this header exposes the shared statics/helpers/types every submodule needs,
  * plus the handler prototypes and the per-module dispatch registration hooks.
  * C11, opaque where possible. */
+#include "../../egojar.h"
 #include "vsl_nt_bridge.h"
 #include "vsl_syscall_internal.h"
 #include <stdint.h>
@@ -15,24 +16,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <dirent.h>
-#include <pthread.h>
 #include <semaphore.h>
-#include <sys/mman.h>
-#include <sys/eventfd.h>
-#include <sys/uio.h>
-#include <sys/statvfs.h>
-#include <sys/timerfd.h>
-#include <fcntl.h>
 #include <sched.h>
 #include <time.h>
 #include <linux/futex.h>
-#include <sys/syscall.h>
 #include <limits.h>
 
 /* Matches the NT-bridge function-pointer type defined in vsl_syscall_table.c. */

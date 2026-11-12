@@ -9,11 +9,11 @@
  *   - /sys/class/drm/card0/device/uevent: driver version
  *   - /sys/class/drm/card0/device/drm: DRM subsystem
  */
+#include "../egojar.h"
 #include "wubu_vpuencode.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vpuencode_present = 0;
 static int g_vpuencode_encoder = 0;

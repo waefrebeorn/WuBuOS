@@ -23,11 +23,11 @@
  *   - fpga-bridge: altera-freeze-bridge, xlnx-pr-decoupler
  *   - FPGA devices exposed as /dev/fpga or via VFIO for passthrough
  */
+#include "../egojar.h"
 #include "wubu_fpga.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_fpga = 0;

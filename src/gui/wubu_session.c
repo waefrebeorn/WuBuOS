@@ -3,6 +3,7 @@
  * Phase 2: Session management, auto-start, shutdown dialog
  */
 
+#include "../egojar.h"
 #include "wubu_session_internal.h"
 #include "wubu_session.h"
 #include "wubu_settings.h"
@@ -13,9 +14,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <time.h>
 
 /* -- Session State ------------------------------------------------ */

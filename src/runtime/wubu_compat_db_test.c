@@ -4,11 +4,11 @@
  */
 
 #define _POSIX_C_SOURCE 200809L
+#include "../egojar.h"
 #include "wubu_compat_db.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_run = 0, g_pass = 0;
 #define T(cond, msg) do { \

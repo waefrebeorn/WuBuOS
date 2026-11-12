@@ -11,11 +11,12 @@
  *   - /dev/dri/card0: DRM rendering node
  *   - vulkaninfo binary: profile detection
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_vulkan14.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vk_present = 0;
 static int g_vk_full = 0;

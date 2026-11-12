@@ -18,11 +18,11 @@
  * Research (7-hop on the decode frontier):
  *   -Hardware video acceleration
  */
+#include "../egojar.h"
 #include "wubu_decode.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_dec = 0;         /* decode present */
 static int  g_h264 = 0;        /* H.264/AVC */

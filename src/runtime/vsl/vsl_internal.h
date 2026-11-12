@@ -7,10 +7,10 @@
 #ifndef WUBUOS_VSL_INTERNAL_H
 #define WUBUOS_VSL_INTERNAL_H
 
+#include "../../egojar.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <sys/types.h>
 
 /* Include public opaque type declarations first */
 #include "vsl/vsl_process.h"

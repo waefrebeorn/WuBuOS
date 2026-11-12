@@ -13,6 +13,7 @@
  * Memory-constrained test pattern: links wubu_ns_fs.o (NOT wubu_ns_bridge.o) +
  * wubu_zx/wubu_zxload; g_ns_root set directly.
  */
+#include "../../egojar.h"
 #include "wubu_zx.h"
 #include "wubu_zxload.h"
 #include "wubu_modsym.h"
@@ -25,9 +26,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

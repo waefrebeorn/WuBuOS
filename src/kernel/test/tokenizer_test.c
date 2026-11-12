@@ -4,6 +4,7 @@
  * emits a PE, and wubu_zx_run runs it -> counts 4 tokens in "int x = 42".
  * This is the holyd-compiles-holyd seed: a compiler sub-stage executing as a
  * holyd program through the WuBuOS loader, not a host harness. */
+#include "../../egojar.h"
 #include "wubu_zx.h"
 #include "wubu_pe.h"
 #include "holyd.h"
@@ -14,8 +15,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

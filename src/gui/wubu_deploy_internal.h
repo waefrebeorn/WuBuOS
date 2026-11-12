@@ -7,10 +7,10 @@
 #ifndef WUBU_DEPLOY_INTERNAL_H
 #define WUBU_DEPLOY_INTERNAL_H
 
+#include "../egojar.h"
 #include "wubu_deploy.h"
 #include <stdbool.h>
 #include <stddef.h>
-#include <sys/stat.h>
 
 /* -- File/command helpers (implemented in wubu_deploy_util.c) ------ */
 bool run_command(const char *cmd, const char *workdir);

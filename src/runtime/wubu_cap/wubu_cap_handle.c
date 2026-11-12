@@ -7,12 +7,12 @@
  * Ported from GrahaOS kernel/cap/handle_table.c (kmalloc/kfree -> malloc/free,
  * spinlock -> pthread shim, fixed 1024 cap for the hosted build).
  */
+#include "../../egojar.h"
 #include "wubu_cap_internal.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <pthread.h>
 
 #define WUBU_CAP_HANDLE_INITIAL 16
 #define WUBU_CAP_HANDLE_MAX     1024

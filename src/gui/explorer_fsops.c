@@ -5,15 +5,13 @@
  * state + 9P backend via explorer_internal.h. Minimal includes.
  */
 
+#include "../egojar.h"
 #include "explorer_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <errno.h>
-#include <fcntl.h>
 
 static void ex_worker_copy(const char *src, const char *dst, uint64_t *copied, uint64_t total) {
     (void)total;

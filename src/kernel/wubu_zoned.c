@@ -20,11 +20,11 @@
  *   - ZNS NVMe: zoned namespace (high-density flash)
  *   - zonefs: zone filesystem for direct zone access
  */
+#include "../egojar.h"
 #include "wubu_zoned.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <dirent.h>
 
 /* ---- Global state ---- */

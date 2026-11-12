@@ -22,11 +22,11 @@
  *   - amdgpu scheduler + CP
  *   - nvkm priority bands (high/normal/low)
  */
+#include "../egojar.h"
 #include "wubu_gpusched.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_sched = 0;       /* GPU scheduler */

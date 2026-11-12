@@ -5,6 +5,7 @@
  * Tests window creation, z-order, drag, focus, taskbar, icons.
  */
 
+#include "../egojar.h"
 #include "wm.h"
 #include "wm_internal.h"
 #include "wubu_trash.h"
@@ -21,10 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
 
 static int g_pass = 0, g_fail = 0, g_total = 0;
@@ -34,9 +31,6 @@ static int g_pass = 0, g_fail = 0, g_total = 0;
 #define FAIL(msg) do { printf("❌ %s\n", msg); g_fail++; } while(0)
 #define CHECK(cond, msg) do { if (!(cond)) { FAIL(msg); return; } } while(0)
 
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 static void rm_rf(const char *path) {
     /* Minimal recursive delete for test temp dirs. */

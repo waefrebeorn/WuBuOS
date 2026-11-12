@@ -24,11 +24,11 @@
  *   - wacom: tablets, goodix_ts: touchscreens
  *   - alps: ALPS trackpads (psmouse)
  */
+#include "../egojar.h"
 #include "wubu_touch.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_touch = 0;

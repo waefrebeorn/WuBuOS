@@ -11,9 +11,9 @@
 #ifndef WUBU_INTERRUPT_APIC_H
 #define WUBU_INTERRUPT_APIC_H
 
+#include "../egojar.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include <signal.h>
 #include "interrupt_io.h"
 
 /* --- Shared globals (defined once in interrupt.c) --- */

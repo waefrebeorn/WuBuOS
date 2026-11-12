@@ -5,6 +5,7 @@
  * HolyC REPL, keyboard shortcuts, and resize handling.
  */
 
+#include "../egojar.h"
 #include "term.h"
 #include "term_internal.h"   /* shared parser */
 #include "wm.h"
@@ -12,11 +13,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <termios.h>
-#include <sys/wait.h>
-#include <signal.h>
 #include <ctype.h>
 #include <pty.h>
 

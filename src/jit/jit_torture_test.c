@@ -8,12 +8,12 @@
  * This is our equivalent of the GCC torture suite, tailored to the
  * Mini-C subset we actually support.
  */
+#include "../egojar.h"
 #include "jit.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 static int pass, fail, total;
 static int64_t gcc_r, wubu_r;

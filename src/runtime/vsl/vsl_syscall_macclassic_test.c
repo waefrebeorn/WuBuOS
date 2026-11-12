@@ -8,13 +8,13 @@
  * DrawChar/WriteChar/WriteLn. No stubs.
  */
 
+#include "../../egojar.h"
 #include "vsl/vsl_syscall_macclassic_internal.h"
 #include "vsl/vsl_syscall_internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <time.h>
 

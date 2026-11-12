@@ -18,19 +18,16 @@
  * ---------------------------------------------------------------------------
  */
 #define _GNU_SOURCE
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <ctype.h>
-#include <pthread.h>
 #include <dirent.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include "wubre.h"
 #include "wubre_internal.h"
 

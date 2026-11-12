@@ -5,14 +5,13 @@
  * pure state store. Own small binary (link-budget discipline).
  */
 
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_ns_bridge.h"
 #include "wubu_spawn.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { \

@@ -16,11 +16,12 @@
  * WuBuOS owns this: detect port timing + reduced blanking, route to the
  * right driver, and expose the topology.
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_porttiming.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 /* ---- Global state ---- */
 static int  g_mode = 0;        /* DRM mode */

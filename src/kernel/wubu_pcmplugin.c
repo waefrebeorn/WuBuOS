@@ -19,11 +19,11 @@
  *   - ALSA PCM plugin
  *   - dmix/softvol
  */
+#include "../egojar.h"
 #include "wubu_pcmplugin.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_plug = 0;        /* PCM plugin present */
 static int  g_rate = 0;        /* rate plugin */

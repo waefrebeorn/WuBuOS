@@ -7,15 +7,14 @@
  * legitimate GNU-surface use, kept localized. */
 #define WUBU_HOSTED
 
+#include "../egojar.h"
 #include "wubu_gnu_compat.h"
 #include "wubu_image.h"
 #include "wubu_image_internal.h"
 #include <time.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <ftw.h>
 #include "wubu_ftw.h"
-#include <sys/wait.h>
 
 /* Forward declarations (static helpers called before their definition) */
 static int tar_write_header(int fd, const char *name, mode_t mode, uid_t uid, gid_t gid, off_t size, time_t mtime);

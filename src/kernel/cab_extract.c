@@ -13,12 +13,12 @@
  * installer into the full game install tree on the Colonel.
  * C11, freestanding kernel decoders.
  */
+#include "../egojar.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <errno.h>
-#include <sys/stat.h>
 
 #include "wubu_cab.h"
 #include "memory.h"

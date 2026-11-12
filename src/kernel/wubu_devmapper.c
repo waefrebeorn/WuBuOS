@@ -17,11 +17,11 @@
  * Research (7-hop on the devmapper frontier):
  *   -Linux DM thin provisioning snapshot
  */
+#include "../egojar.h"
 #include "wubu_devmapper.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_dm = 0;          /* DM present */
 static int  g_linear = 0;      /* linear target */

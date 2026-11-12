@@ -21,6 +21,7 @@
  *
  * C11. Uses stdio for JSON parsing + device ops.
  */
+#include "../egojar.h"
 #include "../kernel/wubu_hw_detect.h"
 #include "../kernel/wubu_drv_gpu.h"
 #include "wubu_gpu_backend.h"
@@ -28,8 +29,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <dirent.h>
 
 /* the resolved backend (set by wubu_gpu_init()) */

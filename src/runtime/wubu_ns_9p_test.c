@@ -13,6 +13,7 @@
  * the same live data the bridge wrote), not just synthesized host files.
  */
 
+#include "../egojar.h"
 #include "wubu_ns_bridge.h"
 #include "wubu_snapshot.h"
 #include "wubu_spawn.h"
@@ -21,10 +22,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { \

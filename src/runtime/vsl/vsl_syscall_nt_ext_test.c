@@ -9,13 +9,11 @@
  * C11.
  */
 
+#include "../../egojar.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <errno.h>
 
 #include "vsl_nt_bridge.h"

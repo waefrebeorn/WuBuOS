@@ -2,14 +2,13 @@
  * wubu_trace.c -- Mega OS trace foundation (Phase A).
  * Immutable, versioned, user-owned trace store with grepable plain-text mirror.
  */
+#include "../egojar.h"
 #include "wubu_trace.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <sys/time.h>
 
 #define TRACE_RING 4096   /* spans retained per store (ring) */
 

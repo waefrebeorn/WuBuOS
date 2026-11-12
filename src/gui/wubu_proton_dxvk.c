@@ -14,14 +14,13 @@
  * seeding) lives in the shared core. Nothing is duplicated with the
  * runtime copy anymore.
  */
+#include "../egojar.h"
 #include "wubu_proton_internal.h"
 #include "wubu_proton_dxvk.h"
 #include "wubu_dxvk_conf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 /* --- GUI flat-layout resolver --------------------------------------- */
 static int dxvk_gui_conf_path(const char *prefix_id, char *out, size_t sz) {

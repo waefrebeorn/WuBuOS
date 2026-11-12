@@ -9,11 +9,11 @@
  *   - /sys/class/nvme nvme0/power (power state)
  *   - /sys/class/nvme nvme0/apst: APST enable
  */
+#include "../egojar.h"
 #include "wubu_nvmepower.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_nvmepower_present = 0;
 static int g_nvmepower_apst = 0;

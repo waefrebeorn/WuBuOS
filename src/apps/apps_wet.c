@@ -16,6 +16,7 @@
  * declaration, and the returned pointer is truncated to 32 bits. */
 #define _POSIX_C_SOURCE 200809L
 
+#include "../egojar.h"
 #include "apps.h"
 
 #include <dirent.h>
@@ -23,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 
 /* The applet host.  Weak, for the same reason as in apps.c: a minimal link
  * (the start menu's own test) has no applet runtime. */

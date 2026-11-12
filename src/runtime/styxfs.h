@@ -19,15 +19,12 @@
 #ifndef WUBU_STYXFS_H
 #define WUBU_STYXFS_H
 
+#include "../egojar.h"
 #include "styx.h"
 #include "wubu_container.h"
 #include <stdint.h>
 #include <stddef.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <fcntl.h>
 #include <string.h>
 
 /* -- Configuration ------------------------------------------------- */

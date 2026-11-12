@@ -22,20 +22,17 @@
  */
 
 
+#include "../egojar.h"
 #include "wubu_bottles.h"
 #include "wubu_bottles_internal.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <ctype.h>
 #include <errno.h>
 #include <ftw.h>
-#include <sys/wait.h>
 
 /* -- Recursive directory removal (replaces system("rm -rf")) -------- */
 

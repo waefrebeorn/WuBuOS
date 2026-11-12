@@ -9,11 +9,11 @@
  *   - /sys/class/drm/card0/device/uevent: driver version
  *   - /sys/class/drm/card0/device/mem_info_vram_total: VRAM size
  */
+#include "../egojar.h"
 #include "wubu_gpumem.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_gpumem_present = 0;
 static int g_gpumem_gb = 0;

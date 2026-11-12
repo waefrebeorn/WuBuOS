@@ -4,6 +4,7 @@
  * wubu_archd_internal.h for shared statics. C11, no god headers.
  */
 
+#include "../egojar.h"
 #include "wubu_archd.h"
 #include "wubu_arch.h"
 #include "wubu_archd_internal.h"
@@ -13,18 +14,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/epoll.h>
-#include <sys/wait.h>
 
 int wubu_archd_root_destroy(WubuArchd *d, const char *name) {
     if (!name || !d) return -1;

@@ -4,6 +4,7 @@
  * half of the AGI loop: the Styx server routes /n/kv/... reads to the live
  * tensor, which only works if the path exists and resolves).
  */
+#include "../egojar.h"
 #include "wubu_ns_kv.h"
 #include "wubu_ns_bridge_internal.h"
 #include "../kernel/wubu_kvfs.h"
@@ -11,8 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 #define NSROOT "/tmp/wubu_kvns"
 

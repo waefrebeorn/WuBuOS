@@ -7,6 +7,9 @@
  * Full theme engine integration (Win98, XP Luna, XP Media, WuBu).
  */
 
+#include "../../egojar.h"
+#include "../../egojar_net.h"
+#include <sys/socket.h>
 #include "./desktop.h"
 #include "../wm.h"
 #include "../daemon_panel.h"
@@ -27,10 +30,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <sys/stat.h>
 
 /* -- Theme Helpers ------------------------------------------------ */
 
@@ -272,7 +271,7 @@ void desktop_tick(void) {
 
 /* -- Shutdown ------------------------------------------------------ */
 
-void shutdown(void) {
+void wubu_shutdown() {
     extern void platform_shutdown(void);
     platform_shutdown();
 }

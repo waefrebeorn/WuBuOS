@@ -12,12 +12,11 @@
  * Run:   ./canvas
  */
 
+#include "../egojar.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <unistd.h>
-#include <sys/select.h>
 
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"

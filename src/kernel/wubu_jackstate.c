@@ -18,11 +18,11 @@
  *   -ALSA jack state
  *   -switch class state
  */
+#include "../egojar.h"
 #include "wubu_jackstate.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int  g_js = 0;          /* jack state present */
 static int  g_plug = 0;        /* plug event */

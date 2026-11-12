@@ -3,12 +3,11 @@
  * and whose .tls directory points at a NULL-terminated callback array of two host
  * functions. Verifies wubu_pe_tls_callbacks runs them in order and that
  * wubu_pe_call_entry runs TLS callbacks BEFORE transferring to the entry point. */
+#include "../../egojar.h"
 #include "wubu_pe.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \

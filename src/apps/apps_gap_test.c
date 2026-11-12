@@ -13,15 +13,13 @@
  * ~/.wubu — the test points HOME at a temp dir so the repo is
  * never touched).
  */
+#include "../egojar.h"
 #include "notes.h"
 #include "todo.h"
 #include "music.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #define FAIL(...) do { printf("  FAIL: " __VA_ARGS__); printf("\n"); return 1; } while (0)
 

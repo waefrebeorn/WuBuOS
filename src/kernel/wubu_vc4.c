@@ -9,11 +9,12 @@
  *   - /sys/class/drm/card0/device/uevent: driver binding
  *   - /sys/class/drm/card0/device/vendor: PCI vendor (0x1a03 for some)
  */
+#include "../egojar.h"
+#include "../egojar_net.h"
 #include "wubu_vc4.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 static int g_vc4_present = 0;
 static int g_vc4_v3d = 0;

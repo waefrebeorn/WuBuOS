@@ -11,6 +11,7 @@
  *
  * Uses a real ns root (g_ns_root set directly; wubu_ns_fs.o, not the bridge).
  */
+#include "../../egojar.h"
 #include "wubu_zxreg.h"
 #include "wubu_zx.h"
 #include "wubu_modsym.h"
@@ -23,9 +24,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
-#include <unistd.h>
-#include <sys/stat.h>
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { if (cond) { g_pass++; } \
