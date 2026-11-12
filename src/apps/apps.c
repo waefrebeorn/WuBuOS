@@ -47,6 +47,7 @@ __attribute__((weak)) DosGuiWindow *gs_launch(void);
 __attribute__((weak)) DosGuiWindow *wubu_tutorial_browser(void);
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 
 /* -- Forward declarations for app callbacks ----------------------- */
@@ -341,6 +342,12 @@ const DosGuiAppDef *app_find_by_name(const char *name) {
     for (int i = 0; i < g_app_def_count; i++)
         if (strcmp(g_app_defs[i].name, name) == 0 ||
             strcmp(g_app_defs[i].title, name) == 0)
+            return &g_app_defs[i];
+    /* Case-insensitive pass: the run dialog and the Start-menu search accept
+     * what the user actually typed, and "notepad" should find "Notepad". */
+    for (int i = 0; i < g_app_def_count; i++)
+        if (strcasecmp(g_app_defs[i].name, name) == 0 ||
+            strcasecmp(g_app_defs[i].title, name) == 0)
             return &g_app_defs[i];
     return app_find_wet_by_name(name);   /* owned by apps_wet.c */
 }

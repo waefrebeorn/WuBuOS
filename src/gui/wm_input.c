@@ -20,6 +20,7 @@
 #include "shell/wubu_lock_screen.h"
 #include "shell/win11_shell.h"
 #include "shell/window_chrome.h"
+#include "shell/run_dialog.h"
 #include "../kernel/wubu_gesture.h"
 #include "shell/startmenu.h"
 #include "shell/taskbar_tasks.h"
@@ -124,6 +125,16 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
     if (startmenu_is_open()) {
         startmenu_handle_key(key, mods);
         startmenu_handle_search_input(key, mods);
+        return;
+    }
+
+    /* Win+R: run dialog (Windows 11 parity). */
+    if ((mods & MOD_WIN) && (key == 0x13 || key == 'r' || key == 'R')) {
+        run_dialog_open();
+        return;
+    }
+    if (run_dialog_is_open()) {
+        run_dialog_handle_key(key, mods);
         return;
     }
 
@@ -276,6 +287,13 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
     /* Win11 shell layers own the press while the snap flyout or widgets
      * board is open (weak: absent in builds without the shell). */
     if (kind == 1 && win11_shell_click && win11_shell_click(x, y)) return;
+
+    /* The run dialog is modal: a press outside it dismisses it, inside is
+     * swallowed (there is no text cursor to place yet). */
+    if (kind == 1 && run_dialog_is_open()) {
+        run_dialog_handle_click(x, y);
+        return;
+    }
 
     /* While the quick settings panel is open it owns the pointer. */
     if (quick_settings_is_open() && kind == 1) {

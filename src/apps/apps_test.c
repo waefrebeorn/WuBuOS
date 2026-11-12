@@ -909,3 +909,23 @@ __attribute__((weak)) void startmenu_handle_key(int key, uint32_t mods) {
 __attribute__((weak)) void startmenu_handle_search_input(int key, uint32_t mods) {
     (void)key; (void)mods;
 }
+
+/* Weak: the WM routes Win+R to the run dialog.  Targets that link the real
+ * run_dialog.c get the strong definitions. */
+__attribute__((weak)) void run_dialog_open(void) { }
+__attribute__((weak)) void run_dialog_close(void) { }
+__attribute__((weak)) bool run_dialog_is_open(void) { return false; }
+__attribute__((weak)) void run_dialog_handle_key(uint32_t key, uint32_t mods) {
+    (void)key; (void)mods;
+}
+__attribute__((weak)) bool run_dialog_handle_click(int x, int y) {
+    (void)x; (void)y; return false;
+}
+__attribute__((weak)) void run_dialog_rect(int fb_w, int fb_h,
+                                           int *x, int *y, int *w, int *h) {
+    (void)fb_w; (void)fb_h;
+    if (x) *x = 0; if (y) *y = 0; if (w) *w = 0; if (h) *h = 0;
+}
+__attribute__((weak)) void run_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb; (void)fb_w; (void)fb_h;
+}

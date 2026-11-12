@@ -114,7 +114,31 @@ __attribute__((weak)) void startmenu_handle_click(int x, int y) {
 
 __attribute__((weak)) void startmenu_track_hover(int x, int y) { (void)x; (void)y; }
 
-/* Keyboard entry points: the WM routes keys to the menu while it is open.
+/* Run dialog: the WM routes Win+R to it.  Weak, so targets that link only
+ * this stub still resolve the symbols; the real module wins where linked. */
+__attribute__((weak)) void run_dialog_open(void) { }
+__attribute__((weak)) void run_dialog_close(void) { }
+__attribute__((weak)) bool run_dialog_is_open(void) { return false; }
+__attribute__((weak)) void run_dialog_handle_key(uint32_t key, uint32_t mods)
+{
+    (void)key; (void)mods;
+}
+__attribute__((weak)) bool run_dialog_handle_click(int x, int y)
+{
+    (void)x; (void)y; return false;
+}
+__attribute__((weak)) void run_dialog_rect(int fb_w, int fb_h,
+                                           int *x, int *y, int *w, int *h)
+{
+    (void)fb_w; (void)fb_h;
+    if (x) *x = 0; if (y) *y = 0; if (w) *w = 0; if (h) *h = 0;
+}
+__attribute__((weak)) void run_dialog_render(uint32_t *fb, int fb_w, int fb_h)
+{
+    (void)fb; (void)fb_w; (void)fb_h;
+}
+
+/* Keyboard entry points: the WM routes keys to the Start menu while it is open.
  * Weak, so a target that links only this stub still resolves them. */
 __attribute__((weak)) void startmenu_handle_key(int key, uint32_t mods) {
     (void)key; (void)mods;
