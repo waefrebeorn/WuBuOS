@@ -22,6 +22,10 @@ typedef struct {
     int dx, dy;        /* Delta since last event */
     int buttons;       /* Bit 0=left, 1=right, 2=middle */
     int scroll;        /* Scroll delta */
+    /* 0=move, 1=button-down, 2=button-up; -1 = derive from `buttons`.
+     * The WM needs this: a drag is a move, not a press, and conflating the
+     * two is what made title-bar dragging do nothing. */
+    int kind;
 } MouseEvent;
 
 /* Keyboard API */

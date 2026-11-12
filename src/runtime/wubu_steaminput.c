@@ -171,18 +171,21 @@ void wubu_si_feed_button(int button, int down)
     if (sc == -1) {          /* left click */
         MouseEvent m; memset(&m, 0, sizeof(m));
         m.buttons = down ? (1 << SI_M_LEFT) : 0;
+        m.kind = down ? 1 : 2;
         input_mouse_push(m);
         return;
     }
     if (sc == -2) {          /* right click */
         MouseEvent m; memset(&m, 0, sizeof(m));
         m.buttons = down ? (1 << SI_M_RIGHT) : 0;
+        m.kind = down ? 1 : 2;
         input_mouse_push(m);
         return;
     }
     if (sc == -3) {          /* middle click */
         MouseEvent m; memset(&m, 0, sizeof(m));
         m.buttons = down ? (1 << SI_M_MIDDLE) : 0;
+        m.kind = down ? 1 : 2;
         input_mouse_push(m);
         return;
     }

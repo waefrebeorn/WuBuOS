@@ -134,6 +134,7 @@ static void agi_act(int action)
         MouseEvent m;
         memset(&m, 0, sizeof(m));
         m.buttons = 1;
+        m.kind = 1;           /* FIRE is a press */
         input_mouse_push(m);
         return;
     }

@@ -44,8 +44,8 @@ void hosted_input_dispatch(void) {
     }
     MouseEvent mev;
     while (input_mouse_poll(&mev)) {
-        int kind = mev.buttons ? 1 : 2; /* 1=down, 2=up */
-        if (mev.buttons & 2) kind = 0;   /* 0=move while dragging */
+        int kind = (mev.kind >= 0) ? mev.kind
+                                   : (mev.buttons ? 1 : 2); /* 1=down, 2=up */
         wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);
         wubu_bonzi_activity();
     }

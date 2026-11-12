@@ -223,6 +223,7 @@ static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
         ev.dy = 0;
         ev.buttons = g_mouse_buttons;
         ev.scroll = 0;
+        ev.kind = 0;          /* pointer motion (hover or drag) */
         input_mouse_push(ev);
     }
     /* Track start menu hover */
@@ -253,6 +254,7 @@ static void pointer_button(void *data, struct wl_pointer *wl_ptr,
         ev.dy = 0;
         ev.buttons = g_mouse_buttons;
         ev.scroll = 0;
+        ev.kind = pressed ? 1 : 2;
         input_mouse_push(ev);
     }
 }
