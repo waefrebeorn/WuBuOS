@@ -97,7 +97,10 @@ void vbe_swap(void) {
         be->present(be);
         return;
     }
-    /* No backend: plain back-buffer copy (bare-metal / test). */
+    /* No backend: plain back-buffer copy (bare-metal / test).  When the
+     * backend mapped fb and back to the same host surface there is nothing
+     * to copy -- and a self-memcpy of a 3MB buffer every frame is pure waste. */
+    if (v->fb == v->back) return;
     memcpy(v->fb, v->back, v->fb_size);
 }
 

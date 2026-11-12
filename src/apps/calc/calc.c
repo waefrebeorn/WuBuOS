@@ -219,14 +219,6 @@ void calc_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, CalcState *c
     int cw = content.w;
     int ch = content.h;
 
-    /* DIAGNOSTIC: capture the real window geometry so a bad-width crash
-     * is observable instead of a silent SIGSEGV. */
-    fprintf(stderr, "[calc_draw] id=%d title='%s' x=%d y=%d w=%d h=%d "
-                    "c=%p btn_cols=%d btn_rows=%d content={%d,%d,%d,%d}\n",
-            win->id, win->title, win->x, win->y, win->w, win->h,
-            (void*)c, c->btn_cols, c->btn_rows,
-            content.x, content.y, content.w, content.h);
-
     /* Guard: if the window geometry is degenerate (e.g. w<2*bw), do not
      * attempt to lay out the button grid — that would divide by a tiny /
      * negative gw and read out-of-bounds grid labels. */

@@ -265,6 +265,46 @@ static BonziAnim compute_animation(int clock_ms) {
 
 /* -- Drawing ---------------------------------------------------------- */
 
+/* Solid body under the baked clip art.  The clipart's white fur was encoded
+ * as transparent (mascot_encode treats near-white as background), so the
+ * buddy rendered as a faint ghost with no legs.  Drawing the body opaquely
+ * first gives the sprite something solid to sit on; the sprite's cap,
+ * scarf, eye and outlines still show through. */
+static void buddy_draw_body(int ox, int oy) {
+    const uint32_t fur   = 0xFFFFFFFF;   /* white fur */
+    const uint32_t belly = 0xFFF2F2FA;   /* near-white belly */
+    const uint32_t ink   = 0xFF1A1A2E;   /* dark outline */
+
+    /* feet + legs: the part the old sprite lost entirely */
+    vbe_fill_circle(ox + 34, oy + 84, 8, fur);
+    vbe_fill_circle(ox + 62, oy + 84, 8, fur);
+    vbe_ellipse(ox + 34, oy + 84, 8, 8, ink);
+    vbe_ellipse(ox + 62, oy + 84, 8, 8, ink);
+    vbe_fill_circle(ox + 38, oy + 74, 7, fur);
+    vbe_fill_circle(ox + 58, oy + 74, 7, fur);
+
+    /* body + belly */
+    vbe_fill_circle(ox + 48, oy + 62, 22, fur);
+    vbe_ellipse(ox + 48, oy + 62, 22, 22, ink);
+    vbe_fill_circle(ox + 48, oy + 68, 12, belly);
+
+    /* arms */
+    vbe_fill_circle(ox + 26, oy + 58, 8, fur);
+    vbe_fill_circle(ox + 70, oy + 58, 8, fur);
+    vbe_ellipse(ox + 26, oy + 58, 8, 8, ink);
+    vbe_ellipse(ox + 70, oy + 58, 8, 8, ink);
+
+    /* ears */
+    vbe_fill_rect_rounded(ox + 30, oy + 2, 12, 22, 6, fur);
+    vbe_fill_rect_rounded(ox + 54, oy + 2, 12, 22, 6, fur);
+    vbe_rect_rounded(ox + 30, oy + 2, 12, 22, 6, ink);
+    vbe_rect_rounded(ox + 54, oy + 2, 12, 22, 6, ink);
+
+    /* head */
+    vbe_fill_circle(ox + 48, oy + 32, 18, fur);
+    vbe_ellipse(ox + 48, oy + 32, 18, 18, ink);
+}
+
 void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
     if (!g_bonzi_enabled) return;
@@ -273,8 +313,8 @@ void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
     int ox = g_bx;
     int oy = g_by + (int)a.bob_y;  /* smooth vertical bob */
 
-    /* The mascot itself: baked clipart, alpha-blended. The bob carries
-     * the life; the pose carries the mood. */
+    /* The body first (opaque), then the baked clipart over it. */
+    buddy_draw_body(ox, oy);
     wubu_mascot_blit_rgba(ox, oy, buddy_state_rgba(), BUDDY_STATE_SIZE);
 
     /* Speech bubble: above the buddy, clamped on-screen, tail pointing

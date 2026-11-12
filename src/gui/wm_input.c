@@ -18,6 +18,7 @@
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
+#include "shell/win11_shell.h"
 #include "../kernel/wubu_gesture.h"
 #include "shell/startmenu.h"
 #include "shell/taskbar_tasks.h"
@@ -159,6 +160,10 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    /* Win11 shell hotkeys (Win+Z snap flyout, Win+W widgets).  Weak: a build
+     * without the shell simply has no hotkeys. */
+    if (win11_shell_key && win11_shell_key(key, mods)) return;
+
     /* Alt+Tab: cycle through windows */
     bool alt_held = (mods & MOD_ALT) != 0;
     if (alt_held && key == 0x09 && g_dwm.nz > 1) {
@@ -278,6 +283,10 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
 
     /* While locked the pointer is swallowed too. */
     if (wubu_lock_screen_is_locked()) return;
+
+    /* Win11 shell layers own the press while the snap flyout or widgets
+     * board is open (weak: absent in builds without the shell). */
+    if (kind == 1 && win11_shell_click && win11_shell_click(x, y)) return;
 
     /* While the quick settings panel is open it owns the pointer. */
     if (quick_settings_is_open() && kind == 1) {
@@ -525,6 +534,11 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                     g_dwm.icons[icon_idx].on_click();
                 } else if (g_dwm.icons[icon_idx].on_execute) {
                     g_dwm.icons[icon_idx].on_execute();
+                } else if (launch_app) {
+                    /* Registry icons are registered without a per-icon
+                     * closure (icon_add_ex(..., NULL)); the icon name IS the
+                     * launch path, so fall back to it. */
+                    launch_app(g_dwm.icons[icon_idx].name);
                 }
                 g_dwm.drag_icon_id = icon_idx;
                 g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;

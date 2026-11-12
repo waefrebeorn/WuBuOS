@@ -97,37 +97,47 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *toplevel,
                                    struct wl_array *states) {
     hosted_state_t *state = (hosted_state_t*)data;
     if (!state) return;
-    
+
     /* Ignore 0x0 configure (initial) */
     if (width <= 0 || height <= 0) return;
-    
-    /* Resize VBE framebuffer if changed */
+
     VBEState *vs = vbe_state();
-    if (vs && (vs->width != width || vs->height != height)) {
-        fprintf(stderr, "WuBuOS: resize %dx%d -> %dx%d\n", vs->width, vs->height, width, height);
-        
-        /* Destroy old SHM buffers */
-        for (int i = 0; i < SHM_BUFFERS; i++) shm_buffer_destroy(&g_shm_bufs[i]);
-        
-        /* Reinit VBE with new size */
-        vbe_shutdown();
-        vbe_init(width, height);
-        
-        /* Update WM and desktop */
-        wm_init(width, height);
-        
-        /* Create new SHM buffers */
-        shm_buffer_create(&g_shm_bufs[0], width, height);
-        shm_buffer_create(&g_shm_bufs[1], width, height);
-        
-        state->width = width;
-        state->height = height;
-        state->fb_pitch = width * 4;
-        if (state->framebuffer) {
-            free(state->framebuffer);
-            state->framebuffer = (uint32_t*)calloc((size_t)width * height, 4);
-        }
+    if (!vs || (vs->width == width && vs->height == height)) return;
+
+    fprintf(stderr, "WuBuOS: resize %dx%d -> %dx%d\n",
+            vs->width, vs->height, width, height);
+
+    /* Detach the host surface BEFORE the shm buffers go away.  The VBE's
+     * fb/back point at g_shm_bufs[0].pixels; vbe_shutdown() would free()
+     * those pointers, but they belong to mmap (already munmap'd by
+     * shm_buffer_destroy) -- an instant segfault. */
+    vbe_backend_t *be = (vbe_backend_t *)vs->backend;
+    vs->backend = NULL;
+    vs->fb = NULL;
+    vs->back = NULL;
+
+    for (int i = 0; i < SHM_BUFFERS; i++) shm_buffer_destroy(&g_shm_bufs[i]);
+    vbe_shutdown();
+
+    state->width = width;
+    state->height = height;
+    state->fb_pitch = width * 4;
+    if (state->framebuffer) {
+        free(state->framebuffer);
+        state->framebuffer = (uint32_t*)calloc((size_t)width * height, 4);
     }
+
+    vbe_init(width, height);
+    shm_buffer_create(&g_shm_bufs[0], width, height);
+    shm_buffer_create(&g_shm_bufs[1], width, height);
+    if (be)
+        vbe_set_backend(VBE_BACKEND_WAYLAND, g_shm_bufs[0].pixels,
+                        width, height, be);
+
+    /* The WM and desktop are sized to the screen; resize in place so the
+     * open windows and desktop icons survive. */
+    wm_set_screen_size(width, height);
+    g_wl.configured = 1;
 }
 
 static void xdg_toplevel_close(void *data, struct xdg_toplevel *toplevel) {

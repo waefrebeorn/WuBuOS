@@ -32,6 +32,7 @@ typedef enum {
 /* Public API */
 NotepadState* notepad_state_get(void);
 DosGuiWindow* notepad_launch(void);
+DosGuiWindow* notepad_open(const char *filename);
 void notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
 void notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 

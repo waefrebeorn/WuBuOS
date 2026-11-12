@@ -50,6 +50,8 @@
 #include "../gui/shell/wm_holyc_term.h"
 #include "../runtime/wubu_holyd_agi.h"
 #include "../gui/shell/desktop.h"
+#include "../gui/shell/wubu_screensaver.h"
+#include "../gui/shell/wubu_lock_screen.h"
 #include "../runtime/styx.h"
 #include "../bridge/bridge.h"
 #include "../apps/repl.h"
@@ -175,6 +177,12 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     holyc_term_set_eval(wubu_holyc_eval);
     wubu_holyd_set_pointer_handler(wm_handle_mouse);
     desktop_init();
+
+    /* Hosted session: the host desktop owns idle blanking and session
+     * locking.  The in-guest screensaver/lock would only interrupt the
+     * user, so they are off here (the bare-metal path keeps them). */
+    wubu_screensaver_set_enabled(false);
+    wubu_lock_screen_set_enabled(false);
 
     /* The federation agent card. The OS never mints an AID -- the federation
      * does (JOINING.md) -- so this loads an enrolled card from the home

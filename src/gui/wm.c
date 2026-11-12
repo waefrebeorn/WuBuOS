@@ -83,6 +83,39 @@ int wm_init(int screen_w, int screen_h) {
     return 0;
 }
 
+/* Resize the screen WITHOUT wiping window/icon state.  A hosted client gets
+ * its real output size from the compositor's xdg_toplevel configure after the
+ * GUI is already up, so a plain wm_init() there would memset g_dwm and lose
+ * every open window and desktop icon. */
+void wm_set_screen_size(int screen_w, int screen_h) {
+    if (screen_w <= 0 || screen_h <= 0) return;
+    g_dwm.screen_w = screen_w;
+    g_dwm.screen_h = screen_h;
+    load_default_wallpaper();
+    wubu_bonzi_init(8, screen_h - taskbar_height_dynamic() - wubu_mascot_size());
+    wm_rim_init(screen_w, screen_h);
+    wm_slime_init(screen_w, screen_h);
+    wm_rim_mirror_pins();
+    wm_slime_mirror_pins();
+    wm_relayout_windows();
+}
+
+/* Re-layout existing windows after a screen resize: fan them out around the
+ * centre of the NEW screen instead of leaving them stranded at coordinates
+ * computed for the old (usually much smaller) one. */
+void wm_relayout_windows(void) {
+    int i = 0;
+    for (int j = 0; j < g_dwm.nz; j++) {
+        int idx = g_dwm.zorder[j];
+        DosGuiWindow *w = &g_dwm.windows[idx];
+        if (!w || !w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
+        int x = (g_dwm.screen_w - w->w) / 2 + (i - 1) * 140;
+        int y = (g_dwm.screen_h - w->h) / 2 - 40 + (i % 2) * 70;
+        wm_move(w, x, y);
+        i++;
+    }
+}
+
 /* -- Human typing engine ---------------------------------------------
  * The AGI / automation "types" into a window with HUMAN rhythm: keystrokes
  * land spaced 28-51ms apart with jitter, plus an occasional 240ms "thinking"

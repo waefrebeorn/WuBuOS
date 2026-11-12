@@ -20,8 +20,16 @@
 static uint32_t g_timeout_ms = SS_DEFAULT_TIMEOUT_MS;
 static uint32_t g_idle_ms    = 0;
 static bool     g_active     = false;
+static bool     g_enabled    = true;
+
+void wubu_screensaver_set_enabled(bool enabled) {
+    g_enabled = enabled;
+    if (!enabled) { g_active = false; g_idle_ms = 0; }
+}
+bool wubu_screensaver_is_enabled(void) { return g_enabled; }
 
 void wubu_screensaver_set_timeout_ms(uint32_t ms) {
+    if (!g_enabled) return;
     g_timeout_ms = (ms > 0) ? ms : SS_DEFAULT_TIMEOUT_MS;
     /* Re-evaluate immediately so lowering the timeout takes effect now. */
     if (g_idle_ms >= g_timeout_ms) g_active = true;
@@ -30,12 +38,13 @@ void wubu_screensaver_set_timeout_ms(uint32_t ms) {
 uint32_t wubu_screensaver_timeout_ms(void) { return g_timeout_ms; }
 
 void wubu_screensaver_activity(void) {
+    if (!g_enabled) return;
     g_idle_ms = 0;
     g_active  = false;
 }
 
 void wubu_screensaver_tick(uint32_t delta_ms) {
-    if (g_active) return;
+    if (!g_enabled || g_active) return;
     g_idle_ms += delta_ms;
     if (g_timeout_ms > 0 && g_idle_ms >= g_timeout_ms) g_active = true;
 }
@@ -43,7 +52,7 @@ void wubu_screensaver_tick(uint32_t delta_ms) {
 bool wubu_screensaver_active(void) { return g_active; }
 
 void wubu_screensaver_render(uint32_t *fb, int fb_w, int fb_h) {
-    if (!g_active) return;
+    if (!g_enabled || !g_active) return;
 
     /* Dim to near-black.  A solid fill keeps this dependency-free. */
     vbe_fill_rect(0, 0, fb_w, fb_h, 0x0A0A0A);

@@ -241,7 +241,7 @@ DosGuiWindow *notepad_launch(void) {
     return notepad_open(NULL);
 }
 
-void notepad_open(const char *filename) {
+DosGuiWindow *notepad_open(const char *filename) {
     np_reset();
     if (filename) strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename)-1);
     DosGuiWindow *win = wm_create(100, 80, 500, 400,
@@ -251,4 +251,5 @@ void notepad_open(const char *filename) {
         win->on_key   = notepad_key;
         win->on_mouse = notepad_mouse;
     }
+    return win;
 }

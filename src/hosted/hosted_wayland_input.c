@@ -72,10 +72,14 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
         wu_key = 0x14;
         break;
     default:
-        if (key >= 30 && key <= 38) wu_key = 0x1E + (uint32_t)(key - 30); /* A-L */
-        else if (key >= 44 && key <= 50) wu_key = 0x1E + (uint32_t)(key - 44 + 16); /* Z-M */
-        else if (key >= 16 && key <= 25) wu_key = 0x1E + (uint32_t)(key - 16); /* Q-P */
-        else if (key >= 2 && key <= 11) wu_key = 0x0B + (uint32_t)(key - 2); /* 1-0 */
+        /* Set-1 keyboard scancodes, so the WM sees the same codes it already
+         * matches (A=0x1E, D=0x20, ...).  The previous mapping collapsed the
+         * Q row onto the A row (Q and A both became 0x1E) and shifted Z-M,
+         * which made Win+W indistinguishable from Win+A. */
+        if (key >= 16 && key <= 25) wu_key = 0x10 + (uint32_t)(key - 16); /* Q-P */
+        else if (key >= 30 && key <= 38) wu_key = 0x1E + (uint32_t)(key - 30); /* A-L */
+        else if (key >= 44 && key <= 50) wu_key = 0x2C + (uint32_t)(key - 44); /* Z-M */
+        else if (key >= 2 && key <= 11) wu_key = 0x02 + (uint32_t)(key - 2); /* 1-0 */
         else if (key >= 59 && key <= 68) wu_key = 0x3B + (uint32_t)(key - 59); /* F1-F10 */
         else if (key == 87) wu_key = 0x3B + 10; /* F11 */
         else if (key == 88) wu_key = 0x3B + 11; /* F12 */

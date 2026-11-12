@@ -18,6 +18,8 @@
 #include "../era_apps.h"
 #include "./desktop.h"
 #include "../wm.h"
+#include "../wm_internal.h"
+#include "../../apps/apps.h"
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../../gui/wubu_mime.h"
@@ -258,9 +260,179 @@ static void draw_submenu(int x, int y, SmSubmenu *sub) {
     }
 }
 
+/* -- Windows 11-class Start menu ---------------------------------- */
+/*
+ * The dark theme ships the Win11 shell: a centred, rounded panel with a
+ * search bar, a Pinned app grid, a Recommended list and a user/power
+ * footer.  Geometry lives in startmenu_win11_layout() so the renderer and
+ * the pointer path can never disagree about where a tile is.
+ */
+
+typedef struct {
+    int px, py, pw, ph;
+    int search_x, search_y, search_w, search_h;
+    int grid_x, grid_y, tile, gap, cols, rows;
+    int rec_label_y;
+    int rec_x, rec_y, rec_item_w, rec_item_h, rec_cols, rec_rows;
+    int foot_y;
+    int power_x, power_y, power_w, power_h;
+} SmWin11;
+
+/* Pinned apps, in display order.  name = launch key; the icon type and
+ * colour mirror the app registry so the tile matches the desktop icon. */
+typedef struct {
+    const char *name;
+    int         icon_type;
+    uint32_t    icon_color;
+} Win11Pin;
+
+static const Win11Pin g_win11_pins[] = {
+    { "Notepad",      DESK_ICON_NOTEPAD,    0x00AAAA00 },
+    { "Paint",        DESK_ICON_PAINT,      0x000080FF },
+    { "Calculator",   DESK_ICON_CALCULATOR, 0x00FF8000 },
+    { "Terminal",     DESK_ICON_TERMINAL,   0x00000000 },
+    { "File Manager", DESK_ICON_EXPLORER,   0x000080FF },
+    { "Settings",     DESK_ICON_SETTINGS,   0x00808080 },
+    { "Editor",       DESK_ICON_COUNT + 0,  0x008080FF },
+    { "WuBu Canvas",  DESK_ICON_COUNT + 1,  0x000080FF },
+    { "HolyC Term",   DESK_ICON_COUNT + 3,  0x00800080 },
+    { "DOS Box",      DESK_ICON_COUNT + 4,  0x0000C000 },
+    { "EDR Activity", DESK_ICON_COUNT + 5,  0x00C00000 },
+    { "Bonzi Buddy",  DESK_ICON_COUNT + 6,  0x00A030A0 },
+};
+#define WIN11_PIN_COUNT ((int)(sizeof(g_win11_pins) / sizeof(g_win11_pins[0])))
+
+static void startmenu_win11_layout(int fb_w, int fb_h, SmWin11 *L) {
+    memset(L, 0, sizeof *L);
+    int th = taskbar_height();
+    L->pw = 520; L->ph = 560;
+    if (L->pw > fb_w - 24) L->pw = fb_w - 24;
+    L->px = (fb_w - L->pw) / 2;
+    L->py = fb_h - th - L->ph - 12;
+    if (L->py < 8) L->py = 8;
+
+    L->search_x = L->px + 16; L->search_y = L->py + 12;
+    L->search_w = L->pw - 32; L->search_h = 28;
+
+    L->cols = 6; L->tile = 72; L->gap = 8; L->rows = 2;
+    int grid_w = L->cols * L->tile + (L->cols - 1) * L->gap;
+    L->grid_x = L->px + (L->pw - grid_w) / 2;
+    L->grid_y = L->py + 72;
+
+    L->rec_label_y = L->grid_y + L->rows * L->tile +
+                     (L->rows - 1) * L->gap + 14;
+    L->rec_cols = 2; L->rec_rows = 3;
+    L->rec_item_w = (L->pw - 32 - 8) / 2;
+    L->rec_item_h = 44;
+    L->rec_x = L->px + 16;
+    L->rec_y = L->rec_label_y + 16;
+
+    L->foot_y = L->py + L->ph - 44;
+    L->power_w = 36; L->power_h = 28;
+    L->power_x = L->px + L->pw - 16 - L->power_w;
+    L->power_y = L->foot_y + 8;
+}
+
+static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
+    const WubuThemeColors *c = tc();
+    SmWin11 L;
+    startmenu_win11_layout(fb_w, fb_h, &L);
+
+    vbe_fill_rect_rounded(L.px, L.py, L.pw, L.ph, 10, c->startmenu_bg);
+    vbe_rect_rounded(L.px, L.py, L.pw, L.ph, 10, c->border_light);
+
+    /* Search bar. */
+    vbe_fill_rect_rounded(L.search_x, L.search_y, L.search_w, L.search_h,
+                          6, c->btn_face);
+    vbe_rect_rounded(L.search_x, L.search_y, L.search_w, L.search_h,
+                     6, c->border_light);
+    vbe_draw_text(L.search_x + 10, L.search_y + 8, "Type here to search",
+                  c->startmenu_text, 1);
+
+    /* Pinned grid. */
+    vbe_draw_text(L.px + 16, L.grid_y - 16, "Pinned", c->startmenu_text, 1);
+    for (int i = 0; i < WIN11_PIN_COUNT; i++) {
+        const Win11Pin *d = &g_win11_pins[i];
+        int col = i % L.cols, row = i / L.cols;
+        int tx = L.grid_x + col * (L.tile + L.gap);
+        int ty = L.grid_y + row * (L.tile + L.gap);
+        vbe_fill_rect_rounded(tx, ty, L.tile, L.tile, 8, c->btn_face);
+        vbe_rect_rounded(tx, ty, L.tile, L.tile, 8, c->border_light);
+        wm_draw_icon_glyph(d->icon_type, tx + 20, ty + 6,
+                           d->icon_color ? d->icon_color : c->btn_hover,
+                           c->border_light, c->border_dark, c->btn_hover);
+        vbe_draw_text(tx + 2, ty + 46, d->name, c->startmenu_text, 1);
+    }
+
+    /* Recommended: recent programs, two columns. */
+    vbe_draw_text(L.px + 16, L.rec_label_y, "Recommended",
+                  c->startmenu_text, 1);
+    int n = g_recent_count < 6 ? g_recent_count : 6;
+    for (int i = 0; i < n; i++) {
+        int col = i % L.rec_cols, row = i / L.rec_cols;
+        int ix = L.rec_x + col * (L.rec_item_w + 8);
+        int iy = L.rec_y + row * (L.rec_item_h + 4);
+        vbe_fill_rect_rounded(ix, iy, L.rec_item_w, L.rec_item_h, 6,
+                              c->btn_face);
+        vbe_rect_rounded(ix, iy, L.rec_item_w, L.rec_item_h, 6,
+                         c->border_light);
+        vbe_draw_text(ix + 8, iy + 16, g_recent[i].name,
+                      c->startmenu_text, 1);
+    }
+
+    /* Footer: user chip + power. */
+    vbe_fill_rect_rounded(L.px + 16, L.foot_y + 4, 32, 32, 16, c->btn_hover);
+    vbe_draw_text(L.px + 56, L.foot_y + 14, "WuBu User", c->startmenu_text, 1);
+    vbe_fill_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, 6,
+                          c->btn_face);
+    vbe_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, 6,
+                     c->border_light);
+    vbe_draw_text(L.power_x + 8, L.power_y + 8, "Power", c->startmenu_text, 1);
+}
+
+static void startmenu_win11_click(int x, int y) {
+    SmWin11 L;
+    startmenu_win11_layout(wm_screen_w(), wm_screen_h(), &L);
+
+    /* A press outside the panel dismisses it (Win11 behaviour). */
+    if (x < L.px || x >= L.px + L.pw || y < L.py || y >= L.py + L.ph) {
+        startmenu_close();
+        return;
+    }
+    /* Pinned grid. */
+    for (int i = 0; i < WIN11_PIN_COUNT; i++) {
+        int col = i % L.cols, row = i / L.cols;
+        int tx = L.grid_x + col * (L.tile + L.gap);
+        int ty = L.grid_y + row * (L.tile + L.gap);
+        if (x >= tx && x < tx + L.tile && y >= ty && y < ty + L.tile) {
+            launch_app(g_win11_pins[i].name);
+            startmenu_close();
+            return;
+        }
+    }
+    /* Recommended list. */
+    int n = g_recent_count < 6 ? g_recent_count : 6;
+    for (int i = 0; i < n; i++) {
+        int col = i % L.rec_cols, row = i / L.rec_cols;
+        int ix = L.rec_x + col * (L.rec_item_w + 8);
+        int iy = L.rec_y + row * (L.rec_item_h + 4);
+        if (x >= ix && x < ix + L.rec_item_w &&
+            y >= iy && y < iy + L.rec_item_h) {
+            launch_app(g_recent[i].name);
+            startmenu_close();
+            return;
+        }
+    }
+}
+
 void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w;
     if (!g_open) return;
+
+    if (wubu_theme_current() == THEME_DARK) {
+        startmenu_render_win11(fb, fb_w, fb_h);
+        return;
+    }
 
     const WubuTheme *t = th();
     int task_h = taskbar_height();
@@ -353,6 +525,11 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
 
 void startmenu_handle_click(int x, int y) {
     if (!g_open) return;
+
+    if (wubu_theme_current() == THEME_DARK) {
+        startmenu_win11_click(x, y);
+        return;
+    }
 
     int task_h = taskbar_height();
     int mh = menu_item_h();

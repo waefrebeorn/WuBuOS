@@ -67,6 +67,10 @@ typedef struct DosGuiWindow {
 /* -- Lifecycle ---------------------------------------------------- */
 
 int  wm_init(int screen_w, int screen_h);
+/* Resize the screen without wiping window/icon state (hosted configure). */
+void wm_set_screen_size(int screen_w, int screen_h);
+/* Re-layout open windows after a resize (cascade around the new centre). */
+void wm_relayout_windows(void);
 void wm_shutdown(void);
 
 /* Human typing (human-lag input): "type" text into a window with human

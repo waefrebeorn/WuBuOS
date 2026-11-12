@@ -52,7 +52,10 @@ WubuSettings g_settings = {0};
 bool          g_settings_dirty = false;
 
 void settings_default_theme(ThemeSettings *t) {
-    t->theme_id = THEME_WIN98_CLASSIC;
+    /* Product default: the Win11-class dark theme.  The classic Win98 theme
+     * is one Ctrl+T away, but the compositor session ships the modern shell
+     * the user asked for. */
+    t->theme_id = THEME_DARK;
     t->wallpaper_path[0] = '\0';
     t->wallpaper_mode = 2; /* STRETCH — full desktop coverage */
     t->use_custom_colors = false;

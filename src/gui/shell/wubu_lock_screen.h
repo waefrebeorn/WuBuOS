@@ -21,6 +21,11 @@ void wubu_lock_screen_lock(void);
 void wubu_lock_screen_unlock(void);
 bool wubu_lock_screen_is_locked(void);
 
+/* Master switch: a hosted session is locked by the host desktop, not by the
+ * guest.  Disabled, Win+L is inert and the overlay never draws. */
+void wubu_lock_screen_set_enabled(bool enabled);
+bool wubu_lock_screen_is_enabled(void);
+
 /* Returns true when the key was consumed by the lock screen (i.e. the caller
  * must not dispatch it to any window). */
 bool wubu_lock_screen_handle_key(uint32_t key, uint32_t mods);

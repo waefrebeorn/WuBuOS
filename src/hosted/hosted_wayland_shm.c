@@ -24,7 +24,6 @@
 /* === hosted_wayland_shm.c -- SHM buffer pool + frame blit === */
 /* SHM double-buffered pool state (owned by this module). */
 shm_buffer_t    g_shm_bufs[SHM_BUFFERS];
-int             g_cur_buf = 0;
 
 /* g_hosted_state is defined in hosted.c; read here for frame dimensions. */
 extern hosted_state_t *g_hosted_state;
@@ -78,7 +77,7 @@ void wl_shm_term(void) {
     if (g_wl.shm) { wl_shm_destroy(g_wl.shm); g_wl.shm = NULL; }
 }
 
-/* Blit the VBE back-buffer into the current SHM buffer + commit.
+/* Blit the VBE back-buffer into the SHM buffer + commit.
  * Declared in hosted_internal.h and called by the hosted.c render loop.
  *
  * The renderer draws; this module PRESENTS. Whether to present is this
@@ -86,7 +85,12 @@ void wl_shm_term(void) {
  * handed to the compositor and skips the attach/commit when the buffer is
  * unchanged. Repainting an identical surface makes the compositor update
  * the whole window every frame, which on a laptop panel reads as flashing.
- * The render path is never told about this and never needs to be. */
+ * The render path is never told about this and never needs to be.
+ *
+ * Single-buffered on purpose: the compositor copies the buffer out
+ * (memcpy into its own backing store) before it releases it, and the
+ * client renders synchronously, so there is no tearing to avoid and no
+ * reason to pay a full-frame copy into a second buffer every frame. */
 static uint32_t *g_presented;          /* the last content we presented */
 static size_t     g_presented_len;
 static int        g_presented_valid;
@@ -97,14 +101,12 @@ void hosted_wl_frame_render(void) {
      * unconfigured xdg_surface is a protocol error and the compositor drops
      * the client. */
     if (!g_wl.configured) return;
-    shm_buffer_t *buf = &g_shm_bufs[g_cur_buf];
+    shm_buffer_t *buf = &g_shm_bufs[0];
     if (!buf->pixels) return;
 
     /* With the VBE backend wired to SHM, vbe->fb already points at the
-     * SHM buffer — no copy needed.  The vbe_swap() call in the render
-     * loop writes back->fb, and back was set to g_shm_bufs[0].pixels
-     * by vbe_set_backend.  If the backend is not attached, fall back
-     * to copying the legacy standalone framebuffer. */
+     * SHM buffer -- no copy needed.  If the backend is not attached,
+     * fall back to copying the legacy standalone framebuffer. */
     VBEState *vs = vbe_state();
     if (vs && vs->fb && buf->pixels && buf->pixels != vs->fb) {
         memcpy(buf->pixels, vs->fb,
@@ -115,11 +117,10 @@ void hosted_wl_frame_render(void) {
         wubu_screenshot_render_region_selector(buf->pixels, buf->width, buf->height);
     }
 
-    size_t len = (size_t)buf->width * buf->height * 4;
+    size_t len = (size_t)buf->stride * (size_t)buf->height;
     if (g_presented_valid && g_presented_len == len &&
         memcmp(buf->pixels, g_presented, len) == 0) {
         /* Nothing changed since the last presentation: do not repaint. */
-        g_cur_buf = 1 - g_cur_buf;
         return;
     }
     if (!g_presented || g_presented_len != len) {
@@ -140,6 +141,4 @@ void hosted_wl_frame_render(void) {
     else
         wl_surface_damage(g_wl.surface, 0, 0, (int)buf->width, (int)buf->height);
     wl_surface_commit(g_wl.surface);
-
-    g_cur_buf = 1 - g_cur_buf;
 }

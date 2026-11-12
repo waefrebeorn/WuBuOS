@@ -21,6 +21,7 @@
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
+#include "shell/win11_shell.h"
 #include "wubu_a11y.h"
 #include "wubu_bonzi.h"
 #include "../kernel/vbe.h"
@@ -74,19 +75,11 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Advance the screen-edge slime seam (no-op when there are no blobs). */
     wm_slime_tick();
 
-    /* Auto-hide (modern theme only): the bar slides down when the pointer
-     * leaves the bottom band and rises when it comes back.  Classic themes
-     * keep offset 0, so their taskbar is byte-identical. */
-    if (wubu_theme_current() == THEME_DARK) {
-        int th = taskbar_height_dynamic();
-        int target = (g_dwm.mouse_y >= g_dwm.screen_h - th) ? 0 : th;
-        if (g_dwm.taskbar_offset < target) g_dwm.taskbar_offset += 4;
-        else if (g_dwm.taskbar_offset > target) g_dwm.taskbar_offset -= 4;
-        if (g_dwm.taskbar_offset < 0) g_dwm.taskbar_offset = 0;
-        if (g_dwm.taskbar_offset > th) g_dwm.taskbar_offset = th;
-    } else {
-        g_dwm.taskbar_offset = 0;
-    }
+    /* The bar is always revealed (Windows 11 parity).  The auto-hide this
+     * replaces slid the bar off-screen whenever the pointer left the bottom
+     * band, which made the Start button unreachable unless the pointer
+     * hugged the screen edge. */
+    g_dwm.taskbar_offset = 0;
     /* Advance any active human-typing session (keystrokes land with
      * human rhythm, not all at once). */
     wm_typer_tick(16);
@@ -226,6 +219,10 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Win+Tab desktop overview sits above everything except the cursor. */
     wm_overview_render(fb, fb_w, fb_h);
 
+    /* Windows 11 shell layers: the widgets board, then the snap flyout.
+     * Weak: a build without the shell skips them. */
+    if (win11_shell_render) win11_shell_render(fb, fb_w, fb_h);
+
     /* Touchpad gestures are polled here so they advance once per frame. */
     wm_gesture_poll();
 
@@ -242,12 +239,13 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
     wubu_osd_tick();
     wubu_osd_render(fb, fb_w, fb_h);
 
-    /* Human-lag cursor: the drawn cursor eases toward the input target
-     * (fast exponential approach — ~7 frames to converge, so motion reads
-     * as a quick human swipe, not an instant teleport).  Input LOGIC still
-     * uses g_dwm.mouse_x/y so clicks land exactly where intended. */
-    g_dwm.cursor_x += (int)((g_dwm.mouse_x - g_dwm.cursor_x) * 0.30f);
-    g_dwm.cursor_y += (int)((g_dwm.mouse_y - g_dwm.cursor_y) * 0.30f);
+    /* Human-lag cursor: the drawn cursor eases toward the input target.
+     * Input LOGIC uses g_dwm.mouse_x/y so clicks land exactly where
+     * intended.  The ease must be fast enough to read as the pointer, not
+     * as a trailing ghost: 0.30/frame at 30fps took ~7 frames (~230ms) to
+     * converge, which the user experienced as a laggy mouse. */
+    g_dwm.cursor_x += (int)((g_dwm.mouse_x - g_dwm.cursor_x) * 0.65f);
+    g_dwm.cursor_y += (int)((g_dwm.mouse_y - g_dwm.cursor_y) * 0.65f);
     if (g_dwm.cursor_x == 0 && g_dwm.cursor_y == 0) {
         g_dwm.cursor_x = g_dwm.mouse_x;
         g_dwm.cursor_y = g_dwm.mouse_y;

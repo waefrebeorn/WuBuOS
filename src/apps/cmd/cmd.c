@@ -14,6 +14,10 @@
 #define CMD_MAX_HISTORY 1000
 #define CMD_MAX_LINE 4096
 #define CMD_TAB_STOP 8
+/* Scrollback screen: the terminal is a real pty shell, so it must show what
+ * the shell prints, not just the local input line. */
+#define CMD_SCREEN_ROWS 128
+#define CMD_SCREEN_COLS 200
 
 typedef struct {
     char lines[CMD_MAX_HISTORY][CMD_MAX_LINE];
@@ -33,6 +37,9 @@ typedef struct WubuCmd {
     HistoryBuffer history;
     char cwd[1024];
     bool running;
+    /* Scrollback screen, fed from the pty. */
+    char screen[CMD_SCREEN_ROWS][CMD_SCREEN_COLS];
+    int screen_row, screen_col;
     /* ANSI state */
     char ansi_buffer[32];
     int ansi_len;
@@ -73,42 +80,48 @@ static const char* cmd_history_next(void) {
     return (next == g_cmd.history.head) ? "" : g_cmd.history.lines[g_cmd.history.current];
 }
 
-static void cmd_handle_ansi(const char *data, int len) {
-    /* Simplified ANSI parser - handles basic sequences */
+static void cmd_screen_put(char c) {
+    if (g_cmd.screen_col >= CMD_SCREEN_COLS - 1) return;
+    g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col++] = c;
+}
+
+static void cmd_screen_newline(void) {
+    g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col] = '\0';
+    g_cmd.screen_row++;
+    g_cmd.screen_col = 0;
+    if (g_cmd.screen_row >= CMD_SCREEN_ROWS) {
+        /* Scroll: drop the oldest line, keep the cursor on the last row. */
+        memmove(&g_cmd.screen[0], &g_cmd.screen[1],
+                sizeof(g_cmd.screen[0]) * (CMD_SCREEN_ROWS - 1));
+        g_cmd.screen_row = CMD_SCREEN_ROWS - 1;
+    }
+    g_cmd.screen[g_cmd.screen_row][0] = '\0';
+}
+
+/* Feed raw pty bytes into the scrollback screen.  Handles the four control
+ * characters a shell actually emits (\n \r \b \t) and skips CSI sequences
+ * (cursor movement, erase, colour) -- enough to keep the visible text
+ * honest without a full terminal emulator. */
+static void cmd_screen_feed(const char *data, int len) {
     for (int i = 0; i < len; i++) {
         char c = data[i];
         if (c == '\033') {
-            g_cmd.in_escape = true;
-            g_cmd.in_csi = false;
-            g_cmd.ansi_len = 0;
+            if (i + 1 < len && data[i + 1] == '[') {
+                i += 2;
+                while (i < len && !(data[i] >= '@' && data[i] <= '~')) i++;
+                continue;
+            }
+            i++;                       /* ESC + single char */
             continue;
         }
-        if (g_cmd.in_escape) {
-            if (c == '[') {
-                g_cmd.in_csi = true;
-                continue;
-            } else if (c >= '@' && c <= '~') {
-                /* ESC sequence without CSI */
-                g_cmd.in_escape = false;
-                continue;
-            }
+        if (c == '\n') { cmd_screen_newline(); continue; }
+        if (c == '\r') { g_cmd.screen_col = 0; continue; }
+        if (c == '\b') { if (g_cmd.screen_col > 0) g_cmd.screen_col--; continue; }
+        if (c == '\t') {
+            do { cmd_screen_put(' '); } while (g_cmd.screen_col % CMD_TAB_STOP);
+            continue;
         }
-        if (g_cmd.in_csi) {
-            if (c >= '0' && c <= '9' || c == ';') {
-                if (g_cmd.ansi_len < 31) {
-                    g_cmd.ansi_buffer[g_cmd.ansi_len++] = c;
-                }
-                continue;
-            } else if (c >= '@' && c <= '~') {
-                g_cmd.ansi_buffer[g_cmd.ansi_len] = '\0';
-                /* Handle CSI sequence */
-                g_cmd.in_escape = false;
-                g_cmd.in_csi = false;
-                continue;
-            }
-        }
-        g_cmd.in_escape = false;
-        g_cmd.in_csi = false;
+        if (c >= 32 && c < 127) cmd_screen_put(c);
     }
 }
 
@@ -127,6 +140,9 @@ WubuCmd* wubu_cmd_create(int cols, int rows) {
     g_cmd.in_csi = false;
     g_cmd.pty_fd = -1;
     g_cmd.child_pid = 0;
+    memset(g_cmd.screen, 0, sizeof(g_cmd.screen));
+    g_cmd.screen_row = 0;
+    g_cmd.screen_col = 0;
     return &g_cmd;
 }
 
@@ -177,7 +193,7 @@ int wubu_cmd_read_pty(WubuCmd *cmd, char *buf, int maxlen) {
     int n = read(g_cmd.pty_fd, buf, maxlen - 1);
     if (n > 0) {
         buf[n] = '\0';
-        cmd_handle_ansi(buf, n);
+        cmd_screen_feed(buf, n);
     }
     return n;
 }
@@ -273,24 +289,6 @@ const char *wubu_cmd_history_next(WubuCmd *cmd) {
     return h->lines[h->current];
 }
 
-static void cmd_draw_prompt(void *win, int cx, int cy, int cw, int ch) {
-    const WubuThemeColors *tc = wubu_theme_colors();
-    int x = cx + 4;
-    int y = cy + ch - 24;
-    
-    vbe_fill_rect(x - 2, y - 2, cw - 4, 20, 0x00000000);
-    
-    char prompt[256];
-    snprintf(prompt, sizeof(prompt), "wubu@arch:%s$ %s", g_cmd.cwd, g_cmd.input_buffer);
-    vbe_draw_text(x, y, prompt, 0x0000FF00, 1);
-    
-    /* Cursor */
-    int cursor_x = x + vbe_text_width(prompt, 1);
-    if ((g_cmd.cursor_pos / 2) % 2 == 0) {
-        vbe_vline(cursor_x, y, y + 16, 0x0000FF00);
-    }
-}
-
 void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
     if (!cmd || !win) return;
@@ -308,22 +306,44 @@ void wubu_cmd_draw(WubuCmd *cmd, void *win, uint32_t *fb, int fb_w, int fb_h) {
                           tc->border_light, tc->border_face,
                           tc->border_dark, tc->border_darkest);
 
-    /* Read PTY output */
+    /* Drain the pty into the scrollback screen. */
     char buf[4096];
-    int n = wubu_cmd_read_pty(cmd, buf, sizeof(buf));
-    if (n > 0) {
-        /* Would render ANSI output here - simplified */
+    while (wubu_cmd_read_pty(cmd, buf, sizeof(buf)) > 0) { }
+
+    const int line_h = 12;
+    const int input_h = 20;
+    const int status_h = 20;
+    int nlines = (ch - input_h - status_h) / line_h;
+    if (nlines < 1) nlines = 1;
+    int total = g_cmd.screen_row + 1;
+    int start = total - nlines;
+    if (start < 0) start = 0;
+    for (int i = 0; i < nlines && start + i < total; i++) {
+        vbe_draw_text(cx + 4, cy + i * line_h,
+                      g_cmd.screen[start + i], 0x0000FF00, 1);
     }
-    
-    /* Draw prompt line */
-    cmd_draw_prompt(win, cx, cy, cw, ch);
-    
-    /* Status bar */
-    int sb_y = cy + ch - 20;
-    vbe_fill_rect(cx, sb_y, cw, 20, tc->btn_face);
-    vbe_3d_sunken_colors(cx, sb_y, cw, 20, tc->border_light, tc->border_face, tc->border_dark, tc->border_darkest);
+
+    /* Input line, above the status bar (they used to overlap, which hid the
+     * prompt entirely). */
+    int input_y = cy + ch - status_h - input_h;
+    vbe_fill_rect(cx, input_y, cw, input_h, 0x00000000);
+    char prompt[256];
+    snprintf(prompt, sizeof(prompt), "wubu@arch:%s$ %s",
+             g_cmd.cwd, g_cmd.input_buffer);
+    vbe_draw_text(cx + 4, input_y + 4, prompt, 0x0000FF00, 1);
+    int cursor_x = cx + 4 + vbe_text_width(prompt, 1);
+    if ((g_cmd.cursor_pos / 2) % 2 == 0)
+        vbe_vline(cursor_x, input_y + 4, input_y + 18, 0x0000FF00);
+
+    /* Status bar. */
+    int sb_y = cy + ch - status_h;
+    vbe_fill_rect(cx, sb_y, cw, status_h, tc->btn_face);
+    vbe_3d_sunken_colors(cx, sb_y, cw, status_h,
+                          tc->border_light, tc->border_face,
+                          tc->border_dark, tc->border_darkest);
     char status[128];
-    snprintf(status, sizeof(status), "CMD Terminal  |  %dx%d  |  PID: %d  |  %s", 
-             g_cmd.cols, g_cmd.rows, g_cmd.child_pid, g_cmd.running ? "Running" : "Stopped");
+    snprintf(status, sizeof(status), "CMD Terminal  |  %dx%d  |  PID: %d  |  %s",
+             g_cmd.cols, g_cmd.rows, g_cmd.child_pid,
+             g_cmd.running ? "Running" : "Stopped");
     vbe_draw_text(cx + 8, sb_y + 6, status, 0x00000000, 1);
 }

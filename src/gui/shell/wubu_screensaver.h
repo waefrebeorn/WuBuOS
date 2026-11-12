@@ -17,6 +17,12 @@
 void wubu_screensaver_set_timeout_ms(uint32_t ms);
 uint32_t wubu_screensaver_timeout_ms(void);
 
+/* Master switch.  A hosted session runs inside a host desktop that already
+ * owns idle blanking and session locking; the in-guest saver would only
+ * interrupt the user, so hosted_init turns it off. */
+void wubu_screensaver_set_enabled(bool enabled);
+bool wubu_screensaver_is_enabled(void);
+
 /* Call when input arrives -- resets the idle clock and wakes the saver. */
 void wubu_screensaver_activity(void);
 

@@ -1423,14 +1423,13 @@ static void test_slime_seam(void) {
 /* -- Auto-hide taskbar (modern theme) --------------------------- */
 
 static void test_taskbar_autohide(void) {
-    TEST("taskbar auto-hide: hides, reveals, and clicks follow the bar");
+    TEST("taskbar stays revealed (Win11 parity): clicks always land on Start");
     wubu_theme_set(THEME_DARK);
     wm_init(1024, 768);
     wm_create(200, 150, 300, 200, "Bar");
     int th = taskbar_height_dynamic();
     int sh = g_dwm.screen_h;
 
-    /* Reveal first, so the layout measured here is the on-screen one. */
     wm_handle_mouse(512, sh - 4, 1, 1);
     for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
     CHECK(g_dwm.taskbar_offset == 0, "the bar starts revealed");
@@ -1440,28 +1439,18 @@ static void test_taskbar_autohide(void) {
     int sx = L.start_x + L.start_w / 2;
     int sy = L.start_y + L.start_h / 2;
 
-    /* Pointer well above the bottom band: the bar slides away. */
+    /* Pointer well above the bottom band: the bar stays put (no auto-hide). */
     wm_handle_mouse(512, 300, 0, 0);
     for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
-    CHECK(g_dwm.taskbar_offset >= th - 4, "the bar hides when the pointer leaves");
+    CHECK(g_dwm.taskbar_offset == 0, "the bar stays revealed");
 
-    /* A press where the bar used to be must not reach Start. */
+    /* A press on Start always opens the menu. */
     wm_handle_mouse(sx, sy, 1, 1);
-    CHECK(!startmenu_is_open(), "a click in the hidden band does not open Start");
-    wm_handle_mouse(sx, sy, 1, 2);
-
-    /* Pointer back at the very bottom: the bar rises. */
-    wm_handle_mouse(sx, sh - 4, 1, 1);
-    for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);
-    CHECK(g_dwm.taskbar_offset == 0, "the bar rises when the pointer returns");
-
-    /* Now the same press lands on Start. */
-    wm_handle_mouse(sx, sy, 1, 1);
-    CHECK(startmenu_is_open(), "Start opens once the bar is revealed");
+    CHECK(startmenu_is_open(), "Start opens with the bar always revealed");
     wm_handle_mouse(512, 300, 1, 1);   /* a press outside closes the menu */
     wm_handle_mouse(512, 300, 1, 2);
 
-    /* A classic theme never auto-hides. */
+    /* A classic theme keeps the bar pinned too. */
     wubu_theme_set(THEME_WIN98_CLASSIC);
     wm_handle_mouse(512, 300, 0, 0);
     for (int k = 0; k < 40; k++) wm_render(NULL, 1024, 768);

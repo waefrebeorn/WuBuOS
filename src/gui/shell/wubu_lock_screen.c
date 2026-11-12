@@ -17,13 +17,20 @@
 #include <time.h>
 
 static bool g_locked = false;
+static bool g_enabled = true;
 
-void wubu_lock_screen_lock(void)   { g_locked = true; }
+void wubu_lock_screen_set_enabled(bool enabled) {
+    g_enabled = enabled;
+    if (!enabled) g_locked = false;
+}
+bool wubu_lock_screen_is_enabled(void) { return g_enabled; }
+
+void wubu_lock_screen_lock(void)   { if (g_enabled) g_locked = true; }
 void wubu_lock_screen_unlock(void) { g_locked = false; }
 bool wubu_lock_screen_is_locked(void) { return g_locked; }
 
 bool wubu_lock_screen_handle_key(uint32_t key, uint32_t mods) {
-    if (!g_locked) return false;
+    if (!g_enabled || !g_locked) return false;
 
     /* Enter or Win+L unlocks.  Everything else is swallowed -- that is the
      * whole point of a lock screen. */
@@ -35,7 +42,7 @@ bool wubu_lock_screen_handle_key(uint32_t key, uint32_t mods) {
 }
 
 void wubu_lock_screen_render(uint32_t *fb, int fb_w, int fb_h) {
-    if (!g_locked) return;
+    if (!g_enabled || !g_locked) return;
 
     const WubuThemeColors *c = tc();
 

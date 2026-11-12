@@ -40,7 +40,10 @@ int hosted_run(hosted_state_t *state) {
 
     struct timespec last;
     clock_gettime(CLOCK_MONOTONIC, &last);
-    const long frame_ns = 1000000000L / 30;
+    /* 60 fps: input is sampled once per loop, so the loop rate is the input
+     * latency.  30 fps meant up to 33ms of pointer lag before the user saw
+     * a move; 60 halves it. */
+    const long frame_ns = 1000000000L / 60;
 
     bool screenshot_requested = (state->screenshot_path != NULL);
     int frame_count = 0;
@@ -78,10 +81,14 @@ int hosted_run(hosted_state_t *state) {
             if (state->mode == HMODE_GUI) {
                 hosted_render_desktop(state);
                 vbe_swap();
-                VBEState *vs = vbe_state();
-                if (vs && vs->fb) {
-                    memcpy(state->framebuffer, vs->fb,
-                           (size_t)state->width * state->height * 4);
+                /* The GUI presents straight out of the VBE/Shm buffer; the
+                 * shadow framebuffer is only needed for screenshots. */
+                if (state->screenshot_path) {
+                    VBEState *vs = vbe_state();
+                    if (vs && vs->fb) {
+                        memcpy(state->framebuffer, vs->fb,
+                               (size_t)state->width * state->height * 4);
+                    }
                 }
             } else if (state->mode == HMODE_TEMPLE) {
                 for (int i = 0; i < state->width * state->height; i++)
