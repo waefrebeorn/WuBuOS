@@ -15,13 +15,12 @@
  */
 
 #include "wubu_image_ffmpeg.h"
+#include "../egojar.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <unistd.h>
-#include <sys/wait.h>
 
 #define FFMPEG_NAMES_MAX 4
 static const char *const FFMPEG_NAMES[FFMPEG_NAMES_MAX] = {
@@ -93,7 +92,8 @@ const char *wubu_image_ffmpeg_version(void) {
 }
 
 /* Run `cmd`, feed `in` (may be NULL) to stdin, collect stdout into *out.
- * Returns the exit status, or -1 on a pipe/fork failure. */
+ * Returns the exit status, or -1 on a pipe/fork failure.
+ * fork/pipe/waitpid come from the jar (egojar.h), not from here. */
 static int run_collect(const char *cmd, const void *in, size_t in_len,
                        char **out, size_t *out_len) {
     int in_pipe[2], out_pipe[2];
