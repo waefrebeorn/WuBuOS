@@ -136,6 +136,7 @@ hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI
 	/tmp/xdg-shell-private.o /tmp/viewporter-private.o /tmp/primary-selection-private.o $(HOSTED)/primary-selection-private.c \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
 	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
+	$(HOSTED)/hosted_agent_channel.c \
 	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
 	$(GUI)/wubu_ui_hosted.o \
 	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \

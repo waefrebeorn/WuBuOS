@@ -13,6 +13,7 @@
 #include "hosted_internal.h"
 #include "../kernel/wubu_drv_thermal.h"
 #include "../gui/wubu_bonzi.h"
+#include "hosted_agent_channel.h"
 
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
@@ -54,6 +55,9 @@ int hosted_run(hosted_state_t *state) {
          * wubu_agi_play_tick() returns the ACTION (>=0) or -1 when the
          * session is stopped -- it is not a status code. */
         if (frame_count % 20 == 0) {
+            /* The agent's requests (buddy mood, walkthrough) arrive through
+             * its own namespace; act on them here. */
+            hosted_agent_channel_poll();
             if (wubu_agi_play_tick() >= 0) wubu_agi_play_learn();
             /* The buddy reports the thermal state for real: past 85C on the
              * CPU or the GPU the box is on fire and he reaches for the

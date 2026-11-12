@@ -38,6 +38,10 @@ INJECT = HERE / "wubu_inject"
 HOSTED_BIN = HERE / "wubu"
 NS_ROOT = Path(os.environ.get("WUBU_NS_ROOT", str(Path.home() / ".wubu" / "n")))
 
+
+def _ns_path(*parts):
+    return NS_ROOT.joinpath(*parts)
+
 PROTOCOL_VERSION = "2024-11-05"
 
 TOOLS = [
@@ -90,6 +94,33 @@ TOOLS = [
             "properties": {"keysym": {"type": "string"}},
             "required": ["keysym"],
         },
+    },
+    {
+        "name": "wubu_buddy",
+        "description": "Set the desktop buddy's mood (work, error, success, "
+                       "idle, overheat, busy, relaxed, surf, race, read) or "
+                       "read the current one. The buddy is the visible face "
+                       "of the agent's state on the desktop.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"state": {"type": "string"}},
+        },
+    },
+    {
+        "name": "wubu_walkthrough",
+        "description": "Open (or close) the Getting Started walkthrough on "
+                       "the desktop. The agent can show the user where to "
+                       "start instead of only saying it.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"open": {"type": "boolean"}},
+        },
+    },
+    {
+        "name": "wubu_state",
+        "description": "Read the machine as the desktop sees it: thermal, "
+                       "buddy mood, screen size, and the agent channel.",
+        "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "wubu_exec",
@@ -216,6 +247,47 @@ def call_tool(name, args):
     if name == "wubu_key":
         rc, out = _inject("key", args["keysym"])
         return {"content": [{"type": "text", "text": out or "key sent"}]}
+
+    if name == "wubu_buddy":
+        channel = _ns_path("agent")
+        if "state" in args:
+            channel.mkdir(parents=True, exist_ok=True)
+            (channel / "buddy_state").write_text(str(args["state"]).strip())
+            return {"content": [{"type": "text",
+                                 "text": f"buddy state requested: {args['state']}"}]}
+        f = channel / "buddy_state"
+        return {"content": [{"type": "text",
+                             "text": f"buddy state: {f.read_text().strip()}"
+                                      if f.exists() else "buddy state: (unset)"}]}
+
+    if name == "wubu_walkthrough":
+        channel = _ns_path("agent")
+        channel.mkdir(parents=True, exist_ok=True)
+        flag = channel / "open_walkthrough"
+        if args.get("open", True):
+            flag.write_text("1")
+            return {"content": [{"type": "text",
+                                 "text": "walkthrough requested"}]}
+        flag.unlink(missing_ok=True)
+        return {"content": [{"type": "text", "text": "walkthrough closed"}]}
+
+    if name == "wubu_state":
+        lines = []
+        for zone in ("cpu", "gpu"):
+            try:
+                out = subprocess.run(
+                    ["bash", "-lc",
+                     f"cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -1"],
+                    capture_output=True, text=True, timeout=10).stdout.strip()
+                if out:
+                    lines.append(f"{zone} temp: {int(out)//1000}C")
+                    break
+            except Exception:
+                pass
+        f = _ns_path("agent") / "buddy_state"
+        lines.append(f"buddy state: {f.read_text().strip()}" if f.exists()
+                     else "buddy state: (unset)")
+        return {"content": [{"type": "text", "text": "\n".join(lines)}]}
 
     if name == "wubu_exec":
         p = subprocess.run(args["command"], shell=True, capture_output=True,
