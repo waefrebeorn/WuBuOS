@@ -39,11 +39,15 @@ int hosted_run(hosted_state_t *state) {
             state->mode == HMODE_CONSOLE ? "Console" : "Headless");
 
     struct timespec last;
+    struct timespec last_input;
     clock_gettime(CLOCK_MONOTONIC, &last);
-    /* 60 fps: input is sampled once per loop, so the loop rate is the input
-     * latency.  30 fps meant up to 33ms of pointer lag before the user saw
-     * a move; 60 halves it. */
-    const long frame_ns = 1000000000L / 60;
+    /* 60 fps while the user is interacting -- input is sampled once per loop,
+     * so the loop rate IS the input latency -- and 20 fps when idle.  A
+     * full-rate redraw of a 1920x1080 desktop cost a whole core; idling at
+     * 20 fps keeps the clock and the mascot alive for a third of that. */
+    const long frame_ns_active = 1000000000L / 60;
+    const long frame_ns_idle   = 1000000000L / 20;
+    long last_input_ms = last.tv_sec * 1000L + last.tv_nsec / 1000000L;
 
     bool screenshot_requested = (state->screenshot_path != NULL);
     int frame_count = 0;
@@ -51,7 +55,11 @@ int hosted_run(hosted_state_t *state) {
     while (state->running) {
         hosted_wl_dispatch();
 
-        hosted_input_dispatch();
+        if (hosted_input_dispatch()) {
+            clock_gettime(CLOCK_MONOTONIC, &last_input);
+            last_input_ms = last_input.tv_sec * 1000L +
+                            last_input.tv_nsec / 1000000L;
+        }
 
         /* Gamepads: drain evdev every frame and route it through Steam
          * Input's mapping table into the kernel input queue. Every frame,
@@ -129,6 +137,9 @@ int hosted_run(hosted_state_t *state) {
 
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
+        long now_ms = now.tv_sec * 1000L + now.tv_nsec / 1000000L;
+        long frame_ns = (now_ms - last_input_ms < 1500) ? frame_ns_active
+                                                       : frame_ns_idle;
         long elapsed = (now.tv_sec - last.tv_sec) * 1000000000L +
                        (now.tv_nsec - last.tv_nsec);
         if (elapsed < frame_ns) {

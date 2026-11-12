@@ -33,9 +33,11 @@ void hosted_render_desktop(hosted_state_t *state) {
 }
 
 /* Drain the kernel input queue and route events to the focused window. */
-void hosted_input_dispatch(void) {
+bool hosted_input_dispatch(void) {
+    bool any = false;
     KeyEvent kev;
     while (input_key_poll(&kev)) {
+        any = true;
         /* The WM is press-driven: hotkeys toggle and text widgets append, so
          * a key-up would fire every action twice (Win+W open+close, "not"
          * typed as "nno oott"). */
@@ -44,9 +46,11 @@ void hosted_input_dispatch(void) {
     }
     MouseEvent mev;
     while (input_mouse_poll(&mev)) {
+        any = true;
         int kind = (mev.kind >= 0) ? mev.kind
                                    : (mev.buttons ? 1 : 2); /* 1=down, 2=up */
         wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);
         wubu_bonzi_activity();
     }
+    return any;
 }

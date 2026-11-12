@@ -105,7 +105,7 @@ void wl_surface_term(void);
  *   hosted_pe.c      -- Windows/PE launch executor (Proton + cgroup sandbox)
  *   hosted_run.c     -- run loop, shutdown, blit, mode + ready/wm accessors */
 void hosted_render_desktop(hosted_state_t *state);
-void hosted_input_dispatch(void);
+bool hosted_input_dispatch(void);   /* returns true if any event was drained */
 int  hosted_pe_executor(const void *data, size_t size, const char *cmdline);
 int  hosted_run(hosted_state_t *state);
 void hosted_shutdown(hosted_state_t *state);
