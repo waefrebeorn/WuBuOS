@@ -108,6 +108,9 @@ $(HOSTED)/wubu_metal_drm.o: $(HOSTED)/wubu_metal_drm.c
 	$(CC) $(CFLAGS) -DWUBU_USE_DRM -I$(HOSTED) -I$(KERNEL) -I$(RT) -MMD -MP -c $< -o $@
 
 # Audio objects
+$(AUDIO)/bigmac/%.o: $(AUDIO)/bigmac/%.c
+	$(CC) $(CFLAGS) -I$(AUDIO)/bigmac -MMD -MP -c $< -o $@
+
 $(AUDIO)/%.o: $(AUDIO)/%.c
 	$(CC) $(CFLAGS) -I$(AUDIO) -I$(KERNEL) -I$(RT) -MMD -MP -c $< -o $@
 

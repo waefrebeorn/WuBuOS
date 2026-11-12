@@ -10,6 +10,7 @@
 #include "wubu_sound.h"
 #include <stdlib.h>
 #include <string.h>
+#include "../audio/wubu_audio.h"
 
 static CpSoundState g_sound_state;
 
@@ -100,7 +101,7 @@ static void sound_mouse(CpApplet *applet, int mx, int my, int btn, int kind)
             int col = i / 4, row = i % 4;
             int bx = 20 + col * 200, by = 130 + row * 26;
             if (mx >= bx && mx < bx + 170 && my >= by && my < by + 18) {
-                wubu_sound_play(&g_sound_engine, i, NULL);
+                wubu_sound_play(&g_sound_engine, i, wubu_audio_sink_int16);
                 g_sound_state.test_tone_playing = true;
                 d->test_flash = i;
             }

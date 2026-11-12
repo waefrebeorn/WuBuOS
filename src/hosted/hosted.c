@@ -142,6 +142,10 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
        unplugs -- all quiet no-ops. */
     wubu_si_init();
     wubu_evdev_init();
+    /* The sound system's device sink. Every sound call site passes
+     * wubu_audio_sink_int16 as its sink; this opens the device it writes to
+     * (pulse -> alsa -> wav). Without it the PCM went nowhere. */
+    wubu_audio_sink_open();
 
     /* Load the saved settings and apply the theme BEFORE the WM's first
      * render. Nothing else calls wubu_settings_init() -- the theme's live

@@ -346,6 +346,23 @@ void wubu_audio_stop(void);
 /* Process one buffer (called by audio callback) */
 void wubu_audio_process(float *output, int frames);
 
+/* -- Device output (big-mac backend) ------------------------------------ */
+
+/* Start the output thread: pulls wubu_audio_process() and writes it to a
+ * real device (pulse -> alsa -> wav). Returns the backend name, or NULL if
+ * nothing could open -- the engine still renders for a direct caller. */
+const char *wubu_audio_backend_start(void);
+void wubu_audio_backend_stop(void);
+int  wubu_audio_backend_running(void);
+int  wubu_audio_backend_latency(void);
+
+/* The sink the sound system was missing: wubu_sound_play() takes a sink and
+ * every call site passed NULL. Open it once at boot, pass
+ * wubu_audio_sink_int16 as the sink, and sound actually reaches a device. */
+void wubu_audio_sink_open(void);
+void wubu_audio_sink_close(void);
+void wubu_audio_sink_int16(const int16_t *pcm, int n);
+
 /* ==================================================================
  *  API: DAW Operations
  * ================================================================== */
