@@ -27,6 +27,8 @@
  */
 
 #include "wubu_bonzi.h"
+#include "wubu_mascot.h"
+#include "wubu_buddy_sprite.h"
 #include "../kernel/vbe.h"
 #ifdef WUBU_NO_LIBM
 #  include "../kernel/wubu_math.h"  /* provides M_PI, fabsf, cosf, etc. */
@@ -58,8 +60,8 @@
 #define BONZI_SHADOW      0x000000
 
 /* -- Geometry --------------------------------------------------------- */
-#define BONZI_W     64
-#define BONZI_H     64
+#define BONZI_W     WUBU_BUDDY_SPRITE_SIZE
+#define BONZI_H     WUBU_BUDDY_SPRITE_SIZE
 #define BONZI_R     22            /* body radius */
 #define BONZI_CX    32            /* body center x in window */
 #define BONZI_CY    36            /* body center y in window */
@@ -245,70 +247,9 @@ void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
     int ox = g_bx;
     int oy = g_by + (int)a.bob_y;  /* smooth vertical bob */
 
-    bool eyes_open = a.eye_open > 0.1f;
-    int eye_offset = (int)((1.0f - a.eye_open) * 2.0f);  /* eyes drift up when closing */
-
-    /* 1. Outline: crisp 1px dark rim around the body silhouette, painted
-     *    BEFORE the shadow so the shadow (translucent) doesn't smear over it.
-     *    Checks 8-neighbourhood for a fuller rim than 4-connectivity. */
-    for (int dy = -BONZI_R - 8; dy <= BONZI_R + 8; dy++) {
-        for (int dx = -BONZI_R - 8; dx <= BONZI_R + 8; dx++) {
-            if (!in_body(dx, dy)) continue;
-            static const int nb[8][2] = {{1,0},{-1,0},{0,1},{0,-1},{1,1},{-1,1},{1,-1},{-1,-1}};
-            for (int k = 0; k < 8; k++) {
-                int nx = dx + nb[k][0], ny = dy + nb[k][1];
-                if (in_body(nx, ny)) continue;          /* interior */
-                int sx = ox + BONZI_CX + nx;
-                int sy = oy + BONZI_CY + (int)((float)ny * a.bob_squash);
-                if (sx >= 0 && sy >= 0 && sx < fb_w && sy < fb_h)
-                    vbe_set_pixel(sx, sy, BONZI_OUTLINE);
-            }
-        }
-    }
-
-    /* 2. Soft drop shadow (translucent so the outline below stays visible). */
-    vbe_blend_rect(ox + 3, oy + 3, BONZI_W, BONZI_H, BONZI_SHADOW, 50);
-    /* Body: iterate the sprite box, apply squash/stretch on Y. */
-    for (int dy = -BONZI_R - 8; dy <= BONZI_R + 8; dy++) {
-        int sdy = (int)((float)dy * a.bob_squash);
-        for (int dx = -BONZI_R - 8; dx <= BONZI_R + 8; dx++) {
-            int sx = ox + BONZI_CX + dx, sy = oy + BONZI_CY + sdy;
-            if (sx < 0 || sy < 0 || sx >= fb_w || sy >= fb_h) continue;
-            if (in_body(dx, dy)) {
-                if (in_belly(dx, dy)) vbe_set_pixel(sx, sy, BONZI_BELLY);
-                else if (dy > BONZI_R - 6) vbe_set_pixel(sx, sy, BONZI_BODY_DARK);
-                else vbe_set_pixel(sx, sy, BONZI_BODY);
-            }
-        }
-    }
-
-    /* Face. Eyes at y=-8, x=+/-8 relative to center.
-     * Eyes drift up slightly during blink (anticipation of closure). */
-    int ex = ox + BONZI_CX, ey = oy + BONZI_CY + eye_offset;
-    draw_eye_open(ex - 8, ey - 8, a.eye_open);
-    draw_eye_open(ex + 8, ey - 8, a.eye_open);
-
-    /* Mouth: smile that lifts when alert (eyes open),
-     * flattens during blink. */
-    int mouth_y = ey + 4 + (eyes_open ? 0 : 4);
-    vbe_fill_rect(ex - 5, mouth_y, 10, 2, BONZI_MOUTH);
-    vbe_fill_rect(ex - 2, mouth_y + 2, 4, 1, BONZI_MOUTH);
-
-    /* Blush cheeks: visible pink stripes under/around the eyes (the tiny
-     * 4x3 was too faint to read at 4x zoom). */
-    vbe_fill_rect(ex - 14, ey + 1, 5, 4, BONZI_BLUSH);
-    vbe_fill_rect(ex + 9,  ey + 1, 5, 4, BONZI_BLUSH);
-    vbe_blend_rect(ex - 12, ey, 3, 3, BONZI_BLUSH, 180);
-    vbe_blend_rect(ex + 11, ey, 3, 3, BONZI_BLUSH, 180);
-
-    /* Nose: tiny dot. */
-    vbe_fill_rect(ex, ey - 1, 2, 2, BONZI_BODY_DARK);
-
-    /* Arms: at the sides. */
-    vbe_fill_rect(ex - BONZI_R - 3, ey + 4, 4, 10, BONZI_BODY);
-    vbe_fill_rect(ex + BONZI_R - 1, ey + 4, 4, 10, BONZI_BODY);
-    vbe_fill_circle(ex - BONZI_R - 1, ey + 14, 3, BONZI_BODY_DARK);
-    vbe_fill_circle(ex + BONZI_R + 1, ey + 14, 3, BONZI_BODY_DARK);
+    /* The mascot itself: baked clipart, alpha-blended. The bob carries
+     * the life; the sprite carries the brand. */
+    wubu_mascot_blit(ox, oy);
 
     /* Speech bubble: above the buddy, clamped on-screen, tail pointing
      * DOWN toward the buddy's head (real alpha blend). */

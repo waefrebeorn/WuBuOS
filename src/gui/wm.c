@@ -26,6 +26,8 @@
 #include "shell/wm_rim.h"
 #include "shell/wm_slime.h"
 #include "wubu_bonzi.h"
+#include "wubu_mascot.h"
+
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -66,7 +68,7 @@ int wm_init(int screen_w, int screen_h) {
      * Positioned in the lower-left corner, above windows. Click opens the
      * HolyC/AGI terminal. Idle animation (bob + blink) driven by the WM
      * frame tick in wm_frame(). */
-    wubu_bonzi_init(8, screen_h - 64);
+    wubu_bonzi_init(8, screen_h - taskbar_height_dynamic() - wubu_mascot_size());
     /* Restore the user's taskbar pins from the previous session. */
     extern void wubu_taskbar_init(void);
     /* The rim lives on the focused window, so it needs the screen size before
