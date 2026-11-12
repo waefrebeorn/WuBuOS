@@ -185,6 +185,16 @@ DosGuiWindow* launch_tutorials(void) {
     return wubu_tutorial_browser ? wubu_tutorial_browser() : NULL;
 }
 
+/* Weak: the petdex pulls in the window manager, and the lean test targets
+ * that link apps.c do not carry it. A missing petdex must not break them. */
+__attribute__((weak)) DosGuiWindow* wubu_petdex_open(void);
+
+DosGuiWindow* launch_petdex(void) {
+    /* The petdex: the pixel pets, animated, pick one. */
+    if (!wubu_petdex_open) return NULL;
+    return wubu_petdex_open();
+}
+
 DosGuiWindow* launch_getting_started(void) {
     /* The first-run path: where to start, in the product rather than in a
      * wiki.  Reachable from Help and from the greeter's offers row. */
@@ -301,6 +311,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Music",        "Music",          DESK_ICON_COUNT + 12,  0x00A050C0, music_launch },
     { "VWS Designer", "VWS Designer",   DESK_ICON_COUNT + 13,  0x00A0A0C0, launch_vws_designer_entry },
     { "Getting Started", "Getting Started", DESK_ICON_COUNT + 14, 0x00A0C0A0, launch_getting_started },
+    { "Petdex", "Petdex", DESK_ICON_COUNT + 17, 0x00A0C0A0, launch_petdex },
     { "Tutorials", "Tutorials", DESK_ICON_COUNT + 15, 0x00C0A0A0, launch_tutorials },
     /* A .wet applet is a first-class program kind: every program made from a
      * VWS template is one of these, so the launcher belongs in the registry. */

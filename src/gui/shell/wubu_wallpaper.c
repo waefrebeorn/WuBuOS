@@ -9,6 +9,7 @@
  */
 
 #include "./wubu_wallpaper.h"
+#include "../wubu_image_ffmpeg.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -146,11 +147,26 @@ int wubu_wallpaper_load(const char *path, WubuWallpaper *out) {
     if (out) { out->pixels = NULL; out->w = 0; out->h = 0; }
     if (!path || !*path || !out) return 0;
 
-    /* Native BMP decoder (no deps). Extend with PNG/JPEG later. */
+    /* BMP has a native decoder (no deps, works on a bare-metal install). */
     size_t len = strlen(path);
     if (len >= 4 && (strcasecmp(path + len - 4, ".bmp") == 0)) {
         return decode_bmp(path, out);
     }
+
+    /* Everything else -- PNG, JPEG, GIF, WebP, TIFF, AVIF -- goes through the
+     * ffmpeg backbone (wubu_image_ffmpeg). WuBuOS does not reimplement a
+     * second decoder for formats ffmpeg already carries. */
+    {
+        uint32_t *rgba = NULL;
+        int w = 0, h = 0;
+        if (wubu_image_load_ffmpeg(path, &rgba, &w, &h) == 0) {
+            out->pixels = rgba;
+            out->w = w;
+            out->h = h;
+            return 1;
+        }
+    }
+
     /* Unknown / unsupported format: caller keeps gradient fallback. */
     return 0;
 }
