@@ -4558,11 +4558,11 @@ test_taskbar_tasks: $(GUI)/shell/taskbar_tasks_test.c $(GUI)/shell/taskbar_tasks
 		-o $(TEST_BIN)/test_taskbar_tasks
 	$(TEST_BIN)/test_taskbar_tasks
 
-test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c
+test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_walkthrough.c
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(WET) -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) -I$(COMP) -I$(JIT) \
 		-I$(GUI) -I$(RT)/shell \
-		$(APPS)/first_run_test.c $(APPS)/getting_started.c \
+		$(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_walkthrough.c \
 		$(GUI)/shell/wubu_shell_greeter.c $(RT)/wubu_onboarding.c \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
 		$(RT)/wubu_effect.c \

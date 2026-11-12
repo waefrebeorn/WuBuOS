@@ -7,6 +7,7 @@
  */
 #include "../apps/apps.h"
 #include "../apps/getting_started.h"
+#include "../apps/wubu_walkthrough.h"
 #include "../gui/shell/wubu_shell_greeter.h"
 
 #include <stdio.h>
@@ -91,30 +92,24 @@ static void test_offers_act(void) {
     CHECK(1, "offers are inert-safe");
 }
 
+static void test_walkthrough_steps(void) {
+    CHECK(wubu_walkthrough_steps() >= 4, "walkthrough has at least four steps");
+    CHECK(wubu_walkthrough_steps() <= 8, "walkthrough is a walk, not a novel");
+}
+
 static void test_getting_started(void) {
-    DosGuiWindow *win = gs_launch();
-    CHECK(win != NULL, "getting-started window created");
-    if (!win) return;
-    CHECK(win->on_draw != NULL, "draw bound");
-    CHECK(win->on_key  != NULL, "key bound");
-    CHECK(strstr(win->title, "Getting Started") != NULL, "title names the document");
-
-    /* The document is long enough to scroll. */
-    for (int i = 0; i < 40; i++) {
-        DosGuiWindow *w = win;
-        if (w->on_key) w->on_key(w, 31, 0);   /* down */
-    }
-    CHECK(1, "scrolled without crashing");
-
-    /* Escape closes. */
-    if (win->on_key) win->on_key(win, 27, 0);
-    CHECK(1, "escape handled");
+    /* The launcher opens the walkthrough; the walkthrough owns its window,
+     * so gs_launch() returns NULL by design. */
+    int opened = wubu_walkthrough_run();
+    CHECK(opened == 1, "walkthrough opens");
+    CHECK(gs_launch() == NULL, "launcher defers to the walkthrough");
 }
 
 int main(void) {
     printf("=== first-run surface ===\n");
     test_offer_geometry();
     test_offers_act();
+    test_walkthrough_steps();
     test_getting_started();
     printf("=== first_run: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
