@@ -41,14 +41,6 @@ int hosted_run(hosted_state_t *state) {
     bool screenshot_requested = (state->screenshot_path != NULL);
     int frame_count = 0;
 
-    /* Present-on-change: the compositor is told about a new frame only when
-     * the desktop actually changed. Repainting an unchanged surface makes
-     * the window update every frame, which on a laptop panel reads as
-     * flashing. */
-    static uint32_t *prev_frame;
-    static size_t prev_len;
-    int prev_valid = 0;
-
     while (state->running) {
         hosted_wl_dispatch();
 
@@ -88,23 +80,8 @@ int hosted_run(hosted_state_t *state) {
             }
         }
 
-        if (g_wl.surface && state->framebuffer) {
-            size_t len = (size_t)state->width * state->height * 4;
-            int changed = 1;
-            if (prev_valid && prev_len == len)
-                changed = memcmp(state->framebuffer, prev_frame, len) != 0;
-            if (changed) {
-                hosted_wl_frame_render();
-                if (!prev_frame || prev_len != len) {
-                    free(prev_frame);
-                    prev_frame = (uint32_t *)malloc(len);
-                    prev_len = prev_frame ? len : 0;
-                }
-                if (prev_frame) {
-                    memcpy(prev_frame, state->framebuffer, len);
-                    prev_valid = 1;
-                }
-            }
+        if (g_wl.surface) {
+            hosted_wl_frame_render();
         }
 
         /* If screenshot requested in headless mode, render a couple frames and exit */
