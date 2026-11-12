@@ -20,3 +20,6 @@
 [submodule "src/tools/wubugrep"]
 	path = src/tools/wubugrep
 	url = https://github.com/waefrebeorn/wubugrep.git
+[submodule "src/audio/bigmac"]
+	path = src/audio/bigmac
+	url = https://github.com/waefrebeorn/big-mac.git
