@@ -14,6 +14,8 @@
 /* The app registry lives in src/apps; a test or minimal build may not link
  * it.  Weak, exactly as the taskbar's pinned buttons do it. */
 __attribute__((weak)) void launch_app(const char *name);
+/* Win+W widgets board lives in its own module; weak for the same reason. */
+__attribute__((weak)) void win11_widgets_toggle(void);
 
 /* -- Modern (Win11-class) floating bar ------------------------------ */
 
@@ -62,11 +64,13 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     if (row_w > 0) row_w -= gap;
 
     int start_w = th - 8;
+    int shell_w = 34;
+    int shell_row_w = 3 * shell_w + 2 * gap;
     int clock_w = 64;
     int tray_w  = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + 4);
 
-    int need = MODERN_PAD + start_w + gap + row_w + gap + tray_w + gap +
-               clock_w + MODERN_PAD;
+    int need = MODERN_PAD + start_w + gap + shell_row_w + gap + row_w + gap +
+               tray_w + gap + clock_w + MODERN_PAD;
     int bar_w = need;
     if (bar_w > fb_w - 2 * MODERN_GAP_V) bar_w = fb_w - 2 * MODERN_GAP_V;
     int bar_x = (fb_w - bar_w) / 2;
@@ -85,13 +89,46 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     L->tray_y  = bar_y + 4;
     L->tray_w  = tray_w;
 
-    int row_x = L->start_x + start_w + gap;
+    int shell_x0 = L->start_x + start_w + gap;
+    L->shell_y = bar_y + 4;
+    L->shell_w = shell_w;
+    L->shell_h = bh;
+    for (int i = 0; i < 3; i++)
+        L->shell_x[i] = shell_x0 + i * (shell_w + gap);
+
+    int row_x = shell_x0 + shell_row_w + gap;
     int avail = L->tray_x - gap - row_x;
     if (row_w < avail) row_x += (avail - row_w) / 2;
     for (int i = 0; i < L->n_slots; i++) {
         L->slot[i].x = row_x;
         L->slot[i].y = bar_y + 4;
         row_x += L->slot[i].w + gap;
+    }
+}
+
+/* Small monochrome glyphs for the shell buttons.  Drawn rather than font
+ * glyphs so they scale with the tile and never depend on font coverage. */
+static void draw_shell_glyph(int which, int cx, int cy, uint32_t color)
+{
+    switch (which) {
+    case 0:   /* Search: a magnifier (ring + handle) */
+        vbe_fill_rect(cx - 6, cy - 6, 8, 2, color);
+        vbe_fill_rect(cx - 6, cy + 4, 8, 2, color);
+        vbe_fill_rect(cx - 6, cy - 6, 2, 12, color);
+        vbe_fill_rect(cx + 2, cy - 6, 2, 12, color);
+        vbe_fill_rect(cx + 4, cy + 4, 2, 4, color);
+        vbe_fill_rect(cx + 6, cy + 6, 2, 4, color);
+        break;
+    case 1:   /* Task view: two overlapping rectangles */
+        vbe_rect(cx - 7, cy - 5, 14, 10, color);
+        vbe_rect(cx - 2, cy - 2, 10, 8, color);
+        break;
+    default:  /* Widgets: a 2x2 grid of squares */
+        vbe_fill_rect(cx - 7, cy - 7, 6, 6, color);
+        vbe_fill_rect(cx + 1, cy - 7, 6, 6, color);
+        vbe_fill_rect(cx - 7, cy + 1, 6, 6, color);
+        vbe_fill_rect(cx + 1, cy + 1, 6, 6, color);
+        break;
     }
 }
 
@@ -107,6 +144,20 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
     /* Start: the 4-pane flag, centred in a rounded tile. */
     draw_start_flag(L.start_x + L.start_w / 2 - 7,
                     L.start_y + L.start_h / 2 - 7);
+
+    /* Win11 shell buttons: Search, Task View, Widgets. */
+    static const char *shell_glyph[3] = { "S", "T", "W" };
+    for (int i = 0; i < 3; i++) {
+        int bx = L.shell_x[i];
+        vbe_fill_rect_rounded(bx, L.shell_y, L.shell_w, L.shell_h, 6,
+                              tc()->btn_face);
+        vbe_3d_raised_rounded_colors(bx, L.shell_y, L.shell_w, L.shell_h, 6,
+                                     tc()->border_light, tc()->border_face,
+                                     tc()->border_dark, tc()->border_darkest);
+        draw_shell_glyph(i, bx + L.shell_w / 2, L.shell_y + L.shell_h / 2,
+                         tc()->btn_text);
+        (void)shell_glyph;
+    }
 
     for (int i = 0; i < L.n_slots; i++) {
         const WmTaskSlot *s = &L.slot[i];
@@ -167,6 +218,18 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
         startmenu_toggle();
         return true;
     }
+    /* Win11 shell buttons: Search (Start with the search box focused), Task
+     * View, Widgets. */
+    for (int i = 0; i < 3; i++) {
+        if (x < L.shell_x[i] || x >= L.shell_x[i] + L.shell_w ||
+            y < L.shell_y || y >= L.shell_y + L.shell_h)
+            continue;
+        if (i == 0) startmenu_open();
+        else if (i == 1) wm_overview_toggle();
+        else if (win11_widgets_toggle) win11_widgets_toggle();
+        return true;
+    }
+
     if (x >= L.clock_x && x < L.clock_x + L.clock_w &&
         y >= L.clock_y && y < L.clock_y + L.clock_h) {
         clock_menu_toggle();

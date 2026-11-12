@@ -151,6 +151,9 @@ typedef struct {
 typedef struct {
     int bar_x, bar_y, bar_w, bar_h;
     int start_x, start_y, start_w, start_h;
+    /* Win11 shell buttons between Start and the window list:
+     * 0 = Search, 1 = Task View, 2 = Widgets. */
+    int shell_x[3], shell_y, shell_w, shell_h;
     int clock_x, clock_y, clock_w, clock_h;
     int tray_x, tray_y, tray_w;   /* systray strip, left of the clock */
     int n_slots;

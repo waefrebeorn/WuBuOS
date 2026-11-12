@@ -144,3 +144,7 @@ __attribute__((weak)) void run_dialog_rect(int fb_w, int fb_h,
 __attribute__((weak)) void run_dialog_render(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb; (void)fb_w; (void)fb_h;
 }
+
+/* Weak: the taskbar's Search tile opens the Start menu.  Targets that link
+ * the real startmenu.c get the strong definition. */
+__attribute__((weak)) void startmenu_open(void) { }
