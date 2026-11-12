@@ -203,8 +203,12 @@ static void pointer_motion(void *data, struct wl_pointer *wl_ptr,
 
     if (state && (dx != 0 || dy != 0)) {
         MouseEvent ev = {0};
-        ev.dx = dx;
-        ev.dy = dy;
+        /* Wayland reports absolute surface coordinates; push them as
+         * absolute (dx=dy=0) rather than accumulating from (0,0). */
+        ev.x = x;
+        ev.y = y;
+        ev.dx = 0;
+        ev.dy = 0;
         ev.buttons = g_mouse_buttons;
         ev.scroll = 0;
         input_mouse_push(ev);
@@ -228,6 +232,11 @@ static void pointer_button(void *data, struct wl_pointer *wl_ptr,
 
     if (state) {
         MouseEvent ev = {0};
+        /* dx/dy are 0 here, which input_mouse_push reads as "absolute
+         * position" -- so the click must carry where the pointer IS, or
+         * every click lands at the top-left corner. */
+        ev.x = g_pointer_x;
+        ev.y = g_pointer_y;
         ev.dx = 0;
         ev.dy = 0;
         ev.buttons = g_mouse_buttons;
@@ -361,8 +370,12 @@ static void touch_motion(void *data, struct wl_touch *wl_touch,
     g_pointer_y = y;
     if (state && (dx != 0 || dy != 0)) {
         MouseEvent ev = {0};
-        ev.dx = dx;
-        ev.dy = dy;
+        /* Wayland reports absolute surface coordinates; push them as
+         * absolute (dx=dy=0) rather than accumulating from (0,0). */
+        ev.x = x;
+        ev.y = y;
+        ev.dx = 0;
+        ev.dy = 0;
         ev.buttons = g_mouse_buttons;
         ev.scroll = 0;
         input_mouse_push(ev);

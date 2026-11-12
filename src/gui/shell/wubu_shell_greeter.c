@@ -90,6 +90,10 @@ void wubu_shell_greeter_offer(int i) {
     case 2: if (launch_terminal)        launch_terminal();        break;
     default: break;
     }
+    /* The offer opened a window of its own; the greeter is a first-run
+     * setup dialog and must get out of the way or it sits on top, hiding
+     * what it just launched. */
+    if (g_win) { wm_destroy(g_win); g_win = NULL; }
 }
 
 /* -- Rendering ------------------------------------------------------ */

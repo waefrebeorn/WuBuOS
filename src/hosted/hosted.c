@@ -199,6 +199,13 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     wubu_ns_kv_refresh();
     startmenu_init();
 
+    /* Launch the initial windows: the file manager and the HolyC terminal.
+     * The registry entry's title is "HolyC Terminal" -- launch_app matches on
+     * name OR title, and the old "HolyC REPL" string matched neither, so that
+     * window silently never opened. */
+    launch_app("My Computer");
+    launch_app("HolyC Terminal");
+
     /* GAP F: the first-boot greeter -- the visible configurator the
      * onboarding decision layer has always targeted but never drawn.  Shown
      * only when no onboarding sentinel exists; completing it persists the
@@ -218,13 +225,6 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
         if (wubu_onboarding_target() == WUBU_ONBOARD_GREETER)
             wubu_shell_greeter_run();
     }
-
-    /* Launch the initial windows: the file manager and the HolyC terminal.
-     * The registry entry's title is "HolyC Terminal" -- launch_app matches on
-     * name OR title, and the old "HolyC REPL" string matched neither, so that
-     * window silently never opened. */
-    launch_app("My Computer");
-    launch_app("HolyC Terminal");
 
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
 

@@ -84,6 +84,7 @@ static int g_last_result;      /* set by the host: 0 = still walking */
 static ChromeContentRect g_rect;   /* content rect from the last draw */
 
 static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb;   /* every draw goes through vbe_*: fb may be NULL */
     ChromeContentRect c = chrome_draw_window(win, fb, fb_w, fb_h);
     if (!win) return;
     g_rect = c;
@@ -109,13 +110,22 @@ static void walk_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
             if (a == 0) continue;
             int sx = art_x + dx, sy = art_y + dy;
             if (sx < c.x || sx >= c.x + c.w || sy < c.y || sy >= c.y + c.h) continue;
-            uint32_t dst = fb[sy * fb_w + sx];
+            /* Through vbe_*, like every other desktop element: the WM may
+             * hand us a NULL fb, and vbe_* writes the real back buffer. */
+            if (a >= 255) {
+                vbe_set_pixel(sx, sy, 0xFF000000u |
+                                     ((uint32_t)px[0] << 16) |
+                                     ((uint32_t)px[1] << 8) |
+                                     (uint32_t)px[2]);
+                continue;
+            }
+            uint32_t dst = vbe_get_pixel(sx, sy);
             uint32_t dr = (dst >> 16) & 0xFF, dg = (dst >> 8) & 0xFF, db = dst & 0xFF;
             uint32_t inv = (uint32_t)(255 - a);
             uint32_t rr = ((uint32_t)px[0] * a + dr * inv) / 255u;
             uint32_t gg = ((uint32_t)px[1] * a + dg * inv) / 255u;
             uint32_t bb = ((uint32_t)px[2] * a + db * inv) / 255u;
-            fb[sy * fb_w + sx] = 0xFF000000u | (rr << 16) | (gg << 8) | bb;
+            vbe_set_pixel(sx, sy, 0xFF000000u | (rr << 16) | (gg << 8) | bb);
         }
     }
 
