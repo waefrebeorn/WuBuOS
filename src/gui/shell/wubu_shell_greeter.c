@@ -195,23 +195,25 @@ static void finish(void) {
 void wubu_shell_greeter_key(uint32_t key) {
     if (!wubu_shell_greeter_is_open()) return;
     switch (key) {
-    case 30: /* up */
+    case 0xE048: /* up */
         if (g_theme > 0) g_theme--;
         break;
-    case 31: /* down */
+    case 0xE050: /* down */
         if (g_theme < THEME_COUNT - 1) g_theme++;
         break;
-    case 28: /* left  */
+    case 0xE04B: /* left */
         if (g_theme > 0) g_theme--;
         break;
-    case 29: /* right */
+    case 0xE04D: /* right */
         if (g_theme < THEME_COUNT - 1) g_theme++;
         break;
+    case 0x1C:  /* enter */
     case '\r':
     case '\n':
         finish();
         break;
-    case 27: /* escape: close without completing */
+    case 0x01:  /* escape */
+    case 27:
         if (g_win) { wm_destroy(g_win); g_win = NULL; }
         break;
     default:

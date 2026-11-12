@@ -115,12 +115,12 @@ int main(void) {
     wubu_shell_greeter_run();
     CHECK(wubu_shell_greeter_is_open(), "greeter reopened for keyboard path");
     while (wubu_shell_greeter_selected_theme() > 0)
-        wubu_shell_greeter_key(30);            /* Up to the first theme */
-    wubu_shell_greeter_key(31);                /* Down */
+        wubu_shell_greeter_key(0xE048);        /* Up (WM scancode) */
+    wubu_shell_greeter_key(0xE050);            /* Down */
     CHECK(wubu_shell_greeter_selected_theme() == 1, "Down arrow moves selection");
-    wubu_shell_greeter_key(30);                /* Up */
+    wubu_shell_greeter_key(0xE048);            /* Up */
     CHECK(wubu_shell_greeter_selected_theme() == 0, "Up arrow moves selection back");
-    wubu_shell_greeter_key('\r');          /* Enter = Start */
+    wubu_shell_greeter_key(0x1C);              /* Enter = Start (WM scancode) */
     CHECK(!wubu_shell_greeter_is_open(), "Enter completes the greeter");
     CHECK(access(sent, F_OK) == 0, "keyboard path also persists the sentinel");
 
