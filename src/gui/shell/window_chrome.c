@@ -18,6 +18,7 @@
 
 #include "../wm.h"
 #include "../wm_internal.h"
+#include "window_chrome.h"
 #include "../../kernel/vbe.h"
 #include "../../gui/wubu_theme.h"
 #include "../wubu_tokens.h"   /* unified design tokens (CLI + GUI cohesion) */
@@ -84,34 +85,37 @@ static void chrome_fill(int x, int y, int w, int h, uint32_t color) {
 
 /* -- Title bar buttons hit-test ------------------------------------- */
 
-/* Returns which button (if any) contains point (mx, my) relative to window origin */
-int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
-    int tbh = chrome_title_bar_height();
+bool chrome_button_rects(DosGuiWindow *win, ChromeButtonRect *min,
+                         ChromeButtonRect *max, ChromeButtonRect *close) {
+    if (!win) return false;
     int bw = chrome_border_width();
-    int btn_size = 14;
-    int gap = 2;
+    int tbh = chrome_title_bar_height();
+    if (win->w < 3 * CHROME_BUTTON_SIZE + 4) return false;
 
-    int start_x = win->x + win->w - bw - btn_size - 2;
+    int right = win->x + win->w - bw - 2;
+    int top   = win->y + bw + (tbh - CHROME_BUTTON_SIZE) / 2;
 
-    /* Close button (rightmost) */
-    int close_y = win->y + (tbh - btn_size) / 2;
-    if (mx >= start_x && mx < start_x + btn_size &&
-        my >= close_y && my < close_y + btn_size)
-        return 3;  /* CHROME_BTN_CLOSE */
+    if (close) { close->x = right - CHROME_BUTTON_SIZE; close->y = top;
+                 close->w = CHROME_BUTTON_SIZE;         close->h = CHROME_BUTTON_SIZE; }
+    if (max)   { max->x   = close->x - CHROME_BUTTON_SIZE - CHROME_BUTTON_GAP;
+                 max->y = top; max->w = CHROME_BUTTON_SIZE; max->h = CHROME_BUTTON_SIZE; }
+    if (min)   { min->x   = max->x - CHROME_BUTTON_SIZE - CHROME_BUTTON_GAP;
+                 min->y = top; min->w = CHROME_BUTTON_SIZE; min->h = CHROME_BUTTON_SIZE; }
+    return true;
+}
 
-    /* Maximize button */
-    int max_x = start_x - btn_size - 2;
-    if (mx >= max_x && mx < max_x + btn_size &&
-        my >= close_y && my < close_y + btn_size)
-        return 2;  /* CHROME_BTN_MAXIMIZE */
-
-    /* Minimize button */
-    int min_x = max_x - btn_size - 2;
-    if (mx >= min_x && mx < min_x + btn_size &&
-        my >= close_y && my < close_y + btn_size)
-        return 1;  /* CHROME_BTN_MINIMIZE */
-
-    return 0;  /* CHROME_BTN_NONE */
+/* Returns which button (if any) contains point (mx, my), absolute screen
+ * coordinates: 1=min 2=max 3=close, 0=none. */
+int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
+    ChromeButtonRect bmin, bmax, bclose;
+    if (!chrome_button_rects(win, &bmin, &bmax, &bclose)) return 0;
+    if (mx >= bclose.x && mx < bclose.x + bclose.w &&
+        my >= bclose.y && my < bclose.y + bclose.h) return 3;
+    if (mx >= bmax.x && mx < bmax.x + bmax.w &&
+        my >= bmax.y && my < bmax.y + bmax.h) return 2;
+    if (mx >= bmin.x && mx < bmin.x + bmin.w &&
+        my >= bmin.y && my < bmin.y + bmin.h) return 1;
+    return 0;
 }
 
 /* -- Main chrome drawing entry point -------------------------------- */
@@ -130,7 +134,7 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
 
     int tbh = chrome_title_bar_height();
     int bw = chrome_border_width();
-    int rad = th->rounded_buttons ? 4 : 0;
+    int rad = th->rounded_buttons ? (wubu_theme_current() == THEME_DARK ? 8 : 4) : 0;
 
     bool active = (g_dwm.focused_id == win->id);
     bool maximized = win->flags & DOSGUI_WIN_MAXIMIZED;
@@ -184,13 +188,18 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
                           start, end);
             vbe_rect_rounded(win->x, win->y, win->w, win->h, rad, tc()->border_dark);
         }
+    } else if (wubu_theme_current() == THEME_DARK) {
+        /* Windows 11: the title bar is flush with the frame. */
+        chrome_fill(win->x + bw, win->y + bw, win->w - 2 * bw, tbh, tc()->win_face);
     } else {
         /* Flat title bar (Win98 Classic) */
         chrome_fill(win->x + bw, win->y + bw, win->w - 2 * bw, tbh, title_color);
     }
 
     /* Title bar border bottom (separator) */
-    vbe_hline(win->x + bw, win->x + win->w - bw - 1, win->y + bw + tbh, tc()->border_dark);
+    vbe_hline(win->x + bw, win->x + win->w - bw - 1, win->y + bw + tbh,
+              wubu_theme_current() == THEME_DARK ? tc()->border_light
+                                                 : tc()->border_dark);
 
     /* -- Window icon -- */
     int icon_x = win->x + bw + 4;
@@ -209,51 +218,69 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
     }
 
     /* Title bar border bottom (separator) */
-    vbe_hline(win->x + bw, win->x + win->w - bw - 1, win->y + bw + tbh, tc()->border_dark);
+    vbe_hline(win->x + bw, win->x + win->w - bw - 1, win->y + bw + tbh,
+              wubu_theme_current() == THEME_DARK ? tc()->border_light
+                                                 : tc()->border_dark);
 
     /* -- Title bar buttons -- */
-    /* Win98-authentic: silver 3D-raised buttons with BOLD BLACK pixel
-     * glyphs (drawn, NOT 8x8-font characters, and never green). */
-    int btn_size = 14;
-    int gap = 2;
-
-    int start_x = win->x + win->w - bw - btn_size - 2;
-    int btn_y = win->y + bw + (tbh - 14) / 2;
-
-    /* Close button (rightmost): bold X */
-    int close_x = start_x;
-    int close_y = btn_y;
-    {
-        chrome_fill(close_x, close_y, 14, 14, tc()->btn_face);
-        chrome_draw_3d_raised(close_x, close_y, 14, 14, 2);
-        for (int i = 3; i < 11; i++) {
-            vbe_set_pixel(close_x + i,     close_y + i,     0x000000);
-            vbe_set_pixel(close_x + i + 1, close_y + i,     0x000000);
-            vbe_set_pixel(close_x + i,     close_y + 14 - i, 0x000000);
-            vbe_set_pixel(close_x + i + 1, close_y + 14 - i, 0x000000);
+    ChromeButtonRect bmin, bmax, bclose;
+    if (chrome_button_rects(win, &bmin, &bmax, &bclose)) {
+        if (wubu_theme_current() == THEME_DARK) {
+            /* Windows 11: flat buttons, no bevel.  Hover reveals a
+             * background; Close turns red. */
+            int mx = g_dwm.mouse_x, my = g_dwm.mouse_y;
+            bool hclose = (mx >= bclose.x && mx < bclose.x + bclose.w &&
+                           my >= bclose.y && my < bclose.y + bclose.h);
+            bool hmax   = (mx >= bmax.x && mx < bmax.x + bmax.w &&
+                           my >= bmax.y && my < bmax.y + bmax.h);
+            bool hmin   = (mx >= bmin.x && mx < bmin.x + bmin.w &&
+                           my >= bmin.y && my < bmin.y + bmin.h);
+            uint32_t bar = tc()->win_face;
+            chrome_fill(bclose.x, bclose.y, bclose.w, bclose.h,
+                        hclose ? 0xE81123 : bar);
+            chrome_fill(bmax.x, bmax.y, bmax.w, bmax.h,
+                        hmax ? tc()->btn_face : bar);
+            chrome_fill(bmin.x, bmin.y, bmin.w, bmin.h,
+                        hmin ? tc()->btn_face : bar);
+            uint32_t fg = hclose ? 0xFFFFFF : tc()->win_title_text;
+            for (int i = 3; i < 11; i++) {
+                vbe_set_pixel(bclose.x + i,     bclose.y + i,     fg);
+                vbe_set_pixel(bclose.x + i + 1, bclose.y + i,     fg);
+                vbe_set_pixel(bclose.x + i,     bclose.y + 14 - i, fg);
+                vbe_set_pixel(bclose.x + i + 1, bclose.y + 14 - i, fg);
+            }
+            for (int i = 3; i < 11; i++) {
+                vbe_set_pixel(bmax.x + i,     bmax.y + 3,     fg);
+                vbe_set_pixel(bmax.x + i,     bmax.y + 10,    fg);
+                vbe_set_pixel(bmax.x + 3,     bmax.y + i,     fg);
+                vbe_set_pixel(bmax.x + 10,    bmax.y + i,     fg);
+            }
+            for (int i = 3; i < 11; i++)
+                vbe_set_pixel(bmin.x + i, bmin.y + 10, fg);
+        } else {
+            /* Win98-authentic: silver 3D-raised buttons with BOLD BLACK
+             * pixel glyphs (drawn, NOT 8x8-font characters). */
+            chrome_fill(bclose.x, bclose.y, bclose.w, bclose.h, tc()->btn_face);
+            chrome_draw_3d_raised(bclose.x, bclose.y, bclose.w, bclose.h, 2);
+            for (int i = 3; i < 11; i++) {
+                vbe_set_pixel(bclose.x + i,     bclose.y + i,     0x000000);
+                vbe_set_pixel(bclose.x + i + 1, bclose.y + i,     0x000000);
+                vbe_set_pixel(bclose.x + i,     bclose.y + 14 - i, 0x000000);
+                vbe_set_pixel(bclose.x + i + 1, bclose.y + 14 - i, 0x000000);
+            }
+            chrome_fill(bmax.x, bmax.y, bmax.w, bmax.h, tc()->btn_face);
+            chrome_draw_3d_raised(bmax.x, bmax.y, bmax.w, bmax.h, 2);
+            for (int i = 3; i < 11; i++) {
+                vbe_set_pixel(bmax.x + i,     bmax.y + 3,     0x000000);
+                vbe_set_pixel(bmax.x + i,     bmax.y + 10,    0x000000);
+                vbe_set_pixel(bmax.x + 3,     bmax.y + i,     0x000000);
+                vbe_set_pixel(bmax.x + 10,    bmax.y + i,     0x000000);
+            }
+            chrome_fill(bmin.x, bmin.y, bmin.w, bmin.h, tc()->btn_face);
+            chrome_draw_3d_raised(bmin.x, bmin.y, bmin.w, bmin.h, 2);
+            for (int i = 3; i < 11; i++)
+                vbe_set_pixel(bmin.x + i, bmin.y + 10, 0x000000);
         }
-    }
-
-    /* Maximize button: square outline */
-    int max_x = close_x - 14 - 2;
-    {
-        chrome_fill(max_x, btn_y, 14, 14, tc()->btn_face);
-        chrome_draw_3d_raised(max_x, btn_y, 14, 14, 2);
-        for (int i = 3; i < 11; i++) {
-            vbe_set_pixel(max_x + i,     btn_y + 3,     0x000000);
-            vbe_set_pixel(max_x + i,     btn_y + 10,    0x000000);
-            vbe_set_pixel(max_x + 3,     btn_y + i,     0x000000);
-            vbe_set_pixel(max_x + 10,    btn_y + i,     0x000000);
-        }
-    }
-
-    /* Minimize button: horizontal bar at the bottom */
-    int min_x = max_x - 14 - 2;
-    {
-        chrome_fill(min_x, btn_y, 14, 14, tc()->btn_face);
-        chrome_draw_3d_raised(min_x, btn_y, 14, 14, 2);
-        for (int i = 3; i < 11; i++)
-            vbe_set_pixel(min_x + i, btn_y + 10, 0x000000);
     }
 
     /* -- Content rect for app to draw within -- */

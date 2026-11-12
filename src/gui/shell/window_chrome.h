@@ -18,6 +18,20 @@
 void chrome_draw_button(int x, int y, int w, int h,
                                const char *label, bool pressed);
 
+/* -- Title-bar button geometry -------------------------------------- */
+
+/* One owner for the three title-bar buttons, so the renderer and every
+ * hit-test (chrome + WM) cannot drift apart.  Rectangles are ABSOLUTE
+ * screen coordinates. */
+typedef struct {
+    int x, y, w, h;
+} ChromeButtonRect;
+
+bool chrome_button_rects(DosGuiWindow *win,
+                         ChromeButtonRect *min,
+                         ChromeButtonRect *max,
+                         ChromeButtonRect *close);
+
 /* -- Text edit field chrome ----------------------------------------- */
 
 void chrome_draw_edit_field(int x, int y, int w, int h);

@@ -19,6 +19,7 @@
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
 #include "shell/win11_shell.h"
+#include "shell/window_chrome.h"
 #include "../kernel/wubu_gesture.h"
 #include "shell/startmenu.h"
 #include "shell/taskbar_tasks.h"
@@ -490,16 +491,16 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
             int idx = g_dwm.zorder[j];
             DosGuiWindow *w = &g_dwm.windows[idx];
             if (!w->alive || (w->flags & DOSGUI_WIN_MINIMIZED)) continue;
-            if (!(w->flags & DOSGUI_WIN_MAXIMIZED)) {
-                int close_x = w->x + w->w - theme_radius() - 18;
-                int close_y = w->y + theme_radius() + 2;
-                if (x >= close_x && x < close_x + 14 && y >= close_y && y < close_y + 12) {
-                    close_win(idx);
-                    return;
-                }
-                if (theme()->Luna_start_button) {
-                    int max_x = close_x - 20;
-                    if (x >= max_x && x < max_x + 14 && y >= close_y && y < close_y + 12) {
+            {
+                ChromeButtonRect bmin, bmax, bclose;
+                if (chrome_button_rects(w, &bmin, &bmax, &bclose)) {
+                    if (x >= bclose.x && x < bclose.x + bclose.w &&
+                        y >= bclose.y && y < bclose.y + bclose.h) {
+                        close_win(idx);
+                        return;
+                    }
+                    if (x >= bmax.x && x < bmax.x + bmax.w &&
+                        y >= bmax.y && y < bmax.y + bmax.h) {
                         if (w->flags & DOSGUI_WIN_MAXIMIZED) {
                             w->x = w->min_x; w->y = w->min_y;
                             w->w = w->min_w; w->h = w->min_h;
@@ -513,8 +514,8 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                         }
                         return;
                     }
-                    int min_x = close_x - 40;
-                    if (x >= min_x && x < min_x + 14 && y >= close_y && y < close_y + 12) {
+                    if (x >= bmin.x && x < bmin.x + bmin.w &&
+                        y >= bmin.y && y < bmin.y + bmin.h) {
                         w->flags |= DOSGUI_WIN_MINIMIZED;
                         return;
                     }
@@ -563,16 +564,15 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
         g_dwm.focused_id = i;
         DosGuiWindow *w = &g_dwm.windows[i];
 
-        int close_x = w->x + w->w - theme_radius() - 18;
-        int close_y = w->y + theme_radius() + 2;
-        if (x >= close_x && x < close_x + 14 && y >= close_y && y < close_y + 12) {
-            close_win(i);
-            return;
-        }
-
-        if (theme()->Luna_start_button) {
-            int max_x = close_x - 20;
-            if (x >= max_x && x < max_x + 14 && y >= close_y && y < close_y + 12) {
+        ChromeButtonRect bmin, bmax, bclose;
+        if (chrome_button_rects(w, &bmin, &bmax, &bclose)) {
+            if (x >= bclose.x && x < bclose.x + bclose.w &&
+                y >= bclose.y && y < bclose.y + bclose.h) {
+                close_win(i);
+                return;
+            }
+            if (x >= bmax.x && x < bmax.x + bmax.w &&
+                y >= bmax.y && y < bmax.y + bmax.h) {
                 if (w->flags & DOSGUI_WIN_MAXIMIZED) {
                     w->x = w->min_x; w->y = w->min_y;
                     w->w = w->min_w; w->h = w->min_h;
@@ -586,8 +586,8 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                 }
                 return;
             }
-            int min_x = close_x - 40;
-            if (x >= min_x && x < min_x + 14 && y >= close_y && y < close_y + 12) {
+            if (x >= bmin.x && x < bmin.x + bmin.w &&
+                y >= bmin.y && y < bmin.y + bmin.h) {
                 w->flags |= DOSGUI_WIN_MINIMIZED;
                 return;
             }
