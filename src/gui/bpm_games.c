@@ -15,6 +15,7 @@
 #include "../egojar_net.h"
 #include "bpm.h"
 #include "wubu_game_launch.h"
+#include "../runtime/wubu_gamemode.h"
 #include "../gui/wm.h"
 #include "../gui/wm_internal.h"
 #include "../kernel/vbe.h"
@@ -46,8 +47,12 @@ static int (*g_launch)(const char *path, const char *name);
 static int games_default_launch(const char *path, const char *name)
 {
     (void)name;
+    /* game mode: performance governor + GPU boost + power profile, undone
+       below with the state init() recorded. */
+    wubu_gamemode_activate();
     /* the kernel's personality routing, shell-free */
     int64_t rc = wubu_game_run(path);
+    wubu_gamemode_deactivate();
     return rc >= 0 ? 0 : -1;
 }
 
@@ -57,6 +62,9 @@ void bpm_games_init(void)
     memset(&g_games, 0, sizeof(g_games));
     g_launch = games_default_launch;
     g_games.selected = 0;
+    /* Record the host's governor/power state now, so a game restores exactly
+       what was there before it started (never guess). */
+    wubu_gamemode_init();
 }
 
 /* BG2: the launch hook override (the tests). */

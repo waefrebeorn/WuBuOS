@@ -116,7 +116,7 @@ HOSTED_SUBSYS = $(HOSTED)/hosted_render.c $(HOSTED)/hosted_run.c $(HOSTED)/hoste
 HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/wubu_isa_wasm.c \
                $(GUI)/cp_sound.c $(GUI)/wubu_a11y.c $(GUI)/wubu_sound.c \
                $(RT)/edr/edr_poller.c $(RT)/wubu_gdpr_age.c $(RT)/wubu_wine_env.c $(RT)/wubu_compat_db.c \
-               $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c \
+               $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_gamemode.c \
                $(KERNEL)/memory.c $(KERNEL)/wubu_bonzi_study.c $(KERNEL)/wubu_psych.c $(KERNEL)/wubu_sha256.c \
                $(FRAMEWORK)/wubufx_apps.c $(FRAMEWORK)/wubufx.c \
                src/gui/vws/externals/wet/wet_app.c src/gui/vws/externals/wet/wet_backend_vbe.c \
