@@ -152,14 +152,22 @@ int main(void) {
     memset(&st, 0, sizeof(st));
     wubu_svc_supervisor_status(s4, ROOT, "flaky", &st);
     CHECK(st.restart_count >= 1, "restart_count >= 1 after 1st crash");
-    /* immediate second poll: still dying, but backoff window is active —
-     * the supervisor must NOT keep restarting (crash-loop guard) */
-    usleep(100000);
-    int n4b = wubu_svc_supervisor_poll(s4);
+    /* The guard is that the restart COUNT does not grow while the unit
+     * keeps dying inside the backoff window -- not that the pid happens to
+     * be 0 at one sampled instant (an instant's sample depends on whether
+     * the just-restarted child has exited yet, which is a race).
+     *
+     * Poll several times inside the window. /bin/true dies instantly, so
+     * every poll sees a death; without the guard each would restart it. */
+    int rc_before = st.restart_count;
+    for (int i = 0; i < 6; i++) {
+        usleep(20000);                       /* 120 ms total, well inside 1 s */
+        (void)wubu_svc_supervisor_poll(s4);
+    }
     memset(&st, 0, sizeof(st));
     wubu_svc_supervisor_status(s4, ROOT, "flaky", &st);
-    CHECK(st.pid == 0, "crash-loop guard: no hot restart inside backoff");
-    (void)n4b;
+    CHECK(st.restart_count == rc_before,
+          "crash-loop guard: no extra restarts inside the backoff window");
     wubu_svc_supervisor_destroy(s4);
 
     wubu_svc_supervisor_destroy(s);
