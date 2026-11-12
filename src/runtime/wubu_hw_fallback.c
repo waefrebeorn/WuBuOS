@@ -1,5 +1,5 @@
 /*
- * wubu_hw_stub.c -- Minimal hardware-detection stubs.
+ * wubu_hw_fallback.c -- Minimal hardware-detection stubs.
  *
  * wubu_wine_env.c calls wubu_hw_is_wsl / wubu_hw_has_prime / etc. to pick
  * the Wine/Proton graphics backend. In the hosted/AGI test environment

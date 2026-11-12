@@ -1,5 +1,5 @@
 /*
- * wubu_ns_pkg_stub.c -- Minimal definitions of the namespace + package
+ * wubu_ns_pkg_fallback.c -- Minimal definitions of the namespace + package
  * runtime symbols that GUI test binaries pull in via wubu_exec.c /
  * wubu_host_exec.c / styxfs_server.c but do NOT exercise.
  *

@@ -1,12 +1,12 @@
 /*
- * wubu_hw_sensors_stub.c -- hosted no-hardware shim for wubu_world.c sensor refs.
+ * wubu_hw_sensors_fallback.c -- hosted no-hardware shim for wubu_world.c sensor refs.
  *
  * wubu_world.c (kernel AGI world-model) reads GPU/battery/thermal state via
  * wubu_drv_gpu.c / wubu_drv_battery.c / wubu_drv_thermal.c -- kernel-mode
  * drivers that manage real device MMIO. Hosted runtime tests (test_era_apps,
  * etc.) link wubu_world but must not pull in kernel device code. This stub
  * provides the sensor getters wubu_world actually calls with safe
- * "no hardware" values, mirroring the established wubu_hw_stub.c isolation
+ * "no hardware" values, mirroring the established wubu_hw_fallback.c isolation
  * pattern. Same signatures as the kernel drivers so the link binds cleanly.
  *
  * C11, self-contained.

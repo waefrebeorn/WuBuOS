@@ -1,5 +1,5 @@
 /*
- * wubu_wayland_stub.c  --  weak Wayland-state default for standalone binaries.
+ * wubu_wayland_fallback.c  --  weak Wayland-state default for standalone binaries.
  *
  * src/gui/wubu_screenshot.c and wubu_clipboard.c reference the global
  * `g_wl` (wayland_state_t), which is fully populated only by the hosted

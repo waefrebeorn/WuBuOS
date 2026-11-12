@@ -9,7 +9,7 @@
  * default provider in src/gui).
  *
  * The real instance is defined in src/hosted/hosted.c; standalone GUI
- * binaries link a weak zeroed default (src/gui/wubu_wayland_stub.c) and
+ * binaries link a weak zeroed default (src/gui/wubu_wayland_fallback.c) and
  * degrade gracefully when no Wayland connection exists.
  */
 
@@ -73,7 +73,7 @@ typedef struct {
 } wayland_state_t;
 
 /* Global Wayland connection state.  Defined (strong) in hosted.c, or as a
- * weak zeroed default in src/gui/wubu_wayland_stub.c for standalone builds. */
+ * weak zeroed default in src/gui/wubu_wayland_fallback.c for standalone builds. */
 extern wayland_state_t g_wl;
 
 #endif /* WUBU_WAYLAND_STATE_H */
