@@ -89,6 +89,11 @@ window: hosted
 	@chmod +x $(HOSTED)/wubu-weston.sh
 	@$(HOSTED)/wubu-weston.sh $(SIZE)
 
+# ── Boot the WuBuOS desktop on OUR compositor (slerm'd, no wlroots). ─────
+# Usage: make compositor [SIZE=1024x768], or make compositor -w 960 540
+compositor:
+	@tools/run-wubucompositor.sh $(SIZE)
+
 uninstall:
 	@rm -f $(PREFIX)/bin/wubuos $(PREFIX)/bin/wubuos-window $(PREFIX)/bin/wubu-inject $(PREFIX)/share/applications/wubuos.desktop $(PREFIX)/share/pixmaps/wubuos.png
 	@echo "✅ WuBuOS desktop removed from $(PREFIX)"
