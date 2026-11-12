@@ -6,6 +6,7 @@
  * Cell 202: Unified input dispatch queue.
  */
 #include "input.h"
+#include <stdbool.h>
 #include <string.h>
 
 #define QUEUE_SIZE 256
@@ -112,6 +113,71 @@ int input_mouse_poll(MouseEvent *out) {
 void input_mouse_get_pos(int *x, int *y) {
     if (x) *x = g_mouse_x;
     if (y) *y = g_mouse_y;
+}
+
+uint32_t input_scancode_to_key(uint32_t scancode, uint32_t mods) {
+    bool shift = (mods & MOD_SHIFT) != 0;
+
+    /* Control keys first: the text widgets test ASCII control codes. */
+    switch (scancode) {
+        case 0x01: return 0x1B;   /* Escape        */
+        case 0x0E: return 0x08;   /* Backspace     */
+        case 0x0F: return 0x09;   /* Tab           */
+        case 0x1C: return 0x0D;   /* Enter         */
+        case 0x39: return 0x20;   /* Space         */
+        default:   break;
+    }
+
+    /* Digit row: 1 ! 2 @ 3 # 4 $ 5 % 6 ^ 7 & 8 * 9 ( 0 ) */
+    if (scancode >= 0x02 && scancode <= 0x0B) {
+        static const char plain[]  = "1234567890";
+        static const char shifted[] = "!@#$%^&*()";
+        return (uint32_t)(shift ? shifted[scancode - 0x02]
+                                : plain[scancode - 0x02]);
+    }
+    /* - = */
+    if (scancode == 0x0C) return (uint32_t)(shift ? '_' : '-');
+    if (scancode == 0x0D) return (uint32_t)(shift ? '+' : '=');
+
+    /* QWERTY row */
+    if (scancode >= 0x10 && scancode <= 0x19) {
+        static const char plain[]   = "qwertyuiop";
+        static const char shifted[] = "QWERTYUIOP";
+        return (uint32_t)(shift ? shifted[scancode - 0x10]
+                                : plain[scancode - 0x10]);
+    }
+    /* [ ] */
+    if (scancode == 0x1A) return (uint32_t)(shift ? '{' : '[');
+    if (scancode == 0x1B) return (uint32_t)(shift ? '}' : ']');
+
+    /* Home row */
+    if (scancode >= 0x1E && scancode <= 0x26) {
+        static const char plain[]   = "asdfghjkl";
+        static const char shifted[] = "ASDFGHJKL";
+        return (uint32_t)(shift ? shifted[scancode - 0x1E]
+                                : plain[scancode - 0x1E]);
+    }
+    /* ; : ' " ` ~ */
+    if (scancode == 0x27) return (uint32_t)(shift ? ':' : ';');
+    if (scancode == 0x28) return (uint32_t)(shift ? '"' : '\'');
+    if (scancode == 0x29) return (uint32_t)(shift ? '~' : '`');
+    /* \ | */
+    if (scancode == 0x2B) return (uint32_t)(shift ? '|' : '\\');
+
+    /* Bottom row */
+    if (scancode >= 0x2C && scancode <= 0x32) {
+        static const char plain[]   = "zxcvbnm";
+        static const char shifted[] = "ZXCVBNM";
+        return (uint32_t)(shift ? shifted[scancode - 0x2C]
+                                : plain[scancode - 0x2C]);
+    }
+    /* , < . > / ? */
+    if (scancode == 0x33) return (uint32_t)(shift ? '<' : ',');
+    if (scancode == 0x34) return (uint32_t)(shift ? '>' : '.');
+    if (scancode == 0x35) return (uint32_t)(shift ? '?' : '/');
+
+    /* Arrows, modifiers, function keys: no text form, keep the scancode. */
+    return scancode;
 }
 
 /* Simple ASCII key push for PS/2 driver */

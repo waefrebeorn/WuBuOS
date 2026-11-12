@@ -133,9 +133,9 @@ extern const WubuTheme *wubu_theme_get(void);
 /* -- State ------------------------------------------------------- */
 
 int  startmenu_is_open(void) { return g_open; }
-void startmenu_toggle(void) { g_open = !g_open; }
-void startmenu_open(void)   { g_open = 1; }
-void startmenu_close(void)  { g_open = 0; g_submenu_open = -1; }
+void startmenu_toggle(void) { g_open = !g_open; if (g_open) g_search.active = true; }
+void startmenu_open(void)   { g_open = 1; g_search.active = true; }
+void startmenu_close(void)  { g_open = 0; g_submenu_open = -1; startmenu_search_clear(); }
 
 /* -- Rendering --------------------------------------------------- */
 
@@ -346,8 +346,37 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
                           6, c->btn_face);
     vbe_rect_rounded(L.search_x, L.search_y, L.search_w, L.search_h,
                      6, c->border_light);
-    vbe_draw_text(L.search_x + 10, L.search_y + 8, "Type here to search",
-                  c->startmenu_text, 1);
+    if (g_search.active && g_search.query[0]) {
+        char disp[DOSGUI_SEARCH_MAX_LEN + 2];
+        snprintf(disp, sizeof(disp), "%s|", g_search.query);
+        vbe_draw_text(L.search_x + 10, L.search_y + 8, disp,
+                      c->startmenu_text, 1);
+    } else {
+        vbe_draw_text(L.search_x + 10, L.search_y + 8, "Type here to search",
+                      c->startmenu_text, 1);
+    }
+
+    /* While a query is typed the results replace the pinned grid, exactly
+     * as Windows 11 does. */
+    SmProgramEntry **results = NULL;
+    int nres = 0;
+    bool searching = (g_search.active && g_search.query[0] &&
+                      startmenu_search_get_results(&results, &nres) == 0);
+    if (searching) {
+        int ry = L.search_y + L.search_h + 14;
+        vbe_draw_text(L.px + 16, ry, nres ? "Best match" : "No results",
+                      c->startmenu_text, 1);
+        ry += 18;
+        int shown = nres < 8 ? nres : 8;
+        for (int i = 0; i < shown; i++) {
+            int rx = L.px + 16;
+            vbe_fill_rect_rounded(rx, ry, L.pw - 32, 40, 6, c->btn_face);
+            vbe_rect_rounded(rx, ry, L.pw - 32, 40, 6, c->border_light);
+            vbe_draw_text(rx + 12, ry + 16, results[i]->name,
+                          c->startmenu_text, 1);
+            ry += 46;
+        }
+    } else {
 
     /* Pinned grid. */
     vbe_draw_text(L.px + 16, L.grid_y - 16, "Pinned", c->startmenu_text, 1);
@@ -379,6 +408,7 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
         vbe_draw_text(ix + 8, iy + 16, g_recent[i].name,
                       c->startmenu_text, 1);
     }
+    }   /* !searching */
 
     /* Footer: user chip + power. */
     vbe_fill_rect_rounded(L.px + 16, L.foot_y + 4, 32, 32, 16, c->btn_hover);
@@ -399,6 +429,26 @@ static void startmenu_win11_click(int x, int y) {
         startmenu_close();
         return;
     }
+    /* While a query is typed, the results are the only clickable rows. */
+    if (g_search.active && g_search.query[0]) {
+        SmProgramEntry **results = NULL;
+        int nres = 0;
+        if (startmenu_search_get_results(&results, &nres) == 0) {
+            int ry = L.search_y + L.search_h + 14 + 18;
+            int shown = nres < 8 ? nres : 8;
+            for (int i = 0; i < shown; i++) {
+                if (x >= L.px + 16 && x < L.px + L.pw - 16 &&
+                    y >= ry && y < ry + 40) {
+                    launch_app(results[i]->name);
+                    startmenu_close();
+                    return;
+                }
+                ry += 46;
+            }
+        }
+        return;
+    }
+
     /* Pinned grid. */
     for (int i = 0; i < WIN11_PIN_COUNT; i++) {
         int col = i % L.cols, row = i / L.cols;

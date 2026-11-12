@@ -114,6 +114,19 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
     /* While locked the lock screen consumes EVERY key -- no app sees input. */
     if (wubu_lock_screen_handle_key(key, mods)) return;
 
+    /* The Start menu is modal: while it is open it owns the keyboard (typing
+     * searches, Escape closes, Enter launches).  The Win key still toggles
+     * it, so it is handled before the modal block. */
+    if (key == 0xE05B || key == 0xE05C) {
+        startmenu_toggle();
+        return;
+    }
+    if (startmenu_is_open()) {
+        startmenu_handle_key(key, mods);
+        startmenu_handle_search_input(key, mods);
+        return;
+    }
+
     /* P0 a11y: when the cluster is enabled and a window is focused, give
      * the a11y keyboard nav first crack (arrow-cycle focus, Enter/Space
      * activate). Otherwise arrow keys fall through to normal WM nav. */
@@ -183,46 +196,21 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
-    /* Win key (left or right): toggle start menu */
-    if (key == 0xE05B || key == 0xE05C) {
-        startmenu_toggle();
-        return;
-    }
-
     /* Win+H: spawn HolyC terminal */
     if ((mods & MOD_ALT) && (key == 0x48 || key == 'h' || key == 'H')) {
         wm_spawn_holyc_term(100, 100, 700, 500);
         return;
     }
 
-    /* Global hotkeys take precedence over the focused window's on_key
-     * handler, so system keys (close / maximize / theme / virtual-desktop)
-     * work even when an app captures keystrokes. */
-    if (key == 111 && g_dwm.focused_id >= 0) {
+    /* Alt+F4: close the focused window (Windows parity).  The old bare
+     * `key == 111` / `0x57` / `0x3F` hotkeys had to go: the input layer now
+     * delivers ASCII, so 'o' closed the window, 'W' maximized it and '?'
+     * cycled the theme in the middle of typing. */
+    if ((mods & MOD_ALT) && key == 0x3E && g_dwm.focused_id >= 0) {
         close_win(g_dwm.focused_id);
         return;
     }
-    if (key == 0x57 && g_dwm.focused_id >= 0) {
-        DosGuiWindow *w = &g_dwm.windows[g_dwm.focused_id];
-        if (w->flags & DOSGUI_WIN_MAXIMIZED) {
-            w->x = w->min_x; w->y = w->min_y;
-            w->w = w->min_w; w->h = w->min_h;
-            w->flags &= ~DOSGUI_WIN_MAXIMIZED;
-        } else {
-            w->min_x = w->x; w->min_y = w->y;
-            w->min_w = w->w; w->min_h = w->h;
-            w->x = 0; w->y = 0;
-            w->w = g_dwm.screen_w; w->h = g_dwm.screen_h - taskbar_height_dynamic();
-            w->flags |= DOSGUI_WIN_MAXIMIZED;
-        }
-        return;
-    }
     if ((mods & MOD_CTRL) && key == 0x14) {
-        wubu_theme_cycle();
-        fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
-        return;
-    }
-    if (key == 0x3F) {
         wubu_theme_cycle();
         fprintf(stderr, "Theme cycled to: %s\n", wubu_theme_name(wubu_theme_current()));
         return;
@@ -531,6 +519,10 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                     icon_show_context_menu(icon_idx, x, y);
                     return;
                 }
+                /* Unfocus first: the launch below focuses the new window, so
+                 * clearing it afterwards would leave nothing focused and the
+                 * new window would never receive the keyboard. */
+                g_dwm.focused_id = -1;
                 if (g_dwm.icons[icon_idx].on_click) {
                     g_dwm.icons[icon_idx].on_click();
                 } else if (g_dwm.icons[icon_idx].on_execute) {
@@ -544,7 +536,6 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                 g_dwm.drag_icon_id = icon_idx;
                 g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;
                 g_dwm.drag_icon_oy = y - g_dwm.icons[icon_idx].y;
-                g_dwm.focused_id = -1;
                 return;
             }
             g_dwm.focused_id = -1;

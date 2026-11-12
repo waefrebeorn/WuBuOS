@@ -83,13 +83,18 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
         else if (key >= 59 && key <= 68) wu_key = 0x3B + (uint32_t)(key - 59); /* F1-F10 */
         else if (key == 87) wu_key = 0x3B + 10; /* F11 */
         else if (key == 88) wu_key = 0x3B + 11; /* F12 */
+        else if (key >= 26 && key <= 27) wu_key = 0x1A + (uint32_t)(key - 26); /* [ ] */
+        else if (key >= 39 && key <= 41) wu_key = 0x27 + (uint32_t)(key - 39); /* ; ' ` */
+        else if (key == 43) wu_key = 0x2B;  /* \ */
+        else if (key >= 51 && key <= 53) wu_key = 0x33 + (uint32_t)(key - 51); /* , . / */
+        else if (key == 12) wu_key = 0x0C;  /* - */
+        else if (key == 13) wu_key = 0x0D;  /* = */
         break;
     }
 
     if (wu_key) {
         KeyEvent ev = {0};
         ev.scancode = wu_key;
-        ev.keycode = wu_key;
         ev.kind = pressed ? KEY_EVENT_DOWN : KEY_EVENT_UP;
         uint32_t mods = 0;
         if (g_key_map[42] || g_key_map[54]) mods |= MOD_SHIFT;
@@ -97,6 +102,10 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
         if (g_key_map[56] || g_key_map[100]) mods |= MOD_ALT;
         if (g_key_map[125] || g_key_map[126]) mods |= MOD_WIN;   /* Super / Windows */
         ev.modifiers = mods;
+        /* The GUI text widgets (terminal, Start-menu search) test ASCII, so
+         * translate anything that carries text.  Arrows/modifiers keep their
+         * scancode, which is what the WM's hotkeys match. */
+        ev.keycode = input_scancode_to_key(wu_key, mods);
         input_key_push(ev);
     }
 }

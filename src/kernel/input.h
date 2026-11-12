@@ -44,6 +44,17 @@ void    input_mouse_get_pos(int *x, int *y);
 /* Simple ASCII key push (for PS/2 driver) */
 void input_key_push_simple(char c);
 
+/*
+ * Translate a Set-1 scancode into the key value the GUI text widgets
+ * expect (the terminal, the Start-menu search): ASCII for printable keys,
+ * the matching control code for Enter/Backspace/Escape/Tab/Space.
+ *
+ * Keys that carry no text -- arrows, modifiers, function keys -- pass
+ * through unchanged, so the WM's scancode hotkeys (Win+Left, Alt+Tab, ...)
+ * keep working.  `mods` is the MOD_* mask from the same event.
+ */
+uint32_t input_scancode_to_key(uint32_t scancode, uint32_t mods);
+
 /* Init */
 int  input_init(void);
 void input_shutdown(void);

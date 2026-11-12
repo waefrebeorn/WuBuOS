@@ -212,6 +212,10 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * loop (hosted_run) -- perceive -> decide -> act -> learn -- so the
      * experience stream lands in /kv/world/tick_<N> and /n/kv mirrors it. */
     wubu_agi_play_start("freeplay", WUBU_GAME_UNKNOWN);
+    /* This session runs the loop for the perception/ledger stream only.  It
+     * must never synthesize clicks or keys at the user's pointer -- that is
+     * what made the shell click, drag and close its own windows. */
+    wubu_agi_play_set_input_injection(0);
     wubu_ns_kv_refresh();
     startmenu_init();
 

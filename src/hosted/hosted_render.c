@@ -36,6 +36,10 @@ void hosted_render_desktop(hosted_state_t *state) {
 void hosted_input_dispatch(void) {
     KeyEvent kev;
     while (input_key_poll(&kev)) {
+        /* The WM is press-driven: hotkeys toggle and text widgets append, so
+         * a key-up would fire every action twice (Win+W open+close, "not"
+         * typed as "nno oott"). */
+        if (kev.kind != KEY_EVENT_DOWN) continue;
         wm_handle_key(kev.keycode, kev.modifiers);
     }
     MouseEvent mev;

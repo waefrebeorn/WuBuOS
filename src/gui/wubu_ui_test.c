@@ -10,6 +10,7 @@
 #include "wubu_ui.h"
 #include "wm.h"
 #include "../kernel/vbe.h"
+#include "../kernel/input.h"   /* MOD_ALT */
 #include "../gui/wubu_theme.h"
 #include <stdio.h>
 #include <string.h>
@@ -57,7 +58,7 @@ int main(void) {
     /* -- 3. Close a window with the keyboard (Alt+F4-style global close) -- */
     printf("\n[Close window via synthetic key]\n");
     DosGuiWindow *c = spawn_at(500, 200, 180, 120, "Bye");
-    wubu_ui_key(111, 0);  /* WM maps key 111 -> close focused */
+    wubu_ui_key(0x3E, MOD_ALT);  /* Alt+F4 -> close focused */
     T(!c->alive, "window closed via synthetic key event");
 
     /* -- 4. Type into the focused window -- */

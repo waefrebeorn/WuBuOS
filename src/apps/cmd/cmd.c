@@ -83,10 +83,12 @@ static const char* cmd_history_next(void) {
 static void cmd_screen_put(char c) {
     if (g_cmd.screen_col >= CMD_SCREEN_COLS - 1) return;
     g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col++] = c;
+    /* Keep the row NUL-terminated at the cursor: the line must survive a
+     * later CR (a pty sends CRLF, which would otherwise truncate it). */
+    g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col] = '\0';
 }
 
 static void cmd_screen_newline(void) {
-    g_cmd.screen[g_cmd.screen_row][g_cmd.screen_col] = '\0';
     g_cmd.screen_row++;
     g_cmd.screen_col = 0;
     if (g_cmd.screen_row >= CMD_SCREEN_ROWS) {
@@ -209,6 +211,8 @@ void wubu_cmd_key(WubuCmd *cmd, int key) {
                 cmd_pty_write("\n", 1);
                 g_cmd.input_len = 0;
                 g_cmd.cursor_pos = 0;
+                g_cmd.input_buffer[0] = '\0';   /* the render reads the buffer
+                                                 * directly, so clear it too */
             }
             break;
         case '\t':

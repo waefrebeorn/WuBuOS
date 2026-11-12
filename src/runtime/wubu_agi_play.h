@@ -24,6 +24,11 @@ void wubu_agi_play_start(const char *game, WUBU_GAME_KIND kind);
 /* AP2: stop (the ledger line lands). */
 void wubu_agi_play_stop(void);
 
+/* AP2b: opt in to REAL input injection.  Off by default so the desktop
+ * session never clicks or types on the user's behalf; a game session
+ * enables it to drive the game through the shared input queue. */
+void wubu_agi_play_set_input_injection(int on);
+
 /* AP3: the policy — the world state -> an action. */
 int wubu_agi_play_policy(const wubu_world_t *w);
 

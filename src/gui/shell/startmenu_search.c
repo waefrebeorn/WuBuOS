@@ -7,6 +7,7 @@
 
 #include "../wubu_theme.h"
 #include "./startmenu_internal.h"
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -32,17 +33,24 @@ void startmenu_search_update(const char *query) {
     
     if (g_search.query[0] == '\0') return;
     
+    /* Lowercase the query.  lower_query must be NUL-terminated at the query
+     * length: leaving it to chance made strstr() match against stack garbage
+     * and every search came back empty. */
     char lower_query[DOSGUI_SEARCH_MAX_LEN];
-    for (int i = 0; g_search.query[i] && i < DOSGUI_SEARCH_MAX_LEN - 1; i++) {
-        lower_query[i] = tolower(g_search.query[i]);
-    }
-    lower_query[strlen(lower_query)] = '\0';
+    int qlen = (int)strlen(g_search.query);
+    if (qlen > DOSGUI_SEARCH_MAX_LEN - 1) qlen = DOSGUI_SEARCH_MAX_LEN - 1;
+    for (int i = 0; i < qlen; i++)
+        lower_query[i] = (char)tolower((unsigned char)g_search.query[i]);
+    lower_query[qlen] = '\0';
     
     for (int i = 0; i < g_program_db.count && g_search.result_count < DOSGUI_MAX_PROGRAM_ENTRIES; i++) {
         SmProgramEntry *e = &g_program_db.entries[i];
         char lower_name[48];
-        for (int j = 0; e->name[j]; j++) lower_name[j] = tolower(e->name[j]);
-        lower_name[strlen(e->name)] = '\0';
+        int nlen = (int)strlen(e->name);
+        if (nlen > 47) nlen = 47;
+        for (int j = 0; j < nlen; j++)
+            lower_name[j] = (char)tolower((unsigned char)e->name[j]);
+        lower_name[nlen] = '\0';
         
         if (strstr(lower_name, lower_query)) {
             g_search.results[g_search.result_count++] = e;

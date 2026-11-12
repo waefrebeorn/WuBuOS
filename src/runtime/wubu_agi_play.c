@@ -45,6 +45,12 @@ typedef struct {
     int  ticks;
     int  actions[AGI_ACT_NONE];
     uint64_t last_tick_ms;
+    /* When set, agi_act() pushes REAL key/mouse events into the shared input
+     * queue.  Off by default: the hosted desktop runs this loop for the
+     * perception/ledger stream, and synthetic clicks at the user's pointer
+     * (including FIRE, which presses with no release) made the shell click,
+     * drag and close windows on its own.  A real game session opts in. */
+    int  inject_input;
 } AgiPlayState;
 
 static AgiPlayState g_play;
@@ -85,6 +91,11 @@ void wubu_agi_play_stop(void)
     g_play.active = 0;
 }
 
+void wubu_agi_play_set_input_injection(int on)
+{
+    g_play.inject_input = on ? 1 : 0;
+}
+
 /* AP3: the policy — choose an action from the world state. The
  * scripted explorer: hot -> strafe (cool off), low battery -> back
  * off, else wander. The trained policy replaces this later. */
@@ -109,6 +120,7 @@ int wubu_agi_play_policy(const wubu_world_t *w)
 /* AP4: act — push the REAL input events for the action. */
 static void agi_act(int action)
 {
+    if (!g_play.inject_input) return;
     KeyEvent ev;
     memset(&ev, 0, sizeof(ev));
     ev.kind = KEY_EVENT_DOWN;

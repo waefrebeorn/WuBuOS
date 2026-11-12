@@ -901,3 +901,11 @@ int main(void) {
     printf("==================================================\n");
     return g_fail > 0 ? 1 : 0;
 }
+/* Weak: the WM routes keys to the Start menu while it is open.  Targets that
+ * link the real startmenu.c get the strong definitions. */
+__attribute__((weak)) void startmenu_handle_key(int key, uint32_t mods) {
+    (void)key; (void)mods;
+}
+__attribute__((weak)) void startmenu_handle_search_input(int key, uint32_t mods) {
+    (void)key; (void)mods;
+}

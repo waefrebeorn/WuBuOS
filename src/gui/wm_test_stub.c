@@ -114,6 +114,15 @@ __attribute__((weak)) void startmenu_handle_click(int x, int y) {
 
 __attribute__((weak)) void startmenu_track_hover(int x, int y) { (void)x; (void)y; }
 
+/* Keyboard entry points: the WM routes keys to the menu while it is open.
+ * Weak, so a target that links only this stub still resolves them. */
+__attribute__((weak)) void startmenu_handle_key(int key, uint32_t mods) {
+    (void)key; (void)mods;
+}
+__attribute__((weak)) void startmenu_handle_search_input(int key, uint32_t mods) {
+    (void)key; (void)mods;
+}
+
 __attribute__((weak)) void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     if (!tsm_open || !fb) return;
     int task_h = taskbar_height();
