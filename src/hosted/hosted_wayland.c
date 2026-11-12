@@ -10,6 +10,7 @@
 #include "../gui/wubu_theme.h"
 #include "../bridge/bridge.h"
 #include <wayland-client.h>
+#include <poll.h>
 #include <wayland-cursor.h>
 #include <xkbcommon/xkbcommon.h>
 #include <sys/mman.h>
@@ -89,10 +90,29 @@ int hosted_wl_connect(hosted_state_t *state) {
 }
 
 void hosted_wl_dispatch(void) {
-    if (g_wl.display) {
+    if (!g_wl.display) return;
+
+    /* READ the socket, not just the pending queue. wl_display_dispatch_pending
+     * only dispatches events already in our local queue -- it never reads --
+     * so without this the compositor's configure/ping/buffer-release events
+     * never arrive, the client never acks the xdg configure, and the
+     * compositor eventually drops the connection ("error in client
+     * communication" / EPIPE). poll with a zero timeout keeps the frame loop
+     * non-blocking. */
+    struct pollfd pfd;
+    pfd.fd = wl_display_get_fd(g_wl.display);
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    int ready = poll(&pfd, 1, 0);
+    if (ready > 0 && (pfd.revents & (POLLIN | POLLHUP | POLLERR))) {
+        if (wl_display_dispatch(g_wl.display) < 0) {
+            /* the compositor went away; the run loop notices on the next flush */
+            return;
+        }
+    } else {
         wl_display_dispatch_pending(g_wl.display);
-        wl_display_flush(g_wl.display);
     }
+    wl_display_flush(g_wl.display);
 }
 
 void hosted_wl_disconnect(void) {

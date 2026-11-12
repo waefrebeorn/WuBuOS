@@ -84,6 +84,10 @@ void wl_shm_term(void) {
  * Declared in hosted_internal.h and called by the hosted.c render loop. */
 void hosted_wl_frame_render(void) {
     if (!g_wl.surface || !g_wl.compositor) return;
+    /* Wait for the compositor's initial configure: attaching a buffer on an
+     * unconfigured xdg_surface is a protocol error and the compositor drops
+     * the client. */
+    if (!g_wl.configured) return;
     shm_buffer_t *buf = &g_shm_bufs[g_cur_buf];
     if (!buf->pixels) return;
 
@@ -103,7 +107,12 @@ void hosted_wl_frame_render(void) {
     }
 
     wl_surface_attach(g_wl.surface, buf->wl_buf, 0, 0);
-    wl_surface_damage_buffer(g_wl.surface, 0, 0, buf->width, buf->height);
+    /* damage_buffer() only exists from wl_surface v5; an older compositor
+     * takes the legacy damage() with the same meaning. */
+    if (wl_surface_get_version(g_wl.surface) >= 5)
+        wl_surface_damage_buffer(g_wl.surface, 0, 0, buf->width, buf->height);
+    else
+        wl_surface_damage(g_wl.surface, 0, 0, (int)buf->width, (int)buf->height);
     wl_surface_commit(g_wl.surface);
 
     g_cur_buf = 1 - g_cur_buf;

@@ -63,6 +63,11 @@ typedef struct {
     int                   drm_fd;
     int                   width;
     int                   height;
+    /* Set once the compositor's initial xdg_surface.configure has been
+     * acked. Attaching a buffer before that is a protocol error
+     * ("xdg_surface has never been configured") and the compositor aborts
+     * the client. */
+    int                   configured;
     struct wl_buffer      *shm_buffer;
     void                  *shm_data;
 } wayland_state_t;

@@ -34,7 +34,12 @@ static void registry_global(void *data, struct wl_registry *registry,
     if (!state) return;
     fprintf(stderr, "Wayland: global added (name=%u, interface=%s, version=%u)\n", name, interface, version);
     if (strcmp(interface, "wl_compositor") == 0) {
-        g_wl.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1);
+        /* Bind the highest version we can USE, not always 1: damage_buffer()
+         * is a wl_surface method since version 5, and calling it on a v1
+         * surface is a protocol error that makes the compositor abort the
+         * client (weston: "error in client communication"). */
+        uint32_t want = version < 5 ? version : 5;
+        g_wl.compositor = wl_registry_bind(registry, name, &wl_compositor_interface, want);
     } else if (strcmp(interface, "xdg_wm_base") == 0) {
         g_wl.xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
     } else if (strcmp(interface, "zwp_tablet_manager_v1") == 0) {
@@ -80,6 +85,8 @@ static void xdg_surface_configure(void *data, struct xdg_surface *xdg_surface, u
     hosted_state_t *state = (hosted_state_t*)data;
     if (!state) return;
     xdg_surface_ack_configure(xdg_surface, serial);
+    /* From here on the surface is configured and a buffer may be attached. */
+    g_wl.configured = 1;
 }
 
 static const struct xdg_surface_listener xdg_surface_listener = {
