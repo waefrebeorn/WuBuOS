@@ -217,7 +217,7 @@ build spec.
   compositor-owned repaint (the DWM/MIL pattern); gate: a render test asserting only the
   changed window's surface re-composites.
 - **P2** — pacman signature keyring + transaction planner (`wubu_keyring.c`, `wubu_pkg_txn.c`);
-  gate: `make test_keyring`, `make test_pkg_txn`.
+  gate: `make test_keyring`, `make test_pkg_txn`; the real gates are `make test_cap` / `make test_txn` and the newly-wired `make test_kvfs` / `make test_vulkan`.
 - **P3** — Snap layouts + Snap groups + per-desktop window sets (promote `wubu_wm_desktop`
   to per-desktop window sets + snap groups); gate: WM snap/groups tests.
 - **P3** — Cinnamon-style shell split: thin C WM core + applet/desklet/theme registry +
