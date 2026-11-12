@@ -90,7 +90,7 @@ test_medium_other: runtime gui test_docs test_hosted_hw test_agent test_ns_kv te
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
-test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic
+test: test_critical_runtime test_critical_kernel test_high_bridge test_high_gui test_high_bear test_medium_other test_vsl_cpm test_vsl_macclassic test_orphans
 	@echo "✅ All tests passed (all tiers)"
 
 test_jit:
@@ -4812,3 +4812,18 @@ test_gpu_driver: $(RT)/wubu_gpu_driver_test.c
 	@$(RT)/wubu_gpu_driver_test; rc=$$?; \
 	if [ $$rc -eq 2 ]; then echo "[skip] GPU gate skipped (no nvcc)"; exit 0; fi; \
 	exit $$rc
+
+test_orphans: test_a11y test_acpi test_agi_kernel test_agi_play test_ahcifat test_apps_gap test_arch test_archd_n1 \
+test_as test_auth test_bear_opt test_blk test_bonzi_study test_cab_extract test_compat test_container_registry \
+test_deskenv test_dos_emu test_dos_proc test_ec_control test_fat2 test_game_launch test_game_session test_gamemode \
+test_gui_screenshot test_heap_stress test_hive test_holyd_pe test_holyd_roundtrip test_hpet test_hw_gesture test_iommu \
+test_jit_profile test_kvfs_route test_lfn test_libc_string test_logind test_machines test_mir_regalloc test_ns_background \
+test_ns_ec test_ns_effect test_ns_steaminput test_ns_steamrt test_ns_win32 test_ns_world test_owned_surface test_pe_exec \
+test_pe_full test_pe_globals test_pe_iat test_pe_import test_pe_load test_pe_modsym test_pe_program test_pe_reloc \
+test_pressure_vessel test_psych test_recovery test_rtc test_runtime test_session test_session_boot test_session_daemon \
+test_sha256 test_smbios test_steaminput test_steamrt test_svc_socket test_svc_super test_swap test_sync \
+test_tandem test_theme_bridge test_theme_hid test_tutor test_vdso test_verifier test_vkd3d_live test_vkd3d_live_binding \
+test_vkd3d_live_msaa test_vkd3d_live_pipeline test_vkd3d_live_present test_vkd3d_live_render test_vkd3d_live_texture test_vkd3d_live_uav test_vmm test_vsl_mac \
+test_vsl_macho test_w9pc test_wdt test_win32k test_world test_wubu_applaunch test_wubu_bus test_wubu_daemon_client \
+test_wubu_onboarding test_wubu_selfbuild test_wubu_tokenizer test_wubu_zx test_wubu_zx9p test_wubu_zxload test_wubu_zxreg test_xdg_autostart \
+test_xhci
