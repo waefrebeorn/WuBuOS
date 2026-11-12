@@ -53,19 +53,13 @@ typedef struct {
 }
 
 typedef struct {
-    double mass;       /* g/cm^2 */
-    double resistance; /* dyn*s/cm^3 */
-    double stiffness;  /* dyn/cm^3 */
-} wg_wall;
-
-typedef struct {
     const char *name;
     int         n;         /* sections (pressure nodes) */
     double      length;    /* cm; may change at control rate */
     int         uniform;   /* 1: uniform area, 0: profile */
     double      area;      /* uniform area (cm^2) */
     const double *profile; /* n areas when uniform == 0 */
-    wg_wall     wall;      /* yielding wall; stiffness <= 0 means rigid */
+    wg_wall_params wall;      /* yielding wall; stiffness <= 0 means rigid */
     double      perimeter; /* cross-section perimeter vs a circle of equal area (>=1) */
     double      viscous;   /* multiplier on viscous resistance */
     double      radiation; /* fraction of wall volume velocity radiated */
@@ -99,7 +93,7 @@ void        wg_network_free(wg_network *net);
 wg_tube wg_network_add_tube(wg_network *net, const wg_tube_spec *spec);
 int     wg_network_connect(wg_network *net, int a, int b);
 int     wg_network_add_port(wg_network *net, int a, int b, wg_port_spec spec);
-int     wg_network_add_cavity(wg_network *net, const char *name, double volume, int has_wall, wg_wall wall);
+int     wg_network_add_cavity(wg_network *net, const char *name, double volume, int has_wall, wg_wall_params wall);
 int     wg_network_add_pressure_node(wg_network *net, const char *name);
 int     wg_network_add_radiation(wg_network *net, int node);
 void    wg_network_finalize(wg_network *net);
@@ -125,8 +119,13 @@ void    wg_network_inject(wg_network *net, int node, double u);
 /* Advance one sample. Returns the radiated pressure output. */
 double  wg_network_step(wg_network *net);
 
+/* Immediate geometry/pressure setters (per-sample sources call these). */
+void    wg_network_set_pressure(wg_network *net, int node, double p);
+void    wg_network_set_port_area(wg_network *net, int port, double area);
+
 /* Telemetry. */
 int     wg_network_n_nodes(const wg_network *net);
+double  wg_network_pressure(const wg_network *net, int node);
 double  wg_network_node_pressure(const wg_network *net, int node);
 double  wg_network_radiated_flow(const wg_network *net, int radiator);
 

@@ -201,7 +201,7 @@ int wg_network_add_port(wg_network *net, int a, int b, wg_port_spec spec)
 }
 
 int wg_network_add_cavity(wg_network *net, const char *name, double volume,
-                          int has_wall, wg_wall wall)
+                          int has_wall, wg_wall_params wall)
 {
     double len = cbrt(volume);
     wg_tube_spec s = {0};
@@ -740,8 +740,22 @@ double wg_network_step(wg_network *net)
     return out;
 }
 
+void wg_network_set_pressure(wg_network *net, int node, double p)
+{
+    net->p[node] = p;
+}
+
+void wg_network_set_port_area(wg_network *net, int port, double area)
+{
+    if (area < 0.0) area = 0.0;
+    net->port_area[port] = area;
+    net->port_area_target[port] = area;
+    net->port_area_step[port] = 0.0;
+}
+
 /* ---- telemetry -------------------------------------------------------- */
 
 int     wg_network_n_nodes(const wg_network *net)          { return net->n_nodes; }
+double  wg_network_pressure(const wg_network *net, int node) { return net->p[node]; }
 double  wg_network_node_pressure(const wg_network *net, int node) { return net->p[node]; }
 double  wg_network_radiated_flow(const wg_network *net, int r)    { return net->rad_u[r]; }
