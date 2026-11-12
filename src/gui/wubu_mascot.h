@@ -20,6 +20,10 @@
  * never paints a box on the wallpaper. */
 void wubu_mascot_blit(int x, int y);
 
+/* Blit any baked pose (RGBA8888, size x size) at desktop (x,y). The
+ * buddy's states all share one blitter; only the pixels differ. */
+void wubu_mascot_blit_rgba(int x, int y, const unsigned char *rgba, int size);
+
 /* The sprite's square size in pixels. */
 int wubu_mascot_size(void);
 

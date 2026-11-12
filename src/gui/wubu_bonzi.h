@@ -20,6 +20,29 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* The buddy's mood, from the clipart state sheet. The buddy shows the
+ * pose that matches what the machine is doing, not one fixed face. */
+enum {
+    WUBU_BUDDY_STATE_DEFAULT = 0,  /* the standing pose            */
+    WUBU_BUDDY_STATE_WORK,         /* typing furiously             */
+    WUBU_BUDDY_STATE_ERROR,        /* something broke              */
+    WUBU_BUDDY_STATE_SUCCESS,      /* it worked                    */
+    WUBU_BUDDY_STATE_IDLE,         /* asleep on the loading icon   */
+    WUBU_BUDDY_STATE_COUNT
+};
+
+/* Set the buddy's mood. Out-of-range values fall back to DEFAULT. */
+void wubu_bonzi_set_state(int state);
+int  wubu_bonzi_state(void);
+
+/* Report activity: the buddy shows the busy pose while things are happening
+ * and the sleeping pose once the machine has been quiet for a while. */
+void wubu_bonzi_activity(void);
+
+/* An explicit, timed mood (SUCCESS or ERROR) -- the agent sets these when a
+ * workflow lands. Holds for a few seconds, then activity takes over again. */
+void wubu_bonzi_mood(int state);
+
 /* Enable/disable the desktop mascot. Default: enabled after wubu_bonzi_init. */
 void wubu_bonzi_set_enabled(bool on);
 bool wubu_bonzi_is_enabled(void);

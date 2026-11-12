@@ -22,9 +22,10 @@ int wubu_mascot_size(void) {
     return WUBU_BUDDY_SPRITE_SIZE;
 }
 
-void wubu_mascot_blit(int x, int y) {
-    const int n = WUBU_BUDDY_SPRITE_SIZE;
-    const unsigned char *src = wubu_buddy_rgba;
+void wubu_mascot_blit_rgba(int x, int y, const unsigned char *rgba, int size) {
+    if (!rgba || size <= 0) return;
+    const int n = size;
+    const unsigned char *src = rgba;
 
     for (int dy = 0; dy < n; dy++) {
         int py = y + dy;
@@ -60,4 +61,8 @@ void wubu_mascot_blit(int x, int y) {
             vbe_set_pixel(px, py, 0xFF000000u | (rr << 16) | (gg << 8) | bb);
         }
     }
+}
+
+void wubu_mascot_blit(int x, int y) {
+    wubu_mascot_blit_rgba(x, y, wubu_buddy_rgba, WUBU_BUDDY_SPRITE_SIZE);
 }

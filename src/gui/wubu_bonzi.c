@@ -29,6 +29,7 @@
 #include "wubu_bonzi.h"
 #include "wubu_mascot.h"
 #include "wubu_buddy_sprite.h"
+#include "wubu_buddy_states.h"
 #include "../kernel/vbe.h"
 #ifdef WUBU_NO_LIBM
 #  include "../kernel/wubu_math.h"  /* provides M_PI, fabsf, cosf, etc. */
@@ -168,6 +169,23 @@ static void draw_eye_open(int cx, int cy, float eye_open) {
 static bool g_bonzi_enabled = false;
 static int  g_clock_ms = 0;       /* animation clock (ms) */
 static int  g_bx = 0, g_by = 0;   /* mascot top-left on desktop */
+static int  g_state = WUBU_BUDDY_STATE_DEFAULT;
+
+void wubu_bonzi_set_state(int state) {
+    if (state < 0 || state >= WUBU_BUDDY_STATE_COUNT) state = WUBU_BUDDY_STATE_DEFAULT;
+    g_state = state;
+}
+int wubu_bonzi_state(void) { return g_state; }
+
+static const unsigned char *buddy_state_rgba(void) {
+    switch (g_state) {
+    case WUBU_BUDDY_STATE_WORK:    return BUDDY_STATE_WORK;
+    case WUBU_BUDDY_STATE_ERROR:   return BUDDY_STATE_ERROR;
+    case WUBU_BUDDY_STATE_SUCCESS: return BUDDY_STATE_SUCCESS;
+    case WUBU_BUDDY_STATE_IDLE:    return BUDDY_STATE_IDLE;
+    default:                       return wubu_buddy_rgba;
+    }
+}
 static bool g_grab = false;       /* mouse press landed on the buddy */
 
 /* Bubble text lives in fixed buffers so wubu_bonzi_set_bubble (Balloon
@@ -248,8 +266,8 @@ void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
     int oy = g_by + (int)a.bob_y;  /* smooth vertical bob */
 
     /* The mascot itself: baked clipart, alpha-blended. The bob carries
-     * the life; the sprite carries the brand. */
-    wubu_mascot_blit(ox, oy);
+     * the life; the pose carries the mood. */
+    wubu_mascot_blit_rgba(ox, oy, buddy_state_rgba(), BUDDY_STATE_SIZE);
 
     /* Speech bubble: above the buddy, clamped on-screen, tail pointing
      * DOWN toward the buddy's head (real alpha blend). */
@@ -328,9 +346,50 @@ void wubu_bonzi_set_enabled(bool on) {
 }
 bool wubu_bonzi_is_enabled(void)     { return g_bonzi_enabled; }
 
+/* Activity feed: the caller (the frame loop) reports input and work so the
+ * buddy shows the pose that matches the machine -- busy while things are
+ * happening, asleep once it has been quiet a while. Explicit moods set by
+ * the agent (SUCCESS/ERROR) hold until the next activity. */
+static unsigned long long g_last_activity_ms;
+static unsigned long long g_last_mood_ms;
+static int g_mood_override;          /* WORK/SUCCESS/ERROR, -1 = none */
+
+void wubu_bonzi_activity(void) {
+    g_last_activity_ms = g_clock_ms;
+    if (g_mood_override == WUBU_BUDDY_STATE_WORK) return;
+    g_state = WUBU_BUDDY_STATE_WORK;
+    g_last_mood_ms = g_clock_ms;
+    g_mood_override = WUBU_BUDDY_STATE_WORK;
+}
+
+void wubu_bonzi_mood(int state) {
+    if (state != WUBU_BUDDY_STATE_SUCCESS && state != WUBU_BUDDY_STATE_ERROR)
+        return;
+    g_state = state;
+    g_mood_override = state;
+    g_last_mood_ms = g_clock_ms;
+}
+
+#define BUDDY_IDLE_AFTER_MS 6000
+
 void wubu_bonzi_tick(int dt_ms) {
     g_clock_ms += dt_ms;
     if (g_clock_ms > 1000000) g_clock_ms %= 1000000;
+
+    /* An explicit mood holds for a moment, then the buddy goes back to
+     * reflecting activity. */
+    if (g_mood_override == WUBU_BUDDY_STATE_SUCCESS ||
+        g_mood_override == WUBU_BUDDY_STATE_ERROR) {
+        if (g_clock_ms - g_last_mood_ms > 4000) {
+            g_mood_override = -1;
+            g_state = WUBU_BUDDY_STATE_DEFAULT;
+        }
+        return;
+    }
+    if (g_clock_ms - g_last_activity_ms > BUDDY_IDLE_AFTER_MS &&
+        g_state != WUBU_BUDDY_STATE_IDLE) {
+        g_state = WUBU_BUDDY_STATE_IDLE;
+    }
 }
 
 bool wubu_bonzi_init(int x, int y) {
@@ -338,6 +397,9 @@ bool wubu_bonzi_init(int x, int y) {
     g_bonzi_enabled = true;
     g_grab = false;
     g_clock_ms = 0;
+    g_last_activity_ms = 0;
+    g_last_mood_ms = 0;
+    g_mood_override = -1;
     wubu_bonzi_set_bubble("Hi! I'm WuBu Buddy!",
                           "Click me for the AGI!");
     return true;

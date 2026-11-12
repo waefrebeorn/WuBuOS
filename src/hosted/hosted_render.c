@@ -18,6 +18,7 @@
 #include "../gui/wm.h"
 #include "../gui/shell/desktop.h"
 #include "../gui/shell/startmenu.h"
+#include "../gui/wubu_bonzi.h"
 
 #include <stdio.h>
 
@@ -42,5 +43,6 @@ void hosted_input_dispatch(void) {
         int kind = mev.buttons ? 1 : 2; /* 1=down, 2=up */
         if (mev.buttons & 2) kind = 0;   /* 0=move while dragging */
         wm_handle_mouse(mev.x, mev.y, mev.buttons, kind);
+        wubu_bonzi_activity();
     }
 }
