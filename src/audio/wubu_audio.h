@@ -363,6 +363,25 @@ void wubu_audio_sink_open(void);
 void wubu_audio_sink_close(void);
 void wubu_audio_sink_int16(const int16_t *pcm, int n);
 
+/* What the sink opened ("pulse"/"alsa"/"wav"), or NULL when closed. */
+const char *wubu_audio_sink_backend(void);
+
+/* Where the wav backend writes, so a gate can read it back. */
+const char *wubu_audio_sink_path(void);
+
+/* Flush buffered output (the wav backend needs it before a read). */
+void wubu_audio_sink_flush(void);
+
+/* ---- WuBuGLOTT: the physical-model voice ------------------------------ */
+
+/* Speak one of the five cardinal vowels (0=a, 1=e, 2=i, 3=o, 4=u) for `ms`
+ * milliseconds at `f0`, through the device sink. The sink must be open
+ * (wubu_audio_sink_open()). Returns 0 on success. */
+int  wubu_glott_speak(int vowel, int ms, double f0);
+int  wubu_glott_vowel_count(void);
+const char *wubu_glott_vowel_name(int index);
+int  wubu_glott_scale(double f0);
+
 /* ==================================================================
  *  API: DAW Operations
  * ================================================================== */

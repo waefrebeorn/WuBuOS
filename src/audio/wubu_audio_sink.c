@@ -54,3 +54,14 @@ const char *wubu_audio_sink_backend(void)
 {
     return g_sink_open ? bigmac_out_backend_name() : NULL;
 }
+
+const char *wubu_audio_sink_path(void)
+{
+    return "/tmp/wubu_sound.wav";
+}
+
+void wubu_audio_sink_flush(void)
+{
+    if (g_sink_open)
+        bigmac_out_flush();
+}

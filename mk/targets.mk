@@ -119,6 +119,9 @@ HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/
                $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_gamemode.c \
                $(RT)/wubu_steaminput.c $(KERNEL)/wubu_evdev.c \
                $(AUDIO)/wubu_audio_backend.c $(AUDIO)/wubu_audio_sink.c $(AUDIO)/bigmac/bigmac_out.c $(AUDIO_OBJS) \
+               $(AUDIO)/wubu_glott.c $(AUDIO)/glott/wubuglott_glottis.c \
+               $(AUDIO)/glott/wubuglott_network.c $(AUDIO)/glott/wubuglott_decimator.c \
+               $(AUDIO)/glott/wubuglott_voice.c \
                $(KERNEL)/memory.c $(KERNEL)/wubu_bonzi_study.c $(KERNEL)/wubu_psych.c $(KERNEL)/wubu_sha256.c \
                $(FRAMEWORK)/wubufx_apps.c $(FRAMEWORK)/wubufx.c \
                src/gui/vws/externals/wet/wet_app.c src/gui/vws/externals/wet/wet_backend_vbe.c \

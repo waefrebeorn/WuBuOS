@@ -113,6 +113,9 @@ wg_network *wg_network_new(double fs)
 void wg_network_free(wg_network *net)
 {
     if (!net) return;
+    for (int i = 0; i < net->n_tubes; i++)
+        if (!net->tube_specs[i].uniform)
+            free((void *)net->tube_specs[i].profile);
     free(net->tubes); free(net->tube_length); free(net->tube_specs);
     free(net->p); free(net->area); free(net->area_target); free(net->area_step);
     free(net->amin); free(net->amin_target); free(net->amin_step);
@@ -181,6 +184,14 @@ wg_tube wg_network_add_tube(wg_network *net, const wg_tube_spec *spec)
     net->tubes[idx] = t;
     net->tube_length[idx] = spec->length;
     net->tube_specs[idx] = *spec;
+    /* The caller may free their profile array; the network owns a copy,
+     * because finalize() reads it later. */
+    if (!spec->uniform && spec->profile && spec->n > 0) {
+        double *copy = malloc((size_t)spec->n * sizeof(double));
+        if (copy)
+            memcpy(copy, spec->profile, (size_t)spec->n * sizeof(double));
+        net->tube_specs[idx].profile = copy;
+    }
     net->n_tubes++;
     net->n_nodes += spec->n;
 

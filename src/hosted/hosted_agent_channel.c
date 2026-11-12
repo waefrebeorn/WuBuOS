@@ -11,6 +11,7 @@
 #include "hosted_agent_channel.h"
 #include "../gui/wubu_bonzi.h"
 #include "../apps/wubu_walkthrough.h"
+#include "../audio/wubu_audio.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +33,13 @@ static int mood_from_name(const char *name) {
     };
     for (size_t i = 0; i < sizeof(MAP) / sizeof(MAP[0]); i++)
         if (strcmp(MAP[i].n, name) == 0) return MAP[i].s;
+    return -1;
+}
+
+static int vowel_from_name(const char *name) {
+    static const char *V[] = {"a", "e", "i", "o", "u"};
+    for (int i = 0; i < 5; i++)
+        if (strcmp(V[i], name) == 0) return i;
     return -1;
 }
 
@@ -63,6 +71,16 @@ void hosted_agent_channel_poll(void) {
     if (line[0]) {
         int s = mood_from_name(line);
         if (s >= 0) wubu_bonzi_set_state(s);
+    }
+
+    /* The speak request: the desktop says a vowel out loud, once. An agent
+       (or a person, from a shell) writes a vowel name here. */
+    snprintf(path, sizeof(path), "%s/speak", base);
+    read_first_line(path, line, sizeof(line));
+    if (line[0]) {
+        int vowel = vowel_from_name(line);
+        if (vowel >= 0) wubu_glott_speak(vowel, 250, 110.0);
+        remove(path);
     }
 
     /* The walkthrough request: act once, then clear the flag. */
