@@ -6,7 +6,7 @@
 # tools, gui (dep: kernel + rt), bridge, apps (dep: all), worldsim, metal,
 # audio, shell, bear, and the hosted Wayland objects.
 
-.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall metal audio
+.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall window metal audio
 
 all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs hosted
 	@echo "✅ WuBuOS built"
@@ -64,17 +64,26 @@ ICON_SRC ?= docs/logo/wubuos-desktop.png
 install: hosted
 	@install -d $(PREFIX)/bin $(PREFIX)/share/applications $(PREFIX)/share/pixmaps
 	@install -m 755 $(HOSTED)/wubu $(PREFIX)/bin/wubuos
+	@install -m 755 $(HOSTED)/wubu-weston.sh $(PREFIX)/bin/wubuos-window
 	@sed -e 's|@PREFIX@|$(PREFIX)|g' mk/wubuos.desktop.in > $(PREFIX)/share/applications/wubuos.desktop
 	@if [ -f $(ICON_SRC) ]; then install -m 644 $(ICON_SRC) $(PREFIX)/share/pixmaps/wubuos.png; fi
 	@echo "✅ WuBuOS desktop installed to $(PREFIX)"
 	@echo "   binary  : $(PREFIX)/bin/wubuos"
 	@echo "   launcher: $(PREFIX)/share/applications/wubuos.desktop"
 	@echo "   icon    : $(PREFIX)/share/pixmaps/wubuos.png"
+	@echo "   window  : $(PREFIX)/bin/wubuos-window [WxH]   (a scaled weston window)"
 	@echo "   run it  : wubuos     (a Wayland compositor is needed for the GUI;"
 	@echo "                        $(PREFIX)/bin/wubuos --screenshot shot.ppm renders a frame headless)"
 
+# Run the hosted desktop in a scaled weston window on the host display.
+# Usage: make window [SIZE=1280x720]
+SIZE ?= 1280x720
+window: hosted
+	@chmod +x $(HOSTED)/wubu-weston.sh
+	@$(HOSTED)/wubu-weston.sh $(SIZE)
+
 uninstall:
-	@rm -f $(PREFIX)/bin/wubuos $(PREFIX)/share/applications/wubuos.desktop $(PREFIX)/share/pixmaps/wubuos.png
+	@rm -f $(PREFIX)/bin/wubuos $(PREFIX)/bin/wubuos-window $(PREFIX)/share/applications/wubuos.desktop $(PREFIX)/share/pixmaps/wubuos.png
 	@echo "✅ WuBuOS desktop removed from $(PREFIX)"
 
 # ── The ~WuBu~ space engine (the WWW submodule) ─────────────────────────────
