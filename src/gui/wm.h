@@ -90,6 +90,12 @@ void           wm_set_focus(DosGuiWindow *win);
 DosGuiWindow  *wm_get_focused(void);
 DosGuiWindow  *wm_find_by_id(int id);
 int            wm_window_count(void);
+/* Live-window list accessors (index over the ALIVE windows, in creation
+ * order). Used by Task Manager to show the real window set -- there is no
+ * fabricated process table. All return NULL/0/-1 for an out-of-range index. */
+const char    *wm_window_title_at(int i);
+int            wm_window_id_at(int i);
+bool           wm_window_minimized_at(int i);
 
 /* Window resize and state management */
 void           wm_resize(DosGuiWindow *win, int w, int h);
@@ -207,9 +213,11 @@ void taskbar_update_clock(time_t now);
 
 /* -- Desktop Icons ----------------------------------------------- */
 
-#define DOSGUI_MAX_ICONS 64
-#define DOSGUI_ICON_SIZE 32
-#define DOSGUI_ICON_GAP  8
+/* The icon GRID pitch. The column pitch is wider than the glyph so a label
+ * fits on one line (Win98 uses ~75px columns); the row pitch is the glyph
+ * plus its label line. Every grid<->pixel computation must use these two. */
+#define DOSGUI_ICON_COL_PITCH 88
+#define DOSGUI_ICON_ROW_PITCH (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8)
 
 typedef enum {
     DESK_ICON_APP       = 0,  /* Launches an app */

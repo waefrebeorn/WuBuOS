@@ -436,11 +436,14 @@ static void test_icon_hit_test(void) {
     /* Icon 0 at (20, 20), size 32 */
     int hit = icon_hit_test(30, 30);
     CHECK(hit == 0, "should hit icon 0");
-    /* Icon 1 at (20 + 1*(32+8), 20) = (60, 20) */
-    hit = icon_hit_test(70, 30);
+    /* Icon 1 one column over; the column pitch is wide enough for a label */
+    hit = icon_hit_test(20 + DOSGUI_ICON_COL_PITCH + 10, 30);
     CHECK(hit == 1, "should hit icon 1");
+    /* The label line belongs to the icon too, not just the 32px glyph */
+    hit = icon_hit_test(20 + DOSGUI_ICON_COL_PITCH + 10, 20 + DOSGUI_ICON_SIZE + 4);
+    CHECK(hit == 1, "label line is clickable");
     /* Miss */
-    hit = icon_hit_test(500, 500);
+    hit = icon_hit_test(900, 700);
     CHECK(hit == -1, "should miss");
     wm_shutdown();
     PASS();
@@ -502,8 +505,8 @@ static void test_icon_layout_persist_restore(void) {
     DosGuiIcon *ic = icon_get(b);
     CHECK(ic != NULL, "icon_get returns icon B");
     ic->grid_x = 3; ic->grid_y = 5;
-    ic->x = 20 + 3 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-    ic->y = 20 + 5 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    ic->x = 20 + 3 * DOSGUI_ICON_COL_PITCH;
+    ic->y = 20 + 5 * DOSGUI_ICON_ROW_PITCH;
 
     wm_save_icon_layout();          /* persist */
     const WubuSettings *s = wubu_settings_get();
@@ -520,7 +523,7 @@ static void test_icon_layout_persist_restore(void) {
     DosGuiIcon *rb = icon_get(1);
     CHECK(rb != NULL, "restored icon B present");
     CHECK(rb->grid_x == 3 && rb->grid_y == 5, "icon B restored to persisted grid (3,5)");
-    CHECK(rb->x == 20 + 3 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP), "icon B x recomputed from grid");
+    CHECK(rb->x == 20 + 3 * DOSGUI_ICON_COL_PITCH, "icon B x recomputed from grid");
 
     wm_shutdown();
     PASS();
@@ -725,8 +728,8 @@ static void test_icon_drag_persist_restore(void) {
     CHECK(idx >= 0, "Pin icon present");
     DosGuiIcon *ic = icon_get(idx);
     ic->grid_x = 3; ic->grid_y = 4;
-    ic->x = 20 + 3 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-    ic->y = 20 + 4 * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    ic->x = 20 + 3 * DOSGUI_ICON_COL_PITCH;
+    ic->y = 20 + 4 * DOSGUI_ICON_ROW_PITCH;
     wm_save_icon_layout();   /* what the drag-end handler now calls */
 
     /* Simulate restart: re-init (desktop.c boot path re-enumerates ~/Desktop),

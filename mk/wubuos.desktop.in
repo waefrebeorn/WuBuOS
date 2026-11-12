@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=WuBuOS
+GenericName=Desktop
+Comment=The WuBuOS desktop -- the hosted body, on your display.
+Exec=@PREFIX@/bin/wubuos
+Icon=wubuos
+Categories=System;
+Terminal=false
+StartupNotify=false

@@ -2,19 +2,26 @@
  * wubu_ns_kv.c -- the /n/kv control subtree (the AGI's KV cache namespace).
  *
  *   /n/kv/snapshot  -> JSON view of the KV mount table (read)
- *   /n/kv/world     -> the training experience stream (readable by the Brain)
+ *   /n/kv/world/    -> the training experience stream, one file per tick
  *
  * The KV-FS is the kernel-owned address space (wubu_kvfs.c). The Brain
  * (wubuwizard) mounts /n/kv/ over 9P and reads the world-state deltas
  * that wubu_agi_play_learn() writes every tick. This is THE AGI LOOP:
  *
- *   1. world drivers → wubu_world_sample()
- *   2. policy → action → input events → game
- *   3. wubu_agi_play_learn() → /kv/world/tick_<N> (4 floats)
- *   4. Brain reads /n/kv/world/tick_* → training experience
+ *   1. world drivers -> wubu_world_sample()
+ *   2. policy -> action -> input events -> game
+ *   3. wubu_agi_play_learn() -> /kv/world/tick_<N> (4 floats)
+ *   4. Brain reads /n/kv/world/tick_* -> training experience
+ *
+ * The tick files under /n/kv/world are PLACEHOLDERS: styxfs_server.c routes
+ * any read of an /n/kv/... path to the LIVE tensor (wubu_kvfs_route_path /
+ * _read), so the bytes on disk never reach the client. A tick file only has
+ * to EXIST for a 9P client to walk and open it -- which is why kv/world is a
+ * DIRECTORY and not a flat file: a flat file cannot have tick children.
  *
  * C11, minimal includes — no god headers.
  */
+#include "wubu_ns_kv.h"
 #include "wubu_ns_bridge_internal.h"
 #include "../kernel/wubu_kvfs.h"
 
@@ -22,10 +29,24 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* Publish the /n/kv subtree skeleton. Called once at namespace init. */
+/* Create the directory entry for one experience tick. Called by the play
+ * loop right after it writes /kv/world/tick_<N> into the tensor. */
+int wubu_ns_kv_touch(int tick)
+{
+    if (!g_wubu_kvfs) return -1;
+    char sub[128], buf[128];
+    snprintf(sub, sizeof(sub), "kv/world/tick_%d", tick);
+    snprintf(buf, sizeof(buf), "tick %d -- served live from the KV tensor\n", tick);
+    return ns_write(sub, buf);
+}
+
+/* Publish the /n/kv subtree skeleton. Called once at namespace init/boot. */
 int wubu_ns_publish_kv(void)
 {
     if (ns_mkdir("kv") != 0) return -1;
+    /* A DIRECTORY: the tick files are its children. Writing a flat file here
+     * is what used to make /n/kv/world/tick_<N> unaddressable. */
+    if (ns_mkdir("kv/world") != 0) return -1;
 
     /* /n/kv/snapshot — the KV mount table as JSON (read-only metadata) */
     char sub[128];
@@ -44,12 +65,6 @@ int wubu_ns_publish_kv(void)
     } else {
         ns_write(sub, "{\"status\":\"kvfs snapshot failed\"}\n");
     }
-
-    /* /n/kv/world — directory marker (the tick files are written
-     * dynamically by wubu_agi_play_learn into the KV tensor). */
-    snprintf(sub, sizeof(sub), "kv/world");
-    ns_write(sub, "kv namespace: world-state experience stream\n");
-
     return 0;
 }
 

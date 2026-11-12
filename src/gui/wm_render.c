@@ -111,7 +111,10 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
                                   /* accent */ accent);
 
         int label_y = icon->y + DOSGUI_ICON_SIZE + 2;
-        int max_label_w = DOSGUI_ICON_SIZE + 4;
+        /* The label owns the column pitch (Win98 columns are ~75px), less a
+         * small margin, so a full name fits on one line instead of being cut
+         * to three characters. */
+        int max_label_w = DOSGUI_ICON_COL_PITCH - 8;
         int text_w = vbe_text_width(icon->name, 1);
 
         if (label_y + 8 <= fb_h) {

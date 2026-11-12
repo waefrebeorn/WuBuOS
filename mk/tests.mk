@@ -86,7 +86,7 @@ test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_j
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
-test_medium_other: runtime gui test_docs test_wubu_swarm test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
+test_medium_other: runtime gui test_docs test_hosted_hw test_agent test_ns_kv test_ns_worldspace test_wubu_swarm test_wubu_container_universal test_spellbook test_vkd3d test_vkd3d_heap test_vkd3d_cmd test_vkd3d_pso test_vkd3d_device test_vkd3d_fence test_vkd3d_swapchain test_vkd3d_physdev test_vkd3d_vkdev test_vkd3d_renderpass test_vkd3d_renderpass test_vkd3d_framebuffer test_vkd3d_memory test_vkd3d_descset test_vkd3d_msaa test_vkd3d_precache test_wubu_sdr test_wubu_sdr_relay test_wubu_sdr_session test_wubu_gvfs test_wubu_gvfs_path test_wubu_gvfs_mount test_wubu_pkg_resolve test_wubu_pkgbuild test_wubu_aur test_wubu_hook test_wubu_dbus test_wubu_atspi test_wubu_atspi_tree test_wubu_doldoc test_wubu_redsea test_wubu_track test_wubu_vga test_ns_kernels test_worldsim test_audio test_runtime_apps test_vk_effect test_apps_weak test_apps test_effect test_palette test_spring test_slime test_rim test_apps2 test_wubu test_host_exec test_gaad test_iso test_weights test_gc test_txfs test_dbuf test_styx test_styxfs test_anticheat test_bottles test_ns_bridge test_ns_snap test_ns_pkg test_ns_kernel test_ns_9p test_ns_dram test_deploy test_math test_pkgmgr test_gamelib test_mime test_trash test_cap test_txn test_cmd test_dos_emu_smoke test_manifest test_bytropix_verifier
 	@echo "✅ Medium/Low Tier (Apps/Audio/Tools/Other) complete"
 
 # Full test suite - runs all tiers sequentially
@@ -1133,6 +1133,15 @@ test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md src/spells
 # The spell-book command line: list, show, cast, check.
 wubu_spell: src/runtime/wubu_spell_cli.c src/runtime/wubu_spellbook.c src/runtime/wubu_spell.h
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_spell_cli.c src/runtime/wubu_spellbook.c -o src/runtime/wubu_spell
+# The hosted hardware backend: every probe is cross-checked against the
+# host's own /sys + /proc, and the AGI world bridge is driven end to end.
+test_hosted_hw: $(HOSTED)/wubu_hosted_hw.c $(HOSTED)/wubu_hosted_hw_test.c $(KERNEL)/wubu_world.c
+	@mkdir -p $(TEST_BIN)
+	$(CC) -O0 -g -std=c11 -DWUBU_HOSTED -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -I$(KERNEL) -I$(RT) \
+		$(HOSTED)/wubu_hosted_hw_test.c $(HOSTED)/wubu_hosted_hw.c $(KERNEL)/wubu_world.c \
+		-o $(TEST_BIN)/test_hosted_hw
+	$(TEST_BIN)/test_hosted_hw
+
 .PHONY: spells spellcheck
 spells: wubu_spell
 	./src/runtime/wubu_spell list
@@ -2110,7 +2119,7 @@ test_apps_weak:
 test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_window_state.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT) -I$(COMP) -I$(JIT) \
-		$(APPS)/apps.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c \
+		$(APPS)/apps.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c $(APPS)/cmd/cmd.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c \
@@ -2211,6 +2220,29 @@ test_ns_ec:
 		/tmp/wubu_ns_ec_test.o \
 		-o $(RT)/wubu_ns_ec_test
 	$(RT)/wubu_ns_ec_test
+
+
+test_ns_kv: $(RT)/wubu_ns_kv.c $(RT)/wubu_ns_kv_test.c $(RT)/wubu_ns_fs.o $(KERNEL)/wubu_kvfs.c
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation \
+		-I$(RT) -I$(KERNEL) $(RT)/wubu_ns_kv_test.c $(RT)/wubu_ns_kv.c $(RT)/wubu_ns_fs.o \
+		$(KERNEL)/wubu_kvfs.c \
+		-o $(RT)/wubu_ns_kv_test
+	$(RT)/wubu_ns_kv_test
+
+test_ns_worldspace: $(RT)/wubu_ns_worldspace.c $(RT)/wubu_ns_worldspace_test.c $(RT)/wubu_ns_fs.o \
+		$(KERNEL)/wubu_world.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_agent.c $(KERNEL)/wubu_sha256.c
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_HOSTED -include wubu_gnu_compat.h -Wno-format-truncation \
+		-I$(RT) -I$(KERNEL) -I$(HOSTED) \
+		$(RT)/wubu_ns_worldspace_test.c $(RT)/wubu_ns_worldspace.c $(RT)/wubu_ns_fs.o \
+		$(KERNEL)/wubu_world.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_agent.c $(KERNEL)/wubu_sha256.c \
+		-o $(RT)/wubu_ns_worldspace_test
+	$(RT)/wubu_ns_worldspace_test
+
+test_agent: $(RT)/wubu_agent.c $(RT)/wubu_agent_test.c $(RT)/wubu_ns_fs.o
+	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation \
+		-I$(RT) -I$(KERNEL) $(RT)/wubu_agent_test.c $(RT)/wubu_agent.c $(RT)/wubu_ns_fs.o $(KERNEL)/wubu_sha256.c \
+		-o $(RT)/wubu_agent_test
+	$(RT)/wubu_agent_test
 
 test_ns_kernels:
 	$(CC) -O0 -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -Wno-format-truncation -I$(RT) -c $(RT)/wubu_ns_kernels_test.c -o /tmp/wubu_ns_kernels_test.o

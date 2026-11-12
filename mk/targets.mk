@@ -6,9 +6,9 @@
 # tools, gui (dep: kernel + rt), bridge, apps (dep: all), worldsim, metal,
 # audio, shell, bear, and the hosted Wayland objects.
 
-.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs metal audio
+.PHONY: all clean test kernel jit compiler runtime tools gui bridge apps worldsim firmware uefi test_uefi test_agi_metal docs shell bear hosted_objs hosted worldspace install uninstall metal audio
 
-all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs
+all: kernel jit compiler runtime tools gui bridge apps worldsim metal audio shell bear hosted_objs hosted
 	@echo "✅ WuBuOS built"
 
 # ── WuBuFW: our own C11 UEFI firmware (no EDK2 / no OVMF) ────────────────
@@ -53,6 +53,81 @@ audio: $(AUDIO_OBJS)
 
 hosted_objs: $(HOSTED_OBJS_LIST)
 	@echo "✅ Hosted objects built"
+
+# ── Install the hosted desktop ─────────────────────────────────────────────
+# The product is the hosted body; install it like any other desktop app so
+# you run it instead of cloning and hacking. PREFIX defaults to ~/.local;
+# set PREFIX=/usr/local for a system install.
+PREFIX ?= $(HOME)/.local
+ICON_SRC ?= docs/logo/wubuos-desktop.png
+
+install: hosted
+	@install -d $(PREFIX)/bin $(PREFIX)/share/applications $(PREFIX)/share/pixmaps
+	@install -m 755 $(HOSTED)/wubu $(PREFIX)/bin/wubuos
+	@sed -e 's|@PREFIX@|$(PREFIX)|g' mk/wubuos.desktop.in > $(PREFIX)/share/applications/wubuos.desktop
+	@if [ -f $(ICON_SRC) ]; then install -m 644 $(ICON_SRC) $(PREFIX)/share/pixmaps/wubuos.png; fi
+	@echo "✅ WuBuOS desktop installed to $(PREFIX)"
+	@echo "   binary  : $(PREFIX)/bin/wubuos"
+	@echo "   launcher: $(PREFIX)/share/applications/wubuos.desktop"
+	@echo "   icon    : $(PREFIX)/share/pixmaps/wubuos.png"
+	@echo "   run it  : wubuos     (a Wayland compositor is needed for the GUI;"
+	@echo "                        $(PREFIX)/bin/wubuos --screenshot shot.ppm renders a frame headless)"
+
+uninstall:
+	@rm -f $(PREFIX)/bin/wubuos $(PREFIX)/share/applications/wubuos.desktop $(PREFIX)/share/pixmaps/wubuos.png
+	@echo "✅ WuBuOS desktop removed from $(PREFIX)"
+
+# ── The ~WuBu~ space engine (the WWW submodule) ─────────────────────────────
+# The body does not embed the space: it builds it and reaches it. The engine
+# is a self-contained C11 tree with its own gates (`make test` there runs 20).
+worldspace:
+	$(MAKE) -C $(LUA)/www/~WuBu~
+	@echo "✅ WorldSpace engine built"
+
+# ── The hosted binary ────────────────────────────────────────────────────────
+# The product: the Win98/XP shell running on a host Wayland display. Same object
+# graph as the gui_shot capture harness, but hosted.c is compiled WITHOUT
+# -DWUBU_HOSTED_TEST so its main() is live (the harness compiles it out and
+# supplies its own main).
+HOSTED_BIN   = $(HOSTED)/wubu
+HOSTED_SUBSYS = $(HOSTED)/hosted_render.c $(HOSTED)/hosted_run.c $(HOSTED)/hosted_styxfs.c \
+                $(HOSTED)/hosted_pe.c $(HOSTED)/wubu_display.c $(HOSTED)/hosted_wayland.c \
+                $(HOSTED)/hosted_wayland_input.c $(HOSTED)/hosted_wayland_shm.c \
+                $(HOSTED)/hosted_wayland_surface.c
+# The closure the shell actually reaches that the shared object lists omit:
+# the hosted hardware sense, the a11y/sound/psych services, the EDR poller,
+# the WET applet framework + its slerm-Lua, and three compiler backends.
+HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/wubu_isa_wasm.c \
+               $(GUI)/cp_sound.c $(GUI)/wubu_a11y.c $(GUI)/wubu_sound.c \
+               $(RT)/edr/edr_poller.c $(RT)/wubu_gdpr_age.c $(RT)/wubu_wine_env.c $(RT)/wubu_compat_db.c \
+               $(RT)/wubu_agent.c $(RT)/wubu_ns_worldspace.c \
+               $(KERNEL)/memory.c $(KERNEL)/wubu_bonzi_study.c $(KERNEL)/wubu_psych.c $(KERNEL)/wubu_sha256.c \
+               $(FRAMEWORK)/wubufx_apps.c $(FRAMEWORK)/wubufx.c \
+               src/gui/vws/externals/wet/wet_app.c src/gui/vws/externals/wet/wet_backend_vbe.c \
+               src/gui/vws/externals/wet/wet_controls.c src/gui/vws/externals/wet/wet_input.c \
+               src/gui/vws/externals/wet/wet_layout.c src/gui/vws/externals/wet/wet_lua.c \
+               src/gui/vws/externals/wet/wet_render.c src/gui/vws/externals/wet/wet_widget.c \
+               $(LUAGUI_LV_SRCS) src/brain/src/wubu_uuid.c
+HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/vws/externals/wet \
+              -Isrc/gui/vws/externals/wet/externals/wua/src
+hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS)
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) -c $(HOSTED)/hosted.c -o /tmp/hosted_main.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
+	/tmp/hosted_main.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) src/kernel/vbe.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_world.c $(KERNEL)/input.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_ct_isolate_cgroup.c $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c \
+	/tmp/xdg-shell-private.o /tmp/viewporter-private.o /tmp/primary-selection-private.o $(HOSTED)/primary-selection-private.c \
+	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
+	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
+	$(RT)/styxfs_vfs.o $(RT)/styxfs_callbacks.o $(RT)/styxfs_posix.o $(RT)/wubu_fs_util.o $(RT)/wubu_archd_fs.o $(RT)/wubu_archd_svc.o $(RT)/wubu_archd_svc_super.o \
+	$(GUI)/wubu_ui_hosted.o \
+	$(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd.o $(RT)/wubu_holyd_session.o $(RT)/wubu_holyd_exec.o $(RT)/wubu_holyd_repl.o $(RT)/wubu_holyd_event.o $(RT)/wubu_holyd_save.o $(RT)/wubu_holyd_input.o $(RT)/wubu_holyd_window.o $(RT)/wubu_holyd_9p.o $(RT)/wubu_holyd_lifecycle.o \
+	$(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) src/kernel/wubu_gaad.c src/kernel/wubu_math.c $(TOOLS)/screenshot.c \
+	$(RT)/oci/oci_blob_store.o $(RT)/oci/oci_cleanup.o $(RT)/oci/oci_convert.o $(RT)/oci/oci_descriptor.o $(RT)/oci/oci_hooks.o $(RT)/oci/oci_http_client.o $(RT)/oci/oci_image_config.o $(RT)/oci/oci_image_index.o $(RT)/oci/oci_image_manifest.o $(RT)/oci/oci_media_types.o $(RT)/oci/oci_registry.o $(RT)/oci/oci_runtime_spec.o \
+	$(APPS)/calc/calc.o $(APPS)/calc/calc_math.o $(APPS)/control/control.o $(APPS)/notepad.c $(APPS)/notepad.o \
+	-o $(HOSTED_BIN) -no-pie -Wl,--allow-multiple-definition -fopenmp -lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -ljson-c -lvulkan -lgbm -ldrm
+	@echo "✅ Hosted binary built: ./src/hosted/wubu"
 
 bear: $(BEAR_OBJS)
 	@echo "✅ Bear RL layer built"

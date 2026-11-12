@@ -59,6 +59,11 @@ void settings_default_theme(ThemeSettings *t) {
     t->wallpaper_mode = 2; /* STRETCH — full desktop coverage */
     t->use_custom_colors = false;
     memset(t->custom_colors, 0, sizeof(t->custom_colors));
+    /* A desktop with no icons is broken by default: show them until the user
+     * hides them from the Control Panel. (Unset, this was false and a fresh
+     * install surfaced an empty desktop.) */
+    t->show_desktop_icons = true;
+    t->auto_arrange = true;
 }
 
 void settings_default_fonts(FontSettings *f) {

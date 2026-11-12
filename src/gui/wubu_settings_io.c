@@ -36,6 +36,8 @@ static void save_theme(FILE *f, const ThemeSettings *t, int indent) {
     json_write_key(f, "wallpaper_mode", indent); json_write_int(f, t->wallpaper_mode); fprintf(f, ",\n");
     json_write_key(f, "use_custom_colors", indent); json_write_bool(f, t->use_custom_colors); fprintf(f, ",\n");
     json_write_key(f, "icon_layout_count", indent); json_write_int(f, t->icon_layout_count); fprintf(f, ",\n");
+    json_write_key(f, "show_desktop_icons", indent); json_write_bool(f, t->show_desktop_icons); fprintf(f, ",\n");
+    json_write_key(f, "auto_arrange", indent); json_write_bool(f, t->auto_arrange); fprintf(f, ",\n");
     for (int i = 0; i < t->icon_layout_count && i < WUBU_ICON_LAYOUT_MAX; i++) {
         fprintf(f, "%*s\"icon_layout_%d\": { \"name\": \"%s\", \"grid_x\": %d, \"grid_y\": %d, \"alive\": %s }%s\n",
                 indent, "", i,
@@ -131,6 +133,8 @@ static void load_theme(JsonToken *obj, ThemeSettings *t) {
     if ((v = json_find(obj, "wallpaper_mode")) && v->type == JSON_TYPE_NUMBER) t->wallpaper_mode = v->int_value;
     if ((v = json_find(obj, "use_custom_colors")) && v->type == JSON_TYPE_BOOL) t->use_custom_colors = v->bool_value;
     if ((v = json_find(obj, "icon_layout_count")) && v->type == JSON_TYPE_NUMBER) t->icon_layout_count = v->int_value;
+    if ((v = json_find(obj, "show_desktop_icons")) && v->type == JSON_TYPE_BOOL) t->show_desktop_icons = v->bool_value;
+    if ((v = json_find(obj, "auto_arrange")) && v->type == JSON_TYPE_BOOL) t->auto_arrange = v->bool_value;
     for (int i = 0; i < WUBU_ICON_LAYOUT_MAX; i++) {
         char key[32]; snprintf(key, sizeof(key), "icon_layout_%d", i);
         JsonToken *e = json_find(obj, key);

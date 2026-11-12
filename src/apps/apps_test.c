@@ -40,10 +40,6 @@ void explorer_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)win; (void)fb; (void)fb_w; (void)fb_h;
 }
 
-void terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    (void)win; (void)fb; (void)fb_w; (void)fb_h;
-}
-
 /* Stubs for container functions */
 int wubu_ct_start_bwrap(void* ct) { (void)ct; return 0; }
 void wubu_ct_destroy(void* ct) { (void)ct; }
@@ -115,10 +111,6 @@ void panic_dump_ring(void) {}
 void syscall_handler(void) {}
 void wdt_feed(void) {}
 
-struct wubu_cmd_t *wubu_cmd_create(void) { return NULL; }
-int wubu_cmd_spawn_shell(void *p, int c) { (void)p;(void)c; return 0; }
-void wubu_cmd_draw(void *p, uint32_t *f, int fw, int fh) { (void)p;(void)f;(void)fw;(void)fh; }
-void wubu_cmd_key(void *p, uint32_t k, uint32_t m) { (void)p;(void)k;(void)m; }
 void *wubu_dos_proc_launch(const char *p, int f) { (void)p;(void)f; return NULL; }
 void *wubu_ct_create(void) { return NULL; }
 int wubu_ct_add_payload(void *c, int f, const char *d, size_t n) { (void)c;(void)f;(void)d;(void)n; return 0; }
@@ -359,74 +351,18 @@ static void test_canvas_launch(void) {
 }
 
 /* ================================================================
- * Task Manager Tests (Windows 11 Style)
+ * Task Manager
  * ================================================================ */
 
-static void test_tmgr_create_destroy(void) {
-    TEST("taskmgr: create and destroy");
-    TaskManagerState *tm = taskmgr_create();
-    CHECK(tm != NULL, "taskmgr created");
-    taskmgr_destroy(tm);
-    PASS();
-}
-
-static void test_tmgr_refresh(void) {
-    TEST("taskmgr: refresh processes via API");
-    TaskManagerState *tm = taskmgr_create();
-    taskmgr_refresh_processes(tm);
-    CHECK(taskmgr_process_count(tm) == 5, "5 mock processes");
-    CHECK(strcmp(taskmgr_process_name(tm, 0), "systemd") == 0, "first is systemd");
-    CHECK(taskmgr_process_cpu(tm, 3) == 15.0, "browser 15% CPU");
-    CHECK(taskmgr_total_cpu(tm) == 24.4, "total CPU");
-    taskmgr_destroy(tm);
-    PASS();
-}
-
-static void test_tmgr_tab_switch(void) {
-    TEST("taskmgr: tab switching via API");
-    TaskManagerState *tm = taskmgr_create();
-    taskmgr_set_tab(tm, TM_TAB_PERFORMANCE);
-    CHECK(taskmgr_get_active_tab(tm) == TM_TAB_PERFORMANCE, "performance tab");
-    taskmgr_set_tab(tm, TM_TAB_DETAILS);
-    CHECK(taskmgr_get_active_tab(tm) == TM_TAB_DETAILS, "details tab");
-    taskmgr_set_tab(tm, TM_TAB_SERVICES);
-    CHECK(taskmgr_get_active_tab(tm) == TM_TAB_SERVICES, "services tab");
-    taskmgr_set_tab(tm, TM_TAB_STARTUP);
-    CHECK(taskmgr_get_active_tab(tm) == TM_TAB_STARTUP, "startup tab");
-    taskmgr_set_tab(tm, TM_TAB_USERS);
-    CHECK(taskmgr_get_active_tab(tm) == TM_TAB_USERS, "users tab");
-    taskmgr_set_tab(tm, TM_TAB_PROCESSES);
-    CHECK(taskmgr_get_active_tab(tm) == TM_TAB_PROCESSES, "processes tab");
-    taskmgr_destroy(tm);
-    PASS();
-}
-
-static void test_tmgr_perf_history(void) {
-    TEST("taskmgr: performance history via API");
-    TaskManagerState *tm = taskmgr_create();
-    taskmgr_add_cpu_sample(tm, 10.0);
-    taskmgr_add_cpu_sample(tm, 20.0);
-    taskmgr_add_cpu_sample(tm, 30.0);
-    CHECK(taskmgr_hist_idx(tm) == 3, "3 samples");
-    taskmgr_destroy(tm);
-    PASS();
-}
-
-static void test_tmgr_kill_process(void) {
-    TEST("taskmgr: kill process via API");
-    TaskManagerState *tm = taskmgr_create();
-    taskmgr_refresh_processes(tm);
-    int before = taskmgr_process_count(tm);
-    taskmgr_kill_process(tm, taskmgr_process_pid(tm, 0));
-    CHECK(taskmgr_process_count(tm) == before - 1, "process removed");
-    taskmgr_destroy(tm);
-    PASS();
-}
-
 static void test_tmgr_launch(void) {
-    TEST("taskmgr: launch returns window");
+    TEST("taskmgr: opens wubulens in a real terminal");
+    /* The Task Manager IS the wubulens project: the launcher must resolve to
+     * a real program, not draw a fabricated process table. */
+    const char *lens = taskmgr_wubulens_path();
+    CHECK(lens != NULL && lens[0] != '\0', "a wubulens path resolves");
     DosGuiWindow *win = taskmgr_launch();
     CHECK(win != NULL, "window created");
+    CHECK(taskmgr_has_session(win), "the window carries a live pty session");
     PASS();
 }
 
@@ -918,11 +854,6 @@ int main(void) {
     test_canvas_launch();
     
     printf("\n-- Task Manager (Win11 Style) --\n");
-    test_tmgr_create_destroy();
-    test_tmgr_refresh();
-    test_tmgr_tab_switch();
-    test_tmgr_perf_history();
-    test_tmgr_kill_process();
     test_tmgr_launch();
     
     printf("\n-- Regedit (Windows Registry) --\n");

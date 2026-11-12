@@ -17,8 +17,13 @@
 /* -- Settings API ------------------------------------------------- */
 
 int wubu_settings_init(void) {
+    /* Baseline EVERY key first: the JSON loader only overrides keys it finds,
+     * so without this a settings file written by an older build (or one that
+     * simply lacks a newer key) leaves that key at its zero value --
+     * show_desktop_icons stayed false and a fresh install surfaced an empty
+     * desktop. Defaults first, the file overrides on top. */
+    settings_apply_defaults(&g_settings);
     if (wubu_settings_load() != 0) {
-        settings_apply_defaults(&g_settings);
         wubu_settings_save();
     }
     /* Apply theme immediately */

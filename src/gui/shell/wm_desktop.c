@@ -22,24 +22,24 @@
 #include <strings.h>   /* strcasecmp / strncasecmp */
 
 int icon_grid_x(int x) {
-    int grid_x = (x - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    int grid_x = (x - 20) / DOSGUI_ICON_COL_PITCH;
     if (grid_x < 0) grid_x = 0;
     if (grid_x > 15) grid_x = 15;
-    return 20 + grid_x * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
+    return 20 + grid_x * DOSGUI_ICON_COL_PITCH;
 }
 
 int icon_grid_y(int y) {
-    int grid_y = (y - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    int grid_y = (y - 20) / DOSGUI_ICON_ROW_PITCH;
     if (grid_y < 0) grid_y = 0;
     if (grid_y > 15) grid_y = 15;
-    return 20 + grid_y * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    return 20 + grid_y * DOSGUI_ICON_ROW_PITCH;
 }
 
 void snap_icon_to_grid(DosGuiIcon *icon) {
     icon->x = icon_grid_x(icon->x);
     icon->y = icon_grid_y(icon->y);
-    icon->grid_x = (icon->x - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-    icon->grid_y = (icon->y - 20) / (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    icon->grid_x = (icon->x - 20) / DOSGUI_ICON_COL_PITCH;
+    icon->grid_y = (icon->y - 20) / DOSGUI_ICON_ROW_PITCH;
 }
 
 /* -- Desktop view options (Stream 3) --------------------------------- */

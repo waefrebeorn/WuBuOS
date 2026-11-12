@@ -1,53 +1,26 @@
 /*
- * taskmgr.h  --  Task Manager (Windows 11 Style)
- * Processes, Performance, Details, Services, Startup, Users tabs
- * Opaque struct, C11, minimal includes, self-contained
+ * taskmgr.h -- the Task Manager entry point.
+ *
+ * The Task Manager is the wubulens project; this module only opens it in a
+ * real pty-backed terminal. See taskmgr.c.
+ *
+ * Opaque, C11, minimal includes.
  */
 
 #ifndef WUBU_TASKMGR_H
 #define WUBU_TASKMGR_H
 
-#include <stdint.h>
-#include <stdbool.h>
-
 typedef struct DosGuiWindow DosGuiWindow;
 
-/* Tabs */
-typedef enum {
-    TM_TAB_PROCESSES = 0,
-    TM_TAB_PERFORMANCE,
-    TM_TAB_DETAILS,
-    TM_TAB_SERVICES,
-    TM_TAB_STARTUP,
-    TM_TAB_USERS,
-    TM_TAB_COUNT
-} TMTab;
-
-/* Opaque state */
-typedef struct TaskManagerState TaskManagerState;
-
-/* API */
-TaskManagerState* taskmgr_create(void);
-void taskmgr_destroy(TaskManagerState *tm);
-
-void taskmgr_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h, TaskManagerState *tm);
+/* Open the Task Manager: a terminal window running wubulens. */
 DosGuiWindow* taskmgr_launch(void);
 
-/* Process management */
-void taskmgr_refresh_processes(TaskManagerState *tm);
-void taskmgr_kill_process(TaskManagerState *tm, int pid);
-void taskmgr_add_cpu_sample(TaskManagerState *tm, double cpu);
+/* True when a Task Manager window carries a live pty session. The launcher
+ * attaches one; a drawn stub does not. Keeps DosGuiWindow opaque. */
+int taskmgr_has_session(const DosGuiWindow *win);
 
-/* Tab switching */
-void taskmgr_set_tab(TaskManagerState *tm, TMTab tab);
+/* Where the wubulens binary was found (or "wubulens" to let PATH decide).
+ * Exposed for the test that proves a real binary resolves. */
+const char *taskmgr_wubulens_path(void);
 
-/* Read-only inspection accessors (opaque-struct safe; for tests/debug). */
-int    taskmgr_get_active_tab(const TaskManagerState *tm);
-int    taskmgr_process_count(const TaskManagerState *tm);
-int    taskmgr_process_pid(const TaskManagerState *tm, int i);
-const char *taskmgr_process_name(const TaskManagerState *tm, int i);
-double taskmgr_process_cpu(const TaskManagerState *tm, int i);
-double taskmgr_total_cpu(const TaskManagerState *tm);
-int    taskmgr_hist_idx(const TaskManagerState *tm);
-
-#endif
+#endif /* WUBU_TASKMGR_H */

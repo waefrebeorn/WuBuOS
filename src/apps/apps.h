@@ -80,6 +80,12 @@ DosGuiWindow* launch_notepad(void);
 DosGuiWindow* launch_paint(void);
 DosGuiWindow* launch_calculator(void);
 DosGuiWindow* launch_terminal(void);
+
+/* The terminal window adapters, shared by the terminal app and the Task
+ * Manager (which runs wubulens in a real pty). */
+void terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 DosGuiWindow* launch_file_manager(void);
 DosGuiWindow* launch_settings(void);
 DosGuiWindow* launch_editor(void);

@@ -39,8 +39,8 @@ void icon_set_position(int grid_x, int grid_y, int new_gx, int new_gy) {
         if (icon_find_at(new_gx, new_gy) < 0) {
             icon->grid_x = new_gx;
             icon->grid_y = new_gy;
-            icon->x = 20 + new_gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-            icon->y = 20 + new_gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+            icon->x = 20 + new_gx * DOSGUI_ICON_COL_PITCH;
+            icon->y = 20 + new_gy * DOSGUI_ICON_ROW_PITCH;
         }
     }
 }
@@ -52,8 +52,8 @@ int shortcut_create_url(const char *name, const char *url, int grid_x, int grid_
 int icon_hit_test(int mx, int my) {
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *ic = &g_dwm.icons[i];
-        if (mx >= ic->x && mx < ic->x + DOSGUI_ICON_SIZE &&
-            my >= ic->y && my < ic->y + DOSGUI_ICON_SIZE)
+        if (mx >= ic->x && mx < ic->x + DOSGUI_ICON_COL_PITCH &&
+            my >= ic->y && my < ic->y + DOSGUI_ICON_SIZE + 12)
             return i;
     }
     return -1;

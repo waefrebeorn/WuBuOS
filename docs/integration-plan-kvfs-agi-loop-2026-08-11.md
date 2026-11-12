@@ -93,7 +93,7 @@ The KV cache IS the filesystem. The OS IS the training environment. Every game t
 |------|---------|
 | `src/kernel/wubu_kvfs.h` | KV-FS kernel header (opaque API) |
 | `src/kernel/wubu_kvfs.c` | KV-FS metal port |
-| `src/kernel/wubu_kvfs_selftest.c` | 21-assertion kernel selftest |
+| `src/kernel/test/wubu_kvfs_selftest.c` | 21-assertion kernel selftest |
 | `src/runtime/wubu_ns_kv.c` | `/n/kv/` subtree publisher |
 
 ### Modified files
@@ -101,6 +101,7 @@ The KV cache IS the filesystem. The OS IS the training environment. Every game t
 |------|--------|
 | `mk/objects.mk` | `wubu_kvfs.o` in `KERNEL_OBJS`, `wubu_ns_kv.o` in `RT_OBJS` |
 | `mk/tests.mk` | `test_kvfs` target + `test_agi_play` links `wubu_kvfs.c` + `wubu_ns_kv.c` + `wubu_ns_fs.c` |
+| `mk/tests.mk` | **Fix:** `test_ns_kv` target — proves the subtree publishes, `kv/world` is a directory, tick files exist, and the 9P routing (`wubu_kvfs_route_path` + `lookup`) resolves a tick path |
 | `src/kernel/memory.c` / `.h` | **Fix:** free-list node struct (`CMemUnused`) now preserves `size` field — large allocations reused after free (was clobbered by `next` overlap). Required for CAB/ZIP extract-all on 146 MB folder buffers. |
 | `src/kernel/cab_extract.c` | Added `extract-all` mode + `memory.h` include |
 | `src/kernel/zip_extract.c` | Full rewrite with `extract-all` mode (73-entry OpenArena archive) |
@@ -109,7 +110,16 @@ The KV cache IS the filesystem. The OS IS the training environment. Every game t
 
 ## Known gaps (honest)
 
-1. **`/n/kv/` read path to the Brain** — `wubu_ns_kv.c` publishes the snapshot JSON, but the live `read` on individual `tick_<N>` files needs the 9P server to route to `wubu_kvfs_handle_read`. Currently the Brain's `wubu_kv_styx.c` handles its own 9P export; the OS-side read callback is a stub that returns the snapshot. **Priority 1.**
+1. **`/n/kv/` read path to the Brain** — **RESOLVED 2026-11-11.** The 9P
+   server already routed `/n/kv/...` reads to the live tensor
+   (`styxfs_server.c` → `wubu_kvfs_route_path`/`_read`); what was missing was
+   the other half: the publisher was never called at boot, and `kv/world` was
+   a flat FILE so tick children could not exist. Now `wubu_ns_publish_kv()`
+   runs at boot (`mkdir kv`, `mkdir kv/world`) and the play loop calls
+   `wubu_ns_kv_touch(tick)` right after each write, so `kv/world/tick_<N>`
+   exists and its read is routed to the tensor. Proved by `make test_ns_kv`
+   (the routing + lookup assertions). The Brain's `wubu_kv_styx.c` export is
+   unchanged.
 2. **KV-FS backing tensor persistence** — `g_wubu_kv_base` is calloc'd at init; it's lost on reboot. Need a backing file (the SSD) for cross-restart training. The KV-to-SSD tiering (`wubu_kv_tier` in the Brain) exists but isn't wired into the kernel yet.
 3. **GPU driver gaps** — `test_drv` passes with simulated hardware, but the real Deck needs the DRM/KMS path (`test_drm_direct` has a pre-existing link failure on `g_seccomp_basic_allowlist`).
 4. **Halo Mac DMG extraction** — still uses 7z + Python + host cpio as oracle for the old-ASCII cpio format; kernel `wubu_gunzip` handles the gzip layer but the `070707` cpio parse is deferred.

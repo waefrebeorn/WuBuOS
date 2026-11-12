@@ -36,7 +36,13 @@
 #include "../kernel/input.h"
 #include "../gui/wm.h"
 #include "../gui/shell/startmenu.h"
-#include "../gui/wm.h"
+#include "../gui/wubu_settings.h"
+#include "../gui/wubu_a11y.h"
+#include "wubu_agent.h"
+#include "wubu_agi_play.h"
+#include "wubu_game_launch.h"
+#include "wubu_ns_kv.h"
+#include "wubu_ns_worldspace.h"
 #include "../gui/shell/wm_holyc_term.h"
 #include "../runtime/wubu_holyd_agi.h"
 #include "../gui/shell/desktop.h"
@@ -49,7 +55,6 @@
 #include "../gui/wubu_clipboard.h"
 #include "../gui/shell/wubu_notify.h"
 #include "../gui/wubu_session.h"
-#include "../gui/wubu_settings.h"
 
 #include <wayland-client.h>
 #include <wayland-cursor.h>
@@ -130,9 +135,27 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     state->framebuffer = (uint32_t*)calloc((size_t)state->width * state->height, 4);
     if (!state->framebuffer) { fprintf(stderr, "OOM\n"); return -1; }
 
-    mem_init(1024 * 1024);
+    mem_init(8 * 1024 * 1024);
     vbe_init(state->width, state->height);
     input_init();
+
+    /* Load the saved settings and apply the theme BEFORE the WM's first
+     * render. Nothing else calls wubu_settings_init() -- the theme's live
+     * colour table is only seeded from wubu_theme_set(), which it calls, so
+     * skipping this leaves tc()->btn_face / icon_text at zero: a black
+     * taskbar, invisible desktop icons and borderless windows. */
+    wubu_settings_init();
+
+    /* Bring up the accessibility subsystem when any a11y feature is asked
+     * for. The capture harness enables it unconditionally; the product
+     * honours the settings instead. */
+    {
+        const A11ySettings *a = &wubu_settings_get()->a11y;
+        if (!wubu_a11y_is_enabled() &&
+            (a->high_contrast || a->screen_reader || a->screen_magnifier ||
+             a->sticky_keys || a->slow_keys || a->bounce_keys || a->mouse_keys))
+            wubu_a11y_set_enabled(true);
+    }
 
     /* Cell 400+401+402: DosGui — Fable windowing agent + desktop + start menu */
     wm_init(state->width, state->height);
@@ -144,9 +167,37 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     holyc_term_set_eval(wubu_holyc_eval);
     wubu_holyd_set_pointer_handler(wm_handle_mouse);
     desktop_init();
-    fprintf(stderr, "DEBUG: desktop_init done\n");
+
+    /* The federation agent card. The OS never mints an AID -- the federation
+     * does (JOINING.md) -- so this loads an enrolled card from the home
+     * directory and publishes it under /n/agent, making the sponsor visible
+     * to every action the body takes. No card, no identity: nothing is
+     * invented here. */
+    {
+        const char *home = getenv("HOME");
+        char agent_path[512];
+        if (home) {
+            snprintf(agent_path, sizeof(agent_path), "%s/.config/wubu/agent-card.txt", home);
+            if (wubu_agent_load(agent_path) == 0)
+                wubu_ns_publish_agent();
+        }
+    }
+
+    /* Publish the body's space-facing surface: what it perceives, who it acts
+     * for, and which space instance it reaches. Says "unconfigured" / "not
+     * enroled" honestly when neither is set. */
+    wubu_ns_publish_worldspace();
+
+    /* Publish the KV namespace so the Brain can mount /n/kv/ over 9P. The
+     * tick files appear as the play loop writes them (wubu_ns_kv_touch). */
+    wubu_ns_publish_kv();
+
+    /* Start the AGI play session. The loop itself is ticked from the frame
+     * loop (hosted_run) -- perceive -> decide -> act -> learn -- so the
+     * experience stream lands in /kv/world/tick_<N> and /n/kv mirrors it. */
+    wubu_agi_play_start("freeplay", WUBU_GAME_UNKNOWN);
+    wubu_ns_kv_refresh();
     startmenu_init();
-    fprintf(stderr, "DEBUG: startmenu_init done\n");
 
     /* GAP F: the first-boot greeter -- the visible configurator the
      * onboarding decision layer has always targeted but never drawn.  Shown
@@ -168,12 +219,12 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
             wubu_shell_greeter_run();
     }
 
-    /* Launch initial windows */
-    fprintf(stderr, "DEBUG: About to launch initial windows\n");
+    /* Launch the initial windows: the file manager and the HolyC terminal.
+     * The registry entry's title is "HolyC Terminal" -- launch_app matches on
+     * name OR title, and the old "HolyC REPL" string matched neither, so that
+     * window silently never opened. */
     launch_app("My Computer");
-    fprintf(stderr, "DEBUG: Launched My Computer\n");
-    launch_app("HolyC REPL");
-    fprintf(stderr, "DEBUG: Launched HolyC REPL\n");
+    launch_app("HolyC Terminal");
 
     fprintf(stderr, "WuBuOS: kernel + GUI shell initialized\n");
 
@@ -237,12 +288,9 @@ void hosted_fs_reset(void) { fs_reset(); }
 #ifndef WUBU_HOSTED_TEST
 int main(int argc, char **argv) {
     hosted_state_t state;
-    fprintf(stderr, "DEBUG: Starting main\n");
     int init_ret = hosted_init(&state, argc, argv);
-    fprintf(stderr, "DEBUG: hosted_init returned %d\n", init_ret);
     if (init_ret != 0) return 1;
     int ret = hosted_run(&state);
-    fprintf(stderr, "DEBUG: hosted_run returned %d\n", ret);
     hosted_shutdown(&state);
     return ret;
 }

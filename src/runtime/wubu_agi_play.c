@@ -22,6 +22,7 @@
  */
 #include "wubu_agi_play.h"
 #include "wubu_game_session.h"
+#include "wubu_ns_kv.h"
 #include "wubu_world.h"
 #include "../kernel/wubu_kvfs.h"
 #include "../kernel/input.h"
@@ -192,6 +193,11 @@ void wubu_agi_play_learn(void)
     };
     /* write 4 floats (16 bytes) at /kv/world/tick_<N> */
     wubu_kvfs_write(g_wubu_kvfs, path, g_wubu_kv_base, vec, 4);
+
+    /* Make the tick addressable: create /n/kv/world/tick_<N> so a 9P client
+     * can walk and open it. The bytes come from the live tensor (the Styx
+     * server routes the read), so this only has to exist. */
+    wubu_ns_kv_touch(g_play.ticks);
 
     /* Also keep the text ledger for debugging (append mode, low-freq). */
     FILE *f = fopen(wubu_game_session_log(), "a");

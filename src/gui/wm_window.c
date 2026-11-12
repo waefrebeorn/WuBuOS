@@ -117,6 +117,35 @@ DosGuiWindow *wm_find_by_id(int id) {
     return NULL;
 }
 
+/* -- Live-window list -------------------------------------------------- */
+/* Index over the ALIVE windows, in creation order. Task Manager enumerates
+ * these: a single-process OS has no fabricated process table, so the window
+ * set IS the process set. All return NULL/0/false for an out-of-range index. */
+static int window_at(int i) {
+    if (i < 0) return -1;
+    int seen = 0;
+    for (int k = 0; k < DOSGUI_MAX_WINDOWS; k++) {
+        if (!g_dwm.windows[k].alive) continue;
+        if (seen++ == i) return k;
+    }
+    return -1;
+}
+
+const char *wm_window_title_at(int i) {
+    int k = window_at(i);
+    return k < 0 ? NULL : g_dwm.windows[k].title;
+}
+
+int wm_window_id_at(int i) {
+    int k = window_at(i);
+    return k < 0 ? 0 : g_dwm.windows[k].id;
+}
+
+bool wm_window_minimized_at(int i) {
+    int k = window_at(i);
+    return k >= 0 && (g_dwm.windows[k].flags & DOSGUI_WIN_MINIMIZED) != 0;
+}
+
 int wm_window_count(void) {
     return g_dwm.nz;
 }
@@ -188,8 +217,8 @@ int icon_add(const char *name, int gx, int gy,
     memset(icon, 0, sizeof(*icon));
     strncpy(icon->name, name, sizeof(icon->name) - 1);
     icon->grid_x = gx; icon->grid_y = gy;
-    icon->x = 20 + gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-    icon->y = 20 + gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    icon->x = 20 + gx * DOSGUI_ICON_COL_PITCH;
+    icon->y = 20 + gy * DOSGUI_ICON_ROW_PITCH;
     icon->on_click = on_click;
     icon->type = DESK_ICON_APP;
     icon->icon_color = 0x0080FF;  /* Default blue */
@@ -205,8 +234,8 @@ int icon_add_ex(const char *name, DeskIconType type,
     memset(icon, 0, sizeof(*icon));
     strncpy(icon->name, name, sizeof(icon->name) - 1);
     icon->grid_x = gx; icon->grid_y = gy;
-    icon->x = 20 + gx * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-    icon->y = 20 + gy * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+    icon->x = 20 + gx * DOSGUI_ICON_COL_PITCH;
+    icon->y = 20 + gy * DOSGUI_ICON_ROW_PITCH;
     icon->type = type;
     icon->icon_color = icon_color ? icon_color : 0x0080FF;
     if (target) strncpy(icon->target, target, sizeof(icon->target) - 1);
@@ -260,8 +289,8 @@ void wm_restore_icon_layout(void) {
             if (e->alive && strncmp(e->name, ic->name, sizeof(e->name)) == 0) {
                 ic->grid_x = e->grid_x;
                 ic->grid_y = e->grid_y;
-                ic->x = 20 + e->grid_x * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP);
-                ic->y = 20 + e->grid_y * (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8);
+                ic->x = 20 + e->grid_x * DOSGUI_ICON_COL_PITCH;
+                ic->y = 20 + e->grid_y * DOSGUI_ICON_ROW_PITCH;
                 break;
             }
         }

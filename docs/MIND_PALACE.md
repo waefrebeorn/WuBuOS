@@ -36,8 +36,12 @@ small OS that *contains* Linux (and Windows, and macOS) as guests.
 
 - `Makefile` includes `mk/vars.mk`, `mk/objects.mk`, `mk/targets.mk`,
   `mk/pattern-rules.mk`, `mk/tests.mk` — the build is split by concern.
-- `make all` builds everything; `make hosted` builds the binary that runs on
-  Linux today; `make test` runs the gate.
+- `make all` builds everything; `make hosted` builds the hosted product —
+  `./src/hosted/wubu`, the Win98/XP shell as a process on a host display
+  (`-h` headless boot, `--screenshot <path>` renders a real frame, no flag
+  needs a Wayland compositor); `make worldspace` builds the ~WuBu~ space
+  engine (the WWW submodule, which has its own 20 gates); `make test` runs
+  the gate.
 - `docs/BUILDING.md` — build, test, ship.
 
 **Enter here:** `Makefile`, `mk/`.
@@ -98,6 +102,8 @@ This is where most of the recent work lives.
 | **graphics translation** | `src/spells/graphics/render/vkd3d/` | the D3D12→Vulkan spell |
 | **accessibility** | `wubu_atspi*.c`, `wubu_dbus.c` | AT-SPI2 over a D-Bus marshaller |
 | **document/FS formats** | `wubu_doldoc.c`, `wubu_redsea.c`, `wubu_vga.c` | DolDoc, RedSea, raw VGA |
+| **agent identity** | `src/runtime/wubu_agent.{c,h}`, `/n/agent/` | the federation AID (mod-11 check digit), sponsor, SHA-256 seal — per `agent-protocol.json` |
+| **space surface** | `src/runtime/wubu_ns_worldspace.c`, `/n/worldspace/` | the body's reach into the ~WuBu~ space: world state, agent, portal, SDR transport |
 
 **Proved by:** the medium tier of `make test` (the largest tier).
 

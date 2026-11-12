@@ -14,6 +14,7 @@
 
 #include "../kernel/vbe.h"
 #include "../gui/wm.h"
+#include "../runtime/wubu_agi_play.h"
 #include "../gui/shell/desktop.h"
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_screenshot.h"
@@ -39,13 +40,21 @@ int hosted_run(hosted_state_t *state) {
 
     bool screenshot_requested = (state->screenshot_path != NULL);
     int frame_count = 0;
-    fprintf(stderr, "DEBUG: Entering run loop, screenshot_requested=%d, mode=%d\n", screenshot_requested, state->mode);
 
     while (state->running) {
-        fprintf(stderr, "DEBUG: run loop iteration, running=%d, frame_count=%d\n", state->running, frame_count);
         hosted_wl_dispatch();
 
         hosted_input_dispatch();
+
+        /* The AGI play loop, throttled to about twice a second (the policy
+         * is tick-driven): perceive -> decide -> act -> learn. Each learn
+         * writes /kv/world/tick_<N> and the /n/kv mirror.
+         * wubu_agi_play_tick() returns the ACTION (>=0) or -1 when the
+         * session is stopped -- it is not a status code. */
+        if (frame_count % 20 == 0) {
+            if (wubu_agi_play_tick() >= 0) wubu_agi_play_learn();
+        }
+        frame_count++;
 
         if (state->framebuffer) {
             if (state->mode == HMODE_GUI) {
@@ -78,7 +87,6 @@ int hosted_run(hosted_state_t *state) {
         /* If screenshot requested in headless mode, render a couple frames and exit */
         if (screenshot_requested && state->mode == HMODE_HEADLESS) {
             frame_count++;
-            fprintf(stderr, "DEBUG: frame_count=%d, will exit at 2\n", frame_count);
             if (frame_count >= 2) {  /* Render a couple frames to ensure desktop is drawn */
                 state->running = false;
                 break;
@@ -88,7 +96,6 @@ int hosted_run(hosted_state_t *state) {
         /* If headless mode without screenshot, just render once and exit */
         if (state->mode == HMODE_HEADLESS && !screenshot_requested) {
             frame_count++;
-            fprintf(stderr, "DEBUG: headless no screenshot, frame_count=%d\n", frame_count);
             if (frame_count >= 1) {
                 state->running = false;
                 break;

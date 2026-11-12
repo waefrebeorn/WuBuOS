@@ -45,6 +45,8 @@ Together they form a complete AGI system: the Body hosts, the Brain thinks, the 
 ```bash
 make all                 # full build (kernel jit compiler runtime tools gui
                          #   bridge apps worldsim metal audio shell bear)
+make hosted              # the hosted product: ./src/hosted/wubu
+                         #   (the Win98/XP shell as a process on a host display)
 make shell               # the runnable shell: ./src/shell/wubu_shell
 make iso                 # the bootable image: ./src/kernel/wubuos.iso
 
@@ -52,6 +54,14 @@ make test                # all 512 test targets
 make test_agi_metal      # the measured-boot/AGI gate (the root of trust)
 make qemu                # boot the image under QEMU (serial stdio)
 make spells              # list the spell book (reusable modules)
+```
+
+Run the hosted product (no compositor needed for the headless paths):
+
+```bash
+./src/hosted/wubu --screenshot /tmp/wubu.ppm   # render the real shell, save a frame
+./src/hosted/wubu -h                           # headless boot + clean shutdown
+./src/hosted/wubu                               # GUI mode: needs a Wayland display
 ```
 
 Details: [docs/BUILDING.md](docs/BUILDING.md). The remaining submodules
@@ -122,7 +132,7 @@ vault/                archives (accomplishments, phases, planning)
 | Test targets | 512 (`make test`) |
 | Spells (reusable modules) | **2** — vkd3d (D3D12→Vulkan), swarm (p2p aggregation) |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
-| Build | `make all` / `make hosted` exit 0 |
+| Build | `make all` / `make hosted` exit 0 → `./src/hosted/wubu` |
 | WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V, MIPS, 68k, AVR, 8051, 8086, Z80, 6502, PTX) |
 | Native JIT backends | 4 targets (x86-64, ARM64, RISC-V, WASM) in src/jit/ |
 | WuBu compliance | `_GNU_SOURCE` eliminated — replaced with `WUBU_HOSTED` + `wubu_gnu_compat.h` |

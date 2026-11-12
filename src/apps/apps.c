@@ -53,9 +53,9 @@ __attribute__((weak)) DosGuiWindow *wubu_tutorial_browser(void);
 
 /* Terminal (cmd.c) adapter callbacks — forward-declared so
  * launch_terminal can bind them. */
-static void terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
-static void terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
-static void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
+void terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
+void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 
 /* Notepad / REPL bind their own callbacks internally; expose them
  * so the registry can wire them. */
@@ -138,18 +138,18 @@ DosGuiWindow* launch_terminal(void) {
 
 /* -- Terminal (cmd.c) adapters: bridge DosGuiWindow callbacks to WubuCmd -- */
 
-static void terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+void terminal_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     WubuCmd *cmd = (WubuCmd *)win->user_data;
     if (cmd) wubu_cmd_draw(cmd, (void *)win, fb, fb_w, fb_h);
 }
 
-static void terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+void terminal_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     (void)mods;
     WubuCmd *cmd = (WubuCmd *)win->user_data;
     if (cmd) wubu_cmd_key(cmd, (int)key);
 }
 
-static void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
+void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind) {
     (void)win; (void)x; (void)y; (void)btn; (void)kind;
     /* Terminal has no mouse-driven UI yet; pty input is keyboard-only. */
 }

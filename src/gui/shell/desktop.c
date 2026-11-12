@@ -196,31 +196,27 @@ static void launch_host_app(const char *cmd) {
 }
 
 void launch_app(const char *name) {
-    fprintf(stderr, "DEBUG: launch_app called with name='%s'\n", name);
     /* Daemon panel windows */
     if (strcmp(name, "Container Manager") == 0) {
-        fprintf(stderr, "DEBUG: Launching Container Manager\n");
         archd_tray_click();
         return;
     }
     if (strcmp(name, "HolyC Sessions") == 0) {
-        fprintf(stderr, "DEBUG: Launching HolyC Sessions\n");
         holyd_tray_click();
         return;
     }
-    /* Builtin in-process apps (Calculator, Notepad, etc.). */
-    if (app_launch_by_name(name) != NULL) {
-        fprintf(stderr, "DEBUG: app_launch_by_name returned\n");
+    /* Builtin in-process apps. A registry entry IS the launch path: several
+     * launchers spawn their window through wm_spawn_* and return NULL, so the
+     * return value must not be read as "not found". */
+    if (app_find_by_name(name) != NULL) {
+        app_launch_by_name(name);
         return;
     }
     /* Fallback: era apps (one-per-era registry). These launch through their
      * VSL syscall personality's REAL exec backend (DOS->8086 shim, Win->Wine,
      * Linux->VSL ELF, HolyC->JIT). Gaps (CP/M, Classic Mac) report clearly. */
-    if (era_apps_launch_by_name(name) == 0) {
-        fprintf(stderr, "DEBUG: launched era app '%s' via VSL personality\n", name);
-        return;
-    }
-    fprintf(stderr, "DEBUG: no launch path for '%s'\n", name);
+    if (era_apps_launch_by_name(name) == 0) return;
+    fprintf(stderr, "wubu: no launch path for '%s'\n", name);
 }
 
 void desktop_launch(int icon_id) {
