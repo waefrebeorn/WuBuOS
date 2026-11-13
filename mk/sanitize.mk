@@ -30,13 +30,14 @@ export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 # gate would save nothing and would hide the most valuable target behind a second
 # command somebody has to remember to run.
 test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-               $(HOSTED)/test_fs_persist.san $(VSL_NT_SAN_BIN)
+               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(VSL_NT_SAN_BIN)
 	@set -e; fail=0; \
 	for b in $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
 	         $(HOSTED)/test_fs_persist.san $(VSL_NT_SAN_BIN); do \
 	   echo "--- sanitized: $$b"; \
 	   if ! $$b; then echo "!!! $$b failed under sanitizers"; fail=1; fi; \
 	done; \
+	$(FS_PERSIST_FUZZ_SAN) 7 4000; \
 	if [ $$fail -eq 0 ]; then echo "=== all sanitized targets clean ==="; fi; \
 	exit $$fail
 
@@ -60,6 +61,18 @@ $(HOSTED)/test_fs_persist.san: $(HOSTED)/test_fs_persist.c $(HOSTED)/hosted_styx
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(HOSTED)/test_fs_persist.c -o $@ -lm
+
+# Mutation fuzzer for the same loader, run under ASan/UBSan.  A memory fault aborts
+# the run instead of surfacing as a failure somewhere else later; the deterministic
+# seed makes any finding reproducible.
+FS_PERSIST_FUZZ_SAN = $(HOSTED)/fs_persist_fuzz.san
+$(FS_PERSIST_FUZZ_SAN): $(HOSTED)/fs_persist_fuzz.c $(HOSTED)/hosted_styxfs.c \
+                        $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+                        $(RT)/wubu_guest_root.c
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(RT)/wubu_guest_root.c $(HOSTED)/fs_persist_fuzz.c -o $@ -lm
 
 # NT syscall surface -- every slot probed with all-zero arguments, forked.
 VSL_NT_SAN_BIN = $(RT)/vsl_nt_contract_test.san

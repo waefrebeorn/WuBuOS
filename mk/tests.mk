@@ -1609,6 +1609,17 @@ test_fs_persist:
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(HOSTED)/test_fs_persist.c \
 		-lm -o $(HOSTED)/test_fs_persist
+
+# Deterministic mutation fuzzer for the WUBFS01 image loader.  Seed 7, 4000 rounds.
+# Built under sanitizers too -- see the fs_persist_fuzz target in mk/sanitize.mk.
+test_fs_persist_fuzz:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(RT)/wubu_guest_root.c \
+		$(HOSTED)/fs_persist_fuzz.c \
+		-lm -o $(HOSTED)/fs_persist_fuzz
+	$(HOSTED)/fs_persist_fuzz 7 4000
 	$(HOSTED)/test_fs_persist
 
 test_notepad_save:
