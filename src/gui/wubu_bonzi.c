@@ -27,6 +27,7 @@
  */
 
 #include "wubu_bonzi.h"
+#include "wubu_tokens.h"      /* spacing comes from the one scale */
 #include "wubu_mascot.h"
 #include "wubu_buddy_sprite.h"
 #include "wubu_buddy_states.h"
@@ -438,6 +439,33 @@ void wubu_bonzi_tick(int dt_ms) {
         g_state != WUBU_BUDDY_STATE_IDLE) {
         g_state = WUBU_BUDDY_STATE_IDLE;
     }
+}
+
+
+/* Place the mascot in the one region the desktop never uses: the bottom-right
+ * corner ABOVE the taskbar.
+ *
+ * The old placement was x=8, which is precisely where the desktop icon column
+ * starts (icons begin at x=20), so the buddy sat ON TOP of them and hid labels.
+ * It also butted against the taskbar with no margin, so once the idle bob moved
+ * it down its base was clipped by the bar.
+ *
+ * Spacing comes from wubu_tokens.h so this surface obeys the same scale as every
+ * other; the position is clamped so a tiny or odd-sized screen cannot push it
+ * off-screen. */
+bool wubu_bonzi_place(int screen_w, int screen_h, int taskbar_h)
+{
+    if (screen_w <= 0 || screen_h <= 0 || taskbar_h < 0) return false;
+
+    const int margin = WUBU_SPACE_SM;
+    const int size   = wubu_mascot_size();
+
+    int x = screen_w - size - margin;
+    int y = screen_h - taskbar_h - size - margin;
+    if (x < margin) x = margin;
+    if (y < margin) y = margin;
+
+    return wubu_bonzi_init(x, y);
 }
 
 bool wubu_bonzi_init(int x, int y) {

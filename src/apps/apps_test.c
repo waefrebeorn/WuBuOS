@@ -124,6 +124,7 @@ uint64_t wubu_agi_kernel_tick(void) { return 0; }
 uint64_t wubu_agi_kernel_uptime_ms(void) { return 0; }
 void wubu_bonzi_draw(uint32_t *f, int fw, int fh, int x, int y) { (void)f;(void)fw;(void)fh;(void)x;(void)y; }
 void wubu_bonzi_init(void) {}
+void wubu_bonzi_place(int sw, int sh, int th) { (void)sw; (void)sh; (void)th; }
 int wubu_bonzi_is_enabled(void) { return 0; }
 void wubu_bonzi_mouse(int x, int y) { (void)x;(void)y; }
 void wubu_shutdown() {}

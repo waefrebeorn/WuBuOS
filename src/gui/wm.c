@@ -70,7 +70,7 @@ int wm_init(int screen_w, int screen_h) {
      * Positioned in the lower-left corner, above windows. Click opens the
      * HolyC/AGI terminal. Idle animation (bob + blink) driven by the WM
      * frame tick in wm_frame(). */
-    wubu_bonzi_init(8, screen_h - taskbar_height_dynamic() - wubu_mascot_size());
+    wubu_bonzi_place(screen_w, screen_h, taskbar_height_dynamic());
     /* Restore the user's taskbar pins from the previous session. */
     extern void wubu_taskbar_init(void);
     /* The rim lives on the focused window, so it needs the screen size before
@@ -92,7 +92,7 @@ void wm_set_screen_size(int screen_w, int screen_h) {
     g_dwm.screen_w = screen_w;
     g_dwm.screen_h = screen_h;
     load_default_wallpaper();
-    wubu_bonzi_init(8, screen_h - taskbar_height_dynamic() - wubu_mascot_size());
+    wubu_bonzi_place(screen_w, screen_h, taskbar_height_dynamic());
     wm_rim_init(screen_w, screen_h);
     wm_slime_init(screen_w, screen_h);
     wm_rim_mirror_pins();

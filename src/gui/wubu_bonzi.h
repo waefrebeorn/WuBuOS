@@ -56,6 +56,10 @@ bool wubu_bonzi_is_enabled(void);
 /* Place the mascot at desktop coordinates (x,y). Idempotent; re-arms the
  * animation clock. Returns true on success. */
 bool wubu_bonzi_init(int x, int y);
+/* Choose a sensible position on the current screen: bottom-right, above the
+ * taskbar, clear of the desktop icon column and of the tray. Returns false when
+ * the geometry makes no sense (uninitialised WM). */
+bool wubu_bonzi_place(int screen_w, int screen_h, int taskbar_h);
 
 /* Mascot screen position (set by init). */
 int  wubu_bonzi_x(void);
