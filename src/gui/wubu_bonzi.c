@@ -144,26 +144,6 @@ static bool in_belly(int dx, int dy) {
     return ex * ex + (dy + 4) * (dy + 4) <= (BONZI_R - 8) * (BONZI_R - 8);
 }
 
-/* Eye with variable openness for smooth blink.
- * eye_open: 1.0 = fully open, 0.0 = fully closed.
- * Uses arc-drawing to produce a natural eyelid that squeezes the eye. */
-static void draw_eye_open(int cx, int cy, float eye_open) {
-    if (eye_open > 0.95f) {
-        /* Fully open: white + dark pupil with a sparkle highlight. */
-        vbe_fill_circle(cx, cy, 4, BONZI_EYE_WHITE);
-        vbe_fill_circle(cx + 1, cy, 2, BONZI_EYE);
-        vbe_set_pixel(cx, cy - 1, BONZI_EYE_WHITE);   /* sparkle */
-        vbe_set_pixel(cx + 1, cy - 1, BONZI_EYE_WHITE);
-    } else {
-        /* Partially or fully closed: draw a closing eyelid.
-         * The lid height shrinks as eye_open goes 1->0. */
-        int lid_h = (int)(eye_open * 4.0f);  /* 4px open -> 0px closed */
-        if (lid_h < 1) lid_h = 1;
-        vbe_fill_circle(cx, cy, 4, BONZI_EYE_WHITE);
-        /* Dark upper lid descending over the eye. */
-        vbe_fill_rect(cx - 4, cy - lid_h / 2, 8, lid_h, BONZI_EYE);
-    }
-}
 
 /* -- State ------------------------------------------------------------ */
 
@@ -215,6 +195,8 @@ static const unsigned char *buddy_state_rgba(void) {
     case WUBU_BUDDY_STATE_KEY:     return BUDDY_STATE_KEY;
     case WUBU_BUDDY_STATE_STAR:    return BUDDY_STATE_STAR;
     case WUBU_BUDDY_STATE_POINT:   return BUDDY_STATE_POINT;
+    case WUBU_BUDDY_STATE_SEARCH:  return BUDDY_STATE_SEARCH;
+    case WUBU_BUDDY_STATE_EXPLORE: return BUDDY_STATE_EXPLORE;
     default:                       return BUDDY_STATE_DEFAULT;
     }
 }
@@ -231,14 +213,13 @@ static char g_bubble_line2[40];
  * between frames), which is critical for testability. */
 
 typedef struct {
-    float eye_open;     /* 1.0 = open, 0.0 = closed */
     float bob_y;        /* vertical offset from rest, in pixels */
     float bob_squash;   /* vertical scale factor (1.0 = neutral) */
     float bubble_alpha; /* 0.0 = invisible, 70 = fully faded in */
 } BonziAnim;
 
 static BonziAnim compute_animation(int clock_ms) {
-    BonziAnim a = {1.0f, 0.0f, 1.0f, 0.0f};
+    BonziAnim a = {0.0f, 1.0f, 0.0f};
 
     /* --- Idle bob: cosine-wave vertical oscillation with squash/stretch --
      * Bob rises at the top of the cycle (inhale), reaches peak, then
@@ -255,26 +236,6 @@ static BonziAnim compute_animation(int clock_ms) {
      * Stage 1 (CLOSE 30ms): eyes close 1->0 (ease-out)
      * Stage 2 (OPEN 30ms):  eyes open 0->1 (ease-in)
      * Stage 3 (POST, 20ms): full relaxation (follow-through) */
-    int t = clock_ms % BONZI_BLINK_CYCLE_MS;
-    if (t < BONZI_BLINK_TOTAL_MS) {
-        if (t < BONZI_BLINK_PRE_MS) {
-            /* Anticipation: subtle squeeze. */
-            float s = smoothstep((float)t / (float)BONZI_BLINK_PRE_MS);
-            a.eye_open = 1.0f - s * 0.3f;
-        } else if (t < BONZI_BLINK_PRE_MS + BONZI_BLINK_CLOSE_MS / 2) {
-            /* Closing: ease-out (fast start, slow finish). */
-            float inner = (float)(t - BONZI_BLINK_PRE_MS) / (float)(BONZI_BLINK_CLOSE_MS / 2);
-            a.eye_open = 1.0f - ease_out_cubic(inner);
-        } else if (t < BONZI_BLINK_PRE_MS + BONZI_BLINK_CLOSE_MS) {
-            /* Opening: ease-in (slow start, fast finish). */
-            float inner = (float)(t - BONZI_BLINK_PRE_MS - BONZI_BLINK_CLOSE_MS / 2) / (float)(BONZI_BLINK_CLOSE_MS / 2);
-            a.eye_open = ease_out_cubic(inner);
-        } else {
-            /* Post-blink: full open (relaxation). */
-            a.eye_open = 1.0f;
-        }
-    }
-
     /* --- Speech bubble: one-time fade-in, then hold ---
      * Fades in once over the first BONZI_BUBBLE_FADE_MS after init and
      * stays (a bob-tied alpha strobes every bob period — wrong). */
@@ -289,45 +250,6 @@ static BonziAnim compute_animation(int clock_ms) {
 
 /* -- Drawing ---------------------------------------------------------- */
 
-/* Solid body under the baked clip art.  The clipart's white fur was encoded
- * as transparent (mascot_encode treats near-white as background), so the
- * buddy rendered as a faint ghost with no legs.  Drawing the body opaquely
- * first gives the sprite something solid to sit on; the sprite's cap,
- * scarf, eye and outlines still show through. */
-static void buddy_draw_body(int ox, int oy) {
-    const uint32_t fur   = 0xFFFFFFFF;   /* white fur */
-    const uint32_t belly = 0xFFF2F2FA;   /* near-white belly */
-    const uint32_t ink   = 0xFF1A1A2E;   /* dark outline */
-
-    /* feet + legs: the part the old sprite lost entirely */
-    vbe_fill_circle(ox + 34, oy + 84, 8, fur);
-    vbe_fill_circle(ox + 62, oy + 84, 8, fur);
-    vbe_ellipse(ox + 34, oy + 84, 8, 8, ink);
-    vbe_ellipse(ox + 62, oy + 84, 8, 8, ink);
-    vbe_fill_circle(ox + 38, oy + 74, 7, fur);
-    vbe_fill_circle(ox + 58, oy + 74, 7, fur);
-
-    /* body + belly */
-    vbe_fill_circle(ox + 48, oy + 62, 22, fur);
-    vbe_ellipse(ox + 48, oy + 62, 22, 22, ink);
-    vbe_fill_circle(ox + 48, oy + 68, 12, belly);
-
-    /* arms */
-    vbe_fill_circle(ox + 26, oy + 58, 8, fur);
-    vbe_fill_circle(ox + 70, oy + 58, 8, fur);
-    vbe_ellipse(ox + 26, oy + 58, 8, 8, ink);
-    vbe_ellipse(ox + 70, oy + 58, 8, 8, ink);
-
-    /* ears */
-    vbe_fill_rect_rounded(ox + 30, oy + 2, 12, 22, 6, fur);
-    vbe_fill_rect_rounded(ox + 54, oy + 2, 12, 22, 6, fur);
-    vbe_rect_rounded(ox + 30, oy + 2, 12, 22, 6, ink);
-    vbe_rect_rounded(ox + 54, oy + 2, 12, 22, 6, ink);
-
-    /* head */
-    vbe_fill_circle(ox + 48, oy + 32, 18, fur);
-    vbe_ellipse(ox + 48, oy + 32, 18, 18, ink);
-}
 
 void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
     (void)fb;
@@ -337,8 +259,11 @@ void wubu_bonzi_draw(uint32_t *fb, int fb_w, int fb_h) {
     int ox = g_bx;
     int oy = g_by + (int)a.bob_y;  /* smooth vertical bob */
 
-    /* The body first (opaque), then the baked clipart over it. */
-    buddy_draw_body(ox, oy);
+    /* Only the baked pose is drawn.  It used to be layered over a hand-drawn
+     * vector rabbit (buddy_draw_body) that existed to hide the old ghosting;
+     * with the sprite baked correctly that double-drew limbs at hardcoded
+     * positions on top of every pose -- sitting ones, driving ones, sign-
+     * carrying ones -- so the vector parts stuck out in the wrong places. */
     wubu_mascot_blit_rgba(ox, oy, buddy_state_rgba(), BUDDY_STATE_SIZE);
 
     /* Speech bubble: above the buddy, clamped on-screen, tail pointing

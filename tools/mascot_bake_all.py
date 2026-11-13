@@ -76,6 +76,8 @@ MOOD_POSES = [
     ("KEY",       "signs:4"),     # golden key (auth / signing / admin)
     ("STAR",      "signs:5"),     # red star with sparkles (important / favourite)
     ("POINT",     "signs:2"),     # pointing forward (attention)
+    ("SEARCH",    "explore:5"),   # magnifying glass, one eye winked (find/inspect)
+    ("EXPLORE",   "explore:7"),   # sitting over a spread map (navigate/browse)
 ]
 
 SHEETS = {
@@ -88,38 +90,63 @@ SHEETS = {
     "stickers": "wubu_buddy_sheet_stickers.jpg",
     "expressions": "wubu_buddy_sheet_expressions.jpg",
     "signs": "wubu_buddy_sheet_signs.jpg",
+    "explore": "wubu_buddy_sheet_explore.jpg",
 }
 
 
-def bake_pose(sheet_path, cx, cy, hat_w, size):
-    """Return RGBA bytes for one pose, cropped and border-flood-filled."""
+def cell_box(hats, idx, W, H):
+    """Bound one pose by the MIDPLANES between it and its neighbours.
+
+    A fixed crop sized from the hat works for an isolated sticker but not for a
+    grid sheet: on a 2x3 sheet the 3.4-hat-height box reaches into the next row and
+    swallows the top of the pose below -- which is how a partial second rabbit head
+    ended up inside the WORK sprite.  Midplanes use the detected hat layout itself,
+    so a crop can never cross into another pose's cell.
+    """
+    cx, cy = hats[idx][0], hats[idx][1]
+    left = 0; right = W; top = 0; bottom = H
+    for j, h in enumerate(hats):
+        if j == idx:
+            continue
+        dx = abs(h[0] - cx); dy = abs(h[1] - cy)
+        if dy < 120:                       # same row -> horizontal midplane
+            if h[0] < cx: left  = max(left,  (h[0] + cx) // 2)
+            else:         right = min(right, (h[0] + cx) // 2)
+        if dx < 160:                       # same column -> vertical midplane
+            if h[1] < cy: top    = max(top,    (h[1] + cy) // 2)
+            else:         bottom = min(bottom, (h[1] + cy) // 2)
+    return left, top, right, bottom
+
+
+def bake_pose(sheet_path, cx, cy, hat_w, size, hats=None, idx_all=0):
+    """Bake one pose to an RGBA sprite.
+
+    Isolation is a three-stage pipeline, and the order matters:
+
+      1. CELL      -- crop the pose's grid cell, bounded by midplanes between the
+                      detected hats.  A box sized from the hat alone clips wide
+                      poses (WORK sits at a desk with two mugs and a monitor).
+      2. FLOOD     -- background is whatever reaches the crop border through
+                      non-ink pixels, so enclosed white fur stays opaque.
+      3. COMPONENT -- keep only the blob connected to the hat centroid, which
+                      drops any neighbour sharing the cell.
+
+    Alpha comes from the mask alone, never from pixel colour: the rabbit's fur is
+    the same #FFFFFF as the sheet background, so a colour key would erase it.
+    """
     im = Image.open(sheet_path).convert("RGB")
     px = im.load()
+    if hats is None:
+        hats = find_hats(im, px, *im.size)
 
-    side_w = max(8, int(hat_w * 2.4))
-    side_h = max(8, int(hat_w * 3.4))
-    x0, y0 = cx - side_w // 2, cy - int(hat_w * 0.4)
-    x1, y1 = x0 + side_w, y0 + side_h
-
-    box = content_bbox(im, px, x0, y0, x1, y1)
-    if box is None:
-        raise SystemExit("empty crop around (%d,%d)" % (cx, cy))
-    bx0, by0, bx1, by1 = box
-
-    # Pad the trim by a few percent.  The trim hugs the last non-white pixel, so
-    # without this the character's extremities sit flush on the sprite edge and
-    # read as "cut off" even though nothing is missing -- measured on TRAVEL,
-    # SIGN and KEY, all three spanned y 0..95 exactly.
-    mw = max(2, int((bx1 - bx0) * 0.04))
-    mh = max(2, int((by1 - by0) * 0.04))
-    bx0 = max(0, bx0 - mw); by0 = max(0, by0 - mh)
-    bx1 = min(im.size[0] - 1, bx1 + mw)
-    by1 = min(im.size[1] - 1, by1 + mh)
+    cl, ct, cr, cb = cell_box(hats, idx_all, im.size[0], im.size[1])
+    bx0, by0 = cl, ct
+    bx1, by1 = cr - 1, cb - 1
 
     crop = im.crop((bx0, by0, bx1 + 1, by1 + 1))
-
     cw, ch = crop.size
     cpx = crop.load()
+
     ink = bytearray(cw * ch)
     for y in range(ch):
         for x in range(cw):
@@ -157,45 +184,111 @@ def bake_pose(sheet_path, cx, cy, hat_w, size):
 
     seed = None
     for r in range(0, max(cw, ch)):
-        found = False
+        hit = False
         for dy in range(-r, r + 1):
             for dx in range(-r, r + 1):
                 nx, ny = cx - bx0 + dx, cy - by0 + dy
                 if 0 <= nx < cw and 0 <= ny < ch and not bg[ny * cw + nx]:
-                    seed = (nx, ny); found = True; break
-            if found:
+                    seed = (nx, ny); hit = True; break
+            if hit:
                 break
-        if found:
+        if hit:
             break
     if seed is not None:
-        keep = bytearray(cw * ch)
-        stack = [seed]
-        keep[seed[1] * cw + seed[0]] = 1
-        while stack:
-            x, y = stack.pop()
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < cw and 0 <= ny < ch and not bg[ny * cw + nx] \
-                        and not keep[ny * cw + nx] \
-                        and (orig[ny * cw + nx] or ink[ny * cw + nx]):
-                    keep[ny * cw + nx] = 1
-                    stack.append((nx, ny))
+        def _flood(acceptable):
+            k = bytearray(cw * ch)
+            st = [seed]
+            k[seed[1] * cw + seed[0]] = 1
+            while st:
+                x, y = st.pop()
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < cw and 0 <= ny < ch and not bg[ny * cw + nx] \
+                            and not k[ny * cw + nx] and acceptable(ny * cw + nx):
+                        k[ny * cw + nx] = 1
+                        st.append((nx, ny))
+            return k
+
+        # Prefer UNDILATED ink: dilation closes dashed outlines, but it also
+        # bridges a pose to a neighbour whose prop sits close by -- that is how a
+        # golden sliver from the treasure pose survived inside WORK.  If going
+        # strict fragments the character, fall back to the dilated version.
+        total_nonbg = sum(1 for i in range(cw * ch) if not bg[i])
+        for acceptable in (orig.__getitem__,
+                           lambda i: bool(orig[i] or ink[i])):
+            keep = _flood(acceptable)
+            if sum(keep) >= total_nonbg * 0.9:
+                break
+        # Morphological OPEN: erode, then dilate.  A neighbour's prop that touches
+        # the pose by a one-pixel bridge (the golden sliver from the treasure pose
+        # in WORK) survives both floods; opening severs exactly those thin necks
+        # and restores everything thicker.
+        def _erode(src):
+            out = bytearray(cw * ch)
+            for y in range(1, ch - 1):
+                for x in range(1, cw - 1):
+                    i = y * cw + x
+                    if src[i] and src[i - 1] and src[i + 1] and src[i - cw] and src[i + cw]:
+                        out[i] = 1
+            return out
+
+        def _dilate(src):
+            out = bytearray(src)
+            for y in range(ch):
+                for x in range(cw):
+                    i = y * cw + x
+                    if src[i]:
+                        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                            nx, ny = x + dx, y + dy
+                            if 0 <= nx < cw and 0 <= ny < ch:
+                                out[ny * cw + nx] = 1
+            return out
+
+        opened = _dilate(_erode(keep))
+        if sum(opened) >= sum(keep) * 0.5:      # only accept a sane result
+            keep = opened
+
         for i in range(cw * ch):
             if not keep[i]:
                 bg[i] = 1
 
-    # Canvas is deliberately a little larger than the crop so extremities keep
-    # a visible margin on EVERY side; a tall pose would otherwise fill the whole
-    # height and its ears/feet would sit flush on the sprite edge.
+    kx0, ky0, kx1, ky1 = cw, ch, 0, 0
+    found = False
+    for yy in range(ch):
+        for xx in range(cw):
+            if not bg[yy * cw + xx]:
+                found = True
+                if xx < kx0: kx0 = xx
+                if xx > kx1: kx1 = xx
+                if yy < ky0: ky0 = yy
+                if yy > ky1: ky1 = yy
+
+    if found and (kx1 - kx0) > 4 and (ky1 - ky0) > 4:
+        sub = crop.crop((kx0, ky0, kx1 + 1, ky1 + 1))
+        scw, sch = sub.size
+        subpx = sub.load()
+        tight = Image.new("RGBA", (scw, sch), (255, 255, 255, 0))
+        tp = tight.load()
+        for yy in range(sch):
+            for xx in range(scw):
+                if not bg[(yy + ky0) * cw + (xx + kx0)]:
+                    r, g, b = subpx[xx, yy]
+                    tp[xx, yy] = (r, g, b, 255)
+        crop = tight
+        cw, ch = scw, sch
+    else:
+        crop = crop.convert("RGBA")
+
     side2 = int(max(cw, ch) * 1.08)
     ox, oy = (side2 - cw) // 2, (side2 - ch) // 2
     rgba = Image.new("RGBA", (side2, side2), (255, 255, 255, 0))
     rp = rgba.load()
+    cpx = crop.load()
     for y in range(side2):
         for x in range(side2):
             sx, sy = x - ox, y - oy
-            if 0 <= sx < cw and 0 <= sy < ch and not bg[sy * cw + sx]:
-                r, g, b = cpx[sx, sy]
+            if 0 <= sx < cw and 0 <= sy < ch and cpx[sx, sy][3] > 0:
+                r, g, b, _a = cpx[sx, sy]
                 rp[x, y] = (r, g, b, 255)
 
     return rgba.resize((size, size), Image.LANCZOS)
@@ -224,7 +317,7 @@ def main():
             raise SystemExit("%s: pose %d out of range (1..%d)" %
                              (spec, idx, len(hats)))
         cx, cy, hx0, hx1, hy0, hy1, n = hats[idx - 1]
-        sprite = bake_pose(path, cx, cy, hx1 - hx0, args.size)
+        sprite = bake_pose(path, cx, cy, hx1 - hx0, args.size, hats, idx - 1)
         baked.append((cname, sprite))
         opaque = sum(1 for px in sprite.getdata() if px[3] > 200)
         print("  BUDDY_STATE_%-9s <- %s:%d  (%d/%d opaque)" %

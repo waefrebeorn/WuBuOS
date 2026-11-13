@@ -258,16 +258,46 @@ def main():
 
     # Square canvas.  Everything NOT reached by the flood stays opaque --
     # including white fur, which is the whole point.
+    # Re-trim to the CONNECTED COMPONENT, not raw colour -- see
+    # mascot_bake_all.py for why (a neighbouring pose's hat is non-white and
+    # would otherwise be swallowed into this sprite).
+    kx0, ky0, kx1, ky1 = cw, ch, 0, 0
+    found = False
+    for yy in range(ch):
+        for xx in range(cw):
+            if not bg[yy * cw + xx]:
+                found = True
+                if xx < kx0: kx0 = xx
+                if xx > kx1: kx1 = xx
+                if yy < ky0: ky0 = yy
+                if yy > ky1: ky1 = yy
+    if found and (kx1 - kx0) > 4 and (ky1 - ky0) > 4:
+        sub = crop.crop((kx0, ky0, kx1 + 1, ky1 + 1))
+        scw, sch = sub.size
+        subpx = sub.load()
+        rgba0 = Image.new("RGBA", (scw, sch), (255, 255, 255, 0))
+        rp0 = rgba0.load()
+        for yy in range(sch):
+            for xx in range(scw):
+                if not bg[(yy + ky0) * cw + (xx + kx0)]:
+                    r, g, b = subpx[xx, yy]
+                    rp0[xx, yy] = (r, g, b, 255)
+        crop = rgba0
+        cw, ch = scw, sch
+    else:
+        crop = crop.convert("RGBA")
+
     side2 = int(max(cw, ch) * 1.08)
     ox = (side2 - cw) // 2
     oy = (side2 - ch) // 2
     rgba = Image.new("RGBA", (side2, side2), (255, 255, 255, 0))
     rp = rgba.load()
+    cpx = crop.load()          # crop may have been replaced by the component trim
     for y in range(side2):
         for x in range(side2):
             sx, sy = x - ox, y - oy
-            if 0 <= sx < cw and 0 <= sy < ch and not bg[sy * cw + sx]:
-                r, g, b = cpx[sx, sy]
+            if 0 <= sx < cw and 0 <= sy < ch and cpx[sx, sy][3] > 0:
+                r, g, b, _a = cpx[sx, sy]
                 rp[x, y] = (r, g, b, 255)
 
     sprite = rgba.resize((args.size, args.size), Image.LANCZOS)
