@@ -33,6 +33,31 @@ WuBuOS: `src/runtime/wubu_ns_pkg.c` exposes publish/install/remove/add_repo, and
 `wubu_pkgbuild.c` parses and expands. No solver: no dependency walk, no version
 comparison, no cycle detection, no autoremove.
 
+**There are TWO dependency models here and neither has a resolver.**
+
+1. Package level (`wubu_ns_pkg`) -- as above.
+2. Module level (`.spell`): the container FORMAT specifies dependencies properly --
+   `provides[]`/`needs[]`, capped at 32 each, with `wubu_spellmod_provides()` answering
+   "does this spell give me what I need?" and `wubu_spellmod_info()` exposing both
+   lists. But nothing consumes them:
+   - `wubu_spellmod_open()` has **no production caller** (only its own test and the
+     fuzzer added this session). There is no loader and no search path -- the header
+     says compiled modules install under `~/.local/lib/wubu/spells/`, yet no code
+     scans any directory for one.
+   - No resolution algorithm exists: no topological ordering across a set of modules,
+     no cycle detection, no refusal of an unsatisfiable `needs[]`.
+
+So the data model for module dependencies is complete and tested; the act of resolving
+one against another does not exist. That is worth stating plainly because the format
+being well-specified makes it look further along than it is.
+
+Work done this session on this surface (hardening, not the missing solver):
+`wubu_spellmod_open()` now refuses an image whose export table points outside its code
+blob -- a fuzzer found 1853 such images accepted, including a hole where a module with
+`code_len == 0` skipped validation entirely (`wubu_spellmod_export()` only checked when
+code existed). See docs/DUPLICATE_SURFACE_FINDINGS.md for the unrelated Proton API
+collision found while tracing prototypes.
+
 ### 3. Crash-safe installation — **MISSING**
 BMDS: a per-package database with a **pending record a power cut is finished from**;
 checks everything first, writes beside each file, renames into place; unowned
