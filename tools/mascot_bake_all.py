@@ -68,6 +68,14 @@ MOOD_POSES = [
     ("LOUNGE",    "life:4"),      # armchair with a book (relaxed, second pose)
     ("HERO",      "life:5"),      # cape and raised fist (deployed / shipped it)
     ("COLD",      "life:6"),      # snow and a warm mug (idle-too-long / cold box)
+    ("TRAVEL",    "stickers:6"),  # camera and suitcase (portable / backed up)
+    ("BANANA",    "stickers:4"),  # slipped on a peel (comical crash)
+    ("EXCITED",   "expressions:2"),  # jumping for joy
+    ("BOW",       "expressions:6"),  # eyes closed, thanks / done politely
+    ("SIGN",      "signs:1"),     # blank sign -- a message carrier
+    ("KEY",       "signs:4"),     # golden key (auth / signing / admin)
+    ("STAR",      "signs:5"),     # red star with sparkles (important / favourite)
+    ("POINT",     "signs:2"),     # pointing forward (attention)
 ]
 
 SHEETS = {
@@ -77,6 +85,9 @@ SHEETS = {
     "debug": "wubu_buddy_sheet_debug.jpg",
     "emotions": "wubu_buddy_sheet_emotions.jpg",
     "life": "wubu_buddy_sheet_life.jpg",
+    "stickers": "wubu_buddy_sheet_stickers.jpg",
+    "expressions": "wubu_buddy_sheet_expressions.jpg",
+    "signs": "wubu_buddy_sheet_signs.jpg",
 }
 
 
@@ -94,6 +105,17 @@ def bake_pose(sheet_path, cx, cy, hat_w, size):
     if box is None:
         raise SystemExit("empty crop around (%d,%d)" % (cx, cy))
     bx0, by0, bx1, by1 = box
+
+    # Pad the trim by a few percent.  The trim hugs the last non-white pixel, so
+    # without this the character's extremities sit flush on the sprite edge and
+    # read as "cut off" even though nothing is missing -- measured on TRAVEL,
+    # SIGN and KEY, all three spanned y 0..95 exactly.
+    mw = max(2, int((bx1 - bx0) * 0.04))
+    mh = max(2, int((by1 - by0) * 0.04))
+    bx0 = max(0, bx0 - mw); by0 = max(0, by0 - mh)
+    bx1 = min(im.size[0] - 1, bx1 + mw)
+    by1 = min(im.size[1] - 1, by1 + mh)
+
     crop = im.crop((bx0, by0, bx1 + 1, by1 + 1))
 
     cw, ch = crop.size
@@ -162,7 +184,10 @@ def bake_pose(sheet_path, cx, cy, hat_w, size):
             if not keep[i]:
                 bg[i] = 1
 
-    side2 = max(cw, ch)
+    # Canvas is deliberately a little larger than the crop so extremities keep
+    # a visible margin on EVERY side; a tall pose would otherwise fill the whole
+    # height and its ears/feet would sit flush on the sprite edge.
+    side2 = int(max(cw, ch) * 1.08)
     ox, oy = (side2 - cw) // 2, (side2 - ch) // 2
     rgba = Image.new("RGBA", (side2, side2), (255, 255, 255, 0))
     rp = rgba.load()

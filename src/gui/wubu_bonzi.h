@@ -49,6 +49,14 @@ enum {
     WUBU_BUDDY_STATE_LOUNGE,       /* armchair, reading           */
     WUBU_BUDDY_STATE_HERO,         /* shipped it                  */
     WUBU_BUDDY_STATE_COLD,         /* cold box, idle too long     */
+    WUBU_BUDDY_STATE_TRAVEL,       /* portable / backed up        */
+    WUBU_BUDDY_STATE_BANANA,       /* slipped: comical failure    */
+    WUBU_BUDDY_STATE_EXCITED,      /* jumping for joy             */
+    WUBU_BUDDY_STATE_BOW,          /* thanks / done politely      */
+    WUBU_BUDDY_STATE_SIGN,         /* carrying a message          */
+    WUBU_BUDDY_STATE_KEY,          /* auth / signing / admin      */
+    WUBU_BUDDY_STATE_STAR,         /* important / favourite       */
+    WUBU_BUDDY_STATE_POINT,        /* paying attention            */
     WUBU_BUDDY_STATE_COUNT
 };
 

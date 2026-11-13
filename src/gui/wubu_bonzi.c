@@ -207,6 +207,14 @@ static const unsigned char *buddy_state_rgba(void) {
     case WUBU_BUDDY_STATE_LOUNGE:  return BUDDY_STATE_LOUNGE;
     case WUBU_BUDDY_STATE_HERO:    return BUDDY_STATE_HERO;
     case WUBU_BUDDY_STATE_COLD:    return BUDDY_STATE_COLD;
+    case WUBU_BUDDY_STATE_TRAVEL:  return BUDDY_STATE_TRAVEL;
+    case WUBU_BUDDY_STATE_BANANA:  return BUDDY_STATE_BANANA;
+    case WUBU_BUDDY_STATE_EXCITED: return BUDDY_STATE_EXCITED;
+    case WUBU_BUDDY_STATE_BOW:     return BUDDY_STATE_BOW;
+    case WUBU_BUDDY_STATE_SIGN:    return BUDDY_STATE_SIGN;
+    case WUBU_BUDDY_STATE_KEY:     return BUDDY_STATE_KEY;
+    case WUBU_BUDDY_STATE_STAR:    return BUDDY_STATE_STAR;
+    case WUBU_BUDDY_STATE_POINT:   return BUDDY_STATE_POINT;
     default:                       return BUDDY_STATE_DEFAULT;
     }
 }

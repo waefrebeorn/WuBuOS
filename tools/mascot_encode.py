@@ -95,8 +95,21 @@ def find_hats(im, px, W, H):
     # A real hat is a decent fraction of the sheet cell; drop anything too small.
     widest = max((m[3] - m[2]) for m in merged) if merged else 0
     merged = [m for m in merged if (m[3] - m[2]) >= widest * 0.45]
-    merged.sort(key=lambda s: (round(s[1] / 200), s[0]))
-    return [tuple(m) for m in merged]
+    # Row-major ordering with REAL row clustering.  Rounding cy/200 mis-sorts any
+    # sheet whose hats sit at slightly different heights -- one such sheet split its
+    # top row across two "rows", which silently renumbered every pose after it.
+    rows = []
+    for m in sorted(merged, key=lambda z: z[1]):
+        for row in rows:
+            if abs(row[0] - m[1]) <= 80:      # same visual row
+                row[1].append(m)
+                break
+        else:
+            rows.append([m[1], [m]])
+    ordered = []
+    for _cy, items in rows:
+        ordered.extend(sorted(items, key=lambda z: z[0]))
+    return [tuple(m) for m in ordered]
 
 
 def content_bbox(im, px, x0, y0, x1, y1, thresh=235):
@@ -245,7 +258,7 @@ def main():
 
     # Square canvas.  Everything NOT reached by the flood stays opaque --
     # including white fur, which is the whole point.
-    side2 = max(cw, ch)
+    side2 = int(max(cw, ch) * 1.08)
     ox = (side2 - cw) // 2
     oy = (side2 - ch) // 2
     rgba = Image.new("RGBA", (side2, side2), (255, 255, 255, 0))
