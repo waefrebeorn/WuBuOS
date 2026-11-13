@@ -48,7 +48,7 @@ int wubu_thermal_nvme(void);
  *   ACPI thermal zones: acpitz, INT3400 Thermal, SEN4, TCPU, TCPU_PCI,
  *                  iwlwifi_1, x86_pkg_temp   -- no memory zone
  *   NVML: exposes NVML_TEMPERATURE_GPU only; there is no memory-reading enum
- *   /sys/bus/ddr, /sys/class/drm/*/hwmon, /sys/class/wmi: all empty
+ *   the ddr bus, drm hwmon dirs and the wmi class: all empty
  *   sensor labels scanned for mem/dimm/dram: none
  *
  * On such a machine an OEM interface (EC behind WMI, say) is the usual reason

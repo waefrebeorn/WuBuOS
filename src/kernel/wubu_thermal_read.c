@@ -18,6 +18,7 @@
 #include <dlfcn.h>
 #include <time.h>
 #include <ctype.h>
+#include <fcntl.h>
 
 /* ---- small helpers ------------------------------------------------- */
 
@@ -162,6 +163,75 @@ static int read_ram_label_scan(void)
     return found;
 }
 
+
+/* ---- Embedded Controller (EC) fallback ---------------------------------
+ *
+ * Windows-side tools such as HWiNFO commonly report memory temperature from
+ * the embedded controller, which many Linux kernels never surface through
+ * hwmon or the ACPI thermal zones.  This machine is exactly that case: seven
+ * hwmon drivers and seven ACPI zones, none of them memory.
+ *
+ * The EC is reachable two ways, tried in order:
+ *
+ *   1. /sys/kernel/debug/ec/ec0/io -- the kernel's ec_sys interface.  Needs
+ *      the module loaded ("sudo modprobe ec_sys") but then needs no privilege.
+ *   2. raw I/O ports 0x62/0x66 -- what the bare-metal kernel does, and what
+ *      still works under a privileged hosted process.
+ *
+ * THE OFFSET IS CONFIGURED, NEVER GUESSED.  WUBU_EC_TEMP_OFFSET names the EC
+ * register holding memory temperature.  Without it this returns -1: a random
+ * register would produce a confident, plausible, completely meaningless number
+ * -- the same failure mode that made the old GPU reading report the ambient
+ * zone.  To find the offset: load ec_sys, note HWiNFO's memory temperature, and
+ * compare it against the EC dump (ecrw); the matching byte is the offset. */
+
+static int ec_byte(long offset)
+{
+    /* Path 1: ec_sys debugfs, a plain file. */
+    FILE *f = fopen("/sys/kernel/debug/ec/ec0/io", "rb");
+    if (f) {
+        if (fseek(f, offset, SEEK_SET) == 0) {
+            int c = fgetc(f);
+            if (c != EOF) { fclose(f); return c; }
+        }
+        fclose(f);
+    }
+
+    /* Path 2: the classic two-port EC protocol.  Write the register address to
+     * the command port, then read the data port.  Any refusal (no /dev/port,
+     * not permitted) yields -1 -- failing closed is the whole point. */
+    int fp = open("/dev/port", O_RDWR);
+    if (fp < 0) return -1;
+
+    int ok = -1;
+    unsigned char cmd[1], val[1];
+    cmd[0] = (unsigned char)offset;
+    if (lseek(fp, 0x66, SEEK_SET) == 0x66 && write(fp, cmd, 1) == 1) {
+        if (lseek(fp, 0x62, SEEK_SET) == 0x62 && read(fp, val, 1) == 1)
+            ok = val[0];
+    }
+    close(fp);
+    return ok;
+}
+
+static int read_ec_temp(void)
+{
+    const char *env = getenv("WUBU_EC_TEMP_OFFSET");
+    if (!env || !*env) return -1;          /* no configured offset: say nothing */
+
+    long off = strtol(env, NULL, 0);       /* decimal or 0x-prefixed */
+    if (off < 0 || off > 255) return -1;
+
+    int raw = ec_byte(off);
+    if (raw < 0) return -1;
+
+    /* EC temperature registers are almost always whole degrees Celsius, unlike
+     * the millidegree sysfs convention.  Treat anything above 200 as
+     * millidegrees anyway so a driver that does use that unit is still right. */
+    if (raw > 200) return (int)((raw + 500) / 1000);
+    return raw;
+}
+
 static int read_ram_temp(void)
 {
     /* 1. Named drivers that publish memory temperature directly. */
@@ -175,7 +245,12 @@ static int read_ram_temp(void)
     int labelled = read_ram_label_scan();
     if (labelled >= 0) return labelled;
 
-    /* 3. Explicit operator override.  Some machines expose RAM temperature
+    /* 3. Embedded Controller, at an explicitly configured register offset.
+     *    This is where Windows tools get their memory temperature. */
+    int ec = read_ec_temp();
+    if (ec >= 0) return ec;
+
+    /* 4. Explicit operator override.  Some machines expose RAM temperature
      *    only through an OEM interface (an EC behind WMI, say) that Linux does
      *    not surface.  Point WUBU_RAM_TEMP_SYSFS at ANY sysfs temperature file
      *    and it is used verbatim -- millidegrees or whole degrees, both handled.
@@ -186,7 +261,7 @@ static int read_ram_temp(void)
         if (t >= 0) return t;
     }
 
-    /* 4. Nothing exposed.  Say so (-1); never invent 0. */
+    /* 5. Nothing exposed.  Say so (-1); never invent 0. */
     return -1;
 }
 

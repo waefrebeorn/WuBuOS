@@ -125,8 +125,9 @@ int main(void)
     if (wubu_thermal_have_gpu()) TEST(gpu > -1 && gpu < 130, "GPU temperature is physically plausible");
 
     /* ---- the oracle: our number must sit inside the sysfs bracket ---- */
-    int cpu_now = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
     int pkg_a = oracle_x86_pkg_temp();
+    wubu_thermal_refresh();           /* compared values taken at the same instant */
+    int cpu_now = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
     if (pkg_a > -900) {
         int pkg_b = oracle_x86_pkg_temp();
         TEST(wubu_thermal_have_cpu(), "package sensor exists, so CPU must be reported");
@@ -143,6 +144,7 @@ int main(void)
     /* ---- NVMe is its own thing, not disguised as skin -------------- */
     int nv_a = oracle_hwmon("nvme");
     if (nv_a > -900) {
+        wubu_thermal_refresh();
         int nvme_now = wubu_thermal_nvme();
         check_bracket("SSD", nvme_now, nv_a, oracle_hwmon("nvme"), 2);
     } else {
