@@ -10,10 +10,73 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* -- The guest root -------------------------------------------------
+ *
+ * With no server mounted there is no 9P mount table, so every Styx path used to
+ * map IDENTICALLY onto a host path.  Explorer therefore opened $HOME -- the real
+ * user home on Linux -- and the desktop was a window onto the host operating
+ * system rather than its own namespace.
+ *
+ * There is now one sandbox the whole guest sees: $WUBU_GUEST_ROOT, defaulting to
+ * ~/.local/share/wubu/guest.  Guest "/" is that directory; "/apps/x" is
+ * <root>/apps/x.  Host paths never leak back in unless an operator deliberately
+ * mounts something.
+ */
+static const char *guest_root(void)
+{
+    static char root[STYXFS_MAX_PATH];
+    static int ready = 0;
+    if (!ready) {
+        const char *env = getenv("WUBU_GUEST_ROOT");
+        if (env && *env) {
+            snprintf(root, sizeof(root), "%s", env);
+        } else {
+            const char *home = getenv("HOME");
+            snprintf(root, sizeof(root), "%s/.local/share/wubu/guest",
+                     home ? home : ".");
+        }
+        ready = 1;
+    }
+    return root;
+}
+
+void styxfs_guest_root(char *out, size_t outsz)
+{
+    snprintf(out, outsz, "%s", guest_root());
+}
+
+/* Map a guest path into the sandbox.  Returns true when it did. */
+static bool map_into_guest(const char *path, char *out, size_t outsz)
+{
+    /* ALWAYS leave `out` defined.  The previous version returned early on a
+     * relative path without writing anything, so the caller read an
+     * uninitialised buffer -- a crash or a bogus host path, depending on luck. */
+    out[0] = '\0';
+    if (!path) return false;
+
+    /* A guest path is absolute by definition ("/" is the root of the namespace).
+     * Anything else is already a host path from a caller that knows better --
+     * the hosted port's own tests address their source tree as "." -- so it is
+     * passed through untouched rather than prefixed with a root it does not
+     * belong under. */
+    if (path[0] != '/') {
+        snprintf(out, outsz, "%s", path);
+        return true;
+    }
+
+    const char *root = guest_root();
+    if (strcmp(path, "/") == 0) {
+        snprintf(out, outsz, "%s", root);
+        return true;
+    }
+    snprintf(out, outsz, "%s%s", root, path);
+    return true;
+}
+
 void styxfs_path_to_host(styxfs_server_t *srv, const char *path,
                                  char *out, size_t outsz) {
     if (!path) { out[0] = '\0'; return; }
-    if (!srv) { snprintf(out, outsz, "%s", path); return; }
+    if (!srv) { map_into_guest(path, out, outsz); return; }
 
     styxfs_mount_t *best = NULL;
     size_t best_len = 0;
@@ -38,7 +101,7 @@ void styxfs_path_to_host(styxfs_server_t *srv, const char *path,
         if (*rest == '\0') snprintf(out, outsz, "%s", best->source);
         else              snprintf(out, outsz, "%s/%s", best->source, rest);
     } else {
-        snprintf(out, outsz, "%s", path);
+        map_into_guest(path, out, outsz);
     }
 }
 

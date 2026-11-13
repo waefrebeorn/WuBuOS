@@ -109,13 +109,14 @@ int explorer_init(void) {
     g_explorer.preview_w = EX_PREVIEW_W;
     g_explorer.tree_w = 220;
 
-    /* Start at home directory */
-    const char *home = getenv("HOME");
-    if (home) {
-        strncpy(g_explorer.current_path, home, EX_MAX_PATH - 1);
-    } else {
-        strcpy(g_explorer.current_path, "/");
-    }
+    /* Start at the GUEST ROOT ("/").
+     *
+     * This used to be getenv("HOME"), which on the hosted port is the real Linux
+     * home directory -- so File Manager opened showing the host machine's files,
+     * with no relation to anything WuBuOS itself had saved.  "/" now means the
+     * guest sandbox (see styxfs_guest_root()), which is the only namespace apps
+     * see. */
+    strcpy(g_explorer.current_path, "/");
 
     ex_scan_directory(g_explorer.current_path);
     ex_populate_tree(g_explorer.tree_root, g_explorer.current_path);

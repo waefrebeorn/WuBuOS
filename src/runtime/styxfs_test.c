@@ -7,6 +7,7 @@
 
 #include "../egojar.h"
 #include "styxfs.h"
+#include "styxfs_internal.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -223,6 +224,36 @@ static void test_mount_path_mapping(void) {
     if (d) styxfs_closedir(d);
     g_styxfs_server = NULL;
     PASS();
+
+    /* Every unmapped guest path must land UNDER the resolved sandbox root.  The
+     * root is cached at first use (a running guest cannot change its own
+     * filesystem root underneath itself), so we compare against what it resolved
+     * to rather than forcing a fresh env probe that earlier tests already locked
+     * in.  The property that matters: "/home/user" must NOT come back as the host
+     * /home/user -- that leak is what made Explorer browse the Linux home dir. */
+    TEST("every guest path stays inside the sandbox");
+    {
+        char root[512] = {0};
+        styxfs_guest_root(root, sizeof(root));
+        CHECK(root[0] != '\0', "guest root resolves to something");
+
+        char slash[1024] = {0};
+        styxfs_path_to_host(NULL, "/", slash, sizeof(slash));
+        CHECK(strcmp(slash, root) == 0, "guest slash maps exactly onto the root");
+
+        char sub[1024] = {0};
+        styxfs_path_to_host(NULL, "/apps/x", sub, sizeof(sub));
+        CHECK(strncmp(sub, root, strlen(root)) == 0,
+              "a guest subpath maps UNDER the root");
+        CHECK(strcmp(sub + strlen(root), "/apps/x") == 0,
+              "the subpath keeps its tail after the root");
+
+        char leak[1024] = {0};
+        styxfs_path_to_host(NULL, "/home/user", leak, sizeof(leak));
+        CHECK(strncmp(leak, root, strlen(root)) == 0,
+              "a host-looking path stays inside the sandbox (no leak)");
+        PASS();
+    }
 }
 
 int main(void) {

@@ -127,7 +127,14 @@ static void test_init_shutdown(void) {
     TEST_ASSERT(ex->sort_ascending == true, "default sort is ascending");
     TEST_ASSERT(ex->toolbar_visible == true, "toolbar visible by default");
     TEST_ASSERT(ex->preview_visible == true, "preview visible by default");
-    
+
+    /* File Manager must open on the GUEST namespace root, never on the host's
+     * $HOME.  The old start path was getenv("HOME"), so Explorer opened showing
+     * the Linux home directory -- the user complaint that the desktop is a window
+     * onto the host OS rather than its own filesystem. */
+    TEST_ASSERT(strcmp(ex->current_path, "/") == 0,
+                "Explorer starts at the guest root, not $HOME");
+
     explorer_shutdown();
     TEST_ASSERT(!explorer_is_open(), "explorer not open after shutdown");
 }

@@ -16,6 +16,7 @@
 #define _GNU_SOURCE
 #endif
 #include "../../egojar.h"
+#include "../wubu_settings.h"
 #include "wubu_shell_greeter.h"
 #include "wm.h"
 #include "wubu_theme.h"
@@ -102,6 +103,16 @@ int main(void) {
     CHECK(sig && strstr(sig, "theme=") != NULL,
           "sentinel carries the chosen theme signature");
     printf("        signature: %s\n", sig ? sig : "(null)");
+
+    /* -- 4b. finishing must APPLY the theme, not just record it.
+     * The sentinel used to be written while wubu_theme_set() was never called,
+     * so picking "Zune" left the desktop on whatever settings.conf held and the
+     * signature claimed a theme that was not in effect. */
+    int chosen = wubu_shell_greeter_selected_theme();
+    CHECK(wubu_theme_current() == chosen,
+          "finishing applies the chosen theme (live palette changed)");
+    CHECK(wubu_settings_get()->theme.theme_id == chosen,
+          "the settings object owns the theme and was updated");
 
     /* -- 5. reload: same sentinel -> DESKTOP -- */
     wubu_onboarding_load(sent);

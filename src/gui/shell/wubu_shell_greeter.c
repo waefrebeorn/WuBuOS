@@ -11,6 +11,7 @@
 #include "wubu_shell_greeter.h"
 #include "wm.h"
 #include "wubu_theme.h"
+#include "../wubu_settings.h"
 #include "../../kernel/vbe.h"
 #include "../../runtime/wubu_onboarding.h"
 #include "../../apps/apps.h"
@@ -300,6 +301,20 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
 
 static void finish(void) {
     if (g_signed) return;
+
+    /* APPLY what the user chose.  Until now this function recorded the choice in
+     * the signature and closed the window, but never called wubu_theme_set() and
+     * never touched settings -- so picking "Zune" left the desktop on whatever
+     * theme settings.conf already held (typically Dark, id 5), while the sentinel
+     * claimed a theme that was not in effect.  Two sources of truth disagreeing
+     * about the single most visible setting in OOBE.
+     *
+     * The settings object owns the theme; write through it, then sign the file
+     * only AFTER the change is real so the signature cannot lie. */
+    wubu_theme_set((WubuThemeId)g_theme);
+    wubu_settings_mut()->theme.theme_id = g_theme;
+    wubu_settings_save();
+
     snprintf(g_sig, sizeof(g_sig), "theme=%s", wubu_theme_name((WubuThemeId)g_theme));
     wubu_onboarding_complete(g_sig);
     g_signed = 1;
