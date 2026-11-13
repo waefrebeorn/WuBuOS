@@ -14,6 +14,7 @@
 #include "../../kernel/vbe.h"
 #include "../../runtime/wubu_onboarding.h"
 #include "../../apps/apps.h"
+#include <dirent.h>
 
 /* The offers launch apps that live in the app registry.  Weak, so a test (or a
  * minimal build) that does not link the registry still builds -- the offer is
@@ -38,10 +39,73 @@ __attribute__((weak)) DosGuiWindow *launch_terminal(void);
 #define GR_OFFER_H    28
 
 static DosGuiWindow *g_win;
+static int   g_step;                /* which wizard page is showing */
 static int   g_theme = THEME_WIN98_CLASSIC;
 static int   g_hover = -1;
 static int   g_signed;              /* onboarding_complete() was called */
 static char  g_sig[128];
+
+/* -- Wizard pages --------------------------------------------------- */
+
+#define GR_STEPS WUBU_SHELL_GREETER_STEPS
+
+static const char *const kStepTitle[GR_STEPS] = {
+    "Welcome to WuBuOS",
+    "Connect to the network",
+    "Ready to start",
+};
+static const char *const kStepSub[GR_STEPS] = {
+    "Choose your desktop theme.",
+    "These are the network interfaces WuBuOS can see.",
+    "Everything is set. Start when you are ready.",
+};
+static const char *const kStepHint[GR_STEPS] = {
+    "Up/Down to choose a theme, Enter for the next step",
+    "Enter to continue, Backspace to go back",
+    "Enter to start, Backspace to go back",
+};
+
+static void finish(void);       /* defined below; advance() reaches it */
+
+int  wubu_shell_greeter_steps(void) { return GR_STEPS; }
+int  wubu_shell_greeter_step(void)  { return g_step; }
+
+void wubu_shell_greeter_back_rect(int *x, int *y, int *w, int *h) {
+    int bx, by, bw, bh;
+    wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
+    if (x) *x = bx - 12 - bw;
+    if (y) *y = by;
+    if (w) *w = bw;
+    if (h) *h = bh;
+}
+
+void wubu_shell_greeter_advance(void) {
+    if (!wubu_shell_greeter_is_open()) return;
+    if (g_step < GR_STEPS - 1) { g_step++; return; }
+    finish();                       /* last step: same as Start */
+}
+
+void wubu_shell_greeter_back(void) {
+    if (!wubu_shell_greeter_is_open()) return;
+    if (g_step > 0) g_step--;
+}
+
+/* Real interface names from the kernel, so the network page shows this machine
+ * rather than a generic promise. */
+static int net_interface_names(char out[][48], int cap)
+{
+    DIR *d = opendir("/sys/class/net");
+    if (!d) return -1;
+    int n = 0;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL && n < cap) {
+        if (e->d_name[0] == '.') continue;
+        snprintf(out[n], 48, "%s", e->d_name);
+        n++;
+    }
+    closedir(d);
+    return n;
+}
 
 /* -- Geometry (harness-facing) -------------------------------------- */
 
@@ -103,19 +167,35 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     if (!g_win || !g_win->alive) return;
 
     const WubuThemeColors *tc = wubu_theme_colors();
-    const WubuTheme *th = wubu_theme_get();
     int x0 = g_win->x, y0 = g_win->y;
 
     /* Panel */
     vbe_fill_rect(x0, y0, g_win->w, g_win->h, tc->win_face);
 
-    /* Title + subtitle */
-    vbe_draw_text(x0 + GR_PAD, y0 + GR_TITLE_Y, "Welcome to WuBuOS",
+    /* Title + subtitle follow the current page. */
+    vbe_draw_text(x0 + GR_PAD, y0 + GR_TITLE_Y, kStepTitle[g_step],
                   tc->win_title_active, 2);
-    vbe_draw_text(x0 + GR_PAD, y0 + GR_SUB_Y,
-                  "Choose your desktop theme, then press Start.",
+    vbe_draw_text(x0 + GR_PAD, y0 + GR_SUB_Y, kStepSub[g_step],
                   tc->icon_text, 1);
 
+    /* Progress: "Step N of M" plus one pip per page.  A wizard the user cannot
+     * locate themselves in is not a wizard. */
+    {
+        char prog[48];
+        snprintf(prog, sizeof(prog), "Step %d of %d", g_step + 1, GR_STEPS);
+        int pw = vbe_text_width(prog, 1);
+        vbe_draw_text(x0 + g_win->w - GR_PAD - pw, y0 + GR_TITLE_Y + 6,
+                      prog, tc->icon_text_shadow, 1);
+        for (int i = 0; i < GR_STEPS; i++) {
+            int dcx = x0 + g_win->w - GR_PAD - (GR_STEPS - i) * 14;
+            int dcy = y0 + GR_TITLE_Y + 22;
+            vbe_fill_rect(dcx, dcy, 8, 8,
+                          i == g_step ? tc->win_title_active : tc->btn_face);
+            vbe_rect(dcx, dcy, 8, 8, tc->border_dark);
+        }
+    }
+
+    if (g_step == 0) {
     /* Theme rows */
     for (int i = 0; i < THEME_COUNT; i++) {
         int rx, ry, rw, rh;
@@ -142,8 +222,44 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         }
         (void)tw;
     }
+    } else if (g_step == 1) {
+        /* Network page: this machine's real interfaces, or an honest refusal. */
+        static char names[8][48];
+        int n = net_interface_names(names, 8);
+        if (n < 0) {
+            vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 6,
+                          "Could not read /sys/class/net on this machine.",
+                          tc->btn_text, 1);
+        } else if (n == 0) {
+            vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 6,
+                          "No network interfaces found.", tc->btn_text, 1);
+        } else {
+            for (int i = 0; i < n; i++) {
+                char line[72];
+                snprintf(line, sizeof(line), "%s", names[i]);
+                vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + i * 18, line,
+                              tc->btn_text, 1);
+            }
+        }
+        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + THEME_COUNT * GR_ROW_H,
+                      "Connection setup happens after first boot.",
+                      tc->icon_text_shadow, 1);
+    } else {
+        /* Summary page: what was chosen, and what this machine is. */
+        const char *tn = wubu_theme_name((WubuThemeId)g_theme);
+        char line[96];
+        snprintf(line, sizeof(line), "Theme      %s", tn);
+        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 6, line, tc->btn_text, 1);
+        snprintf(line, sizeof(line), "System     WuBuOS");
+        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 28, line, tc->btn_text, 1);
+        snprintf(line, sizeof(line), "Steps      %d of %d", g_step + 1, GR_STEPS);
+        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 50, line, tc->btn_text, 1);
+        vbe_draw_text(x0 + GR_PAD, y0 + GR_ROWS_Y + 78,
+                      "Your choices are saved when you start.",
+                      tc->icon_text_shadow, 1);
+    }
 
-    /* Start button */
+    /* Primary button (Next, or Start on the last page) */
     int bx, by, bw, bh;
     wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
     uint32_t bface = tc->btn_face;
@@ -151,16 +267,18 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
     vbe_3d_raised_rounded_colors(x0 + bx, y0 + by, bw, bh, 3,
                                  tc->border_light, tc->btn_face,
                                  tc->border_dark, tc->border_darkest);
-    const char *bl = "Start WuBuOS";
+    const char *bl = (g_step == GR_STEPS - 1) ? "Start WuBuOS" : "Next";
     int blw = vbe_text_width(bl, 1);
     vbe_draw_text(x0 + bx + (bw - blw) / 2, y0 + by + (bh - 8) / 2,
                   bl, tc->btn_text, 1);
 
-    /* First-run offers: the "where do I start" answers. */
+    /* First-run offers: the "where do I start" answers.  These answer "what do
+     * I do next", a question about the FIRST page -- showing them on every step
+     * buries that step's own content. */
     static const char *const offers[3] = {
         "Getting Started", "GUI Designer", "Terminal"
     };
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; (g_step == 0) && i < 3; i++) {
         int ox, oy, ow, oh;
         wubu_shell_greeter_offer_rect(i, &ox, &oy, &ow, &oh);
         vbe_fill_rect_rounded(x0 + ox, y0 + oy, ow, oh, 3, tc->btn_face);
@@ -172,10 +290,10 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
                       offers[i], tc->btn_text, 1);
     }
 
-    /* Footer hint */
+    /* Footer hint, specific to the current page. */
     vbe_draw_text(x0 + GR_PAD, y0 + WUBU_SHELL_GREETER_HEIGHT - 14,
-                  "Up/Down to choose, Enter to start", tc->icon_text_shadow, 1);
-    (void)th; (void)fb_w; (void)fb_h;
+                  kStepHint[g_step], tc->icon_text_shadow, 1);
+    (void)fb_w; (void)fb_h;
 }
 
 /* -- Input ---------------------------------------------------------- */
@@ -194,27 +312,37 @@ static void finish(void) {
 
 void wubu_shell_greeter_key(uint32_t key) {
     if (!wubu_shell_greeter_is_open()) return;
+
+    /* Escape and Backspace walk the wizard backward first; only on the first
+     * page does Escape still dismiss, because there is nowhere left to go. */
+    if (key == 8 || key == 127) { wubu_shell_greeter_back(); return; }
+    if (key == 0x01 || key == 27) {
+        if (g_step > 0) { wubu_shell_greeter_back(); return; }
+        if (g_win) { wm_destroy(g_win); g_win = NULL; }
+        return;
+    }
+
     switch (key) {
     case 0xE048: /* up */
+        if (g_step != 0) break;
         if (g_theme > 0) g_theme--;
         break;
     case 0xE050: /* down */
+        if (g_step != 0) break;
         if (g_theme < THEME_COUNT - 1) g_theme++;
         break;
     case 0xE04B: /* left */
+        if (g_step != 0) break;
         if (g_theme > 0) g_theme--;
         break;
     case 0xE04D: /* right */
+        if (g_step != 0) break;
         if (g_theme < THEME_COUNT - 1) g_theme++;
         break;
     case 0x1C:  /* enter */
     case '\r':
     case '\n':
-        finish();
-        break;
-    case 0x01:  /* escape */
-    case 27:
-        if (g_win) { wm_destroy(g_win); g_win = NULL; }
+        wubu_shell_greeter_advance();
         break;
     default:
         break;
@@ -225,26 +353,40 @@ void wubu_shell_greeter_click(int x, int y, int kind) {
     if (!wubu_shell_greeter_is_open()) return;
     if (kind != 1) return;   /* act on press only */
 
-    for (int i = 0; i < THEME_COUNT; i++) {
-        int rx, ry, rw, rh;
-        wubu_shell_greeter_theme_row(i, &rx, &ry, &rw, &rh);
-        if (x >= rx && x < rx + rw && y >= ry && y < ry + rh) {
-            g_theme = i;
+    /* Back sits where it was drawn; check it before anything else so a press
+     * near the button row cannot be mistaken for the primary action. */
+    if (g_step > 0) {
+        int kx, ky, kw, kh;
+        wubu_shell_greeter_back_rect(&kx, &ky, &kw, &kh);
+        if (x >= kx && x < kx + kw && y >= ky && y < ky + kh) {
+            wubu_shell_greeter_back();
             return;
         }
     }
-    for (int i = 0; i < 3; i++) {
-        int ox, oy, ow, oh;
-        wubu_shell_greeter_offer_rect(i, &ox, &oy, &ow, &oh);
-        if (x >= ox && x < ox + ow && y >= oy && y < oy + oh) {
-            wubu_shell_greeter_offer(i);
-            return;
+
+    if (g_step == 0) {
+        for (int i = 0; i < THEME_COUNT; i++) {
+            int rx, ry, rw, rh;
+            wubu_shell_greeter_theme_row(i, &rx, &ry, &rw, &rh);
+            if (x >= rx && x < rx + rw && y >= ry && y < ry + rh) {
+                g_theme = i;
+                return;
+            }
+        }
+        for (int i = 0; i < 3; i++) {
+            int ox, oy, ow, oh;
+            wubu_shell_greeter_offer_rect(i, &ox, &oy, &ow, &oh);
+            if (x >= ox && x < ox + ow && y >= oy && y < oy + oh) {
+                wubu_shell_greeter_offer(i);
+                return;
+            }
         }
     }
+
     int bx, by, bw, bh;
     wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
     if (x >= bx && x < bx + bw && y >= by && y < by + bh)
-        finish();
+        wubu_shell_greeter_advance();
 }
 
 /* -- Callbacks wired into the WM ------------------------------------ */
@@ -263,6 +405,7 @@ static void greeter_on_mouse(DosGuiWindow *w, int x, int y, int btn, int kind) {
     (void)w; (void)btn;
     if (kind == 0) {   /* move: track hover */
         g_hover = -1;
+        if (g_step != 0) return;
         for (int i = 0; i < THEME_COUNT; i++) {
             int rx, ry, rw, rh;
             wubu_shell_greeter_theme_row(i, &rx, &ry, &rw, &rh);
@@ -286,6 +429,7 @@ void wubu_shell_greeter_open(void) {
     g_signed = 0;
     g_sig[0] = '\0';
     g_hover = -1;
+    g_step  = 0;                 /* always start at the first page */
 
     int dx = (sw - WUBU_SHELL_GREETER_WIDTH) / 2;
     int dy = (sh - WUBU_SHELL_GREETER_HEIGHT) / 3;

@@ -22,6 +22,12 @@
 #define WUBU_SHELL_GREETER_HEIGHT 400
 #define WUBU_SHELL_GREETER_ROW_H  30
 
+/* The first-boot experience is a WIZARD, not one dialog: theme, then network,
+ * then a summary with the real machine facts.  A single screen with three
+ * buttons and no progress leaves a new user unable to tell where they are or
+ * what happens next. */
+#define WUBU_SHELL_GREETER_STEPS 3
+
 /* Run the first-boot greeter end to end: open the dialog, drive it until the
  * user starts (or the dialog is closed), persist the onboarding sentinel.
  * Returns 1 if onboarding was completed, 0 if it was skipped/closed without
@@ -45,8 +51,18 @@ void wubu_shell_greeter_click(int x, int y, int kind);
 int  wubu_shell_greeter_selected_theme(void);
 /* Window-relative rect of theme row i (0..THEME_COUNT-1). */
 void wubu_shell_greeter_theme_row(int i, int *x, int *y, int *w, int *h);
-/* Window-relative rect of the Start button. */
+/* Window-relative rect of the primary button -- labelled "Next" on every step
+ * except the last, where it reads "Start WuBuOS". */
 void wubu_shell_greeter_button_rect(int *x, int *y, int *w, int *h);
+/* Window-relative rect of the Back button (drawn only when step > 0). */
+void wubu_shell_greeter_back_rect(int *x, int *y, int *w, int *h);
+
+/* Wizard position: how many steps there are, which one is showing, and moving
+ * forward/back.  advance() on the LAST step finishes onboarding. */
+int  wubu_shell_greeter_steps(void);
+int  wubu_shell_greeter_step(void);
+void wubu_shell_greeter_advance(void);
+void wubu_shell_greeter_back(void);
 
 /* Window-relative rect of first-run offer i (0=Getting Started, 1=GUI
  * Designer, 2=Terminal).  These are the "where do I start" answers a new user
