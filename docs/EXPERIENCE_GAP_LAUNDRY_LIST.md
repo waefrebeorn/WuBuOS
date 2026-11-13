@@ -1,0 +1,164 @@
+# WuBuOS experience gap assessment — the devil's advocate laundry list
+
+Date: 2026-11-13 · Scope: hosted desktop (`src/hosted` + `src/gui`) as a user
+actually experiences it · Method: read the code paths, then run them. Every claim
+below carries the file that proves it.
+
+This is deliberately hostile. Where something looks done, it was checked for the
+difference between *renders* and *works*. Three findings dominate everything else.
+
+---
+
+## The three that make the OS unusable
+
+### 1. Nothing persists — the filesystem is a fixed array in RAM
+
+`src/hosted/hosted_styxfs.c`:
+
+```c
+styxfs_file_t g_fs[STYXFS_MAX_FILES];
+int           g_nfiles = 0;
+```
+
+That is the whole guest filesystem. It is a flat global array with a count,
+living in process memory. There is no backing store, no dirty tracking, no
+flush, no snapshot. When the client exits, every byte a user typed, drew or
+downloaded is gone.
+
+The Explorer agrees: it browses through `ex_9p_opendir(path)` over the 9P
+namespace (`src/gui/explorer.c:414`), i.e. the virtual FS — never the host disk.
+So even browsing shows you a toy world that resets on restart.
+
+**Impact:** the OS cannot be used for anything. A user cannot create a file and
+expect it tomorrow. This alone justifies "nothing to do inside the operating
+system".
+
+### 2. Notepad cannot open or save anything
+
+`grep -icE "fopen|open_file|save|load|\.txt" src/apps/notepad.c` → **0**.
+
+Notepad is a text widget with a caret. It has no file dialog, no path, no
+open/save menu item. Combined with finding 1, even if it did save, the bytes
+would evaporate.
+
+**Impact:** the flagship editor is decoration. Same class of problem almost
+certainly applies to Paint and the other editors; each must be audited
+individually rather than assumed fixed.
+
+### 3. You cannot run a command from the GUI
+
+The Run dialog (`src/gui/shell/run_dialog.c:55-57`) does exactly one thing:
+
+```c
+if (g_len > 0 && launch_app) { launch_app(g_query); }
+```
+
+`launch_app` resolves a name against the application database. Type `ls -la`
+and it looks for an app called "ls -la". There is no shell, no argument parsing,
+no path resolution, no output capture.
+
+A real exec layer **does** exist — `src/runtime/wubu_exec.c` forks and execs on
+the host, with `wubu_host_exec.c` and `src/gui/term_pty.c` — so this is a
+*wiring* gap, not a missing capability. The terminal has a PTY and a HolyC REPL
+pane; whether a typed command actually reaches `wubu_exec` still needs a live
+check (see Open questions).
+
+**Impact:** power users, troubleshooting, and any automation are impossible
+from inside the OS.
+
+---
+
+## The full list
+
+Legend: **P0** blocks basic use · **P1** blocks real work · **P2** polish/consistency
+· **P3** roadmap. Each item names its owner file and how to prove it fixed.
+
+### P0 — data loss and dead apps
+
+| # | Work item | Owner | Acceptance |
+|---|---|---|---|
+| 1 | Give the guest a persistent backing store. Either map the 9P namespace onto a host directory (`~/.local/share/wubu/fs`), or add a real VFS with a disk file per inode. | `hosted_styxfs.c` | Write a file in Explorer, restart the client, read it back. Automated test asserts across a simulated restart. |
+| 2 | Notepad open/save, with a real file dialog. | `apps/notepad.c` | Round-trip a file with non-ASCII content through two restarts. |
+| 3 | Audit every editor (Paint, Calc, Control Panel panes) for file I/O. Assume zero until proven otherwise. | `apps/*` | One row per app in the audit doc: has open? has save? writes where? |
+| 4 | Explorer must show the *real* tree (or clearly label the sandbox). `ex_9p_opendir` hides the host. | `gui/explorer.c` | Navigate to a directory the user created on the host; it must appear. |
+| 5 | Fix the Control Panel blank content pane found via Win+X → Settings. | `shell/power_menu.c`, Control Panel app | Open Settings from the power menu; the content area renders widgets. |
+
+### P1 — no way to get things done
+
+| # | Work item | Owner | Acceptance |
+|---|---|---|---|
+| 6 | Run dialog must execute a command line, not look up an app name. Wire it to `wubu_exec`. | `shell/run_dialog.c` | `notepad ~/.local/share/wubu/fs/test.txt` opens it. `xcalc`-style bare commands resolve. |
+| 7 | Start-menu search must find files, settings and commands, not only the built-in app DB. | `startmenu.c` | Searching a filename that exists in the FS returns it. |
+| 8 | Shortcut creation exists (`test_desktop_new_shortcut` in `wm_test.c:1258`) but the *user-facing* flow is unverified end-to-end: create a shortcut, click it, confirm it launches. | `gui/wm_input.c` | Live: right-click desktop → New Shortcut → it appears → double-click launches the target. |
+| 9 | `.desktop`/MIME handling exists (`wubu_mime.c`, `wubu_mime_desktop.c`, `startmenu_write_desktop`) but no MIME *association editor* in Settings. | Settings app | Associate a file type, reopen the file, correct handler starts. |
+| 10 | Package manager UI: `pkgmgr_install`, `pkgmgr_engine`, `pkgmgr_add_remote` exist — but is there a window a user can drive? If not, build one over the existing engine (do NOT write a second package engine). | `apps/control` | Install a package from the UI without touching the CLI. |
+| 11 | Terminal: verify whether the PTY pane executes shell commands or only evaluates HolyC. If it is HolyC-only, add a shell session mode. | `gui/term.c`, `gui/term_pty.c` | Type `echo hi`; see `hi` come back. |
+| 12 | Window management is Win11-class on paper (snap layouts, task view, widgets panel) but no maximize hover flyout, no hot corners, no presentation mode, no night light. | `win11_snap.c`, Settings | Each has a live manual test. |
+
+### P2 — consistency and honesty
+
+| # | Work item | Owner | Acceptance |
+|---|---|---|---|
+| 13 | **Theme settings disagree.** `~/.config/wubu/settings.conf` holds `"theme_id": 5` (THEME_DARK) and a plain-text `theme=Zune` (index 4). Two sources of truth; the UI can show Dark while another reader sees Zune. | `gui/wubu_settings.c`, `gui/wubu_theme.c` | One setting object owns the theme. Delete the duplicate key or make it derived. Test asserts both readers agree. |
+| 14 | `make test_calc` and `test_greeter` fail on `-Wformat-truncation` in `wm_clock.c`, `wm_taskbar.c`, `wm_desktop.c`, `wm_systray.c` — pre-existing, untouched by recent work, and it means the gate is not fully green. | those four files | `make -k -j24 test_high_gui` returns zero failures. |
+| 15 | The layout token scale exists (`src/gui/wubu_tokens.h`) but only `window_chrome.c` consumes it. Taskbar, Start menu, systray and context menus still hardcode their own spacing. | `gui/*` | Grep for literal geometry in those files; replace with tokens. Zero magic numbers outside the token header. |
+| 16 | OOBE is one modal window with three buttons (`wubu_shell_greeter.c:160`) and a 10-byte state file (`theme=Zune`). There is no Next/Back/Finish, no progress, no locale/network/account step, and no way to know you are done. | `shell/wubu_shell_greeter.c` | A first-boot wizard with at least: language, theme, account, network, finish. State machine, not a single dialog. |
+| 17 | First-run detection writes into a config the greeter never reads back consistently. Decide one flag (`first_run` boolean in the settings object) and use it everywhere. | `gui/wubu_settings.c` | Second boot skips the greeter; no orphan state files. |
+| 18 | Apps that are placeholders must say so on screen. The weather card is a placeholder; Start search covers only built-ins. A user cannot tell "not implemented" from "broken". | Settings, Start | Each placeholder shows its status; the audit doc lists them. |
+
+### P3 — distribution and ecosystem
+
+| # | Work item | Owner | Acceptance |
+|---|---|---|---|
+| 19 | `install-wubuos.sh` is a real interactive installer (plan-based, idempotent, reversible) — but it installs to `$HOME/.local`. There is no ISO/image/EFI artifact, no bootable media, no upgrade path. | new `dist/` tooling | Produce a bootable image; boot it in QEMU; install from the image. |
+| 20 | No upgrade/downgrade path, no rollback snapshot, no recovery partition. | same | Install v1, install v2, roll back to v1, boot. |
+| 21 | No package repository format of our own, so the package manager installs from where? Document the remote protocol or build the registry. | pkgmgr | Publish one package; install it on a clean system. |
+| 22 | WuBuWizard legs are built and tested (magnet/DHT/multiaddr/CID/bitswap/multistream/yamux) but the *inference* side has no OpenAI-compatible endpoint and no DePIN compute binding. | wubuwizard | Serve a model locally behind the standard API; route a job to a swarm peer. |
+
+---
+
+## What already exists — do not rebuild
+
+The covenant says reuse, don't double-code. These are real and working; wire to
+them instead of writing competitors:
+
+- **Installer**: `install-wubuos.sh` (Omarchy style, plan JSON, idempotent).
+- **Greeter surface**: `wubu_shell_greeter.c` (modal + offers row), needs a
+  wizard shape, not a replacement engine.
+- **Real exec**: `src/runtime/wubu_exec.c` (fork+exec host delegation),
+  `wubu_host_exec.c`, `term_pty.c`.
+- **Package engine**: `pkgmgr_install`, `pkgmgr_engine`, `pkgmgr_add_remote`.
+- **MIME/.desktop**: `wubu_mime.c`, `wubu_mime_desktop.c`,
+  `startmenu_write_desktop`.
+- **Explorer**: `gui/explorer.c` — copy/cut/paste/delete/rename, F2, Ctrl+C/V/X.
+- **Shortcut creation**: exercised by `test_desktop_new_shortcut`.
+- **Window manager**: `win11_snap.c`, `win11_widgets.c`, task view, widgets panel.
+- **Boot attestation + EDR**: `src/spells/networking/aggregation/bootattest/`,
+  `EDR_EV_BOOT_ATTEST = 27`.
+- **Wizard swarm legs**: magnet, SHA-1, torrent, DHT, routing table, multiaddr,
+  CID, bitswap, multistream-select, yamux — all with independent tests.
+
+---
+
+## Open questions (verify before building)
+
+1. Does the terminal's PTY pane execute shell commands, or only evaluate HolyC?
+   `term.c` includes `wubu_exec.h` and defines a HolyC REPL session; the bridge
+   between a typed command and `wubu_exec` is unconfirmed.
+2. Is the Control Panel blank-pane bug a real regression or a test-window
+   geometry artifact? Seen live once via the power menu, never root-caused.
+3. Which surfaces still lack a test? Any item above with no "Acceptance" test
+   should get one before being called done.
+
+---
+
+## Suggested order
+
+1. **Persistence (1)** — nothing else matters until data survives a restart.
+2. **Notepad open/save (2)** — the smallest app that proves persistence works.
+3. **Run dialog executes commands (6)** — unlocks every other fix.
+4. **OOBE wizard (16)** — first impression; cheap once the settings object is honest.
+5. Then the P1 sweep, then P2 consistency, then P3 distribution.
+
+Each step should land with its own gate. A gate that passes while the user
+experience is still awful is a bad gate.
