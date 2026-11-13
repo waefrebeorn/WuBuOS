@@ -32,10 +32,13 @@ below carries the file that proves it.
   showed `$ echo hello-from-run-dialog` and the echoed line. Documented honestly:
   it is a shell, not a sandbox (same uid, no restriction on syntax), and it
   BLOCKS the UI until the command finishes.
-- **NEW FINDING from that verification**: typed characters reach applications
-  UPPERCASE (`ECHO` for `echo`). Terminal and Notepad both render capitals, so
-  case-sensitive commands and filenames typed by hand will not work. Needs its
-  own work item below.
+- **NEW FINDING from that verification, diagnosed**: every string on screen
+  renders UPPERCASE, including the Run dialog's own hardcoded lower-case
+  instruction text. Typed bytes are CORRECT -- the executed command really was
+  lower-case, which is why `echo hello-from-run-dialog` produced output instead
+  of `ECHO: command not found`. The cause is the font: `vbe_font_8x8` covers only
+  ASCII 32..95, and `vbe_draw_char()` folds `a-z` up to `A-Z`. It is a rendering
+  limitation, not an input bug. See item 23.
 - **#14 test_calc/test_greeter -Wformat-truncation -- RESOLVED** as of
   `test_high_gui`; those recipes build with `-Wno-format-truncation`. The gate
   is green end to end. Re-check before relying on this.
@@ -135,7 +138,7 @@ Legend: **P0** blocks basic use · **P1** blocks real work · **P2** polish/cons
 
 | # | Work item | Owner | Acceptance |
 |---|---|---|---|
-| 23 | **Typed characters arrive UPPERCASE.** Verified live: typing `echo hello-from-run-dialog` produced `ECHO HELLO-FROM-RUN-DIALOG` on screen. Case-sensitive commands, paths and passwords are therefore unusable by hand. The key path is dropping or mis-applying shift/caps state before the character reaches the app. | `gui/wm_input.c`, hosted keyboard map | Type lower-case; see lower-case. A test asserts `notepad_key` receives the same codepoint the host produced. |
+| 23 | **Every string on screen renders UPPERCASE.** Diagnosed: `vbe_font_8x8` is a 64-glyph table covering ASCII 32..95 only, so `vbe_draw_char()` explicitly folds `a-z` to `A-Z`. Lower-case input bytes are CORRECT (proven: the run-dialog command executed as lower-case and produced output). This is why reading code, filenames and prose feels wrong, and part of why "all the apps look bad". Fix is a lower-case glyph set (or a full 96-glyph font) plus removing the fold -- NOT touching the input path. | `kernel/vbe.c`, `kernel/vbe.h` | Lower-case source strings render lower-case. A test asserts `'a'` draws a different bitmap than `'A'`. |
 
 ### P2 — consistency and honesty
 
