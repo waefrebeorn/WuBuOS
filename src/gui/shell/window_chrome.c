@@ -24,23 +24,54 @@
 #include "../wubu_tokens.h"   /* unified design tokens (CLI + GUI cohesion) */
 #include <string.h>
 
-/* -- Chrome constants ----------------------------------------------- */
+/* -- Chrome constants -------------------------------------------------
+ * Every number here comes from wubu_tokens.h.  This file used to carry its
+ * own values (title bar 20, button 14, icon padding 6, text padding 8) while
+ * the taskbar and menus carried different ones, which is exactly why the
+ * margins disagreed everywhere.  Geometry has one owner now.
+ */
 
-#define CHROME_TITLE_BAR_MIN_H    20
-#define CHROME_BUTTON_SIZE        14
-#define CHROME_BUTTON_GAP         2
-#define CHROME_ICON_SIZE          14
-#define CHROME_ICON_PADDING       6
-#define CHROME_TEXT_PADDING       8
+#define CHROME_TITLE_BAR_MIN_H    WUBU_TITLE_BAR_H
+#define CHROME_BUTTON_SIZE        14                    /* classic square */
+#define CHROME_BUTTON_GAP         WUBU_SPACE_2XS
+#define CHROME_ICON_SIZE          WUBU_ICON_SM
+#define CHROME_ICON_PADDING       WUBU_TITLE_PAD
+#define CHROME_TEXT_PADDING       WUBU_SPACE_SM
+
+/* Win11 caption buttons run the full height of the caption bar and touch the
+ * corner; classic keeps square beveled buttons inset by a hairline. */
+bool chrome_is_win11(void) {
+    return wubu_theme_current() == THEME_DARK;
+}
+
+static inline int chrome_caption_btn_w(void) {
+    return chrome_is_win11() ? WUBU_TITLE_BTN_W : CHROME_BUTTON_SIZE;
+}
+
+/* Defined below; declared here so the metrics accessor can be the single
+ * place that answers "how big is the caption" without a second walk. */
+static inline int chrome_title_bar_height(void);
+
+ChromeCaptionMetrics chrome_caption_metrics(void) {
+    int tbh = chrome_title_bar_height();
+    bool win11 = chrome_is_win11();
+    ChromeCaptionMetrics m;
+    m.bar_h = tbh;
+    m.btn_w = chrome_caption_btn_w();
+    m.btn_h = win11 ? tbh : CHROME_BUTTON_SIZE;
+    m.gap   = win11 ? 0 : CHROME_BUTTON_GAP;
+    return m;
+}
 
 /* -- Internal helpers ----------------------------------------------- */
 
 static inline int chrome_title_bar_height(void) {
     const WubuTheme *th = theme();
-    return th->Luna_start_button ? 24 : DOSGUI_TITLE_H;
+    if (chrome_is_win11()) return WUBU_TITLE_BAR_H;
+    return th->Luna_start_button ? WUBU_SPACE_XL : DOSGUI_TITLE_H;
 }
 
-static inline int chrome_border_width(void) {
+int chrome_border_width(void) {
     return theme()->rounded_buttons ? 2 : 1;
 }
 
@@ -90,17 +121,21 @@ bool chrome_button_rects(DosGuiWindow *win, ChromeButtonRect *min,
     if (!win) return false;
     int bw = chrome_border_width();
     int tbh = chrome_title_bar_height();
-    if (win->w < 3 * CHROME_BUTTON_SIZE + 4) return false;
+    bool win11 = chrome_is_win11();
+    int bwid  = chrome_caption_btn_w();
+    int bh    = win11 ? tbh : CHROME_BUTTON_SIZE;
+    int gap   = win11 ? 0 : CHROME_BUTTON_GAP;
+    if (win->w < 3 * bwid + 4) return false;
 
-    int right = win->x + win->w - bw - 2;
-    int top   = win->y + bw + (tbh - CHROME_BUTTON_SIZE) / 2;
+    int right = win->x + win->w - bw - (win11 ? 0 : 2);
+    int top   = win->y + bw + (tbh - bh) / 2;
 
-    if (close) { close->x = right - CHROME_BUTTON_SIZE; close->y = top;
-                 close->w = CHROME_BUTTON_SIZE;         close->h = CHROME_BUTTON_SIZE; }
-    if (max)   { max->x   = close->x - CHROME_BUTTON_SIZE - CHROME_BUTTON_GAP;
-                 max->y = top; max->w = CHROME_BUTTON_SIZE; max->h = CHROME_BUTTON_SIZE; }
-    if (min)   { min->x   = max->x - CHROME_BUTTON_SIZE - CHROME_BUTTON_GAP;
-                 min->y = top; min->w = CHROME_BUTTON_SIZE; min->h = CHROME_BUTTON_SIZE; }
+    if (close) { close->x = right - bwid;            close->y = top;
+                 close->w = bwid;                    close->h = bh; }
+    if (max)   { max->x   = close->x - bwid - gap;   max->y = top;
+                 max->w = bwid;                      max->h = bh; }
+    if (min)   { min->x   = max->x - bwid - gap;     min->y = top;
+                 min->w = bwid;                      min->h = bh; }
     return true;
 }
 
@@ -122,6 +157,44 @@ int chrome_hit_test_button(DosGuiWindow *win, int mx, int my) {
 
 /* Draw complete window chrome (frame, title bar, buttons).
  * Returns content rect for app to draw within. */
+/* -- Caption glyphs ----------------------------------------------------
+ * Drawn centred inside whatever rect the button occupies, so the caption
+ * stays correct when the metrics change.  The old loops drew into a fixed
+ * 3..10 box, which produced a lopsided X the moment the button stopped being
+ * 14px square -- the exact kind of drift a shared metric is meant to kill.
+ */
+static void chrome_glyph_close(int x, int y, int w, int h, uint32_t fg) {
+    int p = w / 5;
+    if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
+    for (int i = 0; i < w - 2 * p && i < h - 2 * p; i++) {
+        vbe_set_pixel(x + p + i,         y + p + i,             fg);
+        vbe_set_pixel(x + w - p - 1 - i, y + p + i,             fg);
+        vbe_set_pixel(x + p + i,         y + h - p - 1 - i,     fg);
+        vbe_set_pixel(x + w - p - 1 - i, y + h - p - 1 - i,     fg);
+    }
+}
+
+static void chrome_glyph_max(int x, int y, int w, int h, uint32_t fg) {
+    int p = w / 5;
+    if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
+    for (int i = 0; i < w - 2 * p; i++) {
+        vbe_set_pixel(x + p + i, y + p, fg);
+        vbe_set_pixel(x + p + i, y + h - p - 1, fg);
+    }
+    for (int i = 0; i < h - 2 * p; i++) {
+        vbe_set_pixel(x + p, y + p + i, fg);
+        vbe_set_pixel(x + w - p - 1, y + p + i, fg);
+    }
+}
+
+static void chrome_glyph_min(int x, int y, int w, int h, uint32_t fg) {
+    int p = w / 5;
+    if (p < WUBU_SPACE_XS) p = WUBU_SPACE_XS;
+    int mid = y + h / 2;
+    for (int i = 0; i < w - 2 * p; i++)
+        vbe_set_pixel(x + p + i, mid, fg);
+}
+
 ChromeContentRect chrome_draw_window(DosGuiWindow *win,
                                             uint32_t *fb, int fb_w, int fb_h) {
     if (!win || !win->alive) {
@@ -202,16 +275,18 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
                                                  : tc()->border_dark);
 
     /* -- Window icon -- */
-    int icon_x = win->x + bw + 4;
-    int icon_y = win->y + bw + (tbh - 14) / 2;
+    int icon_x = win->x + bw + CHROME_ICON_PADDING;
+    int icon_y = win->y + bw + (tbh - CHROME_ICON_SIZE) / 2;
     if (win->icon_color) {
-        vbe_fill_rect(icon_x, icon_y, 14, 14, win->icon_color);
-        vbe_rect(icon_x, icon_y, 14, 14, tc()->border_dark);
+        vbe_fill_rect(icon_x, icon_y, CHROME_ICON_SIZE, CHROME_ICON_SIZE,
+                      win->icon_color);
+        vbe_rect(icon_x, icon_y, CHROME_ICON_SIZE, CHROME_ICON_SIZE,
+                 tc()->border_dark);
     }
 
     /* -- Title text -- */
-    int text_x = win->x + bw + 20;  /* after icon + padding */
-    int text_y = win->y + bw + (tbh - 8) / 2;
+    int text_x = icon_x + CHROME_ICON_SIZE + CHROME_TEXT_PADDING;
+    int text_y = win->y + bw + (tbh - WUBU_FONT_CAP_H) / 2;
     if (win->title[0]) {
         vbe_draw_text(text_x, text_y, win->title,
                       active ? tc()->win_title_text : tc()->win_title_text_ina, 1);
@@ -243,20 +318,9 @@ ChromeContentRect chrome_draw_window(DosGuiWindow *win,
             chrome_fill(bmin.x, bmin.y, bmin.w, bmin.h,
                         hmin ? tc()->btn_face : bar);
             uint32_t fg = hclose ? 0xFFFFFF : tc()->win_title_text;
-            for (int i = 3; i < 11; i++) {
-                vbe_set_pixel(bclose.x + i,     bclose.y + i,     fg);
-                vbe_set_pixel(bclose.x + i + 1, bclose.y + i,     fg);
-                vbe_set_pixel(bclose.x + i,     bclose.y + 14 - i, fg);
-                vbe_set_pixel(bclose.x + i + 1, bclose.y + 14 - i, fg);
-            }
-            for (int i = 3; i < 11; i++) {
-                vbe_set_pixel(bmax.x + i,     bmax.y + 3,     fg);
-                vbe_set_pixel(bmax.x + i,     bmax.y + 10,    fg);
-                vbe_set_pixel(bmax.x + 3,     bmax.y + i,     fg);
-                vbe_set_pixel(bmax.x + 10,    bmax.y + i,     fg);
-            }
-            for (int i = 3; i < 11; i++)
-                vbe_set_pixel(bmin.x + i, bmin.y + 10, fg);
+            chrome_glyph_close(bclose.x, bclose.y, bclose.w, bclose.h, fg);
+            chrome_glyph_max(bmax.x, bmax.y, bmax.w, bmax.h, fg);
+            chrome_glyph_min(bmin.x, bmin.y, bmin.w, bmin.h, fg);
         } else {
             /* Win98-authentic: silver 3D-raised buttons with BOLD BLACK
              * pixel glyphs (drawn, NOT 8x8-font characters). */

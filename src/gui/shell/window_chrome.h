@@ -32,6 +32,27 @@ bool chrome_button_rects(DosGuiWindow *win,
                          ChromeButtonRect *max,
                          ChromeButtonRect *close);
 
+/* -- Caption metrics -------------------------------------------------- */
+
+/* The caption geometry as it will actually be drawn.  Tests and any surface
+ * that must align with the caption (a snap flyout, a tooltip under the Close
+ * button) read this instead of recomputing it. */
+typedef struct {
+    int bar_h;   /* caption bar height */
+    int btn_w;   /* one caption button width */
+    int btn_h;   /* caption button height */
+    int gap;     /* space between buttons, 0 when flush */
+} ChromeCaptionMetrics;
+
+ChromeCaptionMetrics chrome_caption_metrics(void);
+
+/* The frame border width for the current theme (1 or 2). */
+int chrome_border_width(void);
+
+/* True when the Windows 11 caption treatment is active: flush full-height
+ * buttons at the top-right corner rather than inset square ones. */
+bool chrome_is_win11(void);
+
 /* -- Text edit field chrome ----------------------------------------- */
 
 void chrome_draw_edit_field(int x, int y, int w, int h);

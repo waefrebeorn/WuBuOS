@@ -13,6 +13,8 @@
 #include "../kernel/vbe.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
+#include "shell/window_chrome.h"   /* caption metrics under test */
+#include "wubu_tokens.h"   /* the geometry scale they must come from */
 #include "shell/startmenu.h"
 #include "shell/wubu_screensaver.h"
 #include "shell/wubu_lock_screen.h"
@@ -1420,6 +1422,47 @@ static void test_slime_seam(void) {
     PASS();
 }
 
+/* -- Caption geometry comes from the token scale --------------- */
+
+static void test_caption_metrics(void) {
+    TEST("caption geometry derives from wubu_tokens.h");
+
+    wubu_theme_set(THEME_DARK);
+    ChromeCaptionMetrics m = chrome_caption_metrics();
+    CHECK(m.bar_h == WUBU_TITLE_BAR_H, "Win11 caption height is the token");
+    CHECK(m.btn_w == WUBU_TITLE_BTN_W, "Win11 caption button width is the token");
+    CHECK(m.btn_h == WUBU_TITLE_BAR_H, "Win11 buttons run the full caption height");
+    CHECK(m.gap == 0, "Win11 buttons are flush");
+
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(200, 100, 500, 300, "Metrics");
+    ChromeButtonRect bmin, bmax, bclose;
+    CHECK(chrome_button_rects(w, &bmin, &bmax, &bclose),
+          "a wide window gets caption buttons");
+    CHECK(bclose.y == bmax.y && bmax.y == bmin.y,
+          "all three buttons share one baseline");
+    CHECK(bclose.h == WUBU_TITLE_BAR_H, "Close is caption-height");
+    CHECK(bmax.x + bmax.w == bclose.x, "no gap between max and close");
+    CHECK(bmin.x + bmin.w == bmax.x, "no gap between min and max");
+    CHECK(bclose.x + bclose.w == w->x + w->w - chrome_border_width(),
+          "Close touches the frame edge in Win11 mode");
+    wm_shutdown();
+
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    ChromeCaptionMetrics c = chrome_caption_metrics();
+    CHECK(c.btn_w == c.btn_h, "classic keeps square buttons");
+    CHECK(c.gap > 0, "classic keeps an inset gap");
+    wm_init(1024, 768);
+    DosGuiWindow *cw = wm_create(200, 100, 500, 300, "Classic");
+    CHECK(chrome_button_rects(cw, &bmin, &bmax, &bclose),
+          "classic buttons exist");
+    CHECK(bclose.x + bclose.w < cw->x + cw->w - chrome_border_width(),
+          "classic buttons are inset from the frame edge");
+    CHECK(bclose.w == bclose.h, "classic close is square");
+    wm_shutdown();
+    PASS();
+}
+
 /* -- Auto-hide taskbar (modern theme) --------------------------- */
 
 static void test_taskbar_autohide(void) {
@@ -1567,6 +1610,7 @@ int main(void) {
     test_auto_arrange_persists_restart();
     test_rim_islands();
     test_slime_seam();
+    test_caption_metrics();
     test_taskbar_autohide();
     test_modern_taskbar();
 
