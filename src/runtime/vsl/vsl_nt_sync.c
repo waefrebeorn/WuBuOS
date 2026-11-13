@@ -1,4 +1,6 @@
 #include "vsl_nt_internal.h"
+#include <pthread.h>
+#include <semaphore.h>   /* used in this TU, so declared here */
 
 /* vsl_nt_sync.c -- NT transliteration Batch 6: thread lifecycle + wait/sync + mutant/semaphore.
  * Real VSL/Linux work; part of the E1 NT-bridge decomposition of vsl_syscall_nt.c.

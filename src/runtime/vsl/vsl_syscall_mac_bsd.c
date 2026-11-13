@@ -1,4 +1,5 @@
 #include "vsl/vsl_syscall_mac_internal.h"
+#include <linux/futex.h>   /* used in this TU, so declared here */
 
 /* ===================================================================
  * BSD SYSCALL HANDLERS

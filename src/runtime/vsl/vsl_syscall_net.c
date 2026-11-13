@@ -6,6 +6,8 @@
  */
 
 #include "vsl_syscall_internal.h"
+#include <linux/futex.h>
+#include <sys/timerfd.h>   /* used in this TU, so declared here */
 
 /* ====================================================================
  * SIGNAL SYSCALLS

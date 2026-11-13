@@ -9,6 +9,7 @@
  */
 
 #include "../../egojar.h"
+#include <sys/timerfd.h>   /* used in this TU, so declared here */
 #include "../../egojar_net.h"
 #include <stdint.h>
 #include <stdbool.h>

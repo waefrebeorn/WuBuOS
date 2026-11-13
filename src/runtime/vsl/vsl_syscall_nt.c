@@ -29,6 +29,9 @@
 #include <limits.h>
 #include <time.h>
 #include <semaphore.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <signal.h>
 
 /* Matches the NT-bridge function-pointer type defined in vsl_syscall_table.c. */
 typedef int64_t (*vsl_syscall_fn_t)(uint64_t, uint64_t, uint64_t,
@@ -164,6 +167,65 @@ uint32_t vsl_nt_coverage(void)
 uint32_t vsl_nt_collision_count(void) { return g_nt_collision_count; }
 
 uint32_t vsl_nt_stub_replace_count(void) { return g_nt_stub_replaces; }
+
+/* -- Argument contract sweep -------------------------------------------
+ *
+ * Every registered syscall must treat NULL/garbage arguments as a normal
+ * error, not as a reason to dereference them. Nothing checked this: the unit
+ * tests cover individual calls with valid inputs, so a handler that crashes
+ * on zeros only fails when real software passes something unexpected.
+ *
+ * Probing runs FORKED, one slot per child. A handler that segfaults costs one
+ * child, not the test runner, and one that never returns is cut off by alarm().
+ * The returned status travels back through a pipe so a failure report can say
+ * what the handler actually did.
+ *
+ * Zero arguments are chosen because they are simultaneously "obviously invalid"
+ * and cheap: no real object exists, no timeout can block forever, and any
+ * handler worth its name answers with STATUS_INVALID_PARAMETER or similar. */
+
+uint32_t vsl_nt_contract_sweep(nt_contract_result_t *out, uint32_t cap)
+{
+    uint32_t n = 0;
+    for (int i = 0; i < NT_TBL_SIZE; i++) {
+        if (g_nt_dispatch[i] == vsl_sys_nosys) continue;
+        if (out && n >= cap) break;
+
+        int fds[2];
+        if (!out) continue;
+        if (pipe(fds) != 0) break;
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            close(fds[0]);
+            alarm(1);                       /* no handler may hang the gate */
+            int64_t st = g_nt_dispatch[i](0, 0, 0, 0, 0, 0);
+            ssize_t w = write(fds[1], &st, sizeof(st));
+            (void)w;
+            _exit(0);
+        }
+
+        close(fds[1]);
+        int64_t got = 0;
+        ssize_t r = read(fds[0], &got, sizeof(got));
+        close(fds[0]);
+
+        int status = 0;
+        while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
+
+        out[n].slot  = (uint32_t)i;
+        out[n].status = (r == (ssize_t)sizeof(got)) ? got : 0;
+        if (WIFSIGNALED(status)) {
+            out[n].died  = 1;
+            out[n].signo = WTERMSIG(status);
+        } else {
+            out[n].died  = 0;
+            out[n].signo = 0;
+        }
+        n++;
+    }
+    return n;
+}
 
 const nt_collision_t *vsl_nt_collision_at(uint32_t i)
 {

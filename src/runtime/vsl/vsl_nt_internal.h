@@ -29,6 +29,18 @@ typedef int64_t (*vsl_syscall_fn_t)(uint64_t, uint64_t, uint64_t,
 
 /* -- Shared statics owned by the facade (vsl_syscall_nt.c) -- */
 extern vsl_nt_bridge_ctx_t *g_nt_ctx;
+/* Result of probing one dispatch slot with all-zero arguments. */
+typedef struct {
+    uint32_t slot;
+    int      died;       /* killed by a signal instead of returning */
+    int      signo;      /* which signal, when died */
+    int64_t  status;     /* the NTSTATUS it returned, when it survived */
+} nt_contract_result_t;
+
+/* Probe every registered slot once, forked per slot.  Returns the number of
+ * results written (<= cap).  NULL out/cap 0 counts without probing. */
+uint32_t vsl_nt_contract_sweep(nt_contract_result_t *out, uint32_t cap);
+
 extern char g_nt_reg_root[512];
 extern uint64_t g_nt_uuid_seed;
 

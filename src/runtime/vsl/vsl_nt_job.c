@@ -1,4 +1,5 @@
 #include "vsl_nt_internal.h"
+#include <linux/futex.h>   /* used in this TU, so declared here */
 
 /* vsl_nt_job.c -- NT transliteration Batch 2: job objects.
  * Real VSL/Linux work; part of the E1 NT-bridge decomposition of vsl_syscall_nt.c.

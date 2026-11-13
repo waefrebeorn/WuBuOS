@@ -7,6 +7,7 @@
  * C11, self-contained via vsl_syscall_mac_internal.h.
  */
 #include "vsl/vsl_syscall_mac_internal.h"
+#include <semaphore.h>   /* used in this TU, so declared here */
 
 /* ===================================================================
  * MACH TRAP HANDLERS (first batch)

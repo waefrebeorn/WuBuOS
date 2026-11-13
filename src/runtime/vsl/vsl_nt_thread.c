@@ -7,6 +7,7 @@
  */
 
 #include "vsl_nt_internal.h"
+#include <pthread.h>   /* used in this TU, so declared here */
 
 /* Shared trampoline for NtCreateThread (defined here, declared in vsl_nt_internal.h). */
 void *vsl_nt_thread_tramp(void *p) {

@@ -5,6 +5,8 @@
  * Ordinals from reactos-study/reactos/ntoskrnl/sysfuncs.lst (line = 1-based).
  */
 #include "../../egojar.h"
+#include <linux/futex.h>
+#include <pthread.h>   /* used in this TU, so declared here */
 #include "../../egojar_net.h"
 #include "vsl_nt_internal.h"
 
@@ -353,9 +355,18 @@ int64_t vsl_nt_query_install_ui_language(uint64_t a, uint64_t b, uint64_t c, uin
 /* 180: NtQuerySystemEnvironmentValue (3) */
 int64_t vsl_nt_query_system_environment_value(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)c;(void)d;(void)e;(void)f;
+    /* Validate the NAME before handing it to getenv: getenv(NULL) is
+     * undefined and glibc dereferences it, so an all-zero argument list used
+     * to take the process down. */
+    if (!a) return NT_STATUS_INVALID_PARAMETER;
     const char *val=getenv((const char*)(uintptr_t)a);
     if(!val) return NT_STATUS_OBJECT_NAME_NOT_FOUND;
-    if(b) { strncpy((char*)(uintptr_t)b,val,256); ((char*)(uintptr_t)b)[255]=0; }
+    if(b) {
+        /* Honour the caller's buffer length instead of assuming 256. */
+        size_t cap = (c && c < 256) ? (size_t)c : 256;
+        strncpy((char*)(uintptr_t)b, val, cap - 1);
+        ((char*)(uintptr_t)b)[cap - 1] = 0;
+    }
     return NT_STATUS_SUCCESS;
 }
 /* 181: NtQuerySystemEnvironmentValueEx (3) */
@@ -543,11 +554,17 @@ int64_t vsl_nt_get_context_thread(uint64_t a, uint64_t b, uint64_t c, uint64_t d
 int64_t vsl_nt_set_context_thread(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return NT_STATUS_SUCCESS;
 }
-/* 190: NtRaiseException (3) -- raise a signal */
+/* 190: NtRaiseException (3)
+ *
+ * Does NOT raise a host signal.  The previous body called raise(SIGTRAP)
+ * unconditionally, which works by killing whatever process made the call --
+ * here that is WuBuOS itself, so a Windows program triggering an exception
+ * took the desktop down with it.  Delivering a real Win32 exception requires
+ * SEH support (Gap C in docs/NT_STACK_SLERM_PLAN.md); until that exists the
+ * honest answer is a status, not a funeral. */
 int64_t vsl_nt_raise_exception(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)a;(void)b;(void)c;(void)d;(void)e;(void)f;
-    raise(SIGTRAP);
-    return NT_STATUS_SUCCESS;
+    return NT_STATUS_NOT_IMPLEMENTED;
 }
 /* 191: NtRaiseHardError (6) -- log and succeed */
 int64_t vsl_nt_raise_hard_error(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {

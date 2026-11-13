@@ -9,6 +9,8 @@
  */
 
 #include "../../egojar.h"
+#include <linux/futex.h>
+#include <pthread.h>   /* used in this TU, so declared here */
 #include "vsl_nt_bridge.h"
 #include "vsl_nt_internal.h"
 #include "vsl_nt_ordinal_translate.h"

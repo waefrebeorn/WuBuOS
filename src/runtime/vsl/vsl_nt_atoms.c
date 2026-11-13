@@ -1,4 +1,5 @@
 #include "vsl_nt_internal.h"
+#include <linux/futex.h>   /* used in this TU, so declared here */
 
 /* Shared atom-name lookup used by add/find/delete/query. */
 static uint32_t nt_atom_lookup(const char *name) {

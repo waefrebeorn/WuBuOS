@@ -1,4 +1,6 @@
 #include "vsl_nt_internal.h"
+#include <pthread.h>   /* used in this TU, so declared here */
+#include <sys/statvfs.h>   /* struct statvfs / fstatvfs -- used, so declared */
 
 /* vsl_nt_io.c -- NT transliteration Batch 3: file I/O + events + delay.
  * Real VSL/Linux work; part of the E1 NT-bridge decomposition of vsl_syscall_nt.c.

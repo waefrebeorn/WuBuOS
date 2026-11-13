@@ -495,6 +495,14 @@ test_vsl_nt_collision: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		-o $(RT)/wubu_vsl_nt_collision_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_collision_test
 
+test_vsl_nt_contract: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
+	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) \
+		$(filter-out $(RT)/vsl/vsl_syscall_nt_test.o,$(VSL_NT_OBJS)) \
+		$(KERNEL)/wubu_modsym.o \
+		src/runtime/vsl/vsl_nt_contract_test.c \
+		-o $(RT)/wubu_vsl_nt_contract_test -ldl -lvulkan -lcuda
+	$(RT)/wubu_vsl_nt_contract_test
+
 # macOS layer tests
 test_vsl_macho:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) -I$(RT)/vsl \

@@ -7,6 +7,7 @@
  */
 
 #include "vsl_nt_internal.h"
+#include <sys/timerfd.h>   /* TFD_* -- used, so declared */
 
 int64_t vsl_nt_create_timer(uint64_t a_out, uint64_t b_unused,
                             uint64_t c_timer_type, uint64_t d, uint64_t e, uint64_t f) {
