@@ -3,6 +3,19 @@
  */
 
 #include "hosted.h"
+
+/* Normalise a NAME for lookup in the table, which stores bare names.
+ * File Manager builds full paths ("/Documents/report.txt") while Notepad and the
+ * run dialog write bare ones; both must resolve to the same entry or a saved file
+ * would be invisible depending on which app asked. */
+static void guest_norm_key(const char *in, char *out, size_t outsz)
+{
+    snprintf(out, outsz, "%s", (in && *in) ? in : "");
+    size_t l = strlen(out);
+    while (l > 0 && out[l - 1] == '/') out[--l] = '\0';
+    if (out[0] == '/') memmove(out, out + 1, strlen(out));
+}
+
 #include "../runtime/wubu_revolver.h"
 #include "hosted_internal.h"
 #include "../kernel/vbe.h"
@@ -274,7 +287,12 @@ int guest_file_read(const char *name, uint8_t *buf, uint32_t cap, uint32_t *len)
     if (!name || !*name || !buf || !len) return -1;
     *len = 0;
 
-    int idx = fs_find(name);
+    /* Same canonical key the writers use -- otherwise a save stored under the
+     * bare name is invisible to a reader that spells the path with a slash. */
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (!key[0]) return -1;
+    int idx = fs_find(key);
     if (idx < 0) return -1;
     if (g_fs[idx].qtype & STX_QTDIR) return -1;
 
@@ -286,10 +304,21 @@ int guest_file_read(const char *name, uint8_t *buf, uint32_t cap, uint32_t *len)
     return 0;
 }
 
+
+
 int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
     if (!name || !*name || (!data && len > 0)) return -1;
     if (len > guest_file_max()) return -1;
-    if (strlen(name) >= sizeof(g_fs[0].name)) return -1;
+
+    /* Store CANONICAL (bare) names no matter how the caller spelled them.
+     * File Manager builds "/Folder/a.txt"; Notepad passes "a.txt".  If both
+     * spellings landed in the table separately, lookups would find one and not
+     * the other and the two apps would disagree about what exists -- the same
+     * class of bug as the earlier path-mismatch, caught here at the write. */
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (strlen(key) >= sizeof(g_fs[0].name)) return -1;
+    name = key;
 
     int idx = fs_find(name);
 
@@ -349,9 +378,38 @@ int styxfs_max_files(void)
 
 int guest_file_flush(void) { return hosted_fs_flush(); }
 
+
+bool guest_file_rmdir(const char *name)
+{
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (!key[0]) return false;                   /* the root cannot be removed */
+
+    int idx = fs_find(key);
+    if (idx < 0 || !(g_fs[idx].qtype & STX_QTDIR)) return false;
+
+    /* Refuse anything that still holds children.  Matched on the canonical
+     * parent prefix, which works because every stored name is normalised. */
+    size_t klen = strlen(key);
+    for (int i = 0; i < g_nfiles; i++) {
+        if (i == idx) continue;
+        if (strncmp(g_fs[i].name, key, klen) == 0 &&
+            g_fs[i].name[klen] == '/')
+            return false;
+    }
+
+    for (int i = idx; i < g_nfiles - 1; i++) g_fs[i] = g_fs[i + 1];
+    g_nfiles--;
+    g_fs_dirty = 1;
+    return true;
+}
+
 int guest_file_delete(const char *name) {
     if (!name || !*name) return -1;
-    int idx = fs_find(name);
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (!key[0]) return -1;
+    int idx = fs_find(key);
     if (idx < 0) return -1;
     if (g_fs[idx].qtype & STX_QTDIR) return -1;   /* never recurse */
 
@@ -404,6 +462,53 @@ static void guest_basename_of(const char *name, char *out, size_t outsz)
     snprintf(out, outsz, "%s", slash ? slash + 1 : name);
 }
 
+
+
+bool guest_file_make_dir(const char *name)
+{
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (!key[0]) return false;
+    int idx = fs_find(key);
+    if (idx >= 0) return false;                    /* never clobber */
+    return fs_add_dir(key) == 0;
+}
+
+bool guest_file_rename(const char *old_name, const char *new_name)
+{
+    char from[512], to[512];
+    guest_norm_key(old_name, from, sizeof(from));
+    guest_norm_key(new_name, to, sizeof(to));
+    if (!from[0] || !to[0]) return false;
+
+    int idx = fs_find(from);
+    if (idx < 0) return false;
+    if (strcmp(from, to) != 0 && fs_find(to) >= 0) return false;  /* target busy */
+
+    const char *old_base = strrchr(from, '/');
+    old_base = old_base ? old_base + 1 : from;
+    const char *new_base = strrchr(to, '/');
+    new_base = new_base ? new_base + 1 : to;
+    size_t olen = strlen(from), nlen = strlen(to), oblen = strlen(old_base);
+
+    /* Rewrite the entry itself, then every descendant whose name starts with
+     * the old prefix.  Descendants are matched by prefix, not by lookup, so a
+     * deep tree moves in one pass. */
+    for (int i = 0; i < g_nfiles; i++) {
+        if (strncmp(g_fs[i].name, from, olen) != 0) continue;
+        const char *suffix = g_fs[i].name + olen;
+        if (*suffix != '\0' && *suffix != '/') continue;   /* not a real prefix */
+
+        char rebuilt[512];
+        snprintf(rebuilt, sizeof(rebuilt), "%s%s", to, suffix);
+        (void)nlen; (void)new_base; (void)oblen;
+        strncpy(g_fs[i].name, rebuilt, sizeof(g_fs[i].name) - 1);
+        g_fs[i].name[sizeof(g_fs[i].name) - 1] = '\0';
+        g_fs_dirty = 1;
+    }
+    return true;
+}
+
 int guest_file_children(const char *path, guest_child_cb cb, void *user)
 {
     if (!cb) return -1;
@@ -432,17 +537,6 @@ int guest_file_children(const char *path, guest_child_cb cb, void *user)
 }
 
 
-/* Normalise a NAME for lookup in the table, which stores bare names.
- * File Manager builds full paths ("/Documents/report.txt") while Notepad and the
- * run dialog write bare ones; both must resolve to the same entry or a saved file
- * would be invisible depending on which app asked. */
-static void guest_norm_key(const char *in, char *out, size_t outsz)
-{
-    snprintf(out, outsz, "%s", (in && *in) ? in : "");
-    size_t l = strlen(out);
-    while (l > 0 && out[l - 1] == '/') out[--l] = '\0';
-    if (out[0] == '/') memmove(out, out + 1, strlen(out));
-}
 
 bool guest_file_is_dir(const char *name)
 {
@@ -484,6 +578,9 @@ int guest_file_list(char out[][64], int max_len, int cap) {
 
 bool guest_file_exists(const char *name) {
     if (!name || !*name) return false;
-    int idx = fs_find(name);
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (!key[0]) return false;
+    int idx = fs_find(key);
     return idx >= 0 && !(g_fs[idx].qtype & STX_QTDIR);
 }

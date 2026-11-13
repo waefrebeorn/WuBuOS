@@ -555,6 +555,65 @@ static void test_guest_store_visible(void) {
     explorer_shutdown();
 }
 
+/* File operations must act on the GUEST store.  Before this, Delete on a document
+ * saved by Notepad either failed silently or removed an unrelated host file,
+ * because the workers went straight to ex_9p_*() (host paths). */
+static void test_guest_file_ops(void) {
+    printf("\n=== Test: copy/move/delete act on guest files ===\n");
+    extern int   fs_add_file(const char *, const uint8_t *, uint32_t);
+    extern int   fs_add_dir(const char *);
+    extern void  fs_reset(void);
+
+    fs_reset();
+    fs_add_file("a.txt", (const uint8_t *)"payload!", 8);
+    fs_add_dir("Folder");
+    fs_add_file("Folder/inner.txt", (const uint8_t *)"inside", 6);
+    explorer_init();
+
+    ExExplorerState *ex = explorer_state();
+
+    /* -- COPY a file into another folder -- */
+    memset(&ex->file_op, 0, sizeof(ex->file_op));
+    ex->file_op.type = EX_OP_COPY;
+    strncpy(ex->file_op.dest_path, "/Folder", sizeof(ex->file_op.dest_path) - 1);
+    snprintf(ex->file_op.paths[0], sizeof(ex->file_op.paths[0]), "%s", "a.txt");
+    ex->file_op.count = 1;
+    ex_handle_file_op(ex);
+
+    TEST_ASSERT(guest_file_exists("Folder/a.txt"),
+                "copy creates the destination in the guest store");
+    TEST_ASSERT(!guest_file_exists("a.txt") == false,
+                "copy leaves the original in place");
+
+    /* -- MOVE it back out -- */
+    memset(&ex->file_op, 0, sizeof(ex->file_op));
+    ex->file_op.type = EX_OP_MOVE;
+    strncpy(ex->file_op.dest_path, "/", sizeof(ex->file_op.dest_path) - 1);
+    snprintf(ex->file_op.paths[0], sizeof(ex->file_op.paths[0]),
+             "%s", "Folder/a.txt");
+    ex->file_op.count = 1;
+    ex_handle_file_op(ex);
+
+    TEST_ASSERT(guest_file_exists("a.txt"), "move relocates the entry");
+    TEST_ASSERT(!guest_file_exists("Folder/a.txt"),
+                "move removes the source (not a silent duplicate)");
+
+    /* -- DELETE a folder recursively -- */
+    memset(&ex->file_op, 0, sizeof(ex->file_op));
+    ex->file_op.type = EX_OP_DELETE;
+    snprintf(ex->file_op.paths[0], sizeof(ex->file_op.paths[0]), "%s", "Folder");
+    ex->file_op.count = 1;
+    ex_handle_file_op(ex);
+
+    TEST_ASSERT(!guest_file_is_dir("Folder"),
+                "delete removes the folder itself");
+    TEST_ASSERT(!guest_file_exists("Folder/inner.txt"),
+                "delete removes everything INSIDE it too");
+
+    fs_reset();
+    explorer_shutdown();
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
@@ -562,6 +621,7 @@ int main(void) {
 
     test_init_shutdown();
     test_guest_store_visible();
+    test_guest_file_ops();
     test_navigation();
     test_view_modes();
     test_sort();

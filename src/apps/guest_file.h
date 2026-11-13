@@ -80,6 +80,22 @@ int guest_file_children(const char *path, guest_child_cb cb, void *user);
  * Returns true when the name exists there. */
 bool guest_file_is_dir(const char *name);
 
+/* Create an empty directory.  Refuses a name that already exists. */
+bool guest_file_make_dir(const char *name);
+
+/* Remove a directory that is already EMPTY.  Deliberately refuses a non-empty
+ * one: callers must delete the contents first (File Manager does this
+ * depth-first), so a whole tree can never vanish in one unchecked call.
+ * Returns true on success. */
+bool guest_file_rmdir(const char *name);
+
+/* Rename one entry IN PLACE (its qid stays stable so open handles keep working).
+ * Every descendant is rewritten too -- renaming "Documents" to "Docs" must carry
+ * "Documents/report.txt" along or the children would be orphaned under a path
+ * that no longer exists.  Refuses if the target name is already taken.
+ * Returns true on success. */
+bool guest_file_rename(const char *old_name, const char *new_name);
+
 bool guest_file_stat(const char *name, uint32_t *size, bool *is_dir);
 
 /* Capacity ceiling for one guest file, in bytes.
