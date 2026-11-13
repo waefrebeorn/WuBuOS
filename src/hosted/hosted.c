@@ -186,9 +186,14 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     wubu_lock_screen_set_enabled(false);
 
     /* Report the measured boot.  On bare metal the firmware's PCR bank is
-     * live and this seals + logs + broadcasts it; in a hosted session there
-     * is no firmware attestation, so it returns -1 and nothing is claimed.
-     * The stages below are the ones that actually happened either way. */
+     * live and this seals + logs + broadcasts it, with the kernel supplying
+     * REAL millisecond offsets for the firmware/loader/kernel stages.
+     *
+     * A hosted process cannot observe any of that: it starts long after the
+     * kernel, has no firmware handoff, and no attestation exists -- so this
+     * returns -1 and claims nothing.  The four stage names are still passed
+     * (they are the shape of a WuBuOS boot) but the offsets are 0 here, which
+     * is exactly what this process knows.  They are NOT measurements. */
     {
         static const char *const kStages[] = { "firmware", "loader",
                                                "kernel", "desktop" };
