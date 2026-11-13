@@ -58,6 +58,10 @@ enum {
      * what the operating system did on the agent's behalf. Mirrors the same
      * reporting methodology as process/file/network events. */
     EDR_EV_AGENT_ACTION          = 26,
+    /* The measured boot, reported.  This is OS/kernel telemetry, not an agent
+     * action: it is what lets a peer confirm that the machine booted the image
+     * it claims, and it is logged whether or not an AGI is present. */
+    EDR_EV_BOOT_ATTEST           = 27,
 };
 
 /* Agent (UI-automation) action sub-types carried in an EDR_EV_AGENT_ACTION

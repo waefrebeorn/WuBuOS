@@ -125,6 +125,15 @@ int wubu_boot_attest_decode(const uint8_t *in, size_t n,
 int wubu_boot_attest_verify(const uint8_t *in, size_t n,
                             uint8_t sig[WUBU_BOOT_ATTEST_SIG_SZ]);
 
+/* Read-only accessors, so a reporter (EDR, a dashboard) can summarise a sealed
+ * report without the struct having to be public.  All return 0/NULL when the
+ * report is not sealed. */
+uint32_t    wubu_boot_attest_get_boot_counter(const wubu_boot_attest_t *b);
+uint64_t    wubu_boot_attest_get_sealed_at(const wubu_boot_attest_t *b);
+const uint8_t *wubu_boot_attest_get_pcr_digest(const wubu_boot_attest_t *b);
+const uint8_t *wubu_boot_attest_get_kernel_digest(const wubu_boot_attest_t *b);
+uint8_t     wubu_boot_attest_get_stage_count(const wubu_boot_attest_t *b);
+
 /* Digest PCR0..7 into out[32].  Pure: the caller supplies the PCR bank (the
  * kernel reads it with wubu_attest_pcr). */
 int wubu_boot_attest_pcr_digest(const uint8_t pcrs[WUBU_BOOT_ATTEST_PCR_COUNT]

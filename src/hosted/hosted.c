@@ -31,6 +31,7 @@
 #include "../egojar_net.h"
 #include "hosted.h"
 #include "hosted_internal.h"
+#include "wubu_boot_attest_edr.h"   /* the measured boot -> EDR + peers */
 
 #include "../kernel/vbe.h"
 #include "../kernel/memory.h"
@@ -183,6 +184,18 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
      * user, so they are off here (the bare-metal path keeps them). */
     wubu_screensaver_set_enabled(false);
     wubu_lock_screen_set_enabled(false);
+
+    /* Report the measured boot.  On bare metal the firmware's PCR bank is
+     * live and this seals + logs + broadcasts it; in a hosted session there
+     * is no firmware attestation, so it returns -1 and nothing is claimed.
+     * The stages below are the ones that actually happened either way. */
+    {
+        static const char *const kStages[] = { "firmware", "loader",
+                                               "kernel", "desktop" };
+        static const uint32_t kStarts[] = { 0u, 0u, 0u, 0u };
+        wubu_boot_attest_edr_boot((uint64_t)time(NULL), kStages, kStarts, 4,
+                                  NULL, NULL, NULL, NULL, NULL);
+    }
 
     /* The federation agent card. The OS never mints an AID -- the federation
      * does (JOINING.md) -- so this loads an enrolled card from the home

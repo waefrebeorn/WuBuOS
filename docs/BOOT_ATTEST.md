@@ -22,6 +22,18 @@ relay table, through the relay's own per-packet decision, and handed to a
 transmit callback. A peer that is not routable, not ready, or not ticketed gets
 nothing — the report buys its way past none of the relay's rules.
 
+## The boot appears in the EDR stream
+
+`src/runtime/wubu_boot_attest_edr.{c,h}` joins the report to `wubu_edr`
+(`src/runtime/edr/edr_core.c`), the endpoint's disclosure surface. The boot is
+logged as `EDR_EV_BOOT_ATTEST` (27), so a machine reports what it booted — the
+one thing that happened *before* any other telemetry existed. It carries a
+summary in the detail string (boot counter, the first bytes of both digests,
+stage count, seal time); the full frame goes to peers. It is OS/kernel
+telemetry, so it passes the age gate that only agent actions must clear.
+
+A boot with no firmware measurement returns -1 and claims nothing.
+
 ## What the signature is, and is not
 
 The signature is `SHA-256(header || stage records)`. It proves the report was
@@ -38,5 +50,6 @@ everyone being able to see everything, not from a trusted signer.
 ```
 make test_wubu_boot_attest         # the report: seal, encode, decode, fail closed
 make test_wubu_boot_attest_relay   # the seam: every peer, and only the allowed ones
+make test_wubu_boot_attest_edr    # the disclosure surface: the boot on the EDR ring
 make spellcheck                    # the spell book
 ```

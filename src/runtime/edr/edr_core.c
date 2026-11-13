@@ -439,8 +439,10 @@ int edr_log_event(uint16_t type, uint32_t pid, uint32_t extra_pid,
 
     /* GDPR Art 8 gate: agent/UI-automation events require age consent.
      * Event types 25+ (AGENT_ACTION, BEHAVIORAL, etc.) are gated.
-     * Telemetry from the OS kernel itself is NOT gated (legitimate interest). */
-    if (type >= EDR_EV_AGENT_ACTION) {
+     * Telemetry from the OS kernel itself is NOT gated (legitimate interest)
+     * -- and the boot attestation is exactly that: it records what the
+     * firmware measured, not what any agent did. */
+    if (type >= EDR_EV_AGENT_ACTION && type != EDR_EV_BOOT_ATTEST) {
         wubu_age_status_t age = wubu_gdpr_age_check();
         if (age != WUBU_AGE_CONSENTED) {
             /* Fail-closed: don't record agent events without age consent */
@@ -524,11 +526,11 @@ static const char *g_edr_type_names[] = {
     "NetConnect", "DnsQuery", "DriverLoad", "LdapQuery",
     "WmiOp", "UserAcctCreated", "SchedTask", "ScriptExec",
     "Behavioral", "ProcHandleAccess", "EtwTi", "NamedPipe",
-    "FileSetInfo", "AgentAction"
+    "FileSetInfo", "AgentAction", "BootAttest"
 };
 
 const char *edr_event_type_name(uint16_t type) {
-    if (type >= 1 && type <= 26) return g_edr_type_names[type - 1];
+    if (type >= 1 && type <= 27) return g_edr_type_names[type - 1];
     return "Unknown";
 }
 

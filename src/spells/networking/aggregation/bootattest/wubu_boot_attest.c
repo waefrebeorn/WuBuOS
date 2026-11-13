@@ -272,3 +272,30 @@ int wubu_boot_attest_pcr_digest(const uint8_t pcrs[WUBU_BOOT_ATTEST_PCR_COUNT]
     return wubu_sha256(pcrs, WUBU_BOOT_ATTEST_PCR_COUNT * WUBU_BOOT_ATTEST_SIG_SZ,
                        out);
 }
+
+/* ---- read-only view of a sealed report -------------------------- */
+
+uint32_t wubu_boot_attest_get_boot_counter(const wubu_boot_attest_t *b)
+{
+    return (b && b->sealed) ? b->boot_counter : 0;
+}
+
+uint64_t wubu_boot_attest_get_sealed_at(const wubu_boot_attest_t *b)
+{
+    return (b && b->sealed) ? b->sealed_at : 0;
+}
+
+const uint8_t *wubu_boot_attest_get_pcr_digest(const wubu_boot_attest_t *b)
+{
+    return (b && b->sealed) ? b->pcr_digest : NULL;
+}
+
+const uint8_t *wubu_boot_attest_get_kernel_digest(const wubu_boot_attest_t *b)
+{
+    return (b && b->sealed) ? b->kernel_digest : NULL;
+}
+
+uint8_t wubu_boot_attest_get_stage_count(const wubu_boot_attest_t *b)
+{
+    return (b && b->sealed) ? b->stage_count : 0;
+}
