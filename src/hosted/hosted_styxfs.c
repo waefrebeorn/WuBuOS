@@ -4,6 +4,9 @@
 
 #include "hosted.h"
 
+#include <stdio.h>   /* snprintf -- used by guest_norm_key below */
+#include <string.h>  /* strlen, memmove */
+
 /* Normalise a NAME for lookup in the table, which stores bare names.
  * File Manager builds full paths ("/Documents/report.txt") while Notepad and the
  * run dialog write bare ones; both must resolve to the same entry or a saved file

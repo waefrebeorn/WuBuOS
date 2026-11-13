@@ -5,6 +5,7 @@
  */
 
 #include "../wm_internal.h"
+#include "wubu_notify.h"
 
 /* ================================================================
  * SYSTEM TRAY / NOTIFICATION AREA

@@ -14,12 +14,12 @@
 #include "../egojar.h"
 #include "hosted_internal.h"
 
-#include "../runtime/wubu_proton.h"
 #include "../runtime/wubu_ct_isolate.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../gui/wubu_proton.h"   /* declares wubu_proton_launch_with_prefix */
 
 /* PE executor registered with wubu_launch_windows (dependency inversion).
  * Writes the PE bytes to a temp file and launches via the GUI Proton manager

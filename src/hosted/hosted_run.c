@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "../kernel/input.h"
 
 int hosted_run(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS running. Mode: %s\n",

@@ -11,8 +11,13 @@
 # sheets, NT syscall arguments).  Everything is compiled fresh with the sanitizers
 # on; the ordinary (fast) targets above stay unsanitized.
 
+# -Werror=implicit-function-declaration: calling an undeclared function is
+# undefined behaviour, and it already bit once -- mime_contract read a bool
+# from garbage because parse_desktop_file had no visible prototype, so the
+# check passed or failed depending on stack layout.
 SAN_CFLAGS := -O1 -g -std=c11 -fno-omit-frame-pointer \
-              -fsanitize=address,undefined -fno-sanitize-recover=all
+              -fsanitize=address,undefined -fno-sanitize-recover=all \
+              -Werror=implicit-function-declaration
 
 # Run a sanitized binary with leak detection off: these tests intentionally fork
 # and some children exit via _exit(), which ASan's leak checker reads as leaks.

@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <strings.h>
 
 static wubu_age_result_t g_last_result = {0};
 

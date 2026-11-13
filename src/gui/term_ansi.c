@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <errno.h>
+#include "../kernel/vbe.h"
 
 /* ================================================================ */
 /* Screen binders                                                    */

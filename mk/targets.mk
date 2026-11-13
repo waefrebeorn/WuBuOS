@@ -136,7 +136,13 @@ HOSTED_EXTRA = $(COMP)/holyd_semantic.c $(COMP)/wubu_tgemm_avx512.o $(COMP)/jit/
                $(LUAGUI_LV_SRCS) src/brain/src/wubu_uuid.c
 HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/vws/externals/wet \
               -Isrc/gui/vws/externals/wet/externals/wua/src
-hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS)
+# These four were previously named ONLY in the link recipe below, never as
+# prerequisites, so make never built them -- a clean tree could not link the
+# hosted binary at all.  Incremental builds only worked because stale .o files
+# from an earlier configuration were still on disk.
+HOSTED_LINK_ONLY = $(COMP)/wubu_tgemm_avx512.o $(APPS)/edr_dash.o \
+                   $(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o
+hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) $(HOSTED_LINK_ONLY)
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) -c $(HOSTED)/hosted.c -o /tmp/hosted_main.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o

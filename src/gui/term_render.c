@@ -7,6 +7,7 @@
 
 #include "term_internal.h"
 #include <string.h>
+#include "../kernel/vbe.h"
 
 void term_tab_bar_layout(TermState *term, int *tab_x, int *tab_w) {
     int available_w = term->w - 4;

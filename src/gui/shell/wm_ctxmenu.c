@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "wubu_notify.h"
 
 /* -- Default Context Menu Actions -- */
 

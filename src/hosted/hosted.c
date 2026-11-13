@@ -75,6 +75,9 @@
 
 #include "xdg-shell-client.header"
 #include "primary-selection-client.header"
+#include "../runtime/wubu_container.h"
+#include "../audio/wubu_audio.h"
+#include "wubu_holyd.h"
 
 /* Launcher-core global: the live hosted state, set in hosted_init and
  * read by the Wayland subsystem (hosted_wayland.c). */
