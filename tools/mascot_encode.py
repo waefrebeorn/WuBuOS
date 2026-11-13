@@ -68,14 +68,35 @@ def find_hats(im, px, W, H):
                             if g2 > 90 and g2 - r2 > 25 and g2 - b2 > 25:
                                 seen.add((nx, ny))
                                 stack.append((nx, ny))
-            if len(pts) < 40:            # noise / a stray green pixel
+            if len(pts) < 120:           # noise / a stray green pixel
                 continue
             xs = [p[0] for p in pts]
             ys = [p[1] for p in pts]
             seeds.append((sum(xs) // len(xs), sum(ys) // len(ys),
                           min(xs), max(xs), min(ys), max(ys), len(pts)))
-    seeds.sort(key=lambda s: (round(s[1] / 200), s[0]))
-    return seeds
+    # Merge fragments of the SAME hat.  The white "W" logo splits a hat into two
+    # green lobes at this resolution, so the raw component list contains several
+    # entries per mascot; anything whose centre is close to another is one pose.
+    merged = []
+    for s in sorted(seeds, key=lambda z: -z[6]):
+        placed = False
+        for m in merged:
+            if abs(m[0] - s[0]) < 90 and abs(m[1] - s[1]) < 90:
+                # keep the larger fragment's box, accumulate the count
+                m[2] = min(m[2], s[2]); m[3] = max(m[3], s[3])
+                m[4] = min(m[4], s[4]); m[5] = max(m[5], s[5])
+                m[6] += s[6]
+                m[0] = (m[0] + s[0]) // 2
+                m[1] = (m[1] + s[1]) // 2
+                placed = True
+                break
+        if not placed:
+            merged.append(list(s))
+    # A real hat is a decent fraction of the sheet cell; drop anything too small.
+    widest = max((m[3] - m[2]) for m in merged) if merged else 0
+    merged = [m for m in merged if (m[3] - m[2]) >= widest * 0.45]
+    merged.sort(key=lambda s: (round(s[1] / 200), s[0]))
+    return [tuple(m) for m in merged]
 
 
 def content_bbox(im, px, x0, y0, x1, y1, thresh=235):

@@ -30,9 +30,7 @@
 #include "wubu_tokens.h"      /* spacing comes from the one scale */
 #include "wubu_mascot.h"
 #include "wubu_buddy_sprite.h"
-#include "wubu_buddy_states.h"
-#include "wubu_buddy_states2.h"
-#include "wubu_buddy_states3.h"
+#include "wubu_buddy_states.h"   /* one generated header, all moods */
 #include "../kernel/vbe.h"
 #ifdef WUBU_NO_LIBM
 #  include "../kernel/wubu_math.h"  /* provides M_PI, fabsf, cosf, etc. */
@@ -192,7 +190,7 @@ static const unsigned char *buddy_state_rgba(void) {
     case WUBU_BUDDY_STATE_SURF:    return BUDDY_STATE_SURF;
     case WUBU_BUDDY_STATE_RACE:    return BUDDY_STATE_RACE;
     case WUBU_BUDDY_STATE_READ:    return BUDDY_STATE_READ;
-    default:                       return wubu_buddy_rgba;
+    default:                       return BUDDY_STATE_DEFAULT;
     }
 }
 static bool g_grab = false;       /* mouse press landed on the buddy */
