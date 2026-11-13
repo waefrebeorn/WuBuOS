@@ -13,6 +13,7 @@
 #include "../wm.h"
 #include "../kernel/vbe.h"
 #include "../kernel/wubu_drv_thermal.h"
+#include "../kernel/wubu_thermal_read.h"
 #include "../wubu_theme.h"
 
 #include <string.h>
@@ -78,16 +79,26 @@ void win11_widgets_render(uint32_t *fb, int fb_w, int fb_h) {
     vbe_draw_text(cx + WID_CARD_PAD, cy + 42, "21 C  /  14 C", c->startmenu_text, 2);
     cy += wx_h + WID_CARD_GAP;
 
-    /* Live machine stats from the thermal driver. */
+    /* Live machine stats -- actually read from the host sensors.  This used
+     * to print whatever was left in the driver state, which nothing ever wrote,
+     * so the card showed 0 C forever regardless of how hot the machine ran. */
+    wubu_thermal_refresh();
+
     int sys_h = 92;
     render_card(fb, cx, cy, cw, sys_h, "System");
-    int cpu = wubu_thermal_temp(WUBU_THERMAL_CPU);
-    int gpu = wubu_thermal_temp(WUBU_THERMAL_GPU);
-    snprintf(buf, sizeof(buf), "CPU   %d C", cpu);
+    int cpu = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
+    int gpu = wubu_thermal_read_temp(WUBU_THERMAL_GPU);
+    /* A missing sensor prints "n/a".  Printing 0 would be a temperature
+     * reading, and we do not have one. */
+    if (cpu >= 0) snprintf(buf, sizeof(buf), "CPU   %d C", cpu);
+    else          snprintf(buf, sizeof(buf), "CPU   n/a");
     vbe_draw_text(cx + WID_CARD_PAD, cy + 24, buf, c->startmenu_text, 1);
-    snprintf(buf, sizeof(buf), "GPU   %d C", gpu);
+    if (gpu >= 0) snprintf(buf, sizeof(buf), "GPU   %d C", gpu);
+    else          snprintf(buf, sizeof(buf), "GPU   n/a");
     vbe_draw_text(cx + WID_CARD_PAD, cy + 40, buf, c->startmenu_text, 1);
-    snprintf(buf, sizeof(buf), "Load  %s", "live");
+    int nvme = wubu_thermal_nvme();
+    if (nvme >= 0) snprintf(buf, sizeof(buf), "SSD   %d C", nvme);
+    else           snprintf(buf, sizeof(buf), "SSD   n/a");
     vbe_draw_text(cx + WID_CARD_PAD, cy + 56, buf, c->startmenu_text, 1);
 }
 

@@ -25,6 +25,7 @@
 #include "../kernel/wubu_drv_battery.h"
 #include "../kernel/wubu_drv_sd.h"
 #include "../kernel/wubu_drv_thermal.h"
+#include "../kernel/wubu_thermal_read.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -229,8 +230,11 @@ static int zone_temp_c(const char *needle)
 
 int wubu_thermal_temp(int zone)
 {
-    if (zone == WUBU_THERMAL_GPU) return zone_temp_c("gpu");
-    return zone_temp_c("cpu");
+    /* Delegate to the real sensor reader.  The old version searched for a
+     * thermal zone whose type contained "gpu"; no normal laptop has one, so it
+     * fell through to the FIRST zone seen -- usually acpitz, the ACPI ambient
+     * sensor.  "GPU 72 C" was really "the motherboard is 72 C". */
+    return wubu_thermal_read_temp(zone);
 }
 
 int wubu_thermal_fan_duty(void)

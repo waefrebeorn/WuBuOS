@@ -142,7 +142,7 @@ hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
-	/tmp/hosted_main.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) src/kernel/vbe.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_world.c $(KERNEL)/input.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_ct_isolate_cgroup.c $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c \
+	/tmp/hosted_main.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) src/kernel/vbe.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_thermal_read.c $(KERNEL)/wubu_world.c $(KERNEL)/input.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_ct_isolate_cgroup.c $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c \
 	/tmp/xdg-shell-private.o /tmp/viewporter-private.o /tmp/primary-selection-private.o $(HOSTED)/primary-selection-private.c \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
 	$(RT)/wubu_onboarding.c $(GUI)/shell/wubu_shell_greeter.o \
