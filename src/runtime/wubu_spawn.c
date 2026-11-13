@@ -66,10 +66,15 @@ char *wubu_popen_read(const char *file, char *const argv[]) {
     close(pipefd[0]);
     int status = 0;
     while (waitpid(pid, &status, 0) < 0 && errno == EINTR) {}
-    /* execvp failure in the child (binary not found) exits 127 with no
-     * output — report that as "no result" (NULL) instead of a bogus
-     * empty string, so callers can fall back correctly. */
-    if (WIFEXITED(status) && WEXITSTATUS(status) == 127) {
+    /* execvp failure in the child (binary not found) exits 127 having written
+     * NOTHING.  Only that case is "no result" (NULL) so callers can fall back.
+     *
+     * Do NOT treat every 127 as failure: /bin/sh ALSO exits 127 for its own
+     * "command not found", and it writes that message to stderr on the way
+     * out.  Discarding it made every mistyped command look like it had never
+     * started -- the shell's own diagnosis was being thrown away.  If there
+     * was output, the program ran; report what it said. */
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 127 && pos == 0) {
         free(buf);
         return NULL;
     }

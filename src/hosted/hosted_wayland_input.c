@@ -96,6 +96,13 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
         KeyEvent ev = {0};
         ev.scancode = wu_key;
         ev.kind = pressed ? KEY_EVENT_DOWN : KEY_EVENT_UP;
+        if (getenv("WUBU_DBG_KEYS"))
+            fprintf(stderr, "KEY wl=%u -> wu=0x%X kind=%d mods=%s%s%s%s\n",
+                    key, wu_key, ev.kind,
+                    (g_key_map[42]||g_key_map[54])?"SHIFT":"",
+                    (g_key_map[29]||g_key_map[97])?"CTRL":"",
+                    (g_key_map[56]||g_key_map[100])?"ALT":"",
+                    (g_key_map[125]||g_key_map[126])?"WIN":"");
         uint32_t mods = 0;
         if (g_key_map[42] || g_key_map[54]) mods |= MOD_SHIFT;
         if (g_key_map[29] || g_key_map[97]) mods |= MOD_CTRL;
