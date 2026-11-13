@@ -23,7 +23,7 @@
 
 /* -- Lifecycle ----------------------------------------------- */
 
-int wubu_proton_init(wubu_proton_t *p) {
+int wubu_proton_ctx_init(wubu_proton_t *p) {
     memset(p, 0, sizeof(*p));
     p->state = PROTON_INITIALIZING;
 
@@ -44,7 +44,7 @@ int wubu_proton_init(wubu_proton_t *p) {
     return 0;
 }
 
-void wubu_proton_shutdown(wubu_proton_t *p) {
+void wubu_proton_ctx_shutdown(wubu_proton_t *p) {
     if (p->api_table) {
         /* api_table is heap-allocated */
         free(p->api_table);
@@ -324,7 +324,7 @@ static void dxvk_runtime_register(void) {
 }
 
 
-int wubu_proton_create_prefix(const char *id, const char *game_name, int proton_version) {
+int wubu_proton_ctx_create_prefix(const char *id, const char *game_name, int proton_version) {
     if (!id) return -1;
 
     char prefix_path[512];

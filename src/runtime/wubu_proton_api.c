@@ -89,7 +89,7 @@ static const struct {
 
 #define BUILTIN_DLL_COUNT (sizeof(builtin_dlls) / sizeof(builtin_dlls[0]))
 
-/* Register the built-in Windows DLL catalog. Called from wubu_proton_init
+/* Register the built-in Windows DLL catalog. Called from wubu_proton_ctx_init
  * so the DLL table (defined above, in this module) stays self-contained. */
 int wubu_proton_load_default_dlls(wubu_proton_t *p) {
     if (!p) return -1;

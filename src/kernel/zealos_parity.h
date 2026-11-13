@@ -468,8 +468,8 @@
  * ZealOS concept          → WuBuOS
  * =================================================================== */
 
-#define ProtonInit          wubu_proton_init
-#define ProtonShutdown      wubu_proton_shutdown
+#define ProtonInit          wubu_proton_ctx_init
+#define ProtonShutdown      wubu_proton_ctx_shutdown
 #define ProtonExec          wubu_proton_exec
 #define ProtonIsReady       wubu_proton_is_ready
 #define ProtonValidatePE    wubu_proton_validate_pe

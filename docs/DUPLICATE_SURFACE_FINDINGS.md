@@ -9,7 +9,14 @@ which now builds with `-Werror=implicit-function-declaration`).
 
 ---
 
-## 1. Two Proton implementations, one include guard — **OPEN**
+## 1. Two Proton implementations, one include guard — **FIXED (ABI hazard closed)**
+
+*Status: the garbage-pointer hazard is closed.  The two APIs now carry distinct names
+and every call site binds to the implementation it was compiled against.  What remains
+is ordinary duplicated surface (three generations of Proton code still in the tree),
+recorded at the bottom of this entry.*
+
+### What was actually wrong
 
 **Symptom.** `src/hosted/hosted_pe.c` called `wubu_proton_launch_with_prefix()` with
 no visible prototype, so the returned value was read from garbage.  It happens to
@@ -91,10 +98,28 @@ Before consolidating, check *which* machine the running desktop actually drives:
 temporary trace on `wubu_proton_init` and see which file's version executes at boot.
 That single experiment decides the owner instead of guessing.
 
-**Do next:** decide the single owner (the GUI one is the richer implementation --
-it declares prefix/game management the runtime header lacks), port the runtime-side
-callers onto it, then delete `src/runtime/wubu_proton*.{c,h}`.  Search for
-`wubu_proton*.o` in `mk/targets.mk` to find every linker reference.
+**What was done.**  The runtime trio was renamed to a ctx namespace, in the header,
+the definitions, and every non-GUI caller:
+
+    wubu_proton_init          -> wubu_proton_ctx_init
+    wubu_proton_shutdown      -> wubu_proton_ctx_shutdown
+    wubu_proton_create_prefix -> wubu_proton_ctx_create_prefix
+
+Touched: `src/runtime/wubu_proton.h`, `wubu_proton.c`, `wubu_proton_api.c`,
+`wubu_proton_test.c`, `wubu_apps_test.c`, and the `ProtonInit`/`ProtonShutdown`
+mappings in `src/kernel/zealos_parity.h`.  The GUI side (`src/gui/wubu_proton*.{c,h}`,
+`wubu_proton_exec.c`) was deliberately left untouched -- it keeps the names it was
+written against and now actually reaches its own bodies instead of the runtime ones.
+
+Verified by: clean `make -k -j24` exit 0; the three symbols no longer appear in both
+object sets (`nm` intersection empty); `test_proton` 32/32; `test_proton2` builds and
+passes (its link line was missing `wubu_guest_root.c`, now added); `test_nt_abi`,
+`test_docs`, `test_mime_contract`, `test_vsl_nt_contract`, `test_apps` all green.
+
+**Still true:** these are three separate Proton implementations (`proton`, `proton2`,
+GUI) sharing one concern.  Renaming made them coexist safely; consolidating them into
+one is still worth doing, but it is now a normal refactor with no correctness hazard
+attached.
 
 ---
 

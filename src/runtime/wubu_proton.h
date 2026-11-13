@@ -180,10 +180,10 @@ typedef struct {
 /* -- Lifecycle ----------------------------------------------- */
 
 /* Initialize Proton layer. Requires VSL to be initialized. */
-int  wubu_proton_init(wubu_proton_t *p);
+int  wubu_proton_ctx_init(wubu_proton_t *p);
 
 /* Shutdown Proton layer */
-void wubu_proton_shutdown(wubu_proton_t *p);
+void wubu_proton_ctx_shutdown(wubu_proton_t *p);
 
 /* -- PE Validation ------------------------------------------- */
 
@@ -217,7 +217,7 @@ int  wubu_proton_register_api(wubu_proton_t *p, const proton_api_map_t *map);
 int  wubu_proton_translate_api(wubu_proton_t *p, const char *win32_name);
 
 /* Register the built-in Windows DLL catalog (kernel32, user32, ...).
- * Defined in wubu_proton_api.c; called from wubu_proton_init. */
+ * Defined in wubu_proton_api.c; called from wubu_proton_ctx_init. */
 int  wubu_proton_load_default_dlls(wubu_proton_t *p);
 
 /* Load the built-in API translation table (Kernel32, User32, etc.) */
@@ -289,6 +289,6 @@ int wubu_proton_dxvk_set_memory_limits(const char *prefix_id, int device_mb, int
 int wubu_proton_dxvk_reset_config(const char *prefix_id);
 int wubu_proton_dxvk_config_ui_get(const char *prefix_id, DxvkConfigUI *out_ui);
 int wubu_proton_dxvk_config_ui_set(const char *prefix_id, const DxvkConfigUI *ui);
-int wubu_proton_create_prefix(const char *id, const char *game_name, int proton_version);
+int wubu_proton_ctx_create_prefix(const char *id, const char *game_name, int proton_version);
 
 #endif /* WUBU_PROTON_H */

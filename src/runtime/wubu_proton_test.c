@@ -118,14 +118,14 @@ static size_t make_minimal_pe64(uint8_t *buf, size_t bufsz) {
 static void test_proton_init(void) {
     TEST("proton init");
     wubu_proton_t p;
-    int rc = wubu_proton_init(&p);
+    int rc = wubu_proton_ctx_init(&p);
     CHECK(rc == 0, "init should succeed");
     CHECK(p.state == PROTON_READY, "state should be READY");
     CHECK(p.vsl_connected == 1, "VSL should be connected");
     CHECK(p.api_count > 0, "should have default APIs loaded");
     CHECK(p.num_dlls > 0, "should have built-in DLLs");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     CHECK(p.state == PROTON_OFF, "state should be OFF after shutdown");
     PASS();
 }
@@ -133,11 +133,11 @@ static void test_proton_init(void) {
 static void test_proton_is_ready(void) {
     TEST("proton is_ready after init");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
     CHECK(wubu_proton_is_ready(&p) == 1, "should be ready");
     CHECK(wubu_proton_is_ready(NULL) == 0, "NULL not ready");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     CHECK(wubu_proton_is_ready(&p) == 0, "not ready after shutdown");
     PASS();
 }
@@ -147,7 +147,7 @@ static void test_proton_is_ready(void) {
 static void test_pe32_validate(void) {
     TEST("validate PE32 binary");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -158,14 +158,14 @@ static void test_pe32_validate(void) {
     CHECK(p.machine == PE_MACHINE_I386, "machine should be i386");
     CHECK(p.entry_point == 0x1000, "entry point should be 0x1000");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_pe64_validate(void) {
     TEST("validate PE64 binary");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe64(buf, sizeof(buf));
@@ -175,7 +175,7 @@ static void test_pe64_validate(void) {
     CHECK(p.is_pe64 == 1, "should be PE64");
     CHECK(p.machine == PE_MACHINE_AMD64, "machine should be AMD64");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -203,7 +203,7 @@ static void test_pe_is_pe_check(void) {
 static void test_pe_invalid_machine(void) {
     TEST("reject PE with unsupported machine");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -216,7 +216,7 @@ static void test_pe_invalid_machine(void) {
     int rc = wubu_proton_validate_pe(&p, buf, size);
     CHECK(rc == -1, "ARM PE should fail validation");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -225,7 +225,7 @@ static void test_pe_invalid_machine(void) {
 static void test_pe32_parse_sections(void) {
     TEST("parse PE32 sections");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -238,14 +238,14 @@ static void test_pe32_parse_sections(void) {
     CHECK(p.sections[0].virtual_addr == 0x1000, "vaddr should be 0x1000");
     CHECK(p.image_size > 0, "image_size should be > 0");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_pe64_parse_sections(void) {
     TEST("parse PE64 two sections");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe64(buf, sizeof(buf));
@@ -256,7 +256,7 @@ static void test_pe64_parse_sections(void) {
     CHECK(memcmp(p.sections[0].name, ".text\0\0\0", 8) == 0, "first should be .text");
     CHECK(memcmp(p.sections[1].name, ".rdata\0\0", 8) == 0, "second should be .rdata");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -265,7 +265,7 @@ static void test_pe64_parse_sections(void) {
 static void test_map_sections(void) {
     TEST("map PE sections returns base address");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -276,14 +276,14 @@ static void test_map_sections(void) {
     CHECK(base == 0x00400000, "PE32 base should be 0x00400000");
     CHECK(p.pe_loaded == 1, "pe_loaded should be 1");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_entry_addr(void) {
     TEST("entry point address = base + RVA");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -292,7 +292,7 @@ static void test_entry_addr(void) {
     uint32_t ea = wubu_proton_entry_addr(&p);
     CHECK(ea == 0x00401000, "entry should be 0x00401000 (0x400000+0x1000)");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -301,17 +301,17 @@ static void test_entry_addr(void) {
 static void test_default_apis_loaded(void) {
     TEST("default APIs loaded");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
     CHECK(p.api_count > 20, "should have 20+ default APIs");
     CHECK(p.api_table != NULL, "api_table should be allocated");
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_translate_kernel32(void) {
     TEST("translate Kernel32 APIs → VSL syscalls");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     int rc = wubu_proton_translate_api(&p, "CreateFileW");
     CHECK(rc == 2, "CreateFileW should map to VSL syscall 2 (open)");
@@ -330,14 +330,14 @@ static void test_translate_kernel32(void) {
 
     CHECK(p.api_translated == 5, "should have translated 5 APIs");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_translate_vulkan_passthrough(void) {
     TEST("Vulkan APIs flagged as passthrough");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     int rc = wubu_proton_translate_api(&p, "vkCreateInstance");
     CHECK(rc == -1, "vkCreateInstance has no direct VSL syscall (-1)");
@@ -354,14 +354,14 @@ static void test_translate_vulkan_passthrough(void) {
     }
     CHECK(found == 1, "vkCreateInstance should be in API table");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_translate_unknown_api(void) {
     TEST("unknown API returns -1");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     int rc = wubu_proton_translate_api(&p, "SomeUnknownAPI123");
     CHECK(rc == -1, "unknown API should return -1");
@@ -369,14 +369,14 @@ static void test_translate_unknown_api(void) {
     rc = wubu_proton_translate_api(&p, NULL);
     CHECK(rc == -1, "NULL name should return -1");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_translate_winsock(void) {
     TEST("Winsock APIs → VSL socket syscalls");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     int rc = wubu_proton_translate_api(&p, "socket");
     CHECK(rc == 41, "socket() should map to VSL syscall 41");
@@ -390,7 +390,7 @@ static void test_translate_winsock(void) {
     rc = wubu_proton_translate_api(&p, "recv");
     CHECK(rc == 45, "recv() should map to VSL syscall 45");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -399,7 +399,7 @@ static void test_translate_winsock(void) {
 static void test_builtin_dlls(void) {
     TEST("built-in DLLs registered");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
     CHECK(p.num_dlls > 5, "should have 5+ built-in DLLs");
 
     int idx = wubu_proton_find_dll(&p, "kernel32.dll");
@@ -411,14 +411,14 @@ static void test_builtin_dlls(void) {
     idx = wubu_proton_find_dll(&p, "nonexistent.dll");
     CHECK(idx == -1, "nonexistent DLL should return -1");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_register_custom_dll(void) {
     TEST("register custom DLL");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     int before = p.num_dlls;
     int rc = wubu_proton_register_dll(&p, "custom.dll", DLL_NATIVE);
@@ -429,14 +429,14 @@ static void test_register_custom_dll(void) {
     CHECK(idx >= 0, "custom.dll should be findable");
     CHECK(p.dlls[idx].type == DLL_NATIVE, "type should be NATIVE");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dll_case_insensitive(void) {
     TEST("DLL find is case-insensitive");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     /* kernel32.dll is registered, search with different case */
     int idx = wubu_proton_find_dll(&p, "KERNEL32.DLL");
@@ -445,14 +445,14 @@ static void test_dll_case_insensitive(void) {
     idx = wubu_proton_find_dll(&p, "Kernel32.Dll");
     CHECK(idx >= 0, "Kernel32.Dll should be found");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_resolve_deps(void) {
     TEST("DLL dependency resolution");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     int rc = wubu_proton_resolve_deps(&p);
     CHECK(rc == 0, "resolve should succeed");
@@ -470,7 +470,7 @@ static void test_resolve_deps(void) {
 
     CHECK(p.dll_resolved > 0, "dll_resolved should be > 0");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -479,7 +479,7 @@ static void test_resolve_deps(void) {
 static void test_exec_pe32(void) {
     TEST("exec PE32 through Proton pipeline");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -489,20 +489,20 @@ static void test_exec_pe32(void) {
     CHECK(p.state == PROTON_RUNNING, "state should be RUNNING");
     CHECK(p.pe_loaded == 1, "pe_loaded should be 1");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_exec_invalid(void) {
     TEST("exec invalid binary returns error");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t notpe[64] = {0};
     int pid = wubu_proton_exec(&p, notpe, sizeof(notpe), "bad.exe");
     CHECK(pid == -1, "should fail for non-PE");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -524,7 +524,7 @@ static void test_state_name(void) {
 static void test_dump(void) {
     TEST("proton_dump does not crash");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     uint8_t buf[4096];
     size_t size = make_minimal_pe32(buf, sizeof(buf));
@@ -538,7 +538,7 @@ static void test_dump(void) {
 static void test_stats(void) {
     TEST("stats counters");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
     CHECK(wubu_proton_pe_count(&p) == 0, "initial pe_count 0");
     CHECK(wubu_proton_api_count(&p) == 0, "initial api_count 0");
     CHECK(wubu_proton_pe_count(NULL) == 0, "NULL pe_count 0");
@@ -548,7 +548,7 @@ static void test_stats(void) {
     wubu_proton_translate_api(&p, "CreateFileW");
     CHECK(wubu_proton_api_count(&p) == 1, "api_count 1 after translate");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
@@ -557,10 +557,10 @@ static void test_stats(void) {
 static void test_dxvk_config_write_read(void) {
     TEST("dxvk config write/read");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
     /* Create a prefix for testing */
-    int pid = wubu_proton_create_prefix("dxvk_test", "DXVK Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("dxvk_test", "DXVK Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     char config[4096];
@@ -573,16 +573,16 @@ static void test_dxvk_config_write_read(void) {
     /* Stubs return 0 but don't actually write - just verify they don't crash */
     (void)config;
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_hud_options(void) {
     TEST("dxvk HUD options");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("hud_test", "HUD Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("hud_test", "HUD Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     /* Enable HUD with custom options */
@@ -593,16 +593,16 @@ static void test_dxvk_hud_options(void) {
     rc = wubu_proton_dxvk_set_hud("hud_test", false, NULL);
     CHECK(rc == 0, "disable HUD should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_async(void) {
     TEST("dxvk async toggle");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("async_test", "Async Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("async_test", "Async Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     int rc = wubu_proton_dxvk_set_async("async_test", true);
@@ -611,31 +611,31 @@ static void test_dxvk_async(void) {
     rc = wubu_proton_dxvk_set_async("async_test", false);
     CHECK(rc == 0, "disable async should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_nvapi_hack(void) {
     TEST("dxvk NVAPI hack (DLSS)");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("nvapi_test", "NVAPI Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("nvapi_test", "NVAPI Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     int rc = wubu_proton_dxvk_set_nvapi_hack("nvapi_test", true);
     CHECK(rc == 0, "enable NVAPI hack should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_present_mode(void) {
     TEST("dxvk present mode (mailbox)");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("present_test", "Present Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("present_test", "Present Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     int rc = wubu_proton_dxvk_set_present_mode("present_test", true);
@@ -644,31 +644,31 @@ static void test_dxvk_present_mode(void) {
     rc = wubu_proton_dxvk_set_present_mode("present_test", false);
     CHECK(rc == 0, "reset to auto should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_memory_limits(void) {
     TEST("dxvk memory limits");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("mem_test", "Memory Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("mem_test", "Memory Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     int rc = wubu_proton_dxvk_set_memory_limits("mem_test", 8192, 4096);
     CHECK(rc == 0, "set memory limits should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_reset_config(void) {
     TEST("dxvk reset config to defaults");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("reset_test", "Reset Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("reset_test", "Reset Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     /* Modify config */
@@ -679,16 +679,16 @@ static void test_dxvk_reset_config(void) {
     int rc = wubu_proton_dxvk_reset_config("reset_test");
     CHECK(rc == 0, "reset should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 
 static void test_dxvk_config_ui_get_set(void) {
     TEST("dxvk config UI get/set");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
 
-    int pid = wubu_proton_create_prefix("ui_test", "UI Test", PROTON_VERSION_GE_LATEST);
+    int pid = wubu_proton_ctx_create_prefix("ui_test", "UI Test", PROTON_VERSION_GE_LATEST);
     CHECK(pid >= 0, "prefix created");
 
     DxvkConfigUI ui = {0};
@@ -708,7 +708,7 @@ static void test_dxvk_config_ui_get_set(void) {
     rc = wubu_proton_dxvk_config_ui_set("ui_test", &ui);
     CHECK(rc == 0, "set UI config should succeed");
 
-    wubu_proton_shutdown(&p);
+    wubu_proton_ctx_shutdown(&p);
     PASS();
 }
 

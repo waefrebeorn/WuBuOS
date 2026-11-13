@@ -150,32 +150,32 @@ static void test_vsl_net_driver(void) {
 static void test_proton_init(void) {
     TEST("[109] Proton init for Windows app execution");
     wubu_proton_t p;
-    int rc = wubu_proton_init(&p);
+    int rc = wubu_proton_ctx_init(&p);
     CHECK(rc == 0, "Proton init success");
     CHECK(p.state == PROTON_READY, "Proton ready");
-    wubu_proton_shutdown(&p); PASS();
+    wubu_proton_ctx_shutdown(&p); PASS();
 }
 
 static void test_proton_builtin_dlls(void) {
     TEST("[109] Proton built-in DLLs available");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
     CHECK(p.num_dlls > 0, "DLLs registered");
     /* Check kernel32.dll is in the DLL list */
     int found = 0;
     for (int i = 0; i < p.num_dlls; i++)
         if (strcmp(p.dlls[i].name, "kernel32.dll") == 0) found = 1;
     CHECK(found == 1, "kernel32.dll found");
-    wubu_proton_shutdown(&p); PASS();
+    wubu_proton_ctx_shutdown(&p); PASS();
 }
 
 static void test_proton_api_translate(void) {
     TEST("[109] Proton Win32 API translation table");
     wubu_proton_t p;
-    wubu_proton_init(&p);
+    wubu_proton_ctx_init(&p);
     CHECK(p.api_table != NULL, "API table allocated");
     CHECK(p.api_count > 0, "API mappings exist");
-    wubu_proton_shutdown(&p); PASS();
+    wubu_proton_ctx_shutdown(&p); PASS();
 }
 
 /* ===========================================================
