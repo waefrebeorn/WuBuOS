@@ -37,6 +37,11 @@ int wubu_thermal_read_temp(int zone);
  * reporting a drive temperature as one would be a lie. */
 int wubu_thermal_nvme(void);
 
+/* Last memory (DIMM / SPD hub) temperature in Celsius, or -1 if the machine
+ * exposes none.  Most laptops do NOT -- returning 0 here would claim the RAM is
+ * freezing, which is a measurement nobody took. */
+int wubu_thermal_ram(void);
+
 /* Force a re-read now, ignoring the one-second cache. */
 void wubu_thermal_refresh(void);
 

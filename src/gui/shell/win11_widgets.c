@@ -84,7 +84,7 @@ void win11_widgets_render(uint32_t *fb, int fb_w, int fb_h) {
      * so the card showed 0 C forever regardless of how hot the machine ran. */
     wubu_thermal_refresh();
 
-    int sys_h = 92;
+    int sys_h = 112;
     render_card(fb, cx, cy, cw, sys_h, "System");
     int cpu = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
     int gpu = wubu_thermal_read_temp(WUBU_THERMAL_GPU);
@@ -100,6 +100,10 @@ void win11_widgets_render(uint32_t *fb, int fb_w, int fb_h) {
     if (nvme >= 0) snprintf(buf, sizeof(buf), "SSD   %d C", nvme);
     else           snprintf(buf, sizeof(buf), "SSD   n/a");
     vbe_draw_text(cx + WID_CARD_PAD, cy + 56, buf, c->startmenu_text, 1);
+    int ram = wubu_thermal_ram();
+    if (ram >= 0) snprintf(buf, sizeof(buf), "RAM   %d C", ram);
+    else          snprintf(buf, sizeof(buf), "RAM   n/a");
+    vbe_draw_text(cx + WID_CARD_PAD, cy + 72, buf, c->startmenu_text, 1);
 }
 
 bool win11_widgets_click(int x, int y) {

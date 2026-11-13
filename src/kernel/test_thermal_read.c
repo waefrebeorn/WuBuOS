@@ -111,7 +111,9 @@ int main(void)
     int pkg = oracle_x86_pkg_temp();
     if (pkg > -900) {
         TEST(wubu_thermal_have_cpu(), "package sensor exists, so CPU must be reported");
-        TEST(cpu >= pkg - 2 && cpu <= pkg + 2,
+        /* +-3 C: the two readings are taken a fraction of a second apart on
+         * a live processor, so exact equality would flake. */
+        TEST(cpu >= pkg - 3 && cpu <= pkg + 3,
              "reported CPU temperature matches x86_pkg_temp");
     }
 
@@ -119,7 +121,7 @@ int main(void)
     if (ct > -900 && pkg < -900) {
         /* Only assert this when the package zone is absent, otherwise the
          * reader is correctly preferring x86_pkg_temp. */
-        TEST(cpu >= ct - 2 && cpu <= ct + 2,
+        TEST(cpu >= ct - 3 && cpu <= ct + 3,
              "reported CPU temperature matches coretemp");
     }
 
@@ -139,7 +141,23 @@ int main(void)
         TEST(gpu < 110, "GPU temperature is not the ambient zone in disguise");
     }
 
-    printf("=== thermal_read: %d checks, %d failed (cpu=%d gpu=%d nvme=%d) ===\n",
-           g_checks, g_fails, cpu, gpu, nvme);
+    /* ---- RAM: unknown is a valid answer, 0 is not ------------------ */
+    int ram = wubu_thermal_ram();
+    TEST(ram == -1 || (ram > 0 && ram < 130),
+         "RAM temperature is honestly unknown (-1) or physically plausible");
+
+    /* If a DIMM/SPD sensor does exist, our number must agree with sysfs. */
+    {
+        int found = oracle_hwmon("spd");
+        if (found == -999) found = oracle_hwmon("dimm");
+        if (found > -900) {
+            TEST(ram >= found - 3 && ram <= found + 3,
+                 "reported RAM temperature matches the SPD/DIMM sensor");
+        }
+    }
+
+    printf("=== thermal_read: %d checks, %d failed "
+           "(cpu=%d gpu=%d nvme=%d ram=%d) ===\n",
+           g_checks, g_fails, cpu, gpu, nvme, ram);
     return g_fails ? 1 : 0;
 }

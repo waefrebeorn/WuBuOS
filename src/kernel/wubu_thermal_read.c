@@ -101,6 +101,20 @@ static int read_hwmon(const char *match, int exact, const char **matched_name)
 
 static int read_nvme_temp(void) { return read_hwmon("nvme", 1, NULL); }
 
+/* Memory temperature.  DDR5 platforms expose the SPD hub through an hwmon
+ * driver named spd5117 (or sometimes "spd"/"dimm"); some vendor EC firmware
+ * publishes a plain "dimm" sensor.  Try each; if none exist the answer is -1,
+ * and the UI must say so rather than inventing a number. */
+static int read_ram_temp(void)
+{
+    static const char *const dimm_drivers[] = { "spd5117", "spd", "dimm" };
+    for (size_t i = 0; i < sizeof(dimm_drivers) / sizeof(dimm_drivers[0]); i++) {
+        int t = read_hwmon(dimm_drivers[i], 0, NULL);
+        if (t >= 0) return t;
+    }
+    return -1;
+}
+
 /* ---- CPU ------------------------------------------------------------ */
 
 static int read_cpu_zone(void)
@@ -206,13 +220,14 @@ static int read_gpu(void)
 
 /* ---- public state ---------------------------------------------------- */
 
-static int  g_cpu = -1, g_gpu = -1, g_nvme = -1;
+static int  g_cpu = -1, g_gpu = -1, g_nvme = -1, g_ram = -1;
 static int  g_have_cpu = 0, g_have_gpu = 0;
 static long g_stamp = 0;
 
 int wubu_thermal_have_cpu(void) { return g_have_cpu; }
 int wubu_thermal_have_gpu(void) { return g_have_gpu; }
 int wubu_thermal_nvme(void)     { return g_nvme; }
+int wubu_thermal_ram(void)      { return g_ram; }
 
 void wubu_thermal_refresh(void)
 {
@@ -227,6 +242,7 @@ void wubu_thermal_refresh(void)
     if (g_gpu >= 0) g_have_gpu = 1;
 
     g_nvme = read_nvme_temp();
+    g_ram = read_ram_temp();
     g_stamp = now_ms();
 }
 
