@@ -43,6 +43,35 @@ decision over duplicated state, not a mechanical rename, and belongs in its own 
 `src/gui/wubu_proton_internal.h:10`.  Guards reverted to restore the build; this note
 is the record.
 
+**THIS IS AN ABI COLLISION, NOT MERELY DUPLICATION -- severity raised.**
+
+The three colliding symbols are declared with **different signatures** in the two
+headers, so the linker's silent choice is not just a preference, it is a call through
+the wrong prototype:
+
+    symbol                     GUI header                        runtime header
+    wubu_proton_init           int  (void)                        int  (wubu_proton_t *p)
+    wubu_proton_shutdown       void (void)                        void (wubu_proton_t *p)
+    wubu_proton_create_prefix  int  (const char*, const char*,    int  (const char*, const char*,
+                                   ProtonVersion)                    int)
+
+Because `$(RT_OBJS)` precedes `$(GUI_OBJS)` under `--allow-multiple-definition`, every
+call site binds to the **runtime** bodies.  The third one is accidentally ABI-compatible
+(`ProtonVersion` is an enum, i.e. `int`).  The first two are not: a GUI-side
+`wubu_proton_init()` invokes `int wubu_proton_init(wubu_proton_t *p)` with whatever
+happens to sit in the argument register -- a garbage pointer that the callee
+dereferences.  That is a memory-safety fault, not a style problem.
+
+Confirmed live, not theoretical: `src/gui/wubu_proton_exec.c:174` calls
+`wubu_proton_create_prefix(...)` and is linked into the hosted binary via `GUI_OBJS`;
+`src/gui/wubu_proton_test.c` calls all three.
+
+**Therefore the two are not copies of one API -- they are two distinct APIs that were
+given the same names.**  They cannot be merged by picking one; each needs its own
+name.  The mechanical fix is a namespace split (e.g. `wubu_proton_ctx_init` /
+`wubu_proton_ctx_shutdown` for the runtime manager), applied to both the declaration
+and every caller, verified by build plus the two existing proton test suites.
+
 **MEASURED IMPACT (added after finding the above).**  Both implementations are
 linked into ONE binary, under `-Wl,--allow-multiple-definition`, so identical global
 symbols do not error -- the linker keeps whichever object appears first.  The hosted
