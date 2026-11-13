@@ -24,6 +24,13 @@ below carries the file that proves it.
   blocked). First save names the file, Windows-style. A document that cannot fit
   is REFUSED, never silently truncated. Test: `make test_notepad_save`, 27
   checks, ending with `CONTENT SURVIVED THE RESTART`.
+- **#23 lower-case text renders lower-case -- DONE**. New `vbe_font_lower_8x8`
+  (26 glyphs) in `kernel/vbe.c`, declared in `vbe.h`; `vbe_draw_char()` uses it
+  instead of folding `a-z` upward. Verified LIVE (the Run dialog's own source
+  string now shows mixed case) and by `make test_font_case` (58 checks): every
+  lower-case letter draws its OWN bitmap, pixel-compared against the table, and
+  differs visibly from the upper-case form. This also explains why "all the apps
+  look bad" -- everything was capitals.
 - **#6 Run dialog executes commands -- DONE**. Two-step dispatch: a registered app
   name launches that app, anything else runs as `/bin/sh -c "<query> 2>&1"` via
   the existing `wubu_popen_read`. Output goes to the guest file `run-output.txt`
@@ -138,7 +145,7 @@ Legend: **P0** blocks basic use · **P1** blocks real work · **P2** polish/cons
 
 | # | Work item | Owner | Acceptance |
 |---|---|---|---|
-| 23 | **Every string on screen renders UPPERCASE.** Diagnosed: `vbe_font_8x8` is a 64-glyph table covering ASCII 32..95 only, so `vbe_draw_char()` explicitly folds `a-z` to `A-Z`. Lower-case input bytes are CORRECT (proven: the run-dialog command executed as lower-case and produced output). This is why reading code, filenames and prose feels wrong, and part of why "all the apps look bad". Fix is a lower-case glyph set (or a full 96-glyph font) plus removing the fold -- NOT touching the input path. | `kernel/vbe.c`, `kernel/vbe.h` | Lower-case source strings render lower-case. A test asserts `'a'` draws a different bitmap than `'A'`. |
+| 23 | ~~Every string renders UPPERCASE~~ **DONE**: 26-glyph lower-case table added, fold removed. Remaining: `~` `{` `}` `|` and other ASCII >95 still have no glyphs (they draw a space). | `kernel/vbe.c` | `make test_font_case` 58/58; live mixed-case render confirmed. |
 
 ### P2 — consistency and honesty
 

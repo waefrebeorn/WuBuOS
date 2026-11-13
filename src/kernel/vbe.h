@@ -137,6 +137,9 @@ void vbe_clear(uint32_t color);
 /* Ported from Mythos Fable (filipvabrousek/osdev). */
 
 extern const uint8_t vbe_font_8x8[64][8];
+/* Lower-case glyphs, ASCII 'a'..'z'.  Separate from the table above because the
+ * upper-case set stops at '_' (95); mixing them would shift every index. */
+extern const uint8_t vbe_font_lower_8x8[26][8];
 
 /* Draw a single 8x8 font glyph (5px wide, 7px tall). scale=1 native.
  * The effective size is scale * vbe_text_scale(). */
