@@ -44,6 +44,21 @@ int guest_file_write(const char *name, const uint8_t *data, uint32_t len);
  * or when a command just produced something the user will act on. */
 int guest_file_flush(void);
 
+/* Remove a file. Directories are refused -- recursive deletion needs an
+ * explicit walk and must not happen by accident from a single call.
+ * Returns 0 on success, -1 when the name is absent or is a directory. */
+int guest_file_delete(const char *name);
+
+/* List every regular file currently in the namespace.
+ * Copies at most `cap` NUL-terminated names into `out` (each row `max_len`
+ * bytes) and returns how many were written.  Returns -1 when out/cap are
+ * unusable.  Built-in entries are included: they ARE the filesystem a user
+ * saved into, and hiding them would make search lie about what exists.
+ *
+ * This is what lets Start search answer "where did I save that document"
+ * instead of only "which app do you want". */
+int guest_file_list(char out[][64], int max_len, int cap);
+
 /* True when a regular file with this exact name exists. */
 bool guest_file_exists(const char *name);
 

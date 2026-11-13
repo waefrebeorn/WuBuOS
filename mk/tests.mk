@@ -1483,8 +1483,21 @@ $(RT)/wubu_effect.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/calc/calc_test.c -o $(APPS)/calc/calc_test -lm
 	$(APPS)/calc/calc_test
 
+test_startmenu_files:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) \
+		$(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(APPS)/apps_wet.c \
+		$(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c \
+		$(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c \
+		$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c \
+		$(GUI)/startmenu_test_stub.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c \
+		$(GUI)/startmenu_files_test.c $(RT)/wubu_ns_pkg_fallback.c \
+		-o $(GUI)/startmenu_files_test -lm -ldl
+	$(GUI)/startmenu_files_test
+
 test_startmenu:
-			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(APPS)/apps_wet.c $(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c $(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/startmenu_test_stub.c $(GUI)/startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
+			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(APPS)/apps_wet.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c $(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/startmenu_test_stub.c $(GUI)/startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
 			$(RT)/wubu_ns_pkg_fallback.c -o $(GUI)/startmenu_test -lm -ldl
 	$(GUI)/startmenu_test
 

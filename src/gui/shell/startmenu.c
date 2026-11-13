@@ -31,6 +31,22 @@
 #include <dirent.h>
 #include "../../runtime/wubu_ftw.h"
 
+/* Opening a file from search. Weak so headless targets need not carry an
+ * editor; an absent one leaves such results inert there. */
+__attribute__((weak)) DosGuiWindow *notepad_open(const char *filename);
+
+/* Activate one search result.  Apps launch by name; files OPEN -- an entry that
+ * looks like "notes.txt" must not be handed to the app registry. */
+static void startmenu_activate(const SmProgramEntry *e) {
+    if (!e) return;
+    if (e->opens_file && e->executable[0]) {
+        if (notepad_open) notepad_open(e->executable);
+        return;
+    }
+    launch_app(e->name);
+}
+
+
 /* -- Inline Layout Helpers ------------------------------------------ */
 
 static inline int menu_item_h(void) {
@@ -134,7 +150,15 @@ extern const WubuTheme *wubu_theme_get(void);
 
 int  startmenu_is_open(void) { return g_open; }
 void startmenu_toggle(void) { g_open = !g_open; if (g_open) g_search.active = true; }
-void startmenu_open(void)   { g_open = 1; g_search.active = true; }
+void startmenu_open(void)   {
+    g_open = 1;
+    g_search.active = true;
+    /* Files appear here as they are created, so index them on every open rather
+     * than once at boot -- a document saved five seconds ago should be findable
+     * five seconds later. */
+    extern void startmenu_index_files(void);
+    startmenu_index_files();
+}
 void startmenu_close(void)  { g_open = 0; g_submenu_open = -1; startmenu_search_clear(); }
 
 /* -- Rendering --------------------------------------------------- */
@@ -439,7 +463,7 @@ static void startmenu_win11_click(int x, int y) {
             for (int i = 0; i < shown; i++) {
                 if (x >= L.px + 16 && x < L.px + L.pw - 16 &&
                     y >= ry && y < ry + 40) {
-                    launch_app(results[i]->name);
+                    startmenu_activate(results[i]);
                     startmenu_close();
                     return;
                 }

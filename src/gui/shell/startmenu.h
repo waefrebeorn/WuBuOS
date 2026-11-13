@@ -101,6 +101,10 @@ typedef struct {
     uint64_t last_run;
     int run_count;
     bool is_builtin;
+    /* True when `executable` names a FILE to open rather than an app to launch.
+     * Start search mixes both, so the difference must be stated rather than
+     * guessed from the name. */
+    bool opens_file;
     /* VSL syscall personality this app exercises (0 = native/Linux,
      * 0xC0 = CP/M BDOS, 0xB0 = Classic Mac 68K, 0xFF = macOS XNU,
      * 0xNT = ReactOS NT). Lets the desktop group "one rep app per era"

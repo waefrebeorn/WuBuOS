@@ -305,6 +305,29 @@ int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
 
 int guest_file_flush(void) { return hosted_fs_flush(); }
 
+int guest_file_delete(const char *name) {
+    if (!name || !*name) return -1;
+    int idx = fs_find(name);
+    if (idx < 0) return -1;
+    if (g_fs[idx].qtype & STX_QTDIR) return -1;   /* never recurse */
+
+    for (int i = idx; i < g_nfiles - 1; i++) g_fs[i] = g_fs[i + 1];
+    g_nfiles--;
+    g_fs_dirty = 1;
+    return 0;
+}
+
+int guest_file_list(char out[][64], int max_len, int cap) {
+    if (!out || max_len <= 0 || cap <= 0) return -1;
+    int n = 0;
+    for (int i = 0; i < g_nfiles && n < cap; i++) {
+        if (g_fs[i].qtype & STX_QTDIR) continue;
+        snprintf(out[n], (size_t)max_len, "%s", g_fs[i].name);
+        n++;
+    }
+    return n;
+}
+
 bool guest_file_exists(const char *name) {
     if (!name || !*name) return false;
     int idx = fs_find(name);

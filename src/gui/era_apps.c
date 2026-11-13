@@ -24,6 +24,7 @@
  */
 
 #include "shell/startmenu.h"
+#include "../apps/guest_file.h"
 #include "era_apps.h"
 #include "shell/startmenu_internal.h"   /* declares extern SmProgramDB g_program_db */
 #include "wubu_exec.h"                    /* wubu_exec_linux_elf / win_pe / holyc */
@@ -246,4 +247,43 @@ int era_apps_launch_by_name(const char *name) {
         if (strcmp(g_era_apps[i].name, name) == 0)
             return era_apps_launch(i);
     return -1;
+}
+
+/* Register the guest filesystem into search.
+ *
+ * Start used to find only applications, so a user who had just saved a document
+ * could not reach it from the place they look.  Files are indexed with
+ * opens_file set, and activation dispatches on that flag rather than guessing
+ * from the name -- "notes.txt" is not an app name.
+ *
+ * Re-running replaces the previous file entries rather than appending, so files
+ * deleted since the last open do not linger as ghosts in the results. */
+void startmenu_index_files(void) {
+    /* Drop previous file entries (they are contiguous at the tail of the DB,
+     * because apps are registered first and never removed). */
+    while (g_program_db.count > 0 &&
+           g_program_db.entries[g_program_db.count - 1].opens_file)
+        g_program_db.count--;
+
+    static char names[DOSGUI_MAX_PROGRAM_ENTRIES][64];
+    int n = guest_file_list(names, 64, DOSGUI_MAX_PROGRAM_ENTRIES);
+    if (n <= 0) return;
+
+    for (int i = 0; i < n; i++) {
+        if (g_program_db.count >= DOSGUI_MAX_PROGRAM_ENTRIES) break;
+        /* Never shadow a real application of the same name. */
+        bool exists = false;
+        for (int j = 0; j < g_program_db.count; j++)
+            if (strcmp(g_program_db.entries[j].name, names[i]) == 0) { exists = true; break; }
+        if (exists) continue;
+
+        SmProgramEntry *e = &g_program_db.entries[g_program_db.count];
+        memset(e, 0, sizeof(*e));
+        snprintf(e->name, sizeof(e->name), "%s", names[i]);
+        snprintf(e->executable, sizeof(e->executable), "%s", names[i]);
+        snprintf(e->category, sizeof(e->category), "File");
+        e->is_builtin = false;
+        e->opens_file = true;
+        g_program_db.count++;
+    }
 }
