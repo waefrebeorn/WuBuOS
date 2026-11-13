@@ -9,6 +9,7 @@
 
 #include "../runtime/wubu_revolver.h"
 #include "../hosted/hosted_internal.h"
+#include "../apps/guest_file.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +95,24 @@ int main(void)
     TEST(wubu_revolver_get(NULL) == 0, "NULL revolver reads as zero");
     TEST(wubu_revolver_get(&rev) == 100 * 1024, "bad arguments changed nothing");
 
-    /* ---- 8. the guest FS slot limit honours WUBU_FS_FILES ------------ */
+    /* ---- 8. per-file capacity is queryable and bounded --------------- */
+    TEST(guest_file_max() >= 1, "per-file capacity is at least one byte");
+    TEST(guest_file_max() <= GUEST_FILE_MAX_LIMIT,
+         "per-file capacity never exceeds the inline payload extent");
+
+    /* The old fs_add_file() copied min(len, capacity) and returned SUCCESS, so a
+     * large save came back "ok" holding a shortened file.  It must refuse now. */
+    {
+        extern int fs_add_file(const char *name, const uint8_t *data, uint32_t len);
+        static uint8_t big[GUEST_FILE_MAX_LIMIT + 64];
+        memset(big, 'x', sizeof(big));
+        int rc = fs_add_file("oversize-probe.txt", big, (uint32_t)sizeof(big));
+        TEST(rc == -1, "a file above capacity is REFUSED, not truncated");
+        TEST(!guest_file_exists("oversize-probe.txt"),
+             "the refused file did not land in the namespace");
+    }
+
+    /* ---- 9. the guest FS slot limit honours WUBU_FS_FILES ------------ */
     TEST(styxfs_max_files() >= 1, "FS slot limit is at least 1");
     TEST(styxfs_max_files() <= STYXFS_MAX_FILES_LIMIT,
          "FS slot limit never exceeds the compile-time array extent");

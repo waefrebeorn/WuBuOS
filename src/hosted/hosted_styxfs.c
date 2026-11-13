@@ -54,15 +54,21 @@ int fs_add_dir(const char *name) {
 
 int fs_add_file(const char *name, const uint8_t *data, uint32_t len) {
     if (g_nfiles >= styxfs_max_files()) return -1;
+    /* REFUSE rather than truncate, and validate BEFORE taking a slot.  The
+     * previous code copied min(len, capacity) and returned success, so a caller
+     * writing a large document got back "ok" holding a silently shortened file --
+     * the same shape as the desktop-action bug, where data was accepted and then
+     * thrown away.  Taking the slot first also left a nameless occupant behind on
+     * refusal, counting against the limit and showing up in listings. */
+    if (len > guest_file_max()) return -1;
     styxfs_file_t *f = &g_fs[g_nfiles++];
     strncpy(f->name, name, sizeof(f->name) - 1);
     f->qtype = STX_QTFILE;
     f->path = g_next_path++;
     f->length = len;
     if (data && len > 0) {
-        uint32_t clen = len < sizeof(f->data) ? len : sizeof(f->data);
-        memcpy(f->data, data, clen);
-        f->data_len = clen;
+        memcpy(f->data, data, len);
+        f->data_len = len;
     }
     return 0;
 }
@@ -282,7 +288,7 @@ int guest_file_read(const char *name, uint8_t *buf, uint32_t cap, uint32_t *len)
 
 int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
     if (!name || !*name || (!data && len > 0)) return -1;
-    if (len > GUEST_FILE_MAX) return -1;
+    if (len > guest_file_max()) return -1;
     if (strlen(name) >= sizeof(g_fs[0].name)) return -1;
 
     int idx = fs_find(name);
@@ -312,6 +318,20 @@ int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
  * past it and no hint why.  The array keeps its compile-time ceiling; this is the
  * runtime bound every check must honour. */
 static wubu_revolver_t g_files_rev;
+
+static wubu_revolver_t g_filemax_rev;
+
+uint32_t guest_file_max(void)
+{
+    static int ready = 0;
+    if (!ready) {
+        wubu_revolver_init(&g_filemax_rev, "fs_file_max",
+                           GUEST_FILE_MAX_LIMIT, GUEST_FILE_MAX_LIMIT, 1);
+        wubu_revolver_set_from_env(&g_filemax_rev, "WUBU_FS_FILE_MAX", NULL);
+        ready = 1;
+    }
+    return (uint32_t)wubu_revolver_get(&g_filemax_rev);
+}
 
 int styxfs_max_files(void)
 {

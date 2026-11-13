@@ -62,7 +62,17 @@ int guest_file_list(char out[][64], int max_len, int cap);
 /* True when a regular file with this exact name exists. */
 bool guest_file_exists(const char *name);
 
-/* Human-readable capacity limit, so applications can check before saving. */
-#define GUEST_FILE_MAX (8192u)
+/* Capacity ceiling for one guest file, in bytes.
+ *
+ * This stays a MACRO because callers use it to size arrays at compile time
+ * (notepad's read buffer, the runline capture buffer).  The RUNTIME bound is
+ * guest_file_max(), which WUBU_FS_FILE_MAX can lower -- on bare metal a smaller
+ * per-file ceiling means a smaller static filesystem table, and it cannot be
+ * raised past this value because styxfs_file_t embeds the payload inline. */
+#define GUEST_FILE_MAX_LIMIT (8192u)
+#define GUEST_FILE_MAX      GUEST_FILE_MAX_LIMIT
+
+/* Effective per-file capacity (<= GUEST_FILE_MAX_LIMIT), revolver-controlled. */
+uint32_t guest_file_max(void);
 
 #endif /* WUBU_GUEST_FILE_H */
