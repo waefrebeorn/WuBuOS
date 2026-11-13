@@ -1543,6 +1543,13 @@ test_fs_persist:
 		-lm -o $(HOSTED)/test_fs_persist
 	$(HOSTED)/test_fs_persist
 
+test_notepad_save:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) -I$(APPS) -I$(COMP) \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(HOSTED)/test_notepad_save.c \
+		$(APPS)/notepad.c -lm -o $(HOSTED)/test_notepad_save
+	$(HOSTED)/test_notepad_save
+
 test_host_exec:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \
@@ -2264,6 +2271,7 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT) -I$(COMP) -I$(JIT) \
 		$(APPS)/apps.c $(APPS)/wubu_petdex.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c $(APPS)/cmd/cmd.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c \

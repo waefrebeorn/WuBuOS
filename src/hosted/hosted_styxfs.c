@@ -11,6 +11,7 @@
 #include "../gui/wm.h"
 #include "../runtime/styx.h"
 #include "hosted_fs_persist.h"
+#include "../apps/guest_file.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -253,4 +254,57 @@ int styx_remove_cb(styx_server_t *srv, uint32_t fid) {
     memset(f, 0, sizeof(*f));
     g_fs_dirty = 1;
     return 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * Application-facing file API
+ *
+ * Implemented here, next to `g_fs`, so there is exactly one owner of the
+ * namespace.  Applications get guest_file.h and nothing else.
+ * ══════════════════════════════════════════════════════════════════ */
+
+int guest_file_read(const char *name, uint8_t *buf, uint32_t cap, uint32_t *len) {
+    if (!name || !*name || !buf || !len) return -1;
+    *len = 0;
+
+    int idx = fs_find(name);
+    if (idx < 0) return -1;
+    if (g_fs[idx].qtype & STX_QTDIR) return -1;
+
+    uint32_t avail = g_fs[idx].data_len;
+    if (avail > cap) return -1;                 /* refuse rather than truncate */
+
+    if (avail > 0) memcpy(buf, g_fs[idx].data, avail);
+    *len = avail;
+    return 0;
+}
+
+int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
+    if (!name || !*name || (!data && len > 0)) return -1;
+    if (len > GUEST_FILE_MAX) return -1;
+    if (strlen(name) >= sizeof(g_fs[0].name)) return -1;
+
+    int idx = fs_find(name);
+
+    /* Replace in place when we can, so the qid/path stays stable and anything
+     * holding a handle to the old file does not suddenly point elsewhere. */
+    if (idx >= 0) {
+        if (g_fs[idx].qtype & STX_QTDIR) return -1;   /* never clobber a dir */
+        if (len > sizeof(g_fs[idx].data)) return -1;
+        memset(g_fs[idx].data, 0, sizeof(g_fs[idx].data));
+        if (len > 0) memcpy(g_fs[idx].data, data, len);
+        g_fs[idx].data_len = len;
+        g_fs[idx].length = len;
+        g_fs_dirty = 1;
+        return 0;
+    }
+
+    if (g_nfiles >= STYXFS_MAX_FILES) return -1;
+    return fs_add_file(name, data, len) == 0 ? (g_fs_dirty = 1, 0) : -1;
+}
+
+bool guest_file_exists(const char *name) {
+    if (!name || !*name) return false;
+    int idx = fs_find(name);
+    return idx >= 0 && !(g_fs[idx].qtype & STX_QTDIR);
 }

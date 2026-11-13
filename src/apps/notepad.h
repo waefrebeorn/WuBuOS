@@ -31,9 +31,19 @@ typedef enum {
 
 /* Public API */
 NotepadState* notepad_state_get(void);
+/* Save to a guest file (defaults to "untitled.txt" when name is NULL/empty).
+ * Returns false when the document cannot fit or the write fails -- never
+ * truncates silently. */
+bool notepad_save(const char *name);
+/* Replace the buffer with the contents of a guest file. */
+bool notepad_load(const char *name);
+/* Name the document was last saved under, or "" for Untitled. */
+const char *notepad_filename(void);
+
 DosGuiWindow* notepad_launch(void);
 DosGuiWindow* notepad_open(const char *filename);
 void notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h);
+void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods);
 void notepad_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 
 /* Inspection accessors for the live buffer (the state is module-static).

@@ -16,12 +16,20 @@
 #include "../gui/shell/window_chrome.h"
 #include "../kernel/vbe.h"
 #include "../gui/wubu_theme.h"
+#include "guest_file.h"
 #include <string.h>
 #include <stdlib.h>
 
 #define NOTEPAD_MAX_LINES  4096
 #define NOTEPAD_LINE_LEN   256
 #define NOTEPAD_MAX_CHARS  1048576
+
+/* Inline prompt modes.  There is no general dialog system yet, so asking for a
+ * filename happens in the status line: type a name, Enter confirms, Esc cancels.
+ * This keeps open/save usable today instead of blocked on a dialog framework. */
+typedef enum { NP_MODE_EDIT = 0, NP_MODE_OPEN, NP_MODE_SAVEAS } NpMode;
+
+#define NOTEPAD_DEFAULT_NAME "untitled.txt"
 
 typedef struct {
     char   lines[NOTEPAD_MAX_LINES][NOTEPAD_LINE_LEN];
@@ -32,6 +40,8 @@ typedef struct {
     int    top_x;          /* horizontal scroll (chars) */
     bool   modified;
     char   filename[256];
+    NpMode mode;
+    char   prompt[256];
 } NpBuf;
 
 static NpBuf g_notepad;
@@ -42,6 +52,95 @@ static void np_reset(void) {
     g_notepad.lines[0][0] = '\0';
     g_notepad.cursor_line = 0;
     g_notepad.cursor_col  = 0;
+}
+
+/* Flatten to newline-separated text.  Returns the length, or -1 if the document
+ * cannot fit in a single guest file -- refusing is mandatory here, because
+ * silently truncating a save destroys the user's work. */
+static int np_flatten(uint8_t *out, uint32_t cap) {
+    uint32_t n = 0;
+    for (int i = 0; i < g_notepad.line_count; i++) {
+        int l = (int)strlen(g_notepad.lines[i]);
+        if (n + (uint32_t)l + 1 > cap) return -1;
+        memcpy(out + n, g_notepad.lines[i], (size_t)l);
+        n += (uint32_t)l;
+        out[n++] = '\n';
+    }
+    return (int)n;
+}
+
+/* Split newline-separated text into lines.  A trailing newline does not create
+ * an extra empty line -- that artefact of the flatten format would otherwise
+ * make every saved document gain a blank final row. */
+static void np_unflatten(const uint8_t *in, uint32_t len) {
+    int line = 0;
+    uint32_t start = 0;
+    for (uint32_t i = 0; i < len; i++) {
+        if (in[i] != '\n') continue;
+        if (line >= NOTEPAD_MAX_LINES) break;
+        uint32_t l = i - start;
+        if (l >= NOTEPAD_LINE_LEN) l = NOTEPAD_LINE_LEN - 1;
+        memcpy(g_notepad.lines[line], in + start, l);
+        g_notepad.lines[line][l] = '\0';
+        line++;
+        start = i + 1;
+    }
+    if (start < len && line < NOTEPAD_MAX_LINES) {
+        uint32_t l = len - start;
+        if (l >= NOTEPAD_LINE_LEN) l = NOTEPAD_LINE_LEN - 1;
+        memcpy(g_notepad.lines[line], in + start, l);
+        g_notepad.lines[line][l] = '\0';
+        line++;
+    }
+    g_notepad.line_count = line > 0 ? line : 1;
+}
+
+bool notepad_save(const char *name) {
+    /* NULL means "I have no preference"; an explicitly empty string is a
+     * caller mistake and is refused rather than silently given a default. */
+    if (!name) name = NOTEPAD_DEFAULT_NAME;
+    if (!*name) return false;
+    static uint8_t buf[GUEST_FILE_MAX];
+    int n = np_flatten(buf, sizeof(buf));
+    if (n < 0) return false;
+    if (guest_file_write(name, buf, (uint32_t)n) != 0) return false;
+    strncpy(g_notepad.filename, name, sizeof(g_notepad.filename) - 1);
+    g_notepad.modified = false;
+    return true;
+}
+
+bool notepad_load(const char *name) {
+    if (!name || !*name) return false;
+    static uint8_t buf[GUEST_FILE_MAX];
+    uint32_t len = 0;
+    if (guest_file_read(name, buf, sizeof(buf), &len) != 0) return false;
+    np_reset();
+    np_unflatten(buf, len);
+    strncpy(g_notepad.filename, name, sizeof(g_notepad.filename) - 1);
+    g_notepad.cursor_line = 0;
+    g_notepad.cursor_col = 0;
+    g_notepad.scroll_y = 0;
+    return true;
+}
+
+static void np_prompt_key(uint32_t key) {
+    size_t n = strlen(g_notepad.prompt);
+    if (key == 27) { g_notepad.mode = NP_MODE_EDIT; return; }
+    if (key == '\r' || key == '\n') {
+        char name[sizeof(g_notepad.prompt)];
+        memcpy(name, g_notepad.prompt, sizeof(name));
+        NpMode m = g_notepad.mode;
+        g_notepad.mode = NP_MODE_EDIT;
+        if (!*name) return;
+        if (m == NP_MODE_OPEN) notepad_load(name);
+        else                   notepad_save(name);
+        return;
+    }
+    if (key == 8) { if (n > 0) g_notepad.prompt[n - 1] = '\0'; return; }
+    if (key >= 32 && key < 127 && n < sizeof(g_notepad.prompt) - 1) {
+        g_notepad.prompt[n] = (char)key;
+        g_notepad.prompt[n + 1] = '\0';
+    }
 }
 
 static void notepad_draw_content(DosGuiWindow *win, const ChromeContentRect *content) {
@@ -99,11 +198,17 @@ static void notepad_draw_content(DosGuiWindow *win, const ChromeContentRect *con
     int sby = cy + ch - 14;
     vbe_fill_rect(cx, sby, cw, 14, tc()->win_face);
     vbe_rect(cx, sby, cw, 14, tc()->border_dark);
-    char status[128];
-    snprintf(status, sizeof(status), " Ln %d, Col %d   %s%s",
-             g_notepad.cursor_line + 1, g_notepad.cursor_col + 1,
-             g_notepad.filename[0] ? g_notepad.filename : "Untitled",
-             g_notepad.modified ? " *" : "");
+    char status[320];
+    if (g_notepad.mode == NP_MODE_OPEN) {
+        snprintf(status, sizeof(status), " Open: %s", g_notepad.prompt);
+    } else if (g_notepad.mode == NP_MODE_SAVEAS) {
+        snprintf(status, sizeof(status), " Save as: %s", g_notepad.prompt);
+    } else {
+        snprintf(status, sizeof(status), " Ln %d, Col %d   %s%s",
+                 g_notepad.cursor_line + 1, g_notepad.cursor_col + 1,
+                 g_notepad.filename[0] ? g_notepad.filename : "Untitled",
+                 g_notepad.modified ? " *" : "");
+    }
     vbe_draw_text(cx + 4, sby + 3, status, tc()->btn_text, 1);
 }
 
@@ -119,8 +224,33 @@ void notepad_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
 }
 
 void notepad_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
-    (void)win; (void)mods;
+    (void)win;
     if (key == 0) return;
+
+    /* A prompt swallows ordinary editing keys until it is confirmed or
+     * cancelled, otherwise typing a filename would also edit the document. */
+    if (g_notepad.mode != NP_MODE_EDIT) { np_prompt_key(key); return; }
+
+    bool ctrl  = (mods & 0x04) != 0;
+    bool shift = (mods & 0x01) != 0;
+    if (ctrl && (key == 's' || key == 'S')) {
+        if (shift || !g_notepad.filename[0]) {
+            g_notepad.mode = NP_MODE_SAVEAS;
+            g_notepad.prompt[0] = '\0';
+            if (g_notepad.filename[0])
+                strncpy(g_notepad.prompt, g_notepad.filename,
+                        sizeof(g_notepad.prompt) - 1);
+        } else {
+            notepad_save(g_notepad.filename);
+        }
+        return;
+    }
+    if (ctrl && (key == 'o' || key == 'O')) {
+        g_notepad.mode = NP_MODE_OPEN;
+        strncpy(g_notepad.prompt, g_notepad.filename,
+                sizeof(g_notepad.prompt) - 1);
+        return;
+    }
 
     if (key == 8) {                 /* Backspace */
         if (g_notepad.cursor_col > 0) {
@@ -236,6 +366,7 @@ const char *notepad_line_text(int index) {
 int notepad_cursor_line(void) { return g_notepad.cursor_line; }
 int notepad_cursor_col(void)  { return g_notepad.cursor_col; }
 bool notepad_modified(void)   { return g_notepad.modified; }
+const char *notepad_filename(void) { return g_notepad.filename; }
 
 DosGuiWindow *notepad_launch(void) {
     return notepad_open(NULL);
