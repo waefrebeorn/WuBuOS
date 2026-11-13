@@ -6,6 +6,12 @@ below carries the file that proves it.
 
 ## Progress
 
+- **#5 Control Panel blank pane -- NOT REPRODUCIBLE.** Verified live at `207fb35`:
+  full window with sidebar ("See Also", three links), "Pick a category", eight
+  labelled applets in two columns, and wallpaper/placement text. The original
+  sighting came from an older build or a test-window geometry artefact. Marked
+  done-as-not-a-bug so nobody re-"fixes" a working surface.
+
 - **#1 persistence -- DONE** (`5183844`). New `hosted_fs_persist.{c,h}` writes an
   explicit little-endian image of the namespace to
   `$XDG_DATA_HOME/wubu/fs.img`, renamed into place; loads before built-ins so a
@@ -127,7 +133,7 @@ Legend: **P0** blocks basic use · **P1** blocks real work · **P2** polish/cons
 | 2 | ~~Notepad open/save~~ **DONE** via `guest_file` + Ctrl+S/Ctrl+O and an inline prompt. Remaining: a real modal file dialog (blocked on a dialog framework), and non-ASCII round-trip still untested. | `apps/notepad.c` | `make test_notepad_save` 27/27. |
 | 3 | Audit every editor (Paint, Calc, Control Panel panes) for file I/O. Assume zero until proven otherwise. | `apps/*` | One row per app in the audit doc: has open? has save? writes where? |
 | 4 | Explorer must show the *real* tree (or clearly label the sandbox). `ex_9p_opendir` hides the host. | `gui/explorer.c` | Navigate to a directory the user created on the host; it must appear. |
-| 5 | Fix the Control Panel blank content pane found via Win+X → Settings. | `shell/power_menu.c`, Control Panel app | Open Settings from the power menu; the content area renders widgets. |
+| 5 | ~~Fix the Control Panel blank content pane~~ **NOT REPRODUCIBLE** (2026-11-13, `207fb35`): launched via Win+R and captured the window -- full sidebar, "Pick a category", 8 labelled applets in two columns, wallpaper/placement text. The earlier blank sighting predates the chrome/token work or was the test-window geometry. Recorded so nobody "fixes" a working surface. | `apps/control/control.c` | Live capture shows real content (see commit message). |
 
 ### P1 — no way to get things done
 
