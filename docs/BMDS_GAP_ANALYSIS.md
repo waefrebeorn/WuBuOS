@@ -58,13 +58,26 @@ states the compatibility rule: what may change, what may never, how a slot is
 retired, how a caller detects capability. The behaviour exists; the contract does
 not.
 
-### 6. Fuzzing discipline — **PARTIAL**
-BMDS: host fuzzers run at scale (model3d_fuzz 10M inputs clean), plus ASan/UBSan
-host runs.
-WuBuOS: `test_jit_fuzzer` exists for the JIT, and hostile-input sweeps fork with
-`alarm(1)` (mime_contract, vsl_nt_contract). But there is **no ASan/UBSan build
-gate** anywhere in `mk/*.mk`, and no systematic fuzzer for parsers that matter
-most — `.desktop`, guest FS images, `.spell` containers, multiaddr/CID.
+### 6. Sanitizers — **CLOSED** (`make test_sanitize`)
+Was PARTIAL: `test_jit_fuzzer` covered the JIT and hostile-input sweeps forked with
+`alarm(1)`, but there was **no ASan/UBSan build gate anywhere in `mk/*.mk`**.
+A hostile sweep proves "did not crash"; a sanitizer proves "did not read or write out
+of bounds, did not overflow, did not execute undefined behaviour". Different claims,
+and only one was being made.
+
+`mk/sanitize.mk` now builds and runs four input-handling surfaces fresh under
+`-fsanitize=address,undefined -fno-sanitize-recover=all`:
+
+  .desktop/MIME parser · revolver env parsing · guest FS image loader ·
+  the full NT syscall sweep (412 slots, forked)
+
+**It earned its keep on the first run.** Two mime_contract checks failed only under
+the sanitizers: `mime_contract_test.c` includes `wubu_mime.h` but calls
+`parse_desktop_file()`, whose prototype lives in `wubu_mime_internal.h`. That is an
+implicit declaration -- undefined behaviour in C99+, so the returned `bool` was read
+from garbage and whether the check passed depended on stack layout and optimizer.
+Fixed by including the right header. Any other translation unit with the same shape
+is still latent.
 
 ---
 

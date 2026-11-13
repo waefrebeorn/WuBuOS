@@ -11,6 +11,7 @@
  */
 
 #include "wubu_mime.h"
+#include "wubu_mime_internal.h"   /* parse_desktop_file lives here */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
