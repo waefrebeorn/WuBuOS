@@ -16,7 +16,9 @@
 #include "../apps/guest_file.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 extern void startmenu_index_files(void);
 
@@ -48,6 +50,16 @@ static int count_file_entries(void)
 
 int main(void)
 {
+    /* A test that writes into ~/.local/share/wubu/fs.img has corrupted the
+     * user's real desktop for every later boot -- which is exactly what the
+     * first version of this file did.  Point the store at a scratch file and
+     * remove it on the way out. */
+    char store[256];
+    snprintf(store, sizeof(store),
+             "/home/wubu/.hermes/cache/scratch/wubu-fs-test-%d.img", (int)getpid());
+    setenv("WUBU_FS_STORE", store, 1);
+    unlink(store);
+
     /* ---- 1. files become findable ---------------------------------- */
     guest_file_write("zebra-notes.txt", (const uint8_t *)"hello", 5);
     guest_file_write("alpha.txt",       (const uint8_t *)"world", 5);
@@ -99,6 +111,9 @@ int main(void)
     for (int i = 0; i < g_program_db.count; i++)
         if (strcmp(g_program_db.entries[i].name, "Notepad") == 0) notepad_rows++;
     TEST(notepad_rows == 1, "exactly one Notepad row (the app)");
+
+    guest_file_flush();
+    unlink(store);
 
     printf("=== startmenu_files: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
