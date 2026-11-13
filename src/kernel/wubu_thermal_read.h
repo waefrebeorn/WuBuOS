@@ -37,9 +37,24 @@ int wubu_thermal_read_temp(int zone);
  * reporting a drive temperature as one would be a lie. */
 int wubu_thermal_nvme(void);
 
-/* Last memory (DIMM / SPD hub) temperature in Celsius, or -1 if the machine
- * exposes none.  Most laptops do NOT -- returning 0 here would claim the RAM is
- * freezing, which is a measurement nobody took. */
+/* Last memory (DIMM / SPD hub) temperature in Celsius, or -1 if nothing on
+ * this machine publishes one.  Returning 0 would claim the RAM is freezing,
+ * which is a measurement nobody took.
+ *
+ * WHAT WAS ACTUALLY PROBED on the development machine, so this is not guessed
+ * a second time:
+ *   hwmon drivers: ADP1, acpitz, BAT1, nvme, msi_wmi_platform (fans only),
+ *                  coretemp, iwlwifi_1   -- none named dimm/spd/memory
+ *   ACPI thermal zones: acpitz, INT3400 Thermal, SEN4, TCPU, TCPU_PCI,
+ *                  iwlwifi_1, x86_pkg_temp   -- no memory zone
+ *   NVML: exposes NVML_TEMPERATURE_GPU only; there is no memory-reading enum
+ *   /sys/bus/ddr, /sys/class/drm/*/hwmon, /sys/class/wmi: all empty
+ *   sensor labels scanned for mem/dimm/dram: none
+ *
+ * On such a machine an OEM interface (EC behind WMI, say) is the usual reason
+ * vendor software can show a number Linux cannot reach.  WUBU_RAM_TEMP_SYSFS
+ * points the reader at any sysfs temperature file so that source can be wired
+ * in without pretending the kernel already exposes it. */
 int wubu_thermal_ram(void);
 
 /* Force a re-read now, ignoring the one-second cache. */

@@ -17,6 +17,7 @@
 #include <dirent.h>
 #include <dlfcn.h>
 #include <time.h>
+#include <ctype.h>
 
 /* ---- small helpers ------------------------------------------------- */
 
@@ -105,13 +106,87 @@ static int read_nvme_temp(void) { return read_hwmon("nvme", 1, NULL); }
  * driver named spd5117 (or sometimes "spd"/"dimm"); some vendor EC firmware
  * publishes a plain "dimm" sensor.  Try each; if none exist the answer is -1,
  * and the UI must say so rather than inventing a number. */
+/* Temperature from a sysfs attribute file, in Celsius (millidegrees-aware).
+ * Used by the explicit override below. */
+static int read_temp_sysfs_attr(const char *path)
+{
+    long raw = 0;
+    if (read_int_file(path, &raw) != 0) return -1;
+    return to_celsius(raw);
+}
+
+/* Any hwmon sensor whose LABEL says it is memory.  This is deliberately a
+ * label search rather than a fixed driver list: vendor drivers name these
+ * things differently ("Memory", "DIMM", "DRAM", "SEN4"...), and a label is the
+ * only place the kernel says what a sensor actually measures. */
+static int read_ram_label_scan(void)
+{
+    DIR *d = opendir("/sys/class/hwmon");
+    if (!d) return -1;
+
+    int found = -1;
+    struct dirent *e;
+    while ((e = readdir(d)) != NULL) {
+        if (strncmp(e->d_name, "hwmon", 5) != 0) continue;
+
+        char base[512];
+        snprintf(base, sizeof(base), "/sys/class/hwmon/%s", e->d_name);
+
+        /* Read every *_label and look for a memory word next to a temp input. */
+        char lpath[520];
+        for (int s = 1; s <= 8 && found < 0; s++) {
+            snprintf(lpath, sizeof(lpath), "%s/temp%d_label", base, s);
+            FILE *lf = fopen(lpath, "r");
+            if (!lf) continue;                  /* labels are optional; stop at gap */
+            char label[128] = {0};
+            int ok = fgets(label, sizeof(label), lf) != NULL;
+            fclose(lf);
+            if (!ok) break;
+            label[strcspn(label, "\n")] = '\0';
+
+            /* Case-insensitive match on the words that mean memory. */
+            char lower[sizeof(label)];
+            for (size_t i = 0; i < sizeof(lower) - 1 && label[i]; i++)
+                lower[i] = (char)tolower((unsigned char)label[i]);
+            lower[sizeof(lower) - 1] = '\0';
+            if (!strstr(lower, "mem") && !strstr(lower, "dimm") &&
+                !strstr(lower, "dram")) continue;
+
+            char tpath[520];
+            snprintf(tpath, sizeof(tpath), "%s/temp%d_input", base, s);
+            int t = read_temp_sysfs_attr(tpath);
+            if (t >= 0) found = t;
+        }
+    }
+    closedir(d);
+    return found;
+}
+
 static int read_ram_temp(void)
 {
+    /* 1. Named drivers that publish memory temperature directly. */
     static const char *const dimm_drivers[] = { "spd5117", "spd", "dimm" };
     for (size_t i = 0; i < sizeof(dimm_drivers) / sizeof(dimm_drivers[0]); i++) {
         int t = read_hwmon(dimm_drivers[i], 0, NULL);
         if (t >= 0) return t;
     }
+
+    /* 2. Any sensor that LABELS itself as memory (covers vendor naming). */
+    int labelled = read_ram_label_scan();
+    if (labelled >= 0) return labelled;
+
+    /* 3. Explicit operator override.  Some machines expose RAM temperature
+     *    only through an OEM interface (an EC behind WMI, say) that Linux does
+     *    not surface.  Point WUBU_RAM_TEMP_SYSFS at ANY sysfs temperature file
+     *    and it is used verbatim -- millidegrees or whole degrees, both handled.
+     *    This is how such a machine gets an honest reading instead of a lie. */
+    const char *override = getenv("WUBU_RAM_TEMP_SYSFS");
+    if (override && *override) {
+        int t = read_temp_sysfs_attr(override);
+        if (t >= 0) return t;
+    }
+
+    /* 4. Nothing exposed.  Say so (-1); never invent 0. */
     return -1;
 }
 
