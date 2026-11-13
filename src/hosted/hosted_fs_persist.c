@@ -206,7 +206,7 @@ int fs_persist_load(int replace)
 
     uint32_t count = 0;
     get_u32(hdr + 8, &count);
-    if (count > STYXFS_MAX_FILES) goto done;
+    if (count > styxfs_max_files()) goto done;
 
     /* Decode into a scratch array first: a malformed tail must not leave the
      * live namespace half-replaced. */
@@ -245,7 +245,7 @@ int fs_persist_load(int replace)
 
     if (replace) fs_reset();
     for (uint32_t i = 0; i < count; i++) {
-        if (g_nfiles >= STYXFS_MAX_FILES) break;
+        if (g_nfiles >= styxfs_max_files()) break;
         g_fs[g_nfiles++] = restore[i];
     }
     rc = (int)count;

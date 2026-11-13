@@ -16,8 +16,14 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* In-memory filesystem backing the Styx namespace (registered blobs). */
-#define STYXFS_MAX_FILES 64
+/* In-memory filesystem backing the Styx namespace (registered blobs).
+ *
+ * C needs a compile-time extent for g_fs[], so the ARRAY is sized by the
+ * ceiling.  The runtime bound is the revolver -- see styxfs_max_files() -- which
+ * is what every bounds check must use, or a configuration change would resize the
+ * checks while the array stayed put (or worse, the other way round). */
+#define STYXFS_MAX_FILES_LIMIT 4096
+#define STYXFS_MAX_FILES      STYXFS_MAX_FILES_LIMIT
 
 typedef struct {
     char     name[256];
@@ -32,6 +38,10 @@ typedef struct {
 extern styxfs_file_t g_fs[STYXFS_MAX_FILES];
 extern int           g_nfiles;
 extern uint64_t      g_next_path;
+
+/* Runtime number of usable namespace slots (<= STYXFS_MAX_FILES_LIMIT).
+ * WUBU_FS_FILES overrides it; the limit is never raised. */
+int styxfs_max_files(void);
 
 /* FS namespace builders (implemented in hosted_styxfs.c). */
 int  fs_add_dir(const char *name);

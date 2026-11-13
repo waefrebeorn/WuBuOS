@@ -3,6 +3,7 @@
  */
 
 #include "hosted.h"
+#include "../runtime/wubu_revolver.h"
 #include "hosted_internal.h"
 #include "../kernel/vbe.h"
 #include "../kernel/memory.h"
@@ -42,7 +43,7 @@ int fs_find(const char *name) {
 }
 
 int fs_add_dir(const char *name) {
-    if (g_nfiles >= STYXFS_MAX_FILES) return -1;
+    if (g_nfiles >= styxfs_max_files()) return -1;
     styxfs_file_t *f = &g_fs[g_nfiles++];
     strncpy(f->name, name, sizeof(f->name) - 1);
     f->qtype = STX_QTDIR;
@@ -52,7 +53,7 @@ int fs_add_dir(const char *name) {
 }
 
 int fs_add_file(const char *name, const uint8_t *data, uint32_t len) {
-    if (g_nfiles >= STYXFS_MAX_FILES) return -1;
+    if (g_nfiles >= styxfs_max_files()) return -1;
     styxfs_file_t *f = &g_fs[g_nfiles++];
     strncpy(f->name, name, sizeof(f->name) - 1);
     f->qtype = STX_QTFILE;
@@ -299,8 +300,31 @@ int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
         return 0;
     }
 
-    if (g_nfiles >= STYXFS_MAX_FILES) return -1;
+    if (g_nfiles >= styxfs_max_files()) return -1;
     return fs_add_file(name, data, len) == 0 ? (g_fs_dirty = 1, 0) : -1;
+}
+
+
+/* -- Namespace slot limit (revolver-controlled) -------------------------
+ *
+ * The guest filesystem was fixed at 64 entries: large enough to look generous,
+ * small enough that a user copying a real directory tree hit the wall with no way
+ * past it and no hint why.  The array keeps its compile-time ceiling; this is the
+ * runtime bound every check must honour. */
+static wubu_revolver_t g_files_rev;
+
+int styxfs_max_files(void)
+{
+    static int ready = 0;
+    if (!ready) {
+        wubu_revolver_init(&g_files_rev, "fs_files",
+                           STYXFS_MAX_FILES_LIMIT,   /* default == ceiling: open */
+                           STYXFS_MAX_FILES_LIMIT,   /* ...but never above it */
+                           1);
+        wubu_revolver_set_from_env(&g_files_rev, "WUBU_FS_FILES", NULL);
+        ready = 1;
+    }
+    return (int)wubu_revolver_get(&g_files_rev);
 }
 
 int guest_file_flush(void) { return hosted_fs_flush(); }

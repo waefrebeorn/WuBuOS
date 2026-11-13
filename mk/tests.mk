@@ -1489,6 +1489,12 @@ test_mime_contract:
 		$(GUI)/mime_contract_test.c -o $(GUI)/mime_contract_test -lm
 	$(GUI)/mime_contract_test
 
+test_revolver:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) -I$(HOSTED) -I$(KERNEL) $(RT)/wubu_revolver.c $(HOSTED)/hosted_styxfs.c \
+		$(HOSTED)/hosted_fs_persist.c $(RT)/test_revolver.c -o $(RT)/revolver_test -lm
+	$(RT)/revolver_test
+
 test_startmenu_files:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) \
@@ -1497,13 +1503,13 @@ test_startmenu_files:
 		$(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c \
 		$(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c \
 		$(GUI)/startmenu_test_stub.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(GUI)/startmenu_files_test.c $(RT)/wubu_ns_pkg_fallback.c \
 		-o $(GUI)/startmenu_files_test -lm -ldl
 	$(GUI)/startmenu_files_test
 
 test_startmenu:
-			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(APPS)/apps_wet.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c $(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/startmenu_test_stub.c $(GUI)/startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
+			$(CC) -O0 -g -std=c11 -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/shell/startmenu.c $(GUI)/shell/startmenu_db.c $(APPS)/apps_wet.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(GUI)/shell/startmenu_search.c $(GUI)/shell/startmenu_tree.c $(GUI)/shell/startmenu_power.c $(GUI)/era_apps.c $(GUI)/shell/wm_icon_glyphs.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/startmenu_test_stub.c $(GUI)/startmenu_test.c $(KERNEL)/vbe.c $(KERNEL)/wubu_math.c \
 			$(RT)/wubu_ns_pkg_fallback.c -o $(GUI)/startmenu_test -lm -ldl
 	$(GUI)/startmenu_test
 
@@ -1591,14 +1597,16 @@ $(HOSTED)/hosted_fs_persist.o: $(HOSTED)/hosted_fs_persist.c $(HOSTED)/hosted_fs
 test_fs_persist:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(HOSTED)/test_fs_persist.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(HOSTED)/test_fs_persist.c \
 		-lm -o $(HOSTED)/test_fs_persist
 	$(HOSTED)/test_fs_persist
 
 test_notepad_save:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) -I$(APPS) -I$(COMP) \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(HOSTED)/test_notepad_save.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(HOSTED)/test_notepad_save.c \
 		$(APPS)/notepad.c -lm -o $(HOSTED)/test_notepad_save
 	$(HOSTED)/test_notepad_save
 
@@ -2338,7 +2346,7 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -DWUBU_NO_LIBM \
 		-I$(APPS) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT) -I$(COMP) -I$(JIT) \
 		$(APPS)/apps.c $(APPS)/wubu_petdex.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c $(APPS)/cmd/cmd.c \
-		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
 		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
 		$(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c \
