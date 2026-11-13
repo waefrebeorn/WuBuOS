@@ -108,6 +108,26 @@ int main(void)
              "action_count is capped at MAX_DESKTOP_ACTIONS");
     }
 
+    /* 5b. the shortcut path end to end: the wizard writes Exec=<target>, and that
+     * target must survive parsing as a LAUNCHABLE command (not empty, not mangled).
+     * A shortcut whose Exec is empty is exactly "shortcuts aren't shortcuts". */
+    f = fopen(path, "w");
+    fprintf(f, "[Desktop Entry]\nType=Application\nName=Notes\n"
+               "Exec=notepad %%s/notes.txt\nTerminal=false\n");
+    fclose(f);
+    {
+        DesktopEntry e;
+        TEST(parse_desktop_file(path, &e), "a shortcut entry parses");
+        TEST(e.exec[0] != '\0', "the shortcut carries a non-empty Exec");
+        TEST(strstr(e.exec, "notepad") != NULL,
+             "the shortcut's Exec names the real program");
+        /* Field codes (%s/%f) must survive parsing intact -- desktop_launch_icon()
+         * strips them at launch time, so a parser that dropped them would hand
+         * back a command with its argument missing. */
+        TEST(strstr(e.exec, "%s/notes.txt") != NULL,
+             "the Exec keeps its argument, field code unharmed");
+    }
+
     /* 6. the regression this commit fixes: two actions land in DIFFERENT slots */
     f = fopen(path, "w");
     fprintf(f, "[Desktop Entry]\nName=Two\nActions=open;edit\n"

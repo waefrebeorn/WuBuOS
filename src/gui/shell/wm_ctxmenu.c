@@ -36,6 +36,16 @@ static DosGuiIcon *g_delete_target = NULL;
 static DosGuiIcon *g_properties_target = NULL;
 static bool g_shortcut_pending = false;
 
+/* Two-field shortcut wizard, matching Windows' "New > Shortcut": you type the
+ * LOCATION of the item first, then its NAME.  The previous dialog asked only for
+ * a name and passed NULL as the target, so every shortcut it created had an empty
+ * Exec and clicking it did nothing -- "shortcuts aren't shortcuts". */
+static char g_shortcut_target[128] = {0};
+static int  g_shortcut_target_pos = 0;
+static char g_shortcut_name[64] = {0};
+static int  g_shortcut_name_pos = 0;
+static bool g_shortcut_adding_name = false;   /* false = editing target */
+
 static void dialog_rename_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
     if (key == '\r' || key == '\n') {
         if (g_rename_pos > 0 && g_rename_target) {
@@ -166,32 +176,47 @@ static void dialog_properties_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w,
 /* New-Shortcut dialog: reuse the rename input buffer to collect a name,
  * then call the WM helper which writes a real .desktop file to ~/Desktop. */
 static void dialog_shortcut_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
+    (void)mods;
     if (key == '\r' || key == '\n') {
-        if (g_rename_pos > 0) {
-            char name[32];
-            snprintf(name, sizeof(name), "%s", g_rename_input);
-            int rc = wm_write_desktop_shortcut(name, NULL);
+        if (!g_shortcut_adding_name) {
+            /* First Enter accepts the target and moves to the name field. */
+            g_shortcut_adding_name = true;
+            return;
+        }
+        if (g_shortcut_name_pos > 0 && g_shortcut_target_pos > 0) {
+            int rc = wm_write_desktop_shortcut(g_shortcut_name, g_shortcut_target);
             wubu_notify_simple("Desktop", "Shortcut Created",
-                               rc == 0 ? name : "Failed to create", NULL, 1, 2500);
+                               rc == 0 ? g_shortcut_name : "Failed to create",
+                               NULL, 1, 2500);
         }
         g_shortcut_pending = false;
-        g_rename_input[0] = '\0';
-        g_rename_pos = 0;
+        g_shortcut_target[0] = g_shortcut_target_pos = 0;
+        g_shortcut_name[0] = g_shortcut_name_pos = 0;
+        g_shortcut_adding_name = false;
         wm_destroy(win);
-    } else if (key == 27) {  /* Escape */
+    } else if (key == 9) {                       /* Tab toggles the field */
+        g_shortcut_adding_name = !g_shortcut_adding_name;
+    } else if (key == 27) {                      /* Escape cancels */
         g_shortcut_pending = false;
-        g_rename_input[0] = '\0';
-        g_rename_pos = 0;
+        g_shortcut_target[0] = g_shortcut_target_pos = 0;
+        g_shortcut_name[0] = g_shortcut_name_pos = 0;
+        g_shortcut_adding_name = false;
         wm_destroy(win);
-    } else if (key == 8 && g_rename_pos > 0) {  /* Backspace */
-        g_rename_input[--g_rename_pos] = '\0';
-    } else if (key >= 32 && key < 127 && g_rename_pos < 31) {  /* Printable */
-        g_rename_input[g_rename_pos++] = (char)key;
-        g_rename_input[g_rename_pos] = '\0';
+    } else {
+        char *buf = g_shortcut_adding_name ? g_shortcut_name : g_shortcut_target;
+        int *pos  = g_shortcut_adding_name ? &g_shortcut_name_pos : &g_shortcut_target_pos;
+        size_t cap = g_shortcut_adding_name ? sizeof(g_shortcut_name) : sizeof(g_shortcut_target);
+        if (key == 8 && *pos > 0) {
+            buf[--*pos] = '\0';
+        } else if (key >= 32 && key < 127 && (size_t)*pos + 1 < cap) {
+            buf[(*pos)++] = (char)key;
+            buf[*pos] = '\0';
+        }
     }
 }
 
 static void dialog_shortcut_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
+    (void)fb_w; (void)fb_h;
     const int tbh = 20;
     const int bw = 3;
     int cx = win->x + bw;
@@ -200,8 +225,26 @@ static void dialog_shortcut_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, i
     int ch = win->h - tbh - bw;
 
     vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
-    vbe_draw_text(cx + 10, cy + 20, "Shortcut name:", 0x00000000, 1);
-    vbe_draw_text(cx + 10, cy + 50, g_rename_input[0] ? g_rename_input : "(type a name)", 0x00000000, 1);
+
+    /* Active field gets an accent bar; inactive stays plain, so it is obvious
+     * what the next keystroke goes into without a separate focus widget. */
+    uint32_t active_col = 0x001F6FEB;
+    uint32_t idle_col   = 0x00000000;
+
+    vbe_draw_text(cx + 10, cy + 16, "Type the location of the item:",
+                  g_shortcut_adding_name ? idle_col : active_col, 1);
+    vbe_draw_text(cx + 10, cy + 38,
+                  g_shortcut_target[0] ? g_shortcut_target : "(command or path)",
+                  g_shortcut_adding_name ? idle_col : active_col, 1);
+
+    vbe_draw_text(cx + 10, cy + 68, "Type a name for this shortcut:",
+                  g_shortcut_adding_name ? active_col : idle_col, 1);
+    vbe_draw_text(cx + 10, cy + 90,
+                  g_shortcut_name[0] ? g_shortcut_name : "(shortcut name)",
+                  g_shortcut_adding_name ? active_col : idle_col, 1);
+
+    vbe_draw_text(cx + 10, cy + 120, "Enter=next   Tab=switch field   Esc=cancel",
+                  0x00666666, 1);
 }
 
 /* -- Default Context Menu Actions -- */
@@ -292,6 +335,9 @@ static void ctx_action_create_shortcut(void) {
     g_rename_target = NULL;  /* not renaming an icon */
     g_rename_input[0] = '\0';
     g_rename_pos = 0;
+    g_shortcut_target[0] = g_shortcut_target_pos = 0;
+    g_shortcut_name[0] = g_shortcut_name_pos = 0;
+    g_shortcut_adding_name = false;
     g_shortcut_pending = true;
     DosGuiWindow *dialog = wm_create_modal(300, 200, 400, 150, "New Shortcut", NULL);
     if (dialog) {
