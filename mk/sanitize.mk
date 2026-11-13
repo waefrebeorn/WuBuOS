@@ -31,6 +31,7 @@ export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 # Every future target added here must keep its variable above the rule.
 FS_PERSIST_FUZZ_SAN = $(HOSTED)/fs_persist_fuzz.san
 MIME_FUZZ_SAN = $(GUI)/mime_fuzz.san
+SPELLMOD_FUZZ_SAN = $(RT)/spellmod_fuzz.san
 
 .PHONY: test_sanitize
 # All four targets live here.  The NT sweep looks like it should be excluded for
@@ -38,7 +39,7 @@ MIME_FUZZ_SAN = $(GUI)/mime_fuzz.san
 # gate would save nothing and would hide the most valuable target behind a second
 # command somebody has to remember to run.
 test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(VSL_NT_SAN_BIN)
+               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(SPELLMOD_FUZZ_SAN) $(VSL_NT_SAN_BIN)
 	@set -e; fail=0; \
 	for b in $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
 	         $(HOSTED)/test_fs_persist.san $(VSL_NT_SAN_BIN); do \
@@ -47,6 +48,7 @@ test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
 	done; \
 	$(FS_PERSIST_FUZZ_SAN) 7 4000; \
 	$(MIME_FUZZ_SAN) 7 4000; \
+	$(SPELLMOD_FUZZ_SAN) 7 4000; \
 	if [ $$fail -eq 0 ]; then echo "=== all sanitized targets clean ==="; fi; \
 	exit $$fail
 
@@ -88,6 +90,12 @@ $(MIME_FUZZ_SAN): $(GUI)/mime_fuzz.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop
 		-I$(GUI) -I$(RT) -I$(KERNEL) \
 		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
 		$(GUI)/mime_fuzz.c -o $@ -lm
+
+# Mutation fuzzer for the .spell module container, under ASan/UBSan.
+$(SPELLMOD_FUZZ_SAN): $(RT)/spellmod_fuzz.c $(RT)/wubu_spellmod.c
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_spellmod.c $(RT)/spellmod_fuzz.c -o $@ -lm
 
 # NT syscall surface -- every slot probed with all-zero arguments, forked.
 VSL_NT_SAN_BIN = $(RT)/vsl_nt_contract_test.san

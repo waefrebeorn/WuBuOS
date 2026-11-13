@@ -9,6 +9,7 @@
 
 #include "wubu_spellmod.h"
 
+#include <stdlib.h>   /* calloc, free */
 #include <string.h>
 
 #define WUSPELL_HDR_SIZE 128
@@ -105,6 +106,19 @@ wubu_spellmod_t *wubu_spellmod_open(const uint8_t *data, size_t len)
     size_t end = m->code_off + cl;
     if (end > len) { free(m); return NULL; }
     if (!(flags & 1) && cl != 0) { free(m); return NULL; }   /* claimed none */
+
+    /* Every export must lie wholly INSIDE the code blob.  wubu_spellmod_export()
+     * re-checks this on lookup, but only when code_len > 0 -- a module with no code
+     * skipped the check entirely and could hand back an arbitrary offset/size for a
+     * blob that does not exist.  Refuse the image here instead, so a module that lies
+     * about its own layout is rejected at the door rather than half-accepted and
+     * filtered later by whoever happens to look something up. */
+    for (uint32_t i = 0; i < ne; i++) {
+        const uint8_t *e = data + m->exports_off + (size_t)i * WUSPELL_EXPORT_SIZE;
+        uint32_t eo = rd_u32(e + 64);
+        uint32_t es = rd_u32(e + 68);
+        if (eo > cl || es > cl - eo) { free(m); return NULL; }
+    }
 
     return m;
 }

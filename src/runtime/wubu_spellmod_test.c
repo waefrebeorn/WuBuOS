@@ -157,16 +157,24 @@ int main(void)
     bad[124] = 200;                                  /* code_len too large */
     TEST(wubu_spellmod_open(bad, len) == NULL, "over-long code region refused");
 
-    /* export pointing outside the code blob */
+    /* Export pointing outside the code blob.  This used to be accepted by open()
+     * and rejected only at lookup, which contradicts the header's stated failure
+     * policy -- a module that lies about its own layout must never be half-accepted.
+     * A fuzz run found 1853 such images accepted, so open() now refuses them. */
     memcpy(bad, img, len);
     bad[128 + 2*64 + 64 + 64] = 200;                 /* export offset past code */
-    TEST(wubu_spellmod_open(bad, len) != NULL, "image still parses");
-    {
-        wubu_spellmod_t *bm = wubu_spellmod_open(bad, len);
-        TEST(wubu_spellmod_export(bm, "measure", &eoff, &esz) == -1,
-             "an export outside the code blob is refused");
-        wubu_spellmod_close(bm);
-    }
+    TEST(wubu_spellmod_open(bad, len) == NULL,
+         "an export outside the code blob is refused at parse time");
+
+    /* The hole the fuzzer actually exposed: wubu_spellmod_export() validates an
+     * export's bounds only when code_len > 0.  An image declaring NO code skipped
+     * that check entirely, so it could hand back an arbitrary offset/size for a blob
+     * that does not exist.  Parse must refuse it outright. */
+    memcpy(bad, img, len);
+    bad[124] = 0;                                    /* code_len = 0 */
+    bad[128 + 2*64 + 64 + 64] = 200;                 /* export offset past nothing */
+    TEST(wubu_spellmod_open(bad, len) == NULL,
+         "an export in a code-less module is refused");
 
     /* NULL / empty inputs */
     TEST(wubu_spellmod_open(NULL, 0) == NULL, "NULL buffer refused");
