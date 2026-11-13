@@ -596,10 +596,10 @@ static void test_icon_get_bounds(void) {
 /* -- Desktop Live Namespace Tests (Stream A: ReactOS explorer/desktop.cpp) -- */
 
 static void test_desktop_live_namespace_init(void) {
-    TEST("~/Desktop .desktop files appear as icons on init");
+    TEST("desktop .desktop files appear as icons on init");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
     /* Drop two real .desktop shortcuts. */
@@ -632,7 +632,7 @@ static void test_desktop_new_folder(void) {
     TEST("New Folder creates a real dir + live icon");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
 
@@ -660,7 +660,7 @@ static void test_desktop_new_text_doc(void) {
     TEST("New Text Document creates a real file + live icon");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
 
@@ -686,7 +686,7 @@ static void test_desktop_sort_by_size(void) {
     TEST("Sort By Size reorders icons by stat size");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
     /* Two .desktop files of different sizes. */
@@ -721,12 +721,12 @@ static void test_desktop_sort_by_size(void) {
 }
 
 /* Regression: the desktop must retain MORE than the old 16-icon cap when
- * ~/Desktop holds many entries (refresh used to silently drop them). */
+ * the desktop directory holds many entries (refresh used to silently drop them). */
 static void test_desktop_many_icons_retained(void) {
     TEST("refresh retains >16 icons (no silent drop at cap)");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
 
@@ -760,7 +760,7 @@ static void test_icon_drag_persist_restore(void) {
     TEST("drag-end saves + restore reapplies icon position");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
     char p[640];
@@ -812,7 +812,7 @@ static void test_icon_delete_moves_to_trash(void) {
     TEST("Delete moves underlying file to trash + compacts");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_deltest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     setenv("XDG_DATA_HOME", desk, 1);   /* trash lives under XDG data home */
     rm_rf(desk);
     mkdir(desk, 0755);
@@ -855,7 +855,7 @@ static void test_icon_multiselect_delete(void) {
     TEST("multi-select delete removes all selected icons");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_msel_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     setenv("XDG_DATA_HOME", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
@@ -901,7 +901,7 @@ static void test_auto_arrange_persists_restart(void) {
     TEST("auto-arrange toggle persists + re-applies on boot");
     char dsk[512];
     snprintf(dsk, sizeof(dsk), "/tmp/wubu_arr_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", dsk, 1);
+    setenv("WUBU_DESKTOP_DIR", dsk, 1);
     setenv("XDG_CONFIG_HOME", dsk, 1);
     rm_rf(dsk); mkdir(dsk, 0755);
 
@@ -1259,7 +1259,7 @@ static void test_desktop_new_shortcut(void) {
     TEST("New Shortcut writes a real .desktop and surfaces a live icon");
     char desk[512];
     snprintf(desk, sizeof(desk), "/tmp/wubu_desktest_%d", getpid());
-    setenv("XDG_DESKTOP_DIR", desk, 1);
+    setenv("WUBU_DESKTOP_DIR", desk, 1);
     rm_rf(desk);
     mkdir(desk, 0755);
 

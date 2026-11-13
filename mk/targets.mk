@@ -111,7 +111,7 @@ worldspace:
 # -DWUBU_HOSTED_TEST so its main() is live (the harness compiles it out and
 # supplies its own main).
 HOSTED_BIN   = $(HOSTED)/wubu
-HOSTED_SUBSYS = $(HOSTED)/hosted_render.c $(HOSTED)/hosted_run.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+HOSTED_SUBSYS = $(HOSTED)/hosted_render.c $(HOSTED)/hosted_run.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_guest_root.c $(RT)/wubu_revolver.c \
                 $(HOSTED)/hosted_pe.c $(HOSTED)/wubu_display.c $(HOSTED)/hosted_wayland.c \
                 $(HOSTED)/hosted_wayland_input.c $(HOSTED)/hosted_wayland_shm.c \
                 $(HOSTED)/hosted_wayland_surface.c

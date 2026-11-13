@@ -4,6 +4,7 @@
 
 #include "styxfs.h"
 #include "styxfs_internal.h"
+#include "wubu_guest_root.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -22,27 +23,12 @@
  * <root>/apps/x.  Host paths never leak back in unless an operator deliberately
  * mounts something.
  */
-static const char *guest_root(void)
-{
-    static char root[STYXFS_MAX_PATH];
-    static int ready = 0;
-    if (!ready) {
-        const char *env = getenv("WUBU_GUEST_ROOT");
-        if (env && *env) {
-            snprintf(root, sizeof(root), "%s", env);
-        } else {
-            const char *home = getenv("HOME");
-            snprintf(root, sizeof(root), "%s/.local/share/wubu/guest",
-                     home ? home : ".");
-        }
-        ready = 1;
-    }
-    return root;
-}
 
 void styxfs_guest_root(char *out, size_t outsz)
 {
-    snprintf(out, outsz, "%s", guest_root());
+    /* Compatibility shim: the path itself is owned by wubu_guest_root.c so that
+     * callers which only need the location do not link the whole 9P host layer. */
+    wubu_guest_root(out, outsz);
 }
 
 /* Map a guest path into the sandbox.  Returns true when it did. */
@@ -64,7 +50,8 @@ static bool map_into_guest(const char *path, char *out, size_t outsz)
         return true;
     }
 
-    const char *root = guest_root();
+    char root[1024];
+    wubu_guest_root(root, sizeof(root));
     if (strcmp(path, "/") == 0) {
         snprintf(out, outsz, "%s", root);
         return true;

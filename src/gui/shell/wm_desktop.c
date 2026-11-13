@@ -15,6 +15,7 @@
 
 #include "../../egojar.h"
 #include "../wm_internal.h"
+#include "../../runtime/wubu_guest_root.h"
 #include <stdlib.h>     /* qsort */
 #include <fcntl.h>      /* O_CREAT / O_EXCL / O_WRONLY */
 #include <errno.h>
@@ -98,13 +99,22 @@ void wm_set_icons_visible(bool show) {
     }
 }
 
-/* Resolve the user's Desktop directory (XDG or ~/Desktop). */
+/* Resolve the user's Desktop directory.
+ *
+ * This used to prefer $XDG_DESKTOP_DIR and then fall back to $HOME/Desktop -- two
+ * host-OS conventions.  On the hosted port that meant the desktop showed whatever
+ * the LINUX session had on its desktop, and creating a folder or shortcut wrote a
+ * file into the host's home directory instead of the guest's own namespace.  The
+ * Desktop is now a directory inside the GUEST sandbox ($WUBU_GUEST_ROOT/Desktop),
+ * with WUBU_DESKTOP_DIR as an explicit operator override for anyone who wants it
+ * elsewhere. */
 static void desktop_dir_path(char *out, size_t n) {
-    const char *xdg = getenv("XDG_DESKTOP_DIR");
-    if (xdg && *xdg) { snprintf(out, n, "%s", xdg); return; }
-    const char *home = getenv("HOME");
-    if (home && *home) { snprintf(out, n, "%s/Desktop", home); return; }
-    snprintf(out, n, "/tmp/Desktop");
+    const char *env = getenv("WUBU_DESKTOP_DIR");
+    if (env && *env) { snprintf(out, n, "%s", env); return; }
+
+    char root[1024];
+    wubu_guest_root(root, sizeof(root));
+    snprintf(out, n, "%s/Desktop", root);
 }
 
 /* Write a real Freedesktop .desktop shortcut into ~/Desktop and return 0
@@ -172,6 +182,16 @@ void wm_sort_icons_by_name(void) {
 void wm_refresh_desktop(void) {
     char dir[512];
     desktop_dir_path(dir, sizeof(dir));
+
+    /* Make sure the Desktop exists before enumerating it.  It lives inside the
+     * guest sandbox, which is empty on a fresh install -- without this the shell
+     * would silently show no desktop icons at all until something else happened to
+     * create the directory, which reads as "the desktop is broken" on first boot. */
+    struct stat st;
+    if (stat(dir, &st) != 0) {
+        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return;
+    }
+
     DIR *d = opendir(dir);
     if (!d) return;
     struct dirent *e;
