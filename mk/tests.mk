@@ -1612,6 +1612,15 @@ test_fs_persist:
 
 # Deterministic mutation fuzzer for the WUBFS01 image loader.  Seed 7, 4000 rounds.
 # Built under sanitizers too -- see the fs_persist_fuzz target in mk/sanitize.mk.
+# Deterministic mutation fuzzer for the .desktop / MIME parser.  Seed 7, 4000 rounds.
+test_mime_fuzz:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(GUI) -I$(RT) -I$(KERNEL) \
+		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
+		$(GUI)/mime_fuzz.c \
+		-lm -o $(GUI)/mime_fuzz
+	$(GUI)/mime_fuzz 7 4000
+
 test_fs_persist_fuzz:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \

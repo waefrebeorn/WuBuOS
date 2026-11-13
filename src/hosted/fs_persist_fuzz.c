@@ -44,16 +44,12 @@
 #define REC_FIXED          13          /* uint64 path + uint8 qtype + uint32 dlen */
 #define NAME_SZ            256
 
-/* Deterministic PRNG (splitmix64): no rand(), no global state, reproducible. */
-static uint64_t rng_state;
-static uint64_t rng_next(void)
-{
-    uint64_t z = (rng_state += 0x9E3779B97F4A7C15ull);
-    z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
-    z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
-    return z ^ (z >> 31);
-}
-static uint32_t rng_below(uint32_t n) { return n ? (uint32_t)(rng_next() % n) : 0; }
+#include "../tools/fuzz_rng.h"   /* shared deterministic PRNG */
+
+static fuzz_rng g_rng;
+#define rng_state   g_rng.state
+#define rng_next    fuzz_rng_next(&g_rng)
+#define rng_below(n) fuzz_rng_below(&g_rng, (n))
 
 static void put_u32(uint8_t *p, uint32_t v)
 {
@@ -103,7 +99,7 @@ int main(int argc, char **argv)
     int rounds    = (argc > 2) ? atoi(argv[2]) : 4000;
     if (rounds < 1) rounds = 4000;
 
-    rng_state = seed;
+    fuzz_rng_seed(&g_rng, seed);
 
     /* Point the store at scratch space so the fuzzer can never touch the real
      * user image -- the same isolation rule test_startmenu_files learned the hard

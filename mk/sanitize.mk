@@ -24,13 +24,21 @@ SAN_CFLAGS := -O1 -g -std=c11 -fno-omit-frame-pointer \
 export ASAN_OPTIONS=detect_leaks=0:abort_on_error=0:exitcode=97:halt_on_error=1
 export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
 
+# Defined BEFORE the test_sanitize rule on purpose.  GNU make expands a rule's
+# prerequisite list at parse time, so a target named only through a variable
+# defined further down the file expands to NOTHING and the prerequisite is
+# silently dropped -- the recipe then runs a path that was never built.
+# Every future target added here must keep its variable above the rule.
+FS_PERSIST_FUZZ_SAN = $(HOSTED)/fs_persist_fuzz.san
+MIME_FUZZ_SAN = $(GUI)/mime_fuzz.san
+
 .PHONY: test_sanitize
 # All four targets live here.  The NT sweep looks like it should be excluded for
 # cost (it forks once per slot) but MEASURED at ~0.7s under ASan, so splitting the
 # gate would save nothing and would hide the most valuable target behind a second
 # command somebody has to remember to run.
 test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(VSL_NT_SAN_BIN)
+               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(VSL_NT_SAN_BIN)
 	@set -e; fail=0; \
 	for b in $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
 	         $(HOSTED)/test_fs_persist.san $(VSL_NT_SAN_BIN); do \
@@ -38,6 +46,7 @@ test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
 	   if ! $$b; then echo "!!! $$b failed under sanitizers"; fail=1; fi; \
 	done; \
 	$(FS_PERSIST_FUZZ_SAN) 7 4000; \
+	$(MIME_FUZZ_SAN) 7 4000; \
 	if [ $$fail -eq 0 ]; then echo "=== all sanitized targets clean ==="; fi; \
 	exit $$fail
 
@@ -65,7 +74,6 @@ $(HOSTED)/test_fs_persist.san: $(HOSTED)/test_fs_persist.c $(HOSTED)/hosted_styx
 # Mutation fuzzer for the same loader, run under ASan/UBSan.  A memory fault aborts
 # the run instead of surfacing as a failure somewhere else later; the deterministic
 # seed makes any finding reproducible.
-FS_PERSIST_FUZZ_SAN = $(HOSTED)/fs_persist_fuzz.san
 $(FS_PERSIST_FUZZ_SAN): $(HOSTED)/fs_persist_fuzz.c $(HOSTED)/hosted_styxfs.c \
                         $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
                         $(RT)/wubu_guest_root.c
@@ -73,6 +81,13 @@ $(FS_PERSIST_FUZZ_SAN): $(HOSTED)/fs_persist_fuzz.c $(HOSTED)/hosted_styxfs.c \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(RT)/wubu_guest_root.c $(HOSTED)/fs_persist_fuzz.c -o $@ -lm
+
+# Mutation fuzzer for the .desktop parser, under ASan/UBSan.
+$(MIME_FUZZ_SAN): $(GUI)/mime_fuzz.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(GUI) -I$(RT) -I$(KERNEL) \
+		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
+		$(GUI)/mime_fuzz.c -o $@ -lm
 
 # NT syscall surface -- every slot probed with all-zero arguments, forked.
 VSL_NT_SAN_BIN = $(RT)/vsl_nt_contract_test.san
