@@ -34,6 +34,16 @@ enum {
     WUBU_BUDDY_STATE_SURF,         /* surfing the web             */
     WUBU_BUDDY_STATE_RACE,         /* driving flat out            */
     WUBU_BUDDY_STATE_READ,         /* reading, learning           */
+    WUBU_BUDDY_STATE_RUN,          /* sprinting with intent       */
+    WUBU_BUDDY_STATE_CLIMB,        /* ladder: progress/upgrade    */
+    WUBU_BUDDY_STATE_BLOCKED,      /* pushing against a wall      */
+    WUBU_BUDDY_STATE_CRY,          /* something went wrong        */
+    WUBU_BUDDY_STATE_DESPAIR,      /* down, needs attention       */
+    WUBU_BUDDY_STATE_NEUTRAL,      /* standing, no strong mood    */
+    WUBU_BUDDY_STATE_GAME,         /* playing                     */
+    WUBU_BUDDY_STATE_COIN,         /* celebrating a win           */
+    WUBU_BUDDY_STATE_FLAG,         /* done / deployed             */
+    WUBU_BUDDY_STATE_CAMPFIRE,     /* the original desktop pose   */
     WUBU_BUDDY_STATE_COUNT
 };
 

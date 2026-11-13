@@ -43,20 +43,26 @@ ASSETS = os.path.join(HERE, "assets")
 # list must stay in enum order (wubu_bonzi.h).  Verified against a numbered overlay
 # of each sheet -- every marker sat on a mascot, none on empty space.
 MOOD_POSES = [
-    ("DEFAULT",   "base:4"),    # campfire -- the shipped desktop look
-    ("WORK",      "moods:3"),   # typing, coffee mugs
-    ("ERROR",     "debug:5"),   # staring at a red X
-    ("SUCCESS",   "debug:6"),   # thumbs up, green tick
-    ("IDLE",      "ops:5"),     # resting on the rubber duck
-    ("OVERHEAT",  "ops:2"),     # extinguishing the smoking server
-    ("BUSY",      "ops:4"),     # phone showing 99+
-    ("RELAXED",   "moods:6"),   # beach chair, coconut
-    ("SURF",      "base:1"),    # surfing the wave
-    ("RACE",      "base:3"),    # driving the kart
-    ("READ",      "base:6"),    # reading by the bookstack
-    # Extras beyond the enum -- available for callers that want them.
-    ("LAPTOP",    "ops:1"),     # happy at the laptop
-    ("KARATE",    "moods:4"),   # high kick
+    ("DEFAULT",   "emotions:6"),  # standing neutrally -- the desktop idle look
+    ("WORK",      "moods:3"),     # typing, coffee mugs
+    ("ERROR",     "debug:5"),     # staring at a red X
+    ("SUCCESS",   "debug:6"),     # thumbs up, green tick
+    ("IDLE",      "ops:5"),       # resting on the rubber duck
+    ("OVERHEAT",  "ops:2"),       # extinguishing the smoking server
+    ("BUSY",      "ops:4"),       # phone showing 99+
+    ("RELAXED",   "moods:6"),     # beach chair, coconut
+    ("SURF",      "base:1"),      # surfing the wave
+    ("RACE",      "base:3"),      # driving the kart
+    ("READ",      "base:6"),      # reading by the bookstack
+    ("RUN",       "emotions:1"),  # sprinting, motion lines
+    ("CLIMB",     "emotions:2"),  # climbing the ladder (progress/upgrade)
+    ("BLOCKED",   "emotions:3"),  # pushing against a wall
+    ("CRY",       "emotions:4"),  # tears, hand on forehead
+    ("DESPAIR",   "emotions:5"),  # sitting, hugging knees
+    ("GAME",      "emotions:7"),  # jumping with a controller
+    ("COIN",      "emotions:8"),  # celebrating with a gold coin
+    ("FLAG",      "emotions:9"),  # waving the flag (done/deployed)
+    ("CAMPFIRE",  "base:4"),      # the previously shipped desktop pose
 ]
 
 SHEETS = {
@@ -64,6 +70,7 @@ SHEETS = {
     "moods": "wubu_buddy_sheet_moods.jpg",
     "ops":   "wubu_buddy_sheet_ops.jpg",
     "debug": "wubu_buddy_sheet_debug.jpg",
+    "emotions": "wubu_buddy_sheet_emotions.jpg",
 }
 
 

@@ -190,6 +190,18 @@ static const unsigned char *buddy_state_rgba(void) {
     case WUBU_BUDDY_STATE_SURF:    return BUDDY_STATE_SURF;
     case WUBU_BUDDY_STATE_RACE:    return BUDDY_STATE_RACE;
     case WUBU_BUDDY_STATE_READ:    return BUDDY_STATE_READ;
+    case WUBU_BUDDY_STATE_RUN:     return BUDDY_STATE_RUN;
+    case WUBU_BUDDY_STATE_CLIMB:   return BUDDY_STATE_CLIMB;
+    case WUBU_BUDDY_STATE_BLOCKED: return BUDDY_STATE_BLOCKED;
+    case WUBU_BUDDY_STATE_CRY:     return BUDDY_STATE_CRY;
+    case WUBU_BUDDY_STATE_DESPAIR: return BUDDY_STATE_DESPAIR;
+    /* NEUTRAL is an alias for DEFAULT: both are the same standing pose.
+     * It is deliberately NOT baked twice -- one table, one owner. */
+    case WUBU_BUDDY_STATE_NEUTRAL: return BUDDY_STATE_DEFAULT;
+    case WUBU_BUDDY_STATE_GAME:    return BUDDY_STATE_GAME;
+    case WUBU_BUDDY_STATE_COIN:    return BUDDY_STATE_COIN;
+    case WUBU_BUDDY_STATE_FLAG:    return BUDDY_STATE_FLAG;
+    case WUBU_BUDDY_STATE_CAMPFIRE: return BUDDY_STATE_CAMPFIRE;
     default:                       return BUDDY_STATE_DEFAULT;
     }
 }
