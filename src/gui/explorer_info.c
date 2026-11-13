@@ -7,11 +7,37 @@
 #include "../egojar.h"
 #include "explorer.h"
 #include "explorer_internal.h"
+#include "../apps/guest_file.h"
 
 #include <string.h>
 #include <stdio.h>
 
 void ex_get_file_info(const char *path, ExEntry *entry) {
+    /* Ask the GUEST STORE first.  Files saved by Notepad exist only there, so a
+     * host stat() fails for every document the user actually created and File
+     * Manager would label them Unknown with size 0. */
+    uint32_t gsize = 0;
+    bool gdir = false;
+    if (guest_file_stat(path, &gsize, &gdir)) {
+        entry->size = gsize;
+        entry->modified = 0;
+        entry->created = 0;
+        entry->hidden = (entry->name[0] == '.');
+        entry->readonly = false;
+        if (gdir) {
+            entry->type = EX_ENTRY_DIR;
+            strcpy(entry->type_str, "File Folder");
+            entry->icon_color = 0xFFD700;
+        } else {
+            entry->type = EX_ENTRY_FILE;
+            const char *ext = ex_get_extension(entry->name);
+            strncpy(entry->extension, ext, sizeof(entry->extension) - 1);
+            strcpy(entry->type_str, "Document");
+            entry->icon_color = explorer_type_color(EX_ENTRY_FILE);
+        }
+        return;
+    }
+
     struct stat st;
     if (ex_9p_stat(path, &st) != 0) {
         entry->type = EX_ENTRY_UNKNOWN;

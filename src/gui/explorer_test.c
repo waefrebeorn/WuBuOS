@@ -511,12 +511,57 @@ static void test_image_preview(void) {
 
 /* -- Main --------------------------------------------------------- */
 
+/* The unification property: whatever the guest STORE holds is what File Manager
+ * lists -- same namespace Notepad writes into, folders included, and only direct
+ * children at the requested depth. */
+static void test_guest_store_visible(void) {
+    printf("\n=== Test: guest store is what Explorer lists ===\n");
+    extern int  fs_add_file(const char *, const uint8_t *, uint32_t);
+    extern int  fs_add_dir(const char *);
+    extern void fs_reset(void);
+
+    fs_reset();
+    fs_add_file("notes.txt", (const uint8_t *)"hello", 5);
+    fs_add_dir("Documents");
+    fs_add_file("Documents/report.txt", (const uint8_t *)"q", 1);
+
+    explorer_init();
+    ExExplorerState *ex = explorer_state();
+
+    bool saw_notes = false, saw_documents = false;
+    for (int i = 0; i < ex->entry_count; i++) {
+        if (strcmp(ex->entries[i].name, "notes.txt") == 0) saw_notes = true;
+        if (strcmp(ex->entries[i].name, "Documents") == 0) {
+            saw_documents = true;
+            TEST_ASSERT(ex->entries[i].type == EX_ENTRY_DIR,
+                        "a folder appears as a folder, not a file");
+        }
+        /* Nested entries must NOT surface in the parent listing. */
+        TEST_ASSERT(strcmp(ex->entries[i].name, "report.txt") != 0,
+                    "nested entry stays out of the parent listing");
+    }
+
+    TEST_ASSERT(saw_notes, "a file saved through the guest store is visible");
+    TEST_ASSERT(saw_documents, "a folder created in the guest store is visible");
+
+    /* Descending works too -- this is what "File Manager" means. */
+    ex_scan_directory("/Documents");
+    bool saw_nested = false;
+    for (int i = 0; i < ex->entry_count; i++)
+        if (strcmp(ex->entries[i].name, "report.txt") == 0) saw_nested = true;
+    TEST_ASSERT(saw_nested, "descending into the folder reveals its contents");
+
+    fs_reset();
+    explorer_shutdown();
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
     printf("╚══════════════════════════════════════════════════════════╝\n");
 
     test_init_shutdown();
+    test_guest_store_visible();
     test_navigation();
     test_view_modes();
     test_sort();

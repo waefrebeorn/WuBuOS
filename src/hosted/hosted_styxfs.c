@@ -361,6 +361,116 @@ int guest_file_delete(const char *name) {
     return 0;
 }
 
+
+/* -- Directory enumeration + metadata ---------------------------------
+ *
+ * File Manager and Notepad used to disagree about what exists: Notepad wrote
+ * through guest_file_write() into this table while Explorer listed host
+ * directories, so a saved document was invisible to the app whose whole job is
+ * showing documents.  These two functions expose the SAME table the writers use,
+ * so every app sees one namespace. */
+
+/* Parent of an entry, in the SAME canonical form everywhere: "" means the guest
+ * root, "Documents" means one level down.  The store keeps bare names
+ * ("Documents/report.txt") while File Manager addresses paths with a leading
+ * slash ("/Documents"), so both sides are normalised through here rather than
+ * comparing raw strings -- that mismatch made descending into a folder list
+ * nothing at all. */
+static int guest_parent_of(const char *name, char *out, size_t outsz)
+{
+    const char *slash = strrchr(name, '/');
+    if (!slash || slash == name) { out[0] = '\0'; return 0; }
+    size_t n = (size_t)(slash - name);
+    if (n >= outsz) n = outsz - 1;
+    memcpy(out, name, n);
+    out[n] = '\0';
+    return 0;
+}
+
+/* Canonicalise a requested directory: "/", "" and "Documents/" all become the
+ * same comparable string as guest_parent_of() produces. */
+static void guest_canon_dir(const char *path, char *out, size_t outsz)
+{
+    snprintf(out, outsz, "%s", (path && *path) ? path : "");
+    size_t l = strlen(out);
+    while (l > 0 && out[l - 1] == '/') out[--l] = '\0';
+    if (out[0] == '/' && out[1] == '\0') out[0] = '\0';
+    if (out[0] == '/' && out[1] != '\0') memmove(out, out + 1, strlen(out));
+}
+
+static void guest_basename_of(const char *name, char *out, size_t outsz)
+{
+    const char *slash = strrchr(name, '/');
+    snprintf(out, outsz, "%s", slash ? slash + 1 : name);
+}
+
+int guest_file_children(const char *path, guest_child_cb cb, void *user)
+{
+    if (!cb) return -1;
+
+    /* Normalise the requested directory to a comparable form. */
+    char want[512];
+    guest_canon_dir(path, want, sizeof(want));
+
+    int delivered = 0;
+    for (int i = 0; i < g_nfiles; i++) {
+        char parent[512], base[512];
+        guest_parent_of(g_fs[i].name, parent, sizeof(parent));
+        guest_basename_of(g_fs[i].name, base, sizeof(base));
+
+        /* Skip "." / ".." style noise and entries at the wrong depth. */
+        if (!base[0] || strcmp(base, ".") == 0 || strcmp(base, "..") == 0)
+            continue;
+        if (strcmp(parent, want) != 0) continue;
+
+        bool is_dir = (g_fs[i].qtype & STX_QTDIR) != 0;
+        uint32_t size = is_dir ? 0u : g_fs[i].data_len;
+        delivered++;
+        if (!cb(base, is_dir, size, user)) break;
+    }
+    return delivered;
+}
+
+
+/* Normalise a NAME for lookup in the table, which stores bare names.
+ * File Manager builds full paths ("/Documents/report.txt") while Notepad and the
+ * run dialog write bare ones; both must resolve to the same entry or a saved file
+ * would be invisible depending on which app asked. */
+static void guest_norm_key(const char *in, char *out, size_t outsz)
+{
+    snprintf(out, outsz, "%s", (in && *in) ? in : "");
+    size_t l = strlen(out);
+    while (l > 0 && out[l - 1] == '/') out[--l] = '\0';
+    if (out[0] == '/') memmove(out, out + 1, strlen(out));
+}
+
+bool guest_file_is_dir(const char *name)
+{
+    if (!name) return false;
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (key[0] == '\0') return true;             /* the root always exists */
+    int idx = fs_find(key);
+    return idx >= 0 && (g_fs[idx].qtype & STX_QTDIR) != 0;
+}
+
+bool guest_file_stat(const char *name, uint32_t *size, bool *is_dir)
+{
+    if (!name || !*name) return false;
+    char key[512];
+    guest_norm_key(name, key, sizeof(key));
+    if (key[0] == '\0') {                        /* root: a directory, no size */
+        if (is_dir) *is_dir = true;
+        if (size) *size = 0;
+        return true;
+    }
+    int idx = fs_find(key);
+    if (idx < 0) return false;
+    if (is_dir) *is_dir = (g_fs[idx].qtype & STX_QTDIR) != 0;
+    if (size)   *size   = (g_fs[idx].qtype & STX_QTDIR) ? 0u : g_fs[idx].data_len;
+    return true;
+}
+
 int guest_file_list(char out[][64], int max_len, int cap) {
     if (!out || max_len <= 0 || cap <= 0) return -1;
     int n = 0;

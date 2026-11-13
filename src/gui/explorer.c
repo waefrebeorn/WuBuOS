@@ -16,6 +16,7 @@
  */
 
 #include "../egojar.h"
+#include "../apps/guest_file.h"
 #include "explorer.h"
 #include "explorer_internal.h"
 #include "wm.h"
@@ -406,34 +407,50 @@ const char *explorer_current_path(void) {
 
 /* -- Internal Implementation -------------------------------------- */
 
+typedef struct {
+    ExExplorerState *ex;
+} ScanCtx;
+
+static bool scan_one(const char *name, bool is_dir, uint32_t size, void *user) {
+    ScanCtx *ctx = (ScanCtx *)user;
+    ExExplorerState *ex = ctx->ex;
+
+    if (!ex->show_hidden && name[0] == '.') return true;
+
+    ExEntry *entry = &ex->entries[ex->entry_count];
+    snprintf(entry->full_path, sizeof(entry->full_path), "%s/%s",
+             ex->current_path, name);
+    strncpy(entry->name, name, sizeof(entry->name) - 1);
+    entry->type = is_dir ? EX_ENTRY_DIR : EX_ENTRY_FILE;
+    entry->size = is_dir ? 0 : (uint64_t)size;
+
+    ex_get_file_info(entry->full_path, entry);
+
+    ex->status_file_count++;
+    ex->status_total_size += entry->size;
+    if (ex->entry_count + 1 < EX_MAX_ENTRIES) ex->entry_count++;
+    return true;
+}
+
 void ex_scan_directory(const char *path) {
     ExExplorerState *ex = &g_explorer;
     ex->entry_count = 0;
     ex->status_file_count = 0;
     ex->status_total_size = 0;
 
-    DIR *dir = ex_9p_opendir(path);
-    if (!dir) {
-        snprintf(ex->status_text, sizeof(ex->status_text), "Cannot open: %s", strerror(errno));
+    if (!guest_file_is_dir(path)) {
+        snprintf(ex->status_text, sizeof(ex->status_text),
+                 "Cannot open: %s", path);
         return;
     }
 
-    struct dirent *ent;
-    while ((ent = readdir(dir)) && ex->entry_count < EX_MAX_ENTRIES) {
-        if (!ex->show_hidden && ent->d_name[0] == '.') continue;
-
-        ExEntry *entry = &ex->entries[ex->entry_count];
-        snprintf(entry->full_path, sizeof(entry->full_path), "%s/%s", path, ent->d_name);
-        strncpy(entry->name, ent->d_name, sizeof(entry->name) - 1);
-
-        ex_get_file_info(entry->full_path, entry);
-
-        ex->status_file_count++;
-        ex->status_total_size += entry->size;
-
-        ex->entry_count++;
+    ScanCtx ctx = { ex };
+    int n = guest_file_children(path, scan_one, &ctx);
+    if (n < 0) {
+        snprintf(ex->status_text, sizeof(ex->status_text),
+                 "Cannot open: %s", path);
+        return;
     }
-    closedir(dir);
 
     ex_sort_entries(ex);
     ex->focus_idx = 0;

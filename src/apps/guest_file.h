@@ -62,6 +62,26 @@ int guest_file_list(char out[][64], int max_len, int cap);
 /* True when a regular file with this exact name exists. */
 bool guest_file_exists(const char *name);
 
+/* Enumerate the DIRECT children of one guest directory.
+ *
+ * File Manager needs folders as well as files -- the earlier guest_file_list()
+ * deliberately skipped directories for Start-search purposes, so Explorer could
+ * never browse into anything.  Returned names are bare basenames (no path), and
+ * `is_dir` carries the type so the caller can render and descend.
+ *
+ * The callback returns false to stop early.  Returns the number delivered, or -1
+ * on a bad argument.  Path may be "/" or "dir" or "dir/"; all mean the same
+ * thing. */
+typedef bool (*guest_child_cb)(const char *name, bool is_dir,
+                               uint32_t size, void *user);
+int guest_file_children(const char *path, guest_child_cb cb, void *user);
+
+/* Resolve one name against the guest store: size and directory flag.
+ * Returns true when the name exists there. */
+bool guest_file_is_dir(const char *name);
+
+bool guest_file_stat(const char *name, uint32_t *size, bool *is_dir);
+
 /* Capacity ceiling for one guest file, in bytes.
  *
  * This stays a MACRO because callers use it to size arrays at compile time
