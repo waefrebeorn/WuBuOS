@@ -38,6 +38,12 @@ int guest_file_read(const char *name, uint8_t *buf, uint32_t cap, uint32_t *len)
  * not fit -- the existing file, if any, is left unchanged. */
 int guest_file_write(const char *name, const uint8_t *data, uint32_t len);
 
+/* Write any pending changes to the backing store right now.
+ * A clean shutdown already flushes, so applications normally do not need this;
+ * it matters when the result must be readable by another process immediately,
+ * or when a command just produced something the user will act on. */
+int guest_file_flush(void);
+
 /* True when a regular file with this exact name exists. */
 bool guest_file_exists(const char *name);
 

@@ -163,6 +163,26 @@ int main(void)
     TEST(strcmp(notepad_line_text(0), "persist me") == 0,
           "CONTENT SURVIVED THE RESTART");
 
+    /* ---- 8. notepad_open must show the file's contents ------------ */
+    /* Regression: the window used to open titled-after but empty, because
+     * notepad_open only copied the name and never read the bytes. */
+    notepad_reset();
+    type("from the desktop");
+    notepad_save("/n/desktop.txt");
+
+    notepad_reset();
+    TEST(notepad_line_count() == 1, "empty before opening");
+    notepad_open("/n/desktop.txt");
+    TEST(strcmp(notepad_line_text(0), "from the desktop") == 0,
+          "opening an existing file shows its contents");
+
+    /* A name that is not on disk yet opens blank, ready to be saved. */
+    notepad_reset();
+    notepad_open("/n/brand-new.txt");
+    TEST(notepad_line_count() == 1, "new file starts with one empty line");
+    TEST(strcmp(notepad_filename(), "/n/brand-new.txt") == 0,
+          "new file keeps the requested name");
+
     printf("=== notepad_save: %d checks, %d failed ===\n", g_checks, g_fails);
     return g_fails ? 1 : 0;
 }

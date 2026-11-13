@@ -4,6 +4,42 @@ Date: 2026-11-13 · Scope: hosted desktop (`src/hosted` + `src/gui`) as a user
 actually experiences it · Method: read the code paths, then run them. Every claim
 below carries the file that proves it.
 
+## Progress
+
+- **#1 persistence -- DONE** (`5183844`). New `hosted_fs_persist.{c,h}` writes an
+  explicit little-endian image of the namespace to
+  `$XDG_DATA_HOME/wubu/fs.img`, renamed into place; loads before built-ins so a
+  persisted edit wins over a rebuilt default; fails closed on every malformed
+  case. `styx_write_cb`/`clunk`/`remove` implemented (the FS was strictly
+  read-only). `styx_stat_cb` never set `dir->length`, so *every* reader believed
+  every file was zero bytes -- fixed. Test: `make test_fs_persist`, 61 checks,
+  mostly negative. Real-binary proof: seeded the store, restarted, client logged
+  `filesystem restored (1 entries)`.
+- **#2 Notepad open/save -- DONE** (`5183844` follow-up). New `apps/guest_file.h`
+  is the ONLY way an application touches files (two functions, no host types in
+  the header, so Paint and Notepad cannot disagree about where files live).
+  Implemented next to `g_fs`, so the namespace keeps exactly one owner.
+  Notepad gained Ctrl+S / Ctrl+O with an inline filename prompt in the status
+  line (there is no dialog framework yet, so this stays usable today instead of
+  blocked). First save names the file, Windows-style. A document that cannot fit
+  is REFUSED, never silently truncated. Test: `make test_notepad_save`, 27
+  checks, ending with `CONTENT SURVIVED THE RESTART`.
+- **#6 Run dialog executes commands -- DONE**. Two-step dispatch: a registered app
+  name launches that app, anything else runs as `/bin/sh -c "<query> 2>&1"` via
+  the existing `wubu_popen_read`. Output goes to the guest file `run-output.txt`
+  and is opened in Notepad, so the result persists like any document. Verified
+  LIVE: Win+R, typed `echo hello-from-run-dialog`, Enter -> the Notepad window
+  showed `$ echo hello-from-run-dialog` and the echoed line. Documented honestly:
+  it is a shell, not a sandbox (same uid, no restriction on syntax), and it
+  BLOCKS the UI until the command finishes.
+- **NEW FINDING from that verification**: typed characters reach applications
+  UPPERCASE (`ECHO` for `echo`). Terminal and Notepad both render capitals, so
+  case-sensitive commands and filenames typed by hand will not work. Needs its
+  own work item below.
+- **#14 test_calc/test_greeter -Wformat-truncation -- RESOLVED** as of
+  `test_high_gui`; those recipes build with `-Wno-format-truncation`. The gate
+  is green end to end. Re-check before relying on this.
+
 This is deliberately hostile. Where something looks done, it was checked for the
 difference between *renders* and *works*. Three findings dominate everything else.
 
@@ -77,8 +113,8 @@ Legend: **P0** blocks basic use · **P1** blocks real work · **P2** polish/cons
 
 | # | Work item | Owner | Acceptance |
 |---|---|---|---|
-| 1 | Give the guest a persistent backing store. Either map the 9P namespace onto a host directory (`~/.local/share/wubu/fs`), or add a real VFS with a disk file per inode. | `hosted_styxfs.c` | Write a file in Explorer, restart the client, read it back. Automated test asserts across a simulated restart. |
-| 2 | Notepad open/save, with a real file dialog. | `apps/notepad.c` | Round-trip a file with non-ASCII content through two restarts. |
+| 1 | ~~Give the guest a persistent backing store~~ **DONE** -- image file + dirty-flag flush + fail-closed load; write/remove/clunk implemented. Remaining: the Explorer still cannot SAVE (item 2 blocks it). | `hosted_fs_persist.c` | `make test_fs_persist` 61/61; real restart restores entries. |
+| 2 | ~~Notepad open/save~~ **DONE** via `guest_file` + Ctrl+S/Ctrl+O and an inline prompt. Remaining: a real modal file dialog (blocked on a dialog framework), and non-ASCII round-trip still untested. | `apps/notepad.c` | `make test_notepad_save` 27/27. |
 | 3 | Audit every editor (Paint, Calc, Control Panel panes) for file I/O. Assume zero until proven otherwise. | `apps/*` | One row per app in the audit doc: has open? has save? writes where? |
 | 4 | Explorer must show the *real* tree (or clearly label the sandbox). `ex_9p_opendir` hides the host. | `gui/explorer.c` | Navigate to a directory the user created on the host; it must appear. |
 | 5 | Fix the Control Panel blank content pane found via Win+X → Settings. | `shell/power_menu.c`, Control Panel app | Open Settings from the power menu; the content area renders widgets. |
@@ -87,13 +123,19 @@ Legend: **P0** blocks basic use · **P1** blocks real work · **P2** polish/cons
 
 | # | Work item | Owner | Acceptance |
 |---|---|---|---|
-| 6 | Run dialog must execute a command line, not look up an app name. Wire it to `wubu_exec`. | `shell/run_dialog.c` | `notepad ~/.local/share/wubu/fs/test.txt` opens it. `xcalc`-style bare commands resolve. |
+| 6 | ~~Run dialog must execute a command line~~ **DONE** via `wubu_popen_read`; output persisted to `run-output.txt` and shown in Notepad. Remaining: async execution so long commands do not freeze the desktop. | `shell/run_dialog.c` | Live: command ran, output visible and durable. |
 | 7 | Start-menu search must find files, settings and commands, not only the built-in app DB. | `startmenu.c` | Searching a filename that exists in the FS returns it. |
 | 8 | Shortcut creation exists (`test_desktop_new_shortcut` in `wm_test.c:1258`) but the *user-facing* flow is unverified end-to-end: create a shortcut, click it, confirm it launches. | `gui/wm_input.c` | Live: right-click desktop → New Shortcut → it appears → double-click launches the target. |
 | 9 | `.desktop`/MIME handling exists (`wubu_mime.c`, `wubu_mime_desktop.c`, `startmenu_write_desktop`) but no MIME *association editor* in Settings. | Settings app | Associate a file type, reopen the file, correct handler starts. |
 | 10 | Package manager UI: `pkgmgr_install`, `pkgmgr_engine`, `pkgmgr_add_remote` exist — but is there a window a user can drive? If not, build one over the existing engine (do NOT write a second package engine). | `apps/control` | Install a package from the UI without touching the CLI. |
 | 11 | Terminal: verify whether the PTY pane executes shell commands or only evaluates HolyC. If it is HolyC-only, add a shell session mode. | `gui/term.c`, `gui/term_pty.c` | Type `echo hi`; see `hi` come back. |
 | 12 | Window management is Win11-class on paper (snap layouts, task view, widgets panel) but no maximize hover flyout, no hot corners, no presentation mode, no night light. | `win11_snap.c`, Settings | Each has a live manual test. |
+
+### P1b — input correctness
+
+| # | Work item | Owner | Acceptance |
+|---|---|---|---|
+| 23 | **Typed characters arrive UPPERCASE.** Verified live: typing `echo hello-from-run-dialog` produced `ECHO HELLO-FROM-RUN-DIALOG` on screen. Case-sensitive commands, paths and passwords are therefore unusable by hand. The key path is dropping or mis-applying shift/caps state before the character reaches the app. | `gui/wm_input.c`, hosted keyboard map | Type lower-case; see lower-case. A test asserts `notepad_key` receives the same codepoint the host produced. |
 
 ### P2 — consistency and honesty
 

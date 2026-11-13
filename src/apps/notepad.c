@@ -374,7 +374,17 @@ DosGuiWindow *notepad_launch(void) {
 
 DosGuiWindow *notepad_open(const char *filename) {
     np_reset();
-    if (filename) strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename)-1);
+
+    /* Opening a name means opening its CONTENTS.  The previous version only
+     * copied the name into the title bar, so double-clicking a document (or the
+     * Run dialog handing over a report) showed a window titled after the file
+     * with an empty buffer -- the bytes were on disk and nobody saw them. */
+    if (filename && !notepad_load(filename)) {
+        /* Not on disk yet: still open under that name so the first Ctrl+S
+         * creates it, exactly like Windows does for a new file. */
+        strncpy(g_notepad.filename, filename, sizeof(g_notepad.filename) - 1);
+    }
+
     DosGuiWindow *win = wm_create(100, 80, 500, 400,
                                          filename ? filename : "Untitled - Notepad");
     if (win) {

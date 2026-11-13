@@ -303,6 +303,8 @@ int guest_file_write(const char *name, const uint8_t *data, uint32_t len) {
     return fs_add_file(name, data, len) == 0 ? (g_fs_dirty = 1, 0) : -1;
 }
 
+int guest_file_flush(void) { return hosted_fs_flush(); }
+
 bool guest_file_exists(const char *name) {
     if (!name || !*name) return false;
     int idx = fs_find(name);
