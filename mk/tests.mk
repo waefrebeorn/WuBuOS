@@ -236,6 +236,13 @@ test_spellmod:
 	$(RT)/wubu_spellmod_test
 
 # Deterministic mutation fuzzer for the .spell module container.  Seed 7, 4000 rounds.
+# Deterministic mutation fuzzer for the JSON reader.  Seed 7, 4000 rounds.
+test_json_fuzz:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) $(RT)/wubu_json.c $(RT)/json_fuzz.c \
+		-lm -o $(RT)/json_fuzz
+	$(RT)/json_fuzz 7 4000
+
 test_spellmod_fuzz:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/spellmod_fuzz.c \

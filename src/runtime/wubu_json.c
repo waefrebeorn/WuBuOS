@@ -68,7 +68,13 @@ static JsonToken *json_parse_number(const char **p) {
     while (isdigit(**p)) (*p)++;
     if (**p == '.') { (*p)++; while (isdigit(**p)) (*p)++; }
     size_t len = *p - start;
+
+    /* A number of any length consumes ONE token, so JSON_MAX_TOKENS does not bound
+     * this path at all: a hostile document could hand us ten thousand digits.  Copy
+     * at most what the conversion buffer holds; the value only ever feeds atoi(),
+     * so extra digits beyond that point cannot change the result. */
     char buf[64];
+    if (len >= sizeof(buf)) len = sizeof(buf) - 1;
     memcpy(buf, start, len);
     buf[len] = '\0';
     t->int_value = atoi(buf);
