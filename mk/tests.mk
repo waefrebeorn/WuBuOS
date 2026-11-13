@@ -1170,7 +1170,7 @@ test_wubu_boot_attest_edr: src/runtime/wubu_boot_attest_edr_test.c src/runtime/w
 	./src/runtime/wubu_boot_attest_edr_test
 
 # The docs must not lie: every path the front-door docs name must exist.
-test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
+test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_docs_test.c -o src/runtime/wubu_docs_test
 	./src/runtime/wubu_docs_test
 
