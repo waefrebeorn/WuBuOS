@@ -218,6 +218,12 @@ test_input_keymap:
 		-o $(KERNEL)/input_keymap_test
 	$(KERNEL)/input_keymap_test
 
+test_app_bundle:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) $(RT)/app_bundle.c $(RT)/app_bundle_test.c \
+		-o $(RT)/wubu_app_bundle_test
+	$(RT)/wubu_app_bundle_test
+
 test_win32_core:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) \
 		$(RT)/win32_core.c $(RT)/test_win32_core.c -o $(RT)/wubu_win32_core_test
