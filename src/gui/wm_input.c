@@ -20,6 +20,7 @@
 #include "shell/wubu_lock_screen.h"
 #include "shell/win11_shell.h"
 #include "shell/window_chrome.h"
+#include "shell/desktop.h"
 #include "shell/run_dialog.h"
 #include "shell/power_menu.h"
 #include "../kernel/wubu_gesture.h"
@@ -562,11 +563,13 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
                     g_dwm.icons[icon_idx].on_click();
                 } else if (g_dwm.icons[icon_idx].on_execute) {
                     g_dwm.icons[icon_idx].on_execute();
-                } else if (launch_app) {
-                    /* Registry icons are registered without a per-icon
-                     * closure (icon_add_ex(..., NULL)); the icon name IS the
-                     * launch path, so fall back to it. */
-                    launch_app(g_dwm.icons[icon_idx].name);
+                } else {
+                    /* No per-icon closure: dispatch on what the icon IS.
+                     * A shortcut must run its .desktop Exec line -- before
+                     * this branch existed, DESK_ICON_SHORTCUT was created but
+                     * never consulted, so clicking a shortcut silently did
+                     * nothing (or launched an app named after the file). */
+                    desktop_launch_icon(icon_idx);
                 }
                 g_dwm.drag_icon_id = icon_idx;
                 g_dwm.drag_icon_ox = x - g_dwm.icons[icon_idx].x;

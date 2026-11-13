@@ -33,6 +33,7 @@
 #include "../../runtime/wubu_spawn.h"
 #include "../../apps/apps.h"
 #include "../../apps/notepad.h"
+#include "../wubu_runline.h"
 #include "../../apps/guest_file.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,9 +43,6 @@
 #define RUN_OUT_FILE "run-output.txt"
 
 __attribute__((weak)) void launch_app(const char *name);
-
-/* Defined below; declared here because the Enter key handler calls it. */
-static void run_execute(const char *query);
 
 static bool g_open;
 static char g_query[RUN_MAX];
@@ -68,6 +66,21 @@ void run_dialog_rect(int fb_w, int fb_h, int *x, int *y, int *w, int *h)
     if (y) *y = fb_h / 3;
     if (w) *w = bw;
     if (h) *h = bh;
+}
+
+/* Execute whatever was typed.  A registered app name wins; everything else is
+ * a command line whose output lands in a guest file and is shown in Notepad,
+ * so the result persists like any other document. */
+static void run_execute(const char *query)
+{
+    if (!query || !*query) return;
+
+    /* Case 1: the name of something the desktop knows how to start. */
+    if (launch_app && app_find_by_name(query)) { launch_app(query); return; }
+
+    /* Case 2: a command line.  Shared with desktop shortcuts so both paths
+     * behave identically -- one implementation, not two that drift. */
+    wubu_runline_execute(query, RUN_OUT_FILE);
 }
 
 void run_dialog_handle_key(uint32_t key, uint32_t mods)
@@ -95,67 +108,6 @@ void run_dialog_handle_key(uint32_t key, uint32_t mods)
         g_query[g_len++] = (char)key;
         g_query[g_len] = '\0';
     }
-}
-
-/* Execute whatever was typed.  A registered app name wins; everything else is
- * a command line whose output is captured into the guest filesystem and shown
- * in Notepad, so the result survives like any other document. */
-static void run_execute(const char *query)
-{
-    if (!query || !*query) return;
-
-    /* Case 1: the name of something the desktop knows how to start. */
-    if (launch_app && app_find_by_name(query)) { launch_app(query); return; }
-
-    /* Case 2: a command line.  Merge stderr into stdout so error messages are
-     * not lost -- a command that fails silently is how you waste an hour. */
-    char cmd[RUN_MAX + 8];
-    snprintf(cmd, sizeof(cmd), "%s 2>&1", query);
-
-    char *argv[4];
-    argv[0] = "/bin/sh";
-    argv[1] = "-c";
-    argv[2] = cmd;
-    argv[3] = NULL;
-
-    char *out = wubu_popen_read(argv[0], argv);
-    size_t out_len = out ? strlen(out) : 0;
-
-    /* Build the report.  The guest file has a hard ceiling, so overflow is
-     * marked explicitly rather than chopped off where nobody would notice. */
-    char body[GUEST_FILE_MAX];
-    int n = snprintf(body, sizeof(body),
-                     "$ %s\n"
-                     "----------------------------------------\n",
-                     query);
-    if (n < 0) n = 0;
-
-    if (!out) {
-        n += snprintf(body + n, sizeof(body) - (size_t)n,
-                      "(could not start the command)\n");
-    } else if (out_len == 0) {
-        n += snprintf(body + n, sizeof(body) - (size_t)n, "(no output)\n");
-    } else if ((size_t)n + out_len + 64 <= sizeof(body)) {
-        memcpy(body + n, out, out_len);
-        n += (int)out_len;
-        if (body[n - 1] != '\n') body[n++] = '\n';
-    } else {
-        size_t room = sizeof(body) - (size_t)n - 64;
-        memcpy(body + n, out, room);
-        n += (int)room;
-        n += snprintf(body + n, sizeof(body) - (size_t)n,
-                      "\n... truncated: %zu bytes of output, %zu bytes shown\n",
-                      out_len, room);
-    }
-    free(out);
-
-    if (guest_file_write(RUN_OUT_FILE, (const uint8_t *)body, (uint32_t)n) != 0) {
-        fprintf(stderr, "WuBuOS: run dialog could not save output to %s\n",
-                RUN_OUT_FILE);
-        return;
-    }
-    guest_file_flush();         /* the result should outlive the session */
-    notepad_open(RUN_OUT_FILE);
 }
 
 bool run_dialog_handle_click(int x, int y)

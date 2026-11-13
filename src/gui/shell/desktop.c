@@ -12,6 +12,10 @@
 #include <sys/socket.h>
 #include "./desktop.h"
 #include "../wm.h"
+#include "../wm_internal.h"
+#include "wubu_mime.h"
+#include "wubu_mime_internal.h"
+#include "wubu_runline.h"
 #include "../daemon_panel.h"
 #include "../wubu_trash.h"
 #include "../wubu_settings.h"
@@ -31,10 +35,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* -- Theme Helpers ------------------------------------------------ */
-
-static const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
-static const WubuTheme *theme(void) { return wubu_theme_get(); }
+/* -- Theme Helpers --------------------------------------------------
+ * tc() and theme() come from wm_internal.h; this file used to define its own
+ * static copies, which now collide with those declarations.
+ */
 
 /* -- App Registry (single source of truth: apps.c) -------- */
 
@@ -274,4 +278,56 @@ void desktop_tick(void) {
 void wubu_shutdown() {
     extern void platform_shutdown(void);
     platform_shutdown();
+}
+
+/* Strip .desktop field codes (%f %F %u %U %i %c %k ...) from an Exec value.
+ * Shortcuts we write never use them, but a user-supplied .desktop may, and a
+ * stray "%f" handed to a shell is just noise on the command line. */
+static void strip_field_codes(const char *in, char *out, size_t cap)
+{
+    size_t o = 0;
+    for (const char *p = in; *p && o + 1 < cap; p++) {
+        if (*p == '%' && p[1]) { p++; continue; }
+        out[o++] = *p;
+    }
+    out[o] = '\0';
+}
+
+void desktop_launch_icon(int icon_id)
+{
+    if (icon_id < 0 || icon_id >= g_dwm.icon_count) return;
+    const DosGuiIcon *ic = &g_dwm.icons[icon_id];
+    if (!ic->alive) return;
+
+    switch (ic->type) {
+    case DESK_ICON_SHORTCUT: {
+        if (!ic->target[0]) break;
+        DesktopEntry e;
+        if (!parse_desktop_file(ic->target, &e) || !e.exec[0]) {
+            fprintf(stderr, "wubu: shortcut '%s' has no usable Exec in %s\n",
+                    ic->name, ic->target);
+            break;
+        }
+        char cmd[MAX_HANDLER_CMD_LEN];
+        strip_field_codes(e.exec, cmd, sizeof(cmd));
+
+        /* A bare application name still goes through the registry first, so
+         * "notepad" launches the real Notepad rather than a shell search. */
+        char first[MAX_HANDLER_CMD_LEN];
+        snprintf(first, sizeof(first), "%s", cmd);
+        char *sp = strchr(first, ' ');
+        if (sp) *sp = '\0';
+        if (app_find_by_name(first)) { launch_app(first); break; }
+
+        wubu_runline_execute(cmd, "shortcut-output.txt");
+        break;
+    }
+    case DESK_ICON_FOLDER:
+    case DESK_ICON_FILE:
+        if (ic->target[0]) wubu_mime_launch(ic->target, NULL);
+        break;
+    default:
+        launch_app(ic->name);
+        break;
+    }
 }

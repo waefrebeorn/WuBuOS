@@ -8,6 +8,7 @@
  * No god-header. C11.
  */
 #include "wm.h"
+#include "../kernel/vbe.h"
 #include "wubu_dos_proc.h"
 
 #include <stdint.h>
@@ -47,6 +48,23 @@ static void dos_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     DosWindowCtx *ctx = (DosWindowCtx *)win->user_data;
     if (!ctx) return;
 
+    /* WHERE WE DRAW.  The hosted renderer composites into the VBE back buffer
+     * and passes fb == NULL (hosted_render_desktop -> desktop_render(NULL,..)),
+     * exactly as every other surface does; only the pointer differs.  This
+     * function used to index straight into `fb`, so opening DOS Box in hosted
+     * mode dereferenced NULL on its very first frame -- the window could never
+     * render at all there.  Fall back to VBE's buffer instead of crashing, and
+     * use it for both the clear and the blit. */
+    uint32_t *dst = fb;
+    int dst_w = fb_w, dst_h = fb_h;
+    if (!dst) {
+        VBEState *vs = vbe_state();
+        if (!vs || !vs->back) return;
+        dst = vs->back;
+        dst_w = vbe_width();
+        dst_h = vbe_height();
+    }
+
     /* Pull a fresh frame (this also keeps the Styx `screen` node fresh if the
      * process was mounted). */
     int w = 0, h = 0;
@@ -56,19 +74,19 @@ static void dos_win_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
         wubu_dos_proc_frame_capture(ctx->proc, ctx->fb, &w, &h);
     ctx->fb_w = w; ctx->fb_h = h;
 
-    /* Clear client area (bounds-guarded against the destination fb). */
+    /* Clear client area (bounds-guarded against the destination surface). */
     for (int y = 0; y < win->h; y++) {
         int py = win->y + y;
-        if (py < 0 || py >= fb_h) continue;
+        if (py < 0 || py >= dst_h) continue;
         for (int x = 0; x < win->w; x++) {
             int px = win->x + x;
-            if (px < 0 || px >= fb_w) continue;
-            fb[py * fb_w + px] = 0x00102030u;
+            if (px < 0 || px >= dst_w) continue;
+            dst[py * dst_w + px] = 0x00102030u;
         }
     }
 
     if (w > 0 && h > 0)
-        blit_rgba(fb, fb_w, fb_h, ctx->fb, w, h,
+        blit_rgba(dst, dst_w, dst_h, ctx->fb, w, h,
                   win->x + 2, win->y + DOSGUI_TITLE_H,
                   win->w - 4, win->h - DOSGUI_TITLE_H - 2);
 }
