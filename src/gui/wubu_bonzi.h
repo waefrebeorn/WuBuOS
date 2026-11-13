@@ -44,6 +44,11 @@ enum {
     WUBU_BUDDY_STATE_COIN,         /* celebrating a win           */
     WUBU_BUDDY_STATE_FLAG,         /* done / deployed             */
     WUBU_BUDDY_STATE_CAMPFIRE,     /* the original desktop pose   */
+    WUBU_BUDDY_STATE_STUDY,        /* puzzled at the desk         */
+    WUBU_BUDDY_STATE_COOK,         /* building something          */
+    WUBU_BUDDY_STATE_LOUNGE,       /* armchair, reading           */
+    WUBU_BUDDY_STATE_HERO,         /* shipped it                  */
+    WUBU_BUDDY_STATE_COLD,         /* cold box, idle too long     */
     WUBU_BUDDY_STATE_COUNT
 };
 

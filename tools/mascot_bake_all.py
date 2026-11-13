@@ -63,6 +63,11 @@ MOOD_POSES = [
     ("COIN",      "emotions:8"),  # celebrating with a gold coin
     ("FLAG",      "emotions:9"),  # waving the flag (done/deployed)
     ("CAMPFIRE",  "base:4"),      # the previously shipped desktop pose
+    ("STUDY",     "life:1"),      # at the desk, puzzled (learning/upgrading)
+    ("COOK",      "life:3"),      # apron and pan (building/cooking a package)
+    ("LOUNGE",    "life:4"),      # armchair with a book (relaxed, second pose)
+    ("HERO",      "life:5"),      # cape and raised fist (deployed / shipped it)
+    ("COLD",      "life:6"),      # snow and a warm mug (idle-too-long / cold box)
 ]
 
 SHEETS = {
@@ -71,6 +76,7 @@ SHEETS = {
     "ops":   "wubu_buddy_sheet_ops.jpg",
     "debug": "wubu_buddy_sheet_debug.jpg",
     "emotions": "wubu_buddy_sheet_emotions.jpg",
+    "life": "wubu_buddy_sheet_life.jpg",
 }
 
 

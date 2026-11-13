@@ -202,6 +202,11 @@ static const unsigned char *buddy_state_rgba(void) {
     case WUBU_BUDDY_STATE_COIN:    return BUDDY_STATE_COIN;
     case WUBU_BUDDY_STATE_FLAG:    return BUDDY_STATE_FLAG;
     case WUBU_BUDDY_STATE_CAMPFIRE: return BUDDY_STATE_CAMPFIRE;
+    case WUBU_BUDDY_STATE_STUDY:   return BUDDY_STATE_STUDY;
+    case WUBU_BUDDY_STATE_COOK:    return BUDDY_STATE_COOK;
+    case WUBU_BUDDY_STATE_LOUNGE:  return BUDDY_STATE_LOUNGE;
+    case WUBU_BUDDY_STATE_HERO:    return BUDDY_STATE_HERO;
+    case WUBU_BUDDY_STATE_COLD:    return BUDDY_STATE_COLD;
     default:                       return BUDDY_STATE_DEFAULT;
     }
 }
