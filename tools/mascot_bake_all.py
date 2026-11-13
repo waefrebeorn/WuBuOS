@@ -244,9 +244,36 @@ def bake_pose(sheet_path, cx, cy, hat_w, size, hats=None, idx_all=0):
                                 out[ny * cw + nx] = 1
             return out
 
-        opened = _dilate(_erode(keep))
-        if sum(opened) >= sum(keep) * 0.5:      # only accept a sane result
-            keep = opened
+        # Minimum-cost CUT (the standard method for poses joined by thin bridges,
+        # e.g. sprite-gen's projection/DP path).  Morphological opening failed here:
+        # the neck is thicker than a 5-pixel cross.  Instead, scan candidate bands
+        # and cut where the FEWEST kept pixels have to be sacrificed to detach a
+        # small side blob -- that is the narrowest point of the bridge.
+        total = sum(keep)
+        if total > 0:
+            best = None            # (cost, axis, index, small_side)
+            for axis in ('x', 'y'):
+                span = cw if axis == 'x' else ch
+                for c in range(2, span - 2):
+                    band = range(c - 1, c + 2)
+                    if axis == 'x':
+                        cost = sum(keep[y * cw + x] for y in range(ch) for x in band)
+                        left = sum(keep[y * cw + x] for y in range(ch) for x in range(0, c - 1))
+                    else:
+                        cost = sum(keep[y * cw + x] for y in band for x in range(cw))
+                        left = sum(keep[y * cw + x] for y in range(0, c - 1) for x in range(cw))
+                    small = min(left, total - left - cost)
+                    big   = max(left, total - left - cost)
+                    if small <= total * 0.08 and big >= total * 0.85:
+                        if best is None or cost < best[0]:
+                            best = (cost, axis, c, left < (total - left - cost))
+            if best is not None and best[0] <= total * 0.02:
+                _cost, axis, c, small_is_left = best
+                for y in range(ch):
+                    for x in range(cw):
+                        cut = (x < c - 1) if axis == 'x' else (y < c - 1)
+                        if (cut == small_is_left):
+                            keep[y * cw + x] = 0
 
         for i in range(cw * ch):
             if not keep[i]:
