@@ -225,6 +225,60 @@ static void test_redzones(void) {
     mem_free(b);
 }
 
+
+/* -- Automatic canary verification on free/realloc ---------------- */
+/* The red zones existed and the checker worked, but nothing on the allocator
+ * path called it: an overflow was absorbed silently by free().  These checks
+ * pin the behaviour that now refuses such a block. */
+
+static void test_canary_enforcement(void) {
+    printf("\n[Canary Enforcement on free/realloc]\n");
+
+    mem_shutdown();
+    mem_init(4 * 1024 * 1024);
+
+    TEST("free() refuses a block whose back canary is overwritten");
+    uint8_t *p = (uint8_t *)mem_alloc(64);
+    CMemUsed *mu = (CMemUsed *)((uint8_t *)p - MEM_RED_ZONE_SIZE -
+                                offsetof(CMemUsed, start));
+    size_t user_bytes = mu->size - offsetof(CMemUsed, start) -
+                        2 * MEM_RED_ZONE_SIZE;
+    uint32_t saved = ((uint32_t *)(p + user_bytes))[0];
+    ((uint32_t *)(p + user_bytes))[0] = 0xDEADBEEF;   /* one word past the end */
+
+    mem_free(p);                    /* must NOT absorb the block */
+
+    /* The block is still allocated and still reports its corruption; if free()
+     * had unlinked it, this would read freed memory. */
+    if (mem_check_redzones(p) != 0) PASS(); else FAIL("block vanished from the heap");
+
+    /* The refused free leaves the block allocated BY DESIGN -- but this test
+     * must not leak it into the rest of the suite, or later checks see phantom
+     * allocations.  Restore the canary and let free() take it. */
+    ((uint32_t *)(p + user_bytes))[0] = saved;
+    mem_free(p);
+
+    TEST("restored canary lets free() proceed");
+    if (mem_validate_all() == 0) PASS(); else FAIL("heap dirty after restoring a canary");
+
+    TEST("realloc() refuses to relocate an unverified block");
+    uint8_t *q = (uint8_t *)mem_alloc(64);
+    CMemUsed *mq = (CMemUsed *)((uint8_t *)q - MEM_RED_ZONE_SIZE -
+                                offsetof(CMemUsed, start));
+    size_t q_user = mq->size - offsetof(CMemUsed, start) - 2 * MEM_RED_ZONE_SIZE;
+    uint32_t *q_back = (uint32_t *)(q + q_user);
+    uint32_t q_saved = q_back[0];
+    q_back[0] = 0xCAFEBABE;
+    if (mem_realloc(q, 256) == NULL) PASS();
+    else FAIL("realloc relocated a corrupt block");
+    q_back[0] = q_saved;
+    mem_free(q);
+
+    TEST("heap stays consistent after refused frees");
+    if (mem_validate_all() == 0) PASS();
+    else FAIL("validate_all reports corruption after refused free");
+}
+
 /* -- Heap Walk Tests ---------------------------------------------- */
 
 static int walk_count;
@@ -315,6 +369,7 @@ int main(void) {
     test_realloc();
     test_stress();
     test_redzones();
+    test_canary_enforcement();
     test_heap_walk();
     test_bloom_scan();
     

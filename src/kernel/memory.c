@@ -259,6 +259,25 @@ void mem_free(void *ptr) {
                 ptr, mu->signature);
         return;
     }
+
+    /* Verify the red-zone canaries BEFORE touching the block.
+     *
+     * write_canaries() has stamped these on every allocation since the red zones
+     * were added, but check_canaries() had no caller on this path: an overflow
+     * was silently absorbed by free(), and the corruption survived into whatever
+     * the overflowing write had clobbered next.  Nothing else in the tree called
+     * the checker either, so the protection existed only for tests.
+     *
+     * We REFUSE the free rather than unlinking: the adjacent block headers may
+     * themselves have been overwritten by the same overflow, and absorbing those
+     * into the free list would compound the damage.  Leaking one block is the
+     * cheap outcome; the caller is told, loudly. */
+    if (check_canaries(mu) != 0) {
+        mem_log("mem_free: HEAP CORRUPTION at %p (size %zu) -- red zone canary "
+                "overwritten, block left allocated\n", ptr, mu->size);
+        return;
+    }
+
     
     heap_lock(hc);
     
@@ -322,6 +341,17 @@ void *mem_realloc(void *ptr, size_t new_size) {
     if (new_size == 0) { mem_free(ptr); return NULL; }
     
     CMemUsed *mu = (CMemUsed *)((uint8_t *)ptr - MEM_RED_ZONE_SIZE - offsetof(CMemUsed, start));
+
+    /* Verify the red zones BEFORE trusting mu->size.  A block that has been
+     * written past its end may have had its own header clobbered as well, and
+     * this function reads mu->size to decide how much to copy -- widening the
+     * very damage it is trying to preserve against.  Refuse instead. */
+    if (check_canaries(mu) != 0) {
+        mem_log("mem_realloc: HEAP CORRUPTION at %p (size %zu) -- refusing to "
+                "relocate an unverified block\n", ptr, mu->size);
+        return NULL;
+    }
+
     size_t header_plus_rz = offsetof(CMemUsed, start) + MEM_RED_ZONE_SIZE;
     size_t old_usable = mu->size - header_plus_rz - MEM_RED_ZONE_SIZE;
     size_t copy_size = old_usable < new_size ? old_usable : new_size;
