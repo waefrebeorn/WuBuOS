@@ -1532,6 +1532,17 @@ test_hosted: $(HOSTED)/xdg-shell-private.o $(HOSTED)/primary-selection-private.o
 		-lwayland-client -lxkbcommon -lm -lsqlite3 -lzstd -lz -ldl -lpthread -ljson-c -lvulkan -o $(HOSTED)/hosted_test
 	$(HOSTED)/hosted_test
 
+FS_PERSIST_OBJS = $(HOSTED)/hosted_fs_persist.o
+$(HOSTED)/hosted_fs_persist.o: $(HOSTED)/hosted_fs_persist.c $(HOSTED)/hosted_fs_persist.h $(HOSTED)/hosted_internal.h
+	$(CC) $(CFLAGS) -c $(HOSTED)/hosted_fs_persist.c -o $@
+
+test_fs_persist:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(HOSTED)/test_fs_persist.c \
+		-lm -o $(HOSTED)/test_fs_persist
+	$(HOSTED)/test_fs_persist
+
 test_host_exec:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(RT) \
 		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_host_exec.c $(RT)/wubu_ct_isolate.c $(RT)/ct_iso_seccomp.c $(RT)/seccomp_registry.c $(RT)/ct_iso_cgroup.c $(RT)/ct_iso_ns.c $(RT)/wubu_ct_isolate_cgroup.c $(RT)/wubu_container.c $(RT)/wubu_host_exec_test.c \

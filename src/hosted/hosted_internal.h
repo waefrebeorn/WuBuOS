@@ -37,6 +37,13 @@ extern uint64_t      g_next_path;
 int  fs_add_dir(const char *name);
 int  fs_add_file(const char *name, const uint8_t *data, uint32_t len);
 void fs_reset(void);
+/* Index of a namespace entry by exact name, or -1.  Lets built-in
+ * registration defer to a persisted copy instead of clobbering it. */
+int  fs_find(const char *name);
+/* Flag that there are unsaved changes (used by tests and mutation paths). */
+void hosted_fs_mark_dirty(void);
+/* Write pending mutations to the durable image.  0 = safe on disk. */
+int  hosted_fs_flush(void);
 
 /* Styx server callbacks (implemented in hosted_styxfs.c, wired into srv->*). */
 int styx_attach_cb(styx_server_t *srv, uint32_t fid, const char *aname);
@@ -47,6 +54,10 @@ int styx_open_cb(styx_server_t *srv, uint32_t fid, int mode, styx_qid_t *qid);
 int styx_read_cb(styx_server_t *srv, uint32_t fid, uint64_t offset,
                  uint32_t count, uint8_t *data, uint32_t *nread);
 int styx_stat_cb(styx_server_t *srv, uint32_t fid, styx_dir_t *dir);
+int styx_write_cb(styx_server_t *srv, uint32_t fid, uint64_t offset,
+                  uint32_t count, const uint8_t *data, uint32_t *nwritten);
+int styx_clunk_cb(styx_server_t *srv, uint32_t fid);
+int styx_remove_cb(styx_server_t *srv, uint32_t fid);
 
 /* Forward FID lookup used by the callbacks. */
 styx_fid_t *find_fid(styx_server_t *srv, uint32_t fid);

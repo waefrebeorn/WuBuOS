@@ -11,6 +11,7 @@
  */
 
 #include "hosted_internal.h"
+#include "hosted_fs_persist.h"
 #include "../kernel/wubu_drv_thermal.h"
 #include "../kernel/wubu_evdev.h"
 #include "../gui/wubu_bonzi.h"
@@ -159,6 +160,10 @@ int hosted_run(hosted_state_t *state) {
 
 void hosted_shutdown(hosted_state_t *state) {
     fprintf(stderr, "WuBuOS shutdown...\n");
+
+    /* Durable namespace.  Without this every change made during the session is
+     * thrown away on exit -- the single worst property this OS had. */
+    hosted_fs_flush();
 
     /* Save screenshot if requested */
     if (state->screenshot_path && state->framebuffer) {

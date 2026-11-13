@@ -58,6 +58,7 @@
 #include "../apps/repl.h"
 #include "../gui/wubu_screenshot.h"
 #include "../gui/shell/wubu_shell_greeter.h"
+#include "hosted_fs_persist.h"
 #include "../runtime/wubu_onboarding.h"
 #include "../gui/wubu_clipboard.h"
 #include "../gui/shell/wubu_notify.h"
@@ -282,16 +283,31 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
     /* Initialize screenshot subsystem */
     wubu_screenshot_init();
 
-    fs_add_dir("wubu");
-    fs_add_dir("dev");
-    fs_add_dir("prog");
-    fs_add_file("cons", (const uint8_t*)"WuBuOS blob OS -- Styx namespace\n", 33);
+    /* Restore the durable namespace BEFORE adding anything.  A saved copy of a
+     * stock file wins over the rebuilt default, so an edit the user made to
+     * hello.wubu survives a restart instead of being silently reverted. */
+    int restored = fs_persist_load(1);
+    if (restored < 0) {
+        fprintf(stderr, "WuBuOS: WARNING: filesystem image at %s is unreadable; "
+                        "starting from defaults\n",
+                fs_persist_path() ? fs_persist_path() : "(no path)");
+    } else if (restored > 0) {
+        fprintf(stderr, "WuBuOS: filesystem restored (%d entries) from %s\n",
+                restored, fs_persist_path());
+    }
+
+    if (fs_find("wubu") < 0)  fs_add_dir("wubu");
+    if (fs_find("dev") < 0)   fs_add_dir("dev");
+    if (fs_find("prog") < 0)  fs_add_dir("prog");
+    if (fs_find("cons") < 0)
+        fs_add_file("cons", (const uint8_t*)"WuBuOS blob OS -- Styx namespace\n", 33);
 
     uint8_t demo_wubu[64];
     memset(demo_wubu, 0, sizeof(demo_wubu));
     memcpy(demo_wubu, "WUBU!\0\x01\x02", 8);
     demo_wubu[8] = 1;
-    fs_add_file("hello.wubu", demo_wubu, sizeof(demo_wubu));
+    if (fs_find("hello.wubu") < 0)
+        fs_add_file("hello.wubu", demo_wubu, sizeof(demo_wubu));
 
     fprintf(stderr, "WuBuOS: Styx namespace built\n");
     return 0;
@@ -309,6 +325,9 @@ int hosted_styx_init(hosted_state_t *state, const char *socket_path) {
     srv.walk = styx_walk_cb;
     srv.open = styx_open_cb;
     srv.read = styx_read_cb;
+    srv.write = styx_write_cb;
+    srv.clunk = styx_clunk_cb;
+    srv.remove = styx_remove_cb;
     srv.stat = styx_stat_cb;
     (void)state;
     return 0;
