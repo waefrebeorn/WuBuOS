@@ -218,6 +218,12 @@ test_input_keymap:
 		-o $(KERNEL)/input_keymap_test
 	$(KERNEL)/input_keymap_test
 
+test_spellmod:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/wubu_spellmod_test.c \
+		-o $(RT)/wubu_spellmod_test
+	$(RT)/wubu_spellmod_test
+
 test_math: $(KERNEL)/wubu_math.o
 	$(CC) -O0 -g -DWUBU_MATH_TEST -I$(KERNEL) $(KERNEL)/wubu_math.c -o $(KERNEL)/math_test
 	$(KERNEL)/math_test
