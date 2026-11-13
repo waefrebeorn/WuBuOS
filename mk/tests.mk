@@ -1483,6 +1483,12 @@ $(RT)/wubu_effect.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/calc/calc_test.c -o $(APPS)/calc/calc_test -lm
 	$(APPS)/calc/calc_test
 
+test_mime_contract:
+	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(GUI) -I$(RT) -I$(KERNEL) $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
+		$(GUI)/mime_contract_test.c -o $(GUI)/mime_contract_test -lm
+	$(GUI)/mime_contract_test
+
 test_startmenu_files:
 	$(CC) -O0 -g -std=c11 -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) \

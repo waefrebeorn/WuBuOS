@@ -83,9 +83,20 @@ bool parse_desktop_file(const char *path, DesktopEntry *entry) {
                 *end = '\0';
                 in_desktop_entry = (strcmp(line + 1, "Desktop Entry") == 0);
                 if (!in_desktop_entry && strncmp(line + 1, "Desktop Action ", 15) == 0) {
-                    strncpy(current_action, line + 16, sizeof(current_action) - 1);
+                    /* Each action is its own slot.  The count was never advanced,
+                     * so every section overwrote slot 0 and the per-action Exec
+                     * below could never find an index -- every desktop action
+                     * was parsed into nothing. */
                     if (entry->action_count < MAX_DESKTOP_ACTIONS) {
-                        strncpy(entry->action_list[entry->action_count].name, current_action, 63);
+                        snprintf(current_action, sizeof(current_action), "%s", line + 16);
+                        size_t i = (size_t)entry->action_count;
+                        strncpy(entry->action_list[i].name, current_action,
+                                sizeof(entry->action_list[i].name) - 1);
+                        entry->action_list[i].name[
+                            sizeof(entry->action_list[i].name) - 1] = '\0';
+                        entry->action_count++;
+                    } else {
+                        current_action[0] = '\0';
                     }
                 } else {
                     current_action[0] = '\0';
