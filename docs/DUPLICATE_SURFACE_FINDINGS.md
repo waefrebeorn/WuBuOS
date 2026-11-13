@@ -43,6 +43,25 @@ decision over duplicated state, not a mechanical rename, and belongs in its own 
 `src/gui/wubu_proton_internal.h:10`.  Guards reverted to restore the build; this note
 is the record.
 
+**MEASURED IMPACT (added after finding the above).**  Both implementations are
+linked into ONE binary, under `-Wl,--allow-multiple-definition`, so identical global
+symbols do not error -- the linker keeps whichever object appears first.  The hosted
+recipe orders `$(RT_OBJS) $(GUI_OBJS)`, so **the runtime definitions win and the GUI
+copies of these functions are dead code**:
+
+    wubu_proton_init            wubu_proton_create_prefix
+    wubu_proton_shutdown
+
+Their bodies are NOT copies (`md5` differs), so this is two genuinely different state
+machines sharing a name.  Consequence: GUI-side code compiled against the GUI header
+calls the runtime implementation, while any GUI-local helper touching its own statics
+operates on a parallel, never-initialised universe.  It can appear to work as long as
+every call routes through the public API -- which is exactly what makes it dangerous.
+
+Before consolidating, check *which* machine the running desktop actually drives: put a
+temporary trace on `wubu_proton_init` and see which file's version executes at boot.
+That single experiment decides the owner instead of guessing.
+
 **Do next:** decide the single owner (the GUI one is the richer implementation --
 it declares prefix/game management the runtime header lacks), port the runtime-side
 callers onto it, then delete `src/runtime/wubu_proton*.{c,h}`.  Search for
@@ -68,3 +87,23 @@ pattern as Proton: one concern, two homes.
 over `src/**/*.h` comparing each file's `#ifndef`/`#define` pair.  Re-run it before
 adding new headers, and prefer a guard derived from the path
 (`WUBU_<DIR>_<FILE>_H`) so collisions cannot happen.
+
+
+---
+
+## 3. `-Wl,--allow-multiple-definition` hides all of this — **OPEN**
+
+The hosted link passes `--allow-multiple-definition` (see `mk/targets.mk`).  With it,
+any two objects defining the same global symbol link successfully and the first one
+silently wins.  That flag is why a duplicated implementation could be added without
+anybody noticing, and it will hide the next one too.
+
+Cheap way to see the current blast radius without changing behaviour:
+
+```
+nm --defined-only -g <objs> | awk '{print $3}' | sort | uniq -d
+```
+
+Run over the objects before/after any consolidation.  Replacing the blanket flag with
+an explicit per-symbol decision is the real fix, but that requires knowing every
+legitimate case it currently papers over -- do not flip it blind.
