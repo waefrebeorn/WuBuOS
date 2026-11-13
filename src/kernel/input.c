@@ -118,6 +118,25 @@ void input_mouse_get_pos(int *x, int *y) {
 uint32_t input_scancode_to_key(uint32_t scancode, uint32_t mods) {
     bool shift = (mods & MOD_SHIFT) != 0;
 
+    /* Modifier keys carry no text, so they must produce NO key code.
+     *
+     * Returning their scancode here leaked them into every text field as
+     * printable ASCII: LEFTSHIFT is 0x2A -- which is '*' -- and LEFTALT is
+     * 0x38 -- which is '8'. Typing "DOS Box" (four shifted capitals) therefore
+     * produced "*D*O*S *Box", and the Run dialog then looked up an app called
+     * that, found nothing, and handed the mangled string to the shell.
+     *
+     * Applications learn that Shift/Ctrl/Alt/Win are held through the
+     * modifiers bitmask, not through a key press. */
+    if (scancode == 0x1D ||                  /* Left Ctrl  */
+        scancode == 0x2A ||                  /* Left Shift -> '*' */
+        scancode == 0x38 ||                  /* Left Alt   -> '8' */
+        scancode == 0xE05B || scancode == 0xE05C ||   /* Win / Super */
+        scancode == 0xE01D || scancode == 0xE02A ||
+        scancode == 0xE038) {
+        return 0;
+    }
+
     /* Control keys first: the text widgets test ASCII control codes. */
     switch (scancode) {
         case 0x01: return 0x1B;   /* Escape        */

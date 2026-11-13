@@ -213,6 +213,11 @@ test_input:
 	$(CC) $(CFLAGS) -O0 -g -I$(KERNEL) $(KERNEL)/input.c $(KERNEL)/test/legacy/input_test.c -o $(KERNEL)/input_test
 	$(KERNEL)/input_test
 
+test_input_keymap:
+	$(CC) -O0 -g -std=c11 -I$(KERNEL) $(KERNEL)/input.c $(KERNEL)/test/input_keymap_test.c \
+		-o $(KERNEL)/input_keymap_test
+	$(KERNEL)/input_keymap_test
+
 test_math: $(KERNEL)/wubu_math.o
 	$(CC) -O0 -g -DWUBU_MATH_TEST -I$(KERNEL) $(KERNEL)/wubu_math.c -o $(KERNEL)/math_test
 	$(KERNEL)/math_test

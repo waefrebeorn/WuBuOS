@@ -113,6 +113,11 @@ static void handle_wl_keyboard_key(uint32_t key, int pressed) {
          * translate anything that carries text.  Arrows/modifiers keep their
          * scancode, which is what the WM's hotkeys match. */
         ev.keycode = input_scancode_to_key(wu_key, mods);
+        /* Modifier keys deliberately produce no key code -- pushing one would
+         * deliver '*' (Shift), '8' (Alt) or a control character to whichever
+         * text field has focus.  Modifier STATE travels in ev.modifiers on the
+         * events that matter, so nothing is lost by not queuing them. */
+        if (ev.keycode == 0) return;
         input_key_push(ev);
     }
 }
