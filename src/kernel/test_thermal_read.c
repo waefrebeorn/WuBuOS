@@ -89,6 +89,23 @@ static int oracle_hwmon(const char *name)
     return best;
 }
 
+/* Compare against TWO independent sysfs samples bracketing the call under
+ * test.  A live processor moves several degrees between reads, so comparing
+ * one module read against one sysfs read is a race -- this tolerates legitimate
+ * drift while still catching a wrong sensor or a mis-scaled unit. */
+static void check_bracket(const char *what, int mine, int a, int b, int slack)
+{
+    int lo = a < b ? a : b;
+    int hi = a > b ? a : b;
+    if (!(mine >= lo - slack && mine <= hi + slack))
+        printf("  %s: reported %d, sysfs bracket [%d,%d]\n", what, mine, lo, hi);
+    g_checks++;
+    if (!(mine >= lo - slack && mine <= hi + slack)) {
+        g_fails++;
+        printf("FAIL %s:%d: %s does not track sysfs\n", __FILE__, __LINE__, what);
+    }
+}
+
 int main(void)
 {
     wubu_thermal_refresh();
@@ -107,28 +124,27 @@ int main(void)
     if (wubu_thermal_have_cpu()) TEST(cpu > -1 && cpu < 130, "CPU temperature is physically plausible");
     if (wubu_thermal_have_gpu()) TEST(gpu > -1 && gpu < 130, "GPU temperature is physically plausible");
 
-    /* ---- the oracle: our number must equal sysfs ----------------- */
-    int pkg = oracle_x86_pkg_temp();
-    if (pkg > -900) {
+    /* ---- the oracle: our number must sit inside the sysfs bracket ---- */
+    int cpu_now = wubu_thermal_read_temp(WUBU_THERMAL_CPU);
+    int pkg_a = oracle_x86_pkg_temp();
+    if (pkg_a > -900) {
+        int pkg_b = oracle_x86_pkg_temp();
         TEST(wubu_thermal_have_cpu(), "package sensor exists, so CPU must be reported");
-        /* +-3 C: the two readings are taken a fraction of a second apart on
-         * a live processor, so exact equality would flake. */
-        TEST(cpu >= pkg - 3 && cpu <= pkg + 3,
-             "reported CPU temperature matches x86_pkg_temp");
+        check_bracket("CPU", cpu_now, pkg_a, pkg_b, 2);
     }
 
     int ct = oracle_hwmon("coretemp");
-    if (ct > -900 && pkg < -900) {
+    if (ct > -900 && pkg_a < -900) {
         /* Only assert this when the package zone is absent, otherwise the
          * reader is correctly preferring x86_pkg_temp. */
-        TEST(cpu >= ct - 3 && cpu <= ct + 3,
-             "reported CPU temperature matches coretemp");
+        check_bracket("CPU(coretemp)", cpu_now, ct, oracle_hwmon("coretemp"), 2);
     }
 
     /* ---- NVMe is its own thing, not disguised as skin -------------- */
-    int nv = oracle_hwmon("nvme");
-    if (nv > -900) {
-        TEST(nvme >= nv - 2 && nvme <= nv + 2, "NVMe temperature matches sysfs");
+    int nv_a = oracle_hwmon("nvme");
+    if (nv_a > -900) {
+        int nvme_now = wubu_thermal_nvme();
+        check_bracket("SSD", nvme_now, nv_a, oracle_hwmon("nvme"), 2);
     } else {
         TEST(nvme == -1, "no NVMe drive means unknown, not zero");
     }
