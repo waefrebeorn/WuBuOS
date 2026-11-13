@@ -512,6 +512,15 @@ test_vsl_nt_collision: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		-o $(RT)/wubu_vsl_nt_collision_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_collision_test
 
+test_nt_abi: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
+	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) \
+		$(filter-out $(RT)/vsl/vsl_syscall_nt_test.o,$(VSL_NT_OBJS)) \
+		$(KERNEL)/wubu_modsym.o \
+		src/runtime/vsl/test_nt_abi.c \
+		-o src/runtime/vsl/test_nt_abi -ldl -lvulkan -lcuda
+	src/runtime/vsl/test_nt_abi
+
 test_vsl_nt_contract: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) \
 		$(filter-out $(RT)/vsl/vsl_syscall_nt_test.o,$(VSL_NT_OBJS)) \
@@ -1170,7 +1179,7 @@ test_wubu_boot_attest_edr: src/runtime/wubu_boot_attest_edr_test.c src/runtime/w
 	./src/runtime/wubu_boot_attest_edr_test
 
 # The docs must not lie: every path the front-door docs name must exist.
-test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
+test_docs: src/runtime/wubu_docs_test.c README.md docs/MIND_PALACE.md docs/BOOT_ATTEST.md docs/STANDARDS_AND_BOOT.md docs/EXPERIENCE_GAP_LAUNDRY_LIST.md docs/STANDARDS_AND_WORKFLOW.md docs/NT_STACK_SLERM_PLAN.md docs/DEAD_GUARD_AUDIT.md docs/BMDS_GAP_ANALYSIS.md docs/STUDY_LIST.md docs/ABI.md tools/dead_guard_scan.py src/spells/README.md src/spells/graphics/render/vkd3d/vkd3d.spell
 	$(CC) $(CFLAGS) -Isrc/runtime src/runtime/wubu_docs_test.c -o src/runtime/wubu_docs_test
 	./src/runtime/wubu_docs_test
 

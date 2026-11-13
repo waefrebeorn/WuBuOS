@@ -421,6 +421,30 @@ typedef struct {
     const char *now;     /* the module that overwrote it */
 } nt_collision_t;
 
+/* -- Slot capability probing ---------------------------------------------
+ *
+ * A caller must be able to ask "is this syscall really supported here?" WITHOUT
+ * calling it: invoking a real handler can have side effects, and an empty slot
+ * and a stub both answer NOT_IMPLEMENTED, so the return value alone cannot tell
+ * them apart.  This is the ABI's capability query; see docs/ABI.md.
+ */
+typedef enum {
+    WUBU_NT_SLOT_EMPTY = 0,   /* nothing registered: NOT_IMPLEMENTED, stable */
+    WUBU_NT_SLOT_STUB,        /* placeholder that returns NOT_IMPLEMENTED         */
+    WUBU_NT_SLOT_REAL,        /* a genuine handler                                  */
+    WUBU_NT_SLOT_CONFLICT     /* two REAL handlers claimed it; last writer won      */
+} wubu_nt_slot_state_t;
+
+/* Probe one 1-based slot.  Writes `state` (never NULL-dereferenced on error) and
+ * also reports whether the slot currently owns a REAL handler.
+ * Returns 0 on success, -1 if num is out of range.  Never invokes the handler.
+ */
+int vsl_nt_probe(uint32_t num, wubu_nt_slot_state_t *state);
+
+/* Count of slots in each state; used by the ABI conformance test. */
+void vsl_nt_slot_counts(uint32_t *empty, uint32_t *stub,
+                        uint32_t *real, uint32_t *conflict);
+
 uint32_t vsl_nt_coverage(void);
 uint32_t vsl_nt_collision_count(void);
 uint32_t vsl_nt_stub_replace_count(void);   /* a real handler replaced a stub */

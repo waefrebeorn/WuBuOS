@@ -90,6 +90,9 @@ static uint32_t       g_nt_collision_count;
 static const char    *g_nt_owner[NT_TBL_SIZE];
 static bool           g_nt_claimed[NT_TBL_SIZE];
 static bool           g_nt_stub[NT_TBL_SIZE];      /* claimed by a STUB */
+/* Claimed by two REAL handlers: nt_record_collision marks these so the ABI
+ * probe can report WUBU_NT_SLOT_CONFLICT rather than a bare "real". */
+static bool           g_nt_conflict[NT_TBL_SIZE];
 static uint32_t       g_nt_stub_replaces;
 
 static void nt_record_collision(int slot, const char *was, const char *now)
@@ -99,6 +102,9 @@ static void nt_record_collision(int slot, const char *was, const char *now)
     g_nt_collisions[g_nt_collision_count].was  = was;
     g_nt_collisions[g_nt_collision_count].now  = now;
     g_nt_collision_count++;
+    /* Expose the collision through the ABI probe too, not just the log: a caller
+     * must be able to see that a slot is contested without reading syslog. */
+    if (slot >= 1 && slot <= NT_TBL_SIZE) g_nt_conflict[slot - 1] = true;
 }
 
 /* Register one module.
@@ -156,11 +162,46 @@ static void nt_register_module(const char *name,
 }
 
 /* How many slots are claimed by a real handler (not the nosys default). */
+int vsl_nt_probe(uint32_t num, wubu_nt_slot_state_t *state)
+{
+    if (!state) return -1;
+    *state = WUBU_NT_SLOT_EMPTY;
+    if (num < 1 || num > NT_TBL_SIZE) return -1;
+
+    int i = (int)num - 1;
+    /* NULL means nt_dispatch_init() has not run yet (the table is zero-filled
+     * statically).  It must NOT read as "real": a caller can legitimately probe
+     * before any syscall has been dispatched, and reporting 512 supported
+     * handlers at that point is exactly the kind of lie this API exists to stop. */
+    if (g_nt_dispatch[i] == NULL || g_nt_dispatch[i] == vsl_sys_nosys) return 0;
+
+    *state = g_nt_conflict[i] ? WUBU_NT_SLOT_CONFLICT
+           : (g_nt_stub[i]    ? WUBU_NT_SLOT_STUB
+                              : WUBU_NT_SLOT_REAL);
+    return 0;
+}
+
+void vsl_nt_slot_counts(uint32_t *empty, uint32_t *stub,
+                        uint32_t *real, uint32_t *conflict)
+{
+    uint32_t e = 0, s = 0, r = 0, c = 0;
+    for (int i = 0; i < NT_TBL_SIZE; i++) {
+        if (g_nt_dispatch[i] == NULL || g_nt_dispatch[i] == vsl_sys_nosys) { e++; continue; }
+        if (g_nt_conflict[i])                 { c++; }
+        else if (g_nt_stub[i])                { s++; }
+        else                                  { r++; }
+    }
+    if (empty)    *empty    = e;
+    if (stub)     *stub     = s;
+    if (real)     *real     = r;
+    if (conflict) *conflict = c;
+}
+
 uint32_t vsl_nt_coverage(void)
 {
     uint32_t n = 0;
     for (int i = 0; i < NT_TBL_SIZE; i++)
-        if (g_nt_dispatch[i] != vsl_sys_nosys) n++;
+        if (g_nt_dispatch[i] != NULL && g_nt_dispatch[i] != vsl_sys_nosys) n++;
     return n;
 }
 
