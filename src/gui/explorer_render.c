@@ -441,7 +441,8 @@ void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_
     const int n_items = 8;
     int item_h = 24;
     int menu_w = 180;
-    int menu_h = n_items * item_h + 4;
+    /* 8 items PLUS one separator row inserted before Delete. */
+    int menu_h = (n_items + 1) * item_h + 4;
     int menu_x = ex->context_menu_x;
     int menu_y = ex->context_menu_y;
 
@@ -465,9 +466,12 @@ void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_
     for (int i = 0; i < n_items; i++) {
         int iy = menu_y + 2 + i * item_h;
         /* Separator after Paste */
+        /* Insert a separator BEFORE Delete -- it used to REPLACE index 5, so Delete was
+         * never drawn at all: the menu showed seven of its eight items. Hit-testing
+         * (ex_ctx_item_at) assumes this layout, so renderer and input must stay in step. */
         if (i == 5) {
             vbe_hline(menu_x + 8, menu_x + menu_w - 8, iy + item_h / 2, tc()->border_dark);
-            continue;
+            iy += item_h;
         }
         vbe_draw_text(menu_x + 12, iy + (item_h - 8) / 2, items[i], tc()->startmenu_text, 1);
     }

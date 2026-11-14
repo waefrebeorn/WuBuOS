@@ -57,6 +57,14 @@ void ex_scan_directory(const char *path);
 void ex_tree_scan(ExTreeNode *node);
 void ex_add_to_history(ExExplorerState *ex, const char *path);
 void ex_show_context_menu(ExExplorerState *ex, int mx, int my, int entry_idx);
+
+/* Open a file with its associated program (W-CODE today). Implemented in apps.c.
+ *
+ * The POINTER ITSELF is weak, which is what makes an undefined reference resolve to
+ * NULL instead of a link error -- declaring the function weak would not have done it,
+ * because these call sites take the address and a weak function still needs a body at
+ * link time in a non-PIE build. Same technique as desktop_stubs.c and the petdex hook. */
+__attribute__((weak)) void (*const ex_launch_with_wcode)(const char *path);
 void ex_hide_context_menu(ExExplorerState *ex);
 void explorer_update_drive_list(void);
 

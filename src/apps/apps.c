@@ -171,11 +171,29 @@ static const char *wcode_binary(void)
     return "wcode";                       /* last resort: let PATH decide */
 }
 
-DosGuiWindow *launch_wcode(void) {
+/* Shared body: build argv (binary + optional file to open) and hand off to the
+ * terminal module. Lives here so every caller resolves the binary identically. */
+static DosGuiWindow *wcode_open(const char *path)
+{
     if (!wcode_terminal_launch) return NULL;      /* terminal not linked */
 
-    char *argv[] = { (char *)wcode_binary(), NULL };
-    return wcode_terminal_launch(argv);
+    const char *bin = wcode_binary();
+    char *argv[3];
+    argv[0] = (char *)bin;
+    argv[1] = (char *)path;
+    argv[2] = NULL;
+    return wcode_terminal_launch(path ? argv : (char *[]){ (char *)bin, NULL });
+}
+
+DosGuiWindow *launch_wcode(void) {
+    return wcode_open(NULL);
+}
+
+/* Called by the Explorer's "Open With..." menu item. Declared WEAK in the explorer so
+ * lean targets that link explorer.c without apps.o simply see NULL -- the same
+ * convention as desktop_stubs.c and the petdex hook. */
+void ex_launch_with_wcode(const char *path) {
+    if (path && *path) wcode_open(path);
 }
 
 /* -- Terminal (cmd.c) adapters: bridge DosGuiWindow callbacks to WubuCmd -- */

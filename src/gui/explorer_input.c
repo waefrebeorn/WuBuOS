@@ -247,8 +247,31 @@ void explorer_handle_mouse(int x, int y, int btn, int kind) {
     bool shift = g_shift_pressed;
 
     if (ex->context_menu_x >= 0) {
-        if (kind == 1 && btn == 1) { /* Left click outside closes context menu */
+        if (kind == 1 && btn == 1) {
+            int item = ex_ctx_row_at(x, y, ex->context_menu_x, ex->context_menu_y);
             ex_hide_context_menu(ex);
+
+            /* Item order must match ex_render_context_menu exactly:
+             *   0 Open   1 Open With...   2 Cut   3 Copy   4 Paste
+             *   5 <separator>   6 Delete   7 Rename   8 Properties
+             * (8 items total, so the last is index 7; slot 5 is the separator and
+             *  ex_ctx_item_at refuses it.) */
+            switch (item) {
+                case 0: explorer_open_entry(ex, ex->context_menu_entry); break;
+                case 1: if (ex->context_menu_entry >= 0 &&
+                            ex->context_menu_entry < ex->entry_count &&
+                            ex_launch_with_wcode)
+                            ex_launch_with_wcode(
+                                ex->entries[ex->context_menu_entry].full_path);
+                        break;
+                case 2: explorer_cut();     break;
+                case 3: explorer_copy();    break;
+                case 4: explorer_paste();   break;
+                case 6: explorer_delete(false); break;
+                case 7: explorer_rename(ex->context_menu_entry); break;
+                case 8: explorer_show_properties(ex->context_menu_entry); break;
+                default: break;   /* outside the menu, or the separator */
+            }
         }
         return;
     }

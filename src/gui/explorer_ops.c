@@ -12,6 +12,64 @@
 #include <stdlib.h>
 #include <errno.h>
 
+/* Context-menu geometry, shared by the renderer and the input path so they cannot
+ * disagree about where an item is drawn. Mirrors ex_render_context_menu exactly. */
+#define EX_CTX_ITEMS          8
+#define EX_CTX_ITEMS          8   /* item LABELS */
+#define EX_CTX_ROWS           9   /* labels + one separator row before Delete */
+#define EX_CTX_SEPARATOR_ROW  5   /* slot that is NOT an item */
+#define EX_CTX_ITEM_H         24
+#define EX_CTX_MENU_W         180
+
+/* Map a click position to a MENU ROW index (0..8), or -1 when the press landed on
+ * nothing actionable -- outside the menu entirely, or on the separator row.
+ *
+ * Row layout MUST mirror ex_render_context_menu:
+ *     row 0..4  -> Open, Open With..., Cut, Copy, Paste
+ *     row 5     -> separator
+ *     row 6..8  -> Delete, Rename, Properties
+ * The renderer INSERTS the separator rather than overwriting an item, so Delete is
+ * visible and every label has its own row. */
+int ex_ctx_row_at(int mx, int my, int menu_x, int menu_y)
+{
+    if (menu_x < 0) return -1;
+    if (mx < menu_x || mx >= menu_x + EX_CTX_MENU_W) return -1;
+    int rel = my - menu_y - 2;
+    if (rel < 0) return -1;
+    int idx = rel / EX_CTX_ITEM_H;
+    if (idx >= EX_CTX_ROWS) return -1;
+    if (idx == EX_CTX_SEPARATOR_ROW) return -1;
+    return idx;
+}
+
+/* Open the selected entry: directories navigate, files go to their handler.
+ *
+ * This did not exist before -- selecting a file left the user with no way to act on it,
+ * because nothing in the explorer opened anything. */
+void explorer_open_entry(ExExplorerState *ex, int idx)
+{
+    if (!ex || idx < 0 || idx >= ex->entry_count) return;
+
+    const ExEntry *e = &ex->entries[idx];
+
+    if (e->type == EX_ENTRY_DIR || e->type == EX_ENTRY_ZIP ||
+        e->type == EX_ENTRY_DRIVE || e->type == EX_ENTRY_MOUNT) {
+        explorer_navigate(e->full_path);
+        return;
+    }
+
+    /* Files need a handler. The one we have is W-CODE (the IDE owns source and .wet
+     * applet files); everything else is honestly left alone rather than opened with a
+     * guess that would silently mislead the user. */
+    if (ex_launch_with_wcode &&
+        (strcmp(e->extension, "wet") == 0 ||
+         strcmp(e->extension, "c")   == 0 ||
+         strcmp(e->extension, "h")   == 0 ||
+         strcmp(e->extension, "hc")  == 0)) {
+        ex_launch_with_wcode(e->full_path);
+    }
+}
+
 void explorer_copy(void) {
     if (g_explorer.selection_count == 0) return;
     g_explorer.clipboard_op = EX_OP_COPY;
