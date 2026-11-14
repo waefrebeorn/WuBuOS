@@ -1653,6 +1653,17 @@ test_mime_fuzz:
 		-lm -o $(GUI)/mime_fuzz
 	$(GUI)/mime_fuzz 7 4000
 
+# Crash-safety of the guest store: temp cleanup, foreign-temp immunity,
+# no interleaved writes between processes.
+test_fs_crash_safe:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(RT)/wubu_guest_root.c \
+		$(HOSTED)/fs_crash_safe_test.c \
+		-lm -o $(HOSTED)/fs_crash_safe_test
+	$(HOSTED)/fs_crash_safe_test
+
 test_fs_persist_fuzz:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \

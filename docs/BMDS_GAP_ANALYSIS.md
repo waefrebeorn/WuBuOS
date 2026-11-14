@@ -69,14 +69,26 @@ blob -- a fuzzer found 1853 such images accepted, including a hole where a modul
 code existed). See docs/DUPLICATE_SURFACE_FINDINGS.md for the unrelated Proton API
 collision found while tracing prototypes.
 
-### 3. Crash-safe installation — **MISSING**
+### 3. Crash-safe installation — **PARTIAL** (store verified; package path still open)
 BMDS: a per-package database with a **pending record a power cut is finished from**;
 checks everything first, writes beside each file, renames into place; unowned
 identical files taken over.
-WuBuOS: no pending/journal concept anywhere in the package path (searched
+WuBuOS: no pending/journal concept anywhere in the PACKAGE path (searched
 `wubu_ns_pkg.c` for pending/journal/power-cut: zero hits). A cut during install can
-leave a half-written package with no recovery.
+still leave a half-done package set -- that half remains open.
 
+The GUEST STORE half was audited and closed this session. `hosted_fs_persist.c`
+already wrote temp-then-rename, but the claim had never been exercised and the temp
+path was FIXED (`<store>.tmp`): two guests sharing a host opened the same temp file,
+the second `fopen(...,"wb")` truncated whatever the first was mid-way through writing,
+and the rename published a mixture of both stores. The temp name is now PID-qualified
+(`<store>.<pid>.tmp`), so concurrent savers cannot interleave without a lock.
+
+Verified by `make test_fs_crash_safe` (8 checks), which asserts a clean save leaves no
+temp behind, a crashed writer's debris does not affect the published image, another
+process's temp survives our save untouched, and the image stays readable across
+repeated saves. The third assertion was confirmed to FAIL against a temporary revert of
+the fix -- it is a real regression test, not one that passes either way.
 ### 4. Release, installer and board support metadata — **MISSING**
 BMDS: browser installer reading `firmware/latest.json`, per-chip `flash.json`
 letting the chip revision pick an artifact, `tools/release` writing the release

@@ -35,6 +35,7 @@ SPELLMOD_FUZZ_SAN = $(RT)/spellmod_fuzz.san
 JSON_FUZZ_SAN = $(RT)/json_fuzz.san
 SPELL_RESOLVE_SAN = $(RT)/wubu_spell_resolve_test.san
 SPELL_SCAN_SAN = $(RT)/wubu_spell_scan_test.san
+FS_CRASH_SAFE_SAN = $(HOSTED)/fs_crash_safe_test.san
 
 .PHONY: test_sanitize
 # All four targets live here.  The NT sweep looks like it should be excluded for
@@ -42,10 +43,10 @@ SPELL_SCAN_SAN = $(RT)/wubu_spell_scan_test.san
 # gate would save nothing and would hide the most valuable target behind a second
 # command somebody has to remember to run.
 test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(SPELLMOD_FUZZ_SAN) $(JSON_FUZZ_SAN) $(SPELL_RESOLVE_SAN) $(SPELL_SCAN_SAN) $(VSL_NT_SAN_BIN)
+               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(SPELLMOD_FUZZ_SAN) $(JSON_FUZZ_SAN) $(SPELL_RESOLVE_SAN) $(SPELL_SCAN_SAN) $(FS_CRASH_SAFE_SAN) $(VSL_NT_SAN_BIN)
 	@set -e; fail=0; \
 	for b in $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-	         $(HOSTED)/test_fs_persist.san $(SPELL_RESOLVE_SAN) $(SPELL_SCAN_SAN) $(VSL_NT_SAN_BIN); do \
+	         $(HOSTED)/test_fs_persist.san $(SPELL_RESOLVE_SAN) $(SPELL_SCAN_SAN) $(FS_CRASH_SAFE_SAN) $(VSL_NT_SAN_BIN); do \
 	   echo "--- sanitized: $$b"; \
 	   if ! $$b; then echo "!!! $$b failed under sanitizers"; fail=1; fi; \
 	done; \
@@ -122,6 +123,15 @@ $(SPELL_SCAN_SAN): $(RT)/wubu_spell_scan.c $(RT)/wubu_spell_resolve.c \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c $(RT)/wubu_spell_scan.c \
 		$(RT)/wubu_spell_scan_test.c -o $@ -lm
+
+# Guest-store crash safety, under ASan/UBSan.
+$(FS_CRASH_SAFE_SAN): $(HOSTED)/fs_crash_safe_test.c $(HOSTED)/hosted_styxfs.c \
+                      $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+                      $(RT)/wubu_guest_root.c
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
+		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
+		$(RT)/wubu_guest_root.c $(HOSTED)/fs_crash_safe_test.c -o $@ -lm
 
 # NT syscall surface -- every slot probed with all-zero arguments, forked.
 VSL_NT_SAN_BIN = $(RT)/vsl_nt_contract_test.san

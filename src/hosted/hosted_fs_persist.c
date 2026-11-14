@@ -131,8 +131,12 @@ int fs_persist_save(void)
 
     if (ensure_parent_dir(path) != 0) return -1;
 
+    /* One temporary per PROCESS.  A fixed "<path>.tmp" means two guests sharing a
+     * host would open the SAME temp file -- the second fopen(..., "wb") truncates
+     * what the first is mid-way through writing, so the rename publishes a mixture
+     * of both stores.  The PID keeps them apart without needing a lock. */
     char tmp_path[1024];
-    snprintf(tmp_path, sizeof(tmp_path), "%s.tmp", path);
+    snprintf(tmp_path, sizeof(tmp_path), "%s.%ld.tmp", path, (long)getpid());
 
     FILE *fp = fopen(tmp_path, "wb");
     if (!fp) return -1;
