@@ -1657,6 +1657,15 @@ test_mime_fuzz:
 # no interleaved writes between processes.
 # Guest display model: enumeration, presence, virtual-desktop bounds, monitor hit-test,
 # primary selection.  No compositor needed.
+# EDID parsing: a real 128-byte blob from this machine's eDP-1 panel, cross-checked
+# against xrandr, plus every refusal path.
+test_wubu_edid:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(KERNEL) -I$(RT) \
+		$(KERNEL)/wubu_edid.c $(KERNEL)/wubu_edid_test.c \
+		-lm -o $(KERNEL)/wubu_edid_test
+	$(KERNEL)/wubu_edid_test
+
 test_hosted_display:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) \
