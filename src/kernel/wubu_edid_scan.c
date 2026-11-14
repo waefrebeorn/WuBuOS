@@ -30,7 +30,7 @@ static const char *strip_card_prefix(const char *dir_name, char *out, size_t out
 {
     const char *dash = strchr(dir_name, '-');
     if (!dash || dash == dir_name) {
-        snprintf(out, outsz, "%s", dir_name);
+        snprintf(out, outsz, "%.*s", (int)(outsz - 1), dir_name);
         return out;
     }
     snprintf(out, outsz, "%s", dash + 1);
