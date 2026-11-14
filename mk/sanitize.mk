@@ -33,6 +33,7 @@ FS_PERSIST_FUZZ_SAN = $(HOSTED)/fs_persist_fuzz.san
 MIME_FUZZ_SAN = $(GUI)/mime_fuzz.san
 SPELLMOD_FUZZ_SAN = $(RT)/spellmod_fuzz.san
 JSON_FUZZ_SAN = $(RT)/json_fuzz.san
+SPELL_RESOLVE_SAN = $(RT)/wubu_spell_resolve_test.san
 
 .PHONY: test_sanitize
 # All four targets live here.  The NT sweep looks like it should be excluded for
@@ -40,10 +41,10 @@ JSON_FUZZ_SAN = $(RT)/json_fuzz.san
 # gate would save nothing and would hide the most valuable target behind a second
 # command somebody has to remember to run.
 test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(SPELLMOD_FUZZ_SAN) $(JSON_FUZZ_SAN) $(VSL_NT_SAN_BIN)
+               $(HOSTED)/test_fs_persist.san $(FS_PERSIST_FUZZ_SAN) $(MIME_FUZZ_SAN) $(SPELLMOD_FUZZ_SAN) $(JSON_FUZZ_SAN) $(SPELL_RESOLVE_SAN) $(VSL_NT_SAN_BIN)
 	@set -e; fail=0; \
 	for b in $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
-	         $(HOSTED)/test_fs_persist.san $(VSL_NT_SAN_BIN); do \
+	         $(HOSTED)/test_fs_persist.san $(SPELL_RESOLVE_SAN) $(VSL_NT_SAN_BIN); do \
 	   echo "--- sanitized: $$b"; \
 	   if ! $$b; then echo "!!! $$b failed under sanitizers"; fail=1; fi; \
 	done; \
@@ -104,6 +105,14 @@ $(JSON_FUZZ_SAN): $(RT)/json_fuzz.c $(RT)/wubu_json.c
 	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_json.c $(RT)/json_fuzz.c -o $@ -lm
+
+# Dependency resolver -- pure graph work over borrowed handles.
+$(SPELL_RESOLVE_SAN): $(RT)/wubu_spell_resolve.c $(RT)/wubu_spellmod.c \
+                      $(RT)/wubu_spell_resolve_test.c
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) -I$(KERNEL) \
+		$(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c \
+		$(RT)/wubu_spell_resolve_test.c -o $@ -lm
 
 # NT syscall surface -- every slot probed with all-zero arguments, forked.
 VSL_NT_SAN_BIN = $(RT)/vsl_nt_contract_test.san

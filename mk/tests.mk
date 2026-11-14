@@ -243,6 +243,15 @@ test_json_fuzz:
 		-lm -o $(RT)/json_fuzz
 	$(RT)/json_fuzz 7 4000
 
+# .spell dependency resolver: chains, diamonds, unsatisfiable needs, cycles,
+# self-provided capabilities, capacity limits and the no-partial-plan rule.
+test_spell_resolve:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c \
+		$(RT)/wubu_spell_resolve_test.c \
+		-lm -o $(RT)/wubu_spell_resolve_test
+	$(RT)/wubu_spell_resolve_test
+
 test_spellmod_fuzz:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/spellmod_fuzz.c \

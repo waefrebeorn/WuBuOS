@@ -47,8 +47,13 @@ comparison, no cycle detection, no autoremove.
    - No resolution algorithm exists: no topological ordering across a set of modules,
      no cycle detection, no refusal of an unsatisfiable `needs[]`.
 
-So the data model for module dependencies is complete and tested; the act of resolving
-one against another does not exist. That is worth stating plainly because the format
+That changed this session: `src/runtime/wubu_spell_resolve.{c,h}` now implements the
+act of resolving -- provider lookup by capability, depth-first post-order load plans,
+cycle detection, refusal of unsatisfiable needs, and a hard rule that a failed plan
+leaves NO partial order behind (a half-loaded module set is worse than refusing).
+35 unit checks. What still does not exist is the *discovery* side: nothing scans
+`~/.local/lib/wubu/spells/`, so there is no automatic source of modules to register.
+The graph problem is solved; feeding it real directories is not. That is worth stating plainly because the format
 being well-specified makes it look further along than it is.
 
 Work done this session on this surface (hardening, not the missing solver):
