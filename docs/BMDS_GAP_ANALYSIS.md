@@ -25,70 +25,60 @@ identifies a container but authenticates nothing.
 *This is the single largest structural gap.* Without it, `pkg install` from a repo
 installs whatever the wire delivered.
 
-### 2. Dependency solving — **MISSING**
-BMDS: `PkgSolver` on its own stack — ordering, automatic marks, chains, cycles,
-refusing breaking downgrades; `pkg autoremove`, `pkg mark`; dpkg-compatible
-`PkgVersion` rules.
-WuBuOS: `src/runtime/wubu_ns_pkg.c` exposes publish/install/remove/add_repo, and
-`wubu_pkgbuild.c` parses and expands. No solver: no dependency walk, no version
-comparison, no cycle detection, no autoremove.
+### 2. Dependency solving — **CORRECTED** (a solver DOES exist at package level)
+This entry previously claimed "no solver: no dependency walk, no version comparison,
+no cycle detection". That was WRONG, and the error is instructive: the search was done
+in `src/runtime/wubu_ns_pkg.c`, which is the 9P namespace BRIDGE -- a thin control
+plane that forwards to `pkg_install`/`pkg_remove`. The real package manager lives in
+`src/gui/wubu_pkgmgr*.c` (~2,940 lines across db / install / manifest / remote /
+resolve / txn / verify), and it contains an actual solver:
 
-**There are TWO dependency models here and neither has a resolver.**
+  * `wubu_pkgmgr_resolve_deps()` -- builds a TRANSITIVE dependency closure by querying
+    the sqlite deps table repeatedly until the set stabilises, then topologically
+    orders it with Kahn's algorithm (in_degree + adjacency) before returning a load
+    order. That is a dependency walk and an ordering, not a stub.
+  * `wubu_pkgmgr_check_conflicts()` -- conflict checking against installed packages.
+  * `wubu_pkgmgr_test.c` -- 671 lines of gate coverage.
 
-1. Package level (`wubu_ns_pkg`) -- as above.
-2. Module level (`.spell`): the container FORMAT specifies dependencies properly --
-   `provides[]`/`needs[]`, capped at 32 each, with `wubu_spellmod_provides()` answering
-   "does this spell give me what I need?" and `wubu_spellmod_info()` exposing both
-   lists. But nothing consumes them:
-   - `wubu_spellmod_open()` has **no production caller** (only its own test and the
-     fuzzer added this session). There is no loader and no search path -- the header
-     says compiled modules install under `~/.local/lib/wubu/spells/`, yet no code
-     scans any directory for one.
-   - No resolution algorithm exists: no topological ordering across a set of modules,
-     no cycle detection, no refusal of an unsatisfiable `needs[]`.
+What may still be genuinely absent (NOT re-verified here, so stated as open questions
+rather than claims): dpkg-compatible VERSION comparison/refusal of breaking downgrades,
+automatic-mark semantics, `autoremove`, and cycle REPORTING (Kahn's algorithm will
+simply leave a cyclic remainder unordered; whether that is surfaced as an error or
+silently ignored needs reading `resolve_deps`' tail).
 
-That changed this session: `src/runtime/wubu_spell_resolve.{c,h}` now implements the
-act of resolving -- provider lookup by capability, depth-first post-order load plans,
-cycle detection, refusal of unsatisfiable needs, and a hard rule that a failed plan
-leaves NO partial order behind (a half-loaded module set is worse than refusing).
-35 unit checks.
+Search correctly next time: `grep -rln pkg_install src/` finds the manager; grepping a
+single plausible-looking filename found a forwarding shim instead.
 
-Discovery followed in `src/runtime/wubu_spell_scan.c`: `wubu_spell_default_dir()`
-(honours `$WUBU_SPELL_DIR`, else `$HOME/.local/share/wubu/spells`) and
-`wubu_spell_scan()`, which registers every valid `*.spell` in a directory, skips
-corrupt and oversized files without stopping, reports an unopenable directory as -1,
-and records that those images are owned by the registry so they are released exactly
-once. 13 further checks. The module level is now complete end to end: format, parse,
-resolution, discovery. That is worth stating plainly because the format
-being well-specified makes it look further along than it is.
-
-Work done this session on this surface (hardening, not the missing solver):
-`wubu_spellmod_open()` now refuses an image whose export table points outside its code
-blob -- a fuzzer found 1853 such images accepted, including a hole where a module with
-`code_len == 0` skipped validation entirely (`wubu_spellmod_export()` only checked when
-code existed). See docs/DUPLICATE_SURFACE_FINDINGS.md for the unrelated Proton API
-collision found while tracing prototypes.
-
-### 3. Crash-safe installation — **PARTIAL** (store verified; package path still open)
+Module level (.spell) was the OTHER half and was genuinely missing -- see below.
+### 3. Crash-safe installation — **MISSING IN EFFECT** (transaction shell exists, recovery does not)
 BMDS: a per-package database with a **pending record a power cut is finished from**;
 checks everything first, writes beside each file, renames into place; unowned
 identical files taken over.
-WuBuOS: no pending/journal concept anywhere in the PACKAGE path (searched
-`wubu_ns_pkg.c` for pending/journal/power-cut: zero hits). A cut during install can
-still leave a half-done package set -- that half remains open.
 
-The GUEST STORE half was audited and closed this session. `hosted_fs_persist.c`
-already wrote temp-then-rename, but the claim had never been exercised and the temp
-path was FIXED (`<store>.tmp`): two guests sharing a host opened the same temp file,
-the second `fopen(...,"wb")` truncated whatever the first was mid-way through writing,
-and the rename published a mixture of both stores. The temp name is now PID-qualified
-(`<store>.<pid>.tmp`), so concurrent savers cannot interleave without a lock.
+WuBuOS has the SCAFFOLDING and not the safety:
 
-Verified by `make test_fs_crash_safe` (8 checks), which asserts a clean save leaves no
-temp behind, a crashed writer's debris does not affect the published image, another
-process's temp survives our save untouched, and the image stays readable across
-repeated saves. The third assertion was confirmed to FAIL against a temporary revert of
-the fix -- it is a real regression test, not one that passes either way.
+  * `wubu_pkgmgr_txn_begin()` creates `/tmp/wubu_rollback_<timestamp>` --
+    and nothing ever writes a backup into it.
+  * `wubu_pkgmgr_txn_add()` records install/remove/upgrade/downgrade items --
+    purely in memory, lost on exit.
+  * `wubu_pkgmgr_txn_commit()` replays those items through the normal install path.
+  * **`wubu_pkgmgr_txn_rollback()` is a STUB**: its body is `return true` with the
+    comment "Restore from rollback_dir" and no code. Calling it after a failed
+    install changes nothing.
+
+Meanwhile `wubu_pkgmgr_install()` extracts the payload to `/tmp/wubu_install_<id>`
+and copies files into `install_root` directly. A failure part-way through leaves the
+already-copied files installed with no record of what was written, so neither a retry
+nor a rollback can tell what to undo. On a power cut the same holds: partial files in
+place, no journal, no pending record.
+
+So the honest state: a transaction TYPE exists and a rollback DIRECTORY is created,
+but no backup is taken, no journal is written, and the rollback entry point is a
+no-op. Nothing here actually survives a crash or undoes a partial install.
+
+The guest store (hosted_fs_persist.c) is a separate and BETTER story -- see below --
+which makes this gap more visible: the tree already knows how to do temp-then-rename
+correctly in one place and not in the other.
 ### 4. Release, installer and board support metadata — **MISSING**
 BMDS: browser installer reading `firmware/latest.json`, per-chip `flash.json`
 letting the chip revision pick an artifact, `tools/release` writing the release
