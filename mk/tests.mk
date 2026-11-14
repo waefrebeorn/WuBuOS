@@ -2397,7 +2397,7 @@ test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM \
 		-I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) \
 		$(GUI)/wubu_pkgmgr.c $(GUI)/wubu_pkgmgr_verify.c $(GUI)/wubu_pkgmgr_resolve.c $(GUI)/wubu_pkgmgr_manifest.c $(GUI)/wubu_pkgmgr_db.c $(GUI)/wubu_pkgmgr_pkg.c $(GUI)/wubu_pkgmgr_install.c $(GUI)/wubu_pkgmgr_txn.c $(GUI)/wubu_pkgmgr_remote.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.o $(GUI)/wubu_settings_io.o $(RT)/wubu_json.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(KERNEL)/wubu_math.c \
-		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_container.c \
+		$(RT)/styx_names.c $(RT)/styx_enc.c $(RT)/styx_serve.c $(RT)/styx_parse.c $(RT)/styx_fid.c $(RT)/styxfs_vfs.c $(RT)/styxfs_callbacks.c $(RT)/styxfs_posix.c $(RT)/styxfs_path.c $(RT)/styxfs_host.o $(RT)/styxfs_util.c $(RT)/wubu_guest_root.c $(RT)/wubu_container.c \
 		$(RT)/oci/oci_http_client.c \
 		$(GUI)/wubu_pkgmgr_test.c \
 		-lm -o $(GUI)/wubu_pkgmgr_test -lsqlite3 -lzstd

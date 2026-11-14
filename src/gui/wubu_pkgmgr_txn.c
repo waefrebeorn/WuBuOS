@@ -6,14 +6,28 @@
 #include "wubu_pkgmgr_internal.h"
 
 #include <glob.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>   /* mkdtemp */
 
 bool wubu_pkgmgr_txn_begin(wubu_pkg_transaction_t* txn, bool dry_run) {
     memset(txn, 0, sizeof(*txn));
     txn->dry_run = dry_run;
-    time_t now = time(NULL);
-    struct tm* tm_now = gmtime(&now);
-    strftime(txn->rollback_dir, sizeof(txn->rollback_dir), "/tmp/wubu_rollback_%Y%m%d_%H%M%S", tm_now);
-    ensure_dir(txn->rollback_dir);
+
+    /* mkdtemp, not a timestamped name.  strftime("%Y%m%d_%H%M%S") has SECOND
+     * granularity, so two transactions begun in the same second got the SAME
+     * rollback directory -- the same collision class as the guest store's fixed
+     * ".tmp" path (fixed in de052ff): the second begin silently shared whatever the
+     * first had put there, and a rollback would restore the wrong process's debris.
+     *
+     * mkdtemp creates the directory atomically and guarantees uniqueness, so no
+     * locking and no clock are involved. */
+    char tmpl[] = "/tmp/wubu_rollback_XXXXXX";
+    if (mkdtemp(tmpl) == NULL) {
+        txn->rollback_dir[0] = '\0';
+        return false;
+    }
+    snprintf(txn->rollback_dir, sizeof(txn->rollback_dir), "%s", tmpl);
     return true;
 }
 

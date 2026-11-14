@@ -423,6 +423,18 @@ bool test_desktop_entry_generation(void) {
 bool test_transaction(void) {
     wubu_pkg_transaction_t txn;
     TEST_ASSERT(wubu_pkgmgr_txn_begin(&txn, true), "txn begin");
+
+    /* Two transactions begun in the same second must NOT share a rollback directory.
+     * The old name was strftime("%Y%m%d_%H%M%S"), which has second granularity: both
+     * got the same path, so the second begin inherited whatever the first had left
+     * and a rollback could restore another transaction's debris. */
+    {
+        wubu_pkg_transaction_t other;
+        TEST_ASSERT(wubu_pkgmgr_txn_begin(&other, true), "second txn begin");
+        TEST_ASSERT(strcmp(txn.rollback_dir, other.rollback_dir) != 0,
+                    "two rollback directories are distinct");
+        TEST_ASSERT(txn.rollback_dir[0] == '/', "rollback dir is absolute");
+    }
     
     TEST_ASSERT(wubu_pkgmgr_txn_add(&txn, WUBU_PKG_TXN_INSTALL, "pkg1", NULL, "1.0", false), "txn add install");
     TEST_ASSERT(wubu_pkgmgr_txn_add(&txn, WUBU_PKG_TXN_UPGRADE, "pkg2", "1.0", "2.0", false), "txn add upgrade");
