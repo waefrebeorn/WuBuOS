@@ -1659,6 +1659,15 @@ test_mime_fuzz:
 # primary selection.  No compositor needed.
 # EDID parsing: a real 128-byte blob from this machine's eDP-1 panel, cross-checked
 # against xrandr, plus every refusal path.
+# Connector EDID discovery over a sysfs-style fixture: identity, connection state,
+# empty/garbage blobs, raw retention, and honest failure when the root is unreadable.
+test_wubu_edid_scan:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(KERNEL) -I$(RT) $(KERNEL)/wubu_edid.c $(KERNEL)/wubu_edid_scan.c \
+		$(KERNEL)/wubu_edid_scan_test.c \
+		-lm -o $(KERNEL)/wubu_edid_scan_test
+	$(KERNEL)/wubu_edid_scan_test
+
 test_wubu_edid:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(KERNEL) -I$(RT) \
