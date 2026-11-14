@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "wubu_edid_scan.h"
+#include "wubu_edid_xrandr.h"
 
 int main(int argc, char **argv)
 {
@@ -30,13 +31,23 @@ int main(int argc, char **argv)
     wubu_connector_edid_t out[WUBU_EDID_MAX_CONNECTORS];
     memset(out, 0, sizeof(out));
 
+    /* Layered sources, per established practice: sysfs first (native, no subprocess),
+     * then `xrandr --props` when sysfs yields nothing -- headless hosts, containers
+     * without DRM access, or a kernel exposing no connector directories. */
     int n = wubu_edid_scan(root, out, WUBU_EDID_MAX_CONNECTORS);
+    const char *source = root;
     if (n <= 0) {
-        fprintf(stderr, "wubu-edid-dump: no connectors found under %s\n", root);
+        n = wubu_edid_xrandr_scan(out, WUBU_EDID_MAX_CONNECTORS);
+        source = "xrandr -q --props";
+    }
+    if (n <= 0) {
+        fprintf(stderr,
+                "wubu-edid-dump: no connectors found (sysfs %s, xrandr fallback)\n",
+                root);
         return 1;
     }
 
-    printf("WuBuOS connector EDID report (%s)\n", root);
+    printf("WuBuOS connector EDID report (source: %s)\n", source);
     printf("%-16s %-11s %-7s %-6s %-8s %s\n",
            "CONNECTOR", "STATUS", "KMS-EN", "EDID", "SIZE", "IDENTITY");
     printf("--------------------------------------------------------------------------------\n");
@@ -83,12 +94,13 @@ int main(int argc, char **argv)
     printf("%d connector(s): %d connected, %d identified from EDID\n",
            n, connected, parsed);
 
-    /* KMS-EN is the kernel's userspace-enable flag, NOT "is this panel showing
-     * anything": when another session holds DRM master it reads disabled even on a
-     * fully live display (that is exactly what this machine reports for its own
-     * panel).  Printed because the value is real, labelled because it is easy to
-     * misread -- STATUS is the field that answers "is something plugged in". */
-    printf("KMS-EN reflects the kernel enable flag; use STATUS for presence.\n");
+    /* KMS-EN is whatever the kernel reports in the connector's `enabled` file -- it is
+     * printed verbatim and nothing here interprets it.  On this machine the internal
+     * panel reads "disabled" whenever the lid is closed, which is a real state and not
+     * a failure.  Do NOT read it as "no monitor attached": STATUS answers presence, and
+     * EDID tells you which monitor it is. */
+    printf("KMS-EN is the kernel's raw enable flag (the internal panel reads\n"
+           "disabled while the lid is closed); use STATUS for presence.\n");
 
     return 0;
 }
