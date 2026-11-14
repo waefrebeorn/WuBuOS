@@ -18,6 +18,8 @@
 
 #include <stdint.h>
 
+#include "hosted_display.h"   /* HOSTED_MAX_DISPLAYS, hosted_displays_t */
+
 /* Forward declarations — full definitions come from <wayland-client.h>,
  * <xdg-shell-client-protocol.h>, etc. only in the hosted binary that
  * actually opens the connection. */
@@ -58,7 +60,12 @@ typedef struct {
     struct wl_data_device *data_device;
     struct zwp_primary_selection_device_manager_v1 *primary_selection_manager;
     struct zwp_tablet_manager_v1 *tablet_manager;
-    struct wl_output      *output;
+    /* One entry per advertised output.  A single pointer could only ever hold the
+     * LAST one bound, which silently discarded every other monitor -- the
+     * model below is what multi-monitor support actually reads. */
+    struct wl_output      *outputs[HOSTED_MAX_DISPLAYS];
+    int                    n_outputs;
+    hosted_displays_t     displays;
     struct wl_touch        *touch;
     int                   drm_fd;
     int                   width;

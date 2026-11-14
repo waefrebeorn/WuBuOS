@@ -1655,6 +1655,15 @@ test_mime_fuzz:
 
 # Crash-safety of the guest store: temp cleanup, foreign-temp immunity,
 # no interleaved writes between processes.
+# Guest display model: enumeration, presence, virtual-desktop bounds, monitor hit-test,
+# primary selection.  No compositor needed.
+test_hosted_display:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(HOSTED) -I$(RT) -I$(KERNEL) \
+		$(HOSTED)/hosted_display.c $(HOSTED)/hosted_display_test.c \
+		-lm -o $(HOSTED)/hosted_display_test
+	$(HOSTED)/hosted_display_test
+
 test_fs_crash_safe:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \

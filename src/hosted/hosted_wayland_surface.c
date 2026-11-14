@@ -27,6 +27,10 @@
 struct zwp_primary_selection_device_manager_v1 *g_primary_selection_manager = NULL;
 
 
+/* Defined below with the other output listeners; referenced here because an
+ * output is bound -- and must be listened to -- during registry enumeration. */
+static const struct wl_output_listener output_listener;
+
 static void registry_global(void *data, struct wl_registry *registry,
                              uint32_t name, const char *interface, uint32_t version) {
     hosted_state_t *state = (hosted_state_t*)data;
@@ -44,7 +48,16 @@ static void registry_global(void *data, struct wl_registry *registry,
     } else if (strcmp(interface, "zwp_tablet_manager_v1") == 0) {
         /* Tablet manager not available in stable headers - skip */
     } else if (strcmp(interface, "wl_output") == 0) {
-        g_wl.output = wl_registry_bind(registry, name, &wl_output_interface, 2);
+        /* Bind EVERY output, not just one.  The old code overwrote a single pointer,
+         * so on a two-monitor host only the last-advertised display was ever heard
+         * from -- and its events were printed to stderr and thrown away anyway. */
+        if (g_wl.n_outputs < HOSTED_MAX_DISPLAYS) {
+            hosted_display_t *d = hosted_display_slot(&g_wl.displays, name);
+            struct wl_output *res =
+                wl_registry_bind(registry, name, &wl_output_interface, 2);
+            g_wl.outputs[g_wl.n_outputs++] = res;
+            if (d) wl_output_add_listener(res, &output_listener, d);
+        }
     } else if (strcmp(interface, "wl_shm") == 0) {
         g_wl.shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
     } else if (strcmp(interface, "wl_seat") == 0) {
@@ -188,33 +201,44 @@ static void output_geometry(void *data, struct wl_output *wl_output,
                             int32_t physical_height, int32_t subpixel,
                             const char *make, const char *model,
                             int32_t transform) {
-    hosted_state_t *state = (hosted_state_t*)data;
-    if (!state) return;
-    fprintf(stderr, "Wayland: output geometry %dx%d at %d,%d\n",
-            physical_width, physical_height, x, y);
+    (void)wl_output; (void)physical_width; (void)physical_height;
+    (void)subpixel; (void)transform;
+    hosted_display_t *d = (hosted_display_t *)data;
+    if (!d) return;
+
+    d->x = x;                       /* virtual-desktop position */
+    d->y = y;
+    snprintf(d->make,  sizeof(d->make),  "%s", make  ? make  : "");
+    snprintf(d->model, sizeof(d->model), "%s", model ? model : "");
 }
 
 static void output_mode(void *data, struct wl_output *wl_output,
                         uint32_t flags, int32_t width, int32_t height,
                         int32_t refresh) {
-    hosted_state_t *state = (hosted_state_t*)data;
-    if (!state) return;
-    if (flags & WL_OUTPUT_MODE_CURRENT) {
-        fprintf(stderr, "Wayland: output mode %dx%d@%dHz\n", width, height, refresh);
-    }
+    (void)wl_output;
+    hosted_display_t *d = (hosted_display_t *)data;
+    if (!d) return;
+    if (!(flags & WL_OUTPUT_MODE_CURRENT)) return;   /* stale mode, not live */
+
+    d->w = width;
+    d->h = height;
+    d->refresh_mhz = refresh / 1000;
 }
 
 static void output_done(void *data, struct wl_output *wl_output) {
-    hosted_state_t *state = (hosted_state_t*)data;
-    if (!state) return;
-    fprintf(stderr, "Wayland: output done\n");
+    (void)wl_output;
+    /* Geometry and mode arrive as separate events; `done` marks the burst complete
+     * and makes the display usable.  Before this it is not counted as present, so a
+     * half-described output can never be tiled onto. */
+    hosted_display_commit((hosted_display_t *)data);
 }
 
 static void output_scale(void *data, struct wl_output *wl_output,
                          int32_t factor) {
-    hosted_state_t *state = (hosted_state_t*)data;
-    if (!state) return;
-    fprintf(stderr, "Wayland: output scale %d\n", factor);
+    (void)wl_output;
+    hosted_display_t *d = (hosted_display_t *)data;
+    if (!d || factor < 1) return;
+    d->scale = factor;
 }
 
 static const struct wl_output_listener output_listener = {
@@ -241,8 +265,6 @@ void wl_surface_init(hosted_state_t *state) {
         xdg_toplevel_set_title(g_wl.xdg_toplevel, "WuBuOS");
         wl_surface_commit(g_wl.surface);
     }
-    if (g_wl.output)
-        wl_output_add_listener(g_wl.output, &output_listener, state);
 }
 
 /* Destroy surface/xdg/output/data-device globals (not input/SHM -- those
@@ -252,7 +274,10 @@ void wl_surface_term(void) {
     if (g_wl.xdg_surface)                xdg_surface_destroy(g_wl.xdg_surface);
     if (g_wl.surface)                    wl_surface_destroy(g_wl.surface);
     if (g_wl.xdg_wm_base)                xdg_wm_base_destroy(g_wl.xdg_wm_base);
-    if (g_wl.output)                     wl_output_destroy(g_wl.output);
+    for (int i = 0; i < g_wl.n_outputs; i++)
+        if (g_wl.outputs[i]) wl_output_destroy(g_wl.outputs[i]);
+    g_wl.n_outputs = 0;
+    hosted_display_reset(&g_wl.displays);
     if (g_wl.data_device_manager)        wl_data_device_manager_destroy(g_wl.data_device_manager);
     if (g_primary_selection_manager)     zwp_primary_selection_device_manager_v1_destroy(g_primary_selection_manager);
     g_primary_selection_manager = NULL;
