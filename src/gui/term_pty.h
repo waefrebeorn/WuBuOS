@@ -15,6 +15,14 @@
 
 int  term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty,
                    const char *const *extra_argv);
+
+/* Create a SHELL-type tab WITHOUT spawning anything -- for callers that exec their own
+ * program immediately afterwards. Internal to the terminal subsystem. */
+int  term_new_tab_unspawned(const char *label);
+
+/* Spawn an arbitrary program (not a shell) on a new PTY session. */
+int  term_pty_spawn_exec(const char *const *argv, const char *cwd,
+                        TermPtySession *pty);
 void term_pty_cleanup(TermPtySession *pty);
 
 /* -- PTY Size Management ------------------------------------------ */

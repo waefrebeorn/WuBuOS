@@ -16,7 +16,13 @@ static const char *term_default_shell(void) {
     return shell ? shell : "/bin/bash";
 }
 
-int term_new_tab(TermSessionType type, const char *label, const char *shell) {
+/* Internal: create a tab with control over whether the session is spawned now.
+ *
+ * `spawn == false` is for callers that are about to start something other than a login
+ * shell (an arbitrary program, a foreign console) and must choose their own argv. The
+ * public term_new_tab() always spawns, so no existing caller changes behaviour. */
+static int term_new_tab_ex(TermSessionType type, const char *label,
+                           const char *shell, bool spawn) {
     if (g_term.tab_count >= TERM_MAX_TABS) return -1;
 
     int idx = g_term.tab_count;
@@ -40,8 +46,10 @@ int term_new_tab(TermSessionType type, const char *label, const char *shell) {
     /* Initialize session */
     switch (type) {
         case TERM_SESSION_SHELL:
-            if (term_pty_spawn(shell ? shell : term_default_shell(), getenv("HOME"), &tab->session.pty, NULL) < 0) {
-                return -1;
+            if (spawn) {
+                if (term_pty_spawn(shell ? shell : term_default_shell(), getenv("HOME"), &tab->session.pty, NULL) < 0) {
+                    return -1;
+                }
             }
             break;
         case TERM_SESSION_HOLYC:
@@ -75,6 +83,15 @@ int term_new_tab(TermSessionType type, const char *label, const char *shell) {
     }
 
     return idx;
+}
+
+int term_new_tab(TermSessionType type, const char *label, const char *shell) {
+    return term_new_tab_ex(type, label, shell, true);
+}
+
+/* Convenience wrapper for "a shell-type tab that will run my own program". */
+int term_new_tab_unspawned(const char *label) {
+    return term_new_tab_ex(TERM_SESSION_SHELL, label, NULL, false);
 }
 
 void term_close_tab(int idx) {

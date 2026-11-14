@@ -1598,6 +1598,17 @@ test_era_apps: $(EDR_RT_OBJS) $(GUI)/era_apps.o $(GUI)/wubu_theme.o $(COMP_OBJS)
 test_explorer:
 		$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) -I$(RT) $(GUI)/explorer.c $(GUI)/explorer_input.c $(GUI)/explorer_ops.c $(GUI)/explorer_info.c $(GUI)/explorer_zip.c $(GUI)/explorer_format.c $(GUI)/explorer_drives.c $(GUI)/explorer_tree.c $(GUI)/explorer_preview.c $(GUI)/explorer_render.c $(GUI)/explorer_fs.c $(GUI)/explorer_fsops.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/explorer_test_stub.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c $(KERNEL)/vbe.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/explorer_test.c -lm -o $(GUI)/explorer_test
 	$(GUI)/explorer_test
+# Arbitrary-program PTY spawn: an exec (not a shell) must run and produce output.
+test_pty_exec:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(GUI) -I$(RT) -I$(KERNEL) \
+		-DVBE_HOSTED $(GUI)/term.c $(GUI)/term_tabs.c $(GUI)/term_pty.c \
+		$(GUI)/term_ansi.c $(GUI)/term_render.c $(GUI)/wubu_theme.c \
+		$(RT)/wubu_palette.c $(KERNEL)/vbe.c $(GUI)/term_test_stub.c \
+		$(GUI)/term_pty_exec_test.c \
+		-lm -o $(GUI)/term_pty_exec_test
+	$(GUI)/term_pty_exec_test
+
 test_term:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DVBE_HOSTED -I$(GUI) -I$(RT) -I$(KERNEL) $(GUI)/term.c $(GUI)/term_tabs.c $(GUI)/term_render.c $(GUI)/term_ansi.c $(GUI)/term_pty.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/term_test_stub.c $(KERNEL)/vbe.c $(GUI)/term_test.c -lm -o $(GUI)/term_test
 	$(GUI)/term_test

@@ -164,6 +164,24 @@ int term_spawn_holyc(void) {
     return term_new_tab(TERM_SESSION_HOLYC, "HolyC REPL", NULL);
 }
 
+int term_spawn_exec(char *const *argv, const char *label) {
+    if (!argv || !argv[0] || !*argv[0]) return -1;
+
+    /* Create the tab WITHOUT spawning a shell: this program is not one and must be
+     * exec'd exactly as given, with no "-l" login flag applied. */
+    int idx = term_new_tab_unspawned(label ? label : argv[0]);
+    if (idx < 0) return -1;
+
+    TermTab *tab = &g_term.tabs[idx];
+    /* The shell path defaults to a login shell with "-l"; an arbitrary program must be
+     * exec'd exactly as given, so take the dedicated spawn and skip that entirely. */
+    if (term_pty_spawn_exec(argv, NULL, &tab->session.pty) != 0) {
+        term_close_tab(idx);
+        return -1;
+    }
+    return idx;
+}
+
 int term_spawn_container(const char *container_name) {
     int idx = term_new_tab(TERM_SESSION_CONTAINER, container_name ? container_name : "Container", NULL);
     if (idx >= 0) {

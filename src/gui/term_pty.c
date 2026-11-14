@@ -49,107 +49,168 @@ static const char *term_default_shell(void) {
 
 /* -- PTY Session Spawning ----------------------------------------- */
 
-int term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty,
-                   const char *const *extra_argv) {
-    memset(pty, 0, sizeof(TermPtySession));
+/* Child side of a PTY session: attach the slave as controlling terminal, wire
+ * stdio through it, apply size/cwd, then exec `argv[0]`.
+ *
+ * Extracted so that BOTH the shell path and the arbitrary-program path go through
+ * exactly one implementation -- two copies of setsid/TIOCSCTTY/dup2/winsize would
+ * drift, and a drift here shows up only on real hardware as a TUI that cannot read
+ * its own keyboard.
+ *
+ * Only the argv differs between callers; everything else about becoming a session
+ * leader on a fresh pty is identical. */
+static int term_pty_child_session(const char *pts_name, const char *cwd,
+                                  int cols, int rows, char *const *argv)
+{
+    setsid();
+
+    int pts_fd = open(pts_name, O_RDWR | O_NOCTTY);
+    if (pts_fd < 0) return -1;
+
+    if (ioctl(pts_fd, TIOCSCTTY, 0) < 0) return -1;
+
+    dup2(pts_fd, STDIN_FILENO);
+    dup2(pts_fd, STDOUT_FILENO);
+    dup2(pts_fd, STDERR_FILENO);
+    if (pts_fd > STDERR_FILENO) close(pts_fd);
+
+    struct winsize ws = { .ws_col = cols, .ws_row = rows };
+    ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
+
+    if (cwd && cwd[0]) chdir(cwd);
+
+    execvp(argv[0], argv);
+
+    /* exec failed: fall back to a plain shell so the user is never left staring at a
+     * dead tab with no explanation. */
+    execl("/bin/sh", "sh", "-l", NULL);
+    _exit(1);
+}
+
+/* Parent side: allocate and prepare the master/slave pair, fork, hand the child its
+ * session setup. Returns the master fd via `ptm`, the child pid via `child_pid`, or
+ * -1 with both reset. */
+static int term_pty_fork(const char *cwd, int cols, int rows, char *const *argv,
+                         int *ptm, pid_t *child_pid)
+{
+    int fd = posix_openpt(O_RDWR | O_NOCTTY);
+    if (fd < 0) { perror("posix_openpt"); return -1; }
+
+    if (grantpt(fd) < 0 || unlockpt(fd) < 0) {
+        perror("grantpt/unlockpt");
+        close(fd);
+        return -1;
+    }
+
+    char *pts_name = ptsname(fd);
+    if (!pts_name) {
+        perror("ptsname");
+        close(fd);
+        return -1;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        close(fd);
+        return -1;
+    }
+
+    if (pid == 0) {
+        if (term_pty_child_session(pts_name, cwd, cols, rows, argv) < 0)
+            _exit(1);
+        _exit(0);                       /* unreachable: child_session never returns */
+    }
+
+    /* Master is non-blocking so the render loop never stalls on a quiet program. */
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    *ptm = fd;
+    *child_pid = pid;
+    return 0;
+}
+
+/* Shared setup for a new PTY session record. */
+static void term_pty_init_session(TermPtySession *pty, const char *program,
+                                  const char *cwd)
+{
+    memset(pty, 0, sizeof(*pty));
     pty->ptm_fd = -1;
     pty->running = true;
     pty->cols = 80;
     pty->rows = 24;
     pty->cursor_visible = true;
     pty->cursor_blink = 0;
-    strncpy(pty->shell, shell, sizeof(pty->shell) - 1);
-    if (cwd) strncpy(pty->cwd, cwd, sizeof(pty->cwd) - 1);
-
+    if (program) strncpy(pty->shell, program, sizeof(pty->shell) - 1);
+    if (cwd)     strncpy(pty->cwd, cwd, sizeof(pty->cwd) - 1);
     term_reset_pty_screen(pty);
+}
 
-    /* Open PTY master */
-    pty->ptm_fd = posix_openpt(O_RDWR | O_NOCTTY);
-    if (pty->ptm_fd < 0) {
-        perror("posix_openpt");
+int term_pty_spawn(const char *shell, const char *cwd, TermPtySession *pty,
+                   const char *const *extra_argv)
+{
+    const char *prog = shell ? shell : term_default_shell();
+
+    term_pty_init_session(pty, prog, cwd);
+
+    /* argv = [shell, ...extra, NULL]; without extra args the shell gets its login
+     * flag, which is how interactive shells expect to be started. */
+    char *argv[16];
+    int argc = 0;
+    argv[argc++] = (char *)prog;
+    if (extra_argv) {
+        for (const char *const *a = extra_argv; *a && argc < 15; a++)
+            argv[argc++] = (char *)*a;
+    } else {
+        argv[argc++] = "-l";
+    }
+    argv[argc] = NULL;
+
+    int ptm = -1;
+    pid_t pid = -1;
+    if (term_pty_fork(pty->cwd, pty->cols, pty->rows, argv, &ptm, &pid) != 0) {
+        pty->running = false;
         return -1;
     }
 
-    if (grantpt(pty->ptm_fd) < 0 || unlockpt(pty->ptm_fd) < 0) {
-        perror("grantpt/unlockpt");
-        close(pty->ptm_fd);
-        pty->ptm_fd = -1;
-        return -1;
-    }
-
-    char *pts_name = ptsname(pty->ptm_fd);
-    if (!pts_name) {
-        perror("ptsname");
-        close(pty->ptm_fd);
-        pty->ptm_fd = -1;
-        return -1;
-    }
-
-    /* Fork child */
-    pid_t pid = fork();
-    if (pid < 0) {
-        perror("fork");
-        close(pty->ptm_fd);
-        pty->ptm_fd = -1;
-        return -1;
-    }
-
-    if (pid == 0) {
-        /* Child process */
-        setsid();
-
-        /* Open slave PTY */
-        int pts_fd = open(pts_name, O_RDWR | O_NOCTTY);
-        if (pts_fd < 0) {
-            _exit(1);
-        }
-
-        /* Set as controlling terminal */
-        if (ioctl(pts_fd, TIOCSCTTY, 0) < 0) {
-            _exit(1);
-        }
-
-        /* Redirect stdio */
-        dup2(pts_fd, STDIN_FILENO);
-        dup2(pts_fd, STDOUT_FILENO);
-        dup2(pts_fd, STDERR_FILENO);
-        if (pts_fd > STDERR_FILENO) close(pts_fd);
-
-        /* Set terminal size */
-        struct winsize ws = { .ws_col = pty->cols, .ws_row = pty->rows };
-        ioctl(STDOUT_FILENO, TIOCSWINSZ, &ws);
-
-        /* Change directory */
-        if (pty->cwd[0]) chdir(pty->cwd);
-
-        /* Execute shell */
-        if (extra_argv) {
-            /* Build argv: [shell, ...extra_argv, NULL] */
-            char *argv[16];
-            int argc = 0;
-            argv[argc++] = (char *)pty->shell;
-            for (const char *const *a = extra_argv; *a && argc < 15; a++) {
-                argv[argc++] = (char *)*a;
-            }
-            argv[argc] = NULL;
-            execvp(pty->shell, argv);
-        } else {
-            char *args[] = { (char*)pty->shell, "-l", NULL };
-            execvp(pty->shell, args);
-        }
-
-        /* Fallback */
-        execl("/bin/sh", "sh", "-l", NULL);
-        _exit(1);
-    }
-
-    /* Parent */
+    pty->ptm_fd = ptm;
     pty->child_pid = pid;
+    return 0;
+}
 
-    /* Set master PTY to non-blocking */
-    int flags = fcntl(pty->ptm_fd, F_GETFL, 0);
-    fcntl(pty->ptm_fd, F_SETFL, flags | O_NONBLOCK);
+/* Spawn an ARBITRARY PROGRAM on a new PTY session.
+ *
+ * Why this exists: every other entry point assumed the thing being started was a
+ * shell, so hosting a real TUI application -- W-CODE, a foreign kernel's console, a
+ * debugger -- meant pretending it was a shell and hoping. Callers now pass the exact
+ * argv and it is exec'd directly, with no login-shell flags applied.
+ *
+ * argv[0] must be the executable (it is also what execvp searches PATH for); argv is
+ * copied into a local array because the child uses it after fork. A NULL argv[0] is
+ * refused rather than defaulted, since guessing an interpreter here would produce a
+ * tab that fails with no indication of what was attempted. */
+int term_pty_spawn_exec(const char *const *argv, const char *cwd,
+                        TermPtySession *pty)
+{
+    if (!argv || !argv[0] || !*argv[0]) return -1;
 
+    term_pty_init_session(pty, argv[0], cwd);
+
+    char *copy[16];
+    int argc = 0;
+    for (; argv[argc] && argc < 15; argc++) copy[argc] = (char *)argv[argc];
+    copy[argc] = NULL;
+
+    int ptm = -1;
+    pid_t pid = -1;
+    if (term_pty_fork(pty->cwd, pty->cols, pty->rows, copy, &ptm, &pid) != 0) {
+        pty->running = false;
+        return -1;
+    }
+
+    pty->ptm_fd = ptm;
+    pty->child_pid = pid;
     return 0;
 }
 

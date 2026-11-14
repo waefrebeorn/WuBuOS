@@ -198,6 +198,11 @@ int  term_spawn_shell(const char *shell, const char *cwd);
 int  term_spawn_holyc(void);
 int  term_spawn_container(const char *container_name);
 
+/* Open a tab running an ARBITRARY PROGRAM (W-CODE, a foreign kernel's
+ * console, a debugger). argv[0] is exec'd directly -- no shell, no login flags.
+ * Returns the tab index or -1. */
+int  term_spawn_exec(char *const *argv, const char *label);
+
 /* Input handling */
 void term_handle_key(uint32_t key, uint32_t mods);
 void term_handle_mouse(int x, int y, int btn, int kind);
