@@ -89,6 +89,9 @@ void terminal_mouse(DosGuiWindow *win, int x, int y, int btn, int kind);
 DosGuiWindow* launch_file_manager(void);
 DosGuiWindow* launch_settings(void);
 DosGuiWindow* launch_editor(void);
+
+/* W-CODE: the agentic IDE, hosted in the real tabbed PTY terminal. */
+DosGuiWindow* launch_wcode(void);
 DosGuiWindow* launch_wet(void);
 DosGuiWindow* launch_vws_designer(void);
 DosGuiWindow* launch_getting_started(void);

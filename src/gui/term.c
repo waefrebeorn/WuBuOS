@@ -182,6 +182,21 @@ int term_spawn_exec(char *const *argv, const char *label) {
     return idx;
 }
 
+/* Host W-CODE (or any TUI) in the real tabbed terminal.
+ *
+ * Lives here rather than in apps.c because it needs g_term, term_show and
+ * term_spawn_exec -- the terminal subsystem owns all three. Declared weak in apps.c so
+ * lean targets that do not link the terminal are unaffected. */
+DosGuiWindow *wcode_terminal_launch(char *const *argv) {
+    if (!g_term.tab_count) term_init();
+
+    if (!term_is_open()) term_show(280, 140, 960, 640);
+    if (!term_is_open()) return NULL;             /* window manager refused */
+
+    if (term_spawn_exec(argv, "W-CODE") < 0) return NULL;
+    return wm_find_by_id(g_term.win_id);
+}
+
 int term_spawn_container(const char *container_name) {
     int idx = term_new_tab(TERM_SESSION_CONTAINER, container_name ? container_name : "Container", NULL);
     if (idx >= 0) {

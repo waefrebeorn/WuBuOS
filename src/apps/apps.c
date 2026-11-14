@@ -22,6 +22,7 @@
 #include "../runtime/wubu_dos_proc.h"
 #include "../runtime/wubu_container.h"
 #include "../apps/cmd/cmd.h"
+#include <unistd.h>   /* access, X_OK */
 #include "../apps/calc/calc.h"
 #include "../apps/bonzi/bonzi.h"
 #include "../apps/comfy/comfy.h"
@@ -135,6 +136,46 @@ DosGuiWindow* launch_terminal(void) {
     win->on_key   = terminal_key;
     win->on_mouse = terminal_mouse;
     return win;
+}
+
+/* -- W-CODE: the agentic IDE -------------------------------------------------
+ *
+ * W-CODE is a raw-termios TUI, so it cannot draw into a DosGuiWindow itself; it needs
+ * a pty. The hosting lives in the terminal module (wcode_terminal_launch, term.c),
+ * because that is where the tabbed PTY state and the spawn machinery are.
+ *
+ * It is declared WEAK and defined there, so a target that links apps.c WITHOUT the
+ * terminal (lean app tests) simply sees NULL and reports "cannot launch" instead of
+ * dragging term.o and its whole dependency tree in. Same convention as the petdex hook.
+ */
+__attribute__((weak)) DosGuiWindow *wcode_terminal_launch(char *const *argv);
+
+/* Resolve the W-CODE binary: $WUBU_WCODE_BIN, then the standard prefixes, then the
+ * development checkout, then PATH. A missing binary surfaces in the terminal rather
+ * than being silently replaced with something else. */
+static const char *wcode_binary(void)
+{
+    const char *env = getenv("WUBU_WCODE_BIN");
+    if (env && *env) return env;
+
+    static char path[512];
+
+    if (access("/usr/local/bin/wcode", X_OK) == 0) return "/usr/local/bin/wcode";
+    if (access("/usr/bin/wcode", X_OK) == 0)     return "/usr/bin/wcode";
+
+    const char *home = getenv("HOME");
+    if (home && *home) {
+        snprintf(path, sizeof(path), "%s/W-Code/wcode", home);
+        if (access(path, X_OK) == 0) return path;
+    }
+    return "wcode";                       /* last resort: let PATH decide */
+}
+
+DosGuiWindow *launch_wcode(void) {
+    if (!wcode_terminal_launch) return NULL;      /* terminal not linked */
+
+    char *argv[] = { (char *)wcode_binary(), NULL };
+    return wcode_terminal_launch(argv);
 }
 
 /* -- Terminal (cmd.c) adapters: bridge DosGuiWindow callbacks to WubuCmd -- */
@@ -314,6 +355,7 @@ const DosGuiAppDef g_app_defs[] = {
     { "Getting Started", "Getting Started", DESK_ICON_COUNT + 14, 0x00A0C0A0, launch_getting_started },
     { "Petdex", "Petdex", DESK_ICON_COUNT + 17, 0x00A0C0A0, launch_petdex },
     { "Tutorials", "Tutorials", DESK_ICON_COUNT + 15, 0x00C0A0A0, launch_tutorials },
+    { "W-CODE",       "W-CODE",         DESK_ICON_COUNT + 16, 0x00A02020, launch_wcode },
     /* A .wet applet is a first-class program kind: every program made from a
      * VWS template is one of these, so the launcher belongs in the registry. */
     { "WET Applet", "WET Applet", DESK_ICON_COUNT + 16, 0x0080C0A0, launch_wet },
