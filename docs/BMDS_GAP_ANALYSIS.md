@@ -51,9 +51,15 @@ That changed this session: `src/runtime/wubu_spell_resolve.{c,h}` now implements
 act of resolving -- provider lookup by capability, depth-first post-order load plans,
 cycle detection, refusal of unsatisfiable needs, and a hard rule that a failed plan
 leaves NO partial order behind (a half-loaded module set is worse than refusing).
-35 unit checks. What still does not exist is the *discovery* side: nothing scans
-`~/.local/lib/wubu/spells/`, so there is no automatic source of modules to register.
-The graph problem is solved; feeding it real directories is not. That is worth stating plainly because the format
+35 unit checks.
+
+Discovery followed in `src/runtime/wubu_spell_scan.c`: `wubu_spell_default_dir()`
+(honours `$WUBU_SPELL_DIR`, else `$HOME/.local/share/wubu/spells`) and
+`wubu_spell_scan()`, which registers every valid `*.spell` in a directory, skips
+corrupt and oversized files without stopping, reports an unopenable directory as -1,
+and records that those images are owned by the registry so they are released exactly
+once. 13 further checks. The module level is now complete end to end: format, parse,
+resolution, discovery. That is worth stating plainly because the format
 being well-specified makes it look further along than it is.
 
 Work done this session on this surface (hardening, not the missing solver):

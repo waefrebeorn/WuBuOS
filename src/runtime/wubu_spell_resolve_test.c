@@ -13,6 +13,7 @@
 
 #include "wubu_spellmod.h"
 #include "wubu_spell_resolve.h"
+#include "spellmod_test_img.h"   /* one copy of the layout maths */
 
 static int checks_run = 0, checks_failed = 0;
 
@@ -21,71 +22,19 @@ static int checks_run = 0, checks_failed = 0;
     if (!(cond)) { checks_failed++; printf("  FAIL %s:%d: %s\n", __FILE__, __LINE__, msg); } \
 } while (0)
 
-#define WUSPELL_HDR_SIZE 128
-#define WUSPELL_STR_SIZE 64
-
-static void put_u32(uint8_t *p, uint32_t v)
-{
-    for (int i = 0; i < 4; i++) p[i] = (uint8_t)(v >> (8 * i));
-}
-
-/*
- * Minimal valid image: np provides, nn needs, no exports, no code.
- * The layout is fixed by wubu_spellmod.c -- header 128, then provides/needs strings
- * of 64 bytes each, then exports, then code.
- */
-static size_t build_image(uint8_t *buf, size_t cap,
-                          const char *name,
-                          const char *provides[], int np,
-                          const char *needs[], int nn)
-{
-    if (cap < WUSPELL_HDR_SIZE) return 0;
-    memset(buf, 0, WUSPELL_HDR_SIZE);
-
-    memcpy(buf, "WUSPELL", 7);
-    buf[7] = '\0';
-    put_u32(buf + 8, 1);            /* version */
-    put_u32(buf + 12, 0);           /* flags: no code */
-
-    np = np > WUBU_SPELLMOD_LIST_MAX ? WUBU_SPELLMOD_LIST_MAX : np;
-    nn = nn > WUBU_SPELLMOD_LIST_MAX ? WUBU_SPELLMOD_LIST_MAX : nn;
-    put_u32(buf + 112, (uint32_t)np);
-    put_u32(buf + 116, (uint32_t)nn);
-    put_u32(buf + 120, 0);          /* exports */
-    put_u32(buf + 124, 0);          /* code_len */
-
-    strncpy((char *)buf + 16, name, WUBU_SPELLMOD_NAME_MAX - 1);
-    strcpy((char *)buf + 80, "1.0");
-
-    size_t off = WUSPELL_HDR_SIZE;
-    for (int i = 0; i < np; i++, off += WUSPELL_STR_SIZE) {
-        memset(buf + off, 0, WUSPELL_STR_SIZE);
-        strncpy((char *)buf + off, provides[i], WUSPELL_STR_SIZE - 1);
-    }
-    for (int i = 0; i < nn; i++, off += WUSPELL_STR_SIZE) {
-        memset(buf + off, 0, WUSPELL_STR_SIZE);
-        strncpy((char *)buf + off, needs[i], WUSPELL_STR_SIZE - 1);
-    }
-    return off;
-}
-
-/* Convenience: open an image built inline.
- *
- * Each module gets its OWN buffer from a fixed pool.  wubu_spellmod_open() BORROWS
- * the image rather than copying it, so a single shared static buffer would leave
- * every handle pointing at whichever image was built last -- exactly the trap the
- * wubu_spellmod.h lifetime note warns about. */
-#define MAX_TEST_MODULES 8
-static uint8_t g_pool[MAX_TEST_MODULES][512];
-static int g_pool_next;
+/* Open an image built inline.  Each module takes its own slot from the shared
+ * pool because wubu_spellmod_open() BORROWS the buffer -- one shared buffer would
+ * leave every handle pointing at whichever image was built last. */
+static spell_test_pool g_pool;
 
 static wubu_spellmod_t *open_built(const char *name,
                                    const char *provides[], int np,
                                    const char *needs[], int nn)
 {
-    if (g_pool_next >= MAX_TEST_MODULES) return NULL;
-    uint8_t *buf = g_pool[g_pool_next++];
-    size_t len = build_image(buf, sizeof(g_pool[0]), name, provides, np, needs, nn);
+    uint8_t *buf = spell_test_slot(&g_pool);
+    if (!buf) return NULL;
+    size_t len = spell_test_build(buf, WUSPELL_TEST_BUF_SIZE, name,
+                                  provides, np, needs, nn);
     return wubu_spellmod_open(buf, len);
 }
 

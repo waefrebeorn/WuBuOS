@@ -12,6 +12,11 @@
 
 struct wubu_spell_resolve {
     wubu_spellmod_t *mods[WUBU_SPELL_MAX_MODULES];
+    /* Images the registry LOADED ITSELF (via wubu_spell_scan).  Modules added by
+     * hand with wubu_spell_registry_add() borrow their buffer and are not listed
+     * here.  Two ownership modes, kept apart on purpose: mixing them is how a module
+     * ends up pointing at released memory. */
+    uint8_t *owned_images[WUBU_SPELL_MAX_MODULES];
     int count;
 };
 
@@ -61,7 +66,19 @@ wubu_spell_resolve *wubu_spell_resolve_new(void)
 
 void wubu_spell_resolve_free(wubu_spell_resolve *r)
 {
-    free(r);                       /* modules are borrowed, not owned */
+    if (!r) return;
+
+    /* Release what the registry loaded itself.  Handles added by hand are the
+     * caller's -- freeing them here would invalidate modules somebody else still
+     * holds a pointer to. */
+    for (int i = 0; i < r->count; i++) {
+        if (r->owned_images[i]) {
+            wubu_spellmod_close(r->mods[i]);
+            free(r->owned_images[i]);
+        }
+    }
+
+    free(r);
 }
 
 int wubu_spell_registry_add(wubu_spell_resolve *r, wubu_spellmod_t *m)
@@ -75,6 +92,27 @@ int wubu_spell_registry_add(wubu_spell_resolve *r, wubu_spellmod_t *m)
         if (same_module(r->mods[i], m))
             return WUBU_SPELL_OK;
 
+    r->mods[r->count++] = m;
+    return WUBU_SPELL_OK;
+}
+
+int wubu_spell_registry_add_owned(wubu_spell_resolve *r, wubu_spellmod_t *m,
+                                  uint8_t *image)
+{
+    if (!r || !m || !image) return WUBU_SPELL_INVALID;
+    if (r->count >= WUBU_SPELL_MAX_MODULES) return WUBU_SPELL_NOMEM;
+
+    /* Same first-registration-wins rule as the plain add; a duplicate name must not
+     * leave the registry holding an image nobody will ever release. */
+    char mn[WUBU_SPELLMOD_NAME_MAX];
+    if (mod_name(m, mn, sizeof(mn)) != 0) { free(image); return WUBU_SPELL_INVALID; }
+    for (int i = 0; i < r->count; i++) {
+        char cur[WUBU_SPELLMOD_NAME_MAX];
+        if (mod_name(r->mods[i], cur, sizeof(cur)) != 0) continue;
+        if (strcmp(cur, mn) == 0) { free(image); return WUBU_SPELL_OK; }
+    }
+
+    r->owned_images[r->count] = image;
     r->mods[r->count++] = m;
     return WUBU_SPELL_OK;
 }

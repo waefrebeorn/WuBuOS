@@ -245,6 +245,15 @@ test_json_fuzz:
 
 # .spell dependency resolver: chains, diamonds, unsatisfiable needs, cycles,
 # self-provided capabilities, capacity limits and the no-partial-plan rule.
+# .spell directory discovery: valid modules registered, corrupt/oversized skipped,
+# missing dir reported, scanned image lifetime owned by the registry.
+test_spell_scan:
+	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c $(RT)/wubu_spell_scan.c \
+		$(RT)/wubu_spell_scan_test.c \
+		-lm -o $(RT)/wubu_spell_scan_test
+	$(RT)/wubu_spell_scan_test
+
 test_spell_resolve:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(RT) $(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c \
