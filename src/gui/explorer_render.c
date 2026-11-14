@@ -466,14 +466,19 @@ void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_
     for (int i = 0; i < n_items; i++) {
         int iy = menu_y + 2 + i * item_h;
         /* Separator after Paste */
-        /* Insert a separator BEFORE Delete -- it used to REPLACE index 5, so Delete was
-         * never drawn at all: the menu showed seven of its eight items. Hit-testing
-         * (ex_ctx_item_at) assumes this layout, so renderer and input must stay in step. */
-        if (i == 5) {
-            vbe_hline(menu_x + 8, menu_x + menu_w - 8, iy + item_h / 2, tc()->border_dark);
-            iy += item_h;
+        /* Separator BEFORE Delete. Its row comes from the SAME function the hit-test
+         * inverts (ex_ctx_item_row), so drawing and clicking cannot drift apart --
+         * previously this offset was computed here and separately in the input path,
+         * which is exactly how the menu shipped unclickable. */
+        if (i == EX_CTX_SEPARATOR_ROW) {
+            int sep_iy = menu_y + 2 + EX_CTX_SEPARATOR_ROW * item_h;
+            vbe_hline(menu_x + 8, menu_x + menu_w - 8, sep_iy + item_h / 2, tc()->border_dark);
         }
-        vbe_draw_text(menu_x + 12, iy + (item_h - 8) / 2, items[i], tc()->startmenu_text, 1);
+        int row = ex_ctx_item_row(i);
+        if (row >= 0) {
+            int iy = menu_y + 2 + row * item_h;
+            vbe_draw_text(menu_x + 12, iy + (item_h - 8) / 2, items[i], tc()->startmenu_text, 1);
+        }
     }
 }
 

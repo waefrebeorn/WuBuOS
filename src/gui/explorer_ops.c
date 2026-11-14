@@ -23,16 +23,38 @@
  *     row 6..8  -> Delete, Rename, Properties
  * The renderer INSERTS the separator rather than overwriting an item, so Delete is
  * visible and every label has its own row. */
+/* Display ROW occupied by menu item `item` (0..7).
+ *
+ * The separator sits BEFORE Delete (item 5), so every item from Delete downward is one
+ * row lower than its array index. This is the ONLY place that shift is expressed: the
+ * renderer asks it where to draw, and the hit-test answers with the inverse, so a menu
+ * cannot become unclickable because two files disagreed about the offset. */
+int ex_ctx_item_row(int item)
+{
+    if (item < 0 || item >= EX_CTX_ITEMS) return -1;
+    /* The separator TAKES row 5, so items from Delete onward shift down one.
+     * Using > here instead of >= would put Delete back on top of the separator. */
+    return item + (item >= EX_CTX_SEPARATOR_ROW ? 1 : 0);
+}
+
+/* Inverse of ex_ctx_item_row(): which item lives at display row `row`, or -1 when the
+ * row is the separator or outside the menu. */
+int ex_ctx_item_at_row(int row)
+{
+    if (row < 0 || row >= EX_CTX_ROWS) return -1;
+    if (row == EX_CTX_SEPARATOR_ROW) return -1;
+    int item = row - (row > EX_CTX_SEPARATOR_ROW ? 1 : 0);
+    return (item >= 0 && item < EX_CTX_ITEMS) ? item : -1;
+}
+
 int ex_ctx_row_at(int mx, int my, int menu_x, int menu_y)
 {
     if (menu_x < 0) return -1;
     if (mx < menu_x || mx >= menu_x + EX_CTX_MENU_W) return -1;
     int rel = my - menu_y - 2;
     if (rel < 0) return -1;
-    int idx = rel / EX_CTX_ITEM_H;
-    if (idx >= EX_CTX_ROWS) return -1;
-    if (idx == EX_CTX_SEPARATOR_ROW) return -1;
-    return idx;
+    int row = rel / EX_CTX_ITEM_H;
+    return (row >= EX_CTX_ROWS) ? -1 : row;
 }
 
 /* Open the selected entry: directories navigate, files go to their handler.

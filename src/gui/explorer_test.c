@@ -627,27 +627,42 @@ static void test_ctx_menu_rows(void) {
 
     const int mx = 200, my = 200;         /* menu origin */
 
-    /* Evaluate each click into a local FIRST. An earlier version of this test passed
-     * only two arguments to the four-parameter helper -- undefined behaviour that made
-     * the assertions fail while an identical-looking debug loop printed correct
-     * values. Keeping the call shape uniform removes that trap. */
-    int got[10];
-    for (int r = 0; r < 10; r++)
-        got[r] = ex_ctx_row_at(mx + 5, my + 2 + r * EX_CTX_ITEM_H + 1, mx, my);
+    /* THE ROUND TRIP IS THE CONTRACT. The renderer draws item `i` at
+     * menu_y + 2 + ex_ctx_item_row(i) * EX_CTX_ITEM_H; the input path converts a click
+     * to a row with ex_ctx_row_at() and then back to an item with ex_ctx_item_at_row().
+     * If any of those three disagree, the menu becomes unclickable -- which is how it
+     * shipped. So walk every item through all three and demand identity. */
+    for (int i = 0; i < EX_CTX_ITEMS; i++) {
+        int row = ex_ctx_item_row(i);
+        TEST_ASSERT(row >= 0, "item has a display row");
+        int y = my + 2 + row * EX_CTX_ITEM_H + 1;      /* 1px inside its own row */
+        int clicked_row = ex_ctx_row_at(mx + 5, y, mx, my);
+        int clicked_item = ex_ctx_item_at_row(clicked_row);
+        if (row < 0 || clicked_item != i) {
+            char msg[96];
+            snprintf(msg, sizeof(msg),
+                     "item %d: drawn at row %d, click resolves to item %d",
+                     i, row, clicked_item);
+            TEST_ASSERT(0, msg);
+        } else {
+            tests_passed++;          /* no tests_run counter in this harness */
+        }
+    }
 
-    TEST_ASSERT(got[0] == 0, "row 0 -> Open");
-    TEST_ASSERT(got[1] == 1, "row 1 -> Open With...");
-    TEST_ASSERT(got[2] == 2, "row 2 -> Cut");
-    TEST_ASSERT(got[3] == 3, "row 3 -> Copy");
-    TEST_ASSERT(got[4] == 4, "row 4 -> Paste");
-    TEST_ASSERT(got[5] == -1, "row 5 is the separator, not an item");
-    TEST_ASSERT(got[6] == 6, "row 6 -> Delete");
-    TEST_ASSERT(got[7] == 7, "row 7 -> Rename");
-    TEST_ASSERT(got[8] == 8, "row 8 -> Properties");
-    TEST_ASSERT(got[9] == -1, "row 9 does not exist");
+    /* The separator occupies a row of its own and must never resolve to an item. */
+    int sep_row = EX_CTX_SEPARATOR_ROW;
+    TEST_ASSERT(ex_ctx_row_at(mx + 5, my + 2 + sep_row * EX_CTX_ITEM_H + 1, mx, my)
+                    == sep_row,
+                "the separator row is clickable as a row");
+    TEST_ASSERT(ex_ctx_item_at_row(sep_row) == -1,
+                "the separator row is not an item");
+    TEST_ASSERT(ex_ctx_item_at_row(EX_CTX_ROWS) == -1, "a row past the last is refused");
+    TEST_ASSERT(ex_ctx_item_row(-1) == -1, "a negative item is refused");
+    TEST_ASSERT(ex_ctx_item_row(EX_CTX_ITEMS) == -1, "an item past the last is refused");
 
     /* Refusals that must stay refusals. The menu's top edge is menu_y+2, so a click at
-     * exactly that y IS row 0; only ABOVE it is empty. All four arguments, always. */
+     * exactly that y IS row 0; only ABOVE it is empty. All four arguments, always --
+     * an earlier version of this test passed two, which is undefined behaviour. */
     TEST_ASSERT(ex_ctx_row_at(mx - 5,    my + 2, mx, my) == -1, "left of the menu refused");
     TEST_ASSERT(ex_ctx_row_at(mx + 1000, my + 2, mx, my) == -1, "right of the menu refused");
     TEST_ASSERT(ex_ctx_row_at(mx + 5,    my + 1, mx, my) == -1, "above the menu refused");
