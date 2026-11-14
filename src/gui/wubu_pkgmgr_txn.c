@@ -45,29 +45,57 @@ bool wubu_pkgmgr_txn_add(wubu_pkg_transaction_t* txn, wubu_pkg_txn_type_t type,
 }
 
 bool wubu_pkgmgr_txn_commit(wubu_pkg_transaction_t* txn) {
+    if (!txn) return false;
+
     for (int i = 0; i < txn->n_items; i++) {
         wubu_pkg_txn_item_t* item = &txn->items[i];
+        bool ok = false;
+
         switch (item->type) {
             case WUBU_PKG_TXN_INSTALL:
-                wubu_pkgmgr_install(item->pkg_id, txn->dry_run);
+                ok = wubu_pkgmgr_install(item->pkg_id, txn->dry_run);
                 break;
             case WUBU_PKG_TXN_REMOVE:
-                wubu_pkgmgr_remove(item->pkg_id, false);
+                ok = wubu_pkgmgr_remove(item->pkg_id, false);
                 break;
             case WUBU_PKG_TXN_UPGRADE:
-                wubu_pkgmgr_upgrade(item->pkg_id, txn->dry_run);
+                ok = wubu_pkgmgr_upgrade(item->pkg_id, txn->dry_run);
                 break;
             case WUBU_PKG_TXN_DOWNGRADE:
-                /* Install specific version */
+                /* Not implemented.  Reporting failure rather than skipping silently:
+                 * a caller that asked for a downgrade and got `true` would believe it
+                 * happened while the package stayed at its current version. */
+                ok = false;
                 break;
         }
+
+        /* Fail CLOSED on the first failed item.  This used to ignore every return
+         * value and return true unconditionally, so a transaction whose every item
+         * failed still reported success -- and because rollback() was also a no-op,
+         * there was nothing behind the success.  Stopping here at least makes the
+         * damage visible; full undo needs the backup plumbing from audit item 3. */
+        if (!ok) return false;
     }
     return true;
 }
 
 bool wubu_pkgmgr_txn_rollback(wubu_pkg_transaction_t* txn) {
-    /* Restore from rollback_dir */
-    return true;
+    if (!txn) return false;
+
+    /* FAIL CLOSED.  This function has never restored anything: begin() creates the
+     * rollback directory, but neither install_package_files() (which copies straight
+     * into the install root) nor wubu_pkgmgr_remove() (which runs rm -rf) ever writes
+     * a backup into it.  There is no state to restore.
+     *
+     * It used to `return true`, and that was worse than doing nothing: a caller that
+     * believes the rollback SUCCEEDED will carry on as though the system were clean,
+     * while partial files remain installed or removed.  An explicit false lets the
+     * caller surface the failure instead of hiding behind it.
+     *
+     * Making this real needs the backup plumbing first -- see item 3 in
+     * docs/BMDS_GAP_ANALYSIS.md -- at which point this should walk a recorded list of
+     * saved originals rather than reporting an empty directory as success. */
+    return false;
 }
 
 /* ============================================================

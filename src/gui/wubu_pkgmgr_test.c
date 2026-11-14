@@ -445,8 +445,19 @@ bool test_transaction(void) {
     TEST_ASSERT(txn.items[1].type == WUBU_PKG_TXN_UPGRADE, "item 1 type");
     TEST_ASSERT(txn.items[2].type == WUBU_PKG_TXN_REMOVE, "item 2 type");
     
-    TEST_ASSERT(wubu_pkgmgr_txn_commit(&txn), "txn commit (dry run)");
-    TEST_ASSERT(wubu_pkgmgr_txn_rollback(&txn), "txn rollback");
+    /* These items name packages that do not exist ("pkg1".."pkg3"), so a
+     * fail-closed commit MUST report failure.  This assertion previously required
+     * `true`, which encoded the old lie: commit ignored every item's return value
+     * and returned true unconditionally, so a transaction whose every item failed
+     * still reported success. */
+    TEST_ASSERT(!wubu_pkgmgr_txn_commit(&txn),
+                "txn commit fails closed when an item cannot be performed");
+    /* Rollback must report FAILURE, not pretend success.  Nothing has ever been
+     * backed up (install copies directly, remove runs rm -rf), so there is no state
+     * to restore -- returning true told callers the system was clean when it was not.
+     * This assertion used to require `true`, encoding the lie. */
+    TEST_ASSERT(!wubu_pkgmgr_txn_rollback(&txn),
+                "txn rollback fails closed when there is nothing to restore");
     
     return true;
 }

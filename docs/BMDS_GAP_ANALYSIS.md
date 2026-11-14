@@ -62,9 +62,17 @@ WuBuOS has the SCAFFOLDING and not the safety:
   * `wubu_pkgmgr_txn_add()` records install/remove/upgrade/downgrade items --
     purely in memory, lost on exit.
   * `wubu_pkgmgr_txn_commit()` replays those items through the normal install path.
-  * **`wubu_pkgmgr_txn_rollback()` is a STUB**: its body is `return true` with the
-    comment "Restore from rollback_dir" and no code. Calling it after a failed
-    install changes nothing.
+  * **`wubu_pkgmgr_txn_rollback()` was a LIE**: its body was `return true` under the
+    comment "Restore from rollback_dir", with no code -- so a caller believed the
+    system was rolled back while nothing had happened. It now FAILS CLOSED
+    (`return false`): reporting failure lets the caller surface it instead of hiding
+    behind a success that never occurred.
+  * **`wubu_pkgmgr_txn_commit()` ignored every item's return value** and returned true
+    unconditionally, so a transaction whose every item failed still reported success --
+    and with rollback also a no-op there was nothing behind it. It now stops at the
+    first failed item and returns false. A requested DOWNGRADE is reported as failure
+    rather than silently skipped, since performing nothing and saying "ok" is the same
+    class of lie in a different place.
 
 Meanwhile `wubu_pkgmgr_install()` extracts the payload to `/tmp/wubu_install_<id>`
 and copies files into `install_root` directly. A failure part-way through leaves the
