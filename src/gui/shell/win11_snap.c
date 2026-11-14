@@ -1,9 +1,19 @@
 /*
  * win11_snap.c -- Win+Z snap-layout flyout (Windows 11 parity).
  *
- * One concern: the layout picker.  Geometry lives in win11_snap_layout()
- * so the renderer and the pointer path cannot disagree about a button.
- * The zone ids are the ones snap_window_to_zone() already understands.
+ * WHY THIS FILE EXISTS SEPARATELY FROM wm_layout.c
+ *   Geometry belongs to the WM core so snapping and rendering can never disagree;
+ *   this file owns ONLY the picker: where the flyout sits, how each layout is drawn,
+ *   and which zone a click landed in.  It reads the shared layout table instead of
+ *   restating any rectangle.
+ *
+ * WHAT CHANGED FROM THE OLD PICKER
+ *   The previous version offered six equal zones (halves + quarters) as if that were
+ *   Windows 11's set.  It is not: Windows 11 offers six LAYOUTS of two to four
+ *   UNEQUAL regions, you pick a layout and then which region to fill.  So each button
+ *   now shows its actual arrangement -- thirds, a wide-left column with a split right
+ *   side, quadrants -- and clicking a region snaps into THAT region rather than
+ *   always taking the first one.
  *
  * C11, opaque API (win11_snap.h), no god headers.
  */
@@ -16,11 +26,11 @@
 
 #include <string.h>
 
-#define SNAP_BUTTONS 6
-#define SNAP_BTN_W   52
-#define SNAP_BTN_H   34
 #define SNAP_GAP     6
 #define SNAP_PAD     8
+/* The miniature must leave room for the zone separators to stay readable. */
+#define SNAP_INNER_W 40
+#define SNAP_INNER_H 22
 
 static bool g_open = false;
 static int  g_win_id = -1;
@@ -38,13 +48,25 @@ void win11_snap_toggle(void) {
 bool win11_snap_is_open(void) { return g_open; }
 void win11_snap_close(void)   { g_open = false; }
 
+int win11_snap_button_count(void) { return WUBU_SNAP_LAYOUTS; }
+
+int win11_snap_button_size(int *w, int *h)
+{
+    if (w) *w = SNAP_INNER_W + 2 * SNAP_PAD;
+    if (h) *h = SNAP_INNER_H + 2 * SNAP_PAD;
+    return 0;
+}
+
 /* Flyout geometry: centred over the focused window's title bar, flipped
  * below it when there is no room above. */
 static void win11_snap_layout(int fb_w, int fb_h, int *fx, int *fy,
                               int *fw, int *fh) {
     (void)fb_w; (void)fb_h;
-    *fw = SNAP_BUTTONS * SNAP_BTN_W + (SNAP_BUTTONS - 1) * SNAP_GAP + 2 * SNAP_PAD;
-    *fh = SNAP_BTN_H + 2 * SNAP_PAD;
+
+    int bw, bh;
+    win11_snap_button_size(&bw, &bh);
+    *fw = WUBU_SNAP_LAYOUTS * bw + (WUBU_SNAP_LAYOUTS - 1) * SNAP_GAP;
+    *fh = bh;
 
     DosGuiWindow *w = (g_win_id >= 0) ? &g_dwm.windows[g_win_id] : NULL;
     if (!w) { *fx = 0; *fy = 0; return; }
@@ -54,21 +76,40 @@ static void win11_snap_layout(int fb_w, int fb_h, int *fx, int *fy,
     if (*fy < 4) *fy = w->y + title_bar_height() + 8;
 }
 
-static void draw_zone_glyph(int x, int y, int w, int h, int zone,
-                            uint32_t face, uint32_t accent) {
-    /* A miniature of the window with the chosen zone filled in. */
-    vbe_rect(x, y, w, h, accent);
-    int hx = x + w / 2, hy = y + h / 2;
-    switch (zone) {
-        case 0: vbe_fill_rect(x, y, w / 2, h, accent); break;
-        case 1: vbe_fill_rect(hx, y, w - w / 2, h, accent); break;
-        case 2: vbe_fill_rect(x, y, w / 2, h / 2, accent); break;
-        case 3: vbe_fill_rect(hx, y, w - w / 2, h / 2, accent); break;
-        case 4: vbe_fill_rect(x, hy, w / 2, h - h / 2, accent); break;
-        case 5: vbe_fill_rect(hx, hy, w - w / 2, h - h / 2, accent); break;
-        default: break;
+/* Origin of one button's miniature, inside the flyout. */
+static void button_box(int index, int fx, int fy, int *bx, int *by) {
+    int bw, bh;
+    win11_snap_button_size(&bw, &bh);
+    *bx = fx + index * (bw + SNAP_GAP);
+    *by = fy;
+}
+
+/* Draw one layout's miniature: the real arrangement of its zones, not a generic
+ * icon.  This is what makes the picker recognisably Windows 11. */
+static void draw_layout_mini(int bx, int by, int layout,
+                             uint32_t face, uint32_t accent) {
+    int ix = bx + SNAP_PAD, iy = by + SNAP_PAD;
+
+    vbe_fill_rect_rounded(bx, by, SNAP_INNER_W + 2 * SNAP_PAD,
+                          SNAP_INNER_H + 2 * SNAP_PAD, 6, face);
+    vbe_rect_rounded(bx, by, SNAP_INNER_W + 2 * SNAP_PAD,
+                     SNAP_INNER_H + 2 * SNAP_PAD, 6, accent);
+
+    int zones = wubu_snap_layout_zones(layout);
+    for (int z = 0; z < zones; z++) {
+        float nx, ny, nw, nh;
+        wubu_snap_layout_rect(layout, z, &nx, &ny, &nw, &nh);
+
+        int zx = ix + (int)(nx * SNAP_INNER_W);
+        int zy = iy + (int)(ny * SNAP_INNER_H);
+        int zw = (int)(nw * SNAP_INNER_W);
+        int zh = (int)(nh * SNAP_INNER_H);
+
+        /* Fill the region, then separate it from its neighbours so a three-column
+         * layout reads as three columns rather than one block. */
+        vbe_fill_rect(zx, zy, zw, zh, accent);
+        vbe_rect(zx, zy, zw, zh, face);
     }
-    (void)face;
 }
 
 void win11_snap_render(uint32_t *fb, int fb_w, int fb_h) {
@@ -81,14 +122,44 @@ void win11_snap_render(uint32_t *fb, int fb_w, int fb_h) {
     vbe_fill_rect_rounded(fx, fy, fw, fh, 8, c->startmenu_bg);
     vbe_rect_rounded(fx, fy, fw, fh, 8, c->border_light);
 
-    for (int i = 0; i < SNAP_BUTTONS; i++) {
-        int bx = fx + SNAP_PAD + i * (SNAP_BTN_W + SNAP_GAP);
-        int by = fy + SNAP_PAD;
-        vbe_fill_rect_rounded(bx, by, SNAP_BTN_W, SNAP_BTN_H, 6, c->btn_face);
-        vbe_rect_rounded(bx, by, SNAP_BTN_W, SNAP_BTN_H, 6, c->border_light);
-        draw_zone_glyph(bx + 8, by + 7, SNAP_BTN_W - 16, SNAP_BTN_H - 14, i,
-                        c->btn_face, c->btn_hover);
+    for (int i = 0; i < WUBU_SNAP_LAYOUTS; i++) {
+        int bx, by;
+        button_box(i, fx, fy, &bx, &by);
+        draw_layout_mini(bx, by, i, c->btn_face, c->btn_hover);
     }
+}
+
+/* Which region of which layout was clicked?  Returns false when the press landed
+ * outside every button (the caller closes the flyout in that case). */
+static bool snap_hit_test(int x, int y, int fx, int fy, int *layout_out, int *zone_out) {
+    int bw, bh;
+    win11_snap_button_size(&bw, &bh);
+
+    for (int i = 0; i < WUBU_SNAP_LAYOUTS; i++) {
+        int bx = fx + i * (bw + SNAP_GAP);
+        if (x < bx || x >= bx + bw || y < fy || y >= fy + bh) continue;
+
+        *layout_out = i;
+
+        /* Local position inside the miniature, as a fraction. */
+        float px = (float)(x - (bx + SNAP_PAD)) / (float)SNAP_INNER_W;
+        float py = (float)(y - (fy + SNAP_PAD)) / (float)SNAP_INNER_H;
+
+        int zones = wubu_snap_layout_zones(i);
+        for (int z = 0; z < zones; z++) {
+            float nx, ny, nw, nh;
+            wubu_snap_layout_rect(i, z, &nx, &ny, &nw, &nh);
+            if (px >= nx && px < nx + nw && py >= ny && py < ny + nh) {
+                *zone_out = z;
+                return true;
+            }
+        }
+        /* Inside the button but in a gap between regions: take the nearest zone by
+         * clamping, so a click on a separator still does something sensible. */
+        *zone_out = 0;
+        return true;
+    }
+    return false;
 }
 
 bool win11_snap_click(int x, int y) {
@@ -101,16 +172,15 @@ bool win11_snap_click(int x, int y) {
         g_open = false;
         return false;      /* the press closes the flyout; the WM still gets it */
     }
-    for (int i = 0; i < SNAP_BUTTONS; i++) {
-        int bx = fx + SNAP_PAD + i * (SNAP_BTN_W + SNAP_GAP);
-        int by = fy + SNAP_PAD;
-        if (x >= bx && x < bx + SNAP_BTN_W && y >= by && y < by + SNAP_BTN_H) {
-            if (g_win_id >= 0 && g_dwm.windows[g_win_id].alive)
-                snap_window_to_zone(&g_dwm.windows[g_win_id], i);
-            g_open = false;
-            return true;
-        }
+
+    int layout = 0, zone = 0;
+    if (snap_hit_test(x, y, fx, fy, &layout, &zone)) {
+        if (g_win_id >= 0 && g_dwm.windows[g_win_id].alive)
+            wubu_snap_apply_layout_zone(&g_dwm.windows[g_win_id], layout, zone);
+        g_open = false;
+        return true;
     }
+
     g_open = false;
     return true;
 }

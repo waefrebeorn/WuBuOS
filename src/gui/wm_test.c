@@ -974,6 +974,67 @@ static void test_invalidate_tracking(void) {
 /* -- Main ------------------------------------------------------ */
 
 
+/* -- Windows 11 Snap Layouts (Win+Z picker table) ---------------- */
+
+static void test_snap_layouts(void) {
+    TEST("Windows 11 layout table tiles the desktop exactly");
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(10, 20, 200, 150, "Layouts");
+    CHECK(w != NULL, "window created");
+    if (!w) { wm_shutdown(); return; }
+
+    int sh = 768 - taskbar_height_dynamic();
+
+    /* The six arrangements Windows 11 actually offers. */
+    CHECK(wubu_snap_layout_zones(0) == 2, "layout 0 = two halves");
+    CHECK(wubu_snap_layout_zones(1) == 3, "layout 1 = three columns");
+    CHECK(wubu_snap_layout_zones(2) == 3, "layout 2 = left half + split right");
+    CHECK(wubu_snap_layout_zones(3) == 3, "layout 3 = right half + split left");
+    CHECK(wubu_snap_layout_zones(4) == 4, "layout 4 = four quadrants");
+    CHECK(wubu_snap_layout_zones(5) == 2, "layout 5 = two-thirds + third");
+
+    /* Halves. */
+    CHECK(wubu_snap_apply_layout_zone(w, 0, 0), "apply halves[0]");
+    CHECK(w->x == 0 && w->w == 512, "left half occupies the left 512px");
+
+    CHECK(wubu_snap_apply_layout_zone(w, 0, 1), "apply halves[1]");
+    CHECK(w->x == 512 && w->x + w->w == 1024, "right half reaches the right edge");
+
+    /* Thirds -- the case that exposed the truncation gap. */
+    CHECK(wubu_snap_apply_layout_zone(w, 1, 0), "apply thirds[0]");
+    CHECK(w->x == 0 && w->w > 0, "first column starts at the origin");
+    CHECK(wubu_snap_apply_layout_zone(w, 1, 2), "apply thirds[2]");
+    CHECK(w->x + w->w == 1024, "last column reaches the right edge (no dead strip)");
+    CHECK(w->h == sh, "columns span the full usable height");
+
+    /* Quadrants. */
+    CHECK(wubu_snap_apply_layout_zone(w, 4, 3), "apply quadrant bottom-right");
+    CHECK(w->x + w->w == 1024 && w->y + w->h == sh,
+          "bottom-right quadrant reaches both edges");
+
+    /* Split column: one full-height side, the other side divided into two halves.
+     * The distinction is HEIGHT, not width -- both sides are half the screen wide. */
+    CHECK(wubu_snap_apply_layout_zone(w, 2, 0), "apply split-column full side");
+    int full_h = w->h;
+    CHECK(wubu_snap_apply_layout_zone(w, 2, 1), "apply split-column top");
+    CHECK(w->h == full_h / 2, "the stacked regions are half height");
+    CHECK(w->x + w->w == 1024, "the stacked regions reach the right edge");
+
+    /* Refusals -- a bad index must be refused, never silently placed. */
+    CHECK(!wubu_snap_apply_layout_zone(NULL, 0, 0), "NULL window refused");
+    CHECK(!wubu_snap_apply_layout_zone(w, -1, 0), "negative layout refused");
+    CHECK(!wubu_snap_apply_layout_zone(w, 0, 9), "zone past the end refused");
+    CHECK(wubu_snap_layout_zones(-1) == 0, "negative layout reports zero zones");
+
+    /* Snapping must clear the maximized state. */
+    w->flags |= DOSGUI_WIN_MAXIMIZED;
+    CHECK(wubu_snap_apply_layout_zone(w, 0, 0), "snap after maximize");
+    CHECK(!(w->flags & DOSGUI_WIN_MAXIMIZED), "maximized cleared by snapping");
+
+    wm_shutdown();
+    PASS();
+}
+
 /* -- Snap Layouts (keyboard) ------------------------------------ */
 
 static void test_snap_zones(void) {
@@ -1579,6 +1640,8 @@ int main(void) {
     test_systray_lifecycle();
     test_window_state_transitions();
     test_snap_zones();
+
+    test_snap_layouts();
     test_win_arrow_hotkey();
     test_modifier_bits_match_input_h();
     test_show_desktop_hotkey();

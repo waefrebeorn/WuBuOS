@@ -179,6 +179,24 @@ void wm_draw_icon_glyph(DeskIconType type, int ox, int oy,
 void wm_draw_icon_selection(int ox, int oy);
 void snap_window_to_gaad(DosGuiWindow *w);
 void snap_window_to_zone(DosGuiWindow *w, int zone);
+
+/* -- Windows 11 Snap Layouts ---------------------------------------------
+ *
+ * The six layouts Windows 11 shows in its Win+Z flyout.  Geometry lives here so
+ * the renderer (win11_snap.c) and the snapping path cannot disagree about where a
+ * zone is; the flyout draws its miniatures from the same table it clicks through.
+ *
+ * Rectangles are stored as normalised fractions of the usable desktop area so they
+ * survive any screen resolution and any taskbar height without being recomputed. */
+#define WUBU_SNAP_LAYOUTS 6
+
+int    wubu_snap_layout_zones(int layout);
+/* Normalised rect for one zone of a layout: x,y,w,h in 0.0..1 of the desktop area. */
+void   wubu_snap_layout_rect(int layout, int zone,
+                             float *nx, float *ny, float *nw, float *nh);
+/* Place `w` into zone `zone` of `layout`. Returns false for an unknown index --
+ * a bad id must be refused rather than silently placing the window somewhere. */
+bool   wubu_snap_apply_layout_zone(DosGuiWindow *w, int layout, int zone);
 int  icon_hit_test(int mx, int my);
 int  icon_select_in_rect(int x0, int y0, int x1, int y1);
 DosGuiWindow *wm_spawn_holyc_term(int x, int y, int w, int h);

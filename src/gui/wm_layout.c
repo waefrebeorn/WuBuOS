@@ -246,6 +246,126 @@ void snap_window_to_gaad(DosGuiWindow *w) {
     }
 }
 
+/* ================================================================
+ * WINDOWS 11 SNAP LAYOUTS
+ *
+ * The old picker offered six EQUAL zones (halves + quarters).  Windows 11 does not do
+ * that: it offers six LAYOUTS, each an arrangement of two to four unequal regions, and
+ * you pick the layout first and then which region of it to fill.  The difference is
+ * visible immediately -- halves and quarters are only two of its six options.
+ *
+ * Fractions are normalised so the same table serves every resolution and every
+ * taskbar height.  Rows below are the exact set from a wide Windows 11 display:
+ *   0  two equal halves
+ *   1  three equal columns
+ *   2  left half, right half split top/bottom
+ *   3  right half, left half split top/bottom
+ *   4  four quadrants
+ *   5  main-left two thirds, right third
+ */
+typedef struct { float x, y, w, h; } snap_frac_t;
+
+typedef struct {
+    int         zones;
+    snap_frac_t z[4];
+} snap_layout_t;
+
+static const snap_layout_t kSnapLayouts[WUBU_SNAP_LAYOUTS] = {
+    /* 0: [ 1/2 | 1/2 ] */
+    { 2, { {0.0f, 0.0f, 0.5f, 1.0f},
+           {0.5f, 0.0f, 0.5f, 1.0f} } },
+    /* 1: [ 1/3 | 1/3 | 1/3 ] */
+    { 3, { {0.0f,        0.0f, 1.0f/3.0f, 1.0f},
+           {1.0f/3.0f,   0.0f, 1.0f/3.0f, 1.0f},
+           {2.0f/3.0f,   0.0f, 1.0f/3.0f, 1.0f} } },
+    /* 2: [ 1/2 | 1/4 ]
+               | 1/4 ]   -- left column full height, right split */
+    { 3, { {0.0f, 0.0f, 0.5f, 1.0f},
+           {0.5f, 0.0f, 0.5f, 0.5f},
+           {0.5f, 0.5f, 0.5f, 0.5f} } },
+    /* 3: [ 1/4 | 1/2 ]
+           [ 1/4 |     ]   -- mirror of 2 */
+    { 3, { {0.0f, 0.0f, 0.5f, 0.5f},
+           {0.0f, 0.5f, 0.5f, 0.5f},
+           {0.5f, 0.0f, 0.5f, 1.0f} } },
+    /* 4: four quadrants */
+    { 4, { {0.0f, 0.0f, 0.5f, 0.5f},
+           {0.5f, 0.0f, 0.5f, 0.5f},
+           {0.0f, 0.5f, 0.5f, 0.5f},
+           {0.5f, 0.5f, 0.5f, 0.5f} } },
+    /* 5: main-left 2/3 + right 1/3 */
+    { 2, { {0.0f, 0.0f, 2.0f/3.0f, 1.0f},
+           {2.0f/3.0f, 0.0f, 1.0f/3.0f, 1.0f} } },
+};
+
+/* Shared guard: one definition, so rendering and snapping cannot disagree about
+ * whether a (layout, zone) pair exists. */
+static bool wubu_snap_valid(int layout, int zone)
+{
+    return layout >= 0 && layout < WUBU_SNAP_LAYOUTS &&
+           zone >= 0 && zone < kSnapLayouts[layout].zones;
+}
+
+int wubu_snap_layout_zones(int layout)
+{
+    if (layout < 0 || layout >= WUBU_SNAP_LAYOUTS) return 0;
+    return kSnapLayouts[layout].zones;
+}
+
+void wubu_snap_layout_rect(int layout, int zone,
+                           float *nx, float *ny, float *nw, float *nh)
+{
+    if (!wubu_snap_valid(layout, zone)) {
+        if (nx) *nx = 0.0f;
+        if (ny) *ny = 0.0f;
+        if (nw) *nw = 0.0f;
+        if (nh) *nh = 0.0f;
+        return;
+    }
+    const snap_frac_t *r = &kSnapLayouts[layout].z[zone];
+    if (nx) *nx = r->x;
+    if (ny) *ny = r->y;
+    if (nw) *nw = r->w;
+    if (nh) *nh = r->h;
+}
+
+bool wubu_snap_apply_layout_zone(DosGuiWindow *w, int layout, int zone)
+{
+    if (!w || !wubu_snap_valid(layout, zone)) return false;
+
+    float nx, ny, nw, nh;
+    wubu_snap_layout_rect(layout, zone, &nx, &ny, &nw, &nh);
+
+    int task_h = taskbar_height_dynamic();
+    int sw = g_dwm.screen_w;
+    int sh = g_dwm.screen_h - task_h;
+    if (sw <= 0 || sh <= 0) return false;
+
+    w->x = (int)(nx * sw);
+    w->y = (int)(ny * sh);
+    w->w = (int)(nw * sw);
+    w->h = (int)(nh * sh);
+
+    /* Integer truncation otherwise leaves a one-pixel DEAD STRIP along the right and
+     * bottom edges: a third of 1024 is 341, and 682 + 341 is 1023, not 1024.  Any
+     * zone that touches an edge is extended to it, so the regions tile the screen
+     * exactly instead of leaving a sliver no window can occupy. */
+    if (nx + nw >= 0.999f) w->w = sw - w->x;
+    if (ny + nh >= 0.999f) w->h = sh - w->y;
+
+    /* A fraction can round a thin layout down to zero at small resolutions; keep the
+     * window usable rather than letting a zone collapse. */
+    if (w->w < 80)  w->w = 80;
+    if (w->h < 60)  w->h = 60;
+    if (w->x + w->w > sw) w->x = sw - w->w;
+    if (w->y + w->h > sh) w->y = sh - w->h;
+    if (w->x < 0) w->x = 0;
+    if (w->y < 0) w->y = 0;
+
+    w->flags &= ~DOSGUI_WIN_MAXIMIZED;
+    return true;
+}
+
 /* Snap Layouts (keyboard, Win+Arrow): place a window in a named zone.
  * 0=left half, 1=right half, 2=top-left quarter, 3=top-right quarter,
  * 4=bottom-left quarter, 5=bottom-right quarter. */
