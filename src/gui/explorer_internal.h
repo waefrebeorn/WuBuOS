@@ -56,6 +56,15 @@
 void ex_scan_directory(const char *path);
 void ex_tree_scan(ExTreeNode *node);
 void ex_add_to_history(ExExplorerState *ex, const char *path);
+/* Context-menu geometry -- SHARED by the renderer and the hit-test so they cannot
+ * drift apart (a drifted menu is unclickable, which is how it shipped broken).
+ * Rows: 0..4 Open/Open With.../Cut/Copy/Paste, 5 separator, 6..8 Delete/Rename/Props. */
+#define EX_CTX_ITEMS          8   /* item LABELS */
+#define EX_CTX_ROWS           9   /* labels + one separator row before Delete */
+#define EX_CTX_SEPARATOR_ROW  5   /* slot that is NOT an item */
+#define EX_CTX_ITEM_H         24
+#define EX_CTX_MENU_W         180
+
 void ex_show_context_menu(ExExplorerState *ex, int mx, int my, int entry_idx);
 
 /* Open a file with its associated program (W-CODE today). Implemented in apps.c.

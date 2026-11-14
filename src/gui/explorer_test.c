@@ -3,6 +3,7 @@
  */
 
 #include "explorer.h"
+#include "explorer_internal.h"   /* shared context-menu geometry */
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -614,6 +615,47 @@ static void test_guest_file_ops(void) {
     explorer_shutdown();
 }
 
+/* Context-menu row geometry -- the contract between the renderer and hit-testing.
+ *
+ * The menu was entirely unclickable before, and it becomes unclickable again the moment
+ * these two disagree, so the mapping is pinned here instead of living only in a comment.
+ * Rows MUST mirror ex_render_context_menu:
+ *   0..4 Open/Open With.../Cut/Copy/Paste | 5 separator | 6..8 Delete/Rename/Properties
+ */
+static void test_ctx_menu_rows(void) {
+    printf("\n=== Test: context menu row geometry ===\n");
+
+    const int mx = 200, my = 200;         /* menu origin */
+
+    /* Evaluate each click into a local FIRST. An earlier version of this test passed
+     * only two arguments to the four-parameter helper -- undefined behaviour that made
+     * the assertions fail while an identical-looking debug loop printed correct
+     * values. Keeping the call shape uniform removes that trap. */
+    int got[10];
+    for (int r = 0; r < 10; r++)
+        got[r] = ex_ctx_row_at(mx + 5, my + 2 + r * EX_CTX_ITEM_H + 1, mx, my);
+
+    TEST_ASSERT(got[0] == 0, "row 0 -> Open");
+    TEST_ASSERT(got[1] == 1, "row 1 -> Open With...");
+    TEST_ASSERT(got[2] == 2, "row 2 -> Cut");
+    TEST_ASSERT(got[3] == 3, "row 3 -> Copy");
+    TEST_ASSERT(got[4] == 4, "row 4 -> Paste");
+    TEST_ASSERT(got[5] == -1, "row 5 is the separator, not an item");
+    TEST_ASSERT(got[6] == 6, "row 6 -> Delete");
+    TEST_ASSERT(got[7] == 7, "row 7 -> Rename");
+    TEST_ASSERT(got[8] == 8, "row 8 -> Properties");
+    TEST_ASSERT(got[9] == -1, "row 9 does not exist");
+
+    /* Refusals that must stay refusals. The menu's top edge is menu_y+2, so a click at
+     * exactly that y IS row 0; only ABOVE it is empty. All four arguments, always. */
+    TEST_ASSERT(ex_ctx_row_at(mx - 5,    my + 2, mx, my) == -1, "left of the menu refused");
+    TEST_ASSERT(ex_ctx_row_at(mx + 1000, my + 2, mx, my) == -1, "right of the menu refused");
+    TEST_ASSERT(ex_ctx_row_at(mx + 5,    my + 1, mx, my) == -1, "above the menu refused");
+    TEST_ASSERT(ex_ctx_row_at(mx + 5,    my + 2, mx, my) == 0,  "menu top edge is row 0");
+    TEST_ASSERT(ex_ctx_row_at(mx + 5,    my + 2, -1,  my) == -1,
+                "closed menu refuses all clicks");
+}
+
 int main(void) {
     printf("╔══════════════════════════════════════════════════════════╗\n");
     printf("║  explorer Test Suite                              ║\n");
@@ -636,6 +678,7 @@ int main(void) {
     test_find();
     test_shift_select();
     test_image_preview();
+    test_ctx_menu_rows();
 
     printf("\n╔══════════════════════════════════════════════════════════╗\n");
     printf("║  Results: %d passed, %d failed                          ║\n", tests_passed, tests_failed);

@@ -12,15 +12,8 @@
 #include <stdlib.h>
 #include <errno.h>
 
-/* Context-menu geometry, shared by the renderer and the input path so they cannot
- * disagree about where an item is drawn. Mirrors ex_render_context_menu exactly. */
-#define EX_CTX_ITEMS          8
-#define EX_CTX_ITEMS          8   /* item LABELS */
-#define EX_CTX_ROWS           9   /* labels + one separator row before Delete */
-#define EX_CTX_SEPARATOR_ROW  5   /* slot that is NOT an item */
-#define EX_CTX_ITEM_H         24
-#define EX_CTX_MENU_W         180
-
+/* Context-menu geometry lives in explorer_internal.h so renderer, hit-test and
+ * tests share one definition -- it used to sit here and drift from the renderer. */
 /* Map a click position to a MENU ROW index (0..8), or -1 when the press landed on
  * nothing actionable -- outside the menu entirely, or on the separator row.
  *
