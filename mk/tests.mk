@@ -479,7 +479,7 @@ VSL_NT_OBJS = \
 	$(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o \
 	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
-	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o
+	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/wubu_ntsync.o
 
 # Behavioral regression test for the NT 6.1/W11 extension personalities.
 # Uses the engine objects but its own main() (excludes the canonical nt test .o).
@@ -496,7 +496,7 @@ VSL_NT_EXT_OBJS = \
 	$(RT)/vsl/vsl_gpu_vulkan.o $(RT)/wubu_fs_util.o $(RT)/vsl/vsl_syscall_cpm.o $(RT)/vsl/vsl_syscall_macclassic.o $(RT)/vsl/vsl_macho.o \
 	$(RT)/vsl/vsl_nt_alpc.o $(RT)/vsl/vsl_nt_wnf.o $(RT)/vsl/vsl_nt_worker.o \
 	$(RT)/vsl/vsl_nt_enclave.o $(RT)/vsl/vsl_nt_ioring.o $(RT)/vsl/vsl_nt_partition.o \
-	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o
+	$(RT)/vsl/vsl_nt_ktm.o $(RT)/vsl/vsl_nt_misc_w11.o $(RT)/vsl/vsl_syscall_nt_ext_test.o $(RT)/wubu_ntsync.o
 
 test_vsl_nt_ext: $(VSL_NT_EXT_OBJS)
 	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
@@ -1729,6 +1729,13 @@ test_account:
 		$(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c $(RT)/wubu_account_test.c \
 		-o $(RT)/wubu_account_test
 	$(RT)/wubu_account_test
+
+test_ntsync:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -pthread -Wall \
+		-I$(RT) \
+		$(RT)/wubu_ntsync.c $(RT)/wubu_ntsync_test.c \
+		-o $(RT)/wubu_ntsync_test
+	$(RT)/wubu_ntsync_test
 
 test_wubu_edid:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \

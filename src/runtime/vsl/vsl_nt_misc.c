@@ -9,6 +9,7 @@
 #include <pthread.h>   /* used in this TU, so declared here */
 #include "../../egojar_net.h"
 #include "vsl_nt_internal.h"
+#include "wubu_ntsync.h"
 
 extern int wubu_fs_rm_rf(const char *path);
 
@@ -795,43 +796,72 @@ int64_t vsl_nt_notify_change_key(uint64_t a, uint64_t b, uint64_t c, uint64_t d,
 int64_t vsl_nt_notify_change_multiple_keys(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)a;(void)b;(void)c;(void)d;(void)e;(void)f; return NT_STATUS_SUCCESS;
 }
-/* 290: NtCreateKeyedEvent (4) -- futex-based keyed event */
+/* 290: NtCreateKeyedEvent (4) -- real keyed event, backed by wubu_ntsync.
+ * SteamOS's ntsync take: an exact key matches one release to one waiter on that
+ * key (the old eventfd mapping ignored the key and was a bare counter). */
 int64_t vsl_nt_create_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)b;(void)c;(void)d;(void)e;(void)f;
     if(!a) return NT_STATUS_INVALID_PARAMETER;
-    int efd = eventfd(0, 0);
-    if(efd < 0) return vsl_errno_to_nt_status(errno);
-    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, efd, 0, NT_OBJECT_TYPE_KEYED_EVENT);
-    if(h == 0) { close(efd); return NT_STATUS_UNSUCCESSFUL; }
+    wubu_ntsync_t *ke = wubu_ntsync_create();
+    if(!ke) return NT_STATUS_NO_MEMORY;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_KEYED_EVENT);
+    if(h == 0) { wubu_ntsync_destroy(ke); return NT_STATUS_UNSUCCESSFUL; }
+    for(int i=0;i<4096;i++)
+        if(g_nt_ctx->handle_table[i].valid && g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)ke;
+            break;
+        }
     *(uint32_t*)a = h;
     return NT_STATUS_SUCCESS;
 }
-/* 291: NtOpenKeyedEvent (3) */
+/* 291: NtOpenKeyedEvent (3) -- an independent keyed event for this world. */
 int64_t vsl_nt_open_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
     (void)b;(void)c;(void)d;(void)e;(void)f;
     if(!a) return NT_STATUS_INVALID_PARAMETER;
-    int efd = eventfd(0, 0);
-    if(efd < 0) return vsl_errno_to_nt_status(errno);
-    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, efd, 0, NT_OBJECT_TYPE_KEYED_EVENT);
-    if(h == 0) { close(efd); return NT_STATUS_UNSUCCESSFUL; }
+    wubu_ntsync_t *ke = wubu_ntsync_create();
+    if(!ke) return NT_STATUS_NO_MEMORY;
+    uint32_t h = vsl_nt_allocate_handle(g_nt_ctx, -1, 0, NT_OBJECT_TYPE_KEYED_EVENT);
+    if(h == 0) { wubu_ntsync_destroy(ke); return NT_STATUS_UNSUCCESSFUL; }
+    for(int i=0;i<4096;i++)
+        if(g_nt_ctx->handle_table[i].valid && g_nt_ctx->handle_table[i].nt_handle == h) {
+            g_nt_ctx->handle_table[i].data = (uint64_t)(uintptr_t)ke;
+            break;
+        }
     *(uint32_t*)a = h;
     return NT_STATUS_SUCCESS;
 }
-/* 292: NtReleaseKeyedEvent (4) -- signal a keyed event */
-int64_t vsl_nt_release_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
-    (void)b;(void)c;(void)d;(void)e;(void)f;
-    int vsl_fd;
-    if(vsl_nt_handle_to_vsl_fd(g_nt_ctx,(uint32_t)a,&vsl_fd)!=0) return NT_STATUS_INVALID_HANDLE;
-    uint64_t one = 1; write(vsl_fd, &one, sizeof(one));
-    return NT_STATUS_SUCCESS;
+/* NT relative timeout (100ns, 0 = infinite, -1 = poll) -> wubu_ntsync ms. */
+static void vsl_nt_keyed_tmo(uint64_t ns, int64_t *out_ms) {
+    if(ns == (uint64_t)-1) { *out_ms = 0; return; }   /* poll */
+    if(ns == 0)            { *out_ms = -1; return; }  /* infinite */
+    *out_ms = (int64_t)(ns / 1000000);
+    if(*out_ms < 1) *out_ms = 1;
 }
-/* 293: NtWaitForKeyedEvent (4) -- wait on a keyed event */
+/* 292: NtReleaseKeyedEvent (4) -- signal exactly the waiters on `key` (b). */
+int64_t vsl_nt_release_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
+    (void)e;(void)f;
+    uint64_t data = 0;
+    if(vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a, &data) != 0) return NT_STATUS_INVALID_HANDLE;
+    wubu_ntsync_t *ke = (wubu_ntsync_t*)(uintptr_t)data;
+    if(!ke) return NT_STATUS_INVALID_HANDLE;
+    int64_t ms; vsl_nt_keyed_tmo(d, &ms);
+    int rc = wubu_ntsync_release(ke, b, c ? 1 : 0, ms);
+    if(rc == WUBU_NTSYNC_OK) return NT_STATUS_SUCCESS;
+    if(rc == WUBU_NTSYNC_TIMEOUT) return NT_STATUS_TIMEOUT;
+    return NT_STATUS_UNSUCCESSFUL;
+}
+/* 293: NtWaitForKeyedEvent (4) -- consume a release held on `key` (b) or block. */
 int64_t vsl_nt_wait_for_keyed_event(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f) {
-    (void)b;(void)c;(void)d;(void)e;(void)f;
-    int vsl_fd;
-    if(vsl_nt_handle_to_vsl_fd(g_nt_ctx,(uint32_t)a,&vsl_fd)!=0) return NT_STATUS_INVALID_HANDLE;
-    uint64_t val = 0; read(vsl_fd, &val, sizeof(val));
-    return NT_STATUS_SUCCESS;
+    (void)c;(void)e;(void)f;
+    uint64_t data = 0;
+    if(vsl_nt_handle_to_data(g_nt_ctx, (uint32_t)a, &data) != 0) return NT_STATUS_INVALID_HANDLE;
+    wubu_ntsync_t *ke = (wubu_ntsync_t*)(uintptr_t)data;
+    if(!ke) return NT_STATUS_INVALID_HANDLE;
+    int64_t ms; vsl_nt_keyed_tmo(d, &ms);
+    int rc = wubu_ntsync_wait(ke, b, ms);
+    if(rc == WUBU_NTSYNC_OK) return NT_STATUS_SUCCESS;
+    if(rc == WUBU_NTSYNC_TIMEOUT) return NT_STATUS_TIMEOUT;
+    return NT_STATUS_UNSUCCESSFUL;
 }
 
 
