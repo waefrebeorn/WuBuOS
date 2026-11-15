@@ -1721,6 +1721,14 @@ test_pwcrypt:
 		-I$(RT) \
 		$(RT)/wubu_pwcrypt.c $(RT)/wubu_pwcrypt_test.c \
 		-o $(RT)/wubu_pwcrypt_test
+	$(RT)/wubu_pwcrypt_test
+
+test_account:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Wall \
+		-I$(RT) \
+		$(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c $(RT)/wubu_account_test.c \
+		-o $(RT)/wubu_account_test
+	$(RT)/wubu_account_test
 
 test_wubu_edid:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
