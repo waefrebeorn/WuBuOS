@@ -214,6 +214,13 @@ Discovered via ship.sh's red-test -- the gate was never clean-buildable.]
   pipes scripted answers and proves the on-disk document round-trips, cancel
   writes nothing, empty password rejected). The GUI greeter is the remaining
   front end.]
+  -- [DEFERRED PROVISIONING SHIPPED 2026-11-15: `src/runtime/wubu_firstboot.{c,h}`
+  = the plan is CONSUMED at first boot. Writes the user/hostname/keymap/
+  language/timezone manifest into a target root (chroot-style flat files); the
+  passwd line holds only the salted hash (never the plaintext); one-way
+  verification re-derives and compares. Green in `make test_wubu_firstboot` (15
+  checks). The OS first-boot supervisor applies the manifest to /etc; wiring it
+  to the onboarding sentinel is the last orchestration step.]
 
 ---
 

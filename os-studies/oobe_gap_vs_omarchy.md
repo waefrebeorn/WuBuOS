@@ -22,8 +22,8 @@
 > (`make test_wubu_install`, 25 checks). The stdio front end
 > (`wubu_install_tty`, `make test_wubu_install_tty`) turns it into a real
 > boot-console / DevOps text configurator that writes the confirmed plan to
-> disk. The GUI greeter still renders a theme picker, and the disk write / user
-> creation layers are still next.
+> disk. The GUI greeter still renders a theme picker, and the disk write /
+> OS-supervisor application of the manifest is still next.
 
 ---
 
@@ -64,7 +64,7 @@
 | 11 | Console width-settle guard (avoid smush) | **MISSING** | `wubu_console.c` exists but has no install-greeter size guard. |
 | 12 | Greeter frame bookends install AND first boot | **PARTIAL** | First-boot greeter is real and wired; the install does **not** close on the same frame. |
 | 13 | 5-step question set: language→keyboard→account→disk→summary (masked pw, i18n) | **PARTIAL — body shipped** | The wizard ENGINE (`wubu_install.c`) collects lang→keyboard→account→disk→timezone→masked summary with a salted-iterated password hash, driven by injected I/O, and round-trips a `/n/install` answers document — green in `test_wubu_install`. Still missing: per-language keyboard/timezone defaults and any i18n, and the GUI greeter still renders a theme picker instead of this set. |
-| 14 | Deferred provisioning — create the user at FIRST boot on the same frame (`omarchy-provision-user`) | **PARTIAL** | The sentinel orchestration works and the greeter runs at first boot — **but it creates a theme only**. The configurator now holds the provisioning answers (username + hashed password); no `wubu_firstboot.c` yet applies them to create the user/hostname/keyboard. |
+| 14 | Deferred provisioning — create the user at FIRST boot on the same frame (`omarchy-provision-user`) | **PARTIAL — manifest shipped** | The sentinel orchestration works and the first boot now CONSUMES the plan: `wubu_firstboot.c` writes the user/hostname/keymap/language/timezone manifest (hash-only passwd line), green in `test_wubu_firstboot`. Still missing: the OS first-boot supervisor applying that manifest to /etc (setuid), and the greeter being the same frame as the installer. |
 | 15 | Full-disk vs free-space, full-encryption default, Ctrl+C → no-encryption | **MISSING** | `wubu_disk_install.c` absent. |
 | 16 | Prebuilt root image `zstdcat|dd` + grow-to-partition | **MISSING** | `fat32_format.c` primitive exists; `wubu_image_write.c` absent; no wizard drives it. |
 | 17 | `cidata`-labeled volume → skip the wizard (unattended) | **MISSING** | No unattended pre-config path. The sentinel is post-config, not an injection. |

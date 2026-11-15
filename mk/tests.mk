@@ -1075,8 +1075,8 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
              test_pe_reloc test_pe_exec test_pe_iat test_pe_full \
              test_wubu_zx test_wubu_zxload test_wubu_zxreg test_wubu_applaunch \
              test_wubu_selfbuild test_wubu_zx9p test_w9pc test_wubu_tokenizer \
-             test_ns_9p test_styxfs test_owned_surface test_wubu_onboarding test_wubu_install test_wubu_install_tty
-	@echo "== [test-module] all module/PE/self-build/9P/owned-surface/onboarding/configurator targets GREEN =="
+             test_ns_9p test_styxfs test_owned_surface test_wubu_onboarding test_wubu_install test_wubu_install_tty test_wubu_firstboot
+	@echo "== [test-module] all module/PE/self-build/9P/owned-surface/onboarding/configurator/provisioning targets GREEN =="
 
 # GAP-C2 enforcement: a module without a test recipe is NOT owned. Re-derives
 # the manifest from the Makefile recipes and FAILS if an OWNED module lost its
@@ -1209,6 +1209,15 @@ test_wubu_install: $(RT)/wubu_install.c $(RT)/wubu_install.h $(KERNEL)/wubu_sha2
 test_wubu_install_tty: $(RT)/wubu_install_tty.c $(RT)/wubu_install_tty.h $(RT)/wubu_install.c $(RT)/wubu_install.h $(KERNEL)/wubu_sha256.c $(RT)/test/wubu_install_tty_test.c
 	$(CC) -O0 -g -std=c11 -Wall -I$(RT) -I$(KERNEL) $(RT)/test/wubu_install_tty_test.c $(RT)/wubu_install_tty.c $(RT)/wubu_install.c $(KERNEL)/wubu_sha256.c -o $(RT)/wubu_install_tty_test
 	$(RT)/./wubu_install_tty_test
+
+# Deferred provisioning: the configurator's plan is CONSUMED at first boot, not
+# just collected. Writes the user/hostname/keymap/language/timezone manifest
+# into a target root (chroot-style flat files), the passwd line holding only
+# the salted hash, plus one-way verification. The gate proves the on-disk
+# manifest has no plaintext, verify() round-trips, and bad plans refuse.
+test_wubu_firstboot: $(RT)/wubu_firstboot.c $(RT)/wubu_firstboot.h $(RT)/wubu_install.c $(RT)/wubu_install.h $(KERNEL)/wubu_sha256.c $(RT)/test/wubu_firstboot_test.c
+	$(CC) -O0 -g -std=c11 -Wall -I$(RT) -I$(KERNEL) $(RT)/test/wubu_firstboot_test.c $(RT)/wubu_firstboot.c $(RT)/wubu_install.c $(KERNEL)/wubu_sha256.c -o $(RT)/wubu_firstboot_test
+	$(RT)/./wubu_firstboot_test
 
 # test_ns_background -- P3: the /n/background control subtree. Publishes the
 # session-boot's live state (session, bus names, bus conn count, autostart
