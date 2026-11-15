@@ -37,13 +37,20 @@ Designer / Terminal), and progress pagination.
    - there is a 21-group b64 permutation and **no** separate final digest
 
 ## Remaining work (next session)
-
-- Greeter: add a **user-account step** (username, masked password, confirm) that calls
-  `wubu_pw_crypt_sha512` for a shadow-compatible record.
+- Greeter: **user-account input step** (username, masked password, confirm) that calls
+  `wubu_account_build`/`verify` and persists `wubu_account_record_str` in the sentinel.
+  ALSO needs a headless drive of the new fields via `wubu_shell_greeter_key`/`click` in
+  `wubu_shell_greeter_test.c` — the standing rule is no GUI change ships without an
+  in-tree harness pass proving it, and the account fields are exactly that next slice.
 - Greeter: **keyboard layout step** and **hostname step** (bring the wizard to 5+ steps,
-  omarchy's `language→keyboard→account→disk→summary` spirit).
-- Persist username/hostname/keyboard/password-hash in the onboarding signature so the
-  recorded OOBE is a real account record, not just a theme choice.
+  omarchy's `language→keyboard→account→disk→summary` spirit) — same harness constraint.
 
-The cryptography — the hard, security-sensitive slice — is done and gated. The GUI steps
-are well-scoped wiring on top of a proven primitive.
+WHAT IS ALREADY DONE AND GATED (this pass + previous):
+- 2b88cdc `wubu_pwcrypt.c` — SHA-512 crypt, byte-exact vs openssl + canonical vectors,
+  `make test_pwcrypt` PASS 4.
+- ef8c6c0 `wubu_account.c` — shadow-compatible account RECORD (user/hostname/keyboard
+  + $6$ hash), fail-closed build, verify(), `make test_account` PASS 15.
+
+So the greeter's account step has a proven primitive AND a proven record layer to call;
+only the GUI field editing + its harness gate remain.
+
