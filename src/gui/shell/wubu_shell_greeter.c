@@ -47,7 +47,11 @@ static int   g_hover = -1;
 static int   g_signed;              /* onboarding_complete() was called */
 static char  g_sig[512];
 static char  g_user[33],  g_pw[65],  g_pw2[65], g_field;
-static char  g_host[65] = "", g_kbd[16] = "us";
+static char  g_host[65] = "", g_kbd[16] = "us";  static int g_kbd_idx;
+/* the offered keyboard layouts, cycled on the account page's 4th field */
+static const char *const kLayouts[] = {
+    "us", "uk", "de", "fr", "es", "it", "se", "br", NULL };
+#define KBD_LAYOUTS ((int)(sizeof(kLayouts)/sizeof(kLayouts[0]) - 1))
 /* account field geometry (window-relative) */
 #define GR_FLD_LBL   20
 #define GR_FLD_VAL   (GR_PAD + 110)
@@ -243,26 +247,30 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         /* Account page: username + masked password + confirm.  Three fields on the
          * token row grid; the active one gets a highlight so the user can tell where
          * typing lands even though the password shows only asterisks. */
-        static const char *const labels[3] = { "Username", "Password", "Confirm" };
-        for (int i = 0; i < 3; i++) {
+        static const char *const labels[4] = { "Username", "Password", "Confirm", "Keyboard" };
+        for (int i = 0; i < 4; i++) {
             int ry = GR_ROWS_Y + i * GR_ROW_H;
             vbe_draw_text(x0 + GR_PAD, y0 + ry, labels[i], tc->btn_text, 1);
-            char *val = (i == 0) ? g_user : (i == 1) ? g_pw : g_pw2;
-            char masked[65];
-            if (i == 0) {
-                snprintf(masked, sizeof(masked), "%s", val[0] ? val : "(empty)");
+            char shown[65];
+            if (i == 3) {
+                snprintf(shown, sizeof(shown), "%s (Up/Down to change)", g_kbd);
             } else {
-                size_t nn = strlen(val);
-                for (size_t k = 0; k < nn && k < sizeof(masked) - 1; k++) masked[k] = '*';
-                masked[nn] = 0;
-                if (!nn) snprintf(masked, sizeof(masked), "(empty)");
+                char *val = (i == 0) ? g_user : (i == 1) ? g_pw : g_pw2;
+                if (i == 0) {
+                    snprintf(shown, sizeof(shown), "%s", val[0] ? val : "(empty)");
+                } else {
+                    size_t nn = strlen(val);
+                    for (size_t k = 0; k < nn && k < sizeof(shown) - 1; k++) shown[k] = '*';
+                    shown[nn] = 0;
+                    if (!nn) snprintf(shown, sizeof(shown), "(empty)");
+                }
             }
             bool active = (g_field == i);
             uint32_t face = active ? tc->select_bg : tc->btn_face;
             vbe_fill_rect_rounded(x0 + GR_FLD_VAL, y0 + ry, GR_FLD_W, GR_ROW_H - 4, 2, face);
             if (active) vbe_rect_rounded(x0 + GR_FLD_VAL, y0 + ry, GR_FLD_W, GR_ROW_H - 4, 2,
                                          tc->border_dark);
-            vbe_draw_text(x0 + GR_FLD_VAL + 8, y0 + ry + (GR_ROW_H - 4 - 8) / 2, masked,
+            vbe_draw_text(x0 + GR_FLD_VAL + 8, y0 + ry + (GR_ROW_H - 4 - 8) / 2, shown,
                           active ? tc->select_text : tc->btn_text, 1);
         }
     } else if (g_step == 2) {
@@ -399,12 +407,26 @@ void wubu_shell_greeter_key(uint32_t key) {
         if (key == 0x1C || key == '\r' || key == '\n') {  /* enter: next field */
             if (g_field == 0)        g_field = 1;
             else if (g_field == 1)   g_field = 2;
-            else                     wubu_shell_greeter_advance();
+            else if (g_field == 2)   g_field = 3;          /* -> keyboard */
+            else                     wubu_shell_greeter_advance();  /* keyboard: go */
             return;
         }
-        if (key == 0xE048 && g_field > 0) { g_field--; return; }   /* up */
-        if (key == 0xE050 && g_field < 2) { g_field++; return; }   /* down */
+        if (key == 0xE048) {                               /* up  */
+            if (g_field == 3) { g_kbd_idx = (g_kbd_idx - 1 + KBD_LAYOUTS) % KBD_LAYOUTS;
+                strncpy(g_kbd, kLayouts[g_kbd_idx], sizeof(g_kbd)-1); return; }
+            if (g_field > 0) { g_field--; return; }
+        }
+        if (key == 0xE050 || key == 0xE04D) {              /* down/right */
+            if (g_field == 3) { g_kbd_idx = (g_kbd_idx + 1) % KBD_LAYOUTS;
+                strncpy(g_kbd, kLayouts[g_kbd_idx], sizeof(g_kbd)-1); return; }
+            if (g_field < 3) { g_field++; return; }
+        }
         if (key >= 32 && key < 127) {                        /* printable */
+            if (g_field == 3) {                              /* keyboard field: cycle */
+                g_kbd_idx = (g_kbd_idx + 1) % KBD_LAYOUTS;
+                strncpy(g_kbd, kLayouts[g_kbd_idx], sizeof(g_kbd)-1);
+                return;
+            }
             char *f = (g_field == 0) ? g_user : (g_field == 1) ? g_pw : g_pw2;
             size_t n = strlen(f);
             size_t cap = (g_field == 0) ? sizeof(g_user) - 1 : sizeof(g_pw) - 1;
@@ -489,7 +511,7 @@ void wubu_shell_greeter_click(int x, int y, int kind) {
     }
 
     if (g_step == 1) {
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             int ry = GR_ROWS_Y + i * GR_ROW_H;
             if (x >= GR_FLD_VAL && x < GR_FLD_VAL + GR_FLD_W &&
                 y >= ry && y < ry + GR_ROW_H) { g_field = i; return; }
@@ -543,7 +565,8 @@ void wubu_shell_greeter_open(void) {
     g_sig[0] = '\0';
     g_hover = -1;
     g_step  = 0;                 /* always start at the first page */
-    g_user[0] = g_pw[0] = g_pw2[0] = 0; g_field = 0;
+    g_user[0] = g_pw[0] = g_pw2[0] = 0; g_field = 0; g_kbd_idx = 0;
+    strncpy(g_kbd, kLayouts[0], sizeof(g_kbd) - 1); g_kbd[sizeof(g_kbd)-1] = 0;
     g_host[0] = 0;
     if (gethostname(g_host, sizeof(g_host) - 1) != 0) g_host[0] = 0;
 

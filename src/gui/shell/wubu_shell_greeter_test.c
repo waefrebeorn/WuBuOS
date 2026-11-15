@@ -55,16 +55,20 @@ static void type_str(const char *s) {
 }
 
 /* From the THEME page, fill the account form and reach the READY page:
- * theme ->(Enter) account, type user/pw/confirm, Enter to advance each field,
- * then network ->(Enter) ready. */
-static void drive_account_form(const char *user, const char *pw) {
+ * theme ->(Enter) account, type user/pw/confirm, Enter to advance each field
+ * (including the keyboard field), then network ->(Enter) ready.  If kbd_down is
+ * nonzero, press Down on the keyboard field that many times to cycle the
+ * keyboard layout before advancing. */
+static void drive_account_form(const char *user, const char *pw, int kbd_down) {
     wubu_shell_greeter_key(0x1C);          /* theme page -> account page */
     type_str(user);
     wubu_shell_greeter_key(0x1C);          /* -> password field */
     type_str(pw);
     wubu_shell_greeter_key(0x1C);          /* -> confirm field */
     type_str(pw);
-    wubu_shell_greeter_key(0x1C);          /* confirm -> network page */
+    wubu_shell_greeter_key(0x1C);          /* confirm -> keyboard field */
+    for (int i = 0; i < kbd_down; i++) wubu_shell_greeter_key(0xE050);  /* cycle layout */
+    wubu_shell_greeter_key(0x1C);          /* keyboard -> network page */
     wubu_shell_greeter_key(0x1C);          /* network -> ready page */
 }
 
@@ -113,7 +117,7 @@ int main(void) {
     (void)sel0;
 
     /* -- 4. account: type the form, then click Start -> account record persisted -- */
-    drive_account_form("wubu", "hunter2");
+    drive_account_form("wubu", "hunter2", 0);
     int bx, by, bw, bh;
     wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
     wubu_shell_greeter_click(bx + bw / 2, by + bh / 2, 1);
@@ -178,13 +182,15 @@ int main(void) {
     CHECK(wubu_shell_greeter_selected_theme() == 1, "Down arrow moves selection");
     wubu_shell_greeter_key(0xE048);            /* Up */
     CHECK(wubu_shell_greeter_selected_theme() == 0, "Up arrow moves selection back");
-    drive_account_form("alice", "correcthorse");
+    drive_account_form("alice", "correcthorse", 1);   /* cycle us->uk */
     wubu_shell_greeter_key(0x1C);              /* ready -> Start */
     CHECK(!wubu_shell_greeter_is_open(), "Enter completes the greeter");
     CHECK(access(sent, F_OK) == 0, "keyboard path also persists the sentinel");
     sig = wubu_onboarding_signature();
     CHECK(sig && strstr(sig, "user=alice") != NULL, "keyboard path records the user");
     CHECK(sig && strstr(sig, "pw=$6$") != NULL, "keyboard path records the $6$ hash");
+    CHECK(sig && strstr(sig, "kbd=uk") != NULL,
+          "cycling the layout on the keyboard field records kbd=uk");
 
     wubu_onboarding_load(sent);
     CHECK(wubu_onboarding_target() == WUBU_ONBOARD_DESKTOP,
