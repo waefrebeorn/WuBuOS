@@ -1716,6 +1716,12 @@ test_wubu_edid_scan:
 		-lm -o $(KERNEL)/wubu_edid_scan_test
 	$(KERNEL)/wubu_edid_scan_test
 
+test_pwcrypt:
+	$(CC) -O2 -std=c11 -Wall \
+		-I$(RT) \
+		$(RT)/wubu_pwcrypt.c $(RT)/wubu_pwcrypt_test.c \
+		-o $(RT)/wubu_pwcrypt_test
+
 test_wubu_edid:
 	$(CC) -O1 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
 		-I$(KERNEL) -I$(RT) \
