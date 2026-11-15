@@ -49,6 +49,25 @@ static void write_sentinel(const char *path, const char *content) {
     if (f) { fputs(content, f); fclose(f); }
 }
 
+/* Type a string through the greeter's key path (printable ASCII). */
+static void type_str(const char *s) {
+    for (; *s; s++) wubu_shell_greeter_key((uint32_t)(unsigned char)*s);
+}
+
+/* From the THEME page, fill the account form and reach the READY page:
+ * theme ->(Enter) account, type user/pw/confirm, Enter to advance each field,
+ * then network ->(Enter) ready. */
+static void drive_account_form(const char *user, const char *pw) {
+    wubu_shell_greeter_key(0x1C);          /* theme page -> account page */
+    type_str(user);
+    wubu_shell_greeter_key(0x1C);          /* -> password field */
+    type_str(pw);
+    wubu_shell_greeter_key(0x1C);          /* -> confirm field */
+    type_str(pw);
+    wubu_shell_greeter_key(0x1C);          /* confirm -> network page */
+    wubu_shell_greeter_key(0x1C);          /* network -> ready page */
+}
+
 int main(void) {
     printf("=== WuBuOS first-boot greeter behaviour gate ===\n");
 
@@ -93,7 +112,8 @@ int main(void) {
           "clicking theme row 2 selects it");
     (void)sel0;
 
-    /* -- 4. mouse: click Start -> sentinel persisted -- */
+    /* -- 4. account: type the form, then click Start -> account record persisted -- */
+    drive_account_form("wubu", "hunter2");
     int bx, by, bw, bh;
     wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
     wubu_shell_greeter_click(bx + bw / 2, by + bh / 2, 1);
@@ -102,6 +122,12 @@ int main(void) {
     const char *sig = wubu_onboarding_signature();
     CHECK(sig && strstr(sig, "theme=") != NULL,
           "sentinel carries the chosen theme signature");
+    CHECK(sig && strstr(sig, "user=wubu") != NULL,
+          "sentinel records the OOBE username");
+    CHECK(sig && strstr(sig, "pw=$6$") != NULL,
+          "sentinel records a $6$ SHA-512 password hash");
+    CHECK(sig && strstr(sig, "kbd=us") != NULL,
+          "sentinel records the keyboard layout");
     printf("        signature: %s\n", sig ? sig : "(null)");
 
     /* -- 4b. finishing must APPLY the theme, not just record it.
@@ -120,7 +146,28 @@ int main(void) {
     CHECK(wubu_onboarding_target() == WUBU_ONBOARD_DESKTOP,
           "second boot targets the DESKTOP (greeter not relaunched)");
 
-    /* -- 6. keyboard path: Down + Enter on a fresh first boot -- */
+
+
+    wubu_onboarding_load(sent);
+    wubu_shell_greeter_run();
+    CHECK(wubu_shell_greeter_is_open(), "greeter reopened for validation path");
+    wubu_shell_greeter_key(0x1C);                 /* theme -> account */
+    type_str("wubu");
+    wubu_shell_greeter_key(0x1C);                 /* -> password */
+    type_str("hunter2");
+    wubu_shell_greeter_key(0x1C);                 /* -> confirm */
+    type_str("hunt3r2");                          /* mismatch */
+    wubu_shell_greeter_key(0x1C);
+    CHECK(wubu_shell_greeter_step() == 1,
+          "mismatched confirmation keeps the wizard on the account page");
+    wubu_shell_greeter_key(0x1C);                 /* -> confirm? no: mismatch stays */
+    wubu_shell_greeter_key(27);                   /* escape to dismiss without signing */
+    wubu_shell_greeter_key(27);
+    wubu_shell_greeter_key(27);
+    CHECK(!wubu_shell_greeter_is_open(), "escape dismisses the greeter");
+    unlink(sent);
+
+    /* -- 6. keyboard path: full wizard via keys on a fresh first boot -- */
     unlink(sent);
     wubu_onboarding_load(sent);
     wubu_shell_greeter_run();
@@ -131,9 +178,13 @@ int main(void) {
     CHECK(wubu_shell_greeter_selected_theme() == 1, "Down arrow moves selection");
     wubu_shell_greeter_key(0xE048);            /* Up */
     CHECK(wubu_shell_greeter_selected_theme() == 0, "Up arrow moves selection back");
-    wubu_shell_greeter_key(0x1C);              /* Enter = Start (WM scancode) */
+    drive_account_form("alice", "correcthorse");
+    wubu_shell_greeter_key(0x1C);              /* ready -> Start */
     CHECK(!wubu_shell_greeter_is_open(), "Enter completes the greeter");
     CHECK(access(sent, F_OK) == 0, "keyboard path also persists the sentinel");
+    sig = wubu_onboarding_signature();
+    CHECK(sig && strstr(sig, "user=alice") != NULL, "keyboard path records the user");
+    CHECK(sig && strstr(sig, "pw=$6$") != NULL, "keyboard path records the $6$ hash");
 
     wubu_onboarding_load(sent);
     CHECK(wubu_onboarding_target() == WUBU_ONBOARD_DESKTOP,

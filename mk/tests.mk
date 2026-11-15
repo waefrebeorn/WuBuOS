@@ -5162,7 +5162,7 @@ $(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_onboarding.c $(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
+		$(RT)/wubu_onboarding.c $(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c $(RT)/wubu_guest_root.c $(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		-o $(GUI)/wubu_shell_greeter_test -lm
 	$(GUI)/wubu_shell_greeter_test
@@ -5175,7 +5175,7 @@ $(GUI)/wm.c $(GUI)/wm_window.c $(GUI)/wm_input.c $(GUI)/wubu_a11y.c $(GUI)/shell
 $(RT)/wubu_effect.c \
 		$(GUI)/shell/wubu_wallpaper.c $(GUI)/wubu_image_ffmpeg.c $(GUI)/wubu_theme.c $(RT)/wubu_palette.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(GUI)/wm_test_stub.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
-		$(RT)/wubu_onboarding.c $(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
+		$(RT)/wubu_onboarding.c $(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c $(RT)/wubu_guest_root.c $(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		-o wubu_greeter_shot -lm
 	./wubu_greeter_shot

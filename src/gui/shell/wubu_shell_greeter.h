@@ -22,11 +22,11 @@
 #define WUBU_SHELL_GREETER_HEIGHT 400
 #define WUBU_SHELL_GREETER_ROW_H  30
 
-/* The first-boot experience is a WIZARD, not one dialog: theme, then network,
- * then a summary with the real machine facts.  A single screen with three
- * buttons and no progress leaves a new user unable to tell where they are or
- * what happens next. */
-#define WUBU_SHELL_GREETER_STEPS 3
+/* The first-boot experience is a WIZARD, not one dialog: theme, then ACCOUNT,
+ * then network, then a summary with the real machine facts.  A single screen
+ * with three buttons and no progress leaves a new user unable to tell where
+ * they are or what happens next. */
+#define WUBU_SHELL_GREETER_STEPS 4
 
 /* Run the first-boot greeter end to end: open the dialog, drive it until the
  * user starts (or the dialog is closed), persist the onboarding sentinel.

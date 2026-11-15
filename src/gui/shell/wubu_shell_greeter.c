@@ -14,8 +14,12 @@
 #include "../wubu_settings.h"
 #include "../../kernel/vbe.h"
 #include "../../runtime/wubu_onboarding.h"
+#include "../../runtime/wubu_account.h"
 #include "../../apps/apps.h"
 #include <dirent.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
 
 /* The offers launch apps that live in the app registry.  Weak, so a test (or a
  * minimal build) that does not link the registry still builds -- the offer is
@@ -23,9 +27,6 @@
 __attribute__((weak)) DosGuiWindow *launch_getting_started(void);
 __attribute__((weak)) DosGuiWindow *launch_vws_designer(void);
 __attribute__((weak)) DosGuiWindow *launch_terminal(void);
-#include <string.h>
-#include <stdio.h>
-
 /* -- Layout (window-relative) --------------------------------------- */
 #define GR_PAD        20
 #define GR_TITLE_Y    22
@@ -44,7 +45,13 @@ static int   g_step;                /* which wizard page is showing */
 static int   g_theme = THEME_WIN98_CLASSIC;
 static int   g_hover = -1;
 static int   g_signed;              /* onboarding_complete() was called */
-static char  g_sig[128];
+static char  g_sig[512];
+static char  g_user[33],  g_pw[65],  g_pw2[65], g_field;
+static char  g_host[65] = "", g_kbd[16] = "us";
+/* account field geometry (window-relative) */
+#define GR_FLD_LBL   20
+#define GR_FLD_VAL   (GR_PAD + 110)
+#define GR_FLD_W     (WUBU_SHELL_GREETER_WIDTH - GR_PAD - 110 - GR_PAD)
 
 /* -- Wizard pages --------------------------------------------------- */
 
@@ -52,16 +59,19 @@ static char  g_sig[128];
 
 static const char *const kStepTitle[GR_STEPS] = {
     "Welcome to WuBuOS",
+    "Create your account",
     "Connect to the network",
     "Ready to start",
 };
 static const char *const kStepSub[GR_STEPS] = {
     "Choose your desktop theme.",
+    "A username and password protect your machine.",
     "These are the network interfaces WuBuOS can see.",
     "Everything is set. Start when you are ready.",
 };
 static const char *const kStepHint[GR_STEPS] = {
     "Up/Down to choose a theme, Enter for the next step",
+    "Type in the active field, Enter to move to the next, Up/Down to switch",
     "Enter to continue, Backspace to go back",
     "Enter to start, Backspace to go back",
 };
@@ -82,6 +92,12 @@ void wubu_shell_greeter_back_rect(int *x, int *y, int *w, int *h) {
 
 void wubu_shell_greeter_advance(void) {
     if (!wubu_shell_greeter_is_open()) return;
+    /* Fail-closed account validation: a blank username, a blank password, or a
+     * mismatched confirmation keeps the user on this page. Refusing is cheaper than
+     * persisting an account that either is empty or was never confirmed. */
+    if (g_step == 1) {
+        if (!g_user[0] || !g_pw[0] || strcmp(g_pw, g_pw2) != 0) return;
+    }
     if (g_step < GR_STEPS - 1) { g_step++; return; }
     finish();                       /* last step: same as Start */
 }
@@ -224,6 +240,32 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
         (void)tw;
     }
     } else if (g_step == 1) {
+        /* Account page: username + masked password + confirm.  Three fields on the
+         * token row grid; the active one gets a highlight so the user can tell where
+         * typing lands even though the password shows only asterisks. */
+        static const char *const labels[3] = { "Username", "Password", "Confirm" };
+        for (int i = 0; i < 3; i++) {
+            int ry = GR_ROWS_Y + i * GR_ROW_H;
+            vbe_draw_text(x0 + GR_PAD, y0 + ry, labels[i], tc->btn_text, 1);
+            char *val = (i == 0) ? g_user : (i == 1) ? g_pw : g_pw2;
+            char masked[65];
+            if (i == 0) {
+                snprintf(masked, sizeof(masked), "%s", val[0] ? val : "(empty)");
+            } else {
+                size_t nn = strlen(val);
+                for (size_t k = 0; k < nn && k < sizeof(masked) - 1; k++) masked[k] = '*';
+                masked[nn] = 0;
+                if (!nn) snprintf(masked, sizeof(masked), "(empty)");
+            }
+            bool active = (g_field == i);
+            uint32_t face = active ? tc->select_bg : tc->btn_face;
+            vbe_fill_rect_rounded(x0 + GR_FLD_VAL, y0 + ry, GR_FLD_W, GR_ROW_H - 4, 2, face);
+            if (active) vbe_rect_rounded(x0 + GR_FLD_VAL, y0 + ry, GR_FLD_W, GR_ROW_H - 4, 2,
+                                         tc->border_dark);
+            vbe_draw_text(x0 + GR_FLD_VAL + 8, y0 + ry + (GR_ROW_H - 4 - 8) / 2, masked,
+                          active ? tc->select_text : tc->btn_text, 1);
+        }
+    } else if (g_step == 2) {
         /* Network page: this machine's real interfaces, or an honest refusal. */
         static char names[8][48];
         int n = net_interface_names(names, 8);
@@ -315,7 +357,20 @@ static void finish(void) {
     wubu_settings_mut()->theme.theme_id = g_theme;
     wubu_settings_save();
 
-    snprintf(g_sig, sizeof(g_sig), "theme=%s", wubu_theme_name((WubuThemeId)g_theme));
+    /* The signature is now an ACCOUNT RECORD, not just a theme choice: omarchy's
+     * deferred provisioning stores the same four facts ($6$ password hash included).
+     * If the account cannot be built (shouldn't happen, since advance() validated),
+     * fall back to theme-only rather than block the first boot with a fake record. */
+    wubu_account_t acc;
+    if (g_user[0] && wubu_account_build(&acc, g_user, g_host, g_kbd, g_pw, NULL) == 0) {
+        char arec[WUBU_ACCOUNT_RECORD_MAX];
+        wubu_account_record_str(&acc, arec, sizeof(arec));
+        snprintf(g_sig, sizeof(g_sig), "theme=%s %s",
+                 wubu_theme_name((WubuThemeId)g_theme), arec);
+    } else {
+        snprintf(g_sig, sizeof(g_sig), "theme=%s",
+                 wubu_theme_name((WubuThemeId)g_theme));
+    }
     wubu_onboarding_complete(g_sig);
     g_signed = 1;
     if (g_win) {
@@ -328,7 +383,42 @@ static void finish(void) {
 void wubu_shell_greeter_key(uint32_t key) {
     if (!wubu_shell_greeter_is_open()) return;
 
-    /* Escape and Backspace walk the wizard backward first; only on the first
+    /* Account page input runs BEFORE the generic back/escape handling, because on
+     * this page Backspace edits the field and Enter moves between fields -- treating
+     * them as "back one step" would make the form unusable. */
+    if (g_step == 1) {
+        /* ESC falls through to the generic handling below (back, then dismiss on
+         * the theme page). Everything else is consumed by the form. */
+        if (key != 27 && key != 0x01) {
+        if (key == 8 || key == 127) {                       /* backspace */
+            char *f = (g_field == 0) ? g_user : (g_field == 1) ? g_pw : g_pw2;
+            size_t n = strlen(f);
+            if (n > 0) f[n - 1] = 0;
+            return;
+        }
+        if (key == 0x1C || key == '\r' || key == '\n') {  /* enter: next field */
+            if (g_field == 0)        g_field = 1;
+            else if (g_field == 1)   g_field = 2;
+            else                     wubu_shell_greeter_advance();
+            return;
+        }
+        if (key == 0xE048 && g_field > 0) { g_field--; return; }   /* up */
+        if (key == 0xE050 && g_field < 2) { g_field++; return; }   /* down */
+        if (key >= 32 && key < 127) {                        /* printable */
+            char *f = (g_field == 0) ? g_user : (g_field == 1) ? g_pw : g_pw2;
+            size_t n = strlen(f);
+            size_t cap = (g_field == 0) ? sizeof(g_user) - 1 : sizeof(g_pw) - 1;
+            if (n + 1 < cap && !(g_field != 0 && n + 1 >= sizeof(g_pw))) {
+                f[n] = (char)key; f[n + 1] = 0;
+            }
+            return;
+        }
+        return;   /* all other keys inert on the account page */
+        }
+        /* ESC: fall through to the generic back/escape handler below. */
+    }
+
+    /* Other steps: Escape and Backspace walk the wizard backward; only on the first
      * page does Escape still dismiss, because there is nowhere left to go. */
     if (key == 8 || key == 127) { wubu_shell_greeter_back(); return; }
     if (key == 0x01 || key == 27) {
@@ -398,6 +488,14 @@ void wubu_shell_greeter_click(int x, int y, int kind) {
         }
     }
 
+    if (g_step == 1) {
+        for (int i = 0; i < 3; i++) {
+            int ry = GR_ROWS_Y + i * GR_ROW_H;
+            if (x >= GR_FLD_VAL && x < GR_FLD_VAL + GR_FLD_W &&
+                y >= ry && y < ry + GR_ROW_H) { g_field = i; return; }
+        }
+    }
+
     int bx, by, bw, bh;
     wubu_shell_greeter_button_rect(&bx, &by, &bw, &bh);
     if (x >= bx && x < bx + bw && y >= by && y < by + bh)
@@ -445,6 +543,9 @@ void wubu_shell_greeter_open(void) {
     g_sig[0] = '\0';
     g_hover = -1;
     g_step  = 0;                 /* always start at the first page */
+    g_user[0] = g_pw[0] = g_pw2[0] = 0; g_field = 0;
+    g_host[0] = 0;
+    if (gethostname(g_host, sizeof(g_host) - 1) != 0) g_host[0] = 0;
 
     int dx = (sw - WUBU_SHELL_GREETER_WIDTH) / 2;
     int dy = (sh - WUBU_SHELL_GREETER_HEIGHT) / 3;
