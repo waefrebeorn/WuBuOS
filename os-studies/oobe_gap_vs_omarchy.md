@@ -19,8 +19,11 @@
 > (username + password, salted+iterated SHA-256, never the plaintext) → disk →
 > masked summary, decoupled from any UI by injected I/O, with a serializable
 > `/n/install` answers document that round-trips. Green in its own gate
-> (`make test_wubu_install`, 25 checks); the GUI greeter still renders a theme
-> picker, and the disk write / user creation layers are still next.
+> (`make test_wubu_install`, 25 checks). The stdio front end
+> (`wubu_install_tty`, `make test_wubu_install_tty`) turns it into a real
+> boot-console / DevOps text configurator that writes the confirmed plan to
+> disk. The GUI greeter still renders a theme picker, and the disk write / user
+> creation layers are still next.
 
 ---
 
