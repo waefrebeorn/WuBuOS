@@ -124,11 +124,21 @@ void handle_gpf(InterruptFrame *frame) {
      * attempted pops are at faulting_rsp = (frame + 136) for ring-0
      * faults (the CPU pushed [rip,cs,rflags] right where the iretq was). */
     uint64_t *stk = frame ? (uint64_t *)((uintptr_t)frame + 136) : NULL;
-    klog_printf("WuBuOS GP: rip=%x cs=%x rflags=%x err=%x iretframe=[%x,%x,%x,%x,%x,%x]\n",
+    /* GC: print the GP registers too -- %rax (and %rdi) hold the corrupted
+     * task pointer in the scheduler #GP, whose BYTE PATTERN identifies the
+     * overwrite (a stack/spill value vs an ASCII/format spill vs bizarre). */
+    klog_printf("WuBuOS GP: rip=%x cs=%x rflags=%x err=%x rax=%x rbx=%x "
+                "rcx=%x rdi=%x rsi=%x rdx=%x iretframe=[%x,%x,%x,%x,%x,%x]\n",
                 (unsigned)(frame ? (uint64_t)frame->rip : 0),
                 (unsigned)(frame ? frame->cs : 0),
                 (unsigned)(frame ? (uint64_t)frame->rflags : 0),
                 (unsigned)(frame ? (uint64_t)frame->error_code : 0),
+                (unsigned)(frame ? (uint64_t)frame->rax : 0),
+                (unsigned)(frame ? (uint64_t)frame->rbx : 0),
+                (unsigned)(frame ? (uint64_t)frame->rcx : 0),
+                (unsigned)(frame ? (uint64_t)frame->rdi : 0),
+                (unsigned)(frame ? (uint64_t)frame->rsi : 0),
+                (unsigned)(frame ? (uint64_t)frame->rdx : 0),
                 (unsigned)(stk ? stk[-2] : 0), (unsigned)(stk ? stk[-1] : 0),
                 (unsigned)(stk ? stk[0] : 0),  (unsigned)(stk ? stk[1] : 0),
                 (unsigned)(stk ? stk[2] : 0),  (unsigned)(stk ? stk[3] : 0));
