@@ -211,7 +211,12 @@ static void bn_draw(wubu_bonzi_t *b)
     if (h < 240) h = 1080;
 
     vbe_clear(0x00101018);
-    bn_draw_buddy(60, h - 340, 2);   /* the WuBu Buddy mascot, baked sprite */
+    /* The WuBu Buddy mascot, baked sprite, with a gentle idle bob: a 16-step
+     * triangle wave on the draw counter floats it ~16px up and back (motion
+     * pixel art, not a static sticker). */
+    int _ph = (int)(b->blink % 16);
+    int _dy = (_ph < 8) ? _ph : 16 - _ph;
+    bn_draw_buddy(60, h - 340 - _dy * 2, 2);
 
     /* Speech bubble (last reply) */
     {
