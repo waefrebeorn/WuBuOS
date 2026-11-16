@@ -292,7 +292,7 @@ static const WubuTheme g_themes[THEME_COUNT] = {
 
 /* -- Theme Engine State ------------------------------------------- */
 
-static WubuThemeId g_current = THEME_WIN98_CLASSIC;
+static WubuThemeId g_current = THEME_DARK;
 
 /* LIVE colors: the base theme colors copied out, then overlaid by any
  * kernel /theme node writes. Renderers read these (via wubu_theme_colors),
@@ -389,7 +389,7 @@ static void live_apply_high_contrast(void) {
 }
 
 int wubu_theme_init(void) {
-    g_current = THEME_WIN98_CLASSIC;
+    g_current = THEME_DARK;
     g_high_contrast = false;
     live_seed_from_current();
     return 0;
