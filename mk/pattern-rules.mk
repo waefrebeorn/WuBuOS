@@ -8,7 +8,11 @@
 -include $(shell find src -name '*.d' 2>/dev/null)
 
 # Kernel objects: freestanding, bare-metal, real asm context switch
-KERNEL_CFLAGS = -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM
+# -fno-jump-tables: the bare-metal boot died on an emitted byte-switch jump
+#   table whose slots were 0xFFFFFFFF / non-canonical (vsl boot crash at
+#   `jmp *CSWTCH.21(,%rax,8)` -> #PF at 0xFFFFFFFF).  Kernel builds must not
+#   rely on GCC jumping through rodata tables; compare-chains are safe.
+KERNEL_CFLAGS = -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables
 
 $(KERNEL)/%.o: $(KERNEL)/%.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@
