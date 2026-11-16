@@ -127,21 +127,39 @@ void handle_gpf(InterruptFrame *frame) {
     /* GC: print the GP registers too -- %rax (and %rdi) hold the corrupted
      * task pointer in the scheduler #GP, whose BYTE PATTERN identifies the
      * overwrite (a stack/spill value vs an ASCII/format spill vs bizarre). */
-    klog_printf("WuBuOS GP: rip=%x cs=%x rflags=%x err=%x rax=%x rbx=%x "
-                "rcx=%x rdi=%x rsi=%x rdx=%x iretframe=[%x,%x,%x,%x,%x,%x]\n",
-                (unsigned)(frame ? (uint64_t)frame->rip : 0),
+    uint64_t _rip = frame ? (uint64_t)frame->rip : 0;
+    uint64_t _rf  = frame ? (uint64_t)frame->rflags : 0;
+    uint64_t _rax = frame ? (uint64_t)frame->rax : 0;
+    uint64_t _rbx = frame ? (uint64_t)frame->rbx : 0;
+    uint64_t _rdi = frame ? (uint64_t)frame->rdi : 0;
+    uint64_t _rsi = frame ? (uint64_t)frame->rsi : 0;
+    /* kernel vsprintf is d/i/u/x/X/s/c/p/% only (no %ll) -- print 64-bit
+     * regs as high:low %x:%x pairs. */
+    klog_printf("WuBuOS GP: rip=%x:%x cs=%x rflags=%x:%x err=%x "
+                "rax=%x:%x rbx=%x:%x rdi=%x:%x rsi=%x:%x\n",
+                (unsigned)(uint32_t)(_rip >> 32), (unsigned)(uint32_t)_rip,
                 (unsigned)(frame ? frame->cs : 0),
-                (unsigned)(frame ? (uint64_t)frame->rflags : 0),
-                (unsigned)(frame ? (uint64_t)frame->error_code : 0),
-                (unsigned)(frame ? (uint64_t)frame->rax : 0),
-                (unsigned)(frame ? (uint64_t)frame->rbx : 0),
-                (unsigned)(frame ? (uint64_t)frame->rcx : 0),
-                (unsigned)(frame ? (uint64_t)frame->rdi : 0),
-                (unsigned)(frame ? (uint64_t)frame->rsi : 0),
-                (unsigned)(frame ? (uint64_t)frame->rdx : 0),
-                (unsigned)(stk ? stk[-2] : 0), (unsigned)(stk ? stk[-1] : 0),
-                (unsigned)(stk ? stk[0] : 0),  (unsigned)(stk ? stk[1] : 0),
-                (unsigned)(stk ? stk[2] : 0),  (unsigned)(stk ? stk[3] : 0));
+                (unsigned)(uint32_t)(_rf >> 32), (unsigned)(uint32_t)_rf,
+                (unsigned)(frame ? (uint32_t)frame->error_code : 0),
+                (unsigned)(uint32_t)(_rax >> 32), (unsigned)(uint32_t)_rax,
+                (unsigned)(uint32_t)(_rbx >> 32), (unsigned)(uint32_t)_rbx,
+                (unsigned)(uint32_t)(_rdi >> 32), (unsigned)(uint32_t)_rdi,
+                (unsigned)(uint32_t)(_rsi >> 32), (unsigned)(uint32_t)_rsi);
+    /* Dump the task-struct bytes around the `next` field (offset 0x2e8) so we
+     * can see whether the corruption is a single-field write or a contiguous
+     * paint row (all words == 0xf000ff53). Base candidates: rdi/rsi when they
+     * are a low canonical heap address (a valid task), else the wild rax. */
+    uint64_t base = 0;
+    if ((_rdi >> 32) == 0 && _rdi < 0x1000000ull) base = _rdi;
+    else if ((_rsi >> 32) == 0 && _rsi < 0x1000000ull) base = _rsi;
+    else if ((_rax >> 32) == 0 && _rax < 0x1000000ull) base = _rax;
+    if (base) {
+        const uint32_t *w = (const uint32_t *)(uintptr_t)(base + 0x2d0);
+        klog_printf("WuBuOS GP: taskbytes@+0x2d0: %x %x %x %x | %x %x %x %x | "
+                    "%x %x %x %x | %x %x %x %x\n",
+                    w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7],
+                    w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15]);
+    }
     panic_dump_ring();
     while (1) { __asm__ volatile ("hlt"); }
 }
