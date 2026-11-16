@@ -42,7 +42,11 @@ int main(void) {
     printf("[Move window via synthetic drag]\n");
     DosGuiWindow *a = spawn_at(100, 100, 200, 150, "Notes");
     int ax0 = a->x, ay0 = a->y;
-    wubu_ui_drag(a->x + a->w/2, a->y + 8, a->x + a->w/2 + 60, a->y + 8 + 40, 1);
+    /* Grab the title bar LEFT of the chrome close/max/min buttons: on a
+     * 200px window the buttons (laid out from the right, ~38px each) start
+     * around x+182, so the centre (x+w/2) IS the minimize button and a drag
+     * there minimizes the window instead of moving it. */
+    wubu_ui_drag(a->x + 30, a->y + 8, a->x + 30 + 60, a->y + 8 + 40, 1);
     T(a->x == ax0 + 60 && a->y == ay0 + 40, "window moved to dragged position");
 
     /* -- 2. Resize a window from its right edge -- */
@@ -74,13 +78,15 @@ int main(void) {
     wubu_ui_record(true);
     DosGuiWindow *e = spawn_at(600, 500, 160, 100, "Rec");
     int ex0 = e->x;
-    wubu_ui_drag(e->x + e->w/2, e->y + 6, e->x + e->w/2 + 25, e->y + 6, 1);
+    /* Same as the move test: grab LEFT of the chrome buttons (x+30), not the
+     * centre which is the minimize button on a 160px window. */
+    wubu_ui_drag(e->x + 30, e->y + 6, e->x + 30 + 25, e->y + 6, 1);
     wubu_ui_record(false);
     int recorded = wubu_ui_recorded_count();
     T(recorded > 0, "UI actions were recorded");
     /* Replay should reproduce the same move: reset, then replay the buffer. */
     int moved = e->x - ex0;                 /* delta the recorded drag produced */
-    wubu_ui_drag(e->x + e->w/2, e->y + 6, e->x + e->w/2 - 25, e->y + 6, 1); /* move back */
+    wubu_ui_drag(e->x + 30, e->y + 6, e->x + 30 - 25, e->y + 6, 1); /* move back */
     int before_replay = e->x - ex0;
     wubu_ui_replay();
     T(e->x - ex0 == before_replay + moved, "replay reproduces the recorded drag");
