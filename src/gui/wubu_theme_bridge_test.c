@@ -31,7 +31,11 @@ int wubu_theme_node_get(const char *path, uint32_t *out) {
 }
 
 int main(void) {
-    wubu_theme_init();               /* GUI engine seeds WIN98 live colors */
+    wubu_theme_init();               /* GUI engine seeds live colors (now dark) */
+    /* This bridge test validates the WIN98 base palette explicitly; the
+     * default seed became dark Breeze (ef5a19f), so pin the base theme the
+     * assertions below are written against. */
+    wubu_theme_set(THEME_WIN98_CLASSIC);
     const WubuThemeColors *c = wubu_theme_colors();
     printf("base win_title_active = 0x%06X\n", c->win_title_active);
 

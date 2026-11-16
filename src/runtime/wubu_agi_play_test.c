@@ -65,6 +65,10 @@ int main(void)
 
     /* 3. a tick pushes a REAL input event */
     wubu_agi_play_start("openarena", WUBU_GAME_LINUX);
+    /* A real game session opts the AGI's synthetic input into the shared
+     * queue (injection is OFF by default so the hosted desktop doesn't
+     * self-click); the test must opt in too to observe the push. */
+    wubu_agi_play_set_input_injection(1);
     int a = wubu_agi_play_tick();
     if (a < 0 || a >= AGI_ACT_NONE) FAIL("tick rc");
     if (g_key_pushes == 0 && g_mouse_pushes == 0)
