@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <strings.h>
+#include <sys/stat.h>
 
 static wubu_age_result_t g_last_result = {0};
 
@@ -56,6 +57,32 @@ static const char *gdpr_state_path(void)
     return (p && p[0]) ? p : WUBU_GDPR_STATE_PATH;
 }
 
+/* Create every missing PARENT directory of `path` (mkdir -p semantics on
+ * everything before the final component -- the leaf is a FILE, never a
+ * directory). A consent persist must never silently fail just because its
+ * state directory does not exist yet -- that would drop the age gate and
+ * record nothing for GDPR-Art-8 agent actions. Unwritable roots (the
+ * default /wubu/state on a dev box) simply return -1 harmlessly; a test
+ * harness points $WUBU_GDPR_STATE at a writable tree. */
+static int gdpr_mkdir_p(const char *file)
+{
+    if (!file || !*file) return -1;
+    char tmp[512];
+    (void)snprintf(tmp, sizeof(tmp), "%s", file);
+    size_t len = strlen(tmp);
+    if (len == 0) return -1;
+    /* Walk every prefix that ends in '/', creating the directory so far.
+     * Never mkdir the final component (it is the cookie FILE). */
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(tmp, 0755); /* EEXIST/EACCES ignored: best effort. */
+            *p = '/';
+        }
+    }
+    return 0;
+}
+
 /* Read consent cookie from /wubu/state/gdpr_age (or $WUBU_GDPR_STATE) */
 wubu_age_status_t wubu_gdpr_age_check(void) {
     FILE *f = fopen(gdpr_state_path(), "r");
@@ -91,6 +118,11 @@ int wubu_gdpr_age_persist(wubu_age_status_t status, int age) {
     uint64_t ts = (uint64_t)time(NULL) * 1000ULL;
     char status_char = 'D';
     if (status == WUBU_AGE_CONSENTED) status_char = 'C';
+    /* The state directory may not exist yet (fresh dev box / test tree).
+     * Create it so the consent really lands instead of being silently
+     * dropped -- a dropped cookie fails the GDPR Art 8 gate for every later
+     * agent action. */
+    gdpr_mkdir_p(gdpr_state_path());
     FILE *f = fopen(gdpr_state_path(), "w");
     if (!f) return -1;
     fprintf(f, "%c %d %s %llu\n", status_char, age, uuid, (unsigned long long)ts);
