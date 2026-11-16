@@ -345,6 +345,63 @@ void kernel_main(void *boot_info) {
     } else {
         klog_printf("WuBuOS: VBE initialized (%ux%u)\n", fb_width, fb_height);
     }
+    /* Bare-metal display increment 1: enable the Bochs VBE linear
+     * framebuffer directly (ports 0x1CE/0x1CF, no int 0x10) and record the
+     * LFB base. Pure-additive -- rendering still goes to the RAM buffers
+     * until the mapping+attach increment lands, so absence is harmless. */
+    {
+        extern uint64_t vbe_bochs_enable(int, int, int);
+        extern uint16_t vbe_bochs_id(void);
+        klog_printf("WuBuOS: dispi ID raw=%x\n", (unsigned)vbe_bochs_id());
+        uint64_t lfb = vbe_bochs_enable(fb_width, fb_height, 32);
+        if (lfb) {
+            /* Read back the latched mode + the VGA PCI BAR0 (the real LFB). */
+            extern uint16_t vbe_dispi_read_reg(uint16_t);
+            klog_printf("WuBuOS: bochs mode now %ux%u bpp=%u\n",
+                        vbe_dispi_read_reg(0x1), vbe_dispi_read_reg(0x2),
+                        vbe_dispi_read_reg(0x3));
+            /* PCI config I/O: VGA dev 00:02.0, reg 0x10 (BAR0) -- the real
+             * linear-framebuffer base (QEMU std vga = 0xFD000000). PCI
+             * config is I/O ports 0xCF8/0xCFC. */
+            uint32_t bar0 = 0;
+            __asm__ __volatile__("outl %0, %1" :: "a"(0x80001010u),
+                                 "Nd"((uint16_t)0xCF8));
+            __asm__ __volatile__("inl %1, %0" : "=a"(bar0)
+                                 : "Nd"((uint16_t)0xCFC));
+            klog_printf("WuBuOS: VGA PCI BAR0=%x\n", bar0);
+            if (bar0)
+                lfb = (uint64_t)(bar0 & ~0xFFFull);   /* mask bar type bits */
+            klog_printf("WuBuOS: bochs VBE mode %dx%d@32 LFB phys=%x\n",
+                        fb_width, fb_height, (unsigned)(lfb & 0xFFFFFFFFull));
+            /* Increment 2: map the 8 MB LFB (phys 0xE0000000, above the
+             * kernel's <1 GB identity) into a free higher-half VA, then point
+             * ALL rendering at it -- the panel now owns the pixels directly
+             * (vbe_set_render_target makes fb==back==LFB). Device MMIO, so
+             * map with P|RW only (no NX; the framebuffer is never executed). */
+            extern int  wubu_vmm_map_page(uint64_t, uint64_t, uint32_t);
+            extern void vbe_set_render_target(uint32_t *, int, int);
+            const uint64_t lfb_va = 0xffffffff90000000ull;
+            const uint64_t bytes = (uint64_t)fb_width * fb_height * 4;
+            const uint32_t pages = (uint32_t)((bytes + 0xFFF) >> 12);
+            uint32_t nmapped = 0;
+            for (uint32_t i = 0; i < pages; i++)
+                if (wubu_vmm_map_page(lfb_va + i * 4096,
+                                      lfb + i * 4096, 3) == 0)
+                    nmapped++;
+            if (nmapped == pages) {
+                vbe_set_render_target((uint32_t *)(uintptr_t)lfb_va,
+                                      fb_width, fb_height);
+                klog_printf("WuBuOS: bare-metal display LIVE (%dx%d@32, "
+                            "%u LFB pages mapped)\n", fb_width, fb_height,
+                            nmapped);
+            } else {
+                klog_printf("WuBuOS: LFB mapped %u/%u pages (staying RAM fb)\n",
+                            nmapped, pages);
+            }
+        } else {
+            klog_printf("WuBuOS: bochs VBE absent (black screen, no panel)\n");
+        }
+    }
     __asm__ __volatile__("movw $0x3F8, %%dx\n movb $'2', %%al\n outb %%al, %%dx\n movb $'9', %%al\n outb %%al, %%dx" ::: "dx","al");
 
     /* 5. Initialize GAAD (φ-structured allocation for window snap) */

@@ -37,6 +37,57 @@
   #define VBE_LOG(...)    klog_printf(__VA_ARGS__)
 #endif
 
+/* -- Bochs VBE (DISPI) interface: 16-bit port pair 0x1CE/0x1CF -------- *
+ * QEMU's std VGA and bochs-clone VBE shims expose linear-framebuffer
+ * mode-set entirely through these two ports -- NO int 0x10 BIOS call is
+ * needed, so it works from x86-64 long mode (the kernel cannot call the
+ * real-mode VBIOS). Enabling the LFB here lets the bare-metal GUI present
+ * to the actual panel instead of a dead RAM buffer. Pure-additive: if the
+ * interface is absent it returns 0 and the kernel behaves exactly as
+ * before (black screen). */
+static inline void vbe_dispi_wr(uint16_t idx, uint16_t val) {
+    __asm__ __volatile__("outw %w0, %1" :: "a"(idx), "Nd"((uint16_t)0x1CE));
+    __asm__ __volatile__("outw %w0, %1" :: "a"(val), "Nd"((uint16_t)0x1CF));
+}
+static inline uint16_t vbe_dispi_rd(uint16_t idx) {
+    __asm__ __volatile__("outw %w0, %1" :: "a"(idx), "Nd"((uint16_t)0x1CE));
+    uint16_t v;
+    __asm__ __volatile__("inw %1, %0" : "=a"(v) : "Nd"((uint16_t)0x1CF));
+    return v;
+}
+#define VBE_DISPI_ID       0x0u
+#define VBE_DISPI_XRES     0x1u
+#define VBE_DISPI_YRES     0x2u
+#define VBE_DISPI_BPP      0x3u
+#define VBE_DISPI_ENABLE   0x4u
+#define VBE_DISPI_LFBED    0x41u      /* ENABLE | LFB_ENABLED */
+#define VBE_DISPI_CAP      0x0Bu
+#define VBE_BOCHS_LFB_PHYS 0xE0000000ull  /* bochs VBE LFB (QEMU std vga) */
+
+int vbe_bochs_present(void) {
+    /* ID high bits identify Bochs VBE; the low nibble is the version
+     * (0xB0C0=v1.x, 0xB0C5=current QEMU std vga). Mask the version. */
+    return (vbe_dispi_rd(VBE_DISPI_ID) & 0xFFF0u) == 0xB0C0u;
+}
+uint16_t vbe_bochs_id(void) {
+    return vbe_dispi_rd(VBE_DISPI_ID);
+}
+uint16_t vbe_dispi_read_reg(uint16_t idx) {
+    return vbe_dispi_rd(idx);
+}
+/* Enable a linear framebuffer mode directly (no BIOS): set resolution +
+ * depth then latch ENABLE|LFB. Returns the LFB physical base, or 0 if the
+ * DISPI interface (or the mode) is unavailable. */
+uint64_t vbe_bochs_enable(int w, int h, int bpp) {
+    if (!vbe_bochs_present()) return 0;
+    vbe_dispi_wr(VBE_DISPI_ENABLE, 0);         /* must disable first */
+    vbe_dispi_wr(VBE_DISPI_XRES, (uint16_t)w);
+    vbe_dispi_wr(VBE_DISPI_YRES, (uint16_t)h);
+    vbe_dispi_wr(VBE_DISPI_BPP,  (uint16_t)bpp);
+    vbe_dispi_wr(VBE_DISPI_ENABLE, VBE_DISPI_LFBED);  /* enable + linear */
+    return VBE_BOCHS_LFB_PHYS;
+}
+
 static VBEState g_vbe = {0};
 
 int vbe_init(int width, int height) {

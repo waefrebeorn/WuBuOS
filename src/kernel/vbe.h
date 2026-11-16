@@ -48,6 +48,15 @@ uint32_t *vbe_framebuffer(void);
 void vbe_set_render_target(uint32_t *fb, int w, int h);
 int       vbe_width(void);
 int       vbe_height(void);
+/* Bochs VBE (DISPI, ports 0x1CE/0x1CF) -- direct LFB mode-set, no BIOS call.
+ * present() returns 1 if the interface exists; enable(w,h,bpp) latches a
+ * linear-framebuffer mode and returns the LFB physical base (0 on absence).
+ * id() returns the raw DISPI ID word (0xB0C0 = present) for diagnostics;
+ * read_reg() reads any DISPI register word. */
+int      vbe_bochs_present(void);
+uint16_t vbe_bochs_id(void);
+uint16_t vbe_dispi_read_reg(uint16_t idx);
+uint64_t vbe_bochs_enable(int w, int h, int bpp);
 /* Shutdown */
 void vbe_shutdown(void);
 
