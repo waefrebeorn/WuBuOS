@@ -27,7 +27,17 @@ typedef struct {
     char hostname[WUBU_ACCOUNT_NAME_MAX];
     char keyboard[WUBU_ACCOUNT_NAME_MAX];
     char hash[WUBU_ACCOUNT_RECORD_MAX];   /* "$6$salt$..." shadow form */
+    /* Fixed identity (SteamOS parity): SteamOS enforces the steamos user's UID/GID
+     * with 01-steamos-enforce-UID-GID.conf so the desktop sees the same ownership
+     * across the A/B rootfs. WuBu's first-boot user is pinned the same way -- the
+     * guest desktop and any persisted guest files always resolve to one owner. */
+    unsigned int uid;
+    unsigned int gid;
 } wubu_account_t;
+
+/* The pinned identity (mirrors SteamOS enforce-UID-GID: steamos=1000/1000). */
+#define WUBU_ACCOUNT_UID  1000
+#define WUBU_ACCOUNT_GID  1000
 
 /* Build `rec` for the given account. `password` is hashed with a freshly
  * generated salt (time+pid seeded); pass `fixed_salt` (<=16 chars) to pin it

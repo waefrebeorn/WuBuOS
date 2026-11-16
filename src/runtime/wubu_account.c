@@ -53,6 +53,8 @@ int wubu_account_build(wubu_account_t *rec, const char *user,
     strncpy(tmp.keyboard, keyboard ? keyboard : "us", sizeof(tmp.keyboard) - 1);
     tmp.keyboard[sizeof(tmp.keyboard)-1] = 0;
     strncpy(tmp.hash, hash, sizeof(tmp.hash) - 1);  tmp.hash[sizeof(tmp.hash)-1] = 0;
+    tmp.uid = WUBU_ACCOUNT_UID;   /* pinned: the guest user is always 1000 */
+    tmp.gid = WUBU_ACCOUNT_GID;
 
     *rec = tmp;                     /* only commit on success */
     return 0;
@@ -61,8 +63,9 @@ int wubu_account_build(wubu_account_t *rec, const char *user,
 int wubu_account_record_str(const wubu_account_t *rec, char *out, size_t cap)
 {
     if (!rec || !out || cap == 0) return -1;
-    return snprintf(out, cap, "user=%s host=%s kbd=%s pw=%s", rec->user,
-                    rec->hostname, rec->keyboard, rec->hash);
+    return snprintf(out, cap, "user=%s host=%s kbd=%s uid=%u gid=%u pw=%s",
+                    rec->user, rec->hostname, rec->keyboard,
+                    rec->uid, rec->gid, rec->hash);
 }
 
 bool wubu_account_verify(const wubu_account_t *rec, const char *password)

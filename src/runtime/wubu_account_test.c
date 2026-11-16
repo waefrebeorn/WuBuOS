@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-static int fails = 0;
-#define OK(cond, msg) do { if (!(cond)) { printf("FAIL %s\n", msg); fails++; } } while (0)
+static int fails = 0, checks = 0;
+#define OK(cond, msg) do { checks++; if (!(cond)) { printf("FAIL %s\n", msg); fails++; } } while (0)
 
 int main(void)
 {
@@ -18,6 +18,11 @@ int main(void)
     OK(n > 0 && strstr(line, "user=wubu") && strstr(line, "host=omar-x1")
        && strstr(line, "kbd=us") && strstr(line, "pw=$6$"),
        "record serialises all fields and the $6$ hash");
+    /* The identity is pinned (SteamOS enforce-UID-GID parity). */
+    OK(strstr(line, "uid=1000") && strstr(line, "gid=1000"),
+       "record carries the fixed uid/gid identity");
+    OK(rec.uid == WUBU_ACCOUNT_UID && rec.gid == WUBU_ACCOUNT_GID,
+       "struct identity is the pinned 1000/1000");
 
     /* The hash is the real thing: verify() accepts the password, rejects wrong. */
     OK(wubu_account_verify(&rec, "hunter2"), "correct password verifies");
@@ -53,6 +58,6 @@ int main(void)
     bad.hash[0] = 'x';
     OK(!wubu_account_verify(&bad, "hunter2"), "corrupt stored hash never verifies");
 
-    printf(fails ? "FAIL %d\n" : "PASS 15 checks\n", fails);
+    printf(fails ? "FAIL %d\n" : "PASS %d checks\n", fails ? fails : checks);
     return fails ? 1 : 0;
 }
