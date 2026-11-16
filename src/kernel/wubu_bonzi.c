@@ -31,6 +31,10 @@
 #include "klog.h"
 #include <stdio.h>
 #include <string.h>
+/* The WuBu Buddy mascot, baked from tools/assets/wubu_buddy_sheet*.jpg
+ * (tools/mascot_encode.py). The bare-metal bonzi wears the REAL buddy -- NOT
+ * a hand-drawn underlay/gorilla. */
+#include "../gui/wubu_buddy_sprite.h"
 
 #define BONZI_LOG_CAP   8
 #define BONZI_LOG_LEN   96
@@ -179,34 +183,25 @@ static void bn_dispatch(wubu_bonzi_t *b, const char *line)
 
 /* ---- drawing (vbe primitives, integer math) ------------------------- */
 
-static void bn_draw_gorilla(wubu_bonzi_t *b, int x0, int y0, int w, int h)
+/* Blit the WuBu Buddy sprite (96x96 RGBA, baked) at (x0,y0) at integer
+ * `scale`. Alpha-gated: only pixels with alpha > 128 write through, keeping
+ * the transparent margins around the baked buddy. */
+static void bn_draw_buddy(int x0, int y0, int scale)
 {
-    /* Theme-driven: the /theme namespace colors the gorilla live. */
-    const WubuKTheme *t = wubu_theme_get();
-    const uint32_t fur   = t ? t->gorilla_fur   : 0x006030A0u;
-    const uint32_t fur_d = t ? t->gorilla_belly : 0x00402070u;
-    const uint32_t face  = 0x00E0A060;
-    const uint32_t white = 0x00FFFFFF;
-    const uint32_t eye   = 0x00000000;
-    const uint32_t mouth = 0x00401010;
-    int cx = x0 + w / 2;
-
-    vbe_fill_rect_rounded(x0 + w * 18 / 100, y0 + h * 30 / 100,
-                          w * 64 / 100, h * 62 / 100, 14, fur);
-    vbe_rect_rounded(x0 + w * 18 / 100, y0 + h * 30 / 100,
-                     w * 64 / 100, h * 62 / 100, 14, fur_d);
-    vbe_fill_rect_rounded(cx - w * 20 / 100, y0 + h * 34 / 100,
-                          w * 40 / 100, h * 34 / 100, 12, face);
-    int ey = y0 + h * 44 / 100;
-    vbe_fill_circle(cx - w * 10 / 100, ey, 6, white);
-    vbe_fill_circle(cx + w * 10 / 100, ey, 6, white);
-    vbe_fill_circle(cx - w * 10 / 100, ey, 3, eye);
-    vbe_fill_circle(cx + w * 10 / 100, ey, 3, eye);
-    int my = y0 + h * 58 / 100;
-    int mh = 4 + (int)(b->blink % 3);       /* gentle talk loop */
-    vbe_fill_rect(cx - w * 10 / 100, my, w * 20 / 100, mh, mouth);
-    vbe_hline(cx - w * 14 / 100, cx - w * 4 / 100, ey - 10, fur_d);
-    vbe_hline(cx + w * 4 / 100, cx + w * 14 / 100, ey - 10, fur_d);
+    for (int yy = 0; yy < WUBU_BUDDY_SPRITE_SIZE; yy++)
+        for (int xx = 0; xx < WUBU_BUDDY_SPRITE_SIZE; xx++) {
+            const unsigned char *px =
+                &wubu_buddy_rgba[(yy * WUBU_BUDDY_SPRITE_SIZE + xx) * 4];
+            if (px[3] > 128) {
+                uint32_t c = ((uint32_t)px[0] << 16) |
+                             ((uint32_t)px[1] << 8) |
+                             ((uint32_t)px[2]);
+                int fx = x0 + xx * scale, fy = y0 + yy * scale;
+                for (int sy = 0; sy < scale; sy++)
+                    for (int sx = 0; sx < scale; sx++)
+                        vbe_set_pixel(fx + sx, fy + sy, c);
+            }
+        }
 }
 
 static void bn_draw(wubu_bonzi_t *b)
@@ -216,7 +211,7 @@ static void bn_draw(wubu_bonzi_t *b)
     if (h < 240) h = 1080;
 
     vbe_clear(0x00101018);
-    bn_draw_gorilla(b, 60, h - 340, 150, 200);
+    bn_draw_buddy(60, h - 340, 2);   /* the WuBu Buddy mascot, baked sprite */
 
     /* Speech bubble (last reply) */
     {
