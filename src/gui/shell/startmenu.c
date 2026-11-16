@@ -335,10 +335,10 @@ static void startmenu_win11_layout(int fb_w, int fb_h, SmWin11 *L) {
     L->py = fb_h - th - L->ph - 12;
     if (L->py < 8) L->py = 8;
 
-    L->search_x = L->px + DOSGUI_SPACE_XL; L->search_y = L->py + 12;
-    L->search_w = L->pw - 2 * DOSGUI_SPACE_XL; L->search_h = 28;
+    L->search_x = L->px + WUBU_SPACE_LG; L->search_y = L->py + 12;
+    L->search_w = L->pw - 2 * WUBU_SPACE_LG; L->search_h = 28;
 
-    L->cols = 6; L->tile = 72; L->gap = DOSGUI_SPACE_SM; L->rows = 2;
+    L->cols = 6; L->tile = 72; L->gap = WUBU_SPACE_SM; L->rows = 2;
     int grid_w = L->cols * L->tile + (L->cols - 1) * L->gap;
     L->grid_x = L->px + (L->pw - grid_w) / 2;
     L->grid_y = L->py + 72;
@@ -346,14 +346,14 @@ static void startmenu_win11_layout(int fb_w, int fb_h, SmWin11 *L) {
     L->rec_label_y = L->grid_y + L->rows * L->tile +
                      (L->rows - 1) * L->gap + 14;
     L->rec_cols = 2; L->rec_rows = 3;
-    L->rec_item_w = (L->pw - 2 * DOSGUI_SPACE_XL - DOSGUI_SPACE_SM) / 2;
+    L->rec_item_w = (L->pw - 2 * WUBU_SPACE_LG - WUBU_SPACE_SM) / 2;
     L->rec_item_h = 44;
-    L->rec_x = L->px + DOSGUI_SPACE_XL;
+    L->rec_x = L->px + WUBU_SPACE_LG;
     L->rec_y = L->rec_label_y + 16;
 
     L->foot_y = L->py + L->ph - 44;
     L->power_w = 36; L->power_h = 28;
-    L->power_x = L->px + L->pw - DOSGUI_SPACE_XL - L->power_w;
+    L->power_x = L->px + L->pw - WUBU_SPACE_LG - L->power_w;
     L->power_y = L->foot_y + 8;
 }
 

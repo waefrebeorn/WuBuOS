@@ -223,14 +223,10 @@ void taskbar_update_clock(time_t now);
  * desktop read as "the grid isn't a grid": columns sat nearly twice as far
  * apart as rows, so dropped icons never formed a clean lattice. Every
  * grid<->pixel computation must use these two, now equal. */
-/* -- Breeze spacing scale (Kirigami units; 1u = 4px) ------------------
- * One ruler for the whole shell, so a panel inset, a button gap and a
- * desktop margin all read as the same grid instead of naked integers.
- * DOSGUI_* widgets quote these tokens; never hardcode a bare pixel. */
-#define DOSGUI_SPACE_XS   4    /* 1u: between tasks, tray items          */
-#define DOSGUI_SPACE_SM   8    /* 2u: bar padding, button-to-button      */
-#define DOSGUI_SPACE_XL   16   /* 4u: desktop margin, caption inset      */
-#define DOSGUI_ICON_MARGIN    DOSGUI_SPACE_XL   /* desktop inset          */
+/* Grid<->pixel spacing standard: the shared scale lives in
+ * wubu_tokens.h (WUBU_SPACE_XS..2XL); the desktop inset is its 4u step. */
+#include "wubu_tokens.h"
+#define DOSGUI_ICON_MARGIN    WUBU_SPACE_LG   /* 4u == 16px desktop inset  */
 #define DOSGUI_ICON_TILE      (DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8) /* 48 */
 #define DOSGUI_ICON_COL_PITCH DOSGUI_ICON_TILE
 #define DOSGUI_ICON_ROW_PITCH DOSGUI_ICON_TILE

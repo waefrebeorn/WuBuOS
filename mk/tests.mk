@@ -2523,7 +2523,7 @@ test_apps: $(GUI)/shell/wm_clock.o $(GUI)/shell/wm_ctxmenu_engine.o $(GUI)/wm_wi
 		$(APPS)/apps.c $(APPS)/wubu_petdex.c $(APPS)/apps_wet.c $(APPS)/app_canvas.c $(APPS)/cmd/cmd.c \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(APPS)/calc/calc.c $(APPS)/calc/calc_math.c $(APPS)/notepad.c $(APPS)/wubu_canvas_layers.c $(APPS)/wubu_canvas_draw.c $(APPS)/wubu_canvas_filter.c $(APPS)/wubu_canvas_transform.c $(APPS)/wubu_canvas_plugin.c $(APPS)/wubu_canvas_undo.c $(APPS)/wubu_canvas_blend.c $(APPS)/wubu_canvas_io.c $(APPS)/wubu_image_codec.c $(APPS)/wubu_canvas_io_ppm.c $(APPS)/wubu_codec.c \
-		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c $(APPS)/fm/fm.c \
+		$(APPS)/taskmgr/taskmgr.c $(APPS)/regedit/regedit.c \
 		$(APPS)/notes.c $(APPS)/todo.c $(APPS)/music.c \
 		$(APPS)/control/control.c $(APPS)/editor/editor.c $(APPS)/repl.c \
 		$(GUI)/compositor/gui_dbuf.c \

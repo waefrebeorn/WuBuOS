@@ -57,6 +57,8 @@ enum {
     WUBU_BUDDY_STATE_KEY,          /* auth / signing / admin      */
     WUBU_BUDDY_STATE_STAR,         /* important / favourite       */
     WUBU_BUDDY_STATE_POINT,        /* paying attention            */
+    WUBU_BUDDY_STATE_SEARCH,       /* looking for something       */
+    WUBU_BUDDY_STATE_EXPLORE,      /* navigating / browsing        */
     WUBU_BUDDY_STATE_COUNT
 };
 
