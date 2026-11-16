@@ -534,6 +534,7 @@ void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size) {
     /* Access check family (2..8) */
     tbl[2-1]  = vsl_nt_access_check;
     tbl[3-1]  = vsl_nt_access_check_and_audit;
+    tbl[322-1] = vsl_nt_access_check_and_audit;  /* ghost high ordinal */
     tbl[4-1]  = vsl_nt_access_check_by_type;
     tbl[5-1]  = vsl_nt_access_check_and_audit;       /* ByTypeAndAuditAlarm */
     tbl[6-1]  = vsl_nt_access_check_by_type;         /* ByTypeResultList */
@@ -559,6 +560,7 @@ void vsl_nt_token_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[141-1] = vsl_nt_privilege_check;
     tbl[142-1] = vsl_nt_audit_alarm;                /* PrivilegeObjectAuditAlarm */
     tbl[143-1] = vsl_nt_audit_alarm;                /* PrivilegedServiceAuditAlarm */
+    tbl[323-1] = vsl_nt_audit_alarm;                /* ghost high ordinal */
     tbl[240-1] = vsl_nt_set_information_token;
     tbl[247-1] = vsl_nt_set_security_object;
     tbl[164-1] = vsl_nt_query_information_token;

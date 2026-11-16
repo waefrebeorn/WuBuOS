@@ -919,6 +919,7 @@ void vsl_nt_io_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[28-1] = vsl_nt_close;
     tbl[38-1] = vsl_nt_create_event;
     tbl[40-1] = vsl_nt_create_file_nt;
+    tbl[398-1] = vsl_nt_create_file_nt;         /* ghost high ordinal */
     tbl[62-1] = vsl_nt_delay_execution;
     tbl[82-1] = vsl_nt_flush_buffers_file;
     tbl[121-1] = vsl_nt_open_event;

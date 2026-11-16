@@ -196,6 +196,7 @@ void vsl_nt_vmem_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[19-1] = vsl_nt_allocate_virtual_memory;
     tbl[88-1] = vsl_nt_free_virtual_memory;
     tbl[283-1] = vsl_nt_reset_virtual_memory;
+    tbl[406-1] = vsl_nt_reset_virtual_memory;   /* ghost high ordinal */
     tbl[85-1] = vsl_nt_flush_virtual_memory;
     tbl[109-1] = vsl_nt_lock_virtual_memory;
     tbl[144-1] = vsl_nt_protect_virtual_memory;

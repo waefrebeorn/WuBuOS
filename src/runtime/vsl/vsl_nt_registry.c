@@ -551,6 +551,7 @@ void vsl_nt_registry_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[216-1] = vsl_nt_save_key;
     tbl[69-1] = vsl_nt_delete_value_key;
     tbl[172-1] = vsl_nt_query_open_subkeys;
+    tbl[404-1] = vsl_nt_query_open_subkeys;     /* ghost high ordinal */
     tbl[168-1] = vsl_nt_query_key;
     tbl[236-1] = vsl_nt_set_information_key;
 }

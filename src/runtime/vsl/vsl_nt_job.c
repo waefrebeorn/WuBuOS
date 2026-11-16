@@ -218,6 +218,7 @@ void vsl_nt_job_register(vsl_syscall_fn_t *tbl, int size) {
     (void)size;
     tbl[14-1] = vsl_nt_alert_resume_thread;
     tbl[21-1] = vsl_nt_are_mapped_files_same;
+    tbl[320-1] = vsl_nt_are_mapped_files_same;   /* ghost high ordinal */
     tbl[42-1] = vsl_nt_create_job_object;
     tbl[99-1] = vsl_nt_is_process_in_job;
     tbl[125-1] = vsl_nt_open_job_object;

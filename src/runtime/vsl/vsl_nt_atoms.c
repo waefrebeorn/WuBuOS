@@ -292,6 +292,12 @@ void vsl_nt_atoms_register(vsl_syscall_fn_t *tbl, int size) {
     tbl[81-1] = vsl_nt_find_atom;
     tbl[86-1] = vsl_nt_flush_write_buffer;
     tbl[87-1] = vsl_nt_free_user_phys_pages;
+    /* Ghost high ordinals from the sysfuncs enumeration: alias the canonical
+     * handlers instead of duplicating them (same concern, no new logic). */
+    tbl[321-1] = vsl_nt_assign_job;
+    tbl[339-1] = vsl_nt_free_user_phys_pages;
+    tbl[395-1] = vsl_nt_alloc_user_phys_pages;
+    tbl[396-1] = vsl_nt_allocate_luid;
     tbl[158-1] = vsl_nt_query_information_atom;
     tbl[256-1] = vsl_nt_set_uuid_seed;
 }
