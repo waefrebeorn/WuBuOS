@@ -50,7 +50,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/wubu_user.o $(KERNEL)/wubu_iommu.o \
               $(KERNEL)/wubu_smp.o $(KERNEL)/wubu_smp_tramp.o \
               $(KERNEL)/wubu_xhci.o \
-              $(KERNEL)/wubu_recovery.o \
+              $(KERNEL)/wubu_recovery.o $(KERNEL)/wubu_atom.o \
               $(KERNEL)/wubu_psych.o $(KERNEL)/wubu_bonzi_study.o $(KERNEL)/wubu_tutor.o \
               $(KERNEL)/tasking_switch.o $(KERNEL)/ps2.o \
               $(KERNEL)/wubu_math.o $(KERNEL)/libc.o $(KERNEL)/libc_string.o $(KERNEL)/klog.o $(KERNEL)/wubu_pe.o $(KERNEL)/wubu_pe_personality.o $(KERNEL)/wubu_modsym.o $(KERNEL)/wubu_zx.o $(KERNEL)/wubu_zxreg.o $(KERNEL)/wubu_9pc.o $(KERNEL)/wubu_n9.o $(KERNEL)/wubu_elf.o $(KERNEL)/wubu_macho.o \

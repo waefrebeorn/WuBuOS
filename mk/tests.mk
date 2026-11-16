@@ -1952,6 +1952,12 @@ test_recovery:
 		-o $(KERNEL)/test_recovery -lm
 	$(KERNEL)/test_recovery
 
+test_atom:
+	$(CC) -O2 -Wall -Wextra -std=c11 -D_POSIX_C_SOURCE=200809L -I$(KERNEL) \
+		$(KERNEL)/wubu_atom.c $(KERNEL)/wubu_atom_test.c $(KERNEL)/wubu_recovery.c \
+		-o $(KERNEL)/test_atom
+	$(KERNEL)/test_atom
+
 # virtual memory (bitmap allocator + demand registry; map/fill are metal)
 test_vmm:
 	$(CC) -O2 -Wall -Wextra -std=c11 -I$(KERNEL) \
