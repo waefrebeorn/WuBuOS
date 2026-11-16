@@ -1377,6 +1377,30 @@ static void test_desktop_new_shortcut(void) {
     CHECK(wm_get_icon_count() >= before + 1, "icon count grew");
     CHECK(wm_write_desktop_shortcut("", NULL) == -1, "empty name rejected");
 
+    /* First-boot seed: a fresh desktop gets useful default icons (Plasma/SteamOS
+     * behaviour), and only when it has no shortcuts -- never clobbers a curated one. */
+    char desk2[512];
+    snprintf(desk2, sizeof(desk2), "/tmp/wubu_deskeed_%d", getpid());
+    setenv("WUBU_DESKTOP_DIR", desk2, 1);
+    rm_rf(desk2);
+    mkdir(desk2, 0755);
+    int seeded = wm_seed_default_desktop_icons();
+    CHECK(seeded == 4, "fresh desktop seeds all 4 default icons");
+    char cf[600];
+    snprintf(cf, sizeof(cf), "%s/Calculator.desktop", desk2);
+    CHECK(stat(cf, &st) == 0 && S_ISREG(st.st_mode),
+          "seeded Calculator.desktop exists as a real file");
+    CHECK(wm_seed_default_desktop_icons() == 0,
+          "second seed refuses to clobber a now-populated desktop");
+    /* A singleton shortcut also blocks reseeding (curated desktop respected). */
+    char desk3[512];
+    snprintf(desk3, sizeof(desk3), "/tmp/wubu_desk_one_%d", getpid());
+    setenv("WUBU_DESKTOP_DIR", desk3, 1);
+    rm_rf(desk3); mkdir(desk3, 0755);
+    CHECK(wm_write_desktop_shortcut("MyDoc", NULL) == 0, "curated shortcut");
+    CHECK(wm_seed_default_desktop_icons() == 0,
+          "seed skips a desktop that already has one shortcut");
+
     wm_shutdown();
     rm_rf(desk);
     PASS();

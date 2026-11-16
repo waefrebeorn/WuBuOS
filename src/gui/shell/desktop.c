@@ -86,6 +86,13 @@ int desktop_init(void) {
     /* ReactOS explorer/desktop.cpp lesson: the desktop is a LIVE namespace.
      * Enumerate ~/Desktop for .desktop shortcuts so they appear on boot,
      * not only after a manual Refresh. */
+    /* A fresh desktop boots empty until the user hand-creates a shortcut, which
+     * reads as "no desktop / no icons". Like Plasma/SteamOS, seed useful default
+     * icons (Calculator, File Manager, Editor, Terminal) on first boot so a new
+     * desktop is immediately see-touch-click -- then the live refresh surfaces
+     * the real .desktop files next to the registry icons. Never clobbers a
+     * desktop that already has shortcuts. */
+    wm_seed_default_desktop_icons();
     wm_refresh_desktop();
 
     /* Re-apply any persisted icon layout (drag-end positions saved via

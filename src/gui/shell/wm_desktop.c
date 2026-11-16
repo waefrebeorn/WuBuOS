@@ -157,6 +157,45 @@ int wm_write_desktop_shortcut(const char *name, const char *exec) {
     return 0;
 }
 
+/* Seed the desktop with useful default icons on FIRST BOOT. A fresh desktop --
+ * no .desktop files yet -- currently boots empty, which reads as "no desktop /
+ * no icons". Plasma/SteamOS populate a new user's desktop with defaults; WuBuOS
+ * does the same: Calculator, File Manager, Editor, Terminal. Never clobbers a
+ * desktop that already has any shortcut (a user's curated desktop is theirs).
+ * Returns the number of shortcuts seeded (0 if already populated or nothing
+ * could be done). */
+int wm_seed_default_desktop_icons(void) {
+    char dir[512];
+    desktop_dir_path(dir, sizeof(dir));
+    struct stat st;
+    if (stat(dir, &st) != 0) {
+        if (mkdir(dir, 0755) != 0 && errno != EEXIST) return 0;
+    }
+    /* Only seed when the desktop has NO shortcuts at all. */
+    DIR *d = opendir(dir);
+    if (!d) return 0;
+    int has_shortcut = 0;
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        size_t n = strlen(e->d_name);
+        if (n > 8 && strcmp(e->d_name + n - 8, ".desktop") == 0) { has_shortcut = 1; break; }
+    }
+    closedir(d);
+    if (has_shortcut) return 0;
+
+    static const char *const defs[][2] = {
+        { "Calculator",    "wubu-app Calculator" },
+        { "File Manager",  "wubu-app File Manager" },
+        { "Editor",        "wubu-app Editor" },
+        { "Terminal",      "wubu-app Terminal" },
+    };
+    int seeded = 0;
+    for (size_t i = 0; i < sizeof(defs) / sizeof(defs[0]); i++)
+        if (wm_write_desktop_shortcut(defs[i][0], defs[i][1]) == 0)
+            seeded++;
+    return seeded;
+}
+
 /* Sort the live desktop icons alphabetically by name (case-insensitive),
  * preserving the alive flag, then re-flow them into the auto-arrange column.
  * Mirrors ReactOS "Arrange Icons By Name". */

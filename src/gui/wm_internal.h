@@ -222,6 +222,8 @@ int wm_new_folder(void);
 int wm_new_text_doc(void);
 /* Write a real .desktop shortcut into ~/Desktop; returns 0 on success. */
 int  wm_write_desktop_shortcut(const char *name, const char *exec);
+/* Seed ~/Desktop with default icons on first boot (empty desktop only). */
+int  wm_seed_default_desktop_icons(void);
 /* Re-enumerate desktop icons from ~/Desktop (real filesystem refresh). */
 void wm_refresh_desktop(void);
 
