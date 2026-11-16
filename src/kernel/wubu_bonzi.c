@@ -271,7 +271,9 @@ wubu_bonzi_t *wubu_bonzi_init(struct wubu_agi_kernel *k)
     g_bonzi.fb_h  = vbe_height();
     snprintf(g_bonzi.reply, sizeof(g_bonzi.reply),
              "HI! I'M BONZI. THE AGI LOOP IS LIVE ON METAL. TYPE HELP.");
-    bn_log(&g_bonzi, "Bonzi", g_bonzi.reply);
+    /* Do NOT log the greeting into the chat history: it is the SPEECH BUBBLE
+     * (last reply) at startup. Logging it too made the same line render in
+     * both the bubble and the top-left log panel -- a visible duplicate. */
     if (klog_printf)
         klog_printf("WuBuOS AGI: Bonzi Buddy loop active (fb=%dx%d)\n",
                     g_bonzi.fb_w, g_bonzi.fb_h);
