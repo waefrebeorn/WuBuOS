@@ -11,6 +11,7 @@
 #include "wubu_proton.h"
 #include "wubu_ct_isolate.h"
 #include "wubu_session.h"
+#include "../hosted/hosted.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

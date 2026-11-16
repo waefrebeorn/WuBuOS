@@ -127,6 +127,20 @@ int wubu_session_from_name(const char *name)
     return -1;
 }
 
+/* SS7b: a HOST MODE (HMODE_* from hosted.h) to a human label. The mapping
+ * was previously inline in hosted_run.c; wubu_launch_test asserts it through
+ * the session API, so make it reusable. Values mirror hosted.h
+ * (HMODE_GUI=1, HMODE_GAME=16) without forcing the runtime TU to include the
+ * hosted product. */
+const char *wubu_session_mode_name(int mode)
+{
+    switch (mode) {
+        case 1:  return "GUI";
+        case 16: return "Game";
+        default: return "Unknown";
+    }
+}
+
 /* ====================================================================
  * THE GAME LAUNCH (the desktop's Play action → a real process).
  *

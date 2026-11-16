@@ -43,6 +43,10 @@ int wubu_session_get(wubu_session_view_t *out);
 /* SS7: parse a session name ("game" / "desktop"), -1 on error. */
 int wubu_session_from_name(const char *name);
 
+/* SS7b: a host mode (HMODE_* from hosted.h) to a human label, e.g.
+ * HMODE_GUI -> "GUI", HMODE_GAME -> "Game". */
+const char *wubu_session_mode_name(int mode);
+
 /* SS8: the GAME LAUNCH — the desktop's Play action. Writes the game
  * bytes to a temp file + runs it shell-free. Returns the pid, -1 on
  * failure. */
