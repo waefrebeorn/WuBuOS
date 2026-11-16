@@ -409,10 +409,17 @@ void chrome_draw_button(int x, int y, int w, int h,
 
 void chrome_draw_edit_field(int x, int y, int w, int h) {
     const WubuThemeColors *c = tc();
-    /* Sunken appearance */
-    vbe_3d_sunken_colors(x, y, w, h,
-                         c->border_light, c->border_face,
-                         c->border_dark, c->border_darkest);
+    /* Sunken appearance; a rounded theme (SteamOS/Breeze) rounds the field so
+     * text inputs match the buttons beside them. */
+    if (theme()->rounded_buttons) {
+        vbe_3d_sunken_rounded_colors(x, y, w, h, CHROME_BTN_RADIUS,
+                                     c->border_light, c->border_face,
+                                     c->border_dark, c->border_darkest);
+    } else {
+        vbe_3d_sunken_colors(x, y, w, h,
+                             c->border_light, c->border_face,
+                             c->border_dark, c->border_darkest);
+    }
 }
 
 /* -- Status bar chrome ---------------------------------------------- */
