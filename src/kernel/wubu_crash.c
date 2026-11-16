@@ -58,7 +58,15 @@ int wubu_crash_dump(const char *reason, uint64_t rip, uint64_t rsp,
     }
     klog_ring_snapshot(rec.ring, sizeof(rec.ring));
 
-    if (!disk_ready()) return -1;
+    /* Use the disk ONLY if it is already initialised. Lazy-initialising it
+     * here would allocate the sim disk (ahci_sim_disk_create -> calloc) from
+     * a heap that may already be corrupted by the very fault we are
+     * reporting -- that secondary allocator crash would mask the true first
+     * fault (observed: ahci_write->calloc->bogus 'add %rdi' -> double fault).
+     * The boot path (metal_main -> wubu_crash_pickup) inits the disk in
+     * normal context; if we have not got there, skip the write and keep the
+     * record resident (`rec.ring` still holds the panic snapshot). */
+    if (!g_hba_ready) return -1;
     return ahci_write(disk_hba(), 0, WUBU_CRASH_LBA, 1, &rec) == 1 ? 0 : -1;
 }
 
