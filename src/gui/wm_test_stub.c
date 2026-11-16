@@ -273,6 +273,10 @@ bool wubu_bonzi_mouse(int x, int y, int btn, int kind) {
 __attribute__((weak))
 void wubu_bonzi_open_agi(void) { }
 __attribute__((weak))
+bool wubu_bonzi_place(int screen_w, int screen_h, int taskbar_h) {
+    (void)screen_w; (void)screen_h; (void)taskbar_h; return false;
+}
+__attribute__((weak))
 void wubu_bonzi_set_bubble(const char *l1, const char *l2) {
     (void)l1; (void)l2;
 }
