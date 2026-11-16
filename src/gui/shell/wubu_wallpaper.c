@@ -19,6 +19,22 @@
 
 const char *wubu_wallpaper_default_path(void) {
     static const char *paths[] = {
+        "tools/assets/wubuos-default-wallpaper.jpg",
+        "../tools/assets/wubuos-default-wallpaper.jpg",
+        NULL
+    };
+    for (int i = 0; paths[i]; i++) {
+        if (access(paths[i], F_OK) == 0)
+            return paths[i];
+    }
+    return NULL;
+}
+
+/* The classic "W" logo badge, drawn only over the gradient fallback (the real
+ * default wallpaper does not need a badge on top of it). Kept separate from
+ * wubu_wallpaper_default_path so the two assets are not conflated. */
+const char *wubu_wallpaper_logo_path(void) {
+    static const char *paths[] = {
         "screenshots/media/wubuos-default.bmp",
         "../screenshots/media/wubuos-default.bmp",
         NULL

@@ -50,6 +50,8 @@ int wubu_wallpaper_load(const char *path, WubuWallpaper *out);
  * Returns NULL if the file doesn't exist (caller falls through to gradient).
  */
 const char *wubu_wallpaper_default_path(void);
+/* Classic "W" logo badge, drawn only over the gradient fallback. */
+const char *wubu_wallpaper_logo_path(void);
 
 /* Free a WubuWallpaper produced by wubu_wallpaper_load(). */
 void wubu_wallpaper_free(WubuWallpaper *wp);

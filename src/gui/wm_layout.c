@@ -45,20 +45,29 @@ void load_default_wallpaper(void) {
         /* Decode failed -> fall through to bundled default. */
     }
 
-    /* Bundled default: full-screen procedural teal→blue gradient (crisp at
-     * any resolution) + the shipped "W" logo BMP drawn as a centered overlay
-     * badge on top (NOT stretched — a 256×144 bitmap scaled to 1024×768
-     * would be a blurry mess; xfdesktop keeps the wallpaper native and lets
-     * the compositor fill the rest). The logo badge is drawn by
-     * draw_wallpaper() from g_dwm.logo_* fields. */
+    /* Default (no user-configured wallpaper): prefer the shipped Steam Deck
+     * style wallpaper decoded into the real framebuffer (crop-to-fill so it
+     * covers the desktop edge-to-edge). The classic gradient is a last-resort
+     * fallback only when the asset can't be found or decoded. */
     if (!(s && s->theme.wallpaper_path[0])) {
         const char *def_path = wubu_wallpaper_default_path();
-        if (def_path) {
-            WubuWallpaper wp;
-            if (wubu_wallpaper_load(def_path, &wp) && wp.pixels) {
-                g_dwm.logo = wp.pixels;          /* keep as badge, not wallpaper */
-                g_dwm.logo_w = wp.w;
-                g_dwm.logo_h = wp.h;
+        WubuWallpaper wp;
+        if (def_path && wubu_wallpaper_load(def_path, &wp) && wp.pixels) {
+            g_dwm.wallpaper = wp.pixels;
+            g_dwm.wallpaper_w = wp.w;
+            g_dwm.wallpaper_h = wp.h;
+            g_dwm.wallpaper_mode = WUBU_WP_FILL;  /* crop-to-fill, no banding */
+            return;
+        }
+        /* Fallback gradient: draw the "W" logo badge so the default still has
+         * identity; the real wallpaper needs no badge on top of it. */
+        const char *logo_path = wubu_wallpaper_logo_path();
+        if (logo_path) {
+            WubuWallpaper lw;
+            if (wubu_wallpaper_load(logo_path, &lw) && lw.pixels) {
+                g_dwm.logo = lw.pixels;          /* badge on the gradient */
+                g_dwm.logo_w = lw.w;
+                g_dwm.logo_h = lw.h;
             }
         }
     }
