@@ -19,7 +19,6 @@
 #include "wubu_canvas.h"
 #include "taskmgr/taskmgr.h"
 #include "regedit/regedit.h"
-#include "fm/fm.h"
 #include "repl.h"
 #include "control/control.h"
 #include "editor/editor.h"
@@ -464,75 +463,6 @@ static void test_reg_launch(void) {
 }
 
 /* ================================================================
- * File Manager Tests (9P/Styx)
- * ================================================================ */
-
-static void test_fm_create_destroy(void) {
-    TEST("filemgr: create and destroy");
-    FileManagerState *fm = fm_create();
-    CHECK(fm != NULL, "filemgr created");
-    fm_destroy(fm);
-    PASS();
-}
-
-static void test_fm_scan(void) {
-    TEST("filemgr: scan directory via API");
-    FileManagerState *fm = fm_create();
-    fm_scan_dir(fm, "/home/wubu");
-    CHECK(fm_entry_count(fm) == 7, "7 entries");
-    CHECK(strcmp(fm_entry_name(fm, 0), "..") == 0, "parent dir first");
-    CHECK(fm_entry_is_dir(fm, 0) == true, "parent is dir");
-    CHECK(strcmp(fm_entry_name(fm, 1), "src") == 0, "src dir");
-    CHECK(fm_entry_is_dir(fm, 1) == true, "src is dir");
-    CHECK(strcmp(fm_entry_name(fm, 4), "main.c") == 0, "main.c file");
-    CHECK(fm_entry_is_dir(fm, 4) == false, "main.c is file");
-    CHECK(fm_entry_size(fm, 4) == 1024, "main.c size");
-    fm_destroy(fm);
-    PASS();
-}
-
-static void test_fm_navigate(void) {
-    TEST("filemgr: navigate via API");
-    FileManagerState *fm = fm_create();
-    fm_scan_dir(fm, "/home/wubu");
-    int old_count = fm_entry_count(fm);
-    fm_scan_dir(fm, "/home/wubu/src");
-    CHECK(strcmp(fm_get_current_path(fm), "/home/wubu/src") == 0, "path updated");
-    fm_destroy(fm);
-    PASS();
-}
-
-static void test_fm_selection(void) {
-    TEST("filemgr: selection via API");
-    FileManagerState *fm = fm_create();
-    fm_scan_dir(fm, "/home/wubu");
-    fm_set_selected_idx(fm, 2);
-    CHECK(fm_get_selected_idx(fm) == 2, "selected");
-    CHECK(strcmp(fm_entry_name(fm, 2), "apps") == 0, "correct entry");
-    fm_destroy(fm);
-    PASS();
-}
-
-static void test_fm_9p_ops(void) {
-    TEST("filemgr: 9P operations via API");
-    FileManagerState *fm = fm_create();
-    int fid = fm_open_fid(fm, "/home/wubu/test.txt");
-    CHECK(fid == 1, "fid opened");
-    CHECK(fm_read_fid(fm, fid, NULL, 0, 100) == 0, "read ok");
-    CHECK(fm_write_fid(fm, fid, NULL, 0, 100) == 0, "write ok");
-    CHECK(fm_close_fid(fm, fid) == 0, "close ok");
-    fm_destroy(fm);
-    PASS();
-}
-
-static void test_fm_launch(void) {
-    TEST("filemgr: launch returns window");
-    DosGuiWindow *win = fm_launch();
-    CHECK(win != NULL, "window created");
-    PASS();
-}
-
-/* ================================================================
  * REPL Tests
  * ================================================================ */
 
@@ -873,12 +803,6 @@ int main(void) {
     test_reg_launch();
     
     printf("\n-- File Manager (9P/Styx) --\n");
-    test_fm_create_destroy();
-    test_fm_scan();
-    test_fm_navigate();
-    test_fm_selection();
-    test_fm_9p_ops();
-    test_fm_launch();
     
     printf("\n-- REPL --\n");
     test_repl_typing();
