@@ -597,6 +597,10 @@ test_bridge_flip:
 	$(CC) -O0 -g -std=c11 -I$(BRIDGE) $(BRIDGE)/bridge.c $(BRIDGE)/bridge_test.c -o $(BRIDGE)/bridge_test
 	$(BRIDGE)/bridge_test
 
+
+test_buddy_anim: $(RT)/wubu_buddy_anim.c $(RT)/wubu_buddy_anim_test.c
+	$(CC) -O2 -std=c11 -I$(RT) $(RT)/wubu_buddy_anim.c $(RT)/wubu_buddy_anim_test.c -o $(RT)/test_buddy_anim
+	$(RT)/test_buddy_anim
 test_syscall:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(BRIDGE) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT) -I$(COMP) -I$(JIT) -DMYSEED_METAL \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c \
