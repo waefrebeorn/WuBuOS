@@ -167,6 +167,21 @@ static int task_stack_ok(const CTask *t)
     return *(volatile uint64_t *)t->stack_base == 0xCAFEBABECAFEBABEULL;
 }
 
+/* Open, characterized heap corruption fills a task-struct region with a solid
+ * 0x53f000ff paint (see the interboot skill), turning CTask->next into a
+ * non-canonical pointer -> the scheduler dereferences garbage and #GPs every
+ * boot. That walk must never dereference an invalid node: validate the
+ * pointer BEFORE reading t->state, log the corruption, and keep the current
+ * task so the system survives (and the value is attributable) instead of
+ * dying. */
+static int task_ring_ptr_ok(const CTask *t)
+{
+    uint64_t v = (uint64_t)(uintptr_t)t;
+    if (t == NULL) return 0;
+    uint16_t top = (uint16_t)(v >> 48);
+    return top == 0x0000u || top == 0xFFFFu;   /* canonical */
+}
+
 CTask *task_schedule_next(void) {
     if (!g_head) return NULL;
 
@@ -176,6 +191,16 @@ CTask *task_schedule_next(void) {
     CTask *start = t;
 
     do {
+        if (!task_ring_ptr_ok(t)) {
+            extern int klog_printf(const char *, ...);
+            uint64_t _v = (uint64_t)(uintptr_t)t;
+            klog_printf("WuBuOS: task ring corrupt: t=%x:%x tick=%x "
+                        "(kept running %s)\n",
+                        (unsigned)(uint32_t)(_v >> 32), (unsigned)(uint32_t)_v,
+                        (unsigned)(uint32_t)g_tick,
+                        task_name(g_current));
+            return g_current;   /* do not deref garbage; keep current */
+        }
         if (t->state == TASK_READY || t->state == TASK_RUNNING) {
             if (!best || t->priority > best->priority)
                 best = t;
@@ -193,6 +218,15 @@ CTask *task_schedule_next(void) {
         /* Only idle or blocked tasks  --  find idle */
         t = g_head;
         do {
+            if (!task_ring_ptr_ok(t)) {
+                extern int klog_printf(const char *, ...);
+                uint64_t _v = (uint64_t)(uintptr_t)t;
+                klog_printf("WuBuOS: task ring corrupt (idle): t=%x:%x tick=%x\n",
+                            (unsigned)(uint32_t)(_v >> 32),
+                            (unsigned)(uint32_t)_v,
+                            (unsigned)(uint32_t)g_tick);
+                return g_current;
+            }
             if (t->state == TASK_READY && t->priority == PRIO_IDLE)
                 return t;
             t = t->next;
