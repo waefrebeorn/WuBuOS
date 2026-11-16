@@ -1223,7 +1223,7 @@ wubu_spell: src/runtime/wubu_spell_cli.c src/runtime/wubu_spellbook.c src/runtim
 test_hosted_hw: $(HOSTED)/wubu_hosted_hw.c $(HOSTED)/wubu_hosted_hw_test.c $(KERNEL)/wubu_world.c
 	@mkdir -p $(TEST_BIN)
 	$(CC) -O0 -g -std=c11 -DWUBU_HOSTED -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -I$(KERNEL) -I$(RT) \
-		$(HOSTED)/wubu_hosted_hw_test.c $(HOSTED)/wubu_hosted_hw.c $(KERNEL)/wubu_world.c \
+		$(HOSTED)/wubu_hosted_hw_test.c $(HOSTED)/wubu_hosted_hw.c $(KERNEL)/wubu_world.c $(KERNEL)/wubu_thermal_read.c \
 		-o $(TEST_BIN)/test_hosted_hw
 	$(TEST_BIN)/test_hosted_hw
 
@@ -4949,7 +4949,7 @@ test_wet_applet: $(APPS)/wet_applet_test.c $(APPS)/wet_applet.c
 		$(CACHE)/wubu_gesture.o $(GUI)/shell/wm_desktop.c \
 		$(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c \
 		$(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c \
-		$(GUI)/shell/wm_holyc_term.c \
+		$(GUI)/shell/wm_holyc_term.c $(GUI)/shell/desktop_stubs.c $(RT)/wubu_guest_root.c \
 		-o $(TEST_BIN)/test_wet_applet -lm -lz
 	$(TEST_BIN)/test_wet_applet
 
@@ -4967,6 +4967,7 @@ test_first_run: $(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_
 		$(APPS)/first_run_test.c $(APPS)/getting_started.c $(APPS)/wubu_walkthrough.c \
 		$(GUI)/shell/wubu_shell_greeter.c $(RT)/wubu_onboarding.c \
 		$(GUI)/shell/desktop_stubs.c \
+		$(RT)/wubu_pwcrypt.c $(RT)/wubu_account.c \
 		$(GUI)/shell/window_chrome.c $(GUI)/compositor/gui_dbuf.c \
 		$(RT)/wubu_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/memory.c $(KERNEL)/wubu_math.c \
@@ -5018,7 +5019,7 @@ test_tutorial: $(APPS)/tutorial_test.c $(APPS)/wubu_tutorial.c $(VWS)/vws_lua.c
 		$(GUI)/shell/wubu_lock_screen.c $(CACHE)/wubu_gesture.o \
 		$(GUI)/shell/wm_desktop.c $(GUI)/shell/wm_icons.c \
 		$(GUI)/shell/wm_icon_glyphs.c $(GUI)/shell/wm_systray.c \
-		$(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/wm_holyc_term.c \
+		$(GUI)/shell/wm_ctxmenu.c $(GUI)/shell/wm_holyc_term.c $(GUI)/shell/desktop_stubs.c $(RT)/wubu_guest_root.c \
 		$(RT)/wubu_onboarding.c \
 		-o $(TEST_BIN)/test_tutorial -lm -lz
 	$(TEST_BIN)/test_tutorial
@@ -5053,7 +5054,7 @@ test_vws_designer: $(APPS)/vws_designer_test.c $(APPS)/vws_designer.c $(VWS)/vws
 		$(CACHE)/wubu_gesture.o $(GUI)/shell/wm_desktop.c \
 		$(GUI)/shell/wm_icons.c $(GUI)/shell/wm_icon_glyphs.c \
 		$(GUI)/shell/wm_systray.c $(GUI)/shell/wm_ctxmenu.c \
-		$(GUI)/shell/wm_holyc_term.c \
+		$(GUI)/shell/wm_holyc_term.c $(GUI)/shell/desktop_stubs.c $(RT)/wubu_guest_root.c \
 		-o $(TEST_BIN)/test_vws_designer -lm -lz
 	$(TEST_BIN)/test_vws_designer
 
