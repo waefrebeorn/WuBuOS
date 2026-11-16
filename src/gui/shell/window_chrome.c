@@ -382,14 +382,25 @@ void chrome_handle_button_click(DosGuiWindow *win, int button) {
 
 /* -- Standardized button drawing ------------------------------------ */
 
-/* Draw a standard 3D button in app content area.
- * pressed=true -> sunken; pressed=false -> raised. */
+/* Draw a standard button in app content area.
+ * pressed=true -> sunken; pressed=false -> raised.
+ * The face honors the theme's rounded_buttons flag: a rounded theme (the
+ * SteamOS-informed Breeze default) draws a 4px-radius face and the hover
+ * color, instead of the square SNES bevel -- so "buttons look wrong" is a
+ * theme decision, not a hardcoded one. */
+#define CHROME_BTN_RADIUS 4   /* Breeze: ~4-6px rounded corners */
 void chrome_draw_button(int x, int y, int w, int h,
                                const char *label, bool pressed) {
     const WubuThemeColors *c = tc();
     uint32_t face = pressed ? c->btn_pressed : c->btn_face;
-    vbe_3d_raised_colors(x, y, w, h, c->border_light, face,
-                         c->border_dark, c->border_darkest);
+    if (theme()->rounded_buttons) {
+        vbe_3d_raised_rounded_colors(x, y, w, h, CHROME_BTN_RADIUS,
+                                     c->border_light, face,
+                                     c->border_dark, c->border_darkest);
+    } else {
+        vbe_3d_raised_colors(x, y, w, h, c->border_light, face,
+                             c->border_dark, c->border_darkest);
+    }
     vbe_draw_text(x + (w - (int)strlen(label)*8)/2, y + (h-8)/2, label,
                   c->btn_text, 1);
 }
