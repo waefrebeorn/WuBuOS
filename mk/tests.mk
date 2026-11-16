@@ -1466,7 +1466,7 @@ $(RT)/wubu_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
-		$(GUI)/shell/window_chrome.c \
+		$(GUI)/shell/window_chrome.c $(RT)/wubu_guest_root.c \
 		$(GUI)/wubu_ui_test.c $(GUI)/wubu_a11y.c -o $(GUI)/wubu_ui_test -lm
 	$(GUI)/wubu_ui_test
 test_a11y:
@@ -1478,7 +1478,7 @@ $(RT)/wubu_effect.c \
 		$(KERNEL)/vbe.c $(KERNEL)/wubu_math.c $(GUI)/shell/wubu_notify.c $(GUI)/wubu_settings.c $(GUI)/wubu_settings_defaults.c $(GUI)/wubu_settings_io.c $(RT)/wubu_json.c $(GUI)/wubu_trash.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
-		$(GUI)/shell/window_chrome.c \
+		$(GUI)/shell/window_chrome.c $(RT)/wubu_guest_root.c \
 		-o $(GUI)/wubu_a11y_test -lm
 	$(GUI)/wubu_a11y_test
 
@@ -2269,7 +2269,7 @@ $(RT)/wubu_effect.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(APPS)/control/control.c \
-		$(GUI)/shell/window_chrome.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c \
+		$(GUI)/shell/window_chrome.c $(GUI)/wubu_bonzi.c $(GUI)/wubu_mascot.c $(RT)/wubu_guest_root.c \
 		$(APPS)/control_test.c -o $(APPS)/control_test -Wl,--allow-multiple-definition -lm
 	$(APPS)/control_test
 
