@@ -526,9 +526,9 @@ test_vsl_kernel_adapt: $(VSL_OBJS) src/runtime/vsl/vsl_kernel_adapt_test.c
 		-o src/runtime/vsl/vsl_kernel_adapt_test -ldl -lvulkan -lcuda
 	./src/runtime/vsl/vsl_kernel_adapt_test
 
-test_vsl_nt: $(VSL_NT_OBJS)
-	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
-		$(VSL_NT_OBJS) \
+test_vsl_nt: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
+	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl \
+		$(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o \
 		-o $(RT)/wubu_vsl_nt_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_test
 
