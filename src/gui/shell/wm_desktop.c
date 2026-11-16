@@ -23,24 +23,28 @@
 #include <strings.h>   /* strcasecmp / strncasecmp */
 
 int icon_grid_x(int x) {
-    int grid_x = (x - 20) / DOSGUI_ICON_COL_PITCH;
-    if (grid_x < 0) grid_x = 0;
-    if (grid_x > 15) grid_x = 15;
-    return 20 + grid_x * DOSGUI_ICON_COL_PITCH;
+    /* Screened on the real desktop width, not a fixed column count, so the
+     * finer uniform tile doesn't clip the right side on a wide screen. */
+    int gx = (x - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_COL_PITCH;
+    int maxc = (g_dwm.screen_w - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_COL_PITCH;
+    if (gx < 0) gx = 0;
+    if (gx > maxc) gx = maxc;
+    return DOSGUI_ICON_MARGIN + gx * DOSGUI_ICON_COL_PITCH;
 }
 
 int icon_grid_y(int y) {
-    int grid_y = (y - 20) / DOSGUI_ICON_ROW_PITCH;
-    if (grid_y < 0) grid_y = 0;
-    if (grid_y > 15) grid_y = 15;
-    return 20 + grid_y * DOSGUI_ICON_ROW_PITCH;
+    int gy = (y - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_ROW_PITCH;
+    int maxr = (taskbar_top() - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_ROW_PITCH;
+    if (gy < 0) gy = 0;
+    if (gy > maxr) gy = maxr;
+    return DOSGUI_ICON_MARGIN + gy * DOSGUI_ICON_ROW_PITCH;
 }
 
 void snap_icon_to_grid(DosGuiIcon *icon) {
     icon->x = icon_grid_x(icon->x);
     icon->y = icon_grid_y(icon->y);
-    icon->grid_x = (icon->x - 20) / DOSGUI_ICON_COL_PITCH;
-    icon->grid_y = (icon->y - 20) / DOSGUI_ICON_ROW_PITCH;
+    icon->grid_x = (icon->x - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_COL_PITCH;
+    icon->grid_y = (icon->y - DOSGUI_ICON_MARGIN) / DOSGUI_ICON_ROW_PITCH;
 }
 
 /* -- Desktop view options (Stream 3) --------------------------------- */
@@ -68,9 +72,9 @@ bool wm_get_auto_arrange(void) {
 /* Re-flow all live desktop icons into a single top-left column,
  * preserving their current order. Mirrors ReactOS desktop arrange. */
 static void reflow_icons_column(void) {
-    const int x0 = 20;
-    const int y0 = 20;
-    const int step = DOSGUI_ICON_SIZE + DOSGUI_ICON_GAP + 8;
+    const int x0 = DOSGUI_ICON_MARGIN;
+    const int y0 = DOSGUI_ICON_MARGIN;
+    const int step = DOSGUI_ICON_TILE;
     int y = y0;
     for (int i = 0; i < g_dwm.icon_count; i++) {
         DosGuiIcon *ic = &g_dwm.icons[i];

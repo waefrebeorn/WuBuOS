@@ -489,10 +489,10 @@ static void test_icon_hit_test(void) {
     int hit = icon_hit_test(30, 30);
     CHECK(hit == 0, "should hit icon 0");
     /* Icon 1 one column over; the column pitch is wide enough for a label */
-    hit = icon_hit_test(20 + DOSGUI_ICON_COL_PITCH + 10, 30);
+    hit = icon_hit_test(DOSGUI_ICON_MARGIN + DOSGUI_ICON_COL_PITCH + 10, 30);
     CHECK(hit == 1, "should hit icon 1");
     /* The label line belongs to the icon too, not just the 32px glyph */
-    hit = icon_hit_test(20 + DOSGUI_ICON_COL_PITCH + 10, 20 + DOSGUI_ICON_SIZE + 4);
+    hit = icon_hit_test(DOSGUI_ICON_MARGIN + DOSGUI_ICON_COL_PITCH + 10, DOSGUI_ICON_MARGIN + DOSGUI_ICON_SIZE + 4);
     CHECK(hit == 1, "label line is clickable");
     /* Miss */
     hit = icon_hit_test(900, 700);
