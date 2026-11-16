@@ -70,36 +70,43 @@ limine_memmap_req:
 
 /* ── Multiboot1 header (for `qemu -kernel` / GRUB) ──────────────────────
  * The kernel is linked at the higher-half VA 0xffffffff80100000 but LOADED
- * at physical LMA 0x100000.  `qemu -kernel` jumps to e_entry, which is the
- * higher-half VA and would crash.  Providing ADDRESS fields + entry_addr in
- * the multiboot header makes the loader jump to the PHYSICAL entry (0x100000)
- * instead.  The magic (0x1BADB002) must appear within the first 8KB of the
- * loaded image, so this header is the very first thing in .text. */
+ * at physical LMA 0x100000.  `qemu -kernel` jumps to the multiboot
+ * entry_addr: providing the ADDRESS fields (flag bit 16) makes the loader
+ * anchor this header at its declared header_addr and jump to the PHYSICAL
+ * entry.  WARNING — hard layout fact, the whole boot depends on it: the
+ * limine request structs above (limine_memmap_request … limine_requests_*)
+ * precede this header inside .text, so mb1_hdr is at .text offset 0x10c, NOT
+ * at offset 0.  header_addr must therefore be (LMA of .text) + 0x10c; if it
+ * is set to the bare base, the loader places .text 0x10c EARLY in physical
+ * memory, every higher-half VA then reads content 0x10c late, and the first
+ * RIP-relative global reference lands one unmapped page below the image
+ * (CR2 0xffffffff800fff1c → #PF).  Measured and fixed 2026-11-16. */
 .align 4
 mb1_hdr:
     .long 0x1BADB002                  /* magic */
     .long 0x00010000                  /* flags: bit16 = address fields provided */
     .long -(0x1BADB002 + 0x00010000) /* checksum = -(magic+flags) */
-    .long 0x00100000                  /* header_addr  (physical LMA of .text) */
+    .long 0x0010010c                  /* header_addr: physical addr of THIS
+                                        * header = .text LMA (0x100000) + 0x10c. */
     .long 0x00100000                  /* load_addr    (physical LMA) */
     .long 0x00000000                  /* load_end_addr (0 = use ELF) */
     .long 0x00000000                  /* bss_end_addr  (0 = use ELF) */
-    .long 0x00100020                  /* entry_addr: PHYS addr of _start.
-                                        * QEMU's multiboot loader places this
-                                        * header at load_addr (0x100000) and
-                                        * _start immediately follows (32-byte
-                                        * mb1_hdr), so the real physical entry
-                                        * is 0x100020 — NOT the ELF VMA-derived
-                                        * 0x10012c (the limine header before this
-                                        * shifts the file offset, but the loader
-                                        * starts loading AT this header). */
+    .long 0x0010012c                  /* entry_addr: PHYS addr of _start.
+                                        * _start is at .text offset 0x12c, so
+                                        * with .text at LMA 0x100000 it is
+                                        * 0x10012c.  (Do NOT write 0x100020:
+                                        * that was the pre-fix assumption that
+                                        * the 32-byte header starts .text.) */
 
 _start:
     cli                     /* Disable interrupts */
 
-    /* Disable paging if a previous loader (multiboot/SeaBIOS) left it on. */
+    /* Disable paging + SSE traps if a previous loader left them on.
+     * CR0.EM (bit 2) must be 0 and CR0.TS (bit 3) 0, else every SSE
+     * instruction the -O2 compiler emits (e.g. pxor used in APIC init)
+     * raises #UD / #NM in long mode. */
     movl %cr0, %eax
-    andl $~(1 << 31), %eax
+    andl $~((1 << 31) | (1 << 2) | (1 << 3)), %eax
     movl %eax, %cr0
 
     /* Load a flat 32-bit GDT so every segment base is 0.  Build the 6-byte
@@ -306,7 +313,7 @@ _start:
      * Enable PAE, PGE, NXE
      * ------------------------------------------------------------ */
     movl %cr4, %eax
-    orl $(1 << 5) | (1 << 7), %eax
+    orl $(1 << 5) | (1 << 7) | (1 << 9) | (1 << 10), %eax
     movl %eax, %cr4
 
     /* Set NX bit in EFER */
@@ -359,7 +366,7 @@ _start:
     cpuid                       /* EBX = feature flags (leaf 7.0) */
     movl %ebx, %edx             /* keep the feature flags */
     movl %cr4, %eax
-    orl $(1 << 5) | (1 << 7), %eax
+    orl $(1 << 5) | (1 << 7) | (1 << 9) | (1 << 10), %eax
     testl $(1 << 20), %edx      /* SMEP */
     jz 1f
     orl $(1 << 20), %eax
