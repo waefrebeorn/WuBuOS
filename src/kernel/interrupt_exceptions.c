@@ -97,9 +97,14 @@ void handle_page_fault(InterruptFrame *frame) {
     /* In a real kernel: demand paging, COW, etc. */
     extern int klog_printf(const char *fmt, ...);
     uint64_t *sp = frame ? (uint64_t *)(uintptr_t)frame->rsp : NULL;
-    klog_printf("WuBuOS PF: cr2=%x rip=%x rcx=%x rsi=%x rdx=%x rsp=%x caller=[%x,%x,%x]\n",
+    klog_printf("WuBuOS PF: cr2=%x rip=%x rax=%x rbx=%x r14=%x r15=%x "
+                "rcx=%x rsi=%x rdx=%x rsp=%x caller=[%x,%x,%x]\n",
                 (unsigned)(cr2 & 0xFFFFFFFFu),
                 (unsigned)(frame ? (uint64_t)frame->rip : 0),
+                (unsigned)(frame ? (uint64_t)frame->rax : 0),
+                (unsigned)(frame ? (uint64_t)frame->rbx : 0),
+                (unsigned)(frame ? (uint64_t)frame->r14 : 0),
+                (unsigned)(frame ? (uint64_t)frame->r15 : 0),
                 (unsigned)(frame ? (uint64_t)frame->rcx : 0),
                 (unsigned)(frame ? (uint64_t)frame->rsi : 0),
                 (unsigned)(frame ? (uint64_t)frame->rdx : 0),
