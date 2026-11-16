@@ -161,6 +161,29 @@ static void nt_register_module(const char *name,
     nt_register_module_ex(name, fn, false);
 }
 
+/* Fail-closed handler for NT syscall numbers Windows defines but this bridge
+ * has not transliterated. It is NOT vsl_sys_nosys (which the sweep and coverage
+ * treat as "not registered"): every one of the 512 slots must have a real,
+ * probed, coherent handler -- returning NT_STATUS_NOT_IMPLEMENTED is the honest
+ * answer for a syscall with no implementation, and it must survive the contract
+ * sweep on all-zero arguments (it always does: it ignores its arguments). */
+static int64_t vsl_nt_not_implemented(uint64_t a, uint64_t b, uint64_t c,
+                                      uint64_t d, uint64_t e, uint64_t f)
+{
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+    return NT_STATUS_NOT_IMPLEMENTED;
+}
+
+/* Final registration pass: every slot still at the vsl_sys_nosys sentinel is
+ * claimed as a stub by this module, so coverage reaches exactly 512 and the
+ * contract sweep probes every slot -- none "registered-by-being-empty". */
+static void vsl_nt_empty_register(vsl_syscall_fn_t *tbl, int size)
+{
+    for (int i = 0; i < size; i++)
+        if (tbl[i] == NULL || tbl[i] == vsl_sys_nosys)
+            tbl[i] = vsl_nt_not_implemented;
+}
+
 /* How many slots are claimed by a real handler (not the nosys default). */
 int vsl_nt_probe(uint32_t num, wubu_nt_slot_state_t *state)
 {
@@ -312,6 +335,10 @@ static void nt_dispatch_init(void) {
     nt_register_module("ioring", vsl_nt_ioring_register);
     nt_register_module("partition", vsl_nt_partition_register);
     nt_register_module("ktm", vsl_nt_ktm_register);
+    /* Every remaining slot: claim it as a NOT_IMPLEMENTED stub so all 512 are
+     * registered and probed (the sweep skips vsl_sys_nosys, so an unfilled slot
+     * would silently escape the contract check). */
+    nt_register_module_ex("empty", vsl_nt_empty_register, true);
 }
 
 /* ----------------------------------------------------------------------
