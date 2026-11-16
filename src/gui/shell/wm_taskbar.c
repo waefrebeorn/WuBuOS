@@ -22,8 +22,9 @@ __attribute__((weak)) void win11_widgets_toggle(void);
 static void draw_start_flag(int x, int y);   /* defined below */
 
 #define MODERN_GAP_V   6      /* floating margin below the screen */
-#define MODERN_PAD     8
 #define MODERN_RADIUS  8
+/* Bar padding and inter-task gaps come from the shared spacing scale
+ * (DOSGUI_SPACE_SM / DOSGUI_SPACE_XS) so the panel reads as one grid. */
 
 /*
  * THE geometry for the floating bar.  The renderer and the pointer path both
@@ -33,7 +34,7 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     memset(L, 0, sizeof *L);
     int th  = taskbar_height_dynamic();
     int bh  = th - 8;
-    int gap = 4;
+    int gap = DOSGUI_SPACE_XS;
 
     /* Measure the button row first so it can be centred. */
     int row_w = 0;
@@ -41,7 +42,7 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
         int idx = g_dwm.zorder[j];
         DosGuiWindow *w = &g_dwm.windows[idx];
         if (!w->alive || w->desktop != g_dwm.current_desktop) continue;
-        int tw = vbe_text_width(w->title, 1) + 16;
+        int tw = vbe_text_width(w->title, 1) + DOSGUI_SPACE_XL;
         if (tw < 44) tw = 44;
         if (tw > 160) tw = 160;
         L->slot[L->n_slots].w = tw;
@@ -67,30 +68,30 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     int shell_w = 34;
     int shell_row_w = 3 * shell_w + 2 * gap;
     int clock_w = 64;
-    int tray_w  = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + 4);
+    int tray_w  = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + DOSGUI_SPACE_XS);
 
-    int need = MODERN_PAD + start_w + gap + shell_row_w + gap + row_w + gap +
-               tray_w + gap + clock_w + MODERN_PAD;
+    int need = DOSGUI_SPACE_SM + start_w + gap + shell_row_w + gap + row_w + gap +
+               tray_w + gap + clock_w + DOSGUI_SPACE_SM;
     int bar_w = need;
     if (bar_w > fb_w - 2 * MODERN_GAP_V) bar_w = fb_w - 2 * MODERN_GAP_V;
     int bar_x = (fb_w - bar_w) / 2;
     int bar_y = taskbar_top() - MODERN_GAP_V;
 
     L->bar_x = bar_x; L->bar_y = bar_y; L->bar_w = bar_w; L->bar_h = th;
-    L->start_x = bar_x + MODERN_PAD;
-    L->start_y = bar_y + 4;
+    L->start_x = bar_x + DOSGUI_SPACE_SM;
+    L->start_y = bar_y + DOSGUI_SPACE_XS;
     L->start_w = start_w;
     L->start_h = bh;
-    L->clock_x = bar_x + bar_w - MODERN_PAD - clock_w;
-    L->clock_y = bar_y + 4;
+    L->clock_x = bar_x + bar_w - DOSGUI_SPACE_SM - clock_w;
+    L->clock_y = bar_y + DOSGUI_SPACE_XS;
     L->clock_w = clock_w;
     L->clock_h = bh;
     L->tray_x  = L->clock_x - gap - tray_w;
-    L->tray_y  = bar_y + 4;
+    L->tray_y  = bar_y + DOSGUI_SPACE_XS;
     L->tray_w  = tray_w;
 
     int shell_x0 = L->start_x + start_w + gap;
-    L->shell_y = bar_y + 4;
+    L->shell_y = bar_y + DOSGUI_SPACE_XS;
     L->shell_w = shell_w;
     L->shell_h = bh;
     for (int i = 0; i < 3; i++)
@@ -101,7 +102,7 @@ void taskbar_modern_layout(int fb_w, int fb_h, WmTaskLayout *L) {
     if (row_w < avail) row_x += (avail - row_w) / 2;
     for (int i = 0; i < L->n_slots; i++) {
         L->slot[i].x = row_x;
-        L->slot[i].y = bar_y + 4;
+        L->slot[i].y = bar_y + DOSGUI_SPACE_XS;
         row_x += L->slot[i].w + gap;
     }
 }
@@ -188,7 +189,7 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
                               DOSGUI_SYSTRAY_SIZE, 4, tc()->btn_face);
         vbe_fill_rect(tx + 4, L.tray_y + 4, 16, 16,
                       g_dwm.systray_icons[i].icon_color);
-        tx += DOSGUI_SYSTRAY_SIZE + 4;
+        tx += DOSGUI_SYSTRAY_SIZE + DOSGUI_SPACE_XS;
     }
 
     taskbar_update_clock(time(NULL));
@@ -313,7 +314,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     char *clk = taskbar_get_clock_str();
     int clk_w = vbe_text_width(clk, 1);
     int clock_reserve = clk_w + 20; /* clock + padding */
-    int tray_reserve = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + 4) + 10;
+    int tray_reserve = g_dwm.systray_count * (DOSGUI_SYSTRAY_SIZE + DOSGUI_SPACE_XS) + 10;
     int right_reserve = clock_reserve + tray_reserve;
     
     for (int j = 0; j < g_dwm.nz; j++) {
@@ -422,7 +423,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
     /* Draw system tray icons */
     for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
         if (g_dwm.systray_icons[i].visible) {
-            int x = tray_x - DOSGUI_SYSTRAY_SIZE - 4;
+            int x = tray_x - DOSGUI_SYSTRAY_SIZE - DOSGUI_SPACE_XS;
             int y = ty + (th - DOSGUI_SYSTRAY_SIZE) / 2;
 
             vbe_fill_rect(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE, tc()->btn_face);
@@ -442,7 +443,7 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
                 vbe_fill_rect_rounded(bx, by, 12, 12, 6, 0xFF0000);
                 vbe_draw_text(bx + 2, by + 1, badge, 0xFFFFFF, 1);
             }
-            tray_x -= DOSGUI_SYSTRAY_SIZE + 4;
+            tray_x -= DOSGUI_SYSTRAY_SIZE + DOSGUI_SPACE_XS;
         }
     }
 
