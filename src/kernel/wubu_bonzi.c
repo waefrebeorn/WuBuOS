@@ -374,6 +374,6 @@ void wubu_bonzi_task(void *arg)
     if (!b) return;
     for (;;) {
         wubu_bonzi_tick(b);
-        task_sleep(2);       /* ~20 ms @ 100 Hz PIT */
+        task_sleep(2);       /* ~20 ms @ 100 Hz clock tick */
     }
 }

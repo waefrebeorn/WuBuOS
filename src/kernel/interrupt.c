@@ -236,6 +236,13 @@ void interrupt_eoi(uint8_t irq) {
  * CLI/STI
  * ------------------------------------------------------------------ */
 
+unsigned wubu_if_flag(void)
+{
+    unsigned long f;
+    __asm__ volatile ("pushfq; pop %0" : "=r"(f));
+    return (unsigned)(f >> 9) & 1u;
+}
+
 void interrupt_disable(void) {
 #ifdef MYSEED_METAL
     __asm__ volatile ("cli" ::: "memory");
@@ -287,8 +294,12 @@ void interrupt_set_gate(uint8_t vector, uint64_t handler, uint16_t selector,
  * PIT Timer Handler (IRQ0 → vector 32 after remap)
  * ------------------------------------------------------------------ */
 
-void pit_handler(uint8_t irq, void *ctx) {
-    (void)irq; (void)ctx;
+static volatile unsigned long dbg_pit_calls;
+/* One clock source drives the whole system: scheduler, watchdog, vDSO,
+ * supervisor cycle and the serial TX ring. Both the PIT (IRQ0) and the LAPIC
+ * timer land here; only one of them is unmasked at runtime. */
+void wubu_clock_tick(void)
+{
     task_timer_tick();
     /* Gap E7: feed the 8254 watchdog every tick (2s window). */
     extern void wdt_feed(uint32_t);
@@ -307,8 +318,32 @@ void pit_handler(uint8_t irq, void *ctx) {
      * THR is almost always free at 100 Hz, so the ring flushes fast). */
     extern void klog_tx_poll(void);
     klog_tx_poll();
-    interrupt_eoi(32);  /* IRQ0 remapped to vector 32 */
 }
+
+void pit_handler(uint8_t irq, void *ctx) {
+    (void)ctx;
+    wubu_clock_tick();
+    interrupt_eoi(irq);
+}
+
+#ifdef MYSEED_METAL
+/* The LAPIC periodic timer is the clock on firmware paths that leave the 8259
+ * masked (WuBuFW does). It was configured on vector 240 with NO handler, so the
+ * kernel silently lost its tick after a few PIT interrupts.  Metal-only:
+ * hosted builds link this file without interrupt_apic.c. */
+void apic_timer_handler(uint8_t irq, void *ctx)
+{
+    (void)irq; (void)ctx;
+    wubu_clock_tick();
+    lapic_eoi();
+}
+
+int wubu_clock_use_apic(void)
+{
+    interrupt_register(240, apic_timer_handler, NULL);
+    return lapic_timer_init(100, 240);
+}
+#endif
 
 /* ------------------------------------------------------------------
  * PIT Initialization
@@ -582,7 +617,7 @@ int interrupt_init_full(void) {
     if (syscall_init() != 0) return -1;
 
     /* Initialize LAPIC timer at 100Hz on vector 0xF0 (240) */
-    if (lapic_timer_init(100, 240) != 0) return -1;
+    if (wubu_clock_use_apic() != 0) return -1;
 
     /* Set up exception handlers with IST */
     interrupt_set_gate(8,  (uint64_t)handle_double_fault, 0x08, IDT_GATE_INT, IST_EXCEPTION);  /* #DF */

@@ -103,6 +103,10 @@ void interrupt_unregister(uint8_t irq);
 void interrupt_eoi(uint8_t irq);
 
 /* Disable/enable interrupts (CLI/STI) */
+unsigned wubu_if_flag(void);
+void wubu_clock_tick(void);
+int  wubu_clock_use_apic(void);
+unsigned wubu_if_flag(void);
 void interrupt_disable(void);
 void interrupt_enable(void);
 
