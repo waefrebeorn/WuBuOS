@@ -15,6 +15,8 @@
  */
 #define _POSIX_C_SOURCE 200809L
 #include "wubu_buddy_orb.h"
+#include "wubu_buddy_emotion.h"
+#include "wubutime.h"
 
 #include <GL/gl.h>
 #include <GL/glx.h>
@@ -87,18 +89,31 @@ static const char *FS_ORB = "#version 330 core\n"
     "uniform vec3  uEye, uRight, uUp, uFwd;\n"
     "uniform float uFov;\n"
     "uniform float uTime;\n"
+    "uniform vec4  uEmo;\n"
     "uniform int   uCount;\n"
     "uniform vec4  uBlob[MAXB];\n"
     "uniform vec3  uBoxLo, uBoxHi;\n"
+    "uniform vec3  uCenter;\n"
     /* True distance estimator: smooth minimum of the component spheres.
      * The old 1/sqrt(field) heuristic is NOT Lipschitz -- it overshot through
      * thin regions and punched false holes in the surface. */
     "float smin(float a, float b, float k){\n"
     "  float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);\n"
     "  return mix(b, a, h) - k*h*(1.0-h); }\n"
+    "float sdSeg2(vec2 p, vec2 a, vec2 b){\n"
+    "  vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);\n"
+    "  return length(pa-ba*h); }\n"
+    "float sdCapsule(vec3 p, vec3 a, vec3 b, float r){\n"
+    "  vec3 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);\n"
+    "  return length(pa-ba*h)-r; }\n"
     "float sdBlob(vec3 p){ float d = 1e6;\n"
     "  for(int i=0;i<MAXB;i++){ if(i>=uCount) break;\n"
     "    d = smin(d, length(p-uBlob[i].xyz)-uBlob[i].w*1.42, 0.52); }\n"
+    "  vec3 hd = uCenter + vec3(0.0, 0.46, 0.0);   /* mascot head anchor */\n"
+    "  d = min(d, sdCapsule(p, hd+vec3(-0.20,0.22,0.0),\n"
+    "                         hd+vec3(-0.38,1.16-0.60*uEmo.y,0.0), 0.095));\n"
+    "  d = min(d, sdCapsule(p, hd+vec3( 0.20,0.22,0.0),\n"
+    "                         hd+vec3( 0.38,1.16-0.60*uEmo.y,0.0), 0.095));\n"
     "  return d; }\n"
     "float h31(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }\n"
     "float vnoise(vec3 p){\n"
@@ -117,6 +132,7 @@ static const char *FS_ORB = "#version 330 core\n"
     "  vec3 rd = normalize(uFwd + uFov*(ndc.x*uRight + ndc.y*uUp));\n"
     "  vec3 bg = mix(vec3(0.030,0.032,0.048), vec3(0.070,0.076,0.104),\n"
     "                smoothstep(-0.7,0.9,rd.y));\n"
+    "  ro.y -= 0.16*uEmo.x*sin(uTime*6.2);   /* energy makes it hop */\n"
     "  float t=0.0; bool hit=false; vec3 p=ro;\n"
     "  for(int i=0;i<180;i++){\n"
     "    p = ro + rd*t;\n"
@@ -135,14 +151,47 @@ static const char *FS_ORB = "#version 330 core\n"
     "    n = normalize(n + 2.2*g);   /* living surface, not sterile plastic */\n"
     "    vec3 L = normalize(vec3(-0.45,0.75,0.55));\n"
     "    float dif = max(dot(n,L),0.0);\n"
-    "    float hd  = 0.38;                       /* headlight: front never black */\n"
+    "    float hl  = 0.38;                       /* headlight: front never black */\n"
     "    vec3 h = normalize(L - rd);\n"
     "    vec3 L2 = normalize(vec3(0.6,-0.1,0.8));  /* camera-side fill */\n"
     "    float spec = pow(max(dot(n,h),0.0), 28.0);\n"
     "    float fres = pow(1.0 - max(dot(n,-rd),0.0), 3.0);\n"
     "    vec3 base = vec3(0.93,0.92,0.88)*(0.80+0.35*vnoise(p*16.0));\n"
-    "    vec3 acc  = vec3(1.00,0.74,0.30);       /* one accent, amber rim */\n"
-    "    col = base*(0.22 + hd*0.42 + dif*0.52 + 0.22*max(dot(n,L2),0.0))\n"
+    "    vec3 hd = uCenter + vec3(0.0, 0.46, 0.0);\n"
+    "    /* green aviator cap: a dome over the upper head */\n"
+    "    float cap = smoothstep(hd.y-0.02, hd.y+0.12, p.y)\n"
+    "              * (1.0-smoothstep(0.48, 0.60, length(p-hd)));\n"
+    "    base = mix(base, vec3(0.14,0.42,0.22), cap);\n"
+    "    /* red neckerchief just below the head */\n"
+    "    float scarf = (1.0-smoothstep(0.05,0.09,abs(p.y-(hd.y-0.30))))\n"
+    "                * (1.0-smoothstep(0.30,0.45,length(p.xz-hd.xz)));\n"
+    "    base = mix(base, vec3(0.72,0.10,0.12), scarf);\n"
+    "    /* red W, four strokes drawn on the cap's front */\n"
+    "    vec2 wp = vec2(p.x-hd.x, p.y-hd.y);\n"
+    "    float wd = 1e3;\n"
+    "    wd = min(wd, sdSeg2(wp, vec2(-0.20,0.48), vec2(-0.10,0.20)));\n"
+    "    wd = min(wd, sdSeg2(wp, vec2(-0.10,0.20), vec2( 0.00,0.40)));\n"
+    "    wd = min(wd, sdSeg2(wp, vec2( 0.00,0.40), vec2( 0.10,0.20)));\n"
+    "    wd = min(wd, sdSeg2(wp, vec2( 0.10,0.20), vec2( 0.20,0.48)));\n"
+    "    float wm = (1.0-smoothstep(0.018,0.034,wd)) * step(0.0, p.z-hd.z);\n"
+    "    base = mix(base, vec3(0.93,0.10,0.10), wm);\n"
+    "    /* eyes and nose: dark ovals on the front of the muzzle */\n"
+    "    float front = step(0.05, p.z-hd.z);\n"
+    "    float m = uEmo.w;\n"
+    "    float ey = 1.35;                       /* base vertical stretch */\n"
+    "    if (m > 0.5 && m < 1.5) ey = 1.9;      /* joy: happy squint */\n"
+    "    else if (m > 1.5 && m < 2.5) ey = 2.2; /* excited: wide grin-eyes */\n"
+    "    else if (m > 2.5 && m < 3.5) ey = 0.75;/* alert: open wide */\n"
+    "    else if (m > 4.5) ey = 0.55;           /* sleepy: half closed */\n"
+    "    float eL = length((wp-vec2(-0.16,-0.03))*vec2(1.0,ey));\n"
+    "    float eR = length((wp-vec2( 0.16,-0.03))*vec2(1.0,ey));\n"
+    "    float nose = length((wp-vec2(0.0,-0.17))*vec2(1.0,1.4));\n"
+    "    base = mix(base, vec3(0.06,0.07,0.08),\n"
+    "               front*(1.0-smoothstep(0.035,0.052,min(eL,eR))));\n"
+    "    base = mix(base, vec3(0.45,0.06,0.07),\n"
+    "               front*(1.0-smoothstep(0.022,0.034,nose)));\n"
+    "    vec3 acc  = mix(vec3(1.00,0.74,0.30), vec3(1.00,0.32,0.14),\n                     clamp(uEmo.y*0.85 + uEmo.z*0.25, 0.0, 1.0));\n"
+    "    col = base*(0.22 + hl*0.42 + dif*0.52 + 0.22*max(dot(n,L2),0.0))\n"
     "        + vec3(1.0)*spec*0.24 + acc*fres*0.95;\n"
     "  }\n"
     "  /* faint floor line so the render space reads as a place */\n"
@@ -313,6 +362,8 @@ int main(void)
     void *p_teximg   = glsym("glTexImage2D");
     void *p_fbtex    = glsym("glFramebufferTexture2D");
     void *p_chkfb    = glsym("glCheckFramebufferStatus");
+    wubu_buddy_emotion *emo = NULL;
+    wubu_buddy_emotion_create(&emo);
     void *p_gpil     = glsym("glGetProgramInfoLog");
 
     #define FN(name) ((typeof(&name))name)
@@ -394,8 +445,11 @@ int main(void)
     int paused = 0;
     int sel = 0;                 /* selected blob for live sculpting */
     float off[WUBU_BUDDY_ORB_MAX_BLOBS][4] = {{0}}; /* dx,dy,dz,dr */
-    struct timespec t0, tn;
-    clock_gettime(CLOCK_MONOTONIC, &t0);
+    /* Motion clock belongs to WuBuTIME, not to libc timing. */
+    wubutime *tm = NULL;
+    wubutime_create(&tm);
+    uint64_t t_mono0 = wubutime_mono_ns(tm);
+    uint64_t t_prev = t_mono0;
 
     for (;;) {
         while (XPending(dpy)) {
@@ -422,10 +476,9 @@ int main(void)
                     off[j][0] = off[j][1] = off[j][2] = off[j][3] = 0.0f;
             }
         }
-        clock_gettime(CLOCK_MONOTONIC, &tn);
-        float dt = (float)(tn.tv_sec - t0.tv_sec) +
-                   (float)(tn.tv_nsec - t0.tv_nsec) / 1e9f;
-        t0 = tn;
+        uint64_t t_now = wubutime_mono_ns(tm);
+        float dt = (float)((int64_t)(t_now - t_prev)) / 1e9f;
+        t_prev = t_now;
         if (!paused) tsec += dt;
 
         wubu_buddy_orb_set_time(orb, tsec);
@@ -433,7 +486,8 @@ int main(void)
         for (int i = 0; i < n; ++i) {
             float c[3], r;
             wubu_buddy_orb_get_blob(orb, i, c, &r);
-            blobs[i][0]=c[0]+off[i][0]; blobs[i][1]=c[1]+off[i][1];
+            wubu_buddy_emotion_poll(emo, 0.5f);
+        blobs[i][0]=c[0]+off[i][0]; blobs[i][1]=c[1]+off[i][1];
             blobs[i][2]=c[2]+off[i][2]; blobs[i][3]=r+off[i][3];
         }
         wubu_buddy_orb_render_box(orb, lo, hi);
@@ -474,6 +528,17 @@ int main(void)
         ((PFNglUniform1f)p_u1f)(l, 0.62f);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uTime");
         ((PFNglUniform1f)p_u1f)(l, tsec);
+        float cen[3] = {0.0f, 0.0f, 0.0f};
+        for (int i = 0; i < n; ++i)
+            for (int k = 0; k < 3; ++k) cen[k] += blobs[i][k] / (float)n;
+        l = ((PFNglGetUniformLocation)p_loc)(prog,"uCenter");
+        ((PFNglUniform3f)p_u3f)(l, cen[0], cen[1], cen[2]);
+        float emo_v[4] = { wubu_buddy_emotion_energy(emo),
+                           wubu_buddy_emotion_stress(emo),
+                           wubu_buddy_emotion_warmth(emo),
+                           wubu_buddy_emotion_mood(emo) };
+        l = ((PFNglGetUniformLocation)p_loc)(prog,"uEmo");
+        ((PFNglUniform4fv)p_u4fv)(l, 1, emo_v);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uBoxLo");
         ((PFNglUniform3f)p_u3f)(l, lo[0], lo[1], lo[2]);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uBlob");
@@ -505,6 +570,18 @@ int main(void)
         ((PFNglBindFramebuffer)p_bfb)(GL_DRAW_FRAMEBUFFER, 0);
         ((PFNglBlitFramebuffer)p_blit)(0, 0, SW, SH, 0, 0, W, H,
                                        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        /* live link: print what the buddy is feeling, straight from sensors */
+        static float hud = 0.0f;
+        if (tsec - hud > 1.5f) {
+            hud = tsec;
+            fprintf(stderr,
+                "cpu %.1fC gpu %.1fC ssd %.1fC load %.2f | energy %.2f "
+                "stress %.2f warmth %.2f mood %.0f\n",
+                wubu_buddy_emotion_cpu_c(emo), wubu_buddy_emotion_gpu_c(emo),
+                wubu_buddy_emotion_ssd_c(emo), wubu_buddy_emotion_load(emo),
+                wubu_buddy_emotion_energy(emo), wubu_buddy_emotion_stress(emo),
+                wubu_buddy_emotion_warmth(emo), wubu_buddy_emotion_mood(emo));
+        }
         glXSwapBuffers(dpy, win);
 
         /* one-shot framebuffer dump: bypasses X window capture entirely */
