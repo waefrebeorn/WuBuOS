@@ -73,38 +73,35 @@ def metaball_body(m_fur):
         if rot is not None:
             e.rotation = rot
 
-    # pear torso: narrower chest, heavier LOW hips/feet (reference profile
-    # peaks at 75% of height, not mid-body)
-    ball((0, 0, 0.46), (0.175, 0.170, 0.20))
-    ball((0, 0, 0.30), (0.215, 0.185, 0.14))
-    # head + cheek/muzzle volumes (the reference has a rounded snout area)
-    ball((0, 0, 0.78), (0.25, 0.235, 0.25))
-    ball((0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
-    ball((-0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
-    # long ears, tilted outward AND staggered front/back so they stay two
-    # distinct spikes in PROFILE instead of fusing into one crown
+    # Mass layout taken from the REFERENCE SILHOUETTE PROFILE (explore__01,
+    # 522 px tall): head widest at 25% of height (0.71 of max width), a neck
+    # NOTCH down to 0.21 at 40%, then a pear body whose widest point is the
+    # HIPS at 75%, feet in the last 15%.  H = 1.5 (feet z=0 .. ear tips z=1.5).
+    ball((0, 0, 1.16), (0.275, 0.25, 0.195))          # big round head
+    ball((0.10, -0.20, 1.10), (0.09, 0.075, 0.09))    # cheek / muzzle volume
+    ball((-0.10, -0.20, 1.10), (0.09, 0.075, 0.09))
+    ball((0, 0, 0.92), (0.08, 0.075, 0.07))           # narrow neck
+    ball((0, 0, 0.74), (0.155, 0.15, 0.15))           # chest (narrower)
+    ball((0, 0, 0.38), (0.385, 0.30, 0.26))           # HIPS -- widest point
+    # long ears above the crown, staggered so they stay two spikes in profile
     qR = Quaternion((1, 0, 0), math.radians(-12)) @ Quaternion((0, 1, 0), math.radians(18))
     qL = Quaternion((1, 0, 0), math.radians(12)) @ Quaternion((0, 1, 0), math.radians(-18))
-    ball((0.125, -0.005, 1.04), (0.045, 0.035, 0.19), rot=qR)
-    ball((-0.125, 0.035, 1.04), (0.045, 0.035, 0.19), rot=qL)
-    # arms held AWAY from the torso so the silhouette keeps a gap
-    # bent arms: upper arm angled out, hand further out and lower -> an ELBOW
-    # break in the silhouette (a straight arm fuses into the torso at 45deg)
-    ball((0.30, 0.0, 0.53), (0.056, 0.056, 0.115), rot=Quaternion((0, 1, 0), math.radians(-28)))
-    ball((-0.30, 0.0, 0.53), (0.056, 0.056, 0.115), rot=Quaternion((0, 1, 0), math.radians(28)))
-    ball((0.415, -0.02, 0.415), (0.072, 0.072, 0.072))
-    ball((-0.415, -0.02, 0.415), (0.072, 0.072, 0.072))
-    # stubby legs set wide apart (readable crotch gap), spread oversized feet
-    ball((0.18, 0.0, 0.19), (0.058, 0.058, 0.12))
-    ball((-0.18, 0.0, 0.19), (0.058, 0.058, 0.12))
-    ball((0.24, -0.110, 0.055), (0.110, 0.160, 0.075))
-    ball((-0.24, -0.060, 0.055), (0.110, 0.160, 0.075))   # staggered in depth
+    ball((0.12, -0.005, 1.36), (0.045, 0.035, 0.17), rot=qR)
+    ball((-0.12, 0.035, 1.36), (0.045, 0.035, 0.17), rot=qL)
+    # bent arms (elbow break) + short legs + oversized feet
+    ball((0.20, 0.0, 0.76), (0.055, 0.055, 0.11), rot=Quaternion((0, 1, 0), math.radians(-25)))
+    ball((-0.20, 0.0, 0.76), (0.055, 0.055, 0.11), rot=Quaternion((0, 1, 0), math.radians(25)))
+    ball((0.29, -0.02, 0.56), (0.070, 0.070, 0.070))
+    ball((-0.29, -0.02, 0.56), (0.070, 0.070, 0.070))
+    ball((0.15, 0.0, 0.16), (0.060, 0.060, 0.09))
+    ball((-0.15, 0.0, 0.16), (0.060, 0.060, 0.09))
+    ball((0.19, -0.10, 0.05), (0.100, 0.150, 0.065))
+    ball((-0.19, -0.06, 0.05), (0.100, 0.150, 0.065))
 
-    # subtraction defines where one shape ENDS -- blending alone cannot.
-    # Reference profile: width dips to ~21% of max at 40% height (a real neck).
-    ball((0, 0, 0.615), (0.255, 0.235, 0.038), stiff=2.2, neg=True)  # neck crease
-    ball((0, -0.075, 0.060), (0.090, 0.170, 0.075), neg=True)  # between feet
-    ball((0, 0.02, 1.055), (0.055, 0.055, 0.200), neg=True)    # between ears
+    # subtraction carves BOUNDARIES that blending cannot express
+    ball((0, 0, 0.92), (0.20, 0.185, 0.042), stiff=2.6, neg=True)   # neck notch
+    ball((0, -0.075, 0.055), (0.090, 0.170, 0.070), neg=True)      # between feet
+    ball((0, 0.02, 1.38), (0.055, 0.055, 0.180), neg=True)         # between ears
 
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
