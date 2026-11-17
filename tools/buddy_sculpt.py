@@ -57,77 +57,94 @@ def smooth(obj):
 
 
 # ── 1. organic body from metaballs ─────────────────────────────────────────
-def metaball_body(m_fur):
-    mb = bpy.data.metaballs.new("body_mb")
+def _metaball_lobe(name, specs, m_fur):
+    """Build one metaball lobe: convert -> voxel remesh -> relax -> subdivide."""
+    mb = bpy.data.metaballs.new(name)
     mb.resolution = 0.035
     mb.render_resolution = 0.02
-    obj = bpy.data.objects.new("body_mb", mb)
+    obj = bpy.data.objects.new(name, mb)
     bpy.context.scene.collection.objects.link(obj)
-
-    def ball(co, size, stiff=2.0, rot=None, neg=False):
+    for co, size, stiff, rot, neg in specs:
         e = mb.elements.new(type="ELLIPSOID")
         e.co = Vector(co)
         e.size_x, e.size_y, e.size_z = size
         e.stiffness = stiff
-        e.use_negative = neg          # subtraction carves BOUNDARIES
+        e.use_negative = neg
         if rot is not None:
             e.rotation = rot
-
-    # Mass layout taken from the REFERENCE SILHOUETTE PROFILE (explore__01,
-    # 522 px tall): head widest at 25% of height (0.71 of max width), a neck
-    # NOTCH down to 0.21 at 40%, then a pear body whose widest point is the
-    # HIPS at 75%, feet in the last 15%.  H = 1.5 (feet z=0 .. ear tips z=1.5).
-    ball((0, 0, 1.16), (0.275, 0.25, 0.195))          # big round head
-    ball((0.10, -0.20, 1.10), (0.09, 0.075, 0.09))    # cheek / muzzle volume
-    ball((-0.10, -0.20, 1.10), (0.09, 0.075, 0.09))
-    ball((0, 0, 0.92), (0.08, 0.075, 0.07))           # narrow neck
-    ball((0, 0, 0.74), (0.155, 0.15, 0.15))           # chest (narrower)
-    ball((0, 0, 0.38), (0.385, 0.30, 0.26))           # HIPS -- widest point
-    # long ears above the crown, staggered so they stay two spikes in profile
-    qR = Quaternion((1, 0, 0), math.radians(-12)) @ Quaternion((0, 1, 0), math.radians(18))
-    qL = Quaternion((1, 0, 0), math.radians(12)) @ Quaternion((0, 1, 0), math.radians(-18))
-    ball((0.12, -0.005, 1.36), (0.045, 0.035, 0.17), rot=qR)
-    ball((-0.12, 0.035, 1.36), (0.045, 0.035, 0.17), rot=qL)
-    # bent arms (elbow break) + short legs + oversized feet
-    ball((0.20, 0.0, 0.76), (0.055, 0.055, 0.11), rot=Quaternion((0, 1, 0), math.radians(-25)))
-    ball((-0.20, 0.0, 0.76), (0.055, 0.055, 0.11), rot=Quaternion((0, 1, 0), math.radians(25)))
-    ball((0.29, -0.02, 0.56), (0.070, 0.070, 0.070))
-    ball((-0.29, -0.02, 0.56), (0.070, 0.070, 0.070))
-    ball((0.15, 0.0, 0.16), (0.060, 0.060, 0.09))
-    ball((-0.15, 0.0, 0.16), (0.060, 0.060, 0.09))
-    ball((0.19, -0.10, 0.05), (0.100, 0.150, 0.065))
-    ball((-0.19, -0.06, 0.05), (0.100, 0.150, 0.065))
-
-    # subtraction carves BOUNDARIES that blending cannot express
-    ball((0, 0, 0.92), (0.20, 0.185, 0.042), stiff=2.6, neg=True)   # neck notch
-    ball((0, -0.075, 0.055), (0.090, 0.170, 0.070), neg=True)      # between feet
-    ball((0, 0.02, 1.38), (0.055, 0.055, 0.180), neg=True)         # between ears
-
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.convert(target="MESH")
-    body = bpy.context.active_object
-    body.name = "body"
-    body.data.materials.append(m_fur)
+    o = bpy.context.active_object
+    o.name = name
+    o.data.materials.append(m_fur)
 
-    # sculpt: unify, relax, refine
-    mod = body.modifiers.new("remesh", "REMESH")
+    mod = o.modifiers.new("remesh", "REMESH")
     mod.mode = "VOXEL"
     mod.voxel_size = VOXEL
     mod.use_smooth_shade = True
     bpy.ops.object.modifier_apply(modifier=mod.name)
 
-    sm = body.modifiers.new("smooth", "SMOOTH")
+    sm = o.modifiers.new("smooth", "SMOOTH")
     sm.factor = 0.5
     sm.iterations = SMOOTH_ITERS
     bpy.ops.object.modifier_apply(modifier=sm.name)
 
-    sub = body.modifiers.new("subsurf", "SUBSURF")
+    sub = o.modifiers.new("subsurf", "SUBSURF")
     sub.levels = 1
     sub.render_levels = 1
     bpy.ops.object.modifier_apply(modifier=sub.name)
-    smooth(body)
+    smooth(o)
+    return o
+
+
+def metaball_body(m_fur):
+    """Head and torso are SEPARATE resolved forms with a real gap at the neck.
+
+    Carving a crease plateaued: smoothing refills it as fast as it is cut, and
+    cutting harder severs the head (measured).  Two lobes cannot blend across
+    objects, so the neck notch is genuine empty space -- the reference dips to
+    0.29 of max width there.
+    """
+    qR = Quaternion((1, 0, 0), math.radians(-12)) @ Quaternion((0, 1, 0), math.radians(18))
+    qL = Quaternion((1, 0, 0), math.radians(12)) @ Quaternion((0, 1, 0), math.radians(-18))
+
+    body_specs = [
+        ((0, 0, 0.90), (0.075, 0.070, 0.060), 2.0, None, False),      # neck
+        ((0, 0, 0.74), (0.155, 0.150, 0.150), 2.0, None, False),      # chest
+        ((0, 0, 0.38), (0.385, 0.300, 0.260), 2.0, None, False),      # hips (widest)
+        ((0.20, 0.0, 0.76), (0.055, 0.055, 0.110), 2.0,
+         Quaternion((0, 1, 0), math.radians(-25)), False),
+        ((-0.20, 0.0, 0.76), (0.055, 0.055, 0.110), 2.0,
+         Quaternion((0, 1, 0), math.radians(25)), False),
+        ((0.29, -0.02, 0.56), (0.070, 0.070, 0.070), 2.0, None, False),
+        ((-0.29, -0.02, 0.56), (0.070, 0.070, 0.070), 2.0, None, False),
+        ((0.15, 0.0, 0.16), (0.060, 0.060, 0.090), 2.0, None, False),
+        ((-0.15, 0.0, 0.16), (0.060, 0.060, 0.090), 2.0, None, False),
+        ((0.19, -0.10, 0.05), (0.100, 0.150, 0.065), 2.0, None, False),
+        ((-0.19, -0.06, 0.05), (0.100, 0.150, 0.065), 2.0, None, False),
+        ((0, -0.075, 0.055), (0.090, 0.170, 0.070), 2.0, None, True),  # between feet
+    ]
+    head_specs = [
+        ((0, 0, 1.19), (0.275, 0.250, 0.195), 2.0, None, False),       # cranium
+        ((0.10, -0.20, 1.13), (0.090, 0.075, 0.090), 2.0, None, False),
+        ((-0.10, -0.20, 1.13), (0.090, 0.075, 0.090), 2.0, None, False),
+        ((0.12, -0.005, 1.39), (0.045, 0.035, 0.170), 2.0, qR, False),
+        ((-0.12, 0.035, 1.39), (0.045, 0.035, 0.170), 2.0, qL, False),
+        ((0, 0.02, 1.41), (0.055, 0.055, 0.180), 2.0, None, True),    # between ears
+    ]
+
+    body = _metaball_lobe("body", body_specs, m_fur)
+    head = _metaball_lobe("head", head_specs, m_fur)
+
+    bpy.ops.object.select_all(action="DESELECT")
+    head.select_set(True)
+    body.select_set(True)
+    bpy.context.view_layer.objects.active = body
+    bpy.ops.object.join()                     # two loose shells, one object
+    body = bpy.context.active_object
+    body.name = "buddy_body"
     return body
 
 
@@ -156,29 +173,29 @@ def accessories(body, m_cap, m_red, m_pink, m_dark):
     parts = []
 
     # cap: analytic shell over the crown (no brim -- it sliced through the W)
-    cap = sphere("cap", 0.235, m_cap, (1.02, 1.0, 0.80))
-    cap.location = (0, 0.005, 0.865)
+    cap = sphere("cap", 0.270, m_cap, (1.02, 1.0, 0.80))
+    cap.location = (0, 0.005, 1.300)
     parts.append(cap)
 
-    ey = front_y(body, 0.09, 0.80) or -0.22
-    my = front_y(body, 0.0, 0.722) or -0.22
+    ey = front_y(body, 0.10, 1.13) or -0.24
+    my = front_y(body, 0.0, 1.05) or -0.24
     for side, sx in (("L", -1), ("R", 1)):
         inner = sphere(f"ear_in{side}", 0.028, m_pink, (1.0, 0.4, 3.2))
-        inner.location = (sx * 0.115, -0.045, 1.04)
+        inner.location = (sx * 0.120, -0.045, 1.400)
         inner.rotation_euler = (0, math.radians(sx * 20), 0)
         parts.append(inner)
         eye = sphere(f"eye{side}", 0.030, m_dark)
-        eye.location = (sx * 0.090, ey + 0.008, 0.800)
+        eye.location = (sx * 0.100, ey + 0.008, 1.130)
         parts.append(eye)
 
     mouth = sphere("mouth", 0.034, m_dark, (2.0, 0.5, 0.7))
-    mouth.location = (0, my + 0.006, 0.722)
+    mouth.location = (0, my + 0.006, 1.050)
     parts.append(mouth)
 
     # red W resting on the cap's measured front surface
     for i, (dx, ang) in enumerate(((-0.058, -0.50), (-0.019, 0.50),
                                    (0.019, -0.50), (0.058, 0.50))):
-        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(dx, -0.229, 0.885))
+        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(dx, -0.267, 1.310))
         bar = bpy.context.active_object
         bar.name = f"Wbar{i}"
         bar.scale = (0.021, 0.032, 0.100)
