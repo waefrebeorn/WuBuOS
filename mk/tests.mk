@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_kernel_bridge
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -607,6 +607,10 @@ test_buddy_rig: $(RT)/wubu_buddy_rig.c $(RT)/wubu_buddy_rig_test.c
 test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c -o $(RT)/test_buddy_orb -lm
 	$(RT)/test_buddy_orb
+test_kernel_bridge: $(KERNEL)/test/wubu_kernel_bridge_test.c \
+		$(KERNEL)/WuBuKernel/src/wubukcore.c $(KERNEL)/WuBuKernel/src/wubudriver.c
+	$(CC) -O2 -std=c11 -Wall -I$(KERNEL)/WuBuKernel/include $(KERNEL)/test/wubu_kernel_bridge_test.c $(KERNEL)/WuBuKernel/src/wubukcore.c $(KERNEL)/WuBuKernel/src/wubudriver.c -o $(KERNEL)/test_wubu_kernel_bridge
+	$(KERNEL)/test_wubu_kernel_bridge
 test_wubutime: $(RT)/wubutime.c $(RT)/wubu_posix.c $(RT)/wubutime_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) -Iinclude $(RT)/wubutime.c $(RT)/wubu_posix.c $(RT)/wubutime_test.c -o $(RT)/test_wubutime -lm
 	$(RT)/test_wubutime

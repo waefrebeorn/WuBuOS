@@ -23,3 +23,6 @@
 [submodule "src/audio/bigmac"]
 	path = src/audio/bigmac
 	url = https://github.com/waefrebeorn/big-mac.git
+[submodule "src/kernel/WuBuKernel"]
+	path = src/kernel/WuBuKernel
+	url = https://github.com/Waefrebeorn/WuBuKernel.git
