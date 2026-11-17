@@ -17,7 +17,7 @@ import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 COL = {
     "fur":  (0.93, 0.92, 0.90, 1.0),
@@ -27,7 +27,8 @@ COL = {
     "dark": (0.06, 0.06, 0.07, 1.0),
 }
 
-VOXEL = 0.018         # remesh cell -- smaller = more detail, slower
+VOXEL = 0.013         # remesh cell -- smaller = more detail, slower
+SMOOTH_ITERS = 2      # too much smoothing melts the muzzle and fingers away
 BONES = {}            # bone name -> (head, tail)
 
 
@@ -63,28 +64,36 @@ def metaball_body(m_fur):
     obj = bpy.data.objects.new("body_mb", mb)
     bpy.context.scene.collection.objects.link(obj)
 
-    def ball(co, size, stiff=2.0):
+    def ball(co, size, stiff=2.0, rot=None):
         e = mb.elements.new(type="ELLIPSOID")
         e.co = Vector(co)
         e.size_x, e.size_y, e.size_z = size
         e.stiffness = stiff
+        if rot is not None:
+            e.rotation = rot
 
-    # torso (two elements -> pear silhouette), head, ears
-    ball((0, 0, 0.46), (0.20, 0.17, 0.20))
-    ball((0, 0, 0.32), (0.23, 0.19, 0.14))          # wider bottom = pear
-    ball((0, 0, 0.76), (0.21, 0.20, 0.21))          # head
-    ball((0.10, 0.01, 0.99), (0.045, 0.035, 0.16))  # ear R
-    ball((-0.10, 0.01, 0.99), (0.045, 0.035, 0.16)) # ear L
-    # arms + mitten hands
-    ball((0.21, 0.0, 0.50), (0.05, 0.05, 0.10))
-    ball((-0.21, 0.0, 0.50), (0.05, 0.05, 0.10))
-    ball((0.25, -0.01, 0.41), (0.062, 0.062, 0.062))
-    ball((-0.25, -0.01, 0.41), (0.062, 0.062, 0.062))
-    # stubby legs + oversized feet
-    ball((0.085, 0.0, 0.20), (0.055, 0.055, 0.11))
-    ball((-0.085, 0.0, 0.20), (0.055, 0.055, 0.11))
-    ball((0.085, -0.07, 0.055), (0.075, 0.14, 0.045))
-    ball((-0.085, -0.07, 0.055), (0.075, 0.14, 0.045))
+    # pear torso built from two blended masses (wide bottom, narrow chest)
+    ball((0, 0, 0.46), (0.190, 0.160, 0.20))
+    ball((0, 0, 0.32), (0.215, 0.180, 0.14))
+    # head + cheek/muzzle volumes (the reference has a rounded snout area)
+    ball((0, 0, 0.78), (0.22, 0.21, 0.22))
+    ball((0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
+    ball((-0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
+    # long ears, tilted outward
+    qL = Quaternion((0, 1, 0), math.radians(-16))
+    qR = Quaternion((0, 1, 0), math.radians(16))
+    ball((0.115, 0.02, 1.03), (0.045, 0.035, 0.19), rot=qR)
+    ball((-0.115, 0.02, 1.03), (0.045, 0.035, 0.19), rot=qL)
+    # arms held AWAY from the torso so the silhouette keeps a gap
+    ball((0.335, 0.0, 0.50), (0.056, 0.056, 0.13), rot=Quaternion((0, 1, 0), math.radians(-20)))
+    ball((-0.335, 0.0, 0.50), (0.056, 0.056, 0.13), rot=Quaternion((0, 1, 0), math.radians(20)))
+    ball((0.425, -0.01, 0.38), (0.070, 0.070, 0.070))
+    ball((-0.425, -0.01, 0.38), (0.070, 0.070, 0.070))
+    # stubby legs with a clear gap, feet with real thickness
+    ball((0.105, 0.0, 0.19), (0.060, 0.060, 0.12))
+    ball((-0.105, 0.0, 0.19), (0.060, 0.060, 0.12))
+    ball((0.105, -0.08, 0.055), (0.080, 0.13, 0.060))
+    ball((-0.105, -0.08, 0.055), (0.080, 0.13, 0.060))
 
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
@@ -102,8 +111,8 @@ def metaball_body(m_fur):
     bpy.ops.object.modifier_apply(modifier=mod.name)
 
     sm = body.modifiers.new("smooth", "SMOOTH")
-    sm.factor = 0.6
-    sm.iterations = 4
+    sm.factor = 0.5
+    sm.iterations = SMOOTH_ITERS
     bpy.ops.object.modifier_apply(modifier=sm.name)
 
     sub = body.modifiers.new("subsurf", "SUBSURF")
@@ -127,40 +136,48 @@ def sphere(name, r, m, scale=(1, 1, 1)):
     return o
 
 
-def accessories(m_cap, m_red, m_pink, m_dark):
-    parts = []
-    cap = sphere("cap", 0.225, m_cap, (1.02, 1.0, 0.80))
-    cap.location = (0, 0.005, 0.855)
-    brim = sphere("brim", 0.10, m_cap, (1.25, 1.1, 0.28))
-    brim.location = (0, -0.19, 0.865)
-    parts += [cap, brim]
+def front_y(body, x, z, win=0.055):
+    """Lowest (most forward) Y of the body mesh near (x,z) -- the real surface,
+    so features sit ON the sculpt instead of being guessed."""
+    ys = [v.co.y for v in body.data.vertices
+          if abs(v.co.x - x) < win and abs(v.co.z - z) < win]
+    return min(ys) if ys else None
 
+
+def accessories(body, m_cap, m_red, m_pink, m_dark):
+    parts = []
+
+    # cap: analytic shell over the crown (no brim -- it sliced through the W)
+    cap = sphere("cap", 0.235, m_cap, (1.02, 1.0, 0.80))
+    cap.location = (0, 0.005, 0.865)
+    parts.append(cap)
+
+    ey = front_y(body, 0.09, 0.80) or -0.22
+    my = front_y(body, 0.0, 0.722) or -0.22
     for side, sx in (("L", -1), ("R", 1)):
-        inner = sphere(f"ear_in{side}", 0.026, m_pink, (1.0, 0.4, 3.0))
-        inner.location = (sx * 0.105, -0.03, 0.99)
+        inner = sphere(f"ear_in{side}", 0.028, m_pink, (1.0, 0.4, 3.2))
+        inner.location = (sx * 0.115, -0.045, 1.04)
         inner.rotation_euler = (0, math.radians(sx * 20), 0)
         parts.append(inner)
-        eye = sphere(f"eye{side}", 0.024, m_dark)
-        eye.location = (sx * 0.080, -0.20, 0.80)
+        eye = sphere(f"eye{side}", 0.030, m_dark)
+        eye.location = (sx * 0.090, ey + 0.008, 0.800)
         parts.append(eye)
 
-    mouth = sphere("mouth", 0.020, m_dark, (1.4, 0.6, 0.9))
-    mouth.location = (0, -0.212, 0.735)
+    mouth = sphere("mouth", 0.034, m_dark, (2.0, 0.5, 0.7))
+    mouth.location = (0, my + 0.006, 0.722)
     parts.append(mouth)
 
-    bpy.ops.object.text_add(location=(0, 0, 0))
-    w = bpy.context.active_object
-    w.name = "emblem_W"
-    w.data.body = "W"
-    w.data.align_x = "CENTER"
-    w.data.size = 0.150
-    w.data.extrude = 0.014
-    w.rotation_euler = (math.radians(90), 0, 0)
-    w.location = (0, -0.248, 0.858)
-    bpy.ops.object.convert(target="MESH")
-    w = bpy.context.active_object
-    w.data.materials.append(m_red)
-    parts.append(w)
+    # red W resting on the cap's measured front surface
+    for i, (dx, ang) in enumerate(((-0.058, -0.50), (-0.019, 0.50),
+                                   (0.019, -0.50), (0.058, 0.50))):
+        bpy.ops.mesh.primitive_cube_add(size=1.0, location=(dx, -0.229, 0.885))
+        bar = bpy.context.active_object
+        bar.name = f"Wbar{i}"
+        bar.scale = (0.021, 0.032, 0.100)
+        bar.rotation_euler = (0, ang, 0)
+        bar.data.materials.append(m_red)
+        parts.append(bar)
+
     return parts
 
 
@@ -186,12 +203,12 @@ def make_armature():
     bone("root", (0, 0, 0.02), (0, 0, 0.20))
     bone("spine", (0, 0, 0.34), (0, 0, 0.56), "root")
     bone("head", (0, 0, 0.62), (0, 0, 0.80), "spine")
-    bone("earL", (-0.09, 0.01, 0.92), (-0.13, 0.01, 1.10), "head")
-    bone("earR", (0.09, 0.01, 0.92), (0.13, 0.01, 1.10), "head")
+    bone("earL", (-0.11, 0.02, 0.95), (-0.16, 0.02, 1.15), "head")
+    bone("earR", (0.11, 0.02, 0.95), (0.16, 0.02, 1.15), "head")
     for s, sx in (("L", -1), ("R", 1)):
-        bone(f"arm{s}", (sx * 0.19, 0, 0.56), (sx * 0.25, 0, 0.44), "spine")
-        bone(f"fore{s}", (sx * 0.25, 0, 0.44), (sx * 0.26, 0, 0.37), f"arm{s}")
-        bone(f"hand{s}", (sx * 0.26, 0, 0.37), (sx * 0.27, 0, 0.32), f"fore{s}")
+        bone(f"arm{s}", (sx * 0.27, 0, 0.56), (sx * 0.33, 0, 0.44), "spine")
+        bone(f"fore{s}", (sx * 0.33, 0, 0.44), (sx * 0.37, 0, 0.36), f"arm{s}")
+        bone(f"hand{s}", (sx * 0.37, 0, 0.36), (sx * 0.39, 0, 0.31), f"fore{s}")
         bone(f"leg{s}", (sx * 0.085, 0, 0.30), (sx * 0.085, 0, 0.14), "root")
         bone(f"shin{s}", (sx * 0.085, 0, 0.14), (sx * 0.085, 0, 0.05), f"leg{s}")
         bone(f"foot{s}", (sx * 0.085, 0, 0.05), (sx * 0.085, -0.10, 0.05), f"shin{s}")
@@ -255,7 +272,7 @@ def cmd_build(out):
     m_dark = material("dark", COL["dark"], 0.4)
 
     body = metaball_body(m_fur)
-    acc = accessories(m_cap, m_red, m_pink, m_dark)
+    acc = accessories(body, m_cap, m_red, m_pink, m_dark)
 
     bpy.ops.object.select_all(action="DESELECT")
     for o in acc:
