@@ -64,36 +64,46 @@ def metaball_body(m_fur):
     obj = bpy.data.objects.new("body_mb", mb)
     bpy.context.scene.collection.objects.link(obj)
 
-    def ball(co, size, stiff=2.0, rot=None):
+    def ball(co, size, stiff=2.0, rot=None, neg=False):
         e = mb.elements.new(type="ELLIPSOID")
         e.co = Vector(co)
         e.size_x, e.size_y, e.size_z = size
         e.stiffness = stiff
+        e.use_negative = neg          # subtraction carves BOUNDARIES
         if rot is not None:
             e.rotation = rot
 
     # pear torso built from two blended masses (wide bottom, narrow chest)
-    ball((0, 0, 0.46), (0.190, 0.160, 0.20))
-    ball((0, 0, 0.32), (0.215, 0.180, 0.14))
+    ball((0, 0, 0.46), (0.190, 0.185, 0.20))
+    ball((0, 0, 0.31), (0.205, 0.175, 0.13))
     # head + cheek/muzzle volumes (the reference has a rounded snout area)
     ball((0, 0, 0.78), (0.22, 0.21, 0.22))
+    ball((0, 0, 0.60), (0.105, 0.095, 0.10))          # neck transition
     ball((0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
     ball((-0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
-    # long ears, tilted outward
-    qL = Quaternion((0, 1, 0), math.radians(-16))
-    qR = Quaternion((0, 1, 0), math.radians(16))
-    ball((0.115, 0.02, 1.03), (0.045, 0.035, 0.19), rot=qR)
-    ball((-0.115, 0.02, 1.03), (0.045, 0.035, 0.19), rot=qL)
+    # long ears, tilted outward AND staggered front/back so they stay two
+    # distinct spikes in PROFILE instead of fusing into one crown
+    qR = Quaternion((1, 0, 0), math.radians(-12)) @ Quaternion((0, 1, 0), math.radians(18))
+    qL = Quaternion((1, 0, 0), math.radians(12)) @ Quaternion((0, 1, 0), math.radians(-18))
+    ball((0.125, -0.005, 1.04), (0.045, 0.035, 0.19), rot=qR)
+    ball((-0.125, 0.035, 1.04), (0.045, 0.035, 0.19), rot=qL)
     # arms held AWAY from the torso so the silhouette keeps a gap
-    ball((0.335, 0.0, 0.50), (0.056, 0.056, 0.13), rot=Quaternion((0, 1, 0), math.radians(-20)))
-    ball((-0.335, 0.0, 0.50), (0.056, 0.056, 0.13), rot=Quaternion((0, 1, 0), math.radians(20)))
-    ball((0.425, -0.01, 0.38), (0.070, 0.070, 0.070))
-    ball((-0.425, -0.01, 0.38), (0.070, 0.070, 0.070))
-    # stubby legs with a clear gap, feet with real thickness
-    ball((0.105, 0.0, 0.19), (0.060, 0.060, 0.12))
-    ball((-0.105, 0.0, 0.19), (0.060, 0.060, 0.12))
-    ball((0.105, -0.08, 0.055), (0.080, 0.13, 0.060))
-    ball((-0.105, -0.08, 0.055), (0.080, 0.13, 0.060))
+    # bent arms: upper arm angled out, hand further out and lower -> an ELBOW
+    # break in the silhouette (a straight arm fuses into the torso at 45deg)
+    ball((0.30, 0.0, 0.53), (0.056, 0.056, 0.115), rot=Quaternion((0, 1, 0), math.radians(-28)))
+    ball((-0.30, 0.0, 0.53), (0.056, 0.056, 0.115), rot=Quaternion((0, 1, 0), math.radians(28)))
+    ball((0.415, -0.02, 0.415), (0.072, 0.072, 0.072))
+    ball((-0.415, -0.02, 0.415), (0.072, 0.072, 0.072))
+    # stubby legs set wide apart (readable crotch gap), spread oversized feet
+    ball((0.125, 0.0, 0.19), (0.058, 0.058, 0.12))
+    ball((-0.125, 0.0, 0.19), (0.058, 0.058, 0.12))
+    ball((0.14, -0.105, 0.055), (0.082, 0.135, 0.062))
+    ball((-0.14, -0.060, 0.055), (0.082, 0.135, 0.062))   # staggered in depth
+
+    # subtraction defines where one shape ENDS -- blending alone cannot
+    ball((0, 0, 0.615), (0.190, 0.165, 0.050), neg=True)   # neck crease
+    ball((0, -0.075, 0.060), (0.090, 0.170, 0.075), neg=True)  # between feet
+    ball((0, 0.02, 1.055), (0.055, 0.055, 0.200), neg=True)    # between ears
 
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
