@@ -2,13 +2,14 @@
 """Slice the WuBu Buddy reference sheets into individual sprite PNGs.
 
 The supplied reference sheets are professional mascot grids: several poses per
-sheet on a plain background.  We segment them with connected components, MERGE
+sheet on plain white paper.  We segment them with connected components, MERGE
 nearby fragments into one pose group (a floating 'Zzz' or a prop belongs to the
-pose next to it), crop each group tightly, and key the background out with an AI
-matting model (rembg -- no colour flood fill).
+pose next to it), crop each group tightly, and key the background out by
+CONNECTIVITY (flood fill from the border) -- the art is a WHITE character on
+WHITE paper, so AI saliency models erode the fur; the bold outlines make a
+connectivity fill exact.
 
-Run with the rembg venv python (it carries numpy/scipy/PIL/rembg):
-  ~/opt/rembg/bin/python tools/buddy_slice_sheets.py OUT_DIR SHEET.jpg [...]
+Run:  python3 tools/buddy_slice_sheets.py OUT_DIR SHEET.jpg [...]
 
 Output: OUT_DIR/<sheet-stem>__<NN>.png  (RGBA, transparent background)
 """
@@ -99,15 +100,36 @@ def pose_groups(mask):
     return groups
 
 
+def key_paper(rgb, tol=10):
+    """Remove the paper background by CONNECTIVITY, not by AI matting.
+
+    These sheets are a WHITE character on WHITE paper: saliency models cannot
+    tell fur from background and erode the interior (measured: 26k interior
+    holes in one slice).  The artwork has bold outlines, so a flood fill from
+    the border stops at the silhouette and every enclosed white area survives.
+    """
+    paper = (rgb > (255 - tol)).all(axis=2)
+    lab, _ = ndimage.label(paper)
+    border = set(lab[0, :]) | set(lab[-1, :]) | set(lab[:, 0]) | set(lab[:, -1])
+    border.discard(0)
+    bg = np.isin(lab, list(border)) if border else np.zeros_like(paper)
+    fg = ~bg
+    if not fg.any():
+        return None
+    return fg
+
+
+def rgba_from_mask(rgb, mask):
+    out = np.dstack([rgb, (mask * 255).astype(np.uint8)])
+    return Image.fromarray(out, "RGBA")
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
         return 2
     outdir, sheets = sys.argv[1], sys.argv[2:]
     os.makedirs(outdir, exist_ok=True)
-
-    from rembg import new_session, remove
-    session = new_session("u2netp")
 
     total = 0
     for path in sheets:
@@ -120,8 +142,12 @@ def main():
             pad = 10
             x0 = max(0, x0 - pad); y0 = max(0, y0 - pad)
             x1 = min(im.size[0], x1 + pad); y1 = min(im.size[1], y1 + pad)
-            cell = im.crop((x0, y0, x1, y1))
-            cut = remove(cell, session=session)          # RGBA, matte alpha
+            cell = a[y0:y1, x0:x1]
+            fg = key_paper(cell)
+            if fg is None:
+                print(f"  SKIP {stem}__{k:02d}: nothing keyed")
+                continue
+            cut = rgba_from_mask(cell, fg)
             dst = os.path.join(outdir, f"{stem}__{k:02d}.png")
             cut.save(dst)
             total += 1
