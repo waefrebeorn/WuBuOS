@@ -69,7 +69,7 @@ void wubu_buddy_orb_get_blob(const wubu_buddy_orb_t *orb, int i,
 
     /* Per-blob orbit: radius, speed and vertical bob all differ per blob, so
      * the aggregate silhouette keeps reshaping instead of looping. */
-    float ring = 0.30f + 0.45f * (0.5f + 0.5f * sinf(ph + 1.7f));
+    float ring = 0.25f + 0.30f * (0.5f + 0.5f * sinf(ph + 1.7f));
     float spd = 0.55f + 0.35f * (0.5f + 0.5f * cosf(ph * 1.3f));
     float ang = t * spd + ph;
     float tilt = 0.35f * sinf(ph * 2.1f);
@@ -79,7 +79,7 @@ void wubu_buddy_orb_get_blob(const wubu_buddy_orb_t *orb, int i,
     float y = 0.55f * (0.5f + 0.5f * sinf(t * 0.7f + ph * 1.9f))
             + 0.18f * sinf(ang * 1.7f + ph);
 
-    float r = 0.20f + 0.13f * (0.5f + 0.5f * sinf(t * 1.1f + ph * 2.3f));
+    float r = 0.25f + 0.10f * (0.5f + 0.5f * sinf(t * 1.1f + ph * 2.3f));
 
     if (out_xyz) {
         out_xyz[0] = x;
