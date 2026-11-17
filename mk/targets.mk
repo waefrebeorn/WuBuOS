@@ -200,6 +200,16 @@ wubugrep_static: $(WUBUGREP_OBJS)
 tools: $(TOOLS_OBJS)
 	@echo "✅ WuBuOS tools built"
 
+# wubu_buddy live shader orb demo (GLX raymarcher + render-space box).
+# Needs no -dev headers: entry points come from glXGetProcAddress.
+buddy:
+	$(CC) -O2 -std=c11 -I$(RT) -Iinclude \
+		tools/wubu_buddy_orb_demo.c \
+		$(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_emotion.c \
+		$(RT)/wubutime.c $(RT)/wubu_posix.c \
+		-o build/wubu-buddy -lGL -lX11 -lm
+	@echo "✅ Buddy orb built: build/wubu-buddy  (DISPLAY=:0 ./build/wubu-buddy)"
+
 gui: $(GUI_OBJS)
 	@echo "✅ GUI built"
 
