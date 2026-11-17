@@ -610,6 +610,9 @@ test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
 test_wubutime: $(RT)/wubutime.c $(RT)/wubu_posix.c $(RT)/wubutime_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) -Iinclude $(RT)/wubutime.c $(RT)/wubu_posix.c $(RT)/wubutime_test.c -o $(RT)/test_wubutime -lm
 	$(RT)/test_wubutime
+	@echo "[freestanding] proving no libc header dependency:"
+	$(CC) -std=c11 -ffreestanding -nostdinc -isystem $$($(CC) -print-file-name=include) -Iinclude -c $(RT)/wubu_posix.c -o $(RT)/wubu_posix.freestanding.o
+	$(CC) -std=c11 -ffreestanding -nostdinc -isystem $$($(CC) -print-file-name=include) -Iinclude -c $(RT)/wubutime.c -o $(RT)/wubutime.freestanding.o
 test_buddy_emotion: $(RT)/wubu_buddy_emotion.c $(RT)/wubu_buddy_emotion_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) -Iinclude $(RT)/wubu_buddy_emotion.c $(RT)/wubu_buddy_emotion_test.c -o $(RT)/test_buddy_emotion -lm
 	$(RT)/test_buddy_emotion

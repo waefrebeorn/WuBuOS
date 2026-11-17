@@ -93,7 +93,7 @@ static const char *FS_ORB = "#version 330 core\n"
     "uniform int   uCount;\n"
     "uniform vec4  uBlob[MAXB];\n"
     "uniform vec3  uBoxLo, uBoxHi;\n"
-    "uniform vec3  uCenter;\n"
+    "uniform vec3  uHead;\n"
     /* True distance estimator: smooth minimum of the component spheres.
      * The old 1/sqrt(field) heuristic is NOT Lipschitz -- it overshot through
      * thin regions and punched false holes in the surface. */
@@ -109,11 +109,11 @@ static const char *FS_ORB = "#version 330 core\n"
     "float sdBlob(vec3 p){ float d = 1e6;\n"
     "  for(int i=0;i<MAXB;i++){ if(i>=uCount) break;\n"
     "    d = smin(d, length(p-uBlob[i].xyz)-uBlob[i].w*1.42, 0.52); }\n"
-    "  vec3 hd = uCenter + vec3(0.0, 0.46, 0.0);   /* mascot head anchor */\n"
-    "  d = min(d, sdCapsule(p, hd+vec3(-0.20,0.22,0.0),\n"
-    "                         hd+vec3(-0.38,1.16-0.60*uEmo.y,0.0), 0.095));\n"
-    "  d = min(d, sdCapsule(p, hd+vec3( 0.20,0.22,0.0),\n"
-    "                         hd+vec3( 0.38,1.16-0.60*uEmo.y,0.0), 0.095));\n"
+    "  vec3 hd = uHead;                            /* crown of the buddy */\n"
+    "  d = min(d, sdCapsule(p, hd+vec3(-0.18,-0.05,0.0),\n"
+    "                         hd+vec3(-0.34,0.95-0.60*uEmo.y,0.0), 0.13));\n"
+    "  d = min(d, sdCapsule(p, hd+vec3( 0.18,-0.05,0.0),\n"
+    "                         hd+vec3( 0.34,0.95-0.60*uEmo.y,0.0), 0.13));\n"
     "  return d; }\n"
     "float h31(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }\n"
     "float vnoise(vec3 p){\n"
@@ -148,7 +148,7 @@ static const char *FS_ORB = "#version 330 core\n"
     "    vec3 g = vec3(vnoise(q+vec3(0.03,0,0))-vnoise(q-vec3(0.03,0,0)),\n"
     "                  vnoise(q+vec3(0,0.03,0))-vnoise(q-vec3(0,0.03,0)),\n"
     "                  vnoise(q+vec3(0,0,0.03))-vnoise(q-vec3(0,0,0.03)));\n"
-    "    n = normalize(n + 2.2*g);   /* living surface, not sterile plastic */\n"
+    "    n = normalize(n + 0.9*g);   /* living surface, not sterile plastic */\n"
     "    vec3 L = normalize(vec3(-0.45,0.75,0.55));\n"
     "    float dif = max(dot(n,L),0.0);\n"
     "    float hl  = 0.38;                       /* headlight: front never black */\n"
@@ -156,14 +156,14 @@ static const char *FS_ORB = "#version 330 core\n"
     "    vec3 L2 = normalize(vec3(0.6,-0.1,0.8));  /* camera-side fill */\n"
     "    float spec = pow(max(dot(n,h),0.0), 28.0);\n"
     "    float fres = pow(1.0 - max(dot(n,-rd),0.0), 3.0);\n"
-    "    vec3 base = vec3(0.93,0.92,0.88)*(0.80+0.35*vnoise(p*16.0));\n"
-    "    vec3 hd = uCenter + vec3(0.0, 0.46, 0.0);\n"
+    "    vec3 base = vec3(0.93,0.92,0.88)*(0.88+0.16*vnoise(p*16.0));\n"
+    "    vec3 hd = uHead;\n"
     "    /* green aviator cap: a dome over the upper head */\n"
-    "    float cap = smoothstep(hd.y-0.02, hd.y+0.12, p.y)\n"
-    "              * (1.0-smoothstep(0.48, 0.60, length(p-hd)));\n"
+    "    float cap = smoothstep(hd.y-0.10, hd.y+0.02, p.y)\n"
+    "              * (1.0-smoothstep(0.50, 0.62, length(p-hd)));\n"
     "    base = mix(base, vec3(0.14,0.42,0.22), cap);\n"
     "    /* red neckerchief just below the head */\n"
-    "    float scarf = (1.0-smoothstep(0.05,0.09,abs(p.y-(hd.y-0.30))))\n"
+    "    float scarf = (1.0-smoothstep(0.05,0.10,abs(p.y-(hd.y-0.26))))\n"
     "                * (1.0-smoothstep(0.30,0.45,length(p.xz-hd.xz)));\n"
     "    base = mix(base, vec3(0.72,0.10,0.12), scarf);\n"
     "    /* red W, four strokes drawn on the cap's front */\n"
@@ -220,7 +220,6 @@ static const char *FS_BOX = "#version 330 core\n"
     "out vec4 frag;\n"
     "uniform vec3 uAccent;\n"
     "void main(){ frag = vec4(uAccent, 0.55); }\n";
-
 
 /* Resolve modern entry points at runtime (Mesa exports them; headers do not). */
 typedef void (*GLXGetProcAddressFn)(void);
@@ -442,6 +441,7 @@ int main(void)
     wubu_buddy_orb_t *orb = wubu_buddy_orb_create(9);
 
     float yaw = 0.6f, pitch = 0.25f, rad = 3.4f, tsec = 0.0f;
+    const int dbg_ears = getenv("WUBU_BUDDY_DEBUG_EARS") != NULL;
     int paused = 0;
     int sel = 0;                 /* selected blob for live sculpting */
     float off[WUBU_BUDDY_ORB_MAX_BLOBS][4] = {{0}}; /* dx,dy,dz,dr */
@@ -512,7 +512,7 @@ int main(void)
                          right[2]*fwd[0]-right[0]*fwd[2],
                          right[0]*fwd[1]-right[1]*fwd[0] };
 
-        ((PFNglUniform1i)p_u1i)(((PFNglGetUniformLocation)p_loc)(prog,"uCount"), n);
+        ((PFNglUniform1i)p_u1i)(((PFNglGetUniformLocation)p_loc)(prog,"uCount"), dbg_ears ? 0 : n);
         GLint l;
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uRes");
         ((PFNglUniform2f)p_u2f)(l, (GLfloat)SW, (GLfloat)SH);
@@ -528,11 +528,16 @@ int main(void)
         ((PFNglUniform1f)p_u1f)(l, 0.62f);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uTime");
         ((PFNglUniform1f)p_u1f)(l, tsec);
-        float cen[3] = {0.0f, 0.0f, 0.0f};
-        for (int i = 0; i < n; ++i)
-            for (int k = 0; k < 3; ++k) cen[k] += blobs[i][k] / (float)n;
-        l = ((PFNglGetUniformLocation)p_loc)(prog,"uCenter");
-        ((PFNglUniform3f)p_u3f)(l, cen[0], cen[1], cen[2]);
+        /* Head rides on the highest blob, not the centroid: a centroid sits in
+         * mid-body and would hang the ears downward like legs. */
+        int top = 0;
+        for (int i = 1; i < n; ++i)
+            if (blobs[i][1] > blobs[top][1]) top = i;
+        float hd[3] = { blobs[top][0], blobs[top][1] + blobs[top][3]*0.75f,
+                        blobs[top][2] };
+        l = ((PFNglGetUniformLocation)p_loc)(prog,"uHead");
+        ((PFNglUniform3f)p_u3f)(l, hd[0], hd[1], hd[2]);
+
         float emo_v[4] = { wubu_buddy_emotion_energy(emo),
                            wubu_buddy_emotion_stress(emo),
                            wubu_buddy_emotion_warmth(emo),

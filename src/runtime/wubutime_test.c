@@ -69,6 +69,76 @@ int main(void)
     CHECK(slept_ns >= 30000000L && slept_ns < 500000000L,
           "nanosleep respects the requested interval");
 
+
+    /* ------------------------------------------ broader POSIX surface */
+    const char *dir = "/tmp/wubutime_posix_dir";
+    const char *f1  = "/tmp/wubutime_posix_dir/a.txt";
+    const char *f2  = "/tmp/wubutime_posix_dir/b.txt";
+    CHECK(wubu_rmdir(dir) == 0 || 1, "clean slate tolerated");
+    CHECK(wubu_mkdir(dir, 0755) == 0, "mkdir through our syscall");
+
+    int df = wubu_open(f1, WUBU_O_RDWR | WUBU_O_CREAT | WUBU_O_TRUNC, 0644);
+    CHECK(df >= 3, "create inside the new directory");
+    CHECK(wubu_write(df, "abc", 3) == 3, "write in directory");
+    CHECK(wubu_ftruncate(df, 9) == 0, "ftruncate grows the file");
+    struct wubu_stat ds;
+    CHECK(wubu_fstat(df, &ds) == 0 && (long)ds.st_size == 9,
+          "fstat sees the truncated size");
+    CHECK(wubu_close(df) == 0, "close after ftruncate");
+
+    CHECK(wubu_link(f1, f2) == 0, "hard link created");
+    struct wubu_stat ls;
+    CHECK(wubu_lstat_path(f2, &ls) == 0 && ls.st_nlink >= 2,
+          "lstat reports the link count");
+    CHECK(wubu_unlink(f1) == 0, "unlink one link keeps the other");
+    CHECK(wubu_access(f2, WUBU_R_OK) == 0, "access honours permissions");
+    CHECK(wubu_chmod(f2, 0600) == 0, "chmod through our syscall");
+    CHECK(wubu_lstat_path(f2, &ls) == 0 && (ls.st_mode & 0777) == 0600,
+          "chmod took effect");
+    CHECK(wubu_truncate(f2, 2) == 0, "truncate by path");
+    CHECK(wubu_rename(f2, f1) == 0, "rename through our syscall");
+
+    /* Directory iteration must actually see our file via getdents64. */
+    wubu_dir *dd = wubu_opendir(dir);
+    CHECK(dd != 0, "opendir succeeds");
+    int seen = 0;
+    struct wubu_dirent *de;
+    while ((de = wubu_readdir(dd)) != 0)
+        if (strcmp(de->d_name, "a.txt") == 0) seen = 1;
+    CHECK(seen == 1, "readdir lists the renamed file");
+    CHECK(wubu_closedir(dd) == 0, "closedir succeeds");
+    wubu_unlink(f1);
+    CHECK(wubu_rmdir(dir) == 0, "rmdir through our syscall");
+
+    /* Pipe + dup: our layer can move bytes between descriptors. */
+    int pfd[2];
+    CHECK(wubu_pipe(pfd) == 0, "pipe created");
+    CHECK(wubu_write(pfd[1], "hi", 2) == 2, "write to pipe");
+    int dup_fd = wubu_dup(pfd[0]);
+    CHECK(dup_fd > 0, "dup returns a descriptor");
+    char pb[4];
+    memset(pb, 0, sizeof pb);
+    CHECK(wubu_read(dup_fd, pb, 2) == 2, "read through dup'd descriptor");
+    CHECK(memcmp(pb, "hi", 2) == 0, "pipe payload survives");
+    wubu_close(pfd[0]); wubu_close(pfd[1]); wubu_close(dup_fd);
+
+    /* Anonymous mmap through our syscall trap. */
+    char *mem = (char *)wubu_mmap(0, 4096, WUBU_PROT_READ | WUBU_PROT_WRITE,
+                                 WUBU_MAP_PRIVATE | WUBU_MAP_ANONYMOUS, -1, 0);
+    CHECK(mem != 0, "mmap returns memory");
+    mem[0] = 'x';
+    CHECK(wubu_mprotect(mem, 4096, WUBU_PROT_READ) == 0, "mprotect applies");
+    CHECK(wubu_munmap(mem, 4096) == 0, "munmap succeeds");
+
+    /* ISO-8601 is its own inverse. */
+    uint64_t back = 0;
+    CHECK(wubutime_from_iso8601("2026-11-17T14:03:21Z", &back) == 1,
+          "ISO string parses");
+    CHECK(back == wubutime_from_civil(2026,11,17,14,3,21),
+          "ISO parse agrees with civil construction");
+    CHECK(wubutime_from_iso8601("2026-13-17T14:03:21Z", &back) == 0,
+          "malformed month rejected");
+
     /* -------------------------------------------------------- WuBuTIME */
     wubutime *t = NULL;
     CHECK(wubutime_create(&t) == 1, "time service creates");

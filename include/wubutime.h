@@ -44,6 +44,9 @@ uint64_t wubutime_from_civil(int year, int mon, int day,
                              int hour, int min, int sec);
 /* ISO-8601 UTC, e.g. "2026-11-17T14:03:21Z".  Truncates safely. */
 size_t   wubutime_iso8601(char *buf, size_t cap, uint64_t wall_ns);
+/* Inverse of wubutime_iso8601; returns 1 on success, 0 on malformed input.
+ * Accepts exactly YYYY-MM-DDTHH:MM:SS[Z] (the only form we emit). */
+int      wubutime_from_iso8601(const char *s, uint64_t *wall_ns);
 
 typedef void (*wubutime_cb)(void *arg);
 
