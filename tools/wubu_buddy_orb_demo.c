@@ -103,17 +103,36 @@ static const char *FS_ORB = "#version 330 core\n"
     "float sdSeg2(vec2 p, vec2 a, vec2 b){\n"
     "  vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);\n"
     "  return length(pa-ba*h); }\n"
-    "float sdCapsule(vec3 p, vec3 a, vec3 b, float r){\n"
+    "float sdRoundCone(vec3 p, vec3 a, vec3 b, float r1, float r2){\n"
+    "  vec3 ba=b-a; float l2=dot(ba,ba); float rr=r1-r2;\n"
+    "  float a2=l2-rr*rr; float il2=1.0/l2;\n"
+    "  vec3 pa=p-a; float y=dot(pa,ba); float z=y-l2;\n"
+    "  vec3 xp=pa*l2-ba*y; float x2=dot(xp,xp);\n"
+    "  float y2=y*y*l2; float z2=z*z*l2;\n"
+    "  float k=sign(rr)*rr*rr*x2;\n"
+    "  if (sign(z)*a2*z2>k) return sqrt(x2+z2)*il2-r2;\n"
+    "  if (sign(y)*a2*y2<k) return sqrt(x2+y2)*il2-r1;\n"
+    "  return (sqrt(x2*a2*il2)+y*rr)*il2-r1; }\n"    "float sdCapsule(vec3 p, vec3 a, vec3 b, float r){\n"
     "  vec3 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);\n"
     "  return length(pa-ba*h)-r; }\n"
+    "float sdEllipsoid(vec3 p, vec3 c, vec3 r){\n"
+    "  float k0 = length((p-c)/r);\n"
+    "  return (k0-1.0)*min(r.x,min(r.y,r.z))/max(k0,1e-5); }\n"
+    /* Explicit anatomy: a bean silhouette comes from relying on the metaball
+     * cloud for the whole figure.  The form is now built: body ellipsoid that
+     * still breathes through the blobs, a head blended in for a neck, and two
+     * upright ears. */
     "float sdBlob(vec3 p){ float d = 1e6;\n"
+    "  d = sdEllipsoid(p, vec3(0.0,-0.30,0.0), vec3(0.80,0.95,0.70));\n"
     "  for(int i=0;i<MAXB;i++){ if(i>=uCount) break;\n"
-    "    d = smin(d, length(p-uBlob[i].xyz)-uBlob[i].w*1.42, 0.52); }\n"
-    "  vec3 hd = uHead;                            /* crown of the buddy */\n"
-    "  d = min(d, sdCapsule(p, hd+vec3(-0.18,-0.05,0.0),\n"
-    "                         hd+vec3(-0.34,0.95-0.60*uEmo.y,0.0), 0.13));\n"
-    "  d = min(d, sdCapsule(p, hd+vec3( 0.18,-0.05,0.0),\n"
-    "                         hd+vec3( 0.34,0.95-0.60*uEmo.y,0.0), 0.13));\n"
+    "    d = smin(d, length(p-uBlob[i].xyz)-uBlob[i].w*1.42, 0.34); }\n"
+    "  vec3 hd = uHead;                            /* head centre */\n"
+    "  d = smin(d, length(p-hd)-0.62, 0.28);       /* neck blend */\n"
+    "  float droop = 0.62*uEmo.y;                  /* stress drags ears */\n"
+    "  d = min(d, sdRoundCone(p, hd+vec3(-0.28,0.40,0.0),\n"
+    "                          hd+vec3(-0.42,1.45-droop,0.0), 0.155, 0.07));\n"
+    "  d = min(d, sdRoundCone(p, hd+vec3( 0.28,0.40,0.0),\n"
+    "                          hd+vec3( 0.42,1.45-droop,0.0), 0.155, 0.07));\n"
     "  return d; }\n"
     "float h31(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }\n"
     "float vnoise(vec3 p){\n"
@@ -148,7 +167,7 @@ static const char *FS_ORB = "#version 330 core\n"
     "    vec3 g = vec3(vnoise(q+vec3(0.03,0,0))-vnoise(q-vec3(0.03,0,0)),\n"
     "                  vnoise(q+vec3(0,0.03,0))-vnoise(q-vec3(0,0.03,0)),\n"
     "                  vnoise(q+vec3(0,0,0.03))-vnoise(q-vec3(0,0,0.03)));\n"
-    "    n = normalize(n + 0.9*g);   /* living surface, not sterile plastic */\n"
+    "    n = normalize(n + 0.5*g);   /* living surface, not sterile plastic */\n"
     "    vec3 L = normalize(vec3(-0.45,0.75,0.55));\n"
     "    float dif = max(dot(n,L),0.0);\n"
     "    float hl  = 0.38;                       /* headlight: front never black */\n"
@@ -156,15 +175,16 @@ static const char *FS_ORB = "#version 330 core\n"
     "    vec3 L2 = normalize(vec3(0.6,-0.1,0.8));  /* camera-side fill */\n"
     "    float spec = pow(max(dot(n,h),0.0), 28.0);\n"
     "    float fres = pow(1.0 - max(dot(n,-rd),0.0), 3.0);\n"
-    "    vec3 base = vec3(0.93,0.92,0.88)*(0.88+0.16*vnoise(p*16.0));\n"
-    "    vec3 hd = uHead;\n"
-    "    /* green aviator cap: a dome over the upper head */\n"
-    "    float cap = smoothstep(hd.y-0.10, hd.y+0.02, p.y)\n"
-    "              * (1.0-smoothstep(0.50, 0.62, length(p-hd)));\n"
+    "    vec3 base = vec3(0.93,0.92,0.88)*(0.94+0.08*vnoise(p*16.0));\n"
+    "    vec3 hd = uHead;                            /* head centre */\n"
+    "    /* green aviator cap: the top hemisphere of the head */\n"
+    "    float cap = smoothstep(hd.y+0.08, hd.y+0.22, p.y)\n"
+    "              * (1.0-smoothstep(0.60, 0.72, length(p-hd)));\n"
     "    base = mix(base, vec3(0.14,0.42,0.22), cap);\n"
-    "    /* red neckerchief just below the head */\n"
-    "    float scarf = (1.0-smoothstep(0.05,0.10,abs(p.y-(hd.y-0.26))))\n"
-    "                * (1.0-smoothstep(0.30,0.45,length(p.xz-hd.xz)));\n"
+    "    /* red neckerchief tied where head meets body */\n"
+    "    float scarf = smoothstep(hd.y-0.72, hd.y-0.58, p.y)\n"
+    "                * (1.0-smoothstep(hd.y-0.40, hd.y-0.26, p.y))\n"
+    "                * (1.0-smoothstep(0.62,0.80,length(p.xz-hd.xz)));\n"
     "    base = mix(base, vec3(0.72,0.10,0.12), scarf);\n"
     "    /* red W, four strokes drawn on the cap's front */\n"
     "    vec2 wp = vec2(p.x-hd.x, p.y-hd.y);\n"
@@ -183,9 +203,9 @@ static const char *FS_ORB = "#version 330 core\n"
     "    else if (m > 1.5 && m < 2.5) ey = 2.2; /* excited: wide grin-eyes */\n"
     "    else if (m > 2.5 && m < 3.5) ey = 0.75;/* alert: open wide */\n"
     "    else if (m > 4.5) ey = 0.55;           /* sleepy: half closed */\n"
-    "    float eL = length((wp-vec2(-0.16,-0.03))*vec2(1.0,ey));\n"
-    "    float eR = length((wp-vec2( 0.16,-0.03))*vec2(1.0,ey));\n"
-    "    float nose = length((wp-vec2(0.0,-0.17))*vec2(1.0,1.4));\n"
+    "    float eL = length((wp-vec2(-0.20,-0.06))*vec2(1.0,ey));\n"
+    "    float eR = length((wp-vec2( 0.20,-0.06))*vec2(1.0,ey));\n"
+    "    float nose = length((wp-vec2(0.0,-0.24))*vec2(1.0,1.4));\n"
     "    base = mix(base, vec3(0.06,0.07,0.08),\n"
     "               front*(1.0-smoothstep(0.035,0.052,min(eL,eR))));\n"
     "    base = mix(base, vec3(0.45,0.06,0.07),\n"
@@ -442,6 +462,7 @@ int main(void)
 
     float yaw = 0.6f, pitch = 0.25f, rad = 3.4f, tsec = 0.0f;
     const int dbg_ears = getenv("WUBU_BUDDY_DEBUG_EARS") != NULL;
+    float off_bob = 0.0f;
     int paused = 0;
     int sel = 0;                 /* selected blob for live sculpting */
     float off[WUBU_BUDDY_ORB_MAX_BLOBS][4] = {{0}}; /* dx,dy,dz,dr */
@@ -516,6 +537,7 @@ int main(void)
         GLint l;
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uRes");
         ((PFNglUniform2f)p_u2f)(l, (GLfloat)SW, (GLfloat)SH);
+
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uEye");
         ((PFNglUniform3f)p_u3f)(l, eye[0], eye[1], eye[2]);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uFwd");
@@ -528,13 +550,9 @@ int main(void)
         ((PFNglUniform1f)p_u1f)(l, 0.62f);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uTime");
         ((PFNglUniform1f)p_u1f)(l, tsec);
-        /* Head rides on the highest blob, not the centroid: a centroid sits in
-         * mid-body and would hang the ears downward like legs. */
-        int top = 0;
-        for (int i = 1; i < n; ++i)
-            if (blobs[i][1] > blobs[top][1]) top = i;
-        float hd[3] = { blobs[top][0], blobs[top][1] + blobs[top][3]*0.75f,
-                        blobs[top][2] };
+        /* Explicit anatomy: the head centre is authored, so the silhouette is
+         * correct by construction instead of being read off the blob cloud. */
+        float hd[3] = { 0.0f, 0.75f + 0.10f*off_bob, 0.0f };
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uHead");
         ((PFNglUniform3f)p_u3f)(l, hd[0], hd[1], hd[2]);
 
@@ -599,7 +617,10 @@ int main(void)
             FILE *fp = fopen("/tmp/bod_snap.ppm", "wb");
             if (fp) {
                 fprintf(fp, "P6\n%d %d\n255\n", SW, SH);
-                fwrite(buf, 3, (size_t)SW * SH, fp);
+                /* glReadPixels is bottom-up; write top-down so the image is not
+                 * upside down (every earlier audit was flipped). */
+                for (int yy = SH - 1; yy >= 0; --yy)
+                    fwrite(buf + (size_t)yy * SW * 3, 3, (size_t)SW, fp);
                 fclose(fp);
                 fprintf(stderr, "snapshot written %dx%d\n", SW, SH);
             }
