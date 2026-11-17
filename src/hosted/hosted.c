@@ -364,14 +364,45 @@ static void wubu_hosted_spawn_buddy(void)
 {
     const char *want = getenv("WUBU_BUDDY");
     if (want && strcmp(want, "0") == 0) return;
-    if (access("./build/wubu-buddy", X_OK) != 0) return;
+
+    /* Find the orb without depending on the CWD: WuBuCompositor forks the
+     * client from its own directory, so "./build/wubu-buddy" would miss. */
+    char orb[4096];
+    if (getenv("WUBU_BUDDY_BIN")) {
+        snprintf(orb, sizeof(orb), "%s", getenv("WUBU_BUDDY_BIN"));
+    } else {
+        char self[4096];
+        ssize_t n = readlink("/proc/self/exe", self, sizeof(self) - 1);
+        if (n <= 0) return;
+        self[n] = 0;
+        /* Walk up from the executable to the repo root and look for build/.
+         * src/hosted/wubu sits two levels below it; the launcher may also copy
+         * or wrap the binary elsewhere. */
+        char dir[4096];
+        snprintf(dir, sizeof(dir), "%s", self);
+        int guard;
+        for (guard = 0; guard < 5 && !*orb; ++guard) {
+            char *slash = strrchr(dir, '/');
+            if (!slash) break;
+            *slash = 0;
+            if (!*dir) break;
+            snprintf(orb, sizeof(orb), "%s/build/wubu-buddy", dir);
+            if (access(orb, X_OK) != 0) orb[0] = 0;
+        }
+        if (!*orb) return;
+    }
+    if (access(orb, X_OK) != 0) return;
 
     pid_t pid = fork();
     if (pid != 0) return;                 /* parent keeps running the desktop */
     setsid();                             /* detach from the desktop's group */
     int devnull = open("/dev/null", O_RDWR);
-    if (devnull >= 0) { dup2(devnull, 0); dup2(devnull, 1); dup2(devnull, 2); }
-    execl("./build/wubu-buddy", "wubu-buddy", (char *)NULL);
+    const char *blog = getenv("WUBU_BUDDY_LOG");
+    if (blog && *blog) {
+        int lf = open(blog, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (lf >= 0) { dup2(lf, 1); dup2(lf, 2); }
+    } else if (devnull >= 0) { dup2(devnull, 0); dup2(devnull, 1); dup2(devnull, 2); }
+    execl(orb, "wubu-buddy", (char *)NULL);
     _exit(127);
 }
 
