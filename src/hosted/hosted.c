@@ -33,6 +33,12 @@
 #include "hosted_internal.h"
 #include "wubu_boot_attest_edr.h"   /* the measured boot -> EDR + peers */
 
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+
 #include "../kernel/vbe.h"
 #include "../kernel/memory.h"
 #include "../kernel/tasking.h"
@@ -43,6 +49,9 @@
 #include "../gui/shell/startmenu.h"
 #include "../gui/wubu_settings.h"
 #include "../gui/wubu_a11y.h"
+
+/* defined below main; launches the live shader companion orb */
+static void wubu_hosted_spawn_buddy(void);
 #include "wubu_agent.h"
 #include "wubu_agi_play.h"
 #include "wubu_game_launch.h"
@@ -206,6 +215,8 @@ int hosted_init(hosted_state_t *state, int argc, char **argv) {
                                   NULL, NULL, NULL, NULL, NULL);
     }
 
+    wubu_hosted_spawn_buddy();
+
     /* The federation agent card. The OS never mints an AID -- the federation
      * does (JOINING.md) -- so this loads an enrolled card from the home
      * directory and publishes it under /n/agent, making the sponsor visible
@@ -346,6 +357,24 @@ int hosted_styx_register_wubu(hosted_state_t *state,
 void hosted_fs_reset(void) { fs_reset(); }
 
 #ifndef WUBU_HOSTED_TEST
+/* The wubu_buddy orb is a live shader companion, not a bitmap sprite. The
+ * desktop launches it as its own GLX window so it can run in real time next to
+ * the WM, fed by the same sensors. Absent binary or WUBU_BUDDY=0 -> no-op. */
+static void wubu_hosted_spawn_buddy(void)
+{
+    const char *want = getenv("WUBU_BUDDY");
+    if (want && strcmp(want, "0") == 0) return;
+    if (access("./build/wubu-buddy", X_OK) != 0) return;
+
+    pid_t pid = fork();
+    if (pid != 0) return;                 /* parent keeps running the desktop */
+    setsid();                             /* detach from the desktop's group */
+    int devnull = open("/dev/null", O_RDWR);
+    if (devnull >= 0) { dup2(devnull, 0); dup2(devnull, 1); dup2(devnull, 2); }
+    execl("./build/wubu-buddy", "wubu-buddy", (char *)NULL);
+    _exit(127);
+}
+
 int main(int argc, char **argv) {
     hosted_state_t state;
     int init_ret = hosted_init(&state, argc, argv);
