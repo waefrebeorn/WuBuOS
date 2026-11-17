@@ -73,12 +73,12 @@ def metaball_body(m_fur):
         if rot is not None:
             e.rotation = rot
 
-    # pear torso built from two blended masses (wide bottom, narrow chest)
-    ball((0, 0, 0.46), (0.190, 0.185, 0.20))
-    ball((0, 0, 0.31), (0.205, 0.175, 0.13))
+    # pear torso: narrower chest, heavier LOW hips/feet (reference profile
+    # peaks at 75% of height, not mid-body)
+    ball((0, 0, 0.46), (0.175, 0.170, 0.20))
+    ball((0, 0, 0.30), (0.215, 0.185, 0.14))
     # head + cheek/muzzle volumes (the reference has a rounded snout area)
-    ball((0, 0, 0.78), (0.22, 0.21, 0.22))
-    ball((0, 0, 0.60), (0.105, 0.095, 0.10))          # neck transition
+    ball((0, 0, 0.78), (0.25, 0.235, 0.25))
     ball((0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
     ball((-0.085, -0.175, 0.735), (0.075, 0.07, 0.075))
     # long ears, tilted outward AND staggered front/back so they stay two
@@ -95,13 +95,14 @@ def metaball_body(m_fur):
     ball((0.415, -0.02, 0.415), (0.072, 0.072, 0.072))
     ball((-0.415, -0.02, 0.415), (0.072, 0.072, 0.072))
     # stubby legs set wide apart (readable crotch gap), spread oversized feet
-    ball((0.125, 0.0, 0.19), (0.058, 0.058, 0.12))
-    ball((-0.125, 0.0, 0.19), (0.058, 0.058, 0.12))
-    ball((0.14, -0.105, 0.055), (0.082, 0.135, 0.062))
-    ball((-0.14, -0.060, 0.055), (0.082, 0.135, 0.062))   # staggered in depth
+    ball((0.18, 0.0, 0.19), (0.058, 0.058, 0.12))
+    ball((-0.18, 0.0, 0.19), (0.058, 0.058, 0.12))
+    ball((0.24, -0.110, 0.055), (0.110, 0.160, 0.075))
+    ball((-0.24, -0.060, 0.055), (0.110, 0.160, 0.075))   # staggered in depth
 
-    # subtraction defines where one shape ENDS -- blending alone cannot
-    ball((0, 0, 0.615), (0.190, 0.165, 0.050), neg=True)   # neck crease
+    # subtraction defines where one shape ENDS -- blending alone cannot.
+    # Reference profile: width dips to ~21% of max at 40% height (a real neck).
+    ball((0, 0, 0.615), (0.255, 0.235, 0.038), stiff=2.2, neg=True)  # neck crease
     ball((0, -0.075, 0.060), (0.090, 0.170, 0.075), neg=True)  # between feet
     ball((0, 0.02, 1.055), (0.055, 0.055, 0.200), neg=True)    # between ears
 
