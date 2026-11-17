@@ -56,6 +56,17 @@ typedef void (*PFNglUniformMatrix4fv)(GLint l, GLsizei n, GLboolean tr,
 typedef void (*PFNglGenVertexArrays)(GLsizei n, GLuint *out);
 typedef void (*PFNglBindVertexArray)(GLuint vao);
 typedef void (*PFNglDrawArrays)(GLenum mode, GLint first, GLsizei count);
+typedef void (*PFNglBlitFramebuffer)(GLint, GLint, GLint, GLint,
+                                     GLint, GLint, GLint, GLint,
+                                     GLbitfield, GLenum);
+typedef void (*PFNglGenFramebuffers)(GLsizei, GLuint *);
+typedef void (*PFNglBindFramebuffer)(GLenum, GLuint);
+typedef void (*PFNglGenTextures)(GLsizei, GLuint *);
+typedef void (*PFNglBindTexture)(GLenum, GLuint);
+typedef void (*PFNglTexImage2D)(GLenum, GLint, GLint, GLsizei, GLsizei, GLint,
+                                GLenum, GLenum, const void *);
+typedef void (*PFNglFramebufferTexture2D)(GLenum, GLenum, GLenum, GLuint, GLint);
+typedef GLenum (*PFNglCheckFramebufferStatus)(GLenum);
 typedef void (*PFNglReadPixels)(GLint x, GLint y, GLsizei w, GLsizei h,
                                 GLenum fmt, GLenum type, void *px);
 
@@ -75,17 +86,31 @@ static const char *FS_ORB = "#version 330 core\n"
     "uniform vec2  uRes;\n"
     "uniform vec3  uEye, uRight, uUp, uFwd;\n"
     "uniform float uFov;\n"
+    "uniform float uTime;\n"
     "uniform int   uCount;\n"
     "uniform vec4  uBlob[MAXB];\n"
     "uniform vec3  uBoxLo, uBoxHi;\n"
-    "float field(vec3 p){ float f=0.0;\n"
+    /* True distance estimator: smooth minimum of the component spheres.
+     * The old 1/sqrt(field) heuristic is NOT Lipschitz -- it overshot through
+     * thin regions and punched false holes in the surface. */
+    "float smin(float a, float b, float k){\n"
+    "  float h = clamp(0.5 + 0.5*(b-a)/k, 0.0, 1.0);\n"
+    "  return mix(b, a, h) - k*h*(1.0-h); }\n"
+    "float sdBlob(vec3 p){ float d = 1e6;\n"
     "  for(int i=0;i<MAXB;i++){ if(i>=uCount) break;\n"
-    "    vec3 d=p-uBlob[i].xyz; f += uBlob[i].w*uBlob[i].w/max(dot(d,d),1e-6); }\n"
-    "  return f; }\n"
-    "vec3 norm(vec3 p){ vec2 e=vec2(0.004,0.0);\n"
-    "  return normalize(vec3(field(p+e.xyy)-field(p-e.xyy),\n"
-    "                        field(p+e.yxy)-field(p-e.yxy),\n"
-    "                        field(p+e.yyx)-field(p-e.yyx))); }\n"
+    "    d = smin(d, length(p-uBlob[i].xyz)-uBlob[i].w*1.35, 0.62); }\n"
+    "  return d; }\n"
+    "float h31(vec3 p){ return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453); }\n"
+    "float vnoise(vec3 p){\n"
+    "  vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);\n"
+    "  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),\n"
+    "                 mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),\n"
+    "             mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),\n"
+    "                 mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z); }\n"
+    "vec3 norm(vec3 p){ vec2 e=vec2(0.002,0.0);\n"
+    "  return normalize(vec3(sdBlob(p+e.xyy)-sdBlob(p-e.xyy),\n"
+    "                        sdBlob(p+e.yxy)-sdBlob(p-e.yxy),\n"
+    "                        sdBlob(p+e.yyx)-sdBlob(p-e.yyx))); }\n"
     "void main(){\n"
     "  vec2 ndc = vUv*2.0-1.0; ndc.x *= uRes.x/uRes.y;\n"
     "  vec3 ro = uEye;\n"
@@ -93,28 +118,32 @@ static const char *FS_ORB = "#version 330 core\n"
     "  vec3 bg = mix(vec3(0.030,0.032,0.048), vec3(0.070,0.076,0.104),\n"
     "                smoothstep(-0.7,0.9,rd.y));\n"
     "  float t=0.0; bool hit=false; vec3 p=ro;\n"
-    "  for(int i=0;i<220;i++){\n"
+    "  for(int i=0;i<180;i++){\n"
     "    p = ro + rd*t;\n"
-    "    float f = field(p);\n"
-    "    if (f < 1.0){ t += 0.06; continue; }\n"
-    "    float s = 0.9*(1.0 - inversesqrt(f));\n"
-    "    if (s < 0.0075){ hit=true; break; }\n"
-    "    t += max(s, 0.014);\n"
+    "    float d = sdBlob(p);          /* honest distance, safe stride */\n"
+    "    if (d < 0.0018){ hit=true; break; }\n"
+    "    t += d*0.85;\n"
     "    if (t > 14.0) break;\n"
     "  }\n"
     "  vec3 col = bg;\n"
     "  if (hit){\n"
     "    vec3 n = norm(p);\n"
+    "    vec3 q = p*11.0 + vec3(0.0, uTime*0.25, 0.0);\n"
+    "    vec3 g = vec3(vnoise(q+vec3(0.03,0,0))-vnoise(q-vec3(0.03,0,0)),\n"
+    "                  vnoise(q+vec3(0,0.03,0))-vnoise(q-vec3(0,0.03,0)),\n"
+    "                  vnoise(q+vec3(0,0,0.03))-vnoise(q-vec3(0,0,0.03)));\n"
+    "    n = normalize(n + 0.55*g);   /* living surface, not sterile plastic */\n"
     "    vec3 L = normalize(vec3(-0.45,0.75,0.55));\n"
     "    float dif = max(dot(n,L),0.0);\n"
     "    float hd  = 0.38;                       /* headlight: front never black */\n"
     "    vec3 h = normalize(L - rd);\n"
-    "    float spec = pow(max(dot(n,h),0.0), 42.0);\n"
+    "    vec3 L2 = normalize(vec3(0.6,-0.1,0.8));  /* camera-side fill */\n"
+    "    float spec = pow(max(dot(n,h),0.0), 28.0);\n"
     "    float fres = pow(1.0 - max(dot(n,-rd),0.0), 3.0);\n"
-    "    vec3 base = vec3(0.93,0.92,0.88);\n"
+    "    vec3 base = vec3(0.93,0.92,0.88)*(0.94+0.12*vnoise(p*9.0));\n"
     "    vec3 acc  = vec3(1.00,0.74,0.30);       /* one accent, amber rim */\n"
-    "    col = base*(0.16 + hd*0.42 + dif*0.62) + vec3(1.0)*spec*0.55\n"
-    "        + acc*fres*0.85;\n"
+    "    col = base*(0.22 + hd*0.42 + dif*0.52 + 0.22*max(dot(n,L2),0.0))\n"
+    "        + vec3(1.0)*spec*0.24 + acc*fres*0.95;\n"
     "  }\n"
     "  /* faint floor line so the render space reads as a place */\n"
     "  if (rd.y < -0.02){\n"
@@ -122,7 +151,7 @@ static const char *FS_ORB = "#version 330 core\n"
     "    if (tf>0.0 && tf<t+2.0){ vec3 fp = ro+rd*tf;\n"
     "      vec2 g = abs(fract(fp.xz*2.0)-0.5);\n"
     "      float line = smoothstep(0.48,0.5,max(g.x,g.y));\n"
-    "      col += vec3(0.10,0.11,0.13)*line*smoothstep(6.0,1.0,tf); }\n"
+    "      col += vec3(0.045,0.05,0.06)*line*smoothstep(6.0,1.0,tf); }\n"
     "  }\n"
     "  col = pow(clamp(col,0.0,1.0), vec3(0.4545));\n"
     "  frag = vec4(col,1.0);\n"
@@ -276,6 +305,14 @@ int main(void)
     void *p_u2f      = glsym("glUniform2f");
     void *p_um4      = glsym("glUniformMatrix4fv");
     void *p_read     = glsym("glReadPixels");
+    void *p_blit     = glsym("glBlitFramebuffer");
+    void *p_gfb      = glsym("glGenFramebuffers");
+    void *p_bfb      = glsym("glBindFramebuffer");
+    void *p_gtex     = glsym("glGenTextures");
+    void *p_btex     = glsym("glBindTexture");
+    void *p_teximg   = glsym("glTexImage2D");
+    void *p_fbtex    = glsym("glFramebufferTexture2D");
+    void *p_chkfb    = glsym("glCheckFramebufferStatus");
     void *p_gpil     = glsym("glGetProgramInfoLog");
 
     #define FN(name) ((typeof(&name))name)
@@ -327,12 +364,36 @@ int main(void)
     ((PFNglGenVertexArrays)p_gva)(1, &vao);
     ((PFNglBindVertexArray)p_bva)(vao);
 
+    /* Render space: a real offscreen framebuffer.  The X screen here is only
+     * 320x200, so drawing to the window would throw away almost all detail. */
+    const int SW = 960, SH = 540;
+    GLuint fbo = 0, rtex = 0;
+    ((PFNglGenFramebuffers)p_gfb)(1, &fbo);
+    ((PFNglBindFramebuffer)p_bfb)(GL_FRAMEBUFFER, fbo);
+    ((PFNglGenTextures)p_gtex)(1, &rtex);
+    ((PFNglBindTexture)p_btex)(GL_TEXTURE_2D, rtex);
+    ((PFNglTexImage2D)p_teximg)(GL_TEXTURE_2D, 0, GL_RGBA, SW, SH, 0,
+                               GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    ((PFNglFramebufferTexture2D)p_fbtex)(GL_FRAMEBUFFER,
+                                        GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+                                        rtex, 0);
+    GLenum fbstat = ((PFNglCheckFramebufferStatus)p_chkfb)(GL_FRAMEBUFFER);
+    if (fbstat != GL_FRAMEBUFFER_COMPLETE) {
+        fprintf(stderr, "render-space FBO incomplete: 0x%x\n", fbstat);
+        return 1;
+    }
+    ((PFNglBindFramebuffer)p_bfb)(GL_FRAMEBUFFER, 0);
+
     float blobs[MAXB][4];
     float lo[3], hi[3];
     wubu_buddy_orb_t *orb = wubu_buddy_orb_create(9);
 
     float yaw = 0.6f, pitch = 0.25f, rad = 3.4f, tsec = 0.0f;
     int paused = 0;
+    int sel = 0;                 /* selected blob for live sculpting */
+    float off[WUBU_BUDDY_ORB_MAX_BLOBS][4] = {{0}}; /* dx,dy,dz,dr */
     struct timespec t0, tn;
     clock_gettime(CLOCK_MONOTONIC, &t0);
 
@@ -350,6 +411,15 @@ int main(void)
                 if (k == XK_Down)  pitch -= 0.08f;
                 if (k == XK_equal || k == XK_plus) rad -= 0.18f;
                 if (k == XK_minus) rad += 0.18f;
+                if (k >= XK_1 && k <= XK_9) sel = (int)(k - XK_1);
+                if (k == XK_w) off[sel][1] += 0.05f;   /* lift */
+                if (k == XK_s) off[sel][1] -= 0.05f;
+                if (k == XK_a) off[sel][0] -= 0.05f;
+                if (k == XK_d) off[sel][0] += 0.05f;
+                if (k == XK_bracketleft)  off[sel][3] -= 0.02f;
+                if (k == XK_bracketright) off[sel][3] += 0.02f;
+                if (k == XK_r) for (int j = 0; j < MAXB; ++j)
+                    off[j][0] = off[j][1] = off[j][2] = off[j][3] = 0.0f;
             }
         }
         clock_gettime(CLOCK_MONOTONIC, &tn);
@@ -363,13 +433,15 @@ int main(void)
         for (int i = 0; i < n; ++i) {
             float c[3], r;
             wubu_buddy_orb_get_blob(orb, i, c, &r);
-            blobs[i][0]=c[0]; blobs[i][1]=c[1]; blobs[i][2]=c[2]; blobs[i][3]=r;
+            blobs[i][0]=c[0]+off[i][0]; blobs[i][1]=c[1]+off[i][1];
+            blobs[i][2]=c[2]+off[i][2]; blobs[i][3]=r+off[i][3];
         }
         wubu_buddy_orb_render_box(orb, lo, hi);
 
+        ((PFNglBindFramebuffer)p_bfb)(GL_FRAMEBUFFER, fbo);
         glClearColor(0.02f, 0.022f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glViewport(0, 0, W, H);
+        glViewport(0, 0, SW, SH);
         ((PFNglUseProgram)p_use)(prog);
 
         float eye[3] = { rad*sinf(yaw)*cosf(pitch),
@@ -389,7 +461,7 @@ int main(void)
         ((PFNglUniform1i)p_u1i)(((PFNglGetUniformLocation)p_loc)(prog,"uCount"), n);
         GLint l;
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uRes");
-        ((PFNglUniform2f)p_u2f)(l, (GLfloat)W, (GLfloat)H);
+        ((PFNglUniform2f)p_u2f)(l, (GLfloat)SW, (GLfloat)SH);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uEye");
         ((PFNglUniform3f)p_u3f)(l, eye[0], eye[1], eye[2]);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uFwd");
@@ -400,6 +472,8 @@ int main(void)
         ((PFNglUniform3f)p_u3f)(l, rup[0], rup[1], rup[2]);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uFov");
         ((PFNglUniform1f)p_u1f)(l, 0.62f);
+        l = ((PFNglGetUniformLocation)p_loc)(prog,"uTime");
+        ((PFNglUniform1f)p_u1f)(l, tsec);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uBoxLo");
         ((PFNglUniform3f)p_u3f)(l, lo[0], lo[1], lo[2]);
         l = ((PFNglGetUniformLocation)p_loc)(prog,"uBlob");
@@ -411,7 +485,7 @@ int main(void)
         /* render-space box: 12 edges generated from gl_VertexID, no VBO */
         ((PFNglUseProgram)p_use)(bprog);
         float proj[16], view[16], vp[16];
-        perspective(proj, 0.9f, (float)W / (float)H, 0.05f, 40.0f);
+        perspective(proj, 0.9f, (float)SW / (float)SH, 0.05f, 40.0f);
         look_at(view, eye, (float[3]){0, 0, 0}, (float[3]){0, 1, 0});
         mat4_mul(vp, proj, view);
         l = ((PFNglGetUniformLocation)p_loc)(bprog,"uVP");
@@ -427,20 +501,25 @@ int main(void)
         ((PFNglDrawArrays)p_draw)(GL_LINES, 0, 24);
         glDisable(GL_BLEND);
 
+        ((PFNglBindFramebuffer)p_bfb)(GL_READ_FRAMEBUFFER, fbo);
+        ((PFNglBindFramebuffer)p_bfb)(GL_DRAW_FRAMEBUFFER, 0);
+        ((PFNglBlitFramebuffer)p_blit)(0, 0, SW, SH, 0, 0, W, H,
+                                       GL_COLOR_BUFFER_BIT, GL_LINEAR);
         glXSwapBuffers(dpy, win);
 
         /* one-shot framebuffer dump: bypasses X window capture entirely */
         static int dumped = 0;
         if (!dumped && tsec > 1.0f) {
             dumped = 1;
-            unsigned char *buf = malloc((size_t)W * H * 3);
-            ((PFNglReadPixels)p_read)(0, 0, W, H, GL_RGB, GL_UNSIGNED_BYTE, buf);
+            unsigned char *buf = malloc((size_t)SW * SH * 3);
+            ((PFNglReadPixels)p_read)(0, 0, SW, SH, GL_RGB,
+                                      GL_UNSIGNED_BYTE, buf);
             FILE *fp = fopen("/tmp/bod_snap.ppm", "wb");
             if (fp) {
-                fprintf(fp, "P6\n%d %d\n255\n", W, H);
-                fwrite(buf, 3, (size_t)W * H, fp);
+                fprintf(fp, "P6\n%d %d\n255\n", SW, SH);
+                fwrite(buf, 3, (size_t)SW * SH, fp);
                 fclose(fp);
-                fprintf(stderr, "snapshot written %dx%d\n", W, H);
+                fprintf(stderr, "snapshot written %dx%d\n", SW, SH);
             }
             free(buf);
         }
