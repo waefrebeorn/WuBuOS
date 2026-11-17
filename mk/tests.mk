@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -604,6 +604,9 @@ test_buddy_anim: $(RT)/wubu_buddy_anim.c $(RT)/wubu_buddy_anim_test.c
 test_buddy_rig: $(RT)/wubu_buddy_rig.c $(RT)/wubu_buddy_rig_test.c
 	$(CC) -O2 -std=c11 -Wall -I$(RT) $(RT)/wubu_buddy_rig.c $(RT)/wubu_buddy_rig_test.c -o $(RT)/test_buddy_rig
 	$(RT)/test_buddy_rig
+test_buddy_orb: $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c
+	$(CC) -O2 -std=c11 -Wall -I$(RT) $(RT)/wubu_buddy_orb.c $(RT)/wubu_buddy_orb_test.c -o $(RT)/test_buddy_orb -lm
+	$(RT)/test_buddy_orb
 test_syscall:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -I$(BRIDGE) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(RT) -I$(COMP) -I$(JIT) -DMYSEED_METAL \
 		$(JIT_SRCS) $(RT)/wubu_spawn.c $(COMP)/holyd_lexer.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c \
