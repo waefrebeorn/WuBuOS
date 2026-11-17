@@ -57,6 +57,14 @@ def _finish(obj, material, smooth=True):
     if smooth:
         for p in obj.data.polygons:
             p.use_smooth = True
+    # Subdivision turns faceted primitives into sculpted-looking surfaces
+    # WITHOUT fusing the parts together (metaballs over-fused and the model
+    # lost its arms, legs and feet -- the silhouette collapsed into a blob).
+    sub = obj.modifiers.new("subsurf", "SUBSURF")
+    sub.levels = 1
+    sub.render_levels = 1
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.modifier_apply(modifier=sub.name)
     return obj
 
 
@@ -96,13 +104,50 @@ def box(name, size, mat_):
     return _finish(o, mat_, smooth=False)
 
 
-def put(name, obj, local_offset, world, rot=(0.0, 0.0, 0.0)):
+INK = None
+
+
+def make_ink():
+    global INK
+    if INK is None:
+        INK = bpy.data.materials.new("ink")
+        INK.use_nodes = True
+        b = INK.node_tree.nodes["Principled BSDF"]
+        b.inputs["Base Color"].default_value = (0.03, 0.03, 0.04, 1.0)
+        b.inputs["Roughness"].default_value = 0.9
+    return INK
+
+
+def outline(obj, thickness=0.010):
+    """Inverted-hull ink shell: a slightly larger back-facing copy, parented to
+    the part so it follows every pose.  EEVEE has no Freestyle, and without
+    contour lines every white form merges into the next."""
+    o = obj.copy()
+    o.data = obj.data.copy()
+    bpy.context.scene.collection.objects.link(o)
+    for p in o.data.polygons:
+        p.flip()
+    o.data.materials.clear()
+    o.data.materials.append(make_ink())
+    d = o.modifiers.new("push", "DISPLACE")
+    d.direction = "NORMAL"
+    d.strength = thickness
+    d.mid_level = 0.0
+    o.parent = obj
+    o.matrix_parent_inverse = obj.matrix_world.inverted()
+    return o
+
+
+def put(name, obj, local_offset, world, rot=(0.0, 0.0, 0.0), ink=False):
     """Move the mesh so the object ORIGIN is the joint, then place the joint."""
     for v in obj.data.vertices:
         v.co += Vector(local_offset)
     obj.location = Vector(world)
     obj.rotation_euler = rot
     PARTS[name] = (obj, Vector(world), tuple(rot))
+    if ink and name not in ("eyeL", "eyeR", "mouth"):
+        outline(obj)
+    return obj
 
 
 def build_model():
@@ -112,12 +157,12 @@ def build_model():
     m_red = mat("red", COL["red"], 0.5)
     m_dark = mat("dark", COL["dark"], 0.4)
 
-    # legs + oversized feet (origin at hip / ankle so they swing)
+    # legs + oversized feet (mesh hangs DOWN from the hip joint)
     for side, sx in (("L", -1), ("R", 1)):
         leg = cyl(f"leg{side}", 0.048, 0.20, m_fur)
-        put(f"leg{side}", leg, (0, 0, 0.10), (sx * 0.085, 0.0, 0.30))
-        foot = sphere(f"foot{side}", 0.075, m_fur, scale=(1.0, 1.7, 0.55))
-        put(f"foot{side}", foot, (0, 0, 0.0), (sx * 0.085, -0.05, 0.045))
+        put(f"leg{side}", leg, (0, 0, -0.10), (sx * 0.085, 0.0, 0.30))
+        foot = sphere(f"foot{side}", 0.085, m_fur, scale=(1.0, 1.8, 0.55))
+        put(f"foot{side}", foot, (0, 0, 0.0), (sx * 0.105, -0.055, 0.048))
 
     # pear torso: widen the lower half
     torso = sphere("torso", 0.21, m_fur, scale=(1.0, 0.88, 1.05))
@@ -136,14 +181,19 @@ def build_model():
         put(f"scarf_tail{i}", tail, (0, 0, 0.055),
             (sx * 0.055, -0.175, 0.560), rot=(math.radians(6), 0, 0))
 
-    # arms + mitten hands (origin at shoulder)
+    # arms + mitten hands (mesh hangs DOWN from the shoulder joint; the hand is
+    # parented to the arm so it rides along when the arm swings)
     for side, sx in (("L", -1), ("R", 1)):
-        arm = cyl(f"arm{side}", 0.042, 0.16, m_fur)
-        put(f"arm{side}", arm, (0, 0, 0.08),
-            (sx * 0.215, 0.0, 0.575), rot=(0, math.radians(-sx * 16), 0))
-        hand = sphere(f"hand{side}", 0.055, m_fur)
-        put(f"hand{side}", hand, (0, 0, 0),
-            (sx * 0.255, 0.0, 0.505))
+        arm = cyl(f"arm{side}", 0.050, 0.17, m_fur)
+        arm_o = put(f"arm{side}", arm, (0, 0, -0.085),
+                    (sx * 0.245, 0.0, 0.575),
+                    rot=(0, math.radians(-sx * 22), 0))
+        hand = sphere(f"hand{side}", 0.062, m_fur)
+        hand_o = put(f"hand{side}", hand, (0, 0, 0),
+                     (sx * 0.315, 0.0, 0.395))
+        bpy.context.view_layer.update()
+        hand_o.parent = arm_o
+        hand_o.matrix_parent_inverse = arm_o.matrix_world.inverted()
 
     # head
     head = sphere("head", 0.215, m_fur, scale=(1.0, 0.98, 1.0))
@@ -164,72 +214,81 @@ def build_model():
     brim = sphere("brim", 0.10, m_cap, scale=(1.25, 1.1, 0.28))
     put("brim", brim, (0, 0, 0), (0.0, -0.185, 0.855))
 
-    # red W emblem on the cap front
-    bpy.ops.object.text_add(location=(0, 0, 0))
-    w = bpy.context.active_object
-    w.name = "emblem_W"
-    w.data.body = "W"
-    w.data.align_x = "CENTER"
-    w.data.size = 0.150
-    w.data.extrude = 0.014
-    w.rotation_euler = (math.radians(90), 0, 0)
-    w.location = (0.0, -0.243, 0.848)
-    bpy.ops.object.convert(target="MESH")
-    w = bpy.context.active_object
-    _finish(w, m_red, smooth=False)
+    # red W emblem on the cap front, built from four slanted bars: a font glyph
+    # subdivides into a blurry smudge, real geometry stays crisp at any angle.
+    for i, (dx, ang) in enumerate(((-0.055, -0.50), (-0.018, 0.50),
+                                   (0.018, -0.50), (0.055, 0.50))):
+        bar = box(f"Wbar{i}", (0.021, 0.032, 0.120), m_red)
+        put(f"Wbar{i}", bar, (0, 0, 0), (dx, -0.252, 0.848), rot=(0, ang, 0))
 
     # dot eyes + mouth
     for side, sx in (("L", -1), ("R", 1)):
         eye = sphere(f"eye{side}", 0.024, m_dark)
         put(f"eye{side}", eye, (0, 0, 0), (sx * 0.080, -0.196, 0.800))
-    mouth = sphere("mouth", 0.020, m_dark, scale=(1.4, 0.6, 0.9))
-    put("mouth", mouth, (0, 0, 0), (0.0, -0.205, 0.735))
+    mouth = sphere("mouth", 0.032, m_dark, scale=(2.0, 0.5, 0.7))
+    put("mouth", mouth, (0, 0, 0), (0.0, -0.212, 0.724))
 
 
-# ── animation drivers: frame -> per-part transform deltas ─────────────────
+# ── animation drivers: frame -> ABSOLUTE joint eulers ─────────────────────
+# Rest yaw values matter (arms/ears splay outward), so animations state whole
+# eulers rather than deltas -- additive Euler deltas produced a sideways wave.
+EAR_L_YAW = math.radians(-26)
+EAR_R_YAW = math.radians(26)
+ARM_L_YAW = math.radians(16)
+ARM_R_YAW = math.radians(-16)
+
+
 def _apply(rot=None, loc=None):
+    """Reset every part to rest, then set absolute eulers / apply bob.
+
+    Bobbing skips parented parts: they inherit their parent's motion."""
     for name, (obj, rest_loc, rest_rot) in PARTS.items():
         obj.rotation_euler = rest_rot
         obj.location = rest_loc
     if rot:
         for n, e in rot.items():
-            PARTS[n][0].rotation_euler = tuple(
-                a + b for a, b in zip(PARTS[n][2], e))
+            PARTS[n][0].rotation_euler = e
     if loc:
         for n, d in loc.items():
-            PARTS[n][0].location = PARTS[n][1] + Vector(d)
+            o = PARTS[n][0]
+            if o.parent is not None:
+                continue
+            o.location = PARTS[n][1] + Vector(d)
 
 
 def anim_idle(t):
-    b = math.sin(t * 2 * math.pi) * 0.020
-    _apply(loc={n: (0, 0, b) for n in PARTS},
-           rot={"earL": (math.sin(t * 2 * math.pi) * 0.18, 0, 0),
-                "earR": (-math.sin(t * 2 * math.pi) * 0.18, 0, 0)})
+    s = math.sin(t * 2 * math.pi)
+    _apply(rot={"earL": (s * 0.18, EAR_L_YAW, 0),
+                "earR": (-s * 0.18, EAR_R_YAW, 0)},
+           loc={n: (0, 0, s * 0.020) for n in PARTS})
 
 
 def anim_walk(t):
     s = math.sin(t * 2 * math.pi)
     c = math.cos(t * 2 * math.pi)
-    rot = {"legL": (s * 0.85, 0, 0), "legR": (-s * 0.85, 0, 0),
-           "footL": (-s * 0.45, 0, 0), "footR": (s * 0.45, 0, 0),
-           "armL": (-s * 0.65, 0, 0), "armR": (s * 0.65, 0, 0)}
-    loc = {n: (0, 0, abs(c) * 0.032) for n in PARTS}
-    _apply(rot=rot, loc=loc)
+    _apply(rot={"legL": (s * 0.85, 0, 0), "legR": (-s * 0.85, 0, 0),
+                "footL": (-s * 0.45, 0, 0), "footR": (s * 0.45, 0, 0),
+                "armL": (-s * 0.60, ARM_L_YAW, 0),
+                "armR": (s * 0.60, ARM_R_YAW, 0),
+                "torso": (0.10, 0, 0), "head": (-0.06, 0, 0)},
+           loc={n: (0, 0, abs(c) * 0.032) for n in PARTS})
 
 
 def anim_wave(t):
     s = math.sin(t * 2 * math.pi * 2)
-    _apply(rot={"armR": (math.radians(-165), 0, math.radians(30 + s * 26)),
-                "handR": (0, 0, s * 0.3)},
+    _apply(rot={"armR": (math.radians(168), ARM_R_YAW,
+                       math.radians(18 + s * 24)),
+                "head": (0, math.radians(-8), 0)},
            loc={n: (0, 0, abs(math.sin(t * 2 * math.pi)) * 0.016)
                 for n in PARTS})
 
 
 def anim_celebrate(t):
     j = abs(math.sin(t * 2 * math.pi))
-    _apply(rot={"armL": (math.radians(-170), 0, math.radians(-26)),
-                "armR": (math.radians(-170), 0, math.radians(26)),
-                "earL": (0.25, 0, 0), "earR": (-0.25, 0, 0)},
+    _apply(rot={"armL": (math.radians(170), ARM_L_YAW, math.radians(-20)),
+                "armR": (math.radians(170), ARM_R_YAW, math.radians(20)),
+                "earL": (0.25, EAR_L_YAW, 0),
+                "earR": (-0.25, EAR_R_YAW, 0)},
            loc={n: (0, 0, j * 0.16) for n in PARTS})
 
 
