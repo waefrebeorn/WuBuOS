@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_kernel_bridge
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_kernel_bridge
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -560,6 +560,12 @@ test_vsl_nt_contract: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		src/runtime/vsl/vsl_nt_contract_test.c \
 		-o $(RT)/wubu_vsl_nt_contract_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_contract_test
+
+# GUI metric system (Longhorn-derived): one owner for every spacing/type number.
+test_gui_metrics:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -Iinclude src/gui/wubu_gui_metrics.c \
+		src/gui/test_wubu_gui_metrics.c -o $(RT)/wubu_gui_metrics_test
+	$(RT)/wubu_gui_metrics_test
 
 # macOS layer tests
 test_vsl_macho:
