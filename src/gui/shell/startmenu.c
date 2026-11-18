@@ -18,6 +18,7 @@
 #include "../era_apps.h"
 #include "./desktop.h"
 #include "../wm.h"
+#include "../explorer_internal.h"
 #include "../wm_internal.h"
 #include "../../apps/apps.h"
 #include "../../kernel/vbe.h"
@@ -69,29 +70,9 @@ static inline int menu_border_w(void) {
     return 2;
 }
 
-static inline int ex_tree_indent(void) {
-    return 14;
-}
-
-static inline int ex_title_h(void) {
-    return 22;
-}
-
-static inline int ex_toolbar_h(void) {
-    return 28;
-}
-
-static inline int ex_breadcrumb_h(void) {
-    return 24;
-}
-
-static inline int ex_statusbar_h(void) {
-    return 24;
-}
-
-static inline int ex_border_w(void) {
-    return 2;
-}
+/* Chrome metrics come from the explorer owner (../explorer_internal.h);
+ * this file used to hardcode 22/28/24/24 where the owner says 22/36/28/22,
+ * so the shell band and the file manager disagreed. */
 
 
 

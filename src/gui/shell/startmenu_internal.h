@@ -37,9 +37,12 @@ SmTreeNode *startmenu_tree_get_root(void);
 void startmenu_tree_toggle(SmTreeNode *node);
 void startmenu_tree_render(uint32_t *fb, int fb_w, int fb_h, int x, int y);
 
-/* -- Theme helpers (static inline — shared by all startmenu submodules) -- */
-static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
-static inline const WubuTheme *th(void) { return wubu_theme_get(); }
+/* -- Theme + chrome-metric helpers ---------------------------------------
+ * One owner: explorer_internal.h. This header used to define tc()/th() here
+ * and hardcode the band heights in startmenu.c, so the shell disagreed with
+ * the file manager about chrome sizes. Submodules keep getting tc()/th() and
+ * the ex_* metrics from the same place. */
+#include "../explorer_internal.h"
 
 /* -- Safe string macros (shared by all startmenu submodules) ------ */
 #ifndef WUBU_SAFE_STRING
