@@ -8,6 +8,7 @@
  *
  * C11, minimal includes, public WM/VBE/theme APIs only.
  */
+#include "wubu_gui_metrics.h"
 #include "wubu_shell_greeter.h"
 #include "wm.h"
 #include "wubu_theme.h"
@@ -34,7 +35,7 @@ __attribute__((weak)) DosGuiWindow *launch_terminal(void);
 #define GR_ROWS_Y     92
 #define GR_ROW_H      WUBU_SHELL_GREETER_ROW_H
 #define GR_BTN_W      140
-#define GR_BTN_H      34
+#define GR_BTN_H      WUBU_METRIC_CONTROL_H /* was 34: off the 4px grid */
 #define GR_BTN_X      (WUBU_SHELL_GREETER_WIDTH - GR_PAD - GR_BTN_W)
 #define GR_BTN_Y      (WUBU_SHELL_GREETER_HEIGHT - GR_PAD - GR_BTN_H)
 #define GR_OFFER_Y    (GR_BTN_Y - 12 - 28)
@@ -149,7 +150,7 @@ void wubu_shell_greeter_button_rect(int *x, int *y, int *w, int *h) {
 void wubu_shell_greeter_offer_rect(int i, int *x, int *y, int *w, int *h) {
     if (i < 0 || i >= 3) { if (x) *x = 0; if (y) *y = 0;
                            if (w) *w = 0; if (h) *h = 0; return; }
-    int gap = 8;
+    int gap = WUBU_METRIC_GAP_SM;
     int w3 = (WUBU_SHELL_GREETER_WIDTH - GR_PAD * 2 - gap * 2) / 3;
     if (x) *x = GR_PAD + i * (w3 + gap);
     if (y) *y = GR_OFFER_Y;
@@ -270,7 +271,7 @@ void wubu_shell_greeter_draw(uint32_t *fb, int fb_w, int fb_h) {
             vbe_fill_rect_rounded(x0 + GR_FLD_VAL, y0 + ry, GR_FLD_W, GR_ROW_H - 4, 2, face);
             if (active) vbe_rect_rounded(x0 + GR_FLD_VAL, y0 + ry, GR_FLD_W, GR_ROW_H - 4, 2,
                                          tc->border_dark);
-            vbe_draw_text(x0 + GR_FLD_VAL + 8, y0 + ry + (GR_ROW_H - 4 - 8) / 2, shown,
+            vbe_draw_text(x0 + GR_FLD_VAL + WUBU_METRIC_GAP_SM, y0 + ry + (GR_ROW_H - 4 - WUBU_METRIC_GAP_SM) / 2, shown,
                           active ? tc->select_text : tc->btn_text, 1);
         }
     } else if (g_step == 2) {
