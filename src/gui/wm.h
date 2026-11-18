@@ -159,8 +159,9 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h);
 void wm_render_desktop(uint32_t *fb, int fb_w, int fb_h);
 
 /* -- Taskbar / Desktop ------------------------------------------- */
+/* Chrome heights live once: DOSGUI_TASK_H / DOSGUI_TITLE_H. The WM_* and
+ * duplicate TASKBAR_H copies were dead and disagreed, so they are gone. */
 
-#define DOSGUI_TASKBAR_H        28
 #define DOSGUI_SYSTRAY_SIZE     24
 #define DOSGUI_CLOCK_W          80
 
@@ -400,9 +401,6 @@ DosGuiWindow *wm_spawn_holyc_term(int x, int y, int w, int h);
 typedef DosGuiWindow   WmWindow;
 typedef DosGuiWinFlags WinFlags;
 
-#define WM_MAX_WINDOWS     DOSGUI_MAX_WINDOWS
-#define WM_TITLE_HEIGHT    20
-#define WM_BORDER_WIDTH    3
 
 #define WIN_UNUSED    DOSGUI_WIN_UNUSED
 #define WIN_VISIBLE   DOSGUI_WIN_NORMAL

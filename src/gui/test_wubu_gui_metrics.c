@@ -7,6 +7,7 @@
  */
 #include "wubu_gui_metrics.h"
 #include "wubu_tokens.h"
+#include "wm.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,6 +83,13 @@ int main(void)
     CHECK(m.margin_md == WUBU_METRIC_MARGIN_MD);
     CHECK(m.control_h == WUBU_METRIC_CONTROL_H && m.touch_h == WUBU_METRIC_TOUCH_H);
     CHECK(m.titlebar_h == WUBU_METRIC_TITLEBAR_H);
+
+
+    /* WM caption/task heights are window chrome, not surface bands, so they are
+     * not required to equal metrics.titlebar_h -- but they must stay on the
+     * same grid (this is what stops a third copy of the numbers appearing). */
+    CHECK(DOSGUI_TITLE_H % WUBU_METRIC_UNIT == 0);
+    CHECK(DOSGUI_TASK_H  % WUBU_METRIC_UNIT == 0);
 
     if (g_fails) {
         printf("wubu_gui_metrics: %d FAILED\n", g_fails);
