@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_crc32 test_system test_uuid test_kernel_bridge
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -560,6 +560,12 @@ test_vsl_nt_contract: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		src/runtime/vsl/vsl_nt_contract_test.c \
 		-o $(RT)/wubu_vsl_nt_contract_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_contract_test
+
+# Legacy kernel selftest that was never in any target; builds and runs hosted.
+test_kernel_ahciseq:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DMYSEED_METAL -DWUBU_BAREMETAL=1 \
+		-Iinclude -I$(KERNEL) $(KERNEL)/test/legacy/test_ahciseq.c -o $(KERNEL)/test/legacy/test_ahciseq
+	$(KERNEL)/test/legacy/test_ahciseq
 
 # UUIDv7: existed with a test but no target ever ran it.
 test_uuid:
