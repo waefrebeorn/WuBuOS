@@ -19,7 +19,7 @@ HUMAN-WRITTEN (addendum style) and are never overwritten.
 import os, re, subprocess, sys
 from datetime import datetime, timezone
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, "docs", "compendium", "01-reference")
 BANNER = ("<!-- GENERATED FILE -- do not edit by hand.\n"
           "     Run `make docs` (tools/gen_docs.py) to regenerate. -->\n\n")

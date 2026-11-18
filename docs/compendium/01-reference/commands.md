@@ -2,7 +2,7 @@
      Run `make docs` (tools/gen_docs.py) to regenerate. -->
 
 # Console Commands
-> Generated 2026-08-02 17:06 UTC -- parsed from wubu_console.c's dispatch table.
+> Generated 2026-11-18 05:20 UTC -- parsed from wubu_console.c's dispatch table.
 
 - `agi`
 - `attest`
@@ -13,13 +13,19 @@
 - `help`
 - `hid`
 - `holyc`
+- `iommu`
+- `live`
 - `mem`
 - `pci`
 - `reboot`
+- `recovery`
 - `run`
+- `smp`
 - `stats`
 - `syscalls`
 - `tasks`
 - `theme`
 - `uptime`
+- `usb`
+- `user`
 - `vmm`

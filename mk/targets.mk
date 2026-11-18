@@ -20,7 +20,7 @@ firmware uefi:
 # Regenerate the programmatically-created compendium sections (01-reference)
 # from the source tree. Run after every code-change batch.
 docs:
-	python3 tools/gen_docs.py
+	python3 tools/dev/gen_docs.py
 
 # Builds firmware + PE payload + FAT32/GPT ESP, boots in QEMU, asserts
 # the payload's 28-check conformance run passes.
