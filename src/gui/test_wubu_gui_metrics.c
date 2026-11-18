@@ -6,6 +6,7 @@
  * ordering, minimum hit/touch targets and snap behaviour.
  */
 #include "wubu_gui_metrics.h"
+#include "wubu_tokens.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +70,18 @@ int main(void)
     /* NULL metrics must not crash and must yield nothing */
     wubu_gui_metrics_default(NULL);
     CHECK(wubu_gui_clamp_control(999, NULL) == 999);
+
+
+    /* the competing spacing owner must agree with the canonical gaps */
+    CHECK(WUBU_SPACE_XS == WUBU_METRIC_GAP_XS);
+    CHECK(WUBU_SPACE_SM == WUBU_METRIC_GAP_SM);
+    CHECK(WUBU_SPACE_MD == WUBU_METRIC_GAP_MD);
+    CHECK(WUBU_SPACE_LG == WUBU_METRIC_GAP_LG);
+    CHECK(m.unit      == WUBU_METRIC_UNIT);
+    CHECK(m.gap_xs    == WUBU_METRIC_GAP_XS && m.gap_lg == WUBU_METRIC_GAP_LG);
+    CHECK(m.margin_md == WUBU_METRIC_MARGIN_MD);
+    CHECK(m.control_h == WUBU_METRIC_CONTROL_H && m.touch_h == WUBU_METRIC_TOUCH_H);
+    CHECK(m.titlebar_h == WUBU_METRIC_TITLEBAR_H);
 
     if (g_fails) {
         printf("wubu_gui_metrics: %d FAILED\n", g_fails);

@@ -9,23 +9,23 @@
 void wubu_gui_metrics_default(WubuGuiMetrics *m)
 {
     if (!m) return;
-    m->unit       = 4;
+    m->unit       = WUBU_METRIC_UNIT;
 
-    m->margin_xs  = 4;
-    m->margin_sm  = 8;
-    m->margin_md  = 16;
-    m->margin_lg  = 24;
+    m->margin_xs  = WUBU_METRIC_MARGIN_XS;
+    m->margin_sm  = WUBU_METRIC_MARGIN_SM;
+    m->margin_md  = WUBU_METRIC_MARGIN_MD;
+    m->margin_lg  = WUBU_METRIC_MARGIN_LG;
 
-    m->gap_xs     = 4;
-    m->gap_sm     = 8;
-    m->gap_md     = 12;
-    m->gap_lg     = 16;
+    m->gap_xs     = WUBU_METRIC_GAP_XS;
+    m->gap_sm     = WUBU_METRIC_GAP_SM;
+    m->gap_md     = WUBU_METRIC_GAP_MD;
+    m->gap_lg     = WUBU_METRIC_GAP_LG;
 
-    m->row_h      = 24;
-    m->control_h  = 32;
-    m->touch_h    = 40;
-    m->titlebar_h = 28;
-    m->scrollbar_w = 12;
+    m->row_h      = WUBU_METRIC_ROW_H;
+    m->control_h  = WUBU_METRIC_CONTROL_H;
+    m->touch_h    = WUBU_METRIC_TOUCH_H;
+    m->titlebar_h = WUBU_METRIC_TITLEBAR_H;
+    m->scrollbar_w = WUBU_METRIC_SCROLLBAR_W;
 
     m->radius     = 2;
 

@@ -1,6 +1,8 @@
 #ifndef WUBU_TOKENS_H
 #define WUBU_TOKENS_H
 
+#include "wubu_gui_metrics.h"
+
 /*
  * wubu_tokens.h — Unified design tokens for CLI + GUI + themes.
  *
@@ -49,11 +51,13 @@
  * The grid is 4px.  Anything not on it needs a reason written down.
  */
 
+/* The shared steps are the metric system's gaps (one decision); the 2/24/32
+ * extras are token-specific and stay literal. */
 #define WUBU_SPACE_2XS    2
-#define WUBU_SPACE_XS     4
-#define WUBU_SPACE_SM     8
-#define WUBU_SPACE_MD     12
-#define WUBU_SPACE_LG     16
+#define WUBU_SPACE_XS     WUBU_METRIC_GAP_XS
+#define WUBU_SPACE_SM     WUBU_METRIC_GAP_SM
+#define WUBU_SPACE_MD     WUBU_METRIC_GAP_MD
+#define WUBU_SPACE_LG     WUBU_METRIC_GAP_LG
 #define WUBU_SPACE_XL     24
 #define WUBU_SPACE_2XL    32
 

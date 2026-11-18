@@ -20,6 +20,24 @@
 #ifndef WUBU_GUI_METRICS_H
 #define WUBU_GUI_METRICS_H
 
+/* Canonical compile-time values. Headers that need the same numbers without a
+ * runtime struct use these; wubu_gui_metrics_default() copies them, so there is
+ * exactly one place where the numbers are decided. */
+#define WUBU_METRIC_UNIT        4
+#define WUBU_METRIC_GAP_XS      4
+#define WUBU_METRIC_GAP_SM      8
+#define WUBU_METRIC_GAP_MD      12
+#define WUBU_METRIC_GAP_LG      16
+#define WUBU_METRIC_MARGIN_XS   4
+#define WUBU_METRIC_MARGIN_SM   8
+#define WUBU_METRIC_MARGIN_MD   16
+#define WUBU_METRIC_MARGIN_LG   24
+#define WUBU_METRIC_ROW_H       24
+#define WUBU_METRIC_CONTROL_H   32
+#define WUBU_METRIC_TOUCH_H     40
+#define WUBU_METRIC_TITLEBAR_H  28
+#define WUBU_METRIC_SCROLLBAR_W 12
+
 #include <stdint.h>
 
 typedef struct WubuGuiMetrics {
