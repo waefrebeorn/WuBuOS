@@ -17,9 +17,9 @@ reading. Kept under test_docs so the table cannot drift.
 | `src/bear/tests/test_knockover_reset.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
 | `src/bear/tests/test_knockover_standalone.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
 | `src/bear/tests/test_knockover_train.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
-| `src/bear/tests/test_mingru.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_mingru.c` | WIRED -- make test_bear_drivers (links + runs, rc=0) | was audit probe artifact |
 | `src/bear/tests/test_physics.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
-| `src/bear/tests/test_policy_forward.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_policy_forward.c` | WIRED -- make test_bear_drivers (links + runs, rc=0) | was audit probe artifact |
 | `src/bear/tests/verify_cartpole8.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
 | `src/bear/tests/verify_gaad_bug.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
 | `src/bear/train/curriculum_train.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |

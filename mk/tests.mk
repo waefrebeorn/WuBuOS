@@ -82,7 +82,7 @@ test_high_gui: gui runtime test_greeter test_synth test_wubu_sound test_cp_sound
 	@echo "✅ High Tier (Hosted/GUI) complete"
 
 # HIGH TIER: Bear RL / JIT / Compiler (JIT, memory, tasking, input, HolyC, PTX)
-test_high_bear: test_jit test_jit_regalloc test_jit_remat test_jit_branch test_jit_type test_jit_loop test_jit_branch_profile test_jit_subsystem_integration test_jit_pgo_byte test_jit_loop_consume test_jit_deep_opt test_jit_fuzzer test_jit_supremacy test_jit_torture test_arm64_enc test_minic_cg test_jit_regression test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
+test_high_bear: test_bear_drivers test_jit test_jit_regalloc test_jit_remat test_jit_branch test_jit_type test_jit_loop test_jit_branch_profile test_jit_subsystem_integration test_jit_pgo_byte test_jit_loop_consume test_jit_deep_opt test_jit_fuzzer test_jit_supremacy test_jit_torture test_arm64_enc test_minic_cg test_jit_regression test_peephole_superopt test_memory test_tasking test_input test_holyc test_hedge test_holyc_ptx test_battery
 	@echo "✅ High Tier (Bear RL/JIT/Compiler) complete"
 
 # MEDIUM/LOW TIER: Apps / Audio / Tools / WorldSim / OTHER
@@ -2551,6 +2551,21 @@ test_bear_opt:
 		$(BEAR)/bear_arena.c $(BEAR)/bear_opt.c $(BEAR)/bear_opt_test.c \
 		-o $(BEAR)/bear_opt_test -lm
 	$(BEAR)/bear_opt_test
+
+# Bear training/eval drivers that had no target.  The core source set excludes
+# the CUDA/cuDNN/Vulkan backends, the *_test mains (they define their own main)
+# and bear_train.c (a demo driver with its own main).
+BEAR_CORE_SRCS := $(filter-out $(BEAR)/bear_cudnn.c $(BEAR)/bear_cudnn_cublas.c \
+		$(BEAR)/bear_cudnn_cuda.c $(BEAR)/bear_vulkan_soft.c \
+		$(BEAR)/bear_opt_test.c $(BEAR)/bear_train.c,$(wildcard $(BEAR)/*.c))
+
+test_bear_drivers:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I. -Iinclude -I$(BEAR) \
+		$(BEAR_CORE_SRCS) $(BEAR)/tests/test_policy_forward.c -o $(BEAR)/test_policy_forward -lm
+	$(BEAR)/test_policy_forward
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I. -Iinclude -I$(BEAR) \
+		$(BEAR_CORE_SRCS) $(BEAR)/tests/test_mingru.c -o $(BEAR)/test_mingru -lm
+	$(BEAR)/test_mingru
 
 test_pkgmgr:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  src/runtime/wubu_crc32.c \
