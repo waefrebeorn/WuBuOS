@@ -40,7 +40,7 @@ static uint64_t urandom_seed(void) {
 }
 
 /* Format: 8-4-4-4-12 hex digits */
-static void format_uuid(char *buf, uint64_t ts_ms, uint32_t counter) {
+static void format_uuid(char *buf, uint64_t ts_ms, uint64_t counter) {
     /* UUIDv7 layout (RFC 9562):
      * bytes 0-5:  timestamp_ms (48 bits)
      * bytes 6-7:  rand_a (12 bits) + version 7 (4 bits)
