@@ -20,8 +20,12 @@
 #include <time.h>
 
 #define SUP_MAX WUBU_ARCHD_MAX_SERVICES
-#define RESTART_BACKOFF_BASE 1     /* seconds, doubles per restart */
-#define RESTART_BACKOFF_MAX  60    /* cap */
+/* Backoff windows are milliseconds on CLOCK_MONOTONIC. Seconds-resolution
+ * wall time made a "1s" window anywhere between ~0 and 1s depending on where
+ * the death landed inside the tick, which made crash-loop protection and its
+ * gate timing-dependent. */
+#define RESTART_BACKOFF_BASE_MS 1000
+#define RESTART_BACKOFF_MAX_MS  60000
 
 typedef struct {
     char root[WUBU_ARCHD_MAX_ROOT_NAME];
@@ -34,9 +38,9 @@ typedef struct {
     bool auto_restart;
     /* s6-style restart backoff: after each unexpected death the unit
      * enters a backoff window that doubles per restart (1s, 2s, 4s...)
-     * capped at RESTART_BACKOFF_MAX — a crash-looping service pauses
+     * capped at RESTART_BACKOFF_MAX_MS — a crash-looping service pauses
      * instead of hot-restarting forever. */
-    time_t backoff_until;
+    uint64_t backoff_until;
     /* Declarative unit model (systemd-good, no notorious parts). */
     wubu_svc_type_t type;          /* simple / forking / notify */
     bool notify_ready;                /* Type=notify: ready only after notify */
@@ -273,10 +277,18 @@ int wubu_svc_supervisor_status(wubu_svc_supervisor_t *s, const char *root,
     return 0;
 }
 
+static uint64_t sup_now_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000u + (uint64_t)ts.tv_nsec / 1000000u;
+}
+
 int wubu_svc_supervisor_reap(wubu_svc_supervisor_t *s) {
     if (!s) return 0;
     int reaped = 0;
     time_t now = time(NULL);
+    uint64_t now_ms = sup_now_ms();
     for (int i = 0; i < s->count; i++) {
         sup_entry_t *e = &s->entries[i];
         if (e->pid > 0 && !pid_alive(e->pid)) {
@@ -285,14 +297,14 @@ int wubu_svc_supervisor_reap(wubu_svc_supervisor_t *s) {
             e->state = SERVICE_STATE_FAILED;
             e->last_stop = now;
             reaped++;
-            if (e->auto_restart && now >= e->backoff_until) {
+            if (e->auto_restart && now_ms >= e->backoff_until) {
                 e->restart_count++;
                 /* exponential backoff: 1s, 2s, 4s, ... capped at 60s */
-                time_t delay = RESTART_BACKOFF_BASE;
-                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX; k++)
+                uint64_t delay = RESTART_BACKOFF_BASE_MS;
+                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX_MS; k++)
                     delay *= 2;
-                if (delay > RESTART_BACKOFF_MAX) delay = RESTART_BACKOFF_MAX;
-                e->backoff_until = now + delay;
+                if (delay > RESTART_BACKOFF_MAX_MS) delay = RESTART_BACKOFF_MAX_MS;
+                e->backoff_until = now_ms + delay;
                 wubu_svc_supervisor_log(s, e->root, e->svc,
                     "restarting (crash-loop backoff engaged)");
                 wubu_svc_supervisor_start(s, e->root, e->svc);
@@ -491,6 +503,7 @@ int wubu_svc_supervisor_poll(wubu_svc_supervisor_t *s) {
     if (!s) return 0;
     int detected = 0;
     time_t now = time(NULL);
+    uint64_t now_ms = sup_now_ms();
     for (int i = 0; i < s->count; i++) {
         sup_entry_t *e = &s->entries[i];
         if (e->pid > 0 && !pid_alive(e->pid)) {
@@ -498,13 +511,13 @@ int wubu_svc_supervisor_poll(wubu_svc_supervisor_t *s) {
             waitpid(e->pid, &st, 0);   /* reap */
             e->pid = 0;
             e->last_stop = now;
-            if (e->auto_restart && now >= e->backoff_until) {
+            if (e->auto_restart && now_ms >= e->backoff_until) {
                 e->restart_count++;
-                time_t delay = RESTART_BACKOFF_BASE;
-                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX; k++)
+                uint64_t delay = RESTART_BACKOFF_BASE_MS;
+                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX_MS; k++)
                     delay *= 2;
-                if (delay > RESTART_BACKOFF_MAX) delay = RESTART_BACKOFF_MAX;
-                e->backoff_until = now + delay;
+                if (delay > RESTART_BACKOFF_MAX_MS) delay = RESTART_BACKOFF_MAX_MS;
+                e->backoff_until = now_ms + delay;
                 wubu_svc_supervisor_start(s, e->root, e->svc);
                 continue;   /* restarted; not an "unexpected" death */
             }
