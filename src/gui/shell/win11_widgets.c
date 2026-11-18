@@ -8,6 +8,7 @@
  * C11, opaque API (win11_widgets.h), no god headers.
  */
 
+#include "wubu_gui_metrics.h"
 #include "win11_widgets.h"
 #include "../wm_internal.h"
 #include "../wm.h"
@@ -21,10 +22,10 @@
 #include <time.h>
 
 #define WID_PANEL_W  360
-#define WID_PANEL_X  8
-#define WID_PANEL_Y  8
-#define WID_CARD_PAD 10
-#define WID_CARD_GAP 10
+#define WID_PANEL_X  WUBU_METRIC_MARGIN_SM
+#define WID_PANEL_Y  WUBU_METRIC_MARGIN_SM
+#define WID_CARD_PAD WUBU_METRIC_GAP_MD /* was 10: off the grid */
+#define WID_CARD_GAP WUBU_METRIC_GAP_MD /* was 10: off the grid */
 
 static bool g_open = false;
 
