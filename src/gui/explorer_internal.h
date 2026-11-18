@@ -3,6 +3,7 @@
 #ifndef WUBU_DOSGUI_EXPLORER_INTERNAL_H
 #define WUBU_DOSGUI_EXPLORER_INTERNAL_H
 
+#include "wubu_gui_metrics.h"
 #include "../egojar.h"
 #include "explorer.h"
 #include "wubu_theme.h"
@@ -134,9 +135,9 @@ void ex_tree_free(ExTreeNode *node);
 /* -- Theme helpers (static inline — zero overhead, no symbol clash) -- */
 static inline const WubuThemeColors *tc(void) { return wubu_theme_colors(); }
 static inline const WubuTheme *th(void) { return wubu_theme_get(); }
-static inline int ex_row_h(void) { return th()->rounded_buttons ? 24 : EX_ROW_H; }
-static inline int ex_tree_indent(void) { return th()->rounded_buttons ? 14 : EX_TREE_INDENT; }
-static inline int ex_title_h(void) { return th()->rounded_buttons ? 24 : 22; }
+static inline int ex_row_h(void) { return WUBU_METRIC_ROW_H; }
+static inline int ex_tree_indent(void) { return EX_TREE_INDENT; }
+static inline int ex_title_h(void) { return WUBU_METRIC_TITLEBAR_H; }
 static inline int ex_toolbar_h(void) { return EX_TOOLBAR_H; }
 static inline int ex_breadcrumb_h(void) { return EX_BREADCRUMB_H; }
 static inline int ex_statusbar_h(void) { return EX_STATUSBAR_H; }

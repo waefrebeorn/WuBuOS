@@ -18,6 +18,8 @@
 #ifndef WUBU_DOSGUI_EXPLORER_H
 #define WUBU_DOSGUI_EXPLORER_H
 
+#include "wubu_gui_metrics.h"
+
 #include "../egojar.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -35,10 +37,10 @@
 #define EX_COLUMN_SIZE_W      80
 #define EX_COLUMN_TYPE_W      120
 #define EX_COLUMN_DATE_W      140
-#define EX_ICON_SIZE          32
+#define EX_ICON_SIZE          WUBU_METRIC_CONTROL_H
 #define EX_SMALL_ICON         16
-#define EX_ROW_H              22
-#define EX_TREE_INDENT        16
+#define EX_ROW_H              WUBU_METRIC_ROW_H /* was 22: off the 4px grid */
+#define EX_TREE_INDENT        WUBU_METRIC_MARGIN_MD
 #define EX_PREVIEW_W          280
 #define EX_BREADCRUMB_H       28
 #define EX_TOOLBAR_H          36
