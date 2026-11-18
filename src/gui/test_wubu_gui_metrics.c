@@ -94,6 +94,9 @@ int main(void)
     CHECK(m.taskbar_h  == WUBU_METRIC_TASKBAR_H);
     CHECK(WUBU_TITLE_BAR_H == m.titlebar_h && WUBU_TASKBAR_H == m.taskbar_h);
     CHECK(DOSGUI_TITLE_H   == m.titlebar_h && DOSGUI_TASK_H == m.taskbar_h);
+    CHECK(WUBU_METRIC_BORDER_W >= 1 && WUBU_METRIC_BORDER_W <= 4);
+    CHECK(WUBU_METRIC_RADIUS_CONTROL < WUBU_METRIC_RADIUS_WINDOW);
+    CHECK(DOSGUI_BORDER == WUBU_METRIC_BORDER_W);
     if (g_fails) {
         printf("wubu_gui_metrics: %d FAILED\n", g_fails);
         return 1;

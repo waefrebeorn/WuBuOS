@@ -32,7 +32,7 @@
 #define DOSGUI_MAX_DESKTOPS    9
 #define DOSGUI_TITLE_H        WUBU_METRIC_TITLEBAR_H
 #define DOSGUI_TASK_H         WUBU_METRIC_TASKBAR_H
-#define DOSGUI_BORDER          2
+#define DOSGUI_BORDER          WUBU_METRIC_BORDER_W
 #define DOSGUI_ICON_LABEL_H   16  /* Height reserved for icon label text */
 
 typedef enum {

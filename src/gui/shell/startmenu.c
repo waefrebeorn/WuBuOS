@@ -10,6 +10,7 @@
  * XP-style: Luna Start orb, sidebar, hover highlighting, rounded items
  */
 
+#include "wubu_gui_metrics.h"
 #include "../../egojar.h"
 #include "../../egojar_net.h"
 #include <sys/socket.h>
@@ -144,7 +145,7 @@ void startmenu_close(void)  { g_open = 0; g_submenu_open = -1; startmenu_search_
 
 /* -- Rendering --------------------------------------------------- */
 
-#define MENU_X 4
+#define MENU_X WUBU_METRIC_MARGIN_XS
 
 static void draw_menu_item(int x, int y, int w, const char *label,
                             int hovered, int has_submenu, int type) {
@@ -335,7 +336,7 @@ static void startmenu_win11_layout(int fb_w, int fb_h, SmWin11 *L) {
     L->foot_y = L->py + L->ph - 44;
     L->power_w = 36; L->power_h = 28;
     L->power_x = L->px + L->pw - WUBU_SPACE_LG - L->power_w;
-    L->power_y = L->foot_y + 8;
+    L->power_y = L->foot_y + WUBU_METRIC_GAP_SM;
 }
 
 static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
@@ -418,11 +419,11 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
     /* Footer: user chip + power. */
     vbe_fill_rect_rounded(L.px + 16, L.foot_y + 4, 32, 32, 16, c->btn_hover);
     vbe_draw_text(L.px + 56, L.foot_y + 14, "WuBu User", c->startmenu_text, 1);
-    vbe_fill_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, 6,
+    vbe_fill_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, WUBU_METRIC_RADIUS_CONTROL,
                           c->btn_face);
     vbe_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, 6,
                      c->border_light);
-    vbe_draw_text(L.power_x + 8, L.power_y + 8, "Power", c->startmenu_text, 1);
+    vbe_draw_text(L.power_x + WUBU_METRIC_GAP_SM, L.power_y + WUBU_METRIC_GAP_SM, "Power", c->startmenu_text, 1);
 }
 
 static void startmenu_win11_click(int x, int y) {
@@ -502,14 +503,14 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     if (t->Luna_start_button) {
         /* XP Style: blue panel + gradient sidebar (the iconic Luna look). */
         vbe_shade_rect(MENU_X + 2, menu_y + 2, mw, main_h);
-        vbe_fill_rect_rounded(MENU_X, menu_y, mw, main_h, 4, tc()->startmenu_bg);
-        vbe_rect_rounded(MENU_X, menu_y, mw, main_h, 4, tc()->border_dark);
+        vbe_fill_rect_rounded(MENU_X, menu_y, mw, main_h, WUBU_METRIC_RADIUS_CONTROL, tc()->startmenu_bg);
+        vbe_rect_rounded(MENU_X, menu_y, mw, main_h, WUBU_METRIC_RADIUS_CONTROL, tc()->border_dark);
 
         /* Sidebar: vertical gradient (blue top -> theme foot colour). This is
          * the signature XP chrome; flat on non-gradient themes. */
         vbe_vgradient(MENU_X, menu_y, sw, main_h,
                       tc()->startmenu_sidebar, tc()->startmenu_sidebar_grad_end);
-        vbe_rect_rounded(MENU_X, menu_y, sw, main_h, 4, tc()->border_dark);
+        vbe_rect_rounded(MENU_X, menu_y, sw, main_h, WUBU_METRIC_RADIUS_CONTROL, tc()->border_dark);
 
         /* Header banner: a small 4-pane orb logo + bold "WuBuOS" wordmark. */
         int hdr = 26;
