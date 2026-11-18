@@ -1,5 +1,9 @@
+/* RETIRED DRIVER -- kept for reference, not built.
+ * It includes src/bear/{bear_optimizer,bear_tensor,bear_policy,bear_random}.h
+ * and GAAD_Encoder.h, none of which exist in the tree any more: this file
+ * targets an older bear layout. See docs/compendium/04-roadmap/orphans.md. */
 #include "src/bear/bear_env.h"
-#include "src/bear/bear_gae.h"
+#include "src/bear/bear_gaad.h"
 #include "src/bear/bear_optimizer.h"
 #include "src/bear/bear_tensor.h"
 #include "src/bear/bear_policy.h"

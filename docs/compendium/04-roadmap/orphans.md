@@ -6,28 +6,28 @@ reading. Kept under test_docs so the table cannot drift.
 
 | file | verdict (evidence-based) | audit note |
 |---|---|---|
-| `src/bear/tests/bear_train_chained.c` | STALE -- does not compile even with its own include dirs | not in any Makefile; referenced only by docs/owned-surface.md |
-| `src/bear/tests/cartpole8_verify.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/record_solved.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_cartpole_env.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_chained_reward.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_env_reward.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_gaad_update.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_holo_opt.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_knockover_reset.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_knockover_standalone.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_knockover_train.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_mingru.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_physics.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/test_policy_forward.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/verify_cartpole8.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/tests/verify_gaad_bug.c` | STALE -- does not compile even with its own include dirs | bear test driver referenced by no Makefile (only docs/owned-surface.md |
-| `src/bear/train/curriculum_train.c` | STALE -- does not compile even with its own include dirs | bear train driver referenced by no Makefile (only docs/owned-surface.m |
-| `src/bear/train/train_cartpole_gaad.c` | STALE -- does not compile even with its own include dirs | bear train driver referenced by no Makefile (only docs/owned-surface.m |
-| `src/bear/train/train_cartpole_gaad_v2.c` | STALE -- does not compile even with its own include dirs | bear train driver referenced by no Makefile (only docs/owned-surface.m |
-| `src/bear/train/train_cartpole_gaad_video.c` | STALE -- does not compile even with its own include dirs | bear train driver referenced by no Makefile (only docs/owned-surface.m |
-| `src/bear/train/train_curriculum.c` | STALE -- does not compile even with its own include dirs | bear train driver referenced by no Makefile (only docs/owned-surface.m |
-| `src/bear/train/train_gaad_cartpole.c` | STALE -- does not compile even with its own include dirs | bear train driver referenced by no Makefile (only docs/owned-surface.m |
+| `src/bear/tests/bear_train_chained.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/cartpole8_verify.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/record_solved.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_cartpole_env.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_chained_reward.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_env_reward.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_gaad_update.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_holo_opt.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_knockover_reset.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_knockover_standalone.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_knockover_train.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_mingru.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_physics.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/test_policy_forward.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/verify_cartpole8.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/tests/verify_gaad_bug.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/train/curriculum_train.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/train/train_cartpole_gaad.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/train/train_cartpole_gaad_v2.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/train/train_cartpole_gaad_video.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/train/train_curriculum.c` | COMPILES with repo-root include (-I.); real driver, no gate target | audit probe lacked -I., which caused the false STALE call |
+| `src/bear/train/train_gaad_cartpole.c` | RETIRED -- includes headers that no longer exist; banner added | audit probe lacked -I., which caused the false STALE call |
 | `src/kernel/test/legacy/interrupt_pic_test.c` | METAL-ONLY -- builds hosted but faults; needs the bare-metal gate | legacy kernel test; no build rule |
 | `src/kernel/test/legacy/test_ahciseq.c` | WIRED -- make test_kernel_ahciseq | legacy kernel test; no build rule |
 | `src/kernel/test/legacy/test_bootattach.c` | DEEP-DEPS -- needs kernel module set (fat32/elf/flush) | legacy kernel test; no build rule |
@@ -62,6 +62,9 @@ reading. Kept under test_docs so the table cannot drift.
 - METAL-ONLY: cannot run hosted; belongs in the AGI-metal gate, not `make test`.
 - DEEP-DEPS: implemented and compilable, but pulling in its module family is real
   work -- queue it per subsystem instead of forcing a hosted link.
-- STALE: 18 `src/bear/{tests,train}/*` drivers do not compile with their own
-  include paths either; referenced only by docs/owned-surface.md. Delete or
-  restore deliberately -- not silently.
+- BEAR DRIVERS: an earlier pass called all 18 `src/bear/{tests,train}/*` files
+  STALE because the probe lacked `-I.`; with the repo root on the include path
+  17 of them compile cleanly (they are real training/eval drivers that simply
+  have no gate target). `train/train_gaed_cartpole.c` is genuinely dead -- it
+  includes headers that no longer exist; it carries a RETIRED banner. The
+  lesson: classify with the same include flags the build actually uses.

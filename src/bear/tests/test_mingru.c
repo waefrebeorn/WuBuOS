@@ -44,7 +44,7 @@ int main() {
     fflush(stdout);
     
     if (policy.gru) {
-        printf("GRU: cell_size=%d, input_size=%d\n", policy.gru->cell_size, policy.gru->input_size);
+        printf("GRU: hid_size=%d\n", policy.gru->hid_size);
     }
     
     // Call forward using the same function signature
