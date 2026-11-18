@@ -36,6 +36,7 @@ static const char *const DOCS[] = {
     "docs/MIND_PALACE.md",
     "docs/SAGA.md",
     "docs/MODULES.md",
+    "docs/TOPOLOGY.md",   /* was unguarded, so 540 doubled src/src/ paths survived */
     "docs/ECOSYSTEM.md",
     "docs/BUILDING.md",
     "README.md",

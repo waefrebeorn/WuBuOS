@@ -34,7 +34,7 @@
 | `src/audio/wubu_audio_test.c` | fprintf(stderr, "FAIL: " fmt " at %s:%d
 ", ##__VA_ARGS__, __FILE__, __LINE__); \ |
 | `src/kernel/ahci.c` | In hosted mode, provides simulated SATA ports backed by |
-| `src/kernel/ahci_test.c` | sector read/write, simulated disk, and diagnostics. |
+| `src/kernel/test/legacy/ahci_test.c` | sector read/write, simulated disk, and diagnostics. |
 | `src/kernel/fat32.c` | self-contained leaf modules behind the opaque fat32_volume (fat32_internal.h): |
 | `src/kernel/fat32_cluster.c` | uint32_t fat32_next_cluster(fat32_volume *vol, uint32_t cluster) { |
 | `src/kernel/fat32_dir.c` | Opaque fat32_volume via fat32_internal.h. C11, minimal includes. */ |
@@ -42,58 +42,58 @@
 | `src/kernel/fat32_file.c` | Opaque fat32_volume via fat32_internal.h. C11, minimal includes. */ |
 | `src/kernel/fat32_format.c` | Opaque fat32_volume via fat32_internal.h. C11, minimal includes. */ |
 | `src/kernel/fat32_name.c` | void name_to_83(const char *src, char name83[11]) { |
-| `src/kernel/fat32_test.c` | Tests: format, mount, directory ops, file I/O, cluster chains, |
+| `src/kernel/test/legacy/fat32_test.c` | Tests: format, mount, directory ops, file I/O, cluster chains, |
 | `src/kernel/input.c` | Uses count-based full/empty detection to support full QUEUE_SIZE capacity. |
-| `src/kernel/input_test.c` | push/poll/wait functionality, modifier tracking. |
+| `src/kernel/test/legacy/input_test.c` | push/poll/wait functionality, modifier tracking. |
 | `src/kernel/interrupt.c` | Assembly ISR stubs (isr_stubs.S) provide vector entry points and address table. |
 | `src/kernel/interrupt_apic.c` | uint64_t apic_base = rdmsr(MSR_IA32_APIC_BASE); |
 | `src/kernel/interrupt_pic.c` | - PIC ICW programming (pic_remap) |
-| `src/kernel/interrupt_pic_test.c` | module (interrupt_pic.c). Builds in bare-metal C11 (-DMYSEED_METAL) and |
+| `src/kernel/test/legacy/interrupt_pic_test.c` | module (interrupt_pic.c). Builds in bare-metal C11 (-DMYSEED_METAL) and |
 | `src/kernel/interrupt_pit.c` | if (hz == 0 || hz > 1193182) return -1; |
 | `src/kernel/interrupt_syscall.c` | STAR MSR: bits 63:48 = SYSCALL CS/SS, bits 47:32 = SYSRET CS/SS */ |
 | `src/kernel/interrupt_timer.c` | uint64_t timer_calibrate_tsc(void) { |
 | `src/kernel/klog.c` | kernel can emit diagnostics under -nostdlib. Implements a minimal printf |
 | `src/kernel/libc.c` | Minimal libc for bare-metal kernel */ |
 | `src/kernel/memory.c` | Simplified from the original for correctness first; |
-| `src/kernel/memory_test.c` | static void test_init_shutdown(void) { |
+| `src/kernel/test/legacy/memory_test.c` | static void test_init_shutdown(void) { |
 | `src/kernel/metal_main.c` | Initializes all kernel subsystems, then starts the shell. |
 | `src/kernel/ps2.c` | Uses inline I/O port functions for portability. |
 | `src/kernel/tasking.c` | Real kernel will use assembly task_switch_to in tasking_switch.S. |
-| `src/kernel/tasking_test.c` | The watchdog path (tasking.c) calls interrupt_panic_dump() on a stuck |
-| `src/kernel/test_acpi.c` | The RSDP scan targets the EBDA/BIOS areas (metal-only); the walk + |
-| `src/kernel/test_agi_kernel.c` | runs correctly (hosted harness; the same code runs freestanding on metal). |
-| `src/kernel/test_agi_kernel_stub.c` | links + runs in the HOSTED unit test without the real ring-0 scheduler. |
-| `src/kernel/test_ahcifat.c` | host repro: FAT32 create through the REAL ahci sim backend |
-| `src/kernel/test_ahciseq.c` | host repro of the bootvol's ahci sequence */ |
-| `src/kernel/test_as.c` | The PML4 clone + CR3 switch normally touch real page tables; on the |
-| `src/kernel/test_blk.c` | a fake device: a 64-sector RAM block with the count convention. */ |
-| `src/kernel/test_bonzi_study.c` | printf("=== test_bonzi_study (HX-D companion GUI study) ===
+| `src/kernel/test/legacy/tasking_test.c` | The watchdog path (tasking.c) calls interrupt_panic_dump() on a stuck |
+| `src/kernel/test/test_acpi.c` | The RSDP scan targets the EBDA/BIOS areas (metal-only); the walk + |
+| `src/kernel/test/test_agi_kernel.c` | runs correctly (hosted harness; the same code runs freestanding on metal). |
+| `src/kernel/test/test_agi_kernel_stub.c` | links + runs in the HOSTED unit test without the real ring-0 scheduler. |
+| `src/kernel/test/test_ahcifat.c` | host repro: FAT32 create through the REAL ahci sim backend |
+| `src/kernel/test/legacy/test_ahciseq.c` | host repro of the bootvol's ahci sequence */ |
+| `src/kernel/test/test_as.c` | The PML4 clone + CR3 switch normally touch real page tables; on the |
+| `src/kernel/test/test_blk.c` | a fake device: a 64-sector RAM block with the count convention. */ |
+| `src/kernel/test/test_bonzi_study.c` | printf("=== test_bonzi_study (HX-D companion GUI study) ===
 "); |
-| `src/kernel/test_bootattach.c` | quick host check of fat32_boot_attach on the fat32_test RAM disk */ |
-| `src/kernel/test_fat2.c` | printf("=== test_fat2 (FS-B FAT family, complete) ===
+| `src/kernel/test/legacy/test_bootattach.c` | quick host check of fat32_boot_attach on the fat32_test RAM disk */ |
+| `src/kernel/test/test_fat2.c` | printf("=== test_fat2 (FS-B FAT family, complete) ===
 "); |
-| `src/kernel/test_hive.c` | - block structure: elements land in fixed blocks (vector locality) |
-| `src/kernel/test_hpet.c` | The MMIO probe is metal-only; the pure conversion + register offsets |
-| `src/kernel/test_iommu.c` | The engine-capability MMIO reads are metal-only; the DMAR table walk |
-| `src/kernel/test_lfn.c` | static int g_pass = 0, g_fail = 0, g_total = 0; |
-| `src/kernel/test_psych.c` | printf("=== test_psych (HX human psychology + timing loops) ===
+| `src/apps/wubuoffice/apps/wubuos/test_hive.c` | - block structure: elements land in fixed blocks (vector locality) |
+| `src/kernel/test/test_hpet.c` | The MMIO probe is metal-only; the pure conversion + register offsets |
+| `src/kernel/test/test_iommu.c` | The engine-capability MMIO reads are metal-only; the DMAR table walk |
+| `src/kernel/test/test_lfn.c` | static int g_pass = 0, g_fail = 0, g_total = 0; |
+| `src/kernel/test/test_psych.c` | printf("=== test_psych (HX human psychology + timing loops) ===
 "); |
-| `src/kernel/test_recovery.c` | Compiles the freestanding wubu_recovery.c on the host. |
-| `src/kernel/test_rtc.c` | (the CMOS port reads are metal-only; the BCD + 12h conversions are |
-| `src/kernel/test_sha256.c` | static int hex_eq(const uint8_t *d, const char *hex) |
-| `src/kernel/test_smbios.c` | The EPS search targets the BIOS ROM area (metal-only); the structure |
-| `src/kernel/test_swap.c` | The phys window is identity-mapped metal memory, so the disk IO is |
-| `src/kernel/test_sync.c` | Gap D3 stubs: the real lock's priority-inheritance calls these (the |
-| `src/kernel/test_theme_hid.c` | Builds the two freestanding kernel modules with a tiny host shim. */ |
-| `src/kernel/test_tutor.c` | printf("=== test_tutor (HX-C learning + recursive loop) ===
+| `src/kernel/test/test_recovery.c` | Compiles the freestanding wubu_recovery.c on the host. |
+| `src/kernel/test/test_rtc.c` | (the CMOS port reads are metal-only; the BCD + 12h conversions are |
+| `src/kernel/test/test_sha256.c` | static int hex_eq(const uint8_t *d, const char *hex) |
+| `src/kernel/test/test_smbios.c` | The EPS search targets the BIOS ROM area (metal-only); the structure |
+| `src/kernel/test/test_swap.c` | The phys window is identity-mapped metal memory, so the disk IO is |
+| `src/apps/wubuoffice/src/wubusync/test_sync.c` | Gap D3 stubs: the real lock's priority-inheritance calls these (the |
+| `src/kernel/test/test_theme_hid.c` | Builds the two freestanding kernel modules with a tiny host shim. */ |
+| `src/kernel/test/test_tutor.c` | printf("=== test_tutor (HX-C learning + recursive loop) ===
 "); |
-| `src/kernel/test_vdso.c` | The VA mapping is metal-only; the header + the counter refresh are |
-| `src/kernel/test_verifier.c` | Builds wubu_verifier.c with a minimal shim (no AGI kernel needed: |
-| `src/kernel/test_vmm.c` | registry). The page-table map + demand-fill are METAL-verified (they |
-| `src/kernel/test_wdt.c` | The port I/O is metal-only; the pure conversion logic + the mode word |
-| `src/kernel/test_xhci.c` | The PCI scan + the BAR0 read are metal-only; the capability parsing |
+| `src/kernel/test/test_vdso.c` | The VA mapping is metal-only; the header + the counter refresh are |
+| `src/kernel/test/test_verifier.c` | Builds wubu_verifier.c with a minimal shim (no AGI kernel needed: |
+| `src/kernel/test/test_vmm.c` | registry). The page-table map + demand-fill are METAL-verified (they |
+| `src/kernel/test/test_wdt.c` | The port I/O is metal-only; the pure conversion logic + the mode word |
+| `src/kernel/test/test_xhci.c` | The PCI scan + the BAR0 read are metal-only; the capability parsing |
 | `src/kernel/txfs.c` | Write-ahead log ensures crash consistency. |
-| `src/kernel/txfs_test.c` | recovery, CRC32 validation, and crash consistency. |
+| `src/kernel/test/legacy/txfs_test.c` | recovery, CRC32 validation, and crash consistency. |
 | `src/kernel/vbe.c` | - Kernel mode (default): uses mem_alloc/mem_free from kernel memory.c |
 | `src/kernel/wubu_acpi.c` | area pointer chain) or in the 0xE0000..0xFFFFF legacy BIOS region. |
 | `src/kernel/wubu_agi_kernel.c` | See wubu_agi_kernel.h for the design (converges realm + trace + selfimprove |
@@ -107,7 +107,7 @@
 | `src/kernel/wubu_crash.c` | heap, ISR-safe). The panic path calls wubu_crash_dump; the boot calls |
 | `src/kernel/wubu_fat2.c` | FS-B04: read a FAT entry (12/16/32 by size). */ |
 | `src/kernel/wubu_gaad.c` | into squares + golden rectangles. This gives a resolution-independent |
-| `src/kernel/wubu_gaad_test.c` | static void test_decompose_640x480(void) { |
+| `src/kernel/test/legacy/wubu_gaad_test.c` | static void test_decompose_640x480(void) { |
 | `src/kernel/wubu_hid.c` | Drivers feed; consumers poll; filters hide kinds per device. |
 | `src/kernel/wubu_hive.c` | Erase = mark + freelist push (O(1), no moves).  Insert reuses a free |
 | `src/kernel/wubu_hpet.c` | base at offset 44 (a Generic Address Structure: space-id, width, and |
@@ -205,8 +205,6 @@
 | `src/runtime/wubu_gc_test.c` | static int g_pass = 0, g_fail = 0, g_total = 0; |
 | `src/runtime/wubu_gdpr_age.c` | third-party verification. Self-declaration + knowledge question. |
 | `src/runtime/wubu_hc_eval_stub.c` | binaries that link wubu_exec.c (which calls hc_eval for HolyC JIT exec) |
-| `src/runtime/wubu_holyc_agi.c` | "default" session; bridges the HolyC Terminal and the AGI to the real |
-| `src/runtime/wubu_holyc_agi_test.c` | Terminal and the AGI both author HolyC source that compiles + runs LIVE via |
 | `src/runtime/wubu_holyd.c` | input routing, 9P namespace, auto-save, and desktop integration. |
 | `src/runtime/wubu_holyd_9p.c` | int wubu_holyd_mount(WubuHoly *d, const char *session, const char *path) { |
 | `src/runtime/wubu_holyd_event.c` | int wubu_holyd_publish_event(WubuHoly *d, const char *event_type, |
@@ -297,7 +295,7 @@
 | `src/gui/cp_sound.c` | C11. Implements the header-declared cp_create_sound_applet() |
 | `src/gui/daemon_panel.c` | desktop. Shows daemon status in the system tray, container list in a |
 | `src/gui/daemon_panel_test.c` | We provide weak stubs for all GUI functions the panel calls, |
-| `src/gui/desktop.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
+| `src/gui/shell/desktop.c` | ZealOS kernel runs in-process, Fable sauce renders the desktop, |
 | `src/gui/dos_window.c` | window. The window blits the guest's captured VGA framebuffer (RGBA from |
 | `src/gui/dos_window_test.c` | 1. launch a real 16-bit .COM via wubu_dos_proc_launch (in-process 8086), |
 | `src/gui/dos_window_test_stub.c` | DOS Box window test. We are testing the DOS-window glue, not the WM |
@@ -319,13 +317,13 @@
 | `src/gui/explorer_zip.c` | Self-contained ZIP central directory parsing + libzip dlopen wrapper |
 | `src/gui/service_mgr.c` | See service_mgr.h for the contract. |
 | `src/gui/service_mgr_test.c` | wubu_archd wired as the Desktop's autostart/service manager. |
-| `src/gui/startmenu.c` | Win98-style: Start -> Programs -> {Accessories, WuBuOS, System} |
-| `src/gui/startmenu_db.c` | static main-menu item list and the category submenus (Programs -> |
-| `src/gui/startmenu_power.c` | the power-options render. Uses g_open (extern in startmenu_internal.h) |
-| `src/gui/startmenu_search.c` | shared g_search / g_recent / g_program_db state (declared extern in |
+| `src/gui/shell/startmenu.c` | Win98-style: Start -> Programs -> {Accessories, WuBuOS, System} |
+| `src/gui/shell/startmenu_db.c` | static main-menu item list and the category submenus (Programs -> |
+| `src/gui/shell/startmenu_power.c` | the power-options render. Uses g_open (extern in startmenu_internal.h) |
+| `src/gui/shell/startmenu_search.c` | shared g_search / g_recent / g_program_db state (declared extern in |
 | `src/gui/startmenu_test.c` | static int g_pass = 0, g_fail = 0, g_total = 0; |
 | `src/gui/startmenu_test_stub.c` | int taskbar_height(void) { |
-| `src/gui/startmenu_tree.c` | shared g_tree_* state (extern in startmenu_internal.h). Minimal includes. |
+| `src/gui/shell/startmenu_tree.c` | shared g_tree_* state (extern in startmenu_internal.h). Minimal includes. |
 | `src/gui/term.c` | - PTY backend for shell sessions (bash, zsh, etc.) |
 | `src/gui/term_ansi.c` | parsers (term_process_pty_output ~240 lines, term_process_container_output |
 | `src/gui/term_pty.c` | container PTY, input handling, and I/O operations. |
@@ -333,26 +331,26 @@
 | `src/gui/term_tabs.c` | default-shell resolver. Uses TermState/TermTab (term.h) and g_term via |
 | `src/gui/term_test.c` | HolyC REPL, keyboard shortcuts, and resize handling. |
 | `src/gui/term_test_stub.c` | so the terminal test can compile and run without the full WM/Kernel. |
-| `src/gui/window_chrome.c` | - Window frame/border (3D raised/sunken) |
+| `src/gui/shell/window_chrome.c` | - Window frame/border (3D raised/sunken) |
 | `src/gui/wm.c` | Ports ZealOS/WuBuDos bare-metal window management into WuBuOS. |
-| `src/gui/wm_clock.c` | clock update + string formatting. Depends only on the shared WM state |
-| `src/gui/wm_ctxmenu.c` | to the desktop + icon domains. Owns the default context actions (Open/Play/ |
-| `src/gui/wm_ctxmenu_engine.c` | context-menu stack, lifecycle (create/add/show/hide), mouse dispatch, |
-| `src/gui/wm_desktop.c` | snapping math, auto-arrange / sort / refresh of desktop icons, and real |
-| `src/gui/wm_holyc_term.c` | Extracted from wm.c for modularity. |
-| `src/gui/wm_icon_glyphs.c` | recognizable shape. That is the "mess": a desktop full of identical |
-| `src/gui/wm_icons.c` | URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in |
+| `src/gui/shell/wm_clock.c` | clock update + string formatting. Depends only on the shared WM state |
+| `src/gui/shell/wm_ctxmenu.c` | to the desktop + icon domains. Owns the default context actions (Open/Play/ |
+| `src/gui/shell/wm_ctxmenu_engine.c` | context-menu stack, lifecycle (create/add/show/hide), mouse dispatch, |
+| `src/gui/shell/wm_desktop.c` | snapping math, auto-arrange / sort / refresh of desktop icons, and real |
+| `src/gui/shell/wm_holyc_term.c` | Extracted from wm.c for modularity. |
+| `src/gui/shell/wm_icon_glyphs.c` | recognizable shape. That is the "mess": a desktop full of identical |
+| `src/gui/shell/wm_icons.c` | URL-shortcut creation, hit-testing, and icon lookup. Uses g_dwm (extern in |
 | `src/gui/wm_input.c` | - wm_handle_key(): Alt+Tab cycling, Win-key hotkeys, theme |
 | `src/gui/wm_layout.c` | int title_bar_height(void) { return theme()->Luna_start_button ? 24 : DOSGUI_TITLE_H; } |
 | `src/gui/wm_render.c` | background, icons, every live window (chrome + on_draw content), the |
-| `src/gui/wm_systray.c` | SYSTEM TRAY / NOTIFICATION AREA |
-| `src/gui/wm_taskbar.c` | systray) using the shared g_dwm state (extern in wm_internal.h) and |
+| `src/gui/shell/wm_systray.c` | SYSTEM TRAY / NOTIFICATION AREA |
+| `src/gui/shell/wm_taskbar.c` | systray) using the shared g_dwm state (extern in wm_internal.h) and |
 | `src/gui/wm_test.c` | Tests window creation, z-order, drag, focus, taskbar, icons. |
 | `src/gui/wm_test_stub.c` | the WM and context-menu engine call. These let unit/integration tests link |
 | `src/gui/wm_window.c` | - Window lifecycle: spawn / close / raise / destroy / focus / lookup |
 | `src/gui/wm_window_state.c` | state transitions (resize / move / maximize / minimize / restore) and the |
-| `src/gui/gui_dbuf.c` | Minimal 8x8 font: digits 0-9, A-Z, space, colon, dash, period, slash */ |
-| `src/gui/gui_dbuf_test.c` | Win98 borders, dirty rect tracking, and flip. |
+| `src/gui/compositor/gui_dbuf.c` | Minimal 8x8 font: digits 0-9, A-Z, space, colon, dash, period, slash */ |
+| `src/gui/compositor/gui_dbuf_test.c` | Win98 borders, dirty rect tracking, and flip. |
 | `src/gui/standalone_hosted_shim.c` | hosted binary (src/hosted/hosted.o, which carries main() and is therefore |
 | `src/gui/test_cp_sound.c` | extern wubu_sound_t g_sound_engine; |
 | `src/gui/test_synth.c` | printf("=== test_synth (WT-A oscillators, WT-B ladder) ===
@@ -363,9 +361,9 @@
 | `src/gui/wubu_clipboard_mime.c` | clear/get MIME entries. Take the mime array by pointer (no shared global). |
 | `src/gui/wubu_clipboard_test.c` | Tests internal clipboard logic without Wayland integration |
 | `src/gui/wubu_clipboard_wl.c` | listeners and drag-and-drop handlers, ~350 LOC).  This is the protocol/ |
-| `src/gui/wubu_compositor.c` | Implements the API defined in wubu_compositor.h. |
-| `src/gui/wubu_compositor_standalone.c` | This is the hosted version that runs on an existing Wayland compositor. |
-| `src/gui/wubu_compositor_test.c` | printf("=== WuBuOS Compositor Test ===
+| `src/gui/compositor/wubu_compositor.c` | Implements the API defined in wubu_compositor.h. |
+| `src/gui/compositor/wubu_compositor_standalone.c` | This is the hosted version that runs on an existing Wayland compositor. |
+| `src/gui/compositor/wubu_compositor_test.c` | printf("=== WuBuOS Compositor Test ===
 "); |
 | `src/gui/wubu_deploy.c` | Uses system tools: mkinitcpio, tar, docker/buildah, xcodebuild |
 | `src/gui/wubu_deploy_config.c` | Extracted from wubu_deploy.c (separable leaf). Self-contained: pure config |
@@ -380,13 +378,13 @@
 | `src/gui/wubu_gamelib_startmenu.c` | Extracted from wubu_gamelib.c (separable leaf). Self-contained: builds/clears |
 | `src/gui/wubu_gamelib_test.c` | printf("Testing Game Library...
 "); |
-| `src/gui/wubu_json.c` | arena + state declared in wubu_json.h. Minimal includes. |
+| `src/runtime/wubu_json.c` | arena + state declared in wubu_json.h. Minimal includes. |
 | `src/gui/wubu_ladder.c` | Four one-pole stages + resonance feedback + tanh saturation, in the |
 | `src/gui/wubu_mime.c` | static MimeSystem g_mime = {0}; |
 | `src/gui/wubu_mime_desktop.c` | (str_lower/trim/dup_trim/endswith, get_file_extension) + parse_desktop_file. |
 | `src/gui/wubu_mime_test.c` | printf("Testing MIME system...
 "); |
-| `src/gui/wubu_notify.c` | Phase 2: libnotify-compatible notification server |
+| `src/gui/shell/wubu_notify.c` | Phase 2: libnotify-compatible notification server |
 | `src/gui/wubu_pkgmgr.c` | wubu_pkgmgr_pkg.c     - package create/verify/extract/read-manifest |
 | `src/gui/wubu_pkgmgr_db.c` | repo/installed list load callbacks. State via g_pkgmgr (extern in |
 | `src/gui/wubu_pkgmgr_install.c` | Repo management, search and index queries live in the facade; this module |
@@ -422,35 +420,16 @@
 "); |
 | `src/gui/wubu_ui.c` | the identical entry points a real human's input device feeds. This keeps the |
 | `src/gui/wubu_ui_test.c` | desktop through the SAME input path a human uses -- move windows, close |
-| `src/gui/wubu_wallpaper.c` | into an XRGB8888 buffer compatible with the VBE framebuffer. Implements the |
+| `src/gui/shell/wubu_wallpaper.c` | into an XRGB8888 buffer compatible with the VBE framebuffer. Implements the |
 | `src/gui/wubu_wallpaper_test.c` | and asserts the pixels land correctly (XRGB8888). Also checks the five |
 | `src/gui/wubu_waveosc.c` | The tables are precomputed by additive harmonic sums; the read path |
-| `src/gui/wubu_wayland_stub.c` | `g_wl` (wayland_state_t), which is fully populated only by the hosted |
-| `src/gui/wubu_welcome.c` | shortcuts and a "Don't show again" button. Creates a marker file at |
-| `src/gui/wubu_wm.c` | Sub-modules: wubu_wm_desktop.c, wubu_wm_input.c, wubu_wm_render.c |
-| `src/gui/wubu_wm_desktop.c` | Supports 1-9 desktops with switch/next/prev/move operations. |
-| `src/gui/wubu_wm_input.c` | Routes events to windows, handles title bar buttons, |
-| `src/gui/wubu_wm_render.c` | taskbar, GAAD snap previews, and virtual desktop indicators. |
-| `src/gui/wubu_wm_test.c` | static void test_theme_init(void) { |
 | `src/gui/xdg-shell-client-protocol.c` | Generated by wayland-scanner 1.22.0 */ |
-| `src/compiler/holyc_codegen.c` | Modular codegen: emit, expr, stmt, api submodules. |
-| `src/compiler/holyc_codegen_api.c` | Top-level compile/eval functions and public interface. |
-| `src/compiler/holyc_codegen_emit.c` | Low-level byte emission, instruction patterns, patching utilities. |
-| `src/compiler/holyc_codegen_expr.c` | Generates x86-64 machine code for HolyC AST expressions. |
-| `src/compiler/holyc_codegen_stmt.c` | Generates x86-64 machine code for HolyC AST statements. |
-| `src/compiler/holyc_lexer.c` | Tokenizes HolyC source text into a stream of tokens. |
-| `src/compiler/holyc_parse.c` | Ported from ZealOS/src/Compiler/ParseExp.ZC + ParseStatement.ZC |
-| `src/compiler/holyc_parse_ast.c` | (holyc_parse.h). Minimal includes. |
-| `src/compiler/holyc_ptx.c` | Targets NVIDIA Volta/Ampere/Hopper via MMA instructions. |
-| `src/compiler/holyc_runtime.c` | era demo and the desktop HolyC terminal actually call: |
-| `src/compiler/holyc_test.c` | static int g_run = 0, g_pass = 0; |
 | `src/compiler/test_holyc_ptx.c` | static int g_pass = 0, g_fail = 0; |
 | `src/shell/wubu_shell.c` | loop (line editing with history recall + tab completion). The heavy |
 | `src/shell/wubu_shell_complete.c` | command table. Returns the longest common prefix (the canonical readline |
 | `src/shell/wubu_shell_exec.c` | (BATTLESHIP gaps 230 shell_pipe / 231 shell_redirect) |
 | `src/shell/wubu_shell_history.c` | exposed via shell_history_prev()/shell_history_next(); the REPL driver |
 | `src/shell/wubu_shell_test.c` | 228-231): command history, tab completion, pipelines, and I/O redirection. |
-| `src/framework/test_bonzi_comfy.c` | 1. Bonzi parses intent and routes to REAL OS plumbing: |
 | `src/framework/wubufx.c` | and the EDR engine (wubu_edr.*) into a namespace-first app model. |
 | `src/framework/wubufx_apps.c` | WuBuFX. Each app is a content-addressed, capability-scoped, EDR-disclosed |
 | `src/framework/wubufx_apps_test.c` | wubufx_app_launch (no placeholder bodies survive). Also verifies the app |
