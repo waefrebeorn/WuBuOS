@@ -10,6 +10,7 @@
 
 #include "wubu_a11y.h"
 #include "wm.h"
+#include "wm_internal.h"   /* border_width(), title_bar_height() */
 #include "wubu_theme.h"
 #include "wubu_trash.h"
 #include <assert.h>
@@ -31,15 +32,17 @@
  * crescent up-left (0.289w,0.216h). Radii 2.6:1 (real GC: A 16.747mm,
  * B 6.449mm). Purple resize crescents at the WINDOW's bottom corners.
  * Mirrors the geometry in wubu_a11y.c. */
-static void a_center(int wx, int wy, int *cx, int *cy) {
-    *cx = wx + 5 + 60;  *cy = wy + 24 + 56;   /* A = anchor + (60,56) */
-}
-static void b_center(int wx, int wy, int *cx, int *cy) {
-    *cx = wx + 5 + 106; *cy = wy + 24 + 56;   /* B = anchor + (106,56) */
-}
-static void y_center(int wx, int wy, int *cx, int *cy) {
-    *cx = wx + 5 + 16;  *cy = wy + 24 + 16;   /* Y = anchor + (16,16) */
-}
+/* Anchors must mirror cluster_anchor() in wubu_a11y.c exactly: content corner
+ * is border_width()+4 right of the frame and title_bar_height()+4 below it.
+ * The old literals (wx+5, wy+24) silently assumed the pre-unification caption
+ * height, so they drifted the moment chrome became 32. */
+#define A11Y_ANCHOR(wx, wy, ox, oy) \
+    do { int _bw = border_width(), _tb = title_bar_height(); \
+         *cx = (wx) + _bw + 4 + (ox); \
+         *cy = (wy) + _tb + 4 + (oy); } while (0)
+static void a_center(int wx, int wy, int *cx, int *cy) { A11Y_ANCHOR(wx, wy, 60, 56); }
+static void b_center(int wx, int wy, int *cx, int *cy) { A11Y_ANCHOR(wx, wy, 106, 56); }
+static void y_center(int wx, int wy, int *cx, int *cy) { A11Y_ANCHOR(wx, wy, 16, 16); }
 static void p_bl(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + 23; *cy = wy + h - 23; }
 static void p_br(int wx, int wy, int w, int h, int *cx, int *cy) { *cx = wx + w - 23; *cy = wy + h - 23; }
 
