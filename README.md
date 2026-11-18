@@ -88,7 +88,8 @@ Full spine: [docs/BOOT_CHAIN.md](docs/BOOT_CHAIN.md).
 src/
   kernel/    memory, tasking, VBE, FAT32, AHCI, interrupt, PS/2, recovery, AGI organs
   firmware/  WuBuFW: UEFI from scratch, TPM, secureboot, the chainloader (wubufw.fd)
-  compiler/  WuBuNOS (submodule): HolyC lexer, parser, codegen, 11 ISA backends
+  compiler/  WuBuNOS (symlink to the separate wubunos repo, not a submodule):
+            HolyC lexer, parser, codegen, 16 ISA backends
   jit/       Native JIT: x86-64, ARM64, RISC-V, WASM backends, regalloc, minic
   audio/     DAW, Furnace (30+ chips), TinySoundFont, AI plugins
   hosted/    DRM/KMS, Vulkan, X11, WSL2, macOS AVF
@@ -133,7 +134,7 @@ vault/                archives (accomplishments, phases, planning)
 | Spells (reusable modules) | **2** — vkd3d (D3D12→Vulkan), swarm (p2p aggregation) |
 | Measured-boot AGI gate | `make test_agi_metal` = **PASS** |
 | Build | `make all` / `make hosted` exit 0 → `./src/hosted/wubu` |
-| WuBuNOS backends | 11 ISA targets (x86-64, ARM64, RISC-V, MIPS, 68k, AVR, 8051, 8086, Z80, 6502, PTX) |
+| WuBuNOS backends | 16 ISA backends (`src/compiler/wubu_isa_*.c`: x86-64, ARM64, RISC-V, MIPS, 68k, AVR, 8051, 8086, Z80, 6502, PIC, PTX, SPIR-V, Vulkan, AMDGPU) |
 | Native JIT backends | 4 targets (x86-64, ARM64, RISC-V, WASM) in src/jit/ |
 | WuBu compliance | `_GNU_SOURCE` eliminated — replaced with `WUBU_HOSTED` + `wubu_gnu_compat.h` |
 

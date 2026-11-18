@@ -16,7 +16,7 @@ accident.
 |---|---|---|
 | **WuBuOS** | the BODY | the operating system this README documents |
 | **wubuwizard** | the BRAIN | `wubuwizard` — the amoeba AGI: C11 inference/training engine + KV-cache FS. "One AGI, two repos: this Brain + wubuos the Body." |
-| **WuBuNOS** | the COMPILER | the C11 toolchain that runs ON the kernel: HolyD frontend, MIR + optimizer, 14 ISA backends, self-hosting battery |
+| **WuBuNOS** | the COMPILER | the C11 toolchain that runs ON the kernel: HolyD frontend, MIR + optimizer, 16 ISA backends, self-hosting battery |
 
 ## Layer 1 — what the Body hosts (submodules of WuBuOS)
 

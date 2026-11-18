@@ -14,11 +14,13 @@ answer: `make all` to build, `make test` to prove it, `make qemu` to boot it.
 ```bash
 git clone https://github.com/waefrebeorn/WuBuOS.git
 cd WuBuOS
-git submodule update --init --recursive   # brain, container, office, pad, www, wet, vws, compiler
+git submodule update --init --recursive   # the 9 submodules listed in .gitmodules
 ```
 
-The repo mounts several other ~WuBu~ repos as submodules (wubuwizard, WWW, WET,
-VWS, WuBuPad, WuBuOffice, WuBuContainer). The ecosystem map is
+The repo mounts nine other ~WuBu~ repos as submodules: src/brain, wubupad,
+wubuoffice, lua/www, gui/wet, gui/vws, tools/wubugrep, audio/bigmac and
+kernel/WuBuKernel. (src/compiler is NOT a submodule -- it is a symlink to the
+separate wubunos repo, and WuBuContainer is no longer mounted.) The ecosystem map is
 [docs/ECOSYSTEM.md](ECOSYSTEM.md).
 
 ## 2. Dependencies
