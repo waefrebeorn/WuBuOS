@@ -6,6 +6,7 @@
  * in wm.h). Minimal includes.
  */
 
+#include "wubu_gui_metrics.h"
 #include "../wm_internal.h"
 #include "taskbar_tasks.h"
 #include "startmenu.h"
@@ -21,8 +22,8 @@ __attribute__((weak)) void win11_widgets_toggle(void);
 
 static void draw_start_flag(int x, int y);   /* defined below */
 
-#define MODERN_GAP_V   6      /* floating margin below the screen */
-#define MODERN_RADIUS  8
+#define MODERN_GAP_V   WUBU_METRIC_GAP_SM /* was 6: off the grid */      /* floating margin below the screen */
+#define MODERN_RADIUS  WUBU_METRIC_RADIUS_WINDOW
 /* Bar padding and inter-task gaps come from the shared spacing scale
  * (WUBU_SPACE_SM / WUBU_SPACE_XS) so the panel reads as one grid. */
 
