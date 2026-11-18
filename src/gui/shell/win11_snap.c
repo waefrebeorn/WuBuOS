@@ -18,6 +18,7 @@
  * C11, opaque API (win11_snap.h), no god headers.
  */
 
+#include "wubu_gui_metrics.h"
 #include "win11_snap.h"
 #include "../wm_internal.h"
 #include "../wm.h"
@@ -26,7 +27,7 @@
 
 #include <string.h>
 
-#define SNAP_GAP     6
+#define SNAP_GAP     WUBU_METRIC_GAP_SM /* was 6: off the grid */
 #define SNAP_PAD     8
 /* The miniature must leave room for the zone separators to stay readable. */
 #define SNAP_INNER_W 40

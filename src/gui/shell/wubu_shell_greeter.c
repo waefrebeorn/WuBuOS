@@ -29,7 +29,7 @@ __attribute__((weak)) DosGuiWindow *launch_getting_started(void);
 __attribute__((weak)) DosGuiWindow *launch_vws_designer(void);
 __attribute__((weak)) DosGuiWindow *launch_terminal(void);
 /* -- Layout (window-relative) --------------------------------------- */
-#define GR_PAD        20
+#define GR_PAD        WUBU_METRIC_MARGIN_LG /* was 20: off the canonical ramp */
 #define GR_TITLE_Y    22
 #define GR_SUB_Y      50
 #define GR_ROWS_Y     92

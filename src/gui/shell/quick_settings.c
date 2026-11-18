@@ -10,6 +10,7 @@
  * always agree.
  */
 
+#include "wubu_gui_metrics.h"
 #include "../wm.h"
 #include "../wm_internal.h"
 #include "../kernel/vbe.h"
@@ -33,7 +34,7 @@ extern __attribute__((weak)) int wubu_bt_present(void);
 #define HAVE(fn) ((fn) != NULL)
 
 #define QS_ROWS        5
-#define QS_ROW_H       30
+#define QS_ROW_H       WUBU_METRIC_CONTROL_H /* was 30: off the grid */
 #define QS_WIDTH       280
 #define QS_PAD         12
 

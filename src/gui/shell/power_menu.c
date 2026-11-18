@@ -6,13 +6,14 @@
  * still link).
  */
 
+#include "wubu_gui_metrics.h"
 #include "power_menu.h"
 #include "../wubu_theme.h"
 #include "../../kernel/vbe.h"
 #include <string.h>
 
 #define POWER_ITEMS 7
-#define POWER_ROW_H 26
+#define POWER_ROW_H WUBU_METRIC_CONTROL_H /* was 26: off the grid */
 
 __attribute__((weak)) void launch_app(const char *name);
 __attribute__((weak)) void startmenu_open(void);
