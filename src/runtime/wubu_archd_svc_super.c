@@ -277,6 +277,15 @@ int wubu_svc_supervisor_status(wubu_svc_supervisor_t *s, const char *root,
     return 0;
 }
 
+/* One owner for the exponential schedule: 1s, 2s, 4s ... capped. */
+static uint64_t sup_backoff_delay_ms(int restart_count)
+{
+    uint64_t delay = RESTART_BACKOFF_BASE_MS;
+    for (int k = 1; k < restart_count && delay < RESTART_BACKOFF_MAX_MS; k++)
+        delay *= 2;
+    return delay > RESTART_BACKOFF_MAX_MS ? RESTART_BACKOFF_MAX_MS : delay;
+}
+
 static uint64_t sup_now_ms(void)
 {
     struct timespec ts;
@@ -299,12 +308,7 @@ int wubu_svc_supervisor_reap(wubu_svc_supervisor_t *s) {
             reaped++;
             if (e->auto_restart && now_ms >= e->backoff_until) {
                 e->restart_count++;
-                /* exponential backoff: 1s, 2s, 4s, ... capped at 60s */
-                uint64_t delay = RESTART_BACKOFF_BASE_MS;
-                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX_MS; k++)
-                    delay *= 2;
-                if (delay > RESTART_BACKOFF_MAX_MS) delay = RESTART_BACKOFF_MAX_MS;
-                e->backoff_until = now_ms + delay;
+                e->backoff_until = now_ms + sup_backoff_delay_ms(e->restart_count);
                 wubu_svc_supervisor_log(s, e->root, e->svc,
                     "restarting (crash-loop backoff engaged)");
                 wubu_svc_supervisor_start(s, e->root, e->svc);
@@ -513,11 +517,7 @@ int wubu_svc_supervisor_poll(wubu_svc_supervisor_t *s) {
             e->last_stop = now;
             if (e->auto_restart && now_ms >= e->backoff_until) {
                 e->restart_count++;
-                uint64_t delay = RESTART_BACKOFF_BASE_MS;
-                for (int k = 1; k < e->restart_count && delay < RESTART_BACKOFF_MAX_MS; k++)
-                    delay *= 2;
-                if (delay > RESTART_BACKOFF_MAX_MS) delay = RESTART_BACKOFF_MAX_MS;
-                e->backoff_until = now_ms + delay;
+                e->backoff_until = now_ms + sup_backoff_delay_ms(e->restart_count);
                 wubu_svc_supervisor_start(s, e->root, e->svc);
                 continue;   /* restarted; not an "unexpected" death */
             }
