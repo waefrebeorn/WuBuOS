@@ -22,6 +22,7 @@ src/*/test_*
 !src/gui/test_wubu_sound.c
 !src/gui/test_dosgui_cp_sound.c
 !src/gui/test_wubu_gui_metrics.c
+!src/runtime/test_wubu_crc32.c
 !src/worldsim/test_worldsim.c
 src/*/*_test
 src/**/*_test

@@ -79,7 +79,7 @@ install: hosted wubu_inject
 # Inject input into the workspace window (XTEST; the compositor delivers it
 # to the focused Wayland surface). Built as part of `hosted`.
 wubu_inject: $(HOSTED)/wubu_inject.c
-	$(CC) -O2 -std=c11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L $(HOSTED)/wubu_inject.c -o $(HOSTED)/wubu_inject -lX11 -ldl
+	$(CC) -O2 -std=c11 -Wall -Wextra -D_POSIX_C_SOURCE=200809L $(HOSTED)/wubu_inject.c -o $(HOSTED)/wubu_inject -lX11 -ldl -Iinclude
 	@echo "✅ Input injector built: ./src/hosted/wubu_inject"
 
 # Run the hosted desktop in a scaled weston window on the host display.
@@ -143,11 +143,11 @@ HOSTED_INC  = -I$(HOSTED) -I$(LUAWWW) -Isrc/gui/vws/externals/wet \
 HOSTED_LINK_ONLY = $(COMP)/wubu_tgemm_avx512.o $(APPS)/edr_dash.o \
                    $(RT)/wubu_holyd_agi.o $(RT)/wubu_holyd_lifecycle.o
 hosted: $(HOSTED)/hosted.c $(HOSTED_SUBSYS) $(HOSTED_OBJS_LIST) $(RT_OBJS) $(GUI_OBJS) $(APP_OBJS) $(COMP_OBJS) $(JIT_SRCS) $(HOSTED_LINK_ONLY)
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) -c $(HOSTED)/hosted.c -o /tmp/hosted_main.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o
-	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) \
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) -I$(HOSTED) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS) -c $(HOSTED)/hosted.c -o /tmp/hosted_main.o -Iinclude
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/xdg-shell-private.code -o /tmp/xdg-shell-private.o -Iinclude
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/viewporter-private.code -o /tmp/viewporter-private.o -Iinclude
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(HOSTED) -x c -c $(HOSTED)/primary-selection-private.code -o /tmp/primary-selection-private.o -Iinclude
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h -DWUBU_EDR_AGENT -DVBE_HOSTED -DWUBU_NO_LIBM -I$(GUI) -I$(RT) -I$(KERNEL) $(HOSTED_INC) -I$(BRIDGE) -I$(COMP) -I$(JIT) -I$(APPS) -I$(APPS)/calc -I$(APPS)/control -I$(APPS)/notepad -I$(TOOLS)  -Iinclude \
 	/tmp/hosted_main.o $(HOSTED_SUBSYS) $(HOSTED_EXTRA) src/kernel/vbe.c $(KERNEL)/wubu_kvfs.c $(KERNEL)/wubu_thermal_read.c $(GUI)/wubu_runline.c $(KERNEL)/wubu_world.c $(KERNEL)/input.c $(HOSTED)/wubu_hosted_hw.c $(RT)/wubu_ct_isolate_cgroup.c $(BRIDGE)/bridge.c $(RT)/wubu_ns_kv.c \
 	/tmp/xdg-shell-private.o /tmp/viewporter-private.o /tmp/primary-selection-private.o $(HOSTED)/primary-selection-private.c \
 	$(HOSTED_OBJS_LIST) $(RT_OBJS) $(EDR_SRC) $(APPS)/edr_dash.o \
@@ -167,7 +167,7 @@ bear: $(BEAR_OBJS)
 
 # ── Subsystem Targets ──────────────────────────────────────────────────────
 kernel: $(KERNEL_OBJS) $(KERNEL)/crt0.o $(KERNEL)/metal_main.o
-	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -Wl,-no-pie \
+	$(CC) $(CFLAGS) -DMYSEED_METAL -DWUBU_NO_LIBM -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -Wl,-no-pie  -Iinclude \
 		-T $(KERNEL)/kernel.ld \
 		$(KERNEL)/crt0.o $(KERNEL)/metal_main.o $(KERNEL_OBJS) \
 		-o $(KERNEL)/kernel.elf
@@ -191,11 +191,11 @@ WUBUGREP_OBJS = $(WUBUGREP_SRC)/wubugrep.o $(WUBUGREP_SRC)/wubre.o \
 		$(WUBUGREP_SRC)/wubre_litpref.o $(WUBUGREP_SRC)/wubre_simd.o
 
 wubugrep: $(WUBUGREP_OBJS)
-	$(CC) $(CFLAGS) $(WUBUGREP_OBJS) -o build/wubugrep
+	$(CC) $(CFLAGS) $(WUBUGREP_OBJS) -o build/wubugrep -Iinclude
 
 # Fully static build, as documented in src/tools/README_wubugrep.md.
 wubugrep_static: $(WUBUGREP_OBJS)
-	$(CC) $(CFLAGS) -static $(WUBUGREP_OBJS) -o build/wubugrep.static
+	$(CC) $(CFLAGS) -static $(WUBUGREP_OBJS) -o build/wubugrep.static -Iinclude
 
 tools: $(TOOLS_OBJS)
 	@echo "✅ WuBuOS tools built"
@@ -226,11 +226,11 @@ shell: $(SHELL_DIR)/wubu_shell
 	@echo "✅ Shell built (./src/shell/wubu_shell)"
 
 $(SHELL_DIR)/wubu_shell: $(SHELL_OBJS)
-	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED) \
+	$(CC) $(CFLAGS) -I$(SHELL_DIR) -I$(KERNEL) -I$(GUI) -I$(RT) -I$(BRIDGE) -I$(HOSTED)  -Iinclude \
 		$(SHELL_OBJS) -o $@
 
 bear_train: $(BEAR_OBJS) $(BEAR)/bear_train.o
-	$(CC) $(CFLAGS) -I$(BEAR) -I$(RT) -I$(KERNEL) \
+	$(CC) $(CFLAGS) -I$(BEAR) -I$(RT) -I$(KERNEL)  -Iinclude \
 		$(BEAR)/bear_arena.o $(BEAR)/bear_env.o $(BEAR)/bear_env_npole.o $(BEAR)/bear_nn_policy.o $(BEAR)/bear_nn_value.o $(BEAR)/bear_nn_ckpt.o $(BEAR)/bear_ppo_traj.o $(BEAR)/bear_ppo_loss.o $(BEAR)/bear_ppo_trainer.o $(BEAR)/bear_opt.o $(BEAR)/bear_cudnn.o $(BEAR)/bear_cudnn_cublas.o $(BEAR)/bear_cudnn_cuda.o $(BEAR)/bear_train.o $(BEAR)/bear_vulkan_soft.o \
 		-lm -o $(BEAR)/bear_train
 	@echo "✅ Bear RL training binary built (./src/bear/bear_train)"
@@ -244,7 +244,7 @@ bear_train: $(BEAR_OBJS) $(BEAR)/bear_train.o
 # packs boot.bin + kernel.elf into a 1.44MB floppy image and boots it,
 # capturing the serial boot trace on stdout.
 $(KERNEL)/boot.bin: $(KERNEL)/boot.S
-	$(CC) -c -m16 -ffreestanding -nostdlib -I$(KERNEL) $(KERNEL)/boot.S -o $(KERNEL)/boot.o
+	$(CC) -c -m16 -ffreestanding -nostdlib -I$(KERNEL) $(KERNEL)/boot.S -o $(KERNEL)/boot.o -Iinclude
 	objcopy -O binary -j .text $(KERNEL)/boot.o $(KERNEL)/boot.bin
 	truncate -s 512 $(KERNEL)/boot.bin
 

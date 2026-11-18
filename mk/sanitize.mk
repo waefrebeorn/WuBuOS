@@ -59,21 +59,21 @@ test_sanitize: $(GUI)/mime_contract_test.san $(RT)/revolver_test.san \
 
 # .desktop / MIME action parser -- the file format that comes off disk.
 $(GUI)/mime_contract_test.san: $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/mime_contract_test.c
-	$(CC) $(SAN_CFLAGS) -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -DVBE_HOSTED -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(GUI) -I$(RT) -I$(KERNEL) \
 		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c $(GUI)/mime_contract_test.c \
 		-o $@ -lm
 
 # Revolver clamping -- integer parsing of environment variables.
 $(RT)/revolver_test.san: $(RT)/wubu_revolver.c $(RT)/test_revolver.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(RT) -I$(HOSTED) -I$(KERNEL) $(RT)/wubu_revolver.c \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c \
 		$(RT)/test_revolver.c -o $@ -lm
 
 # Guest filesystem image loader -- WUBFS01 header + records from disk.
 $(HOSTED)/test_fs_persist.san: $(HOSTED)/test_fs_persist.c $(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(HOSTED)/test_fs_persist.c -o $@ -lm
@@ -84,34 +84,34 @@ $(HOSTED)/test_fs_persist.san: $(HOSTED)/test_fs_persist.c $(HOSTED)/hosted_styx
 $(FS_PERSIST_FUZZ_SAN): $(HOSTED)/fs_persist_fuzz.c $(HOSTED)/hosted_styxfs.c \
                         $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
                         $(RT)/wubu_guest_root.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(RT)/wubu_guest_root.c $(HOSTED)/fs_persist_fuzz.c -o $@ -lm
 
 # Mutation fuzzer for the .desktop parser, under ASan/UBSan.
 $(MIME_FUZZ_SAN): $(GUI)/mime_fuzz.c $(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(GUI) -I$(RT) -I$(KERNEL) \
 		$(GUI)/wubu_mime.c $(GUI)/wubu_mime_desktop.c \
 		$(GUI)/mime_fuzz.c -o $@ -lm
 
 # Mutation fuzzer for the .spell module container, under ASan/UBSan.
 $(SPELLMOD_FUZZ_SAN): $(RT)/spellmod_fuzz.c $(RT)/wubu_spellmod.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_spellmod.c $(RT)/spellmod_fuzz.c -o $@ -lm
 
 # Mutation fuzzer for the JSON reader, under ASan/UBSan.
 $(JSON_FUZZ_SAN): $(RT)/json_fuzz.c $(RT)/wubu_json.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_json.c $(RT)/json_fuzz.c -o $@ -lm
 
 # Dependency resolver -- pure graph work over borrowed handles.
 $(SPELL_RESOLVE_SAN): $(RT)/wubu_spell_resolve.c $(RT)/wubu_spellmod.c \
                       $(RT)/wubu_spell_resolve_test.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c \
 		$(RT)/wubu_spell_resolve_test.c -o $@ -lm
@@ -119,7 +119,7 @@ $(SPELL_RESOLVE_SAN): $(RT)/wubu_spell_resolve.c $(RT)/wubu_spellmod.c \
 # Directory discovery for .spell modules, under ASan/UBSan.
 $(SPELL_SCAN_SAN): $(RT)/wubu_spell_scan.c $(RT)/wubu_spell_resolve.c \
                    $(RT)/wubu_spellmod.c $(RT)/wubu_spell_scan_test.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(RT) -I$(KERNEL) \
 		$(RT)/wubu_spellmod.c $(RT)/wubu_spell_resolve.c $(RT)/wubu_spell_scan.c \
 		$(RT)/wubu_spell_scan_test.c -o $@ -lm
@@ -128,7 +128,7 @@ $(SPELL_SCAN_SAN): $(RT)/wubu_spell_scan.c $(RT)/wubu_spell_resolve.c \
 $(FS_CRASH_SAFE_SAN): $(HOSTED)/fs_crash_safe_test.c $(HOSTED)/hosted_styxfs.c \
                       $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
                       $(RT)/wubu_guest_root.c
-	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-I$(HOSTED) -I$(RT) -I$(KERNEL) -I$(GUI) \
 		$(HOSTED)/hosted_styxfs.c $(HOSTED)/hosted_fs_persist.c $(RT)/wubu_revolver.c \
 		$(RT)/wubu_guest_root.c $(HOSTED)/fs_crash_safe_test.c -o $@ -lm
@@ -136,7 +136,7 @@ $(FS_CRASH_SAFE_SAN): $(HOSTED)/fs_crash_safe_test.c $(HOSTED)/hosted_styxfs.c \
 # NT syscall surface -- every slot probed with all-zero arguments, forked.
 VSL_NT_SAN_BIN = $(RT)/vsl_nt_contract_test.san
 $(VSL_NT_SAN_BIN): $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
-	$(CC) $(SAN_CFLAGS) -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h \
+	$(CC) $(SAN_CFLAGS) -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h  -Iinclude \
 		-DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -I$(KERNEL) \
 		$(filter-out $(RT)/vsl/vsl_syscall_nt_test.o,$(VSL_NT_OBJS)) \
 		$(KERNEL)/wubu_modsym.o src/runtime/vsl/vsl_nt_contract_test.c \

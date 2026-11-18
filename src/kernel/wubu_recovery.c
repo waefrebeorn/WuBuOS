@@ -3,20 +3,15 @@
  * The 5+1 doctrine: five rotating rollback slots + one Jesus-state
  * emergency clean slate with the divine good principles intact.
  */
+#include "wubu_crc32.h"
 #include "wubu_recovery.h"
 #include <string.h>
 
 /* CRC32 -- the standard reflected polynomial (IEEE 802.3). */
 uint32_t wubu_recovery_crc32(const void *data, uint32_t len)
 {
-    const uint8_t *p = (const uint8_t *)data;
-    uint32_t crc = 0xFFFFFFFFu;
-    for (uint32_t i = 0; i < len; i++) {
-        crc ^= p[i];
-        for (int b = 0; b < 8; b++)
-            crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
-    }
-    return ~crc;
+    /* one owner for the polynomial: wubu_crc32.h */
+    return wubu_crc32(data, (size_t)len);
 }
 
 int wubu_recovery_init(wubu_recovery_t *r, const wubu_recovery_principles_t *p)

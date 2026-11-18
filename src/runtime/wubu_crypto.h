@@ -6,7 +6,7 @@
  * C11 compatible, no VLA, no platform-specific code.
  *
  * SHA256 implementation: public domain / FIPS 180-4
- * CRC32 implementation: POSIX cksum polynomial (0xEDB88320)
+ * CRC32 implementation: include/wubu_crc32.h (POSIX cksum polynomial)
  */
 
 #ifndef WUBU_CRYPTO_H
@@ -22,20 +22,12 @@ extern "C" {
 #endif
 
 /* ------------------------------------------------------------------ */
-/*  CRC32 (POSIX cksum polynomial 0xEDB88320)                         */
+/*  CRC32 -- moved to its single owner: include/wubu_crc32.h          */
+/*  (src/kernel/wubu_crc32.c). This header no longer carries the      */
+/*  algorithm; it only re-exports the shared API.                     */
 /* ------------------------------------------------------------------ */
 
-static uint32_t wubu_crc32(const void *data, size_t size) {
-    const uint8_t *p = (const uint8_t *)data;
-    uint32_t crc = 0xFFFFFFFF;
-    for (size_t i = 0; i < size; i++) {
-        crc ^= p[i];
-        for (int j = 0; j < 8; j++) {
-            crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
-        }
-    }
-    return crc ^ 0xFFFFFFFF;
-}
+#include "wubu_crc32.h"
 
 /* ------------------------------------------------------------------ */
 /*  SHA256                                                            */

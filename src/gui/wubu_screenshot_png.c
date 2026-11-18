@@ -6,6 +6,7 @@
  */
 
 #include "../egojar.h"
+#include "wubu_crc32.h"
 #include "wubu_screenshot.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,41 +118,15 @@ bool wubu_screenshot_save_auto(wubu_sshot_t *sshot, char *out_path, size_t out_s
 
 /* -- self-contained PNG encoder (in-memory, zlib-backed) ---------- */
 
-static uint32_t png_crc_data(const void *data, size_t len);
-static uint32_t png_crc_update(uint32_t crc_in, const void *data, size_t len);
-
-static uint32_t g_png_crc_table[256];
-static bool g_png_crc_init = false;
-
-static void png_crc_init(void) {
-    if (g_png_crc_init) return;
-    for (uint32_t i = 0; i < 256; i++) {
-        uint32_t c = i;
-        for (int j = 0; j < 8; j++)
-            c = (c & 1) ? (0xEDB88320u ^ (c >> 1)) : (c >> 1);
-        g_png_crc_table[i] = c;
-    }
-    g_png_crc_init = true;
-}
-
+/* CRC32 owner: include/wubu_crc32.h -- the table lives there once. */
 static uint32_t png_crc_data(const void *data, size_t len) {
-    if (!g_png_crc_init) png_crc_init();
-    const uint8_t *p = (const uint8_t *)data;
-    uint32_t crc = ~0u;
-    for (size_t i = 0; i < len; i++)
-        crc = g_png_crc_table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
-    return ~crc;
+    return wubu_crc32(data, len);
 }
 
-/* Continue a CRC from an existing value (used for the IDAT chunk, whose
+/* Continue a CRC from an existing RAW state (used for the IDAT chunk, whose
  * CRC covers the 4-byte "IDAT" type followed by the zlib stream). */
 static uint32_t png_crc_update(uint32_t crc_in, const void *data, size_t len) {
-    if (!g_png_crc_init) png_crc_init();
-    const uint8_t *p = (const uint8_t *)data;
-    uint32_t crc = crc_in;
-    for (size_t i = 0; i < len; i++)
-        crc = g_png_crc_table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
-    return crc;
+    return wubu_crc32_run(crc_in, data, len);
 }
 
 static void put_be32(uint8_t *b, uint32_t v) {

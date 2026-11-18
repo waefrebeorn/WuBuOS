@@ -2,6 +2,7 @@
  * wubu_pkgmgr_pkg.c  --  WuBuOS Package Manager: Pkg
  */
 
+#include "wubu_crc32.h"
 #include "wubu_pkgmgr_internal.h"
 
 /* ============================================================
@@ -106,30 +107,17 @@ bool write_pkg(const char* output_path, const wubu_pkg_manifest_t* manifest,
 
     /* Compute CRC32 over manifest + payload data */
     {
-        uint32_t crc = 0xFFFFFFFF;
-        /* CRC over manifest */
-        for (size_t i = 0; i < (size_t)manifest_csize; i++) {
-            crc ^= (uint32_t)mc_data[i];
-            for (int j = 0; j < 8; j++) {
-                crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
-            }
-        }
-        /* CRC over payload */
+        /* manifest, then payload: one CRC owner (wubu_crc32.h) */
+        uint32_t crc = wubu_crc32(mc_data, (size_t)manifest_csize);
         FILE *pf = fopen(payload_archive, "rb");
         if (pf) {
             unsigned char buf[8192];
             size_t n;
-            while ((n = fread(buf, 1, sizeof(buf), pf)) > 0) {
-                for (size_t i = 0; i < n; i++) {
-                    crc ^= (uint32_t)buf[i];
-                    for (int j = 0; j < 8; j++) {
-                        crc = (crc >> 1) ^ (0xEDB88320 & (-(crc & 1)));
-                    }
-                }
-            }
+            while ((n = fread(buf, 1, sizeof(buf), pf)) > 0)
+                crc = wubu_crc32_chain(crc, buf, n);
             fclose(pf);
         }
-        header.crc32 = crc ^ 0xFFFFFFFF;
+        header.crc32 = crc;
     }
 
     /* Compute simple signature: SHA-256-like hash of header + manifest + payload */

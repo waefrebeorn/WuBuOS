@@ -14,38 +14,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "wubu_crc32.h"
 
-/* CRC32 table + init guard (private to this codec module). */
-static uint32_t crc32_table[256];
-static bool crc32_table_init = false;
-
-void crc32_init(void) {
-    if (crc32_table_init) return;
-    for (uint32_t i = 0; i < 256; i++) {
-        uint32_t c = i;
-        for (int j = 0; j < 8; j++) {
-            c = (c & 1) ? (0xEDB88320 ^ (c >> 1)) : (c >> 1);
-        }
-        crc32_table[i] = c;
-    }
-    crc32_table_init = true;
-}
-
+/* CRC32 has one owner now: include/wubu_crc32.h (src/kernel/wubu_crc32.c).
+ * These names stay because the codec's own callers use them; the algorithm does
+ * not live here any more. */
 uint32_t crc32_update(uint32_t crc_in, const void *data, size_t len) {
-    if (!crc32_table_init) crc32_init();
-    const uint8_t *p = (const uint8_t*)data;
-    /* crc_in is the PREVIOUS return value (already inverted); re-invert to get
-       the running state, then continue the CRC, then re-invert on return.
-       Returning ~0 here would restart the CRC instead of chaining it. */
-    uint32_t crc = ~crc_in;
-    for (size_t i = 0; i < len; i++) {
-        crc = crc32_table[(crc ^ p[i]) & 0xFF] ^ (crc >> 8);
-    }
-    return ~crc;
+    return wubu_crc32_chain(crc_in, data, len);
 }
 
 uint32_t crc32_data(const void *data, size_t len) {
-    return crc32_update(0, data, len);
+    return wubu_crc32(data, len);
 }
 
 void write_be32(uint8_t *buf, uint32_t val) {
