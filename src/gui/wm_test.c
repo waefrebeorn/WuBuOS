@@ -170,8 +170,9 @@ static void test_mouse_drag_window(void) {
 /* -- Taskbar Tests --------------------------------------------- */
 
 static void test_taskbar_height(void) {
-    TEST("taskbar height == 28");
-    CHECK(taskbar_height() == 28, "should be 28");
+    TEST("taskbar height == canonical WUBU_METRIC_TASKBAR_H");
+    CHECK(taskbar_height() == DOSGUI_TASK_H, "should equal the canonical taskbar metric");
+    CHECK(DOSGUI_TASK_H == WUBU_METRIC_TASKBAR_H, "wm must track the metric owner");
     PASS();
 }
 
