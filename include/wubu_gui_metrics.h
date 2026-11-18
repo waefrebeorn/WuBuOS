@@ -35,7 +35,8 @@
 #define WUBU_METRIC_ROW_H       24
 #define WUBU_METRIC_CONTROL_H   32
 #define WUBU_METRIC_TOUCH_H     40
-#define WUBU_METRIC_TITLEBAR_H  28
+#define WUBU_METRIC_TITLEBAR_H  32   /* window caption (Win11-faithful) */
+#define WUBU_METRIC_TASKBAR_H    48   /* taskbar height */
 #define WUBU_METRIC_SCROLLBAR_W 12
 
 #include <stdint.h>
@@ -56,7 +57,8 @@ typedef struct WubuGuiMetrics {
     int row_h;                   /* list row              (>= 24) */
     int control_h;               /* button/input          (>= 32) */
     int touch_h;                 /* pointer+touch target  (>= 40) */
-    int titlebar_h;              /* caption band          (>= 28) */
+    int titlebar_h;              /* window caption        (>= 28) */
+    int taskbar_h;               /* taskbar band          (>= 40) */
     int scrollbar_w;             /*                      (>= 12) */
 
     int radius;                  /* Longhorn chrome is square-ish: 2 */

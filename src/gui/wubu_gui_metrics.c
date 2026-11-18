@@ -25,6 +25,7 @@ void wubu_gui_metrics_default(WubuGuiMetrics *m)
     m->control_h  = WUBU_METRIC_CONTROL_H;
     m->touch_h    = WUBU_METRIC_TOUCH_H;
     m->titlebar_h = WUBU_METRIC_TITLEBAR_H;
+    m->taskbar_h  = WUBU_METRIC_TASKBAR_H;
     m->scrollbar_w = WUBU_METRIC_SCROLLBAR_W;
 
     m->radius     = 2;

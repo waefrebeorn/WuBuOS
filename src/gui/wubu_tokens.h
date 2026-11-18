@@ -78,12 +78,12 @@
 #define WUBU_ICON_MD       24   /* desktop icon glyph */
 #define WUBU_ICON_LG       32
 
-#define WUBU_TITLE_BAR_H   32   /* Win11 caption height */
+#define WUBU_TITLE_BAR_H   WUBU_METRIC_TITLEBAR_H /* window caption: canonical */
 #define WUBU_TITLE_BTN_W   46   /* caption button width */
 #define WUBU_TITLE_BTN_H   32   /* flush with the caption bar */
 #define WUBU_TITLE_PAD     WUBU_SPACE_SM   /* icon and title inset */
 
-#define WUBU_TASKBAR_H     48   /* Win11 taskbar height */
+#define WUBU_TASKBAR_H     WUBU_METRIC_TASKBAR_H   /* taskbar: canonical */
 #define WUBU_MENU_PAD      WUBU_SPACE_MD   /* menu content inset */
 #define WUBU_MENU_ROW_H    26
 

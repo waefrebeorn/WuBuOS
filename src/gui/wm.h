@@ -19,6 +19,8 @@
 #ifndef WUBU_WM_H
 #define WUBU_WM_H
 
+#include "wubu_gui_metrics.h"   /* one owner for chrome heights */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <time.h>
@@ -28,8 +30,8 @@
 
 #define DOSGUI_MAX_WINDOWS    32
 #define DOSGUI_MAX_DESKTOPS    9
-#define DOSGUI_TITLE_H        20
-#define DOSGUI_TASK_H         28
+#define DOSGUI_TITLE_H        WUBU_METRIC_TITLEBAR_H
+#define DOSGUI_TASK_H         WUBU_METRIC_TASKBAR_H
 #define DOSGUI_BORDER          2
 #define DOSGUI_ICON_LABEL_H   16  /* Height reserved for icon label text */
 

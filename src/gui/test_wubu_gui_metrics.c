@@ -91,6 +91,9 @@ int main(void)
     CHECK(DOSGUI_TITLE_H % WUBU_METRIC_UNIT == 0);
     CHECK(DOSGUI_TASK_H  % WUBU_METRIC_UNIT == 0);
 
+    CHECK(m.taskbar_h  == WUBU_METRIC_TASKBAR_H);
+    CHECK(WUBU_TITLE_BAR_H == m.titlebar_h && WUBU_TASKBAR_H == m.taskbar_h);
+    CHECK(DOSGUI_TITLE_H   == m.titlebar_h && DOSGUI_TASK_H == m.taskbar_h);
     if (g_fails) {
         printf("wubu_gui_metrics: %d FAILED\n", g_fails);
         return 1;
