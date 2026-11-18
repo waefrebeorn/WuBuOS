@@ -9,6 +9,7 @@
  * Uses theme helpers + VBE framebuffer API.
  */
 
+#include "wubu_gui_metrics.h"   /* layout comes from one owner */
 #include "explorer_internal.h"
 #include "wm.h"
 #include "../kernel/vbe.h"
@@ -107,7 +108,7 @@ void ex_render_breadcrumbs(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h
         /* Separator */
         if (i < ex->breadcrumb_count - 1) {
             vbe_draw_text(seg_x, y + (ex_breadcrumb_h() - 8) / 2, ">", tc()->icon_text, 1);
-            seg_x += 16;
+            seg_x += WUBU_METRIC_MARGIN_MD;
         }
     }
 }
@@ -231,7 +232,7 @@ void ex_render_file_list(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, 
         }
     } else if (ex->view_mode == EX_VIEW_LIST) {
         /* Small icons, single column */
-        int row_h = 24;
+        int row_h = WUBU_METRIC_ROW_H;
         int row_y = y + 4;
 
         for (int i = 0; i < ex->entry_count; i++) {
@@ -313,7 +314,7 @@ void ex_render_preview(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_h, in
     if (ex->preview.type == EX_PREVIEW_NONE) {
         vbe_draw_text(x + 10, content_y + 10, "Select a file to preview", 0x808080, 1);
     } else if (ex->preview.type == EX_PREVIEW_TEXT) {
-        int line_h = 12;
+        int line_h = WUBU_METRIC_GAP_MD;
         int lines = content_h / line_h;
         for (int i = 0; i < ex->preview.text_lines && i < lines; i++) {
             char *line = ex->preview.text_buffer;
@@ -439,7 +440,7 @@ void ex_render_context_menu(ExExplorerState *ex, uint32_t *fb, int fb_w, int fb_
 
     const char *items[] = {"Open", "Open With...", "Cut", "Copy", "Paste", "Delete", "Rename", "Properties"};
     const int n_items = 8;
-    int item_h = 24;
+    int item_h = WUBU_METRIC_ROW_H;
     int menu_w = 180;
     /* 8 items PLUS one separator row inserted before Delete. */
     int menu_h = (n_items + 1) * item_h + 4;
