@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_crc32 test_kernel_bridge
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_crc32 test_system test_kernel_bridge
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -560,6 +560,17 @@ test_vsl_nt_contract: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 		src/runtime/vsl/vsl_nt_contract_test.c \
 		-o $(RT)/wubu_vsl_nt_contract_test -ldl -lvulkan -lcuda
 	$(RT)/wubu_vsl_nt_contract_test
+
+# wubu_system (+ snapshot family): the module existed with a test but was never
+# linked into the gate. Wired now -- 24 checks.
+test_system:
+	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -I$(RT) -include wubu_gnu_compat.h $(RT)/wubu_crc32.c \
+		-Iinclude -I$(COMP) -I$(JIT) \
+		$(RT)/wubu_snapshot.c $(RT)/wubu_snapshot_gc.c $(RT)/wubu_snapshot_xport.c \
+		$(RT)/wubu_snapshot_diff.c $(RT)/wubu_snapshot_fs.c $(RT)/wubu_snapshot_copy.c \
+		$(RT)/wubu_snapshot_tag.c $(RT)/wubu_system.c $(RT)/wubu_system_test.c \
+		-o $(RT)/wubu_system_test -lpthread
+	$(RT)/wubu_system_test
 
 # CRC-32 single owner: known-answer vectors + chaining equivalence.
 test_crc32:
