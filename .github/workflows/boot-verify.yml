@@ -35,7 +35,7 @@ jobs:
       - name: Build the kernel + GRUB ISO
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq grub-pc-bin grub-common xorriso qemu-system-x86 gcc-13
+          sudo apt-get install -y -qq grub-pc-bin grub-common xorriso mtools qemu-system-x86 gcc-13
           # gcc-13 pinned: the kernel still carries 214 gcc14-class strict
           # errors (implicit declarations etc.) — a tracked hygiene campaign
           # (make kernel-strict, see the census ledger). The boot proof runs
