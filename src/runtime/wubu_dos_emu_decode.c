@@ -1,6 +1,45 @@
 /* wubu_dos_emu_decode.c -- WuBuOS 8086/DOS shim leaf module (self-contained C11). */
 #include "wubu_dos_emu_internal.h"
 
+/* ---- WUBU_HOSTCALL (0xF1) soft-float service -------------------------
+ * The 8086 ISA driver emits {0xF1, fn, dst_disp, sa_disp, sb_disp} with
+ * BP-relative slot displacements (wubu_isa_8086.c). Same fn table as the
+ * z80/6502/riscv/mips interpreters. Prefer the compiler repo's bit-exact
+ * softfloat when on the include path; host IEEE float otherwise. */
+#if defined(__has_include)
+#  if __has_include("wubu_softfloat.h")
+#    include "wubu_softfloat.h"
+#    define HCDOS_SF 1
+#  endif
+#endif
+#ifndef HCDOS_SF
+static inline uint32_t hcdos_f2b(float f){ uint32_t b; memcpy(&b,&f,4); return b; }
+static inline float hcdos_b2f(uint32_t b){ float f; memcpy(&f,&b,4); return f; }
+static inline uint32_t wubu_sf_f32_add(uint32_t a, uint32_t b){ return hcdos_f2b(hcdos_b2f(a)+hcdos_b2f(b)); }
+static inline uint32_t wubu_sf_f32_sub(uint32_t a, uint32_t b){ return hcdos_f2b(hcdos_b2f(a)-hcdos_b2f(b)); }
+static inline uint32_t wubu_sf_f32_mul(uint32_t a, uint32_t b){ return hcdos_f2b(hcdos_b2f(a)*hcdos_b2f(b)); }
+static inline uint32_t wubu_sf_f32_div(uint32_t a, uint32_t b){ return hcdos_f2b(hcdos_b2f(a)/hcdos_b2f(b)); }
+static inline int wubu_sf_f32_cmp(uint32_t a, uint32_t b){ float x=hcdos_b2f(a),y=hcdos_b2f(b); return (x<y)?-1:(x>y)?1:0; }
+static inline uint32_t wubu_sf_i64_to_f32(int64_t i){ return hcdos_f2b((float)i); }
+static inline int64_t wubu_sf_f32_to_i64(uint32_t f){ return (int64_t)hcdos_b2f(f); }
+#endif
+
+/* BP-relative 4-byte LE slot access (SS segment) */
+static inline uint32_t hcdos_rdslot(WubuDosEmu *e, uint16_t disp)
+{
+    uint16_t o = (uint16_t)(e->bp + disp);
+    return (uint32_t)rd16(e, e->ss, o) | ((uint32_t)rd16(e, e->ss, (uint16_t)(o+2)) << 16);
+}
+static inline void hcdos_wrslot(WubuDosEmu *e, uint16_t disp, uint32_t v)
+{
+    uint16_t o = (uint16_t)(e->bp + disp);
+    wr16(e, e->ss, o, (uint16_t)(v & 0xFFFF));
+    wr16(e, e->ss, (uint16_t)(o+2), (uint16_t)((v >> 16) & 0xFFFF));
+}
+/* mem64 cells: segment 0x2000 (phys 0x20000), above the COM image at
+ * 0x10000 and clear of the stack. cell*8, z80 convention. */
+#define HCDOS_CELL_SEG 0x2000u
+
 int decode_main(WubuDosEmu *e, uint8_t op) {
     int w = (op & 1);
     switch (op) {
@@ -261,6 +300,69 @@ int decode_main(WubuDosEmu *e, uint8_t op) {
                 default: break;
             }
             return 0; }
+
+        case 0xF1: { /* WUBU_HOSTCALL: {fn, dst_disp, sa_disp, sb_disp} */
+            uint8_t fn = fetch8(e);
+            uint16_t dst = fetch16(e);
+            uint16_t sa  = fetch16(e);
+            uint16_t sb  = fetch16(e);
+            uint32_t fa = hcdos_rdslot(e, sa);
+            uint32_t fb = hcdos_rdslot(e, sb);
+            uint32_t r = 0;
+            int wide = 1;
+            switch (fn) {
+            case 0:  r = wubu_sf_f32_add(fa, fb); break;
+            case 1:  r = wubu_sf_f32_sub(fa, fb); break;
+            case 2:  r = wubu_sf_f32_mul(fa, fb); break;
+            case 3:  r = wubu_sf_f32_div(fa, fb); break;
+            case 10: r = fa ^ 0x80000000u; break;
+            case 6:  r = (wubu_sf_f32_cmp(fa,fb)==0)?0xFFFFFFFFu:0; break;
+            case 7:  r = (wubu_sf_f32_cmp(fa,fb)!=0)?0xFFFFFFFFu:0; break;
+            case 8:  r = (wubu_sf_f32_cmp(fa,fb) <0)?0xFFFFFFFFu:0; break;
+            case 9:  r = (wubu_sf_f32_cmp(fa,fb)<=0)?0xFFFFFFFFu:0; break;
+            case 4:  r = wubu_sf_i64_to_f32((int64_t)(int32_t)fa); break;
+            case 5:  r = (uint32_t)wubu_sf_f32_to_i64(fa); break;
+            case 11: r = fa; e->ax = (uint16_t)(fa & 0xFFFF); break;
+            /* MEM_LOAD: byte out in AL (AH cleared: the driver parks AX) */
+            case 25: {
+                uint8_t cell = (uint8_t)(fa & 0xFF);
+                r = rd8(e, HCDOS_CELL_SEG, (uint16_t)(cell * 8u));
+                e->ax = (uint8_t)r;
+                wide = 0;
+                break;
+            }
+            /* MEM_STORE: AX = value (driver preloads), sb = cell slot */
+            case 26: {
+                uint8_t cell = (uint8_t)(fb & 0xFF);
+                wr8(e, HCDOS_CELL_SEG, (uint16_t)(cell * 8u), (uint8_t)(e->ax & 0xFF));
+                r = 0; wide = 0;
+                break;
+            }
+            /* CALL: abs16 BIG-ENDIAN code offset follows the prologue;
+             * ip space starts at 0x100 for COM images. Hardware stack
+             * carries the return ip. */
+            case 27: {
+                uint8_t hi = fetch8(e), lo = fetch8(e);
+                uint16_t target = (uint16_t)(((uint16_t)hi << 8) | lo);
+                push16(e, e->ip);
+                e->ip = (uint16_t)(0x100 + target);
+                r = 0; wide = 0;
+                break;
+            }
+            /* FUNC_RET: return byte -> vr0 slot (bp-2) and AL; pop ip */
+            case 28: {
+                uint8_t v = (uint8_t)(fa & 0xFF);
+                wr16(e, e->ss, (uint16_t)(e->bp - 2), v);
+                e->ax = v;
+                e->ip = pop16(e);
+                r = 0; wide = 0;
+                break;
+            }
+            default: break;
+            }
+            if (dst != 0 && wide) hcdos_wrslot(e, dst, r);
+            return 0;
+        }
 
         default:
             e->state = WUBU_DOS_ERROR;

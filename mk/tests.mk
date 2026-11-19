@@ -1086,8 +1086,8 @@ test-module: test_holyd_pe test_pe_globals test_pe_program test_pe_import \
              test_pe_reloc test_pe_exec test_pe_iat test_pe_full \
              test_wubu_zx test_wubu_zxload test_wubu_zxreg test_wubu_applaunch \
              test_wubu_selfbuild test_wubu_zx9p test_w9pc test_wubu_tokenizer \
-             test_ns_9p test_styxfs test_owned_surface test_wubu_onboarding
-	@echo "== [test-module] all module/PE/self-build/9P/owned-surface/onboarding targets GREEN =="
+             test_ns_9p test_styxfs test_owned_surface test_wubu_onboarding test_wubu_install test_wubu_install_tty test_wubu_firstboot
+	@echo "== [test-module] all module/PE/self-build/9P/owned-surface/onboarding/configurator/provisioning targets GREEN =="
 
 # GAP-C2 enforcement: a module without a test recipe is NOT owned. Re-derives
 # the manifest from the Makefile recipes and FAILS if an OWNED module lost its
@@ -1201,6 +1201,34 @@ test_session_boot: $(RT)/wubu_session_boot.c $(RT)/wubu_session_boot.h $(RT)/wub
 test_wubu_onboarding: $(RT)/wubu_onboarding.c $(RT)/wubu_onboarding.h $(RT)/wubu_session_boot.c $(RT)/wubu_session_boot.h $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c $(RT)/test/wubu_onboarding_test.c
 	$(CC) -O0 -g -std=c11 -Wall -I$(RT) $(RT)/test/wubu_onboarding_test.c $(RT)/wubu_onboarding.c $(RT)/wubu_session_boot.c $(RT)/wubu_xdg_autostart.c $(RT)/wubu_bus.c -o $(RT)/wubu_onboarding_test -Iinclude $(RT)/wubu_crc32.c
 	$(RT)/./wubu_onboarding_test
+
+# GAP F body: configurator core (P1 OOBE). The five-step wizard
+# (lang->keyboard->account->disk->summary) collects a provisioning plan through
+# INJECTED I/O, hashes the password (SHA-256, salted, iterated -- never the
+# plaintext), masks the summary by length, and round-trips the /n/install
+# document. Pure C11: links wubu_install.c + the kernel sha256 only, so it, and
+# the scripted gate, build on the host AND the kernel (no egojar/GUI).
+test_wubu_install: $(RT)/wubu_install.c $(RT)/wubu_install.h $(KERNEL)/wubu_sha256.c $(RT)/test/wubu_install_test.c
+	$(CC) -O0 -g -std=c11 -Wall -I$(RT) -I$(KERNEL) $(RT)/test/wubu_install_test.c $(RT)/wubu_install.c $(KERNEL)/wubu_sha256.c -o $(RT)/wubu_install_test
+	$(RT)/./wubu_install_test
+
+# The stdio front end for the configurator: prompts to stdout, answers from
+# stdin, and the confirmed plan written as the /n/install answers doc. The gate
+# pipes in a scripted run and asserts the on-disk document round-trips, the
+# cancel path writes nothing, and an empty password is rejected. Same pure-C11
+# portability (no egojar/GUI) as the configurator engine.
+test_wubu_install_tty: $(RT)/wubu_install_tty.c $(RT)/wubu_install_tty.h $(RT)/wubu_install.c $(RT)/wubu_install.h $(KERNEL)/wubu_sha256.c $(RT)/test/wubu_install_tty_test.c
+	$(CC) -O0 -g -std=c11 -Wall -I$(RT) -I$(KERNEL) $(RT)/test/wubu_install_tty_test.c $(RT)/wubu_install_tty.c $(RT)/wubu_install.c $(KERNEL)/wubu_sha256.c -o $(RT)/wubu_install_tty_test
+	$(RT)/./wubu_install_tty_test
+
+# Deferred provisioning: the configurator's plan is CONSUMED at first boot, not
+# just collected. Writes the user/hostname/keymap/language/timezone manifest
+# into a target root (chroot-style flat files), the passwd line holding only
+# the salted hash, plus one-way verification. The gate proves the on-disk
+# manifest has no plaintext, verify() round-trips, and bad plans refuse.
+test_wubu_firstboot: $(RT)/wubu_firstboot.c $(RT)/wubu_firstboot.h $(RT)/wubu_install.c $(RT)/wubu_install.h $(KERNEL)/wubu_sha256.c $(RT)/test/wubu_firstboot_test.c
+	$(CC) -O0 -g -std=c11 -Wall -I$(RT) -I$(KERNEL) $(RT)/test/wubu_firstboot_test.c $(RT)/wubu_firstboot.c $(RT)/wubu_install.c $(KERNEL)/wubu_sha256.c -o $(RT)/wubu_firstboot_test
+	$(RT)/./wubu_firstboot_test
 
 # test_ns_background -- P3: the /n/background control subtree. Publishes the
 # session-boot's live state (session, bus names, bus conn count, autostart

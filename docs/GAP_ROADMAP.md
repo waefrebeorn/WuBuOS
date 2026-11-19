@@ -201,6 +201,26 @@ Discovered via ship.sh's red-test -- the gate was never clean-buildable.]
   asserts the config signature round-trips. 13/13 PASS. The GUI greeter app is
   future surface; the first-run orchestration + its end-to-end test are done
   and wired into the gate.]
+  -- [CONFIGURATOR BODY SHIPPED 2026-11-15: `src/runtime/wubu_install.{c,h}` =
+  the five-step wizard (lang→keyboard→account→disk→timezone) driven by injected
+  I/O, password salted+iterated (SHA-256, never plaintext), masked-by-length
+  summary, serializable /n/install answers doc that round-trips. Green in
+  `make test_wubu_install` (25 checks, wired into test-module). Next: wire the
+  wizard into the greeter, then setuid provisioning (`wubu_firstboot.c`).]
+  -- [CONSOLE FRONT END SHIPPED 2026-11-15: `src/runtime/wubu_install_tty.{c,h}`
+  = the wizard over stdin/stdout -- the boot/console or DevOps text path. The
+  password is echo-suppressed where termios exists; a confirmed plan is written
+  as the /n/install answers doc. Green in `make test_wubu_install_tty` (the gate
+  pipes scripted answers and proves the on-disk document round-trips, cancel
+  writes nothing, empty password rejected). The GUI greeter is the remaining
+  front end.]
+  -- [DEFERRED PROVISIONING SHIPPED 2026-11-15: `src/runtime/wubu_firstboot.{c,h}`
+  = the plan is CONSUMED at first boot. Writes the user/hostname/keymap/
+  language/timezone manifest into a target root (chroot-style flat files); the
+  passwd line holds only the salted hash (never the plaintext); one-way
+  verification re-derives and compares. Green in `make test_wubu_firstboot` (15
+  checks). The OS first-boot supervisor applies the manifest to /etc; wiring it
+  to the onboarding sentinel is the last orchestration step.]
 
 ---
 
