@@ -8,9 +8,14 @@ OUT=wubufw.fd
 
 CFLAGS="-std=c11 -fcommon -Wall -Wextra -Werror -O2 -g
         -ffreestanding -fno-pie -fno-pic -fno-stack-protector -fno-builtin
+        -march=x86-64 -mtune=generic
         -mno-red-zone -mno-sse -mno-mmx -mno-80387 -mcmodel=large
         -fno-asynchronous-unwind-tables -fno-unwind-tables
         -Wno-unused-parameter"
+# -march=x86-64: freestanding firmware pins its ISA baseline (same rule as
+# the kernel). -mno-sse already blocks vector codegen; the pin makes the
+# guarantee explicit against future flag drift (Ubuntu 26.04 gcc14 defaults
+# to x86-64-v3 — the drift that triple-faulted the CI kernel boot).
 
 LDFLAGS="-nostdlib -no-pie -Wl,--build-id=none -Wl,-z,noexecstack -T fw.ld"
 
