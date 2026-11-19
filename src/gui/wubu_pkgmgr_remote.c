@@ -39,21 +39,13 @@ bool wubu_pkgmgr_repo_update(const char *name) {
         const char *url = targets[t].url;
         if (!url || !url[0]) continue;
 
-        /* Parse scheme://host[:port][/path] */
-        const char *scheme_end = strstr(url, "://");
-        const char *host_start = scheme_end ? scheme_end + 3 : url;
-        bool use_tls = scheme_end && strncmp(url, "https", 5) == 0;
-        const char *slash = strchr(host_start, '/');
-        const char *host_end = slash ? slash : host_start + strlen(host_start);
-        char host[256];
-        size_t hlen = host_end - host_start;
-        if (hlen >= sizeof(host)) hlen = sizeof(host) - 1;
-        memcpy(host, host_start, hlen);
-        host[hlen] = '\0';
-        int port = use_tls ? 443 : 80;
-        char *colon = strrchr(host, ':');
-        if (colon) { port = atoi(colon + 1); *colon = '\0'; }
-        const char *path = slash ? slash : "/index.json";
+        /* Parse scheme://host[:port][/path] (shared splitter, fetch leaf). */
+        char host[256], path[512];
+        int port = 80;
+        bool use_tls = false;
+        if (!pkgmgr_split_url(url, host, sizeof(host), &port, path, sizeof(path), &use_tls))
+            continue;
+        if (!path[0]) snprintf(path, sizeof(path), "/index.json");
 
         OciHttpClient cli;
         memset(&cli, 0, sizeof(cli));
@@ -186,16 +178,29 @@ static int pkgmgr_parse_index(const char *json, const char *repo_name) {
         }
         if (*p == '}') p++;
 
-        /* Insert the parsed entry. */
+        /* Insert the parsed entry.  Bound parameters: index fields are
+         * untrusted repo output and must never be interpolated into SQL.
+         * download_url + sha256 are kept so install can fetch and verify. */
         if (id[0]) {
-            char ins[1024];
-            snprintf(ins, sizeof(ins),
-                "INSERT OR REPLACE INTO repo_packages "
-                "(id, name, version, arch, repo_name, description, deps, size_bytes) "
-                "VALUES ('%s','%s','%s','%s','%s','%s','',%llu)",
-                id, name[0] ? name : id, version, arch, repo_name, desc,
-                (unsigned long long)size);
-            if (db_exec(ins) == 0) count++;
+            sqlite3_stmt *ins = NULL;
+            if (sqlite3_prepare_v2(g_pkgmgr.db,
+                    "INSERT OR REPLACE INTO repo_packages "
+                    "(id, name, version, arch, repo_name, description, deps, size_bytes, "
+                    " download_url, sha256) "
+                    "VALUES (?1, ?2, ?3, ?4, ?5, ?6, '', ?7, ?8, ?9)",
+                    -1, &ins, NULL) == SQLITE_OK) {
+                sqlite3_bind_text(ins, 1, id, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(ins, 2, name[0] ? name : id, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(ins, 3, version, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(ins, 4, arch, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(ins, 5, repo_name, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(ins, 6, desc, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_int64(ins, 7, (sqlite3_int64)size);
+                sqlite3_bind_text(ins, 8, durl, -1, SQLITE_TRANSIENT);
+                sqlite3_bind_text(ins, 9, sha, -1, SQLITE_TRANSIENT);
+                if (sqlite3_step(ins) == SQLITE_DONE) count++;
+                sqlite3_finalize(ins);
+            }
         }
     }
     return count;
@@ -211,7 +216,9 @@ typedef struct {
     int filled;
 } pkgmgr_search_ctx_t;
 
-/* Callback: copy each repo_packages row into the caller's out array. */
+/* Callback: copy each repo_packages row into the caller's out array.
+ * Column order: id,name,version,description,repo_name,size_bytes,
+ *               download_url,sha256 */
 static int cb_search(void *data, int argc, char **argv, char **col) {
     (void)argc; (void)col;
     pkgmgr_search_ctx_t *ctx = data;
@@ -224,6 +231,8 @@ static int cb_search(void *data, int argc, char **argv, char **col) {
     strncpy(e->description, argv[3] ? argv[3] : "", sizeof(e->description) - 1);
     e->download_size = argv[5] ? (uint64_t)atoll(argv[5]) : 0;
     e->installed_size = e->download_size;
+    strncpy(e->download_url, argv[6] ? argv[6] : "", sizeof(e->download_url) - 1);
+    strncpy(e->sha256,       argv[7] ? argv[7] : "", sizeof(e->sha256) - 1);
     e->arch = WUBU_PKG_ARCH_X86_64; /* repo index stores arch as TEXT; default */
     return 0;
 }
@@ -234,7 +243,7 @@ int wubu_pkgmgr_search(const char *query, wubu_pkg_repo_entry_t *out, int max) {
     pkgmgr_search_ctx_t ctx = { out, max, 0 };
     char sql[512];
     snprintf(sql, sizeof(sql),
-        "SELECT id,name,version,description,repo_name,size_bytes "
+        "SELECT id,name,version,description,repo_name,size_bytes,download_url,sha256 "
         "FROM repo_packages WHERE id LIKE '%%%s%%' OR name LIKE '%%%s%%' "
         "OR description LIKE '%%%s%%' LIMIT %d",
         query, query, query, max);
@@ -242,9 +251,58 @@ int wubu_pkgmgr_search(const char *query, wubu_pkg_repo_entry_t *out, int max) {
     return ctx.filled;
 }
 
+/* -- Single-entry lookup --------------------------------------------- */
+
+typedef struct {
+    wubu_pkg_repo_entry_t *out;
+    bool found;
+} pkgmgr_info_ctx_t;
+
+/* Column order: id,name,version,description,download_url,sha256,
+ *               size_bytes,arch */
+static int cb_repo_info(void *data, int argc, char **argv, char **col) {
+    (void)argc; (void)col;
+    pkgmgr_info_ctx_t *ctx = data;
+    if (ctx->found) return 0;
+    wubu_pkg_repo_entry_t *e = ctx->out;
+    memset(e, 0, sizeof(*e));
+    strncpy(e->id,           argv[0] ? argv[0] : "", sizeof(e->id) - 1);
+    strncpy(e->name,         argv[1] ? argv[1] : "", sizeof(e->name) - 1);
+    strncpy(e->version,      argv[2] ? argv[2] : "", sizeof(e->version) - 1);
+    strncpy(e->description,  argv[3] ? argv[3] : "", sizeof(e->description) - 1);
+    strncpy(e->download_url, argv[4] ? argv[4] : "", sizeof(e->download_url) - 1);
+    strncpy(e->sha256,       argv[5] ? argv[5] : "", sizeof(e->sha256) - 1);
+    e->download_size = argv[6] ? (uint64_t)atoll(argv[6]) : 0;
+    e->installed_size = e->download_size;
+    const char *arch = argv[7] ? argv[7] : "";
+    if (strcmp(arch, "aarch64") == 0) e->arch = WUBU_PKG_ARCH_AARCH64;
+    else if (strcmp(arch, "riscv64") == 0) e->arch = WUBU_PKG_ARCH_RISCV64;
+    else if (strcmp(arch, "any") == 0) e->arch = WUBU_PKG_ARCH_ANY;
+    else e->arch = WUBU_PKG_ARCH_X86_64;
+    ctx->found = true;
+    return 0;
+}
+
 bool wubu_pkgmgr_repo_get_info(const char *pkg_id, wubu_pkg_repo_entry_t *out) {
     if (!g_pkgmgr.initialized || !pkg_id || !out) return false;
-    char sql[512];
-    snprintf(sql, sizeof(sql), "SELECT * FROM repo_packages WHERE id='%s' LIMIT 1", pkg_id);
-    return db_query(sql, NULL, out) == 0;
+    memset(out, 0, sizeof(*out));
+    /* Bound parameter + a REAL callback: the old code passed NULL to
+     * db_query, so it returned true while leaving *out untouched. */
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "SELECT id,name,version,description,download_url,sha256,size_bytes,arch "
+            "FROM repo_packages WHERE id=?1 LIMIT 1", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, pkg_id, -1, SQLITE_TRANSIENT);
+    pkgmgr_info_ctx_t ctx = { out, false };
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *vals[8];
+        for (int i = 0; i < 8; i++)
+            vals[i] = (const char *)sqlite3_column_text(stmt, i);
+        cb_repo_info(&ctx, 8, (char **)vals, NULL);
+    }
+    sqlite3_finalize(stmt);
+    return ctx.found;
 }

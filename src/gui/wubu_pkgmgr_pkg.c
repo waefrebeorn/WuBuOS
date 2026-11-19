@@ -331,7 +331,11 @@ bool extract_pkg_manifest(const char* pkg_path, wubu_pkg_manifest_t* out) {
                     *bar1 = '\0'; *bar2 = '\0';
                     strncpy(out->files[i].src, elem, sizeof(out->files[i].src) - 1);
                     strncpy(out->files[i].dst, bar1 + 1, sizeof(out->files[i].dst) - 1);
-                    out->files[i].mode = (uint32_t)strtoul(bar2 + 1, NULL, 0);
+                    /* manifest_to_json emits the mode with %o (octal, no 0
+                     * prefix).  Base 0 would read "755" as DECIMAL 755 =
+                     * 0o1363, chmod'ing the installed file owner---x and
+                     * making it unreadable.  Parse octal to round-trip. */
+                    out->files[i].mode = (uint32_t)strtoul(bar2 + 1, NULL, 8);
                 }
             }
         }

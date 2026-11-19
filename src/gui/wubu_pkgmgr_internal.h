@@ -141,8 +141,20 @@ bool extract_pkg_manifest(const char *pkg_path, wubu_pkg_manifest_t *out);
 
 /* -- Install helpers (defined in install module) ----------------- */
 
-bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *install_root);
+bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *src_root,
+                           const char *install_root, uint64_t *out_total_size);
 void generate_desktop_entry(const wubu_pkg_manifest_t *manifest, int entry_idx, const char *install_path);
+
+/* -- Fetch leaf (wubu_pkgmgr_fetch.c): download + sha256 gate ------ */
+
+/* Split scheme://host[:port][/path]; path gets "" when absent. */
+bool pkgmgr_split_url(const char *url, char *host, size_t hostsz,
+                      int *port, char *path, size_t pathsz, bool *use_tls);
+/* sha256 of a file on disk, lowercase hex (out_size >= 65). */
+bool wubu_pkgmgr_hash_file(const char *path, char *out_hex, size_t out_size);
+/* GET entry->download_url into cache_path; admits the file ONLY when its
+ * sha256 matches entry->sha256.  Fail closed on missing hash / mismatch. */
+bool wubu_pkgmgr_fetch_package(const wubu_pkg_repo_entry_t *entry, const char *cache_path);
 
 /* -- Package I/O public API (wubu_pkgmgr_pkg.c) ------------------ */
 
