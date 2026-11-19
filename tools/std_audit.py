@@ -126,7 +126,8 @@ def audit_magic_geometry(sources, root):
             if stripped.startswith("*") or stripped.startswith("/*"):
                 continue
             if "brand-art" in line or "icon-identity" in line or "glyph-art" in line \
-                    or "percent-math" in line or "btn-id" in line:
+                    or "percent-math" in line or "btn-id" in line \
+                    or "format-mask" in line:
                 continue
             if any(tok in line for tok in (
                     "WUBU_SPACE_", "WUBU_RADIUS_", "WUBU_TITLE_",
@@ -156,7 +157,7 @@ def audit_magic_geometry(sources, root):
 # Narrow like R7: only drawing lines in the governed surfaces. Lines marked
 # `brand-art` (logo quadrants, sprite art) or `icon-identity` (app registry
 # colours) are deliberate constants and say so.
-COLOR_LITERAL_RE = re.compile(r"0x[0-9A-Fa-f]{6}(?![0-9A-Fa-f])")
+COLOR_LITERAL_RE = re.compile(r"0x(?:[0-9A-Fa-f]{6}|(?:00|FF)[0-9A-Fa-f]{6})(?![0-9A-Fa-f])")
 
 
 def audit_theme_colors(sources, root):
@@ -171,7 +172,8 @@ def audit_theme_colors(sources, root):
             if stripped.startswith("*") or stripped.startswith("/*"):
                 continue
             if "brand-art" in line or "icon-identity" in line or "glyph-art" in line \
-                    or "percent-math" in line or "btn-id" in line:
+                    or "percent-math" in line or "btn-id" in line \
+                    or "format-mask" in line:
                 continue
             if not re.search(r"vbe_|\bbg\s*=|\bfg\s*=|color", line):
                 continue
@@ -230,9 +232,13 @@ def main():
         "unfinished": markers,
     }
 
-    def key_lf(r):  return f"{r[0]}:{r[1]}"
-    def key_fh(r):  return f"{r[0]}:{r[1]}"
-    def key_mg(r):  return f"{r[0]}:{r[1]}"
+    # Ratchet identity: long/fat key by FILE (line counts drift with every
+    # edit — a shrinking monolith is not a new violation). Geometry/colour
+    # key by file:value so a hit moving lines is not "growth"; duplicates of
+    # the same value in one file share an entry until all are gone.
+    def key_lf(r):  return r[0]
+    def key_fh(r):  return r[0]
+    def key_mg(r):  return f"{r[0]}:{r[2]}"
 
     now_counts = {
         "long": sorted(key_lf(r) for r in long_files),

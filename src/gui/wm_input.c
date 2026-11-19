@@ -14,6 +14,7 @@
  */
 
 #include "wm_internal.h"
+#include "wubu_tokens.h"
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
 #include "shell/wubu_screensaver.h"
@@ -447,31 +448,25 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
             }
         }
 
-        /* Check system tray icons */
-        int tray_x = g_dwm.screen_w - 10;
-        taskbar_update_clock(time(NULL));
-        char *clk = taskbar_get_clock_str();
-        int clk_w = vbe_text_width(clk, 1);
-        tray_x -= clk_w + 10;
-
-        for (int i = g_dwm.systray_count - 1; i >= 0; i--) {
-            if (g_dwm.systray_icons[i].visible) {
-                int sx = tray_x - DOSGUI_SYSTRAY_SIZE - 4;
-                int sy = taskbar_top() + (task_h - DOSGUI_SYSTRAY_SIZE) / 2;
-                if (x >= sx && x < sx + DOSGUI_SYSTRAY_SIZE && y >= sy && y < sy + DOSGUI_SYSTRAY_SIZE) {
-                    if (kind == 1 && g_dwm.systray_icons[i].on_click) {
-                        g_dwm.systray_icons[i].on_click();
-                    } else if (kind == 1 && btn == 2 && g_dwm.systray_icons[i].on_right_click) {
-                        g_dwm.systray_icons[i].on_right_click();
-                    }
-                    return;
-                }
-                tray_x -= DOSGUI_SYSTRAY_SIZE + 4;
+        /* System tray: hit-test the well the renderer publishes — one
+         * layout owner (systray_icon_at). The old right-aligned walk
+         * re-derived positions from the clock and missed the modern
+         * centred bar entirely. */
+        {
+            int ti = systray_icon_at(x, y);
+            if (ti >= 0) {
+                if (kind == 1 && btn == 2 && g_dwm.systray_icons[ti].on_right_click)
+                    g_dwm.systray_icons[ti].on_right_click();
+                else if (kind == 1 && g_dwm.systray_icons[ti].on_click)
+                    g_dwm.systray_icons[ti].on_click();
+                return;
             }
         }
 
-        /* Check notification center toggle (far right before clock) */
-        if (x >= tray_x - 30 && x < tray_x && y >= by && y < by + 22) {
+        /* Notification center toggle: immediately left of the tray well. */
+        if (g_dwm.tray_well_w > 0 &&
+            x >= g_dwm.tray_well_x - WUBU_NOTIF_TOGGLE_W && x < g_dwm.tray_well_x &&
+            y >= by && y < by + WUBU_NOTIF_TOGGLE_H) {
             notif_center_toggle();
             return;
         }

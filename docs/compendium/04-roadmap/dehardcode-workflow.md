@@ -87,9 +87,15 @@ dots instead of guessing 6px).
 
 Geometry / colour hits per governed surface — work top-down:
 
-- `src/gui/shell/wm_ctxmenu.c` — 16 / 1. NEXT.
-- `src/gui/shell/wm_systray.c` — 16 / 3.
-- `src/gui/shell/win11_widgets.c` — 17 / 0.
+- `src/gui/shell/win11_widgets.c` — 17 / 0. NEXT (last governed surface).
+- `src/gui/shell/wm_ctxmenu.c` — 0 / 0. DONE (batch 4: dialogs use
+  chrome_caption_metrics().bar_h + chrome_border_width() — they are windows,
+  not a second chrome owner; client layout in WUBU_DIALOG_* tokens; colours
+  through the theme; toast durations WUBU_TOAST_MS_*).
+- `src/gui/shell/wm_systray.c` — 0 / 0. DONE (batch 4: dead duplicate tray
+  renderer removed — the taskbar owns drawing in both eras; notification
+  center tokenized; read-card colour is a theme semantic; NEW owner
+  systray_icon_at hit-tests the well the renderer publishes).
 - `src/gui/shell/window_chrome.c` — 0 / 0. DONE (batch 3: caption_close_hover
   theme semantic, reference #C42B1C; ChromeButton enum aligned to the live
   hit-test convention and used by both sides; labels centre via
@@ -107,6 +113,24 @@ batch when picked up; do not boil the ocean in one pass.
 
 ## Status
 
+- 2026-11-19 batch 4: wm_ctxmenu.c 16/1 -> 0/0, wm_systray.c 16/3 -> 0/0.
+  FUNCTIONAL FIX: tray icons were drawn but DEAD in the modern theme —
+  taskbar_modern_handle swallowed every click inside the island, and the
+  classic input walk re-derived positions from the clock instead of the
+  drawn layout. Now the renderer publishes g_dwm.tray_well_* (both eras)
+  and systray_icon_at is the ONE hit-test owner, used by both input paths.
+  Regression gate test_tray_hit_test fires real callbacks through
+  wm_handle_mouse in both themes (test_wm 56/56). Modern tray also gains
+  the notification badge (classic art, WUBU_TASKBAR_BADGE* renamed from
+  CLASSIC_BADGE — one owner, both eras). Dead duplicate tray renderer in
+  wm_systray.c removed. R11 now catches 00/FF-prefixed ARGB literals too;
+  ratchet identity fixed (long/fat key by file, hits by file:value — line
+  drift is not growth). Ratchet: geometry 49->17, colour 4->0. Gates:
+  test_wm 56/56, test_gui_metrics, test_greeter 28/28, test_standards clean,
+  hosted green, test_docs 581/0, fresh-HOME capture shows OOBE intact.
+  OPEN (found, recorded): classic desktop-pager hit-test still re-derives
+  desk_x = screen_w-150 instead of a published well; the modern bar has no
+  notification-center toggle hit region (classic-only path).
 - 2026-11-19 batch 3: window_chrome.c geometry 16->0, colour 10->0. New theme
   semantic caption_close_hover (all 6 themes, reference #C42B1C). Unused
   ChromeButton enum contradicted the live hit-test numbering — aligned and

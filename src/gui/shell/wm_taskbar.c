@@ -202,8 +202,28 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
         vbe_fill_rect(tx + WUBU_SPACE_XS, L.tray_y + WUBU_SPACE_XS,
                       WUBU_TASKBAR_TRAY_ICON, WUBU_TASKBAR_TRAY_ICON,
                       g_dwm.systray_icons[i].icon_color);
+        /* Notification badge — same art as the classic era (one owner:
+         * WUBU_TASKBAR_BADGE*). The modern bar used to drop it silently. */
+        if (g_dwm.systray_icons[i].notification_count > 0) {
+            char badge[8];
+            int cnt = g_dwm.systray_icons[i].notification_count;
+            if (cnt < 0) cnt = 0;
+            snprintf(badge, sizeof badge, "%d", cnt > 9 ? 9 : cnt);
+            int bx = tx + DOSGUI_SYSTRAY_SIZE - WUBU_TASKBAR_BADGE;
+            vbe_fill_rect_rounded(bx, L.tray_y, WUBU_TASKBAR_BADGE,
+                                  WUBU_TASKBAR_BADGE, WUBU_TASKBAR_BADGE / 2,
+                                  WUBU_TASKBAR_BADGE_BG);
+            vbe_draw_text(bx + WUBU_SPACE_2XS, L.tray_y + 1, badge,
+                          WUBU_TASKBAR_BADGE_FG, 1);
+        }
         tx += DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS;
     }
+
+    /* Publish the tray well: the input path hit-tests THIS layout. */
+    g_dwm.tray_well_x = L.tray_x;
+    g_dwm.tray_well_y = L.tray_y;
+    g_dwm.tray_well_w = L.tray_w;
+    g_dwm.tray_well_h = DOSGUI_SYSTRAY_SIZE;
 
     taskbar_update_clock(time(NULL));
     char *clk = taskbar_get_clock_str();
@@ -217,7 +237,6 @@ static void render_modern_taskbar(uint32_t *fb, int fb_w, int fb_h) {
 }
 
 bool taskbar_modern_handle(int x, int y, int btn, int kind) {
-    (void)btn;
     if (wubu_theme_current() != THEME_DARK) return false;
 
     WmTaskLayout L;
@@ -249,6 +268,19 @@ bool taskbar_modern_handle(int x, int y, int btn, int kind) {
         y >= L.clock_y && y < L.clock_y + L.clock_h) {
         clock_menu_toggle();
         return true;
+    }
+    /* Tray icons: one hit-test owner (systray_icon_at) against the well
+     * the renderer publishes. The bar used to swallow these clicks
+     * silently — tray icons were drawn but dead in the modern theme. */
+    {
+        int ti = systray_icon_at(x, y);
+        if (ti >= 0) {
+            if (btn == 2 && g_dwm.systray_icons[ti].on_right_click)
+                g_dwm.systray_icons[ti].on_right_click();
+            else if (g_dwm.systray_icons[ti].on_click)
+                g_dwm.systray_icons[ti].on_click();
+            return true;
+        }
     }
     for (int i = 0; i < L.n_slots; i++) {
         const WmTaskSlot *s = &L.slot[i];
@@ -480,20 +512,28 @@ void taskbar_render(uint32_t *fb, int fb_w, int fb_h) {
             /* Draw notification badge if count > 0 */
             if (g_dwm.systray_icons[i].notification_count > 0) {
                 char badge[8];
-                snprintf(badge, sizeof(badge), "%d",
-                    g_dwm.systray_icons[i].notification_count > 9 ? 9 : g_dwm.systray_icons[i].notification_count);
+                int cnt = g_dwm.systray_icons[i].notification_count;
+                if (cnt < 0) cnt = 0;
+                snprintf(badge, sizeof(badge), "%d", cnt > 9 ? 9 : cnt);
                 int bx2 = x + DOSGUI_SYSTRAY_SIZE - WUBU_SPACE_SM;
                 int by2 = y;
-                vbe_fill_rect_rounded(bx2, by2, WUBU_TASKBAR_CLASSIC_BADGE,
-                                      WUBU_TASKBAR_CLASSIC_BADGE,
-                                      WUBU_TASKBAR_CLASSIC_BADGE / 2,
-                                      WUBU_TASKBAR_CLASSIC_BADGE_BG);
+                vbe_fill_rect_rounded(bx2, by2, WUBU_TASKBAR_BADGE,
+                                      WUBU_TASKBAR_BADGE,
+                                      WUBU_TASKBAR_BADGE / 2,
+                                      WUBU_TASKBAR_BADGE_BG);
                 vbe_draw_text(bx2 + WUBU_SPACE_2XS, by2 + 1, badge,
-                              WUBU_TASKBAR_CLASSIC_BADGE_FG, 1);
+                              WUBU_TASKBAR_BADGE_FG, 1);
             }
             tray_x -= DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS;
         }
     }
+
+    /* Publish the tray well (classic walks right-to-left; tray_x is now
+     * the left edge). The input path hit-tests THIS layout. */
+    g_dwm.tray_well_x = tray_x;
+    g_dwm.tray_well_y = ty + (th - DOSGUI_SYSTRAY_SIZE) / 2;
+    g_dwm.tray_well_w = (clock_x - WUBU_TASKBAR_CLASSIC_EDGE_PAD) - tray_x;
+    g_dwm.tray_well_h = DOSGUI_SYSTRAY_SIZE;
 
     int desk_x = tray_x - WUBU_TASKBAR_CLASSIC_PAGER_RESERVE;
     /* Virtual-desktop pager: only show when more than one desktop exists.

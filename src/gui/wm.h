@@ -189,6 +189,9 @@ int  systray_add(const char *name, uint32_t color,
 void systray_remove(const char *name);
 int systray_update_color(const char *name, uint32_t color);
 uint32_t systray_color(const char *name);
+/* Tray hit-test against the well the taskbar renderer publishes; returns
+ * the icon's array index at (px, py), or -1. One layout owner. */
+int  systray_icon_at(int px, int py);
 void systray_set_notification_count(const char *name, int count);
 
 /* -- Notification Center ------------------------------------------ */

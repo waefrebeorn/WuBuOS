@@ -5,38 +5,18 @@
  */
 
 #include "../wm_internal.h"
+#include "../wubu_tokens.h"
 #include "wubu_notify.h"
 
 /* ================================================================
  * SYSTEM TRAY / NOTIFICATION AREA
  * ================================================================ */
 
-static void draw_systray_icon(int idx, int ty, int th) {
-    DosGuiSysTrayIcon *icon = &g_dwm.systray_icons[idx];
-    if (!icon->visible) return;
-
-    int x = g_dwm.screen_w - 50 - idx * (DOSGUI_SYSTRAY_SIZE + 4);
-    int y = ty + (th - DOSGUI_SYSTRAY_SIZE) / 2;
-
-    /* Draw icon background */
-    vbe_fill_rect(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE, tc()->btn_face);
-    vbe_3d_raised_colors(x, y, DOSGUI_SYSTRAY_SIZE, DOSGUI_SYSTRAY_SIZE,
-                         tc()->border_light, tc()->border_face,
-                         tc()->border_dark, tc()->border_darkest);
-
-    /* Draw simple colored square as icon */
-    vbe_fill_rect(x + 4, y + 4, 16, 16, icon->icon_color);
-
-    /* Draw notification badge if count > 0 */
-    if (icon->notification_count > 0) {
-        char badge[8];
-        snprintf(badge, sizeof(badge), "%d", icon->notification_count > 9 ? 9 : icon->notification_count);
-        int bx = x + DOSGUI_SYSTRAY_SIZE - 8;
-        int by = y;
-        vbe_fill_rect_rounded(bx, by, 12, 12, 6, 0xFF0000);
-        vbe_draw_text(bx + 2, by + 1, badge, 0xFFFFFF, 1);
-    }
-}
+/* Tray DRAWING lives in wm_taskbar.c (both eras) — one owner. The static
+ * renderer that used to sit here was dead code with a divergent layout
+ * (fixed 50px margin vs the taskbar's clock-aware wells). What this module
+ * owns: tray icon registry, notification center, and the tray HIT-TEST
+ * (systray_icon_at) against the well the renderer publishes. */
 
 int systray_add(const char *name, uint32_t color,
                         void (*on_click)(void),
@@ -96,12 +76,6 @@ void systray_set_notification_count(const char *name, int count) {
         }
     }
 }
-
-/* ================================================================
-
-/* ================================================================
- * NOTIFICATION CENTER
- * ================================================================ */
 
 /* ================================================================
  * NOTIFICATION CENTER
@@ -176,45 +150,56 @@ void notif_center_render(uint32_t *fb, int fb_w, int fb_h) {
     int ty = fb_h - th;
 
     /* Draw panel on right side, above taskbar */
-    int panel_w = 350;
+    int panel_w = WUBU_NOTIF_PANEL_W;
     int panel_h = fb_h - th;
     int panel_x = fb_w - panel_w;
     int panel_y = ty - panel_h;
 
-    vbe_fill_rect_rounded(panel_x, panel_y, panel_w, panel_h, 8, tc()->win_face);
-    vbe_3d_sunken_rounded_colors(panel_x, panel_y, panel_w, panel_h, 8,
+    vbe_fill_rect_rounded(panel_x, panel_y, panel_w, panel_h,
+                          WUBU_METRIC_RADIUS_WINDOW, tc()->win_face);
+    vbe_3d_sunken_rounded_colors(panel_x, panel_y, panel_w, panel_h,
+                                  WUBU_METRIC_RADIUS_WINDOW,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
 
     /* Header */
-    vbe_fill_rect_rounded(panel_x + 4, panel_y + 4, panel_w - 8, 30, 4, tc()->select_bg);
-    vbe_draw_text(panel_x + 10, panel_y + 10, "Notification Center", tc()->select_text, 1);
+    vbe_fill_rect_rounded(panel_x + WUBU_SPACE_XS, panel_y + WUBU_SPACE_XS,
+                          panel_w - 2 * WUBU_SPACE_XS, WUBU_NOTIF_HEADER_H,
+                          WUBU_METRIC_RADIUS_CONTROL, tc()->select_bg);
+    vbe_draw_text(panel_x + WUBU_NOTIF_HEADER_PAD, panel_y + WUBU_NOTIF_HEADER_PAD,
+                  "Notification Center", tc()->select_text, 1);
 
     /* Notifications list */
-    int ny = panel_y + 40;
+    int ny = panel_y + WUBU_NOTIF_LIST_TOP;
     for (int i = 0; i < g_dwm.notif_count; i++) {
         DosGuiNotification *n = &g_dwm.notifications[i];
-        if (ny + 60 > panel_y + panel_h - 10) break;
+        if (ny + WUBU_NOTIF_ROW_PITCH > panel_y + panel_h - WUBU_NOTIF_BOTTOM_PAD) break;
 
-        uint32_t bg = n->read ? 0xFF303030 : tc()->select_bg;
-        vbe_fill_rect_rounded(panel_x + 4, ny, panel_w - 8, 56, 4, bg);
-        vbe_3d_raised_rounded_colors(panel_x + 4, ny, panel_w - 8, 56, 4,
+        uint32_t bg = n->read ? tc()->notif_read_bg : tc()->select_bg;
+        vbe_fill_rect_rounded(panel_x + WUBU_SPACE_XS, ny,
+                          panel_w - 2 * WUBU_SPACE_XS, WUBU_NOTIF_CARD_H,
+                          WUBU_METRIC_RADIUS_CONTROL, bg);
+        vbe_3d_raised_rounded_colors(panel_x + WUBU_SPACE_XS, ny,
+                                      panel_w - 2 * WUBU_SPACE_XS,
+                                      WUBU_NOTIF_CARD_H, WUBU_METRIC_RADIUS_CONTROL,
                                       tc()->border_light, tc()->border_face,
                                       tc()->border_dark, tc()->border_darkest);
 
         /* Urgency indicator */
-        uint32_t urg_color = (n->urgency == 2) ? 0xFF0000 : (n->urgency == 1 ? 0xFFFF00 : 0x00FF00);
-        vbe_fill_rect(panel_x + 6, ny + 6, 4, 44, urg_color);
+        uint32_t urg_color = (n->urgency == 2) ? WUBU_STATUS_CRIT
+                       : (n->urgency == 1 ? WUBU_STATUS_WARN : WUBU_STATUS_OK);
+        vbe_fill_rect(panel_x + WUBU_NOTIF_URG_INSET, ny + WUBU_NOTIF_URG_INSET,
+                  WUBU_NOTIF_URG_W, WUBU_NOTIF_URG_H, urg_color);
 
         /* App name */
-        vbe_draw_text(panel_x + 14, ny + 6, n->app_name, tc()->icon_text, 1);
+        vbe_draw_text(panel_x + WUBU_NOTIF_TEXT_DX, ny + WUBU_NOTIF_URG_INSET, n->app_name, tc()->icon_text, 1);
 
         /* Summary */
-        vbe_draw_text(panel_x + 14, ny + 18, n->summary, n->read ? tc()->icon_text_shadow : tc()->win_title_text, 1);
+        vbe_draw_text(panel_x + WUBU_NOTIF_TEXT_DX, ny + WUBU_NOTIF_SUMMARY_DY, n->summary, n->read ? tc()->icon_text_shadow : tc()->win_title_text, 1);
 
         /* Body */
         if (n->body[0]) {
-            vbe_draw_text(panel_x + 14, ny + 30, n->body, tc()->icon_text_shadow, 1);
+            vbe_draw_text(panel_x + WUBU_NOTIF_TEXT_DX, ny + WUBU_NOTIF_BODY_DY, n->body, tc()->icon_text_shadow, 1);
         }
 
         /* Time */
@@ -222,8 +207,31 @@ void notif_center_render(uint32_t *fb, int fb_w, int fb_h) {
         time_t t = n->timestamp;
         struct tm *tm = localtime(&t);
         snprintf(time_str, sizeof(time_str), "%02d:%02d", tm->tm_hour, tm->tm_min);
-        vbe_draw_text(panel_x + panel_w - 60, ny + 6, time_str, tc()->icon_text_shadow, 1);
+        vbe_draw_text(panel_x + panel_w - WUBU_NOTIF_TIME_RESERVE,
+                  ny + WUBU_NOTIF_URG_INSET, time_str, tc()->icon_text_shadow, 1);
 
-        ny += 60;
+        ny += WUBU_NOTIF_ROW_PITCH;
     }
+}
+
+/* Tray hit-test: ONE owner, against the well the taskbar renderer
+ * publishes (g_dwm.tray_well_*). Both eras compact visible icons at
+ * pitch SIZE+XS from the well's left edge, so the i-th visible icon
+ * lives at well_x + i*pitch. Returns the icon's ARRAY index, or -1.
+ * The old input path re-derived a right-aligned walk from the clock
+ * and missed the modern centred bar entirely. */
+int systray_icon_at(int px, int py) {
+    if (g_dwm.tray_well_w <= 0) return -1;
+    if (px < g_dwm.tray_well_x || px >= g_dwm.tray_well_x + g_dwm.tray_well_w ||
+        py < g_dwm.tray_well_y || py >= g_dwm.tray_well_y + g_dwm.tray_well_h)
+        return -1;
+    int pitch = DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS;
+    int slot = (px - g_dwm.tray_well_x) / pitch;
+    int seen = 0;
+    for (int i = 0; i < g_dwm.systray_count; i++) {
+        if (!g_dwm.systray_icons[i].visible) continue;
+        if (seen == slot) return i;
+        seen++;
+    }
+    return -1;
 }

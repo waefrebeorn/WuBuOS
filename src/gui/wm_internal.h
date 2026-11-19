@@ -114,6 +114,9 @@ typedef struct {
     /* Taskbar clock (Win98 parity): recessed well + its own popup menu. */
     bool            clock_menu_open;
     int             clock_well_x, clock_well_y, clock_well_w, clock_well_h;
+    /* Tray well: published by the taskbar renderer (both eras) so the
+     * input path hit-tests the SAME layout it draws — never re-derives it. */
+    int             tray_well_x, tray_well_y, tray_well_w, tray_well_h;
 } DosGuiWM;
 
 extern DosGuiWM g_dwm;

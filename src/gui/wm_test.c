@@ -1586,6 +1586,45 @@ static void test_caption_metrics(void) {
 
 /* -- Running-indicator pills (modern taskbar) --------------------- */
 
+static int g_tray_clicks = 0;
+static void tray_click_probe(void) { g_tray_clicks++; }
+
+/* The tray hit-test must use the well the renderer publishes. The old
+ * input path re-derived a right-aligned walk from the clock and missed
+ * the modern centred bar — tray clicks did nothing in the dark theme. */
+static void test_tray_hit_test(void) {
+    TEST("tray hit-test: input hits the well the renderer publishes (both eras)");
+    wubu_screensaver_set_enabled(false);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    g_tray_clicks = 0;
+    systray_add("probe", 0x00AA00, tray_click_probe, NULL);
+    systray_add("probe2", 0x0000AA, tray_click_probe, NULL);
+    wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.tray_well_w >= 2 * (DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS),
+          "modern render publishes a tray well for both icons");
+    int cx0 = g_dwm.tray_well_x + DOSGUI_SYSTRAY_SIZE / 2;
+    int cy0 = g_dwm.tray_well_y + DOSGUI_SYSTRAY_SIZE / 2;
+    CHECK(systray_icon_at(cx0, cy0) == 0, "well slot 0 maps to icon 0");
+    wm_handle_mouse(cx0, cy0, 1, 1);
+    CHECK(g_tray_clicks == 1, "clicking the drawn modern tray icon fires its callback");
+    int cx1 = cx0 + DOSGUI_SYSTRAY_SIZE + WUBU_SPACE_XS;
+    wm_handle_mouse(cx1, cy0, 1, 1);
+    CHECK(g_tray_clicks == 2, "second icon slot fires too");
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.tray_well_w > 0, "classic render publishes the tray well");
+    int kx = g_dwm.tray_well_x + DOSGUI_SYSTRAY_SIZE / 2;
+    int ky = g_dwm.tray_well_y + DOSGUI_SYSTRAY_SIZE / 2;
+    wm_handle_mouse(kx, ky, 1, 1);
+    CHECK(g_tray_clicks == 3, "clicking the drawn classic tray icon fires its callback");
+    systray_remove("probe");
+    systray_remove("probe2");
+    wm_shutdown();
+    wubu_screensaver_set_enabled(true);
+    PASS();
+}
+
 static void test_taskbar_indicator(void) {
     TEST("taskbar indicator: accent when focused, idle when minimized, none for pins");
     wubu_screensaver_set_enabled(false);
@@ -1768,6 +1807,7 @@ int main(void) {
     test_slime_seam();
     test_caption_metrics();
     test_window_shadow();
+    test_tray_hit_test();
     test_taskbar_indicator();
     test_taskbar_autohide();
     test_modern_taskbar();

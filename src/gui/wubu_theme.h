@@ -75,6 +75,8 @@ typedef struct {
     /* Caption Close hover (Win11 red). Reference: impossible-os tokens
      * caption_close_hover #C42B1C. */
     uint32_t caption_close_hover;
+    /* Read notification card background (muted vs the unread accent). */
+    uint32_t notif_read_bg;
 
     /* Selection / highlights */
     uint32_t select_bg;

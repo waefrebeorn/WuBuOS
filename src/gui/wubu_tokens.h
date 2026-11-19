@@ -89,6 +89,61 @@
 #define WUBU_CHROME_SHADOW_ALPHA_SOFT 40 /* outer pass */
 #define WUBU_CHROME_SHADOW_ALPHA_HARD 90 /* inner pass */
 
+/* Modal dialogs (rename/delete/properties/shortcut). Chrome metrics come
+ * from window_chrome (chrome_title_bar_height / chrome_border_width) —
+ * dialogs are windows, not a second chrome owner. These are the client-
+ * area layout constants only. */
+#define WUBU_DIALOG_ORIGIN_X     300
+#define WUBU_DIALOG_ORIGIN_Y     200
+#define WUBU_DIALOG_RENAME_W     400
+#define WUBU_DIALOG_RENAME_H     150
+#define WUBU_DIALOG_DELETE_W     350
+#define WUBU_DIALOG_DELETE_H     140
+#define WUBU_DIALOG_PROPS_W      400
+#define WUBU_DIALOG_PROPS_H      300
+#define WUBU_DIALOG_SHORTCUT_W   400
+#define WUBU_DIALOG_SHORTCUT_H   150
+#define WUBU_DIALOG_PAD_X        10
+#define WUBU_DIALOG_LABEL_DY     20
+#define WUBU_DIALOG_INPUT_DY     50
+#define WUBU_DIALOG_HINT_DY      40
+#define WUBU_DIALOG_PROP_TOP     10
+#define WUBU_DIALOG_PROP_PITCH   16
+#define WUBU_DIALOG_PROP_HINT_DY 10
+#define WUBU_DIALOG_SC_LBL1_DY   16
+#define WUBU_DIALOG_SC_VAL1_DY   38
+#define WUBU_DIALOG_SC_LBL2_DY   68
+#define WUBU_DIALOG_SC_VAL2_DY   90
+#define WUBU_DIALOG_SC_HINT_DY   120
+
+/* Toast durations (ms): UX timing, one owner. */
+#define WUBU_TOAST_MS_SHORT      1500
+#define WUBU_TOAST_MS_DEFAULT    2000
+#define WUBU_TOAST_MS_LONG       2500
+
+/* Notification center panel. */
+#define WUBU_NOTIF_PANEL_W       350
+#define WUBU_NOTIF_HEADER_H      30
+#define WUBU_NOTIF_HEADER_PAD    10
+#define WUBU_NOTIF_LIST_TOP      40
+#define WUBU_NOTIF_ROW_PITCH     60
+#define WUBU_NOTIF_CARD_H        56
+#define WUBU_NOTIF_URG_INSET     6
+#define WUBU_NOTIF_URG_W         4
+#define WUBU_NOTIF_URG_H         44
+#define WUBU_NOTIF_TEXT_DX       14
+#define WUBU_NOTIF_SUMMARY_DY    18
+#define WUBU_NOTIF_BODY_DY       30
+#define WUBU_NOTIF_TIME_RESERVE  60
+#define WUBU_NOTIF_BOTTOM_PAD    10
+#define WUBU_NOTIF_TOGGLE_W      30
+#define WUBU_NOTIF_TOGGLE_H      22
+
+/* Urgency status art (theme-independent semantics, like icon identity). */
+#define WUBU_STATUS_OK           0x00FF00u /* glyph-art */
+#define WUBU_STATUS_WARN         0xFFFF00u /* glyph-art */
+#define WUBU_STATUS_CRIT         0xFF0000u /* glyph-art */
+
 #define WUBU_TASKBAR_H     WUBU_METRIC_TASKBAR_H   /* taskbar: canonical */
 
 /* Modern (Win11-class) taskbar. Indicator measurements from the reference
@@ -124,9 +179,9 @@
 #define WUBU_TASKBAR_CLASSIC_CLOCK_FLOOR 68 /* right of the Start button */
 #define WUBU_TASKBAR_TRAY_ICON         16  /* glyph inside a tray tile */
 #define WUBU_TASKBAR_FLAG_SIZE         14  /* the 4-pane Start emblem */
-#define WUBU_TASKBAR_CLASSIC_BADGE     12
-#define WUBU_TASKBAR_CLASSIC_BADGE_BG  0xFF0000u /* era notification red */
-#define WUBU_TASKBAR_CLASSIC_BADGE_FG  0xFFFFFFu
+#define WUBU_TASKBAR_BADGE     12
+#define WUBU_TASKBAR_BADGE_BG  0xFF0000u /* era notification red */
+#define WUBU_TASKBAR_BADGE_FG  0xFFFFFFu
 #define WUBU_TASKBAR_CLASSIC_PAGER_W   14
 #define WUBU_TASKBAR_CLASSIC_PAGER_H   16
 #define WUBU_TASKBAR_CLASSIC_PAGER_PITCH 16

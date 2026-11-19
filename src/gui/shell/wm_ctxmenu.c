@@ -12,12 +12,14 @@
  */
 
 #include "../wm_internal.h"
+#include "../wubu_tokens.h"
 #include "../wubu_trash.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include "wubu_notify.h"
+#include "window_chrome.h"
 
 /* -- Default Context Menu Actions -- */
 
@@ -51,7 +53,7 @@ static void dialog_rename_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
     if (key == '\r' || key == '\n') {
         if (g_rename_pos > 0 && g_rename_target) {
             strncpy(g_rename_target->name, g_rename_input, sizeof(g_rename_target->name) - 1);
-            wubu_notify_simple("Desktop", "Renamed", g_rename_target->name, NULL, 1, 2000);
+            wubu_notify_simple("Desktop", "Renamed", g_rename_target->name, NULL, 1, WUBU_TOAST_MS_DEFAULT);
         }
         g_rename_input[0] = '\0';
         g_rename_pos = 0;
@@ -71,16 +73,16 @@ static void dialog_rename_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
 }
 
 static void dialog_rename_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    const int tbh = 20;
-    const int bw = 3;
+    const int tbh = chrome_caption_metrics().bar_h;
+    const int bw = chrome_border_width();
     int cx = win->x + bw;
     int cy = win->y + tbh;
     int cw = win->w - 2 * bw;
     int ch = win->h - tbh - bw;
 
-    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
-    vbe_draw_text(cx + 10, cy + 20, "New name:", 0x00000000, 1);
-    vbe_draw_text(cx + 10, cy + 50, g_rename_input[0] ? g_rename_input : "(empty)", 0x00000000, 1);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_LABEL_DY, "New name:", tc()->btn_text, 1);
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_INPUT_DY, g_rename_input[0] ? g_rename_input : "(empty)", tc()->btn_text, 1);
 }
 
 static void dialog_delete_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
@@ -121,16 +123,16 @@ static void dialog_delete_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods)
 }
 
 static void dialog_delete_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
-    const int tbh = 20;
-    const int bw = 3;
+    const int tbh = chrome_caption_metrics().bar_h;
+    const int bw = chrome_border_width();
     int cx = win->x + bw;
     int cy = win->y + tbh;
     int cw = win->w - 2 * bw;
     int ch = win->h - tbh - bw;
 
-    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
-    vbe_draw_text(cx + 10, cy + 20, "Delete this icon?", 0x00000000, 1);
-    vbe_draw_text(cx + 10, cy + 40, "Press Y to confirm, N to cancel", 0x00000000, 1);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_LABEL_DY, "Delete this icon?", tc()->btn_text, 1);
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_HINT_DY, "Press Y to confirm, N to cancel", tc()->btn_text, 1);
 }
 
 static void dialog_properties_on_key(DosGuiWindow *win, uint32_t key, uint32_t mods) {
@@ -144,34 +146,34 @@ static void dialog_properties_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w,
     DosGuiIcon *ic = g_properties_target;
     if (!ic) return;
 
-    const int tbh = 20;
-    const int bw = 3;
+    const int tbh = chrome_caption_metrics().bar_h;
+    const int bw = chrome_border_width();
     int cx = win->x + bw;
     int cy = win->y + tbh;
     int cw = win->w - 2 * bw;
     int ch = win->h - tbh - bw;
-    int y = cy + 10;
+    int y = cy + WUBU_DIALOG_PROP_TOP;
 
-    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
 
     char buf[256];
     snprintf(buf, sizeof(buf), "Name: %s", ic->name);
-    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
 
     const char *type_str[] = {"App", "Shortcut", "Folder", "Drive", "File", "URL"};
     snprintf(buf, sizeof(buf), "Type: %s", ic->type < 6 ? type_str[ic->type] : "Unknown");
-    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
 
     snprintf(buf, sizeof(buf), "Target: %s", ic->target[0] ? ic->target : "(none)");
-    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
 
     snprintf(buf, sizeof(buf), "Position: (%d, %d) grid (%d, %d)", ic->x, ic->y, ic->grid_x, ic->grid_y);
-    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
 
-    snprintf(buf, sizeof(buf), "Color: #%06X", ic->icon_color & 0xFFFFFF);
-    vbe_draw_text(cx + 10, y, buf, 0x00000000, 1); y += 16;
+    snprintf(buf, sizeof(buf), "Color: #%06X", ic->icon_color & 0xFFFFFF); /* format-mask */
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y, buf, tc()->btn_text, 1); y += WUBU_DIALOG_PROP_PITCH;
 
-    vbe_draw_text(cx + 10, y + 10, "Press ESC to close", 0x00808080, 1);
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, y + WUBU_DIALOG_PROP_HINT_DY, "Press ESC to close", tc()->icon_text_shadow, 1);
 }
 
 /* New-Shortcut dialog: reuse the rename input buffer to collect a name,
@@ -218,34 +220,34 @@ static void dialog_shortcut_on_key(DosGuiWindow *win, uint32_t key, uint32_t mod
 
 static void dialog_shortcut_on_draw(DosGuiWindow *win, uint32_t *fb, int fb_w, int fb_h) {
     (void)fb_w; (void)fb_h;
-    const int tbh = 20;
-    const int bw = 3;
+    const int tbh = chrome_caption_metrics().bar_h;
+    const int bw = chrome_border_width();
     int cx = win->x + bw;
     int cy = win->y + tbh;
     int cw = win->w - 2 * bw;
     int ch = win->h - tbh - bw;
 
-    vbe_fill_rect(cx, cy, cw, ch, 0x00E0E0E0);
+    vbe_fill_rect(cx, cy, cw, ch, tc()->win_face);
 
     /* Active field gets an accent bar; inactive stays plain, so it is obvious
      * what the next keystroke goes into without a separate focus widget. */
-    uint32_t active_col = 0x001F6FEB;
-    uint32_t idle_col   = 0x00000000;
+    uint32_t active_col = tc()->select_bg;
+    uint32_t idle_col   = tc()->btn_text;
 
-    vbe_draw_text(cx + 10, cy + 16, "Type the location of the item:",
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_SC_LBL1_DY, "Type the location of the item:",
                   g_shortcut_adding_name ? idle_col : active_col, 1);
-    vbe_draw_text(cx + 10, cy + 38,
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_SC_VAL1_DY,
                   g_shortcut_target[0] ? g_shortcut_target : "(command or path)",
                   g_shortcut_adding_name ? idle_col : active_col, 1);
 
-    vbe_draw_text(cx + 10, cy + 68, "Type a name for this shortcut:",
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_SC_LBL2_DY, "Type a name for this shortcut:",
                   g_shortcut_adding_name ? active_col : idle_col, 1);
-    vbe_draw_text(cx + 10, cy + 90,
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_SC_VAL2_DY,
                   g_shortcut_name[0] ? g_shortcut_name : "(shortcut name)",
                   g_shortcut_adding_name ? active_col : idle_col, 1);
 
-    vbe_draw_text(cx + 10, cy + 120, "Enter=next   Tab=switch field   Esc=cancel",
-                  0x00666666, 1);
+    vbe_draw_text(cx + WUBU_DIALOG_PAD_X, cy + WUBU_DIALOG_SC_HINT_DY, "Enter=next   Tab=switch field   Esc=cancel",
+                  tc()->icon_text_shadow, 1);
 }
 
 /* -- Default Context Menu Actions -- */
@@ -274,14 +276,14 @@ static void ctx_action_play(void) {
      * (SteamOS strategy). The selected icon's binary is read from disk. */
     FILE *bin = fopen(target, "rb");
     if (!bin) {
-        wubu_notify_simple("Desktop", "Play", "Cannot open target binary", NULL, 1, 2500);
+        wubu_notify_simple("Desktop", "Play", "Cannot open target binary", NULL, 1, WUBU_TOAST_MS_LONG);
         return;
     }
     uint8_t buf[8192];
     size_t n = fread(buf, 1, sizeof(buf), bin);
     fclose(bin);
     if (n == 0) {
-        wubu_notify_simple("Desktop", "Play", "Target is empty", NULL, 1, 2500);
+        wubu_notify_simple("Desktop", "Play", "Target is empty", NULL, 1, WUBU_TOAST_MS_LONG);
         return;
     }
 
@@ -298,7 +300,8 @@ static void ctx_action_rename(void) {
         g_rename_target = &g_dwm.icons[idx];
         g_rename_input[0] = '\0';
         g_rename_pos = 0;
-        DosGuiWindow *dialog = wm_create_modal(300, 200, 400, 150, "Rename", NULL);
+        DosGuiWindow *dialog = wm_create_modal(WUBU_DIALOG_ORIGIN_X, WUBU_DIALOG_ORIGIN_Y,
+                                             WUBU_DIALOG_RENAME_W, WUBU_DIALOG_RENAME_H, "Rename", NULL);
         if (dialog) {
             dialog->on_key = dialog_rename_on_key;
             dialog->on_draw = dialog_rename_on_draw;
@@ -310,7 +313,8 @@ static void ctx_action_delete(void) {
     int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
         g_delete_target = &g_dwm.icons[idx];
-        DosGuiWindow *dialog = wm_create_modal(300, 200, 350, 140, "Confirm Delete", NULL);
+        DosGuiWindow *dialog = wm_create_modal(WUBU_DIALOG_ORIGIN_X, WUBU_DIALOG_ORIGIN_Y,
+                                             WUBU_DIALOG_DELETE_W, WUBU_DIALOG_DELETE_H, "Confirm Delete", NULL);
         if (dialog) {
             dialog->on_key = dialog_delete_on_key;
             dialog->on_draw = dialog_delete_on_draw;
@@ -322,7 +326,8 @@ static void ctx_action_properties(void) {
     int idx = icon_hit_test(g_dwm.mouse_x, g_dwm.mouse_y);
     if (idx >= 0) {
         g_properties_target = &g_dwm.icons[idx];
-        DosGuiWindow *dialog = wm_create_modal(300, 200, 400, 300, "Properties", NULL);
+        DosGuiWindow *dialog = wm_create_modal(WUBU_DIALOG_ORIGIN_X, WUBU_DIALOG_ORIGIN_Y,
+                                             WUBU_DIALOG_PROPS_W, WUBU_DIALOG_PROPS_H, "Properties", NULL);
         if (dialog) {
             dialog->on_key = dialog_properties_on_key;
             dialog->on_draw = dialog_properties_on_draw;
@@ -340,7 +345,8 @@ static void ctx_action_create_shortcut(void) {
     g_shortcut_name[0] = g_shortcut_name_pos = 0;
     g_shortcut_adding_name = false;
     g_shortcut_pending = true;
-    DosGuiWindow *dialog = wm_create_modal(300, 200, 400, 150, "New Shortcut", NULL);
+    DosGuiWindow *dialog = wm_create_modal(WUBU_DIALOG_ORIGIN_X, WUBU_DIALOG_ORIGIN_Y,
+                                             WUBU_DIALOG_SHORTCUT_W, WUBU_DIALOG_SHORTCUT_H, "New Shortcut", NULL);
     if (dialog) {
         dialog->on_key = dialog_shortcut_on_key;
         dialog->on_draw = dialog_shortcut_on_draw;
@@ -363,53 +369,53 @@ static void ctx_action_view_desktop(void) {
 static void ctx_action_new_folder(void) {
     if (wm_new_folder() == 0) {
         wubu_notify_simple("Desktop", "New Folder",
-                           "Folder created on ~/Desktop", NULL, 1, 1500);
+                           "Folder created on ~/Desktop", NULL, 1, WUBU_TOAST_MS_SHORT);
     } else {
         wubu_notify_simple("Desktop", "New Folder",
-                           "Could not create folder", NULL, 1, 1500);
+                           "Could not create folder", NULL, 1, WUBU_TOAST_MS_SHORT);
     }
 }
 
 static void ctx_action_new_text_doc(void) {
     if (wm_new_text_doc() == 0) {
         wubu_notify_simple("Desktop", "New Text Document",
-                           "Text document created on ~/Desktop", NULL, 1, 1500);
+                           "Text document created on ~/Desktop", NULL, 1, WUBU_TOAST_MS_SHORT);
     } else {
         wubu_notify_simple("Desktop", "New Text Document",
-                           "Could not create document", NULL, 1, 1500);
+                           "Could not create document", NULL, 1, WUBU_TOAST_MS_SHORT);
     }
 }
 
 static void ctx_action_sort_by_size(void) {
     wm_sort_icons(DOSGUI_SORT_SIZE);
     wubu_notify_simple("Desktop", "Sort By Size",
-                       "Icons arranged by size", NULL, 1, 1500);
+                       "Icons arranged by size", NULL, 1, WUBU_TOAST_MS_SHORT);
 }
 
 static void ctx_action_sort_by_type(void) {
     wm_sort_icons(DOSGUI_SORT_TYPE);
     wubu_notify_simple("Desktop", "Sort By Type",
-                       "Icons arranged by type", NULL, 1, 1500);
+                       "Icons arranged by type", NULL, 1, WUBU_TOAST_MS_SHORT);
 }
 
 static void ctx_action_sort_by_name(void) {
     /* Real alphabetical re-flow. */
     wm_sort_icons_by_name();
     wubu_notify_simple("Desktop", "Sort By Name",
-                       "Icons arranged alphabetically", NULL, 1, 1500);
+                       "Icons arranged alphabetically", NULL, 1, WUBU_TOAST_MS_SHORT);
 }
 
 static void ctx_action_sort_by_date(void) {
     wm_sort_icons(DOSGUI_SORT_DATE);
     wubu_notify_simple("Desktop", "Sort By Date Modified",
-                       "Icons arranged by date", NULL, 1, 1500);
+                       "Icons arranged by date", NULL, 1, WUBU_TOAST_MS_SHORT);
 }
 
 static void ctx_action_refresh(void) {
     /* Real filesystem refresh: re-scan ~/Desktop for .desktop files. */
     wm_refresh_desktop();
     wubu_notify_simple("Desktop", "Refresh",
-                       "Desktop reloaded from ~/Desktop", NULL, 1, 2000);
+                       "Desktop reloaded from ~/Desktop", NULL, 1, WUBU_TOAST_MS_DEFAULT);
 }
 
 /* -- Show Icon Context Menu -- */
