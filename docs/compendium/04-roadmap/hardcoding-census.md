@@ -147,9 +147,10 @@ MAX_TESTS test-local caps — triage before touching).
   longer counted as a literal allocation. Compositor census: 0 conflicts.
 - Live nested run NOT performed (no DISPLAY in the agent session);
   `wcc_test.sh` remains the live gate on a desktop session.
-- NEXT compositor leg: dissolve wubucompositor.c (1186 lines) per the
-  no-monolith law. Split map (line ranges approximate, from the function
-  census):
+- NEXT compositor leg: dissolve wubucompositor.c per the no-monolith law.
+  PROGRESS: step 0 (wcc_spawn) DONE; step 1 (wcc_internal.h) DONE;
+  step 2 (wcc_gpu.c, first host-bound leaf) DONE — pushed 5ded1bc,
+  monolith 1186 -> 1046 lines, build + test-spawn green. Remaining map:
   1. `wcc_internal.h` — move struct wcc_server / wcc_surface /
      wcc_output_ctx + WC_OUTPUT_W/H out of the .c (shared by leaves,
      opaque to the outside). Mechanical first step; build green.
@@ -181,6 +182,24 @@ filesystem — it is NOT part of this OS de-hardcoding workstream. Its
 census numbers above are informational; edits there happen under the
 brain's own missions (wubuwizard-kvfs-modules, wubu-agi-training-pipeline),
 not this ledger.
+
+## The philosophy this serves (owner directive 2026-11-19)
+
+WuBuOS is the **WSL replacement**: develop in Linux, run in macOS.
+The guest desktop is a pure C11 Wayland client (host-agnostic); the
+compositor is the HOST SEAM — X11 today, Quartz/Metal tomorrow, protocol
+logic unchanged. Fixes made toward that truth:
+- compositor keymap transport: Linux-only memfd_create -> POSIX shm_open;
+- executable-path derivation portable in BOTH the compositor spawn leaf
+  and the guest's buddy launcher (hosted.c): /proc/self/exe on Linux,
+  _NSGetExecutablePath on macOS;
+- host-bound code being isolated into leaves (wcc_gpu.c first) so a
+  second backend is a drop-in, not a rewrite.
+Open legs, stated plainly: the Quartz/Metal host backend (cannot build
+or verify on this Linux box), full Mach-O process execution (the shader
+leg IS proven via metal2vulkan; darling is a dead end), and the live
+nested gate (needs a desktop session). The compositor README carries
+the full portability map.
 
 ## Triage classes (do not "fix" blindly)
 

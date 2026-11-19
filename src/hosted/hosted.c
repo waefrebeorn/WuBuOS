@@ -38,6 +38,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>   /* _NSGetExecutablePath (no /proc on macOS) */
+#endif
 
 #include "../kernel/vbe.h"
 #include "../kernel/memory.h"
@@ -372,9 +375,18 @@ static void wubu_hosted_spawn_buddy(void)
         snprintf(orb, sizeof(orb), "%s", getenv("WUBU_BUDDY_BIN"));
     } else {
         char self[4096];
+#if defined(__APPLE__)
+        /* macOS has no /proc — the WSL-replacement philosophy needs the
+         * same derivation on both hosts (see wcc_spawn.c). */
+        uint32_t sz = (uint32_t)sizeof(self);
+        if (_NSGetExecutablePath(self, &sz) != 0) return;
+        char real[4096];
+        if (realpath(self, real)) snprintf(self, sizeof(self), "%s", real);
+#else
         ssize_t n = readlink("/proc/self/exe", self, sizeof(self) - 1);
         if (n <= 0) return;
         self[n] = 0;
+#endif
         /* Walk up from the executable to the repo root and look for build/.
          * src/hosted/wubu sits two levels below it; the launcher may also copy
          * or wrap the binary elsewhere. */
