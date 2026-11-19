@@ -64,6 +64,7 @@ jobs:
             ci_serial*.bin
             ci_qemu_err.txt
             ci_qemu_int.log
+            src/kernel/kernel.elf
       - uses: actions/upload-artifact@v4
         with:
           name: wubuos-iso
