@@ -56,6 +56,15 @@ that is where the scale applies -- a tree-wide "no numbers" rule produced 2852
 hits on enums, colour channels and generated Wayland constants, which is noise
 that teaches people to ignore the tool.
 
+**R11 — Colours come from the theme engine.**
+In the same governed surfaces, a hand-placed hex colour bypasses four owners at
+once: theme switching, the kernel `/theme` namespace overlay, dynamic colour
+(`wubu_theme_apply_seed`) and the high-contrast override. Item states read
+`tc()->…`; theme-specific constants live in `wubu_theme.c`'s palette table;
+theme-independent control art (checkbox box, brand logos) is named in
+`wubu_tokens.h` or marked `brand-art` / `icon-identity` on the line. Measured by
+`std_audit.py`'s colour rule over the same narrow surface list as R7.
+
 **R8 — Comments explain WHY, never narrate WHAT.**
 "A void* would dangle after the wl_client is destroyed, so the destroy listener
 NULLs it" is worth a line. "Set x to 0" is not.
@@ -93,15 +102,18 @@ once is not a plan -- it is a reason to give up. The point is that next month it
 must be 120, then 119. When you split a file, regenerate the baseline and watch
 the count drop.
 
-## Current baseline (2026-11-13)
+## Current baseline (2026-11-19)
 
-- 121 first-party `.c` files over 600 lines. Worst: `audio/bigmac/tools/wb_daw.c`
-  (6260), `wb_selftest.c` (4952), `wb_session.c` (2823), `wb_compositor.c`
-  (2789), `brain/src/wubu_ssm.c` (2411).
+- 126 first-party `.c` files over 600 lines (inherited frontier; the split
+  ledger is `docs/compendium/04-roadmap/dehardcode-workflow.md` and the
+  monolith work in `grunt-work-tiers.md`).
 - 3 god headers over 40 includes: `wubu_probe.c` (176), `wubu_hw_detect.c`
   (161), `hosted.c` (45).
-- 242 geometry literals in the token-governed surfaces.
-- 24 unfinished-work markers and 110 placeholders across 93 files.
+- 136 geometry literals in the token-governed surfaces (was 242 on 2026-11-13;
+  `startmenu.c` went 87 -> 0).
+- 21 theme-bypassing colour literals (R11, new rule; `startmenu.c` went 18 -> 0).
+- The ratchet keys are `long`, `fat`, `magic`, `color` in
+  `tools/std_audit_baseline.json`.
 
 ## Where to start
 

@@ -85,6 +85,10 @@ Build layout: `Makefile` includes `mk/vars.mk`, `objects.mk`, `targets.mk`,
 `docs/compendium/04-roadmap/gui-slerm-impossible-os.md` — the GUI slerm workflow
 (owner directive 2026-11-19): pinned reference, license boundary, ownership map,
 tiered legs with evidence gates. The GUI is the current priority workstream.
+`docs/compendium/04-roadmap/dehardcode-workflow.md` — the de-hardcoding ledger
+and ratchet protocol (owner directive 2026-11-19): one owner per constant,
+measured by `make test_standards`. Every slermed surface is de-hardcoded as it
+lands.
 Tier 0 items are deliberately small and self-contained; finish several per batch
 before committing, then run the relevant tier of the gate and read the real
 output. Commit per logical change with an honest message naming what was verified.

@@ -125,7 +125,13 @@ def audit_magic_geometry(sources, root):
             stripped = line.strip()
             if stripped.startswith("*") or stripped.startswith("/*"):
                 continue
-            if "WUBU_SPACE_" in line or "WUBU_RADIUS_" in line or "WUBU_TITLE_" in line:
+            if "brand-art" in line or "icon-identity" in line:
+                continue
+            if any(tok in line for tok in (
+                    "WUBU_SPACE_", "WUBU_RADIUS_", "WUBU_TITLE_",
+                    "WUBU_MENU_", "WUBU_START_", "WUBU_METRIC_",
+                    "WUBU_BORDER_", "WUBU_TASKBAR_", "WUBU_CONTROL_H",
+                    "WUBU_ICON_")):
                 continue
             for m in MAGIC_NUMBER_RE.finditer(line):
                 val = int(m.group(1))
@@ -138,6 +144,37 @@ def audit_magic_geometry(sources, root):
                                  line):
                     continue
                 hits.append((rel, lineno, val, stripped[:70]))
+                break
+    return hits
+
+
+# R11 -- colours in the governed surfaces must come from the theme engine
+# (wubu_theme.c) or the token palette, not hand-placed hex. A literal here
+# bypasses theme switching, the /theme namespace overlay, dynamic colour and
+# the high-contrast override: four owners the literal silently disagrees with.
+# Narrow like R7: only drawing lines in the governed surfaces. Lines marked
+# `brand-art` (logo quadrants, sprite art) or `icon-identity` (app registry
+# colours) are deliberate constants and say so.
+COLOR_LITERAL_RE = re.compile(r"0x[0-9A-Fa-f]{6}(?![0-9A-Fa-f])")
+
+
+def audit_theme_colors(sources, root):
+    """HARD rule: theme-bypassing colour literals in governed surfaces."""
+    hits = []
+    for rel in sources:
+        if rel.replace(os.sep, "/") not in TOKEN_GOVERNED:
+            continue
+        text = read(os.path.join(root, rel))
+        for lineno, line in enumerate(text.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("*") or stripped.startswith("/*"):
+                continue
+            if "brand-art" in line or "icon-identity" in line:
+                continue
+            if not re.search(r"vbe_|\bbg\s*=|\bfg\s*=|color", line):
+                continue
+            for m in COLOR_LITERAL_RE.finditer(line):
+                hits.append((rel, lineno, m.group(0), stripped[:70]))
                 break
     return hits
 
@@ -173,6 +210,7 @@ def main():
 
     long_files, fat_headers = audit_lines_and_includes(sources, root)
     magic = audit_magic_geometry(sources, root)
+    colors = audit_theme_colors(sources, root)
     markers = audit_markers(sources, root)
 
     report = {
@@ -183,6 +221,9 @@ def main():
         "fat_headers": [{"file": f, "includes": n} for f, n in fat_headers],
         "magic_geometry": [
             {"file": f, "line": l, "value": v, "text": t} for f, l, v, t in magic
+        ],
+        "theme_colors": [
+            {"file": f, "line": l, "value": v, "text": t} for f, l, v, t in colors
         ],
         "unfinished": markers,
     }
@@ -195,6 +236,7 @@ def main():
         "long": sorted(key_lf(r) for r in long_files),
         "fat":  sorted(key_fh(r) for r in fat_headers),
         "magic": sorted(key_mg(r) for r in magic),
+        "color": sorted(key_mg(r) for r in colors),
     }
 
     baseline = None
@@ -210,12 +252,12 @@ def main():
             json.dump(now_counts, f, indent=2, sort_keys=True)
         print(f"baseline written to {args.write_baseline} "
               f"({len(now_counts['long'])} long, {len(now_counts['fat'])} fat, "
-              f"{len(now_counts['magic'])} geometry)")
+              f"{len(now_counts['magic'])} geometry, {len(now_counts['color'])} color)")
         return 0
 
     grew = {}
     if baseline is not None:
-        for k in ("long", "fat", "magic"):
+        for k in ("long", "fat", "magic", "color"):
             before = set(baseline.get(k) or [])
             new = set(now_counts[k]) - before
             if new:
@@ -250,7 +292,8 @@ def main():
     if grew:
         for k, label in (("long", "NEW long files"),
                          ("fat", "NEW god headers"),
-                         ("magic", "NEW geometry literals")):
+                         ("magic", "NEW geometry literals"),
+                         ("color", "NEW theme-bypassing colours")):
             if k in grew:
                 print(f"HARD: {label} ({len(grew[k])})")
                 for entry in grew[k]:
@@ -262,6 +305,8 @@ def main():
     show("HARD: god headers", fat_headers,
          lambda r: f"{r[1]:5d} includes  {r[0]}")
     show("HARD: geometry literals outside the token scale", magic,
+         lambda r: f"{r[0]}:{r[1]}  value={r[2]}  {r[3]}")
+    show("HARD: colour literals bypassing the theme engine", colors,
          lambda r: f"{r[0]}:{r[1]}  value={r[2]}  {r[3]}")
 
     if markers:

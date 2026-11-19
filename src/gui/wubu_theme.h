@@ -68,6 +68,10 @@ typedef struct {
     uint32_t startmenu_sidebar_grad_end;  /* gradient bottom (XP blue->green); == sidebar if none */
     uint32_t startmenu_hover;
     uint32_t startmenu_text;
+    /* Shutdown row: semantic, not a literal in the surface. Classic keeps
+     * its dark-red row; the Luna family uses black + soft red text. */
+    uint32_t startmenu_shutdown_bg;
+    uint32_t startmenu_shutdown_fg;
 
     /* Selection / highlights */
     uint32_t select_bg;

@@ -52,23 +52,23 @@ static void startmenu_activate(const SmProgramEntry *e) {
 /* -- Inline Layout Helpers ------------------------------------------ */
 
 static inline int menu_item_h(void) {
-    return 24;  /* EX_ROW_H equivalent */
+    return WUBU_MENU_ROW_H;
 }
 
 static inline int submenu_w(void) {
-    return 180;  /* EX_SUBMENU_W equivalent */
+    return WUBU_SUBMENU_W;
 }
 
 static inline int menu_w(void) {
-    return 200;  /* EX_MENU_W equivalent */
+    return WUBU_MENU_W;
 }
 
 static inline int sidebar_w(void) {
-    return 48;  /* EX_SIDEBAR_W equivalent */
+    return WUBU_START_SIDEBAR_W;
 }
 
 static inline int menu_border_w(void) {
-    return 2;
+    return WUBU_MENU_BORDER_W;
 }
 
 /* Chrome metrics come from the explorer owner (../explorer_internal.h);
@@ -151,18 +151,23 @@ static void draw_menu_item(int x, int y, int w, const char *label,
                             int hovered, int has_submenu, int type) {
     int mh = menu_item_h();
     uint32_t bg, fg;
-    
+
+    /* The theme engine already answers for the CURRENT theme. The old
+     * Luna/classic ternaries duplicated the classic palette as literals,
+     * bypassing /theme writes, dynamic colour and high-contrast. Item text
+     * is btn_text: the old code used startmenu_text (the SIDEBAR colour),
+     * which is white-on-light under XP — unreadable. */
     if (hovered) {
-        bg = th()->Luna_start_button ? tc()->select_bg : 0x000080;
-        fg = th()->Luna_start_button ? tc()->select_text : 0xFFFFFF;
+        bg = tc()->select_bg;
+        fg = tc()->select_text;
     } else {
-        bg = th()->Luna_start_button ? tc()->startmenu_bg : 0xC0C0C0;
-        fg = th()->Luna_start_button ? tc()->startmenu_text : 0x000000;
+        bg = tc()->startmenu_bg;
+        fg = tc()->btn_text;
     }
-    
+
     if (type == 3) { /* Shutdown */
-        bg = th()->Luna_start_button ? tc()->border_darkest : 0x800000;
-        fg = th()->Luna_start_button ? 0xFF8080 : 0xFFFFFF;
+        bg = tc()->startmenu_shutdown_bg;
+        fg = tc()->startmenu_shutdown_fg;
     }
     
     if (th()->rounded_buttons) {
@@ -177,24 +182,29 @@ static void draw_menu_item(int x, int y, int w, const char *label,
     }
     
     /* Draw truncated label with ellipsis if too wide */
-    int label_x = x + 6;
+    int label_x = x + WUBU_MENU_ITEM_PAD_X;
     if (type == 4) {
         /* Checkbox: [x] when companion enabled, [ ] when disabled. */
-        vbe_fill_rect(label_x, y + (mh - 8) / 2, 10, 8, 0xFFFFFF);
-        vbe_rect(label_x, y + (mh - 8) / 2, 10, 8, 0x000000);
+        int cy = y + (mh - WUBU_MENU_CHECK_H) / 2;
+        vbe_fill_rect(label_x, cy, WUBU_MENU_CHECK_W, WUBU_MENU_CHECK_H,
+                      WUBU_MENU_CHECK_BG);
+        vbe_rect(label_x, cy, WUBU_MENU_CHECK_W, WUBU_MENU_CHECK_H,
+                 WUBU_MENU_CHECK_FG);
         if (wubu_bonzi_is_enabled())
-            vbe_fill_rect(label_x + 2, y + (mh - 8) / 2 + 2, 6, 4, 0x000000);
-        label_x += 16;
+            vbe_fill_rect(label_x + WUBU_SPACE_2XS, cy + WUBU_SPACE_2XS,
+                          WUBU_MENU_CHECK_MARK_W, WUBU_MENU_CHECK_MARK_H,
+                          WUBU_MENU_CHECK_FG);
+        label_x += WUBU_SPACE_LG;
     }
-    int max_text_w = w - 20; /* Reserve space for arrow and padding */
-    if (has_submenu) max_text_w -= 16;
+    int max_text_w = w - WUBU_MENU_ITEM_TEXT_RESERVE;
+    if (has_submenu) max_text_w -= WUBU_SPACE_LG;
     int text_w = vbe_text_width(label, 1);
     if (text_w > max_text_w) {
         char truncated[64];
         int len = strlen(label);
         strncpy(truncated, label, len);
         truncated[len] = '\0';
-        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - 6) {
+        while (len > 0 && vbe_text_width(truncated, 1) > max_text_w - vbe_text_width("...", 1)) {
             len--;
             truncated[len] = '\0';
         }
@@ -204,15 +214,15 @@ static void draw_menu_item(int x, int y, int w, const char *label,
         } else {
             strcpy(truncated, "...");
         }
-        vbe_draw_text(label_x, y + (mh - 8) / 2, truncated, fg, 1);
+        vbe_draw_text(label_x, y + (mh - WUBU_FONT_CAP_H) / 2, truncated, fg, 1);
     } else {
-        vbe_draw_text(label_x, y + (mh - 8) / 2, label, fg, 1);
+        vbe_draw_text(label_x, y + (mh - WUBU_FONT_CAP_H) / 2, label, fg, 1);
     }
     
     if (has_submenu) {
         /* Arrow indicator */
-        int arrow_x = x + w - 16;
-        int arrow_y = y + (mh - 8) / 2;
+        int arrow_x = x + w - WUBU_SPACE_LG;
+        int arrow_y = y + (mh - WUBU_FONT_CAP_H) / 2;
         vbe_draw_text(arrow_x, arrow_y, ">", fg, 1);
     }
 }
@@ -220,11 +230,11 @@ static void draw_menu_item(int x, int y, int w, const char *label,
 static void draw_submenu(int x, int y, SmSubmenu *sub) {
     int mh = menu_item_h();
     int sw = submenu_w();
-    int h = sub->item_count * mh + 4;
-    int rad = th()->rounded_buttons ? 4 : 0;
+    int h = sub->item_count * mh + WUBU_SPACE_XS;
+    int rad = th()->rounded_buttons ? WUBU_METRIC_RADIUS_CONTROL : 0;
 
     /* Submenu background with shadow */
-    vbe_shade_rect(x + 2, y + 2, sw, h);
+    vbe_shade_rect(x + WUBU_SPACE_2XS, y + WUBU_SPACE_2XS, sw, h);
     
     if (rad > 0) {
         vbe_fill_rect_rounded(x, y, sw, h, rad, tc()->startmenu_bg);
@@ -238,30 +248,27 @@ static void draw_submenu(int x, int y, SmSubmenu *sub) {
 
     for (int i = 0; i < sub->item_count; i++) {
         SmMenuItem *item = &sub->items[i];
-        int iy = y + 2 + i * mh;
+        int iy = y + WUBU_SPACE_2XS + i * mh;
         if (item->type == SM_ITEM_SEPARATOR) {
             int sep_y = iy + mh / 2;
-            if (rad > 0) {
-                vbe_hline(x + 8, x + sw - 8, sep_y, tc()->border_dark);
-            } else {
-                vbe_hline(x + 4, x + sw - 4, sep_y, 0x808080);
-            }
+            int inset = rad > 0 ? WUBU_SPACE_SM : WUBU_SPACE_XS;
+            vbe_hline(x + inset, x + sw - inset, sep_y, tc()->border_dark);
         } else {
             bool hovered = (g_submenu_open >= 0 && g_sub_hovered == i && g_hover_submenu == g_submenu_open);
             uint32_t bg = hovered ? tc()->select_bg : tc()->startmenu_bg;
-            uint32_t fg = hovered ? tc()->select_text : tc()->startmenu_text;
+            uint32_t fg = hovered ? tc()->select_text : tc()->btn_text;
             
             if (rad > 0) {
-                vbe_fill_rect_rounded(x + 2, iy, sw - 4, mh, 2, bg);
-                if (hovered) vbe_3d_raised_rounded_colors(x + 2, iy, sw - 4, mh, 2,
+                vbe_fill_rect_rounded(x + WUBU_SPACE_2XS, iy, sw - 2 * WUBU_SPACE_2XS, mh, WUBU_RADIUS_XS, bg);
+                if (hovered) vbe_3d_raised_rounded_colors(x + WUBU_SPACE_2XS, iy, sw - 2 * WUBU_SPACE_2XS, mh, WUBU_RADIUS_XS,
                     tc()->border_light, tc()->border_face, tc()->border_dark, tc()->border_darkest);
             } else {
-                vbe_fill_rect(x + 2, iy, sw - 4, mh, bg);
-                if (hovered) vbe_3d_raised_colors(x + 2, iy, sw - 4, mh,
+                vbe_fill_rect(x + WUBU_SPACE_2XS, iy, sw - 2 * WUBU_SPACE_2XS, mh, bg);
+                if (hovered) vbe_3d_raised_colors(x + WUBU_SPACE_2XS, iy, sw - 2 * WUBU_SPACE_2XS, mh,
                                                    tc()->border_light, tc()->border_face,
                                                    tc()->border_dark, tc()->border_darkest);
             }
-            vbe_draw_text(x + 8, iy + (mh - 8) / 2, item->label, fg, 1);
+            vbe_draw_text(x + WUBU_SPACE_SM, iy + (mh - WUBU_FONT_CAP_H) / 2, item->label, fg, 1);
         }
     }
 }
@@ -299,42 +306,43 @@ static const Win11Pin g_win11_pins[] = {
     { "Terminal",     DESK_ICON_TERMINAL,   0x00000000 },
     { "File Manager", DESK_ICON_EXPLORER,   0x000080FF },
     { "Settings",     DESK_ICON_SETTINGS,   0x00808080 },
-    { "Editor",       DESK_ICON_COUNT + 0,  0x008080FF },
-    { "WuBu Canvas",  DESK_ICON_COUNT + 1,  0x000080FF },
-    { "HolyC Term",   DESK_ICON_COUNT + 3,  0x00800080 },
-    { "DOS Box",      DESK_ICON_COUNT + 4,  0x0000C000 },
-    { "EDR Activity", DESK_ICON_COUNT + 5,  0x00C00000 },
-    { "Bonzi Buddy",  DESK_ICON_COUNT + 6,  0x00A030A0 },
+    { "Editor",       DESK_ICON_COUNT + 0,  0x008080FF }, /* icon-identity */
+    { "WuBu Canvas",  DESK_ICON_COUNT + 1,  0x000080FF }, /* icon-identity */
+    { "HolyC Term",   DESK_ICON_COUNT + 3,  0x00800080 }, /* icon-identity */
+    { "DOS Box",      DESK_ICON_COUNT + 4,  0x0000C000 }, /* icon-identity */
+    { "EDR Activity", DESK_ICON_COUNT + 5,  0x00C00000 }, /* icon-identity */
+    { "Bonzi Buddy",  DESK_ICON_COUNT + 6,  0x00A030A0 }, /* icon-identity */
 };
 #define WIN11_PIN_COUNT ((int)(sizeof(g_win11_pins) / sizeof(g_win11_pins[0])))
 
 static void startmenu_win11_layout(int fb_w, int fb_h, SmWin11 *L) {
     memset(L, 0, sizeof *L);
     int th = taskbar_height();
-    L->pw = 520; L->ph = 560;
-    if (L->pw > fb_w - 24) L->pw = fb_w - 24;
+    L->pw = WUBU_START_W; L->ph = WUBU_START_H;
+    if (L->pw > fb_w - WUBU_SPACE_XL) L->pw = fb_w - WUBU_SPACE_XL;
     L->px = (fb_w - L->pw) / 2;
-    L->py = fb_h - th - L->ph - 12;
-    if (L->py < 8) L->py = 8;
+    L->py = fb_h - th - L->ph - WUBU_SPACE_MD;
+    if (L->py < WUBU_SPACE_SM) L->py = WUBU_SPACE_SM;
 
-    L->search_x = L->px + WUBU_SPACE_LG; L->search_y = L->py + 12;
-    L->search_w = L->pw - 2 * WUBU_SPACE_LG; L->search_h = 28;
+    L->search_x = L->px + WUBU_SPACE_LG; L->search_y = L->py + WUBU_SPACE_MD;
+    L->search_w = L->pw - 2 * WUBU_SPACE_LG; L->search_h = WUBU_START_SEARCH_H;
 
-    L->cols = 6; L->tile = 72; L->gap = WUBU_SPACE_SM; L->rows = 2;
+    L->cols = WUBU_START_COLS; L->tile = WUBU_START_TILE;
+    L->gap = WUBU_SPACE_SM; L->rows = WUBU_START_ROWS;
     int grid_w = L->cols * L->tile + (L->cols - 1) * L->gap;
     L->grid_x = L->px + (L->pw - grid_w) / 2;
-    L->grid_y = L->py + 72;
+    L->grid_y = L->py + WUBU_START_GRID_DY;
 
     L->rec_label_y = L->grid_y + L->rows * L->tile +
-                     (L->rows - 1) * L->gap + 14;
+                     (L->rows - 1) * L->gap + WUBU_START_REC_DY;
     L->rec_cols = 2; L->rec_rows = 3;
     L->rec_item_w = (L->pw - 2 * WUBU_SPACE_LG - WUBU_SPACE_SM) / 2;
-    L->rec_item_h = 44;
+    L->rec_item_h = WUBU_START_REC_ITEM_H;
     L->rec_x = L->px + WUBU_SPACE_LG;
-    L->rec_y = L->rec_label_y + 16;
+    L->rec_y = L->rec_label_y + WUBU_SPACE_LG;
 
-    L->foot_y = L->py + L->ph - 44;
-    L->power_w = 36; L->power_h = 28;
+    L->foot_y = L->py + L->ph - WUBU_START_FOOT_H;
+    L->power_w = WUBU_START_POWER_W; L->power_h = WUBU_START_POWER_H;
     L->power_x = L->px + L->pw - WUBU_SPACE_LG - L->power_w;
     L->power_y = L->foot_y + WUBU_METRIC_GAP_SM;
 }
@@ -344,21 +352,22 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
     SmWin11 L;
     startmenu_win11_layout(fb_w, fb_h, &L);
 
-    vbe_fill_rect_rounded(L.px, L.py, L.pw, L.ph, 10, c->startmenu_bg);
-    vbe_rect_rounded(L.px, L.py, L.pw, L.ph, 10, c->border_light);
+    vbe_fill_rect_rounded(L.px, L.py, L.pw, L.ph, WUBU_METRIC_RADIUS_WINDOW, c->startmenu_bg);
+    vbe_rect_rounded(L.px, L.py, L.pw, L.ph, WUBU_METRIC_RADIUS_WINDOW, c->border_light);
 
     /* Search bar. */
     vbe_fill_rect_rounded(L.search_x, L.search_y, L.search_w, L.search_h,
-                          6, c->btn_face);
+                          WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
     vbe_rect_rounded(L.search_x, L.search_y, L.search_w, L.search_h,
-                     6, c->border_light);
+                     WUBU_METRIC_RADIUS_CONTROL, c->border_light);
     if (g_search.active && g_search.query[0]) {
         char disp[DOSGUI_SEARCH_MAX_LEN + 2];
         snprintf(disp, sizeof(disp), "%s|", g_search.query);
-        vbe_draw_text(L.search_x + 10, L.search_y + 8, disp,
-                      c->startmenu_text, 1);
+        vbe_draw_text(L.search_x + WUBU_START_SEARCH_PAD_X,
+                      L.search_y + WUBU_SPACE_SM, disp, c->startmenu_text, 1);
     } else {
-        vbe_draw_text(L.search_x + 10, L.search_y + 8, "Type here to search",
+        vbe_draw_text(L.search_x + WUBU_START_SEARCH_PAD_X,
+                      L.search_y + WUBU_SPACE_SM, "Type here to search",
                       c->startmenu_text, 1);
     }
 
@@ -369,60 +378,69 @@ static void startmenu_render_win11(uint32_t *fb, int fb_w, int fb_h) {
     bool searching = (g_search.active && g_search.query[0] &&
                       startmenu_search_get_results(&results, &nres) == 0);
     if (searching) {
-        int ry = L.search_y + L.search_h + 14;
-        vbe_draw_text(L.px + 16, ry, nres ? "Best match" : "No results",
-                      c->startmenu_text, 1);
-        ry += 18;
+        int ry = L.search_y + L.search_h + WUBU_START_RESULT_DY;
+        vbe_draw_text(L.px + WUBU_SPACE_LG, ry,
+                      nres ? "Best match" : "No results", c->startmenu_text, 1);
+        ry += WUBU_START_RESULT_LABEL_DY;
         int shown = nres < 8 ? nres : 8;
         for (int i = 0; i < shown; i++) {
-            int rx = L.px + 16;
-            vbe_fill_rect_rounded(rx, ry, L.pw - 32, 40, 6, c->btn_face);
-            vbe_rect_rounded(rx, ry, L.pw - 32, 40, 6, c->border_light);
-            vbe_draw_text(rx + 12, ry + 16, results[i]->name,
+            int rx = L.px + WUBU_SPACE_LG;
+            vbe_fill_rect_rounded(rx, ry, L.pw - 2 * WUBU_SPACE_LG,
+                                  WUBU_START_RESULT_H, WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+            vbe_rect_rounded(rx, ry, L.pw - 2 * WUBU_SPACE_LG,
+                             WUBU_START_RESULT_H, WUBU_METRIC_RADIUS_CONTROL, c->border_light);
+            vbe_draw_text(rx + WUBU_SPACE_MD, ry + WUBU_SPACE_LG, results[i]->name,
                           c->startmenu_text, 1);
-            ry += 46;
+            ry += WUBU_START_RESULT_PITCH;
         }
     } else {
 
     /* Pinned grid. */
-    vbe_draw_text(L.px + 16, L.grid_y - 16, "Pinned", c->startmenu_text, 1);
+    vbe_draw_text(L.px + WUBU_SPACE_LG, L.grid_y - WUBU_SPACE_LG,
+                  "Pinned", c->startmenu_text, 1);
     for (int i = 0; i < WIN11_PIN_COUNT; i++) {
         const Win11Pin *d = &g_win11_pins[i];
         int col = i % L.cols, row = i / L.cols;
         int tx = L.grid_x + col * (L.tile + L.gap);
         int ty = L.grid_y + row * (L.tile + L.gap);
-        vbe_fill_rect_rounded(tx, ty, L.tile, L.tile, 8, c->btn_face);
-        vbe_rect_rounded(tx, ty, L.tile, L.tile, 8, c->border_light);
-        wm_draw_icon_glyph(d->icon_type, tx + 20, ty + 6,
+        vbe_fill_rect_rounded(tx, ty, L.tile, L.tile, WUBU_METRIC_RADIUS_WINDOW, c->btn_face);
+        vbe_rect_rounded(tx, ty, L.tile, L.tile, WUBU_METRIC_RADIUS_WINDOW, c->border_light);
+        wm_draw_icon_glyph(d->icon_type, tx + (L.tile - WUBU_ICON_LG) / 2,
+                           ty + WUBU_START_TILE_ICON_DY,
                            d->icon_color ? d->icon_color : c->btn_hover,
                            c->border_light, c->border_dark, c->btn_hover);
-        vbe_draw_text(tx + 2, ty + 46, d->name, c->startmenu_text, 1);
+        vbe_draw_text(tx + WUBU_SPACE_2XS, ty + WUBU_START_TILE_LABEL_DY,
+                      d->name, c->startmenu_text, 1);
     }
 
     /* Recommended: recent programs, two columns. */
-    vbe_draw_text(L.px + 16, L.rec_label_y, "Recommended",
+    vbe_draw_text(L.px + WUBU_SPACE_LG, L.rec_label_y, "Recommended",
                   c->startmenu_text, 1);
     int n = g_recent_count < 6 ? g_recent_count : 6;
     for (int i = 0; i < n; i++) {
         int col = i % L.rec_cols, row = i / L.rec_cols;
-        int ix = L.rec_x + col * (L.rec_item_w + 8);
-        int iy = L.rec_y + row * (L.rec_item_h + 4);
-        vbe_fill_rect_rounded(ix, iy, L.rec_item_w, L.rec_item_h, 6,
-                              c->btn_face);
-        vbe_rect_rounded(ix, iy, L.rec_item_w, L.rec_item_h, 6,
-                         c->border_light);
-        vbe_draw_text(ix + 8, iy + 16, g_recent[i].name,
+        int ix = L.rec_x + col * (L.rec_item_w + WUBU_SPACE_SM);
+        int iy = L.rec_y + row * (L.rec_item_h + WUBU_SPACE_XS);
+        vbe_fill_rect_rounded(ix, iy, L.rec_item_w, L.rec_item_h,
+                              WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+        vbe_rect_rounded(ix, iy, L.rec_item_w, L.rec_item_h,
+                         WUBU_METRIC_RADIUS_CONTROL, c->border_light);
+        vbe_draw_text(ix + WUBU_SPACE_SM, iy + WUBU_SPACE_LG, g_recent[i].name,
                       c->startmenu_text, 1);
     }
     }   /* !searching */
 
     /* Footer: user chip + power. */
-    vbe_fill_rect_rounded(L.px + 16, L.foot_y + 4, 32, 32, 16, c->btn_hover);
-    vbe_draw_text(L.px + 56, L.foot_y + 14, "WuBu User", c->startmenu_text, 1);
-    vbe_fill_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, WUBU_METRIC_RADIUS_CONTROL,
-                          c->btn_face);
-    vbe_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h, 6,
-                     c->border_light);
+    int av = WUBU_SPACE_2XL;
+    vbe_fill_rect_rounded(L.px + WUBU_SPACE_LG, L.foot_y + WUBU_SPACE_XS,
+                          av, av, av / 2, c->btn_hover);
+    vbe_draw_text(L.px + WUBU_SPACE_LG + av + WUBU_SPACE_SM,
+                  L.foot_y + WUBU_SPACE_XS + (av - WUBU_FONT_CAP_H) / 2,
+                  "WuBu User", c->startmenu_text, 1);
+    vbe_fill_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h,
+                          WUBU_METRIC_RADIUS_CONTROL, c->btn_face);
+    vbe_rect_rounded(L.power_x, L.power_y, L.power_w, L.power_h,
+                     WUBU_METRIC_RADIUS_CONTROL, c->border_light);
     vbe_draw_text(L.power_x + WUBU_METRIC_GAP_SM, L.power_y + WUBU_METRIC_GAP_SM, "Power", c->startmenu_text, 1);
 }
 
@@ -440,16 +458,18 @@ static void startmenu_win11_click(int x, int y) {
         SmProgramEntry **results = NULL;
         int nres = 0;
         if (startmenu_search_get_results(&results, &nres) == 0) {
-            int ry = L.search_y + L.search_h + 14 + 18;
+            int ry = L.search_y + L.search_h + WUBU_START_RESULT_DY +
+                     WUBU_START_RESULT_LABEL_DY;
             int shown = nres < 8 ? nres : 8;
             for (int i = 0; i < shown; i++) {
-                if (x >= L.px + 16 && x < L.px + L.pw - 16 &&
-                    y >= ry && y < ry + 40) {
+                if (x >= L.px + WUBU_SPACE_LG &&
+                    x < L.px + L.pw - WUBU_SPACE_LG &&
+                    y >= ry && y < ry + WUBU_START_RESULT_H) {
                     startmenu_activate(results[i]);
                     startmenu_close();
                     return;
                 }
-                ry += 46;
+                ry += WUBU_START_RESULT_PITCH;
             }
         }
         return;
@@ -470,8 +490,8 @@ static void startmenu_win11_click(int x, int y) {
     int n = g_recent_count < 6 ? g_recent_count : 6;
     for (int i = 0; i < n; i++) {
         int col = i % L.rec_cols, row = i / L.rec_cols;
-        int ix = L.rec_x + col * (L.rec_item_w + 8);
-        int iy = L.rec_y + row * (L.rec_item_h + 4);
+        int ix = L.rec_x + col * (L.rec_item_w + WUBU_SPACE_SM);
+        int iy = L.rec_y + row * (L.rec_item_h + WUBU_SPACE_XS);
         if (x >= ix && x < ix + L.rec_item_w &&
             y >= iy && y < iy + L.rec_item_h) {
             launch_app(g_recent[i].name);
@@ -495,14 +515,14 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     int mh = menu_item_h();
     int mw = menu_w();
     int sw = sidebar_w();
-    int menu_y = fb_h - task_h - (g_main_count * mh + 4);
+    int menu_y = fb_h - task_h - (g_main_count * mh + WUBU_SPACE_XS);
 
     /* Main menu background */
-    int main_h = g_main_count * mh + 4;
+    int main_h = g_main_count * mh + WUBU_SPACE_XS;
     
     if (t->Luna_start_button) {
         /* XP Style: blue panel + gradient sidebar (the iconic Luna look). */
-        vbe_shade_rect(MENU_X + 2, menu_y + 2, mw, main_h);
+        vbe_shade_rect(MENU_X + WUBU_SPACE_2XS, menu_y + WUBU_SPACE_2XS, mw, main_h);
         vbe_fill_rect_rounded(MENU_X, menu_y, mw, main_h, WUBU_METRIC_RADIUS_CONTROL, tc()->startmenu_bg);
         vbe_rect_rounded(MENU_X, menu_y, mw, main_h, WUBU_METRIC_RADIUS_CONTROL, tc()->border_dark);
 
@@ -513,21 +533,26 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
         vbe_rect_rounded(MENU_X, menu_y, sw, main_h, WUBU_METRIC_RADIUS_CONTROL, tc()->border_dark);
 
         /* Header banner: a small 4-pane orb logo + bold "WuBuOS" wordmark. */
-        int hdr = 26;
-        vbe_vgradient(MENU_X + 4, menu_y + 4, sw - 8, hdr - 4,
+        int hdr = WUBU_START_SIDEBAR_HDR_H;
+        vbe_vgradient(MENU_X + WUBU_SPACE_XS, menu_y + WUBU_SPACE_XS,
+                      sw - 2 * WUBU_SPACE_XS, hdr - WUBU_SPACE_XS,
                       tc()->startmenu_sidebar, tc()->startmenu_sidebar_grad_end);
-        /* Orb: four coloured quadrants (Windows-flag style) inside a 16x16 box. */
-        int ox = MENU_X + 8, oy = menu_y + 8;
-        vbe_fill_rect(ox,      oy,      7, 7, 0xF24C3E); /* red TL */
-        vbe_fill_rect(ox + 8,  oy,      7, 7, 0x6FCF3C); /* green TR */
-        vbe_fill_rect(ox,      oy + 8,  7, 7, 0x39A0EC); /* blue BL */
-        vbe_fill_rect(ox + 8,  oy + 8,  7, 7, 0xFFC90E); /* yellow BR */
-        vbe_draw_text(MENU_X + 8, menu_y + hdr + 2, "WuBuOS", 0xFFFFFF, 1);
+        /* Orb: four coloured quadrants (Windows-flag style) inside a 16x16
+         * box. The quadrant colours are brand-art, not theme surface. */
+        int ox = MENU_X + WUBU_SPACE_SM, oy = menu_y + WUBU_SPACE_SM;
+        vbe_fill_rect(ox,      oy,      7, 7, 0xF24C3E); /* brand-art red TL */
+        vbe_fill_rect(ox + 8,  oy,      7, 7, 0x6FCF3C); /* brand-art green TR */
+        vbe_fill_rect(ox,      oy + 8,  7, 7, 0x39A0EC); /* brand-art blue BL */
+        vbe_fill_rect(ox + 8,  oy + 8,  7, 7, 0xFFC90E); /* brand-art yellow BR */
+        vbe_draw_text(MENU_X + WUBU_SPACE_SM, menu_y + hdr + WUBU_SPACE_2XS,
+                      "WuBuOS", tc()->startmenu_text, 1);
 
         /* Footer: Log off / Turn Off (as in XP). */
-        if (main_h > 80) {
-            vbe_draw_text(MENU_X + 4, menu_y + main_h - 30, "Log off", 0xDDDDDD, 1);
-            vbe_draw_text(MENU_X + 4, menu_y + main_h - 18, "Turn Off", 0xDDDDDD, 1);
+        if (main_h > WUBU_START_FOOT_MIN_H) {
+            vbe_draw_text(MENU_X + WUBU_SPACE_XS, menu_y + main_h - WUBU_START_LOGOFF_DY,
+                          "Log off", WUBU_START_SIDEBAR_TEXT_DIM, 1);
+            vbe_draw_text(MENU_X + WUBU_SPACE_XS, menu_y + main_h - WUBU_START_POWEROFF_DY,
+                          "Turn Off", WUBU_START_SIDEBAR_TEXT_DIM, 1);
         }
     } else {
         /* Win98 Style */
@@ -538,21 +563,19 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
     }
 
     /* Main menu items */
-    int content_x = MENU_X + sw + 4;
-    int content_w = mw - sw - 8;
+    int content_x = MENU_X + sw + WUBU_SPACE_XS;
+    int content_w = mw - sw - 2 * WUBU_SPACE_XS;
 
     for (int i = 0; i < g_main_count; i++) {
         MainMenuItem *mi = &g_main_items[i];
-        int iy = menu_y + 2 + i * mh;
+        int iy = menu_y + WUBU_SPACE_2XS + i * mh;
 
         if (mi->type == 2) {
             /* Separator */
             int sep_y = iy + mh / 2;
-            if (t->rounded_buttons) {
-                vbe_hline(content_x + 4, content_x + content_w - 4, sep_y, tc()->border_dark);
-            } else {
-                vbe_hline(MENU_X + 4, MENU_X + mw - 4, sep_y, 0x808080);
-            }
+            int sx0 = t->rounded_buttons ? content_x : MENU_X;
+            int sx1 = t->rounded_buttons ? content_x + content_w : MENU_X + mw;
+            vbe_hline(sx0 + WUBU_SPACE_XS, sx1 - WUBU_SPACE_XS, sep_y, tc()->border_dark);
         } else {
             bool hovered = (i == g_hovered);
             bool has_submenu = (mi->type == 1);
@@ -571,7 +594,7 @@ void startmenu_render(uint32_t *fb, int fb_w, int fb_h) {
         }
         if (sub) {
             int sx = MENU_X + mw;
-            int sy = menu_y + 2 + g_submenu_open * mh;
+            int sy = menu_y + WUBU_SPACE_2XS + g_submenu_open * mh;
             draw_submenu(sx, sy, sub);
         }
     }
@@ -591,14 +614,14 @@ void startmenu_handle_click(int x, int y) {
     int mh = menu_item_h();
     int mw = menu_w();
     int sw = sidebar_w();
-    int menu_y = wm_screen_h() - task_h - (g_main_count * mh + 4);
+    int menu_y = wm_screen_h() - task_h - (g_main_count * mh + WUBU_SPACE_XS);
 
-    int content_x = MENU_X + sw + 4;
+    int content_x = MENU_X + sw + WUBU_SPACE_XS;
     (void)content_x;
 
     /* Check main menu bounds */
     if (x < MENU_X || x >= MENU_X + mw ||
-        y < menu_y || y >= menu_y + g_main_count * mh + 4) {
+        y < menu_y || y >= menu_y + g_main_count * mh + WUBU_SPACE_XS) {
         /* Check if click in submenu */
         if (g_submenu_open >= 0) {
             SmSubmenu *sub = NULL;
@@ -610,11 +633,11 @@ void startmenu_handle_click(int x, int y) {
             }
             if (sub) {
                 int sx = MENU_X + mw;
-                int sy = menu_y + 2 + g_submenu_open * mh;
-                int sh = sub->item_count * mh + 4;
+                int sy = menu_y + WUBU_SPACE_2XS + g_submenu_open * mh;
+                int sh = sub->item_count * mh + WUBU_SPACE_XS;
                 if (x >= sx && x < sx + submenu_w() && y >= sy && y < sy + sh) {
                     /* Click in submenu */
-                    int idx = (y - sy - 2) / mh;
+                    int idx = (y - sy - WUBU_SPACE_2XS) / mh;
                     if (idx >= 0 && idx < sub->item_count) {
                         SmMenuItem *item = &sub->items[idx];
                         if (item->type == SM_ITEM_APP) {
@@ -638,7 +661,7 @@ void startmenu_handle_click(int x, int y) {
         return;
     }
 
-    int idx = (y - menu_y - 2) / mh;
+    int idx = (y - menu_y - WUBU_SPACE_2XS) / mh;
     if (idx < 0 || idx >= g_main_count) return;
 
     MainMenuItem *mi = &g_main_items[idx];
@@ -676,10 +699,10 @@ void startmenu_track_hover(int x, int y) {
     int mh = menu_item_h();
     int mw = menu_w();
     int sw = sidebar_w();
-    int menu_y = wm_screen_h() - task_h - (g_main_count * mh + 4);
+    int menu_y = wm_screen_h() - task_h - (g_main_count * mh + WUBU_SPACE_XS);
 
-    int content_x = MENU_X + sw + 4;
-    int content_w = mw - sw - 8;
+    int content_x = MENU_X + sw + WUBU_SPACE_XS;
+    int content_w = mw - sw - 2 * WUBU_SPACE_XS;
 
     /* Reset hover */
     g_hovered = -1;
@@ -688,8 +711,8 @@ void startmenu_track_hover(int x, int y) {
 
     /* Main menu hover */
     if (x >= content_x && x < content_x + content_w &&
-        y >= menu_y && y < menu_y + g_main_count * mh + 4) {
-        int idx = (y - menu_y - 2) / mh;
+        y >= menu_y && y < menu_y + g_main_count * mh + WUBU_SPACE_XS) {
+        int idx = (y - menu_y - WUBU_SPACE_2XS) / mh;
         if (idx >= 0 && idx < g_main_count && g_main_items[idx].type != 2) {
             g_hovered = idx;
         }
@@ -706,11 +729,11 @@ void startmenu_track_hover(int x, int y) {
         }
         if (sub) {
             int sx = MENU_X + mw;
-            int sy = menu_y + 2 + g_submenu_open * mh;
-            int sh = sub->item_count * mh + 4;
+            int sy = menu_y + WUBU_SPACE_2XS + g_submenu_open * mh;
+            int sh = sub->item_count * mh + WUBU_SPACE_XS;
             if (x >= sx && x < sx + submenu_w() && y >= sy && y < sy + sh) {
                 g_hover_submenu = g_submenu_open;
-                int idx = (y - sy - 2) / mh;
+                int idx = (y - sy - WUBU_SPACE_2XS) / mh;
                 if (idx >= 0 && idx < sub->item_count && sub->items[idx].type != SM_ITEM_SEPARATOR) {
                     g_sub_hovered = idx;
                 }
@@ -913,21 +936,27 @@ void startmenu_render_search_bar(uint32_t *fb, int fb_w, int fb_h, int menu_x, i
     
     if (!g_search.active && !g_search_mode) return;
     
-    int bar_h = 28;
-    int bar_y = menu_y - bar_h - 2;
-    int bar_w = w - 8;
+    int bar_h = WUBU_START_SEARCH_H;
+    int bar_y = menu_y - bar_h - WUBU_SPACE_2XS;
+    int bar_w = w - WUBU_SPACE_SM;
     
-    vbe_fill_rect_rounded(menu_x + 4, bar_y, bar_w, bar_h, 4, tc()->win_face);
-    vbe_3d_sunken_rounded_colors(menu_x + 4, bar_y, bar_w, bar_h, 4,
+    vbe_fill_rect_rounded(menu_x + WUBU_SPACE_XS, bar_y, bar_w, bar_h,
+                          WUBU_METRIC_RADIUS_CONTROL, tc()->win_face);
+    vbe_3d_sunken_rounded_colors(menu_x + WUBU_SPACE_XS, bar_y, bar_w, bar_h,
+                                  WUBU_METRIC_RADIUS_CONTROL,
                                   tc()->border_light, tc()->border_face,
                                   tc()->border_dark, tc()->border_darkest);
     
-    vbe_draw_text(menu_x + 10, bar_y + (bar_h - 8) / 2, "Search", tc()->icon_text_shadow, 1);
+    vbe_draw_text(menu_x + WUBU_START_SEARCH_PAD_X,
+                  bar_y + (bar_h - WUBU_FONT_CAP_H) / 2,
+                  "Search", tc()->icon_text_shadow, 1);
     
     char display[DOSGUI_SEARCH_MAX_LEN + 8];
     snprintf(display, sizeof(display), "%s%c", g_search.query, 
              (g_search.active && (time(NULL) * 2) % 2) ? '_' : ' ');
-    vbe_draw_text(menu_x + 80, bar_y + (bar_h - 8) / 2, display, tc()->win_title_text, 1);
+    vbe_draw_text(menu_x + WUBU_START_SEARCH_QUERY_X,
+                  bar_y + (bar_h - WUBU_FONT_CAP_H) / 2,
+                  display, tc()->win_title_text, 1);
 }
 
 void startmenu_render_recent(uint32_t *fb, int fb_w, int fb_h, int x, int y, int w, int max_items) {
@@ -937,16 +966,17 @@ void startmenu_render_recent(uint32_t *fb, int fb_w, int fb_h, int x, int y, int
     int count = startmenu_recent_get(entries, max_items);
     if (count == 0) return;
     
-    int item_h = 22;
+    int item_h = WUBU_MENU_RECENT_ROW_H;
     int ty = y;
     
     vbe_draw_text(x, ty, "Recently Used", tc()->win_title_text, 1);
-    ty += 20;
+    ty += WUBU_MENU_RECENT_HDR_DY;
     
     for (int i = 0; i < count; i++) {
         SmProgramEntry *e = entries[i];
         vbe_fill_rect(x, ty, w, item_h, tc()->startmenu_bg);
-        vbe_draw_text(x + 8, ty + (item_h - 8) / 2, e->name, tc()->startmenu_text, 1);
+        vbe_draw_text(x + WUBU_SPACE_SM, ty + (item_h - WUBU_FONT_CAP_H) / 2,
+                      e->name, tc()->startmenu_text, 1);
         ty += item_h;
     }
 }
