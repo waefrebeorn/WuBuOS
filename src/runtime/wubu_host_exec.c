@@ -23,6 +23,11 @@
 #include "styxfs.h"
 #include "wubu_ct_isolate.h"
 
+/* L9 forward declarations (definitions live below the Styx server). */
+static void ct_detach(WubuCt *ct);
+__attribute__((weak)) int wubu_ns_guests_sync(void);
+__attribute__((weak)) void wubu_ns_guests_forget(WubuCt *ct);
+
 /* -- State/Runtime Names ------------------------------------------- */
 
 const char *wubu_ct_state_name(CtState state) {
@@ -69,6 +74,7 @@ WubuCt *wubu_ct_create(const char *name, const char *root, CtRuntime runtime) {
     ct->gpu_passthrough = false;
     ct->net_enabled = true;
     ct->styx_fd = -1;
+    ct->styx_pid = 0;
     ct->n_binds = 0;
     
     return ct;
@@ -76,15 +82,16 @@ WubuCt *wubu_ct_create(const char *name, const char *root, CtRuntime runtime) {
 
 void wubu_ct_destroy(WubuCt *ct) {
     if (!ct) return;
+    /* Drop any /n/guests ownership pointer FIRST, so a sync triggered by the
+     * kill+wait below can never reap (free) the ct we are destroying. */
+    wubu_ns_guests_forget(ct);
     if (ct->state == CT_RUNNING) {
         wubu_ct_kill(ct, SIGKILL);
         wubu_ct_wait(ct);
     }
-    /* Close Styx socket */
-    if (ct->styx_fd >= 0) {
-        close(ct->styx_fd);
-        unlink(ct->styx_path);
-    }
+    /* Idempotent detach: stops/reaps the 9P server if still up, unregisters.
+     * No sync here -- ct is freed below and must not be touched afterwards. */
+    ct_detach(ct);
     /* Free argv/envp strings (if dynamically allocated) */
     for (int i = 0; i < WUBU_CT_MAX_ARGS; i++) {
         if (ct->argv[i]) { free(ct->argv[i]); ct->argv[i] = NULL; }
@@ -174,25 +181,72 @@ static int setup_styx_socket(WubuCt *ct) {
         return -1;
     }
     listen(ct->styx_fd, 5);
+    /* CLOEXEC: the container child's execv() must NOT inherit the listening
+     * socket. The 9P server child (forked below, never execs) keeps its copy. */
+    fcntl(ct->styx_fd, F_SETFD, FD_CLOEXEC);
     return 0;
 }
 
-/* -- Per-Container Styx 9P Server (Cell 414) ----------------------- */
+/* -- Per-Container Styx 9P Server (Cell 414, L9: switched ON) --------
+ *
+ * Runs PARENT-SIDE in its own forked process (the concurrency model of the
+ * hosted runtime is processes, not threads -- see hosted.c's buddy spawn).
+ * wubu_ct_start() forks it right after the listening socket exists; the
+ * container child never sees it (styx_fd is CLOEXEC, so execv drops it).
+ * wubu_ct_wait()/wubu_ct_state()/wubu_ct_destroy() stop and REAP it when the
+ * container exits -- no zombies, no orphaned servers.
+ *
+ * Wire framing (9P2000): every message -- T and R -- begins with a 4-byte
+ * LITTLE-endian size that COUNTS ITSELF. styx_serve() expects that prefix
+ * INSIDE inbuf, and its responses already carry it (styx_write_header).
+ * The original loop stripped the prefix on the way in and prepended a second
+ * one on the way out, so no real client could ever talk to it. Fixed here:
+ * read the whole frame into inbuf, hand it to styxfs_serve verbatim, write
+ * the response verbatim. */
+
+/* Read exactly n bytes; 0 on success, -1 on EOF/error/EINTR-exhausted. */
+static int read_exact(int fd, uint8_t *buf, uint32_t n) {
+    uint32_t got = 0;
+    while (got < n) {
+        ssize_t r = read(fd, buf + got, n - got);
+        if (r < 0) { if (errno == EINTR) continue; return -1; }
+        if (r == 0) return -1;
+        got += (uint32_t)r;
+    }
+    return 0;
+}
+
+/* Write exactly n bytes; 0 on success, -1 on error. */
+static int write_exact(int fd, const uint8_t *buf, uint32_t n) {
+    uint32_t done = 0;
+    while (done < n) {
+        ssize_t w = write(fd, buf + done, n - done);
+        if (w < 0) { if (errno == EINTR) continue; return -1; }
+        done += (uint32_t)w;
+    }
+    return 0;
+}
 
 static void run_container_styx_server(WubuCt *ct) {
     if (!ct || ct->styx_fd < 0) return;
-    
+
     /* Initialize StyxFS server */
     styxfs_server_t srv;
     styxfs_init(&srv);
-    
+
     /* Mount the container's root filesystem at / */
     styxfs_mount(&srv, "/", ct->root, 1);
-    
-    /* Set up signal handling for clean shutdown */
+
+    /* Set up signal handling for clean shutdown: the parent stops us with
+     * SIGTERM (default action terminates even while blocked in accept). */
     signal(SIGTERM, SIG_DFL);
     signal(SIGINT, SIG_DFL);
-    
+    signal(SIGPIPE, SIG_IGN);
+
+    /* One frame at a time; buffers sized for the protocol maximum so a
+     * hostile size field can never overflow them (validated below). */
+    static uint8_t inbuf[STYX_MAX_MSG], outbuf[STYX_MAX_MSG];
+
     /* Accept and serve connections */
     while (1) {
         struct sockaddr_un client_addr;
@@ -202,33 +256,24 @@ static void run_container_styx_server(WubuCt *ct) {
             if (errno == EINTR) continue;
             break;
         }
-        
+
         /* Serve this connection */
-        uint8_t inbuf[8192], outbuf[8192];
-        uint32_t inlen, outlen;
-        
         while (1) {
-            /* Read message length (4 bytes) */
-            ssize_t n = read(client_fd, &inlen, 4);
-            if (n <= 0) break;
-            
-            /* Read message body */
-            n = read(client_fd, inbuf, inlen);
-            if (n <= 0) break;
-            
-            /* Process via StyxFS */
-            outlen = sizeof(outbuf);
-            if (styxfs_serve(&srv, inbuf, inlen, outbuf, &outlen) == 0) {
-                write(client_fd, &outlen, 4);
-                write(client_fd, outbuf, outlen);
-            } else {
-                break;
-            }
+            /* Whole frame: 4-byte size prefix + body, prefix included. */
+            if (read_exact(client_fd, inbuf, 4) != 0) break;
+            uint32_t size = styx_get32(inbuf);
+            if (size < 7 || size > STYX_MAX_MSG) break;
+            if (read_exact(client_fd, inbuf + 4, size - 4) != 0) break;
+
+            uint32_t outlen = sizeof(outbuf);
+            if (styxfs_serve(&srv, inbuf, size, outbuf, &outlen) != 0) break;
+            /* outlen already includes the size prefix -- write verbatim. */
+            if (write_exact(client_fd, outbuf, outlen) != 0) break;
         }
-        
+
         close(client_fd);
     }
-    
+
     /* Cleanup */
     styxfs_mount_t *m = srv.mounts;
     while (m) {
@@ -238,17 +283,127 @@ static void run_container_styx_server(WubuCt *ct) {
     }
 }
 
+/* -- Running-Container Registry (single owner of live ct state) ----- */
+
+#define WUBU_CT_REGISTRY_MAX 64
+static WubuCt *g_ct_registry[WUBU_CT_REGISTRY_MAX];
+static int g_ct_registry_n = 0;
+
+int wubu_ct_registry_count(void) { return g_ct_registry_n; }
+
+WubuCt *wubu_ct_registry_get(int idx) {
+    if (idx < 0 || idx >= g_ct_registry_n) return NULL;
+    return g_ct_registry[idx];
+}
+
+WubuCt *wubu_ct_registry_find(const char *name) {
+    if (!name) return NULL;
+    for (int i = 0; i < g_ct_registry_n; i++)
+        if (strcmp(g_ct_registry[i]->name, name) == 0) return g_ct_registry[i];
+    return NULL;
+}
+
+static void ct_register(WubuCt *ct) {
+    if (!ct || wubu_ct_registry_find(ct->name)) return;
+    if (g_ct_registry_n >= WUBU_CT_REGISTRY_MAX) return;
+    g_ct_registry[g_ct_registry_n++] = ct;
+}
+
+static void ct_unregister(WubuCt *ct) {
+    for (int i = 0; i < g_ct_registry_n; i++) {
+        if (g_ct_registry[i] == ct) {
+            g_ct_registry[i] = g_ct_registry[--g_ct_registry_n];
+            g_ct_registry[g_ct_registry_n] = NULL;
+            return;
+        }
+    }
+}
+
+/* /n/guests publisher + ownership hook. Weak no-ops here so every link line
+ * that carries wubu_host_exec.o works without the namespace module; the real
+ * wubu_ns_guests.o overrides them at link time (product + guests gates). */
+__attribute__((weak)) int wubu_ns_guests_sync(void) { return -1; }
+__attribute__((weak)) void wubu_ns_guests_forget(WubuCt *ct) { (void)ct; }
+
+/* Stop and REAP the parent-side 9P server, close the listening socket.
+ * Idempotent: safe to call from wait, state-poll and destroy. */
+static void ct_stop_styx(WubuCt *ct) {
+    if (ct->styx_pid > 0) {
+        pid_t spid = (pid_t)ct->styx_pid;
+        kill(spid, SIGTERM);
+        /* Bounded reap: SIGTERM's default action kills even a server blocked
+         * in accept(); escalate to SIGKILL only if it somehow lingers. */
+        int tries = 0;
+        pid_t r;
+        while ((r = waitpid(spid, NULL, WNOHANG)) == 0 && tries++ < 200)
+            usleep(10000);                       /* up to ~2 s */
+        if (r == 0) {
+            kill(spid, SIGKILL);
+            waitpid(spid, NULL, 0);
+        }
+        ct->styx_pid = 0;                        /* reaped -- no zombie */
+    }
+    if (ct->styx_fd >= 0) {
+        close(ct->styx_fd);
+        ct->styx_fd = -1;
+        unlink(ct->styx_path);
+    }
+}
+
+/* Detach a container from the live set: stop its 9P server, unregister.
+ * No namespace sync here -- callers that may free ct afterwards must not
+ * trigger a sync that reaps OTHER containers re-entrantly. */
+static void ct_detach(WubuCt *ct) {
+    ct_stop_styx(ct);
+    ct_unregister(ct);
+}
+
+/* Full retirement on container exit: detach + refresh /n/guests. The sync
+ * may destroy ns-launched containers (the guests module owns those), so
+ * callers MUST capture return values into locals BEFORE calling this. */
+static void ct_retire(WubuCt *ct) {
+    ct_detach(ct);
+    wubu_ns_guests_sync();
+}
+
 /* -- Container Start (fork + chroot + exec) ----------------------- */
 
 int wubu_ct_start(WubuCt *ct) {
     if (!ct || ct->state == CT_RUNNING) return -1;
     if (!ct->argv[0]) return -1;
-    
+    /* One running guest per name: the Styx socket path and /n/guests entry
+     * are both keyed by name, so a duplicate would clobber the live one. */
+    if (wubu_ct_registry_find(ct->name)) return -1;
+
     ct->state = CT_STARTING;
-    
+
     /* Setup per-container Styx namespace socket */
     if (setup_styx_socket(ct) != 0) {
         /* Non-fatal  --  container can run without 9P namespace */
+    }
+
+    /* L9: run the per-container 9P server PARENT-SIDE, in its own process.
+     * Forked here (before the container fork) so it inherits the listening
+     * socket but none of the child's isolation/chroot/exec. Its lifecycle is
+     * tied to the container: ct_retire() stops and reaps it on exit. */
+    if (ct->styx_fd >= 0) {
+        pid_t spid = fork();
+        if (spid == 0) {
+            /* Server child: die if the parent dies first (no orphans), then
+             * serve until SIGTERM from ct_stop_styx(). Never execs. */
+            prctl(PR_SET_PDEATHSIG, SIGTERM);
+            if (getppid() == 1) _exit(0);   /* parent already gone */
+            run_container_styx_server(ct);
+            _exit(0);
+        }
+        if (spid > 0) {
+            ct->styx_pid = (int)spid;
+        } else {
+            /* Server fork failed -- non-fatal, run without 9P namespace. */
+            close(ct->styx_fd);
+            ct->styx_fd = -1;
+            unlink(ct->styx_path);
+        }
     }
     
     /* Add GPU bind mounts if requested */
@@ -351,15 +506,10 @@ int wubu_ct_start(WubuCt *ct) {
             }
         }
         
-        /* Cell 414: Start per-container Styx 9P server
-         *
-         * NOTE: For production, the Styx server should be managed by the
-         * parent (container manager), not forked from the child. The child
-         * is about to execv() and can't manage grandchild processes.
-         * For now we skip server fork — it will be re-integrated when
-         * the container manager is refactored as a proper supervisor.
-         */
-        (void)run_container_styx_server;
+        /* Cell 414 / L9: the per-container Styx 9P server runs PARENT-SIDE
+         * (forked in wubu_ct_start before this child). The child is about to
+         * execv() and must not carry a server grandchild -- styx_fd is
+         * CLOEXEC so the exec drops the listening socket here. */
 
         /* Execute */
         execv(ct->argv[0], ct->argv);
@@ -388,7 +538,11 @@ int wubu_ct_start(WubuCt *ct) {
 
     ct->pid = pid;
     ct->state = CT_RUNNING;
-    
+
+    /* L9: register in the live-container registry and publish /n/guests. */
+    ct_register(ct);
+    wubu_ns_guests_sync();
+
     return 0;
 }
 
@@ -396,10 +550,13 @@ int wubu_ct_start(WubuCt *ct) {
 
 int wubu_ct_wait(WubuCt *ct) {
     if (!ct || ct->pid <= 0) return -1;
-    
+
     int status = 0;
     pid_t ret = waitpid(ct->pid, &status, 0);
-    
+    /* Capture into a local BEFORE retiring: ct_retire() -> guests sync may
+     * destroy (free) an ns-launched ct, so ct must not be read afterwards. */
+    int code = ct->exit_code;
+
     if (ret == ct->pid) {
         if (WIFEXITED(status)) {
             ct->exit_code = WEXITSTATUS(status);
@@ -410,9 +567,13 @@ int wubu_ct_wait(WubuCt *ct) {
         }
         ct->state = CT_EXITED;
         ct->pid = 0;
+        code = ct->exit_code;
+        /* L9: container exited -- stop/reap its 9P server, unregister,
+         * refresh /n/guests. */
+        ct_retire(ct);
     }
-    
-    return ct->exit_code;
+
+    return code;
 }
 
 /* -- Container Kill ----------------------------------------------- */
@@ -427,7 +588,10 @@ int wubu_ct_kill(WubuCt *ct, int sig) {
 
 CtState wubu_ct_state(WubuCt *ct) {
     if (!ct) return CT_STOPPED;
-    
+
+    /* Local capture: retirement below may free an ns-launched ct. */
+    CtState s = ct->state;
+
     /* Check if running process has exited */
     if (ct->state == CT_RUNNING && ct->pid > 0) {
         int status = 0;
@@ -439,10 +603,13 @@ CtState wubu_ct_state(WubuCt *ct) {
                 ct->exit_code = -WTERMSIG(status);
             ct->state = CT_EXITED;
             ct->pid = 0;
+            s = CT_EXITED;
+            /* L9: exited -- stop/reap the 9P server, unregister, sync /n. */
+            ct_retire(ct);
         }
     }
-    
-    return ct->state;
+
+    return s;
 }
 
 /* -- Preset: SteamOS Container ------------------------------------ */
