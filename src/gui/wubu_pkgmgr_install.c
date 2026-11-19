@@ -9,6 +9,7 @@
 
 #include "../egojar.h"
 #include "wubu_pkgmgr_internal.h"
+#include "../runtime/wubu_pkg.h"   /* pkg_version_cmp: the ONE version comparator */
 
 #include <glob.h>
 
@@ -36,11 +37,79 @@ static int cb_pkg_installed(void *data, int argc, char **argv, char **col) {
 
 /* -- File Installation ------------------------------------------- */
 
-bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *install_root) {
+/* A manifest path is untrusted package content.  Only relative paths with
+ * no "." / ".." components may be copied, so a payload can never escape
+ * its install root (or read outside the extracted payload). */
+static bool safe_rel_path(const char *s) {
+    if (!s || !s[0] || s[0] == '/') return false;
+    const char *p = s;
+    while (*p) {
+        const char *slash = strchr(p, '/');
+        size_t len = slash ? (size_t)(slash - p) : strlen(p);
+        if (len == 0) return false;                    /* empty component */
+        if (len == 1 && p[0] == '.') return false;
+        if (len == 2 && p[0] == '.' && p[1] == '.') return false;
+        if (!slash) break;
+        p = slash + 1;
+    }
+    return true;
+}
+
+/* Package ids become directory names (temp dir + install root).  Restrict
+ * them to a conservative charset so manifest content cannot steer paths. */
+static bool valid_pkg_id(const char *id) {
+    if (!id || !id[0]) return false;
+    if (!((id[0] >= 'a' && id[0] <= 'z') || (id[0] >= 'A' && id[0] <= 'Z') ||
+          (id[0] >= '0' && id[0] <= '9'))) return false;
+    for (const char *p = id; *p; p++) {
+        char c = *p;
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+              (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.'))
+            return false;
+    }
+    if (strstr(id, "..")) return false;
+    return true;
+}
+
+/* Record one installed file in the files table (bound parameters: paths
+ * come from untrusted manifest content).  This is the bookkeeping that
+ * makes wubu_pkgmgr_verify_installed() meaningful. */
+static bool record_installed_file(const char *pkg_id, const char *rel_path,
+                                  uint64_t size, const char *sha_hex) {
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT OR REPLACE INTO files (pkg_id, path, size, sha256) "
+            "VALUES (?1, ?2, ?3, ?4)", -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    sqlite3_bind_text(stmt, 1, pkg_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text(stmt, 2, rel_path, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int64(stmt, 3, (sqlite3_int64)size);
+    sqlite3_bind_text(stmt, 4, sha_hex, -1, SQLITE_TRANSIENT);
+    bool ok = sqlite3_step(stmt) == SQLITE_DONE;
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+/* Copy every manifest file from the extracted payload (src_root) into the
+ * package's TRUE install root (install_root = <prefix>/<id>), recording
+ * each copied file's path/size/sha256 in the files table.  dst is relative
+ * to install_root, so the DB install_path, the on-disk layout and
+ * verify_installed()'s install_path+rel_path join all agree. */
+bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *src_root,
+                           const char *install_root, uint64_t *out_total_size) {
+    if (out_total_size) *out_total_size = 0;
     char src[1024], dst[1024];
     for (int i = 0; i < manifest->n_files; i++) {
-        snprintf(src, sizeof(src), "%s/%s", install_root, manifest->files[i].src);
-        snprintf(dst, sizeof(dst), "%s/%s", g_pkgmgr.config.install_prefix, manifest->files[i].dst);
+        if (!safe_rel_path(manifest->files[i].src) ||
+            !safe_rel_path(manifest->files[i].dst)) {
+            fprintf(stderr, "[pkgmgr] refusing unsafe payload path '%s' -> '%s'\n",
+                    manifest->files[i].src, manifest->files[i].dst);
+            return false;
+        }
+        snprintf(src, sizeof(src), "%s/%s", src_root, manifest->files[i].src);
+        snprintf(dst, sizeof(dst), "%s/%s", install_root, manifest->files[i].dst);
 
         char dir[1024];
         strncpy(dir, dst, sizeof(dir) - 1);
@@ -49,11 +118,18 @@ bool install_package_files(const wubu_pkg_manifest_t *manifest, const char *inst
         if (last_slash) *last_slash = '\0';
         ensure_dir(dir);
 
-        if (copy_file(src, dst)) {
-            chmod(dst, manifest->files[i].mode);
-        } else {
+        if (!copy_file(src, dst)) return false;
+        chmod(dst, manifest->files[i].mode);
+
+        /* Bookkeeping: hash the file AS INSTALLED and record it. */
+        struct stat st;
+        if (stat(dst, &st) != 0) return false;
+        char hex[65];
+        if (!wubu_pkgmgr_hash_file(dst, hex, sizeof(hex))) return false;
+        if (!record_installed_file(manifest->id, manifest->files[i].dst,
+                                   (uint64_t)st.st_size, hex))
             return false;
-        }
+        if (out_total_size) *out_total_size += (uint64_t)st.st_size;
     }
     return true;
 }
@@ -105,19 +181,34 @@ void generate_desktop_entry(const wubu_pkg_manifest_t *manifest, int entry_idx, 
 
 /* -- Install lifecycle ------------------------------------------- */
 
+/* rm -rf a directory tree via fork+exec (no system()). */
+static void remove_tree(const char *path) {
+    if (!path || !path[0]) return;
+    pid_t rm_pid = fork();
+    if (rm_pid == 0) {
+        execlp("rm", "rm", "-rf", path, (char *)NULL);
+        _exit(1);
+    }
+    if (rm_pid > 0) waitpid(rm_pid, NULL, 0);
+}
+
 bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
     pkgmgr_progress("install", pkg_spec, 0.1, "Resolving package");
 
     wubu_pkg_manifest_t *manifest = calloc(1, sizeof(wubu_pkg_manifest_t));
     if (!manifest) return false;
     bool is_local = (strstr(pkg_spec, ".wubu") != NULL);
-    bool ret = false;
+    /* The actual .wubu file to extract: the local path, or the verified
+     * cache artifact for a remote install.  Never the package id. */
+    char pkg_path[512];
+    pkg_path[0] = '\0';
 
     if (is_local) {
         if (!extract_pkg_manifest(pkg_spec, manifest)) {
             free(manifest);
             return false;
         }
+        snprintf(pkg_path, sizeof(pkg_path), "%s", pkg_spec);
     } else {
         /* Search repos via facade */
         wubu_pkg_repo_entry_t repo_pkg;
@@ -131,17 +222,47 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
         snprintf(cache_path, sizeof(cache_path), "%s/%s-%s.wubu",
                  g_pkgmgr.config.cache_dir, repo_pkg.id, repo_pkg.version);
 
-        /* In production: TLS download via libcurl (gated behind WUBU_HAVE_CURL).
-         * For now assume the .wubu is already cached, matching the test harness. */
-        if (!extract_pkg_manifest(cache_path, manifest)) {
-            /* Fall back to treating pkg_spec as a path */
-            if (!extract_pkg_manifest(pkg_spec, manifest)) {
+        /* Local-cache fast path: reuse the cached .wubu ONLY when it still
+         * matches the index's sha256.  A stale or tampered cache entry is
+         * discarded and re-fetched; a missing index hash fails closed in
+         * the fetch leaf. */
+        bool cached_ok = false;
+        if (access(cache_path, R_OK) == 0) {
+            char hex[65], want[65];
+            snprintf(want, sizeof(want), "%s", repo_pkg.sha256);
+            for (char *q = want; *q; q++)
+                if (*q >= 'A' && *q <= 'F') *q = (char)(*q - 'A' + 'a');
+            if (want[0] &&
+                wubu_pkgmgr_hash_file(cache_path, hex, sizeof(hex)) &&
+                strcmp(hex, want) == 0) {
+                cached_ok = true;
+            } else {
+                remove_tree(cache_path);
+            }
+        }
+        if (!cached_ok) {
+            /* REAL download over HTTP with a sha256 gate BEFORE extract.
+             * Fails closed on missing hash, fetch error, or mismatch. */
+            if (!wubu_pkgmgr_fetch_package(&repo_pkg, cache_path)) {
+                fprintf(stderr, "[pkgmgr] install refused: payload for '%s' could not be "
+                                "downloaded and verified\n", pkg_spec);
                 free(manifest);
                 return false;
             }
         }
 
+        if (!extract_pkg_manifest(cache_path, manifest)) {
+            free(manifest);
+            return false;
+        }
+        snprintf(pkg_path, sizeof(pkg_path), "%s", cache_path);
         pkg_spec = manifest->id;
+    }
+
+    if (!valid_pkg_id(manifest->id)) {
+        fprintf(stderr, "[pkgmgr] install refused: unsafe package id '%s'\n", manifest->id);
+        free(manifest);
+        return false;
     }
 
     pkgmgr_progress("install", pkg_spec, 0.5, "Checking dependencies");
@@ -170,35 +291,38 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
 
     char temp_dir[512];
     snprintf(temp_dir, sizeof(temp_dir), "/tmp/wubu_install_%s", manifest->id);
-    {
-        pid_t rm_pid = fork();
-        if (rm_pid == 0) {
-            execlp("rm", "rm", "-rf", temp_dir, (char *)NULL);
-            _exit(1);
-        }
-        if (rm_pid > 0) waitpid(rm_pid, NULL, 0);
-    }
+    remove_tree(temp_dir);
     ensure_dir(temp_dir);
 
+    /* install_root is the TRUE root of the copied layout: every manifest
+     * dst lands under it, and the DB install_path records exactly it, so
+     * remove and verify_installed operate on the real payload. */
     char install_root[512];
     snprintf(install_root, sizeof(install_root), "%s/%s", g_pkgmgr.config.install_prefix, manifest->id);
     ensure_dir(install_root);
 
     /* Unpack the .wubu payload into temp_dir so install_package_files() has
      * real files to copy into install_root. We extract relative to temp_dir,
-     * which mirrors the package's payload layout (tar archived "."). */
-    if (!wubu_pkgmgr_extract_package(pkg_spec, temp_dir)) {
+     * which mirrors the package's payload layout (tar archived ".") */
+    if (!wubu_pkgmgr_extract_package(pkg_path, temp_dir)) {
         fprintf(stderr, "[pkgmgr] Failed to extract payload\n");
+        remove_tree(temp_dir);
+        remove_tree(install_root);
         free(installed);
         free(manifest);
         return false;
     }
 
-    if (!install_package_files(manifest, temp_dir)) {
+    uint64_t total_size = 0;
+    if (!install_package_files(manifest, temp_dir, install_root, &total_size)) {
+        fprintf(stderr, "[pkgmgr] Failed to install payload files\n");
+        remove_tree(temp_dir);
+        remove_tree(install_root);
         free(installed);
         free(manifest);
         return false;
     }
+    remove_tree(temp_dir);
 
     pkgmgr_progress("install", pkg_spec, 0.85, "Registering desktop entries");
     for (int i = 0; i < manifest->n_entrypoints; i++) {
@@ -212,24 +336,62 @@ bool wubu_pkgmgr_install(const char *pkg_spec, bool dry_run) {
     char date[32];
     strftime(date, sizeof(date), "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
 
-    char sql[2048];
-    snprintf(sql, sizeof(sql),
-        "INSERT INTO packages (id, name, version, description, maintainer, homepage, license, "
-        "manifest_json, install_path, install_date, auto_installed, size_bytes, payload_type, arch, sandbox_profile) "
-        "VALUES ('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', 0, 0, %d, %d, '%s')",
-        manifest->id, manifest->name, manifest->version, manifest->description,
-        manifest->maintainer, manifest->homepage, manifest->license,
-        manifest_json ? manifest_json : "", install_root, date,
-        (int)manifest->payload_type, (int)manifest->arch, manifest->sandbox_profile);
+    /* Bound parameters: every value here originates in untrusted package
+     * content.  Check the result -- a failed registration (e.g. the id is
+     * already installed) must fail the install, not report success. */
+    bool db_ok = false;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db,
+            "INSERT INTO packages (id, name, version, description, maintainer, homepage, "
+            "license, manifest_json, install_path, install_date, auto_installed, size_bytes, "
+            "payload_type, arch, sandbox_profile) "
+            "VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, ?11, ?12, ?13, ?14)",
+            -1, &stmt, NULL) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, manifest->id, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 2, manifest->name, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 3, manifest->version, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 4, manifest->description, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 5, manifest->maintainer, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 6, manifest->homepage, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 7, manifest->license, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 8, manifest_json ? manifest_json : "", -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 9, install_root, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 10, date, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_int64(stmt, 11, (sqlite3_int64)total_size);
+        sqlite3_bind_int(stmt, 12, (int)manifest->payload_type);
+        sqlite3_bind_int(stmt, 13, (int)manifest->arch);
+        sqlite3_bind_text(stmt, 14, manifest->sandbox_profile, -1, SQLITE_TRANSIENT);
+        db_ok = sqlite3_step(stmt) == SQLITE_DONE;
+        sqlite3_finalize(stmt);
+    }
     free(manifest_json);
 
-    db_exec(sql);
+    if (!db_ok) {
+        fprintf(stderr, "[pkgmgr] Failed to register package '%s' in database\n", manifest->id);
+        /* Fail closed: undo the copied payload and its file records. */
+        remove_tree(install_root);
+        sqlite3_stmt *del = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, "DELETE FROM files WHERE pkg_id=?1",
+                               -1, &del, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(del, 1, manifest->id, -1, SQLITE_TRANSIENT);
+            sqlite3_step(del);
+            sqlite3_finalize(del);
+        }
+        free(installed);
+        free(manifest);
+        return false;
+    }
 
     for (int i = 0; i < manifest->n_depends; i++) {
-        snprintf(sql, sizeof(sql),
-            "INSERT INTO deps (pkg_id, dep_id, dep_version, optional) VALUES ('%s', '%s', '', 0)",
-            manifest->id, manifest->depends[i]);
-        db_exec(sql);
+        sqlite3_stmt *dstmt = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db,
+                "INSERT OR REPLACE INTO deps (pkg_id, dep_id, dep_version, optional) "
+                "VALUES (?1, ?2, '', 0)", -1, &dstmt, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(dstmt, 1, manifest->id, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(dstmt, 2, manifest->depends[i], -1, SQLITE_TRANSIENT);
+            sqlite3_step(dstmt);
+            sqlite3_finalize(dstmt);
+        }
     }
 
     pkgmgr_progress("install", pkg_spec, 1.0, "Install complete");
@@ -260,12 +422,9 @@ bool wubu_pkgmgr_remove(const char *pkg_id, bool auto_remove_deps) {
 
     pkgmgr_progress("remove", pkg_id, 0.5, "Removing files");
 
-    pid_t rm_pid = fork();
-    if (rm_pid == 0) {
-        execlp("rm", "rm", "-rf", pkg.install_path, (char *)NULL);
-        _exit(1);
-    }
-    if (rm_pid > 0) waitpid(rm_pid, NULL, 0);
+    /* install_path is the TRUE payload root (install copies under it), so
+     * this removes the actual installed files, not an empty directory. */
+    remove_tree(pkg.install_path);
 
     char desktop_pattern[512];
     snprintf(desktop_pattern, sizeof(desktop_pattern), "%s/share/applications/%s-*.desktop",
@@ -284,6 +443,17 @@ bool wubu_pkgmgr_remove(const char *pkg_id, bool auto_remove_deps) {
     db_exec(sql);
     snprintf(sql, sizeof(sql), "DELETE FROM deps WHERE pkg_id='%s'", pkg_id);
     db_exec(sql);
+    /* Drop the file bookkeeping too, or verify_installed would keep
+     * reporting a removed package as broken forever. */
+    {
+        sqlite3_stmt *del = NULL;
+        if (sqlite3_prepare_v2(g_pkgmgr.db, "DELETE FROM files WHERE pkg_id=?1",
+                               -1, &del, NULL) == SQLITE_OK) {
+            sqlite3_bind_text(del, 1, pkg_id, -1, SQLITE_TRANSIENT);
+            sqlite3_step(del);
+            sqlite3_finalize(del);
+        }
+    }
 
     pkgmgr_progress("remove", pkg_id, 1.0, "Remove complete");
     return true;
@@ -300,7 +470,9 @@ bool wubu_pkgmgr_upgrade(const char *pkg_spec, bool dry_run) {
         return false; /* Not in repo */
     }
 
-    if (strcmp(installed.manifest.version, repo.version) >= 0) {
+    /* Numeric version comparison (1.10 > 1.9).  strcmp got this wrong;
+     * pkg_version_cmp in src/runtime/wubu_pkg.c is the single owner. */
+    if (pkg_version_cmp(installed.manifest.version, repo.version) >= 0) {
         return true; /* Already up to date */
     }
 

@@ -236,9 +236,15 @@ int oci_http_recv(OciHttpClient *client, void *buf, size_t buf_size, size_t *out
     return total > 0 ? 0 : -1;
 }
 
-int oci_http_request(OciHttpClient *client, const char *method, const char *path,
-                     const char *extra_headers, const void *body, size_t body_len,
-                     char *response, size_t resp_size) {
+/* Binary-safe request: identical to oci_http_request() but also reports the
+ * exact body length via out_body_len (may be NULL).  The body is moved to the
+ * start of `response` and NUL-terminated for text callers, but the bytes
+ * themselves are preserved verbatim -- binary payloads (e.g. .wubu packages)
+ * must be read with the returned length, never with strlen(). */
+int oci_http_request_body(OciHttpClient *client, const char *method, const char *path,
+                          const char *extra_headers, const void *body, size_t body_len,
+                          char *response, size_t resp_size, size_t *out_body_len) {
+    if (out_body_len) *out_body_len = 0;
     char request[OCI_HTTP_BUF_SIZE];
     int n = snprintf(request, sizeof(request),
                      "%s %s HTTP/1.1\r\n"
@@ -288,14 +294,23 @@ int oci_http_request(OciHttpClient *client, const char *method, const char *path
     const char *body_start = strstr(response, "\r\n\r\n");
     if (body_start) {
         body_start += 4;
-        size_t body_len = recv_len - (body_start - response);
-        memmove(response, body_start, body_len);
-        response[body_len] = '\0';
+        size_t resp_body_len = recv_len - (body_start - response);
+        memmove(response, body_start, resp_body_len);
+        response[resp_body_len] = '\0';
+        if (out_body_len) *out_body_len = resp_body_len;
     } else {
         response[0] = '\0';
     }
 
     return 0;
+}
+
+/* Text-oriented wrapper: same behavior as before, body length discarded. */
+int oci_http_request(OciHttpClient *client, const char *method, const char *path,
+                     const char *extra_headers, const void *body, size_t body_len,
+                     char *response, size_t resp_size) {
+    return oci_http_request_body(client, method, path, extra_headers, body, body_len,
+                                 response, resp_size, NULL);
 }
 
 /* Parse WWW-Authenticate header for Bearer token */

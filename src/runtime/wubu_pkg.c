@@ -5,6 +5,8 @@
 #include "wubu_pkg.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>   /* strtoul: without this the implicit int declaration
+                       * truncates version components on 64-bit hosts */
 
 void pkg_init(PkgManager *mgr) {
     memset(mgr, 0, sizeof(*mgr));

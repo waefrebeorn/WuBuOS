@@ -58,6 +58,8 @@ static const char SCHEMA_SQL[] =
     "  description TEXT,"
     "  deps TEXT,"
     "  size_bytes INTEGER,"
+    "  download_url TEXT DEFAULT '',"
+    "  sha256 TEXT DEFAULT '',"
     "  PRIMARY KEY (id, repo_name)"
     ");"
     "CREATE TABLE IF NOT EXISTS deps ("
@@ -86,6 +88,34 @@ static const char SCHEMA_SQL[] =
 
 /* -- Initialize ---------------------------------------------------- */
 
+/* Migrate pre-existing databases: CREATE TABLE IF NOT EXISTS leaves an old
+ * repo_packages table untouched, so columns added later must be ALTERed in.
+ * Returns false only on a real SQLite failure (a missing column that cannot
+ * be added would break every index insert downstream). */
+static bool migrate_repo_packages(void) {
+    bool have_url = false, have_sha = false;
+    sqlite3_stmt *stmt = NULL;
+    if (sqlite3_prepare_v2(g_pkgmgr.db, "PRAGMA table_info(repo_packages)",
+                           -1, &stmt, NULL) != SQLITE_OK) {
+        if (stmt) sqlite3_finalize(stmt);
+        return false;
+    }
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *col = (const char *)sqlite3_column_text(stmt, 1);
+        if (!col) continue;
+        if (strcmp(col, "download_url") == 0) have_url = true;
+        if (strcmp(col, "sha256") == 0) have_sha = true;
+    }
+    sqlite3_finalize(stmt);
+    if (!have_url &&
+        db_exec("ALTER TABLE repo_packages ADD COLUMN download_url TEXT DEFAULT ''") != 0)
+        return false;
+    if (!have_sha &&
+        db_exec("ALTER TABLE repo_packages ADD COLUMN sha256 TEXT DEFAULT ''") != 0)
+        return false;
+    return true;
+}
+
 bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     if (g_pkgmgr.initialized) return true;
     memcpy(&g_pkgmgr.config, config, sizeof(*config));
@@ -99,6 +129,7 @@ bool wubu_pkgmgr_init(const wubu_pkgmgr_config_t *config) {
     int rc = sqlite3_open(db_path, &g_pkgmgr.db);
     if (rc != SQLITE_OK) return false;
     if (db_exec(SCHEMA_SQL) != 0) { sqlite3_close(g_pkgmgr.db); return false; }
+    if (!migrate_repo_packages()) { sqlite3_close(g_pkgmgr.db); g_pkgmgr.db = NULL; return false; }
 
     /* Load repos */
     g_pkgmgr.n_repos = 0;

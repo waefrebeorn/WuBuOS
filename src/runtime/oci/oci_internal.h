@@ -144,6 +144,11 @@ int  oci_http_recv(OciHttpClient *client, void *buf, size_t buf_size, size_t *ou
 int  oci_http_request(OciHttpClient *client, const char *method, const char *path,
                        const char *extra_headers, const void *body, size_t body_len,
                        char *response, size_t resp_size);
+/* Binary-safe variant: also reports the exact response body length (binary
+ * payloads contain NUL bytes; never strlen() the body). */
+int  oci_http_request_body(OciHttpClient *client, const char *method, const char *path,
+                           const char *extra_headers, const void *body, size_t body_len,
+                           char *response, size_t resp_size, size_t *out_body_len);
 
 /* Auth helpers */
 void oci_parse_auth_header(const char *response_headers, char *token, size_t token_size,
