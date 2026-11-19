@@ -1,7 +1,7 @@
 # The WuBuOS Mind Palace
 
 A walk through the operating system, from the outside in. Every number and path
-here was read off the tree on **2026-11-11**; `test_docs` fails the build if a
+here was read off the tree on **2026-11-17**; `test_docs` fails the build if a
 path in this file stops existing.
 
 Read it in order. Each room states **what it is for** first and what is inside
@@ -56,7 +56,7 @@ A UEFI firmware written from scratch in C11: PCI, ACPI, AHCI, NVMe, XHCI, GOP,
 TPM 2.0, SHA-256, RSA, Secure Boot. It measures the kernel into PCR4 and
 attests it before the kernel runs.
 
-**Inside:** 54 files, 9,665 LOC.
+**Inside:** 57 files, 9,963 LOC (own tree).
 
 **Enter here:** `src/firmware/fw_main.c` (the entry), `fw_tpm.c`,
 `fw_secureboot.c`, `fw_agi.c` (the attestation handoff).
@@ -75,7 +75,8 @@ cannot be guests.
 ZealOS-derived: ring-0, VBE framebuffer, FAT32, TXFS, AHCI, NVMe, PS/2, interrupt
 controller, and the recovery/rollback machinery.
 
-**Inside:** 911 files, 79,714 LOC — the second-largest tree after `brain`.
+**Inside:** 936 files, 83,065 LOC (own tree) — the second-largest own tree
+after `runtime`.
 
 **Enter here:** `src/kernel/metal_main.c` (the entry), `memory.c`, `fat32.c`.
 
@@ -90,7 +91,7 @@ layer, containers, networking, and every compatibility subsystem.
 
 This is where most of the recent work lives.
 
-**Inside:** 534 files, 90,047 LOC.
+**Inside:** 602 files, 98,742 LOC (own tree) — the largest own tree.
 
 | subsystem | where | what it is |
 |---|---|---|
@@ -114,7 +115,9 @@ This is where most of the recent work lives.
 **For:** the Win98/XP shell — window manager, desktop, start menu, explorer,
 terminal.
 
-**Inside:** 285 files, 68,722 LOC.
+**Inside:** 242 files, 132,449 LOC (own tree). Most of that is one generated
+surface, `src/gui/wubu_buddy_states.h` (80.7k lines of baked buddy states):
+never hand-edit it, regenerate it.
 
 **Enter here:** `src/gui/wm.c` (the window manager), `src/gui/shell/desktop.c`
 (the desktop), `src/gui/shell/startmenu.c`, `src/gui/shell/taskbar_tasks.c`.
@@ -130,8 +133,9 @@ overlays — `wm_rim`, `wm_slime`, the taskbar.
 
 **For:** the programs that ship with the shell.
 
-**Inside:** 943 files, 104,435 LOC — editor, canvas, codec, calculator, control
-panel, DOS window, games.
+**Inside:** 93 own-tree files, 18,180 LOC, plus the `wubupad` and
+`wuoffice` submodules — editor, canvas, codec, calculator, control panel,
+DOS window, games.
 
 **Enter here:** `src/apps/`.
 
@@ -161,7 +165,7 @@ src/spells/<book>/<genre>/<spell>/<spell>.spell   <- the manifest
                                     <sources>     <- the code
 ```
 
-**Inside:** 58 files, 10,430 LOC — two spells: **vkd3d** (the from-scratch
+**Inside:** 61 files, 11,050 LOC — two spells: **vkd3d** (the from-scratch
 D3D12→Vulkan translation layer) and **swarm** (the peer-to-peer aggregation
 ledger, filed under `networking/aggregation`).
 
@@ -180,11 +184,11 @@ wrong fails the build.
 
 | | |
 |---|---|
-| C/H files in `src/` | **5,067** |
-| Lines of C | **750,001** |
-| Test targets | **512** |
+| C/H files in `src/` | **6,767** — own tree 2,234; the rest live in the 9 submodules |
+| Lines of C in `src/` | **1,020,472** — own tree 261,864 |
+| Test targets | **594** (`mk/tests.mk`) |
 | Spells | **2** — vkd3d, swarm |
-| Gate | `make test` — 0 errors, 0 segfaults |
+| Gate | `make test` — 0 errors, 0 segfaults (verified 2026-11-17) |
 
 ---
 
