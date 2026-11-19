@@ -54,7 +54,7 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 void (*__sysv_signal(int sig, void (*handler)(int)))(int);
 
 /* Character classification */
-extern int *__ctype_toupper_loc(void);
+extern const int **__ctype_toupper_loc(void);
 
 /* Fortified string functions */
 extern void *__memset_chk(void *s, int c, size_t n, size_t sizelim);
@@ -95,7 +95,7 @@ void __longjmp_chk(jmp_buf env, int val);
 #endif
 
 /* Character classification locale */
-extern int *__ctype_toupper_loc(void);
+extern const int **__ctype_toupper_loc(void);
 
 /* Fortified string functions */
 extern void *__memset_chk(void *s, int c, size_t n, size_t sizelim);
@@ -112,7 +112,7 @@ extern int _setjmp(jmp_buf env);
 extern void __longjmp_chk(jmp_buf env, int val);
 
 /* Character classification locale */
-extern int *__ctype_toupper_loc(void);
+extern const int **__ctype_toupper_loc(void);
 
 /* Fortified string functions */
 extern void *__memset_chk(void *s, int c, size_t n, size_t sizelim);

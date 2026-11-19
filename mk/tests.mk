@@ -70,7 +70,7 @@ test_spawn:
 	$(RT)/wubu_spawn_test
 
 # CRITICAL TIER: Kernel / Metal (interrupt, FAT32, TXFS, AHCI, DRM, Vulkan, decompressors)
-test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge
+test_critical_kernel: test_fat32 test_txfs test_ahci test_drm_direct test_zlib test_zip test_lzx test_cab test_dram_hedge test_virtio_blk
 	@echo "✅ Critical Tier (Kernel/Metal) complete"
 
 # HIGH TIER: Bridge (syscall bridge, DOS flip)
@@ -2300,6 +2300,14 @@ test_xhci:
 		$(KERNEL)/test/test_xhci.c \
 		-o $(KERNEL)/test_xhci
 	$(KERNEL)/test_xhci
+
+# L1: legacy virtio-blk driver -- fake I/O window gate (ring arithmetic,
+# request encoding, sector math, completion handling, chunking, wrap)
+test_virtio_blk:
+	$(CC) -O2 -Wall -Wextra -std=c11 -no-pie -I$(KERNEL) -Iinclude \
+		$(KERNEL)/test/test_virtio_blk.c \
+		-o $(KERNEL)/test_virtio_blk
+	$(KERNEL)/test_virtio_blk
 
 test_agi_kernel:
 	$(CC) -O0 -g -std=c11 -D_POSIX_C_SOURCE=200809L -DWUBU_NO_LIBM  -Iinclude  src/runtime/wubu_crc32.c \
