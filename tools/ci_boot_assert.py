@@ -26,6 +26,11 @@ def main():
     cmd = ["qemu-system-x86_64", flag, image,
            "-serial", "file:" + serial,
            "-display", "none", "-m", "128", "-no-reboot"]
+    # Bisection knobs: extra machine/CPU args + CPU exception logging.
+    extra = os.environ.get("WUBU_QEMU_EXTRA", "").split()
+    cmd += extra
+    if os.environ.get("WUBU_QEMU_DEBUG") == "1":
+        cmd += ["-d", "int,guest_errors", "-D", "ci_qemu_int.log"]
     # CI runners under TCG are ~8x slower than a dev box: the window is
     # configurable (WUBU_BOOT_WINDOW seconds; CI sets 300, local default 45).
     window = int(os.environ.get("WUBU_BOOT_WINDOW", "45"))
