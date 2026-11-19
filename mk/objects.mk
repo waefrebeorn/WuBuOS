@@ -21,7 +21,7 @@ KERNEL_OBJS = $(KERNEL)/memory.o $(KERNEL)/tasking.o $(KERNEL)/vbe.o \
               $(KERNEL)/fat32_dir.o $(KERNEL)/fat32_file.o \
               $(KERNEL)/fat32_format.o $(KERNEL)/fat32_name.o \
               $(KERNEL)/fat32_cluster.o $(KERNEL)/wubu_lfn.o \
-              $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_gaad.o \
+              $(KERNEL)/ahci.o $(KERNEL)/txfs.o $(KERNEL)/wubu_crc32.o $(KERNEL)/wubu_gaad.o \
               $(KERNEL)/wubu_agi_kernel.o $(KERNEL)/wubu_attest.o \
               $(KERNEL)/wubu_self_test.o \
               $(KERNEL)/wubu_hive.o \

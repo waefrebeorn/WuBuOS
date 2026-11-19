@@ -17,6 +17,12 @@ KERNEL_CFLAGS = -Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-
 $(KERNEL)/%.o: $(KERNEL)/%.c
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude
 
+# CRC-32: the runtime owner (src/runtime/wubu_crc32.c, self-contained C11,
+# no libc) compiled freestanding for the kernel — txfs calls it since the
+# one-owner refactor (452354c) deleted the kernel-local copy.
+$(KERNEL)/wubu_crc32.o: $(RT)/wubu_crc32.c
+	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -I$(RT) -MMD -MP -c $< -o $@ -Iinclude
+
 # Assembly files
 $(KERNEL)/%.o: $(KERNEL)/%.S
 	$(CC) $(CFLAGS) $(KERNEL_CFLAGS) -ffreestanding -nostdlib -nostartfiles -fno-pie -mno-red-zone -mcmodel=kernel -I$(KERNEL) -MMD -MP -c $< -o $@ -Iinclude

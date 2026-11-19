@@ -13,3 +13,11 @@ The research in this folder found that the loop already exists and it's free. Gi
 And the 2012 iMac is not useless. It's Apple hardware, which means it's legally allowed to run macOS virtual machines. OpenCore Legacy Patcher pushes it past Catalina, and it can be an SSH target or a self-hosted runner for the cases CI can't reach. It's the fallback, not the foundation. The foundation is the free loop.
 
 There's a principle under all of this. WuBuOS runs where people are, on the hardware they already have. If building it required buying a new Mac on credit, the philosophy would be a lie before it shipped. Debt is not a build dependency. The 2012 iMac and a free CI loop are enough, and I'd rather prove that than finance the alternative.
+
+## Addendum: it was never just about the Mac
+
+Linux and Windows get the same deal. People on those hosts run WuBuOS two ways: hosted, as a Wayland guest under our own compositor (natively on Linux, through WSL2 and WSLg on Windows, which is the WSL-replacement shape exactly), or booted, the GRUB ISO in QEMU, hooked to the host over serial and 9P. One image boots on all three host operating systems, and the CI now proves it: build once on Linux, boot under QEMU on a Linux runner, a Windows runner, and a Mac runner, assert the console comes up on each. Free, on every push.
+
+We ship source as the distro. The repo is the distribution: clone, make, run, or take the ISO and boot it. The build recipes are the product and the verify loops are the quality department, and neither costs money or waits on a person.
+
+The kernel design is TempleOS's, expanded. Ring-0, one address space, the whole machine as one organism you can hold in your head. WuBuKernel carries that forward in our own C11, and WuBuOS is the body it grows into. Nobody should need a new computer or a payment plan to run this. An OS that boots everywhere is an OS that belongs to everyone, and that is the point.

@@ -23,6 +23,22 @@ federation's public repos. So the loop costs nothing.
 - Real macOS, both architectures: the Intel runner matches the 2012
   iMac's x86_64; the M1 runner covers Apple Silicon users.
 
+## PROVEN: the first loop iteration (2026-11-19)
+
+- Run 44494569113 (push 014e37e): the Apple `_NSGetExecutablePath`
+  branch COMPILED on real macOS, Intel AND M1 — its first compile
+  ever. The gate failed on ONE assertion: the derived guest's
+  executability, because CI runners have no sibling wubuos checkout.
+  A machine property, not a code bug — the loop catching exactly what
+  it exists to catch.
+- Fix 9659d05: executability check made machine-conditional; the
+  derivation shape stays asserted everywhere.
+- Run 44494759630: GREEN on both — verify (macos-15) 13s,
+  verify (macos-15-intel) 23s. Spawn derivation + both env knobs +
+  real fork/exec verified on macOS, free, no human in the loop.
+
+The agent protocol below is not theory; it is what just happened.
+
 ## Agent protocol (no telephone tag)
 
     # fire

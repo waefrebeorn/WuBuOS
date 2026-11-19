@@ -1,0 +1,80 @@
+# boot-verify.yml — the multi-host proof: ONE artifact boots on EVERY host.
+#
+# WuBuOS ships source as the distro; the GRUB/multiboot ISO is the one
+# artifact that interboots across Linux, Windows, and macOS (QEMU).
+# This workflow builds it once on Linux, then boots it under QEMU on
+# all three GitHub runner OSes and asserts the healthy serial trace
+# (>= 3000 bytes + the WuBuOS> interactive console; the 38/106-byte
+# regression ceilings fail the gate).
+#
+# Free + unlimited: public repo. Agent loop: push -> gh run watch ->
+# gh run view --log-failed -> fix -> push. No human steps.
+#
+# Lineage: TempleOS kernel design, expanded -> WuBuKernel -> WuBuOS.
+
+name: boot-verify
+
+on:
+  push:
+    paths:
+      - 'src/kernel/**'
+      - 'src/firmware/**'
+      - 'mk/**'
+      - 'Makefile'
+      - 'tools/ci_boot_assert.py'
+      - '.github/workflows/boot-verify.yml'
+  workflow_dispatch:
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: WuBuKernel submodule (kernel consumes its driver/PMM headers)
+        run: git submodule update --init src/kernel/WuBuKernel
+      - name: Build the kernel + GRUB ISO
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq grub-pc-bin grub-common xorriso qemu-system-x86
+          make kernel -j$(nproc)
+          make iso
+      - name: Boot it here first (Linux, -kernel path)
+        run: python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wubuos-iso
+          path: src/kernel/wubuos.iso
+
+  boot-on-host:
+    needs: build-image
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/ci_boot_assert.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: wubuos-iso
+      - name: Install QEMU (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq qemu-system-x86
+      - name: Install QEMU (Windows)
+        if: runner.os == 'Windows'
+        run: choco install qemu --no-progress -y
+      - name: Install QEMU (macOS)
+        if: runner.os == 'macOS'
+        run: brew install qemu
+      - name: Boot WuBuOS on this host (GRUB ISO, QEMU)
+        shell: bash
+        run: |
+          export PATH="$PATH:/c/Program Files/qemu"
+          python3 tools/ci_boot_assert.py wubuos.iso || python tools/ci_boot_assert.py wubuos.iso
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: serial-${{ matrix.os }}
+          path: ci_serial.bin

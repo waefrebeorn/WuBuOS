@@ -37,12 +37,12 @@ static wubu_smp_ctl_t *g_ctl = (wubu_smp_ctl_t *)WUBU_SMP_CTL_ADDR;
 static uint32_t g_detected = 1;
 static uint32_t g_cpu_count = 1;
 
-static uint32_t lapic_read(uint32_t off)
+static uint32_t smp_lapic_read(uint32_t off)
 {
     return *(volatile uint32_t *)(uintptr_t)(LAPIC_BASE + off);
 }
 
-static void lapic_write(uint32_t off, uint32_t v)
+static void smp_lapic_write(uint32_t off, uint32_t v)
 {
     *(volatile uint32_t *)(uintptr_t)(LAPIC_BASE + off) = v;
 }
@@ -57,7 +57,7 @@ uint32_t wubu_smp_detect(void)
 {
     /* the LAPIC ID of the BSP; the MP table / ACPI MADT would list the
      * others -- the LAPIC ID register is the observable identity. */
-    uint32_t id = lapic_read(LAPIC_ID) >> 24;
+    uint32_t id = smp_lapic_read(LAPIC_ID) >> 24;
     (void)id;
     g_detected = 1;    /* at least the BSP; MADT enumeration is follow-on */
     return g_detected;
@@ -104,16 +104,16 @@ uint32_t wubu_smp_start_aps(void)
     }
 
     /* INIT: vector 0, assert */
-    lapic_write(LAPIC_ICR_HIGH, 0);
-    lapic_write(LAPIC_ICR_LOW, 0x000C4500u);
+    smp_lapic_write(LAPIC_ICR_HIGH, 0);
+    smp_lapic_write(LAPIC_ICR_LOW, 0x000C4500u);
     delay_ms(10);
 
     /* two SIPIs to vector 8 (0x8000) */
-    lapic_write(LAPIC_ICR_HIGH, 0);
-    lapic_write(LAPIC_ICR_LOW, 0x000C4608u);
+    smp_lapic_write(LAPIC_ICR_HIGH, 0);
+    smp_lapic_write(LAPIC_ICR_LOW, 0x000C4608u);
     delay_ms(1);
-    lapic_write(LAPIC_ICR_HIGH, 0);
-    lapic_write(LAPIC_ICR_LOW, 0x000C4608u);
+    smp_lapic_write(LAPIC_ICR_HIGH, 0);
+    smp_lapic_write(LAPIC_ICR_LOW, 0x000C4608u);
 
     /* observe the APs for up to ~100 ms */
     for (uint32_t t = 0; t < 100; t++) {

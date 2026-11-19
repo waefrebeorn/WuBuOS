@@ -1,7 +1,14 @@
 # buy-wubu-a-mac
 
-The macOS problem, solved without buying a Mac. The name is the joke:
-the answer to "buy WuBu a Mac" is that we don't have to.
+The macOS problem, solved without buying a Mac — and then the same
+treatment for Linux and Windows. The name is the joke: the answer to
+"buy WuBu a Mac" is that we don't have to, on any host.
+
+MULTI-HOST (owner directive 2026-11-19): people on Linux, Windows, and
+macOS run WuBuOS hosted (Wayland guest; WSL2/WSLg on Windows) or BOOT
+the GRUB ISO in QEMU and hook in (serial + 9P). We ship source as the
+distro. Lineage: TempleOS kernel design, expanded -> WuBuKernel ->
+WuBuOS. See research/06-multi-host-linux-windows.md.
 
 Owner constraints (2026-11-19): the only Mac owned is a 2012 iMac. No
 debt, no payment plans. No telephone tag: any rented/remote Mac must be
@@ -10,6 +17,12 @@ loop. The goal is a FREE compile-and-verify loop for the macOS code,
 finalized through the GitHub package/release flow once validated.
 
 ## The verdict (details in research/)
+
+PROVEN 2026-11-19: the loop ran. Push 014e37e compiled the Apple
+branch on real macOS (Intel + M1); the gate caught one environment-
+dependent assertion; fix 9659d05; run 44494759630 GREEN on both
+architectures. Free, agent-driven, no human. The workflow is LIVE in
+wubucompositor/.github/workflows/macos-verify.yml.
 
 1. PRIMARY: GitHub Actions macOS runners are FREE and UNLIMITED on
    public repositories (verified: docs.github.com, and anonymous
@@ -40,8 +53,13 @@ finalized through the GitHub package/release flow once validated.
   - 04-free-tiers-and-programs.md (Codemagic/Blacksmith/GetMac/NoMac/
     MacStadium matrix, automation verdicts)
   - 05-wayland-on-macos.md (epoll-shim, what builds, what's left)
+  - 06-multi-host-linux-windows.md (the two ways per host, the free
+    three-OS boot matrix, source-as-distro, the lineage)
   - SOURCES.md (URLs, checked 2026-11-19)
-  - workflows/macos-verify.yml (ready-to-copy CI; phase 1 is real today)
+  - workflows/macos-verify.yml (LIVE in wubucompositor, green)
+  - workflows/linux-verify.yml (compositor build + Xvfb smoke; e2e phase 2)
+  - workflows/boot-verify.yml (wubuos: one ISO booted under QEMU on
+    Linux AND Windows AND macOS runners, serial-trace gate)
 
 ## The loop, end to end
 

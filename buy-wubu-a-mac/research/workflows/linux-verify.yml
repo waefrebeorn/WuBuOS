@@ -1,0 +1,68 @@
+# linux-verify.yml — the Linux host leg, free CI.
+#
+# Phase 1 (real today): full compositor build + headless spawn gate +
+# Xvfb startup smoke (the compositor creates its window and Wayland
+# socket on a headless X server).
+# Phase 2 (commented): end-to-end — build the wubuos guest, run it
+# under the compositor on Xvfb, capture the desktop PPM. That is the
+# full Linux hosted stack verified on CI.
+#
+# Users on Linux run WuBuOS two ways: hosted (this compositor + the
+# Wayland client) or booting the ISO in QEMU (boot-verify.yml in the
+# wubuos repo proves the artifact). Source is the distro.
+
+name: linux-verify
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'Makefile'
+      - '.github/workflows/linux-verify.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libwayland-dev libx11-dev \
+            libxkbcommon-dev libxext-dev libgl-dev libxrandr-dev \
+            wayland-protocols xvfb
+      - name: Build the compositor
+        run: make
+      - name: Headless spawn gate
+        run: make test-spawn
+      - name: Xvfb startup smoke (window + socket, no guest)
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 2
+          DISPLAY=:99 WUBU_NO_SPAWN=1 ./wubucompositor > wcc.log 2>&1 &
+          WCC=$!
+          sleep 5
+          kill -0 $WCC  # still alive = no startup crash
+          grep -q "socket=" wcc.log
+          kill $WCC
+          cat wcc.log
+
+      # ---- PHASE 2: full hosted stack on CI (uncomment when ready)
+      # - name: Checkout + build the guest
+      #   run: |
+      #     git clone --depth 1 https://github.com/waefrebeorn/wubuos ../wubuos
+      #     sudo apt-get install -y -qq libwayland-dev libxkbcommon-dev wayland-protocols
+      #     make -C ../wubuos hosted -j$(nproc)
+      # - name: End-to-end capture
+      #   run: |
+      #     DISPLAY=:99 WUBU_START_CMD=../wubuos/src/hosted/wubu \
+      #       ./wubucompositor --screenshot desktop.ppm
+      # - uses: actions/upload-artifact@v4
+      #   with: { name: linux-desktop, path: desktop.ppm }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-verify-log
+          path: wcc.log
