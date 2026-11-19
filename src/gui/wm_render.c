@@ -49,6 +49,11 @@ const WubuEffectStack *wubu_ns_effect_stack(void) __attribute__((weak));
 int wubu_vk_effect_desktop_apply(const WubuEffectStack *s, uint32_t *px,
                                  int w, int h) __attribute__((weak));
 
+/* Elevation shadow for the focused window (THEME_DARK). Weak: minimal WM
+ * test links carry no shadow module; the product and test_wm link the real
+ * one (src/gui/shell/wm_shadow.c). */
+void wm_shadow_render(const DosGuiWindow *w) __attribute__((weak));
+
 /* -- Single window draw ------------------------------------------- */
 
 static void draw_window(int idx, uint32_t *fb, int fb_w, int fb_h) {
@@ -175,6 +180,8 @@ void wm_render(uint32_t *fb, int fb_w, int fb_h) {
              * producing the "FILE MANAGER CLOSE" text-merge artifact. */
             int task_h = taskbar_height_dynamic();
             vbe_set_clip(0, 0, fb_w, taskbar_top());
+            if (idx == g_dwm.focused_id && wm_shadow_render)
+                wm_shadow_render(w);
             draw_window(idx, fb, fb_w, fb_h);
             vbe_reset_clip();
         }

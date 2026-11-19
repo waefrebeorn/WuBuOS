@@ -14,6 +14,7 @@
 #include "../kernel/input.h"   /* MOD_SHIFT/CTRL/ALT/WIN */
 #include "shell/wubu_osd.h"
 #include "shell/window_chrome.h"   /* caption metrics under test */
+#include "shell/wm_shadow.h"       /* elevation shadow blur-count oracle */
 #include "wubu_tokens.h"   /* the geometry scale they must come from */
 #include "shell/startmenu.h"
 #include "shell/wubu_screensaver.h"
@@ -1508,6 +1509,40 @@ static void test_slime_seam(void) {
     PASS();
 }
 
+/* -- Elevation shadow (focused window, THEME_DARK) ---------------- */
+
+static void test_window_shadow(void) {
+    TEST("elevation shadow: focused dark window, cached, gone when unfocused");
+    /* The idle screensaver blanks the whole screen mid-test (real timer,
+     * real seconds) — the hosted session disables it for the same reason. */
+    wubu_screensaver_set_enabled(false);
+    wubu_theme_set(THEME_DARK);
+    wm_init(1024, 768);
+    DosGuiWindow *w = wm_create(300, 200, 400, 300, "Shadow");
+    wm_set_focus(w);
+    unsigned b0 = wm_shadow_blur_count();
+    wm_render(NULL, 1024, 768);
+    CHECK(wm_shadow_blur_count() == b0 + 1, "focused render blurs once");
+    int sx = w->x + w->w + 4, sy = w->y + w->h / 2;
+    uint32_t with = vbe_get_pixel(sx, sy);
+    wm_render(NULL, 1024, 768);
+    CHECK(wm_shadow_blur_count() == b0 + 1, "idle frame reuses the cache");
+    DosGuiWindow *o = wm_create(80, 80, 180, 120, "Other");
+    wm_set_focus(o);
+    wm_render(NULL, 1024, 768);
+    uint32_t without = vbe_get_pixel(sx, sy);
+    printf("        shadow probe: with=%08x without=%08x far=%08x blurs=%u\n",
+           with, without, vbe_get_pixel(sx + 120, sy), wm_shadow_blur_count());
+    /* Differential, not absolute: the backdrop under the shadow is the
+     * wallpaper, whose brightness is not a constant. Losing focus must
+     * brighten the exact pixel the shadow used to darken. */
+    CHECK(((without >> 16) & 0xFF) > ((with >> 16) & 0xFF),
+          "shadow darkens beside the frame and lifts when unfocused");
+    wm_shutdown();
+    wubu_screensaver_set_enabled(true);
+    PASS();
+}
+
 /* -- Caption geometry comes from the token scale --------------- */
 
 static void test_caption_metrics(void) {
@@ -1699,6 +1734,7 @@ int main(void) {
     test_rim_islands();
     test_slime_seam();
     test_caption_metrics();
+    test_window_shadow();
     test_taskbar_autohide();
     test_modern_taskbar();
 

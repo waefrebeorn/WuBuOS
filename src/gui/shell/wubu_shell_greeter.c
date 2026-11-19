@@ -566,6 +566,12 @@ void wubu_shell_greeter_open(void) {
     g_sig[0] = '\0';
     g_hover = -1;
     g_step  = 0;                 /* always start at the first page */
+    /* The first-run cursor starts on the PRODUCT DEFAULT theme, not a
+     * hardcoded classic: the settings object owns the default (THEME_DARK
+     * today). A greeter that preselects a different theme than the product
+     * ships is two sources of truth disagreeing about the user's desktop. */
+    g_theme = wubu_settings_get()->theme.theme_id;
+    if (g_theme < 0 || g_theme >= THEME_COUNT) g_theme = THEME_WIN98_CLASSIC;
     g_user[0] = g_pw[0] = g_pw2[0] = 0; g_field = 0; g_kbd_idx = 0;
     strncpy(g_kbd, kLayouts[0], sizeof(g_kbd) - 1); g_kbd[sizeof(g_kbd)-1] = 0;
     g_host[0] = 0;

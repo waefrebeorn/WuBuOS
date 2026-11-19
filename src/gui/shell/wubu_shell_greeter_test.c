@@ -98,6 +98,9 @@ int main(void) {
     /* -- 2. open the greeter: it must draw real pixels -- */
     wubu_shell_greeter_run();
     CHECK(wubu_shell_greeter_is_open(), "greeter dialog is open");
+    CHECK(wubu_shell_greeter_selected_theme() ==
+          wubu_settings_get()->theme.theme_id,
+          "initial theme selection is the product default (not hardcoded)");
     wm_render_desktop(NULL, SHOT_W, SHOT_H);
     int delta = 0;
     for (int y = 0; y < 40; y++)

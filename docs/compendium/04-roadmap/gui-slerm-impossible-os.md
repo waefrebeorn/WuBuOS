@@ -244,4 +244,12 @@ second implementation.
 
 - 0.1 DONE (2026-11-19) — `make test_gui_gfx` ALL PASS, 0 warnings;
   `make test_gui_metrics` ALL PASSED; `make test_docs` 581/0; hosted green.
-- 0.2–3.3 OPEN.
+- 0.2 DONE (2026-11-19) — `src/gui/shell/wm_shadow.c`: cached elevation shadow
+  (upstream elevation.window_active = offset 16 / blur 32 / alpha 94), focused
+  window only, THEME_DARK only, high-contrast suppressed. Gates:
+  `make test_wm_shadow` ALL PASS + test_wm 54/54 (blur-count cache oracle,
+  focused/unfocused pixel differential). Pitfall found: the idle screensaver
+  blanks the screen mid-test — disable it in render-differential tests.
+- 0.7 DONE (2026-11-19) — greeter initial theme cursor now reads the settings
+  default; gate asserts selection == settings theme id (test_greeter 28/28).
+- 0.3–0.6, 1.x–3.x OPEN.

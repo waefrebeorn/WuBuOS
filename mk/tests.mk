@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -603,6 +603,17 @@ test_gui_gfx:
 		src/kernel/vbe.c src/gui/gfx/gui_gfx_test.c \
 		-o $(GUI)/gfx/gui_gfx_test
 	$(GUI)/gfx/gui_gfx_test
+
+# Elevation shadow cache (slerm of impossible-os elevation.window_active).
+# Standalone leaf gate; the focused/unfocused wiring is gated inside test_wm.
+test_wm_shadow:
+	$(CC) -O2 -std=c11 -D_POSIX_C_SOURCE=200809L -DVBE_HOSTED -Iinclude -I$(GUI) \
+		src/gui/shell/wm_shadow.c src/gui/shell/wm_shadow_test.c \
+		src/gui/gfx/gui_surface.c src/gui/gfx/gui_blend.c \
+		src/gui/gfx/gui_shape.c src/gui/gfx/gui_blur.c \
+		src/gui/wubu_theme.c src/runtime/wubu_palette.c \
+		src/kernel/vbe.c -o $(GUI)/shell/wm_shadow_test -lm
+	$(GUI)/shell/wm_shadow_test
 
 # macOS layer tests
 test_vsl_macho:
@@ -1521,6 +1532,7 @@ $(RT)/wubu_effect.c \
 		$(RT)/wubu_session.c $(RT)/wubu_compat_db.c $(RT)/wubu_container.c $(RT)/wubu_arch.c $(RT)/wubu_archd_util.c \
 		$(COMP)/holyd_codegen.c $(COMP)/holyd_codegen_emit.c $(COMP)/holyd_codegen_expr.c $(COMP)/holyd_codegen_stmt.c $(COMP)/holyd_codegen_api.c $(COMP)/wubu_preproc.c $(COMP)/holyd_runtime.c $(COMP)/holyd_parse.c $(COMP)/holyd_parse_ast.c $(COMP)/holyd_lexer.c $(JIT_SRCS) $(RT)/wubu_spawn.c \
 		$(GUI)/shell/window_chrome.c \
+		$(GUI)/shell/wm_shadow.c $(GUI)/gfx/gui_surface.c $(GUI)/gfx/gui_blend.c $(GUI)/gfx/gui_shape.c $(GUI)/gfx/gui_blur.c \
 		$(GUI)/wm_test.c -o $(GUI)/wm_test -lm
 	$(GUI)/wm_test
 
