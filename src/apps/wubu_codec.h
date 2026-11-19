@@ -23,8 +23,8 @@
  * For containers: the codec layer runs as a .wubu container
  * with GPU passthrough (NVDEC/NVENC via /dev/dri).
  */
-#ifndef WUBU_CODEC_H
-#define WUBU_CODEC_H
+#ifndef WUBU_APP_CODEC_H
+#define WUBU_APP_CODEC_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -225,4 +225,4 @@ int  wubu_codec_metadata(const char *path,
 /* Container codec access: mount a codec in a .wubu container */
 int  wubu_codec_mount(const char *container_path, const char *mount_point);
 
-#endif /* WUBU_CODEC_H */
+#endif /* WUBU_APP_CODEC_H */

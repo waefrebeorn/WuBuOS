@@ -11,8 +11,8 @@
  * C11, opaque struct, minimal includes. The character is drawn from primitives
  * (vbe_*), no asset pipeline.
  */
-#ifndef WUBU_BONZI_H
-#define WUBU_BONZI_H
+#ifndef WUBU_APP_BONZI_H
+#define WUBU_APP_BONZI_H
 
 #include <stdint.h>
 #include "../gui/wm.h"   /* DosGuiWindow */
@@ -28,4 +28,4 @@ const char *bonzi_handle_line(const char *line);
 /* Count of actions Bonzi has performed this session (plumbing proof). */
 int bonzi_action_count(void);
 
-#endif /* WUBU_BONZI_H */
+#endif /* WUBU_APP_BONZI_H */

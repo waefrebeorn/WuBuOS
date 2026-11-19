@@ -19,8 +19,8 @@
  * Thread-safety (a reader/writer lock around the name table) is a later step;
  * the D-Bus activation SEMANTICS are what this unit nails.
  */
-#ifndef WUBU_BUS_H
-#define WUBU_BUS_H
+#ifndef WUBU_RUNTIME_BUS_H
+#define WUBU_RUNTIME_BUS_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -88,4 +88,4 @@ int wubu_bus_send_to_name(wubu_bus_t *bus, int32_t sender,
 int wubu_bus_recv(wubu_bus_t *bus, int32_t conn,
                   wubu_bus_msg_t *out, int max);
 
-#endif /* WUBU_BUS_H */
+#endif /* WUBU_RUNTIME_BUS_H */

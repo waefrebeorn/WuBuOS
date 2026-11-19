@@ -26,6 +26,7 @@
  *   - SOF (Sound Open Firmware): snd_sof, DSP firmware, Intel HDA
  */
 #include "../egojar.h"
+#include "../../include/wubu_pci_ids.h"  /* PCI IDs: one owner */
 #include "wubu_codec.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
@@ -33,13 +34,6 @@
 #include <string.h>
 
 /* ---- PCI class: audio device ---- */
-#define PCI_CLASS_AUDIO  0x04
-#define PCI_SUBCLASS_AUDIO 0x03
-#define PCI_VENDOR_REALTEK 0x10EC
-#define PCI_VENDOR_IDT    0x111D
-#define PCI_VENDOR_CIRRUS 0x1013
-#define PCI_VENDOR_CONEXANT 0x14F1
-#define PCI_VENDOR_ANALOG  0x11D4
 
 /* ---- Global state ---- */
 static int  g_codec = 0;

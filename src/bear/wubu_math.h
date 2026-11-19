@@ -14,8 +14,8 @@
  * All operations use double internally for stability, cast to float for GPU.
  */
 
-#ifndef WUBU_MATH_H
-#define WUBU_MATH_H
+#ifndef WUBU_BEAR_MATH_H
+#define WUBU_BEAR_MATH_H
 
 #include <math.h>
 #include <stdbool.h>
@@ -131,4 +131,4 @@ static inline void wubu_quaternion_rotate(const float q[4], const float v[3], fl
 }
 #endif
 
-#endif /* WUBU_MATH_H */
+#endif /* WUBU_BEAR_MATH_H */

@@ -3,8 +3,8 @@
  *
  * Cell 395: Win98-style settings panel with tabs.
  */
-#ifndef WUBU_CONTROL_H
-#define WUBU_CONTROL_H
+#ifndef WUBU_APP_CONTROL_H
+#define WUBU_APP_CONTROL_H
 
 /* Tab indices */
 #define CTRL_DISPLAY      0
@@ -23,4 +23,4 @@ void control_open(void);
 void control_init(void);
 void control_shutdown(void);
 
-#endif /* WUBU_CONTROL_H */
+#endif /* WUBU_APP_CONTROL_H */

@@ -5,8 +5,8 @@
  * and generates the PipeWire/WirePlumber/ALSA config that fixes the gaps
  * Linux audio has natively. The user never touches pavucontrol.
  */
-#ifndef WUBU_AUDIO_H
-#define WUBU_AUDIO_H
+#ifndef WUBU_KERNEL_AUDIO_H
+#define WUBU_KERNEL_AUDIO_H
 
 /* W1: probe all audio controllers via PCI scan. Call from wubu_hw_detect(). */
 void wubu_audio_probe(void);
@@ -31,4 +31,4 @@ const char *wubu_audio_alsa_state(void);
 /* Bluetooth A2DP sink detection. */
 int wubu_audio_has_bt_a2dp(void);
 
-#endif /* WUBU_AUDIO_H */
+#endif /* WUBU_KERNEL_AUDIO_H */

@@ -29,6 +29,7 @@
  *   - md: software RAID (mdadm), raid0/1/4/5/6/10
  */
 #include "../egojar.h"
+#include "../../include/wubu_pci_ids.h"  /* PCI IDs: one owner */
 #include "wubu_raid.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
@@ -37,14 +38,6 @@
 
 /* ---- PCI classes: RAID/HBA ---- */
 #define PCI_CLASS_STORAGE   0x01
-#define PCI_SUBCLASS_RAID   0x04   /* RAID controller */
-#define PCI_SUBCLASS_SAS    0x07   /* Serial Attached SCSI */
-#define PCI_SUBCLASS_SCSI   0x00   /* SCSI */
-#define PCI_VENDOR_BROADCOM 0x1000  /* LSI/Broadcom/MegaRAID */
-#define PCI_VENDOR_MICROSEMI 0x9005 /* Adaptec/aacraid */
-#define PCI_VENDOR_MICROCHIP 0x1137 /* SmartPQI */
-#define PCI_VENDOR_MARVELL  0x1B4B  /* SAS */
-#define PCI_VENDOR_ARECA    0x1B41
 
 /* ---- Global state ---- */
 static int  g_raid = 0;
@@ -77,7 +70,7 @@ void wubu_raid_probe(void)
         if (devs[i].subclass == PCI_SUBCLASS_RAID) {
             g_raid = 1;
             g_raid_drv[0] = '\0';
-            if (devs[i].vendor == PCI_VENDOR_BROADCOM) {
+            if (devs[i].vendor == PCI_VENDOR_LSI) {
                 strcpy(g_raid_drv, "megaraid_sas");
                 strcpy(g_raid_name, "MegaRAID");
             } else if (devs[i].vendor == PCI_VENDOR_MICROSEMI) {
@@ -96,7 +89,7 @@ void wubu_raid_probe(void)
         } else if (devs[i].subclass == PCI_SUBCLASS_SAS) {
             g_sas = 1;
             g_raid = 1;
-            if (devs[i].vendor == PCI_VENDOR_BROADCOM) {
+            if (devs[i].vendor == PCI_VENDOR_LSI) {
                 strcpy(g_raid_drv, "mpt3sas");
                 strcpy(g_raid_name, "SAS HBA");
             } else if (devs[i].vendor == PCI_VENDOR_MARVELL) {

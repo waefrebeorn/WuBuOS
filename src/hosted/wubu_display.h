@@ -8,8 +8,8 @@
  * Status: Direct DRM ioctls + custom GBM (Cells 388/389)
  * Implementation: wubu_display.c + wubu_gbm.c  --  no libdrm, no libgbm
  */
-#ifndef WUBU_DISPLAY_H
-#define WUBU_DISPLAY_H
+#ifndef WUBU_HOSTED_DISPLAY_H
+#define WUBU_HOSTED_DISPLAY_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -89,4 +89,4 @@ void wubu_display_shutdown(WubuDisplay *d);
  * This keeps WuBuOS working on systems without DRM (WSL, etc.)
  * =================================================================== */
 
-#endif /* WUBU_DISPLAY_H */
+#endif /* WUBU_HOSTED_DISPLAY_H */

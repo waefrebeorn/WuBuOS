@@ -23,6 +23,7 @@
  *   - NVDLA (NVIDIA open accelerator), Qualcomm Hexagon SDK
  */
 #include "../egojar.h"
+#include "../../include/wubu_pci_ids.h"  /* PCI IDs: one owner */
 #include "wubu_accel.h"
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
@@ -33,12 +34,6 @@
 #define PCI_CLASS_COMPUTE  0x12   /* Processing accelerators */
 #define PCI_SUBCLASS_NPU   0x01   /* AI/NPU accelerator */
 #define PCI_SUBCLASS_DSP   0x03   /* DSP */
-#define PCI_CLASS_COPROC   0x0B   /* Signal processing */
-#define PCI_SUBCLASS_PROC  0x40   /* Processor (NPU on some) */
-#define PCI_VENDOR_INTEL   0x8086
-#define PCI_VENDOR_AMD     0x1022
-#define PCI_VENDOR_QUALCOMM 0x17CB
-#define PCI_VENDOR_GOOGLE  0x1AE0
 
 /* ---- Global state ---- */
 static int  g_accel = 0;         /* accel subsystem present */

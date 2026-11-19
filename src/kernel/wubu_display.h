@@ -1,8 +1,8 @@
 /*
  * wubu_display.h -- kernel-owned display driver routing (DRM/KMS matrix).
  */
-#ifndef WUBU_DISPLAY_H
-#define WUBU_DISPLAY_H
+#ifndef WUBU_KERNEL_DISPLAY_H
+#define WUBU_KERNEL_DISPLAY_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -33,4 +33,4 @@ int wubu_display_has_dsc(void);
 int wubu_display_has_hdcp(void);
 int wubu_display_has_vrr(void);
 
-#endif /* WUBU_DISPLAY_H */
+#endif /* WUBU_KERNEL_DISPLAY_H */

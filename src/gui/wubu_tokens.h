@@ -74,7 +74,7 @@
 
 /* ---- Control metrics (Windows 11 at 100% scale) ---- */
 
-#define WUBU_CONTROL_H     32   /* a standard button / list row */
+#define WUBU_CONTROL_HEIGHT 32   /* a standard button / list row */
 #define WUBU_ICON_SM       16   /* title-bar and menu icon */
 #define WUBU_ICON_MD       24   /* desktop icon glyph */
 #define WUBU_ICON_LG       32

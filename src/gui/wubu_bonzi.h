@@ -14,8 +14,8 @@
  * assets), following the house glyph discipline. Opaque API — no god headers.
  */
 
-#ifndef WUBU_BONZI_H
-#define WUBU_BONZI_H
+#ifndef WUBU_GUI_BONZI_H
+#define WUBU_GUI_BONZI_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -112,4 +112,4 @@ void wubu_bonzi_open_agi(void);
  * Pass NULL for either line to leave it unchanged. */
 void wubu_bonzi_set_bubble(const char *line1, const char *line2);
 
-#endif /* WUBU_BONZI_H */
+#endif /* WUBU_GUI_BONZI_H */

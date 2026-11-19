@@ -16,7 +16,7 @@ Fixed (values compared comment-free); these are the honest numbers:
 
 | repo | files | dup CONFLICTS | dup mirrors | paths | env | alloc | sleep |
 |---|---|---|---|---|---|---|---|
-| wubuos (body) | 2274 | 55 | 153 | 3230 | 95 | 180 | 23 |
+| wubuos (body) | 2276 | 40 | 154 | 3240 | 95 | 180 | 23 |
 | wubunos (compiler) | 254 | 4 | 81 | 71 | 58 | 54 | 8 |
 | wubuwizard (brain) | 1608 | 56 | 38 | 485 | 218 | 193 | 1 |
 | wubucompositor | 9 | 1 | 0 | 2 | 3 | 2 | 0 |
@@ -50,6 +50,38 @@ checkout with its OWN gates — never across the submodule boundary.
   private FTW numbering BEFORE the system `<ftw.h>` / `wubu_ftw.h`
   (a POST-system-header fill-in by design), shadowing the real flags.
   Block removed. Gate: test_snapshot 133/133.
+
+## Body batch 2 (2026-11-19): guards, NVMe, PCI — conflicts 55 -> 40
+
+- **Include-guard collisions (8 pairs)** — two different headers sharing
+  one guard macro: whichever is included second is SILENTLY SKIPPED.
+  Renamed layer-qualified: kernel/audio/bus/codec/display/bonzi headers
+  got WUBU_KERNEL_* / WUBU_RUNTIME_* / WUBU_AUDIO_SUBSYS_H etc.; app
+  facade vs impl headers (calc, control) got WUBU_APP_* / WUBU_*_IMPL_H;
+  bear's math header got WUBU_BEAR_MATH_H. Worst overload:
+  `WUBU_CONTROL_H` was BOTH apps/control.h's guard AND a 32px metric in
+  wubu_tokens.h — the metric is now WUBU_CONTROL_HEIGHT. (The brain
+  submodule carries its own copies of some guards; that is the brain
+  leg's work, not editable from the body.)
+- **NVMe registers** — firmware and kernel kept private tables; one
+  owner now: `include/wubu_nvme_regs.h` (10 registers, spec offsets).
+  Gate: `make firmware` builds wubufw.fd OK; test_kernel_bridge all pass.
+- **PCI IDs** — five drivers kept private subsets and two names were
+  overloaded: PCI_VENDOR_AMD meant 0x1022 (chipset) in accel but 0x1002
+  (ATI graphics) in audio; PCI_VENDOR_BROADCOM meant 0x14E4 in net but
+  0x1000 (LSI MegaRAID) in raid. One owner: `include/wubu_pci_ids.h`;
+  audio uses PCI_VENDOR_AMD_ATI, raid uses PCI_VENDOR_LSI, codec's
+  base-byte match is PCI_CLASS_AUDIO_BASE. Gates: hosted green,
+  test_audio all pass, test_apps 34/34.
+- **Census classifier** now normalizes numeric spelling (0x30 == 0x0030,
+  1u == 1, 3.14f == 3.14) — the NVMe family were mirrors all along.
+
+Remaining body conflicts (40) triaged: math-constant family (WUBU_PI*
+defined as literals in wubu_math.c AND aliased in wubu_math.h; M_PI in
+bear/filter/std — next batch), STYXFS_MAX_OPEN_FILES 128 vs 256 (real,
+read before fixing), feature-test macros (_GNU_SOURCE etc. — per-TU
+ladders, benign), test-local caps (bear tests — benign unless a shared
+harness emerges), FALSE/TRUE (layer-local UEFI vs parity, accepted).
 
 ## Sibling leg 1: wubunos (compiler) — pushed a3cf7c5 (wubu-integration)
 

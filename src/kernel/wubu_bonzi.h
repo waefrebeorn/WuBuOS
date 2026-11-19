@@ -16,8 +16,8 @@
  * No speech-bubble theater: every command performs a genuine kernel call.
  * C11, opaque struct, freestanding (no malloc / pthreads).
  */
-#ifndef WUBU_BONZI_H
-#define WUBU_BONZI_H
+#ifndef WUBU_KERNEL_BONZI_H
+#define WUBU_KERNEL_BONZI_H
 
 struct wubu_agi_kernel;
 typedef struct wubu_bonzi wubu_bonzi_t;
@@ -39,4 +39,4 @@ int wubu_bonzi_handle_line(wubu_bonzi_t *b, const char *line);
 const char *wubu_bonzi_last_reply(const wubu_bonzi_t *b);
 int         wubu_bonzi_action_count(const wubu_bonzi_t *b);
 
-#endif /* WUBU_BONZI_H */
+#endif /* WUBU_KERNEL_BONZI_H */

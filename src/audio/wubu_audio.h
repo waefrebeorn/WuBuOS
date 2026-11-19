@@ -59,8 +59,8 @@
  *    - Container gets audio buffer → GPU inference → output buffer
  *    - Plugin API: Ardour LV2 + custom WUBU plugin type
  */
-#ifndef WUBU_AUDIO_H
-#define WUBU_AUDIO_H
+#ifndef WUBU_AUDIO_SUBSYS_H
+#define WUBU_AUDIO_SUBSYS_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -506,7 +506,7 @@ void wubu_ingest_close(int handle);
 /* List available ingestion sources */
 int  wubu_ingest_enumerate(char uris[][256], char names[][64], int max);
 
-#endif /* WUBU_AUDIO_H */
+#endif /* WUBU_AUDIO_SUBSYS_H */
 
 /* Set volume for a cell (0-15) */
 void wubu_furnace_set_volume(int pattern, int row, int chan, uint8_t volume);

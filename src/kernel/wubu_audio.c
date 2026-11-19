@@ -25,6 +25,7 @@
  * C11, kernel-modeled after wubu_hw_detect.c / wubu_drv_gpu.c.
  */
 #include "../egojar.h"
+#include "../../include/wubu_pci_ids.h"  /* PCI IDs: one owner */
 #include "wubu_audio.h"
 #include "wubu_pci.h"
 #include "wubu_drv.h"
@@ -34,12 +35,8 @@
 #include <unistd.h>   /* access(), R_OK */
 
 /* ---- PCI vendor IDs ---- */
-#define PCI_VENDOR_INTEL   0x8086
-#define PCI_VENDOR_AMD     0x1002
-#define PCI_VENDOR_NVIDIA  0x10DE
 
 /* ---- PCI class: audio controller ---- */
-#define PCI_CLASS_AUDIO    0x040300
 
 /* ---- ALSA driver names the kernel routes to ---- */
 #define WUBU_SND_SOF     "snd_sof"        /* Intel Sound Open Firmware      */
@@ -71,11 +68,11 @@ static const wubu_drv_id_t wubu_audio_ids[] = {
     { PCI_VENDOR_INTEL, 0x9D2F, 0, 0 },   /* Sunrise Point-LP */
     { PCI_VENDOR_INTEL, 0xA120, 0, 0 },   /* CM237/Intel PCH */
     /* AMD HD Audio controllers (radeon KMD = old, amdgpu KMD = new) */
-    { PCI_VENDOR_AMD,   0xAA68, 0, 0 },   /* Radeon RX Vega HDMI/DP (radeon KMD) */
-    { PCI_VENDOR_AMD,   0xAB30, 0, 0 },   /* Navi 31 HD Audio (amdgpu KMD) */
-    { PCI_VENDOR_AMD,   0x15B3, 0, 0 },   /* Raven/Renoir HDMI (amdgpu KMD) */
-    { PCI_VENDOR_AMD,   0x15DE, 0, 0 },   /* Stoney Ridge HDMI */
-    { PCI_VENDOR_AMD,   0x148D, 0, 0 },   /* Rembrandt/Raphael HD Audio */
+    { PCI_VENDOR_AMD_ATI,   0xAA68, 0, 0 },   /* Radeon RX Vega HDMI/DP (radeon KMD) */
+    { PCI_VENDOR_AMD_ATI,   0xAB30, 0, 0 },   /* Navi 31 HD Audio (amdgpu KMD) */
+    { PCI_VENDOR_AMD_ATI,   0x15B3, 0, 0 },   /* Raven/Renoir HDMI (amdgpu KMD) */
+    { PCI_VENDOR_AMD_ATI,   0x15DE, 0, 0 },   /* Stoney Ridge HDMI */
+    { PCI_VENDOR_AMD_ATI,   0x148D, 0, 0 },   /* Rembrandt/Raphael HD Audio */
     /* NVIDIA HD Audio (snd_hda_intel) */
     { PCI_VENDOR_NVIDIA, 0x005E, 0, 0 },  /* NVIDIA HD Audio (all) */
     { 0, 0, 0, 0 },
@@ -116,7 +113,7 @@ static const wubu_audio_dev_t *audio_route_lookup(int vendor, int device)
     /* Fallback: vendor-level defaults. */
     static wubu_audio_dev_t fallback[] = {
         { PCI_VENDOR_INTEL,  0, WUBU_SND_HDA,  "i915"  },
-        { PCI_VENDOR_AMD,    0, WUBU_SND_HDA,  "amdgpu" },   /* HDMI via amdgpu */
+        { PCI_VENDOR_AMD_ATI,    0, WUBU_SND_HDA,  "amdgpu" },   /* HDMI via amdgpu */
         { PCI_VENDOR_NVIDIA, 0, WUBU_SND_HDA,  "nvidia" },
         { 0, 0, NULL, NULL },
     };
@@ -170,7 +167,7 @@ void wubu_audio_probe(void)
         int n = wubu_pci_scan(devs, WUBU_PCI_MAX_DEVS);
         for (int i = 0; i < n; i++) {
             if (devs[i].vendor == PCI_VENDOR_INTEL ||
-                devs[i].vendor == PCI_VENDOR_AMD ||
+                devs[i].vendor == PCI_VENDOR_AMD_ATI ||
                 devs[i].vendor == PCI_VENDOR_NVIDIA) {
 
                 /* Check it's an audio device by class code or known ID. */
@@ -194,7 +191,7 @@ void wubu_audio_probe(void)
                 }
 
                 /* HDMI audio detection: AMD/NVIDIA display-audio devices. */
-                if (devs[i].vendor == PCI_VENDOR_AMD ||
+                if (devs[i].vendor == PCI_VENDOR_AMD_ATI ||
                     devs[i].vendor == PCI_VENDOR_NVIDIA) {
                     g_audio_hdmi = 1;
                 }

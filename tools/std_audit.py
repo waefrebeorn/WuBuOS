@@ -132,7 +132,7 @@ def audit_magic_geometry(sources, root):
             if any(tok in line for tok in (
                     "WUBU_SPACE_", "WUBU_RADIUS_", "WUBU_TITLE_",
                     "WUBU_MENU_", "WUBU_START_", "WUBU_METRIC_",
-                    "WUBU_BORDER_", "WUBU_TASKBAR_", "WUBU_CONTROL_H",
+                    "WUBU_BORDER_", "WUBU_TASKBAR_", "WUBU_CONTROL_HEIGHT",
                     "WUBU_ICON_")):
                 continue
             for m in MAGIC_NUMBER_RE.finditer(line):

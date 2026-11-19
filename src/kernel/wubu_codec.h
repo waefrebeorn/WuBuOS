@@ -1,8 +1,8 @@
 /*
  * wubu_codec.h -- kernel-owned audio codec/DSP driver routing.
  */
-#ifndef WUBU_CODEC_H
-#define WUBU_CODEC_H
+#ifndef WUBU_KERNEL_CODEC_H
+#define WUBU_KERNEL_CODEC_H
 
 #include <stddef.h>
 
@@ -24,4 +24,4 @@ const char *wubu_codec_asoc_driver(const char *chip);
 /* W4: summary fragment. */
 int wubu_codec_summary(char *out, size_t cap);
 
-#endif /* WUBU_CODEC_H */
+#endif /* WUBU_KERNEL_CODEC_H */

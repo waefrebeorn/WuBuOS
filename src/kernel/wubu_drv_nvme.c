@@ -17,22 +17,13 @@
  * C11.
  */
 #include "wubu_drv.h"
+#include "../../include/wubu_nvme_regs.h"  /* NVMe register offsets: one owner */
 #include "wubu_drv_nvme.h"
 
 #include <stdio.h>
 #include <string.h>
 
 /* the NVMe registers (offset from BAR0) */
-#define NVME_REG_CAP     0x0000   /* controller capabilities */
-#define NVME_REG_VS      0x0008   /* version */
-#define NVME_REG_INTMS   0x000C
-#define NVME_REG_INTMC   0x0010
-#define NVME_REG_CC      0x0014   /* controller config */
-#define NVME_REG_CSTS    0x001C   /* controller status */
-#define NVME_REG_AQA     0x0024   /* admin queue attributes */
-#define NVME_REG_ASQ     0x0028   /* admin SQ base */
-#define NVME_REG_ACQ     0x0030   /* admin CQ base */
-#define NVME_REG_DBS     0x1000   /* doorbells */
 
 /* the command codes */
 #define NVME_CMD_IDENTIFY  0x06

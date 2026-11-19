@@ -1,8 +1,8 @@
 /*
  * wubu_bus.h -- kernel-owned I2C/SPI bus controller driver routing.
  */
-#ifndef WUBU_BUS_H
-#define WUBU_BUS_H
+#ifndef WUBU_KERNEL_BUS_H
+#define WUBU_KERNEL_BUS_H
 
 #include <stddef.h>
 
@@ -24,4 +24,4 @@ const char *wubu_bus_spi_driver_for(const char *ctrl);
 /* W4: summary fragment. */
 int wubu_bus_summary(char *out, size_t cap);
 
-#endif /* WUBU_BUS_H */
+#endif /* WUBU_KERNEL_BUS_H */

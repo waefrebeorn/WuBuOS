@@ -7,15 +7,10 @@
  */
 
 #include "fw.h"
+#include "../../include/wubu_nvme_regs.h"  /* NVMe register offsets: one owner */
 #include "fw_pci.h"
 #include "fw_block.h"
 
-#define NVME_REG_CAP    0x00
-#define NVME_REG_CC     0x14
-#define NVME_REG_CSTS   0x1C
-#define NVME_REG_AQA    0x24
-#define NVME_REG_ASQ    0x28
-#define NVME_REG_ACQ    0x30
 
 #define QDEPTH 8
 

@@ -117,8 +117,17 @@ def census(root):
             if val.startswith(("(",)) and "(" in val.split()[0]:
                 continue  # function-like macro: not a constant
             # Compare VALUES, not trailing comments: 0x20 /* a */ and
-            # 0x20 /* b */ are mirrors, not conflicts.
+            # 0x20 /* b */ are mirrors, not conflicts. Normalize numeric
+            # spelling too: 0x30 == 0x0030, 1u == 1, 3.14f == 3.14.
             val = re.split(r"/\*|//", val)[0].strip()
+            bare = val.rstrip("uUlLfF")
+            try:
+                val = str(int(bare, 0))
+            except ValueError:
+                try:
+                    val = repr(float(bare))
+                except ValueError:
+                    pass
             lineno = text[:m.start()].count("\n") + 1
             defines.setdefault(name, []).append((rel, lineno, val))
         code = strip_comments(text)

@@ -3,8 +3,8 @@
  * Opaque struct, C11, minimal includes, self-contained
  */
 
-#ifndef WUBU_CONTROL_H
-#define WUBU_CONTROL_H
+#ifndef WUBU_CONTROL_IMPL_H
+#define WUBU_CONTROL_IMPL_H
 
 #include <stdint.h>
 #include <stdbool.h>

@@ -20,6 +20,7 @@
  *   - Realtek RTL8125 2.5GbE: needs r8168-dkms (r8169 is broken)
  */
 #include "wubu_net.h"
+#include "../../include/wubu_pci_ids.h"  /* PCI IDs: one owner */
 #include "wubu_pci.h"
 #include "wubu_hw_detect.h"
 #include <stdio.h>
@@ -31,11 +32,6 @@
 #define PCI_SUBCLASS_WIFI       0x80   /* 0x0280 = WLAN */
 
 /* ---- Wi-Fi vendor IDs ---- */
-#define PCI_VENDOR_INTEL    0x8086
-#define PCI_VENDOR_REALTEK  0x10EC
-#define PCI_VENDOR_MEDIATEK 0x14C3
-#define PCI_VENDOR_BROADCOM 0x14E4
-#define PCI_VENDOR_ATHEROS  0x168C
 
 /* ---- Global state ---- */
 static int  g_wifi_vendor = 0;      /* PCI vendor of the Wi-Fi chip */
