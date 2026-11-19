@@ -1586,6 +1586,32 @@ static void test_caption_metrics(void) {
 
 /* -- Running-indicator pills (modern taskbar) --------------------- */
 
+/* Pager clicks must land on the drawn tabs: input derives desk_x from the
+ * published tray well exactly like the renderer (the old screen_w-150
+ * guess was offset by the clock+tray reserve). */
+static void test_pager_hit_test(void) {
+    TEST("pager hit-test: clicks land on the drawn classic tabs");
+    wubu_screensaver_set_enabled(false);
+    wubu_theme_set(THEME_WIN98_CLASSIC);
+    wm_init(1024, 768);
+    wm_add_desktop();
+    systray_add("pprobe", 0x00AA00, NULL, NULL);
+    wm_render(NULL, 1024, 768);
+    CHECK(g_dwm.desktop_count >= 2, "two desktops exist");
+    CHECK(g_dwm.tray_well_w > 0, "classic render publishes the tray well");
+    int desk_x = g_dwm.tray_well_x - WUBU_TASKBAR_CLASSIC_PAGER_RESERVE;
+    int task_h = taskbar_height_dynamic();
+    int desk_y = taskbar_top() + (task_h - WUBU_TASKBAR_CLASSIC_PAGER_H) / 2;
+    int px = desk_x + WUBU_TASKBAR_CLASSIC_PAGER_PITCH +
+             WUBU_TASKBAR_CLASSIC_PAGER_W / 2;
+    wm_handle_mouse(px, desk_y + WUBU_TASKBAR_CLASSIC_PAGER_H / 2, 1, 1);
+    CHECK(g_dwm.current_desktop == 1, "clicking tab 1 switches to desktop 1");
+    systray_remove("pprobe");
+    wm_shutdown();
+    wubu_screensaver_set_enabled(true);
+    PASS();
+}
+
 static int g_tray_clicks = 0;
 static void tray_click_probe(void) { g_tray_clicks++; }
 
@@ -1808,6 +1834,7 @@ int main(void) {
     test_caption_metrics();
     test_window_shadow();
     test_tray_hit_test();
+    test_pager_hit_test();
     test_taskbar_indicator();
     test_taskbar_autohide();
     test_modern_taskbar();

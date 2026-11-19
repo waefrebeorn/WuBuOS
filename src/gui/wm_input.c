@@ -192,6 +192,14 @@ void wm_handle_key(uint32_t key, uint32_t mods) {
         return;
     }
 
+    /* Win+N: notification center (Windows 11 parity). Before this, the
+     * center was reachable ONLY by the classic bar's toggle region —
+     * unreachable in the modern theme. */
+    if ((mods & MOD_WIN) && (key == 0x31 || key == 'n' || key == 'N')) {
+        notif_center_toggle();
+        return;
+    }
+
     /* Win+Tab: desktop overview grid. */
     if ((mods & MOD_WIN) && key == 0x09) {
         wm_overview_toggle();
@@ -439,10 +447,16 @@ void wm_handle_mouse(int x, int y, int btn, int kind) {
             bx += 123;
         }
 
-        int desk_x = g_dwm.screen_w - 150;
+        /* Desktop pager: derive from the PUBLISHED tray well, exactly as
+         * the renderer does (desk_x = tray_x - PAGER_RESERVE). The old
+         * screen_w-150 guess was offset by the whole clock+tray reserve,
+         * so pager clicks landed on nothing. */
+        int desk_x = g_dwm.tray_well_x - WUBU_TASKBAR_CLASSIC_PAGER_RESERVE;
+        int desk_y = taskbar_top() + (task_h - WUBU_TASKBAR_CLASSIC_PAGER_H) / 2;
         for (int d = 0; d < g_dwm.desktop_count; d++) {
-            int dx = desk_x + d * 16;
-            if (x >= dx && x < dx + 14 && y >= by && y < by + 16) {
+            int dx = desk_x + d * WUBU_TASKBAR_CLASSIC_PAGER_PITCH;
+            if (x >= dx && x < dx + WUBU_TASKBAR_CLASSIC_PAGER_W &&
+                y >= desk_y && y < desk_y + WUBU_TASKBAR_CLASSIC_PAGER_H) {
                 g_dwm.current_desktop = d;
                 return;
             }

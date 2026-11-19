@@ -87,7 +87,12 @@ dots instead of guessing 6px).
 
 Geometry / colour hits per governed surface — work top-down:
 
-- `src/gui/shell/win11_widgets.c` — 17 / 0. NEXT (last governed surface).
+- `src/gui/shell/win11_widgets.c` — 0 / 0. DONE (batch 5: WUBU_WIDGETS_*
+  token block; one panel-rect computation shared by render and click;
+  weather card stopped printing invented "Partly cloudy 21 C" — honest
+  placeholder until a forecast source is wired).
+- MILESTONE 2026-11-19: ALL governed GUI surfaces at 0 geometry / 0 colour
+  (started at 242 / 39). Ratchet holds the line; new literals fail the gate.
 - `src/gui/shell/wm_ctxmenu.c` — 0 / 0. DONE (batch 4: dialogs use
   chrome_caption_metrics().bar_h + chrome_border_width() — they are windows,
   not a second chrome owner; client layout in WUBU_DIALOG_* tokens; colours
@@ -113,6 +118,17 @@ batch when picked up; do not boil the ocean in one pass.
 
 ## Status
 
+- 2026-11-19 batch 5: win11_widgets.c 17/0 -> 0/0 — MILESTONE: every
+  governed GUI surface now 0 geometry / 0 colour (from 242/39). Two more
+  hit-test bugs of the same class fixed: (1) classic desktop pager clicks
+  were offset by the whole clock+tray reserve (input guessed screen_w-150
+  while the renderer draws at tray_x - PAGER_RESERVE) — input now derives
+  from the published tray well, gated by test_pager_hit_test; (2) the
+  notification center was unreachable in the modern theme (classic-only
+  toggle region) — Win+N hotkey added (Windows 11 parity). Weather card
+  no longer prints invented data. Gates: test_wm 57/57, test_standards
+  clean (0/0 baseline), hosted green, test_docs 581/0.
+  OPEN wiring item: a real forecast source for the widgets weather card.
 - 2026-11-19 batch 4: wm_ctxmenu.c 16/1 -> 0/0, wm_systray.c 16/3 -> 0/0.
   FUNCTIONAL FIX: tray icons were drawn but DEAD in the modern theme —
   taskbar_modern_handle swallowed every click inside the island, and the
@@ -128,9 +144,8 @@ batch when picked up; do not boil the ocean in one pass.
   drift is not growth). Ratchet: geometry 49->17, colour 4->0. Gates:
   test_wm 56/56, test_gui_metrics, test_greeter 28/28, test_standards clean,
   hosted green, test_docs 581/0, fresh-HOME capture shows OOBE intact.
-  OPEN (found, recorded): classic desktop-pager hit-test still re-derives
-  desk_x = screen_w-150 instead of a published well; the modern bar has no
-  notification-center toggle hit region (classic-only path).
+  OPEN (found, recorded): classic desktop-pager hit-test and the modern
+  notification-center reachability — BOTH FIXED in batch 5.
 - 2026-11-19 batch 3: window_chrome.c geometry 16->0, colour 10->0. New theme
   semantic caption_close_hover (all 6 themes, reference #C42B1C). Unused
   ChromeButton enum contradicted the live hit-test numbering — aligned and

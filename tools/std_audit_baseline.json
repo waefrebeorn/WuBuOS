@@ -133,23 +133,5 @@
     "src/tools/wubugrep/wubugrep.c",
     "tools/wubu_buddy_orb_demo.c"
   ],
-  "magic": [
-    "src/gui/shell/win11_widgets.c:10",
-    "src/gui/shell/win11_widgets.c:10",
-    "src/gui/shell/win11_widgets.c:10",
-    "src/gui/shell/win11_widgets.c:16",
-    "src/gui/shell/win11_widgets.c:16",
-    "src/gui/shell/win11_widgets.c:22",
-    "src/gui/shell/win11_widgets.c:24",
-    "src/gui/shell/win11_widgets.c:24",
-    "src/gui/shell/win11_widgets.c:40",
-    "src/gui/shell/win11_widgets.c:40",
-    "src/gui/shell/win11_widgets.c:42",
-    "src/gui/shell/win11_widgets.c:56",
-    "src/gui/shell/win11_widgets.c:58",
-    "src/gui/shell/win11_widgets.c:6",
-    "src/gui/shell/win11_widgets.c:72",
-    "src/gui/shell/win11_widgets.c:8",
-    "src/gui/shell/win11_widgets.c:8"
-  ]
+  "magic": []
 }

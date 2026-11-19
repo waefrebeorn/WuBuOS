@@ -144,6 +144,30 @@
 #define WUBU_STATUS_WARN         0xFFFF00u /* glyph-art */
 #define WUBU_STATUS_CRIT         0xFF0000u /* glyph-art */
 
+/* Win+W widgets board. */
+#define WUBU_WIDGETS_PANEL_W     360
+#define WUBU_WIDGETS_PANEL_X     WUBU_METRIC_MARGIN_SM
+#define WUBU_WIDGETS_PANEL_Y     WUBU_METRIC_MARGIN_SM
+#define WUBU_WIDGETS_EDGE_MARGIN 16   /* min desktop border around the panel */
+#define WUBU_WIDGETS_PANEL_RADIUS 10
+#define WUBU_WIDGETS_CARD_RADIUS 8
+#define WUBU_WIDGETS_CARD_PAD    WUBU_METRIC_GAP_MD
+#define WUBU_WIDGETS_CARD_GAP    WUBU_METRIC_GAP_MD
+#define WUBU_WIDGETS_HEADER_DY   10
+#define WUBU_WIDGETS_LIST_TOP    40
+#define WUBU_WIDGETS_CARD_TITLE_DY 6
+#define WUBU_WIDGETS_CLOCK_H     92
+#define WUBU_WIDGETS_CLOCK_TIME_DY 22
+#define WUBU_WIDGETS_CLOCK_DATE_DY 58
+#define WUBU_WIDGETS_WEATHER_H   76
+#define WUBU_WIDGETS_WEATHER_L1_DY 24
+#define WUBU_WIDGETS_WEATHER_L2_DY 42
+#define WUBU_WIDGETS_SYSTEM_H    112
+#define WUBU_WIDGETS_SYSTEM_CPU_DY 24
+#define WUBU_WIDGETS_SYSTEM_GPU_DY 40
+#define WUBU_WIDGETS_SYSTEM_SSD_DY 56
+#define WUBU_WIDGETS_SYSTEM_RAM_DY 72
+
 #define WUBU_TASKBAR_H     WUBU_METRIC_TASKBAR_H   /* taskbar: canonical */
 
 /* Modern (Win11-class) taskbar. Indicator measurements from the reference
