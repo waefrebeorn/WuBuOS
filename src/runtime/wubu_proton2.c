@@ -299,7 +299,7 @@ int wubu_proton_mount(WubuProtonManager *mgr,
     return wubu_ct_add_bind(mgr->container, host_path, guest_path, false);
 }
 
-int wubu_proton_exec(WubuProtonManager *mgr, const char *cmd) {
+int wubu_proton2_exec(WubuProtonManager *mgr, const char *cmd) {
     if (!mgr || !mgr->container_running) return -1;
     char *argv[4] = { "/bin/bash", "-c", (char*)cmd, NULL };
     wubu_ct_set_cmd(mgr->container, 3, argv);
@@ -308,7 +308,7 @@ int wubu_proton_exec(WubuProtonManager *mgr, const char *cmd) {
 
 /* -- Diagnostics -------------------------------------------------- */
 
-void wubu_proton_dump(const WubuProtonManager *mgr) {
+void wubu_proton2_dump(const WubuProtonManager *mgr) {
     if (!mgr) { printf("Proton Manager: NULL\n"); return; }
     printf("=== WuBuOS Proton Manager ===\n");
     printf("  Container running: %s\n", mgr->container_running ? "yes" : "no");

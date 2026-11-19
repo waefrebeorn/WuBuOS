@@ -17,7 +17,7 @@
  *     GUI WuBuOS already ships)
  *
  * The manager:
- *   wubu_session_init()          — start in the current session
+ *   wubu_rt_session_init()       — start in the current session
  *   wubu_session_switch()        — switch to the other one
  *   wubu_session_set()           — set to a specific session
  *   wubu_session_current()       — the active session
@@ -55,7 +55,7 @@ const char *wubu_session_name(int s)
 }
 
 /* SS1: init — start in the given session (or desktop by default). */
-void wubu_session_init(int session)
+void wubu_rt_session_init(int session)
 {
     memset(&g_ss, 0, sizeof(g_ss));
     g_ss.current = (session == WUBU_SESSION_GAME) ? WUBU_SESSION_GAME

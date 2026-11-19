@@ -7,6 +7,7 @@
 #include "../egojar.h"
 #include "wubu_exec.h"
 #include "wubu_exec_internal.h"
+#include "wubu_dos_proc.h"
 #include "wubu_host_exec.h"
 #include "../compiler/holyd.h"
 
@@ -439,8 +440,18 @@ int64_t wubu_exec(const void *data, size_t size, const char *filename) {
      * here via filename so a 16-bit blob is never mis-routed to ELF/PE. */
     {
         WUBU_PAYLOAD_TYPE dos_t = wubu_exec_dos_classify(data, size, filename);
-        if (dos_t == WUBU_PAYLOAD_DOS_COM || dos_t == WUBU_PAYLOAD_DOS_EXE)
-            return wubu_exec_dos(data, size, filename);
+        if (dos_t == WUBU_PAYLOAD_DOS_COM || dos_t == WUBU_PAYLOAD_DOS_EXE) {
+            /* wubu_exec's contract is an int64 STATUS, not a handle. The
+             * shim runs the program to completion inside wubu_exec_dos;
+             * report success/failure as a status and release the handle.
+             * Callers that need the live process (desktop DOS window) use
+             * wubu_exec_dos()/wubu_dos_proc_launch() directly. */
+            WubuDosProc *dp = wubu_exec_dos(data, size, filename);
+            if (!dp) return -1;
+            int64_t st = (wubu_dos_proc_state(dp) == DOS_PROC_FAILED) ? -1 : 0;
+            wubu_dos_proc_destroy(dp);
+            return st;
+        }
     }
     switch (type) {
         case WUBU_PAYLOAD_LINUX_ELF:

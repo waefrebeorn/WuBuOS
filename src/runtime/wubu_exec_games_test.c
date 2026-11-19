@@ -27,11 +27,36 @@
 /* FAIL: use wubu_test.h */
 
 static int failures = 0;
-static const char *ERA = "/home/wubu/wubunos/demos/era";
+/* Cross-repo demo location (legacy). The in-repo demos/era (built by
+ * test_era_apps from committed sources) is preferred when present. */
+static const char *ERA_CROSS_REPO = "/home/wubu/wubunos/demos/era";
+static char era_root[512];
+
+/* Resolve the era demo root honestly: in-repo demos/era first (relative to
+ * WUBU_REPO_ROOT or CWD), then the cross-repo location. Returns 0 when a
+ * root with the quake3 demo exists, -1 when neither is present. */
+static int resolve_era_root(void) {
+    const char *repo = getenv("WUBU_REPO_ROOT");
+    char cwd[512];
+    if (!repo || !repo[0]) {
+        if (!getcwd(cwd, sizeof(cwd))) strcpy(cwd, ".");
+        repo = cwd;
+    }
+    snprintf(era_root, sizeof(era_root), "%s/demos/era", repo);
+    char probe[600];
+    snprintf(probe, sizeof(probe), "%s/quake3/quake3_linux.x86_64", era_root);
+    if (access(probe, R_OK) == 0) return 0;
+    snprintf(probe, sizeof(probe), "%s/quake3/quake3_linux.x86_64", ERA_CROSS_REPO);
+    if (access(probe, R_OK) == 0) {
+        snprintf(era_root, sizeof(era_root), "%s", ERA_CROSS_REPO);
+        return 0;
+    }
+    return -1;
+}
 
 static char *era_path(const char *sub) {
     static char buf[512];
-    snprintf(buf, sizeof(buf), "%s/%s", ERA, sub);
+    snprintf(buf, sizeof(buf), "%s/%s", era_root, sub);
     return buf;
 }
 
@@ -86,37 +111,68 @@ int main(void) {
     setenv("DISPLAY", ":99", 1);
     setenv("WUBU_SECCOMP_PROFILE", "none", 1);
     setenv("WUBU_NS_FLAGS", "0", 1);
+    /* Run from the repo root so CWD-relative markers land where we check. */
+    char cwd[512];
+    if (getcwd(cwd, sizeof(cwd))) setenv("WUBU_REPO_ROOT", cwd, 1);
+
+    /* Honest demo-path handling: if neither the in-repo nor the cross-repo
+     * demo tree is present, SKIP with a message (exit 77), not a silent pass. */
+    if (resolve_era_root() != 0) {
+        printf("[SKIP] era demos not found (looked in ./demos/era and %s).\n",
+               ERA_CROSS_REPO);
+        printf("       Build them with `make test_era_apps`, then re-run.\n");
+        return 77;
+    }
+    printf("  era demo root: %s\n", era_root);
 
     /* ---- Quake 3 Linux ELF ---- */
     printf("\n[1] Quake 3 ELF via wubu_exec_linux_elf\n");
     size_t sz = 0;
     uint8_t *q3 = load_file(era_path("quake3/quake3_linux.x86_64"), &sz);
     if (!q3) FAIL("cannot load q3 ELF");
-    /* Validate ELF magic */
     if (q3[0] != 0x7F || q3[1] != 'E' || q3[2] != 'L' || q3[3] != 'F') FAIL("bad ELF magic");
     printf("    ELF magic OK (%.4s), %zu bytes\n", q3+1, sz);
     uint8_t *baseoa = load_file(era_path("quake3/baseoa/pak0.pk3"), &sz);
     if (!baseoa) printf("    (baseoa/pak0.pk3 not found — partial data ok for exec test)\n");
     free(baseoa);
+    unlink("WUBU_ERA_LINUX.OK");
     printf("    dispatching through wubu_exec_linux_elf → wubu_ct_native...\n");
     int64_t rc = wubu_exec_linux_elf(q3, sz);
     printf("    wubu_exec_linux_elf returned: %lld\n", (long long)rc);
-    printf("    PASS: ELF dispatched through OWN exec stack\n");
+    /* Meaningful assertion: the ELF must actually RUN (exit 0) and leave its
+     * host-effect marker, not merely be dispatched. */
+    if (rc != 0) { printf("  FAIL: ELF exec rc=%lld (expected 0)\n", (long long)rc); failures++; }
+    else printf("  [PASS] ELF ran through OWN exec stack (rc==0)\n");
+    if (access("WUBU_ERA_LINUX.OK", F_OK) != 0) {
+        printf("  FAIL: ELF did not write WUBU_ERA_LINUX.OK marker\n"); failures++;
+    } else printf("  [PASS] ELF wrote WUBU_ERA_LINUX.OK marker\n");
     free(q3);
 
-next:
     /* ---- Halo PC PE ---- */
     printf("\n[2] Halo PC PE via wubu_exec_win_pe\n");
     uint8_t *hp = load_file(era_path("halo_pc/halo.exe"), &sz);
     if (!hp) FAIL("cannot load halo.exe");
-    if (hp[0] != 'M' || hp[1] != 'Z') FAIL("not a PE (bad MZ magic)");
+    if (sz < 2 || hp[0] != 'M' || hp[1] != 'Z') {
+        /* mingw-w64 absent at build time leaves a 0-byte placeholder. That is
+         * an honest gap, not a pass: skip the Win leg with a message. */
+        printf("[SKIP] Win leg: halo.exe is not a built PE (%zu bytes, no MZ).\n", sz);
+        printf("       Install mingw-w64 and re-run `make test_era_apps`.\n");
+        free(hp);
+        goto done;
+    }
     printf("    PE magic OK (MZ), %zu bytes\n", sz);
+    unlink("WUBU_ERA_WIN.OK");
     printf("    dispatching through wubu_exec_win_pe → wubu_ct_steamos...\n");
     rc = wubu_exec_win_pe(hp, sz);
     printf("    wubu_exec_win_pe returned: %lld\n", (long long)rc);
-    printf("    PASS: PE dispatched through OWN exec stack\n");
+    if (rc != 0) { printf("  FAIL: PE exec rc=%lld (expected 0)\n", (long long)rc); failures++; }
+    else printf("  [PASS] PE ran through OWN exec stack (rc==0)\n");
+    if (access("WUBU_ERA_WIN.OK", F_OK) != 0) {
+        printf("  FAIL: PE did not write WUBU_ERA_WIN.OK marker\n"); failures++;
+    } else printf("  [PASS] PE wrote WUBU_ERA_WIN.OK marker\n");
     free(hp);
 
+done:
     printf("\n=== %d failures ===\n", failures);
     if (failures == 0)
         printf("=== ALL GAME-EXEC TESTS PASSED (games run through the kernel stack) ===\n");

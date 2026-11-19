@@ -20,7 +20,8 @@ const char *wubu_hw_gpu_path(void) { return 0; }
 const char *wubu_hw_vulkan_icd_chain(void) { return 0; }
 int  wubu_hw_detect(void) { return 0; }
 
-/* GPU backend probes (kernel-level in wubu_drv_gpu.c; stubs for tests) */
+/* GPU backend probes (kernel-level in wubu_drv_gpu.c; stubs for tests).
+ * NOTE: the GPU sensor getters (wubu_gpu_present_wsl / wubu_gpu_vram_mb)
+ * are owned by wubu_hw_sensors_fallback.c -- one owner per concern; link
+ * that module when the target also pulls wubu_gpu_backend / wubu_world. */
 const char *wubu_hw_platform(void) { return "linux"; }
-int  wubu_gpu_present_wsl(void) { return 0; }
-int  wubu_gpu_vram_mb(void) { return 0; }

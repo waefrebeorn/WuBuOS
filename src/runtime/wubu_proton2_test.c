@@ -51,7 +51,7 @@ static void test_usb_enumerate(void) {
 static void test_midi_enumerate(void) {
     TEST("MIDI device enumeration");
     char names[8][64];
-    int n = wubu_midi_enumerate(names, 8);
+    int n = wubu_proton2_midi_enumerate(names, 8);
     printf("(%d devices) ", n);
     PASS();
 }
@@ -166,7 +166,7 @@ static void test_proton_verify_installation(void) {
 static void test_proton_dump(void) {
     TEST("Proton diagnostics dump");
     WubuProtonManager *mgr = wubu_proton_mgr_create(NULL);
-    wubu_proton_dump(mgr);  /* Should not crash */
+    wubu_proton2_dump(mgr);  /* Should not crash */
     wubu_proton_mgr_destroy(mgr);
     PASS();
 }

@@ -336,7 +336,7 @@ void wubu_archd_shutdown(WubuArchd *d) {
 
 /* -- Main Entry Point --------------------------------------------- */
 
-#ifndef WUBD_TEST_MAIN
+#if !defined(WUBD_TEST_MAIN) && !defined(WUBU_HOSTED_PRODUCT)
 int main(int argc, char *argv[]) {
     WubuArchdConfig config = {0};
     strncpy(config.roots_path, WUBU_ARCHD_ROOTS_PATH, WUBU_ARCHD_MAX_PATH - 1);
@@ -401,5 +401,5 @@ int main(int argc, char *argv[]) {
     wubu_archd_shutdown(&daemon);
     return 0;
 }
-#endif /* WUBD_TEST_MAIN */
+#endif /* !WUBD_TEST_MAIN && !WUBU_HOSTED_PRODUCT */
 

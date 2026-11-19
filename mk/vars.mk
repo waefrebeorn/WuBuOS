@@ -2,6 +2,11 @@
 # WuBuOS Top-Level Makefile variables
 
 CC      = gcc
+# Cached test-object dirs: defined HERE (before any rule reads them) so
+# $(CACHE) in target PREREQUISITES expands correctly; a late := definition
+# left prerequisites empty and clean-tree tier builds could not find them.
+CACHE   := build/testobj
+TEST_BIN := build/testbin
 CFLAGS  = -Iinclude -Wall -Wextra -Wno-unused-function -std=c11 -O2 -g -D_POSIX_C_SOURCE=200809L -Wno-array-bounds -DWUBU_NO_LIBM -I/usr/include/libdrm -Wno-unused-result -Wno-implicit-function-declaration -Wno-return-type -Wno-unused-variable -Wno-format-truncation -Wno-unused-parameter
 EDR_INC = -I$(RT)/edr
 LDFLAGS = -lcublas -lcudnn -lcudart

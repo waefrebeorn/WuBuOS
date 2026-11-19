@@ -156,6 +156,12 @@ int wubu_proton_list_games(ProtonGame **out_games, int *out_count);
 /* Launch game */
 int wubu_proton_launch_game(const char *game_id);
 int wubu_proton_launch_with_prefix(const char *exe_path, const char *prefix_id, char *const argv[]);
+/* Build the sandboxed wine command line (bwrap ... -- wine argv...).
+ * argv[0] is the program to run; out receives argc string pointers.
+ * Returns argc, or -1 on unknown prefix / missing wine / overflow.
+ * Exposed so gates can assert the command shape without exec'ing it. */
+int wubu_proton_build_wine_cmd(const char *prefix_id, const char *const argv[],
+                               const char **out, int max);
 
 /* Proton-GE */
 int wubu_proton_ge_install_latest(void);
