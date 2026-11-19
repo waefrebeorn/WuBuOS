@@ -1,0 +1,78 @@
+# macos-verify.yml — READY TO COPY into wubucompositor/.github/workflows/
+#
+# Phase 1 (real today): compile the portable spawn leaf on REAL macOS,
+# both architectures, and run its headless behaviour gate. This is how
+# the _NSGetExecutablePath branch gets verified for the first time.
+# Free + unlimited: the repo is public.
+#
+# Phase 2 (commented): full compositor build once the Quartz host
+# backend lands — needs MacPorts wayland + epoll-shim (see
+# buy-wubu-a-mac/research/05-wayland-on-macos.md).
+#
+# Agent loop: git push (or gh workflow run macos-verify.yml), then
+# gh run watch <id> --exit-status; on failure gh run view --log-failed;
+# on green the release/package flow finalizes. No human steps.
+
+name: macos-verify
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'Makefile'
+      - '.github/workflows/macos-verify.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]   # x86_64 (matches the 2012 iMac) + M1
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compile the spawn leaf (Apple branch, first real compile)
+        run: |
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Isrc \
+             -c src/wcc_spawn.c -o wcc_spawn.o
+
+      - name: Headless spawn gate (no X, no Wayland needed)
+        run: |
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Isrc \
+             src/wcc_spawn.c src/test_wcc_spawn.c -o test_wcc_spawn
+          ./test_wcc_spawn
+
+      - name: Compile-check the Quartz stub shape (when present)
+        run: |
+          if [ -f src/wcc_quartz.c ]; then
+            cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Isrc \
+               -fsyntax-only src/wcc_quartz.c
+          else
+            echo "wcc_quartz.c not landed yet — phase 2"
+          fi
+
+      # ---- PHASE 2: full compositor on macOS (uncomment when Quartz lands)
+      # - name: Install wayland + epoll-shim (MacPorts recipe)
+      #   run: |
+      #     # MacPorts on the runner, then:
+      #     # sudo port install wayland wayland-protocols epoll-shim \
+      #     #                   libxkbcommon pkgconfig meson ninja
+      #     echo "phase 2"
+      # - name: Build compositor (Quartz backend)
+      #   run: make BACKEND=quartz
+      # - name: Live capture gate
+      #   run: ./wubucompositor --screenshot shot.ppm
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: macos-shot-${{ matrix.os }}
+      #     path: shot.ppm
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-verify-${{ matrix.os }}
+          path: |
+            wcc_spawn.o
+            test_wcc_spawn

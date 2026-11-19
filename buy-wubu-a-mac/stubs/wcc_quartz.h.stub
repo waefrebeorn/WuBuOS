@@ -1,0 +1,36 @@
+/*
+ * wcc_quartz.h.stub — macOS host backend, the seam that replaces X11.
+ *
+ * STATUS: SKELETON. Not compiled, not verified, not wired. Rename to
+ * wcc_quartz.h and implement on the macOS verify loop (research/01).
+ * The CI workflow compile-checks it the moment it lands as .c/.h.
+ *
+ * Concern boundary mirrors wcc_gpu.c / the X11 host leaves: this leaf
+ * owns the macOS HOST side (window, present, input source). All Wayland
+ * protocol logic stays host-agnostic. See research/05-wayland-on-macos.md.
+ */
+#ifndef WCC_QUARTZ_H
+#define WCC_QUARTZ_H
+
+struct wcc_server;
+
+/* Create the host window (NSWindow/NSView, or the CoreGraphics C API
+ * where possible — keep ObjC surface small so osxcross compile-checks
+ * stay useful). Returns 0 on success. */
+int  wcc_quartz_setup(struct wcc_server *s);
+
+/* Present the guest's BGRA buffer: IOSurface/CVPixelBuffer import or a
+ * CGImage draw. Present-on-change policy lives HERE, never in the
+ * render loop (the compositor skill's rule). */
+void wcc_quartz_present(struct wcc_server *s, const void *data,
+                        int w, int h, int stride);
+
+/* Tear down host resources. */
+void wcc_quartz_destroy(struct wcc_server *s);
+
+/* Input: CGEventTap (mouse/keyboard) -> the SAME seat paths the X11
+ * backend uses (wl_fixed_t coords, modifiers on every key event,
+ * pointer enter on button press). Enumeration: CGGetActiveDisplayList
+ * + CGDisplayCopyAllDisplayModes replace XRandR (wcc_monitors.c). */
+
+#endif /* WCC_QUARTZ_H */

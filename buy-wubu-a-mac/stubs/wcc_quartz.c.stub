@@ -1,0 +1,47 @@
+/*
+ * wcc_quartz.c.stub — macOS host backend skeleton.
+ *
+ * STATUS: HONEST STUB. Every function fails loudly; nothing here
+ * pretends to work. Not compiled on Linux (no Quartz SDK), not
+ * compiled on macOS yet. Implement on the free macOS verify loop:
+ *   buy-wubu-a-mac/research/01-github-actions-free-loop.md
+ *
+ * Implementation notes (from research/05):
+ * - libwayland-server builds on macOS via epoll-shim (MacPorts); the
+ *   protocol half of the compositor is unchanged.
+ * - Prefer the C APIs (CoreGraphics/ApplicationServices) over ObjC
+ *   where possible: osxcross compile-checks from Linux stay useful,
+ *   and the C surface is stable across macOS versions.
+ * - Buffer import: the guest hands us BGRA shm (0x00RRGGBB in memory =
+ *   B,G,R,00). CVPixelBufferCreateWithBytes or CGImageCreate with
+ *   kCGImageAlphaNoneSkipLast; NO blending (the unused alpha byte must
+ *   not composite the desktop transparent — same rule as the GLX path).
+ * - Frame pacing: CVDisplayLink; present-on-change memcmp against a
+ *   compositor-owned last copy (the XShm/GLX rule, unchanged).
+ * - Input: CGEventTapCreate for mouse/keyboard; translate to the seat
+ *   paths. Keyboard focus rules differ from XGrabKeyboard — read the
+ *   macOS event-tap docs before wiring, don't guess.
+ */
+
+#include <stdio.h>
+
+/* struct wcc_server comes from wcc_internal.h once the host fields are
+ * split host-neutral; until then this stub is self-contained. */
+struct wcc_server;
+
+int wcc_quartz_setup(struct wcc_server *s) {
+    (void)s;
+    fprintf(stderr, "wcc_quartz: NOT IMPLEMENTED (stub) — see "
+                    "buy-wubu-a-mac/research/05-wayland-on-macos.md\n");
+    return -1;
+}
+
+void wcc_quartz_present(struct wcc_server *s, const void *data,
+                        int w, int h, int stride) {
+    (void)s; (void)data; (void)w; (void)h; (void)stride;
+    /* deliberate no-op: a stub must not draw garbage */
+}
+
+void wcc_quartz_destroy(struct wcc_server *s) {
+    (void)s;
+}
