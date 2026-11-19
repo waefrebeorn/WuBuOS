@@ -290,6 +290,11 @@ holyd-verify:
 kernel-strict:
 	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -march=x86-64 -mtune=generic -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
 
+# L1 end-to-end gate: write -> reboot -> read-back on a real virtio-blk
+# disk (tools/virtio_persist_gate.py; pattern: tools/ci_boot_assert.py).
+virtio-persist-gate: kernel
+	python3 tools/virtio_persist_gate.py $(KERNEL)/kernel.elf
+
 iso: $(KERNEL)/kernel.elf
 	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub
 	cp $(KERNEL)/kernel.elf $(CACHE)/iso-stage/boot/wubuos.elf

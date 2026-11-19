@@ -587,10 +587,27 @@ sighandler_t __sysv_signal(int sig, sighandler_t handler) {
     return 0;
 }
 
-/* --- ctype locale (used by some translated code) --- */
-const unsigned short int **__ctype_toupper_loc(void) {
-    static const unsigned short int identity[1] = { 0 };
-    static const unsigned short int *loc = identity;
+/* --- ctype locale (used by some translated code) ---
+ * glibc's <ctype.h> declares `const __int32_t **__ctype_toupper_loc(void)`
+ * and defines toupper(c) as (*__ctype_toupper_loc())[c] -- an INT32
+ * table of 384 entries covering [-128, 255] (index 0 == -128). The
+ * old stub returned a 1-element unsigned-short table: wrong element
+ * type AND wrong size, so every toupper() on metal read out of bounds
+ * and returned garbage -- FAT32 8.3 names were mangled (name_to_83)
+ * and name_cmp could never match, breaking every file create/find on
+ * the boot volume. Match glibc's real contract: int32 entries. */
+const int **__ctype_toupper_loc(void) {
+    static int table[384];
+    static const int *loc;
+    static int initialized;
+    if (!initialized) {
+        for (int i = 0; i < 384; i++) {
+            int c = i - 128;
+            table[i] = (c >= 'a' && c <= 'z') ? c - 32 : c;
+        }
+        loc = table + 128;
+        initialized = 1;
+    }
     return &loc;
 }
 

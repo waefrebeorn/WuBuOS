@@ -523,7 +523,13 @@ idt_ptr:
 .hidden idt_table
 .align 16
 idt_table:
-    .fill 256, 16, 0
+    /* 256 gates x 16 bytes. MUST be .skip, NOT .fill: GAS clamps
+     * `.fill` size to 8 in NOBITS sections ("Warning: .fill size
+     * clamped to 8"), which reserved only 2048 bytes -- gates 128..255
+     * then overwrote g_current_task, the FAT32 boot volume and g_agi
+     * at interrupt_init (the boot-volume "mounted" flag was garbage,
+     * so fat32_boot_attach silently early-returned on every boot). */
+    .skip 4096
 
 /* ------------------------------------------------------------------
  * Global current task pointer

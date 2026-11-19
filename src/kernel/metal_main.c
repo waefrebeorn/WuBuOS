@@ -18,10 +18,14 @@
 #include "wubu_hive.h"   /* G5: the metal's long-term memory */
 #include "fat32.h"       /* G6: the AGI checkpoint file */
 #include "ahci.h"        /* Gap DA: the boot volume's disk backend */
+#include "wubu_virtio_blk.h"  /* L1: real persistent storage (virtio-blk) */
 #include "wubu_probe.h"  /* Gap DB: unified hardware discovery dispatcher */
 #include "ps2.h"
 #include "klog.h"
 #include "../hosted/wubu_metal.h"
+
+/* kernel libc (freestanding): declared here for the boot-path users */
+void *memset(void *s, int c, size_t n);
 
 /* Gap DA: the boot volume's AHCI block adapters (the fat32_blk_ops
  * contract: ctx = the ahci hba, port 0). The ahci read/write return
@@ -35,6 +39,55 @@ static int wubu_bootvol_write(void *ctx, uint64_t lba, uint32_t n,
                               const void *buf)
 {
     return (ahci_write((ahci_hba_t *)ctx, 0, lba, n, buf) == (int)n) ? 0 : -1;
+}
+
+/* L1: the persistence proof hook -- runs ONLY when a real virtio-blk
+ * disk backs the boot volume. First boot: write a deterministic marker
+ * file through FAT32 (PERSIST-WROTE). Every later boot of the SAME
+ * image: read it back and verify every byte (PERSIST-OK). The payload
+ * is a fixed-seed LCG so both boots regenerate it identically -- a RAM
+ * sim disk can never produce PERSIST-OK on a fresh QEMU process. */
+static void wubu_virtio_persist_selftest(wubu_virtio_blk_t *vb)
+{
+    uint8_t payload[256], rd[256];
+    uint32_t s = 0x57AB1234u;
+    for (int i = 0; i < 256; i++) {
+        s = s * 1664525u + 1013904223u;
+        payload[i] = (uint8_t)(s >> 24);
+    }
+    fat32_volume *vol = fat32_boot_volume();
+    fat32_file_info fi;
+    fat32_file f;
+    memset(&f, 0, sizeof(f));   /* close() must see a zero handle on failure */
+    if (fat32_find(vol, 0, "PERSIST.MRK", &fi) == 0) {
+        int ok = (fat32_open(vol, 0, "PERSIST.MRK", "r", &f) == 0 &&
+                  fat32_read(&f, rd, sizeof(rd)) == sizeof(rd));
+        fat32_close(&f);
+        if (ok) {
+            for (int i = 0; i < 256; i++)
+                if (rd[i] != payload[i]) { ok = 0; break; }
+        }
+        if (ok)
+            klog_printf("PERSIST-OK: marker read back verified across "
+                        "reboot (virtio-blk)\n");
+        else
+            klog_printf("PERSIST-FAIL: marker read-back mismatch\n");
+    } else {
+        int ok = (fat32_create(vol, 0, "PERSIST.MRK", FAT32_ATTR_ARCHIVE,
+                               &fi) == 0 &&
+                  fat32_open(vol, 0, "PERSIST.MRK", "w", &f) == 0 &&
+                  fat32_write(&f, payload, sizeof(payload)) ==
+                      sizeof(payload));
+        fat32_close(&f);
+        if (ok) {
+            fat32_flush(vol);
+            wubu_virtio_blk_flush(vb);
+            klog_printf("PERSIST-WROTE: marker stored on virtio-blk "
+                        "(reboot the same image to verify)\n");
+        } else {
+            klog_printf("PERSIST-FAIL: marker create/write failed\n");
+        }
+    }
 }
 
 /* Gap G5: the metal's long-term hive -- file-scope (the AGI's memory
@@ -511,10 +564,10 @@ void kernel_main(void *boot_info) {
     extern int wubu_crash_pickup(void);
     wubu_crash_pickup();
 
-    /* Gap DA: the boot FAT32 volume -- the G4/G6 persistence paths were
-     * DEAD on metal (nothing ever mounted the volume, so every save/
-     * restore hit vol->mounted and failed). Attach the volume here:
-     * create the AHCI sim disk, format it when bare, mount it.
+    /* Gap DA + L1: the boot FAT32 volume. L1: when a legacy virtio-blk
+     * disk is present it backs the volume -- REAL persistence across
+     * reboot (proven by tools/virtio_persist_gate.py). Absent virtio,
+     * the AHCI sim disk fallback is EXACTLY the historical behaviour.
      * NOTE: the HBA is HEAP-allocated (a static one would add ~27KB to
      * the BSS and shift the image end past its 16-byte alignment --
      * the boot-time alignment assert's crash class). */
@@ -526,33 +579,52 @@ void kernel_main(void *boot_info) {
         extern int fat32_boot_attach(const fat32_blk_ops *);
         extern void *mem_alloc(size_t);
         extern void mem_free(void *);
-        extern void *memset(void *, int, size_t);
-        ahci_hba_t *bhba = (ahci_hba_t *)mem_alloc(sizeof(ahci_hba_t));
         static int bvol_ok = 0;
-        int d1 = -1, d2 = -1, d3 = -1, d4 = -1, d5 = -1;
-        if (bhba) {
-            /* the heap memory is not zeroed: the AHCI init expects a
-             * clean hba (the port states are checked as EMPTY) */
-            memset(bhba, 0, sizeof(*bhba));
-            d1 = ahci_hba_init(bhba);
-        }
-        if (d1 == 0) d2 = ahci_enumerate_ports(bhba);
-        if (d2 > 0) d3 = ahci_port_init(bhba, 0);
-        if (d3 == 0) d4 = ahci_sim_disk_create(bhba, 0, 8);
-        if (d4 == 0) {
-            static fat32_blk_ops bops = {
-                .read = NULL, .write = NULL, .ctx = NULL,
-                .n_sectors = 8 * 1024 * 1024 / 512,
-            };
-            bops.ctx = bhba;
-            bops.read = wubu_bootvol_read;
-            bops.write = wubu_bootvol_write;
+        static fat32_blk_ops bops = {
+            .read = NULL, .write = NULL, .ctx = NULL, .n_sectors = 0,
+        };
+        int d5 = -1;
+
+        /* L1: probe the real persistent disk first. */
+        wubu_virtio_blk_t *vb = wubu_virtio_blk_probe();
+        if (vb) {
+            bops.ctx = vb;
+            bops.read = wubu_virtio_blk_fat32_read;
+            bops.write = wubu_virtio_blk_fat32_write;
+            bops.n_sectors = wubu_virtio_blk_capacity(vb);
             d5 = fat32_boot_attach(&bops);
-            if (d5 == 0) bvol_ok = 1;
+            if (d5 == 0) {
+                bvol_ok = 1;
+                wubu_virtio_persist_selftest(vb);
+            }
+            klog_printf("WuBuOS: boot FAT32 volume %s on virtio-blk "
+                        "(sectors=%u a=%d)\n",
+                        bvol_ok ? "mounted" : "unavailable",
+                        (unsigned)bops.n_sectors, d5);
+        } else {
+            ahci_hba_t *bhba = (ahci_hba_t *)mem_alloc(sizeof(ahci_hba_t));
+            int d1 = -1, d2 = -1, d3 = -1, d4 = -1;
+            if (bhba) {
+                /* the heap memory is not zeroed: the AHCI init expects a
+                 * clean hba (the port states are checked as EMPTY) */
+                memset(bhba, 0, sizeof(*bhba));
+                d1 = ahci_hba_init(bhba);
+            }
+            if (d1 == 0) d2 = ahci_enumerate_ports(bhba);
+            if (d2 > 0) d3 = ahci_port_init(bhba, 0);
+            if (d3 == 0) d4 = ahci_sim_disk_create(bhba, 0, 8);
+            if (d4 == 0) {
+                bops.ctx = bhba;
+                bops.read = wubu_bootvol_read;
+                bops.write = wubu_bootvol_write;
+                bops.n_sectors = 8 * 1024 * 1024 / 512;
+                d5 = fat32_boot_attach(&bops);
+                if (d5 == 0) bvol_ok = 1;
+            }
+            klog_printf("WuBuOS: boot FAT32 volume %s (hba=%d en=%d p=%d d=%d a=%d)\n",
+                        bvol_ok ? "mounted" : "unavailable",
+                        d1, d2, d3, d4, d5);
         }
-        klog_printf("WuBuOS: boot FAT32 volume %s (hba=%d en=%d p=%d d=%d a=%d)\n",
-                    bvol_ok ? "mounted" : "unavailable",
-                    d1, d2, d3, d4, d5);
     }
 
     /* Gap G6: crash recovery -- restore the continuity checkpoint if a
