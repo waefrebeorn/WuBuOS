@@ -30,8 +30,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: WuBuKernel submodule (kernel consumes its driver/PMM headers)
-        run: git submodule update --init src/kernel/WuBuKernel
+      # NOTE: make kernel + make iso do NOT need the WuBuKernel submodule
+      # (only test_kernel_bridge compiles its sources). The submodule repo
+      # is currently PRIVATE — a fresh public clone cannot fetch it, which
+      # is a source-as-distro gap for the bridge test. Owner decision:
+      # make Waefrebeorn/WuBuKernel public to close it.
       - name: Build the kernel + GRUB ISO
         run: |
           sudo apt-get update -qq
