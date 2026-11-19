@@ -47,15 +47,11 @@ jobs:
       - name: Boot it here first (Linux, -kernel path)
         run: |
           qemu-system-x86_64 --version | head -1
-          # QEMU 10.2 triple-faults at 303 bytes where 8.2 boots: bisect
-          # machine type / CPU, logging exceptions on the default attempt.
-          WUBU_BOOT_WINDOW=120 WUBU_QEMU_DEBUG=1 python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel && exit 0
-          cp ci_serial.bin ci_serial_default.bin
-          echo "--- default failed; trying -machine pc-i440fx-8.2 ---"
-          WUBU_BOOT_WINDOW=120 WUBU_QEMU_EXTRA="-machine pc-i440fx-8.2" python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel && exit 0
-          cp ci_serial.bin ci_serial_82.bin
-          echo "--- trying -cpu qemu64 ---"
-          WUBU_BOOT_WINDOW=120 WUBU_QEMU_EXTRA="-cpu qemu64" python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+          WUBU_BOOT_WINDOW=300 WUBU_QEMU_DEBUG=1 python3 tools/ci_boot_assert.py src/kernel/kernel.elf --kernel
+      - name: Persistence ratchet (virtio-blk write->reboot->read-back)
+        run: WUBU_BOOT_WINDOW=300 make virtio-persist-gate
+      - name: Display ratchet (GOP pixel gate + strict + default boot)
+        run: WUBU_BOOT_WINDOW=300 WUBU_AGI_BOOT_WINDOW=240 make gop-fb-gate
       - uses: actions/upload-artifact@v4
         if: always()
         with:

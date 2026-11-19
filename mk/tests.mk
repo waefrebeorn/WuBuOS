@@ -27,7 +27,7 @@ test_oci:
 		$(RT)/oci/oci_blob_store.c $(RT)/oci/oci_convert.c $(RT)/oci/oci_registry.c \
 		$(RT)/oci/oci_runtime_spec.c $(RT)/oci/oci_hooks.c $(RT)/oci/oci_cleanup.c \
 		$(RT)/oci/oci_media_types.c $(RT)/oci/oci_descriptor.c \
-		$(RT)/wubu_image.c $(RT)/wubu_image_cache.c $(RT)/wubu_image_parse.c $(RT)/wubu_image_manifest.c $(RT)/wubu_image_ops.c $(RT)/wubu_image_tar.c $(RT)/wubu_spawn.c $(RT)/wubu_container.c $(RT)/wubu_oci_test.c \
+		$(RT)/wubu_image.c $(RT)/wubu_image_cache.c $(RT)/wubu_image_parse.c $(RT)/wubu_image_manifest.c $(RT)/wubu_image_ops.c $(RT)/wubu_image_names.c $(RT)/wubu_image_tar.c $(RT)/wubu_spawn.c $(RT)/wubu_container.c $(RT)/wubu_oci_test.c \
 		-o $(RT)/wubu_oci_test -lm
 	$(RT)/wubu_oci_test
 

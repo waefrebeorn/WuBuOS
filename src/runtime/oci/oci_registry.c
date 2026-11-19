@@ -62,16 +62,13 @@ static int oci_registry_do_request(OciRegistryClient *client, const char *method
 
     OciHttpClient http;
     if (oci_http_connect(&http, host, port, use_tls) < 0) {
-        /* Fallback: try without TLS for local registries */
-        if (use_tls) {
-            use_tls = false;
-            port = 80;
-            if (oci_http_connect(&http, host, port, use_tls) < 0) {
-                return -1;
-            }
-        } else {
-            return -1;
-        }
+        /* FAIL CLOSED (devil's-advocate audit 2026-11-19): the old code
+         * silently retried https registries over plaintext http:80 — a
+         * trust downgrade an attacker could trigger by blocking TLS.
+         * Plaintext is allowed ONLY for explicitly http:// registries
+         * (use_tls=false from the URL scheme above). https that cannot
+         * do TLS (e.g. mbedTLS not compiled in) is refused, not faked. */
+        return -1;
     }
 
     /* Build auth header if needed */

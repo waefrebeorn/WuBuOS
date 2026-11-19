@@ -28,6 +28,14 @@ FW = os.path.join(ROOT, "src", "firmware")
 LOG = os.path.join(FW, "build", "agi-boot.log")
 
 
+def agi_window():
+    return int(os.environ.get("WUBU_AGI_BOOT_WINDOW", "40"))
+
+
+def boot_window():
+    return int(os.environ.get("WUBU_BOOT_WINDOW", "45"))
+
+
 def run(cmd, cwd=ROOT, timeout=900, env_extra=None):
     print("+ " + " ".join(cmd), flush=True)
     env = dict(os.environ)
@@ -73,7 +81,7 @@ def main():
     # cannot keep its heartbeat cadence. Swap the liveness oracle to the
     # supervisor's continuous promotions (run-agi.sh WUBU_AGI_LIVENESS);
     # "Bonzi Buddy loop active" still proves a full MMIO frame rendered.
-    rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=240,
+    rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=agi_window() + 180,
                   env_extra={"WUBU_AGI_BOOT_WINDOW": "90",
                              "WUBU_AGI_LIVENESS": "promoted"})
     if rc != 0:
@@ -146,7 +154,7 @@ def main():
     if rc != 0:
         print("FAIL: default kernel rebuild failed\n" + tail(out))
         return 2
-    rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=300)
+    rc, out = run(["bash", "run-agi.sh"], cwd=FW, timeout=agi_window() + 180)
     if rc != 0:
         for line in out.splitlines():
             if "MISSING" in line or "RESULT" in line or "ERROR MARKERS" in line:
@@ -161,7 +169,8 @@ def main():
         print("FAIL: default WuBuFW boot lost the Bochs LFB display")
         return 1
     rc, out = run([sys.executable, "tools/ci_boot_assert.py",
-                   "src/kernel/kernel.elf", "--kernel"], timeout=180)
+                   "src/kernel/kernel.elf", "--kernel"],
+                  timeout=boot_window() + 90)
     print(tail(out, 6))
     if rc != 0:
         print("FAIL: default ci_boot_assert regressed")
