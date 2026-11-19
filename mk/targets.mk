@@ -296,6 +296,11 @@ kernel-strict:
 virtio-persist-gate: kernel
 	python3 tools/virtio_persist_gate.py $(KERNEL)/kernel.elf
 
+# L5 end-to-end gate: real UDP round-trip through QEMU user-netdev
+# (tools/virtio_net_gate.py; pattern: tools/virtio_persist_gate.py).
+virtio-net-gate: kernel
+	python3 tools/virtio_net_gate.py $(KERNEL)/kernel.elf
+
 # L4 GOP/Limine framebuffer fallback gate: forced-GOP boot through the
 # WuBuFW measured chain (GOP handoff -> map -> pixel read-back selftest),
 # kernel-strict 0 errors, and the default boot proven unchanged.

@@ -19,6 +19,8 @@
 #include "fat32.h"       /* G6: the AGI checkpoint file */
 #include "ahci.h"        /* Gap DA: the boot volume's disk backend */
 #include "wubu_virtio_blk.h"  /* L1: real persistent storage (virtio-blk) */
+#include "wubu_virtio_net.h"  /* L5: bare-metal network (virtio-net) */
+#include "wubu_netstack.h"    /* L5: minimal Ethernet/ARP/IPv4/ICMP/UDP */
 #include "wubu_probe.h"  /* Gap DB: unified hardware discovery dispatcher */
 #include "ps2.h"
 #include "klog.h"
@@ -802,6 +804,18 @@ void kernel_main(void *boot_info) {
                         bvol_ok ? "mounted" : "unavailable",
                         d1, d2, d3, d4, d5);
         }
+    }
+
+    /* L5: bare-metal network. When a legacy virtio-net function is
+     * present, bring up the NIC + the minimal stack and run the
+     * end-to-end selftest (ARP for the slirp gateway, ICMP ping,
+     * UDP round-trip against the gate's host echo server -- proven by
+     * tools/virtio_net_gate.py). Absent device: probe returns NULL and
+     * this whole section is a silent no-op (default boot unchanged). */
+    {
+        wubu_virtio_net_t *nic = wubu_virtio_net_probe();
+        if (nic && wubu_netstack_init(nic) == 0)
+            wubu_net_selftest();
     }
 
     /* Gap G6: crash recovery -- restore the continuity checkpoint if a
