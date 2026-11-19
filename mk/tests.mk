@@ -2,7 +2,7 @@
 
 # ── Tier-based Test Targets ─────────────────────────────────────────
 # CRITICAL TIER: Runtime Core (containers, network, OCI, snapshots, VSL, HolyD, Proton)
-test_critical_runtime: runtime test_network test_snapshot test_vsl test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
+test_critical_runtime: runtime test_network test_snapshot test_vsl test_vsl_exec test_holyd test_holyd_agi test_proton test_proton2 test_spawn test_gpu_driver test_kernel_xchg test_buddy_anim test_buddy_rig test_buddy_orb test_buddy_emotion test_wubutime test_gui_metrics test_gui_gfx test_wm_shadow test_crc32 test_system test_uuid test_kernel_ahciseq test_kernel_bridge test_kernel_macho
 	@echo "✅ Critical Tier (Runtime Core) complete"
 
 # ── Runtime Core Tests ─────────────────────────────────────────────
@@ -525,6 +525,33 @@ test_vsl_kernel_adapt: $(VSL_OBJS) src/runtime/vsl/vsl_kernel_adapt_test.c
 		src/runtime/vsl/vsl_kernel_adapt_test.c \
 		-o src/runtime/vsl/vsl_kernel_adapt_test -ldl -lvulkan -lcuda
 	./src/runtime/vsl/vsl_kernel_adapt_test
+
+# L11: VSL EXECUTES. Real in-process engine for static freestanding Linux
+# ELF: entry transfer + seccomp SIGSYS trap into vsl_syscall_dispatch.
+# Guests are real gcc-assembled static binaries linked into the VSL user
+# window (the seccomp trap scope); the gate also runs hand-assembled bytes.
+VSL_EXEC_GUESTS = \
+	$(RT)/vsl/exec_guests/guest_exit42.elf \
+	$(RT)/vsl/exec_guests/guest_write.elf \
+	$(RT)/vsl/exec_guests/guest_getpid.elf \
+	$(RT)/vsl/exec_guests/guest_uname.elf \
+	$(RT)/vsl/exec_guests/guest_exit_group.elf \
+	$(RT)/vsl/exec_guests/guest_fault.elf
+
+$(RT)/vsl/exec_guests/%.elf: $(RT)/vsl/exec_guests/%.c
+	$(CC) -O1 -nostdlib -static -ffreestanding -fno-pie -no-pie \
+		-fno-stack-protector -fno-asynchronous-unwind-tables \
+		-Wl,-N -Wl,-Ttext-segment=0x40000000 -Wl,--build-id=none $< -o $@
+
+VSL_EXEC_OBJS = $(filter-out $(RT)/wubu_vsl_test.o,$(VSL_OBJS)) \
+	$(RT)/vsl/vsl_exec_engine.o $(RT)/vsl/vsl_exec_test.o
+
+test_vsl_exec: $(VSL_EXEC_OBJS) $(VSL_EXEC_GUESTS)
+	$(CC) -O0 -g -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl -Iinclude $(RT)/wubu_crc32.c \
+		$(VSL_EXEC_OBJS) \
+		-o $(RT)/wubu_vsl_exec_test -ldl -lvulkan -lcuda
+	$(RT)/wubu_vsl_exec_test $(RT)/vsl/exec_guests
+
 
 test_vsl_nt: $(VSL_NT_OBJS) $(KERNEL)/wubu_modsym.o
 	$(CC) -O0 -g -no-pie -D_POSIX_C_SOURCE=200809L -include wubu_gnu_compat.h -DHAVE_VULKAN -DHAVE_CUDA -I$(RT) -I$(RT)/vsl  -Iinclude  $(RT)/wubu_crc32.c \
