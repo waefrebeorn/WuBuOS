@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include <stdarg.h>
 
+/* vsnprintf is defined below, after snprintf uses it — declare it here.
+ * (libc.h is NOT includable: it re-defines struct tm/sigaction/cli/sti
+ * that this file owns — a duplicate-owner problem for the ledger.) */
+int vsnprintf(char *str, size_t size, const char *fmt, va_list ap);
+
 /* Forward declare needed types */
 typedef struct { int __val[1]; } FILE;
 typedef long time_t;

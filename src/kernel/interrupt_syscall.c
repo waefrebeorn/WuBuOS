@@ -11,6 +11,7 @@
 
 #include "../egojar.h"
 #include "interrupt.h"
+#include "klog.h"   /* klog_printf */
 #include "interrupt_apic.h"
 #include "tasking.h"
 #include "memory.h"

@@ -5,6 +5,7 @@
  * C11, freestanding.
  */
 #include "wubu_console.h"
+#include <string.h>   /* memset/strncpy/strcmp: declare what you use */
 #include "wubu_serial.h"
 #include "wubu_recovery.h"
 #include "klog.h"

@@ -10,6 +10,7 @@
  * the low 1 GB. Freestanding C11.
  */
 #include "wubu_acpi.h"
+#include <string.h>   /* memset/strncpy/strcmp: declare what you use */
 
 /* ---- raw physical reads -------------------------------------------- */
 

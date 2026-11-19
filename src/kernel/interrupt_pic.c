@@ -12,6 +12,7 @@
  * API from interrupt_pic.h. No god-header — only PIC + routing concerns.
  */
 #include "interrupt_pic.h"
+#include "interrupt.h"   /* ioapic_route_irq */
 #include "interrupt_io.h"
 #include "interrupt_apic.h"
 #include "memory.h"

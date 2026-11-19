@@ -11,6 +11,7 @@
  */
 
 #include <stdint.h>
+#include "interrupt_io.h"   /* inb/outb: self-contained header */
 
 #define COM1_PORT 0x3F8
 #define COM1_LSR  (COM1_PORT + 5)

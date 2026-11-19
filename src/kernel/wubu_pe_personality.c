@@ -12,6 +12,7 @@
  * the kernel tree, but the dispatch is centralized here).
  */
 #include "wubu_pe_personality.h"
+#include <strings.h>   /* strcasecmp */
 #include <string.h>
 
 /* the registry of every DLL the kernel answers */

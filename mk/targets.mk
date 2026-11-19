@@ -283,6 +283,13 @@ holyd-verify:
 	rm -f $(CACHE)/holyd_boot.hc $(CACHE)/holyd_boot.elf $(CACHE)/holyd.iso /tmp/holyd_serial.bin
 	rm -rf $(CACHE)/holyd-iso-stage
 
+# gcc14-class declaration-hygiene campaign. Measured 2026-11-19: 214
+# strict errors tree-wide (implicit declarations, int/pointer conditionals,
+# prototype-scope struct tags). Wave 1 fixed 11 files. Ratchet: run this,
+# fix a wave, repeat until clean — then unpin boot-verify CI from gcc-13.
+kernel-strict:
+	$(MAKE) -B kernel KERNEL_CFLAGS="-Iinclude -DMYSEED_METAL -DWUBU_BAREMETAL=1 -DWUBU_NO_LIBM -fno-jump-tables -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=implicit-function-declaration"
+
 iso: $(KERNEL)/kernel.elf
 	rm -rf $(CACHE)/iso-stage && mkdir -p $(CACHE)/iso-stage/boot/grub
 	cp $(KERNEL)/kernel.elf $(CACHE)/iso-stage/boot/wubuos.elf

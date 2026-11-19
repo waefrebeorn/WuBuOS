@@ -10,6 +10,7 @@
  * is single-CPU cooperative: the PIT timer calls wubu_agi_kernel_tick().
  */
 #include "wubu_agi_kernel.h"
+#include <stdio.h>   /* snprintf: kernel libc.c implements, stdio declares */
 #include "wubu_gaad.h"
 #include "wubu_attest.h"
 #include "wubu_bonzi.h"

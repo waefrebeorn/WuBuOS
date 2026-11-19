@@ -1,5 +1,11 @@
 #include "wubu_probe_matrix.h"
 #include "wubu_probe.h"
+#include "wubu_hw_detect.h"
+#include "wubu_audio.h"
+#include "wubu_storage.h"
+#include "wubu_net.h"
+#include "wubu_input.h"
+#include "wubu_display.h"
 #include <string.h>
 #include <stdio.h>
 

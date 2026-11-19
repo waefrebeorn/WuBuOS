@@ -81,6 +81,28 @@ tarballs + per-host build notes) once the matrix is green. Users
 never need a payment plan or a support ticket: clone, make, run —
 or download the ISO and boot it.
 
+## Campaign: kernel gcc14/C11 declaration hygiene (opened 2026-11-19)
+
+The boot-verify CI (gcc14 on ubuntu-latest) exposed that the kernel
+still compiles via implicit declarations and other pre-C11 habits:
+**214 strict errors** measured with -Werror=incompatible-pointer-types
+-Werror=int-conversion -Werror=implicit-function-declaration.
+
+Wave 1 (fixed, verified): the prototype-scope struct tag in wubu_drv.h
+(a REAL type bug — probe's parameter was a different type from the
+device struct); missing includes in fat32_format.c, wubu_agi_kernel.c,
+interrupt_pic.c, interrupt_syscall.c, wubu_attest.c, wubu_serial.h
+(now self-contained), wubu_probe_matrix.c, wubu_acpi.c,
+wubu_console_recovery.c, wubu_pe_personality.c; vsnprintf forward
+declaration in libc.c. Also found: libc.h re-defines struct tm /
+sigaction / cli/sti that libc.c owns — a duplicate-owner merge for a
+later wave (libc.c cannot include its own header today).
+
+Ratchet: `make kernel-strict` (mk/targets.mk). Fix a wave, re-measure,
+repeat until clean; then unpin boot-verify CI from gcc-13. Until then
+CI builds the kernel with gcc-13 (its current toolchain) — the boot
+proof is not blocked by the hygiene campaign.
+
 ## Closed gap: WuBuKernel is public (2026-11-19)
 
 The WuBuKernel submodule repo was PRIVATE — a fresh public clone of

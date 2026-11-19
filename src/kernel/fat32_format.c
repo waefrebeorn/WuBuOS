@@ -1,6 +1,7 @@
 /* fat32_format.c -- mount/unmount/format/validate (volume lifecycle, leaf module).
  * Opaque fat32_volume via fat32_internal.h. C11, minimal includes. */
 #include "fat32_internal.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
