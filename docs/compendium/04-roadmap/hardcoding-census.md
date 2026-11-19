@@ -19,7 +19,7 @@ Fixed (values compared comment-free); these are the honest numbers:
 | wubuos (body) | 2276 | 30 | 154 | 3240 | 95 | 180 | 23 |
 | wubunos (compiler) | 254 | 4 | 81 | 71 | 58 | 54 | 8 |
 | wubuwizard (brain) | 1608 | 56 | 38 | 485 | 218 | 193 | 1 |
-| wubucompositor | 9 | 1 | 0 | 2 | 3 | 2 | 0 |
+| wubucompositor | 12 | 0 | 1 | 3 | 3 | 0 | 0 |
 | wubulens | 23 | 0 | 0 | 20 | 8 | 2 | 1 |
 | W-Code | 10 | 0 | 0 | 15 | 1 | 4 | 0 |
 | WuBuKernel | 8 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -129,6 +129,35 @@ unchanged. The battery newly exposes z80 signed lt/gt (4 cases), mips eq
 wubunos census after: 4 conflicts / 81 mirrors (remaining conflicts:
 CC_LE/CC_NE layer-local HolyD-vs-m68k names, OP_RETURN wasm-vs-spirv,
 MAX_TESTS test-local caps — triage before touching).
+
+## Sibling leg 2: wubucompositor — pushed 08579e6 (main)
+
+- The default guest command was the absolute literal
+  `/home/wubu/wubuos/src/hosted/wubu` in TWO files — the compositor only
+  worked on one machine's layout. New leaf `src/wcc_spawn.{c,h}` owns
+  guest launch: the env knobs + a default derived from `/proc/self/exe`
+  (`<exe_dir>/../wubuos/src/hosted/wubu`); the old path survives only as
+  a named build-overridable last-resort fallback. Gate: `make test-spawn`
+  (headless) — derived default executable, NO_SPAWN=1 forks nothing,
+  START_CMD runs a real child to exit 0, NO_SPAWN=0 still spawns. ALL PASS.
+- `src/main.c` is the DEAD wlroots-era entry point (the Makefile builds
+  only the slerm) — banner-marked LEGACY, removal is an owner decision.
+- The WL_PRIVATE "conflict" was generated wayland-scanner code; the
+  census now skips generated files, and `calloc(1, sizeof T)` is no
+  longer counted as a literal allocation. Compositor census: 0 conflicts.
+- Live nested run NOT performed (no DISPLAY in the agent session);
+  `wcc_test.sh` remains the live gate on a desktop session.
+- NEXT compositor leg: wubucompositor.c is 1186 lines — dissolve into
+  per-concern leaves (globals/surface/xdg/seat/paint/GLX/XShm) per the
+  no-monolith law. The spawn leaf is the first extraction.
+
+## Scope: wubuwizard is its own mission (owner directive 2026-11-19)
+
+The brain is the AGI portion of the OS and the KV cache IS its
+filesystem — it is NOT part of this OS de-hardcoding workstream. Its
+census numbers above are informational; edits there happen under the
+brain's own missions (wubuwizard-kvfs-modules, wubu-agi-training-pipeline),
+not this ledger.
 
 ## Triage classes (do not "fix" blindly)
 
