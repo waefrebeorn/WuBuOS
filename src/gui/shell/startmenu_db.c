@@ -150,7 +150,7 @@ void startmenu_build_submenus(void) {
     }
 
     /* WuBuOS - ensure core apps present */
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         SmSubmenu *sub = &g_wubuos;
         const char *label = "", *app_name = "";
         switch (i) {
@@ -158,6 +158,7 @@ void startmenu_build_submenus(void) {
             case 1: label = "Temple REPL"; app_name = "Temple REPL"; break;
             case 2: label = "Package Manager"; app_name = "Package Manager"; break;
             case 3: label = "Container Manager"; app_name = "Container Manager"; break;
+            case 4: label = "Guests"; app_name = "Guests"; break;
         }
         for (int j = 0; j < sub->item_count; j++) {
             if (strcmp(sub->items[j].label, label) == 0) goto next_wubuos;

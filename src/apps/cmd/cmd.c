@@ -11,6 +11,11 @@
 #include <stdio.h>
 #include <pty.h>
 
+/* L8: WuBuOS-side 'guest' commands are intercepted BEFORE the host pty.
+ * Weak so lean links without the import module (test_cmd) keep the pure
+ * pty behaviour; the product (RT_OBJS) carries the real dispatcher. */
+__attribute__((weak)) int wubu_guest_cli(const char *line, char *out, size_t outsz);
+
 #define CMD_MAX_HISTORY 1000
 #define CMD_MAX_LINE 4096
 #define CMD_TAB_STOP 8
@@ -207,8 +212,24 @@ void wubu_cmd_key(WubuCmd *cmd, int key) {
             if (g_cmd.input_len > 0) {
                 g_cmd.input_buffer[g_cmd.input_len] = '\0';
                 cmd_add_to_history(g_cmd.input_buffer);
-                cmd_pty_write(g_cmd.input_buffer, g_cmd.input_len);
-                cmd_pty_write("\n", 1);
+                /* WuBuOS-side guest control (import/launch/list/remove)
+                 * runs in-process through the validated container path --
+                 * it never reaches the host shell. */
+                int handled = 0;
+                if (wubu_guest_cli) {
+                    char gout[4096];
+                    if (wubu_guest_cli(g_cmd.input_buffer, gout, sizeof(gout))) {
+                        cmd_screen_feed(g_cmd.input_buffer, g_cmd.input_len);
+                        cmd_screen_feed("\n", 1);
+                        cmd_screen_feed(gout, (int)strlen(gout));
+                        cmd_screen_feed("\n", 1);
+                        handled = 1;
+                    }
+                }
+                if (!handled) {
+                    cmd_pty_write(g_cmd.input_buffer, g_cmd.input_len);
+                    cmd_pty_write("\n", 1);
+                }
                 g_cmd.input_len = 0;
                 g_cmd.cursor_pos = 0;
                 g_cmd.input_buffer[0] = '\0';   /* the render reads the buffer

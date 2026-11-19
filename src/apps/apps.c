@@ -46,6 +46,9 @@ __attribute__((weak)) DosGuiWindow *launch_wet_applet(const char *path);
 __attribute__((weak)) DosGuiWindow *launch_vws_designer(void);
 __attribute__((weak)) DosGuiWindow *gs_launch(void);
 __attribute__((weak)) DosGuiWindow *wubu_tutorial_browser(void);
+/* L8 Guests window: lives in src/gui/guests_panel.c (GUI_OBJS). Weak so
+ * lean app-registry links without the GUI panel still link. */
+__attribute__((weak)) DosGuiWindow *launch_guests(void);
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -274,6 +277,12 @@ DosGuiWindow* launch_wet(void) {
     return launch_wet_applet ? launch_wet_applet(NULL) : NULL;
 }
 
+/* L8: the Guests window (imported rootfs list + Launch). Adapter guards
+ * the weak symbol -- calling an undefined weak function jumps to 0. */
+DosGuiWindow* launch_guests_entry(void) {
+    return launch_guests ? launch_guests() : NULL;
+}
+
 DosGuiWindow* launch_canvas(void) {
     app_canvas_init();
     DosGuiWindow *win = wm_create(120, 90, 900, 640, "WuBu Canvas");
@@ -377,6 +386,8 @@ const DosGuiAppDef g_app_defs[] = {
     /* A .wet applet is a first-class program kind: every program made from a
      * VWS template is one of these, so the launcher belongs in the registry. */
     { "WET Applet", "WET Applet", DESK_ICON_COUNT + 16, 0x0080C0A0, launch_wet },
+    /* L8: load their system -- imported distro roots, launchable guests. */
+    { "Guests", "Guests", DESK_ICON_COUNT + 18, 0x0020A060, launch_guests_entry },
 };
 const int g_app_def_count = (int)(sizeof(g_app_defs) / sizeof(g_app_defs[0]));
 

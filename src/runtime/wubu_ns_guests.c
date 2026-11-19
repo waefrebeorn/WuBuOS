@@ -25,6 +25,25 @@
 
 #define GUESTS_MAX 64   /* matches WUBU_CT_REGISTRY_MAX in wubu_host_exec.c */
 
+/* -- L8 imported-root seams -------------------------------------------
+ * Weak no-ops here so every link line that carries wubu_ns_guests.o works
+ * without the import module (the L9 gates); the real wubu_guest_import.o
+ * overrides them at link time (product RT_OBJS + the guest-import gate).
+ * Same convention as wubu_host_exec's guests sync/forget hooks. */
+__attribute__((weak)) int wubu_guest_import_count(void) { return 0; }
+__attribute__((weak)) int wubu_guest_import_entry(int idx, char *name,
+    size_t namesz, char *root, size_t rootsz, char *state, size_t statesz) {
+    (void)idx; (void)name; (void)namesz; (void)root; (void)rootsz;
+    (void)state; (void)statesz; return -1;
+}
+__attribute__((weak)) int wubu_guest_import_root(const char *name,
+    char *out, size_t outsz) {
+    (void)name; (void)out; (void)outsz; return -1;
+}
+__attribute__((weak)) int wubu_guest_import_cmdline(const char *args) {
+    (void)args; return -1;
+}
+
 /* -- Ownership of namespace-launched guests ------------------------- */
 
 static WubuCt *g_owned[GUESTS_MAX];
@@ -89,6 +108,9 @@ int wubu_ns_guests_probe(const char *path, uint8_t *qid_type) {
     if (!guests_sub(path, sub, sizeof(sub))) return 0;
     if (sub[0] == '\0') { *qid_type = STX_QTDIR; return 1; }  /* guests/ */
 
+    /* guests/import: the L8 control file (write "<path> <name>" to import). */
+    if (strcmp(sub, "import") == 0) { *qid_type = STX_QTFILE; return 1; }
+
     char *slash = strchr(sub, '/');
     size_t nlen = slash ? (size_t)(slash - sub) : strlen(sub);
     char name[WUBU_CT_NAME_MAX];
@@ -109,6 +131,23 @@ int wubu_ns_guests_write(const char *path, const uint8_t *data,
                          uint32_t count, uint32_t *nwritten) {
     char sub[512];
     if (!guests_sub(path, sub, sizeof(sub))) return 0;   /* not ours */
+
+    /* guests/import: L8 import write. Body is "<path> <name>" (path may be
+     * double-quoted); the ONE parser lives in wubu_guest_import.c. */
+    if (strcmp(sub, "import") == 0) {
+        if (count > 4095) return -1;
+        char args[4096];
+        if (count > 0 && data) memcpy(args, data, count);
+        args[count] = '\0';
+        size_t l = strlen(args);
+        while (l > 0 && (args[l-1] == '\n' || args[l-1] == '\r' ||
+                         args[l-1] == ' '  || args[l-1] == '\t'))
+            args[--l] = '\0';
+        if (l == 0) return -1;               /* empty import: refuse loudly */
+        if (wubu_guest_import_cmdline(args) != 0) return -1;
+        if (nwritten) *nwritten = count;
+        return 1;
+    }
 
     /* Only guests/<name>/launch is a control write. */
     char *slash = strchr(sub, '/');
@@ -182,10 +221,17 @@ int wubu_ns_guests_launch(const char *name, const char *cmdline) {
     int argc = split_cmdline(buf, argv, WUBU_CT_MAX_ARGS);
     if (argc <= 0) return -1;
 
-    /* Default root "/" = host-namespace native guest (the existing exec
-     * path's convention); an operator can pin a real rootfs via env. */
-    const char *root = getenv("WUBU_GUESTS_LAUNCH_ROOT");
-    if (!root || !*root) root = "/";
+    /* Root resolution: an L8 imported root wins (the managed store is the
+     * owner of that name's filesystem); else the operator env pin; else
+     * "/" = host-namespace native guest (the L9 convention). */
+    char rootbuf[WUBU_CT_ROOT_MAX];
+    const char *root = NULL;
+    if (wubu_guest_import_root(name, rootbuf, sizeof(rootbuf)) == 0)
+        root = rootbuf;
+    if (!root) {
+        root = getenv("WUBU_GUESTS_LAUNCH_ROOT");
+        if (!root || !*root) root = "/";
+    }
 
     WubuCt *ct = wubu_ct_create(name, root, CT_NATIVE);
     if (!ct) return -1;
@@ -261,6 +307,44 @@ int wubu_ns_guests_sync(void) {
     }
     ns_write("guests/list", list);
 
+    /* 2b. L8: render IMPORTED roots (the managed store is their registry).
+     *     A name that is currently running was already rendered above with
+     *     live state; idle imported roots publish state=imported so
+     *     guests/list shows every loadable system, not just live ones. */
+    ns_write("guests/import",
+             "# write \"<path> <name>\" to import a rootfs as a guest\n");
+    int nimp = wubu_guest_import_count();
+    for (int i = 0; i < nimp && i < GUESTS_MAX; i++) {
+        char name[WUBU_CT_NAME_MAX], root[WUBU_CT_ROOT_MAX], state[16];
+        if (wubu_guest_import_entry(i, name, sizeof(name), root, sizeof(root),
+                                    state, sizeof(state)) != 0) continue;
+        int already = 0;
+        for (int k = 0; k < nrun; k++)
+            if (strcmp(running[k], name) == 0) { already = 1; break; }
+        if (already) continue;
+
+        int w = snprintf(list + off, sizeof(list) - off,
+                         "%s\t0\t%s\tnative\t%s\n", name, root, state);
+        if (w >= 0 && (size_t)w < sizeof(list) - off) off += (size_t)w;
+
+        if (nrun < GUESTS_MAX) {
+            strncpy(running[nrun], name, WUBU_CT_NAME_MAX - 1);
+            running[nrun][WUBU_CT_NAME_MAX - 1] = '\0';
+            nrun++;
+        }
+        char sub[512], body[1024];
+        snprintf(sub, sizeof(sub), "guests/%s", name);
+        ns_mkdir(sub);
+        snprintf(body, sizeof(body),
+                 "state: %s\npid: 0\nroot: %s\npersonality: native\nstyx: -\n",
+                 state, root);
+        snprintf(sub, sizeof(sub), "guests/%s/state", name);
+        ns_write(sub, body);
+        snprintf(sub, sizeof(sub), "guests/%s/launch", name);
+        ns_write(sub, "# write a command line to launch this guest\n");
+    }
+    ns_write("guests/list", list);
+
     /* 3. Remove published entries for guests no longer running. Collect
      *    names first, then delete (deleting while enumerating shifts). */
     char gdir[4096];
@@ -272,6 +356,9 @@ int wubu_ns_guests_sync(void) {
         struct dirent *de;
         while ((de = readdir(d)) != NULL && nstale < GUESTS_MAX) {
             if (de->d_name[0] == '.') continue;
+            /* Control files at the guests/ level, not guest entries. */
+            if (strcmp(de->d_name, "list") == 0 ||
+                strcmp(de->d_name, "import") == 0) continue;
             int keep = 0;
             for (int i = 0; i < nrun; i++)
                 if (strcmp(running[i], de->d_name) == 0) { keep = 1; break; }

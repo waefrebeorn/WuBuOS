@@ -128,44 +128,79 @@ int wubu_rd_mount(WubuRamdisk *rd) {
     return 0;
 }
 
+/* -- Helper: single-quote a path for /bin/sh -c ----------------------
+ * Wraps the whole path in single quotes; embedded single quotes become
+ * '\'' . Returns 0 on success, -1 if the quoted form would not fit
+ * (caller refuses rather than truncating a command). */
+static int shquote(const char *in, char *out, size_t outsz) {
+    size_t o = 0;
+    #define QPUT(c) do { if (o + 1 >= outsz) return -1; out[o++] = (c); } while (0)
+    QPUT('\'');
+    for (const char *p = in; *p; p++) {
+        if (*p == '\'') {
+            QPUT('\''); QPUT('\\'); QPUT('\''); QPUT('\'');
+        } else {
+            QPUT(*p);
+        }
+    }
+    QPUT('\'');
+    QPUT('\0');
+    #undef QPUT
+    return 0;
+}
+
 /* -- Load rootfs image -------------------------------------------- */
 
 int wubu_rd_load(WubuRamdisk *rd) {
     if (!rd || rd->state < WUBU_RD_MOUNTED) return -1;
 
     ImgFormat fmt = detect_format(rd->image_path);
-    char cmd[2048];
+    char cmd[4096];
+    char qimg[1200], qpath[1200];
+    if (shquote(rd->image_path, qimg, sizeof(qimg)) != 0 ||
+        shquote(rd->path, qpath, sizeof(qpath)) != 0) {
+        rd->state = WUBU_RD_FAILED;
+        return -1;
+    }
 
     switch (fmt) {
         case IMG_CPIO_GZ:
             snprintf(cmd, sizeof(cmd),
                      "gunzip -c %s | (cd %s && cpio -idm 2>/dev/null)",
-                     rd->image_path, rd->path);
+                     qimg, qpath);
             break;
 
         case IMG_TAR_GZ:
             snprintf(cmd, sizeof(cmd),
                      "tar xzf %s -C %s 2>/dev/null",
-                     rd->image_path, rd->path);
+                     qimg, qpath);
             break;
 
         case IMG_TAR_ZST:
             snprintf(cmd, sizeof(cmd),
                      "tar --zstd -xf %s -C %s 2>/dev/null",
-                     rd->image_path, rd->path);
+                     qimg, qpath);
             break;
 
         case IMG_DIRECTORY:
-            snprintf(cmd, sizeof(cmd),
-                     "cp -a %s/. %s/ 2>/dev/null",
-                     rd->image_path, rd->path);
+            /* cp -a <dir>/. <target>/ -- the /. suffix copies contents. */
+            {
+                char src[600], qsrc[1280];
+                snprintf(src, sizeof(src), "%s/.", rd->image_path);
+                if (shquote(src, qsrc, sizeof(qsrc)) != 0) {
+                    rd->state = WUBU_RD_FAILED;
+                    return -1;
+                }
+                snprintf(cmd, sizeof(cmd),
+                         "cp -a %s %s/ 2>/dev/null", qsrc, qpath);
+            }
             break;
 
         default:
             /* Try tar.gz as default */
             snprintf(cmd, sizeof(cmd),
                      "tar xzf %s -C %s 2>/dev/null",
-                     rd->image_path, rd->path);
+                     qimg, qpath);
             break;
     }
 
